@@ -32,6 +32,12 @@
 //  Drops Hurt Only Falling)
 //  21 not a test: a head pop's brain chunks (vr_smallgibs_brains_pop) burst vr_smallgibs_test_dist units ahead (40)
 //     at chest height, to look at (they fly, land, lie about); 7 prints the brain chunks of the head's burst too
+//  22 thrown gibs stick, by mass: from where you stand (15 first: at the wall) gibs of 8, 12 and 20 kg (gib1, gib3,
+//     gib2), a grunt's and an ogre's head (10, 30 kg) and a small gib thrown at the wall ahead as a hand's throw at 2 to
+//     6 m/s makes them (throwvelocity: limited by their mass), aimed 5 to 25 degrees up, 3 either side, side by side 36
+//     units apart (a wall 220 wide); each vr_smallgibs_test_n times (keep it small: 10); after 1.5 s, stuck, burst or
+//     neither (removed then). Prints a
+//     table: per gib and hand speed, stuck/thrown (burst) and the mean release speed
 // With vr_smallgibs_test_dummy 1 their target is the nearest training dummy instead (vr_dummy_gore: it bleeds as a grunt);
 // 1, 2, 3, 4 and 6 print the gore each sent too (gore hits, wound events, blood particles), to compare with a grunt's.
 
@@ -361,6 +367,138 @@ float(entity p, entity m) VR_SmallGib_TestNearHealth =
     return sum;
 };
 
+// Test 22's (thrown gibs stick, by mass): the gibs (VR_GST_MODELS) by hand speeds (VR_GST_SPEEDS: 2..6 m/s), a cell
+// each; the throw under way (its gib marked .vr_gibstick_test: a freed and reused entity loses it), the counts.
+.float vr_gibstick_test;
+float VR_GST_MODELS = 6;
+float VR_GST_SPEEDS = 5;
+float vr_gst_k;
+float vr_gst_n;
+entity vr_gst_g[6];
+float vr_gst_stuck[30];
+float vr_gst_burst[30];
+float vr_gst_speed[30];
+
+string(float i) VR_SmallGib_StickName =
+{
+    if(i == 0) { return "progs/gib1.mdl"; }
+    if(i == 1) { return "progs/gib3.mdl"; }
+    if(i == 2) { return "progs/gib2.mdl"; }
+    if(i == 3) { return "progs/h_guard.mdl"; }
+    if(i == 4) { return "progs/h_ogre.mdl"; }
+    return "small gib";
+};
+
+// Test 22: cell `xCell`'s throw from `self` (the player) at the wall ahead.
+void(float xCell) VR_SmallGib_StickThrow =
+{
+    float i = xCell - floor(xCell / VR_GST_MODELS) * VR_GST_MODELS;
+    float hand = 2 + floor(xCell / VR_GST_MODELS);
+    makevectors('0 1 0' * (self.v_viewangle_y + crandom() * 3));
+    vector from = self.origin + '0 0 10' + v_forward * 20 + v_right * ((i - 2.5) * 36); // (side by side: a round at once)
+    float up = (5 + random() * 20) * (3.14159265 / 180);
+    vector dir = v_forward * cos(up) + '0 0 1' * sin(up);
+    entity g;
+    if(i == 5)
+    {
+        float grace = cvar("vr_smallgibs_grace");
+        cvar_set("vr_smallgibs_grace", "0");
+        g = VR_SmallGib_Spawn(from, '0 0 0', world);
+        cvar_set("vr_smallgibs_grace", ftos(grace));
+    }
+    else
+    {
+        g = spawn();
+        setmodel(g, VR_SmallGib_StickName(i));
+        setorigin(g, from);
+        g.think = SUB_Remove;
+        g.nextthink = time + 30;
+        VR_MakeGibGrabbable(g);
+        VR_Gib_MakeDestroyable(g, i >= 3 ? 1.5 : 1);
+        g.vr_gib_armtime = time;
+    }
+    g.vr_rigid = 1;
+    g.movetype = MOVETYPE_TOSS;
+    g.flags = g.flags - (g.flags & FL_ONGROUND);
+    g.carry_letgo = self;
+    g.carry_letgo_time = time;
+    g.avelocity = '0 0 0';
+    g.vr_spin = randomVec(1) * 4;
+    vector v = throwvelocity(dir * hand, '0 0 0', propvalue(g, "mass"), 1) * VRMetersToUnits() *
+               cvar_hget(cvarh_vr_carry_throw_mult) * propvalue(g, "throw");
+    VR_Carry_Throw(g, v);
+    VR_Gib_Released(g, vlen(v), cVR_MainHand);
+    g.vr_gibstick_test = 1;
+    vr_gst_g[i] = g;
+    vr_gst_speed[xCell] += vlen(v);
+};
+
+// Test 22: round `xRound`'s throws (each gib at once, side by side 36 units apart), at the round's hand speed.
+void(float xRound) VR_SmallGib_StickRound =
+{
+    float speed = xRound - floor(xRound / VR_GST_SPEEDS) * VR_GST_SPEEDS;
+    for(float m = 0; m < VR_GST_MODELS; m++)
+    {
+        VR_SmallGib_StickThrow(speed * VR_GST_MODELS + m);
+    }
+};
+
+// Test 22, each frame: 1.5 s after a throw, its outcome; then the next, or the table.
+void() VR_SmallGib_StickFrame =
+{
+    if(time - vr_sgib_test_t < 1.5)
+    {
+        return;
+    }
+    float speed = vr_gst_k - floor(vr_gst_k / VR_GST_SPEEDS) * VR_GST_SPEEDS;
+    for(float m = 0; m < VR_GST_MODELS; m++)
+    {
+        entity g = vr_gst_g[m];
+        float cell = speed * VR_GST_MODELS + m;
+        if(g.vr_gibstick_test && g.vr_gib)
+        {
+            vr_gst_stuck[cell] += (g.vr_gib_stuck != 0);
+            if(g.vr_sgib)
+            {
+                VR_SmallGib_Remove(g);
+            }
+            else
+            {
+                remove(g);
+            }
+        }
+        else
+        {
+            vr_gst_burst[cell] += 1;
+        }
+    }
+    vr_gst_k++;
+    vr_sgib_test_t = time;
+    if(vr_gst_k < vr_gst_n * VR_GST_SPEEDS)
+    {
+        VR_SmallGib_StickRound(vr_gst_k);
+        return;
+    }
+    bprint(sprintf("gibstick: Speed to Stick %g, Thrown Gibs Stick %g, Gib Splat Speed %g; %g throws each; stuck/thrown (burst) at u/s\n",
+        cvar_hget(cvarh_vr_gore_stick_speed), cvar_hget(cvarh_vr_gore_stick_thrown), cvar_hget(cvarh_vr_gib_splat_speed), vr_gst_n));
+    float gi, gj, gc;
+    string row;
+    for(gi = 0; gi < VR_GST_MODELS; gi++)
+    {
+        row = strcat("gibstick: ", VR_SmallGib_StickName(gi));
+        for(gj = 0; gj < VR_GST_SPEEDS; gj++)
+        {
+            gc = gj * VR_GST_MODELS + gi;
+            float ns = vr_gst_stuck[gc];
+            float nb = vr_gst_burst[gc];
+            float sp = vr_gst_speed[gc] / vr_gst_n;
+            row = strcat(row, sprintf(" | %g m/s %g/%g (%g) %.0f", 2 + gj, ns, vr_gst_n, nb, sp));
+        }
+        bprint(strcat(row, "\n"));
+    }
+    vr_sgib_test = 0;
+};
+
 void(float xCase) VR_SmallGib_TestStart =
 {
     vr_sgib_test = xCase;
@@ -444,7 +582,7 @@ void(float xCase) VR_SmallGib_TestStart =
         bprint(sprintf("sgibtest: a gib made at your feet: %d\n", vr_sgib_test_g != world));
         return;
     }
-    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14 && xCase != 21)
+    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14 && xCase != 21 && xCase != 22)
     {
         bprint("sgibtest: no monster or corpse near\n");
         vr_sgib_test = 0;
@@ -721,6 +859,19 @@ void(float xCase) VR_SmallGib_TestStart =
         m.think = SUB_Null; // (still: its AI stopped)
         m.nextthink = -1;
         m.velocity = '0 0 0';
+    }
+    else if(xCase == 22)
+    {
+        vr_gst_n = max(1, n);
+        vr_gst_k = 0;
+        for(float gc = 0; gc < 30; gc++)
+        {
+            vr_gst_stuck[gc] = 0;
+            vr_gst_burst[gc] = 0;
+            vr_gst_speed[gc] = 0;
+        }
+        VR_SmallGib_StickRound(0);
+        vr_sgib_test_t = time;
     }
     if(xCase == 14)
     {
@@ -1023,6 +1174,10 @@ void() VR_SmallGib_TestFrame =
                     cvar_hget(cvarh_vr_prop_drop_falls_only), cvar("vr_prop_drop_pass_inside")));
                 vr_sgib_test = 0;
             }
+        }
+        else if(vr_sgib_test == 22)
+        {
+            VR_SmallGib_StickFrame();
         }
         else if(vr_sgib_test == 12)
         {

@@ -1737,12 +1737,24 @@ void() VR_Gib_Think2 =
             VR_Gib_Burst(self, self.vr_gib_lastvel);
             return;
         }
-        // Slower (or one that can't burst): into a wall or a ceiling it may stick (vr_gore_stick_thrown).
-        if(lastSpeed >= cvar_hget(cvarh_vr_gore_stick_speed) && vlen(change) >= lastSpeed * 0.5 &&
+        // Slower (or one that can't burst): into a wall or a ceiling it may stick (vr_gore_stick_thrown). What it struck:
+        // what lies along its way; else across (falling steeply down a wall, its way down meets the floor first). A
+        // hit is its speed into that surface (not along it) turned by a quarter or more in a frame (Box3D's contact
+        // can take two), at Speed to Stick: a gib lobbed into a wall falls faster than it goes in, so its whole turn was
+        // under half its speed (2026-10-06: about half of the throws at a wall never stuck).
+        float stickSpeed = cvar_hget(cvarh_vr_gore_stick_speed);
+        if(lastSpeed >= stickSpeed && vlen(change) >= max(stickSpeed, lastSpeed * 0.25) &&
            cvar_hget(cvarh_vr_gore_stick_thrown) > 0)
         {
             traceline(self.origin, self.origin + normalize(self.vr_gib_lastvel) * 40, TRUE, self);
-            if(trace_fraction < 1 && !trace_startsolid)
+            vector across = self.vr_gib_lastvel;
+            across_z = 0;
+            if((trace_fraction >= 1 || trace_startsolid || trace_plane_normal_z > 0.7) && vlen(across) > 1)
+            {
+                traceline(self.origin, self.origin + normalize(across) * 24, TRUE, self);
+            }
+            float into = -(self.vr_gib_lastvel * trace_plane_normal);
+            if(trace_fraction < 1 && !trace_startsolid && into >= stickSpeed && change * trace_plane_normal >= into * 0.25)
             {
                 vr_gore_stick_thrown = min(1, cvar_hget(cvarh_vr_gore_stick_thrown));
                 float stuck = VR_Gore_Stick(self, trace_endpos, trace_plane_normal, lastSpeed);
@@ -1754,7 +1766,8 @@ void() VR_Gib_Think2 =
                 }
             }
             dprint(sprintf("gib: struck the world at %.1f (turned by %.1f), %.2f s after it was let go of: not stuck%s\n",
-                lastSpeed, vlen(change), time - self.vr_gib_releasetime, trace_fraction < 1 ? "" : " (no wall ahead)"));
+                lastSpeed, vlen(change), time - self.vr_gib_releasetime, trace_fraction >= 1 ? " (no wall ahead)" :
+                sprintf(" (a surface facing %.2f up, %.0f into it)", trace_plane_normal_z, into)));
         }
         self.vr_gib_lastvel = self.velocity;
         next = time + 0.01; // the next frame

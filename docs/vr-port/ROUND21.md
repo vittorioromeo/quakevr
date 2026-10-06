@@ -25526,3 +25526,40 @@ pickup is a prop as any other).
 In VR:
 - [ ] Throw the axe into an explosive box, a crate, a health box: it sticks; kick or carry the box, the axe goes with it;
   blow it up or break it, the axe falls.
+
+### Thrown gibs almost always stick to walls
+
+His answer to "gibs too heavy to splat on walls: lower the splat speed or the masses?": lower the splat speed, gibs
+should almost always stick. Read as sticking (the masses stay): Speed to Stick is already his 20 u/s
+(`vr_gore_stick_speed`), so the misses were elsewhere. Two causes, measured: the roll (Thrown Gibs Stick, his 0.75), and
+the hit test (`VR_Gib_Think2`): a hit on a wall was a turn of half the gib's whole speed in one frame along a 40-unit
+look ahead its way; a gib lobbed into a wall falls faster than it goes in, its turn was under half, and it slid down and
+landed instead (and Box3D's contact can take two frames). Now: what it struck is what lies along its way, else straight
+across (its way down meets the floor first); a hit is its speed *into* that surface (at Speed to Stick or more) turned
+by a quarter or more in a frame; and **Thrown Gibs Stick** ships at 1 (`vr_defaults.cfg`; config 92 moves his 0.75).
+Gib Splat Speed (250, the speed a thrown gib *bursts* at) is unchanged: lowered under 200 his 8 kg gibs and heads would
+burst at a hard throw instead of sticking; if bursting was meant, that is the setting. A gib let go of without a throw
+(slower than Speed to Stick) is never watched: a drop doesn't stick.
+
+Test: `vr_smallgibs_test 22` (new; Debug > Gore Tests > Thrown Gibs Stick, by Mass): gibs side by side thrown at the
+wall as hand throws of 2 to 6 m/s make them (`throwvelocity`, so limited by their mass; 5-25 degrees up), 1.5 s later
+stuck, burst or neither. e1m1's start facing south (`setpos 480 -352 88 0 270 0`, Step Up to the Wall Ahead: 64 units),
+16 throws each; stuck of 16 before (his 0.75, the old hit test) -> after (release speed u/s):
+
+| gib | 2 m/s | 3 m/s | 4 m/s | 5 m/s | 6 m/s |
+|---|---|---|---|---|---|
+| gib1 8 kg | 6 -> 15 (64) | 12 -> 16 (107) | 15 -> 16 (161) | 14 -> 16 (190) | 13 -> 16 (195) |
+| gib3 12 kg | 9 -> 16 (64) | 13 -> 16 (106) | 13 -> 16 (133) | 14 -> 16 (136) | 12 -> 16 (136) |
+| gib2 20 kg | 5 -> 16 (64) | 13 -> 16 (84) | 9 -> 16 (86) | 10 -> 14 (2 burst) (86) | 9 -> 16 (86) |
+| grunt head 10 kg | 3 -> 16 (64) | 13 -> 16 (107) | 13 -> 16 (150) | 11 -> 16 (159) | 12 -> 16 (160) |
+| ogre head 30 kg | 3 -> 16 (57) | 5 -> 15 (59) | 5 -> 16 (59) | 4 -> 13 (59) | 5 -> 14 (59) |
+| small gib 0.3 kg | 6 -> 16 (64) | 11 -> 16 (107) | 13 -> 16 (163) | 15 -> 16 (226) | 0 (16 burst) -> 5 (11 burst) (283) |
+
+(The two 20 kg "burst" at 5 m/s were gone, not burst: 86 u/s can't. The ogre's 30 kg head leaves one hand at 59 u/s
+and often lands short of the wall; a small gib thrown at 6 m/s, 283 u/s, is past Gib Splat Speed and bursts, as
+designed.) At a wall behind a drop (e1m1's north wall from the start, a ledge before it) the gibs fall short: 50-80%
+there, the misses landing in the pit.
+
+In VR:
+- [ ] Throw gibs and heads at a wall from a couple of metres, softly and hard: they stick nearly every time; a hard throw
+  of a small gib bursts.

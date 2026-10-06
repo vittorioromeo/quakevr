@@ -4239,6 +4239,10 @@ za::Vector<Item> pageDebugTools()
         command("Held, Then Let Go", "vr_smallgibs_test 9").help("vr_smallgibs_test 9: one in the off hand for 3 s with Last 1 s, then let go: it waits until it lands."),
         command("Pass Through the Body", "vr_smallgibs_test 10").help("vr_smallgibs_test 10: one from just behind the monster through it at 300 u/s, with the grace and without."),
         command("Throw Gibs at a Wall", "vr_smallgibs_test 12").help("vr_smallgibs_test 12: a gib and a small gib thrown at 220 u/s into the nearest wall stick (Thrown Gibs Stick 1 for it), a gib at 400 bursts."),
+        command("Thrown Gibs Stick, by Mass", "vr_smallgibs_test_n 10; vr_smallgibs_test 22")
+            .help("vr_smallgibs_test 22 (Step Up to the Wall Ahead first, a wall 220 units wide): gibs of 8, 12 and 20 kg, "
+                  "a grunt's and an ogre's head and a small gib thrown at it as hand throws of 2 to 6 m/s make them, 10 each; "
+                  "prints how many stuck or burst (developer 1)."),
         command("Step Up to the Wall Ahead", "vr_smallgibs_test 15")
             .help("vr_smallgibs_test 15: puts you 64 units (vr_smallgibs_test_dist) from the wall you face, to throw gibs at it (Gibs and Corpses: Thrown Gibs Stick, Speed to Stick)."),
         command("Flight by Situation", "vr_smallgibs_test 13")

@@ -420,6 +420,9 @@ const DefaultChange defaultChanges[] = {
     // 92: the author's decisions (2026-10-06; ROUND21.md, "The author's combat decisions"): thrown axes stick in
     // explosive boxes as in every other prop.
     {92, &vr_axestick_metal, "0"},          // 1
+    // 92: thrown gibs almost always stick to walls (the author, 2026-10-06): Thrown Gibs Stick his 0.75 to 1
+    // (vr_defaults.cfg; VR_Gib_Think2 also tells a lobbed gib's hit on a wall now).
+    {92, &vr_gore_stick_thrown, "0.75"},    // 1
 };
 constexpr int configVersion = 92;
 
