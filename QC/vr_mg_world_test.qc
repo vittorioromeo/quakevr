@@ -23,6 +23,7 @@ void() MG_TestFrame = {
     float request = cvar("vr_mg_world_test");
     if(!request) return;
     cvar_set("vr_mg_world_test", "0");
+    if(request == 1000) { VR_Pack_Refresh(); dprint(sprintf("mgpacktest: shield %g statue %g ctf %g\n", vr_have_shield, vr_have_statue, vr_have_ctf)); return; }
     if(!MG_WorldCampaign()) { dprint("mgworldtest: select a native developer campaign first\n"); return; }
     entity oself = self;
     entity oother = other;

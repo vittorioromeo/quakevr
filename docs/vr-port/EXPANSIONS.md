@@ -832,3 +832,7 @@ No assets, private configs, saves or logs are committed. Private `horde-tests/`,
 `evaltakes/`, test configs and screenshots are retained for coordinator cleanup.
 Human VR QA: physical rewards/keys/powerups, real arena gates, hand and holster
 inventory after death/revival, corpse cleanup, and all seven arenas' spawn flow.
+### Resource guard precedence prerequisite (2026-10-06)
+
+The shield, statue and CTF resource groups now parenthesize the entire assignment RHS, so fteqcc evaluates the final resource checks. The existing unarchived world diagnostic request 1000 reports these three availability bits. Private owned-Rogue addon fixtures give 1/1/1 with complete resources and 0/0/0 with shield fadeout, statue death and flag-taking sounds omitted; each still has every first-group resource. Both hidden base-only runs exit 0. QC0, Release, precedence/style and FGD295 pass. No asset payload is committed.
+
