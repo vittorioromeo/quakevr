@@ -9,6 +9,7 @@ Parry: knight and ogre attacks stop after a successful block; compare On/Off in 
 Flames (e1m2): braziers and wall torches warn then burn hands, and burn the body; no phantom fire after taking a torch
 Weapon pickups (e1m3): fresh guns fire before reloading; regrabbing, holstering and handoffs preserve remaining rounds
 Recording: Bullet Time Effects defaults On; toggling it changes spectator effects without changing the headset
+Animated buttons (QRP textures): e1m1 red diamond buttons keep the same bevel in both blink frames and after pressing; e1m4 buttons and the e1m1 planet sign too
 
 [Map tips]
 vrstart: the test tip near the start appears as a CRT screen with its cable when you come into range; its text size follows the map's tip_size
