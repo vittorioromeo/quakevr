@@ -26605,3 +26605,12 @@ at 72, 90, 120, 144, 240 fps (`vr_fixed_frames_rate`), a jittered run, bullet ti
 
 In VR: throw overhand, underarm, flat and with a wrist flick at your headset's lowest and highest refresh rates: the
 same throw should go the same way and as far. Two-handed throws and throws in bullet time as before.
+## Profiling: CPU and GPU, loading and gameplay apart (2026-10-06)
+
+The whole suite with the author's settings (one run each), VTune on the loads alone and on gameplay windows alone,
+the engine's GPU scopes and Nsight Systems: [PROFILING_2026-10.md](PROFILING_2026-10.md) (the tables, the hotspots,
+a decision list of twelve larger items). Fixed: the hull build's allocations (warden's warm load -15%, ad_grendel's
+-16 to -20%, the same trees), the particles' retro light levels (0.2 to 0.1 ms a frame), the suite's gameplay windows
+no longer overlapping the load's AO bakes (`vr_ao_finish`). New: `vr_bench_profiler` / `vr_profiler_collect` (VTune
+collects only benchmark windows or only map loads; Debug > Profiling and Memory > External Profiler Collects),
+`Misc/quakevr/bench/qvrprof.sh`, `vtune_attr.py`.

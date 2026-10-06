@@ -267,5 +267,12 @@ spawn 1.0-1.6 s).
 - **GPU per pass** comes from the always-on phases (shadow maps, world+brush, alias, particles, vr particles, decals,
   the eyes, 3D). Finer GPU scopes (sky, water, translucent, bloom, postprocess, portal) exist only in `vr_profile`'s call
   tree, not in the JSON.
+
+**Gameplay apart from loading** (2026-10-06, [PROFILING_2026-10.md](PROFILING_2026-10.md)): a gameplay scenario's
+set-up ends with `vr_ao_finish` (waits for the models' occlusion bakes the load and the set-up's spawns started: 9 s
+of 4 threads after the firing range loads), so no load work runs inside its window; the `load_*` scenarios keep their
+loads (that is what they measure). For VTune, `vr_bench_profiler 1` resumes its collection for each window alone, `2`
+for each map load alone (the command to the first frame drawn), with VTune started paused:
+`Misc/quakevr/bench/qvrprof.sh` runs a scenario that way (or under Nsight Systems).
 - **Flat mode** frames are paced by the window's swap (`swap` ~2.4 ms of the frame in fast mode): compare flat
   scenarios by `cpu_busy_ms` and `gpu_3d_ms`, not `frame_ms`.
