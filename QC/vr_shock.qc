@@ -1,12 +1,13 @@
 // vr_shock.qc -- lightning's lasting shock (vr_shock_death*; the engine's vr_shock.cpp and vr_box3d.cpp, "Shocked
-// ragdolls"). A monster the lightning kills, or a body it strikes once dead, keeps Quad Damage's arcs crawling over it for
-// vr_shock_death_time seconds (bodyshockdeath: every client draws them over the body as drawn, its ragdoll or its death
-// frames), its ragdoll's limbs convulse meanwhile (.vr_shock_until: the engine drives them, vr_shock_seizure), and the
-// killing bolt chars it all over (vr_shock_burns marks: woundevent's lightning burns). Every hit, alive or dead, also
-// has its own short arcs and a burn where it strikes (weapons.qc VR_LightningHit, vr_wounds.qc).
+// ragdolls"). A monster the lightning strikes, alive or dead, keeps Quad Damage's arcs crawling over it for
+// vr_shock_death_time seconds from the last bolt (bodyshockdeath: every client draws them over the body as drawn, alive,
+// dying, its ragdoll or its death frames: the shock goes on through its death), its ragdoll's limbs convulse once it is
+// dead, until the arcs end (.vr_shock_until: the engine drives them, vr_shock_seizure), and the killing bolt chars it
+// all over (vr_shock_burns marks: woundevent's lightning burns). Every hit, alive or dead, also has its own short arcs
+// and a burn where it strikes (weapons.qc VR_LightningHit, vr_wounds.qc).
 
-.float vr_shock_until; // the engine reads it: its ragdoll convulses until then (vr_box3d.cpp, "Shocked ragdolls")
-.float vr_shock_len;   // ... fading over this long (s)
+.float vr_shock_until; // shocked until then (its arcs); the engine reads it: its ragdoll convulses until then (vr_box3d.cpp)
+.float vr_shock_len;   // ... the shock's length from the last bolt (s)
 float vr_shock_sent;   // lasting shocks sent (the tests)
 float vr_shock_burnt;  // burn marks sent for them (the tests)
 
@@ -49,11 +50,11 @@ void(entity t, float n) VR_Shock_Burns =
 };
 
 // After a bolt's T_Damage to `t` (weapons.qc VR_LightningHit), struck at `xAt` going `xDir`; `xAlive`: it was alive
-// before. Killed by it, or struck dead: the lasting shock (fresh again while a beam stays on it), and a killing bolt's
-// burn marks (a dead one's: a burn where it strikes).
+// before. Every bolt into a monster, alive or dead, starts the lasting shock or keeps it fresh (sent again each bolt: the
+// arcs and the convulsions end together); a killing bolt's burn marks all over, a dead one's a burn where it strikes.
 void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit =
 {
-    if(t.health > 0 || !(t.flags & FL_MONSTER) || t.vr_gib || !cvar("vr_shock_death"))
+    if(!(t.flags & FL_MONSTER) || t.vr_gib || !cvar("vr_shock_death"))
     {
         return;
     }
@@ -62,23 +63,19 @@ void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit =
     {
         return;
     }
-    if(xAlive)
+    if(xAlive && t.health <= 0)
     {
         VR_Shock_Burns(t, floor(cvar("vr_shock_burns")));
     }
-    else if(VR_Wound_Takes(t) && xDir != '0 0 0')
+    else if(!xAlive && VR_Wound_Takes(t) && xDir != '0 0 0')
     {
         // (A corpse's damage paints no wound: a burn where the bolt strikes it, as a living one's.)
         xDir = normalize(xDir);
         woundevent(t, xAt - xDir * 8, xDir, QVR_WOUND_ZAP, 30, 0);
         vr_shock_burnt++;
     }
-    // (A beam held on it: sent again once it has worn off a little; the convulsions kept fresh meanwhile.)
-    if(xAlive || t.vr_shock_until < time + len - 0.4)
-    {
-        bodyshockdeath(t, len);
-        vr_shock_sent++;
-    }
+    bodyshockdeath(t, len);
+    vr_shock_sent++;
     t.vr_shock_until = time + len;
     t.vr_shock_len = len;
 };
@@ -137,6 +134,6 @@ void() VR_Shock_TestFrame =
     self = oself;
     bprint(sprintf("shockhittest: target=%s at=%v alive_before=%g health=%g corpse=%g\n", best.classname, best.origin,
         alive, best.health, best.vr_corpse));
-    bprint(sprintf("shockhittest: shock_left=%g lasting_sent=%g burns=%g hit_wounds=%g\n",
-        max(0, best.vr_shock_until - time), vr_shock_sent - sent, vr_shock_burnt - burnt, vr_wound_sent - wounds));
+    bprint(sprintf("shockhittest: shock_left=%g lasting_sent=%g burns=%g hit_wounds=%g time=%g\n",
+        max(0, best.vr_shock_until - time), vr_shock_sent - sent, vr_shock_burnt - burnt, vr_wound_sent - wounds, time));
 };

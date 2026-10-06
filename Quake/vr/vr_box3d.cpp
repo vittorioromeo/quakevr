@@ -2857,12 +2857,13 @@ void feedRagdoll(edict_t* ent, Slot& s)
 }
 
 // ---- Shocked ragdolls (vr_shock_seizure; QC vr_shock.qc) ----
-// A body the lightning killed, or struck dead, convulses while it is shocked (.vr_shock_until, over .vr_shock_len): each
+// A dead body the lightning struck (alive or dead: its shock goes on through its death) convulses while it is shocked
+// (.vr_shock_until, over .vr_shock_len), as long as its arcs crawl over it (vr_shock.cpp drawBodyDeath): each
 // limb is driven, relative to the part it hangs from, towards a turning speed that jerks one way then back (shockPulse a
 // second), about an axis of its own that changes every few jerks, the chest now and then bucking up. Driven as a speed
 // (not a force) and shared between the two parts by their masses, it is bounded (never faster than shockLimbSpeed times
-// vr_shock_seizure), it pushes the body nowhere as a whole (what turns a limb turns its parent back) and it lets go as it
-// fades out: the body falls still as the shock ends.
+// vr_shock_seizure), it pushes the body nowhere as a whole (what turns a limb turns its parent back) and it eases off as
+// the arcs thin out, letting go over the last moment: the body falls still as the arcs end.
 
 constexpr float shockPulse = 9.f;      // jerks a second
 constexpr float shockLimbSpeed = 14.f; // rad/s: a limb's turning speed at vr_shock_seizure 1, the shock fresh
@@ -2871,6 +2872,7 @@ constexpr float shockBuck = 0.9f;      // m/s: the chest's buck up at vr_shock_s
 constexpr float shockBuckChance = 0.2f; // a jerk's chance to buck
 constexpr float shockFlop = 3.f;        // m/s: a limb's flop up off the floor at vr_shock_seizure 1, fresh
 constexpr float shockFlopChance = 0.45f; // a limb's chance to flop at each jerk
+constexpr float shockLetGo = 0.4f;       // s: the convulsions let go over the shock's last moment
 
 [[nodiscard]] float shockHash(uint32_t a, uint32_t b, uint32_t c)
 {
@@ -2915,10 +2917,11 @@ void shockRagdoll(edict_t* ent, Slot& s, float dt)
         return;
     }
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
-    // Fading: full over its first 40%, then easing off, gone at the end.
+    // Easing off as the arcs do (1 fresh .. 0.45 worn off), let go over the last shockLetGo seconds: still as they end.
     const float t = static_cast<float>(qcvm->time);
-    const float x = za::min(1.f, left / 0.6f);
-    const float fade = x * x * (3.f - 2.f * x);
+    const float secondsLeft = static_cast<float>(fieldFloat(ent, fields().vr_shock_until) - qcvm->time);
+    const float x = za::clamp(secondsLeft / shockLetGo, 0.f, 1.f);
+    const float fade = (0.45f + 0.55f * left) * x * x * (3.f - 2.f * x);
     const float amp = shockLimbSpeed * strength * fade;
     const float release = za::min(1.f, fade * 4.f); // (letting go as it ends)
     const float friction = za::max(tune(ent, Tune::JointFriction), 0.f);

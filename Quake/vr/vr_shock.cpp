@@ -18,6 +18,7 @@
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -31,26 +32,41 @@ namespace qvr::shock
 namespace
 {
 
+// A lasting shock's arc walking over the body (KindBodyDeath): from a point of its surface (a triangle and where on it,
+// so that it follows the body as it moves) to another near it, then on from there.
+struct Crawler
+{
+    int tri{-1}; // -1: not placed yet
+    float u{0.f}, v{0.f};
+    int next{-1}; // -1: not chosen yet
+    float nu{0.f}, nv{0.f};
+    double hop{0.0}; // when it steps there (cl.time)
+};
+constexpr int maxCrawlers = 16;
+
 struct Effect
 {
     int kind{KindSurface};
     glm::vec3 org{0.f};
     float radius{0.f};
     double start{0.0};
+    double fresh{0.0}; // a lasting shock's last bolt (KindBodyDeath): it wears off from then
     double until{0.0}; // 0: none
     const qmodel_t* model{nullptr}; // a body's (KindBody, KindBodyDeath): its model as first drawn (another: it is gone)
     int arcs{0};                    // a body's: the arcs drawn last frame (vr_shock_info)
+    Crawler crawlers[maxCrawlers];  // a lasting shock's walking arcs
 };
 
 // The bodies' buffers (the client's frame: the main thread).
 struct ShockScratch
 {
-    za::Vector<glm::vec3> tris; // a body's triangles as drawn (frame, info_f)
-    auto members() { return mem::list(tris); }
+    za::Vector<glm::vec3> tris;   // a body's triangles as drawn (frame, info_f)
+    za::Vector<glm::vec3> arcPts; // the points of a body's arcs drawn this frame (vr_shock_info's measure)
+    auto members() { return mem::list(tris, arcPts); }
 };
 mem::Scratch<ShockScratch> scratch{"shock"};
 
-constexpr int maxEffects = 16;
+constexpr int maxEffects = 32; // (lasting shocks on a room's monsters, each hit's, the water's)
 Effect effects[maxEffects];
 
 // The player's own shock (KindSelf): from when, until when (cl.time).
@@ -58,6 +74,11 @@ double selfStart = 0.0;
 double selfUntil = 0.0;
 
 int lastFrame = -1; // effects drawn once a frame, however often the view is set up
+
+// vr_shock_info: the next frame measures where the bodies' arcs lie against their surfaces (measureArcs); meanwhile
+// arc() keeps its points in arcRecord.
+bool measureNext = false;
+za::Vector<glm::vec3>* arcRecord = nullptr;
 
 // The lightning's beams as CL_UpdateTEnts drew them (VR_BeamDrawn), by beam slot: Quad's arcs along them (vr_beam_arcs).
 struct BeamSeen
@@ -106,6 +127,10 @@ void arc(Random& rnd, glm::vec3 a, const glm::vec3& target, int segments, float 
     const float bright = (0.6f + 0.4f * rnd()) * fade;
     const glm::vec4 core{0.75f, 0.85f, 1.f, 0.95f * bright};
     const glm::vec4 glow{0.3f, 0.45f, 1.f, 0.35f * bright};
+    if(arcRecord)
+    {
+        arcRecord->pushBack(a);
+    }
     for(int seg = 1; seg <= segments; seg++)
     {
         glm::vec3 b = glm::mix(a, target, static_cast<float>(seg) / static_cast<float>(segments));
@@ -128,6 +153,10 @@ void arc(Random& rnd, glm::vec3 a, const glm::vec3& target, int segments, float 
         }
         line(a, b, 0.6f * width, glow, glow);
         line(a, b, 0.15f * width, core, core);
+        if(arcRecord)
+        {
+            arcRecord->pushBack(b);
+        }
         a = b;
     }
 }
@@ -286,73 +315,205 @@ void drawBeamArcs(int index, const glm::vec3& a, const glm::vec3& b)
     return modelcollide::drawnTriangles(ent, num, tris) && tris.size() >= 3;
 }
 
-// A point on a random triangle of `tris` and the way out of it there; false on a degenerate one.
-[[nodiscard]] bool surfacePoint(Random& rnd, const za::Vector<glm::vec3>& tris, glm::vec3& at, glm::vec3& out)
+// Which way a body's triangles face: +1 if their winding's normals point out of it, -1 if in (Quake's models wind
+// them clockwise as seen from outside: in), from where they face against its middle.
+[[nodiscard]] float outwardSign(const za::Vector<glm::vec3>& tris)
 {
-    const size_t count = tris.size() / 3;
-    const size_t index = za::min(static_cast<size_t>(rnd() * static_cast<float>(count)), count - 1) * 3;
-    const glm::vec3 a = tris[index], b = tris[index + 1], c = tris[index + 2];
+    glm::vec3 mid{0.f};
+    for(const glm::vec3& p : tris)
+    {
+        mid += p;
+    }
+    mid /= static_cast<float>(za::max<size_t>(tris.size(), 1));
+    float facing = 0.f;
+    for(size_t i = 0; i + 2 < tris.size(); i += 3)
+    {
+        const glm::vec3 centre = (tris[i] + tris[i + 1] + tris[i + 2]) / 3.f;
+        facing += glm::dot(glm::cross(tris[i + 1] - tris[i], tris[i + 2] - tris[i]), centre - mid);
+    }
+    return facing < 0.f ? -1.f : 1.f;
+}
+
+// The point at `u` `v` on triangle `tri` of `tris` and the way out of the body there (`outward`: outwardSign); false on
+// a degenerate one.
+[[nodiscard]] bool surfaceAt(const za::Vector<glm::vec3>& tris, size_t tri, float u, float v, float outward, glm::vec3& at,
+    glm::vec3& out)
+{
+    const glm::vec3 a = tris[tri * 3], b = tris[tri * 3 + 1], c = tris[tri * 3 + 2];
     const glm::vec3 cross = glm::cross(b - a, c - a);
-    if(glm::length(cross) < 1e-5f)
+    const float area = glm::length(cross);
+    if(area < 1e-5f)
     {
         return false;
     }
-    float u = rnd(), v = rnd();
+    at = a + (b - a) * u + (c - a) * v;
+    out = cross * (outward / area);
+    return true;
+}
+
+// A random place on a random triangle of `tris` (`count` of them): its triangle and where on it.
+void randomPlace(Random& rnd, size_t count, int& tri, float& u, float& v)
+{
+    tri = static_cast<int>(za::min(static_cast<size_t>(rnd() * static_cast<float>(count)), count - 1));
+    u = rnd();
+    v = rnd();
     if(u + v > 1.f)
     {
         u = 1.f - u;
         v = 1.f - v;
     }
-    at = a + (b - a) * u + (c - a) * v;
-    out = glm::normalize(cross);
-    return true;
 }
 
-// Lightning's lasting shock on a body it killed or struck (KindBodyDeath): Quad Damage's arcs crawling over it as over
-// the arms (short jagged crackles off its surface, and now and then a longer one across it, limb to limb), fewer and
-// fainter as the shock wears off, with a flickering blue light. Returns the arcs drawn.
-int drawBodyDeath(int index, const Effect& e, const za::Vector<glm::vec3>& tris, Random& rnd)
+// A point on a random triangle of `tris` and the way out of the body there; false on a degenerate one.
+[[nodiscard]] bool surfacePoint(Random& rnd, const za::Vector<glm::vec3>& tris, float outward, glm::vec3& at, glm::vec3& out)
+{
+    int tri;
+    float u, v;
+    randomPlace(rnd, tris.size() / 3, tri, u, v);
+    return surfaceAt(tris, static_cast<size_t>(tri), u, v, outward, at, out);
+}
+
+// The lasting shock's arcs off the body's surface (units).
+constexpr float bodyArcLift = 1.5f; // their feet off the skin (a crackle's: up to as much again)
+constexpr float bodyArcBow = 0.2f;  // a long arc's middle out off the body, x its length
+constexpr float crawlStep = 11.f;   // a walking arc's step over the body (crawlStepMin..crawlStepMax)
+constexpr float crawlStepMin = 5.f, crawlStepMax = 20.f;
+
+// An arc from `a` (out of the body along `na`) to `b` (along `nb`) bowing out between them by `bow` units: it stays
+// off the body where the straight line would cut through it (an arm to the chest, round a shoulder).
+void bodyArc(Random& rnd, const glm::vec3& a, const glm::vec3& na, const glm::vec3& b, const glm::vec3& nb, float bow,
+    float fade, float width)
+{
+    const float len = glm::distance(a, b);
+    glm::vec3 outMid = na + nb;
+    const float m = glm::length(outMid);
+    outMid = m > 1e-3f ? outMid / m : na;
+    const glm::vec3 mid = (a + b) * 0.5f + outMid * bow;
+    arc(rnd, a, mid, 3, len * 0.1f, fade, false, width, true, true);
+    arc(rnd, mid, b, 3, len * 0.1f, fade, false, width, true, true);
+}
+
+// Lightning's lasting shock on a body it struck (KindBodyDeath; alive or dead, carried over its death): Quad Damage's
+// arcs crawling over it as over the arms, lifted off the skin to be seen: arcs walking over it from point to point
+// (crawlers), short crackles springing off it, now and then a longer one across it, limb to limb; fewer and fainter
+// as the shock wears off, with a flickering blue light. Returns the arcs drawn.
+int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Random& rnd)
 {
     const float amount = za::max(0.f, vr_shock_arcs.value);
     if(amount <= 0.f)
     {
         return 0;
     }
-    const float k = static_cast<float>(za::clamp((e.until - cl.time) / za::max(0.1, e.until - e.start), 0.0, 1.0));
-    const float fade = effectFade(e.start, e.until) * (0.35f + 0.65f * k);
+    const double now = cl.time;
+    const size_t count = tris.size() / 3;
+    const float outward = outwardSign(tris);
+    const float k = static_cast<float>(za::clamp((e.until - now) / za::max(0.1, e.until - e.fresh), 0.0, 1.0));
+    const float fade = effectFade(e.start, e.until) * (0.45f + 0.55f * k);
     const bool surge = rnd() < 0.15f + 0.25f * k; // a jolt: more of them, brighter
-    const int crawl = static_cast<int>((6.f + 16.f * k) * amount * (surge ? 1.6f : 1.f) + 0.5f);
     int drawn = 0;
     glm::vec3 centre{0.f};
     int around = 0;
+
+    // Walking arcs: each from where it stands to a point near it, moving on every few hundredths of a second.
+    const int walkers = za::min(maxCrawlers, static_cast<int>((5.f + 4.f * k) * amount + 0.5f));
+    for(int c = 0; c < walkers; c++)
+    {
+        Crawler& w = e.crawlers[c];
+        if(w.tri < 0 || w.tri >= static_cast<int>(count) || w.next >= static_cast<int>(count))
+        {
+            randomPlace(rnd, count, w.tri, w.u, w.v);
+            w.next = -1;
+        }
+        if(w.next >= 0 && now >= w.hop)
+        {
+            w.tri = w.next;
+            w.u = w.nu;
+            w.v = w.nv;
+            w.next = -1;
+        }
+        glm::vec3 a, na;
+        if(!surfaceAt(tris, static_cast<size_t>(w.tri), w.u, w.v, outward, a, na))
+        {
+            w.tri = -1;
+            continue;
+        }
+        if(w.next < 0)
+        {
+            // The next step: of a few places tried, the one nearest a step away.
+            float best = 1e30f;
+            for(int tries = 0; tries < 8; tries++)
+            {
+                int tri;
+                float u, v;
+                randomPlace(rnd, count, tri, u, v);
+                glm::vec3 b, nb;
+                if(!surfaceAt(tris, static_cast<size_t>(tri), u, v, outward, b, nb))
+                {
+                    continue;
+                }
+                const float d = glm::distance(a, b);
+                const float miss = (d < crawlStepMin || d > crawlStepMax ? 100.f : 0.f) + za::abs(d - crawlStep);
+                if(miss < best)
+                {
+                    best = miss;
+                    w.next = tri;
+                    w.nu = u;
+                    w.nv = v;
+                }
+            }
+            w.hop = now + 0.04 + 0.08 * rnd();
+            if(w.next < 0)
+            {
+                continue;
+            }
+        }
+        glm::vec3 b, nb;
+        if(!surfaceAt(tris, static_cast<size_t>(w.next), w.nu, w.nv, outward, b, nb))
+        {
+            w.next = -1;
+            continue;
+        }
+        centre += a;
+        around++;
+        if(rnd() < 0.12f)
+        {
+            continue; // flicker
+        }
+        const float len = glm::distance(a, b);
+        bodyArc(rnd, a + na * bodyArcLift, na, b + nb * bodyArcLift, nb, bodyArcLift + len * bodyArcBow,
+            fade * (surge ? 1.f : 0.9f), 1.f);
+        drawn++;
+    }
+
+    // Crackles springing off the skin, as Quad's over the forearms, out from it at a slant (5..12 units long).
+    const int crawl = static_cast<int>((8.f + 14.f * k) * amount * (surge ? 1.5f : 1.f) + 0.5f);
     for(int bolt = 0; bolt < crawl; bolt++)
     {
         glm::vec3 at, out;
-        if(!surfacePoint(rnd, tris, at, out))
+        if(!surfacePoint(rnd, tris, outward, at, out))
         {
             continue;
         }
         centre += at;
         around++;
-        if(rnd() < 0.3f)
+        if(rnd() < 0.25f)
         {
             continue; // flicker
         }
-        // Off the surface and along it, as Quad's over the forearms (4..10 units long), hugging the skin.
         glm::vec3 along = rnd.dir();
         along -= out * glm::dot(along, out);
-        const float len = 4.f + 6.f * rnd();
-        const glm::vec3 from = at + out * 0.6f;
-        const glm::vec3 to = from + glm::normalize(along + out * 0.25f + 1e-3f) * len;
-        arc(rnd, from, to, 5, len * 0.15f, fade * (surge ? 1.f : 0.85f), false, 0.8f, true, true);
+        const float len = 5.f + 7.f * rnd();
+        const glm::vec3 from = at + out * (bodyArcLift * (1.f + rnd()));
+        const glm::vec3 to = from + glm::normalize(along + out * (0.6f + 0.6f * rnd()) + 1e-3f) * len;
+        arc(rnd, from, to, 5, len * 0.15f, fade * (surge ? 1.f : 0.85f), false, 0.9f, true, true);
         drawn++;
     }
-    // Longer ones across the body, from one part to another not far off.
+    // Longer ones across the body, from one part to another not far off, bowing out over it.
     const int across = static_cast<int>((1.f + 3.f * k) * amount * (surge ? 2.f : 1.f) + 0.5f);
     for(int bolt = 0; bolt < across; bolt++)
     {
         glm::vec3 a, na, b, nb;
-        if(!surfacePoint(rnd, tris, a, na) || !surfacePoint(rnd, tris, b, nb) || rnd() < 0.35f)
+        if(!surfacePoint(rnd, tris, outward, a, na) || !surfacePoint(rnd, tris, outward, b, nb) || rnd() < 0.35f)
         {
             continue;
         }
@@ -361,7 +522,7 @@ int drawBodyDeath(int index, const Effect& e, const za::Vector<glm::vec3>& tris,
         {
             continue;
         }
-        arc(rnd, a + na, b + nb, 8, len * 0.12f, fade, false, 1.f, true, true);
+        bodyArc(rnd, a + na * bodyArcLift, na, b + nb * bodyArcLift, nb, bodyArcLift + len * bodyArcBow, fade, 1.f);
         drawn++;
     }
     if(around > 0)
@@ -497,14 +658,11 @@ void add(int kind, const glm::vec3& org, float radius, float duration)
                 slot = i;
             }
         }
+        effects[slot] = Effect{};
         effects[slot].start = now;
-        effects[slot].model = nullptr;
     }
     Effect& e = effects[slot];
-    if(kind == KindBodyDeath)
-    {
-        e.start = now; // (struck again: fresh, fading from now)
-    }
+    e.fresh = now; // (a lasting shock struck again: wearing off from now)
     e.kind = kind;
     e.org = org;
     e.radius = radius;
@@ -609,8 +767,83 @@ void parse()
         org[i] = MSG_ReadCoord(cl.protocolflags);
     }
     const float radius = static_cast<float>(MSG_ReadShort());
-    const float duration = static_cast<float>(MSG_ReadByte()) / (kind == KindBodyDeath ? 10.f : 50.f);
+    const float duration = static_cast<float>(MSG_ReadByte()) / (kind == KindBodyDeath ? 4.f : 50.f);
     add(kind, {org[0], org[1], org[2]}, radius, duration);
+}
+
+// The point of triangle a b c nearest `p` (Ericson, Real-Time Collision Detection 5.1.5).
+[[nodiscard]] glm::vec3 nearestOnTriangle(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
+{
+    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
+    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
+    if(d1 <= 0.f && d2 <= 0.f) { return a; }
+    const glm::vec3 bp = p - b;
+    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
+    if(d3 >= 0.f && d4 <= d3) { return b; }
+    const float vc = d1 * d4 - d3 * d2;
+    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f) { return a + ab * (d1 / (d1 - d3)); }
+    const glm::vec3 cp = p - c;
+    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
+    if(d6 >= 0.f && d5 <= d6) { return c; }
+    const float vb = d5 * d2 - d1 * d6;
+    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f) { return a + ac * (d2 / (d2 - d6)); }
+    const float va = d3 * d6 - d5 * d4;
+    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f) { return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6))); }
+    const float denom = 1.f / (va + vb + vc);
+    return a + ab * (vb * denom) + ac * (vc * denom);
+}
+
+// Whether `p` is inside the closed surface `tris`: the most of three rays out of it cross it an odd number of times.
+[[nodiscard]] bool insideSurface(const glm::vec3& p, const za::Vector<glm::vec3>& tris)
+{
+    constexpr glm::vec3 rays[3] = {{0.123f, 0.271f, 0.954f}, {0.913f, -0.311f, 0.264f}, {-0.402f, 0.817f, -0.413f}};
+    int odd = 0;
+    for(const glm::vec3& d : rays)
+    {
+        int crossings = 0;
+        for(size_t i = 0; i + 2 < tris.size(); i += 3)
+        {
+            const glm::vec3 e1 = tris[i + 1] - tris[i], e2 = tris[i + 2] - tris[i];
+            const glm::vec3 h = glm::cross(d, e2);
+            const float det = glm::dot(e1, h);
+            if(za::abs(det) < 1e-8f) { continue; }
+            const glm::vec3 s = p - tris[i];
+            const float u = glm::dot(s, h) / det;
+            if(u < 0.f || u > 1.f) { continue; }
+            const glm::vec3 q = glm::cross(s, e1);
+            const float v = glm::dot(d, q) / det;
+            if(v < 0.f || u + v > 1.f) { continue; }
+            crossings += glm::dot(e2, q) / det > 0.f ? 1 : 0;
+        }
+        odd += crossings & 1;
+    }
+    return odd >= 2;
+}
+
+// vr_shock_info's measure: where entity `num`'s arcs drawn this frame (`count` points from `first` of arcPts) lie
+// against its surface `tris`: how many inside it, their mean distance off it (outside +, inside -), the share at least
+// 1 unit out.
+void measureArcs(int num, const za::Vector<glm::vec3>& tris, size_t first, size_t count)
+{
+    const za::Vector<glm::vec3>& pts = scratch.arcPts;
+    int inside = 0, clear = 0;
+    double sum = 0.0;
+    for(size_t i = first; i < first + count && i < pts.size(); i++)
+    {
+        const glm::vec3& p = pts[i];
+        float best = 1e30f;
+        for(size_t t = 0; t + 2 < tris.size(); t += 3)
+        {
+            best = za::min(best, glm::distance(p, nearestOnTriangle(p, tris[t], tris[t + 1], tris[t + 2])));
+        }
+        const bool in = insideSurface(p, tris);
+        inside += in ? 1 : 0;
+        clear += !in && best >= 1.f ? 1 : 0;
+        sum += in ? -best : best;
+    }
+    const float n = static_cast<float>(za::max<size_t>(count, 1));
+    Con_Printf("bodyshock-arcs: entity=%d points=%d inside=%.2f mean_out=%.2f clear1=%.2f\n", num, static_cast<int>(count),
+        static_cast<float>(inside) / n, static_cast<float>(sum) / n, static_cast<float>(clear) / n);
 }
 
 void frame(const hands::State& s)
@@ -633,6 +866,8 @@ void frame(const hands::State& s)
         }
     }
     const double now = cl.time;
+    const bool measure = measureNext;
+    measureNext = false;
     for(int i = 0; i < maxEffects; i++)
     {
         Effect& e = effects[i];
@@ -644,27 +879,40 @@ void frame(const hands::State& s)
         {
             za::Vector<glm::vec3>& tris = scratch.tris;
             e.arcs = 0;
-            if(!bodyTriangles(e, tris))
+            if((e.kind == KindBodyDeath && vr_shock_arcs.value <= 0.f) || !bodyTriangles(e, tris))
             {
                 continue;
             }
+            scratch.arcPts.clear();
+            arcRecord = measure ? &scratch.arcPts : nullptr;
             if(e.kind == KindBodyDeath)
             {
                 e.arcs = drawBodyDeath(i, e, tris, rnd);
+                arcRecord = nullptr;
+                if(measure)
+                {
+                    measureArcs(static_cast<int>(e.radius), tris, 0, scratch.arcPts.size());
+                }
                 continue;
             }
             const float fade = za::clamp(static_cast<float>((e.until - now) / 0.25), 0.f, 1.f);
+            const float outward = outwardSign(tris);
             for(int bolt = 0; bolt < 12; bolt++)
             {
                 const size_t index = static_cast<size_t>(rnd() * (tris.size() / 3)) * 3;
                 const glm::vec3 a = tris[index], b = tris[index + 1], c = tris[index + 2];
                 const glm::vec3 cross = glm::cross(b - a, c - a);
                 if(glm::length(cross) < 1e-5f) { continue; }
-                const glm::vec3 n = glm::normalize(cross) * 0.5f;
+                const glm::vec3 n = glm::normalize(cross) * outward; // (off the skin: 1 unit)
                 const glm::vec3 from = glm::mix(a, b, rnd()) + n;
                 const glm::vec3 to = glm::mix(a, c, rnd()) + n;
                 arc(rnd, from, to, 4, 0.4f, fade, false, 0.45f, true, true);
                 e.arcs++;
+            }
+            arcRecord = nullptr;
+            if(measure)
+            {
+                measureArcs(static_cast<int>(e.radius), tris, 0, scratch.arcPts.size());
             }
         }
         else if(e.kind == KindBurst)
@@ -708,6 +956,7 @@ void info_f()
             static_cast<int>(triangles.size() / 3), effect.arcs, effect.until - cl.time);
     }
     Con_Printf("bodyshock: active=%d\n", active);
+    measureNext = true; // (the next frame's arcs: bodyshock-arcs)
 }
 
 void registerCommands()

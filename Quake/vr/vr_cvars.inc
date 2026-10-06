@@ -1313,12 +1313,12 @@ QVR_CVAR(vr_beam_lights, "6", CVAR_ARCHIVE)          // the lightning (gun, sham
 QVR_CVAR(vr_beam_arcs, "1", CVAR_ARCHIVE)            // how many: 1 about one every 24 units of beam (0 off)
 QVR_CVAR(vr_beam_arcs_spread, "6", CVAR_ARCHIVE)     // how far they reach from the beam, units (each 0.8..2.4 of it long)
 QVR_CVAR(vr_beam_arcs_width, "1", CVAR_ARCHIVE)      // their thickness, x Quad's on the arms
-// Lightning's lasting shock (vr_shock.cpp, QC vr_shock.qc, vr_box3d.cpp "Shocked ragdolls"): a monster the lightning kills,
-// or a body it strikes dead, keeps Quad Damage's arcs crawling over it a while, convulses (a ragdoll's limbs), and is
-// charred where they crawl.
-QVR_CVAR(vr_shock_death, "1", CVAR_ARCHIVE)          // the lasting shock on the bodies the lightning kills or strikes (0: only the arcs of each hit)
-QVR_CVAR(vr_shock_death_time, "3", CVAR_ARCHIVE)     // how long it lasts, s (a body struck again: from then)
-QVR_CVAR(vr_shock_seizure, "1", CVAR_ARCHIVE)        // how hard a shocked ragdoll's limbs convulse, fading over the shock (0 still)
+// Lightning's lasting shock (vr_shock.cpp, QC vr_shock.qc, vr_box3d.cpp "Shocked ragdolls"): a monster the lightning
+// strikes, alive or dead, keeps Quad Damage's arcs crawling over it a while (on through its death), its ragdoll convulses
+// once dead as long as they do, and a killing bolt chars it all over.
+QVR_CVAR(vr_shock_death, "1", CVAR_ARCHIVE)          // the lasting shock on the monsters and bodies the lightning strikes (0: only the arcs of each hit)
+QVR_CVAR(vr_shock_death_time, "3", CVAR_ARCHIVE)     // how long it lasts after the last bolt, s (up to 63)
+QVR_CVAR(vr_shock_seizure, "1", CVAR_ARCHIVE)        // how hard a shocked ragdoll's limbs convulse, easing off with the arcs (0 still)
 QVR_CVAR(vr_shock_burns, "6", CVAR_ARCHIVE)          // burn marks a lightning kill leaves over the body (0 none; each hit chars where it strikes: vr_wounds_burns)
 QVR_CVAR(vr_shock_arcs, "1", CVAR_ARCHIVE)           // how many arcs crawl over a shocked body, x (0 none)
 QVR_CVAR(vr_torch_lights, "8", CVAR_ARCHIVE)         // torches and flames flicker a small warm light onto the room: how many at once, the nearest in view (0 off)
