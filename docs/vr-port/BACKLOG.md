@@ -4,31 +4,6 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 
 ## Next round (approved)
 
-### Fitted hands (the author: "please implement it, but not for this round, for the next one")
-
-Done in round 21 (steps 1–4, plus weapon hotspots: `ROUND21.md`). Left: the controllers' finger-touch sensors
-(OpenXR touch paths), and objects placed into the open hand rather than against the fist (server-side carrying).
-
-Hands that wrap what they hold instead of a rigid pose: physics objects (boxes, backpacks, gibs, heads, armour)
-and weapon handles, Half-Life: Alyx style. Planned in four steps:
-
-1. **A jointed hand** (1 round): three segments per finger plus an opposable thumb, generated procedurally like the
-   body (`Misc/quakevr/make_vrbody.py`), driven by today's curls first so it looks the same (skinned through the
-   avatar code, or 15 rigid segments).
-2. **Grasp solver for physics objects** (1 round): at the grip, each finger closes joint by joint until its segments
-   touch the object's surface (the real triangles round 20's `held::surfaceFit` already extracts), solved once and
-   kept relative to the object; re-solved when the grip or the controller's finger sensors change.
-3. **Weapons** (1–1.5 rounds + headset tuning): per-weapon hints (trigger point, grip axis, foregrip surface, "index
-   on the trigger", "thumb over the top"); the fingers wrap the grip's triangles; the two-handed helping hand
-   (foregrip, the sword's blade grip) through the same solver, replacing the fixed 2H hand poses.
-4. **Palm placement** (0.5 round): the palm turns and slides to sit flush, the drawn hand leaving the tracked
-   controller by at most ~5 cm / 20°, eased in over ~0.1 s.
-
-Controller finger sensors (Touch: index, thumb) blend in: a lifted index straightens away from the trigger; fingers
-stop at contact. Risks: the visual hand drifting from the controller (caps), thin geometry (hints), the wrist
-matching the body's arms, multiplayer (finger poses are client-side). Supersedes round 20's per-weapon finger
-sliders for what it covers (they stay as overrides).
-
 ### Flies on corpses and gibs (the author, 2026-10-02: "add it to the to-do list")
 
 Scourge of Armagon's head flies (one severed head in ten loops `misc/flys.wav`, player.qc HeadThink) were pointless
@@ -55,16 +30,6 @@ seconds, with fly particles buzzing round it as well as the sound.
 - **`.rtlights` support** (round 20 discussion): load DarkPlaces' hand-authored light lists where they exist to
   drive the shadowed map lights (better placed than the map's light entities).
 - **Distance-field AO** (round 20 discussion): only if capsule/box AO leaves obvious gaps.
-- **Ragdoll physics for corpses and dismemberment** (the author, 2026-10-02: "research ragdoll physics for enemy
-  corpses and dismemberment"): research only, nothing built yet. Questions to answer: how to rig Quake's vertex-animated
-  .mdl monsters (no skeletons) for ragdolls (derived bone chains per model, skinning the last death frame, or
-  per-limb pieces); Box3D joints and their cost with many corpses (the thread benchmarks: physbench); blending from
-  the death animation into the ragdoll; severing limbs/heads where hit (ties into small gibs, ThrowHead, wounds and
-  blood decals); networking/saves; and which monsters first. Corpses are already one Box3D body each (ROUND21.md,
-  "Corpse collision": `Kind::Corpse`, `catCorpse`, its mask and passes): a ragdoll would replace that body.
-  2026-10-03: the grunt's built, experimental (ROUND21.md, "Ragdolls"; `vr_ragdoll 1`): the rig derived from the
-  animation (motion clusters gathered by a seed table), skinned in memory, the death animation handed to the bodies.
-  Left: grabbing limbs, ragdolls meeting each other, other monsters' seed tables, severing, a remote client's view.
 - **Vore shove** (the author, 2026-10-02: "I would like the vore to also have a shove attack when the player is
   close, later on"): extend the enemy shove (QC/vr_enemyshove.qc) to the vore (shalrath), with its own animation.
 - **Flashlight optional; a brighter option** (the author, 2026-10-02): make the flashlight completely optional (off
@@ -83,3 +48,8 @@ seconds, with fly particles buzzing round it as well as the sound.
   every 0.02 s; options to think less without changing gameplay (idle interval with exact deadlines, no thinks while
   carried, the spin left to the engine), and where thinking resolution would be lost (engine-side knocks, unless the
   engine wakes the pickup). Small absolute gain (QuakeC is ~0.07 ms a frame): review, then decide.
+
+
+### TODO:
+
+- KoFi links in installer, see CircuitLord's TF2 as an example
