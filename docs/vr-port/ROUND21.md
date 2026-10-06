@@ -25563,3 +25563,46 @@ there, the misses landing in the pit.
 In VR:
 - [ ] Throw gibs and heads at a wall from a couple of metres, softly and hard: they stick nearly every time; a hard throw
   of a small gib bursts.
+## Blunt melee head pops by chance (2026-10-06)
+
+The author: "Blunt melee head kills should be chance-based and weapon-based ... very rare for punches/crowbar/gun
+butts to headpop", Mjolnir very likely.
+
+**Blunt melee head pops** (QC vr_decap.qc, "Blunt melee head pops"; Gore > Decapitation > Head Pop Chance). A blunt
+blow's headshot kill (`QVR_DECAP_BLUNT`: a fist, a gun's butt, barrel or pistol-whip, the crowbar, a club, a pommel or
+handle end, Mjolnir's head) pops the head at `scale x hardness^curve` (at most 1), rolled once when it kills
+(`VR_Decap_Roll`, as the shots'). Class (`VR_Decap_BluntClass`): what the hand holds first (fist, gun, crowbar, club),
+then Mjolnir's head (not its pommel), else a pommel. Hardness (0..1): `(1 - w) x` the striking part's speed
+(`mh_speed`, m/s) on its way from Soft to Hard Hit Speed `+ w x` the blow's damage (positional head multiplier in; a
+quad blow's own melee multiplier too) on its way from Soft to Hard Hit Damage. A corpse's head struck by a blunt blow
+rolls the same (its speed the hand's, its damage the corpse strike's), it used to pop always. Slashes, the chainsaw and
+thrown axes still cut heads off, sure. By Chance off (`vr_decap_pop_chance 0`): every blunt head kill pops, as before.
+
+| cvar | default | menu row |
+|---|---|---|
+| `vr_decap_pop_fist_scale` | 0.04 | Fist |
+| `vr_decap_pop_gun_scale` | 0.04 | Gun Butt |
+| `vr_decap_pop_crowbar_scale` | 0.05 | Crowbar |
+| `vr_decap_pop_pommel_scale` | 0.03 | Pommel |
+| `vr_decap_pop_club_scale` | 0.25 | Club |
+| `vr_decap_pop_mjolnir_scale` | 1.75 | Mjolnir |
+| `vr_decap_pop_melee_soft_speed` / `_hard_speed` | 3 / 10 m/s | Soft / Hard Hit Speed |
+| `vr_decap_pop_melee_soft_damage` / `_hard_damage` | 10 / 50 | Soft / Hard Hit Damage |
+| `vr_decap_pop_melee_damage_weight` | 0.5 | Damage's Weight |
+| `vr_decap_pop_melee_curve` | 2 | Hardness Curve |
+
+Measured (`vr_decap_test 49`, 500 rolls a cell, on a grunt and on the training dummy alike; soft 4 m/s, medium 7,
+hard 11; damage the weapon's base x 0.6 / 1.2 / 2 x the 1.5 headshot multiplier): chance soft / medium / hard:
+fist 0.0002 / 0.006 / 0.023 (rates 0 / 0.010 / 0.024), gun butt 0.0003 / 0.007 / 0.027, crowbar 0.0015 / 0.019 / 0.050,
+pommel 0.0009 / 0.011 / 0.030, club 0.002 / 0.046 / 0.170, Mjolnir 0.091 / 0.915 / 1.0 (rates 0.084 / 0.926 / 1.0).
+Real killing blows (50-55, health 1): fist, gun, club not popped (rolled), crowbar popped once in two runs,
+Mjolnir popped; `vr_decap_pop_roll 0` / `0.9999` force the roll both ways (the fist popped / not; the dummy too).
+
+**Tests** (Debug > Gore Tests > Head Pop Chance Tests): 49 Blunt Melee Rates, 50-55 Hard Punch / Gun Butt / Crowbar
+/ Pommel / Club / Mjolnir Kill. The tests stand the target (frame 0) first: a grunt in a pain frame let the made-up
+blow miss its precise head.
+
+- [ ] Punch, pistol-whip, butt-strike and crowbar grunts to death in the head: heads almost never pop (a few in a
+      hundred hard blows); slow taps never.
+- [ ] Mjolnir swung into heads: nearly every solid blow pops; a gentle tap rarely.
+- [ ] A wall torch swung as a club: now and then.

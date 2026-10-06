@@ -2078,6 +2078,33 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("This heavy or heavier, a thrown thing's headshot kill always pops the head (vr_decap_pop_thrown_mass)."),
         slider("Thrown: Lighter's Chance", vr_decap_pop_thrown_light_chance, 0.f, 1.f, 0.05f, "%.2f")
             .help("A lighter one's chance (0: never) (vr_decap_pop_thrown_light_chance)."),
+        slider("Fist", vr_decap_pop_fist_scale, 0.f, 0.25f, 0.005f, "%.3fx").extend(0.f, 5.f)
+            .help("A punch that kills with a head hit pops the head at this chance at the hardest hit, times the hit's "
+                  "hardness to the Hardness Curve (the rows below): very rarely by default (vr_decap_pop_fist_scale)."),
+        slider("Gun Butt", vr_decap_pop_gun_scale, 0.f, 0.25f, 0.005f, "%.3fx").extend(0.f, 5.f)
+            .help("The same for a gun swung, its butt or a pistol-whip (vr_decap_pop_gun_scale)."),
+        slider("Crowbar", vr_decap_pop_crowbar_scale, 0.f, 0.25f, 0.005f, "%.3fx").extend(0.f, 5.f)
+            .help("The same for the crowbar (vr_decap_pop_crowbar_scale)."),
+        slider("Pommel", vr_decap_pop_pommel_scale, 0.f, 0.25f, 0.005f, "%.3fx").extend(0.f, 5.f)
+            .help("The same for a sword's, axe's, chainsaw's or Mjolnir's pommel or handle end (vr_decap_pop_pommel_scale)."),
+        slider("Club", vr_decap_pop_club_scale, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("The same for a carried prop swung as a club, a wall torch (vr_decap_pop_club_scale)."),
+        slider("Mjolnir", vr_decap_pop_mjolnir_scale, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The same for Mjolnir's head: above 1 it is sure well before the hardest hit (1.75: a solid blow nearly "
+                  "always pops it) (vr_decap_pop_mjolnir_scale)."),
+        slider("Soft Hit Speed", vr_decap_pop_melee_soft_speed, 0.f, 10.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
+            .help("The striking part this slow or slower: no hardness from its speed (vr_decap_pop_melee_soft_speed)."),
+        slider("Hard Hit Speed", vr_decap_pop_melee_hard_speed, 1.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 40.f)
+            .help("This fast or faster: all of it (vr_decap_pop_melee_hard_speed)."),
+        slider("Soft Hit Damage", vr_decap_pop_melee_soft_damage, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 500.f)
+            .help("The blow's damage (the headshot multiplier in) this or less: no hardness from it "
+                  "(vr_decap_pop_melee_soft_damage)."),
+        slider("Hard Hit Damage", vr_decap_pop_melee_hard_damage, 1.f, 200.f, 1.f, "%.0f").extend(0.f, 1000.f)
+            .help("This or more: all of it (vr_decap_pop_melee_hard_damage)."),
+        slider("Damage's Weight", vr_decap_pop_melee_damage_weight, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much the damage weighs in the hit's hardness; the rest is its speed (vr_decap_pop_melee_damage_weight)."),
+        slider("Hardness Curve", vr_decap_pop_melee_curve, 0.f, 5.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("The hardness to this power: higher, soft blows nearer never; 1 straight (vr_decap_pop_melee_curve)."),
     };
 }
 
@@ -4328,6 +4355,15 @@ za::Vector<Item> pageDebugTools()
         command("Throw a Weapon at Its Head", "vr_decap_test 47")
             .help("vr_decap_test 47: weapon vr_decap_poptest_wid (10: the rocket launcher) thrown at 16 m/s into its head at health 1."),
         command("Throw an Explosive Box at Its Head", "vr_decap_test 48").help("vr_decap_test 48: the same with an explosive box (that never blows up)."),
+        command("Blunt Melee Rates", "vr_decap_test 49")
+            .help("vr_decap_test 49: each blunt weapon's blow (fist, gun, crowbar, pommel, club, Mjolnir) at its head, soft, medium "
+                  "and hard, vr_decap_poptest_n times, not killing it: the chance and the rate it pops."),
+        command("Hard Punch Kill", "vr_decap_test 50").help("vr_decap_test 50: a hard punch at its head at health 1 (popped by chance)."),
+        command("Hard Gun Butt Kill", "vr_decap_test 51").help("vr_decap_test 51: the same with a gun's blow."),
+        command("Hard Crowbar Kill", "vr_decap_test 52").help("vr_decap_test 52: the same with the crowbar."),
+        command("Hard Pommel Kill", "vr_decap_test 53").help("vr_decap_test 53: the same with a sword's pommel."),
+        command("Hard Club Kill", "vr_decap_test 54").help("vr_decap_test 54: the same with a club."),
+        command("Hard Mjolnir Kill", "vr_decap_test 55").help("vr_decap_test 55: the same with Mjolnir's head."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
             .help("vr_burn_test 1: the nearest monster, corpse, crate or crate's piece set on fire (an explosive box: it can't burn) as a lit torch's blow would, where it faces you "

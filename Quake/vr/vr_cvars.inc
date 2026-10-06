@@ -1782,6 +1782,20 @@ QVR_CVAR(vr_decap_pop_lightning_always, "1", CVAR_ARCHIVE) // a lightning bolt's
 QVR_CVAR(vr_decap_pop_thrown, "1", CVAR_ARCHIVE)          // a thrown (or flung) blunt weapon or prop killing with a headshot pops the head
 QVR_CVAR(vr_decap_pop_thrown_mass, "4", CVAR_ARCHIVE)     // kg: this heavy or heavier, always
 QVR_CVAR(vr_decap_pop_thrown_light_chance, "0", CVAR_ARCHIVE) // a lighter one's chance (0: never)
+// Blunt melee head kills (QC vr_decap.qc, "Blunt melee head pops"): chance = the weapon's scale x hardness^curve (at most 1),
+// hardness = (1 - damage_weight) x the speed's way from soft to hard + damage_weight x the damage's way from soft to hard.
+QVR_CVAR(vr_decap_pop_fist_scale, "0.04", CVAR_ARCHIVE)     // a punch's chance at the hardest hit
+QVR_CVAR(vr_decap_pop_gun_scale, "0.04", CVAR_ARCHIVE)      // a gun's butt, barrel or pistol-whip
+QVR_CVAR(vr_decap_pop_crowbar_scale, "0.05", CVAR_ARCHIVE)  // the crowbar
+QVR_CVAR(vr_decap_pop_pommel_scale, "0.03", CVAR_ARCHIVE)   // a sword's, axe's, chainsaw's or Mjolnir's pommel or handle end
+QVR_CVAR(vr_decap_pop_club_scale, "0.25", CVAR_ARCHIVE)     // a carried prop swung as a club (a wall torch)
+QVR_CVAR(vr_decap_pop_mjolnir_scale, "1.75", CVAR_ARCHIVE)  // Mjolnir's head (above 1: sure well before the hardest hit)
+QVR_CVAR(vr_decap_pop_melee_soft_speed, "3", CVAR_ARCHIVE)  // m/s of the striking part: this slow or slower, no speed in it
+QVR_CVAR(vr_decap_pop_melee_hard_speed, "10", CVAR_ARCHIVE) // m/s: this fast or faster, all of it
+QVR_CVAR(vr_decap_pop_melee_soft_damage, "10", CVAR_ARCHIVE) // the blow's damage (the headshot multiplier in): this or less, none
+QVR_CVAR(vr_decap_pop_melee_hard_damage, "50", CVAR_ARCHIVE) // this or more, all of it
+QVR_CVAR(vr_decap_pop_melee_damage_weight, "0.5", CVAR_ARCHIVE) // how much the damage weighs in the hardness (the rest: the speed)
+QVR_CVAR(vr_decap_pop_melee_curve, "2", CVAR_ARCHIVE)       // the hardness's exponent (higher: soft blows nearer none)
 QVR_CVAR(vr_decap_pop_roll, "-1", CVAR_NONE)              // tests: the head pop roll's value (0..1; below 0: random)
 QVR_CVAR(vr_decap_test, "0", CVAR_NONE)               // the QC runs decapitation test n on the nearest monster or corpse (vr_decap.qc; Debug > Gore Tests)
 QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)
