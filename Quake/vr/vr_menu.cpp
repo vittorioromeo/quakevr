@@ -2964,6 +2964,9 @@ void hologramTestMessage()
         slider("Most Together", vr_debris_cluster, 1.f, 6.f, 1.f, "%.0f").help("Most pieces lying together at one place. Next map."),
         slider("Most in a Map", vr_debris_max, 0.f, 400.f, 10.f, "%.0f").extend(0.f, 2000.f)
             .help("Fewer if the map has few entities to spare (vr_debris_edicts_left). Next map."),
+        slider("Most in Multiplayer", vr_debris_mp_max, 0.f, 160.f, 8.f, "%.0f").extend(0.f, 400.f)
+            .help("The most in a multiplayer map (yours as the host). They are the server's, to pick up and throw: each one "
+                  "in sight costs every player's network packets. 0: none. Next map."),
         slider("Most in an Area", vr_debris_area_max, 1.f, 30.f, 1.f, "%.0f").extend(1.f, 200.f)
             .help("Most pieces in a square of vr_debris_area_size units (384: about 12 m). Next map."),
         slider("Spacing", vr_debris_spacing, 0.f, 256.f, 8.f, "%.0f units").extend(0.f, 2048.f)
