@@ -26773,3 +26773,26 @@ test uses the developer path (`vr_campaign_native mg3`, `-nomapindex`).
   no melee code changed.
   For VR: on map3 (`vr_campaign_native mg3`, `map map3`) take an upgrade to a holster: message, capacity, refill;
   return to the map to see it faded.
+## The author's decisions: Horde deaths, hard gib throws, the rottweiler's head, rocks in multiplayer (2026-10-06)
+
+### Rottweiler head zone (positional damage)
+
+His answer: the rottweiler gets a head zone like the fiend's. `PositionalHead` (weapons.qc) has his now, and
+decapitation's own branch for him (`VR_Decap_HeadZone`) is gone: one source for headshots, melee head hits, head pops
+and beheading. The numbers are decapitation's (23 forward, 1 up, radius 7): `progs/dog.mdl`'s frames have no names, so
+his rest pose (`hitmodel_rest`'s stand frame, `restPoseOf`: the first frame named "stand", else frame 0) is `$attack1`,
+lunging, his head level with his origin. Measured on that frame: the snout's front vertices at 29.6 forward, 0.2 up;
+the head's (forward of 22) centroid 26.9 forward, 3.4 below (the forelegs reach forward under it in the lunge). In
+`$stand1` his head lies 22 to 32 forward and 8 below to 3 above his origin: a hit there maps to the same triangle in
+`$attack1`, so the zone fits him standing as well.
+
+Precise hits' ring (`impulse 238`, which now also rings his head with a blade: positional melee's region of the point
+it met), e1m1, a rottweiler 96 units ahead (`vr_test_spawn 7`): head ring 0 headshots before (no zone), 18-19/24 on his
+model after (7/24 on boxes); blade ring 18/24 head (22-23/24 contacts); chest ring 3 head, 9 limb, 12 legs on his model.
+`vr_decap_test 17` (shotgun at his head, health 500): "6 pellets, 6 head (x1.50)"; `vr_decap_test 1`: beheaded,
+h_dog thrown at 174 u/s. (`vr_decap_test 7` reads "limb" on him: its blow lands at the zone's middle *inside* the
+animated model, and the nearest triangle to that point in `$stand1` is not his head's; a blade meets his surface first,
+as the blade ring shows.)
+
+In VR:
+- [ ] Shoot a rottweiler in the head, slash it (Show Damage Numbers): "head (x1.50)"; a killing slash beheads him.

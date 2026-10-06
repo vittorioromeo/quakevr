@@ -247,6 +247,9 @@ float(entity xTarget) PositionalHead =
     // A centroid's (Hipnotic's monster_scourge, $stand1): the front of its body, low and wide, below its origin (its legs'
     // zone too: Head Priority, as the fiend's).
     if(c == "monster_scourge")          { xHeadForward = 11; xHeadUp = -9; xHeadRadius = 8;   return TRUE; }
+    // A rottweiler's: his model's frames are unnamed, so his rest pose (hitmodel_rest's stand frame) is the first, $attack1
+    // (lunging, his head thrust forward and level with his origin; decapitation's zone since round 20, its one source now).
+    if(c == "monster_dog")              { xHeadForward = 23; xHeadUp = 1;  xHeadRadius = 7;   return TRUE; }
     if(c == "player")                   { xHeadForward = 4;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
     return FALSE;
 };
@@ -3876,7 +3879,8 @@ entity vr_test_armor_last;  // and the last it dropped (impulse 251)
 // (or corpse) spawned last, level from the player's side, each kind of test with Quake's boxes and then with its model:
 // rays through its box's corner columns (2 units in from its edges: the empty part), at its middle, a ring of 24 at its
 // head and 24 at its chest (their positional regions), and the same segments as melee blows (hitmodel_segment, 3 units
-// thick) and thrown things (tracebox, vr_throw_hitbox 6). "on" counts what met the target; "behind" what went on to
+// thick) and thrown things (tracebox, vr_throw_hitbox 6), and a blade's ring at the head (positional melee's region of the
+// point met). "on" counts what met the target; "behind" what went on to
 // the world. Nothing is damaged.
 float(entity xTarget, vector xFrom, vector xTo, float xFlags) VR_Test_HitRay =
 {
@@ -3921,7 +3925,7 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
         if(trace_ent == t) { thrownC++; }
     }
     // Its middle (chest height: a third of the way down from the top) and its head.
-    float heads = 0, headOn = 0, chestOn = 0, chestHead = 0, chestLimb = 0, chestLegs = 0;
+    float heads = 0, headOn = 0, chestOn = 0, chestHead = 0, chestLimb = 0, chestLegs = 0, meleeHeadOn = 0, meleeHeads = 0;
     vector chest = c + '0 0 1' * halfh * 0.35;
     if(VR_Test_HitRay(t, chest - dir * 64, chest + dir * 128, gunFlags)) { onB++; }
     dprint(sprintf("hittest %s at %v size %v %v, solid %d;", t.classname, t.origin, t.mins, t.maxs, t.solid));
@@ -3957,6 +3961,16 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
                     vlen(hitmodel_rest(t, trace_endpos) - head), xHeadRadius));
             }
         }
+        // A blade's blow at the head from the same side (positional melee: the point it met, PositionalRegion).
+        if(hasHead && xPrecise && hitmodel_target(t))
+        {
+            float mt = hitmodel_segment(t, head - r * 24, head, 3, HITCLASS_MELEE);
+            if(mt > 0)
+            {
+                meleeHeadOn++;
+                if(PositionalRegion(t, head - r * 24 + r * 24 * mt, r) == 1) { meleeHeads++; }
+            }
+        }
         if(VR_Test_HitRay(t, chest - r * 64, chest + r * 128, gunFlags))
         {
             chestOn++;
@@ -3969,7 +3983,8 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
     dprint(sprintf("hittest %s %s: corner rays %d/6 on it (%d on to the world), middle %d/1;", t.classname, mode, onC, behindC, onB));
     dprint(sprintf(" grapple corners %d/6, middle %d/1; melee corners %d/6, middle %d/1;", grappleC, grappleB, meleeC, meleeB));
     dprint(sprintf(" thrown corners %d/6, middle %d/1; head ring %d/24 on it (%d headshots);", thrownC, thrownB, headOn, heads));
-    dprint(sprintf(" chest ring %d/24 on it (%d head, %d limb, %d legs)\n", chestOn, chestHead, chestLimb, chestLegs));
+    dprint(sprintf(" chest ring %d/24 on it (%d head, %d limb, %d legs);", chestOn, chestHead, chestLimb, chestLegs));
+    dprint(sprintf(" melee head ring %d/24 on it (%d head)\n", meleeHeadOn, meleeHeads));
     cvar_set("vr_hit_precise", ftos(saved));
 };
 
