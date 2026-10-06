@@ -15,6 +15,7 @@ Shove near a ledge (vrclimb): grunts shoved off the long ledge or into the trenc
 Map Library: quitting while the map index downloads on first start no longer crashes; install, Play, Cancel and uninstall from the Installed filter still work
 Flat screen: WSAD responds immediately even while agent test runs are going; typing in other apps no longer lags; after alt-tab, Caps Lock and Print Screen still work in game
 Parallax: walk close along carved walls; compare Graphics > Surfaces Parallax Side Fade 83/86/90 and Refinement 0/4 (no swimming); try Depth Write on with Show Parallax Depth (hands, weapons, gibs, water against relief) and decide if worth 0.1-0.6 ms
+Lightning: killed enemies keep crawling arcs for 3 s and ragdolls convulse (judge strength); burn marks on living hits and kills; vore/no-ragdoll enemies get arcs + burns too; check from spectator view (Gore > Lightning's Shock)
 
 [Map tips]
 vrstart: the test tip near the start appears as a CRT screen with its cable when you come into range; its text size follows the map's tip_size
