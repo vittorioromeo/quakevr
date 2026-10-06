@@ -64,7 +64,17 @@ void() Laser_Touch =
     if(other.health)
     {
         VR_HitBlood(other, org, self.velocity*0.2, 15);
-        T_Damage(other, self, self.owner, self.vr_laser_damage ? self.vr_laser_damage : 15); // VR: an enforcer's rifle's (vr_enemyguns.qc)
+        // VR: a kill at the head or a limb pops it by chance (vr_decap_pop_laser; vr_limbs.qc), where the bolt's line
+        // meets the model.
+        float dmg = self.vr_laser_damage ? self.vr_laser_damage : 15; // VR: an enforcer's rifle's (vr_enemyguns.qc)
+        vector dir = normalize(self.velocity);
+        VR_TouchTrace(self.origin - dir * 16, self.origin + dir * 16);
+        float pop = VR_Decap_LaserArm(other, self.owner, trace_ent == other ? trace_endpos : self.origin, dir, dmg);
+        T_Damage(other, self, self.owner, dmg);
+        if(pop)
+        {
+            VR_Decap_After(other);
+        }
     }
     else
     {

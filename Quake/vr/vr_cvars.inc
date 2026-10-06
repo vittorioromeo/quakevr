@@ -1803,6 +1803,7 @@ QVR_CVAR(vr_decap_pop_lightning_always, "1", CVAR_ARCHIVE) // a lightning bolt's
 QVR_CVAR(vr_decap_pop_thrown, "1", CVAR_ARCHIVE)          // a thrown (or flung) blunt weapon or prop killing with a headshot pops the head
 QVR_CVAR(vr_decap_pop_thrown_mass, "4", CVAR_ARCHIVE)     // kg: this heavy or heavier, always
 QVR_CVAR(vr_decap_pop_thrown_light_chance, "0", CVAR_ARCHIVE) // a lighter one's chance (0: never)
+QVR_CVAR(vr_decap_pop_laser, "0.85", CVAR_ARCHIVE) // an enforcer laser bolt's kill (an enemy's, or your enforcer's rifle) at the head or a limb pops it at this chance (0: never)
 // Blunt melee head kills (QC vr_decap.qc, "Blunt melee head pops"): chance = the weapon's scale x hardness^curve (at most 1),
 // hardness = (1 - damage_weight) x the speed's way from soft to hard + damage_weight x the damage's way from soft to hard.
 QVR_CVAR(vr_decap_pop_fist_scale, "0.04", CVAR_ARCHIVE)     // a punch's chance at the hardest hit

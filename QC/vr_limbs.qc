@@ -791,6 +791,45 @@ float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm =
     return VR_Limb_BoltArm(targ, xAt, xDir, xDamage);
 };
 
+// An enforcer's laser bolt (an enemy's: Laser_Touch, any monster's at another; or your enforcer's rifle:
+// VR_RifleLaser_Touch) about to deal `xDamage` to `targ` for `attacker`, striking it at `xAt` going `xDir`: armed if
+// it strikes a living monster's head or a limb (VR_Decap_OnHead, VR_Limb_At: on its model as it is animated), the kill
+// popping it at vr_decap_pop_laser (times Head Chance or Limb Chance; a zombie: only a blow that knocks it down).
+float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage) VR_Decap_LaserArm =
+{
+    float chance = min(1, max(0, cvar_hget(cvarh_vr_decap_pop_laser)));
+    if(chance <= 0 || targ.health <= 0 || !targ.takedamage || !(targ.flags & FL_MONSTER) || targ == attacker)
+    {
+        return FALSE;
+    }
+    xDir = normalize(xDir);
+    if(VR_Decap_Allowed(targ) && VR_Decap_OnHead(targ, xAt, xDir))
+    {
+        if((targ.classname == "monster_zombie" && xDamage < VR_DECAP_ZOMBIE_DOWN) ||
+           !VR_Decap_Arm(targ, attacker, xAt, xDir * VR_DECAP_SHOT_SPEED, QVR_DECAP_LASER))
+        {
+            return FALSE;
+        }
+        vr_decap_chance = chance;
+        vr_decap_why = "a laser bolt";
+        return TRUE;
+    }
+    if(!VR_Limb_Allowed(targ))
+    {
+        return FALSE;
+    }
+    float bone = VR_Limb_At(targ, xAt);
+    if(bone < 0 || (VR_Limb_IsZombie(targ) && xDamage < VR_DECAP_ZOMBIE_DOWN) ||
+       !VR_Limb_Arm(targ, attacker, xAt, xDir * VR_DECAP_SHOT_SPEED, QVR_DECAP_LASER, bone))
+    {
+        dprint(sprintf("limbs: no: a laser bolt at %s at %v, its limb %g\n", targ.classname, xAt, bone));
+        return FALSE;
+    }
+    vr_decap_chance = chance;
+    vr_decap_why = "a laser bolt at a limb";
+    return TRUE;
+};
+
 float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm =
 {
     if(VR_Decap_HeadThrownArm(targ, xThing, by, xDamage))

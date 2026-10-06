@@ -2093,6 +2093,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         toggle("Lightning Always Pops", vr_decap_pop_lightning_always)
             .help("A lightning bolt's headshot kill always pops the head, at any range; off: the ranges, with the super "
                   "shotgun's falloff (vr_decap_pop_lightning_always)."),
+        slider("Enforcer Laser", vr_decap_pop_laser, 0.f, 1.f, 0.05f, "%.2f")
+            .help("An enforcer's laser bolt that kills a monster with a head or limb hit (an enemy's bolt into another "
+                  "monster, or your own enforcer's rifle) pops it at this chance, at any range (0: never) (vr_decap_pop_laser)."),
         toggle("Thrown Things", vr_decap_pop_thrown)
             .help("A blunt weapon or prop thrown (or flung) into a head that kills pops it, when heavy enough (not a sword, "
                   "an axe or the chainsaw: an axe's edge cuts the head off) (vr_decap_pop_thrown)."),
@@ -2164,6 +2167,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         toggle("Make Limbs as the Map Loads", vr_limbs_prebuild)
             .help("On: the limbs of every kind of monster the map has are made as it loads (about 5 ms each: a tenth of a "
                   "second or so more), not at their first cut (a dropped frame). The next map load (vr_limbs_prebuild)."),
+        slider("Enforcer Laser Pops", vr_decap_pop_laser, 0.f, 1.f, 0.05f, "%.2f")
+            .help("An enforcer's laser bolt that kills with a head or limb hit (an enemy's into another monster, or your "
+                  "enforcer's rifle) pops it at this chance (times Head or Limb Chance) (vr_decap_pop_laser)."),
         header("Explosions and Gibbing"),
         toggle("Explosions Pop Limbs", vr_limbs_blast)
             .help("An explosion pops the limbs near it by chance: a monster it kills falls as a ragdoll without them instead "
@@ -4582,6 +4588,10 @@ za::Vector<Item> pageDebugTools()
         command("Most Limbs", "vr_limb_test 11").help("vr_limb_test 11: twice Most Limbs Lying About thrown: how many stay."),
         command("Where Its Limbs Map", "vr_limb_test 13").help("vr_limb_test 13: each limb's surface point and the joint a hit there cuts."),
         command("The Limbs Lying About", "vr_limb_test 17").help("vr_limb_test 17: each limb thrown: its model, where it is, how fast (none fallen out of the world)."),
+        command("Enemy Laser at the Head", "vr_limb_test 20")
+            .help("vr_limb_test 20: an enforcer's laser bolt (an enemy's) into the nearest living monster's head that kills "
+                  "it (health 1): popped at Enforcer Laser's chance (vr_decap_pop_roll 0: always)."),
+        command("Enemy Laser at a Limb", "vr_limb_test 21").help("vr_limb_test 21: the same at its forearm."),
         command("Hand to the Last Limb", "vr_limb_test 14").help("vr_limb_test 14: the mock main hand put on the last limb thrown (then grip: vr_mock_button main grip 1; vr_limb_test 15 says if it is held)."),
         header("Crowd Gore Tests (goretest: crowd ... in the console; the benchmarks' gore scenarios)"),
         slider("Crowd Radius", vr_gore_test_crowd, 0.f, 1024.f, 64.f, "%.0f units")

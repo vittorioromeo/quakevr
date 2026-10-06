@@ -133,6 +133,54 @@ void(float xTest) VR_Limb_Test =
         vr_decap_limb = oldLimb;
         return;
     }
+    if(xTest == 20 || xTest == 21)
+    {
+        // (As an enemy enforcer's bolt strikes: Laser_Touch, from a shooter of its own 64 units off: of ten ways in (level
+        // all round, from above and below), the first whose line meets the head (or the limb) first.)
+        m = VR_Limb_TestTarget(1);
+        if(m == world)
+        {
+            bprint(sprintf("limbtest: %g: no living monster with limbs near\n", xTest));
+            return;
+        }
+        float lb = (xTest == 20) ? ragdolllimbs(m, 3) : VR_Limb_TestBone(m);
+        vector la = (xTest == 20) ? limbplace(m, lb, 3) : limbplace(m, lb, 0);
+        float lpops = vr_decap_pops;
+        float lrolls = vr_decap_rolls;
+        m.health = 1;
+        entity shooter = spawn();
+        shooter.classname = "monster_enforcer";
+        setorigin(shooter, la);
+        entity oself = self;
+        self = shooter;
+        entity bolt = LaunchLaser(shooter.origin, '1 0 0');
+        self = bolt;
+        vector bd = '1 0 0';
+        float clear = FALSE;
+        for(float w = 0; w < 10 && !clear; w++)
+        {
+            float wa = w * 0.785398;
+            bd_x = (w < 8) ? cos(wa) : 0;
+            bd_y = (w < 8) ? sin(wa) : 0;
+            bd_z = (w < 8) ? 0 : ((w == 8) ? -1 : 1);
+            VR_TouchTrace(la - bd * 64, la + bd * 16);
+            clear = ((trace_ent == m) && ((xTest == 20) ? VR_Decap_OnHead(m, trace_endpos, bd) : (VR_Limb_At(m, trace_endpos) == lb && !VR_Decap_OnHead(m, trace_endpos, bd))));
+        }
+        setorigin(shooter, la - bd * 64);
+        setorigin(bolt, trace_endpos - bd * 2);
+        bolt.velocity = bd * 600;
+        other = m;
+        dprint(sprintf("limbtest: %g bolt going %v (%s): its line meets %s at %v (limb %g)\n", xTest, bd, clear ? "clear" : "no clear line",
+            trace_ent.classname, trace_endpos, ragdolllimb(m, trace_endpos)));
+        Laser_Touch();
+        self = oself;
+        remove(shooter);
+        bprint(sprintf("limbtest: %g laser at %s's %s (joint %g, maps to %g): health %g", xTest, m.classname,
+            (xTest == 20) ? "head" : "limb", lb, ragdolllimb(m, la), m.health));
+        bprint(sprintf(", head popped %g, limbs popped %g, rolls %g\n", vr_decap_pops - lpops, vr_limb_pops - pops,
+            vr_decap_rolls - lrolls));
+        return;
+    }
     if(xTest == 17)
     {
         // (The limbs lying about: each one's model, where it is, how fast: none fallen out of the world.)

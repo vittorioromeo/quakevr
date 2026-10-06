@@ -303,6 +303,7 @@ float cvarh_vr_decap_pop_lightning_always;
 float cvarh_vr_decap_pop_thrown;
 float cvarh_vr_decap_pop_thrown_mass;
 float cvarh_vr_decap_pop_thrown_light_chance;
+float cvarh_vr_decap_pop_laser;
 float cvarh_vr_decap_pop_fist_scale;
 float cvarh_vr_decap_pop_gun_scale;
 float cvarh_vr_decap_pop_crowbar_scale;
@@ -910,6 +911,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_decap_pop_thrown);
     VR_CVAR_HMAKE(vr_decap_pop_thrown_mass);
     VR_CVAR_HMAKE(vr_decap_pop_thrown_light_chance);
+    VR_CVAR_HMAKE(vr_decap_pop_laser);
     VR_CVAR_HMAKE(vr_decap_pop_fist_scale);
     VR_CVAR_HMAKE(vr_decap_pop_gun_scale);
     VR_CVAR_HMAKE(vr_decap_pop_crowbar_scale);

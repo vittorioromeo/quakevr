@@ -26267,3 +26267,20 @@ list). `maps_page_stats` also prints where the first row, Uninstall and Reinstal
   file(s)", the folder gone, the registry its header only, `maps_installed`: nothing installed, the buttons and
   "INSTALLED" gone from the detail. The same with the flat mouse (`vr_mock_mouse 54 211 click` twice). Reinstall was
   only armed, not confirmed (it downloads).
+
+## Gore tweaks: enforcer lasers pop, cut ends spurt, limb weights, shorter living arcs, the beheading zone drawn (2026-10-06)
+
+Five voice notes (hip1m1, vrfiringrange).
+
+### Enforcer lasers pop heads and limbs
+
+An enforcer's laser bolt that kills a monster with a head or limb hit pops it at `vr_decap_pop_laser` (0.85; times Head
+or Limb Chance; 0 never). Both bolts that are an enforcer's laser: an enemy's (`Laser_Touch`: an enforcer, or any monster
+using `LaunchLaser`, into another monster) and the player's own enforcer's rifle (`VR_RifleLaser_Touch`). Hipnotic's
+laser cannon (`HIP_LaserTouch`) is another projectile and is unchanged. The point tested is where the bolt's line meets
+the model (precise hits), as the guns'; head first (`VR_Decap_OnHead`), else the limb (`VR_Limb_At`). New kind
+`QVR_DECAP_LASER` (11), a pop. Menu: Gore > Decapitation > Head Pop Chance > Enforcer Laser, and Gore > Limb Gore >
+Enforcer Laser Pops (the same setting). Tests: `vr_limb_test 20` (head) / `21` (forearm): an enemy enforcer's bolt from
+64 units off along a clear line, the target at health 1. Roll 0: both pop; `vr_decap_pop_laser 0`: neither (not armed);
+random rolls at 0.85 (each a fresh grunt): heads 34 of 40 kills popped (two runs), limbs 11 of 15.
+

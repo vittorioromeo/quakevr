@@ -28,6 +28,7 @@ float QVR_DECAP_BLUNT = 7;  // a fist, gun or other blunt melee head hit
 float QVR_DECAP_THROWN_BLUNT = 8; // a thrown (or flung) blunt weapon or prop (Head pop chance: heavy enough, always)
 float QVR_DECAP_BLAST = 10; // an explosion popping a limb near it (vr_limbs.qc: vr_limbs_blast)
 float QVR_DECAP_QUAD = 9;   // any other headshot kill with Quad Damage (vr_decap_pop_quad: a nail, a rocket, a grenade, a stab)
+float QVR_DECAP_LASER = 11; // an enforcer's laser bolt (an enemy's, or your enforcer's rifle): vr_decap_pop_laser (vr_limbs.qc: VR_Decap_LaserArm)
 // Head pops (below: "Head pops"; combat.qc: QVR_DECAP_SHOTGUN 4, _SSG 5, _LIGHTNING 6): a shot kills with a headshot.
 
 .float vr_decap_died; // when it was killed (Killed: VR_Decap_Killed)
@@ -68,6 +69,7 @@ string(float xHow) VR_Decap_HowName =
     if(xHow == QVR_DECAP_THROWN_BLUNT) { return "a thrown blunt thing"; }
     if(xHow == QVR_DECAP_QUAD) { return "a Quad Damage headshot"; }
     if(xHow == QVR_DECAP_BLAST) { return "an explosion"; }
+    if(xHow == QVR_DECAP_LASER) { return "a laser bolt"; }
     return "a slash";
 };
 
@@ -120,6 +122,7 @@ float(float xHow) VR_Decap_HowOn =
     if(xHow == QVR_DECAP_SSG) { return cvar_hget(cvarh_vr_decap_super_shotgun); }
     if(xHow == QVR_DECAP_LIGHTNING) { return cvar_hget(cvarh_vr_decap_lightning); }
     if(xHow == QVR_DECAP_THROWN_BLUNT) { return cvar_hget(cvarh_vr_decap_pop_thrown); }
+    if(xHow == QVR_DECAP_LASER) { return cvar_hget(cvarh_vr_decap_pop_laser) > 0; }
     return TRUE;
 };
 
@@ -127,7 +130,7 @@ float(float xHow) VR_Decap_HowOn =
 float(float xHow) VR_Decap_IsPop =
 {
     return xHow == QVR_DECAP_SHOTGUN || xHow == QVR_DECAP_SSG || xHow == QVR_DECAP_LIGHTNING || xHow == QVR_DECAP_BLUNT ||
-           xHow == QVR_DECAP_THROWN_BLUNT || xHow == QVR_DECAP_QUAD || xHow == QVR_DECAP_BLAST;
+           xHow == QVR_DECAP_THROWN_BLUNT || xHow == QVR_DECAP_QUAD || xHow == QVR_DECAP_BLAST || xHow == QVR_DECAP_LASER;
 };
 
 // `e`'s head zone (xHeadForward, xHeadUp, xHeadRadius): positional damage's (PositionalHead, weapons.qc), or for a

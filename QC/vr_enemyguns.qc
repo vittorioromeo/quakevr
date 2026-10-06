@@ -162,11 +162,19 @@ void() VR_RifleLaser_Touch =
     if(other.takedamage)
     {
         float before = other.health;
+        vector hitAt = trace_ent == other ? trace_endpos : self.origin;
+        vector hitDir = v_forward;
         float dmg = self.vr_laser_damage * PositionalDamageFactor(PositionalDamage(trace_ent, trace_endpos, v_forward));
+        // (A kill at the head or a limb pops it by chance, as an enemy's bolt: vr_decap_pop_laser, vr_limbs.qc.)
+        float pop = VR_Decap_LaserArm(other, self.owner, hitAt, hitDir, dmg);
         if(T_Damage(other, self, self.owner, dmg))
         {
             spawn_touchblood(dmg);
             bleed = TRUE;
+        }
+        if(pop)
+        {
+            VR_Decap_After(other);
         }
         if(cvar_hget(cvarh_vr_debug_shots))
         {
