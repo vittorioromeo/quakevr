@@ -72,6 +72,10 @@ void info_f();
 // vr_gore_hands_test [off|main] [amount]: a gib's blood on a hand, as taking one (the main hand; vr_gore_hands).
 void handsTest_f();
 
+// vr_gore_wash_test [amount]: `amount` (0.25) of the blood washed off your hands and body at once, as water over them
+// would (vr_gore_wash_once: each texel once).
+void washTest_f();
+
 // vr_gore_hands_info: the player's wounds kept to re-open, the wash, the blood on the hands and the body (texels), and
 // on your gear (vr_gore_gear: the weapons and props you hold or held).
 void handsInfo_f();

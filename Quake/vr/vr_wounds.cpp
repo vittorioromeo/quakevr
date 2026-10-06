@@ -116,6 +116,8 @@ GLuint bloodArray = 0; // ... and the blood on them that isn't theirs (spatter, 
                        // your masks in the pool, a layer each, the last your body's right side's)
 bool foreign = false;  // painting blood that isn't yours (paintOnYou's): into bloodArray
 int fineSize = 0;     // their side in texels (0: none; yours in the pool)
+GLuint washStencil = 0; // a depth-stencil texture as big as the largest mask: a wash takes its blood off each texel once
+int washStencilSize = 0;
 double lastTick = -1.0;
 int playerHealth = -1000;
 za::U32 rng = 0x9e3779b9u;
@@ -360,6 +362,12 @@ void releaseTexture()
         bloodArray = 0;
     }
     fineSize = 0;
+    if(washStencil)
+    {
+        glDeleteTextures(1, &washStencil);
+        washStencil = 0;
+        washStencilSize = 0;
+    }
     if(fbo)
     {
         GL_DeleteFramebuffersFunc(1, &fbo);
@@ -1424,7 +1432,32 @@ bool waterSurface(const glm::vec3& p, float reach, float& surface)
     return true;
 }
 
-// `amount` of the blood taken off mask `layer` (entity `e`, as drawn) under `surface`.
+// The wash's stencil (washUnder), as big as the largest mask (made again when the fine masks' size changes).
+bool ensureWashStencil()
+{
+    const int size = za::max(layerSize, fineSize);
+    if(washStencil && washStencilSize == size)
+    {
+        return true;
+    }
+    if(washStencil)
+    {
+        glDeleteTextures(1, &washStencil);
+    }
+    glGenTextures(1, &washStencil);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, washStencil);
+    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, size, size);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
+    washStencilSize = size;
+    return true;
+}
+
+// `amount` of the blood taken off mask `layer` (entity `e`, as drawn) under `surface`. Each texel once: the model is
+// drawn as its triangles, then their edges as lines (R_PaintAliasWounds), which covers the texels on the edges two or
+// three times; painting (the most of the two) doesn't mind, but a subtraction took two or three times as much off
+// there, and the triangles' edges showed as lines through a partly washed hand. The stencil passes a texel's first.
 void washUnder(int layer, entity_t* e, float surface, float amount)
 {
     const Splat s = liquidSplat(surface, 1.f, 0.f, glm::vec4{amount, 0.f, 0.f, 0.f});
@@ -1433,6 +1466,16 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
         return;
     }
     begin();
+    const bool once = vr_gore_wash_once.value != 0.f && ensureWashStencil();
+    if(once)
+    {
+        GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, washStencil, 0);
+        glEnable(GL_STENCIL_TEST);
+        glStencilMask(0xFF);
+        glStencilFunc(GL_EQUAL, 0, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+        glClearStencil(0);
+    }
     int in[2], side[2];
     const int n = layersOf(layer, in, side);
     const bool other = hasOther(layer);
@@ -1443,6 +1486,10 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
         {
             attachBlood(GL_DRAW_FRAMEBUFFER, in[k - n]);
         }
+        if(once)
+        {
+            glClear(GL_STENCIL_BUFFER_BIT);
+        }
         // (the state's blending set first: R_PaintAliasWounds sets the same, leaving the function as it is)
         GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
         glBlendFunc(GL_ONE, GL_ONE);
@@ -1450,6 +1497,11 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
         paintModel(e, 1, &s.v[0].x, side[k % n]);
         GL_BlendEquationFunc(GL_FUNC_ADD);
         glBlendFunc(GL_ONE, GL_ZERO);
+    }
+    if(once)
+    {
+        glDisable(GL_STENCIL_TEST);
+        GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
     }
 }
 
@@ -3047,6 +3099,30 @@ void handsTest_f()
     smearHand(hand, za::max(1, static_cast<int>(amount * 4.f + 0.5f)), amount);
     end();
     Con_Printf("vr_gore_hands_test: a gib's blood on the %s hand\n", hand ? "main" : "off");
+}
+
+void washTest_f()
+{
+    const float amount = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 0.25f;
+    if(!vr_wounds.value || !ensureTexture())
+    {
+        return;
+    }
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    int washed = 0;
+    for(entity_t* e : own)
+    {
+        const int layer = e ? acquire(e, true, false) : -1;
+        if(layer >= 0)
+        {
+            washUnder(layer, e, e->origin[2] + 256.f, za::clamp(amount, 0.f, 1.f));
+            washed++;
+        }
+    }
+    end();
+    Con_Printf("vr_gore_wash_test: %.2f washed off %d of your masks (%s)\n", static_cast<double>(amount), washed,
+        vr_gore_wash_once.value != 0.f ? "each texel once" : "edges more");
 }
 
 void handsInfo_f()

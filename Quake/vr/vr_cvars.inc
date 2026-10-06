@@ -822,6 +822,7 @@ QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound paint
 QVR_CVAR(vr_gore_hands, "1", CVAR_ARCHIVE)            // grabbing a gib or a head bloodies the hand holding it: how much (0 none; the wound skins: 1 a bloody hand)
 QVR_CVAR(vr_gore_wash, "1", CVAR_ARCHIVE)             // water washes the blood off your body and hands, where they are under it
 QVR_CVAR(vr_gore_wash_time, "1.5", CVAR_ARCHIVE)      // seconds under water to wash the blood off fully
+QVR_CVAR(vr_gore_wash_once, "1", CVAR_NONE)          // a wash takes its blood off each mask texel once (a stencil); 0: as before, the texels on the triangles' edges washed two or three times (lines through a partly washed hand)
 QVR_CVAR(vr_gore_reopen, "1", CVAR_ARCHIVE)           // hurt, your wounds re-open after a wash (healed ones don't; a gib's blood doesn't come back)
 QVR_CVAR(vr_gore_reopen_delay, "4", CVAR_ARCHIVE)     // seconds out of the water, clean, before they re-open
 QVR_CVAR(vr_gore_reopen_time, "1.5", CVAR_ARCHIVE)    // seconds over which they re-open, one after another (0: all at once)

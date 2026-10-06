@@ -26096,3 +26096,18 @@ otherwise shade their own beam. `vr_shadow_head` (1; 0 the old headless shadow) 
 Checked: e1m1, facing the start's back wall, `vr_light_test 400 60 -36` behind the head: both eyes show the shoulders'
 shadow with a head and neck over them with 1, none with 0; the eyes' views have nothing of the head. The head-mounted
 flashlight (`vr_flashlight_clip_head right; vr_flashlight_toggle`): its spot the same with 0 and 1.
+
+## Washing without the triangles' lines (2026-10-06)
+
+The author (vrfiringrange 17:27, screenshot): a partly washed hand showed its triangles as pale lines. The masks are
+painted by drawing the model into its skin's layout, its triangles and then their edges as lines (R_PaintAliasWounds:
+the texels an edge crosses without covering their middle, read at the islands' edges). Painting takes the most of
+what is there and what is painted, so texels covered two or three times don't mind; a wash subtracts, and took two or
+three times its amount off the texels on the edges. `washUnder` now attaches a depth-stencil texture (as big as the
+largest mask, made once) and passes each texel's first fragment only (stencil EQUAL 0, INCR), cleared for each layer:
+each texel is washed once. `vr_gore_wash_once` (1; 0 the old way, for A/B). `vr_gore_wash_test [amount]` (Debug >
+Tests > Wash a Quarter Off) washes that much off your hands and body at once, without water.
+
+Checked: vrfiringrange, the main hand close up (`vr_mock_look 35 0; vr_mock_hand main 0.0 1.42 -0.3 -80 0 90`),
+`vr_gore_hands_test main 1` twice, then `vr_gore_wash_test 0.25` four times, an eyeshot after each: with 0 the
+triangles' edges show at 25% and 50%, with 1 none at any level (the blood's own speckle at 75% in both).
