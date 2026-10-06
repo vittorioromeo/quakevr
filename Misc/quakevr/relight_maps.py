@@ -158,7 +158,8 @@ def id_light_values(text):
                 return block
         except (ValueError, IndexError):
             return block
-        return re.sub(r'"light"\s+"[^"]*"', '"light" "300"', block)
+        # (each key and its value in turn: a "light" that is a value, the classname's, is not the key)
+        return re.sub(r'"([^"]*)"\s+"[^"]*"', lambda m: '"light" "300"' if m.group(1) == "light" else m.group(0), block)
     return re.sub(r"\{[^{}]*\}", fix, text)
 
 
