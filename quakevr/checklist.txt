@@ -7,6 +7,7 @@ Head pops: shotgun and super shotgun headshot kills pop up close, rarer with ran
 Lightning: one hit puts arcs on a living enemy that last through its death; corpses convulse until the arcs end; try Duration 30 s; arcs readable, lights not too strong (Gore > Lightning Shock)
 Smoke: lightning-hit and burnt enemies/corpses smoulder for a few seconds (visible in dark rooms, not too much); Gore > Lightning Shock > Arcs on the Living off = lasting arcs only on corpses
 Lit particles: blood in a dark corner is dark, bright under the flashlight and muzzle flashes; fire, sparks and explosions as bright as before (Graphics > Models and Effects > Effects > Lit Particles)
+Relighting (Graphics > Relighting): relight hip1m1 and vrtutorial in game; lamps and ceiling lights clearly brighter; reloads where you stand; try the sliders
 Shove toward a high ledge: always knocks down; Ledge Reach and Ledge Margin change how far ahead (Combat > Knockdowns)
 Parallax: carved walls keep their depth when seen from the side, no swimming (Graphics > Surfaces)
 Animated buttons and slipgate panels: no pulsing between frames
