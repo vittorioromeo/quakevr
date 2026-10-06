@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/quakevr-unleashed-wide.webp" alt="Quake VR: Unleashed" width="760"></p>
+
 # Quake VR
 
 **id Software's Quake (1996), rebuilt for virtual reality.**
