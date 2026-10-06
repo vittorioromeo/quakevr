@@ -439,6 +439,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageStamina();
 [[nodiscard]] za::Vector<Item> pageGibs();
 [[nodiscard]] za::Vector<Item> pageGore();
+[[nodiscard]] za::Vector<Item> pageLimbGore();
 [[nodiscard]] za::Vector<Item> pageScreens();
 [[nodiscard]] za::Vector<Item> pageTips();
 [[nodiscard]] za::Vector<Item> pageHipHolsters();
@@ -2060,6 +2061,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("A popped head's body: how much of the shot's knock its headless ragdoll keeps (its own motion, as it ran, "
                   "in full: Keeps Its Own Motion). The shot's force went into the head, so it slumps where it stood; 1: flung "
                   "as before (vr_decap_pop_body_speed)."),
+        slider("Head Chance", vr_decap_chance_scale, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Every beheading or head pop's chance times this (a blade's sure cut too: below 1 it may fail); Quad Damage "
+                  "always pops. Limbs: Gore > Limb Gore (vr_decap_chance_scale)."),
         header("Head Pop Chance"),
         toggle("By Chance", vr_decap_pop_chance)
             .help("A shotgun or super shotgun headshot kill pops the head always up close, never far off, and by chance between "
@@ -2126,6 +2130,49 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
     };
 }
 
+// Gore > Limb Gore (ROUND21.md, "Limb gore"; QC vr_limbs.qc, vr_box3d.cpp's "Limb gore", vr_limbmodel.cpp): every
+// limb as the head: cut off or popped, by the head's chance rules.
+[[nodiscard]] za::Vector<Item> pageLimbGore()
+{
+    return {
+        toggle("Limb Gore", vr_limbs)
+            .help("A monster's arms, legs, tails and the rest come off as its head does (the monsters with ragdolls): a blade's "
+                  "slash cuts the limb off at the joint nearest the hit (the elbow the forearm, the shoulder the whole arm), "
+                  "a shot, a blunt blow or a bolt pops it, by the head's chances (Decapitation's rows). A living one only by "
+                  "the blow that kills it: it falls at once as a ragdoll; the limb flies off (pick it up, throw it), the "
+                  "stump spurts blood. Needs Ragdolls on (vr_limbs)."),
+        slider("Limb Chance", vr_limbs_chance_scale, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Every limb cut or pop's chance times this (a blade's sure cut too: below 1 it may fail); Quad Damage "
+                  "always pops (vr_limbs_chance_scale)."),
+        slider("Head Chance", vr_decap_chance_scale, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("And every beheading or head pop's chance times this (1: as before) (vr_decap_chance_scale)."),
+        toggle("Corpses", vr_limbs_corpses)
+            .help("Corpses and ragdolls lose limbs too, each on its own, down to the torso: a slash cuts, a blunt blow or a "
+                  "shot pops one (vr_limbs_corpses)."),
+        toggle("Zombies and Mummies", vr_limbs_zombies)
+            .help("A zombie or a mummy losing a limb dies for good (a zombie: whatever the damage, as beheaded). Off: their "
+                  "limbs stay on (their heads: Decapitation > Zombies) (vr_limbs_zombies)."),
+        slider("Body's Speed After", vr_limbs_body_speed, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("A living monster's limb cut or popped: how much of the blow's knock its ragdoll keeps (it slumps where it "
+                  "stood; 1: flung as a kill) (vr_limbs_body_speed)."),
+        slider("Most Limbs Lying About", vr_limbs_max, 1.f, 64.f, 1.f, "%.0f").extend(1.f, 256.f)
+            .help("Past it, the oldest go first (not one in your hand) (vr_limbs_max)."),
+        header("Explosions and Gibbing"),
+        toggle("Explosions Pop Limbs", vr_limbs_blast)
+            .help("An explosion pops the limbs near it by chance: a monster it kills falls as a ragdoll without them instead "
+                  "of bursting into gibs (if none popped: gibbed as before); corpses lose them too. Off: as before "
+                  "(vr_limbs_blast)."),
+        slider("Explosion Reach", vr_limbs_blast_radius, 16.f, 256.f, 8.f, "%.0f units").extend(1.f, 1000.f)
+            .help("Limbs this near the blast may pop (vr_limbs_blast_radius)."),
+        slider("Explosion Chance", vr_limbs_blast_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A limb's chance at the blast itself, falling to none at the reach (times Limb Chance) "
+                  "(vr_limbs_blast_chance)."),
+        cycle("Gibbed Bodies Throw Limbs", vr_gib_limbs, {{0.f, "No"}, {1.f, "With the Gibs"}, {2.f, "Instead of Gibs"}})
+            .help("A body bursting into gibs throws its own arms, legs and tail as well (With the Gibs), or instead of "
+                  "Quake's meat chunks (Instead of Gibs) (vr_gib_limbs)."),
+    };
+}
+
 // Gore (vr_gore.cpp, vr_decals.cpp, vr_bodyblood.cpp; the QC's gibs sticking: vr_carry.qc).
 [[nodiscard]] za::Vector<Item> pageGore()
 {
@@ -2158,6 +2205,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         open("Small Gibs", pageIndex(pageSmallGibs)).help("Chunks of meat torn out by hits: when, how many, how they fly, how long they last."),
         open("Decapitation", pageIndex(pageDecapitation))
             .help("A killing slash at a monster's head cuts it off: the head flies, the body falls headless, the neck spurts blood."),
+        open("Limb Gore", pageIndex(pageLimbGore))
+            .help("Arms, legs and tails cut off or popped as heads are: the killing blow on the living, any blow on corpses."),
         header("Wounds on Models"),
         toggle("Dynamic Wounds", vr_wounds)
             .help("Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off."),
@@ -4366,6 +4415,31 @@ za::Vector<Item> pageDebugTools()
         command("Sweep the Head Zone", "vr_decap_test 19")
             .help("vr_decap_test 19: blows moved level at the nearest live monster's head from 16 sides, at heights 24 units below "
                   "its head's middle to 16 above: how many meet the melee's beheading zone at each (decapsweep: in the console)."),
+        header("Limb Gore Tests (limbtest: ... in the console; developer 1: limbs: ...)"),
+        command("A Grunt Ahead", "vr_test_spawn 0; vr_test_spawn_dist 96; impulse 241").help("A grunt 96 units ahead, for the tests below."),
+        command("A Grunt's Corpse Ahead", "vr_test_spawn 0; vr_test_spawn_dist 96; vr_test_spawn_dead 1; impulse 241; vr_test_spawn_dead 0")
+            .help("A dead grunt 96 units ahead (a ragdoll), for the corpse tests."),
+        command("Spawn Its Limbs", "vr_limb_test 1")
+            .help("vr_limb_test 1: every limb of the nearest monster's model hung in a row before you: the limb models made "
+                  "from its own (vr_limb_models lists them)."),
+        command("List Its Limb Models", "vr_limb_models").help("vr_limb_models [model]: the grunt's (or that model's) limbs: each one's triangles, cap and size."),
+        command("Cut a Corpse Apart, Ends First", "vr_limb_test 2")
+            .help("vr_limb_test 2: the nearest corpse's limbs cut off one by one, hands and shins first, down to the torso, "
+                  "then its head: the parts left after each."),
+        command("Cut a Corpse Apart, Whole Limbs", "vr_limb_test 3").help("vr_limb_test 3: the same, whole arms and legs at once."),
+        command("Slash at a Limb", "vr_limb_test 4")
+            .help("vr_limb_test 4: the nearest live monster's health 1, a sword's slash at its forearm: it falls as a ragdoll, "
+                  "the forearm flies off."),
+        command("Punch a Limb", "vr_limb_test 5").help("vr_limb_test 5: a fist's killing blow there: popped by chance (vr_decap_pop_roll 0: always)."),
+        command("Shotgun at a Limb", "vr_limb_test 6").help("vr_limb_test 6: a shotgun blast there that kills."),
+        command("Lightning at a Limb", "vr_limb_test 7").help("vr_limb_test 7: a lightning bolt there that kills."),
+        command("Explosion by a Limb", "vr_limb_test 9").help("vr_limb_test 9: an explosion beside it that kills: its limbs near it pop by chance."),
+        command("Gib It", "vr_limb_test 10").help("vr_limb_test 10: gibbed: its own limbs thrown (Gibbed Bodies Throw Limbs)."),
+        command("Slash at Full Health", "vr_limb_test 12").help("vr_limb_test 12: a light slash at a limb at full health: a zombie dies of it, others don't."),
+        command("Chance Rates", "vr_limb_test 8").help("vr_limb_test 8: 2000 rolls at chance 0.5 for a head and a limb: the rates with Head Chance and Limb Chance."),
+        command("Most Limbs", "vr_limb_test 11").help("vr_limb_test 11: twice Most Limbs Lying About thrown: how many stay."),
+        command("Where Its Limbs Map", "vr_limb_test 13").help("vr_limb_test 13: each limb's surface point and the joint a hit there cuts."),
+        command("Hand to the Last Limb", "vr_limb_test 14").help("vr_limb_test 14: the mock main hand put on the last limb thrown (then grip: vr_mock_button main grip 1; vr_limb_test 15 says if it is held)."),
         header("Head Pop Chance Tests (poptest: ... in the console)"),
         slider("Test Range", vr_decap_poptest_dist, 0.5f, 25.f, 0.5f, "%.1f lengths")
             .help("The tests below shoot (or throw) from this many player lengths (56 units) off the nearest live monster's head "
@@ -5497,6 +5571,7 @@ const Page pages[] = {
     {"Official Campaigns", pageCampaigns, pageMain, LevelStandard},
     {"Machine Horde Tests", pageMachineHordeTests, pageDebugTests, LevelDeveloper},
     {"Graphics - Relighting", pageGraphicsRelighting, pageGraphics},
+    {"Gore - Limb Gore", pageLimbGore, pageGore},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

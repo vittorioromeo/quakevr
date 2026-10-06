@@ -383,7 +383,8 @@ void mockLook_f()
 // (view::heldWeaponPoint; vr_weapon_grab_anywhere tests).
 // "vr_mock_hand_to <main|off> ragdoll <part> [<units>]": at the middle of that part of the ragdoll nearest you (its
 // rig's bone number: vr_ragdoll_info; "near": the part nearest the hand), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
-// moved by that much (world units: lifting, swinging what it holds).
+// moved by that much (world units: lifting, swinging what it holds). "vr_mock_hand_to <main|off> nearest <classname>
+// [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it.
 
 // The thrown_weapon nearest the player (the server's: its qcvm pushed), or null.
 edict_t* nearestThrownWeapon()
@@ -533,6 +534,44 @@ void mockHandTo_f()
     const bool heldSpot = Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "heldspot");
     const bool ragdollPart = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "ragdoll");
     const bool by = Cmd_Argc() == 6 && !q_strcasecmp(Cmd_Argv(2), "by");
+    const bool nearestOf = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "nearest");
+    if(nearestOf && hand >= 0 && sv.active && svs.maxclients >= 1)
+    {
+        // The entity of that classname nearest you (a limb cut off: vr_limb), `units` over its origin (Limb gore's grab
+        // test).
+        qcvm_t* oldVm = nullptr;
+        PR_PushQCVM(&sv.qcvm, &oldVm);
+        const edict_t* player = EDICT_NUM(1);
+        const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+        glm::vec3 target{0.f};
+        float best = 1e30f;
+        int found = 0;
+        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+        {
+            const edict_t* e = EDICT_NUM(i);
+            if(e->free || strcmp(PR_GetString(e->v.classname), Cmd_Argv(3)) != 0)
+            {
+                continue;
+            }
+            const glm::vec3 at{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+            if(glm::distance(at, from) < best)
+            {
+                best = glm::distance(at, from);
+                target = at;
+                found = i;
+            }
+        }
+        PR_PopQCVM(oldVm);
+        if(!found)
+        {
+            Con_Printf("vr_mock_hand_to: no %s\n", Cmd_Argv(3));
+            return;
+        }
+        target.z += Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
+        Con_Printf("vr_mock_hand_to: %s %d: %.1f %.1f %.1f\n", Cmd_Argv(3), found, target.x, target.y, target.z);
+        moveHandTo(hand, target);
+        return;
+    }
     if((ragdollPart || by) && hand >= 0)
     {
         // A ragdoll's limb (vr_ragdoll: the grab tests), `units` over its middle; or where the hand is moved by a
@@ -576,7 +615,8 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> wrist <cm>\n"
                    "       vr_mock_hand_to <main|off> heldspot <hotspot index>\n"
                    "       vr_mock_hand_to <main|off> ragdoll <part> [<units over it>]\n"
-                   "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n");
+                   "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n"
+                   "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n");
         return;
     }
     glm::vec3 target{0.f};

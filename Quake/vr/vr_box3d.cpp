@@ -2722,12 +2722,13 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
     // Beheaded before (a saved game's): made headless again.
     if(headless)
     {
+        // Its limbs cut off before (Limb gore: .vr_limbcut, the bones; read first: each cut writes it): each cut's joint
+        // (a cut bone whose parent wasn't).
+        const auto limbs = static_cast<uint32_t>(za::max(fieldFloatOr(ent, fields().vr_limbcut, 0.f), 0.f));
         if(fieldFloatOr(ent, fields().vr_headless, 0.f) != 0.f)
         {
             (void)cutHead(r, ent, glm::vec3{0.f}, false);
         }
-        // Its limbs cut off before (Limb gore: .vr_limbcut, the bones): each cut's joint (a cut bone whose parent wasn't).
-        const auto limbs = static_cast<uint32_t>(za::max(fieldFloatOr(ent, fields().vr_limbcut, 0.f), 0.f));
         for(int b = 1; b < r.count; b++)
         {
             const int parent = rig->bones[b].parent;

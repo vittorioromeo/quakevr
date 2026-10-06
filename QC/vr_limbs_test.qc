@@ -129,13 +129,20 @@ void(float xTest) VR_Limb_Test =
         }
         if(xTest == 14)
         {
-            localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", h.origin_x, h.origin_y, h.origin_z));
-            bprint(sprintf("limbtest: 14 the main hand to %s at %v\n", h.model, h.origin));
+            // (It brought before you, within the mock hand's reach, lying still; the hand on it.)
+            // (Hung before you at chest height, as Spawn Its Limbs hangs them: the mock hand doesn't reach the floor.)
+            setorigin(h, self.origin + v_forward * 16 + '0 0 8');
+            h.velocity = '0 0 0';
+            h.vr_spin = '0 0 0';
+            h.movetype = MOVETYPE_NONE;
+            h.vr_rigid = 0;
+            bprint(sprintf("limbtest: 14 %s brought before you at %v (you at %v)\n", h.model, h.origin, self.origin));
         }
         else
         {
-            bprint(sprintf("limbtest: 15 %s held %g (by %s), at %v\n", h.model, h.carry_player != world,
-                h.carry_player.classname, h.origin));
+            bprint(sprintf("limbtest: 15 %s held %g (by %s), at %v, a hand %.1f units from it\n", h.model,
+                h.carry_player != world, h.carry_player.classname, h.origin, min(vlen(VRGetHandPos(cVR_MainHand) - h.origin),
+                vlen(VRGetHandPos(cVR_OffHand) - h.origin))));
         }
         return;
     }
