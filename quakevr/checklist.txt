@@ -31,5 +31,5 @@ Record new melee takes: stand closer with the smaller hitbox and melee speed 3
 [Expansion setup]
 Base Quake only: hub, tutorial and firing range work; absent mission packs are labelled unavailable
 Dopa: start from Official Campaigns; check secret returns, saves, carried guns and readable finale (single-player)
-MG1 developer tests: keyed buttons need the right key; quake vibration feels comfortable
+MG1 developer tests: rune returns and electrode buttons work; keys gate buttons; quake vibration feels comfortable
 # Dimension of the Machine and Dawn of the Machine native ports remain in progress.
