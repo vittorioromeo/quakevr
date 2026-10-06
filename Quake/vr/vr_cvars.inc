@@ -1364,6 +1364,12 @@ QVR_CVAR(vr_smoulder, "1", CVAR_ARCHIVE)             // how much smoke, x (0 non
 QVR_CVAR(vr_smoulder_time, "5.5", CVAR_ARCHIVE)      // s a body smokes after the last lightning bolt into it, thinning (0 none)
 QVR_CVAR(vr_smoulder_burn_time, "4", CVAR_ARCHIVE)   // s a burnt body smokes on after its flames go out, thinning (it smokes while they burn)
 QVR_CVAR(vr_smoulder_alpha, "0.6", CVAR_ARCHIVE)     // how opaque a fresh wisp is
+// Lightning on you (vr_shock.cpp, KindSelfHit; QC weapons.qc VR_LightningHit, playershock): struck by a shambler's bolt,
+// another's lightning gun, a trap's or the water's shock spreading, Quad Damage's arcs crawl over your hands, arms and
+// body (the drawn body's torso and legs) a while, kept off the middle of the view, with a soft flicker of blue light.
+QVR_CVAR(vr_shock_self_time, "0.8", CVAR_ARCHIVE)    // s they last after a shambler's bolt (10 damage), longer for harder ones (by the square root, 0.5..3x; 0 none)
+QVR_CVAR(vr_shock_self_arcs, "1", CVAR_ARCHIVE)      // how many arcs, x
+QVR_CVAR(vr_shock_self_light, "0.6", CVAR_ARCHIVE)   // the flicker of blue light round you while they crackle (0 none .. 1)
 QVR_CVAR(vr_torch_lights, "8", CVAR_ARCHIVE)         // torches and flames flicker a small warm light onto the room: how many at once, the nearest in view (0 off)
 QVR_CVAR(vr_torch_light_scale, "1", CVAR_ARCHIVE)    // their brightness (on top of the baked light)
 QVR_CVAR(vr_torch_light_shadows, "0", CVAR_ARCHIVE)  // how many of them (the nearest) may cast shadows, taking vr_shadow_dlights' slots (0 none)

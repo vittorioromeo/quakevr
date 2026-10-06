@@ -26012,3 +26012,51 @@ Tested headless (`vr_relight_tool_dir` an empty scratch folder): from GitHub (tw
 folder, no `.download/`, the game gone in a second; `good.zip` installed and dm4 relit with it. The page through
 downloading, cancelled and installed (screenshots); `menu_vr dump`: the Download row only while none is found.
 Menu Detail Standard: not found; Developer: the author's path.
+
+## Lightning on you: Quad's arcs over the struck player (vr_shock_self_*, 2026-10-06)
+
+Asked (e1m5): when the player is shocked, by a shambler for example, show the lightning shock's arcs on him: on the IK
+body, the arms, the hands.
+
+- **When:** every lightning bolt into a living player sends a new builtin `playershock(player, damage, at)` (QC
+  weapons.qc `VR_LightningHit`, the funnel of `LightningDamage`: a shambler's bolt, a gremlin's, another player's
+  lightning gun, Hipnotic's and Rogue's lightning traps), and so does the lightning gun's shock spreading through water
+  (`VR_LGWater_Spread`) into another player in it (not one in a wetsuit). The shooter's own discharge under water keeps
+  its older effect (kind 0: the flash and arcs, `vr_lg_water_flash`). It is QVR_SVC_SHOCK kind 7 (`KindSelfHit`), sent
+  to that player's client only (as kind 0); the damage rides in the radius field. Nothing in the game changes.
+- **How long** (client-side, so each player picks): `vr_shock_self_time` (0.8 s) for a shambler's bolt (10 damage), x the
+  square root of damage / 10 (0.5..3x: a lightning gun's 30 lasts 1.39 s); each bolt pushes the end on. Strength
+  (`power`, 0.5..1.5 by the damage, the largest of the shock's bolts) scales the number of arcs, which thin out to a
+  third as it wears off and fade over its last quarter.
+- **What** (vr_shock.cpp `drawStruck`, its own functions, its own random numbers: the other effects' as they were):
+  short arcs springing off the skin along each limb (`limbArcs`, 4..10 cm, five segments, Quad's colours and widths):
+  hands (wrist to fingers) and forearms (elbow to wrist) drawn over all as Quad's are, plus now and then a longer one
+  from the fingers to the elbow; on the drawn body (`avatar::skeleton`) the upper arms, the torso (an ellipse round the
+  spine, shoulders to hips) and the legs (hip-knee-ankle, when the legs are posed), depth-tested so the body and the
+  weapon hide the far side. Without a posed body: hands and forearms (as Quad's guess) and a few round where the chest
+  would be. A soft flickering blue dlight round the chest (`vr_shock_self_light`, 0.6; radius 60 + 90 x power units x
+  the fade, 0.75..1 flicker).
+- **Comfort:** no colour flash over the view and nothing in front of the eyes. An arc within 12 cm of the eyes isn't
+  drawn; within 12..25 degrees of the view's middle it dims, fully out only near the face (closer than 25..40 cm); a hand
+  looked at at arm's length keeps 60 %.
+- **Both eyes and the spectator:** drawn once a frame into the line batches (as Quad's), so in both eyes, the mirror and
+  the spectator camera.
+- **Burns:** the existing wounds system already paints a lightning burn (`QVR_WOUND_ZAP`) on the player struck by a
+  shambler from afar (vr_wounds.qc); no smoke on the player (vr_smoulder is for monsters and bodies).
+- Cvars: `vr_shock_self_time` 0.8 (0 off), `vr_shock_self_arcs` 1 (x), `vr_shock_self_light` 0.6. Menu: Gore > Lightning
+  Shock > Arcs on You / Arcs on You: Number / Arcs on You: Light. Debug > Gore Tests > Lightning Strikes You
+  (`vr_shock_self_test [damage]`, no damage; `vr_shock_self_info`: last frame's arcs by part, the bolts, what is left).
+
+Measured (headless, e1m1, `god`, a shambler spawned 260 units ahead with `vr_test_spawn 3; impulse 241`,
+`vr_shock_self_info` every 5 frames): its attack's three bolts (10 each) reached the client (`bolts=3 damage=10
+power=0.75`); 19 arcs a frame at first (hands 4, forearms 7, torso 3, legs 5), 13-17 through the shock, 7-10 in its last
+0.2 s, gone at 1.1 s; `kept=0` (none near the eyes, head pitched 0). `vr_shock_self_test 30`: 1.39 s, 25-31 arcs a frame
+(hands 3-5, forearms 7-10, upper arms 1-4, torso 5-6, legs 5-9). Eye images (`vr_eyeshot 3`: the lines are drawn after
+`vr_eyeshot 1` takes its image, so it misses them, Quad's too) show them on both hands and forearms in both eyes, and
+looking down on the upper arms and the torso; the spectator camera the same. Quad's arcs (impulse 255) unchanged.
+
+### For the author to try in VR
+
+Let a shambler hit you (god): are the arcs on the hands, arms, torso and legs enough, too many, long enough (Arcs on
+You 0.8 s for its bolt)? Is the blue light pleasant or too much (Arcs on You: Light)? Any arcs bothering the eyes when
+holding a weapon up to aim?

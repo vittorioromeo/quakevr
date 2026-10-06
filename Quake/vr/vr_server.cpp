@@ -14,6 +14,7 @@
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_serverrules.hpp"
+#include "vr_shock.hpp"
 #include "vr_portals.hpp"
 #include "vr_tips.hpp"
 #include "vr_worldtext.hpp"
@@ -1016,7 +1017,7 @@ void sendEject(edict_t* player, int hand, int kind, int count, int flags, float 
 void sendShock(edict_t* player, int kind, const float org[3], float radius, float duration)
 {
     sizebuf_t* msg = nullptr;
-    if(kind == 0)
+    if(kind == shock::KindSelf || kind == shock::KindSelfHit)
     {
         msg = clientMessage(player);
     }
@@ -1038,7 +1039,7 @@ void sendShock(edict_t* player, int kind, const float org[3], float radius, floa
     }
     MSG_WriteShort(msg, CLAMP(0, static_cast<int>(radius), 32767));
     // (In 1/50 s: 5 s at most; a body's lasting shock, kind 4, and a fire's smoulder, 5 and 6, in 1/4 s: 63 s.)
-    MSG_WriteByte(msg, CLAMP(0, static_cast<int>(duration * (kind >= 4 ? 4.f : 50.f) + 0.5f), 255));
+    MSG_WriteByte(msg, CLAMP(0, static_cast<int>(duration * (shock::quarterSeconds(kind) ? 4.f : 50.f) + 0.5f), 255));
     if(msg == &sv.datagram)
     {
         VR_BroadcastMessageEnd(); // a boundary

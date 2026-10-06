@@ -2243,6 +2243,13 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Smouldering Smoke", vr_smoulder, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("How much smoke rises off bodies the lightning struck or fire burnt (0 none; how long after fire: Combat > Burning > Smoke After Flames)."),
         slider("Smoke Opacity", vr_smoulder_alpha, 0.1f, 1.f, 0.05f, "%.2f").help("How opaque each wisp of that smoke is as it leaves the skin."),
+        slider("Arcs on You", vr_shock_self_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 5.f)
+            .help("Struck by lightning (a shambler's bolt, another's lightning gun, a trap, the water's shock), Quad's arcs crawl over "
+                  "your hands, arms and body this long after a shambler's bolt, longer for harder ones (0 none). None right in front "
+                  "of your eyes."),
+        slider("Arcs on You: Number", vr_shock_self_arcs, 0.f, 3.f, 0.1f, "%.1fx").help("How many arcs crawl over you then."),
+        slider("Arcs on You: Light", vr_shock_self_light, 0.f, 1.f, 0.1f, "%.1f")
+            .help("A soft flicker of blue light round you while they crackle (0 none). There is no flash over the view."),
         header("Your Wounds"),
         slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx").extend()
             .help("How often blood drips from your wounded arms and hands (the body's wounds: Show Armour and Wounds; 0 none)."),
@@ -4369,6 +4376,10 @@ za::Vector<Item> pageDebugTools()
         command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
         command("Lightning Shock", "vr_shock_test 0").help("vr_shock_test 0: the lightning gun's shock in water (the flash, the arcs over your arms and body), without the damage."),
+        command("Lightning Strikes You", "vr_shock_self_test 10; vr_shock_self_info")
+            .help("vr_shock_self_test [damage]: struck by a bolt of that much (10 a shambler's, 30 a lightning gun's): Quad's arcs over "
+                  "your hands, arms and body (Gore > Lightning Shock > Arcs on You), without the damage. vr_shock_self_info: the arcs "
+                  "on you last frame by part (console)."),
         command("Electrified Water", "vr_shock_test 1").help("vr_shock_test 1 [radius] [seconds]: arcs on the water below the point 128 units ahead."),
         command("Lightning Bolt at the Nearest", "vr_shock_hit_test 30")
             .help("vr_shock_hit_test <damage>: a lightning gun's bolt from your eyes into the nearest monster or corpse: its arcs and a burn "

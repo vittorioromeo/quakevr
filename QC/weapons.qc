@@ -2269,6 +2269,10 @@ float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
     {
         bodyshock(t, 0.75);
     }
+    if((t.flags & FL_CLIENT) && shockAlive)
+    {
+        playershock(t, damage, at); // VR: arcs over the struck player's arms and body (vr_shock_self_time)
+    }
     float pop = VR_Decap_BoltArm(t, at, xDir, damage);
     float r = T_Damage(t, from, from, damage);
     VR_Shock_Hit(t, shockAlive, at, xDir); // VR: lightning's lasting shock (vr_shock.qc)
@@ -2403,6 +2407,10 @@ float(vector xAt, float xDamage, float xRadius, entity xSkip) VR_LGWater_Spread 
             {
                 dprint(sprintf("lgwater: %s takes %g at %g units\n", head.classname, damage, vlen(mid - xAt)));
                 particle2(mid, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 6);
+                if((head.flags & FL_CLIENT) && head.health > 0 && !head.wetsuit_finished)
+                {
+                    playershock(head, damage, mid); // (arcs over that player's arms and body)
+                }
                 T_Damage(head, self, self, damage);
                 hurt = hurt + 1;
             }

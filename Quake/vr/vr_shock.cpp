@@ -24,6 +24,7 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
 #include <string.h>
 
@@ -73,6 +74,23 @@ Effect effects[maxEffects];
 // The player's own shock (KindSelf): from when, until when (cl.time).
 double selfStart = 0.0;
 double selfUntil = 0.0;
+
+// The player struck by lightning (KindSelfHit; vr_shock_self_*): the first bolt of this shock and the last (cl.time), until
+// when it crackles, how hard (by the damage: 0.5..1.5, the arcs' number), and last frame's arcs by part
+// (vr_shock_self_info).
+struct Struck
+{
+    double start{0.0};
+    double last{0.0};
+    double until{0.0};
+    float power{0.f};
+    float damage{0.f}; // the last bolt's
+    int bolts{0};      // bolts in this shock
+    int hands{0}, forearms{0}, upperArms{0}, torso{0}, legs{0};
+    int kept{0};       // arcs not drawn: in front of the eyes (ViewKeep)
+    bool body{false};  // on the drawn body's joints (else round the hands and where the chest would be)
+};
+Struck struck;
 
 int lastFrame = -1; // effects drawn once a frame, however often the view is set up
 
@@ -621,6 +639,250 @@ void drawSelf(const hands::State& s, Random& rnd)
     }
 }
 
+// ---- Lightning on you (KindSelfHit): the player struck by a bolt ----
+
+// How much of an arc from `a` to `b` is shown, for comfort: none right in front of the eyes, dimmer near the middle of
+// the view (the hands looked at stay lit), all elsewhere.
+struct ViewKeep
+{
+    glm::vec3 eye{0.f};
+    glm::vec3 fwd{1.f, 0.f, 0.f};
+    float m2w{1.f};
+
+    [[nodiscard]] float operator()(const glm::vec3& a, const glm::vec3& b) const
+    {
+        float keep = 1.f;
+        const glm::vec3 points[3] = {a, b, (a + b) * 0.5f};
+        for(const glm::vec3& p : points)
+        {
+            const glm::vec3 d = p - eye;
+            const float dist = glm::length(d);
+            if(dist < 0.12f * m2w)
+            {
+                return 0.f;
+            }
+            const float c = glm::dot(d / dist, fwd);
+            const float middle = glm::smoothstep(0.906f, 0.978f, c);                // 25..12 degrees off the middle
+            const float face = 1.f - glm::smoothstep(0.25f * m2w, 0.4f * m2w, dist); // the face's
+            keep = za::min(keep, 1.f - middle * (face + (1.f - face) * 0.4f));
+        }
+        return keep;
+    }
+};
+
+// Arcs springing off a limb's skin: the limb from `a` to `b` (its axis), `radius` round it (the torso: `side` its left to
+// right, `depth` front to back; else round), `bolts` of them at random along it, 4..10 cm long, over and along it.
+// `scene`: hidden behind what is in front of it. How many were drawn; `kept` counts those kept off the view.
+int limbArcs(Random& rnd, const ViewKeep& keep, const glm::vec3& a, const glm::vec3& b, float radius, int bolts, float fade,
+    bool scene, int& kept, const glm::vec3* side = nullptr, float depth = 0.f)
+{
+    const float m2w = keep.m2w;
+    const glm::vec3 axis = b - a;
+    const float len = glm::length(axis);
+    const glm::vec3 along = len > 1e-4f ? axis / len : glm::vec3{0.f, 0.f, 1.f};
+    int drawn = 0;
+    for(int bolt = 0; bolt < bolts; bolt++)
+    {
+        if(rnd() < 0.3f)
+        {
+            continue; // flicker
+        }
+        const glm::vec3 p = glm::mix(a, b, rnd());
+        glm::vec3 out;
+        float reach = radius;
+        if(side)
+        {
+            const float t = rnd() * 6.2831853f;
+            const glm::vec3 front = glm::normalize(glm::cross(along, *side));
+            out = *side * za::cos(t) + front * za::sin(t);
+            reach = glm::length(glm::vec2{radius * za::cos(t), depth * za::sin(t)});
+        }
+        else
+        {
+            out = rnd.dir();
+            out -= along * glm::dot(out, along);
+            if(glm::length(out) < 1e-3f)
+            {
+                continue;
+            }
+            out = glm::normalize(out);
+        }
+        const glm::vec3 from = p + out * (reach * (1.05f + 0.2f * rnd()));
+        const glm::vec3 dir = glm::normalize(rnd.dir() + out * 0.6f + along * ((rnd() - 0.5f) * 1.5f));
+        const glm::vec3 to = from + dir * ((0.04f + 0.06f * rnd()) * m2w);
+        const float shown = keep(from, to);
+        if(shown <= 0.f)
+        {
+            kept++;
+            continue;
+        }
+        arc(rnd, from, to, 5, 0.012f * m2w, fade * shown, false, 1.f, false, scene);
+        drawn++;
+    }
+    return drawn;
+}
+
+// The player struck by lightning: Quad Damage's arcs over the hands and forearms (drawn over all, as Quad's), the upper
+// arms, the torso and the legs of the drawn body (hidden behind what is in front of them), fewer as it wears off; a soft
+// flickering blue light round the body. No flash over the view, and none right in front of the eyes (ViewKeep).
+void drawStruck(const hands::State& s, unsigned seed)
+{
+    struck.hands = struck.forearms = struck.upperArms = struck.torso = struck.legs = struck.kept = 0;
+    const double now = cl.time;
+    if(now >= struck.until || vr_shock_self_time.value <= 0.f || !s.valid)
+    {
+        return;
+    }
+    Random rnd{seed};
+    const float in = static_cast<float>(za::clamp((now - struck.start) / 0.04, 0.0, 1.0));
+    const float k = static_cast<float>(za::clamp((struck.until - now) / za::max(0.05, struck.until - struck.last), 0.0, 1.0));
+    const float fade = in * za::min(1.f, k * 4.f); // (out over its last quarter)
+    const float many = za::max(0.f, vr_shock_self_arcs.value) * struck.power * (0.35f + 0.65f * k);
+    const auto count = [&](float n) { return static_cast<int>(n * many + rnd()); };
+
+    avatar::Skeleton sk;
+    struck.body = avatar::skeleton(sk);
+    ViewKeep keep;
+    keep.eye = s.head;
+    keep.m2w = struck.body ? sk.m2w : units::metresToUnits() * units::bodyScale();
+    {
+        glm::vec3 right, up;
+        hands::angleVectors(s.headAngles, keep.fwd, right, up);
+    }
+    const float m2w = keep.m2w;
+
+    // The hands and forearms (drawn over all, as Quad's: the arms, the weapon held don't hide them).
+    for(int hand = 0; hand < 2; hand++)
+    {
+        glm::vec3 wrist = s.pos[hand];
+        glm::vec3 dir = hands::forward(s.rot[hand]);
+        if(glm::vec3 w, d; avatar::forearm(hand, w, d))
+        {
+            wrist = w;
+            dir = glm::normalize(d);
+        }
+        const glm::vec3 elbow = struck.body ? sk.elbow[hand] : wrist - dir * (0.26f * m2w);
+        const glm::vec3 fingers = s.pos[hand] + hands::forward(s.rot[hand]) * (0.09f * m2w);
+        struck.hands += limbArcs(rnd, keep, wrist, fingers, 0.03f * m2w, count(3.f), fade, false, struck.kept);
+        struck.forearms += limbArcs(rnd, keep, elbow, wrist, 0.04f * m2w, count(4.f), fade, false, struck.kept);
+        if(rnd() < 0.35f * struck.power * k)
+        {
+            // A longer one jumping between the fingers and the elbow (as Quad's).
+            const glm::vec3 a = fingers + rnd.dir() * (0.02f * m2w);
+            const glm::vec3 b = glm::mix(wrist, elbow, 0.5f + 0.5f * rnd()) + rnd.dir() * (0.04f * m2w);
+            if(const float shown = keep(a, b); shown > 0.f)
+            {
+                arc(rnd, a, b, 8, 0.02f * m2w, fade * shown);
+                struck.forearms++;
+            }
+            else
+            {
+                struck.kept++;
+            }
+        }
+        if(struck.body)
+        {
+            struck.upperArms += limbArcs(rnd, keep, sk.shoulder[hand], sk.elbow[hand], 0.05f * m2w, count(2.f), fade, true,
+                struck.kept);
+        }
+    }
+
+    // The torso (the drawn body's, shoulders to hips; else where the chest would be, under the head) and the legs.
+    glm::vec3 top, bottom, side;
+    if(struck.body)
+    {
+        top = (sk.shoulder[0] + sk.shoulder[1]) * 0.5f;
+        bottom = (sk.hip[0] + sk.hip[1]) * 0.5f;
+        side = sk.shoulder[1] - sk.shoulder[0]; // (left to right: HAND_OFF, HAND_MAIN)
+    }
+    else
+    {
+        const glm::vec3 up{0.f, 0.f, 1.f};
+        top = s.head - up * (0.25f * m2w);
+        bottom = s.head - up * (0.75f * m2w);
+        glm::vec3 fwd, vup;
+        hands::angleVectors({0.f, s.headAngles.y, 0.f}, fwd, side, vup);
+    }
+    const glm::vec3 spine = glm::normalize(bottom - top + glm::vec3{0.f, 0.f, -1e-4f});
+    side -= spine * glm::dot(side, spine);
+    if(glm::length(side) > 1e-3f)
+    {
+        side = glm::normalize(side);
+        struck.torso += limbArcs(rnd, keep, top, bottom, 0.16f * m2w, count(struck.body ? 8.f : 4.f), fade, true, struck.kept,
+            &side, 0.1f * m2w);
+    }
+    if(struck.body && sk.legs)
+    {
+        for(int leg = 0; leg < 2; leg++)
+        {
+            struck.legs += limbArcs(rnd, keep, sk.hip[leg], sk.knee[leg], 0.07f * m2w, count(3.f), fade, true, struck.kept);
+            struck.legs += limbArcs(rnd, keep, sk.knee[leg], sk.ankle[leg], 0.05f * m2w, count(2.f), fade, true, struck.kept);
+        }
+    }
+
+    // A soft flickering blue light round the body (no flash over the view).
+    if(const float light = za::clamp(vr_shock_self_light.value, 0.f, 1.f); light > 0.f)
+    {
+        dlight_t* dl = CL_AllocDlight(-4190);
+        const glm::vec3 at = glm::mix(top, bottom, 0.3f);
+        dl->origin[0] = at.x;
+        dl->origin[1] = at.y;
+        dl->origin[2] = at.z;
+        dl->radius = (60.f + 90.f * struck.power) * light * fade * (0.75f + 0.25f * rnd());
+        dl->die = static_cast<float>(cl.time + 0.05);
+        dl->decay = 0.f;
+        dl->minlight = 0.f;
+        dl->color[0] = 0.55f;
+        dl->color[1] = 0.7f;
+        dl->color[2] = 1.f;
+    }
+}
+
+// Struck by a bolt of `damage`: the arcs on you go on (or start), for longer the harder it was.
+void struckBy(float damage)
+{
+    const float base = vr_shock_self_time.value;
+    if(base <= 0.f || damage <= 0.f)
+    {
+        return;
+    }
+    const double now = cl.time;
+    const float duration = base * za::clamp(za::sqrt(damage / 10.f), 0.5f, 3.f);
+    const float power = za::clamp(0.5f + damage / 40.f, 0.5f, 1.5f);
+    if(now >= struck.until)
+    {
+        struck = Struck{};
+        struck.start = now;
+    }
+    struck.last = now;
+    struck.until = za::max(struck.until, now + duration);
+    struck.power = za::max(struck.power, power);
+    struck.damage = damage;
+    struck.bolts++;
+}
+
+// vr_shock_self_test [damage]: struck by a bolt of that much (10: a shambler's), as the QC would send it.
+void selfTest_f()
+{
+    if(cls.state != ca_connected)
+    {
+        return;
+    }
+    const float damage = Cmd_Argc() > 1 ? static_cast<float>(Q_atof(Cmd_Argv(1))) : 10.f;
+    struckBy(damage);
+    Con_Printf("vr_shock_self_test: %.0f damage, %.2f s\n", damage, struck.until > cl.time ? struck.until - cl.time : 0.0);
+}
+
+// vr_shock_self_info: the arcs on you last frame, by part, and what is left.
+void selfInfo_f()
+{
+    const int total = struck.hands + struck.forearms + struck.upperArms + struck.torso + struck.legs;
+    Con_Printf("selfshock: arcs=%d hands=%d forearms=%d upperarms=%d torso=%d legs=%d kept=%d body=%d bolts=%d "
+               "damage=%.0f power=%.2f remaining=%.2f\n",
+        total, struck.hands, struck.forearms, struck.upperArms, struck.torso, struck.legs, struck.kept, struck.body ? 1 : 0,
+        struck.bolts, struck.damage, struck.power, za::max(0.0, struck.until - cl.time));
+}
+
 void add(int kind, const glm::vec3& org, float radius, float duration)
 {
     const double now = cl.time;
@@ -771,7 +1033,12 @@ void parse()
         org[i] = MSG_ReadCoord(cl.protocolflags);
     }
     const float radius = static_cast<float>(MSG_ReadShort());
-    const float duration = static_cast<float>(MSG_ReadByte()) / (kind >= KindBodyDeath ? 4.f : 50.f);
+    const float duration = static_cast<float>(MSG_ReadByte()) / (quarterSeconds(kind) ? 4.f : 50.f);
+    if(kind == KindSelfHit)
+    {
+        struckBy(radius); // (the damage)
+        return;
+    }
     if(kind == KindSmoulder || kind == KindDoused)
     {
         smoulder::burning(static_cast<int>(radius), duration, kind == KindDoused);
@@ -870,6 +1137,7 @@ void frame(const hands::State& s)
 
     Random rnd{static_cast<unsigned>(host_framecount) * 2246822519u + 7u};
     drawSelf(s, rnd);
+    drawStruck(s, rnd.seed ^ 0x2c1b3c6du); // (its own numbers: the others' as they were)
     for(int i = 0; i < MAX_BEAMS; i++)
     {
         const BeamSeen& b = beamsSeen[i];
@@ -950,6 +1218,7 @@ void clear()
         b = BeamSeen{};
     }
     selfStart = selfUntil = 0.0;
+    struck = Struck{};
 }
 
 // vr_shock_info: the bodies with arcs on them now: entity, kind (3 a hit's, 4 lasting), triangles, arcs drawn last
@@ -976,6 +1245,8 @@ void registerCommands()
 {
     Cmd_AddCommand("vr_shock_test", test_f);
     Cmd_AddCommand("vr_shock_info", info_f);
+    Cmd_AddCommand("vr_shock_self_test", selfTest_f);
+    Cmd_AddCommand("vr_shock_self_info", selfInfo_f);
 }
 
 } // namespace qvr::shock

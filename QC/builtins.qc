@@ -175,6 +175,10 @@ void(float kind, vector org, float radius, float duration) watershock = #0;
 float QVR_SHOCK_SELF = 0;
 float QVR_SHOCK_SURFACE = 1;
 float QVR_SHOCK_BURST = 2;
+// `player` struck by lightning (a shambler's bolt, another's lightning gun, a trap's, the water's shock spreading) for
+// `damage` at `at`: its client draws Quad's arcs over its arms, hands and body a while (vr_shock_self_time, by the damage;
+// engine vr_shock.cpp KindSelfHit). Nothing else.
+void(entity player, float damage, vector at) playershock = #0;
 vector(entity e, vector handangles, float grab) carryangles = #0; // a held object's angles: at the grip (grab 1) its turn in the hand is kept; after, it turns with the hand
 // Round 21: hotspot `index` (0..3) of the weapon in `hand`: where (a grip's point, a blade grip's middle; '0 0 0' if
 // none), and its type (what 0: 0 none, 1 grip, 2 blade), bias (1, units) or a blade's share of the way from the hand

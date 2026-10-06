@@ -22,6 +22,7 @@
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
 #include "vr_server.hpp"
+#include "vr_shock.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
@@ -1540,6 +1541,14 @@ void PF_portal_carry()
     VR_PortalCarry(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)), G_FLOAT(OFS_PARM3) != 0.f);
 }
 
+// playershock(player, damage, at): `player` struck by lightning (a shambler's bolt, another's lightning gun, a trap's, the
+// water's shock spreading) for `damage` at `at`: its client draws arcs over its arms, hands and body a while
+// (vr_shock.cpp, KindSelfHit; how long: vr_shock_self_time, by the damage).
+void PF_playershock()
+{
+    server::sendShock(G_EDICT(OFS_PARM0), shock::KindSelfHit, G_VECTOR(OFS_PARM2), G_FLOAT(OFS_PARM1), 0.f);
+}
+
 void PF_watershock()
 {
     server::sendShock(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_PARM1),
@@ -1958,6 +1967,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponfired", PF_weaponfired},
     {"tracer", PF_tracer},
     {"watershock", PF_watershock},
+    {"playershock", PF_playershock},
     {"portal_ai_sight", PF_portal_ai_sight},
     {"portal_ai_map", PF_portal_ai_map},
     {"portal_ai_client", PF_portal_ai_client},
