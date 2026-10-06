@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- qvr-setup: the installer's core from a console (detection report, install/uninstall from a local package,
+       manifests for packages, downloads). Used by tests and the packaging script; players use the window. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>qvr-setup</AssemblyName>
+    <RootNamespace>QuakeVR.Installer.Cli</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\QuakeVR.Installer.Core\QuakeVR.Installer.Core.csproj" />
+  </ItemGroup>
+</Project>

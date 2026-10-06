@@ -1,0 +1,16 @@
+<Project>
+  <!-- Shared by every project of the Quake VR installer (Installer/README.md). -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <Version>0.1.0</Version>
+    <Company>Vittorio Romeo</Company>
+    <Product>Quake VR Installer</Product>
+    <Copyright>GPL-2.0-or-later</Copyright>
+  </PropertyGroup>
+</Project>

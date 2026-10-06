@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The core's tests, as a console program: xUnit/MSTest would need NuGet packages this machine does not have
+       offline (Installer/README.md). Run it with dotnet run (see the README); it exits 0 when all pass. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>QuakeVR.Installer.SelfTest</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QuakeVR.Installer.Core\QuakeVR.Installer.Core.csproj" />
+  </ItemGroup>
+</Project>

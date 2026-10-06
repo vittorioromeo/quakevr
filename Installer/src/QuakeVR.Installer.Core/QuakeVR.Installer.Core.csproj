@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Everything the installer does that is not UI: detection, manifests, install/uninstall, shortcuts, downloads.
+       Testable without a window (tests/QuakeVR.Installer.SelfTest, the CLI). -->
+  <PropertyGroup>
+    <RootNamespace>QuakeVR.Installer.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The engine's own lists of each official pack's required files (Quake/vr/vr_gamedir.cpp): one source of truth. -->
+    <EmbeddedResource Include="..\..\..\Quake\vr\vr_pack_*.inc" LogicalName="QuakeVR.Packs.%(Filename).inc" Link="Packs\%(Filename).inc" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuakeVR.Installer.SelfTest" />
+  </ItemGroup>
+</Project>
