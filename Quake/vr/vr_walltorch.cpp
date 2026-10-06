@@ -4,6 +4,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_walltorch.hpp"
+#include "vr_limbmodel.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
@@ -400,6 +401,10 @@ namespace
 // stands still). Nothing of id's is written anywhere: it is made as the model loads, from the game's own file.
 extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
 {
+    if(byte* limb = limbmodel::derivedFile(name, path_id)) // (a monster's limb cut off: vr_limbmodel.cpp)
+    {
+        return limb;
+    }
     const auto id = modelmeta::identifyPath(name);
     if(id == modelmeta::Id::Vrtorch)
     {

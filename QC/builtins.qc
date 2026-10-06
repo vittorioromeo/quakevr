@@ -280,7 +280,18 @@ vector(entity e, float bone, vector p, float toWorld) ragdollpoint = #0;
 // is on e's ragdoll's head (0 not or
 // headless, -1 not a ragdoll).
 float(entity e, vector blade, ...) ragdolldecap = #0; // [float settle]: its parts' motion times this at its next step (a head pop's)
-vector(entity e, float what) ragdollcut = #0;
+vector(entity e, float what, ...) ragdollcut = #0; // [float bone]: 4 and 5 the stump of that limb (-1 the head)
+// Limb gore (vr_limbs.qc; the engine's vr_box3d.cpp "Limb gore"): e's limb at joint `bone` (-1 the head) cut off as
+// ragdolldecap's head ([float settle]); ragdolllimb the joint a hit at p would cut (the head's bone for the head; -1 the
+// torso, -2 no rig); ragdolllimbs: 0 its limb joints not cut (bits, not the head's), 1 its head's bones, 2 its bones cut
+// off, 3 its head bone (-1 none), 4 what a cut at [bone] takes now, 5 [bone]'s parent; limbmodel the limb's model ("":
+// none; just cut: the piece cut); limbplace where a limb not cut is now: 0 its model's origin, 1 its angles, 2 its
+// velocity, 3 a point on its own bone's surface (the tests' hit).
+float(entity e, float bone, vector blade, ...) ragdollcutlimb = #0;
+float(entity e, vector p) ragdolllimb = #0;
+float(entity e, float what, ...) ragdolllimbs = #0;
+string(entity e, float bone) limbmodel = #0;
+vector(entity e, float bone, float what) limbplace = #0;
 float(entity e, vector p, ...) ragdollhead = #0; // [float neck]: units from the neck that count (at least 4)
 // A shot's push: the first loose prop between `start` and `end` (a health box, a gib, a weapon lying about: traces pass
 // through them) pushed as physicspush where the shot goes in. That prop, or world.

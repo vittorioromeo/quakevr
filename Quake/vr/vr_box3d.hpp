@@ -180,10 +180,27 @@ int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out);
 // or already headless. `settle`: its parts' motion (linear and turning) times this at its next step, after this frame's
 // knocks and pushes have reached them (a head pop's: vr_decap_pop_body_speed; 1 as it is).
 bool ragdollDecap(edict_t* ent, const glm::vec3& blade, float settle = 1.f);
-// After a cut: 0 the head's middle then, 1 its angles (an alias model's), 2 its launch velocity (units/s), 3 its spin
-// (rad/s, world: a prop's .vr_spin); the stump now: 4 the neck, 5 the way out of it (unit); 6 the head's middle now, before a
-// cut (the tests). Zero if none.
-[[nodiscard]] glm::vec3 ragdollCut(int num, int what);
+// Limb gore (ROUND21.md, "Limb gore"; QC vr_limbs.qc): as ragdollDecap, the limb at joint `bone` (ragdoll::limbJoint;
+// -1 the head) and the bones on it not cut yet.
+bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle = 1.f);
+// After a cut: 0 the piece's middle then (a limb's: its model's origin), 1 its angles (an alias model's), 2 its launch
+// velocity (units/s), 3 its spin (rad/s, world: a prop's .vr_spin); the stump of `bone` (-1 the head) now: 4 its joint, 5
+// the way out of it (unit); 6 the middle of `bone`'s piece now, before a cut (the tests); 7 (the cut bones, the last cut's
+// joint, the parts left); 8 (the bones the last cut took). Zero if none.
+[[nodiscard]] glm::vec3 ragdollCut(int num, int what, int bone = -1);
+// The joint a hit at `at` on `ent` would cut: the bone of its vertex nearest (as drawn: a ragdoll's bodies, else its frame
+// where it stands), then the nearest of that bone's own joint and its children's; its rig's head for the head's bones;
+// -1 the torso (or nothing); -2 no rig.
+[[nodiscard]] int limbAt(edict_t* ent, const glm::vec3& at);
+// `ent`'s limbs: 0 its limb joints not cut (bits; not the head's), 1 its head's bones, 2 its bones cut off, 3 its head
+// bone (~0 none), 4 the bones a cut at `bone` would take now, 5 `bone`'s parent.
+[[nodiscard]] uint32_t limbInfo(edict_t* ent, int what, int bone);
+// The model of the limb at joint `bone` of `ent` (vr_limbmodel.cpp: just cut, the piece cut; else the limb as it is),
+// "" if none.
+[[nodiscard]] const char* limbModel(edict_t* ent, int bone);
+// Where the limb at `bone` of `ent` is now (not cut: a body gibbed whole): 0 its model's origin, 1 its angles, 2 its
+// velocity, 3 a point on its own bone's surface.
+[[nodiscard]] glm::vec3 limbPlace(edict_t* ent, int bone, int what);
 // 1 if `at` (units) is on the head of edict `num`'s ragdoll (its part nearest, or within a few units of the neck: `neck`
 // units if more, the melee's vr_decap_neck), 0 not (or no head), -1 not a ragdoll.
 [[nodiscard]] int ragdollHeadAt(int num, const glm::vec3& at, float neck = 0.f);

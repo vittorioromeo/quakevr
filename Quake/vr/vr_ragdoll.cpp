@@ -1461,19 +1461,52 @@ float deathProgress(const Rig& rig, int frame)
 
 uint32_t headBones(const Rig& rig)
 {
-    if(rig.head < 0)
+    return rig.head < 0 ? 0u : limbBones(rig, rig.head);
+}
+
+bool limbJoint(const Rig& rig, int b)
+{
+    if(b <= 0 || b >= rig.numBones)
+    {
+        return false;
+    }
+    const Bone& bone = rig.bones[b];
+    return bone.parent >= 0 && (bone.joint == Joint::Ball || bone.joint == Joint::Hinge) && strcmp(bone.name, "chest") != 0;
+}
+
+uint32_t limbBones(const Rig& rig, int b)
+{
+    if(b < 0 || b >= rig.numBones)
     {
         return 0;
     }
-    uint32_t cut = 1u << rig.head;
-    for(int b = rig.head + 1; b < rig.numBones; b++) // (a parent comes before its children)
+    uint32_t cut = 1u << b;
+    for(int c = b + 1; c < rig.numBones; c++) // (a parent comes before its children)
     {
-        if(rig.bones[b].parent >= 0 && (cut & (1u << rig.bones[b].parent)))
+        if(rig.bones[c].parent >= 0 && rig.bones[c].joint != Joint::Loose && (cut & (1u << rig.bones[c].parent)))
         {
-            cut |= 1u << b;
+            cut |= 1u << c;
         }
     }
     return cut;
+}
+
+glm::vec3 limbMiddle(const Rig& rig, uint32_t bones)
+{
+    glm::vec3 sum{0.f};
+    za::SizeT n = 0;
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        if(bones & (1u << b))
+        {
+            for(const glm::vec3& p : rig.bones[b].points)
+            {
+                sum += p;
+            }
+            n += rig.bones[b].points.size();
+        }
+    }
+    return n ? sum / static_cast<float>(n) : glm::vec3{0.f};
 }
 
 int uncutParent(const Rig& rig, int b, uint32_t cut)

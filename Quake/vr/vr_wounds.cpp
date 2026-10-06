@@ -1376,7 +1376,8 @@ SkinPart skinParts[3];
     {
         return false;
     }
-    return modelmeta::has(cl_entities[num].model, modelmeta::Trait::Head) || modelmeta::has(cl_entities[num].model, modelmeta::Trait::ContainsGib);
+    return modelmeta::has(cl_entities[num].model, modelmeta::Trait::Head) || modelmeta::has(cl_entities[num].model, modelmeta::Trait::ContainsGib) ||
+           modelmeta::has(cl_entities[num].model, modelmeta::Trait::Limb);
 }
 
 [[nodiscard]] bool inWater(const glm::vec3& p)

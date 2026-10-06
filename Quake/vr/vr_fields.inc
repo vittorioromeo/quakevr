@@ -146,6 +146,7 @@ QVR_FIELD(offhand_melee_attack_finished)
 QVR_FIELD(vr_corpse) // 1 dying, 2 a corpse lying still (QC combat.qc VR_Corpse_Arm; vr_box3d.cpp: its body, vr_corpse_collide)
 QVR_FIELD(vr_gib) // a gib or head (QC): not a corpse (vr_box3d.cpp)
 QVR_FIELD(vr_headless) // its head cut off (QC vr_decap.qc): its ragdoll is made headless, a saved game's too (vr_box3d.cpp)
+QVR_FIELD(vr_limbcut) // the ragdoll bones cut off (bits; QC vr_limbs.qc, ROUND21.md "Limb gore"): made so again in a saved game (vr_box3d.cpp)
 QVR_FIELD(vr_knockdown) // a monster knocked down by a shove (QC vr_knockdown.qc): 1 a ragdoll while alive (vr_box3d.cpp), 2 getting up
 QVR_FIELD(vr_shock_until) // lightning killed it or struck it dead (QC vr_shock.qc): its ragdoll convulses until then (vr_box3d.cpp, "Shocked ragdolls")
 QVR_FIELD(vr_shock_len) // ... the shock's length (s): the convulsions fade over it

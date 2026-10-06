@@ -223,6 +223,15 @@ void(entity targ, entity attacker) Killed =
 // Decapitation (vr_decap.qc): its head cut off (its ragdoll headless; gibbed, no head thrown); the blows that cut it.
 .float vr_headless;
 void(entity e) VR_Decap_Killed;
+// Limb gore (vr_limbs.qc).
+float vr_decap_limb;
+vector vr_limb_blast_at;
+entity vr_limb_blast_by;
+float vr_limb_blast_time;
+float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR_Limb_Cut;
+float(entity e, float xLive) VR_Limb_BlastPops;
+void(float dm) VR_Limb_GibAll;
+float() VR_Limb_GibsWanted;
 float(entity targ, entity attacker, float xDamage) VR_Decap_Blow;
 void(entity targ) VR_Decap_After;
 
@@ -263,6 +272,7 @@ float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm;
 float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_QuadArm;
 float(entity e) VR_Decap_Roll;
 void() VR_Decap_TestFrame;
+void() VR_Limb_TestFrame;
 void() VR_Decap_ZombieDie;
 
 // The monsters' death code (their th_die), to know what gibs they make.
@@ -663,13 +673,26 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
 
     // A headshot on a corpse pops its head, leaving the physical body in place.
     // Use the same weapon toggles and head-share test as a living killing blow.
-    if(vr_decap_ent == targ && vr_decap_time == time && !targ.vr_headless)
+    // A shot at a corpse's limb pops it the same way (Limb gore, vr_limbs.qc: vr_decap_limb its joint).
+    if(vr_decap_ent == targ && vr_decap_time == time && (vr_decap_limb >= 0 || !targ.vr_headless))
     {
         vr_decap_ent = world;
-        if(VR_Decap_Roll(targ) && VR_Decap_Cut(targ, vr_decap_by, vr_decap_vel, vr_decap_how))
+        if(vr_decap_limb >= 0)
+        {
+            if(VR_Decap_Roll(targ) && VR_Limb_Cut(targ, vr_decap_by, vr_decap_vel, vr_decap_how, vr_decap_limb, FALSE))
+            {
+                return TRUE;
+            }
+        }
+        else if(VR_Decap_Roll(targ) && VR_Decap_Cut(targ, vr_decap_by, vr_decap_vel, vr_decap_how))
         {
             return TRUE;
         }
+    }
+    // An explosion pops a corpse's limbs near it by chance (vr_limbs_blast; vr_limbs.qc).
+    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    {
+        VR_Limb_BlastPops(targ, FALSE);
     }
 
     VR_SmallGib_Hit(targ, inflictor, attacker, damage); // (the chainsaw always; Quad always)
@@ -2210,6 +2233,9 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
     vector    org;
 
     IsExplosionDamage = 1;
+    vr_limb_blast_at = inflictor.origin; // VR: the limbs near it may pop (vr_limbs.qc, vr_limbs_blast)
+    vr_limb_blast_by = attacker;
+    vr_limb_blast_time = time;
     float hlKills = vr_hl_kills; // VR: the highlight log: the kills it makes (vr_highlights.qc)
     vr_hl_blast_depth = vr_hl_blast_depth + 1;
 

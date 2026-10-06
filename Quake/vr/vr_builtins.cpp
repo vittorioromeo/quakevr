@@ -1301,7 +1301,53 @@ void PF_ragdolldecap()
 // spin (rad/s: .vr_spin); the stump now, 4 the neck, 5 the way out of it.
 void PF_ragdollcut()
 {
-    const glm::vec3 v = box3d::ragdollCut(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)));
+    const int bone = qcvm->argc > 2 ? static_cast<int>(G_FLOAT(OFS_PARM2)) : -1;
+    const glm::vec3 v = box3d::ragdollCut(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)), bone);
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
+// Limb gore (vr_box3d.cpp, "Limb gore"; vr_limbs.qc). float ragdollcutlimb(entity e, float bone, vector blade, [float
+// settle]): as ragdolldecap, the limb at joint `bone` (-1 the head) cut off; ragdollcut's 0-3 the piece after it.
+void PF_ragdollcutlimb()
+{
+    const float* v = G_VECTOR(OFS_PARM2);
+    const float settle = qcvm->argc > 3 ? G_FLOAT(OFS_PARM3) : 1.f;
+    G_FLOAT(OFS_RETURN) = box3d::ragdollCutLimb(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), glm::vec3{v[0], v[1], v[2]},
+                              settle) ? 1.f : 0.f;
+}
+
+// float ragdolllimb(entity e, vector p): the joint a hit at p would cut (box3d::limbAt: the head's bone for the head; -1
+// the torso, -2 no rig).
+void PF_ragdolllimb()
+{
+    const float* p = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::limbAt(G_EDICT(OFS_PARM0), glm::vec3{p[0], p[1], p[2]}));
+}
+
+// float ragdolllimbs(entity e, float what, [float bone]): box3d::limbInfo (0 the limb joints not cut, bits; 1 the
+// head's bones; 2 the bones cut off; 3 the head bone, -1 none; 4 what a cut at `bone` takes now; 5 `bone`'s parent).
+void PF_ragdolllimbs()
+{
+    const int what = static_cast<int>(G_FLOAT(OFS_PARM1));
+    const int bone = qcvm->argc > 2 ? static_cast<int>(G_FLOAT(OFS_PARM2)) : -1;
+    const uint32_t v = box3d::limbInfo(G_EDICT(OFS_PARM0), what, bone);
+    G_FLOAT(OFS_RETURN) = (what == 3 || what == 5) && v == ~0u ? -1.f : static_cast<float>(v);
+}
+
+// string limbmodel(entity e, float bone): the model of e's limb at joint `bone` (vr_limbmodel.cpp), "" none.
+void PF_limbmodel()
+{
+    G_INT(OFS_RETURN) = PR_SetEngineString(box3d::limbModel(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
+}
+
+// vector limbplace(entity e, float bone, float what): where e's limb at `bone` is now: 0 its model's origin, 1 its
+// angles, 2 its velocity, 3 a point on its own bone's surface (the tests' hit).
+void PF_limbplace()
+{
+    const glm::vec3 v = box3d::limbPlace(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), static_cast<int>(G_FLOAT(OFS_PARM2)));
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -1857,6 +1903,11 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdolldecap", PF_ragdolldecap},
     {"ragdollcut", PF_ragdollcut},
     {"ragdollhead", PF_ragdollhead},
+    {"ragdollcutlimb", PF_ragdollcutlimb},
+    {"ragdolllimb", PF_ragdolllimb},
+    {"ragdolllimbs", PF_ragdolllimbs},
+    {"limbmodel", PF_limbmodel},
+    {"limbplace", PF_limbplace},
     {"physicsshot", PF_physicsshot},
     {"physicsdamp", PF_physicsdamp},
     {"ropestep", PF_ropestep},

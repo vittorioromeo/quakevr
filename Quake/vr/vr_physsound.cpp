@@ -486,7 +486,7 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
     {
         return Material::Soft;
     }
-    if(info.has(modelmeta::Trait::Gib) || info.has(modelmeta::Trait::Head) || info.has(modelmeta::Trait::ZombieGib))
+    if(info.has(modelmeta::Trait::Gib) || info.has(modelmeta::Trait::Head) || info.has(modelmeta::Trait::ZombieGib) || info.has(modelmeta::Trait::Limb))
     {
         return Material::Flesh;
     }

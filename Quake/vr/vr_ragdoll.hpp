@@ -95,6 +95,17 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 // The bones cut off with the head (Rig::head and the bones on it: a rottweiler's jaw), a bit each; 0 if it has none.
 [[nodiscard]] uint32_t headBones(const Rig& rig);
 
+// Limb gore (ROUND21.md, "Limb gore"): whether bone `b` is a joint a cut takes off: a Ball or Hinge joint that is not
+// the torso (the root, "chest"); never a loose piece (the grunt's shotgun). The head is one (Decapitation's).
+[[nodiscard]] bool limbJoint(const Rig& rig, int b);
+
+// The bones a cut at `b` takes off: `b` and every bone on it (bits; a parent comes before its children).
+[[nodiscard]] uint32_t limbBones(const Rig& rig, int b);
+
+// The middle of the rest pose's vertices of bones `bones` (bits; model units): a cut-off limb's model is centred on it
+// (vr_limbmodel.cpp), its gib placed by it.
+[[nodiscard]] glm::vec3 limbMiddle(const Rig& rig, uint32_t bones);
+
 // The nearest of bone `b`'s ancestors not in `cut` (bits; -1 none): where a cut-off bone's place goes.
 [[nodiscard]] int uncutParent(const Rig& rig, int b, uint32_t cut);
 

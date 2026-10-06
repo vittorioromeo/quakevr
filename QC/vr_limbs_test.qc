@@ -1,0 +1,313 @@
+// vr_limbs_test.qc -- limb gore's tests (vr_limbs.qc; docs/vr-port/ROUND21.md, "Limb gore").
+//
+// `vr_limb_test <n>` (Debug > Gore Tests > Limb Gore), on the monster (or corpse) nearest you. 1 every limb of its
+// model hung in a row before you (Spawn Its Limbs: the limb models made from its own); 2 a corpse cut apart limb by
+// limb, the ends first, down to the torso, then its head; 3 the same, whole limbs first; 4 a sword's killing slash at
+// a limb (health 1); 5 a fist's (a pop by chance: vr_decap_pop_roll); 6 a shotgun blast at a limb that kills; 7 a
+// lightning bolt's; 8 the chance multipliers' rates (2000 rolls at chance 0.5, the head's and a limb's); 9 an explosion
+// beside a limb that kills (health 1); 10 a body gibbed (its limbs thrown: vr_gib_limbs); 11 twice Most Limbs thrown
+// (the cap); 12 a sword's slash at a limb at full health (a zombie dies of it); 13 where each limb's middle maps
+// (ragdolllimb); 14 the main hand put on the last limb thrown (then grip it: vr_mock_button main grip 1); 15 whether a
+// hand holds it. `limbtest:` lines.
+
+float() VR_Limb_TestCount =
+{
+    float n = 0;
+    for(entity e = find(world, classname, "vr_limb"); e; e = find(e, classname, "vr_limb"))
+    {
+        n++;
+    }
+    return n;
+};
+
+float() VR_Limb_TestFountains =
+{
+    float n = 0;
+    for(entity e = find(world, classname, "vr_decap_fountain"); e; e = find(e, classname, "vr_decap_fountain"))
+    {
+        n = n + (e.vr_limb_bone >= 0 ? 1 : 0);
+    }
+    return n;
+};
+
+// The nearest monster with limbs (alive: `xLive` 1; dead 0; either -1) within 400 units.
+entity(float xLive) VR_Limb_TestTarget =
+{
+    entity best = world;
+    float bestDist = 400;
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(!(e.flags & FL_MONSTER) || e.vr_gib || (xLive == 1 && e.health <= 0) || (xLive == 0 && e.health > 0) ||
+           ragdolllimbs(e, 0) == 0)
+        {
+            continue;
+        }
+        float d = vlen(e.origin - self.origin);
+        if(d < bestDist)
+        {
+            best = e;
+            bestDist = d;
+        }
+    }
+    return best;
+};
+
+// The limb a test strikes: an arm's lower part if it has one (the elbow), else its first limb joint.
+float(entity m) VR_Limb_TestBone =
+{
+    float top = VR_Limb_TopJoints(m);
+    float all = ragdolllimbs(m, 0);
+    for(float b = 1; b < 16; b++)
+    {
+        if(top & VR_Limb_Bit(b))
+        {
+            for(float c = b + 1; c < 16; c++)
+            {
+                if((all & VR_Limb_Bit(c)) && ragdolllimbs(m, 5, c) == b)
+                {
+                    return c;
+                }
+            }
+            return b;
+        }
+    }
+    return -1;
+};
+
+void(entity m, string xWhat, float xCuts, float xPops, float xLimbs, float xFountains) VR_Limb_TestReport =
+{
+    vector parts = isragdoll(m) ? ragdollcut(m, 7) : '0 0 0';
+    bprint(sprintf("limbtest: %s on %s: cut %g popped %g, limbs %g -> %g, fountains +%g", xWhat, m.classname,
+        vr_limb_cuts - xCuts, vr_limb_pops - xPops, xLimbs, VR_Limb_TestCount(), VR_Limb_TestFountains() - xFountains));
+    bprint(sprintf(", health %g ragdoll %g parts %g cut %g gib %g\n", m.health, isragdoll(m), parts_z, parts_x, m.vr_gib));
+    if(vr_limb_cuts > xCuts && vr_limb_last != world)
+    {
+        entity h = vr_limb_last;
+        bprint(sprintf("limbtest: limb %s at %v, %.0f u/s, spin %.1f, gib %g rigid %g solid %g\n", h.model, h.origin,
+            vlen(h.velocity), vlen(h.vr_spin), h.vr_gib, h.vr_rigid, h.solid));
+    }
+};
+
+void(float xTest) VR_Limb_Test =
+{
+    float cuts = vr_limb_cuts;
+    float pops = vr_limb_pops;
+    float limbs = VR_Limb_TestCount();
+    float fountains = VR_Limb_TestFountains();
+    float b;
+    float all;
+    vector parts;
+    entity m;
+    makevectors('0 1 0' * self.v_angle_y);
+    if(xTest == 8)
+    {
+        float oldLimb = vr_decap_limb;
+        vr_decap_by = world;
+        for(float k = 0; k < 2; k++)
+        {
+            float won = 0;
+            for(float i = 0; i < 2000; i++)
+            {
+                vr_decap_limb = k ? 3 : -1;
+                vr_decap_chance = 0.5;
+                vr_decap_why = "test";
+                won = won + VR_Decap_Roll(self);
+            }
+            bprint(sprintf("limbtest: 8 %s at chance 0.5 x scale %g: %g of 2000 (%.3f)\n", k ? "limb" : "head",
+                cvar_hget(k ? cvarh_vr_limbs_chance_scale : cvarh_vr_decap_chance_scale), won, won / 2000));
+        }
+        vr_decap_limb = oldLimb;
+        return;
+    }
+    if(xTest == 14 || xTest == 15)
+    {
+        entity h = vr_limb_last;
+        if(h == world || h.classname != "vr_limb")
+        {
+            bprint("limbtest: no limb thrown\n");
+            return;
+        }
+        if(xTest == 14)
+        {
+            localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", h.origin_x, h.origin_y, h.origin_z));
+            bprint(sprintf("limbtest: 14 the main hand to %s at %v\n", h.model, h.origin));
+        }
+        else
+        {
+            bprint(sprintf("limbtest: 15 %s held %g (by %s), at %v\n", h.model, h.carry_player != world,
+                h.carry_player.classname, h.origin));
+        }
+        return;
+    }
+    if(xTest == 11)
+    {
+        float most = cvar_hget(cvarh_vr_limbs_max);
+        m = VR_Limb_TestTarget(-1);
+        if(m == world)
+        {
+            bprint("limbtest: 11: no monster near\n");
+            return;
+        }
+        b = VR_Limb_TestBone(m);
+        for(float j = 0; j < most * 2; j++)
+        {
+            VR_Limb_Throw(m, limbmodel(m, b), b, self.origin + v_forward * 64 + '0 0 40' + v_right * (j * 4 - most * 4), '0 0 0',
+                '0 0 50', '0 0 0');
+        }
+        bprint(sprintf("limbtest: 11 threw %g limbs, Most Limbs %g: %g lie about\n", most * 2, most, VR_Limb_TestCount()));
+        return;
+    }
+    m = VR_Limb_TestTarget((xTest == 2 || xTest == 3) ? 0 : ((xTest == 1 || xTest == 13) ? -1 : 1));
+    if(m == world)
+    {
+        bprint(sprintf("limbtest: %g: no monster with limbs near\n", xTest));
+        return;
+    }
+    if(xTest == 1)
+    {
+        all = ragdolllimbs(m, 0);
+        float n = 0;
+        for(b = 1; b < 16; b++)
+        {
+            if(!(all & VR_Limb_Bit(b)))
+            {
+                continue;
+            }
+            string lm = limbmodel(m, b);
+            bprint(sprintf("limbtest: 1 %s limb %g: %s\n", m.classname, b, lm));
+            if(lm != "")
+            {
+                entity t = VR_Limb_Throw(m, lm, b, self.origin + self.view_ofs + v_forward * 48 + v_right * (n * 12 - 50) - '0 0 6', '0 0 0',
+                    '0 0 0', '0 0 0');
+                t.movetype = MOVETYPE_NONE; // (they hang there to be looked at)
+                t.vr_rigid = 0;
+                n++;
+            }
+        }
+        return;
+    }
+    if(xTest == 13)
+    {
+        all = ragdolllimbs(m, 0);
+        for(b = 1; b < 16; b++)
+        {
+            if(all & VR_Limb_Bit(b))
+            {
+                vector p = limbplace(m, b, 3);
+                bprint(sprintf("limbtest: 13 %s limb %g middle %v maps to %g\n", m.classname, b, p, ragdolllimb(m, p)));
+            }
+        }
+        return;
+    }
+    vector vel = v_forward * 300;
+    if(xTest == 2 || xTest == 3)
+    {
+        // Down to the torso: the ends first (the highest joint left), or whole limbs (the top joints).
+        for(float step = 0; step < 16; step++)
+        {
+            all = ragdolllimbs(m, 0);
+            if(!all)
+            {
+                break;
+            }
+            float pick = -1;
+            float pool = (xTest == 3) ? VR_Limb_TopJoints(m) : all;
+            for(b = 1; b < 16; b++)
+            {
+                if(pool & VR_Limb_Bit(b))
+                {
+                    pick = b;
+                    if(xTest == 3)
+                    {
+                        break;
+                    }
+                }
+            }
+            float ok = VR_Limb_Cut(m, self, vel, QVR_DECAP_SWING, pick, FALSE);
+            parts = ragdollcut(m, 7);
+            bprint(sprintf("limbtest: %g cut limb %g: %g, parts left %g, cut bones %g, model %s\n", xTest, pick, ok, parts_z,
+                parts_x, vr_limb_last.model));
+            if(!ok)
+            {
+                break;
+            }
+        }
+        float headOk = VR_Decap_Allowed(m) ? VR_Decap_Cut(m, self, vel, QVR_DECAP_SWING) : 0;
+        parts = ragdollcut(m, 7);
+        bprint(sprintf("limbtest: %g done: head %g, parts left %g (the torso), limbs left %g\n", xTest, headOk, parts_z,
+            ragdolllimbs(m, 0)));
+        VR_Limb_TestReport(m, "dismembered", cuts, pops, limbs, fountains);
+        return;
+    }
+    b = VR_Limb_TestBone(m);
+    vector at = limbplace(m, b, 3); // (a point on its surface)
+    float mapped = ragdolllimb(m, at);
+    string what = "";
+    if(xTest == 10)
+    {
+        what = "gibbed";
+        T_Damage(m, self, self, 1000);
+    }
+    else if(xTest == 9)
+    {
+        what = "an explosion by a limb";
+        m.health = 1;
+        entity blast = spawn();
+        setorigin(blast, at + normalize(at - (m.origin + '0 0 8')) * 12);
+        T_RadiusDamage(blast, self, 60, world);
+        remove(blast);
+    }
+    else if(xTest == 6 || xTest == 7)
+    {
+        what = (xTest == 6) ? "a shotgun blast at a limb" : "a lightning bolt at a limb";
+        m.health = 1;
+        if(VR_Limb_IsZombie(m))
+        {
+            m.health = 60;
+        }
+        VR_Decap_TestShot(xTest == 6 ? QVR_DECAP_SHOTGUN : QVR_DECAP_LIGHTNING, at);
+    }
+    else if(xTest == 5)
+    {
+        what = "a fist at a limb";
+        m.health = 1;
+        VR_Decap_TestBlow(at, VR_MTHING_FIST, VR_MKIND_POMMEL, 0.7, 0, 8);
+        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+        T_Damage_VRMelee(m, self, self, 30);
+        VR_ClearHitKind();
+    }
+    else
+    {
+        what = (xTest == 12) ? "a slash at a limb at full health" : "a sword's slash at a limb";
+        if(xTest != 12)
+        {
+            m.health = 1;
+        }
+        VR_Decap_TestBlow(at, VR_MTHING_SWORD, VR_MKIND_SLASH, 0.7, 0, 8);
+        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+        T_Damage_VRMelee(m, self, self, (xTest == 12) ? 10 : 30);
+        VR_ClearHitKind();
+    }
+    bprint(sprintf("limbtest: %g at limb %g (maps to %g)\n", xTest, b, mapped));
+    VR_Limb_TestReport(m, what, cuts, pops, limbs, fountains);
+};
+
+// Every server frame (StartFrame): a limb test asked for (vr_limb_test).
+void() VR_Limb_TestFrame =
+{
+    float ask = cvar_hget(cvarh_vr_limb_test);
+    if(!ask)
+    {
+        return;
+    }
+    cvar_set("vr_limb_test", "0");
+    entity p = find(world, classname, "player");
+    if(p == world)
+    {
+        return;
+    }
+    entity oself = self;
+    self = p;
+    VR_Limb_Test(ask);
+    self = oself;
+};

@@ -1808,6 +1808,18 @@ QVR_CVAR(vr_decap_pop_melee_curve, "2", CVAR_ARCHIVE)       // the hardness's ex
 QVR_CVAR(vr_decap_pop_quad, "1", CVAR_ARCHIVE)              // with Quad Damage, every headshot kill pops the head (any gun, blow or throw; no chance, range nor head share)
 QVR_CVAR(vr_decap_pop_roll, "-1", CVAR_NONE)              // tests: the head pop roll's value (0..1; below 0: random)
 QVR_CVAR(vr_decap_test, "0", CVAR_NONE)               // the QC runs decapitation test n on the nearest monster or corpse (vr_decap.qc; Debug > Gore Tests)
+QVR_CVAR(vr_limbs, "1", CVAR_ARCHIVE) // limb gore: a monster's limbs cut off or popped as its head (vr_limbs.qc; ROUND21.md "Limb gore")
+QVR_CVAR(vr_limbs_corpses, "1", CVAR_ARCHIVE) // limb gore on corpses and ragdolls: every limb on its own
+QVR_CVAR(vr_limbs_zombies, "1", CVAR_ARCHIVE) // a zombie (or mummy) losing a limb dies for good (off: their limbs stay on)
+QVR_CVAR(vr_limbs_chance_scale, "1", CVAR_ARCHIVE) // every limb cut or pop's chance times this (the head's rules)
+QVR_CVAR(vr_decap_chance_scale, "1", CVAR_ARCHIVE) // every beheading or head pop's chance times this (1: as before)
+QVR_CVAR(vr_limbs_body_speed, "0.35", CVAR_ARCHIVE) // a living monster's limb cut or popped: its ragdoll keeps this much of the blow's knock
+QVR_CVAR(vr_limbs_blast, "1", CVAR_ARCHIVE) // explosions: 1 pop the limbs near the blast by chance (the body a ragdoll, not gibbed, if any popped); 0 gib as before
+QVR_CVAR(vr_limbs_blast_radius, "96", CVAR_ARCHIVE) // units: limbs this near an explosion may pop
+QVR_CVAR(vr_limbs_blast_chance, "0.6", CVAR_ARCHIVE) // a limb's chance to pop at the blast itself (falling to 0 at the radius)
+QVR_CVAR(vr_gib_limbs, "1", CVAR_ARCHIVE) // a body gibbed throws its own limbs: 0 no (Quake's gibs), 1 besides Quake's gibs, 2 instead of the meat gibs
+QVR_CVAR(vr_limbs_max, "24", CVAR_ARCHIVE) // most limbs lying about: past it, the oldest go (not one in a hand)
+QVR_CVAR(vr_limb_test, "0", CVAR_NONE) // the QC runs limb gore test n on the nearest monster or corpse (vr_limbs.qc; Debug > Gore Tests)
 QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)
 QVR_CVAR(vr_shock_hit_test, "0", CVAR_NONE)          // the QC strikes the nearest monster or corpse ahead with a lightning bolt of this much damage (-1: just enough to kill), once (vr_shock.qc; Debug > Gore Tests)
 QVR_CVAR(vr_decap_poptest_dist, "10", CVAR_NONE)       // vr_decap_test 41..46 (head pop chance): shot from this many player lengths (56 units) off

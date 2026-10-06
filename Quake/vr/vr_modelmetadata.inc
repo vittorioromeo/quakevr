@@ -114,5 +114,6 @@ QVR_MODEL_TRAIT(ExplosiveBoxFile, FilePrefix, "b_explob")
 QVR_MODEL_TRAIT(ExplosiveCrateFile, FilePrefix, "b_exbox")
 QVR_MODEL_TRAIT(Submodel, Prefix, "*")
 QVR_MODEL_TRAIT(Ragdoll, Suffix, "#rag")
+QVR_MODEL_TRAIT(Limb, Contains, "#limb") // a monster's limb cut off (vr_limbmodel.cpp): a gib
 QVR_MODEL_TRAIT(AmmoBoxInsensitive, PrefixInsensitive, "maps/b_")
 QVR_MODEL_TRAIT(RigHandInsensitive, ExactInsensitive, "progs/hand_rig.mdl")

@@ -601,7 +601,7 @@ EdictCounts countEdicts()
         {
             e.heads++;
         }
-        else if(info.has(modelmeta::Trait::Gib))
+        else if(info.has(modelmeta::Trait::Gib) || info.has(modelmeta::Trait::Limb))
         {
             e.gibs++;
         }
