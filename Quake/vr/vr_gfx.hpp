@@ -166,8 +166,8 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
 [[nodiscard]] bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
     Texture distances, int width, int height, const int viewport[4], bool soft, int retro, void (*restore)());
 
-// A lit tube made on the GPU from one record a ring (the flashlight's coiled cord, vr_coil.cpp): `sides` vertices round
-// each ring, consecutive rings joined; opaque, depth-tested and written, in the scene view. Each vertex is lit as the
+// A lit tube made on the GPU from one record a ring (the flashlight's chain, the chainsaw's cord: vr_coil.cpp): `sides`
+// vertices round each ring, consecutive rings joined; opaque, depth-tested and written, in the scene view. Each vertex is lit as the
 // cord's CPU shading was: the ring's ambient light shaded by the normal against `key` (0.6 .. 1.4), its lamps' light by
 // its angle to where it comes from, and a sheen towards the eye (each eye's own); times `albedo`. A ring's ambient.w
 // mixes its albedo towards `rust` (and takes its sheen away), its lamp.w darkens it (grime): the flashlight's chain's

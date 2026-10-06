@@ -664,8 +664,7 @@ void setupView(const hands::State& s)
         cord.hide();
         return;
     }
-    coil::Style style;
-    style.turns = 0;
+    coil::Style style; // a plain cable
     style.wireRadius = 0.0022f;
     style.albedo = glm::vec3{0.2f, 0.18f, 0.14f};
     const glm::vec3 toHandle = st.handlePos - hole;

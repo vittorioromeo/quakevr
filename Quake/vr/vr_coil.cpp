@@ -13,7 +13,6 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include "Zancle/Math/Sqrt.hpp"
 
 
 namespace qvr::coil
@@ -23,14 +22,13 @@ namespace
 
 constexpr int segments = 12;          // the line's springs, the two stubs included (nodes 0 .. segments)
 constexpr float stub = 0.012f;        // metres the cord leaves each end straight along its direction
-constexpr float mass = 0.03f;         // kilograms, the whole cord (a telephone cord's)
-constexpr float stiffness = 1.5f;     // newtons a metre it is stretched by, the whole cord (its turns opening)
-constexpr float compression = 3.f;    // times stiffer squeezed below its relaxed length (its turns touching)
+constexpr float mass = 0.03f;         // kilograms, the whole cord (a coiled telephone cord's: the chain swings as it did)
+constexpr float stiffness = 1.5f;     // newtons a metre it is stretched by, the whole cord
+constexpr float compression = 3.f;    // times stiffer squeezed below its relaxed length
 constexpr float airDamping = 1.5f;    // per second, against its swing relative to its ends
 constexpr float springDamping = 20.f; // per second, along each spring (the wobble along it dies quickly)
 constexpr float gravity = 9.81f;      // metres per second squared
 constexpr float substep = 1.f / 300.f;
-constexpr float taper = 0.015f;       // metres over which the coil narrows to the wire's lead into each end
 constexpr float pi = 3.14159265f;
 
 // The springs between the stubs: that many, each relaxed at the cord's relaxed length over them.
@@ -42,8 +40,8 @@ float relaxedLength(const Style& style)
     {
         return style.length;
     }
-    // Turns touching: the wire's thickness a turn; a plain cable as long as the coiled one relaxed.
-    return static_cast<float>(za::max(style.turns, 64)) * 2.f * style.wireRadius;
+    // As long as a coiled cord of 64 turns touching relaxed: the wire's thickness a turn.
+    return 128.f * style.wireRadius;
 }
 
 glm::vec3 catmullRom(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, float t)
@@ -172,16 +170,16 @@ float hash01(unsigned x)
 }
 
 constexpr int maxLinks = 192;
-constexpr int maxBend = 4; // segments a link's half circle, near
+constexpr int bend = 2; // segments a link's half circle (a hexagon)
 
 // A chain's rings along the line (scratch's, `length` units long): each link a loop of rings round its wire's middle
-// (a stadium: two half circles joined by straights), the links joined by rings of no radius (nothing drawn between
+// (a hexagon: two half circles of two segments joined by straights), the links joined by rings of no radius (nothing drawn between
 // them: a ring of none in the loop's first ring's place closes each end of it inside the wire). Link k (counted from
 // the second end, the torch: the links keep their places from it, paid out of the first end as the line stretches)
 // lies in the plane of the line's normal (even) or binormal (odd) there, bent with the line; its light is taken at its
 // middle; its rust and grime (TubeRing ambient.w, lamp.w: gfx::drawTube) its own.
-void buildChain(const Style& style, float length, const glm::vec3 (&light)[3], int numLights, float metres,
-    za::Vector<gfx::TubeRing>& out, int& sides, int& links)
+void buildChain(const Style& style, float length, const glm::vec3 (&light)[3], int numLights, za::Vector<gfx::TubeRing>& out,
+    int& sides, int& links)
 {
     const float m2u = units::metresToUnits();
     const float wire = style.wireRadius * m2u;
@@ -189,15 +187,14 @@ void buildChain(const Style& style, float length, const glm::vec3 (&light)[3], i
     const float halfLen = 0.5f * style.linkLength * m2u + wire; // the wire's middle: the link's middle to its end
     const float halfWid = 0.5f * style.linkWidth * m2u + wire;  // and to its side
     const float straight = za::max(halfLen - halfWid, 0.f);
-    // (Low-poly: a hexagon of square bar, at every distance; its square's faces along and across the link's plane:
-    // gfx::drawTube's `flat` turns the square half a side, its corners at wireRadius x sqrt 2.)
-    const int bend = style.lowPoly ? 2 : metres < 0.6f ? maxBend : metres < 1.2f ? 3 : 2;
-    sides = style.lowPoly ? 4 : metres < 0.6f ? 6 : metres < 1.2f ? 5 : 4;
-    const float wireDrawn = style.lowPoly ? wire * 1.41421356f : wire;
+    // Square bar, at every distance; its square's faces along and across the link's plane: gfx::drawTube's `flat` turns
+    // the square half a side, its corners at wireRadius x sqrt 2.
+    sides = 4;
+    const float wireDrawn = wire * 1.41421356f;
     const int loop = 2 * (bend + 1); // the loop's rings (its first again closes it)
     links = za::clamp(static_cast<int>(za::ceil((length + halfLen) / pitch)), 1, maxLinks);
     out.resize(static_cast<size_t>(links) * static_cast<size_t>(loop + 3));
-    glm::vec3 mid[2 * (maxBend + 1)];
+    glm::vec3 mid[2 * (bend + 1)];
     size_t at = 0;
     for(int k = 0; k < links; k++)
     {
@@ -407,18 +404,9 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
         nearest = za::min(nearest, glm::distance(p, eye));
     }
     const float metres = nearest / m2u;
-    const int perTurn = metres < 0.6f ? 8 : metres < 1.2f ? 6 : 4;
     const int sidesAt = metres < 0.6f ? 6 : metres < 1.2f ? 5 : 4;
-    const bool coiled = style_.turns > 0;
-    const int turns = za::max(style_.turns, 1);
-    const int rings = coiled ? turns * perTurn : za::max(static_cast<int>(line.size()) - 1, 1);
+    const int rings = za::max(static_cast<int>(line.size()) - 1, 1);
     rings_ = rings + 1;
-
-    // The coil keeps its wire's length a turn: stretched, it opens out and narrows.
-    const float pitch = length / static_cast<float>(turns);
-    const float wireTurn = 2.f * pi * style_.coilRadius * m2u;
-    const float coilRadius =
-        coiled ? za::sqrt(za::max(wireTurn * wireTurn - pitch * pitch, 0.04f * wireTurn * wireTurn)) / (2.f * pi) : 0.f;
     const float wire = style_.wireRadius * m2u;
 
     // The light: the world's at three points along it, and the dynamic lights that reach it.
@@ -450,12 +438,12 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
     const int numLights = za::min(static_cast<int>(lights.size()), 4);
     if(style_.chain)
     {
-        buildChain(style_, length, lightAt, numLights, metres, out, sides, links_);
+        buildChain(style_, length, lightAt, numLights, out, sides, links_);
         rings_ = static_cast<int>(out.size());
         return true;
     }
 
-    // The rings: their middles on the helix, the wire's direction and an axis across it, and the light reaching them
+    // The rings: their middles on the line, the wire's direction and an axis across it, and the light reaching them
     // (the dynamic lights' summed, from their mean direction by strength). The GPU makes the wire round them and
     // shades it (gfx::drawTube).
     za::Vector<glm::vec3>& mid = scratch.mid;
@@ -478,12 +466,8 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
         const glm::vec3 t = glm::normalize(glm::mix(tangent[seg], tangent[seg + 1], f));
         glm::vec3 n = glm::mix(normal[seg], normal[seg + 1], f);
         n = glm::normalize(n - t * glm::dot(n, t));
-        const glm::vec3 b = glm::cross(t, n);
-        const float phi = 2.f * pi * static_cast<float>(turns) * u;
-        radial[r] = coiled ? za::cos(phi) * n + za::sin(phi) * b : n;
-        const float edge = za::min(s, length - s) / (taper * m2u);
-        const float narrow = coiled ? za::clamp(edge, 0.f, 1.f) : 0.f;
-        mid[r] = c + radial[r] * (coilRadius * narrow * narrow * (3.f - 2.f * narrow));
+        radial[r] = n;
+        mid[r] = c;
 
         gfx::TubeRing& ring = out[r];
         const float w = u * 2.f;
@@ -496,7 +480,7 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
     }
     for(int r = 0; r <= rings; r++)
     {
-        // The wire's own direction (along the helix), and the axis across it from the line out to the wire.
+        // The wire's own direction, and an axis across it.
         const glm::vec3 t = glm::normalize(mid[za::min(r + 1, rings)] - mid[za::max(r - 1, 0)]);
         glm::vec3 e = radial[r] - t * glm::dot(radial[r], t);
         e = glm::length(e) > 1e-6f ? glm::normalize(e) : anyPerpendicular(t);

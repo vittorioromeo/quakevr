@@ -25134,3 +25134,22 @@ Verified headless (with -Sound): e1m1 -> rerelease/id1/music/track06.ogg, hip1m1
 r1m1 -> rerelease/rogue track05, e5start/e5m1 (dopa) -> id1 track04/03, mg3 start -> rerelease/mg3 track09 (mounted),
 e1m1 twice -> one start (resumed); decoding advanced (145 KB of track06 read in 5 s). `-nosteam -nogog`: one line per
 missing track, nothing else. Untested here: a track inside a pak, the GOG original layout (not installed).
+
+## Flashlight cord: the low-poly chain only (2026-10-06)
+
+The author: the low-poly chain and no chain the only cords. Branch `agent/flashcord`.
+
+- **Cord** (Body > Flashlight / Advanced VR Options > Flashlight): None or Low-Poly Chain, nothing else;
+  `vr_flashlight_cord` 0 none, 1 the low-poly chain (default 1, compiled and `vr_defaults.cfg`). The coiled cord, the
+  plain cable and the smooth chain are gone (`vr_coil.cpp`: the helix and the smooth chain's distance detail;
+  `coil::Style::turns`, `coilRadius`, `lowPoly`: `chain` is the low-poly chain now). The plain cable stays as the
+  chainsaw's starter cord. The chain's style, physics and swing are unchanged (same line, springs and links).
+- **Config 90**: `vr_flashlight_cord` 2, 3 or 4 (1 and 0 already mean the chain and none) -> 1.
+- Checked (mock): migration from 89 with 0/1/2/3/4 -> 0/1/1/1/1, a version-34 config's 1 -> 1, a version-90 config
+  untouched; e1m1 torch in the left hand, both eyes: 288 rings x 4 sides, 32 links before and after; the eye images
+  differ from the old Low-Poly Chain's (max-channel > 2 on 0.6-0.8 % of pixels) less than two runs of the new build do
+  (1.3 %). `vr_flashlight_cord 0`: not drawn.
+
+Checklist:
+
+- [ ] Body > Flashlight > Cord: two choices, None and Low-Poly Chain; the chain hangs and swings as before.

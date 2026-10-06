@@ -416,7 +416,7 @@ const DefaultChange defaultChanges[] = {
     {89, &vr_parry_stagger, "0.35"},        // 0.75
     {89, &vr_counter_damage, "1.2"},        // 1.5 (vr_defaults.cfg's 1.2 dropped: the compiled default again)
 };
-constexpr int configVersion = 89;
+constexpr int configVersion = 90;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -689,6 +689,14 @@ void migrateConfig()
     {
         Con_DPrintf("VR: vr_extmaps_dir: %s (was %s)\n", vr_extmaps_dir.default_string, vr_extmaps_dir.string);
         Cvar_SetQuick(&vr_extmaps_dir, vr_extmaps_dir.default_string);
+    }
+    // 90: the flashlight's cord is the low-poly chain or none (the author, 2026-10-06: ROUND21.md, "Flashlight cord:
+    // the low-poly chain only"). The coiled cord (1), the plain cable (2), the chain (3) and the low-poly chain (4) are
+    // all the low-poly chain, now 1; none (0) stays.
+    if(from < 90 && vr_flashlight_cord.value != 0.f && vr_flashlight_cord.value != 1.f)
+    {
+        Con_DPrintf("VR: vr_flashlight_cord: 1, the low-poly chain (was %s)\n", vr_flashlight_cord.string);
+        Cvar_SetQuick(&vr_flashlight_cord, "1");
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

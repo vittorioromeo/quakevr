@@ -3726,7 +3726,7 @@ see `Misc/quakevr/pvs/FINDINGS.md` for the corrected measurements.
 | `vr_flashlight_brightness` | `1` | yes | C | graphics | Flashlight | 3 | 0 |  | 876 |
 | `vr_flashlight_range` | `1000` | yes | C | graphics | Flashlight | 1 | 0 |  | 877 |
 | `vr_flashlight_shadows` | `1` | yes | C | graphics | Flashlight | 1 | 0 |  | 878 |
-| `vr_flashlight_cord` | `3` | yes | C | graphics | Flashlight | 5 | 0 |  | 879 |
+| `vr_flashlight_cord` | `1` | yes | C | graphics | Flashlight | 5 | 0 |  | 879 |
 | `vr_flashlight_beam` | `0.35` | yes | C | graphics | Flashlight | 1 | 0 | vr_defaults.cfg | 880 |
 | `vr_flashlight_beam_quality` | `1` | yes | C | graphics | Flashlight | 1 | 0 |  | 881 |
 | `vr_flashlight_tilt` | `8` | yes | C | graphics | Flashlight | 1 | 0 | vr_defaults.cfg | 882 |
