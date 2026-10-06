@@ -8,6 +8,10 @@ hooks into the module and the engine changes the module needs. To list it:
     git diff --stat v0.8.2 HEAD --diff-filter=M -- . ':!Quake/vr' ':!external'
     git grep -n QVR -- Quake ':!Quake/vr'
 
+Ironwail files Quake VR deleted (2026-10-07, REPO_CLEANUP.md; `--diff-filter=D` lists them): the Win32 platform
+(`Makefile.w32`, `build_cross_win32*.sh`, the x86 libraries, the `Win32` configurations of `ironwail.sln` and the
+`.vcxproj`), SDL 1.2 (`Windows/SDL/`), Watcom, Code::Blocks, the third-party `.pdb` files and `.github/workflows/`.
+
 ## Totals (Ironwail's files changed)
 
 | | Files | Lines added | Lines removed | Hunks |

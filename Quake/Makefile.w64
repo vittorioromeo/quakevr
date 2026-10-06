@@ -1,6 +1,6 @@
 # GNU Makefile for compiling x64-Windows ironwail.exe using MinGW-w64.
 # Usage: "make -f Makefile.w64"
-# To cross-compile on Linux hosts, see the build_cross_win32*.sh scripts.
+# To cross-compile on Linux hosts, see the build_cross_win64*.sh scripts.
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" to override the locally included SDL versions.
 
@@ -81,7 +81,7 @@ endif
 ifeq ($(USE_SDL2),1)
 SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2 --lib-suffix=64
 else
-SDL_CONFIG ?=../Windows/SDL/bin/sdl-config --prefix=../Windows/SDL --lib-suffix=64
+SDL_CONFIG ?=sdl-config # QVR: SDL 1.2 is not bundled (Windows/SDL removed): pass SDL_CONFIG for yours
 endif
 SDL_CFLAGS = $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS   = $(shell $(SDL_CONFIG) --libs)

@@ -1,4 +1,4 @@
-# vr.mk -- the Quake VR module in the Makefile builds (Makefile, Makefile.w32 and Makefile.w64 include it after their
+# vr.mk -- the Quake VR module in the Makefile builds (Makefile and Makefile.w64 include it after their
 # OBJS, before their rules; each adds its thread library for Zancle). C++23: any file may include Zancle. No OpenXR in
 # these builds: mock backend only. The engine links as C++.
 

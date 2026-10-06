@@ -5,7 +5,7 @@ Status: steps 1–4 implemented on 2026-09-24 (see *Implemented* at the end), an
 
 The next paragraph is the state before this work: the body is now `vrbody.md5mesh`, a skinned full body.
 
-Today's body is `progs/vrtorso.mdl`: one rigid vertex-animated model, placed below the head and turned to
+Before it, the body was `progs/vrtorso.mdl` (since deleted): one rigid vertex-animated model, placed below the head and turned to
 `bodyYaw` (vr_view.cpp, "Body"). It floats, has no arms, and does not bend when you crouch or lean. This note
 covers what a skinned body driven by inverse kinematics would take in this port.
 

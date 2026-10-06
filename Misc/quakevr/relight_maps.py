@@ -26,7 +26,7 @@
 # less reduced by a weaker one; one that starts off, like those of e1m1's lanterns until you walk in,
 # does not count), less for a small or faint one and in a room of many.
 # Until round 15 they shared half a budget over the whole map, which left every one too faint to get
-# a light: they looked lit and lit nothing. Misc/quakevr/relight_textures.cfg sets, per texture (and
+# a light: they looked lit and lit nothing. quakevr/relight_textures.cfg sets, per texture (and
 # map), whether it is a fixture, a glow or nothing, and its brightness, colour and reach; --list-glows
 # lists each map's glowing textures and their lights without relighting (--list-textures: and where each
 # glow image came from). Its `strength` line, and --light-texture-strength over it, make every lamp, glow
@@ -1024,7 +1024,7 @@ def main():
                         help="a fixture's light by a mapper's light that is on from the start (default %g of "
                              "a lone fixture's)" % FIXTURE_LIT)
     parser.add_argument("--textures", default=DEFAULT_TEXTURES,
-                        help="per-texture settings (default Misc/quakevr/relight_textures.cfg; '' for none)")
+                        help="per-texture settings (default quakevr/relight_textures.cfg; '' for none)")
     parser.add_argument("--no-luma", action="store_true",
                         help="ignore replacement textures' glow images (textures/<name>_glow or _luma, .png .tga "
                              ".jpg) and the external material maps' in finding what glows")

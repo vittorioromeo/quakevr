@@ -1018,8 +1018,7 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
     }
     else if(view)
     {
-        const bool hand = info.has(modelmeta::Trait::Hand) || info.has(modelmeta::Trait::Finger) ||
-                          info.has(modelmeta::Trait::OpenHand);
+        const bool hand = info.has(modelmeta::Trait::Hand) || info.has(modelmeta::Trait::Finger);
         out[0] = hand ? rim * 0.35f : 0.f;
     }
     else

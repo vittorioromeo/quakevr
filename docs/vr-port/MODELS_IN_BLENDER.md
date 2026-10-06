@@ -230,8 +230,7 @@ Not editable here:
 - **The firing range's monster buttons** (`maps/vr_spawnpanel.bsp`, `vr_spawnbutton.bsp`): brush models, compiled by
   `make_spawn_buttons.py` from brushes written in it (TrenchBroom's world, not Blender's).
 - **`s_bullet.spr`**: a sprite, not a model.
-- **`hand.mdl`** is never drawn (it names the fist's weapon slot), and **`openhand.mdl`** and **`vrtorso.mdl`** aren't
-  used at all: they import and export, but nothing shows the change.
+- **`hand.mdl`** is never drawn: it names the fist's weapon slot.
 
 After exporting the flashlight, `vr_model_reload vrflashlight` prints what the game read:
 
