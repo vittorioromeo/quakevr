@@ -956,6 +956,11 @@ float toolbarRight()
     return toolbarShown() ? toolbarLayout().right() : -1e9f;
 }
 
+float toolbarLeft()
+{
+    return toolbarShown() ? toolbarLayout().bx0(0) : -1e9f;
+}
+
 bool toolbarRow()
 {
     return toolbarShown() && toolbarLayout().row;

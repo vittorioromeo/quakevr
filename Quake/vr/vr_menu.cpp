@@ -10147,8 +10147,7 @@ extern "C" void VR_Menu_Draw()
     const Layout l = layout();
     // (Below a flat screen's row of icons where that reaches over it: a window narrower than 16:9.)
     const bool underRow = menuui::toolbarRow() && menuui::toolbarRight() > 16.f;
-    M_DrawTransPic(16, underRow ? q_max(l.top + 4, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2) : l.top + 4,
-        Draw_CachePic("gfx/qplaque.lmp"));
+    M_DrawPlaque(16, underRow ? q_max(l.top + 4, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2) : l.top + 4);
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, l.top + 4, title);
     const char* name = pages[page].title;

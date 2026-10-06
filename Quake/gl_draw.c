@@ -123,6 +123,9 @@ static GLushort batchindices[6 * MAX_BATCH_QUADS];
 
 glcanvas_t glcanvas;
 
+static float draw_menurecolor[4];			// QVR: the gui shader's MenuRecolor (Draw_SetMenuRecolor): zero while off
+static qboolean draw_menurecolor_on;		// QVR
+
 //==============================================================================
 //
 //  PIC CACHING
@@ -476,6 +479,58 @@ void Draw_ReplacePic (qpic_t *pic, const char *name, int width, int height, byte
 	memcpy (pic->data, &gl, sizeof (glpic_t));
 }
 
+/*
+================
+Draw_LoadImagePic -- QVR: a pic (Draw_PicBytes () bytes the caller keeps) from a 32-bit image file (`path`
+without its extension: png, tga or jpg, Image_LoadImage), kept across maps and games, mipmapped and drawn smooth
+(an image file's filter, TexMgr_FilterMode), made again from the file on a video restart. Its width and height
+are the image's; its texture coordinates span the whole image. `bounds` (if not NULL): the rectangle of its texels
+that are not fully transparent (left, top, right, bottom; right and bottom past the last). False if there is no
+such image.
+================
+*/
+qboolean Draw_LoadImagePic (qpic_t *pic, const char *path, int *bounds)
+{
+	const int flags = TEXPREF_MIPMAP | TEXPREF_ALPHA | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_CLAMP;
+	int mark = Hunk_LowMark ();
+	int width, height;
+	enum srcformat fmt;
+	byte *data = Image_LoadImage (path, &width, &height, &fmt);
+	glpic_t gl;
+
+	if (!data)
+	{
+		Hunk_FreeToLowMark (mark);
+		return false;
+	}
+	if (bounds)
+	{
+		int x, y;
+		bounds[0] = width;
+		bounds[1] = height;
+		bounds[2] = bounds[3] = 0;
+		for (y = 0; y < height; y++)
+			for (x = 0; x < width; x++)
+				if (fmt != SRC_RGBA || data[(y * width + x) * 4 + 3])
+				{
+					bounds[0] = q_min (bounds[0], x);
+					bounds[1] = q_min (bounds[1], y);
+					bounds[2] = q_max (bounds[2], x + 1);
+					bounds[3] = q_max (bounds[3], y + 1);
+				}
+	}
+	pic->width = width;
+	pic->height = height;
+	gl.gltexture = TexMgr_LoadImage (NULL, path, width, height, fmt, data, path, 0, flags);
+	gl.sl = 0;
+	gl.sh = 1;
+	gl.tl = 0;
+	gl.th = 1;
+	memcpy (pic->data, &gl, sizeof (glpic_t));
+	Hunk_FreeToLowMark (mark);
+	return true;
+}
+
 //==============================================================================
 //
 //  INIT
@@ -626,6 +681,7 @@ void Draw_Flush (void)
 		Scrap_Upload ();
 
 	GL_UseProgram (glprogs.gui);
+	GL_Uniform4fvFunc (0, 1, draw_menurecolor); // QVR: the menus' colours (Draw_SetMenuRecolor)
 	GL_SetState (glcanvas.blendmode | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(3));
 	GL_Bind (GL_TEXTURE0, glcanvas.texture);
 
@@ -666,6 +722,31 @@ static void Draw_SetBlending (unsigned blend)
 		return;
 	Draw_Flush ();
 	glcanvas.blendmode = blend;
+}
+
+/*
+================
+Draw_SetMenuRecolor -- QVR
+
+While on, what is drawn has the menus' browns turned towards the shader's target hue (vr_menu_recolor:
+VR_MenuRecolor gives the uniform; gl_shaders.h, MenuRecolor). M_Draw turns it on for the menus and off after
+them, and off around the banner (in its own colours). Returns whether it was on.
+================
+*/
+qboolean Draw_SetMenuRecolor (qboolean on)
+{
+	float params[4] = {0.f, 0.f, 0.f, 0.f};
+	qboolean was = draw_menurecolor_on;
+
+	if (on)
+		VR_MenuRecolor (params);
+	draw_menurecolor_on = on;
+	if (memcmp (params, draw_menurecolor, sizeof (params)) != 0)
+	{
+		Draw_Flush ();
+		memcpy (draw_menurecolor, params, sizeof (params));
+	}
+	return was;
 }
 
 /*
@@ -1413,6 +1494,7 @@ void GL_Set2D (void)
 	glcanvas.texture = NULL;
 	glcanvas.blendmode = GLS_BLEND_ALPHA;
 	glcanvas.colorstacktop = 0;
+	Draw_SetMenuRecolor (false); // QVR
 	glViewport (glx, gly, glwidth, glheight);
 	GL_SetCanvas (CANVAS_DEFAULT);
 	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);

@@ -347,6 +347,10 @@ int VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected
 void VR_MenuDrawStatus (void);							// M_Draw, last: the status box (vr_menu_status) in the top right corner
 void VR_MenuDrawOverlay (void);							// M_Draw, after the menu: the buttons
 int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' vertical Quake plaque left out (the VR menu style)
+// The menus' branding (vr_menubrand.cpp): the Quake VR banner in place of Quake's plaque, and their browns turned red.
+int VR_MenuDrawBanner (int x, int y);					// M_DrawPlaque: the banner where the plaque's top left would be; nonzero if drawn (0: no image, draw the plaque)
+void VR_MenuDrawBannerColumn (void);					// M_Draw, before the page: the VR menu style's banner, in the left column under the corner's buttons
+void VR_MenuRecolor (float *params);					// Draw_SetMenuRecolor: the gui shader's MenuRecolor (vr_menu_recolor; x 0: off)
 int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
 void VR_MenuBounds (int *top, int *height);				// M_UpdateBounds: the menus laid out from the canvas's bounds start below the buttons
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions

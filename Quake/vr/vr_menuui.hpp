@@ -53,6 +53,7 @@ void backToGame(int hand);
 // bottom one).
 [[nodiscard]] float toolbarBottom();
 [[nodiscard]] float toolbarRight(); // the buttons' right edge (menu x; far left when they are not shown)
+[[nodiscard]] float toolbarLeft();  // and their left edge (menu x; far left when they are not shown)
 [[nodiscard]] bool toolbarFocused();
 [[nodiscard]] bool toolbarRow(); // on a flat screen: a row of icons along the canvas's top
 void focusToolbar(int dir);

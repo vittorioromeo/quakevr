@@ -55,6 +55,8 @@ qpic_t *Draw_CachePic (const char *path);
 qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags);
 void Draw_Flush (void);
 void Draw_NewGame (void);
+qboolean Draw_SetMenuRecolor (qboolean on); // QVR: the menus' browns turned red while on (vr_menu_recolor); returns whether it was
+qboolean Draw_LoadImagePic (qpic_t *pic, const char *path, int *bounds); // QVR: a lasting, mipmapped pic of a 32-bit image file (Draw_PicBytes () bytes), and where it is not transparent
 
 void Draw_SetClipRect (float x, float y, float width, float height);
 void Draw_ResetClipping (void);

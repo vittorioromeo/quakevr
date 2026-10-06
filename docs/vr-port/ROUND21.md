@@ -27297,3 +27297,29 @@ In VR:
 - [ ] Play a while (a few maps, gore, the Map Library): no crash, nothing odd; Debug > Memory > Heap Allocator says
       mimalloc 3.5.4, 0 calls on the C runtime's blocks, 0 errors.
 - [ ] Loads of warden and ad_grendel feel quicker; the frame rate in play unchanged.
+## The menus in Quake VR's colours: the banner and blood red (2026-10-07)
+
+The menus now carry the project's branding: Quake's vertical plaque is replaced by the vertical "Quake VR: Unleashed"
+logo, and the menus' browns are turned blood red (Menu Settings > **Blood Red Menus**, `vr_menu_recolor` 1).
+
+- **The banner** (`Quake/vr/vr_menubrand.cpp`, `quakevr/gfx/vr/menu_banner.png`): the logo's pixels and alpha exactly
+  as authored (667 x 2000), centred on a transparent 768 x 2048 canvas (`Misc/quakevr/make_menu_banner.py <logo>`:
+  the engine's mipmaps halve two texels at a time, so every level must have even sides; the transparent texels take
+  the nearest opaque colour so the small levels keep clean edges). It is mipmapped and smooth (`Draw_LoadImagePic`,
+  an image file's trilinear filter), and only its opaque rectangle (found from the alpha) is drawn.
+  - Flat menus (and the VR menus with VR Menu Style off): where the plaque was (`M_DrawPlaque` replaces the nine
+    `M_DrawTransPic (16, 4, qplaque)` calls and the VR pages' one), as tall (144), 48 wide, centred at x 30 so its
+    right edge stops at the main menu's cursor (x 54). id's qplaque is drawn only if the image is missing.
+  - VR Menu Style: the plaque stays left out (the rows reach its column), so the banner stands in the corner buttons'
+    column, 8 true pixels under them, 216 true pixels tall (the plaque at the shipped row spacing), the same size and
+    place on every menu (`VR_MenuDrawBannerColumn`, M_Draw before the page; `menuui::toolbarLeft` added).
+- **Blood red** (`gl_shaders.h` gui shader, `MenuRecolor`; `gl_draw.c` `Draw_SetMenuRecolor`): a true hue change in
+  Oklab (lightness, chroma, hue): hues 40 to 115 degrees (Quake's browns, tans, oranges, yellows; fading out to 10 and
+  150) rotate towards the target, lightness unchanged (highlights stay bright, shadows dark, the contrast the same),
+  chroma times `vr_menu_recolor_saturation` (1.25), less only where sRGB has no such red. Greys, blues, purples, greens
+  and reds stay as they are. M_Draw turns it on for what it draws and back after (nested draws keep it); the banner is
+  drawn with it off. The game, the HUD and the console under the menu are untouched: before/after screenshots differ
+  only in the menu's pixels (flat main menu: 42k pixels, all in the menu; HUD rows identical; VR eye likewise).
+- Settings (Menu Settings): `vr_menu_recolor` 1, `vr_menu_recolor_strength` 1 (0..1), `vr_menu_recolor_hue` 0 (HSV
+  degrees: 0 is the logo's own red, its median Oklab hue 29; 345 crimson; -1 the player's hue),
+  `vr_menu_recolor_saturation` 1.25 (0.5..3).

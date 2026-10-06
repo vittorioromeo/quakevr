@@ -390,9 +390,24 @@ int M_PrintWordWrap (int x, int y, const char *text, int width, int height, qboo
 
 void M_DrawTransPic (int x, int y, qpic_t *pic)
 {
-	if (VR_MenuHidesPlaque () && pic == Draw_CachePic ("gfx/qplaque.lmp")) // QVR: the tall VR panel's rows reach it
-		return;
 	Draw_Pic (x, y, pic); //johnfitz -- simplified becuase centering is handled elsewhere
+}
+
+/*
+================
+M_DrawPlaque -- QVR
+
+The vertical banner at the menus' left, its top left at x, y (where Quake's plaque, gfx/qplaque.lmp, was): Quake
+VR's (vr_menubrand.cpp), or Quake's plaque without its image. Not with the VR menu style, whose taller panel has it
+in the column under the corner's buttons instead (VR_MenuDrawBannerColumn).
+================
+*/
+void M_DrawPlaque (int x, int y)
+{
+	if (VR_MenuHidesPlaque ())
+		return;
+	if (!VR_MenuDrawBanner (x, y))
+		Draw_Pic (x, y, Draw_CachePic ("gfx/qplaque.lmp"));
 }
 
 void M_DrawPic (int x, int y, qpic_t *pic)
@@ -1222,7 +1237,7 @@ void M_Main_Draw (void)
 	qpic_t	*p;
 	qboolean text; // QVR: the rows as text (VR_BigFont_Draw)
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
@@ -1393,7 +1408,7 @@ void M_SinglePlayer_Draw (void)
 {
 	qpic_t	*p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/sp_menu.lmp") );
@@ -2153,7 +2168,7 @@ void M_Skill_Draw (void)
 	int		x, y, f;
 	qpic_t	*p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic (m_skill_usecustomtitle && !m_skill_canresume ? "gfx/p_skill.lmp" : "gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
@@ -2296,7 +2311,7 @@ void M_MultiPlayer_Draw (void)
 {
 	qpic_t	*p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mp_menu.lmp") );
@@ -2397,7 +2412,7 @@ void M_Setup_Draw (void)
 {
 	qpic_t	*p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
@@ -2603,7 +2618,7 @@ void M_Net_Draw (void)
 	int		f;
 	qpic_t	*p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
@@ -4783,7 +4798,7 @@ void M_Options_Draw (void)
 	alpha *= alpha;
 	GL_PushCanvasColor (1.f, 1.f, 1.f, alpha);
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/p_option.lmp");
 	M_DrawPic ( (320-p->width)/2, y + 4, p);
 
@@ -5802,7 +5817,7 @@ void M_LanConfig_Draw (void)
 	const char	*startJoin;
 	const char	*protocol;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	basex = (320-p->width)/2;
 	M_DrawPic (basex, 4, p);
@@ -6167,7 +6182,7 @@ void M_GameOptions_Draw (void)
 	qpic_t	*p;
 	int		x;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
+	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
@@ -7372,10 +7387,13 @@ static void M_UpdateBounds (void)
 
 void M_Draw (void)
 {
+	qboolean recolor; // QVR
+
 	if (m_state == m_none || key_dest != key_menu)
 		return;
 
 	M_UpdateBounds ();
+	recolor = Draw_SetMenuRecolor (true); // QVR: the menus' browns turned red (vr_menu_recolor)
 
 	// QVR: over a see-through background (scr_menubgalpha below about a half), the text gets a dark
 	// outline, the stronger the fainter the background, to stay readable over the game.
@@ -7395,6 +7413,7 @@ void M_Draw (void)
 	}
 
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
+	VR_MenuDrawBannerColumn (); // QVR: the VR menu style's banner, under the corner's buttons
 
 	switch (M_GetBaseState (m_state))
 	{
@@ -7499,6 +7518,7 @@ void M_Draw (void)
 	VR_MenuDrawOverlay (); // QVR: the "Back to game" button
 	VR_MenuDrawStatus (); // QVR: the status box (vr_menu_status)
 	draw_textoutline = 0.f; // QVR
+	Draw_SetMenuRecolor (recolor); // QVR
 
 	if (m_entersound)
 	{
