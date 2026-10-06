@@ -204,18 +204,21 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
 {
     za::Vector<unsigned char>& found = packScratch.found;
     found.assign(count, 0);
-    bool directory = false;
+    // Whether any of the pack's own data is there (a pak, or one of its listed files): a folder holding only what a
+    // texture or music pack extracted into it (textures/, music/) is no installation, so it reads as missing, not
+    // incomplete.
+    bool gameData = false;
     for(int base = 0; base < (onlyRoot ? 1 : com_numbasedirs); ++base)
     {
         char folder[MAX_OSPATH];
         q_snprintf(folder, sizeof(folder), "%s/%s", onlyRoot ? onlyRoot : com_basedirs[base], game);
-        directory |= Sys_FileType(folder) == FS_ENT_DIRECTORY;
         for(int pak = 0;; ++pak)
         {
             char path[MAX_OSPATH];
             q_snprintf(path, sizeof(path), "%s/pak%d.pak", folder, pak);
             FILE* file = fopen(path, "rb");
             if(!file) { break; }
+            gameData = true;
             fseek(file, 0, SEEK_END);
             const long size = ftell(file);
             rewind(file);
@@ -274,6 +277,7 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
                 fclose(file);
                 if(!valid) { return 2; }
                 found[i] = true;
+                gameData = true;
             }
         }
     }
@@ -281,12 +285,12 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
     {
         if(!found[i])
         {
-            if(directory)
+            if(gameData)
             {
                 Con_Printf("VR: %s: incomplete installation (missing %s); restore your owned mission-pack data.\n",
                     game, resources[i]);
             }
-            return directory ? 2 : 0;
+            return gameData ? 2 : 0;
         }
     }
     return 1;
@@ -431,6 +435,7 @@ void discoverCampaigns()
             q_snprintf(folder, sizeof(folder), "%s/%s", roots[r].cStr(), c.folder);
             if(Sys_FileType(folder) != FS_ENT_DIRECTORY) { continue; }
             c.status = inspectPack(c.folder, c.resources, c.resourceCount, roots[r].cStr());
+            if(c.status == 0) { continue; } // none of its data (a texture pack's folder): the next root's copy counts
             q_strlcpy(c.root, roots[r].cStr(), sizeof(c.root));
             // A damaged higher-priority owned copy is explicit, never masked by another release.
             break;
