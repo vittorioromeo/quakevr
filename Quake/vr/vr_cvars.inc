@@ -2208,5 +2208,6 @@ QVR_CVAR(vr_mg_world_test, "0", CVAR_NONE) // Debug > Tests: 1 report authored n
 
 QVR_CVAR(vr_mg_trigger_test, "0", CVAR_NONE) // Debug > Tests: 1 shared triggers, 2 authored mge5m2 route, 3 lightning damage, 4 slipgate retarget
 
+QVR_CVAR(vr_mg_horde_test, "0", CVAR_NONE) // Debug > Tests: authored Horde waves, currency, pickups, revival and save reports
 QVR_CVAR(vr_mg_hub_test, "0", CVAR_NONE) // Debug > Tests: 1 MG1 hub/rune semantics, 2 authored electrode/egg route, 3 progression/inventory report; destructive tests reload afterward
 QVR_CVAR(vr_mg_hub_stage, "0", CVAR_NONE) // Private QC transition acceptance continuation index; not archived

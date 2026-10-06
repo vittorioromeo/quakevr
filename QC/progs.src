@@ -47,6 +47,7 @@ vr_mg_corpses.qc
 vr_mg_world.qc
 vr_mg_triggers.qc
 vr_mg_hub.qc
+vr_mg_horde.qc
 // The grapple after vr_carry.qc and vr_walltorch.qc: it reads their fields.
 vr_grapple.qc
 // Grunts' and enforcers' shoves (ai.qc calls it; the monsters' files use it).
@@ -80,6 +81,7 @@ vr_highlights.qc
 vr_mg_world_test.qc
 vr_mg_trigger_test.qc
 vr_mg_hub_test.qc
+vr_mg_horde_test.qc
 
 orig_mon_boss.qc
 orig_mon_demon.qc

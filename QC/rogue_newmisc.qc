@@ -22,7 +22,9 @@ Default style is 0
 */
 void() light_candle =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    // Machine supplies this same authored candle model; no Rogue dependency.
+    if(MG1_Campaign()) { if(!fileexists("progs/candle.mdl")) { remove(self); return; } }
+    else if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
     precache_model("progs/candle.mdl");
     setmodel(self, "progs/candle.mdl");

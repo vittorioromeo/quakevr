@@ -896,3 +896,23 @@ on whatever is below its origin (within 128 units), whatever Rocks and Bricks' o
 @PointClass base(Targetname) = mge2m2_rune_pickup_fixer : "Machine rune pickup lock: locks after0.8 seconds, unlocks on activation. Covers VR hand and physical-object collection." []
 
 @PointClass = item_sigil : "Episode rune. In native Machine context bits1..32 select authored rune models; the first five drive completion/return spawns and fire targets exactly once. Other campaigns retain their own rune semantics." []
+
+@PointClass = info_horde_ammo : "Machine Horde shared ammo reward. Respawns20 seconds after collection; VR physical box interfaces use normal settings." []
+@PointClass = info_horde_item : "Machine Horde wave health or armor reward spawn, available again after collection." []
+@PointClass = info_horde_key : "Machine Horde boss-wave currency spawn."
+[
+ spawnflags(flags) = [1 : "First key" : 0 2 : "Second key" : 0 4 : "Third key" : 0 8 : "Later keys" : 0]
+]
+@PointClass base(Targetname) = info_monster_start_ranged : "Machine Horde ranged squad spawn; falls back to normal spawns."
+[
+ spawnflags(flags) = [1 : "Start disabled" : 0 2 : "Skip occupied check" : 0]
+]
+@PointClass base(Targetname) = info_monster_start_flying : "Machine Horde flying squad spawn; falls back to normal spawns."
+[
+ spawnflags(flags) = [1 : "Start disabled" : 0 2 : "Skip occupied check" : 0]
+]
+@PointClass base(Targetname) = info_monster_start_boss : "Machine Horde boss squad spawn; falls back to normal spawns."
+[
+ spawnflags(flags) = [1 : "Start disabled" : 0 2 : "Skip occupied check" : 0]
+]
+@PointClass base(Target) = horde_manager : "Machine Horde wave manager. Uses authored wave scaling, targets horde_event by default." []

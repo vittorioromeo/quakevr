@@ -132,7 +132,7 @@ void(entity targ, entity attacker) Killed =
     self.enemy = attacker;
 
 // bump the monster counter
-    if(self.flags & FL_MONSTER)
+    if((self.flags & FL_MONSTER) && (!MGH_Active() || self.classname != "monster_zombie"))
     {
         killed_monsters = killed_monsters + 1;
         WriteByte(MSG_ALL, SVC_KILLEDMONSTER);
@@ -149,6 +149,7 @@ void(entity targ, entity attacker) Killed =
     ClientObituary(self, attacker);
 
     self.takedamage = DAMAGE_NO;
+    MGH_Kill(attacker);
     self.touch = SUB_Null;
 
     monster_death_use();

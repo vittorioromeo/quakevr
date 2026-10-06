@@ -52,7 +52,7 @@ void() MG1_sigil_touch = {
     sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
     stuffcmd(other, "bf\n");
     self.solid = SOLID_NOT; self.model = string_null;
-    // Source Horde Hunger rune timers belong to the separate native Horde manager port.
+    MGH_RuneHunger();
     float rune = self.spawnflags & 31;
     serverflags = serverflags | rune | (rune * 64);
     activator = other; SUB_UseTargets();

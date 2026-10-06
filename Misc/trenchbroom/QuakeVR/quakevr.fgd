@@ -280,12 +280,74 @@ stops), fires its targets, and wait seconds later ends the game. Honey's own map
 	fog_color(string) : "RGB fog color" : "0.3 0.3 0.3"
 ]
 
+@PointClass =
+	info_horde_ammo : "Machine Horde shared ammo reward. Respawns20 seconds after collection; VR physical box interfaces use normal settings."
+[
+]
+
+@PointClass =
+	info_horde_item : "Machine Horde wave health or armor reward spawn, available again after collection."
+[
+]
+
+@PointClass =
+	info_horde_key : "Machine Horde boss-wave currency spawn."
+[
+	spawnflags(flags) =
+	[
+		1 : "First key" : 0
+		2 : "Second key" : 0
+		4 : "Third key" : 0
+		8 : "Later keys" : 0
+	]
+]
+
 @PointClass base(Appearflags) color(255 128 128) size(-16 -16 -16, 16 16 16) =
 	info_intermission : "Intermission camera
 
 This is the camera point for the intermission. Use mangle instead of angle, so you can set pitch or roll as well as yaw. 'pitch roll yaw'"
 [
 	mangle(string) : "Camera angle (Pitch Yaw Roll)"
+]
+
+@PointClass color(255 0 0) size(-80 -80 0, 80 80 128) =
+	info_monster_start : "if targeted, it will toggle between on or off, like lights"
+[
+	spawnflags(flags) =
+	[
+		1 : "START OFF" : 0
+		2 : "SKIP BLOCK CHECK" : 0
+	]
+]
+
+@PointClass base(Targetname) =
+	info_monster_start_boss : "Machine Horde boss squad spawn; falls back to normal spawns."
+[
+	spawnflags(flags) =
+	[
+		1 : "Start disabled" : 0
+		2 : "Skip occupied check" : 0
+	]
+]
+
+@PointClass base(Targetname) =
+	info_monster_start_flying : "Machine Horde flying squad spawn; falls back to normal spawns."
+[
+	spawnflags(flags) =
+	[
+		1 : "Start disabled" : 0
+		2 : "Skip occupied check" : 0
+	]
+]
+
+@PointClass base(Targetname) =
+	info_monster_start_ranged : "Machine Horde ranged squad spawn; falls back to normal spawns."
+[
+	spawnflags(flags) =
+	[
+		1 : "Start disabled" : 0
+		2 : "Skip occupied check" : 0
+	]
 ]
 
 @PointClass base(Appearflags, Target, Targetname) color(200 150 150) size(-4 -4 -4, 4 4 4) =
@@ -3017,6 +3079,11 @@ Plays Honey's ending music (honey/muzak4.wav), at once or when triggered. Needs 
 	event_lightning : "Chthon's lightning
 
 Just for boss level."
+[
+]
+
+@PointClass base(Target) color(255 0 0) size(-8 -8 -8, 8 8 8) =
+	horde_manager : "Machine Horde wave manager. Uses authored wave scaling, targets horde_event by default."
 [
 ]
 

@@ -112,6 +112,7 @@ void() button_fire =
 
     if(MG_WorldCampaign() && self.items) {
         sound(self, CHAN_ITEM, self.noise4, 1, ATTN_NORM);
+        if(MGH_Active()) MGH_horde_key_spend(self.items);
         if(!(self.spawnflags & 32)) self.items = 0;
     }
     sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
