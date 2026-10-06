@@ -1400,6 +1400,10 @@ struct Posed
     const entity_t* ent{nullptr};
     float scale{0.f};
     za::Array<float, JointCount * 12> skin{};
+    za::Array<float, JointCount * 12> shadowSkin{}; // skin with the neck and head drawn (the shadow maps': shadowLight)
+    glm::vec3 eyes{0.f};                            // the head this frame (world)
+    float m2w{0.f};                                 // world units per metre
+    bool shadowHead{false};                         // the light being drawn casts the head's shadow (shadowLight)
     glm::vec3 wrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};   // per hand
     glm::vec3 forearm[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     Shoulder shoulders[2];                                // per side
@@ -1745,16 +1749,10 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     }
     const za::Array<int, JointCount>& boneOf = modelInfo->boneOf;
 
-    for(int j = 0; j < JointCount; j++)
-    {
-        const Bone& bone = b.bones[j];
-        const glm::mat3 r = bone.rot * bone.shape * glm::mat3{glm::vec3{bone.stretch * bone.size, 0.f, 0.f},
-                                           glm::vec3{0.f, bone.size, 0.f}, glm::vec3{0.f, 0.f, bone.size}};
+    const auto skinBone = [&](const Bone& bone, float size, const float* inv, float* out) {
+        const glm::mat3 r = bone.rot * bone.shape * glm::mat3{glm::vec3{bone.stretch * size, 0.f, 0.f},
+                                           glm::vec3{0.f, size, 0.f}, glm::vec3{0.f, 0.f, size}};
         const glm::vec3 t = (bone.pos - origin) / k;
-
-        const int i = boneOf[j];
-        const float* inv = bones[i].inverse.mat;
-        float* out = &posed.skin[i * 12];
         for(int row = 0; row < 3; row++)
         {
             for(int col = 0; col < 4; col++)
@@ -1767,7 +1765,26 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
                 out[row * 4 + col] = v;
             }
         }
+    };
+    for(int j = 0; j < JointCount; j++)
+    {
+        const Bone& bone = b.bones[j];
+        const int i = boneOf[j];
+        const float* inv = bones[i].inverse.mat;
+        skinBone(bone, bone.size, inv, &posed.skin[i * 12]);
+        // The shadow maps': the neck and head as the model has them (the eye views collapse them, solveTorso).
+        float* shadow = &posed.shadowSkin[i * 12];
+        if(j == Neck || j == Head)
+        {
+            skinBone(bone, 1.f, inv, shadow);
+        }
+        else
+        {
+            memcpy(shadow, &posed.skin[i * 12], 12 * sizeof(float));
+        }
     }
+    posed.eyes = s.head;
+    posed.m2w = b.m2w;
 
     posed.ent = ent;
     posed.scale = k;
@@ -1893,6 +1910,27 @@ float modelScale(const entity_t* e)
 }
 
 } // namespace qvr::avatar
+
+namespace qvr::avatar
+{
+void shadowLight(const glm::vec3& light)
+{
+    // Out to a light 30 cm from the eyes: the head (10 cm round them) and the head-mounted flashlight (9 cm out).
+    posed.shadowHead = vr_shadow_head.value != 0.f && glm::distance(light, posed.eyes) > 0.3f * posed.m2w;
+}
+} // namespace qvr::avatar
+
+// The shadow maps' (r_alias.c, R_DrawAliasModelsDepth): the body with its head (shadowLight).
+extern "C" int VR_AliasShadowBonePoses(const entity_t* e, const float** matrices)
+{
+    using namespace qvr::avatar;
+    const int count = VR_AliasBonePoses(e, matrices);
+    if(count && matrices && e && e == posed.ent && posed.shadowHead)
+    {
+        *matrices = posed.shadowSkin.data();
+    }
+    return count;
+}
 
 extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
 {

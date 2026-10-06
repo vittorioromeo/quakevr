@@ -4,6 +4,7 @@
 #include "vr_lighting.hpp"
 #include "vr_portals.hpp"
 #include "vr_ao.hpp"
+#include "vr_avatar.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -558,6 +559,7 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
     {
         posed[i] = VR_AliasBonePoses(aliasCasters[i], nullptr) != 0;
     }
+    avatar::shadowLight(light); // your body's head in this light's shadow (vr_shadow_head)
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
     for(int face = 0; face < numViews; face++)

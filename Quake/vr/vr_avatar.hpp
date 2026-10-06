@@ -113,6 +113,11 @@ struct HandPose
 // pelvis).
 glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, const HandPose handPoses[2], bool legs);
 
+// The shadow maps (vr_lighting.cpp) draw the body with its head (vr_shadow_head), which the eye views and the spectator
+// camera never draw (the eyes are inside it): set per light before its casters are drawn. A light at the head (the
+// head-mounted flashlight, a hand at the face) leaves the head out, or it would shade its own beam.
+void shadowLight(const glm::vec3& light);
+
 // The forearm of `hand` (HAND_OFF, HAND_MAIN) as last posed: its wrist and direction (from the
 // elbow). False when the body is not posed.
 [[nodiscard]] bool forearm(int hand, glm::vec3& wrist, glm::vec3& direction);

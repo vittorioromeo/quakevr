@@ -399,7 +399,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, &ibuf.global, ibuf_size, &buf, &ofs);
 	vr_profcounts.aliasdrawn += ibuf.count; // QVR: profile
 
-	numvrbones = poseverttype == PV_IQM ? VR_AliasBonePoses (ibuf.ent, &vrbones) : 0; // QVR
+	numvrbones = poseverttype == PV_IQM ? (aliasdepth ? VR_AliasShadowBonePoses (ibuf.ent, &vrbones) : VR_AliasBonePoses (ibuf.ent, &vrbones)) : 0; // QVR: the shadow maps' with your head
 	if (numvrbones) // QVR
 		GL_Upload (GL_SHADER_STORAGE_BUFFER, vrbones, sizeof (bonepose_t) * numvrbones, &vrbonebuf, &vrboneofs);
 

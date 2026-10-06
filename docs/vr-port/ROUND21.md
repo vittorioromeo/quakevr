@@ -26082,3 +26082,17 @@ scenario set (prepared and validated only: no timing runs yet). BENCHMARKS.md, "
 - First validation's leads for the load work (not benchmarks): warden waits 1.5-2.9 s for its hulls' build, warm or
   cold; QRP's warm load re-decodes the world's textures (BSP stage 1.7 s, slower than cold); a campaign switch reloads
   every alias model; `vr_gib_limbs 2`'s gib frame is the costliest gore blow (144 ms for 24).
+## Your shadow has your head (2026-10-06)
+
+The author (playtest, plaw01 17:07): the shadow of the IK body had no head. The body's neck and head are collapsed in
+its skinning (vr_avatar.cpp solveTorso: the eyes are inside them), and the shadow maps drew the same skin. Now the
+pose keeps a second skin with the neck and head at full size (`Posed::shadowSkin`), and the shadow maps' alias depth
+pass (r_alias.c `R_DrawAliasModelsDepth`, `aliasdepth`) takes it through `VR_AliasShadowBonePoses`. The eye views and
+the spectator camera (drawn from the head, so the head stays out of it too) keep the collapsed skin: nothing changes
+in them. A light within 30 cm of the eyes leaves the head out (`avatar::shadowLight`, set per light in
+`renderLight`): the head-mounted flashlight (9 cm out at the temple) and a hand-held light at the face would
+otherwise shade their own beam. `vr_shadow_head` (1; 0 the old headless shadow) turns it off.
+
+Checked: e1m1, facing the start's back wall, `vr_light_test 400 60 -36` behind the head: both eyes show the shoulders'
+shadow with a head and neck over them with 1, none with 0; the eyes' views have nothing of the head. The head-mounted
+flashlight (`vr_flashlight_clip_head right; vr_flashlight_toggle`): its spot the same with 0 and 1.
