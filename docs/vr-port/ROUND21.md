@@ -24982,3 +24982,42 @@ Cost (e1m1, menu open, `vr_spectator_rate 1`, 250 fps, `vr_profile_gpu 1`): the 
 CPU a camera image; the eyes' quads within the HUD panel scope's 0.001 ms. At the default rate (60 images a second)
 less. Tested: eye images with the camera Off (identical to before but the status numbers), On (VR Settings page and
 main menu: the preview above the switch, matching the window); the window's screenshot has no preview.
+## Custom maps: the one that did not start, and the crash (2026-10-06)
+
+The author's seven installed packages (his `<Steam Quake>/cache/maps_installed.txt`), copied into a test base and
+each played headless (`maps_play`, the Map Library's Enter, and `map`):
+
+| Package | Start map | Starts | Cause / note |
+|---|---|---|---|
+| Base To Hell | basetohell | yes | |
+| Grendel's Blade | ad_grendel | yes | made for Arcane Dimensions: 523 entities without a spawn function (monsters, breakables), AD's sky |
+| Solomon's Tower | ad_soltower1e | yes | Arcane Dimensions: 112 entities without a spawn function |
+| November-Schlacht | vanisch01 | yes | its sky missing: installed by an older build (files kept under `vanisch01/`); installing it again fixes it |
+| The Warden | warden | yes | Arcane Dimensions (tagged; laid out from the base dir): 216 without a spawn function |
+| Ancient | ancient | yes | made for Copper: 17 without a spawn function |
+| **Down the Gutter** | (none in the index) | **no** | two bugs, below |
+
+- **Play needed the index's `startmap`, which 941 of the index's 1947 packages lack** (Down the Gutter among them): Play
+  printed "does not say which map to start" to the console only. And 402 packages list several (`start e1m1 ...`, a
+  speedmap pack's every map): Play passed the whole list to `map`. Now `mapinstall::startMap`: the index's map the
+  package holds ("start" first), else the package's own BSPs ("start", else the first by name). `maps_play <sha>
+  [map]` starts another; `maps_installed` says what each starts and what it was made for. The Map Library's detail
+  says it too ("Play starts plaw01."), Play's failures are said there (not only a sound), and packages made for a mod
+  whose progs Quake VR does not run (`madeFor`: the index's game folder, or the AD/Quoth tag) say their monsters and
+  items are missing.
+- **Then plaw01 stopped at `Host_Error: Mod_LoadModel: progs/s_light2.spr not found`**: `monster_ogre_marksman` (id's
+  own classname, an ogre in id's ogre.qc) is Honey's marksman outside the MG campaign, whose model (`progs/mogre.mdl`)
+  and crown (`s_light2.spr`) Quake VR does not ship. Without them it is id's ogre again (its classname too). Any map
+  with a marksman ogre stopped the same way (EXPANSIONS.md noted it on mge1m1 and MG3 map6). Honey's `misc_tree`
+  (`progs/tree1.mdl`, not shipped either) is left out when its model is missing, as `misc_candle` was.
+- **The crash** did not reproduce on the current build (each map played and switched between, `map` and Play, save and
+  load across packages, an install and an uninstall while maps changed, the index re-read under a Map Library spamming
+  keys). His build lacked 140234b3 (the Map Library's results kept pointers into a replaced index: a start-up fetch that
+  fell back to the cache, then the page's draw or Play read freed text), the likeliest cause; 7c727f91 (va() and the
+  console off the main thread during a map load) the other. One window of the same bug remained: the index is replaced
+  at a frame's end and the next frame's keys ran before the page rebuilt its list. `mapsKey`/`mapsMouse` rebuild it
+  first now.
+- **Diagnostics**: a player's run (not only a test run) writes `qvr_crash.txt` and `qvr_crash.dmp` in the working
+  directory when it crashes (the exception filter only; the crash then ends as before, and the last report is kept),
+  and the report's second line names the exe's link time and the map last spawned with its map package
+  ("exe linked 2026-10-06 12:56; map plaw01, map package Down the Gutter (f2d56926c6082753)").
