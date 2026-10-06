@@ -1,0 +1,34 @@
+ericw-tools' light, shipped with Quake VR for the in-game relighting
+====================================================================
+
+The files in this folder (light.exe, embree4.dll, tbb12.dll, tbbmalloc.dll) are ericw-tools 2.0.0-alpha11's
+light and the libraries it needs, unchanged, from its Windows release:
+
+    https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11
+    (ericw-tools-2.0.0-alpha11-win64.zip)
+
+Quake VR runs light.exe as a separate program (VR Settings > Advanced VR Options > Graphics > Relighting), giving it
+a copy of a map and reading the files it writes. It is not linked into Quake VR, and Quake VR does not depend on it
+to run: delete this folder and the game works as before (only the in-game relighting needs light, and it can be
+pointed at another copy with vr_relight_tool).
+
+ericw-tools
+-----------
+Copyright (C) Eric Wasylishen, Kevin Shanahan (Tyrann), David Walton (Spike) and the ericw-tools contributors.
+Licensed under the GNU General Public License, version 3 or later: gpl_v3.txt in this folder.
+
+Its source code (the Corresponding Source of these binaries) is the 2.0.0-alpha11 tag of ericw-tools:
+
+    https://github.com/ericwa/ericw-tools/tree/2.0.0-alpha11
+
+and is also offered beside the Quake VR download that contains this folder (ericw-tools-2.0.0-alpha11-src.zip,
+the same release page). If neither can be reached, ask the Quake VR author for it.
+
+Embree (embree4.dll)
+--------------------
+Copyright (C) Intel Corporation. Licensed under the Apache License, Version 2.0: LICENSE-embree.txt in this folder.
+
+oneTBB (tbb12.dll, tbbmalloc.dll)
+---------------------------------
+Copyright (C) Intel Corporation. Licensed under the Apache License, Version 2.0 (the same text as LICENSE-embree.txt):
+https://github.com/uxlfoundation/oneTBB

@@ -117,6 +117,22 @@ foreach ($f in $toolFiles) {
     Copy-Item (Join-Path $root "Misc\quakevr\$f") $tools
 }
 
+# ericw-tools' light, for the in-game relighting (vr_relight.cpp, which looks in quakevr\tools\ericw-tools first):
+# GPL-3, run as a separate program, never linked (docs/RELIGHTING.md, "ericw-tools' licence"). Shipped unchanged from
+# its release zip with its licence texts and a notice saying where its source is; the release page must offer
+# ericw-tools-2.0.0-alpha11-src.zip (that tag's source) beside the package. QVR_ERICW_TOOLS: the extracted zip's folder.
+$ericw = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { "C:\OHWorkspace\ericw-tools-2.0.0-alpha11-win64" }
+if (Test-Path (Join-Path $ericw "light.exe")) {
+    $ericwDist = Join-Path $tools "ericw-tools"
+    New-Item -ItemType Directory -Force $ericwDist | Out-Null
+    foreach ($f in "light.exe", "embree4.dll", "tbb12.dll", "tbbmalloc.dll", "gpl_v3.txt", "LICENSE-embree.txt", "README.md") {
+        Copy-Item (Join-Path $ericw $f) $ericwDist
+    }
+    Copy-Item (Join-Path $root "Misc\quakevr\ericw-tools-NOTICE.txt") (Join-Path $ericwDist "NOTICE.txt")
+} else {
+    Write-Warning "ericw-tools not found in $ericw (QVR_ERICW_TOOLS): the package has no light.exe, so the in-game relighting needs the player's own (vr_relight_tool)"
+}
+
 Set-Content -Encoding ascii (Join-Path $dist "QuakeVR.bat") "@echo off`r`nstart `"`" `"%~dp0ironwail.exe`" -game quakevr %*`r`n"
 
 Set-Content -Encoding ascii (Join-Path $dist "README-QuakeVR.txt") @"
