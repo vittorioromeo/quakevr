@@ -23,80 +23,83 @@ SteamVR's OpenVR (see [Compared with the original Quake VR](#compared-with-the-o
 
 ## Features
 
-A short list. [docs/FEATURES.md](docs/FEATURES.md) explains each feature and how to use it.
+The headlines, grouped. [docs/FEATURES.md](docs/FEATURES.md) explains each one, how to use it and where its settings
+are.
 
-### Weapons and combat
+### Weapons
 
-- **Weapons in your hands:** every weapon from Quake and both mission packs, one in each hand. The guns have
-  modelled grips, iron sights, a glowing ammo screen and, where the gun has a second ammo type, a button on top that
-  switches to it.
-- **Two-handed aiming:** grip the foregrip with your other hand. An optional virtual stock steadies your aim when
-  your hand is near your shoulder. Heavy weapons lag your hand a little, and hands and barrels stop at walls.
-- **Holsters** at your hips, on your chest and behind your shoulders: let go of a weapon there to put it away and
-  grip there to draw it. You reload by bringing the weapon to a holster, or by flicking the super shotgun open.
-- **Throwing and physics:** thrown weapons, boxes, gibs and heads are rigid bodies with true-scale gravity. They
-  spin, bounce, float in water and come to rest. The throw is read from your hand as in Half-Life: Alyx.
-- **Force grab:** point an open hand at a weapon or item, pull the trigger, flick your wrist, and catch it as it
-  flies to you.
-- **Melee:** punches, axe and sword swings, and pistol-whipping with any gun. Knights drop their swords for you to
-  take. You can parry with a weapon held level across your body or with your forearms crossed, bash with a guard,
-  headbutt, and bat enemy projectiles back.
-- **Positional damage** (headshots, arm and leg shots) and **knockback** in both directions.
-- **Hand interaction:** pick up weapons, ammo, health, backpacks, gibs and heads by hand. Carry boxes, stash them at
-  a holster, or throw them.
-- **Gore** that you can turn up or down: blood sprays on walls, gibs that stick to ceilings and drip, pools under
-  corpses, and wounds that drip blood.
-- **Haptics:** hits felt on the side they come from, explosions rumble, and a heartbeat at low health.
+- **A weapon in each hand:** every weapon of Quake and both mission packs, with modelled grips, iron sights, a glowing
+  ammo screen, recoil, muzzle flashes and tracers, and a button on top for a second ammo type.
+- **Two-handed aiming** by the foregrip, an optional virtual stock, and weight: heavy guns lag, want two hands, and
+  can be wrenched from your grip. Hands and barrels stop at walls.
+- **Holsters** at your hips, chest and shoulders; reload at a holster or flick the super shotgun open. **Hand
+  grenades** from a pouch at your back.
+- **New weapons to take:** knights' swords, the ogres' chainsaws (pull the cord), the grunts' burst rifles, the
+  enforcers' laser rifles, crowbars from crates, and the grappling hook with a physical rope.
 
-### Movement and comfort
+### Combat
 
-- Smooth locomotion towards your head or your off hand, smooth or snap turning, and optional teleport.
-- Room-scale play: walking around your room moves you in the game, with collision. You can crouch, jump for real,
-  and lean over railings.
-- **Swimming** with arm strokes.
-- **Climbing:** hang from ledges and rungs, climb hand over hand and pull yourself up.
-- Either hand for anything (the stick functions, the wrist gadget's arm and the torch's hip are separate options), height calibration and world scale.
+- **Melee that reads real swings:** punches, blades, clubs and pistol-whips that land on the monster's real shape;
+  axes that stick where you throw them.
+- **Parry** with a weapon or crossed forearms (it stops the attack), **counter-attack**, **bash**, **shove**,
+  **headbutt**, and **bat** spikes, lasers and grenades back. Catch grenades, or shoot them.
+- **Bullet time**, from your wrist or a stick, with an optional Sandevistan mode.
+- **Ragdolls and knockdowns:** corpses go limp as physical bodies you can drag and throw; a hard shove knocks a
+  monster down to struggle back up, and off a ledge it always falls.
+- **Stamina** and tired arms (optional), enemy shoves, and a **training dummy** that can be any enemy and fights
+  back.
+- **Positional damage** (headshots, arms and legs) and knockback in both directions.
 
-### Body and immersion
+### Physics and gore
 
-- **Full body:** your arms reach your hands, and your legs walk and step round as you turn. You can pick one of
-  three builds. Your body shows the armour you wear, your wounds and your powerups.
-- **Wrist gadget HUD:** health, armour and ammo on a CRT screen strapped to your forearm. You read it like a
-  watch, and messages float above it. The classic status bar on a hand is still available.
-- **Flashlight** on your belt: a real shadow-casting spotlight. Switch it with the trigger, take it in your hand,
-  or clip it on a gun or your head.
-- **Hands** whose fingers curl with the trigger, the grip and your thumb.
-- **VR menus** that you point at with a laser. Settings pages preview their changes live.
-- **Voice notes:** hold a button with your hand at your mouth to record feedback. Each note is saved with a
-  screenshot of where you were.
+- **Everything is physical:** thrown weapons, boxes, crates, rocks, explosive boxes you can stack and stand on, wall
+  torches you take off the wall, gibs and heads, all rigid bodies with true-scale gravity. Throws are read from your
+  hand as in Half-Life: Alyx and feel the same at any frame rate.
+- **Force grab:** point, pull the trigger, flick your wrist, and catch.
+- **Gore you can tune:** blood on walls, you, your weapons and props (water washes it off), sticking and dripping gibs,
+  small gibs and brain chunks, wounds, beheading, head pops and limb gore.
+- **Fire and lightning:** flames spread over monsters, corpses and crates and smoulder out; lightning leaves arcs,
+  convulsions and burns, on you too.
 
-### Graphics
+### Movement and body
 
-- **Relit maps (optional, [made on your PC](docs/RELIGHTING.md)):** Quake's maps relit with ericw-tools, with
-  ambient occlusion, coloured light, and lamps that light their rooms. **Water, slime and teleporters become
-  see-through.**
-- **A darker, moodier look, like DarkPlaces:** strong coloured dynamic lights, bloom, and a sheen on surfaces.
-- **Real-time shadows** from explosions, rockets, your muzzle flash and the map lights near you. Monsters and your
-  own body cast them. Five presets run from Off (Quake) to Ultra.
-- **Model lighting:** models are shaded from the map's own lights, with directional ambient, a rim light, and
-  reflections on your weapons.
-- **Surface detail:** bump maps (made from the textures, or the texture pack's own), the baked light's real
-  direction (deluxemaps), parallax, and detail textures up close.
-- **Water and liquids:** waves that move the surface, reflection, refraction, caustics, splashes, ripples,
-  shoreline foam, heat haze over lava, and fog and a wobble under water.
-- **Effects:** textured particles (smoke, sparks, blood, explosions), soft particles, decals, flickering torch
-  lights, glowing projectiles.
-- Tone mapping, colour grades and dither. Anti-aliasing, a render-scale setting, and support for HD texture packs.
+- Smooth or teleport locomotion, smooth or snap turning, comfort presets, and room-scale play with crouching,
+  real jumps and leaning.
+- **Swimming** with arm strokes, **climbing** ledges and rungs hand over hand, and the **grappling hook**.
+- **Full body** with arms and legs (IK), three builds, your armour, wounds and powerups on it; hands fitted to what
+  they hold. **VR Calibration** measures you at the first start.
+- **Left- or right-handed**, every side-dependent option at once or one by one.
 
-### Compatibility
+### Interface
 
-- **Quake and both mission packs** (Scourge of Armagon, Dissolution of Eternity) in one game. They are found
-  automatically and picked from the start hub.
-- **Custom maps** run with Quake VR's gameplay. The **Map Library** (on the main menu) browses
-  [Quaddicted](https://www.quaddicted.com/)'s archive of custom maps, and downloads and installs them in the game. **Other mods** run in a compatibility mode: you aim with your hand,
-  but you have no off-hand weapons or holsters.
-- **Ironwail's strengths:** fast on huge modern maps, a Maps and Mods menu, and flat-screen play (`vr_enabled 0`).
-- **Multiplayer and bots** (FrikBot), carried over from the original.
+- **Wrist gadget HUD:** health, armour, ammo and stamina on a CRT screen on your forearm, with the game's messages as
+  a hologram. The classic status bar on a hand is still there.
+- **Flashlight** on your belt: a shadow-casting torch you switch, take in hand, flip with a flick, or clip on a gun
+  or your head.
+- **VR menus** with a laser, live previews, drop-down lists, **search** (with your recent results), a **console**
+  with a keyboard, Menu Detail levels and per-page reset; **tips** for new players, also placed by mappers.
+
+### Graphics and sound
+
+- **Relit maps**, made on your PC by a script or **in the game** (one map or every map, ericw-tools downloaded for
+  you), with coloured light, ambient occlusion and lamps that light their rooms; **see-through water**.
+- A **darker, moodier look** like DarkPlaces: coloured dynamic lights, real-time shadows, bloom, lit particles,
+  models lit by the map's lights, bump maps (Quetoo's material maps shipped), parallax and detail textures.
+- **Slipgates that show where they lead**, live: you, your missiles and the monsters' sight pass through.
+- **Water** with waves, reflections, refraction, caustics, splashes and foam; tone mapping and colour grades; an
+  optional **retro look**; FSR/NIS upscaling and foveated rendering.
+- **Spatial sound** with Steam Audio (HRTF, occlusion, reverb), physics sounds, and the soundtrack played from the
+  Quake you own.
+
+### Maps, campaigns and play
+
+- **Quake and both mission packs** in one game, from a VR hub with a tutorial and a firing range. The re-release's
+  **Dimension of the Past** plays natively; Dimension of the Machine and Dawn of the Machine are being ported.
+- **Map Library:** browse [Quaddicted](https://www.quaddicted.com/)'s custom maps and download, install, uninstall and
+  play them in the game. **Other mods** run in a compatibility mode.
+- **Multiplayer and bots** (FrikBot), with a fixed 72 Hz server tick; flat-screen play (`vr_enabled 0`).
+- **For recording and testing:** a spectator camera, slow motion and highlight markers for trailers; voice notes, an
+  in-game checklist, a motion recorder and debug pages for playtesters.
 
 ## Compared with the original Quake VR
 
@@ -112,8 +115,8 @@ was built on QuakeSpasm-Spiked and OpenVR. This version keeps its gameplay and Q
 | Body | A floating torso | A full body with arms and legs (IK) |
 | HUD | Status bar on a hand | Wrist gadget with a CRT screen, or the status bar |
 | Lighting | Quake's lightmaps (optional external `.lit` files) | Relit maps, real-time shadows, per-pixel lights, bump maps, bloom, tone mapping |
-| New in combat | | Parry, bash, headbutt, knights' swords, batting projectiles back, carrying boxes and gibs, gore |
-| New in movement | | Swimming with strokes, leaning, climbing, a flashlight on your belt |
+| New in combat | | Parry, bash, headbutt, bullet time, ragdolls and knockdowns, enemy weapons, hand grenades, batting projectiles back, physics props, gore |
+| New in movement | | Swimming with strokes, leaning, climbing, the grappling hook's rope, a flashlight on your belt |
 | Other mods | Had to be ported | Run in a compatibility mode |
 | Not (yet) carried over | | Index per-finger tracking (fingers follow the buttons instead) |
 
@@ -248,9 +251,9 @@ For developers:
 
 - [docs/BUILDING.md](docs/BUILDING.md): building the engine, the QuakeC and the release package, and the tool
   scripts.
-- [docs/vr-port/](docs/vr-port/): the port's design notes. [PLAN.md](docs/vr-port/PLAN.md) covers the design and
-  status, [TESTING.md](docs/vr-port/TESTING.md) is the playtest guide, and the `ROUND*.md` files hold the notes of
-  each feedback round. There are also deep dives into graphics, lighting, throwing and body IK.
+- [docs/vr-port/](docs/vr-port/): the port's design notes. [TESTING.md](docs/vr-port/TESTING.md) is the playtest
+  guide, [ROUND21.md](docs/vr-port/ROUND21.md) the log of the current feedback round (the earlier ones are in git
+  history), and there are deep dives into graphics, lighting, throwing, hitboxes and body IK.
 
 ## Building from source
 
@@ -258,7 +261,8 @@ Build `Windows\VisualStudio\ironwail.sln` (Visual Studio 2022 with clang-cl, Rel
 QuakeC too (`quakevr\progs.dat`), with FTEQCC from `-p:QvrQcCompiler=<path to fteqcc64.exe>`. Then
 `Windows\package-quakevr.ps1 -Fteqcc <path to fteqcc64.exe>` puts the package in `dist\QuakeVR` and
 `dist\QuakeVR.zip`. [docs/BUILDING.md](docs/BUILDING.md) has the details. VR needs Windows x64.
-The other platforms build with a mock headset only, for development.
+The other platforms build with a mock headset only, for development. A Windows installer (C#, WPF) is in development
+in [Installer/](Installer/README.md).
 
 ## Credits and licence
 

@@ -49,8 +49,9 @@ Quake VR needs the game data of the original Quake: the `id1` folder with `PAK0.
   in `id1`, the mission packs in `hipnotic` and `rogue`, and the 2021 re-release in `rerelease`. Install Quake VR
   into this folder. Quake VR can use the original data. The rerelease folder also supplies owned newer campaigns and their current language tables; it is optional for the original campaign.
 - **GOG and other copies:** any Quake folder with `id1\PAK0.PAK` and `id1\PAK1.PAK` works the same way.
-- **Music:** if you hear no music, copy the soundtrack into `id1\music`. The Steam version has it in
-  `rerelease\id1\music`.
+- **Music:** Quake VR plays the soundtrack from where your Quake keeps it (the Steam re-release's
+  `rerelease\<game>\music`, or a GOG install's `music`), for each campaign; nothing to copy. A mod's own music still
+  wins, and so does a soundtrack already copied into the game folders.
 
 ### Only the 2021 re-release?
 
@@ -306,7 +307,7 @@ Quake VR's own maps (the hub, tutorial and firing range) are already relit in th
 
 ## Voice notes
 
-Voice notes (see [FEATURES.md](FEATURES.md#voice-notes)) are saved as `.wav` files in `quakevr\notes\`. To turn
+Voice notes (see [FEATURES.md](FEATURES.md#playtesting-tools)) are saved as `.wav` files in `quakevr\notes\`. To turn
 them into text, the repository has `Misc\quakevr\transcribe_notes.py`. It runs Whisper locally, through
 [faster-whisper](https://github.com/SYSTRAN/faster-whisper), and writes `quakevr\notes\NOTES.md`: every note with
 its transcript, context and screenshot.
