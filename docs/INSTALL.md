@@ -91,6 +91,7 @@ The package (`QuakeVR.zip`) contains:
 | `openxr_loader.dll`, `SDL2.dll` and the audio codec DLLs | libraries the engine needs |
 | `QuakeVR.bat` | the launcher: runs `ironwail.exe -game quakevr` |
 | `README-QuakeVR.txt` | a quick-start note |
+| `manifest.json` | every file's size and checksum, for the installer |
 | `quakevr\` | the game folder: Quake VR's QuakeC (`progs.dat`), models, sounds, textures, maps (hub, tutorial, firing range) and configs |
 | `quakevr\tools\` | the scripts that relight your own copy of Quake's maps, and ericw-tools' `light.exe` (in `ericw-tools\`, GPL-3) for the in-game relighting (see [RELIGHTING.md](RELIGHTING.md)) |
 
@@ -373,5 +374,5 @@ your headset and runtime, and, for performance, a profile or memory log.
   and notes are kept. Settings whose default changed are updated once, unless you changed them yourself. Running
   the [relight](RELIGHTING.md) again after an update is quick: it only relights the maps whose light the update
   changes.
-- **Uninstalling:** delete `quakevr`, `ironwail.exe`, `ironwail.pak`, `QuakeVR.bat`, `README-QuakeVR.txt` and the
-  DLLs from the Quake folder. Check first that nothing else in that folder uses the DLLs.
+- **Uninstalling:** delete `quakevr`, `ironwail.exe`, `ironwail.pak`, `ironwail.pdb`, `QuakeVR.bat`,
+  `README-QuakeVR.txt`, `manifest.json` and the DLLs from the Quake folder. Check first that nothing else in that folder uses the DLLs.

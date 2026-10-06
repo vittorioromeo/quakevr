@@ -111,15 +111,20 @@ powershell -ExecutionPolicy Bypass -File Windows\package-quakevr.ps1 [-Build] [-
 - `-Build` builds the solution (Release | x64) first. Without it, the script uses the last build.
 - `-Fteqcc` is the compiler. The script falls back to the `FTEQCC` environment variable, then to `fteqcc64` on
   `PATH`. The QuakeC is always compiled fresh.
-- The result is `dist\QuakeVR\` and `dist\QuakeVR.zip`. They contain the engine's `.exe`, `.dll` and `.pak` files,
-  the `quakevr` folder, `QuakeVR.bat` (`ironwail.exe -game quakevr %*`), and a short `README-QuakeVR.txt`.
-- The script copies `quakevr` as it is on disk, leaving out player files: `ironwail.cfg`, `config.cfg`,
-  `autoexec.cfg`, `history.txt`, `qconsole.log`, saves and demos, and the `screenshots`, `notes`, `profile`,
-  `autosave` and `eyeshots` folders. It also leaves out **`relit`**: the relit maps are id Software's maps and must
-  never be redistributed. Anything else in the folder is copied, so package from a clean game folder.
-- It adds the relighting scripts (`relight_maps.py`, `vis_maps.py`, `quakepak.py`, `relight_textures.cfg`) in
-  `quakevr\tools\`, so players can relight their own maps without the repository
-  ([RELIGHTING.md](RELIGHTING.md)). From there, the script's default output is the installed `quakevr\relit`.
+- The result is `dist\QuakeVR\` and `dist\QuakeVR.zip`. They contain the engine's `.exe`, `.dll` and `.pak` files
+  and its `ironwail.pdb` (crash reports name functions only with it), the `quakevr` folder, `QuakeVR.bat`
+  (`ironwail.exe -game quakevr %*`), a short `README-QuakeVR.txt`, and `manifest.json` (every file's size and
+  SHA-256, `write-package-manifest.ps1`, which the installer checks). `-DryRun` only lists the files.
+- The game folder is an allowlist: the files git tracks under `quakevr\` (less the development data the script
+  lists) and the build outputs. Nothing untracked ships: saves, configs, screenshots, notes, custom maps, and the
+  **`relit`** maps (id Software's maps, never to be redistributed) stay out however they got into the folder.
+- It adds the relighting scripts (`relight_maps.py`, `vis_maps.py`, `quakepak.py`, `quakeimage.py`,
+  `relight_probe.py`) in `quakevr\tools\`, so players can relight their own maps without the repository
+  ([RELIGHTING.md](RELIGHTING.md)); from there, the script's default output is the installed `quakevr\relit`. With
+  ericw-tools found (`QVR_ERICW_TOOLS`, else the author's copy), it also ships `light.exe` and its DLLs in
+  `quakevr\tools\ericw-tools\` for the in-game relighting (a warning otherwise).
+- **The installer** (`Installer/`, C# and WPF on .NET 9) installs such a package: see
+  [Installer/README.md](../Installer/README.md) and [vr-port/INSTALLER.md](vr-port/INSTALLER.md).
 - The release is too large for a GitHub release, so it is published on [vittorioromeo.com](https://vittorioromeo.com).
 
 ## Running from the repository

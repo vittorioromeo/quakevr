@@ -25,6 +25,7 @@ happened; the durable parts belong in a guide or topic note.
 | Document | What it is |
 |---|---|
 | [BUILDING.md](BUILDING.md) | Building the engine, the QuakeC and the release package; the tool scripts in `Misc/quakevr/` |
+| [../Installer/README.md](../Installer/README.md) | The Windows installer (C#, WPF): layout, build, `qvr-setup`, tests, package manifests |
 | [vr-port/CODE_STYLE.md](vr-port/CODE_STYLE.md) | Conventions of the VR module: state, Zancle instead of the standard library, scratch buffers and caches |
 | [vr-port/TESTING.md](vr-port/TESTING.md) | The playtest guide and the testing tools: the mock headset, scripted motions, tests and checks |
 | [vr-port/BENCHMARKS.md](vr-port/BENCHMARKS.md) | The benchmark scenario suite: running it, what a run records, the scenarios |
@@ -61,7 +62,7 @@ happened; the durable parts belong in a guide or topic note.
 | [vr-port/EXPANSIONS.md](vr-port/EXPANSIONS.md) | The official expansions (Dimension of the Past, Dimension of the Machine, Dawn of the Machine): audit and port status |
 | [vr-port/MG3_PLAN.md](vr-port/MG3_PLAN.md) | Dawn of the Machine (MG3): the native port plan and the author's decisions |
 | [vr-port/OFFICIAL_QC_SOURCE.md](vr-port/OFFICIAL_QC_SOURCE.md) | Where the official expansions' QuakeC comes from |
-| [vr-port/INSTALLER.md](vr-port/INSTALLER.md) | Installer design and research |
+| [vr-port/INSTALLER.md](vr-port/INSTALLER.md) | Installer design, research and the author's decisions; section 13 is the app's phase 1 |
 | [vr-port/MENU_REVIEW.md](vr-port/MENU_REVIEW.md) | The menu and settings review and proposal (2026-10-03); [MENU_INVENTORY.md](vr-port/MENU_INVENTORY.md) is its data |
 | [vr-port/TEMPORAL.md](vr-port/TEMPORAL.md) | Temporal anti-aliasing and upscaling (TAA, DLSS, FSR): scope and design |
 | [vr-port/PICKUP_THINKS.md](vr-port/PICKUP_THINKS.md) | Making idle pickups cheaper (research) |
