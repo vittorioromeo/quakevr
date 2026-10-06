@@ -133,10 +133,10 @@ public sealed class StepItem(int number, string title) : ObservableObject
     public bool IsCurrent => State == StepState.Current;
     public bool IsDone => State == StepState.Done;
     public string Marker => IsDone ? "\uE73E" : Number.ToString();
-    public FontFamily MarkerFont => IsDone ? (FontFamily)Application.Current.FindResource("IconFont") : (FontFamily)Application.Current.FindResource("UiFont");
-    public Brush TitleBrush => (Brush)Application.Current.FindResource(State == StepState.Upcoming ? "Faint" : "Text");
-    public Brush MarkerBrush => (Brush)Application.Current.FindResource(State switch { StepState.Current => "Accent", StepState.Done => "Ok", _ => "BorderBrush" });
-    public Brush MarkerText => State == StepState.Upcoming ? (Brush)Application.Current.FindResource("Subtle") : new SolidColorBrush(Color.FromRgb(0x16, 0x11, 0x0C));
+    public FontFamily MarkerFont => IsDone ? (FontFamily)Application.Current.FindResource("IconFont") : (FontFamily)Application.Current.FindResource("CondensedFont");
+    public Brush TitleBrush => (Brush)Application.Current.FindResource(State switch { StepState.Upcoming => "Faint", StepState.Done => "Subtle", _ => "Text" });
+    public Brush MarkerBrush => (Brush)Application.Current.FindResource(State switch { StepState.Current => "Accent", StepState.Done => "Brass", _ => "Card" });
+    public Brush MarkerText => State == StepState.Upcoming ? (Brush)Application.Current.FindResource("Faint") : (Brush)Application.Current.FindResource("DarkText");
 }
 
 public sealed class LogLine(Core.Packaging.LogLevel level, string text)

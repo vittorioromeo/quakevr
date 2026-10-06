@@ -23,7 +23,7 @@ public sealed class PackageManifest
     public const string FileName = "manifest.json";
 
     public int Schema { get; set; } = 1;
-    public string Product { get; set; } = "Quake VR";
+    public string Product { get; set; } = "Quake VR: Unleashed";
     public string Version { get; set; } = "";
     public List<ManifestFile> Files { get; set; } = [];
 

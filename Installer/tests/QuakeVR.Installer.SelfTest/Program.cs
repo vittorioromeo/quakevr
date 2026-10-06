@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using QuakeVR.Installer.Core;
+using QuakeVR.Installer.Core.Assets;
 using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
@@ -212,7 +213,7 @@ var tests = new List<(string Name, Action Body)>
         True(LaunchCommand.Arguments("a", "b", LaunchVariant.Log).EndsWith(" -condebug"), "log");
         var all = ShortcutPlanner.Plan(new ShortcutOptions { DesktopDir = @"T:\Desk", StartMenuDir = @"T:\Prog" }, @"Q:\Quake", @"T:\QVR");
         Eq(5, all.Count, "desktop + 4 in the Start menu");
-        Eq(@"T:\Prog\Quake VR\Quake VR (flat screen).lnk", all[2].LinkPath, "flat in the Start menu");
+        Eq(@"T:\Prog\Quake VR Unleashed\Quake VR Unleashed (flat screen).lnk", all[2].LinkPath, "flat in the Start menu");
         Eq(@"T:\QVR", all[0].WorkingDirectory, "start in the Quake VR folder");
         var desktopOnly = ShortcutPlanner.Plan(new ShortcutOptions { DesktopDir = @"T:\Desk", StartMenu = false, Log = false }, @"Q:\Quake", @"T:\QVR");
         Eq(2, desktopOnly.Count, "desktop: VR + flat");
@@ -278,7 +279,7 @@ var tests = new List<(string Name, Action Body)>
         True(record.RelightPending, "relight pending");
         True(File.Exists(Path.Combine(target, "quakevr", "progs.dat")), "progs.dat");
         True(!Directory.EnumerateFiles(target, "*.qvrnew", SearchOption.AllDirectories).Any(), "no staging leftovers");
-        var lnk = ShellLink.Load(Path.Combine(shortcuts, "Desktop", "Quake VR.lnk"));
+        var lnk = ShellLink.Load(Path.Combine(shortcuts, "Desktop", "Quake VR Unleashed.lnk"));
         Eq(Path.Combine(target, "ironwail.exe"), lnk.TargetPath, "shortcut target");
         Eq(LaunchCommand.Arguments(quake, target, LaunchVariant.Vr), lnk.Arguments, "shortcut args");
         Eq(0, Uninstaller.Verify(target).Count, "verify clean");
@@ -303,7 +304,7 @@ var tests = new List<(string Name, Action Body)>
         True(File.Exists(Path.Combine(target, "quakevr", "newfile.txt")), "new file");
         Eq("player config", File.ReadAllText(Path.Combine(target, "quakevr", "ironwail.cfg")), "config kept");
         True(File.Exists(Path.Combine(target, "quakevr", "s0.sav")), "save kept");
-        True(!File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR", "Quake VR (flat screen).lnk")), "stale shortcut removed");
+        True(!File.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed", "Quake VR Unleashed (flat screen).lnk")), "stale shortcut removed");
         Eq(4, r2.Shortcuts.Count, "shortcuts after update");
         Eq(record.InstalledAt, r2.InstalledAt, "install date kept");
 
@@ -315,7 +316,7 @@ var tests = new List<(string Name, Action Body)>
         File.AppendAllText(Path.Combine(target, "quakevr", "default.cfg"), "\n// player edit");
         var u = Uninstaller.Uninstall(target, new UninstallOptions());
         Eq(4, u.ShortcutsRemoved, "shortcuts removed");
-        True(!Directory.Exists(Path.Combine(options.StartMenuDir!, "Quake VR")), "Start menu folder removed");
+        True(!Directory.Exists(Path.Combine(options.StartMenuDir!, "Quake VR Unleashed")), "Start menu folder removed");
         True(File.Exists(foreign), "foreign shortcut still there");
         Eq("quakevr/default.cfg", string.Join("|", u.ChangedKept), "changed shipped file kept");
         True(u.PlayerFilesLeft.Contains("quakevr/ironwail.cfg") && u.PlayerFilesLeft.Contains("quakevr/s0.sav"), "player files left");
@@ -430,6 +431,127 @@ var tests = new List<(string Name, Action Body)>
         Eq("v1", tag, "tag");
         Eq(sha, assets[0].Sha256, "digest");
         Eq(null, assets[1].Sha256, "no digest");
+    }),
+    ("skin assets: pak search order, palette, WAD pictures and CONCHARS, a map's textures, WAV decoding", () =>
+    {
+        // A made-up Quake: two paks (pak1 overrides pak0), a palette, gfx.wad with a qpic and CONCHARS, a BSP29 with
+        // one 4x2 texture, an 8-bit and a 16-bit stereo WAV. Nothing of id Software's data is used.
+        var game = Dir("assets/id1");
+        var palette = new byte[768];
+        for (var i = 0; i < 256; ++i)
+        {
+            palette[i * 3] = (byte)i;
+            palette[i * 3 + 1] = (byte)(255 - i);
+            palette[i * 3 + 2] = 7;
+        }
+        var pic = new byte[8 + 6];
+        BitConverter.GetBytes(3).CopyTo(pic, 0);
+        BitConverter.GetBytes(2).CopyTo(pic, 4);
+        for (var i = 0; i < 6; ++i)
+        {
+            pic[8 + i] = (byte)(i == 5 ? 255 : 10 + i);
+        }
+        var conchars = new byte[128 * 128];
+        conchars[5] = 42;
+        var picAt = 12;
+        var charsAt = picAt + pic.Length;
+        var table = charsAt + conchars.Length;
+        var wad = new List<byte>();
+        wad.AddRange("WAD2"u8.ToArray());
+        wad.AddRange(BitConverter.GetBytes(2));
+        wad.AddRange(BitConverter.GetBytes(table));
+        wad.AddRange(pic);
+        wad.AddRange(conchars);
+        void Lump(int pos, int size, byte type, string name)
+        {
+            wad.AddRange(BitConverter.GetBytes(pos));
+            wad.AddRange(BitConverter.GetBytes(size));
+            wad.AddRange(BitConverter.GetBytes(size));
+            wad.AddRange([type, 0, 0, 0]);
+            var n = new byte[16];
+            System.Text.Encoding.ASCII.GetBytes(name).CopyTo(n, 0);
+            wad.AddRange(n);
+        }
+        Lump(picAt, pic.Length, (byte)'B', "NUM_1");
+        Lump(charsAt, conchars.Length, (byte)'D', "CONCHARS");
+        // BSP29: version and 15 lumps, then the texture lump: count, offset, miptex (name, 4x2, mip offsets), pixels.
+        var bsp = new byte[4 + 15 * 8 + 8 + 40 + 8];
+        BitConverter.GetBytes(29).CopyTo(bsp, 0);
+        var texLump = 4 + 15 * 8;
+        BitConverter.GetBytes(texLump).CopyTo(bsp, 4 + 2 * 8);
+        BitConverter.GetBytes(bsp.Length - texLump).CopyTo(bsp, 4 + 2 * 8 + 4);
+        BitConverter.GetBytes(1).CopyTo(bsp, texLump);
+        BitConverter.GetBytes(8).CopyTo(bsp, texLump + 4);
+        var mt = texLump + 8;
+        System.Text.Encoding.ASCII.GetBytes("wbrick1_5").CopyTo(bsp, mt);
+        BitConverter.GetBytes(4).CopyTo(bsp, mt + 16);
+        BitConverter.GetBytes(2).CopyTo(bsp, mt + 20);
+        BitConverter.GetBytes(40).CopyTo(bsp, mt + 24);
+        for (var i = 0; i < 8; ++i)
+        {
+            bsp[mt + 40 + i] = (byte)(100 + i);
+        }
+        byte[] Wav(short channels, short bits, byte[] data)
+        {
+            var w = new List<byte>();
+            w.AddRange("RIFF"u8.ToArray());
+            w.AddRange(BitConverter.GetBytes(36 + data.Length));
+            w.AddRange("WAVEfmt "u8.ToArray());
+            w.AddRange(BitConverter.GetBytes(16));
+            w.AddRange(BitConverter.GetBytes((short)1));
+            w.AddRange(BitConverter.GetBytes(channels));
+            w.AddRange(BitConverter.GetBytes(11025));
+            w.AddRange(BitConverter.GetBytes(11025 * channels * bits / 8));
+            w.AddRange(BitConverter.GetBytes((short)(channels * bits / 8)));
+            w.AddRange(BitConverter.GetBytes(bits));
+            w.AddRange("data"u8.ToArray());
+            w.AddRange(BitConverter.GetBytes(data.Length + 100)); // Longer than the file, as in some of Quake's.
+            w.AddRange(data);
+            return [.. w];
+        }
+        PakFile.Write(Path.Combine(game, "pak0.pak"), [("gfx/palette.lmp", new byte[768]), ("maps/start.bsp", bsp), ("sound/a.wav", Wav(1, 8, [128, 255, 0]))]);
+        PakFile.Write(Path.Combine(game, "pak1.pak"), [("gfx/palette.lmp", palette), ("gfx.wad", [.. wad]),
+            ("sound/b.wav", Wav(2, 16, [0, 0x40, 0, 0xC0, 0xFF, 0x7F, 0xFF, 0x7F]))]);
+        using var fs = QuakeFileSystem.OpenDir(game) ?? throw new Exception("paks not opened");
+        Eq(2, fs.PakCount, "paks");
+        Eq((byte)1, fs.Read("gfx/palette.lmp")![3], "pak1 overrides pak0");
+        True(fs.Read("maps/start.bsp") is not null && fs.Read("nothing.wav") is null, "reads through both paks");
+        var pics = QuakeFormats.ReadWad(fs.Read("gfx.wad")!);
+        Eq(3, pics["NUM_1"].Width, "qpic width");
+        Eq((byte)42, pics["conchars"].Pixels[5], "CONCHARS is raw 128x128");
+        var bgra = QuakeFormats.ToBgra(pics["NUM_1"], palette, transparent255: true);
+        Eq((byte)10, bgra[2], "red from the palette");
+        Eq((byte)0, bgra[5 * 4 + 3], "index 255 transparent");
+        var tex = QuakeFormats.ReadBspTextures(fs.Read("maps/start.bsp")!);
+        Eq("wbrick1_5", tex.Single().Name, "texture name");
+        Eq((byte)107, tex[0].Pixels[7], "texture pixels");
+        var a = QuakeFormats.ReadWav(fs.Read("sound/a.wav")!)!;
+        Eq(3, a.Samples.Length, "8-bit samples (data chunk clamped to the file)");
+        True(a.Samples[0] == 0 && a.Samples[1] > 0.99f && a.Samples[2] == -1, "8-bit values");
+        var b = QuakeFormats.ReadWav(fs.Read("sound/b.wav")!)!;
+        Eq(2, b.Samples.Length, "stereo to mono");
+        True(Math.Abs(b.Samples[0]) < 1e-6 && b.Samples[1] > 0.99f, "16-bit values, channels averaged");
+        True(QuakeFormats.ReadBspTextures(new byte[200]).Count == 0 && QuakeFormats.ReadWad(new byte[5]).Count == 0 &&
+             QuakeFormats.ReadWav([1, 2, 3]) is null, "junk is refused, not thrown");
+        True(QuakeFileSystem.OpenDir(Dir("assets/empty")) is null, "no paks: no file system");
+    }),
+    ("local packages: found beside the installer, checked for a manifest, texture packs ignored", () =>
+    {
+        var dir = Dir("beside");
+        Eq(null, LocalPackages.FindBeside(dir), "nothing there");
+        File.WriteAllText(Path.Combine(dir, "QuakeVR.zip"), "not a zip");
+        Eq(null, LocalPackages.FindBeside(dir), "a broken zip is not a package");
+        True(LocalPackages.Inspect(Path.Combine(dir, "QuakeVR.zip")).Error is { } err && err.Contains("could not be read"), "and says why");
+        var noManifest = Fixtures.MakePackage(Dir("beside-src/nomanifest"), "v0", manifest: false);
+        True(LocalPackages.Inspect(noManifest).Error!.Contains("no manifest.json"), "a folder without manifest");
+        var pkg = Fixtures.MakePackage(Dir("beside-src/pkg"), "v7");
+        Fixtures.Zip(pkg, Path.Combine(dir, "QuakeVR-hq-textures-x.zip"));
+        Eq(null, LocalPackages.FindBeside(dir), "a texture pack is not the package");
+        Fixtures.Zip(pkg, Path.Combine(dir, "QuakeVR-2026-10-07.zip"), "QuakeVR");
+        Eq(Path.Combine(dir, "QuakeVR-2026-10-07.zip"), LocalPackages.FindBeside(dir), "a dated package zip");
+        Eq("v7", LocalPackages.Inspect(LocalPackages.FindBeside(dir)!).Manifest!.Version, "its version");
+        Directory.CreateDirectory(Path.Combine(dir, "QuakeVR"));
+        Eq(Path.Combine(dir, "QuakeVR-2026-10-07.zip"), LocalPackages.FindBeside(dir), "an empty QuakeVR folder is skipped");
     }),
 };
 

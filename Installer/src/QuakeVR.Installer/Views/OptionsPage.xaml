@@ -14,6 +14,40 @@
             <TextBlock Text="Options" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}" Text="Change anything you like." />
 
+            <!-- Where Quake VR: Unleashed comes from: a local package (no internet), or the online release. When the online
+                 release can't be reached, this says so and offers a local package instead of a dead end. -->
+            <TextBlock Text="PACKAGE" Style="{StaticResource SectionTitle}" />
+            <Border Padding="16,13">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource CardBorder}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding FeedUnavailable}" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource Warn}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <DockPanel>
+                        <ProgressBar DockPanel.Dock="Right" IsIndeterminate="True" Width="90" Height="6" VerticalAlignment="Center"
+                                     Visibility="{Binding FeedChecking, Converter={StaticResource BoolToVis}}" />
+                        <TextBlock Text="{Binding PackageSourceTitle}" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding PackageSourceText}" Style="{StaticResource Small}" Margin="0,3,0,0" />
+                    <TextBlock Text="{Binding FeedErrorDetail}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" FontSize="11.5" Margin="0,4,0,0"
+                               Visibility="{Binding FeedUnavailable, Converter={StaticResource BoolToVis}}" />
+                    <TextBlock Text="{Binding PackageError}" Style="{StaticResource Small}" Foreground="{StaticResource Error}" Margin="0,6,0,0"
+                               Visibility="{Binding HasPackageError, Converter={StaticResource BoolToVis}}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding FeedUnavailable, Converter={StaticResource BoolToVis}}">
+                        <Button Content="Use a local package…" Style="{StaticResource AccentButton}" Command="{Binding BrowsePackageCommand}" />
+                        <Button Content="Try again" Style="{StaticResource GhostButton}" Command="{Binding RetryFeedCommand}" Margin="10,0,0,0" />
+                    </StackPanel>
+                    <Button Content="Use a local package instead…" Style="{StaticResource LinkButton}" Command="{Binding BrowsePackageCommand}"
+                            HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="{Binding FeedAvailable, Converter={StaticResource BoolToVis}}" />
+                    <Button Content="Use another package…" Style="{StaticResource LinkButton}" Command="{Binding BrowsePackageCommand}"
+                            HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="{Binding HasLocalPackage, Converter={StaticResource BoolToVis}}" />
+                </StackPanel>
+            </Border>
             <TextBlock Text="INSTALL FOLDER" Style="{StaticResource SectionTitle}" />
             <DockPanel>
                 <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource GhostButton}" Command="{Binding BrowseInstallDirCommand}" Margin="10,0,0,0" />
@@ -30,7 +64,7 @@
                         <TextBlock DockPanel.Dock="Right" Text="{Binding CoreSizeText}" Style="{StaticResource Size}" />
                         <CheckBox IsChecked="True" IsEnabled="False">
                             <StackPanel>
-                                <TextBlock Text="Quake VR" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Text="Quake VR: Unleashed" Style="{StaticResource Body}" FontWeight="SemiBold" />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Text="The game: engine, models, sounds, the hub and its maps, and the author's default settings." />
                             </StackPanel>
                         </CheckBox>
@@ -41,6 +75,11 @@
                             <StackPanel>
                                 <TextBlock Text="HD textures (highly recommended)" Style="{StaticResource Body}" FontWeight="SemiBold" />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Text="{Binding TexturesText}" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,4,0,0" Foreground="{StaticResource Warn}"
+                                           Visibility="{Binding FeedUnavailableForTextures, Converter={StaticResource BoolToVis}}">
+                                    <Run Text="Their download isn't available right now: they are skipped (run Setup again later), or" />
+                                    <Hyperlink Command="{Binding BrowseTexturesCommand}" Foreground="{StaticResource AccentHover}">pick the texture pack's zip</Hyperlink><Run Text="." />
+                                </TextBlock>
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>
@@ -65,9 +104,6 @@
                 </UniformGrid>
             </Border>
 
-            <DockPanel Margin="2,16,0,0">
-                <TextBlock Text="{Binding PackageSourceText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" TextTrimming="CharacterEllipsis" />
-            </DockPanel>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

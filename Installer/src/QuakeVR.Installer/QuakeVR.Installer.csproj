@@ -1,13 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The Quake VR installer's window (WPF): Welcome, Detect, Options, Install, Done. All the work is in
-       QuakeVR.Installer.Core; this project is the wizard around it. -->
+  <!-- The Quake VR: Unleashed installer's window (WPF): Welcome, Detect, Options, Install, Play, Thanks. All the work
+       is in QuakeVR.Installer.Core; this project is the wizard around it, and its skin. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
     <AssemblyName>QuakeVR-Setup</AssemblyName>
     <RootNamespace>QuakeVR.Installer</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/app.ico</ApplicationIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- The skin's own files: OFL fonts (with their licences), the official logos and icon, Ko-fi's logo. None of
+         id Software's data: the Quake textures and sounds are read at run time from the player's own game. -->
+    <Resource Include="Fonts/*.ttf" />
+    <Resource Include="Fonts/OFL-*.txt" />
+    <Resource Include="Assets/*.png" />
+    <Resource Include="Assets/app.ico" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\QuakeVR.Installer.Core\QuakeVR.Installer.Core.csproj" />
   </ItemGroup>

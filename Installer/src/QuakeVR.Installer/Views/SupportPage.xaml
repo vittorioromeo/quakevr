@@ -1,0 +1,57 @@
+<UserControl x:Class="QuakeVR.Installer.Views.SupportPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:skin="clr-namespace:QuakeVR.Installer.Skin"
+             xmlns:sfx="clr-namespace:QuakeVR.Installer.Audio">
+    <!-- After Play: a word from the author, and Ko-fi. Warm and confident, never a toll gate: Finish is right there. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="230" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Margin="0,0,24,0">
+                <TextBlock Text="Keep the fires burning" Style="{StaticResource PageTitle}" FontSize="38" />
+                <TextBlock Style="{StaticResource PageSubtitle}" Text="A word from Vittorio, who made Quake VR: Unleashed." />
+
+                <TextBlock Style="{StaticResource Body}" FontSize="15.5" LineHeight="23" Margin="0,22,0,0">
+                    Quake VR: Unleashed is a labour of love. It took a huge amount of time and care to make, and I funded every
+                    hour of it from my own savings, because I wanted Quake in VR to feel the way I always imagined it: your
+                    hands, your body, the weight of every weapon.
+                </TextBlock>
+                <TextBlock Style="{StaticResource Body}" FontSize="15.5" LineHeight="23" Margin="0,14,0,0">
+                    It's free, and it will stay free. If it gives you a few great nights in the slipgate, a token of
+                    appreciation on Ko-fi would mean a lot: it tells me the work landed, and it helps keep the project moving.
+                </TextBlock>
+
+                <Button Style="{StaticResource AccentButton}" Command="{Binding OpenKofiCommand}" sfx:UiSounds.Kind="Support"
+                        HorizontalAlignment="Left" Margin="0,24,0,0" Padding="18,10">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="/QuakeVR-Setup;component/Assets/kofi_symbol.png" Height="24" Margin="0,0,12,0"
+                               RenderOptions.BitmapScalingMode="HighQuality" VerticalAlignment="Center" />
+                        <TextBlock Text="Support Quake VR: Unleashed on Ko-fi" FontSize="16.5" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <TextBlock Text="ko-fi.com/vittorioromeovee" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="2,8,0,0" />
+
+                <TextBlock Style="{StaticResource Small}" FontSize="14" Margin="0,26,0,0">
+                    <Run Text="Either way: thank you for playing. See you in the slipgate." />
+                    <LineBreak />
+                    <Run Text="— Vittorio" FontFamily="{StaticResource DisplayFont}" FontSize="20" Foreground="{StaticResource Text}" />
+                </TextBlock>
+            </StackPanel>
+
+            <!-- The logo over a slow fire. -->
+            <Grid Grid.Column="1" Height="300" VerticalAlignment="Top" Margin="0,10,0,0" ClipToBounds="True">
+                <skin:FireView Heat="0.55" CellSize="4" EmberCount="18" FireOpacity="0.7" Glow="0.3" />
+                <Image Source="/QuakeVR-Setup;component/Assets/logo_square.png" Width="220" Height="220" VerticalAlignment="Top"
+                       RenderOptions.BitmapScalingMode="HighQuality" CacheMode="BitmapCache">
+                    <Image.Effect>
+                        <DropShadowEffect Color="Black" ShadowDepth="0" BlurRadius="20" Opacity="0.95" />
+                    </Image.Effect>
+                </Image>
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

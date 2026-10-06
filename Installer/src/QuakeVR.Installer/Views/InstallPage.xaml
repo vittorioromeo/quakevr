@@ -1,21 +1,27 @@
 <UserControl x:Class="QuakeVR.Installer.Views.InstallPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:skin="clr-namespace:QuakeVR.Installer.Skin">
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Installing Quake VR" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Installing Quake VR: Unleashed" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}" Text="Every file is checked against the release's SHA-256 as it is copied." />
             <DockPanel Margin="0,30,0,10">
-                <TextBlock DockPanel.Dock="Right" Text="{Binding ProgressText}" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Text}"
-                           FontFamily="{StaticResource DisplayFont}" />
+                <!-- The percentage in Quake's status-bar digits once Quake is found. -->
+                <skin:QuakeDigits DockPanel.Dock="Right" Text="{Binding ProgressText}" DigitHeight="30" Foreground="{StaticResource Text}" />
                 <TextBlock Text="{Binding StatusText}" Style="{StaticResource Body}" VerticalAlignment="Bottom" Foreground="{StaticResource Subtle}" />
             </DockPanel>
-            <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100" Height="10" />
+            <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100" Height="20" />
             <Border Style="{StaticResource CardBorder}" BorderBrush="{StaticResource Error}" Margin="0,18,0,0"
                     Visibility="{Binding HasInstallError, Converter={StaticResource BoolToVis}}">
                 <DockPanel>
                     <TextBlock Text="&#xE783;" Style="{StaticResource Glyph}" Foreground="{StaticResource Error}" FontSize="16" Margin="0,0,12,0" VerticalAlignment="Top" />
-                    <TextBlock Text="{Binding InstallError}" Style="{StaticResource Body}" />
+                    <StackPanel>
+                        <TextBlock Text="{Binding InstallError}" Style="{StaticResource Body}" />
+                        <Button Content="Use a local package…" Style="{StaticResource AccentButton}" Command="{Binding PickPackageAndInstallCommand}"
+                                HorizontalAlignment="Left" Margin="0,10,0,0"
+                                Visibility="{Binding CanPickPackageAfterError, Converter={StaticResource BoolToVis}}" />
+                    </StackPanel>
                 </DockPanel>
             </Border>
             <TextBlock Text="DETAILS" Style="{StaticResource SectionTitle}" Margin="2,24,0,8" />

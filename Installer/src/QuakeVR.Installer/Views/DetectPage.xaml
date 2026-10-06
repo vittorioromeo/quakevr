@@ -6,7 +6,7 @@
             <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Command="{Binding RescanCommand}" VerticalAlignment="Top" MinWidth="0" Padding="12,6">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="&#xE72C;" Style="{StaticResource Glyph}" FontSize="12" Margin="0,0,8,0" Foreground="{StaticResource Subtle}" />
-                    <TextBlock Text="Check again" FontSize="13" Foreground="{StaticResource Text}" />
+                    <TextBlock Text="Check again" Foreground="{StaticResource Text}" />
                 </StackPanel>
             </Button>
             <StackPanel>
@@ -18,7 +18,7 @@
         <!-- Checking... -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,16,0,0"
                     Visibility="{Binding Detecting, Converter={StaticResource BoolToVis}}">
-            <ProgressBar IsIndeterminate="True" Width="160" Height="4" VerticalAlignment="Center" />
+            <ProgressBar IsIndeterminate="True" Width="160" Height="6" VerticalAlignment="Center" />
             <TextBlock Text="Looking for Quake, its expansions and your VR software…" Style="{StaticResource Small}" Margin="12,0,0,0" />
         </StackPanel>
 

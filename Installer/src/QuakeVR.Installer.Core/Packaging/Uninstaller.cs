@@ -104,7 +104,7 @@ public static class Uninstaller
             }
             File.Delete(link);
             var folder = Path.GetDirectoryName(link);
-            if (folder is not null && Path.GetFileName(folder) == ShortcutPlanner.StartMenuFolder)
+            if (folder is not null && Path.GetFileName(folder) is ShortcutPlanner.StartMenuFolder or ShortcutPlanner.LegacyStartMenuFolder)
             {
                 InstallEngine.TryDeleteEmptyDirectory(folder);
             }

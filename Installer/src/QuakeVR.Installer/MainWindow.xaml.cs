@@ -17,7 +17,7 @@ public partial class MainWindow
     {
         var on = 1;
         _ = DwmSetWindowAttribute(hwnd, 20, ref on, sizeof(int)); // DWMWA_USE_IMMERSIVE_DARK_MODE
-        var caption = 0x00151110; // COLORREF 0x00BBGGRR: the sidebar's #0F1115
+        var caption = 0x00080A0C; // COLORREF 0x00BBGGRR: the skin's soot black #0C0A08
         _ = DwmSetWindowAttribute(hwnd, 35, ref caption, sizeof(int)); // DWMWA_CAPTION_COLOR (Windows 11)
     }
 

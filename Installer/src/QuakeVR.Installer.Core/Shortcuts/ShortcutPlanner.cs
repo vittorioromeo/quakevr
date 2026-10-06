@@ -8,14 +8,18 @@ public sealed class ShortcutOptions
     public bool Log { get; set; } = true;
     /// <summary>Where the desktop shortcut goes (the real desktop, or a test folder).</summary>
     public string? DesktopDir { get; set; }
-    /// <summary>The Start menu's Programs folder (the real one, or a test folder); a "Quake VR" folder is made in it.</summary>
+    /// <summary>The Start menu's Programs folder (the real one, or a test folder); a "Quake VR Unleashed" folder is made in it.</summary>
     public string? StartMenuDir { get; set; }
 }
 
 /// <summary>The shortcuts of section 7 of docs/vr-port/INSTALLER.md, for a given install.</summary>
 public static class ShortcutPlanner
 {
-    public const string StartMenuFolder = "Quake VR";
+    /// <summary>The product's name, "Quake VR: Unleashed", as a file name (Windows refuses ':' in names).</summary>
+    public const string Name = "Quake VR Unleashed";
+    public const string StartMenuFolder = Name;
+    /// <summary>The Start menu folder of installs made before the "Unleashed" name (removed once empty).</summary>
+    public const string LegacyStartMenuFolder = "Quake VR";
 
     public static IReadOnlyList<ShortcutSpec> Plan(ShortcutOptions o, string quakeDir, string qvrDir)
     {
@@ -32,31 +36,31 @@ public static class ShortcutPlanner
         };
         if (o.Desktop && o.DesktopDir is not null)
         {
-            list.Add(Launch(o.DesktopDir, "Quake VR", LaunchVariant.Vr, "Play Quake VR in your headset"));
+            list.Add(Launch(o.DesktopDir, Name, LaunchVariant.Vr, "Play Quake VR: Unleashed in your headset"));
         }
         // The variants go in the Start menu; without one, beside the desktop shortcut.
         var variants = o.StartMenu && o.StartMenuDir is not null ? Path.Combine(o.StartMenuDir, StartMenuFolder)
             : o.Desktop ? o.DesktopDir : null;
         if (o.StartMenu && o.StartMenuDir is not null)
         {
-            list.Add(Launch(variants!, "Quake VR", LaunchVariant.Vr, "Play Quake VR in your headset"));
+            list.Add(Launch(variants!, Name, LaunchVariant.Vr, "Play Quake VR: Unleashed in your headset"));
         }
         if (variants is not null)
         {
             if (o.Flat)
             {
-                list.Add(Launch(variants, "Quake VR (flat screen)", LaunchVariant.Flat, "Play Quake VR on the monitor, without a headset"));
+                list.Add(Launch(variants, Name + " (flat screen)", LaunchVariant.Flat, "Play Quake VR: Unleashed on the monitor, without a headset"));
             }
             if (o.Log)
             {
-                list.Add(Launch(variants, "Quake VR (log for bug reports)", LaunchVariant.Log,
-                    "Play Quake VR and write qconsole.log for a bug report"));
+                list.Add(Launch(variants, Name + " (log for bug reports)", LaunchVariant.Log,
+                    "Play Quake VR: Unleashed and write qconsole.log for a bug report"));
             }
         }
         if (o.StartMenu && o.StartMenuDir is not null)
         {
             var files = Path.Combine(qvrDir, "quakevr");
-            list.Add(new ShortcutSpec(Path.Combine(variants!, "Quake VR files.lnk"), files, "", files,
+            list.Add(new ShortcutSpec(Path.Combine(variants!, Name + " files.lnk"), files, "", files,
                 "Screenshots, notes, saves and settings"));
         }
         return list;

@@ -116,7 +116,7 @@ public sealed class InstallEngine
         {
             Report(0, "Reading the package", $"{extras} file(s) in the package are not in its manifest: not installed.", LogLevel.Warning);
         }
-        Report(0, "Reading the package", $"Quake VR {manifest.Version}: {manifest.Files.Count} files, {PathUtil.FormatSize(manifest.TotalSize)}");
+        Report(0, "Reading the package", $"Quake VR: Unleashed {manifest.Version}: {manifest.Files.Count} files, {PathUtil.FormatSize(manifest.TotalSize)}");
 
         var old = InstallRecord.Load(target);
         if (old is not null)
@@ -298,7 +298,7 @@ public sealed class InstallEngine
                 Report(0.98, "Finishing", "The package has no light.exe: the game will offer to download ericw-tools before relighting.", LogLevel.Warning);
             }
             record.Save(target);
-            Report(1, "Done", $"Quake VR {record.Version} installed in {target}.", LogLevel.Success);
+            Report(1, "Done", $"Quake VR: Unleashed {record.Version} installed in {target}.", LogLevel.Success);
             return record;
         }
         finally

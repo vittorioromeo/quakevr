@@ -4,12 +4,14 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <DockPanel>
-                <Grid Width="52" Height="52" Margin="0,0,18,0" VerticalAlignment="Top">
-                    <Ellipse Fill="{StaticResource Ok}" Opacity="0.18" />
-                    <TextBlock Text="&#xE73E;" Style="{StaticResource Glyph}" FontSize="24" Foreground="{StaticResource Ok}" />
-                </Grid>
+                <Image Source="/QuakeVR-Setup;component/Assets/logo_square.png" Width="92" Height="92" Margin="-6,-10,14,0" VerticalAlignment="Top"
+                       RenderOptions.BitmapScalingMode="HighQuality" CacheMode="BitmapCache">
+                    <Image.Effect>
+                        <DropShadowEffect Color="Black" ShadowDepth="0" BlurRadius="14" Opacity="0.9" />
+                    </Image.Effect>
+                </Image>
                 <StackPanel>
-                    <TextBlock Text="Quake VR is ready" Style="{StaticResource PageTitle}" />
+                    <TextBlock Text="Quake VR: Unleashed is ready" Style="{StaticResource PageTitle}" />
                     <TextBlock Style="{StaticResource PageSubtitle}" Text="Start your VR software, put on your headset, and press Play." />
                 </StackPanel>
             </DockPanel>
@@ -22,7 +24,7 @@
                     </StackPanel>
                 </Button>
                 <Button Content="Play on the monitor" Style="{StaticResource GhostButton}" Command="{Binding LaunchFlatCommand}" Margin="10,0,0,0" Padding="18,10" Click="Button_Click" />
-                <Button Content="Open the Quake VR folder" Style="{StaticResource LinkButton}" Command="{Binding OpenFolderCommand}" VerticalAlignment="Center" Margin="18,0,0,0" />
+                <Button Content="Open the install folder" Style="{StaticResource LinkButton}" Command="{Binding OpenFolderCommand}" VerticalAlignment="Center" Margin="18,0,0,0" />
             </StackPanel>
 
             <TextBlock Text="GOOD TO KNOW" Style="{StaticResource SectionTitle}" Margin="2,26,0,10" />
@@ -39,7 +41,7 @@
                     <DockPanel Margin="0,8,0,0">
                         <Button DockPanel.Dock="Right" Content="Copy" Style="{StaticResource GhostButton}" Command="{Binding CopySteamOptionsCommand}"
                                 MinWidth="0" Padding="14,6" Margin="10,0,0,0" />
-                        <TextBox Text="{Binding SteamLaunchOptions, Mode=OneWay}" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="12" />
+                        <TextBox Text="{Binding SteamLaunchOptions, Mode=OneWay}" IsReadOnly="True" FontFamily="{StaticResource MonoFont}" FontSize="12" />
                     </DockPanel>
                 </StackPanel>
             </Border>

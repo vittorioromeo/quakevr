@@ -90,3 +90,40 @@ sealed class ZipPackage : PackageSource
         base.Dispose();
     }
 }
+
+/// <summary>Packages on disk: what one holds, and the one shipped beside the installer (an offline download).</summary>
+public static class LocalPackages
+{
+    /// <summary>A package's manifest, or why the path is not a package (no manifest.json, unreadable).</summary>
+    public static (PackageManifest? Manifest, string? Error) Inspect(string path, string product = "Quake VR: Unleashed")
+    {
+        var name = Path.GetFileName(path.TrimEnd('\\', '/'));
+        try
+        {
+            using var source = PackageSource.FromPath(path);
+            return source.ReadManifest() is { } m ? (m, null) : (null, $"{name} is not a {product} package: it has no manifest.json.");
+        }
+        catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or System.Text.Json.JsonException or NotSupportedException)
+        {
+            return (null, $"{name} could not be read as a {product} package ({e.Message}).");
+        }
+    }
+
+    /// <summary>The first package in <paramref name="dir"/> that has a manifest: QuakeVR.zip, a QuakeVR folder, then
+    /// any other QuakeVR*.zip (texture packs excluded). Null when there is none.</summary>
+    public static string? FindBeside(string dir)
+    {
+        var candidates = new List<string> { Path.Combine(dir, "QuakeVR.zip"), Path.Combine(dir, "QuakeVR") };
+        try
+        {
+            candidates.AddRange(Directory.EnumerateFiles(dir, "QuakeVR*.zip").Order(StringComparer.OrdinalIgnoreCase));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Only the fixed names then.
+        }
+        return candidates.Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(p => !Path.GetFileName(p).Contains("textures", StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(p => (File.Exists(p) || Directory.Exists(p)) && Inspect(p).Manifest is not null);
+    }
+}

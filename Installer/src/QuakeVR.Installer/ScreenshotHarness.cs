@@ -1,10 +1,18 @@
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Windows;
+using UserControl = System.Windows.Controls.UserControl;
+using Grid = System.Windows.Controls.Grid;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using QuakeVR.Installer.Audio;
+using QuakeVR.Installer.Core.Assets;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
+using QuakeVR.Installer.Skin;
 using QuakeVR.Installer.ViewModels;
 using QuakeVR.Installer.Views;
 
@@ -12,9 +20,12 @@ namespace QuakeVR.Installer;
 
 /// <summary>
 /// Renders each wizard page off screen to a PNG (<c>QuakeVR-Setup --screenshots &lt;dir&gt;</c>), for reviews. Detection
-/// is the real one (read-only). With <c>--package</c>, <c>--target</c> and <c>--shortcuts-dir</c> it also runs a real
-/// install into those folders (never the real desktop or Start menu) and shows its log and result; without them the
-/// Install and Done pages show a made-up run. Downloads only with <c>--feed</c> and <c>--downloads</c> (a local test server).
+/// is the real one (read-only), and so is the skin: the player's Quake's textures when one is found (unless
+/// <c>--no-quake-look</c>), the generated ones otherwise. With <c>--package</c>, <c>--target</c> and
+/// <c>--shortcuts-dir</c> it also runs a real install into those folders (never the real desktop or Start menu) and
+/// shows its log and result; without them the Install and Done pages show a made-up run. <c>--offline</c> never asks
+/// the network. <c>--extras</c> also writes a strip of flame frames, a sheet of Quake's textures and report.txt
+/// (what was loaded, what a frame of the flames costs).
 /// </summary>
 static class ScreenshotHarness
 {
@@ -25,13 +36,27 @@ static class ScreenshotHarness
     public static async Task<int> RunAsync(StartupOptions options, string dir)
     {
         Directory.CreateDirectory(dir);
+        var report = new StringBuilder();
         var vm = new MainViewModel(new WindowsSystemProbe(), options) { HdTextures = options.Textures is not null || options.Feeds.Count > 0 };
         var view = new ShellView { DataContext = vm };
 
+        // As in the window: a quiet detection first, and the skin from the Quake it finds.
+        await vm.EnsureDetectedAsync();
+        if (vm.SelectedQuake is { } q && !options.NoQuakeLook)
+        {
+            await SkinLoader.LoadFromQuakeAsync(q.Install, sounds: false);
+        }
+        report.AppendLine($"skin: {SkinResources.Current.Description}");
+        await vm.CheckFeedAsync();
+        report.AppendLine($"package: {vm.PackageSourceTitle}");
+
         await Save(view, Path.Combine(dir, "1-welcome.png"));
+        foreach (var f in FindAll<FireView>(view))
+        {
+            report.AppendLine($"fire: {f.Describe()}");
+        }
 
         vm.GoTo(Page.Detect);
-        await vm.DetectAsync();
         await Save(view, Path.Combine(dir, "2-detect.png"));
 
         vm.GoTo(Page.Options);
@@ -46,10 +71,13 @@ static class ScreenshotHarness
             if (vm.Record is null)
             {
                 await Save(view, Path.Combine(dir, "4-install-error.png"));
+                report.AppendLine($"install error: {vm.InstallError}");
+                await File.WriteAllTextAsync(Path.Combine(dir, "report.txt"), report.ToString());
                 return 1;
             }
             record = vm.Record;
             lines = [.. vm.Log.Select(l => (l.Level, l.Text))];
+            report.AppendLine($"installed: {record.Version} into {options.Target}");
         }
         else
         {
@@ -57,7 +85,7 @@ static class ScreenshotHarness
             lines =
             [
                 (LogLevel.Info, @"Package: C:\Users\you\Downloads\QuakeVR.zip"),
-                (LogLevel.Info, "Quake VR 2026-10-06 c131f4bf: 2741 files, 196 MB"),
+                (LogLevel.Info, "Quake VR: Unleashed 2026-10-06 c131f4bf: 2741 files, 196 MB"),
                 (LogLevel.Info, "HD textures: 1054 files for id1, hipnotic, rogue"),
             ];
         }
@@ -67,13 +95,29 @@ static class ScreenshotHarness
 
         vm.SimulateDone(record);
         await Save(view, Path.Combine(dir, "5-done.png"));
+        vm.GoTo(Page.Support);
+        await Save(view, Path.Combine(dir, "6-support.png"));
 
         // A PC with nothing on it (an empty made-up machine): the problems and their fixes.
-        var empty = new MainViewModel(new MemorySystemProbe(), new StartupOptions());
+        var empty = new MainViewModel(new MemorySystemProbe(), new StartupOptions { Offline = true });
         var emptyView = new ShellView { DataContext = empty };
         empty.GoTo(Page.Detect);
         await empty.DetectAsync();
         await Save(emptyView, Path.Combine(dir, "2b-detect-nothing-found.png"));
+
+        // No package beside the installer and no release online: the friendly way out, then the install's own error.
+        if (options.Package is null)
+        {
+            var offline = new MainViewModel(new WindowsSystemProbe(), new StartupOptions { Offline = true, Target = options.Target }) { HdTextures = true };
+            var offlineView = new ShellView { DataContext = offline };
+            await offline.EnsureDetectedAsync();
+            await offline.CheckFeedAsync();
+            offline.GoTo(Page.Options);
+            await Save(offlineView, Path.Combine(dir, "3b-options-no-release-online.png"));
+            offline.SimulateInstallError("The online release couldn't be reached: none may be published yet, or this PC is offline. " +
+                                         "Pick a local Quake VR: Unleashed package (QuakeVR.zip) to install without the internet, or try again later.");
+            await Save(offlineView, Path.Combine(dir, "4b-install-no-release-online.png"));
+        }
 
         // Started again after the install: the Welcome page offers the update and the removal.
         if (vm.Record is not null)
@@ -81,23 +125,243 @@ static class ScreenshotHarness
             var again = new MainViewModel(new WindowsSystemProbe(), options);
             await Save(new ShellView { DataContext = again }, Path.Combine(dir, "1b-welcome-installed.png"));
         }
+
+        if (options.Extras)
+        {
+            await FlameStrip(Path.Combine(dir, "flames-strip.png"), report);
+            if (vm.SelectedQuake?.Install is { } quake && QuakeFileSystem.Open(quake) is { } fs)
+            {
+                using (fs)
+                {
+                    await TextureSheet(fs, Path.Combine(dir, "quake-textures.png"));
+                    report.AppendLine($"sounds: {SoundCheck(fs)}");
+                    // The window's sound path, muted: the device, the class handlers, Quake's clips, a click.
+                    UiSounds.Settings.Muted = true;
+                    UiSounds.Start(null);
+                    UiSounds.UseQuake(fs);
+                    var button = new System.Windows.Controls.Button();
+                    button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, button));
+                    report.AppendLine($"ui sounds: started muted, {UiSounds.Settings.Source}");
+                    UiSounds.Stop();
+                }
+            }
+            report.AppendLine(SoundEngineCheck());
+            report.AppendLine(await LiveWindowCheck(options));
+            report.AppendLine($"synthesized sounds: {string.Join(", ", Synth.All().Select(kv => $"{kv.Key} {kv.Value.Samples.Length * 1000 / SoundEngine.Rate} ms"))}");
+            await File.WriteAllTextAsync(Path.Combine(dir, "report.txt"), report.ToString());
+        }
         return 0;
+    }
+
+    /// <summary>Eight frames of the sidebar's flames, 1/15 s apart, side by side (the animation, on paper), and what a
+    /// frame costs.</summary>
+    static async Task FlameStrip(string path, StringBuilder report)
+    {
+        const int w = 240, h = 214, frames = 8;
+        var fire = new FireView { Heat = 0.62, CellSize = 4, EmberCount = 14, FireOpacity = 0.85, Glow = 0.35 };
+        var host = new Grid { Background = new SolidColorBrush(Color.FromRgb(0x10, 0x0D, 0x0B)), Width = w, Height = h, Children = { fire } };
+        Layout(host, w, h);
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        var strip = new DrawingVisual();
+        using (var dc = strip.RenderOpen())
+        {
+            for (var i = 0; i < frames; ++i)
+            {
+                fire.Advance(1.0 / 15);
+                fire.InvalidateVisual();
+                host.UpdateLayout();
+                var frame = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+                frame.Render(host);
+                dc.DrawImage(frame, new Rect(i * w, 0, w, h));
+            }
+        }
+        SavePng(strip, frames * w, h, path);
+        // The cost: 600 frames at 60 Hz, simulation and painting (the drawing itself is on the GPU).
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < 600; ++i)
+        {
+            fire.Advance(1.0 / 60);
+        }
+        report.AppendLine(string.Create(CultureInfo.InvariantCulture, $"flames: {sw.Elapsed.TotalMilliseconds / 600:0.000} ms per frame (sidebar, {w}x{h})"));
+        var lava = new LavaView { Width = 600, Height = 20 };
+        Layout(lava, 600, 20);
+        sw.Restart();
+        for (var i = 0; i < 600; ++i)
+        {
+            lava.Advance(1.0 / 60);
+        }
+        report.AppendLine(string.Create(CultureInfo.InvariantCulture, $"lava: {sw.Elapsed.TotalMilliseconds / 600:0.000} ms per frame"));
+    }
+
+    /// <summary>Every texture the skin can pick from, labelled (to choose them).</summary>
+    static async Task TextureSheet(QuakeFileSystem fs, string path)
+    {
+        var all = SkinAssets.AllTextures(fs).Where(t => t.Image.PixelWidth <= 128 && t.Image.PixelHeight <= 128).ToList();
+        const int cell = 96, cols = 14;
+        var rows = (all.Count + cols - 1) / cols;
+        var v = new DrawingVisual();
+        var typeface = new Typeface("Segoe UI");
+        using (var dc = v.RenderOpen())
+        {
+            dc.DrawRectangle(Brushes.Black, null, new Rect(0, 0, cols * cell, rows * (cell + 14)));
+            for (var i = 0; i < all.Count; ++i)
+            {
+                var (name, image) = all[i];
+                var x = i % cols * cell;
+                var y = i / cols * (cell + 14);
+                dc.DrawImage(image, new Rect(x + 2, y + 2, cell - 4, cell - 4));
+                dc.DrawText(new FormattedText(name, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 11, Brushes.White, 1),
+                    new Point(x + 2, y + cell - 1));
+            }
+        }
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        SavePng(v, cols * cell, rows * (cell + 14), path);
+    }
+
+    /// <summary>Which of Quake's sounds the installer would use, read and decoded (nothing is played).</summary>
+    static string SoundCheck(QuakeFileSystem fs)
+    {
+        var names = new[] { "sound/misc/menu1.wav", "sound/misc/menu2.wav", "sound/misc/menu3.wav", "sound/weapons/pkup.wav",
+            "sound/misc/secret.wav", "sound/misc/talk.wav", "sound/items/health1.wav", "sound/ambience/fire1.wav" };
+        return string.Join(", ", names.Select(n => fs.Read(n) is { } d && QuakeFormats.ReadWav(d) is { } w
+            ? $"{Path.GetFileName(n)} {w.SampleRate} Hz {w.Samples.Length * 1000 / w.SampleRate} ms"
+            : $"{Path.GetFileName(n)} missing"));
+    }
+
+    /// <summary>The mixer on the real device, inaudible (a synthesized click at a ten-thousandth of its volume).</summary>
+    static string SoundEngineCheck()
+    {
+        using var engine = new SoundEngine();
+        if (!engine.Available)
+        {
+            return "sound engine: no audio device (the installer stays silent)";
+        }
+        engine.Play(Synth.All()[Sfx.Select], 0.0001f);
+        Thread.Sleep(400);
+        var during = engine.BuffersWritten;
+        Thread.Sleep(600);
+        var after = engine.BuffersWritten;
+        return $"sound engine: {during} buffers while a 220 ms sound played, {after - during} more in the next 600 ms (idle: nothing sent)";
+    }
+
+    /// <summary>The real window, shown off screen for two seconds: how often the frame clock ticks and what the
+    /// process costs while animating, then with reduced motion.</summary>
+    static async Task<string> LiveWindowCheck(StartupOptions options)
+    {
+        var windowsAnimations = SystemParameters.ClientAreaAnimation;
+        FrameClock.ForceForeground = true;
+        FrameClock.OverrideReduceMotion(false); // Measure the animated window even where Windows' animations are off.
+        var vm = new MainViewModel(new WindowsSystemProbe(), new StartupOptions { Offline = true, Screenshots = "x" });
+        var window = new MainWindow { DataContext = vm, Left = -20000, Top = -20000, ShowInTaskbar = false, ShowActivated = true, WindowStartupLocation = WindowStartupLocation.Manual };
+        FrameClock.Attach(window);
+        window.Show();
+        window.Activate();
+        await Task.Delay(500);
+        var proc = Process.GetCurrentProcess();
+        double Measure(out long ticks)
+        {
+            proc.Refresh();
+            var cpu0 = proc.TotalProcessorTime;
+            var t0 = FrameClock.Ticks;
+            var sw = Stopwatch.StartNew();
+            var frame = new DispatcherFrame();
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
+            timer.Start();
+            Dispatcher.PushFrame(frame);
+            proc.Refresh();
+            ticks = FrameClock.Ticks - t0;
+            return (proc.TotalProcessorTime - cpu0).TotalMilliseconds / sw.Elapsed.TotalMilliseconds * 100;
+        }
+        var active = window.IsActive;
+        Measure(out _); // Warm up: the first frames compile shaders and fill caches.
+        var busy = Measure(out var ticks);
+        var governed = Measure(out var governedTicks); // After the governor's first look.
+        var governor = string.Create(CultureInfo.InvariantCulture,
+            $"governor: {(FrameClock.Throttled ? "throttled to 30 Hz" : "kept 60 Hz")} (it saw {FrameClock.LastCpuPercent:0.0}%), then {governedTicks / 2.0:0} ticks/s at {governed:0.0}%;");
+        var fires = FindAll<FireView>(window).ToList();
+        var detail = new StringBuilder();
+        foreach (var f in fires)
+        {
+            f.Visibility = Visibility.Collapsed;
+            var c = Measure(out _);
+            detail.Append(string.Create(CultureInfo.InvariantCulture, $" without {f.ActualWidth:0}x{f.ActualHeight:0}: {c:0.0}%;"));
+            f.Visibility = Visibility.Visible;
+        }
+        foreach (var f in fires)
+        {
+            f.Visibility = Visibility.Collapsed;
+        }
+        foreach (var f in fires)
+        {
+            f.Visibility = Visibility.Visible;
+            var only = Measure(out _);
+            detail.Append(string.Create(CultureInfo.InvariantCulture, $" only {f.ActualWidth:0}x{f.ActualHeight:0}: {only:0.0}%;"));
+            f.Visibility = Visibility.Collapsed;
+        }
+        var none = Measure(out _);
+        detail.Append(string.Create(CultureInfo.InvariantCulture, $" no flames at all: {none:0.0}%"));
+        foreach (var f in fires)
+        {
+            f.Visibility = Visibility.Visible;
+        }
+        FrameClock.OverrideReduceMotion(true);
+        var still = Measure(out var stillTicks);
+        FrameClock.OverrideReduceMotion(options.ReduceMotion ? true : null);
+        window.Close();
+        return string.Create(CultureInfo.InvariantCulture,
+            $"Windows animation effects {(windowsAnimations ? "on" : "off")}; {(FrameClock.Hardware ? "GPU" : "software")} rendering; live window (active {active}): {ticks / 2.0:0} ticks/s, process CPU {busy:0.0}% of one core; {governor} reduced motion: {stillTicks / 2.0:0} ticks/s, CPU {still:0.0}%;{detail}");
+    }
+
+    static void Layout(FrameworkElement e, double w, double h)
+    {
+        e.Measure(new Size(w, h));
+        e.Arrange(new Rect(0, 0, w, h));
+        e.UpdateLayout();
+    }
+
+    static void SavePng(Visual v, int w, int h, string path)
+    {
+        var bitmap = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(v);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var file = File.Create(path);
+        encoder.Save(file);
     }
 
     static async Task Save(FrameworkElement view, string path)
     {
         // Let bindings and item containers settle, then lay out and render at the window's size.
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-        view.Measure(new Size(Width, Height));
-        view.Arrange(new Rect(0, 0, Width, Height));
-        view.UpdateLayout();
+        Layout(view, Width, Height);
+        await Task.Delay(350); // The controls' short animations (a check mark popping in) end.
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
         view.UpdateLayout();
-        var bitmap = new RenderTargetBitmap(Width, Height, 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(view);
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        await using var file = File.Create(path);
-        encoder.Save(file);
+        // Pages fade in when shown: settle that at once off screen.
+        foreach (var page in FindAll<UserControl>(view))
+        {
+            page.BeginAnimation(UIElement.OpacityProperty, null);
+            page.Opacity = 1;
+            page.RenderTransform = Transform.Identity;
+        }
+        view.UpdateLayout();
+        SavePng(view, Width, Height, path);
+    }
+
+    static IEnumerable<T> FindAll<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); ++i)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T t)
+            {
+                yield return t;
+            }
+            foreach (var d in FindAll<T>(child))
+            {
+                yield return d;
+            }
+        }
     }
 }
