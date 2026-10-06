@@ -24798,3 +24798,37 @@ lines the rest), GPU 0.95 vs 0.92 ms.
 
 Seen in passing: a grunt killed by a 31-damage bolt at 96 units flies ~250 units before landing, with or without the
 seizure (the death knock), and `eval.sh` currently fails on a missing motion CSV in the author's checkout.
+## Corner buttons on a flat screen (vr_menu_flat_shortcuts, 2026-10-06)
+
+Vittorio: the top-left menu shortcuts also visible and usable in flat-screen mode. With VR off (`vr_menu_flat_shortcuts
+1`, default; HUD and Menus > Menu Settings > Corner Buttons on a Flat Screen) every menu has them, for the desktop mouse
+(`Quake/vr/vr_menuui.cpp` `ToolbarLayout::row`, `menuui::toolbarShown`/`toolbarRow`).
+
+**Where.** Not the headset's labelled column: at the shipped `scr_menuscale 3` the desktop's menu canvas is the 320x200
+menu plus 60 pixels above and below and 50-125 beside it, and that room is used: Ironwail's lists (Levels, Mods) start
+at the canvas's left bounds, the VR pages' long labels reach 80-130 pixels left of the menu, the Search, Console and Map
+Library pages fill the width. Only the strip along the canvas's top is free everywhere: Ironwail's bounds lists start
+10 below it at least, their titles 4 more; the classic menus at the 320x200's top. So a row of the icons along the
+top-left edge, 12 pixels tall, 1 below the edge (the headset's icons, buttons 17 wide); the button under the mouse (or
+selected with the keys) names itself in a box under it. The row is drawn after the menu; the pages around it unchanged
+(pixel diffs, flat, `vr_menu_flat_shortcuts 0` against `1`, 1280x720 and 1024x768 at `scr_menuscale 3` and 1,
+1280x800: main, Options, VR Settings, Levels, Single Player, Search, Map Library, Mods, Key Setup differ only in the
+row's box) except:
+- the Console page: its text starts below the row (2 rows fewer; in the headset it starts right of the column);
+- the VR pages' Quake plaque, in a window narrower than 16:9 at the largest menu scale (16:10, 4:3), where the row
+  reaches x 16: drawn 12 lower, below the row.
+
+**Mouse and keys.** A click on a button does what the headset's laser does (Back to Game closes the menu; Search,
+Console, Advanced VR, Levels, Map Library, Checklist at Menu Detail: Developer open their pages). The mouse lights a
+button up only once it has moved over the menus (the menus' mouse stays where it was last, or where the laser left
+it). Keys: up from a VR page's first setting (or down from its last, or a stick click on any menu) selects the row's
+first button; left and right move along it, Enter presses, down goes back to the page's first setting, Escape gives the
+selection back.
+
+**Tests** (`vr_mock_mouse <x> <y> | back | search | console | advanced | levels | maps | checklist [click]`: the desktop
+mouse moved there through M_Mousemove, and a K_MOUSE1 click; `vr_mock_key <key>`: a key pressed and released). Flat
+1280x720: each button's click opened its page (Search 133, Console 134, Advanced VR Options 1, Levels m_maps, Map
+Library 142, Checklist 72; Back to Game closed the menu). Keys: 20 ups on VR Settings selected Back to Game, four rights
+Levels, Enter opened it; a right then down went back to VR Settings' first row; a right-stick click on the main menu,
+two rights, Enter opened the Console page. `vr_mock_laser`'s names were off by one past Search (`advanced` pointed at
+Console; its table had 5 names for 7 buttons): now all seven.

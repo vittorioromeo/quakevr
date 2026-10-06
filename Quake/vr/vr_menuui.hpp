@@ -37,19 +37,33 @@ void drawInEye(const hands::State& s);
 // menu button held.
 void backToGame(int hand);
 
+// Whether the corner's buttons are over the menu: with the VR menu style in the headset, and on a flat screen (VR off)
+// with vr_menu_flat_shortcuts (the desktop mouse clicks them).
+[[nodiscard]] bool toolbarShown();
+
 // The corner's buttons under "Back to game" ("Advanced VR", "Levels", "Checklist"; vr_menuui.cpp): the column's
-// bottom (menu y; far above the menu when the style is off), where the menus' rows start at the
+// bottom (menu y; far above the menu when they are not shown), where the menus' rows start at the
 // latest; whether the sticks' selection is on them (the menu's own cursor then hidden); and the
 // selection moved onto them from a VR page's end (dir 1: down, onto the top one; -1: up, onto the
 // bottom one).
 [[nodiscard]] float toolbarBottom();
-[[nodiscard]] float toolbarRight(); // the column's right edge (menu x; far left when the style is off)
+[[nodiscard]] float toolbarRight(); // the buttons' right edge (menu x; far left when they are not shown)
 [[nodiscard]] bool toolbarFocused();
+[[nodiscard]] bool toolbarRow(); // on a flat screen: a row of icons along the canvas's top
 void focusToolbar(int dir);
 
-// vr_mock_laser <x> <y> | back | advanced | levels | checklist | off (tests): the main hand's laser on a spot of
-// the menu, or on one of the corner's buttons, whatever the hand's pose.
+// vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | off (tests): the main
+// hand's laser on a spot of the menu, or on one of the corner's buttons, whatever the hand's pose.
 void mockLaser_f();
+
+// vr_mock_mouse <x> <y> | <button> [click] (tests, flat screen): the desktop mouse moved to a spot of the menu (menu
+// coordinates) or onto one of the corner's buttons (as vr_mock_laser names them), as the window's mouse motion moves
+// it (M_Mousemove), and with `click` a left click there (K_MOUSE1 pressed and released).
+void mockMouse_f();
+
+// vr_mock_key <key> (tests): that key pressed and released (as Key_Event; its name as bind takes it), then the menu and
+// the corner button the keys selected (-1: none).
+void mockKey_f();
 
 // menu_vr pos: where the pointing hand's laser meets the menu (on which panel, its uv).
 void printLaser();

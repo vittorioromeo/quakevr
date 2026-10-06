@@ -45,7 +45,11 @@ char consoleKeyLetters[4][12][2]; // the keys' labels (SearchKey points at them)
     ConsoleLayout c;
     c.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth));
     c.half = 7.f;
-    c.left = za::fmax(cl + 4.f, menuui::toolbarRight() + 4.f); // (right of the corner's buttons: the text from the top)
+    c.left = cl + 4.f;
+    if(!menuui::toolbarRow())
+    {
+        c.left = za::fmax(c.left, menuui::toolbarRight() + 4.f); // (right of the corner's buttons: the text from the top)
+    }
     c.right = za::fmin(cr - 4.f, c.left + 460.f);
     const float rowStep = (2.f * c.half + 3.f) / c.k;
 
@@ -56,6 +60,10 @@ char consoleKeyLetters[4][12][2]; // the keys' labels (SearchKey points at them)
     float y = lastY - 4.f * rowStep;
     c.boxY = y - rowStep * 1.3f;
     c.textTop = static_cast<float>(l.top) + 2.f; // (no title: the page is the console's)
+    if(menuui::toolbarRow())
+    {
+        c.textTop = za::fmax(c.textTop, menuui::toolbarBottom() + 2.f); // (below the flat screen's row of icons)
+    }
     c.textBottom = c.boxY - (c.half + 4.f) / c.k;
     for(int r = 0; r < 4; r++, y += rowStep)
     {

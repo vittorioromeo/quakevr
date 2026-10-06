@@ -8784,7 +8784,10 @@ extern "C" void VR_Menu_Draw()
     }
 
     const Layout l = layout();
-    M_DrawTransPic(16, l.top + 4, Draw_CachePic("gfx/qplaque.lmp"));
+    // (Below a flat screen's row of icons where that reaches over it: a window narrower than 16:9.)
+    const bool underRow = menuui::toolbarRow() && menuui::toolbarRight() > 16.f;
+    M_DrawTransPic(16, underRow ? q_max(l.top + 4, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2) : l.top + 4,
+        Draw_CachePic("gfx/qplaque.lmp"));
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, l.top + 4, title);
     const char* name = pages[page].title;
@@ -8903,11 +8906,11 @@ extern "C" void VR_Menu_Key(int key, int repeat)
             }
             break;
 
-        // Up from the first setting, or down from the last: the corner's buttons (in the VR style), before
+        // Up from the first setting, or down from the last: the corner's buttons (where shown), before
         // round to the other end; a held stick stops at the end first, a new push goes on.
         case K_UPARROW:
         case K_MWHEELUP:
-            if(key == K_UPARROW && menuui::active() && cursor == firstSelectable(list))
+            if(key == K_UPARROW && menuui::toolbarShown() && cursor == firstSelectable(list))
             {
                 if(!repeat)
                 {
@@ -8921,7 +8924,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 
         case K_DOWNARROW:
         case K_MWHEELDOWN:
-            if(key == K_DOWNARROW && menuui::active() && cursor == lastSelectable(list))
+            if(key == K_DOWNARROW && menuui::toolbarShown() && cursor == lastSelectable(list))
             {
                 if(!repeat)
                 {
