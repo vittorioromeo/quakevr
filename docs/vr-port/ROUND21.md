@@ -25871,7 +25871,7 @@ the engine's `vr_box3d.cpp` ("Limb gore": the cuts), `vr_limbmodel.cpp` (the lim
   multiplier, 15 damage, under its knock-down 25: it gibs as before); a shotgun blast pops it (8 of 12) and a bolt
   (6 of 12) where the shot reaches the arm: the misses are the zombie's knock-down rule (under 25 at a limb)
   and the view's angle (pellets on the torso, the share under
-  Blast's Head Share; a railing in the bolt's way), not the rules. An explosion beside it pops the limbs near it
+  Blast's Head Share; the bolt striking the torso or the head from that side), not the rules. An explosion beside it pops the limbs near it
   (the body a ragdoll, not gibbed); gibbed, it throws its 3-5 own limbs.
 - **Chances** (`chance`, 2000 rolls at 0.5): head 0.493, limb 0.512 at scale 1; 0.250 and 0.248 at 0.5; head 1.000 at
   2; limb 0.000 at 0.
