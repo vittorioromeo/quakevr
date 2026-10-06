@@ -4217,6 +4217,14 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: redirect a visible native slipgate and report the new cached destination. Reload afterward."),
         command("Official Triggers: Lightning Damage", "vr_mg_trigger_test 3")
             .help("Check native positional lightning damage, backwards traces and wetsuit protection in a clear corridor."),
+        command("Machine: Hub and Rune Acceptance", "vr_mg_hub_test 1")
+            .help("Destructive rune/return checks in the Machine hub. Reload afterward."),
+        command("Machine: Electrode and Rune Egg", "vr_mg_hub_test 2")
+            .help("Destructive authored mge2m2 puzzle test. Reload afterward."),
+        command("Machine: Equipment Carry Setup", "vr_mg_hub_test 20")
+            .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
+        command("Machine: Progression Report", "vr_mg_hub_test 3")
+            .help("Report runes, return position, final gate and VR equipment."),
         command("Machine: mge5m2 Trigger Route", "vr_mg_trigger_test 2")
             .help("Destructive authored rune puzzle and quake sequence on mge5m2. Uses real buttons and engine movement. Reload afterward."),
         command("Official World: Fog Report", "vr_mg_world_test 1")

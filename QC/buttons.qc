@@ -97,6 +97,11 @@ void() button_fire =
         return;
     }
 
+    if(MG1_Campaign() && self.classname == "mge2m2_electrode_button") {
+        if(self.MG1_electrode_pressed) return;
+        MG1_ElectrodePressed();
+    }
+
     if(cvar_hget(cvarh_vr_debug_wallbuttons))
     {
         dprint(sprintf("button: %s (target \"%s\") pressed by %s: %s\n", self.model, self.target, self.enemy.classname,
@@ -191,9 +196,10 @@ void() button_touch_any;
 void() VR_Buttons_List =
 {
     vr_buttons = world;
-    entity b = find(world, classname, "func_button");
+    entity b = nextent(world);
     while(b != world)
     {
+        if(b.classname != "func_button" && !(MG1_Campaign() && b.classname == "mge2m2_electrode_button")) { b = nextent(b); continue; }
         if(b.vr_wpntouch == button_touch) // a save from before: its touches as func_button sets them now
         {
             b.touch = button_touch_any;
@@ -205,7 +211,7 @@ void() VR_Buttons_List =
             b.vr_button_next = vr_buttons;
             vr_buttons = b;
         }
-        b = find(b, classname, "func_button");
+        b = nextent(b);
     }
     vr_buttons_listed = TRUE;
 };

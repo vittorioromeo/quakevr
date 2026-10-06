@@ -2207,3 +2207,6 @@ QVR_CVAR(vr_honey_context, "0", CVAR_ROM) // actual start map source is Honey, n
 QVR_CVAR(vr_mg_world_test, "0", CVAR_NONE) // Debug > Tests: 1 report authored native fog; 2 environment acceptance with a destructive e5m1 barrel test
 
 QVR_CVAR(vr_mg_trigger_test, "0", CVAR_NONE) // Debug > Tests: 1 shared triggers, 2 authored mge5m2 route, 3 lightning damage, 4 slipgate retarget
+
+QVR_CVAR(vr_mg_hub_test, "0", CVAR_NONE) // Debug > Tests: 1 MG1 hub/rune semantics, 2 authored electrode/egg route, 3 progression/inventory report; destructive tests reload afterward
+QVR_CVAR(vr_mg_hub_stage, "0", CVAR_NONE) // Private QC transition acceptance continuation index; not archived

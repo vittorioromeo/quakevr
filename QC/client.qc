@@ -30,6 +30,9 @@ void() SetChangeParms =
         return;
     }
 
+    // The authored MG1 hub starts each episode with fresh VR equipment.
+    if(MG1_Hub()) { SetNewParms(); return; }
+
     VR_HandGrenade_LevelEnd(); // an unarmed hand grenade in a hand: its rocket goes on with you (vr_grenade.qc)
 
     VR_ItemUtil_EntDelItem(self, IID_KEY1);
@@ -50,9 +53,9 @@ void() SetChangeParms =
 
     self.gravity = 1.0;
 
-    // Dopa Nightmare uses the authored 50 cap and half-cap transition floor.
+    // Dopa/Machine Nightmare use the authored 50 cap and half-cap transition floor.
     // Other campaigns keep VR's existing 100/50 carry bounds.
-    float carryHealthCap = ((cvar("vr_campaign") == 3) && (skill == 3) && !deathmatch) ? 50 : 100;
+    float carryHealthCap = ((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && (skill == 3) && !deathmatch) ? 50 : 100;
     if(self.health > carryHealthCap)
     {
         self.health = carryHealthCap;
@@ -198,7 +201,7 @@ void() SetNewParms =
         parm1 = IT_SHOTGUN | IT_AXE;
     }
 
-    parm2 = ((cvar("vr_campaign") == 3) && (skill == 3) && !deathmatch) ? 50 : 100;
+    parm2 = ((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && (skill == 3) && !deathmatch) ? 50 : 100;
     parm3 = 0;
     parm4 = 25;
     parm5 = 0;
@@ -282,6 +285,7 @@ void() SetNewParms =
 
 void() DecodeLevelParms =
 {
+    if(MG1_Hub()) SetNewParms();
     if(VR_GameUtil_InTutorialMap())
     {
         SetNewParms();
@@ -484,7 +488,7 @@ void() ExitIntermission =
             MG_intermissiontext = "";
             return;
         }
-        if(cvar("vr_campaign") == 3 && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
+        if((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
         if(world.model == "maps/e1m7.bsp")
         {
             WriteByte(MSG_ALL, SVC_CDTRACK);
@@ -578,17 +582,17 @@ void() ExitIntermission =
 
     if(intermission_running == 3)
     {
-        if(cvar("vr_campaign") == 3 && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
+        if((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
         if(!cvar_hget(cvarh_registered))
         {    // shareware episode has been completed, go to sell screen
             WriteByte(MSG_ALL, SVC_SELLSCREEN);
             return;
         }
 
-        if((serverflags&15) == 15)
+        if((serverflags & (MG1_Campaign() ? 31 : 15)) == (MG1_Campaign() ? 31 : 15))
         {
             WriteByte(MSG_ALL, SVC_FINALE);
-            WriteString(MSG_ALL, "Now, you have all four Runes. You sense\ntremendous invisible forces moving to\nunseal ancient barriers. Shub-Niggurath\nhad hoped to use the Runes Herself to\nclear off the Earth, but now instead,\nyou will use them to enter her home and\nconfront her as an avatar of avenging\nEarth-life. If you defeat her, you will\nbe remembered forever as the savior of\nthe planet. If she conquers, it will be\nas if you had never been born.");
+            WriteString(MSG_ALL, MG1_Campaign() ? "$qc_mg1_endtext_all_runes" : "Now, you have all four Runes. You sense\ntremendous invisible forces moving to\nunseal ancient barriers. Shub-Niggurath\nhad hoped to use the Runes Herself to\nclear off the Earth, but now instead,\nyou will use them to enter her home and\nconfront her as an avatar of avenging\nEarth-life. If you defeat her, you will\nbe remembered forever as the savior of\nthe planet. If she conquers, it will be\nas if you had never been born.");
             return;
         }
 
@@ -971,6 +975,11 @@ entity() SelectSpawnPoint =
         }
     }
 
+    if(MG1_Campaign()) {
+        spot = MG1_ReturnSpawn();
+        if(spot) return spot;
+    }
+
     if(serverflags)
     {    // return with a rune to start
         spot = find(world, classname, "info_player_start2");
@@ -1011,7 +1020,7 @@ void() PutClientInServer =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_WALK;
     self.show_hostile = 0;
-    self.max_health = ((cvar("vr_campaign") == 3) && (skill == 3) && !deathmatch) ? 50 : 100;
+    self.max_health = ((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && (skill == 3) && !deathmatch) ? 50 : 100;
     self.flags = FL_CLIENT;
     self.air_finished = time + VR_AirSupply();
     self.dmg = 2;           // initial water damage

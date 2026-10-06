@@ -885,3 +885,14 @@ on whatever is below its origin (within 128 units), whatever Rocks and Bricks' o
 @SolidClass = trigger_explosion : "Rogue radius-damage brush relay. Official campaigns use an activated point explosion: delay before effect, bit1 disables damage." [
     spawnflags(flags) = [ 1 : "No damage (official campaigns)" : 0 ]
 ]
+
+// Machine-specific authored progression; requires owned MG1 assets and campaign context.
+@PointClass base(Targetname) = info_player_start_hub : "Machine rune return spawn. netname start_1..start_5 selects the last acquired rune." [ netname(string) : "Return name" ]
+@SolidClass = hub_trigger_changelevel : "Machine final exit, present only with all five episode runes." [ map(string) : "Destination" : "mgend" ]
+@PointClass base(Targetname, Target) = misc_rune_indicator : "Machine rune model; collected runes activate targets/killtargets, uncollected ones are translucent. Bits 1..32 select one of six models; bit64 forces active." []
+@PointClass base(Targetname, Target) = mge2m2_electrode_target : "Machine electrode endpoint removed when its matching physical button is pressed." [ cnt(integer) : "Electrode number" ]
+@SolidClass base(Targetname, Target) = mge2m2_electrode_button : "Machine physical electrode button; disables its matched endpoints once and fires authored targets." [ cnt(integer) : "Electrode number" ]
+@PointClass base(Targetname, Target) = mge2m2_rune_egg_opener : "Machine rune shell opener. Repositions targeted doors along their authored dest2 offsets at speed500." []
+@PointClass base(Targetname) = mge2m2_rune_pickup_fixer : "Machine rune pickup lock: locks after0.8 seconds, unlocks on activation. Covers VR hand and physical-object collection." []
+
+@PointClass = item_sigil : "Episode rune. In native Machine context bits1..32 select authored rune models; the first five drive completion/return spawns and fire targets exactly once. Other campaigns retain their own rune semantics." []

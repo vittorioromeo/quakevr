@@ -7218,7 +7218,8 @@ void M_ModInfo_Key (int key)
 static int m_credits_cursor;
 static void M_Credits_Draw (void)
 {
-    const char *title = Cvar_VariableValue("vr_campaign") == 3 ? "Dimension of the Past" : "Quake";
+    const char *title = Cvar_VariableValue("vr_campaign") == 3 ? "Dimension of the Past" :
+        Cvar_VariableValue("vr_campaign") == 4 ? "Dimension of the Machine" : "Quake";
     M_PrintWhite ((320 - (int)strlen(title) * 8) / 2, 28, title);
     M_Print (96, 52, "Campaign complete");
     M_PrintWhite (72, 80, "Quake: id Software");

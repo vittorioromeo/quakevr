@@ -353,6 +353,12 @@ Only used on start map for the return point from an episode."
 [
 ]
 
+@PointClass base(Targetname) =
+	info_player_start_hub : "Machine rune return spawn. netname start_1..start_5 selects the last acquired rune."
+[
+	netname(string) : "Return name"
+]
+
 @PointClass color(255 0 255) size(-16 -16 -24, 16 16 24) =
 	info_player_team1 : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
 
@@ -742,9 +748,7 @@ are dropped or thrown), a force grab pulls them. The player takes the ammo by le
 		  			                    "progs/end1.mdl"
 		}}
 ) =
-	item_sigil : "Sigil
-
-End of level sigil, pick up to end episode and return to jrstart."
+	item_sigil : "Episode rune. In native Machine context bits1..32 select authored rune models; the first five drive completion/return spawns and fire targets exactly once. Other campaigns retain their own rune semantics."
 [
 	spawnflags(flags) =
 	[
@@ -752,6 +756,8 @@ End of level sigil, pick up to end episode and return to jrstart."
 		2 : "Episode 2" : 0
 		4 : "Episode 3" : 0
 		8 : "Episode 4" : 0
+		16 : "E5" : 0
+		32 : "E6" : 0
 	]
 ]
 
@@ -3014,6 +3020,12 @@ Just for boss level."
 [
 ]
 
+@SolidClass color(0 128 204) =
+	hub_trigger_changelevel : "Machine final exit, present only with all five episode runes."
+[
+	map(string) : "Destination" : "mgend"
+]
+
 @PointClass color(0 255 0) size(-8 -8 -8, 8 8 8) =
 	ltrail_end : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
 
@@ -3059,6 +3071,28 @@ Set the LT_TOGGLE checkbox if you want the lightning shooter to continuously fir
 	currentammo(integer) : "Damage (currentammo)" :  : "Damage per contact or per shot: see the help for this entity."
 	weapon(integer) : "Weapon / kind" :  : "A number: see the help for this entity."
 	frags(float) : "Time (frags)" :  : "Seconds: see the help for this entity."
+]
+
+@SolidClass base(Targetname, Target) color(0 128 204) =
+	mge2m2_electrode_button : "Machine physical electrode button; disables its matched endpoints once and fires authored targets."
+[
+	cnt(integer) : "Electrode number"
+]
+
+@PointClass base(Targetname, Target) color(0 128 204) =
+	mge2m2_electrode_target : "Machine electrode endpoint removed when its matching physical button is pressed."
+[
+	cnt(integer) : "Electrode number"
+]
+
+@PointClass base(Targetname, Target) color(0 128 204) =
+	mge2m2_rune_egg_opener : "Machine rune shell opener. Repositions targeted doors along their authored dest2 offsets at speed500."
+[
+]
+
+@PointClass base(Targetname) color(0 128 204) =
+	mge2m2_rune_pickup_fixer : "Machine rune pickup lock: locks after0.8 seconds, unlocks on activation. Covers VR hand and physical-object collection."
+[
 ]
 
 @PointClass =
@@ -3112,6 +3146,21 @@ For optimzation testing, starts a lot of sounds."
 @PointClass =
 	misc_rope : "Official segmented rope spanning floor to ceiling; follows geometry each server frame."
 [
+]
+
+@PointClass base(Targetname, Target) =
+	misc_rune_indicator : "Machine rune model; collected runes activate targets/killtargets, uncollected ones are translucent. Bits 1..32 select one of six models; bit64 forces active."
+[
+	spawnflags(flags) =
+	[
+		1 : "Flag 1" : 0
+		2 : "Flag 2" : 0
+		4 : "Flag 4" : 0
+		8 : "Flag 8" : 0
+		16 : "Flag 16" : 0
+		32 : "Flag 32" : 0
+		64 : "Mg1 rune indicator active" : 0
+	]
 ]
 
 @PointClass base(Appearflags, Targetname) color(0 128 204) size(-8 -8 -8, 8 8 8) model({ "path": ":progs/teleport.mdl" }) =
