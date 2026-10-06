@@ -1073,10 +1073,8 @@ int run()
     {
         files::createDirectories(cacheDirName.cStr());
         const za::String zp = zipPath(job->sha);
-        if(!files::writeBytes(zp.cStr(), body.data(), body.size()))
-        {
-            Con_DPrintf("map install: could not write %s\n", zp.cStr());
-        }
+        // (said in the job's message, not printed: this is the job's thread, and the console is the main thread's)
+        const bool zipWritten = files::writeBytes(zp.cStr(), body.data(), body.size());
         if(request.install)
         {
             job->phase = Phase::Extract;
@@ -1110,11 +1108,20 @@ int run()
                 {
                     job->message += "; " + note;
                 }
+                if(!zipWritten)
+                {
+                    job->message += "; its zip could not be kept in " + zp;
+                }
             }
+        }
+        else if(zipWritten)
+        {
+            job->message = za::String{"the zip is in "} + zp;
         }
         else
         {
-            job->message = za::String{"the zip is in "} + zipPath(job->sha);
+            ok = false; // (maps_get: the zip was the whole job)
+            why = za::String{"could not write "} + zp;
         }
     }
 

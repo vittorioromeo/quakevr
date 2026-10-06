@@ -562,6 +562,10 @@ size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* stream)
     return nmemb;
 }
 
+// fetchPage's "HTTP <code>": the fetch thread's own (va() is not: its buffers are shared with the main thread, which
+// may write over one before this thread has read it). One pass runs at a time.
+char httpError[32];
+
 bool fetchPage(const za::String& url, za::Vector<char>& body, const char*& error)
 {
     body.clear();
@@ -572,7 +576,8 @@ bool fetchPage(const za::String& url, za::Vector<char>& body, const char*& error
     dl.write_data = &body;
     dl.abort = &cancel;
     const bool ok = Download(url.cStr(), &dl);
-    error = dl.error ? dl.error : (dl.response ? va("HTTP %d", dl.response) : "no response");
+    q_snprintf(httpError, sizeof(httpError), "HTTP %d", dl.response);
+    error = dl.error ? dl.error : (dl.response ? httpError : "no response");
     return ok;
 }
 
