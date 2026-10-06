@@ -147,8 +147,22 @@ void clipWinding(const Winding& in, const glm::dvec3& n, double d, bool keepFron
         return;
     }
     const double sign = keepFront ? 1.0 : -1.0;
-    za::Vector<double> dists(count);
-    za::Vector<int> sides(count);
+    // The points' distances and sides: on the stack for a winding of up to 64 points (nearly all of them; the heap's
+    // two allocations a call were a third of a large map's hull build, its threads queueing on the heap's lock).
+    constexpr za::SizeT stackPoints = 64;
+    double distsLocal[stackPoints];
+    int sidesLocal[stackPoints];
+    za::Vector<double> distsHeap;
+    za::Vector<int> sidesHeap;
+    double* dists = distsLocal;
+    int* sides = sidesLocal;
+    if(count > stackPoints)
+    {
+        distsHeap.resize(count);
+        sidesHeap.resize(count);
+        dists = distsHeap.data();
+        sides = sidesHeap.data();
+    }
     bool anyBack = false, anyFront = false;
     for(za::SizeT i = 0; i < count; ++i)
     {
@@ -166,6 +180,7 @@ void clipWinding(const Winding& in, const glm::dvec3& n, double d, bool keepFron
     {
         return;
     }
+    out.reserve(count + 1); // (a convex winding cut by a plane gains one point at most)
     for(za::SizeT i = 0; i < count; ++i)
     {
         const za::SizeT j = (i + 1) % count;
@@ -216,6 +231,8 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
         return;
     }
     Winding cap = baseWinding(n, d), tmp;
+    front.reserve(p.size() + 1); // (each side: a face of each of p's at most, and the cap)
+    back.reserve(p.size() + 1);
     for(Face& f : p)
     {
         clipWinding(cap, f.normal, f.dist, false, tmp);
@@ -229,15 +246,17 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
         Face fb{f.normal, f.dist, {}, f.tag};
         clipWinding(f.w, n, d, false, fb.w);
         clipWinding(f.w, n, d, true, tmp);
-        if(!tmp.empty())
+        const bool frontLeft = !tmp.empty();
+        if(frontLeft)
         {
-            front.pushBack(Face{f.normal, f.dist, tmp, f.tag});
+            front.pushBack(Face{f.normal, f.dist, ZA_MOVE(tmp), f.tag});
+            tmp = Winding{}; // (moved from: the next clip makes it again)
         }
         if(!fb.w.empty())
         {
             back.pushBack(ZA_MOVE(fb));
         }
-        else if(tmp.empty())
+        else if(!frontLeft)
         {
             // Lost to the epsilon on both sides (a sliver of a face): its plane still bounds both pieces. Dropped, a
             // piece could lose its only bound that way (found with a monster's 24-wide hull on e1m4: a piece reaching
