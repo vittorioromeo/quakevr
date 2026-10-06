@@ -23858,6 +23858,60 @@ In VR:
 - [ ] Turn Super Shotgun off: super shotgun headshots kill (or gib) as before.
 - [ ] Turn Lightning Gun off: lightning headshots kill as before.
 - [ ] The popped neck spurts blood as a beheading's does.
+## Head pop chance (2026-10-06)
+
+The author: head pops (the section above) happened far too often. They are now by chance, scaling with the damage
+(the pellets at the head) and falling with range. Gore > Decapitation > **Head Pop Chance** (QC vr_decap.qc, "Head
+pop chance"):
+- **By Chance** (`vr_decap_pop_chance` 1; 0: every headshot kill pops, as before).
+- A shotgun's or super shotgun's headshot kill pops the head always within **Always Within**
+  (`vr_decap_pop_always_range` 3 player lengths; a length is the player's height, 56 units: `VR_DECAP_PLAYER_LENGTH`),
+  never at **Never Beyond** (`vr_decap_pop_never_range` 15 lengths, 840 units) or farther, and between by chance:
+  scale x (1 - t)^falloff x ((1 - w) + w x share), t the way from the one range to the other, share the blast's
+  pellets at the head over the pellets it fired (`vr_decap_pellets`, set by FireBulletsImpl), w **Pellets at the Head**
+  (`vr_decap_pop_pellet_weight` 0.75). Super shotgun: **Chance** `vr_decap_pop_ssg_scale` 1.25, **Falloff**
+  `vr_decap_pop_ssg_falloff` 1 (straight); shotgun: `vr_decap_pop_sg_scale` 0.75, `vr_decap_pop_sg_falloff` 4 (its tight
+  spread keeps all six pellets on the head at range, so its curve has to fall much faster to stay under the super
+  shotgun's at every range).
+- **Lightning Always Pops** (`vr_decap_pop_lightning_always` 1): any range. Off: the ranges with the super shotgun's falloff.
+- **Thrown Things** (`vr_decap_pop_thrown` 1): a blunt weapon (not a sword, an axe or the chainsaw: a thrown axe's edge
+  beheads as before) or prop thrown or flung by the player into a head that kills pops it, always when **Always From**
+  (`vr_decap_pop_thrown_mass` 4 kg) or heavier, a lighter one at **Lighter's Chance**
+  (`vr_decap_pop_thrown_light_chance` 0: never). `VR_Decap_ThrownArm`, from forcegrabbable_touch (thrown weapons and
+  props), VR_SolidProp_Impact (crates, explosive boxes) and VR_Prop_Flung. Masses today: rocket launcher 8, super nailgun
+  7, Mjolnir 5.5, nailgun 4 (pop); shotgun 3.5 (doesn't); explosive box 80.5.
+- Only the killing blow rolls: the chance is kept with the armed blow (`vr_decap_chance`) and rolled when it kills
+  (`VR_Decap_Roll`: Killed, a zombie knocked down, a corpse's head shot). `developer 1`: "decap: pop chance 0.42 on
+  monster_army (a super shotgun blast, 6 of 14 pellets at the head): rolled 0.61, no pop".
+- Unchanged: blunt melee head blows (fists, guns, crowbar, clubs, pommels, Mjolnir swung) still always pop; slashes,
+  the chainsaw and thrown axes still behead; nailguns, rockets and grenades never pop.
+
+**Tests** (`vr_decap_test 40..48`, Debug > Gore Tests > Head Pop Chance Tests; `vr_decap_poptest_dist` lengths,
+`vr_decap_poptest_n`, `vr_decap_poptest_wid`, `vr_decap_poptest_body`; `vr_decap_pop_roll` fixes the roll), vrfiringrange,
+a grunt:
+- 40 the chance table. Shotgun, all pellets at the head: 3.5 lengths 0.63, 5 0.36, 7 0.15, 9 0.05, 11 0.01, 13+ 0.
+  Super shotgun, all / half / a fifth at the head: 5 lengths 1.00/0.65/0.42, 7 0.83/0.52/0.33, 9 0.62/0.39/0.25,
+  11 0.42/0.26/0.17, 13 0.21/0.13/0.08, 15+ 0.
+- 41-44 (no spread, health 1): super shotgun at 1 and 3 lengths popped, shotgun at 3 popped; super shotgun at 14.9 lengths
+  (chance 0.02) and 20 (0) not popped (gibbed); lightning at 10 and 20 lengths popped; a super shotgun body kill at 2
+  lengths not popped.
+- 45/46 (200 blasts each with the weapon's spread, not killing; the rate it would pop): super shotgun 3.5 lengths 0.92,
+  5 0.43, 7 0.34, 9 0.23, 11 0.14, 13 0.05; shotgun 3.5 0.65, 5 0.24, 7 0.13, 9 0.045, 11 0.005, 13 0. By pellets at
+  the head (super shotgun, 7 lengths): 1 pellet 0.26, 3 0.30, 5 0.38 (chance 0.26 .. 0.44 rising with the pellets).
+- 47 thrown weapons at the head (16 m/s, health 1): rocket launcher, nailgun, super nailgun, Mjolnir popped; shotgun
+  (3.5 kg) not; the rocket launcher at the body not. 48 an explosive box at the head popped, at the body not (gibbed).
+- decap_test.sh pop, popoff, popzombie, thrown: as before (close range: always).
+
+- [ ] Super shotgun headshot kills point blank and from 2-3 player lengths (about 4-5 m): the head always pops.
+- [ ] From across a room (8-12 lengths): sometimes; more often when the whole blast hits the head.
+- [ ] Very long range (15+ lengths, about 26 m) super shotgun headshot kills: never.
+- [ ] Shotgun: point blank always; past 3 lengths it pops clearly less often than the super shotgun.
+- [ ] Lightning gun headshot kills pop at any range.
+- [ ] A rocket launcher or nailgun thrown into a head that kills pops it; a shotgun thrown doesn't.
+- [ ] An explosive box or crate thrown into a head that kills pops it.
+- [ ] Body kills never pop.
+- [ ] The Head Pop Chance rows change it as they say.
+
 ## Shader optimizations: retro and parallax (2026-10-03)
 
 Items #2 (retro) and #1 (parallax) of the static audit `SHADER_PERFORMANCE_REVIEW_2026-10-03.md`, checked in the code
