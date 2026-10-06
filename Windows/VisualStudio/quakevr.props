@@ -21,7 +21,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external;..\..\Quake\vr\external\box3d\include;..\..\Quake\vr\external\zancle\include;..\OpenXR\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external;..\..\Quake\vr\external\box3d\include;..\..\Quake\vr\external\zancle\include;..\OpenXR\include;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <!-- SDL_DISABLE_MM3DNOW_H: SDL_cpuinfo.h includes <mm3dnow.h> where __3dNOW__ is defined (clang-cl for 32-bit x86),
            a header clang deprecates with a #warning. -->
       <PreprocessorDefinitions>ZA_STATIC;SDL_DISABLE_MM3DNOW_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -88,6 +88,31 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
   </ItemGroup>
+  <!-- The build's version (VR_BuildVersion, vr_crash.cpp: the console, the main VR Settings page, qvr_crash.txt):
+       $(IntDir)qvr_buildver.h, the last commit's date and short hash, "-dirty" when tracked files differ from it. Written
+       only when it changes (only vr_crash.cpp then recompiles); "unknown build" without git. -->
+  <Target Name="QvrBuildVersion" BeforeTargets="ClCompile">
+    <PropertyGroup>
+      <QvrRepo>$(MSBuildThisFileDirectory)..\..</QvrRepo>
+    </PropertyGroup>
+    <Exec Command="git -C &quot;$(QvrRepo)&quot; log -1 --date=format:%25%25Y-%25%25m-%25%25d --format=&quot;%25%25cd %25%25h&quot; --abbrev=8"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitCommit" />
+      <Output TaskParameter="ExitCode" PropertyName="QvrGitExit" />
+    </Exec>
+    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; --no-optional-locks status --porcelain --untracked-files=no"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitChanges" />
+    </Exec>
+    <PropertyGroup>
+      <QvrVersion Condition="'$(QvrGitExit)'=='0'">$(QvrGitCommit)</QvrVersion>
+      <QvrVersion Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">$(QvrGitCommit)-dirty</QvrVersion>
+      <QvrVersion Condition="'$(QvrGitExit)'!='0'">unknown build</QvrVersion>
+    </PropertyGroup>
+    <MakeDir Directories="$(IntDir)" />
+    <WriteLinesToFile File="$(IntDir)qvr_buildver.h" Lines="#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <Message Importance="normal" Text="Quake VR build $(QvrVersion)" />
+  </Target>
   <!-- Zancle's own sources (Quake/vr/external/zancle/README.md): a static library with its own settings (optimised,
        without its asserts, except in Debug with QVR_ZANCLE_DEBUG; zancle.vcxproj). -->
   <ItemGroup>

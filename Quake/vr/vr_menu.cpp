@@ -410,10 +410,11 @@ struct MenuReadouts
     char checklistSummary[48];         // checklistSummary
     char stamina[96];                  // staminaReadout
     char renderScaleHelp[192];         // renderScaleHelp
+    char buildVersion[64];             // buildVersionLine
     auto members()
     {
         return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
-            weaponWeightsDrop, weaponWeightsHits, weaponOffsetsStock, checklistSummary, stamina, renderScaleHelp);
+            weaponWeightsDrop, weaponWeightsHits, weaponOffsetsStock, checklistSummary, stamina, renderScaleHelp, buildVersion);
     }
 };
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
@@ -5479,6 +5480,14 @@ void onPresetChosen(cvar_t* var)
     }
 }
 
+// The main page's last line: this build (VR_BuildVersion), to name in a bug report.
+[[nodiscard]] const char* buildVersionLine()
+{
+    char(&text)[64] = readouts.buildVersion;
+    q_snprintf(text, sizeof(text), "Quake VR build %s", VR_BuildVersion());
+    return text;
+}
+
 void openSearchRow()
 {
     qvr::menu::openSearch();
@@ -5561,6 +5570,7 @@ za::Vector<Item> pageMain()
         command("Run VR Calibration Again", "vr_setup")
             .help("The calibration room and its steps, as at the first start (the main menu's VR Calibration): your height, "
                   "your body, and the main settings on its wall buttons. Ends the game you are in."),
+        info([]() -> const char* { return buildVersionLine(); }),
     };
 }
 

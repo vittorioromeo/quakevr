@@ -11,6 +11,23 @@
 // vr_zancle.cpp: Zancle's failed asserts (ZA_ASSERT) reported as a Quake error (za::setAssertHandler).
 extern "C" void VR_InstallZancleAssertHandler (void);
 
+// The build's version: qvr_buildver.h, written by every Visual Studio build in its intermediate folder
+// (Windows/VisualStudio/quakevr.props, QvrBuildVersion: the last commit's date and short hash, "-dirty" with
+// uncommitted changes to tracked files). Builds without it (the Makefile's) say "unknown build".
+#if defined(__has_include)
+#if __has_include("qvr_buildver.h")
+#include "qvr_buildver.h"
+#endif
+#endif
+#ifndef QVR_BUILD_VERSION
+#define QVR_BUILD_VERSION "unknown build"
+#endif
+
+extern "C" const char *VR_BuildVersion (void)
+{
+	return QVR_BUILD_VERSION;
+}
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -71,7 +88,7 @@ static void PL_CrashReport (EXCEPTION_POINTERS *ep, const char *what)
 			struct tm *tm = localtime (&linked);
 			if (tm)
 				strftime (when, sizeof (when), "%Y-%m-%d %H:%M", tm);
-			fprintf (f, "exe linked %s; %s\n", when, crashContext[0] ? crashContext : "no map spawned yet");
+			fprintf (f, "Quake VR %s, exe linked %s; %s\n", QVR_BUILD_VERSION, when, crashContext[0] ? crashContext : "no map spawned yet");
 		}
 		fflush (f);
 	}
@@ -92,7 +109,20 @@ static void PL_CrashReport (EXCEPTION_POINTERS *ep, const char *what)
 			int i;
 			if (pSymSetOptions)
 				pSymSetOptions (SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
-			pSymInitialize (proc, NULL, TRUE);
+			{
+				// The .pdb beside the exe (a player's install; the working directory is the caller's), else the working
+				// directory. The path the linker wrote in the exe is tried first (a developer's build).
+				char symPath[MAX_PATH + 4] = ".";
+				char exePath[MAX_PATH];
+				DWORD n = GetModuleFileNameA (NULL, exePath, MAX_PATH);
+				char *slash = n > 0 && n < MAX_PATH ? strrchr (exePath, '\\') : NULL;
+				if (slash)
+				{
+					*slash = 0;
+					snprintf (symPath, sizeof (symPath), "%s;.", exePath);
+				}
+				pSymInitialize (proc, symPath, TRUE);
+			}
 			memset (&sf, 0, sizeof (sf));
 #ifdef _M_X64
 			sf.AddrPC.Offset = ctx.Rip; sf.AddrFrame.Offset = ctx.Rbp; sf.AddrStack.Offset = ctx.Rsp;

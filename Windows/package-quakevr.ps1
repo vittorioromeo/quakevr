@@ -78,8 +78,10 @@ foreach ($rel in $generated) {
 $modified = & git -C $root --no-optional-locks status --porcelain --untracked-files=no -- quakevr
 if ($modified) { Write-Warning "tracked game files differ from the commit; their working-tree content ships:`n$($modified -join "`n")" }
 
-# Engine: the build's executable, its DLLs and ironwail.pak.
-$engineFiles = @(Get-ChildItem $bin -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in ".exe", ".dll", ".pak" })
+# Engine: the build's executable, its DLLs and ironwail.pak, and the exe's full .pdb: a player's crash report
+# (qvr_crash.txt) names the functions on the stack only with it beside the exe, and qvr_crash.dmp opens in a
+# debugger with it. The build names itself (VR_BuildVersion: the console, the VR Settings page, the report).
+$engineFiles = @(Get-ChildItem $bin -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in ".exe", ".dll", ".pak" -or $_.Name -eq "ironwail.pdb" })
 $toolFiles = @("relight_maps.py", "vis_maps.py", "quakepak.py", "relight_textures.cfg")
 
 if ($DryRun) {
@@ -95,7 +97,8 @@ if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }
 New-Item -ItemType Directory -Force $dist | Out-Null
 
 # Engine.
-if (-not $engineFiles) { throw "no Release build in $bin (use -Build)" }
+if (-not ($engineFiles | Where-Object { $_.Name -eq "ironwail.exe" })) { throw "no Release build in $bin (use -Build)" }
+if (-not ($engineFiles | Where-Object { $_.Name -eq "ironwail.pdb" })) { throw "no ironwail.pdb in $bin: crash reports would have no function names" }
 foreach ($f in $engineFiles) { Copy-Item $f.FullName $dist }
 
 # Game folder: the allowlist above.
@@ -122,6 +125,10 @@ Quake VR (Ironwail + OpenXR)
    (hipnotic) and Dissolution of Eternity (rogue) are used automatically if installed.
 2. Start your OpenXR runtime (SteamVR, Oculus, Virtual Desktop...) and put the headset on.
 3. Run QuakeVR.bat.
+
+If the game crashes, it writes qvr_crash.txt and qvr_crash.dmp in the folder it was started
+from: please attach both to the bug report, with the build named at the bottom of VR Settings
+(ironwail.pdb, beside the exe, is what lets the report name the functions; keep it there).
 
 Options > VR Settings has the comfort, body, weapon and display settings. The controller
 buttons are ordinary keys (RTRIGGER, LSHOULDER, ABUTTON...) that can be rebound in
