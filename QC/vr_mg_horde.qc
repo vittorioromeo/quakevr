@@ -27,6 +27,7 @@
 .float MGH_corpse_expire;
 entity MGH_horde_ent;
 float MGH_initial_serverflags;
+nosave float MGH_restart_queued; // a team wipe queues one arena restart (the press can last several frames)
 .float MGH_killtime;
 .float MGH_killspree;
 float MGH_keys_silver, MGH_keys_gold, MGH_powerup_chance;
@@ -1926,9 +1927,12 @@ void() MGH_Revive = {
  self.health=self.max_health; MGH_horde_set_keys(self); MGH_ResetHunger(self);
 };
 void() MGH_DeathThink = {
- if(MGH_HordeGetPlayersAlive() > 0) return; // teammate revival at the wave boundary
- if(!self.button0 && !self.button1 && !self.button2) return;
+ // Called by PlayerDeathThink after its release-then-press gate. In coop, living teammates mean revival at the
+ // wave boundary; otherwise (solo, or the whole team down) the source restarts the arena.
+ if(coop && MGH_HordeGetPlayersAlive() > 0) return;
  // Entire team wiped: same authored arena, initial runes, fresh wave manager.
+ if(MGH_restart_queued) return;
+ MGH_restart_queued = TRUE;
  serverflags = MGH_initial_serverflags;
  localcmd(sprintf("restart\n"));
 };

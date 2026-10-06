@@ -82,7 +82,31 @@ void() MGH_KillWave = {
  float count=0; while(e) { entity next=find(e,MGH_category,MGH_CATEGORY_MONSTER); if(e.health>0 && e.classname!="monster_zombie") { e.health=0; Killed(e,p); count++; } e=next; }
  dprint(sprintf("mghordetest: actual killed %g wave %g live %g\n",count,MGH_horde_ent.wave,MGH_HordeGetMonstersAlive()));
 };
+// Wave monitor (request 13 on, 14 off): logs each wave's source squad budget as SpawnWavePrep set it, then every
+// squad SpawnWave2 spends from it with the monster classes it spawned (Misc/quakevr/check_horde_waves.py checks the log).
+.float MGH_test_seen;
+float MGH_test_monitor, MGH_test_wave, MGH_test_fodder, MGH_test_elites, MGH_test_bosses, MGH_test_squad;
+void() MGH_TestMonitor = {
+ entity manager=MGH_horde_ent; if(!manager) return;
+ if(manager.wave!=MGH_test_wave) {
+  MGH_test_wave=manager.wave;
+  dprint(sprintf("mghordewave: wave %g skill %g players %g army %g squads %g/%g/%g\n",manager.wave,skill,MGH_HordeGetPlayersAlive(),manager.army,manager.fodder,manager.elites,manager.bosses));
+ }
+ string cat="other";
+ if(manager.fodder<MGH_test_fodder) cat="fodder"; else if(manager.elites<MGH_test_elites) cat="elite"; else if(manager.bosses<MGH_test_bosses) cat="boss";
+ float fresh=FALSE; entity e=find(world,MGH_category,MGH_CATEGORY_MONSTER);
+ while(e) {
+  if(!e.MGH_test_seen) {
+   if(!fresh) { fresh=TRUE; MGH_test_squad++; }
+   e.MGH_test_seen=TRUE;
+   dprint(sprintf("mghordesquad: wave %g squad %g cat %s army %g class %s\n",manager.wave,MGH_test_squad,cat,manager.army,e.classname));
+  }
+  e=find(e,MGH_category,MGH_CATEGORY_MONSTER);
+ }
+ MGH_test_fodder=manager.fodder; MGH_test_elites=manager.elites; MGH_test_bosses=manager.bosses;
+};
 void() MGH_TestFrame = {
+ if(MGH_test_monitor) MGH_TestMonitor();
  float request=cvar("vr_mg_horde_test"); if(!request) return; cvar_set("vr_mg_horde_test","0");
  entity caller=self,prevother=other,prevact=activator;
  if(request==2) MGH_Report();
@@ -128,6 +152,43 @@ void() MGH_TestFrame = {
   } else dprint("mghordetest: no authored deferred monster in this arena\n");
  } else if(request==9) {
   entity p=find(world,classname,"player"); p.MGH_hunger_time=time+10; serverflags=serverflags|2; dprint("mghordetest: save Hunger timer set\n");
+ } else if(request==13) {
+  MGH_test_monitor=TRUE; MGH_test_wave=-1; MGH_test_fodder=MGH_test_elites=MGH_test_bosses=0;
+  entity seen=find(world,MGH_category,MGH_CATEGORY_MONSTER); while(seen) { seen.MGH_test_seen=TRUE; seen=find(seen,MGH_category,MGH_CATEGORY_MONSTER); }
+  dprint("mghordetest: wave monitor on\n");
+ } else if(request==15) {
+  dprint(sprintf("mghordeplayers: wave %g waiting %g live %g alive %g coop %g keys %g/%g\n",MGH_horde_ent.wave,MGH_horde_ent.wait,MGH_HordeGetMonstersAlive(),MGH_HordeGetPlayersAlive(),coop,MGH_keys_silver,MGH_keys_gold));
+  entity pl=find(world,classname,"player");
+  while(pl) {
+   dprint(sprintf("mghordeplayer: %s client %g health %g dead %g ",pl.netname,!!(pl.flags & FL_CLIENT),pl.health,pl.deadflag));
+   dprint(sprintf("silver %g gold %g frags %g ids %g/%g\n",VR_ItemUtil_EntHasItem(pl,IID_KEY1),VR_ItemUtil_EntHasItem(pl,IID_KEY2),pl.frags,pl.weaponinst.wi_uid,pl.weaponinst2.wi_uid));
+   pl=find(pl,classname,"player");
+  }
+ } else if(request==17) {
+  // Coop team wipe: every living player dies as from the kill command (official horde ClientKill).
+  entity victim=find(world,classname,"player");
+  while(victim) { if(victim.health>0 && (victim.flags & FL_CLIENT)) { self=victim; self.health=0; PlayerDie(); } victim=find(victim,classname,"player"); }
+  dprint(sprintf("mghordetest: team wiped, alive %g\n",MGH_HordeGetPlayersAlive()));
+ } else if(request==18) {
+  // Keyed door: shared currency is spent once (official doors.qc horde_key_spend), the door opens, no key remains.
+  entity p=find(world,classname,"player"), door=find(world,classname,"door");
+  while(door && !(door.touch==door_touch && (door.vr_itemId==IID_KEY1 || door.vr_itemId==IID_KEY2))) door=find(door,classname,"door");
+  if(door) {
+   MGH_test_pass=MGH_test_fail=0; float silver=door.vr_itemId==IID_KEY1, keybit=silver ? IT_KEY1 : IT_KEY2;
+   MGH_keys_silver=MGH_keys_gold=0; MGH_horde_key_remove_all(IT_KEY1); MGH_horde_key_remove_all(IT_KEY2);
+   self=door; other=activator=p; door.owner.attack_finished=0; door_touch();
+   MGH_Check(door.touch==door_touch && door.owner.state==STATE_BOTTOM,"keyed door stays shut without shared currency");
+   MGH_horde_key_give(keybit); MGH_horde_key_give(keybit); door.owner.attack_finished=0; door_touch();
+   MGH_Check((silver ? MGH_keys_silver : MGH_keys_gold)==1 && door.touch==SUB_Null && door.owner.state==STATE_UP,"keyed door spends one shared key and opens");
+   MGH_Check(VR_ItemUtil_EntHasItem(p,door.vr_itemId),"a second shared key stays available after the spend");
+   dprint(sprintf("mghordetest: %g passed, %g failed\n",MGH_test_pass,MGH_test_fail));
+  } else dprint("mghordetest: no authored keyed door in this arena\n");
+ } else if(request==16) {
+  // Scripts: a team wipe's "restart" is appended after the rest of the test script, so the script sets this and
+  // continues from mghorde_after.cfg once the restarted arena runs.
+  localcmd("exec mghorde_after.cfg\n");
+ } else if(request==14) {
+  MGH_test_monitor=FALSE; dprint("mghordetest: wave monitor off\n");
  } else if(request==7) {
   entity p=find(world,classname,"player"); self=p; MGH_powerup_chance=1; MGH_horde_spawn_powerup(); dprint("mghordetest: forced production powerup drop\n");
  }

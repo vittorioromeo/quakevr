@@ -1348,7 +1348,6 @@ void() CheckRules =
 
 void() PlayerDeathThink =
 {
-    if(MGH_Active()) { MGH_DeathThink(); return; }
     float forward;
 
     if((self.flags & FL_ONGROUND))
@@ -1377,6 +1376,8 @@ void() PlayerDeathThink =
     self.button0 = 0;
     self.button1 = 0;
     self.button2 = 0;
+    // MG1 Horde (official client.qc): the same release-then-press gate, then a team wipe restarts the arena.
+    if(MGH_Active()) { MGH_DeathThink(); return; }
     respawn();
 };
 
@@ -2180,6 +2181,9 @@ void() ClientDisconnect =
         return;
     // if the level end trigger has been activated, just return
     // since they aren't *really* leaving
+
+    // MG1 Horde (official client.qc): a leaving player no longer counts as alive for waves, targets or revival.
+    if(MGH_Active()) self.health = 0;
 
     // let everyone else know
     bprint(self.netname);

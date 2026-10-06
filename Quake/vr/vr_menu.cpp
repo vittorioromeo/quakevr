@@ -4763,6 +4763,15 @@ za::Vector<Item> pageMachineHordeTests()
         command("Authored Keyed Button Check", "vr_mg_horde_test 8"),
         command("Reset Source Hunger Timer", "vr_mg_horde_test 9"),
         command("Activate Authored Deferred Monster", "vr_mg_horde_test 10"),
+        command("Wave Monitor On", "vr_mg_horde_test 13")
+            .help("Log each wave's squad budget and every squad's monsters to the console (developer 1)."),
+        command("Wave Monitor Off", "vr_mg_horde_test 14"),
+        command("All Players Report", "vr_mg_horde_test 15")
+            .help("Coop: every player's health, death state, shared keys and frags (developer 1)."),
+        command("Authored Keyed Door Check", "vr_mg_horde_test 18")
+            .help("A real keyed door stays shut without shared keys, then spends exactly one and opens."),
+        command("Team Wipe", "vr_mg_horde_test 17")
+            .help("Destructive: every player dies; press fire to restart the arena (coop: revival needs a living teammate)."),
     };
 }
 
