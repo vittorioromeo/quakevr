@@ -683,3 +683,79 @@ this acceptance. Private fixtures/logs are retained in `trigger-tests/`; the fir
 beam/recursive-endpoint diagnostic failures informed the fixes above. An initial kit
 quit timeout ended after a passing menu check; an explicit console-state test-driver
 correction exits normally and does not claim a runtime hang fix.
+
+## Native Machine hub/runes and electrode puzzle (mghub, 2026-10-06)
+
+Audit step8 is implemented in `QC/vr_mg_hub.qc` from upstream MG1
+`map_specific/hub.qc`, `items_runes.qc`, `map_specific/mge2m2.qc` and the narrow
+client progression rules. The upstream GPL notice is retained. All behavior is scoped
+to campaign4; MG1/MG3 native readiness remains false. Horde, remaining shared
+monster changes, cooperative checkpoint/equipment restoration and network campaign
+synchronization are separate acceptance work. This stage does not claim a complete
+campaign playthrough or multiplayer support.
+
+The first five runes retain source bits1/2/4/8/16. Source last-pickup bits6..10 choose
+`info_player_start_hub` names start_1..start_5, then only those last-pickup bits clear.
+The final `hub_trigger_changelevel` exists only with all five bits (31). Six authored
+rune models/indicators remain: five translucent before collection, each collected
+indicator activates its source targets and seals its completed episode; the sixth is
+source-forced active. Native rune collection fires targets once, including through
+the existing VR item wrapper. The wrong legacy four-rune finale is replaced by the
+source MG1 five-rune text. The actual mgend -> start ending opens the native completion
+menu with the Machine title and existing campaign/main-menu controls/credits.
+
+Official hub worldtype3 resets equipment both on entry and when starting an episode.
+That deliberately creates fresh hand/holster records; ordinary/secret transitions
+retain both held weapons and all six holsters' clips, persistent flags and instance IDs through
+existing extended parms17..50. No spawn-parm ABI changes or migration bumps were made.
+Machine Nightmare starts/caps ordinary health at50 and carries within25..50; other
+Machine modes retain50..100 carry bounds. Other campaign health policies are preserved.
+
+All four `mge2m2_*` entities retain actual electrode/egg behavior. Every physical
+button route (hand, muzzle, held prop/weapon and body/thrown actor paths) reaches the
+once-only electrode effect, removing only matched endpoints after0.1 seconds. The
+real delayed counter disables electrode effects and unlocks controls. The authored
+shell opener adapts to VR's existing door classname, moves each panel by its `dest2`
+offset at500 speed and keeps existing collision/target behavior. The fixer locks
+runes after the authored0.8 seconds and unlocks on activation; it also guards VR
+object grab/carry/pickup callbacks and survives save/load. No gameplay-class aliases
+or placeholder puzzle handlers were used; the electrode target is a source-authored
+lookup endpoint with no autonomous think callback.
+
+Debug > Tests exposes `vr_mg_hub_test` (default0, not archived):1 hub/rune acceptance,
+2 actual mge2m2 puzzle,3 progression/equipment report and20 independent equipment
+carry setup. Tests are destructive; reload afterward. Hold both grips for seeded
+held-gun tests. `vr_mg_hub_stage` defaults0 and is an unarchived private transition
+continuation index. The test driver skips level traversal/combat and defeats source
+monsters before measuring eight egg-panel displacements; an otherwise living
+shalrath legitimately blocked one panel during the first diagnostic. Gameplay's
+source door collision/crushing policy was retained.
+
+Hidden owned-original-id1 fixtures plus complete MG1 PAK/read-only updated locale
+acceptance: hub/rune semantics20/0; actual electrode/egg route15/0, also15/0 after
+saving/loading its pending manager/locked rune/delayed targets. The five actual rune
+pickups/return exits and next-episode hub gates produce flags1/3/7/15/31, correct
+return spawn names, active indicators2/3/4/5/6 and no final gate until31. The real
+final gate reaches mgend and its authored readable finale/credits. Completed hub
+saves preserve31 and its gate; new campaign clears flags and restores five ghosts.
+Nightmare real secret mge1m1 -> mge1m3 -> mge1m2 and completed saves retain shells42,
+hand clips3/7 with distinct IDs7/8, six holster clips1..6 with distinct IDs10..15.
+Health73 carries50/max50; health1 carries25/max50. Normal skill carries73/max100.
+Stock VRHub/e1m1 and Honey h/saint smoke exit0; menu paths14 found/0 missing.
+Machine ordinary health pickup40 -> 50/max50 and ordinary supported Dopa shared
+trigger acceptance34/0 also pass. The Machine completion menu was visually checked.
+QC0 warnings, Release/style/precedence and FGD287 checks pass. No commercial data
+or private fixtures/saves/logs are committed. Runs disable map index/addons.
+
+The first immediate save+load diagnostic raced the existing background save thread
+and reported EOF; loading the completed same file succeeds, and final scripts wait
+for saves before loading. A first chained route used an unsupported `set` command
+and therefore never queued its continuation/quit; the registered private stage fixes
+the test driver. Neither diagnostic is an attribution/fix for earlier coordinator
+rapid-transition findings. Private `hub-tests/`, configs and saves are retained.
+Human VR QA: all five return positions, rune grip/holster collection, electrode
+buttons and blocked/unblocked shell movement, fresh episode equipment and the
+Machine ending/menu. Default map-index startup remains outside this acceptance. A single-job melee
+canary attempt cannot start: `no_hit_reloading_2026-09-29_23-08-51.csv` is absent; no
+replacement or tuning was used. Horde Hunger-rune timers still belong to the separate
+Horde manager port.

@@ -3,6 +3,8 @@ float HONEY_SPAWNFLAG_ITEM_FLOATING = 16;
 
 void() itemTouch =
 {
+    // Machine sigils own their target dispatch and pickup lock; never fire twice or through a locked egg.
+    if(cvar("vr_campaign") == 4 && self.classname == "item_sigil") { MG1_sigil_touch(); return; }
     if(other.classname != "player")
         return;
 
