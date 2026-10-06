@@ -196,10 +196,10 @@ Measured (`bench.sh` with the author's settings, his 8 lights at 1024 on an 8192
 
 | scenario | draw calls a frame | shadow CPU ms | shadow GPU ms | GPU 3D ms | frame p50 ms |
 |---|---|---|---|---|---|
-| `combined`, a face at a time | 7717 | 1.73 | 7.14 | 20.9 | 23.0 |
-| `combined`, layered | 950 | 1.20 | 0.60 | 14.5 | 17.1 |
-| `lights_32`, a face at a time | 3422 | 0.41 | 0.48 | 2.31 | 11.1 (cap) |
-| `lights_32`, layered | 394 | 0.34 | 0.09 | 1.75 | 11.1 (cap) |
+| `combined`, a face at a time | 7818 | 1.69 | 6.67 | 20.3 | 22.7 |
+| `combined`, layered | 966 | 1.03 | 0.60 | 13.9 | 16.6 |
+| `lights_32`, a face at a time | 3422 | 0.39 | 0.49 | 2.20 | 11.1 (cap) |
+| `lights_32`, layered | 394 | 0.30 | 0.09 | 1.74 | 11.1 (cap) |
 
 The GPU time was the faces' small draws (thousands of instanced draws of a few hundred triangles each, a state change
 and a buffer bind each): the same triangles in a tenth of the draws. `vr_profile` (fast mode, `combined`): "shadow

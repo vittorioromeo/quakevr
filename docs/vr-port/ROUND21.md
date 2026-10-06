@@ -27113,5 +27113,5 @@ light's same models batch; holey skins a face at a time. Without the extension, 
 old path. `vr_shadow_layered_check [n]` (Debug > Profiling and Memory > Check Layered Shadows) draws both ways in one
 frame, times them and compares both atlases texel by texel: 0 texels differ on `combined`, `lights_32`, e1m1 (map
 lights, the flashlight) and start's slipgate (lights through it). `combined` (his settings, median of 3): draw calls
-7717 to 950, shadow CPU 1.73 to 1.20 ms, shadow GPU 7.1 to 0.6 ms, frame p50 23.0 to 17.1 ms; `lights_32` 3422 to
+7818 to 966, shadow CPU 1.69 to 1.03 ms, shadow GPU 6.7 to 0.6 ms, frame p50 22.7 to 16.6 ms; `lights_32` 3422 to
 394, 0.41 to 0.34 ms, 0.48 to 0.09 ms. Details and the table: LIGHTING.md, "Layered shadow casters".
