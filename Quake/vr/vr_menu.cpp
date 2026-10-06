@@ -3606,6 +3606,10 @@ void checklistReload()
 za::Vector<Item> pageDebugViews()
 {
     return {
+        toggle("Animated Surfaces", vr_anim_surface)
+            .help("On: an animated texture's frames (the wall buttons' lit and dim frames) share one surface: the same "
+                  "bumps, parallax depth, sheen and detail, only their colours and glow change. Off: each frame its own "
+                  "(the relief and sheen pulsed with the frames). At once."),
         toggle("External Maps A/B", vr_extmaps_ab)
             .help("Hides the external pack's normal, specular and glow maps (Graphics: External Maps) at once, to compare "
                   "with the made bumps and Quake's glow; off again shows them. Without a reload."),
@@ -3986,6 +3990,10 @@ za::Vector<Item> pageDebugReports()
         command("External Maps", "vr_extmaps_stats all")
             .help("vr_extmaps_stats all: each texture of the map and what it got from the external pack (Graphics: External "
                   "Maps): its picture's match, normal, specular and glow maps (long; without 'all' only the totals)."),
+        command("Animated Surfaces", "vr_extmaps_frames")
+            .help("vr_extmaps_frames: each animated texture of the map (the wall buttons' +0basebtn...) frame by frame: the "
+                  "frame whose surface it is drawn with, its normal, specular and glow maps and detail, and whether its "
+                  "frames share one surface (Animated Surfaces A/B)."),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
 }

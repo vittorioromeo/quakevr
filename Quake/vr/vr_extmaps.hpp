@@ -15,10 +15,16 @@
 
 #pragma once
 
+struct texture_s;
+
 namespace qvr::extmaps
 {
 
-// VR_Init: the vr_extmaps_stats command.
+// VR_Init: the vr_extmaps_stats and vr_extmaps_frames commands.
 void init();
+
+// The texture whose surface (normal map, parallax heights, specular map, detail) `t` is drawn with: an animation's
+// frame its lead frame's (VR_AnimSurfaces, vr_anim_surface), else `t`. Its colours and glow stay its own.
+const struct texture_s* surface(const struct texture_s* t);
 
 } // namespace qvr::extmaps

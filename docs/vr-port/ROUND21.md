@@ -24526,3 +24526,42 @@ never shows; a tip's own `targetname` (the follow-by-targetname form) makes the 
 and a config value is read back only up to 1023 characters (`com_token`: a 1199-character list read back ends after
 its 83rd key), so after some 50 map tips the newest keys are lost on restart and those tips show again; tip texts are unbounded (64 tips of ~1 KB would overflow a spawning client's
 64000-byte message).
+
+## Animated textures: one surface for all their frames (vr_anim_surface, 2026-10-06)
+
+**Still pulsing after the fix above** (Vittorio in VR: better, but the button "pulsates"). Measured per frame with the
+new `vr_extmaps_frames [name]` (Debug > Reports > Animated Surfaces: every frame's bound normal map, specular map,
+.mat numbers, glow and detail, and whether an animation's frames share them):
+
+- QRP + Quetoo pack, e1m1 `basebtn`: the normal map was already shared (`basebtn+0_norm`, one texture: its heights and
+  its green orientation are per file, so those were identical), but the **specular map** was not: `+0` has
+  `basebtn+0_spec` (coloured, golden on the plate), `+1` `basebtn+1_spec` (grey, mean difference 29 of 255), `+a`
+  none; times `vr_extmaps_spec_scale` (Vittorio's 8) the plate's sheen flashed with the frames. e1m4 `button`: `+0`
+  has a specular map and hardness 4.96 (`button+0.mat`), `+1..+3` and `+a` neither. `planet` likewise.
+- Made normal maps (original textures, or QRP with `vr_extmaps 0`): each frame's made from its own colours, so its
+  own bumps and parallax heights: the lit frame's relief differs (the note above said it "stays put": it does not).
+- Detail textures: chosen per texture from its own colours; no frame of e1m1's animations got another kind, but it
+  could.
+
+**The fix** (`Quake/vr/vr_extmaps.cpp` `VR_AnimSurfaces`, `surface`; `texture_t::surface`): after Mod_LoadTextures
+sequences the animations, each frame gets its animation's lead frame (main frames 0..9, then a..j: the first with a
+pack normal map, else with a pack specular map, else the first) when its Quake picture matches the lead's, or a frame
+already joined (detail correlation >= 0.5 where they lie, and better there than shifted along s or t: a moving picture
+keeps its own; `+6slip`, a brightening glow, 0.46 against `+0` but 0.63 against `+1`). Drawn (`VR_ExtMapsCall`,
+`VR_DetailCall`), with `vr_anim_surface 1` (default; at once; Debug > Views > Animated Surfaces), a frame takes the
+lead's normal map (made or the pack's), specular map, .mat numbers and detail; only its colour and glow are its own.
+id's maps (start, e1-e4, end): every animation's frames join (0.62-1.00), none moves. Cost: 7.8 ms for e1m1 and its 9 item-box models together.
+
+**Proved headless** (e1m1, `setpos -30 600 25 0 215 0`, a side light, 10 shots 5 frames apart per setting, button
+crop; shots sorted into dim/lit frames; a mask of where the colours differ, from `r_fullbright 1` shots, dilated 3 px;
+run noise 0.05-0.08). Mean difference between the frames outside that mask (fullbright's own residual 0.26):
+
+| case | parallax on: before / after | parallax off: before / after |
+|---|---|---|
+| QRP + pack | 5.03 (max 127) / 0.24 | 4.92 / 0.25 |
+| QRP, `vr_extmaps 0` (made maps) | 9.00 (max 194) / 0.20 | 1.07 / 0.27 |
+| id textures | 0.75 / 0.04 | 0.60 / 0.04 |
+
+With the pack the pulse was the specular map (parallax off changes nothing); with made maps mostly the parallax heights.
+The start view of e1m1 (no animation in it) is unchanged (mean 0.00004). `vr_extmaps_frames`: e1m1 QRP 2 of 5
+animations with one surface before, 5 of 5 after; e1m4 `button` 0 of 1 / 1 of 1; e1m1 id textures 2 / 5.

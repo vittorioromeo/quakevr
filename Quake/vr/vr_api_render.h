@@ -190,6 +190,7 @@ int VR_ExtMapsPrepare (const struct qmodel_s *mod, const char *texname, const un
 	int width, int height);									// Mod_LoadTextures, before the upload: 1 if the pack's maps fit this picture
 void VR_ExtMapsAttach (struct texture_s *tx, struct qmodel_s *mod, int glows); // ... after it: its maps loaded onto tx
 void VR_ExtMapsGreen (unsigned char *data, int width, int height, const char *name); // VR_MakeNormalMap: its green as ours (NORMALMAP_EXT)
+void VR_AnimSurfaces (struct qmodel_s *mod);				// Mod_LoadTextures, its animations sequenced: each frame's surface (texture_t surface)
 unsigned VR_ExtMapsCall (const struct texture_s *t, struct gltexture_s **normalmap, struct gltexture_s **spec,
 	struct gltexture_s **fullbright, float extmat[4]);		// R_AddBModelCall: the maps drawn; CF_SPECMAP if a specular map
 

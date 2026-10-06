@@ -2,6 +2,7 @@
 // vr_detail.cpp -- see vr_detail.hpp.
 
 #include "vr_detail.hpp"
+#include "vr_extmaps.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -706,6 +707,6 @@ extern "C" void VR_DetailCall(const texture_t* t, float out[4])
     {
         return;
     }
-    const detail::Entry& e = detail::lookup(t);
+    const detail::Entry& e = detail::lookup(extmaps::surface(t)); // an animation's frame: its lead frame's (vr_anim_surface)
     ZA_MEMCPY(out, e.v, sizeof(e.v));
 }

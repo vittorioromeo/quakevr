@@ -102,6 +102,7 @@ typedef struct texture_s
 	struct gltexture_s	*extspec;	// QVR: ... its specular map
 	float				extmat[4];	// QVR: ... its .mat's numbers: 1, specularity, hardness, 0
 	qboolean			extluma;	// QVR: fullbright is the pack's glow map
+	struct texture_s	*surface;	// QVR: an animation's frame drawn with another frame's surface (normal map, heights, specular map, detail: VR_AnimSurfaces); NULL: its own
 } texture_t;
 
 

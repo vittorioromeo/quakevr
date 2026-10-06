@@ -899,6 +899,7 @@ static void Mod_LoadTextures (lump_t *l)
 				tx2->alternate_anims = anims[0];
 		}
 	}
+	VR_AnimSurfaces (loadmodel); // QVR: an animation's frames drawn with one surface (vr/vr_extmaps.cpp)
 }
 
 /*
