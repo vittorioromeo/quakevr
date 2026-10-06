@@ -25,6 +25,7 @@
         slider("Menu Background Opacity", "scr_menubgalpha", 0.f, 1.f, 0.05f, "%.2f").help("How dark the panel behind the menus is (0.7 as shipped; the desktop menus' too): lower it to see the game while you tune the graphics. Below about 0.5 the text gets a dark outline, to stay readable."),
         toggle("Live Preview", "ui_live_preview").help("Settings pages show their changes in the game as you make them, and in single player the game keeps running under them (paused while a monster is after you)."),
         toggle("Reopen Where Left", "vr_menu_remember").help("After Back to Game (the button at the menu's top left, or the menu button), the menu opens again on the page you left."),
+        slider("Help Reading Speed", "vr_menu_help_wpm", 100.f, 400.f, 10.f, "%.0f wpm").extend(60.f, 600.f).help("The help under a page's rows: one longer than its box shows a part at a time, the bar at its right saying which. Each part stays as long as reading it takes at this many words a minute (200: unhurried)."),
         cycle("Drop-Down Lists", "vr_menu_dropdown", {{0.f, "Never"}, {3.f, "3+ Choices"}, {4.f, "4+ Choices"}, {5.f, "5+ Choices"}, {6.f, "6+ Choices"}, {8.f, "8+ Choices"}}).help("A setting with this many choices or more opens a list of them when clicked (or Enter / A): point at one and click. Left and right still step through them. Never: a click steps to the next."),
     };
 }

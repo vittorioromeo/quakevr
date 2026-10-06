@@ -7501,8 +7501,9 @@ bool scrollGrab = false; // the scrollbar likewise
 constexpr int midPos = 204; // as Ironwail's OPTIONS_MIDPOS
 
 // Where things go, in the menu's height (menuui::menuHeight: Quake's 200 on the desktop, more in
-// a headset, Quake's 320 x 200 in its middle): the title at the top, the list under it, and four
-// lines of help under the list on pages with any.
+// a headset, Quake's 320 x 200 in its middle): the title at the top, the list under it, and the
+// help under the list on pages with any: four lines, more (helpMaxLines) on a page whose rows'
+// help is longer (helpBoxLines), the list a row shorter for each.
 struct Layout
 {
     int top;
@@ -7511,12 +7512,98 @@ struct Layout
     int bottom;
 };
 
+constexpr int helpMinLines = 4;     // the help's box: four lines at least (Search's and the Map Library's)
+constexpr int helpMaxLines = 7;     // and at most; a longer help turns pages in it (drawHelp)
+constexpr int helpMaxWrapped = 64;  // lines wrapped at most (the longest help is far shorter)
+
+// The help's line, in characters: the canvas's width (the flat menu's is 420, a headset's 320 or more), 50 at most.
+[[nodiscard]] int helpColumns()
+{
+    drawtransform_t t;
+    Draw_GetCanvasTransform(CANVAS_MENU, &t);
+    float cl, ct, cr, cb;
+    Draw_GetTransformBounds(&t, &cl, &ct, &cr, &cb);
+    return CLAMP(38, static_cast<int>((cr - cl - 16.f) / 8.f), 50);
+}
+
+// `text` word-wrapped to `columns`: the lines' count, and each line's start and length in `starts` and `lengths`
+// (when given; helpMaxWrapped lines at most).
+int wrapHelp(const char* text, int columns, int* starts = nullptr, int* lengths = nullptr)
+{
+    int line = 0;
+    const char* p = text;
+    while(*p && line < helpMaxWrapped)
+    {
+        while(*p == ' ')
+        {
+            p++;
+        }
+        if(!*p)
+        {
+            break;
+        }
+        int n = static_cast<int>(strlen(p));
+        if(n > columns)
+        {
+            n = columns;
+            while(n > 0 && p[n] != ' ')
+            {
+                n--;
+            }
+            if(n == 0)
+            {
+                n = columns;
+            }
+        }
+        if(starts)
+        {
+            starts[line] = static_cast<int>(p - text);
+            lengths[line] = n;
+        }
+        p += n;
+        line++;
+    }
+    return line;
+}
+
+[[nodiscard]] const char* itemHelp(const Item& item);
+
+// The help box's lines on the page shown: its rows' longest help, wrapped (helpMinLines to helpMaxLines). Worked out
+// again when the page, its rows or the line's width change, not every frame.
+struct HelpBox
+{
+    int page{-1};
+    int build{-1};
+    int columns{0};
+    int lines{helpMinLines};
+};
+HelpBox helpBox;
+
+[[nodiscard]] int helpBoxLines()
+{
+    const int columns = helpColumns();
+    if(helpBox.page != page || helpBox.build != builds[page] || helpBox.columns != columns)
+    {
+        helpBox.page = page;
+        helpBox.build = builds[page];
+        helpBox.columns = columns;
+        int longest = 0;
+        for(const Item& item : menuPages.built[page])
+        {
+            const char* help = itemHelp(item);
+            longest = help ? q_max(longest, wrapHelp(help, columns)) : longest;
+        }
+        helpBox.lines = CLAMP(helpMinLines, longest, helpMaxLines);
+    }
+    return helpBox.lines;
+}
+
 [[nodiscard]] Layout layout()
 {
     const int height = menuui::menuHeight();
     const int top = (200 - height) / 2;
     const int listTop = q_max(top + 36, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2); // below the corner's buttons
-    return {top, listTop, top + height - 36, top + height};
+    return {top, listTop, top + height - 4 - 8 * helpBoxLines(), top + height};
 }
 
 [[nodiscard]] bool hasHelp(const za::Vector<Item>& list)
@@ -8495,38 +8582,105 @@ void drawItem(const Item& item, int y, bool selected)
     return text.cStr();
 }
 
-// Word-wrapped to the screen's width, four lines at most.
+// A row's help as drawn under the list: its own (or its function's), a server rule's note, an extendable slider's
+// hint (null: none).
+const char* itemHelp(const Item& item)
+{
+    const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpArg ? item.helpArg(item.arg) : item.helpText;
+    if(lockedItem(item))
+    {
+        help = serverRuleHelp(item, help);
+    }
+    else if(item.kind == Item::Slider && item.extendable)
+    {
+        help = extendableHelp(item, help);
+    }
+    return help;
+}
+
+// The help shown, and since when (its pages turn from the first; a new text starts over).
+struct HelpPaging
+{
+    za::U32 hash{0};
+    double since{0.0};
+    int shown{-1}; // the page of it shown (for the developer line when it turns)
+};
+HelpPaging helpPaging;
+
+constexpr double helpPageBase = 2.0; // seconds a part of the help stays, and more for each word on it (vr_menu_help_wpm)
+
+// Word-wrapped to the canvas's width (helpColumns) in the box under the list (helpBoxLines). A longer text turns pages
+// by itself, each kept long enough to read its words, with a bar at the box's right showing which part is shown.
 void drawHelp(const char* text)
 {
-    constexpr int columns = 38;
-    constexpr int maxLines = 4;
-    int line = 0;
-    const char* p = text;
-    while(*p && line < maxLines)
+    const int columns = helpColumns();
+    const int box = helpBoxLines();
+    int starts[helpMaxWrapped], lengths[helpMaxWrapped];
+    const int lines = wrapHelp(text, columns, starts, lengths);
+    int first = 0;
+    if(lines > box)
     {
-        while(*p == ' ')
+        za::U32 hash = 2166136261u;
+        for(const char* c = text; *c; c++)
         {
-            p++;
+            hash = (hash ^ static_cast<unsigned char>(*c)) * 16777619u;
         }
-        int n = static_cast<int>(strlen(p));
-        if(n > columns)
+        if(hash != helpPaging.hash)
         {
-            n = columns;
-            while(n > 0 && p[n] != ' ')
-            {
-                n--;
-            }
-            if(n == 0)
-            {
-                n = columns;
-            }
+            helpPaging.hash = hash;
+            helpPaging.since = realtime;
+            helpPaging.shown = -1;
         }
-        char buf[columns + 1];
-        memcpy(buf, p, n);
+        // Each page's time from its words; the pages one after another, then the first again.
+        const int pageCount = (lines + box - 1) / box;
+        double durations[helpMaxWrapped];
+        double cycle = 0.0;
+        for(int pg = 0; pg < pageCount; pg++)
+        {
+            int words = 0;
+            for(int l = pg * box; l < lines && l < (pg + 1) * box; l++)
+            {
+                for(int i = 0; i < lengths[l]; i++)
+                {
+                    words += text[starts[l] + i] != ' ' && (i == 0 || text[starts[l] + i - 1] == ' ') ? 1 : 0;
+                }
+            }
+            durations[pg] = helpPageBase + 60.0 * words / CLAMP(60.0, static_cast<double>(vr_menu_help_wpm.value), 600.0);
+            cycle += durations[pg];
+        }
+        double t = fmod(realtime - helpPaging.since, cycle);
+        int shown = 0;
+        while(shown < pageCount - 1 && t >= durations[shown])
+        {
+            t -= durations[shown];
+            shown++;
+        }
+        first = shown * box;
+        if(shown != helpPaging.shown)
+        {
+            helpPaging.shown = shown;
+            Con_DPrintf("menu help: part %d of %d (%d lines, %.1f s)\n", shown + 1, pageCount, lines, realtime - helpPaging.since);
+        }
+
+        // Which part is shown: the bar's thumb, and its share of the text.
+        const Layout l = layout();
+        const menupaint::Painter p;
+        namespace colors = menupaint::colors;
+        const float x = static_cast<float>((320 + 8 * columns) / 2 + 3);
+        const float top = static_cast<float>(l.helpTop);
+        const float height = static_cast<float>(box * 8);
+        p.rect(x, x + 2.f, top + height * 0.5f, height * 0.5f * p.k, colors::track);
+        const float t0 = top + height * static_cast<float>(first) / static_cast<float>(lines);
+        const float t1 = top + height * static_cast<float>(q_min(first + box, lines)) / static_cast<float>(lines);
+        p.rect(x, x + 2.f, (t0 + t1) * 0.5f, (t1 - t0) * 0.5f * p.k, colors::scrollThumb);
+    }
+    for(int line = first; line < lines && line < first + box; line++)
+    {
+        char buf[64];
+        const int n = q_min(lengths[line], static_cast<int>(sizeof(buf)) - 1);
+        memcpy(buf, text + starts[line], n);
         buf[n] = '\0';
-        M_PrintWhite((320 - 8 * n) / 2, layout().helpTop + line * 8, buf);
-        p += n;
-        line++;
+        M_PrintWhite((320 - 8 * n) / 2, layout().helpTop + (line - first) * 8, buf);
     }
 }
 
@@ -8619,6 +8773,65 @@ void dumpPages()
         Con_Printf("MDLINKS|%d|%s|%d|%d\n", p, pages[p].title, linksIn[p], depth[p]);
     }
     showPage(was);
+}
+
+// menu_vr helpcheck [columns]: every page's rows' help wrapped as drawHelp wraps it (at `columns`, else the canvas's
+// width now): HELPLONG for each help longer than its page's box (its pages turn), HELPPAGE for each page whose box
+// grew, HELPSUM the count, the longest and how many need turning pages. For the help's fit (the menu's tests).
+void helpCheck(int columnsAsked)
+{
+    const int was = page;
+    const int columns = columnsAsked > 0 ? columnsAsked : helpColumns();
+    int rows = 0, longest = 0, longestChars = 0, turning = 0, grown = 0;
+    int histogram[helpMaxLines + 2]{};
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(pages[p].build == pageSearch || pages[p].build == pageConsole || pages[p].build == pageMaps)
+        {
+            continue;
+        }
+        showPage(p);
+        const auto& list = items(p);
+        int box = helpMinLines;
+        for(const Item& item : list)
+        {
+            const char* help = itemHelp(item);
+            box = help ? q_max(box, wrapHelp(help, columns)) : box;
+        }
+        box = q_min(box, helpMaxLines);
+        if(box > helpMinLines)
+        {
+            grown++;
+            Con_Printf("HELPPAGE|%d|%s|%d lines|%d rows shown\n", p, pages[p].title, box, visibleRows(list));
+        }
+        for(const Item& item : list)
+        {
+            const char* help = itemHelp(item);
+            if(!help || !help[0])
+            {
+                continue;
+            }
+            const int lines = wrapHelp(help, columns);
+            rows++;
+            histogram[q_min(lines, helpMaxLines + 1)]++;
+            longest = q_max(longest, lines);
+            longestChars = q_max(longestChars, static_cast<int>(strlen(help)));
+            if(lines > box)
+            {
+                turning++;
+                Con_Printf("HELPLONG|%d|%s|%s|%d chars|%d lines|box %d\n", p, pages[p].title,
+                    item.label ? item.label : "", static_cast<int>(strlen(help)), lines, box);
+            }
+        }
+    }
+    showPage(was);
+    Con_Printf("HELPSUM|%d columns|%d rows with help|longest %d lines (%d chars)|%d pages grown|%d turn pages|lines:",
+        columns, rows, longest, longestChars, grown, turning);
+    for(int l = 1; l <= helpMaxLines + 1; l++)
+    {
+        Con_Printf(" %d%s=%d", l, l > helpMaxLines ? "+" : "", histogram[l]);
+    }
+    Con_Printf("\n");
 }
 
 // The path to a page from Quake's main menu, by what the player reads on the way (menu::pathTo): the fewest links from
@@ -8934,6 +9147,11 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "dump"))
     {
         dumpPages();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "helpcheck"))
+    {
+        helpCheck(Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0);
         return;
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "pos"))
@@ -9403,16 +9621,7 @@ extern "C" void VR_Menu_Draw()
 
     if(cursor < n && rowSelected)
     {
-        const Item& item = list[cursor];
-        const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpArg ? item.helpArg(item.arg) : item.helpText;
-        if(lockedItem(item))
-        {
-            help = serverRuleHelp(item, help);
-        }
-        else if(item.kind == Item::Slider && item.extendable)
-        {
-            help = extendableHelp(item, help);
-        }
+        const char* help = itemHelp(list[cursor]);
         if(help)
         {
             drawHelp(help);

@@ -26206,3 +26206,20 @@ Before the fix: dummy 35/36 wrong, death (limb cut, dummy changed, autosave, kil
 Host_Error by a hand put on a button; after: 0 everywhere, no Host_Error, his own 17:37 autosave loads with 0 wrong.
 The death case loads the autosave itself: `restart`'s autoload (`Host_AutoLoad`) adds its `load` behind the rest of a
 test script, so it fails there ("Autoload failed!"); in the game the buffer is empty and it is the same load.
+## Menu help: a taller box, the canvas's width, long help in parts (2026-10-06)
+
+Vittorio (e5m1): "Some of the menu item descriptions seem to be too long for the menu description at the bottom." The
+help under a VR page's rows was four lines of 38 characters (152): longer help was cut off. Measured with the new
+`menu_vr helpcheck [columns]` (every page built, each row's help wrapped as drawn: HELPPAGE, HELPLONG, HELPSUM lines):
+3156 rows have help; at 38 columns 1112 (35%) needed more than four lines, the longest 16 (Gore > Limb Gore's own
+row, 472 characters; Tips 317; Menu Detail, on every page, 285).
+- The line is as wide as the menu canvas lets it (`helpColumns`: 38 to 50 characters; the mock headset's panel and the
+  flat 420-wide canvas both give 50). At 50: 38 rows need more than seven lines, the longest 13.
+- The box grows to the page's longest help, four to seven lines (`helpBoxLines`, worked out when the page is built,
+  not every frame); the list is a row shorter for each line (every page has Menu Detail's 6-7 lines, so three rows
+  fewer: 23 at the shipped Menu Height).
+- Help longer than the box shows a part at a time, turning by itself: each part stays 2 s plus its words at
+  `vr_menu_help_wpm` (200 words a minute; Menu Settings > Help Reading Speed, 100-400, 60-600 past the ends), then the
+  next, then the first again; a thin bar at the box's right shows which part. `developer 1` prints
+  `menu help: part 2 of 2 (10 lines, 20.6 s)` as they turn (Limb Gore: 20.6 s, then 10.4 s, measured in real time).
+- Search's and the Map Library's own help keep the four-line box (their rows carry none).
