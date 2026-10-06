@@ -6,6 +6,7 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_props.hpp"
+#include "vr_retro.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/Strncmp.hpp"
@@ -674,6 +675,11 @@ void migrateConfig()
             Con_DPrintf("VR: %s: new default %s (was 0)\n", var->name, var->default_string);
             Cvar_SetQuick(var, var->default_string);
         }
+    }
+    // 89: the author's retro textures (vr_retro.cpp shippedLook): every kind's settings still at the old defaults.
+    if(from < 89)
+    {
+        retro::migrateShippedLook();
     }
     // 81: a config pointing vr_extmaps_dir at a downloaded Quetoo folder (quetoo-data/.../textures/quake) takes the
     // shipped copy (relative, in every install).

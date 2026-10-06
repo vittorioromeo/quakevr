@@ -63,6 +63,10 @@ constexpr int paramCount = static_cast<int>(Param::Count);
 // vr_retro_override, vr_retro_overrides_reload).
 void registerCvars();
 
+// Config 89 (vr_cvars.cpp migrateConfig): each kind's setting still at its old default (paramInfo's, every kind's
+// the same) takes the shipped look's; a changed one is left alone.
+void migrateShippedLook();
+
 // Each frame (VR_Frame): a pick's countdown and outline; your overrides written a second after the last edit.
 void frame();
 

@@ -60,6 +60,45 @@ constexpr ParamInfo paramInfo[paramCount] = {
     {"_detail", "0", false},       // Detail: Quake's look has no grain inside a block
 };
 
+// The shipped look (the author's settings, 2026-10-06; config 89): every kind but Liquids takes these over
+// paramInfo's (which stay the All Categories panel's and the override editor's starting values, and Liquids'):
+// half-texel blocks (a quarter on your body's arms, torso and legs and on particles), each block its centre texel, in
+// Quake's palette with a half dither, never fading back to plain mipmapping.
+struct LookDefault
+{
+    Param param;
+    const char* def;
+};
+
+constexpr LookDefault shippedLook[] = {
+    {Param::Block, "0.5"},
+    {Param::Average, "0"},
+    {Param::Fade, "-1"},
+    {Param::Palette, "1"},
+    {Param::Dither, "0.5"},
+};
+
+// A category's shipped default for a setting.
+[[nodiscard]] const char* categoryDefault(Category c, Param p)
+{
+    if(c == Category::Liquids)
+    {
+        return paramInfo[static_cast<int>(p)].def;
+    }
+    if(p == Param::Block && (c == Category::Arms || c == Category::Torso || c == Category::Legs || c == Category::Particles))
+    {
+        return "0.25";
+    }
+    for(const LookDefault& d : shippedLook)
+    {
+        if(d.param == p)
+        {
+            return d.def;
+        }
+    }
+    return paramInfo[static_cast<int>(p)].def;
+}
+
 struct CategoryInfo
 {
     const char* key; // vr_retro_<key>
@@ -1434,6 +1473,24 @@ void frame()
     text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.04f);
 }
 
+void migrateShippedLook()
+{
+    for(int c = 0; c < categoryCount; c++)
+    {
+        for(int p = 0; p < paramCount; p++)
+        {
+            cvar_t& var = cvars[c * paramCount + p];
+            const float before = static_cast<float>(atof(paramInfo[p].def));
+            if(!ZA_STRCMP(var.string, var.default_string) || fabsf(var.value - before) > 1e-6f)
+            {
+                continue;
+            }
+            Con_DPrintf("VR: %s: new default %s (was %s)\n", var.name, var.default_string, paramInfo[p].def);
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 void registerCvars()
 {
     for(int c = 0; c < categoryCount; c++)
@@ -1443,7 +1500,7 @@ void registerCvars()
             const int i = c * paramCount + p;
             names[i] = za::String("vr_retro_") + categoryInfo[c].key + paramInfo[p].suffix;
             cvars[i].name = names[i].cStr();
-            cvars[i].string = paramInfo[p].def;
+            cvars[i].string = categoryDefault(static_cast<Category>(c), static_cast<Param>(p));
             cvars[i].flags = CVAR_ARCHIVE;
             Cvar_RegisterVariable(&cvars[i]);
         }
