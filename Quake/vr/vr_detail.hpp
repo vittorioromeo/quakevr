@@ -1,4 +1,4 @@
-// vr_detail.hpp -- detail textures (vr_detail; docs/vr-port/ROUND17.md, "Detail textures"). In VR walls are always
+// vr_detail.hpp -- detail textures (vr_detail; ROUND17.md (removed 2026-10-06; git history), "Detail textures"). In VR walls are always
 // close, and Quake's textures (QRP's too) turn into big blurry texels there. As in DarkPlaces and Quake 3, a fine
 // tiled grain (stone, brushed metal, wood, grime, organic cells, plaster) is multiplied over the world's and brush
 // models' textures around mid-grey (the average brightness is unchanged), faded in within a metre or two of the eye.

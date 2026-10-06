@@ -66,7 +66,7 @@ bool newFrame = false; // the hands may be recomputed within a frame: the weight
 // faces, `back` short of where the box stopped (the other axes are kept), and it returns true.
 // Monsters (anything that bleeds, not a brush) don't stop it: their boxes are much bigger than they
 // look, and a sword stopped at one jerked the hand back, which the server's melee took for a new
-// stroke (no hit), so blows with a weapon's far end didn't register (docs/vr-port/ROUND15.md).
+// stroke (no hit), so blows with a weapon's far end didn't register (ROUND15.md (removed 2026-10-06; git history)).
 bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const glm::vec3& back = glm::vec3{0.f})
 {
     const glm::vec3 box{1.f};

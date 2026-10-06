@@ -16,7 +16,7 @@ Branch `vr-ironwail` starts at Ironwail **v0.8.2** (`1eabd0df`). The old engine 
 ## Status
 
 *A snapshot of 2026-09-25, before the headset rounds: everything below has been played on a headset since
-(ROUND14.md onwards), the menu laser, an on-screen keyboard (Search, Console) and real-time model shadows exist, and
+(round 14 onwards), the menu laser, an on-screen keyboard (Search, Console) and real-time model shadows exist, and
 the VR code is C++23 on Zancle. What the game does now is in [FEATURES.md](../FEATURES.md).*
 
 | Phase | State | Notes |

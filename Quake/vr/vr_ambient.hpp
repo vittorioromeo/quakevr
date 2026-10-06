@@ -8,7 +8,7 @@
 // sent with the instance; the alias shader shades the (bumped) normal with them, n^2 weighted.
 // Cached per entity: traced again when it moved or a moment passed, a few entities a frame, and
 // faded from the last trace so that nothing pops; what the rays hit is kept and read again at the
-// current light styles, so flickering lights flicker on the model as on the walls. docs/vr-port/ROUND17.md.
+// current light styles, so flickering lights flicker on the model as on the walls. ROUND17.md (removed 2026-10-06; git history).
 
 #pragma once
 

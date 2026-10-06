@@ -5291,7 +5291,8 @@ za::Vector<Item> pageDebugTests()
         command("Hidden Staircase Probe", "map start; wait120; setpos 278 1728 24 7 -20 0; wait60; vr_hull_leafdebug")
             .help("Places the player at the reported staircase spot. setpos enables noclip; turn it off before "
                   "testing movement. The cover is func_bossgate (*38). Both shipped start maps already include "
-                  "every world leaf in its own PVS; see Misc/quakevr/pvs/FINDINGS.md for corrected measurements."),
+                  "every world leaf in its own PVS (measured 2026-10-04; the probe scripts, Misc/quakevr/pvs/, are in git "
+                  "history)."),
         header("Dialogs"),
         command("New Game Confirmation (3 s)", "vr_test_dialog 3 0")
             .help("Shows the New Game confirmation for 3 seconds (it closes by itself): the game must stay in the world "

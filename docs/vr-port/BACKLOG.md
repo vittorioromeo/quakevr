@@ -37,12 +37,26 @@ seconds, with fly particles buzzing round it as well as the sound.
   lighting for players who don't want the moody atmosphere and prefer higher visibility (e.g. one "Brightness" or
   "Visibility" preset/slider on the main VR page that raises ambient/minimum light, exposure and tone mapping
   together, rather than many separate graphics settings).
-- **Menus and settings for players, not only for tuning** (the author, 2026-10-03): `docs/vr-port/MENU_REVIEW.md` and
-  `MENU_INVENTORY.md`. Built on branch `vr-ironwail-menus` (MENU_REVIEW.md, "Status"): Menu Detail levels, VR Settings
+- **Menus and settings for players, not only for tuning** (the author, 2026-10-03): `docs/vr-port/MENU_REVIEW.md` (its data,
+  `MENU_INVENTORY.md`, was removed 2026-10-06: git history). Built on branch `vr-ironwail-menus` (MENU_REVIEW.md, "Status"): Menu Detail levels, VR Settings
   for every player with Comfort and Handedness presets and volume, VR Calibration at a first start, one home per
   setting, changed settings marked with Reset This Page and Changed Settings, the `wait5` fix. To test in the headset
   and merge. Left: gameplay-feel presets, a comfort vignette, per-slot cvars to data files (the questions at the end
   of MENU_REVIEW.md).
+- **Performance leads left open by the 2026-10-03/05 reports** (the reports were removed 2026-10-06; git history has
+  them: `PHYSICS_PERFORMANCE_RESULTS_2026-10-03.md`, "Not done", and `PERFORMANCE_BENCHMARK_20261005.md`, items 4-5):
+  - *Hit-box traces:* skip `touchNearby` for props too slow to hurt, after checking the monsters' QC touch functions
+    (a leaping dog's or fiend's touch acts on what it meets).
+  - *Force-grab search:* an engine builtin (findradius, cone and eligibility in C++), or a coarse cone test on the
+    origin before `modelcentre`.
+  - *Floating props' equilibrium sleep:* a design decision (they would stop bobbing).
+  - *Touch queries:* `FL_EASYHANDTOUCH` grows every prop's box for the hands; prop-to-prop queries could use the
+    ungrown box.
+  - *Shadows in crowded, brightly lit scenes* (32 overlapping lights: 1.59 ms GPU against 1.15 ms without shadows):
+    caster and bone reuse, caching for stable lights and objects, per-light update budgets, resolution by projected
+    importance (`vr_lighting.cpp`, dynamic caster collection).
+  - *Slipgate views* (about 0.8 ms GPU and CPU for one doorway): the destination's resolution chosen by the
+    aperture's projected size, tighter destination draw lists, per-frame entity preparation shared across views.
 - **Low priority: review the pickup-thinks research** (the author, 2026-10-03: "save your research regarding the
   nextthink stuff in a document so that we can review it later"): `docs/vr-port/PICKUP_THINKS.md`. Idle pickups think
   every 0.02 s; options to think less without changing gameplay (idle interval with exact deadlines, no thinks while

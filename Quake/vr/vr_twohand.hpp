@@ -59,7 +59,7 @@ inline constexpr int anywhereSpot = 4;
 
 void reset();
 
-// Hand-off (vr_2h_handoff; QC VRTryHandOff, docs/vr-port/ROUND16.md): the hand holding a gun two-handed
+// Hand-off (vr_2h_handoff; QC VRTryHandOff, ROUND16.md (removed 2026-10-06; git history)): the hand holding a gun two-handed
 // lets go, and the gun hangs from the other hand's foregrip, drawn as it was held, until a hand takes
 // its handle again.
 

@@ -4,9 +4,9 @@ Date: 2026-10-06. Measured before the fixed 72 Hz server tick (`host_fixedtick`,
 gameplay numbers are with the old server tick (ROUND21.md, "Server tick rate"). Tree: `vr-ironwail` at `f693dc76` (baseline), then the commits on `agent/profiling`. The question:
 where do the CPU and the GPU go, what is worth fixing now (fixed here when the return was high and the change safe),
 and what needs a decision. Earlier rounds' findings are not repeated, only referred to:
-[PERFORMANCE_BENCHMARK_20261005.md](PERFORMANCE_BENCHMARK_20261005.md) (particles, props, decals, shadows, portals),
-[CPU_PERFORMANCE_FOLLOWUP_2026-10-03.md](CPU_PERFORMANCE_FOLLOWUP_2026-10-03.md),
-[PHYSICS_PERFORMANCE_RESULTS_2026-10-03.md](PHYSICS_PERFORMANCE_RESULTS_2026-10-03.md).
+`PERFORMANCE_BENCHMARK_20261005.md` (particles, props, decals, shadows, portals),
+`CPU_PERFORMANCE_FOLLOWUP_2026-10-03.md` and `PHYSICS_PERFORMANCE_RESULTS_2026-10-03.md` (removed 2026-10-06; git history; their open leads
+are in [BACKLOG.md](BACKLOG.md)).
 
 **Map loading and gameplay are measured and reported apart** (two sections below): they are optimised separately,
 and no load work is in a gameplay number nor the other way round (see "Keeping them apart").

@@ -182,8 +182,6 @@ def scan(cvars):
                     add(name, "board", path, no)
                 elif is_tool:
                     add(name, "tool", path, no)
-                elif base == "MENU_INVENTORY.md":
-                    add(name, "menu_inventory", path, no)
                 else:
                     add(name, "doc", path, no)
     # QC handles made but never read: the HMAKE line alone.
@@ -211,7 +209,7 @@ def main():
             reads_qc=len(r.get("qc", [])), writes_qc=len(r.get("qc_write", [])), menu=len(r.get("menu", [])), menu_reads=len(r.get("menu_read", [])),
             migration=len(r.get("migration", [])), recorder=len(r.get("recorder", [])), cfg=len(r.get("cfg", [])),
             board=len(r.get("board", [])), tools=len(r.get("tool", [])), docs=len(r.get("doc", [])),
-            menu_inventory=len(r.get("menu_inventory", [])), last_commit=lines.get(no, ""), comment=c["comment"][:160],
+            last_commit=lines.get(no, ""), comment=c["comment"][:160],
             first_read=(r.get("read") or r.get("qc") or [""])[0])
         rows.append(row)
     if args.name:

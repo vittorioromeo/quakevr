@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# make_detail.py -- generates the detail textures (vr_detail.cpp, docs/vr-port/ROUND17.md "Detail textures"):
+# make_detail.py -- generates the detail textures (vr_detail.cpp, ROUND17.md (removed 2026-10-06; git history) "Detail textures"):
 #   quakevr/textures/vr/detail_<kind>.png   512 x 512, grey, tileable, averaging exactly mid-grey (128)
 #
 # A detail texture is a fine grain blended over the world's textures close to the eye, multiplied around

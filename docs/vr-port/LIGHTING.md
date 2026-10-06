@@ -90,7 +90,7 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
   - An angle term (`vr_dlight_angle`) and the shadow are added.
   - `vr_dlight_uncapped` lifts Quake's cap against the lightmap (bright walls get more light).
 - **Filtering** (`vr_shadow_filter`): 1, 4, 9 or 16 bilinear compare taps (about 2×2, 3×3, 4×4 and 5×5; since
-  round 19 the last two are read as 4 and 9 taps with the same weights: ROUND19.md). The
+  round 19 the last two are read as 4 and 9 taps with the same weights: ROUND19.md, removed 2026-10-06; git history). The
   kernels are fixed, so both eyes match. **Bias:**
   - a normal offset of a texel, doubled at grazing angles (`vr_shadow_bias`);
   - a 0.2% depth scale.
@@ -538,7 +538,7 @@ with its own dial.
   8-bit skins, drawn sharp, the shifts bend their square texels (the reason the world's 8-bit textures get no heights
   when drawn sharp), and luminance isn't the skins' shape: it looked like the skin swimming. The bumps on the models'
   own light give them relief instead. When on, it now fades out from 50 to 70 degrees off the triangle (a model's
-  sides are grazing all round). See ROUND14.md, "Model bumps and parallax".
+  sides are grazing all round). See ROUND14.md, "Model bumps and parallax" (removed 2026-10-06; git history).
 - **Round 21: authored heights** (ROUND21.md, "Authored bumps on the body; parallax for authored models"). A model
   whose skin has an authored normal map with heights in its alpha (Quake VR's own: the hands, the body, the gadget,
   the flashlight, the weapons, baked by `bake_normals.py`; a model pack's `_norm` with alpha) is carved by those
@@ -619,6 +619,6 @@ grid_mins`, `uint8 num_styles`, `uint32 root_node`), nodes (`ivec3 division_poin
 leaf's index, bit 30 all occluded), leaves (`ivec3 mins, size`, then per point, z-major: `0xff` occluded, else a count
 and per style `uint8 style, uint8 r g b`); ericw-tools' `common/bspxfile.cc`, read by QuakeSpasm-Spiked's
 `BSPX_LightGridLoad` and FTE. Quake VR doesn't read it yet (the models' directional ambient traces the lightmaps
-instead, ROUND17.md); `vis_maps.packed` keeps the BSPX lumps where engines look for them when the relight scripts
+instead, ROUND17.md, removed 2026-10-06; git history); `vis_maps.packed` keeps the BSPX lumps where engines look for them when the relight scripts
 replace the entities or the visibility. alpha11 can also write `-lightgrid_format lightgrids` (the `LIGHTGRIDS` lump:
 six directional colours per point, an ambient cube; "wip, non-final" in its source), not used.

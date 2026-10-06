@@ -6,8 +6,8 @@ of the development of the VR mod ... a new player would easily get overwhelmed. 
 outdated options/CVars that can be safely culled. Please perform some research ... and provide your thought on how to
 improve the situation while still leaving freedom to players/developers."
 
-The full inventory (every page and row, every VR cvar with its default, saved or not, pages, read sites and tier) is in
-`MENU_INVENTORY.md`. Its counts come from a static parse of the menu builders, so pages built in loops or branches are
+The full inventory (every page and row, every VR cvar with its default, saved or not, pages, read sites and tier) was in
+`MENU_INVENTORY.md` (removed 2026-10-06; git history). Its counts come from a static parse of the menu builders, so pages built in loops or branches are
 approximate. `menu_vr dump` plus `Misc/quakevr/menu_coverage.py` give exact runtime counts. The tiers are a first,
 heuristic pass: many rows on gameplay pages are really internal tuning, and need a row-by-row look before anything is
 hidden.
@@ -66,7 +66,7 @@ hidden.
 ## Culling and consolidating, cheapest first
 
 - **Done (2026-10-03):** the dead and retired cvars below were removed, about 320 in all, with the migrations that
-  used them; no compatibility with old configs kept (none was in a shipped cfg). `MENU_INVENTORY.md` section 5a has the
+  used them; no compatibility with old configs kept (none was in a shipped cfg). `MENU_INVENTORY.md` section 5a (removed 2026-10-06; git history) has the
   list.
   - The 21 cvars nothing reads (`vr_physics_engine`, `vr_box3d_weapon_mass`, ten `vr_wpn_*_weight*`,
     `vr_weight_model`/`_props`, `vr_sword_drop`, `vr_carry_reach`, `vr_parry_sound_burst`, `vr_parry_stamina_show`,

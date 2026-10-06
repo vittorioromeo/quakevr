@@ -1,6 +1,0 @@
-scene,repeats_per_build,before_cpu_ms,after_cpu_ms,before_gpu_ms,after_gpu_ms,before_count_ms,after_count_ms,before_fill_ms,after_fill_ms,before_worst_frame_ms,after_worst_frame_ms
-decals_4096_stream,3,1.061,1.081,1.066,1.074,0.037,0.027,0.041,0.015,4.974,4.085
-decals_blood_4096,3,1.474,1.483,1.482,1.501,0,0,0,0,10.261,6.121
-decals_blood_4096_stream,3,7.045,1.709,1.508,1.489,2.836,0.327,2.872,0.155,34.576,11.747
-decals_stream,3,1.046,1.049,1.054,1.061,0.009,0.007,0.011,0.005,6.466,3.961
-idle,3,0.814,0.824,0.843,0.856,0,0,0,0,4.567,6.848

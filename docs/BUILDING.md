@@ -57,7 +57,7 @@ takes MSVC's flags):
 | `/Z7` + `/DEBUG` | A `.pdb` for crash dumps (the debug information is in the objects, gathered by the linker). It does not change the code |
 
 The frame is not CPU-bound (about 0.35 ms of CPU a frame on the development PC), so these flags make little
-difference to the frame rate. ROUND19.md ("Build flags") has the measurements. SDL2, the codecs, curl and the OpenXR
+difference to the frame rate. ROUND19.md ("Build flags"; removed 2026-10-06; git history) has the measurements. SDL2, the codecs, curl and the OpenXR
 loader are prebuilt DLLs, used as they are.
 
 Debugging in Visual Studio works as with MSVC (breakpoints, stepping, watches, `ironwail.natvis`), but there is no

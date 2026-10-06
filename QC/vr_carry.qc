@@ -1,5 +1,5 @@
 // vr_carry.qc -- carrying and nudging physics items (ammo and health boxes, backpacks, gibs) with
-// the hands (vr_carry). See docs/vr-port/ROUND6.md, item 14.
+// the hands (vr_carry). See ROUND6.md (removed 2026-10-06; git history), item 14.
 //
 // - A hand or a gun touching a box without gripping nudges it: the box takes up the hand's speed
 //   along its motion, as a rigid body (it tumbles and settles).

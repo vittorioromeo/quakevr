@@ -6739,7 +6739,7 @@ void(entity ent, float xHand) VRHandStopFiring =
     self = oself;
 }
 
-// Hand-off (vr_2h_handoff, docs/vr-port/ROUND16.md): the hand holding a weapon two-handed lets go while
+// Hand-off (vr_2h_handoff, ROUND16.md (removed 2026-10-06; git history)): the hand holding a weapon two-handed lets go while
 // the other, empty hand still grips it (steadying it: VRGet2HAiming, or a moment ago). The weapon
 // stays in that hand instead of falling: it hangs from where that hand holds it (a gun's foregrip, a
 // sword's grip or blade: QVR_WPNFLAG_FOREGRIP_CARRIED: the client draws it there; it doesn't fire or

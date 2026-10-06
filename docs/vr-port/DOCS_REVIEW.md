@@ -7,6 +7,10 @@ contradictions and duplication. Small factual fixes were made directly (branch `
 group of docs); what needs a decision or a larger rewrite is listed below. [docs/README.md](../README.md) is the
 new index of every document.
 
+**Follow-up (2026-10-06, the author's answers):** every archive and delete candidate below was removed (one `git rm`;
+the index's "Removed documents" says how to read them from git history), after their references were pointed at git
+history and their open items moved (performance leads to BACKLOG.md, the hull preload to HULLS.md).
+
 ## Summary
 
 - **The player docs had fallen behind the game.** The Map Library and the in-game relighting were in no player doc;
@@ -118,7 +122,7 @@ Status: **current** (checked, nothing wrong), **fixed** (outdated, corrected in 
    and every player doc says Standard. If it was saved from your machine by `vr_savedefaults`, it should go back to
    0 (or the line removed) before a release. Not changed here (cvarclean and the defaults are code).
 2. **RELIGHTING.md line 75 vs INSTALL.md:** whether the relight script uses the re-release's maps.
-3. **Archive or delete** (below): a one-time yes, then a worker moves the files and fixes the links.
+3. **Archive or delete** (below): done 2026-10-06, all removed (git history keeps them).
 4. **Open review findings:** HITZONES_AND_PORTAL_REVIEW (about nine P2s) and ZANCLE_CONCURRENCY_REVIEW (five
    defects) were never closed: worth one worker each to check against the code.
 5. **INSTALLER.md:** its Inno Setup recommendation (section 9) against the WPF app, and the see-through water a
@@ -171,7 +175,8 @@ open items move: HITZONES_AND_PORTAL_REVIEW, ZANCLE_CONCURRENCY_REVIEW.
 To delete: `CHECKLIST_ARCHIVE_20261005.txt` (an old copy of runtime data) and `inventory/_agent_brief.md` (an agent
 prompt).
 
-Nothing here was moved or deleted: both need your one-time approval.
+Done 2026-10-06: all of these were deleted rather than archived (the author: "we can recover them through git
+history"); `MODEL_METADATA_20261005.md` and `PROFILING_2026-10.md` stay.
 
 ## Coordination
 

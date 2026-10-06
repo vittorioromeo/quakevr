@@ -1,5 +1,5 @@
 # Quake VR playtest checklist (VR menu > Checklist). One line = one quick check; tick what works, tell me what doesn't.
-# Merged and streamlined 2026-10-06 from the previous list and docs/vr-port/CHECKLIST_ARCHIVE_20261005.txt
+# Merged and streamlined 2026-10-06 from the previous list and CHECKLIST_ARCHIVE_20261005.txt
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]

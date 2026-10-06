@@ -1,4 +1,4 @@
-// vr_ao.hpp -- dynamic ambient occlusion (round 20; docs/vr-port/ROUND20.md, "Dynamic ambient occlusion").
+// vr_ao.hpp -- dynamic ambient occlusion (round 20; ROUND20.md (removed 2026-10-06; git history), "Dynamic ambient occlusion").
 //
 // The static world has its ambient occlusion baked (ericw-tools' -dirt in the relight) and models get the world's
 // occlusion through their ambient cube (vr_ambient.cpp). What moves has none; three cheap world-space terms (the same

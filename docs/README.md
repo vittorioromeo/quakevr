@@ -6,8 +6,8 @@ Quake VR is, the short installation and the default controls. New documents go i
 **Kinds of document.** *Guides* describe the game as it is now and are kept current. *Topic notes* explain one
 system: how it works and why. *Research and plans* were written before or while something was built: their
 "Status" line says how much of it exists. *Reports* are dated snapshots (measurements, reviews, feedback batches):
-true on their date, not updated afterwards. The *round logs* (`ROUND*.md`) record each feedback round as it
-happened; the durable parts belong in a guide or topic note.
+true on their date, not updated afterwards. The *round log* (`ROUND21.md`) records the current feedback round as it
+happens; the durable parts belong in a guide or topic note.
 
 ## For players
 
@@ -63,7 +63,7 @@ happened; the durable parts belong in a guide or topic note.
 | [vr-port/MG3_PLAN.md](vr-port/MG3_PLAN.md) | Dawn of the Machine (MG3): the native port plan and the author's decisions |
 | [vr-port/OFFICIAL_QC_SOURCE.md](vr-port/OFFICIAL_QC_SOURCE.md) | Where the official expansions' QuakeC comes from |
 | [vr-port/INSTALLER.md](vr-port/INSTALLER.md) | Installer design, research and the author's decisions; section 13 is the app's phase 1 |
-| [vr-port/MENU_REVIEW.md](vr-port/MENU_REVIEW.md) | The menu and settings review and proposal (2026-10-03); [MENU_INVENTORY.md](vr-port/MENU_INVENTORY.md) is its data |
+| [vr-port/MENU_REVIEW.md](vr-port/MENU_REVIEW.md) | The menu and settings review and proposal (2026-10-03) |
 | [vr-port/TEMPORAL.md](vr-port/TEMPORAL.md) | Temporal anti-aliasing and upscaling (TAA, DLSS, FSR): scope and design |
 | [vr-port/PICKUP_THINKS.md](vr-port/PICKUP_THINKS.md) | Making idle pickups cheaper (research) |
 | [vr-port/PORTING.md](vr-port/PORTING.md) | Porting the VR module to another engine (vkQuake) |
@@ -71,48 +71,37 @@ happened; the durable parts belong in a guide or topic note.
 
 ## Reports (dated snapshots)
 
-Performance:
-[PROFILING_2026-10.md](vr-port/PROFILING_2026-10.md) (the latest: CPU and GPU, loading and gameplay apart),
-[PERFORMANCE_BENCHMARK_20261005.md](vr-port/PERFORMANCE_BENCHMARK_20261005.md),
-[PERFORMANCE_AUDIT_20261005.md](vr-port/PERFORMANCE_AUDIT_20261005.md),
-[PERFORMANCE_REVIEW_2026-10-03.md](vr-port/PERFORMANCE_REVIEW_2026-10-03.md),
-[CPU_PERFORMANCE_FOLLOWUP_2026-10-03.md](vr-port/CPU_PERFORMANCE_FOLLOWUP_2026-10-03.md),
-[SHADER_PERFORMANCE_REVIEW_2026-10-03.md](vr-port/SHADER_PERFORMANCE_REVIEW_2026-10-03.md),
-[PHYSICS_PERFORMANCE_REVIEW_2026-10-03.md](vr-port/PHYSICS_PERFORMANCE_REVIEW_2026-10-03.md),
-[PHYSICS_PERFORMANCE_RESULTS_2026-10-03.md](vr-port/PHYSICS_PERFORMANCE_RESULTS_2026-10-03.md),
-[PARTICLES_DECALS_PERFORMANCE_2026-10-03.md](vr-port/PARTICLES_DECALS_PERFORMANCE_2026-10-03.md),
-[PARTICLE_OPTIMIZATION_20261005.md](vr-port/PARTICLE_OPTIMIZATION_20261005.md),
-[DECAL_OPTIMIZATION_20261005.md](vr-port/DECAL_OPTIMIZATION_20261005.md),
-[PROP_OPTIMIZATION_20261005.md](vr-port/PROP_OPTIMIZATION_20261005.md),
-[OVERDRAW_PROP_TAILS_20261005.md](vr-port/OVERDRAW_PROP_TAILS_20261005.md),
-[MODEL_METADATA_20261005.md](vr-port/MODEL_METADATA_20261005.md),
-[HULL_PRELOAD_20261005.md](vr-port/HULL_PRELOAD_20261005.md),
-[ALLOCATION_AUDIT_20261005.md](vr-port/ALLOCATION_AUDIT_20261005.md),
-[COMBAT_ALLOCATION_BURSTS_20261005.md](vr-port/COMBAT_ALLOCATION_BURSTS_20261005.md).
-Their raw data is in [vr-port/benchmarks/](vr-port/benchmarks/).
+- [vr-port/PROFILING_2026-10.md](vr-port/PROFILING_2026-10.md): where the CPU and GPU time goes, loading and gameplay
+  apart (the latest performance report).
+- [vr-port/MODEL_METADATA_20261005.md](vr-port/MODEL_METADATA_20261005.md): the per-model metadata cache
+  (`vr_modelmetadata.*`).
+- [vr-port/HITZONES_AND_PORTAL_REVIEW_2026-10-04.md](vr-port/HITZONES_AND_PORTAL_REVIEW_2026-10-04.md) and
+  [vr-port/ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md](vr-port/ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md): code reviews,
+  each with a status table of its findings (checked 2026-10-06).
 
-Reviews and bugs:
-[HITZONES_AND_PORTAL_REVIEW_2026-10-04.md](vr-port/HITZONES_AND_PORTAL_REVIEW_2026-10-04.md),
-[SLIPGATE_TORCH_REVIEW_2026-10-04.md](vr-port/SLIPGATE_TORCH_REVIEW_2026-10-04.md),
-[ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md](vr-port/ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md),
-[TORCH_TWOHAND_CRASH_20261005.md](vr-port/TORCH_TWOHAND_CRASH_20261005.md).
+## Round log
 
-Voice-note feedback batches:
-[NOTES_FEEDBACK_20261004.md](vr-port/NOTES_FEEDBACK_20261004.md),
-[NOTES_FEEDBACK_20261005.md](vr-port/NOTES_FEEDBACK_20261005.md),
-[NOTES_FEEDBACK_20261005_BATCH2.md](vr-port/NOTES_FEEDBACK_20261005_BATCH2.md);
-the checklist's ticked items: [CHECKLIST_ARCHIVE_20261005.txt](vr-port/CHECKLIST_ARCHIVE_20261005.txt).
+[vr-port/ROUND21.md](vr-port/ROUND21.md): the current round, a running log of every change, newest at the end.
+Search it for a cvar's or a feature's name to find why it is the way it is.
 
-## Round logs
+## Removed documents (in git history)
 
-[ROUND6.md](vr-port/ROUND6.md) to [ROUND20.md](vr-port/ROUND20.md), and [ROUND21.md](vr-port/ROUND21.md) (the
-current round, a running log of every change, newest at the end). Search them for a cvar's or a feature's name to
-find why it is the way it is.
+Removed on 2026-10-06 once their knowledge was acted on or moved (open performance leads to
+[BACKLOG.md](vr-port/BACKLOG.md), the hull preload to [HULLS.md](vr-port/HULLS.md)): the round logs `ROUND6.md` to
+`ROUND20.md`; the performance reports of 3-5 October (`PERFORMANCE_REVIEW`, `SHADER_PERFORMANCE_REVIEW`,
+`PHYSICS_PERFORMANCE_REVIEW` and `_RESULTS`, `CPU_PERFORMANCE_FOLLOWUP`, `PARTICLES_DECALS_PERFORMANCE`,
+`PERFORMANCE_BENCHMARK`, `PERFORMANCE_AUDIT`, `DECAL_`, `PARTICLE_` and `PROP_OPTIMIZATION`, `OVERDRAW_PROP_TAILS`,
+`ALLOCATION_AUDIT`, `COMBAT_ALLOCATION_BURSTS`, `HULL_PRELOAD`) with their data in `vr-port/benchmarks/`;
+`SLIPGATE_TORCH_REVIEW` and `TORCH_TWOHAND_CRASH` (all fixed); the voice-note batches `NOTES_FEEDBACK_*` (done);
+`MENU_INVENTORY.md` (the 2026-10-03 menu inventory; `menu_vr dump`, `Misc/quakevr/menu_coverage.py` and
+`cvar_inventory.py` give the current data); `CHECKLIST_ARCHIVE_20261005.txt`; `inventory/_agent_brief.md`; and
+`Misc/quakevr/pvs/` (the 2026-10-04 start-map visibility findings and probe scripts: both start maps' PVS is
+correct). To read one: `git log --diff-filter=D --oneline -- <path>` gives the commit that removed it, and
+`git show <commit>^:<path>` prints it.
 
 ## Elsewhere in the repository
 
 - [Misc/quakevr/particles/README.md](../Misc/quakevr/particles/README.md): the explosion particle texture's source and how it was made.
-- [Misc/quakevr/pvs/FINDINGS.md](../Misc/quakevr/pvs/FINDINGS.md): slipgate and hidden-staircase visibility measurements on `start` (2026-10-04).
 - [quakevr/textures_quetoo/README.md](../quakevr/textures_quetoo/README.md): the Quetoo material maps and their
   authors.
 - `Quake/vr/external/*/README.md`: each vendored library's version and licence (Box3D, Steam Audio, Zancle).

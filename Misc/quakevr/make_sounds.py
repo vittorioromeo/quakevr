@@ -178,7 +178,7 @@ def finish(out, peak_to=0.9, fade=0.02):
     return [s * peak_to / peak * min(1.0, (n - i) / f) for i, s in enumerate(out)]
 
 
-# ---- Melee feedback (QC vr_juice.qc VR_Bash, combat.qc VR_Parry; docs/vr-port/ROUND18.md) -------------
+# ---- Melee feedback (QC vr_juice.qc VR_Bash, combat.qc VR_Parry; ROUND18.md (removed 2026-10-06; git history)) ---
 # Each kind of contact has its own sound, apart from the blows' (fist and weapon hits keep Quake's):
 # a shove is flesh and air (a whoosh into a heavy thud), a weapon bash is metal driven into a body (a
 # dull clang on a thud), a parry is steel on steel (a bright ring), and a parry-bash (a bash right

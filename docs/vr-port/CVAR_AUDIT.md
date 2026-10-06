@@ -6,14 +6,14 @@ Every Quake VR setting checked for being read, and ranked for removal or merging
     python Misc/quakevr/cvar_inventory.py                 # the counts below
     python Misc/quakevr/cvar_inventory.py --csv inv.csv   # one row a cvar: default, archived, flags, reads and writes
                                                           # (C++ logic, QC, menus, migration, motion recorder), cfgs,
-                                                          # tools, docs, MENU_INVENTORY, last commit on its line
+                                                          # tools, docs, last commit on its line
     python Misc/quakevr/cvar_inventory.py --dead          # the cvars no engine logic or QC reads
     python Misc/quakevr/cvar_inventory.py --refs --name '^vr_mhull_'   # every reference
 
 Scope: `QVR_CVAR` in `Quake/vr/vr_cvars.inc` plus the stand-alone `cvar_t` in Quake/vr (vr_backend, vr_hull_audit, five
 vr_retro ones). The generated per-slot families (`vr_wofs_*` 8,320, `vr_prop_*` 2,880, `vr_retro_<cat>_*` ~280) are
-built from tables and not counted. Ironwail's own cvars are out of scope. MENU_INVENTORY.md (2026-10-03) is the
-earlier, menu-centred pass; its section 5a lists the ~320 cvars removed then.
+built from tables and not counted. Ironwail's own cvars are out of scope. MENU_INVENTORY.md (2026-10-03; removed 2026-10-06; git history) was the
+earlier, menu-centred pass; its section 5a listed the ~320 cvars removed then.
 
 ## Counts
 
@@ -133,10 +133,10 @@ goes; the throw internals are the ones most likely to be wanted again (THROWING.
    targetnames carry it (QC buttons.qc:85, 466) and vr_gamedir.cpp syncs it. Merging needs the hub maps changed; high
    risk, low gain.
 3. Per-feature haptics: `vr_disablehaptics` plus 8 strengths/toggles (`vr_pain_haptics`, `vr_holster_haptics`,
-   `vr_counter_haptic`, `vr_grapple_haptics`...). One master strength plus on/off per feature (MENU_INVENTORY 5d).
+   `vr_counter_haptic`, `vr_grapple_haptics`...). One master strength plus on/off per feature (MENU_INVENTORY.md 5d, removed 2026-10-06; git history).
 4. Effect hues: 10 `*_hue`; most default to the player's (-1). Keep `vr_player_hue`; the others as overrides on one
    page, or gone.
-5. Menu duplicates with different labels or ranges for one cvar (MENU_INVENTORY 5c: `vr_snap_turn`, `vr_turn_speed`,
+5. Menu duplicates with different labels or ranges for one cvar (MENU_INVENTORY.md 5c: `vr_snap_turn`, `vr_turn_speed`,
    `vr_disablehaptics` inverted...): menu-only fixes, no cvar removed.
 
 ### E. Test and debug knobs (125; keep, but prune finished ones)

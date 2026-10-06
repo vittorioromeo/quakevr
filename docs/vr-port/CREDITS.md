@@ -108,7 +108,7 @@ Freesound's high-quality preview, cut at the times below, high-passed at 40 Hz, 
 (16-bit PCM, like the port's other sounds), trimmed to start 5 ms before the sound, faded in and out, stray clicks in
 the tail held down, and brought to a loudness matched to Quake's own splashes (the loudest 200 ms, band-limited as
 Quake's mixer plays it) with a look-ahead peak limiter (at most 6 dB off the peaks, which stay at -1 dBFS). The engine
-picks one of the variants at random (`vr_physics.cpp`, `variant`). Round 20 (`ROUND20.md`) has the details.
+picks one of the variants at random (`vr_physics.cpp`, `variant`). Round 20's notes (`ROUND20.md`, removed 2026-10-06; git history) have the details.
 
 | Files | Used for | Source (Freesound id: title, author) | Cut (s) |
 |---|---|---|---|

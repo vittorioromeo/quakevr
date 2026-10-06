@@ -1,4 +1,4 @@
-// vr_juice.qc -- feedback that makes fights physical (docs/vr-port/ROUND7.md, item 13):
+// vr_juice.qc -- feedback that makes fights physical (ROUND7.md (removed 2026-10-06; git history), item 13):
 // - batting enemy projectiles back with a melee swing (vr_deflect);
 // - a heartbeat in the hands when your health is low (vr_heartbeat).
 // The melee itself (blows, the parry stance, bashes and shoves) is in vr_melee.qc. Hit reactions (vr_hit_push),
@@ -80,7 +80,7 @@ float(entity e) VR_Deflect_IsProjectile =
            e.movetype == MOVETYPE_BOUNCEMISSILE;
 };
 
-// Batting projectiles back (vr_deflect; docs/vr-port/ROUND15.md, ROUND21.md "Deflection by blows and bashes; catching
+// Batting projectiles back (vr_deflect; ROUND15.md (removed 2026-10-06; git history), ROUND21.md "Deflection by blows and bashes; catching
 // grenades; ogre aim"). Only an armed hand bats: a weapon or a club (VR_Melee_HoldsWeapon; an empty hand never does
 // since ROUND21.md "Debug menu; quad sound; grenade catch default; no empty-hand deflection": a projectile flies past
 // it or hits you, a grenade is caught). A batting swing is a motion whose striking part (the far end of what the hand holds:

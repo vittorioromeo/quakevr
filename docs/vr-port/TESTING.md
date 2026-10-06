@@ -145,6 +145,10 @@ context and screenshot, ready to paste or to point me at.
 
 ## What to try
 
+The round logs before round 21 (`ROUND6.md` to `ROUND20.md`) were removed on 2026-10-06; to read one,
+`git log --diff-filter=D -- docs/vr-port/ROUND20.md` gives the commit that removed it and `git show <commit>^:docs/vr-port/ROUND20.md`
+prints it.
+
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
   - **The crowbar** (ROUND21.md, same title): one lies in the firing range's prop area, north of the chainsaw. Hold it
     as a sword: by its black tape, one hand or two (the other hand below the first, or on the bar above the hands,
@@ -818,7 +822,7 @@ SteamVR (or Virtual Desktop) is restarted too, it is them. The Memory Log (`vr_m
 minute in `quakevr/profile/memstats_<date>.csv`) also times each frame whatever `vr_profile` is: our CPU work
 (`busy_ms`) and the eyes' GPU time (`gpu_eyes_ms`) next to the runtime's waits (`xr_waitframe_ms`, `xr_submit_ms`,
 `gpu_submit_ms`) and missed refreshes (`slow_frames`), with counts of what there is to draw (corpses, thrown weapons,
-decals, lights, particles). Note the time when it feels slower and send that file (ROUND16.md, "Slowdown"). Its GPU
+decals, lights, particles). Note the time when it feels slower and send that file (ROUND16.md, "Slowdown"; removed 2026-10-06; git history). Its GPU
 columns (clocks, slowdowns, each program's use of the GPU: `gpu_*`, `gpu3d_*`, `gpu_programs`) come from a sampling
 thread that runs only while profiling (`vr_profile`, the Profiler Panel or its CSV Capture) or with
 `vr_memstats_log_gpu 1` (Debug > Profiling and Memory > Memory Log: GPU); otherwise they are empty. With `developer 1` the console says when

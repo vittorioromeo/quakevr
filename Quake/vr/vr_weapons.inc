@@ -2309,7 +2309,7 @@ QVR_WEAPON_DEFAULT(19, ZeroBlend, "0.0")
 QVR_WEAPON_DEFAULT(19, TwoHZeroBlend, "0.0")
 
 // Round 20: the fingers on the guns' grips moved forward, so the fist wraps the (pistol) grip from
-// outside instead of the grip showing through the curled fingers (docs/vr-port/ROUND20.md, "Finger
+// outside instead of the grip showing through the curled fingers (ROUND20.md (removed 2026-10-06; git history), "Finger
 // poses on grips"): the shotgun, the super shotgun, the nailgun, the grenade and rocket launchers,
 // the lightning gun, the laser cannon, the proximity gun, the lava nailgun and the multi launchers.
 QVR_WEAPON_DEFAULT(1, FingersX, "0")

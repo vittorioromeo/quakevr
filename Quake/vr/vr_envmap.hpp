@@ -1,4 +1,4 @@
-// vr_envmap.hpp -- rim light and environment reflections on models (docs/vr-port/ROUND17.md, "Rim light and
+// vr_envmap.hpp -- rim light and environment reflections on models (ROUND17.md (removed 2026-10-06; git history), "Rim light and
 // weapon reflections").
 //
 // Rim light (vr_rim_light): a faint light round the edges of models facing away from the eye (fresnel), tinted by

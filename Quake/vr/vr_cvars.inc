@@ -401,7 +401,7 @@ QVR_CVAR(vr_mock_eye_size, "1024", CVAR_NONE)
 // sines at 5 to 13 Hz) over a slow turn of vr_mock_shake_turn degrees a second (from when it starts), both from the head's vr_mock_look.
 QVR_CVAR(vr_mock_shake, "0", CVAR_NONE)
 QVR_CVAR(vr_mock_shake_turn, "0", CVAR_NONE)
-// Upscaling and foveated rendering (round 20; vr_upscale.cpp, vr_foveated.cpp, docs/vr-port/ROUND20.md).
+// Upscaling and foveated rendering (round 20; vr_upscale.cpp, vr_foveated.cpp, ROUND20.md (removed 2026-10-06; git history)).
 QVR_CVAR(vr_upscale, "1", CVAR_ARCHIVE)                // below vr_render_scale 1, the upscale to the headset's size: 0 bilinear, 1 AMD FSR 1 (EASU + RCAS), 2 NVIDIA Image Scaling
 QVR_CVAR(vr_upscale_sharpness, "0.5", CVAR_ARCHIVE)    // ... its sharpening, 0 none .. 1 most (FSR: RCAS 2 stops below its most at 0.1, its most at 1; NIS: its slider)
 QVR_CVAR(vr_upscale_radius, "40", CVAR_ARCHIVE)        // ... only within this many degrees of the lens centre, bilinear beyond (0: the whole image)
@@ -1444,7 +1444,7 @@ QVR_CVAR(vr_alpha_coverage, "1", CVAR_ARCHIVE)         // fences and grates (alp
 QVR_CVAR(vr_bloom_white, "0.5", CVAR_ARCHIVE)          // bloom of white and pale lights, times vr_bloom
 QVR_CVAR(vr_bloom_color, "1.5", CVAR_ARCHIVE)          // bloom of coloured lights (red buttons, blue panels), times vr_bloom
 QVR_CVAR(vr_bloom_adapt, "4", CVAR_ARCHIVE)           // bloom weakens the more of the view glows (0: never)
-// Tone mapping, dither, grading (round 17; vr_tonemap.cpp, docs/vr-port/ROUND17.md).
+// Tone mapping, dither, grading (round 17; vr_tonemap.cpp, ROUND17.md (removed 2026-10-06; git history)).
 QVR_CVAR(vr_tonemap, "1", CVAR_ARCHIVE)               // the eyes' scene in floats, its brightest rolled off by a filmic shoulder instead of clipped (lights keep their colour); 0: Quake's clamp
 QVR_CVAR(vr_exposure, "1", CVAR_ARCHIVE)              // brightness before the tone curve (with vr_tonemap; 1: as Quake)
 QVR_CVAR(vr_dither, "1", CVAR_ARCHIVE)                // the eyes' last dither into 8 bits, against banding: 0 off, 1 fixed on the screen (each eye its own), 2 changing each frame, 3 the same in both eyes

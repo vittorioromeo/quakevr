@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-// vr_tonemap.h -- the eyes' tone curve, colour grade and dither (vr_tonemap.cpp; docs/vr-port/ROUND17.md): the GLSL
+// vr_tonemap.h -- the eyes' tone curve, colour grade and dither (vr_tonemap.cpp; ROUND17.md (removed 2026-10-06; git history)): the GLSL
 // shared by Ironwail's post-process (gl_shaders.h) and the window's mirror (vr_stereo.cpp), and the renderer's hooks.
 // C and C++.
 //

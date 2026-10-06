@@ -1,7 +1,0 @@
-leaf 408 box (608,2096,256)-(736,2192,304) faces 6 tex ?,metal1_4,wbrick1_5
-leaf 433 box (128,2384,256)-(432,2416,304) faces 9 tex +0slip,?,wbrick1_5
-leaf 435 box (128,2352,256)-(400,2384,296) faces 4 tex ?,wbrick1_5
-leaf 436 box (368,2096,272)-(400,2352,304) faces 2 tex wbrick1_5
-leaf 439 box (352,2096,256)-(400,2352,272) faces 5 tex wbrick1_5
-leaf 450 box (528,2032,0)-(560,2064,256) faces 7 tex ?,wbrick1_5
-leaf 1082 box (576,192,0)-(1016,216,320) faces 7 tex ?,wbrick1_5,wiz1_4

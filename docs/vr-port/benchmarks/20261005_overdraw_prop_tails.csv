@@ -1,5 +1,0 @@
-dataset,scene,eye,gpu_every,repeats,frames,gpu_samples,cpu_frame_ms,gpu_frame_ms,physics_mean_ms,physics_p95_ms,physics_p99_ms,physics_worst_ms,prop_write_mean_ms,quakec_self_ms,particle_gpu_ms
-integrated-paired-props,props_active_1000_vr_prop_touch_fast_0,128,0,3,10800,0,6.091,0.0,1.3075,2.9543,5.5952,8.311,0.336,0.44399999999999995,0.0
-integrated-paired-props,props_active_1000_vr_prop_touch_fast_1,128,0,3,10800,0,5.078,0.0,1.0554,2.4966,5.1808,9.6167,0.2215,0.291,0.0
-integrated-paired-fire,fire_vr_particle_trim_0,2048,16,3,5400,337,2.934,2.48,0.1793,0.2301,0.2948,1.7873,0.0061,0.107,0.436
-integrated-paired-fire,fire_vr_particle_trim_1,2048,16,3,5400,337,3.064,2.405,0.1814,0.2292,0.2681,0.5477,0.0061,0.109,0.508

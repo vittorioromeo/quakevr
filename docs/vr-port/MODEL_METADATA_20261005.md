@@ -91,5 +91,5 @@ concurrent work; initial mixed-checkout runs were excluded from the final clean-
 Private configs were used throughout, with `-noconfigwrite`; this task did not install an executable
 or modify the player's config or `progs.dat`.
 
-Compact results are in `benchmarks/modelmetadata_20261005/`. Raw build logs, configs, screenshots and
+Compact results were in `benchmarks/modelmetadata_20261005/` (removed 2026-10-06; git history). Raw build logs, configs, screenshots and
 CSV captures remain under `build-cmake/modelmetadata-20261005/`.

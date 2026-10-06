@@ -12,7 +12,7 @@ them, summarises, and compares a baseline with new results.
   scenario's commands are this tree's).
 - Runner: the kit's `bench.sh` (`C:/OHWorkspace/qvr-kit/bench.sh`, with `bench_maps.ps1` and `bench_sheet.ps1`).
 
-The older one-off suite (`Misc/quakevr/perf_suite.py`, [PERFORMANCE_BENCHMARK_20261005.md](PERFORMANCE_BENCHMARK_20261005.md))
+The older one-off suite (`Misc/quakevr/perf_suite.py`, `PERFORMANCE_BENCHMARK_20261005.md`, removed 2026-10-06; git history)
 is the origin of the firing-range fixtures here; it needs a disposable base and parses the call tree's CSV. This suite
 runs in the kit's game folders and records whole-frame percentiles itself. (Some of perf_suite's switches are stale:
 `vr_retro_particles` no longer exists.)
