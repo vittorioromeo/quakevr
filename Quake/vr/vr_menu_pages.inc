@@ -1216,12 +1216,20 @@ void retroAllUncheckCategories()
     };
 }
 
+// What the Relighting page showed of the tool when built (relight::toolPageState: found, a download running): a change
+// rebuilds it (items()).
+int relightToolState = -1;
+
 // Graphics > Relighting (vr_relight.cpp; docs/RELIGHTING.md, "Relighting in the game"): ericw-tools' light on the map you
 // are in, in the background, with these settings; then the map reloaded where you are. Or many maps (Many Maps): an
-// episode, a game, the Map Library's, every one, a few side by side, the bar showing how far.
+// episode, a game, the Map Library's, every one, a few side by side, the bar showing how far. With no light.exe found,
+// Tool offers the download of ericw-tools (vr_relight_tool.cpp).
 [[nodiscard]] za::Vector<Item> pageGraphicsRelighting()
 {
-    return {
+    relightToolState = relight::toolPageState();
+    [[maybe_unused]] const bool found = (relightToolState & 1) != 0;
+    const bool downloading = (relightToolState & 2) != 0;
+    za::Vector<Item> list{
         info(relight::statusLine),
         progressBar(relight::progress, relight::progressText),
         info(relight::detailLine),
@@ -1259,9 +1267,33 @@ void retroAllUncheckCategories()
         command("Defaults", "vr_relight_defaults").help("Every setting on this page back to the relight script's look."),
         header("Tool"),
         info(relight::toolLine),
-        command("Status in the Console", "vr_relight_status").developer(),
-        command("Write the Texture Lights", "vr_relight_lights").developer().help("Writes the lights this map's textures get with these settings to relight_lights.txt and lists them in the console (to compare with relight_maps.py --list-glows)."),
     };
+    if(downloading)
+    {
+        list.pushBack(progressBar(relight::tool::progress, relight::tool::progressText));
+        list.pushBack(info(relight::tool::statusLine));
+        list.pushBack(command("Cancel Download", "vr_relight_get_tool cancel").help("Stops the download: nothing of it is kept."));
+    }
+    else
+    {
+        if(relight::tool::statusLine()[0])
+        {
+            list.pushBack(info(relight::tool::statusLine)); // (the last download's result: a job's end rebuilds the page)
+        }
+#ifdef _WIN32 // (the release's light.exe: elsewhere, build ericw-tools and set vr_relight_tool)
+        if(!found)
+        {
+            list.pushBack(command("Download ericw-tools (27.5 MB)", "vr_relight_get_tool")
+                    .help("Relighting needs ericw-tools' light, which this copy of Quake VR does not have. Downloads ericw-tools "
+                          "2.0.0-alpha11 from its GitHub release (27.5 MB, checked against its known SHA-256) into "
+                          "quakevr/tools/ericw-tools: light.exe, its libraries and their licences (GPL-3, Apache-2.0)."));
+        }
+#endif
+    }
+    list.pushBack(command("Status in the Console", "vr_relight_status").developer());
+    list.pushBack(command("Tool Lookup in the Console", "vr_relight_get_tool status").developer().help("vr_relight_get_tool status: the light.exe found, where the download goes, the pinned file (version, size, sha256) and the last download's result."));
+    list.pushBack(command("Write the Texture Lights", "vr_relight_lights").developer().help("Writes the lights this map's textures get with these settings to relight_lights.txt and lists them in the console (to compare with relight_maps.py --list-glows)."));
+    return list;
 }
 
 // Graphics > Retro Lighting (vr_retrolight.cpp; ROUND21.md, "Retro lighting"): the light in Quake's coarse look, to go

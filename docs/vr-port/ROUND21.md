@@ -25978,3 +25978,37 @@ phantom swordsman (`sword.mdl`), guardian, wrath, eel, dragon and lava man have 
 Kill a vore and a centroid (Hipnotic) and watch them go limp; behead both with a slash; cut a centroid's legs and gun
 pods off and pick them up; the Ragdoll Settings rows. Open: the centroid's arms (its gun pods) weigh more than its body
 (their hulls' volume); its masses (vore 160, centroid 180) are guesses.
+## ericw-tools downloaded in the game (2026-10-06)
+
+Graphics > Relighting's Tool section, when no `light.exe` is found, offers **Download ericw-tools (27.5 MB)**
+(`vr_relight_get_tool [force | cancel | status]`; `Quake/vr/vr_relight_tool.cpp`). One pinned file: ericw-tools
+2.0.0-alpha11's `ericw-tools-2.0.0-alpha11-win64.zip`, 27,503,991 bytes, SHA-256 `4e5ea11b...0745f` (the author's
+local copy and GitHub's agree). Windows only.
+
+- **Job**: a thread of its own (as the Map Library's install): `Download` (libcurl) into memory, its `abort` the cancel
+  flag; size and sha256 (`vr_sha256`) checked before anything is written; miniz unpacks only `light.exe`,
+  `embree4.dll`, `tbb12.dll`, `tbbmalloc.dll`, `gpl_v3.txt`, `LICENSE-embree.txt`, `README.md` (the package's set, by
+  exact name at the zip's root: no entry path can leave the folder) plus a `NOTICE.txt` it writes (source offer, SHA-256)
+  into `<dir>.download/`, then moves them file by file into `<dir>`, `light.exe` last (a folder rename fails:
+  `Sys_ReplaceFile`'s `MOVEFILE_REPLACE_EXISTING` refuses folders), and removes `.download/`. A failure, a cancel
+  (`vr_relight_cancel`, the page's Cancel Download) or a quit (`VR_StopDownloads` and `relight::shutdown`: cancelled,
+  3 s, then let go as `mapinstall::finish` does) keeps nothing.
+- **Where**: `<user base dir>/quakevr/tools/ericw-tools/` (the package's place; findTool's first look).
+  `vr_relight_tool_dir` (testing, not archived) moves it and makes it the only place looked in after
+  `vr_relight_tool`; `vr_relight_tool_url` (testing) downloads from elsewhere, still checked against the pin.
+- **The author's path** (`C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64/light.exe`) is now looked in only at Menu
+  Detail: Developer (`vr_menu_level` 2), his setting, so his builds keep finding it and players never rely on it.
+- **Page**: rebuilt when `relight::toolPageState()` changes (found, downloading, a result): a bar ("4.0 MB of 27.5 MB",
+  Checking, Unpacking), "Downloading ericw-tools 2.0.0-alpha11...", Cancel Download; after, a line ("ericw-tools
+  2.0.0-alpha11 installed: Relight This Map is ready.", "Download cancelled: nothing kept.", "Download failed: the
+  file is not ericw-tools' release (corrupted?)."). The Tool line's lookup (every 2 s) is redone at once when the
+  download ends or `vr_relight_tool`, `vr_relight_tool_dir` or Developer change. Developer rows: Tool Lookup in the
+  Console; Debug > Reports: Relighting: Tool Lookup.
+
+Tested headless (`vr_relight_tool_dir` an empty scratch folder): from GitHub (twice), downloaded, checked, unpacked
+(8 files), then `vr_relight` of e1m7 with it (0.4 s), and every map (79, id1 + hipnotic + rogue + quakevr) relit in
+1:52 at the defaults, 2 at once, 32 cores. A local server: `bad.zip` (one byte flipped) refused ("not ericw-tools
+2.0.0-alpha11's release ... not unpacked"), no folder made; `slow.zip` cancelled at 1.4 MB and quit at 1.5 MB: no
+folder, no `.download/`, the game gone in a second; `good.zip` installed and dm4 relit with it. The page through
+downloading, cancelled and installed (screenshots); `menu_vr dump`: the Download row only while none is found.
+Menu Detail Standard: not found; Developer: the author's path.

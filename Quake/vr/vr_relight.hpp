@@ -34,6 +34,11 @@ void shutdown();
 [[nodiscard]] const char* mapLine();
 [[nodiscard]] const char* toolLine();
 
+// Whether a light.exe is found (toolLine's look, at most every 2 s; at once after a download finished).
+[[nodiscard]] bool toolFound();
+// What the page shows of the tool (found, a download running, its result), as a number: a change rebuilds the page.
+[[nodiscard]] int toolPageState();
+
 // The compact line shown outside the menu while a relighting runs (the wrist gadget's screen, the flat screen's
 // corner): "RELIGHT 3/12 45% 2:10"; null when none runs (or vr_relight_indicator 0).
 [[nodiscard]] const char* indicator();

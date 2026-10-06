@@ -37,6 +37,7 @@
 
 #include "vr_relight.hpp"
 #include "vr_relight_maps.hpp"
+#include "vr_relight_tool.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -107,7 +108,8 @@ constexpr double glowBudget = 300.0;
 constexpr int contentsEmpty = -1;
 constexpr int contentsSolid = -2;
 constexpr const char* lightOptions = "-lit -lux -lightgrid"; // relight_maps.py's -lit and OUTPUT_ARGS
-// The author's ericw-tools (relight_maps.py's DEFAULT_LIGHT), the last place looked in.
+// The author's ericw-tools (relight_maps.py's DEFAULT_LIGHT), the last place looked in, and only at Menu Detail:
+// Developer (vr_menu_level 2): a player never relies on a path that exists on one machine.
 constexpr const char* authorsLight = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64/light.exe";
 
 // Python's sum() of floats (3.12 on: Neumaier's compensated sum), which relight_maps.py's numbers come from: the same
@@ -2322,8 +2324,9 @@ struct Fnv
     }
 };
 
-// ericw-tools' light: vr_relight_tool, else the one Quake VR ships (tools/ericw-tools/ in a game folder), ERICW_LIGHT,
-// PATH, the author's. Empty: none.
+// ericw-tools' light: vr_relight_tool, else the one Quake VR ships or downloaded (tools/ericw-tools/ in a game folder),
+// ERICW_LIGHT, PATH, the author's (Menu Detail: Developer only). vr_relight_tool_dir (testing): that folder alone after
+// vr_relight_tool. Empty: none.
 [[nodiscard]] za::String findTool()
 {
 #ifdef _WIN32
@@ -2334,6 +2337,11 @@ struct Fnv
     if(vr_relight_tool.string[0])
     {
         return Sys_FileType(vr_relight_tool.string) & FS_ENT_FILE ? za::String{vr_relight_tool.string} : za::String{};
+    }
+    if(tool::testDir())
+    {
+        const char* path = va("%s/%s", tool::installDir(), exe);
+        return Sys_FileType(path) & FS_ENT_FILE ? za::String{path} : za::String{};
     }
     for(const searchpath_t* s = com_searchpaths; s; s = s->next)
     {
@@ -2357,7 +2365,7 @@ struct Fnv
         return onPath;
     }
 #ifdef _WIN32
-    if(Sys_FileType(authorsLight) & FS_ENT_FILE)
+    if(vr_menu_level.value >= 2.f && (Sys_FileType(authorsLight) & FS_ENT_FILE))
     {
         return za::String{authorsLight};
     }
@@ -3044,7 +3052,9 @@ void startBatch(za::Vector<maps::Source> sources, bool single, bool force)
     const za::String tool = findTool();
     if(tool.empty())
     {
-        say("ericw-tools' light not found: set vr_relight_tool to its light.exe (docs/RELIGHTING.md)");
+        say(tool::running() ? "ericw-tools is being downloaded: relight when it is done"
+                            : "ericw-tools' light not found: Download ericw-tools on the page (vr_relight_get_tool), or set "
+                              "vr_relight_tool to a light.exe (docs/RELIGHTING.md)");
         return;
     }
     batch = Batch{};
@@ -3287,6 +3297,11 @@ void batchCommand()
 
 void cancelCommand()
 {
+    if(tool::cancel())
+    {
+        say("cancelling the ericw-tools download...");
+        return;
+    }
     if(!batch.active)
     {
         say("nothing is being relit");
@@ -3400,6 +3415,9 @@ char indicatorText[64];
 char mapText[512];
 char toolText[MAX_OSPATH + 64];
 double toolCheckedAt{0.0}; // when toolText was made (Sys_DoubleTime)
+bool toolWasFound = false; // what toolText says
+int toolGeneration = -1;   // the tool::generation() toolText was made at (a download finished: looked again at once)
+za::String toolCvars;      // vr_relight_tool, vr_relight_tool_dir and Menu Detail: Developer then (a change: looked again at once)
 
 // The maps the batch has done with (relit, skipped, failed).
 [[nodiscard]] int doneCount()
@@ -3430,10 +3448,12 @@ void registerCommands()
     Cmd_AddCommand("vr_relight_status", statusCommand);
     Cmd_AddCommand("vr_relight_defaults", defaultsCommand);
     Cmd_AddCommand("vr_relight_lights", lightsCommand);
+    Cmd_AddCommand("vr_relight_get_tool", tool::command); // (vr_relight_tool.cpp)
 }
 
 void poll()
 {
+    tool::poll(); // (a finished ericw-tools download's line)
     if(saving)
     {
         if(Host_IsSaving())
@@ -3476,6 +3496,7 @@ void poll()
 
 void shutdown()
 {
+    tool::finish(); // (an ericw-tools download cancelled, its half-made folder removed)
     if(batch.active)
     {
         cancelBatch(nullptr); // (no half-made files left in the work folder)
@@ -3636,14 +3657,32 @@ const char* toolLine()
 {
     // (looked for again every two seconds while the page shows it: a file check a search path folder)
     const double now = Sys_DoubleTime();
-    if(toolText[0] && now < toolCheckedAt + 2.0)
+    const za::String cvars = za::String{vr_relight_tool.string} + "|" + vr_relight_tool_dir.string +
+                             (vr_menu_level.value >= 2.f ? "|dev" : "");
+    if(toolText[0] && now < toolCheckedAt + 2.0 && toolGeneration == tool::generation() && toolCvars == cvars)
     {
         return toolText;
     }
     toolCheckedAt = now;
-    const za::String tool = findTool();
-    q_snprintf(toolText, sizeof(toolText), "%s", tool.empty() ? "light.exe: not found (vr_relight_tool)" : va("light.exe: %s", tool.cStr()));
+    toolGeneration = tool::generation();
+    toolCvars = cvars;
+    const za::String found = findTool();
+    toolWasFound = !found.empty();
+    q_snprintf(toolText, sizeof(toolText), "%s",
+        found.empty() ? "light.exe: not found (Download ericw-tools below, or vr_relight_tool)" : va("light.exe: %s", found.cStr()));
     return toolText;
+}
+
+bool toolFound()
+{
+    (void)toolLine();
+    return toolWasFound;
+}
+
+int toolPageState()
+{
+    // (what the page shows of the tool: found or not, a download running, its result; a change rebuilds the page)
+    return (toolFound() ? 1 : 0) | (tool::running() ? 2 : 0) | (tool::statusLine()[0] ? 4 : 0);
 }
 
 } // namespace qvr::relight

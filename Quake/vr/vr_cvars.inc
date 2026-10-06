@@ -1072,6 +1072,8 @@ QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quak
 // <game folder>/relit_custom/, then the map reloaded where you are. The defaults are relight_maps.py's look.
 QVR_CVAR(vr_relight_use, "1", CVAR_ARCHIVE)          // maps relit in the game (relit_custom/) over relight_maps.py's (next map; 0: not used)
 QVR_CVAR(vr_relight_tool, "", CVAR_ARCHIVE)          // ericw-tools' light.exe ("": the one shipped in quakevr/tools/ericw-tools, ERICW_LIGHT, PATH)
+QVR_CVAR(vr_relight_tool_dir, "", CVAR_NONE)         // testing: the folder vr_relight_get_tool downloads ericw-tools into and the only one light.exe is looked for in ("": quakevr/tools/ericw-tools in the user's base dir, then the usual lookup)
+QVR_CVAR(vr_relight_tool_url, "", CVAR_NONE)         // testing: where vr_relight_get_tool downloads from ("": the pinned GitHub release; any other must serve the same file, its sha256 is checked)
 QVR_CVAR(vr_relight_strength, "1", CVAR_ARCHIVE)     // all light from textures (lamps, glowing panels, lava), times relight_textures.cfg's strengths
 QVR_CVAR(vr_relight_lamps, "1", CVAR_ARCHIVE)        // ... the lamps and light panels' (fixtures), times that
 QVR_CVAR(vr_relight_glows, "1", CVAR_ARCHIVE)        // ... glowing buttons, panels, runes and slipgates', times that

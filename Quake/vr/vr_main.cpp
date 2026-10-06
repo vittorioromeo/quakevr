@@ -29,6 +29,7 @@
 #include "vr_mapindex.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_relight.hpp"
+#include "vr_relight_tool.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
 #include "vr_timescale.hpp"
@@ -1422,6 +1423,7 @@ extern "C" void VR_StopDownloads()
 {
     mapindex::finish();
     mapinstall::finish();
+    relight::tool::finish(); // an ericw-tools download (Graphics > Relighting), cancelled (vr_relight_tool.cpp)
 }
 
 extern "C" void VR_Shutdown()

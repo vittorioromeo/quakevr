@@ -39,6 +39,7 @@
 #include "vr_held.hpp"
 #include "vr_props.hpp"
 #include "vr_relight.hpp"
+#include "vr_relight_tool.hpp"
 #include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_weight.hpp"
@@ -4302,6 +4303,7 @@ za::Vector<Item> pageDebugReports()
                   "each texture (its kind, where its glow came from: fullbright pixels or a glow image's file, its lights), "
                   "and the lights into relight_lights.txt (to compare with relight_maps.py --list-glows)."),
         command("Relighting: Status", "vr_relight_status").help("vr_relight_status: the relighting's state (a batch's maps done, each light running: its stage and process id; the progress and time left), how the map in play is lit, the light.exe found."),
+        command("Relighting: Tool Lookup", "vr_relight_get_tool status").help("vr_relight_get_tool status: the light.exe found (or not), the folder Download ericw-tools writes, the pinned file (version, size, sha256), its URL and the last download's result. vr_relight_tool_dir points both lookup and download at a test folder; vr_relight_tool_url at a test server."),
         command("Relighting: Batch's Maps", "vr_relight_batch -list").help("vr_relight_batch -list: the maps Graphics > Relighting's Relight These Maps would take (Maps, Episode, Game), with their files and sizes, without relighting them."),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
@@ -7313,6 +7315,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         weaponOffsetsStale = true; // Align Sights to My Aim: its phase or its result changed
         weaponOffsetsSightFocus = true;
+    }
+    if(pages[page].build == pageGraphicsRelighting && relightToolState >= 0 && relightToolState != relight::toolPageState())
+    {
+        done[page] = false; // light.exe found or not, a download started or ended: Download ericw-tools shown or not
     }
     if(pages[page].build == pageBodyArms && armsPageCalibrated >= 0 && armsPageCalibrated != (bodycal::calibrated() ? 1 : 0))
     {
