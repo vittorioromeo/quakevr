@@ -1642,6 +1642,10 @@ void playFrameEnd(za::Vector<Event>& events, bool tick, double svDt)
                 nextFrame = 0;
                 wallStart = Sys_DoubleTime();
                 playClock = 0.0;
+                if(opts.rate > 0.f && !opts.quiet)
+                {
+                    Cmd_ExecuteString("host_tickstats reset", src_command); // the server's ticks at that rate
+                }
             }
             return;
         }
@@ -1711,6 +1715,11 @@ void playFrameEnd(za::Vector<Event>& events, bool tick, double svDt)
             {
                 state = State::Post;
                 postElapsed = 0.0;
+                if(opts.rate > 0.f && !opts.quiet)
+                {
+                    Con_Printf("vr_motion_play: the server's ticks over the take at %g Hz frames (jitter %g):\n", opts.rate, opts.jitter);
+                    Cmd_ExecuteString("host_tickstats", src_command);
+                }
             }
             return;
         }

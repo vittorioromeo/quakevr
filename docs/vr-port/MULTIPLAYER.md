@@ -31,9 +31,10 @@ aid `vr_dumpplayer [client]` (vr_server.cpp).
 - **Latency.** There is no client-side prediction: movement, climbing pull-ups, grapple swings and pushed props all
   arrive one round trip late. Box3D runs only on the server. Melee is judged from hand poses sampled at the server's
   tick against monsters where the server has them, with no lag compensation.
-- **Tick rate.** A dedicated server ticks at `sys_ticrate` 0.05 (20 Hz; measured 22.5 packets/s [run]), and only
-  the last `clc_move` of each tick is kept. On a dedicated server, melee, climbing and hand bodies are therefore
-  sampled at 20 Hz, against 72 Hz on a listen server.
+- **Tick rate.** Both a listen and a dedicated server tick at a steady 72 Hz (`host_fixedtick 1`, the default since
+  2026-10-06; ROUND21.md, "Server tick rate"), and only the last `clc_move` of each tick is kept. Before it, a listen
+  server ran at half the headset's rate at 72-90 Hz (36 Hz on a 72 Hz headset, 45 at 90, 60 at 120, 48 at 144) and a
+  dedicated one at `sys_ticrate` 0.05 (20 Hz; measured 16-22.5 [run]), which `host_fixedtick 0` brings back.
 - **Bandwidth per player.**
   - Up: about 25 KB/s (72 Hz × about 346 B).
   - Down, idle: 18 KB/s from a listen server, 5.7 KB/s from a dedicated one [run].
@@ -45,8 +46,8 @@ aid `vr_dumpplayer [client]` (vr_server.cpp).
 |---|---|---|
 | `clc_move` vanilla part | 19 B: cmd, time, 3 angles as shorts, 3 moves as shorts, buttons, impulse | cl_input.c:404-435 [code] |
 | `clc_move` VR block | **291 B**, all floats in world space: head angles, vrYaw, 2 × 80 B per hand (pos, rot, vel, throwVel, velMag, angVel, throwPos, throwAge), headVel, 2 muzzles, vrBits0 (short), teleport target, 2 hotspots, roomscale move, buttons, sawCord, handDrop, origin, headPos, 2 shot angles. Non-finite values drop the move. | vr_move.cpp:46-120 [code] |
-| Move rate | 72 Hz (`host_netinterval` 1/72), whatever the headset's refresh rate | host.c:124-126, 1300-1320 [code] |
-| Server → client rate | Listen server: 72 Hz. Dedicated server: `sys_ticrate` 0.05, i.e. 20 Hz; measured 22.5 Hz [run] | host.c:71, 1326 |
+| Move rate | 72 Hz (`host_netinterval` 1/72, `host_fixedtick` 1), whatever the headset's refresh rate: a move each server tick, several in a frame below 72 fps. Before 2026-10-06 (`host_fixedtick 0`): half the headset's rate at 72-90 Hz (36 Hz at 72), because the float 1/72 was a little over an exact 1/72 s frame [run] | host.c `Host_FixedTicks`, `_Host_Frame` [code] |
+| Server → client rate | Listen and dedicated server: 72 Hz (a dedicated server's frame waits for the next tick, at most `sys_ticrate`); `host_fixedtick 0`: a dedicated one at `sys_ticrate` 0.05, i.e. 20 Hz | host.c, main_sdl.c [code] |
 | Coordinates and angles | `PRFL_INT32COORD` (1/16 unit, 4 B) and `PRFL_SHORTANGLE` | sv_main.c:1982 [code] |
 | Entity extras | `U_QVR_SCALE`, `SCALEORIGIN` and `OFFSET` are 12 B each; `NOROTATE` is 0 B but forces both extension bytes. They are set on **every** update, not delta-compressed. | vr_server.cpp:321-336 [code] |
 | Packet limit | 1400 B (`DATAGRAM_MTU`) for remote clients; 64000 locally. The shared datagram (sounds, particles, ropes) is copied into a client's packet only if it all fits. VR particle and rope writers check only `MAX_DATAGRAM`. | sv_main.c:1199, 1211; vr_ropesim.cpp:467 [code] |

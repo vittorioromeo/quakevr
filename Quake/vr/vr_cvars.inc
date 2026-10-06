@@ -204,9 +204,9 @@ QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
-// Test runs with vr_fixed_frames 1: the host frames a second of game time (72: a server frame with each, as before; 90: a
-// headset's frame rate, the server's frames on its own 72 Hz clock between them: the drawn motion's smoothness tests,
-// vr_drawn_motion_test).
+// Test runs with vr_fixed_frames 1: the host frames a second of game time (72: a server tick with each; 90: a headset's
+// frame rate, the server's ticks on its own 72 Hz clock between them, as in the headset (host_fixedtick): the drawn
+// motion's smoothness tests, vr_drawn_motion_test, host_tickstats).
 QVR_CVAR(vr_fixed_frames_rate, "72", CVAR_NONE)
 // Test runs with vr_fixed_frames 1: each frame's time off by up to this fraction of a frame (0.02: a headset's +-2%), the
 // frames' times jittered around the rate (no drift); the server ticks on its own clock (host_tickstats).

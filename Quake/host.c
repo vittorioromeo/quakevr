@@ -162,6 +162,7 @@ static struct
 	double	sincetick, wallmin, wallmax; // the time between frames that ticked
 	char	pattern[TICKSTATS_PATTERN + 1];
 	int		box3dsteps;
+	double	svtime;			// the server's clock (slow motion's ticks are shorter)
 } tickstats;
 
 static void Host_TickStatsReset (void)
@@ -170,6 +171,7 @@ static void Host_TickStatsReset (void)
 	tickstats.tickmin = tickstats.wallmin = 1e9;
 	tickstats.sincetick = -1.0;
 	tickstats.box3dsteps = VR_Box3DSteps ();
+	tickstats.svtime = sv.active ? sv.qcvm.time : 0.0;
 }
 
 static void Host_TickStatsFrame (double frametime, int ticks, double ticklen)
@@ -238,6 +240,9 @@ static void Host_TickStats_f (void)
 			if (tickstats.lengths[i])
 				Con_Printf (" %s%.1f: %d", i == TICKSTATS_BINS ? ">=" : "", i * 0.5, tickstats.lengths[i]);
 		Con_Printf ("\nticks: the last frames' ticks: %s\n", tickstats.pattern);
+		if (sv.active)
+			Con_Printf ("ticks: the server's clock went %.3f s (x%.3f the frames')\n", sv.qcvm.time - tickstats.svtime,
+				(sv.qcvm.time - tickstats.svtime) / secs);
 		Con_Printf ("ticks: Box3D steps %d (%.2f a tick)\n", VR_Box3DSteps () - tickstats.box3dsteps,
 			tickstats.ticks ? (double)(VR_Box3DSteps () - tickstats.box3dsteps) / tickstats.ticks : 0.0);
 	}

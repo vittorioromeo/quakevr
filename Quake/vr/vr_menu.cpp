@@ -4254,6 +4254,14 @@ za::Vector<Item> pageDebugProfiling()
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),
+        header("Server Tick"),
+        toggle("Fixed 72 Hz Server Tick", host_fixedtick)
+            .help("host_fixedtick: the server (monsters, physics, your hands' blows) runs in steady 1/72 s ticks at any "
+                  "headset rate, the leftover time carried to the next frame. Off: the old way, a server frame once 1/72 s "
+                  "had built up: 36 Hz on a 72 Hz headset, 45 at 90, 60 at 120, 48 at 144 (to compare)."),
+        command("Server Tick Stats", "host_tickstats")
+            .help("host_tickstats: the server's ticks since the last press (console): ticks a second, their lengths, how "
+                  "many each frame ran (the last 48 frames as digits), Box3D's steps. Press it, play a while, press it again."),
         header("Threads"),
         toggle("Split Work Between Threads", vr_jobs_parallel)
             .help("The game's thread pool shares out the grasp solve, the liquids' volume, the decal atlas and the models' "

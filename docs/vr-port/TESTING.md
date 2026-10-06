@@ -854,7 +854,12 @@ numbers in less time (`wait600`: 6.7 s at `host_maxfps 90`, 1.7 s fast). Frames 
 `vr_fixed_frames`) keep their pace, and so does a take played in watch mode. The kit's `run.sh` sets it for every run
 (`-RealTime` leaves it off: a test that needs the wall clock with fixed frames, or measuring the frame cap). A `wait`
 waits for a server frame: on the real clock that is 1/72 s whatever the frame rate, so `wait600` is 8.3 s there;
-with `vr_fixed_frames 1` every frame is one. Sound (off in the kit) plays at the wall clock's pace, ahead of the game.
+with `vr_fixed_frames 1` every frame is one at 72 Hz (`vr_fixed_frames_rate`; at 90, four frames in five; below 72 a frame
+that runs two ticks counts once). Server ticks (ROUND21.md, "Server tick rate"): `vr_fixed_frames_rate <hz>` with
+`vr_fixed_frames_jitter 0.02` (each frame's time off by up to 2%, as a headset's), then `host_tickstats reset`, `wait...`,
+`host_tickstats`: ticks a second, their lengths, each frame's tick count, the server's clock, Box3D's steps;
+`host_fixedtick 0` for the old cadence. `vr_motion_play`/`vr_motion_eval ... rate <hz> [jitter <fraction>]` print them
+over the take. Sound (off in the kit) plays at the wall clock's pace, ahead of the game.
 `vr_walltime [label]` prints the wall clock and the process's CPU time since the last call; `vr_startup_times` the
 start-up's stages and the last map load's (with the work summed across them: model loads, image decoding, normal
 maps, uploads); `vr_normalmap_cache 2` makes the cached skin normal maps anyway and warns of any that differ.
