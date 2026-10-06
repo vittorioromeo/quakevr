@@ -24,6 +24,12 @@ public static class ShortcutPlanner
             new(Path.Combine(folder, name + ".lnk"), exe, LaunchCommand.Arguments(quakeDir, qvrDir, v), qvrDir, description, exe);
 
         var list = new List<ShortcutSpec>();
+        o = new ShortcutOptions
+        {
+            Desktop = o.Desktop, StartMenu = o.StartMenu, Flat = o.Flat, Log = o.Log,
+            DesktopDir = o.DesktopDir is null ? null : PathUtil.TryNormalize(o.DesktopDir),
+            StartMenuDir = o.StartMenuDir is null ? null : PathUtil.TryNormalize(o.StartMenuDir),
+        };
         if (o.Desktop && o.DesktopDir is not null)
         {
             list.Add(Launch(o.DesktopDir, "Quake VR", LaunchVariant.Vr, "Play Quake VR in your headset"));

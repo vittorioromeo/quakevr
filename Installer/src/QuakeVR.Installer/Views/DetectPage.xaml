@@ -1,0 +1,94 @@
+<UserControl x:Class="QuakeVR.Installer.Views.DetectPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <DockPanel DockPanel.Dock="Top">
+            <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Command="{Binding RescanCommand}" VerticalAlignment="Top" MinWidth="0" Padding="12,6">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE72C;" Style="{StaticResource Glyph}" FontSize="12" Margin="0,0,8,0" Foreground="{StaticResource Subtle}" />
+                    <TextBlock Text="Check again" FontSize="13" Foreground="{StaticResource Text}" />
+                </StackPanel>
+            </Button>
+            <StackPanel>
+                <TextBlock Text="Your PC" Style="{StaticResource PageTitle}" />
+                <TextBlock Style="{StaticResource PageSubtitle}" Text="What the installer found. Nothing has been changed." />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Checking... -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,16,0,0"
+                    Visibility="{Binding Detecting, Converter={StaticResource BoolToVis}}">
+            <ProgressBar IsIndeterminate="True" Width="160" Height="4" VerticalAlignment="Center" />
+            <TextBlock Text="Looking for Quake, its expansions and your VR software…" Style="{StaticResource Small}" Margin="12,0,0,0" />
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.3*" />
+                    <ColumnDefinition Width="28" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="QUAKE" Style="{StaticResource SectionTitle}" />
+                    <Border Style="{StaticResource CardBorder}" BorderBrush="{StaticResource Error}" Margin="0,0,0,8"
+                            Visibility="{Binding NoQuake, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <TextBlock Text="Quake was not found" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                            <TextBlock Style="{StaticResource Small}" Margin="0,3,0,0"
+                                       Text="Quake VR needs the full game (Steam, GOG or Epic; the original or the 2021 rerelease). If it is installed somewhere else, pick its folder." />
+                        </StackPanel>
+                    </Border>
+                    <ItemsControl ItemsSource="{Binding Quakes}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <RadioButton Style="{StaticResource ChoiceCard}" GroupName="quake" IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                             IsEnabled="{Binding Playable}"
+                                             Command="{Binding DataContext.SelectQuakeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                             CommandParameter="{Binding}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Path}" Style="{StaticResource Small}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </RadioButton>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="Use another Quake folder…" Style="{StaticResource LinkButton}" Command="{Binding BrowseQuakeCommand}"
+                            HorizontalAlignment="Left" Margin="2,2,0,4" />
+
+                    <TextBlock Text="EXPANSIONS" Style="{StaticResource SectionTitle}" Margin="2,8,0,8"
+                               Visibility="{Binding HasQuake, Converter={StaticResource BoolToVis}}" />
+                    <Border Style="{StaticResource CardBorder}" Padding="14,10,14,2" Visibility="{Binding HasQuake, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl ItemsSource="{Binding Expansions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource Badge}" Margin="0,0,12,0" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="13.5" Foreground="{Binding TitleBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Detail}" FontSize="11.5" Foreground="{Binding Brush}" VerticalAlignment="Center"
+                                                   TextAlignment="Right" Margin="12,0,0,0" MaxWidth="210" TextWrapping="Wrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="VR AND SYSTEM" Style="{StaticResource SectionTitle}" />
+                    <ItemsControl ItemsSource="{Binding SystemChecks}" ItemTemplate="{StaticResource CheckItemTemplate}" />
+                    <TextBlock Text="GAME FILES" Style="{StaticResource SectionTitle}" Margin="2,6,0,8"
+                               Visibility="{Binding HasQuake, Converter={StaticResource BoolToVis}}" />
+                    <ItemsControl ItemsSource="{Binding QuakeChecks}" ItemTemplate="{StaticResource CheckItemTemplate}" />
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

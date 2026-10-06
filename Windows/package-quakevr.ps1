@@ -83,13 +83,19 @@ if ($modified) { Write-Warning "tracked game files differ from the commit; their
 # debugger with it. The build names itself (VR_BuildVersion: the console, the VR Settings page, the report).
 $engineFiles = @(Get-ChildItem $bin -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in ".exe", ".dll", ".pak" -or $_.Name -eq "ironwail.pdb" })
 $toolFiles = @("relight_maps.py", "vis_maps.py", "quakepak.py", "quakeimage.py", "relight_probe.py")
+# ericw-tools' light (below): QVR_ERICW_TOOLS, or the author's copy, is the extracted release zip's folder.
+$ericw = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { "C:\OHWorkspace\ericw-tools-2.0.0-alpha11-win64" }
+$ericwFiles = @("light.exe", "embree4.dll", "tbb12.dll", "tbbmalloc.dll", "gpl_v3.txt", "LICENSE-embree.txt", "README.md")
+$haveEricw = Test-Path (Join-Path $ericw "light.exe")
 
 if ($DryRun) {
     $engineFiles | ForEach-Object { $_.Name }
     $gameFiles | ForEach-Object { "quakevr/$_" }
     $toolFiles | ForEach-Object { "quakevr/tools/$_" }
+    if ($haveEricw) { $ericwFiles + "NOTICE.txt" | ForEach-Object { "quakevr/tools/ericw-tools/$_" } }
     "QuakeVR.bat"
     "README-QuakeVR.txt"
+    "manifest.json"
     return
 }
 
@@ -98,7 +104,7 @@ New-Item -ItemType Directory -Force $dist | Out-Null
 
 # Engine.
 if (-not ($engineFiles | Where-Object { $_.Name -eq "ironwail.exe" })) { throw "no Release build in $bin (use -Build)" }
-if (-not ($engineFiles | Where-Object { $_.Name -eq "ironwail.pdb" })) { throw "no ironwail.pdb in $bin: crash reports would have no function names" }
+if (-not ($engineFiles | Where-Object { $_.Name -eq "ironwail.pdb" })) { throw "no ironwail.pdb in ${bin}: crash reports would have no function names" }
 foreach ($f in $engineFiles) { Copy-Item $f.FullName $dist }
 
 # Game folder: the allowlist above.
@@ -121,11 +127,10 @@ foreach ($f in $toolFiles) {
 # GPL-3, run as a separate program, never linked (docs/RELIGHTING.md, "ericw-tools' licence"). Shipped unchanged from
 # its release zip with its licence texts and a notice saying where its source is; the release page must offer
 # ericw-tools-2.0.0-alpha11-src.zip (that tag's source) beside the package. QVR_ERICW_TOOLS: the extracted zip's folder.
-$ericw = if ($env:QVR_ERICW_TOOLS) { $env:QVR_ERICW_TOOLS } else { "C:\OHWorkspace\ericw-tools-2.0.0-alpha11-win64" }
-if (Test-Path (Join-Path $ericw "light.exe")) {
+if ($haveEricw) {
     $ericwDist = Join-Path $tools "ericw-tools"
     New-Item -ItemType Directory -Force $ericwDist | Out-Null
-    foreach ($f in "light.exe", "embree4.dll", "tbb12.dll", "tbbmalloc.dll", "gpl_v3.txt", "LICENSE-embree.txt", "README.md") {
+    foreach ($f in $ericwFiles) {
         Copy-Item (Join-Path $ericw $f) $ericwDist
     }
     Copy-Item (Join-Path $root "Misc\quakevr\ericw-tools-NOTICE.txt") (Join-Path $ericwDist "NOTICE.txt")
@@ -155,6 +160,9 @@ Optional: relit maps and see-through water. id Software's maps can't be distribu
 you relight your own copy once, with quakevr\tools\relight_maps.py (Python 3) and
 ericw-tools. The steps are in docs/RELIGHTING.md in the Quake VR repository.
 "@
+
+# Every file's size and SHA-256, for the installer (Installer/; it refuses a package whose files do not match).
+& (Join-Path $PSScriptRoot "write-package-manifest.ps1") -Dir $dist
 
 $zip = Join-Path $root "dist\QuakeVR.zip"
 if (Test-Path $zip) { Remove-Item $zip }

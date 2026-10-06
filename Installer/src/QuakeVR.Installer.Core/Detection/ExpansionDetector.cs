@@ -119,7 +119,7 @@ public static class ExpansionDetector
             var detail = state switch
             {
                 ExpansionState.Ready => c.Folder == "dopa" ? "ready (single player)" : "ready",
-                ExpansionState.DetectedNotSupported => "detected, not yet supported (native support in progress)",
+                ExpansionState.DetectedNotSupported => "detected, not yet supported",
                 ExpansionState.Incomplete => status.Detail + ": verify the game's files in your store",
                 _ => "not installed",
             };

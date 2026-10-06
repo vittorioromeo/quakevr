@@ -57,6 +57,10 @@ public sealed class Downloader(HttpClient http)
                 catch (HttpRequestException e)
                 {
                     errors.Add($"{uri.Host}: {e.Message}");
+                    if (e.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden or HttpStatusCode.Gone)
+                    {
+                        break; // this host does not have it: no point asking again
+                    }
                 }
                 catch (IOException e) when (!ct.IsCancellationRequested)
                 {

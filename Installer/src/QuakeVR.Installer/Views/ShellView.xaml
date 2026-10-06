@@ -1,0 +1,87 @@
+<UserControl x:Class="QuakeVR.Installer.Views.ShellView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:QuakeVR.Installer.Views"
+             FontFamily="{StaticResource UiFont}" Background="{StaticResource Bg}"
+             TextOptions.TextFormattingMode="Ideal" UseLayoutRounding="True">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="232" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar: name, steps, footer. -->
+        <Border Background="{StaticResource Sidebar}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="26,30,20,22">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="QUAKE VR" FontFamily="{StaticResource DisplayFont}" FontSize="27" FontWeight="Bold"
+                               Foreground="{StaticResource Text}" />
+                    <Border Height="3" Width="44" Background="{StaticResource Accent}" HorizontalAlignment="Left" CornerRadius="1.5" Margin="1,8,0,0" />
+                    <TextBlock Text="Setup" FontSize="13" Foreground="{StaticResource Subtle}" Margin="1,10,0,0" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom">
+                    <TextBlock Text="{Binding InstallerVersion}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" />
+                    <TextBlock Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="0,4,0,0">
+                        <Run Text="by Vittorio Romeo · GPL" />
+                    </TextBlock>
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Steps}" Margin="0,44,0,0" VerticalAlignment="Top">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,18">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Width="26" Height="26" CornerRadius="13" Background="{Binding MarkerBrush}">
+                                    <TextBlock Text="{Binding Marker}" FontFamily="{Binding MarkerFont}" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{Binding MarkerText}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{Binding TitleBrush}" FontSize="14"
+                                           VerticalAlignment="Center" Margin="12,0,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+
+        <!-- Page and footer. -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid Margin="40,32,40,8">
+                <v:WelcomePage Visibility="{Binding IsWelcome, Converter={StaticResource BoolToVis}}" />
+                <v:DetectPage Visibility="{Binding IsDetect, Converter={StaticResource BoolToVis}}" />
+                <v:OptionsPage Visibility="{Binding IsOptions, Converter={StaticResource BoolToVis}}" />
+                <v:InstallPage Visibility="{Binding IsInstall, Converter={StaticResource BoolToVis}}" />
+                <v:DonePage Visibility="{Binding IsDone, Converter={StaticResource BoolToVis}}" />
+            </Grid>
+            <Border Grid.Row="1" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="40,14">
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="Back" Style="{StaticResource GhostButton}" Command="{Binding BackCommand}"
+                                Visibility="{Binding ShowBack, Converter={StaticResource BoolToVis}}" Margin="0,0,10,0" />
+                        <Button Content="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelCommand}"
+                                Visibility="{Binding Installing, Converter={StaticResource BoolToVis}}" />
+                        <Button Content="{Binding NextText}" Style="{StaticResource AccentButton}" Command="{Binding NextCommand}"
+                                Visibility="{Binding ShowNext, Converter={StaticResource BoolToVis}}" IsDefault="True" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding FooterHint}" Style="{StaticResource Small}" VerticalAlignment="Center" Foreground="{StaticResource Faint}" />
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

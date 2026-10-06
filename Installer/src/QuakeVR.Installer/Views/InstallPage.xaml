@@ -1,0 +1,39 @@
+<UserControl x:Class="QuakeVR.Installer.Views.InstallPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="Installing Quake VR" Style="{StaticResource PageTitle}" />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="Every file is checked against the release's SHA-256 as it is copied." />
+            <DockPanel Margin="0,30,0,10">
+                <TextBlock DockPanel.Dock="Right" Text="{Binding ProgressText}" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Text}"
+                           FontFamily="{StaticResource DisplayFont}" />
+                <TextBlock Text="{Binding StatusText}" Style="{StaticResource Body}" VerticalAlignment="Bottom" Foreground="{StaticResource Subtle}" />
+            </DockPanel>
+            <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100" Height="10" />
+            <Border Style="{StaticResource CardBorder}" BorderBrush="{StaticResource Error}" Margin="0,18,0,0"
+                    Visibility="{Binding HasInstallError, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <TextBlock Text="&#xE783;" Style="{StaticResource Glyph}" Foreground="{StaticResource Error}" FontSize="16" Margin="0,0,12,0" VerticalAlignment="Top" />
+                    <TextBlock Text="{Binding InstallError}" Style="{StaticResource Body}" />
+                </DockPanel>
+            </Border>
+            <TextBlock Text="DETAILS" Style="{StaticResource SectionTitle}" Margin="2,24,0,8" />
+        </StackPanel>
+        <Border Style="{StaticResource CardBorder}" Padding="12,10" Margin="0,0,0,10">
+            <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Log}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,2">
+                                <TextBlock Text="{Binding Glyph}" Style="{StaticResource Glyph}" FontSize="10" Foreground="{Binding Brush}"
+                                           VerticalAlignment="Top" Margin="0,4,10,0" Width="12" />
+                                <TextBlock Text="{Binding Text}" FontFamily="Cascadia Mono, Consolas" FontSize="12" Foreground="{StaticResource Subtle}" TextWrapping="Wrap" />
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+    </DockPanel>
+</UserControl>

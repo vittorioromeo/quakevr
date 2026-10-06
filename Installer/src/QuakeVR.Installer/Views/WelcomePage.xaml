@@ -1,0 +1,76 @@
+<UserControl x:Class="QuakeVR.Installer.Views.WelcomePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="FeatureIcon" TargetType="Border">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="#26D9782D" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="0,0,16,0" />
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Text="Quake, in virtual reality" Style="{StaticResource PageTitle}" FontSize="32" />
+            <TextBlock Style="{StaticResource PageSubtitle}" FontSize="15" MaxWidth="600" HorizontalAlignment="Left">
+                Hands, physics, full-body melee and a tuned look, built on the Ironwail engine. This installer sets
+                everything up in a few clicks.
+            </TextBlock>
+
+            <!-- An existing install: update or remove. -->
+            <Border Style="{StaticResource CardBorder}" Margin="0,24,0,0" BorderBrush="{StaticResource Accent}"
+                    Visibility="{Binding HasExisting, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Remove…" Style="{StaticResource GhostButton}" Command="{Binding UninstallCommand}"
+                            VerticalAlignment="Center" Margin="12,0,0,0" />
+                    <TextBlock Text="{Binding ExistingText}" Style="{StaticResource Body}" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+
+            <StackPanel Margin="0,30,0,0">
+                <DockPanel Margin="0,0,0,20">
+                    <Border Style="{StaticResource FeatureIcon}">
+                        <TextBlock Text="&#xE721;" Style="{StaticResource Glyph}" FontSize="17" Foreground="{StaticResource Accent}" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Finds your Quake" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                        <TextBlock Style="{StaticResource Small}" Margin="0,3,0,0"
+                                   Text="Steam, GOG or Epic, the original or the 2021 rerelease, and the expansions you own." />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel Margin="0,0,0,20">
+                    <Border Style="{StaticResource FeatureIcon}">
+                        <TextBlock Text="&#xE72E;" Style="{StaticResource Glyph}" FontSize="17" Foreground="{StaticResource Accent}" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Leaves your Quake untouched" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                        <TextBlock Style="{StaticResource Small}" Margin="0,3,0,0"
+                                   Text="Quake VR goes in its own folder and reads your game files, music included, where they are." />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel Margin="0,0,0,20">
+                    <Border Style="{StaticResource FeatureIcon}">
+                        <TextBlock Text="&#xE793;" Style="{StaticResource Glyph}" FontSize="17" Foreground="{StaticResource Accent}" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Looks and plays like the author's own" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                        <TextBlock Style="{StaticResource Small}" Margin="0,3,0,0"
+                                   Text="HD textures and relit maps, with the settings he plays with. Your height and body are calibrated at the first start." />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel>
+                    <Border Style="{StaticResource FeatureIcon}">
+                        <TextBlock Text="&#xE7FC;" Style="{StaticResource Glyph}" FontSize="17" Foreground="{StaticResource Accent}" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Works with your headset" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                        <TextBlock Style="{StaticResource Small}" Margin="0,3,0,0"
+                                   Text="Any OpenXR runtime: Virtual Desktop, SteamVR, Meta Quest Link. Flat-screen play too." />
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

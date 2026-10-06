@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The Quake VR installer's window (WPF): Welcome, Detect, Options, Install, Done. All the work is in
+       QuakeVR.Installer.Core; this project is the wizard around it. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>QuakeVR-Setup</AssemblyName>
+    <RootNamespace>QuakeVR.Installer</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\QuakeVR.Installer.Core\QuakeVR.Installer.Core.csproj" />
+  </ItemGroup>
+</Project>

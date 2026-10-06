@@ -68,7 +68,9 @@ public static class Uninstaller
             .Select(p => PathUtil.ToRelative(target, p))
             .Where(p => p != InstallRecord.FileName)
             .ToList();
-        result.PlayerFilesLeft.AddRange(remaining);
+        // The player's: everything left that the installer did not put there (kept textures and changed files are ours).
+        var ours = record.Files.Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        result.PlayerFilesLeft.AddRange(remaining.Where(p => !ours.Contains(p)));
         if (keptTextures || result.ChangedKept.Count > 0)
         {
             // Keep a record of what is still ours, so a later uninstall (or reinstall) can finish the job.

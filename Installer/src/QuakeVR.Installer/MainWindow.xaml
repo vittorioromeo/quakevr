@@ -1,0 +1,8 @@
+<Window x:Class="QuakeVR.Installer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="clr-namespace:QuakeVR.Installer.Views"
+        Title="Quake VR Setup" Width="1040" Height="720" MinWidth="920" MinHeight="660"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource Bg}">
+    <v:ShellView />
+</Window>

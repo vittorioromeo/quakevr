@@ -1,0 +1,80 @@
+<UserControl x:Class="QuakeVR.Installer.Views.OptionsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="Size" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Faint}" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="16,2,0,0" />
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <TextBlock Text="Options" Style="{StaticResource PageTitle}" />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="The defaults are what the author plays with. Change anything you like." />
+
+            <TextBlock Text="INSTALL FOLDER" Style="{StaticResource SectionTitle}" />
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource GhostButton}" Command="{Binding BrowseInstallDirCommand}" Margin="10,0,0,0" />
+                <TextBox Text="{Binding InstallDir, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <TextBlock Text="{Binding InstallDirError}" Style="{StaticResource Small}" Foreground="{StaticResource Error}" Margin="2,6,0,0"
+                       Visibility="{Binding HasInstallDirError, Converter={StaticResource BoolToVis}}" />
+            <TextBlock Text="{Binding DiskText}" Style="{StaticResource Small}" Margin="2,6,0,0" />
+
+            <TextBlock Text="COMPONENTS" Style="{StaticResource SectionTitle}" />
+            <Border Style="{StaticResource CardBorder}" Padding="16,14,16,4">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding CoreSizeText}" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="True" IsEnabled="False">
+                            <StackPanel>
+                                <TextBlock Text="Quake VR" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Text="The game: engine, models, sounds, the hub and its maps, and the author's settings." />
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding TexturesSizeText}" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="{Binding HdTextures}">
+                            <StackPanel>
+                                <TextBlock Text="HD textures" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Text="{Binding TexturesText}" />
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="about a minute" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="{Binding Relight}">
+                            <StackPanel>
+                                <TextBlock Text="Relight the maps at the first start" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0"
+                                           Text="Light from lamps, lava and glowing panels, made on your PC by the game's Relighting tool (Quake's maps cannot be shipped relit)." />
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="SHORTCUTS" Style="{StaticResource SectionTitle}" />
+            <Border Style="{StaticResource CardBorder}" Padding="16,14,16,4">
+                <UniformGrid Columns="2">
+                    <CheckBox IsChecked="{Binding DesktopShortcut}" Content="On the desktop" Margin="0,0,0,12" />
+                    <CheckBox IsChecked="{Binding StartMenuShortcuts}" Content="In the Start menu" Margin="0,0,0,12" />
+                    <CheckBox IsChecked="{Binding FlatShortcut}" Margin="0,0,0,12">
+                        <TextBlock Style="{StaticResource Body}"><Run Text="Flat-screen launcher" /><Run Text="  no headset" Foreground="{StaticResource Faint}" FontSize="12" /></TextBlock>
+                    </CheckBox>
+                    <CheckBox IsChecked="{Binding LogShortcut}" Margin="0,0,0,12">
+                        <TextBlock Style="{StaticResource Body}"><Run Text="Bug-report launcher" /><Run Text="  writes a log" Foreground="{StaticResource Faint}" FontSize="12" /></TextBlock>
+                    </CheckBox>
+                </UniformGrid>
+            </Border>
+
+            <DockPanel Margin="2,16,0,0">
+                <Button DockPanel.Dock="Right" Content="Use a package file…" Style="{StaticResource LinkButton}" Command="{Binding BrowsePackageCommand}" Margin="12,0,0,0" />
+                <TextBlock Text="{Binding PackageSourceText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -2,8 +2,9 @@
 
 Research for an installer that makes Quake VR trivial to play: it finds the player's Quake, installs the mod
 without touching Quake's own files, fetches the optional tools and assets, makes the shortcuts, and leaves a fresh
-install that looks and plays like the author's own. **There is no installer code yet**; this is the list of what it
-must do, with the facts from this repository it depends on, and a plan.
+install that looks and plays like the author's own. This is the list of what it must do, with the facts from this
+repository it depends on, and a plan. **Phase 1 of the installer exists**: a C# WPF app in `Installer/` (the author's
+choice of technology), described in [section 13](#13-the-installer-app-phase-1).
 
 The request (Vittorio, 2026-10-06) was cut off after "Out-of-the box, the mod should have the same settings". He
 confirmed it means **the same settings as his own setup**: a fresh install looks and plays like his tuned config,
@@ -23,6 +24,7 @@ other open questions are in [section 11](#11-decisions-vittorio-2026-10-06); the
 - [10. Implementation plan](#10-implementation-plan)
 - [11. Decisions (Vittorio, 2026-10-06)](#11-decisions-vittorio-2026-10-06)
 - [12. Problems found while researching](#12-problems-found-while-researching)
+- [13. The installer app (phase 1)](#13-the-installer-app-phase-1)
 - [Appendix A: the author's config against a fresh install](#appendix-a-the-authors-config-against-a-fresh-install)
 
 Sources: `docs/INSTALL.md`, `docs/RELIGHTING.md`, `docs/vr-port/TEXTURES.md`, `docs/vr-port/CREDITS.md`,
@@ -289,11 +291,13 @@ Keep `QuakeVR.bat` for zip users and for passing arguments; make it pass both ba
 | Custom launcher app (C++ / SDL or a small WinUI/WPF app) | full control: detection UI, downloads, relight progress, update check, launch variants, later "news"; reuses our C++ | more code to maintain; needs code signing to avoid SmartScreen; still needs a way to install the VC++ runtime it depends on (static CRT for the launcher) |
 | In-game first-run setup (reuse `Download()`/libcurl, miniz, threads, VR menus) | works in the headset; no second app; HQ textures and relight could be offered in VR; status pages already exist (`vr_campaign_status`) | the engine cannot start without `id1` (detection must precede it); a crashing VC++ runtime cannot be fixed from inside; relight needs Python or a C++ port of `relight_maps.py` (~900 lines) |
 
-**Recommendation:** an **Inno Setup** installer for what must happen before the game can run (prerequisites,
-detection, payload, shortcuts, optional downloads with pinned hashes), and an **in-game "Setup" page** for what is
-better done in the headset or after the first start (the relight, now an in-game tool; graphics preset by GPU,
-runtime suggestion, install HQ textures, update notice). No embedded Python. A separate launcher app is not needed
-yet; revisit if the setup grows (news, multiple profiles).
+**Chosen (Vittorio, 2026-10-06): a C# WPF app** (`Installer/`, section 13) for what must happen before the game can
+run (prerequisites, detection, payload, shortcuts, optional downloads with pinned hashes), and the game itself for
+what is better done in the headset or after the first start (the relight, an in-game tool started by the first
+launch; graphics preset by GPU, runtime choice, update notice). No embedded Python. The research's first
+recommendation was Inno Setup; the app costs more code but gives the detection page, progress, updates and the
+uninstaller in one place, in the language the author prefers. The app does not itself need the VC++ runtime it checks
+for (.NET carries its own native parts), so it can install it; a self-contained single-file publish needs no .NET either.
 
 ### Hosting and SmartScreen (decision 6)
 
@@ -327,12 +331,12 @@ installer and the update check try one, then the other). There is **no code-sign
 
 | Phase | Deliverable | Notes |
 |---|---|---|
-| 0. Prerequisite fixes | **done:** packaging from `git ls-files` (allowlist); ship `ironwail.pdb`; embed a version string; textures-only pack folders read as "missing"; Map Library zips checked against their sha256; Epic in `ownedRoots`. **Left:** a hash manifest; the relight's `_luma.png` lookup (the in-game relight tool); drop unused codec DLLs; confirm monster-model licences | [section 12](#12-problems-found-while-researching) |
-| 1. Minimal installer | Inno Setup, per-user, layout B: VC++ check/install, Steam/GOG/Epic/manual detection with a status page, payload copy, `install.json`, shortcuts (VR, flat, log), uninstaller keeping player data | replaces "unzip into the Quake folder" |
-| 2. Optional components | HQ textures (owned packs only, ticked), bundled `light.exe` + VisPatch, the in-game relight with progress (ticked), offline file pickers, pinned hashes | |
+| 0. Prerequisite fixes | **done:** packaging from `git ls-files` (allowlist); ship `ironwail.pdb`; embed a version string; textures-only pack folders read as "missing"; Map Library zips checked against their sha256; Epic in `ownedRoots`; **the package's hash manifest** (`manifest.json`, `Windows/write-package-manifest.ps1`, 2026-10-06). **Left:** the relight's `_luma.png` lookup (the in-game relight tool); drop unused codec DLLs; confirm monster-model licences | [section 12](#12-problems-found-while-researching) |
+| 1. Minimal installer | **done (2026-10-06, `Installer/`, section 13):** C# WPF wizard, per-user, layout B: Steam/GOG/Epic/manual detection with a status page (expansions by the engine's rules, OpenXR runtime, Virtual Desktop, SteamVR, VC++ runtime, music, an older zip install), payload copy checked against `manifest.json`, `install.json`, shortcuts (VR, flat, log, folder), update in place, uninstall keeping player data, downloads from `latest.json` with mirrors, resume and pinned hashes (tested on a local server only). **Left:** installing the VC++ runtime (only a link now), an Apps & Features entry and a Setup copy in the install folder (maintenance mode is "run the installer again"), a published single-file exe | replaces "unzip into the Quake folder" |
+| 2. Optional components | HQ textures (owned packs only, ticked: **done** from a local zip or the feed's `hdtextures`), bundled `light.exe` (**done**: in the package) + VisPatch (download), the in-game relight (**done**: the first Play in VR passes `+vr_relight_batch everything`), offline file pickers (package: done; textures: command line only), pinned hashes | |
 | 3. Defaults | promote the author's approved values (Appendix A) with a `defaultChanges` entry; first-run graphics preset and runtime suggestion in the game | needs his answers |
-| 4. Updates and repair | version check, update in place keeping player files, adopt zip installs, verify/repair | |
-| 5. Integrations | Steam non-Steam shortcut (explained, not written), SteamVR manifest, bug-report collector, Xbox app detection | each optional |
+| 4. Updates and repair | version check against `latest.json` at start, update in place keeping player files (**done**), adopt zip installs, verify (**done**: `qvr-setup verify`)/repair (re-run with the same package) | |
+| 5. Integrations | Steam non-Steam shortcut (explained on the last page, with the launch options to copy: **done**), SteamVR manifest, bug-report collector, Xbox app detection | each optional |
 
 ## 11. Decisions (Vittorio, 2026-10-06)
 
@@ -365,6 +369,53 @@ Found by the research; the ones marked **fixed** were fixed on branch `agent/rel
 | Map Library downloads are not checked against their sha256 | `vr_mapinstall.cpp` (`Download()` result used as is; the sha256 is an identifier) | **fixed**: a zip whose SHA-256 differs from the index's is neither kept nor unpacked (that mirror fails, the next is tried); `vr_sha256_test` |
 | Epic rerelease not in `ownedRoots` | `vr_gamedir.cpp` | **fixed**: the launcher's manifests are read (`-noepic`, `-epicmanifests <dir>` for tests) |
 | `build.sh` fails on HEAD `4504c684` | QC precedence check: `VR_Pack_Refresh`, `QC/vr_packutil.qc:50` | unrelated to this document |
+| `package-quakevr.ps1` did not parse | `"no ironwail.pdb in $bin: ..."` (PowerShell reads `$bin:` as a scoped variable) | **fixed** (`${bin}`): the packager failed at once, `-DryRun` included |
+| `-DryRun` left out the bundled ericw-tools | the dry run listed `quakevr/tools/*.py` only | **fixed**: it lists `quakevr/tools/ericw-tools/*` when the tool is found, and `manifest.json` |
+
+## 13. The installer app (phase 1)
+
+`Installer/` (its README has the build, the command lines and the tests). C#, WPF, .NET 9, no NuGet package.
+
+| Part | Where | What it does |
+|---|---|---|
+| Detection | `Core/Detection` | Steam: `HKCU\Software\Valve\Steam` `SteamPath` (then HKLM, then Program Files), every library of `steamapps\libraryfolders.vdf` (both VDF formats; a tolerant KeyValues reader), `appmanifest_2310.acf`'s `installdir`. GOG: the two registry keys of section 2. Epic: the launcher's `*.item` manifests (DisplayName has "quake", InstallLocation with `rerelease\id1\pak0.pak` or `id1\pak0.pak`). Manual: a folder, its `id1` or its `rerelease`. Each Quake gets its `id1` kind (original: pak0 + pak1, 1.06 sizes recognised; rerelease: large pak0 or `QuakeEX.kpf`; shareware; corrupt), its base dir (the original when present), its rerelease root, its music folder (read in place) and an older zip install (`<Quake>\quakevr`) |
+| Expansions | `ExpansionDetector`, `PackInspector`, `ResourceValidator` | The engine's rules, ported: hipnotic/rogue over the base dirs; dopa/mg1/mg3 over `ownedRoots` (Steam's rerelease, GOG enhanced, Epic, then each base's `..\rerelease`, `rerelease`, itself), highest first, a data-less folder skipped; pak directories and every listed resource checked as `validResource` does. The resource lists are the engine's own `Quake/vr/vr_pack_*.inc`, compiled in as resources. mg1/mg3: "detected, not yet supported" (decision 9). On the author's PC the report matches the game's `vr_campaign_status` line for line |
+| VR and system | `SystemChecks.cs` | `HKLM\SOFTWARE\Khronos\OpenXR\1` `ActiveRuntime` and `AvailableRuntimes` (classified by file name: VDXR, SteamVR, Quest Link, WMR); Virtual Desktop (the Streamer's folder or its runtime); SteamVR (app 250820 or its runtime); VDXR suggested when Virtual Desktop is installed and not active (decision 10); the VC++ runtime (`...\VC\Runtimes\x64` >= 14.44, a link to Microsoft's redistributable when older) |
+| Package | `PackageSource`, `PackageManifest` | A folder or zip (one top folder allowed) from `package-quakevr.ps1`, with its `manifest.json` (schema 1: version, path/size/SHA-256 per file). Paths are refused unless plainly relative inside the install folder |
+| Install | `InstallEngine` | Layout B (decision 2): refuses a folder inside (or around) the Quake folder, in Program Files, or not empty without an `install.json`; checks the free space; stages every file as `*.qvrnew` beside its destination while hashing it (a mismatch stops the install, naming the file), then moves them all into place: a failed or cancelled install changes nothing. HD textures (decision 4): `id1\textures` always, `hipnotic`/`rogue` only for owned packs, never over a file of the player's. Writes `install.json` (version, Quake dir, choices, every installed file with its hash and component, folders made, shortcuts, relight pending) |
+| Update | the same | Over an existing install: the new payload replaces the old; files the old version shipped and the new one does not are removed when unchanged (kept and reported when the player changed them); stale shortcuts removed; textures kept unless reinstalled; everything not in the record is the player's and is never touched |
+| Uninstall | `Uninstaller` | Removes the recorded files that are unchanged, the recorded shortcuts whose target is inside the install, then the folders it made once empty; HD textures only when asked; reports the player's files left. `Verify` lists missing or changed files |
+| Shortcuts | `Shortcuts/` | `IShellLinkW` through COM. Desktop: Quake VR; Start menu `Quake VR\`: Quake VR, (flat screen) `+vr_enabled 0`, (log for bug reports) `-condebug`, Quake VR files (the `quakevr` folder). All: `ironwail.exe -basedir "<Quake>" -basedir "<QVR>" -game quakevr`, started in `<QVR>`, paths without a trailing backslash |
+| Downloads | `Downloader`, `ReleaseFeed` | `latest.json` (schema 1: version, `package` and `components.hdtextures`, each with file, size, SHA-256 and mirror URLs) read from the first host that answers (GitHub's `releases/latest/download/latest.json`, then `vittorioromeo.com/quakevr/latest.json`: placeholders until the first release has one); each file from its mirrors in order, resumed with HTTP Range, checked for size and SHA-256 before it gets its name, a mirror serving another file skipped. `GitHubReleases` reads the releases API (assets' `digest: sha256:...`) for a later fallback. Tested only against local servers |
+| Window | `QuakeVR.Installer` | Welcome (update/remove when installed) > Your PC (the checks with status icons and fix hints; another folder) > Options (folder, components with sizes, shortcuts, package source) > Install (progress, log, Cancel) > Play (Play in VR, on the monitor, open the folder; VR Calibration, relight and VDXR notes; the Steam "Add a Non-Steam Game" steps with launch options to copy, decision 11). Dark theme, Segoe Fluent icons, dark title bar. Writes no settings (section 6) |
+| First-run relight | `LaunchCommand.FirstRunRelight` | The relight ticked (decision 4/5): the first Play in VR from the last page adds `+vr_relight_batch everything` (verified on a scratch install: "relighting 83 maps, 2 at once" with the packaged `light.exe`, no map loaded). Shortcuts never carry it. A player who starts from a shortcut instead relights from Graphics > Relighting |
+
+Verified on the author's PC (2026-10-06): detection finds Steam Quake (original 1.06 + rerelease, music in
+`rerelease\id1\music`, the older zip install), hipnotic/rogue/dopa ready, mg1/mg3 detected not supported, VDXR active,
+SteamVR, VC++ 14.51. A real `package-quakevr.ps1` package (1,684 files, 260 MB, with `manifest.json`) installed into a
+scratch folder in 3.4 s with every hash checked; the game started from its desktop shortcut (hidden, mock headset)
+found the same campaigns; the Steam Quake folder's 3,626 files were unchanged (sizes and times); uninstall left only the
+game's own `qconsole.log`/`history.txt`. The window's download path ran against a local server (a dead feed, then a
+dead mirror, then the file).
+
+Next phases:
+
+1. **Ship it:** `dotnet publish` single-file self-contained exe; copy it into `<QVR>` as `QuakeVR-Setup.exe` with an
+   Apps & Features entry (`HKCU\...\Uninstall\QuakeVR`, per-user) and a "Quake VR Setup" Start menu shortcut (maintenance
+   mode = the Welcome page's Update / Remove); publish `latest.json` with each release on both hosts.
+2. **Prerequisites:** run Microsoft's VC++ redistributable when it is missing or old (bundled or downloaded, checked by
+   its signature), the one step that needs elevation.
+3. **Optional components:** VisPatch data (pinned hashes, section 4), a texture-zip picker in the window, sizes from the
+   feed before downloading.
+4. **Updates:** check `latest.json` at start and on the Welcome page; adopt an older zip install (move its config, saves,
+   notes and `relit\` with the player's consent, never deleting the old ones).
+5. **Later:** the in-game first-run graphics preset; a "collect a bug report" button; SteamVR `.vrmanifest`; Xbox app
+   detection; a code-signing certificate if SmartScreen becomes a problem.
+
+Open questions for the author: the hosts' exact `latest.json` URLs and the release asset names; whether the relight
+should also start from a shortcut's first launch (an engine-side one-shot flag, e.g. a file the game deletes after
+starting the batch); whether to show the installer's own version check before the Welcome page.
+
 
 ## Appendix A: the author's config against a fresh install
 
