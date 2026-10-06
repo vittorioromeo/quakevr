@@ -15,6 +15,7 @@ Official Campaigns: drawn in the big menu font
 Map tips: the CRT tip near the vrstart start appears; REPEAT tips come back; List This Map's Tips works
 Map Library: Down the Gutter now plays (page says which map Play starts); reinstall November-Schlacht to get its sky back; AD/Copper maps are flagged
 Training dummy: with Dummy Dies on it dies exactly like a grunt (beheaded, head pops by chance, ragdoll, gibs), stands again after 2 s
+Music: plays from your own rerelease install in e1m1, hip1m1, r1m1, an mg3 and a dopa map; vrstart hub track is the one you want
 
 [Menus and maps]
 Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
@@ -58,8 +59,6 @@ start: the hidden staircase cover stays until all episodes are done
 [Graphics]
 Retro textures and lighting: crisp blocks with no crawl; per-category settings and Pick overrides work
 Quetoo maps: walls by a lamp and the flashlight; pick a specular level
-Decals follow relief with no hitch when many land; particles stay sharp in heavy fights
-Flashlight: model, cord and clip-on look and feel right
 
 [Sound and recording]
 Sound: Full-Band Sound and HRTF Anti-Aliasing place sounds clearly, no hiss
@@ -67,9 +66,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
-Multiplayer: debris client-only or gameplay; melee speed a server rule?
 Map tips: seen-tips limit (~80), targetname naming clash, tip_delay 0
-Map Library: prune the download cache (about 60 MB per package)?
 
 [Tune]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
