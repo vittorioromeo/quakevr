@@ -101,12 +101,25 @@ struct Brushes
     int dropped = 0;            // solid leaves with no volume left (slivers under the build's epsilon)
     int hull1Leaves = 0;        // the world's hull 1 solid leaves looked at for clip brushes
     int numnodes = 0;
+    za::U64 key = 0;            // the world's content (keyOf): what they are kept under for the same map's next load
+    // The world's own (build): external models' brushes, planes and leaves follow (subOf), let go when kept.
+    za::SizeT worldSubs = 0, worldPlanes = 0, worldBrushes = 0, worldLeafBrush = 0;
+    int worldBevels = 0, worldDropped = 0;
     auto members()
     {
         return qvr::mem::list(clipnodes, planes, brushes, leafBrush, subs, modelSub, clips, leafClipStart, leafClipList, clipStamp, stamp, hull1Clip, ms,
-            clipMs, bevels, dropped, hull1Leaves, numnodes);
+            clipMs, bevels, dropped, hull1Leaves, numnodes, key, worldSubs, worldPlanes, worldBrushes, worldLeafBrush, worldBevels,
+            worldDropped);
     }
 };
+
+// Its heap bytes (a kept map's: KeptMap).
+za::SizeT heldBytes(const Brushes& b)
+{
+    return mem::heldBytes(b.planes) + mem::heldBytes(b.brushes) + mem::heldBytes(b.leafBrush) + mem::heldBytes(b.subs) +
+           mem::heldBytes(b.modelSub) + mem::heldBytes(b.clips) + mem::heldBytes(b.leafClipStart) +
+           mem::heldBytes(b.leafClipList) + mem::heldBytes(b.clipStamp) + mem::heldBytes(b.hull1Clip);
+}
 mem::Cache<Brushes> built{"hull brushes", mem::MapChange};
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -552,10 +565,10 @@ void addSubModel(Brushes& b, const hull_t& hull0, int numnodes, za::U32 base, in
     b.subs.pushBack(SubModel{hull0.clipnodes, head, base, first, static_cast<za::U32>(b.brushes.size()) - first});
 }
 
-void build(qmodel_t* world)
+// The map as brushes into b (the world's content: key).
+void build(Brushes& b, qmodel_t* world, za::U64 key)
 {
     const auto t0 = za::Clock::nowNanoseconds();
-    Brushes& b = built;
     const hull_t& hull0 = world->hulls[0];
     b.clipnodes = hull0.clipnodes;
     b.numnodes = world->numnodes;
@@ -632,6 +645,48 @@ void build(qmodel_t* world)
     const auto t2 = za::Clock::nowNanoseconds();
     b.clipMs = (static_cast<double>(t2 - t1) / 1e6);
     b.ms = (static_cast<double>(t2 - t0) / 1e6);
+    b.key = key;
+    b.worldSubs = b.subs.size();
+    b.worldPlanes = b.planes.size();
+    b.worldBrushes = b.brushes.size();
+    b.worldLeafBrush = b.leafBrush.size();
+    b.worldBevels = b.bevels;
+    b.worldDropped = b.dropped;
+}
+
+// What the map's brushes and compiled hulls are made from, hashed (they are kept for a load of a map with the same:
+// keepForReload): hull 0's nodes (the brushes' walk), hull 1's (the clip brushes'), the planes, the models' heads and
+// bounds, and the build's version (to be bumped when a change to the build changes its results).
+constexpr za::U64 buildVersion = 1;
+za::U64 keyOf(const qmodel_t* world)
+{
+    namespace wy = ankerl::unordered_dense::detail::wyhash;
+    za::U64 h = wy::mix(buildVersion, 0x9e3779b97f4a7c15ull);
+    const auto add = [&h](const void* p, za::SizeT bytes) { h = wy::mix(h ^ bytes, p && bytes ? wy::hash(p, bytes) : 0); };
+    const int counts[] = {world->numnodes, world->numclipnodes, world->numplanes, world->numsubmodels};
+    add(counts, sizeof(counts));
+    const hull_t& h0 = world->hulls[0];
+    const hull_t& h1 = world->hulls[1];
+    add(h0.clipnodes, static_cast<za::SizeT>(za::max(world->numnodes, 0)) * sizeof(mclipnode_t));
+    add(h1.clipnodes, static_cast<za::SizeT>(za::max(world->numclipnodes, 0)) * sizeof(mclipnode_t));
+    const int range[] = {h0.firstclipnode, h0.lastclipnode, h1.firstclipnode, h1.lastclipnode};
+    add(range, sizeof(range));
+    add(h1.clip_mins, sizeof(vec3_t));
+    add(h1.clip_maxs, sizeof(vec3_t));
+    for(int i = 0; i < world->numplanes; ++i)
+    {
+        const mplane_t& p = world->planes[i];
+        const float v[] = {p.normal[0], p.normal[1], p.normal[2], p.dist};
+        add(v, sizeof(v));
+    }
+    for(int i = 0; i < world->numsubmodels; ++i)
+    {
+        const dmodel_t& m = world->submodels[i];
+        add(&m.headnode[0], sizeof(m.headnode[0]));
+        add(m.mins, sizeof(m.mins));
+        add(m.maxs, sizeof(m.maxs));
+    }
+    return h ? h : 1; // (0: none)
 }
 
 float widthSetting()
@@ -651,7 +706,7 @@ const Brushes* worldBrushes(qmodel_t* world)
     }
     if(built.clipnodes != world->hulls[0].clipnodes)
     {
-        build(world);
+        build(built, world, keyOf(world));
         Con_DPrintf("hull: %s rebuilt as %d brushes in %.1f ms\n", world->name, static_cast<int>(built.brushes.size()),
             built.ms);
     }
@@ -1239,8 +1294,12 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
 // it (every face of that brush already split on, the leaf on its inside), empty where none reaches. Being Quake's own
 // clipnodes and planes, it is traced by SV_RecursiveHullCheck exactly as hull 1 is (in the box centre's space).
 
-// A table's planes by TreeBuilder::key(dist), each key's in the order they were added.
+// A table's planes by planeKey(dist), each key's in the order they were added.
 using PlaneIndex = ankerl::unordered_dense::map<long long, za::Vector<int>>;
+long long planeKey(float d)
+{
+    return static_cast<long long>(za::floor(d * 4.f));
+}
 
 struct Tree
 {
@@ -1252,6 +1311,11 @@ struct Tree
     // models times two trees, each indexing all the tree's planes again).
     PlaneIndex index;
     za::SizeT indexed = 0;
+    // What a load of the same map gets back (keepForReload): the tree as the load left it (its world's tree, and the
+    // models prepared with the map: checkpoint), the models' builds after it let go.
+    za::SizeT keptNodes = 0, keptPlanes = 0;
+    int keptSolid = 0, keptEmpty = 0;
+    za::Vector<int> keptHeads; // (empty: nothing to keep)
     const mclipnode_t* forClipnodes = nullptr; // the Brushes it was built from (their world's hull 0)
     glm::vec3 ext{0.f};                        // the half size of the box it was built for
     int redone = 0;                            // pieces of its builds on the pool done again on one thread (buildTree)
@@ -1259,7 +1323,8 @@ struct Tree
     int solidLeaves = 0, emptyLeaves = 0;
     auto members()
     {
-        return qvr::mem::list(nodes, planes, heads, index, indexed, forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone);
+        return qvr::mem::list(nodes, planes, heads, index, indexed, keptNodes, keptPlanes, keptSolid, keptEmpty, keptHeads,
+            forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone);
     }
 };
 mem::Cache<Tree> tree{"hull tree", mem::MapChange};
@@ -1267,7 +1332,8 @@ mem::Cache<Tree> tree{"hull tree", mem::MapChange};
 // Its bytes, for a set holding trees (found by the set's heldBytes of a vector of them).
 za::SizeT heldBytes(const Tree& t)
 {
-    return mem::heldBytes(t.nodes) + mem::heldBytes(t.planes) + mem::heldBytes(t.heads) + mem::heldBytes(t.index);
+    return mem::heldBytes(t.nodes) + mem::heldBytes(t.planes) + mem::heldBytes(t.heads) + mem::heldBytes(t.index) +
+           mem::heldBytes(t.keptHeads);
 }
 
 // Monsters' trees (vr_mhull): one per box size their widths ask for (a few: the widths come from the classes'
@@ -1285,6 +1351,169 @@ struct HullAudit
     za::U64 slots = 0, clears = 0, runtimeBuilds = 0;
 };
 HullAudit hullAudit;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Kept for a reload (vr_hull_keep; PROFILING_2026-10.md, decision 1): at a map change the map's brushes and trees are
+// kept, under the world's content (keyOf), for the next load of a map with the same (a death's reload, restart, a
+// save's load, a changelevel back). They are the load's own results: the brushes of the world's models (external
+// models' let go), each tree as the load left it (checkpoint: its world's tree and the models prepared with the map;
+// models compiled later let go), so a load that gets them back has what a load that builds them makes. Their pointers
+// into the hunk (the world's hull 0) are cleared while kept and set to the new world's when taken back. The trees are
+// kept by box size: a width changed meanwhile is compiled again (its slot's size does not match), the others reused.
+
+// The tree as it is now: what a reload gets back (the load's builds done: its world's tree, then the prepared models).
+void checkpoint(Tree& t)
+{
+    t.keptNodes = t.nodes.size();
+    t.keptPlanes = t.planes.size();
+    t.keptSolid = t.solidLeaves;
+    t.keptEmpty = t.emptyLeaves;
+    t.keptHeads = t.heads;
+}
+
+bool keepable(const Tree& t)
+{
+    return !t.keptHeads.empty() && t.keptHeads[0] >= 0 && t.keptNodes <= t.nodes.size() && t.keptPlanes <= t.planes.size();
+}
+
+// Back to its checkpoint, its pointer cleared (kept).
+void cutBack(Tree& t)
+{
+    if(t.indexed == t.planes.size())
+    {
+        for(za::SizeT i = t.planes.size(); i-- > t.keptPlanes;)
+        {
+            const auto found = t.index.find(planeKey(t.planes[i].dist));
+            if(found != t.index.end() && !found->second.empty())
+            {
+                found->second.popBack(); // (the plane added last is its key's last)
+            }
+        }
+        t.indexed = t.keptPlanes;
+    }
+    else
+    {
+        t.index.clear();
+        t.indexed = 0;
+    }
+    t.planes.resize(t.keptPlanes);
+    t.nodes.resize(t.keptNodes);
+    t.heads = t.keptHeads;
+    t.solidLeaves = t.keptSolid;
+    t.emptyLeaves = t.keptEmpty;
+    t.forClipnodes = nullptr;
+}
+
+// The world's own brushes (external models' let go), its pointers cleared (kept).
+void cutBack(Brushes& b)
+{
+    b.subs.resize(b.worldSubs);
+    b.planes.resize(b.worldPlanes);
+    b.brushes.resize(b.worldBrushes);
+    b.leafBrush.resize(b.worldLeafBrush);
+    b.bevels = b.worldBevels;
+    b.dropped = b.worldDropped;
+    b.clipnodes = nullptr;
+    for(SubModel& sm : b.subs)
+    {
+        sm.clipnodes = nullptr;
+    }
+}
+
+struct KeptMap
+{
+    za::U64 key = 0;
+    Brushes brushes;
+    Tree player;                // (its heads empty: none)
+    za::Vector<Tree> monsters;
+};
+
+za::SizeT heldBytes(const KeptMap& k)
+{
+    return heldBytes(k.brushes) + heldBytes(k.player) + mem::heldBytes(k.monsters);
+}
+
+struct KeptMaps
+{
+    za::Vector<KeptMap> maps; // the most recent last
+    za::U64 hits = 0, misses = 0; // loads that got theirs back, loads that built them
+    auto members() { return qvr::mem::list(maps, hits, misses); }
+};
+// Kept across game folder changes too (a map package mounted and let go): the key is the map's content, and nothing
+// in them points anywhere while kept. Only counted (vr_memstats); vr_hull_keep bounds it.
+mem::Cache<KeptMaps> kept{"hull kept maps", mem::Never};
+
+za::SizeT keepLimit()
+{
+    return static_cast<za::SizeT>(za::clamp(static_cast<int>(vr_hull_keep.value), 0, 8));
+}
+
+// The oldest let go, past the setting's count.
+void trimKept()
+{
+    za::Vector<KeptMap>& maps = kept.maps;
+    const za::SizeT limit = keepLimit();
+    if(maps.size() > limit)
+    {
+        maps.erase(maps.begin(), maps.begin() + (maps.size() - limit));
+    }
+}
+
+void onKeepChanged(cvar_t*)
+{
+    if(keepLimit() == 0)
+    {
+        mem::release(kept.maps);
+    }
+    else
+    {
+        trimKept();
+    }
+}
+
+// The kept map with this content made the server's (its pointers the new world's); false: none.
+bool takeKept(const qmodel_t* world, za::U64 key)
+{
+    za::Vector<KeptMap>& maps = kept.maps;
+    KeptMap* found = nullptr;
+    for(KeptMap& k : maps)
+    {
+        found = k.key == key ? &k : found;
+    }
+    if(!found || keepLimit() == 0)
+    {
+        ++kept.misses;
+        return false;
+    }
+    KeptMap k = ZA_MOVE(*found);
+    maps.erase(found);
+    const mclipnode_t* clipnodes = world->hulls[0].clipnodes;
+    Brushes& b = built;
+    b = ZA_MOVE(k.brushes);
+    b.clipnodes = clipnodes;
+    for(SubModel& sm : b.subs)
+    {
+        sm.clipnodes = clipnodes;
+    }
+    b.modelSub.clear();
+    b.modelSub.resize(MAX_MODELS, -2); // (looked up again: the models' slots are the new load's)
+    if(!k.player.heads.empty())
+    {
+        Tree& p = tree;
+        p = ZA_MOVE(k.player);
+        p.forClipnodes = clipnodes;
+    }
+    za::Vector<Tree>& v = monsterTrees.trees;
+    v.clear();
+    v.reserve(maxMonsterTrees);
+    for(Tree& t : k.monsters)
+    {
+        v.pushBack(ZA_MOVE(t));
+        v.back().forClipnodes = clipnodes;
+    }
+    ++kept.hits;
+    return true;
+}
 
 // A piece of a grown brush in a node of the tree being built.
 struct Frag
@@ -1565,7 +1794,7 @@ public:
     [[nodiscard]] za::Vector<mclipnode_t>& nodes() { return *nodes_; }
 
 private:
-    static long long key(float d) { return static_cast<long long>(za::floor(d * 4.f)); }
+    static long long key(float d) { return planeKey(d); }
 
     // The first plane of the key's within qbsp's epsilons of n, d (in the order they were added: base's first), else -1.
     int find(long long kk, const glm::dvec3& n, double d) const
@@ -2083,6 +2312,10 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch 
         root = node;
     }
     t.heads[sub] = root;
+    if(sub == 0)
+    {
+        checkpoint(t); // (the prepared models' builds move it on: prepareBrushModels)
+    }
     if(tb.rebounded && report)
     {
         Con_DPrintf("hull: %d pieces cut back to their brushes' bounds (%gx%g, model %d)\n", tb.rebounded, t.ext.x * 2.f,
@@ -2443,6 +2676,7 @@ struct Pending
     za::Vector<jobs::Future<int>> run; // (their pieces cut back)
     glm::vec3 playerExt{0.f};           // the player's tree's box, if it is one of them
     double posted = 0.0;                // when the builds were handed out (the load's report)
+    bool kept = false;                  // the brushes (and the trees found) the last load's of the same map
 };
 Pending pending;
 
@@ -2543,9 +2777,9 @@ void settle()
     pending.brushes.get();
     const double t1 = Sys_DoubleTime();
     VR_TimeAdd("hull: the map's brushes and compiled hulls, waited for (built on the pool)", t1 - t0);
-    Con_DPrintf("hull: %s rebuilt as %d brushes in %.1f ms (on the pool; waited %.1f ms, %.1f ms after they began)\n",
-        sv.worldmodel ? sv.worldmodel->name : "?", static_cast<int>(built.brushes.size()), built.ms, (t1 - t0) * 1000.0,
-        (t1 - pending.posted) * 1000.0);
+    Con_DPrintf("hull: %s %s as %d brushes in %.1f ms (on the pool; waited %.1f ms, %.1f ms after they began)\n",
+        sv.worldmodel ? sv.worldmodel->name : "?", pending.kept ? "kept from its last load" : "rebuilt",
+        static_cast<int>(built.brushes.size()), built.ms, (t1 - t0) * 1000.0, (t1 - pending.posted) * 1000.0);
     for(za::SizeT i = 0; i < trees.size(); ++i)
     {
         reportTree(*trees[i], rebounded[i]);
@@ -2832,6 +3066,54 @@ void stats_f()
     }
     Con_Printf("hull: monsters (vr_mhull %s): %d trees, %.0f KB, built in %.1f ms\n", vr_mhull.value != 0.f ? "on" : "off",
         count, monsterTrees.bytes() / 1024.0, ms);
+    Con_Printf("hull: kept for reloads (vr_hull_keep %d): %d other maps, %.0f KB; this load's %s; %llu loads got theirs "
+               "back, %llu built them\n",
+        static_cast<int>(keepLimit()), static_cast<int>(kept.maps.size()), kept.bytes() / 1024.0,
+        pending.kept ? "kept from its last load" : "built", static_cast<unsigned long long>(kept.hits),
+        static_cast<unsigned long long>(kept.misses));
+}
+
+// vr_hull_keeptest: the map's brushes and its trees' world models built again from scratch, their hashes against the
+// server's (kept from the last load or built with this one: they must be the same).
+void keepTest_f()
+{
+    if(!sv.active || !sv.worldmodel || !worldBrushes(sv.worldmodel))
+    {
+        Con_Printf("vr_hull_keeptest: no map\n");
+        return;
+    }
+    qmodel_t* world = sv.worldmodel;
+    Brushes fresh;
+    build(fresh, world, keyOf(world));
+    Brushes live = built; // (the world's own, as a reload keeps them: what a fresh build makes)
+    cutBack(live);
+    bool ok = hashOf(live) == hashOf(fresh) && built.key == fresh.key;
+    Con_Printf("vr_hull_keeptest: brushes %08x, fresh %08x; key %016llx, fresh %016llx\n", hashOf(live), hashOf(fresh),
+        static_cast<unsigned long long>(built.key), static_cast<unsigned long long>(fresh.key));
+    int trees = 0;
+    auto check = [&](const Tree& t)
+    {
+        if(t.forClipnodes != built.clipnodes || t.heads.empty() || t.heads[0] < 0)
+        {
+            return;
+        }
+        Tree f;
+        f.ext = t.ext;
+        f.heads.resize(fresh.subs.size(), -1);
+        buildTree(f, fresh, 0, nullptr, false);
+        const bool same = hashOf(f) == hashOf(t);
+        ok = ok && same;
+        ++trees;
+        Con_Printf("vr_hull_keeptest: tree %gx%g %08x, fresh %08x%s\n", t.ext.x * 2.f, t.ext.z * 2.f, hashOf(t), hashOf(f),
+            same ? "" : " (differs)");
+    };
+    check(tree);
+    for(const Tree& t : monsterTrees.trees)
+    {
+        check(t);
+    }
+    Con_Printf("vr_hull_keeptest: %s (%d trees; this load's %s)\n", ok ? "PASS" : "FAIL", trees,
+        pending.kept ? "kept from its last load" : "built");
 }
 
 // vr_mhull_reset: every class's width back to its own box's (the settings' defaults).
@@ -3931,6 +4213,13 @@ void prepareBrushModels()
         });
     int count = 0;
     for(const int n : counts) count += n;
+    if(built.subs.size() == built.worldSubs) // (with an external model's tree in them, a reload gets the world's alone)
+    {
+        for(Tree* t : sizes)
+        {
+            checkpoint(*t);
+        }
+    }
     const double elapsed = Sys_DoubleTime() - started;
     VR_TimeAdd("hull: loaded brush models prepared", elapsed);
     if(vr_hull_audit.value != 0.f)
@@ -4035,6 +4324,7 @@ void init()
     Cmd_AddCommand("vr_hull_cachetest", cacheTest_f);
     Cmd_AddCommand("vr_hull_preloadtest", preloadTest_f);
     Cmd_AddCommand("vr_hull_stats", stats_f);
+    Cmd_AddCommand("vr_hull_keeptest", keepTest_f);
     Cmd_AddCommand("vr_hull_bench", bench_f);
     Cmd_AddCommand("vr_hull_walktest", walkTest_f);
     Cmd_AddCommand("vr_hull_probe", probe_f);
@@ -4047,6 +4337,7 @@ void init()
     Cvar_SetCallback(&vr_hull_method, onWidthChanged);
     Cvar_SetCallback(&vr_hull_brushmodels, onWidthChanged);
     Cvar_SetCallback(&vr_mhull, onWidthChanged);
+    Cvar_SetCallback(&vr_hull_keep, onKeepChanged);
     for(const MonsterClass& c : monsterClasses)
     {
         Cvar_SetCallback(c.width, onWidthChanged);
@@ -4063,8 +4354,14 @@ void beforeLoad()
     }
     hullAudit = HullAudit{};
     pending.posted = Sys_DoubleTime();
+    // The last load's of the same map (keepForReload), else built on the pool (the trees found are not built again:
+    // claimTrees passes them over).
+    const za::U64 key = keyOf(world);
+    pending.kept = takeKept(world, key);
+    trimKept();
+    VR_TimeAdd("hull: kept maps looked up", Sys_DoubleTime() - pending.posted);
     monsterTrees.trees.reserve(maxMonsterTrees); // (a slot taken while others are made moves none of them)
-    pending.brushes = jobs::async([world] { build(world); });
+    pending.brushes = pending.kept ? jobs::async([] {}) : jobs::async([world, key] { build(built, world, key); });
     pending.playerExt = glm::vec3{0.f};
     if(vr_hull_width.value > 0.f)
     {
@@ -4119,6 +4416,44 @@ void spawned()
 void finishLoads()
 {
     settle();
+}
+
+void keepForReload()
+{
+    settle();
+    Brushes& b = built;
+    if(keepLimit() == 0 || !b.clipnodes || !b.key || b.worldSubs == 0)
+    {
+        return;
+    }
+    const mclipnode_t* clipnodes = b.clipnodes;
+    za::Vector<KeptMap>& maps = kept.maps;
+    for(za::SizeT i = maps.size(); i-- > 0;)
+    {
+        if(maps[i].key == b.key)
+        {
+            maps.erase(maps.begin() + i);
+        }
+    }
+    KeptMap k;
+    k.key = b.key;
+    k.brushes = ZA_MOVE(b);
+    cutBack(k.brushes);
+    Tree& p = tree;
+    if(p.forClipnodes == clipnodes && keepable(p))
+    {
+        k.player = ZA_MOVE(p);
+        cutBack(k.player);
+    }
+    for(Tree& t : monsterTrees.trees)
+    {
+        if(t.forClipnodes == clipnodes && keepable(t))
+        {
+            k.monsters.pushBack(ZA_MOVE(t));
+            cutBack(k.monsters.back());
+        }
+    }
+    maps.pushBack(ZA_MOVE(k)); // (trimmed at the next load, once it has looked for its own: beforeLoad)
 }
 
 void afterLoad()

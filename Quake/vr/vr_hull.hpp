@@ -33,6 +33,9 @@ void beforeLoad();
 void entitySpawned(const edict_t* ent);
 void spawned();
 void finishLoads();
+// VR_OnClearMemory, before the map's memory goes: its brushes and compiled hulls kept for a load of the same map (its
+// BSP's content: a death's reload, restart, a save of it, a changelevel back), vr_hull_keep maps of them.
+void keepForReload();
 
 // VR_OnSpawnServerAfterLoad: the server's map rebuilt as brushes (with vr_hull_width on; else on first use).
 void afterLoad();

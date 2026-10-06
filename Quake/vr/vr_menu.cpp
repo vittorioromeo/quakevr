@@ -5236,6 +5236,13 @@ za::Vector<Item> pageDebugTests()
         open("Player Hitbox Settings", pageIndex(pageHitbox)).help("Movement > Player Hitbox: the widths and their toggles."),
         open("Monster Hitbox Settings", pageIndex(pageMonsterHitbox)).help("Movement > Monster Hitbox: monsters' widths by class, and their walk tests."),
         command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
+        cycle("Keep Hitboxes for Reloads", vr_hull_keep, {{0.f, "Off"}, {1.f, "1 Map"}, {2.f, "2 Maps"}, {4.f, "4 Maps"}})
+            .help("The map's brushes and compiled hulls kept in memory when it is left, for a load of the same map again "
+                  "(a death's reload, restart, a changelevel back): that load skips their build (vr_hull_keep). Off: "
+                  "built at every load."),
+        command("Hitbox Keep Test", "vr_hull_keeptest")
+            .help("Builds the map's brushes and compiled hulls again from scratch and prints whether the server's (kept "
+                  "from the last load, or built with this one) are the same (vr_hull_keeptest)."),
         command("Hitbox Approach", "vr_hull_approach").help("Prints how close your box gets to what is round you, in 8 directions (from your centre to the surface it stops at; Quake's box: 16 units). vr_hull_approach <classname> [n] does it round an entity."),
         command("Hitbox Bench", "vr_hull_bench").help("Times 20000 random moves (Quake's hull against the brush sweep "
                                                       "and the compiled hull) and prints where they disagree."),
