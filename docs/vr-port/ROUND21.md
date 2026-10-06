@@ -26469,3 +26469,12 @@ m/s and `_spin` 20 rad/s of the game's time: the hands slowed with the world) ev
 (2.4 m/s real at 0.3x) and its direction still follows the slowed hand lagging the controller (21 to 31 degrees up):
 that is the slowed hands' design (no supersonic swings), not the estimate; worth the author's opinion (Sandevistan, or
 a higher `vr_timescale_hand_speed`, gives full throws).
+## MG1 Horde: source death gate, coop checks and wave tables (2026-10-06)
+
+Horde deaths go through the source's release-then-press gate again (a held trigger at death no longer restarts the
+arena; one restart per wipe), and a player who leaves no longer counts as alive. New Debug > Tests > Machine Horde
+Tests rows: wave monitor, all-players report, team wipe, keyed door check. `Misc/quakevr/check_horde_waves.py`
+checks wave budgets and squads against the official tables (5 arenas, all four skills, coop: 0 failures);
+`Misc/quakevr/multiplayer/mghorde_mp_test.sh` covers coop revival, shared keys, team wipe and leaving. Details,
+the Hunger/re-aggro/axe-chain source findings and which arena to use for each manual test: EXPANSIONS.md, "MG1
+Horde follow-up".

@@ -832,3 +832,57 @@ No assets, private configs, saves or logs are committed. Private `horde-tests/`,
 `evaltakes/`, test configs and screenshots are retained for coordinator cleanup.
 Human VR QA: physical rewards/keys/powerups, real arena gates, hand and holster
 inventory after death/revival, corpse cleanup, and all seven arenas' spawn flow.
+### MG1 Horde follow-up: source parity, coop and wave tables (mghorde2, 2026-10-06)
+
+Source parity fixes: a dead Horde player goes through the source's release-then-press gate again (official
+`client.qc` PlayerDeathThink): a trigger held at death no longer restarts the arena at once. Solo, or a coop team
+with nobody alive, restarts the arena (one queued `restart`, even when the press lasts several frames); a dead coop
+player with a living teammate waits for the wave-boundary revival. A player who leaves no longer counts as alive
+(official ClientDisconnect), so waves, targets and team-wipe checks ignore the left body. With a save made in this
+session and `sv_autoload` 2 (the engine default), a solo wipe loads that save, as every Quake death does in this
+engine; with no save (or `sv_autoload` 0) the arena restarts fresh as the source does. Coop has no autoload.
+
+Source behaviour reviewed and deliberately left as it is:
+- Rune of Hunger: the shipped `mg1/progs.dat` (checked by its statement table) only writes `hunger_time`
+  (T_Heal, sigil_touch); nothing reads it and `HUNGER_MIN` is unused. No arena holds an `item_sigil`, and `map`
+  clears serverflags, so Hunger cannot occur in shipped Horde play. The native port stamps the same timer.
+- Horde re-aggro (`combat.qc`, `AGGRO_MIN`/`AGGRO_ADD`): the source's condition
+  `aggro_time + AGGRO_MIN + (random() * AGGRO_ADD < time)` is always true once set, so monsters switch targets as
+  in stock Quake. Native T_Damage already does that.
+- Rune 3 axe chain (`weapons.qc`): `axe_hit_chain` is never incremented, so the combo is dead code; VR melee is
+  physical anyway.
+
+Tests (Debug > Tests > Machine Horde Tests, `vr_mg_horde_test`): 13/14 wave monitor (each wave's squad budget and
+every squad's monster classes), 15 all-players report, 16 continue a script from `mghorde_after.cfg` after an
+arena restart, 17 team wipe, 18 keyed door spend. `Misc/quakevr/check_horde_waves.py <log>` checks a monitor log
+against the official SpawnWavePrep budget (skill offset, army waves, boss/elite/fodder, player scalar) and the
+SpawnSquad2 compositions; `Misc/quakevr/multiplayer/mghorde_mp_test.sh <agent>` runs a listen server and a client.
+
+Measured (hidden mock, `-nomapindex`, owned rerelease MG1 found through the Steam install):
+- Waves: horde1 skill 1, 12 complete waves (100 squads) match; horde5 skill 0 (8), horde7 skill 3 (6), horde4
+  skill 2 (6) and coop horde1 with two players (scalar 1.25, 3) match, 0 failures. Boss waves gave a silver key each
+  (shared: 1 after wave 3, 2 after wave 6).
+- Save/load mid-spawn (horde1 wave 1, 2 squads still to come, 3 alive): restored wave 1, waiting 1, 2/0/0, 3 alive;
+  the following waves kept matching the tables.
+- Keyed doors (horde1, horde3, horde7) stay shut without a shared key, spend one and open, leaving the second key;
+  keyed buttons (horde2, horde4, horde6) spend once. Acceptance (request 1) 24/0 on horde1, horde4 and horde5.
+- Death: held trigger at death keeps the player dead (deadflag 2); release, press: one restart, wave 0, no keys,
+  health 100. Coop: the dead client stays dead while the host lives, the wave end revives it (health 100); both
+  players carry the shared key; a team wipe and the host's press restart the arena with both players alive; the
+  client's leaving leaves it at health 0 and "alive" counts only the host.
+- Campaign switch: `vr_campaign_hub`, then e1m1: Horde inactive, 25 shells, active campaign id1.
+- Regressions: Dopa e5m1 triggers 34/0 and world 19/0; MG1 hub 20/0, mge2m2 puzzle 15/0, mge5m2 route 10/0
+  (Horde inactive there); e1m1 smoke; QC 0 warnings, statics/precedence/FGD 295. The archived melee canary still
+  cannot run (`no_hit_reloading_2026-09-29_23-08-51.csv` absent).
+
+Arenas for manual tests (all seven are in the owned MG1 PAK; `vr_campaign_native mg1`, then `map hordeN`):
+- horde1 (Tower of the Apprentice): the first try, waves, the boss-wave key, silver/gold key doors, flying spawns.
+- horde4: three authored key spawns (first/second/third) and keyed buttons: the currency flow.
+- horde5: the only boss and flying spawn points together: boss waves (shambler/shalrath/fiends).
+- horde2 and horde6: keyed buttons; horde6 has the most item spawns (9) and two exits.
+- Revival needs coop (two games): any arena, best horde1 (4 coop starts); one player dies, the other finishes the
+  wave. Solo death restarts the arena (or loads your save).
+
+Still open for full MG1 acceptance: a human coop session (real headsets, late joins, revival telefrag spots);
+melee, gore and ragdolls on Horde monsters in VR (native constructors, not separately measured here); the arena
+intermission/exit flow in coop; the story campaign's own acceptance.

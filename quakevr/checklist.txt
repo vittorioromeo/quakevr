@@ -43,6 +43,7 @@ Map Library: open it both ways, search, filter, sort, install with progress, Pla
 Map Library: quitting during the first index download doesn't crash; offline start is quiet
 Official Campaigns: base Quake hub, tutorial and range work; Dopa plays through (secrets, saves, carried guns, finale)
 MG1 developer tests: rune returns, electrode buttons, Horde, revival; quake vibration is comfortable
+MG1 Horde (horde1, horde5 bosses): die holding fire, nothing; let go and press: the arena restarts; coop: a dead teammate comes back at wave end
 
 [Combat]
 Melee hits: head, limb and leg multipliers match your shots; hitbox size and head priority feel right
