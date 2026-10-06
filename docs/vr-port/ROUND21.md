@@ -26433,3 +26433,39 @@ at 1.49 m: its default 1.638 no longer reaches vrclimb's lip with the current de
 test base only), both hands on the lip from `setpos 396 542 71 0 90 0` (hands at 1.90 and 1.94 m): before, "no room to
 mantle" (and still with lenient 0); now `sloped mantle spot 22 in, +0 along: the top +2.5` and mantled onto (392.4 582
 120). plaw01 (Map Library) isn't in the test base: not run.
+
+## Throws in bullet time: the release's windows in real time (2026-10-06)
+
+Voice note start 16:55 ("throwing speed in bullet time seems a little bit off ... the wrist snapping action feels way
+too strong"). In slow motion with the player slowed (bullet time without Sandevistan, `vr_slowmo`),
+`timescale::filterHands` slows the runtime's clock (`t.time`) and gives the hands' velocities in the game's time (times
+1/scale), which is consistent; but the throw's estimate (`vr_throw.cpp releasePeak`) used its windows in that slowed
+clock's seconds: `vr_throw_window`, `_lookahead`, `_peak_span` (the spin over twice it), `_dir_lookback` and the
+peak's fit took in 1/scale as much of the real arm's arc (3.3 times at 0.3x). The averaged spin came out about half,
+the direction from much earlier in the arc (an overarm throw 16 degrees high, an underarm lob 18 low, uncapped), and
+`vr_throw_ang_threshold` (6 rad/s) was met by a 1.8 rad/s real wrist turn, so the wrist's flick was added to throws
+whose wrist barely moved. Sandevistan (the player's own time) was already right.
+
+Fix (`vr_throw_slowmo_real_time` 1, default; Throwing page > **Slow Motion: Throws in Real Time**): the windows are
+the real seconds times `timescale::handScale()` (the slowed clock's seconds in a real one; 1 in Sandevistan and at full
+speed: nothing changes there), and the flick threshold and the analog release's `vr_throw_release_speed` compare real
+speeds (times it). 0: as before.
+
+Test (`Misc/quakevr/throw_slowmo/throw_slowmo_test.sh`, `throw_plays.py`'s throws, mock, fixed frames, Gun Angle 70,
+`vr_mock_grip_velocity 1`; speed in m/s, elevation):
+
+| | overhand (wrist flick) | lob | flat push | overhand, still wrist |
+|---|---|---|---|---|
+| full speed | 4.30, -0.7°, spin 34.0 | 4.81, +23.6°, 15.1 | 4.97, +5.0°, 0 | 6.29, +13.9°, 11.3 |
+| 0.3x, hands unslowed (caps 0), before | 12.71, +16.2°, 59.7 | 15.47, +4.9°, 34.6 | 16.63, +5.0° | 20.66, +30.8°, 25.3 |
+| 0.3x, hands unslowed (caps 0), now | 14.33 (=4.30/0.3), -0.6°, 113.2 (=34.0/0.3) | 16.05, +23.6°, 50.4 | 16.57, +5.0° | 20.96, +13.9°, 37.7 |
+| 0.3x, default caps, before | 8.89, +31.9°, 18.8 | 8.23, -24.2°, 11.1 | 8.57, +5.0° | 9.43, backwards (-7.01 y) |
+| 0.3x, default caps, now | 8.00, +21.9°, 20.0 | 8.00, +18.4°, 20.0 | 8.48, +5.0° | 7.97, +30.9°, 20.0 |
+| Sandevistan, before and now | as full speed | | | |
+
+With the hands unslowed the bullet-time throw is now exactly the full-speed throw in the slowed world (1/scale in game
+units: it leaves the hand at the same real speed and direction). With the default caps (`vr_timescale_hand_speed` 8
+m/s and `_spin` 20 rad/s of the game's time: the hands slowed with the world) every throw this fast is capped at 8 m/s
+(2.4 m/s real at 0.3x) and its direction still follows the slowed hand lagging the controller (21 to 31 degrees up):
+that is the slowed hands' design (no supersonic swings), not the estimate; worth the author's opinion (Sandevistan, or
+a higher `vr_timescale_hand_speed`, gives full throws).

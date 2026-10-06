@@ -59,6 +59,7 @@ QVR_CVAR(vr_throw_lever_arm, "0.1", CVAR_ARCHIVE)   // metres from the palm to t
 QVR_CVAR(vr_throw_dir_lookback, "0.04", CVAR_ARCHIVE) // seconds before the peak the direction is averaged over
 QVR_CVAR(vr_throw_ang_threshold, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_ang_factor, "0.7", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_slowmo_real_time, "1", CVAR_ARCHIVE) // 1: in slow motion (the hands slowed with the world), the release's windows (vr_throw_window, _lookahead, _peak_span, _dir_lookback), vr_throw_ang_threshold and vr_throw_release_speed are in the player's real time, as at full speed; 0: in the slowed clock's (before: a throw's estimate took in 1/scale of the arm's arc)
 // A throw's spin (and a wrist flick's speed through the lever arm), 1: from the controller's turn between tracking samples
 // (vr_hands.cpp poseSpin); 0: the runtime's angular velocity, which OpenXR gives in the tracking space but
 // VirtualDesktopXR 1.0.10 gives in the controller's own frame (takes of 2026-09-29: 0.97 against the turn in the

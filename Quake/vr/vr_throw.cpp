@@ -19,6 +19,7 @@
 #include "vr_throw.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_timescale.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Container/Array.hpp"
@@ -69,15 +70,28 @@ History bothHistory; // estimateBothAt's samples (scratch: 7 kB, off the stack)
 // samples, or not a peak).
 constexpr double peakFit = 0.03;
 
+// The samples' clock in slow motion (not Sandevistan) is slowed with the world (timescale::filterHands: t.time, and
+// the velocities in the game's time), so a window of the release's (vr_throw_window, _lookahead, _peak_span,
+// _dir_lookback, peakFit) in its seconds would cover 1/scale times as much of the real throw: at 0.3, the peak's
+// averages and the direction took in a third of a second of the arm's arc, the spin was halved and the throw went up
+// to 30 degrees off (voice note start 16:55: "the wrist snapping action feels way too strong"). The windows are taken
+// in the player's real seconds instead (times this), and vr_throw_ang_threshold in real rad/s.
+// vr_throw_slowmo_real_time 0: as before.
+[[nodiscard]] double clockRate()
+{
+    return vr_throw_slowmo_real_time.value != 0.f ? static_cast<double>(za::clamp(timescale::handScale(), 0.05f, 1.f)) : 1.0;
+}
+
 [[nodiscard]] float peakSpeedFit(const History& h, double peakTime, float bestSpeed)
 {
+    const double fitSpan = peakFit * clockRate();
     // Sums for s = a + b x + c x^2, x in seconds from the peak sample.
     double sx[5]{}, sy[3]{};
     int n = 0;
     for(int i = 0; i < h.count; i++)
     {
         const double x = h.at(i).time - peakTime;
-        if(za::abs(x) > peakFit)
+        if(za::abs(x) > fitSpan)
         {
             continue;
         }
@@ -128,7 +142,7 @@ constexpr double peakFit = 0.03;
     {
         return 0.f; // not a peak
     }
-    const double x = za::clamp(-b / (2.0 * c), -peakFit, peakFit);
+    const double x = za::clamp(-b / (2.0 * c), -fitSpan, fitSpan);
     const double top = a + b * x + c * x * x;
     return static_cast<float>(za::clamp(top, 0.8 * bestSpeed, 1.2 * bestSpeed));
 }
@@ -155,9 +169,10 @@ constexpr double peakFit = 0.03;
 // part of it the hand's turn gives (none for two hands).
 [[nodiscard]] Estimate releasePeak(const History& h, double releaseTime, float leverArm, bool wrist)
 {
-    const double from = releaseTime - za::max(vr_throw_window.value, 0.f);
-    const double to = releaseTime + za::max(vr_throw_lookahead.value, 0.f);
-    const double span = za::max(vr_throw_peak_span.value, 0.f);
+    const double rate = clockRate(); // the samples' clock's seconds in a real one
+    const double from = releaseTime - za::max(vr_throw_window.value, 0.f) * rate;
+    const double to = releaseTime + za::max(vr_throw_lookahead.value, 0.f) * rate;
+    const double span = za::max(vr_throw_peak_span.value, 0.f) * rate;
 
     int best = -1;
     float bestSpeed = -1.f;
@@ -210,7 +225,7 @@ constexpr double peakFit = 0.03;
 
     // The direction from the samples leading up to the peak: at the peak itself an overarm throw
     // is already curving down, and throws went lower than meant.
-    if(const float lookback = vr_throw_dir_lookback.value; lookback > 0.f)
+    if(const double lookback = vr_throw_dir_lookback.value * rate; lookback > 0.0)
     {
         glm::vec3 dir{0.f};
         for(int i = 0; i < h.count; i++)
@@ -230,7 +245,7 @@ constexpr double peakFit = 0.03;
     // The object's centre, and the velocity a clear wrist flick adds there.
     const glm::vec3 lever = peak.forward * leverArm; // metres
     glm::vec3 flick{0.f};
-    if(glm::length(angVel) > vr_throw_ang_threshold.value)
+    if(glm::length(angVel) * static_cast<float>(rate) > vr_throw_ang_threshold.value) // (real rad/s)
     {
         flick = glm::cross(angVel, lever) * vr_throw_ang_factor.value;
         vel += flick;
@@ -382,7 +397,8 @@ void filterGrips(TrackingState& t)
             g.peak = za::max(g.peak, in.gripValue);
 
             const Pose& pose = t.hands[hand];
-            const bool throwing = pose.velocityValid && glm::length(pose.linearVelocity) > vr_throw_release_speed.value;
+            const bool throwing = pose.velocityValid && glm::length(pose.linearVelocity) * static_cast<float>(clockRate()) >
+                                                            vr_throw_release_speed.value; // (real m/s)
             const bool eased = in.gripValue < g.peak * (1.f - CLAMP(0.f, vr_throw_release_drop.value, 1.f));
             if(in.gripValue < vr_throw_release_floor.value || (throwing && eased))
             {

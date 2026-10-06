@@ -2517,6 +2517,10 @@ void hologramTestMessage()
             .help("Tilts every throw up (or down, below 0). 0: as throws were tuned; the hand calibration doesn't change them."),
         toggle("Analog Release", vr_throw_release)
             .help("A throw lets go as the grip starts to open, not only once it is released."),
+        toggle("Slow Motion: Throws in Real Time", vr_throw_slowmo_real_time)
+            .help("In slow motion (bullet time, not Sandevistan), a throw's release is judged over the same stretch of "
+                  "your real motion as at full speed, and its wrist flick by your real wrist speed. Off: over the slowed "
+                  "clock's, which took in three times the arm's arc at 0.3x (throws went off, the wrist's share too big)."),
         toggle("Spin From Controller Turn", vr_throw_spin_from_pose)
             .help("A throw's spin from how the controller turned, not the runtime's angular velocity (Virtual Desktop "
                   "reports it in the controller's frame: a flick facing away from the play space's front spun throws "
