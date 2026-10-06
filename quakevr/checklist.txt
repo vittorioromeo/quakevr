@@ -8,6 +8,7 @@ Lightning: one hit puts arcs on a living enemy that last through its death; corp
 Smoke: lightning-hit and burnt enemies/corpses smoulder for a few seconds (visible in dark rooms, not too much); Gore > Lightning Shock > Arcs on the Living off = lasting arcs only on corpses
 Lit particles: blood in a dark corner is dark, bright under the flashlight and muzzle flashes; fire, sparks and explosions as bright as before (Graphics > Models and Effects > Effects > Lit Particles)
 Relighting (Graphics > Relighting): relight hip1m1 and vrtutorial in game; lamps and ceiling lights clearly brighter; reloads where you stand; try the sliders
+Elbows: aiming down sights (one/two hands) and the axe by the face keep the elbow down and in, no flips; gadget wings and salute still lift (Body > Arms > Elbows and Wrists > Elbow Tuck; 0.5 if the wrist bends too much)
 Shove toward a high ledge: always knocks down; Ledge Reach and Ledge Margin change how far ahead (Combat > Knockdowns)
 Parallax: carved walls keep their depth when seen from the side, no swimming (Graphics > Surfaces)
 Animated buttons and slipgate panels: no pulsing between frames
