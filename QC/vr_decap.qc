@@ -69,7 +69,6 @@ string(entity e) VR_Decap_HeadModel =
         return ""; // (a statue: stone, VR_Corpse_Parts)
     }
     if(c == "monster_army")          { return "progs/h_guard.mdl"; }
-    if(c == "vr_dummy")              { return "progs/h_guard.mdl"; } // (a grunt: armed as one, cut or popped once a blow kills it: vr_dummy_gib)
     if(c == "monster_knight")        { return "progs/h_knight.mdl"; }
     if(c == "monster_ogre" || c == "monster_ogre_marksman") { return "progs/h_ogre.mdl"; }
     if(c == "monster_enforcer")      { return "progs/h_mega.mdl"; }
@@ -346,14 +345,10 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_Blow =
     return how && VR_Decap_Arm(targ, attacker, b.mh_c_pos, vr_decap_slashvel, how);
 };
 
-// Whether `e` is judged for beheading: one that may lose its head (VR_Decap_Allowed), or the training dummy (as the grunt
-// it is: its head zone a grunt's, PositionalHead), which never does but says whether it would (VR_Decap_Judge).
+// Whether `e` is judged for beheading: one that may lose its head (VR_Decap_Allowed; the training dummy as the enemy it
+// stands as, its classname: it says whether it would, VR_Decap_Judge, and loses it once killed: vr_dummy_gib).
 float(entity e) VR_Decap_Judged =
 {
-    if(e.classname == "vr_dummy")
-    {
-        return cvar_hget(cvarh_vr_decap) && !e.vr_gib;
-    }
     return VR_Decap_Allowed(e);
 };
 
@@ -450,7 +445,7 @@ void(entity targ) VR_Decap_After =
         return;
     }
     if(vr_decap_time == time && targ.classname == "monster_zombie" && targ.health > 0 && !targ.vr_gib &&
-       (targ.flags & FL_MONSTER))
+       (targ.flags & FL_MONSTER) && (!VR_IsDummy(targ) || cvar_hget(cvarh_vr_dummy_gib))) // (the dummy: only if it dies)
     {
         // (Cut first: a zombie that can't be beheaded, ragdolls off, isn't killed by it; Killed then cuts no more.)
         entity by = vr_decap_by;

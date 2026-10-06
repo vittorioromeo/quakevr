@@ -110,6 +110,13 @@ void(entity targ, entity attacker) Killed =
 
     oself = self;
     self = targ;
+    // VR: the firing range's training dummy killed by what passed by its own report (VR_Dummy_Hit; a zombie it stands as
+    // beheaded: vr_decap.qc): it dies as its enemy with Dummy Dies, else it stands, unhurt (vr_dummy.qc).
+    if(VR_IsDummy(self) && !VR_Dummy_Killed(self))
+    {
+        self = oself;
+        return;
+    }
     targ.vr_ai_gate = 0; // (a dead monster's, its head's or its gibs': no gate route left for portal tosses)
 
     if(self.health < -99)
@@ -1391,7 +1398,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // VR: the firing range's training dummy reports the hit and takes no harm (vr_dummy.qc); with vr_dummy_gib, a blow
     // that would kill a grunt makes it the grunt it stands for, and the blow is dealt to it as to one: it dies, is
     // beheaded, has its head popped or is gibbed as a grunt is.
-    if(targ.classname == "vr_dummy" && !VR_Dummy_Hit(targ, inflictor, attacker, damage, isVRMelee))
+    if(VR_IsDummy(targ) && !VR_Dummy_Hit(targ, inflictor, attacker, damage, isVRMelee))
     {
         return TRUE;
     }

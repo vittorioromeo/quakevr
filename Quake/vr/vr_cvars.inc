@@ -1929,6 +1929,7 @@ QVR_CVAR(vr_dummy_attack_windup, "0.6", CVAR_ARCHIVE)    // s of wind-up (the te
 QVR_CVAR(vr_dummy_gore, "1", CVAR_ARCHIVE)               // the training dummy bleeds as a grunt: gore sprays and mist, wounds on its model, small gibs, blood thrown onto you and your gear (0: clean, as before)
 QVR_CVAR(vr_dummy_gib, "1", CVAR_ARCHIVE)                // the training dummy dies as its enemy (a grunt) once its hits take the last of its health (vr_dummy_health): beheaded, popped, gibbed (below -35) as one; it stands again after vr_dummy_gib_respawn
 QVR_CVAR(vr_dummy_gib_respawn, "2", CVAR_ARCHIVE)        // s a gibbed training dummy takes to stand again
+QVR_CVAR(vr_dummy_type, "0", CVAR_ARCHIVE)              // the enemy the training dummy stands as (vr_dummy_types.qc: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 fiend, 6 shambler, 7 zombie, 8 vore, 9 scrag, 10 rottweiler, 11 spawn, 12 rotfish, 13 gremlin, 14 centroid, 15 mummy, 16 wrath, 17 overlord, 18 electric eel): its model, box, hit zones, head, gore and death
 QVR_CVAR(vr_dummy_health, "-1", CVAR_ARCHIVE)            // the training dummy's full health (below 1: its enemy's own, a grunt's 30); what its hits take away, shown over it, and what kills it (vr_dummy_gib)
 QVR_CVAR(vr_dummy_regen, "3", CVAR_ARCHIVE)              // s without a hit after which the training dummy's health fills up again (0: never)
 QVR_CVAR(vr_dummy_healthbar, "1", CVAR_ARCHIVE)          // the training dummy's health shown over it, as a bar and a number, turned to face you (0: its sign only)

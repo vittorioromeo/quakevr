@@ -207,3 +207,4 @@ waypoints/map_dm3.qc
 waypoints/map_dm4.qc
 waypoints/map_dm5.qc
 waypoints/map_dm6.qc
+vr_dummy_types.qc

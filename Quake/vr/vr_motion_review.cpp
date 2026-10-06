@@ -13,6 +13,7 @@
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
+#include "vr_progs.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -1537,7 +1538,7 @@ void serverFrame()
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
-        if(e->free || wanted != PR_GetString(e->v.classname))
+        if(e->free || wanted != progs::targetClass(e))
         {
             continue;
         }

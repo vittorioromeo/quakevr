@@ -52,8 +52,8 @@ entity(entity p) VR_SmallGib_TestTarget =
     entity e = findradius(p.origin, 800);
     while(e)
     {
-        float ok = cvar("vr_smallgibs_test_dummy") ? e.classname == "vr_dummy" :
-                   (e.classname != "vr_dummy" && ((e.flags & FL_MONSTER) || e.vr_corpse == 2));
+        float ok = cvar("vr_smallgibs_test_dummy") ? VR_IsDummy(e) :
+                   (!VR_IsDummy(e) && ((e.flags & FL_MONSTER) || e.vr_corpse == 2));
         if(e != p && ok && !e.vr_gib)
         {
             float d = vlen(e.origin - p.origin);
@@ -482,7 +482,7 @@ void(float xCase) VR_SmallGib_TestStart =
         bprint(sprintf("sgibtest: underfoot: gibbed %d, %d small gibs\n", m.vr_gib != 0, vr_sgib_made));
         return;
     }
-    if(m.classname == "vr_dummy")
+    if(VR_IsDummy(m))
     {
         m.frame = 0; // (as a grunt's below; its think, which goes on, stands it again)
     }

@@ -170,6 +170,7 @@ extern "C" void VR_OnProgsLoaded()
         b.Motion_Sample = findFunction("VR_Motion_Sample");
         b.Motion_Equip = findFunction("VR_Motion_Equip");
         b.Dummy_Replay = findFunction("VR_Dummy_Replay");
+        b.Dummy_RetypeAll = findFunction("VR_Dummy_RetypeAll");
         b.Carry_Handtouch = findFunction("VR_Carry_Handtouch");
         b.Ragdoll_Handtouch = findFunction("VR_Ragdoll_Handtouch");
         b.propTouches[0] = findFunction("forcegrabbable_touch");

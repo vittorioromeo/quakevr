@@ -498,6 +498,7 @@ float cvarh_vr_dummy_attack_windup;
 float cvarh_vr_dummy_gore;
 float cvarh_vr_dummy_gib;
 float cvarh_vr_dummy_gib_respawn;
+float cvarh_vr_dummy_type;
 float cvarh_vr_dummy_health;
 float cvarh_vr_dummy_regen;
 float cvarh_vr_dummy_healthbar;
@@ -1077,6 +1078,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_dummy_gore);
     VR_CVAR_HMAKE(vr_dummy_gib);
     VR_CVAR_HMAKE(vr_dummy_gib_respawn);
+    VR_CVAR_HMAKE(vr_dummy_type);
     VR_CVAR_HMAKE(vr_dummy_health);
     VR_CVAR_HMAKE(vr_dummy_regen);
     VR_CVAR_HMAKE(vr_dummy_healthbar);

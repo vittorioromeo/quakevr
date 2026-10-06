@@ -149,3 +149,6 @@ QVR_FIELD(vr_headless) // its head cut off (QC vr_decap.qc): its ragdoll is made
 QVR_FIELD(vr_knockdown) // a monster knocked down by a shove (QC vr_knockdown.qc): 1 a ragdoll while alive (vr_box3d.cpp), 2 getting up
 QVR_FIELD(vr_shock_until) // lightning killed it or struck it dead (QC vr_shock.qc): its ragdoll convulses until then (vr_box3d.cpp, "Shocked ragdolls")
 QVR_FIELD(vr_shock_len) // ... the shock's length (s): the convulsions fade over it
+
+// The firing range's training dummy (QC vr_dummy.qc): 1 + its enemy (vr_dummy_type) while it stands, else 0.
+QVR_FIELD(vr_dummy_kind)

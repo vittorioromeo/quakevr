@@ -716,7 +716,7 @@ void (*onDone)(const Report&) = nullptr; // the evaluation's
         for(int i = 1; i < qcvm->num_edicts; i++)
         {
             edict_t* e = EDICT_NUM(i);
-            if(e->free || className != PR_GetString(e->v.classname))
+            if(e->free || className != progs::targetClass(e))
             {
                 continue;
             }
@@ -751,7 +751,7 @@ void workOutPlacement(edict_t* player)
     const glm::vec3 here{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     edict_t* target = findTarget(opts.target, f0.hasMon ? f0.monClass : za::String{}, here);
     targetEnt = target ? NUM_FOR_EDICT(target) : 0;
-    report.targetClass = target ? PR_GetString(target->v.classname) : "";
+    report.targetClass = target ? progs::targetClass(target) : "";
     placed = true;
     if(!target || !opts.place)
     {
@@ -903,7 +903,7 @@ void doStrikes(size_t upTo)
             }
             const func_t fn = progs::bindings().Dummy_Replay;
             edict_t* target = targetEnt > 0 && targetEnt < qcvm->num_edicts ? EDICT_NUM(targetEnt) : nullptr;
-            if(!fn || !target || target->free || strcmp(PR_GetString(target->v.classname), "vr_dummy") != 0)
+            if(!fn || !target || target->free || !progs::isTrainingDummy(target))
             {
                 if(report.warnings.find("dummy's strikes") == za::StringView::nPos)
                 {

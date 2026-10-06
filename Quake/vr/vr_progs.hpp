@@ -52,6 +52,7 @@ struct Bindings
     func_t Motion_Sample{0}; // the motion recorder's (QC vr_motion.qc)
     func_t Motion_Equip{0};
     func_t Dummy_Replay{0}; // a motion take's strike of the training dummy (QC vr_dummy.qc)
+    func_t Dummy_RetypeAll{0}; // the training dummies as vr_dummy_type has them, now (QC vr_dummy.qc)
     func_t Carry_Handtouch{0}; // a thing a hand can carry (QC vr_carry.qc VR_Carry_Setup): taken by the fist's touch
     func_t Ragdoll_Handtouch{0}; // a ragdoll's limb under a hand (QC vr_carry.qc; vr_box3d.cpp gives it to a ragdoll)
     // A carried prop's touch: QC forcegrabbable_touch and those that only call it (a rock's or a brick's, a crate's
@@ -101,6 +102,20 @@ struct Bindings
     }
     const float* v = fieldPtr(ent, ofs);
     return {v[0], v[1], v[2]};
+}
+
+// Whether `ent` is the firing range's training dummy standing (QC vr_dummy.qc: its classname is its enemy's,
+// vr_dummy_type's; .vr_dummy_kind marks it).
+[[nodiscard]] inline bool isTrainingDummy(edict_t* ent)
+{
+    return fieldFloatOr(ent, fields().vr_dummy_kind, 0.f) > 0.f;
+}
+
+// The class a motion take knows a target by: its classname, "vr_dummy" for the training dummy whatever enemy it stands
+// as (the takes' "target" and mon_class: a take of any enemy type replays against the dummy).
+[[nodiscard]] inline const char* targetClass(edict_t* ent)
+{
+    return isTrainingDummy(ent) ? "vr_dummy" : PR_GetString(ent->v.classname);
 }
 
 [[nodiscard]] inline func_t fieldFunc(edict_t* ent, int ofs)

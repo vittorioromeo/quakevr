@@ -2071,6 +2071,10 @@ DropBackpack
 */
 void() DropBackpack =
 {
+    if(self.vr_dummy_dead)
+    {
+        return; // VR: the firing range's training dummy killed as its enemy (vr_dummy.qc): no loot
+    }
     if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells
     + self.ammo_lava_nails + self.ammo_multi_rockets + self.ammo_plasma))
     {

@@ -232,7 +232,6 @@ float(entity m) VR_Grapple_MonsterMass =
     if(c == "monster_wizard")        { return 50; }
     if(c == "monster_zombie")        { return 70; }
     if(c == "monster_army")          { return 80; }
-    if(c == "vr_dummy")              { return 80; }
     if(c == "monster_knight")        { return 90; }
     if(c == "monster_wrath")         { return 90; }
     if(c == "monster_enforcer")      { return 100; }

@@ -1595,6 +1595,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
       - — Dying Bodies —
       - Hit While Dying → `vr_corpse_dying`
       - — Training Dummy —
+      - Dummy Enemy → `vr_dummy_type`
       - Dummy Bleeds → `vr_dummy_gore`
       - Dummy Dies → `vr_dummy_gib`
       - Dummy Stands Again → `vr_dummy_gib_respawn`

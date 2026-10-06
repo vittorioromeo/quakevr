@@ -238,13 +238,37 @@ void restartVr()
     return i;
 }
 
+// The enemies the training dummy can stand as (vr_dummy_type; QC vr_dummy_types.qc numbers them): a mission pack's only
+// when it is installed (else the QC makes it a grunt).
+[[nodiscard]] za::Vector<Choice> dummyEnemies()
+{
+    za::Vector<Choice> out{{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Ogre"},
+        {5.f, "Fiend"}, {6.f, "Shambler"}, {7.f, "Zombie"}, {8.f, "Vore"}, {9.f, "Scrag"}, {10.f, "Rottweiler"},
+        {11.f, "Spawn"}, {12.f, "Rotfish"}};
+    const cvar_t* hipnotic = Cvar_FindVar("vr_hipnotic_available");
+    const cvar_t* rogue = Cvar_FindVar("vr_rogue_available");
+    if(hipnotic && hipnotic->value != 0.f)
+    {
+        out.pushBack({13.f, "Gremlin"});
+        out.pushBack({14.f, "Centroid"});
+    }
+    if(rogue && rogue->value != 0.f)
+    {
+        out.pushBack({15.f, "Mummy"});
+        out.pushBack({16.f, "Wrath"});
+        out.pushBack({17.f, "Overlord"});
+        out.pushBack({18.f, "Electric Eel"});
+    }
+    return out;
+}
+
 // The training dummy's full health (vr_dummy_health), its leftmost step -1: its enemy's own ("Its Own": a grunt's 30).
 [[nodiscard]] Item dummyHealthSlider()
 {
     Item i = slider("Dummy Health", vr_dummy_health, 0.f, 1000.f, 5.f, "%.0f")
                  .extend(1.f, 100000.f)
                  .help("The training dummy's full health: what its hits take away (shown over it) and, with Dummy Dies, "
-                       "what kills it. Its Own: its enemy's (a grunt's 30).");
+                       "what kills it. Its Own: its enemy's (a grunt's 30, an ogre's 200).");
     i.negativeLabel = "Its Own";
     i.negativeStart = 5.f;
     return i;
@@ -2175,12 +2199,14 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         toggle("Hit While Dying", vr_corpse_dying)
             .help("A monster dying takes damage as a corpse while it falls (once it drops what it drops): a chainsaw, a blow or a shot can gib it. Never killed twice. Needs Gib Corpses (Carrying and Throwing > Gibs and Corpses)."),
         header("Training Dummy"),
+        cycle("Dummy Enemy", vr_dummy_type, dummyEnemies())
+            .help("The enemy the training dummy stands as: its model, size, hit zones, the head it loses, its blood, gore and death are that monster's own. It stays still, takes no harm and reports every hit. The mission packs' with the pack installed."),
         toggle("Dummy Bleeds", vr_dummy_gore)
-            .help("The firing range's training dummy bleeds as a grunt: blood sprays and mist, wounds on its model, small gibs, blood on you and what you hold. Off: it stays clean."),
+            .help("The firing range's training dummy bleeds as its enemy: blood sprays and mist, wounds on its model, small gibs, blood on you and what you hold. Off: it stays clean."),
         toggle("Dummy Dies", vr_dummy_gib)
-            .help("The hit that takes the last of its health (Dummy Health) kills the training dummy as a grunt: beheaded, its head popped, dying, lying as a ragdoll or gibbed exactly as a grunt would be. Then it stands again. No loot. Off: it stays at 0 health (\"would kill\"). On as shipped."),
+            .help("The hit that takes the last of its health (Dummy Health) kills the training dummy as its enemy: beheaded, its head popped, dying, lying as a ragdoll or gibbed exactly as that monster would be. Then it stands again. No loot. Off: it stays at 0 health (\"would kill\"). On as shipped."),
         slider("Dummy Stands Again", vr_dummy_gib_respawn, 0.5f, 10.f, 0.5f, "%.1f s").extend(0.1f, 60.f)
-            .help("How long a killed training dummy takes to stand again (its body stays, as a grunt's)."),
+            .help("How long a killed training dummy takes to stand again (its body stays, as its enemy's)."),
         dummyHealthSlider(),
         slider("Dummy Health Refills", vr_dummy_regen, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 120.f)
             .help("How long after its last hit the training dummy's health fills up again (0: never; it stays as hit until it dies and stands again)."),

@@ -241,7 +241,6 @@ float(entity xTarget) PositionalHead =
     if(c == "monster_wizard")           { xHeadForward = 6;  xHeadUp = 25; xHeadRadius = 7;   return TRUE; }
     if(c == "monster_mummy")            { xHeadForward = 0;  xHeadUp = 30; xHeadRadius = 6.5; return TRUE; }
     if(c == "player")                   { xHeadForward = 4;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
-    if(c == "vr_dummy")                 { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; } // a grunt
     return FALSE;
 };
 

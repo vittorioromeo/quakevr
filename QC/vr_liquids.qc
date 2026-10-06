@@ -101,7 +101,7 @@ float(entity e) VR_Liquid_Immune =
         return TRUE;
     }
     if(e.classname == "monster_boss" || e.classname == "monster_oldone" || e.classname == "monster_armagon" ||
-       e.classname == "monster_dragon" || e.classname == "monster_lava_man" || e.classname == "vr_dummy")
+       e.classname == "monster_dragon" || e.classname == "monster_lava_man" || VR_IsDummy(e))
     {
         return TRUE;
     }

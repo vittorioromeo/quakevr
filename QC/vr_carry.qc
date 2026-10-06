@@ -1979,7 +1979,7 @@ float QVR_GORE_CORPSE = 42; // org: the corpse's origin, dir_x: its size / 8
 // (vr_dummy.qc; NOTES.md vrfiringrange_2026-10-03_02-07-05).
 float(entity e) VR_Dummy_Clean =
 {
-    return e.classname == "vr_dummy" && !cvar_hget(cvarh_vr_dummy_gore);
+    return VR_IsDummy(e) && !cvar_hget(cvarh_vr_dummy_gore);
 };
 
 float vr_gore_sent; // gore hits sent (VR_Gore_Hit: the small gibs' tests count them)

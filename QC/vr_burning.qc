@@ -61,7 +61,7 @@ float VR_BURN_SCATTER = 4;   // a piece of a crate broken while burning (no soun
 // What fire doesn't hurt (VR_Liquid_Immune's: what lives in lava or water, the bosses), but the training dummy burns.
 float(entity e) VR_Burn_Fireproof =
 {
-    return e.classname != "vr_dummy" && VR_Liquid_Immune(e);
+    return !VR_IsDummy(e) && VR_Liquid_Immune(e);
 };
 
 // Wood that burns as a crate does (its flames on its box, turned with it; no damage: it burns its time and breaks or
