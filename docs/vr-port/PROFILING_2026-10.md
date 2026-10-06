@@ -20,6 +20,10 @@ and no load work is in a gameplay number nor the other way round (see "Keeping t
   same map is no faster (the player's and monsters' hulls are compiled again each time: 1.5-2.6 s of it).
 - **Fixed** (each a commit with its numbers, no visible or gameplay change):
   - the hull build's allocations (warden's warm load **-15%**, ad_grendel's **-16 to -20%**, the same trees bit for bit);
+  - follow-up (branch `agent/hullsmall`): the hull build's containers sized from measured data and the tree's plane
+    index kept across its models' builds (allocations a big-map load 38 M to 4.3 M; warden's warm load **-39%**,
+    ad_grendel's **-35%**, the same trees), and the hulls **kept for a reload of the same map** (`vr_hull_keep`:
+    warden's `restart` 2134 to **378 ms**, ad_grendel's 1283 to **326 ms**).
   - the particles' retro light levels (that step **-47%**, 0.2 to 0.1 ms a frame with 6500 particles);
   - the benchmark itself: the load's background AO bakes (9 s of 4 threads after the firing range loads) ran inside the
     gameplay windows; now they finish before (`vr_ao_finish`);
@@ -128,6 +132,136 @@ warden's two loads 22.9 s to 14.9 s (clipWinding 10.3 to 3.4).
 What is left in the hulls: `choose` (3.3 s CPU), the faces' copies and frees (2-3 s), the pool's spinning (1.2 s),
 and "loaded brush models prepared" (230 ms on every warden load, warm too: the brush models' trees built only three
 ways parallel, one thread per tree).
+
+### Hull build, follow-up: the containers, and the hulls kept for a reload
+
+(Branch `agent/hullsmall`, after the fix above. Same method; `vr_hull_stats` hashes with `vr_hull_width 26` and the
+monsters' trees, identical before and after on warden, ad_grendel, e4m7 and e1m1, on the pool and on one thread.)
+
+**Sizes measured** (an instrumented build, one load of each map, every call; not committed):
+
+| what | warden | ad_grendel | e4m7 | e1m1 |
+|---|---|---|---|---|
+| a winding's points (clipWinding's output): mean / p99 / max | 4.5 / 9 / 24 | 4.1 / 6 / 24 | 4.1 / 6 / 16 | 4.0 / 5 / 8 |
+| windings over 8 points | 1.3% | 0.03% | 0.02% | 0 |
+| a piece's faces (splitPoly's input): mean / p90 / max | 10.7 / 19 / 68 | 6.9 / 9 / 35 | 6.6 / 8 / 19 | 6.4 / 7 / 13 |
+| a split's sides (pieces): median / mean / p90 | 3 / 6.1 / 12 | 3 / 5.0 / 10 | 3 / 4.4 / 9 | 3 / 4.5 / 8 |
+| `choose`'s candidates: median / p90 (a member: no allocation) | 6 / 61 | 5 / 28 | 5 / 20 | 5 / 20 |
+| heap allocations, the whole load (all threads) | 38.4 M | 29.5 M | 2.39 M | 1.54 M |
+
+**Changes** (commit "Hull build: windings in place ..."):
+
+- `Winding` = `za::SmallVector<glm::dvec3, 8>` (was `za::Vector`): 98.7% of warden's windings and all but 0.03% of
+  the others' in place. A `Face` grows from 64 to 256 bytes; a `Poly` stays a `za::Vector<Face>` (a piece is moved
+  three or four times a split and averages 7-11 faces: in place it would be 2-3 KB a move and 13 KB of stack a
+  recursion level). `Face` and `Frag` opt into trivial relocation (a `Poly`'s growth copies bytes).
+- `clipWinding`'s distances and sides: `za::SmallVector<double, 64>` / `<int, 64>` (the stack/heap split the
+  container's). The question asked: the two empty `za::Vector`s it had cost nothing to make (a null pointer) and a
+  `delete` of null each to destroy; the change is for clarity, not time. The output's `reserve(count + 1)` is gone
+  (it pushed an 8-point input's output to the heap; in place it has room).
+- `splitPoly` clips each face straight into its slot in the front and back outputs (no temporary face moved in); the
+  cap's two windings alternate instead of being swapped (a swap of in-place windings copies them three times).
+- A node's pieces: `Frags` = `za::SmallVector<Frag, 4>` (sides of 4 or fewer: 68-72% of them; 750 bytes of stack a
+  recursion level).
+- **The big one, found by counting allocations per function**: `TreeBuilder(Tree&)` indexed all of the tree's planes
+  again for every model it compiled (each brush model's tree is built against the world tree's table): ad_grendel's
+  440 brush models times two trees, 26 thousand planes each, 23 million inserts and **5.2 of its 8.5 million
+  allocations**. The index now lives in the `Tree` and is brought up to date (only the planes added since).
+
+Allocations a load (all threads; hulls off, the rest of a load is 0.33-0.35 M on these maps):
+
+| map | before | windings in place | + pieces in place | + plane index kept |
+|---|---|---|---|---|
+| warden | 38.4 M | 7.13 M | 6.60 M | **4.30 M** |
+| ad_grendel | 29.5 M | 9.02 M | 8.54 M | **3.30 M** |
+| e4m7 | 2.39 M | 0.64 M | 0.62 M | **0.43 M** |
+| e1m1 | 1.54 M | 0.39 M | 0.33 M | **0.26 M** |
+
+What allocates in the hulls now (ad_grendel, ~3 M): the two pieces of each real split (1.8 M: a `Poly` each side),
+the units' saved inputs (0.57 M: `Unit::input`, copied in case the merge has to redo the unit, which it rarely does),
+the brushes' growth (0.46 M).
+
+Load times (`bench.sh`, his settings, 90 Hz real time, exclusive, 3 runs each, A then B back to back; median, the runs
+in brackets; `hsab1_A` / `hsab1_B`):
+
+| load (ms) | before | after | change | brush models prepared (ms) |
+|---|---|---|---|---|
+| warden cold | 2107 [2038 2107 3804] | 1724 [1948 1712 1724] | -18% | 139-221 to 53-65 |
+| warden warm | 2735 [2735 2022 3110] | 1664 [2137 1473 1664] | -39% | 146-240 to 46-62 |
+| ad_grendel cold | 1532 [1437 1532 4313] | 1171 [1243 1171 1145] | -24% | 187-210 to 12-19 |
+| ad_grendel warm | 1359 [1747 1282 1359] | 883 [888 848 883] | -35% | 215-317 to 15-16 |
+| e1m1 warm | 274 [843 274 247] | 223 [223 224 219] | -19% | 2-3 to 0 |
+| e1m1 restart | 262 [894 213 262] | 212 [207 212 216] | -19% | |
+
+(The "before" runs are noisier than the "after" ones: a warm load of a big map varies by a second between runs, as
+noted above. The hulls' wait in the load, `physics_init`: warden warm 1968 to 1218 ms, ad_grendel warm 758 to 498.)
+
+**Kept for a reload** (commit "Hulls kept for a reload of the same map", decision 1 below, the author's call):
+`vr_hull_keep` (default 1; Debug menu: Keep Hitboxes for Reloads): at a map change the map's brushes and trees are
+kept in memory under a hash of the world's content (hull 0's and hull 1's nodes, the planes, the models' heads and
+bounds, a build version: `keyOf`), and a load whose world hashes the same takes them back instead of building them:
+a death's reload (`restart`, or `load` of the autosave), a changelevel back, the same map again from the menu, the
+same BSP under another name. They are kept as the load left them (the world's models, each tree's world tree and the
+models prepared with the map; external `.bsp` models and models compiled later are let go: they are made again as
+on a fresh load), with their pointers into the hunk cleared while kept and set to the new world's when taken back.
+Trees are kept by box size: a width changed in between is compiled again, the other trees reused. `vr_hull_keep N`
+keeps N other maps (the one being left is kept until the next load has looked for its own, so 1 also covers a
+changelevel back); 0 turns it off and frees them. Kept across game folder changes too (a map package mounted and let
+go): the key is the content. `vr_hull_keeptest` (Debug menu: Hitbox Keep Test) builds the brushes and every tree's
+world tree again from scratch and compares hashes with the server's; `vr_hull_stats` prints what is kept.
+
+Checked: `vr_hull_keeptest` PASS and `vr_hull_stats` hashes equal to a fresh build after `restart` (e1m1, warden),
+after a changelevel back (e1m1 - e1m2 - e1m1), after warden - ad_grendel - warden - ad_grendel (map packages
+mounted and let go between), after `vr_hull_width` 26 to 20 and a restart (the 20-wide tree compiled, the monsters'
+reused); a map file replaced under the same name (`hulltest.bsp`: vrslopes' content, then vrclimb's, `restart`)
+builds again (key changed) and matches a fresh load of vrclimb; `vr_hull_keep 0` builds every time. Memory held:
+warden 15.9 MB (brushes, the player's tree and two monster trees, their plane indexes), ad_grendel 12.0 MB, e1m2
+1.2 MB.
+
+Load times with and without the kept hulls (`bench.sh --scenarios load_reloads`, a new scenario: nine loads in one
+run; his settings, 90 Hz real time, exclusive, 3 runs each, A then B; A: the containers' build, B: with
+`vr_hull_keep 1`; `hsab3_A` / `hsab3_B`; median, runs in brackets; B's second run was disturbed by something else on
+the machine, every load of it 300-4600 ms slower):
+
+| load (ms) | A: built | B: kept | change | hulls waited for, A |
+|---|---|---|---|---|
+| warden cold | 1884 [3035 1884 1764] | 1878 [1878 2355 1803] | (none: nothing kept yet) | 3-481 |
+| warden `restart` (a death's reload) | 2134 [6796 2134 2121] | **378** [378 812 376] | **-82%** | 1209-1658 |
+| `map warden` again | 2052 [1528 2152 2052] | **379** [366 669 379] | **-82%** | 1066-1665 |
+| ad_grendel cold | 1795 [1490 1871 1795] | 1680 [1680 3945 1417] | (none) | 0-282 |
+| ad_grendel `restart` | 1283 [1139 1364 1283] | **326** [317 1004 326] | **-75%** | 688-925 |
+| e1m1 `restart` | 227 [215 227 234] | 208 [206 711 208] | -8% | 0-11 |
+| `changelevel e1m1` back from e1m2 | 231 [211 238 231] | 230 [230 632 206] | 0 | 0-15 |
+
+The kept loads wait for no hull at all (0 ms, and 0 ms of "brush models prepared"); looking the kept maps up (the
+content hash) takes 0.1 ms on warden. e1m1's hulls were already ready before the load needed them (built while it
+spawns), so its reloads gain little. The death's reload with an autosave (`sv_autoload`: `load` of the last save) goes
+through the same `SV_SpawnServer` path as `restart`; it was not run here (it writes a save).
+
+### `za::Vector` against `za::SmallVector` / `za::InPlaceVector` outside the hulls (audit)
+
+Quake/vr has about 570 `za::Vector` declarations (members and locals). Only the hot ones were looked at, found by
+evidence rather than by reading them all: the heap events a frame in every gameplay scenario (the suite's
+`heap/fr`: 5-10 a frame in combat and crowds, 39 in `client`, 122 in `gore_first_cuts` while the first cuts make
+limb models), the main thread's allocation sites over a map load and over gameplay frames (`vr_alloc_sites`), and
+the load's allocations on every thread (a counting build). Outside the hull build a big map's load makes 0.33-0.35
+million allocations in all (warden, ad_grendel with the hulls off), a few tens of ms of CPU across the threads; normal
+play makes single digits a frame. So no other site is worth a change on its own; these are recommendations.
+
+| file:line | current | size (measured or reasoned) | evidence | recommendation | expected gain |
+|---|---|---|---|---|---|
+| `vr_hull.cpp` `Winding`, `Frags`, `clipWinding`'s buffers, the plane index | `za::Vector` | see above | 38 M allocations a warden load | **done** (`SmallVector<dvec3, 8>`, `SmallVector<Frag, 4>`, `SmallVector<double/int, 64>`, index kept) | above |
+| `vr_hull.cpp` `Poly` (`za::Vector<Face>`) | `za::Vector` | 6-11 faces of 256 bytes | 1.8 M allocations on ad_grendel (two a split) | keep (in place: 2-3 KB copied a move, 13 KB of stack a level); a per-thread free list of `Poly` buffers if ever | ~1.8 M allocations, maybe 5% of the hulls |
+| `vr_hull.cpp` `Unit::input` (copy of a unit's pieces) | `Frags` copied | 50-110 pieces a unit, 3-4 thousand units | 0.57 M allocations on ad_grendel | rebuild a unit's input from its parent's only when the merge redoes it (rare) instead of copying every unit's | 0.57 M allocations and their copies |
+| `vr_hull.cpp` `TreeBuilder::choose` `seen_`/`facing_` | `za::Vector`, resized to the table's size per builder | 26-44 thousand planes; a builder per unit and per model | zero-fills ~0.5 MB per builder (warden: ~2 GB over a load) | a stamp kept across builders on the same thread (per-thread scratch) | 0.1-0.2 s of CPU on warden (estimate) |
+| `vr_debris.cpp:312` `MapFace::pts` (`debris::plan`, at each load) | `za::Vector<glm::vec3>` | a world face's edges: 4-8 typical | 65 K `new` + 45 K `delete` on warden's load (main thread) | `za::SmallVector<glm::vec3, 8>` | ~5 ms of the main thread a big-map load |
+| `vr_fscache.cpp:113-123` `VR_FileCacheHas` | three `za::String`s a lookup | paths of 20-60 chars | 48 K allocations a warden load (main thread), 34 K on e4m7 | fold into a stack buffer (`za::InPlaceVector<char, MAX_OSPATH>`) and look the set up by `StringView` (transparent hash) | ~3 ms a load |
+| `vr_box3d.cpp:1311` `corners()` | returns `za::Vector<b3Vec3>` | a leaf's corners (8-20) | 5.7 K allocations a warden load; Box3D's own `b3CreateHull` mallocs 120 KB per hull (1124 hulls: 135 MB of requests) | `SmallVector<b3Vec3, 32>`; the hull allocator is Box3D's (vendored) | small; the 135 MB of requests may be worth a look |
+| `vr_water.cpp:480` `Poly` (`cutAlong`, `ensureMesh`) | `za::Vector<glm::vec3>` | a water face's points: 4-8 | 9.6 K allocations on e4m7's load | `SmallVector<glm::vec3, 8>` | ~1 ms a load |
+| per-frame gameplay | various | | 1.4 heap events a frame on e1m1 (alias flame refs, AO uploads), 5-10 in combat scenarios (suite `heap/fr`) | nothing to do | none measurable |
+
+(`vr_debris.cpp`, `vr_fscache.cpp` and `vr_box3d.cpp` were left alone here: other work is under way in them, and each is
+a few ms of a load.)
 
 ### Other load findings
 
@@ -279,11 +413,11 @@ Ordered by return for the effort. "Gain" is what was measured or a bounded estim
 
 | # | what | gain | effort | risk |
 |---|---|---|---|---|
-| 1 | **Keep the compiled hulls across a reload of the same map** (a death's reload, `restart`, a load of a save on the map one is on): key `built`, `tree` and the monster trees by the BSP's checksum instead of the hunk's clipnode pointers, keep them over `MapChange` when the next map is the same | warden's reload ~1.8 s to ~0.3 s, ad_grendel ~1.2 s to ~0.3 s; e1m1 ~30 ms | medium (the caches' keys are pointers into the hunk; every holder re-pointed) | medium: a stale pointer is a crash; a test with `vr_hull_cachetest` and the hashes |
+| 1 | **Done** (`vr_hull_keep`, "Hull build, follow-up"; was:) **Keep the compiled hulls across a reload of the same map** (a death's reload, `restart`, a load of a save on the map one is on): key `built`, `tree` and the monster trees by the BSP's checksum instead of the hunk's clipnode pointers, keep them over `MapChange` when the next map is the same | warden's reload ~1.8 s to ~0.3 s, ad_grendel ~1.2 s to ~0.3 s; e1m1 ~30 ms | medium (the caches' keys are pointers into the hunk; every holder re-pointed) | medium: a stale pointer is a crash; a test with `vr_hull_cachetest` and the hashes |
 | 2 | **AO bakes: a disk cache** keyed by the model's hash (the bake is deterministic: its FNV is printed), like the normal maps' cache; and a faster bake (a grid or BVH over the pose's triangles instead of every triangle in reach) | 9-20 s of 4 threads after each first load a session gone; models get their AO at once | small (cache) / medium (BVH) | low |
 | 3 | **Shadow casters drawn once per light, not per face**: one layered pass (`gl_Layer`/viewport index from a geometry or vertex shader) or a multi-draw of all six faces; at least the casters' per-entity set-up (lerp, matrices, bones) once per light | CPU 1.4 ms a frame in `combined` to ~0.3; 7500 draw calls a frame fewer | medium-large | medium (shadow edges, the head's self-shadow, portals' lights) |
 | 4 | **Retro particles' fill**: a reduced-resolution path for large soft particles with the retro quantisation (10-05 benchmark, item 1) | GPU 6-7.5 ms to ~3 in dense scenes (measured controls 13.3 to 3.0 ms at 2048 in the 10-05 run) | medium | visual: the author's call |
-| 5 | **Hull build, the rest**: fewer face copies (move pieces between units), `choose` on a sample, the brush models' trees in parallel per model (the merge machinery) | another 20-30% of the hulls; 230 ms to ~60 on every warden load | medium | low with the hashes as the test |
+| 5 | (Partly done in "Hull build, follow-up": the brush models' prepare 230 to ~60 ms on warden; what is left there.) **Hull build, the rest**: fewer face copies (move pieces between units), `choose` on a sample, the brush models' trees in parallel per model (the merge machinery) | another 20-30% of the hulls; 230 ms to ~60 on every warden load | medium | low with the hashes as the test |
 | 6 | **A faster allocator for the pool's threads** (mimalloc or per-thread arenas for the load's builders) | the load's remaining malloc/free (several seconds of CPU on warden) | medium (a vendored library) | low-medium |
 | 7 | **World textures kept for a same-map reload** (QRP: the material maps too), or a decoded-image cache | e1m1 QRP warm 815 ms to ~300 | medium | memory (QRP's textures are large) |
 | 8 | **Campaign switch keeps id1's alias models** (only the folders that change are flushed) | 600 ms + 400 ms of images on a switch | medium | a mod's own model left stale |

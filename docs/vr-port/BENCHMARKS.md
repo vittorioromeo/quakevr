@@ -154,6 +154,7 @@ monsters and torches ahead of the player.
 | `load_e4m7` | loading | (none) | `map e4m7` (id's biggest BSP, 1.5 MB) cold and warm. |
 | `load_hip1m1` | loading | (none) | `map hip1m1` from Quake's campaign (the campaign switch rebuilds the game folders), again, then `map e1m1` (the switch back). |
 | `load_changelevel` | loading | e1m1 | `changelevel e1m2` from E1M1 (the in-game path), then `changelevel e1m1`. Replaces `mapload_e1m2`. |
+| `load_reloads` | loading, maps | (none) | warden cold, `restart`, `map warden` again; ad_grendel cold, `restart`; e1m1 cold, `restart`, `changelevel e1m2` and back (one run: nine loads). The loads that get the last load's hulls back (`vr_hull_keep`) against the cold ones. |
 | `load_warden` | loading/maps | (none) | `map warden` (15.4 MB BSP) cold and warm. |
 | `load_ad_grendel` | loading/maps | (none) | `map ad_grendel` cold (its map package mounted) and warm. |
 | `timedemo_demo1_flat` | loading/flat | start, flat | The classic `timedemo demo1` in flat mode inside the window: a replayed game's frames (its own fps line too). |

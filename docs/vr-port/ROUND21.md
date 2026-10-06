@@ -26640,6 +26640,21 @@ no longer overlapping the load's AO bakes (`vr_ao_finish`). New: `vr_bench_profi
 collects only benchmark windows or only map loads; Debug > Profiling and Memory > External Profiler Collects),
 `Misc/quakevr/bench/qvrprof.sh`, `vtune_attr.py`.
 
+## Hull build: containers and hulls kept for a reload (2026-10-06)
+
+His questions on the hull build's vectors (clipWinding's two heap vectors, `Winding` and `Poly` as small vectors, a
+`za::Vector` audit) and "keep the compiled hulls across a reload of the same map". Measured first (sizes of every
+winding, piece, split and candidate list on warden, ad_grendel, e4m7, e1m1; allocations per function), then:
+`Winding` = `SmallVector<dvec3, 8>`, a node's pieces `SmallVector<Frag, 4>`, clipWinding's buffers
+`SmallVector<..., 64>`, `Poly` kept a `za::Vector` (too big in place), and the tree's plane index kept across its
+models' builds (it was rebuilt for every brush model: 5.2 of ad_grendel's 8.5 million load allocations). A big map's
+load: 38 M allocations to 4.3 M; warden warm load -39%, ad_grendel -35%; same trees (hashes). Then `vr_hull_keep`
+(default 1): brushes and trees kept at a map change under the world's content hash, taken back by the next load of
+the same content: warden's `restart` 2134 to 378 ms, ad_grendel's 1283 to 326. `vr_hull_keeptest` checks kept against
+fresh; Debug > Keep Hitboxes for Reloads, Hitbox Keep Test. New bench scenario `load_reloads`. Details, tables and
+the wider `za::Vector` audit (recommendations only): [PROFILING_2026-10.md](PROFILING_2026-10.md), "Hull build,
+follow-up". For VR: die on warden (or `restart`) and check the reload is quick and walls/doors still block you.
+
 ## Server tick rate (2026-10-06)
 
 His words: "Please fix the server tick rate." The melee audit found that the server's rate followed the headset's:

@@ -235,6 +235,16 @@ Test aids (Debug > Tests; the approach and the walk also on the page):
 - `vr_hull_probe`: which brush the narrow box is in and by how much, and whether the compiled hull is solid there.
 - `vr_hull_walktest <seconds> [seed]`: the random walk (with `god; notarget`); the level's exits closed meanwhile.
 
+### Kept for a reload of the same map (`vr_hull_keep`, 2026-10-06)
+
+The map's brushes and compiled hulls (the player's and the monsters' trees) are kept in memory when the map is left,
+under a hash of the world's content, and a load whose world hashes the same gets them back instead of building them:
+a death's reload (`restart`, the autosave's `load`), a changelevel back, the same map again (warden's
+`restart` 2.1 s to 0.4 s, ad_grendel's 1.3 s to 0.3 s). `vr_hull_keep` (default 1, Debug > Keep Hitboxes for Reloads) is how many maps are
+kept; 0 is off. A width changed in between is compiled again; external `.bsp` models' brushes and trees are made
+again. `vr_hull_keeptest` rebuilds everything from scratch and checks the hashes match. Details and numbers:
+[PROFILING_2026-10.md](PROFILING_2026-10.md), "Hull build, follow-up".
+
 ## Numbers
 
 ### Load and trace cost, and agreement with hull 1 (32 box), all 32 id1 maps

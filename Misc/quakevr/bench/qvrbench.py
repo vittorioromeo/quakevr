@@ -339,6 +339,13 @@ def scenarios():
         add(f"load_{m}", ["loading", "maps"], f"the custom map {m} loaded cold and warm ({TOUR_SOURCES[m]})", None,
             f"`map {m}` cold (its map package mounted), then again: heavy geometry, many entities and lights.",
             setup=LOADS, warm=30, body=loads_body([("cold", f"map {m}"), ("warm", f"map {m}")]), loads=2, frames=0)
+    add("load_reloads", ["loading", "maps"], "the same maps loaded again: restart, a map again, a changelevel back", None,
+        "warden cold, `restart`, `map warden` again; ad_grendel cold, `restart`; e1m1 cold, `restart`, `changelevel "
+        "e1m2` and back: the loads that get the last load's hulls back (vr_hull_keep) against those that build them.",
+        setup=LOADS, warm=30, body=loads_body([("warden_cold", "map warden"), ("warden_restart", "restart"),
+            ("warden_again", "map warden"), ("grendel_cold", "map ad_grendel"), ("grendel_restart", "restart"),
+            ("e1m1_cold", "map e1m1"), ("e1m1_restart", "restart"), ("e1m2", "changelevel e1m2"),
+            ("e1m1_back", "changelevel e1m1")]), loads=9, frames=0)
     add("timedemo_demo1_flat", ["loading", "flat"], "id's demo1 played as fast as it goes (timedemo), flat", "start",
         "The classic `timedemo demo1` in flat mode inside the window: a replayed game's frames (its own fps line too).",
         flat=True, body=lambda frames: ["timedemo demo1"] + waits(frames), warm=30, loads=1)  # (the demo's map)
