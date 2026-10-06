@@ -11,7 +11,7 @@ void() earthquake_rumble =
         stop_earthquake();
     else
     {
-        sound(self, CHAN_VOICE, "equake/rumble.wav", 1, ATTN_NONE);
+        sound(self, CHAN_VOICE, VR_SoundOr("equake/rumble.wav", "misc/quake.wav", "sound/equake/rumble.wav"), 1, ATTN_NONE);
         self.think = earthquake_rumble;
         self.nextthink = time + 1;
     }
@@ -52,7 +52,6 @@ can vary between -20 and +20, a range of 40.
 */
 void() earthquake =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
     if(!self.delay)
         self.delay = 20;
@@ -61,7 +60,7 @@ void() earthquake =
     if(!self.weapon)
         self.weapon = 40;
 
-    precache_sound("equake/rumble.wav");
+    precache_sound(VR_SoundOr("equake/rumble.wav", "misc/quake.wav", "sound/equake/rumble.wav"));
     earthquake_active = 0;
     earthquake_intensity = self.weapon * 0.5;
 
@@ -79,7 +78,7 @@ void() earthquake_touch =
     {
         if(self.attack_finished < time)
         {
-            sound(self, CHAN_VOICE, "equake/rumble.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, VR_SoundOr("equake/rumble.wav", "misc/quake.wav", "sound/equake/rumble.wav"), 1, ATTN_NORM);
             self.attack_finished = time + 1;
         }
 
@@ -118,9 +117,8 @@ can vary between -20 and +20, a range of 40.
 */
 void() trigger_earthquake =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
-    precache_sound("equake/rumble.wav");
+    precache_sound(VR_SoundOr("equake/rumble.wav", "misc/quake.wav", "sound/equake/rumble.wav"));
 
     if(!self.weapon)
         self.weapon = 40;
@@ -158,7 +156,6 @@ Trigger to kill the level-wide earthquake.
 */
 void() trigger_earthquake_kill =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
     self.touch = kill_earthquake;
 

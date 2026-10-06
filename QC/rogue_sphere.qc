@@ -137,7 +137,7 @@ The Vengeance Sphere. DEATHMATCH ONLY.
 */
 void() item_sphere =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/sphere.mdl", "sound/sphere/sphere.wav", "", ""), "Rogue")) { return; }
 
     if(!deathmatch)
     {

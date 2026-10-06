@@ -492,7 +492,7 @@ BossMode enables the superwrath's powershield and the random teleporting.
 */
 void() monster_super_wrath =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/s_wrath.mdl", "progs/s_wrtgb1.mdl", "progs/s_wrtgb2.mdl", "progs/s_wrtgb3.mdl") && VR_Has4("progs/w_ball.mdl", "progs/wrthgib1.mdl", "progs/wrthgib2.mdl", "progs/wrthgib3.mdl") && VR_Has4("sound/s_wrath/smash.wav", "sound/wrath/watt.wav", "sound/wrath/wdthc.wav", "sound/wrath/wpain.wav") && VR_Has4("sound/wrath/wsee.wav", "", "", ""), "Rogue")) { return; }
 
     if(deathmatch)
     {
@@ -548,7 +548,6 @@ It does not require any other fields filled in.
 */
 void() info_overlord_destination =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
 // this does nothing, just serves as a target spot
     self.mangle = self.angles;

@@ -61,15 +61,15 @@ void() hip_rubble_use =
 
         if(which == 1)
         {
-           hipThrowRubble("progs/rubble1.mdl");
+           hipThrowRubble(VR_ModelOr("progs/rubble1.mdl", "progs/vr_rock1.mdl"));
         }
         else if(which == 2)
         {
-           hipThrowRubble("progs/rubble3.mdl");
+           hipThrowRubble(VR_ModelOr("progs/rubble3.mdl", "progs/vr_rock3.mdl"));
         }
         else
         {
-           hipThrowRubble("progs/rubble2.mdl");
+           hipThrowRubble(VR_ModelOr("progs/rubble2.mdl", "progs/vr_rock2.mdl"));
         }
 
         index += 1;
@@ -84,11 +84,10 @@ void() hip_rubble_use =
 */
 void() func_rubble =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
-    precache_model("progs/rubble1.mdl");
-    precache_model("progs/rubble2.mdl");
-    precache_model("progs/rubble3.mdl");
+    precache_model(VR_ModelOr("progs/rubble1.mdl", "progs/vr_rock1.mdl"));
+    precache_model(VR_ModelOr("progs/rubble2.mdl", "progs/vr_rock2.mdl"));
+    precache_model(VR_ModelOr("progs/rubble3.mdl", "progs/vr_rock3.mdl"));
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble";
     self.cnt = 0;
@@ -103,9 +102,8 @@ void() func_rubble =
 */
 void() func_rubble1 =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
-    precache_model("progs/rubble1.mdl");
+    precache_model(VR_ModelOr("progs/rubble1.mdl", "progs/vr_rock1.mdl"));
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble1";
     self.cnt = 1;
@@ -120,9 +118,8 @@ void() func_rubble1 =
 */
 void() func_rubble2 =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
-    precache_model("progs/rubble3.mdl");
+    precache_model(VR_ModelOr("progs/rubble3.mdl", "progs/vr_rock3.mdl"));
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble2";
     self.cnt = 2;
@@ -137,9 +134,8 @@ void() func_rubble2 =
 */
 void() func_rubble3 =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
-    precache_model("progs/rubble2.mdl");
+    precache_model(VR_ModelOr("progs/rubble2.mdl", "progs/vr_rock2.mdl"));
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble3";
     self.cnt = 3;

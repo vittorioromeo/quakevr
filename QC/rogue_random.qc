@@ -67,7 +67,7 @@ Contains a random powerup.
 */
 void() item_random_powerup =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/beltup.mdl", "progs/p_shield.mdl", "progs/shield.mdl", "sound/belt/fadeout.wav") && VR_Has4("sound/belt/pickup.wav", "sound/belt/use.wav", "sound/items/damage.wav", "sound/items/damage2.wav") && VR_Has4("sound/items/damage3.wav", "sound/items/inv1.wav", "sound/items/inv2.wav", "sound/items/inv3.wav") && VR_Has4("sound/items/protect.wav", "sound/items/protect2.wav", "sound/items/protect3.wav", "sound/shield/fadeout.wav") && VR_Has4("sound/shield/hit.wav", "sound/shield/pickup.wav", "", ""), "Rogue")) { return; }
 
     if(!deathmatch)
     {

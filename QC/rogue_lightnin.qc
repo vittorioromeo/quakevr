@@ -103,7 +103,7 @@ Set the LT_TOGGLE checkbox if you want the lightning shooter to continuously fir
 */
 void() ltrail_start =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/weapons/lhit.wav", "", "", ""), "Rogue")) { return; }
 
     self.ltrailLastUsed = time;
 
@@ -142,7 +142,7 @@ Default is 0.3 seconds.
 */
 void() ltrail_relay =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/weapons/lhit.wav", "", "", ""), "Rogue")) { return; }
 
     precache_sound("weapons/lhit.wav");
     self.movetype = MOVETYPE_NONE;
@@ -168,7 +168,7 @@ Default is 0.3 seconds.
 */
 void() ltrail_end =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/weapons/lhit.wav", "", "", ""), "Rogue")) { return; }
 
     precache_sound("weapons/lhit.wav");
     self.movetype = MOVETYPE_NONE;

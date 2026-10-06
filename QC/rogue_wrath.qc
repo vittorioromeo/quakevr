@@ -195,7 +195,7 @@ void()    wrath_die15 =[ $wrthdt15, wrath_die15 ]
 */
 void() monster_wrath =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/w_ball.mdl", "progs/wrath.mdl", "progs/wrthgib1.mdl", "progs/wrthgib2.mdl") && VR_Has4("progs/wrthgib3.mdl", "sound/wrath/watt.wav", "sound/wrath/wdthc.wav", "sound/wrath/wpain.wav") && VR_Has4("sound/wrath/wsee.wav", "", "", ""), "Rogue")) { return; }
 
     if(deathmatch)
     {

@@ -275,7 +275,7 @@ void(entity attacker, float damage) tbaby_mitosis =
         newSpawn.think = tbaby_checknew;
         newSpawn.nextthink = time + 0.5;
 
-        sound(newSpawn, CHAN_VOICE, "blob/mytosis.wav", 1, ATTN_NORM);
+        sound(newSpawn, CHAN_VOICE, VR_SoundOr("blob/mytosis.wav", "blob/sight1.wav", "sound/blob/mytosis.wav"), 1, ATTN_NORM);
     }
 };
 
@@ -288,7 +288,6 @@ If you want a specific type, select "Blue", "Green", or "Spots".
 void() monster_tarbaby =
 {
     if(MG_MonsterInhibited()) return;
-    if(!VR_Pack_Rogue() && (!MG_WorldCampaign() && (self.spawnflags & (4 | 8)))) { remove(self); return; }
     float     myRand;
     float     skillLevel;
 
@@ -303,7 +302,7 @@ void() monster_tarbaby =
     precache_sound2("blob/hit1.wav");
     precache_sound2("blob/land1.wav");
     precache_sound2("blob/sight1.wav");
-    if(VR_Pack_Rogue()) { precache_sound2("blob/mytosis.wav"); }
+    precache_sound2(VR_SoundOr("blob/mytosis.wav", "blob/sight1.wav", "sound/blob/mytosis.wav")); // (Rogue's, else the spawn's own)
 
 
     if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
@@ -323,8 +322,8 @@ void() monster_tarbaby =
     self.th_melee = tbaby_jump1;
     self.th_die = tbaby_die1;
 
-    // Rogue variants and random mitosis require the installed pack.
-    if(MG_WorldCampaign() || !VR_Pack_Rogue())
+    // Rogue's variants (mitosis, the other skins: skin 0 where the model has no others) are Quake VR's code: always.
+    if(MG_WorldCampaign())
     {
         self.skin = 0;
     }

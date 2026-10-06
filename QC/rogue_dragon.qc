@@ -763,7 +763,7 @@ void() dragon_activate =
 */
 void() monster_dragon =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/dragon.mdl", "progs/drggib01.mdl", "progs/drggib02.mdl", "progs/drggib03.mdl") && VR_Has4("progs/fireball.mdl", "sound/dragon/active.wav", "sound/dragon/attack.wav", "sound/dragon/death.wav") && VR_Has4("sound/dragon/pain.wav", "sound/dragon/see.wav", "", ""), "Rogue")) { return; }
 
     if(deathmatch)
     {
@@ -822,7 +822,6 @@ If not, he is leaving.
 */
 void() trigger_dragon =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
     remove(self);
 };
@@ -854,7 +853,6 @@ between rooms.
 */
 void() dragon_corner =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
     if(!self.targetname)
         objerror ("dragon_corner: no targetname");

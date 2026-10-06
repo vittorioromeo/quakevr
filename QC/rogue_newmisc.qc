@@ -8,7 +8,7 @@ Default style is 0
 */
 void() light_lantern =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/lantern.mdl", "", "", ""), "Rogue")) { return; }
 
     precache_model("progs/lantern.mdl");
     setmodel(self, "progs/lantern.mdl");
@@ -22,7 +22,7 @@ Default style is 0
 */
 void() light_candle =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/candle.mdl", "", "", ""), "Rogue")) { return; }
 
     precache_model("progs/candle.mdl");
     setmodel(self, "progs/candle.mdl");
@@ -60,7 +60,7 @@ void() rubble_throw =
     rubble.movetype = MOVETYPE_BOUNCE;
     rubble.solid = SOLID_BBOX;
     rubble.velocity = throw * 300;
-    setmodel(rubble, "progs/rubble.mdl");
+    setmodel(rubble, VR_ModelOr("progs/rubble.mdl", "progs/vr_rock4.mdl"));
     setsize(rubble, '-16 -16 -16', '16 16 16');
     setorigin(rubble, self.origin);
     rubble.touch = rubble_touch;
@@ -102,9 +102,8 @@ delay - time between rubble pieces (Default 5 sec)
 */
 void() rubble_generator =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
-    precache_model("progs/rubble.mdl");
+    precache_model(VR_ModelOr("progs/rubble.mdl", "progs/vr_rock4.mdl"));
 
     if(!self.target)
         objerror ("rubble_generator has no target!");
@@ -141,7 +140,6 @@ void() trigger_explosion =
         self.use = MG_trigger_explosion_use;
         return;
     }
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
     InitTrigger ();
 

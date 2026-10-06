@@ -169,7 +169,7 @@ void()    hknight_run8    =[    $run8,        hknight_run1    ] {ai_run(13);};
 void()    hknight_pain1    =[    $pain1,        hknight_pain2    ]
     {
         if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
-            sound(self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
+            sound(self, CHAN_VOICE, VR_StatueFile("statue/pain.wav", "hknight/pain1.wav"), 1, ATTN_NORM);
         else
             sound(self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
     };
@@ -221,9 +221,9 @@ void() hknight_die =
 
         if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
         {
-            ThrowGib("progs/statgib1.mdl", self.health);
-            ThrowGib("progs/statgib2.mdl", self.health);
-            ThrowGib("progs/statgib3.mdl", self.health);
+            ThrowGib(VR_StatueFile("progs/statgib1.mdl", "progs/vr_rock1.mdl"), self.health);
+            ThrowGib(VR_StatueFile("progs/statgib2.mdl", "progs/vr_rock2.mdl"), self.health);
+            ThrowGib(VR_StatueFile("progs/statgib3.mdl", "progs/vr_rock3.mdl"), self.health);
         }
         else
         {
@@ -237,7 +237,7 @@ void() hknight_die =
 
     // regular death
     if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
-        sound(self, CHAN_VOICE, "statue/death.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, VR_StatueFile("statue/death.wav", "hknight/death1.wav"), 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "hknight/death1.wav", 1, ATTN_NORM);
 
@@ -383,7 +383,7 @@ void() hk_idle_sound =
     if(random() < 0.2)
     {
         if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
-            sound(self, CHAN_VOICE, "statue/idle.wav", 1, ATTN_IDLE);
+            sound(self, CHAN_VOICE, VR_StatueFile("statue/idle.wav", "hknight/idle.wav"), 1, ATTN_IDLE);
         else
             sound(self, CHAN_VOICE, "hknight/idle.wav", 1, ATTN_NORM);
     }
@@ -395,7 +395,7 @@ void(entity attacker, float damage) hknight_pain =
         return;
 
     if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
-        sound(self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, VR_StatueFile("statue/pain.wav", "hknight/pain1.wav"), 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
 
@@ -433,7 +433,7 @@ void() hknight_melee =
 
 void() hknight_pause =
 {
-    sound(self, CHAN_VOICE, "statue/see.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, VR_StatueFile("statue/see.wav", "hknight/sight1.wav"), 1, ATTN_NORM);
 
     self.takedamage = DAMAGE_AIM;
     self.th_stand = hknight_stand1;
@@ -470,8 +470,6 @@ frame: frame to be frozen in. (default 73)
 void() monster_hell_knight =
 {
     if(MG_MonsterInhibited()) return;
-    if(!VR_Pack_Rogue() && (!MG_WorldCampaign() && (self.spawnflags & 2))) { remove(self); return; }
-
     VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, $death12, $death1, $deathb9, $deathb1); // VR: knocked down (vr_knockdown.qc): no get-up of its own, a death backwards
     if(deathmatch)
     {
@@ -484,13 +482,13 @@ void() monster_hell_knight =
 
     if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
     {
-        precache_model("progs/statgib1.mdl");
-        precache_model("progs/statgib2.mdl");
-        precache_model("progs/statgib3.mdl");
-        precache_sound("statue/see.wav");
-        precache_sound("statue/idle.wav");
-        precache_sound("statue/pain.wav");
-        precache_sound("statue/death.wav");
+        precache_model(VR_StatueFile("progs/statgib1.mdl", "progs/vr_rock1.mdl"));
+        precache_model(VR_StatueFile("progs/statgib2.mdl", "progs/vr_rock2.mdl"));
+        precache_model(VR_StatueFile("progs/statgib3.mdl", "progs/vr_rock3.mdl"));
+        precache_sound(VR_StatueFile("statue/see.wav", "hknight/sight1.wav"));
+        precache_sound(VR_StatueFile("statue/idle.wav", "hknight/idle.wav"));
+        precache_sound(VR_StatueFile("statue/pain.wav", "hknight/pain1.wav"));
+        precache_sound(VR_StatueFile("statue/death.wav", "hknight/death1.wav"));
     }
     else
     {

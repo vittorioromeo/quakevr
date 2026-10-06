@@ -83,7 +83,7 @@ The shield upgrade
 */
 void() item_powerup_shield =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/p_shield.mdl", "progs/shield.mdl", "sound/shield/fadeout.wav", "sound/shield/hit.wav") && VR_Has4("sound/shield/pickup.wav", "", "", ""), "Rogue")) { return; }
 
     self.handtouch = newitems_touch;
 
@@ -105,7 +105,7 @@ The anti-grav belt
 */
 void() item_powerup_belt =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/beltup.mdl", "sound/belt/fadeout.wav", "sound/belt/pickup.wav", "sound/belt/use.wav"), "Rogue")) { return; }
 
     self.handtouch = newitems_touch;
 

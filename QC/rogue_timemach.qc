@@ -192,7 +192,7 @@ void() time_pain_die =
 */
 void() item_time_machine =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/timegib.mdl", "progs/timemach.mdl", "", ""), "Rogue")) { return; }
 
     if(deathmatch)
     {
@@ -227,7 +227,7 @@ void() item_time_machine =
 */
 void() item_time_core =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/timecore.mdl", "", "", ""), "Rogue")) { return; }
 
     if(deathmatch)
     {

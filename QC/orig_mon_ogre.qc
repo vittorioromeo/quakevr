@@ -600,7 +600,7 @@ void() monster_ogre_real =
     setmodel(self, self.wad);
 
     // none specified - choose random. 25% boss on normal, hard, bloodbath
-    if(!MG_WorldCampaign() && VR_Pack_Rogue() && self.spawnflags <= 1)
+    if(!MG_WorldCampaign() && self.spawnflags <= 1) // (Quake VR ships the boss's multi-grenade: no pack needed)
     {
         if(cvar_hget(cvarh_skill) > 0)
         {
@@ -624,7 +624,6 @@ void() monster_ogre_real =
 void() monster_ogre =
 {
     if(MG_MonsterInhibited()) return;
-    if(!VR_Pack_Rogue() && (!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))) { remove(self); return; }
 
     self.wad = "progs/ogre.mdl";
     monster_ogre_real();

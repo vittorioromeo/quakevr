@@ -1541,7 +1541,7 @@ void() Gremlin_MissileAttack =
 */
 void() monster_gremlin =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/grem.mdl", "progs/h_grem.mdl", "sound/demon/dhit2.wav", "sound/demon/djump.wav") && VR_Has4("sound/grem/attack.wav", "sound/grem/death.wav", "sound/grem/idle.wav", "sound/grem/pain1.wav") && VR_Has4("sound/grem/pain2.wav", "sound/grem/pain3.wav", "sound/grem/sight1.wav", ""), "Hipnotic")) { return; }
 
     VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_gremlin, $death12.asc, $death1.asc, -1, -1); // VR: knocked down (vr_knockdown.qc): its death backwards
     if(deathmatch)

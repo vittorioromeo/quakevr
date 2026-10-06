@@ -453,7 +453,7 @@ Stronger - mummy starts with 1000 hitpoints, rather than 500.
 */
 void() monster_mummy =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/mummy.mdl", "sound/zombie/idle_w2.wav", "sound/zombie/z_fall.wav", "sound/zombie/z_gib.wav") && VR_Has4("sound/zombie/z_hit.wav", "sound/zombie/z_idle.wav", "sound/zombie/z_idle1.wav", "sound/zombie/z_miss.wav") && VR_Has4("sound/zombie/z_pain.wav", "sound/zombie/z_pain1.wav", "sound/zombie/z_shot1.wav", ""), "Rogue")) { return; }
 
     VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_mummy, $paine12, mummy_paine13); // VR: knocked down (vr_knockdown.qc): lying: paine13 on rises
     if(deathmatch)

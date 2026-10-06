@@ -33,7 +33,6 @@ is the depth of the brush.
 */
 void() func_bobbingwater =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    self.angles = '0 0 0';
    self.movetype = MOVETYPE_STEP;

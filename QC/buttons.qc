@@ -782,8 +782,7 @@ void() func_enemy_dispenser_use =
 
     // Not installed: say what it needs instead.
     string mdl = VR_EnemyDispenser_Model(choice);
-    if((choice >= 12 && choice <= 13 && !VR_Pack_Hipnotic()) ||
-       (choice >= 14 && choice <= 19 && !VR_Pack_Rogue()) || (mdl != NULLSTR && !fileexists(mdl)))
+    if(mdl != NULLSTR && !fileexists(mdl)) // (its model there: the monster's own spawn checks the rest)
     {
         if(activator.classname == "player")
         {
@@ -851,8 +850,7 @@ void() func_enemy_dispenser =
         // The model now, if installed (no hitch at the first press); the monster's other models and
         // its sounds are precached (late) when it first spawns.
         string mdl = VR_EnemyDispenser_Model(self.weapon);
-        if(!(self.weapon >= 12 && self.weapon <= 13 && !VR_Pack_Hipnotic()) &&
-           !(self.weapon >= 14 && self.weapon <= 19 && !VR_Pack_Rogue()) && mdl != NULLSTR && fileexists(mdl))
+        if(mdl != NULLSTR && fileexists(mdl))
         {
             precache_model(mdl);
         }

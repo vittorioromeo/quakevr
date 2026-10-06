@@ -58,7 +58,6 @@ void() exploder_use =
 */
 void() func_exploder =
     {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    precache_sound("misc/shortexp.wav");
    precache_sound("misc/longexpl.wav");
@@ -172,7 +171,6 @@ void() multi_exploder_use =
 */
 void() func_multi_exploder =
     {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    precache_sound("misc/shortexp.wav");
    precache_sound("misc/longexpl.wav");

@@ -47,7 +47,6 @@ Default is 60.
 
 void() trigger_damagethreshold =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
     self.mangle = self.angles;
     self.angles = '0 0 0';
@@ -84,7 +83,6 @@ Special walltype that removes itself when triggered.
 
 void() func_breakawaywall =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
     self.mangle = self.angles;
     self.angles = '0 0 0';
@@ -129,9 +127,9 @@ void() func_breakablewallwithrubble_think
 
 void() func_breakablewallwithrubble
 {
-    precache_model("progs/rubble1.mdl");
-    precache_model("progs/rubble2.mdl");
-    precache_model("progs/rubble3.mdl");
+    precache_model(VR_ModelOr("progs/rubble1.mdl", "progs/vr_rock1.mdl"));
+    precache_model(VR_ModelOr("progs/rubble2.mdl", "progs/vr_rock2.mdl"));
+    precache_model(VR_ModelOr("progs/rubble3.mdl", "progs/vr_rock3.mdl"));
     precache_sound("zombie/z_hit.wav");
 
     self.mangle = self.angles;

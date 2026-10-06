@@ -69,7 +69,7 @@ Player takes no damage from electrical attacks and swims faster for 30 seconds
 */
 void() item_artifact_wetsuit =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/wetsuit.mdl", "sound/items/suit2.wav", "", ""), "Hipnotic")) { return; }
 
     self.handtouch = HIP_powerup_touch;
 
@@ -128,7 +128,7 @@ to spawn the charmed creature.
 */
 void() item_hornofconjuring =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/horn.mdl", "sound/hipitems/horn.wav", "", ""), "Hipnotic")) { return; }
 
    self.handtouch = horn_touch;
 
@@ -147,7 +147,7 @@ Empathy Shield.
 */
 void() item_artifact_empathy_shields =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/empathy.mdl", "sound/hipitems/empathy.wav", "sound/hipitems/empathy2.wav", "sound/items/suit2.wav"), "Hipnotic")) { return; }
 
    self.handtouch = HIP_powerup_touch;
 
@@ -174,8 +174,6 @@ HIPNOTIC WEAPONS
 */
 void() weapon_mjolnir =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
-
     impl_weapon_item("progs/g_hammer.mdl", WID_MJOLNIR);
 }
 
@@ -183,8 +181,6 @@ void() weapon_mjolnir =
 */
 void() weapon_laser_gun =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
-
     impl_weapon_item("progs/g_laserg.mdl", WID_LASER_CANNON);
 }
 
@@ -192,8 +188,6 @@ void() weapon_laser_gun =
 */
 void() weapon_proximity_gun =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
-
     impl_weapon_item("progs/g_prox.mdl", WID_PROXIMITY_GUN);
 }
 
@@ -319,7 +313,7 @@ void() spike_mine_first_think =
 
 void() trap_spike_mine =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/spikmine.mdl", "sound/hipitems/spikmine.wav", "sound/misc/null.wav", "sound/weapons/r_exp3.wav"), "Hipnotic")) { return; }
 
    if(deathmatch)
     {
@@ -520,7 +514,7 @@ When triggered, fires lightning in the direction set in QuakeEd.
 
 void() trap_lightning_triggered =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/weapons/lhit.wav", "sound/weapons/lstart.wav", "", ""), "Hipnotic")) { return; }
 
    if(self.wait == 0)
       self.wait = 1.0;
@@ -549,7 +543,7 @@ Continuously fire lightning.
 */
 void() trap_lightning =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/weapons/lhit.wav", "sound/weapons/lstart.wav", "", ""), "Hipnotic")) { return; }
 
    trap_lightning_triggered();
    self.state = 1;
@@ -572,7 +566,7 @@ Continuously fires lightning.
 */
 void() trap_lightning_switched =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/weapons/lhit.wav", "sound/weapons/lstart.wav", "", ""), "Hipnotic")) { return; }
 
    trap_lightning_triggered();
    self.use = trap_lightning_switched_use;
@@ -737,7 +731,6 @@ targets enemies in vicinity and fires at them
 */
 void() trap_tesla_coil =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    precache_sound("misc/tesla.wav");
    precache_sound("hipweap/mjolhit.wav");   // lightning sound
@@ -785,7 +778,6 @@ targets enemies in vicinity and fires at them
 */
 void() trap_gods_wrath =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    if(self.delay == 0)
       self.delay = 5;
@@ -848,7 +840,6 @@ UNDERWATER cuts the pull in half for players wearing the wetsuit
 */
 void() trap_gravity_well =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    self.solid = SOLID_TRIGGER;
    self.movetype = MOVETYPE_NONE;

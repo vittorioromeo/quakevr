@@ -236,7 +236,7 @@ void() SetNewParms =
     parm17 = 0;
 
     // ROGUE
-    if(VR_Pack_Rogue() && deathmatch && teamplay >= TEAM_CTF)
+    if(deathmatch && teamplay >= TEAM_CTF) // (the grapple is Quake VR's own)
     {
         parm18 = ROGUE_IT_GRAPPLE;
     }
@@ -312,12 +312,22 @@ void() DecodeLevelParms =
         SetNewParms(); // PGM - 01/29 change to have level 8 reset all your stuff.
 
     // Changing installations must not resurrect unavailable weapons or powerups from level parms.
-    if(!VR_Pack_Hipnotic())
-    {
-        parm1 = parm1 - (parm1 & (IT_MJOLNIR | IT_LASER_CANNON));
-        parm17 = parm17 - (parm17 & (HIP_IT_WETSUIT | HIP_IT_EMPATHY_SHIELDS | HIP_IT_HORN_OF_CONJURING | HIP_IT_PROXIMITY_GUN));
-    }
-    if(!VR_Pack_Rogue()) { parm18 = parm19 = parm20 = parm21 = 0; }
+    // (each item by whether its files are here: Quake VR's own weapons always are)
+    parm17 = VR_Pack_KeepBit(parm17, HIP_IT_WETSUIT, IID_WETSUIT);
+    parm17 = VR_Pack_KeepBit(parm17, HIP_IT_EMPATHY_SHIELDS, IID_EMPATHY_SHIELDS);
+    parm17 = VR_Pack_KeepBit(parm17, HIP_IT_HORN_OF_CONJURING, IID_HORN_OF_CONJURING);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_LAVA_NAILGUN, IID_LAVA_NAILGUN);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_LAVA_SUPER_NAILGUN, IID_LAVA_SUPER_NAILGUN);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_LAVA_NAILS, IID_LAVA_NAILS);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_MULTI_ROCKET, IID_MULTI_ROCKET);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_PLASMA_GUN, IID_PLASMA_GUN);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_PLASMA_AMMO, IID_PLASMA_AMMO);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_SHIELD, IID_SHIELD);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_ANTIGRAV, IID_ANTIGRAV);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_EARTHQUAKE, IID_EARTHQUAKE);
+    parm18 = VR_Pack_KeepBit(parm18, ROGUE_IT_V_SPHERE, IID_V_SPHERE);
+    if(!VR_Pack_AmmoAvailable(AID_LAVA_NAILS)) { parm19 = 0; }
+    if(!VR_Pack_AmmoAvailable(AID_PLASMA)) { parm21 = 0; }
     if(!VR_Pack_WeaponAvailable(parm8)) { parm8 = WID_FIST; }
     parm23 = VR_Pack_WeaponFlags(parm8, parm23);
     if(!VR_Pack_WeaponAvailable(parm10)) { parm10 = WID_FIST; }
@@ -719,6 +729,12 @@ void() changelevel_touch =
 
     nextmap = self.map;
     if(MG_WorldCampaign()) MG_intermissiontext = self.endtext;
+    // Dimension of the Machine finished: its runes cleared, as upstream (the hub's final gate closed again: a coop game,
+    // which keeps serverflags, would otherwise start with it open).
+    if(MG1_Campaign() && world.model == "maps/mgend.bsp")
+    {
+        serverflags = 0;
+    }
 
     SUB_UseTargets();
 
@@ -1088,7 +1104,7 @@ void() PutClientInServer =
     // oh, this is a hack!
 
     modelindex_hammer = 0;
-    if(VR_Pack_Hipnotic())
+    if(vr_have_playham) // (Hipnotic's third-person player holding Mjolnir: the weapon itself is Quake VR's)
     {
         setmodel(self, "progs/playham.mdl");
         modelindex_hammer = self.modelindex;

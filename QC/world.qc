@@ -186,6 +186,7 @@ World Types:
 
 void() worldspawn =
 {
+    VR_Pack_Refresh(); // (what the files on disk make available: the precaches below and every spawn function read it)
     vr_save_campaign = cvar("vr_campaign");
     vr_save_packmask = 1 + VR_Pack_Hipnotic() + 2 * VR_Pack_Rogue();
     lastspawn = world;
@@ -377,7 +378,7 @@ void() worldspawn =
     precache_model("progs/eyes.mdl");
     precache_model("progs/h_player.mdl");
 
-    if(VR_Pack_Hipnotic())
+    if(vr_have_playham)
     {
         //HIPNOTIC
         //MED 12/03/96 added player with hammer
@@ -400,29 +401,21 @@ void() worldspawn =
     precache_model("progs/v_nail2.mdl");
     precache_model("progs/v_rock2.mdl");
 
-    if(VR_Pack_Hipnotic())
-    {
-        // HIPNOTIC
-        //MED 10/31/96 added precache for hip view models
-        precache_model("progs/v_laserg.mdl");
-        precache_model("progs/v_hammer.mdl");
-        precache_model("progs/v_prox.mdl");
-        precache_model("progs/proxbomb.mdl");
-
-    }
+    // HIPNOTIC (Quake VR ships these: the weapons work without the pack)
+    //MED 10/31/96 added precache for hip view models
+    precache_model("progs/v_laserg.mdl");
+    precache_model("progs/v_hammer.mdl");
+    precache_model("progs/v_prox.mdl");
+    precache_model("progs/proxbomb.mdl");
 
     precache_model("progs/bolt.mdl");        // for lightning gun
     precache_model("progs/bolt2.mdl");        // for lightning gun
     precache_model("progs/bolt3.mdl");        // for boss shock
     precache_model("progs/lavaball.mdl");    // for testing
 
-    if(VR_Pack_Hipnotic())
-    {
-        // HIPNOTIC
-        //MED 10/18/96 added precache for laser cannon
-        precache_model("progs/lasrspik.mdl");
-
-    }
+    // HIPNOTIC (Quake VR ships it)
+    //MED 10/18/96 added precache for laser cannon
+    precache_model("progs/lasrspik.mdl");
 
     precache_model("progs/missile.mdl");
     precache_model("progs/grenade.mdl");
@@ -443,47 +436,39 @@ void() worldspawn =
     precache_sound("forcegrab.wav");      // force grab
     precache_sound("reload1.wav");        // reload
 
-    if(VR_Pack_Rogue())
+    // ROGUE: Quake VR's own (the view models, the multi-grenade, the grapple), always; the pack's projectiles and
+    // items' files when they are there (VR_Pack_Refresh).
+    precache_sound("enforcer/enfstop.wav");    // shield impact
+    precache_sound("items/damage2.wav");
+    precache_model("progs/v_lava.mdl");
+    precache_model("progs/v_lava2.mdl");
+    precache_model("progs/v_multi.mdl");
+    precache_model("progs/v_multi2.mdl");
+    precache_model("progs/v_plasma.mdl");
+    precache_model("progs/mervup.mdl");
+    //ZOID-- hook for CTF
+    precache_model("progs/hook.mdl");
+    precache_model("progs/v_grpple.mdl");
+    if(vr_have_plasma)
     {
-        // ROGUE
-        // PGM Addition Sounds
-        precache_sound("enforcer/enfstop.wav");    // shield impact
         precache_sound("plasma/explode.wav");
         precache_sound("plasma/flight.wav");
         precache_sound("plasma/fire.wav");
+        precache_model("progs/plasma.mdl");
+    }
+    if(vr_have_shield)
+    {
         precache_sound("shield/hit.wav");
-        precache_sound("belt/use.wav");
-        precache_sound("items/damage2.wav");
-
-        // ROGUE
-        // Lava Gun models - pgm change
-        precache_model("progs/v_lava.mdl");
-        precache_model("progs/v_lava2.mdl");
-        precache_model("progs/v_multi.mdl");
-        precache_model("progs/v_multi2.mdl");
-
-        // ROGUE
-        // PGM addition
-        precache_model("progs/mervup.mdl");
-
-        // ROGUE
-        precache_model("progs/rockup.mdl");
-        precache_model("progs/rockup_d.mdl");
-        precache_model("progs/lspike.mdl");
         precache_model("progs/shield.mdl");
         precache_model("progs/p_shield.mdl");
-        precache_model("progs/plasma.mdl");
-        precache_model("progs/v_plasma.mdl");
-
-        // ROGUE
-        //ZOID--
-        // hook for CTF
-        precache_model("progs/hook.mdl");
-        precache_model("progs/v_grpple.mdl");
-        //--ZOID
-
-
     }
+    if(vr_have_belt) { precache_sound("belt/use.wav"); }
+    if(vr_have_multirockets)
+    {
+        precache_model("progs/rockup.mdl");
+        precache_model("progs/rockup_d.mdl");
+    }
+    if(vr_have_lava) { precache_model("progs/lspike.mdl"); }
 
     // Setup light animation tables. 'a' is total darkness, 'z' is maxbright.
 

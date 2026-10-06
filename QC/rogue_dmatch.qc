@@ -103,7 +103,7 @@ The deathmatch tag token.
 */
 void() dmatch_tag_token =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/sphere.mdl", "sound/runes/end1.wav", "", ""), "Rogue")) { return; }
 
     if(cvar_hget(cvarh_teamplay) != TEAM_DMATCH_TAG)
     {

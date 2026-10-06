@@ -31,7 +31,7 @@ $frame attacka9 attacka10 attacka11 attacka12 attacka13 attacka14 attacka15
 
 void() monster_spikemine =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/demon/ddeath.wav", "sound/demon/dhit2.wav", "sound/demon/djump.wav", "sound/demon/dpain1.wav") && VR_Has4("sound/demon/idle1.wav", "sound/demon/sight2.wav", "", ""), "Hipnotic")) { return; }
    if(deathmatch)
     {
         remove(self);
