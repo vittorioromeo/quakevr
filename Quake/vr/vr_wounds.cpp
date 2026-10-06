@@ -1090,7 +1090,13 @@ void wound(const Target& t, const Event& ev)
             const float r = ((zap ? 3.f : 4.f) + za::min(static_cast<float>(ev.amount), 60.f) * 0.08f) * own;
             const glm::vec3 org = spread(ev.org, dir);
             glm::vec3 at, n;
-            if(mesh ? !strike(surf, org, dir, at, n) : !(t.capsules && strikeCapsules(*t.capsules, org + t.shift, dir, at, n)))
+            const bool struck =
+                mesh ? strike(surf, org, dir, at, n) : (t.capsules && strikeCapsules(*t.capsules, org + t.shift, dir, at, n));
+            if(vr_wounds_debug.value)
+            {
+                Con_Printf("wounds: burn kind %d on %s: %s\n", ev.kind, t.ent->model->name, struck ? "struck" : "missed");
+            }
+            if(!struck)
             {
                 break;
             }
