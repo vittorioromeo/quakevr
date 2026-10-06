@@ -869,6 +869,7 @@ void() GibPlayer =
 
 void() PlayerDie =
 {
+    if(MGH_Active()) self.MGH_killspree=0;
     float i;
 
     VR_ItemUtil_EntDelItem(self, IID_INVISIBILITY);
@@ -894,7 +895,7 @@ void() PlayerDie =
 
     VR_ItemUtil_EntDelItem(self, IID_EMPATHY_SHIELDS);
 
-    if(deathmatch || coop)
+    if((deathmatch || coop) && !MGH_Active())
     {
         DropBackpack();
 

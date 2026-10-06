@@ -334,6 +334,7 @@ float (entity e, float healamount, float ignore) T_Heal =
         return 0;
 
     healamount = ceil(healamount);
+    MGH_ResetHunger(e);
 
     e.health = e.health + healamount;
 
@@ -1775,7 +1776,7 @@ void() powerup_touch =
 {
     VRItemPickupHaptic(other);
 
-    sprint(other, "You got the ");
+    sprint(other, self.MGH_powerup_expire ? "You got " : "You got the ");
     sprint(other, self.netname);
     sprint(other,"\n");
 

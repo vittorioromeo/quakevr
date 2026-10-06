@@ -41,6 +41,7 @@ void() MG_MonsterRunStart = {
     entity oldact = activator;
     activator = self.MG_monster_activator;
     self.MG_monster_start();
+    if(MGH_Active()) MGH_MarkMonster();
     if((self.spawnflags & 4) && (self.spawnflags & 8)) monster_use();
     activator = oldact;
 };

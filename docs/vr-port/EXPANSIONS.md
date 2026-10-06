@@ -759,3 +759,76 @@ Machine ending/menu. Default map-index startup remains outside this acceptance. 
 canary attempt cannot start: `no_hit_reloading_2026-09-29_23-08-51.csv` is absent; no
 replacement or tuning was used. Horde Hunger-rune timers still belong to the separate
 Horde manager port.
+
+### Native MG1 Horde implementation and acceptance (2026-10-06)
+
+The native port now uses the approved `quakec_mg1/horde.qc` gameplay source:
+manager countdowns, difficulty/player-scaled normal/ranged/flying/boss squads,
+source spawn toggles/cooldowns and blockage checks, three-wave boss/key gates,
+shared silver/gold currency, keyed buttons/doors, ammo and random item rewards,
+quad/pent drops, kill streaks, team wipe and wave-boundary revival. Authored
+monster starts call native VR monster constructors and retain VR damage,
+knockdown and interaction behavior. Deferred authored monsters join the same
+live accounting after activation. The source's duplicated Y overlap comparison
+is corrected to Z so vertically separate starts do not block each other.
+
+All seven arenas in the owned contemporary MG1 PAK are supported. Arena exits
+rotate through installed `horde1` through `horde7`, skipping unavailable arenas;
+the published older source's four-arena limit would omit three owned arenas.
+A new arena resets equipment as the source specifies. Revival instead preserves
+both hand and all six holster record identities and separate magazine contents.
+It restores those original records after the native spawn serializer, avoiding
+new IDs and inventory duplication. Horde monster deaths do not create ordinary
+VR weapon drops or multiplayer backpacks. Shared ammo pickup does not switch hands.
+Physical pickups retain their native carry, armor, key and powerup interactions;
+quad/pent duration is 30 seconds and uncollected drops expire after 14 seconds.
+
+`MGH_Active()` requires native MG1 campaign context and a live authored Horde
+manager. No persistent engine Horde setting is changed. Source Hunger timer
+stamps are stored on the player on first Hunger-rune collection, successful
+healing and spawn/revival, and survive saves. The published source has no
+consumer of that timer or Hunger effect implementation: the actual KEX-side
+Hunger consequences and other externally implemented rune effects still need
+runtime evidence and a separate native implementation. MG1 native readiness
+remains **false**. Multi-client network routing, late joins, team wipe/revival
+and shared currency still need acceptance with real concurrent clients; solo
+mock coverage does not establish those multiplayer properties.
+
+Debug -> Tests -> Machine Horde Tests is appended as page144 (back71), with
+unarchived `vr_mg_horde_test` default0. Production paths are exercised by its
+unit, wave, boss, key, inventory revival and deferred activation requests. The
+FGD describes the authored manager, pickup and typed spawn helpers; generated
+coverage now includes295 entities. Localization uses the installed rerelease
+English table and translates physical ammo/key pickup names through native
+print calls, rather than displaying literal localization identifiers.
+
+Acceptance: seven of seven owned arenas load; their BSP entity class inventory
+has no missing gameplay spawn functions. Focused tests pass24/0, including
+normal/flying/ranged/boss native constructors, overlap/skip/toggle behavior,
+shared currency underflow prevention, physical rewards, successful versus
+rejected healing and first Hunger pickup. Real wave1 completes to2; boss3
+produces a real key and its collection advances to4. A real Horde4 keyed button
+spends once; repeat contact does not spend again. A completed waiting boss/key
+save restores wave3, live0, waiting1, pending key, currency and exact Hunger
+timer; the restored key then advances to wave4. Wave-boundary revival restores
+health100 and preserves hand IDs4/5 with clips3/7 and holster IDs7..12 with
+clips1..6. Completed saves preserve those identities. Actual Horde5 exit and
+intermission advance to Horde6 with fresh source equipment. Both grips and
+`notarget` isolate inventory persistence from native enemy weapon-disarm behavior.
+
+Base-only ID1 plus owned MG1 runs Horde5 without Hipnotic/Rogue directories.
+The MG1 candle uses its owned identical candle asset rather than an unnecessary
+Rogue installation gate. Stock VRHub/e1m1, Dopa e5m1 and MG1 story mge1m1 remain
+Horde-inactive. Menu paths14 found/0 missing; page144 was visually checked.
+QC0 warnings, Release build, static/style/precedence and FGD295 checks pass.
+Honey h/saint cannot be revalidated in this worker: neither owned fixture nor
+kit qbase contains those BSPs; attempted loads explicitly reported absence.
+A single-job archived melee canary cannot start because
+`no_hit_reloading_2026-09-29_23-08-51.csv` is absent. No replacement or melee
+tuning was used. Horde2 contains four empty editor `s` fields; these warn as
+unknown fields but do not drop entities or gameplay classes. Default map-index
+startup remains outside this acceptance; all runs use `-nomapindex -noaddons`.
+No assets, private configs, saves or logs are committed. Private `horde-tests/`,
+`evaltakes/`, test configs and screenshots are retained for coordinator cleanup.
+Human VR QA: physical rewards/keys/powerups, real arena gates, hand and holster
+inventory after death/revival, corpse cleanup, and all seven arenas' spawn flow.

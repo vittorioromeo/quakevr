@@ -13,3 +13,10 @@ come from the player's owned Quake installation and are not included in the VR d
 
 Implementation status and validation are tracked in [EXPANSIONS.md](EXPANSIONS.md), with player setup in
 [INSTALL.md](../INSTALL.md).
+
+The native Machine Horde implementation in QC/vr_mg_horde.qc adapts the approved
+quakec_mg1/horde.qc source, retaining its original license header. Narrow Hunger,
+healing, death, key spending, item and intermission hooks adapt the same snapshot's
+MG1 game code to the existing native VR inventory and monster constructors. Tests
+and the contemporary seven-arena rotation are VR-port additions documented in
+EXPANSIONS.md.

@@ -22,6 +22,7 @@ Default style is 0
 */
 void() light_candle =
 {
+    // Machine can supply this authored model independently of the optional Rogue pack.
     if(!VR_Pack_RequireSpawn(VR_Has4("progs/candle.mdl", "", "", ""), "Rogue")) { return; }
 
     precache_model("progs/candle.mdl");

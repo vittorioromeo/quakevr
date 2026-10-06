@@ -4208,6 +4208,24 @@ za::Vector<Item> pageSpawnWeapons()
     };
 }
 
+za::Vector<Item> pageMachineHordeTests()
+{
+    return {
+        header("Machine Horde Tests"),
+        header("Reload the arena after destructive tests"),
+        command("Acceptance", "vr_mg_horde_test 1"),
+        command("Wave and Equipment Report", "vr_mg_horde_test 2"),
+        command("Complete Current Wave", "vr_mg_horde_test 3"),
+        command("Start Boss Wave", "vr_mg_horde_test 4"),
+        command("Collect Spawned Key", "vr_mg_horde_test 5"),
+        command("Death and Revival Check", "vr_mg_horde_test 6"),
+        command("Drop Powerup", "vr_mg_horde_test 7"),
+        command("Authored Keyed Button Check", "vr_mg_horde_test 8"),
+        command("Reset Source Hunger Timer", "vr_mg_horde_test 9"),
+        command("Activate Authored Deferred Monster", "vr_mg_horde_test 10"),
+    };
+}
+
 za::Vector<Item> pageDebugTests()
 {
     return {
@@ -4223,6 +4241,8 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive authored mge2m2 puzzle test. Reload afterward."),
         command("Machine: Equipment Carry Setup", "vr_mg_hub_test 20")
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
+        open("Machine Horde Tests", pageIndex(pageMachineHordeTests))
+            .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
             .help("Report runes, return position, final gate and VR equipment."),
         command("Machine: mge5m2 Trigger Route", "vr_mg_trigger_test 2")
@@ -5202,6 +5222,7 @@ const Page pages[] = {
     {"Spawn Pickup Weapons", pageSpawnWeapons, pageDebugTests, LevelDeveloper},
     {"Map Library", pageMaps, pageMain, LevelStandard}, // (the corner's Maps, and Single Player > Map Library; vr_menu_maps.inc)
     {"Official Campaigns", pageCampaigns, pageMain, LevelStandard},
+    {"Machine Horde Tests", pageMachineHordeTests, pageDebugTests, LevelDeveloper},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

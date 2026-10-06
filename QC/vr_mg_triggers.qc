@@ -576,7 +576,7 @@ float(entity player) MG_ButtonCanTouch = {
         }
         return FALSE;
     }
-    player.items = player.items - self.items;
+    if(!MGH_Active()) player.items = player.items - self.items;
     return TRUE;
 };
 void() MG_ButtonInit = {

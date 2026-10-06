@@ -285,6 +285,7 @@ void() SetNewParms =
 
 void() DecodeLevelParms =
 {
+    if(MGH_Active() && !self.MGH_reviving) SetNewParms();
     if(MG1_Hub()) SetNewParms();
     if(VR_GameUtil_InTutorialMap())
     {
@@ -471,13 +472,14 @@ void() GotoNextMap =
     }
     else
     {
-        changelevel(nextmap);
+        changelevel(MGH_Active() ? MGH_NextArena() : nextmap);
     }
 };
 
 
 void() ExitIntermission =
 {
+    if(MGH_Active()) { GotoNextMap(); return; }
     // skip any text in deathmatch
     if(deathmatch)
     {
@@ -824,6 +826,7 @@ Player entered the suicide command
 */
 void() ClientKill =
 {
+    if(MGH_Active()) { self.health=0; PlayerDie(); return; }
     if((intermission_running)&&((coop)||(deathmatch)))  // not allowed during intermission
         return;
 
@@ -880,6 +883,7 @@ Returns the entity to spawn at
 entity() SelectSpawnPoint =
 {
     entity spot;
+    if(MGH_Active()) { spot=MGH_SelectSpawn(); if(spot) return spot; }
     entity thing;
     float  pcount;
 
@@ -1169,6 +1173,7 @@ void() PutClientInServer =
     {
         readytime = time + 0.5;
     }
+    if(MGH_Active()) { MGH_horde_set_keys(self); MGH_ResetHunger(self); }
 };
 
 void() SpawnAllAmmoBoxWeapons =
@@ -1343,6 +1348,7 @@ void() CheckRules =
 
 void() PlayerDeathThink =
 {
+    if(MGH_Active()) { MGH_DeathThink(); return; }
     float forward;
 
     if((self.flags & FL_ONGROUND))
