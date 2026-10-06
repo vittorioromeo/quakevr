@@ -28,6 +28,7 @@ constexpr za::SizeT maxFloatTexts = 256;
 za::Vector<WorldText> serverTexts;
 za::Vector<WorldText> clientTextList;
 za::Vector<FloatText> clientFloatTextList;
+unsigned clientListGeneration{1}; // clientGeneration
 
 [[nodiscard]] WorldText& serverText(int handle)
 {
@@ -232,6 +233,12 @@ void clientReset()
 {
     clientTextList.clear();
     clientFloatTextList.clear();
+    clientListGeneration = clientListGeneration == ~0u ? 1u : clientListGeneration + 1u;
+}
+
+unsigned clientGeneration()
+{
+    return clientListGeneration;
 }
 
 void clientParseFloatText()

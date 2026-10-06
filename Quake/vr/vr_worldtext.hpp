@@ -62,6 +62,9 @@ void clientParse(int subcmd); // QVR_SVC_WORLDTEXT_*
 void clientParseFloatText();  // QVR_SVC_FLOATTEXT
 void clientWriteAll(sizebuf_t* msg); // the client's texts, for a demo recorded mid-game
 [[nodiscard]] const za::Vector<WorldText>& clientTexts();
+// Which list clientTexts() is: a new number at each clientReset (a new map or connection; never 0), so that what is
+// kept for a handle (vr_text3d.cpp's boards) is not taken for the next list's.
+[[nodiscard]] unsigned clientGeneration();
 
 // The floating texts still showing at client time `now` (those done are dropped).
 [[nodiscard]] const za::Vector<FloatText>& clientFloatTexts(double now);

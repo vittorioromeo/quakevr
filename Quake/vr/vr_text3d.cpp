@@ -146,7 +146,8 @@ struct Board
     za::String text;                 // its text as last seen
     Align align{Align::Left};
     int columns{0}, rows{0};          // the largest page so far
-    const void* map{nullptr};         // the map it belongs to (handles are reused by the next one)
+    unsigned generation{0};           // the world text list it belongs to (worldtext::clientGeneration: handles are
+                                      // reused by the next map's, and a map's model by another map after a game change)
     double changed{-100.0};           // realtime its text last changed
     bool wanted{false};               // laid out this frame
     gfx::Target target;
@@ -589,12 +590,12 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
         boards.resize(index + 1);
     }
     Board& b = boards[index];
-    if(b.map != cl.worldmodel)
+    if(b.generation != worldtext::clientGeneration())
     {
         gfx::Target kept = b.target;
         b = Board{};
         b.target = kept;
-        b.map = cl.worldmodel;
+        b.generation = worldtext::clientGeneration();
     }
 
     const size_t longest = splitLines(wt.text);
@@ -892,12 +893,13 @@ void layoutTipScreen(const TipScreen& t)
 // The boards' images whose text or palette changed (renderScreens).
 void renderBoards()
 {
-    // A board of an earlier map that this one has not laid out (layoutBoard gives a board of this map its map): its
+    // A board of an earlier map that this one has not laid out (layoutBoard gives a board of this map's world texts
+    // their generation; by model it was, but a game change reuses the models, NOTES.md vrfiringrange_2026-10-06_13-12-36): its
     // image freed (up to 8 MB of VRAM each, else held for the rest of the session by the most boards any map had), and
     // not drawn again (while the next map loads, the scene is not laid out: `wanted` is the last map's).
     for(Board& b : boards)
     {
-        if(b.map != cl.worldmodel)
+        if(b.generation != worldtext::clientGeneration())
         {
             b.wanted = false;
             if(b.target.texture)
