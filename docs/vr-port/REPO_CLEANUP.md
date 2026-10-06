@@ -2,8 +2,8 @@
 
 A review of the tracked files (`git ls-files`: 3,885 files, 234 MB) for old, unused, duplicated or outdated
 material. 501 of the files are Ironwail's own (they are in the merge base with `ironwail/master`, 1eabd0df2, and all
-501 are still tracked); the other 3,384 are Quake VR's. Nothing was deleted by the review: the "certain" rows are
-removed by `Misc/quakevr/repo_cleanup.sh` (one `git rm`, staged for a commit), the others wait for a decision.
+501 are still tracked); the other 3,384 are Quake VR's. Nothing was deleted by the review itself; the removals
+Vittorio approved were done on 2026-10-07 (below, "Done").
 
 **Confidence:** *certain* = named by no build (MSBuild's `ironwail.vcxproj` and `quakevr.props` globs, CMake's
 `vr.cmake`, the Makefiles' `vr.mk`, `QC/progs.src`), no engine or QuakeC code, no map or `.ent`, no menu, no test or
@@ -15,14 +15,40 @@ the project supports (Win32, the CI, Ironwail's legacy files, how big binaries a
 
 | Confidence | Files | Size |
 |---|---|---|
-| Certain (`repo_cleanup.sh`) | 20 | 0.20 MB |
+| Certain (removed 2026-10-07) | 20 | 0.20 MB |
 | Likely | 25 | 0.13 MB |
 | Check with Vittorio | ~135 | ~69 MB (50.5 MB of it is `phonon.dll`, which is used: the question is how to store it) |
 
 Most of the repository is in use: every sound, map, model, `textures/`, `gfx/` and `textures_quetoo/` file is
 reached (below, "What was checked"). The weight is in a few vendored binaries.
 
-## Certain (removed by `Misc/quakevr/repo_cleanup.sh`)
+## Done (2026-10-07)
+
+One `git rm` removed 139 files, 19.8 MB (blob sizes): the 20 "certain" rows below (the four `Misc/quakevr/pvs/` files
+were already gone with the docs cleanup, 5c4358ea), `Misc/quakevr/repo_cleanup.sh` itself (its list is this doc),
+`quakevr/progs/openhand.mdl`, the four third-party `.pdb` files, the Win32 platform (`Windows/SDL2/lib/`,
+`Windows/codecs/x86/`, `Windows/curl/lib/x86/`, `Windows/zlib/x86/`, `Quake/Makefile.w32`,
+`Quake/build_cross_win32{,-sdl2}.sh`), SDL 1.2 (`Windows/SDL/`), Watcom (`Windows/SDL2/watcom/`,
+`Windows/codecs/x86-watcom/`), Code::Blocks (`Windows/CodeBlocks/`, `Linux/CodeBlocks/`) and `.github/workflows/`.
+Edits before it: the `OpenHand` trait (`vr_modelmetadata.inc`, `vr_envmap.cpp`); the `Win32` configurations out of
+`ironwail.sln`, `ironwail.vcxproj` and `zancle.vcxproj` (x64 only now); `Makefile.w64`'s SDL 1.2 branch defaults to the
+system `sdl-config`; `vr.mk`'s and `IRONWAIL_DIFF.md`'s notes; `vrstart.bsp`'s own entity lump rewritten from
+`maps/vrstart.ent` (the `.ent` already had Show/Hide Body in their place; with `external_ents 0` the map now matches);
+`relight_maps.py`'s two comments; IK.md and MODELS_IN_BLENDER.md. Kept: `Makefile.w64` and its cross scripts (MinGW
+x64), CMake (its `Windows/cmake-modules` still name `x86` for 32-bit hosts, which now find no bundled libraries),
+`Windows/SDL2/bin/sdl2-config` (Makefile.w64).
+
+**`generated.json` not re-recorded:** 22 records differ, not 30 (the 8 `finger_*`, `hand_base`, `grenade` and
+`mervup` records guard only the skins after skin 0, `part`, and match; the review hashed whole files). The 22 are
+`hand_rig.*` (0d5c225b, "the author's own edit in Blender") and `vrbody_*_00.tga` (24fa2de6, "the author's repaint"):
+this is the guard working. Re-recording them would let `make_hand_rig.py` / `make_vrbody.py` overwrite Vittorio's
+edits without a word; as they are, a rerun stops and names them (`--keep-edited` writes the rest).
+
+Verified: build.sh (QC, statics, QC precedence, Release x64, fgdgen: 300 entities) `built`, 0 warnings; MSBuild
+Debug x64 built; a mock run loaded e1m1 (`vr_body_mode 1`), vrstart, vrfiringrange, and vrstart with
+`external_ents 0` (Show Body in its edicts), with no missing file or error.
+
+## Certain (removed)
 
 | Path | Size | Why it is unused | Evidence |
 |---|---|---|---|
@@ -40,7 +66,7 @@ reached (below, "What was checked"). The weight is in a few vendored binaries.
 
 | Path | Size | Why | Evidence |
 |---|---|---|---|
-| `quakevr/progs/openhand.mdl` | 72 KB | Never loaded: no precache, no QC, no map; MODELS_IN_BLENDER.md: "aren't used at all" | Only `vr_modelmetadata.inc:101` (`OpenHand` trait, prefix `progs/openhand`) and `vr_envmap.cpp:1022` test the trait: remove those two with the model |
+| (Removed) `quakevr/progs/openhand.mdl` | 72 KB | Never loaded: no precache, no QC, no map; MODELS_IN_BLENDER.md: "aren't used at all" | Only `vr_modelmetadata.inc:101` (`OpenHand` trait, prefix `progs/openhand`) and `vr_envmap.cpp:1022` test the trait: remove those two with the model |
 | One-off review scripts tied to a dated notes batch: `Misc/quakevr/body_shock_review.ps1`, `check_hitzones_review.py`, `hitzones_review.ps1`, `check_notes_feedback.py`, `notes_feedback_review.ps1`, `check_notes_oct5.py`, `notes_oct5_review.ps1`, `check_reach_feedback.py`, `reach_review.ps1`, `torch_hits_review.ps1`, `check_portal_ai.py`, `portal_ai_review.ps1`, `portal_ai_reverse_review.ps1`, `particles/check_effects_review.py`, `particles/effects_review.ps1` | 40 KB | Each checks one review's answers (NOTES_FEEDBACK_2026100x, POSITIONAL_DAMAGE_DEBUG, PORTAL_AI, EXPLOSION_AND_FIRE_EFFECTS); none is in TESTING.md's suites | named only by those dated docs: delete together with them if docsreview archives them |
 | `Misc/quakevr/scratch/hz_reach.sh`, `hz_zones.sh`, `sgib_check.sh` | 6 KB | Acceptance runs of the hitzone and small-gib work, tracked inside `Misc/quakevr/scratch/` (ignored) | named nowhere; move to `Misc/quakevr/hitzones/` if worth keeping |
 | `Misc/quakevr/scratch/make_portal_views.py`, `prepare_review_regressions.py`, `review_regressions.qc` | 10 KB | Same folder; TESTING.md and HITZONES_AND_PORTAL_REVIEW name them | keep, but move out of the ignored `scratch/` (a new file there is silently not added) |
@@ -52,21 +78,21 @@ reached (below, "What was checked"). The weight is in a few vendored binaries.
 | Path | Size | Question | Evidence |
 |---|---|---|---|
 | `Quake/vr/external/steamaudio/lib/windows-x64/phonon.dll` | 50.5 MB | Used (`vr_steamaudio.cpp` loads it, `quakevr.props` copies it), but it is 22% of the tree; each update adds 50 MB to the history. Git LFS, or fetch it at build time from the Steam Audio release? | one version in history so far |
-| `Windows/curl/lib/{x64,x86}/libcurl.pdb`, `Windows/zlib/{x64,x86}/zlib.pdb` (Ironwail's) | 9.9 MB | Third-party debug symbols: no build copies them (the post-build steps copy `*.dll` only; packaging ships `ironwail.pdb` only) | `ironwail.vcxproj` lines 119-223, `package-quakevr.ps1:84` |
-| Win32 platform: `Windows/SDL2/lib/`, `Windows/codecs/x86/`, `Windows/curl/lib/x86/`, `Windows/zlib/x86/` (Ironwail's) | 5.4 MB | Only the Win32 configurations use them; Quake VR's Win32 build is mock-only (`quakevr.props` links OpenXR for x64 only) and nobody ships it. Drop Win32 from `ironwail.sln`, both `.vcxproj` and `windows_ci.yml`, then these | `quakevr.props:28-44` |
-| SDL 1.2 and Watcom: `Windows/SDL/` (54 files), `Windows/SDL*/watcom/`, `Windows/codecs/x86-watcom/`, `Windows/CodeBlocks/*.cbp`, `Linux/CodeBlocks/*.cbp` (Ironwail's) | 3.3 MB | In no Quake VR build (MSBuild uses SDL2; the `.cbp` files do not list `Quake/vr`). Kept so far to merge Ironwail cleanly: removing an upstream file conflicts only when upstream changes it | not in `ironwail.vcxproj`, `CMakeLists.txt` or `vr.mk` |
-| `.github/workflows/*.yml` (Ironwail's, unchanged) | 8 KB | They run on every push to `origin`: `macos_ci.yml` asks for `macos-12` (a retired GitHub runner), Windows builds Win32 too. Delete, or update to x64 + current runners | untouched since the merge base |
+| (Removed) `Windows/curl/lib/{x64,x86}/libcurl.pdb`, `Windows/zlib/{x64,x86}/zlib.pdb` (Ironwail's) | 9.9 MB | Third-party debug symbols: no build copies them (the post-build steps copy `*.dll` only; packaging ships `ironwail.pdb` only) | `ironwail.vcxproj` lines 119-223, `package-quakevr.ps1:84` |
+| (Removed) Win32 platform: `Windows/SDL2/lib/`, `Windows/codecs/x86/`, `Windows/curl/lib/x86/`, `Windows/zlib/x86/` (Ironwail's) | 5.4 MB | Only the Win32 configurations use them; Quake VR's Win32 build is mock-only (`quakevr.props` links OpenXR for x64 only) and nobody ships it. Drop Win32 from `ironwail.sln`, both `.vcxproj` and `windows_ci.yml`, then these | `quakevr.props:28-44` |
+| (Removed) SDL 1.2 and Watcom: `Windows/SDL/` (54 files), `Windows/SDL*/watcom/`, `Windows/codecs/x86-watcom/`, `Windows/CodeBlocks/*.cbp`, `Linux/CodeBlocks/*.cbp` (Ironwail's) | 3.3 MB | In no Quake VR build (MSBuild uses SDL2; the `.cbp` files do not list `Quake/vr`). Kept so far to merge Ironwail cleanly: removing an upstream file conflicts only when upstream changes it | not in `ironwail.vcxproj`, `CMakeLists.txt` or `vr.mk` |
+| (Removed) `.github/workflows/*.yml` (Ironwail's, unchanged) | 8 KB | They run on every push to `origin`: `macos_ci.yml` asks for `macos-12` (a retired GitHub runner), Windows builds Win32 too. Delete, or update to x64 + current runners | untouched since the merge base |
 | `Quake/anorm_dots.h`, `Quake/gl_warp_sin.h`, `Quake/filenames.h` (Ironwail's) | 30 KB | `#include`d nowhere (listed in the `.vcxproj`/`.cbp` only). Upstream dead code: leave for merges | `git grep` |
 | `Quakespasm.html`, `Quakespasm.txt`, `Quakespasm-Music.txt`, `Linux/sgml/`, `Misc/fitzquake*.txt`, `Misc/QuakeSpasm_512.png`, `Windows/QuakeSpasm-old.ico` (Ironwail's) | 0.3 MB | QuakeSpasm/FitzQuake history docs and icons, not Quake VR's readme | upstream |
-| `Misc/quakevr/generated.json` | 48 KB | 30 of its 316 records no longer match their files: `progs/finger_*.mdl`, `hand_base.mdl` (make_bloody_hands.py), `grenade.mdl`, `mervup.mdl` (make_grenade_skins.py), `hand_rig.*` (make_hand_rig.py), `vrbody_*_00.tga` (make_vrbody.py). The files were changed after generation (the Blender add-ons, later passes): re-record them, or the generators' guard will treat a rerun as overwriting hand edits | sha256 of the committed blobs against the records |
+| (Kept as is, see Done) `Misc/quakevr/generated.json` | 48 KB | 30 of its 316 records no longer match their files: `progs/finger_*.mdl`, `hand_base.mdl` (make_bloody_hands.py), `grenade.mdl`, `mervup.mdl` (make_grenade_skins.py), `hand_rig.*` (make_hand_rig.py), `vrbody_*_00.tga` (make_vrbody.py). The files were changed after generation (the Blender add-ons, later passes): re-record them, or the generators' guard will treat a rerun as overwriting hand edits | sha256 of the committed blobs against the records |
 | The shared `.git` (1 GB pack) | ~600 MB | The largest blobs are unreachable from every branch and tag (`Windows/VisualStudio/Report20200506-1121.diagsession`, 572 MB; old `pak10.pak`s, PSDs, `warden.bsp`, `apsp3.bsp`): reflog/stash leftovers. An expired reflog and `git gc` in Vittorio's own clone would reclaim them; nothing to commit | `git rev-list --objects --all` |
 
 ## Outdated content (fixes, not removals)
 
-- `quakevr/maps/vrstart.bsp`: its own entity lump still has the "Show Torso" / "Hide Torso" buttons for the removed
+- (Done 2026-10-07: the lump is the `.ent`'s now.) `quakevr/maps/vrstart.bsp`: its own entity lump still had the "Show Torso" / "Hide Torso" buttons for the removed
   `vr_vrtorso_enabled`. Harmless while `maps/vrstart.ent` overrides it (`external_ents 1`, the default); a rebuild of
   the BSP from the `.ent` would drop them.
-- `Misc/quakevr/relight_maps.py` lines 29 and 1027 name `Misc/quakevr/relight_textures.cfg`; the file is
+- (Done.) `Misc/quakevr/relight_maps.py` lines 29 and 1027 named `Misc/quakevr/relight_textures.cfg`; the file is
   `quakevr/relight_textures.cfg` (the code already looks there).
 - `quakevr/.gitignore` ignored the tracked `quakevr/relight_textures.cfg` (`/*.cfg`): fixed (an exception, as for
   the other shipped `.cfg` files).
@@ -74,7 +100,7 @@ reached (below, "What was checked"). The weight is in a few vendored binaries.
 
 ## Docs for docsreview (not edited here)
 
-- `docs/vr-port/IK.md` still opens with "Today's body is `progs/vrtorso.mdl`"; `MODELS_IN_BLENDER.md:233` lists
+- (Done 2026-10-07.) `docs/vr-port/IK.md` still opened with "Today's body is `progs/vrtorso.mdl`"; `MODELS_IN_BLENDER.md:233` lists
   `openhand.mdl` and `vrtorso.mdl`; update with the removals.
 - `docs/vr-port/inventory/` (8 files, 300 KB, 2026-09-24): the pre-port inventory of the old engine (it describes
   `cl.vrtorso`, `vr_wofs_*`, `vr_vrtorso_*`); historical.
