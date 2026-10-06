@@ -26599,9 +26599,34 @@ peaks (the wrist's and the arm's): an artefact of the mock's held velocities.
 At 72 fps the throws change a little: the flicked overhand 4.9 m/s (4.4 before: the release's own speed now counts in
 full at the window's end), overhand0 +16 degrees (+5 to +15 before, depending on where the frames fell).
 
-**Still to run** (the in-engine sweep was blocked by a profiling run; built and statics-checked only): the four plays
-at 72, 90, 120, 144, 240 fps (`vr_fixed_frames_rate`), a jittered run, bullet time (both `vr_throw_slowmo_aim` and
-`_tempo`), Sandevistan, `vr_debug_throw 2` timings, e1m1 smoke.
+In the engine (b7b1ee7f plus this, Release; `vr_fixed_frames_rate` as given, the server on its own 72 Hz clock: before
+the tickrate work on host.c; 1000-key plays with the grip opening as a hand does, `--grip 2`; mock, Gun Angle 70,
+`vr_mock_grip_velocity 1`), speed m/s, elevation, spin rad/s:
+
+| | overhand | lob | flat | overhand0 |
+|---|---|---|---|---|
+| before, 72 fps (the old 1000-key plays) | 4.37, -1.3, 32.3 | 4.82, +18.0, 14.5 | 4.97, +5.1 | 6.36, +5.3, 11.7 |
+| before, 240 fps | 4.42, -1.6, 34.2 | 4.70, +22.8, 15.7 | 5.02, +5.1 | 6.33, +19.5, 11.5 |
+| now, 72 fps | 4.88, -0.6, 32.8 | 4.72, +18.8, 15.5 | 4.98, +5.0 | 6.28, +16.3, 11.5 |
+| now, 90 | 4.89, -1.2, 32.9 | 4.73, +18.9, 15.5 | 4.99, +5.1 | 6.29, +16.5, 11.5 |
+| now, 120 | 4.89, -0.9, 33.1 | 4.73, +18.9, 15.5 | 4.99, +5.1 | 6.29, +16.3, 11.5 |
+| now, 144 | 4.89, -1.3, 33.2 | 4.73, +18.9, 15.6 | 4.99, +5.1 | 6.30, +16.5, 11.5 |
+| now, 240 | 4.89, -1.4, 33.3 | 4.73, +18.9, 15.6 | 4.99, +5.0 | 6.30, +16.6, 11.5 |
+| now, 90 fps, frame times +-30% (`vr_fixed_frames_jitter 0.3`) | 4.86, -0.7, 33.0 | 4.72, +18.9, 15.5 | 4.99, +5.1 | 6.30, +16.3, 11.5 |
+| now, 240 fps, +-30% | 4.88, -1.3, 33.3 | 4.73, +19.0, 15.6 | 5.00, +5.0 | 6.31, +16.4, 11.5 |
+| bullet time at real speed (default caps), 72 / 240 | 8.00, -0.6 / -1.4, 20 | 8.00, +18.8 / +18.9, 20 | 8.00, +5.0 | 8.00, +16.3 / +16.6, 20 |
+| bullet time, made slowly (`stretch` 3.33), 72 / 240 | 4.89, -1.4 / -1.5, 20 | 4.73 / 4.76, +18.9 / +17.9, 15.6 | 5.00, +5.0 | 6.30, +16.5, 11.5 |
+| Sandevistan, 72 / 240 | as 72 / 240 fps above, to the hundredth | | | |
+| 90-key plays (the mock's stairstep velocity), 72 / 240 | 5.01 / 4.91, -4.4 / -5.1, 33 | 4.69 / 4.73, +21.1 / +19.5, 15.4 | 4.97, +5.0 | 6.26 / 6.30, +12.4 / +12.8, 11.6 |
+
+Over 72-240 fps and the jittered runs: speed within 0.6%, direction 0.8 degrees, spin 1.5% (before: 14 degrees at the
+most, overhand0). The engine gives the offline replica's numbers to 0.1 degree. Bullet time keeps its design (the
+slowed hand's 8 m/s and 20 rad/s caps, the controller's way: `vr_throw_slowmo_aim`; a throw made slowly as at full
+speed: `_tempo`; the made-slowly lob 1 degree lower at 240 fps), Sandevistan is full speed's. The 90-key plays now agree
+between 72 and 240 fps within 2.2 degrees (14 before); they differ from the smooth plays, being another motion
+(velocities held for 11 ms). Test: `throw_plays.py --rate 1000` (the grip opening as a hand does is its
+default, `--grip 2`) played with `vr_fixed_frames 1; vr_fixed_frames_rate <fps>; vr_gunangle 70; vr_debug_throw 2;
+vr_mock_grip_velocity 1` (`vr_fixed_frames_jitter`, new: uneven frame times, a seeded sequence). e1m1 smoke clean.
 
 In VR: throw overhand, underarm, flat and with a wrist flick at your headset's lowest and highest refresh rates: the
 same throw should go the same way and as far. Two-handed throws and throws in bullet time as before.

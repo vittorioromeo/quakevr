@@ -617,6 +617,20 @@ constexpr double setupDt = 1.0 / 72.0; // a server frame with every host frame: 
     const float rate = vr_fixed_frames_rate.value;
     return rate == 72.f || rate < 10.f ? setupDt : 1.0 / static_cast<double>(za::min(rate, 1000.f));
 }
+// vr_fixed_frames_jitter: `dt` that share longer or shorter at random (a seeded sequence: the same every run); not at
+// 72 (a server frame with each host frame, of 1/72 s).
+za::U32 jitterSeed = 12345u;
+[[nodiscard]] double jittered(double dt)
+{
+    const float share = za::clamp(vr_fixed_frames_jitter.value, 0.f, 0.9f);
+    if(share <= 0.f || dt == setupDt)
+    {
+        return dt;
+    }
+    jitterSeed = jitterSeed * 1664525u + 1013904223u;
+    const double r = static_cast<double>(jitterSeed >> 8) / static_cast<double>(1u << 24) * 2.0 - 1.0;
+    return dt * (1.0 + static_cast<double>(share) * r);
+}
 constexpr double setupPress = 0.2;     // the main hand's grip
 constexpr double setupEquip = 0.3;     // the weapons
 constexpr double setupOffGrip = 0.45;  // the off hand's grip (a two-handed grip taken again)
@@ -1391,7 +1405,7 @@ double hostFrameTime(double time)
     double dt = time;
     if(state == State::Idle && (fixedLoading || vr_fixed_frames.value != 0.f))
     {
-        return fixedLoading ? setupDt : fixedFrameDt();
+        return fixedLoading ? setupDt : jittered(fixedFrameDt());
     }
     if(state == State::Setup || state == State::Post)
     {
