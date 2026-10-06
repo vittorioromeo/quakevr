@@ -30,4 +30,5 @@ Record new melee takes: stand closer with the smaller hitbox and melee speed 3
 
 [Expansion setup]
 Base Quake only: hub, tutorial and firing range work; absent mission packs are labelled unavailable
-Campaigns: owned data, saves and VR Hub; developer Dopa fog, breakables, triggered enemies, secret returns and finale; ports in progress
+Dopa: start from Official Campaigns; check secret returns, saves, carried guns and readable finale (single-player)
+# Dimension of the Machine and Dawn of the Machine native ports remain in progress.
