@@ -8,6 +8,7 @@ Lightning: one hit puts arcs on a living enemy that last through its death; corp
 Smoke: lightning-hit and burnt enemies/corpses smoulder for a few seconds (visible in dark rooms, not too much); Gore > Lightning Shock > Arcs on the Living off = lasting arcs only on corpses
 Lit particles: blood in a dark corner is dark, bright under the flashlight and muzzle flashes; fire, sparks and explosions as bright as before (Graphics > Models and Effects > Effects > Lit Particles)
 Relighting (Graphics > Relighting): relight this map or a whole episode/game in the background; progress bar (and on the wrist gadget), Cancel keeps finished maps; a second run skips unchanged maps; lamps clearly brighter in hip1m1 and vrtutorial; no hitches as each map starts
+Relighting without ericw-tools: the page offers Download ericw-tools (27.5 MB) with a progress bar and Cancel, then relights (test with vr_relight_tool_dir pointed at an empty folder)
 Elbows: aiming down sights (one/two hands) and the axe by the face keep the elbow down and in, no flips; gadget wings and salute still lift (Body > Arms > Elbows and Wrists > Elbow Tuck; 0.5 if the wrist bends too much)
 Combat decisions: fiend headshots and head pops work (guns and melee); thrown axes stick in explosive boxes and crates and move with them; thrown gibs almost always stick to walls
 Melee head pops: punches, gun butts and crowbar almost never pop a head; Mjolnir solid swings almost always; with Quad every headshot kill pops (guns at any range, nails, rockets, thrown props)
