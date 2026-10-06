@@ -141,7 +141,7 @@ constexpr PhaseInfo phaseInfo[PhaseCount] = {{"xr wait", false}, {"xrWaitFrame",
     {"server", false}, {"SV_Physics", false}, {"client read", false}, {"view entities", false}, {"screen", false},
     {"eye L", true}, {"eye R", true}, {"xr acquire", true}, {"xr release", true}, {"xr submit", true}, {"swap", false},
     {"run particles", false}, {"sound", false}, {"rigid bodies", false}, {"shadow maps", true}, {"world+brush", true},
-    {"alias", true}, {"particles", true}, {"vr particles", true}, {"decals", true}};
+    {"alias", true}, {"particles", true}, {"vr particles", true}, {"decals", true}, {"3D", true}};
 
 ankerl::unordered_dense::map<const void*, int> phaseOfName; // a name literal's address -> its phase, or -1
 

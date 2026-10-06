@@ -83,6 +83,7 @@ struct Capture
     int gpuSkipLeft{0};
     za::Vector<float> series[SeriesCount];
     za::Vector<float> gpuEyes;
+    za::Vector<float> gpu3d; // the whole 3D refresh (flat mode's view too)
     double cpuPhaseSum[PhaseCount]{};
     double gpuPhaseSum[PhaseCount]{};
     int gpuFrames{0};
@@ -233,6 +234,7 @@ void finish()
         s[i] = stats(c.series[i]);
     }
     const Stats eyes = stats(c.gpuEyes);
+    const Stats view3d = stats(c.gpu3d);
     const za::Vector<float>& period = c.series[Period];
     // Hitches: over fixed limits (a refresh at 90 and 72 Hz, two at 60, a tenth and a quarter of a second) and over
     // twice the median frame.
@@ -276,7 +278,8 @@ void finish()
     {
         writeStats(f, seriesNames[i], s[i]);
     }
-    writeStats(f, "gpu_eyes_ms", eyes, true);
+    writeStats(f, "gpu_eyes_ms", eyes);
+    writeStats(f, "gpu_3d_ms", view3d, true);
     fprintf(f, "  },\n  \"hitches\": {\"over_11ms\": %d, \"over_14ms\": %d, \"over_33ms\": %d, \"over_100ms\": %d, "
                "\"over_250ms\": %d, \"over_2x_median\": %d},\n",
         over[0], over[1], over[2], over[3], over[4], overMedian);
@@ -310,9 +313,9 @@ void finish()
 
     printCounts("end", endCounts);
     Con_Printf("vr_bench: %s %d frames %.1f s: frame avg %.3f p50 %.3f p95 %.3f p99 %.3f max %.2f ms; cpu busy avg %.3f "
-               "p99 %.3f; gpu eyes avg %.3f p99 %.3f (%d); hitches >33ms %d; heap %.1f/frame -> %s\n",
+               "p99 %.3f; gpu eyes avg %.3f p99 %.3f, 3D avg %.3f (%d); hitches >33ms %d; heap %.1f/frame -> %s\n",
         c.name.cStr(), c.frames, seconds, s[Period].avg, s[Period].p50, s[Period].p95, s[Period].p99, s[Period].max,
-        s[Busy].avg, s[Busy].p99, eyes.avg, eyes.p99, eyes.n, over[2], s[HeapEvents].avg, path.cStr());
+        s[Busy].avg, s[Busy].p99, eyes.avg, eyes.p99, view3d.avg, eyes.n, over[2], s[HeapEvents].avg, path.cStr());
 }
 
 void begin_f()
@@ -361,6 +364,8 @@ void begin_f()
     }
     c.gpuEyes.clear();
     c.gpuEyes.reserve(reserve);
+    c.gpu3d.clear();
+    c.gpu3d.reserve(reserve);
     for(int i = 0; i < PhaseCount; i++)
     {
         c.cpuPhaseSum[i] = 0.0;
@@ -464,6 +469,7 @@ void gpuFrame(const double (&phaseMs)[profile::PhaseCount])
         c.gpuPhaseSum[i] += phaseMs[i];
     }
     c.gpuEyes.pushBack(static_cast<float>(phaseMs[profile::EyeL] + phaseMs[profile::EyeR]));
+    c.gpu3d.pushBack(static_cast<float>(phaseMs[profile::View3D]));
     c.gpuFrames++;
 }
 

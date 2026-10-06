@@ -57,6 +57,7 @@ enum Phase
     Particles,    // Ironwail's particle pass (Quake VR's particles are drawn in it)
     VrParticles,
     Decals,
+    View3D,       // SCR_UpdateScreen's 3D refresh ("3D"): both eyes and the mirror in VR, the one view in flat mode
     PhaseCount
 };
 
