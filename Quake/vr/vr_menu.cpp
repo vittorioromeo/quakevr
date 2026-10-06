@@ -4046,6 +4046,7 @@ za::Vector<Item> pageDebugReports()
         command("Bloody Hands and Washing", "vr_gore_hands_info")
             .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening, and the blood on your weapons and props."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
+        command("Particle Lighting", "vr_particle_light_report").help("vr_particle_light_report: the last frame's lit particles (Lit Particles), their mean light and colour against unlit, and the lightmap traces it took."),
         command("Model Lighting", "vr_model_ambient_show").help("vr_model_ambient_show: the six nearest entities' ambient light."),
         command("Ambient Occlusion", "vr_ao_show").help("vr_ao_show: the ambient occlusion's occluders and bake."),
         header("Hands and Weapons"),

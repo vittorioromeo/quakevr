@@ -121,6 +121,8 @@ void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright);
 void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count);
 // vr_gore_mist_test [distance]: a bleed's mist that far ahead (64), drifting right.
 void mistTest_f();
+// vr_particle_light_report: the last frame's lit particles (vr_particle_light), their mean light and colour, its cost.
+void lightReport_f();
 // Live particles (vr_memstats).
 [[nodiscard]] int liveCount();
 [[nodiscard]] int capacity(); // the pool's size (vr_limits)

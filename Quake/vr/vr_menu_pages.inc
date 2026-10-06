@@ -1106,6 +1106,7 @@ void retroAllUncheckCategories()
         slider("Weapon Sight Glow", "vr_weapon_glow", 0.f, 3.f, 0.1f, "%.1fx").extend().help("Your weapons' glowing parts, as the shotgun's sights, shine brighter and glow (0: as Quake)."),
         open("Weapon Sight Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
         header("Effects"),
+        toggle("Lit Particles", "vr_particle_light").help("Blood, smoke, dust, debris and water take the light where they are: dark in dark corners, lit by your flashlight, muzzle flashes and explosions. Fire, sparks and glows stay bright. Off: all as bright as their colours, as in Quake."),
         toggle("Soft Particles", "vr_soft_particles").help("Smoke, fire, blood and explosions fade out where they meet walls and floors instead of cutting hard lines through them."),
         slider("Soft Particle Distance", "vr_soft_particles_scale", 0.25f, 3.f, 0.25f, "%.2fx").extend().help("How far in front of walls and floors they start fading (bigger: softer, but thin puffs against a wall fainter)."),
         toggle("Half-Res Heavy Particles", "vr_particle_halfres").help("When smoke, fire and blood fill much of the view, the particles are drawn at half resolution and blended in: a quarter of their cost on the GPU, a little softer."),

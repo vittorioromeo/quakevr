@@ -1093,6 +1093,7 @@ QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world
 
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
 QVR_CVAR(vr_particle_seed, "0", CVAR_NONE)            // tests: the particles' random numbers restarted from this seed at each map (0: random)
+QVR_CVAR(vr_particle_light, "1", CVAR_ARCHIVE)        // lit particles: blood, smoke, dust, chips and water take the place's light (the lightmap and dynamic lights: dark in the dark, lit by your flashlight); fire, sparks, glows and explosions stay bright (0: all as bright as their colours)
 QVR_CVAR(vr_soft_particles, "1", CVAR_ARCHIVE)        // soft particles: smoke, fire, blood and explosion sprites fade out where they meet walls and floors instead of cutting hard lines (0 off)
 QVR_CVAR(vr_soft_particles_scale, "1", CVAR_ARCHIVE)  // how close to the scene they fade, times each kind's own distance (sparks 1.5 units, smoke and fire half their size, at most 32)
 QVR_CVAR(vr_particle_halfres, "1", CVAR_ARCHIVE)      // with many large particles in view (smoke, fire and blood near you, over a screen and a half of them), all of them drawn at half resolution and blended in: a quarter of their cost on the GPU, a little softer (0: always at full resolution)

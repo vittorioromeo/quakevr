@@ -11,6 +11,7 @@
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hue.hpp"
+#include "vr_lighting.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
 #include "vr_text3d.hpp"
@@ -43,6 +44,11 @@
 #include "vr_zancle.hpp"
 
 #include <string.h>
+
+namespace qvr::retrolight
+{
+[[nodiscard]] bool on(); // retro lighting (vr_retrolight.cpp)
+} // namespace qvr::retrolight
 
 namespace qvr::particles
 {
@@ -91,6 +97,17 @@ enum Cell : za::U8
     CellCount
 };
 
+// Whether the place's light falls on a particle (vr_particle_light): Lit ones take the lightmap where they are and the
+// dynamic lights round them (blood, smoke, dust, chips, water); Emissive ones are light themselves and stay as bright
+// in the dark (fire, explosions' fireballs and their ramps, sparks, glows, lightning, lava, tracers). Auto: worked out
+// from what it is (classify) the first frame it is drawn; a preset sets it where its look says otherwise.
+enum class Lighting : za::U8
+{
+    Auto,
+    Lit,
+    Emissive,
+};
+
 struct Particle
 {
     glm::vec3 org;
@@ -119,6 +136,12 @@ struct Particle
     // turned since (most particles never turn).
     glm::vec2 cs{1.f, 0.f};
     float csAngle{ZA_FLOAT_NAN};
+    // Lit (vr_particle_light): the lightmap's light where it was last traced (lightCache.pos; again once it has moved
+    // 8 units), read again every few frames for the light styles' flicker; 0..255, 128 Quake's full light.
+    lightcache_t lightCache{};
+    za::U8 lightmap[3]{128, 128, 128};
+    bool lightKnown{false};
+    Lighting lighting{Lighting::Auto};
 };
 
 constexpr za::SizeT maxParticles = 32768;
@@ -165,6 +188,12 @@ void make(float count, F&& f, bool multiply = true)
         f(p, i);
         pool.pushBack(p);
     }
+}
+
+// Lit particles (vr_particle_light): the place's light on those that are not light themselves (Lighting).
+[[nodiscard]] bool lightOn()
+{
+    return vr_particle_light.value != 0.f;
 }
 
 void setColor(Particle& p, int index, float alpha255)
@@ -1004,6 +1033,7 @@ void woodDust(const glm::vec3& org, const glm::vec3& dir, int count)
     make(static_cast<float>(count) * 0.6f, [&](Particle& p, int) {
         p.cell = CellSpark;
         setColor(p, rndi(20, 30), 255);
+        p.lighting = Lighting::Lit; // wood chips (the spark's shape, not hot)
         p.die = cl.time + rnd(1.f, 1.8f);
         p.scale = rnd(1.8f, 3.2f);
         p.type = Rock;
@@ -1343,13 +1373,13 @@ void teleportSplash(const glm::vec3& org)
 }
 
 // How lit the place is (the lightmap under it): the drops take no light of their own, and white
-// ones would glow in a dark pool.
+// ones would glow in a dark pool. 1 with lit particles (vr_particle_light): they take it as they are drawn.
 lightcache_t shadeLight{}; // shadeAt's light lookup (the client's frame)
 
 [[nodiscard]] float shadeAt(const glm::vec3& org)
 {
     lightcache_t& cache = shadeLight;
-    if(!cl.worldmodel)
+    if(!cl.worldmodel || lightOn()) // (lit particles: lit where they are as they move, by the dynamic lights too)
     {
         return 1.f;
     }
@@ -1721,7 +1751,7 @@ void mistTest_f()
 
 void init()
 {
-    static_assert(sizeof(Particle) <= 128, "the pool's reservation (4 MB) grows with it");
+    static_assert(sizeof(Particle) <= 152, "the pool's reservation (4.75 MB) grows with it");
     pool.reserve(maxParticles);
 }
 
@@ -2313,6 +2343,355 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
     lyingCount = end;
 }
 
+// ---- Lit particles (vr_particle_light) -------------------------------------------------------
+// Those that are not light themselves (Lighting::Lit) take the place's light, as the alias models do
+// (R_SetupAliasLighting): the lightmap under them (R_LightPoint) through its contrast (lighting::lightCurve), then, as
+// the world adds them, the dynamic lights round them (this frame's: muzzle flashes, explosions, the flashlight's cone,
+// torches), times their colour: 1 at Quake's full light, up to 2 (overbright, as the world). Not the dynamic lights'
+// shadows. Worked out once a frame on the CPU, for every view (both eyes, the spectator, half
+// resolution alike), with retro lighting's levels (the models') when it is on.
+//
+// The cost is bounded: a particle looks the lightmap up again only when it has moved 8 units across (16 up or down)
+// since, and then from its cell's kept trace (lightTraces: a burst's particles and a trail's share them); a cell not
+// traced yet is, at most traceBudget a frame (the others keep their last light a frame longer). On a surface lit by a
+// changing light style, a quarter of them each frame read their lightmap texels again for the flicker (a cached
+// R_LightPoint: no trace). About 25 to 40 ns a lit particle a frame (vr_particle_light_report: 0.15 to 0.25 ms with 5000
+// to 6500 of them in particles_dense).
+
+// What a particle is, for its light (Lighting::Auto): the explicit list of what is light itself. Glows added to the
+// scene are; so are the explosions' and the tarbaby's colour ramps and lightning, and everything in or of lava (its
+// steam aside).
+[[nodiscard]] Lighting classify(const Particle& p)
+{
+    if(p.additive)
+    {
+        return Lighting::Emissive;
+    }
+    switch(p.type)
+    {
+        case Explode:
+        case Explode2:
+        case Blob:
+        case Lightning: return Lighting::Emissive; // (fire's colour ramps, electricity)
+        case Static:
+        case TxExplode:
+        case TxSmoke:
+        case TxBigSmoke:
+        case Rock:
+        case GunSmoke:
+        case GunPickup:
+        case Drip:
+        case Custom: break; // (by its look)
+    }
+    if(p.liquid == CONTENTS_LAVA && p.cell != CellSmoke)
+    {
+        return Lighting::Emissive; // a lava splash's drops, rings and foam
+    }
+    switch(p.cell)
+    {
+        case CellExplosion: // fireballs (alpha blended in explosion(): still fire)
+        case CellLightning:
+        case CellSpark: // hot sparks and embers, glints (wood chips are set Lit: woodDust)
+        case CellGlow:
+        case CellFire: return Lighting::Emissive;
+        case CellCircle: // blood, dust, chips, drips (the fire ramps are Explode and Blob above)
+        case CellSmoke:  // smoke, dust, steam
+        case CellBlood:
+        case CellBloodMist:
+        case CellRock:
+        case CellGunSmoke:
+        case CellRing: // water: ripples, drops, spray, foam
+        case CellDrop:
+        case CellSpray:
+        case CellFoam: return Lighting::Lit;
+        case CellCount: break;
+    }
+    return Lighting::Lit;
+}
+
+// One lightmap trace for each cell (16 units: a luxel), kept and shared by every particle that comes into it
+// (a burst's hundreds, a trail's); the light styles' flicker read again from its surface where it changes.
+struct LightTrace
+{
+    const qmodel_t* world{nullptr}; // (the map's: none from another)
+    int key[3]{};
+    lightcache_t cache{};
+    za::U8 rgb[3]{};
+};
+constexpr za::SizeT lightTraceSlots = 4096; // (a power of two)
+constexpr int traceBudget = 512;            // traces a frame at most
+constexpr float retraceDistance = 8.f;      // units moved across since its last trace (the luxels are 16)
+constexpr float retraceRise = 16.f;         // units up or down (the trace finds the floor under it: the same light)
+constexpr float lightCellSize = 16.f;       // a kept trace's cell, across and up (a luxel)
+LightTrace lightTraces[lightTraceSlots];
+
+// This frame's dynamic lights that may reach particles (indices into r_lightbuffer.lights), and each particle's light
+// (by pool index; 1 for emissive ones).
+struct FrameLight
+{
+    glm::vec3 pos;
+    float radius;
+    glm::vec3 color;
+    glm::vec4 spot; // gpulight_t's (VR_SpotCone; w 0: a point light)
+};
+FrameLight frameLights[MAX_DLIGHTS];
+int frameLightCount = 0;
+za::Vector<glm::vec3> lightOf;
+za::SizeT lightCount = 0; // the particles lightOf is for (the pool may have grown since)
+
+// The last frame's numbers (vr_particle_light_report).
+struct LightStats
+{
+    int lit{0}, emissive{0}, traces{0}, shared{0}, refreshed{0}, stale{0}, lights{0};
+    double ms{0.0}; // lightParticles' time
+};
+LightStats lightStats;
+double lightMsSum = 0.0; // lightParticles' time over the frames since the last report
+int lightFrames = 0;
+long long lightTraceSum = 0; // ... and the traces it made
+long long lightLitSum = 0;   // ... and the particles it lit
+
+[[nodiscard]] za::U8 lightByte(float v)
+{
+    return static_cast<za::U8>(za::clamp(v, 0.f, 255.f) + 0.5f);
+}
+
+// Whether a surface's light changes (a light style other than 0, Quake's steady one; 255 ends the list).
+[[nodiscard]] bool flickers(const msurface_t& surf)
+{
+    for(int k = 0; k < MAXLIGHTMAPS && surf.styles[k] != 255; k++)
+    {
+        if(surf.styles[k] != 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The lightmap's light at the particle (p.lightmap: 0..255, 128 Quake's full).
+void lightmapOf(Particle& p, za::SizeT index, LightStats& st)
+{
+    if(!cl.worldmodel->lightdata)
+    {
+        p.lightmap[0] = p.lightmap[1] = p.lightmap[2] = 128; // a map with no light: drawn fullbright
+        p.lightKnown = true;
+        return;
+    }
+    const glm::vec3 d = glm::abs(p.org - glm::vec3{p.lightCache.pos[0], p.lightCache.pos[1], p.lightCache.pos[2]});
+    if(p.lightKnown && za::max(d.x, d.y) < retraceDistance && d.z < retraceRise)
+    {
+        // The light styles' flicker: the cached place's texels read again (no trace), a quarter of them each frame,
+        // on a surface lit by a style that changes (not 0, Quake's steady light).
+        if(p.lightCache.surfidx > 0 && ((index + static_cast<za::SizeT>(host_framecount)) & 3) == 0 &&
+            flickers(cl.worldmodel->surfaces[p.lightCache.surfidx - 1]))
+        {
+            vec3_t at{p.lightCache.pos[0], p.lightCache.pos[1], p.lightCache.pos[2]};
+            (void)R_LightPoint(at, 2.f, &p.lightCache);
+            for(int c = 0; c < 3; c++)
+            {
+                p.lightmap[c] = lightByte(lightcolor[c]);
+            }
+            st.refreshed++;
+        }
+        return;
+    }
+    const int key[3] = {static_cast<int>(za::floor(p.org.x / lightCellSize)), static_cast<int>(za::floor(p.org.y / lightCellSize)),
+        static_cast<int>(za::floor(p.org.z / lightCellSize))};
+    const za::U32 hash = (static_cast<za::U32>(key[0]) * 73856093u) ^ (static_cast<za::U32>(key[1]) * 19349663u) ^
+                         (static_cast<za::U32>(key[2]) * 83492791u);
+    LightTrace& t = lightTraces[hash & (lightTraceSlots - 1)];
+    if(t.world == cl.worldmodel && t.key[0] == key[0] && t.key[1] == key[1] && t.key[2] == key[2])
+    {
+        p.lightCache = t.cache;
+        if(p.lightCache.surfidx > 0 && flickers(cl.worldmodel->surfaces[p.lightCache.surfidx - 1]))
+        {
+            vec3_t at{p.lightCache.pos[0], p.lightCache.pos[1], p.lightCache.pos[2]};
+            (void)R_LightPoint(at, 2.f, &p.lightCache); // (its texels now: no trace)
+            for(int c = 0; c < 3; c++)
+            {
+                p.lightmap[c] = lightByte(lightcolor[c]);
+            }
+        }
+        else
+        {
+            ZA_MEMCPY(p.lightmap, t.rgb, sizeof(p.lightmap));
+        }
+        p.lightKnown = true;
+        st.shared++;
+        return;
+    }
+    if(st.traces >= traceBudget)
+    {
+        st.stale++; // its last light a frame longer (a new one where no cell was traced: Quake's full light until then)
+        return;
+    }
+    vec3_t at{p.org.x, p.org.y, p.org.z};
+    p.lightCache.surfidx = 0; // (a trace from here, whatever was cached)
+    (void)R_LightPoint(at, 2.f, &p.lightCache); // (from 2 units up: one lying on the floor finds the floor)
+    for(int c = 0; c < 3; c++)
+    {
+        p.lightmap[c] = lightByte(lightcolor[c]);
+    }
+    p.lightKnown = true;
+    st.traces++;
+    t.world = cl.worldmodel;
+    ZA_MEMCPY(t.key, key, sizeof(t.key));
+    t.cache = p.lightCache;
+    ZA_MEMCPY(t.rgb, p.lightmap, sizeof(t.rgb));
+}
+
+// DarkPlaces' falloff (vr_dlight_falloff; DarkPlacesAtten, vr_glsl.h).
+[[nodiscard]] float darkplacesAtten(float dist, float radius)
+{
+    const float d = dist / za::max(radius, 1.f);
+    return za::clamp((1.f - d) * 2.f / (1.f + d * d), 0.f, 1.f);
+}
+
+// Retro lighting's levels (the models' own light's: vr_retrolight_model_steps a unit, a unit the lightmap's whole
+// range, twice Quake's full light) on a light `l` (1: Quake's full), the hue kept. No dither (one light a quad).
+[[nodiscard]] glm::vec3 retroLevels(const glm::vec3& l)
+{
+    const float steps = za::clamp(vr_retrolight_model_steps.value, 0.f, 256.f);
+    const float m = za::max(l.x, l.y, l.z) * 0.5f;
+    if(steps <= 0.f || m <= 1e-5f)
+    {
+        return l;
+    }
+    const float g = vr_retrolight_spacing.value != 0.f ? 0.5f : 1.f;
+    const float q = za::floor(glm::pow(m, g) * steps + 0.5f);
+    return l * (glm::pow(za::max(q, 0.f) / steps, 1.f / g) / m);
+}
+
+// Every particle's light this frame (lightOf), and the dynamic lights that reach any.
+void lightParticles()
+{
+    const za::I64 start = za::Clock::nowNanoseconds();
+    LightStats st;
+    if(lightOf.size() < pool.size())
+    {
+        lightOf.resize(pool.size());
+    }
+    const bool on = lightOn() && cl.worldmodel;
+    frameLightCount = 0;
+    if(on)
+    {
+        for(int i = 0; i < r_framedata.numlights && i < MAX_DLIGHTS; i++)
+        {
+            const gpulight_t& l = r_lightbuffer.lights[i];
+            if(l.shadow[3] != 0.f || l.gatelo[3] != 0.f || l.radius <= 0.f)
+            {
+                continue; // a map light's shadow entry, a light through a portal, none
+            }
+            const glm::vec3 axis{l.spot[0], l.spot[1], l.spot[2]};
+            frameLights[frameLightCount++] = {{l.pos[0], l.pos[1], l.pos[2]}, l.radius, {l.color[0], l.color[1], l.color[2]},
+                glm::dot(axis, axis) > 0.f ? glm::vec4{axis, l.spot[3]} : glm::vec4{0.f}};
+        }
+    }
+    st.lights = frameLightCount;
+    const bool darkplaces = vr_dlight_falloff.value != 0.f;
+    // lighting::lightCurve on every lightmap value once (a power each: not three for every particle).
+    float curve[256];
+    for(int v = 0; v < 256; v++)
+    {
+        float k[3] = {static_cast<float>(v), 0.f, 0.f};
+        lighting::lightCurve(k);
+        curve[v] = k[0];
+    }
+    const bool retro = retrolight::on() && vr_retrolight_models.value != 0.f;
+    for(za::SizeT i = 0; i < pool.size(); i++)
+    {
+        Particle& p = pool[i];
+        if(p.lighting == Lighting::Auto)
+        {
+            p.lighting = classify(p);
+        }
+        if(!on || p.lighting == Lighting::Emissive)
+        {
+            st.emissive += p.lighting == Lighting::Emissive ? 1 : 0;
+            lightOf[i] = glm::vec3{1.f};
+            continue;
+        }
+        lightmapOf(p, i, st);
+        // (the baked light's contrast, as the world's: the dynamic lights added after it)
+        glm::vec3 c{curve[p.lightmap[0]], curve[p.lightmap[1]], curve[p.lightmap[2]]};
+        for(int k = 0; k < frameLightCount; k++)
+        {
+            const FrameLight& l = frameLights[k];
+            const glm::vec3 to = p.org - l.pos;
+            const float d2 = glm::dot(to, to);
+            if(d2 >= l.radius * l.radius)
+            {
+                continue;
+            }
+            const float dist = za::sqrt(d2);
+            float add = darkplaces ? darkplacesAtten(dist, l.radius) * 128.f : l.radius - dist; // (128: Quake's full)
+            if(l.spot.w != 0.f && dist > 1e-3f) // VR_SpotCone's
+            {
+                const float t = za::clamp(l.spot.w - glm::dot(glm::vec3{l.spot}, to) / dist, 0.f, 1.f);
+                add *= 1.f - t * t * (3.f - 2.f * t);
+            }
+            if(add > 0.f)
+            {
+                c += add * l.color;
+            }
+        }
+        glm::vec3 f = glm::clamp(c * (1.f / 128.f), glm::vec3{0.f}, glm::vec3{2.f});
+        if(retro)
+        {
+            f = retroLevels(f);
+        }
+        lightOf[i] = f;
+        st.lit++;
+    }
+    lightCount = pool.size();
+    st.ms = static_cast<double>(za::Clock::nowNanoseconds() - start) * 1e-6;
+    lightMsSum += st.ms;
+    lightFrames++;
+    lightTraceSum += st.traces;
+    lightLitSum += st.lit;
+    lightStats = st;
+}
+
+// vr_particle_light_report: the last frame's lit particles, their light and its cost.
+void lightReport_f()
+{
+    const LightStats& st = lightStats;
+    // Their mean light (1: Quake's full), its lightmap's share (after its contrast) and the rest (the dynamic lights'),
+    // and their colour's luma as drawn and as it would be unlit.
+    double light = 0.0, baked = 0.0, colour = 0.0, base = 0.0;
+    int n = 0;
+    for(za::SizeT i = 0; i < za::min(lightCount, pool.size()); i++)
+    {
+        const Particle& p = pool[i];
+        if(p.lighting != Lighting::Lit)
+        {
+            continue;
+        }
+        float k[3] = {static_cast<float>(p.lightmap[0]), static_cast<float>(p.lightmap[1]), static_cast<float>(p.lightmap[2])};
+        lighting::lightCurve(k);
+        const glm::vec3 f = lightOf[i];
+        const float y = 0.299f * p.color.r + 0.587f * p.color.g + 0.114f * p.color.b;
+        light += (f.x + f.y + f.z) / 3.f;
+        baked += za::min((k[0] + k[1] + k[2]) / (3.f * 128.f), 2.f);
+        base += y;
+        colour += 0.299f * p.color.r * f.x + 0.587f * p.color.g * f.y + 0.114f * p.color.b * f.z;
+        n++;
+    }
+    const double m = za::max(n, 1);
+    Con_Printf("vr_particle_light %g: %d lit, %d emissive, %d dynamic lights\n", vr_particle_light.value, st.lit,
+        st.emissive, st.lights);
+    Con_Printf("  lit: light %.3f (lightmap %.3f, dynamic %.3f; 1 = Quake's full), colour luma %.3f (unlit %.3f)\n",
+        light / m, baked / m, (light - baked) / m, colour / m, base / m);
+    Con_Printf("  this frame: %d traces, %d shared, %d flicker reads, %d stale; %.3f ms (%.3f ms a frame over %d, with %.0f traces and %.0f lit)\n",
+        st.traces, st.shared, st.refreshed, st.stale, st.ms, lightMsSum / za::max(lightFrames, 1), lightFrames,
+        static_cast<double>(lightTraceSum) / za::max(lightFrames, 1),
+        static_cast<double>(lightLitSum) / za::max(lightFrames, 1));
+    lightMsSum = 0.0;
+    lightFrames = 0;
+    lightTraceSum = lightLitSum = 0;
+}
+
 // The frame's particles for the GPU (gfx::ParticleInstance, one record each, made and uploaded once a frame and drawn
 // in both eyes: the quads are made in the vertex shader from each eye's camera), and a splash's rings and foam lying on
 // the waves (lyingVertices, made on the CPU for each view: only those in its frustum, R_CullBox on a box round each,
@@ -2358,7 +2737,7 @@ void buildInstances()
         gfx::ParticleInstance& q = *out++;
         q.org = p.org;
         q.half = 0.75f * p.scale;
-        q.color = {glm::vec3{p.color} * a, p.additive ? 0.f : a};
+        q.color = {glm::vec3{p.color} * lightOf[i] * a, p.additive ? 0.f : a}; // (lit: lightParticles)
         q.vel = p.vel;
         q.streak = p.streak;
         q.cos = p.cs.x;
@@ -2421,7 +2800,7 @@ void buildLying()
             }
         }
         const float a = za::min(p.color.a, 1.f);
-        const glm::vec4 color{glm::vec3{p.color} * a, p.additive ? 0.f : a};
+        const glm::vec4 color{glm::vec3{p.color} * lightOf[i] * a, p.additive ? 0.f : a};
         lieOnLiquid(p, r, u, cellUv[p.cell], color, eye);
     }
 }
@@ -2515,6 +2894,10 @@ extern "C" void VR_DrawSceneTranslucent()
             {
                 QVR_PROFILE("particle sim");
                 run();
+            }
+            {
+                QVR_PROFILE("particle light");
+                lightParticles(); // (after the first view's R_PushDlights: this frame's dynamic lights)
             }
             QVR_PROFILE("particle verts");
             buildInstances();

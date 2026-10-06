@@ -1882,6 +1882,7 @@ void lighting::applyPreset(int preset)
     look(vr_texture_smooth, 0.f);
     look(vr_alpha_coverage, 0.f); // fences' mips as Quake's (thinning out with distance)
     look(vr_water_splash, 0.f); // liquid splashes (vr_particles.cpp)
+    look(vr_particle_light, 0.f); // lit particles (vr_particles.cpp): Quake's were all as bright as their colours
     Cvar_SetQuick(&vr_soft_particles, preset >= 2 ? "1" : "0"); // soft particles and sprites (vr_particles.cpp): Medium and up
     Cvar_SetValueQuick(&vr_normalmaps, p.normalmaps); // made as the next map loads
     Cvar_SetValueQuick(&vr_parallax, p.parallax);
