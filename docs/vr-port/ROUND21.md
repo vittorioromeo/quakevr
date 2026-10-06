@@ -25274,3 +25274,50 @@ Test in VR: shoot a grunt briefly with the lightning gun, alive and as a corpse:
 for about 5 s, following it as it walks, falls and lies; set a monster on fire with a torch: smoke while it burns, a few
 seconds after the flames go out. Is it too faint in dark rooms or too much (Smouldering Smoke, Smoke Opacity)? Try Arcs
 on the Living off.
+## Lit particles (vr_particle_light, 2026-10-06)
+
+Voice note hip1m1, 13:10: blood particles "always seem to be full bright, even though I am in a very dark area";
+particles should match the light round them.
+
+- **What** (`Quake/vr/vr_particles.cpp`, "Lit particles"): every Quake VR particle is now `Lit` or `Emissive`
+  (`Particle::lighting`, set by `classify` the first frame it is drawn; a preset may set it). Emissive: glows added to
+  the scene, the explosions' and the tarbaby's colour ramps (`Explode`, `Explode2`, `Blob`), lightning, fireballs
+  (`CellExplosion`), sparks and embers (`CellSpark`), `CellGlow`, `CellFire`, and everything of a lava splash but its
+  steam. Lit: blood (drops, mist, trails, drips, specks), smoke and dust (bullet puffs, gun smoke, smoke trails, wood
+  dust, chainsaw and torch smoke), chips and rocks, water splashes (drops, spray, foam, rings), and the wood chips
+  (`woodDust`'s spark-shaped chips set `Lit`). The `switch`es over `Type` and `Cell` list every value (a new cell or
+  type warns until it is placed).
+- **How**: once a frame, before the instances are built (`lightParticles`, profile scope `particle light`), each lit
+  particle's light, as the alias models get it (R_SetupAliasLighting): the lightmap under it (R_LightPoint, from 2 units
+  up so one lying on the floor finds it) through the world's contrast and fill light (`lighting::lightCurve`, through a
+  256-entry table each frame), then this frame's dynamic lights added as the world adds them (`r_lightbuffer`: Quake's
+  `radius - distance` or DarkPlaces' falloff by `vr_dlight_falloff`, the flashlight's cone as `VR_SpotCone`; map lights'
+  shadow entries and portal lights left out). 1 is Quake's full light, at most 2 (overbright, as the world); the
+  colour is multiplied by it (instances and the splashes' pieces lying on the water). One light a particle, on the CPU,
+  so both eyes, the spectator and the half-resolution path draw the same. With retro lighting on (and its models), the
+  light is put in the models' levels (`vr_retrolight_model_steps`, `vr_retrolight_spacing`); retro particles' palette
+  and blocks apply to the lit colour as before. Not the dynamic lights' shadows (a flashlight lights a particle behind
+  a monster).
+- **Cost**: a particle looks the lightmap up again only after moving 8 units across (16 up or down), from its 16-unit
+  cell's kept trace (`lightTraces`, 4096 slots, per map: a burst's or a trail's particles share one); new cells at most
+  512 traces a frame. On surfaces lit by a changing light style a quarter of them re-read their texels each frame (the
+  flicker; no trace). `particles_dense` (vrfiringrange, ~5300 particles, `--fast`, 2 reps each): CPU `vr particles`
+  0.10 ms off, 0.26 ms on; GPU unchanged (8.3 to 8.8 ms both, one 16 ms outlier run). `vr_particle_light_report`
+  there: 0.14 ms a frame on average, 0.23 to 0.25 ms in its densest stretch (6500 lit, ~40 to 60 traces a frame).
+  The first version cost 0.50 ms: three `pow`s a particle (the contrast) were most of it.
+- **Before/after** (e1m1, frozen blood burst, `vr_particle_seed 7`, `vr_eyeshot` both eyes): a dark corner (`setpos 832
+  2448 -328`): mean light 0.07, the blood's pixels luma 9.4 unlit, 1.1 lit (the corner's floor draws at 7 to 9 of 128);
+  a lit room (`setpos 944 1008 -232`): light 0.99, 27 pixels differ (as before); the dark corner by the head-clipped
+  flashlight: light 1.44 (lightmap 0.07, dynamic 1.37), the blood's pixels 34 unlit, 43 lit. Left and right eyes within
+  a pixel value of each other. A large blood mist cloud enveloping the head is lit by the head torch as a faint red
+  veil (lit at its middle, in the beam).
+- **Setting**: `vr_particle_light` (archived, default 1), Graphics > Models and Effects > Effects > **Lit Particles**;
+  the graphics preset Off (Quake's look) turns it off. `shadeAt` (the splashes' and mist's light at spawn) is 1 while
+  it is on (they are lit as they move). Debug > Reports > **Particle Lighting** (`vr_particle_light_report`): the last
+  frame's lit and emissive counts, mean light (lightmap share, dynamic share), colour luma lit against unlit, traces,
+  shared, flicker reads, its time and the mean time since the last report.
+- **Not touched**: Quake's own particles (`r_part.c`, used without Quake VR's protocol or with `vr_particles 0`) stay
+  fullbright; sprites (explosions, bubbles) and decals are lit as before.
+- **To test in VR**: blood in a dark corner (dark, not glowing), then under the flashlight (lit in the beam) and a
+  muzzle flash; smoke and dust in dark rooms; fire, sparks, explosions, lava splashes and teleport sparks as bright as
+  before; Lit Particles off for the old look.
