@@ -3118,6 +3118,8 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdollZombie();
 [[nodiscard]] za::Vector<Item> pageRagdollMummy();
 [[nodiscard]] za::Vector<Item> pageRagdollGremlin();
+[[nodiscard]] za::Vector<Item> pageRagdollVore();
+[[nodiscard]] za::Vector<Item> pageRagdollCentroid();
 [[nodiscard]] za::Vector<Item> pageRagdollShambler();
 [[nodiscard]] za::Vector<Item> pageRagdollFiend();
 
@@ -3286,7 +3288,9 @@ void hologramTestMessage()
         open("Scrag", pageIndex(pageRagdollScrag)),
         open("Fiend", pageIndex(pageRagdollFiend)),
         open("Shambler", pageIndex(pageRagdollShambler)),
+        open("Vore", pageIndex(pageRagdollVore)),
         open("Gremlin", pageIndex(pageRagdollGremlin)),
+        open("Centroid", pageIndex(pageRagdollCentroid)).help("A centroid's ragdoll (Scourge of Armagon's scorpion)."),
         open("Zombie", pageIndex(pageRagdollZombie)).help("A zombie's ragdoll: only when its head is cut off (Gore > Decapitation)."),
         open("Mummy", pageIndex(pageRagdollMummy)).help("A mummy's ragdoll (Dissolution of Eternity): only when its head is cut off (Gore > Decapitation)."),
         header("Taking Them"),
@@ -3610,6 +3614,66 @@ void hologramTestMessage()
                               "vr_ragdoll_gremlin_joint_friction -1; vr_ragdoll_gremlin_joint_stiffness -1; vr_ragdoll_gremlin_limits -1; "
                               "vr_ragdoll_gremlin_damping -1; vr_ragdoll_gremlin_blast -1; vr_ragdoll_gremlin_inherit -1")
             .help("The gremlin's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Vore: the vore's own physics (vr_ragdoll_vore_*), each one Global (the one
+// for all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollVore()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_vore_start, 0.f, 1.f, 0.1f, "%.1f")
+            .help("vr_ragdoll_vore_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_vore_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_vore_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_vore_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_vore_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_vore_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_vore_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_vore_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_vore_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_vore_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_vore_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_vore_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_vore_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_vore_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_vore_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_vore_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_vore_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_vore_start -1; vr_ragdoll_vore_mass -1; vr_ragdoll_vore_friction -1; "
+                              "vr_ragdoll_vore_joint_friction -1; vr_ragdoll_vore_joint_stiffness -1; vr_ragdoll_vore_limits -1; "
+                              "vr_ragdoll_vore_damping -1; vr_ragdoll_vore_blast -1; vr_ragdoll_vore_inherit -1")
+            .help("The vore's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Centroid: the centroid's own physics (vr_ragdoll_centroid_*), each one Global (the one
+// for all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollCentroid()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_centroid_start, 0.f, 1.f, 0.1f, "%.1f")
+            .help("vr_ragdoll_centroid_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_centroid_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_centroid_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_centroid_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_centroid_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_centroid_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_centroid_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_centroid_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_centroid_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_centroid_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_centroid_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_centroid_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_centroid_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_centroid_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_centroid_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_centroid_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_centroid_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_centroid_start -1; vr_ragdoll_centroid_mass -1; vr_ragdoll_centroid_friction -1; "
+                              "vr_ragdoll_centroid_joint_friction -1; vr_ragdoll_centroid_joint_stiffness -1; vr_ragdoll_centroid_limits -1; "
+                              "vr_ragdoll_centroid_damping -1; vr_ragdoll_centroid_blast -1; vr_ragdoll_centroid_inherit -1")
+            .help("The centroid's ragdoll as all monsters' (Ragdoll Settings)."),
     };
 }
 
@@ -4439,6 +4503,7 @@ za::Vector<Item> pageDebugTools()
         command("Chance Rates", "vr_limb_test 8").help("vr_limb_test 8: 2000 rolls at chance 0.5 for a head and a limb: the rates with Head Chance and Limb Chance."),
         command("Most Limbs", "vr_limb_test 11").help("vr_limb_test 11: twice Most Limbs Lying About thrown: how many stay."),
         command("Where Its Limbs Map", "vr_limb_test 13").help("vr_limb_test 13: each limb's surface point and the joint a hit there cuts."),
+        command("The Limbs Lying About", "vr_limb_test 17").help("vr_limb_test 17: each limb thrown: its model, where it is, how fast (none fallen out of the world)."),
         command("Hand to the Last Limb", "vr_limb_test 14").help("vr_limb_test 14: the mock main hand put on the last limb thrown (then grip: vr_mock_button main grip 1; vr_limb_test 15 says if it is held)."),
         header("Head Pop Chance Tests (poptest: ... in the console)"),
         slider("Test Range", vr_decap_poptest_dist, 0.5f, 25.f, 0.5f, "%.1f lengths")
@@ -4714,6 +4779,10 @@ za::Vector<Item> pageDebugTests()
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a shambler killed at the Distance ahead: he goes limp as he falls."),
         command("A Gremlin's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 12; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a gremlin killed at the Distance ahead (Scourge of Armagon): it goes limp as it falls (a stolen gun dropped)."),
+        command("A Vore's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 10; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a vore killed at the Distance ahead: it goes limp as it falls."),
+        command("A Centroid's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 13; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a centroid killed at the Distance ahead (Scourge of Armagon): it goes limp as it falls."),
         command("A Grunt's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a grunt killed at the Distance ahead: he goes limp as "
                   "he falls."),
@@ -5572,6 +5641,8 @@ const Page pages[] = {
     {"Machine Horde Tests", pageMachineHordeTests, pageDebugTests, LevelDeveloper},
     {"Graphics - Relighting", pageGraphicsRelighting, pageGraphics},
     {"Gore - Limb Gore", pageLimbGore, pageGore},
+    {"Ragdolls - Vore", pageRagdollVore, pageRagdolls, LevelDeveloper},
+    {"Ragdolls - Centroid", pageRagdollCentroid, pageRagdolls, LevelDeveloper},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

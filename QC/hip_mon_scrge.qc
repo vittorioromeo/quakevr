@@ -337,7 +337,13 @@ void() scourge_die =
 {
     // check for gib
    // stop sound
-   remove(self.lastvictim);
+   // QVR: its trigger (scourge_think's) only if it has one: one killed before its first think (a test's corpse,
+   // killed as it spawns) has none, and remove(world) freed the world: every monster and gib after it fell through the
+   // floor.
+   if(self.lastvictim != world)
+   {
+      remove(self.lastvictim);
+   }
    self.spawnsilent = 0;
    scourge_think();
    if(self.health < -35)

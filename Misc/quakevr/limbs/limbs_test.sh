@@ -19,7 +19,7 @@
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 CASES=${*:-models corpse live chance cap grab save zombie blast perf}
-KINDS=${KINDS:-0 1 2 3 4 5 6 7 8 9 12 14}
+KINDS=${KINDS:-0 1 2 3 4 5 6 7 8 9 10 12 13 14}
 PRE="map vrfiringrange;wait20;god;notarget;developer 1;vr_test_spawn ${MON:-0}"
 FILTER="^limbtest|^vr_limb_models|^  *[0-9]+ [a-z_0-9]+ +bones|^vr_physics_steptime|rror|CRASH"
 run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "${3:-$FILTER}" -Timeout 300 ${2:+-Out $2} 2>&1 | grep -v "^$" | grep -v "^exit=0"; }
@@ -28,7 +28,7 @@ for c in $CASES; do
     case $c in
     models)
         S="map vrfiringrange;wait10"
-        for m in soldier knight ogre enforcer hknight dog wizard zombie demon shambler grem mummy; do S="$S;vr_limb_models progs/$m.mdl"; done
+        for m in soldier knight ogre enforcer hknight dog wizard zombie demon shambler grem mummy shalrath scor; do S="$S;vr_limb_models progs/$m.mdl"; done
         run "$S;toggleconsole;quit" ;;
     corpse)
         run "$PRE;vr_test_spawn_dist 90;vr_test_spawn_dead 1;impulse 241;wait60;vr_limb_test 2;wait20;vr_mock_look 0 60;impulse 241;wait60;vr_limb_test 3;wait20;toggleconsole;quit" ;;

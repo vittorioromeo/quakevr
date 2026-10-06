@@ -236,13 +236,17 @@ float(entity xTarget) PositionalHead =
     if(c == "monster_hell_knight")      { xHeadForward = 6;  xHeadUp = 33; xHeadRadius = 7.2; return TRUE; }
     if(c == "monster_knight")           { xHeadForward = 4;  xHeadUp = 22; xHeadRadius = 6.2; return TRUE; }
     if(c == "monster_shambler")         { xHeadForward = 14; xHeadUp = 57; xHeadRadius = 12;  return TRUE; }
-    if(c == "monster_shalrath")         { xHeadForward = 1;  xHeadUp = 34; xHeadRadius = 9;   return TRUE; }
+    // A vore's: Quake VR's own model (progs/shalrath.mdl, taller than id's): his head 40-53 above his origin (round 21).
+    if(c == "monster_shalrath")         { xHeadForward = 0;  xHeadUp = 45; xHeadRadius = 8;   return TRUE; }
     if(c == "monster_zombie")           { xHeadForward = 0;  xHeadUp = 22; xHeadRadius = 6;   return TRUE; }
     if(c == "monster_wizard")           { xHeadForward = 6;  xHeadUp = 25; xHeadRadius = 7;   return TRUE; }
     if(c == "monster_mummy")            { xHeadForward = 0;  xHeadUp = 30; xHeadRadius = 6.5; return TRUE; }
     // A fiend's ($stand1: crouched, his head thrust forward, below his origin; decapitation's zone since round 21). Below
     // his origin it is his legs' zone too: Head Priority (vr_hit_head_priority, on by default) gives it to the head.
     if(c == "monster_demon1")           { xHeadForward = 27; xHeadUp = -5; xHeadRadius = 8;   return TRUE; }
+    // A centroid's (Hipnotic's monster_scourge, $stand1): the front of its body, low and wide, below its origin (its legs'
+    // zone too: Head Priority, as the fiend's).
+    if(c == "monster_scourge")          { xHeadForward = 11; xHeadUp = -9; xHeadRadius = 8;   return TRUE; }
     if(c == "player")                   { xHeadForward = 4;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
     return FALSE;
 };

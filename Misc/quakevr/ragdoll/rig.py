@@ -11,6 +11,8 @@
 #   RIG_PAK=<qbase>/hipnotic/pak0.pak python rig.py grem ...   a mission pack's monster (not in quakevr/progs): its pak
 #   python rig.py ogre draw out.png [pose] [bones]   the last run's clusters (or bones) in colour on the pose (0), seen
 #                                       from his right side (x to the right) and from the front (his left to the right)
+# A bone's list: its clusters, or "pN" a whole piece of its own (with "wholepieces": true, SeedTable::wholePieces: the
+# clusters only the body piece's; the centroid's legs, arms and pincers, meshes of their own moving alike).
 # A bone's flags after its capsule: 'tip' (its end its far tip, not its child's pivot), 'boundary' (its pivot the
 # boundary's middle with its parent, not the motions' fit).
 # A seed's keepHinge (a hinge whose axis the rest pose's sideways lean would turn: the rottweiler's legs) is set by hand.
@@ -232,9 +234,16 @@ else:
     lab0 = np.array(json.load(open(lpath)))
     bones = a['bones']  # [[name, parent, [clusters]]]
     label = np.full(R, -1)
+    # "wholepieces" (SeedTable::wholePieces): the clusters only the body's piece's; every other piece one bone's, named
+    # "pN" (rig.py's piece N) in its list (the centroid's legs, arms and pincers: meshes of their own moving alike)
+    whole = a.get('wholepieces', False)
+    pieceOf = np.array([piece[v] for v in reps])
     for b, bone in enumerate(bones):
         for c in bone[2]:
-            label[lab0 == c] = b
+            if isinstance(c, str):
+                label[pieceOf == int(c[1:])] = b
+            else:
+                label[(lab0 == c) & ((pieceOf == piece[bodyR[0]]) if whole else True)] = b
     label = refine(label, len(bones), 40)
     json.dump([int(x) for x in label], open(lpath.replace('_labels', '_bones'), 'w'))
     tr = fit(label, len(bones))
@@ -266,10 +275,17 @@ else:
     # The engine gives each cluster to the bone whose seed centre is nearest its middle: check it gets the json's.
     for b, bone in enumerate(bones):
         for cl in bone[2]:
-            mid = X[0, lab0 == cl].mean(0)
+            if isinstance(cl, str):
+                mid = X[0, pieceOf == int(cl[1:])].mean(0)
+            else:
+                sel = (lab0 == cl) & ((pieceOf == piece[bodyR[0]]) if whole else True)
+                if not sel.any():
+                    print('WARNING: cluster %d (%s) has no vertices%s' % (cl, bone[0], ' in the body piece' if whole else ''))
+                    continue
+                mid = X[0, sel].mean(0)
             near = min(range(len(bones)), key=lambda k: ((centre[k] - mid) ** 2).sum())
             if near != b:
-                print('WARNING: cluster %d (%s) is nearer the centre of %s' % (cl, bone[0], bones[near][0]))
+                print('WARNING: cluster %s (%s) is nearer the centre of %s' % (cl, bone[0], bones[near][0]))
     f = lambda v: '{%s}' % ', '.join(('%.1ff' % x).replace('-0.0f', '0.f').replace('.0f', '.f') for x in v)
     print('constexpr Seed %sSeeds[] = {' % name)
     for b, bone in enumerate(bones):

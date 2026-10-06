@@ -35,6 +35,6 @@ for c in $CASES; do
             sw=""; for z in ${ZONES:-1:0 1.25:0 1:8 1.25:8}; do sw="$sw;vr_decap_head_size ${z%%:*};vr_decap_neck ${z##*:};vr_decap_test 19;wait2"; done
             FILTER="^decapsweep|rror" run "map vrfiringrange;$PRE;$(SPAWN $m)$sw;vr_decap_head_size 1;vr_decap_neck 0"
         done ;;
-    monsters) for m in ${MONS:-0 5 1 8 6 7 4 9 3 12 14}; do run "map vrfiringrange;$PRE;$(SPAWN $m);vr_decap_test 1;wait60;vr_ragdoll_list 1"; done ;;
+    monsters) for m in ${MONS:-0 5 1 8 6 7 4 9 3 12 14 10 13}; do run "map vrfiringrange;$PRE;$(SPAWN $m);vr_decap_test 1;wait60;vr_ragdoll_list 1"; done ;;
     esac
 done

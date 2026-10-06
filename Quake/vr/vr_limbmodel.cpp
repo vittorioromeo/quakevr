@@ -524,10 +524,12 @@ bool available(const char* base, int bone, uint32_t only)
     {
         return false;
     }
+    // (A triangle wholly on the bones: build's own ones; vertices alone are not enough, the centroid's tail's first
+    // bone, its tip cut off, has none: its model would not load, a Host_Error at its precache.)
     const uint32_t bones = ragdoll::limbBones(*rig, bone) & (only ? only : ~0u);
-    for(const uint8_t b : rig->vertBone)
+    for(const uint32_t t : rig->triBones)
     {
-        if(bones & (1u << b))
+        if(t && !(t & ~bones))
         {
             return true;
         }

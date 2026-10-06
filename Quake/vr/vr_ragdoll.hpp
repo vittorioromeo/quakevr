@@ -60,6 +60,8 @@ struct Rig
     Bone bones[maxBones];
     int numVerts{0};                // the .mdl's (hdr->numverts)
     za::Vector<uint8_t> vertBone;   // each .mdl vertex's bone
+    za::Vector<uint32_t> triBones;  // the bones (bits) a triangle's corners are on, each set once: a limb cut of some bones
+                                    // has triangles of its own only if one of these lies within them (vr_limbmodel.cpp)
     int numPoses{0};
     za::Vector<glm::quat> poseRot;  // [pose * numBones + bone]: rest -> pose (model space, units)
     za::Vector<glm::vec3> posePos;

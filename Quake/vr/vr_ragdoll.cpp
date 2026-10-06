@@ -35,7 +35,7 @@ namespace qvr::ragdoll
 // A rig's heap memory (mem::Cache's count).
 [[nodiscard]] za::SizeT heldBytes(const Rig& r)
 {
-    za::SizeT n = mem::heldBytes(r.vertBone) + mem::heldBytes(r.poseRot) + mem::heldBytes(r.posePos) + mem::heldBytes(r.poseHidden);
+    za::SizeT n = mem::heldBytes(r.vertBone) + mem::heldBytes(r.triBones) + mem::heldBytes(r.poseRot) + mem::heldBytes(r.posePos) + mem::heldBytes(r.poseHidden);
     for(const Bone& b : r.bones)
     {
         n += mem::heldBytes(b.points);
@@ -90,6 +90,9 @@ struct SeedTable
     int deathFirst[2], deathLast[2];
     int clusters{18}; // the motion clusters (more than the bones: the seeds gather them); more for a rig whose 18 merge two
                       // of its bones (the fiend's right thigh and shin, rig.py's k)
+    bool wholePieces{false}; // every piece but the body (welded meshes of their own) one bone's, the seed nearest its
+                             // middle, and the clusters only the body's: the centroid's six legs, arms and pincers move
+                             // so alike that the motion clusters mix them (rig.py's "wholepieces", "pN")
 };
 
 // Quake VR's grunt (quakevr/progs/soldier.mdl: 555 vertices, 120 frames). The rest pose: x forward, y left, z up; he
@@ -347,6 +350,58 @@ constexpr Seed mummySeeds[] = {
     {"shin_r", 9, Joint::Hinge, {-5.1f, -7.1f, -22.7f}, {-8.5f, -5.2f, -20.2f}, {-6.8f, -6.2f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// The vore (Quake VR's progs/shalrath.mdl, its own: 371 vertices, 36 frames). The rest pose ($attack1, the model's stand1):
+// x forward, y left, z up; upright on three legs (two forward and out, one back), his arms out wide. Pelvis (the round
+// belly the legs meet), chest, head, jaw (his two hanging tendrils, meshes of their own: on the head, they go with it when
+// it's cut off), upper arms and forearms (elbow hinges folding forward), and each leg a thigh (ball) and a shin (knee
+// hinge, from his bent rest). The back leg's thigh is its knee's knob (its long triangles have no vertices of their own):
+// its pivot set at his back by hand, as the jaw's (rig.py's fit sits between the tendrils). Measured on his frames
+// (Misc/quakevr/ragdoll/rig.py shalrath shalrath_bones.json): clusters 1.20 units rms, bones 1.28. Death frames 16-22
+// ($death1-7).
+constexpr Seed shalrathSeeds[] = {
+    {"pelvis", -1, Joint::Root, {2.8f, -1.1f, 14.1f}, {2.8f, -1.1f, 14.1f}, {0.2f, -1.2f, 21.5f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {1.9f, -0.4f, 31.3f}, {0.2f, -1.2f, 21.5f}, {-0.8f, 0.1f, 40.1f}, 0.f, 30.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {-0.2f, -0.5f, 44.7f}, {-0.8f, 0.1f, 40.1f}, {0.4f, -1.2f, 49.4f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"jaw", 2, Joint::Ball, {5.2f, -0.6f, 39.f}, {4.f, -0.5f, 41.f}, {6.f, -0.5f, 33.5f}, 0.f, 30.f, 20.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {0.4f, 20.6f, 28.2f}, {-2.4f, 12.5f, 36.8f}, {3.f, 29.4f, 23.9f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 4, Joint::Hinge, {4.5f, 36.7f, 20.2f}, {3.f, 29.4f, 23.9f}, {5.9f, 44.1f, 16.5f}, 0.f, 0.f, 0.f, 145.f, {0.f, 0.f, -1.f}},
+    {"upperarm_r", 1, Joint::Ball, {0.9f, -19.3f, 27.4f}, {0.4f, -11.6f, 34.3f}, {4.5f, -24.9f, 20.6f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 6, Joint::Hinge, {4.1f, -37.3f, 20.4f}, {4.5f, -24.9f, 20.6f}, {3.6f, -49.8f, 20.2f}, 0.f, 0.f, 0.f, 145.f, {0.f, 0.f, 1.f}},
+    {"thigh_fl", 0, Joint::Ball, {11.8f, 18.3f, 20.5f}, {7.9f, 5.3f, 16.5f}, {17.3f, 24.3f, 19.3f}, 2.5f, 60.f, 25.f, 0.f, {}},
+    {"shin_fl", 8, Joint::Hinge, {18.7f, 28.9f, 6.f}, {17.3f, 24.3f, 19.3f}, {20.1f, 33.4f, -7.3f}, 2.f, 0.f, 0.f, 140.f, {0.8f, -0.5f, 0.f}},
+    {"thigh_fr", 0, Joint::Ball, {12.6f, -23.6f, 17.7f}, {3.f, -10.3f, 17.9f}, {14.5f, -26.2f, 16.8f}, 2.5f, 60.f, 25.f, 0.f, {}},
+    {"shin_fr", 10, Joint::Hinge, {12.8f, -29.2f, 3.2f}, {14.5f, -26.2f, 16.8f}, {11.2f, -32.2f, -10.5f}, 2.f, 0.f, 0.f, 140.f, {0.8f, 0.5f, 0.f}},
+    {"thigh_b", 0, Joint::Ball, {-20.6f, -0.2f, 18.5f}, {-7.f, -0.2f, 15.5f}, {-23.f, 2.f, 12.9f}, 2.5f, 60.f, 25.f, 0.f, {}},
+    {"shin_b", 12, Joint::Hinge, {-25.9f, -0.1f, 4.f}, {-23.f, 2.f, 12.9f}, {-28.8f, -2.2f, -4.9f}, 2.f, 0.f, 0.f, 140.f, {0.f, 1.f, 0.f}},
+};
+
+// Hipnotic's centroid (Scourge of Armagon's monster_scourge, progs/scor.mdl: 235 vertices, 41 frames). The rest pose
+// ($stand1): x forward, y left, z up; a scorpion's body, its tail curled up over it to the sting, its two arms (gun
+// pods) forward and out with a pincer pair at each end, three legs a side. The legs, arms and pincers are meshes of their
+// own whose motions are so alike that the motion clusters mix them (one cluster over two legs): wholePieces (each one
+// bone's, by its middle; rig.py "wholepieces"). The body: pelvis (its back), head (its front, below: h_scourg.mdl the
+// gib), the tail three bones; each arm a bone, its pincers its claw; each leg one bone (16 at most); the tail's and the claws' capsules give them weight (a part's
+// mass is its share of the volume: the flat pincers alone weighed 0.3 kg against an arm's 47, and shook). Measured on his
+// frames (rig.py scor scor_bones.json, RIG_PAK: Hipnotic's pak0; k 26): clusters 0.99 units rms, bones 1.42. Death
+// frames 36-40 ($death1-5).
+constexpr Seed scorSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-10.1f, -1.1f, -4.1f}, {-10.1f, -1.1f, -4.1f}, {6.9f, -0.1f, -9.f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"head", 0, Joint::Ball, {12.9f, -0.2f, -9.2f}, {6.9f, -0.1f, -9.f}, {19.f, -0.4f, -9.4f}, 0.f, 30.f, 30.f, 0.f, {}},
+    {"tail1", 0, Joint::Ball, {-23.7f, 1.1f, 5.6f}, {-20.3f, 2.6f, 0.2f}, {-25.5f, -1.4f, 14.2f}, 3.f, 40.f, 20.f, 0.f, {}},
+    {"tail2", 2, Joint::Ball, {-21.2f, -0.2f, 20.f}, {-25.5f, -1.4f, 14.2f}, {-9.8f, -1.f, 23.7f}, 2.5f, 45.f, 20.f, 0.f, {}},
+    {"tail3", 3, Joint::Ball, {-5.1f, -0.2f, 16.8f}, {-9.8f, -1.f, 23.7f}, {-1.2f, 0.5f, 10.9f}, 2.f, 50.f, 20.f, 0.f, {}},
+    {"arm_l", 0, Joint::Ball, {8.3f, 20.6f, -14.8f}, {8.8f, 0.4f, -9.2f}, {13.2f, 25.9f, -15.7f}, 0.f, 60.f, 30.f, 0.f, {}},
+    {"claw_l", 5, Joint::Ball, {12.4f, 30.1f, -15.1f}, {13.2f, 25.9f, -15.7f}, {11.5f, 34.3f, -14.5f}, 2.5f, 40.f, 20.f, 0.f, {}},
+    {"arm_r", 0, Joint::Ball, {8.7f, -20.9f, -15.4f}, {5.6f, -0.9f, -7.2f}, {12.7f, -29.6f, -15.9f}, 0.f, 60.f, 30.f, 0.f, {}},
+    {"claw_r", 7, Joint::Ball, {12.7f, -31.7f, -16.9f}, {12.7f, -29.6f, -15.9f}, {12.7f, -33.8f, -16.9f}, 2.5f, 40.f, 20.f, 0.f, {}},
+    {"leg_bl", 0, Joint::Ball, {-15.9f, 12.4f, -11.7f}, {-9.5f, 3.3f, -9.7f}, {-22.4f, 21.5f, -13.7f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_ml", 0, Joint::Ball, {-8.3f, 12.7f, -13.1f}, {-5.8f, 3.2f, -11.f}, {-10.9f, 22.2f, -15.2f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_fl", 0, Joint::Ball, {-1.7f, 10.4f, -11.8f}, {-0.4f, 2.4f, -9.3f}, {-3.f, 18.3f, -14.2f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_br", 0, Joint::Ball, {-16.2f, -12.9f, -12.f}, {-10.9f, -4.3f, -7.9f}, {-21.5f, -21.4f, -16.f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_mr", 0, Joint::Ball, {-8.3f, -13.1f, -13.2f}, {-6.1f, -3.f, -8.6f}, {-10.6f, -23.3f, -17.9f}, 0.f, 60.f, 25.f, 0.f, {}},
+    {"leg_fr", 0, Joint::Ball, {-1.7f, -10.8f, -11.9f}, {-0.7f, -2.9f, -8.2f}, {-2.6f, -18.8f, -15.6f}, 0.f, 60.f, 25.f, 0.f, {}},
+};
+
 constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -360,6 +415,8 @@ constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Shambler, 648, shamblerSeeds, static_cast<int>(sizeof(shamblerSeeds) / sizeof(shamblerSeeds[0])), 1, {83, 0}, {93, 0}, 24},
     {modelmeta::Id::Grem, 123, gremSeeds, static_cast<int>(sizeof(gremSeeds) / sizeof(gremSeeds[0])), 2, {104, 116}, {115, 123}},
     {modelmeta::Id::Mummy, 177, mummySeeds, static_cast<int>(sizeof(mummySeeds) / sizeof(mummySeeds[0])), 2, {103, 162}, {116, 178}},
+    {modelmeta::Id::Shalrath, 371, shalrathSeeds, static_cast<int>(sizeof(shalrathSeeds) / sizeof(shalrathSeeds[0])), 1, {16, 0}, {22, 0}},
+    {modelmeta::Id::Scor, 235, scorSeeds, static_cast<int>(sizeof(scorSeeds) / sizeof(scorSeeds[0])), 1, {36, 0}, {40, 0}, 26, true},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
@@ -895,7 +952,22 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig, DeriveLog& log)
     Transforms t;
     rig.clusterRms = refine(m, moving, label, k, 30, t);
 
-    // The clusters to the seeds' bones: each to the bone whose seed is nearest its middle in the rest pose.
+    // The clusters to the seeds' bones: each to the bone whose seed is nearest its middle in the rest pose (wholePieces:
+    // its middle in the body, and each other piece below).
+    const auto nearestSeed = [&](const glm::vec3& at) {
+        int best = 0;
+        float bestD = 1e30f;
+        for(int b = 0; b < table.count; b++)
+        {
+            const glm::vec3 d = at - table.seeds[b].centre;
+            if(glm::dot(d, d) < bestD)
+            {
+                bestD = glm::dot(d, d);
+                best = b;
+            }
+        }
+        return best;
+    };
     za::Vector<int> boneOfCluster(static_cast<za::SizeT>(k), 0);
     for(int c = 0; c < k; c++)
     {
@@ -903,7 +975,7 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig, DeriveLog& log)
         int n = 0;
         for(const int v : moving)
         {
-            if(label[static_cast<za::SizeT>(v)] == c)
+            if(label[static_cast<za::SizeT>(v)] == c && (!table.wholePieces || piece[static_cast<za::SizeT>(v)] == body))
             {
                 sum += m.at(0, v);
                 n++;
@@ -913,21 +985,43 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig, DeriveLog& log)
         {
             continue;
         }
-        const glm::vec3 mid = sum / static_cast<float>(n);
-        float bestD = 1e30f;
-        for(int b = 0; b < table.count; b++)
-        {
-            const glm::vec3 d = mid - table.seeds[b].centre;
-            if(glm::dot(d, d) < bestD)
-            {
-                bestD = glm::dot(d, d);
-                boneOfCluster[static_cast<za::SizeT>(c)] = b;
-            }
-        }
+        boneOfCluster[static_cast<za::SizeT>(c)] = nearestSeed(sum / static_cast<float>(n));
     }
     for(const int v : moving)
     {
         label[static_cast<za::SizeT>(v)] = boneOfCluster[static_cast<za::SizeT>(label[static_cast<za::SizeT>(v)])];
+    }
+    if(table.wholePieces)
+    {
+        for(int id = 0; id < static_cast<int>(pieceSize.size()); id++)
+        {
+            if(id == body || isLoose[static_cast<za::SizeT>(id)])
+            {
+                continue;
+            }
+            glm::vec3 sum{0.f};
+            int n = 0;
+            for(const int v : moving)
+            {
+                if(piece[static_cast<za::SizeT>(v)] == id)
+                {
+                    sum += m.at(0, v);
+                    n++;
+                }
+            }
+            if(n == 0)
+            {
+                continue;
+            }
+            const int b = nearestSeed(sum / static_cast<float>(n));
+            for(const int v : moving)
+            {
+                if(piece[static_cast<za::SizeT>(v)] == id)
+                {
+                    label[static_cast<za::SizeT>(v)] = b;
+                }
+            }
+        }
     }
     for(const int v : reps)
     {
@@ -959,6 +1053,28 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig, DeriveLog& log)
     for(int v = 0; v < m.nv; v++)
     {
         rig.vertBone[static_cast<za::SizeT>(v)] = static_cast<uint8_t>(label[static_cast<za::SizeT>(m.rep[static_cast<za::SizeT>(v)])]);
+    }
+    rig.triBones.clear();
+    {
+        const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+        const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+        for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+        {
+            uint32_t bits = 0;
+            for(int k = 0; k < 3; k++)
+            {
+                bits |= 1u << rig.vertBone[static_cast<za::SizeT>(desc[idx[i + k]].vertindex)];
+            }
+            bool known = false;
+            for(const uint32_t b : rig.triBones)
+            {
+                known = known || b == bits;
+            }
+            if(!known)
+            {
+                rig.triBones.pushBack(bits);
+            }
+        }
     }
     rig.poseRot.resize(static_cast<za::SizeT>(m.np * numBones));
     rig.posePos.resize(static_cast<za::SizeT>(m.np * numBones));

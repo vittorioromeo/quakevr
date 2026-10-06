@@ -90,6 +90,8 @@ string(entity e) VR_Decap_HeadModel =
     if(c == "monster_demon1")        { return "progs/h_demon.mdl"; }
     if(c == "monster_shambler")      { return "progs/h_shams.mdl"; }
     if(c == "monster_gremlin")       { return "progs/h_grem.mdl"; }
+    if(c == "monster_shalrath")      { return "progs/h_shal.mdl"; }
+    if(c == "monster_scourge")       { return "progs/h_scourg.mdl"; } // (Hipnotic's centroid)
     if(c == "monster_mummy")         { return "progs/h_zombie.mdl"; } // (Rogue's: mummy_die throws a zombie's head)
     return "";
 };

@@ -8,7 +8,7 @@
 // beside a limb that kills (health 1); 10 a body gibbed (its limbs thrown: vr_gib_limbs); 11 twice Most Limbs thrown
 // (the cap); 12 a sword's slash at a limb at full health (a zombie dies of it); 13 where each limb's middle maps
 // (ragdolllimb); 14 the main hand put on the last limb thrown (then grip it: vr_mock_button main grip 1); 15 whether a
-// hand holds it. `limbtest:` lines.
+// hand holds it; 16 its body's speed; 17 the limbs lying about (where, how fast: none fallen out). `limbtest:` lines.
 
 float() VR_Limb_TestCount =
 {
@@ -131,6 +131,20 @@ void(float xTest) VR_Limb_Test =
                 cvar_hget(k ? cvarh_vr_limbs_chance_scale : cvarh_vr_decap_chance_scale), won, won / 2000));
         }
         vr_decap_limb = oldLimb;
+        return;
+    }
+    if(xTest == 17)
+    {
+        // (The limbs lying about: each one's model, where it is, how fast: none fallen out of the world.)
+        for(entity e = find(world, classname, "vr_limb"); e; e = find(e, classname, "vr_limb"))
+        {
+            string inSolid = "";
+            if(pointcontents(e.origin) == CONTENT_SOLID)
+            {
+                inSolid = " (in the world's solid)";
+            }
+            bprint(sprintf("limbtest: 17 %s at %v, %.0f u/s%s\n", e.model, e.origin, vlen(e.velocity), inSolid));
+        }
         return;
     }
     if(xTest == 16)
