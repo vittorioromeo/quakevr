@@ -2230,6 +2230,7 @@ QVR_CVAR(vr_prop_query_verify, "0", CVAR_NONE)
 QVR_CVAR(vr_maps_fetch, "1", CVAR_ARCHIVE)              // the index is fetched at start-up (0: never; a cached copy is still read). -nomapindex turns it off for one run
 QVR_CVAR(vr_maps_index_url, "https://www.quaddicted.com/api/v1/", CVAR_ARCHIVE) // where the index comes from (a paged API: ?q=*:*&rows=200&start=N). Another URL re-fetches: a cached copy of a different one is not used
 QVR_CVAR(vr_maps_allow_progs, "0", CVAR_ARCHIVE)       // packages that carry their own progs.dat: 0 left out of the list (they replace the game's code), 1 included. They are in the index either way (maps_info shows them; maps_stats counts them)
+QVR_CVAR(vr_maps_cache_mb, "512", CVAR_ARCHIVE)        // the map download cache (cache/maps/<sha256>.zip): at most this many MB kept, the oldest zips removed first when a download would pass it (and at start-up, and when it is lowered). 0: nothing kept once a package is installed
 
 // Mission-pack installation state, derived from the owned data (vr_gamedir.cpp).
 QVR_CVAR(vr_hipnotic_available, "0", CVAR_ROM)

@@ -104,6 +104,9 @@ void forEachEntry(const char* dir, za::FunctionRef<void(const char* name, bool i
 // The last write time: a stamp to compare (std::filesystem::last_write_time's resolution); 0 when it is not there.
 [[nodiscard]] za::I64 lastWriteTime(const char* path);
 
+// A file's size in bytes (std::filesystem::file_size); 0 when it is not there (or is a directory).
+[[nodiscard]] za::U64 fileSize(const char* path);
+
 // The part after the last '/' or '\' (std::filesystem::path::filename).
 [[nodiscard]] za::StringView fileName(za::StringView path);
 

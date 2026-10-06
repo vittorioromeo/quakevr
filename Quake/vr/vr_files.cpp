@@ -239,6 +239,27 @@ za::I64 lastWriteTime(const char* path)
 #endif
 }
 
+za::U64 fileSize(const char* path)
+{
+#ifdef _WIN32
+    wchar_t w[MAX_PATH];
+    WIN32_FILE_ATTRIBUTE_DATA data;
+    if(!wide(path, w) || !GetFileAttributesExW(w, GetFileExInfoStandard, &data) ||
+        (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+    {
+        return 0;
+    }
+    return (static_cast<za::U64>(data.nFileSizeHigh) << 32) | data.nFileSizeLow;
+#else
+    struct stat st;
+    if(stat(path, &st) != 0 || !S_ISREG(st.st_mode))
+    {
+        return 0;
+    }
+    return static_cast<za::U64>(st.st_size);
+#endif
+}
+
 namespace
 {
 

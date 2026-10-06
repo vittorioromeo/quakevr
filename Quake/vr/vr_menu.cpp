@@ -4095,6 +4095,10 @@ za::Vector<Item> pageDebugTools()
             .help("maps_fetch force: Quaddicted's index fetched again now, on its own thread (the cached copy forgotten). Nothing waits for it; maps_stats says what happened."),
         toggle("Include Packages with progs.dat", vr_maps_allow_progs)
             .help("vr_maps_allow_progs: packages that ship their own progs.dat replace the game's code, so they are left out of the list by default. They are in the index either way (maps_info shows them, maps_stats counts them)."),
+        slider("Download Cache Size", vr_maps_cache_mb, 0.f, 4096.f, 64.f, "%.0f MB").extend(0.f, 65536.f)
+            .help("vr_maps_cache_mb: the downloaded packages' zips (cache/maps/) kept up to this size; past it the oldest are removed (before a download, at start-up, and when this is lowered). 0: none kept once a package is installed. Installed maps are not affected."),
+        command("Download Cache Usage", "maps_cache")
+            .help("maps_cache [trim]: the download cache's zips, oldest first (the first removed when it is over the size above), and how much of it they use. maps_cache trim: trimmed to the size now."),
         command("Map Browser Costs", "maps_page_stats")
             .help("maps_page_stats: the Map Library page - how many times its list was built and what it cost, what a frame of the page costs, and its layout. The list is built when the text, a filter or the index changes, never per frame."),
         command("Open the Map Browser", "maps_page")

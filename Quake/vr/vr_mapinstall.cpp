@@ -13,6 +13,7 @@
 // on the search path only while the package is played (mountActive, from vr_gamedir.cpp).
 
 #include "vr_mapinstall.hpp"
+#include "vr_cvars.hpp" // vr_maps_cache_mb: the download cache's cap
 #include "vr_engine.hpp"
 #include "vr_api.h" // VR_FileCacheForget: the engine's directory listings, told that files appeared
 #include "vr_files.hpp"
@@ -1043,6 +1044,164 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
     return true;
 }
 
+// ---------------------------------------------------------------- the download cache
+
+// <base>/cache/maps/<sha256>.zip: each package's zip as it was downloaded, kept up to vr_maps_cache_mb, the oldest (by
+// its last write) removed first: before a download (room made for it), when a job is taken, on the first frame (the
+// config read by then: a cache over the cap at start-up is trimmed) and when the cap changes. Only the names this
+// module gives its zips (64 hex digits and ".zip") are ever counted or removed: anything else in the folder is left
+// alone. The running job's zip is never removed (its thread writes it once the download is done).
+
+struct CachedZip
+{
+    za::String sha;
+    za::U64 bytes{0};
+    za::I64 stamp{0}; // its last write (files::lastWriteTime)
+};
+
+// What a trim did (its console line).
+struct CacheTrim
+{
+    int removed{0};
+    za::U64 freed{0};
+    za::U64 left{0}; // the zips' bytes after it
+};
+
+// The vr_maps_cache_mb the cache was last trimmed to (poll(): the first frame, then a change trims at once).
+float trimmedCapMb = -1.f;
+
+// A name this module gives a zip, its sha out: 64 hex digits and ".zip" (zipPath), nothing else.
+[[nodiscard]] bool cachedZipName(const char* name, za::String& sha)
+{
+    constexpr za::SizeT shaLength = 64;
+    if(strlen(name) != shaLength + 4 || strcmp(name + shaLength, ".zip") != 0)
+    {
+        return false;
+    }
+    for(za::SizeT i = 0; i < shaLength; i++)
+    {
+        if(!isxdigit(static_cast<unsigned char>(name[i])))
+        {
+            return false;
+        }
+    }
+    sha = za::String{name, shaLength};
+    return true;
+}
+
+// The cache's zips, oldest first; `others`: the entries in the folder that are not (left alone).
+void listCache(za::Vector<CachedZip>& out, int* others)
+{
+    out.clear();
+    if(cacheDirName.empty() || !files::isDirectory(cacheDirName.cStr()))
+    {
+        return;
+    }
+    files::forEachEntry(cacheDirName.cStr(),
+        [&](const char* name, bool isDirectory)
+        {
+            za::String sha;
+            if(isDirectory || !cachedZipName(name, sha))
+            {
+                if(others)
+                {
+                    (*others)++;
+                }
+                return;
+            }
+            const za::String path = zipPath(sha);
+            out.pushBack(CachedZip{sha, files::fileSize(path.cStr()), files::lastWriteTime(path.cStr())});
+        });
+    za::quickSort(out.begin(), out.end(),
+        [](const CachedZip& a, const CachedZip& b)
+        { return a.stamp != b.stamp ? a.stamp < b.stamp : strcmp(a.sha.cStr(), b.sha.cStr()) < 0; });
+}
+
+[[nodiscard]] za::U64 cacheCapBytes()
+{
+    const double mb = static_cast<double>(vr_maps_cache_mb.value);
+    return mb > 0.0 ? static_cast<za::U64>(mb * 1024.0 * 1024.0) : 0;
+}
+
+// The oldest zips removed until the rest fit in `budget` bytes. Never `keep` (a sha, or "") nor the running job's.
+CacheTrim trimCache(za::U64 budget, const za::String& keep)
+{
+    CacheTrim t;
+    za::Vector<CachedZip> zips;
+    listCache(zips, nullptr);
+    za::U64 total = 0;
+    for(const CachedZip& z : zips)
+    {
+        total += z.bytes;
+    }
+    const za::String running = jobRunning.loadSeqCst() ? request.sha : za::String{};
+    for(const CachedZip& z : zips)
+    {
+        if(total <= budget)
+        {
+            break;
+        }
+        if(z.sha == keep || z.sha == running)
+        {
+            continue;
+        }
+        if(files::remove(zipPath(z.sha).cStr()))
+        {
+            total -= z.bytes;
+            t.removed++;
+            t.freed += z.bytes;
+        }
+    }
+    t.left = total;
+    return t;
+}
+
+void reportTrim(const CacheTrim& t, const char* when)
+{
+    if(t.removed)
+    {
+        Con_SafePrintf("maps: download cache (%s): %d old zip(s) removed, %s freed, %s kept (vr_maps_cache_mb %g)\n",
+            when, t.removed, formatBytes(t.freed).cStr(), formatBytes(t.left).cStr(), vr_maps_cache_mb.value);
+    }
+}
+
+// poll(): the first frame (the config read by then) and a changed cap trim the cache to it.
+void trimCacheIfCapChanged()
+{
+    if(cacheDirName.empty() || vr_maps_cache_mb.value == trimmedCapMb)
+    {
+        return;
+    }
+    const bool first = trimmedCapMb < 0.f;
+    trimmedCapMb = vr_maps_cache_mb.value;
+    reportTrim(trimCache(cacheCapBytes(), za::String{}), first ? "start-up" : "its size changed");
+}
+
+// begin(): room made for the zip about to be downloaded (its own sha's left: the same file, written over).
+void trimCacheForDownload(const za::String& sha, za::U64 zipBytes)
+{
+    const za::U64 cap = cacheCapBytes();
+    reportTrim(trimCache(cap > zipBytes ? cap - zipBytes : 0, sha), "room for the download");
+}
+
+// takeFinished(): a job that failed keeps no zip (a broken or partly written download, or one whose unpacking failed);
+// one that finished leaves the cache to the cap (installed with a cap of 0: its zip goes too). maps_get's zip is that
+// job's whole result: kept until the next trim.
+void settleCacheAfterJob(const Job& j)
+{
+    trimmedCapMb = vr_maps_cache_mb.value;
+    if(j.phase != Phase::Done)
+    {
+        const za::String zp = zipPath(j.sha);
+        if(files::isFile(zp.cStr()) && files::remove(zp.cStr()))
+        {
+            Con_SafePrintf("maps: %s - its zip was not kept (the job did not finish)\n", j.title.cStr());
+        }
+        return;
+    }
+    reportTrim(trimCache(cacheCapBytes(), j.install ? za::String{} : j.sha), "after the job");
+}
+
 // ---------------------------------------------------------------- the job
 
 // The thread: download, cache, unpack. It touches nothing but `request` (its own copy), its own Job, and the atomics;
@@ -1213,6 +1372,7 @@ void finish()
 
 void poll()
 {
+    trimCacheIfCapChanged(); // (the download cache: the first frame, and a changed cap)
     if(registryLoaded && titlesGeneration != mapindex::generation())
     {
         rebuildPackages(); // (the index arrived, or changed: the installed packages' titles from it)
@@ -1264,6 +1424,7 @@ void takeFinished()
     static_cast<Job&>(current) = ZA_MOVE(*taken); // (the registered job holds the live one: vr_memstats)
     const Job& j = current;
     Con_SafePrintf("maps: %s - %s\n", j.title.cStr(), j.message.cStr());
+    settleCacheAfterJob(j); // (the download cache: a failed job's zip dropped, the rest kept to the cap)
     // A job that did not finish is rolled back: the files its unpacking wrote are removed, so no half-installed package
     // is left offering Play. Not one the registry names (the package installed before: a pak's file is written over
     // its own copy, and stays its installed one).
@@ -1381,6 +1542,7 @@ bool begin(const mapindex::Entry* entry, bool install, za::String* why)
     request.zipBytes = entry->bytes;
     request.install = install;
     request.wasInstalled = installed(request.sha);
+    trimCacheForDownload(request.sha, request.zipBytes); // (the download cache: room made under the cap)
     SDL_AtomicSet(&cancelJob, 0);
     SDL_AtomicSet(&cancelReason, CancelNone);
     SDL_AtomicSet(&progress, 0);
@@ -1932,6 +2094,49 @@ void install_f()
     }
 }
 
+// maps_cache [trim]: the download cache (cache/maps/): its zips oldest first (the first removed when it is over
+// vr_maps_cache_mb), what they hold, and `trim`: trimmed to the cap now.
+void cache_f()
+{
+    ensureStarted();
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "trim"))
+    {
+        trimmedCapMb = vr_maps_cache_mb.value;
+        const CacheTrim t = trimCache(cacheCapBytes(), za::String{});
+        Con_Printf("maps: download cache trimmed to %g MB: %d zip(s) removed, %s freed\n", vr_maps_cache_mb.value,
+            t.removed, formatBytes(t.freed).cStr());
+    }
+    za::Vector<CachedZip> zips;
+    int others = 0;
+    listCache(zips, &others);
+    za::U64 total = 0;
+    for(const CachedZip& z : zips)
+    {
+        total += z.bytes;
+    }
+    Con_Printf("maps: download cache %s: %d zip(s), %s of %g MB (vr_maps_cache_mb; 0: none kept once installed)\n",
+        cacheDirName.cStr(), static_cast<int>(zips.size()), formatBytes(total).cStr(), vr_maps_cache_mb.value);
+    if(others)
+    {
+        Con_Printf("maps: %d other entr%s in it, never counted nor removed\n", others, others == 1 ? "y" : "ies");
+    }
+    const za::String running = jobRunning.loadSeqCst() ? request.sha : za::String{};
+    constexpr int maxShown = 40;
+    int shown = 0;
+    for(const CachedZip& z : zips)
+    {
+        if(shown == maxShown)
+        {
+            Con_Printf("  ... and %d more\n", static_cast<int>(zips.size()) - maxShown);
+            break;
+        }
+        const mapindex::Entry* e = mapindex::find(z.sha);
+        Con_Printf("  %2d. %.16s %9s  %s%s%s\n", ++shown, z.sha.cStr(), formatBytes(z.bytes).cStr(),
+            e ? mapindex::index().field(e->title) : "(not in the index)", installed(z.sha) ? "  [installed]" : "",
+            z.sha == running ? "  [its job is running: kept]" : "");
+    }
+}
+
 void installed_f()
 {
     const za::Vector<Installed>& list = installedList();
@@ -2005,6 +2210,7 @@ void registerCommands()
     Cmd_AddCommand("maps_play", play_f);
     Cmd_AddCommand("maps_installed", installed_f);
     Cmd_AddCommand("maps_uninstall", uninstall_f);
+    Cmd_AddCommand("maps_cache", cache_f);
 }
 
 za::String packageFor(const char* map)

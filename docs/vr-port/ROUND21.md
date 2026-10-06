@@ -25153,3 +25153,17 @@ The author: the low-poly chain and no chain the only cords. Branch `agent/flashc
 Checklist:
 
 - [ ] Body > Flashlight > Cord: two choices, None and Low-Poly Chain; the chain hangs and swings as before.
+## Map download cache capped (vr_maps_cache_mb, 2026-10-06)
+
+The Map Library's zips (<base>/cache/maps/<sha256>.zip, never read again after unpacking) were kept forever. Now
+`vr_maps_cache_mb` (archived, default 512; Debug > External Map Index > Download Cache Size) caps them: the oldest (by
+last write) are removed before a download (room for its index size), after each job, on the first frame (the config
+read: a start-up over the cap is trimmed) and when the cap changes. 0: nothing kept once installed (`maps_get`'s zip is
+that job's result: kept until the next trim). A job that fails (download error, cancel, corrupt or refused zip) keeps
+no zip. The running job's zip is never removed; uninstalling leaves the cache to the cap. Only names of 64 hex digits +
+`.zip` that are files are counted or removed; anything else in the folder is left alone. `maps_cache [trim]` lists the
+zips oldest first with the usage (Debug > Download Cache Usage). `files::fileSize` added (vr_files).
+Tested headless with a local fake index/zip server (scratch, 127.0.0.1): cap 8 MB over three 3 MB installs (oldest
+evicted first), a trickled download protected while the cap went to 0, a non-zip not kept, cap 0 removing the zip after
+install, a start-up trim (6 -> 2 MB), and six off-pattern entries (txt, short/non-hex names, .zip.part, a directory
+named like a zip) untouched.
