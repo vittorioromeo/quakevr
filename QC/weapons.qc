@@ -2252,15 +2252,18 @@ LIGHTNING
 
 // VR: a bolt's damage to `t` (trace_ent, struck at trace_endpos going `xDir`): the player's at a head that it kills pops
 // it (vr_decap.qc, "Head pops"). T_Damage's answer; the trace globals as they were (the death code may trace).
+void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit; // (vr_shock.qc)
 float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
 {
     vector at = trace_endpos;
+    float shockAlive = t.health > 0; // (killed by it, or struck dead: VR_Shock_Hit)
     if((t.flags & FL_MONSTER) || t.vr_corpse)
     {
         bodyshock(t, 0.75);
     }
     float pop = VR_Decap_BoltArm(t, at, xDir, damage);
     float r = T_Damage(t, from, from, damage);
+    VR_Shock_Hit(t, shockAlive, at, xDir); // VR: lightning's lasting shock (vr_shock.qc)
     if(pop)
     {
         VR_Decap_After(t);

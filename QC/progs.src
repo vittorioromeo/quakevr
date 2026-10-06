@@ -73,6 +73,7 @@ vr_weaponinst_test.qc
 vr_liquids.qc
 vr_wounds.qc
 vr_burning.qc
+vr_shock.qc
 vr_smallgibs_test.qc
 world.qc
 vr_dummy.qc

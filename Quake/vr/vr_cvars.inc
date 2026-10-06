@@ -1311,6 +1311,14 @@ QVR_CVAR(vr_beam_lights, "6", CVAR_ARCHIVE)          // the lightning (gun, sham
 QVR_CVAR(vr_beam_arcs, "1", CVAR_ARCHIVE)            // how many: 1 about one every 24 units of beam (0 off)
 QVR_CVAR(vr_beam_arcs_spread, "6", CVAR_ARCHIVE)     // how far they reach from the beam, units (each 0.8..2.4 of it long)
 QVR_CVAR(vr_beam_arcs_width, "1", CVAR_ARCHIVE)      // their thickness, x Quad's on the arms
+// Lightning's lasting shock (vr_shock.cpp, QC vr_shock.qc, vr_box3d.cpp "Shocked ragdolls"): a monster the lightning kills,
+// or a body it strikes dead, keeps Quad Damage's arcs crawling over it a while, convulses (a ragdoll's limbs), and is
+// charred where they crawl.
+QVR_CVAR(vr_shock_death, "1", CVAR_ARCHIVE)          // the lasting shock on the bodies the lightning kills or strikes (0: only the arcs of each hit)
+QVR_CVAR(vr_shock_death_time, "3", CVAR_ARCHIVE)     // how long it lasts, s (a body struck again: from then)
+QVR_CVAR(vr_shock_seizure, "1", CVAR_ARCHIVE)        // how hard a shocked ragdoll's limbs convulse, fading over the shock (0 still)
+QVR_CVAR(vr_shock_burns, "6", CVAR_ARCHIVE)          // burn marks a lightning kill leaves over the body (0 none; each hit chars where it strikes: vr_wounds_burns)
+QVR_CVAR(vr_shock_arcs, "1", CVAR_ARCHIVE)           // how many arcs crawl over a shocked body, x (0 none)
 QVR_CVAR(vr_torch_lights, "8", CVAR_ARCHIVE)         // torches and flames flicker a small warm light onto the room: how many at once, the nearest in view (0 off)
 QVR_CVAR(vr_torch_light_scale, "1", CVAR_ARCHIVE)    // their brightness (on top of the baked light)
 QVR_CVAR(vr_torch_light_shadows, "0", CVAR_ARCHIVE)  // how many of them (the nearest) may cast shadows, taking vr_shadow_dlights' slots (0 none)
@@ -1723,6 +1731,7 @@ QVR_CVAR(vr_decap_super_shotgun, "1", CVAR_ARCHIVE)   // ... a super shotgun bla
 QVR_CVAR(vr_decap_lightning, "1", CVAR_ARCHIVE)       // ... a lightning gun bolt at the head that kills
 QVR_CVAR(vr_decap_head_share, "0.5", CVAR_ARCHIVE)    // share of a blast's damage on him (after the headshot multiplier) its head pellets must deal to pop the head
 QVR_CVAR(vr_decap_test, "0", CVAR_NONE)               // the QC runs decapitation test n on the nearest monster or corpse (vr_decap.qc; Debug > Gore Tests)
+QVR_CVAR(vr_shock_hit_test, "0", CVAR_NONE)          // the QC strikes the nearest monster or corpse ahead with a lightning bolt of this much damage (-1: just enough to kill), once (vr_shock.qc; Debug > Gore Tests)
 QVR_CVAR(vr_ragdoll_held_local, "1", CVAR_ARCHIVE)    // a held limb's ragdoll follows your hand at the frame rate, as a held prop does (the server's step lags it); 0 the server's pose only
 // Per monster class (Gibs and Corpses > Ragdolls > Grunt, > Knight): -1 (Global) is the setting above, any other value replaces it
 // for that class. Each class's mass is its own by default (the author, 2026-10-03: ROUND21.md, "Ragdoll masses per monster").

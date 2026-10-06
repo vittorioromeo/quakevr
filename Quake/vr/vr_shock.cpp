@@ -13,6 +13,8 @@
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
+#include "vr_mem.hpp"
+#include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 
@@ -36,7 +38,17 @@ struct Effect
     float radius{0.f};
     double start{0.0};
     double until{0.0}; // 0: none
+    const qmodel_t* model{nullptr}; // a body's (KindBody, KindBodyDeath): its model as first drawn (another: it is gone)
+    int arcs{0};                    // a body's: the arcs drawn last frame (vr_shock_info)
 };
+
+// The bodies' buffers (the client's frame: the main thread).
+struct ShockScratch
+{
+    za::Vector<glm::vec3> tris; // a body's triangles as drawn (frame, info_f)
+    auto members() { return mem::list(tris); }
+};
+mem::Scratch<ShockScratch> scratch{"shock"};
 
 constexpr int maxEffects = 16;
 Effect effects[maxEffects];
@@ -237,6 +249,128 @@ void drawBeamArcs(int index, const glm::vec3& a, const glm::vec3& b)
     }
 }
 
+// Whether models `a` and `b` are one body's: the same .mdl, or it and its ragdoll's skinned copy ("<model>#rag": the
+// client swaps them as the ragdoll is made and gone).
+[[nodiscard]] bool sameBody(const qmodel_t* a, const qmodel_t* b)
+{
+    const char* ha = strchr(a->name, '#');
+    const char* hb = strchr(b->name, '#');
+    const size_t la = ha ? static_cast<size_t>(ha - a->name) : strlen(a->name);
+    const size_t lb = hb ? static_cast<size_t>(hb - b->name) : strlen(b->name);
+    return la == lb && !strncmp(a->name, b->name, la);
+}
+
+// A body's surface as drawn now (KindBody, KindBodyDeath): its triangles into `tris`; false if it is not there to draw
+// on (gone, out of the last update; another model in its slot now: the effect ends).
+[[nodiscard]] bool bodyTriangles(Effect& e, za::Vector<glm::vec3>& tris)
+{
+    const int num = static_cast<int>(e.radius);
+    if(num <= 0 || num >= cl.num_entities)
+    {
+        return false;
+    }
+    const entity_t& ent = cl_entities[num];
+    if(!ent.model || ent.msgtime < cl.mtime[0] - 0.001)
+    {
+        return false;
+    }
+    if(!e.model)
+    {
+        e.model = ent.model;
+    }
+    else if(e.model != ent.model && !sameBody(e.model, ent.model))
+    {
+        e.until = 0.0; // (gibbed, or removed and its slot taken: not this body any more)
+        return false;
+    }
+    return modelcollide::drawnTriangles(ent, num, tris) && tris.size() >= 3;
+}
+
+// A point on a random triangle of `tris` and the way out of it there; false on a degenerate one.
+[[nodiscard]] bool surfacePoint(Random& rnd, const za::Vector<glm::vec3>& tris, glm::vec3& at, glm::vec3& out)
+{
+    const size_t count = tris.size() / 3;
+    const size_t index = za::min(static_cast<size_t>(rnd() * static_cast<float>(count)), count - 1) * 3;
+    const glm::vec3 a = tris[index], b = tris[index + 1], c = tris[index + 2];
+    const glm::vec3 cross = glm::cross(b - a, c - a);
+    if(glm::length(cross) < 1e-5f)
+    {
+        return false;
+    }
+    float u = rnd(), v = rnd();
+    if(u + v > 1.f)
+    {
+        u = 1.f - u;
+        v = 1.f - v;
+    }
+    at = a + (b - a) * u + (c - a) * v;
+    out = glm::normalize(cross);
+    return true;
+}
+
+// Lightning's lasting shock on a body it killed or struck (KindBodyDeath): Quad Damage's arcs crawling over it as over
+// the arms (short jagged crackles off its surface, and now and then a longer one across it, limb to limb), fewer and
+// fainter as the shock wears off, with a flickering blue light. Returns the arcs drawn.
+int drawBodyDeath(int index, const Effect& e, const za::Vector<glm::vec3>& tris, Random& rnd)
+{
+    const float amount = za::max(0.f, vr_shock_arcs.value);
+    if(amount <= 0.f)
+    {
+        return 0;
+    }
+    const float k = static_cast<float>(za::clamp((e.until - cl.time) / za::max(0.1, e.until - e.start), 0.0, 1.0));
+    const float fade = effectFade(e.start, e.until) * (0.35f + 0.65f * k);
+    const bool surge = rnd() < 0.15f + 0.25f * k; // a jolt: more of them, brighter
+    const int crawl = static_cast<int>((6.f + 16.f * k) * amount * (surge ? 1.6f : 1.f) + 0.5f);
+    int drawn = 0;
+    glm::vec3 centre{0.f};
+    int around = 0;
+    for(int bolt = 0; bolt < crawl; bolt++)
+    {
+        glm::vec3 at, out;
+        if(!surfacePoint(rnd, tris, at, out))
+        {
+            continue;
+        }
+        centre += at;
+        around++;
+        if(rnd() < 0.3f)
+        {
+            continue; // flicker
+        }
+        // Off the surface and along it, as Quad's over the forearms (4..10 units long), hugging the skin.
+        glm::vec3 along = rnd.dir();
+        along -= out * glm::dot(along, out);
+        const float len = 4.f + 6.f * rnd();
+        const glm::vec3 from = at + out * 0.6f;
+        const glm::vec3 to = from + glm::normalize(along + out * 0.25f + 1e-3f) * len;
+        arc(rnd, from, to, 5, len * 0.15f, fade * (surge ? 1.f : 0.85f), false, 0.8f, true, true);
+        drawn++;
+    }
+    // Longer ones across the body, from one part to another not far off.
+    const int across = static_cast<int>((1.f + 3.f * k) * amount * (surge ? 2.f : 1.f) + 0.5f);
+    for(int bolt = 0; bolt < across; bolt++)
+    {
+        glm::vec3 a, na, b, nb;
+        if(!surfacePoint(rnd, tris, a, na) || !surfacePoint(rnd, tris, b, nb) || rnd() < 0.35f)
+        {
+            continue;
+        }
+        const float len = glm::distance(a, b);
+        if(len < 6.f || len > 40.f)
+        {
+            continue;
+        }
+        arc(rnd, a + na, b + nb, 8, len * 0.12f, fade, false, 1.f, true, true);
+        drawn++;
+    }
+    if(around > 0)
+    {
+        light(index, centre / static_cast<float>(around), (60.f + 90.f * k) * (surge ? 1.3f : 1.f), fade, rnd);
+    }
+    return drawn;
+}
+
 // Arcs out from a point in the liquid, every way (the shock's source).
 void drawBurst(int index, const Effect& e, Random& rnd)
 {
@@ -340,7 +474,8 @@ void add(int kind, const glm::vec3& org, float radius, float duration)
     for(int i = 0; i < maxEffects; i++)
     {
         const Effect& e = effects[i];
-        if(e.until > now && e.kind == kind && (kind == KindBody ? e.radius == radius : glm::distance(e.org, org) < 24.f))
+        const bool body = kind == KindBody || kind == KindBodyDeath;
+        if(e.until > now && e.kind == kind && (body ? e.radius == radius : glm::distance(e.org, org) < 24.f))
         {
             slot = i;
             break;
@@ -363,8 +498,13 @@ void add(int kind, const glm::vec3& org, float radius, float duration)
             }
         }
         effects[slot].start = now;
+        effects[slot].model = nullptr;
     }
     Effect& e = effects[slot];
+    if(kind == KindBodyDeath)
+    {
+        e.start = now; // (struck again: fresh, fading from now)
+    }
     e.kind = kind;
     e.org = org;
     e.radius = radius;
@@ -469,7 +609,7 @@ void parse()
         org[i] = MSG_ReadCoord(cl.protocolflags);
     }
     const float radius = static_cast<float>(MSG_ReadShort());
-    const float duration = static_cast<float>(MSG_ReadByte()) / 50.f;
+    const float duration = static_cast<float>(MSG_ReadByte()) / (kind == KindBodyDeath ? 10.f : 50.f);
     add(kind, {org[0], org[1], org[2]}, radius, duration);
 }
 
@@ -480,6 +620,7 @@ void frame(const hands::State& s)
         return;
     }
     lastFrame = host_framecount;
+    QVR_PROFILE("shock arcs");
 
     Random rnd{static_cast<unsigned>(host_framecount) * 2246822519u + 7u};
     drawSelf(s, rnd);
@@ -494,19 +635,24 @@ void frame(const hands::State& s)
     const double now = cl.time;
     for(int i = 0; i < maxEffects; i++)
     {
-        const Effect& e = effects[i];
+        Effect& e = effects[i];
         if(e.until <= now)
         {
             continue;
         }
-        if(e.kind == KindBody)
+        if(e.kind == KindBody || e.kind == KindBodyDeath)
         {
-            const int num = static_cast<int>(e.radius);
-            if(num <= 0 || num >= cl.num_entities) { continue; }
-            const entity_t& ent = cl_entities[num];
-            if(!ent.model || ent.msgtime < cl.mtime[0] - 0.001) { continue; }
-            za::Vector<glm::vec3> tris;
-            if(!modelcollide::drawnTriangles(ent, num, tris) || tris.size() < 3) { continue; }
+            za::Vector<glm::vec3>& tris = scratch.tris;
+            e.arcs = 0;
+            if(!bodyTriangles(e, tris))
+            {
+                continue;
+            }
+            if(e.kind == KindBodyDeath)
+            {
+                e.arcs = drawBodyDeath(i, e, tris, rnd);
+                continue;
+            }
             const float fade = za::clamp(static_cast<float>((e.until - now) / 0.25), 0.f, 1.f);
             for(int bolt = 0; bolt < 12; bolt++)
             {
@@ -518,6 +664,7 @@ void frame(const hands::State& s)
                 const glm::vec3 from = glm::mix(a, b, rnd()) + n;
                 const glm::vec3 to = glm::mix(a, c, rnd()) + n;
                 arc(rnd, from, to, 4, 0.4f, fade, false, 0.45f, true, true);
+                e.arcs++;
             }
         }
         else if(e.kind == KindBurst)
@@ -544,19 +691,21 @@ void clear()
     selfStart = selfUntil = 0.0;
 }
 
+// vr_shock_info: the bodies with arcs on them now: entity, kind (3 a hit's, 4 lasting), triangles, arcs drawn last
+// frame, seconds left.
 void info_f()
 {
     int active = 0;
     for(const auto& effect : effects)
     {
-        if(effect.kind != KindBody || effect.until <= cl.time) { continue; }
+        if((effect.kind != KindBody && effect.kind != KindBodyDeath) || effect.until <= cl.time) { continue; }
         const int num = static_cast<int>(effect.radius);
         if(num <= 0 || num >= cl.num_entities) { continue; }
-        za::Vector<glm::vec3> triangles;
+        za::Vector<glm::vec3>& triangles = scratch.tris;
         modelcollide::drawnTriangles(cl_entities[num], num, triangles);
         active++;
-        Con_Printf("bodyshock: entity=%d triangles=%d remaining=%.2f\n", num,
-            static_cast<int>(triangles.size() / 3), effect.until - cl.time);
+        Con_Printf("bodyshock: entity=%d kind=%d triangles=%d arcs=%d remaining=%.2f\n", num, effect.kind,
+            static_cast<int>(triangles.size() / 3), effect.arcs, effect.until - cl.time);
     }
     Con_Printf("bodyshock: active=%d\n", active);
 }

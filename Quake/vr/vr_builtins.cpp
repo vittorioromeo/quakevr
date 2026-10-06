@@ -1469,6 +1469,15 @@ void PF_bodyshock()
         static_cast<float>(NUM_FOR_EDICT(target)), G_FLOAT(OFS_PARM1));
 }
 
+// bodyshockdeath(target, duration): lightning's lasting shock on a body it killed or struck (QC vr_shock.qc): Quad's arcs
+// crawling over it for `duration` s, fading (vr_shock.cpp, KindBodyDeath).
+void PF_bodyshockdeath()
+{
+    edict_t* target = G_EDICT(OFS_PARM0);
+    server::sendShock(PROG_TO_EDICT(pr_global_struct->self), 4, target->v.origin,
+        static_cast<float>(NUM_FOR_EDICT(target)), G_FLOAT(OFS_PARM1));
+}
+
 extern "C" void VR_PortalCarry(edict_t* box, edict_t* player, int hand, int begin);
 void PF_portal_carry()
 {
@@ -1892,6 +1901,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"portal_ai_map", PF_portal_ai_map},
     {"portal_ai_client", PF_portal_ai_client},
     {"bodyshock", PF_bodyshock},
+    {"bodyshockdeath", PF_bodyshockdeath},
     {"portal_carry", PF_portal_carry},
     {"findflags", PF_findflags},
     {"liquidentry", PF_liquidentry},

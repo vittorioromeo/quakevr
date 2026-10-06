@@ -2046,6 +2046,15 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("How deep your bleeding wounds look sunk into the skin (Finer detail only; 0 flat)."),
         slider("Blood Opacity", vr_wounds_blood_alpha, 0.2f, 1.f, 0.05f, "%.2f")
             .help("How opaque the painted blood is over the skins: a little of the skin shows through below 1."),
+        header("Lightning's Shock"),
+        toggle("Lasting Shock", vr_shock_death)
+            .help("A monster the lightning kills, or a body it strikes, keeps Quad Damage's arcs crawling over it a while, its ragdoll "
+                  "convulsing and the killing bolt charring it (off: only each hit's own arcs and burn)."),
+        slider("Shock Time", vr_shock_death_time, 0.5f, 10.f, 0.5f, "%.1f s").extend(0.1f, 25.f)
+            .help("How long the lasting shock lasts (a body struck again: from then)."),
+        slider("Convulsions", vr_shock_seizure, 0.f, 3.f, 0.1f, "%.1fx").help("How hard a shocked ragdoll's limbs convulse, fading over the shock (0 still)."),
+        slider("Arcs on Bodies", vr_shock_arcs, 0.f, 3.f, 0.1f, "%.1fx").help("How many arcs crawl over a shocked body (0 none)."),
+        slider("Burn Marks", vr_shock_burns, 0.f, 16.f, 1.f, "%.0f").help("The burn marks a lightning kill leaves over the body (each hit also chars where it strikes: Burns)."),
         header("Your Wounds"),
         slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx").extend()
             .help("How often blood drips from your wounded arms and hands (the body's wounds: Show Armour and Wounds; 0 none)."),
@@ -4071,6 +4080,13 @@ za::Vector<Item> pageDebugTools()
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
         command("Lightning Shock", "vr_shock_test 0").help("vr_shock_test 0: the lightning gun's shock in water (the flash, the arcs over your arms and body), without the damage."),
         command("Electrified Water", "vr_shock_test 1").help("vr_shock_test 1 [radius] [seconds]: arcs on the water below the point 128 units ahead."),
+        command("Lightning Bolt at the Nearest", "vr_shock_hit_test 30")
+            .help("vr_shock_hit_test <damage>: a lightning gun's bolt from your eyes into the nearest monster or corpse: its arcs and a burn "
+                  "where it strikes; one that kills (or a corpse) keeps Quad's arcs, convulses and is charred (Lasting Shock)."),
+        command("Lightning Kill the Nearest", "vr_shock_hit_test -1").help("vr_shock_hit_test -1: the same, just enough to kill it (not to gib it)."),
+        command("Shocked Bodies", "vr_shock_info; vr_shock_ragdoll_check")
+            .help("vr_shock_info: the bodies with arcs on them (kind 3 a hit's, 4 lasting; the arcs drawn); vr_shock_ragdoll_check: each "
+                  "ragdoll's shock left, its limbs' turning speed, its fastest part and its joints' stretch (console)."),
         command("Mjolnir's Lightning", "impulse 215").help("impulse 215: Mjolnir in the main hand strikes its lightning now, "
                                                             "as a blow does (15 cells). In water: the shock, with its damage."),
         header("Small Gibs Tests (developer 1 for each hit)"),

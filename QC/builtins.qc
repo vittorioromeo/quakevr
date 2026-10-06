@@ -423,6 +423,7 @@ float QVR_SPLASH_SHOT = 1;   // a small plip
 float QVR_SPLASH_THING = 2;  // a splash, small or big by strength
 
 void(entity target, float duration) bodyshock = #0;
+void(entity target, float duration) bodyshockdeath = #0; // lightning's lasting shock on a body it killed or struck: arcs crawling over it, fading (vr_shock.qc)
 void(entity box, entity player, float hand, float begin) portal_carry = #0;
 
 float(entity observer, entity target, vector from, vector point, float gate) portal_ai_sight = #0;
