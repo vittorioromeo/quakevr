@@ -125,10 +125,10 @@ monsters and torches ahead of the player.
 | `torches_32` | vfx/lights | vrfiringrange | 32 more wall torches (35 emitters): fire particles, their lights. |
 | `lights_32` | lights/core | vrfiringrange | vr_light_test x32 ahead: dynamic lights, their shadow maps (vr_shadow_dlights' slots), lit models. |
 | `lights_32_noshadows` | lights/control | vrfiringrange | lights_32 with vr_shadow_dlights 0 and vr_shadow_maplights 0: the shadows' share. |
-| `flashlight_e1m1` | lights/features | e1m1 | E1M1's start with the flashlight given and on (its spot light's shadow tile). |
+| `flashlight_e1m1` | lights/features | e1m1 | E1M1's start with the flashlight in the off hand, on and pointed ahead (its spot light's shadow tile: shadow_dlights 1). |
 | `water_range_surface` | liquids | vrfiringrange | Standing at the firing range's pool, looking down at the water. |
 | `water_range_under` | liquids | vrfiringrange | Under the firing range's pool (setpos 600 450 -150). |
-| `slime_e1m1` | liquids | e1m1 | In E1M1's slime pool (setpos 200 2820 -60). |
+| `slime_e1m1` | liquids | e1m1 | At round 21's slime test spot (setpos 200 2820 -60: the pool and two grunts in view; not under the surface). |
 | `lava_e1m7` | liquids | e1m7 | Facing E1M7's lava (setpos -50 48 20). |
 | `parallax_e1m1_qrp` | textures | e1m1 (QRP) | QRP base, parallax steps 32, looking along a wall: the parallax shader's worst case. |
 | `parallax_e1m1_qrp_off` | textures/control | e1m1 (QRP) | parallax_e1m1_qrp with vr_parallax 0. |

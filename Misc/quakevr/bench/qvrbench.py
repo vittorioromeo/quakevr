@@ -200,14 +200,15 @@ def scenarios():
         "lights_32 with vr_shadow_dlights 0 and vr_shadow_maplights 0: the shadows' share.",
         setup=[f"vr_light_test 400 120 {48 + i * 12}" for i in range(32)] + ["vr_shadow_dlights 0", "vr_shadow_maplights 0"])
     add("flashlight_e1m1", ["lights", "features"], "the flashlight on, casting shadows, over monsters", "e1m1",
-        "E1M1's start with the flashlight given and on (its spot light's shadow tile).",
+        "E1M1's start with the flashlight in the off hand, on and pointed ahead (its spot light's shadow tile: shadow_dlights 1).",
         setup=["vr_flashlight 1", "vr_flashlight_shadows 1", "vr_flashlight_give left", "wait", "vr_flashlight_toggle", "vr_mock_hand off -0.2 1.3 -0.35 0 0 0"])
     # ---- liquids and surfaces
     add("water_range_surface", ["liquids"], "a large water surface from above (refraction, warp)", RANGE,
         "Standing at the firing range's pool, looking down at the water.", pos="612 474 2 30 0 0")
     add("water_range_under", ["liquids"], "underwater (r_waterwarp, the underwater pass)", RANGE,
         "Under the firing range's pool (setpos 600 450 -150).", pos="600 450 -150 0 0 0")
-    add("slime_e1m1", ["liquids"], "E1M1's slime pool", "e1m1", "In E1M1's slime pool (setpos 200 2820 -60).",
+    add("slime_e1m1", ["liquids"], "beside E1M1's slime pool", "e1m1",
+        "At round 21's slime test spot (setpos 200 2820 -60: the pool and two grunts in view; not under the surface).",
         pos="200 2820 -60 0 0 0")
     add("lava_e1m7", ["liquids"], "E1M7's lava, light from below", "e1m7", "Facing E1M7's lava (setpos -50 48 20).",
         pos="-50 48 20 0 0 0")

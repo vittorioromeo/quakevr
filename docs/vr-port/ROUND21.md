@@ -24902,3 +24902,32 @@ the laser on it.
 
 Tested (mock headset, e1m1, main menu): Window View Smoothed Mirror -> click -> 2 (On) -> click -> 1; Window View 0 and
 mirror 0 -> click -> 2 and mirror 1 -> click -> 0 and 0. Eye images (`vr_eyeshot 3`): Off, On under the laser, On.
+## Benchmark suite prepared (vr_bench, qvrbench.py, kit bench.sh; 2026-10-06)
+
+For the coming benchmarking and profiling round: 44 fixed scenarios and a runner, no measurements yet
+([BENCHMARKS.md](BENCHMARKS.md)).
+
+- **Engine** (`Quake/vr/vr_bench.cpp`): `vr_bench_begin <name> [frames | <seconds>s]` / `vr_bench_end` record every
+  frame's period, host time, CPU work (less the runtime's and the swap's waits), the eyes' and the whole 3D refresh's GPU
+  time, each always-on phase's CPU and GPU time, traces, draw calls, alias models, main-thread heap events, and every
+  16th frame the edicts, monsters alive, Box3D bodies, particles, decals and lights; then write
+  `quakevr/profile/bench/<name>.json` (avg, p50, p95, p99, max; hitch counts; the settings). `vr_bench_seed <n>`
+  restarts QuakeC's random numbers. Debug > Profiling and Memory > *Benchmark Capture (10 s)*. The profiler's
+  always-on phases gain `3D` (SCR_UpdateScreen's 3D refresh: flat mode had no GPU time before), and the profile CSV's
+  settings header is shared with the JSON (`profile::settingCvars`, now with the retro, portal, mock and fixed-frame
+  cvars).
+- **Scenarios** (`Misc/quakevr/bench/qvrbench.py`): idle (E1M1 in VR, flat and QRP; the firing range; the hub flat),
+  slipgates (the episode gate's view, off, flat; 24 grunts across it), combat (48 mixed monsters; with the spectator
+  camera; in bullet time; 64 monsters' AI alone; scripted jabs into 8 grunts), physics (500 props active and settled,
+  32 ragdolls active and settled), effects (dense particles, 3 and 18 explosions a second, 1024 bullet marks streaming,
+  4096 blood marks, 32 torches), lights (32 shadowed lights and the control, the flashlight), liquids (the range's
+  pool above and under, E1M1's slime, E1M7's lava), textures (QRP parallax on and off), the VR menu open, a map change
+  and `timedemo demo1`, and tours of six complex custom maps already on this machine (warden, apsp3, ad_grendel,
+  ad_soltower1e, basetohell, vanisch01; `bsp_waypoints.py`), plus `combined`.
+- **Runner** (kit `bench.sh`, `bench_maps.ps1`, `bench_sheet.ps1`): N repeats in alternating order, exclusive and
+  paced at 90 Hz by default; `summary.md`/`.csv`; `compare` with a noise threshold and notes when the two sets'
+  builds or settings differ; `--validate`.
+- **Validated**: every scenario twice, fast and shared: all load, set up the same edicts, monsters and bodies in both
+  runs (decals within 5%), and write their JSON; the contact sheet shows the intended views. Found on the way:
+  `perf_suite.py`'s `vr_retro_particles` no longer exists (its retro particle variants set nothing); `vr_flashlight_give`
+  needs a hand (`left`).
