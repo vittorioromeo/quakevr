@@ -1319,22 +1319,26 @@ extern "C" void VR_MenuDrawStatus()
     {
         widest = line.size() > widest ? line.size() : widest;
     }
+    // Measured in true pixels down (the box, the rows' tops), as the Painter draws: on a page whose rows are spaced
+    // out (vr_menu_spacing, the canvas's y scaled by k) the characters keep their size (Draw_KeepMenuGlyphSize), so
+    // the rows are placed in true pixels too, and the box fits them on every page.
     const float width = size * static_cast<float>(widest) + 2.f * pad;
     const float x1 = right - ToolbarLayout::corner;
     const float x0 = x1 - width;
     const float height = step * static_cast<float>(lines.size()) + 2.f * pad - (step - size);
     const float y0 = l.top + ToolbarLayout::corner / l.k;
-    const float yc = y0 + height * 0.5f;
+    const float yc = y0 + height * 0.5f / p.k;
     p.rounded(x0, x1, yc, height * 0.5f, 3.f, colors::boxBorder);
     p.rounded(x0 + 1.f, x1 - 1.f, yc, height * 0.5f - 1.f, 2.f, colors::boxFill);
-    float y = y0 + pad;
-    for(za::SizeT i = 0; i < lines.size(); i++, y += step)
+    for(za::SizeT i = 0; i < lines.size(); i++)
     {
+        // A row's middle (menu y), where its characters are centred at their own size.
+        const float ym = y0 + (pad + step * static_cast<float>(i) + size * 0.5f) / p.k;
         float x = x0 + pad;
         for(const char* c = lines[i].cStr(); *c; c++, x += size)
         {
             // The first line (the mode) white, the rest in the menus' tan.
-            Draw_CharacterEx(x, y, size, size, i == 0 ? *c : (*c | 128));
+            Draw_CharacterEx(x, ym - size * 0.5f, size, size, i == 0 ? *c : (*c | 128));
         }
     }
 }
