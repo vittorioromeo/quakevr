@@ -27323,3 +27323,17 @@ logo, and the menus' browns are turned blood red (Menu Settings > **Blood Red Me
 - Settings (Menu Settings): `vr_menu_recolor` 1, `vr_menu_recolor_strength` 1 (0..1), `vr_menu_recolor_hue` 0 (HSV
   degrees: 0 is the logo's own red, its median Oklab hue 29; 345 crimson; -1 the player's hue),
   `vr_menu_recolor_saturation` 1.25 (0.5..3).
+
+## Zero-instance water calls (2026-10-07)
+
+Debug builds stopped a few frames into warden and ad_grendel (exit 42 with `SDL_ASSERT=abort`; a modal "Assertion
+failure at R_AddBModelCall ... 'num_instances > 0'" without it). The cause was not the layered shadow casters: the
+slipgate-reach change (47ff1eb5c, 2026-10-05) made the brush models' batches count an entity's instances from
+`bmodel_portal_counts` (2 for a model drawn again through a slipgate), and R_DrawBrushModels_Water got the same line,
+but the water pass never fills that array: it read the last brush pass's counts, 0 past that pass's entity count
+(warden's lit water: a call with no instances, its remap's instance `num_instances - 1` underflowing) or 2 for a
+copied model (a batch one instance too many). Release drew such a batch's water with the wrong instances or not at
+all. The water pass counts one instance an entity again (Ironwail's loop), and R_AddBModelCall returns on an empty
+batch after its assert. Checked: warden in Debug `exit=42` before, `exit=0` after (and ad_grendel, start, e1m1 with
+the flashlight); `vr_shadow_layered_check 5` on warden 0 texels differ in both atlases. TESTING.md, "Debug build
+assertions", has the run.

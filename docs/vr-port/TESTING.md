@@ -1704,6 +1704,16 @@ and let go of (`vr_walltorch_die_time 0.3`) until out, placed back in the off ha
 `setpos 1400 -128 384 0 0 0` with the hand at `0.0 1.3 -0.4 70 0 0`, then `setpos` 3 units at a time to x 1448: `developer
 1` prints `walltorch: lit again from a flame` at x 1436 (the light_flame_small_yellow at 1456 -128 406).
 
+**Debug build assertions** (2026-10-07): the Debug build (`MSBuild Windows/VisualStudio/ironwail.sln
+-p:Configuration=Debug -p:Platform=x64`; Zancle's asserts with it, QVR_ZANCLE_DEBUG) checks what Release takes on
+trust. Run it with `SDL_ASSERT=abort` in the environment (the kit's run.ps1 sets it), never without: a failed
+`SDL_assert` then exits with code 42 and no message instead of opening a modal dialog. The regression run: the kit's
+`bench_maps.ps1` for the custom maps, then the Debug exe on `map warden; wait300; quit`, `map ad_grendel; wait300;
+quit` and `map start; wait200; map e1m1; wait30; impulse 9; vr_flashlight 1; wait200; quit`: `exit=0` each. Exit 42
+means an assertion: put a `Sys_Error` before the suspect `SDL_assert` (its message lands in `qvr_error.txt`) to see
+which. warden's lit water used to fail `num_instances > 0` in R_AddBModelCall (ROUND21.md, "Zero-instance water
+calls").
+
 
 ## Slipgate and melee regression fixtures (2026-10-04)
 
