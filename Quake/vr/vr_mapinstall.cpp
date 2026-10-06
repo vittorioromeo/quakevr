@@ -535,6 +535,9 @@ bool bspVersionOk(const char* data, za::SizeT n, za::String& what)
 
 // ---------------------------------------------------------------- the download
 
+// The download passed maxZipBytes (the job thread's own: writeChunk runs on it, inside Download).
+bool downloadTooBig = false;
+
 size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* stream)
 {
     if(SDL_AtomicGet(&cancelJob))
@@ -543,6 +546,11 @@ size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* stream)
     }
     za::Vector<char>& body = *static_cast<za::Vector<char>*>(stream);
     const za::SizeT n = size * nmemb;
+    if(static_cast<za::U64>(body.size()) + n > maxZipBytes)
+    {
+        downloadTooBig = true; // (the index's size is checked before; a server that sends more is stopped here)
+        return 0;
+    }
     body.reserveMore(n);
     body.unsafeEmplaceBackRange(static_cast<const char*>(buffer), n);
     SDL_AtomicSet(&liveBytes, static_cast<int>(za::min(static_cast<za::U64>(body.size()), static_cast<za::U64>(0x7fffffff))));
@@ -603,10 +611,18 @@ bool downloadZip(za::Vector<char>& body, za::String& why)
         dl.write_data = &body;
         dl.abort = &cancelJob;
         const za::U32 t0 = SDL_GetTicks();
+        downloadTooBig = false;
         const bool ok = Download(url.cStr(), &dl);
         if(SDL_AtomicGet(&cancelJob))
         {
             why = cancelText();
+            return false;
+        }
+        if(downloadTooBig)
+        {
+            body.clear();
+            why = za::String{"the download passed "} + za::toString(maxZipBytes / 1024 / 1024) + " MB (the index says " +
+                  formatBytes(request.zipBytes) + "): stopped";
             return false;
         }
         za::String failed;
