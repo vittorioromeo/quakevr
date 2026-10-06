@@ -67,16 +67,9 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
-Melee multipliers for blades and the chainsaw; give the fiend a head zone?
-Ragdolls: masses and blast throw by mass right? Turn ragdolls on by default?
-Thrown axe sticks in explosive boxes? Explosive boxes catch fire?
-Training dummy: heal over time? Make Dummy Dies (vr_dummy_gib 1, yours) the default?
-Gibs too heavy to splat on walls: lower the splat speed or the masses?
-Shotgun lag in a fast wiggle too much? Add a Low graphics preset?
 Multiplayer: debris client-only or gameplay; melee speed a server rule?
 Map tips: seen-tips limit (~80), targetname naming clash, tip_delay 0
 Map Library: prune the download cache (about 60 MB per package)?
-Map Library: hide packages made for Arcane Dimensions / Quoth / Copper (they load without their monsters), or keep them flagged?
 
 [Tune]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
