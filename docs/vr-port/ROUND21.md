@@ -26721,3 +26721,17 @@ server frames when played at their own rate (they were recorded at the old caden
 - [ ] Fixed 72 Hz Server Tick off: Server Tick Stats says 36 at 72 Hz (the old way), back on: 72.
 - [ ] Bullet time and Sandevistan: still smooth, throws in them as before.
 - [ ] A friend on a dedicated server: hands, melee and climbing respond as on a listen server.
+## Dawn of the Machine (MG3): foundation (2026-10-06)
+
+Phase A of [MG3_PLAN.md](MG3_PLAN.md) (the plan is now in the repo). MG3 stays gated (`nativeReady` false); every
+test uses the developer path (`vr_campaign_native mg3`, `-nomapindex`).
+
+- **M3-01 scaffold and entity checker.** `QC/vr_mg3_defs.qc` (`MG3_Campaign()`), `QC/vr_mg3_test.qc` (`vr_mg3_test`,
+  unarchived; Debug > Tests > Dawn of the Machine Tests), `Misc/quakevr/check_mg3_entities.py` (reads the owned
+  `rerelease/mg3/pak0.pak` read-only: per-map missing classnames and unknown keys, totals; `--expect-missing`,
+  `--expect-placements`). Today: 22 maps, 156 classes, **47 missing, 1,397 placements**, 10 unknown keys (33 uses:
+  `aggro_target`, `health_target`, `tele_target`, `wave1..3`, `fog_sky_factor`, editor noise). id1's rune logic is off
+  for campaign 5: the four-rune finale text, the `info_player_start2` return spot and the deathmatch `start` episode
+  cycle (MG3's serverflags mean its own runes and Bloody Nightmare bits); Honey's flag meanings were already off for
+  every official campaign (`MG_WorldCampaign`). All 22 BSPs (start..boss2, dm1, both brush models) load with exit 0
+  and no Host_Error; e1m1 and MG1 hub (20/0) smoke pass.

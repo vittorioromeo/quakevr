@@ -4796,6 +4796,18 @@ za::Vector<Item> pageMachineHordeTests()
     };
 }
 
+// Dawn of the Machine (MG3) acceptance aids: developer campaign only (`vr_campaign_native mg3`), "mg3test:" lines
+// with developer 1 (QC/vr_mg3_test.qc).
+za::Vector<Item> pageMg3Tests()
+{
+    return {
+        header("Dawn of the Machine Tests"),
+        header("Developer campaign only: vr_campaign_native mg3"),
+        command("State Report", "vr_mg3_test 1")
+            .help("Print the map, skill, serverflags and the player's health, caps, ammunition and weapons (developer 1)."),
+    };
+}
+
 za::Vector<Item> pageDebugTests()
 {
     return {
@@ -4813,6 +4825,8 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
         open("Machine Horde Tests", pageIndex(pageMachineHordeTests))
             .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
+        open("Dawn of the Machine Tests", pageIndex(pageMg3Tests))
+            .help("MG3 native port: state, saved upgrades and capacities. Developer campaign only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
             .help("Report runes, return position, final gate and VR equipment."),
         command("Machine: mge5m2 Trigger Route", "vr_mg_trigger_test 2")
@@ -5820,6 +5834,7 @@ const Page pages[] = {
     {"Gore - Limb Gore", pageLimbGore, pageGore},
     {"Ragdolls - Vore", pageRagdollVore, pageRagdolls, LevelDeveloper},
     {"Ragdolls - Centroid", pageRagdollCentroid, pageRagdolls, LevelDeveloper},
+    {"Dawn of the Machine Tests", pageMg3Tests, pageDebugTests, LevelDeveloper},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

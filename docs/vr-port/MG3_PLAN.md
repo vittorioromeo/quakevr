@@ -11,7 +11,8 @@ Precedents: Dopa (ready, solo), MG1 hub/runes (`QC/vr_mg_hub.qc`), MG1 Horde (`Q
 trigger/activation shipments (`QC/vr_mg_*.qc`), Hipnotic/Rogue monster and weapon ports.
 
 Inventory scripts and raw tables: `qvr-kit/scratch/mg3plan/` (`inv.py`, `classes.txt`, `missing_per_map.txt`,
-`routes.txt`, `deferred.txt`, `srcloc.txt`). The first task turns `inv.py` into a committed checker.
+`routes.txt`, `deferred.txt`, `srcloc.txt`). M3-01 turned `inv.py` into the committed checker
+`Misc/quakevr/check_mg3_entities.py` (per-map missing classnames and keys; run it after each task).
 
 ---
 

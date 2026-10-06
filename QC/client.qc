@@ -601,7 +601,8 @@ void() ExitIntermission =
             return;
         }
 
-        if((serverflags & (MG1_Campaign() ? 31 : 15)) == (MG1_Campaign() ? 31 : 15))
+        // (Dawn of the Machine's serverflags are its own runes and Bloody Nightmare bits: no id1 finale.)
+        if(!MG3_Campaign() && (serverflags & (MG1_Campaign() ? 31 : 15)) == (MG1_Campaign() ? 31 : 15))
         {
             WriteByte(MSG_ALL, SVC_FINALE);
             WriteString(MSG_ALL, MG1_Campaign() ? "$qc_mg1_endtext_all_runes" : "Now, you have all four Runes. You sense\ntremendous invisible forces moving to\nunseal ancient barriers. Shub-Niggurath\nhad hoped to use the Runes Herself to\nclear off the Earth, but now instead,\nyou will use them to enter her home and\nconfront her as an avatar of avenging\nEarth-life. If you defeat her, you will\nbe remembered forever as the savior of\nthe planet. If she conquers, it will be\nas if you had never been born.");
@@ -1000,7 +1001,7 @@ entity() SelectSpawnPoint =
         if(spot) return spot;
     }
 
-    if(serverflags)
+    if(serverflags && !MG3_Campaign()) // (Dawn of the Machine has no rune start spots: its serverflags mean other things)
     {    // return with a rune to start
         spot = find(world, classname, "info_player_start2");
         if(spot)
@@ -1254,7 +1255,7 @@ void() NextLevel =
 {
     entity o;
 
-    if(mapname == "start")
+    if(mapname == "start" && !MG3_Campaign()) // (id1's episode cycle by rune bits; MG3's start has its own exit)
     {
         if(!cvar_hget(cvarh_registered))
         {
