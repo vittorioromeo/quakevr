@@ -4292,6 +4292,22 @@ za::Vector<Item> pageDebugProfiling()
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),
+        header("Particles' Fill"),
+        toggle("Skip Hidden Particles", vr_particle_saturate)
+            .help("vr_particle_saturate: in dense effects the particles are composited in reverse order into a layer of "
+                  "their own, and where it is already opaque the ones under it are skipped (the same image within a "
+                  "level of rounding). Off: each blended into the scene in turn, to compare with GPU Timing on."),
+        slider("Skip From Coverage", vr_particle_saturate_cover, 0.f, 50.f, 1.f, "%.0f views")
+            .help("vr_particle_saturate_cover: from how many screens' worth of particles the frame uses it (it costs a "
+                  "clear, a few full-screen marks and a blend an eye; it pays from about 7). 0: always."),
+        slider("Skip Batches", vr_particle_saturate_batches, 1.f, 32.f, 1.f, "%.0f")
+            .help("vr_particle_saturate_batches: the particles drawn in this many batches, the opaque pixels marked "
+                  "after each (more: earlier skipping, more marks). 1: nothing skipped."),
+        cycle("Opaque At", vr_particle_saturate_opacity, {{0.99f, "99%"}, {0.999f, "99.9%"}, {1.f, "Never (no skipping)"}})
+            .help("vr_particle_saturate_opacity: how opaque a pixel must be for the particles under it to be skipped."),
+        toggle("Freeze Particles", vr_particle_freeze)
+            .help("vr_particle_freeze: the particles stop where they are (still drawn), to compare settings on the same "
+                  "frame."),
         header("Server Tick"),
         toggle("Fixed 72 Hz Server Tick", host_fixedtick)
             .help("host_fixedtick: the server (monsters, physics, your hands' blows) runs in steady 1/72 s ticks at any "

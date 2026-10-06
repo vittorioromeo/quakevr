@@ -157,8 +157,11 @@ struct ParticleSplit
     float largePixels{0.f};
 };
 // Draws them in the scene view (sceneViewProjection, sceneCamera); `pull`: moved towards the eye by their pull.
+// `reverse` (vr_particle_saturate): composited in reverse order into a target of their own, the pixels already opaque
+// skipped by the ones under them, then blended over the scene (the same image, less fill), when the scene's target
+// allows it.
 void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture,
-    ParticlePass pass = ParticlePass::All, const ParticleSplit& split = {});
+    ParticlePass pass = ParticlePass::All, const ParticleSplit& split = {}, bool reverse = false);
 // The large ones (split) drawn at half the scene's size into a target of their own, hidden behind the scene's
 // `distances` (width x height, water::opaqueSceneDistances; `soft`: fading against them too), then blended into the
 // scene in one pass. A quarter of their fragments, a little softer. `retro`: their effective retro set (0 off). `viewport`: the

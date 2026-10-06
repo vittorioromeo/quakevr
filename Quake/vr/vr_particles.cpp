@@ -2877,6 +2877,60 @@ int halfResFrame = -1;
     return halfRes;
 }
 
+// How many times over this frame's particles cover the view: each one's square (its middle's, not its streak) where
+// it is on the screen, at `pixelScale` pixels a unit at distance 1, in views (not what the scene hides of them).
+[[nodiscard]] float screenCover(float pixelScale, const int viewport[4])
+{
+    const float width = static_cast<float>(viewport[2]), height = static_cast<float>(viewport[3]);
+    if(width <= 0.f || height <= 0.f)
+    {
+        return 0.f;
+    }
+    const glm::mat4 mvp = gfx::sceneViewProjection();
+    float area = 0.f;
+    for(za::SizeT i = 0; i < instanceCount; i++)
+    {
+        const gfx::ParticleInstance& q = instances[i];
+        const glm::vec4 clip = mvp * glm::vec4{q.org, 1.f};
+        if(clip.w <= 1.f)
+        {
+            continue;
+        }
+        const float half = q.half * pixelScale / clip.w;
+        const float x = (clip.x / clip.w * 0.5f + 0.5f) * width, y = (clip.y / clip.w * 0.5f + 0.5f) * height;
+        const float across = za::min(x + half, width) - za::max(x - half, 0.f);
+        const float down = za::min(y + half, height) - za::max(y - half, 0.f);
+        if(across > 0.f && down > 0.f)
+        {
+            area += across * down;
+        }
+    }
+    return area / (width * height);
+}
+
+// Whether this frame's particles are composited in reverse order, skipping what is hidden (vr_particle_saturate):
+// decided in its first view, for every view, when all of them would cover enough of it to pay for the target's clear,
+// the opaque marks and the blend into the scene: from vr_particle_saturate_cover views of them, until under two thirds
+// of that (0: always).
+bool reverseOrder = false;
+int reverseOrderFrame = -1;
+
+[[nodiscard]] bool reverseOrderThisFrame(float pixelScale, const int viewport[4])
+{
+    if(vr_particle_saturate.value == 0.f)
+    {
+        return false;
+    }
+    if(reverseOrderFrame != host_framecount)
+    {
+        reverseOrderFrame = host_framecount;
+        const float from = za::max(0.f, vr_particle_saturate_cover.value);
+        const float cover = from > 0.f ? screenCover(pixelScale, viewport) : 0.f;
+        reverseOrder = cover >= (reverseOrder ? from * (2.f / 3.f) : from);
+    }
+    return reverseOrder;
+}
+
 } // namespace qvr::particles
 
 // R_RenderScene, after the translucent pass: the sprites the opaque pass left (soft), the particles, depth-tested
@@ -2991,7 +3045,8 @@ extern "C" void VR_DrawSceneTranslucent()
         }
         if(!halfDrawn || split.largePixels > 0.f)
         {
-            gfx::drawParticles(batch, pull, state, atlas, halfDrawn ? gfx::ParticlePass::Small : gfx::ParticlePass::All, split);
+            gfx::drawParticles(batch, pull, state, atlas, halfDrawn ? gfx::ParticlePass::Small : gfx::ParticlePass::All, split,
+                reverseOrderThisFrame(split.pixelScale, viewport));
         }
     }
 }

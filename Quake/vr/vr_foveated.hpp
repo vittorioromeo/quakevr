@@ -26,6 +26,11 @@ void beginScene(int eye, int width, int height);
 // The eye's scene is over: variable-rate shading off.
 void endScene();
 
+// What is bound now (until the next framebuffer bind) shaded as the eye's scene is (`on`: variable-rate while the
+// scene's is; a target of the scene's size whose pixels are the scene's, as vr_gfx_gl.cpp's particles composited
+// apart) or at full rate (`on` false: a pass copying pixels into the scene's own framebuffer).
+void shadeBoundAsScene(bool on);
+
 // vr_foveated_debug: the rates (yellow 2x2, red 4x4) and vr_upscale's circle (cyan) over the eye's image `fbo`
 // (width x height), the scene having been sceneWidth x sceneHeight.
 void drawDebug(int eye, GLuint fbo, int width, int height, int sceneWidth, int sceneHeight);

@@ -304,6 +304,11 @@ void beginScene(int eye, int width, int height)
     setEnabled(bound != 0 && (bound == sceneFbos[0] || bound == sceneFbos[1]));
 }
 
+void shadeBoundAsScene(bool on)
+{
+    setEnabled(on && active);
+}
+
 void endScene()
 {
     if(!active)

@@ -8,6 +8,7 @@
 #include "vr_cvars.hpp"
 #include "vr_retro.h"
 #include "vr_retro.hpp"
+#include "vr_foveated.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -15,7 +16,9 @@
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
@@ -367,6 +370,7 @@ layout(location = 7) uniform vec3 Up;
 layout(location = 8) uniform int Pull;
 layout(location = 10) uniform int Pass;           // ParticlePass: 0 all, 1 the small ones only, 2 the large ones only
 layout(location = 11) uniform float PixelScale;   // the scene target's pixels across a unit at distance 1
+layout(location = 15) uniform int Reverse;        // drawn in reverse order: the records' count (0: in their order)
 #ifdef PARTICLE_TRIM
 layout(location = 13) uniform vec4 TrimView; // actual target width, height, atlas width, height
 layout(location = 14) uniform vec2 Trim; // enable, world block size (0 plain)
@@ -399,7 +403,11 @@ flat out vec3 particleGridScale;
 const vec2 signs[6] = vec2[6](vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, 1.0));
 void main()
 {
-    Particle p = particles[gl_VertexID / 6];
+    // In reverse order (drawReverseOrder): the last first, the vertices' order the reverse of the records'.
+    int index = gl_VertexID / 6;
+    if(Reverse > 0)
+        index = Reverse - 1 - index;
+    Particle p = particles[index];
     int corner = gl_VertexID % 6;
     vec3 org = p.orgHalf.xyz;
     float h = p.orgHalf.w;
@@ -537,6 +545,52 @@ HalfTarget halfTargets[2];
 int halfTargetNext = 0;
 GLuint halfCompositeProgram = 0;
 bool halfCompositeFailed = false;
+
+// drawReverseOrder's (vr_particle_saturate): the particles composited in reverse order ("under": the last drawn,
+// on top, first) into a target of their own, the scene's depth and stencil attached, and blended over the scene once.
+// Between batches the pixels already opaque are marked in the stencil (bits no one else uses), and the later batches
+// (the particles under them) skip them: the same image (compositing is associative), less fill.
+struct UnderTarget
+{
+    GLuint texture = 0;
+    GLuint fbo = 0;     // the colour and the scene's depth/stencil
+    GLuint markFbo = 0; // the scene's depth/stencil alone (the marking pass reads the colour)
+    GLuint depth = 0;   // the depth/stencil texture attached
+    int width = 0, height = 0;
+    int generation = 0; // the stencil value (underStencilBits) of the last draw's marks
+};
+UnderTarget underTargets[2];
+int underTargetNext = 0;
+GLuint underMarkProgram = 0;
+GLuint underCompositeProgram = 0;
+bool underFailed = false; // its programs
+bool underWarned = false; // an incomplete framebuffer said once
+constexpr GLuint underStencilBits = 0xfc; // the marks' (sky 1, OIT 2: gl_sky.c, gl_rmain.c)
+constexpr int underStencilShift = 2;
+constexpr int underGenerations = 63; // the marks' values, 1..63 (0: cleared)
+constexpr GLenum underTextureUnit = GL_TEXTURE7;
+
+// A full-screen triangle (halfCompositeVs). Marks (the stencil bit) the pixels as opaque as Opaque.
+constexpr const char* underMarkFs = R"(#version 430
+layout(binding = 7) uniform sampler2D Under;
+layout(location = 0) uniform float Opaque;
+void main()
+{
+    if(texelFetch(Under, ivec2(gl_FragCoord.xy), 0).a < Opaque)
+        discard;
+}
+)";
+// The particles composited (premultiplied, with their coverage in alpha) over the scene.
+constexpr const char* underCompositeFs = R"(#version 430
+layout(binding = 7) uniform sampler2D Under;
+out vec4 result;
+void main()
+{
+    result = texelFetch(Under, ivec2(gl_FragCoord.xy), 0);
+    if(result == vec4(0.0))
+        discard;
+}
+)";
 
 constexpr const char* halfCompositeVs = R"(#version 430
 void main()
@@ -1060,13 +1114,171 @@ namespace
     return program;
 }
 
+// vr_particle_saturate: the batch drawn with `program` (set up, its state `stateMask`) in reverse order into an
+// UnderTarget and blended over the scene's target, which is what is bound (R_SetupGL's: VR_DrawSceneTranslucent, after
+// the translucent pass; one sample). False, with nothing drawn or changed, when it cannot be. No glGet (each waits for the driver's
+// thread): the stencil is left as the others expect it (they set what they use; R_Clear its mask).
+[[nodiscard]] bool drawReverseOrder(const ParticleBatch& batch, GLuint program, unsigned stateMask)
+{
+    unsigned color = 0, depth = 0;
+    int samples = 0, viewport[4];
+    const GLuint sceneFbo = VR_SceneTarget(&color, &depth, &samples, viewport);
+    const int width = vid.width, height = vid.height; // the scene's targets' size (GL_CreateFBOAttachment)
+    if(sceneFbo == 0 || samples > 1 || depth == 0 || width <= 0 || height <= 0 || underFailed)
+    {
+        return false;
+    }
+    if(!underMarkProgram)
+    {
+        underMarkProgram = glProgram(halfCompositeVs, underMarkFs, "vr particles (reverse order, opaque marked)");
+        underCompositeProgram = glProgram(halfCompositeVs, underCompositeFs, "vr particles (reverse order, blended in)");
+        underFailed = !underMarkProgram || !underCompositeProgram;
+        if(underFailed)
+        {
+            return false;
+        }
+    }
+
+    // Its target: the scene's size.
+    UnderTarget* target = nullptr;
+    for(UnderTarget& t : underTargets)
+    {
+        if(t.texture && t.width == width && t.height == height)
+        {
+            target = &t;
+        }
+    }
+    if(!target)
+    {
+        target = &underTargets[underTargetNext];
+        underTargetNext ^= 1;
+        if(target->texture)
+        {
+            GL_DeleteFramebuffersFunc(1, &target->fbo);
+            GL_DeleteFramebuffersFunc(1, &target->markFbo);
+            GL_DeleteNativeTexture(target->texture);
+        }
+        glGenTextures(1, &target->texture);
+        GL_BindNative(underTextureUnit, GL_TEXTURE_2D, target->texture);
+        GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "vr particles (reverse order)");
+        GL_GenFramebuffersFunc(1, &target->fbo);
+        GL_GenFramebuffersFunc(1, &target->markFbo);
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
+        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->texture, 0);
+        target->width = width;
+        target->height = height;
+        target->depth = 0;
+    }
+    if(target->depth != depth)
+    {
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
+        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
+        const bool complete = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->markFbo);
+        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
+        glDrawBuffer(GL_NONE);
+        glReadBuffer(GL_NONE);
+        target->depth = depth;
+        target->generation = underGenerations; // its marks unknown: cleared before the next use
+        if(!complete || GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        {
+            // (Tried again with the next depth texture: another view's targets may suit it.)
+            if(!underWarned)
+            {
+                Con_Warning("VR: reverse-order particles: incomplete framebuffer, drawn as before\n");
+                underWarned = true;
+            }
+            target->depth = 0;
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
+            return false;
+        }
+    }
+
+    // Nothing over them yet. This draw's marks: a value of the stencil's upper bits the draws before did not leave
+    // (the bits cleared once all the values are used).
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
+    foveated::shadeBoundAsScene(true); // its pixels are the scene's: shaded as the scene would shade them
+    const GLfloat clear[4] = {0.f, 0.f, 0.f, 0.f};
+    GL_ClearBufferfvFunc(GL_COLOR, 0, clear);
+    if(++target->generation > underGenerations)
+    {
+        target->generation = 1;
+        glStencilMask(underStencilBits);
+        glClearStencil(0);
+        glClear(GL_STENCIL_BUFFER_BIT);
+    }
+    const GLint mark = target->generation << underStencilShift;
+
+    // Batches in reverse order, each blended under what is over it, each skipping the pixels the ones before made
+    // opaque. The first batches are the ones drawn last (on top).
+    glEnable(GL_STENCIL_TEST);
+    glStencilMask(0);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glStencilFunc(GL_NOTEQUAL, mark, underStencilBits);
+    glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_ONE); // under
+    const int count = static_cast<int>(batch.count);
+    GL_Uniform1iFunc(15, count);
+    const int batches = za::clamp(static_cast<int>(vr_particle_saturate_batches.value), 1, 64);
+    const float opaque = za::clamp(vr_particle_saturate_opacity.value, 0.5f, 1.f);
+    // Each batch `growth` times the one before (1: all the same size).
+    const float growth = za::clamp(vr_particle_saturate_growth.value, 1.f, 4.f);
+    int left = batches;
+    for(int first = 0, n = 0; first < count; first += n, --left)
+    {
+        const float share = left <= 1 ? 1.f : growth <= 1.f ? 1.f / static_cast<float>(left) :
+            (growth - 1.f) / (za::pow(growth, static_cast<float>(left)) - 1.f);
+        n = za::clamp(static_cast<int>(static_cast<float>(count - first) * share + 0.5f), 1, count - first);
+        glDrawArrays(GL_TRIANGLES, first * 6, n * 6);
+        if(first + n >= count || opaque >= 1.f)
+        {
+            continue;
+        }
+        // The pixels now opaque marked (at full rate: a mark a pixel), those already marked skipped.
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->markFbo);
+        GL_UseProgram(underMarkProgram);
+        GL_SetState(stateMask | GLS_NO_ZTEST);
+        GL_BindNative(underTextureUnit, GL_TEXTURE_2D, target->texture);
+        GL_Uniform1fFunc(0, opaque);
+        glStencilMask(underStencilBits);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glStencilMask(0);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        GL_SetState(stateMask);
+        GL_UseProgram(program);
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
+        foveated::shadeBoundAsScene(true);
+    }
+
+    // The stencil as the others expect it, and the particles over the scene (at full rate: a copy of its pixels).
+    glStencilMask(~0u);
+    glStencilFunc(GL_ALWAYS, 0, ~0u);
+    glDisable(GL_STENCIL_TEST);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
+    foveated::shadeBoundAsScene(false);
+    GL_UseProgram(underCompositeProgram);
+    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied
+    GL_BindNative(underTextureUnit, GL_TEXTURE_2D, target->texture);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    foveated::shadeBoundAsScene(true);
+    return true;
+}
+
 // Draws them with `program` into what is bound (blended over it, premultiplied). Not shaded per sample with MSAA
-// (vid_fsaamode 1): the textures are soft, and their edges are their alpha.
+// (vid_fsaamode 1): the textures are soft, and their edges are their alpha. In reverse order (drawReverseOrder) when
+// `reverse` and it can be.
 void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bool depthTest, int retro,
-    Texture texture, ParticlePass pass, const ParticleSplit& split, Texture distances, bool soft, bool half = false)
+    Texture texture, ParticlePass pass, const ParticleSplit& split, Texture distances, bool soft, bool half = false,
+    bool reverse = false)
 {
     GL_UseProgram(program);
-    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE);
+    const unsigned stateMask = GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE;
+    GL_SetState(stateMask);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied
     glDisable(GL_SAMPLE_SHADING);
     const glm::mat4 mvp = sceneViewProjection();
@@ -1081,6 +1293,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     GL_Uniform1iFunc(10, static_cast<int>(pass));
     GL_Uniform1fFunc(11, split.pixelScale);
     GL_Uniform1fFunc(12, split.largePixels);
+    GL_Uniform1iFunc(15, 0);
     const bool trimmed = program == particleProgram[7] || program == particleProgram[8] ||
         program == particleProgram[9] || program == particleProgram[10];
     if(trimmed)
@@ -1111,7 +1324,10 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     const bool saved = GL_GetShaderStorageRange(0, &savedBuffer, &savedOffset, &savedSize);
     GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, batch.buffer, static_cast<GLintptr>(batch.offset),
         static_cast<GLsizeiptr>(batch.count * sizeof(ParticleInstance)));
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(batch.count * 6));
+    if(!reverse || !drawReverseOrder(batch, program, stateMask))
+    {
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(batch.count * 6));
+    }
     if(saved && savedBuffer)
     {
         GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
@@ -1123,7 +1339,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
 } // namespace
 
 void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture, ParticlePass pass,
-    const ParticleSplit& split)
+    const ParticleSplit& split, bool reverse)
 {
     if(batch.count == 0 || !batch.buffer)
     {
@@ -1143,7 +1359,7 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
         return;
     }
     drawParticlesWith(program, batch, pull, state.depthTest, state.retro, texture, pass, split, state.sceneDistances,
-        state.sceneDistances != 0);
+        state.sceneDistances != 0, false, reverse);
 }
 
 bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
