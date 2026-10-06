@@ -2162,7 +2162,7 @@ constexpr int maxSlots = 8; // vr_relight_parallel's most (vr_relight_process.cp
 // The page's settings, taken when a batch starts: its maps are all lit alike, whatever the sliders do meanwhile.
 struct Look
 {
-    float strength{1.f}, lamps{1.f}, glows{1.f}, liquids{1.f}, maplights{1.f}, sunlight{1.f};
+    float strength{1.2f}, lamps{1.f}, glows{1.f}, liquids{1.f}, maplights{1.f}, sunlight{1.f};
     float bounce{0.f}, ao{1.5f}, minlight{0.f}, quality{1.f};
 
     [[nodiscard]] static Look now()

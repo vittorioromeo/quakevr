@@ -423,8 +423,11 @@ const DefaultChange defaultChanges[] = {
     // 92: thrown gibs almost always stick to walls (the author, 2026-10-06): Thrown Gibs Stick his 0.75 to 1
     // (vr_defaults.cfg; VR_Gib_Think2 also tells a lobbed gib's hit on a wall now).
     {92, &vr_gore_stick_thrown, "0.75"},    // 1
+    // 93: Relighting's Light Textures 1.2 (the author relit hip1m1 so, 2026-10-06: "Maybe those should be the new
+    // defaults"); relight_maps.py's --light-texture-strength too.
+    {93, &vr_relight_strength, "1"},        // 1.2
 };
-constexpr int configVersion = 92;
+constexpr int configVersion = 93;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

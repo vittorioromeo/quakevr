@@ -26111,3 +26111,13 @@ Tests > Wash a Quarter Off) washes that much off your hands and body at once, wi
 Checked: vrfiringrange, the main hand close up (`vr_mock_look 35 0; vr_mock_hand main 0.0 1.42 -0.3 -80 0 90`),
 `vr_gore_hands_test main 1` twice, then `vr_gore_wash_test 0.25` four times, an eyeshot after each: with 0 the
 triangles' edges show at 25% and 50%, with 1 none at any level (the blood's own speckle at 75% in both).
+
+## Relighting: Light Textures 1.2 by default (2026-10-06)
+
+The author relit hip1m1 with Light Textures 1.2 ("Maybe those should be the new defaults"): `vr_relight_strength`
+defaults to 1.2 (config 93 moves a config's 1 to 1.2; another value stays), and `relight_maps.py
+--light-texture-strength` too (the two give the same lights at their defaults). INSTALLER.md had the VisPatch data in
+`<QVR>\tools\vispatch\`, a folder nothing reads: the scripts are in `<QVR>\quakevr\tools\`, and relight_maps.py takes
+its VisPatch folder only from `--vis-dir` or `QUAKEVR_VISPATCH`. The data now goes to `<QVR>\quakevr\tools\vispatch\`,
+which relight_maps.py takes by itself when neither is given (the in-game relight keeps the water-vis of the script's
+copies in `relit\`). Checked: `vr_migrate_config` from 92 with 1 gives 1.2, with 1.5 keeps 1.5, from 93 keeps 1.

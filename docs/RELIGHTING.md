@@ -159,7 +159,7 @@ If you write the paths as `--quake .` from inside the Quake folder, that works t
 | `--force` | Relight every map, even those that are up to date. |
 | `--bright` | A brighter look: some bounced light and weaker ambient occlusion (Quake VR's look before its tenth playtest round). |
 | `--no-luma` | Don't use the HD textures' glow images to find what glows. |
-| `--light-texture-strength 1.5` | Every light from a texture (lamps, light panels, glowing buttons, lava) 1.5 times as bright. `--glow-scale` is the same. |
+| `--light-texture-strength 1.5` | Every light from a texture (lamps, light panels, glowing buttons, lava) 1.5 times as bright. The default is 1.2, as the game's Light Textures. `--glow-scale` is the same. |
 | `--basedir <folder>` | Another folder the game reads (its own `-basedir`, with `id1`, `quakevr`...) for textures. Several are allowed. |
 | `--extmaps-dir <folder>` | The material maps' folder (the game's `vr_extmaps_dir`; `textures_quetoo` by default, `""` for none). |
 | `--list-glows --list-textures` | Also print the folders searched for textures and every glow image used, with where it came from. |
@@ -250,7 +250,7 @@ The settings:
 
 | Setting | Console | What it does |
 |---|---|---|
-| Light Textures | `vr_relight_strength` (1) | Everything a texture lights: lamps, light panels, glowing buttons and panels, lava. |
+| Light Textures | `vr_relight_strength` (1.2) | Everything a texture lights: lamps, light panels, glowing buttons and panels, lava. |
 | Lamps and Light Panels | `vr_relight_lamps` (1) | The light fixtures, times Light Textures (with `relight_textures.cfg`'s strength for them). |
 | Glowing Panels and Buttons | `vr_relight_glows` (1) | Buttons, computer panels, runes, slipgates, times Light Textures. |
 | Lava and Slime | `vr_relight_liquids` (1) | Their glow on the walls round them, times Light Textures. |

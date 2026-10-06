@@ -48,7 +48,7 @@
 #       [--light C:/tools/ericw-tools-2.0.0-alpha11-win64/light.exe] [--games id1 hipnotic rogue] [--out quakevr/relit]
 #       [--light-args "..."] [--force] [--only e1m1 ...] [--no-glow] [--glow-scale 1.0]
 #       [--glow-budget 300] [--fixture-scale 1.0] [--fixture-lit 0.5] [--textures <cfg>] [--no-luma]
-#       [--light-texture-strength 1.0] [--basedir <folder> ...] [--extmaps-dir textures_quetoo]
+#       [--light-texture-strength 1.2] [--basedir <folder> ...] [--extmaps-dir textures_quetoo]
 #       [--list-glows [--list-textures]] [--bright] [--vis-dir <folder with id1.vis hipnotic.vis rogue.vis>]
 #
 # ericw-tools 2.0.0-alpha11 (GPL): https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11 (v0.18.1
@@ -58,7 +58,8 @@
 # Already relit maps are skipped unless their source, the options or `light`'s version changed (--force
 # relights all).
 #
-# See-through water (--vis-dir, or the QUAKEVR_VISPATCH environment variable): id's maps were vised
+# See-through water (--vis-dir, the QUAKEVR_VISPATCH environment variable, or a vispatch folder beside this script: the
+# installer's quakevr/tools/vispatch): id's maps were vised
 # with water as a wall, so the engine keeps their liquids opaque; with the VisPatch data files
 # (id1.vis, hipnotic.vis, rogue.vis, or <game>/vispatch.dat; from https://sourceforge.net/projects/vispatch/files/)
 # the relit maps get water-vised visibility too (vis_maps.py, which can also do it on its own).
@@ -1012,9 +1013,9 @@ def main():
     parser.add_argument("--only", nargs="*", help="map names (e1m1 ...) to relight, for trying options")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--no-glow", action="store_true", help="no surface lights for glowing textures")
-    parser.add_argument("--light-texture-strength", "--glow-scale", dest="glow_scale", type=float, default=1.0,
+    parser.add_argument("--light-texture-strength", "--glow-scale", dest="glow_scale", type=float, default=1.2,
                         help="brightness of all light from textures (lamps, glowing panels, lava), times the "
-                             "strengths of relight_textures.cfg (default 1)")
+                             "strengths of relight_textures.cfg (default 1.2, as the game's Light Textures)")
     parser.add_argument("--glow-budget", type=float,
                         help="light a glowing texture shares out (default %g)" % DEFAULT_GLOW_BUDGET)
     parser.add_argument("--fixture-scale", type=float, default=1.0,
@@ -1039,8 +1040,10 @@ def main():
                              "it came from")
     parser.add_argument("--list-glows", action="store_true",
                         help="list each map's glowing textures and their lights, relighting nothing")
-    parser.add_argument("--vis-dir", default=os.environ.get("QUAKEVR_VISPATCH"),
-                        help="folder with the VisPatch files (id1.vis ...): see-through water (vis_maps.py)")
+    own_vis = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vispatch")  # the installer's quakevr/tools/vispatch
+    parser.add_argument("--vis-dir", default=os.environ.get("QUAKEVR_VISPATCH") or (own_vis if os.path.isdir(own_vis) else None),
+                        help="folder with the VisPatch files (id1.vis ...): see-through water (vis_maps.py); "
+                             "default QUAKEVR_VISPATCH, else the vispatch folder beside this script if there is one")
     parser.add_argument("--bright", action="store_true",
                         help="the look before round 10: bounced light, weaker ambient occlusion, twice the glow")
     args = parser.parse_args()
