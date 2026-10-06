@@ -2347,6 +2347,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - Parallax Distance → `vr_parallax_distance`
         - Parallax Refinement → `vr_parallax_refine`
         - Parallax Side Fade → `vr_parallax_grazing`
+        - Parallax Depth Write → `vr_parallax_depth_write`
         - Parallax Items Depth → `vr_parallax_items`
         - Parallax Models Depth → `vr_parallax_models`
         - Parallax Depth: Authored Models → `vr_parallax_authored`

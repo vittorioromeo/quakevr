@@ -98,7 +98,7 @@ QVR_TONE_GLSL
 "	uint	ShadowFlags; // QVR\n" \
 "	vec4	LightTweak; // QVR: lightmap contrast, the normal maps' share of the baked light, specular intensity, normal map strength\n" \
 "	vec4	Parallax; // QVR: parallax mapping: depth in units (0 off), the distance it ends at, the most steps; w specular anti-aliasing (vr_specular_aa, 0 off)\n" \
-"	vec4	Parallax2; // QVR: ... x the steps refining the hit (vr_parallax_refine), y z the cosines its grazing fade starts and ends at (vr_parallax_grazing; 0 0: none), w unused\n" \
+"	vec4	Parallax2; // QVR: ... x the steps refining the hit (vr_parallax_refine), y z the cosines its grazing fade starts and ends at (vr_parallax_grazing; 0 0: none), w 1: the hits' depth written (vr_parallax_depth_write)\n" \
 "	vec4	Water; // QVR: liquids (vr/vr_water.cpp): waves, fresnel, refraction (0: no scene to read), glints\n" \
 "	vec4	Water2; // QVR: lava glow, caustics (0 off), the eye in a liquid (1), unused\n" \
 "	vec4	CausticsOrigin; // QVR: xyz where the liquid volume (LiquidVolume) starts, in the world; w its cell size\n" \
@@ -552,19 +552,40 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 // of reading past them (the texture's unused rest, or its other side).
 #define PARALLAX_FUNCTIONS \
 "#define PARALLAX_STRETCH 8.0\n"\
-"vec2 ParallaxUV(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, vec3 ray, float depth,\n"\
-"	float steps, vec4 uvclamp)\n"\
+"// How far along the eye's ray (dist from it to the surface; cosa its cosine to the surface's normal) the ray walks\n"\
+"// below the surface, to the height field's bottom (0: none). Also the world's depth pre-pass's bound on it.\n"\
+"float ParallaxReach(float dist, float cosa, float depth)\n"\
 "{\n"\
-"	float dist = length(ray);\n"\
 "	if (dist >= Parallax.y || depth <= 0.)\n"\
-"		return uv;\n"\
-"	ray /= max(dist, 1e-3);\n"\
-"	float cosa = -dot(ray, n); // n faces the eye\n"\
+"		return 0.;\n"\
 "	float fade = 1.0 - smoothstep(Parallax.y * 0.75, Parallax.y, dist);\n"\
 "	if (Parallax2.y > 0.)\n"\
 "		fade *= smoothstep(Parallax2.z, Parallax2.y, cosa);\n"\
+"	return depth * fade * min(1.0 / max(cosa, 1e-3), PARALLAX_STRETCH);\n"\
+"}\n"\
+"// pixel depth offset (vr_parallax_depth_write): ParallaxUV's hit, how far past the surface along the eye's ray (0:\n"\
+"// none); ParallaxFragDepth the depth of the point that far along it (dir, a unit) from p, as the view's matrix puts\n"\
+"// it (zbias: the vertex shader's polygon offset), never nearer than the surface's own\n"\
+"float ParallaxDist = 0.;\n"\
+"float ParallaxFragDepth(mat4 viewproj, vec3 p, vec3 dir, float s, float zbias)\n"\
+"{\n"\
+"	vec4 clip = viewproj * vec4(p + dir * s, 1.0);\n"\
+"	float ndc = (clip.z + zbias) / clip.w;\n"\
+"#if REVERSED_Z\n"\
+"	return min(gl_DepthRange.near + gl_DepthRange.diff * ndc, gl_FragCoord.z);\n"\
+"#else\n"\
+"	return max(gl_DepthRange.near + gl_DepthRange.diff * (ndc * 0.5 + 0.5), gl_FragCoord.z);\n"\
+"#endif\n"\
+"}\n"\
+"vec2 ParallaxUV(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, vec3 ray, float depth,\n"\
+"	float steps, vec4 uvclamp)\n"\
+"{\n"\
+"	ParallaxDist = 0.;\n"\
+"	float dist = length(ray);\n"\
+"	ray /= max(dist, 1e-3);\n"\
+"	float cosa = -dot(ray, n); // n faces the eye\n"\
 "	float det = dot(n, cross(dpdx, dpdy));\n"\
-"	float reach = depth * fade * min(1.0 / max(cosa, 1e-3), PARALLAX_STRETCH); // how far along the surface it shifts, at most\n"\
+"	float reach = ParallaxReach(dist, cosa, depth); // along the ray; times sin(a) along the surface\n"\
 "	if (reach * reach < 0.11 * max(dot(dpdx, dpdx), dot(dpdy, dpdy)) || abs(det) < 1e-12)\n"\
 "		return uv;\n"\
 "	vec3 gu = (cross(dpdy, n) * duvdx.x + cross(n, dpdx) * duvdy.x) / det; // the coordinates' change per unit\n"\
@@ -582,6 +603,7 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "		if (uvclamp.w > uvclamp.y && abs(duv.y) > 1e-7)\n"\
 "			k = min(k, max((duv.y > 0. ? hi.y : lo.y) / duv.y, 0.));\n"\
 "		duv *= k;\n"\
+"		reach *= k; // the hit as far below the surface as the texture shows (none at the face's edges)\n"\
 "	}\n"\
 "	vec2 size = vec2(textureSize(tex, 0));\n"\
 "	float px = length(duvdx * size), py = length(duvdy * size); // the pixel's footprint in texels, its two ways\n"\
@@ -616,7 +638,10 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "	}\n"\
 "	float over = h - ray_depth; // <= 0: under it\n"\
 "	if (over > 0.)\n"\
+"	{\n"\
+"		ParallaxDist = reach;\n"\
 "		return uv + duv; // the bottom\n"\
+"	}\n"\
 "	// refined between the ray's depths a (over it: fa > 0) and b (under it: fb <= 0): regula falsi, the Illinois way\n"\
 "	// (the end kept twice running halved, so the bracket shrinks from both sides); the last guess not read\n"\
 "	float a = ray_depth - stepsize, b = ray_depth, fa = prev, fb = over;\n"\
@@ -642,9 +667,63 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "			side = -1;\n"\
 "		}\n"\
 "	}\n"\
-"	return uv + duv * (a + (b - a) * fa / max(fa - fb, 1e-5));\n"\
+"	float t = a + (b - a) * fa / max(fa - fb, 1e-5);\n"\
+"	ParallaxDist = reach * t;\n"\
+"	return uv + duv * t;\n"\
 "}\n"\
 "\n"\
+
+// pixel depth offset (vr_parallax_depth_write, Parallax2.w): in the programs made with PDO 1 (the opaque world's
+// glprogs.world_pdo and its pre-pass glprogs.world_depth_pdo, used only while it is on: a shader that writes
+// gl_FragDepth writes it for every pixel, and under foveated rendering's coarse shading one value for each block of
+// pixels, so the others keep the fixed-function depth), QVR_PDO is 1 and the shader writes gl_FragDepth on every
+// path: the surface's own (gl_FragCoord.z), or a parallax hit's, which is always further (ParallaxFragDepth).
+// Declared conservative (depth_less with reversed depth, depth_greater without), so that the early depth test
+// could still reject what is hidden. The driver measured here (NVIDIA, 2026-10) shades every fragment of such a shader
+// either way (depth_any, less and greater timed alike): the cost of vr_parallax_depth_write (ROUND21.md). QVR_ZBIAS: the world vertex shader's polygon offset (CF_USE_POLYGON_OFFSET), as ZBIAS.
+#define QVR_PARALLAX_DEPTH_OUT \
+"#ifndef PDO\n"\
+"	#define PDO 0\n"\
+"#endif\n"\
+"#if PDO\n"\
+"	#define QVR_PDO 1\n"\
+"	#if REVERSED_Z\n"\
+"		layout(depth_less) out float gl_FragDepth;\n"\
+"	#else\n"\
+"		layout(depth_greater) out float gl_FragDepth;\n"\
+"	#endif\n"\
+"#else\n"\
+"	#define QVR_PDO 0\n"\
+"#endif\n"\
+"#if REVERSED_Z\n"\
+"	#define QVR_ZBIAS (-1./1024.)\n"\
+"#else\n"\
+"	#define QVR_ZBIAS (1./1024.)\n"\
+"#endif\n"
+
+// the opaque world's depth pre-pass with pixel depth offset (glprogs.world_depth_pdo, r_world.c): the shading pass
+// then passes only where its depth is as far as the pre-pass's or nearer, so the pre-pass writes how far the
+// parallax mapping's hits can be at most (ParallaxReach, a little more; the shading pass's hit is never further), not
+// the walk itself; the surface's own depth where there is no parallax. Pixels whose hit is nearer than that bound
+// shade again under nearer surfaces there (a few units), and the shading pass writes the hits' real depth.
+#define QVR_WORLD_DEPTH_FS_MAIN \
+"void main()\n"\
+"{\n"\
+"	gl_FragDepth = gl_FragCoord.z;\n"\
+"	if (in_pdepth > 0. && Parallax2.w > 0.)\n"\
+"	{\n"\
+"		vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // the shading pass's normal and ray (ParallaxUV's)\n"\
+"		vec3 n = normalize(cross(dpdx, dpdy));\n"\
+"		n = dot(n, EyePos - in_pos) < 0. ? -n : n;\n"\
+"		vec3 ray = in_pos - EyePos;\n"\
+"		float dist = length(ray);\n"\
+"		ray /= max(dist, 1e-3);\n"\
+"		float reach = ParallaxReach(dist, -dot(ray, n), in_pdepth);\n"\
+"		if (reach > 0.)\n"\
+"			gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), reach * 1.01 + 0.01,\n"\
+"				(in_flags & CF_USE_POLYGON_OFFSET) != 0u ? QVR_ZBIAS : 0.);\n"\
+"	}\n"\
+"}\n"
 
 ////////////////////////////////////////////////////////////////
 

@@ -3705,6 +3705,9 @@ za::Vector<Item> pageDebugViews()
         toggle("Show Foveation", vr_foveated_debug)
             .help("The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "
                   "sharp circle (cyan)."),
+        toggle("Show Parallax Depth", "vr_parallax_debug")
+            .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
+                  "Parallax Depth Write): red, brighter the deeper below the surface; dark blue: the surface's own depth."),
         toggle("Show Entity Boxes", "r_showbboxes")
             .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
                   "walls. Single player only."),

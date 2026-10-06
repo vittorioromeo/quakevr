@@ -488,6 +488,8 @@ brush models (`vr_parallax`, Graphics page: Parallax, Parallax Depth, Parallax D
   jumps into the baked light's direction guess). It fades out over the last quarter of `vr_parallax_distance` (512;
   beyond, no cost but the distance test) and over the 12 degrees before `vr_parallax_grazing` (86; 83 before round
   21, which faded from 70); the shift along the surface is at most 8 times the depth (3 before).
+  `vr_parallax_depth_write` (0) writes the hits' depth (pixel depth offset; ROUND21.md "Parallax pixel depth
+  offset").
 - **Presets:** off for "Off (Quake)" and Low, on for Medium, High and Ultra.
 - **Cost** (RTX 4090, mock eyes 1024 x 1024; world+brush GPU time for both eyes, off / on): start's riveted wall at
   the note's spot 0.125 / 0.148 ms, its hall 0.096 / 0.121, the wall at a grazing angle 0.122 / 0.156; e1m1's start

@@ -348,6 +348,8 @@ void GL_CreateShaders (void)
 		for (dither = 0; dither < 3; dither++)
 			for (mode = 0; mode < 3; mode++)
 				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d", oit, dither, mode);
+	for (dither = 0; dither < 3; dither++) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
+		glprogs.world_pdo[dither] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo|OIT 0; DITHER %d; MODE %d; PDO 1", dither, WORLDSHADER_SOLID);
 
 	for (dither = 0; dither < 2; dither++)
 	{
@@ -364,6 +366,7 @@ void GL_CreateShaders (void)
 	}
 	glprogs.skystencil = GL_CreateProgram (skystencil_vertex_shader, NULL, "sky stencil");
 	glprogs.world_depth = GL_CreateProgram (world_vertex_shader, NULL, "world depth|OIT 0; DITHER 0; MODE %d", WORLDSHADER_SOLID); // QVR
+	glprogs.world_depth_pdo = GL_CreateProgram (world_vertex_shader, world_depth_fragment_shader, "world depth pdo|OIT 0; DITHER 0; MODE %d; PDO 1", WORLDSHADER_SOLID); // QVR: pixel depth offset (vr_parallax_depth_write)
 
 	int poseverttype;
 	for (oit = 0; oit < 2; oit++)

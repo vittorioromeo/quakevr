@@ -1626,7 +1626,10 @@ extern "C" void VR_PushMapLights(void)
     const float grazing = za::clamp(vr_parallax_grazing.value, 30.f, 90.f);
     r_framedata.parallax2[1] = grazing < 90.f ? za::cos(glm::radians(grazing - 12.f)) : 0.f;
     r_framedata.parallax2[2] = grazing < 90.f ? za::cos(glm::radians(grazing)) : 0.f;
-    r_framedata.parallax2[3] = 0.f;
+    // Pixel depth offset: the hits' depth written, so what meets the relief meets it where it is (r_world.c then
+    // bounds it in the world's depth pre-pass: glprogs.world_depth_pdo).
+    // 2: and drawn as that depth (vr_parallax_debug).
+    r_framedata.parallax2[3] = parallax && vr_parallax_depth_write.value != 0.f ? (vr_parallax_debug.value != 0.f ? 2.f : 1.f) : 0.f;
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
     r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);

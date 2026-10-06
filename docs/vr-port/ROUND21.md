@@ -24685,3 +24685,78 @@ ray's run along the surface grew.
 
 **For him in VR:** walk along a riveted or panelled wall with the head close to it, with Parallax Side Fade at 83
 (old), 86 and 90. Then set Parallax Refinement to 0 and 4 with the walls close by.
+
+## Parallax pixel depth offset (2026-10-06)
+
+`vr_parallax_depth_write` (0 by default; Graphics > Surfaces > Parallax Depth Write) writes the depth of the point
+the parallax ray hits, instead of the flat polygon's. Whatever is drawn later then meets the relief where it appears
+to be: models, hands, particles (soft particles), liquids (their scene-depth reads), and decal meshes, which stay
+in front.
+
+**How** (world and brush models only; `ParallaxUV` sets `ParallaxDist`, the hit's distance past the surface along
+the eye's ray, each eye its own):
+- **Main pass.** New programs `glprogs.world_pdo[dither]` (solid, not OIT, `PDO 1`), chosen by
+  `R_ChooseBModelProgram` only while the setting is on. They write `gl_FragDepth` (`ParallaxFragDepth`: the hit
+  through the view's `ViewProj`, with the polygon offset of `CF_USE_POLYGON_OFFSET` and `gl_DepthRange`, never
+  nearer than `gl_FragCoord.z`). A shader that writes depth must write it on every path, and under foveated
+  rendering's coarse shading it writes one value per block. With it in the ordinary programs, vr_foveated 3 striped
+  the periphery even with the setting off (the pre-pass's per-pixel depths failed the block's one value). So the
+  ordinary programs never write depth, and with the setting off, everything is as before.
+- **Depth pre-pass.** The pre-pass used to write the polygon's depth, and the shading pass then only passes where
+  it is that depth or nearer. A hit is further away, so it would fail. So with the setting on, the pre-pass uses
+  `glprogs.world_depth_pdo`: a small fragment shader (`QVR_WORLD_DEPTH_FS_MAIN`) writes how far a hit can be at most
+  (`ParallaxReach`, times 1.01, plus 0.01: the same numbers as the march's cap). The shading pass's real hit is never
+  further, so it passes and writes the real depth. World surfaces closer than that bound shade too, and the depth
+  test sorts them out.
+- **Not done:**
+  - Models (alias). Their shader is used for every model, so it would write depth for all of them, coarse in the
+    foveated periphery, and it has no pre-pass. Their relief is small (hands: 0.4 x 1.5 units).
+  - Shadow maps. They are drawn from the lights, and the relief stays out of them.
+  - World against world. In the BSP, faces don't overlap (a wall stops at the floor), so a floor almost never covers
+    a wall's sunken part. The wall/floor junction changes by a handful of pixels.
+- **Debug:** `vr_parallax_debug 1` (Debug > Rendering: Show Parallax Depth) draws the world as the depth written.
+  Red is a hit, brighter the deeper below the surface (relative to the full depth). Dark blue is the surface's own
+  depth (no heights, too far, or faded).
+
+**Checked** (his config, both eyes):
+- **On vs off, plain views.** The e1m1 corridor and the spawn wall, his depth 2.5, with his vr_foveated 3 and with
+  foveation off: the eyes are identical apart from a handful of pixels (max 0 in L, a few pixels in R).
+- **No holes** where the shading pass would fail the pre-pass's bound. Also checked with vid_fsaa 4: 0.02% of
+  pixels differ.
+- **Debug view:** walls and ceiling write hits, the floor (no heights) its own depth.
+- **Not shown in the headless runs:** a model meeting sunken relief. The test monsters and hands didn't end up
+  touching a carved wall. Check it in VR.
+
+**Cost** (exclusive runs, eyes 3406 square, GPU world+brush for both eyes, medians of 3 x 120 frames):
+
+| View | off | on |
+| --- | --- | --- |
+| spawn facing the wall (w270), vr_foveated 3 | 0.96 | 1.06 |
+| spawn, along the corridor (c90), vr_foveated 3 | 0.98 | 1.61 |
+| corridor (480 0 88), vr_foveated 3 | 1.07 | 1.46 |
+| c90, foveation off | 2.80 | 3.77-3.96 |
+
+Where the time goes (c90, foveation off):
+
+| Variant | ms |
+| --- | --- |
+| Neither part | 2.78 |
+| Pre-pass shader only | 3.10 (+0.32) |
+| Shading pass writing depth only | 3.52 (+0.74) |
+| Both | 3.96 |
+
+The conservative depth layout makes no difference: `depth_less`, `depth_any` and the wrong-way `depth_greater` time
+the same (3.77, 3.75, 3.70). So this driver shades every fragment of a shader that writes depth, hidden ones too,
+instead of rejecting them early. A smaller depth (0.5) costs the same, so the cost isn't overdraw inside the bound.
+The setting is off by default for that reason.
+
+**Ways to make it cheap (not done):**
+- Read the pre-pass's depth (a copy, or the attachment behind a texture barrier) and discard surely-hidden fragments
+  first. Coarse-shaded and MSAA fragments need care: one check per covered pixel or sample, and quads must keep
+  their derivatives.
+- Write the hits' distance to an extra colour target in the shading pass (no depth writes, early-Z kept), then
+  write the depth in one full-screen pass.
+
+**For him in VR:** turn Parallax Depth Write on and look at the hands, a dropped weapon, gibs and blood on carved
+floors, and water against carved walls, with Show Parallax Depth to see where it acts. Decide whether it's worth
+0.1-0.6 ms.

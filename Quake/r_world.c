@@ -476,30 +476,28 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 R_ChooseBModelProgram
 =============
 */
-static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest)
+static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)
 {
 	extern cvar_t r_softemu_lightmap_banding;
+	int dither;
 
 	switch (softemu)
 	{
 	case SOFTEMU_BANDED:
-		if (r_softemu_lightmap_banding.value != 0.f)
-			return glprogs.world[oit][2][alphatest];
-		else
-			return glprogs.world[oit][1][alphatest];
+		dither = r_softemu_lightmap_banding.value != 0.f ? 2 : 1;
+		break;
 
 	case SOFTEMU_COARSE:
-		if (r_softemu_lightmap_banding.value > 0.f)
-			return glprogs.world[oit][2][alphatest];
-		else
-			return glprogs.world[oit][1][alphatest];
+		dither = r_softemu_lightmap_banding.value > 0.f ? 2 : 1;
+		break;
 
 	default:
-		if (r_softemu_lightmap_banding.value > 0.f)
-			return glprogs.world[oit][2][alphatest];
-		else
-			return glprogs.world[oit][0][alphatest];
+		dither = r_softemu_lightmap_banding.value > 0.f ? 2 : 0;
+		break;
 	}
+	if (pdo && !oit && !alphatest) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
+		return glprogs.world_pdo[dither];
+	return glprogs.world[oit][dither][alphatest];
 }
 
 typedef enum {
@@ -546,12 +544,12 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	case BP_SOLID:
 		texbegin = 0;
 		texend = TEXTYPE_CUTOUT;
-		program = R_ChooseBModelProgram (oit, false);
+		program = R_ChooseBModelProgram (oit, false, !translucent && r_framedata.parallax2[3] > 0.f); // QVR: pdo
 		break;
 	case BP_ALPHATEST:
 		texbegin = TEXTYPE_CUTOUT;
 		texend = TEXTYPE_CUTOUT + 1;
-		program = R_ChooseBModelProgram (oit, true);
+		program = R_ChooseBModelProgram (oit, true, false);
 		break;
 	case BP_SKYLAYERS:
 		texbegin = TEXTYPE_SKY;
@@ -637,7 +635,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	// over later. The vertex shader's gl_Position is invariant: the same depths, which the shading pass then passes.
 	if (pass == BP_SOLID && !translucent)
 	{
-		R_ResetBModelCalls (glprogs.world_depth);
+		R_ResetBModelCalls (r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth); // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
 		R_FlushBModelCalls ();
