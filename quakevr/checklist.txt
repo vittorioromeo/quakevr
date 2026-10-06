@@ -9,6 +9,7 @@ Smoke: lightning-hit and burnt enemies/corpses smoulder for a few seconds (visib
 Lit particles: blood in a dark corner is dark, bright under the flashlight and muzzle flashes; fire, sparks and explosions as bright as before (Graphics > Models and Effects > Effects > Lit Particles)
 Relighting (Graphics > Relighting): relight hip1m1 and vrtutorial in game; lamps and ceiling lights clearly brighter; reloads where you stand; try the sliders
 Elbows: aiming down sights (one/two hands) and the axe by the face keep the elbow down and in, no flips; gadget wings and salute still lift (Body > Arms > Elbows and Wrists > Elbow Tuck; 0.5 if the wrist bends too much)
+Combat decisions: fiend headshots and head pops work (guns and melee); thrown axes stick in explosive boxes and crates and move with them; thrown gibs almost always stick to walls
 Shove toward a high ledge: always knocks down; Ledge Reach and Ledge Margin change how far ahead (Combat > Knockdowns)
 Parallax: carved walls keep their depth when seen from the side, no swimming (Graphics > Surfaces)
 Animated buttons and slipgate panels: no pulsing between frames
@@ -73,6 +74,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
+Gibs: should hard throws BURST on walls (lower Gib Splat Speed below ~200) rather than stick? Rottweiler: add a head zone like the fiend's?
 Map tips: seen-tips limit (~80), targetname naming clash, tip_delay 0
 
 [Tune]
