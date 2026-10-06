@@ -11,10 +11,12 @@
 // It flinches (its pain frames, a lean away from the blow) but is not knocked away, and is no monster of the level (not
 // counted; never killed, unless vr_dummy_gib). It bleeds as a grunt does (vr_dummy_gore, on: the gore's sprays and mist,
 // wounds on its model, small gibs, blood thrown onto you and what you hold, burns; NOTES.md
-// vrfiringrange_2026-10-03_02-07-05). With vr_dummy_gib on, what would kill a grunt (its 30 health over the run of hits)
-// kills it as one (VR_Dummy_Die; NOTES.md vrfiringrange, 2026-10-06 12:28): it dies, is beheaded, has its head popped or
-// is gibbed exactly as a grunt would be, its body lies as a grunt's, and it stands again vr_dummy_gib_respawn seconds
-// later. Attacks that their inflictor does not tell apart are tagged by their code (VR_SetHitKind, combat.qc).
+// vrfiringrange_2026-10-03_02-07-05). Its hits take its health (vr_dummy_health: a grunt's 30 by default), shown on a
+// board over its head (vr_dummy_healthbar), which fills up again vr_dummy_regen seconds after its last hit. With
+// vr_dummy_gib on (the default), the hit that takes the last of it kills it as a grunt (VR_Dummy_Die; NOTES.md
+// vrfiringrange, 2026-10-06 12:28): it dies, is beheaded, has its head popped or is gibbed exactly as a grunt would be,
+// its body lies as a grunt's, and it stands again vr_dummy_gib_respawn seconds later; off, it stays at 0 ("would kill").
+// Attacks that their inflictor does not tell apart are tagged by their code (VR_SetHitKind, combat.qc).
 //
 // With vr_dummy_attacks on (the firing range's "dummy attacks" button: vr_dummy_attack_toggle, below) it
 // strikes back, for practising the parry: see "Attacks" below. Off (the default, and at every map load),
@@ -27,14 +29,26 @@
 .float vr_dummy_streak_time; // the last hit of the current run (hits less than a second apart)
 .float vr_dummy_streak_hits;
 .float vr_dummy_streak_damage;
+.float vr_dummy_hp;          // its health now (vr_dummy_health): what its hits take away, filled up again vr_dummy_regen s
+.float vr_dummy_hpmax;       // after the last; its full health as last set,
+.float vr_dummy_own_health;  // and its enemy's own (a grunt's 30: vr_dummy_health -1)
+.float vr_dummy_hit_time;    // its last hit
+.float vr_dummy_board;       // its board over its head (the health; 1 + the worldtext handle, 0 none yet): made once, kept
+                             // by its stand-in while it is dead
+.float vr_dummy_board_hp;    // what the board shows: the health (-1 nothing yet, -2 dead, -3 its sign: vr_dummy_healthbar 0)
+.float vr_dummy_board_max;   // of that full health,
+.float vr_dummy_board_yaw;   // the way it faces,
+.float vr_dummy_board_z;     // and its height
 
 // The soldier model's frames.
 float VR_DUMMY_STAND_FIRST = 0;  // stand1 .. stand8
 float VR_DUMMY_PAIN_FIRST  = 40; // pain1 .. pain6
 float VR_DUMMY_PAIN_LAST   = 45;
 
-float VR_DUMMY_HEALTH = 1000;
+float VR_DUMMY_HEALTH = 1000;     // its .health while it stands (VR_Dummy_Hit takes its hits from vr_dummy_hp)
 float VR_DUMMY_GRUNT_HEALTH = 30; // a grunt's (vr_dummy_gib: killed as one at 0)
+float VR_DUMMY_REFILL = 0.4;      // s its health takes to fill up again, from nothing (vr_dummy_regen)
+float VR_DUMMY_BAR_CELLS = 12;    // its board's bar
 
 vector vr_dummy_colour; // the floating number's, chosen along with the kind of hit
 
@@ -333,6 +347,138 @@ vector(entity targ, entity inflictor, entity attacker) VR_Dummy_HitPoint =
 };
 
 // ----------------------------------------------------------------------------
+// Its health (vr_dummy_health, vr_dummy_regen) and the board over its head (vr_dummy_healthbar)
+
+// Its full health: vr_dummy_health, or its enemy's own (below 1: -1, the default).
+float(entity d) VR_Dummy_FullHealth =
+{
+    float h = cvar_hget(cvarh_vr_dummy_health);
+    return h < 1 ? d.vr_dummy_own_health : rint(h); // (the menu: its leftmost step, Its Own, -1 or 0)
+};
+
+// Its full health as set now: changed (the menu), it is full again.
+void(entity d) VR_Dummy_Health =
+{
+    float full = VR_Dummy_FullHealth(d);
+    if(full != d.vr_dummy_hpmax)
+    {
+        d.vr_dummy_hpmax = full;
+        d.vr_dummy_hp = full;
+    }
+};
+
+// What it is called on its board.
+string(entity d) VR_Dummy_Name =
+{
+    return "Grunt";
+};
+
+// `xFrac` of the bar filled: solid cells, then dim ones.
+string(float xFrac) VR_Dummy_Bar =
+{
+    float n = xFrac > 0 ? max(1, rint(xFrac * VR_DUMMY_BAR_CELLS)) : 0;
+    string s = "";
+    for(float i = 0; i < VR_DUMMY_BAR_CELLS; i++)
+    {
+        float c = 139;
+        if(i < n)
+        {
+            c = 11;
+        }
+        s = strcat(s, sprintf("%c", c));
+    }
+    return s;
+};
+
+// Its board (made the first time), over its head and turned to face the nearest player; `xDead` while it is dead (`d` its
+// stand-in). Sent only as it changes.
+void(entity d, float xDead) VR_Dummy_ShowBoard =
+{
+    if(!d.vr_dummy_board)
+    {
+        d.vr_dummy_board = 1 + worldtext_hmake();
+        worldtext_hsethalign(d.vr_dummy_board - 1, 1);
+        worldtext_hsetscale(d.vr_dummy_board - 1, 0.3);
+        d.vr_dummy_board_hp = -1;
+        d.vr_dummy_board_z = -100000;
+        d.vr_dummy_board_yaw = -1000;
+    }
+    float wth = d.vr_dummy_board - 1;
+
+    float shown = ceil(d.vr_dummy_hp);
+    if(xDead)
+    {
+        shown = -2;
+    }
+    else if(!cvar_hget(cvarh_vr_dummy_healthbar))
+    {
+        shown = -3;
+    }
+    if(shown != d.vr_dummy_board_hp || (shown >= 0 && d.vr_dummy_hpmax != d.vr_dummy_board_max))
+    {
+        d.vr_dummy_board_hp = shown;
+        d.vr_dummy_board_max = d.vr_dummy_hpmax;
+        string text;
+        if(shown == -2)
+        {
+            text = sprintf("%s\nkilled\n(stands again)", VR_Dummy_Name(d));
+        }
+        else if(shown == -3)
+        {
+            text = sprintf("Training dummy: %s\n(damage in the console)", VR_Dummy_Name(d));
+        }
+        else
+        {
+            text = sprintf("%s\n%s\n%g / %g", VR_Dummy_Name(d), VR_Dummy_Bar(d.vr_dummy_hp / d.vr_dummy_hpmax), shown,
+                d.vr_dummy_hpmax);
+        }
+        worldtext_hsettext(wth, text);
+    }
+
+    // Over its head (a grunt's: 44 units over its origin; where it stood while it is dead).
+    float z = d.vr_dummy_home_z + (xDead ? 27 : d.maxs_z) + 17;
+    if(z != d.vr_dummy_board_z)
+    {
+        d.vr_dummy_board_z = z;
+        vector at = d.vr_dummy_home;
+        at_z = z;
+        worldtext_hsetpos(wth, at);
+    }
+
+    // Facing the nearest player (its own facing without one), turned a few degrees at a time.
+    float yaw = d.vr_dummy_angles_y;
+    float best = 100000;
+    for(entity p = find(world, classname, "player"); p != world; p = find(p, classname, "player"))
+    {
+        vector to = p.origin - d.vr_dummy_home;
+        to_z = 0;
+        if(vlen(to) < best && vlen(to) > 1)
+        {
+            best = vlen(to);
+            yaw = vectoyaw(to);
+        }
+    }
+    float off = anglemod(yaw - d.vr_dummy_board_yaw);
+    if(off > 4 && off < 356)
+    {
+        d.vr_dummy_board_yaw = yaw;
+        worldtext_hsetangles(wth, '0 1 0' * (yaw + 180));
+    }
+};
+
+// Every think while it stands: its health fills up again vr_dummy_regen s after its last hit; the board.
+void(entity d) VR_Dummy_HealthThink =
+{
+    VR_Dummy_Health(d);
+    float regen = cvar_hget(cvarh_vr_dummy_regen);
+    if(d.vr_dummy_hp < d.vr_dummy_hpmax && regen > 0 && time - d.vr_dummy_hit_time >= regen)
+    {
+        d.vr_dummy_hp = min(d.vr_dummy_hpmax, d.vr_dummy_hp + d.vr_dummy_hpmax * 0.05 / VR_DUMMY_REFILL);
+    }
+    VR_Dummy_ShowBoard(d, FALSE);
+};
+
+// ----------------------------------------------------------------------------
 // The report (from T_DamageImpl, instead of the damage)
 
 void(entity d, float xHealth) VR_Dummy_Die;
@@ -366,15 +512,19 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         streak = sprintf(" [%d hits: %g]", targ.vr_dummy_streak_hits, rint(targ.vr_dummy_streak_damage * 10) / 10);
     }
 
-    // vr_dummy_gib: a grunt's health over the run of hits, killed as a grunt is (alive before the hit, 0 or below after
-    // it; the damage taken whole, as T_Damage takes it).
-    // Its health set lower (the decapitation tests' health 1: vr_decap_test) is the grunt's for this blow.
-    float gruntLeft = VR_DUMMY_GRUNT_HEALTH - (targ.vr_dummy_streak_damage - damage);
+    // Its health (vr_dummy_health; VR_Dummy_Health) takes the blow whole, as T_Damage takes it. vr_dummy_gib: killed as
+    // its enemy is (alive before the hit, 0 or below after it); off, it stays at 0 until it fills up again.
+    // Its .health set lower (the decapitation tests' health 1: vr_decap_test) is its health for this blow.
+    VR_Dummy_Health(targ);
+    float gruntLeft = targ.vr_dummy_hp;
     if(targ.health > 0 && targ.health < VR_DUMMY_HEALTH)
     {
         gruntLeft = min(gruntLeft, targ.health);
     }
-    float killed = cvar_hget(cvarh_vr_dummy_gib) && gruntLeft > 0 && gruntLeft - ceil(damage) <= 0;
+    float lethal = gruntLeft > 0 && gruntLeft - ceil(damage) <= 0;
+    float killed = cvar_hget(cvarh_vr_dummy_gib) && lethal;
+    targ.vr_dummy_hp = max(0, gruntLeft - ceil(damage));
+    targ.vr_dummy_hit_time = time;
 
     // A blade's blow at its head or neck (or one that would behead): whether it would behead a grunt (VR_Decap_Judge).
     string decap = "";
@@ -389,7 +539,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             decap = sprintf(" - %s (%s)", judged ? "would behead" : "would not behead", vr_decap_judge_why);
         }
     }
-    string line = sprintf("Dummy: %g damage - %s%s%s%s%s\n", shown, kind, part, streak, killed ? " - killed" : "", decap);
+    string hpText = sprintf(" - health %g/%g%s", targ.vr_dummy_hp, targ.vr_dummy_hpmax,
+        killed ? " - killed" : (lethal ? " - would kill" : ""));
+    string line = sprintf("Dummy: %g damage - %s%s%s%s%s\n", shown, kind, part, streak, hpText, decap);
     // Monsters' blows (a grunt missing the player) only with `developer` on.
     if(attacker.flags & FL_CLIENT)
     {
@@ -845,6 +997,7 @@ void() vr_dummy_die =
 void() vr_dummy_think =
 {
     self.nextthink = time + 0.05;
+    VR_Dummy_HealthThink(self);
 
     // Its attacks (off: nothing).
     if(self.vr_dummy_atk_phase || self.vr_dummy_atk_live || self.vr_dummy_turn || self.vr_dummy_replay_what ||
@@ -901,6 +1054,9 @@ void() VR_Dummy_Setup =
 
     self.health = VR_DUMMY_HEALTH;
     self.max_health = VR_DUMMY_HEALTH;
+    self.vr_dummy_own_health = VR_DUMMY_GRUNT_HEALTH;
+    self.vr_dummy_hpmax = VR_Dummy_FullHealth(self);
+    self.vr_dummy_hp = self.vr_dummy_hpmax;
     self.takedamage = DAMAGE_AIM;
     self.flags = self.flags | FL_MONSTER; // a target like a monster (bashes, throw aim); not counted
     self.netname = "training dummy";
@@ -930,8 +1086,8 @@ void() VR_Dummy_Return =
 // stands for, `xHealth` left before the blow, and the caller deals the blow to it as to one (T_DamageImpl): Killed and
 // army_die, so it is beheaded or has its head popped (vr_decap.qc: the blow was armed on it as on a grunt), dies, lies as
 // a corpse and a ragdoll, or is gibbed (army_die: below -35), all a grunt's, its gun falling as a grunt's. What stays the
-// dummy's: it is not counted (Killed: vr_dummy_dead), drops no backpack or weapon (SoldierDrop), the run of hits is its
-// health (hits more than a second apart start again), and a stand-in stands again where it stood
+// dummy's: it is not counted (Killed: vr_dummy_dead), drops no backpack or weapon (SoldierDrop), its health is its own
+// (vr_dummy_health, filled up again vr_dummy_regen s after a hit), and a stand-in stands again where it stood
 // vr_dummy_gib_respawn seconds later.
 void(entity d, float xHealth) VR_Dummy_Die =
 {
@@ -939,6 +1095,13 @@ void(entity d, float xHealth) VR_Dummy_Die =
     n.classname = "vr_dummy_gibbed";
     n.vr_dummy_home = d.vr_dummy_home;
     n.vr_dummy_angles = d.vr_dummy_angles;
+    n.vr_dummy_board = d.vr_dummy_board; // (its board, showing it killed)
+    n.vr_dummy_board_hp = d.vr_dummy_board_hp;
+    n.vr_dummy_board_max = d.vr_dummy_board_max;
+    n.vr_dummy_board_yaw = d.vr_dummy_board_yaw;
+    n.vr_dummy_board_z = d.vr_dummy_board_z;
+    d.vr_dummy_board = 0;
+    VR_Dummy_ShowBoard(n, TRUE);
     setorigin(n, d.vr_dummy_home);
     n.think = VR_Dummy_Return;
     n.nextthink = time + max(0.1, cvar_hget(cvarh_vr_dummy_gib_respawn));
@@ -971,15 +1134,10 @@ void() vr_dummy_start =
     self.origin_z = self.origin_z + 1;
     droptofloor();
     self.vr_dummy_home = self.origin;
-
-    float wth = worldtext_hmake();
-    worldtext_hsetpos(wth, self.origin + '0 0 44');
-    worldtext_hsetangles(wth, self.vr_dummy_angles + '0 180 0');
-    worldtext_hsethalign(wth, 1);
-    worldtext_hsetscale(wth, 0.3);
-    worldtext_hsettext(wth, "Training dummy\n(damage in the console)");
+    VR_Dummy_ShowBoard(self, FALSE);
 
     self.think = vr_dummy_think;
+
     self.nextthink = time + 0.05;
 };
 
@@ -1076,4 +1234,98 @@ void() vr_dummy_attack_toggle =
     vr_dummy_attack_toggle_show();
     self.think = vr_dummy_attack_toggle_think;
     self.nextthink = time + 0.1;
+};
+
+// ----------------------------------------------------------------------------
+// Tests: `vr_dummy_test <n>` (Debug > Gore Tests > Training Dummy), on the training dummy nearest you; `dummytest:` lines.
+// 1 what it is: its enemy, model, box, health, and the zone a shot at its head, body and legs strikes (PositionalRegion);
+// 2 a 10-damage hit from you (no kind: a plain blow); 3 a hit of just its health left (Dummy Dies: it dies); 4 its health
+// now (the refill: vr_dummy_regen).
+
+float(entity e) VR_IsDummy =
+{
+    return e.classname == "vr_dummy";
+};
+
+entity(entity p) VR_Dummy_Nearest =
+{
+    entity best = world;
+    float bestDist = 100000;
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(VR_IsDummy(e) && vlen(e.origin - p.origin) < bestDist)
+        {
+            best = e;
+            bestDist = vlen(e.origin - p.origin);
+        }
+    }
+    return best;
+};
+
+// The zone a shot from 64 units ahead of it, level, strikes at height `xUp` over its origin (-1: none).
+float(entity d, float xUp) VR_Dummy_TestZone =
+{
+    makevectors('0 1 0' * d.angles_y);
+    vector at = d.origin + '0 0 1' * xUp;
+    if(PositionalHead(d) && xUp > d.maxs_z * 0.5)
+    {
+        at = d.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp; // (its head sphere's middle)
+    }
+    vector from = at + v_forward * 64;
+    traceline(from, at - v_forward * 64, FALSE, self); // (self: you, between)
+    if(trace_ent != d)
+    {
+        return -2; // (missed it)
+    }
+    return PositionalRegion(d, trace_endpos, at - from);
+};
+
+void(float xTest) VR_Dummy_Test =
+{
+    entity d = VR_Dummy_Nearest(self);
+    if(d == world)
+    {
+        bprint("dummytest: no training dummy\n");
+        return;
+    }
+    VR_Dummy_Health(d);
+    if(xTest == 1)
+    {
+        bprint(sprintf("dummytest: %s (%s) model %s box %v .. %v\n", VR_Dummy_Name(d), d.classname, d.model, d.mins,
+            d.maxs));
+        bprint(sprintf("dummytest: own health %g, health %g/%g\n", d.vr_dummy_own_health, d.vr_dummy_hp, d.vr_dummy_hpmax));
+        bprint(sprintf("dummytest: zones head %g body %g legs %g (1 head, 0 body, 2 limbs, 3 legs, -1 none, -2 missed)\n",
+            VR_Dummy_TestZone(d, d.maxs_z), VR_Dummy_TestZone(d, d.maxs_z * 0.3), VR_Dummy_TestZone(d, d.mins_z * 0.5)));
+        return;
+    }
+    if(xTest == 2 || xTest == 3)
+    {
+        float hurt = xTest == 2 ? 10 : max(1, d.vr_dummy_hp);
+        T_Damage(d, self, self, hurt);
+        bprint(sprintf("dummytest: hit for %g: health %g/%g, %s\n", hurt, d.vr_dummy_hp, d.vr_dummy_hpmax,
+            VR_IsDummy(d) ? "standing" : sprintf("killed (%s, health %g)", d.classname, d.health)));
+        return;
+    }
+    bprint(sprintf("dummytest: health %g/%g (%.1f s since its last hit)\n", d.vr_dummy_hp, d.vr_dummy_hpmax,
+        time - d.vr_dummy_hit_time));
+};
+
+// Every server frame (StartFrame): a test asked for (vr_dummy_test).
+void() VR_Dummy_TestFrame =
+{
+    float ask = cvar("vr_dummy_test");
+    if(!ask)
+    {
+        return;
+    }
+    cvar_set("vr_dummy_test", "0");
+    entity p = find(world, classname, "player");
+    if(p == world)
+    {
+        return;
+    }
+    entity oself = self;
+    self = p;
+    VR_Dummy_Test(ask);
+    self = oself;
 };

@@ -238,6 +238,18 @@ void restartVr()
     return i;
 }
 
+// The training dummy's full health (vr_dummy_health), its leftmost step -1: its enemy's own ("Its Own": a grunt's 30).
+[[nodiscard]] Item dummyHealthSlider()
+{
+    Item i = slider("Dummy Health", vr_dummy_health, 0.f, 1000.f, 5.f, "%.0f")
+                 .extend(1.f, 100000.f)
+                 .help("The training dummy's full health: what its hits take away (shown over it) and, with Dummy Dies, "
+                       "what kills it. Its Own: its enemy's (a grunt's 30).");
+    i.negativeLabel = "Its Own";
+    i.negativeStart = 5.f;
+    return i;
+}
+
 // An effect's hue (degrees), its leftmost step -1: the player's (vr_player_hue, vr_hue.hpp).
 [[nodiscard]] Item hueSlider(const char* label, cvar_t& cvar)
 {
@@ -2166,9 +2178,14 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         toggle("Dummy Bleeds", vr_dummy_gore)
             .help("The firing range's training dummy bleeds as a grunt: blood sprays and mist, wounds on its model, small gibs, blood on you and what you hold. Off: it stays clean."),
         toggle("Dummy Dies", vr_dummy_gib)
-            .help("What would kill a grunt (its 30 health over a run of hits) kills the training dummy as one: beheaded, its head popped, dying, lying as a ragdoll or gibbed exactly as a grunt would be. Then it stands again. No loot. On as shipped."),
+            .help("The hit that takes the last of its health (Dummy Health) kills the training dummy as a grunt: beheaded, its head popped, dying, lying as a ragdoll or gibbed exactly as a grunt would be. Then it stands again. No loot. Off: it stays at 0 health (\"would kill\"). On as shipped."),
         slider("Dummy Stands Again", vr_dummy_gib_respawn, 0.5f, 10.f, 0.5f, "%.1f s").extend(0.1f, 60.f)
             .help("How long a killed training dummy takes to stand again (its body stays, as a grunt's)."),
+        dummyHealthSlider(),
+        slider("Dummy Health Refills", vr_dummy_regen, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("How long after its last hit the training dummy's health fills up again (0: never; it stays as hit until it dies and stands again)."),
+        toggle("Dummy Health Bar", vr_dummy_healthbar)
+            .help("The training dummy's health over its head, as a bar and a number, turned to face you. Off: its sign only."),
         header("Marks"),
         toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
         slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many: 1024 or more."),
@@ -4204,6 +4221,15 @@ za::Vector<Item> pageDebugTools()
             .help("vr_smallgibs_test 18: a gib made at your feet, thrown at the monster nearest 1 s later: it still hurts it."),
         toggle("Trace Small Gibs", vr_smallgibs_trace)
             .help("vr_smallgibs_trace: each small gib's first 2.5 s in the console (sgibtrace:): where made, its speed and every jump in it, what touches, nudges or strikes it, how far it lay."),
+        header("Training Dummy Tests (dummytest: ...)"),
+        command("What the Dummy Is", "vr_dummy_test 1")
+            .help("vr_dummy_test 1: the training dummy nearest: its enemy, model, box and health, and the zone a level shot at "
+                  "its head, body and legs strikes (1 head, 0 body, 2 limbs, 3 legs)."),
+        command("Hit the Dummy for 10", "vr_dummy_test 2").help("vr_dummy_test 2: a plain 10-damage hit from you: its health after."),
+        command("Hit the Dummy for Its Health", "vr_dummy_test 3")
+            .help("vr_dummy_test 3: a hit of just the health it has left: with Dummy Dies it dies as its enemy."),
+        command("The Dummy's Health", "vr_dummy_test 4")
+            .help("vr_dummy_test 4: its health now and how long since its last hit (it fills up again after Dummy Health Refills)."),
         header("Decapitation Tests (developer 1: decap: ...)"),
         command("A Zombie Ahead", "vr_test_spawn 2; vr_test_spawn_dist 96; impulse 241")
             .help("A zombie 96 units ahead (a map with zombies: the firing range), for the tests below."),

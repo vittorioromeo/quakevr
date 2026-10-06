@@ -1760,6 +1760,7 @@ QVR_CVAR(vr_decap_pop_thrown_mass, "4", CVAR_ARCHIVE)     // kg: this heavy or h
 QVR_CVAR(vr_decap_pop_thrown_light_chance, "0", CVAR_ARCHIVE) // a lighter one's chance (0: never)
 QVR_CVAR(vr_decap_pop_roll, "-1", CVAR_NONE)              // tests: the head pop roll's value (0..1; below 0: random)
 QVR_CVAR(vr_decap_test, "0", CVAR_NONE)               // the QC runs decapitation test n on the nearest monster or corpse (vr_decap.qc; Debug > Gore Tests)
+QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)
 QVR_CVAR(vr_shock_hit_test, "0", CVAR_NONE)          // the QC strikes the nearest monster or corpse ahead with a lightning bolt of this much damage (-1: just enough to kill), once (vr_shock.qc; Debug > Gore Tests)
 QVR_CVAR(vr_decap_poptest_dist, "10", CVAR_NONE)       // vr_decap_test 41..46 (head pop chance): shot from this many player lengths (56 units) off
 QVR_CVAR(vr_decap_poptest_n, "200", CVAR_NONE)         // vr_decap_test 45, 46: blasts fired
@@ -1926,8 +1927,11 @@ QVR_CVAR(vr_dummy_attack_reach, "80", CVAR_ARCHIVE)      // units (origin to ori
 QVR_CVAR(vr_dummy_attack_damage, "10", CVAR_ARCHIVE)     // a blow's damage, before a parry (as a monster's blow: armour, god mode and the parry apply)
 QVR_CVAR(vr_dummy_attack_windup, "0.6", CVAR_ARCHIVE)    // s of wind-up (the tell: a sound, the rifle raised, a glow) before each blow
 QVR_CVAR(vr_dummy_gore, "1", CVAR_ARCHIVE)               // the training dummy bleeds as a grunt: gore sprays and mist, wounds on its model, small gibs, blood thrown onto you and your gear (0: clean, as before)
-QVR_CVAR(vr_dummy_gib, "1", CVAR_ARCHIVE)                // Dummy Dies: what would kill a grunt (its 30 health over the run of hits) kills the training dummy as one (beheaded, head popped, dying, a ragdoll or gibbed as a grunt would be; no loot), and it stands again after vr_dummy_gib_respawn
-QVR_CVAR(vr_dummy_gib_respawn, "2", CVAR_ARCHIVE)        // s a killed training dummy takes to stand again (its body stays, as a grunt's)
+QVR_CVAR(vr_dummy_gib, "1", CVAR_ARCHIVE)                // the training dummy dies as its enemy (a grunt) once its hits take the last of its health (vr_dummy_health): beheaded, popped, gibbed (below -35) as one; it stands again after vr_dummy_gib_respawn
+QVR_CVAR(vr_dummy_gib_respawn, "2", CVAR_ARCHIVE)        // s a gibbed training dummy takes to stand again
+QVR_CVAR(vr_dummy_health, "-1", CVAR_ARCHIVE)            // the training dummy's full health (below 1: its enemy's own, a grunt's 30); what its hits take away, shown over it, and what kills it (vr_dummy_gib)
+QVR_CVAR(vr_dummy_regen, "3", CVAR_ARCHIVE)              // s without a hit after which the training dummy's health fills up again (0: never)
+QVR_CVAR(vr_dummy_healthbar, "1", CVAR_ARCHIVE)          // the training dummy's health shown over it, as a bar and a number, turned to face you (0: its sign only)
 QVR_CVAR(vr_leg_holster_model_enabled, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_scale, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_x_offset, "1", CVAR_ARCHIVE)
