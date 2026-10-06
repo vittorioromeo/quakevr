@@ -758,7 +758,8 @@ const CompiledDefault compiledDefaults[] = {
         || var == &vr_body_forearm_twist || var == &vr_body_wrist_limits || var == &vr_body_elbow_lift
         || var == &vr_body_elbow_spread
         || var == &vr_body_elbow_out
-        || var == &vr_body_elbow_back || var == &vr_body_elbow_hand;
+        || var == &vr_body_elbow_back || var == &vr_body_elbow_hand || var == &vr_body_elbow_tuck
+        || var == &vr_body_elbow_tuck_back || var == &vr_body_elbow_tuck_near || var == &vr_body_elbow_tuck_far;
 }
 
 // "vr_savedefaults": writes the archived Quake VR settings that differ from the compiled-in

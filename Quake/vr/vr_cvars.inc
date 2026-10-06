@@ -1049,6 +1049,15 @@ QVR_CVAR(vr_body_elbow_spread, "1", CVAR_ARCHIVE)  // a folded arm (hand at the 
 QVR_CVAR(vr_body_elbow_out, "0.35", CVAR_ARCHIVE)     // elbow direction: down, plus this much outwards,
 QVR_CVAR(vr_body_elbow_back, "0.25", CVAR_ARCHIVE)    // this much backwards,
 QVR_CVAR(vr_body_elbow_hand, "0.4", CVAR_ARCHIVE)     // and this much away from the back of the hand
+// A folded arm (the hand at the face or the chest: aiming down the sights, an axe raised by the face) keeps its elbow
+// tucked, down and back by the ribs (behind the chest if the arm folds that far), instead of swinging it out or across
+// to ease the wrist: this much (0: as before, 1: fully); the tucked elbow's direction, down plus this much backwards;
+// fully tucked with the wrist within the first fraction of the arm's length from the shoulder, not at all past the
+// second (vr_avatar.cpp, solveArm).
+QVR_CVAR(vr_body_elbow_tuck, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_elbow_tuck_back, "0.8", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_elbow_tuck_near, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_elbow_tuck_far, "0.9", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_haptics, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_haptic_time, "0.25", CVAR_ARCHIVE) // seconds of the buzz as a hand reaches a holster (vr_holster_haptics 2: once)
 QVR_CVAR(vr_model_lighting, "1", CVAR_ARCHIVE)        // models shaded from the map's lights (0: Quake's fixed direction; 0..1 blends)

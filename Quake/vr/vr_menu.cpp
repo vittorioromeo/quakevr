@@ -1520,6 +1520,15 @@ void armsResetTweaks()
             .help("Where the elbow points: down, plus this much backwards."),
         slider("Elbow From Hand", vr_body_elbow_hand, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much the elbow points away from the back of the hand."),
+        slider("Elbow Tuck", vr_body_elbow_tuck, 0.f, 1.f, 0.05f, "%.2f")
+            .help("With the hand at the face or the chest (aiming down the sights, an axe raised by the face), the "
+                  "elbow stays down and back by the ribs instead of swinging out or across (0: as before)."),
+        slider("Tucked Elbow Back", vr_body_elbow_tuck_back, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Where a tucked elbow points: down, plus this much backwards (more lets it go behind the chest)."),
+        slider("Tuck Within", vr_body_elbow_tuck_near, 0.3f, 1.f, 0.05f, "%.2f arm")
+            .help("Fully tucked with the wrist this close to the shoulder (times the arm's length)."),
+        slider("Tuck Fades By", vr_body_elbow_tuck_far, 0.4f, 1.2f, 0.05f, "%.2f arm")
+            .help("Not tucked at all with the wrist this far from the shoulder (times the arm's length)."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
         cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
