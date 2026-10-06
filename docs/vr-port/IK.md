@@ -1,6 +1,9 @@
 # Research: a full-body avatar with IK
 
-Status: steps 1–4 implemented on 2026-09-24 (see *Implemented* at the end). Steps 5–7 are still open.
+Status: steps 1–4 implemented on 2026-09-24 (see *Implemented* at the end), and step 6 (procedural legs:
+`vr_body_walk`, `vr_body_step_rate`) since. Steps 5 and 7 are still open.
+
+The next paragraph is the state before this work: the body is now `vrbody.md5mesh`, a skinned full body.
 
 Today's body is `progs/vrtorso.mdl`: one rigid vertex-animated model, placed below the head and turned to
 `bodyYaw` (vr_view.cpp, "Body"). It floats, has no arms, and does not bend when you crouch or lean. This note
@@ -145,7 +148,7 @@ That gives a working prototype, from which a hand-made asset can replace it late
   weapons sit on the body.
 - **Virtual stock:** the shoulder position comes from the clavicle.
 - **The "upper torso" point** that hand and barrel collisions sweep from (vr_handpose) comes from the chest.
-- **`vr_vrtorso_*` cvars:** removed with the old floating torso (`vr_body_mode 1` now shows the body with arms).
+- **`vr_vrtorso_*` cvars:** removed with the old floating torso (the menu offers Off, Torso and arms (2) and Full body (3)).
 - **Other players in multiplayer:** they currently see `player.mdl`. Head and hand poses reach the server through
   the VR move. Sending them to other clients and running the same solver there is a later step.
 
@@ -179,14 +182,14 @@ the rest of the port was. Only the feel needs the headset.
     reported when the model loads.
   - Ironwail reads only the animated components of an `.md5anim`, so the one bind frame marks all of them animated.
 - **Solver** (`Quake/vr/vr_avatar.cpp`):
-  - The top of the neck is found behind and below the eyes. The torso sits `vr_body_torso_back` (0.1 m) behind
+  - The top of the neck is found behind and below the eyes. The torso sits `vr_body_torso_back` (0.07 m shipped) behind
     it, so looking down shows the chest rather than the top of the shoulders.
   - A crouch lowers the pelvis straight down under the neck and tilts the back forward about it, up to
     `vr_body_crouch_tilt` (25) degrees in a full crouch. Below squatting height the back bends further.
   - The clavicles rise and swing forward when reaching up or far forward.
   - Each arm is a two-bone chain to the drawn hand's wrist (the centre of `hand_base.mdl`'s wrist). The elbow
     points down, `vr_body_elbow_out` outward, `vr_body_elbow_back` backward, and `vr_body_elbow_hand` away from the
-    back of the hand. Arms stretch up to `vr_body_arm_stretch` (1.1) to reach.
+    back of the hand. Arms stretch up to `vr_body_arm_stretch` (1.2) to reach.
   - Legs (mode 3): standing, the feet stay planted, each with its own yaw, while the body turns and sways above
     them. Past `vr_body_turn_step` (40) degrees of turn (snap, smooth or real), or 0.25 m of drift, the foot on
     the side of the turn steps back under the body and the other squares up after it; steps quicken during a fast
@@ -198,9 +201,9 @@ the rest of the port was. Only the feel needs the headset.
   - The head and neck are collapsed, so the eyes are never inside them.
 - **Modes:** `vr_body_mode` (Options > VR Settings > Body):
   - 0: off;
-  - 1: the old torso;
-  - 2: torso and arms (the default);
-  - 3: full body.
+  - 1: the old torso (no longer in the menu);
+  - 2: torso and arms;
+  - 3: full body (the default).
 
   Modes 2 and 3 fall back to 1 if the model is not usable (for example with `r_enhancedmodels 0`).
 - **Anchors (step 4):** with `vr_body_anchors` 1, these follow the body's lean and crouch:

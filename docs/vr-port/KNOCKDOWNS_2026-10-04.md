@@ -27,6 +27,10 @@ A shove that lands (`VR_Bash_Hit`) rolls `VR_Knockdown_Try`. The chance is the p
 
 `vr_knockdown_debug 1` (with `developer 1`) prints every roll and every get-up.
 
+Added later (ROUND21.md): `vr_knockdown_ledge` (1: a shove that carries a monster over a ledge always knocks it
+down; `_drop` 64 units counts as a ledge, `_reach` 1, `_margin` 16) and `vr_knockdown_wiggle` (1: living knockdowns
+struggle physically; `_frequency` 2.2 Hz, `_pause` 0 s).
+
 ## Down
 
 - Not solid, touchable (`SOLID_NOT_BUT_TOUCHABLE`), `.vr_knockdown` 1. The engine makes its ragdoll at once from the

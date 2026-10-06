@@ -295,12 +295,12 @@ if best:
 |---|---|---|
 | `vr_throw_algorithm` | removed: the release-anchored estimate is the only one | C++ |
 | `vr_throw_window` / `vr_throw_lookahead` / `vr_throw_peak_span` | 0.12 / 0.01 / 0.017 s | C++ |
-| `vr_throw_release_mode` / `_drop` / `_floor` / `vr_throw_grab_press` | 1 / 0.25 / 0.35 / 0.7 | C++ |
-| `vr_throw_ang_threshold` / `vr_throw_ang_factor` / `vr_throw_lever_arm` (now the CoM offset from the controller point) | 6 rad/s / 0.7 / 0.05 m | C++ |
+| `vr_throw_release` / `_drop` / `_floor` / `vr_throw_grab_press` | 1 / 0.3 / 0.35 / 0.7 | C++ |
+| `vr_throw_ang_threshold` / `vr_throw_ang_factor` / `vr_throw_lever_arm` (now the CoM offset from the controller point) | 6 rad/s / 0.7 / 0.1 m | C++ |
 | `vr_throw_gain_max` / `_lo` / `_hi` | 1.5 / 1.5 / 6 m/s | QC |
 | `vr_throw_weight_influence` | 0.25 | QC |
 | `vr_2h_throw_velocity_mult` | 1.0 (was 1.4) | QC |
-| `vr_throw_assist*` | see §3.3 | QC |
+| `vr_throw_assist` / `_cone` / `_strength` / `_full` / `_range` / `_speed` | 1 (on) / 15° / 0.35 / 4 / 1200 / 0.15 (§3.3 was the proposal; there is no `_gaze`) | QC |
 
 All these defaults are *starting points* taken from the sources where available (window, span, gain) and otherwise
 chosen by me (thresholds, influence). Confirm them with the logging below.
@@ -321,7 +321,7 @@ chosen by me (thresholds, influence). Confirm them with the logging below.
    - `age`
 
    If `t_rel − t_pk` is often close to or above today's effective look-back (~60–80 ms), P2 is confirmed.
-2. **Dump the raw history** (`vr_debug_throw_dump 1`: the last 0.3 s of samples, grip value and the release event as CSV
+2. (Not built; `vr_throw_algorithm` has since been removed.) **Dump the raw history** (`vr_debug_throw_dump 1`: the last 0.3 s of samples, grip value and the release event as CSV
    in the game dir). Replay the same throws offline through algorithms 0/1/2/3 (the estimator is a pure function of
    the history) to compare throw-to-throw spread of speed and direction without re-throwing.
 3. **Mock backend.** `vr_mock_swing` gives an analytic arc (`vr_backend_mock.cpp:142`). Check that algorithm 3 returns

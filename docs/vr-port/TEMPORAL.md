@@ -1,8 +1,8 @@
 # Temporal anti-aliasing and temporal upscaling (TAA, DLSS/DLAA, FSR): scope and design
 
 Status: research and design only, nothing implemented. Written 2026-09-26 against branch `vr-cleanup`
-(after round 20). Stage (1) of the agreed plan, FSR 1/NIS spatial upscaling and fixed foveated VRS, is being done
-separately; this document scopes stage (2), motion vectors and camera jitter with our own TAA, and stage (3), DLSS/DLAA
+(after round 20). Stage (1) of the agreed plan, FSR 1/NIS spatial upscaling and fixed foveated VRS, shipped in round 20
+(`vr_upscale`, `vr_foveated`; `vr_upscale.cpp`, `vr_foveated.cpp`), and stages (2) and (3) are still not built; this document scopes stage (2), motion vectors and camera jitter with our own TAA, and stage (3), DLSS/DLAA
 through OpenGL-to-Vulkan interop with FSR as the fallback. It also answers the licensing question as far as research
 can. It is not legal advice.
 

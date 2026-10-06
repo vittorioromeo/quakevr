@@ -123,7 +123,7 @@ models) and keeps the classic pixel look; none of it needs new art.
   courtyard (`_sunlight2` 80, `_sunlight` 50); its sixteen "light" 1200 fill lamps 300 units up are dropped. Pools
   of light at the boards and lamps, dark corners and corridors between them. `vrstart` is left fullbright (no
   lightmap and no lights; its worldspawn `"light" "300"` is a minimum light for a menu-like hub).
-- **Light fixtures** (round 15, `glow_lights` in `relight_maps.py`, `Misc/quakevr/relight_textures.cfg`). Lamps,
+- **Light fixtures** (round 15, `glow_lights` in `relight_maps.py`, `quakevr/relight_textures.cfg`). Lamps,
   light panels and strip lights (textures named `*light*`/`*lamp*` and those the file names: `tlight*`, `light1_*`,
   `light3_*`, `ceil1_1`, `sfloor4_4`, rogue's `metal8_3`/`metal9_2`) each get a light of their own: one point light
   for a small fixture (in front of it, or on top of a lantern), one every 128 units for a big one; 250 for a lone

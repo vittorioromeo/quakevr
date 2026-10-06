@@ -114,7 +114,7 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
 | `vr_shadow_atlas` | 4096 | 2048 / 4096 / 8192 (16 / 64 / 256 MB) |
 | `vr_dlight_models` | 1 | dynamic lights on models per pixel |
 | `vr_dlight_angle` | 1 | angle falloff of dynamic lights (0: Quake's) |
-| `vr_dlight_uncapped` | 0 | dynamic lights add fully to bright walls |
+| `vr_dlight_uncapped` | 1 | dynamic lights add fully to bright walls |
 | `vr_shadow_stats` | 0 | prints lights, faces, model draws, GPU and CPU time each second |
 | `vr_light_test [radius] [seconds] [distance]` | command | a dynamic light in front of you |
 

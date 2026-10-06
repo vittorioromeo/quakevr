@@ -1,6 +1,6 @@
 # Explosion debris and fire particles
 
-The effect is on `codex/explosion-debris`, based on `vr-ironwail`, and includes the improved explosion texture from the preceding change.
+Merged into `vr-ironwail` (`vr_explosiondebris.cpp`, `vr_fireparticles.cpp`), with the improved explosion texture from the preceding change.
 
 Settings: **VR Settings > Advanced VR Options > Graphics > Particles**. This page contains **Large Fireballs per Explosion**, **Explosion Debris**, and **Fire Particles**. Fire Particles is also linked from Wall Torches.
 
