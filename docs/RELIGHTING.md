@@ -73,8 +73,15 @@ step, so the script below is still the way to see-through water.
    This changes 61 of the 73 maps. Without QRP, the maps are still relit, but only textures that glow in Quake's own
    images get lights, so the result differs from the author's.
 
-You also need the original Quake data: `id1` with `PAK0.PAK` and `PAK1.PAK`, and `hipnotic` and `rogue` if you have
-the mission packs. The Steam and GOG versions have them. The 2021 re-release's maps (in `rerelease`) aren't used.
+You also need Quake's data: `id1` with its `.pak` files, and `hipnotic` and `rogue` if you have the mission packs.
+The script relights the maps it finds in the folder you give it with `--quake` (its `id1`, `hipnotic` and `rogue`).
+The Steam Quake folder and GOG's hold the original 1996 maps, so the command below relights those; the 2021
+re-release's maps, in Steam's `rerelease` subfolder, are only read if you give `--quake` that folder. Make the relit
+maps from the data you play with ([INSTALL.md](INSTALL.md#only-the-2021-re-release) for playing on the re-release's
+data): a relit map replaces its map whichever version it was made from. Relit re-release maps get the same look as
+the original ones (the script drops the lighting settings the re-release put in its maps), and their water is
+see-through already. Relighting in the game reads each map as the game finds it, so from whichever data you play
+with.
 
 ## Step by step
 

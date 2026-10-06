@@ -67,9 +67,10 @@ What changes with the re-release data:
 
 - **Maps:** the re-release has its own versions of Quake's and Scourge of Armagon's maps. They're relit with
   coloured light, bounced light and ambient occlusion, and their water is already see-through.
-- **Relit maps:** run `relight_maps.py` with `--quake "<re-release folder>"`. The relit maps still add Quake VR's
-  bump shading and the light grid. They come out brighter than relit original maps, because the re-release's maps
-  ask for bounced light. `--vis-dir` still gives Dissolution of Eternity's maps see-through water. For the other
+- **Relit maps:** run `relight_maps.py` with `--quake "<re-release folder>"`: given the Quake folder, it relights the
+  original maps instead (see [RELIGHTING.md](RELIGHTING.md#what-you-need)). Relighting in the game uses the maps the
+  game plays, so the re-release's here. The relit maps get Quake VR's look, its bump shading and the light grid, as
+  the original maps do: the re-release's own light settings (its bounced light) are left out. `--vis-dir` still gives Dissolution of Eternity's maps see-through water. For the other
   maps the script reports that the patch "is for another version of the map" and leaves them alone, which is fine:
   their water is see-through already. Relit maps replace a map whichever version they were made from, so make them
   from the data you play with.
