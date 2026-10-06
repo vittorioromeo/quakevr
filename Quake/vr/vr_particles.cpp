@@ -2558,9 +2558,15 @@ void lightmapOf(Particle& p, za::SizeT index, LightStats& st)
     {
         return l;
     }
-    const float g = vr_retrolight_spacing.value != 0.f ? 0.5f : 1.f;
-    const float q = za::floor(glm::pow(m, g) * steps + 0.5f);
-    return l * (glm::pow(za::max(q, 0.f) / steps, 1.f / g) / m);
+    // Even in brightness: the levels in the square root of the light (m^0.5, then back by squaring); else in the light
+    // itself. (A square root and a product: two powf calls a particle were a quarter millisecond a frame in a fight.)
+    if(vr_retrolight_spacing.value != 0.f)
+    {
+        const float q = za::max(za::floor(za::sqrt(m) * steps + 0.5f), 0.f) / steps;
+        return l * (q * q / m);
+    }
+    const float q = za::floor(m * steps + 0.5f);
+    return l * (za::max(q, 0.f) / steps / m);
 }
 
 // Every particle's light this frame (lightOf), and the dynamic lights that reach any.
