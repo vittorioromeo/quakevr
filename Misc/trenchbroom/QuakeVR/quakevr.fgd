@@ -857,6 +857,31 @@ model hangs 144 units below it."
 [
 ]
 
+@PointClass color(0 128 204) size(0 0 0, 32 32 32) =
+	item_upgrade_cells : "Dawn of the Machine: cell capacity upgrade (+10 cells capacity, once per map; fills it)."
+[
+]
+
+@PointClass color(0 128 204) size(0 0 0, 32 32 32) =
+	item_upgrade_health : "Dawn of the Machine: health capacity upgrade (+10 health capacity, once per map; heals to the new capacity)."
+[
+]
+
+@PointClass color(0 128 204) size(0 0 0, 32 32 32) =
+	item_upgrade_nails : "Dawn of the Machine: nail capacity upgrade (+10 nails capacity, once per map; fills it)."
+[
+]
+
+@PointClass color(0 128 204) size(0 0 0, 32 32 32) =
+	item_upgrade_rockets : "Dawn of the Machine: rocket capacity upgrade (+10 rockets capacity, once per map; fills it)."
+[
+]
+
+@PointClass color(0 128 204) size(0 0 0, 32 32 32) =
+	item_upgrade_shells : "Dawn of the Machine: shell capacity upgrade (+10 shells capacity, once per map; fills it)."
+[
+]
+
 //
 // Monsters
 //

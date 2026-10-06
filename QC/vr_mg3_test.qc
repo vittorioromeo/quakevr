@@ -41,6 +41,52 @@ void() MG3_T_Caps = {
     MG3_Check(p.health == mega, "megahealth stops at the mega cap");
     dprint(sprintf("mg3test: caps %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
 };
+float(string c) MG3_T_IsUpgrade = {
+    return c == "item_upgrade_health" || c == "item_upgrade_shells" || c == "item_upgrade_nails" || c == "item_upgrade_rockets"
+        || c == "item_upgrade_cells";
+};
+// Takes every upgrade lying on this map by the real pickup (carry_use: what a holster calls; itemTouch otherwise) and
+// checks the masks, capacities and refills against the map's bit.
+void() MG3_T_Collect = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    float flag = MG3_UpgradeFlag();
+    float h0 = VR_MaxHealth(p), s0 = VR_MaxAmmo(p, AID_SHELLS), n0 = VR_MaxAmmo(p, AID_NAILS), r0 = VR_MaxAmmo(p, AID_ROCKETS), c0 = VR_MaxAmmo(p, AID_CELLS);
+    float hadH = MG3_upgrade_health & flag, hadS = MG3_upgrade_shells & flag, hadN = MG3_upgrade_nails & flag;
+    float hadR = MG3_upgrade_rockets & flag, hadC = MG3_upgrade_cells & flag;
+    float found = 0, taken = 0, faded = 0, kinds = 0;
+    p.health = 1; p.ammo_shells = p.ammo_nails = p.ammo_rockets = p.ammo_cells = 0;
+    entity e = nextent(world);
+    while(e) {
+        entity nx = nextent(e);
+        if(MG3_T_IsUpgrade(e.classname) && e.model != string_null) {
+            found++;
+            if(e.alpha == 0.6) faded++;
+            float bit = 1, k = e.MG3_upgrade_kind; // (1 health, 2 shells ... 16 cells)
+            while(k > 0) { bit *= 2; k--; }
+            kinds = kinds | bit;
+            self = e; other = p;
+            if(self.carry_use) self.carry_use(); else self.handtouch();
+            if(e.model == string_null) taken++;
+        }
+        e = nx;
+    }
+    dprint(sprintf("mg3test: upgrades on %s flag %g: %g found, %g taken, %g faded (kinds %g)\n", mapname, flag, found, taken, faded, kinds));
+    MG3_T_Report();
+    dprint(sprintf("mg3test: caps health %g shells %g nails %g rockets %g", VR_MaxHealth(p), VR_MaxAmmo(p, AID_SHELLS), VR_MaxAmmo(p, AID_NAILS), VR_MaxAmmo(p, AID_ROCKETS)));
+    dprint(sprintf(" cells %g (before %g %g %g %g %g)\n", VR_MaxAmmo(p, AID_CELLS), h0, s0, n0, r0, c0));
+    MG3_test_pass = MG3_test_fail = 0;
+    MG3_Check(found > 0 && taken == found, "every upgrade is taken by its pickup");
+    if(kinds & 1) {
+        MG3_Check(MG3_upgrade_health & flag, "the health mask has the map's bit");
+        MG3_Check(VR_MaxHealth(p) == h0 + (hadH ? 0 : 10) && p.max_health == VR_MaxHealth(p), "health capacity +10 once");
+        MG3_Check(hadH ? p.health == 1 : p.health == p.max_health, "health filled to the new capacity (a known upgrade: none)");
+    }
+    if(kinds & 2) MG3_Check(VR_MaxAmmo(p, AID_SHELLS) == s0 + (hadS ? 0 : 10) && p.ammo_shells == (hadS ? 0 : VR_MaxAmmo(p, AID_SHELLS)), "shells +10 once, filled");
+    if(kinds & 4) MG3_Check(VR_MaxAmmo(p, AID_NAILS) == n0 + (hadN ? 0 : 10) && p.ammo_nails == (hadN ? 0 : VR_MaxAmmo(p, AID_NAILS)), "nails +10 once, filled");
+    if(kinds & 8) MG3_Check(VR_MaxAmmo(p, AID_ROCKETS) == r0 + (hadR ? 0 : 10) && p.ammo_rockets == (hadR ? 0 : VR_MaxAmmo(p, AID_ROCKETS)), "rockets +10 once, filled");
+    if(kinds & 16) MG3_Check(VR_MaxAmmo(p, AID_CELLS) == c0 + (hadC ? 0 : 10) && p.ammo_cells == (hadC ? 0 : VR_MaxAmmo(p, AID_CELLS)), "cells +10 once, filled");
+    dprint(sprintf("mg3test: upgrades %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     cvar_set("vr_mg3_test", "0");
@@ -57,6 +103,7 @@ void() MG3_TestFrame = {
         MG3_SetUpgradeMask(MG3_UPGRADE_HEALTH, MG3_UpgradeMask(MG3_UPGRADE_HEALTH) | 64);
         dprint("mg3test: added health bit 64\n"); MG3_T_Report();
     }
+    else if(request == 5) MG3_T_Collect();
     else dprint(sprintf("mg3test: unknown request %g\n", request));
     self = oldself; other = oldother; activator = oldact;
 };

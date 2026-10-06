@@ -4811,6 +4811,8 @@ za::Vector<Item> pageMg3Tests()
             .help("Destructive: one more health upgrade bit this level; a death's restart must take it back."),
         command("Capacity Check", "vr_mg3_test 4")
             .help("Destructive, any campaign: print the health/ammo capacities, overfill and bound every ammunition, heal from 1."),
+        command("Take This Map's Upgrades", "vr_mg3_test 5")
+            .help("Destructive: empty health/ammo, take every capacity upgrade here by its real pickup, check masks, caps and refills."),
     };
 }
 

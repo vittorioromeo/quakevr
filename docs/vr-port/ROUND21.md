@@ -26759,3 +26759,17 @@ test uses the developer path (`vr_campaign_native mg3`, `-nomapindex`).
   100/250; MG3 map1 50/500 and 50/100/20/100; after seeding the M3-02 masks and a changelevel 70/500 and
   60/110/30/110, health carried at 70 (4/0 each). Regression: Dopa triggers 34/0, world 19/0, health/megahealth
   aids as before; MG1 hub 20/0, mge2m2 puzzle 15/0, mge5m2 route 10/0, Horde 24/0; e1m1 smoke.
+- **M3-04 upgrade items.** `QC/vr_mg3_upgrades.qc` (adapted `mg3_upgrades.qc`, GPL header kept):
+  `item_upgrade_health/shells/nails/rockets/cells`, campaign 5 only; the map's bit (`MG3_UpgradeFlag`: map1..8,
+  secret1..6, map2b = 8192) or the authored `upgrade_flag`; first take sets the bit, +10 capacity and fills it (health
+  healed to the new `max_health`); a later visit's is drawn faded (alpha 0.6, upstream) and only says so;
+  localized `$mg3_qc_upgrade_*` messages through the engine's sprint with arguments (`MG3_sprint_args`, builtin 24).
+  Physical: taken to a holster like keys and runes (`VR_PickupObj_Mark`; walked over when pickups are not objects).
+  FGD regenerated (300 entities). Measured (`vr_mg3_test 5`, the real pickup: `carry_use` -> itemTouch): map3 5/5
+  taken, caps 50/50/100/20/100 -> 60/60/110/30/110, each filled (8/0); map4 -> 70/70/120/40/120 (8/0); back on
+  map3 5 faded, no award, health left at 1 (8/0); map2b bit 8192, 4 kinds (7/0); hub, a save and its load keep
+  masks 8204 x4 / 12 and caps 80/80/130/50/120; `map map1` clears. Checker after M3-04: 42 missing, 1,328
+  placements. Smoke: e1m1, Dopa triggers 34/0, MG1 hub 20/0. `eval.sh` cannot run here (archived takes missing);
+  no melee code changed.
+  For VR: on map3 (`vr_campaign_native mg3`, `map map3`) take an upgrade to a holster: message, capacity, refill;
+  return to the map to see it faded.

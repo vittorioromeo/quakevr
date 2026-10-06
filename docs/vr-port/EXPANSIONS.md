@@ -886,3 +886,17 @@ Arenas for manual tests (all seven are in the owned MG1 PAK; `vr_campaign_native
 Still open for full MG1 acceptance: a human coop session (real headsets, late joins, revival telefrag spots);
 melee, gore and ragdolls on Horde monsters in VR (native constructors, not separately measured here); the arena
 intermission/exit flow in coop; the story campaign's own acceptance.
+
+## Dawn of the Machine foundation (mg3a, 2026-10-06)
+
+Phase A of [MG3_PLAN.md](MG3_PLAN.md) (M3-01..04); MG3 stays gated (`nativeReady` false), tests use
+`vr_campaign_native mg3` with `-nomapindex`. `Misc/quakevr/check_mg3_entities.py` reports the owned MG3 PAK's
+missing classnames/keys read-only (after M3-04: 42 classes, 1,328 placements; 10 unknown keys). Upstream's
+parm10..15 (upgrade masks, bloody weapons) live in the new extended parms 51..56 (engine slots 17..56), never in VR's
+hand/holster slots; every health/ammo cap goes through `VR_MaxAmmo`/`VR_MaxHealth`/`VR_MegaHealthCap`, unchanged
+for the other campaigns, MG3's 50/50/100/20/100 + 10 per upgrade (mega 500) for campaign 5. `item_upgrade_*`
+(`QC/vr_mg3_upgrades.qc`, adapted from `mg3_upgrades.qc`) are physical holster pickups: first take per map raises
+and fills, a revisit's says so only (faded). Tests: Debug > Tests > Dawn of the Machine Tests (`vr_mg3_test` 1
+report, 2 seed masks, 3 add a bit, 4 capacity check in any campaign, 5 take this map's upgrades). Measurements:
+ROUND21.md, "Dawn of the Machine (MG3): foundation". The six MG3 decisions (plan section 4) are unanswered: these
+tasks use the defaults (official base health 50 and caps).

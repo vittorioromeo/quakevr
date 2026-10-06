@@ -20,3 +20,8 @@ healing, death, key spending, item and intermission hooks adapt the same snapsho
 MG1 game code to the existing native VR inventory and monster constructors. Tests
 and the contemporary seven-arena rotation are VR-port additions documented in
 EXPANSIONS.md.
+
+Dawn of the Machine (MG3) native port: QC/vr_mg3_upgrades.qc adapts the snapshot's quakec_mg3/mg3_upgrades.qc
+(capacity upgrades), retaining its original license header; the capacity constants in QC/vr_mg3_defs.qc come
+from quakec_mg3/defs.qc and client.qc. Upstream's parm10..15 state moved to parm51..56 (VR's hands own parm10..16).
+Plan and task list: [MG3_PLAN.md](MG3_PLAN.md).
