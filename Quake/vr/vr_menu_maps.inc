@@ -82,14 +82,14 @@ struct MapsPage
     int shown{MapsShowAll}; // MapsShown
     za::Vector<MapsFacet> typeFacets, sizeFacets;
     int typeIdx{0}, sizeIdx{0}; // 0: any; n > 0: facets[n - 1]
-    za::I64 facetsAt{-1};       // index().fetchedAt the facets were read from
+    za::I64 facetsAt{-1};       // mapindex::generation() the facets were read from
 
     za::Vector<const mapindex::Entry*> results;
     za::String sigQuery;
     za::String sigType, sigSize;
     int sigSort{-1}, sigTypeIdx{-1}, sigSizeIdx{-1}, sigRating{-1}, sigShown{-1};
     int sigProgs{-1};
-    za::I64 sigFetched{-1};
+    za::I64 sigFetched{-1}; // mapindex::generation() (not fetchedAt: a cache read again repeats it, its Entries new)
     int sigInstalled{-1};
     int hiddenProgs{0}; // packages left out for carrying their own progs.dat
 
@@ -241,7 +241,7 @@ void mapsRunSearch()
     mapPage.sigRating = mapPage.rating;
     mapPage.sigShown = mapPage.shown;
     mapPage.sigProgs = q.allowProgs ? 1 : 0;
-    mapPage.sigFetched = idx.fetchedAt;
+    mapPage.sigFetched = mapindex::generation();
     mapPage.sigInstalled = static_cast<int>(mapinstall::installedList().size());
     mapPage.resultScroll = 0;
     mapPage.focusResult = mapPage.hoverResult = -1;
@@ -262,16 +262,16 @@ void mapsRunSearch()
 // setting, the index arriving, or a package installed.
 void mapsShown()
 {
-    const mapindex::Index& idx = mapindex::index();
-    if(mapPage.facetsAt != idx.fetchedAt)
+    const za::I64 generation = mapindex::generation();
+    if(mapPage.facetsAt != generation)
     {
         buildMapsFacets();
-        mapPage.facetsAt = idx.fetchedAt;
+        mapPage.facetsAt = generation;
     }
     const int installed = static_cast<int>(mapinstall::installedList().size());
     const int progs = vr_maps_allow_progs.value != 0.f ? 1 : 0;
     if(mapPage.sigQuery != mapPage.query || mapPage.sigSort != mapPage.sort || mapPage.sigTypeIdx != mapPage.typeIdx ||
-        mapPage.sigSizeIdx != mapPage.sizeIdx || mapPage.sigRating != mapPage.rating || mapPage.sigShown != mapPage.shown || mapPage.sigProgs != progs || mapPage.sigFetched != idx.fetchedAt ||
+        mapPage.sigSizeIdx != mapPage.sizeIdx || mapPage.sigRating != mapPage.rating || mapPage.sigShown != mapPage.shown || mapPage.sigProgs != progs || mapPage.sigFetched != generation ||
         mapPage.sigInstalled != installed)
     {
         mapsRunSearch();

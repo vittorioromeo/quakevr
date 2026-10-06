@@ -116,6 +116,9 @@ void registerCommands();
 
 // The index: never null, empty until one has arrived. Read from the main thread only.
 [[nodiscard]] const Index& index();
+// Counts the times poll() replaced the index: every Entry pointer and Text of the one before is gone then. What keeps
+// one (the Map Library's results) builds it again when this changes (fetchedAt can repeat: a cache read again).
+[[nodiscard]] za::U32 generation();
 
 // What the fetch is doing (its latest step while it runs), or how the last one ended. Main thread.
 [[nodiscard]] za::String state();

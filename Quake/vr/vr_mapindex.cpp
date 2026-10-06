@@ -60,6 +60,7 @@ const char* acceptHeader = "Accept: application/json"; // (file-scope, not a fun
 
 // The live index, counted by vr_memstats (mem::Never: only the fetch thread's handoff replaces it). Main thread.
 mem::Cache<Index> indexSet{"map index", mem::Never};
+za::U32 indexGeneration = 0; // generation(): poll() replaced indexSet this many times
 
 // The handoff: the fetch thread fills it, poll() takes it on the main thread (the console is never written from the
 // fetch thread, as host_cmd.c's Modlist_DownloadJSON does with Host_InvokeOnMainThread).
@@ -1155,6 +1156,7 @@ void poll()
     if(taken)
     {
         static_cast<Index&>(indexSet) = ZA_MOVE(*taken); // (the registered set holds the live index: vr_memstats)
+        indexGeneration++;
     }
     lastStatus = status;
     if(status.size())
@@ -1166,6 +1168,11 @@ void poll()
 const Index& index()
 {
     return indexSet;
+}
+
+za::U32 generation()
+{
+    return indexGeneration;
 }
 
 za::String state()
