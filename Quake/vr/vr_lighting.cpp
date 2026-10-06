@@ -687,6 +687,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
         QVR_PROFILE("shadow alias draw");
         mplane_t savedFrustum[4];
         memcpy(savedFrustum, frustum, sizeof(savedFrustum));
+        profile::begin("shadow caster faces", false); // which faces each caster reaches
         cs.layered.clear();
         cs.holey.clear();
         cs.holeyBits.clear();
@@ -695,22 +696,22 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
             entity_t* e = aliasCasters[i];
             const bool view = VR_IsViewEntity(e);
             const float reach = view ? viewEntityReach(e) : 0.f;
-            unsigned bits = 0u;
-            for(int face = 0; face < numViews; face++)
+            unsigned bits = cs.posed[i] ? visible : 0u;
+            // A face at a time: in the face's casters by the sphere (the view entities) or R_CullModelForEntity, then
+            // culled by the alias renderer's own R_CullModelForEntity (its bounds once here, R_CullBox each face).
+            vec3_t mins, maxs;
+            if(!cs.posed[i])
+            {
+                R_GetEntityBounds(e, mins, maxs);
+            }
+            for(int face = 0; face < numViews && !cs.posed[i]; face++)
             {
                 if(!(visible & (1u << face)))
                 {
                     continue;
                 }
-                if(cs.posed[i])
-                {
-                    bits |= 1u << face;
-                    continue;
-                }
-                // A face at a time: in the face's casters by the sphere (the view entities) or R_CullModelForEntity,
-                // then culled by the alias renderer's own R_CullModelForEntity.
                 memcpy(frustum, planes[face], sizeof(planes[face]));
-                if((!view || sphereInView(frustum, e->origin, reach)) && !R_CullModelForEntity(e))
+                if((!view || sphereInView(frustum, e->origin, reach)) && !R_CullBox(mins, maxs))
                 {
                     bits |= 1u << face;
                 }
@@ -748,6 +749,7 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
             cs.faceCasters.pushBack(c.e);
             cs.faceBits.pushBack(c.bits);
         }
+        profile::end();
         if(!cs.faceCasters.empty())
         {
             R_DrawAliasModelsDepthLayered(cs.faceCasters.data(), cs.faceBits.data(), static_cast<int>(cs.faceCasters.size()),
@@ -1379,12 +1381,21 @@ void readDepth(const DepthTarget& t, za::Vector<float>& out)
 
 // Two read-backs compared: texels that differ, the most they differ (and in units in the last place: depths are
 // positive floats, so their bits order as they do), and each one's FNV-1a hash.
-void compareDepth(const char* name, const DepthTarget& t, const za::Vector<float>& a, const za::Vector<float>& b)
+struct DepthDiff
 {
     size_t differ = 0;
     float most = 0.f;
     uint32_t mostUlp = 0u;
     uint32_t hash[2] = {2166136261u, 2166136261u};
+};
+
+DepthDiff compareDepth(const za::Vector<float>& a, const za::Vector<float>& b)
+{
+    DepthDiff r;
+    size_t& differ = r.differ;
+    float& most = r.most;
+    uint32_t& mostUlp = r.mostUlp;
+    uint32_t* hash = r.hash;
     for(size_t i = 0; i < a.size() && i < b.size(); i++)
     {
         uint32_t ua = 0u, ub = 0u;
@@ -1399,8 +1410,13 @@ void compareDepth(const char* name, const DepthTarget& t, const za::Vector<float
             mostUlp = za::max(mostUlp, ua > ub ? ua - ub : ub - ua);
         }
     }
-    Con_Printf("  %s %dx%d: %zu texels differ (most %g, %u ulp); hashes %08x %08x\n", name, t.width, t.height, differ, most,
-        mostUlp, hash[0], hash[1]);
+    return r;
+}
+
+void printDiff(const char* name, const DepthTarget& t, const DepthDiff& d)
+{
+    Con_Printf("  %s %dx%d: %zu texels differ (most %g, %u ulp); hashes %08x %08x\n", name, t.width, t.height, d.differ,
+        d.most, d.mostUlp, d.hash[0], d.hash[1]);
 }
 
 template <class Render>
@@ -1412,7 +1428,9 @@ void layeredCheck(const Render& renderAll)
     GL_GenQueriesFunc(2, queries);
     double cpu[2] = {}, gpu[2] = {};
     int calls[2] = {}, faces[2] = {}, models[2] = {};
-    za::Vector<float> depth[2][2]; // [face at a time, layered][atlas, static atlas]
+    za::Vector<float> depth[2];     // a face at a time: the atlas, the static atlas
+    za::Vector<float> layeredDepth; // layered: one, then the other (three read-backs at most)
+    DepthDiff diffs[2];
     for(int r = 0; r <= repeats; r++)
     {
         for(int way = 0; way < 2; way++)
@@ -1445,8 +1463,16 @@ void layeredCheck(const Render& renderAll)
                 models[way] = modelsDrawn;
                 continue;
             }
-            readDepth(atlas, depth[way][0]);
-            readDepth(staticAtlas, depth[way][1]);
+            if(way == 0)
+            {
+                readDepth(atlas, depth[0]);
+                readDepth(staticAtlas, depth[1]);
+                continue;
+            }
+            readDepth(atlas, layeredDepth);
+            diffs[0] = compareDepth(depth[0], layeredDepth);
+            readDepth(staticAtlas, layeredDepth);
+            diffs[1] = compareDepth(depth[1], layeredDepth);
         }
     }
     layeredOverride = -1;
@@ -1468,8 +1494,8 @@ void layeredCheck(const Render& renderAll)
         Con_Printf("  %s: %d draw calls, %d faces, %d model draws; CPU %.3f ms, GPU %.3f ms\n",
             way ? "layered     " : "face at a time", calls[way], faces[way], models[way], cpu[way] / repeats, gpu[way] / repeats);
     }
-    compareDepth("atlas", atlas, depth[0][0], depth[1][0]);
-    compareDepth("static atlas", staticAtlas, depth[0][1], depth[1][1]);
+    printDiff("atlas", atlas, diffs[0]);
+    printDiff("static atlas", staticAtlas, diffs[1]);
 }
 
 } // namespace

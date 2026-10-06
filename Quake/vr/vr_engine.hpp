@@ -79,6 +79,7 @@ int TexMgr_NormalMapParallax (gltexture_t *glt);	// gl_texmgr.c: its normal map'
 void R_RestoreTranslucentTarget (void);			// gl_rmain.c: the translucent pass's framebuffer and viewport again
 void R_SetupGL (void);								// gl_rmain.c: the scene's framebuffer and viewport again (after a pass of vr_water.cpp's or vr_haze.cpp's)
 void R_SceneViewport (int viewport[4]);					// gl_rmain.c: the viewport R_SetupGL sets (x, y, width, height), without a glGet
+void R_GetEntityBounds (const entity_t *e, vec3_t mins, vec3_t maxs); // gl_rmain.c: its box as R_CullModelForEntity tests it
 void R_DrawAliasModelsDepth (entity_t **ents, int count); // r_alias.c: depth only (the shadow maps' casters)
 // r_alias.c: the same, each drawn once into all its faces (faces[i]'s bits; faceviewproj: 6 matrices; vr_shadow_layered)
 void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces, int count, const float *faceviewproj);
