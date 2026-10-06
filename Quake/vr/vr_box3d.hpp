@@ -198,6 +198,11 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // The model of the limb at joint `bone` of `ent` (vr_limbmodel.cpp: just cut, the piece cut; else the limb as it is),
 // "" if none.
 [[nodiscard]] const char* limbModel(edict_t* ent, int bone);
+// The piece a cut at `bone` of `ent` takes now (-1 or its head bone: the head; just cut, the piece cut; a body gibbed
+// whole, the limb as it is): 0 {kg it weighs, the ragdoll's mass, its share of it}: by the kind of limb (limbMassShare:
+// a hand a little, a thigh a lot); 1 its cut end (the joint) in its model's space (rest units,
+// unscaled: about the limb model's origin; the head's, its bone's middle). Zero: no rig or no such limb.
+[[nodiscard]] glm::vec3 limbPiece(edict_t* ent, int bone, int what);
 // Where the limb at `bone` of `ent` is now (not cut: a body gibbed whole): 0 its model's origin, 1 its angles, 2 its
 // velocity, 3 a point on its own bone's surface.
 [[nodiscard]] glm::vec3 limbPlace(edict_t* ent, int bone, int what);

@@ -133,6 +133,43 @@ void(float xTest) VR_Limb_Test =
         vr_decap_limb = oldLimb;
         return;
     }
+    if(xTest == 19)
+    {
+        // (Every kind of monster here once: each limb joint's piece (what a cut there takes) and the head's, kg and share.)
+        for(entity e = nextent(world); e; e = nextent(e))
+        {
+            if(!(e.flags & FL_MONSTER) || e.vr_gib || ragdolllimbs(e, 0) == 0)
+            {
+                continue;
+            }
+            float dup = FALSE;
+            for(entity o = nextent(world); o != e && !dup; o = nextent(o))
+            {
+                dup = ((o.flags & FL_MONSTER) && !o.vr_gib && (o.classname == e.classname) && (ragdolllimbs(o, 0) != 0));
+            }
+            if(dup)
+            {
+                continue;
+            }
+            vector hp = limbpiece(e, -1, 0);
+            float top = VR_Limb_TopJoints(e);
+            float topShare = 0;
+            string line = sprintf("limbtest: 19 %s (ragdoll %.0f kg, x%g): head %.1f kg %.1f%%", e.classname, hp_y,
+                cvar_hget(cvarh_vr_limbs_mass_scale), hp_x, hp_z * 100);
+            all = ragdolllimbs(e, 0);
+            for(b = 1; b < 16; b++)
+            {
+                if(all & VR_Limb_Bit(b))
+                {
+                    vector lp = limbpiece(e, b, 0);
+                    line = strcat(line, sprintf(", %g%s %.1f kg %.1f%%", b, (top & VR_Limb_Bit(b)) ? "*" : "", lp_x, lp_z * 100));
+                    topShare = topShare + ((top & VR_Limb_Bit(b)) ? lp_z : 0);
+                }
+            }
+            bprint(sprintf("%s; whole limbs (*) and head %.1f%% of it\n", line, (topShare + hp_z) * 100));
+        }
+        return;
+    }
     if(xTest == 20 || xTest == 21)
     {
         // (As an enemy enforcer's bolt strikes: Laser_Touch, from a shooter of its own 64 units off: of ten ways in (level

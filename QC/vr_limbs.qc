@@ -116,9 +116,24 @@ entity(entity c, string m, float xBone, vector xAt, vector xAng, vector xVel, ve
     VR_Gore_WatchFling(h); // (it may stick to a ceiling or a wall)
     h.vr_rigid = 1;
     h.vr_spin = xSpin;
+    VR_Limb_SetMass(h, c, xBone);
     particle2(xAt, xVel * 0.3, QVR_PARTICLE_PRESET_BLOOD, 20);
     vr_limb_last = h;
     return h;
+};
+
+// Piece `h` (a limb or the head) cut off `c` at joint `xBone` (-1 the head) weighs its share of c's ragdoll's Mass by
+// the kind of limb (limbpiece; the engine's limbMassShare: an arm 6.3%, a forearm and hand 2.8, a hand 0.8, a leg 15.5,
+// a shin and foot 6, the head 7) times vr_limbs_mass_scale (Box3D's: .vr_prop_mass; held and thrown as that). No rig,
+// or vr_limbs_mass_scale 0: its model's hull of flesh, as before.
+void(entity h, entity c, float xBone) VR_Limb_SetMass =
+{
+    float scale = cvar_hget(cvarh_vr_limbs_mass_scale);
+    vector piece = limbpiece(c, xBone, 0);
+    if(piece_x > 0 && scale > 0)
+    {
+        h.vr_prop_mass = max(0.05, piece_x * scale);
+    }
 };
 
 // Room for one more limb under vr_limbs_max: the oldest lying about go (not one in a hand).

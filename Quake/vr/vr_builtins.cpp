@@ -1393,6 +1393,18 @@ void PF_ragdolllimbs()
     G_FLOAT(OFS_RETURN) = (what == 3 || what == 5) && v == ~0u ? -1.f : static_cast<float>(v);
 }
 
+// vector limbpiece(entity e, float bone, float what): the piece a cut at `bone` (-1 the head) takes (box3d::limbPiece): 0
+// {kg it weighs (its share of the ragdoll's mass by the kind of limb), the ragdoll's mass, the share}, 1 its cut end in
+// its model's space.
+void PF_limbpiece()
+{
+    const glm::vec3 v = box3d::limbPiece(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), static_cast<int>(G_FLOAT(OFS_PARM2)));
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
 // string limbmodel(entity e, float bone): the model of e's limb at joint `bone` (vr_limbmodel.cpp), "" none.
 void PF_limbmodel()
 {
@@ -1973,6 +1985,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdolllimb", PF_ragdolllimb},
     {"ragdolllimbs", PF_ragdolllimbs},
     {"limbmodel", PF_limbmodel},
+    {"limbpiece", PF_limbpiece},
     {"limbplace", PF_limbplace},
     {"physicsshot", PF_physicsshot},
     {"physicsdamp", PF_physicsdamp},

@@ -26284,3 +26284,28 @@ Enforcer Laser Pops (the same setting). Tests: `vr_limb_test 20` (head) / `21` (
 64 units off along a clear line, the target at health 1. Roll 0: both pop; `vr_decap_pop_laser 0`: neither (not armed);
 random rolls at 0.85 (each a fresh grunt): heads 34 of 40 kills popped (two runs), limbs 11 of 15.
 
+### Limb weights
+
+A limb (or head) cut off weighed its model's hull at the density of flesh, whatever its body weighed. Now it weighs its
+share of its ragdoll's Mass by the kind of limb (`limbMassShare`, vr_box3d.cpp, from the rig's bone names): a person's
+arm 6.3% (upper arm 3.5, forearm 2, hand 0.8), leg 15.5% (thigh 9.5, shin 4.5, foot 1.5), head 7 (a jaw 1 of it); two
+arms' and two legs' shares split among as many as the rig has (the rottweiler's four legs 7.75% each, the vore's three
+10.3, the centroid's six 5.2); a part the rig lacks weighs on its parent (the grunt's forearm carries the hand: 2.8%);
+tails and the rest their hull's share of the body's volume. Times `vr_limbs_mass_scale` (1; 0: the old hull weight). Set
+as `.vr_prop_mass` (Box3D), so held and thrown feel follows. A first try with the ragdoll parts' volume shares gave
+erratic numbers (a zombie's arm 3.4% and leg 31%, a hell knight's arm 17%) and was dropped. `vr_limb_test 19` (every
+monster kind on the map):
+
+| monster (ragdoll kg) | head | whole arm | forearm(+hand) | whole leg | shin(+foot) |
+|---|---|---|---|---|---|
+| grunt (80) | 5.6 | 5.0 | 2.2 | 12.4 | 4.8 |
+| ogre (200) | 14.0 | 12.6 | 5.6 (hand 1.6) | 31.0 | 12.0 |
+| rottweiler (40) | 2.8 | (front leg) 3.1 | 1.2 | 3.1 | 1.2 |
+| shambler (280) | 19.6 | 17.6 | 7.8 (hand 2.2) | 43.4 | 16.8 |
+| scrag (40) | 2.8 | 2.5 | (hand) 0.3 | tail 3.4 (volume) | |
+| fiend (140) | 9.8 | 8.8 | 3.9 | 21.7 | 8.4 (foot 2.1); tail 6.2 |
+| gremlin (20) | 1.4 | 1.3 | 0.6 | 3.1 | 1.2 |
+
+Whole limbs and head: 50.6% of every humanoid. The grab case (`limbs_test.sh <agent> grab`) still holds and lifts a cut
+forearm (2.2 kg).
+

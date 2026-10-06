@@ -2167,6 +2167,11 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         toggle("Make Limbs as the Map Loads", vr_limbs_prebuild)
             .help("On: the limbs of every kind of monster the map has are made as it loads (about 5 ms each: a tenth of a "
                   "second or so more), not at their first cut (a dropped frame). The next map load (vr_limbs_prebuild)."),
+        slider("Limb Weight", vr_limbs_mass_scale, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("A limb (or head) cut off weighs its share of its monster's ragdoll Mass by the kind of limb: a whole arm "
+                  "6.3%, a forearm and hand 2.8%, a hand 0.8%, a whole leg 15.5%, a shin and foot 6%, the head 7% (four "
+                  "legs share two legs' weight, six arms two arms'; a tail its share of the body's volume), times this; "
+                  "held and thrown as that. 0: its model's volume of flesh, as before (vr_limbs_mass_scale)."),
         slider("Enforcer Laser Pops", vr_decap_pop_laser, 0.f, 1.f, 0.05f, "%.2f")
             .help("An enforcer's laser bolt that kills with a head or limb hit (an enemy's into another monster, or your "
                   "enforcer's rifle) pops it at this chance (times Head or Limb Chance) (vr_decap_pop_laser)."),
@@ -4588,6 +4593,9 @@ za::Vector<Item> pageDebugTools()
         command("Most Limbs", "vr_limb_test 11").help("vr_limb_test 11: twice Most Limbs Lying About thrown: how many stay."),
         command("Where Its Limbs Map", "vr_limb_test 13").help("vr_limb_test 13: each limb's surface point and the joint a hit there cuts."),
         command("The Limbs Lying About", "vr_limb_test 17").help("vr_limb_test 17: each limb thrown: its model, where it is, how fast (none fallen out of the world)."),
+        command("Limb Weights Here", "vr_limb_test 19")
+            .help("vr_limb_test 19: every kind of monster on the map: what its head and each limb weigh cut off (kg, share of "
+                  "its ragdoll's Mass; * a whole limb) (Limb Gore > Limb Weight)."),
         command("Enemy Laser at the Head", "vr_limb_test 20")
             .help("vr_limb_test 20: an enforcer's laser bolt (an enemy's) into the nearest living monster's head that kills "
                   "it (health 1): popped at Enforcer Laser's chance (vr_decap_pop_roll 0: always)."),

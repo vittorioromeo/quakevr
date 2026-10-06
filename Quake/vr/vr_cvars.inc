@@ -1834,6 +1834,7 @@ QVR_CVAR(vr_gib_limbs, "1", CVAR_ARCHIVE) // a body gibbed throws its own limbs:
 QVR_CVAR(vr_limbs_prebuild, "1", CVAR_ARCHIVE) // limb gore: the whole limbs of the map's kinds of monster made as it loads (0: at the first cut, a hitch)
 QVR_CVAR(vr_limbs_max, "24", CVAR_ARCHIVE) // most limbs lying about: past it, the oldest go (not one in a hand)
 QVR_CVAR(vr_pickup_test, "0", CVAR_NONE) // the QC runs weapon pickup test n: 1 every weapon pickup in a row ahead with the same weapon dropped, 2 the nearest taken (vr_pickup_test.qc; Debug > Tests)
+QVR_CVAR(vr_limbs_mass_scale, "1", CVAR_ARCHIVE) // a limb (or head) cut off weighs its share of its ragdoll's mass by the kind of limb (an arm 6.3%, a leg 15.5%, the head 7%) times this (0: its model's volume of flesh, as before)
 QVR_CVAR(vr_limb_test, "0", CVAR_NONE) // the QC runs limb gore test n on the nearest monster or corpse (vr_limbs.qc; Debug > Gore Tests)
 QVR_CVAR(vr_gore_test_crowd, "0", CVAR_NONE) // units: above 0, vr_limb_test and vr_decap_test act on every monster this near you at once (one line: goretest: crowd; the benchmarks' gore scenarios)
 QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)

@@ -2361,6 +2361,51 @@ bool makeRagdollRoom(edict_t* ent)
     return madeRoom;
 }
 
+// Part `bone`'s hull of its vertices (rest units times `k`: metres), simplified to at most 20 corners (Box3D's hulls have
+// at most 128 half edges); one that can't be made, its vertices' box (null: no vertices). `volume` (m^3): the hull's,
+// and its capsule's. The ragdoll's parts weigh their share of its mass by it (makeRagdoll), and so does a limb cut off
+// (limbMass).
+[[nodiscard]] b3HullData* boneHull(const ragdoll::Bone& bone, float k, float& volume)
+{
+    za::Array<b3Vec3, 128> pts;
+    const int n = za::min(static_cast<int>(bone.points.size()), static_cast<int>(pts.size()));
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    for(int i = 0; i < n; i++)
+    {
+        const glm::vec3 p = bone.points[static_cast<za::SizeT>(i)] * k;
+        pts[static_cast<za::SizeT>(i)] = b3Vec3{p.x, p.y, p.z};
+        lo = glm::min(lo, p);
+        hi = glm::max(hi, p);
+    }
+    b3HullData* hull = nullptr;
+    for(const int corners : {20, 12, 8})
+    {
+        hull = n >= 4 ? b3CreateHull(pts.data(), n, corners) : nullptr;
+        if(hull)
+        {
+            break;
+        }
+    }
+    if(!hull && n > 0)
+    {
+        const glm::vec3 c = (lo + hi) * 0.5f, h = glm::max((hi - lo) * 0.5f, glm::vec3{0.01f});
+        za::Array<b3Vec3, 8> box;
+        for(int i = 0; i < 8; i++)
+        {
+            box[static_cast<za::SizeT>(i)] = b3Vec3{c.x + (i & 1 ? h.x : -h.x), c.y + (i & 2 ? h.y : -h.y), c.z + (i & 4 ? h.z : -h.z)};
+        }
+        hull = b3CreateHull(box.data(), 8, 8);
+    }
+    float v = hull ? hull->volume : 0.f;
+    if(bone.capsule > 0.f)
+    {
+        const float rad = bone.capsule * k, len = glm::length(bone.end - bone.pivot) * k;
+        v += glm::pi<float>() * rad * rad * (len + 4.f / 3.f * rad);
+    }
+    volume = v;
+    return hull;
+}
+
 // The ragdoll's parts made for `ent` where its frame has them; false (nothing made) without a rig. `now`: made at once
 // from whatever frame it is in (beheaded: ragdollDecap), its loose piece hidden (what it held: its death code drops it).
 bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
@@ -2466,50 +2511,15 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
     }
 
     // The parts' shapes and volumes first (their density: vr_ragdoll_mass over the body's; a loose piece weighs
-    // looseMass). Each part's hull of its vertices, simplified to at most 20 corners (Box3D's hulls have at most 128
-    // half edges); one that can't be made, its vertices' box.
+    // looseMass): each part's hull of its vertices (boneHull).
     za::Array<b3HullData*, ragdoll::maxBones> hulls{};
     za::Array<float, ragdoll::maxBones> volumes{};
     float volume = 0.f;
     for(int b = 0; b < r.count; b++)
     {
         const ragdoll::Bone& bone = rig->bones[b];
-        za::Array<b3Vec3, 128> pts;
-        const int n = za::min(static_cast<int>(bone.points.size()), static_cast<int>(pts.size()));
-        glm::vec3 lo{1e30f}, hi{-1e30f};
-        for(int i = 0; i < n; i++)
-        {
-            const glm::vec3 p = bone.points[static_cast<za::SizeT>(i)] * k;
-            pts[static_cast<za::SizeT>(i)] = b3Vec3{p.x, p.y, p.z};
-            lo = glm::min(lo, p);
-            hi = glm::max(hi, p);
-        }
-        b3HullData* hull = nullptr;
-        for(const int corners : {20, 12, 8})
-        {
-            hull = n >= 4 ? b3CreateHull(pts.data(), n, corners) : nullptr;
-            if(hull)
-            {
-                break;
-            }
-        }
-        if(!hull && n > 0)
-        {
-            const glm::vec3 c = (lo + hi) * 0.5f, h = glm::max((hi - lo) * 0.5f, glm::vec3{0.01f});
-            za::Array<b3Vec3, 8> box;
-            for(int i = 0; i < 8; i++)
-            {
-                box[static_cast<za::SizeT>(i)] = b3Vec3{c.x + (i & 1 ? h.x : -h.x), c.y + (i & 2 ? h.y : -h.y), c.z + (i & 4 ? h.z : -h.z)};
-            }
-            hull = b3CreateHull(box.data(), 8, 8);
-        }
-        hulls[static_cast<za::SizeT>(b)] = hull;
-        float v = hull ? hull->volume : 0.f;
-        if(bone.capsule > 0.f)
-        {
-            const float rad = bone.capsule * k, len = glm::length(bone.end - bone.pivot) * k;
-            v += glm::pi<float>() * rad * rad * (len + 4.f / 3.f * rad);
-        }
+        float v = 0.f;
+        hulls[static_cast<za::SizeT>(b)] = boneHull(bone, k, v);
         volumes[static_cast<za::SizeT>(b)] = v;
         volume += bone.joint == ragdoll::Joint::Loose ? 0.f : v;
     }
@@ -11910,6 +11920,136 @@ const char* limbModel(edict_t* ent, int bone)
         return "";
     }
     return limbmodel::keptName(base, bone, bones == all ? 0u : bones);
+}
+
+// Limb gore: what part `b` of `rig` weighs cut off, as a share of its ragdoll's mass (limbPiece), by the kind of limb its
+// name says (the author: a limb far lighter than its body, a hand lighter than a thigh): a person's (an arm 6.3%: the
+// upper arm 3.5, the forearm 2, the hand 0.8; a leg 15.5%: the thigh 9.5, the shin 4.5, the foot 1.5; the head 7, a jaw
+// 1 of it), two arms' and two legs' shares split among as many as the rig has (a rottweiler's four legs, the centroid's
+// six); a part the rig hasn't (a forearm without a hand of its own, an arm without its forearm) weighs on the one that
+// has it. Tails and anything else: their hulls' share of the body's volume (as the ragdoll's own parts weigh); a loose
+// piece (a gun) nothing.
+namespace limbmass
+{
+enum class Kind : uint8_t { Head, Jaw, UpperArm, Forearm, Hand, Arm, Thigh, Shin, Foot, Leg, Other };
+constexpr float headShare = 0.07f, jawShare = 0.01f;
+constexpr float upperArmShare = 0.035f, forearmShare = 0.02f, handShare = 0.008f;
+constexpr float thighShare = 0.095f, shinShare = 0.045f, footShare = 0.015f;
+
+[[nodiscard]] Kind kindOf(const char* name)
+{
+    const auto is = [name](const char* prefix) { return !strncmp(name, prefix, strlen(prefix)); };
+    if(is("head")) { return Kind::Head; }
+    if(is("jaw")) { return Kind::Jaw; }
+    if(is("upperarm")) { return Kind::UpperArm; }
+    if(is("forearm")) { return Kind::Forearm; }
+    if(is("hand") || is("claw")) { return Kind::Hand; }
+    if(is("arm")) { return Kind::Arm; } // (upper arm and forearm in one: the knight's, the scrag's)
+    if(is("thigh") || is("upperleg")) { return Kind::Thigh; }
+    if(is("shin") || is("lowerleg")) { return Kind::Shin; }
+    if(is("foot")) { return Kind::Foot; }
+    if(is("leg")) { return Kind::Leg; } // (a whole leg in one: the centroid's)
+    return Kind::Other; // (tails, the torso)
+}
+} // namespace limbmass
+
+[[nodiscard]] float limbMassShare(const ragdoll::Rig& rig, int b)
+{
+    using limbmass::Kind;
+    const ragdoll::Bone& bone = rig.bones[b];
+    if(bone.joint == ragdoll::Joint::Loose)
+    {
+        return 0.f;
+    }
+    const auto hasChild = [&](Kind k) {
+        for(int c = b + 1; c < rig.numBones; c++)
+        {
+            if(rig.bones[c].parent == b && limbmass::kindOf(rig.bones[c].name) == k)
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+    int arms = 0, legs = 0;
+    for(int c = 0; c < rig.numBones; c++)
+    {
+        const Kind k = limbmass::kindOf(rig.bones[c].name);
+        arms += k == Kind::UpperArm || k == Kind::Arm ? 1 : 0;
+        legs += k == Kind::Thigh || k == Kind::Leg ? 1 : 0;
+    }
+    const float arm = 2.f / static_cast<float>(za::max(arms, 1)), leg = 2.f / static_cast<float>(za::max(legs, 1));
+    using namespace limbmass;
+    const float hand = hasChild(Kind::Hand) ? 0.f : handShare;
+    switch(kindOf(bone.name))
+    {
+    case Kind::Head: return headShare - (hasChild(Kind::Jaw) ? jawShare : 0.f);
+    case Kind::Jaw: return jawShare;
+    case Kind::UpperArm: return arm * (upperArmShare + (hasChild(Kind::Forearm) ? 0.f : forearmShare + handShare));
+    case Kind::Forearm: return arm * (forearmShare + hand);
+    case Kind::Arm: return arm * (upperArmShare + forearmShare + hand);
+    case Kind::Hand: return arm * handShare;
+    case Kind::Thigh: return leg * (thighShare + (hasChild(Kind::Shin) ? 0.f : shinShare + footShare));
+    case Kind::Shin: return leg * (shinShare + (hasChild(Kind::Foot) ? 0.f : footShare));
+    case Kind::Foot: return leg * footShare;
+    case Kind::Leg: return leg * (thighShare + shinShare + footShare);
+    case Kind::Other: break;
+    }
+    // (Its hull's share of the body's volume, the loose pieces not: as the ragdoll's parts weigh, createRagdoll.)
+    float own = 0.f, whole = 0.f;
+    for(int c = 0; c < rig.numBones; c++)
+    {
+        if(rig.bones[c].joint == ragdoll::Joint::Loose)
+        {
+            continue;
+        }
+        float v = 0.f;
+        if(b3HullData* hull = boneHull(rig.bones[c], 1.f, v))
+        {
+            b3DestroyHull(hull);
+        }
+        whole += v;
+        own += c == b ? v : 0.f;
+    }
+    return whole > 0.f ? own / whole : 0.f;
+}
+
+glm::vec3 limbPiece(edict_t* ent, int bone, int what)
+{
+    const ragdoll::Rig* rig = nullptr;
+    za::Array<glm::quat, ragdoll::maxBones> rot{};
+    za::Array<glm::vec3, ragdoll::maxBones> pos{};
+    float scale = 1.f;
+    uint32_t cut = 0;
+    if(!posedBones(ent, rig, rot, pos, scale, cut))
+    {
+        return glm::vec3{0.f};
+    }
+    bone = bone < 0 ? rig->head : bone;
+    if(bone < 0 || bone >= rig->numBones || (bone != rig->head && !ragdoll::limbJoint(*rig, bone)))
+    {
+        return glm::vec3{0.f};
+    }
+    // The piece: what a cut there takes now (a body gibbed whole: the limb as it is); just cut, what it took then (as
+    // limbModel's).
+    uint32_t bones = (bone == rig->head ? ragdoll::headBones(*rig) : ragdoll::limbBones(*rig, bone)) & ~cut;
+    const RagdollBodies* r = world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(r && r->lastCut == bone && r->lastCutBones && (cut & (1u << bone)))
+    {
+        bones = r->lastCutBones;
+    }
+    if(what == 1)
+    {
+        // (Its model's middle: a limb's model's origin, vr_limbmodel.cpp; the head's, its own bone's, ragdollCut 0.)
+        return rig->bones[bone].pivot - ragdoll::limbMiddle(*rig, bone == rig->head ? (1u << bone) : bones);
+    }
+    float share = 0.f;
+    for(int b = 0; b < rig->numBones; b++)
+    {
+        share += (bones & (1u << b)) ? limbMassShare(*rig, b) : 0.f;
+    }
+    const float mass = za::max(tune(ent, Tune::Mass), 1.f);
+    return glm::vec3{mass * share, mass, share};
 }
 
 glm::vec3 limbPlace(edict_t* ent, int bone, int what)

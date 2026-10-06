@@ -296,6 +296,11 @@ float(entity e, vector p) ragdolllimb = #0;
 float(entity e, float what, ...) ragdolllimbs = #0;
 string(entity e, float bone) limbmodel = #0;
 vector(entity e, float bone, float what) limbplace = #0;
+// The piece a cut at `bone` (-1 the head) takes (just cut: the piece cut; a body gibbed whole: the limb as it is): what 0
+// {kg it weighs (its share of e's ragdoll's mass by the kind of limb: a hand a little, a thigh a lot), the ragdoll's
+// mass, that share}; 1 its
+// cut end (the joint) in its model's space (units, unscaled: modelpoint turns it). '0 0 0': none.
+vector(entity e, float bone, float what) limbpiece = #0;
 float(entity e, vector p, ...) ragdollhead = #0; // [float neck]: units from the neck that count (at least 4)
 // A shot's push: the first loose prop between `start` and `end` (a health box, a gib, a weapon lying about: traces pass
 // through them) pushed as physicspush where the shot goes in. That prop, or world.
