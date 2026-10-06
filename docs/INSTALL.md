@@ -9,6 +9,7 @@ optional extras, and what to do when something goes wrong.
 - [Starting the game](#starting-the-game)
 - [OpenXR runtimes: SteamVR or Virtual Desktop](#openxr-runtimes-steamvr-or-virtual-desktop)
 - [Mission packs](#mission-packs)
+- [Official campaigns](#official-campaigns)
 - [Custom maps and mods](#custom-maps-and-mods)
 - [HD textures (QRP)](#hd-textures-qrp)
 - [Relit maps and see-through water](#relit-maps-and-see-through-water)
@@ -86,11 +87,12 @@ The package (`QuakeVR.zip`) contains:
 | File | What it is |
 |---|---|
 | `ironwail.exe`, `ironwail.pak` | the engine, with Quake VR built in |
+| `ironwail.pdb` | the engine's debug symbols: a crash report names the functions on the stack only with it there |
 | `openxr_loader.dll`, `SDL2.dll` and the audio codec DLLs | libraries the engine needs |
 | `QuakeVR.bat` | the launcher: runs `ironwail.exe -game quakevr` |
 | `README-QuakeVR.txt` | a quick-start note |
 | `quakevr\` | the game folder: Quake VR's QuakeC (`progs.dat`), models, sounds, textures, maps (hub, tutorial, firing range) and configs |
-| `quakevr\tools\` | the scripts that relight your own copy of Quake's maps (see [RELIGHTING.md](RELIGHTING.md)) |
+| `quakevr\tools\` | the scripts that relight your own copy of Quake's maps, and ericw-tools' `light.exe` (in `ericw-tools\`, GPL-3) for the in-game relighting (see [RELIGHTING.md](RELIGHTING.md)) |
 
 Unzip it **into your Quake folder**, so that `quakevr` sits next to `id1`:
 
@@ -185,7 +187,7 @@ by another installation.
 The newer campaigns also need current language tables from the owned rerelease `id1` data; their expansion
 PAKs do not contain them. Quake VR borrows only these tables from the configured roots or enabled Steam/GOG
 discovery, without adding the borrowed `id1` maps/models to your campaign paths. `-nosteam`, `-nogog`, and
-`-noegs` disable the corresponding store lookup; explicit `-basedir` roots and their rerelease subfolders still
+`-noepic` disable the corresponding store lookup; explicit `-basedir` roots and their rerelease subfolders still
 work. Keep the writable Quake VR folder as the last `-basedir` in the command shown above.
 
 Custom local translations have priority. Missing, empty, or untranslated entries are filled from owned tables
@@ -207,6 +209,16 @@ Current port coverage and outstanding mechanics are recorded in the [expansion a
 
 ## Custom maps and mods
 
+- **The Map Library** (the main menu's *Map Library*, or the menu corner's *Maps* button) lists
+  [Quaddicted](https://www.quaddicted.com/)'s archive of custom maps (its index is fetched when the game starts and
+  cached in `cache\maps_index.txt`). Type to search; the bar under the list sorts (rating, newest, oldest, size,
+  title) and filters them (type, size, rating, installed only). Pick one to read its description, then **Install**:
+  it is downloaded and unpacked in the background, into its own folder `qvr_addons\<id>\` in the Quake folder, and
+  **Play** starts it. An installed package also has **Uninstall** and **Reinstall** (press twice to confirm).
+  Packages that bring their own `progs.dat` are left out, since Quake VR runs its own gameplay
+  (`vr_maps_allow_progs 1` lists them). The downloads are kept in `cache\maps\`, at most `vr_maps_cache_mb` (512) MB;
+  `vr_maps_fetch 0` (or `-nomapindex`) stops the start-up fetch. The console has the same: `maps_list`, `maps_info`,
+  `maps_install`, `maps_play`, `maps_installed`, `maps_uninstall`, `maps_status`, `maps_cancel`, `maps_fetch`.
 - **A map without its own `progs.dat`:** put its `.bsp` in `quakevr\maps` (or `id1\maps`), then load it with
   `map <name>` in the console or from Ironwail's Maps menu. For a map pack in its own folder, run
   `QuakeVR.bat -game <folder>`: Quake VR's gameplay stays, and the folder's maps, textures and sounds are added on
@@ -275,11 +287,18 @@ result as the author, the QRP textures installed first. Then, from a Command Pro
 python quakevr\tools\relight_maps.py --quake "C:\Program Files (x86)\Steam\steamapps\common\Quake" --light "C:\tools\ericw-tools-2.0.0-alpha11-win64\light.exe" --vis-dir "C:\tools\vispatch"
 ```
 
-It takes about a minute on a fast PC and writes about 210 MB to `quakevr\relit\`.
+It takes about a minute on a fast PC and writes about 210 MB to `quakevr\relit\`. The package's own `light.exe`
+(`quakevr\tools\ericw-tools\light.exe`) works for `--light` too.
+
+**Or in the game, without Python:** *VR Settings > Advanced VR Options > Graphics > Relighting* (Menu Detail:
+Advanced) relights the map you are in, an episode, a game or every map, in the background while you play, with
+brightness sliders. It has no VisPatch step, so on its own it doesn't make water see-through (a map the script made
+see-through keeps it). See [RELIGHTING.md](RELIGHTING.md#relighting-in-the-game).
 
 **In the game:** the relit maps are used from the next map you load. *Advanced VR Options > Graphics > Relit Maps*
 switches between the relit and the original lighting. Water on the relit maps is see-through (*Advanced VR Options >
-Transparency > Water Alpha*, 0.6 by default; other maps keep opaque water whatever it says). Lava stays opaque.
+Graphics > Transparency > Water Alpha*, 0.3 by default; other maps keep opaque water whatever it says). Lava is
+not water-vised by VisPatch, so it looks opaque.
 
 Quake VR's own maps (the hub, tutorial and firing range) are already relit in the package.
 
@@ -327,7 +346,11 @@ only comes back after restarting SteamVR or Virtual Desktop too, it's them.
 ## Troubleshooting and bug reports
 
 Start the game with `QuakeVR.bat -condebug`. The console goes to `qconsole.log` in the Quake folder, which is the
-most useful thing to attach to a report.
+most useful thing to attach to a report. If the game crashes, it writes `qvr_crash.txt` and `qvr_crash.dmp` in the
+folder it was started from: attach both.
+
+Paths under *Advanced VR Options* need *Menu Detail: Advanced* (the last row of every page), and *Debug* pages need
+*Developer*.
 
 | Problem | What to try |
 |---|---|
@@ -335,11 +358,11 @@ most useful thing to attach to a report.
 | Guns point the wrong way, hands misplaced | Adjust *Gun Angle* and *Off Hand Angle* in VR Settings. *Weapon Offsets (Held Weapon)* moves a single weapon in the hand. |
 | Double vision, wrong scale | Send the output of `vr_status`, and a screenshot of the desktop mirror with `vr_mirror 2` (both eyes). |
 | Too tall, too short, floor in the wrong place | *Set Height Now* while standing straight, *World Scale*, *Floor Offset*. |
-| Water isn't see-through | Needs the relit maps made with the VisPatch files, and *Transparency > Water Alpha* below 1 (0.6 by default). See [RELIGHTING.md](RELIGHTING.md#troubleshooting). |
+| Water isn't see-through | Needs the relit maps made with the VisPatch files, and *Transparency > Water Alpha* below 1 (0.3 by default). See [RELIGHTING.md](RELIGHTING.md#troubleshooting). |
 | No sound | Check the Windows output device (your headset's audio) and Ironwail's volume options. |
 | Slow or stuttering | See [Performance](#performance). |
 | A crash | `qconsole.log` up to the crash, and what you were doing. |
-| Settings in a mess | *Options > Reset to defaults*, or delete `quakevr\ironwail.cfg` for a completely fresh start. |
+| Settings in a mess | *Options > Reset All*, or delete `quakevr\ironwail.cfg` for a completely fresh start. |
 
 Report bugs and ideas on the [GitHub issues page](https://github.com/vittorioromeo/quakevr/issues), with the log,
 your headset and runtime, and, for performance, a profile or memory log.

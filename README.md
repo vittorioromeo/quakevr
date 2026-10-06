@@ -91,7 +91,7 @@ A short list. [docs/FEATURES.md](docs/FEATURES.md) explains each feature and how
 
 - **Quake and both mission packs** (Scourge of Armagon, Dissolution of Eternity) in one game. They are found
   automatically and picked from the start hub.
-- **Custom maps** run with Quake VR's gameplay. The **Map Library** (Single Player > Map Library) browses
+- **Custom maps** run with Quake VR's gameplay. The **Map Library** (on the main menu) browses
   [Quaddicted](https://www.quaddicted.com/)'s archive of custom maps, and downloads and installs them in the game. **Other mods** run in a compatibility mode: you aim with your hand,
   but you have no off-hand weapons or holsters.
 - **Ironwail's strengths:** fast on huge modern maps, a Maps and Mods menu, and flat-screen play (`vr_enabled 0`).
