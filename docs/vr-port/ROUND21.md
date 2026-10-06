@@ -27101,3 +27101,17 @@ the water.
 
 In VR: put the VisPatch files in `quakevr\tools\vispatch`, relight an episode (Many Maps) and look into the water of
 e1m2's or start's pools; turn See-Through Liquids off and relight: opaque again. Without the files, the row is dimmed.
+## Shadow casters drawn once per light (2026-10-07)
+
+PROFILING_2026-10.md's decision 3. A dynamic light's six cube faces were drawn one at a time, each caster set up and
+drawn once per face it reached (8 lights: 48 passes, about 7700 draw calls a frame in `combined`). Now
+(`vr_shadow_layered 1`, default) each caster is drawn once per light into all its faces: each face a viewport, chosen
+by the vertex shader (`GL_ARB_shader_viewport_layer_array`, or the AMD/NV one); the world and brush casters one
+indirect multi-draw a light (a command's instances: its faces); the alias casters set up once a light (lerp,
+matrices, bones, the head's shadow mesh), their faces chosen by the same tests as before, sorted by model so a
+light's same models batch; holey skins a face at a time. Without the extension, or with `vr_shadow_layered 0`, the
+old path. `vr_shadow_layered_check [n]` (Debug > Profiling and Memory > Check Layered Shadows) draws both ways in one
+frame, times them and compares both atlases texel by texel: 0 texels differ on `combined`, `lights_32`, e1m1 (map
+lights, the flashlight) and start's slipgate (lights through it). `combined` (his settings, median of 3): draw calls
+7717 to 950, shadow CPU 1.73 to 1.20 ms, shadow GPU 7.1 to 0.6 ms, frame p50 23.0 to 17.1 ms; `lights_32` 3422 to
+394, 0.41 to 0.34 ms, 0.48 to 0.09 ms. Details and the table: LIGHTING.md, "Layered shadow casters".

@@ -798,6 +798,11 @@ between frames. Under `screen/3D`, `eye L` and `eye R` hold each eye's `scene` (
 `postprocess`, the `hud panel` and the `mirror` to the window; the shadow maps (`dlight shadows`, `map light
 shadows`) are drawn once, in the left eye's `setup view`. `self` columns leave out the parts inside a part.
 
+**Shadow maps, layered or a face at a time** (LIGHTING.md, "Layered shadow casters"): `vr_shadow_layered_check 20`
+(Debug > Profiling and Memory > Check Layered Shadows) draws the frame's shadow maps both ways 20 times (draw calls,
+faces, model draws, CPU and GPU ms each), then reads both atlases back and compares them texel by texel: `0 texels
+differ` in both is the pass. `vr_shadow_layered 0` draws a face at a time (the old way).
+
 **Benchmark scenarios** ([BENCHMARKS.md](BENCHMARKS.md)): the kit's `bench.sh` runs a set of fixed scenarios (idle,
 slipgates, combat, physics, effects, lights, liquids, custom maps, flat) and compares a baseline with new results;
 each run's numbers come from `vr_bench_begin <name> [frames | <seconds>s]` (frame, CPU and GPU percentiles, each GPU

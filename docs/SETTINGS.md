@@ -481,6 +481,7 @@ changed yourself is left alone.
 | `vr_profile 1` / `2`, `vr_profile_dump` | Per-frame CPU and GPU timings to `quakevr\profile\` (2: also on the wrist) |
 | `vr_memstats` | GPU and game memory, live OpenGL objects, average frame time. `vr_memstats_log` writes a row a minute. |
 | `vr_shadow_stats 1` | Shadow lights, faces and cost each second |
+| `vr_shadow_layered 0` / `1`, `vr_shadow_layered_check 20` | Shadow casters drawn a face at a time / once per light (default); both ways compared in one frame |
 | `vr_light_test`, `vr_particle_test <0..11>`, `vr_gore_test` | Spawn a light, a particle effect or gore in front of you |
 | `vr_body_debug 2` / `3` | A copy of your body's pose in front of you (facing you, or from the side) |
 | `vr_show_hip_holsters 1` (and `_upper_`, `_shoulder_`, `vr_show_virtual_stock`) | Show the holsters and the virtual stock |

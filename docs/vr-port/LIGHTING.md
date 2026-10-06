@@ -116,6 +116,8 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
 | `vr_dlight_angle` | 1 | angle falloff of dynamic lights (0: Quake's) |
 | `vr_dlight_uncapped` | 1 | dynamic lights add fully to bright walls |
 | `vr_shadow_stats` | 0 | prints lights, faces, model draws, GPU and CPU time each second |
+| `vr_shadow_layered` | 1 | casters drawn once per light into all the faces they reach (see "Layered shadow casters"); 0 a face at a time (also without the extension) |
+| `vr_shadow_layered_check [n]` | command | this frame's shadow maps both ways `n` times (draw calls, CPU and GPU ms), then both atlases compared texel by texel |
 | `vr_light_test [radius] [seconds] [distance]` | command | a dynamic light in front of you |
 
 | Preset | Dyn. shadows | Face | Map-light shadows | Face | Filter | Atlas | Distance | Model dlights, angle, model lighting, blob shadows |
@@ -155,6 +157,56 @@ the light counts with your headset's frame timing.
   bounding sphere in the light clustering compute shader (see "The chest flashlight").
 - `Quake/vr/vr_lighting.cpp`: all the rest. It is renderer-specific (OpenGL, Ironwail's buffers); a vkQuake port
   rewrites it and the shader parts (see [PORTING.md](PORTING.md)).
+
+## Layered shadow casters (2026-10)
+
+A point light's six faces are six tiles of the atlas. Drawn a face at a time, every caster near a light was set up
+(lerp, matrices, bones) and drawn once per face it reached: with 8 shadowed lights, 48 passes, and in the `combined`
+benchmark about 7700 draw calls a frame for the shadows alone (PROFILING_2026-10.md, decision 3).
+
+`vr_shadow_layered 1` (the default) draws each caster once per light: each face is a viewport (`glViewportIndexedf`,
+its tile) and the vertex shader picks it (`gl_ViewportIndex`: `GL_ARB_shader_viewport_layer_array`, else
+`GL_AMD_vertex_shader_viewport_index` or `GL_NV_viewport_array2`; `gl_viewport_layer_able`, `-noviewportlayer` to
+test without):
+
+- **World and brush casters** (`drawLayered` in `vr_lighting.cpp`): one `glMultiDrawElementsIndirect` a light, a
+  command for the world and one per door, lift or item box; a command's instances are the light's visible faces (an
+  instanced attribute, `draw << 3 | face`, reached through the command's base instance). The matrices (the face's
+  view-projection times the brush's model, multiplied on the CPU as before) and clip planes are an SSBO (binding 7).
+- **Alias casters** (`R_DrawAliasModelsDepthLayered` in `r_alias.c`): each caster set up once a light, with the faces
+  it reaches by the same tests a face at a time made (`R_CullBox` of its bounds against each face's frustum, the view
+  entities' wider sphere, the posed ones in every face). A batch draws an instance per caster and face through a
+  table (`FaceBuffer`: the faces' view-projections, then `instance | face << 16`), the `LAYERED` variant of the alias
+  depth program. The casters are sorted by model and skin first, so a light's same models make one batch (the depth
+  kept is the nearest whatever the order).
+- **Holey skins** (`MF_HOLEY`, their fragment shader's alpha test) are drawn a face at a time after the rest.
+- Unchanged: the light's own selection and faces, the head's shadow mesh and the 30 cm skip (`vr_shadow_head`, once a
+  light as before), spot lights (one face), the lights through slipgates (their clip plane), the map lights' cached
+  world and moving casters (and their face masks).
+
+The depth is the same arithmetic as a face at a time, and bit-identical: `vr_shadow_layered_check [n]` draws the
+frame's shadow maps both ways `n` times each, then once more each with the map lights' cached world too, reads both
+atlases back and compares them (Debug > Profiling and Memory > Check Layered Shadows). On `combined`, `lights_32`,
+e1m1 (3 map lights with casters, the flashlight, test lights) and start's slipgate (8 dynamic and 2 lights through the
+gate): 0 texels differ in either atlas. Eye images toggled in a paused frame: the same but for the known 1-level noise
+in 1-3 pixels; the spectator's the same.
+
+Measured (`bench.sh` with the author's settings, his 8 lights at 1024 on an 8192 atlas; median of 3 interleaved runs,
+"shadow maps" phase, paced at 90 Hz):
+
+| scenario | draw calls a frame | shadow CPU ms | shadow GPU ms | GPU 3D ms | frame p50 ms |
+|---|---|---|---|---|---|
+| `combined`, a face at a time | 7717 | 1.73 | 7.14 | 20.9 | 23.0 |
+| `combined`, layered | 950 | 1.20 | 0.60 | 14.5 | 17.1 |
+| `lights_32`, a face at a time | 3422 | 0.41 | 0.48 | 2.31 | 11.1 (cap) |
+| `lights_32`, layered | 394 | 0.34 | 0.09 | 1.75 | 11.1 (cap) |
+
+The GPU time was the faces' small draws (thousands of instanced draws of a few hundred triangles each, a state change
+and a buffer bind each): the same triangles in a tenth of the draws. `vr_profile` (fast mode, `combined`): "shadow
+alias draw" 1.36 to 0.63 ms a frame, of which 0.21 is choosing each caster's faces ("shadow caster faces"); the rest
+is each caster's set-up, now once a light. `combined`'s "CPU busy" rises (6 to 17 ms) though no CPU work grew: the
+frame is still GPU-bound (the retro particles' 9-13 ms), and its wait for the GPU moved from `swap` (15.7 to 3.3 ms,
+left out of "busy") into the frame's own GL calls (counted as busy); the frame time is the measure that holds.
 
 ## The look (round 7)
 
