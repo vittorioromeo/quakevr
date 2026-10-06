@@ -96,7 +96,7 @@ Load adds to these [code]:
 | Two-handed props (`vr_carry2h`) | Server builtins keyed by prop (multiplayer-safe). The client repeats the solve. | Nothing extra | On a listen server the client reads `carry2h::serverHold`. A remote client records its own hold, so its grips can differ (`vr_held.cpp:1607`). Uses the host's fist. | As above. Send the grip pair once per grab (CATCHBLEND-sized event) so the client needn't guess. |
 | Two-hand weapon aim (`vr_twohand`) | Client | Rotated `hand.rot`, `shotRot`, `VRBITS0_2H_AIMING` | `weaponhotspot`/`weaponhotspotinfo` builtins return `{}` unless `NUM_FOR_EDICT(player)==1 && cls.state==ca_connected` (`vr_builtins.cpp:751`); melee's two-hand check (`vr_melee.qc:411`) is lost for others. | Keep aim on the client. Send the hotspot (weapon-local grip point) in the rig or the move. |
 | Throwing (`vr_throw`) | Client estimates the throw; QC releases it | `throwVel/angVel/throwPos/throwAge` in the move | Client-trusted velocity; no absolute speed clamp (`vr_carry.qc:444`). | Keep on the client (needs 72+ Hz tracking). Add a server speed cap. |
-| Melee (`vr_melee.qc`, `combat.qc`, `vr_meleehud`) | Server QC per player (`mh_*` fields). Speeds are recomputed from pose deltas over **server time** (`vr_melee.qc:695-755`). | Hands up; `STAT_QVR_MELEE`, `QVR_SVC_HANDIMPACT`, haptics down | 20 Hz dedicated tick: poses undersampled. Jitter: 0 or 2 moves per tick skew speeds. No lag compensation: blows are judged against where the server has the monster. Host's `vr_gunangle` wrist (above). Host's `vr_melee_speed` threshold. | Keep judgement on the server. Either send client timestamps and all samples since the last move (process every move, not only the last), or detect swings on the client and have the server validate. Rewind monster hit models by the client's latency. The motion recorder stays listen-only (a dev tool). |
+| Melee (`vr_melee.qc`, `combat.qc`, `vr_meleehud`) | Server QC per player (`mh_*` fields). Speeds are recomputed from pose deltas over **server time** (`vr_melee.qc:695-755`). | Hands up; `STAT_QVR_MELEE`, `QVR_SVC_HANDIMPACT`, haptics down | 20 Hz dedicated tick: poses undersampled. Jitter: 0 or 2 moves per tick skew speeds. No lag compensation: blows are judged against where the server has the monster. Host's `vr_gunangle` wrist (above). The server's melee timing rules (`vr_melee_speed`...) apply to all: decided 2026-10-06, see "Server rules". | Keep judgement on the server. Either send client timestamps and all samples since the last move (process every move, not only the last), or detect swings on the client and have the server validate. Rewind monster hit models by the client's latency. The motion recorder stays listen-only (a dev tool). |
 | Hit models (`vr_hitmodel`) | Server C++ (per entity) | Nothing | Copies the client lerp using the **host's** `r_lerpmodels/r_lerpmove` (`vr_hitmodel.cpp:373,377`). "What you see is what you hit" holds only at zero latency. | Make the lerp flags a server setting. Add rewind (as above). |
 | Model collision (`vr_modelcollide`) | Client, drawing only | Nothing | `hosting` branch reads `EDICT_NUM` flags and `box3d::restsOnHand` (`vr_modelcollide.cpp:378,389,865`). A remote client guesses by model. | Send the needed flag (e.g. "rests on hand") as an entity bit, or accept the fallback. |
 | Weight spring (`vr_weight`) | Client (spring). Server builtins `weightdamage/weightleniency` use server cvars. | Spring-moved hands; `handDrop` bits | Prop mass: listen reads `EDICT_NUM(ent)` / `box3d::propMass` (`vr_weight.cpp:151-164`); remote uses `props::estimateMass`, so the feel differs from the server's damage mass. Weapon drop is client-decided. | Keep the spring on the client (felt latency). Send the mass: an entity extra, or a byte in the carry stat. |
@@ -119,7 +119,7 @@ Load adds to these [code]:
 | Box3D props (`vr_box3d`, `vr_physics`, `vr_rigid`) | Server only: one world stepped per server frame (`vr_box3d.cpp:5307-5446`); 3 substeps at 20 Hz. Deterministic, single-threaded. | Ordinary entity updates (INT32COORD, short angles); about 24 B per moving prop per frame, resent while it differs from the baseline | Linear Euler lerp wobbles on tumbling props. At 20 Hz a fast throw over the 100-unit lerp threshold snaps. Pushes, bats and standing reactions are one round trip late. | Keep the server authoritative (no client Box3D: two sims diverge and cost CPU). Add snapshot or quaternion interpolation with about 2 ticks of render delay. Delta-compress `U_QVR_*`. Client prediction only for props in the local hand (already done by drawing). |
 | Hand and weapon kinematic bodies | Server, for **all** clients (`hands.resize(maxclients+1)`, `vr_box3d.cpp:1708-1715`) | From the move | **Host shortcuts:**<br>• `vr_box3d.cpp:1726`: fist spheres only for `i == 1`, from `held::fist` (the host's drawn hand).<br>• `vr_box3d.cpp:1929`: `if(i == 1 && cls.state == ca_connected)` player 1's weapon body is the drawn model hull (`view::drawnWeapon`); others get a hand-to-muzzle capsule.<br>• Scale uses the host's `vr_world_scale × vr_gunmodelscale`.<br>On a dedicated server everyone gets a 4.5 cm sphere plus a capsule. Jittery remote moves give velocity spikes (capped by `limitPushes`). | Per-client rig (P0-2): fist spheres from the client, weapon hull from the weapon id plus that client's offsets (computed server-side from the model, not from `view::`). |
 | Standing on props | Server, per client (`stands.resize(maxclients+1)`, `VR_StandsOn`) | Nothing extra | Felt a round trip late (no prediction). | Fine. It improves with movement prediction (P2). |
-| Debris (`vr_debris`) | Server | Entities | Off whenever `svs.maxclients != 1` (`vr_debris.cpp:877`), including a listen server with `maxplayers 2` for its host. Reason: 1400 B packets (ROUND21.md:8904). | If debris is cosmetic, move it to the client: one event → each client spawns and simulates its own. If it affects gameplay, add a per-client entity budget. **Author decision.** |
+| Debris (`vr_debris`: rocks and bricks) | Server (interactable: picked up, thrown) | Entities | In multiplayer at most `vr_debris_mp_max` (default 0: none, as before; 2026-10-06). | Decided (2026-10-06): interactable debris stays server-side; VFX-only debris is client-side. See "Debris and effects". |
 | Force grab (`vr_wpnforcegrab.qc`, `vr_fgfx`, `vr_drawblend`) | Server QC (target, lock, fly home toward the server's copy of the hand). The client draws glows and the catch blend. | `STAT_QVR_FG*` (owner only); `QVR_SVC_CATCHBLEND` 29 B reliable, once per catch | Others see no glows. Homes on the lagged server hand. World weapons are force-grabbable only in single player (`vr_wpnforcegrab.qc:121,132`). Host `vr_forcegrab_mode` and flick speed. | Keep. Prefs channel. On the client, blend the flying object toward the drawn hand in its last 100 ms. |
 | Player and monster narrow hulls (`vr_hull`, `vr_unstick`) | Server C++, compiled from `sv.worldmodel`; unstick per client | Nothing | One `vr_hull_width` for all (a server rule, fine). The client's lean recentering (`worldtrace::playerBoxFits`, `vr_hull.cpp:3064`) uses the narrow box only when `world == sv.worldmodel`; remote clients use the 32-wide hull 1. | Keep on the server. Send the width in serverinfo and let the client compile the hull from `cl.worldmodel` (or accept hull 1). |
 | Teleport (`vr_teleport`) | Client aims with `worldtrace::move` (`vr_teleport.cpp:41`, listen-only); the server validates with its own `vr_teleport_range` | `teleportTarget` 12 B plus a bit, every move | **A remote client cannot teleport**: the trace returns nothing [code]. The range is the host's while the aim uses the client's. | Aim with a client-side hull trace (`worldtrace::world`/`hullTrace`). Server range becomes a server rule; the client clamps to the server's range. |
@@ -146,7 +146,9 @@ Load adds to these [code]:
     - assists: `vr_throw_assist*`, `vr_forcegrab_flick_speed`
     - feedback: `vr_holster_haptics*`, `vr_forcegrab_eligible_*`, `vr_grapple_haptics`, `vr_counter_haptic`,
       `vr_explosion_rumble`, `vr_heartbeat`, `vr_headshot_sound`
-  - Could be either a preference or a rule: `vr_melee_speed`, `vr_melee_wrist_speed`, `vr_grenade_catch`,
+  - Server rules since 2026-10-06 ("Server rules"): `vr_melee_speed`, `vr_melee_wrist_speed` and the other melee timing
+    settings.
+  - Could be either a preference or a rule: `vr_grenade_catch`,
     `vr_carry_two_hands_solid`, `vr_gore`, `vr_body_interactions`.
   - The other ~335 server-read cvars are real rules (damage, stamina, grapple, parry, hulls, Box3D, debris).
 - **Menus.** Pages mix rules and preferences. The Main page (Left Handed, grip mode, force grab, 2H handoff,
@@ -158,6 +160,70 @@ Load adds to these [code]:
     `vr_carry_check`, `vr_weight` test
   - motion recorder, playback and review
   - the menu's live preview (`vr_menuui.cpp:1242` requires `svs.maxclients == 1`)
+
+## Debris and effects (decided 2026-10-06)
+
+The author's decision: **VFX-only debris** (no gameplay interaction: nothing picks it up, nothing it hits matters, it
+deals no damage) is **client-side**: one event, and each client spawns and simulates its own. **Interactable debris**
+(grabbed, thrown, burns and spreads fire, blocks, deals damage: a crate's wooden pieces) is **server-side
+entities**. Every spawner was audited; each was already on its side, so no spawner moved and single player is unchanged.
+
+| What | Where it is made | Interaction | Side | Network cost |
+|---|---|---|---|---|
+| Explosion chunks (`vr_explosiondebris.cpp`) | Client, from `TE_EXPLOSION` and the explosion particle preset | None: world collision only, no damage, no pushes | Client | The explosion's event only |
+| Spent casings (`vr_shells.cpp`) | Client, from `QVR_SVC_EJECT` sent to the firing player | None | Client | 7 B event. Only the shooter's client sees them; remote players' casings belong with the remote avatars. |
+| Splinters and wood dust (`VR_Crate_Splinters`, a piece bursting) | Client particles (`particle2` presets) | None | Client | Particle event |
+| Sparks, blood, dust, smoke, fire particles, shock arcs | Client particles, from events | None | Client | Events |
+| Blood decals, gore on walls and bodies (`vr_decals`, `vr_gore`, `vr_bodyblood`, `vr_wounds`) | Client, from wound events | None | Client | Events |
+| Crate pieces (`vr_crate_piece`, vr_crates.qc; `vr_crate_piece_max` 48) | Server QC | Grabbed, thrown (they hurt), burn and spread fire, struck to dust | Server | About 22 B a frame for each piece in sight. They have no baseline because they are made after signon. |
+| Rocks and bricks lying about (`vr_debris.cpp`, vr_debris.qc) | Server C++ plan, QC entities | Grabbed, thrown (they hurt) | Server | About 18 B a frame for each piece in sight (measured below) |
+| Gibs and heads (`ThrowGib`, `ThrowHead`, vr_decap.qc) | Server QC | Grabbed, thrown, burst, squished, stuck | Server | Entities |
+| Small gibs and brain chunks (vr_smallgibs.qc; `vr_smallgibs_max` 64) | Server QC | Grabbed, thrown, burst | Server | Entities |
+| Mission-pack rubble (hip_rubbl.qc, rogue_newmisc.qc), lava balls (`misc_fireball`), zombie gibs | Server QC (id's) | They deal damage | Server | Entities |
+| Burning flames (`vr_burn_flame`, vr_burning.qc) | Server QC: a model on the burning thing | None of their own (the fire entity burns and spreads) | Server (follow-up) | Up to `vr_burn_flames_max` (12) entities per fire. They are VFX-only by the rule, but they follow the server's fire. Moving them needs a "burning" bit on the entity, with the client fitting flames to the body. They are not debris, so they were left as they are. |
+| Bubbles (id's `air_bubbles`, death bubbles) | Server QC (id's) | None | Server (as id made them) | A few entities. VFX-only by the rule, but tiny, so left as id's code. |
+| Wooden crates placed about the map (`vr_crates.cpp`) | Server | Props | Server | Still single player only (`svs.maxclients == 1`). A crate placed by a mapper (`vr_crate`) works in multiplayer. |
+
+**Rocks and bricks in multiplayer:** `vr_debris_mp_max` (Settings > Rocks and Bricks > Most in Multiplayer, the host's
+value) caps the pieces in a multiplayer map. Its default is 0 (none), as before. A remote client standing near a
+cluster of pieces spends about 480 B of its 1400 B datagram on them every frame (measured below). So a nonzero default
+needs the author's call, or the baselines fix below first.
+
+**Measured** (e1m1, release build, `vr_net_stats`; a listen server started with `-listen 2 -ip 127.0.0.1`, and a second
+game connected over UDP; ROUND notes for the scripts):
+
+| Case | Server entities | Entities sent to the client, bytes a frame |
+|---|---|---|
+| Single player: explosion (an explosive box) | 215 → 214 (the box is gone); 16 chunks on the client | 4 → 7 sent, 113 → 168 B (the local client) |
+| Single player: crate break (12 pieces) | 215 → 227 | 188 → 456 B (the local client) |
+| Listen + remote: crate break | 200 → 211 | 7 → 18 sent, 176 → 446 B, while flying and at rest |
+| Listen + remote: explosion | No debris entities | 0 B for the chunks. The host and the remote client each made 16 chunks of their own, at different speeds (separate simulations). |
+| Listen + remote: standing by rocks (`vr_debris_mp_max` 64, which gives 29 pieces in e1m1) | +29 | 17 → 43 sent, 256 → 739 B |
+
+**Why resting pieces cost so much:** NetQuake sends every entity in sight every frame, as its difference from its
+baseline. A piece made after signon has no baseline (its baseline is zeros), so it sends its model, origin and angles
+every frame, even at rest. The rocks, made before the baselines, still cost about 18 B each: either their baselines miss
+Quake VR's fields, or settling moves them. Next step: send a piece a new baseline once it comes to rest
+(`svc_spawnbaseline` is parsed at any time), and let the `U_QVR_*` fields default to the baseline's. The datagram sends
+the nearest entities first, so an overflow drops the farthest ones for that frame (`vr_net_stats` counts those frames).
+
+## Server rules (decided 2026-10-06)
+
+The author's decision: "Melee speed should be server-side." The server's QC always judged melee by its own cvars. Now
+the clients know those values too: `vr_serverrules.cpp` sends each rule to a client with its spawn state, and to all
+clients whenever it changes (`QVR_SVC_RULES`, reliable). The rules are the melee timing settings, which decide whether
+a blow lands: `vr_melee_speed`, `vr_melee_wrist_speed`, `vr_melee_pommel_wait`, `vr_melee_butt_run`, `vr_bash_speed`,
+`vr_bash_deflect_window`, `vr_headbutt_speed`, `vr_deflect_speed`, `vr_deflect_window`.
+
+- **Single player, and a listen server's host:** unchanged. The server is this process, so its cvar is the rule, and
+  the menu edits it as before.
+- **A client of a remote server:** the menu shows the server's value, dimmed, and does not change it. Left and right
+  play the "no" sound, and Reset This Page skips these rows. The help says the value is the server's and gives the
+  player's own value, which stays theirs for when they host. `vr_serverrules` (Debug > Other > Server Rules) prints
+  both.
+- [run] Listen server at 3, the remote client's own value 2.5: the client shows "server 3 (yours 2.5)". The host sets
+  5: the client shows 5 at the next server frame, and its own value stays 2.5.
+- Each further rule (damage multipliers, stamina, grapple...) is one line in `rules[]`. The menu dims it the same way.
 
 ## Listen-server shortcuts (complete list found)
 
@@ -208,7 +274,7 @@ The client reads the local server:
   - Traces for teleport, crosshair, flashlight and handpose: use client-side world plus entity traces.
   - Prop mass, the "rests on hand" flag, the hull width: send as data.
 - **Move to the client:**
-  - Debris, if cosmetic.
+  - VFX-only debris (it is already: explosion chunks, casings, splinters; see "Debris and effects").
   - The hit-model lerp choice becomes a server setting instead of reading the client's lerp cvars.
 - **Nothing should move from client to the server** except the per-client data above.
 
@@ -264,7 +330,7 @@ The client reads the local server:
 | P2-4 | Quantize the `clc_move` VR block (291 → about 150 B). | S |
 | P2-5 | Haptics: continuous buzzes unreliable. Climb hold stats: unreliable or event-based. | S |
 | P2-6 | Anti-cheat caps: throw speed, hotspot distance, hand distance from head. | S |
-| P3 | Debris in multiplayer (client-side if cosmetic; **author decision**); force-grabbing world weapons in multiplayer. | M |
+| P3 | Debris in multiplayer: decided and classified (2026-10-06, "Debris and effects"). Left: resting-piece baselines, a default for `vr_debris_mp_max`; force-grabbing world weapons in multiplayer. | M |
 
 Sizes: S < 1 day, M 1-3 days, L 4-7 days, XL > 1 week. The estimates are rough.
 

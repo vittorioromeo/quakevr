@@ -25631,3 +25631,32 @@ stand the target (frame 0) first: a grunt in a pain frame let the made-up blow m
 - [ ] Pick up Quad Damage: every headshot kill pops: shotgun across a room, nails, a rocket or grenade at the head,
       punches, a sword's stab, a thrown light prop or gun. A sword's slash still cuts the head off.
 - [ ] Head Pop Chance > Quad Damage: Always Pop off: Quad changes nothing.
+## Multiplayer: debris sides and melee timing as server rules (2026-10-06)
+
+The author decided the two open questions of MULTIPLAYER.md: VFX-only debris is client-side, interactable debris is
+server-side; melee speed is the server's. Details, the audit table and the numbers: MULTIPLAYER.md, "Debris and
+effects" and "Server rules".
+
+- **Audit:** every debris and particle-like spawner was already on its side (explosion chunks, casings, splinters,
+  particles, decals on the client; crate pieces, rocks and bricks, gibs, heads, small gibs, rubble on the server). No
+  spawner moved; single player is unchanged (e1m1: an explosion 215 -> 214 server entities and 16 client chunks; a
+  crate break 215 -> 227, 188 -> 456 B a frame).
+- **Rocks and bricks in multiplayer:** `vr_debris_mp_max` (default 0: none, as before; Rocks and Bricks > Most in
+  Multiplayer). At 64 (29 pieces in e1m1) a remote client by a cluster went 256 -> 739 B of its 1400 B datagram.
+- **Server rules** (`vr_serverrules.cpp`, `QVR_SVC_RULES` = 31): the melee timing cvars are sent to each client with
+  its spawn state and on a change. A remote server's client shows them dimmed with the server's value, does not change
+  them (Reset This Page skips them), and says so in the help. `vr_serverrules` prints them (Debug > Other).
+- **`vr_net_stats [reset]`** (Debug > Other > Network: Entities Sent): entities in use; per client the entities in
+  sight and sent, their bytes, the datagram's room, peak, mean and full frames (hook at the end of
+  `SV_WriteEntitiesToClient`).
+- **Two-game test:** `bash Misc/quakevr/multiplayer/mp_test.sh <agent> [tag] [vr_debris_mp_max]`: a listen server
+  (`-listen 2 -port 26010 -ip 127.0.0.1`) and a second game connecting over UDP. `-ip 127.0.0.1` is needed: without
+  it the server binds the host name's address (here a virtual adapter's) and `connect 127.0.0.1` gets no answer.
+  Without `coop`, both players spawn at `info_player_start` and the client telefrags the host, so the host moves first.
+  Result: the client showed "server 3 (yours 2.5)", then 5 the moment the host set 5; a crate break sent the client
+  7 -> 18 entities, 176 -> 446 B; an explosion sent no debris entities, and the host and the client each simulated
+  16 chunks of their own.
+- **Found, not fixed:** `vr_physics_blast`'s explosion effect never reaches the clients (it runs between frames and
+  the server frame clears `sv.datagram` first); impulse 232 (fling test) can pick a player's body (80.5 kg) as "the
+  nearest prop" in multiplayer; resting pieces made after signon cost ~22 B a frame each (no baseline): a baseline
+  sent when a piece comes to rest would cut that (MULTIPLAYER.md).
