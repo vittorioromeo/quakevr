@@ -6,6 +6,7 @@
 Head pops: shotgun and super shotgun headshot kills pop up close, rarer with range (shotgun sooner), never far away; lightning always; heavy thrown things pop (Gore > Decapitation > Head Pop Chance)
 Lightning: one hit puts arcs on a living enemy that last through its death; corpses convulse until the arcs end; try Duration 30 s; arcs readable, lights not too strong (Gore > Lightning Shock)
 Smoke: lightning-hit and burnt enemies/corpses smoulder for a few seconds (visible in dark rooms, not too much); Gore > Lightning Shock > Arcs on the Living off = lasting arcs only on corpses
+Lit particles: blood in a dark corner is dark, bright under the flashlight and muzzle flashes; fire, sparks and explosions as bright as before (Graphics > Models and Effects > Effects > Lit Particles)
 Shove toward a high ledge: always knocks down; Ledge Reach and Ledge Margin change how far ahead (Combat > Knockdowns)
 Parallax: carved walls keep their depth when seen from the side, no swimming (Graphics > Surfaces)
 Animated buttons and slipgate panels: no pulsing between frames
@@ -15,7 +16,7 @@ New defaults: a fresh config looks and plays like yours (parallax, combat, parry
 Official Campaigns: drawn in the big menu font
 Map tips: the CRT tip near the vrstart start appears; REPEAT tips come back; List This Map's Tips works
 Map Library: Down the Gutter now plays (page says which map Play starts); reinstall November-Schlacht to get its sky back; AD/Copper maps are flagged
-Training dummy: with Dummy Dies on it dies exactly like a grunt (beheaded, head pops by chance, ragdoll, gibs), stands again after 2 s
+Training dummy: Gore > Training Dummy > Dummy Enemy picks any enemy (model, hit zones, gore as that enemy); health board over it refills after 3 s; dies by default and stands again; record melee takes per enemy type (TESTING.md)
 Music: plays from your own rerelease install in e1m1, hip1m1, r1m1, an mg3 and a dopa map; vrstart hub track is the one you want
 Firing range: buttons visible from the far end; doors/buttons don't flicker against frames up close; labels fit their text even after playing a Map Library package
 Map Library: Debug > External Map Index shows Download Cache Size (512 MB) and Usage; an oversized cache trims at start
