@@ -479,13 +479,15 @@ brush models (`vr_parallax`, Graphics page: Parallax, Parallax Depth, Parallax D
 - **The shader** (`ParallaxUV`, world shader, solid surfaces only: not fences or liquids): the ray from each eye's
   own position (stereo-correct) through the pixel, down into the height field `vr_parallax_depth` units deep (3). The
   texture's axes on the surface are the gradients of its coordinates from the screen derivatives (the bumps' frame;
-  exact on flat faces, and on moved or rotated brush models). It walks the ray in 8 to `vr_parallax_steps` (16) steps,
-  more at grazing angles, then two secant refinements. The diffuse, fullbright and normal map are read at the point
+  exact on flat faces, and on moved or rotated brush models). It walks the ray in half `vr_parallax_steps` (16)
+  steps looking straight on to twice as many at grazing angles (no more than a step a texel crossed at the mip level
+  read), then refines the step it crossed the relief in (`vr_parallax_refine`, 4: regula falsi; round 21's grazing
+  pass, ROUND21.md "Parallax at grazing angles"). The diffuse, fullbright and normal map are read at the point
   found, with the surface's own mip level (the moved coordinates jump at occlusions); the lightmap is read where it
   was (shifting it too made no visible difference: a few units is a fraction of a 16-unit luxel, and it would put
   jumps into the baked light's direction guess). It fades out over the last quarter of `vr_parallax_distance` (512;
-  beyond, no cost but the distance test) and from 70 to 83 degrees off the normal (where it swims and smears); the
-  shift along the surface is at most 3 times the depth.
+  beyond, no cost but the distance test) and over the 12 degrees before `vr_parallax_grazing` (86; 83 before round
+  21, which faded from 70); the shift along the surface is at most 8 times the depth (3 before).
 - **Presets:** off for "Off (Quake)" and Low, on for Medium, High and Ultra.
 - **Cost** (RTX 4090, mock eyes 1024 x 1024; world+brush GPU time for both eyes, off / on): start's riveted wall at
   the note's spot 0.125 / 0.148 ms, its hall 0.096 / 0.121, the wall at a grazing angle 0.122 / 0.156; e1m1's start

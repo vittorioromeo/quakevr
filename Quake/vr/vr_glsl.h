@@ -98,6 +98,7 @@ QVR_TONE_GLSL
 "	uint	ShadowFlags; // QVR\n" \
 "	vec4	LightTweak; // QVR: lightmap contrast, the normal maps' share of the baked light, specular intensity, normal map strength\n" \
 "	vec4	Parallax; // QVR: parallax mapping: depth in units (0 off), the distance it ends at, the most steps; w specular anti-aliasing (vr_specular_aa, 0 off)\n" \
+"	vec4	Parallax2; // QVR: ... x the steps refining the hit (vr_parallax_refine), y z the cosines its grazing fade starts and ends at (vr_parallax_grazing; 0 0: none), w unused\n" \
 "	vec4	Water; // QVR: liquids (vr/vr_water.cpp): waves, fresnel, refraction (0: no scene to read), glints\n" \
 "	vec4	Water2; // QVR: lava glow, caustics (0 off), the eye in a liquid (1), unused\n" \
 "	vec4	CausticsOrigin; // QVR: xyz where the liquid volume (LiquidVolume) starts, in the world; w its cell size\n" \
@@ -141,6 +142,7 @@ QVR_TONE_GLSL
 "	uint	ShadowFlags;\n"\
 "	vec4	LightTweak;\n"\
 "	vec4	Parallax;\n"\
+"	vec4	Parallax2;\n"\
 "	vec4	FrameWater; // QVR: the rest as FRAMEDATA_BUFFER's, up to SceneTone\n"\
 "	vec4	FrameWater2;\n"\
 "	vec4	FrameCausticsOrigin;\n"\
@@ -536,15 +538,20 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 // parallax occlusion mapping (vr_parallax): the texture coordinates where the ray from the eye through this
 // pixel (ray: from the eye to it; n: the surface's normal, facing the eye) meets the height field under the surface
 // (tex's alpha: 1 the surface, 0 `depth` units deep; the instance's: the world's, an item box's or a model's).
-// The ray is walked in steps, more at grazing angles (`steps` at most, half as many straight on; no more than 1.5 for
-// each texel of the height field it crosses, 4 at least: small boxes and models cross few), then refined
-// twice between the last two (secant). The texture's axes on the surface are the gradients of its coordinates, from
-// the derivatives the bumps' frame is made from: exact on flat faces and a model's triangles; each eye walks its own
-// ray. It fades out over the last quarter of Parallax.y units away, and at grazing angles, where it would swim (and
-// smear: the shift along the surface is at most 3 times the depth); none where the whole shift is under a third of
-// a pixel. `uvclamp` (an item box's texture_t): the rays stay in the part of the texture the face shows, the shift
-// shrinking towards its edges, instead of reading past them (the texture's unused rest, or its other side).
+// The ray is walked in steps (`steps` at most looking straight on times a half, at grazing angles times 2, where its
+// run along the surface is long; no more than 1.5 for each texel of the height field it crosses at the mip level the
+// reads use, 1 when refined; 4 at least: small boxes and models cross few), then the step it crossed the height field
+// in is refined (Parallax2.x times: regula falsi, Illinois: relief mapping's binary search's sureness, the secant's
+// speed), so the hit slides smoothly as the eye moves instead of jumping a layer at a time. The texture's axes on the
+// surface are the gradients of its coordinates, from the derivatives the bumps' frame is made from: exact on flat faces
+// and a model's triangles; each eye walks its own ray. It fades out over the last quarter of Parallax.y units away, and
+// at grazing angles (vr_parallax_grazing: from Parallax2.y to Parallax2.z, cosines; none when both are 0); the shift
+// along the surface is at most PARALLAX_STRETCH times the depth (the ray steeper beyond: the relief stays, the smear
+// doesn't grow without bound). None where the whole shift is under a third of a pixel. `uvclamp` (an item box's
+// texture_t): the rays stay in the part of the texture the face shows, the shift shrinking towards its edges, instead
+// of reading past them (the texture's unused rest, or its other side).
 #define PARALLAX_FUNCTIONS \
+"#define PARALLAX_STRETCH 8.0\n"\
 "vec2 ParallaxUV(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, vec3 ray, float depth,\n"\
 "	float steps, vec4 uvclamp)\n"\
 "{\n"\
@@ -553,9 +560,11 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "		return uv;\n"\
 "	ray /= max(dist, 1e-3);\n"\
 "	float cosa = -dot(ray, n); // n faces the eye\n"\
-"	float fade = (1.0 - smoothstep(Parallax.y * 0.75, Parallax.y, dist)) * smoothstep(0.12, 0.35, cosa);\n"\
+"	float fade = 1.0 - smoothstep(Parallax.y * 0.75, Parallax.y, dist);\n"\
+"	if (Parallax2.y > 0.)\n"\
+"		fade *= smoothstep(Parallax2.z, Parallax2.y, cosa);\n"\
 "	float det = dot(n, cross(dpdx, dpdy));\n"\
-"	float reach = depth * fade * min(1.0 / max(cosa, 1e-3), 3.0); // how far along the surface it shifts, at most\n"\
+"	float reach = depth * fade * min(1.0 / max(cosa, 1e-3), PARALLAX_STRETCH); // how far along the surface it shifts, at most\n"\
 "	if (reach * reach < 0.11 * max(dot(dpdx, dpdx), dot(dpdy, dpdy)) || abs(det) < 1e-12)\n"\
 "		return uv;\n"\
 "	vec3 gu = (cross(dpdy, n) * duvdx.x + cross(n, dpdx) * duvdy.x) / det; // the coordinates' change per unit\n"\
@@ -574,8 +583,12 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "			k = min(k, max((duv.y > 0. ? hi.y : lo.y) / duv.y, 0.));\n"\
 "		duv *= k;\n"\
 "	}\n"\
-"	steps = ceil(mix(steps, steps * 0.5, cosa));\n"\
-"	steps = min(steps, max(4.0, ceil(length(duv * vec2(textureSize(tex, 0))) * 1.5))); // 1.5 a texel the ray crosses\n"\
+"	vec2 size = vec2(textureSize(tex, 0));\n"\
+"	float px = length(duvdx * size), py = length(duvdy * size); // the pixel's footprint in texels, its two ways\n"\
+"	float lod = max(log2(max(min(px, py), max(px, py) * 0.125)), 0.); // the mip level read (8x anisotropic)\n"\
+"	float texels = length(duv * size) * exp2(-lod); // the texels the ray crosses there\n"\
+"	steps = min(ceil(steps * mix(2.0, 0.5, cosa)), 64.0);\n"\
+"	steps = min(steps, max(4.0, ceil(texels * (Parallax2.x > 0. ? 1.0 : 1.5))));\n"\
 "	float stepsize = 1.0 / steps;\n"\
 "	float h = 1.0 - textureGrad(tex, uv, duvdx, duvdy).a; // how deep the height field is, 0..1\n"\
 "	if (h <= 0.)\n"\
@@ -604,22 +617,32 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "	float over = h - ray_depth; // <= 0: under it\n"\
 "	if (over > 0.)\n"\
 "		return uv + duv; // the bottom\n"\
-"	// secant between the ray's depths a (over it) and b (under it)\n"\
+"	// refined between the ray's depths a (over it: fa > 0) and b (under it: fb <= 0): regula falsi, the Illinois way\n"\
+"	// (the end kept twice running halved, so the bracket shrinks from both sides); the last guess not read\n"\
 "	float a = ray_depth - stepsize, b = ray_depth, fa = prev, fb = over;\n"\
-"	float t = a + (b - a) * fa / max(fa - fb, 1e-5);\n"\
-"	float ft = 1.0 - textureGrad(tex, uv + duv * t, duvdx, duvdy).a - t;\n"\
-"	if (ft > 0.)\n"\
+"	int refine = int(Parallax2.x), side = 0;\n"\
+"	for (int k = 0; k < 8 && k < refine; k++)\n"\
 "	{\n"\
-"		a = t;\n"\
-"		fa = ft;\n"\
+"		float t = a + (b - a) * fa / max(fa - fb, 1e-5);\n"\
+"		float ft = 1.0 - textureGrad(tex, uv + duv * t, duvdx, duvdy).a - t;\n"\
+"		if (ft > 0.)\n"\
+"		{\n"\
+"			a = t;\n"\
+"			fa = ft;\n"\
+"			if (side > 0)\n"\
+"				fb *= 0.5;\n"\
+"			side = 1;\n"\
+"		}\n"\
+"		else\n"\
+"		{\n"\
+"			b = t;\n"\
+"			fb = ft;\n"\
+"			if (side < 0)\n"\
+"				fa *= 0.5;\n"\
+"			side = -1;\n"\
+"		}\n"\
 "	}\n"\
-"	else\n"\
-"	{\n"\
-"		b = t;\n"\
-"		fb = ft;\n"\
-"	}\n"\
-"	t = a + (b - a) * fa / max(fa - fb, 1e-5);\n"\
-"	return uv + duv * t;\n"\
+"	return uv + duv * (a + (b - a) * fa / max(fa - fb, 1e-5));\n"\
 "}\n"\
 "\n"\
 

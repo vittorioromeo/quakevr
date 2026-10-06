@@ -443,6 +443,7 @@ typedef struct gpuframedata_s {
 	int		shadowflags;	// QVR
 	float	lighttweak[4];	// QVR: lightmap contrast, its pivot (vr_light_contrast), specular intensity, normal map strength
 	float	parallax[4];	// QVR: parallax mapping (vr_parallax): depth in units (0 off), distance it ends at, steps; specular anti-aliasing (vr_specular_aa)
+	float	parallax2[4];	// QVR: ... the hit's refining steps (vr_parallax_refine), the cosines its grazing fade starts and ends at (vr_parallax_grazing; 0 0: none), unused
 	float	water[4];		// QVR: liquids (vr/vr_water.cpp): waves, fresnel, refraction, glints
 	float	water2[4];		// QVR: lava glow, caustics, the eye in a liquid, unused
 	float	causticsorigin[4];	// QVR: the liquid volume's origin (xyz)

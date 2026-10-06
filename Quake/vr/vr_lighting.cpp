@@ -1620,6 +1620,13 @@ extern "C" void VR_PushMapLights(void)
     r_framedata.parallax[0] = parallax ? za::clamp(vr_parallax_depth.value, 0.f, 16.f) : 0.f;
     r_framedata.parallax[1] = za::clamp(vr_parallax_distance.value, 64.f, 4096.f);
     r_framedata.parallax[2] = za::clamp(za::round(vr_parallax_steps.value), 4.f, 64.f);
+    // The steps refining the hit after the walk, and the grazing fade: gone at vr_parallax_grazing degrees off the
+    // normal, whole 12 degrees before (cosines; 0 0 at 90 or more: no fade).
+    r_framedata.parallax2[0] = za::clamp(za::round(vr_parallax_refine.value), 0.f, 8.f);
+    const float grazing = za::clamp(vr_parallax_grazing.value, 30.f, 90.f);
+    r_framedata.parallax2[1] = grazing < 90.f ? za::cos(glm::radians(grazing - 12.f)) : 0.f;
+    r_framedata.parallax2[2] = grazing < 90.f ? za::cos(glm::radians(grazing)) : 0.f;
+    r_framedata.parallax2[3] = 0.f;
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
     r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);

@@ -24624,3 +24624,64 @@ so a key pressed while turning walked the old way for one server tick: the walk 
 degrees) after 84 ms; now 28 ms (`vr_inputlag_test turn`). VR unchanged.
 
 Debug > Reports: Keyboard Hook (`vr_keyhook_status`), Input Latency: Walk (`vr_inputlag_test key`).
+## Parallax at grazing angles (2026-10-06)
+
+He found parallax flat from the side. Three things flattened it there: the fade (gone from 70 to 83 degrees off the
+normal), the cap on the shift (3 times the depth, reached at 70 degrees), and a step budget that got no bigger as the
+ray's run along the surface grew.
+
+**What changed** (`ParallaxUV`, vr_glsl.h; the world, item boxes, models and authored models all share it):
+- **Refinement** (`vr_parallax_refine`, 4; 0..8). After the walk, the step that crossed the height field is
+  refined by regula falsi, the Illinois way: a secant each time, and an end kept twice in a row is halved, so the
+  bracket shrinks from both sides. It is relief mapping's binary search, made surer and faster. 1 is the old shader
+  (one secant read). The final guess is interpolated, not read.
+- **Grazing fade** (`vr_parallax_grazing`, 86 degrees; 30..90). The effect is gone at that angle and whole 12 degrees
+  before it (cosines in the new frame field `Parallax2.yz`). 90 means no fade. 83 is about the old fade.
+- **Shift cap** 8 times the depth (`PARALLAX_STRETCH`, was 3). Beyond 83 degrees the ray goes steeper than the eye's,
+  so the relief stays and the smear stops growing.
+- **Step budget.** The walk takes `vr_parallax_steps` x 0.5 steps looking straight on and up to x 2 at grazing (it
+  was x 1 there), at most 64. It never takes more than one step per texel crossed (1.5 unrefined), counted at the mip
+  level the reads use (8x anisotropic: max(minor axis, major / 8)). Far away, that means fewer steps.
+- Frame data: a new `vec4 Parallax2` after `Parallax`, in both `QVR_FRAMEDATA_FIELDS` and `ALIAS_FRAMEDATA_BUFFER`,
+  and `parallax2[4]` in `gpuframedata_t`. Its `w` is free (pixel depth offset, next section).
+- Menu: Graphics > Surfaces > Parallax Refinement and Parallax Side Fade. The calibration board has no parallax
+  lines, so it needs none (`vr_menu_path_check`: 0 missing).
+
+**Method.** His `ironwail.cfg` (copied, read only) exec'd, `nomonsters 1`, no viewmodel. A/B was done in one run with
+`vr_shader_reload 1` (the old function under `#if QVR_SHADER_AB == 1` while testing; removed before the commit).
+- **Images**, both eyes at 1440. The e1m1 corridor (`setpos 480 0 88 0 90 0`) and the spawn's walls (`480 -352 88`,
+  yaw 352). Only the grazing parts change: the corridor's ceiling, the beam undersides and the lit alcove's ledge,
+  0.4-0.7% of the pixels. The parts in full view are unchanged. A shot repeated in the same variant differs by at
+  most 1 level. At `vr_parallax_depth 8`, the ceiling's grooves stand out at grazing angles where before they had
+  faded.
+- **Refinement in isolation** (`vr_parallax_steps 4`, depth 6, linear filtering). The reference is 64 steps with 8
+  refinements. The mean difference from it is 2.01 with no refinement and 0.43 with 4. At the default 16 steps, the
+  walk plus the last secant are already close: 0 vs 4 differ by under 0.05 mean.
+- **Swimming:** a 12-frame sweep along the corridor, 0.25 units a frame, fullbright, left and right eyes. The measure
+  is the mean of |f(t) - (f(t-1) + f(t+1)) / 2| over the pixels where the variants differ. Steady motion keeps it low.
+  Layer jumps and popping spike it.
+
+  | Variant | 2nd diff (L) | >24 (L) | 2nd diff (R) |
+  | --- | --- | --- | --- |
+  | old shader | 1.895 | 0.215% | 1.861 |
+  | new (refine 4, fade 86) | 1.470 | 0.206% | 1.455 |
+  | new, refine 0 | 1.471 | 0.206% | 1.454 |
+  | new, no fade (90) | 1.594 | 0.726% | 1.596 |
+
+  With linear filtering: old 1.681, new 1.366, no fade 1.448 (spikes 0.67%). The new shader moves more smoothly
+  than the old one, even though it shows relief further round. With no fade at all, the last few degrees pop. That
+  is why the default is 86, not 90.
+- **Cost** (exclusive runs, eyes 3406 square, his config, GPU world+brush for both eyes, paused, 3 samples of 120
+  frames, medians):
+
+  | View | old | new |
+  | --- | --- | --- |
+  | spawn facing the wall (w270) | 0.910 | 0.960 |
+  | spawn, along the corridor (c90) | 0.950 | 0.970 |
+  | corridor (480 0 88) | 0.980 | 1.040 |
+
+  Frame GPU 1.87-1.96 -> 1.91-2.02 ms. Parallax as a whole costs 0.13-0.17 ms here (`vr_parallax 0`: 0.83 / 0.88).
+  Refinement 0 to 4 adds about 0.03-0.05 ms. The fade angle makes no difference that can be measured.
+
+**For him in VR:** walk along a riveted or panelled wall with the head close to it, with Parallax Side Fade at 83
+(old), 86 and 90. Then set Parallax Refinement to 0 and 4 with the walls close by.
