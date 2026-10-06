@@ -280,7 +280,7 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
 | `vr_normalmap_strength` | 1 | (not in presets) |
 | `vr_normalmap_baked` | 1 | (not in presets; nothing without `vr_normalmaps`) |
 | `vr_parallax` (see Parallax below) | 1 (0 on Low) | 0 |
-| `vr_parallax_depth`, `vr_parallax_distance`, `vr_parallax_steps`, `vr_parallax_items`, `vr_parallax_models` | 3, 512, 16, 1.5, 0 (0.75 before round 14) | (not in presets) |
+| `vr_parallax_depth`, `vr_parallax_distance`, `vr_parallax_steps`, `vr_parallax_items`, `vr_parallax_models` | 3, 1024 (512 before config 89), 16, 1.5, 0 (0.75 before round 14) | (not in presets) |
 | `vr_parallax_authored` (round 21: models with authored maps carrying heights) | 1 (as baked) | (not in presets) |
 | `vr_bloom_white`, `vr_bloom_color` | 0.5, 1.5 | (bloom off) |
 | `vr_flash_scale`, `vr_explosion_light_scale` | 1, 1 (were 1.8, 1.5; a config holding those takes 1) | 1, 1 |
@@ -485,10 +485,10 @@ brush models (`vr_parallax`, Graphics page: Parallax, Parallax Depth, Parallax D
   pass, ROUND21.md "Parallax at grazing angles"). The diffuse, fullbright and normal map are read at the point
   found, with the surface's own mip level (the moved coordinates jump at occlusions); the lightmap is read where it
   was (shifting it too made no visible difference: a few units is a fraction of a 16-unit luxel, and it would put
-  jumps into the baked light's direction guess). It fades out over the last quarter of `vr_parallax_distance` (512;
-  beyond, no cost but the distance test) and over the 12 degrees before `vr_parallax_grazing` (86; 83 before round
-  21, which faded from 70); the shift along the surface is at most 8 times the depth (3 before).
-  `vr_parallax_depth_write` (0) writes the hits' depth (pixel depth offset; ROUND21.md "Parallax pixel depth
+  jumps into the baked light's direction guess). It fades out over the last quarter of `vr_parallax_distance` (1024, 512 before config 89;
+  beyond, no cost but the distance test) and over the 12 degrees before `vr_parallax_grazing` (90: no fade, since config 89; 86 before;
+  83 before round 21, which faded from 70); the shift along the surface is at most 8 times the depth (3 before).
+  `vr_parallax_depth_write` (1 since config 89; 0 before) writes the hits' depth (pixel depth offset; ROUND21.md "Parallax pixel depth
   offset").
 - **Presets:** off for "Off (Quake)" and Low, on for Medium, High and Ultra.
 - **Cost** (RTX 4090, mock eyes 1024 x 1024; world+brush GPU time for both eyes, off / on): start's riveted wall at

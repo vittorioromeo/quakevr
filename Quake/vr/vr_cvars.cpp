@@ -398,8 +398,12 @@ const DefaultChange defaultChanges[] = {
     {87, &vr_walltorch_inv_size, "1.25"}, // legacy three-flame size
     {87, &vr_ragdoll_grab, "2"}, // ragdolls are taken by hand only
     {88, &vr_particle_retro_halfres_pixels, "64"}, // 0: all particles in their order (the split drew small over large)
+    // 89: the author's tuned parallax (2026-10-06): further, no grazing fade, its depth written
+    {89, &vr_parallax_distance, "512"},     // 1024
+    {89, &vr_parallax_grazing, "86"},       // 90
+    {89, &vr_parallax_depth_write, "0"},    // 1
 };
-constexpr int configVersion = 88;
+constexpr int configVersion = 89;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
