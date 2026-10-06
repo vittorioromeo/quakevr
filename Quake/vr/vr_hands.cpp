@@ -157,6 +157,8 @@ glm::vec3 roomscaleMove{0.f};
 glm::vec3 lean{0.f};
 glm::vec3 lastBody{0.f};
 bool lastBodyValid = false;
+// Reset Position (vr_recenter): the body put under the head at the next frame, where its box fits.
+bool recenterPending = false;
 
 // A walk through a slipgate (portalCrossing, vr_portals.cpp): the body's coming jump is not a teleport's: the play space
 // turns by the gate's yaw (not to the server's view angle), the lean turns with it (not dropped) and the stairs' easing
@@ -335,6 +337,18 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
 
     lastHead = head;
     lastHeadValid = true;
+
+    if(recenterPending)
+    {
+        recenterPending = false;
+        const glm::vec3 to = body + glm::vec3{lean.x, lean.y, 0.f};
+        if(glm::length(lean) > 0.01f && worldtrace::playerBoxFits(body, to))
+        {
+            roomscaleMove += to - body;
+            lean = glm::vec3{0.f};
+        }
+        torso::reset(); // and the torso faces where the head does
+    }
 
     const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
     const bool detect = vr_lean_detect.value > 0.f;
@@ -787,6 +801,12 @@ void addTurn(float degrees)
 float playSpaceYaw()
 {
     return turnYaw;
+}
+
+void recenter_f()
+{
+    recenterPending = true;
+    Con_Printf("vr_recenter: lean %.1f units\n", glm::length(lean));
 }
 
 void resetClientState()

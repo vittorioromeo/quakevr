@@ -1149,10 +1149,13 @@ private:
 public:
     void haptic(int hand, float seconds, float frequency, float amplitude) override
     {
-        if(!sessionRunning || hapticAction == XR_NULL_HANDLE)
+        // Every vibration times Vibration Strength (vr_haptics_strength; 0: none).
+        const float strength = CLAMP(0.f, vr_haptics_strength.value, 2.f);
+        if(!sessionRunning || hapticAction == XR_NULL_HANDLE || strength <= 0.f)
         {
             return;
         }
+        amplitude *= strength;
 
         XrHapticVibration vibration{XR_TYPE_HAPTIC_VIBRATION};
         vibration.duration = seconds > 0.f ? static_cast<XrDuration>(seconds * 1e9) : XR_MIN_HAPTIC_DURATION;

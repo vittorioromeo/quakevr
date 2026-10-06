@@ -52,7 +52,7 @@ void jumpToSettings();
 // Back from it goes up the tree: Graphics, Advanced VR Options, VR Settings.
 void jumpToRelighting();
 
-// The presets' callbacks (VR Settings' Comfort and Handedness), once the cvars are registered.
+// The presets' callbacks (Locomotion's Comfort, Body and Display's Handedness) and VR Settings' own rows (Turning Mode, Move Towards, the hands), once the cvars are registered.
 void init();
 
 // Menu Detail at Developer (vr_menu_level 2): the tuning and testing pages, the corner's Checklist button.

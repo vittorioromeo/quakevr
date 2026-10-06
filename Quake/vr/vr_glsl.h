@@ -41,7 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "layout(binding=3) uniform sampler3D GradeLUT; // QVR: the eye's colour grade (vr_grade; vr/vr_tonemap.cpp)\n" \
 "layout(location=7) uniform vec4 Tone; // QVR: exposure (0: no tone curve), the curve's knee and white point, the grade's strength (0: none)\n" \
 "layout(location=8) uniform vec4 Dither; // QVR: the eye's last dither: amplitude (0: none), the right eye's own noise (1), frame offset (0: fixed), unused\n" \
-"layout(location=9) uniform vec4 SlowLook; // QVR: bullet time's look (vr/vr_bullettime.cpp): strength (0: none), desaturation, vignette, unused\n" \
+"layout(location=9) uniform vec4 SlowLook; // QVR: bullet time's look (vr/vr_bullettime.cpp): strength (0: none), desaturation, vignette; w: the comfort vignette (vr_input.cpp)\n" \
 "layout(location=10) uniform vec3 SlowTint; // QVR: ... its tint\n" \
 "\n" \
 QVR_TONE_GLSL
@@ -82,6 +82,12 @@ QVR_TONE_GLSL
 "		c *= mix(vec3(1.0), SlowTint, SlowLook.x);\n" \
 "		c *= 1.0 - SlowLook.x * SlowLook.z * smoothstep(0.35, 1.7, dot(sv, sv));\n" \
 "		out_fragcolor.rgb = c;\n" \
+"	}\n" \
+"	if (SlowLook.w > 0.0) // QVR: the comfort vignette (vr_comfort_vignette): the edges darkened while the sticks move or\n" \
+"	{ // turn you, the clear middle narrower the stronger it is\n" \
+"		vec2 cv = gl_FragCoord.xy / vec2(textureSize(GammaTexture, 0)) * 2.0 - 1.0;\n" \
+"		float r0 = mix(2.0, 0.1, SlowLook.w);\n" \
+"		out_fragcolor.rgb *= 1.0 - smoothstep(r0, r0 + 0.6, dot(cv, cv));\n" \
 "	}\n" \
 "	if (Tone.w > 0.0) // QVR: graded (vr_grade)\n" \
 "		out_fragcolor.rgb = QvrGrade(GradeLUT, out_fragcolor.rgb, Tone.w);\n" \

@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_input.hpp"
 #include "vr_stereo.hpp"
 
 #include "Zancle/Base/Memcpy.hpp"
@@ -222,6 +223,6 @@ extern "C" void VR_PostProcessTone(void)
     const float otherEye = mode != 3 && stereo::eye() == 1 ? 1.f : 0.f;
     GL_Uniform4fFunc(8, mode > 0 ? 1.f / 255.f : 0.f, otherEye, frame, 0.f);
     const bullettime::Look slow = bullettime::look(); // bullet time's look (the eyes only: not the spectator camera)
-    GL_Uniform4fFunc(9, slow.strength, slow.desaturate, slow.vignette, 0.f);
+    GL_Uniform4fFunc(9, slow.strength, slow.desaturate, slow.vignette, input::comfortVignette()); // (and the comfort vignette)
     GL_Uniform3fFunc(10, slow.tint.x, slow.tint.y, slow.tint.z);
 }

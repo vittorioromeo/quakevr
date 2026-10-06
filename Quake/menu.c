@@ -1151,17 +1151,17 @@ static enum m_state_e M_GetBaseState (enum m_state_e state)
 //=============================================================================
 /* MAIN MENU */
 
-int	m_main_cursor = 1; // QVR: MAIN_SINGLEPLAYER (below): Single Player first, as before the VR Calibration row
+int	m_main_cursor = 2; // QVR: MAIN_SINGLEPLAYER (below): Single Player first, as before the VR Calibration and VR Settings rows
 int m_main_mods;
 
 enum
 {
 	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp), the first row
+	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), right after VR Calibration; Back from them to this menu
 	MAIN_SINGLEPLAYER,
 	MAIN_MULTIPLAYER,
 	MAIN_MAPLIBRARY, // QVR: the map browser (vr_menu_maps.inc)
 	MAIN_OPTIONS,
-	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), Back from them to this menu
 	MAIN_VRADVANCED, // QVR: the Advanced VR Options (as the corner's Advanced VR)
 	MAIN_MODS,
 	MAIN_QUIT, // QVR: no Help/Ordering row
@@ -1173,7 +1173,7 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"VR Calibration", "Single Player", "Multiplayer", "Map Library", "Options", "VR Settings", "Advanced VR", "Mods", "Quit",
+	"VR Calibration", "VR Settings", "Single Player", "Multiplayer", "Map Library", "Options", "Advanced VR", "Mods", "Quit",
 };
 
 const char *M_Main_RowLabel (void) // QVR: menu_vr pos

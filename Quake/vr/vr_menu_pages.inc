@@ -103,18 +103,34 @@
 [[nodiscard]] za::Vector<Item> pageLocomotionSettings()
 {
     return {
-        open("Turning, Moving, Teleport: VR Settings", pageIndex(pageMain)).help("Turning, turn speed, which way you move, teleport and its range, the stick deadzone and room scale are on VR Settings."),
+        cycle("Comfort", vr_comfort_preset, {{0.f, "Custom"}, {1.f, "Comfortable"}, {2.f, "Moderate"}, {3.f, "Full Freedom"}})
+            .help("Sets Turning, Teleport and Default Speed together. Comfortable: snap turns of 45 degrees, teleport, walk. "
+                  "Moderate: snap turns of 30, teleport, run. Full Freedom: smooth turning, run, no teleport. Change them after "
+                  "to taste (Custom)."),
+        cycle("Move Towards", vr_movement_mode, {{1.f, "Head"}, {0.f, "Moving stick's hand"}, {2.f, "Left hand"}, {3.f, "Right hand"}})
+            .help("Where the moving stick takes you: where you look (Head), or where a hand points. Moving stick's hand: the "
+                  "left one, or the right with Swap Stick Functions."),
+        slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%")
+            .help("How far a stick must be pushed before it does anything."),
         slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").extend().help("Walking speed (running is this times the running multiplier)."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").extend().help("How much faster running is than walking."),
         header("Turning"),
+        cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}})
+            .help("Smooth: the turning stick turns you steadily (Turn Speed). Snap: each push turns you at once by the angle."),
+        slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend().help("Smooth turning's speed."),
         toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the controller. Keep enabled unless you want to force yourself to turn in real life."),
         header("Teleport"),
+        toggle("Teleport", vr_teleport_enabled).help("Jump to the spot you point at instead of walking there."),
+        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f)
+            .help("How far a teleport reaches, in Quake's units (one is about 3 cm)."),
         header("Leaning"),
         slider("Lean", "vr_lean_radius", 0.f, 14.f, 1.f, "%.0f units").extend().help("How far your head may lean off the middle of your body's box before the body follows: get your face near walls and over railings. 0: the body always under the head."),
         slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").extend().help("How fast the body slides back under your head when it can (not into walls, not over ledges), at least; with Lean Detection, faster the further off it is, and not while you lean. 0: never."),
         slider("Lean Detection", "vr_lean_detect", 0.f, 2.f, 0.1f, "%.1fx").help("Tells a lean from walking in the room. Leaning (your head lower and tilted the way you lean, your hands left by your hips), your feet and hips stay where you stand and your back tilts; walking, the body follows your head. 0: off, the body always slides back under your head; higher: more readily a lean."),
         header("Room Scale"),
+        slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.2f, 5.f)
+            .help("How far walking in your room moves you in the game (1: as far)."),
         toggle("Roomscale Jump", "vr_roomscale_jump").help("Jumping in the room jumps in the game."),
         slider("Jump Threshold", "vr_roomscale_jump_threshold", 0.3f, 2.f, 0.05f, "%.2f m/s").extend()
             .help("How fast the head must rise above the standing height."),
@@ -304,7 +320,11 @@ void resetHandMoves()
         slider("Main Hand X (forward)", "vr_handcal_x", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
         slider("Main Hand Y (left)", "vr_handcal_y", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
         slider("Main Hand Z (up)", "vr_handcal_z", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
-        open("Gun and Off Hand Angle: VR Settings", pageIndex(pageMain)).help("The hands' pitch (Gun Angle, Off Hand Angle) is on VR Settings."),
+        slider("Main Hand Pitch (Gun Angle)", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f)
+            .help("Gun Angle (vr_gunangle): how the main hand and the guns in it are tilted on the controller: set it so "
+                  "aiming feels natural. Changes where it aims."),
+        slider("Off Hand Pitch (Off Hand Angle)", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f)
+            .help("Off Hand Angle (vr_offhandpitch): the same for the off hand."),
         slider("Main Hand Yaw (left)", "vr_gunyaw", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f)
             .help("Gun Yaw (vr_gunyaw): turns the whole hand, and what it holds, left about the controller's tracked "
                   "point. Changes where it aims."),
@@ -431,7 +451,12 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageAimingSettings()
 {
     return {
-        open("Two-Handed: VR Settings", pageIndex(pageMain)).help("Two-handed aiming and the hand-off are on VR Settings."),
+        cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}})
+            .help("Hold a gun with both hands to steady it. Virtual stock: a gun brought near your shoulder also aims from it."),
+        cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
+            .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
+                  "it when you close the other."),
+        toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
         slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops."),
         slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
         header("2H Grip Stickiness"),
@@ -530,7 +555,9 @@ void resetHandMoves()
 {
     return {
         toggle("Body Picks Up Items", "vr_body_interactions").help("Pick up items and level weapons by walking over them. Thrown and dropped weapons still need your hands."),
-        open("Haptics: VR Settings", pageIndex(pageMain)).help("Haptics on or off is on VR Settings."),
+        cycle("Haptics", vr_disablehaptics, {{0.f, "On"}, {1.f, "Off"}}).help("The controllers' vibrations, all of them."),
+        slider("Vibration Strength", vr_haptics_strength, 0.f, 1.f, 0.1f, "%.1f").extend(0.f, 2.f)
+            .help("How strongly the controllers vibrate (0: never)."),
         header("Weapons and Holsters"),
         cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),
         cycle("Weapon Reloading Mode", "vr_reload_mode", {{0.f, "None"}, {1.f, "All Holsters"}, {2.f, "Hip Holsters"}}).help("Enables weapon reloading mechanics. Weapons can be reloaded by moving them towards an holster. Reloading only works with 'immersive' weapon mode."),
@@ -541,7 +568,8 @@ void resetHandMoves()
         toggle("Weapon Cycle Mode", "vr_weapon_cycle_mode").help("Allows or disallows cycling weapons using controller buttons."),
         cycle("Weapon Throw Mode", "vr_weapon_throw_mode", {{0.f, "Immersive"}, {1.f, "Vanish on Hit"}, {2.f, "Discard"}}).help("Immersive: thrown weapons can be picked back up. Vanish on Hit and Discard avoid piles of weapons with Quick Slots."),
         open("Throw Damage: Weapon Damage", pageIndex(pageWeaponDamage)).help("The damage of thrown weapons is on Combat > Weapon Damage (All Throws)."),
-        open("Throw Speed: VR Settings", pageIndex(pageMain)).help("Throw Speed is on VR Settings."),
+        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend()
+            .help("How fast what you throw flies, times your hand's speed."),
         toggle("Dropped Wpn Particles", "vr_weapondrop_particles").help("Enable particle effects for weapons dropped/thrown on the ground."),
         header("Shell Casings"),
         toggle("Shell Casings", "vr_shells").help("The shotgun throws out a spent shell each shot, the super shotgun its two as you reload (a flick reload flings them). They bounce, roll and lie on the floor."),
@@ -577,7 +605,8 @@ void resetHandMoves()
         toggle("Fence Coverage", "vr_alpha_coverage").help("Fences and grates keep their bars at a distance instead of thinning out and crawling; with Anti-aliasing (MSAA) their edges are smoothed too."),
         toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py, or Relighting below). Next map."),
         open("Relighting", pageIndex(pageGraphicsRelighting)).help("Relight the map you are in, with brighter or dimmer lamps, glowing panels, lava, bounced light and ambient occlusion, and see it at once."),
-        open("Headset Gamma: VR Settings", pageIndex(pageMain)).help("The headset's gamma (its brightness) is on VR Settings."),
+        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend()
+            .help("The headset's brightness: lower is brighter (1 neutral). The desktop's gamma is not used."),
         slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").extend().help("The headset's own contrast (1 neutral)."),
         header("More Graphics"),
         open("Lights", pageIndex(pageGraphicsLights)),

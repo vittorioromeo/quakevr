@@ -24,6 +24,10 @@ void roomscaleJump(const hands::State& s);
 // (QVR_BUTTON_*HANDPRIMARY). Its key (jump, reload) is pressed as ever.
 [[nodiscard]] bool primaryHeld(int hand);
 
+// The comfort vignette now (vr_comfort_vignette): how dark the view's edges are, 0 .. 1 (vr_comfort_vignette_strength
+// times how much the sticks move and turn you), for the eyes' post-process.
+[[nodiscard]] float comfortVignette();
+
 // svc_quakevr QVR_SVC_HAPTIC (vr_client.cpp dispatches it).
 void parseHaptic();
 

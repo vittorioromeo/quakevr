@@ -926,7 +926,7 @@
 // entity 22
 {
 "classname" "func_worldtext_banner"
-"worldtext" "MOVING AND TURNING\n\nSWAP STICKS: the right stick moves.\n\nMore: {menu:VR Settings>Comfort}\nand {menu:Locomotion}"
+"worldtext" "MOVING AND TURNING\n\nSWAP STICKS: the right stick moves.\n\nMore: {menu:VR Settings>Turning Mode}\nand {menu:Locomotion}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "0"

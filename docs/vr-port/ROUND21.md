@@ -26968,3 +26968,65 @@ keeps them (and takes the rest); a first start has them all; e1m1 loads clean.
 
 In VR: torches' flames (denser, opaque), the messages' hologram higher over the gadget, a limb taken only from close,
 heads popping a little less far away, thrown heads lighter; Retro Textures > All Categories shows the shipped look.
+
+## VR Settings for first-time players (2026-10-07)
+
+The author's spec: VR Settings (`menu_vr 0`) holds only what a new player sets, in sections, every row with a line of
+help; everything else, and the rows that were there, live on Advanced VR Options' pages. The sections, in order:
+Height Calibration, Hand Calibration, Locomotion, Comfort, Teleportation, Turning, Flashlight, Lighting, Weapons, Body,
+Haptics, HUD, Sound, Display, Scaling, Graphics, Reset (SETTINGS.md, "The VR Settings menu", lists the rows). Above
+them, *Search Settings* and *Advanced VR Options* (a link from Menu Detail: Advanced; at Standard the corner's Advanced
+VR action, which raises Menu Detail: the pages' tree still runs through the link, so Search and the board paths find
+every page). Not on it, as decided: damage tuning, a main-hand choice, the spectator camera, graphics presets; seated
+mode is in the backlog.
+
+Where the old rows went (the dumps before and after, `menu_vr dump` at Menu Detail: Developer, compared cvar by cvar:
+every cvar reachable before still is): the Comfort preset, Turning (all four choices), Move Towards (with the moving
+stick's hand), Teleport, Teleport Range, Stick Deadzone and Room Scale on Locomotion (whose empty Teleport header and
+"Turning, Moving, Teleport: VR Settings" link they replace); Handedness on Body and Display; Gun Angle and Off Hand
+Angle on Hand/Gun Calibration (as Main/Off Hand Pitch); Dominant Eye, Two-Handed and Two-Handed Hand-Off on Aiming;
+Haptics on Immersion; Throw Speed and Throw Gravity on Carrying and Throwing (and on Throwing and Physics, a Developer
+page); Force Grab on Force Grab; Headset Gamma also on Graphics. The links back to VR Settings for these ("Haptics: VR
+Settings"...) are gone. Body and Display, Headset, Sound, Tips, Changed Settings, Run VR Calibration Again and the build
+line are under Advanced VR Options > Setup (their pages' Back goes there); Official Campaigns is on Play (and under New
+Game). The main menu: VR Calibration, VR Settings, Single Player... (the cursor still starts on Single Player).
+
+New settings, each its default the old behaviour:
+
+- **Wrappers** (`vr_menu_turning`, `vr_menu_move_towards`, `vr_menu_hands_x/y/z/pitch/yaw/roll`; not saved): shown as
+  the settings they stand for are (synced as VR Settings is built and drawn), and set, they set them; their defaults
+  are those settings' defaults, so Reset This Page and Reset All reset them. Turning Mode: smooth, or snap at the angle
+  last used (45 at first); Snap Angle (30/45/90, `vr_snap_turn`) shows only with snap, Turn Speed only with smooth (it
+  does nothing to snap turns). Move Towards: `vr_movement_mode` 1 head, and new 2 left hand, 3 right hand
+  (vr_input.cpp VR_AdjustMove); 0, the moving stick's hand, shows as that hand. The hands: one mirrored set from the
+  shipped calibration (0): forward, inward, up in cm (`vr_handcal_x/y/z`, the off hand mirroring: an edit sets
+  `vr_handcal_off_mirror 1`), pitch (`vr_gunangle` and `vr_offhandpitch`, each its default plus it), yaw inward
+  (`vr_gunyaw` plus it, `vr_offhandyaw` minus it), roll (`vr_handcal_roll`). *Reset Hand Offsets*: all of them, both
+  hands, to the defaults.
+- **Comfort vignette** (`vr_comfort_vignette` 0 off, 1 moving and turning, 2 moving only, 3 turning only;
+  `vr_comfort_vignette_strength` 0.6): there was none (the old Comfort preset was turning, teleport and speed). The
+  eyes' post-process darkens the edges (SlowLook.w, beside bullet time's vignette): the clear middle `mix(2, 0.1, s)` in
+  r^2, black 0.6 further. s is the strength times how much the sticks move or turn you (the moving stick's push,
+  smooth turning's), eased in over 0.08 s and out over 0.25 s; a snap turn gives it at once for 0.3 s. Room-scale
+  steps and teleports never do. Measured on e1m1's start (left eye, mean luminance in the ring r^2 0.8-1.2, strength
+  0.8): 8.6 standing, 1.8 walking; a snap with Turning only 1.9 against 12.3 a second later; with Moving only the
+  same snap 6.4 and 6.4.
+- **Vibration Strength** (`vr_haptics_strength` 1, 0 to 2): the OpenXR backend scales every vibration's amplitude;
+  0 sends none. `vr_disablehaptics` stays (Immersion).
+- **Reset Position** (`vr_recenter`): the body put under the head at the next frame where its box fits (the lean taken
+  as a room-scale move), and the torso estimate started over from the head.
+- **Reset All to Defaults** (press twice within 3 s): every archived `vr_*` cvar and the other cvars on the page
+  (volume, music, default speed, anti-aliasing) to `default_string` (vr_defaults.cfg's), skipping server-locked ones.
+  Kept: `*_version`, `vr_tips_seen`, `vr_setup_pending`, `vr_menu_positions`, `vr_menu_level`, `vr_enabled`,
+  `vr_xr_runtime`. `developer 1` lists each one reset.
+
+`vr_menu_level`'s shipped default is now 0 (Standard; vr_defaults.cfg had 2). No config migration: a saved value
+stays (the author's config holds "2" and keeps it; a config that saved 2 because it was the default keeps it too).
+
+Tests: synthetic clicks (`menu_vr 0 "<row>"`, `vr_mock_key rightarrow|enter`): Turning Mode Snap gives 45, Smooth 0,
+Snap again after 30 gives 30; Move Towards Head > Left Hand (2) > Right Hand (3) > Head (1); mode 0 with Swap Stick
+Functions shows Right Hand; Hand Yaw +1 gives `vr_gunyaw` 1 and `vr_offhandyaw` -5; Hand Forward +0.1 gives
+`vr_handcal_x` -3.9 and mirror 1; Reset Hand Offsets restores them; Reset All: the first press only arms it ("Press
+Again to Reset All"), the second resets (snap 90, volume 0.3, vignette, body mode 0, vibration 0.4, height back;
+Menu Detail 2 and `vr_cfg_version` 94 kept). `vr_menu_path_check maps/vrcalibration.map`: 14 found, 0 missing (the
+board's "VR Settings>Comfort" is now "VR Settings>Turning Mode", the map rebuilt).

@@ -2519,7 +2519,10 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageThrowing()
 {
     return {
-        open("Throw Speed and Gravity: VR Settings", pageIndex(pageMain)).help("Throw Speed and Throw Gravity are on VR Settings."),
+        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend()
+            .help("How fast what you throw flies, times your hand's speed."),
+        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}})
+            .help("How thrown things fall: Real, as on Earth; Quake, as Quake's own gravity."),
         slider("Two-Hand Throw Speed", vr_2h_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         slider("Velocity Window", vr_throw_window, 0.04f, 0.3f, 0.01f, "%.2f s").extend()
             .help("Around the release, where the hand's fastest moment sets the throw."),
@@ -5314,7 +5317,7 @@ za::Vector<Item> pageDebugTests()
 [[nodiscard]] za::Vector<Item> pageForceGrab()
 {
     return {
-        open("Force Grab On/Off: VR Settings", pageIndex(pageMain)).help("Force Grab on or off is on VR Settings."),
+        toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
         slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
         slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").extend().help("How far off where the hand points an object may be."),
         slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend()
@@ -5766,8 +5769,8 @@ const Page pages[] = {
     {"Carrying and Throwing", pageCarryingHub, pageAdvanced},               // 46
     {"Weapons", pageWeaponsHub, pageAdvanced},                              // 47
     {"HUD and Menus", pageHudHub, pageAdvanced},                            // 48
-    {"Body and Display", pageBodyDisplay, pageMain, LevelStandard},                        // 49
-    {"Headset", pageHeadset, pageMain, LevelStandard},                                     // 50
+    {"Body and Display", pageBodyDisplay, pageAdvanced, LevelStandard},                        // 49
+    {"Headset", pageHeadset, pageAdvanced, LevelStandard},                                     // 50
     {"Damage and Knockback", pageDamage, pageCombat},                       // 51
     {"Stamina", pageStamina, pageCombat},                                   // 52
     {"Batting and Catching", pageBatting, pageCombat},                      // 53
@@ -5795,7 +5798,7 @@ const Page pages[] = {
     {"Monster Hitbox", pageMonsterHitbox, pageMovement, LevelDeveloper},                    // 74
     {"Lightning Gun in Water", pageLightningWater, pageWeaponsHub},         // 75
     {"Enemy Weapons", pageEnemyWeapons, pageCombat},                        // 76
-    {"Sound", pageSound, pageMain},                                         // 77
+    {"Sound", pageSound, pageAdvanced},                                         // 77
     {"Crates", pageCrates, pageCarryingHub},                                // 78
     {"Weapon Damage", pageWeaponDamage, pageCombat},                        // 79
     {"Weapon Effects", pageWeaponEffects, pageWeaponsHub},                  // 80
@@ -5851,10 +5854,10 @@ const Page pages[] = {
     {"Ragdolls - Shambler", pageRagdollShambler, pageRagdolls, LevelDeveloper},                   // 129
     {"Ragdolls - Gremlin", pageRagdollGremlin, pageRagdolls, LevelDeveloper},                     // 130
     {"Ragdolls - Mummy", pageRagdollMummy, pageRagdolls, LevelDeveloper},                         // 131
-    {"Changed Settings", pageChanged, pageMain, LevelStandard},                                    // 132 (MENU_REVIEW.md)
+    {"Changed Settings", pageChanged, pageAdvanced, LevelStandard},                                    // 132 (MENU_REVIEW.md)
     {"Search", pageSearch, pageMain, LevelStandard},                                               // 133 (the corner's Search; vr_menu_search.inc)
     {"Console", pageConsole, pageMain, LevelStandard},                                             // 134 (the corner's Console; vr_menu_console.inc)
-    {"Tips", pageTips, pageMain, LevelStandard},                                                   // 135 (vr_tips.cpp)
+    {"Tips", pageTips, pageAdvanced, LevelStandard},                                                   // 135 (vr_tips.cpp)
     {"Graphics - Slipgates", pageGraphicsSlipgates, pageGraphics},                                 // 135 (vr_portals.cpp)
     {"Small Gibs - Per Enemy", pageSmallGibsEnemies, pageSmallGibs, LevelDeveloper},              // 136
     {"Knockdowns", pageKnockdowns, pageCombat},                                                    // 137
@@ -5862,7 +5865,7 @@ const Page pages[] = {
     {"Fire Particles", pageFireParticles, pageParticleSettings},
     {"Spawn Pickup Weapons", pageSpawnWeapons, pageDebugTests, LevelDeveloper},
     {"Map Library", pageMaps, pageMain, LevelStandard}, // (the corner's Maps, and Single Player > Map Library; vr_menu_maps.inc)
-    {"Official Campaigns", pageCampaigns, pageMain, LevelStandard},
+    {"Official Campaigns", pageCampaigns, pagePlay, LevelStandard},
     {"Machine Horde Tests", pageMachineHordeTests, pageDebugTests, LevelDeveloper},
     {"Graphics - Relighting", pageGraphicsRelighting, pageGraphics},
     {"Gore - Limb Gore", pageLimbGore, pageGore},
@@ -5919,7 +5922,7 @@ static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0])
 }
 
 // ----------------------------------------------------------------------------
-// Presets (VR Settings' Comfort and Handedness): a choice sets several settings at once; the choice shown is the one
+// Presets (Locomotion's Comfort, Body and Display's Handedness): a choice sets several settings at once; the choice shown is the one
 // they match now (syncPresets, as the menu is drawn), Custom when none. Their cvars aren't saved: the settings are.
 // ----------------------------------------------------------------------------
 
@@ -6018,7 +6021,154 @@ void onPresetChosen(cvar_t* var)
     }
 }
 
-// The main page's last line: this build (VR_BuildVersion), to name in a bug report.
+// ----------------------------------------------------------------------------
+// Wrappers (VR Settings' own rows over other settings, vr_cvars.inc vr_menu_*): Turning Mode, Move Towards and the one
+// mirrored hand calibration. Their cvars aren't saved: each is shown as the settings it stands for are now (syncWrappers,
+// as the pages are built and drawn) and, set, sets them (onWrapperSet). Their defaults are those settings' defaults, so
+// Reset This Page and Reset All reset them too.
+// ----------------------------------------------------------------------------
+
+bool wrapperBusy = false;      // a wrapper shown (syncWrappers): not a choice made
+float lastSnapAngle = 45.f;    // Turning Mode: Snap goes back to the angle last used (45 at first)
+int mainPageSnap = -1;         // VR Settings built with snap turning (Snap Angle shown) or smooth (Turn Speed shown)
+bool resetAllArmed = false;    // Reset All to Defaults pressed once: Press Again to Reset All
+double resetAllArmedTime = 0.0;
+
+// One hand-calibration row: the main hand's setting, the off hand's (nullptr: vr_handcal_off_mirror mirrors it) and
+// how the off hand's goes (-1: the other way, mirrored).
+struct HandWrapper
+{
+    cvar_t* wrapper;
+    cvar_t* main;
+    cvar_t* off;
+    float offSign;
+};
+
+const HandWrapper handWrappers[] = {
+    {&vr_menu_hands_x, &vr_handcal_x, nullptr, 1.f},
+    {&vr_menu_hands_y, &vr_handcal_y, nullptr, 1.f},
+    {&vr_menu_hands_z, &vr_handcal_z, nullptr, 1.f},
+    {&vr_menu_hands_pitch, &vr_gunangle, &vr_offhandpitch, 1.f},
+    {&vr_menu_hands_yaw, &vr_gunyaw, &vr_offhandyaw, -1.f},
+    {&vr_menu_hands_roll, &vr_handcal_roll, nullptr, 1.f},
+};
+
+[[nodiscard]] float defaultOf(const cvar_t& var)
+{
+    return var.default_string ? static_cast<float>(Q_atof(var.default_string)) : 0.f;
+}
+
+[[nodiscard]] bool wrapperCvar(const cvar_t& var)
+{
+    if(&var == &vr_menu_turning || &var == &vr_menu_move_towards)
+    {
+        return true;
+    }
+    for(const HandWrapper& w : handWrappers)
+    {
+        if(&var == w.wrapper)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void showWrapper(cvar_t& var, float value)
+{
+    if(za::fabs(var.value - value) > 1e-4f)
+    {
+        Cvar_SetValueQuick(&var, value);
+    }
+}
+
+void syncWrappers()
+{
+    wrapperBusy = true;
+    if(vr_snap_turn.value > 0.f)
+    {
+        lastSnapAngle = vr_snap_turn.value;
+    }
+    showWrapper(vr_menu_turning, vr_snap_turn.value > 0.f ? 1.f : 0.f);
+    const int mode = static_cast<int>(vr_movement_mode.value);
+    showWrapper(vr_menu_move_towards, mode >= 1 && mode <= 3 ? static_cast<float>(mode)
+                                      : hands::moveHand() == HAND_OFF ? 2.f : 3.f);
+    for(const HandWrapper& w : handWrappers)
+    {
+        showWrapper(*w.wrapper, za::round((w.main->value - defaultOf(*w.main)) * 100.f) / 100.f);
+    }
+    wrapperBusy = false;
+}
+
+void onWrapperSet(cvar_t* var)
+{
+    if(wrapperBusy)
+    {
+        return;
+    }
+    wrapperBusy = true;
+    if(var == &vr_menu_turning)
+    {
+        Cvar_SetValueQuick(&vr_snap_turn, var->value != 0.f ? lastSnapAngle : 0.f);
+    }
+    else if(var == &vr_menu_move_towards)
+    {
+        Cvar_SetValueQuick(&vr_movement_mode, CLAMP(1.f, var->value, 3.f));
+    }
+    for(const HandWrapper& w : handWrappers)
+    {
+        if(var != w.wrapper)
+        {
+            continue;
+        }
+        Cvar_SetValueQuick(w.main, defaultOf(*w.main) + var->value);
+        if(w.off)
+        {
+            Cvar_SetValueQuick(w.off, defaultOf(*w.off) + w.offSign * var->value);
+        }
+        else if(vr_handcal_off_mirror.value == 0.f)
+        {
+            Cvar_SetValueQuick(&vr_handcal_off_mirror, 1.f); // one set for both hands: the off hand mirrors the main one
+        }
+    }
+    wrapperBusy = false;
+}
+
+// Reset Hand Offsets: both hands' calibration (moves, turns, the off hand mirrored or its own) back to the shipped one.
+void resetHandOffsets()
+{
+    for(cvar_t* var : {&vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_handcal_off_mirror,
+            &vr_handcal_off_x, &vr_handcal_off_y, &vr_handcal_off_z, &vr_handcal_off_roll, &vr_gunangle, &vr_gunyaw,
+            &vr_offhandpitch, &vr_offhandyaw})
+    {
+        Cvar_SetQuick(var, var->default_string);
+    }
+}
+
+// Reset All to Defaults keeps the config's bookkeeping (its versions, the tips seen, VR Calibration pending, where the
+// pages were left, Menu Detail) and VR on or off and its runtime.
+[[nodiscard]] bool keptOnResetAll(const cvar_t& var)
+{
+    const size_t n = strlen(var.name);
+    if(n > 8 && !strcmp(var.name + n - 8, "_version"))
+    {
+        return true;
+    }
+    for(const cvar_t* kept : {&vr_menu_level, &vr_menu_positions, &vr_tips_seen, &vr_setup_pending, &vr_enabled,
+            &vr_xr_runtime})
+    {
+        if(&var == kept)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void resetAll(); // (below: after the pages' building)
+[[nodiscard]] int menuLevel();
+
+// The Advanced VR Options page's last line: this build (VR_BuildVersion), to name in a bug report.
 [[nodiscard]] const char* buildVersionLine()
 {
     char(&text)[64] = readouts.buildVersion;
@@ -6031,85 +6181,189 @@ void openSearchRow()
     qvr::menu::openSearch();
 }
 
+void advancedRow()
+{
+    qvr::menu::jumpToAdvanced();
+}
+
+// VR Settings (Options > VR Settings, the main menu's VR Settings, the corner's): what a new player sets, each in a few
+// words, in the order they come to it. Every other setting is under Advanced VR Options (ROUND21.md, "VR Settings for
+// first-time players"), and so is each row here, on its topic's page.
 za::Vector<Item> pageMain()
 {
-    return {
-        open("Official Campaigns", pageIndex(pageCampaigns)).help("Choose an owned campaign; installed data and native gameplay readiness are shown separately."),
+    const bool snap = vr_snap_turn.value > 0.f;
+    mainPageSnap = snap ? 1 : 0;
+    const char* handHelp = "Both hands, mirrored: moves or turns the drawn hands (and what they hold) on your controllers, "
+                           "so they sit where your real hands are. Show Controller helps; 0 is the shipped calibration.";
+    za::Vector<Item> list{
         action("Search Settings", openSearchRow)
             .help("Find any setting by its name or what it does: type, and pick one to go to it (also the corner's Search "
                   "button in the headset)."),
-        header("Tuning").developer(),
-        open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets)),
-        open("Weapon Weights (Held Weapon)", pageIndex(pageWeaponWeights)),
-        open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets)),
-        open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights)),
-        open("Hand/Gun Calibration", pageIndex(pageHandGunCalibration)).developer(),
-        header("Comfort"),
-        cycle("Comfort", vr_comfort_preset, {{0.f, "Custom"}, {1.f, "Comfortable"}, {2.f, "Moderate"}, {3.f, "Full Freedom"}})
-            .help("Sets Turning, Teleport and Default Speed together. Comfortable: snap turns of 45 degrees, teleport, walk. "
-                  "Moderate: snap turns of 30, teleport, run. Full Freedom: smooth turning, run, no teleport. Change them after "
-                  "to taste (Custom)."),
-        cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}}),
-        slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend().help("Smooth turning's speed."),
-        cycle("Move Towards", vr_movement_mode, {{1.f, "Head"}, {0.f, "Hand"}}).help("Hand: where the moving stick's hand points (Swap Stick Functions: the right hand's)."),
-        cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
-        toggle("Teleport", vr_teleport_enabled),
-        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f).advanced(),
-        slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%").advanced(),
-        slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.2f, 5.f).advanced()
-            .help("How far walking in your room moves you in the game (1: as far)."),
+        menuLevel() >= LevelAdvanced
+            ? open("Advanced VR Options", PageAdvanced).help("Every gameplay, display and graphics setting, by topic.")
+            : action("Advanced VR Options", advancedRow)
+                  .help("Every gameplay, display and graphics setting, by topic (Menu Detail goes to Advanced)."),
 
-        header("You"),
-        cycle("Handedness", vr_handedness, {{0.f, "Custom"}, {1.f, "Right-handed"}, {2.f, "Left-handed"}})
-            .help("Sets which stick moves you, the wrist gadget's arm and the flashlight's hip together. Left-handed: the right "
-                  "stick moves, the gadget on the right arm, the torch on the right hip. Each is also on Body and Display "
-                  "(Custom: set apart)."),
+        header("Height Calibration"),
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
-            .help("Your height, for the body and how high you stand in the game. Set Height Now takes it from the headset."),
-        action("Set Height Now", calibrateHeight).help("Stand straight and look ahead: your height is where the headset is."),
-        open("Body Calibration", pageIndex(pageBodyCalibration))
-            .help("Standing or seated; measures your arms and shoulders for the body and the hands."),
-        cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
-            .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
-                  "it when you close the other."),
+            .help("Your real height: it puts your eyes at the right height in the game and fits the body to you. Set "
+                  "Height Now measures it."),
+        action("Set Height Now", calibrateHeight)
+            .help("Stand up straight, look straight ahead and press: your height is taken from the headset."),
+        slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f)
+            .help("How big the world feels around you: higher makes it bigger. 1.25: Quake's sizes as a person would "
+                  "see them."),
+        slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f)
+            .help("Moves the floor up or down: change it if you feel you are floating above it or sunk into it."),
+
+        header("Hand Calibration"),
+        toggle("Show Controller", "vr_show_controller")
+            .help("Draws your real controllers, see-through, where the game tracks them: line the hands up with them "
+                  "below. Not saved."),
+        slider("Hand Forward", vr_menu_hands_x, -5.f, 5.f, 0.1f, "%+.1f cm").extend(-20.f, 20.f).help(handHelp),
+        slider("Hand Inward", vr_menu_hands_y, -5.f, 5.f, 0.1f, "%+.1f cm").extend(-20.f, 20.f).help(handHelp),
+        slider("Hand Up", vr_menu_hands_z, -5.f, 5.f, 0.1f, "%+.1f cm").extend(-20.f, 20.f).help(handHelp),
+        slider("Hand Pitch", vr_menu_hands_pitch, -30.f, 30.f, 0.5f, "%+.1f").extend(-90.f, 90.f)
+            .help("Both hands: tilts the hands and the guns in them up or down on the controllers, until aiming feels "
+                  "natural. Changes where they aim."),
+        slider("Hand Yaw", vr_menu_hands_yaw, -30.f, 30.f, 0.5f, "%+.1f").extend(-90.f, 90.f)
+            .help("Both hands, mirrored: turns the hands and the guns in them inward or outward on the controllers. "
+                  "Changes where they aim."),
+        slider("Hand Roll", vr_menu_hands_roll, -30.f, 30.f, 0.5f, "%+.1f").extend(-90.f, 90.f).help(handHelp),
+        action("Reset Hand Offsets", resetHandOffsets)
+            .help("Both hands' moves and turns back to the shipped calibration. Each hand's own values: Advanced VR "
+                  "Options > Weapons > Hand/Gun Calibration."),
+
+        header("Locomotion"),
+        cycle("Move Towards", vr_menu_move_towards, {{1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}})
+            .help("Where pushing the stick forward takes you: where you look (Head), or where that hand points, so you "
+                  "can walk one way and look another."),
+        cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}})
+            .help("Whether you run or walk; holding the speed button does the other."),
+        slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%")
+            .help("How far a stick must be pushed before it does anything. Raise it if you drift or turn without "
+                  "touching the stick."),
+        toggle("Swap Stick Functions", vr_stick_swap)
+            .help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
+
+        header("Comfort"),
+        cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and turning"}, {2.f, "Moving only"}, {3.f, "Turning only"}})
+            .help("Darkens the edges of your view while the sticks move or turn you: it eases motion sickness for many. "
+                  "Your own steps in the room never do it."),
+        slider("Vignette Strength", vr_comfort_vignette_strength, 0.1f, 1.f, 0.1f, "%.1f")
+            .help("How dark and how wide the vignette is: at 1 you see through a narrow tunnel."),
+
+        header("Teleportation"),
+        toggle("Teleport", vr_teleport_enabled)
+            .help("Jump to the spot you point at instead of walking there: the gentlest way to get around."),
+        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f)
+            .help("How far a teleport reaches, in Quake's units (one is about 3 cm)."),
+
+        header("Turning"),
+        cycle("Turning Mode", vr_menu_turning, {{0.f, "Smooth"}, {1.f, "Snap"}})
+            .help("Smooth: the turning stick turns you steadily. Snap: each push turns you at once by Snap Angle, which "
+                  "many find more comfortable."),
+    };
+    if(snap)
+    {
+        list.pushBack(cycle("Snap Angle", vr_snap_turn, {{30.f, "30"}, {45.f, "45"}, {90.f, "90"}})
+                .help("How far each snap turns you, in degrees."));
+    }
+    else
+    {
+        list.pushBack(slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend()
+                .help("How fast smooth turning turns you."));
+    }
+    list.pushBackMultiple(
+        header("Flashlight"),
+        toggle("Flashlight", vr_flashlight)
+            .help("A torch on your belt: trigger at it with an open hand switches it on or off; grip takes it in your "
+                  "hand."),
+        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left hip"}, {1.f, "Right hip"}})
+            .help("The hip the torch hangs on."),
+
+        header("Lighting"),
+        slider("Ambient Light", "vr_ambient_light", 0.f, 0.4f, 0.01f, "%.2f").extend()
+            .help("Light in the places no lamp reaches: raise it if the levels are too dark to see without the "
+                  "flashlight (0: none)."),
+        slider("Light Contrast", "vr_light_contrast", 1.f, 2.5f, 0.02f, "%.2f").extend()
+            .help("Darker shadows with lamps as bright: higher is moodier (1: Quake's)."),
 
         header("Weapons"),
-        slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f)
-            .help("How the guns are tilted in your hand: set it so aiming feels natural with your controllers."),
-        slider("Off Hand Angle", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f),
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}})
             .help("Hold: keep the grip pressed to hold a weapon. Sticky: a press takes it, another lets it go."),
-        cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}}),
-        toggle("Two-Handed Hand-Off", vr_2h_handoff).advanced().help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
-        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend().advanced(),
-        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}).advanced(),
-        toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
-        cycle("Haptics", vr_disablehaptics, {{0.f, "On"}, {1.f, "Off"}}),
+        cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}})
+            .help("Hold a gun with both hands to steady it. Virtual stock: a gun brought near your shoulder also aims "
+                  "from it, as against a real stock."),
 
-        header("Sound and Display"),
-        slider("Volume", "volume", 0.f, 1.f, 0.05f, "%.2f").help("The game's sounds (Quake's Sound Volume)."),
-        slider("Music Volume", "bgmvolume", 0.f, 1.f, 0.05f, "%.2f"),
+        header("Body"),
+        cycle("Body Type", vr_body_mode, {{3.f, "Full"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})
+            .help("How much of your body you see: all of it, legs and all; the torso and arms; or only the hands."),
+        cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}})
+            .help("The arm the wrist gadget (health, armour and ammo) is on."),
+        command("Reset Position", "vr_recenter")
+            .help("Puts your body back under your head, and facing where you look, if it was left behind (after "
+                  "leaning over something, or walking into a wall)."),
+
+        header("Haptics"),
+        slider("Vibration Strength", vr_haptics_strength, 0.f, 1.f, 0.1f, "%.1f").extend(0.f, 2.f)
+            .help("How strongly the controllers vibrate (0: never)."),
+
+        header("HUD"),
         cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}})
             .help("Wrist gadget: health, armour and ammo on your wrist. Status bar: Quake's, on a hand."),
-        cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}}),
-        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend()
-            .help("The headset's brightness: lower is brighter (1 neutral). The desktop's gamma is not used."),
-        cycle("Graphics Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
-            .help("Sets every graphics setting at once (Advanced: Graphics). Lower it if the game stutters."),
+        cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}})
+            .help("A mark where your gun aims: a dot, or a laser beam from the muzzle."),
 
-        header("More"),
-        open("Body and Display", pageIndex(pageBodyDisplay)).help("Each hand's side, world scale, the body, the status bar, the menu, the desktop mirror."),
-        open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
-        open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
-        open("Advanced VR Options", PageAdvanced).help("Every gameplay, display and graphics setting, by topic."),
-        open("Tips", pageIndex(pageTips)).help("Tips for new players, shown once near what they are about: floating by it or on the wrist gadget."),
-        open("Changed Settings", pageIndex(pageChanged))
-            .help("Every setting you changed from its default, from all the pages, on one page (each marked * where it lives)."),
-        command("Run VR Calibration Again", "vr_setup")
-            .help("The calibration room and its steps, as at the first start (the main menu's VR Calibration): your height, "
-                  "your body, and the main settings on its wall buttons. Ends the game you are in."),
-        info([]() -> const char* { return buildVersionLine(); }),
-    };
+        header("Sound"),
+        slider("Volume", "volume", 0.f, 1.f, 0.05f, "%.2f").help("The game's sounds."),
+        slider("Music Volume", "bgmvolume", 0.f, 1.f, 0.05f, "%.2f").help("The music's volume."),
+        toggle("Spatial Sound", vr_snd_spatial)
+            .help("Sounds come from where they are around your head, muffled by walls, with the room's echo. Best with "
+                  "headphones."),
+
+        header("Display"),
+        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend()
+            .help("The headset's brightness: lower is brighter (1: neutral)."),
+        slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").extend()
+            .help("The headset's contrast (1: neutral)."),
+
+        header("Scaling"),
+        slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
+            .help("Eye rendering resolution, times the headset's. Above 1: smoother edges, slower. Below 1: faster, "
+                  "blurrier."),
+        cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})
+            .help("Below Render Scale 1: how the image is enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) "
+                  "keep it sharper than Bilinear."),
+        slider("Sharpening", vr_upscale_sharpness, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much the upscaler sharpens the image (FSR, NIS). Too much makes edges shimmer."),
+        cycle("Foveated Rendering", vr_foveated, {{0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"}})
+            .help("Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
+                  "cards only."),
+
+        header("Graphics"),
+        toggle("Retro Textures", vr_retro)
+            .help("Detailed textures drawn in Quake's chunky, pixelated look, crisp as you move your head."),
+        toggle("Retro Lighting", "vr_retrolight")
+            .help("Quake's coarse, banded light and blocky shadows, fixed to the walls. Goes with Retro Textures."),
+        cycle("Antialiasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}})
+            .help("Smoother edges, at some cost in speed."),
+        slider("Bloom", "vr_bloom", 0.f, 1.5f, 0.02f, "%.2f").extend()
+            .help("A glow around lamps, glowing panels, flashes and explosions (0: off)."),
+        toggle("Tone Mapping", "vr_tonemap")
+            .help("Bright lights, lava and explosions keep their colour and detail instead of turning flat yellow and "
+                  "white."),
+        toggle("Bump Mapping", "vr_normalmaps")
+            .help("Walls and floors get bumps and grooves that catch the light. From the next map."),
+        toggle("Parallax Mapping", "vr_parallax")
+            .help("Walls and floors look carved: their dark parts sink in as you move your head (needs Bump Mapping)."),
+
+        header("Reset"),
+        action(resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
+            .help("Every Quake VR setting back to as it shipped (your height, body and hand calibration too). Press it twice: "
+                  "the second time within 3 seconds.")
+    );
+    return list;
 }
 
 // Split from VR Settings: its body and display settings (the quick ones; all of them under Advanced VR Options).
@@ -6117,6 +6371,9 @@ za::Vector<Item> pageMain()
 {
     return {
         header("Sides"),
+        cycle("Handedness", vr_handedness, {{0.f, "Custom"}, {1.f, "Right-handed"}, {2.f, "Left-handed"}})
+            .help("Sets which stick moves you, the wrist gadget's arm and the flashlight's hip together. Left-handed: the right "
+                  "stick moves, the gadget on the right arm, the torch on the right hip (Custom: set apart, below)."),
         toggle("Swap Stick Functions", vr_stick_swap).help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left hip"}, {1.f, "Right hip"}}).help("The hip the torch hangs on (Chest Flashlight)."),
@@ -6171,6 +6428,16 @@ za::Vector<Item> pageMain()
 za::Vector<Item> pageAdvanced()
 {
     return {
+        header("Setup"),
+        open("Body and Display", pageIndex(pageBodyDisplay)).help("Each hand's side, world scale, the body, the status bar, the desktop mirror."),
+        open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
+        open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
+        open("Tips", pageIndex(pageTips)).help("Tips for new players, shown once near what they are about: floating by it or on the wrist gadget."),
+        open("Changed Settings", pageIndex(pageChanged))
+            .help("Every setting you changed from its default, from all the pages, on one page (each marked * where it lives)."),
+        command("Run VR Calibration Again", "vr_setup")
+            .help("The calibration room and its steps, as at the first start (the main menu's VR Calibration): your height, "
+                  "your body, and the main settings on its wall buttons. Ends the game you are in."),
         header("Game"),
         open("Play", pageIndex(pagePlay)),
         open("Combat", pageIndex(pageCombat)).help("Melee, parry and bash, stamina, batting and catching, damage and knockback."),
@@ -6192,6 +6459,7 @@ za::Vector<Item> pageAdvanced()
         open("Review Takes", pageIndex(pageReviewTakes)),
         open("Debug", pageIndex(pageDebug))
             .help("Voice notes; debug views, logs and reports; the profiler and memory log; reloads, dumps and tests."),
+        info([]() -> const char* { return buildVersionLine(); }),
     };
 }
 
@@ -6237,6 +6505,10 @@ za::Vector<Item> pageCarryingHub()
     return {
         open("Carrying", pageIndex(pageCarrying)).help("Ammo and health boxes, explosive boxes, armour and pickups."),
         open("Throwing and Physics", pageIndex(pageThrowing)),
+        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend()
+            .help("How fast what you throw flies, times your hand's speed."),
+        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}})
+            .help("How thrown things fall: Real, as on Earth; Quake, as Quake's own gravity."),
         open("Force Grab", pageIndex(pageForceGrab)),
         open("Wall Torches", pageIndex(pageWallTorches)),
         open("Rocks and Bricks", pageIndex(pageRocksBricks)),
@@ -7516,6 +7788,19 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     za::Vector<Item> (&built)[pageCount] = menuPages.built;
     bool (&done)[pageCount] = menuPages.done;
     const bool weaponOffsets = weaponOffsetsPage(pages[page].build);
+    if(page == PageMain)
+    {
+        syncWrappers(); // Turning Mode, Move Towards, the hands: as their settings are now
+        if(mainPageSnap >= 0 && mainPageSnap != (vr_snap_turn.value > 0.f ? 1 : 0))
+        {
+            done[page] = false; // Snap Angle shown, or Turn Speed
+        }
+        if(resetAllArmed && realtime - resetAllArmedTime > 3.0)
+        {
+            resetAllArmed = false; // Reset All to Defaults not pressed again in time
+            done[page] = false;
+        }
+    }
     if(weaponOffsets && weaponOffsetsSlot >= 0 && editedHotspot() == weaponOffsetsHotspot &&
         weaponOffsetsHotspotType == static_cast<int>(weapons::HotspotType::None) &&
         weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type != weapons::HotspotType::None)
@@ -7889,6 +8174,50 @@ bool slotPage(PageBuilder build)
            build == pageHeldObjectWeights;
 }
 
+// Reset All to Defaults: armed by a first press, done by a second within 3 seconds. Every saved Quake VR setting (vr_*)
+// back to its default (the shipped one, vr_defaults.cfg's), and the others on this page (volume, music, default speed,
+// anti-aliasing).
+void resetAll()
+{
+    if(!resetAllArmed || realtime - resetAllArmedTime > 3.0)
+    {
+        resetAllArmed = true;
+        resetAllArmedTime = realtime;
+        menuPages.done[PageMain] = false; // its label: Press Again to Reset All
+        return;
+    }
+    resetAllArmed = false;
+    menuPages.done[PageMain] = false;
+    za::Vector<cvar_t*> reset;
+    for(const Item& item : items(PageMain))
+    {
+        if(item.cvar && item.kind != Item::Action && !wrapperCvar(*item.cvar))
+        {
+            reset.pushBack(item.cvar);
+        }
+    }
+    for(cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
+    {
+        if(!q_strncasecmp(var->name, "vr_", 3))
+        {
+            reset.pushBack(var);
+        }
+    }
+    int n = 0;
+    for(cvar_t* var : reset)
+    {
+        if(var->default_string && !keptOnResetAll(*var) && !serverrules::locked(var) &&
+            strcmp(var->string, var->default_string) != 0)
+        {
+            Con_DPrintf("Reset All to Defaults: %s \"%s\" (was \"%s\")\n", var->name, var->default_string, var->string);
+            Cvar_SetQuick(var, var->default_string);
+            n++;
+        }
+    }
+    Con_Printf("Reset All to Defaults: %d settings back to their defaults\n", n);
+    S_LocalSound("misc/menu2.wav");
+}
+
 void resetThisPage()
 {
     if(resetArmedPage != page || realtime - resetArmedTime > 3.0)
@@ -7934,7 +8263,7 @@ za::Vector<Item> pageChanged()
         bool headed = false;
         for(const Item& item : items(p))
         {
-            if(!item.cvar || item.kind == Item::Action || !changedSetting(*item.cvar) ||
+            if(!item.cvar || item.kind == Item::Action || !changedSetting(*item.cvar) || wrapperCvar(*item.cvar) ||
                 za::anyOf(seen.begin(), seen.end(), [&](const cvar_t* v) { return v == item.cvar; }))
             {
                 continue;
@@ -9305,6 +9634,12 @@ void qvr::menu::init()
     for(const Preset& p : presets)
     {
         Cvar_SetCallback(p.choice, onPresetChosen);
+    }
+    Cvar_SetCallback(&vr_menu_turning, onWrapperSet);
+    Cvar_SetCallback(&vr_menu_move_towards, onWrapperSet);
+    for(const HandWrapper& w : handWrappers)
+    {
+        Cvar_SetCallback(w.wrapper, onWrapperSet);
     }
 }
 

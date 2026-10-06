@@ -137,6 +137,9 @@ void setPlaySpaceYaw(float yaw);
 
 // A new map (VR_OnClientClearState): what follows the client's time (cl.time starts over) begins afresh.
 void resetClientState();
+// vr_recenter (VR Settings' Reset Position): the body back under the head now (after a lean, or steps the body couldn't
+// follow), where its box fits; the torso turned to face where the head does.
+void recenter_f();
 void setLean(const glm::vec3& worldLean);
 
 // A frame outside the host frames (a dialog's, VR_ModalMessageFrame): the head and hands read again from the new

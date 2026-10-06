@@ -32,6 +32,7 @@
 #include "Zancle/Math/Copysign.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 
 
@@ -166,6 +167,16 @@ InputState previous;
 glm::vec2 moveAxes{0.f};
 bool snapTurnArmed = true;
 
+// The comfort vignette (vr_comfort_vignette): how much the sticks move and turn you now (0 .. 1, eased), this frame's
+// smooth turn (0 .. 1), and the seconds left of a snap turn's pulse.
+struct ComfortMotion
+{
+    float amount{0.f};
+    float turn{0.f};
+    float snapPulse{0.f};
+};
+ComfortMotion comfortMotion;
+
 struct PendingHaptic
 {
     double time;
@@ -228,13 +239,35 @@ void turn(float x)
         {
             snapTurnArmed = false;
             hands::addTurn(x > 0.f ? -vr_snap_turn.value : vr_snap_turn.value);
+            comfortMotion.snapPulse = 0.3f;
         }
     }
     else if(const float v = deadzone(x); v != 0.f)
     {
+        comfortMotion.turn = za::min(1.f, za::fabs(v));
         // (In slow motion at its real-time speed with vr_timescale_turn_realtime or Sandevistan.)
         hands::addTurn(-v * static_cast<float>(host_frametime) * timescale::turnSpeedup() * 100.f * vr_turn_speed.value);
     }
+}
+
+// Once a frame, after the sticks: the comfort vignette's target (moving: the stick's push; turning: smooth turning's, or
+// a snap's pulse, at once), eased in quickly and out more slowly.
+void updateComfort()
+{
+    ComfortMotion& c = comfortMotion;
+    const int mode = static_cast<int>(vr_comfort_vignette.value);
+    const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
+    const float moving = mode == 1 || mode == 2 ? za::min(1.f, glm::length(moveAxes)) : 0.f;
+    const float turning = mode == 1 || mode == 3 ? za::max(c.turn, c.snapPulse > 0.f ? 1.f : 0.f) : 0.f;
+    const float target = key_dest == key_game ? za::max(moving, turning) : 0.f;
+    const float tau = target > c.amount ? 0.08f : 0.25f;
+    c.amount += (target - c.amount) * za::min(1.f, dt / tau);
+    if(turning > 0.f && c.snapPulse > 0.f)
+    {
+        c.amount = za::max(c.amount, target); // a snap is at once: so is its vignette
+    }
+    c.snapPulse = za::max(0.f, c.snapPulse - dt);
+    c.turn = 0.f;
 }
 
 void runHaptics()
@@ -445,6 +478,7 @@ void update(const InputState& tracked)
         }
     }
 
+    updateComfort();
     previous = in;
     if(!playbackCommands.empty())
     {
@@ -452,6 +486,12 @@ void update(const InputState& tracked)
         playbackCommands.clear();
     }
     runHaptics();
+}
+
+float comfortVignette()
+{
+    const float strength = CLAMP(0.f, vr_comfort_vignette_strength.value, 1.f);
+    return vr_comfort_vignette.value != 0.f ? strength * comfortMotion.amount : 0.f;
 }
 
 bool secondaryHeld(int hand)
@@ -471,7 +511,7 @@ bool primaryHeld(int hand)
 // analog, moves at cl_forwardspeed in every direction (as the old engine did). The server steers by
 // the head (.v_viewangle): with
 // vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the moving hand
-// (hands::moveHand) points, expressed relative to the head. Either way, pointing it up or down while
+// (hands::moveHand) points, with 2 the left hand, 3 the right hand, expressed relative to the head. Either way, pointing it up or down while
 // pushing forward swims up or down (from the old engine's VR_Move).
 extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove)
 {
@@ -487,10 +527,13 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     float fwd = moveAxes.y;
     float side = moveAxes.x;
 
-    if(s.valid && static_cast<int>(vr_movement_mode.value) == 0)
+    const int mode = static_cast<int>(vr_movement_mode.value);
+    if(s.valid && mode != 1)
     {
+        // 2 the left hand, 3 the right hand; 0 the moving stick's.
+        const int hand = mode == 2 ? HAND_OFF : mode == 3 ? HAND_MAIN : hands::moveHand();
         glm::vec3 lfwd, lright, lup;
-        hands::angleVectors(s.rot[hands::moveHand()], lfwd, lright, lup);
+        hands::angleVectors(s.rot[hand], lfwd, lright, lup);
 
         // Pointing (nearly) straight up or down: steer with the hand's up vector instead.
         if(za::fabs(lfwd.z) > 0.8f)

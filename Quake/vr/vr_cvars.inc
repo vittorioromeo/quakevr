@@ -437,7 +437,7 @@ QVR_CVAR(vr_floor_offset, "-21", CVAR_ARCHIVE)
 QVR_CVAR(vr_snap_turn, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_enable_joystick_turn, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_turn_speed, "3.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_movement_mode, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_movement_mode, "1", CVAR_ARCHIVE)          // the stick moves you where: 1 the head looks; 0 the moving stick's hand points (hands::moveHand), 2 the left hand, 3 the right hand (VR Settings' Move Towards)
 QVR_CVAR(vr_hud_scale, "0.025", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_scale, "0.15", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_speed, "3", CVAR_ARCHIVE)          // m/s the striking hand must reach (relative to the head) to hit: a punch, a pommel strike; a weapon's swing 1.25x, a stab 0.75x; twice this is a strength-1 blow (QC vr_melee.qc)
@@ -508,8 +508,27 @@ QVR_CVAR(vr_menu_remember, "1", CVAR_ARCHIVE)          // opening the menu after
 QVR_CVAR(vr_menu_dropdown, "4", CVAR_ARCHIVE)          // a VR page's choice row with this many choices or more opens a list of them on a click or Enter / A (vr_menu.cpp; left and right still step; 0: never, a click steps)
 QVR_CVAR(vr_menu_help_wpm, "200", CVAR_ARCHIVE)        // the VR pages' help under the list: a help longer than its box shows a part at a time, each kept as long as reading its words takes at this many words a minute (vr_menu.cpp drawHelp; 60 to 600)
 QVR_CVAR(vr_setup_pending, "0", CVAR_ARCHIVE)         // 1: VR Calibration starts the next time the headset is on and no game runs (set at a first start, no saved config: vr_migrate_config new; cleared as it starts; vr_setup.cpp)
-QVR_CVAR(vr_comfort_preset, "0", CVAR_NONE)          // VR Settings' Comfort (vr_menu.cpp presets; not saved: the settings it sets are): 1 Comfortable, 2 Moderate, 3 Full Freedom; 0 Custom (shown when the settings match none)
-QVR_CVAR(vr_handedness, "0", CVAR_NONE)              // VR Settings' Handedness (likewise): 1 right-handed, 2 left-handed (vr_stick_swap, vr_gadget_arm, vr_flashlight_side together); 0 Custom
+QVR_CVAR(vr_comfort_preset, "0", CVAR_NONE)          // Locomotion's Comfort (vr_menu.cpp presets; not saved: the settings it sets are): 1 Comfortable, 2 Moderate, 3 Full Freedom; 0 Custom (shown when the settings match none)
+QVR_CVAR(vr_handedness, "0", CVAR_NONE)              // Body and Display's Handedness (likewise): 1 right-handed, 2 left-handed (vr_stick_swap, vr_gadget_arm, vr_flashlight_side together); 0 Custom
+// VR Settings' own rows over other settings (vr_menu.cpp, "Wrappers"): not saved (the settings they set are), shown as
+// those settings are now. Turning: 0 smooth, 1 snap (vr_snap_turn 0, or its angle). Move Towards: 1 the head, 2 the left
+// hand, 3 the right hand (vr_movement_mode; its 0, the moving stick's hand, shown as that hand). Hands: one mirrored hand
+// calibration for both hands, from the shipped one (0): centimetres forward, inward (towards the other hand) and up, degrees
+// of pitch (up), yaw (inward) and roll (vr_handcal_x/y/z/roll with vr_handcal_off_mirror 1, vr_gunangle/vr_gunyaw and
+// vr_offhandpitch/vr_offhandyaw, each its default plus this; the off hand's yaw the other way).
+QVR_CVAR(vr_menu_turning, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_move_towards, "1", CVAR_NONE)
+QVR_CVAR(vr_menu_hands_x, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_hands_y, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_hands_z, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_hands_pitch, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_hands_yaw, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_hands_roll, "0", CVAR_NONE)
+// Comfort vignette (vr_input.cpp comfortVignette, the eyes' post-process): the view's edges darkened while the sticks move
+// or turn you (not your own steps in the room, nor a teleport): 0 off, 1 moving and turning, 2 moving only, 3 turning only;
+// how dark (0 .. 1: at 1 a narrow tunnel).
+QVR_CVAR(vr_comfort_vignette, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_comfort_vignette_strength, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_level, "0", CVAR_ARCHIVE)             // Menu Detail (vr_menu.cpp MenuLevel): 0 Standard (what every player sets), 1 Advanced (every gameplay, display and graphics setting), 2 Developer (tuning, recording, debug and tests too)
 QVR_CVAR(vr_menu_positions, "", CVAR_ARCHIVE)          // where each VR Settings page was left, for the next start (vr_menu.cpp, written with the config): "title|section|row|index|line;..."
 QVR_CVAR(vr_checklist_hide_ticked, "1", CVAR_ARCHIVE)   // Checklist page (the menu's corner button): ticked items left out
@@ -2312,6 +2331,7 @@ QVR_CVAR(vr_debug_draw_blend, "0", CVAR_NONE)          // print each frame of th
 QVR_CVAR(vr_worldtext_crt, "1", CVAR_ARCHIVE)          // map text boards (world texts) are CRT screens with glowing text, as the wrist gadget's: strength (0 plain text, up to 2)
 QVR_CVAR(vr_worldtext_hue, "40", CVAR_ARCHIVE)         // their phosphor's hue (degrees; 40 amber, 128 green, 200 blue)
 QVR_CVAR(vr_disablehaptics, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_haptics_strength, "1", CVAR_ARCHIVE)        // every vibration's strength, times this (0: none; VR Settings' Vibration Strength; vr_backend_openxr.cpp haptic)
 QVR_CVAR(vr_spinreload_pitch_speed, "1100", CVAR_ARCHIVE)
 QVR_CVAR(vr_spinreload_x_angular_threshold, "6.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_player_stepsize, "18.0", CVAR_ARCHIVE)

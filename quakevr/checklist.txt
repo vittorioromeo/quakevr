@@ -3,6 +3,11 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+VR Settings rebuilt for new players (Options > VR Settings, and right after VR Calibration on the main menu): sections read well, every row's help makes sense, nothing you use is missing (old rows: Advanced VR Options pages; Search finds them)
+Hand Calibration on VR Settings: Show Controller on, Hand Forward/Inward/Up/Pitch/Yaw/Roll move both hands mirrored; Reset Hand Offsets puts them back
+Comfort Vignette (VR Settings > Comfort): edges darken while the stick moves or turns you (snap: a short blink), never for room steps or teleports; Strength 0.6 right?
+Move Towards Left Hand / Right Hand; Turning Mode Snap shows Snap Angle; Vibration Strength 0.3 weaker, 0 none; Reset Position after leaning over a railing
+Reset All to Defaults (VR Settings, bottom): first press says Press Again, second resets everything (height and hands too); Menu Detail stays
 Decisions applied: Horde solo death restarts the arena (no autoload); gibs and heads thrown at 7 m/s+ burst on walls, softer throws stick (Hard Throw Bursts: right threshold?); rottweiler headshots and beheading work; multiplayer rocks/bricks follow single player's count
 Server tick: game logic now runs at a steady 72 Hz at any refresh rate (was 36-60): check smoothness, melee and physics at 72 Hz and your highest rate; Debug > Profiling and Memory > Server Tick Stats ~72/s; toggle Fixed 72 Hz Server Tick off to compare
 Saved games (the firing-range corruption): change Dummy Enemy, cut limbs, get an autosave, die and respawn: every model right (no gremlin pillars, no head-gib buttons); loading an old save says so in the console and once on screen
