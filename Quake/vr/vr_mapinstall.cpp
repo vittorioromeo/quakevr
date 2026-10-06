@@ -1,15 +1,16 @@
 // vr_mapinstall.cpp -- a package from the map index (vr_mapindex.cpp) put into the game: its zip downloaded to
-// quakevr/cache/maps/<sha256>.zip, its files unpacked with miniz into the user's game dir, its startmap started, and
-// what was written recorded in quakevr/cache/maps_installed.txt so that it can be listed and removed again.
+// <base>/cache/maps/<sha256>.zip, its files unpacked with miniz into its own folder, <base>/qvr_addons/<sha16>/, and
+// what was written recorded in <base>/cache/maps_installed.txt so that it can be listed and removed again (<base>:
+// com_basedirs' last, the user's base dir). Installing never starts a map: play() does (vr_mapinstall.hpp).
 //
 // The download and the unpacking run on a thread of their own (as the index's fetch does): the game never waits for
 // them, and nothing is printed from that thread. poll() takes the finished job on the main thread: its console line,
-// the registry updated, the map queued.
+// and the registry updated (or what it unpacked removed again, when it did not finish; finish() does the same for a
+// job the quit stopped).
 //
-// Where the files go: a BSP to <game dir>/maps/, because that is where the engine's `map` command looks
-// (host_cmd.c's Cmd_Map_f builds "maps/%s.bsp"); everything else at the game dir's root, where the engine's search
-// paths reach it. The index's install.extract is read for its maps/ part only: the engine does not add a package's own
-// subdirectory to the search paths, so a file placed in one would not be found.
+// Where the files go inside the package's folder: a BSP to maps/ (host_cmd.c's Cmd_Map_f builds "maps/%s.bsp"); the
+// rest where the index's install.extract puts the zip's root, its game folder dropped (extractLayout). The folder is
+// on the search path only while the package is played (mountActive, from vr_gamedir.cpp).
 
 #include "vr_mapinstall.hpp"
 #include "vr_engine.hpp"
@@ -66,8 +67,7 @@ bool registryLoaded = false;
 za::U32 titlesGeneration = 0;
 
 // The paths, set at start() (com_basedirs' last: the user's game dir, as vr_mapindex.cpp's cache path).
-za::String gameDirName;
-za::String mapsDirName;
+za::String gameDirName; // com_gamedir when first asked: where the old layout (registryMagicMerged) put the files
 za::String cacheDirName;
 za::String registryPath;
 // The same as a reference (addonsRoot), built on first use once the base dirs are known: file scope, not hidden in
@@ -610,7 +610,6 @@ bool downloadZip(za::Vector<char>& body, za::String& why)
         dl.write_fn = writeChunk;
         dl.write_data = &body;
         dl.abort = &cancelJob;
-        const za::U32 t0 = SDL_GetTicks();
         downloadTooBig = false;
         const bool ok = Download(url.cStr(), &dl);
         if(SDL_AtomicGet(&cancelJob))
@@ -637,7 +636,6 @@ bool downloadZip(za::Vector<char>& body, za::String& why)
         }
         else
         {
-            (void)t0;
             return true;
         }
         if(tried.size())
@@ -1151,11 +1149,9 @@ void ensureStarted()
     {
         return; // (already set, or the game dirs are not known yet)
     }
-    // The game dir the engine searches (COM_AddGameDirectory makes <basedir>/quakevr one): its maps/ is where the
-    // engine's `map` command finds a BSP. The cache and the installed list stay with the map index's cache, in the
-    // base dir, which does not change when the game dir does.
+    // The cache and the installed list stay with the map index's cache, in the user's base dir (as qvr_addons/ does),
+    // which does not change when the game dir does. The game dir is only where the old layout's files are moved from.
     gameDirName = com_gamedir;
-    mapsDirName = gameDirName + "/maps";
     cacheDirName = za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/maps";
     registryPath = za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/maps_installed.txt";
     loadRegistry();
@@ -1164,18 +1160,6 @@ void ensureStarted()
 } // namespace
 
 // ---------------------------------------------------------------- public
-
-const za::String& gameDir()
-{
-    ensureStarted();
-    return gameDirName;
-}
-
-za::String mapsDir()
-{
-    ensureStarted();
-    return mapsDirName;
-}
 
 void start()
 {
@@ -1480,12 +1464,6 @@ za::String statusLine()
         q_snprintf(line, sizeof(line), "Idle: nothing being downloaded");
     }
     return za::String{line};
-}
-
-bool cached(const za::String& sha, za::String& out)
-{
-    out = zipPath(sha);
-    return files::exists(out.cStr());
 }
 
 bool installed(const za::String& sha)

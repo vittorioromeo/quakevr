@@ -116,8 +116,6 @@ bool cancel();
 // mirror, the seconds, how long nothing arrived), unpacking it, stopping it, or idle with how the last job ended.
 [[nodiscard]] za::String statusLine();
 
-// The zip is in the cache (its path in `out`).
-[[nodiscard]] bool cached(const za::String& sha, za::String& out);
 // The package is installed (its files are in the game dir).
 [[nodiscard]] bool installed(const za::String& sha);
 // What is installed, one entry per package.
@@ -148,9 +146,5 @@ void mountActive();
 
 // A byte count as the console and the page show it ("5.1 MB").
 [[nodiscard]] za::String formatBytes(za::U64 bytes);
-
-// The game dir the files go to (com_basedirs' last: the user's quakevr), and its maps dir.
-[[nodiscard]] const za::String& gameDir();
-[[nodiscard]] za::String mapsDir();
 
 } // namespace qvr::mapinstall

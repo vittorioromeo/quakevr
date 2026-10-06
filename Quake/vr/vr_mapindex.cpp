@@ -5,14 +5,16 @@
 //
 // The API (measured, 2026-10): `https://www.quaddicted.com/api/v1/?q=*:*&rows=N&start=N` returns a bare JSON array.
 // One unpaginated call does return the whole index (1947 packages, 18.4 MB, 1.6 s) — but json.c builds one
-// jsonentry_t per token, so that payload alone is a ~44 MB parse tree. A page of 200 is ~1.9 MB with a ~5 MB tree,
+// jsonentry_t per token, so that payload alone is a ~44 MB parse tree. A page of 200 is 0.7-4.9 MB (the older
+// packages' pages are the big ones; 18 MB in 10 pages, peak held ~21 MB, measured 2026-10-06),
 // the pages come in one stable order (checked against the unpaginated call), and a page that fails costs only itself:
 // so the index is paged, and the cache is written in our own slim line format rather than as the JSON we were given
 // (1 MB rather than 18 MB, and reading it back needs no JSON parser and no big tree).
 //
-// The cache lives in the user's game dir — the same place the installed maps will go: quakevr/cache/maps_index.txt.
-// It is not in git. -nomapindex, or vr_maps_fetch 0, keeps the fetch off; a failed one says so in one console line
-// and leaves the game running with no index.
+// The cache lives in the user's base dir (com_basedirs' last), beside the installed maps' cache and qvr_addons/:
+// <base>/cache/maps_index.txt. It is not in git. -nomapindex keeps the start-up pass off, vr_maps_fetch 0 makes it
+// read the cache only; maps_fetch fetches whatever they say. A failed fetch says so in one console line and leaves the
+// game running with the index it had (or an older cached copy).
 
 #include "vr_mapindex.hpp"
 #include "vr_cvars.hpp"
