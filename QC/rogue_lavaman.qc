@@ -445,7 +445,7 @@ void() lavaman_awake =
 */
 void() monster_lava_man =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/lavaball.mdl", "progs/lavaman.mdl", "sound/boss1/death.wav", "sound/boss1/out1.wav") && VR_Has4("sound/boss1/pain.wav", "sound/boss1/sight1.wav", "sound/boss1/throw.wav", "sound/misc/power.wav") && VR_Has4("sound/weapons/rocket1i.wav", "", "", ""), "Rogue")) { return; }
 
     if(deathmatch)
     {

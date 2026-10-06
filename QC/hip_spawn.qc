@@ -114,7 +114,6 @@ Think of it like setting up a normal entity.
 
 void() func_spawn =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    entity tempself;
    entity monster;
@@ -353,7 +352,6 @@ Think of it like setting up a normal entity.
 
 void() func_spawn_small =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    func_spawn();
    };

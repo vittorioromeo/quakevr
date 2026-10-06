@@ -532,7 +532,7 @@ If the monster has a targetname (triggered by something) he will rise up out of 
 */
 void() monster_morph =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/laser.mdl", "progs/morph_az.mdl", "progs/morph_eg.mdl", "progs/morph_gr.mdl") && VR_Has4("sound/enforcer/enfire.wav", "sound/guard/death.wav", "sound/guard/pain1.wav", "sound/guard/see1.wav"), "Rogue")) { return; }
 
     if(deathmatch)
     {

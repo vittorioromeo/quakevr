@@ -1145,6 +1145,9 @@ void() weapon_item_think =
 void(string xModelName, float xWeaponId) impl_weapon_item =
 {
     if(!VR_Pack_WeaponAvailable(xWeaponId)) { remove(self); return; }
+    // A pickup model only a pack has (Hipnotic's Mjolnir and laser cannon): the weapon's own VR model instead, which
+    // Quake VR ships (the weapon itself works without the pack).
+    if(!fileexists(xModelName)) { xModelName = WeaponIdToModel(xWeaponId, 0); }
 
     precache_model(xModelName);
     setmodel(self, xModelName);
@@ -1439,7 +1442,7 @@ void(string xModelNameSmall, string xModelNameBig,
      float xAmmoId, vector xSize)
 impl_item_ammo_pickup =
 {
-    if(!VR_Pack_Rogue() && (xAmmoId == AID_LAVA_NAILS || xAmmoId == AID_MULTI_ROCKETS || xAmmoId == AID_PLASMA))
+    if(!VR_Pack_AmmoAvailable(xAmmoId) || !fileexists(xModelNameSmall) || !fileexists(xModelNameBig))
     {
         remove(self);
         return;

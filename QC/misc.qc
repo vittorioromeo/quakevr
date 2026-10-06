@@ -400,6 +400,7 @@ void() spikeshooter_use =
 {
     entity newmis;
     entity lavaball;
+    float kind = spikeshooter_kind(self); // (the same choice its spawn precached for: misc.qc's fallbacks)
 
     if(mapname == "e2m3" || // VR: There is a bug in e2m3 where spikeshooters
                             // have spawn flags '256', which is invalid in Q1
@@ -416,18 +417,18 @@ void() spikeshooter_use =
         if(self.spawnflags & SPAWNFLAG_SUPERSPIKE)
             newmis.touch = superspike_touch;
     }
-    else if(self.spawnflags & SPAWNFLAG_LASER)
+    else if(kind == 1)
     {
         if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "enforcer/enfire.wav", 1, ATTN_NORM);
         newmis = LaunchLaser (self.origin, self.movedir);
         newmis.spawnflags = self.spawnflags;
     }
-    else if(self.spawnflags & SPAWNFLAG_FIREBALL)
+    else if(kind == 2)
     {
         newmis = launch_fireball (self.origin, self.movedir);
     }
-    else if(self.spawnflags & SPAWNFLAG_LAVABALL)
+    else if(kind == 3)
     {
         if(!(self.spawnflags & SPAWNFLAG_SILENT))
              sound(self, CHAN_VOICE, "misc/spike.wav", 1, ATTN_NORM);
@@ -440,14 +441,14 @@ void() spikeshooter_use =
         lavaball.angles = vectoangles(lavaball.velocity);
         lavaball.owner = self;
         lavaball.touch = T_MissileTouch;
-        setmodel(lavaball, "progs/lavarock.mdl");
+        setmodel(lavaball, VR_ModelOr("progs/lavarock.mdl", "progs/lavaball.mdl"));
         setsize(lavaball, '-4 -4 -4', '4 4 4');
         setorigin(lavaball, self.origin);
         lavaball.avelocity = '0 0 400';
         lavaball.nextthink = time + 5;
         lavaball.think = SUB_Remove;
     }
-    else if(self.spawnflags & SPAWNFLAG_ROCKET)
+    else if(kind == 4)
     {
         if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "weapons/sgun1.wav", 1, ATTN_NORM);
@@ -456,7 +457,7 @@ void() spikeshooter_use =
         newmis.angles = vectoangles(newmis.velocity);
         setorigin(newmis, self.origin + self.movedir*8);
     }
-    else if(self.spawnflags & (SPAWNFLAG_SUPERLAVA | SPAWNFLAG_LAVASKILL | SPAWNFLAG_LAVASPIKE))
+    else if(kind == 5)
     {
         sound(self, CHAN_VOICE, "weapons/spike2.wav", 1, ATTN_NORM);
         newmis = launch_lava_spike (self.origin, self.movedir);
@@ -495,57 +496,63 @@ Laser, Lava and SuperLava are only for REGISTERED.
 */
 
 //MED 11/01/96 commented out setmovedir
+// VR: what a spikeshooter fires, in spikeshooter_use's order (spawnflag 256 is also the engine's "not on easy", and
+// e2m3/r1m7 carry stray flags: those fire plain spikes): 0 spike, 1 laser, 2 fireball, 3 lavaball, 4 rocket, 5 lava.
+// Never removed for a pack missing: Rogue's fireball only with its model (else 256 is the skill flag it is in id1's
+// maps), Hipnotic's lavaball with Quake's own lavaball.mdl when its lavarock.mdl is not there, Rogue's lava spikes as
+// plain spikes without the lava spike model.
+float(entity e) spikeshooter_kind =
+{
+    if(mapname == "e2m3" || mapname == "r1m7" || (e.spawnflags & SPAWNFLAG_SUPERSPIKE) || !e.spawnflags)
+        return 0;
+    if(e.spawnflags & SPAWNFLAG_LASER)
+        return 1;
+    if((e.spawnflags & SPAWNFLAG_FIREBALL) && vr_have_fireball)
+        return 2;
+    if(e.spawnflags & SPAWNFLAG_LAVABALL)
+        return 3;
+    if(e.spawnflags & SPAWNFLAG_ROCKET)
+        return 4;
+    if(e.spawnflags & (SPAWNFLAG_SUPERLAVA | SPAWNFLAG_LAVASKILL | SPAWNFLAG_LAVASPIKE))
+        return vr_have_lava ? 5 : 0;
+    return 0;
+};
+
 void() trap_spikeshooter =
 {
-    if(!VR_Pack_Rogue() && (self.spawnflags &
-        (SPAWNFLAG_LAVASPIKE | SPAWNFLAG_SUPERLAVA | SPAWNFLAG_LAVASKILL | SPAWNFLAG_FIREBALL | SPAWNFLAG_LAVABALL)))
-    {
-        dprint("VR: Rogue projectile trap unavailable\n");
-        remove(self);
-        return;
-    }
+    local float kind;
+
+    kind = spikeshooter_kind(self);
 
     SetMovedir();
     self.use = spikeshooter_use;
 
-    if(self.spawnflags & SPAWNFLAG_LASER)
+    if(kind == 1)
     {
         precache_model2("progs/laser.mdl");
         precache_sound2("enforcer/enfire.wav");
         precache_sound2("enforcer/enfstop.wav");
     }
-    else if(self.spawnflags & SPAWNFLAG_LAVASPIKE)
-    {
-        precache_model2("progs/lspike.mdl");
-        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
-        precache_sound2("weapons/rocket1i.wav");
-    }
-    else if(self.spawnflags & SPAWNFLAG_SUPERLAVA)
-    {
-        precache_model2("progs/lspike.mdl");
-        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
-        precache_sound2("weapons/spike2.wav");
-    }
-    else if(self.spawnflags & SPAWNFLAG_LAVASKILL)
-    {
-        precache_model2("progs/lspike.mdl");
-        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
-        precache_sound2("weapons/rocket1i.wav");
-        precache_sound2("weapons/spike2.wav");
-    }
-    else if(self.spawnflags & SPAWNFLAG_FIREBALL)
+    else if(kind == 2)
     {
         precache_model("progs/fireball.mdl");
     }
-    else if(self.spawnflags & SPAWNFLAG_LAVABALL)
+    else if(kind == 3)
     {
-        precache_model("progs/lavarock.mdl");
+        precache_model(VR_ModelOr("progs/lavarock.mdl", "progs/lavaball.mdl"));
         precache_sound2("misc/spike.wav");
     }
-    else if(self.spawnflags & SPAWNFLAG_ROCKET)
+    else if(kind == 4)
     {
         precache_model("progs/missile.mdl");
         precache_sound("weapons/sgun1.wav");
+    }
+    else if(kind == 5)
+    {
+        precache_model2("progs/lspike.mdl");
+        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
+        precache_sound2("weapons/rocket1i.wav");
+        precache_sound2("weapons/spike2.wav");
     }
     else
     {

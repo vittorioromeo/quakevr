@@ -21,7 +21,7 @@ float(float xAid) VR_AmmoUtil_AmmoIdToItemId =
 
 float(entity xEnt, float xAid) VR_AmmoUtil_GetAmmoCountByAmmoId =
 {
-    if(!VR_Pack_Rogue() && (xAid == AID_LAVA_NAILS || xAid == AID_MULTI_ROCKETS || xAid == AID_PLASMA)) { return 0; }
+    if(!VR_Pack_AmmoAvailable(xAid)) { return 0; }
 
     if(xAid == AID_SHELLS)        { return xEnt.ammo_shells; }
     if(xAid == AID_NAILS)         { return xEnt.ammo_nails; }
@@ -37,7 +37,7 @@ float(entity xEnt, float xAid) VR_AmmoUtil_GetAmmoCountByAmmoId =
 
 void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_SetAmmoCountByAmmoId =
 {
-    if(!VR_Pack_Rogue() && (xAid == AID_LAVA_NAILS || xAid == AID_MULTI_ROCKETS || xAid == AID_PLASMA)) { return; }
+    if(!VR_Pack_AmmoAvailable(xAid)) { return; }
 
     if(xAid == AID_SHELLS)        { xEnt.ammo_shells = xValue; return; }
     if(xAid == AID_NAILS)         { xEnt.ammo_nails = xValue; return; }
@@ -52,7 +52,7 @@ void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_SetAmmoCountByAmmoId =
 
 void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_AddAmmoCountByAmmoId =
 {
-    if(!VR_Pack_Rogue() && (xAid == AID_LAVA_NAILS || xAid == AID_MULTI_ROCKETS || xAid == AID_PLASMA)) { return; }
+    if(!VR_Pack_AmmoAvailable(xAid)) { return; }
 
     if(xAid == AID_SHELLS)        { xEnt.ammo_shells = xEnt.ammo_shells + xValue; return; }
     if(xAid == AID_NAILS)         { xEnt.ammo_nails = xEnt.ammo_nails + xValue; return; }

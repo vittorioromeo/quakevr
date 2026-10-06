@@ -82,8 +82,8 @@ string vr_button_how; // what pressed the button now firing, for vr_debug_wallbu
 void() button_fire =
 {
     if(self.buttonEffect == 3 &&
-        ((substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
-         (substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
+        ((substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
+         (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
     {
         if(self.enemy.classname == "player")
         {
@@ -391,9 +391,13 @@ float(entity xThing) VR_Button_Thrown =
 // isn't pressed by the body, only by a hand), and anything thrown at it.
 void() button_touch_any =
 {
+    local vector dir;
+
     if(other.classname == "player")
     {
-        if(self.movedir_z == -1 || self.movedir_z == -2)
+        // (by its direction: the official campaigns keep an authored movedir as the whole move, '0 0 -8')
+        dir = normalize(self.movedir);
+        if(dir_z < -0.7)
         {
             vr_button_how = "stepped on";
             button_touch();
@@ -458,8 +462,8 @@ void() func_button =
     if(MG_MonsterInhibited()) return;
     if(MG_WorldCampaign()) MG_ButtonInit();
     if(self.buttonEffect == 3 &&
-       ((substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
-        (substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
+       ((substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
+        (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
     {
         self.worldtext = strcat(self.worldtext, "\n(unavailable)");
     }
@@ -778,8 +782,7 @@ void() func_enemy_dispenser_use =
 
     // Not installed: say what it needs instead.
     string mdl = VR_EnemyDispenser_Model(choice);
-    if((choice >= 12 && choice <= 13 && !VR_Pack_Hipnotic()) ||
-       (choice >= 14 && choice <= 19 && !VR_Pack_Rogue()) || (mdl != NULLSTR && !fileexists(mdl)))
+    if(mdl != NULLSTR && !fileexists(mdl)) // (its model there: the monster's own spawn checks the rest)
     {
         if(activator.classname == "player")
         {
@@ -847,8 +850,7 @@ void() func_enemy_dispenser =
         // The model now, if installed (no hitch at the first press); the monster's other models and
         // its sounds are precached (late) when it first spawns.
         string mdl = VR_EnemyDispenser_Model(self.weapon);
-        if(!(self.weapon >= 12 && self.weapon <= 13 && !VR_Pack_Hipnotic()) &&
-           !(self.weapon >= 14 && self.weapon <= 19 && !VR_Pack_Rogue()) && mdl != NULLSTR && fileexists(mdl))
+        if(mdl != NULLSTR && fileexists(mdl))
         {
             precache_model(mdl);
         }

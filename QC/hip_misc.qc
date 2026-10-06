@@ -49,7 +49,7 @@ play a sound when it is used
 */
 void() play_sound_triggered =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/misc/null.wav", "", "", ""), "Hipnotic")) { return; }
 
    precache_sound(self.noise);
    precache_sound("misc/null.wav");
@@ -80,7 +80,7 @@ play a sound on a periodic basis
 */
 void() play_sound =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/misc/null.wav", "", "", ""), "Hipnotic")) { return; }
 
    float t;
 
@@ -108,7 +108,7 @@ void() play_sound =
 */
 void() random_thunder =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/misc/null.wav", "", "", ""), "Hipnotic")) { return; }
 
    self.noise = "ambience/thunder1.wav";
    play_sound();
@@ -126,7 +126,7 @@ void() random_thunder =
 */
 void() random_thunder_triggered =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/misc/null.wav", "", "", ""), "Hipnotic")) { return; }
 
    self.noise = "ambience/thunder1.wav";
    play_sound_triggered();
@@ -138,7 +138,7 @@ void() random_thunder_triggered =
 */
 void() ambient_humming =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/ambient/humming.wav", "", "", ""), "Hipnotic")) { return; }
 
    if(self.volume==0)
       self.volume = 0.5;
@@ -151,7 +151,7 @@ void() ambient_humming =
 */
 void() ambient_rushing =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/ambient/rushing.wav", "", "", ""), "Hipnotic")) { return; }
 
    if(self.volume==0)
       self.volume = 0.5;
@@ -164,7 +164,7 @@ void() ambient_rushing =
 */
 void() ambient_running_water =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/ambient/runwater.wav", "", "", ""), "Hipnotic")) { return; }
 
    if(self.volume==0)
       self.volume = 0.5;
@@ -177,7 +177,7 @@ void() ambient_running_water =
 */
 void() ambient_fan_blowing =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/ambient/fanblow.wav", "", "", ""), "Hipnotic")) { return; }
 
    if(self.volume==0)
       self.volume = 0.5;
@@ -190,7 +190,7 @@ void() ambient_fan_blowing =
 */
 void() ambient_waterfall =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/ambient/waterfal.wav", "", "", ""), "Hipnotic")) { return; }
 
    if(self.volume==0)
       self.volume = 0.5;
@@ -203,7 +203,7 @@ void() ambient_waterfall =
 */
 void() ambient_riftpower =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/ambient/riftpowr.wav", "", "", ""), "Hipnotic")) { return; }
 
    if(self.volume==0)
       self.volume = 0.5;
@@ -221,7 +221,6 @@ void() ambient_riftpower =
 
 void() info_command =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    if(self.message != NULLSTR)
       localcmd(self.message);
@@ -242,7 +241,7 @@ void() effect_teleport_use =
 
 void() effect_teleport =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/misc/r_tele1.wav", "", "", ""), "Hipnotic")) { return; }
 
    precache_sound("misc/r_tele1.wav");
    self.use = effect_teleport_use;
@@ -420,7 +419,6 @@ path for a camera
 /*
 void() path_camera =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
     self.solid = SOLID_TRIGGER;
    self.touch = t_cameratarget;
@@ -546,7 +544,6 @@ void() effect_finale_use =
 
 void() effect_finale =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    if(deathmatch)
     {
@@ -574,7 +571,6 @@ void() info_startendtext_use =
 
 void() info_startendtext =
    {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    self.use = info_startendtext_use;
    };

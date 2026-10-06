@@ -105,7 +105,7 @@ It will not damage players until activated.
 */
 void() buzzsaw =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/buzzsaw.mdl", "sound/buzz/buzz.wav", "sound/buzz/buzz1.wav", ""), "Rogue")) { return; }
 
     precache_model("progs/buzzsaw.mdl");
 

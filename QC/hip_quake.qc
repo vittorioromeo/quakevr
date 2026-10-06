@@ -71,7 +71,6 @@ Causes an earthquake.  Triggers targets.
 
 void() func_earthquake =
     {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
 
    quakeactive = 0;
    precache_sound("misc/quake.wav");

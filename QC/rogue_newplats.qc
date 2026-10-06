@@ -444,7 +444,7 @@ Set "sounds" to one of the following:
 
 void() func_new_plat =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("sound/plats/medplat1.wav", "sound/plats/medplat2.wav", "sound/plats/plat1.wav", "sound/plats/plat2.wav"), "Rogue")) { return; }
 
 //entity t;
 float negativeHeight;

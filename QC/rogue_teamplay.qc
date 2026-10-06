@@ -1621,7 +1621,7 @@ to 90.
 */
 void() item_flag_team1 =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/ctfbase.mdl", "progs/ctfmodel.mdl", "sound/misc/flagcap.wav", "sound/misc/flagret.wav") && VR_Has4("sound/misc/flagtk.wav", "", "", ""), "Rogue")) { return; }
 
     if(!deathmatch) {
         remove(self);
@@ -1670,7 +1670,7 @@ to 90.
 */
 void() item_flag_team2 =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/ctfbase.mdl", "progs/ctfmodel.mdl", "sound/misc/flagcap.wav", "sound/misc/flagret.wav") && VR_Has4("sound/misc/flagtk.wav", "", "", ""), "Rogue")) { return; }
 
     if(!deathmatch) {
         remove(self);
@@ -1719,7 +1719,7 @@ to 90.
 */
 void() item_flag =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/ctfbase.mdl", "progs/ctfmodel.mdl", "progs/flag.mdl", "sound/misc/flagcap.wav") && VR_Has4("sound/misc/flagret.wav", "sound/misc/flagtk.wav", "", ""), "Rogue")) { return; }
 
     if(cvar_hget(cvarh_teamplay) != TEAM_CTF_ONEFLAG) {
         remove(self);
@@ -1748,7 +1748,6 @@ potential spawning position for CTF games team 1.
 */
 void() info_player_team1 =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
 };
 
@@ -1757,7 +1756,6 @@ potential spawning position for CTF games team 2.
 */
 void() info_player_team2 =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
 };
 
@@ -1892,7 +1890,6 @@ Only appears in CTF teamplay
 */
 void() func_ctf_wall =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
     teamplay = cvar_hget(cvarh_teamplay);
     if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG ||

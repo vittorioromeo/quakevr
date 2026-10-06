@@ -876,7 +876,10 @@ float()  ArmagonCheckAttack =
 */
 void() monster_armagon
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/armabody.mdl", "progs/armalegs.mdl", "sound/armagon/sight.wav", "sound/armagon/death.wav") &&
+                             VR_Has4("sound/armagon/footfall.wav", "sound/armagon/pain.wav", "sound/armagon/repel.wav", "sound/armagon/servo.wav") &&
+                             VR_Has4("sound/armagon/idle.wav", "sound/armagon/idle1.wav", "sound/armagon/idle2.wav", "sound/armagon/idle3.wav") &&
+                             VR_Has("sound/armagon/idle4.wav"), "Hipnotic")) { return; }
 
    entity body;
    float sk;

@@ -188,7 +188,7 @@ void() eel_pain7  =[    $eeldth1, eel_run1 ] {};
 */
 void() monster_eel =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/eel2.mdl", "progs/eelgib.mdl", "sound/eel/eactive1.wav", "sound/eel/eatt1.wav") && VR_Has4("sound/eel/edie3r.wav", "sound/eel/eelc5.wav", "sound/eel/epain3.wav", ""), "Rogue")) { return; }
 
     if(deathmatch)
     {

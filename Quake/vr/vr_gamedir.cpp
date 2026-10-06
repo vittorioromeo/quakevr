@@ -571,7 +571,21 @@ void gameFolderName(const char* path, char* out, size_t size)
 extern "C" char* VR_LoadOwnedLocalization(const char* name)
 {
     if(strncmp(name, "localization/loc_", 17) || strchr(name, ':') || strstr(name, "..")) { return nullptr; }
-    const auto roots = ownedRoots();
+    // The store and rerelease roots only, found once (Steam's and GOG's lookups are not free, and the roots do not
+    // change while the game runs): a base dir itself is on the search path already, its table read by LOC_ReadFile,
+    // and reading it here too parsed and kept every entry twice.
+    static za::Vector<za::String> roots;
+    static bool rootsKnown = false;
+    if(!rootsKnown)
+    {
+        rootsKnown = true;
+        for(const za::String& r : ownedRoots())
+        {
+            bool base = false;
+            for(int i = 0; i < com_numbasedirs && !base; ++i) { base = !q_strcasecmp(r.cStr(), com_basedirs[i]); }
+            if(!base) { roots.pushBack(r); }
+        }
+    }
     char* result = nullptr;
     size_t used = 0;
     const auto append = [&](FILE* file, long offset, long length, const char* source)
@@ -727,7 +741,7 @@ bool selectCampaign(int selected, bool developer, bool start)
     { Con_Printf("VR: developer native launch of %s: support in progress, gameplay/progression incomplete.\n", c.folder); }
     const bool changed = activeCampaign != selected;
     activeCampaign = selected;
-    developerNative = developer;
+    developerNative = developer && selected >= 3; // (only the native campaigns have gates it opens)
     publishCampaign(true);
     if(changed || !gameDirAlreadyAdded(vrGameDir))
     {
@@ -767,9 +781,13 @@ void campaignSelectCommand()
     selectCampaign(i, !q_strcasecmp(Cmd_Argv(0), "vr_campaign_native"), true);
 }
 
+// vr_campaign_hub [vrstart|vrtutorial|vrfiringrange]: Quake's campaign, then that VR map (the hub by default). A command
+// of its own: a changelevel there from another campaign cannot rebuild the game folders mid-spawn.
 void campaignHubCommand()
 {
-    if(selectCampaign(0, false, false)) { Cbuf_InsertText("map vrstart\n"); }
+    const char* map = Cmd_Argc() > 1 ? Cmd_Argv(1) : "vrstart";
+    if(strcmp(map, "vrstart") && strcmp(map, "vrtutorial") && strcmp(map, "vrfiringrange")) { map = "vrstart"; }
+    if(selectCampaign(0, false, false)) { Cbuf_InsertText(va("map %s\n", map)); }
 }
 } // namespace
 
@@ -871,9 +889,12 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
         return 0;
     }
 
+    // The maps more than one campaign has under the same name: start for Quake and its mission packs (they have no end,
+    // hub or dm1 of their own: isolating those would hide Quake's while one of them is active); start, end, hub and
+    // dm1 while one of the newer campaigns is active (theirs in place of Quake's).
     const bool start = strncmp(filename, "maps/start.", 11) == 0 ||
-        strncmp(filename, "maps/end.", 9) == 0 || strncmp(filename, "maps/hub.", 9) == 0 ||
-        strncmp(filename, "maps/dm1.", 9) == 0;
+        (activeCampaign >= 3 && (strncmp(filename, "maps/end.", 9) == 0 || strncmp(filename, "maps/hub.", 9) == 0 ||
+                                    strncmp(filename, "maps/dm1.", 9) == 0));
     char name[MAX_OSPATH];
     gameFolderName(path, name, sizeof(name));
     const int i = campaignIndex(name);
@@ -1019,6 +1040,44 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
     return 1;
 }
 
+// SV_SpawnServer (every spawn: map, changelevel, restart, load): the map against the campaign already chosen, never a
+// switch. A switch rebuilds the game folders and shuts the server down, which cannot happen inside a spawn (the
+// server's progs are switched in: PR_SwitchQCVM's "already active"); map and load choose the campaign before they
+// disconnect (VR_CanLoadCampaignMap), changelevel within the campaigns that share their folders (VR_CanChangeCampaignMap).
+// Quake, Scourge of Armagon and Dissolution of Eternity share theirs, so a mismatch among them is only bookkeeping;
+// any other is refused with a Host_Error (a spawn skipped silently would leave the old server running, its player
+// dead or stuck).
+extern "C" void VR_CheckSpawnCampaignMap(const char* map)
+{
+    if(!gameDirAlreadyAdded(vrGameDir)) { return; }
+    int requested = campaignForMap(map, activeCampaign);
+    if(!strcmp(map, "start") && activeCampaign <= 2)
+    {
+        const int legacy = static_cast<int>(qvr::vr_activestartpaknameidx.value);
+        requested = legacy >= 0 && legacy <= 2 ? legacy : activeCampaign;
+    }
+    if(!strcmp(map, "vrstart") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange")) { requested = 0; }
+    if(requested != activeCampaign)
+    {
+        if(requested <= 2 && activeCampaign <= 2 && campaigns[requested].status == 1)
+        {
+            activeCampaign = requested;
+            publishCampaign(true);
+        }
+        else
+        {
+            Host_Error("VR: %s belongs to %s, not the campaign now running (%s); choose it in Official Campaigns",
+                map, campaigns[requested].title, campaigns[activeCampaign].title);
+        }
+    }
+    if(activeCampaign == 3 && !developerNative && campaignMultiplayerRequested())
+    { Host_Error("VR: Dimension of the Past is single-player only; set coop 0, deathmatch 0 and maxplayers 1"); }
+    char source[MAX_OSPATH] = {};
+    if(COM_FileExists(va("maps/%s.bsp", map), nullptr))
+    { gameFolderName(com_filesource, source, sizeof(source)); }
+    Cvar_SetROM("vr_honey_context", !q_strcasecmp(source, "honey") ? "1" : "0");
+}
+
 // Entity model indices in a save refer to the original map's precache order. Refuse a
 // different installation before disconnecting, instead of restoring wrong/missing models.
 extern "C" int VR_CanLoadCampaignSave(const char* text)
@@ -1049,7 +1108,9 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
         // Keep unfinished developer-save behavior for the campaigns still being ported.
         if(savedCampaign >= 3 && campaigns[savedCampaign].nativeReady)
         { if(!selectCampaign(savedCampaign, false, false)) { return 0; } }
-        else if(savedCampaign != activeCampaign && !selectCampaign(savedCampaign, true, false)) { return 0; }
+        else if(savedCampaign != activeCampaign &&
+                !selectCampaign(savedCampaign, savedCampaign >= 3 && !campaigns[savedCampaign].nativeReady, false))
+        { return 0; }
     }
     return 1;
 }
@@ -1076,8 +1137,8 @@ extern "C" int VR_ShouldMountCampaignDirectory(const char* dir)
 extern "C" int VR_CanChangeCampaignMap(const char* map)
 {
     if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
-    if(!strcmp(map, "vrstart") && activeCampaign != 0)
-    { Cbuf_InsertText("vr_campaign_hub\n"); return 0; }
+    if((!strcmp(map, "vrstart") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange")) && activeCampaign != 0)
+    { Cbuf_InsertText(va("vr_campaign_hub %s\n", map)); return 0; }
     int requested = activeCampaign;
     if(!strcmp(map, "start") && activeCampaign <= 2)
     { requested = static_cast<int>(qvr::vr_activestartpaknameidx.value); }

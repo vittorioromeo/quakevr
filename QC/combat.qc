@@ -318,9 +318,9 @@ float(entity e) VR_Corpse_Parts =
         vr_corpse_healthh = e.th_die == knight_die ? cvarh_vr_corpse_health_knight : cvarh_vr_corpse_health_hellknight;
         if(e.spawnflags & 2) // a statue
         {
-            vr_corpse_gib1 = "progs/statgib1.mdl";
-            vr_corpse_gib2 = "progs/statgib2.mdl";
-            vr_corpse_gib3 = "progs/statgib3.mdl";
+            vr_corpse_gib1 = VR_StatueFile("progs/statgib1.mdl", "progs/vr_rock1.mdl");
+            vr_corpse_gib2 = VR_StatueFile("progs/statgib2.mdl", "progs/vr_rock2.mdl");
+            vr_corpse_gib3 = VR_StatueFile("progs/statgib3.mdl", "progs/vr_rock3.mdl");
         }
     }
     else if(e.th_die == shalrath_die)

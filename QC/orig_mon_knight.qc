@@ -63,7 +63,7 @@ void() kn_idle_sound =
     if(random() < 0.2)
     {
         if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
-            sound(self, CHAN_VOICE, "statue/idle.wav", 1, ATTN_IDLE);
+            sound(self, CHAN_VOICE, VR_StatueFile("statue/idle.wav", "knight/idle.wav"), 1, ATTN_IDLE);
         else
             sound(self, CHAN_VOICE, "knight/idle.wav", 1, ATTN_IDLE);
     }
@@ -163,7 +163,7 @@ void(entity attacker, float damage)    knight_pain =
     r = random();
 
     if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
-        sound(self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, VR_StatueFile("statue/pain.wav", "knight/khurt.wav"), 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "knight/khurt.wav", 1, ATTN_NORM);
 
@@ -240,9 +240,9 @@ void() knight_die =
 
     if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
         {
-            ThrowGib("progs/statgib1.mdl", self.health);
-            ThrowGib("progs/statgib2.mdl", self.health);
-            ThrowGib("progs/statgib3.mdl", self.health);
+            ThrowGib(VR_StatueFile("progs/statgib1.mdl", "progs/vr_rock1.mdl"), self.health);
+            ThrowGib(VR_StatueFile("progs/statgib2.mdl", "progs/vr_rock2.mdl"), self.health);
+            ThrowGib(VR_StatueFile("progs/statgib3.mdl", "progs/vr_rock3.mdl"), self.health);
         }
         else
         {
@@ -255,7 +255,7 @@ void() knight_die =
 
 // regular death
     if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
-        sound(self, CHAN_VOICE, "statue/death.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, VR_StatueFile("statue/death.wav", "knight/kdeath.wav"), 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "knight/kdeath.wav", 1, ATTN_NORM);
 
@@ -267,7 +267,7 @@ void() knight_die =
 
 void() knight_pause =
 {
-    sound(self, CHAN_VOICE, "statue/see.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, VR_StatueFile("statue/see.wav", "knight/ksight.wav"), 1, ATTN_NORM);
 
     self.takedamage = DAMAGE_AIM;
     self.th_stand = knight_stand1;
@@ -305,8 +305,6 @@ frame: frame to be frozen in. (default 44)
 void() monster_knight =
 {
     if(MG_MonsterInhibited()) return;
-    if(!VR_Pack_Rogue() && (!MG_WorldCampaign() && (self.spawnflags & 2))) { remove(self); return; }
-
     VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_knight, $painb9, knight_painb9); // VR: knocked down (vr_knockdown.qc): low: painb9 on rises
     if(deathmatch)
     {
@@ -318,13 +316,13 @@ void() monster_knight =
 
     if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
     {
-        precache_model("progs/statgib1.mdl");
-        precache_model("progs/statgib2.mdl");
-        precache_model("progs/statgib3.mdl");
-        precache_sound("statue/see.wav");
-        precache_sound("statue/idle.wav");
-        precache_sound("statue/pain.wav");
-        precache_sound("statue/death.wav");
+        precache_model(VR_StatueFile("progs/statgib1.mdl", "progs/vr_rock1.mdl"));
+        precache_model(VR_StatueFile("progs/statgib2.mdl", "progs/vr_rock2.mdl"));
+        precache_model(VR_StatueFile("progs/statgib3.mdl", "progs/vr_rock3.mdl"));
+        precache_sound(VR_StatueFile("statue/see.wav", "knight/ksight.wav"));
+        precache_sound(VR_StatueFile("statue/idle.wav", "knight/idle.wav"));
+        precache_sound(VR_StatueFile("statue/pain.wav", "knight/khurt.wav"));
+        precache_sound(VR_StatueFile("statue/death.wav", "knight/kdeath.wav"));
     }
     else
     {

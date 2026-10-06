@@ -2641,6 +2641,13 @@ static void Host_Loadgame_f (void)
 	q_strlcpy (mapname, com_token, sizeof(mapname));
 	data = COM_ParseFloatNewline (data, &time);
 	VR_AddonForSave (name, mapname); // QVR: the map package the save was made in, mounted (before the disconnect below)
+	if (!VR_CanLoadCampaignMap (mapname)) // QVR: its campaign chosen now (a legacy save has no vr_save_campaign): SV_SpawnServer never switches
+	{
+		VR_HeapFree (start);
+		start = NULL;
+		SCR_EndLoadingPlaque ();
+		return;
+	}
 
 // Note: calling CL_Disconnect instead of CL_Disconnect_f to avoid stopping the music
 	CL_Disconnect ();

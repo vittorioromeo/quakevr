@@ -138,6 +138,7 @@ void VR_AfterAddGameDirectory (const char *dir);	// end of COM_AddGameDirectory
 void VR_OnGameDirChanged (void);	// COM_SwitchGame, after Mod_ResetAll and the renderer's reload: caches of models and game files emptied
 int VR_SkipSearchPath (const char *filename, const char *path);	// COM_FindFile: nonzero to skip a search path
 void COM_AddAddonPath (const char *path);
+void VR_CheckSpawnCampaignMap (const char *map);	// SV_SpawnServer: the map against the running campaign (Host_Error, never a switch)
 void VR_ReloadVRGameKeepCampaign (void);	// vr_gamedir.cpp: the game folders rebuilt, the selected campaign kept
 int VR_QuakeVRMounted (void);	// vr_gamedir.cpp: quakevr is on the search path	// common.c: a map package's folder on top of the search path (vr_mapinstall.cpp)
 int VR_AddonForMapCommand (const char *map);	// Host_Map_f: the map package the map is played from made the active one (0: refused)

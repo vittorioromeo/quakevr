@@ -419,7 +419,7 @@ void() ScourgeTriggerTouch =
 */
 void() monster_scourge =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/h_scourg.mdl", "progs/laser.mdl", "progs/s_light.mdl", "progs/scor.mdl") && VR_Has4("sound/misc/null.wav", "sound/scourge/idle.wav", "sound/scourge/pain.wav", "sound/scourge/pain2.wav") && VR_Has4("sound/scourge/sight.wav", "sound/scourge/tailswng.wav", "sound/scourge/walk.wav", "sound/shambler/smack.wav") && VR_Has4("sound/weapons/rocket1i.wav", "", "", ""), "Hipnotic")) { return; }
 
     if(deathmatch)
     {

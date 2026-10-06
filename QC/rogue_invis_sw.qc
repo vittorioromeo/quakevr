@@ -149,7 +149,7 @@ delay - seconds after first sighting before it attacks (default 10)
 */
 void() monster_sword =
 {
-    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+    if(!VR_Pack_RequireSpawn(VR_Has4("progs/sword.mdl", "sound/knight/ksight.wav", "sound/knight/sword1.wav", "sound/player/axhit2.wav"), "Rogue")) { return; }
 
     if(deathmatch)
     {
