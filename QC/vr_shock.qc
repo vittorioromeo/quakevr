@@ -7,6 +7,7 @@
 // and a burn where it strikes (weapons.qc VR_LightningHit, vr_wounds.qc).
 
 .float vr_shock_until; // shocked until then (its arcs); the engine reads it: its ragdoll convulses until then (vr_box3d.cpp)
+.float vr_shock_crackle; // when its body last crackled (VR_Shock_Crackle)
 .float vr_shock_len;   // ... the shock's length from the last bolt (s)
 .float vr_shock_bolt;  // ... the last bolt's time (a living one's shock is shorter: its death carries it on, VR_Shock_Killed)
 float vr_shock_carried; // living shocks carried on through a death (the tests)
@@ -54,6 +55,21 @@ void(entity t, float n) VR_Shock_Burns =
 // After a bolt's T_Damage to `t` (weapons.qc VR_LightningHit), struck at `xAt` going `xDir`; `xAlive`: it was alive
 // before. Every bolt into a monster, alive (vr_shock_living) or dead, starts the lasting shock or keeps it fresh (sent
 // again each bolt: the arcs and the convulsions end together); a killing bolt's burn marks all over, a dead one's a burn where it strikes.
+// A dead body's lasting shock starting (or going on under the bolt): an electric crackle from it (misc/power.wav, the
+// sound of Chthon struck and of the lightning gun's shock in water), vr_shock_sound loud; again only once the last has
+// played out (1.8 s), so a beam held on it crackles on under its hum and the arcs after it are heard.
+void(entity t) VR_Shock_Crackle =
+{
+    float vol = cvar("vr_shock_sound");
+    if(vol <= 0 || time - t.vr_shock_crackle < 1.8)
+    {
+        return;
+    }
+    t.vr_shock_crackle = time;
+    sound(t, CHAN_AUTO, "misc/power.wav", min(1, vol), ATTN_NORM);
+    dprint("shock: "); dprint(t.classname); dprint(" crackles, volume "); dprint(ftos(min(1, vol))); dprint("\n");
+};
+
 void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit =
 {
     // (vr_shock_living 0: the lasting shock only on the bodies it kills or strikes dead; a living one has each hit's own
@@ -92,6 +108,10 @@ void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit =
     vr_shock_sent++;
     t.vr_shock_until = time + len;
     t.vr_shock_len = len;
+    if(t.health <= 0)
+    {
+        VR_Shock_Crackle(t);
+    }
 };
 
 // `t` dies (Killed, whatever kills it): a living one's lasting shock still on (shorter: vr_shock_living_time) goes on
@@ -111,6 +131,7 @@ void(entity t) VR_Shock_Killed =
     vr_shock_carried++;
     t.vr_shock_until = time + left;
     t.vr_shock_len = time + left - t.vr_shock_bolt;
+    VR_Shock_Crackle(t);
 };
 
 // vr_shock_hit_test <damage>: a lightning bolt of that much damage (-1: just enough to kill) from the player's eyes into

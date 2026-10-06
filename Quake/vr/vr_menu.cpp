@@ -2299,6 +2299,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
                   "them on to the whole Duration from that bolt, as a body's (vr_shock_living_time)."),
         slider("Convulsions", vr_shock_seizure, 0.f, 3.f, 0.1f, "%.1fx")
             .help("How hard a shocked ragdoll's limbs convulse, easing off with the arcs (0 still). Only the dead convulse."),
+        slider("Crackle Volume", vr_shock_sound, 0.f, 1.f, 0.1f, "%.1f")
+            .help("The electric crackle a body makes as its lasting arcs start, and again while a bolt stays on it (0 none)."),
         slider("Arcs on Bodies", vr_shock_arcs, 0.f, 3.f, 0.1f, "%.1fx").help("How many arcs crawl over a shocked monster or body (0 none)."),
         slider("Burn Marks", vr_shock_burns, 0.f, 16.f, 1.f, "%.0f").help("The burn marks a lightning kill leaves over the body (each hit also chars where it strikes: Burns)."),
         slider("Smoke After Lightning", vr_smoulder_time, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)

@@ -1404,6 +1404,7 @@ QVR_CVAR(vr_shock_living, "1", CVAR_ARCHIVE)         // 1: the lasting arcs on t
 QVR_CVAR(vr_shock_death_time, "3", CVAR_ARCHIVE)     // how long it lasts after the last bolt, s (up to 63)
 QVR_CVAR(vr_shock_living_time, "0.5", CVAR_ARCHIVE) // a living monster's lasting shock lasts this much of vr_shock_death_time (its death: the rest of the whole from the last bolt)
 QVR_CVAR(vr_shock_seizure, "1", CVAR_ARCHIVE)        // how hard a shocked ragdoll's limbs convulse, easing off with the arcs (0 still)
+QVR_CVAR(vr_shock_sound, "0.5", CVAR_ARCHIVE)        // the volume of the crackle a shocked body makes as its lasting arcs start (QC vr_shock.qc; 0 none)
 QVR_CVAR(vr_shock_burns, "6", CVAR_ARCHIVE)          // burn marks a lightning kill leaves over the body (0 none; each hit chars where it strikes: vr_wounds_burns)
 QVR_CVAR(vr_shock_arcs, "1", CVAR_ARCHIVE)           // how many arcs crawl over a shocked body, x (0 none)
 // Smouldering bodies (vr_smoulder.cpp; Gore > Lightning Shock, Combat > Burning): thin smoke off the skin of the monsters
