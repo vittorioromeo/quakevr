@@ -9,6 +9,7 @@
 
 #include "vr_profile.hpp"
 #include "vr_profile_systems.hpp"
+#include "vr_bench.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
@@ -272,6 +273,7 @@ bool resolvePhases(PhaseGpuSlot& s)
         return false;
     }
     double eyes = 0.0;
+    double frameMs[PhaseCount]{}; // (vr_bench)
     for(int i = 0; i < s.recCount; i++)
     {
         const PhaseGpuRec& r = s.recs[i];
@@ -284,9 +286,14 @@ bool resolvePhases(PhaseGpuSlot& s)
         GL_GetQueryObjectui64vFunc(s.queries[r.end], GL_QUERY_RESULT, &e);
         const double ms = e > b ? static_cast<double>(e - b) / 1e6 : 0.0;
         phaseSums.gpuMs[r.phase] += ms;
+        frameMs[r.phase] += ms;
         eyes += r.phase == EyeL || r.phase == EyeR ? ms : 0.0;
     }
     ++phaseSums.gpuFrames;
+    if(bench::recording)
+    {
+        bench::gpuFrame(frameMs);
+    }
     if(s.sample >= 0 && historySerial[s.sample] == s.serial)
     {
         history[s.sample].gpuMs = static_cast<float>(eyes);
@@ -333,6 +340,11 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
         historySerial[at] = ++frameSerial;
         s.sample = at;
         s.serial = frameSerial;
+        if(bench::recording)
+        {
+            bench::frame(period, static_cast<double>(end - start) / 1e6,
+                static_cast<double>(za::max<za::I64>(0, end - start - waits)) / 1e6, phaseFrameNs);
+        }
     }
     za::fill(phaseFrameNs, za::I64{0});
     s.pending = keep && s.recCount > 0;
@@ -694,15 +706,7 @@ void appendf(za::String& out, const char* fmt, ...)
     appendf(c, "# eye_resolution,%dx%d\n", w, h);
     appendf(c, "# window,%dx%d\n", vid.width, vid.height);
     appendf(c, "# gl_renderer,%s\n", gl_renderer ? gl_renderer : "?");
-    static constexpr const char* cvars[] = {"vr_graphics_preset", "vid_fsaa", "r_scale", "vr_render_scale",
-        "vr_visibility_mask", "r_oit", "vr_mirror",
-        "host_maxfps", "vr_shadow_dlights", "vr_shadow_dlight_size", "vr_shadow_precision", "vr_shadow_muzzleflash",
-        "vr_shadow_maplights", "vr_shadow_maplight_size", "vr_shadow_self", "vr_shadow_filter", "vr_shadow_atlas",
-        "vr_shadow_distance", "vr_dlight_models", "vr_specular", "vr_normalmaps", "vr_bloom", "vr_bloom_radius",
-        "vr_particles", "vr_particle_mult", "r_particles", "vr_decals", "vr_decal_max", "vr_blob_shadows",
-        "vr_texture_smooth", "gl_texturemode", "gl_texture_anisotropy", "vr_body_mode", "vr_body_blood",
-        "vr_gib_blood", "r_dynamic", "r_softemu", "r_waterwarp", "r_lerpmodels", "vr_flashlight"};
-    for(const char* name : cvars)
+    for(const char* name : settingCvars)
     {
         if(const cvar_t* v = Cvar_FindVar(name))
         {

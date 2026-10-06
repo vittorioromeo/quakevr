@@ -3900,6 +3900,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("profile 30: the 30 QuakeC functions that ran the most instructions (their own) since the last time, and "
                   "the total; then all are zeroed. Press it, do the thing, press it again. A call over 16 million is a "
                   "runaway loop error."),
+        command("Benchmark Capture (10 s)", "vr_bench_begin manual 10s")
+            .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
+                  "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "
+                  "the console (docs/vr-port/BENCHMARKS.md). Stand still and press it."),
         header("Threads"),
         toggle("Split Work Between Threads", vr_jobs_parallel)
             .help("The game's thread pool shares out the grasp solve, the liquids' volume, the decal atlas and the models' "

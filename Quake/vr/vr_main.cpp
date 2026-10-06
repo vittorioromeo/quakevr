@@ -3,6 +3,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
 #include "vr_bullettime.hpp"
+#include "vr_bench.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hull.hpp"
@@ -1393,6 +1394,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_stress", decals::stress_f);
     Cmd_AddCommand("vr_limits", limits::command_f);
+    bench::registerCommands(); // vr_bench_begin, vr_bench_end, vr_bench_seed
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
