@@ -809,6 +809,11 @@ void() func_enemy_dispenser_use =
     }
 
     self = spawn();
+    self.spawnflags = cvar("vr_test_spawn_flags"); // (0; the tests' variants: 2 a statue knight, a multi-grenade ogre)
+    if((self.spawnflags & 2) && (choice == 5 || choice == 6))
+    {
+        self.targetname = "vr_test_statue"; // (a statue wakes when used: woken below, as its map's trigger would)
+    }
 
     // The classname a map's monster has: sight sounds, obituaries and the like go by it.
          if(choice == 0)  { self.classname = "monster_army";        monster_army(); }
@@ -834,6 +839,10 @@ void() func_enemy_dispenser_use =
     else if(choice == 20) { self.classname = "monster_ogre_marksman"; monster_ogre_marksman(); }
 
     setorigin(self, org);
+    if(self.targetname == "vr_test_statue" && self.use)
+    {
+        self.use(); // (Rogue's statue knight or hell knight: stone come alive)
+    }
 }
 
 void() func_enemy_dispenser =

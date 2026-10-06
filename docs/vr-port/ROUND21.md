@@ -25892,3 +25892,89 @@ down to the torso and pick the limbs up; a rocket into a group (Explosions Pop L
 gibs). Limb Chance and Head Chance on Gore > Limb Gore. Open: the explosion reach (96) takes a grunt's whole body from
 a blast at its arm; the stump of the body is the limb's skin drawn into the joint (as the neck's), painted with
 wounds; the cap of the limb is a flat blood colour.
+
+## Ragdolls 6: the vore and the centroid; the mission packs' variants (2026-10-06)
+
+Asked for: ragdolls for the vore, Hipnotic's scorpion and spider, Rogue's centroid; the Rogue variants checked.
+
+### Which monsters exist (step 1)
+
+The installed packs (`qvr-kit/qbase`: id1 pak0/pak1, hipnotic pak0, rogue pak0) were listed model by model. There is
+**no spider** in either mission pack, and **the centroid is Hipnotic's scorpion**: Scourge of Armagon's
+`monster_scourge`, `progs/scor.mdl` (235 vertices, 41 frames; its head gib `h_scourg.mdl`). Rogue has no centroid (its
+new monsters: mummy, eel, wrath and overlord, guardian (`morph_*.mdl`, 221 vertices), dragon, lava man, phantom
+swordsman (`sword.mdl`)). The vore is Quake VR's own `progs/shalrath.mdl` (371 vertices, 36 frames; id's is 208). So
+two new rigs: the vore and the centroid.
+
+### The rigs
+
+- **Vore** (`shalrathSeeds`, 14 bones): pelvis, chest, head, jaw (his two tendrils: meshes of their own, on the head,
+  so a beheading takes them), upper arms and forearms (elbow hinges folding forward), and three legs of thigh (ball)
+  and shin (knee hinge from his bent rest). The back thigh is its knee's knob (its long triangles have no vertices of
+  their own): its pivot set at his back by hand, as the jaw's. Clusters 1.20 units rms, bones 1.27 (rig.py 1.28). Death frames 16-22.
+  Mass 160 kg (`vr_ragdoll_vore_*`). His head zone (`PositionalHead`) moved from 34 up, radius 9, to 45 up, radius 8:
+  Quake VR's model is taller than id's (his head is 40-53 above his origin); the old zone missed the top of his head and
+  took his shoulders (the sweep: every contact from 12 below the head's middle to its top is on the zone).
+- **Centroid** (`scorSeeds`, 15 bones): pelvis, head (the front of the body, below), the tail in three, each arm (gun
+  pod) one bone and its pincers its claw, each of six legs one bone (16 at most). Its legs, arms and pincers are meshes
+  of their own whose motions are so alike that the motion clusters mix them (one cluster over two legs): new
+  `SeedTable::wholePieces` (each piece but the body one bone's, the seed nearest its middle; the clusters only the
+  body's) and rig.py's `"wholepieces"` / `"pN"`. Clusters 0.99 (k 26), bones 1.42. Death frames 36-40. Mass 180 kg
+  (`vr_ragdoll_centroid_*`). Capsules on the tail and the claws: a part's mass is its share of the volume, and the flat
+  pincers alone weighed 0.3 kg against an arm's 47 (a tail bone 0.09 kg). Head zone 11 forward, 9 below, radius 8.
+- Both: Ragdoll Settings > Vore / Centroid (pages at the end of `pages`), Debug > Tests: A Vore's / A Centroid's Ragdoll
+  There, decapitation (`VR_Decap_HeadModel`: `h_shal.mdl`, `h_scourg.mdl`), head pops and limb gore come from the rig.
+  `decap_test.sh monsters` and `limbs_test.sh` (models, live) include them (Things 10 and 13).
+
+### Bugs found on the way
+
+- **The scourge freed the world.** `scourge_die` removed `self.lastvictim` (its trigger, made at its first think); one
+  killed before its first think (a test's corpse; one killed as it spawns) had none, and `remove(world)` freed the
+  world entity: every monster and gib after it fell through the floor (the vore made after a dead centroid at -650,
+  small gibs at -70). Guarded (`hip_mon_scrge.qc`).
+- **A limb with no triangles of its own** (the centroid's first tail bone with the rest of the tail cut off) was
+  "available" (it has vertices), its model failed to build and its precache was a Host_Error. `Rig::triBones` (the
+  bones each triangle's corners are on) and `limbmodel::available` now ask for a triangle wholly on the limb.
+
+### The variants (step 3)
+
+`vr_test_spawn_flags` (new, a test cvar: the test monster's spawnflags; 2 on a knight or hell knight names it and wakes
+it as its map's trigger would). Each killed ahead in the firing range (`scratch` script, `vr_ragdoll_list`):
+
+| Variant | Base model | Ragdoll before (by the code: their rigs untouched) / after (killed) |
+|---|---|---|
+| Rogue statue knight (`monster_knight`, spawnflags 2) | knight.mdl (skin 1) | yes / yes |
+| Rogue statue hell knight (`monster_hell_knight`, 2) | hknight.mdl | yes / yes |
+| Rogue multi-grenade ogre (`monster_ogre`, 2) | ogre.mdl | yes / yes |
+| Honey's marksman ogre (`monster_ogre_marksman`) | mogre.mdl not shipped: id's ogre, `monster_ogre` | yes / yes |
+| Rogue mummy | its own rig (Ragdolls 5) | beheaded only / same |
+| Hipnotic gremlin | its own rig | yes / yes |
+| Vore, centroid | new rigs | no / yes |
+
+Every rig is matched by its model, so a variant on a rigged model ragdolls whatever its classname (one without its own
+Ragdoll Settings row takes the global ones; the multi-grenade ogre is `monster_ogre`). A statue's ragdoll is stone
+painted (no decapitation, no limbs: `VR_Decap_HeadModel`, `VR_Limb_Allowed`). No QC death path needed a fix. Rogue's
+phantom swordsman (`sword.mdl`), guardian, wrath, eel, dragon and lava man have models of their own (no rig). Hipnotic's
+`monster_spikemine` is a stub that shows `demon.mdl` and never dies (not touched).
+
+### Tests
+
+- Each killed ahead: the vore 14 parts, the centroid 15, both asleep within 9 s, nothing below the floor (repeated runs
+  each). Gone limp at frame 18 (33% of his death) and 38 (50%: the centroid is solid until its third death frame).
+  First drawn against the animated mesh: 3.8 and 4.0 units rms (the ogre 3.4, the grunt 1.9); in slow motion (`slowmo`,
+  EYES) 1.5 and 2.3, the frame-to-frame crops with no jump at the switch.
+- `decap_test.sh monsters`: both beheaded by a slash, their heads thrown, headless ragdolls (12 and 14 parts left);
+  `pop` (MON 10 and 13): shotgun, super shotgun, overkill and lightning headshots pop the head, body shots and a
+  headshot that doesn't kill don't.
+- `limbs_test.sh models`: 12 and 14 limb models; `live` (KINDS 10 13): slash, fist, shotgun, explosion, gib all cut or
+  pop (the centroid's bolt test misses: the tail point it aims at is outside its box); `corpse` (MON 10, 13): cut
+  apart down to the torso (2 parts; the centroid's 1), every limb lying on the floor (`vr_limb_test 17`, new: the limbs
+  lying about, Debug > Gore Tests > The Limbs Lying About).
+- Release build, QC 0 warnings, statics clean (the precedence check's `vr_packutil.qc:50` is not ours); e1m1 smoke
+  clean. eval.sh not run (it stops on a take missing from the checkout).
+
+### For the author to try in VR
+
+Kill a vore and a centroid (Hipnotic) and watch them go limp; behead both with a slash; cut a centroid's legs and gun
+pods off and pick them up; the Ragdoll Settings rows. Open: the centroid's arms (its gun pods) weigh more than its body
+(their hulls' volume); its masses (vore 160, centroid 180) are guesses.
