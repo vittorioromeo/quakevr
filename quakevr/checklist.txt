@@ -18,6 +18,7 @@ Flat screen: WSAD responds at once; corner buttons as an icon row at the top lef
 VR menus: Spectator camera On/Off switch at the bottom left, with a small live preview above it (size readable?); top-right status box fits its text
 New defaults: a fresh config looks and plays like yours (parallax, combat, parry, retro)
 Official Campaigns: drawn in the big menu font
+Menus: shortcut bar has VR Settings and Relighting and sits clear of the page; main menu has VR Settings and Advanced VR rows under Options (new big-font A and v read naturally)
 Map tips: the CRT tip near the vrstart start appears; REPEAT tips come back; List This Map's Tips works
 Map Library: Down the Gutter now plays (page says which map Play starts); reinstall November-Schlacht to get its sky back; AD/Copper maps are flagged
 Training dummy: Gore > Training Dummy > Dummy Enemy picks any enemy (model, hit zones, gore as that enemy); health board over it refills after 3 s; dies by default and stands again; record melee takes per enemy type (TESTING.md)
@@ -75,6 +76,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
+Main menu: keep the row as "Advanced VR" ("Advanced VR Settings" doesn't fit the flat screen in the big font)? Pages show ~2 fewer rows below the moved shortcut column: OK?
 Multiplayer: default for Rocks and Bricks > Most in Multiplayer (now 0 = none)? More cvars as server rules (melee timing is now one)?
 Gibs: should hard throws BURST on walls (lower Gib Splat Speed below ~200) rather than stick? Rottweiler: add a head zone like the fiend's?
 Map tips: seen-tips limit (~80), targetname naming clash, tip_delay 0
