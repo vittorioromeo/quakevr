@@ -102,3 +102,38 @@ void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_DelAmmoCountByAmmoId =
         bprint("ERROR: ammo count less than zero!\n");
     }
 }
+
+// ----------------------------------------------------------------------------
+// Capacities: how much of each ammunition and health a player can carry (MG3_PLAN.md 2.2). Every cap goes through
+// these: Quake's own numbers everywhere but Dawn of the Machine, whose bases are lower and grow with its upgrades
+// (vr_mg3_defs.qc). The player is the argument for when a campaign's capacities are each player's own.
+// ----------------------------------------------------------------------------
+
+float(entity xEnt, float xAid) VR_MaxAmmo =
+{
+    if(xAid >= AID_SHELLS && xAid <= AID_CELLS && MG3_Campaign()) { return MG3_Capacity(xAid); }
+    if(xAid == AID_NAILS || xAid == AID_LAVA_NAILS) { return 200; }
+    return 100;
+}
+
+// A new player's health (SetNewParms): Dimension of the Past and Dimension of the Machine's Nightmare start with 50,
+// Dawn of the Machine's single player always does (before its upgrades).
+float() VR_BaseHealth =
+{
+    if(deathmatch) { return 100; }
+    if(MG3_Campaign()) { return MG3_BASE_HEALTH; }
+    return ((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && skill == 3) ? 50 : 100;
+}
+
+// The most health ordinary healing gives (.max_health), and what a level change carries at most.
+float(entity xEnt) VR_MaxHealth =
+{
+    if(MG3_Campaign()) { return MG3_Capacity(MG3_UPGRADE_HEALTH); }
+    return VR_BaseHealth();
+}
+
+// The most health anything gives, megahealth included (Dawn of the Machine raised it).
+float(entity xEnt) VR_MegaHealthCap =
+{
+    return MG3_Campaign() ? 500 : 250;
+}

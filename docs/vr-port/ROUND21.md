@@ -26747,3 +26747,15 @@ test uses the developer path (`vr_campaign_native mg3`, `-nomapindex`).
   `restart` (a death: level-start masks) and back after loading the save made with it; `map map3` clears all.
   Stock e1m1->e1m2 (+ save/load), Dopa e5m1->e5m2 and MG1 mge1m1->mge1m2 (+ save/load, six seeded holster clips/ids)
   carry the same hands, holsters, clips and ids.
+- **M3-03 capacity helpers.** `VR_MaxAmmo(e, aid)`, `VR_BaseHealth()`, `VR_MaxHealth(e)`, `VR_MegaHealthCap(e)`
+  (`QC/vr_ammoutil.qc`) replace every hard-coded cap: `bound_other_ammo`, `ammo_touch`, the Horde ammo pickup,
+  `T_Heal`'s 250 and the megahealth's, SetNewParms' health, PutClientInServer's `max_health`, SetChangeParms' carry
+  bounds and the hand grenade pouch (`VR_HGREN_MAX_ROCKETS` is now `VR_HandGrenade_MaxAmmo`). Campaign 5 asks
+  `MG3_Capacity(kind)` (`vr_mg3_defs.qc`: single player 50 health, 50/100/20/100 ammunition, +10 per upgrade bit;
+  deathmatch id1's 100 and 100/200/100/200; mega cap 500, upstream's); DecodeLevelParms sets `max_health` again once
+  the level's upgrades are known (and clamps health, campaign 5 only). Every other campaign gets its old numbers.
+  Measured (`vr_mg3_test 4`, Capacity Check, any campaign: caps, overfill + bound, heal from 1): id1 skill 1
+  100/250 and 100/200/100/100 (+ 200/100/100 mission-pack); Dopa skill 3 and MG1 skill 3 50/250, Dopa skill 1
+  100/250; MG3 map1 50/500 and 50/100/20/100; after seeding the M3-02 masks and a changelevel 70/500 and
+  60/110/30/110, health carried at 70 (4/0 each). Regression: Dopa triggers 34/0, world 19/0, health/megahealth
+  aids as before; MG1 hub 20/0, mge2m2 puzzle 15/0, mge5m2 route 10/0, Horde 24/0; e1m1 smoke.

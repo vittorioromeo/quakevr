@@ -483,10 +483,10 @@ void() MGH_horde_ammo_touch =
 		return;
 
 	// if player is at max ammo for ammo's type, return
-	if (((self.weapon == 1) && (other.ammo_shells >= 100)) || // shotgun
-		((self.weapon == 2) && (other.ammo_nails >= 200)) || // nailgun
-		((self.weapon == 3) && (other.ammo_rockets >= 100)) || // rockets
-		((self.weapon == 4) && (other.ammo_cells >= 100))) // cells
+	if (((self.weapon == 1) && (other.ammo_shells >= VR_MaxAmmo(other, AID_SHELLS))) || // shotgun
+		((self.weapon == 2) && (other.ammo_nails >= VR_MaxAmmo(other, AID_NAILS))) || // nailgun
+		((self.weapon == 3) && (other.ammo_rockets >= VR_MaxAmmo(other, AID_ROCKETS))) || // rockets
+		((self.weapon == 4) && (other.ammo_cells >= VR_MaxAmmo(other, AID_CELLS)))) // cells
 		return;
 
 	sprint(other, "You got ");

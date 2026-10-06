@@ -62,3 +62,31 @@ void() MG3_DecodeParms = {
     MG3_upgrade_nails = MG3_upgrade_nails | parm53; MG3_upgrade_rockets = MG3_upgrade_rockets | parm54;
     MG3_upgrade_cells = MG3_upgrade_cells | parm55; MG3_bloody = MG3_bloody | parm56;
 };
+
+// ----------------------------------------------------------------------------
+// Capacities (MG3_PLAN.md 2.2; upstream defs.qc BASE_*, GetUpgradeAmount, GetCurrentUpgradedMaxValue). Single player:
+// these bases and 10 more per map whose upgrade was collected; deathmatch: id1's. VR_MaxAmmo/VR_MaxHealth
+// (vr_ammoutil.qc) ask here for campaign 5 only.
+float MG3_BASE_HEALTH = 50;
+float MG3_BASE_SHELLS = 50;
+float MG3_BASE_NAILS = 100;
+float MG3_BASE_ROCKETS = 20;
+float MG3_BASE_CELLS = 100;
+float MG3_UPGRADE_AMOUNT = 10;
+float(float mask) MG3_BitCount = {
+    float n = 0;
+    while(mask >= 1) { if(mask & 1) n++; mask = floor(mask / 2); }
+    return n;
+};
+float(float kind) MG3_Capacity = {
+    if(deathmatch) {
+        if(kind == AID_NAILS || kind == AID_CELLS) return 200;
+        return 100;
+    }
+    float base = MG3_BASE_HEALTH;
+    if(kind == AID_SHELLS) base = MG3_BASE_SHELLS;
+    else if(kind == AID_NAILS) base = MG3_BASE_NAILS;
+    else if(kind == AID_ROCKETS) base = MG3_BASE_ROCKETS;
+    else if(kind == AID_CELLS) base = MG3_BASE_CELLS;
+    return base + MG3_UPGRADE_AMOUNT * MG3_BitCount(MG3_UpgradeMask(kind));
+};

@@ -4809,6 +4809,8 @@ za::Vector<Item> pageMg3Tests()
             .help("Destructive: set every upgrade mask and both bloody weapon bits, for changelevel/save/death carry checks."),
         command("Add an Upgrade Bit", "vr_mg3_test 3")
             .help("Destructive: one more health upgrade bit this level; a death's restart must take it back."),
+        command("Capacity Check", "vr_mg3_test 4")
+            .help("Destructive, any campaign: print the health/ammo capacities, overfill and bound every ammunition, heal from 1."),
     };
 }
 

@@ -341,8 +341,8 @@ float (entity e, float healamount, float ignore) T_Heal =
     if((!ignore) && (e.health >= other.max_health))
         e.health = other.max_health;
 
-    if(e.health > 250)
-        e.health = 250;
+    if(e.health > VR_MegaHealthCap(e))
+        e.health = VR_MegaHealthCap(e);
 
     return 1;
 };
@@ -411,7 +411,7 @@ void() health_touch =
 
     if(self.healtype == 2) // Megahealth?  Ignore max_health...
     {
-        if(other.health >= 250)
+        if(other.health >= VR_MegaHealthCap(other))
             return;
 
         if(!T_Heal(other, self.healamount, 1))
@@ -979,23 +979,17 @@ WEAPONS
 
 void() bound_other_ammo =
 {
-    if(other.ammo_shells > 100)
-        other.ammo_shells = 100;
-    if(other.ammo_nails > 200)
-        other.ammo_nails = 200;
-    if(other.ammo_rockets > 100)
-        other.ammo_rockets = 100;
-    if(other.ammo_cells > 100)
-        other.ammo_cells = 100;
+    // (the caps: VR_MaxAmmo, vr_ammoutil.qc)
+    other.ammo_shells = min(other.ammo_shells, VR_MaxAmmo(other, AID_SHELLS));
+    other.ammo_nails = min(other.ammo_nails, VR_MaxAmmo(other, AID_NAILS));
+    other.ammo_rockets = min(other.ammo_rockets, VR_MaxAmmo(other, AID_ROCKETS));
+    other.ammo_cells = min(other.ammo_cells, VR_MaxAmmo(other, AID_CELLS));
 
     // ROGUE
     // PGM addition
-    if(other.ammo_lava_nails > 200)
-        other.ammo_lava_nails = 200;
-    if(other.ammo_multi_rockets > 100)
-        other.ammo_multi_rockets = 100;
-    if(other.ammo_plasma > 100)
-        other.ammo_plasma = 100;
+    other.ammo_lava_nails = min(other.ammo_lava_nails, VR_MaxAmmo(other, AID_LAVA_NAILS));
+    other.ammo_multi_rockets = min(other.ammo_multi_rockets, VR_MaxAmmo(other, AID_MULTI_ROCKETS));
+    other.ammo_plasma = min(other.ammo_plasma, VR_MaxAmmo(other, AID_PLASMA));
 };
 
 
@@ -1298,37 +1292,37 @@ void() ammo_touch =
 
     if(self.weapon == AID_SHELLS)
     {
-        if(other.ammo_shells >= 100) { return; }
+        if(other.ammo_shells >= VR_MaxAmmo(other, AID_SHELLS)) { return; }
         other.ammo_shells = other.ammo_shells + self.aflag;
     }
     else if(self.weapon == AID_NAILS)
     {
-        if(other.ammo_nails >= 200) { return; }
+        if(other.ammo_nails >= VR_MaxAmmo(other, AID_NAILS)) { return; }
         other.ammo_nails = other.ammo_nails + self.aflag;
     }
     else if(self.weapon == AID_ROCKETS)
     {
-        if(other.ammo_rockets >= 100) { return; }
+        if(other.ammo_rockets >= VR_MaxAmmo(other, AID_ROCKETS)) { return; }
         other.ammo_rockets = other.ammo_rockets + self.aflag;
     }
     else if(self.weapon == AID_CELLS)
     {
-        if(other.ammo_cells >= 100) { return; }
+        if(other.ammo_cells >= VR_MaxAmmo(other, AID_CELLS)) { return; }
         other.ammo_cells = other.ammo_cells + self.aflag;
     }
     else if(self.weapon == AID_LAVA_NAILS)
     {
-        if(other.ammo_lava_nails >= 200) { return; }
+        if(other.ammo_lava_nails >= VR_MaxAmmo(other, AID_LAVA_NAILS)) { return; }
         other.ammo_lava_nails = other.ammo_lava_nails + self.aflag;
     }
     else if(self.weapon == AID_MULTI_ROCKETS)
     {
-        if(other.ammo_multi_rockets >= 100) { return; }
+        if(other.ammo_multi_rockets >= VR_MaxAmmo(other, AID_MULTI_ROCKETS)) { return; }
         other.ammo_multi_rockets = other.ammo_multi_rockets + self.aflag;
     }
     else if(self.weapon == AID_PLASMA)
     {
-        if(other.ammo_plasma >= 100) { return; }
+        if(other.ammo_plasma >= VR_MaxAmmo(other, AID_PLASMA)) { return; }
         other.ammo_plasma = other.ammo_plasma + self.aflag;
     }
 

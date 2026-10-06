@@ -874,8 +874,6 @@ void() VR_Grenade_Think =
 // ----------------------------------------------------------------------------
 // Hand grenades from the back pouch (vr_handgrenade; ROUND21.md, "Hand grenades from the back pouch")
 
-float VR_HGREN_MAX_ROCKETS = 100; // rockets (or multi-rockets) a player carries (bound_other_ammo): one put back
-                                  // beyond it doesn't fit
 float VR_HGREN_SKIN_UNARMED = 1;  // progs/grenade.mdl's (and progs/mervup.mdl's) skin with the pin in: muted, its band
                                   // unlit (make_grenade_skins.py); the engine gives it no smoke trail (VR_GrenadeTrail)
 
@@ -883,6 +881,12 @@ float VR_HGREN_SKIN_UNARMED = 1;  // progs/grenade.mdl's (and progs/mervup.mdl's
 float(entity p, entity g) VR_HandGrenade_Ammo =
 {
     return g.vr_hgren_multi ? p.ammo_multi_rockets : p.ammo_rockets;
+};
+
+// The rockets (or multi-rockets) `p` carries at most (VR_MaxAmmo, as bound_other_ammo): one put back beyond it doesn't fit.
+float(entity p, entity g) VR_HandGrenade_MaxAmmo =
+{
+    return VR_MaxAmmo(p, g.vr_hgren_multi ? AID_MULTI_ROCKETS : AID_ROCKETS);
 };
 
 // The hand grenade `g` back in the pouch of `p`: its ammo one more.
@@ -1048,7 +1052,7 @@ float(float xHand, entity g) VR_HandGrenade_LetGo =
     {
         return FALSE;
     }
-    if(VR_HandGrenade_Ammo(self, g) + 1 > VR_HGREN_MAX_ROCKETS)
+    if(VR_HandGrenade_Ammo(self, g) + 1 > VR_HandGrenade_MaxAmmo(self, g))
     {
         VR_HandGrenade_Haptic(self, xHand, 0.12, 30, 0.8);
         dprint("grenade: the pouch is full: the grenade drops\n");
@@ -1089,7 +1093,7 @@ void() VR_HandGrenade_LevelEnd =
     {
         float hand = h ? cVR_MainHand : cVR_OffHand;
         entity g = VR_Carry_Held(self, hand);
-        if(g != world && VR_HandGrenade_Unarmed(g) && VR_HandGrenade_Ammo(self, g) < VR_HGREN_MAX_ROCKETS)
+        if(g != world && VR_HandGrenade_Unarmed(g) && VR_HandGrenade_Ammo(self, g) < VR_HandGrenade_MaxAmmo(self, g))
         {
             VR_HandGrenade_AmmoBack(self, g);
             VR_Carry_SetHeld(self, hand, world);

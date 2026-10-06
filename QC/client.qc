@@ -55,9 +55,9 @@ void() SetChangeParms =
 
     self.gravity = 1.0;
 
-    // Dopa/Machine Nightmare use the authored 50 cap and half-cap transition floor.
-    // Other campaigns keep VR's existing 100/50 carry bounds.
-    float carryHealthCap = ((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && (skill == 3) && !deathmatch) ? 50 : 100;
+    // The carried health: at most the player's capacity, at least half of it (Dopa/Machine Nightmare: 50/25; Dawn of the
+    // Machine: its upgraded capacity; otherwise 100/50).
+    float carryHealthCap = VR_MaxHealth(self);
     if(self.health > carryHealthCap)
     {
         self.health = carryHealthCap;
@@ -203,7 +203,7 @@ void() SetNewParms =
         parm1 = IT_SHOTGUN | IT_AXE;
     }
 
-    parm2 = ((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && (skill == 3) && !deathmatch) ? 50 : 100;
+    parm2 = VR_BaseHealth();
     parm3 = 0;
     parm4 = 25;
     parm5 = 0;
@@ -380,6 +380,8 @@ void() DecodeLevelParms =
     qvr_weaponinst_next = max(qvr_weaponinst_next, parm49);
     self.vr_flashlight_state = parm50;
     MG3_DecodeParms(); // (parm51..56: Dawn of the Machine's upgrades and bloody weapons, vr_mg3_defs.qc)
+    self.max_health = VR_MaxHealth(self); // (with them: upstream sets it here)
+    if(MG3_Campaign() && self.health > self.max_health) { self.health = self.max_health; }
     self.weaponinst = WeaponInst_Carried(self.weapon, parm31, parm41);
     self.weaponinst2 = WeaponInst_Carried(self.weapon2, parm32, parm42);
     self.holsterweaponinst0 = WeaponInst_Carried(self.holsterweapon0, parm33, parm43);
@@ -1044,7 +1046,7 @@ void() PutClientInServer =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_WALK;
     self.show_hostile = 0;
-    self.max_health = ((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && (skill == 3) && !deathmatch) ? 50 : 100;
+    self.max_health = VR_MaxHealth(self); // (again in DecodeLevelParms, once the level's upgrades are known)
     self.flags = FL_CLIENT;
     self.air_finished = time + VR_AirSupply();
     self.dmg = 2;           // initial water damage

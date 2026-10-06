@@ -17,9 +17,34 @@ void() MG3_T_Report = {
     dprint(sprintf("mg3test: hands %g/%g holsters %g %g %g", p.weapon, p.weapon2, p.holsterweapon0, p.holsterweapon1, p.holsterweapon2));
     dprint(sprintf(" %g %g %g\n", p.holsterweapon3, p.holsterweapon4, p.holsterweapon5));
 };
+// Capacities (any campaign; destructive: overfills every ammunition, then heals from 1 health, ordinary and mega).
+void() MG3_T_Caps = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    float mh = VR_MaxHealth(p), mega = VR_MegaHealthCap(p);
+    float s = VR_MaxAmmo(p, AID_SHELLS), n = VR_MaxAmmo(p, AID_NAILS), r = VR_MaxAmmo(p, AID_ROCKETS), c = VR_MaxAmmo(p, AID_CELLS);
+    dprint(sprintf("mg3test: caps campaign %g skill %g dm %g health %g max_health %g mega %g", cvar("vr_campaign"), skill, deathmatch, mh, p.max_health, mega));
+    dprint(sprintf(" shells %g nails %g rockets %g cells %g", s, n, r, c));
+    dprint(sprintf(" lava %g multi %g plasma %g\n", VR_MaxAmmo(p, AID_LAVA_NAILS), VR_MaxAmmo(p, AID_MULTI_ROCKETS), VR_MaxAmmo(p, AID_PLASMA)));
+    MG3_test_pass = MG3_test_fail = 0;
+    MG3_Check(p.max_health == mh, "the player's max_health is its capacity");
+    p.ammo_shells = p.ammo_nails = p.ammo_rockets = p.ammo_cells = 1000;
+    p.ammo_lava_nails = p.ammo_multi_rockets = p.ammo_plasma = 1000;
+    other = p; bound_other_ammo();
+    dprint(sprintf("mg3test: bounded shells %g nails %g rockets %g cells %g", p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells));
+    dprint(sprintf(" lava %g multi %g plasma %g\n", p.ammo_lava_nails, p.ammo_multi_rockets, p.ammo_plasma));
+    MG3_Check(p.ammo_shells == s && p.ammo_nails == n && p.ammo_rockets == r && p.ammo_cells == c, "bound_other_ammo caps at the capacities");
+    p.health = 1; other = p; T_Heal(p, 1000, FALSE);
+    float healed = p.health;
+    T_Heal(p, 1000, TRUE);
+    dprint(sprintf("mg3test: healed %g mega %g\n", healed, p.health));
+    MG3_Check(healed == mh, "ordinary healing stops at the capacity");
+    MG3_Check(p.health == mega, "megahealth stops at the mega cap");
+    dprint(sprintf("mg3test: caps %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     cvar_set("vr_mg3_test", "0");
+    if(request == 4) { entity os = self, oo = other; MG3_T_Caps(); self = os; other = oo; return; }
     if(!MG3_Campaign()) { dprint("mg3test: Dawn of the Machine developer campaign required (vr_campaign_native mg3)\n"); return; }
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_T_Report();
