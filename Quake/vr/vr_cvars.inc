@@ -1083,6 +1083,14 @@ QVR_CVAR(vr_relight_ao, "1.5", CVAR_ARCHIVE)         // ambient occlusion in cor
 QVR_CVAR(vr_relight_minlight, "0", CVAR_ARCHIVE)     // the least light anywhere (light -minlight; 0 none)
 QVR_CVAR(vr_relight_quality, "1", CVAR_ARCHIVE)      // shadows' edges: 1 smooth (-extra4, relight_maps.py's), 0 fast (-extra)
 QVR_CVAR(vr_relight_reload, "1", CVAR_ARCHIVE)       // a relit map in play reloaded where you are (a save and load; the map restarted where the game can't save; 0: from its next start)
+// Many maps at once (vr_relight_batch; Graphics > Relighting, Many Maps).
+QVR_CVAR(vr_relight_batch_set, "1", CVAR_ARCHIVE)     // the maps Relight These Maps takes: 0 the map in play, 1 its episode, 2 its game, 3 the Map Library's, 4 every map
+QVR_CVAR(vr_relight_batch_episode, "0", CVAR_ARCHIVE) // the episode: 0 the map in play's, 1..4 id's E1..E4 (5: dopa's E5)
+QVR_CVAR(vr_relight_batch_game, "0", CVAR_ARCHIVE)    // the game: 0 the map in play's, 1 id1, 2 hipnotic, 3 rogue, 4 dopa, 5 mg1, 6 mg3
+QVR_CVAR(vr_relight_batch_force, "0", CVAR_ARCHIVE)   // 1: maps relit with the same settings already (their .relight's hash) relit again; 0 skipped
+QVR_CVAR(vr_relight_batch_reload, "0", CVAR_ARCHIVE)  // the map in play, relit in a batch, reloaded: 0 as soon as it is done, 1 at the batch's end
+QVR_CVAR(vr_relight_parallel, "0", CVAR_ARCHIVE)      // maps lit side by side (light's threads shared out; 0: 2 from 8 cores, else 1; at most 8)
+QVR_CVAR(vr_relight_indicator, "1", CVAR_ARCHIVE)     // while a relighting runs, a line on the wrist gadget (or the flat screen's corner): maps done, percentage, time left
 QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured particles for the QC's effects (0: Quake's own)
 // Rising particles over low-poly fire models (static fires, burning bodies, taken torches).
 QVR_CVAR(vr_fire_particles, "1", CVAR_ARCHIVE)

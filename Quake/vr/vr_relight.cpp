@@ -16,21 +16,32 @@
 //   grid and the light directions (-lightgrid -lux) and coloured light (-lit), as relight_maps.py gives them.
 //
 // light runs as a process of its own (vr_relight_process.cpp), below normal priority, on the copy in the work folder
-// (<game folder>/relit_custom/_work); its output is read for the progress the page shows. When it ends, the map keeps
-// its own entities again (the lights were for light only) and the result goes to <game folder>/relit_custom/<game>/
-// maps/<map>.bsp, .lit and .lux, which the engine loads over relit/ (VR_ModelFile; vr_relight_use 0: not), with a
-// <map>.relight saying how it was made. id's paks and the game folders' maps are only read. Then the map is reloaded
-// where you are (vr_relight_reload: a quick save and load; where the game cannot save, the map restarted).
+// (<game folder>/relit_custom/_work/<game>/); its output is read for the progress the page shows. When it ends, the map
+// keeps its own entities again (the lights were for light only) and the result goes to <game folder>/relit_custom/
+// <game>/maps/<map>.bsp, .lit and .lux, which the engine loads over relit/ (VR_ModelFile; vr_relight_use 0: not), with
+// a <map>.relight saying how it was made (and a hash of the settings, the map's file and relight_textures.cfg: a batch
+// skips a map relit from the same). Each written as .tmp and renamed into place; the work folder's copies removed.
+// id's paks and the game folders' maps are only read. Then the map is reloaded where you are (vr_relight_reload: a
+// quick save and load; where the game cannot save, the map restarted).
+//
+// A batch (vr_relight_batch; the page's Many Maps): an episode, a game, the Map Library's maps or every map
+// (vr_relight_maps.cpp finds them), lit one after another, vr_relight_parallel side by side (light's threads shared
+// out), with the settings as they were when it started. The map in play goes first; it is reloaded when it is done
+// (or at the end: vr_relight_batch_reload). Cancel (and a quit) stops every light and removes its half-made files: the
+// maps done are kept. The progress (the page's bar, the wrist gadget's line, the flat screen's corner) weighs each map
+// by its file's size and its light run by its stage (stageFraction).
 //
 // relight_maps.py is the reference: with the page's settings at their defaults the lights given to light are the
 // script's (vr_relight_lights writes them, to compare). What it does that this does not: the water-vis patch
 // (VisPatch: done by the script, kept from its copy) and the BSP2 maps' glowing textures (neither lights those).
 
 #include "vr_relight.hpp"
+#include "vr_relight_maps.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_gadget.hpp"
 #include "vr_mem.hpp"
 
 #include "Zancle/Algorithm/StableSort.hpp"
@@ -58,13 +69,14 @@ int VR_MapGameFolder(const char* name, char* out, size_t size);        // vr_gam
 namespace qvr::relight
 {
 
-namespace process // vr_relight_process.cpp
+namespace process // vr_relight_process.cpp: a light process a slot (0..maxSlots-1)
 {
-bool start(const za::String& exe, const za::Vector<za::String>& args, const za::String& cwd, const za::String& log,
-    za::String& error);
-bool running();
-int lastExitCode();
-void stop();
+bool start(int slot, const za::String& exe, const za::Vector<za::String>& args, const za::String& cwd,
+    const za::String& log, za::String& error);
+bool running(int slot);
+int lastExitCode(int slot);
+int processId(int slot);
+void stopAll(bool closeJob);
 za::String onPath(const char* name);
 } // namespace process
 
@@ -2140,36 +2152,98 @@ struct Report
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The job: one map relit at a time (main thread).
+// The batch: the maps relit one after another, a few side by side (vr_relight_parallel), each light in a slot of its
+// own (main thread). Relight This Map (vr_relight) is a batch of one.
 
-enum class Phase
+constexpr int maxSlots = 8; // vr_relight_parallel's most (vr_relight_process.cpp's slots)
+
+// The page's settings, taken when a batch starts: its maps are all lit alike, whatever the sliders do meanwhile.
+struct Look
 {
-    Idle,
-    Running,   // light running
-    Saving,    // the result in place; the game saved, its save being written, before the load
-    Done,
-    Failed,
+    float strength{1.f}, lamps{1.f}, glows{1.f}, liquids{1.f}, maplights{1.f}, sunlight{1.f};
+    float bounce{0.f}, ao{1.5f}, minlight{0.f}, quality{1.f};
+
+    [[nodiscard]] static Look now()
+    {
+        Look l;
+        l.strength = vr_relight_strength.value;
+        l.lamps = vr_relight_lamps.value;
+        l.glows = vr_relight_glows.value;
+        l.liquids = vr_relight_liquids.value;
+        l.maplights = vr_relight_maplights.value;
+        l.sunlight = vr_relight_sunlight.value;
+        l.bounce = vr_relight_bounce.value;
+        l.ao = vr_relight_ao.value;
+        l.minlight = vr_relight_minlight.value;
+        l.quality = vr_relight_quality.value;
+        return l;
+    }
 };
 
-struct Job
+enum class State
 {
-    Phase phase{Phase::Idle};
-    char map[MAX_QPATH]{};     // e1m1
-    char game[MAX_QPATH]{};    // id1: relit_custom/<game>/maps
-    za::String work;           // <gamedir>/relit_custom/_work
-    za::String original;       // the map's own entities, put back after
-    za::String settings;       // how it is lit (the .relight file, the page)
-    double started{0.0};       // (Sys_DoubleTime)
-    double nextPoll{0.0};
-    za::I64 inputWritten{0};   // the input .bsp's write time: light's results are newer
+    Queued,
+    Running,
+    Done,
+    Skipped,   // relit with the same settings already (the .relight's hash)
+    Failed,
+    Cancelled,
+};
+
+// One map of the batch.
+struct Item
+{
+    maps::Source source;
+    State state{State::Queued};
+    double weight{1.0}; // its share of the work: its file's size (light's time grows with the map)
+    float fraction{0.f}; // how far its light is (0..1, while it runs)
+};
+
+// A light running: its map, its files in the work folder, what its log said.
+struct Slot
+{
+    int item{-1}; // -1: free
+    za::String stem;     // <work>/<game>/<map>: light's .bsp, .lit, .lux and -light.log; our .txt log
+    za::String original; // the map's own entities, put back after
+    za::String hash;     // what it was lit from (the .relight's hash line)
+    za::I64 inputWritten{0}; // the input .bsp's write time: light's results are newer
     za::SizeT logRead{0};
+    za::Vector<char> logTail; // the log's last bytes (a failure's lines)
     char stage[64]{};
     int percent{-1};
     int lights{0};
-    bool reload{false};
-    za::Vector<char> logTail; // the log's last bytes (a failure's lines)
+    double started{0.0}; // (Sys_DoubleTime)
 };
-Job job;
+
+struct Batch
+{
+    bool active{false};
+    bool single{false}; // vr_relight: one map (its messages as before)
+    bool force{false};  // maps relit with these settings already done again
+    za::Vector<Item> items;
+    Slot slots[maxSlots];
+    int parallel{1};
+    int threads{1};
+    za::String tool;
+    za::String root; // <gamedir>/relit_custom (where it started: a game switch meanwhile changes nothing)
+    Look look;
+    za::String lookText; // settingsText: the .relight's line, the page
+    za::String lookKey;  // the settings, light's options and relight_textures.cfg: hashed with each map's file
+    double started{0.0};
+    double ended{0.0};
+    double nextPoll{0.0};
+    za::SizeT next{0}; // the next queued item
+    int relit{0}, skipped{0}, failed{0}, cancelled{0};
+    // The map in play, when the batch relights it (vr_relight_reload): reloaded when it is done, or at the batch's end
+    // (vr_relight_batch_reload).
+    char reloadMap[MAX_QPATH]{};
+    char reloadGame[MAX_QPATH]{};
+    bool reloadAtEnd{false};
+    bool reloadPending{false};
+    char failedMaps[128]{}; // the first few failures, for the summary
+};
+Batch batch;
+bool saving = false; // the relit map in play saved, its save being written, before the load (poll)
 
 // The page's and the commands' last word on it (statusLine).
 char status[384] = "";
@@ -2186,43 +2260,39 @@ void say(const char* text)
     return files::join(za::StringView{com_gamedir}, za::StringView{"relit_custom"});
 }
 
-[[nodiscard]] Strengths strengths()
+[[nodiscard]] Strengths strengths(const Look& look)
 {
     Strengths s;
-    s.scale = za::max(0.0, static_cast<double>(vr_relight_strength.value));
-    s.kinds[0] = za::max(0.0, static_cast<double>(vr_relight_lamps.value));
-    s.kinds[1] = za::max(0.0, static_cast<double>(vr_relight_glows.value));
-    s.kinds[2] = za::max(0.0, static_cast<double>(vr_relight_liquids.value));
+    s.scale = za::max(0.0, static_cast<double>(look.strength));
+    s.kinds[0] = za::max(0.0, static_cast<double>(look.lamps));
+    s.kinds[1] = za::max(0.0, static_cast<double>(look.glows));
+    s.kinds[2] = za::max(0.0, static_cast<double>(look.liquids));
     return s;
 }
 
-// light's options for the look (relight_maps.py's DEFAULT_LIGHT_ARGS at the defaults).
-void lookOptions(za::Vector<za::String>& args)
+// light's options for the look (relight_maps.py's DEFAULT_LIGHT_ARGS at the defaults), without -threads.
+void lookOptions(za::Vector<za::String>& args, const Look& look)
 {
     const auto add = [&](const char* a) { args.pushBack(za::String{a}); };
-    // All the cores but one: the game keeps one for itself (light also runs below normal priority).
-    add("-threads");
-    const unsigned cores = za::Thread::hardwareConcurrency();
-    add(va("%u", cores > 1u ? cores - 1u : 1u));
-    add(vr_relight_quality.value >= 1.f ? "-extra4" : "-extra");
-    if(vr_relight_ao.value > 0.f)
+    add(look.quality >= 1.f ? "-extra4" : "-extra");
+    if(look.ao > 0.f)
     {
         add("-dirt");
         add("-dirtscale");
-        add(va("%g", vr_relight_ao.value));
+        add(va("%g", look.ao));
         add("-dirtdepth");
         add("96");
     }
-    if(vr_relight_bounce.value > 0.f)
+    if(look.bounce > 0.f)
     {
         add("-bounce");
         add("-bouncescale");
-        add(va("%g", vr_relight_bounce.value));
+        add(va("%g", look.bounce));
     }
-    if(vr_relight_minlight.value > 0.f)
+    if(look.minlight > 0.f)
     {
         add("-minlight");
-        add(va("%g", vr_relight_minlight.value));
+        add(va("%g", look.minlight));
     }
     for(const za::StringView w : wordsOf(za::StringView{lightOptions}))
     {
@@ -2230,14 +2300,27 @@ void lookOptions(za::Vector<za::String>& args)
     }
 }
 
-[[nodiscard]] za::String settingsText()
+[[nodiscard]] za::String settingsText(const Look& l)
 {
     return za::String{va("Light Textures %.2fx (lamps %.2fx, glows %.2fx, lava %.2fx), Map Lights %.2fx, Sunlight %.2fx, "
                          "Bounce %.2f, Ambient Occlusion %.2f, Minimum Light %.0f, %s",
-        vr_relight_strength.value, vr_relight_lamps.value, vr_relight_glows.value, vr_relight_liquids.value,
-        vr_relight_maplights.value, vr_relight_sunlight.value, vr_relight_bounce.value, vr_relight_ao.value,
-        vr_relight_minlight.value, vr_relight_quality.value >= 1.f ? "smooth" : "fast")};
+        l.strength, l.lamps, l.glows, l.liquids, l.maplights, l.sunlight, l.bounce, l.ao, l.minlight,
+        l.quality >= 1.f ? "smooth" : "fast")};
 }
+
+// FNV-1a, 64 bits: the settings and the map's bytes, to tell a map relit with the same already.
+struct Fnv
+{
+    za::U64 h{1469598103934665603ull};
+    void add(const void* data, za::SizeT n)
+    {
+        const unsigned char* p = static_cast<const unsigned char*>(data);
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            h = (h ^ p[i]) * 1099511628211ull;
+        }
+    }
+};
 
 // ericw-tools' light: vr_relight_tool, else the one Quake VR ships (tools/ericw-tools/ in a game folder), ERICW_LIGHT,
 // PATH, the author's. Empty: none.
@@ -2307,18 +2390,47 @@ void lookOptions(za::Vector<za::String>& args)
     return true;
 }
 
-[[nodiscard]] za::Vector<Rule> rulesNow()
+// A batch's map's bytes: relight_maps.py's copy (relit/<game>/maps/, its water-vis patch kept), else its own file.
+[[nodiscard]] bool batchSource(const maps::Source& s, za::Vector<unsigned char>& data, bool& fromRelit)
+{
+    const char* relit = va("relit/%s/maps/%s.bsp", s.game.cStr(), s.map.cStr());
+    fromRelit = COM_FileExists(relit, nullptr);
+    if(fromRelit)
+    {
+        if(byte* bytes = COM_LoadMallocFile(relit, nullptr))
+        {
+            data.resize(static_cast<za::SizeT>(com_filesize));
+            memcpy(data.data(), bytes, data.size());
+            VR_HeapFree(bytes);
+            return true;
+        }
+        fromRelit = false;
+    }
+    return maps::read(s, data);
+}
+
+[[nodiscard]] za::String rulesText()
 {
     byte* text = COM_LoadMallocFile("relight_textures.cfg", nullptr);
     if(!text)
+    {
+        return {};
+    }
+    za::String copy{reinterpret_cast<const char*>(text), static_cast<za::SizeT>(com_filesize)};
+    VR_HeapFree(text);
+    return copy;
+}
+
+[[nodiscard]] za::Vector<Rule> rulesNow()
+{
+    const za::String text = rulesText();
+    if(text.empty())
     {
         Con_Printf("Relight: relight_textures.cfg not found: textures named *light* or *lamp* are lamps, other glowing "
                    "ones glow, liquids light nothing\n");
         return {};
     }
-    za::String copy{reinterpret_cast<const char*>(text), static_cast<za::SizeT>(com_filesize)};
-    VR_HeapFree(text);
-    return loadRules(copy.cStr(), "relight_textures.cfg");
+    return loadRules(text.cStr(), "relight_textures.cfg");
 }
 
 [[nodiscard]] const byte* paletteNow(za::Vector<unsigned char>& keep)
@@ -2349,8 +2461,8 @@ void lookOptions(za::Vector<za::String>& args)
     return out[0] != 0;
 }
 
-// The lights relight_maps.py would give light for this map, with the page's settings: (text, report).
-[[nodiscard]] za::String lightsFor(const Bsp& b, const char* game, const char* map, Report& report)
+// The lights relight_maps.py would give light for this map, with these settings: (text, report).
+[[nodiscard]] za::String lightsFor(const Bsp& b, const char* game, const char* map, const Look& look, Report& report)
 {
     za::Vector<unsigned char> pal;
     const byte* palette = paletteNow(pal);
@@ -2361,7 +2473,7 @@ void lookOptions(za::Vector<za::String>& args)
     }
     const za::Vector<Rule> rules = rulesNow();
     VR_FileCacheEnable(1); // (each folder listed once while the glow images are looked for, as in a map's load)
-    za::String out = glowLights(b, palette, rules, game, map, strengths(), report);
+    za::String out = glowLights(b, palette, rules, game, map, strengths(look), report);
     VR_FileCacheEnable(0);
     return out;
 }
@@ -2383,161 +2495,277 @@ void lookOptions(za::Vector<za::String>& args)
     return true;
 }
 
-void start(const char* requested)
+// How many maps are lit side by side: vr_relight_parallel, or (0) two from 8 cores. light uses every core it is given
+// (its bounced light most of all), but a small map's run is partly single-threaded, loading and writing: on 32 cores
+// id's episode 1 took 7 s one at a time, 6 two at once, 5 three or four; with Bounced Light 34, 33, 33 and 42 s.
+// Two gain most of it at two thirds of the memory of three (a big map's light takes hundreds of megabytes).
+[[nodiscard]] int parallelCount(int maps)
 {
-    if(job.phase == Phase::Running || job.phase == Phase::Saving)
+    const unsigned cores = za::Thread::hardwareConcurrency();
+    int n = static_cast<int>(vr_relight_parallel.value);
+    if(n <= 0)
     {
-        say(va("already relighting %s", job.map));
-        return;
+        n = cores >= 8u ? 2 : 1;
     }
-    char map[MAX_QPATH], current[MAX_QPATH];
-    const bool inPlay = currentMap(current, sizeof(current));
-    q_strlcpy(map, current, sizeof(map));
-    if(requested && requested[0])
+    return za::max(1, za::min(za::min(n, maxSlots), maps));
+}
+
+// "1:05", "1:02:03".
+[[nodiscard]] const char* hms(double seconds)
+{
+    const int s = static_cast<int>(za::max(0.0, seconds) + 0.5);
+    return s >= 3600 ? va("%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) : va("%d:%02d", s / 60, s % 60);
+}
+
+// <relit_custom>/<game>/maps/<map>.<ext>
+[[nodiscard]] za::String outPath(const maps::Source& s, const char* ext)
+{
+    return files::join(batch.root, za::StringView{va("%s/maps/%s.%s", s.game.cStr(), s.map.cStr(), ext)});
+}
+
+// Light's files for a map in the work folder: <root>/_work/<game>/<map, its subfolders' / as _>.
+[[nodiscard]] za::String workStem(const maps::Source& s)
+{
+    za::String flat = s.map;
+    for(char& c : flat)
     {
-        COM_StripExtension(requested, map, sizeof(map));
+        c = c == '/' || c == '\\' ? '_' : c;
     }
-    else if(!inPlay)
+    return files::join(batch.root, za::StringView{va("_work/%s/%s", s.game.cStr(), flat.cStr())});
+}
+
+// The work folder's copies of a map light was given and made (its logs kept: a failure's reason).
+void removeWork(const za::String& stem)
+{
+    for(const char* ext : {".bsp", ".lit", ".lux"})
     {
-        say("no map loaded: start a map first, or name one (vr_relight <map>)");
-        job.phase = Phase::Failed;
-        return;
+        za::String path = stem;
+        path += ext;
+        files::remove(path.cStr());
     }
-    const za::String tool = findTool();
-    if(tool.empty())
+}
+
+// The .relight of a map relit before says it was lit from exactly this (its hash line), and its files are there.
+[[nodiscard]] bool relitAlready(const maps::Source& s, const za::String& hash)
+{
+    za::String note;
+    if(!files::readText(outPath(s, "relight").cStr(), note) || !files::isFile(outPath(s, "bsp").cStr()) ||
+        !files::isFile(outPath(s, "lit").cStr()))
     {
-        say("ericw-tools' light not found: set vr_relight_tool to its light.exe (docs/RELIGHTING.md)");
-        job.phase = Phase::Failed;
-        return;
+        return false;
     }
+    bool same = false;
+    files::forLines(za::StringView{note}, [&](za::StringView line) {
+        same = same || (line.size() > 5 && !strncmp(line.data(), "hash ", 5) &&
+                           line.substrByPosLen(5, line.size() - 5) == za::StringView{hash});
+    });
+    return same;
+}
+
+enum class Started
+{
+    Running,
+    Skipped,
+    Failed,
+};
+
+// The batch's item `i` given to light in slot `slot` (or skipped: relit with these settings already).
+[[nodiscard]] Started startItem(za::SizeT i, int slotIndex)
+{
+    Item& item = batch.items[i];
+    const maps::Source& s = item.source;
+    const char* map = s.map.cStr();
+    const double t0 = Sys_DoubleTime();
     za::Vector<unsigned char> data;
-    char game[MAX_QPATH];
     bool fromRelit = false;
-    if(!mapSource(map, data, game, sizeof(game), fromRelit))
+    if(!batchSource(s, data, fromRelit))
     {
-        say(va("maps/%s.bsp not found", map));
-        job.phase = Phase::Failed;
-        return;
+        Con_Printf("Relight: %s/maps/%s.bsp can't be read\n", s.game.cStr(), map);
+        return Started::Failed;
     }
     const Bsp b{data.data(), data.size()};
     if(!b.valid())
     {
-        say(va("maps/%s.bsp is not a Quake map light can relight", map));
-        job.phase = Phase::Failed;
-        return;
+        Con_Printf("Relight: %s/maps/%s.bsp is not a Quake map light can relight\n", s.game.cStr(), map);
+        return Started::Failed;
+    }
+    Fnv fnv;
+    fnv.add(batch.lookKey.data(), batch.lookKey.size());
+    fnv.add(data.data(), data.size());
+    const za::String hash{va("%016llx", static_cast<unsigned long long>(fnv.h))};
+    if(!batch.force && relitAlready(s, hash))
+    {
+        return Started::Skipped;
     }
 
-    const double t0 = Sys_DoubleTime();
     Report report;
-    const za::String lights = lightsFor(b, game, map, report);
+    const za::String lights = lightsFor(b, s.game.cStr(), map, batch.look, report);
     const za::String original = entitiesText(b);
     // id's games' maps lose the re-release's worldspawn light settings (as relight_maps.py does); other maps keep
     // their mappers'.
+    const char* game = s.game.cStr();
     const bool idGame = !q_strcasecmp(game, "id1") || !q_strcasecmp(game, "hipnotic") || !q_strcasecmp(game, "rogue");
     za::String entities = idLightValues(idGame ? withoutMapLightSettings(original) : original);
-    entities = scaledLights(entities, za::max(0.0, static_cast<double>(vr_relight_maplights.value)),
-        za::max(0.0, static_cast<double>(vr_relight_sunlight.value)));
+    entities = scaledLights(entities, za::max(0.0, static_cast<double>(batch.look.maplights)),
+        za::max(0.0, static_cast<double>(batch.look.sunlight)));
     entities += lights;
 
-    job = Job{};
-    q_strlcpy(job.map, map, sizeof(job.map));
-    q_strlcpy(job.game, game, sizeof(job.game));
-    job.work = files::join(customRoot(), za::StringView{"_work"});
-    job.original = original;
-    job.settings = settingsText();
-    job.lights = report.lights;
-    job.reload = inPlay && !strcmp(current, map) && vr_relight_reload.value != 0.f;
-    files::createDirectories(job.work.cStr());
-    const za::String bsp = files::join(job.work, za::StringView{va("%s.bsp", map)});
-    const za::String log = files::join(job.work, za::StringView{va("%s.txt", map)});
+    Slot& slot = batch.slots[slotIndex];
+    slot = Slot{};
+    slot.stem = workStem(s);
+    slot.original = original;
+    slot.hash = hash;
+    slot.lights = report.lights;
+    files::createDirectories(za::String{files::parentPath(za::StringView{slot.stem})}.cStr());
+    const za::String bsp = slot.stem + ".bsp";
+    const za::String log = slot.stem + ".txt";
     const za::Vector<unsigned char> input = withEntities(b, entities);
     if(!files::writeBytes(bsp.cStr(), input.data(), input.size()))
     {
-        say(va("can't write %s", bsp.cStr()));
-        job.phase = Phase::Failed;
-        return;
+        Con_Printf("Relight: can't write %s\n", bsp.cStr());
+        return Started::Failed;
     }
-    job.inputWritten = files::lastWriteTime(bsp.cStr());
+    slot.inputWritten = files::lastWriteTime(bsp.cStr());
     za::Vector<za::String> args;
-    lookOptions(args);
+    args.pushBack(za::String{"-threads"});
+    args.pushBack(za::String{va("%d", batch.threads)});
+    lookOptions(args, batch.look);
     args.pushBack(bsp);
     za::String error;
-    job.started = Sys_DoubleTime();
-    if(!process::start(tool, args, job.work, log, error))
+    slot.started = Sys_DoubleTime();
+    if(!process::start(slotIndex, batch.tool, args, za::String{files::parentPath(za::StringView{slot.stem})}, log, error))
     {
-        say(va("%s: %s", tool.cStr(), error.cStr()));
-        job.phase = Phase::Failed;
-        return;
+        Con_Printf("Relight: %s: %s\n", batch.tool.cStr(), error.cStr());
+        removeWork(slot.stem);
+        return Started::Failed;
     }
-    job.phase = Phase::Running;
-    say(va("relighting %s (%s%s; %d lights from its textures, made in %.0f ms) with %s", map, game,
-        fromRelit ? ", relight_maps.py's copy" : "", report.lights, (job.started - t0) * 1000.0, tool.cStr()));
-    q_strlcpy(job.stage, "starting", sizeof(job.stage));
+    slot.item = static_cast<int>(i);
+    q_strlcpy(slot.stage, "starting", sizeof(slot.stage));
+    item.state = State::Running;
+    item.fraction = 0.f;
+    const char* line = va("relighting %s (%s%s; %d lights from its textures, made in %.0f ms) with %s", map, game,
+        fromRelit ? ", relight_maps.py's copy" : "", report.lights, (slot.started - t0) * 1000.0, batch.tool.cStr());
+    if(batch.single)
+    {
+        say(line);
+    }
+    else
+    {
+        Con_Printf("Relight: %s\n", line);
+    }
+    return Started::Running;
+}
+
+// How far a light run is (0..1) by its stage and the stage's percentage (light's stages, in their order, each given
+// its usual share of the run's time: the direct light is most of it, the bounces next, the light grid last).
+[[nodiscard]] float stageFraction(const char* stage, int percent, bool bounce)
+{
+    struct StageSpan
+    {
+        const char* stage;
+        float from, to;
+    };
+    static constexpr StageSpan plain[] = {{"LoadEntities", 0.f, .02f}, {"MakeSurfaceLights", .02f, .03f},
+        {"SetupDirt", .03f, .04f}, {"LightWorld", .04f, .04f}, {"CalculateVertexNormals", .04f, .06f},
+        {"MakeFaceCache", .06f, .08f}, {"CreateLightmapSurfaces", .08f, .14f}, {"MakeRadiositySurfaceLights", .14f, .16f},
+        {"Direct Lighting", .16f, .78f}, {"Post-Processing", .78f, .82f}, {"SaveLightmapSurfaces", .82f, .86f},
+        {"LightGrid", .86f, .99f}};
+    static constexpr StageSpan bounced[] = {{"Direct Lighting", .05f, .15f}, {"Indirect Lighting", .15f, .86f}};
+    const float p = percent >= 0 ? za::min(percent, 100) / 100.f : 0.f;
+    if(bounce)
+    {
+        for(const StageSpan& s : bounced)
+        {
+            if(!strncmp(stage, s.stage, strlen(s.stage)))
+            {
+                return s.from + (s.to - s.from) * p;
+            }
+        }
+    }
+    for(const StageSpan& s : plain)
+    {
+        if(!strncmp(stage, s.stage, strlen(s.stage)))
+        {
+            return s.from + (s.to - s.from) * p;
+        }
+    }
+    return -1.f; // (a stage not listed: where it was)
 }
 
 // The light log's new lines: its stage ("---- LightWorld ----") and percentage ("[ 45%]").
-void readProgress()
+void readProgress(Slot& slot)
 {
-    const za::String log = files::join(job.work, za::StringView{va("%s.txt", job.map)});
+    const za::String log = slot.stem + ".txt";
     FILE* f = Sys_fopen(log.cStr(), "rb");
     if(!f)
     {
         return;
     }
-    fseek(f, static_cast<long>(job.logRead), SEEK_SET);
+    fseek(f, static_cast<long>(slot.logRead), SEEK_SET);
     char buf[4096];
     size_t n;
     while((n = fread(buf, 1, sizeof(buf), f)) > 0)
     {
-        job.logRead += n;
+        slot.logRead += n;
         for(size_t i = 0; i < n; i++)
         {
-            job.logTail.pushBack(buf[i]);
+            slot.logTail.pushBack(buf[i]);
         }
     }
     fclose(f);
-    if(job.logTail.size() > 8192)
+    if(slot.logTail.size() > 8192)
     {
         za::Vector<char> keep;
         keep.resize(4096);
-        memcpy(keep.data(), job.logTail.data() + job.logTail.size() - 4096, 4096);
-        job.logTail = ZA_MOVE(keep);
+        memcpy(keep.data(), slot.logTail.data() + slot.logTail.size() - 4096, 4096);
+        slot.logTail = ZA_MOVE(keep);
     }
     // The last stage and percentage in what is kept.
-    const za::StringView text{job.logTail.data(), job.logTail.size()};
+    const za::StringView text{slot.logTail.data(), slot.logTail.size()};
     const za::SizeT stage = text.rfind(za::StringView{"---- "});
     if(stage != za::StringView::nPos)
     {
         const za::SizeT end = text.find(za::StringView{" ----"}, stage + 5);
-        if(end != za::StringView::nPos && end - stage - 5 < sizeof(job.stage))
+        if(end != za::StringView::nPos && end - stage - 5 < sizeof(slot.stage))
         {
             const za::StringView s = text.substrByPosLen(stage + 5, end - stage - 5);
-            if(strncmp(job.stage, s.data(), s.size()) || job.stage[s.size()])
+            if(strncmp(slot.stage, s.data(), s.size()) || slot.stage[s.size()])
             {
-                memcpy(job.stage, s.data(), s.size());
-                job.stage[s.size()] = 0;
-                job.percent = -1;
+                memcpy(slot.stage, s.data(), s.size());
+                slot.stage[s.size()] = 0;
+                slot.percent = -1;
+                if(slot.item >= 0) // (developer 1: when each stage began, to weigh them: stageFraction)
+                {
+                    Con_DPrintf("Relight: %s: %s from %.2f s\n", batch.items[static_cast<za::SizeT>(slot.item)].source.map.cStr(),
+                        slot.stage, Sys_DoubleTime() - slot.started);
+                }
             }
         }
     }
     const za::SizeT pct = text.rfind('%');
-    if(pct != za::StringView::nPos && pct >= 3 && text[pct - 4] == '[' && (stage == za::StringView::nPos || pct > stage))
+    if(pct != za::StringView::nPos && pct >= 4 && text[pct - 4] == '[' && (stage == za::StringView::nPos || pct > stage))
     {
-        job.percent = atoi(va("%.*s", 3, text.data() + pct - 3));
+        slot.percent = atoi(va("%.*s", 3, text.data() + pct - 3));
+    }
+    if(slot.item >= 0)
+    {
+        Item& item = batch.items[static_cast<za::SizeT>(slot.item)];
+        const float f = stageFraction(slot.stage, slot.percent, batch.look.bounce > 0.f);
+        item.fraction = za::max(item.fraction, f);
     }
 }
 
 // The log's last lines (a failure's reason).
-[[nodiscard]] za::String logEnd(int lines)
+[[nodiscard]] za::String logEnd(const Slot& slot, int lines)
 {
-    za::SizeT i = job.logTail.size();
+    za::SizeT i = slot.logTail.size();
     int seen = 0;
     while(i > 0 && seen <= lines)
     {
         i--;
-        seen += job.logTail[i] == '\n' ? 1 : 0;
+        seen += slot.logTail[i] == '\n' ? 1 : 0;
     }
-    za::String out{job.logTail.data() + i, job.logTail.size() - i};
+    za::String out{slot.logTail.data() + i, slot.logTail.size() - i};
     for(char& c : out)
     {
         c = c == '\r' ? '\n' : c;
@@ -2551,55 +2779,10 @@ void readProgress()
     return files::readBytes(from.cStr(), data) && files::writeBytes(to.cStr(), data.data(), data.size());
 }
 
-// light ended well: the map's own entities back, the result where the game loads it.
-void finish()
+// The map in play reloaded where you are (a save and a load once its file is written: poll), or restarted where the
+// game can't be saved. `seconds`, `map`: for the message.
+void reloadNow(const char* map, double seconds)
 {
-    const za::String bspIn = files::join(job.work, za::StringView{va("%s.bsp", job.map)});
-    const za::String lit = files::join(job.work, za::StringView{va("%s.lit", job.map)});
-    const za::String lux = files::join(job.work, za::StringView{va("%s.lux", job.map)});
-    // (light's results, not an earlier run's: written since its input was)
-    const za::I64 since = job.inputWritten;
-    za::Vector<unsigned char> data;
-    if(!files::readBytes(bspIn.cStr(), data) || !files::isFile(lit.cStr()) || files::lastWriteTime(lit.cStr()) < since)
-    {
-        say(va("light made no .lit for %s:\n%s", job.map, logEnd(6).cStr()));
-        job.phase = Phase::Failed;
-        return;
-    }
-    const Bsp b{data.data(), data.size()};
-    if(!b.valid())
-    {
-        say(va("light's %s.bsp can't be read", job.map));
-        job.phase = Phase::Failed;
-        return;
-    }
-    const za::Vector<unsigned char> out = withEntities(b, job.original);
-    const za::String dir = files::join(customRoot(), za::StringView{va("%s/maps", job.game)});
-    files::createDirectories(dir.cStr());
-    const za::String outBsp = files::join(dir, za::StringView{va("%s.bsp", job.map)});
-    const bool hasLux = files::isFile(lux.cStr()) && files::lastWriteTime(lux.cStr()) >= since;
-    const bool ok = files::writeBytes(outBsp.cStr(), out.data(), out.size()) &&
-                    copyFile(lit, files::join(dir, za::StringView{va("%s.lit", job.map)})) &&
-                    (!hasLux || copyFile(lux, files::join(dir, za::StringView{va("%s.lux", job.map)})));
-    const double seconds = Sys_DoubleTime() - job.started;
-    za::String note{va("relit in the game (vr_relight) in %.1f s, %d lights from its textures\n", seconds, job.lights)};
-    note += job.settings;
-    note += "\n";
-    if(!ok || !files::writeText(files::join(dir, za::StringView{va("%s.relight", job.map)}).cStr(), note))
-    {
-        say(va("can't write the relit %s into %s", job.map, dir.cStr()));
-        job.phase = Phase::Failed;
-        return;
-    }
-    VR_FileCacheForget();
-    char now[MAX_QPATH];
-    const bool same = currentMap(now, sizeof(now)) && !strcmp(now, job.map);
-    if(!job.reload || !same)
-    {
-        say(va("%s relit in %.1f s: loaded from its next start (%s)", job.map, seconds, dir.cStr()));
-        job.phase = Phase::Done;
-        return;
-    }
     if(canSave())
     {
         // Saved now (its file written on the save thread), loaded once written (poll): ahead of whatever waits in the
@@ -2608,14 +2791,371 @@ void finish()
         Cmd_ExecuteString("save \"autosave/relight\" 0", src_command);
         if(!strcmp(sv.lastsave, "autosave/relight.sav"))
         {
-            job.phase = Phase::Saving;
-            say(va("%s relit in %.1f s: reloading where you are", job.map, seconds));
+            saving = true;
+            say(va("%s relit in %.1f s: reloading where you are", map, seconds));
             return;
         }
     }
     Cbuf_InsertText("restart\n");
-    job.phase = Phase::Done;
-    say(va("%s relit in %.1f s: the map restarted (the game can't be saved here)", job.map, seconds));
+    say(va("%s relit in %.1f s: the map restarted (the game can't be saved here)", map, seconds));
+}
+
+// light ended well: the map's own entities back, the result where the game loads it. Each file written beside its
+// place first (.tmp) and then renamed over it, the .bsp after its .lit and .lux and the .relight last: a quit or a
+// crash halfway leaves the map as it was or as it is now, never half of each.
+[[nodiscard]] bool finishSlot(Slot& slot, double& seconds)
+{
+    Item& item = batch.items[static_cast<za::SizeT>(slot.item)];
+    const maps::Source& s = item.source;
+    const char* map = s.map.cStr();
+    const za::String bspIn = slot.stem + ".bsp";
+    const za::String lit = slot.stem + ".lit";
+    const za::String lux = slot.stem + ".lux";
+    // (light's results, not an earlier run's: written since its input was)
+    const za::I64 since = slot.inputWritten;
+    za::Vector<unsigned char> data;
+    if(!files::readBytes(bspIn.cStr(), data) || !files::isFile(lit.cStr()) || files::lastWriteTime(lit.cStr()) < since)
+    {
+        Con_Printf("Relight: light made no .lit for %s:\n%s\n", map, logEnd(slot, 6).cStr());
+        return false;
+    }
+    const Bsp b{data.data(), data.size()};
+    if(!b.valid())
+    {
+        Con_Printf("Relight: light's %s.bsp can't be read\n", map);
+        return false;
+    }
+    const za::Vector<unsigned char> out = withEntities(b, slot.original);
+    const za::String outBsp = outPath(s, "bsp");
+    files::createDirectories(za::String{files::parentPath(za::StringView{outBsp})}.cStr());
+    const bool hasLux = files::isFile(lux.cStr()) && files::lastWriteTime(lux.cStr()) >= since;
+    seconds = Sys_DoubleTime() - slot.started;
+    za::String note{va("relit in the game (vr_relight) in %.1f s, %d lights from its textures\n", seconds, slot.lights)};
+    note += batch.lookText;
+    note += "\nhash ";
+    note += slot.hash;
+    note += "\n";
+    const za::String tmpBsp = outBsp + ".tmp", tmpLit = outPath(s, "lit.tmp"), tmpLux = outPath(s, "lux.tmp"),
+                     tmpNote = outPath(s, "relight.tmp");
+    const bool written = files::writeBytes(tmpBsp.cStr(), out.data(), out.size()) && copyFile(lit, tmpLit) &&
+                         (!hasLux || copyFile(lux, tmpLux)) && files::writeText(tmpNote.cStr(), za::StringView{note});
+    // (an earlier relight's .relight goes first: a crash before the end leaves no hash to skip a half-made map by)
+    files::remove(outPath(s, "relight").cStr());
+    const bool placed = written && files::rename(tmpLit.cStr(), outPath(s, "lit").cStr()) &&
+                        (hasLux ? files::rename(tmpLux.cStr(), outPath(s, "lux").cStr())
+                                : (files::remove(outPath(s, "lux").cStr()), true)) &&
+                        files::rename(tmpBsp.cStr(), outBsp.cStr()) &&
+                        files::rename(tmpNote.cStr(), outPath(s, "relight").cStr());
+    if(!placed)
+    {
+        for(const za::String* t : {&tmpBsp, &tmpLit, &tmpLux, &tmpNote})
+        {
+            files::remove(t->cStr());
+        }
+        Con_Printf("Relight: can't write the relit %s into %s\n", map, za::String{files::parentPath(za::StringView{outBsp})}.cStr());
+        return false;
+    }
+    removeWork(slot.stem);
+    VR_FileCacheForget();
+    return true;
+}
+
+// The batch's end: what it did, and the map in play reloaded if it waited for the end.
+void endBatch()
+{
+    batch.active = false;
+    batch.ended = Sys_DoubleTime();
+    const double seconds = batch.ended - batch.started;
+    if(batch.single)
+    {
+        return; // (its map's own message said it)
+    }
+    za::String line{va("%d map%s relit", batch.relit, batch.relit == 1 ? "" : "s")};
+    if(batch.skipped)
+    {
+        line += va(", %d skipped (relit with these settings already)", batch.skipped);
+    }
+    if(batch.failed)
+    {
+        line += va(", %d failed (%s)", batch.failed, batch.failedMaps);
+    }
+    line += va(" in %s", hms(seconds));
+    if(batch.reloadPending)
+    {
+        batch.reloadPending = false;
+        char now[MAX_QPATH];
+        if(currentMap(now, sizeof(now)) && !strcmp(now, batch.reloadMap))
+        {
+            say(line.cStr());
+            reloadNow(batch.reloadMap, seconds);
+            return;
+        }
+    }
+    say(line.cStr());
+}
+
+void itemEnded(Item& item, State state)
+{
+    item.state = state;
+    item.fraction = 1.f;
+    switch(state)
+    {
+        case State::Done: batch.relit++; break;
+        case State::Skipped: batch.skipped++; break;
+        case State::Failed:
+            batch.failed++;
+            if(strlen(batch.failedMaps) + item.source.map.size() + 3 < sizeof(batch.failedMaps))
+            {
+                q_strlcat(batch.failedMaps, batch.failedMaps[0] ? ", " : "", sizeof(batch.failedMaps));
+                q_strlcat(batch.failedMaps, item.source.map.cStr(), sizeof(batch.failedMaps));
+            }
+            break;
+        case State::Cancelled: batch.cancelled++; break;
+        default: break;
+    }
+}
+
+// A slot's light ended: its map's result taken (or its failure said), the map in play reloaded when it is that one.
+void slotEnded(int slotIndex)
+{
+    Slot& slot = batch.slots[slotIndex];
+    Item& item = batch.items[static_cast<za::SizeT>(slot.item)];
+    const char* map = item.source.map.cStr();
+    readProgress(slot);
+    const int code = process::lastExitCode(slotIndex);
+    double seconds = 0.0;
+    if(code != 0)
+    {
+        const za::String why{va("light failed on %s (exit %d):\n%s", map, code, logEnd(slot, 6).cStr())};
+        if(batch.single)
+        {
+            say(why.cStr());
+        }
+        else
+        {
+            Con_Printf("Relight: %s\n", why.cStr());
+        }
+        removeWork(slot.stem);
+        itemEnded(item, State::Failed);
+    }
+    else if(!finishSlot(slot, seconds))
+    {
+        if(batch.single)
+        {
+            say(va("relighting %s failed (the console says why)", map));
+        }
+        itemEnded(item, State::Failed);
+    }
+    else
+    {
+        itemEnded(item, State::Done);
+        char now[MAX_QPATH];
+        const bool inPlay = batch.reloadMap[0] && !strcmp(batch.reloadMap, map) &&
+                            !q_strcasecmp(batch.reloadGame, item.source.game.cStr()) && currentMap(now, sizeof(now)) &&
+                            !strcmp(now, map);
+        const int done = batch.relit + batch.skipped + batch.failed;
+        if(!batch.single)
+        {
+            Con_Printf("Relight: %s relit in %.1f s (%d of %d)\n", map, seconds, done, static_cast<int>(batch.items.size()));
+        }
+        if(inPlay && !batch.reloadAtEnd)
+        {
+            reloadNow(map, seconds);
+        }
+        else if(inPlay)
+        {
+            batch.reloadPending = true;
+        }
+        else if(batch.single)
+        {
+            say(va("%s relit in %.1f s: loaded from its next start (%s)", map, seconds,
+                za::String{files::parentPath(za::StringView{outPath(item.source, "bsp")})}.cStr()));
+        }
+    }
+    slot = Slot{};
+}
+
+// The free slots given the next maps: at most one started a poll (its texture lights are made on the main thread, a
+// few tens of milliseconds), the ones relit already passed over within a few milliseconds.
+void fillSlots()
+{
+    const double until = Sys_DoubleTime() + 0.008;
+    for(int s = 0; s < batch.parallel && batch.next < batch.items.size(); s++)
+    {
+        if(batch.slots[s].item >= 0)
+        {
+            continue;
+        }
+        while(batch.next < batch.items.size())
+        {
+            const za::SizeT i = batch.next++;
+            const Started r = startItem(i, s);
+            if(r == Started::Running)
+            {
+                return;
+            }
+            itemEnded(batch.items[i], r == Started::Skipped ? State::Skipped : State::Failed);
+            if(r == Started::Skipped)
+            {
+                Con_DPrintf("Relight: %s skipped: relit with these settings already\n", batch.items[i].source.map.cStr());
+                if(batch.single)
+                {
+                    say(va("%s is relit with these settings already", batch.items[i].source.map.cStr()));
+                }
+            }
+            else if(batch.single)
+            {
+                say(va("relighting %s failed (the console says why)", batch.items[i].source.map.cStr()));
+            }
+            if(Sys_DoubleTime() > until)
+            {
+                return;
+            }
+        }
+    }
+}
+
+[[nodiscard]] bool anyRunning()
+{
+    for(const Slot& slot : batch.slots)
+    {
+        if(slot.item >= 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+[[nodiscard]] bool busy()
+{
+    return batch.active || saving;
+}
+
+// A batch of `sources` started with the page's settings (single: vr_relight's one map). `force`: maps relit with the
+// same settings already relit again (vr_relight's always are).
+void startBatch(za::Vector<maps::Source> sources, bool single, bool force)
+{
+    if(busy())
+    {
+        say(batch.active ? "already relighting: cancel it first" : "reloading the map: wait a moment");
+        return;
+    }
+    const za::String tool = findTool();
+    if(tool.empty())
+    {
+        say("ericw-tools' light not found: set vr_relight_tool to its light.exe (docs/RELIGHTING.md)");
+        return;
+    }
+    batch = Batch{};
+    batch.single = single;
+    batch.force = single || force;
+    batch.tool = tool;
+    batch.root = customRoot();
+    batch.look = Look::now();
+    batch.lookText = settingsText(batch.look);
+    za::Vector<za::String> args;
+    lookOptions(args, batch.look);
+    batch.lookKey = batch.lookText;
+    for(const za::String& a : args)
+    {
+        batch.lookKey += " ";
+        batch.lookKey += a;
+    }
+    batch.lookKey += "\n";
+    batch.lookKey += rulesText();
+
+    // The map in play first, when it is one of them: it is the one whose light you see.
+    char current[MAX_QPATH];
+    maps::Source here;
+    const bool inPlay = currentMap(current, sizeof(current)) && maps::locate(current, here);
+    for(za::SizeT i = 0; inPlay && i < sources.size(); i++)
+    {
+        if(sources[i].map == here.map && !q_strcasecmp(sources[i].game.cStr(), here.game.cStr()))
+        {
+            if(i > 0)
+            {
+                maps::Source first = sources[i];
+                for(za::SizeT j = i; j > 0; j--)
+                {
+                    sources[j] = sources[j - 1];
+                }
+                sources[0] = first;
+            }
+            if(vr_relight_reload.value != 0.f)
+            {
+                q_strlcpy(batch.reloadMap, here.map.cStr(), sizeof(batch.reloadMap));
+                q_strlcpy(batch.reloadGame, here.game.cStr(), sizeof(batch.reloadGame));
+            }
+            break;
+        }
+    }
+    batch.reloadAtEnd = !single && vr_relight_batch_reload.value != 0.f;
+    for(maps::Source& s : sources)
+    {
+        Item item;
+        item.weight = static_cast<double>(za::max(s.length, za::I64{200000})); // (light's start and end, a small map's most)
+        item.source = ZA_MOVE(s);
+        batch.items.pushBack(ZA_MOVE(item));
+    }
+    batch.parallel = parallelCount(static_cast<int>(batch.items.size()));
+    const unsigned cores = za::Thread::hardwareConcurrency();
+    // All the cores but one (the game keeps one for itself; light also runs below normal priority), shared out.
+    batch.threads = za::max(1, (static_cast<int>(cores > 1u ? cores - 1u : 1u)) / batch.parallel);
+    batch.started = Sys_DoubleTime();
+    batch.active = true;
+    if(!single)
+    {
+        say(va("relighting %d map%s, %d at once (%d threads each)%s", static_cast<int>(batch.items.size()),
+            batch.items.size() == 1 ? "" : "s", batch.parallel, batch.threads, batch.force ? "" : "; those relit with these settings already skipped"));
+    }
+    fillSlots();
+    if(batch.active && batch.next >= batch.items.size() && !anyRunning())
+    {
+        endBatch();
+    }
+}
+
+// Every light stopped, its half-made files removed; the maps done are kept.
+void cancelBatch(const char* why)
+{
+    process::stopAll(false);
+    int stopped = 0;
+    za::String names;
+    for(Slot& slot : batch.slots)
+    {
+        if(slot.item < 0)
+        {
+            continue;
+        }
+        Item& item = batch.items[static_cast<za::SizeT>(slot.item)];
+        removeWork(slot.stem);
+        itemEnded(item, State::Cancelled);
+        names += names.empty() ? "" : ", ";
+        names += item.source.map;
+        stopped++;
+        slot = Slot{};
+    }
+    for(za::SizeT i = batch.next; i < batch.items.size(); i++)
+    {
+        itemEnded(batch.items[i], State::Cancelled);
+    }
+    batch.next = batch.items.size();
+    batch.active = false;
+    batch.ended = Sys_DoubleTime();
+    batch.reloadPending = false;
+    if(why)
+    {
+        if(batch.single)
+        {
+            say(va("relighting %s cancelled", batch.items.empty() ? "" : batch.items[0].source.map.cStr()));
+        }
+        else
+        {
+            say(va("%s: %d map%s relit kept, %s stopped (no output), %d not started", why, batch.relit,
+                batch.relit == 1 ? "" : "s", stopped ? names.cStr() : "none", batch.cancelled - stopped));
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2623,19 +3163,136 @@ void finish()
 
 void relightCommand()
 {
-    start(Cmd_Argc() > 1 ? Cmd_Argv(1) : nullptr);
+    char current[MAX_QPATH];
+    const char* requested = Cmd_Argc() > 1 ? Cmd_Argv(1) : nullptr;
+    if(!requested && !currentMap(current, sizeof(current)))
+    {
+        say("no map loaded: start a map first, or name one (vr_relight <map>)");
+        return;
+    }
+    char map[MAX_QPATH];
+    COM_StripExtension(requested ? requested : current, map, sizeof(map));
+    maps::Source s;
+    if(!maps::locate(map, s))
+    {
+        say(va("maps/%s.bsp not found", map));
+        return;
+    }
+    za::Vector<maps::Source> one;
+    one.pushBack(ZA_MOVE(s));
+    startBatch(ZA_MOVE(one), true, true);
+}
+
+// The page's game choices (vr_relight_batch_game).
+constexpr const char* batchGames[] = {"", "id1", "hipnotic", "rogue", "dopa", "mg1", "mg3"};
+
+// vr_relight_batch [map|episode [eN]|game [folder]|library|everything | <map> <map>...] [-force] [-list]: the page's
+// choice (vr_relight_batch_set ...) without a set named.
+void batchCommand()
+{
+    bool list = false, force = false;
+    za::Vector<const char*> words;
+    for(int i = 1; i < Cmd_Argc(); i++)
+    {
+        const char* a = Cmd_Argv(i);
+        if(!q_strcasecmp(a, "-list"))
+        {
+            list = true;
+        }
+        else if(!q_strcasecmp(a, "-force"))
+        {
+            force = true;
+        }
+        else
+        {
+            words.pushBack(a);
+        }
+    }
+    struct Named
+    {
+        const char* word;
+        maps::Set set;
+    };
+    static constexpr Named sets[] = {{"map", maps::Set::Map}, {"episode", maps::Set::Episode}, {"game", maps::Set::Game},
+        {"library", maps::Set::Library}, {"everything", maps::Set::Everything}};
+    char current[MAX_QPATH];
+    if(!currentMap(current, sizeof(current)))
+    {
+        current[0] = 0;
+    }
+    za::Vector<maps::Source> sources;
+    za::String why;
+    const Named* named = nullptr;
+    for(const Named& n : sets)
+    {
+        named = !words.empty() && !q_strcasecmp(words[0], n.word) ? &n : named;
+    }
+    bool found = false;
+    if(!words.empty() && !named)
+    {
+        // Maps by name, as the game finds them.
+        for(const char* w : words)
+        {
+            char map[MAX_QPATH];
+            COM_StripExtension(w, map, sizeof(map));
+            maps::Source s;
+            if(maps::locate(map, s))
+            {
+                sources.pushBack(ZA_MOVE(s));
+            }
+            else
+            {
+                Con_Printf("Relight: maps/%s.bsp not found\n", map);
+            }
+        }
+        found = !sources.empty();
+        why = "none of those maps found";
+    }
+    else
+    {
+        const int pick = static_cast<int>(vr_relight_batch_set.value);
+        const maps::Set set = named ? named->set : static_cast<maps::Set>(CLAMP(0, pick, 4));
+        const char* arg = words.size() > 1 ? words[1] : "";
+        char episode[16];
+        if(!named && set == maps::Set::Episode && vr_relight_batch_episode.value >= 1.f)
+        {
+            q_snprintf(episode, sizeof(episode), "e%d", static_cast<int>(vr_relight_batch_episode.value));
+            arg = episode;
+        }
+        if(!named && set == maps::Set::Game)
+        {
+            arg = batchGames[CLAMP(0, static_cast<int>(vr_relight_batch_game.value), 6)];
+        }
+        found = maps::collect(set, arg, current, sources, why);
+    }
+    if(!found)
+    {
+        say(why.cStr());
+        return;
+    }
+    if(list)
+    {
+        za::I64 bytes = 0;
+        for(const maps::Source& s : sources)
+        {
+            Con_Printf("  %s/%s (%s%s, %lld bytes)\n", s.game.cStr(), s.map.cStr(), s.inPak ? "in " : "",
+                za::String{files::fileName(za::StringView{s.file})}.cStr(), static_cast<long long>(s.length));
+            bytes += s.length;
+        }
+        Con_Printf("Relight: %d maps, %.1f MB\n", static_cast<int>(sources.size()), static_cast<double>(bytes) / 1048576.0);
+        return;
+    }
+    startBatch(ZA_MOVE(sources), false, force || vr_relight_batch_force.value != 0.f);
 }
 
 void cancelCommand()
 {
-    if(job.phase != Phase::Running)
+    if(!batch.active)
     {
         say("nothing is being relit");
         return;
     }
-    process::stop();
-    job.phase = Phase::Failed;
-    say(va("relighting %s cancelled", job.map));
+    cancelBatch("cancelled");
 }
 
 // The in-game relight of the map in play (or the one named) removed: it plays with relight_maps.py's light, or its own.
@@ -2670,7 +3327,21 @@ void revertCommand()
 
 void statusCommand()
 {
-    Con_Printf("%s\n%s\n%s\n", statusLine(), mapLine(), toolLine());
+    Con_Printf("%s\n", statusLine());
+    if(batch.active || batch.ended > 0.0)
+    {
+        Con_Printf("%s\n%s (%.3f)\n", detailLine(), progressText(), progress());
+        for(int s = 0; s < maxSlots; s++)
+        {
+            if(batch.slots[s].item >= 0)
+            {
+                Con_Printf("  slot %d: %s, light pid %d, %s %d%%\n", s,
+                    batch.items[static_cast<za::SizeT>(batch.slots[s].item)].source.map.cStr(), process::processId(s),
+                    batch.slots[s].stage, batch.slots[s].percent);
+            }
+        }
+    }
+    Con_Printf("%s\n%s\n", mapLine(), toolLine());
 }
 
 void defaultsCommand()
@@ -2710,7 +3381,7 @@ void lightsCommand()
     }
     Report report;
     const double t0 = Sys_DoubleTime();
-    const za::String lights = lightsFor(b, game, map, report);
+    const za::String lights = lightsFor(b, game, map, Look::now(), report);
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     const za::String file = Cmd_Argc() > 1 ? za::String{Cmd_Argv(1)} : files::join(za::StringView{com_gamedir}, za::StringView{"relight_lights.txt"});
     const bool written = files::writeBytes(file.cStr(), lights.data(), lights.size());
@@ -2723,15 +3394,37 @@ void lightsCommand()
 
 // Formats for the page (file scope: valid until the function's next call).
 char statusText[512];
+char detailText[512];
+char progressTextBuf[64];
+char indicatorText[64];
 char mapText[512];
 char toolText[MAX_OSPATH + 64];
 double toolCheckedAt{0.0}; // when toolText was made (Sys_DoubleTime)
+
+// The maps the batch has done with (relit, skipped, failed).
+[[nodiscard]] int doneCount()
+{
+    return batch.relit + batch.skipped + batch.failed;
+}
+
+// Seconds left by the work done so far ( < 0: too early to say).
+[[nodiscard]] double secondsLeft()
+{
+    const double p = progress();
+    const double elapsed = Sys_DoubleTime() - batch.started;
+    if(p < 0.01 || elapsed < 2.0)
+    {
+        return -1.0;
+    }
+    return elapsed * (1.0 - p) / p;
+}
 
 } // namespace
 
 void registerCommands()
 {
     Cmd_AddCommand("vr_relight", relightCommand);
+    Cmd_AddCommand("vr_relight_batch", batchCommand);
     Cmd_AddCommand("vr_relight_cancel", cancelCommand);
     Cmd_AddCommand("vr_relight_revert", revertCommand);
     Cmd_AddCommand("vr_relight_status", statusCommand);
@@ -2741,54 +3434,96 @@ void registerCommands()
 
 void poll()
 {
-    if(job.phase == Phase::Saving)
+    if(saving)
     {
         if(Host_IsSaving())
         {
             return;
         }
         Cbuf_InsertText("load \"autosave/relight\"\n");
-        job.phase = Phase::Done;
+        saving = false;
         return;
     }
     const double now = Sys_DoubleTime();
-    if(job.phase != Phase::Running || now < job.nextPoll)
+    if(!batch.active || now < batch.nextPoll)
     {
         return;
     }
-    job.nextPoll = now + 0.1;
-    readProgress();
-    if(process::running())
+    batch.nextPoll = now + 0.1;
+    for(int s = 0; s < maxSlots; s++)
     {
-        return;
+        Slot& slot = batch.slots[s];
+        if(slot.item < 0)
+        {
+            continue;
+        }
+        readProgress(slot);
+        if(!process::running(s))
+        {
+            slotEnded(s);
+            if(saving)
+            {
+                return; // (the next maps after the reload's save)
+            }
+        }
     }
-    readProgress();
-    const int code = process::lastExitCode();
-    if(code != 0)
+    fillSlots();
+    if(!anyRunning() && batch.next >= batch.items.size())
     {
-        say(va("light failed on %s (exit %d):\n%s", job.map, code, logEnd(6).cStr()));
-        job.phase = Phase::Failed;
-        return;
+        endBatch();
     }
-    finish();
 }
 
 void shutdown()
 {
-    if(job.phase == Phase::Running)
+    if(batch.active)
     {
-        process::stop();
-        job.phase = Phase::Failed;
+        cancelBatch(nullptr); // (no half-made files left in the work folder)
     }
-    process::stop(); // (its job object closed)
+    process::stopAll(true); // (its job object closed)
+}
+
+float progress()
+{
+    if(batch.items.empty())
+    {
+        return -1.f;
+    }
+    double total = 0.0, done = 0.0;
+    for(const Item& item : batch.items)
+    {
+        if(item.state == State::Skipped)
+        {
+            continue; // (no work)
+        }
+        total += item.weight;
+        // (a cancelled map counts as not done: the bar stays where the batch got to)
+        done += item.state == State::Running                                         ? item.weight * item.fraction :
+                item.state == State::Queued || item.state == State::Cancelled ? 0.0 :
+                                                                                       item.weight;
+    }
+    return total > 0.0 ? static_cast<float>(done / total) : 1.f;
+}
+
+bool running()
+{
+    return batch.active;
 }
 
 const char* statusLine()
 {
-    if(job.phase == Phase::Running)
+    if(batch.active)
     {
-        q_snprintf(statusText, sizeof(statusText), "Relighting %s: %s%s (%.0f s)", job.map, job.stage,
-            job.percent >= 0 ? va(" %d%%", job.percent) : "", Sys_DoubleTime() - job.started);
+        const double elapsed = Sys_DoubleTime() - batch.started;
+        if(batch.single)
+        {
+            q_snprintf(statusText, sizeof(statusText), "Relighting %s (%s)", batch.items[0].source.map.cStr(), hms(elapsed));
+        }
+        else
+        {
+            q_snprintf(statusText, sizeof(statusText), "Relighting: %d of %d maps (%s)", doneCount(),
+                static_cast<int>(batch.items.size()), hms(elapsed));
+        }
         return statusText;
     }
     q_strlcpy(statusText, status[0] ? status : "Not relit in this session.", sizeof(statusText));
@@ -2797,6 +3532,80 @@ const char* statusLine()
         *c = *c == '\n' ? ' ' : *c; // (a failure's log lines, on one line)
     }
     return statusText;
+}
+
+const char* detailLine()
+{
+    detailText[0] = 0;
+    if(!batch.active)
+    {
+        if(batch.ended > 0.0 && !batch.single)
+        {
+            q_snprintf(detailText, sizeof(detailText), "%d relit, %d skipped, %d failed", batch.relit, batch.skipped,
+                batch.failed);
+        }
+        return detailText;
+    }
+    int running = 0;
+    for(const Slot& s : batch.slots)
+    {
+        running += s.item >= 0 ? 1 : 0;
+    }
+    for(const Slot& s : batch.slots)
+    {
+        if(s.item < 0)
+        {
+            continue;
+        }
+        const char* map = batch.items[static_cast<za::SizeT>(s.item)].source.map.cStr();
+        // One map: its stage and percentage; several: each one's percentage of its run.
+        const char* part = running == 1 ? va("%s: %s%s", map, s.stage, s.percent >= 0 ? va(" %d%%", s.percent) : "")
+                                        : va("%s%s %.0f%%", detailText[0] ? "  " : "", map,
+                                              100.f * batch.items[static_cast<za::SizeT>(s.item)].fraction);
+        q_strlcat(detailText, part, sizeof(detailText));
+    }
+    if(!running)
+    {
+        q_strlcpy(detailText, "checking the next maps", sizeof(detailText));
+    }
+    return detailText;
+}
+
+const char* progressText()
+{
+    const float p = progress();
+    if(p < 0.f)
+    {
+        return "";
+    }
+    if(!batch.active)
+    {
+        q_snprintf(progressTextBuf, sizeof(progressTextBuf), "%.0f%% %s", 100.f * p, hms(batch.ended - batch.started));
+        return progressTextBuf;
+    }
+    const double left = secondsLeft();
+    q_snprintf(progressTextBuf, sizeof(progressTextBuf), "%.0f%% %s", 100.f * p, left < 0.0 ? "--:--" : hms(left));
+    return progressTextBuf;
+}
+
+const char* indicator()
+{
+    if(!batch.active || vr_relight_indicator.value == 0.f)
+    {
+        return nullptr;
+    }
+    const double left = secondsLeft();
+    if(batch.single)
+    {
+        q_snprintf(indicatorText, sizeof(indicatorText), "RELIGHT %s %.0f%%", batch.items[0].source.map.cStr(),
+            100.f * progress());
+    }
+    else
+    {
+        q_snprintf(indicatorText, sizeof(indicatorText), "RELIGHT %d/%d %.0f%% %s", doneCount(),
+            static_cast<int>(batch.items.size()), 100.f * progress(), left < 0.0 ? "" : hms(left));
+    }
+    return indicatorText;
 }
 
 const char* mapLine()
@@ -2838,3 +3647,18 @@ const char* toolLine()
 }
 
 } // namespace qvr::relight
+
+extern "C" const char* VR_RelightIndicator(float* fraction)
+{
+    // (the wrist gadget's screen shows it in the headset; the menu's page while it is open)
+    if(qvr::gadget::active() || key_dest == key_menu)
+    {
+        return nullptr;
+    }
+    const char* text = qvr::relight::indicator();
+    if(text && fraction)
+    {
+        *fraction = qvr::relight::progress();
+    }
+    return text;
+}

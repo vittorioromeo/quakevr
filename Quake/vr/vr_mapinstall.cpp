@@ -1754,6 +1754,11 @@ bool playFailed(const za::String& sha, const za::String& text)
 
 } // namespace
 
+za::String packageFolder(const za::String& sha)
+{
+    return addonDir(sha);
+}
+
 void packageMaps(const za::String& sha, za::Vector<za::String>& out)
 {
     out.clear();

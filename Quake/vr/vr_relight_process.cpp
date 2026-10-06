@@ -1,8 +1,8 @@
-// vr_relight_process.cpp -- the in-game relighting's light process (vr_relight.cpp): ericw-tools' light run with the
+// vr_relight_process.cpp -- the in-game relighting's light processes (vr_relight.cpp): ericw-tools' light run with the
 // arguments given, below normal priority, without a console window, its output (stdout and stderr) into a log file
-// the relighting reads its progress from. On Windows it is put in a job object that ends it when the game's process
-// ends (a crash too), so that it never outlives the game. Its own translation unit: <windows.h> stays out of the
-// engine's headers.
+// the relighting reads its progress from. Up to maxSlots at once (a batch's maps side by side), each in its slot. On
+// Windows each is put in a job object that ends it when the game's process ends (a crash too), so that none outlives
+// the game. Its own translation unit: <windows.h> stays out of the engine's headers.
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -25,11 +25,13 @@ extern char** environ;
 namespace qvr::relight::process
 {
 
+constexpr int maxSlots = 8; // (vr_relight.cpp's own copy: vr_relight_parallel's most)
+
 namespace
 {
 #ifdef _WIN32
-// The light process and the job object that ends it with the game (main thread).
-HANDLE process = nullptr;
+// The light processes, a slot each, and the job object that ends them with the game (main thread).
+HANDLE process[maxSlots]{};
 HANDLE job = nullptr;
 
 using Wide = za::Vector<wchar_t>;
@@ -71,17 +73,27 @@ void appendQuoted(Wide& line, const Wide& arg)
     line.pushBack(L'"');
 }
 #else
-pid_t pid = 0;
+pid_t pid[maxSlots]{};
 int status = 0;
 #endif
-int exitCode = 0;
+int exitCode[maxSlots]{};
+
+[[nodiscard]] bool validSlot(int slot)
+{
+    return slot >= 0 && slot < maxSlots;
+}
 } // namespace
 
-bool start(const za::String& exe, const za::Vector<za::String>& args, const za::String& cwd, const za::String& log,
-    za::String& error)
+bool start(int slot, const za::String& exe, const za::Vector<za::String>& args, const za::String& cwd,
+    const za::String& log, za::String& error)
 {
+    if(!validSlot(slot))
+    {
+        error = "no such slot";
+        return false;
+    }
 #ifdef _WIN32
-    if(process)
+    if(process[slot])
     {
         error = "already running";
         return false;
@@ -140,11 +152,11 @@ bool start(const za::String& exe, const za::Vector<za::String>& args, const za::
     }
     ResumeThread(pi.hThread);
     CloseHandle(pi.hThread);
-    process = pi.hProcess;
-    exitCode = 0;
+    process[slot] = pi.hProcess;
+    exitCode[slot] = 0;
     return true;
 #else
-    if(pid > 0)
+    if(pid[slot] > 0)
     {
         error = "already running";
         return false;
@@ -166,80 +178,114 @@ bool start(const za::String& exe, const za::Vector<za::String>& args, const za::
         argv.pushBack(const_cast<char*>(a.cStr()));
     }
     argv.pushBack(nullptr);
-    const int rc = posix_spawn(&pid, exe.cStr(), &actions, nullptr, argv.data(), environ);
+    const int rc = posix_spawn(&pid[slot], exe.cStr(), &actions, nullptr, argv.data(), environ);
     posix_spawn_file_actions_destroy(&actions);
     close(fd);
     if(rc != 0)
     {
-        pid = 0;
+        pid[slot] = 0;
         error = "can't start it";
         return false;
     }
-    exitCode = 0;
+    exitCode[slot] = 0;
     return true;
 #endif
 }
 
-bool running()
+bool running(int slot)
 {
-#ifdef _WIN32
-    if(!process)
+    if(!validSlot(slot))
     {
         return false;
     }
-    if(WaitForSingleObject(process, 0) != WAIT_OBJECT_0)
+#ifdef _WIN32
+    if(!process[slot])
+    {
+        return false;
+    }
+    if(WaitForSingleObject(process[slot], 0) != WAIT_OBJECT_0)
     {
         return true;
     }
     DWORD code = 0;
-    GetExitCodeProcess(process, &code);
-    exitCode = static_cast<int>(code);
-    CloseHandle(process);
-    process = nullptr;
+    GetExitCodeProcess(process[slot], &code);
+    exitCode[slot] = static_cast<int>(code);
+    CloseHandle(process[slot]);
+    process[slot] = nullptr;
     return false;
 #else
-    if(pid <= 0)
+    if(pid[slot] <= 0)
     {
         return false;
     }
-    if(waitpid(pid, &status, WNOHANG) == 0)
+    if(waitpid(pid[slot], &status, WNOHANG) == 0)
     {
         return true;
     }
-    exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    pid = 0;
+    exitCode[slot] = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    pid[slot] = 0;
     return false;
 #endif
 }
 
-int lastExitCode()
+int lastExitCode(int slot)
 {
-    return exitCode;
+    return validSlot(slot) ? exitCode[slot] : -1;
 }
 
-void stop()
+int processId(int slot)
 {
 #ifdef _WIN32
-    if(process)
+    return validSlot(slot) && process[slot] ? static_cast<int>(GetProcessId(process[slot])) : 0;
+#else
+    return validSlot(slot) ? static_cast<int>(pid[slot]) : 0;
+#endif
+}
+
+// Every slot's process ended (all told to end first, then each waited for: a batch's stop is as quick as one), and,
+// with `closeJob`, the job object closed (the game is quitting).
+void stopAll(bool closeJob)
+{
+#ifdef _WIN32
+    for(HANDLE p : process)
     {
-        TerminateProcess(process, 1);
-        WaitForSingleObject(process, 5000);
-        CloseHandle(process);
-        process = nullptr;
-        exitCode = 1;
+        if(p)
+        {
+            TerminateProcess(p, 1);
+        }
     }
-    if(job)
+    for(int i = 0; i < maxSlots; i++)
+    {
+        if(process[i])
+        {
+            WaitForSingleObject(process[i], 5000);
+            CloseHandle(process[i]);
+            process[i] = nullptr;
+            exitCode[i] = 1;
+        }
+    }
+    if(closeJob && job)
     {
         CloseHandle(job);
         job = nullptr;
     }
 #else
-    if(pid > 0)
+    (void)closeJob;
+    for(const pid_t p : pid)
     {
-        kill(pid, SIGTERM);
-        waitpid(pid, &status, 0);
-        pid = 0;
-        exitCode = 1;
+        if(p > 0)
+        {
+            kill(p, SIGTERM);
+        }
+    }
+    for(int i = 0; i < maxSlots; i++)
+    {
+        if(pid[i] > 0)
+        {
+            waitpid(pid[i], &status, 0);
+            pid[i] = 0;
+            exitCode[i] = 1;
+        }
     }
 #endif
 }

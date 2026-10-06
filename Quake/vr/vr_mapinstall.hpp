@@ -134,6 +134,9 @@ bool play(const za::String& sha, const char* map = nullptr);
 [[nodiscard]] za::String startMap(const za::String& sha, za::String* why = nullptr, int* mapCount = nullptr);
 // The maps an installed package holds, by name ("plaw01", "sub/x"), sorted.
 void packageMaps(const za::String& sha, za::Vector<za::String>& out);
+// The package's own folder (<base>/qvr_addons/<id>/, laid out as a game dir), installed or not: where its maps are
+// (the in-game relighting's batches, vr_relight_maps.cpp).
+[[nodiscard]] za::String packageFolder(const za::String& sha);
 // Why the last Play of this package did not start it ("" : it did, or none was tried).
 [[nodiscard]] const za::String& playProblem(const za::String& sha);
 // The mod a package was made for that Quake VR does not run (its own progs: "Arcane Dimensions", "Quoth", "Copper",
