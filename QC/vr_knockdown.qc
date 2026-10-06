@@ -284,13 +284,12 @@ float(entity e) VR_Knockdown_Start =
     return TRUE;
 };
 
-float VR_KD_LEDGE_MARGIN = 16; // units past a shove's reckoned travel where a ledge still counts (VR_Knockdown_Ledge)
 float VR_KD_LEDGE_STEP = 8;    // units between the points along its way where the ground under it is looked for
 
 // Ledges (vr_knockdown_ledge; Combat > Knockdowns, "Over a Ledge"): whether the shove that just landed on `e` (its
 // velocity VR_Push's: along the shove, and the hop) carries it over the edge of a drop of vr_knockdown_ledge_drop or more.
 // - Its reach: the hop (2 x up / gravity in the air, at its speed), then the slide (speed^2 / 2 VR_SHOVE_FRICTION; none
-//   under VR_SHOVE_MINSPEED, as VR_Push), plus VR_KD_LEDGE_MARGIN.
+//   under VR_SHOVE_MINSPEED, as VR_Push), times vr_knockdown_ledge_reach (1), plus vr_knockdown_ledge_margin (16).
 // - Its hull is traced along the way, a unit off the floor: a wall, a railing or a step up stops it there (no ledge past
 //   it). Only the world and brush entities count (lifts, plats, doors); monsters and props do not.
 // - Every VR_KD_LEDGE_STEP units the ground under the middle of its feet is looked for (where the slide sends it on over:
@@ -310,10 +309,15 @@ float(entity e) VR_Knockdown_Ledge =
     }
     dir = dir * (1 / speed);
     float g = max(1, cvar_hget(cvarh_sv_gravity) * (e.gravity ? e.gravity : 1));
-    float reach = speed * 2 * max(0, e.velocity_z) / g + VR_KD_LEDGE_MARGIN;
+    float travel = speed * 2 * max(0, e.velocity_z) / g;
     if(speed >= VR_SHOVE_MINSPEED)
     {
-        reach = reach + speed * speed / (2 * VR_SHOVE_FRICTION);
+        travel = travel + speed * speed / (2 * VR_SHOVE_FRICTION);
+    }
+    float reach = travel * max(0, cvar_hget(cvarh_vr_knockdown_ledge_reach)) + max(0, cvar_hget(cvarh_vr_knockdown_ledge_margin));
+    if(reach < 1)
+    {
+        return FALSE;
     }
     vector start = e.origin + '0 0 1';
     tracebox(start, e.mins, e.maxs, start + dir * reach, TRUE, e);

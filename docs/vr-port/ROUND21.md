@@ -24647,6 +24647,14 @@ steps) 7/20, none forced; on the grab-leniency block (top 48) at Ledge Height 32
 toward the thin wall 6 units past its edge 9/20, none forced (the hull's way ends 18 units on); at 64, its open edge 10/20
 (48 is no ledge); on vrclimb's plat (top 48) at 32: 20/20 forced. Not checked: a lift while it moves, a drop into liquid.
 
+**Its reach, adjustable** (asked the same day): Combat > Knockdowns, **Ledge Reach** (`vr_knockdown_ledge_reach`, 1:
+times the shove's reckoned travel, the hop and the slide; 0.25..3 on the slider) and **Ledge Margin**
+(`vr_knockdown_ledge_margin`, 16 units past it; 0..128), replacing the fixed `VR_KD_LEDGE_MARGIN`. The defaults give the
+old reach exactly. Checked on vrclimb (the cases above plus new ones, 6 trials each; the debug line's reach and edge):
+at the defaults every case as before (reach 241; forced 6/6 toward the trench, the block's open edge at 32 and the plat;
+none elsewhere); toward the trench (edge 48 ahead) reach 0.1 (22 units) and 0 + 16 forced none, 0.25 (56) and 0 + 64
+forced all; from 64 units further back (edge 128 ahead) the defaults forced all, 0.25 + 16 (72) and 0.25 + 64 (120) none.
+
 ## Flat-screen input lag (2026-10-06)
 
 Report: in flat-screen play (keyboard and mouse) WSAD seemed to register half a second late.

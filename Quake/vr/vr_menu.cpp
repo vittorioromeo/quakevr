@@ -750,6 +750,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "anywhere."),
         slider("Ledge Height", vr_knockdown_ledge_drop, 24.f, 256.f, 8.f, "%.0f units").extend(1.f, 1024.f)
             .help("How high a drop must be to count as a ledge (64: a bit more than you are tall; a stair is 16-18)."),
+        slider("Ledge Reach", vr_knockdown_ledge_reach, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How far ahead a ledge is looked for, times how far the shove would carry it (the hop and the slide). "
+                  "1: as far as it goes; less: only ledges close by force the knockdown; more: further ones too."),
+        slider("Ledge Margin", vr_knockdown_ledge_margin, 0.f, 128.f, 4.f, "%.0f units").extend(0.f, 512.f)
+            .help("How far past that a ledge still counts, in units (16: about a monster's half width)."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
