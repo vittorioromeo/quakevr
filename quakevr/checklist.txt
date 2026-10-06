@@ -9,7 +9,7 @@ Shove toward a high ledge: always knocks down; Ledge Reach and Ledge Margin chan
 Parallax: carved walls keep their depth when seen from the side, no swimming (Graphics > Surfaces)
 Animated buttons and slipgate panels: no pulsing between frames
 Flat screen: WSAD responds at once; corner buttons as an icon row at the top left
-VR menus: Spectator camera On/Off switch at the bottom left
+VR menus: Spectator camera On/Off switch at the bottom left, with a small live preview above it (size readable?); top-right status box fits its text
 New defaults: a fresh config looks and plays like yours (parallax, combat, parry, retro)
 Official Campaigns: drawn in the big menu font
 Map tips: the CRT tip near the vrstart start appears; REPEAT tips come back; List This Map's Tips works
