@@ -4390,6 +4390,19 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_alloc_sites [frames] [lines] [peak]: the main thread's C++ and C heap events over the next 300 frames by where they "
                   "were asked for (the commonest first: a frame's, the place, its caller) in the console. To find the buffers "
                   "a frame makes and frees. Includes kinds and requested bytes. Set peak to 1 for the busiest frame's stacks. Tracing affects timings."),
+        command("Heap Allocator", "vr_heap")
+            .help("vr_heap: what serves malloc/free and new/delete (mimalloc; the C runtime's with -nomimalloc), the "
+                  "process's working set and commit, mimalloc's reserved and committed memory, pages, threads and arenas."),
+        command("Heap Statistics", "vr_heap stats")
+            .help("vr_heap stats: mimalloc's own statistics table and options in the console. Long output."),
+        command("Heap Self-Test", "vr_heap test")
+            .help("vr_heap test: every way the code allocates (malloc, calloc, realloc, strdup, new, aligned new, "
+                  "_aligned_malloc) gives mimalloc's blocks, and the C runtime's own blocks go back to it; PASS or FAIL."),
+        command("Heap Stress", "vr_heap stress 8 2000")
+            .help("vr_heap stress [threads] [ms]: 8 threads allocating and freeing for 2 s (a quarter freed by another "
+                  "thread), each block checked: million operations a second, the heap's contention. Stalls the game."),
+        command("Heap: Return Free Memory", "vr_heap collect")
+            .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Crashes"),
         command("Crash the Game", "vr_debug_crash")
             .help("vr_debug_crash [access | abort]: crashes the game now, on purpose, to test the crash report (in a test run: "

@@ -94,3 +94,32 @@ if (WIN32)
 	target_link_libraries(qvr_zancle PUBLIC synchronization winmm)
 endif()
 target_link_libraries(ironwail PRIVATE qvr_zancle)
+
+# mimalloc (external/mimalloc/README.md): the process's C heap, malloc/free and new/delete (vr_crtheap.c; new/delete
+# call malloc/free, vr_alloccount.cpp). One C file, src/static.c, includes the others; it is compiled into the
+# executable itself (an object, not an archive: its definitions must win over the C library's).
+# Windows (clang-cl, the DLL C runtime): vr_crtheap.c defines malloc and the rest and their import pointers (__imp_*), on
+# 64-bit only. Elsewhere: mimalloc's own override (MI_MALLOC_OVERRIDE: malloc and the rest defined in the executable,
+# which the shared libraries' calls bind to as well); not on macOS (its static override does not take there).
+# OFF: the C library's heap, untouched; at run time on Windows -nomimalloc or QVR_MIMALLOC=0 does the same.
+if (APPLE OR (WIN32 AND NOT CMAKE_SIZEOF_VOID_P EQUAL 8))
+	set(QVR_MIMALLOC_DEFAULT OFF)
+else()
+	set(QVR_MIMALLOC_DEFAULT ON)
+endif()
+option(QVR_MIMALLOC "mimalloc as the process's heap (malloc/free, new/delete)" ${QVR_MIMALLOC_DEFAULT})
+set(QVR_CRTHEAP_SRC "${CMAKE_CURRENT_LIST_DIR}/vr_crtheap.c" "${CMAKE_CURRENT_LIST_DIR}/vr_crtheap_info.c")
+target_sources(ironwail PRIVATE ${QVR_CRTHEAP_SRC})
+set_source_files_properties(${QVR_CRTHEAP_SRC} PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}/external/mimalloc/include")
+if (QVR_MIMALLOC)
+	set(QVR_MIMALLOC_SRC "${CMAKE_CURRENT_LIST_DIR}/external/mimalloc/src/static.c")
+	target_sources(ironwail PRIVATE ${QVR_MIMALLOC_SRC})
+	set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}/external/mimalloc/include")
+	set_source_files_properties(${QVR_CRTHEAP_SRC} PROPERTIES COMPILE_DEFINITIONS QVR_MIMALLOC)
+	if (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+		set_source_files_properties("${CMAKE_CURRENT_LIST_DIR}/vr_crtheap.c" PROPERTIES COMPILE_OPTIONS "/clang:-fno-builtin")
+	else()
+		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS MI_MALLOC_OVERRIDE
+			COMPILE_OPTIONS "-fno-builtin-malloc;-fno-builtin-free;-fno-builtin-calloc;-fno-builtin-realloc")
+	endif()
+endif()

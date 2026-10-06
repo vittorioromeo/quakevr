@@ -87,6 +87,37 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <ObjectFileName>$(IntDir)box3d\</ObjectFileName>
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
+    <!-- The C heap (Quake/vr/vr_crtheap.c): its report (vr_crtheap_info.c), a C file each; QVR_MIMALLOC with mimalloc. -->
+    <ClCompile Include="..\..\Quake\vr\vr_crtheap.c;..\..\Quake\vr\vr_crtheap_info.c">
+      <CompileAs>CompileAsC</CompileAs>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PreprocessorDefinitions Condition="'$(QVR_MIMALLOC)'=='true'">QVR_MIMALLOC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\Quake\vr\external\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <!-- The override itself: no builtin knowledge of malloc and the rest (they are defined there). -->
+    <ClCompile Update="..\..\Quake\vr\vr_crtheap.c">
+      <AdditionalOptions>/clang:-fno-builtin %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClInclude Include="..\..\Quake\vr\external\mimalloc\include\*.h;..\..\Quake\vr\external\mimalloc\include\mimalloc\*.h" />
+  </ItemGroup>
+  <!-- mimalloc (Quake/vr/external/mimalloc/README.md): the process's C heap, malloc/free and new/delete (vr_crtheap.c), on
+       64-bit builds (the override's import pointers are x64's). QVR_MIMALLOC=false (msbuild -p:QVR_MIMALLOC=false) builds
+       without it, the C runtime's heap untouched; -nomimalloc or QVR_MIMALLOC=0 turns it off at run time. One C file,
+       src/static.c, includes the others. MI_DEBUG follows the configuration (types.h: 0 with NDEBUG, else 2, its asserts
+       and invalid-free checks in Debug). -->
+  <PropertyGroup Condition="'$(QVR_MIMALLOC)'==''">
+    <QVR_MIMALLOC Condition="'$(Platform)'=='x64'">true</QVR_MIMALLOC>
+    <QVR_MIMALLOC Condition="'$(Platform)'!='x64'">false</QVR_MIMALLOC>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(QVR_MIMALLOC)'=='true'">
+    <ClCompile Include="..\..\Quake\vr\external\mimalloc\src\static.c">
+      <CompileAs>CompileAsC</CompileAs>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <AdditionalIncludeDirectories>..\..\Quake\vr\external\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ObjectFileName>$(IntDir)mimalloc\</ObjectFileName>
+    </ClCompile>
   </ItemGroup>
   <!-- The build's version (VR_BuildVersion, vr_crash.cpp: the console, the main VR Settings page, qvr_crash.txt):
        $(IntDir)qvr_buildver.h, the last commit's date and short hash, "-dirty" when tracked files differ from it. Written
