@@ -26889,3 +26889,25 @@ Checked on the firing range (developer 1 prints each model's bytes' FNV): the fi
 123 FNVs equal to the bakes before the change. One model's last vertex changed, plus three files damaged (a payload
 byte, the magic, a truncation): exactly those 4 baked again (3 "rejected"), 119 read. A changed constant (the lift
 share, a test build): all baked again. `vr_ao_cache 2`: 123 compared, 0 differed.
+
+**Faster bake, the same bytes.** Per pose, the triangles go into a uniform grid of cubes half the reach wide (each by
+its centre; those wider than half the reach in a list tested for every vertex), and a vertex's candidates come from
+the cells within the reach plus the cells' widest radius, then pass the very test the old bake used (branch-free:
+a quarter pass, unpredictably). The rays then run 8 at a time (AVX, when SDL_HasAVX says so) or 4 (SSE2) through
+Möller-Trumbore with the same float operations in the same order as the scalar code (the build has no FMA
+contraction), the ray-independent terms (s, q, e2.q) once per candidate; skipped tests are masked lanes, NaNs fall the
+same way, and the nearest hit does not depend on the candidates' order. The old bake stays as `bakePoseReference`;
+`vr_ao_bench [name part] [sse] [reference]` (Debug menu "AO Bake Benchmark") bakes the loaded models again on the main
+thread, one thread, and compares the bytes. `BAKE_VERSION` stays 1 (the same bytes; the old files check out).
+
+| | before | after |
+|---|---|---|
+| firing range, in game (123 models, 4 threads, wall) | 9988 ms (hknight 943, player 907) | 1160 ms (player 114, hknight 92) |
+| warden, in game (164 models) | 4968 ms | 1046 ms |
+| firing range, `vr_ao_bench` one thread (112 models) | 24873 ms (reference) | 3149 ms AVX (7.9x), 4586 ms SSE |
+| e1m1, `vr_ao_bench` one thread (97 models) | 11902 ms | 1571 ms AVX (7.6x), 2271 ms SSE |
+
+The same bytes: every model's FNV equal to the old bake's on the firing range (123) and warden (164); `vr_ao_bench .
+sse reference` 0 differed on the firing range (112) and e1m1 (97); `vr_ao_cache 2` over the files the old bake wrote:
+123 compared, 0 differed. A cell half the reach wide was the fastest (a third: 3.7 s, three quarters: 3.4 s).
+Second session (warden): 164 read in 265 ms on the bake task (the reads share the disk with the map's load), 0 baked.

@@ -41,6 +41,13 @@
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
+#include <immintrin.h> // (the bake's rays: SSE2, x64's baseline, four at a time; AVX, when there, eight)
 #include <stdio.h>
 #include <string.h>
 
@@ -786,11 +793,12 @@ struct PoseJob
     float reach{1.f};
     unsigned char* out{nullptr};
     const za::Atomic<bool>* stop{nullptr}; // the game quitting: the bake given up at once
+    bool avx{false};                       // the rays eight at a time (raysAvx), not four
 };
 
-// One pose: for each vertex, the share of cosine-weighted rays over its hemisphere that the model's own triangles
-// stop within `reach` (a hit counts less the farther it is: 1 - t / reach).
-void bakePose(const PoseJob& job, int pose, za::Vector<int>& cand)
+// The reference bake (vr_ao_bench reference; the bake before 2026-10-06): every triangle tested for being in reach,
+// then each ray against each candidate in turn. bakePose must give the same bytes.
+void bakePoseReference(const PoseJob& job, int pose, za::Vector<int>& cand)
 {
     const za::Array<glm::vec3, RAYS>& dirs = rayDirs;
     const trivertx_t* tv = job.verts + static_cast<size_t>(pose) * job.numverts;
@@ -901,6 +909,391 @@ void bakePose(const PoseJob& job, int pose, za::Vector<int>& cand)
     }
 }
 
+// A pose thread's buffers, kept from one pose to the next (a local of its chunk: vr_jobs' threads never share one).
+struct PoseScratch
+{
+    za::Vector<glm::vec3> p;              // the pose's vertices
+    za::Vector<glm::vec3> v0, e1, e2, mid; // its triangles: a corner, two edges, the centre
+    za::Vector<float> rad;                // and the radius round the centre
+    za::Vector<int> mark;                 // the vertex whose own and neighbours' triangles these are (left out)
+    za::Vector<int> cellStart, cellItems; // the grid: each cell's triangles (cellItems[cellStart[c] .. cellStart[c + 1]])
+    za::Vector<glm::vec4> cellMidRad;     // and their centres and radii, in the same order
+    za::Vector<float> cellRadius;         // each cell's widest radius
+    za::Vector<int> cellOf;               // each triangle's cell (-1: in `big`)
+    za::Vector<int> big;                  // the triangles too wide for the grid
+    za::Vector<int> cand;                 // a vertex's triangles in reach
+    // The candidates' numbers that don't depend on the ray, one array each (read four rays at a time).
+    za::Vector<float> e1x, e1y, e1z, e2x, e2y, e2z, sx, sy, sz, qx, qy, qz, e2q;
+};
+
+// The triangles of a pose in a uniform grid of cubes half the reach wide (at most GRID_MAX a side), each in the cell
+// of its centre; those wider than half the reach (radius round the centre) in a list of their own, tested for every
+// vertex. A vertex's triangles in reach (the centre within the reach plus the radius) are then all in the cells within
+// the reach plus the widest radius of the grid's triangles (bigRadius), each cell skipped when its box is farther than
+// the reach plus its own widest radius. The boxes are widened by `margin`: the test that picks the candidates (the
+// same as ever) is done in floats.
+constexpr int GRID_MAX = 64;
+
+struct Grid
+{
+    glm::vec3 lo{0.f};
+    float size{1.f};
+    float inv{1.f};
+    int n[3]{1, 1, 1};
+    float margin{0.f};
+    float gridRadius{0.f}; // the widest radius of the grid's triangles
+
+    [[nodiscard]] int cell(float x, int axis) const
+    {
+        return za::clamp(static_cast<int>((x - lo[axis]) * inv), 0, n[axis] - 1);
+    }
+};
+
+[[nodiscard]] Grid buildGrid(PoseScratch& s, float reach)
+{
+    const size_t nt = s.mid.size();
+    Grid g;
+    g.margin = 0.01f + reach * 0.01f;
+    const float wide = reach * 0.5f;
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    s.big.clear();
+    for(size_t t = 0; t < nt; t++)
+    {
+        if(s.rad[t] > wide)
+        {
+            s.big.pushBack(static_cast<int>(t));
+            continue;
+        }
+        lo = glm::min(lo, s.mid[t]);
+        hi = glm::max(hi, s.mid[t]);
+        g.gridRadius = za::max(g.gridRadius, s.rad[t]);
+    }
+    if(s.big.size() == nt)
+    {
+        lo = hi = glm::vec3{0.f};
+    }
+    g.lo = lo - glm::vec3{g.margin};
+    const glm::vec3 extent = hi - lo + glm::vec3{2.f * g.margin};
+    g.size = za::max(reach * 0.5f, za::max(extent.x, extent.y, extent.z) / static_cast<float>(GRID_MAX));
+    g.inv = 1.f / g.size;
+    for(int a = 0; a < 3; a++)
+    {
+        g.n[a] = za::clamp(static_cast<int>(extent[a] * g.inv) + 1, 1, GRID_MAX);
+    }
+    const int cells = g.n[0] * g.n[1] * g.n[2];
+    s.cellStart.clear();
+    s.cellStart.resize(static_cast<size_t>(cells) + 1, 0);
+    s.cellRadius.clear();
+    s.cellRadius.resize(static_cast<size_t>(cells), 0.f);
+    s.cellOf.resize(nt);
+    for(size_t t = 0; t < nt; t++)
+    {
+        if(s.rad[t] > wide)
+        {
+            s.cellOf[t] = -1;
+            continue;
+        }
+        const int c = g.cell(s.mid[t].x, 0) + g.n[0] * (g.cell(s.mid[t].y, 1) + g.n[1] * g.cell(s.mid[t].z, 2));
+        s.cellOf[t] = c;
+        s.cellStart[static_cast<size_t>(c) + 1]++;
+        s.cellRadius[static_cast<size_t>(c)] = za::max(s.cellRadius[static_cast<size_t>(c)], s.rad[t]);
+    }
+    for(int c = 0; c < cells; c++)
+    {
+        s.cellStart[static_cast<size_t>(c) + 1] += s.cellStart[static_cast<size_t>(c)];
+    }
+    s.cellItems.clear();
+    s.cellItems.resize(static_cast<size_t>(s.cellStart[static_cast<size_t>(cells)]), 0);
+    s.cellMidRad.resize(s.cellItems.size());
+    za::Vector<int>& fill = s.cand; // (each cell's next free place; cand is free until the vertices)
+    fill.assignRange(s.cellStart.begin(), s.cellStart.end() - 1);
+    for(size_t t = 0; t < nt; t++)
+    {
+        if(s.cellOf[t] >= 0)
+        {
+            const size_t k = static_cast<size_t>(fill[static_cast<size_t>(s.cellOf[t])]++);
+            s.cellItems[k] = static_cast<int>(t);
+            s.cellMidRad[k] = glm::vec4{s.mid[t], s.rad[t]};
+        }
+    }
+    return g;
+}
+
+// A vertex's rays against its candidates (PoseScratch's arrays, nc of them): each ray's nearest hit farther than tmin,
+// or `reach`, into best[RAYS]. Möller and Trumbore's test, the same float operations in the same order as the
+// reference's for each ray (and so the same bits), several rays at a time: four (SSE2, x64's baseline) or eight (AVX,
+// when the processor has it: raysAvx). A test the reference skips (det near 0; u, v outside the triangle) is a lane
+// left out; NaNs fall the same way (each "continue" is a comparison's negation).
+struct RayInput
+{
+    const PoseScratch* s;
+    int nc;
+    const float* dx; // the rays' directions, RAYS each (aligned to 32 bytes)
+    const float* dy;
+    const float* dz;
+    float tmin;
+    float reach;
+    float* best;
+};
+
+void raysSse(const RayInput& in)
+{
+    const PoseScratch& s = *in.s;
+    const __m128 vtmin = _mm_set1_ps(in.tmin), vzero = _mm_setzero_ps(), vone = _mm_set1_ps(1.f);
+    const __m128 vtiny = _mm_set1_ps(1e-9f), absMask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
+    for(int r = 0; r < RAYS; r += 4)
+    {
+        const __m128 ddx = _mm_load_ps(in.dx + r), ddy = _mm_load_ps(in.dy + r), ddz = _mm_load_ps(in.dz + r);
+        __m128 vbest = _mm_set1_ps(in.reach);
+        for(int c = 0; c < in.nc; c++)
+        {
+            const __m128 e1x = _mm_set1_ps(s.e1x[c]), e1y = _mm_set1_ps(s.e1y[c]), e1z = _mm_set1_ps(s.e1z[c]);
+            const __m128 e2x = _mm_set1_ps(s.e2x[c]), e2y = _mm_set1_ps(s.e2y[c]), e2z = _mm_set1_ps(s.e2z[c]);
+            // pv = cross(d, e2); det = dot(e1, pv)
+            const __m128 pvx = _mm_sub_ps(_mm_mul_ps(ddy, e2z), _mm_mul_ps(e2y, ddz));
+            const __m128 pvy = _mm_sub_ps(_mm_mul_ps(ddz, e2x), _mm_mul_ps(e2z, ddx));
+            const __m128 pvz = _mm_sub_ps(_mm_mul_ps(ddx, e2y), _mm_mul_ps(e2x, ddy));
+            const __m128 det = _mm_add_ps(_mm_add_ps(_mm_mul_ps(e1x, pvx), _mm_mul_ps(e1y, pvy)), _mm_mul_ps(e1z, pvz));
+            __m128 ok = _mm_cmpnlt_ps(_mm_and_ps(det, absMask), vtiny);
+            const __m128 inv = _mm_div_ps(vone, det);
+            // u = dot(s, pv) * inv
+            const __m128 sx = _mm_set1_ps(s.sx[c]), sy = _mm_set1_ps(s.sy[c]), sz = _mm_set1_ps(s.sz[c]);
+            const __m128 u = _mm_mul_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(sx, pvx), _mm_mul_ps(sy, pvy)), _mm_mul_ps(sz, pvz)), inv);
+            ok = _mm_and_ps(ok, _mm_and_ps(_mm_cmpnlt_ps(u, vzero), _mm_cmpngt_ps(u, vone)));
+            // v = dot(d, q) * inv
+            const __m128 qx = _mm_set1_ps(s.qx[c]), qy = _mm_set1_ps(s.qy[c]), qz = _mm_set1_ps(s.qz[c]);
+            const __m128 v = _mm_mul_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(ddx, qx), _mm_mul_ps(ddy, qy)), _mm_mul_ps(ddz, qz)), inv);
+            ok = _mm_and_ps(ok, _mm_and_ps(_mm_cmpnlt_ps(v, vzero), _mm_cmpngt_ps(_mm_add_ps(u, v), vone)));
+            // dist = dot(e2, q) * inv
+            const __m128 dist = _mm_mul_ps(_mm_set1_ps(s.e2q[c]), inv);
+            ok = _mm_and_ps(ok, _mm_and_ps(_mm_cmpgt_ps(dist, vtmin), _mm_cmplt_ps(dist, vbest)));
+            vbest = _mm_or_ps(_mm_and_ps(ok, dist), _mm_andnot_ps(ok, vbest));
+        }
+        _mm_store_ps(in.best + r, vbest);
+    }
+}
+
+#if defined(__clang__) || defined(__GNUC__)
+#define QVR_TARGET_AVX __attribute__((target("avx")))
+#else
+#define QVR_TARGET_AVX
+#endif
+
+// raysSse's operations, eight lanes wide (no FMA: the build contracts nothing, and neither does this).
+QVR_TARGET_AVX void raysAvx(const RayInput& in)
+{
+    static_assert(RAYS % 8 == 0);
+    const PoseScratch& s = *in.s;
+    const __m256 vtmin = _mm256_set1_ps(in.tmin), vzero = _mm256_setzero_ps(), vone = _mm256_set1_ps(1.f);
+    const __m256 vtiny = _mm256_set1_ps(1e-9f), absMask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7fffffff));
+    for(int r = 0; r < RAYS; r += 8)
+    {
+        const __m256 ddx = _mm256_load_ps(in.dx + r), ddy = _mm256_load_ps(in.dy + r), ddz = _mm256_load_ps(in.dz + r);
+        __m256 vbest = _mm256_set1_ps(in.reach);
+        for(int c = 0; c < in.nc; c++)
+        {
+            const __m256 e1x = _mm256_set1_ps(s.e1x[c]), e1y = _mm256_set1_ps(s.e1y[c]), e1z = _mm256_set1_ps(s.e1z[c]);
+            const __m256 e2x = _mm256_set1_ps(s.e2x[c]), e2y = _mm256_set1_ps(s.e2y[c]), e2z = _mm256_set1_ps(s.e2z[c]);
+            const __m256 pvx = _mm256_sub_ps(_mm256_mul_ps(ddy, e2z), _mm256_mul_ps(e2y, ddz));
+            const __m256 pvy = _mm256_sub_ps(_mm256_mul_ps(ddz, e2x), _mm256_mul_ps(e2z, ddx));
+            const __m256 pvz = _mm256_sub_ps(_mm256_mul_ps(ddx, e2y), _mm256_mul_ps(e2x, ddy));
+            const __m256 det = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(e1x, pvx), _mm256_mul_ps(e1y, pvy)), _mm256_mul_ps(e1z, pvz));
+            __m256 ok = _mm256_cmp_ps(_mm256_and_ps(det, absMask), vtiny, _CMP_NLT_UQ);
+            const __m256 inv = _mm256_div_ps(vone, det);
+            const __m256 sx = _mm256_set1_ps(s.sx[c]), sy = _mm256_set1_ps(s.sy[c]), sz = _mm256_set1_ps(s.sz[c]);
+            const __m256 u =
+                _mm256_mul_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(sx, pvx), _mm256_mul_ps(sy, pvy)), _mm256_mul_ps(sz, pvz)), inv);
+            ok = _mm256_and_ps(ok, _mm256_and_ps(_mm256_cmp_ps(u, vzero, _CMP_NLT_UQ), _mm256_cmp_ps(u, vone, _CMP_NGT_UQ)));
+            const __m256 qx = _mm256_set1_ps(s.qx[c]), qy = _mm256_set1_ps(s.qy[c]), qz = _mm256_set1_ps(s.qz[c]);
+            const __m256 v =
+                _mm256_mul_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(ddx, qx), _mm256_mul_ps(ddy, qy)), _mm256_mul_ps(ddz, qz)), inv);
+            ok = _mm256_and_ps(ok, _mm256_and_ps(_mm256_cmp_ps(v, vzero, _CMP_NLT_UQ),
+                                       _mm256_cmp_ps(_mm256_add_ps(u, v), vone, _CMP_NGT_UQ)));
+            const __m256 dist = _mm256_mul_ps(_mm256_set1_ps(s.e2q[c]), inv);
+            ok = _mm256_and_ps(ok, _mm256_and_ps(_mm256_cmp_ps(dist, vtmin, _CMP_GT_OQ), _mm256_cmp_ps(dist, vbest, _CMP_LT_OQ)));
+            vbest = _mm256_blendv_ps(vbest, dist, ok);
+        }
+        _mm256_store_ps(in.best + r, vbest);
+    }
+}
+
+// Whether raysAvx may run (the processor and the system: SDL's check). Made before main, read by the bake's threads.
+const bool cpuHasAvx = SDL_HasAVX() == SDL_TRUE;
+
+// One pose: for each vertex, the share of cosine-weighted rays over its hemisphere that the model's own triangles
+// stop within `reach` (a hit counts less the farther it is: 1 - t / reach). The same bytes as testing every triangle
+// in reach one ray at a time (bakePoseReference; vr_ao_bench reference): the candidates come from a grid but pass the
+// same test, and the rays, eight or four at a time (raysAvx, raysSse), go through the same float operations in the same
+// order, the ray-independent ones (s, q, e2 . q) done once per candidate; the nearest hit is the same whatever order
+// the candidates come in. (The firing range's 112 models on one thread: 3.1 s, the reference's 24.9 s.)
+void bakePose(const PoseJob& job, int pose, PoseScratch& s)
+{
+    const za::Array<glm::vec3, RAYS>& dirs = rayDirs;
+    static_assert(RAYS % 4 == 0);
+    const trivertx_t* tv = job.verts + static_cast<size_t>(pose) * job.numverts;
+    const int nv = job.numverts;
+    s.p.resize(static_cast<size_t>(nv));
+    for(int i = 0; i < nv; i++)
+    {
+        s.p[i] = glm::vec3{tv[i].v[0], tv[i].v[1], tv[i].v[2]} * job.scale + job.origin;
+    }
+    const za::Vector<Tri>& tris = *job.tris;
+    const size_t nt = tris.size();
+    for(za::Vector<glm::vec3>* v : {&s.v0, &s.e1, &s.e2, &s.mid})
+    {
+        v->resize(nt);
+    }
+    s.rad.resize(nt);
+    for(size_t t = 0; t < nt; t++)
+    {
+        const glm::vec3 a = s.p[tris[t].v[0]], b = s.p[tris[t].v[1]], c = s.p[tris[t].v[2]];
+        s.v0[t] = a;
+        s.e1[t] = b - a;
+        s.e2[t] = c - a;
+        s.mid[t] = (a + b + c) * (1.f / 3.f);
+        const glm::vec3 m = s.mid[t];
+        s.rad[t] = za::sqrt(za::max(glm::dot(a - m, a - m), glm::dot(b - m, b - m), glm::dot(c - m, c - m)));
+    }
+    const float reach = job.reach;
+    const float tmin = reach * NEAREST_SHARE;
+    unsigned char* out = job.out + static_cast<size_t>(pose) * nv;
+    const Grid grid = buildGrid(s, reach);
+    s.cand.resize(nt); // (room for every triangle: each vertex's candidates are written whether they pass or not)
+    s.mark.clear();
+    s.mark.resize(static_cast<size_t>(nv), -1);
+    for(za::Vector<float>* v : {&s.e1x, &s.e1y, &s.e1z, &s.e2x, &s.e2y, &s.e2z, &s.sx, &s.sy, &s.sz, &s.qx, &s.qy, &s.qz, &s.e2q})
+    {
+        v->resize(nt);
+    }
+    alignas(32) float dx[RAYS], dy[RAYS], dz[RAYS], best[RAYS];
+    for(int i = 0; i < nv; i++)
+    {
+        if(job.stop && job.stop->loadRelaxed())
+        {
+            return;
+        }
+        // Its own triangles and its neighbours' are left out: on a curved surface of byte-rounded vertices the rays
+        // near its horizon would graze them (a speckle of false occlusion over the whole model).
+        s.mark[i] = i;
+        for(const int k : (*job.ring)[i])
+        {
+            s.mark[k] = i;
+        }
+        const float* nn = r_avertexnormals[za::min<int>(tv[i].lightnormalindex, NUMVERTEXNORMALS - 1)];
+        const glm::vec3 n{nn[0], nn[1], nn[2]};
+        const glm::vec3 pi = s.p[i];
+        const glm::vec3 o = pi + n * (reach * LIFT_SHARE);
+        int* const cand = s.cand.data();
+        // (the same test as the reference's, for every triangle it reaches)
+        int nc = 0;
+        const auto consider = [&](int t, const glm::vec4& midRad) {
+            const Tri& tr = tris[static_cast<size_t>(t)];
+            const glm::vec3 d = glm::vec3{midRad} - pi;
+            const float r = reach + midRad.w;
+            // (without branches: a quarter of them pass, unpredictably)
+            const int keep = static_cast<int>(!(glm::dot(d, d) > r * r)) & static_cast<int>(!(glm::dot(d, n) < -midRad.w)) &
+                             static_cast<int>(s.mark[tr.v[0]] != i) & static_cast<int>(s.mark[tr.v[1]] != i) &
+                             static_cast<int>(s.mark[tr.v[2]] != i);
+            cand[nc] = t;
+            nc += keep;
+        };
+        for(const int t : s.big)
+        {
+            consider(t, glm::vec4{s.mid[t], s.rad[t]});
+        }
+        const float qr = reach + grid.gridRadius + grid.margin;
+        const int x0 = grid.cell(pi.x - qr, 0), x1 = grid.cell(pi.x + qr, 0);
+        const int y0 = grid.cell(pi.y - qr, 1), y1 = grid.cell(pi.y + qr, 1);
+        const int z0 = grid.cell(pi.z - qr, 2), z1 = grid.cell(pi.z + qr, 2);
+        for(int z = z0; z <= z1; z++)
+        {
+            // The distance from the vertex to the cell's box (widened by the margin), along each axis.
+            const float cz = grid.lo.z + static_cast<float>(z) * grid.size;
+            const float gz = za::max(0.f, za::max(cz - grid.margin - pi.z, pi.z - (cz + grid.size + grid.margin)));
+            for(int y = y0; y <= y1; y++)
+            {
+                const float cy = grid.lo.y + static_cast<float>(y) * grid.size;
+                const float gy = za::max(0.f, za::max(cy - grid.margin - pi.y, pi.y - (cy + grid.size + grid.margin)));
+                for(int x = x0; x <= x1; x++)
+                {
+                    const size_t c = static_cast<size_t>(x + grid.n[0] * (y + grid.n[1] * z));
+                    if(s.cellStart[c] == s.cellStart[c + 1])
+                    {
+                        continue;
+                    }
+                    const float cx = grid.lo.x + static_cast<float>(x) * grid.size;
+                    const float gx = za::max(0.f, za::max(cx - grid.margin - pi.x, pi.x - (cx + grid.size + grid.margin)));
+                    const float within = reach + s.cellRadius[c] + grid.margin;
+                    if(gx * gx + gy * gy + gz * gz > within * within)
+                    {
+                        continue;
+                    }
+                    for(int k = s.cellStart[c]; k < s.cellStart[c + 1]; k++)
+                    {
+                        consider(s.cellItems[static_cast<size_t>(k)], s.cellMidRad[static_cast<size_t>(k)]);
+                    }
+                }
+            }
+        }
+        float occ = 0.f;
+        if(nc > 0)
+        {
+            for(int c = 0; c < nc; c++)
+            {
+                const int t = s.cand[static_cast<size_t>(c)];
+                const glm::vec3 sv = o - s.v0[t];
+                const glm::vec3 q = glm::cross(sv, s.e1[t]);
+                s.e1x[c] = s.e1[t].x;
+                s.e1y[c] = s.e1[t].y;
+                s.e1z[c] = s.e1[t].z;
+                s.e2x[c] = s.e2[t].x;
+                s.e2y[c] = s.e2[t].y;
+                s.e2z[c] = s.e2[t].z;
+                s.sx[c] = sv.x;
+                s.sy[c] = sv.y;
+                s.sz[c] = sv.z;
+                s.qx[c] = q.x;
+                s.qy[c] = q.y;
+                s.qz[c] = q.z;
+                s.e2q[c] = glm::dot(s.e2[t], q);
+            }
+            // Duff et al.'s frame round the normal.
+            const float sign = za::copysign(1.f, n.z);
+            const float a = -1.f / (sign + n.z);
+            const float b = n.x * n.y * a;
+            const glm::vec3 tx{1.f + sign * n.x * n.x * a, sign * b, -sign * n.x};
+            const glm::vec3 ty{b, sign + n.y * n.y * a, -n.y};
+            for(int r = 0; r < RAYS; r++)
+            {
+                const glm::vec3& l = dirs[r];
+                const glm::vec3 d = tx * l.x + ty * l.y + n * l.z;
+                dx[r] = d.x;
+                dy[r] = d.y;
+                dz[r] = d.z;
+            }
+            const RayInput in{&s, nc, dx, dy, dz, tmin, reach, best};
+            if(job.avx)
+            {
+                raysAvx(in);
+            }
+            else
+            {
+                raysSse(in);
+            }
+            for(int r = 0; r < RAYS; r++)
+            {
+                if(best[r] < reach)
+                {
+                    const float f = best[r] / reach;
+                    occ += 1.f - f; // nearer hits count more (linearly: 1 - f^2 darkened the models too much)
+                }
+            }
+        }
+        const float vis = 1.f - occ / RAYS;
+        out[i] = static_cast<unsigned char>(za::clamp(vis * 255.f + 0.5f, 0.f, 255.f));
+    }
+}
+
 } // namespace
 
 namespace
@@ -980,7 +1373,9 @@ za::U64 modelHash(const aliashdr_t* hdr)
 // file). The bake task's first write in each game directory removes the other versions' folders, and the oldest files
 // past CACHE_BUDGET.
 
-constexpr za::U32 BAKE_VERSION = 1; // bump it when the bake's algorithm or the file's layout changes
+// Bump it when the bake's bytes or the file's layout change (not for a faster bake of the same bytes: the grid and the
+// SIMD rays of 2026-10-06 kept version 1, checked against the reference and the files).
+constexpr za::U32 BAKE_VERSION = 1;
 constexpr za::U64 CACHE_BUDGET = 64ull << 20; // bytes in the version's folder (a game's full set is a few MB)
 constexpr char FILE_MAGIC[4] = {'Q', 'V', 'R', 'A'};
 
@@ -1187,6 +1582,17 @@ struct BelowNormal
 
 jobs::Site bakeSite{"ao bake"}; // (its parallelFor: vr_jobs_sites)
 
+// How a model is baked: the fast bake (AVX when the processor has it), the fast bake four rays at a time, or the
+// reference (vr_ao_bench compares them; the same bytes).
+enum class BakeKind
+{
+    Fast,
+    Sse,
+    Reference
+};
+
+void bakeModel(BakeJob& job, int maxThreads, BakeKind kind);
+
 void runBake(BakeJob& job)
 {
     const auto t0 = za::Clock::nowNanoseconds();
@@ -1209,6 +1615,30 @@ void runBake(BakeJob& job)
             return;
         }
     }
+    bakeModel(job, BAKE_THREADS, BakeKind::Fast);
+    job.seconds = za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - t0);
+    job.aborted = bakeQueue().stop.loadRelaxed();
+    if(job.cacheMode <= 0 || job.aborted)
+    {
+        return;
+    }
+    if(read == FileRead::Read) // vr_ao_cache 2: baked anyway, and compared
+    {
+        job.checked = fromFile.size() == job.vis.size() && memcmp(fromFile.data(), job.vis.data(), job.vis.size()) == 0 ? 1 : -1;
+        if(job.checked > 0)
+        {
+            return;
+        }
+    }
+    pruneOnce(job.cacheRoot);
+    files::createDirectories(versionDir(job.cacheRoot).cStr());
+    job.written = writeBake(path, job, key);
+}
+
+// The bake itself, into job.vis: its poses shared out among up to `maxThreads` of the pool's threads (1: all on this
+// one).
+void bakeModel(BakeJob& job, int maxThreads, BakeKind kind)
+{
     // Reach: an eighth of the first pose's diagonal (a grunt's 9 units, a gun's few), within 1 .. 16 units.
     glm::vec3 lo{1e9f}, hi{-1e9f};
     for(int i = 0; i < job.numverts; i++)
@@ -1243,38 +1673,39 @@ void runBake(BakeJob& job)
     pj.reach = za::clamp(glm::distance(lo, hi) * REACH_SHARE, REACH_MIN, REACH_MAX);
     pj.out = job.vis.data();
     pj.stop = &bakeQueue().stop;
+    pj.avx = kind == BakeKind::Fast && cpuHasAvx;
+    const bool reference = kind == BakeKind::Reference;
 
     // The poses shared out between threads, every `threads`th to each (they only read the copy and write their own poses).
     const int poses = job.numposes;
-    const int threads = za::clamp(za::min(jobs::hardwareThreads() / 2, BAKE_THREADS), 1, poses);
-    jobs::parallelFor(bakeSite, static_cast<za::SizeT>(threads), 1, [&pj, poses, threads](za::SizeT t0, za::SizeT t1) {
-        const BelowNormal low;
+    const int threads = za::clamp(za::min(jobs::hardwareThreads() / 2, maxThreads), 1, poses);
+    const auto bakePoses = [&pj, poses, threads, reference](int first) {
+        PoseScratch buffers;
         za::Vector<int> cand;
-        for(int first = static_cast<int>(t0); first < static_cast<int>(t1); first++)
+        for(int f = first; f < poses && !pj.stop->loadRelaxed(); f += threads)
         {
-            for(int f = first; f < poses && !pj.stop->loadRelaxed(); f += threads)
+            if(reference)
             {
-                bakePose(pj, f, cand);
+                bakePoseReference(pj, f, cand);
+            }
+            else
+            {
+                bakePose(pj, f, buffers);
             }
         }
-    });
-    job.seconds = za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - t0);
-    job.aborted = pj.stop->loadRelaxed();
-    if(job.cacheMode <= 0 || job.aborted)
+    };
+    if(threads == 1)
     {
+        bakePoses(0);
         return;
     }
-    if(read == FileRead::Read) // vr_ao_cache 2: baked anyway, and compared
-    {
-        job.checked = fromFile.size() == job.vis.size() && memcmp(fromFile.data(), job.vis.data(), job.vis.size()) == 0 ? 1 : -1;
-        if(job.checked > 0)
+    jobs::parallelFor(bakeSite, static_cast<za::SizeT>(threads), 1, [&bakePoses](za::SizeT t0, za::SizeT t1) {
+        const BelowNormal low;
+        for(int first = static_cast<int>(t0); first < static_cast<int>(t1); first++)
         {
-            return;
+            bakePoses(first);
         }
-    }
-    pruneOnce(job.cacheRoot);
-    files::createDirectories(versionDir(job.cacheRoot).cStr());
-    job.written = writeBake(path, job, key);
+    });
 }
 
 // The bake task: the queued models baked in turn, until none is left (or the game stops).
@@ -1378,11 +1809,56 @@ void integrateBakes()
 
 } // namespace
 
+namespace
+{
+
+// A bake's copy of a model's poses and triangles (the bake reads nothing else of the model's).
+[[nodiscard]] za::UniquePtr<BakeJob> makeJob(qmodel_t* model, const aliashdr_t* hdr, za::U64 hash)
+{
+    const size_t count = static_cast<size_t>(hdr->numposes) * hdr->numverts;
+    auto job = za::makeUnique<BakeJob>();
+    job->name = model->name;
+    job->model = model;
+    job->hash = hash;
+    job->numverts = hdr->numverts;
+    job->numposes = hdr->numposes;
+    const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    job->verts.assignRange(verts, verts + count);
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+    job->tris.reserve(hdr->numindexes / 3);
+    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+    {
+        Tri t;
+        bool ok = true;
+        for(int k = 0; k < 3; k++)
+        {
+            const int vbo = idx[i + k];
+            ok = ok && vbo < hdr->numverts_vbo;
+            t.v[k] = ok ? desc[vbo].vertindex : 0;
+        }
+        if(ok && t.v[0] != t.v[1] && t.v[1] != t.v[2] && t.v[0] != t.v[2])
+        {
+            job->tris.pushBack(t);
+        }
+    }
+    job->scale = {hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    job->origin = {hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    return job;
+}
+
+[[nodiscard]] bool bakeable(const qmodel_t* model, const aliashdr_t* hdr)
+{
+    return model && hdr && hdr->poseverttype == aliashdr_t::PV_QUAKE1 && !hdr->nextsurface && hdr->numverts > 0 &&
+           hdr->numposes > 0 && hdr->numindexes >= 3;
+}
+
+} // namespace
+
 extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* aliashdr)
 {
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
-    if(!model || !hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || hdr->nextsurface || hdr->numverts <= 0 ||
-       hdr->numposes <= 0 || hdr->numindexes < 3)
+    if(!bakeable(model, hdr))
     {
         return nullptr;
     }
@@ -1412,34 +1888,7 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
         {
             return nullptr; // on its way
         }
-        auto job = za::makeUnique<BakeJob>();
-        job->name = model->name;
-        job->model = model;
-        job->hash = h;
-        job->numverts = hdr->numverts;
-        job->numposes = hdr->numposes;
-        const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-        job->verts.assignRange(verts, verts + count);
-        const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
-        const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
-        job->tris.reserve(hdr->numindexes / 3);
-        for(int i = 0; i + 2 < hdr->numindexes; i += 3)
-        {
-            Tri t;
-            bool ok = true;
-            for(int k = 0; k < 3; k++)
-            {
-                const int vbo = idx[i + k];
-                ok = ok && vbo < hdr->numverts_vbo;
-                t.v[k] = ok ? desc[vbo].vertindex : 0;
-            }
-            if(ok && t.v[0] != t.v[1] && t.v[1] != t.v[2] && t.v[0] != t.v[2])
-            {
-                job->tris.pushBack(t);
-            }
-        }
-        job->scale = {hdr->scale[0], hdr->scale[1], hdr->scale[2]};
-        job->origin = {hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+        auto job = makeJob(model, hdr, h);
         job->cacheMode = static_cast<int>(za::clamp(vr_ao_cache.value, 0.f, 2.f));
         job->cacheRoot = za::String{com_gamedir} + "/cache/ao";
         q.queued[model->name] = h;
@@ -1585,8 +2034,111 @@ void cacheInfo_f()
 }
 } // namespace
 
+namespace
+{
+// vr_ao_bench [name part] [sse] [reference]: the loaded models' occlusion (those whose names hold the part) baked again
+// here, on the main thread alone, and timed (nothing is kept): the fast bake (eight rays at a time with AVX); with
+// "sse", the fast bake four rays at a time too; with "reference", the brute-force bake too (every triangle, one ray at
+// a time). Each other bake's bytes are compared with the fast bake's: they must be the same. Each model's bytes' FNV-1a,
+// as developer 1 prints for the bakes.
+void bench_f()
+{
+    const char* part = "";
+    bool kinds[3] = {true, false, false}; // Fast, Sse, Reference
+    for(int a = 1; a < Cmd_Argc(); a++)
+    {
+        if(!strcmp(Cmd_Argv(a), "sse"))
+        {
+            kinds[1] = true;
+        }
+        else if(!strcmp(Cmd_Argv(a), "reference"))
+        {
+            kinds[2] = true;
+        }
+        else
+        {
+            part = Cmd_Argv(a);
+        }
+    }
+    static constexpr const char* names[3] = {"fast", "sse", "reference"};
+    double total[3] = {};
+    int models = 0, differed = 0;
+    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+    {
+        qmodel_t* m = cl.model_precache[i];
+        if(m->type != mod_alias || !strstr(m->name, part))
+        {
+            continue;
+        }
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(m));
+        if(!bakeable(m, hdr))
+        {
+            continue;
+        }
+        auto job = makeJob(m, hdr, 0);
+        za::Vector<unsigned char> fast;
+        double ms[3] = {};
+        bool same = true;
+        for(int k = 0; k < 3; k++)
+        {
+            if(!kinds[k])
+            {
+                continue;
+            }
+            const auto t0 = za::Clock::nowNanoseconds();
+            bakeModel(*job, 1, static_cast<BakeKind>(k));
+            ms[k] = za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - t0) * 1000.0;
+            total[k] += ms[k];
+            if(k == 0)
+            {
+                fast = ZA_MOVE(job->vis);
+            }
+            else
+            {
+                same = same && fast.size() == job->vis.size() && memcmp(fast.data(), job->vis.data(), fast.size()) == 0;
+            }
+        }
+        za::U32 texels = 2166136261u;
+        for(const unsigned char v : fast)
+        {
+            texels = (texels ^ v) * 16777619u;
+        }
+        models++;
+        differed += !same;
+        char line[256];
+        int at = snprintf(line, sizeof(line), "vr_ao_bench: %s: %d poses x %d vertices, %d triangles: %s %.1f ms", m->name,
+            job->numposes, job->numverts, static_cast<int>(job->tris.size()), cpuHasAvx ? "avx" : "sse", ms[0]);
+        for(int k = 1; k < 3; k++)
+        {
+            if(kinds[k] && at > 0 && at < static_cast<int>(sizeof(line)))
+            {
+                at += snprintf(line + at, sizeof(line) - static_cast<size_t>(at), ", %s %.1f ms", names[k], ms[k]);
+            }
+        }
+        Con_Printf("%s%s (%08x)\n", line, kinds[1] || kinds[2] ? (same ? ", the same" : ", DIFFERENT") : "", texels);
+    }
+    Con_Printf("vr_ao_bench: %d models, on one thread: fast (%s) %.1f ms", models, cpuHasAvx ? "avx" : "sse", total[0]);
+    for(int k = 1; k < 3; k++)
+    {
+        if(kinds[k])
+        {
+            Con_Printf(", %s %.1f ms (%.1fx)", names[k], total[k], total[k] / za::max(total[0], 1e-3));
+        }
+    }
+    if(kinds[1] || kinds[2])
+    {
+        Con_Printf("; %d differed\n", differed);
+    }
+    else
+    {
+        Con_Printf("\n");
+    }
+}
+} // namespace
+
 void ao::init()
 {
+    Cmd_AddCommand("vr_ao_bench", bench_f);
     Cmd_AddCommand("vr_ao_show", show_f);
     Cmd_AddCommand("vr_ao_cache_info", cacheInfo_f);
     Cmd_AddCommand("vr_ao_finish", finish_f);
