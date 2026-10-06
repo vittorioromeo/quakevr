@@ -26121,3 +26121,38 @@ defaults to 1.2 (config 93 moves a config's 1 to 1.2; another value stays), and 
 its VisPatch folder only from `--vis-dir` or `QUAKEVR_VISPATCH`. The data now goes to `<QVR>\quakevr\tools\vispatch\`,
 which relight_maps.py takes by itself when neither is given (the in-game relight keeps the water-vis of the script's
 copies in `relit\`). Checked: `vr_migrate_config` from 92 with 1 gives 1.2, with 1.5 keeps 1.5, from 93 keeps 1.
+
+## Weapon pickups drawn as the weapons you hold and drop (2026-10-06)
+
+Asked (e1m5): the map's spinning weapons (id's g_*.mdl) did not match the weapons dropped and held (Quake VR's v_*.mdl
+props). `vr_pickup_prop_models` (default 1, archived, next map; Settings > Items, "Weapon Pickups Look": "As held and
+dropped" / "Classic models") draws every weapon pickup (`impl_weapon_item`: the seven of id1, Hipnotic's Mjolnir, laser
+cannon and proximity gun) with `WeaponIdToModel(wid, 0)`, the model a dropped one has, at its size (the shipped
+`vr_pickup_scale 0.6` of quakevr.cfg shrinks only the classic models now: it was the whole size mismatch), same skin,
+level, turning about its middle. The classic model when the setting is 0 or a weapon has no model of its own; both
+models are precached at spawn, so a save made with either setting loads. Rogue's teamplay weapon drop
+(`rogue_teamplay.qc`, its own g_ models, IT_ flags) is untouched.
+
+- Spinning: v_ models have no EF_ROTATE. A new field `.vr_pickup_spin` (vr_sys_fields.qc, QVR_FIELD) sends
+  `U_QVR_SPIN` (bit 29, no data) while the entity is not a rigid body; the client spins it as EF_ROTATE models
+  (`VR_ModelSpins`, cl_main.c's bobjrotate). Box3D fixtures turn their shape with it, and gore's "lies about" counts it.
+  The objects' own server spin (forcegrabbable_item_think, `angles_y = 100 * time`) is unchanged.
+- Centring: two builtins. `drawnbounds(e, max)` is the drawn box as drawn (a weapon model's own scale and offset, its
+  model_scale and model_offset: held::modelBox); `modelbounds` is the raw box, nowhere near a v_ model's drawn one.
+  `modeloffsetto(e, at)` is the model_offset that puts the drawn box's middle at `at` (an alias model's offset is in
+  stored-vertex units before the weapon scale, so the shift per unit is measured; it is linear). Objects
+  (vr_item_objects 1, the default): VR_PickupObj_Place centres it on its origin, its box the drawn box, so it hangs
+  at vr_item_float_height by its middle, and a knocked-loose rigid body keeps the same shape. Touch mode
+  (vr_item_objects 0): its middle on the origin's vertical, as high as the classic model's middle was drawn
+  (times vr_pickup_scale), never under the box's bottom; its touch box stays `-8 -8 -4 .. 8 8 38`. Centred again at its
+  first think2: while a map spawns the server is not active and weapons::modelTransform gives the raw model's size.
+- Retro textures: v_ models are Weapons in the World already (vr_modelmetadata.cpp), as the dropped ones.
+
+Tests (Debug > Tests > Weapon Pickups; `vr_pickup_test`, QC/vr_pickup_test.qc): 1 every weapon pickup in rows of five
+ahead, each with the same weapon dropped beside it (drawn boxes printed: a pickup's and its dropped twin's spans are
+equal, e.g. the rocket launcher 38.2 x 8.3 x 10.2 both; before: the g_ model at 0.6); 3 the next pair before you;
+2 with `+grabmain`: the nearest pickup taken. e1m1's nailgun, objects and touch mode: "You got the Nailgun", magazine
+24, 6 nails left (7b4ed30b's loaded magazine).
+
+To check in VR: the pickups' height and spin in e1m1-e1m5 (objects and touch mode), a pickup knocked loose (it should
+fall as the same shape), deathmatch respawn.

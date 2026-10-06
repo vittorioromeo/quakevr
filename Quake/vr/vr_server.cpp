@@ -749,6 +749,10 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
     {
         bits |= U_QVR_NOROTATE;
     }
+    else if(fieldFloatOr(ent, f.vr_pickup_spin, 0.f) != 0.f)
+    {
+        bits |= U_QVR_SPIN; // a weapon pickup drawn as its prop (QC vr_pickup_prop_models): spins as the g_ models do
+    }
     if(NUM_FOR_EDICT(ent) > svs.maxclients && weaponUid(weaponInst(ent, f.weaponinst)) != 0)
     {
         bits |= U_QVR_WEAPONUID; // a weapon prop (not a player: his .weaponinst is his main hand's, sent as a stat)

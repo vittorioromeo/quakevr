@@ -4290,7 +4290,8 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.frame = static_cast<int>(ent->v.frame);
     s.scale = scaleFields(ent);
     s.brush = model && model->type == mod_brush;
-    s.spins = kind == Kind::Fixture && model && (model->flags & EF_ROTATE);
+    s.spins = kind == Kind::Fixture && model &&
+              ((model->flags & EF_ROTATE) || fieldFloatOr(ent, fields().vr_pickup_spin, 0.f) != 0.f); // (a weapon pickup drawn as its prop)
     s.massSetting = massSetting(ent, model);
     s.massScale = props::massScale(model);
     s.soft = model && isSoft(ent, model);

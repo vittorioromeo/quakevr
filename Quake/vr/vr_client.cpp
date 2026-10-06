@@ -720,6 +720,7 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     data.scaleOrigin = (bits & U_QVR_SCALEORIGIN) ? readCoords3() : glm::vec3{0.f};
     data.offset = (bits & U_QVR_OFFSET) ? readCoords3() : glm::vec3{0.f};
     data.noRotate = (bits & U_QVR_NOROTATE) != 0;
+    data.spin = (bits & U_QVR_SPIN) != 0;
     data.weaponUid = (bits & U_QVR_WEAPONUID) ? MSG_ReadLong() : 0;
 }
 
@@ -758,6 +759,11 @@ extern "C" void VR_DebugDrawnBoxes(void)
 extern "C" int VR_SuppressModelRotate(int num)
 {
     return vrProtocol() && num >= 0 && num < static_cast<int>(entityData.size()) && entityData[num].noRotate;
+}
+
+extern "C" int VR_ModelSpins(int num)
+{
+    return vrProtocol() && num >= 0 && num < static_cast<int>(entityData.size()) && entityData[num].spin;
 }
 
 extern "C" int VR_ParseServerMessage(int cmd)

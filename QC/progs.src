@@ -70,6 +70,7 @@ vr_limbs.qc
 vr_limbs_test.qc
 vr_enemyguns.qc
 vr_crowbar.qc
+vr_pickup_test.qc
 vr_axestick.qc
 vr_weaponinst_test.qc
 vr_liquids.qc

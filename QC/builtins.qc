@@ -322,6 +322,11 @@ void(entity e, entity player, float hand) carry2hkeep = #0; // held in both hand
 float(entity e, vector point, float hand) carryreach = #0; // whether self's hand can take hold of it: its fist touches its drawn surface (vr_carry_grab_bias; point: the hand's, unused)
 void(vector ang) makeforward = #0; // sets v_forward
 vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space
+// The drawn box of e's model (as drawn: a weapon model's own scale and offset, its model_scale and model_offset), not
+// turned, about its origin: its mins (max 0) or maxs. modelbounds is the model's raw box, not where a weapon model is drawn.
+vector(entity e, float max) drawnbounds = #0;
+// The model_offset putting the middle of e's drawn box (its model_scale as now, its model_offset ignored) at `at`.
+vector(entity e, vector at) modeloffsetto = #0;
 vector(entity e) modelcentre = #0; // the middle of the drawn model (turned with it, scaled and offset as drawn), in the world
 // findradius's chain (the same order) less what has no model or whose modelcentre is out of the cone from org along dir
 // (a unit vector) whose cosine is mincos (a little wider: test each again), or within a unit of org.

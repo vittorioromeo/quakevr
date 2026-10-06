@@ -2852,6 +2852,10 @@ void hologramTestMessage()
             .help("Objects: the map's weapons, keys, runes and suits hang spinning until you grab, knock or force-grab them, "
                   "then they are physics objects. A weapon you grip is yours at once; keys, runes and suits you carry to a "
                   "holster and let go of there. Powerups are as before. Next map."),
+        cycle("Weapon Pickups Look", vr_pickup_prop_models, {{0.f, "Classic models"}, {1.f, "As held and dropped"}})
+            .help("As held and dropped: the map's weapons are drawn with the same models as the weapons in your hands and "
+                  "the ones you drop, at their size, spinning about their middle. Classic models: id's pickup models (g_*.mdl). A weapon "
+                  "without a model of its own keeps the classic one. Next map."),
     };
 }
 
@@ -4880,6 +4884,16 @@ za::Vector<Item> pageDebugTests()
         command("To the Jump Wall", "setpos -40 -310 24 0 0 0; noclip")
             .help("In vrclimb: you facing a wall 96 high, 40 units ahead: walk into it, jump and grab its top (Climbing: "
                   "Mid-Air Grab Window)."),
+        header("Weapon Pickups (pickuptest: ... in the console)"),
+        command("Every Weapon Pickup Ahead", "vr_pickup_test 1")
+            .help("vr_pickup_test 1: every weapon pickup (the mission pack's when loaded) in rows ahead of you, each with "
+                  "the same weapon dropped beside it, to compare them (Items: Weapon Pickups Look); their models, "
+                  "offsets and boxes printed a second later."),
+        command("Next Pair Before You", "vr_pickup_test 3")
+            .help("vr_pickup_test 3: you moved before the next pickup and dropped weapon of the row above, for a close look."),
+        command("Take the Nearest Weapon Pickup", "+grabmain; wait; wait; vr_pickup_test 2; wait; wait; -grabmain")
+            .help("vr_pickup_test 2, the main grip held (+grabmain): the weapon pickup nearest you taken into an empty "
+                  "hand, as a grip takes it: the hand's weapon, its magazine and the ammo left printed."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

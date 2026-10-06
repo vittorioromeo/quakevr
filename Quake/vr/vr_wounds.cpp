@@ -2162,7 +2162,7 @@ void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reac
 
 // Entity `num` lies about and takes blood near it (vr_gore_gear_nearby): a weapon, a prop, an item; not a monster, a
 // player, a gib (it bleeds its own), a door or a lift (the map's own brush models), nor what you carry (yours:
-// paintOnYou). A weapon prop (its id), a rigid body (U_QVR_NOROTATE), a pickup (its model spins: EF_ROTATE), a box (a
+// paintOnYou). A weapon prop (its id), a rigid body (U_QVR_NOROTATE), a pickup (its model spins: EF_ROTATE, or U_QVR_SPIN), a box (a
 // brush model of its own: maps/b_*.bsp).
 [[nodiscard]] bool liesAbout(int num)
 {
@@ -2185,7 +2185,7 @@ void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reac
         return false;
     }
     const client::EntityVr* d = client::entityVr(num);
-    return entityWeapon(num) != 0 || (d && d->noRotate) || (e.model->flags & EF_ROTATE) != 0;
+    return entityWeapon(num) != 0 || (d && (d->noRotate || d->spin)) || (e.model->flags & EF_ROTATE) != 0;
 }
 
 // Splash `s` onto entity `num` lying about, if it reaches it: drops on its side facing the blood, or, right at a

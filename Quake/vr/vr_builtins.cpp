@@ -76,6 +76,61 @@ void PF_modelbounds()
     }
 }
 
+// An entity's drawn box (its model as drawn: the weapon models' own scale and offset, a prop's Size, its model_scale
+// about model_scale_origin and model_offset), not turned, about its origin: its lo (`max` 0) or hi corner:
+// vector(entity e, float max) drawnbounds. A weapon model's raw bounds (modelbounds) are not where it is drawn.
+void PF_drawnbounds()
+{
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    const bool max = G_FLOAT(OFS_PARM1) != 0.f;
+    float* out = G_VECTOR(OFS_RETURN);
+    VectorCopy(vec3_origin, out);
+
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!model)
+    {
+        return;
+    }
+    const FieldOffsets& f = fields();
+    glm::vec3 lo, hi;
+    held::modelBox(model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset), lo, hi);
+    const glm::vec3& v = max ? hi : lo;
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
+// The model_offset that puts the middle of an entity's drawn box (drawnbounds, with its model_scale and
+// model_scale_origin; its model_offset ignored) at `at` (about its origin, not turned): vector(entity e, vector at)
+// modeloffsetto. An alias model's model_offset is in its stored vertices' units (before the weapon models' and its
+// own scale), so the drawn shift it gives is measured (it is linear in it).
+void PF_modeloffsetto()
+{
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    const float* a = G_VECTOR(OFS_PARM1);
+    float* out = G_VECTOR(OFS_RETURN);
+    VectorCopy(vec3_origin, out);
+
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!model)
+    {
+        return;
+    }
+    const FieldOffsets& f = fields();
+    const glm::vec3 scale = fieldVec(ent, f.model_scale), scaleOrigin = fieldVec(ent, f.model_scale_origin);
+    glm::vec3 lo0, hi0, lo1, hi1;
+    held::modelBox(model, scale, scaleOrigin, glm::vec3{0.f}, lo0, hi0);
+    held::modelBox(model, scale, scaleOrigin, glm::vec3{1.f}, lo1, hi1);
+    const glm::vec3 c0 = (lo0 + hi0) * 0.5f;
+    const glm::vec3 perUnit = (lo1 + hi1) * 0.5f - c0; // the drawn shift of a unit of offset, an axis
+    for(int i = 0; i < 3; i++)
+    {
+        out[i] = fabsf(perUnit[i]) > 1e-6f ? (a[i] - c0[i]) / perUnit[i] : 0.f;
+    }
+}
+
 // The middle of an entity's drawn model, turned with it, in the world (vr_rigid.cpp): vector(entity
 // e) modelcentre. Dropped weapons and backpacks are drawn well off their box's middle.
 void PF_modelcentre()
@@ -1869,6 +1924,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weapondrawnpose", PF_weapondrawnpose},
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
+    {"drawnbounds", PF_drawnbounds},
+    {"modeloffsetto", PF_modeloffsetto},
     {"findcone", PF_findcone},
     {"findportalcone", PF_findportalcone},
     {"portal_pullimage", PF_portal_pullimage},

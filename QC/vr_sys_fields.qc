@@ -280,6 +280,8 @@
 .float  vr_hitclass; // precise hits (vr_hitmodel.cpp): a missile's class for its tolerance (HITCLASS_*: 0 a gun's, 1 the grappling hook's); -1: Quake's boxes
 .vector vr_spin;  // their angular velocity, radians per second, world axes
                   // (.vr_rigid 2: a solid one, SOLID_BBOX, its box kept round its drawn shape as it turns: an explosive box)
+.float  vr_pickup_spin; // a weapon pickup drawn as its prop (vr_pickup_prop_models): drawn spinning as an EF_ROTATE pickup
+                        // about its middle while not a rigid body (the engine's U_QVR_SPIN)
 // A thrown axe stuck in something by its blade (engine: vr_axestick.cpp, which sticks it and moves it with what it is in;
 // QC/vr_axestick.qc).
 .float  vr_stick_kind;   // 0 not stuck; 1 the level or a brush entity; 2 a prop; 3 a monster's model; 4 a monster's box;
