@@ -24860,6 +24860,58 @@ lines the rest), GPU 0.95 vs 0.92 ms.
 
 Seen in passing: a grunt killed by a 31-damage bolt at 96 units flies ~250 units before landing, with or without the
 seizure (the death knock), and `eval.sh` currently fails on a missing motion CSV in the author's checkout.
+
+### Lightning Shock follow-up: on the living too, longer, off the skin (2026-10-06)
+
+Vittorio (vrfiringrange 12:22): the arcs vanished almost at once, were hard to see (mostly inside the bodies), should be
+more and further out, start on living monsters as soon as the lightning strikes and carry over to the corpse; only the
+convulsions are the corpse's, lasting as long as the arcs. (His game ran a progs.dat from before the shock QC: the
+"almost at once" was each hit's own 0.75 s arcs.)
+
+- **Every bolt into a monster, alive or dead** (`VR_Shock_Hit`) starts the lasting shock or refreshes it: sent each bolt
+  (no 0.4 s throttle: the client's end and `.vr_shock_until` stay together), `vr_shock_death_time` from the last bolt.
+  The client effect follows the entity through its death (the `#rag` swap is the same body); a kill by another weapon
+  keeps what is left of it. Burns as before (a kill: `vr_shock_burns` all over; a corpse hit: one where it strikes).
+- **Duration on the wire:** kind 4 in 1/4 s (was 1/10 s, capped at 25.5 s): up to 63 s. Menu slider 0.5..30 s
+  (extended 0.1..60).
+- **Arcs off the skin:** Quake's models wind their triangles so that the cross product points *into* the body; the old
+  arcs started 0.5-0.6 units along it, i.e. inside (measured below). `outwardSign` finds the winding from where the
+  triangles face against the body's middle. The lasting shock now draws: 5-9 **walking arcs** (each from a point on the
+  skin to one ~11 units away, stepping on every 0.04-0.12 s, bowing out by 1.5 + 0.2 x their length so they stay off the
+  body over concave parts; points kept as triangle + barycentrics so they follow the animation/ragdoll), 8-22
+  **crackles** springing off the skin (feet 1.5-3 units out, 5-12 units long, leaning outwards), 1-4 **long arcs**
+  limb to limb (bowed out). Fading 1 .. 0.45 over the shock (was 0.35), thicker (1.0 / 0.9 vs 0.8). Each hit's own
+  0.75 s arcs: 1 unit out along the true outside (were 0.5 inside). `maxEffects` 16 -> 32 (a room of shocked monsters).
+- **Convulsions** (`vr_box3d.cpp shockRagdoll`): only ragdolls (the dead) as before, now easing with the arcs
+  (0.45 + 0.55 x left) and letting go over the last 0.4 s (`shockLetGo`), so they end with the arcs (was: full for
+  40%, then smoothstep to ~0 well before the end).
+- **Labels:** VR Settings > Gore: header "Lightning Shock", toggle "Lightning Shock", slider "Lightning Shock
+  Duration". The cvars keep their names (`vr_shock_death`, `vr_shock_death_time`, ...): no migration.
+- **Measuring:** `vr_shock_info` now also measures the next frame's arcs against the body's drawn triangles:
+  `bodyshock-arcs: entity points inside mean_out clear1` (share of arc points inside the closed mesh by a 3-ray parity
+  test, mean signed distance to the surface in units, share at least 1 unit out).
+
+Measured (grunt at 96 units in vrcalibration, `vr_shock_hit_test 1` alive then `-1`):
+
+| | before | after |
+|---|---|---|
+| each hit's arcs: inside / mean distance / >= 1 unit out | 0.97 / -0.40 / 0.00 | 0.00 / +0.93..1.01 / 0.42 |
+| lasting arcs: inside / mean / >= 1 unit out | 0.40-0.60 / +0.22..1.10 / 0.26-0.45 | 0.05-0.16 / +2.4..3.3 / 0.56-0.84 |
+| lasting arcs a frame (fresh .. worn off) | 10-17 (kills only) | 32-41 .. 12 (living and dead) |
+
+Durations: 3 s: living hit -> 2.94 s left, re-hit at +1 s -> 2.97 again, killed (no refresh) -> the corpse's arcs go on
+(1.93 left), ragdoll convulses (relspin 3.6 at 0.94 s left, 0.66 at 0.23 s), arcs and convulsions both end at 0.00
+(next sample: none). 30 s: living hit, kill at +5 s without refresh: arcs 24.6 s left on the corpse, convulsing
+through (shockcheck left 0.52 .. 0.01), sampled every 0.2 s at the end: the last arcs at remaining 0.00 with left 0.00,
+then none, both. While alive: `shockcheck: ragdolls=0` (no convulsions). Server/client end within ~0.03 s.
+
+Perf (six living grunts shocked for 30 s, `--exclusive`, real time, two windows each): CPU busy 0.95-0.96 vs 0.61-0.62
+ms with `vr_shock_arcs 0` (shock arcs 0.05-0.06 ms, scene lines ~0.14-0.2, the blue lights' dlight shadows ~0.15),
+GPU 1.24-1.33 vs 1.00-1.07 ms. (`vr_shock_arcs 0` now skips the triangles too.)
+
+Test in VR: shoot a grunt briefly with the lightning gun: arcs should crawl over it while it fights, carry on as it
+dies and its ragdoll convulses until they stop together; Lightning Shock Duration at 30 s; are the arcs too many or too
+far out (`vr_shock_arcs`), are the blue lights too much in a dark room. The default stays 3 s (his config has 3).
 ## Corner buttons on a flat screen (vr_menu_flat_shortcuts, 2026-10-06)
 
 Vittorio: the top-left menu shortcuts also visible and usable in flat-screen mode. With VR off (`vr_menu_flat_shortcuts
