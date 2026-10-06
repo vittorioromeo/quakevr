@@ -297,6 +297,9 @@ typedef struct savedata_s
 	edict_t			*edicts;
 	float			*globals;
 	const char		*lightstyles[MAX_LIGHTSTYLES];
+	int				nummodels;		// QVR: the model precache list (sv.model_precache[1..]), for the load's
+	const char		*models[MAX_MODELS];	// .modelindex values (VR_ReadSaveInfo)
+	unsigned int	progscrc;		// QVR: the progs' CRC (qcvm->crc)
 	byte			*buffer;
 	int				buffersize;
 } savedata_t;

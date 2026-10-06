@@ -812,6 +812,7 @@ extern "C" void VR_ServerFrameEnd()
 
     qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
     qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)
+    progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
 
     if(!vrProtocol())
     {

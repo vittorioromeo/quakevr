@@ -2604,7 +2604,7 @@ static void Host_Loadgame_f (void)
 		return;
 	}
 
-	if (!VR_CanLoadCampaignSave(start))
+	if (!VR_CanLoadCampaignSave(start) || !VR_ReadSaveInfo (start, relname)) // QVR: + its build and model list
     {
         VR_HeapFree(start);
         start = NULL;

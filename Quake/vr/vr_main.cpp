@@ -1387,6 +1387,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_particle_light_report", particles::lightReport_f);
     Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
+    Cmd_AddCommand("vr_model_check", progs::modelCheck_f);
     Cmd_AddCommand("vr_test_dialog", testDialog_f);
     Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);

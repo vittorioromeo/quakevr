@@ -2505,6 +2505,10 @@ void SaveData_Fill (savedata_t *save)
 		if (sv.lightstyles[i])
 			size += strlen (sv.lightstyles[i]) + 1;
 
+	// QVR: the model precache list
+	for (i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
+		size += strlen (sv.model_precache[i]) + 1;
+
 	for (i = 0; i < qcvm->numknownstrings; i++)
 	{
 		const char *str = qcvm->knownstrings[i];
@@ -2553,6 +2557,18 @@ void SaveData_Fill (savedata_t *save)
 			save->lightstyles[i] = "m";
 	}
 
+	/* QVR: the model precache list (the saved .modelindex values index it) */
+	save->nummodels = 0;
+	for (i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
+	{
+		int len = strlen (sv.model_precache[i]) + 1;
+		save->models[i] = (const char *) (save->buffer + ofs);
+		memcpy (save->buffer + ofs, sv.model_precache[i], len);
+		ofs += len;
+		save->nummodels = i;
+	}
+	save->progscrc = qcvm->crc;
+
 	/* known strings (contents) */
 	for (i = 0; i < qcvm->numknownstrings; i++)
 	{
@@ -2585,6 +2601,11 @@ void SaveData_WriteHeader (savedata_t *save)
 
 	for (i = 0; i < MAX_LIGHTSTYLES; i++)
 		fprintf (save->file, "%s\n", save->lightstyles[i]);
+
+	// QVR: the build, the format and the model list (comments: COM_Parse skips them; VR_ReadSaveInfo reads them)
+	fprintf (save->file, "// qvr_save %d progs %04x build %s\n", VR_SAVE_FORMAT, save->progscrc, VR_BuildVersion ());
+	for (i = 1; i <= save->nummodels; i++)
+		fprintf (save->file, "// qvr_model %d %s\n", i, save->models[i]);
 
 	ED_WriteGlobals (save);
 }

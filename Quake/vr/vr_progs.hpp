@@ -154,6 +154,11 @@ void resetBuiltinState();
 void onEdictFree(edict_t* ed);
 // vr_test_remove <entity number>: the entity removed, as QC's remove() (tests: its slot reused).
 void testRemove_f();
+// vr_model_check [1]: every entity's .modelindex against its .model, and the client's models against the server's
+// (saved games and late precaches: Misc/quakevr/precache/precache_test.sh).
+void modelCheck_f();
+// The server's frame: a loaded save's warning (another build's: VR_ReadSaveInfo) centre printed once the player is in.
+void loadNoticeFrame();
 
 } // namespace qvr::progs
 

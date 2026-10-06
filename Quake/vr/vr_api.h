@@ -170,6 +170,11 @@ void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is se
 void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer
 void VR_CheckLoadedReferences (int num_edicts);	// Host_Loadgame_f, the edicts parsed: an entity reference past them is the world (a dev warning)
 void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are restored
+// Saved games: after the light styles, `// qvr_save <format> progs <crc> build <build>` and `// qvr_model <i> <name>` for
+// the model precache list (SaveData_WriteHeader). VR_SAVE_FORMAT goes up when a save this build writes would load wrong
+// in an older one; a save of a newer format is refused (VR_ReadSaveInfo).
+#define VR_SAVE_FORMAT 1
+int VR_ReadSaveInfo (const char *text, const char *relname);	// Host_Loadgame_f, before the old game ends: the save's build and models read (0: refused)
 void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
