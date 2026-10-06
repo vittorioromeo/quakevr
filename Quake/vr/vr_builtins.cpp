@@ -1478,6 +1478,16 @@ void PF_bodyshockdeath()
         static_cast<float>(NUM_FOR_EDICT(target)), G_FLOAT(OFS_PARM1));
 }
 
+// bodysmoulder(target, left): `target`'s fire goes out in `left` s (0: it has just gone out), and it smokes while it burns
+// and a while after (QC vr_burning.qc; vr_smoulder.cpp); `left` below 0: put out in a liquid, it stops smoking.
+void PF_bodysmoulder()
+{
+    edict_t* target = G_EDICT(OFS_PARM0);
+    const float left = G_FLOAT(OFS_PARM1);
+    server::sendShock(PROG_TO_EDICT(pr_global_struct->self), left < 0.f ? 6 : 5, target->v.origin,
+        static_cast<float>(NUM_FOR_EDICT(target)), left < 0.f ? 0.f : left);
+}
+
 extern "C" void VR_PortalCarry(edict_t* box, edict_t* player, int hand, int begin);
 void PF_portal_carry()
 {
@@ -1902,6 +1912,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"portal_ai_client", PF_portal_ai_client},
     {"bodyshock", PF_bodyshock},
     {"bodyshockdeath", PF_bodyshockdeath},
+    {"bodysmoulder", PF_bodysmoulder},
     {"portal_carry", PF_portal_carry},
     {"findflags", PF_findflags},
     {"liquidentry", PF_liquidentry},

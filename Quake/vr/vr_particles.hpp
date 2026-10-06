@@ -107,6 +107,10 @@ void lavaNailTrail(const glm::vec3& from, const glm::vec3& to);
 // going `vel`. Nothing with vr_particles 0.
 void torchSmoke(const glm::vec3& org, const glm::vec3& drift, int count, float alpha);
 void torchDrip(const glm::vec3& org, const glm::vec3& vel);
+// A body smouldering (vr_smoulder.cpp: struck by lightning, burning or burnt): `count` thin grey wisps off its skin at
+// `org`, lifting off along `out` (the way out of the body there, a unit vector) and rising, `alpha` opaque. Nothing with
+// vr_particles 0.
+void smoulderSmoke(const glm::vec3& org, const glm::vec3& out, int count, float alpha);
 
 // The counter glow (vr_meleehud.cpp): a golden ember leaving a held weapon's surface at `org`, going `vel`, `bright`
 // 0..1 (its first alpha). Nothing with vr_particles 0.

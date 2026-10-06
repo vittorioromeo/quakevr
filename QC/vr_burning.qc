@@ -32,6 +32,7 @@
 .float burn_dead;         // the body was dead at the last fit
 .float burn_catch_next;   // wood's fire: when it next sets the crates and pieces touching it on fire
 .float burn_char_at;      // a piece's fire: when the piece is charred (half its time)
+.float burn_smoke_out;    // a body's fire: when the clients were last told its flames go out (VR_Burn_Smoke; 0 not told)
 // On a flame (owner: its fire):
 .vector burn_off;         // where on the body: from its origin, in its yaw's axes
 .float burn_size;         // its full scale
@@ -465,10 +466,28 @@ void(entity xFire) VR_Burn_Spread =
     }
 };
 
-// Out: its flames gone, the body no longer burning.
+// A monster's or a corpse's fire smokes off its body while it burns and a while after its flames go out (the engine's
+// vr_smoulder.cpp, client-side: vr_smoulder*): the clients are told when they go out (bodysmoulder), when it is lit and
+// again whenever burning on puts that half a second later; `xLeft` 0: just out; below 0: put out in a liquid (no smoke).
+void(entity xFire, float xLeft) VR_Burn_Smoke =
+{
+    entity v = xFire.enemy;
+    if(v == world || VR_Burn_Wood(v) || (v.flags & FL_CLIENT) || !((v.flags & FL_MONSTER) || v.vr_corpse))
+    {
+        return;
+    }
+    bodysmoulder(v, xLeft);
+    xFire.burn_smoke_out = xLeft > 0 ? time + xLeft : 0;
+};
+
+// Out: its flames gone, the body no longer burning (it smokes on a while: VR_Burn_Smoke).
 void(entity xFire, string xWhy) VR_Burn_Out =
 {
     entity v = xFire.enemy;
+    if(xFire.burn_smoke_out)
+    {
+        VR_Burn_Smoke(xFire, 0);
+    }
     entity fl = xFire.burn_flames;
     while(fl != world)
     {
@@ -524,12 +543,17 @@ void() VR_Burn_Think =
     entity v = self.enemy;
     if(v == world || v.burn_fire != self || !v.modelindex || v.modelindex != self.burn_model || v.vr_gib)
     {
+        self.burn_smoke_out = 0; // (no body left to smoke)
         VR_Burn_Out(self, "gone or gibbed");
         return;
     }
     if(VR_Wound_Level(v) >= 2)
     {
         particle2((v.absmin + v.absmax) * 0.5, '0 0 30', QVR_PARTICLE_PRESET_BIGSMOKE, 6);
+        if(self.burn_smoke_out)
+        {
+            VR_Burn_Smoke(self, -1); // (doused: it stops smoking)
+        }
         VR_Burn_Out(self, "in a liquid");
         return;
     }
@@ -582,6 +606,10 @@ void() VR_Burn_Think =
         return;
     }
     self.nextthink = time + 0.05;
+    if(self.burn_end + VR_BURN_FADE > self.burn_smoke_out + 0.5)
+    {
+        VR_Burn_Smoke(self, self.burn_end + VR_BURN_FADE - time); // (lit, or burning on longer)
+    }
 
     // Fitted to the body (it moves, dies, falls): each flame onto the model again where it is. A crate's stay where they
     // are on it (it is rigid: they turn with it).

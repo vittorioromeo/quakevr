@@ -35,6 +35,7 @@
 #include "vr_explosiondebris.hpp"
 #include "vr_fireparticles.hpp"
 #include "vr_shock.hpp"
+#include "vr_smoulder.hpp"
 #include "vr_stereo.hpp"
 #include "vr_window.hpp"
 #include "vr_text3d.hpp"
@@ -5973,6 +5974,7 @@ extern "C" void VR_SetupViewEntities()
     setupPouch(s);
     dripBlood(s);
     shock::frame(s); // the lightning gun in water's arcs and flash (vr_lg_water)
+    smoulder::frame(); // smoke off the bodies the lightning struck or fire burnt (vr_smoulder)
     setupButton(HAND_MAIN);
     setupButton(HAND_OFF);
     setupFrontButton(HAND_MAIN);

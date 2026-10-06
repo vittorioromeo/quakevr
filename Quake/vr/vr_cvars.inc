@@ -1322,6 +1322,12 @@ QVR_CVAR(vr_shock_death_time, "3", CVAR_ARCHIVE)     // how long it lasts after 
 QVR_CVAR(vr_shock_seizure, "1", CVAR_ARCHIVE)        // how hard a shocked ragdoll's limbs convulse, easing off with the arcs (0 still)
 QVR_CVAR(vr_shock_burns, "6", CVAR_ARCHIVE)          // burn marks a lightning kill leaves over the body (0 none; each hit chars where it strikes: vr_wounds_burns)
 QVR_CVAR(vr_shock_arcs, "1", CVAR_ARCHIVE)           // how many arcs crawl over a shocked body, x (0 none)
+// Smouldering bodies (vr_smoulder.cpp; Gore > Lightning Shock, Combat > Burning): thin smoke off the skin of the monsters
+// and bodies the lightning strikes, and of burning ones while they burn and a while after (client-side).
+QVR_CVAR(vr_smoulder, "1", CVAR_ARCHIVE)             // how much smoke, x (0 none)
+QVR_CVAR(vr_smoulder_time, "5.5", CVAR_ARCHIVE)      // s a body smokes after the last lightning bolt into it, thinning (0 none)
+QVR_CVAR(vr_smoulder_burn_time, "4", CVAR_ARCHIVE)   // s a burnt body smokes on after its flames go out, thinning (it smokes while they burn)
+QVR_CVAR(vr_smoulder_alpha, "0.6", CVAR_ARCHIVE)     // how opaque a fresh wisp is
 QVR_CVAR(vr_torch_lights, "8", CVAR_ARCHIVE)         // torches and flames flicker a small warm light onto the room: how many at once, the nearest in view (0 off)
 QVR_CVAR(vr_torch_light_scale, "1", CVAR_ARCHIVE)    // their brightness (on top of the baked light)
 QVR_CVAR(vr_torch_light_shadows, "0", CVAR_ARCHIVE)  // how many of them (the nearest) may cast shadows, taking vr_shadow_dlights' slots (0 none)

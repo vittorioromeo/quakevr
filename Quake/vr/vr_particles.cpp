@@ -1908,6 +1908,33 @@ void torchSmoke(const glm::vec3& org, const glm::vec3& drift, int count, float a
     });
 }
 
+void smoulderSmoke(const glm::vec3& org, const glm::vec3& out, int count, float alpha)
+{
+    alpha = za::clamp(alpha, 0.f, 1.f);
+    if(!vr_particles.value || alpha <= 0.f || count <= 0 || !ensureAtlas())
+    {
+        return;
+    }
+    // Thin grey wisps off charred skin: small as they leave it, lifting off and rising, spreading and thinning (lighter
+    // and fainter than a torch's pitch smoke).
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        const float g = rnd(0.48f, 0.62f);
+        p.color = glm::vec4{g * 1.03f, g, g * 0.96f, alpha * rnd(0.6f, 1.1f)};
+        const float life = rnd(1.6f, 2.6f);
+        p.die = cl.time + life;
+        p.scale = rnd(1.2f, 2.f);
+        p.type = Custom;
+        p.fade = -p.color.a / life;
+        p.grow = rnd(3.f, 4.5f);
+        p.drag = 1.2f;
+        p.spin = rnd(-0.6f, 0.6f);
+        p.acc = gravity(-0.01f) + inBox(2.5f);
+        p.org = org + out * 1.5f + inBox(0.6f);
+        p.vel = out * rnd(2.f, 5.f) + glm::vec3{0.f, 0.f, rnd(7.f, 13.f)} + inBox(2.f);
+    });
+}
+
 void torchDrip(const glm::vec3& org, const glm::vec3& vel)
 {
     if(!enabled())

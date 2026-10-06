@@ -2097,6 +2097,11 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("How hard a shocked ragdoll's limbs convulse, easing off with the arcs (0 still). Only the dead convulse."),
         slider("Arcs on Bodies", vr_shock_arcs, 0.f, 3.f, 0.1f, "%.1fx").help("How many arcs crawl over a shocked monster or body (0 none)."),
         slider("Burn Marks", vr_shock_burns, 0.f, 16.f, 1.f, "%.0f").help("The burn marks a lightning kill leaves over the body (each hit also chars where it strikes: Burns)."),
+        slider("Smoke After Lightning", vr_smoulder_time, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("How long a monster or a body the lightning strikes smokes from its burns after the last bolt, thinning out (0 none)."),
+        slider("Smouldering Smoke", vr_smoulder, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much smoke rises off bodies the lightning struck or fire burnt (0 none; how long after fire: Combat > Burning > Smoke After Flames)."),
+        slider("Smoke Opacity", vr_smoulder_alpha, 0.1f, 1.f, 0.05f, "%.2f").help("How opaque each wisp of that smoke is as it leaves the skin."),
         header("Your Wounds"),
         slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx").extend()
             .help("How often blood drips from your wounded arms and hands (the body's wounds: Show Armour and Wounds; 0 none)."),
@@ -2769,6 +2774,9 @@ void hologramTestMessage()
         slider("Corpse Burn Time", vr_burn_corpse_time, 0.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f),
         slider("Corpse Burn Damage", vr_burn_corpse_damage, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("A burning corpse's damage, times Burn Damage: enough of it gibs it (Corpse Health). 0: it just burns."),
+        slider("Smoke After Flames", vr_smoulder_burn_time, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("A burning monster or corpse smokes while it burns, and this long after its flames go out, thinning out "
+                  "(how much: Gore > Lightning Shock > Smouldering Smoke)."),
         header("What Sets Things on Fire"),
         toggle("Torch Touch", vr_burn_touch)
             .help("A lit torch, held or thrown, sets a monster or a corpse on fire just by touching it: no blow needed. "
@@ -4141,6 +4149,11 @@ za::Vector<Item> pageDebugTools()
             .help("vr_shock_info: the bodies with arcs on them (kind 3 a hit's, 4 lasting; the arcs drawn; next frame: how far off the "
                   "skin they lie, bodyshock-arcs); vr_shock_ragdoll_check: each "
                   "ragdoll's shock left, its limbs' turning speed, its fastest part and its joints' stretch (console)."),
+        command("Smoke Off the Bodies Near", "vr_smoulder_test 10")
+            .help("vr_smoulder_test [seconds]: every monster and body within 1000 units smokes that long as a lightning bolt's burns "
+                  "would (Smouldering Smoke); vr_smoulder_info: the smoking bodies and the wisps made since the last print."),
+        command("Smouldering Bodies", "vr_smoulder_info")
+            .help("vr_smoulder_info: the smoking bodies (lightning's smoke left, the fire's flames out in, the smoke left) and the wisps made since the last print (console)."),
         command("Mjolnir's Lightning", "impulse 215").help("impulse 215: Mjolnir in the main hand strikes its lightning now, "
                                                             "as a blow does (15 cells). In water: the shock, with its damage."),
         header("Small Gibs Tests (developer 1 for each hit)"),

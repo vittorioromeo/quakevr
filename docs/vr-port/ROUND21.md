@@ -25227,3 +25227,50 @@ The prerequisite fixes of `INSTALLER.md` (section 12), with Vittorio's decisions
   files is there. A base with only `hipnotic/textures/`, `rogue/maps/<other file>` and `mg1/textures/`: before,
   hipnotic, rogue and mg1 "incomplete installation"; after, hipnotic and rogue "missing", and mg1 comes from the Steam
   rerelease (a data-less campaign folder no longer masks a lower root's copy).
+## Lightning Shock options and smouldering bodies (vr_shock_living, vr_smoulder*, 2026-10-06)
+
+Asked: an option for the lasting arcs on living enemies (both, or corpses only, to try out); smoke off what the
+lightning strikes (living or dead) for 5-6 s to simulate the burns, and off burning enemies and corpses, carrying on a
+while after their flames go out.
+
+- **Arcs on the Living** (`vr_shock_living`, default 1 = as since 312f53ef; Gore > Lightning Shock): 0 brings back the
+  older rule in `VR_Shock_Hit` (vr_shock.qc): no lasting shock is sent while the monster lives; the killing bolt and
+  every bolt into a body start it as before. What a living monster keeps with it off: each hit's own short arcs
+  (weapons.qc `bodyshock(t, 0.75)`, kind 3) and the burn where it strikes. Measured (grunt 96 units ahead,
+  `vr_shock_hit_test 1` alive, then `-1`): on: kind 3 (0.70 s) and kind 4 (2.94 s) on the living grunt; off: only kind 3
+  (0.70 s, then 0.22 s), `lasting_sent=0`; the kill then gives kind 4 (2.94 s) both ways.
+- **Smouldering bodies** (`vr_smoulder.cpp`, client-side): a slot per body (entity number, 32 at most) holding when the
+  lightning's smoke ends and when its fire goes out and its smoke ends after. Each lightning hit already sends
+  QVR_SVC_SHOCK kind 3 (and 4 for the lasting shock) for the body: parsing it starts `vr_smoulder_time` s of smoke
+  (refreshed by each bolt). A monster's or corpse's fire (vr_burning.qc `VR_Burn_Smoke`) sends a new builtin
+  `bodysmoulder(t, left)` (QVR_SVC_SHOCK kind 5, 1/4 s units, the shock's own small message): when it is lit, again only when
+  burning on puts its end at least 0.5 s later, and once when it goes out (0); doused in a liquid sends kind 6 (the smoke
+  stops); gone or gibbed sends nothing (the client sees its model change, as the arcs do). It smokes at full strength
+  while it burns and `vr_smoulder_burn_time` s after. Strength fades as the square root of the time left; wisps are due
+  at 18/s x `vr_smoulder` x strength, each from a random point of the body's triangles as drawn now (so they follow the
+  model and the ragdoll), mostly from parts facing up, lifting off along the skin's normal: `particles::smoulderSmoke`
+  (CellSmoke like the torch's smoke, but light grey and thinner; `vr_smoulder_alpha`). Not beyond 1500 units; nothing
+  saved up while out of sight.
+- Cvars: `vr_smoulder` 1 (x, 0 off), `vr_smoulder_time` 5.5 s, `vr_smoulder_burn_time` 4 s, `vr_smoulder_alpha` 0.6.
+  Menu: Gore > Lightning Shock > Smoke After Lightning / Smouldering Smoke / Smoke Opacity; Combat > Burning > Smoke
+  After Flames. Debug > Gore Tests: Smoke Off the Bodies Near (`vr_smoulder_test [s]`: every monster and body within
+  1000 units), Smouldering Bodies (`vr_smoulder_info`: the bodies and the wisps made since the last print).
+
+Measured (wisps made each ~0.72 s, `vr_smoulder_info`):
+
+| case | start | wisps per interval | last wisps | expected end |
+|---|---|---|---|---|
+| lightning on a living grunt | hit 1.85 | 12 14 12 9 8 6 4 1 0 | 7.22-7.94 | 7.35 |
+| lightning on its ragdoll (killed first with the smoke off) | hit ~3.2 | 6 7 6 5 5 4 2 1 0 (density 10/s then) | 8.24-8.96 | 8.7 |
+| torch blow on a living grunt (burns till 4.7, out 5.2) | lit 1.74 | 12 13 13 13 13 12 11 10 7 5 1 0 | 8.96-9.68 | 9.2 |
+| torch blow on a corpse (8 s, out at ~10.3) | | 7 x 11 at full, then 7 6 5 4 3 0 (10/s then) | 13.4-14.1 | 14.3 |
+
+Perf (7 grunts, 6 smoking, `--exclusive`, real time, 5 s): CPU busy 0.59 vs 0.53 ms with `vr_smoulder 0` (noise level;
+the "smoulder" timer is under the report's threshold), GPU vr particles 0.10-0.14 either way; ~180 extra live particles
+(825 vs 641). Screenshots (both eyes, `vr_eyeshot 3`): thin grey wisps rising off a burnt corpse and a lightning-killed
+ragdoll, the same in both eyes; none with `vr_smoulder 0`.
+
+Test in VR: shoot a grunt briefly with the lightning gun, alive and as a corpse: the smoke should rise thin off the body
+for about 5 s, following it as it walks, falls and lies; set a monster on fire with a torch: smoke while it burns, a few
+seconds after the flames go out. Is it too faint in dark rooms or too much (Smouldering Smoke, Smoke Opacity)? Try Arcs
+on the Living off.

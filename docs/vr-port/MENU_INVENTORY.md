@@ -806,6 +806,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - Corpses Burn → `vr_burn_corpses`
         - Corpse Burn Time → `vr_burn_corpse_time`
         - Corpse Burn Damage → `vr_burn_corpse_damage`
+        - Smoke After Flames → `vr_smoulder_burn_time`
         - — What Sets Things on Fire —
         - Torch Touch → `vr_burn_touch`
         - Lava Nails → `vr_burn_lava_nails`
@@ -1545,6 +1546,16 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
       - Your Burns' Relief → `vr_wounds_bump_burns`
       - Your Wounds' Depth → `vr_wounds_bump_blood`
       - Blood Opacity → `vr_wounds_blood_alpha`
+      - — Lightning Shock —
+      - Lightning Shock → `vr_shock_death`
+      - Arcs on the Living → `vr_shock_living`
+      - Lightning Shock Duration → `vr_shock_death_time`
+      - Convulsions → `vr_shock_seizure`
+      - Arcs on Bodies → `vr_shock_arcs`
+      - Burn Marks → `vr_shock_burns`
+      - Smoke After Lightning → `vr_smoulder_time`
+      - Smouldering Smoke → `vr_smoulder`
+      - Smoke Opacity → `vr_smoulder_alpha`
       - — Your Wounds —
       - Arm Drip Rate → `vr_body_blood`
       - Drop Size → `vr_body_blood_amount`
@@ -2841,6 +2852,8 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - [cmd] Eject a Casing → `vr_shells_eject`
         - [cmd] Lightning Shock → `vr_shock_test 0`
         - [cmd] Electrified Water → `vr_shock_test 1`
+        - [cmd] Smoke Off the Bodies Near → `vr_smoulder_test 10`
+        - [cmd] Smouldering Bodies → `vr_smoulder_info`
         - [cmd] Mjolnir's Lightning → `impulse 215`
         - — Small Gibs Tests (developer 1 for each hit) —
         - [cmd] A Grunt Ahead → `vr_test_spawn 0; vr_test_spawn_dist 96; impulse 241`

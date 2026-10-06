@@ -958,8 +958,8 @@ void sendShock(edict_t* player, int kind, const float org[3], float radius, floa
         MSG_WriteCoord(msg, org[i], sv.protocolflags);
     }
     MSG_WriteShort(msg, CLAMP(0, static_cast<int>(radius), 32767));
-    // (In 1/50 s: 5 s at most; a body's lasting shock, kind 4, in 1/4 s: 63 s.)
-    MSG_WriteByte(msg, CLAMP(0, static_cast<int>(duration * (kind == 4 ? 4.f : 50.f) + 0.5f), 255));
+    // (In 1/50 s: 5 s at most; a body's lasting shock, kind 4, and a fire's smoulder, 5 and 6, in 1/4 s: 63 s.)
+    MSG_WriteByte(msg, CLAMP(0, static_cast<int>(duration * (kind >= 4 ? 4.f : 50.f) + 0.5f), 255));
     if(msg == &sv.datagram)
     {
         VR_BroadcastMessageEnd(); // a boundary

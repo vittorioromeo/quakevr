@@ -8,6 +8,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_shock.hpp"
+#include "vr_smoulder.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_avatar.hpp"
@@ -278,9 +279,9 @@ void drawBeamArcs(int index, const glm::vec3& a, const glm::vec3& b)
     }
 }
 
-// Whether models `a` and `b` are one body's: the same .mdl, or it and its ragdoll's skinned copy ("<model>#rag": the
-// client swaps them as the ragdoll is made and gone).
-[[nodiscard]] bool sameBody(const qmodel_t* a, const qmodel_t* b)
+} // namespace
+
+bool sameBody(const qmodel_t* a, const qmodel_t* b)
 {
     const char* ha = strchr(a->name, '#');
     const char* hb = strchr(b->name, '#');
@@ -288,6 +289,9 @@ void drawBeamArcs(int index, const glm::vec3& a, const glm::vec3& b)
     const size_t lb = hb ? static_cast<size_t>(hb - b->name) : strlen(b->name);
     return la == lb && !strncmp(a->name, b->name, la);
 }
+
+namespace
+{
 
 // A body's surface as drawn now (KindBody, KindBodyDeath): its triangles into `tris`; false if it is not there to draw
 // on (gone, out of the last update; another model in its slot now: the effect ends).
@@ -767,7 +771,16 @@ void parse()
         org[i] = MSG_ReadCoord(cl.protocolflags);
     }
     const float radius = static_cast<float>(MSG_ReadShort());
-    const float duration = static_cast<float>(MSG_ReadByte()) / (kind == KindBodyDeath ? 4.f : 50.f);
+    const float duration = static_cast<float>(MSG_ReadByte()) / (kind >= KindBodyDeath ? 4.f : 50.f);
+    if(kind == KindSmoulder || kind == KindDoused)
+    {
+        smoulder::burning(static_cast<int>(radius), duration, kind == KindDoused);
+        return;
+    }
+    if(kind == KindBody || kind == KindBodyDeath)
+    {
+        smoulder::struck(static_cast<int>(radius)); // (the burns it leaves smoke a while: vr_smoulder.cpp)
+    }
     add(kind, {org[0], org[1], org[2]}, radius, duration);
 }
 
