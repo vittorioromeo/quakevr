@@ -41,6 +41,10 @@
                   "closer and leaves a margin for the steadied view to turn in. Past the margin, the view follows your "
                   "head: raise it if quick turns show the view catching up."),
         header("Spectator Camera"),
+        toggle("Preview in the Menus", "vr_spectator_preview")
+            .help("While the Spectator Camera is on, a small copy of what the window shows, in the bottom left corner "
+                  "of the headset's menus, above its switch: what the recording looks like (on by default). Only in the "
+                  "headset: the recording itself shows the menu without it."),
         toggle("Bullet Time Effects", "vr_spectator_bullettime_fx")
             .help("Shows bullet time's drained colour, tint and darkened edges in the Spectator Camera (on by default). "
                   "Off: the camera keeps its normal look. The headset is unchanged. Strength and colour: Combat > "

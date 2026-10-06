@@ -24958,3 +24958,27 @@ Config 89 moves a setting still at its old default to the new one; changed ones 
 `retro::migrateShippedLook`). Checked: a fresh config shows all 104 new values; a config at version 88 with the old
 values migrates them all, and five custom values (parallax distance 768, largest knock 12, world block 2, hands palette
 0.3, parry stagger 0.5) stay. Not changed: `vr_dummy_gib` (0 -> 1 in his config; not on a Combat page).
+## Menu status box fits its text; spectator camera preview in the menus (vr_spectator_preview, 2026-10-06)
+
+Vittorio (NOTES.md vrfiringrange_2026-10-06_12-28-18): the top right status box's text ran out of its background.
+On a page whose rows are spaced out (`vr_menu_spacing`, the menu canvas's y scaled by it; the main menu keeps 1) the
+characters keep their own size (`Draw_KeepMenuGlyphSize`) while the rows were placed in menu units, so they spread
+past the box, which the Painter measures in true pixels. `VR_MenuDrawStatus` now places the rows in true pixels too:
+the same box on every page (flat screen unchanged). Eye images (`vr_menu_spacing 2`, VR Settings): before, rows twice
+as far apart and out of the box above and below; after, inside it; the rest of the eye image identical (pixel diff
+only in the status box).
+
+Vittorio (12-29-40): a small preview of the spectator camera in the menus while it is on, to see what will be
+recorded. `vr_spectator_preview` (archived, default 1; Graphics > Recording > Spectator Camera > Preview in the Menus):
+above the bottom left switch, as wide as it (within the column left of the menu), the window's shape, a tan frame;
+smaller where the corner buttons leave less room, none under 48 menu pixels. It is the window's image (the mirror
+pass: glow, tone, wobble, bullet time look) drawn small (384 wide, mipmapped) into its own target right after each new
+camera image (`vr_stereo.cpp` `makePreview`, only while a menu places it: `menuui::spectatorPreviewWanted`), and drawn
+by the eyes over the panel (`vr_menuui.cpp` `placePreview` in the 2D pass, `drawPreview` in the eyes), not into the
+canvas: the camera sees the menu in the world, and would film its own preview. So the recording shows the menu
+without it. The eyes show the image of the frame before (the camera renders after them).
+
+Cost (e1m1, menu open, `vr_spectator_rate 1`, 250 fps, `vr_profile_gpu 1`): the preview pass 0.039 ms GPU, 0.001 ms
+CPU a camera image; the eyes' quads within the HUD panel scope's 0.001 ms. At the default rate (60 images a second)
+less. Tested: eye images with the camera Off (identical to before but the status numbers), On (VR Settings page and
+main menu: the preview above the switch, matching the window); the window's screenshot has no preview.

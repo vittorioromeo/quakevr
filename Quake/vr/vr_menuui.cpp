@@ -45,6 +45,7 @@
 #include "vr_menuui.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_panel.hpp"
+#include "vr_stereo.hpp"
 #include "vr_units.hpp"
 #include "vr_window.hpp"
 
@@ -602,6 +603,59 @@ struct BannerLayout
     return x >= l.left && x <= b.x1 + 2.f && y >= b.yc - (ToolbarLayout::half + 2.f) / l.k && y <= l.bottom;
 }
 
+// The spectator camera's preview (vr_spectator_preview), while it is on: above its switch, as wide as the switch (within
+// the column left of Quake's plaque), the window's shape; smaller where the corner's buttons leave less room, none
+// where too small to make out. Placed by the 2D pass in the canvas (u0, v0, u1, v1), drawn by the eyes over the panel
+// (drawPreview): not into the canvas, which the camera sees in the world (it would show itself, a frame late, over
+// and over).
+struct PreviewPlace
+{
+    glm::vec4 image{0.f};
+    glm::vec4 frame{0.f};
+    int placed{-10}; // host_framecount when placed
+};
+PreviewPlace previewPlace;
+
+void placePreview(const ToolbarLayout& l, const BannerLayout& b)
+{
+    constexpr float border = 1.5f; // the frame round it (true pixels)
+    constexpr float smallest = 48.f;
+    if(!vr_spectator_preview.value || !spectatorOn() || vid.width <= 0 || vid.height <= 0)
+    {
+        return;
+    }
+    const float aspect = static_cast<float>(vid.height) / static_cast<float>(vid.width); // the camera's: the window's
+    const float x0 = za::fmax(b.x0, l.left + ToolbarLayout::corner);
+    float x1 = za::fmin(b.x1, 16.f - 8.f);
+    const float bottom = b.yc - (ToolbarLayout::half + 2.f * ToolbarLayout::gap) / l.k;
+    const float room = (bottom - (l.buttonsBottom() + 2.f * ToolbarLayout::gap / l.k)) * l.k; // true pixels
+    float height = (x1 - x0 - 2.f * border) * aspect + 2.f * border;
+    if(height > room)
+    {
+        height = room;
+        x1 = x0 + (room - 2.f * border) / aspect + 2.f * border;
+    }
+    if(x1 - x0 < smallest)
+    {
+        return;
+    }
+    const float top = bottom - height / l.k;
+    const drawtransform_t& t = glcanvas.transform;
+    const auto uv = [&](float ax, float ay, float bx, float by) {
+        const float u0 = (ax * t.scale[0] + t.offset[0] + 1.f) * 0.5f, u1 = (bx * t.scale[0] + t.offset[0] + 1.f) * 0.5f;
+        const float v0 = (ay * t.scale[1] + t.offset[1] + 1.f) * 0.5f, v1 = (by * t.scale[1] + t.offset[1] + 1.f) * 0.5f;
+        return glm::vec4{za::fmin(u0, u1), za::fmin(v0, v1), za::fmax(u0, u1), za::fmax(v0, v1)};
+    };
+    previewPlace.frame = uv(x0, top, x1, bottom);
+    previewPlace.image = uv(x0 + border, top + border / l.k, x1 - border, bottom - border / l.k);
+    previewPlace.placed = host_framecount;
+}
+
+[[nodiscard]] bool previewPlaced()
+{
+    return vr_spectator_preview.value && host_framecount - previewPlace.placed <= 2;
+}
+
 // What the switch changed, to put back when it is switched off: the window's view before, and the desktop mirror's
 // setting when it was off (-1: it was on).
 struct SpectatorSwitch
@@ -649,14 +703,44 @@ void toggleSpectator(int hand)
     return m_state == m_vr ? menu::scroll(rows) : M_ScrollList(rows) != 0;
 }
 
-// The laser's strips, each eye (the main thread).
+// The laser's strips and the spectator camera's preview, each eye (the main thread).
 struct MenuUiScratch
 {
     za::Vector<gfx::Vertex> laser;
+    za::Vector<gfx::Vertex> preview;
     za::Vector<za::String> status;
-    auto members() { return qvr::mem::list(laser, status); }
+    auto members() { return qvr::mem::list(laser, preview, status); }
 };
 mem::Scratch<MenuUiScratch> scratch{"menu laser"};
+
+// The preview in the eye being rendered, over the panel: its frame, then the camera's image (not in the camera's own
+// view; nothing until vr_stereo.cpp has made it from an image).
+void drawPreview(const hands::State& s)
+{
+    float aspect = 0.f;
+    const unsigned texture = previewPlaced() && !stereo::isSpectator() ? stereo::spectatorPreview(aspect) : 0;
+    glm::vec3 corner, xAxis, yAxis;
+    if(!texture || !panel::menuQuad(s, corner, xAxis, yAxis))
+    {
+        return;
+    }
+    za::Vector<gfx::Vertex>& v = scratch.preview;
+    const auto quad = [&](const glm::vec4& r, const glm::vec4& color) {
+        v.clear();
+        const glm::vec2 c[4]{{r.x, r.y}, {r.z, r.y}, {r.z, r.w}, {r.x, r.w}};
+        const glm::vec2 st[4]{{0.f, 0.f}, {1.f, 0.f}, {1.f, 1.f}, {0.f, 1.f}};
+        for(const int i : {0, 1, 2, 0, 2, 3})
+        {
+            v.pushBack({corner + xAxis * c[i].x + yAxis * c[i].y, st[i], color});
+        }
+    };
+    const gfx::State state{.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false};
+    quad(previewPlace.frame, colors::boxBorder);
+    gfx::draw(v, gfx::sceneViewProjection(), state);
+    quad(previewPlace.image, glm::vec4{1.f});
+    gfx::draw(v, gfx::sceneViewProjection(),
+        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Opaque, .depthTest = false, .depthWrite = false}, texture);
+}
 
 } // namespace
 
@@ -1004,12 +1088,18 @@ int triggerKey(int hand, bool down, int key)
     return K_MOUSE1;
 }
 
+bool spectatorPreviewWanted()
+{
+    return active() && previewPlaced();
+}
+
 void drawInEye(const hands::State& s)
 {
     if(!active() || !s.valid)
     {
         return;
     }
+    drawPreview(s);
 
     // At the pose the eyes are drawn with.
     const int h = pointingHand;
@@ -1439,6 +1529,7 @@ extern "C" void VR_MenuDrawOverlay()
             // The label in the menus' tan, On or Off white (all white under the laser).
             Draw_CharacterEx(x, b.yc - 4.f, 8.f, 8.f, hot || (state && c > state) ? *c : (*c | 128));
         }
+        placePreview(l, b);
     }
 
     // On the runtime's panel (no world to draw the laser in), where the laser points: a dot in its hue.

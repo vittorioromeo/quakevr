@@ -13,5 +13,8 @@ namespace qvr::stereo
 // area, foveation or upscale; isFirstEye is false. Caches sized to the view keep one for it (vr_bloom, vr_haze,
 // vr_water).
 [[nodiscard]] bool isSpectator();
+// The menus' small copy of the spectator camera's image as the window shows it (vr_spectator_preview: made while
+// menuui::spectatorPreviewWanted), 0 when there is none current; `aspect` its height over its width.
+[[nodiscard]] unsigned spectatorPreview(float& aspect);
 
 } // namespace qvr::stereo

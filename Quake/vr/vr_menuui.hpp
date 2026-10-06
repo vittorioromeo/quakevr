@@ -29,8 +29,13 @@ void update(const hands::State& s);
 // menu (and for the release of such a press). A press also makes that hand the pointing one.
 [[nodiscard]] int triggerKey(int hand, bool down, int key);
 
-// Draws the laser and its spot on the panel, in the eye being rendered (after the panel).
+// Draws the laser and its spot on the panel, in the eye being rendered (after the panel), and the spectator camera's
+// preview (vr_spectator_preview) under it (not in the camera's own view).
 void drawInEye(const hands::State& s);
+
+// Whether a menu in the headset shows the spectator camera's preview (vr_spectator_preview, while the camera is on;
+// placed by the last 2D pass): vr_stereo.cpp then makes it from the camera's image.
+[[nodiscard]] bool spectatorPreviewWanted();
 
 // "Back to game": closes the menu from whatever page it is on, remembering that page for the next
 // time it opens (vr_menu_remember), with a pulse in `hand`. The panel's top-left button, or the

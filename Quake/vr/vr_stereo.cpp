@@ -23,6 +23,7 @@
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
 #include "vr_meleehud.hpp"
+#include "vr_menuui.hpp"
 #include "vr_panel.hpp"
 #include "vr_portals.hpp"
 #include "vr_profile.hpp"
@@ -647,6 +648,40 @@ SpectatorPace spectatorPace;
     return true;
 }
 
+// The menus' preview of the spectator camera (vr_spectator_preview; vr_menuui.cpp places it, bottom left, and draws it
+// in the eyes): the camera's image as the window shows it (its glow, tone, wobble and bullet time look), small, with
+// mipmaps for the panel's distance. Made from each new image while a menu shows it: one pass of its pixels.
+struct SpectatorPreview
+{
+    gfx::Target target;
+    int images = 0;        // the camera's images so far
+    int made = -1;         // the image it was made from
+    double madeAt = -1.0;  // realtime when it was last made or found current
+};
+SpectatorPreview previewState;
+constexpr int previewWidth = 384;
+
+void makePreview(int windowWidth, int windowHeight)
+{
+    SpectatorPreview& p = previewState;
+    if(!menuui::spectatorPreviewWanted())
+    {
+        return;
+    }
+    const int height = za::max(16, static_cast<int>(za::lround(static_cast<double>(previewWidth) * windowHeight / windowWidth)));
+    if(p.made != p.images || p.target.width != previewWidth || p.target.height != height)
+    {
+        QVR_GPU_PROFILE("spectator preview");
+        gfx::ensureTarget(p.target, previewWidth, height, true, "spectator preview");
+        drawToWindow(spectatorTargets, spectatorPace.look, cropMap(0.f, 0.f, 1.f, 1.f), Sampling::Bilinear,
+            p.target.framebuffer, 0, p.target.width, p.target.height);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, p.target.texture);
+        GL_GenerateMipmapFunc(GL_TEXTURE_2D);
+        p.made = p.images;
+    }
+    p.madeAt = realtime;
+}
+
 void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
 {
     const float scale = window::spectatorScale();
@@ -656,6 +691,7 @@ void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
     if(!spectatorDue(sceneTargetsFit(spectatorTargets, width, height, fsaa)))
     {
         // Its last image again.
+        makePreview(windowWidth, windowHeight);
         QVR_GPU_PROFILE("window view");
         drawToWindow(spectatorTargets, spectatorPace.look, cropMap(0.f, 0.f, 1.f, 1.f),
             scale > 1.f ? Sampling::Bilinear : Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
@@ -687,6 +723,8 @@ void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
     drawUi(camera.origin, framebufs.composite.fbo, width, height, vr_spectator_hide_hud_text.value == 0.f);
     spectatorView = false;
     renderingEye = false;
+    previewState.images++;
+    makePreview(windowWidth, windowHeight);
 
     QVR_GPU_PROFILE("window view");
     drawToWindow(spectatorTargets, spectatorPace.look, cropMap(0.f, 0.f, 1.f, 1.f),
@@ -698,6 +736,17 @@ void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
 bool isSpectator()
 {
     return spectatorView;
+}
+
+unsigned spectatorPreview(float& aspect)
+{
+    const SpectatorPreview& p = previewState;
+    if(!p.target.texture || p.made < 0 || p.madeAt < 0.0 || realtime - p.madeAt > 0.25)
+    {
+        return 0;
+    }
+    aspect = static_cast<float>(p.target.height) / static_cast<float>(p.target.width);
+    return p.target.texture;
 }
 
 bool isRenderingEye()
