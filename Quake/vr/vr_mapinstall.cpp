@@ -1808,10 +1808,30 @@ void installed_f()
 
 void uninstall_f()
 {
-    const mapindex::Entry* e = argEntry("maps_uninstall", Cmd_Argv(1));
-    if(e)
+    // An installed package by its sha's start, whether the index has it or not (it may have dropped it, or not have
+    // arrived yet); otherwise the index's (argEntry says what is wrong).
+    const char* arg = Cmd_Argv(1);
+    za::String sha;
+    int matches = 0;
+    for(const Installed& p : installedList())
     {
-        uninstall(za::String{mapindex::index().field(e->sha256)});
+        if(arg[0] && !q_strncasecmp(p.sha.cStr(), arg, strlen(arg)))
+        {
+            sha = p.sha;
+            matches++;
+        }
+    }
+    if(matches == 1)
+    {
+        uninstall(sha);
+        return;
+    }
+    if(const mapindex::Entry* e = argEntry("maps_uninstall", arg))
+    {
+        if(!uninstall(za::String{mapindex::index().field(e->sha256)}))
+        {
+            Con_Printf("maps_uninstall: %s is not installed.\n", mapindex::index().field(e->title));
+        }
     }
 }
 
