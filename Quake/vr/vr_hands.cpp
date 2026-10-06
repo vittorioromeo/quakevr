@@ -9,6 +9,7 @@
 #include "vr_handpose.hpp"
 #include "vr_main.hpp"
 #include "vr_throw.hpp"
+#include "vr_timescale.hpp"
 #include "vr_torso.hpp"
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
@@ -125,6 +126,11 @@ struct Previous
     glm::quat handRot[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}};
     double handRotTime[2]{-1.0, -1.0};
     glm::vec3 handSpin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // The same of the controller's own orientation (timescale::controllerPose: the slowed hand's lags it), for the
+    // throw's direction in slow motion (vr_throw_slowmo_aim).
+    glm::quat ownRot[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}};
+    double ownRotTime[2]{-1.0, -1.0};
+    glm::vec3 ownSpin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 
 Previous previous;
@@ -370,17 +376,21 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
 // A controller's spin (tracking space, rad/s) from its turn since its previous sample (vr_throw_spin_from_pose): what
 // its orientation did, whatever frame the runtime gives its angular velocity in (VirtualDesktopXR: the controller's
 // own, not the tracking space's). Kept within a frame resampled at the same time; none after a gap of over 0.1 s.
-[[nodiscard]] glm::vec3 poseSpin(int h, const glm::quat& rot, double time)
+// `own`: of the controller's own orientation (timescale::controllerPose), not the hand's.
+[[nodiscard]] glm::vec3 poseSpin(int h, const glm::quat& rot, double time, bool own = false)
 {
-    const double dt = time - previous.handRotTime[h];
-    if(previous.valid && previous.handRotTime[h] >= 0.0 && dt == 0.0)
+    glm::quat& lastRot = own ? previous.ownRot[h] : previous.handRot[h];
+    double& lastTime = own ? previous.ownRotTime[h] : previous.handRotTime[h];
+    glm::vec3& lastSpin = own ? previous.ownSpin[h] : previous.handSpin[h];
+    const double dt = time - lastTime;
+    if(previous.valid && lastTime >= 0.0 && dt == 0.0)
     {
-        return previous.handSpin[h];
+        return lastSpin;
     }
     glm::vec3 spin{0.f};
-    if(previous.valid && previous.handRotTime[h] >= 0.0 && dt > 0.0 && dt < 0.1)
+    if(previous.valid && lastTime >= 0.0 && dt > 0.0 && dt < 0.1)
     {
-        glm::quat d = rot * glm::inverse(previous.handRot[h]);
+        glm::quat d = rot * glm::inverse(lastRot);
         if(d.w < 0.f)
         {
             d = -d;
@@ -391,9 +401,9 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
             spin = v * (2.f * za::atan2(s, d.w) / (s * static_cast<float>(dt)));
         }
     }
-    previous.handRot[h] = rot;
-    previous.handRotTime[h] = time;
-    previous.handSpin[h] = spin;
+    lastRot = rot;
+    lastTime = time;
+    lastSpin = spin;
     return spin;
 }
 
@@ -445,17 +455,31 @@ void updateVelocities(const TrackingState* t)
         glm::vec3 throwVel = state.vel[h];
         glm::vec3 throwForward = forward(state.rot[h]);
         glm::vec3 throwSpin = state.angVel[h];
+        // The controller's own motion where the slowed hand lags it (slow motion: timescale::controllerPose), the same
+        // otherwise: the way a throw goes (vr_throw_slowmo_aim).
+        throwing::Motion own{state.pos[h], throwVel, throwSpin, throwForward};
+        const Pose* ctrl = t ? timescale::controllerPose(h) : nullptr;
         if(t && t->hands[h].velocityValid)
         {
-            throwVel = fromTracking(t->hands[h].gripVelocityValid ? t->hands[h].gripVelocity : t->hands[h].linearVelocity);
-            throwForward = forward(anglesFromTracking(throwFrame(t->hands[h].orientation, h), turnYaw));
-            const glm::vec3 spin = poseSpin(h, t->hands[h].orientation, time);
+            const Pose& p = t->hands[h];
+            throwVel = fromTracking(p.gripVelocityValid ? p.gripVelocity : p.linearVelocity);
+            throwForward = forward(anglesFromTracking(throwFrame(p.orientation, h), turnYaw));
+            const glm::vec3 spin = poseSpin(h, p.orientation, time);
+            const glm::vec3 ownSpin = poseSpin(h, ctrl ? ctrl->orientation : p.orientation, time, true);
             if(vr_throw_spin_from_pose.value)
             {
                 throwSpin = fromTracking(spin);
             }
+            own = {state.pos[h], throwVel, throwSpin, throwForward};
+            if(ctrl && ctrl->velocityValid)
+            {
+                own.pos = state.pos[h] + fromTracking(ctrl->position - p.position) * units::metresToUnits();
+                own.vel = fromTracking(ctrl->gripVelocityValid ? ctrl->gripVelocity : ctrl->linearVelocity);
+                own.forward = forward(anglesFromTracking(throwFrame(ctrl->orientation, h), turnYaw));
+                own.angVel = vr_throw_spin_from_pose.value ? fromTracking(ownSpin) : fromTracking(ctrl->angularVelocity);
+            }
         }
-        throwing::sample(h, time, state.pos[h], throwVel, throwSpin, throwForward);
+        throwing::sample(h, time, {state.pos[h], throwVel, throwSpin, throwForward}, own);
     }
 
     previous.head = head;

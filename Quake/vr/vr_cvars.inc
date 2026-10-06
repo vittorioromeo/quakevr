@@ -66,6 +66,8 @@ QVR_CVAR(vr_throw_slowmo_real_time, "1", CVAR_ARCHIVE) // 1: in slow motion (the
 // controller's frame, 0.3-0.5 in the tracking space): a flick facing anywhere but the play space's front then spun
 // the throw about another axis (an upright axe flicked end over end left the hand cartwheeling sideways). vr_angvel_frame
 // now puts the runtime's in the tracking space too (both agree on any runtime; the turn leads the runtime's by about 2 samples).
+QVR_CVAR(vr_throw_slowmo_tempo, "1", CVAR_ARCHIVE) // 1: in slow motion (with vr_throw_slowmo_real_time), a throw made slowly with the slowed world (its controller within vr_timescale_hand_speed of the game's time) has its windows in the game's time, as the same motion at full speed; one faster than the hands follow (1.5 times it) in real time, a blend between; 0: always in real time
+QVR_CVAR(vr_throw_slowmo_aim, "1", CVAR_ARCHIVE) // 1: in slow motion with the hands slowed (vr_timescale_hand_speed, _spin), a throw goes the way the controller moved (its estimate on the controller's own samples), its speed and spin the slowed hand's (at most the controller's), from the hand as drawn; 0: the way the slowed hand moved (its catch-up towards a controller it lags: throws at full real speed went 20 to 30 degrees high)
 QVR_CVAR(vr_throw_spin_from_pose, "1", CVAR_ARCHIVE)
 // The frame of the controllers' angular velocity from the runtime (vr_angvel.cpp; ROUND21.md, "The runtime's angular
 // velocity frame"): -1 auto (the runtime's name, then its samples: VirtualDesktopXR 1.0.10 gives the controller's own

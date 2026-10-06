@@ -1,6 +1,6 @@
 # Mock-hand throws for the throw-angle tests (vr_mock_play files; docs/vr-port/TESTING.md, "Throwing: the release
 # angle"; ROUND21.md, "Climbing: sliding along the wall; throw angle after calibration"):
-#   python throw_plays.py [--gunangle 70] [--out <folder>]
+#   python throw_plays.py [--gunangle 70] [--out <folder>] [--stretch 3.333] [--rate 90]
 # writes throws.txt: several throws with the main hand, one after the other, each announced by "echo THROW <name>
 # <meant elevation>" and let go (-grabmain) at its release. The controller poses are the real hand's pose plus the
 # controller's own turn on it (Gun Angle: the controller is pitched up that much from the hand; the author's
@@ -68,7 +68,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--gunangle", type=float, default=70.0, help="the controller's pitch on the real hand (degrees)")
     ap.add_argument("--out", default="throws.txt")
+    ap.add_argument("--stretch", type=float, default=1.0,
+                    help="every time times this: the same motions made that many times slower (bullet time's 1/0.3)")
+    ap.add_argument("--rate", type=float, default=90.0,
+                    help="keys a second of the motion (90: a headset's; more: a smoother motion between the game's frames,"
+                         " whose throws then depend less on where the frames fall)")
     args = ap.parse_args()
+    global RATE
+    RATE = args.rate
     throws = [
         ("overhand", 5, arc_throw("overhand", 150, 40, 95, 35, -45, 0.30)),
         ("lob", 30, arc_throw("lob", -120, -30, -60, -20, 30, 0.45)),
@@ -87,6 +94,9 @@ def main():
         t0 += keys[-1][0] + 1.0
         L.append(f"{t0 - 0.6:.3f} main 0.25 1.1 -0.2 70 0 0")
     L.append(f"{t0:.3f} off -0.25 1.1 -0.2 70 0 0")
+    if args.stretch != 1.0:
+        L = [f"{float(l.split(' ', 1)[0]) * args.stretch:.6f} {l.split(' ', 1)[1]}" for l in L]
+        t0 *= args.stretch
     with open(args.out, "w", newline="\n") as f:
         f.write("\n".join(L) + "\n")
     print(f"{args.out}: {t0:.2f} s")

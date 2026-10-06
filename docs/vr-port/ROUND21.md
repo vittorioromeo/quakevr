@@ -26478,3 +26478,56 @@ checks wave budgets and squads against the official tables (5 arenas, all four s
 `Misc/quakevr/multiplayer/mghorde_mp_test.sh` covers coop revival, shared keys, team wipe and leaving. Details,
 the Hunger/re-aggro/axe-chain source findings and which arena to use for each manual test: EXPANSIONS.md, "MG1
 Horde follow-up".
+
+## Throws in bullet time: the way the controller moved (2026-10-06)
+
+Follow-up to the section above. The author: "Why is the angle higher? Shouldn't it be the same angle, if I perform the
+same motion but slowly?" Two causes:
+
+1. **A throw at real speed** (default caps, `vr_timescale_hand_speed` 8, `_spin` 20): the slowed hand
+   (`timescale::filterHands`) can't keep up, and while it is limited its velocity is its catch-up step towards the
+   controller, not the arm's motion: an overarm arc's catch-up points at where the controller already is (above and
+   ahead), 21 to 31 degrees high. Fix (`vr_throw_slowmo_aim` 1, Throwing page > **Slow Motion: Throw Where You Aim**):
+   `filterHands` keeps each controller's own pose with its velocities in the game's time (`timescale::controllerPose`);
+   `vr_hands.cpp` samples it into a second history in step with the hand's (`throwing::sample(hand, time, handMotion,
+   controller)`; its spin from its own orientation, `poseSpin(.., own)`). The release (`withOwnAim`, `vr_throw.cpp`)
+   runs the same estimate on both: the throw keeps the slowed hand's speed (at most the controller's), spin size,
+   release point and time, but takes the controller estimate's direction, spin axis and wrist flick (scaled with it).
+   Both hands (`estimateBothAt`) likewise. When the samples are the same (full speed, Sandevistan, a hand that kept up)
+   nothing changes (bit for bit). The release point stays the hand as drawn: the object leaves the slowed hand where
+   the player sees it (up to 0.36-0.44 m behind the controller in these throws).
+2. **A throw made slowly with the slowed world** (performed 1/0.3 slower): the windows in real seconds of the section
+   above took in 0.3 of its arc (a few degrees lower). Fix (`vr_throw_slowmo_tempo` 1, **Slow Motion: Slow Throws
+   Match**): the windows' clock follows the motion (`motionRate`): from the controller's fastest speed around the
+   release in the game's time, within what the slowed hand follows (`vr_timescale_hand_speed`, 8 if 0) it moved with
+   the world and the windows are the game's seconds (the same throw as at full speed); from 1.5 times that it moved
+   faster than the world (real seconds, as before); a blend (log) between. 0: always real seconds.
+
+`vr_debug_throw 1` adds in slow motion: `slow motion: windows x<rate> of the clock's, the controller's way (the slowed
+hand's <deg> off it), the hand <m> behind it at the peak`.
+
+Test: `Misc/quakevr/throw_slowmo/throw_slowmo_test.sh <agent> "<cvars>" [stretch] [keyrate]` (new: `stretch` 3.3333333
+makes every motion 1/0.3 slower, `keyrate` 1000 a smooth motion; `throw_plays.py --stretch --rate`). Elevation of the
+four throws (overhand, lob, flat, overhand with a still wrist), mock, Gun Angle 70; "matched" plays the slow motion at
+0.3 of the frame rate, so the motion is sampled at the same points as the full-speed one:
+
+| keys 90 | overhand | lob | flat | overhand0 |
+|---|---|---|---|---|
+| full speed, 72 fps | -0.7 (4.30 m/s) | +23.6 | +5.0 | +13.9 |
+| bullet time, real speed, now | -0.6 (8.00) | +23.6 | +5.0 | +13.9 |
+| bullet time, real speed, before (aim 0, tempo 0) | +21.9 | +18.4 | +5.0 | +30.9 |
+| bullet time, made slowly, matched (21.6 fps), now | -0.7 (4.30) | +23.6 | +5.0 | +13.9 |
+| bullet time, made slowly, matched, before | +12.3 | +20.8 | +5.1 | +8.1 |
+| full speed, 90 fps / real speed / slowly matched (27 fps) | +5.2 / +5.1 / +4.4 | +21.5 / +21.5 / +21.6 | 5.0 | +12.7 / +12.7 / +12.7 |
+| Sandevistan | as full speed | | | |
+
+With 1000 keys a second: full 72 fps -1.3, +18.0, +5.1, +5.3; real speed -1.2, +18.0, +5.1, +5.4 (before +27.7, -0.2,
++5.3, +36.6); slowly, matched -1.3, +18.0, +5.1, +5.3 (before +30.7, +14.8, +5.7, +2.9). Speeds: real speed capped at
+8 m/s of the game's time as designed (2.4 real), spin at 20; made slowly, the full-speed speeds.
+
+Caveat (pre-existing, not changed): the estimate depends on the frame rate the motion is sampled at, through where
+the release and the fastest sample land on the arc's flat-topped speed (an overarm arc turns about 7 degrees in 10
+ms). Made slowly at 72 fps (sampled 3.3 times as densely), the throws match the full-speed throw at 240 fps rather than
+at 72 (overhand0, 1000 keys: +19.4 against +19.5 at 240 fps, +5.3 at 72). The full-speed throw alone moves by up to 14
+degrees between 72 and 240 fps with these synthetic arcs; and with `vr_fixed_frames_rate` 240 the scripted `-grabmain`
+registered about 37 ms after its time (0 at 72).

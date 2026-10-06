@@ -21,12 +21,27 @@ struct Estimate
                            // (weight::throwVelocity).
     glm::vec3 pos{0.f};    // world position of the object's centre when it left the hand
     double time{0.0};      // when it left the hand
+    // vr_throw_slowmo_aim: degrees the slowed hand's own estimate went off the way the controller moved (0: the same,
+    // or not slow motion), and metres the hand was behind its controller at the peak (vr_debug_throw).
+    float aimTurn{0.f};
+    float lag{0.f};
+    float rate{1.f}; // the windows' seconds in the samples' clock's one (slow motion: vr_throw_slowmo_real_time, _tempo)
 };
 
-// `pos` is the hand's world position; `forward` its (unit) aim direction, along which the held
+// A hand's motion at a sample: its world position, velocity, spin and (unit) aim direction, along which the held
 // object's centre lies.
-void sample(int hand, double time, const glm::vec3& pos, const glm::vec3& vel, const glm::vec3& angVel,
-    const glm::vec3& forward);
+struct Motion
+{
+    glm::vec3 pos{0.f};
+    glm::vec3 vel{0.f};
+    glm::vec3 angVel{0.f};
+    glm::vec3 forward{1.f, 0.f, 0.f};
+};
+
+// `hand`: the hand's motion (as drawn: in slow motion the slowed hand, timescale::filterHands); `controller`: its
+// controller's own (the same unless the slowed hand lags it), whose estimate gives the throw's direction and spin axis in
+// slow motion (vr_throw_slowmo_aim).
+void sample(int hand, double time, const Motion& handMotion, const Motion& controller);
 
 // The estimate as of the newest sample, as if released now.
 [[nodiscard]] Estimate estimate(int hand);

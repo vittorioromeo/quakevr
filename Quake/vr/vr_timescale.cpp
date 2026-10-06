@@ -57,6 +57,8 @@ struct Hands
     double behind = 0.0;       // seconds the slowed runtime clock is behind the runtime's
     double lastRuntime = -1.0; // the runtime clock at the last frame (< 0: none yet)
     float lag[HAND_COUNT]{};   // metres each hand is behind its controller (vr_slowmo_probe)
+    Pose controller[HAND_COUNT]; // each controller's own pose, its velocities in the game's time (controllerPose)
+    bool controllerOn[HAND_COUNT]{};
 };
 Hands slowHands;
 
@@ -274,6 +276,11 @@ float handLag(int hand)
     return hand >= 0 && hand < HAND_COUNT ? slowHands.lag[hand] : 0.f;
 }
 
+const Pose* controllerPose(int hand)
+{
+    return hand >= 0 && hand < HAND_COUNT && slowHands.controllerOn[hand] ? &slowHands.controller[hand] : nullptr;
+}
+
 bool sandevistan()
 {
     return scaleClock.sandevistan;
@@ -316,6 +323,7 @@ void filterHands(TrackingState& t)
         {
             slowHands.hand[h].on = false;
             slowHands.lag[h] = 0.f;
+            slowHands.controllerOn[h] = false;
         }
         return;
     }
@@ -334,6 +342,7 @@ void filterHands(TrackingState& t)
         if(!p.valid)
         {
             f.on = false;
+            slowHands.controllerOn[h] = false;
             continue;
         }
         const glm::vec3 fromHead = p.position - head;
@@ -358,9 +367,16 @@ void filterHands(TrackingState& t)
 
         // Its velocities in the game's time: the controller's, sped up as the world is slowed (a hand moved slowly
         // is a normal blow in the slowed world), or the head's and the most the follower moves.
+        // The controller's own, before the hand is moved off it.
+        Pose& own = slowHands.controller[h];
+        own = p;
+        slowHands.controllerOn[h] = true;
         if(p.velocityValid)
         {
             const float toGame = 1.f / s;
+            own.linearVelocity = p.linearVelocity * toGame;
+            own.gripVelocity = p.gripVelocity * toGame;
+            own.angularVelocity = p.angularVelocity * toGame;
             const glm::vec3 moved = headVel * toGame + (dt > 0.f ? step / dt : glm::vec3{0.f});
             p.linearVelocity = limited ? moved : p.linearVelocity * toGame;
             p.gripVelocity = limited ? moved : p.gripVelocity * toGame;

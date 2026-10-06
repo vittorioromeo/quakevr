@@ -256,6 +256,12 @@ VrMove unposed;
                 Con_Printf("throw %s: %.2f m/s (%.2f %.2f %.2f), spin %.1f rad/s, hand now %.2f m/s\n",
                     h == HAND_MAIN ? "main" : "off", glm::length(e.vel), e.vel.x, e.vel.y, e.vel.z,
                     glm::length(e.angVel), glm::length(hs.vel[h]));
+                if(e.aimTurn > 0.f || e.lag > 0.f || e.rate != 1.f)
+                {
+                    Con_Printf("  slow motion: windows x%.2f of the clock's, the controller's way (the slowed hand's %.1f "
+                               "deg off it), the hand %.2f m behind it at the peak\n",
+                        e.rate, e.aimTurn, e.lag);
+                }
                 if(vr_debug_throw.value >= 2.f)
                 {
                     Con_Printf("  released %.0f ms after the peak, sent %.0f ms after the release\n",

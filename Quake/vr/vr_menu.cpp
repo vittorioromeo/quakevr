@@ -2521,6 +2521,14 @@ void hologramTestMessage()
             .help("In slow motion (bullet time, not Sandevistan), a throw's release is judged over the same stretch of "
                   "your real motion as at full speed, and its wrist flick by your real wrist speed. Off: over the slowed "
                   "clock's, which took in three times the arm's arc at 0.3x (throws went off, the wrist's share too big)."),
+        toggle("Slow Motion: Throw Where You Aim", vr_throw_slowmo_aim)
+            .help("In slow motion (bullet time, not Sandevistan), a throw goes the way your controller moved, as the same "
+                  "motion at full speed would, even when the slowed hand lags behind it; its speed stays the slowed "
+                  "hand's. Off: the way the lagging hand moved to catch up (fast throws went 20 to 30 degrees high)."),
+        toggle("Slow Motion: Slow Throws Match", vr_throw_slowmo_tempo)
+            .help("In slow motion, a throw you make slowly, with the slowed world, is judged as the same throw at full "
+                  "speed (its release over the same part of the arc); one faster than the slowed hands can follow, over "
+                  "your real motion. Off: always over your real motion (a slow throw came out a few degrees lower)."),
         toggle("Spin From Controller Turn", vr_throw_spin_from_pose)
             .help("A throw's spin from how the controller turned, not the runtime's angular velocity (Virtual Desktop "
                   "reports it in the controller's frame: a flick facing away from the play space's front spun throws "
