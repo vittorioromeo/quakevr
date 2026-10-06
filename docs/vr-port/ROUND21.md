@@ -24444,7 +24444,9 @@ delay tests, same floating CRT screen with its cable, same gadget hologram.
 entity's `targetname`; the engine sends that entity's index once (`QVR_SVC_TIP_ENT`, `NUM_FOR_EDICT`; `-1` for the
 world = a fixed point) and the client follows `cl_entities[i]` live — its origin and model box as it moves, `msgtime`
 saying when it is gone (the panel fades). A tip naming itself follows nothing: it stays at its own origin. A target
-placed after the tip in the map file is found again 0.5 s after the map starts (`VR_Tip_Retry`).
+placed after the tip in the map file is found again in the map's first frames (`VR_Tip_Retry`, time + 0.1: a loaded
+game is laid over the map's first two frames). The server checks the followed entity each frame (`tips::serverFrame`):
+freed, or another classname in its slot, the tip's entity becomes `goneEntity` (-2) and it never shows again.
 
 **Seen once**: the key in `vr_tips_seen` is `<mapname>:<tipname>` (`<mapname>#<index>` when it has no name), so the
 same name in two maps is two tips; `vr_tips_reset` (VR Settings > Tips > Show Tips Again) clears them with the rest.
@@ -24462,7 +24464,7 @@ same name in two maps is two tips; `vr_tips_reset` (VR Settings > Tips > Show Ti
 | spawnflag 1 `REPEAT` | off | shown every time he comes near, not remembered. |
 | spawnflag 2 `HOLOGRAM` | off | in the wrist gadget's hologram instead of the floating screen. A map tip uses the screen whatever `vr_tips` is (1 or 2) unless this is ticked; `vr_tips 0` is no tips at all. |
 | spawnflag 4 `ANYANGLE` | off | shown even out of `vr_tips_view_angle` or hidden by the world. |
-| worldspawn `_vr_tips_repeat` | 0 | 1: every `func_vr_tip` in this map repeats (a tutorial map). |
+| worldspawn `_vr_tips_repeat` | 0 | 1: every `func_vr_tip` in this map repeats (a tutorial map). Read by the engine (`mapFlags`): QC never sees `_` keys. |
 
 **In TrenchBroom**: the entity is in `quakevr.fgd` (its QUAKED comment in `QC/vr_tips.qc`, its keys, choices and help
 in `Misc/trenchbroom/entities.fgd`, `python Misc/trenchbroom/fgdgen.py` then `install.ps1` with TrenchBroom closed).
@@ -24499,3 +24501,28 @@ cropped): the `+0` shots are unchanged by the fix (mean difference 0.1-0.2 of 25
 changed by 24; consecutive shots across the frame change differ 12.8 after against 29.5 before. e1m1 takes 5 normal
 maps this way (`+1/+2/+3planet` 0.88-0.92, `+1basebtn` and `+abasebtn` 0.91), e1m4 3 (`+1..+3button` 0.93-0.96).
 Without the pack (`vr_extmaps 0`) every frame's made map comes from its own shading and the relief stays put.
+### Review of the map tips (2026-10-06)
+
+The feature as merged had six bugs, each now fixed in its own commit and proved headless on a copy of vrstart with
+test tips (before / after):
+
+- **REPEAT did nothing** (the flag was never read): a Repeat tip was added to `vr_tips_seen` and never shown again. Now
+  it stays out of the list and shows again once the player has gone 1.25x its range away and come back.
+- **`_vr_tips_repeat` did nothing**: `ED_ParseEdict` drops every key that starts with `_`, so the QC field was always 0.
+  The server reads it from the worldspawn (`debris::worldspawnValue(key, absent)`); the QC field is gone.
+- **A tipname with a space** never matched its key in the space-separated `vr_tips_seen`: the tip showed every few
+  seconds and the list grew each time. Spaces, quotes and semicolons become `_` in the key.
+- **A followed entity freed and its slot reused**: the tip showed on whatever took the slot (a removed health's tip on
+  an armor spawned there). Now `goneEntity`.
+- **A loaded game** lost a late target (the retry ran at 0.5 s, after the save had been laid over the map): the tip
+  sat at its own origin. Now the retry runs in the first frames.
+- **A demo recorded mid-map** had no map tips (`VR_WriteDemoState` wrote only the world texts): `tips::clientWriteAll`.
+- **List This Map's Tips** printed `no tip "list"` with the names: now a real list (`#<n>` for unnamed tips).
+
+Left for a decision (not changed): a tip following an entity the client never receives (an `info_notnull`, a trigger)
+never shows; a tip's own `targetname` (the follow-by-targetname form) makes the tip itself a match for every
+`find(world, targetname, ...)` of that name (a teleporter's destination, a monster's path) — `target` is the safe key;
+`tip_delay 0` cannot mean "at once" (0 is "the player's setting"); `vr_tips_seen` grows with every map tip ever seen
+and a config value is read back only up to 1023 characters (`com_token`: a 1199-character list read back ends after
+its 83rd key), so after some 50 map tips the newest keys are lost on restart and those tips show again; tip texts are unbounded (64 tips of ~1 KB would overflow a spawning client's
+64000-byte message).
