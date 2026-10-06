@@ -118,8 +118,7 @@ float(float xHow) VR_Decap_IsPop =
 };
 
 // `e`'s head zone (xHeadForward, xHeadUp, xHeadRadius): positional damage's (PositionalHead, weapons.qc), or for a
-// monster without one for headshots its rest pose's head here: a rottweiler's ($attack1: lunging), a fiend's ($stand1:
-// crouched, his head thrust forward, below his origin). FALSE: none.
+// monster without one for headshots its rest pose's head here: a rottweiler's ($attack1: lunging). FALSE: none.
 float(entity e) VR_Decap_HeadZone =
 {
     if(e.classname == "monster_dog")
@@ -127,13 +126,6 @@ float(entity e) VR_Decap_HeadZone =
         xHeadForward = 23;
         xHeadUp = 1;
         xHeadRadius = 7;
-        return TRUE;
-    }
-    if(e.classname == "monster_demon1")
-    {
-        xHeadForward = 27;
-        xHeadUp = -5;
-        xHeadRadius = 8;
         return TRUE;
     }
     return PositionalHead(e);

@@ -25460,3 +25460,29 @@ times the hand's step plus 1 cm). The two arms mirror (mirrored poses: the same 
       Tuck Fades By (0.9 arm).
 - [ ] Hand on the chest, then a look at the wrist gadget (forearm level, palm down): still spreads like wings.
 - [ ] Scratch the back of the head, salute: the elbow lifts up and out as before.
+## The author's combat decisions: fiend head zone, ragdolls, axes in props, gibs stick (2026-10-06)
+
+### Fiend head zone (positional damage)
+
+His answer: the fiend gets a head zone. It had none for positional damage (`PositionalHead`, weapons.qc): only
+decapitation knew his head (`VR_Decap_HeadZone`'s own branch), so a shot or a blow at it did body damage (x1; the old
+"his head is an extremity, 2/3" in "Ragdolls for more monsters" was a blast's falloff, not a zone). Now
+`PositionalHead` has his ($stand1: 27 forward, 5 *below* his origin, radius 8, the numbers decapitation used) and
+decapitation's own branch is gone (one source). His head lies below his origin, which is his legs' zone too: Head
+Priority (`vr_hit_head_priority`, on by default) gives it to the head; with it off a fiend's head reads as legs.
+`monster_ogre_marksman` (a map's marksman that keeps its classname: Honey's model present, or a Machine Games
+campaign) takes the ogre's zone (decapitation already threw an ogre's head for him, but he had no zone to cut).
+
+Monsters with a head zone (positional damage, so headshots, melee head hits, head pops and beheading): grunt, ogre
+(and marksman), enforcer, gremlin, death knight, knight, shambler, vore, zombie, scrag, mummy, fiend (new); the player
+and the training dummy. Without: rottweiler (decapitation has his lunging head: beheaded, no headshots), spawn,
+rotfish, Chthon, Shub-Niggurath, Rogue's and Hipnotic's others (scourge, sword knight, wraths, morph, dragon).
+
+Tests (e1m1, a fiend 96 units ahead, `vr_debug_damage_numbers 1`): the precise hits' ring (impulse 238): head ring
+0/24 headshots before, 15/24 on his model and 7/24 on boxes after (from behind and the sides his shoulders come
+first), chest ring unchanged (0 head). `vr_decap_test 17` (shotgun at the head, health 500): "6 pellets, 6 head
+(x1.50)"; `vr_decap_test 7` (a sword's slash, full health): "melee: slash ... head (x1.50)"; `vr_decap_test 1`:
+beheaded, h_demon thrown at 167 u/s.
+
+In VR:
+- [ ] Shoot a fiend in the head (Show Damage Numbers): "head (x1.50)"; slash it: the same, and at a kill his head comes off.

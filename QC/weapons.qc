@@ -230,7 +230,7 @@ float(entity xTarget) PositionalHead =
 {
     string c = xTarget.classname;
     if(c == "monster_army")             { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
-    if(c == "monster_ogre")             { xHeadForward = 9;  xHeadUp = 33; xHeadRadius = 10;  return TRUE; }
+    if(c == "monster_ogre" || c == "monster_ogre_marksman") { xHeadForward = 9; xHeadUp = 33; xHeadRadius = 10; return TRUE; }
     if(c == "monster_enforcer")         { xHeadForward = 2;  xHeadUp = 27; xHeadRadius = 7.4; return TRUE; }
     if(c == "monster_gremlin")          { xHeadForward = 7;  xHeadUp = 12; xHeadRadius = 6.4; return TRUE; }
     if(c == "monster_hell_knight")      { xHeadForward = 6;  xHeadUp = 33; xHeadRadius = 7.2; return TRUE; }
@@ -240,6 +240,9 @@ float(entity xTarget) PositionalHead =
     if(c == "monster_zombie")           { xHeadForward = 0;  xHeadUp = 22; xHeadRadius = 6;   return TRUE; }
     if(c == "monster_wizard")           { xHeadForward = 6;  xHeadUp = 25; xHeadRadius = 7;   return TRUE; }
     if(c == "monster_mummy")            { xHeadForward = 0;  xHeadUp = 30; xHeadRadius = 6.5; return TRUE; }
+    // A fiend's ($stand1: crouched, his head thrust forward, below his origin; decapitation's zone since round 21). Below
+    // his origin it is his legs' zone too: Head Priority (vr_hit_head_priority, on by default) gives it to the head.
+    if(c == "monster_demon1")           { xHeadForward = 27; xHeadUp = -5; xHeadRadius = 8;   return TRUE; }
     if(c == "player")                   { xHeadForward = 4;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
     return FALSE;
 };
