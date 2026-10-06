@@ -15,6 +15,7 @@
 #include "vr_detail.hpp"
 #include "vr_emissive.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mapinstall.hpp"
@@ -36,6 +37,7 @@
 #include <sys/stat.h>
 extern "C" {
 #include "steam.h"
+#include "json.h" // (the engine's C header: Epic's install manifests)
 }
 
 
@@ -387,6 +389,57 @@ int campaignIndex(const char* name)
     return -1;
 }
 
+// The Epic Games Store's Quake (the 2021 release): the launcher's install manifests (<ProgramData>/Epic/
+// EpicGamesLauncher/Data/Manifests/*.item, JSON; or the folder after -epicmanifests, for tests), each with its
+// DisplayName and InstallLocation. A manifest counts when its name says Quake and its folder holds the rerelease's
+// id1/pak0.pak, in rerelease/ (Steam's layout) or at its root (GOG's): that folder is the root. -noepic: none.
+void addEpicRoots(za::Vector<za::String>& roots)
+{
+    za::String dir;
+    if(const int arg = COM_CheckParm("-epicmanifests"); arg && arg + 1 < com_argc)
+    {
+        dir = com_argv[arg + 1];
+    }
+    else
+    {
+#ifdef _WIN32
+        const char* programData = getenv("PROGRAMDATA");
+        if(!programData || !*programData) { return; }
+        dir = za::String{programData} + "/Epic/EpicGamesLauncher/Data/Manifests";
+#else
+        return;
+#endif
+    }
+    if(!qvr::files::isDirectory(dir.cStr())) { return; }
+    qvr::files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory)
+    {
+        const za::SizeT n = strlen(name);
+        if(isDirectory || n < 5 || q_strcasecmp(name + n - 5, ".item")) { return; }
+        za::String text;
+        if(!qvr::files::readText(qvr::files::join(dir.cStr(), name).cStr(), text)) { return; }
+        json_t* json = JSON_Parse(text.cStr());
+        if(!json) { return; }
+        const char* title = json->root ? JSON_FindString(json->root, "DisplayName") : nullptr;
+        const char* location = json->root ? JSON_FindString(json->root, "InstallLocation") : nullptr;
+        if(title && location && *location && q_strcasestr(title, "quake"))
+        {
+            char path[MAX_OSPATH];
+            q_snprintf(path, sizeof(path), "%s/rerelease/id1/pak0.pak", location);
+            if(Sys_FileType(path) == FS_ENT_FILE)
+            {
+                q_snprintf(path, sizeof(path), "%s/rerelease", location);
+                roots.pushBack(za::String{path});
+            }
+            else
+            {
+                q_snprintf(path, sizeof(path), "%s/id1/pak0.pak", location);
+                if(Sys_FileType(path) == FS_ENT_FILE) { roots.pushBack(za::String{location}); }
+            }
+        }
+        JSON_Free(json);
+    });
+}
+
 za::Vector<za::String> ownedRoots()
 {
     // Explicit bases win, last base highest. Never add store roots to com_basedirs:
@@ -407,6 +460,10 @@ za::Vector<za::String> ownedRoots()
         char install[MAX_OSPATH];
         if(Sys_GetGOGQuakeEnhancedDir(install, sizeof(install)))
         { addRoot(install); }
+    }
+    if(!COM_CheckParm("-noepic"))
+    {
+        addEpicRoots(roots);
     }
     for(int i = 0; i < com_numbasedirs; ++i)
     {
@@ -580,9 +637,9 @@ static bool ownedLocalizationRootsKnown = false;
 extern "C" char* VR_LoadOwnedLocalization(const char* name)
 {
     if(strncmp(name, "localization/loc_", 17) || strchr(name, ':') || strstr(name, "..")) { return nullptr; }
-    // The store and rerelease roots only, found once (Steam's and GOG's lookups are not free, and the roots do not
-    // change while the game runs): a base dir itself is on the search path already, its table read by LOC_ReadFile,
-    // and reading it here too parsed and kept every entry twice.
+    // The store and rerelease roots only, found once (Steam's, GOG's and Epic's lookups are not free, and the roots do
+    // not change while the game runs): a base dir itself is on the search path already, its table read by
+    // LOC_ReadFile, and reading it here too parsed and kept every entry twice.
     za::Vector<za::String>& roots = ownedLocalizationRoots;
     if(!ownedLocalizationRootsKnown)
     {
