@@ -296,8 +296,9 @@ The client reads the local server:
     walking only and snaps otherwise.
 - Melee and hitscan need lag compensation: rewind monster hit models to the client's view time
   (render time ≈ now − latency − lerp).
-- Tick rate: VR servers should run at 72 Hz (`sys_ticrate 0.0139`) or process every received move (sub-ticking).
-  Otherwise hand-based systems see 20 Hz samples.
+- Tick rate: VR servers should run at 72 Hz or process every received move (sub-ticking). Otherwise hand-based
+  systems see 20 Hz samples. (Done 2026-10-06: `host_fixedtick 1`, a steady 72 Hz tick for listen and dedicated
+  servers; ROUND21.md, "Server tick rate".)
 
 ## Remote avatars: proposed message
 
@@ -326,7 +327,7 @@ The client reads the local server:
 | P0-3 | Client-side traces instead of `worldtrace::move` (teleport, crosshair, flashlight, handpose); prop mass and hull width as data. Remove the client's `sv.qcvm` reads outside debug tools. | M (2 d) |
 | P0-4 | Reset per-client VR state on connect and drop (`clientMoves`, `clientBits`, climbers, hand bodies). | S |
 | P0-5 | OR edge bits (press, flick, grab) across all moves in a tick instead of the last move winning. | S |
-| P0-6 | Dedicated server: fix the crash on quit (`vr_imgprefetch.cpp:47` `workers` destroyed unjoined → `std::terminate` [run]); default a 72 Hz tick for VR progs; reject non-VR clients cleanly. | S |
+| P0-6 | Dedicated server: fix the crash on quit (`vr_imgprefetch.cpp:47` `workers` destroyed unjoined → `std::terminate` [run]); default a 72 Hz tick for VR progs (done: `host_fixedtick`); reject non-VR clients cleanly. | S |
 | P1-1 | Remote avatars: `QVR_SVC_AVATAR` plus `AVATARCAL`; make `avatar`, `hands`, `held` and `grasp` state per instance; draw other players' body, hands, weapons, held props, holsters and flashlight. | L (5-7 d) |
 | P1-2 | Others' ropes start at their replicated muzzle; rope beam PVS-culled and sent on change; client draws corners without checking its own cvar. | S |
 | P2-1 | Melee over the network: every move's samples with client timestamps (or client-side swing detection with server validation); monster hit-model rewind. | L (4-6 d) |

@@ -1,6 +1,6 @@
 # Porting the VR module to another engine (vkQuake)
 
-Quake VR is an engine-independent module (`Quake/vr/`, C++20 and glm, about 16,000 lines) plus a small set of engine
+Quake VR is an engine-independent module (`Quake/vr/`, C++23 on Zancle and glm, about 200,000 lines in 2026-10; the counts below are from 2026-09) plus a small set of engine
 hooks. This page says what a port to another QuakeSpasm-lineage engine — vkQuake is the target in mind — has to
 provide, what carries over as is, and what must be written again.
 
@@ -8,7 +8,7 @@ provide, what carries over as is, and what must be written again.
 
 | Layer | Files | What a port does |
 |---|---|---|
-| **Engine hooks** | `// QVR` hunks in 73 engine and build files (about 3100 lines; [IRONWAIL_DIFF.md](IRONWAIL_DIFF.md)) | Place the same calls in the other engine |
+| **Engine hooks** | `// QVR` hunks in 91 engine and build files (about 5200 lines in 2026-10; [IRONWAIL_DIFF.md](IRONWAIL_DIFF.md)) | Place the same calls in the other engine |
 | **C API, shared hooks** | `vr_api.h` | Unchanged: host, filesystem, QuakeC, protocol, server physics, client effects, view setup, menu |
 | **C API, renderer hooks** | `vr_api_render.h` | Re-place in the other renderer: stereo view, 2D canvas, entity transforms, alias extras |
 | **Engine symbols** | `vr_engine.hpp` | The only place engine headers are included from, and the list of engine symbols no header declares |

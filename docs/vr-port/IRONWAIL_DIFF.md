@@ -15,8 +15,12 @@ hooks into the module and the engine changes the module needs. To list it:
 | Before (vr-cleanup `852ff42c`) | 79 | 6817 | 354 | 826 |
 | After | 73 | 3088 | 320 | 727 |
 | With the spatial audio's hooks (`snd_dma.c`, `snd_mix.c`) | 74 | 3099 | 321 | 735 |
+| Now (2026-10-06, `146aa8b1`: the fixed server tick in `host.c`, the QuakeC build target, campaigns, ...) | 91 | 5209 | 722 | 749 |
 
-Six headers are Ironwail's again (`cvar.h`, `gl_texmgr.h`, `platform.h`, `progs.h`, `view.h`, `zone.h`).
+The per-file table below is from the 74-file state; the files changed since are not in it.
+
+Six headers were Ironwail's again (`cvar.h`, `gl_texmgr.h`, `platform.h`, `progs.h`, `view.h`, `zone.h`); `progs.h`
+has QVR fields again since (+3).
 
 ## Where the code went
 

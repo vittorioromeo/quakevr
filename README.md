@@ -114,7 +114,7 @@ was built on QuakeSpasm-Spiked and OpenVR. This version keeps its gameplay and Q
 | New in combat | | Parry, bash, headbutt, knights' swords, batting projectiles back, carrying boxes and gibs, gore |
 | New in movement | | Swimming with strokes, leaning, ledge grab (experimental), chest flashlight |
 | Other mods | Had to be ported | Run in a compatibility mode |
-| Not (yet) carried over | | The virtual keyboard, Index per-finger tracking (fingers follow the buttons instead) |
+| Not (yet) carried over | | Index per-finger tracking (fingers follow the buttons instead) |
 
 Saves and configs from the original version don't carry over.
 

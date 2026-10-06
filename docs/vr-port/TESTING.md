@@ -1,7 +1,9 @@
 # Testing in the headset
 
-The first headset build. Everything below was checked on the desktop with the mock backend. OpenXR itself has
-only been checked up to "no headset connected", so expect rough edges: tell me what you see and I will fix it.
+The playtest guide, and the reference for the testing tools (the mock headset, scripted motions, the tests and
+checks). It began with the first headset build; the headset feedback rounds since are in the `ROUND*.md` files.
+"The kit" below is the author's agent toolkit outside the repository (`C:/OHWorkspace/qvr-kit`: `build.sh`,
+`run.sh`, `eval.sh`, `bench.sh`), which wraps these same commands for headless runs.
 
 ## Build and install
 
@@ -11,7 +13,9 @@ By hand:
 
 1. Build `Windows/VisualStudio/ironwail.sln`, **Release | x64**. The output is
    `Windows/VisualStudio/Build-ironwail/bin/x64/Release/ironwail.exe`, with `openxr_loader.dll` copied next to it.
-2. Build the progs: `QC/build.bat` (set `FTEQCC` to `fteqcc64.exe`). It writes `quakevr/progs.dat`.
+2. The progs: step 1's build already compiles them into `quakevr/progs.dat` (with FTEQCC at `QvrQcCompiler`:
+   [BUILDING.md](../BUILDING.md#building-the-quakec)); `QC/build.bat` (set `FTEQCC` to `fteqcc64.exe`) builds only
+   them, with the checks.
 3. Put the repository's `quakevr` folder in your Quake directory, next to `id1` (a directory junction works:
    `mklink /J <Quake>\quakevr C:\OHWorkspace\quakevr-iw\quakevr`). `hipnotic` and `rogue` are picked up
    automatically if they are installed.
