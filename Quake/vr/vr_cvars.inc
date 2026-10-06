@@ -1058,6 +1058,21 @@ QVR_CVAR(vr_rim_light, "0.5", CVAR_ARCHIVE)           // a faint light round mod
 QVR_CVAR(vr_weapon_reflections, "1", CVAR_ARCHIVE)    // your weapons' metal reflects the room round you (a small cube map of the world, vr_envmap.cpp; 0 off)
 QVR_CVAR(vr_weapon_reflections_strength, "1", CVAR_ARCHIVE) // how strongly (0..2)
 QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quakevr/relight_maps.py, when present (next map)
+// Relighting in the game (vr_relight.cpp; Graphics > Relighting): ericw-tools' light on the map you are in, the result in
+// <game folder>/relit_custom/, then the map reloaded where you are. The defaults are relight_maps.py's look.
+QVR_CVAR(vr_relight_use, "1", CVAR_ARCHIVE)          // maps relit in the game (relit_custom/) over relight_maps.py's (next map; 0: not used)
+QVR_CVAR(vr_relight_tool, "", CVAR_ARCHIVE)          // ericw-tools' light.exe ("": the one shipped in quakevr/tools/ericw-tools, ERICW_LIGHT, PATH)
+QVR_CVAR(vr_relight_strength, "1", CVAR_ARCHIVE)     // all light from textures (lamps, glowing panels, lava), times relight_textures.cfg's strengths
+QVR_CVAR(vr_relight_lamps, "1", CVAR_ARCHIVE)        // ... the lamps and light panels' (fixtures), times that
+QVR_CVAR(vr_relight_glows, "1", CVAR_ARCHIVE)        // ... glowing buttons, panels, runes and slipgates', times that
+QVR_CVAR(vr_relight_liquids, "1", CVAR_ARCHIVE)      // ... lava's and slime's, times that
+QVR_CVAR(vr_relight_maplights, "1", CVAR_ARCHIVE)    // the map's own lights (as far, this much brighter)
+QVR_CVAR(vr_relight_sunlight, "1", CVAR_ARCHIVE)     // the map's sunlight and sky light (maps that have them)
+QVR_CVAR(vr_relight_bounce, "0", CVAR_ARCHIVE)       // bounced light (light -bounce -bouncescale; 0 none, as relight_maps.py)
+QVR_CVAR(vr_relight_ao, "1.5", CVAR_ARCHIVE)         // ambient occlusion in corners (light -dirt -dirtscale; 0 none)
+QVR_CVAR(vr_relight_minlight, "0", CVAR_ARCHIVE)     // the least light anywhere (light -minlight; 0 none)
+QVR_CVAR(vr_relight_quality, "1", CVAR_ARCHIVE)      // shadows' edges: 1 smooth (-extra4, relight_maps.py's), 0 fast (-extra)
+QVR_CVAR(vr_relight_reload, "1", CVAR_ARCHIVE)       // a relit map in play reloaded where you are (a save and load; the map restarted where the game can't save; 0: from its next start)
 QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured particles for the QC's effects (0: Quake's own)
 // Rising particles over low-poly fire models (static fires, burning bodies, taken torches).
 QVR_CVAR(vr_fire_particles, "1", CVAR_ARCHIVE)

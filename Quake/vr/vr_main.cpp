@@ -28,6 +28,7 @@
 #include "vr_limits.hpp"
 #include "vr_mapindex.hpp"
 #include "vr_mapinstall.hpp"
+#include "vr_relight.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
 #include "vr_timescale.hpp"
@@ -1410,6 +1411,7 @@ extern "C" void VR_Init()
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
+    relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)
 
     state->restartRequested = true;
 }
@@ -1428,6 +1430,7 @@ extern "C" void VR_Shutdown()
     box3d::finishLoads();
     mapindex::finish(); // the map index fetch, cancelled and joined (vr_mapindex.cpp)
     mapinstall::finish(); // a map download or unpacking, cancelled and joined (vr_mapinstall.cpp)
+    relight::shutdown(); // a light process still running stopped (vr_relight.cpp)
     imgprefetch::shutdown(); // (the decoding tasks finished)
     ao::shutdown(); // (the models' occlusion bakes, VR or not)
     gpustats::stop();
@@ -1642,6 +1645,7 @@ extern "C" void VR_HostFrameEnd()
     }
     qvr::mapindex::poll(); // the map index the fetch thread finished, taken here (vr_mapindex.cpp)
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
+    qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
     qvr::motion::hostFrameEnd();
     qvr::allocsites::frameEnd();
     qvr::inputlag::frameEnd(); // vr_inputlag_test

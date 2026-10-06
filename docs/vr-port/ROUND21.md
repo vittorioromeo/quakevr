@@ -25374,3 +25374,38 @@ the chosen enemy type ... melee recordings correctly capture these new settings"
   eval.sh could not run: the canary's takes are gone from quakevr-iw/quakevr/motions (archived); three synthetic grunt
   takes give the old progs' hits (punch 23.8 head, shove 4.8, slash 26.6 head "would behead"; the backhand varies run to
   run with either build).
+## Relighting: glow images found as the engine finds them, stronger lamps, relighting in the game (2026-10-06)
+
+The author: "the relight script should also [find] `.png` files"; "it should look for textures in every folder used by
+Quake VR"; the pyramid lanterns (vrtutorial, e1m1) and hip1m1's ceiling lights "barely emit any light"; "could we
+dynamically relight the maps in-game ... and then reload the maps while still being in-game".
+
+- **Script** (`relight_maps.py`): a texture's glow image is looked for as `Mod_LoadTextures` and `vr_extmaps.cpp` do
+  (`SearchPath`, `Glows`): `textures/<map>/` then `textures/`, `_glow` then `_luma`, `.png` then `.tga` then `.jpg`
+  (`quakeimage.py`: standard-library PNG, TGA and baseline JPEG readers), in quakevr, rogue, hipnotic and id1 (paks
+  before loose files, `--basedir` folders over `--quake`), else Quetoo's (`textures_quetoo`, `--extmaps-dir`).
+  `--list-glows --list-textures` logs the folders and each glow image's file. On the test machine's PNG QRP the old
+  script found none of QRP's glow images (it read `.tga` only): tlight10, tlight09, light3_7, tele_top... now light.
+- **Stronger lamps** (`relight_textures.cfg`, now in `quakevr/`, game data: the engine reads it too): `strength
+  fixture=1.4 glow=1.2 liquid=1`; tlight11 (the pyramid lanterns) 1.3; hipnotic's tlight02 and tlight01 1.5, reaching
+  1.4 further. `--light-texture-strength` multiplies all. `relight_probe.py` measures the lightmap round each fixture:
+  hip1m1 tlight02 29.9 -> 51.7, tlight01 24.2 -> 37.9; vrtutorial tlight11 35.3 -> 44.9 (relit and committed); screens
+  of hip1m1's first hall 6.1 -> 15.4 mean, vrtutorial by a lantern 26.3 -> 67.1. tlight11 at 1.6 blew the walls by the
+  lanterns out (93 mean). The id maps need relighting with the script to get it (`quakevr/relit` is not in the repo).
+- **In the game** (`vr_relight.cpp`, `vr_relight_process.cpp`; *Graphics > Relighting*; `vr_relight_*`): a port of
+  `glow_lights` (its sums Python 3.12's compensated ones), run on the map's .bsp (the script's copy if there is one:
+  its water-vis kept), `light` in a process of its own (no window, below normal priority, all cores but one, in a job
+  object that ends it with the game; `VR_Shutdown` stops it), its log read for the page's progress, the result in
+  `<gamedir>/relit_custom/<game>/maps/`, which `VR_ModelFile` loads over `relit/` (`vr_relight_use`), then a save
+  (`autosave/relight`, run at once so a script's waits don't delay it) and a load once its file is written; a restart
+  where the game can't save. Parity: the lights given to `light` are byte-identical to the script's on e1m1, start,
+  e1m6, hip1m1, r1m1 and vrtutorial (QRP base). Times: the texture lights 26-43 ms the first time on a map (glow images
+  looked for with the file cache on), 3 ms after (`mem::Cache`); e1m1 relit in 1.1-1.5 s, e2m1 with bounce about 30 s.
+  Headless end to end: start, progress lines (`Direct Lighting 85%`, `Indirect Lighting (pass 0) 36%`, `LightGrid`),
+  the reload (`Loading game from autosave/relight.sav`, the player where he was, `relit_custom/id1/maps/e1m1.bsp`
+  loaded), cancel, and a quit mid-relight (no light.exe left).
+- **Licence:** ericw-tools is GPL-3; run as a separate program on files it is an aggregate (docs/RELIGHTING.md,
+  "ericw-tools' licence"). `package-quakevr.ps1` ships light.exe, its Embree and oneTBB DLLs, `gpl_v3.txt`,
+  `LICENSE-embree.txt` and a notice; the release page must offer ericw-tools 2.0.0-alpha11's source beside the package.
+- Fixed on the way: `id_light_values` took a classname's value "light" for the key (a light of "light" "0" whose
+  classname came first lost its origin; no id map has one).

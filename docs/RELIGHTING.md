@@ -17,8 +17,12 @@ the result is the same as the author's.
 - [Options](#options)
 - [Troubleshooting](#troubleshooting)
 - [Running from the repository](#running-from-the-repository)
+- [Relighting in the game](#relighting-in-the-game)
+- [ericw-tools' licence](#ericw-tools-licence)
 
-A tool that does all of this automatically is planned. Until then, these are the steps.
+A tool that does all of this automatically is planned. Until then, these are the steps. A single map can also be
+relit from inside the game, with your own brightness settings: see
+[Relighting in the game](#relighting-in-the-game).
 
 ## What you need
 
@@ -209,3 +213,69 @@ python Misc\quakevr\relight_maps.py --quake "C:\Program Files (x86)\Steam\steama
 
 `relight_quakevr_maps.py` is different: it relights Quake VR's own maps (the hub, tutorial and firing range). Those
 are already relit in the package.
+
+## Relighting in the game
+
+*VR Settings > Advanced VR Options > Graphics > Relighting* relights the map you are in, with the settings on that page,
+and shows you the result where you stand. It needs no Python: the game runs ericw-tools' `light` itself, in the
+background, while you keep playing. Quake VR's package has it in `quakevr\tools\ericw-tools\`; without it, the page
+uses `vr_relight_tool` (the full path of a `light.exe`), the `ERICW_LIGHT` environment variable or a `light.exe` on
+`PATH`. The page's last line says which one it found.
+
+1. Load the map, open the page, set the sliders.
+2. Choose **Relight This Map**. The page shows what `light` is doing (`Direct Lighting 45%`). A map takes from a second
+   (e1m1 with the default settings) to a minute (a big map with Bounced Light). **Cancel** stops it.
+3. When it ends, the map is reloaded where you are (a quick save, `autosave/relight`, and load; where the game can't
+   be saved, during an intermission or when you are dead, the map restarts). *Reload Where You Are* off: the new light
+   shows from the map's next start.
+
+The settings:
+
+| Setting | Console | What it does |
+|---|---|---|
+| Light Textures | `vr_relight_strength` (1) | Everything a texture lights: lamps, light panels, glowing buttons and panels, lava. |
+| Lamps and Light Panels | `vr_relight_lamps` (1) | The light fixtures, times Light Textures (with `relight_textures.cfg`'s strength for them). |
+| Glowing Panels and Buttons | `vr_relight_glows` (1) | Buttons, computer panels, runes, slipgates, times Light Textures. |
+| Lava and Slime | `vr_relight_liquids` (1) | Their glow on the walls round them, times Light Textures. |
+| Map Lights | `vr_relight_maplights` (1) | The mapper's own lights: brighter or dimmer, reaching as far. |
+| Sunlight | `vr_relight_sunlight` (1) | The sun and sky light of maps that have them (id's maps have none). |
+| Bounced Light | `vr_relight_bounce` (0) | Light bouncing off walls: brighter, flatter rooms. Takes longer. |
+| Ambient Occlusion | `vr_relight_ao` (1.5) | Darker corners (0: none). |
+| Minimum Light | `vr_relight_minlight` (0) | No place darker than this. |
+| Shadow Quality | `vr_relight_quality` (1) | Smooth (soft edges) or Fast (about four times quicker). |
+
+At their defaults the result is the relight script's (the lights given to `light` are the same, to the last digit).
+*Defaults* puts them back. The console has the same: `vr_relight` (the map in play, or `vr_relight e1m2` for another one,
+which is not reloaded), `vr_relight_cancel`, `vr_relight_status`, `vr_relight_defaults`, `vr_relight_revert`.
+
+**Where the result goes:** `quakevr\relit_custom\<game>\maps\` (in the folder the game saves into), with a
+`<map>.relight` file saying how it was made. It is used over the relight script's map from then on (*Use In-game
+Relights*, `vr_relight_use`; off: the script's or the map's own). *Remove This Map's Relight* (`vr_relight_revert`)
+deletes it. The game starts from the relight script's copy of the map when there is one (it keeps that copy's
+see-through water), else from the map itself; id's `.pak` files and the game folders' maps are only read. The work
+folder, `relit_custom\_work\`, holds the last map given to `light` and `light`'s log (`<map>.txt`).
+
+**Not done in the game:** the water-vis patch (see-through water: the relight script does it; a map relit in the game
+keeps it if the script's copy had it) and lights for the glowing textures of BSP2 maps (neither does those).
+
+## ericw-tools' licence
+
+ericw-tools is free software under the GNU General Public License, version 3 (GPL-3). Quake VR ships its `light.exe`,
+unchanged, with the DLLs it needs, in `quakevr\tools\ericw-tools\`, and runs it as a separate program: it gives it a
+copy of a map on the command line and reads the files it writes. That is what the GPL calls an *aggregate*: two
+separate programs side by side, communicating as programs normally do (command-line arguments and files), so the GPL-3
+applies to ericw-tools, not to Quake VR, which keeps its own licence (GPL-2.0 or later, from Quake and Ironwail;
+compatible with GPL-3 anyway). See the FSF's
+[GPL FAQ on aggregates](https://www.gnu.org/licenses/gpl-faq.html#MereAggregation).
+
+What shipping it takes (GPL-3 section 6, for the binaries; Apache-2.0 for the libraries):
+
+- **The licence texts beside it:** `gpl_v3.txt` (ericw-tools), `LICENSE-embree.txt` (Embree, Apache-2.0; oneTBB's
+  `tbb12.dll` and `tbbmalloc.dll` are Apache-2.0 too), and `NOTICE.txt` saying what they are and where their source is
+  (`Misc/quakevr/ericw-tools-NOTICE.txt`). `Windows/package-quakevr.ps1` copies them with the program.
+- **Its source, offered the same way as the download:** the release page that offers the Quake VR package must also
+  offer ericw-tools 2.0.0-alpha11's source (`ericw-tools-2.0.0-alpha11-src.zip`: the
+  [2.0.0-alpha11 tag](https://github.com/ericwa/ericw-tools/tree/2.0.0-alpha11) with its submodules). A link to
+  ericw-tools' own GitHub alone is allowed by section 6(d) only while it stays up: a copy next to the package is the safe
+  way.
+- **Unchanged:** if it is ever patched, the patched source is what must be offered.

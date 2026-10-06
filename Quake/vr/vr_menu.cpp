@@ -37,6 +37,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
 #include "vr_props.hpp"
+#include "vr_relight.hpp"
 #include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_weight.hpp"
@@ -5403,6 +5404,7 @@ const Page pages[] = {
     {"Map Library", pageMaps, pageMain, LevelStandard}, // (the corner's Maps, and Single Player > Map Library; vr_menu_maps.inc)
     {"Official Campaigns", pageCampaigns, pageMain, LevelStandard},
     {"Machine Horde Tests", pageMachineHordeTests, pageDebugTests, LevelDeveloper},
+    {"Graphics - Relighting", pageGraphicsRelighting, pageGraphics},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

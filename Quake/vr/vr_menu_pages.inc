@@ -553,6 +553,7 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsModels();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetroLight();
+[[nodiscard]] za::Vector<Item> pageGraphicsRelighting();
 [[nodiscard]] za::Vector<Item> pageTransparencyOptions();
 [[nodiscard]] za::Vector<Item> pageRecording(); // vr_menu_recording.inc
 
@@ -568,7 +569,8 @@ void resetHandMoves()
         cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})
             .help("Smooth filtering for high-resolution replacement textures, or for all textures."),
         toggle("Fence Coverage", "vr_alpha_coverage").help("Fences and grates keep their bars at a distance instead of thinning out and crawling; with Anti-aliasing (MSAA) their edges are smoothed too."),
-        toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py). Next map."),
+        toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py, or Relighting below). Next map."),
+        open("Relighting", pageIndex(pageGraphicsRelighting)).help("Relight the map you are in, with brighter or dimmer lamps, glowing panels, lava, bounced light and ambient occlusion, and see it at once."),
         open("Headset Gamma: VR Settings", pageIndex(pageMain)).help("The headset's gamma (its brightness) is on VR Settings."),
         slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").extend().help("The headset's own contrast (1 neutral)."),
         header("More Graphics"),
@@ -1211,6 +1213,38 @@ void retroAllUncheckCategories()
         slider("Tele Alpha", "r_telealpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through teleporters are (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
         slider("Slime Alpha", "r_slimealpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through slime is (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
         toggle("Map's Own Alpha", "vr_map_liquid_alpha").help("Maps that set their liquids' alpha themselves (worldspawn keys) use theirs instead of the sliders above."),
+    };
+}
+
+// Graphics > Relighting (vr_relight.cpp; docs/RELIGHTING.md, "Relighting in the game"): ericw-tools' light on the map you
+// are in, in the background, with these settings; then the map reloaded where you are.
+[[nodiscard]] za::Vector<Item> pageGraphicsRelighting()
+{
+    return {
+        info(relight::statusLine),
+        info(relight::mapLine),
+        command("Relight This Map", "vr_relight").help("Relights the map you are in with the settings below (a few seconds to a minute, in the background; you can keep playing), then reloads it where you are. The result is kept: the map plays with it from now on."),
+        command("Cancel", "vr_relight_cancel").help("Stops the relighting running now (the map keeps the light it has)."),
+        command("Remove This Map's Relight", "vr_relight_revert").help("The map you are in plays with its other light from its next start: relight_maps.py's relit map, if made, else its own."),
+        toggle("Use In-game Relights", "vr_relight_use").help("Maps relit here are used over those relight_maps.py made (next map). Off: the relit maps of the script, or the maps' own light."),
+        toggle("Reload Where You Are", "vr_relight_reload").help("After relighting the map you are in, it is reloaded at once, where you are (a quick save and load; where the game can't be saved, the map restarts). Off: you see the new light from its next start."),
+        header("Lamps and Glowing Textures"),
+        slider("Light Textures", "vr_relight_strength", 0.f, 4.f, 0.1f, "%.1fx").extend().help("How bright everything a texture lights is: lamps, light panels, glowing buttons and panels, lava (1: the relight script's)."),
+        slider("Lamps and Light Panels", "vr_relight_lamps", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The light fixtures' light, times Light Textures: lamps, light panels and strips, the pyramid lanterns."),
+        slider("Glowing Panels and Buttons", "vr_relight_glows", 0.f, 4.f, 0.1f, "%.1fx").extend().help("Buttons, computer panels, runes and slipgates' glow on what is round them, times Light Textures."),
+        slider("Lava and Slime", "vr_relight_liquids", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The red glow lava casts on the walls round it, and slime's faint green one, times Light Textures."),
+        header("The Map's Light"),
+        slider("Map Lights", "vr_relight_maplights", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The map's own lights (the mapper's), as far, this much brighter."),
+        slider("Sunlight", "vr_relight_sunlight", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The sun and the sky's light, in maps that have them (outdoor maps; not id's)."),
+        slider("Bounced Light", "vr_relight_bounce", 0.f, 2.f, 0.1f, "%.1f").help("Light bouncing off the walls fills the shade: brighter, flatter rooms (0 none, the relight script's moodier look). Takes longer."),
+        slider("Ambient Occlusion", "vr_relight_ao", 0.f, 3.f, 0.1f, "%.1f").help("Corners and crevices darker (1.5: the relight script's; 0 none)."),
+        slider("Minimum Light", "vr_relight_minlight", 0.f, 64.f, 4.f, "%.0f").help("No place darker than this (0 none): an easy way out of pitch-black corners, at some cost to contrast."),
+        cycle("Shadow Quality", "vr_relight_quality", {{0.f, "Fast"}, {1.f, "Smooth"}}).help("Smooth: soft shadow edges (the relight script's). Fast: about four times quicker, harder edges."),
+        command("Defaults", "vr_relight_defaults").help("Every setting on this page back to the relight script's look."),
+        header("Tool"),
+        info(relight::toolLine),
+        command("Status in the Console", "vr_relight_status").developer(),
+        command("Write the Texture Lights", "vr_relight_lights").developer().help("Writes the lights this map's textures get with these settings to relight_lights.txt and lists them in the console (to compare with relight_maps.py --list-glows)."),
     };
 }
 

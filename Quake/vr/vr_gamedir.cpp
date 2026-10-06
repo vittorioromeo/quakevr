@@ -989,7 +989,8 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
 
 // Relit maps (Misc/quakevr/relight_maps.py, vr_relit_maps): relit/<game>/maps/<map>.bsp, found
 // in any game folder (the script writes into quakevr), replaces maps/<map>.bsp when that comes
-// from <game>; its .lit sits next to it. Per game, since id1, hipnotic and rogue all have a
+// from <game>; its .lit sits next to it. A map relit in the game (vr_relight.cpp, vr_relight_use) is in
+// relit_custom/<game>/maps/ instead, and wins. Per game, since id1, hipnotic and rogue all have a
 // start.bsp and an end.bsp; a mod's own version of a map is left alone.
 namespace
 {
@@ -1014,8 +1015,26 @@ extern "C" const char* VR_ModelFile(const char* name)
     char game[MAX_OSPATH];
     gameFolderName(folder, game, sizeof(game));
     char(&relit)[MAX_QPATH * 2] = relitPath;
+    // Relit in the game (vr_relight.cpp: relit_custom/<game>/maps/), over relight_maps.py's.
+    q_snprintf(relit, sizeof(relit), "relit_custom/%s/%s", game, name);
+    if(qvr::vr_relight_use.value && COM_FileExists(relit, nullptr))
+    {
+        return relit;
+    }
     q_snprintf(relit, sizeof(relit), "relit/%s/%s", game, name);
     return COM_FileExists(relit, nullptr) ? relit : name;
+}
+
+// The game folder a file comes from, as relit/ names it ("maps/e1m1.bsp": id1; a map package's folder name): false
+// if there is no such file (vr_relight.cpp).
+extern "C" int VR_MapGameFolder(const char* name, char* out, size_t size)
+{
+    if(!COM_FileExists(name, nullptr) || !com_filesource[0])
+    {
+        return 0;
+    }
+    gameFolderName(com_filesource, out, size);
+    return out[0] != 0;
 }
 
 // COM_SwitchGame, after Mod_ResetAll and the renderer's reload: the caches that hold models' pointers (their slots are
