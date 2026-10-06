@@ -25486,3 +25486,12 @@ beheaded, h_demon thrown at 167 u/s.
 
 In VR:
 - [ ] Shoot a fiend in the head (Show Damage Numbers): "head (x1.50)"; slash it: the same, and at a kill his head comes off.
+
+### Ragdolls on by default: already so
+
+His answer: masses and the blast's throw by mass stay; ragdolls on by default. They have been since config 84
+(2026-10-03, "Ragdolls on by default"): `vr_ragdoll` "1" compiled in, a saved 0 moved to 1. Nothing to change; checked
+again: a config at version 83 with `vr_ragdoll 0`, `vr_migrate_config`: "1"; the test config (version 34): "1"
+(default). Every monster with a rig killed with the defaults (`vr_test_spawn_dead 1`, 5 s later `vr_ragdoll_list`):
+grunt, ogre, shambler, scrag, knight, death knight, rottweiler, enforcer, fiend and gremlin limp and asleep (4.2-4.6 s
+limp); the zombie and the mummy lie down without one, as designed (a ragdoll only when beheaded).
