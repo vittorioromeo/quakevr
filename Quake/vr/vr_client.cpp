@@ -207,6 +207,13 @@ VrMove unposed;
     }
 
     move.headAngles = hs.headAngles;
+    if(!vrActive())
+    {
+        // Flat screen: the server walks by these (VR_MoveAngles), so they are the view's as it is sent, as Quake's
+        // .v_angle: the hands' state was taken at the frame's start, before this frame's mouse turned the view (the
+        // first move after a turn went the old way, and the walk lined up with the view 80 ms late: vr_inputlag_test turn).
+        move.headAngles = {cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
+    }
     move.vrYaw = hands::playSpaceYaw();
     move.origin = hs.playerOrigin;
     move.headPos = hs.head;
