@@ -201,7 +201,7 @@ def scenarios():
         setup=[f"vr_light_test 400 120 {48 + i * 12}" for i in range(32)] + ["vr_shadow_dlights 0", "vr_shadow_maplights 0"])
     add("flashlight_e1m1", ["lights", "features"], "the flashlight on, casting shadows, over monsters", "e1m1",
         "E1M1's start with the flashlight given and on (its spot light's shadow tile).",
-        setup=["vr_flashlight 1", "vr_flashlight_shadows 1", "vr_flashlight_give", "wait", "vr_flashlight_toggle"])
+        setup=["vr_flashlight 1", "vr_flashlight_shadows 1", "vr_flashlight_give left", "wait", "vr_flashlight_toggle", "vr_mock_hand off -0.2 1.3 -0.35 0 0 0"])
     # ---- liquids and surfaces
     add("water_range_surface", ["liquids"], "a large water surface from above (refraction, warp)", RANGE,
         "Standing at the firing range's pool, looking down at the water.", pos="612 474 2 30 0 0")
@@ -260,11 +260,11 @@ def select(spec):
 
 
 def script(sc, tag, frames, hz, eye, realtime, settings, motion_path, shot=False):
-    lines = ["vr_enabled 0" if sc.flat else "vr_enabled 1", "vr_fixed_frames 1", f"vr_fixed_frames_rate {hz}",
-             f"vr_mock_eye_size {eye}", "vid_vsync 0", f"host_maxfps {hz if realtime else 0}", "con_notifytime 0",
-             "vr_tips 0", "developer 0", "sv_autosave 0", "vr_profile 0", "vr_particle_seed 7", "vr_mock_look 0 0"]
-    if settings:
-        lines += [f'exec "{settings}"']
+    # A graphics profile first (a whole ironwail.cfg will do), then what the suite pins whatever it says.
+    lines = [f'exec "{settings}"'] if settings else []
+    lines += ["vr_enabled 0" if sc.flat else "vr_enabled 1", "vr_fixed_frames 1", f"vr_fixed_frames_rate {hz}",
+              f"vr_mock_eye_size {eye}", "vid_vsync 0", f"host_maxfps {hz if realtime else 0}", "con_notifytime 0",
+              "vr_tips 0", "developer 0", "sv_autosave 0", "vr_profile 0", "vr_particle_seed 7", "vr_mock_look 0 0"]
     lines += sc.header + waits(10) + ["vr_bench_seed 7", f"map {sc.map}"] + waits(sc.load_wait)
     lines += ["god 1", "notarget 0" if sc.hostile else "notarget 1"]
     if sc.pos:
@@ -337,12 +337,30 @@ def summarize(root):
                   f"{r['cpu_busy_ms.avg']:.3f} | {r['cpu_busy_ms.p99']:.3f} | {r['gpu_eyes_ms.avg']:.3f} | "
                   f"{r['gpu_eyes_ms.p99']:.3f} | {r.get('gpu_3d_ms.avg', 0):.3f} | {r['hitches.over_2x_median']:.0f} | "
                   f"{r['heap_allocs.avg']:.1f} |")
+    m = manifest(root)
+    md = [f"{k}: {m[k]}  " for k in ("label", "tree", "mode", "reps", "settings") if k in m] + [""] + md
     (Path(root) / "summary.md").write_text("\n".join(md) + "\n")
     print("\n".join(md))
 
 
+def manifest(root):
+    path = Path(root) / "manifest.txt"
+    return dict(l.split(" ", 1) for l in path.read_text().splitlines() if " " in l) if path.exists() else {}
+
+
 def compare(base, new, threshold):
     a, b = load_runs(base), load_runs(new)
+    ma, mb = manifest(base), manifest(new)
+    for key in ("reps", "mode", "settings", "exe_sha256", "progs_sha256", "tree"):
+        if ma.get(key) != mb.get(key):
+            print(f"note: {key}: baseline {ma.get(key)!r}, new {mb.get(key)!r}")
+    for name in sorted(set(a) & set(b)):  # the settings each run recorded (another eye size, a cvar changed...)
+        sa, sb = a[name][0]["settings"], b[name][0]["settings"]
+        diff = [f"{k} {sa.get(k)}->{sb.get(k)}" for k in sorted(set(sa) | set(sb)) if sa.get(k) != sb.get(k)]
+        if a[name][0]["eye_resolution"] != b[name][0]["eye_resolution"]:
+            diff.append(f"eyes {a[name][0]['eye_resolution']}->{b[name][0]['eye_resolution']}")
+        if diff:
+            print(f"note: {name}: settings differ: {', '.join(diff)}")
     print(f"| scenario | metric | baseline | new | change |\n|---|---|---|---|---|")
     flagged = 0
     for name in sorted(set(a) & set(b)):
@@ -363,17 +381,21 @@ def compare(base, new, threshold):
 
 
 def validate(root):
+    """Each scenario's repeats started their windows with the same edicts, monsters alive and Box3D bodies (exact),
+    and decals within 5% (blood and bullet marks of a fight in the set-up land a few more or fewer: they follow the
+    threads' timing, not only the seeded random numbers)."""
     runs = load_runs(root)
     bad = 0
     for name, rs in sorted(runs.items()):
-        starts = [tuple(sorted((c, v["start"]) for c, v in r["counts"].items()
-                               if c in ("edicts", "monsters_alive", "box3d_bodies", "decals"))) for r in rs]
-        same = all(s == starts[0] for s in starts)
+        exact = [tuple(r["counts"][c]["start"] for c in ("edicts", "monsters_alive", "box3d_bodies")) for r in rs]
+        decals = [r["counts"]["decals"]["start"] for r in rs]
+        same = all(e == exact[0] for e in exact)
+        close = max(decals) - min(decals) <= max(2, 0.05 * max(decals))
         frames = [r["frame"]["frame_ms"]["n"] for r in rs]
-        ok = same and all(f == rs[0]["frames"] for f in frames) and len(rs) >= 1
+        ok = same and close and all(f == rs[0]["frames"] for f in frames)
         bad += not ok
-        print(f"{name:28} runs={len(rs)} frames={frames} start={dict(starts[0])} {'same' if same else 'DIFFERENT'}"
-              f"{'' if ok else '  <- FAIL'}")
+        print(f"{name:28} runs={len(rs)} frames={frames} edicts/monsters/bodies={exact[0]} decals={decals} "
+              f"{'same' if same and close else 'DIFFERENT'}{'' if ok else '  <- FAIL'}")
     print(f"validate: {len(runs)} scenarios, {bad} failing")
     return bad
 

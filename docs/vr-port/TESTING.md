@@ -766,6 +766,12 @@ between frames. Under `screen/3D`, `eye L` and `eye R` hold each eye's `scene` (
 `postprocess`, the `hud panel` and the `mirror` to the window; the shadow maps (`dlight shadows`, `map light
 shadows`) are drawn once, in the left eye's `setup view`. `self` columns leave out the parts inside a part.
 
+**Benchmark scenarios** ([BENCHMARKS.md](BENCHMARKS.md)): the kit's `bench.sh` runs a set of fixed scenarios (idle,
+slipgates, combat, physics, effects, lights, liquids, custom maps, flat) and compares a baseline with new results;
+each run's numbers come from `vr_bench_begin <name> [frames | <seconds>s]` (frame, CPU and GPU percentiles, each GPU
+pass, heap events, what there is) into `quakevr/profile/bench/<name>.json`. In the headset: Debug > Profiling and
+Memory > *Benchmark Capture (10 s)* (`manual.json`).
+
 **Spatial audio:** Debug > Tests > Spatial Audio > *Spatial Audio Benchmark* (`vr_snd_bench <seconds> [label] [sounds a
 second] [orbit units/s]`) plays monsters', weapons' and explosions' sounds round you while the listener circles, then
 prints each stage of the mix (the voices, the reverb's convolution and decode, Quake's channels, the limiter, the
@@ -1702,7 +1708,7 @@ recurse, and additional passes increase rendering/shadow cost.
 
 Combat > Parry and Bash: **Parry Stops Attacks** (`vr_parry_interrupt`, default 1) cancels a successful
 weapon or crossed-arm parry's remaining melee hits. **Parry Stagger** (`vr_parry_stagger`, default 0.35 s,
-clamped 0.1–3 s) holds the first pain pose before normal AI resumes. The first hit still uses the existing
+clamped 0.1ï¿½3 s) holds the first pain pose before normal AI resumes. The first hit still uses the existing
 damage reduction, push, stamina and counter rules. Off preserves the previous behavior; failed guards do not
 interrupt. Dog/fiend/spawn leap touches stop too. The dragon closes its attack through its own
 scheduler, keeps its flight route and normal attack cooldown, and resumes flying after the stagger. Its tail
