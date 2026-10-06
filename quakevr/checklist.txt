@@ -13,6 +13,7 @@ VR menus: Spectator camera On/Off switch at the bottom left, with a small live p
 New defaults: a fresh config looks and plays like yours (parallax, combat, parry, retro)
 Official Campaigns: drawn in the big menu font
 Map tips: the CRT tip near the vrstart start appears; REPEAT tips come back; List This Map's Tips works
+Map Library: Down the Gutter now plays (page says which map Play starts); reinstall November-Schlacht to get its sky back; AD/Copper maps are flagged
 
 [Menus and maps]
 Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
@@ -75,6 +76,7 @@ Shotgun lag in a fast wiggle too much? Add a Low graphics preset?
 Multiplayer: debris client-only or gameplay; melee speed a server rule?
 Map tips: seen-tips limit (~80), targetname naming clash, tip_delay 0
 Map Library: prune the download cache (about 60 MB per package)?
+Map Library: hide packages made for Arcane Dimensions / Quoth / Copper (they load without their monsters), or keep them flagged?
 
 [Tune]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
