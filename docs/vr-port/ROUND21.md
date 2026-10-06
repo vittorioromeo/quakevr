@@ -24476,3 +24476,26 @@ air, not in a wall); set `message`; tick the flags. To attach it: give the prop 
 tips, the log shows `tips: "testfollow" by entity 54` (attached to an `item_health`), `tips: "testfar" at 64 148 280`
 (302 units, shown only because its `distance` 400 overrides the 150 default), `testwelcome`, and a fourth at the same
 point with `distance 60` never showing; `vr_tips_seen` ends as `vrstart:testfollow vrstart:testfar vrstart:testwelcome`.
+
+## Animated wall buttons keep their relief (vr_extmaps, 2026-10-06)
+
+**The bug**: the red diamond buttons (`+0basebtn`/`+1basebtn`, e1m1, e2m1...) changed shape every tenth of a second:
+the lit frame's bevel slid up and sideways. Quetoo's pack (`textures_quetoo`, drawn on QRP's textures) has a normal map
+only for an animation's first frame (`basebtn+0_norm`; none for `basebtn+1`, `button+1..3`, `butn+1/2`, `butnn+1/2`,
+`planet+1..3`, nor for frames it has no picture of, `+abasebtn`, `+3button`). Those frames fell back to the normal map
+made from their own shading, whose bumps and parallax heights differ from the pack's: the relief jumped between the
+pack's and the made one as the frames changed.
+
+**The fix** (`Quake/vr/vr_extmaps.cpp`, `siblingNormal`): a frame the pack has no normal map for takes another frame's
+of the same animation (its own run first, from `+0`; an alternate's `+a..+j` first), where that frame's picture in the
+pack matches the texture drawn as well as `vr_extmaps_match` asks (the same test its own picture passes; 0.5): an
+animation's frames share their shape. A frame the pack has no picture of at all gets only that normal map (no specular
+map or glow). With the id textures (`qbase`) nothing matches (0.09-0.14), so nothing changes there; textures that are
+not animation frames, liquids and sky never take another's. `vr_extmaps_stats all` shows it: `+1basebtn used match
+0.93 norm (+0's, 0.91) spec`; `developer 1` logs each one taken or refused.
+
+**Proved headless** (QRP, e1m1, `setpos -30 600 25 0 215 0`, a test light, six shots three frames apart, button
+cropped): the `+0` shots are unchanged by the fix (mean difference 0.1-0.2 of 255: run noise 0.3); the `+1` shots
+changed by 24; consecutive shots across the frame change differ 12.8 after against 29.5 before. e1m1 takes 5 normal
+maps this way (`+1/+2/+3planet` 0.88-0.92, `+1basebtn` and `+abasebtn` 0.91), e1m4 3 (`+1..+3button` 0.93-0.96).
+Without the pack (`vr_extmaps 0`) every frame's made map comes from its own shading and the relief stays put.
