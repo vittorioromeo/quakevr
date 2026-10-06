@@ -55,9 +55,9 @@
                         <TextBlock Text="&#xE793;" Style="{StaticResource Glyph}" FontSize="17" Foreground="{StaticResource Accent}" />
                     </Border>
                     <StackPanel>
-                        <TextBlock Text="Looks and plays like the author's own" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                        <TextBlock Style="{StaticResource Body}" FontWeight="SemiBold" ><Run Text="Retro look powered by modern "/><Run Language="it-it" Text="shaders"/></TextBlock>
                         <TextBlock Style="{StaticResource Small}" Margin="0,3,0,0"
-                                   Text="HD textures and relit maps, with the settings he plays with. Your height and body are calibrated at the first start." />
+                                   ><Run Text="HD textures"/><Run Text=", "/><Run Text="relit maps"/><Run Text=", dynamic lights, and parallax mapping -- filtered through customizable retro shaders"/><Run Language="it-it" Text="."/></TextBlock>
                     </StackPanel>
                 </DockPanel>
                 <DockPanel>
@@ -67,7 +67,7 @@
                     <StackPanel>
                         <TextBlock Text="Works with your headset" Style="{StaticResource Body}" FontWeight="SemiBold" />
                         <TextBlock Style="{StaticResource Small}" Margin="0,3,0,0"
-                                   Text="Any OpenXR runtime: Virtual Desktop, SteamVR, Meta Quest Link. Flat-screen play too." />
+                                   Text="Any OpenXR runtime: Virtual Desktop, SteamVR, Meta Quest Link." />
                     </StackPanel>
                 </DockPanel>
             </StackPanel>

@@ -12,7 +12,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <TextBlock Text="Options" Style="{StaticResource PageTitle}" />
-            <TextBlock Style="{StaticResource PageSubtitle}" Text="The defaults are what the author plays with. Change anything you like." />
+            <TextBlock Style="{StaticResource PageSubtitle}" Text="Change anything you like." />
 
             <TextBlock Text="INSTALL FOLDER" Style="{StaticResource SectionTitle}" />
             <DockPanel>
@@ -31,7 +31,7 @@
                         <CheckBox IsChecked="True" IsEnabled="False">
                             <StackPanel>
                                 <TextBlock Text="Quake VR" Style="{StaticResource Body}" FontWeight="SemiBold" />
-                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Text="The game: engine, models, sounds, the hub and its maps, and the author's settings." />
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Text="The game: engine, models, sounds, the hub and its maps, and the author's default settings." />
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>
@@ -39,7 +39,7 @@
                         <TextBlock DockPanel.Dock="Right" Text="{Binding TexturesSizeText}" Style="{StaticResource Size}" />
                         <CheckBox IsChecked="{Binding HdTextures}">
                             <StackPanel>
-                                <TextBlock Text="HD textures" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Text="HD textures (highly recommended)" Style="{StaticResource Body}" FontWeight="SemiBold" />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Text="{Binding TexturesText}" />
                             </StackPanel>
                         </CheckBox>
@@ -48,9 +48,9 @@
                         <TextBlock DockPanel.Dock="Right" Text="about a minute" Style="{StaticResource Size}" />
                         <CheckBox IsChecked="{Binding Relight}">
                             <StackPanel>
-                                <TextBlock Text="Relight the maps at the first start" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <TextBlock Text="Relight the maps at the first start (highly recommended)" Style="{StaticResource Body}" FontWeight="SemiBold" />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0"
-                                           Text="Light from lamps, lava and glowing panels, made on your PC by the game's Relighting tool (Quake's maps cannot be shipped relit)." />
+                                           Text="Light from lamps, lava and glowing panels, made on your PC by the game's Relighting tool." />
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>
@@ -62,17 +62,10 @@
                 <UniformGrid Columns="2">
                     <CheckBox IsChecked="{Binding DesktopShortcut}" Content="On the desktop" Margin="0,0,0,12" />
                     <CheckBox IsChecked="{Binding StartMenuShortcuts}" Content="In the Start menu" Margin="0,0,0,12" />
-                    <CheckBox IsChecked="{Binding FlatShortcut}" Margin="0,0,0,12">
-                        <TextBlock Style="{StaticResource Body}"><Run Text="Flat-screen launcher" /><Run Text="  no headset" Foreground="{StaticResource Faint}" FontSize="12" /></TextBlock>
-                    </CheckBox>
-                    <CheckBox IsChecked="{Binding LogShortcut}" Margin="0,0,0,12">
-                        <TextBlock Style="{StaticResource Body}"><Run Text="Bug-report launcher" /><Run Text="  writes a log" Foreground="{StaticResource Faint}" FontSize="12" /></TextBlock>
-                    </CheckBox>
                 </UniformGrid>
             </Border>
 
             <DockPanel Margin="2,16,0,0">
-                <Button DockPanel.Dock="Right" Content="Use a package file…" Style="{StaticResource LinkButton}" Command="{Binding BrowsePackageCommand}" Margin="12,0,0,0" />
                 <TextBlock Text="{Binding PackageSourceText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" TextTrimming="CharacterEllipsis" />
             </DockPanel>
         </StackPanel>
