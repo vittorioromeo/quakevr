@@ -8,14 +8,13 @@
 //   melee blow only where it landed: melee damage does not depend on it), with the run of hits so far;
 // - as a number rising from where it struck, for every player (floattext): yellow on the head, orange
 //   for melee, cyan for thrown things, red for explosions, white otherwise.
-// It flinches (its pain frames, a lean away from the blow) but is not knocked away, and is no
-// monster of the level (not counted, never killed). It bleeds as a grunt does (vr_dummy_gore, on: the gore's sprays and
-// mist, wounds on its model, small gibs, blood thrown onto you and what you hold, burns); with vr_dummy_gib on, what
-// would gib a grunt gibs it, and it stands again vr_dummy_gib_respawn seconds later (NOTES.md
-// vrfiringrange_2026-10-03_02-07-05). It bleeds as a grunt does (vr_dummy_gore, on: the gore's sprays and
-// mist, wounds on its model, small gibs, blood thrown onto you and what you hold, burns), and with vr_dummy_gib on what
-// would gib a grunt gibs it: it stands again vr_dummy_gib_respawn seconds later (NOTES.md vrfiringrange_2026-10-03_02-07-05). Attacks that their inflictor does not tell
-// apart are tagged by their code (VR_SetHitKind, combat.qc).
+// It flinches (its pain frames, a lean away from the blow) but is not knocked away, and is no monster of the level (not
+// counted; never killed, unless vr_dummy_gib). It bleeds as a grunt does (vr_dummy_gore, on: the gore's sprays and mist,
+// wounds on its model, small gibs, blood thrown onto you and what you hold, burns; NOTES.md
+// vrfiringrange_2026-10-03_02-07-05). With vr_dummy_gib on, what would kill a grunt (its 30 health over the run of hits)
+// kills it as one (VR_Dummy_Die; NOTES.md vrfiringrange, 2026-10-06 12:28): it dies, is beheaded, has its head popped or
+// is gibbed exactly as a grunt would be, its body lies as a grunt's, and it stands again vr_dummy_gib_respawn seconds
+// later. Attacks that their inflictor does not tell apart are tagged by their code (VR_SetHitKind, combat.qc).
 //
 // With vr_dummy_attacks on (the firing range's "dummy attacks" button: vr_dummy_attack_toggle, below) it
 // strikes back, for practising the parry: see "Attacks" below. Off (the default, and at every map load),
@@ -35,7 +34,7 @@ float VR_DUMMY_PAIN_FIRST  = 40; // pain1 .. pain6
 float VR_DUMMY_PAIN_LAST   = 45;
 
 float VR_DUMMY_HEALTH = 1000;
-float VR_DUMMY_GRUNT_HEALTH = 30; // a grunt's (vr_dummy_gib: gibbed below -35, army_die's)
+float VR_DUMMY_GRUNT_HEALTH = 30; // a grunt's (vr_dummy_gib: killed as one at 0)
 
 vector vr_dummy_colour; // the floating number's, chosen along with the kind of hit
 
@@ -336,9 +335,11 @@ vector(entity targ, entity inflictor, entity attacker) VR_Dummy_HitPoint =
 // ----------------------------------------------------------------------------
 // The report (from T_DamageImpl, instead of the damage)
 
-void(entity d, float xHealth) VR_Dummy_Gib;
+void(entity d, float xHealth) VR_Dummy_Die;
 
-void(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) VR_Dummy_Hit =
+// TRUE: the blow kills it (vr_dummy_gib): it is now the grunt it stands for (VR_Dummy_Die), and the caller deals the blow
+// to it as to a grunt.
+float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) VR_Dummy_Hit =
 {
     // The callers may still need these.
     vector oldForward = v_forward;
@@ -365,10 +366,15 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
         streak = sprintf(" [%d hits: %g]", targ.vr_dummy_streak_hits, rint(targ.vr_dummy_streak_damage * 10) / 10);
     }
 
-    // vr_dummy_gib: a grunt's health over the run of hits, gibbed as army_die gibs one (alive before the hit, below -35
-    // after it; the damage taken whole, as T_Damage takes it).
+    // vr_dummy_gib: a grunt's health over the run of hits, killed as a grunt is (alive before the hit, 0 or below after
+    // it; the damage taken whole, as T_Damage takes it).
+    // Its health set lower (the decapitation tests' health 1: vr_decap_test) is the grunt's for this blow.
     float gruntLeft = VR_DUMMY_GRUNT_HEALTH - (targ.vr_dummy_streak_damage - damage);
-    float gibbed = cvar_hget(cvarh_vr_dummy_gib) && gruntLeft > 0 && gruntLeft - ceil(damage) < -35;
+    if(targ.health > 0 && targ.health < VR_DUMMY_HEALTH)
+    {
+        gruntLeft = min(gruntLeft, targ.health);
+    }
+    float killed = cvar_hget(cvarh_vr_dummy_gib) && gruntLeft > 0 && gruntLeft - ceil(damage) <= 0;
 
     // A blade's blow at its head or neck (or one that would behead): whether it would behead a grunt (VR_Decap_Judge).
     string decap = "";
@@ -383,7 +389,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
             decap = sprintf(" - %s (%s)", judged ? "would behead" : "would not behead", vr_decap_judge_why);
         }
     }
-    string line = sprintf("Dummy: %g damage - %s%s%s%s%s\n", shown, kind, part, streak, gibbed ? " - gibbed" : "", decap);
+    string line = sprintf("Dummy: %g damage - %s%s%s%s%s\n", shown, kind, part, streak, killed ? " - killed" : "", decap);
     // Monsters' blows (a grunt missing the player) only with `developer` on.
     if(attacker.flags & FL_CLIENT)
     {
@@ -399,14 +405,13 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     at_y = at_y + crandom() * 3;
     floattext(at, ftos(shown), vr_dummy_colour, 0.45 + min(0.5, damage / 160));
 
-    if(gibbed)
+    if(killed)
     {
-        VR_Dummy_Gib(targ, gruntLeft - ceil(damage));
-        vr_hitpart_target = world;
+        VR_Dummy_Die(targ, gruntLeft);
         v_forward = oldForward;
         v_right = oldRight;
         v_up = oldUp;
-        return;
+        return TRUE;
     }
 
     // Flinch: lean away from the blow, and the pain frames.
@@ -436,6 +441,7 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     v_forward = oldForward;
     v_right = oldRight;
     v_up = oldUp;
+    return FALSE;
 };
 
 // ----------------------------------------------------------------------------
@@ -828,7 +834,8 @@ void(entity attacker, float damage) vr_dummy_pain =
     }
 };
 
-// Never killed (VR_Dummy_Hit takes no health); should anything still kill it, it gets up.
+// Never killed (VR_Dummy_Hit takes no health; a blow that would kill a grunt makes it one first: VR_Dummy_Die); should
+// anything still kill it, it gets up.
 void() vr_dummy_die =
 {
     self.health = VR_DUMMY_HEALTH;
@@ -883,7 +890,7 @@ void() vr_dummy_think =
     }
 };
 
-// Standing, as placed and as it stands again after a gibbing (vr_dummy_gib).
+// Standing, as placed and as it stands again after it was killed (vr_dummy_gib).
 void() VR_Dummy_Setup =
 {
     self.classname = "vr_dummy";
@@ -902,11 +909,11 @@ void() VR_Dummy_Setup =
     self.frame = VR_DUMMY_STAND_FIRST;
 };
 
-// vr_dummy_gib: a gibbed dummy's stand-in (no model) stands again where it stood, once no one is in its way.
+// vr_dummy_gib: a killed dummy's stand-in (no model) stands again where it stood, once no one is in its way.
 void() VR_Dummy_Return =
 {
     tracebox(self.vr_dummy_home, '-12 -12 -24', '12 12 27', self.vr_dummy_home, FALSE, self);
-    if(trace_ent != world && (trace_ent.flags & (FL_CLIENT | FL_MONSTER)))
+    if(trace_ent != world && (trace_ent.flags & (FL_CLIENT | FL_MONSTER)) && trace_ent.health > 0) // (not its own body)
     {
         self.nextthink = time + 0.25;
         return;
@@ -919,10 +926,14 @@ void() VR_Dummy_Return =
     self.nextthink = time + 0.05;
 };
 
-// vr_dummy_gib: gibbed as a grunt is (army_die's gibbing; Killed's, not counted): the dummy itself becomes its head
-// (the wounds on it bloody the head's neck and face, as a grunt's), its gibs fly, and a stand-in stands again
-// vr_dummy_gib_respawn seconds later. `xHealth`: a grunt's health after the blow (the gibs' speed).
-void(entity d, float xHealth) VR_Dummy_Gib =
+// vr_dummy_gib: killed as a grunt is (VR_Dummy_Hit: a grunt's health over the run of hits gone). It becomes the grunt it
+// stands for, `xHealth` left before the blow, and the caller deals the blow to it as to one (T_DamageImpl): Killed and
+// army_die, so it is beheaded or has its head popped (vr_decap.qc: the blow was armed on it as on a grunt), dies, lies as
+// a corpse and a ragdoll, or is gibbed (army_die: below -35), all a grunt's, its gun falling as a grunt's. What stays the
+// dummy's: it is not counted (Killed: vr_dummy_dead), drops no backpack or weapon (SoldierDrop), the run of hits is its
+// health (hits more than a second apart start again), and a stand-in stands again where it stood
+// vr_dummy_gib_respawn seconds later.
+void(entity d, float xHealth) VR_Dummy_Die =
 {
     entity n = spawn();
     n.classname = "vr_dummy_gibbed";
@@ -931,26 +942,27 @@ void(entity d, float xHealth) VR_Dummy_Gib =
     setorigin(n, d.vr_dummy_home);
     n.think = VR_Dummy_Return;
     n.nextthink = time + max(0.1, cvar_hget(cvarh_vr_dummy_gib_respawn));
-    dprint(sprintf("dummy: gibbed (a grunt's health %g); stands again in %.1f s\n", xHealth, n.nextthink - time));
+    dprint(sprintf("dummy: killed as a grunt (%g health before the blow); stands again in %.1f s\n", xHealth,
+        n.nextthink - time));
 
-    entity oself = self;
-    self = d;
-    self.classname = "monster_army"; // its head is a grunt's (a thrown head, no longer the dummy)
-    self.health = xHealth;
-    self.takedamage = DAMAGE_NO;
-    self.touch = SUB_Null;
-    self.vr_dummy_atk_phase = 0;
-    self.vr_dummy_replay_what = 0;
-    sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
-    ThrowHead("progs/h_guard.mdl", self.health);
-    ThrowGib("progs/gib1.mdl", self.health);
-    ThrowGib("progs/gib2.mdl", self.health);
-    ThrowGib("progs/gib3.mdl", self.health);
-    if(self.vr_gib)
-    {
-        self.solid = SOLID_NOT_BUT_TOUCHABLE; // (Killed's: a head stays grabbable)
-    }
-    self = oself;
+    d.classname = "monster_army";
+    d.vr_dummy_dead = TRUE;
+    d.health = xHealth;
+    d.max_health = VR_DUMMY_GRUNT_HEALTH;
+    d.th_die = army_die;
+    d.movetype = MOVETYPE_STEP;
+    setsize(d, '-16 -16 -24', '16 16 40'); // (a grunt's: monster_army)
+    d.angles = VR_Dummy_Facing(d);
+    d.velocity = '0 0 0';
+    d.think = SUB_Null; // (its death code's frames take over: never vr_dummy_think again)
+    d.nextthink = 0;
+    d.vr_dummy_painframe = 0;
+    d.vr_dummy_lean = '0 0 0';
+    d.vr_dummy_atk_phase = 0;
+    d.vr_dummy_atk_live = 0;
+    d.vr_dummy_turn = 0;
+    d.vr_dummy_replay_what = 0;
+    d.effects = d.effects - (d.effects & EF_DIMLIGHT); // (a wind-up's glow)
 };
 
 // Once the world is in: stand on the floor, and put up its sign.

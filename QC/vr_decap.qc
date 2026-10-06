@@ -69,6 +69,7 @@ string(entity e) VR_Decap_HeadModel =
         return ""; // (a statue: stone, VR_Corpse_Parts)
     }
     if(c == "monster_army")          { return "progs/h_guard.mdl"; }
+    if(c == "vr_dummy")              { return "progs/h_guard.mdl"; } // (a grunt: armed as one, cut or popped once a blow kills it: vr_dummy_gib)
     if(c == "monster_knight")        { return "progs/h_knight.mdl"; }
     if(c == "monster_ogre" || c == "monster_ogre_marksman") { return "progs/h_ogre.mdl"; }
     if(c == "monster_enforcer")      { return "progs/h_mega.mdl"; }

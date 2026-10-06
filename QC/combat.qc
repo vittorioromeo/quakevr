@@ -96,6 +96,9 @@ float(entity targ, entity inflictor) CanDamage =
 };
 
 
+// The firing range's training dummy that died as the grunt it stands for (vr_dummy.qc, vr_dummy_gib): not counted, no loot.
+.float vr_dummy_dead;
+
 /*
 ============
 Killed
@@ -132,7 +135,7 @@ void(entity targ, entity attacker) Killed =
     self.enemy = attacker;
 
 // bump the monster counter
-    if((self.flags & FL_MONSTER) && (!MGH_Active() || self.classname != "monster_zombie"))
+    if((self.flags & FL_MONSTER) && !self.vr_dummy_dead && (!MGH_Active() || self.classname != "monster_zombie"))
     {
         killed_monsters = killed_monsters + 1;
         WriteByte(MSG_ALL, SVC_KILLEDMONSTER);
@@ -1385,11 +1388,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     VR_SmallGib_Hit(targ, inflictor, attacker, damage); // VR: small gibs torn out (vr_smallgibs.qc)
     VR_Wound_Hit(targ, inflictor, attacker, take); // VR: painted on its model (vr_wounds.qc)
 
-    // VR: the firing range's training dummy reports the hit and takes no harm (vr_dummy.qc; gibbed, with vr_dummy_gib,
-    // by what would gib a grunt).
-    if(targ.classname == "vr_dummy")
+    // VR: the firing range's training dummy reports the hit and takes no harm (vr_dummy.qc); with vr_dummy_gib, a blow
+    // that would kill a grunt makes it the grunt it stands for, and the blow is dealt to it as to one: it dies, is
+    // beheaded, has its head popped or is gibbed as a grunt is.
+    if(targ.classname == "vr_dummy" && !VR_Dummy_Hit(targ, inflictor, attacker, damage, isVRMelee))
     {
-        VR_Dummy_Hit(targ, inflictor, attacker, damage, isVRMelee);
         return TRUE;
     }
 

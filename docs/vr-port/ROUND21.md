@@ -25073,3 +25073,39 @@ each played headless (`maps_play`, the Map Library's Enter, and `map`):
   directory when it crashes (the exception filter only; the crash then ends as before, and the last report is kept),
   and the report's second line names the exe's link time and the map last spawned with its map package
   ("exe linked 2026-10-06 12:56; map plaw01, map package Down the Gutter (f2d56926c6082753)").
+## Training dummy dies as a grunt; head pop chance checked (2026-10-06)
+
+NOTES.md vrfiringrange, 12:28: the dummy "always seems to just completely gib"; 12:26: head pops "no matter the distance
+and no matter what chance".
+
+- **The dummy** (`QC/vr_dummy.qc`): with Gore > Training Dummy > **Dummy Dies** (`vr_dummy_gib`, renamed from "Dummy
+  Gibs"; still off as shipped, on in the author's config) a blow that takes a grunt's 30 health (over the run of hits
+  less than a second apart, as before) no longer gibs it by its own rule (below -35). `VR_Dummy_Die` makes it the grunt
+  it stands for (`monster_army`, its health before the blow, `army_die`, a grunt's box and movetype) and T_DamageImpl
+  deals the blow to it as to a grunt: Killed, so a slash at its head beheads it, a shotgun, super shotgun or bolt
+  headshot pops its head by the Head pop chance, an overkill below -35 gibs it, otherwise it dies, falls as a ragdoll
+  and lies as a corpse (Gib Corpses, decapitating corpses: all a grunt's). The blows are armed on it as on a grunt
+  (`VR_Decap_HeadModel`: the dummy has a grunt's head). Kept the dummy's: not counted (`Killed`: `vr_dummy_dead`), no
+  backpack or weapon drop (`SoldierDrop`; its own gun still falls from its hands, as a grunt's), the report line ("-
+  killed"), and a stand-in standing again `vr_dummy_gib_respawn` s later (its own body under it no longer blocks it).
+  The decapitation tests (`vr_decap_test`, Debug > Gore Tests) work on it: its health set below 1000 is the grunt's for
+  the blow (1, 9, 6, 12, 13, 14: beheaded or popped, as on a grunt).
+- **Head pop chance**: no bug. His game ran a progs.dat built at 11:00, before the chance shipped (11:56): every headshot
+  kill popped. Measured with his config (`vr_decap_pop_always_range 2`, `never 12`, SSG 1.25 falloff 1, SG 0.75
+  falloff 4, pellet weight 0.75, head share 0.5) and real shots (mock hand, `+attack`) at grunts spawned through the
+  firing range's dispenser (`impulse 241`), 24 shots each: pops follow the rolled chance. With his super shotgun scale
+  1.25 the chance is capped at 1 out to about 4 player lengths when most pellets strike the head (by design).
+
+| target, weapon, range (units) | kills | pops | rolls (mean chance) | died whole | gibbed |
+|---|---|---|---|---|---|
+| grunt SSG 150 | 24 | 24 | 2 (0.95) | 0 | 0 |
+| grunt SSG 250 | 24 | 15 | 20 (0.70) | 5 | 4 |
+| grunt SSG 350 | 24 | 5 | 14 (0.44) | 19 | 0 |
+| grunt SSG 450 | 16 | 2 | 8 (0.28) | 14 | 0 |
+| grunt SG 150 / 250 / 350 | 24 / 15 / 5 | 16 / 2 / 1 | 24 (0.66) / 15 (0.28) / 5 (0.10) | 8 / 13 / 4 | 0 |
+| dummy before, SSG 150 / 250 | 13 / 1 | 0 | 0 | 0 | 13 / 1 |
+| dummy before, SG 150 | 0 | 0 | 0 | 0 | 0 |
+| dummy after, SSG 150 / 250 / 350 / 450 | 24 / 24 / 16 / 4 | 20 / 7 / 3 / 1 | 16 (0.81) / 14 (0.66) / 10 (0.39) / 4 (0.28) | 3 / 17 / 13 / 3 | 1 / 0 / 0 / 0 |
+| dummy after, SG 150 / 250 | 10 / 4 | 5 / 0 | 10 (0.62) / 4 (0.27) | 5 / 4 | 0 |
+
+(The dummy was shot from its side, the grunts head on: the hits differ, the rules are the same.)

@@ -2156,10 +2156,10 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         header("Training Dummy"),
         toggle("Dummy Bleeds", vr_dummy_gore)
             .help("The firing range's training dummy bleeds as a grunt: blood sprays and mist, wounds on its model, small gibs, blood on you and what you hold. Off: it stays clean."),
-        toggle("Dummy Gibs", vr_dummy_gib)
-            .help("What would gib a grunt (its 30 health over a run of hits, below -35) gibs the training dummy: its head and gibs fly, and it stands again. Off as shipped."),
+        toggle("Dummy Dies", vr_dummy_gib)
+            .help("What would kill a grunt (its 30 health over a run of hits) kills the training dummy as one: beheaded, its head popped, dying, lying as a ragdoll or gibbed exactly as a grunt would be. Then it stands again. No loot. Off as shipped."),
         slider("Dummy Stands Again", vr_dummy_gib_respawn, 0.5f, 10.f, 0.5f, "%.1f s").extend(0.1f, 60.f)
-            .help("How long a gibbed training dummy takes to stand again."),
+            .help("How long a killed training dummy takes to stand again (its body stays, as a grunt's)."),
         header("Marks"),
         toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
         slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many: 1024 or more."),

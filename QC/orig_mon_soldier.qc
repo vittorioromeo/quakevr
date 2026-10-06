@@ -264,6 +264,10 @@ void() SoldierDrop =
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;
+    if(self.vr_dummy_dead)
+    {
+        return; // VR: the firing range's training dummy killed as a grunt (vr_dummy.qc): no loot
+    }
     self.ammo_shells = 5;
     DropBackpack();
 
