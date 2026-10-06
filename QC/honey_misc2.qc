@@ -34,6 +34,8 @@
 
 void() misc_tree =
 {
+    // Honey's model, not shipped: a map package's misc_tree (other mods name one too) is left out, not a Host_Error.
+    if(!fileexists("progs/tree1.mdl")) { remove(self); return; }
     precache_model("progs/tree1.mdl");
     setmodel(self, "progs/tree1.mdl");
 

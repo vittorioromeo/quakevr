@@ -49,6 +49,16 @@ void() ogre_start =
 void() monster_ogre_marksman =
 {
     if(MG_WorldCampaign()) { self.wad = "progs/ogre.mdl"; monster_ogre_real(); return; }
+    // id's own classname (its ogre.qc: an ogre), in any map: Honey's marksman needs Honey's model and crown, which
+    // Quake VR does not ship. Without them it is id's ogre (its classname too, so no Honey branch takes it), not a
+    // Host_Error at the precache (Down the Gutter, plaw01, did not start).
+    if(!VR_Has("progs/mogre.mdl") || !VR_Has("progs/s_light2.spr"))
+    {
+        self.classname = "monster_ogre";
+        self.wad = "progs/ogre.mdl";
+        monster_ogre_real();
+        return;
+    }
     self.wad = "progs/mogre.mdl";
     precache_model("progs/s_light2.spr");
     monster_ogre_real();
