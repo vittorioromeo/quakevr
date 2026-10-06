@@ -25,6 +25,11 @@ static int qvrHeapLastError;
 static void qvrHeapOutput(const char* message, void* arg)
 {
     (void)arg;
+    fputs(message, stderr);
+    if(!message[strspn(message, " \t\r\n")]) // a bare line break (two at start-up): nothing to count
+    {
+        return;
+    }
     __atomic_fetch_add(&qvrHeapMessageCount, 1, __ATOMIC_RELAXED);
     const unsigned length = (unsigned)strlen(message);
     const unsigned at = __atomic_fetch_add(&qvrHeapMessagesUsed, length, __ATOMIC_RELAXED);
@@ -33,7 +38,6 @@ static void qvrHeapOutput(const char* message, void* arg)
         const unsigned room = (unsigned)sizeof(qvrHeapMessages) - 1 - at;
         memcpy(qvrHeapMessages + at, message, length < room ? length : room);
     }
-    fputs(message, stderr);
 }
 
 static void qvrHeapError(int error, void* arg)
