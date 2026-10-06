@@ -879,7 +879,11 @@ pose; then `vr_mock_button main trigger 1` / `0` clicks. `vr_mock_button off sti
 buttons the selection, `vr_mock_stick off 0 -1` (then `0 0`) moves down, `vr_mock_button main primary` presses;
 `vr_mock_stick main 0 -1` scrolls a page. Back to Game: `vr_mock_button main menu 1; wait90; vr_mock_button main menu
 0`, reopened by `togglemenu`. Across a restart: `writeconfig <file>` writes `vr_menu_positions`; exec that line at the
-next start (the kit puts `ironwail.cfg` back after each run).
+next start (the kit puts `ironwail.cfg` back after each run). Flat screen (`vr_enabled 0`; ROUND21.md, "Corner buttons
+on a flat screen"): `vr_mock_mouse <x> <y> | back | search | console | advanced | levels | maps | checklist [click]`
+moves the desktop mouse there (M_Mousemove) and clicks; `vr_mock_key <key>` presses a key (`uparrow`, `enter`,
+`rthumb`...) and prints the menu and the corner button selected; `vid_unlock` before `vid_width`/`vid_restart` changes
+the kit's window size.
 Playtest checklist (ROUND21.md, "In-game checklist"): **to update what the author is asked to test, edit
 `quakevr/checklist.txt`** (`[Section]` lines, one item a line, `#` comments; the format is at its top) and commit it: no
 rebuild, and a running game reads it again within a second. Ticks live in `quakevr/checklist_ticks.txt` (ignored), keyed
