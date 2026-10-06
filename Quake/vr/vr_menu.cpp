@@ -3991,6 +3991,13 @@ za::Vector<Item> pageDebugReports()
         header("Other"),
         command("Limits", "vr_limits")
             .help("vr_limits: every hardcoded limit's usage against its maximum (cvars, memory, models, edicts, lights...)."),
+        command("Keyboard Hook", "vr_keyhook_status")
+            .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
+                  "the longest it went unserviced since the last report: every key press on the desktop waits for it."),
+        command("Input Latency: Walk", "vr_inputlag_test key 10")
+            .help("vr_inputlag_test key: a W key press sent through SDL once back in the game, then the "
+                  "frames and ms to the bound command, the move sent, the server, the view, full speed, the release and "
+                  "the stop (in the console). 'turn' and 'mouse' from the console."),
         command("Microphones", "vr_note_devices").help("vr_note_devices: the microphones Voice Notes can record from."),
         command("Detail Textures", "vr_detail_list").help("vr_detail_list: each texture's detail kind (long)."),
         command("External Maps", "vr_extmaps_stats all")

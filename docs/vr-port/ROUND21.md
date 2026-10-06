@@ -24592,3 +24592,35 @@ all landing in the trench; the same with the toggle off 7/20; shoved away from i
 steps) 7/20, none forced; on the grab-leniency block (top 48) at Ledge Height 32: toward its open edge 20/20 forced,
 toward the thin wall 6 units past its edge 9/20, none forced (the hull's way ends 18 units on); at 64, its open edge 10/20
 (48 is no ledge); on vrclimb's plat (top 48) at 32: 20/20 forced. Not checked: a lift while it moves, a drop into liquid.
+
+## Flat-screen input lag (2026-10-06)
+
+Report: in flat-screen play (keyboard and mouse) WSAD seemed to register half a second late.
+
+**Measured in the game (vr_inputlag_test).** An SDL key or mouse event is pushed into SDL's queue, then each stage's
+first frame is timed (250 fps cap, the author's config, `-RealTime`, hidden and visible windows, flat and mock VR):
+the bound command (+forward) runs the next frame (+1, 4 ms); the move goes out at the next 72 Hz server tick (+1..+3
+frames, 4-12 ms; Ironwail's renderer/network isolation, stock); the server's velocity the same frame; the view moves
++2..+4 frames (8-16 ms); 90% of the speed after 120 ms (Quake's sv_accelerate); the release's -forward the next frame.
+The view stays within 6 units of the server's player (one tick). Mouse look: the yaw the next frame (4 ms). The
+command buffer was empty, no frame stalls (vr_profile: 4.0 ms frames, worst 7.6). Mock VR: the same. So the engine's
+path from SDL's queue to the screen is stock Ironwail's.
+
+**The cause: the desktop keyboard hook.** Ironwail installs a system-wide WH_KEYBOARD_LL hook (sys_sdl_win.c: Caps
+Lock, Scroll Lock, Num Lock and Print Screen as game keys) in IN_Init whatever the focus, and takes it off only on a
+focus loss. Windows calls such a hook for every key press on the desktop (in any program) and holds the key until the
+hooking thread services it, which the game does only while it pumps messages (once a frame, not at all through a
+start-up or a map load), up to LowLevelHooksTimeout. A window that is never focused never loses the focus: every test
+run's copy (hidden or in the background) kept the hook for its life, and left it unserviced for up to 938 ms at a map
+load (`vr_keyhook_status`). With the agents' runs going (eval shards, smoke tests: each one loading maps), the
+player's key presses waited for each copy in turn: hundreds of ms in flat play. The mouse and the VR controllers go
+through no such hook, so VR play never showed it. Fix (in_sdl.c): the hook is installed at start-up only with the
+keyboard's focus (otherwise on SDL_WINDOWEVENT_FOCUS_GAINED, as before). Test copies now report "not installed".
+Copies built before this commit (other worktrees, the kit's older builds) still hold it until rebuilt.
+
+**Also fixed: the walk turned a tick late in flat play.** The server walks by the move's head angles
+(VR_MoveAngles); flat, they came from the hands' state, taken at the frame's start before the frame's mouse motion,
+so a key pressed while turning walked the old way for one server tick: the walk lined up with the view (within 5
+degrees) after 84 ms; now 28 ms (`vr_inputlag_test turn`). VR unchanged.
+
+Debug > Reports: Keyboard Hook (`vr_keyhook_status`), Input Latency: Walk (`vr_inputlag_test key`).
