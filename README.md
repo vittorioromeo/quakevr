@@ -91,7 +91,8 @@ A short list. [docs/FEATURES.md](docs/FEATURES.md) explains each feature and how
 
 - **Quake and both mission packs** (Scourge of Armagon, Dissolution of Eternity) in one game. They are found
   automatically and picked from the start hub.
-- **Custom maps** run with Quake VR's gameplay. **Other mods** run in a compatibility mode: you aim with your hand,
+- **Custom maps** run with Quake VR's gameplay. The **Map Library** (Single Player > Map Library) browses
+  [Quaddicted](https://www.quaddicted.com/)'s archive of custom maps, and downloads and installs them in the game. **Other mods** run in a compatibility mode: you aim with your hand,
   but you have no off-hand weapons or holsters.
 - **Ironwail's strengths:** fast on huge modern maps, a Maps and Mods menu, and flat-screen play (`vr_enabled 0`).
 - **Multiplayer and bots** (FrikBot), carried over from the original.
@@ -160,9 +161,11 @@ Dimension of the Machine and Dawn of the Machine are detected; their native VR g
   release ([docs/vr-port/TEXTURES.md](docs/vr-port/TEXTURES.md): contents, credits, licence). Or from the
   [QRP Archive on ModDB](https://www.moddb.com/addons/quake-revitalization-project-archive): their `textures`
   folders go in `id1`, `hipnotic` and `rogue`.
-- **Relit maps and see-through water:** made on your own PC from your copy of Quake, with the script in
-  `quakevr\tools`, ericw-tools and the VisPatch data. id Software's maps can't be redistributed, so they aren't in
-  the package. [docs/RELIGHTING.md](docs/RELIGHTING.md) has the steps. It takes about a minute.
+- **Relit maps and see-through water:** made on your own PC from your copy of Quake. id Software's maps can't be
+  redistributed, so they aren't in the package. The game relights maps itself (*VR Settings > Advanced VR Options >
+  Graphics > Relighting*: this map, an episode, a game or every map, in the background); the script in
+  `quakevr\tools`, with the VisPatch data, also makes water, slime and teleporters see-through.
+  [docs/RELIGHTING.md](docs/RELIGHTING.md) has the steps. It takes about a minute.
 - **Transcribing voice notes** with Whisper. This is for playtesters.
 
 ## First steps and basic tweaking
@@ -238,6 +241,8 @@ For players:
 - [docs/FEATURES.md](docs/FEATURES.md): every feature, and how to use it.
 - [docs/SETTINGS.md](docs/SETTINGS.md): advanced settings, all the menu pages, console variables, config files.
 
+[docs/README.md](docs/README.md) lists every document, with a line on each.
+
 For developers:
 
 - [docs/BUILDING.md](docs/BUILDING.md): building the engine, the QuakeC and the release package, and the tool
@@ -248,9 +253,10 @@ For developers:
 
 ## Building from source
 
-Build `Windows\VisualStudio\ironwail.sln` (Visual Studio 2022, Release | x64). Then run
-`Windows\package-quakevr.ps1 -Fteqcc <path to fteqcc64.exe>`: it compiles the QuakeC and puts the package in
-`dist\QuakeVR` and `dist\QuakeVR.zip`. [docs/BUILDING.md](docs/BUILDING.md) has the details. VR needs Windows x64.
+Build `Windows\VisualStudio\ironwail.sln` (Visual Studio 2022 with clang-cl, Release | x64): the build compiles the
+QuakeC too (`quakevr\progs.dat`), with FTEQCC from `-p:QvrQcCompiler=<path to fteqcc64.exe>`. Then
+`Windows\package-quakevr.ps1 -Fteqcc <path to fteqcc64.exe>` puts the package in `dist\QuakeVR` and
+`dist\QuakeVR.zip`. [docs/BUILDING.md](docs/BUILDING.md) has the details. VR needs Windows x64.
 The other platforms build with a mock headset only, for development.
 
 ## Credits and licence
@@ -270,7 +276,9 @@ Quake VR is by **Vittorio Romeo**. It builds on:
   others; id Software's textures retextured), under
   [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/): see
   [quakevr/textures_quetoo/README.md](quakevr/textures_quetoo/README.md) for every author.
-- The OpenXR SDK (Khronos), SDL2, GLM, FTEQCC, and ericw-tools.
+- Box3D (Erin Catto) for the physics, Steam Audio (Valve) for the spatial sound, Zancle (Vittorio Romeo), FrikBot
+  (Ryan "FrikaC" Smith), the OpenXR SDK (Khronos), SDL2, GLM, FTEQCC, and ericw-tools. The Map Library's maps come
+  from [Quaddicted](https://www.quaddicted.com/).
 
 The full list, with the research and techniques used, is in [docs/vr-port/CREDITS.md](docs/vr-port/CREDITS.md).
 
