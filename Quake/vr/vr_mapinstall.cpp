@@ -1363,6 +1363,12 @@ bool begin(const mapindex::Entry* entry, bool install, za::String* why)
     {
         worker.join(); // (a job that finished; its handle was never joined)
     }
+    if(pendingReady.loadSeqCst())
+    {
+        // The last job finished after this frame's poll(): taken now, before this one replaces `current` (and before
+        // its own handoff could replace it, its files never recorded).
+        takeFinished();
+    }
     request.sha = za::String{mapindex::index().field(entry->sha256)};
     request.title = za::String{mapindex::index().field(entry->title)};
     request.urls = za::String{mapindex::index().field(entry->urls)};
