@@ -27131,3 +27131,65 @@ console's corner banner says "Quake VR: Unleashed"; the `version` command and th
 Ironwail and the Quake VR build; error dialogs are titled "Quake VR: Unleashed - Error".
 
 In VR: start the game: the taskbar, alt-tab and the title bar show the logo and the title above.
+
+## Retro particles' fill: skipping what is hidden (2026-10-07)
+
+PROFILING_2026-10 decision item 4 (PERFORMANCE_BENCHMARK_20261005 item 1). The question was whether a faster path
+for retro particles could look almost identical to the full-resolution one. It can, without a reduced resolution.
+
+**Where the time goes** (particles_dense, his settings, 2048 eyes, frozen A/B in one process with `vr_profile`
+GPU scopes). The full retro particle pass costs 10.1 ms. With the same quads but a constant colour (no texture,
+no retro) it costs 8.1 ms. Its colour writes alone, without shading, cost 2.7 ms. Full retro shading without colour
+writes costs 8.8 ms. Removing the palette changes nothing (it hides behind the writes). A single tap instead of
+the block edges' four saves 2.5 ms of shading. About 8,300 particles, roughly 116 screens of overdraw: the pass is
+bound by blending and shading about equally. Neither a cheaper shader alone (at most -25%) nor half resolution
+would give a near-identical image. The blocks are 0.25 world units in each particle's own texture space (1-4 px
+here, not aligned to the screen), and the half-res path already differs by 0.7-1.1 RGB8 on average.
+
+**What changed** (`vr_gfx_gl.cpp` drawReverseOrder, `vr_particles.cpp` screenCover/reverseOrderThisFrame):
+- The particles are composited in reverse order, "under" (`GL_ONE_MINUS_DST_ALPHA, GL_ONE`): the last drawn,
+  on top, come first. They go into an RGBA16F target of their own, with the scene's depth/stencil attached, so
+  the depth test is the same. They are drawn in 8 batches. After each batch, a full-screen pass marks the pixels
+  that are already 99.9% opaque in the stencil's upper six bits (sky uses bit 0 and OIT bit 1). The marks use a
+  rotating value, so there is no clear per draw. Later batches fail the stencil test there before any shading.
+  Last, the target is blended over the scene in one pass.
+- Compositing is associative, so the image is the same up to fp16 rounding order. The skipped particles are under
+  at most 0.1% transmittance.
+- The particles' quads take their vertex index reversed (`Reverse` uniform). The shaders are otherwise unchanged
+  (same rasteriser, derivatives, depth test, soft fade, retro).
+- Foveation: `foveated::shadeBoundAsScene` keeps variable-rate shading on the particle target, as on the scene.
+  Without it the separate target cost +2.5 ms. The opaque marks and the final blend run at full rate.
+- No glGet: the target is R_SetupGL's (VR_DrawSceneTranslucent), its size is `vid`, and the stencil is left as
+  the others expect.
+- Not used with MSAA scene targets or without a scene framebuffer. In those cases the old path runs.
+- On per frame (first view) from `vr_particle_saturate_cover` 10 screens of on-screen particle squares, off below
+  two thirds of that. The fixed cost is about 0.13 ms an eye: the clear, 7 marks and the blend. Break-even is about
+  7 screens (dense1 6.6: 0.67 to 0.62 ms; floor smoke 8.5: 0.80 to 0.85 ms; light and explosion scenes under 1).
+
+**Cvars**: `vr_particle_saturate` 1 (archived; Graphics > Models and Effects > Skip Hidden Particles; 0 is the
+old path, for comparison). Test cvars, also on Debug > Profiling > Particles' Fill: `vr_particle_saturate_cover` 10,
+`vr_particle_saturate_batches` 8 (6-10 measured flat), `vr_particle_saturate_growth` 1,
+`vr_particle_saturate_opacity` 0.999 (1: no skipping), and Freeze Particles (`vr_particle_freeze`).
+
+**Measured** (bench.sh, his settings, 2048, 3 alternating reps each, medians):
+
+| scenario | vr particles GPU | GPU 3D | frame p50 |
+|---|---|---|---|
+| particles_dense, before | 10.00 ms | 11.15 | 13.17 |
+| particles_dense, after | 5.26 ms | 6.30 | 11.11 |
+| combined, before | 7.89 ms | 19.12 | 22.33 |
+| combined, after | 4.65 ms | 14.83 | 17.27 |
+
+On the frozen dense fixture (116 screens), in one process: 8.3-8.9 to 2.8 ms. dense4 (35 screens): 3.17 to
+1.39 ms. dense2 (14 screens): 1.30 to 0.89 ms.
+
+**Image** (frozen fixtures, both eyes at 2048, eyeshots with skipping vs without; pixels animated between two
+captures without skipping are left out): the share of pixels over 2/255 is 0.0004% dense, 0.014% dense4,
+0.032% smoke against the floor, 0.017% explosions and 0% blood in e1m1's dark. The mean is 0.007-0.09/255.
+Nearly all differences are 1/255 of fp16 rounding (dense: 9% of pixels by 1). Threshold used: under 1% of
+pixels differing by over 2/255. With the skipping off (opacity 1) the numbers are the same, so skipping adds
+no error. Script: `scratch/vis.py`, `visan2.py` (not committed).
+
+**To test in VR**: dense smoke and blood (rocket and grenade smoke in a corridor, gibs close by) with Skip Hidden
+Particles on and off. They should look the same, with no seams at the foveation rings. Also the frame time in
+heavy fights.
