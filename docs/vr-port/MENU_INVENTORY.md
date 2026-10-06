@@ -354,7 +354,7 @@ Full list: `where.json` / run section 5c script.
 - **Flashlight grip fingers.** 2 x 14 `vr_flashlight_{low,high}_*` duplicate the per-weapon finger model.
 - **Offsets.** 127 cvars end in x/y/z/pitch/yaw/roll. Most are placement offsets better set by a "grab and place"
   posing tool, which already exists for weapons (vr_posing.cpp).
-- **Throwing internals.** 47 `vr_throw_*` cvars, ~20 of them console-only (`vr_throw_lookahead`, `peak_span`,
+- **Throwing internals.** 47 `vr_throw_*` cvars, ~20 of them console-only (`peak_span`,
   `ang_*`, `gain_lo/hi`, `release_*`, `assist_*`...). Throwing and Physics (78 rows) is the 3rd-largest page.
 - **Small gibs.** 56 `vr_smallgibs_*` (Small Gibs page 52 rows). Gore has 71 rows and 35 `vr_gore_*`.
 - **Burning.** 35 `vr_burn_*` (page 47 rows) and 20 `vr_walltorch_*`.
@@ -3116,7 +3116,6 @@ see `Misc/quakevr/pvs/FINDINGS.md` for the corrected measurements.
 | `vr_hit_tolerance_thrown` | `2` | yes | C | gameplay | Damage and Knockback | 1 | 0 |  | 46 |
 | `vr_debug_hits` | `0` | no | D | dev | Debug - Views | 6 | 0 |  | 47 |
 | `vr_throw_window` | `0.12` | yes | D | graphics | Throwing and Physics | 1 | 0 |  | 53 |
-| `vr_throw_lookahead` | `0.01` | yes | C? | gameplay | — | 1 | 0 |  | 54 |
 | `vr_throw_peak_span` | `0.017` | yes | C? | gameplay | — | 1 | 0 |  | 55 |
 | `vr_throw_lever_arm` | `0.1` | yes | D | gameplay | Throwing and Physics | 1 | 0 |  | 56 |
 | `vr_throw_dir_lookback` | `0.04` | yes | D | gameplay | Throwing and Physics | 1 | 0 |  | 57 |

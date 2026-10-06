@@ -76,7 +76,7 @@ where the weapon starts, and how it flies. Most values are starting points: plea
 - **Release point:** the release velocity is the controller's own velocity (from the runtime) where it was
   fastest, in the window before the moment you let go (`vr_throw_window` 0.12 s), smoothed over
   `vr_throw_peak_span` (17 ms) either side; the samples taken as a signal in time, so the same at any frame rate
-  (ROUND21.md, "Throws at any frame rate"; `vr_throw_lookahead` is no longer used).
+  (ROUND21.md, "Throws at any frame rate"; `vr_throw_lookahead` is removed).
 - **Frozen at release:** it is taken once, when you let go, on the headset's clock, so the network rate can no
   longer slide the window past the peak.
 - **Wrist flicks:** a clear flick (spin above `vr_throw_ang_threshold`, 6 rad/s) adds 70% of the spin's

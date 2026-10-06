@@ -444,7 +444,6 @@ float cvarh_vr_smallgibs_time;
 float cvarh_vr_smallgibs_destroy;
 float cvarh_vr_gore_stick_thrown;
 float cvarh_vr_gore_stick_speed;
-float cvarh_vr_throw_hit_min_speed;
 float cvarh_vr_button_weapon;
 float cvarh_vr_button_weapon_reach;
 float cvarh_vr_button_prop;
@@ -1055,7 +1054,6 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_smallgibs_destroy);
     VR_CVAR_HMAKE(vr_gore_stick_thrown);
     VR_CVAR_HMAKE(vr_gore_stick_speed);
-    VR_CVAR_HMAKE(vr_throw_hit_min_speed);
     VR_CVAR_HMAKE(vr_button_weapon);
     VR_CVAR_HMAKE(vr_button_weapon_reach);
     VR_CVAR_HMAKE(vr_button_prop);

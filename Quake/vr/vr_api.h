@@ -352,6 +352,7 @@ void VR_MenuBounds (int *top, int *height);				// M_UpdateBounds: the menus laid
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
 void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile, the game folder's config: another copy's changes in it kept (vr_cvars.cpp)
 void VR_ConfigWritten (const char *path);				// and after writing it
+int VR_RetiredCvar (const char *name);					// Cmd_ExecuteString, an unknown name: nonzero if it is a removed Quake VR setting (a config's stale line, ignored quietly)
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 // The main menu's lettering as a font (vr_bigfont.cpp): its letters cut from id's menu pictures in the pak, rows of text

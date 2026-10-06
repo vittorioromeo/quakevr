@@ -834,6 +834,24 @@ void registerCvars()
 
 // Host_WriteConfigurationToFile, before the game folder's config is written over: the settings another copy of the
 // game changed in it since this copy read or wrote it, and this copy left alone, are taken (configTrack).
+// Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
+// "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
+constexpr const char* retiredCvars[] = {
+    "vr_throw_lookahead", // 2026-10-06: unused since the throw's window ends at the release (ROUND21.md, "Throws at any frame rate")
+};
+
+extern "C" int VR_RetiredCvar(const char* name)
+{
+    for(const char* retired : retiredCvars)
+    {
+        if(!q_strcasecmp(name, retired))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 extern "C" void VR_ConfigMergeOthers(const char* path)
 {
     using namespace qvr;

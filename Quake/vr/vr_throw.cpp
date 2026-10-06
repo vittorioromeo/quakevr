@@ -319,8 +319,8 @@ constexpr double peakFit = 0.03;
 
 
 // The peak of the controller's speed in the window before the release (vr_throw_window, up to the release: the
-// samples after it are there or not depending on when the move carrying it is built, so never; vr_throw_lookahead is
-// no longer used). The speed is smoothed (a line fitted over vr_throw_peak_span either side), its peak the middle of
+// samples after it are there or not depending on when the move carrying it is built, so never: the
+// retired vr_throw_lookahead). The speed is smoothed (a line fitted over vr_throw_peak_span either side), its peak the middle of
 // its top (peakTopShare); the throw's velocity is the smoothed one there, as fast as the speeds' parabola there says
 // (peakFit), the way the hand went over vr_throw_dir_lookback before it; the spin the mean over twice the span.
 // `lever`: metres along the hand's forward to the held object's centre (vr_throw_lever_arm): a clear wrist flick adds

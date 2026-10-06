@@ -74,7 +74,7 @@ after; `models` 0.028 / 0.026 ms.
 | `Quake/gl_shaders.h` | +1823 -43 | +192 -43 | 83 | the splice points of vr/vr_glsl.h's GLSL (one line each) and the few upstream lines changed in place |
 | `Quake/r_alias.c` | +253 -14 | +218 -14 | 35 | the alias instance's VR data (VR_AliasInstance), normal maps, depth-only shadow casters, alpha to coverage, bone poses, wound painting (R_PaintAliasWounds), mirrored and transformed instances |
 | `Quake/world.c` | +207 -8 | +206 -8 | 18 | narrower player hulls, precise model hits, hand touches (SV_AreaEdicts), gibs hit by shots, trace profiling; kept inline (the traces are hot) |
-| `Quake/cmd.c` | +259 -49 | +163 -35 | 36 | the command buffer grows (Cbuf_Reserve) and reads from a position; lines and arguments of any length (VR_ParseToken: vr_cmdtoken.cpp); config migration; counts |
+| `Quake/cmd.c` | +259 -49 | +163 -35 | 36 | the command buffer grows (Cbuf_Reserve) and reads from a position; lines and arguments of any length (VR_ParseToken: vr_cmdtoken.cpp); config migration; removed Quake VR settings ignored quietly (VR_RetiredCvar); counts |
 | `Quake/r_world.c` | +181 -4 | +179 -4 | 26 | depth pre-pass, deluxemaps, normal maps, parallax and detail per texture, alpha to coverage, the liquids' wave mesh and refraction |
 | `Quake/menu.c` | +151 -13 | +149 -13 | 26 | the VR menu (m_vr), VR Calibration row, list scrolling for the controllers, text outlines |
 | `Quake/cvar.c` | +93 -26 | +94 -26 | 18 | no fixed cvar count (grows), appended then sorted when needed, values of any length |

@@ -200,7 +200,7 @@ Sample { t_xr; p_ctrl; q; v_ctrl; w; grip; }        // controller point = raw po
 
 // ---- estimate, computed ONCE at the release edge, then frozen ----
 Estimate estimateAtRelease(hand, t_rel):
-  W  = samples with t in [t_rel - vr_throw_window, t_rel + vr_throw_lookahead]   // 0.12 s, 0.01 s
+  W  = samples with t in [t_rel - vr_throw_window, t_rel]   // 0.12 s (vr_throw_lookahead retired, 2026-10-06)
   pk = argmax over W of |v_ctrl|                     // CONTROLLER speed, no lever term (Alyx)
   S  = samples with |t - t_pk| <= vr_throw_peak_span // 0.017 s: ~3 frames at 90 Hz
   v  = mean(v_ctrl over S)
@@ -297,6 +297,10 @@ if best:
 | `vr_throw_window` / `vr_throw_lookahead` / `vr_throw_peak_span` | 0.12 / 0.01 / 0.017 s | C++ |
 | `vr_throw_release` / `_drop` / `_floor` / `vr_throw_grab_press` | 1 / 0.3 / 0.35 / 0.7 | C++ |
 | `vr_throw_ang_threshold` / `vr_throw_ang_factor` / `vr_throw_lever_arm` (now the CoM offset from the controller point) | 6 rad/s / 0.7 / 0.1 m | C++ |
+| `vr_throw_window` / `vr_throw_peak_span` | 0.12 / 0.017 s | C++ |
+| `vr_throw_lookahead` | removed (CVAR_AUDIT.md): the window ends at the release | C++ |
+| `vr_throw_release_mode` / `_drop` / `_floor` / `vr_throw_grab_press` | 1 / 0.25 / 0.35 / 0.7 | C++ |
+| `vr_throw_ang_threshold` / `vr_throw_ang_factor` / `vr_throw_lever_arm` (now the CoM offset from the controller point) | 6 rad/s / 0.7 / 0.05 m | C++ |
 | `vr_throw_gain_max` / `_lo` / `_hi` | 1.5 / 1.5 / 6 m/s | QC |
 | `vr_throw_weight_influence` | 0.25 | QC |
 | `vr_2h_throw_velocity_mult` | 1.0 (was 1.4) | QC |

@@ -53,7 +53,6 @@ QVR_CVAR(vr_debug_hits, "0", CVAR_NONE)               // Debug > Show Hits: each
 // side; the wrist's spin adds to it only above vr_throw_ang_threshold rad/s, by vr_throw_ang_factor. All
 // in seconds of the samples taken as a signal in time: the same throw at any frame rate (2026-10-06).
 QVR_CVAR(vr_throw_window, "0.12", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_lookahead, "0.01", CVAR_ARCHIVE) // unused since 2026-10-06: the samples after the release were in the window only when the move carrying it was built late enough (not at 72 fps, sometimes above)
 QVR_CVAR(vr_throw_peak_span, "0.017", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_lever_arm, "0.1", CVAR_ARCHIVE)   // metres from the palm to the held object's centre
 QVR_CVAR(vr_throw_dir_lookback, "0.04", CVAR_ARCHIVE) // seconds before the peak the direction is averaged over

@@ -26911,3 +26911,15 @@ The same bytes: every model's FNV equal to the old bake's on the firing range (1
 sse reference` 0 differed on the firing range (112) and e1m1 (97); `vr_ao_cache 2` over the files the old bake wrote:
 123 compared, 0 differed. A cell half the reach wide was the fastest (a third: 3.7 s, three quarters: 3.4 s).
 Second session (warden): 164 read in 265 ms on the bake task (the reads share the disk with the map's load), 0 baked.
+## Cvar audit: one dead setting removed, the rest ranked (2026-10-06)
+
+`Misc/quakevr/cvar_inventory.py` lists every Quake VR cvar (2,064) with where it is read and written (C++ logic, QC,
+menus, migration, motion recorder, cfgs, tools, docs), its default, flags and last commit; `--dead` lists the ones no
+code reads. Since the 2026-10-03 cull every cvar but one had a reader: `vr_throw_lookahead` (documented unused) is
+removed, with the QC handle `cvarh_vr_throw_hit_min_speed` that nothing read. Stale config lines for removed cvars are
+now dropped quietly (vr_cvars.cpp `retiredCvars`, asked by cmd.c before "Unknown command"). The candidates for
+removal or merging (about 160 per-class overrides at their globals, ~25 A/B switches whose new side won, 86 hidden
+archived tuning knobs, duplicated campaign status cvars, finished test knobs, the config migration) are ranked in
+CVAR_AUDIT.md, none done without the author's yes.
+
+In VR: nothing to test (no behaviour changed); an old config still setting `vr_throw_lookahead` loads with no message.
