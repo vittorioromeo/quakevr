@@ -13,7 +13,8 @@ Animated buttons (QRP textures): e1m1 red diamond buttons keep the same bevel in
 
 [Map tips]
 vrstart: the test tip near the start appears as a CRT screen with its cable when you come into range; its text size follows the map's tip_size
-Tips menu: "List This Map's Tips" lists the map's tips; Show Tips Again makes a seen tip appear again
+Tips menu: "List This Map's Tips" prints a proper list (unnamed tips too); Show Tips Again makes a seen tip appear again
+Map tips review: a REPEAT tip shows again after walking away and back; a tip attached to a crate does not reappear after the crate breaks
 
 [Map Library]
 Open Maps from the corner button and the main menu's Map Library
