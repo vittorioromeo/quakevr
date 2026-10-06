@@ -723,7 +723,12 @@ void IN_Init (void)
 
 	IN_Activate();
 	IN_StartupJoystick();
-	Sys_ActivateKeyFilter(true);
+	// QVR: only with the keyboard's focus (else on SDL_WINDOWEVENT_FOCUS_GAINED). The hook is the whole desktop's:
+	// each key press in any program waits until this thread services it (it pumps once a frame, not at all through
+	// a load), up to Windows' LowLevelHooksTimeout. A window never focused (a test run's, hidden or in the background)
+	// never had a focus loss to take it off, and its loads held up every key the desktop's player pressed.
+	if (SDL_GetWindowFlags ((SDL_Window *) VID_GetWindow ()) & SDL_WINDOW_INPUT_FOCUS)
+		Sys_ActivateKeyFilter(true);
 }
 
 void IN_Shutdown (void)
