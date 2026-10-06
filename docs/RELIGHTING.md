@@ -220,7 +220,24 @@ are already relit in the package.
 and shows you the result where you stand. It needs no Python: the game runs ericw-tools' `light` itself, in the
 background, while you keep playing. Quake VR's package has it in `quakevr\tools\ericw-tools\`; without it, the page
 uses `vr_relight_tool` (the full path of a `light.exe`), the `ERICW_LIGHT` environment variable or a `light.exe` on
-`PATH`. The page's last line says which one it found.
+`PATH`. The page's Tool line says which one it found.
+
+When it finds none, the page offers **Download ericw-tools (27.5 MB)** (the console: `vr_relight_get_tool`). The game
+downloads ericw-tools 2.0.0-alpha11's Windows release zip from
+[its GitHub release](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11), always that exact file:
+it checks its size and SHA-256 (`4e5ea11b...0745f`) and unpacks nothing from a file that does not match. It keeps
+only what `light` needs and the licence texts (`light.exe`, `embree4.dll`, `tbb12.dll`, `tbbmalloc.dll`,
+`gpl_v3.txt`, `LICENSE-embree.txt`, `README.md`) plus a `NOTICE.txt`, in `quakevr\tools\ericw-tools\` of the folder
+the game saves to (normally the Quake VR folder: where the package puts them). The bar shows how far it is; **Cancel Download** (or
+`vr_relight_cancel`, or quitting) stops it and keeps nothing. The files are written to `ericw-tools.download\` first
+and moved into place with `light.exe` last, so a half-finished download is never used. Windows only (on Linux and macOS,
+build ericw-tools and set `vr_relight_tool`). `vr_relight_get_tool status` prints what was found, where the download
+goes and the pinned file; `vr_relight_get_tool force` downloads it again even when a `light.exe` is found.
+
+For testing, `vr_relight_tool_dir <folder>` makes that folder the only place looked in (after `vr_relight_tool`) and
+the place the download goes, and `vr_relight_tool_url <url>` downloads from elsewhere (the file must still match the
+pinned SHA-256). The author's own copy (`C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64`, as `relight_maps.py`'s
+default) is looked in last, and only at Menu Detail: Developer (`vr_menu_level 2`).
 
 1. Load the map, open the page, set the sliders.
 2. Choose **Relight This Map**. The page shows what `light` is doing (`Direct Lighting 45%`). A map takes from a second
@@ -310,7 +327,8 @@ What shipping it takes (GPL-3 section 6, for the binaries; Apache-2.0 for the li
 
 - **The licence texts beside it:** `gpl_v3.txt` (ericw-tools), `LICENSE-embree.txt` (Embree, Apache-2.0; oneTBB's
   `tbb12.dll` and `tbbmalloc.dll` are Apache-2.0 too), and `NOTICE.txt` saying what they are and where their source is
-  (`Misc/quakevr/ericw-tools-NOTICE.txt`). `Windows/package-quakevr.ps1` copies them with the program.
+  (`Misc/quakevr/ericw-tools-NOTICE.txt`). `Windows/package-quakevr.ps1` copies them with the program; the in-game
+  download (Relighting in the game, above) unpacks the same texts and writes its own `NOTICE.txt`.
 - **Its source, offered the same way as the download:** the release page that offers the Quake VR package must also
   offer ericw-tools 2.0.0-alpha11's source (`ericw-tools-2.0.0-alpha11-src.zip`: the
   [2.0.0-alpha11 tag](https://github.com/ericwa/ericw-tools/tree/2.0.0-alpha11) with its submodules). A link to

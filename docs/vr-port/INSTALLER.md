@@ -129,7 +129,7 @@ or read there.
 | `id1`, `hipnotic`, `rogue`, rerelease data, music, language tables | **borrow** (read in place) | id/Bethesda | never copy into a package |
 | Relit maps (`quakevr\relit\`) | **make locally** | derived from id's maps | never distribute (`package-quakevr.ps1` already excludes `relit`) |
 | Big menu font | **cut at run time** from the player's `pak0.pak` (`make_bigfont.py` ships only offsets and hashes) | | ok |
-| ericw-tools 2.0.0-alpha11 | **bundle** `light.exe` (and what it needs) unmodified | GPL-3.0 | run as a separate process: mere aggregation, so GPL-3 does not reach our code (decision 7); ship its licence text and offer its source (mirror the tag's source zip next to ours) |
+| ericw-tools 2.0.0-alpha11 | **bundle** `light.exe` (and what it needs) unmodified; the game can also download the same release zip itself (section 4) | GPL-3.0 | run as a separate process: mere aggregation, so GPL-3 does not reach our code (decision 7); ship its licence text and offer its source (mirror the tag's source zip next to ours: the release checklist in section 9) |
 | VisPatch data (`id1_vis.tgz`...) | download | **unknown** (1997 data, SourceForge project) | verify before mirroring; download only |
 | QRP HQ textures | download (author's PNG release) | no licence file; free, credited, removal on request (`TEXTURES.md`) | as today |
 | Python (embeddable) for the relight | **not needed**: the relight becomes an in-game tool (decision 5) | PSF-2.0 | dropped |
@@ -140,9 +140,9 @@ or read there.
 |---|---|---:|---|---|
 | HQ textures (QRP, PNG), **ticked by default** | `https://github.com/vittorioromeo/quakevr/releases/tag/textures-2026-10-03`, `quakevr-hq-textures-png-2026-10-03.zip` | ~0.6 GB unpacked (id1 360 MB, hipnotic 88 MB, rogue 121 MB, Quetoo copy 47 MB) | `id1\textures`, and `hipnotic\textures` / `rogue\textures` **only for packs the player owns** | nothing; install before relighting |
 | QRP archive (fallback) | `https://www.moddb.com/addons/quake-revitalization-project-archive`, `QuakeRevitalizationProject.7z` | 1.26 GB | the same, after unpacking the `.pk3`s | 7-Zip; not for the installer (use the PNG release) |
-| ericw-tools | `https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11`, `ericw-tools-2.0.0-alpha11-win64.zip` | 27.5 MB | `<QVR>\tools\ericw-tools\` | exact version (the light differs between versions) |
+| ericw-tools | `https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11`, `ericw-tools-2.0.0-alpha11-win64.zip` (27,503,991 bytes, SHA-256 `4e5ea11be2194a1c4acac6d6da9d5b5b9f65324fda2d67efa0731d1fd8e0745f`) | 27.5 MB (what is kept: about 39 MB) | `<QVR>\quakevr\tools\ericw-tools\` (as `Windows/package-quakevr.ps1` lays it out: `light.exe`, `embree4.dll`, `tbb12.dll`, `tbbmalloc.dll`, `gpl_v3.txt`, `LICENSE-embree.txt`, `README.md`, `NOTICE.txt`) | exact version (the light differs between versions). The package ships it. If it is missing, the game offers it: Graphics > Relighting > **Download ericw-tools (27.5 MB)** (`vr_relight_get_tool`, `Quake/vr/vr_relight_tool.cpp`) fetches this exact zip, checks the pinned size and SHA-256, and unpacks only those files into the user's `quakevr\tools\ericw-tools\` (light.exe last). The author's own copy (`C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64`) is looked in only at Menu Detail: Developer (`vr_menu_level 2`) |
 | VisPatch data | `https://sourceforge.net/projects/vispatch/files/vispatch%20data/1.0/`: `id1_vis.tgz` (949 KB), `hipnotic_vis.tgz` (807 KB), `rogue_vis.tgz` (787 KB); mirror: `https://www.quake-info-pool.net/vispatch/files.htm` | 2.5 MB | `<QVR>\tools\vispatch\` (`id1.vis`, `hipnotic.vis`, `rogue.vis`) | `tar` (in Windows 10+) |
-| Relit maps | made **in the game** (the relight as an in-game tool, decision 5), with the bundled `light.exe` and the VisPatch data | ~210 MB, about a minute (73 maps) | `<QVR>\quakevr\relit\` | `light.exe`, VisPatch; textures first. **Ticked by default** |
+| Relit maps | made **in the game** (the relight as an in-game tool, decision 5: Graphics > Relighting > Many Maps), with the bundled (or downloaded) `light.exe` and the VisPatch data | ~220 MB. A batch lights two maps at once by default (`vr_relight_parallel` 0: two from 8 cores) and skips the maps already relit with the same settings. Measured 2026-10-06 on 32 cores at the defaults (Smooth shadows, no Bounced Light): every map of id1, hipnotic, rogue and quakevr (79) in 1:52; e1's 8 in about 6 s (about 33 s with Bounced Light 1) | in-game results: `<QVR>\quakevr\relit_custom\<game>\maps\` (`relight_maps.py` still writes `<QVR>\quakevr\relit\`; the game prefers `relit_custom`, `vr_relight_use`) | `light.exe`, VisPatch; textures first. **Ticked by default** |
 | Music | read **in place**: the rerelease's `rerelease\id1\music` and the original Quake's music (the store copies' tracks) | | nothing copied (decision 8) | an owned copy |
 | Normal/specular maps | already shipped (`textures_quetoo`, `vr_extmaps 1`, `vr_extmaps_dir textures_quetoo`) | | | nothing |
 | Whisper transcription | `faster-whisper` via pip | large | | playtesters only: not in the installer |
@@ -310,6 +310,18 @@ installer and the update check try one, then the other). There is **no code-sign
   installer can be reported to Microsoft's file submission portal.
 - If it becomes a problem: Azure Trusted Signing (a monthly subscription, no hardware token) signs the installer and
   the exe without changing anything else.
+
+### Release checklist: third-party files
+
+- **ericw-tools' source next to every release** (GPL-3, section 3; the package ships `light.exe` and the game can
+  download it): upload `ericw-tools-2.0.0-alpha11-src.zip` (the 2.0.0-alpha11 tag's source with its submodules:
+  `git clone --recursive --branch 2.0.0-alpha11 https://github.com/ericwa/ericw-tools`, zipped; GitHub's own tag
+  archive leaves the submodules out) to the same release page on both hosts, beside the Quake VR package. Both `NOTICE.txt`s (the package's, `Misc/quakevr/ericw-tools-NOTICE.txt`,
+  and the one the in-game download writes) say it is there.
+- Check that the package has `quakevr\tools\ericw-tools\light.exe` (`package-quakevr.ps1` warns when it is missing;
+  players would then need the in-game download).
+- The in-game download's version, URL, size and SHA-256 are pinned in `Quake/vr/vr_relight_tool.cpp` (`releaseUrl`,
+  `releaseBytes`, `releaseSha`): change them only together with the version the package ships, and keep it exact.
 
 ## 10. Implementation plan
 
