@@ -1317,6 +1317,7 @@ QVR_CVAR(vr_beam_arcs_width, "1", CVAR_ARCHIVE)      // their thickness, x Quad'
 // strikes, alive or dead, keeps Quad Damage's arcs crawling over it a while (on through its death), its ragdoll convulses
 // once dead as long as they do, and a killing bolt chars it all over.
 QVR_CVAR(vr_shock_death, "1", CVAR_ARCHIVE)          // the lasting shock on the monsters and bodies the lightning strikes (0: only the arcs of each hit)
+QVR_CVAR(vr_shock_living, "1", CVAR_ARCHIVE)         // 1: the lasting arcs on the living monsters it strikes too (on through their death); 0: only on the bodies it kills or strikes dead (every hit keeps its own short arcs)
 QVR_CVAR(vr_shock_death_time, "3", CVAR_ARCHIVE)     // how long it lasts after the last bolt, s (up to 63)
 QVR_CVAR(vr_shock_seizure, "1", CVAR_ARCHIVE)        // how hard a shocked ragdoll's limbs convulse, easing off with the arcs (0 still)
 QVR_CVAR(vr_shock_burns, "6", CVAR_ARCHIVE)          // burn marks a lightning kill leaves over the body (0 none; each hit chars where it strikes: vr_wounds_burns)

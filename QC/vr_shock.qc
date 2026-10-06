@@ -50,11 +50,13 @@ void(entity t, float n) VR_Shock_Burns =
 };
 
 // After a bolt's T_Damage to `t` (weapons.qc VR_LightningHit), struck at `xAt` going `xDir`; `xAlive`: it was alive
-// before. Every bolt into a monster, alive or dead, starts the lasting shock or keeps it fresh (sent again each bolt: the
-// arcs and the convulsions end together); a killing bolt's burn marks all over, a dead one's a burn where it strikes.
+// before. Every bolt into a monster, alive (vr_shock_living) or dead, starts the lasting shock or keeps it fresh (sent
+// again each bolt: the arcs and the convulsions end together); a killing bolt's burn marks all over, a dead one's a burn where it strikes.
 void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit =
 {
-    if(!(t.flags & FL_MONSTER) || t.vr_gib || !cvar("vr_shock_death"))
+    // (vr_shock_living 0: the lasting shock only on the bodies it kills or strikes dead; a living one has each hit's own
+    // short arcs, weapons.qc's bodyshock.)
+    if(!(t.flags & FL_MONSTER) || t.vr_gib || !cvar("vr_shock_death") || (t.health > 0 && !cvar("vr_shock_living")))
     {
         return;
     }

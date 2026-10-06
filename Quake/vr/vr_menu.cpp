@@ -2088,6 +2088,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         toggle("Lightning Shock", vr_shock_death)
             .help("A monster the lightning strikes, alive or dead, keeps Quad Damage's arcs crawling over it a while, on through its "
                   "death; its ragdoll convulses as long as they do and the killing bolt chars it (off: only each hit's own arcs and burn)."),
+        toggle("Arcs on the Living", vr_shock_living)
+            .help("The lasting arcs on living monsters too, from the first bolt and on through their death. Off: only on the bodies "
+                  "the lightning kills or strikes dead; a living monster gets just each hit's own short flicker of arcs."),
         slider("Lightning Shock Duration", vr_shock_death_time, 0.5f, 30.f, 0.5f, "%.1f s").extend(0.1f, 60.f)
             .help("How long the arcs (and a body's convulsions) last after the last bolt."),
         slider("Convulsions", vr_shock_seizure, 0.f, 3.f, 0.1f, "%.1fx")
