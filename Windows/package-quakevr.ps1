@@ -82,7 +82,7 @@ if ($modified) { Write-Warning "tracked game files differ from the commit; their
 # (qvr_crash.txt) names the functions on the stack only with it beside the exe, and qvr_crash.dmp opens in a
 # debugger with it. The build names itself (VR_BuildVersion: the console, the VR Settings page, the report).
 $engineFiles = @(Get-ChildItem $bin -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in ".exe", ".dll", ".pak" -or $_.Name -eq "ironwail.pdb" })
-$toolFiles = @("relight_maps.py", "vis_maps.py", "quakepak.py", "relight_textures.cfg")
+$toolFiles = @("relight_maps.py", "vis_maps.py", "quakepak.py", "quakeimage.py", "relight_probe.py")
 
 if ($DryRun) {
     $engineFiles | ForEach-Object { $_.Name }
@@ -109,7 +109,8 @@ foreach ($rel in $gameFiles) {
 }
 
 # The relighting scripts (docs/RELIGHTING.md), so players can relight their own maps without the
-# repository. From quakevr\tools, relight_maps.py's default output is <Quake>\quakevr\relit.
+# repository. From quakevr\tools, relight_maps.py's default output is <Quake>\quakevr\relit. Its texture rules
+# (relight_textures.cfg) are game data, in quakevr itself, where the in-game relighting reads them too.
 $tools = Join-Path $dist "quakevr\tools"
 New-Item -ItemType Directory -Force $tools | Out-Null
 foreach ($f in $toolFiles) {

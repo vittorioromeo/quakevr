@@ -10,8 +10,10 @@
 # only the light changes.
 #
 # Glowing textures light their surroundings (on by default; --no-glow): textures with fullbright pixels
-# (buttons, computer panels, glowing runes), or, where they have none, a replacement texture's glowing
-# _luma image (QRP: light1_*, tlight05, tlight10; --no-luma ignores those), get lights in the colour of
+# (buttons, computer panels, glowing runes), or, where they have none, the glow image the engine gives them
+# (QRP: light1_*, tlight05, tlight10; a replacement texture's <name>_glow or _luma, .png, .tga or .jpg, found
+# in the game folders as the engine finds them, SearchPath; else Quake VR's material maps' glow image,
+# quakevr/textures_quetoo; --no-luma ignores those), get lights in the colour of
 # what glows, as bright as the share of them that glows and the other glowing things in the room allow:
 # small faces a point light each in front of them, textures with big faces ericw's surface lights
 # ("_surface"); strongly coloured ones brighter and further reaching, so that a red button tints its
@@ -26,8 +28,9 @@
 # Until round 15 they shared half a budget over the whole map, which left every one too faint to get
 # a light: they looked lit and lit nothing. Misc/quakevr/relight_textures.cfg sets, per texture (and
 # map), whether it is a fixture, a glow or nothing, and its brightness, colour and reach; --list-glows
-# lists each map's glowing textures and their lights without relighting. These entities are only
-# given to `light`: the relit map keeps its own.
+# lists each map's glowing textures and their lights without relighting (--list-textures: and where each
+# glow image came from). Its `strength` line, and --light-texture-strength over it, make every lamp, glow
+# or liquid brighter (round 21). These entities are only given to `light`: the relit map keeps its own.
 #
 # Glowing liquids (round 20; kind=liquid in relight_textures.cfg: lava, and slime faintly) light what is
 # round them: a light every LIQUID_STEP units over their surface, in their colour, less each in a lake than
@@ -45,7 +48,8 @@
 #       [--light C:/tools/ericw-tools-2.0.0-alpha11-win64/light.exe] [--games id1 hipnotic rogue] [--out quakevr/relit]
 #       [--light-args "..."] [--force] [--only e1m1 ...] [--no-glow] [--glow-scale 1.0]
 #       [--glow-budget 300] [--fixture-scale 1.0] [--fixture-lit 0.5] [--textures <cfg>] [--no-luma]
-#       [--list-glows] [--bright] [--vis-dir <folder with id1.vis hipnotic.vis rogue.vis>]
+#       [--light-texture-strength 1.0] [--basedir <folder> ...] [--extmaps-dir textures_quetoo]
+#       [--list-glows [--list-textures]] [--bright] [--vis-dir <folder with id1.vis hipnotic.vis rogue.vis>]
 #
 # ericw-tools 2.0.0-alpha11 (GPL): https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11 (v0.18.1
 # before round 17; it still works, without the light grid). `light` may also be given by the ERICW_LIGHT
@@ -59,12 +63,13 @@
 # (id1.vis, hipnotic.vis, rogue.vis, or <game>/vispatch.dat; from https://sourceforge.net/projects/vispatch/files/)
 # the relit maps get water-vised visibility too (vis_maps.py, which can also do it on its own).
 #
-# The release package has this script, vis_maps.py, quakepak.py and relight_textures.cfg in
-# quakevr/tools, where the default --out is the installed quakevr/relit. Step by step: docs/RELIGHTING.md.
+# The release package has this script, vis_maps.py, quakepak.py, quakeimage.py and relight_probe.py in
+# quakevr/tools, where the default --out is the installed quakevr/relit; relight_textures.cfg is in quakevr. Step by step: docs/RELIGHTING.md.
 
 import argparse
 import fnmatch
 import hashlib
+import itertools
 import math
 import os
 import re
@@ -74,6 +79,7 @@ import subprocess
 import sys
 import tempfile
 
+import quakeimage
 import quakepak
 import vis_maps
 
@@ -341,7 +347,18 @@ FIXTURE_WORDS = ("light", "lamp")
 # How much of a texture must glow for it to light: glowing textures, fixtures.
 GLOW_MIN_SHARE = 0.03
 FIXTURE_MIN_SHARE = 0.005
-DEFAULT_TEXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "relight_textures.cfg")
+def default_textures():
+    """relight_textures.cfg, in the game folder quakevr (the engine's in-game relighting reads it there too): next to
+    the tools folder in a release (quakevr/tools/..), in the repository's quakevr from Misc/quakevr."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    for path in (os.path.join(here, "..", "relight_textures.cfg"),
+                 os.path.join(here, "..", "..", "quakevr", "relight_textures.cfg")):
+        if os.path.isfile(path):
+            return os.path.normpath(path)
+    return os.path.normpath(os.path.join(here, "..", "relight_textures.cfg"))
+
+
+DEFAULT_TEXTURES = default_textures()
 RULE_KEYS = ("kind", "scale", "light", "color", "reach")
 KINDS = ("fixture", "glow", "liquid", "off")
 # Glowing liquids (round 20; kind=liquid in relight_textures.cfg: lava, slime): a light every LIQUID_STEP x
@@ -368,6 +385,15 @@ def load_rules(path):
             if not line:
                 continue
             words = line.split()
+            if words[0].lower() == "strength":
+                keys = {}
+                for word in words[1:]:
+                    key, _, value = word.partition("=")
+                    if key not in KINDS[:3]:
+                        sys.exit("%s:%d: strength takes %s" % (path, number, ", ".join("%s=<x>" % k for k in KINDS[:3])))
+                    keys[key] = float(value)
+                rules.append((None, keys))
+                continue
             pattern = words[0].lower()
             pattern = "/".join(["*"] * (2 - pattern.count("/")) + [pattern])
             keys = {}
@@ -388,80 +414,205 @@ def load_rules(path):
     return rules
 
 
+def kind_strengths(rules):
+    """{kind: how much brighter its light is} of the rules' `strength` lines (fixture, glow, liquid; 1 without)."""
+    out = dict.fromkeys(KINDS[:3], 1.0)
+    for pattern, keys in rules:
+        if pattern is None:
+            out.update(keys)
+    return out
+
+
 def texture_rule(rules, where, name):
     """The settings of every rule matching game/map/texture, later ones over earlier ones."""
     full = "%s/%s/%s" % (where[0], where[1], name.lower())
     merged = {}
     for pattern, keys in rules:
-        if fnmatch.fnmatchcase(full, pattern):
+        if pattern is not None and fnmatch.fnmatchcase(full, pattern):
             merged.update(keys)
     return merged
 
 
-def read_tga(path):
-    """(width, height, [(r, g, b)]) of an uncompressed or RLE true-colour TGA, or None."""
+# The game folders whose files Quake VR's engine sees, first match wins: quakevr, then the mission packs (added
+# under it when installed, rogue over hipnotic: vr_gamedir.cpp), then id1 (common.c, COM_AddGameDirectory).
+GAME_FOLDERS = ("quakevr", "rogue", "hipnotic", "id1")
+# The image formats Image_LoadImage tries, in its order: a .png anywhere in the search path wins over a .tga.
+IMAGE_FORMATS = ("png", "tga", "jpg")
+
+
+def pak_index(path):
+    """{name (lower case): (offset, size)} of a .pak's files ({} if it is not one)."""
     try:
         with open(path, "rb") as f:
-            data = f.read()
-        idlen, cmap, kind = data[0], data[1], data[2]
-        width, height, bits = struct.unpack_from("<HHB", data, 12)
-        if cmap or kind not in (2, 10) or bits not in (24, 32):
-            return None
-        size = bits // 8
-        pos = 18 + idlen
-        if kind == 2:
-            raw = data[pos : pos + width * height * size]
-        else:
-            out = bytearray()
-            while len(out) < width * height * size and pos < len(data):
-                head = data[pos]
-                pos += 1
-                n = (head & 0x7F) + 1
-                if head & 0x80:
-                    out += data[pos : pos + size] * n
-                    pos += size
-                else:
-                    out += data[pos : pos + n * size]
-                    pos += n * size
-            raw = bytes(out)
-        return width, height, list(zip(raw[2::size], raw[1::size], raw[0::size]))
-    except (OSError, IndexError, struct.error):
+            ident, offset, length = struct.unpack("<4sii", f.read(12))
+            if ident != b"PACK":
+                return {}
+            f.seek(offset)
+            table = f.read(length)
+    except (OSError, struct.error):
+        return {}
+    index = {}
+    for i in range(len(table) // 64):
+        raw, pos, size = struct.unpack_from("<56sii", table, i * 64)
+        index.setdefault(raw.split(b"\0")[0].decode("latin-1").lower(), (pos, size))
+    return index
+
+
+class SearchPath:
+    """Where the engine finds a file (COM_FindFile, first match wins): each game folder of GAME_FOLDERS in every
+    base folder (--quake, then the --basedir ones: the engine searches the base folders added last first), and in
+    each folder its paks (the highest-numbered first) before its loose files."""
+
+    def __init__(self, roots, games=GAME_FOLDERS):
+        self.entries = []  # (folder or pak path, pak index or None)
+        self.listed = {}
+        for game in games:
+            for root in reversed(roots):
+                folder = os.path.join(root, game)
+                if not os.path.isdir(folder):
+                    continue
+                for pak in reversed(quakepak.game_paks(folder)):
+                    self.entries.append((pak, pak_index(pak)))
+                self.entries.append((folder, None))
+
+    def folders(self):
+        return [path for path, _ in self.entries]
+
+    def _loose(self, folder, name):
+        """The file `name` (a/b/c, any case) in `folder`, or None."""
+        path = folder
+        for part in name.split("/"):
+            if path not in self.listed:
+                try:
+                    self.listed[path] = {e.lower(): e for e in os.listdir(path)}
+                except OSError:
+                    self.listed[path] = {}
+            found = self.listed[path].get(part.lower())
+            if found is None:
+                return None
+            path = os.path.join(path, found)
+        return path if os.path.isfile(path) else None
+
+    def find(self, name):
+        """(where it was found: the file, or <pak>:<name>; its contents) of the first `name` in the search path, or
+        None."""
+        for path, index in self.entries:
+            if index is None:
+                loose = self._loose(path, name)
+                if loose:
+                    with open(loose, "rb") as f:
+                        return loose, f.read()
+            elif name.lower() in index:
+                pos, size = index[name.lower()]
+                with open(path, "rb") as f:
+                    f.seek(pos)
+                    return "%s:%s" % (path, name.lower()), f.read(size)
+        return None
+
+    def image(self, name):
+        """(where, contents, format) of the image `name` (no extension) as Image_LoadImage finds it, or None."""
+        for ext in IMAGE_FORMATS:
+            found = self.find("%s.%s" % (name, ext))
+            if found:
+                return found + (ext,)
         return None
 
 
-class Lumas:
-    """The glowing parts of replacement textures (QRP and the like: textures/<name>_luma.tga), which glow
-    in game where the map's own texture has no fullbright pixels (light1_*, tlight05, tlight09, tlight10):
-    looked up as the engine does, textures/<map>/ then textures/, in the game folder then id1."""
+def glow_measure(image):
+    """(share of the pixels that glow, their mean colour) of a glow image ((width, height, rgb bytes)), or None if
+    nothing in it is bright. QRP's glow images are often dim (tlight10's at most 64): what glows is what is at least
+    half the brightest."""
+    _, _, rgb = image
+    n = len(rgb) // 3
+    if not n:
+        return None
+    r, g, b = rgb[0::3], rgb[1::3], rgb[2::3]
+    peak = max(max(r), max(g), max(b))
+    if peak < 32:
+        return None
+    brightest = bytes(map(max, r, g, b))
+    glowing = brightest.translate(bytes(1 if v * 2 >= peak else 0 for v in range(256)))
+    count = glowing.count(1)
+    return (count / float(n),
+            tuple(sum(itertools.compress(c, glowing)) / float(count) for c in (r, g, b)))
 
-    def __init__(self, quake):
-        self.quake = quake
+
+class Glows:
+    """The glow images the engine gives a map's textures (where the map's own texture has no fullbright pixels:
+    light1_*, tlight05, tlight09, tlight10 in Quake's own images), found as the engine finds them:
+
+    - a replacement texture (QRP and the like), textures/<map>/<name> or else textures/<name> (Mod_LoadTextures),
+      in every folder of the search path (SearchPath; .png, .tga, .jpg), and its glow image beside it,
+      <that>_glow or else <that>_luma;
+    - else the external material maps' glow image (vr_extmaps.cpp: vr_extmaps_dir, quakevr/textures_quetoo by
+      default: <pack name>_luma or _glow, the pack name being the texture's with an animation's frame after it,
+      basebtn+0 for +0basebtn), when the replacement texture has no glow image of its own or there is none.
+
+    `log`, a set, gets (texture, file) for each glow image used."""
+
+    def __init__(self, search, extmaps_dir="textures_quetoo", log=None):
+        self.search = search
+        self.extmaps_dir = extmaps_dir
         self.cache = {}
+        self.log = log
 
-    def glow(self, game, mapname, name):
-        """(share of pixels that glow, their mean colour) of a texture's luma image, or None."""
-        file = name.lower().replace("*", "#") + "_luma.tga"
-        for folder in dict.fromkeys((game, "id1")):
-            for sub in (mapname, ""):
-                path = os.path.join(self.quake, folder, "textures", sub, file)
-                if path not in self.cache:
-                    self.cache[path] = self.measure(path) if os.path.isfile(path) else None
-                if self.cache[path]:
-                    return self.cache[path]
+    def _measure(self, found):
+        where, data, ext = found
+        if where not in self.cache:
+            image = quakeimage.read_rgb(data, ext)
+            if image is None:
+                print("%s: not read (%s): it does not light" % (where, quakeimage.last_error))
+            self.cache[where] = glow_measure(image) if image else None
+        return self.cache[where]
+
+    def _extmaps(self, name):
+        if not self.extmaps_dir:
+            return None
+        low = name.lower()
+        s = low[1:] if low[:1] in ("*", "#") else low
+        base = "%s+%s" % (s[2:], s[1]) if s[:1] == "+" and len(s) > 2 else s
+        absolute = os.path.isabs(self.extmaps_dir)
+
+        def image(stem):
+            if absolute:
+                for ext in IMAGE_FORMATS:
+                    path = os.path.join(self.extmaps_dir, "%s.%s" % (stem, ext))
+                    if os.path.isfile(path):
+                        with open(path, "rb") as f:
+                            return path, f.read(), ext
+                return None
+            return self.search.image("%s/%s" % (self.extmaps_dir, stem))
+
+        if not image(base) and "+" in base:
+            base = base.split("+")[0]  # (an animation the pack has one picture of: floorsw for +0floorsw)
+            if not image(base):
+                return None
+        for suffix in ("_luma", "_glow"):
+            found = image(base + suffix)
+            if found:
+                return found
         return None
 
-    @staticmethod
-    def measure(path):
-        image = read_tga(path)
-        if not image or not image[2]:
+    def glow(self, mapname, name):
+        """(share of the pixels that glow, their mean colour, the glow image's file) of the texture `name` of the map
+        `mapname`, or None."""
+        file = name.lower().replace("*", "#")
+        found = None
+        for stem in ("textures/%s/%s" % (mapname, file), "textures/%s" % file):
+            if self.search.image(stem):
+                for suffix in ("_glow", "_luma"):
+                    found = self.search.image(stem + suffix)
+                    if found:
+                        break
+                break
+        if not found:
+            found = self._extmaps(name)
+        if not found:
             return None
-        # QRP's lumas are often dim (tlight10's at most 64): what glows is what is at least half the brightest.
-        peak = max(max(p) for p in image[2])
-        if peak < 32:
-            return None
-        glowing = [p for p in image[2] if max(p) * 2 >= peak]
-        return (len(glowing) / float(len(image[2])),
-                tuple(sum(p[j] for p in glowing) / len(glowing) for j in range(3)))
+        measured = self._measure(found)
+        if measured and self.log is not None:
+            self.log.add((name.lower(), found[0]))
+        return measured + (found[0],) if measured else None
 
 
 def map_lights(data):
@@ -613,9 +764,9 @@ def light_entity(origin, value, wait, colour, extra=""):
 
 
 def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_lit=FIXTURE_LIT, rules=None,
-                where=("*", "*"), lumas=None, report=None):
+                where=("*", "*"), lumas=None, report=None, strength=1.0):
     """Light entities for the map's glowing textures: fullbright pixels (palette 224-254), or else the
-    glowing part of a replacement texture's _luma image (`lumas`, a Lumas), in the colour of what glows.
+    glowing part of a replacement texture's glow image (`lumas`, a Glows), in the colour of what glows.
 
     Light fixtures (lamps, light panels, strip lights: textures named *light* or *lamp*, and what the
     `rules` of relight_textures.cfg say; `where` is (game, map) for them) get a light of their own:
@@ -636,9 +787,12 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
 
     A rule's scale multiplies a texture's light, light= sets a fixture's (instead of FIXTURE_LIGHT),
     color= its colour, reach= how far it reaches (1: as computed; the light entities' "wait" divided by
-    it), kind= fixture, glow or off. `report`, a list, gets a line for each glowing texture."""
+    it), kind= fixture, glow or off. The rules' `strength` lines multiply each kind's light (fixtures, glows,
+    liquids), and `strength` all of them (--light-texture-strength). `report`, a list, gets a line for each glowing
+    texture."""
     if rules is None:
         rules = load_rules(DEFAULT_TEXTURES)
+    kinds = kind_strengths(rules)
     faces = texture_faces(data)
     contents = contents_at(data)
     solid = solid_at(data)
@@ -681,9 +835,9 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
         if share >= least:
             colour = tuple(sum(palette[c * 3 + j] for c in glowing) / len(glowing) for j in range(3))
         else:
-            luma = lumas.glow(where[0], where[1], name) if lumas else None
+            luma = lumas.glow(where[1], name) if lumas else None
             if luma and luma[0] >= least:
-                share, colour, source = luma[0], luma[1], "luma"
+                share, colour, source = luma[0], luma[1], "luma " + luma[2]
             elif kind == "fixture" and "kind" in rule:
                 # Named a fixture but nothing glows: the colour of its brightest tenth.
                 ranked = sorted(pixels, key=lambda c: -sum(palette[c * 3 : c * 3 + 3]))[: max(1, len(pixels) // 10)]
@@ -705,7 +859,7 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
             # (the edge of the pool, where it meets the walls, is a corner that -dirt would darken).
             top = max(r, g, b, 1.0)
             colour = "%d %d %d" % (r * 255 / top, g * 255 / top, b * 255 / top)
-            value = rule.get("light", LIQUID_LIGHT) * rule.get("scale", 1.0) * scale
+            value = rule.get("light", LIQUID_LIGHT) * rule.get("scale", 1.0) * scale * strength * kinds["liquid"]
             spots = liquid_spots(used, contents) if value >= 12 else []
             made = []
             for p in spots:
@@ -725,7 +879,7 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
         r, g, b = (r * (1 - white) + top * white, g * (1 - white) + top * white, b * (1 - white) + top * white)
         colour = "%d %d %d" % (r * 255 / top, g * 255 / top, b * 255 / top)
         wait = 1 / (1 + sat) / rule.get("reach", 1.0)
-        own = rule.get("scale", 1.0) * scale
+        own = rule.get("scale", 1.0) * scale * strength * kinds[kind]
         made = []
         if kind == "fixture":
             each = rule.get("light", FIXTURE_LIGHT) * own * fixture_scale * (0.6 + 0.4 * min(1.0, share * 5))
@@ -767,9 +921,10 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
                     out.append('{\n"classname" "light"\n"_surface" "%s"\n"light" "%d"\n"wait" "%.2f"\n"_color" "%s"\n'
                                '"_surface_offset" "2"\n}\n' % (name, value, wait, colour))
         if report is not None:
-            report.append("  %-16s %-7s %-10s glows %5.1f%%  faces %4d  things %3d  lights %4d  %s" % (
-                name, kind, source, share * 100, len(used), len(mine), len(made),
-                "light %d..%d" % (min(made), max(made)) if made else "(too faint: none)"))
+            report.append("  %-16s %-7s %-10s glows %5.1f%%  faces %4d  things %3d  lights %4d  %s%s" % (
+                name, kind, source.split()[0], share * 100, len(used), len(mine), len(made),
+                "light %d..%d" % (min(made), max(made)) if made else "(too faint: none)",
+                "  (" + source.split(None, 1)[1] + ")" if " " in source else ""))
     return "".join(out)
 
 
@@ -856,7 +1011,9 @@ def main():
     parser.add_argument("--only", nargs="*", help="map names (e1m1 ...) to relight, for trying options")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--no-glow", action="store_true", help="no surface lights for glowing textures")
-    parser.add_argument("--glow-scale", type=float, default=1.0, help="brightness of the glowing textures' light")
+    parser.add_argument("--light-texture-strength", "--glow-scale", dest="glow_scale", type=float, default=1.0,
+                        help="brightness of all light from textures (lamps, glowing panels, lava), times the "
+                             "strengths of relight_textures.cfg (default 1)")
     parser.add_argument("--glow-budget", type=float,
                         help="light a glowing texture shares out (default %g)" % DEFAULT_GLOW_BUDGET)
     parser.add_argument("--fixture-scale", type=float, default=1.0,
@@ -867,7 +1024,18 @@ def main():
     parser.add_argument("--textures", default=DEFAULT_TEXTURES,
                         help="per-texture settings (default Misc/quakevr/relight_textures.cfg; '' for none)")
     parser.add_argument("--no-luma", action="store_true",
-                        help="ignore replacement textures' _luma images (textures/*_luma.tga) in finding what glows")
+                        help="ignore replacement textures' glow images (textures/<name>_glow or _luma, .png .tga "
+                             ".jpg) and the external material maps' in finding what glows")
+    parser.add_argument("--basedir", action="append", default=[],
+                        help="another base folder the engine searches (its -basedir: a folder with id1, quakevr...), "
+                             "over --quake; several allowed")
+    parser.add_argument("--extmaps-dir", default="textures_quetoo",
+                        help="the external material maps' folder (the engine's vr_extmaps_dir: relative, in the game "
+                             "folders, or a full path; default %(default)s; '' for none): their glow images light "
+                             "textures that have no other")
+    parser.add_argument("--list-textures", action="store_true",
+                        help="with --list-glows: also the folders searched and every glow image used, with where "
+                             "it came from")
     parser.add_argument("--list-glows", action="store_true",
                         help="list each map's glowing textures and their lights, relighting nothing")
     parser.add_argument("--vis-dir", default=os.environ.get("QUAKEVR_VISPATCH"),
@@ -882,7 +1050,13 @@ def main():
 
     light = None if args.list_glows else find_light(args.light)
     rules = load_rules(args.textures)
-    lumas = None if args.no_luma else Lumas(args.quake)
+    search = SearchPath([os.path.normpath(p) for p in [args.quake] + args.basedir])
+    used = set()
+    lumas = None if args.no_luma else Glows(search, args.extmaps_dir, used)
+    if args.list_glows and args.list_textures:
+        print("folders searched for textures, first match wins:")
+        for folder in search.folders():
+            print("  " + folder)
     light_args = args.light_args.split() + [a for a in OUTPUT_ARGS.split() if a not in args.light_args.split()]
     command, version = light_command(light, light_args) if light else ([], "")
     if light:
@@ -964,6 +1138,10 @@ def main():
                 print("ok")
 
     if args.list_glows:
+        if args.list_textures:
+            print("glow images read:")
+            for texture, where in sorted(used):
+                print("  %-16s %s" % (texture, where))
         return 0
     print("%d maps: %d relit, %d up to date, %d failed" % (total, done, total - done - failed, failed))
     return 1 if failed else 0

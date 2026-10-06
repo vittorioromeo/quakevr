@@ -199,7 +199,7 @@ def relight(name, settings, light, maps, out_dir, palette, legacy=None):
     if settings["glow"]:
         if palette is None:
             sys.exit("%s: the glowing textures need id1's palette: pass --quake or set QUAKE_DIR" % name)
-        extra = glow_lights(data, palette, 1.0, 300.0)
+        extra = glow_lights(data, palette, 1.0, 300.0, where=("quakevr", name))
 
     source_bsp = with_entities(data, id_light_values(ents) + extra)
     with tempfile.TemporaryDirectory() as tmp:

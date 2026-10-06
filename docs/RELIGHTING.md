@@ -23,7 +23,9 @@ A tool that does all of this automatically is planned. Until then, these are the
 ## What you need
 
 1. **Quake VR, installed** in your Quake folder (see [INSTALL.md](INSTALL.md)). The package has the relighting
-   scripts in `quakevr\tools\`: `relight_maps.py`, `vis_maps.py`, `quakepak.py` and `relight_textures.cfg`.
+   scripts in `quakevr\tools\`: `relight_maps.py`, `vis_maps.py`, `quakepak.py`, `quakeimage.py` and
+   `relight_probe.py`. Which textures give off light, and how much, is in `quakevr\relight_textures.cfg`
+   (see [Brighter or darker lamps](#brighter-or-darker-lamps)).
 2. **Python 3.7 or newer** from [python.org](https://www.python.org/downloads/). In the installer, tick *Add
    python.exe to PATH*. The scripts use only Python's standard library, so there's nothing else to install with
    `pip`.
@@ -57,8 +59,11 @@ A tool that does all of this automatically is planned. Until then, these are the
    `HIPNOTIC.VIS` and `rogue.vis` from inside them in the folder. You don't need the other files in those zips.
    You can skip the VisPatch files entirely: the maps are still relit, but their water stays opaque.
 5. **Recommended: the QRP HD textures, installed first.** See
-   [INSTALL.md](INSTALL.md#hd-textures-qrp). The relight looks at the textures' glow images (`_luma`) to find the
-   lamps and light panels that glow in QRP but not in Quake's own textures, and gives them a light of their own.
+   [INSTALL.md](INSTALL.md#hd-textures-qrp). The relight looks at the textures' glow images (`<name>_glow` or
+   `<name>_luma`, as `.png`, `.tga` or `.jpg`) to find the lamps and light panels that glow in QRP but not in
+   Quake's own textures, and gives them a light of their own. It finds them where the game does: in `quakevr`,
+   `rogue`, `hipnotic` and `id1` (loose files and `.pak` files), `textures\<map>\` first; and, for a texture with
+   no glow image of its own, in Quake VR's own material maps (`quakevr\textures_quetoo`).
    This changes 61 of the 73 maps. Without QRP, the maps are still relit, but only textures that glow in Quake's own
    images get lights, so the result differs from the author's.
 
@@ -150,7 +155,27 @@ If you write the paths as `--quake .` from inside the Quake folder, that works t
 | `--force` | Relight every map, even those that are up to date. |
 | `--bright` | A brighter look: some bounced light and weaker ambient occlusion (Quake VR's look before its tenth playtest round). |
 | `--no-luma` | Don't use the HD textures' glow images to find what glows. |
+| `--light-texture-strength 1.5` | Every light from a texture (lamps, light panels, glowing buttons, lava) 1.5 times as bright. `--glow-scale` is the same. |
+| `--basedir <folder>` | Another folder the game reads (its own `-basedir`, with `id1`, `quakevr`...) for textures. Several are allowed. |
+| `--extmaps-dir <folder>` | The material maps' folder (the game's `vr_extmaps_dir`; `textures_quetoo` by default, `""` for none). |
+| `--list-glows --list-textures` | Also print the folders searched for textures and every glow image used, with where it came from. |
 | `--list-glows` | List each map's glowing textures and the lights they get, without relighting anything. |
+
+### Brighter or darker lamps
+
+`quakevr\relight_textures.cfg` says which textures give off light and how much. Its `strength` line sets each kind's
+brightness: `fixture` (lamps, light panels and strips, the pyramid lanterns), `glow` (buttons, computer panels,
+runes, slipgates) and `liquid` (lava, slime). Rules below it make single textures brighter (`scale=`), name a
+texture a lamp (`kind=fixture`) or switch one off (`kind=off`), for every map, one game (`hipnotic/*/tlight02`) or one
+map (`e1m1/tlight11`). The comments at its top list every setting. After a change, run the relight again: only the
+maps whose lights changed are relit.
+
+`relight_probe.py` measures the result: the lightmap's mean brightness round each lamp of the textures you name, for
+one map or several side by side (0-255; 128 is full light):
+
+```
+python quakevr\tools\relight_probe.py quakevr\relit\hipnotic\maps\hip1m1.bsp --textures tlight01 tlight02
+```
 
 **Adding the water visibility later:** if you relit without `--vis-dir`, run the same command again with it: maps
 already relit get the water visibility without being relit. `vis_maps.py --vis-dir <folder> --relit
