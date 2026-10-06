@@ -25184,7 +25184,7 @@ the parallax depth write): the push back is 1/4096 of the distance at any near p
 | button, 8 (vrfiringrange's first row) | ~820 | ~32800 (none on any map) |
 | plat or door edge, 4 | ~410 | ~16400 |
 | trim, 1 | ~100 | ~4100 |
-| item box (b_*.bsp) on a floor | sinks 1% of its distance (16 tall: gone at ~1640) | 0.024% |
+| item box (b_*.bsp) on a floor | pushed back 1% of its distance into the floor (8 units at 800) | 0.024% (0.2 at 800) |
 
 Not affected: alias models, sprites, particles, static entities. The other distance limits found, none hiding gameplay
 entities: shadows (vr_shadow_distance 1536), parallax relief (vr_parallax_distance 1024, fading), detail textures
