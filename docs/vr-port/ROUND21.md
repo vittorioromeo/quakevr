@@ -24760,3 +24760,41 @@ The setting is off by default for that reason.
 **For him in VR:** turn Parallax Depth Write on and look at the hands, a dropped weapon, gibs and blood on carved
 floors, and water against carved walls, with Show Parallax Depth to see where it acts. Decide whether it's worth
 0.1-0.6 ms.
+
+## Lightning's lasting shock: arcs, convulsions and burns on the bodies it kills (2026-10-06)
+
+Already there before this change (verified headless, `vr_shock_hit_test 1` on a live grunt): every lightning hit on a
+monster or corpse draws Quad-style arcs over its drawn triangles for 0.75 s (`bodyshock`, QVR_SVC_SHOCK kind 3: 12
+arcs a frame, 810 triangles) and paints one lightning burn where it strikes (QVR_WOUND_ZAP via `VR_Wound_Hit`).
+
+New (QC `vr_shock.qc`, called once from `VR_LightningHit` after its `T_Damage`):
+
+- A bolt that kills a monster, or strikes one already dead, starts the lasting shock: `bodyshockdeath` sends kind 4
+  (`KindBodyDeath`, duration in 1/10 s, up to 25 s) and the client (`vr_shock.cpp drawBodyDeath`) keeps Quad's arm
+  arcs crawling over the body as drawn (its ragdoll's skinned mesh or its death frames): 6..22 short crackles off the
+  skin a frame plus a few longer limb-to-limb arcs, thinning and dimming as it wears off, random surges, a flickering
+  blue light. It ends early if the entity's model changes (gibbed, slot reused); the `#rag` swap is the same body.
+  A beam held on a corpse keeps it fresh (re-sent once 0.4 s has worn off).
+- The killing bolt paints `vr_shock_burns` (6) lightning burns all round the body (sides at any height, some from
+  above); a hit on a corpse paints a burn where it strikes (corpse damage paints none through `VR_Wound_Hit`).
+- `.vr_shock_until` / `.vr_shock_len` (engine fields) make the ragdoll convulse (`vr_box3d.cpp`, "Shocked ragdolls"):
+  per limb a torque pair (limb +, parent -) drives the relative spin towards 14 rad/s x `vr_shock_seizure`, flipping
+  9 times a second about an axis of its own (friction-compensated, capped), plus each jerk 45% of limbs flop up at
+  3 m/s (parent pushed back, the floor takes it) and 20% of jerks buck the chest. Full for the first 40% of the
+  shock, then easing to zero: lying limbs' own drive alone can't beat the floor's friction, hence the flops.
+
+Cvars (Gore > Lightning's Shock): `vr_shock_death 1`, `vr_shock_death_time 3`, `vr_shock_seizure 1`,
+`vr_shock_burns 6`, `vr_shock_arcs 1`. Tests: `vr_shock_hit_test <damage | -1 just kills>` (strikes the nearest
+monster/corpse through `VR_LightningHit`), `vr_shock_info` (kind, arcs drawn), `vr_shock_ragdoll_check` (shock left,
+limb relative spin, fastest part, worst joint separation, pelvis), `vr_debug_ragdoll 2/3` (drive and flop prints),
+`vr_wounds_debug 1` (each burn struck or missed). All on Debug > Tests.
+
+Measured (grunt killed at 96 units, samples every 18 frames; seizure 0 | 1): limb relative spin after landing
+0.73, 0.07, 0.00 | 8.7, 6.2, 2.9, 1.5, 0.3, 0.0 rad/s; at rest after: 0 | 0, pelvis still; worst joint separation at
+rest 0.07 | 0.19 units (peaks 4.7 | 3.5 during the death fling itself); corpse re-hit: 0 | 5.9 rad/s. Burns struck:
+live hit 1, kill 7 (6 + the hit), corpse re-hit 1 (soldier.mdl#rag); shalrath (no rig) kill 7, its arcs for 3 s then
+gone. Six shocked ragdolls at once: CPU busy 0.78 vs 0.53 ms (arcs 0.04 ms, box3d 0.08 vs 0.04, the lights and
+lines the rest), GPU 0.95 vs 0.92 ms.
+
+Seen in passing: a grunt killed by a 31-damage bolt at 96 units flies ~250 units before landing, with or without the
+seizure (the death knock), and `eval.sh` currently fails on a missing motion CSV in the author's checkout.
