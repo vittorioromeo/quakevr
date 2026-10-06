@@ -248,13 +248,17 @@ void markSeen(const char* key)
 // How well `at` is placed for a tip now: near enough, in view and in sight (else -1); the nearer the better. `e` (may
 // be null: a point in the map) is what the tip is about, for the test to its top. `distance` 0: vr_tips_distance;
 // AnyAngle: the view angle and the line of sight are not tested; `anyDistance`: neither is nearness (vr_tips_test).
+[[nodiscard]] float rangeOf(float distance)
+{
+    return distance > 0.f ? distance : za::max(vr_tips_distance.value, 1.f);
+}
+
 [[nodiscard]] float placing(const glm::vec3& at, const entity_t* e, float distance, int flags, bool anyDistance)
 {
     const hands::State& s = hands::current();
     const glm::vec3 to = at - s.head;
     const float d = glm::length(to);
-    const float limit = distance > 0.f ? distance : za::max(vr_tips_distance.value, 1.f);
-    if(d < 1e-3f || (!anyDistance && d > limit))
+    if(d < 1e-3f || (!anyDistance && d > rangeOf(distance)))
     {
         return -1.f;
     }
@@ -339,6 +343,22 @@ struct Subject
     return true;
 }
 
+// A Repeat tip shows again once the player has gone out of its range, by this much more than the range (so standing at
+// its edge does not show it again and again).
+constexpr float repeatRearm = 1.25f;
+
+// Whether the player has gone out of a Repeat tip's range since it showed (its entity out of the message counts).
+[[nodiscard]] bool outOfRange(const MapTip& mt)
+{
+    const entity_t* e = mt.ent >= 0 ? liveEntity(mt.ent) : nullptr;
+    if(mt.ent >= 0 && !e)
+    {
+        return true;
+    }
+    const glm::vec3 at = e ? targetPoint(*e) : mt.pos;
+    return glm::distance(at, hands::current().head) > rangeOf(mt.distance) * repeatRearm;
+}
+
 // How long a tip must have been near and seen before it shows, and how big its screen's text is.
 [[nodiscard]] float tipDelay(const MapTip* mt)
 {
@@ -354,10 +374,14 @@ struct Subject
 // one), else as the floating panel.
 void show(int t, const Subject& s, bool count)
 {
-    const MapTip* mt = mapTipOf(t);
+    MapTip* mt = mapTipOf(t);
     const char* text = tipText(t);
     const float time = za::max(vr_tips_time.value, 1.f);
-    if(count)
+    if(count && mt && (mt->flags & Repeat) != 0)
+    {
+        mt->shownNear = true; // not remembered: it shows again once he has gone away and come back
+    }
+    else if(count)
     {
         markSeen(seenKeyOf(t));
     }
@@ -697,7 +721,16 @@ void frame()
     // The first tip not shown yet whose subject is near and seen; it shows once it has been so for its delay.
     for(int t = 0; t < tipTotal(); t++)
     {
-        if(seen(seenKeyOf(t)))
+        MapTip* mt = mapTipOf(t);
+        if(mt && (mt->flags & Repeat) != 0)
+        {
+            if(mt->shownNear)
+            {
+                mt->shownNear = !outOfRange(*mt);
+                continue;
+            }
+        }
+        else if(seen(seenKeyOf(t)))
         {
             continue;
         }
@@ -710,7 +743,7 @@ void frame()
         {
             candidate = {t, subject.ent, realtime};
         }
-        if(realtime - candidate.since >= static_cast<double>(tipDelay(mapTipOf(t))))
+        if(realtime - candidate.since >= static_cast<double>(tipDelay(mt)))
         {
             candidate.tip = -1;
             show(t, subject, true);

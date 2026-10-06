@@ -47,6 +47,7 @@ struct MapTip
     float size{0.f};        // the screen's text size (0: vr_tips_size)
     float delay{-1.f};      // seconds you must stay near and see it (below 0: vr_tips_delay)
     int flags{0};           // Flags
+    bool shownNear{false};  // client: a Repeat tip shown, and the player not yet gone out of its range since
 };
 
 // Server side (the vr_tip_* builtins, while the map spawns; QC/vr_tips.qc func_vr_tip).
