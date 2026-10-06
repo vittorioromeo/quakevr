@@ -1261,9 +1261,32 @@ void ao::onGameDirChanged()
     builtFrame = -1;
 }
 
+// vr_ao_finish: waits here for the models' occlusion bakes under way (the map's models, a spawn's), then takes them in:
+// a benchmark's set-up, so that a load's background work never runs inside its measured window.
+namespace
+{
+void finish_f()
+{
+    BakeQueue& q = bakeQueue();
+    const double t0 = Sys_DoubleTime();
+    int queued = 0;
+    {
+        za::LockGuard lock(q.mutex);
+        queued = static_cast<int>(q.queued.size());
+    }
+    if(q.runner.valid())
+    {
+        q.runner.wait(); // (only this thread queues bakes: none is added meanwhile)
+    }
+    integrateBakes();
+    Con_Printf("vr_ao_finish: %d models' bakes waited for, %.1f ms\n", queued, (Sys_DoubleTime() - t0) * 1000.0);
+}
+} // namespace
+
 void ao::init()
 {
     Cmd_AddCommand("vr_ao_show", show_f);
+    Cmd_AddCommand("vr_ao_finish", finish_f);
 }
 
 void ao::upload()

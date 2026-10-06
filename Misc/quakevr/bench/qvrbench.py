@@ -396,7 +396,9 @@ def script(sc, tag, frames, hz, eye, realtime, settings, motion_path, shot=False
         # frames: the VR runtime's loading frames among them).
         lines += waits(sc.warm) + ["echo BENCH_SETUP_DONE", f"vr_bench_begin {tag}"] + sc.body(frames) + waits(20)
     else:
-        lines += waits(sc.warm) + ["echo BENCH_SETUP_DONE", f"vr_bench_begin {tag} {frames}"]
+        # The load's background work done before the warm-up (the models' occlusion bakes: seconds of 4 threads after
+        # a map's load or a spawn of new models), so that none of it runs inside the window: gameplay alone.
+        lines += ["vr_ao_finish"] + waits(sc.warm) + ["echo BENCH_SETUP_DONE", f"vr_bench_begin {tag} {frames}"]
         body = sc.body(frames) if sc.body else []
         lines += body + waits(max(0, frames - sum(1 for x in body if x == "wait")) + 20)
     # (the window has ended by itself by now: a screenshot here costs it nothing)
