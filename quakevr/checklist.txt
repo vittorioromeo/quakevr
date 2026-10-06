@@ -11,6 +11,7 @@ Relighting (Graphics > Relighting): relight this map or a whole episode/game in 
 Elbows: aiming down sights (one/two hands) and the axe by the face keep the elbow down and in, no flips; gadget wings and salute still lift (Body > Arms > Elbows and Wrists > Elbow Tuck; 0.5 if the wrist bends too much)
 Combat decisions: fiend headshots and head pops work (guns and melee); thrown axes stick in explosive boxes and crates and move with them; thrown gibs almost always stick to walls
 Melee head pops: punches, gun butts and crowbar almost never pop a head; Mjolnir solid swings almost always; with Quad every headshot kill pops (guns at any range, nails, rockets, thrown props)
+Limb gore (Gore > Limb Gore): killing slash at a forearm/leg cuts it; punches/shots pop limbs; cut a corpse down to the torso and pick limbs up; rocket into a group pops nearby limbs; zombies die from a lost limb; stumps and limb caps look right; no hitch on the first cut of each monster
 Shove toward a high ledge: always knocks down; Ledge Reach and Ledge Margin change how far ahead (Combat > Knockdowns)
 Parallax: carved walls keep their depth when seen from the side, no swimming (Graphics > Surfaces)
 Animated buttons and slipgate panels: no pulsing between frames
@@ -76,6 +77,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
+Limb gore: explosion reach 96 units pops limbs on a whole grunt beside the blast: OK?
 Main menu: keep the row as "Advanced VR" ("Advanced VR Settings" doesn't fit the flat screen in the big font)? Pages show ~2 fewer rows below the moved shortcut column: OK?
 Multiplayer: default for Rocks and Bricks > Most in Multiplayer (now 0 = none)? More cvars as server rules (melee timing is now one)?
 Gibs: should hard throws BURST on walls (lower Gib Splat Speed below ~200) rather than stick? Rottweiler: add a head zone like the fiend's?
