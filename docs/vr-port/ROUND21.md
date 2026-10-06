@@ -25198,3 +25198,32 @@ next map reuses another map's slot, so vrfiringrange took vrstart's boards and t
 vrstart; disconnect; game hipnotic; game quakevr; map vrfiringrange` (labels from the ogre's on 2-4x their text's
 width). A board now belongs to the client's world text list (worldtext::clientGeneration, new at each clientReset).
 Since round 15 (boards kept by map), seen since game changes became common.
+## Release fixes from the installer research (2026-10-06)
+
+The prerequisite fixes of `INSTALLER.md` (section 12), with Vittorio's decisions written into that document
+(section 11).
+
+- **Packaging is an allowlist** (`Windows/package-quakevr.ps1`): the game folder is what git tracks under `quakevr/`
+  (less `.gitignore` and `motions/`) plus `progs.dat`. `-DryRun` prints the file list (no build, no copy); `-Root`
+  lists or packages another checkout. A dry run on the author's checkout: 1670 files, none of its untracked ones
+  (`apsp3`, `ad`, `vrwip.*`, `warden.bsp`, `weight_test.csv`, `cache/` 103 files, `sound_tests/`, `bodycal/`, saves).
+- **`ironwail.pdb` ships** (full PDB: clang-cl `/Z7`, lld-link `/DEBUG`); the packager fails without it. The crash
+  report's DbgHelp now searches the exe's folder, then the working directory (the linker's path is tried first). A copy
+  of the exe and pdb in another folder, run from a third folder, with the build's pdb moved away: the stack had names;
+  with no pdb anywhere, only offsets.
+- **Build version**: `quakevr.props` (`QvrBuildVersion`, before ClCompile) writes `$(IntDir)qvr_buildver.h` with the
+  last commit's date and short hash (`-dirty` with uncommitted tracked changes), only when it changes; `VR_BuildVersion`
+  (`vr_crash.cpp`; "unknown build" without it). Shown at start, by `version`, as the last line of VR Settings, and in
+  `qvr_crash.txt`: `Quake VR 2026-10-06 9460b8e1-dirty, exe linked ...`.
+- **Map Library zips are checked against the index's sha256** (`vr_sha256.cpp`, a portable SHA-256) before they are
+  kept or unpacked; a mismatch fails that mirror with both hashes and tries the next. `vr_sha256_test` (Debug menu) is
+  6/6 on the standard vectors. Fake index (two packages served from 127.0.0.1): the good one installed, the corrupted
+  one "its sha256 is 13a7259c..., not the index's 2d5a9b9f... (a corrupted download or a changed file): not unpacked",
+  and not cached.
+- **Epic Games Store**: `ownedRoots` reads the launcher's manifests (`addEpicRoots`; `-noepic`; `-epicmanifests <dir>`
+  for tests). Fake manifests with `-nosteam -nogog`: dopa "ready" from the Epic folder (`rerelease/` layout), mg1/mg3
+  found with a root-layout folder; a "Quake II" manifest and a broken one ignored; `-noepic`: all missing.
+- **Data-less pack folders read as missing**: `inspectPack` says "incomplete" only when a pak or one of the pack's
+  files is there. A base with only `hipnotic/textures/`, `rogue/maps/<other file>` and `mg1/textures/`: before,
+  hipnotic, rogue and mg1 "incomplete installation"; after, hipnotic and rogue "missing", and mg1 comes from the Steam
+  rerelease (a data-less campaign folder no longer masks a lower root's copy).
