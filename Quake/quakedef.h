@@ -395,6 +395,9 @@ typedef struct download_s
 } download_t;
 
 qboolean			Download (const char *url, download_t *download);
+/* A thread that is still inside Download at shutdown (cancelled, but held by a blocking lookup): libcurl's global state
+   is kept for it (one more curl_global_init: NET_Shutdown's curl_global_cleanup then frees nothing). */
+void				Download_KeepGlobalState (void);
 
 extern filelist_item_t **extralevels_sorted;
 extern filelist_item_t	*modlist;

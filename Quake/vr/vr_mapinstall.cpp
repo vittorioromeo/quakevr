@@ -1116,7 +1116,12 @@ void finish()
 {
     // Quitting never waits on the network: the job is cancelled (a download stops within a second, an unpacking before
     // its next file) and given 3 s; one still running then (a blocking lookup inside curl) is let go, not joined, so
-    // the process ends anyway.
+    // the process ends anyway. Host_Shutdown calls this (VR_StopDownloads) before NET_Shutdown's curl_global_cleanup,
+    // and VR_Shutdown again.
+    if(!worker.joinable())
+    {
+        return; // (no job started, or it was joined or let go already)
+    }
     requestCancel(CancelQuit);
     const za::U32 t0 = SDL_GetTicks();
     while(jobRunning.loadSeqCst() && SDL_GetTicks() - t0 < 3000)
@@ -1128,6 +1133,7 @@ void finish()
         if(jobRunning.loadSeqCst())
         {
             Sys_Printf("maps: the download did not stop in 3 s; quitting without it\n");
+            Download_KeepGlobalState(); // (its transfer still reads libcurl's global state: not freed under it)
             worker.detach();
         }
         else

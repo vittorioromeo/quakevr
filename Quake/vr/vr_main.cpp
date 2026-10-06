@@ -1408,6 +1408,14 @@ extern "C" void VR_Init()
     state->restartRequested = true;
 }
 
+// Host_Shutdown, before NET_Shutdown: libcurl's global state (curl_global_cleanup) and winsock go there, and a
+// transfer still running on one of these threads would read them freed (the quit crash inside curl_multi_perform).
+extern "C" void VR_StopDownloads()
+{
+    mapindex::finish();
+    mapinstall::finish();
+}
+
 extern "C" void VR_Shutdown()
 {
     hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)

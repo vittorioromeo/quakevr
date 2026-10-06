@@ -1087,6 +1087,11 @@ void start()
 void finish()
 {
     // As mapinstall::finish: cancelled, given 3 s, then let go rather than joined (quitting never waits on the network).
+    // Host_Shutdown calls this (VR_StopDownloads) before NET_Shutdown's curl_global_cleanup, and VR_Shutdown again.
+    if(!worker.joinable())
+    {
+        return; // (no pass started, or it was joined or let go already)
+    }
     SDL_AtomicSet(&cancel, 1);
     const za::U32 t0 = SDL_GetTicks();
     while(running.loadSeqCst() && SDL_GetTicks() - t0 < 3000)
@@ -1098,6 +1103,7 @@ void finish()
         if(running.loadSeqCst())
         {
             Sys_Printf("map index: the fetch did not stop in 3 s; quitting without it\n");
+            Download_KeepGlobalState(); // (its transfer still reads libcurl's global state: not freed under it)
             worker.detach();
         }
         else

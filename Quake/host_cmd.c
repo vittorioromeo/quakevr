@@ -665,6 +665,15 @@ done:
 #endif
 }
 
+void Download_KeepGlobalState (void)
+{
+#ifndef WITHOUT_CURL
+	// QVR: libcurl counts its global inits; the one NET_Shutdown undoes is then not the last, and a transfer that is
+	// still running (curl's SSL backend, its sockets' winsock) keeps the state it reads until the process ends.
+	curl_global_init (CURL_GLOBAL_DEFAULT);
+#endif
+}
+
 typedef struct
 {
 	const char			*full_name;

@@ -1603,6 +1603,7 @@ void Host_Shutdown(void)
 
 // stop downloads before shutting down networking
 	Modlist_ShutDown ();
+	VR_StopDownloads (); // QVR: the map index's fetch and a map install, cancelled and joined before libcurl goes
 
 	NET_Shutdown ();
 
