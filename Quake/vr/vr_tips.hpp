@@ -72,6 +72,7 @@ void serverFrame(); // once a server frame: a followed entity freed or replaced 
 // Client side.
 void clientReset();
 void clientParse(int subcmd); // QVR_SVC_TIP_*
+void clientWriteAll(sizebuf_t* msg); // the client's list, into a demo recorded in the middle of a map
 
 // Once a frame, after the frame's texts are cleared (VR_BeginFrame): a tip due shown, the one showing laid out.
 void frame();

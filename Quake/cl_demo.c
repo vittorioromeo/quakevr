@@ -732,7 +732,7 @@ void CL_Record_f (void)
 		MSG_WriteByte (&net_message, STAT_MONSTERS);
 		MSG_WriteLong (&net_message, cl.stats[STAT_MONSTERS]);
 
-		VR_WriteDemoState (&net_message); // QVR: world texts
+		VR_WriteDemoState (&net_message); // QVR: world texts, map tips
 
 		// view entity
 		MSG_WriteByte (&net_message, svc_setview);

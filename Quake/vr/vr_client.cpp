@@ -648,6 +648,7 @@ extern "C" void VR_WriteDemoState(sizebuf_t* msg)
     if(vrProtocol())
     {
         worldtext::clientWriteAll(msg);
+        tips::clientWriteAll(msg);
     }
 }
 

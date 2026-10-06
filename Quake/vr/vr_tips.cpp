@@ -521,6 +521,16 @@ void writeTip(sizebuf_t* msg, int handle, const MapTip& mt, unsigned int protoco
     MSG_WriteByte(msg, mt.flags);
 }
 
+// The whole list: for a spawning client (the server's), or a demo recorded in the middle of a map (the client's mirror).
+void writeAll(sizebuf_t* msg, const za::Vector<MapTip>& list, unsigned int protocolflags)
+{
+    for(int handle = 0; handle < static_cast<int>(list.size()); handle++)
+    {
+        beginMessage(msg, QVR_SVC_TIP_MAKE, handle);
+        writeTip(msg, handle, list[static_cast<size_t>(handle)], protocolflags);
+    }
+}
+
 [[nodiscard]] MapTip& clientTip(int handle)
 {
     if(handle < 0 || handle >= maxMapTips)
@@ -683,11 +693,12 @@ void serverFrame()
 
 void serverWriteAll(sizebuf_t* msg)
 {
-    for(int handle = 0; handle < static_cast<int>(serverTips.size()); handle++)
-    {
-        beginMessage(msg, QVR_SVC_TIP_MAKE, handle);
-        writeTip(msg, handle, serverTips[static_cast<size_t>(handle)], sv.protocolflags);
-    }
+    writeAll(msg, serverTips, sv.protocolflags);
+}
+
+void clientWriteAll(sizebuf_t* msg)
+{
+    writeAll(msg, mapTips, cl.protocolflags);
 }
 
 void clientReset()
