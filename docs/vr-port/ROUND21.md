@@ -26060,3 +26060,25 @@ looking down on the upper arms and the torso; the spectator camera the same. Qua
 Let a shambler hit you (god): are the arcs on the hands, arms, torso and legs enough, too many, long enough (Arcs on
 You 0.8 s for its bolt)? Is the blue light pleasant or too much (Arcs on You: Light)? Any arcs bothering the eyes when
 holding a weapon up to aim?
+
+## Benchmarks: gore and map loads (2026-10-06)
+
+Voice notes e1m5 16:46 and plaw01 17:05: benchmark scenarios for dismemberment and limb popping, and a map loading
+scenario set (prepared and validated only: no timing runs yet). BENCHMARKS.md, "Gore" and "Map loads", has the detail.
+
+- **Gore** (`gore` group, 10 scenarios): crowds cut, dismembered, blasted, gibbed (`vr_gib_limbs` 0/1/2) and head-popped
+  in one frame, 64 limbs lying about, the cap's churn, the first cut of each of 14 kinds against the second.
+  `vr_gore_test_crowd <units>` (QC: `VR_Gore_TestCrowd`; Debug > Gore Tests > Crowd Gore Tests, with Spawn a Crowd)
+  runs `vr_limb_test` / `vr_decap_test` on every monster that near at once, quietly, one `goretest: crowd` line.
+- **Window parts**: `vr_bench_mark <label>` splits a bench window; the JSON's `marks` give each part's worst and mean
+  frame (the blow's frame apart from the falling).
+- **Map loads** (`loading` group): `load_e1m1` (cold, warm, restart), `load_e1m1_qrp`, `load_e4m7`, `load_hip1m1` (the
+  campaign switch and back), `load_changelevel` (replaces `mapload_e1m2`), `load_warden`, `load_ad_grendel`. The
+  engine's load timing (`vr_startup_times`, now Debug > Profiling and Memory > Load Times) starts at the command (`map`,
+  `changelevel`, `restart`, `load`: `VR_TimeLoadCommand`, with the map package, campaign and shutdown stages), splits
+  the frames before the signon from the first frame drawn, times the ragdoll rigs' warm-up, and hands each load that
+  ends in a bench window to the JSON's `loads` (stages, work, the second after). `qvrbench.py loads <dir>` gathers
+  them into phases.
+- First validation's leads for the load work (not benchmarks): warden waits 1.5-2.9 s for its hulls' build, warm or
+  cold; QRP's warm load re-decodes the world's textures (BSP stage 1.7 s, slower than cold); a campaign switch reloads
+  every alias model; `vr_gib_limbs 2`'s gib frame is the costliest gore blow (144 ms for 24).

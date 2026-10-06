@@ -1,8 +1,11 @@
 // vr_startup.cpp -- where the start-up and each map's load spend their time: marks at the end of each stage
 // (VR_TimeMark), printed by vr_startup_times; and vr_walltime, the wall clock for test runs (docs/vr-port/TESTING.md).
 // Stages: the engine's Host_Init calls, the first frame (the configs, the autoexec), the VR backend's start, the
-// first frame drawn; a map's load from SV_SpawnServer (or the client's server info) to its first frame drawn.
+// first frame drawn; a map's load from its command (map, changelevel, restart, load: VR_TimeLoadCommand), else from
+// SV_SpawnServer (or the client's server info), to its first frame drawn. A load that ends while a benchmark records
+// (vr_bench_begin) goes into its JSON too (bench::loadDone: the stages, the work, the frames to the signon).
 
+#include "vr_bench.hpp"
 #include "vr_engine.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -43,6 +46,9 @@ struct Group
     };
     za::Vector<Sum> sums; // VR_TimeAdd: kinds of work, across the stages
     bool open = false;
+    za::String what;           // a load's: its command and spawn ("map e1m2: e1m2", "client")
+    int frames = 0;            // a load's frames ended before it signed on
+    double lastFrameEnd = 0.0; // the last of them's end
 };
 
 double processStart = -1.0; // Sys_DoubleTime of the process's creation
@@ -51,6 +57,16 @@ double lastCpu = 0.0;
 Group startup;
 Group load;
 za::Vector<za::String> loads; // every load's one-line summary
+// A load's command (VR_TimeLoadCommand) until its spawn opens the load: its start, its stages so far (the map package,
+// the campaign, the old server shut down), its name. Dropped at the frame's end when no load opened (a refused map).
+struct Command
+{
+    double start = -1.0;
+    double last = 0.0;
+    za::String what;
+    za::Vector<Mark> marks;
+};
+Command command;
 
 double sinceProcess(double t)
 {
@@ -167,6 +183,13 @@ extern "C" void VR_TimeInit()
 
 extern "C" void VR_TimeMark(const char* stage)
 {
+    if(command.start >= 0.0)
+    {
+        const double now = Sys_DoubleTime();
+        command.marks.pushBack({stage, (now - command.last) * 1000.0, sinceProcess(now)});
+        command.last = now;
+        return;
+    }
     if(Group* g = current())
     {
         mark(*g, stage, Sys_DoubleTime());
@@ -201,18 +224,42 @@ extern "C" void VR_TimeLoadBegin(const char* what)
     const double now = Sys_DoubleTime();
     if(startup.open)
     {
-        mark(startup, "(until the map load)", now);
+        mark(startup, "(until the map load)", command.start >= 0.0 ? command.start : now); // (its command: the load's)
     }
     load = Group{};
+    load.what = what;
     load.title = za::String("vr_startup_times: the last map load (") + what + "), to its first frame drawn";
     load.start = load.last = now;
+    if(command.start >= 0.0)
+    {
+        // From the command: its stages before the spawn, then the rest of it to here.
+        load.what = command.what + ": " + what;
+        load.title = za::String("vr_startup_times: the last map load (") + load.what + "), from the command to its first "
+                                                                                          "frame drawn";
+        load.start = command.start;
+        load.marks = static_cast<za::Vector<Mark>&&>(command.marks);
+        load.last = command.last;
+        mark(load, "command: the rest, to the spawn", now);
+        command = Command{};
+    }
     load.open = true;
     VR_FileCacheEnable(1);
+}
+
+extern "C" void VR_TimeLoadCommand(const char* what)
+{
+    command = Command{};
+    command.start = command.last = Sys_DoubleTime();
+    command.what = what;
 }
 
 extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
 {
     const double now = Sys_DoubleTime();
+    if(command.start >= 0.0)
+    {
+        command = Command{}; // (a command that loaded nothing: refused, or a map not found)
+    }
     if(load.open && idle)
     {
         load.open = false; // a load that failed (Host_Error): not timed; the file lookups ask the file system again
@@ -220,8 +267,22 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
         load.sums.clear();
         VR_FileCacheEnable(startup.open ? 1 : 0);
     }
-    if(load.open && signedOn)
+    if(load.open && !signedOn && !idle)
     {
+        load.frames++;
+        load.lastFrameEnd = now;
+    }
+    else if(load.open && signedOn)
+    {
+        // The frames before the signon (the load's own and the handshake's) apart from the first one drawn (its
+        // shaders' and textures' first use; and a frame cap's wait before it).
+        if(load.frames > 0 && load.lastFrameEnd > load.last)
+        {
+            const double end = load.lastFrameEnd;
+            load.marks.pushBack({va("frames to the signon (%d), the rest of them", load.frames), (end - load.last) * 1000.0,
+                sinceProcess(end)});
+            load.last = end;
+        }
         mark(load, "first frame drawn", now);
         load.open = false;
         VR_ImagePrefetchEnd();
@@ -229,6 +290,23 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
         const double ms = (load.last - load.start) * 1000.0;
         loads.pushBack(va("vr_startup_times: load %d: %.1f ms (%s)", static_cast<int>(loads.size()) + 1, ms,
             load.title.cStr() + load.title.find('(')));
+        if(qvr::bench::recording)
+        {
+            za::Vector<qvr::bench::LoadStage> stages;
+            za::Vector<qvr::bench::LoadStage> work;
+            stages.reserve(load.marks.size());
+            work.reserve(load.sums.size());
+            for(const Mark& m : load.marks)
+            {
+                stages.pushBack({m.name.cStr(), m.ms, 1});
+            }
+            for(const Group::Sum& w : load.sums)
+            {
+                work.pushBack({w.what.cStr(), w.ms, w.count});
+            }
+            qvr::bench::loadDone(load.what.cStr(), cl.mapname, ms, load.frames, stages.data(),
+                static_cast<int>(stages.size()), work.data(), static_cast<int>(work.size()));
+        }
         if(startup.open)
         {
             startup.nestedMs += ms;

@@ -70,6 +70,35 @@ constexpr const char* countNames[CountCount] = {"edicts", "monsters_alive", "box
 constexpr int countEvery = 16;
 // GPU read-backs dropped at the start: the slots in flight then are the frames before it (vr_profile.cpp's ring).
 constexpr int gpuSkip = 6;
+// vr_bench_mark: the window's parts (fixed storage: a mark costs no allocation while recording).
+constexpr int maxMarks = 128;
+constexpr int markLabelSize = 40;
+// A load's "after": the frames of the second after its first frame drawn (at 90 Hz).
+constexpr int afterLoadFrames = 90;
+
+struct Mark
+{
+    char label[markLabelSize]{};
+    int frame{0}; // the first recorded frame it covers
+};
+
+struct LoadItem
+{
+    za::String name;
+    double ms{0.0};
+    int count{0};
+};
+
+struct LoadRecord
+{
+    za::String what;
+    za::String map;
+    double totalMs{0.0};
+    int framesToSignon{0};
+    int frame{0}; // the recorded frame it ended in (its first frame drawn)
+    za::Vector<LoadItem> stages;
+    za::Vector<LoadItem> work;
+};
 
 struct Capture
 {
@@ -94,6 +123,9 @@ struct Capture
     za::U64 heapBefore{0};
     za::U64 heapRequestedStart{0};
     za::U64 heapRequestedBefore{0};
+    Mark marks[maxMarks];
+    int markCount{0};
+    za::Vector<LoadRecord> loads;
 };
 Capture capture;
 
@@ -210,6 +242,74 @@ void writeStats(FILE* f, const char* name, const Stats& s, bool last = false)
     return out;
 }
 
+// The worst, the mean and the first frame of the frames [from, to) (period and work), as JSON fields.
+void writeSpan(FILE* f, const Capture& c, int from, int to)
+{
+    const za::Vector<float>& period = c.series[Period];
+    const za::Vector<float>& busy = c.series[Busy];
+    const int size = static_cast<int>(period.size());
+    from = za::max(0, za::min(from, size));
+    to = za::max(from, za::min(to, size));
+    double maxMs = 0.0, sum = 0.0, maxBusy = 0.0;
+    int over33 = 0;
+    for(int i = from; i < to; i++)
+    {
+        const double p = period[static_cast<za::SizeT>(i)];
+        maxMs = za::max(maxMs, p);
+        sum += p;
+        maxBusy = za::max(maxBusy, static_cast<double>(busy[static_cast<za::SizeT>(i)]));
+        over33 += p > 33.333 ? 1 : 0;
+    }
+    fprintf(f, "\"frames\": %d, \"first_ms\": %.4f, \"max_ms\": %.4f, \"avg_ms\": %.4f, \"max_busy_ms\": %.4f, "
+               "\"over_33ms\": %d",
+        to - from, to > from ? static_cast<double>(period[static_cast<za::SizeT>(from)]) : 0.0, maxMs,
+        to > from ? sum / (to - from) : 0.0, maxBusy, over33);
+}
+
+void writeMarks(FILE* f, const Capture& c)
+{
+    fprintf(f, "  \"marks\": [");
+    for(int i = 0; i < c.markCount; i++)
+    {
+        const int to = i + 1 < c.markCount ? c.marks[i + 1].frame : c.frames;
+        fprintf(f, "%s\n    {\"label\": \"%s\", \"frame\": %d, ", i ? "," : "", jsonEscaped(c.marks[i].label).cStr(),
+            c.marks[i].frame);
+        writeSpan(f, c, c.marks[i].frame, to);
+        fprintf(f, "}");
+    }
+    fprintf(f, "%s],\n", c.markCount ? "\n  " : "");
+}
+
+void writeLoads(FILE* f, const Capture& c)
+{
+    fprintf(f, "  \"loads\": [");
+    bool firstLoad = true;
+    for(const LoadRecord& l : c.loads)
+    {
+        fprintf(f, "%s\n    {\"what\": \"%s\", \"map\": \"%s\", \"total_ms\": %.3f, \"frames_to_signon\": %d, "
+                   "\"frame\": %d,\n     \"first_frame\": {",
+            firstLoad ? "" : ",", jsonEscaped(l.what.cStr()).cStr(), jsonEscaped(l.map.cStr()).cStr(), l.totalMs,
+            l.framesToSignon, l.frame);
+        firstLoad = false;
+        writeSpan(f, c, l.frame, l.frame + 1);
+        fprintf(f, "},\n     \"after\": {");
+        writeSpan(f, c, l.frame + 1, l.frame + 1 + afterLoadFrames);
+        fprintf(f, "},\n     \"stages\": [");
+        for(za::SizeT i = 0; i < l.stages.size(); i++)
+        {
+            fprintf(f, "%s[\"%s\", %.3f]", i ? ", " : "", jsonEscaped(l.stages[i].name.cStr()).cStr(), l.stages[i].ms);
+        }
+        fprintf(f, "],\n     \"work\": [");
+        for(za::SizeT i = 0; i < l.work.size(); i++)
+        {
+            fprintf(f, "%s[\"%s\", %.3f, %d]", i ? ", " : "", jsonEscaped(l.work[i].name.cStr()).cStr(), l.work[i].ms,
+                l.work[i].count);
+        }
+        fprintf(f, "]}");
+    }
+    fprintf(f, "%s]\n", c.loads.empty() ? "" : "\n  ");
+}
+
 void finish()
 {
     recording = false;
@@ -308,10 +408,18 @@ void finish()
         fprintf(f, "%s\"%s\": {\"start\": %d, \"avg\": %.1f, \"max\": %d, \"end\": %d}", k ? ", " : "", countNames[k],
             c.startCounts[k], c.countSum[k] / za::max(c.countSamples, 1), c.countMax[k], endCounts[k]);
     }
-    fprintf(f, "}\n}\n");
+    fprintf(f, "},\n");
+    writeMarks(f, c);
+    writeLoads(f, c);
+    fprintf(f, "}\n");
     fclose(f);
 
     printCounts("end", endCounts);
+    for(const LoadRecord& l : c.loads)
+    {
+        Con_Printf("vr_bench: load %s (%s): %.1f ms, %d frames to the signon\n", l.what.cStr(), l.map.cStr(), l.totalMs,
+            l.framesToSignon);
+    }
     Con_Printf("vr_bench: %s %d frames %.1f s: frame avg %.3f p50 %.3f p95 %.3f p99 %.3f max %.2f ms; cpu busy avg %.3f "
                "p99 %.3f; gpu eyes avg %.3f p99 %.3f, 3D avg %.3f (%d); hitches >33ms %d; heap %.1f/frame -> %s\n",
         c.name.cStr(), c.frames, seconds, s[Period].avg, s[Period].p50, s[Period].p95, s[Period].p99, s[Period].max,
@@ -377,6 +485,8 @@ void begin_f()
         c.countMax[k] = 0;
     }
     c.countSamples = 0;
+    c.markCount = 0;
+    c.loads.clear();
     c.gpuFrames = 0;
     c.frames = 0;
     c.skip = 1;
@@ -398,6 +508,35 @@ void end_f()
         return;
     }
     finish();
+}
+
+void mark_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_bench_mark <label>: the window's frames from the next one on are a part of their own in the JSON's "
+                   "\"marks\" (its worst and mean frame), until the next mark\n");
+        return;
+    }
+    Capture& c = capture;
+    if(!recording)
+    {
+        Con_Printf("vr_bench_mark: no capture (vr_bench_begin)\n");
+        return;
+    }
+    if(c.markCount >= maxMarks)
+    {
+        Con_Printf("vr_bench_mark: at most %d marks\n", maxMarks);
+        return;
+    }
+    Mark& m = c.marks[c.markCount++];
+    za::SizeT n = 0;
+    for(const char* p = Cmd_Argv(1); *p && n + 1 < sizeof(m.label); p++)
+    {
+        m.label[n++] = *p;
+    }
+    m.label[n] = '\0';
+    m.frame = c.frames;
 }
 
 void seed_f()
@@ -473,10 +612,38 @@ void gpuFrame(const double (&phaseMs)[profile::PhaseCount])
     c.gpuFrames++;
 }
 
+void loadDone(const char* what, const char* map, double totalMs, int frames, const LoadStage* stages, int stageCount,
+    const LoadStage* work, int workCount)
+{
+    if(!recording)
+    {
+        return;
+    }
+    Capture& c = capture;
+    LoadRecord r;
+    r.what = what;
+    r.map = map;
+    r.totalMs = totalMs;
+    r.framesToSignon = frames;
+    r.frame = c.frames; // (the frame ending now: bench::frame records it next, at this index)
+    r.stages.reserve(static_cast<za::SizeT>(stageCount));
+    for(int i = 0; i < stageCount; i++)
+    {
+        r.stages.pushBack({stages[i].name, stages[i].ms, stages[i].count});
+    }
+    r.work.reserve(static_cast<za::SizeT>(workCount));
+    for(int i = 0; i < workCount; i++)
+    {
+        r.work.pushBack({work[i].name, work[i].ms, work[i].count});
+    }
+    c.loads.pushBack(static_cast<LoadRecord&&>(r));
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_bench_begin", begin_f);
     Cmd_AddCommand("vr_bench_end", end_f);
+    Cmd_AddCommand("vr_bench_mark", mark_f);
     Cmd_AddCommand("vr_bench_seed", seed_f);
 }
 

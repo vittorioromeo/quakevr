@@ -5789,6 +5789,7 @@ void syncEntities(float dt)
         }
         const double w0 = Sys_DoubleTime();
         ragdoll::warmRigs(rigged.data(), static_cast<int>(rigged.size()));
+        VR_TimeAdd("ragdoll: the map's rigs (warmRigs)", Sys_DoubleTime() - w0); // load timing (vr_startup_times)
         Con_DPrintf("ragdoll: the map's rigs (%d models) ready in %.1f ms\n", static_cast<int>(rigged.size()),
             (Sys_DoubleTime() - w0) * 1000.0);
     }

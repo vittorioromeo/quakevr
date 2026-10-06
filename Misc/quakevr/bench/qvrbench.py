@@ -7,6 +7,7 @@
     python qvrbench.py validate <results dir>               each scenario ran, wrote its JSON, and set up the same
                                                             counts in every repeat (determinism)
     python qvrbench.py brief <run.json>                     one line of a run
+    python qvrbench.py loads <results dir>                  the map loads by phase, the window parts (marks)
 
 A scenario is a fixed map and view (setpos and the mock head's look), a fixed random seed (vr_bench_seed before the
 map and before the set-up, vr_particle_seed), a set-up of existing test commands (vr_physics_spawn, vr_physics_bigpile,
@@ -54,12 +55,15 @@ TOUR_SOURCES = {"warden": "author's checkout quakevr/maps (not in git)", "apsp3"
 
 
 class Scenario:
+    """map None: no map before the window (a loading scenario's cold load is the process's first). frames: the
+    window's own length, whatever --frames says (a fixed sequence of events; 0: as long as the body, vr_bench_end ending
+    it). loads: the map loads its window must record (validate checks them)."""
     def __init__(self, name, groups, stresses, map, purpose, pos=None, look=(0, 0), setup=(), body=None, warm=180,
-                 base="qbase", flat=False, hostile=False, header=(), motion=None, load_wait=120):
+                 base="qbase", flat=False, hostile=False, header=(), motion=None, load_wait=120, frames=None, loads=0):
         self.name, self.groups, self.stresses, self.map, self.purpose = name, groups, stresses, map, purpose
         self.pos, self.look, self.setup, self.body, self.warm = pos, look, list(setup), body, warm
         self.base, self.flat, self.hostile, self.header, self.motion = base, flat, hostile, list(header), motion
-        self.load_wait = load_wait
+        self.load_wait, self.frames, self.loads = load_wait, frames, loads
 
 
 def blasts_every(interval, cmd):
@@ -83,6 +87,54 @@ def tour_body(points):
             out += [f"setpos {x} {y} {z} 0 {(yaw + 90 * k) % 360} 0"] + waits(share)
         return out
     return body
+
+
+def events(*evs):
+    """A body: at each (frame, label, commands) a vr_bench_mark of the label, then the commands; the frames between
+    waited. The JSON's "marks" then give each part's worst and mean frame (the last part runs to the window's end)."""
+    def body(frames):
+        out, t = [], 0
+        for at, label, cmds in evs:
+            out += waits(at - t) + [f"vr_bench_mark {label}"] + list(cmds)
+            t = at
+        return out
+    return body
+
+
+def loads_body(cmds, each=150):
+    """A body: each (label, command) a map load then `each` frames (the second after it and more); marked
+    (vr_bench_mark), the new map's monsters kept still (notarget, once the player is there). The window is the body's
+    (frames=0): a load's frames (the VR runtime's loading frames among them) are not known in advance. (Two frames
+    first: the load is not in vr_bench_begin's own frame, which is not recorded.)"""
+    def body(frames):
+        out = waits(2)
+        for label, cmd in cmds:
+            out += [f"vr_bench_mark {label}", cmd] + waits(10) + ["god 1", "notarget 1"] + waits(each - 10)
+        return out
+    return body
+
+
+# The rigged monsters by the firing range's dispenser number (vr_test_spawn; tarbaby 11 has no limbs).
+RIGGED = [(0, "army"), (1, "ogre"), (2, "zombie"), (3, "shambler"), (4, "wizard"), (5, "knight"), (6, "hknight"),
+          (7, "dog"), (8, "enforcer"), (9, "demon"), (10, "shalrath"), (12, "gremlin"), (13, "scourge"), (14, "mummy")]
+
+
+def first_cuts_body(frames):
+    """Each rigged kind spawned ahead (impulse 241), then killed by a slash at a limb (vr_limb_test 4) 25 frames later;
+    then all again: marks spawn<round>_<kind> and cut<round>_<kind>, so the first cut of each kind (its limb models,
+    its ragdoll's first use) shows as that part's worst frame, and the second round is the same cut warm."""
+    out = []
+    for rnd, dist in ((1, 90), (2, 150)):
+        for i, (k, name) in enumerate(RIGGED):
+            out += [f"vr_mock_look 0 {(i * 25 + (rnd - 1) * 12) % 360}", f"vr_test_spawn_dist {dist}", f"vr_test_spawn {k}",
+                    f"vr_bench_mark spawn{rnd}_{name}", "impulse 241"] + waits(25)
+            out += [f"vr_bench_mark cut{rnd}_{name}", "vr_limb_test 4"] + waits(35)
+    return out
+
+
+GORE = ["vr_ragdoll 1", "vr_gore_test_crowd 1024"]  # (the crowd tests: every monster at once, one line)
+GRUNTS = ("monster_army",)
+CROWD_MIX = ("monster_army", "monster_knight", "monster_enforcer", "monster_ogre")
 
 
 def spawn_grid(count, kinds, x0=180, dx=48, per_row=8, dy=48):
@@ -192,6 +244,45 @@ def scenarios():
     add("torches_32", ["vfx", "lights"], "32 wall torches: fire particles and flickering lights", RANGE,
         "32 more wall torches (35 emitters): fire particles, their lights.",
         setup=["vr_walltorch 1", "vr_fire_particles 1"] + [f"vr_physics_spawn light_torch_small_walltorch {96 + (i // 8) * 48} {(i % 8 - 3.5) * 40:g}" for i in range(32)])
+    # ---- gore: crowds dismembered at once (the limb and head tests on every monster: vr_gore_test_crowd), the limbs
+    # lying about, the first cut of each kind. Marks: before, the blow's frames, after (the parts falling).
+    blow = lambda *cmds: events((0, "before", []), (10, "blow", cmds), (16, "after", []))
+    add("gore_slash_32", ["gore", "core"], "32 grunts each killed by a slash at a limb in one frame", RANGE,
+        "vr_limb_test 4 on 32 grunts at once (vr_gore_test_crowd): 32 limbs cut off, 32 ragdolls made, blood; then "
+        "the bodies and limbs falling.", setup=GORE + ["vr_ragdoll_max 32", "vr_limbs_max 64"]
+        + spawn_grid(32, GRUNTS, x0=100, dy=40), warm=60, body=blow("vr_limb_test 4"))
+    add("gore_dismember_16", ["gore"], "16 grunt corpses cut apart at once (every limb and the head)", RANGE,
+        "16 grunts killed by a slash at a limb in the set-up and left to settle; then vr_limb_test 3 on all of them in "
+        "one frame (whole limbs, then the head: ~80 parts thrown).", setup=GORE + ["vr_ragdoll_max 32", "vr_limbs_max 128"]
+        + spawn_grid(16, GRUNTS, x0=100, dy=48) + waits(30) + ["vr_limb_test 4"], warm=300, body=blow("vr_limb_test 3"))
+    add("gore_blast_crowd_32", ["gore", "physics"], "4 rockets' blasts in a crowd of 32 (limbs popped)", RANGE,
+        "32 grunts, knights, enforcers and ogres; four 120-damage explosions among them in one frame "
+        "(vr_physics_blast, vr_limbs_blast 1): kills, limbs popped near each blast, gibs, ragdolls.",
+        setup=GORE + ["vr_ragdoll_max 32", "vr_limbs_max 64", "vr_limbs_blast 1"] + spawn_grid(32, CROWD_MIX, x0=100, dy=40),
+        warm=60, body=blow(*[f"vr_physics_blast {x} {y} 40 120" for x in (192, 96) for y in (-636, -476)]))
+    for g, what in ((1, "their limbs besides Quake's gibs"), (2, "their limbs instead of the meat gibs"),
+                    (0, "Quake's gibs only (control)")):
+        add(f"gore_gib_limbs{g}_24", ["gore"] + (["control"] if g == 0 else []), f"24 grunts gibbed at once: {what}",
+            RANGE, f"vr_limb_test 10 on 24 grunts in one frame with vr_gib_limbs {g}: {what}.",
+            setup=GORE + [f"vr_gib_limbs {g}", "vr_limbs_max 128"] + spawn_grid(24, GRUNTS, x0=100, dy=40), warm=60,
+            body=blow("vr_limb_test 10"))
+    add("gore_headpop_24", ["gore"], "24 heads popped at once (super shotgun headshots)", RANGE,
+        "vr_decap_test 14 on 24 grunts in one frame (a super shotgun blast at each head at health 1; vr_decap_pop_roll 0: "
+        "every head pops): head gibs, brains, blood.", setup=GORE + ["vr_decap_pop_roll 0"]
+        + spawn_grid(24, GRUNTS, x0=100, dy=40), warm=60, body=blow("vr_decap_test 14"))
+    limbs64 = ["vr_ragdoll 1", "vr_limbs_max 64", "vr_physics_spawn monster_army 90 0"] + waits(20) + ["vr_limb_test 11"]
+    add("gore_limbs_64", ["gore", "physics"], "64 cut-off limbs lying about (Most Limbs 64)", RANGE,
+        "vr_limb_test 11 with vr_limbs_max 64: 128 limbs thrown, the 64 newest kept; left to land and settle: what "
+        "many limbs lying about cost.", setup=limbs64, warm=400)
+    add("gore_limbs_cap", ["gore", "physics"], "128 limbs thrown every half second over a cap of 64", RANGE,
+        "gore_limbs_64, then vr_limb_test 11 every 45 frames: 128 more thrown each time, the oldest removed past "
+        "Most Limbs (the cap's churn).", setup=limbs64, warm=120,
+        body=blasts_every(45, lambda i, r: ["vr_limb_test 11"]))
+    add("gore_first_cuts", ["gore"], "the first limb cut of each of 14 monster kinds, then each again (hitches)", RANGE,
+        "Each rigged kind spawned ahead and slashed at a limb 25 frames later, twice round (marks spawn1_<kind>, "
+        "cut1_<kind>, ... cut2_<kind>): the first cut's worst frame against the second's (limb models made, ragdoll "
+        "first used: whatever the build does at the first cut).", setup=GORE[:1] + ["vr_gore_test_crowd 400",
+        "vr_ragdoll_max 32", "vr_limbs_max 64"], warm=30, frames=0, body=first_cuts_body)
     # ---- lights
     add("lights_32", ["lights", "core"], "32 overlapping shadow-casting dynamic lights", RANGE,
         "vr_light_test x32 ahead: dynamic lights, their shadow maps (vr_shadow_dlights' slots), lit models.",
@@ -220,12 +311,37 @@ def scenarios():
     # ---- menus and loading
     add("menu_open_e1m1", ["features"], "the VR menu open over E1M1 (text panels)", "e1m1",
         "idle_e1m1 with the VR settings menu open: the 3D text and panels' cost.", setup=["menu_vr"], warm=60)
-    add("mapload_e1m2", ["loading"], "a map change: E1M1 to E1M2 inside the window (the load hitch)", "e1m1",
-        "The measured window spans `map e1m2`: the worst frame is the load; then E1M2's first seconds (precache, "
-        "first-use hitches).", body=lambda frames: ["map e1m2"] + waits(frames), warm=60)
+    # Map loads (the JSON's "loads": each one's total from its command to its first frame drawn, its stages and its
+    # kinds of work, the worst frame of the second after it). No map before the window: the first load is the process's
+    # first of that map (cold: the engine's caches empty; the OS's file cache as it is); the second the same map again
+    # (warm: the models and their skins kept); restart the server's own reload. Frames unpaced (host_maxfps 0) so the
+    # load's frames hold no frame cap's waits.
+    LOADS = ["host_maxfps 0"]
+    add("load_e1m1", ["loading", "core"], "E1M1 loaded cold, again warm, then restarted (map load times)", None,
+        "`map e1m1` with nothing loaded before (cold), `map e1m1` again (warm), `restart`: each load's stages "
+        "(BSP, lightmaps, textures, models, QuakeC spawn, VR prepare, first frame) and the second after it.",
+        setup=LOADS, warm=30, body=loads_body([("cold", "map e1m1"), ("warm", "map e1m1"), ("restart", "restart")]), loads=3, frames=0)
+    add("load_e1m1_qrp", ["loading", "textures"], "E1M1 loaded cold and warm on QRP (external textures, normal maps)",
+        None, "load_e1m1's cold and warm loads on the QRP base: the replacement textures' and their material maps' share.",
+        base="qrp", setup=LOADS, warm=30, body=loads_body([("cold", "map e1m1"), ("warm", "map e1m1")]), loads=2, frames=0)
+    add("load_e4m7", ["loading"], "E4M7, id's biggest BSP, loaded cold and warm", None,
+        "`map e4m7` cold, then again: the largest of id's maps (1.5 MB BSP).", setup=LOADS, warm=30,
+        body=loads_body([("cold", "map e4m7"), ("warm", "map e4m7")]), loads=2, frames=0)
+    add("load_hip1m1", ["loading"], "a campaign switch: Scourge of Armagon's first map, again, then back to E1M1", None,
+        "`map hip1m1` from Quake's campaign (its game folders rebuilt: the campaign stage), again (no switch), then "
+        "`map e1m1` (the switch back).", setup=LOADS, warm=30,
+        body=loads_body([("switch", "map hip1m1"), ("warm", "map hip1m1"), ("back", "map e1m1")]), loads=3, frames=0)
+    add("load_changelevel", ["loading"], "in-game level changes: E1M1 to E1M2 and back (changelevel)", "e1m1",
+        "`changelevel e1m2` from E1M1 (the in-game path: spawn parms kept), then `changelevel e1m1` (its models "
+        "warm); each load and the second after it (first-use hitches).", setup=LOADS, warm=60,
+        body=loads_body([("e1m2", "changelevel e1m2"), ("e1m1", "changelevel e1m1")]), loads=2, frames=0)
+    for m in ("warden", "ad_grendel"):
+        add(f"load_{m}", ["loading", "maps"], f"the custom map {m} loaded cold and warm ({TOUR_SOURCES[m]})", None,
+            f"`map {m}` cold (its map package mounted), then again: heavy geometry, many entities and lights.",
+            setup=LOADS, warm=30, body=loads_body([("cold", f"map {m}"), ("warm", f"map {m}")]), loads=2, frames=0)
     add("timedemo_demo1_flat", ["loading", "flat"], "id's demo1 played as fast as it goes (timedemo), flat", "start",
         "The classic `timedemo demo1` in flat mode inside the window: a replayed game's frames (its own fps line too).",
-        flat=True, body=lambda frames: ["timedemo demo1"] + waits(frames), warm=30)
+        flat=True, body=lambda frames: ["timedemo demo1"] + waits(frames), warm=30, loads=1)  # (the demo's map)
     # ---- complex custom maps
     for m, pts in TOURS.items():
         add(f"tour_{m}", ["maps"], f"complex custom map: 6 places x 4 directions ({TOUR_SOURCES[m]})", m,
@@ -266,16 +382,23 @@ def script(sc, tag, frames, hz, eye, realtime, settings, motion_path, shot=False
     lines += ["vr_enabled 0" if sc.flat else "vr_enabled 1", "vr_fixed_frames 1", f"vr_fixed_frames_rate {hz}",
               f"vr_mock_eye_size {eye}", "vid_vsync 0", f"host_maxfps {hz if realtime else 0}", "con_notifytime 0",
               "vr_tips 0", "developer 0", "sv_autosave 0", "vr_profile 0", "vr_particle_seed 7", "vr_mock_look 0 0"]
-    lines += sc.header + waits(10) + ["vr_bench_seed 7", f"map {sc.map}"] + waits(sc.load_wait)
-    lines += ["god 1", "notarget 0" if sc.hostile else "notarget 1"]
-    if sc.pos:
-        lines += [f"setpos {sc.pos}"]
+    lines += sc.header + waits(10)
+    if sc.map:
+        lines += ["vr_bench_seed 7", f"map {sc.map}"] + waits(sc.load_wait)
+        lines += ["god 1", "notarget 0" if sc.hostile else "notarget 1"]
+        if sc.pos:
+            lines += [f"setpos {sc.pos}"]
     lines += [f"vr_mock_look {sc.look[0]} {sc.look[1]}", "vr_bench_seed 7"] + sc.setup
     if sc.motion:
         lines += [f'vr_mock_play "{motion_path}"']
-    lines += waits(sc.warm) + ["echo BENCH_SETUP_DONE", f"vr_bench_begin {tag} {frames}"]
-    body = sc.body(frames) if sc.body else []
-    lines += body + waits(max(0, frames - sum(1 for x in body if x == "wait")) + 20)
+    if sc.frames == 0:
+        # The window lasts the body (vr_bench_end ends it): a sequence whose frames are not known in advance (a load's
+        # frames: the VR runtime's loading frames among them).
+        lines += waits(sc.warm) + ["echo BENCH_SETUP_DONE", f"vr_bench_begin {tag}"] + sc.body(frames) + waits(20)
+    else:
+        lines += waits(sc.warm) + ["echo BENCH_SETUP_DONE", f"vr_bench_begin {tag} {frames}"]
+        body = sc.body(frames) if sc.body else []
+        lines += body + waits(max(0, frames - sum(1 for x in body if x == "wait")) + 20)
     # (the window has ended by itself by now: a screenshot here costs it nothing)
     lines += ["vr_bench_end"] + (["screenshot", "wait"] if shot else []) + ["echo BENCH_DONE", "disconnect"]
     lines += waits(5) + ["quit"]
@@ -316,7 +439,81 @@ def aggregate(rs):
         out[f"cpu.{phase}"] = statistics.median(r["cpu_phase_ms"][phase] for r in rs)
     for c in rs[0]["counts"]:
         out[f"count.{c}"] = statistics.median(r["counts"][c]["avg"] for r in rs)
+    # The window's parts (vr_bench_mark): each one's worst frame (median over the repeats) and its mean.
+    for i, m in enumerate(rs[0].get("marks", [])):
+        same = [r["marks"][i] for r in rs if len(r.get("marks", [])) > i and r["marks"][i]["label"] == m["label"]]
+        out[f"mark.{m['label']}.max_ms"] = statistics.median(x["max_ms"] for x in same)
+        out[f"mark.{m['label']}.avg_ms"] = statistics.median(x["avg_ms"] for x in same)
+    # The map loads: each one's total, its first frame, the worst frame of the second after it, and its stages.
+    for i, ld in enumerate(rs[0].get("loads", [])):
+        same = [r["loads"][i] for r in rs if len(r.get("loads", [])) > i]
+        k = f"load{i + 1}"
+        out[f"{k}.what"] = ld["what"]
+        out[f"{k}.total_ms"] = statistics.median(x["total_ms"] for x in same)
+        out[f"{k}.first_frame_ms"] = statistics.median(x["first_frame"]["max_ms"] for x in same)
+        out[f"{k}.after_max_ms"] = statistics.median(x["after"]["max_ms"] for x in same)
+        for cat, ms in load_categories(ld).items():
+            out[f"{k}.{cat}_ms"] = statistics.median(load_categories(x).get(cat, 0.0) for x in same)
     return out
+
+
+# A load's stages (vr_startup_times' marks) gathered into the phases a reader looks for; the rest stays "other".
+LOAD_PHASES = [("command", ("map:", "command:", "load:")), ("bsp", ("server: world model",)),
+               ("qc_spawn", ("server: entities spawned",)), ("physics_init", ("server: 2 frames",)),
+               ("server_other", ("server:",)), ("models", ("client: models",)), ("sounds", ("client: sounds",)),
+               ("lightmaps", ("R_NewMap: lightmaps",)), ("renderer", ("R_NewMap", "client: R_NewMap")),
+               ("vr_prepare", ("VR_NewMap",)), ("signon", ("frames to the signon",)), ("first_frame", ("first frame drawn",))]
+# Kinds of work across the stages (VR_TimeAdd sums), by the start of their names.
+LOAD_WORK = [("textures", "textures processed and uploaded"), ("images", "image files found"),
+             ("alias_models", "alias models (.mdl) loaded"), ("normal_maps", "normal maps made"),
+             ("extmaps", "external material maps"), ("ragdoll_rigs", "ragdoll: the map's rigs"),
+             ("hulls", "hull: the map's brushes"), ("box3d_mesh", "box3d: the world's mesh")]
+
+
+def load_categories(ld):
+    out = {}
+    for name, ms in ld["stages"]:
+        cat = next((c for c, prefixes in LOAD_PHASES if name.startswith(prefixes)), "other")
+        out[cat] = out.get(cat, 0.0) + ms
+    for name, ms, _ in ld["work"]:
+        for cat, prefix in LOAD_WORK:
+            if name.startswith(prefix):
+                out[f"work_{cat}"] = out.get(f"work_{cat}", 0.0) + ms
+    return out
+
+
+def loads_report(root):
+    """Each loading scenario's loads: the phases (median over the repeats, ms) and the second after."""
+    runs = load_runs(root)
+    phases = [c for c, _ in LOAD_PHASES] + ["other"] + [f"work_{c}" for c, _ in LOAD_WORK]
+    lines = []
+    for name, rs in sorted(runs.items()):
+        if not rs[0].get("loads"):
+            continue
+        agg = aggregate(rs)
+        lines.append(f"### {name}\n")
+        lines.append("| load | total | " + " | ".join(phases) + " | worst after |")
+        lines.append("|" + "---|" * (len(phases) + 3))
+        for i in range(len(rs[0]["loads"])):
+            k = f"load{i + 1}"
+            cells = [f"{agg.get(f'{k}.{c}_ms', 0.0):.1f}" for c in phases]
+            lines.append(f"| {agg[f'{k}.what']} | {agg[f'{k}.total_ms']:.1f} | " + " | ".join(cells)
+                         + f" | {agg[f'{k}.after_max_ms']:.1f} |")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def marks_report(root):
+    """Each scenario's window parts (vr_bench_mark): the worst and mean frame (median over the repeats)."""
+    lines = []
+    for name, rs in sorted(load_runs(root).items()):
+        marks = rs[0].get("marks", [])
+        if not marks:
+            continue
+        agg = aggregate(rs)
+        parts = ", ".join(f"{m['label']} {agg['mark.' + m['label'] + '.max_ms']:.2f}" for m in marks)
+        lines.append(f"- {name} (worst frame, ms): {parts}")
+    return "\n".join(lines)
 
 
 def summarize(root):
@@ -340,6 +537,11 @@ def summarize(root):
                   f"{r['heap_allocs.avg']:.1f} |")
     m = manifest(root)
     md = [f"{k}: {m[k]}  " for k in ("label", "tree", "mode", "reps", "settings") if k in m] + [""] + md
+    marks, loads = marks_report(root), loads_report(root)
+    if marks:
+        md += ["", "## Window parts (vr_bench_mark)", "", marks]
+    if loads:
+        md += ["", "## Map loads (ms; stages gathered into phases, work summed across them)", "", loads]
     (Path(root) / "summary.md").write_text("\n".join(md) + "\n")
     print("\n".join(md))
 
@@ -366,14 +568,16 @@ def compare(base, new, threshold):
     flagged = 0
     for name in sorted(set(a) & set(b)):
         ra, rb = aggregate(a[name]), aggregate(b[name])
-        for series, stat in KEYS:
+        extra = [tuple(k.rsplit(".", 1)) for k in ra if (k.startswith("mark.") and k.endswith(".max_ms"))
+                 or (k.startswith("load") and k.endswith((".total_ms", ".first_frame_ms", ".after_max_ms")))]
+        for series, stat in KEYS + extra:
             k = f"{series}.{stat}"
             if k not in ra or k not in rb:
                 continue
             x, y = ra[k], rb[k]
             pct = (y - x) / x * 100 if x else 0.0
             # Past the noise: the relative change and an absolute floor (sub-0.05 ms moves are timer noise).
-            flag = abs(pct) >= threshold and abs(y - x) >= (0.05 if series.endswith("_ms") else 0.5)
+            flag = abs(pct) >= threshold and abs(y - x) >= (0.05 if series.endswith("_ms") or stat.endswith("_ms") else 0.5)
             flagged += flag
             print(f"| {name} | {k} | {x:.3f} | {y:.3f} | {pct:+.1f}%{' **' if flag else ''} |")
     for name in sorted(set(a) ^ set(b)):
@@ -384,8 +588,9 @@ def compare(base, new, threshold):
 def validate(root):
     """Each scenario's repeats started their windows with the same edicts, monsters alive and Box3D bodies (exact),
     and decals within 5% (blood and bullet marks of a fight in the set-up land a few more or fewer: they follow the
-    threads' timing, not only the seeded random numbers)."""
+    threads' timing, not only the seeded random numbers); the same marks; and the map loads the scenario makes."""
     runs = load_runs(root)
+    table = scenarios()
     bad = 0
     for name, rs in sorted(runs.items()):
         exact = [tuple(r["counts"][c]["start"] for c in ("edicts", "monsters_alive", "box3d_bodies")) for r in rs]
@@ -393,10 +598,15 @@ def validate(root):
         same = all(e == exact[0] for e in exact)
         close = max(decals) - min(decals) <= max(2, 0.05 * max(decals))
         frames = [r["frame"]["frame_ms"]["n"] for r in rs]
-        ok = same and close and all(f == rs[0]["frames"] for f in frames)
+        marks = [len(r.get("marks", [])) for r in rs]
+        loads = [len(r.get("loads", [])) for r in rs]
+        want = table[name].loads if name in table else 0
+        fixed = not (name in table and table[name].frames == 0)
+        ok = (same and close and (not fixed or all(f == rs[0]["frames"] for f in frames)) and all(m == marks[0] for m in marks)
+              and all(n == want for n in loads))
         bad += not ok
         print(f"{name:28} runs={len(rs)} frames={frames} edicts/monsters/bodies={exact[0]} decals={decals} "
-              f"{'same' if same and close else 'DIFFERENT'}{'' if ok else '  <- FAIL'}")
+              f"marks={marks} loads={loads}/{want} {'same' if same and close else 'DIFFERENT'}{'' if ok else '  <- FAIL'}")
     print(f"validate: {len(runs)} scenarios, {bad} failing")
     return bad
 
@@ -429,18 +639,22 @@ def main():
     v.add_argument("root")
     br = sub.add_parser("brief")
     br.add_argument("json")
+    lr = sub.add_parser("loads", help="the loading scenarios' loads by phase, and every scenario's marks")
+    lr.add_argument("root")
     a = p.parse_args()
     if a.cmd == "list":
         table = scenarios()
         for n in select(a.group):
             x = table[n]
-            print(n if a.names else f"{n:28} {x.base:5} {x.map:14} {'/'.join(x.groups):24} {x.stresses}")
+            print(n if a.names else f"{n:28} {x.base:5} {x.map or "(none)":14} {'/'.join(x.groups):24} {x.stresses}")
     elif a.cmd == "script":
         sc = scenarios().get(a.scenario)
         if not sc:
             raise SystemExit(f"qvrbench: no scenario {a.scenario}")
         if a.warm is not None:
             sc.warm = a.warm
+        if sc.frames is not None:
+            a.frames = sc.frames  # (a fixed sequence of events: its own length; 0 the body's)
         out = Path(a.out)
         motion = out.with_suffix(".motion.txt")
         if sc.motion:
@@ -448,7 +662,7 @@ def main():
         out.write_text(script(sc, a.tag or sc.name, a.frames, a.hz, a.eye, a.realtime, a.settings,
                               motion.as_posix(), a.shot))
         if a.info:
-            print(f"{sc.base} {sc.map}")
+            print(f"{sc.base} {sc.map or '-'}")
     elif a.cmd == "summarize":
         summarize(a.root)
     elif a.cmd == "compare":
@@ -457,8 +671,17 @@ def main():
         r = json.loads(Path(a.json).read_text())
         f, c, g = r["frame"]["frame_ms"], r["frame"]["cpu_busy_ms"], r["frame"]["gpu_3d_ms"]
         n = {k: v["start"] for k, v in r["counts"].items() if k in ("edicts", "monsters_alive", "box3d_bodies")}
-        print(f"{r['frames']} frames on {r['map']}: frame p50 {f['p50']:.3f} p99 {f['p99']:.3f} max {f['max']:.2f}, "
-              f"cpu {c['avg']:.3f}, gpu 3D {g['avg']:.3f} ms; start {n}")
+        extra = ""
+        if r.get("loads"):
+            extra += "; loads " + ", ".join(f"{x['what']} {x['total_ms']:.0f} ms" for x in r["loads"])
+        if r.get("marks"):
+            worst = max(r["marks"], key=lambda x: x["max_ms"])
+            extra += f"; {len(r['marks'])} marks, worst {worst['label']} {worst['max_ms']:.2f} ms"
+        print(f"{r['frames']} frames on {r['map'] or '-'}: frame p50 {f['p50']:.3f} p99 {f['p99']:.3f} max {f['max']:.2f}, "
+              f"cpu {c['avg']:.3f}, gpu 3D {g['avg']:.3f} ms; start {n}{extra}")
+    elif a.cmd == "loads":
+        print(marks_report(a.root))
+        print(loads_report(a.root))
     elif a.cmd == "validate":
         sys.exit(1 if validate(a.root) else 0)
 

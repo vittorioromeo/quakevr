@@ -1992,16 +1992,20 @@ static void Host_Map_f (void)
 	if (cmd_source != src_command)
 		return;
 
+	VR_TimeLoadCommand (va ("map %s", Cmd_Argv(1))); // QVR: load timing from the command (vr_startup_times)
 	if (!VR_AddonForMapCommand(Cmd_Argv(1))) // QVR: a map package's folder mounted, or the stock game's again
 		return;
+	VR_TimeMark ("map: map package folders"); // QVR
 	if (!VR_CanLoadCampaignMap(Cmd_Argv(1)))
 		return;
+	VR_TimeMark ("map: campaign (game folders)"); // QVR
 
 	VR_OnFreshStart (); // QVR
 	cls.demonum = -1;		// stop demo loop in case this fails
 
 	CL_Disconnect ();
 	Host_ShutdownServer(false);
+	VR_TimeMark ("map: disconnect, old server shut down"); // QVR
 
 	if (cls.state != ca_dedicated)
 		IN_Activate();
@@ -2139,6 +2143,7 @@ static void Host_Changelevel_f (void)
 	q_strlcpy (level, Cmd_Argv(1), sizeof(level));
 	if (!strcmp (sv.name, level) && Host_AutoLoad ())
 		return;
+	VR_TimeLoadCommand (va ("changelevel %s", level)); // QVR: load timing from the command (vr_startup_times)
 
 	if (cls.state != ca_dedicated)
 		IN_Activate();	// -- S.A.
@@ -2174,6 +2179,7 @@ static void Host_Restart_f (void)
 		return;
 
 	q_strlcpy (mapname, sv.name, sizeof(mapname));	// mapname gets cleared in spawnserver
+	VR_TimeLoadCommand (va ("restart %s", mapname)); // QVR: load timing from the command (vr_startup_times)
 	PR_SwitchQCVM(&sv.qcvm);
 	SV_SpawnServer (mapname);
 	PR_SwitchQCVM(NULL);
@@ -2543,6 +2549,7 @@ static void Host_Loadgame_f (void)
 	// When loading a file that doesn't belong to a mod dir we only accept KEX saves
 	if (Cmd_Argc () >= 3 && q_strcasecmp (Cmd_Argv (2), "kex") == 0)
 		kexonly = true;
+	VR_TimeLoadCommand (va ("load %s", Cmd_Argv(1))); // QVR: load timing from the command (vr_startup_times)
 
 	if (nomonsters.value)
 	{
@@ -2746,6 +2753,7 @@ static void Host_Loadgame_f (void)
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
 		svs.clients->spawn_parms[i] = spawn_parms[i];
 	VR_OnLoadGame (); // QVR
+	VR_TimeMark ("load: the saved game's entities"); // QVR
 
 	PR_SwitchQCVM(NULL);
 

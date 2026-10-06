@@ -4144,6 +4144,9 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
                   "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "
                   "the console (docs/vr-port/BENCHMARKS.md). Stand still and press it."),
+        command("Load Times", "vr_startup_times")
+            .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
+                  "first frame drawn: the stages, then the kinds of work across them), and every load's total."),
         header("Threads"),
         toggle("Split Work Between Threads", vr_jobs_parallel)
             .help("The game's thread pool shares out the grasp solve, the liquids' volume, the decal atlas and the models' "
@@ -4518,6 +4521,16 @@ za::Vector<Item> pageDebugTools()
         command("Where Its Limbs Map", "vr_limb_test 13").help("vr_limb_test 13: each limb's surface point and the joint a hit there cuts."),
         command("The Limbs Lying About", "vr_limb_test 17").help("vr_limb_test 17: each limb thrown: its model, where it is, how fast (none fallen out of the world)."),
         command("Hand to the Last Limb", "vr_limb_test 14").help("vr_limb_test 14: the mock main hand put on the last limb thrown (then grip: vr_mock_button main grip 1; vr_limb_test 15 says if it is held)."),
+        header("Crowd Gore Tests (goretest: crowd ... in the console; the benchmarks' gore scenarios)"),
+        slider("Crowd Radius", vr_gore_test_crowd, 0.f, 1024.f, 64.f, "%.0f units")
+            .help("Above 0, the limb and head tests act on every monster this near you at once, in one frame, quietly (one "
+                  "goretest: crowd line): Crowd: ... below, or any test above. 0: the nearest monster only (vr_gore_test_crowd)."),
+        command("Spawn a Crowd (16 Grunts)", "vr_physics_spawn monster_army 100 -60;vr_physics_spawn monster_army 100 -20;vr_physics_spawn monster_army 100 20;vr_physics_spawn monster_army 100 60;vr_physics_spawn monster_army 148 -60;vr_physics_spawn monster_army 148 -20;vr_physics_spawn monster_army 148 20;vr_physics_spawn monster_army 148 60;vr_physics_spawn monster_army 196 -60;vr_physics_spawn monster_army 196 -20;vr_physics_spawn monster_army 196 20;vr_physics_spawn monster_army 196 60;vr_physics_spawn monster_army 244 -60;vr_physics_spawn monster_army 244 -20;vr_physics_spawn monster_army 244 20;vr_physics_spawn monster_army 244 60")
+            .help("vr_physics_spawn: 16 grunts in a 4 by 4 grid ahead of you (notarget keeps them still)."),
+        command("Crowd: Slash a Limb", "vr_limb_test 4").help("vr_limb_test 4 on the crowd (Crowd Radius above 0): each killed by a slash at a limb."),
+        command("Crowd: Cut Corpses Apart", "vr_limb_test 3").help("vr_limb_test 3 on the crowd's corpses: every limb and the head cut off."),
+        command("Crowd: Gib", "vr_limb_test 10").help("vr_limb_test 10 on the crowd: each gibbed (its limbs thrown: Gibbed Bodies Throw Limbs)."),
+        command("Crowd: Head Pops", "vr_decap_test 14").help("vr_decap_test 14 on the crowd: a super shotgun headshot each (head pop by chance: vr_decap_pop_roll 0 pops all)."),
         header("Head Pop Chance Tests (poptest: ... in the console)"),
         slider("Test Range", vr_decap_poptest_dist, 0.5f, 25.f, 0.5f, "%.1f lengths")
             .help("The tests below shoot (or throw) from this many player lengths (56 units) off the nearest live monster's head "
