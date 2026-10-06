@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Decisions applied: Horde solo death restarts the arena (no autoload); gibs and heads thrown at 7 m/s+ burst on walls, softer throws stick (Hard Throw Bursts: right threshold?); rottweiler headshots and beheading work; multiplayer rocks/bricks follow single player's count
 Server tick: game logic now runs at a steady 72 Hz at any refresh rate (was 36-60): check smoothness, melee and physics at 72 Hz and your highest rate; Debug > Profiling and Memory > Server Tick Stats ~72/s; toggle Fixed 72 Hz Server Tick off to compare
 Saved games (the firing-range corruption): change Dummy Enemy, cut limbs, get an autosave, die and respawn: every model right (no gremlin pillars, no head-gib buttons); loading an old save says so in the console and once on screen
 Head pops: shotgun and super shotgun headshot kills pop up close, rarer with range (shotgun sooner), never far away; lightning always; heavy thrown things pop (Gore > Decapitation > Head Pop Chance)
