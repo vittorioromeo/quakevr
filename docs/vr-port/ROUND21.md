@@ -27222,3 +27222,78 @@ and e1m2 run clean in Debug).
 
 Nothing to see in VR: the changes are failure paths (out of memory, a throwing constructor) and a bound that
 ordinary frames never reach.
+## mimalloc: the process's heap (2026-10-07)
+
+PROFILING_2026-10.md's item 6 (the load's workers contending on the C runtime's heap): mimalloc v3.5.4 (MIT,
+`Quake/vr/external/mimalloc`, its README: why v3) now serves malloc/free, calloc/realloc, `_msize`, `_expand`,
+`_recalloc`, the whole `_aligned_*` family, strdup/wcsdup, and through them operator new/delete (vr_alloccount.cpp's
+call malloc/free and `_aligned_malloc`/`_aligned_free`), for the engine and every library linked into the executable
+(the codecs, miniz, stb_image, lodepng, json.c, Box3D's callbacks, Zancle).
+
+How (`Quake/vr/vr_crtheap.c`): the engine stays on the DLL C runtime (/MD; the codec libraries, SDL2, libcurl, OpenXR
+and Steam Audio are built for it), where every call goes through an import pointer (`__imp_malloc`, the headers declare
+the functions dllimport). The file defines those functions and their import pointers itself; the linker takes an
+object's definitions over ucrt.lib's, so the executable imports no heap function from the C runtime at all
+(`llvm-readobj --coff-imports`: before, malloc, free, calloc, realloc, `_aligned_malloc`, `_aligned_free`, `_strdup`;
+after, none). Upstream's two Windows overrides were set aside: the redirection DLL (`mimalloc-redirect.dll`, a closed
+binary that patches ucrtbase for the whole process, shipped beside a mimalloc DLL) and the static C runtime (/MT,
+which the prebuilt codec libraries and the FILE/heap sharing with the DLLs rule out).
+
+Cross-heap safety: the DLLs (SDL2, libcurl, zlib, the OpenXR loader, Steam Audio) keep ucrtbase's heap. A block the C
+runtime allocated itself and the engine frees (`_fullpath(NULL)`, `_getcwd(NULL)`, `_dupenv_s`) is sent back to the C
+runtime: free, realloc, `_msize`, `_aligned_free` and the rest look the pointer up in mimalloc's page map
+(`mi_is_in_heap_region`) and give any other to ucrtbase's own function, counted (`vr_heap`: 0 in every run here). The
+other way, a mimalloc block freed by a DLL, cannot be caught: audited, none happens (SDL memory goes back with
+`SDL_free`, curl's with its own calls and `curl_slist_free_all`, Steam Audio has no allocator callbacks set, OpenXR
+fills the engine's buffers; no iostreams or locale facets, whose objects msvcp140 would delete).
+
+Switches: `-nomimalloc` on the command line or `QVR_MIMALLOC=0` in the environment (read at the first allocation)
+forwards every call to ucrtbase (an A/B in one build); MSBuild `-p:QVR_MIMALLOC=false` / CMake `-DQVR_MIMALLOC=OFF`
+build without it (the import table has the C runtime's heap again). x64 only in MSBuild (32-bit's import names
+differ). CMake elsewhere: mimalloc's own `MI_MALLOC_OVERRIDE` (Linux; not macOS); not built here (configure checked on
+Windows only). mimalloc's environment options work as upstream documents (`MIMALLOC_SHOW_STATS=1`, `MIMALLOC_VERBOSE=1`,
+`MIMALLOC_PURGE_DELAY=...`).
+
+Console (Debug > Profiling and Memory > Memory): `vr_heap` (the heap, mimalloc's messages and errors, the working set
+and commit, mimalloc's reserved/committed memory, threads, arenas), `vr_heap stats` (mimalloc's table and options),
+`vr_heap test` (PASS: 11 kinds of block are mimalloc's, contents, zeroing, alignment, `realloc(p, 0)` frees, the C
+runtime's own blocks go back to it), `vr_heap stress [threads] [ms]` (threads allocating and freeing, a quarter freed
+by another thread, each block checked), `vr_heap collect` (`mi_collect(true)`).
+
+Measured (Release, the kit's bench, realtime and exclusive; the machine shared with other agents' builds, so the
+medians of 7 runs for warden and ad_grendel: three sets, two of them interleaved base/mimalloc; 3 for e1m1), the load's
+total, ms:
+
+| load | C runtime | mimalloc (1 s purge) | mimalloc (purge at once, the default) |
+|---|---|---|---|
+| warden cold | 2252 | 1356 (-40%) | 1613 (-28%, n=3) |
+| warden warm | 2764 | 1293 (-53%) | 1547 (-44%, n=3) |
+| ad_grendel cold | 1568 | 1435 (-8%) | 1440 (-8%, n=3) |
+| ad_grendel warm | 1765 | 977 (-45%) | 1200 (-32%, n=3) |
+| e1m1 cold / warm / restart | 896 / 245 / 226 | 727 / 216 / 197 | 813 / 222 / 218 |
+
+`combined` (steady frames): CPU a frame 5.7 ms (5.66-8.02) before, 5.6-7.2 after: within the noise; frame p99 31-37 ms
+both. `vr_heap stress` (the allocator alone, each block checked): 8 threads 85 million operations a second against
+the C runtime's 35 (-nomimalloc, same build); 1 thread 29 against 18.
+
+Memory (realtime, `vr_memstats` 300 frames after each load of e1m1, warden, ad_grendel, e1m1 again; working set MB):
+C runtime 323 / 481 / 914 / 860, peak 1302; mimalloc with its default 1 s purge delay 623 / 1645 / 1128 / 954, peak
+1645 (freed pages wait for the delay and then for the next allocation on the same heap: the pool's workers go idle
+holding them; MIMALLOC_PAGE_FULL_RETAIN=0 and a 10 ms delay barely helped); purge at once 388 / 738 / 660 / 554, peak
+1116. So the default is purge at once (vr_crtheap.c sets mimalloc's default before it reads its options;
+MIMALLOC_PURGE_DELAY overrides it), `vr_heap_purge_delay` (Debug > Memory, Heap: Purge Delay) changes it in game:
+1000 for the quickest loads at 0.3-1 GB more held.
+
+Checked: the executable's imports (none of the C runtime's heap functions; a `QVR_MIMALLOC=false` build has them
+again); `vr_heap test` and `vr_alloc_test` PASS with mimalloc, with -nomimalloc and in Debug (MI_DEBUG 2: mimalloc's
+asserts, double and invalid free checks); `vr_heap stress 16 3000` PASS; a run through e1m1, the Map Library's index
+fetched afresh (`maps_fetch force`: libcurl, 18 MB in 10 calls, parsed), warden, ad_grendel, changelevels: 0 calls on
+the C runtime's blocks besides the test's 2, no mimalloc warnings or errors; `bench.sh --validate --scenarios
+loading,gore`: 18 scenarios, 0 failing. Debug: e1m1, e1m2, vrfiringrange and the stress clean; `map warden` in
+Debug ends with exit 42 (an SDL assertion, SDL_ASSERT=abort) with mimalloc and with -nomimalloc alike: not the heap
+(the R_AddBModelCall `num_instances > 0` assertion seen in Debug runs, likely).
+
+In VR:
+- [ ] Play a while (a few maps, gore, the Map Library): no crash, nothing odd; Debug > Memory > Heap Allocator says
+      mimalloc 3.5.4, 0 calls on the C runtime's blocks, 0 errors.
+- [ ] Loads of warden and ad_grendel feel quicker; the frame rate in play unchanged.
