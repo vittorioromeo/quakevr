@@ -123,7 +123,12 @@ int pendingTest = -1; // vr_tips_test's tip, shown once back in the game (the me
     if(!mt->name.empty())
     {
         key += ':';
-        key += mt->name;
+        // vr_tips_seen is a list split at spaces, written to the config in quotes: a name's spaces, quotes and
+        // semicolons become '_' (else its key never matches, and the tip shows again and again).
+        for(const char c : za::StringView{mt->name.cStr()})
+        {
+            key += static_cast<unsigned char>(c) <= ' ' || c == '"' || c == ';' ? '_' : c;
+        }
     }
     else
     {
