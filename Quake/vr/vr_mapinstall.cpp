@@ -157,6 +157,7 @@ struct Request
     za::String root;             // the package's own folder the files go to (addonDir)
     za::U64 zipBytes{0};
     bool install{true};
+    bool wasInstalled{false}; // the registry names it already (otherwise its folder holds nothing of ours yet)
 };
 Request request;
 
@@ -1066,6 +1067,12 @@ int run()
             SDL_AtomicSet(&livePhase, static_cast<int>(Phase::Extract));
             SDL_AtomicSet(&progress, downloadShare);
             const za::U32 e0 = SDL_GetTicks();
+            if(!request.wasInstalled)
+            {
+                // Whatever an unpacking that never finished left (the game killed in the middle of one): the folder is
+                // this package's own, and the registry names nothing in it, so it starts empty.
+                files::removeAll(request.root.cStr());
+            }
             za::String note;
             const bool extracted = extractZip(body, *job, note);
             job->extractMs = static_cast<int>(SDL_GetTicks() - e0);
@@ -1152,6 +1159,11 @@ void start()
     ensureStarted();
 }
 
+namespace
+{
+void takeFinished();
+} // namespace
+
 void finish()
 {
     // Quitting never waits on the network: the job is cancelled (a download stops within a second, an unpacking before
@@ -1179,6 +1191,10 @@ void finish()
         else
         {
             worker.join();
+            if(pendingReady.loadSeqCst())
+            {
+                takeFinished(); // (a job that stopped as the game quit: its unpacked files removed, or recorded)
+            }
         }
     }
     jobRunning.storeSeqCst(false);
@@ -1213,6 +1229,17 @@ void poll()
         }
         return;
     }
+    takeFinished();
+}
+
+namespace
+{
+
+// The job its thread handed off: its console line, and what it wrote recorded (Done) or removed again (anything else).
+// poll(), and finish(): a job that stopped because the game quit is rolled back too (poll() never runs again), so no
+// unpacking leaves files the registry does not name.
+void takeFinished()
+{
     za::UniquePtr<Job> taken;
     {
         za::LockGuard lock{handoff};
@@ -1226,14 +1253,23 @@ void poll()
     static_cast<Job&>(current) = ZA_MOVE(*taken); // (the registered job holds the live one: vr_memstats)
     const Job& j = current;
     Con_SafePrintf("maps: %s - %s\n", j.title.cStr(), j.message.cStr());
-    // A job that did not finish is rolled back: the files its unpacking wrote (new files only: one already on disk is
-    // never overwritten) are removed, so no half-installed package is left offering Play.
+    // A job that did not finish is rolled back: the files its unpacking wrote are removed, so no half-installed package
+    // is left offering Play. Not one the registry names (the package installed before: a pak's file is written over
+    // its own copy, and stays its installed one).
     if(j.phase != Phase::Done)
     {
         int removed = 0;
         for(const InstalledFile& f : j.wrote)
         {
-            removed += files::remove((addonDir(j.sha) + "/" + f.path).cStr()) ? 1 : 0;
+            bool recorded = false;
+            for(const InstalledFile& r : registry.files)
+            {
+                recorded = recorded || (r.sha == f.sha && r.path == f.path);
+            }
+            if(!recorded)
+            {
+                removed += files::remove((addonDir(j.sha) + "/" + f.path).cStr()) ? 1 : 0;
+            }
         }
         if(!installed(j.sha))
         {
@@ -1275,6 +1311,8 @@ void poll()
         // maps_play, the page's Play button), so a package can be got ready without leaving the current map.
     }
 }
+
+} // namespace
 
 const Job& job()
 {
@@ -1325,6 +1363,7 @@ bool begin(const mapindex::Entry* entry, bool install, za::String* why)
     request.root = addonDir(request.sha);
     request.zipBytes = entry->bytes;
     request.install = install;
+    request.wasInstalled = installed(request.sha);
     SDL_AtomicSet(&cancelJob, 0);
     SDL_AtomicSet(&cancelReason, CancelNone);
     SDL_AtomicSet(&progress, 0);
