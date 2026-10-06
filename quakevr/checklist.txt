@@ -1,51 +1,83 @@
-# Focused VR playtest list. Tick items as you verify them; report anything that fails.
-# Older checks and feedback are preserved, not marked complete, in:
-# docs/vr-port/CHECKLIST_ARCHIVE_20261005.txt
-# Saved checklist_ticks.txt is unchanged. Reload List refreshes this page; no rebuild needed.
+# Quake VR playtest checklist (VR menu > Checklist). One line = one quick check; tick what works, tell me what doesn't.
+# Merged and streamlined 2026-10-06 from the previous list and docs/vr-port/CHECKLIST_ARCHIVE_20261005.txt
+# (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
-[Latest fixes]
-Secrets (e1m1): punch and shoot secret walls and the Quad trigger — sparks, no blood; secrets still open and enemies bleed
-Parry: knight and ogre attacks stop after a successful block; compare On/Off in Combat > Parry and Bash
-Flames (e1m2): braziers and wall torches warn then burn hands, and burn the body; no phantom fire after taking a torch
-Weapon pickups (e1m3): fresh guns fire before reloading; regrabbing, holstering and handoffs preserve remaining rounds
-Recording: Bullet Time Effects defaults On; toggling it changes spectator effects without changing the headset
-Animated surfaces: e1m1 diamond buttons, e1m4 buttons, slipgate panels no longer pulse (all frames keep +0's plate sheen); compare Debug > Views > Animated Surfaces on/off
-Single Player menu: "Official Campaigns" is drawn in the big menu font; the new f, c and m read naturally next to id's letters
-Shove near a ledge (vrclimb): grunts shoved off the long ledge or into the trench always go down; down the stairs or toward the thin wall keep the normal chance (Combat > Knockdowns > Over a Ledge, Always)
-Map Library: quitting while the map index downloads on first start no longer crashes; install, Play, Cancel and uninstall from the Installed filter still work
-Flat screen: WSAD responds immediately even while agent test runs are going; typing in other apps no longer lags; after alt-tab, Caps Lock and Print Screen still work in game
-Parallax: walk close along carved walls; compare Graphics > Surfaces Parallax Side Fade 83/86/90 and Refinement 0/4 (no swimming); try Depth Write on with Show Parallax Depth (hands, weapons, gibs, water against relief) and decide if worth 0.1-0.6 ms
-Lightning: killed enemies keep crawling arcs for 3 s and ragdolls convulse (judge strength); burn marks on living hits and kills; vore/no-ragdoll enemies get arcs + burns too; check from spectator view (Gore > Lightning's Shock)
-Retest after QC recompile (your progs.dat was stale until 12:37): head pop chance with the shotgun at range, and lightning shock duration
-Head pops: SSG/SG headshot kills always pop within ~3 player lengths, rarer with range (SG much sooner), never past 15 lengths; lightning always; thrown heavy weapons/props (4 kg+) pop, a thrown shotgun doesn't (Gore > Decapitation > Head Pop Chance)
-Flat menus: corner buttons as an icon row top-left (hover shows names, clicks open pages, keyboard up/left/right/Enter); plaque at 16:10 not covered (Menu Settings to disable)
-VR menus: Spectator camera On/Off switch bottom-left; click toggles it, also while recording
-New defaults (config v89 migrates values still at old defaults): parallax distance 1024, side fade off (90), depth write on; combat knock/burn/knockdown wiggle tweaks; parry stagger 0.75, counter damage 1.5; retro texture look. Fresh config should look like yours
-Combat > Knockdowns: Ledge Reach and Ledge Margin sliders change how far ahead a ledge forces the knockdown
-After a pull, a Visual Studio engine build now compiles QC too (progs.dat time updates)
-Debug > Profiling and Memory > Benchmark Capture (10 s) writes quakevr/profile/bench/manual.json
+[New this week]
+Head pops: shotgun and super shotgun headshot kills pop up close, rarer with range (shotgun sooner), never far away; lightning always; heavy thrown things pop (Gore > Decapitation > Head Pop Chance)
+Lightning: arcs and burn marks on hit enemies; ragdolls convulse after a lightning kill (Gore > Lightning's Shock)
+Shove toward a high ledge: always knocks down; Ledge Reach and Ledge Margin change how far ahead (Combat > Knockdowns)
+Parallax: carved walls keep their depth when seen from the side, no swimming (Graphics > Surfaces)
+Animated buttons and slipgate panels: no pulsing between frames
+Flat screen: WSAD responds at once; corner buttons as an icon row at the top left
+VR menus: Spectator camera On/Off switch at the bottom left
+New defaults: a fresh config looks and plays like yours (parallax, combat, parry, retro)
+Official Campaigns: drawn in the big menu font
+Map tips: the CRT tip near the vrstart start appears; REPEAT tips come back; List This Map's Tips works
 
-[Map tips]
-vrstart: the test tip near the start appears as a CRT screen with its cable when you come into range; its text size follows the map's tip_size
-Tips menu: "List This Map's Tips" prints a proper list (unnamed tips too); Show Tips Again makes a seen tip appear again
-Map tips review: a REPEAT tip shows again after walking away and back; a tip attached to a crate does not reappear after the crate breaks
+[Menus and maps]
+Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
+Map Library: open it both ways, search, filter, sort, install with progress, Play, uninstall; unsupported packages refused clearly
+Map Library: quitting during the first index download doesn't crash; offline start is quiet
+Official Campaigns: base Quake hub, tutorial and range work; Dopa plays through (secrets, saves, carried guns, finale)
+MG1 developer tests: rune returns, electrode buttons, Horde, revival; quake vibration is comfortable
 
-[Map Library]
-Open Maps from the corner button and the main menu's Map Library
-Search, filter and sort smoothly; accented titles and authors read correctly
-Install shows progress; Play is a separate action and installed maps stay remembered
-Unsupported map packages are refused clearly without a partial install
+[Combat]
+Melee hits: head, limb and leg multipliers match your shots; hitbox size and head priority feel right
+Parry: stops knight and ogre attacks and staggers them
+Bullet time: gadget button and wrist tap work; resting or swinging near the wrist doesn't trigger it
+Weapons: magazines and blood stay with each gun through holster, throw, pickup and hand-off; map pickups come loaded
+Weapons: weights feel as tuned; lightning gun second hotspot; crowbar holster poses
+Secrets (e1m1): punching and shooting secret walls gives sparks, not blood; they still open
 
-[Quick regressions]
-Slipgates: walk, reach, shoot and throw through them; frames stay solid and hits land in the correct room
-Several slipgates: destinations and lighting look correct in both eyes and spectator; retargeted exits update; no water splashes
-Used guns: holstering, throwing and handoffs preserve ammunition and blood
+[Fire and torches]
+Burning: torch hits ignite monsters, corpses and crates; flames spread and follow ragdolls; explosive boxes don't burn
+Wall torches: grab, punch, shoot off and knock off with a thrown rock
+Torch flame: upright, upside down and swung looks right; smoke readable; it can burn your other hand
+Map flames (e1m2): braziers and wall torches burn hands and body
+Lava nails: nails through a torch flame fizz and set targets on fire
+
+[Gore]
+Gibs: squish, stick to walls when thrown, burst when punched but not in two-handed throws
+Small gibs and brain chunks: land near the wound; brain chunks fly from head bursts
+Blood: on hands, weapons, holstered guns and boxes; health heals only your wounds; water washes
+Beheading and head pops: grunt, zombie, fiend, shambler, gremlin, mummy
+
+[Ragdolls and physics]
+Ragdolls: every supported monster goes limp unseen (slow motion too), drops its weapon, feels its mass
+Ragdolls: grab, force grab, fling, pile up and burn them; wounds stay where they were hit
+Corpses: collision modes and stepping over or onto them feel right
+Props: two-handed small props never jump; floating props bob, sunk ones rest; big piles behave
+
+[Slipgates]
+Slipgates: walk, reach, shoot and throw through; frames are solid; leaning in doesn't teleport you
+Slipgates: each visible gate shows its own destination in both eyes, flat and spectator; light and shadows pass through; no splashes
+start: the hidden staircase cover stays until all episodes are done
+
+[Graphics]
+Retro textures and lighting: crisp blocks with no crawl; per-category settings and Pick overrides work
+Quetoo maps: walls by a lamp and the flashlight; pick a specular level
+Decals follow relief with no hitch when many land; particles stay sharp in heavy fights
+Flashlight: model, cord and clip-on look and feel right
+
+[Sound and recording]
+Sound: Full-Band Sound and HRTF Anti-Aliasing place sounds clearly, no hiss
+Recording: slow motion with game-time sound and highlight markers line up in Resolve
+Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
+
+[Decide]
+Melee multipliers for blades and the chainsaw; give the fiend a head zone?
+Blunt melee head kills: always pop (now) or use the new chance?
+Ragdolls: masses and blast throw by mass right? Turn ragdolls on by default?
+Thrown axe sticks in explosive boxes? Explosive boxes catch fire?
+Training dummy: heal over time? Make vr_dummy_gib 1 (yours) the default?
+Gibs too heavy to splat on walls: lower the splat speed or the masses?
+Shotgun lag in a fast wiggle too much? Add a Low graphics preset?
+Multiplayer: debris client-only or gameplay; melee speed a server rule?
+Map tips: seen-tips limit (~80), targetname naming clash, tip_delay 0
+Map Library: prune the download cache (about 60 MB per package)?
+
+[Tune]
+Weapon damage, grapple, stamina costs, roll weight and throw damage
 
 [Record]
-Record new melee takes: stand closer with the smaller hitbox and melee speed 3
-
-[Expansion setup]
-Base Quake only: hub, tutorial and firing range work; absent mission packs are labelled unavailable
-Dopa: start from Official Campaigns; check secret returns, saves, carried guns and readable finale (single-player)
-MG1 developer tests: rune returns, electrode buttons, Horde rewards/keys and revival work; quake vibration feels comfortable
-# Dimension of the Machine and Dawn of the Machine native ports remain in progress.
+Record new melee takes: the melee test suite can't run without them
