@@ -89,14 +89,10 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
-MG1 Horde solo: dying loads your earlier save if you saved this session (engine autoload) instead of restarting the arena as the official game does: skip autoload in Horde?
-Saves from another build show a warning once on screen: too naggy while you rebuild often (make it a setting)? Menu help box costs ~3 list rows on every page: OK? Limb weight fractions OK?
-Ragdoll masses: vore 160 kg, centroid 180 kg (its arms outweigh its body): OK?
-Limb gore: explosion reach 96 units pops limbs on a whole grunt beside the blast: OK?
-Main menu: keep the row as "Advanced VR" ("Advanced VR Settings" doesn't fit the flat screen in the big font)? Pages show ~2 fewer rows below the moved shortcut column: OK?
-Multiplayer: default for Rocks and Bricks > Most in Multiplayer (now 0 = none)? More cvars as server rules (melee timing is now one)?
-Gibs: should hard throws BURST on walls (lower Gib Splat Speed below ~200) rather than stick? Rottweiler: add a head zone like the fiend's?
 Map tips: seen-tips limit (~80), targetname naming clash, tip_delay 0
+MG3 (defaults used until you answer): axe buttons only axe/Super Axe? Super Axe burst on a 2nd hit? base health 50 + caps 50/100/20/100? bloody shotguns faster refire? new hi-poly monsters with copied/box rigs?
+Profiling: which of the top 5 (same-map hull cache, AO disk cache, shadow casters per light, low-res retro particles, more hull work)?
+Defaults: which of the ~20 candidate settings from your config (INSTALLER.md appendix)?
 
 [Tune]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
