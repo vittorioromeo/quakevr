@@ -495,12 +495,38 @@ Laser, Lava and SuperLava are only for REGISTERED.
 */
 
 //MED 11/01/96 commented out setmovedir
+float trap_spikeshooter_removed; // VR: the last trap_spikeshooter was removed (its pack missing): the shooters' spawn functions stop
+
+// VR: what a spikeshooter fires, in spikeshooter_use's order (spawnflag 256 is also the engine's "not on easy", and
+// e2m3/r1m7 carry stray flags: those fire plain spikes): 0 spike, 1 laser, 2 fireball, 3 lavaball, 4 rocket, 5 lava.
+float(entity e) spikeshooter_kind =
+{
+    if(mapname == "e2m3" || mapname == "r1m7" || (e.spawnflags & SPAWNFLAG_SUPERSPIKE) || !e.spawnflags)
+        return 0;
+    if(e.spawnflags & SPAWNFLAG_LASER)
+        return 1;
+    if(e.spawnflags & SPAWNFLAG_FIREBALL)
+        return 2;
+    if(e.spawnflags & SPAWNFLAG_LAVABALL)
+        return 3;
+    if(e.spawnflags & SPAWNFLAG_ROCKET)
+        return 4;
+    if(e.spawnflags & (SPAWNFLAG_SUPERLAVA | SPAWNFLAG_LAVASKILL | SPAWNFLAG_LAVASPIKE))
+        return 5;
+    return 0;
+};
+
 void() trap_spikeshooter =
 {
-    if(!VR_Pack_Rogue() && (self.spawnflags &
-        (SPAWNFLAG_LAVASPIKE | SPAWNFLAG_SUPERLAVA | SPAWNFLAG_LAVASKILL | SPAWNFLAG_FIREBALL | SPAWNFLAG_LAVABALL)))
+    local float kind;
+
+    trap_spikeshooter_removed = FALSE;
+    kind = spikeshooter_kind(self);
+    // VR: a projectile only a mission pack has (Hipnotic's lavaball, Rogue's lava spikes): the trap left out without it.
+    if((kind == 3 && !VR_Pack_Hipnotic()) || (kind == 5 && !VR_Pack_Rogue()))
     {
-        dprint("VR: Rogue projectile trap unavailable\n");
+        dprint("VR: mission-pack projectile trap unavailable\n");
+        trap_spikeshooter_removed = TRUE;
         remove(self);
         return;
     }
@@ -508,44 +534,32 @@ void() trap_spikeshooter =
     SetMovedir();
     self.use = spikeshooter_use;
 
-    if(self.spawnflags & SPAWNFLAG_LASER)
+    if(kind == 1)
     {
         precache_model2("progs/laser.mdl");
         precache_sound2("enforcer/enfire.wav");
         precache_sound2("enforcer/enfstop.wav");
     }
-    else if(self.spawnflags & SPAWNFLAG_LAVASPIKE)
-    {
-        precache_model2("progs/lspike.mdl");
-        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
-        precache_sound2("weapons/rocket1i.wav");
-    }
-    else if(self.spawnflags & SPAWNFLAG_SUPERLAVA)
-    {
-        precache_model2("progs/lspike.mdl");
-        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
-        precache_sound2("weapons/spike2.wav");
-    }
-    else if(self.spawnflags & SPAWNFLAG_LAVASKILL)
-    {
-        precache_model2("progs/lspike.mdl");
-        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
-        precache_sound2("weapons/rocket1i.wav");
-        precache_sound2("weapons/spike2.wav");
-    }
-    else if(self.spawnflags & SPAWNFLAG_FIREBALL)
+    else if(kind == 2)
     {
         precache_model("progs/fireball.mdl");
     }
-    else if(self.spawnflags & SPAWNFLAG_LAVABALL)
+    else if(kind == 3)
     {
         precache_model("progs/lavarock.mdl");
         precache_sound2("misc/spike.wav");
     }
-    else if(self.spawnflags & SPAWNFLAG_ROCKET)
+    else if(kind == 4)
     {
         precache_model("progs/missile.mdl");
         precache_sound("weapons/sgun1.wav");
+    }
+    else if(kind == 5)
+    {
+        precache_model2("progs/lspike.mdl");
+        precache_sound2("lavagun/snail.wav");        // lava nail gun cooldown
+        precache_sound2("weapons/rocket1i.wav");
+        precache_sound2("weapons/spike2.wav");
     }
     else
     {
@@ -562,6 +576,8 @@ Continuously fires spikes.
 void() trap_shooter =
 {
     trap_spikeshooter();
+    if(trap_spikeshooter_removed)
+        return; // (removed: its pack missing)
 
     if(self.wait == 0)
         self.wait = 1;
@@ -587,6 +603,8 @@ Continuously fires spikes.
 void() trap_switched_shooter =
 {
     trap_spikeshooter();
+    if(trap_spikeshooter_removed)
+        return; // (removed: its pack missing)
 
     if(self.wait == 0)
         self.wait = 1;

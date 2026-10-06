@@ -361,20 +361,17 @@ void() worldspawn =
     //MED 10/21/96 added flies sound
     precache_sound("misc/flys.wav");
     precache_sound("misc/null.wav"); // QVR: stops the flies (VR_Head_StopFlies)
-    if(VR_Pack_Hipnotic())
-    {
-        //MED 01/13/97 added explosion sounds
-        precache_sound("misc/shortexp.wav");
-        precache_sound("misc/longexpl.wav");
-        precache_sound("misc/foot1.wav");
-        precache_sound("misc/foot2.wav");
-        precache_sound("misc/foot3.wav");
-        precache_sound("misc/foot4.wav");
-        precache_sound("misc/foot5.wav");
-        precache_sound("misc/foot6.wav");
-        precache_sound("misc/foot7.wav");
-
-    }
+    // (Quake VR ships these itself, quakevr/sound/misc: never gated on the pack: the player's footsteps use them)
+    //MED 01/13/97 added explosion sounds
+    precache_sound("misc/shortexp.wav");
+    precache_sound("misc/longexpl.wav");
+    precache_sound("misc/foot1.wav");
+    precache_sound("misc/foot2.wav");
+    precache_sound("misc/foot3.wav");
+    precache_sound("misc/foot4.wav");
+    precache_sound("misc/foot5.wav");
+    precache_sound("misc/foot6.wav");
+    precache_sound("misc/foot7.wav");
 
     precache_model("progs/player.mdl");
     precache_model("progs/eyes.mdl");

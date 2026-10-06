@@ -82,8 +82,8 @@ string vr_button_how; // what pressed the button now firing, for vr_debug_wallbu
 void() button_fire =
 {
     if(self.buttonEffect == 3 &&
-        ((substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
-         (substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
+        ((substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
+         (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
     {
         if(self.enemy.classname == "player")
         {
@@ -458,8 +458,8 @@ void() func_button =
     if(MG_MonsterInhibited()) return;
     if(MG_WorldCampaign()) MG_ButtonInit();
     if(self.buttonEffect == 3 &&
-       ((substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
-        (substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
+       ((substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
+        (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
     {
         self.worldtext = strcat(self.worldtext, "\n(unavailable)");
     }
