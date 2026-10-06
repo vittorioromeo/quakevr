@@ -332,6 +332,18 @@ context and screenshot, ready to paste or to point me at.
     beheads it, a shotgun headshot may pop its head (Head pop chance, as a grunt's), an overkill below -35 gibs it,
     otherwise it falls and lies as a grunt's ragdoll; it stands again 2 s on (no backpack). The decapitation tests
     (`vr_decap_test`, Debug > Gore Tests) work on it too.
+  - **The training dummy's enemy and health** (ROUND21.md, "Training dummy: any enemy, its health over its head"):
+    Gore > Training Dummy > Dummy Enemy picks what it stands as (grunt, enforcer, knight, death knight, ogre, fiend,
+    shambler, zombie, vore, scrag, rottweiler, spawn, rotfish; with the mission packs gremlin, centroid, mummy, wrath,
+    overlord, electric eel): its model, size, hit zones (a headshot's yellow number only where that monster has a head
+    zone: none on the fiend), the head it loses, its blood and its death are that monster's; it still stands still and
+    reports. Its board over its head shows its name, a bar and its health (in both eyes and the spectator view, turned
+    to face you); hits take it down, and 3 s after the last it fills up again (Dummy Health Refills). Dummy Health sets
+    it (Its Own: the monster's, a grunt's 30, an ogre's 200). Dummy Dies (on as shipped) kills it as that monster when
+    its health runs out: try a slash at a knight's head (beheaded), a shotgun at an ogre's head (popped), a zombie
+    (any head slash beheads it, as a zombie). It stands again 2 s on, as whatever enemy is chosen then. Off: it stays at
+    0 ("would kill" in its line). Debug > Gore Tests > Training Dummy Tests (`vr_dummy_test 1..4`) prints what it is,
+    hits it and prints its health.
   - **Dummy attacks, for parry practice** (ROUND21.md, "Dummy attacks (firing range)"): in the firing range, press
     DUMMY ATTACKS (the panel south of the training dummy). Stand in front of it: every 2.5 s or so it winds up (a
     sound, a glow, the rifle raised) and strikes you as a knight would. Parry it: the parry, parry stamina and
@@ -1215,6 +1227,18 @@ what its pellets hit, headshots) and each damage you deal; a monster at the muzz
 `vr_weapon_grip_mode 1`, `impulse 9` for ammo a frame before), `vr_mock_hand main 0.08 1.05 -1.2 40 0 0`, then
 `vr_test_spawn 0; vr_test_spawn_dist 44; impulse 241` puts a grunt's head round the muzzle in vrfiringrange.
 `vr_pose_solve 1` solves the posing hand live (as before). Each headshot that plays its sound prints `headshot sound: <target> by <inflictor>` (`vr_debug_shots 1`). Weapon ids: impulse 154 shotgun, 156 nailgun, 162 laser cannon (hipnotic). `vr_test_dialog [seconds] [turn] [eyeshot]`: the New Game confirmation, closing by itself, while the mock head turns: eye images at its first and last frames and the eyes' yaw printed (they must follow the head).
+Training dummy enemies (round 21): `vr_dummy_type <n>` (0 grunt .. 18 electric eel: QC/vr_dummy_types.qc; it stands as
+the new one within a frame, unless someone stands where it would) and `vr_dummy_test 1` print its class, model, box,
+health and the zone a level shot at its head, body and legs strikes; `vr_dummy_test 2`/`3` hit it for 10 or for the
+health it has left, `4` prints its health (the refill: `vr_dummy_regen`). With `developer 1`: "dummy: stands as Ogre
+(monster_ogre)", "dummy: killed as its enemy, Ogre (...)". `vr_decap_test 1` (a slash at the head of the nearest live monster at
+health 1) and `12` (a shotgun headshot) behead and pop it as that monster. Recording melee takes against an enemy
+type: choose it (Dummy Enemy, or `vr_dummy_type`) and record as usual; the take's `settings` line holds
+`vr_dummy_type` and `vr_dummy_health`, and its `dummy` line says them (with `vr_dummy_gore`, `vr_dummy_gib`,
+`vr_dummy_regen`). `vr_motion_play` and `vr_motion_eval` stand the dummy as the take's enemy before placing it (a take
+from before: a grunt, of a grunt's health), and as before after; name the takes by enemy (the label or the note: e.g.
+`slash ogre`) to keep their expectations apart. Synthetic ones: `motion_synth.py <preset> --dummy-type 4` (and
+`--dummy-health`).
 Dummy attacks (round 21): `vr_dummy_attacks 1` in vrfiringrange (as the button); with `developer 1` each wind-up, blow
 and miss is printed with its time; `vr_dummy_attack_jitter 0` makes the blows regular (the first 1.6 s after it's
 turned on, then every `vr_dummy_attack_period`). Note: `setpos` turns noclip on, and in noclip a blow's knockback

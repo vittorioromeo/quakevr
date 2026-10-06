@@ -151,6 +151,10 @@ HAND_OFFSETS = {"main": (39.5, 4.0), "off": (40.25, -4.0)}  # (pitch, yaw) as sh
 # SWORD_BLADE is measured at the shipped settings: the sword presets are for those.
 SETTINGS = {}
 
+# The training dummy the take is written against (--dummy-type, --dummy-health): vr_dummy_type and vr_dummy_health in
+# its settings line (playback stands the dummy as that enemy, of that health) and its "dummy" line. Empty: a grunt.
+DUMMY = {}
+
 
 def configure(settings):
     """Writes the takes for `settings` ({name: value}, e.g. the author's hand calibration)."""
@@ -323,11 +327,18 @@ class Take:
             f.write("# vr_height_calibration: %g\n" % self.eye_height)
             (mp, my), (op, oy) = HAND_OFFSETS["main"], HAND_OFFSETS["off"]
             f.write("# hand angles: vr_gunangle %g vr_gunyaw %g vr_offhandpitch %g vr_offhandyaw %g\n" % (mp, my, op, oy))
-            if SETTINGS:
-                # With a settings line playback sets only it (not the lines above): the scale and height too.
+            if SETTINGS or DUMMY:
+                # With a settings line playback sets only it (not the lines above): the scale and height too, and the
+                # hand angles when no config's are given.
                 full = {"vr_world_scale": "%g" % self.world_scale, "vr_height_calibration": "%g" % self.eye_height}
+                if not SETTINGS:
+                    full.update({"vr_gunangle": "%g" % mp, "vr_gunyaw": "%g" % my, "vr_offhandpitch": "%g" % op,
+                                 "vr_offhandyaw": "%g" % oy})
                 full.update(SETTINGS)
+                full.update(DUMMY)
                 f.write("# settings: %s\n" % " ".join("%s=%s" % kv for kv in full.items()))
+            if DUMMY:
+                f.write("# dummy: %s\n" % " ".join("%s %s" % kv for kv in DUMMY.items()))
             f.write("# target: %s\n" % ("vr_dummy %.2f m ahead, %.2f m left" % self.target if self.target else "none"))
             f.write("# rows: %d\n" % len(rows))
             f.write(",".join(columns) + "\n")
@@ -662,12 +673,21 @@ def main():
                     "vr_handcal_*...: an ironwail.cfg)")
     ap.add_argument("--mock", action="store_true", help="also a vr_mock_play script of each (<take>.mock)")
     ap.add_argument("--name", help="the file's name (no extension; default: the label and the time)")
+    ap.add_argument("--dummy-type", type=int, help="the training dummy's enemy the take is for (vr_dummy_type: 0 grunt, "
+                    "1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 fiend, 6 shambler, 7 zombie, 8 vore, 9 scrag, "
+                    "10 rottweiler, 11 spawn, 12 rotfish, 13 gremlin, 14 centroid, 15 mummy, 16 wrath, 17 overlord, "
+                    "18 electric eel)")
+    ap.add_argument("--dummy-health", type=int, help="its health (vr_dummy_health; -1 its enemy's own)")
     args = ap.parse_args()
     if args.list or not args.preset:
         print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS))
         return
     if args.settings_from:
         configure(settings_from_cfg(args.settings_from))
+    if args.dummy_type is not None:
+        DUMMY["vr_dummy_type"] = str(args.dummy_type)
+    if args.dummy_health is not None:
+        DUMMY["vr_dummy_health"] = str(args.dummy_health)
     names = PRESETS if args.preset == "all" else DECAP_PRESETS if args.preset == "decap" else [args.preset]
     for name in names:
         a = argparse.Namespace(**vars(args))

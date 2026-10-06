@@ -25321,3 +25321,56 @@ particles should match the light round them.
 - **To test in VR**: blood in a dark corner (dark, not glowing), then under the flashlight (lit in the beam) and a
   muzzle flash; smoke and dust in dark rooms; fire, sparks, explosions, lava splashes and teleport sparks as bright as
   before; Lit Particles off for the old look.
+## Training dummy: any enemy, its health over its head (2026-10-06)
+
+The author: "Make gib mode the default ... make the dummy's health customizable ... a health bar or counter ... regens
+after a few seconds of inactivity ... choose the type of dummy between all supported enemy types ... behave exactly like
+the chosen enemy type ... melee recordings correctly capture these new settings".
+
+- **Dummy Dies on by default** (`vr_dummy_gib 1`; config 90 moves a config still at 0).
+- **Health** (`QC/vr_dummy.qc`): Gore > Training Dummy > **Dummy Health** (`vr_dummy_health`, -1 "Its Own": the
+  enemy's spawn health, a grunt's 30), **Dummy Health Refills** (`vr_dummy_regen`, 3 s: after the last hit it fills up
+  in 0.4 s; 0 never), **Dummy Health Bar** (`vr_dummy_healthbar`, on). The hits take it whole (as T_Damage takes them);
+  it replaces the old "a grunt's 30 over a run of hits less than a second apart". At 0 with Dummy Dies it dies as its
+  enemy; off, it stays at 0 and its line says "would kill". The board is a world text (the CRT boards) over its head:
+  the enemy's name, a 12-cell bar and "health / full", turned (yaw, 4-degree steps) to face the nearest player, sent
+  only as it changes; dead, it says "killed (stands again)". It replaced the old fixed "Training dummy" sign (Health
+  Bar off: that sign, with the enemy's name).
+- **Enemy** (`vr_dummy_type`, Dummy Enemy; `QC/vr_dummy_types.qc`, last in progs.src): 0 grunt, 1 enforcer, 2 knight,
+  3 death knight, 4 ogre, 5 fiend, 6 shambler, 7 zombie, 8 vore, 9 scrag, 10 rottweiler, 11 spawn, 12 rotfish, and with
+  the packs 13 gremlin, 14 centroid, 15 mummy, 16 wrath, 17 overlord, 18 electric eel (numbers are recorded in takes:
+  never renumber). Left out: bosses, the invisible swordsman, the spike mine. The monster's own spawn function makes it
+  on a new entity (`VR_Dummy_Make`: its classname set first, spawnflags cleared, not counted, gremlin count and
+  deathmatch kept) and then its AI is taken away (th_stand/walk/run/missile/melee/vrshove and use cleared, its think
+  the dummy's, MOVETYPE_NONE, health 1000, its death and pain kept aside). So everything keyed on the classname is the
+  enemy's: hit zones (PositionalHead), the head it loses (VR_Decap_HeadModel), its gore, its hull (vr_mhull_*), its
+  ragdoll, liquids. The live dummy is marked by `.vr_dummy_kind` (1 + its enemy), not its classname: `VR_IsDummy`
+  replaced every `classname == "vr_dummy"` (combat, burning, carry, decap, grapple, liquids, small gibs test, weapons:
+  the dummy-only head zone and grapple weight rows are gone, its enemy's apply). Its stand loop, pain animation and
+  attack frames (vr_dummy_attacks: the first 4/9 the wind-up) and pain sounds are the enemy's own (from each file's
+  $frame list). It stands on the floor it was dropped on (its enemy's box's bottom). Another enemy chosen: a new entity
+  stands as it within a frame (not mid-blow, not while someone stands where it would); a pack's enemy without the
+  pack is tried once a map on a stand-in and falls back to a grunt (said once). Killed: `VR_Dummy_Die` gives it back its
+  enemy's death, pain and movetype; anything that kills it past its report (a zombie beheaded whatever its health) goes
+  through `Killed` -> `VR_Dummy_Killed` (dies with Dummy Dies, else stands unhurt; the zombie's beheading is skipped on
+  a dummy without Dummy Dies). No backpack from any (`DropBackpack`); a grunt's gun still falls.
+- **Motion takes** (`vr_motion.cpp`, `vr_motion_play.cpp`, `vr_motion_review.cpp`): the target's class is
+  `progs::targetClass`, "vr_dummy" for the dummy whatever its enemy, so old and new takes find it. A take of the dummy
+  writes a `dummy` header line (vr_dummy_type, _health, _gore, _gib, _regen); `vr_dummy_type` and `vr_dummy_health` are
+  applied by playback (placing settings; absent: 0 and -1) and QC `VR_Dummy_RetypeAll` stands the dummies as the take's
+  enemy before placement (restored after, retyped back at the next think). `motion_synth.py --dummy-type N
+  [--dummy-health H]`. TESTING.md: how to record per enemy.
+- **Tests** (`vr_dummy_test 1..4`, Debug > Gore Tests > Training Dummy Tests). Headless, each of the 19 types:
+  `vr_dummy_type n; vr_dummy_test 1; vr_decap_test 1; ...; vr_decap_test 12` from 2.4 m: model and box are the
+  monster's (grunt -12..27, ogre -20..40, shambler and vore -32..64, gremlin -12..18, wrath/overlord/eel -16..32), zones
+  head 1 / body 0 / legs 3 for grunt, enforcer, knight, death knight, ogre, zombie, scrag, mummy (none for fiend,
+  spawn, rotfish, centroid, wraths, eel: no PositionalHead row; the dog's head misses the level shot); the slash at
+  health 1 beheads grunt, enforcer, knight, death knight, ogre, fiend, shambler, zombie, scrag, rottweiler, gremlin,
+  mummy (vore, spawn, fish, centroid, wraths, eel: killed, no head gib); the shotgun headshot pops grunt, ogre,
+  mummy (others beheaded or killed as their own rules); every one died ("killed as its enemy") and stood again 2 s on.
+  Health: 2 hits of 10 -> 10/30, full 30/30 3 s after; gib off: "0/30 - would kill"; vr_dummy_health 100 -> 100/100.
+  A synthetic slash take written with `--dummy-type 4` played with vr_dummy_type 0: "dummy: stands as Ogre", hits
+  "health 188/200", then back to a grunt. Eyeshots: the board reads "Ogre / bar / 180 / 200" in both eyes and the window.
+  eval.sh could not run: the canary's takes are gone from quakevr-iw/quakevr/motions (archived); three synthetic grunt
+  takes give the old progs' hits (punch 23.8 head, shove 4.8, slash 26.6 head "would behead"; the backhand varies run to
+  run with either build).

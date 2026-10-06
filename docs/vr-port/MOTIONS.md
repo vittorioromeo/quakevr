@@ -173,6 +173,7 @@ meaning).
 | `origin0` | the player's world origin at `t` = 0 |
 | `target` | the nearest monster at `t` = 0: classname, entity number, targetname, origin, angles, box |
 | `dummy attacks` | `on`: the training dummy was striking back at some moment of the take (`vr_dummy_attacks`, the firing range's button; ROUND21.md, "Dummy attacks"). Its blows are the `strike` events, and a replay has it strike exactly then. Not written when it wasn't |
+| `dummy` | when the target is the training dummy: `vr_dummy_type` (its enemy: 0 grunt .. 18 electric eel, QC/vr_dummy_types.qc), `vr_dummy_health`, `vr_dummy_gore`, `vr_dummy_gib`, `vr_dummy_regen`. Playback stands the dummy as that enemy, of that health, before placing the take (both are in `settings` too; a take without them: a grunt, of a grunt's health) |
 | `melee settings` | every `vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry*`, `vr_deflect*`, `vr_headbutt*` cvar |
 | `settings` | every archived `vr_*` setting (`name=value`, spaces as `_`) and `host_maxfps`: what playback sets again |
 | `weapon settings` | the weapon offsets (`vr_wofs_*`) of the empty hand's slot and of the weapons in the hands as the take is saved |

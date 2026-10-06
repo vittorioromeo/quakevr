@@ -419,7 +419,7 @@ struct Take
     static constexpr const char* placing[] = {"vr_world_scale", "vr_height_calibration", "vr_floor_offset", "vr_stick_swap",
         "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_handcal_", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
         "vr_lean_", "vr_roomscale_", "vr_body_", "vr_throw_release", "vr_throw_grab_press", "vr_wofs_",
-        "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_", "vr_dummy_gore"};
+        "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_", "vr_dummy_gore", "vr_dummy_type", "vr_dummy_health"};
     // (Every setting the QC's melee, damage and hit reactions read.)
     static constexpr const char* meleeOnes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
@@ -471,6 +471,38 @@ void collectSettings(const za::String& value, bool pairs, za::Vector<za::Pair<za
 
 za::Vector<za::Pair<cvar_t*, za::String>> savedSettings; // the values before a playback
 
+// The training dummies as the take's enemy now (QC VR_Dummy_RetypeAll: vr_dummy_type, just applied), before the take
+// is placed against one: each stands as a new entity (its box and origin its enemy's).
+void retypeDummies()
+{
+    const func_t fn = progs::bindings().Dummy_RetypeAll;
+    if(!fn || !sv.active)
+    {
+        return;
+    }
+    qcvm_t* const old = qcvm;
+    if(old != &sv.qcvm)
+    {
+        if(old)
+        {
+            PR_SwitchQCVM(nullptr);
+        }
+        PR_SwitchQCVM(&sv.qcvm);
+    }
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+    pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
+    PR_ExecuteProgram(fn);
+    if(old != &sv.qcvm)
+    {
+        PR_SwitchQCVM(nullptr);
+        if(old)
+        {
+            PR_SwitchQCVM(old);
+        }
+    }
+}
+
 void applySettings(const Take& take, bool melee)
 {
     za::Vector<za::Pair<za::String, za::String>> list;
@@ -519,6 +551,15 @@ void applySettings(const Take& take, bool melee)
     if(!za::anyOf(list.begin(), list.end(), [](const auto& kv) { return kv.first == "vr_dummy_gore"; }))
     {
         list.emplaceBack("vr_dummy_gore", "0");
+    }
+    // A take from before the training dummy's enemies and health (vr_dummy_type, vr_dummy_health): a grunt, of a grunt's
+    // health, as then.
+    for(const char* name : {"vr_dummy_type", "vr_dummy_health"})
+    {
+        if(!za::anyOf(list.begin(), list.end(), [&](const auto& kv) { return kv.first == name; }))
+        {
+            list.emplaceBack(name, Cvar_FindVar(name) ? Cvar_FindVar(name)->default_string : "0");
+        }
     }
     if(melee)
     {
@@ -1210,6 +1251,7 @@ void stopPlayback(const char* why)
         savedSettings.emplaceBack(&vr_dummy_gib, vr_dummy_gib.string);
         Cvar_SetQuick(&vr_dummy_gib, "0");
     }
+    retypeDummies();
     strikeNext = 0;
     strikesDone = 0;
     state = State::Setup;
