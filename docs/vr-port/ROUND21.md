@@ -26394,3 +26394,42 @@ frames: 644 deg/s): flipped; flick down: flipped; up and straight back: one flip
 the 644 deg/s flick nothing, 90 degrees in 4 frames (1299 deg/s) flipped. Off: nothing. (Mock scripts: `wait N` is one
 frame; only run.sh's `-Script` expands `waitN`. `vr_flashlight_give` before the view has run once after a map load is
 undone by the flashlight's state restore: the test gives after 150 frames.)
+
+## Climbing: mantling onto sloping tops (2026-10-06)
+
+Voice notes e5start 17:12 and plaw01 17:07 (mantling fails onto a ledge whose top is slightly sloped; gate it). The
+ledge map already finds lips of sloping tops (up to `minTopNormal` 0.7) and measures their depth along the plane; the
+mantle didn't stand on them: `findMantle`'s box goes to the lip's height (+1), so on a top rising away from the lip
+the box sits in the slope at every spot (22 to 38 units in) and the sweep over hits it: "no room to mantle". DOPA's
+e5start ledge by the hard slipgate (lip y 560, x 384..408, z 92) rises 4 units in its first 16 to a level top at 96.
+
+Now (`vr_climb.cpp`): the old search is `findMantleLevel`, unchanged and tried first; when it finds nothing,
+`findMantleSloped` (with `vr_climb_mantle_lenient` 1, the default): at the same spots and sides, the player's box is let
+down onto the top from as high as a slope of `vr_climb_mantle_slope` (40 degrees) could rise under its far side (at
+most 48) to as low as it could fall; it must land (not start in solid: a wall or ceiling there is no spot) on a plane
+no steeper than that, with the old footing test (not just its edge), and the way must be clear: straight up to the
+higher of the lip's height and the landing's (or up from 2 or 4 units further out), then over. A top falling away is
+reached at the lip's height and dropped onto. Cost: about 100 box/line traces (0.035 ms) for a full failed search,
+retried every 0.15 s as before. Menu: Climbing > **Mantle onto Slopes**, **Steepest Slope**. `vr_climb_debug 1` prints
+`climb: sloped mantle spot ...` (how far in, the rise, the slope).
+
+Test map `vrslopes` (`Misc/quakevr/climb/make_vrslopes_map.py --compile`; lips at y 0, z 48, as vrclimb's long ledge;
+`setpos <x> -18 24 0 90 0`): level, rising 10/20/30/45 degrees, falling 20, sloping across 15, rising 20 under a slab.
+`Misc/quakevr/climb/slopes_test.sh "<cvars>"` runs the mantle play on each (`climb_plays.py`'s mantle with the hands
+at 1.49 m: its default 1.638 no longer reaches vrclimb's lip with the current default body, "no hold").
+
+| top | lenient (default) | `vr_climb_mantle_lenient 0` |
+|---|---|---|
+| level | mantled (level search), z 73.0 | mantled |
+| rising 10 | mantled, sloped spot 22 in, +4.0 | no room |
+| rising 20 | mantled, +9.2 | no room |
+| rising 30 | mantled, +15.2 | no room |
+| rising 45 | no room (steeper than 40) | no room |
+| falling 20 | mantled (level search) | mantled |
+| across 15 | mantled (level search) | mantled |
+| rising 20 under a slab | no room | no room |
+
+`vr_climb_mantle_slope 25`: rising 30 refused. DOPA e5start (`-game dopa`, from the Steam rerelease's dopa pak, in the
+test base only), both hands on the lip from `setpos 396 542 71 0 90 0` (hands at 1.90 and 1.94 m): before, "no room to
+mantle" (and still with lenient 0); now `sloped mantle spot 22 in, +0 along: the top +2.5` and mantled onto (392.4 582
+120). plaw01 (Map Library) isn't in the test base: not run.

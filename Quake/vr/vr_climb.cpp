@@ -136,6 +136,7 @@
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Hypot.hpp"
@@ -143,6 +144,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Math/Tan.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
@@ -1110,7 +1112,7 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
 // top: then the box stands on it (the floor and footing below need no traces), and one sweep over from the top of the
 // way up (shared by the spots on that side) is all it takes. Elsewhere (a spot past the ledge's end, or in further
 // than the top goes, where the box may still stand on its back part) the traces as before.
-[[nodiscard]] bool findMantle(edict_t* ent, Grip& g, glm::vec3& mid, glm::vec3& to)
+[[nodiscard]] bool findMantleLevel(edict_t* ent, Grip& g, glm::vec3& mid, glm::vec3& to)
 {
     const glm::vec3 origin = vec(ent->v.origin);
     const glm::vec3 hold = holdNow(g);
@@ -1228,6 +1230,94 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
         }
     }
     return false;
+}
+
+// The mantle onto a sloping top (vr_climb_mantle_lenient; voice notes e5start 17:12, plaw01 17:07: the little ledge
+// by the hard slipgate in DOPA's start map rises 4 units in its first 16 and findMantleLevel's box, at the lip's
+// height, sat in it). Tried only when findMantleLevel finds nothing. For each spot (22 to 38 units in, the same sides
+// along the edge), the box is let down onto the top from as high as a slope of vr_climb_mantle_slope could rise under
+// it (to its far side) to as low as it could fall: it must land on something no steeper than that (a wall's edge, a
+// steep ramp, nothing at all: no spot), on more than its edge (the footing as findMantleLevel's), with room for it
+// there. The way: straight up to the higher of the lip's height and the spot's (or up from a little further out), then
+// over; a ceiling or a wall in either is no way. A spot lower than the lip (a top falling away) is reached over at the
+// lip's height and dropped onto, as a level top's beyond the drop is.
+[[nodiscard]] bool findMantleSloped(edict_t* ent, Grip& g, glm::vec3& mid, glm::vec3& to)
+{
+    const float slope = za::clamp(vr_climb_mantle_slope.value, 0.f, 60.f);
+    if(vr_climb_mantle_lenient.value == 0.f || slope <= 0.f)
+    {
+        return false;
+    }
+    const glm::vec3 origin = vec(ent->v.origin);
+    const glm::vec3 mins = vec(ent->v.mins), maxs = vec(ent->v.maxs);
+    const float z = topNow(g) - mins.z + 1.f;
+    if(z < origin.z)
+    {
+        return false;
+    }
+    const float minNormalZ = za::cos(glm::radians(slope)) - 1e-3f;
+    const float tanSlope = za::tan(glm::radians(slope));
+    const glm::vec3 along{-g.ledge.out.y, g.ledge.out.x, 0.f};
+    const glm::vec3 lip = holdNow(g) + g.ledge.out * holdInset;
+    constexpr float sides[] = {0.f, 8.f, -8.f, 16.f, -16.f};
+    for(const float side : sides)
+    {
+        for(const float k : {20.f, 28.f, 36.f})
+        {
+            const float in = k + holdInset;
+            const glm::vec3 spot = glm::vec3{lip.x, lip.y, z} - g.ledge.out * in + along * side;
+            // As high and as low as the slope could take the top under the box (its far side `maxs.x` further in).
+            const float rise = za::min(48.f, (in + maxs.x) * tanSlope) + 1.f;
+            const glm::vec3 high = spot + glm::vec3{0.f, 0.f, rise};
+            if(tracePlayer(ent, high, high).startsolid)
+            {
+                continue; // in a wall or under a ceiling even there
+            }
+            const trace_t down = tracePlayer(ent, high, spot - glm::vec3{0.f, 0.f, rise});
+            if(down.startsolid || down.allsolid || down.fraction >= 1.f || down.plane.normal[2] < minNormalZ)
+            {
+                continue; // nothing to stand on, or too steep (a wall's edge, a ramp)
+            }
+            const glm::vec3 land = vec(down.endpos);
+            bool footing = false;
+            for(int i = -1; i <= 1 && !footing; i++)
+            {
+                for(int j = -1; j <= 1 && !footing; j++)
+                {
+                    const glm::vec3 p = land + glm::vec3{i * (maxs.x - minFooting), j * (maxs.y - minFooting), mins.z + 0.5f};
+                    const trace_t foot = traceLine(p, p - glm::vec3{0.f, 0.f, 8.5f}, ent);
+                    footing = !foot.startsolid && foot.fraction < 1.f;
+                }
+            }
+            if(!footing)
+            {
+                continue;
+            }
+            const float overZ = za::max(z, land.z);
+            to = glm::vec3{land.x, land.y, overZ};
+            for(const float back : {0.f, 2.f, 4.f})
+            {
+                const glm::vec3 m = glm::vec3{origin.x, origin.y, overZ} + along * side + g.ledge.out * back;
+                if(tracePlayer(ent, origin, m).fraction >= 1.f && tracePlayer(ent, m, to).fraction >= 1.f)
+                {
+                    mid = m;
+                    if(debug())
+                    {
+                        Con_Printf("climb: sloped mantle spot %.0f in, %+.0f along: the top %+.1f from the lip's, its slope "
+                                   "%.0f deg\n", in, side, land.z - z, glm::degrees(za::acos(za::clamp(down.plane.normal[2], -1.f, 1.f))));
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// The mantle (see findMantleLevel), onto a sloping top too (findMantleSloped).
+[[nodiscard]] bool findMantle(edict_t* ent, Grip& g, glm::vec3& mid, glm::vec3& to)
+{
+    return findMantleLevel(ent, g, mid, to) || findMantleSloped(ent, g, mid, to);
 }
 
 // The player's box from `origin` towards `target`, sliding along what it meets (Quake's clip against up to 4 planes,
