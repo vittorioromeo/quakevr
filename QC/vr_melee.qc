@@ -1794,8 +1794,11 @@ float(float xHand, entity b, vector xVel) VR_Melee_LandNeed =
     return need;
 };
 
+float vr_melee_whoosh_alt; // the swish played last (VR_Melee_Whoosh): the knights' two swings taken in turn
+
 // The weapon's whoosh as `xHand`'s striking part gets going as a blow would (once a motion): as fast as a blow needs,
-// come from some way off (and a fist closed). The motion recorder's "stroke".
+// come from some way off (and a fist closed). The motion recorder's "stroke". A blade's, a fist's or a gun's swish is the
+// knights' two swings in turn (knight/sword1, sword2), as their own attacks pick them: not one recording every time.
 void(float xHand, entity b) VR_Melee_Whoosh =
 {
     float minSpeed = VR_Melee_MinSpeedOf(b);
@@ -1818,7 +1821,8 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     }
     b.mh_whooshed = TRUE;
     VR_Motion_Event("stroke", VR_Melee_Category(b.mh_thing == VR_MTHING_FIST ? VR_MKIND_PUNCH : VR_MKIND_SLASH, b.mh_thing), xHand, vlen(b.mh_vfar), b.mh_far, world, "");
-    string s = "knight/sword1.wav";
+    vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
+    string s = vr_melee_whoosh_alt ? "knight/sword2.wav" : "knight/sword1.wav";
     float chan = xHand == cVR_OffHand ? CHAN_WEAPON2 : CHAN_WEAPON;
     if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW ||
        b.mh_thing == VR_MTHING_CROWBAR)
