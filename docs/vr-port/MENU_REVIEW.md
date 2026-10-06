@@ -12,7 +12,7 @@ approximate. `menu_vr dump` plus `Misc/quakevr/menu_coverage.py` give exact runt
 heuristic pass: many rows on gameplay pages are really internal tuning, and need a row-by-row look before anything is
 hidden.
 
-## Where it stands
+## Where it stood (before the rework; see "Status" for what was built)
 
 | What | Count |
 |---|---|
@@ -25,7 +25,7 @@ hidden.
 | Rows by audience (page-based, rough) | common settings ~117, enthusiast tuning ~1,000, developer/tuning ~970 |
 | Cvars by tier (heuristic) | first-run essentials 20, common 60, enthusiast 906, developer 596, saved but on no page 99 (the 23 retired: removed) |
 
-### What a new player meets
+### What a new player met (before the rework)
 
 - **VR Settings opens with "Tuning"**: six links to Weapon Offsets, Weapon Weights, Held Object Offsets/Weights,
   Hand/Gun Calibration and Body Calibration (`vr_menu.cpp` `pageMain`), the author's tools, above Comfort.

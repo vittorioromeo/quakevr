@@ -1,6 +1,7 @@
 # Quake VR profiling: CPU and GPU, map loading and gameplay (October 2026)
 
-Date: 2026-10-06. Tree: `vr-ironwail` at `f693dc76` (baseline), then the commits on `agent/profiling`. The question:
+Date: 2026-10-06. Measured before the fixed 72 Hz server tick (`host_fixedtick`, commit `1c021a69`), so its
+gameplay numbers are with the old server tick (ROUND21.md, "Server tick rate"). Tree: `vr-ironwail` at `f693dc76` (baseline), then the commits on `agent/profiling`. The question:
 where do the CPU and the GPU go, what is worth fixing now (fixed here when the return was high and the change safe),
 and what needs a decision. Earlier rounds' findings are not repeated, only referred to:
 [PERFORMANCE_BENCHMARK_20261005.md](PERFORMANCE_BENCHMARK_20261005.md) (particles, props, decals, shadows, portals),

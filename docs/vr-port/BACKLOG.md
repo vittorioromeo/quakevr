@@ -50,6 +50,6 @@ seconds, with fly particles buzzing round it as well as the sound.
   engine wakes the pickup). Small absolute gain (QuakeC is ~0.07 ms a frame): review, then decide.
 
 
-### TODO:
+### To sort (the author's notes)
 
 - KoFi links in installer, see CircuitLord's TF2 as an example

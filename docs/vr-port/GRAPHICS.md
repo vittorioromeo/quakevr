@@ -11,7 +11,7 @@ Done (first step, see "Done" below): #1 re-lit maps, #2 model lighting, #4 the m
 shadows for monsters and items, #6 anti-aliasing default. Second step, [LIGHTING.md](LIGHTING.md): #3 per-pixel
 dynamic lights on models, #7 map lights' shadows of moving things, #8 shadowed dynamic lights.
 
-## Why it looks flat today
+## Why it looked flat (before round 15)
 
 - **Monsters, weapons, hands and the body are lit as a single colour each.** `R_SetupAliasLighting` samples the
   lightmap straight below the model (`R_LightPoint`) and adds dynamic lights as one number for the whole model
