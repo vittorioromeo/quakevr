@@ -47,18 +47,18 @@ void() VR_Pack_Refresh =
     vr_have_wetsuit = VR_Has("progs/wetsuit.mdl");
     vr_have_empathy = VR_Has4("progs/empathy.mdl", "sound/hipitems/empathy.wav", "sound/hipitems/empathy2.wav", "");
     vr_have_horn = VR_Has4("progs/horn.mdl", "sound/hipitems/horn.wav", "", "");
-    vr_have_shield = VR_Has4("progs/shield.mdl", "progs/p_shield.mdl", "sound/shield/hit.wav", "sound/shield/pickup.wav") &&
-                     VR_Has("sound/shield/fadeout.wav");
+    vr_have_shield = (VR_Has4("progs/shield.mdl", "progs/p_shield.mdl", "sound/shield/hit.wav", "sound/shield/pickup.wav") &&
+                      VR_Has("sound/shield/fadeout.wav"));
     vr_have_belt = VR_Has4("progs/beltup.mdl", "sound/belt/use.wav", "sound/belt/pickup.wav", "sound/belt/fadeout.wav");
     vr_have_equake = TRUE; // (Rogue's rumble, else Quake's own misc/quake.wav: rogue_earthq.qc)
     vr_have_sphere = VR_Has4("progs/sphere.mdl", "sound/sphere/sphere.wav", "", "");
     vr_have_fireball = VR_Has("progs/fireball.mdl");
     vr_have_lavarock = VR_Has("progs/lavarock.mdl");
-    vr_have_statue = VR_Has4("progs/statgib1.mdl", "progs/statgib2.mdl", "progs/statgib3.mdl", "sound/statue/see.wav") &&
-                     VR_Has4("sound/statue/idle.wav", "sound/statue/pain.wav", "sound/statue/death.wav", "");
+    vr_have_statue = (VR_Has4("progs/statgib1.mdl", "progs/statgib2.mdl", "progs/statgib3.mdl", "sound/statue/see.wav") &&
+                      VR_Has4("sound/statue/idle.wav", "sound/statue/pain.wav", "sound/statue/death.wav", ""));
     vr_have_playham = VR_Has("progs/playham.mdl");
-    vr_have_ctf = VR_Has4("progs/ctfbase.mdl", "progs/ctfmodel.mdl", "sound/misc/flagcap.wav", "sound/misc/flagret.wav") &&
-                  VR_Has("sound/misc/flagtk.wav");
+    vr_have_ctf = (VR_Has4("progs/ctfbase.mdl", "progs/ctfmodel.mdl", "sound/misc/flagcap.wav", "sound/misc/flagret.wav") &&
+                   VR_Has("sound/misc/flagtk.wav"));
     vr_pack_refreshed = TRUE;
 };
 
