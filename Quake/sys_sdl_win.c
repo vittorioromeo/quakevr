@@ -1218,8 +1218,26 @@ void Sys_Sleep (unsigned long msecs)
 	SDL_Delay (msecs);
 }
 
+// QVR: how long the keyboard hook went unserviced: its callback runs only while the main thread pumps messages, and
+// meanwhile every key press on the desktop waits for it (up to the system's LowLevelHooksTimeout). Sys_KeyFilterStats.
+static double key_hook_lastpump, key_hook_maxgap; // QVR
+
+void Sys_KeyFilterStats (qboolean *active, double *maxgap, qboolean reset) // QVR
+{
+	*active = key_hook != NULL;
+	*maxgap = key_hook_maxgap;
+	if (reset)
+		key_hook_maxgap = 0.0;
+}
+
 void Sys_SendKeyEvents (void)
 {
+	if (key_hook) // QVR: Sys_KeyFilterStats
+	{
+		double now = Sys_DoubleTime ();
+		key_hook_maxgap = q_max (key_hook_maxgap, now - key_hook_lastpump);
+		key_hook_lastpump = now;
+	}
 	IN_Commands();		//ericw -- allow joysticks to add keys so they can be used to confirm SCR_ModalMessage
 	IN_SendKeyEvents();
 }
@@ -1237,6 +1255,7 @@ void Sys_ActivateKeyFilter (qboolean active)
 	else
 	{
 		key_hook = SetWindowsHookExW (WH_KEYBOARD_LL, KeyFilter, GetModuleHandleW (NULL), 0);
+		key_hook_lastpump = Sys_DoubleTime (); // QVR: Sys_KeyFilterStats
 		if (!key_hook)
 			Sys_Printf ("Warning: SetWindowsHookExW failed (%lu)\n", GetLastError ());
 	}

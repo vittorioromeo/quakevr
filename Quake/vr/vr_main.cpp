@@ -1332,6 +1332,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_startgame", VR_StartGame_f);
     registerMockCommands();
     input::init();
+    inputlag::registerCommands();
     voicenotes::init();
     highlights::init();
     cleanskins::init();
@@ -1638,6 +1639,7 @@ extern "C" void VR_HostFrameEnd()
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::motion::hostFrameEnd();
     qvr::allocsites::frameEnd();
+    qvr::inputlag::frameEnd(); // vr_inputlag_test
 }
 
 extern "C" double VR_HostFrameTime(double time)

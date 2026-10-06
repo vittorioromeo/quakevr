@@ -976,6 +976,12 @@ void Sys_ActivateKeyFilter (qboolean active)
 {
 }
 
+void Sys_KeyFilterStats (qboolean *active, double *maxgap, qboolean reset) // QVR
+{
+	*active = false;
+	*maxgap = 0.0;
+}
+
 void *Sys_LoadLibrary (const char *path)
 {
 	return dlopen (path, RTLD_LAZY);

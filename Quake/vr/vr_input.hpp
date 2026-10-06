@@ -28,3 +28,13 @@ void roomscaleJump(const hands::State& s);
 void parseHaptic();
 
 } // namespace qvr::input
+
+namespace qvr::inputlag
+{
+
+// vr_inputlag_test (vr_inputlag.cpp): a desktop key or mouse motion's frames to the game.
+void registerCommands();
+// Once per host frame, at its end (VR_HostFrameEnd).
+void frameEnd();
+
+} // namespace qvr::inputlag

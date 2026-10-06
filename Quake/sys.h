@@ -154,6 +154,7 @@ void Sys_SendKeyEvents (void);
 // Perform Key_Event () callbacks until the input que is empty
 
 void Sys_ActivateKeyFilter (qboolean active);
+void Sys_KeyFilterStats (qboolean *active, double *maxgap, qboolean reset); // QVR: the keyboard hook, and how long it went unserviced
 
 static inline qboolean Sys_IsPathSep (char c)
 {
