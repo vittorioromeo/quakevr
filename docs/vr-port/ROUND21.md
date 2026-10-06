@@ -25772,3 +25772,46 @@ VR**, Mods (when shown), Quit (`Quake/menu.c` `MAIN_VRSETTINGS`, `MAIN_VRADVANCE
   Settings, then the main menu on "Advanced VR"); VR Settings opened from Options still goes back to Options. The
   laser on y 140 picks VR Settings with `vr_menu_bigfont 0`; at Menu Height 1 / Spacing 1 the laser on y 189 picks
   Quit.
+## Limb gore: every limb cut off or popped, as the head (2026-10-06)
+
+The author's spec: every enemy limb behaves as the head does today (Decapitation, Head pops): cut off by blades, popped
+by bullets, blunt blows and lightning, by the same chance rules; on the living only as the killing blow, on corpses and
+ragdolls every limb on its own, down to the torso. QC `vr_limbs.qc` (beside `vr_decap.qc`, whose arming it shares),
+the engine's `vr_box3d.cpp` ("Limb gore": the cuts), `vr_limbmodel.cpp` (the limb models).
+
+### Data model
+
+- **The limbs are the ragdoll rig's joints** (`vr_ragdoll.cpp` seed tables; 12 monsters: grunt, knight, ogre, enforcer,
+  death knight, rottweiler, scrag, zombie, fiend, shambler, gremlin, mummy). A **cut joint** is any bone with a Ball or
+  Hinge joint that is not the torso (`pelvis`, the root, and `chest`); cutting it takes the bone and everything on it
+  (its subtree: the shoulder the whole arm, the elbow the forearm and hand, the knee the shin and foot, `tail2` the
+  scrag's tail from there). Loose bones (the grunt's shotgun) are never limbs. The **head** (the bone `head` and the
+  bones on it: the rottweiler's jaw) stays Decapitation's: its zones, its head gib (`h_*.mdl`), its brains.
+- **Where a hit lands** (`ragdolllimb(e, p)`): the nearest of the model's vertices to the point, as drawn now (a living
+  or dying monster: its frame's pose; a ragdoll: its bodies, skinned) gives the bone struck. The torso: no limb. The
+  head's bones: the head (Decapitation decides). Otherwise the joint nearest the point of the bone's own (its pivot)
+  and its children's: a hit on the upper arm near the elbow cuts at the elbow, near the shoulder the whole arm.
+- **The limb's model**: made at load time from the player's own copy of the monster's .mdl, nothing of id's written
+  anywhere (`progs/soldier.mdl#limb4`, Mod_LoadModel's derived files, as the wall torch's flame): the triangles whose
+  three corners are on the cut bones, in the rig's rest pose (the .mdl's first frame), centred on its vertices'
+  middle; the cut capped (each triangle that crossed the cut with two corners on the limb gives a cap triangle from
+  those to the cap's middle) in blood: a strip of the skin's palette's blood reds appended under each skin. Flag
+  EF_GIB (a blood trail). A server entity (multiplayer: precached late, as the training dummy's enemies).
+- **On the ragdoll**: the cut bones' bodies are destroyed (Box3D takes their joints; the ragdoll collides without
+  them), their vertices drawn at the joint (as the beheaded neck's), the stump painted with wounds and spurting a
+  fountain as the neck does. `.vr_limbcut` (the cut bones, bits) is kept in saved games: a ragdoll made again is cut
+  again (as `.vr_headless`).
+- **The limb**: the cut piece flies off as a gib (grabbable, rigid, destroyable, sticking; from where the bones were,
+  turned as the cut bone was, its velocity plus the blade's share as a head's) with a few small gibs and blood; a pop
+  bursts it where it was (blood mist, gore burst, small gibs, no brains). Detached limbs are capped by `vr_limbs_max`
+  (oldest first; Quake's big gibs had no cap of their own).
+- **Living monsters**: only the killing blow, armed as a beheading is (`vr_decap_limb`: -1 the head, else the joint):
+  no death animation, its ragdoll at once with `vr_limbs_body_speed` of the blow's knock. Zombies and mummies: a lost
+  limb kills them for good (`vr_limbs_zombies`; their beheading stays `vr_decap_zombies`).
+- **Chances**: the head's rules per weapon class (blunt hardness, the shotguns' ranges and pellets at that limb, a
+  thrown thing's mass, lightning), times `vr_limbs_chance_scale` for limbs and `vr_decap_chance_scale` for heads;
+  Quad Damage always (`vr_decap_pop_quad`).
+- **Explosions** (`vr_limbs_blast`): 0 gibbing as before; 1 an explosion's kill pops the limbs within
+  `vr_limbs_blast_radius` of it by chance (`vr_limbs_blast_chance`, falling off with distance), the body left a
+  ragdoll instead of gibs when any popped. **Full gibbing** (`vr_gib_limbs`): 0 Quake's gibs only, 1 the monster's own
+  limbs thrown besides them (default), 2 instead of the meat gibs.
