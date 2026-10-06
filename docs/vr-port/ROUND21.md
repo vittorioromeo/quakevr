@@ -26236,3 +26236,18 @@ the console (CLUNDO line).
 - Tested with the mock keys (Hide Ticked on): two items ticked (65 open -> 63, the page 269 rows -> 257), Undo twice
   (-> 263 -> 269 rows, 65 open, both items unticked in the ticks file), a third press and `vr_checklist undo` with
   nothing left: CLUNDO -1.
+
+## Search: opened recently, under the keyboard (2026-10-06)
+
+Vittorio (vrfiringrange): "In the search page, can you add a list of recently clicked items at the bottom below the
+keyboard? It should keep like the last five or six items I've searched and clicked on." Under Search's keyboard,
+**Opened recently:** the last six results opened (a row or a page), the latest first, each with the page it is on in
+small letters; one picked (laser, mouse, or the sticks: down from the keyboard's bottom row, A / Enter) opens it as a
+result does, and moves it to the top. Kept across starts in `quakevr/search_recent.txt` (ignored by git; one a line:
+`row|` or `page|`, the path, ` > `, the label), written at each open; one no longer found (renamed, removed) is left
+out of the list shown. As many rows as fit above the help (all six at the shipped Menu Height; the Map Library reuses
+the layout without the list). `menu_vr recent [clear]` prints them (SRECENT, with where each is drawn) or clears them.
+- Mock headset: "grenade", "turn speed", "flashlight" each opened with Enter, Back to Search: the list Flashlight,
+  Turn Speed, Grenade. Restarted: the same three read from the file; the laser on Grenade and the trigger opened Weapon
+  Damage on Grenade, now first. Flat (`vr_enabled 0`): `vr_mock_mouse 134 123 click` on Turn Speed opened VR Settings
+  on Turn Speed, now first.

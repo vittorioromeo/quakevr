@@ -16,6 +16,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_gadget.hpp"
 #include "vr_mapindex.hpp"
 #include "vr_mapinstall.hpp"
@@ -9195,6 +9196,11 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "dump"))
     {
         dumpPages();
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "recent"))
+    {
+        searchRecentCommand(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "clear"));
         return;
     }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "helpcheck"))

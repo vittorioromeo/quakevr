@@ -9,6 +9,11 @@
 // first; then shorter labels. A word with underscores in it is a cvar's name (or a part of one, "gib_health"): matched
 // against the cvar's whole name, below the labels unless typed in full. vr_menu_search <text> prints the results (the
 // same ranking).
+//
+// Under the keyboard, the last results opened (searchRecentMax, the latest first): one picked opens it as a result
+// does. Kept across starts in quakevr/search_recent.txt (one a line: "row|" or "page|", its path, " > ", its label); one
+// no longer found (renamed, removed) is left out of the list shown. menu_vr recent [clear] prints them (SRECENT, with
+// where each is drawn, for the tests) or clears them.
 
 struct SearchEntry
 {
@@ -31,6 +36,8 @@ struct SearchResult
 };
 
 constexpr int searchMaxResults = 60;
+constexpr int searchRecentMax = 6;           // results opened kept under the keyboard
+constexpr float searchRecentHeight = 12.f;   // a line of them (menu y)
 constexpr int searchMaxQuery = 48; // (the longest cvars' names)
 
 struct SearchState
@@ -45,8 +52,106 @@ struct SearchState
     int focusKey{-1};        // the sticks' selection: a key...
     int focusResult{-1};     // ...or a result (-1: neither: the laser's)
     int visibleResults{1};   // as last drawn
+    za::Vector<za::String> recent;  // the results opened last, the latest first (their keys: searchEntryKey)
+    za::Vector<int> recentEntries;  // each one's entry in `index` now (-1: not found)
+    bool recentLoaded{false};
+    int hoverRecent{-1};            // under the laser or the mouse
+    int focusRecent{-1};            // the sticks' selection
 };
 SearchState search;
+
+// What an entry is kept by in the recent list: its kind, the pages above it and its label.
+[[nodiscard]] za::String searchEntryKey(const SearchEntry& e)
+{
+    return za::String{e.isPage ? "page|" : "row|"} + e.path + " > " + e.label;
+}
+
+[[nodiscard]] za::String searchRecentPath()
+{
+    return za::String{com_gamedir} + "/search_recent.txt";
+}
+
+// The recent list's entries found in the index (built again whenever the index is).
+void searchResolveRecent()
+{
+    search.recentEntries.clear();
+    for(const za::String& key : search.recent)
+    {
+        int found = -1;
+        for(int i = 0; i < static_cast<int>(search.index.size()) && found < 0; i++)
+        {
+            found = searchEntryKey(search.index[i]) == key ? i : -1;
+        }
+        search.recentEntries.pushBack(found);
+    }
+}
+
+void searchLoadRecent()
+{
+    search.recentLoaded = true;
+    search.recent.clear();
+    za::String text;
+    if(!files::readText(searchRecentPath().cStr(), text))
+    {
+        return;
+    }
+    files::forLines(text, [](za::StringView line) {
+        while(line.endsWith('\r') || line.endsWith(' '))
+        {
+            line.removeSuffix(1);
+        }
+        if(!line.empty() && static_cast<int>(search.recent.size()) < searchRecentMax)
+        {
+            search.recent.emplaceBack(line);
+        }
+    });
+}
+
+void searchSaveRecent()
+{
+    za::String text;
+    for(const za::String& key : search.recent)
+    {
+        text += key;
+        text += '\n';
+    }
+    if(!files::writeText(searchRecentPath().cStr(), text))
+    {
+        Con_Printf("menu search: couldn't write %s\n", searchRecentPath().cStr());
+    }
+}
+
+// An entry opened: first in the recent list (moved up when it is there already), the oldest past searchRecentMax
+// dropped; saved at once.
+void searchNoteRecent(int entry)
+{
+    const za::String key = searchEntryKey(search.index[entry]);
+    za::Vector<za::String> list{key};
+    for(const za::String& k : search.recent)
+    {
+        if(k != key && static_cast<int>(list.size()) < searchRecentMax)
+        {
+            list.pushBack(k);
+        }
+    }
+    search.recent = ZA_MOVE(list);
+    searchResolveRecent();
+    searchSaveRecent();
+}
+
+// The recent list's rows shown (those found), in order: their places in `recent`.
+[[nodiscard]] int searchRecentShown(int* rows)
+{
+    int n = 0;
+    for(int i = 0; i < static_cast<int>(search.recentEntries.size()); i++)
+    {
+        if(search.recentEntries[i] >= 0)
+        {
+            rows[n++] = i;
+        }
+    }
+    return n;
+}
 
 [[nodiscard]] za::String lowered(const char* text)
 {
@@ -357,6 +462,11 @@ void buildSearchIndex()
         }
     }
     levelOverride = was;
+    if(!search.recentLoaded)
+    {
+        searchLoadRecent();
+    }
+    searchResolveRecent();
 }
 
 void runSearch()
@@ -435,13 +545,15 @@ void runSearch()
 }
 
 // Opens the result's page on its row (raising Menu Detail to show it); Back from it: Search.
-void openResult(int r)
+// Opens an entry's page on it (a result picked, or one of the recent list's), and notes it in the recent list.
+void openEntry(int entry)
 {
-    if(r < 0 || r >= static_cast<int>(search.results.size()))
+    if(entry < 0 || entry >= static_cast<int>(search.index.size()))
     {
         return;
     }
-    const SearchEntry& e = search.index[search.results[r].entry];
+    searchNoteRecent(entry);
+    const SearchEntry& e = search.index[entry];
     if(e.level > menuLevel())
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(e.level));
@@ -471,6 +583,25 @@ void openResult(int r)
     S_LocalSound("misc/menu2.wav");
 }
 
+void openResult(int r)
+{
+    if(r >= 0 && r < static_cast<int>(search.results.size()))
+    {
+        openEntry(search.results[r].entry);
+    }
+}
+
+// The recent list's row `i` (of those shown) opened.
+void openRecent(int i)
+{
+    int rows[searchRecentMax];
+    const int n = searchRecentShown(rows);
+    if(i >= 0 && i < n)
+    {
+        openEntry(search.recentEntries[rows[i]]);
+    }
+}
+
 // ----------------------------------------------------------------------------
 // The page: layout and drawing
 // ----------------------------------------------------------------------------
@@ -492,6 +623,7 @@ struct SearchLayout
     float half;               // half a key's (and the box's) height, true pixels
     float k;                  // the canvas's row spacing (Painter's)
     float resultsTop, resultsBottom;
+    float recentTop;          // the recent list under the keyboard: its title's line, its rows under it
     za::Vector<SearchKey> keys;
 };
 
@@ -539,7 +671,32 @@ char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, f
     s.keys.pushBack({' ', "Space", s.left + keyW * 1.f + keyGap, s.left + keyW * 6.f - keyGap, y});
     s.keys.pushBack({keyBackspace, "Delete", s.left + keyW * 6.f + keyGap, s.left + keyW * 8.f - keyGap, y});
     s.keys.pushBack({keyClear, "Clear", s.left + keyW * 8.f + keyGap, s.left + keyW * 10.f - keyGap, y});
+    s.recentTop = y + (s.half + 6.f) / s.k;
     return s;
+}
+
+// The recent list's rows that fit above the help (the Map Library's page has none: it reuses the layout).
+[[nodiscard]] int searchRecentRows(const SearchLayout& s)
+{
+    return CLAMP(0, static_cast<int>((s.resultsBottom - s.recentTop - 8.f) / searchRecentHeight), searchRecentMax);
+}
+
+[[nodiscard]] float searchRecentY(const SearchLayout& s, int i)
+{
+    return s.recentTop + 8.f + searchRecentHeight * static_cast<float>(i);
+}
+
+// The recent list's row (of those shown) under a spot (-1: none).
+[[nodiscard]] int searchRecentAt(const SearchLayout& s, float x, float y)
+{
+    int rows[searchRecentMax];
+    const int n = q_min(searchRecentShown(rows), searchRecentRows(s));
+    if(x < s.left || x > s.split - 6.f || y < searchRecentY(s, 0) - 2.f)
+    {
+        return -1;
+    }
+    const int i = static_cast<int>((y - searchRecentY(s, 0) + 2.f) / searchRecentHeight);
+    return i >= 0 && i < n ? i : -1;
 }
 
 [[nodiscard]] bool keyHit(const SearchLayout& s, const SearchKey& key, float x, float y)
@@ -636,6 +793,43 @@ void drawSearch()
         searchText((key.x0 + key.x1 - w) * 0.5f, key.yc - 4.f, 8.f, key.x1 - key.x0, key.label, hot);
     }
 
+    // The recent list: what was opened last, the latest first; each label, and the page it is on in small letters.
+    {
+        int rows[searchRecentMax];
+        const int n = q_min(searchRecentShown(rows), searchRecentRows(s));
+        const float width = s.split - 6.f - s.left;
+        if(searchRecentRows(s) > 0)
+        {
+            searchText(s.left, s.recentTop, 6.f, width, n > 0 ? "Opened recently:" : "Opened recently: none yet", false);
+        }
+        for(int i = 0; i < n; i++)
+        {
+            const SearchEntry& e = search.index[search.recentEntries[rows[i]]];
+            const float y = searchRecentY(s, i);
+            const bool hot = search.hoverRecent == i || search.focusRecent == i;
+            p.rounded(s.left, s.split - 6.f, y + 3.5f, 5.5f * s.k, 2.f, hot ? colors::buttonHover : colors::boxFill);
+            if(hot)
+            {
+                p.rounded(s.left - 1.f, s.split - 5.f, y + 3.5f, 6.f * s.k, 2.f, colors::listHover);
+            }
+            za::StringView where{e.path};
+            const size_t cut = where.rfind('>');
+            if(cut != za::StringView::nPos && cut + 2 <= where.size())
+            {
+                where.removePrefix(cut + 2); // the page it is on (a page: the one linking it)
+            }
+            char name[64];
+            q_snprintf(name, sizeof(name), "%s%s", e.label.cStr(), e.isPage ? " >" : "");
+            const float whereWidth = q_min(5.f * static_cast<float>(where.size()), width * 0.4f);
+            const float nameWidth = width - 8.f - whereWidth - 6.f;
+            const float nameSize = za::fmax(5.f, za::fmin(7.f, nameWidth / q_max(static_cast<float>(strlen(name)), 1.f)));
+            searchText(s.left + 4.f, y + (7.f - nameSize), nameSize, nameWidth, name, true);
+            char page[64];
+            q_snprintf(page, sizeof(page), "%.*s", static_cast<int>(q_min(where.size(), sizeof(page) - 1)), where.data());
+            searchText(s.split - 10.f - whereWidth, y + 2.f, 5.f, whereWidth, page, false);
+        }
+    }
+
     // The results: the label, and under it in small letters the pages it is on (the last of them if long), and the
     // Menu Detail it needs if above the one shown.
     const float x0 = s.split + 2.f;
@@ -695,7 +889,10 @@ void drawSearch()
         searchText(s.right - 5.f * static_cast<float>(strlen(more)), s.resultsTop - 7.f, 5.f, width, more, false);
     }
 
-    drawHelp(search.focusKey >= 0 || search.hoverKey >= 0 || n == 0
+    drawHelp(search.focusRecent >= 0 || search.hoverRecent >= 0
+                 ? "Opened recently, the latest first: pick one to open its page on it again, as a result. Kept across "
+                   "starts (quakevr/search_recent.txt)."
+             : search.focusKey >= 0 || search.hoverKey >= 0 || n == 0
                  ? "Type with the keys (or a keyboard); the results update as you go. Pick one to open its page on it; "
                    "Back returns here."
                  : "A result above Menu Detail (in brackets) raises it to show its page. Back: where Search was opened.");
@@ -722,6 +919,26 @@ void searchMove(int dx, int dy)
     const SearchLayout s = searchLayout();
     const int keys = static_cast<int>(s.keys.size());
     const int results = static_cast<int>(search.results.size());
+    int recentRows[searchRecentMax];
+    const int recents = q_min(searchRecentShown(recentRows), searchRecentRows(s));
+    if(search.focusRecent >= 0)
+    {
+        if(dx > 0 && results > 0)
+        {
+            search.focusRecent = -1;
+            search.focusResult = search.resultScroll;
+        }
+        else if(dy < 0 && search.focusRecent == 0)
+        {
+            search.focusRecent = -1;
+            search.focusKey = keys - 3; // the bottom row's Space
+        }
+        else if(dy != 0)
+        {
+            search.focusRecent = CLAMP(0, search.focusRecent + dy, q_max(recents - 1, 0));
+        }
+        return;
+    }
     if(search.focusResult >= 0)
     {
         if(dx < 0)
@@ -783,6 +1000,11 @@ void searchMove(int dx, int dy)
         search.focusKey = -1;
         menuui::focusToolbar(-1); // up from the top row: the corner's buttons
     }
+    else if(recents > 0)
+    {
+        search.focusKey = -1;
+        search.focusRecent = 0; // down from the bottom row: the recent list
+    }
 }
 
 void searchKey(int key)
@@ -807,11 +1029,20 @@ void searchKey(int key)
             return;
         case K_ENTER:
         case K_KP_ENTER:
-            // A keyboard's Enter: the result picked, else the first.
+            // A keyboard's Enter: the recent row or result picked, else the first result.
+            if(search.focusRecent >= 0)
+            {
+                openRecent(search.focusRecent);
+                return;
+            }
             openResult(search.focusResult >= 0 ? search.focusResult : 0);
             return;
         case K_ABUTTON:
-            if(search.focusResult >= 0)
+            if(search.focusRecent >= 0)
+            {
+                openRecent(search.focusRecent);
+            }
+            else if(search.focusResult >= 0)
             {
                 openResult(search.focusResult);
             }
@@ -831,6 +1062,11 @@ void searchKey(int key)
                     return;
                 }
             }
+            if(const int recent = searchRecentAt(s, m_mousex, m_mousey); recent >= 0)
+            {
+                openRecent(recent);
+                return;
+            }
             openResult(searchResultAt(s, m_mousex, m_mousey));
             return;
         default: return; // (typing: VR_Menu_Char)
@@ -846,9 +1082,11 @@ void searchMouse(float x, float y)
         key = keyHit(s, s.keys[i], x, y) ? i : -1;
     }
     const int result = key >= 0 ? -1 : searchResultAt(s, x, y);
-    if((key >= 0 && key != search.hoverKey) || (result >= 0 && result != search.hoverResult))
+    const int recent = key >= 0 || result >= 0 ? -1 : searchRecentAt(s, x, y);
+    if((key >= 0 && key != search.hoverKey) || (result >= 0 && result != search.hoverResult) ||
+        (recent >= 0 && recent != search.hoverRecent))
     {
-        search.focusKey = search.focusResult = -1; // the laser's now
+        search.focusKey = search.focusResult = search.focusRecent = -1; // the laser's now
         if(ui_mouse_sound.value)
         {
             S_LocalSound("misc/menu1.wav");
@@ -856,6 +1094,7 @@ void searchMouse(float x, float y)
     }
     search.hoverKey = key;
     search.hoverResult = result;
+    search.hoverRecent = recent;
 }
 
 // Search, from any menu (the corner's button): the text as it was left, the results again (the pages may have
@@ -875,9 +1114,44 @@ void openSearchPage()
     search.from = page == target ? PageMain : page;
     buildSearchIndex();
     runSearch();
-    search.hoverKey = search.hoverResult = -1;
+    search.hoverKey = search.hoverResult = search.hoverRecent = -1;
+    search.focusRecent = -1;
     search.focusKey = 0;
     parentPage[target] = search.from;
     showPage(target);
     S_LocalSound("misc/menu2.wav");
+}
+
+// menu_vr recent [clear]: the recent list (SRECENT: its row shown, or "-" when no longer found; the label, the path;
+// where it is drawn while Search is shown, its middle in menu coordinates, for vr_mock_laser / vr_mock_mouse), or the
+// list cleared.
+void searchRecentCommand(bool clear)
+{
+    if(search.index.empty())
+    {
+        buildSearchIndex();
+    }
+    if(clear)
+    {
+        search.recent.clear();
+        searchResolveRecent();
+        searchSaveRecent();
+    }
+    const SearchLayout s = searchLayout();
+    int shown = 0;
+    for(int i = 0; i < static_cast<int>(search.recent.size()); i++)
+    {
+        const int entry = search.recentEntries[i];
+        if(entry < 0)
+        {
+            Con_Printf("SRECENT|-|%s\n", search.recent[i].cStr());
+            continue;
+        }
+        const SearchEntry& e = search.index[entry];
+        Con_Printf("SRECENT|%d|%s|%s|%.0f %.0f\n", shown, e.label.cStr(), e.path.cStr(), (s.left + s.split - 6.f) * 0.5f,
+            searchRecentY(s, shown) + 3.5f);
+        shown++;
+    }
+    Con_Printf("SRECENT %d kept, %d shown (room for %d); first result at %.0f %.0f\n", static_cast<int>(search.recent.size()),
+        shown, searchRecentRows(s), (s.split + s.right) * 0.5f, s.resultsTop + 4.f);
 }

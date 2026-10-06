@@ -898,7 +898,7 @@ and run.sh prints it as `ENGINE CRASH`. `vr_debug_crash` (an access violation) o
 purpose, to check it (Debug > Profiling and Memory > Crash the Game).
 
 Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the menu shown and, on a VR page, its
-selected row (with the header above it), its scroll and the page Back goes to. While a drop-down list is open (ROUND21.md, "Drop-down lists in the VR menus") a second line gives its row, highlighted choice, scroll and box (menu coordinates, for `vr_mock_laser`). `menu_vr list`: every page's number
+selected row (with the header above it), its scroll and the page Back goes to. While a drop-down list is open (ROUND21.md, "Drop-down lists in the VR menus") a second line gives its row, highlighted choice, scroll and box (menu coordinates, for `vr_mock_laser`). `menu_vr recent [clear]` prints Search's recent list (SRECENT lines, each row's middle in menu coordinates while Search is shown) or clears it (quakevr/search_recent.txt). `menu_vr list`: every page's number
 and place in the tree. `menu_vr dump` prints every page reached from VR Settings and its rows (MDPAGE/MDROW lines);
 `python Misc/quakevr/menu_coverage.py before.log after.log` compares two dumps (every setting and action still on a
 page, the tree, pages over 30 rows; ROUND21.md, "Menus reorganized"). Page numbers: 13 Grappling Hook, 23 Weapon
