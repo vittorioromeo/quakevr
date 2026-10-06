@@ -205,7 +205,7 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
 - **Burning:** flames spread between monsters, corpses and crates; lava nails set things alight, and burnt bodies
   smoulder after the flames go out (Combat > *Burning*). Torch flames and the maps' own flames burn your hands and
   body if you hold them there (Burning > *Your Own Torch*).
-- **Lightning shock:** what the lightning gun kills keeps arcing, convulsing and smoking, with burn marks; the living
+- **Lightning shock:** what the lightning gun kills keeps arcing, convulsing, crackling and smoking, with burn marks; the living
   it strikes arc too, and so do you when lightning hits you (Gore > *Lightning Shock*: *Arcs on the Living*, *Arcs on
   You*, *Smouldering Smoke*).
 
@@ -340,7 +340,9 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
 - **Spatial sound** with Valve's Steam Audio (VR Settings > *Sound*): sounds around your head (HRTF), muffled behind
   walls (occlusion), the room's reverb, air absorption over distance, your weapons heard from your hands, and a
   muffle under water. Voices keep their full band (Quake's own mix cut the highs).
-- **Physics sounds:** props, thrown weapons and gibs knock and scrape; a climbing hand grips with a sound.
+- **Physics sounds:** props, thrown weapons and gibs knock and scrape; a climbing hand grips with a sound, and a hand
+  taking a crate, a rock, an explosive box or a gib sounds of what it is made of. What is missing or could be better:
+  [vr-port/AUDIO_REVIEW.md](vr-port/AUDIO_REVIEW.md).
 - **Music** plays from the soundtrack of the Quake you own (the Steam re-release's, read where it is installed), per
   campaign; nothing to copy. *Music Volume* is on VR Settings.
 
