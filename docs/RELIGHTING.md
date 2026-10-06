@@ -21,8 +21,8 @@ the result is the same as the author's.
 - [ericw-tools' licence](#ericw-tools-licence)
 
 The game can also relight maps itself, without Python, with your own brightness settings: one map, an episode, a
-game or every map, in the background (see [Relighting in the game](#relighting-in-the-game)). It has no VisPatch
-step, so the script below is still the way to see-through water.
+game or every map, in the background (see [Relighting in the game](#relighting-in-the-game)). With the VisPatch files
+(below, in `quakevr\tools\vispatch`) it makes the water see-through too (*See-Through Liquids*), as the script does.
 
 ## What you need
 
@@ -49,14 +49,18 @@ step, so the script below is still the way to see-through water.
    | `hipnotic_vis.tgz` | 807 KB | Scourge of Armagon |
    | `rogue_vis.tgz` | 787 KB | Dissolution of Eternity |
 
-   Extract all three into one folder, for example `C:\tools\vispatch`. Windows 10 and 11 have `tar` for this. In a
-   Command Prompt, in the folder you downloaded them to:
+   Extract all three into `quakevr\tools\vispatch` in your Quake folder: the script and the game's own relight
+   (*See-Through Liquids*) both find them there by themselves. Another folder works too, for example `C:\tools\vispatch`
+   (the script's `--vis-dir`, or the `QUAKEVR_VISPATCH` environment variable, which the game reads too). Windows 10 and
+   11 have `tar` for this. In a Command Prompt, in the folder you downloaded them to (with your Quake folder in place of
+   Steam's if it is elsewhere):
 
    ```
-   mkdir C:\tools\vispatch
-   tar -xzf id1_vis.tgz -C C:\tools\vispatch
-   tar -xzf hipnotic_vis.tgz -C C:\tools\vispatch
-   tar -xzf rogue_vis.tgz -C C:\tools\vispatch
+   set VIS="C:\Program Files (x86)\Steam\steamapps\common\Quake\quakevr\tools\vispatch"
+   mkdir %VIS%
+   tar -xzf id1_vis.tgz -C %VIS%
+   tar -xzf hipnotic_vis.tgz -C %VIS%
+   tar -xzf rogue_vis.tgz -C %VIS%
    ```
 
    The folder then holds `id1.vis`, `hipnotic.vis` and `rogue.vis` (and a `rogue.txt` you can ignore). If
@@ -207,6 +211,7 @@ only read.
 | `<game>: not installed, skipped` | That game's folder isn't in the `--quake` folder. That's fine for a mission pack you don't have. |
 | `the water-vis patch is for another version of the map, left alone` | That map isn't the original 1996/1997 version (a modified map, or a mod's map with the same name), so the VisPatch data doesn't fit it. It is relit, but its water stays opaque. |
 | The water is still solid | *Water Alpha* was set to 1 (see [In the game](#in-the-game)); or *Relit Maps* is off; or the map isn't water-vised (see [Checking the result](#checking-the-result)). |
+| The water is still solid in maps relit in the game | *See-Through Liquids* is off, or dimmed: the game didn't find the VisPatch files (put them in `quakevr\tools\vispatch`, see [What you need](#what-you-need); `vr_relight_vispatch` in the console lists where it looked). Relight the maps again after adding them. |
 | `gfx/palette.lmp not found: glowing textures will not light` | `--quake` doesn't point at the folder containing `id1`. |
 
 ## Running from the repository
@@ -269,10 +274,22 @@ The settings:
 | Ambient Occlusion | `vr_relight_ao` (1.5) | Darker corners (0: none). |
 | Minimum Light | `vr_relight_minlight` (0) | No place darker than this. |
 | Shadow Quality | `vr_relight_quality` (1) | Smooth (soft edges) or Fast (about four times quicker). |
+| See-Through Liquids | `vr_relight_seethrough` (1) | id's maps (Quake and the mission packs) get VisPatch's water visibility, so their water, slime and teleporters can be see-through (how much: *Transparency*'s alphas). Off: their liquids stay opaque. Needs the VisPatch files: without them the row is dimmed, and its help says where to get them. |
 
 At their defaults the result is the relight script's (the lights given to `light` are the same, to the last digit).
 *Defaults* puts them back. The console has the same: `vr_relight` (the map in play, or `vr_relight e1m2` for another one,
 which is not reloaded), `vr_relight_cancel`, `vr_relight_status`, `vr_relight_defaults`, `vr_relight_revert`.
+
+**See-Through Liquids** does in the game what the script's VisPatch step does (`vis_maps.py`, ported): after `light`,
+the map's visibility and leaves are replaced by VisPatch's water-vised ones, byte for byte the script's result. The
+data files are looked for in `tools\vispatch` in each game folder (`quakevr\tools\vispatch`, where the script looks
+too), then in `QUAKEVR_VISPATCH`'s folder (`vr_relight_vispatch_dir`, for testing, is then the only place looked).
+A map is patched only if the patch's leaves are the map's own (a modified map, or a mod's map of the same name, is
+left with its own visibility; the console says so). The patch is part of each map's hash, so turning the setting on or
+off (or adding the files) relights id's maps in the next batch, and only them. Off, the map is read from its own file
+even when the script made a see-through copy. `vr_relight_vispatch` lists where the files were looked for and found,
+and how the map in play's liquids were loaded; `vr_relight_vispatch check <file.bsp>` tells which liquids a map is
+vised for (as `vis_maps.py --check`).
 
 ### Many maps at once
 
@@ -312,15 +329,15 @@ four; with Bounced Light 34, 33, 33 and 42 s. A map's texture lights are made on
 | `vr_relight_status` | The batch: maps done, each `light` running (stage, process id), progress and time left. |
 
 **Where the result goes:** `quakevr\relit_custom\<game>\maps\` (in the folder the game saves into), with a
-`<map>.relight` file saying how it was made. It is used over the relight script's map from then on (*Use In-game
-Relights*, `vr_relight_use`; off: the script's or the map's own). *Remove This Map's Relight* (`vr_relight_revert`)
-deletes it. The game starts from the relight script's copy of the map when there is one (it keeps that copy's
-see-through water), else from the map itself; id's `.pak` files and the game folders' maps are only read. The work
+`<map>.relight` file saying how it was made (and its liquids: which are see-through, and the VisPatch file used). It
+is used over the relight script's map from then on (*Use In-game Relights*, `vr_relight_use`; off: the script's or the
+map's own). *Remove This Map's Relight* (`vr_relight_revert`) deletes it. The game starts from the relight script's
+copy of the map when there is one and *See-Through Liquids* is on (it keeps that copy's see-through water, also without
+the VisPatch files), else from the map itself; id's `.pak` files and the game folders' maps are only read. The work
 folder, `relit_custom\_work\<game>\`, holds `light`'s logs (`<map>.txt`, `<map>-light.log`); the map given to it and
 what it made are removed once the result is in place (or the relighting stopped).
 
-**Not done in the game:** the water-vis patch (see-through water: the relight script does it; a map relit in the game
-keeps it if the script's copy had it) and lights for the glowing textures of BSP2 maps (neither does those).
+**Not done in the game (nor by the script):** lights for the glowing textures of BSP2 maps.
 
 ## ericw-tools' licence
 

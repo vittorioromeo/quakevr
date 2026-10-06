@@ -1264,6 +1264,7 @@ int relightToolState = -1;
     relightToolState = relight::toolPageState();
     [[maybe_unused]] const bool found = (relightToolState & 1) != 0;
     const bool downloading = (relightToolState & 2) != 0;
+    const bool seeThrough = (relightToolState & 8) != 0; // VisPatch's data found (See-Through Liquids usable)
     za::Vector<Item> list{
         info(relight::statusLine),
         progressBar(relight::progress, relight::progressText),
@@ -1299,6 +1300,8 @@ int relightToolState = -1;
         slider("Ambient Occlusion", "vr_relight_ao", 0.f, 3.f, 0.1f, "%.1f").help("Corners and crevices darker (1.5: the relight script's; 0 none)."),
         slider("Minimum Light", "vr_relight_minlight", 0.f, 64.f, 4.f, "%.0f").help("No place darker than this (0 none): an easy way out of pitch-black corners, at some cost to contrast."),
         cycle("Shadow Quality", "vr_relight_quality", {{0.f, "Fast"}, {1.f, "Smooth"}}).help("Smooth: soft shadow edges (the relight script's). Fast: about four times quicker, harder edges."),
+        seeThrough ? toggle("See-Through Liquids", "vr_relight_seethrough").help("id's maps (Quake and its two mission packs) relit with see-through water, slime and teleporters: VisPatch's visibility data put into them, so you see what is under and beyond (how clear: Transparency's alphas). Off: their liquids stay opaque. Maps made with see-through water keep it either way.")
+                   : toggle("See-Through Liquids", "vr_relight_seethrough").unavailableBecause("Needs VisPatch's data files, not part of Quake VR: id1.vis, hipnotic.vis and rogue.vis (in id1_vis.tgz, hipnotic_vis.tgz and rogue_vis.tgz, sourceforge.net/projects/vispatch, \"vispatch data\" 1.0) in quakevr/tools/vispatch. Without them id's liquids stay opaque (except in maps relight_maps.py made see-through)."),
         command("Defaults", "vr_relight_defaults").help("Every setting on this page back to the relight script's look."),
         header("Tool"),
         info(relight::toolLine),
@@ -1327,6 +1330,7 @@ int relightToolState = -1;
     }
     list.pushBack(command("Status in the Console", "vr_relight_status").developer());
     list.pushBack(command("Tool Lookup in the Console", "vr_relight_get_tool status").developer().help("vr_relight_get_tool status: the light.exe found, where the download goes, the pinned file (version, size, sha256) and the last download's result."));
+    list.pushBack(command("See-Through Data in the Console", "vr_relight_vispatch").developer().help("vr_relight_vispatch: where VisPatch's data files (See-Through Liquids) were looked for and found, and which liquids of the map in play were loaded see-through. vr_relight_vispatch check <file.bsp> tells it for any map; vr_relight_vispatch_dir points the lookup at a test folder."));
     list.pushBack(command("Write the Texture Lights", "vr_relight_lights").developer().help("Writes the lights this map's textures get with these settings to relight_lights.txt and lists them in the console (to compare with relight_maps.py --list-glows)."));
     return list;
 }

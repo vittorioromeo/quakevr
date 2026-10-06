@@ -1,8 +1,8 @@
 // vr_relight.cpp -- see vr_relight.hpp.
 //
 // Relighting a map in the game (vr_relight; VR Settings > Advanced VR Options > Graphics > Relighting): the map's
-// .bsp (the copy relight_maps.py made in quakevr/relit, with its see-through water, if there is one; else the map
-// itself, as the game finds it) is given ericw-tools' `light` with:
+// .bsp (the copy relight_maps.py made in quakevr/relit, with its see-through water, if there is one and See-Through
+// Liquids is on; else the map itself, as the game finds it) is given ericw-tools' `light` with:
 //
 // - the lights relight_maps.py gives the glowing textures (glowLights: a port of its glow_lights, which see): the
 //   lamps and light panels (fixtures), glowing buttons and panels, lava and slime, by the rules of
@@ -17,7 +17,9 @@
 //
 // light runs as a process of its own (vr_relight_process.cpp), below normal priority, on the copy in the work folder
 // (<game folder>/relit_custom/_work/<game>/); its output is read for the progress the page shows. When it ends, the map
-// keeps its own entities again (the lights were for light only) and the result goes to <game folder>/relit_custom/
+// keeps its own entities again (the lights were for light only), id's maps get VisPatch's water-vised visibility (See-
+// Through Liquids, vr_relight_seethrough: vr_relight_vis.cpp, as relight_maps.py does after light; when its data files
+// are found and have the map) and the result goes to <game folder>/relit_custom/
 // <game>/maps/<map>.bsp, .lit and .lux, which the engine loads over relit/ (VR_ModelFile; vr_relight_use 0: not), with
 // a <map>.relight saying how it was made (and a hash of the settings, the map's file and relight_textures.cfg: a batch
 // skips a map relit from the same). Each written as .tmp and renamed into place; the work folder's copies removed.
@@ -32,12 +34,13 @@
 // by its file's size and its light run by its stage (stageFraction).
 //
 // relight_maps.py is the reference: with the page's settings at their defaults the lights given to light are the
-// script's (vr_relight_lights writes them, to compare). What it does that this does not: the water-vis patch
-// (VisPatch: done by the script, kept from its copy) and the BSP2 maps' glowing textures (neither lights those).
+// script's (vr_relight_lights writes them, to compare), and the water-vis patch is its vis_maps.py's (the same bytes:
+// vr_relight_vispatch patches a file to compare). What neither does: the BSP2 maps' glowing textures.
 
 #include "vr_relight.hpp"
 #include "vr_relight_maps.hpp"
 #include "vr_relight_tool.hpp"
+#include "vr_relight_vis.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -306,8 +309,9 @@ struct BspxLump
 }
 
 // The .bsp with its entity lump `entities` (and a NUL), its lumps one after another and then its BSPX lumps
-// (vis_maps.packed): where engines look for them.
-[[nodiscard]] za::Vector<unsigned char> withEntities(const Bsp& b, za::StringView entities)
+// (vis_maps.packed): where engines look for them. With `patch`: its visibility and leaves in place of the map's
+// (vis_maps.vispatch; the caller checked it fits).
+[[nodiscard]] za::Vector<unsigned char> withEntities(const Bsp& b, za::StringView entities, const vis::Patch* patch = nullptr)
 {
     za::Vector<unsigned char> out;
     const auto pad = [&] {
@@ -330,6 +334,15 @@ struct BspxLump
         {
             out.resize(at + entities.size() + 1, 0);
             memcpy(out.data() + at, entities.data(), entities.size());
+        }
+        else if(patch && (i == 4 || i == 10))
+        {
+            const za::Vector<unsigned char>& lump = i == 4 ? patch->visibility : patch->leafs;
+            out.resize(at + lump.size(), 0);
+            if(!lump.empty())
+            {
+                memcpy(out.data() + at, lump.data(), lump.size());
+            }
         }
         else
         {
@@ -2164,6 +2177,7 @@ struct Look
 {
     float strength{1.2f}, lamps{1.f}, glows{1.f}, liquids{1.f}, maplights{1.f}, sunlight{1.f};
     float bounce{0.f}, ao{1.5f}, minlight{0.f}, quality{1.f};
+    bool seeThrough{true}; // vr_relight_seethrough (not in settingsText: each map's hash has its patch, or none)
 
     [[nodiscard]] static Look now()
     {
@@ -2178,6 +2192,7 @@ struct Look
         l.ao = vr_relight_ao.value;
         l.minlight = vr_relight_minlight.value;
         l.quality = vr_relight_quality.value;
+        l.seeThrough = vr_relight_seethrough.value != 0.f;
         return l;
     }
 };
@@ -2215,6 +2230,8 @@ struct Slot
     int percent{-1};
     int lights{0};
     double started{0.0}; // (Sys_DoubleTime)
+    bool patched{false}; // See-Through Liquids: `patch` goes in after light
+    vis::Patch patch;
 };
 
 struct Batch
@@ -2398,11 +2415,12 @@ struct Fnv
     return true;
 }
 
-// A batch's map's bytes: relight_maps.py's copy (relit/<game>/maps/, its water-vis patch kept), else its own file.
-[[nodiscard]] bool batchSource(const maps::Source& s, za::Vector<unsigned char>& data, bool& fromRelit)
+// A batch's map's bytes: relight_maps.py's copy (relit/<game>/maps/, its water-vis patch kept), else its own file;
+// `seeThrough` off (See-Through Liquids): its own file always (the copy's patch left out with the rest of it).
+[[nodiscard]] bool batchSource(const maps::Source& s, za::Vector<unsigned char>& data, bool& fromRelit, bool seeThrough)
 {
     const char* relit = va("relit/%s/maps/%s.bsp", s.game.cStr(), s.map.cStr());
-    fromRelit = COM_FileExists(relit, nullptr);
+    fromRelit = seeThrough && COM_FileExists(relit, nullptr);
     if(fromRelit)
     {
         if(byte* bytes = COM_LoadMallocFile(relit, nullptr))
@@ -2586,7 +2604,7 @@ enum class Started
     const double t0 = Sys_DoubleTime();
     za::Vector<unsigned char> data;
     bool fromRelit = false;
-    if(!batchSource(s, data, fromRelit))
+    if(!batchSource(s, data, fromRelit, batch.look.seeThrough))
     {
         Con_Printf("Relight: %s/maps/%s.bsp can't be read\n", s.game.cStr(), map);
         return Started::Failed;
@@ -2597,9 +2615,27 @@ enum class Started
         Con_Printf("Relight: %s/maps/%s.bsp is not a Quake map light can relight\n", s.game.cStr(), map);
         return Started::Failed;
     }
+    // See-Through Liquids: VisPatch's lumps for the map, put in after light (when they are for this version of it).
+    vis::Patch patch;
+    bool patched = false;
+    if(batch.look.seeThrough && vis::find(s.game.cStr(), map, patch))
+    {
+        patched = vis::fits(data.data(), data.size(), patch);
+        if(!patched)
+        {
+            Con_Printf("Relight: %s's water-vis patch (%s) is for another version of the map: its liquids stay as they are\n",
+                map, patch.file.cStr());
+        }
+    }
     Fnv fnv;
     fnv.add(batch.lookKey.data(), batch.lookKey.size());
     fnv.add(data.data(), data.size());
+    if(patched) // (the patch is part of what the map was made from: toggling it, or new data files, relights)
+    {
+        fnv.add("vispatch", 8);
+        fnv.add(patch.visibility.data(), patch.visibility.size());
+        fnv.add(patch.leafs.data(), patch.leafs.size());
+    }
     const za::String hash{va("%016llx", static_cast<unsigned long long>(fnv.h))};
     if(!batch.force && relitAlready(s, hash))
     {
@@ -2624,6 +2660,11 @@ enum class Started
     slot.original = original;
     slot.hash = hash;
     slot.lights = report.lights;
+    slot.patched = patched;
+    if(patched)
+    {
+        slot.patch = ZA_MOVE(patch);
+    }
     files::createDirectories(za::String{files::parentPath(za::StringView{slot.stem})}.cStr());
     const za::String bsp = slot.stem + ".bsp";
     const za::String log = slot.stem + ".txt";
@@ -2651,8 +2692,9 @@ enum class Started
     q_strlcpy(slot.stage, "starting", sizeof(slot.stage));
     item.state = State::Running;
     item.fraction = 0.f;
-    const char* line = va("relighting %s (%s%s; %d lights from its textures, made in %.0f ms) with %s", map, game,
-        fromRelit ? ", relight_maps.py's copy" : "", report.lights, (slot.started - t0) * 1000.0, batch.tool.cStr());
+    const char* line = va("relighting %s (%s%s%s; %d lights from its textures, made in %.0f ms) with %s", map, game,
+        fromRelit ? ", relight_maps.py's copy" : "", slot.patched ? ", see-through liquids after" : "", report.lights,
+        (slot.started - t0) * 1000.0, batch.tool.cStr());
     if(batch.single)
     {
         say(line);
@@ -2833,13 +2875,28 @@ void reloadNow(const char* map, double seconds)
         Con_Printf("Relight: light's %s.bsp can't be read\n", map);
         return false;
     }
-    const za::Vector<unsigned char> out = withEntities(b, slot.original);
+    // See-Through Liquids: VisPatch's visibility and leaves in, as relight_maps.py's water_vise does after light (light
+    // keeps the leaves: checked again on its output all the same).
+    const bool patch = slot.patched && vis::fits(b.data, b.size, slot.patch);
+    if(slot.patched && !patch)
+    {
+        Con_Printf("Relight: light's %s.bsp has other leaves than the water-vis patch's: its liquids stay as they are\n", map);
+    }
+    const za::Vector<unsigned char> out = withEntities(b, slot.original, patch ? &slot.patch : nullptr);
     const za::String outBsp = outPath(s, "bsp");
     files::createDirectories(za::String{files::parentPath(za::StringView{outBsp})}.cStr());
     const bool hasLux = files::isFile(lux.cStr()) && files::lastWriteTime(lux.cStr()) >= since;
     seconds = Sys_DoubleTime() - slot.started;
     za::String note{va("relit in the game (vr_relight) in %.1f s, %d lights from its textures\n", seconds, slot.lights)};
     note += batch.lookText;
+    note += "\nliquids: ";
+    note += vis::describe(vis::liquids(out.data(), out.size()));
+    if(patch)
+    {
+        note += " (VisPatch's water-vis, ";
+        note += slot.patch.file;
+        note += ")";
+    }
     note += "\nhash ";
     note += slot.hash;
     note += "\n";
@@ -3363,7 +3420,7 @@ void defaultsCommand()
 {
     for(cvar_t* c : {&vr_relight_strength, &vr_relight_lamps, &vr_relight_glows, &vr_relight_liquids,
             &vr_relight_maplights, &vr_relight_sunlight, &vr_relight_bounce, &vr_relight_ao, &vr_relight_minlight,
-            &vr_relight_quality})
+            &vr_relight_quality, &vr_relight_seethrough})
     {
         Cvar_SetQuick(c, c->default_string);
     }
@@ -3407,6 +3464,67 @@ void lightsCommand()
         written ? ", written to " : "", written ? file.cStr() : "");
 }
 
+// vr_relight_vispatch: where the VisPatch data (See-Through Liquids) is looked for, each game's file found, the map in
+// play's liquids (as loaded) and whether there is a patch for it. vr_relight_vispatch check <file.bsp>...: which liquids
+// .bsp files are vised for (vis_maps.py --check). vr_relight_vispatch <game> <map> <in.bsp> <out.bsp> (testing): the
+// patch put into a file as the relight puts it (repacked, its entities and BSPX lumps kept): to compare with vis_maps.py.
+void vispatchCommand()
+{
+    if(Cmd_Argc() >= 3 && !q_strcasecmp(Cmd_Argv(1), "check"))
+    {
+        for(int i = 2; i < Cmd_Argc(); i++)
+        {
+            za::Vector<unsigned char> data;
+            Con_Printf("%s: %s\n", Cmd_Argv(i), !files::readBytes(Cmd_Argv(i), data) ? "can't be read" :
+                vis::describe(vis::liquids(data.data(), data.size())).cStr());
+        }
+        return;
+    }
+    if(Cmd_Argc() == 5)
+    {
+        const char *game = Cmd_Argv(1), *map = Cmd_Argv(2), *in = Cmd_Argv(3), *outFile = Cmd_Argv(4);
+        za::Vector<unsigned char> data;
+        vis::Patch patch;
+        if(!files::readBytes(in, data))
+        {
+            Con_Printf("vr_relight_vispatch: %s can't be read\n", in);
+            return;
+        }
+        const Bsp b{data.data(), data.size()};
+        if(!b.valid() || !vis::find(game, map, patch) || !vis::fits(data.data(), data.size(), patch))
+        {
+            Con_Printf("vr_relight_vispatch: %s\n", !b.valid() ? "not a Quake map" :
+                patch.file.empty() ? va("no patch for %s/%s", game, map) : "the patch is for another version of the map");
+            return;
+        }
+        const za::Vector<unsigned char> out = withEntities(b, za::StringView{entitiesText(b)}, &patch);
+        Con_Printf("vr_relight_vispatch: %s (%s)\n", files::writeBytes(outFile, out.data(), out.size()) ? outFile : "not written",
+            vis::describe(vis::liquids(out.data(), out.size())).cStr());
+        return;
+    }
+    if(Cmd_Argc() != 1)
+    {
+        Con_Printf("vr_relight_vispatch [check <file.bsp>... | <game> <map> <in.bsp> <out.bsp>]\n");
+        return;
+    }
+    Con_Printf("See-Through Liquids (vr_relight_seethrough %s): VisPatch's data looked for in %s\n",
+        vr_relight_seethrough.string, vis::placesText().cStr());
+    for(const char* g : {"id1", "hipnotic", "rogue"})
+    {
+        const za::String file = vis::dataFile(g);
+        Con_Printf("  %s: %s\n", g, file.empty() ? "no data file" : file.cStr());
+    }
+    char map[MAX_QPATH], game[MAX_QPATH];
+    if(currentMap(map, sizeof(map)) && VR_MapGameFolder(va("maps/%s.bsp", map), game, sizeof(game)))
+    {
+        const int t = cl.worldmodel->contentstransparent;
+        vis::Patch patch;
+        Con_Printf("  %s (%s), as loaded: see-through%s%s%s%s%s; %s\n", map, game, t & SURF_DRAWWATER ? " water" : "",
+            t & SURF_DRAWTELE ? " tele" : "", t & SURF_DRAWSLIME ? " slime" : "", t & SURF_DRAWLAVA ? " lava" : "",
+            t ? "" : " none", vis::find(game, map, patch) ? va("a patch in %s", patch.file.cStr()) : "no patch");
+    }
+}
+
 // Formats for the page (file scope: valid until the function's next call).
 char statusText[512];
 char detailText[512];
@@ -3416,8 +3534,9 @@ char mapText[512];
 char toolText[MAX_OSPATH + 64];
 double toolCheckedAt{0.0}; // when toolText was made (Sys_DoubleTime)
 bool toolWasFound = false; // what toolText says
+bool visWasFound = false;  // VisPatch's data found then (See-Through Liquids' row)
 int toolGeneration = -1;   // the tool::generation() toolText was made at (a download finished: looked again at once)
-za::String toolCvars;      // vr_relight_tool, vr_relight_tool_dir and Menu Detail: Developer then (a change: looked again at once)
+za::String toolCvars;      // vr_relight_tool, vr_relight_tool_dir, vr_relight_vispatch_dir and Menu Detail: Developer then (a change: looked again at once)
 
 // The maps the batch has done with (relit, skipped, failed).
 [[nodiscard]] int doneCount()
@@ -3448,6 +3567,7 @@ void registerCommands()
     Cmd_AddCommand("vr_relight_status", statusCommand);
     Cmd_AddCommand("vr_relight_defaults", defaultsCommand);
     Cmd_AddCommand("vr_relight_lights", lightsCommand);
+    Cmd_AddCommand("vr_relight_vispatch", vispatchCommand);
     Cmd_AddCommand("vr_relight_get_tool", tool::command); // (vr_relight_tool.cpp)
 }
 
@@ -3657,8 +3777,8 @@ const char* toolLine()
 {
     // (looked for again every two seconds while the page shows it: a file check a search path folder)
     const double now = Sys_DoubleTime();
-    const za::String cvars = za::String{vr_relight_tool.string} + "|" + vr_relight_tool_dir.string +
-                             (vr_menu_level.value >= 2.f ? "|dev" : "");
+    const za::String cvars = za::String{vr_relight_tool.string} + "|" + vr_relight_tool_dir.string + "|" +
+                             vr_relight_vispatch_dir.string + (vr_menu_level.value >= 2.f ? "|dev" : "");
     if(toolText[0] && now < toolCheckedAt + 2.0 && toolGeneration == tool::generation() && toolCvars == cvars)
     {
         return toolText;
@@ -3668,6 +3788,7 @@ const char* toolLine()
     toolCvars = cvars;
     const za::String found = findTool();
     toolWasFound = !found.empty();
+    visWasFound = vis::available();
     q_snprintf(toolText, sizeof(toolText), "%s",
         found.empty() ? "light.exe: not found (Download ericw-tools below, or vr_relight_tool)" : va("light.exe: %s", found.cStr()));
     return toolText;
@@ -3679,10 +3800,17 @@ bool toolFound()
     return toolWasFound;
 }
 
+bool seeThroughAvailable()
+{
+    (void)toolLine();
+    return visWasFound;
+}
+
 int toolPageState()
 {
     // (what the page shows of the tool: found or not, a download running, its result; a change rebuilds the page)
-    return (toolFound() ? 1 : 0) | (tool::running() ? 2 : 0) | (tool::statusLine()[0] ? 4 : 0);
+    return (toolFound() ? 1 : 0) | (tool::running() ? 2 : 0) | (tool::statusLine()[0] ? 4 : 0) |
+           (seeThroughAvailable() ? 8 : 0);
 }
 
 } // namespace qvr::relight

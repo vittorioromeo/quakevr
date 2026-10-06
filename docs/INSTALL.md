@@ -295,8 +295,9 @@ It takes about a minute on a fast PC and writes about 210 MB to `quakevr\relit\`
 
 **Or in the game, without Python:** *VR Settings > Advanced VR Options > Graphics > Relighting* (Menu Detail:
 Advanced) relights the map you are in, an episode, a game or every map, in the background while you play, with
-brightness sliders. It has no VisPatch step, so on its own it doesn't make water see-through (a map the script made
-see-through keeps it). See [RELIGHTING.md](RELIGHTING.md#relighting-in-the-game).
+brightness sliders. With the VisPatch files in `quakevr\tools\vispatch` it makes the water see-through too
+(*See-Through Liquids*, on by default; dimmed without the files). See
+[RELIGHTING.md](RELIGHTING.md#relighting-in-the-game).
 
 **In the game:** the relit maps are used from the next map you load. *Advanced VR Options > Graphics > Relit Maps*
 switches between the relit and the original lighting. Water on the relit maps is see-through (*Advanced VR Options >
@@ -361,7 +362,7 @@ Paths under *Advanced VR Options* need *Menu Detail: Advanced* (the last row of 
 | Guns point the wrong way, hands misplaced | Adjust *Gun Angle* and *Off Hand Angle* in VR Settings. *Weapon Offsets (Held Weapon)* moves a single weapon in the hand. |
 | Double vision, wrong scale | Send the output of `vr_status`, and a screenshot of the desktop mirror with `vr_mirror 2` (both eyes). |
 | Too tall, too short, floor in the wrong place | *Set Height Now* while standing straight, *World Scale*, *Floor Offset*. |
-| Water isn't see-through | Needs the relit maps made with the VisPatch files, and *Transparency > Water Alpha* below 1 (0.3 by default). See [RELIGHTING.md](RELIGHTING.md#troubleshooting). |
+| Water isn't see-through | Needs maps relit with the VisPatch files (by the script, or in the game with *See-Through Liquids*), and *Transparency > Water Alpha* below 1 (0.3 by default). See [RELIGHTING.md](RELIGHTING.md#troubleshooting). |
 | No sound | Check the Windows output device (your headset's audio) and Ironwail's volume options. |
 | Slow or stuttering | See [Performance](#performance). |
 | A crash | `qconsole.log` up to the crash, and what you were doing. |

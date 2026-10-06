@@ -9,7 +9,7 @@ namespace qvr::relight
 {
 
 // vr_relight, vr_relight_batch, vr_relight_cancel, vr_relight_revert, vr_relight_status, vr_relight_defaults,
-// vr_relight_lights.
+// vr_relight_lights, vr_relight_vispatch.
 void registerCommands();
 
 // VR_HostFrameEnd: the light processes' progress read, their results taken when they end, the next maps started, the
@@ -36,7 +36,10 @@ void shutdown();
 
 // Whether a light.exe is found (toolLine's look, at most every 2 s; at once after a download finished).
 [[nodiscard]] bool toolFound();
-// What the page shows of the tool (found, a download running, its result), as a number: a change rebuilds the page.
+// Whether VisPatch's data files are found (See-Through Liquids can patch id's maps; looked for with the tool).
+[[nodiscard]] bool seeThroughAvailable();
+// What the page shows of the tool (found, a download running, its result) and of VisPatch's data (found), as a number:
+// a change rebuilds the page.
 [[nodiscard]] int toolPageState();
 
 // The compact line shown outside the menu while a relighting runs (the wrist gadget's screen, the flat screen's

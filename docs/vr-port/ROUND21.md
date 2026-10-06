@@ -27067,3 +27067,37 @@ What it changes in play: heads are thrown faster (the one-hand limit 28 m/s x (1
 (the weight's damage curve). A thrown head under `vr_decap_pop_thrown_mass` (4 kg: now the dog's, scrag's, gremlin's)
 pops a head on a killing headshot only at `vr_decap_pop_thrown_light_chance` (0.25), not always. Bursting on a wall
 goes by the hand's speed (7 m/s), not the mass: unchanged. Grabbing and holding: a lighter prop, nothing else.
+## Relighting: See-Through Liquids in the game (2026-10-07)
+
+Graphics > Relighting has **See-Through Liquids** (`vr_relight_seethrough` 1): id's maps relit in the game get
+VisPatch's water-vised visibility, as `relight_maps.py --vis-dir` gives its copies. Before, the in-game relight kept the
+patch only when it started from the script's copy, and maps the script never made stayed opaque.
+
+- `Quake/vr/vr_relight_vis.cpp` ports `vis_maps.py` (read_vis_file, leaf_shape, vispatch, water_vis): the data file for
+  the map's game (`<game>.vis` or `<game>/vispatch.dat`) is looked for in `tools/vispatch` of each game folder (the
+  installer's `<QVR>\quakevr\tools\vispatch`, where the script looks too), then `QUAKEVR_VISPATCH`;
+  `vr_relight_vispatch_dir` (testing) is then the only place. No Python, no subprocess.
+- After `light`, `finishSlot` repacks the map with its own entities and the patch's visibility and leaves
+  (`withEntities` takes the patch), the script's order (with_entities, then water_vise). A patch is used only if its
+  leaves are the map's (checked at the start and on light's output); otherwise the console says so.
+- The patch is in each map's hash (not in the page's settings text): toggling it, or adding the data files, relights
+  id's maps in the next batch and skips the others. Off, the source is the map's own file, not the script's copy.
+- The `.relight` note has a `liquids:` line (which are see-through, and the VisPatch file used); the start line says
+  "see-through liquids after". The patch takes about a millisecond on the game's thread when light ends, so it has no
+  progress stage of its own.
+- Without the data the row is dimmed and inert, shown off, its help saying what to get and where (new menu
+  `Item::unavailableBecause`, drawn and refused as a server-locked row). `vr_relight_vispatch` (Developer row "See-
+  Through Data in the Console") lists the places and files and the map in play's liquids as loaded;
+  `vr_relight_vispatch check <bsp>...` is `vis_maps.py --check`; `vr_relight_vispatch <game> <map> <in> <out>` patches
+  a file as the relight does.
+
+Verified: `vr_relight_vispatch` on the original e1m1, e1m2, e2m1, start, e4m1, hip1m1 and r1m1 (from the paks) gives
+files byte-for-byte equal to `vis_maps.vispatch(with_entities(map, own entities))`; a patch for another map is refused.
+In-game batches (e1m1, e1m2, e2m1, start; light.exe, Fast shadows): every result has the patch's lumps and the script's
+water_vise leaves it unchanged (it is already the script's output for that light result); toggling off relit the 3 maps
+opaque, the same setting again skipped all 3, back on relit them see-through. e1m2 loads with water and teleporters
+see-through (`contentstransparent`), opaque with the original map; a screenshot over the pool shows its floor through
+the water.
+
+In VR: put the VisPatch files in `quakevr\tools\vispatch`, relight an episode (Many Maps) and look into the water of
+e1m2's or start's pools; turn See-Through Liquids off and relight: opaque again. Without the files, the row is dimmed.

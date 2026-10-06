@@ -154,6 +154,9 @@ struct Item
     // tuning and testing (developer()) is left out of the pages below that level.
     int level{0};
 
+    // A setting that can't be used here (unavailable()): dimmed, shown off, not changed; its help says why.
+    bool unavailable{false};
+
     [[nodiscard]] Item advanced() const
     {
         Item i = *this;
@@ -172,6 +175,15 @@ struct Item
     {
         Item i = *this;
         i.helpText = text;
+        return i;
+    }
+
+    // Dimmed, shown off and not changed, `why` its help (what it needs: See-Through Liquids without VisPatch's data).
+    [[nodiscard]] Item unavailableBecause(const char* why) const
+    {
+        Item i = *this;
+        i.unavailable = true;
+        i.helpText = why;
         return i;
     }
 
@@ -8330,7 +8342,7 @@ void openInTree(int target)
 // A server rule while connected to a remote server: shown, dimmed, not changed from here.
 [[nodiscard]] bool lockedItem(const Item& item)
 {
-    return (item.kind == Item::Slider || item.kind == Item::Cycle) && serverrules::locked(item.cvar);
+    return (item.kind == Item::Slider || item.kind == Item::Cycle) && (item.unavailable || serverrules::locked(item.cvar));
 }
 
 [[nodiscard]] int currentChoice(const Item& item)
@@ -8960,7 +8972,7 @@ void drawItem(const Item& item, int y, bool selected)
     }
 
     const int labelX = midPos - 28 - 8 * static_cast<int>(strlen(item.label));
-    const bool locked = lockedItem(item); // the remote server's rule: dimmed, its value shown
+    const bool locked = lockedItem(item); // the remote server's rule (or unavailable()): dimmed, its value shown
     if(locked)
     {
         GL_PushCanvasColor(1.f, 1.f, 1.f, 0.5f);
@@ -8999,7 +9011,7 @@ void drawItem(const Item& item, int y, bool selected)
         case Item::Cycle:
             if(isToggle(item))
             {
-                M_DrawCheckbox(midPos, y, valueOf(item)); // a switch in the VR menu style
+                M_DrawCheckbox(midPos, y, item.unavailable ? 0.f : valueOf(item)); // a switch in the VR menu style
             }
             else
             {
@@ -9096,7 +9108,7 @@ void drawItem(const Item& item, int y, bool selected)
 const char* itemHelp(const Item& item)
 {
     const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpArg ? item.helpArg(item.arg) : item.helpText;
-    if(lockedItem(item))
+    if(lockedItem(item) && !item.unavailable)
     {
         help = serverRuleHelp(item, help);
     }
