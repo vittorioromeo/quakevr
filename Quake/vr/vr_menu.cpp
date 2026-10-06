@@ -3195,6 +3195,9 @@ void hologramTestMessage()
         slider("Gib Health", vr_gib_health, 1.f, 60.f, 1.f, "%.0f").extend().help("The damage that destroys a gib; a head takes half as much again."),
         slider("Gib Splat Speed", vr_gib_splat_speed, 100.f, 600.f, 25.f, "%.0f").extend()
             .help("Units/s a thrown gib or head must hit a wall or a monster at to burst."),
+        slider("Hard Throw Bursts", vr_gib_splat_throw, 0.f, 12.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
+            .help("A gib or head thrown with the hand this fast or faster bursts on a wall instead of sticking, however "
+                  "heavy (a heavy one leaves the hand slowly). Softer throws stick (Thrown Gibs Stick). 0: off."),
         toggle("Gib Corpses", vr_corpse_gib)
             .help("Corpses burst into gibs when shot, blown up or struck enough: shotguns, nails, lightning, rockets, fists, melee weapons."),
         slider("Corpse Health", vr_corpse_health_mult, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)

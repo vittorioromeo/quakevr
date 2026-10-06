@@ -807,6 +807,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
     {
         VR_Throw_TwoHanded(self, xBox);
     }
+    xBox.vr_gib_handspeed = vlen(throwVel); // (a hard throw bursts it on a wall, however heavy: VR_Gib_HardThrow)
     VR_Gib_Released(xBox, vlen(v), xHand); // a gib or head thrown hard bursts on a wall, softer may stick
     VR_Grenade_Released(xBox, xHand); // a live grenade is the player's (vr_grenade.qc)
 };
@@ -1598,6 +1599,7 @@ float MOVE_HITGIBS = 256;
 .vector vr_gib_lastvel;   // thrown: its velocity at the last check, to see it strike a wall
 .float vr_gib_releasetime; // when a hand last let go of it,
 .float vr_gib_releasehand; // and which
+.float vr_gib_handspeed;   // the hand's speed (m/s) as it threw it, before its mass limits the gib's (VR_Gib_HardThrow)
 
 float(entity xGib) VR_Gib_IsDestroyable =
 {
@@ -1684,12 +1686,23 @@ float(entity g) VR_Gib_TurnedByThrower =
     return trace_fraction >= 1 && !trace_startsolid;
 };
 
+// Whether `g` (one that can be destroyed) was thrown hard: the hand at Hard Throw Bursts (vr_gib_splat_throw, m/s) or
+// faster. Its mass limits how fast a gib leaves the hand (a 20 kg one at 86 u/s from 3 m/s on, a 12 kg one at 136 from
+// 4 m/s on: ROUND21.md "Hard throws burst gibs on walls"), so its own speed can't tell a hard throw from a soft one: the
+// hand's does. Such a gib bursts where a softer one would stick (VR_Gib_Think2's wall hit). 0: off.
+float(entity g) VR_Gib_HardThrow =
+{
+    float hard = cvar_hget(cvarh_vr_gib_splat_throw);
+    return hard > 0 && g.vr_gib_handspeed >= hard && VR_Gib_IsDestroyable(g);
+};
+
 // Arms it, and follows a thrown one's flight (VR_Gib_Released). A thrown gib is a rigid body, whose
 // landing on the world touches nothing: a hard hit is seen in its velocity, turned sharply between
 // two frames: bursting it (one that can be destroyed), or slower sticking it (Thrown Gibs Stick).
 void() VR_Gib_Think2 =
 {
     float destroyable = VR_Gib_IsDestroyable(self);
+    float hardThrow = VR_Gib_HardThrow(self);
     if(!destroyable)
     {
         self.takedamage = DAMAGE_NO;
@@ -1737,14 +1750,15 @@ void() VR_Gib_Think2 =
             VR_Gib_Burst(self, self.vr_gib_lastvel);
             return;
         }
-        // Slower (or one that can't burst): into a wall or a ceiling it may stick (vr_gore_stick_thrown). What it struck:
+        // Slower (or one that can't burst): into a wall or a ceiling it may stick (vr_gore_stick_thrown), or burst there
+        // if it was thrown hard (VR_Gib_HardThrow: the hand's speed, Hard Throw Bursts). What it struck:
         // what lies along its way; else across (falling steeply down a wall, its way down meets the floor first). A
         // hit is its speed into that surface (not along it) turned by a quarter or more in a frame (Box3D's contact
         // can take two), at Speed to Stick: a gib lobbed into a wall falls faster than it goes in, so its whole turn was
         // under half its speed (2026-10-06: about half of the throws at a wall never stuck).
         float stickSpeed = cvar_hget(cvarh_vr_gore_stick_speed);
         if(lastSpeed >= stickSpeed && vlen(change) >= max(stickSpeed, lastSpeed * 0.25) &&
-           cvar_hget(cvarh_vr_gore_stick_thrown) > 0)
+           (cvar_hget(cvarh_vr_gore_stick_thrown) > 0 || hardThrow))
         {
             traceline(self.origin, self.origin + normalize(self.vr_gib_lastvel) * 40, TRUE, self);
             vector across = self.vr_gib_lastvel;
@@ -1756,6 +1770,13 @@ void() VR_Gib_Think2 =
             float into = -(self.vr_gib_lastvel * trace_plane_normal);
             if(trace_fraction < 1 && !trace_startsolid && into >= stickSpeed && change * trace_plane_normal >= into * 0.25)
             {
+                if(hardThrow)
+                {
+                    dprint(sprintf("gib: thrown hard (the hand at %.1f m/s) into the world at %.1f, %.0f into it, %.2f s after "
+                        "it was let go of: burst\n", self.vr_gib_handspeed, lastSpeed, into, time - self.vr_gib_releasetime));
+                    VR_Gib_Burst(self, self.vr_gib_lastvel);
+                    return;
+                }
                 vr_gore_stick_thrown = min(1, cvar_hget(cvarh_vr_gore_stick_thrown));
                 float stuck = VR_Gore_Stick(self, trace_endpos, trace_plane_normal, lastSpeed);
                 vr_gore_stick_thrown = 0;
@@ -1797,7 +1818,7 @@ void(entity xGib, float xSpeed, float xHand) VR_Gib_Released =
     xGib.vr_gib_releasetime = time;
     xGib.vr_gib_releasehand = xHand;
     float watch = destroyable ? cvar_hget(cvarh_vr_gib_splat_speed) : 100000;
-    if(stick)
+    if(stick || VR_Gib_HardThrow(xGib))
     {
         watch = min(watch, cvar_hget(cvarh_vr_gore_stick_speed));
     }

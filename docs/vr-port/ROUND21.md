@@ -26814,3 +26814,37 @@ autoload, kept), `restart fresh` restarts the map without it.
 In VR:
 - [ ] Horde (horde1): save, die, let go and press fire: the arena restarts from wave 0 (not your save). In e1m1: save,
   die, press: your save loads as before.
+
+### Hard throws burst gibs on walls (Hard Throw Bursts)
+
+His answer to "should hard throws burst on walls rather than stick (lower Gib Splat Speed)?": burst. But a gib's own
+speed can't tell a hard throw from a soft one: its mass limits how fast it leaves the hand (`throwvelocity`'s soft
+limit), so from about 4 m/s of the hand on every gib of 8 kg or more leaves at the same speed (table: release speeds,
+u/s). No Gib Splat Speed bursts a hard throw and keeps a 3-6 m/s one sticking: at 150 (under the 8-20 kg gibs' speeds)
+gib1 bursts from 5 m/s, gib3, gib2 and the ogre's head never reliably, and lobs at 2 m/s burst on the floor before
+the wall (4-8 of 10). So the throw is judged by the **hand's** speed as it let go (`vr_gib_handspeed`, from the throw
+estimate before the mass limit): **Hard Throw Bursts** (`vr_gib_splat_throw`, m/s, default 7; Gibs and Corpses, after
+Gib Splat Speed; 0 off): a destroyable gib or head thrown that hard bursts where a softer one would stick (the same
+wall hit, `VR_Gib_Think2`: its speed into a wall at Speed to Stick, turned by a quarter). Gib Splat Speed (250) stays:
+any gib that fast still bursts on a wall or a monster (a small gib from 6 m/s). 7 m/s is between his measured gib
+throws (3.6-4.5 m/s in the takes; the brief's soft-to-normal 3-6) and this file's "hard" throws (9 m/s). A new
+setting: no config migration.
+
+`vr_smallgibs_test 22` (Debug > Gore Tests > Thrown Gibs Stick, by Mass; now hand speeds 2 to 10 m/s), e1m1's start
+facing south (`setpos 480 -352 88 0 270 0`, test 15), 10 throws each, stuck of 10 (burst):
+
+| gib (release u/s at 2/3/4/6+ m/s) | 2-6 m/s, off (`vr_gib_splat_throw 0`) | 7-10 m/s, off | 2-6 m/s, 7 (new) | 7-10 m/s, 7 (new) |
+|---|---|---|---|---|
+| gib1 8 kg (64/107/161/195) | 50/50 | 40/40 | 50/50 | 0 (40 burst) |
+| gib3 12 kg (64/106/133/136) | 50/50 | 40/40 | 49/50 | 0 (40) |
+| gib2 20 kg (64/84/86/86) | 47 (1) | 35 (3) | 50/50 | 0 (40) |
+| grunt head 10 kg (64/107/150/160) | 49 | 40/40 | 49 | 0 (40) |
+| ogre head 30 kg (57/59/59/59) | 49 | 40/40 | 47 | 0 (38; 2 landed short) |
+| small gib 0.3 kg (64/107/163/283) | 41 (9 at 6 m/s) | 0 (40) | 40 (10 at 6 m/s) | 0 (40) |
+
+(Gib Splat Speed 150 and Hard Throw Bursts 0, for the record: stuck of 10 at 2..10 m/s, gib1 6 10 7 0 0 0 0 0 0, gib3
+8 10 8 6 8 9 6 5 7, gib2 5 10 9 10 9 10 10 8 10, grunt head 8 10 5 2 3 3 4 3 4, ogre head 4 6 3 5 6 4 1 8 4.)
+
+In VR:
+- [ ] Throw gibs and heads at a wall: a soft or normal throw sticks; a hard one (a fast arm) bursts them in a mist,
+  heavy ones too.

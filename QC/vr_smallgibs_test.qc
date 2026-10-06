@@ -34,7 +34,7 @@
 //     at chest height, to look at (they fly, land, lie about); 7 prints the brain chunks of the head's burst too
 //  22 thrown gibs stick, by mass: from where you stand (15 first: at the wall) gibs of 8, 12 and 20 kg (gib1, gib3,
 //     gib2), a grunt's and an ogre's head (10, 30 kg) and a small gib thrown at the wall ahead as a hand's throw at 2 to
-//     6 m/s makes them (throwvelocity: limited by their mass), aimed 5 to 25 degrees up, 3 either side, side by side 36
+//     10 m/s makes them (throwvelocity: limited by their mass), aimed 5 to 25 degrees up, 3 either side, side by side 36
 //     units apart (a wall 220 wide); each vr_smallgibs_test_n times (keep it small: 10); after 1.5 s, stuck, burst or
 //     neither (removed then). Prints a
 //     table: per gib and hand speed, stuck/thrown (burst) and the mean release speed
@@ -367,17 +367,17 @@ float(entity p, entity m) VR_SmallGib_TestNearHealth =
     return sum;
 };
 
-// Test 22's (thrown gibs stick, by mass): the gibs (VR_GST_MODELS) by hand speeds (VR_GST_SPEEDS: 2..6 m/s), a cell
+// Test 22's (thrown gibs stick, by mass): the gibs (VR_GST_MODELS) by hand speeds (VR_GST_SPEEDS: 2..10 m/s), a cell
 // each; the throw under way (its gib marked .vr_gibstick_test: a freed and reused entity loses it), the counts.
 .float vr_gibstick_test;
 float VR_GST_MODELS = 6;
-float VR_GST_SPEEDS = 5;
+float VR_GST_SPEEDS = 9;
 float vr_gst_k;
 float vr_gst_n;
 entity vr_gst_g[6];
-float vr_gst_stuck[30];
-float vr_gst_burst[30];
-float vr_gst_speed[30];
+float vr_gst_stuck[54];
+float vr_gst_burst[54];
+float vr_gst_speed[54];
 
 string(float i) VR_SmallGib_StickName =
 {
@@ -427,6 +427,7 @@ void(float xCell) VR_SmallGib_StickThrow =
     vector v = throwvelocity(dir * hand, '0 0 0', propvalue(g, "mass"), 1) * VRMetersToUnits() *
                cvar_hget(cvarh_vr_carry_throw_mult) * propvalue(g, "throw");
     VR_Carry_Throw(g, v);
+    g.vr_gib_handspeed = hand;
     VR_Gib_Released(g, vlen(v), cVR_MainHand);
     g.vr_gibstick_test = 1;
     vr_gst_g[i] = g;
@@ -479,8 +480,9 @@ void() VR_SmallGib_StickFrame =
         VR_SmallGib_StickRound(vr_gst_k);
         return;
     }
-    bprint(sprintf("gibstick: Speed to Stick %g, Thrown Gibs Stick %g, Gib Splat Speed %g; %g throws each; stuck/thrown (burst) at u/s\n",
-        cvar_hget(cvarh_vr_gore_stick_speed), cvar_hget(cvarh_vr_gore_stick_thrown), cvar_hget(cvarh_vr_gib_splat_speed), vr_gst_n));
+    bprint(sprintf("gibstick: Speed to Stick %g, Thrown Gibs Stick %g, Gib Splat Speed %g, Hard Throw Bursts %g m/s; %g throws each; stuck/thrown (burst) at u/s\n",
+        cvar_hget(cvarh_vr_gore_stick_speed), cvar_hget(cvarh_vr_gore_stick_thrown), cvar_hget(cvarh_vr_gib_splat_speed),
+        cvar_hget(cvarh_vr_gib_splat_throw), vr_gst_n));
     float gi, gj, gc;
     string row;
     for(gi = 0; gi < VR_GST_MODELS; gi++)
@@ -864,7 +866,7 @@ void(float xCase) VR_SmallGib_TestStart =
     {
         vr_gst_n = max(1, n);
         vr_gst_k = 0;
-        for(float gc = 0; gc < 30; gc++)
+        for(float gc = 0; gc < 54; gc++)
         {
             vr_gst_stuck[gc] = 0;
             vr_gst_burst[gc] = 0;
