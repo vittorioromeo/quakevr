@@ -35,6 +35,7 @@ struct State
     double triggeredAt = -1.0; // realtime of the last press or tap that counted (vr_bullettime_trigger_cooldown)
     float tapPeak = 0.f;       // the wrist tap: the hands' peak speed (m/s) coming together, near the zone; 0: none
     double tapPeakAt = -1.0;   // ... and when
+    bool stickTaken[HAND_COUNT] = {}; // the stick press taken at its press (vr_bullettime_trigger): its release is too
 };
 State state;
 
@@ -196,6 +197,13 @@ void tapWrist(const hands::State& s, int hand)
     }
 }
 
+// vr_bullettime_trigger's stick: HAND_OFF (the left controller) for 1, HAND_MAIN (the right) for 2; -1: the gadget.
+[[nodiscard]] int stickHand()
+{
+    const int t = static_cast<int>(vr_bullettime_trigger.value);
+    return t == 1 ? HAND_OFF : t == 2 ? HAND_MAIN : -1;
+}
+
 // vr_bullettime: as the gadget's button.
 void bullettime_f()
 {
@@ -212,6 +220,26 @@ void bullettime_f()
 void init()
 {
     Cmd_AddCommand("vr_bullettime", bullettime_f);
+}
+
+bool stickPress(int hand, bool now)
+{
+    if(!now)
+    {
+        const bool taken = state.stickTaken[hand];
+        state.stickTaken[hand] = false;
+        return taken;
+    }
+    if(hand != stickHand() || key_dest != key_game || vr_bullettime_enabled.value == 0.f)
+    {
+        return false;
+    }
+    state.stickTaken[hand] = true;
+    if(inGame())
+    {
+        trigger(hand, hand == HAND_OFF ? "left stick press" : "right stick press");
+    }
+    return true;
 }
 
 void toggle()
@@ -285,7 +313,8 @@ void frame()
     glm::vec3 at, out;
     const hands::State& s = hands::current();
     const int hand = 1 - hands::gadgetHand();
-    if(!inGame() || key_dest != key_game || !s.valid || !button(at, out))
+    // A stick press starts it instead (vr_bullettime_trigger): the gadget's button and the wrist tap do nothing.
+    if(!inGame() || key_dest != key_game || !s.valid || stickHand() >= 0 || !button(at, out))
     {
         state.pressing = false;
         state.tapPeak = 0.f;

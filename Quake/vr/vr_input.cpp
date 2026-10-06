@@ -12,6 +12,7 @@
 // only scrolls a page with a scrollbar or is DPAD UP/DOWN (never left/right: it doesn't change
 // settings); the menu button closes the menu from any page.
 
+#include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_engine.hpp"
@@ -324,6 +325,13 @@ void update(const InputState& tracked)
                 if(motion::button(h, b.button, now))
                 {
                     logButton(h, b, now, b.key[h], "the motion recorder");
+                    continue;
+                }
+                // A stick press chosen to start bullet time (vr_bullettime_trigger) does only that in the game; its
+                // bound key (LTHUMB: +speed, RTHUMB: +reloadmain by default) is never sent.
+                if(b.button == &HandInput::stickClick && bullettime::stickPress(h, now))
+                {
+                    logButton(h, b, now, b.key[h], "bullet time");
                     continue;
                 }
                 // An empty hand at the cord's handle of the chainsaw in the other takes the cord (vr_chainsaw.cpp).

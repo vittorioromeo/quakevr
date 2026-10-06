@@ -335,6 +335,7 @@ QVR_CVAR(vr_bullettime_fx_tint, "0.85 0.95 1.15", CVAR_ARCHIVE) // ... the colou
 QVR_CVAR(vr_bullettime_button_radius, "1.5", CVAR_ARCHIVE) // units: how near the fingertip must come to the button's middle to press it
 QVR_CVAR(vr_bullettime_button_reach, "1", CVAR_ARCHIVE) // units: the fingertip, ahead of the hand's place
 QVR_CVAR(vr_bullettime_button, "1", CVAR_ARCHIVE)     // 1: the gadget's button starts and stops it; 0: not
+QVR_CVAR(vr_bullettime_trigger, "0", CVAR_ARCHIVE)    // what starts and stops it: 0 the gadget (its button, vr_bullettime_button, and the wrist tap, vr_bullettime_tap); 1 the left stick's press; 2 the right stick's press (that stick press then does only this in the game, never its bound key; the gadget's button and the tap do nothing)
 // The wrist tap: the other hand (its own middle, never what it holds) struck against the gadget's wrist, hard enough.
 QVR_CVAR(vr_bullettime_tap, "1", CVAR_ARCHIVE)        // 1: a tap on the gadget's wrist starts and stops it; 0: not
 QVR_CVAR(vr_bullettime_tap_radius, "15", CVAR_ARCHIVE) // cm: how near the gadget's middle the other hand's middle must come

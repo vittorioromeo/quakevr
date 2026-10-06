@@ -61,6 +61,11 @@ struct Look
 // there to where it is now (vr_mock_hand_to ... wrist <cm>: steps along it make a tap).
 [[nodiscard]] bool tapHandTarget(int hand, float cm, glm::vec3& out);
 
+// vr_input, a controller's stick pressed (`now`) or let go: true if bullet time takes it (vr_bullettime_trigger 1: the
+// left stick, HAND_OFF; 2: the right, HAND_MAIN; in the game only), so its key (LTHUMB, RTHUMB) never reaches the game.
+// A release is taken when its press was.
+[[nodiscard]] bool stickPress(int hand, bool now);
+
 // Starts it (if the meter allows) or stops it: the button's and vr_bullettime's action.
 void toggle();
 

@@ -141,6 +141,11 @@
                   "edge with its fingertip): the world slows for as long as the meter on the gadget's screen (TIME) "
                   "lasts; tap again to stop. Then a cooldown, and the meter fills again. Bindable: vr_bullettime. "
                   "Single player."),
+        cycle("Trigger", "vr_bullettime_trigger",
+            {{0.f, "Gadget (Wrist Tap, Button)"}, {1.f, "Left Stick Press"}, {2.f, "Right Stick Press"}})
+            .help("What starts and stops it. Gadget: a tap on its wrist or its button (their settings below). A stick "
+                  "press: that press does only this in the game (never its bound key: by default the left's is Run, "
+                  "the right's Reload), and the gadget's tap and button do nothing."),
         command("Start or Stop It Now", "vr_bullettime").help("vr_bullettime: as the gadget's button."),
         slider("Time Scale", "vr_bullettime_scale", 0.1f, 1.f, 0.05f, "%.2fx").extend(0.05f, 1.f)
             .help("How fast the world runs while it lasts (0.3: under a third of its speed)."),

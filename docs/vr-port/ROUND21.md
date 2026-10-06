@@ -26349,3 +26349,22 @@ Hipnotic or the firing range: let an enforcer shoot another monster in the head 
 off and watch the cut ends spurt as they fly, a head's neck too; pick a forearm, a leg and a head up and throw them
 (Limb Weight); shock a living monster and kill it with the axe (its arcs go on); Debug > Show Hit Zones > Decapitation on
 a running and a dying monster.
+## Bullet time on a stick press (2026-10-06)
+
+Voice note hip1m1 16:49: bullet time started by a thumbstick press instead of the gadget. `vr_bullettime_trigger`
+(Combat > Bullet Time > **Trigger**): 0 the gadget (its wrist tap and its button, as before; default), 1 the left
+stick's press, 2 the right stick's press (physical sides: HAND_OFF is always the left controller). With a stick chosen,
+the gadget's button and the wrist tap do nothing (`bullettime::frame` returns before them), and that stick's press in
+the game does only bullet time (`bullettime::stickPress`, called from `vr_input.cpp` after the posing mode and the
+motion recorder's record button, before the game's key): its bound key never reaches the game, release included
+(taken when its press was). Conflicts: by default LTHUMB is `+speed` (run) and RTHUMB `+reloadmain`; the chosen stick
+loses that in the game (the menu's help says so); the other stick keeps its binding. In the menu the press stays the
+menu's. The motion recorder's record button (`vr_motion_button` 0, the off stick click, only while armed) still comes
+first.
+
+Test (mock, e1m1, `vr_debug_buttons 1`, `vr_debug_bullettime 1`): mode 0, left press: `LTHUMB (bound to "+speed")` to
+the game, no bullet time. Mode 1: right press to the game (`+reloadmain`); left press: `bullet time: left stick
+press`, on at 0.30x, `taken by bullet time` (press and release). Mode 2: left to the game; right press toggles it off,
+taken. The gadget's button could not be exercised headless here: `vr_mock_hand_to main button` says "no gadget shown"
+(the gadget's pose is never valid in this mock run, with or without placed hands), so the gadget-off part rests on the
+code path.
