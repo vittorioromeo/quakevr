@@ -436,4 +436,20 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <!-- QVR: every engine build also compiles the QuakeC (QC/progs.src -> quakevr/progs.dat), so the game never runs new
+       engine code with an old progs.dat. Skipped when progs.dat is newer than every QC source; skipped with a warning
+       when the compiler is missing (override its path with /p:QvrQcCompiler=...). A QC error fails the build. -->
+  <PropertyGroup>
+    <QvrQcCompiler Condition="'$(QvrQcCompiler)'==''">C:\OHWorkspace\quakevr\QC\fteqcc64.exe</QvrQcCompiler>
+    <QvrQcDir>$(MSBuildProjectDirectory)\..\..\QC</QvrQcDir>
+    <QvrProgsDat>$(MSBuildProjectDirectory)\..\..\quakevr\progs.dat</QvrProgsDat>
+  </PropertyGroup>
+  <ItemGroup>
+    <QvrQcSource Include="$(QvrQcDir)\**\*.qc;$(QvrQcDir)\progs.src" />
+  </ItemGroup>
+  <Target Name="QvrCompileQC" BeforeTargets="ClCompile" Inputs="@(QvrQcSource)" Outputs="$(QvrProgsDat)">
+    <Warning Condition="!Exists('$(QvrQcCompiler)')" Text="QuakeC compiler not found at $(QvrQcCompiler): progs.dat not rebuilt (set QvrQcCompiler)" />
+    <Exec Condition="Exists('$(QvrQcCompiler)')" WorkingDirectory="$(QvrQcDir)"
+          Command="&quot;$(QvrQcCompiler)&quot; -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208" />
+  </Target>
 </Project>
