@@ -453,6 +453,7 @@ using PageBuilder = za::Vector<Item> (*)();
 struct MenuReadouts
 {
     za::String motionNote, motionLastSaved, extendableHelp, serverRuleHelp;
+    za::String checklistUndoHelp;      // checklistUndoHelp
     za::String weight[2];              // weightReadout, by hand
     za::String weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
     za::String heldObjectMass;
@@ -467,7 +468,7 @@ struct MenuReadouts
     auto members()
     {
         return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
-            weaponWeightsDrop, weaponWeightsHits, weaponOffsetsStock, checklistSummary, stamina, renderScaleHelp, buildVersion);
+            weaponWeightsDrop, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistUndoHelp, stamina, renderScaleHelp, buildVersion);
     }
 };
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
@@ -497,10 +498,11 @@ struct PageTexts
     za::String weaponWeightsTitle, weaponWeightsInheritTitle;
     za::String heldObjectOffsetsTitle, heldObjectWeightsTitle;
     za::Vector<za::String> checklistSections; // the Checklist's headers
+    za::String checklistUndone;               // the item Undo Last Tick changed last (its help says)
     auto members()
     {
         return qvr::mem::list(weaponOffsetsTitle, weaponOffsetsInheritTitle, weaponOffsetsInheritNames, weaponWeightsTitle,
-            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle, checklistSections);
+            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle, checklistSections, checklistUndone);
     }
 };
 mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
@@ -3809,6 +3811,47 @@ void checklistReload()
     checklist::refresh(true);
 }
 
+// Undo Last Tick: the session's ticks and unticks taken back one at a time, the last first (checklist::undo); its help
+// names the item the next one changes, and the one it changed last (found again with Hide Ticked off).
+[[nodiscard]] bool checklistUndoDim(int)
+{
+    return checklist::undoCount() == 0;
+}
+
+[[nodiscard]] const char* checklistUndoHelp(int)
+{
+    za::String& text = readouts.checklistUndoHelp;
+    char count[48];
+    q_snprintf(count, sizeof(count), "%d to undo. ", checklist::undoCount());
+    text = checklist::undoCount() == 0 ? "Nothing to undo: each tick and untick made since the game started can be "
+                                         "taken back here, the last first."
+                                       : count;
+    text += checklist::undoCount() == 0 ? "" : checklist::undoTicks() ? "Next ticks again: " : "Next unticks: ";
+    if(checklist::undoCount() > 0)
+    {
+        text += checklist::undoText();
+    }
+    if(!pageTexts.checklistUndone.empty())
+    {
+        text += checklist::undoCount() > 0 ? " (Last undone: " : " Last undone: ";
+        text += pageTexts.checklistUndone;
+        text += checklist::undoCount() > 0 ? ")" : "";
+    }
+    return text.cStr();
+}
+
+void checklistUndo()
+{
+    const za::String what = checklist::undoText();
+    if(checklist::undo() == -1)
+    {
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    pageTexts.checklistUndone = what;
+    S_LocalSound("misc/menu3.wav");
+}
+
 [[nodiscard]] za::Vector<Item> pageChecklist()
 {
     checklist::refresh();
@@ -3830,11 +3873,15 @@ void checklistReload()
 
     za::Vector<Item> items = {
         info(checklistSummary),
-        toggle("Hide Ticked", vr_checklist_hide_ticked).help("Leaves the ticked items out of the list."),
+        toggle("Hide Ticked", vr_checklist_hide_ticked).help("Leaves the ticked items out of the list. Off: every item, the ticked ones dimmed."),
         action("Reload List", checklistReload)
             .help("Reads quakevr/checklist.txt again (done by itself too when the file changes). Ticks are kept by each "
                   "item's text, in quakevr/checklist_ticks.txt."),
     };
+    Item undo = action("Undo Last Tick", checklistUndo);
+    undo.helpArg = checklistUndoHelp;
+    undo.dimArg = checklistUndoDim;
+    items.insert(items.begin() + 2, undo); // (under Hide Ticked)
     int run = -1;
     bool headerDue = false;
     int shown = 0;
@@ -4325,6 +4372,7 @@ za::Vector<Item> pageDebugReports()
         command("Relighting: Status", "vr_relight_status").help("vr_relight_status: the relighting's state (a batch's maps done, each light running: its stage and process id; the progress and time left), how the map in play is lit, the light.exe found."),
         command("Relighting: Tool Lookup", "vr_relight_get_tool status").help("vr_relight_get_tool status: the light.exe found (or not), the folder Download ericw-tools writes, the pinned file (version, size, sha256), its URL and the last download's result. vr_relight_tool_dir points both lookup and download at a test folder; vr_relight_tool_url at a test server."),
         command("Relighting: Batch's Maps", "vr_relight_batch -list").help("vr_relight_batch -list: the maps Graphics > Relighting's Relight These Maps would take (Maps, Episode, Game), with their files and sizes, without relighting them."),
+        command("Menu Help Fit", "menu_vr helpcheck").help("menu_vr helpcheck [columns]: every VR page's help wrapped as drawn: the pages whose box grew, the help shown in parts, the longest (HELPSUM)."),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
 }

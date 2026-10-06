@@ -917,7 +917,7 @@ Playtest checklist (ROUND21.md, "In-game checklist"): **to update what the autho
 `quakevr/checklist.txt`** (`[Section]` lines, one item a line, `#` comments; the format is at its top) and commit it: no
 rebuild, and a running game reads it again within a second. Ticks live in `quakevr/checklist_ticks.txt` (ignored), keyed
 by each item's exact text: rewording an item un-ticks it, moving or removing others does not. `vr_checklist` prints the
-list (CLSUM/CLITEM lines), `vr_checklist tick <n>` ticks or unticks item n, `vr_checklist reload` reads the file now;
+list (CLSUM/CLITEM lines), `vr_checklist tick <n>` ticks or unticks item n, `vr_checklist undo` takes the last tick or untick back (CLUNDO: the item, the undos left; the page's Undo Last Tick), `vr_checklist reload` reads the file now;
 the page is `menu_vr 72` (Debug > Checklist).
 Stuck (ROUND21.md, "Never stuck"): `vr_stuck_info` prints the player's server position (2 decimals), what its box is
 in, the movers near it and how often `vr_unstick` freed it; `vr_stuck_test <x> <y> <z>` puts the player there as if it

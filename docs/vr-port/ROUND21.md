@@ -26223,3 +26223,16 @@ row, 472 characters; Tips 317; Menu Detail, on every page, 285).
   next, then the first again; a thin bar at the box's right shows which part. `developer 1` prints
   `menu help: part 2 of 2 (10 lines, 20.6 s)` as they turn (Limb Gore: 20.6 s, then 10.4 s, measured in real time).
 - Search's and the Map Library's own help keep the four-line box (their rows carry none).
+
+## Checklist: Undo Last Tick (2026-10-06)
+
+Vittorio (vrfiringrange): "Can you add an undo button to the checklist in case I accidentally tick an item and I cannot
+find it anymore so I can undo the last tick?" Checklist > **Undo Last Tick** (under Hide Ticked): every tick and untick
+made this session is kept (`checklist::undo*`, the last 64), and each press puts the last one back as it was, saved at
+once; with Hide Ticked on, an item ticked by mistake comes back into the list. Its help says how many are left, what
+the next press changes ("Next unticks: <item>") and what the last one undid; the row is dimmed with nothing to undo.
+Hide Ticked off already shows the ticked items (dimmed), its help now says so. `vr_checklist undo` does the same from
+the console (CLUNDO line).
+- Tested with the mock keys (Hide Ticked on): two items ticked (65 open -> 63, the page 269 rows -> 257), Undo twice
+  (-> 263 -> 269 rows, 65 open, both items unticked in the ticks file), a third press and `vr_checklist undo` with
+  nothing left: CLUNDO -1.

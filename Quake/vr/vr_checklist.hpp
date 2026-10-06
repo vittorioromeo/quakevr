@@ -29,11 +29,20 @@ void refresh(bool force = false);
 [[nodiscard]] bool ticked(int item);
 void toggle(int item); // saved at once
 
+// Undo, this session: each tick and untick made (toggle) is kept, the last `undoDepth`; undo() puts the last one back as
+// it was (saved at once) and returns that item (-1: nothing to undo; -2: the item is no longer on the list).
+inline constexpr int undoDepth = 64;
+[[nodiscard]] int undoCount();
+[[nodiscard]] const char* undoText(); // the item's text the next undo() changes ("" : none)
+[[nodiscard]] bool undoTicks();       // whether that undo ticks it again (it was ticked before) rather than unticks it
+int undo();
+
 // An item's text wrapped to `columns`: how many lines, and one of them (valid until the next call).
 [[nodiscard]] int lineCount(int item);
 [[nodiscard]] const char* line(int item, int l);
 
-// vr_checklist [reload | tick <n>]: the list (CLSUM/CLITEM lines, for tests), read again, or item n ticked or unticked.
+// vr_checklist [reload | tick <n> | undo]: the list (CLSUM/CLITEM lines, for tests), read again, item n ticked or
+// unticked, or the last tick undone (CLUNDO: the item, the undos left).
 void command_f();
 
 } // namespace qvr::checklist

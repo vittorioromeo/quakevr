@@ -34,7 +34,12 @@ struct State
     za::Vector<int> firstLine;                    // each item's first wrapped line in `lines`
     za::Vector<za::Pair<int, int>> lines;        // start and length in its `shown` text
     ankerl::unordered_dense::set<za::String> tickedTexts;   // every ticked item's text, those no longer listed too
-    auto members() { return qvr::mem::list(sections, texts, shown, section, firstLine, lines, tickedTexts); }
+    za::Vector<za::String> undoTexts;            // the ticks and unticks made this session, the last at the end
+    za::Vector<int> undoWasTicked;               // and whether each item was ticked before (what undo() restores)
+    auto members()
+    {
+        return qvr::mem::list(sections, texts, shown, section, firstLine, lines, tickedTexts, undoTexts, undoWasTicked);
+    }
 };
 mem::Cache<State> state{"checklist", mem::Never};
 
@@ -320,13 +325,67 @@ void toggle(int item)
         return;
     }
     const za::String& t = state.texts[item];
-    if(!state.tickedTexts.erase(t))
+    const bool was = state.tickedTexts.erase(t) != 0;
+    if(!was)
     {
         state.tickedTexts.insert(t);
+    }
+    if(static_cast<int>(state.undoTexts.size()) >= undoDepth)
+    {
+        state.undoTexts.erase(state.undoTexts.begin());
+        state.undoWasTicked.erase(state.undoWasTicked.begin());
+    }
+    state.undoTexts.pushBack(t);
+    state.undoWasTicked.pushBack(was ? 1 : 0);
+    writeTicks();
+    countOpen();
+    gen++;
+}
+
+int undoCount()
+{
+    return static_cast<int>(state.undoTexts.size());
+}
+
+const char* undoText()
+{
+    return state.undoTexts.empty() ? "" : state.undoTexts.back().cStr();
+}
+
+bool undoTicks()
+{
+    return !state.undoWasTicked.empty() && state.undoWasTicked.back() != 0;
+}
+
+int undo()
+{
+    if(state.undoTexts.empty())
+    {
+        return -1;
+    }
+    const za::String t = state.undoTexts.back();
+    const bool was = state.undoWasTicked.back() != 0;
+    state.undoTexts.popBack();
+    state.undoWasTicked.popBack();
+    if(was)
+    {
+        state.tickedTexts.insert(t);
+    }
+    else
+    {
+        state.tickedTexts.erase(t);
     }
     writeTicks();
     countOpen();
     gen++;
+    for(int i = 0; i < itemCount(); i++)
+    {
+        if(state.texts[i] == t)
+        {
+            return i;
+        }
+    }
+    return -2; // (no longer on the list: its tick restored all the same)
 }
 
 int lineCount(int item)
@@ -357,10 +416,16 @@ void command_f()
         refresh();
         toggle(Q_atoi(Cmd_Argv(2)));
     }
+    else if(Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "undo"))
+    {
+        refresh();
+        const int item = undo();
+        Con_Printf("CLUNDO|%d|%d left\n", item, undoCount());
+    }
     else if(Cmd_Argc() >= 2)
     {
-        Con_Printf("vr_checklist [reload | tick <n>]: the checklist (quakevr/checklist.txt), read again, or item n ticked "
-                   "or unticked\n");
+        Con_Printf("vr_checklist [reload | tick <n> | undo]: the checklist (quakevr/checklist.txt), read again, item n "
+                   "ticked or unticked, or the last tick or untick undone\n");
         return;
     }
     else
