@@ -413,6 +413,8 @@ const DefaultChange defaultChanges[] = {
     {89, &vr_knockdown_wiggle, "0.7"},      // 1
     {89, &vr_knockdown_wiggle_frequency, "1.2"}, // 2.2
     {89, &vr_knockdown_wiggle_pause, "1"},  // 0
+    {89, &vr_parry_stagger, "0.35"},        // 0.75
+    {89, &vr_counter_damage, "1.2"},        // 1.5 (vr_defaults.cfg's 1.2 dropped: the compiled default again)
 };
 constexpr int configVersion = 89;
 

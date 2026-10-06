@@ -24939,3 +24939,22 @@ For the coming benchmarking and profiling round: 44 fixed scenarios and a runner
   runs (decals within 5%), and write their JSON; the contact sheet shows the intended views. Found on the way:
   `perf_suite.py`'s `vr_retro_particles` no longer exists (its retro particle variants set nothing); `vr_flashlight_give`
   needs a hand (`left`).
+
+## The author's parallax, combat and retro settings as defaults (config 89, 2026-10-06)
+
+His config (snapshots 12:13 and 12:37) against the defaults, for the cvars on Graphics > Surfaces' Parallax rows, the
+Combat pages (by the menu: Melee, Parry and Bash, Stamina, Batting and Catching, Damage and Knockback, Weapon Damage,
+Enemy Weapons, Enemy Shoves, Knockdowns, Bullet Time, Burning) and Graphics > Retro Textures / Retro Lighting:
+- **Parallax:** `vr_parallax_distance` 512 -> 1024, `vr_parallax_grazing` 86 -> 90 (no fade), `vr_parallax_depth_write`
+  0 -> 1.
+- **Combat:** `vr_pain_knock_strength` 0.75 -> 0.6, `vr_pain_knock_max` 10 -> 8.5, `vr_pain_knock_time` 0.35 -> 0.3,
+  `vr_burn_flames_max` 7 -> 12, `vr_burn_self` 0 -> 1, `vr_burn_drop` 0 -> 1, `vr_knockdown_wiggle` 0.7 -> 1,
+  `vr_knockdown_wiggle_frequency` 1.2 -> 2.2, `vr_knockdown_wiggle_pause` 1 -> 0, `vr_parry_stagger` 0.35 -> 0.75,
+  `vr_counter_damage` 1.2 -> 1.5 (its `vr_default` line dropped from vr_defaults.cfg: the compiled 1.5).
+- **Retro textures:** every kind but Liquids (which he left as shipped): Block 0.5 (0.25 for Your Arms, Torso, Legs and
+  Particles), Average off, Smooth Beyond Never (-1), Quake Palette 1, Dither 0.5 (`shippedLook`, vr_retro.cpp; the All
+  Categories panel and the override editor keep paramInfo's values). **Retro lighting** already matched.
+Config 89 moves a setting still at its old default to the new one; changed ones are kept (the retro kinds' by
+`retro::migrateShippedLook`). Checked: a fresh config shows all 104 new values; a config at version 88 with the old
+values migrates them all, and five custom values (parallax distance 768, largest knock 12, world block 2, hands palette
+0.3, parry stagger 0.5) stay. Not changed: `vr_dummy_gib` (0 -> 1 in his config; not on a Combat page).
