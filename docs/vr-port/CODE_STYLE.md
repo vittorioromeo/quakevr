@@ -37,7 +37,7 @@ C++ standard library: Zancle's types compile faster and run faster in Debug. Use
 - Files: `qvr::files` (`vr_files.hpp`: whole files read and written, directories listed, std::filesystem's path parts),
   through the engine's `Sys_*` calls (UTF-8 paths).
 - What Zancle lacks: `vr_zancle.hpp` (namespace `qza`: `stableAt` and `sortedByKey`, for the maps; still lacking at
-  Zancle 304ea6c3), each a proposal for Zancle. Add a missing piece there (marked `ZANCLE-TODO`) rather than reach for `std::`. `std::` stays only where
+  Zancle 2f8a1ca5), each a proposal for Zancle. Add a missing piece there (marked `ZANCLE-TODO`) rather than reach for `std::`. `std::` stays only where
   Zancle has no such thing and a stand-in would not do (an ordered map with stable nodes, `std::map` in
   `vr_motion_review.cpp`): each such place says `// ZANCLE-TODO: <what's missing>` (the list: ROUND21.md, "Zancle
   migration", "Zancle follow-ups" and the Zancle updates). The vendored Zancle has no local changes: update it with

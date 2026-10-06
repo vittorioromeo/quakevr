@@ -11,8 +11,9 @@ upstream).
 
 ## Summary
 
-- **Vendored commit:** `304ea6c3bfe209bb27f18c848b605c713c7bf8bd` (branch `rebrand_to_zancle`, 2026-10-02): 188
-  files, about 1.5 MB (`external/zancle/README.md`; before it, `534219bf`, 186 files, and `4ed9c3cc`, 178). It was first vendored at `6b8c6106` (2026-09-28), the concurrency module
+- **Vendored commit:** `2f8a1ca5b147019a9587e342107da167e48637ed` (branch `zancle-concurrency-fixes`, 2026-10-07,
+  off `rebrand_to_zancle`'s `7bd385db`, to be merged there: B9-B13): 188 files, about 1.5 MB
+  (`external/zancle/README.md`; before it, `304ea6c3`, `534219bf`, 186 files, and `4ed9c3cc`, 178). It was first vendored at `6b8c6106` (2026-09-28), the concurrency module
   only (ROUND21, "Zancle, vendored"). `zancle_vendor.py` copies the include closure of what `Quake/vr` uses. It keeps
   files that are already there unless run with `--update`, which takes every file upstream changed.
 - **Local changes: none since 534219bf** (none at 304ea6c3 either). The three kept at 4ed9c3cc went upstream at `fad225a4`: `Base/InitializerList.hpp`
@@ -27,6 +28,9 @@ upstream).
   `subspanByPosLen`, as `StringView`'s), `304ea6c3b` (part of A9: `getOptimalWorkerCount` /
   `getOptimalThreadCount`, `Thread::usableHardwareConcurrency`). Open: M9 (a node-stable map), M12 (an ordered map),
   M16/M17 (async, a re-postable task), A1, the rest of A9 (worker names, a cap), P2-P13 but P8.
+- **On `zancle-concurrency-fixes` since 304ea6c3** (`7bd385db` is a format pass outside `Concurrency`): the five
+  defects of `ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md`, one commit each: `0e23061a5` (B9), `edf931db7` (B10),
+  `95b4fe0e3` (B11), `1f86cc4c2` (B12), `2f8a1ca5b` (B13). Re-vendored: 5 files changed, none added.
 - **Scale** (ROUND21, "Zancle migration"): `std::` uses in `Quake/vr` went from 7454 to 60, and standard headers from
   708 to 16. After the follow-ups, 48 uses and 8 headers remain, and 19 `ZANCLE-TODO`s (ROUND21, "Zancle
   follow-ups"). The work took 18 commits over 169 files, about +9.5k/-8.4k lines, plus `vr_zancle.hpp` (394 lines)
@@ -162,6 +166,47 @@ upstream).
 - **Status:** **fixed upstream** (`b95575f0f`): 64-bit waiters sleep on a per-slot version counter that each 64-bit
   notification bumps (notifications are size-specific now). The same commit makes `AtomicMutex` spin with backoff
   before it sleeps.
+
+B9-B13 come from `ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md` (its findings 1-5). All five are **fixed on the branch
+`zancle-concurrency-fixes`** (one commit each, with a regression test each where one fits; QVR vendors its head).
+
+**B9. A task the pool fails to queue is lost silently in Release** (Concurrency; review finding 1, P2 for QVR)
+- **What:** `post`, `postBulk`, `postCopies` and the destructor checked the queue's allocation result only with
+  `ZA_ASSERT`; `tryRunPendingTask`'s stop-task reinsertion did not check it. A lost `parallelFor` helper left
+  `ParallelForSlots` waiting forever at destruction; a lost stop task left the pool's destructor joining a sleeping
+  worker.
+- **Status:** **fixed** (`0e23061a5`): every enqueue aborts with `[[ZANCLE THREADPOOL FAILURE]]` and a stack trace when
+  the queue cannot allocate, in every build (posting returns `void`, `parallelFor` is `noexcept`: nothing can report
+  it). Checked with the review's fault-injected queue (a scratch copy of `ThreadPool.cpp`; not a committed test, as
+  the test runner has no death tests): before, `post` returned with the task lost and `parallelFor`'s slots hung;
+  after, both abort at once.
+
+**B10. A failed `ThreadPool` construction hangs** (Concurrency; finding 2, P3 for QVR: exceptions are off there)
+- **What:** with exceptions, a throwing worker start (`std::bad_alloc` from its entry) unwound the constructor, and
+  destroying the workers already started joined them while they waited on the empty queue.
+- **Status:** **fixed** (`edf931db7`): a scope guard posts their stop tasks and joins them before the exception leaves.
+  New test utility `test/TestUtilities/AlignedAllocationUtil` (replaces the aligned global `operator new`/`delete` to
+  inject `std::bad_alloc` and count a thread's blocks; compiled out with libc++ on Windows, which declares them
+  `dllimport`); the test fails each constructor allocation in turn (it hung before).
+
+**B11. A throwing callable leaks its thread entry** (Concurrency; finding 3, P3 for QVR)
+- **What:** `Thread::allocateEntry` placement-constructed the callable in its new block with no guard: a throwing copy
+  or move constructor leaked the block.
+- **Status:** **fixed** (`95b4fe0e3`): the block is freed if construction throws; the constructor's documentation now
+  says what it can throw. Test: a callable whose copy throws (one leaked block before, none now).
+
+**B12. `Thread::getId` returns an id after `join`/`detach`** (Concurrency; finding 4, P3; QVR does not call it)
+- **Status:** **fixed** (`1f86cc4c2`): `join` and `detach` clear the id, as documented (`{}` when not joinable).
+
+**B13. `parallelFor` helpers queue up without bound behind busy workers** (Concurrency; finding 5, P3 for QVR)
+- **What:** gates bound the calls in progress, not their queued helpers: back-to-back calls while every worker ran
+  other tasks (QVR's `jobs::async` image prefetch, audio, AO bakes) each left their helpers queued.
+- **Status:** **fixed** (`2f8a1ca5b`): `ParallelForSlots` reserves helpers against
+  `outstandingHelpersPerWorker` (= `slotCount`, 64) helpers not yet finished per worker of the call's pool; past it,
+  calls post fewer or none and run on their callers. The review's stress (100,000 calls, seven parked workers):
+  107.38 MiB of queue growth and a 54 ms drain before, 0.05 MiB and 0.18 ms after; idle-pool calls unchanged (32 and
+  4,096 items: 2.3 and ~28 us medians either way). Test: 5,000 calls with both workers busy leave at most 128 helpers
+  queued (10,000 before).
 
 ## 2. Portability (cl.exe and clang-cl)
 
@@ -404,7 +449,8 @@ The numbering below is from ROUND21's second proposal list, "Zancle proposals...
 Done upstream by 534219bf (were items 1-3, 5, 7, the ergonomics but A1, and the dense-map and sort docs): B1, B2, B3,
 B5, B6, A10 (`fad225a4`); the cheap gaps, A2, A3, A6 (`8bb74612`); N3, N4 (`00019de8`); M4 (`dbd1cfa4`); A8
 (`8c3ac3b2`); M7, M10, M13, M14 (`534219bf`). Done by 304ea6c3 (was item 1's first half and item 3's docs): B4
-(`bef08e826`, `d434aaac5`), B8 (`b95575f0f`), A4's and A7's docs (`76cb40ad4`), part of A9 (`304ea6c3b`). QVR's
+(`bef08e826`, `d434aaac5`), B8 (`b95575f0f`), A4's and A7's docs (`76cb40ad4`), part of A9 (`304ea6c3b`). Done on
+`zancle-concurrency-fixes` (vendored; to merge into `rebrand_to_zancle`): B9-B13 (`0e23061a5`..`2f8a1ca5b`). QVR's
 vendored tree has no local changes. Still open:
 
 1. **The maps:** an ordered flat map and a node-stable map (M12, M9). The last `std::` in QVR's code outside the

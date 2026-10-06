@@ -27193,3 +27193,32 @@ no error. Script: `scratch/vis.py`, `visan2.py` (not committed).
 **To test in VR**: dense smoke and blood (rocket and grenade smoke in a corridor, gibs close by) with Skip Hidden
 Particles on and off. They should look the same, with no seams at the foveation rings. Also the frame time in
 heavy fights.
+## Zancle's five concurrency defects fixed, vendored at 2f8a1ca5 (2026-10-07)
+
+`ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md`'s five defects, fixed on a Zancle branch for the author to merge,
+`zancle-concurrency-fixes` (off `rebrand_to_zancle`'s `7bd385db`), one commit each, and vendored with
+`zancle_vendor.py --update` (5 files changed, none added; no local changes). Details: `ZANCLE_REPORT.md` B9-B13.
+
+| Commit | What | Item |
+|---|---|---|
+| `0e23061a5` | `ThreadPool`: every enqueue (posts, stop tasks, their reinsertion) aborts with `[[ZANCLE THREADPOOL FAILURE]]` when the queue cannot allocate, in every build, instead of losing the task (and hanging `ParallelForSlots` or the destructor) in Release | B9 (P2 for QVR) |
+| `edf931db7` | `ThreadPool`'s constructor stops and joins the workers it started when a later one throws (exception builds); test utility `AlignedAllocationUtil` | B10 |
+| `95b4fe0e3` | `Thread`: the entry block is freed when the callable's constructor throws | B11 |
+| `1f86cc4c2` | `Thread::getId` is `{}` after `join`/`detach` | B12 |
+| `2f8a1ca5b` | `parallelFor`'s queued helpers are bounded: `ParallelForSlots::outstandingHelpersPerWorker` (64) not yet finished per worker; past it a call runs on its caller | B13 |
+
+Zancle's tests: one per fix, each failing (or hanging) before it but B9's (the runner has no death tests; the review's
+fault-injected queue shows the abort instead of the loss). The base and system suites pass on MSYS2 clang64 Debug
+with ASan/UBSan and UCRT64 Debug and Release (only `FileInputStream`'s temporary-file test fails, outside
+`Concurrency`). B13 on the review's stress (100,000 calls, seven parked workers): 107.38 MiB of queue growth and a
+54 ms drain before, 0.05 MiB and 0.18 ms after; calls on an idle pool are unchanged (2.3 and ~28 us medians).
+
+Tested (headless): Release and Debug (`QVR_ZANCLE_DEBUG`) builds; e1m1 smoke; warden, ad_grendel and e1m1 loads with
+`vr_hull_stats`, liquid, decal and hit-model hashes the same with `vr_jobs_parallel 0` (Release), AO bakes; a relight batch
+started and cancelled; `bench.sh --validate` on load_reloads, load_warden and load_ad_grendel; `vr_physics_mtbench`
+the same hash at every worker count. The Debug build exits with code 42 a few frames into warden or ad_grendel, with
+no message or crash report: a pre-change Debug build (`12d136c0`'s) does the same, so it is not these changes (e1m1
+and e1m2 run clean in Debug).
+
+Nothing to see in VR: the changes are failure paths (out of memory, a throwing constructor) and a bound that
+ordinary frames never reach.

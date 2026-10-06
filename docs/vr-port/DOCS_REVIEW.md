@@ -102,7 +102,7 @@ Status: **current** (checked, nothing wrong), **fixed** (outdated, corrected in 
 | `MODEL_METADATA_20261005.md` | keep, rename | Describes a lasting design (`vr_modelmetadata.*`) and PORTING links it: rename to `MODEL_METADATA.md`. |
 | `HITZONES_AND_PORTAL_REVIEW_2026-10-04.md` | checked 2026-10-06 | Its status table: every finding fixed by `98864d26` (2026-10-04), the HANDOFF/QUEUE corrections obsolete; one P3 left (the body's axis-aligned bound at a turned gate's exit, `vr_portals.cpp`). |
 | `SLIPGATE_TORCH_REVIEW_2026-10-04.md` | archive | All five findings fixed, it says. |
-| `ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md` | checked 2026-10-06 | Its status table: all five defects still open in the vendored Zancle (unchanged since 2026-10-02); one P2 for Quake VR (a failed task-queue allocation loses the task in Release), four P3. Not yet in ZANCLE_REPORT. |
+| `ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md` | updated 2026-10-07 | Its status table: all five defects fixed on Zancle's branch `zancle-concurrency-fixes` (one commit each, vendored at `2f8a1ca5`; to merge into `rebrand_to_zancle`); in ZANCLE_REPORT as B9-B13. |
 | `TORCH_TWOHAND_CRASH_20261005.md` | archive or delete | One fixed crash; ROUND21 has it too. |
 | `NOTES_FEEDBACK_20261004.md`, `NOTES_FEEDBACK_20261005.md`, `NOTES_FEEDBACK_20261005_BATCH2.md` | archive | Voice-note batches, implemented. |
 | `CHECKLIST_ARCHIVE_20261005.txt` | delete candidate | An old copy of the runtime `checklist.txt`'s ticked items; nothing links it. |
@@ -126,8 +126,8 @@ Status: **current** (checked, nothing wrong), **fixed** (outdated, corrected in 
    plays; both drop the re-release's worldspawn light settings, so INSTALL's "brighter" was wrong. Both docs fixed.
 3. **Archive or delete** (below): done 2026-10-06, all removed (git history keeps them).
 4. **Open review findings:** checked 2026-10-06 (each review now has a status table). HITZONES_AND_PORTAL: all fixed
-   (`98864d26`) but one P3. ZANCLE_CONCURRENCY: all five still open (one P2 for Quake VR): whether to fix them in
-   Zancle or list them in ZANCLE_REPORT is yours.
+   (`98864d26`) but one P3. ZANCLE_CONCURRENCY: all five fixed on Zancle's `zancle-concurrency-fixes` (2026-10-07, vendored;
+   ZANCLE_REPORT B9-B13): the branch's merge into `rebrand_to_zancle` is yours.
 5. **INSTALLER.md:** its Inno Setup recommendation (section 9) against the WPF app, and the see-through water a
    Python-free install would lose (the in-game relighting has no VisPatch step).
 
