@@ -260,6 +260,7 @@ float(entity targ) VR_Decap_BlastArm;
 float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm;
 float(entity m, entity xAxe) VR_Decap_Thrown;
 float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm;
+float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_QuadArm;
 float(entity e) VR_Decap_Roll;
 void() VR_Decap_TestFrame;
 void() VR_Decap_ZombieDie;
@@ -2076,7 +2077,12 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
     float parried = VR_Parry(targ, inflictor, attacker, damage);
     float corpse = targ.vr_corpse == 2 || targ.vr_corpse_dying;
+    float qpop = VR_Decap_QuadArm(targ, inflictor, attacker, parried); // VR: with Quad, any headshot kill pops (vr_decap.qc)
     float r = T_DamageImpl(targ, inflictor, attacker, parried, 0);
+    if(qpop)
+    {
+        VR_Decap_After(targ);
+    }
     if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
     {
         dprint(sprintf("damage: %s %g by %s (part %g at %v), health %g\n", targ.classname, parried, inflictor.classname,

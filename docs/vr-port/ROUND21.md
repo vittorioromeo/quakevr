@@ -25564,9 +25564,11 @@ In VR:
 - [ ] Throw gibs and heads at a wall from a couple of metres, softly and hard: they stick nearly every time; a hard throw
   of a small gib bursts.
 ## Blunt melee head pops by chance (2026-10-06)
+## Blunt melee head pops by chance; Quad Damage always pops (2026-10-06)
 
 The author: "Blunt melee head kills should be chance-based and weapon-based ... very rare for punches/crowbar/gun
-butts to headpop", Mjolnir very likely.
+butts to headpop", Mjolnir very likely; and "an option (default: on) to make head popping always happen while under
+the effects of quad damage, with all guns, melee weapons, and even props/throws".
 
 **Blunt melee head pops** (QC vr_decap.qc, "Blunt melee head pops"; Gore > Decapitation > Head Pop Chance). A blunt
 blow's headshot kill (`QVR_DECAP_BLUNT`: a fist, a gun's butt, barrel or pistol-whip, the crowbar, a club, a pommel or
@@ -25598,11 +25600,34 @@ pommel 0.0009 / 0.011 / 0.030, club 0.002 / 0.046 / 0.170, Mjolnir 0.091 / 0.915
 Real killing blows (50-55, health 1): fist, gun, club not popped (rolled), crowbar popped once in two runs,
 Mjolnir popped; `vr_decap_pop_roll 0` / `0.9999` force the roll both ways (the fist popped / not; the dummy too).
 
+**Quad Damage always pops** (`vr_decap_pop_quad` 1, Head Pop Chance > Quad Damage: Always Pop). With Quad Damage
+(`super_damage_finished`), every headshot kill pops the head: `VR_Decap_Roll` wins whatever the chance (the blunt
+chance, the shotgun's ranges, a light thrown thing's), the blast's Head Share is waived (any pellet at the head),
+a thrown sword, axe or chainsaw that doesn't stick edge first pops it too, a blade's blow at the head that doesn't cut
+(a stab, too slow) pops it (`QVR_DECAP_QUAD`), and any other projectile at the head pops it: `VR_Decap_QuadArm` in
+`T_Damage` (nails, rockets, grenades, lava nails, any mission pack projectile; the point is PositionalDamage's this
+frame, else the projectile's own place on the target's box, not a blast's way off). A slash still cuts the head off
+(not popped). The shots' own toggles (Shotgun, Super Shotgun, Lightning Gun) still apply; Thrown Things off is
+overridden. Off: as without Quad.
+
+Measured with Quad (impulse 255) and `vr_decap_pop_roll 0.9999` (every roll lost): blunt kills 50-55 all popped,
+a nail (56), a rocket (57), a grenade (58) at the head popped; shotgun and super shotgun at 14 and 15.5 lengths
+(past Never Beyond) popped, lightning at 15.5 popped; a 3.5 kg thrown shotgun (47) popped (without Quad: not), an
+explosive box popped; the rate tests: 49 every cell 1.0, 45 / 46 (with spread, 12 lengths, chance 0.003 / 0.12)
+1.0 of the 195 / 158 blasts with a pellet at the head. Quad on and the option off, or no Quad: unchanged
+(nail, rocket at the head not popped, shotgun at 15.5 not popped, the 47 shotgun not popped). The 407d50eb tests
+without Quad are unchanged: the chance table (40) identical, 41/42 at 3 lengths popped, 42 at 14.9 and 15.5 not, 43
+popped, 44 body not, 45 (7 lengths) rate 0.14, 46 (3 lengths) 0.92, 47 rocket launcher popped. Tests 45/46 now roll
+through `VR_Decap_Roll` (so Quad and `vr_decap_pop_roll` count there).
+
 **Tests** (Debug > Gore Tests > Head Pop Chance Tests): 49 Blunt Melee Rates, 50-55 Hard Punch / Gun Butt / Crowbar
-/ Pommel / Club / Mjolnir Kill. The tests stand the target (frame 0) first: a grunt in a pain frame let the made-up
-blow miss its precise head.
+/ Pommel / Club / Mjolnir Kill, 56-58 Nail / Rocket / Grenade at Its Head, Give Quad Damage (impulse 255). The tests
+stand the target (frame 0) first: a grunt in a pain frame let the made-up blow miss its precise head.
 
 - [ ] Punch, pistol-whip, butt-strike and crowbar grunts to death in the head: heads almost never pop (a few in a
       hundred hard blows); slow taps never.
 - [ ] Mjolnir swung into heads: nearly every solid blow pops; a gentle tap rarely.
 - [ ] A wall torch swung as a club: now and then.
+- [ ] Pick up Quad Damage: every headshot kill pops: shotgun across a room, nails, a rocket or grenade at the head,
+      punches, a sword's stab, a thrown light prop or gun. A sword's slash still cuts the head off.
+- [ ] Head Pop Chance > Quad Damage: Always Pop off: Quad changes nothing.

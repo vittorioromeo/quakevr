@@ -314,6 +314,7 @@ float cvarh_vr_decap_pop_melee_soft_damage;
 float cvarh_vr_decap_pop_melee_hard_damage;
 float cvarh_vr_decap_pop_melee_damage_weight;
 float cvarh_vr_decap_pop_melee_curve;
+float cvarh_vr_decap_pop_quad;
 float cvarh_vr_decap_pop_roll;
 float cvarh_vr_decap_slash_angle;
 float cvarh_vr_decap_head_size;
@@ -906,6 +907,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_decap_pop_melee_hard_damage);
     VR_CVAR_HMAKE(vr_decap_pop_melee_damage_weight);
     VR_CVAR_HMAKE(vr_decap_pop_melee_curve);
+    VR_CVAR_HMAKE(vr_decap_pop_quad);
     VR_CVAR_HMAKE(vr_decap_pop_roll);
     VR_CVAR_HMAKE(vr_decap_slash_angle);
     VR_CVAR_HMAKE(vr_decap_head_size);

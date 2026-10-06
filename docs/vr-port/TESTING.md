@@ -347,6 +347,11 @@ context and screenshot, ready to paste or to point me at.
   - **Blunt melee head pops by chance** (ROUND21.md, that title): punch, pistol-whip and crowbar grunts dead in the
     head: heads almost never pop; Mjolnir nearly always on a solid blow; a club now and then. Gore > Decapitation >
     Head Pop Chance (Fist .. Mjolnir, Hit Speed and Damage); Debug > Gore Tests 49-55.
+  - **Blunt melee head pops by chance; Quad always pops** (ROUND21.md, that title): punch, pistol-whip and crowbar
+    grunts dead in the head: heads almost never pop; Mjolnir nearly always on a solid blow; a club now and then. With
+    Quad Damage every headshot kill pops (any gun at any range, nails, rockets, grenades, blows, throws); a slash still
+    cuts. Gore > Decapitation > Head Pop Chance (Fist .. Mjolnir, Hit Speed and Damage, Quad Damage: Always Pop);
+    Debug > Gore Tests 49-58.
   - **Dummy attacks, for parry practice** (ROUND21.md, "Dummy attacks (firing range)"): in the firing range, press
     DUMMY ATTACKS (the panel south of the training dummy). Stand in front of it: every 2.5 s or so it winds up (a
     sound, a glow, the rifle raised) and strikes you as a knight would. Parry it: the parry, parry stamina and

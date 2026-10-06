@@ -2105,6 +2105,10 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("How much the damage weighs in the hit's hardness; the rest is its speed (vr_decap_pop_melee_damage_weight)."),
         slider("Hardness Curve", vr_decap_pop_melee_curve, 0.f, 5.f, 0.1f, "%.1f").extend(0.f, 20.f)
             .help("The hardness to this power: higher, soft blows nearer never; 1 straight (vr_decap_pop_melee_curve)."),
+        toggle("Quad Damage: Always Pop", vr_decap_pop_quad)
+            .help("With Quad Damage, every headshot kill pops the head: any gun (nails, rockets and grenades at the head too), "
+                  "any blow (a blade's stab), any throw or prop, at any range, by no chance (a slash still cuts it off) "
+                  "(vr_decap_pop_quad)."),
     };
 }
 
@@ -4364,6 +4368,10 @@ za::Vector<Item> pageDebugTools()
         command("Hard Pommel Kill", "vr_decap_test 53").help("vr_decap_test 53: the same with a sword's pommel."),
         command("Hard Club Kill", "vr_decap_test 54").help("vr_decap_test 54: the same with a club."),
         command("Hard Mjolnir Kill", "vr_decap_test 55").help("vr_decap_test 55: the same with Mjolnir's head."),
+        command("Nail at Its Head", "vr_decap_test 56").help("vr_decap_test 56: a nail at its head at health 1 (popped only with Quad Damage)."),
+        command("Rocket at Its Head", "vr_decap_test 57").help("vr_decap_test 57: the same with a rocket."),
+        command("Grenade at Its Head", "vr_decap_test 58").help("vr_decap_test 58: the same with a grenade."),
+        command("Give Quad Damage", "impulse 255").help("impulse 255: Quad Damage for 30 s (the tests above: every head kill pops)."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
             .help("vr_burn_test 1: the nearest monster, corpse, crate or crate's piece set on fire (an explosive box: it can't burn) as a lit torch's blow would, where it faces you "

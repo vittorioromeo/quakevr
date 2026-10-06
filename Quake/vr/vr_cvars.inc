@@ -1796,6 +1796,7 @@ QVR_CVAR(vr_decap_pop_melee_soft_damage, "10", CVAR_ARCHIVE) // the blow's damag
 QVR_CVAR(vr_decap_pop_melee_hard_damage, "50", CVAR_ARCHIVE) // this or more, all of it
 QVR_CVAR(vr_decap_pop_melee_damage_weight, "0.5", CVAR_ARCHIVE) // how much the damage weighs in the hardness (the rest: the speed)
 QVR_CVAR(vr_decap_pop_melee_curve, "2", CVAR_ARCHIVE)       // the hardness's exponent (higher: soft blows nearer none)
+QVR_CVAR(vr_decap_pop_quad, "1", CVAR_ARCHIVE)              // with Quad Damage, every headshot kill pops the head (any gun, blow or throw; no chance, range nor head share)
 QVR_CVAR(vr_decap_pop_roll, "-1", CVAR_NONE)              // tests: the head pop roll's value (0..1; below 0: random)
 QVR_CVAR(vr_decap_test, "0", CVAR_NONE)               // the QC runs decapitation test n on the nearest monster or corpse (vr_decap.qc; Debug > Gore Tests)
 QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)

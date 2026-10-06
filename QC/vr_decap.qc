@@ -26,6 +26,7 @@ float QVR_DECAP_THROWN = 2; // an axe thrown
 float QVR_DECAP_SAW = 3;    // the chainsaw
 float QVR_DECAP_BLUNT = 7;  // a fist, gun or other blunt melee head hit
 float QVR_DECAP_THROWN_BLUNT = 8; // a thrown (or flung) blunt weapon or prop (Head pop chance: heavy enough, always)
+float QVR_DECAP_QUAD = 9;   // any other headshot kill with Quad Damage (vr_decap_pop_quad: a nail, a rocket, a grenade, a stab)
 // Head pops (below: "Head pops"; combat.qc: QVR_DECAP_SHOTGUN 4, _SSG 5, _LIGHTNING 6): a shot kills with a headshot.
 
 .float vr_decap_died; // when it was killed (Killed: VR_Decap_Killed)
@@ -57,6 +58,7 @@ string(float xHow) VR_Decap_HowName =
     if(xHow == QVR_DECAP_LIGHTNING) { return "a lightning bolt"; }
     if(xHow == QVR_DECAP_BLUNT) { return "a blunt head blow"; }
     if(xHow == QVR_DECAP_THROWN_BLUNT) { return "a thrown blunt thing"; }
+    if(xHow == QVR_DECAP_QUAD) { return "a Quad Damage headshot"; }
     return "a slash";
 };
 
@@ -114,7 +116,7 @@ float(float xHow) VR_Decap_HowOn =
 float(float xHow) VR_Decap_IsPop =
 {
     return xHow == QVR_DECAP_SHOTGUN || xHow == QVR_DECAP_SSG || xHow == QVR_DECAP_LIGHTNING || xHow == QVR_DECAP_BLUNT ||
-           xHow == QVR_DECAP_THROWN_BLUNT;
+           xHow == QVR_DECAP_THROWN_BLUNT || xHow == QVR_DECAP_QUAD;
 };
 
 // `e`'s head zone (xHeadForward, xHeadUp, xHeadRadius): positional damage's (PositionalHead, weapons.qc), or for a
@@ -298,7 +300,8 @@ float(float xSpeed) VR_Gib_StrikeDamage;
 // vr_decap_pop_melee_soft_speed to _hard_speed, and the blow's damage (the headshot multiplier in, before Quad's x4) on
 // its way from vr_decap_pop_melee_soft_damage to _hard_damage, mixed by vr_decap_pop_melee_damage_weight. A corpse's
 // head struck the same (its speed the hand's, its damage the corpse strike's). Blades' slashes and the chainsaw still
-// cut heads off, sure. vr_decap_pop_chance 0: every blunt headshot kill pops, as before.
+// cut heads off, sure. vr_decap_pop_chance 0: every blunt headshot kill pops, as before. With Quad Damage
+// (vr_decap_pop_quad): always (VR_Decap_QuadPops).
 
 float VR_DECAP_BCLASS_FIST = 0;
 float VR_DECAP_BCLASS_GUN = 1;
@@ -359,6 +362,13 @@ float(float xClass, float xSpeed, float xDamage) VR_Decap_BluntChance =
     return min(1, max(0, scale) * pow(h, max(0, cvar_hget(cvarh_vr_decap_pop_melee_curve))));
 };
 
+// Whether `by` (the blow's or the shot's) has Quad Damage and so pops every head it kills with a headshot
+// (vr_decap_pop_quad): no chance, no range, no blast's head share (ROUND21.md, "Quad Damage always pops").
+float(entity by) VR_Decap_QuadPops =
+{
+    return cvar_hget(cvarh_vr_decap_pop_quad) && (by.flags & FL_CLIENT) && by.super_damage_finished > time;
+};
+
 // A blow of `xHow` about to strike `targ` (alive) at its head with the blade at `xVel`: armed, Killed beheads it.
 float(entity targ, entity attacker, vector xAt, vector xVel, float xHow) VR_Decap_Arm =
 {
@@ -413,12 +423,21 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_Blow =
     {
         return FALSE;
     }
-    if(!VR_Decap_OnMeleeHead(targ, b.mh_c_pos, b.mh_c_dir))
+    if(VR_Decap_OnMeleeHead(targ, b.mh_c_pos, b.mh_c_dir))
     {
-        return FALSE;
+        float how = VR_Decap_Slash(vr_hithand, b.mh_c_pos, TRUE);
+        if(how && VR_Decap_Arm(targ, attacker, b.mh_c_pos, vr_decap_slashvel, how))
+        {
+            return TRUE;
+        }
     }
-    float how = VR_Decap_Slash(vr_hithand, b.mh_c_pos, TRUE);
-    return how && VR_Decap_Arm(targ, attacker, b.mh_c_pos, vr_decap_slashvel, how);
+    // With Quad Damage, a blade's blow at the head that doesn't cut it off (a stab, a slow one) pops it.
+    if(VR_Decap_QuadPops(attacker) && VR_Decap_OnHead(targ, b.mh_c_pos, '0 0 0') &&
+       (targ.classname != "monster_zombie" || xDamage >= 25))
+    {
+        return VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_QUAD);
+    }
+    return FALSE;
 };
 
 // Whether `e` is judged for beheading: one that may lose its head (VR_Decap_Allowed; the training dummy as the enemy it
@@ -774,13 +793,16 @@ float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow =
         float speed = vlen(VRGetHandVel(xHand));
         float dmg = VR_Gib_StrikeDamage(speed) * (VRIsHandWeaponless(self, xHand) ? 1 : 1.5);
         float bc = VR_Decap_BluntClass(b, thing);
-        vr_decap_by = self;
-        vr_decap_chance = VR_Decap_BluntChance(bc, speed, dmg);
-        vr_decap_how = QVR_DECAP_BLUNT;
-        vr_decap_why = sprintf("%s at a corpse %.1f m/s %.0f damage", VR_Decap_BluntName(bc), speed, dmg);
-        if(!VR_Decap_Roll(c))
+        if(!VR_Decap_QuadPops(self))
         {
-            return FALSE;
+            vr_decap_by = self;
+            vr_decap_chance = VR_Decap_BluntChance(bc, speed, dmg);
+            vr_decap_how = QVR_DECAP_BLUNT;
+            vr_decap_why = sprintf("%s at a corpse %.1f m/s %.0f damage", VR_Decap_BluntName(bc), speed, dmg);
+            if(!VR_Decap_Roll(c))
+            {
+                return FALSE;
+            }
         }
         return VR_Decap_Cut(c, self, VRGetHandVel(xHand) * VRMetersToUnits(), QVR_DECAP_BLUNT);
     }
@@ -925,7 +947,7 @@ float(entity targ) VR_Decap_BlastArm =
     }
     float share = targ.vr_decap_bhead / max(0.001, targ.vr_decap_bdmg);
     float least = min(1, max(0, cvar_hget(cvarh_vr_decap_head_share)));
-    if(share < least)
+    if(share < least && !VR_Decap_QuadPops(self))
     {
         dprint(sprintf("decap: no: %s, %.2f of the blast at the head (Head Share %.2f)\n", targ.classname, share,
             least));
@@ -1025,6 +1047,12 @@ float(entity e) VR_Decap_Roll =
     {
         return TRUE;
     }
+    if(VR_Decap_QuadPops(vr_decap_by))
+    {
+        dprint(sprintf("decap: pop chance %.3f on %s (%s, %s): Quad Damage, popped\n", c, e.classname,
+            VR_Decap_HowName(vr_decap_how), vr_decap_why));
+        return TRUE;
+    }
     float r = cvar_hget(cvarh_vr_decap_pop_roll);
     if(r < 0)
     {
@@ -1051,7 +1079,8 @@ float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm =
     {
         return FALSE;
     }
-    if(xThing.classname == "thrown_weapon" &&
+    float quad = VR_Decap_QuadPops(by);
+    if(xThing.classname == "thrown_weapon" && !quad &&
        (xThing.weapon == WID_SWORD || xThing.weapon == WID_AXE || xThing.weapon == WID_CHAINSAW))
     {
         return FALSE;
@@ -1063,7 +1092,7 @@ float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm =
     }
     float mass = VR_Thrown_Mass(xThing);
     float least = cvar_hget(cvarh_vr_decap_pop_thrown_mass);
-    float chance = (mass >= least) ? 1 : min(1, max(0, cvar_hget(cvarh_vr_decap_pop_thrown_light_chance)));
+    float chance = (mass >= least || quad) ? 1 : min(1, max(0, cvar_hget(cvarh_vr_decap_pop_thrown_light_chance)));
     if(chance <= 0)
     {
         dprint(sprintf("decap: no pop: %s (%.1f kg, under %.1f) at %s's head\n", xThing.classname, mass, least,
@@ -1078,6 +1107,55 @@ float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm =
     vr_decap_why = sprintf("%.1f kg", mass);
     dprint(sprintf("decap: armed: %s (%s, %.1f kg) at %s's head, chance %.2f\n", xThing.classname, xThing.netname, mass,
         targ.classname, chance));
+    return TRUE;
+};
+
+// Any other blow of `attacker`'s with Quad Damage (vr_decap_pop_quad) about to deal `xDamage` (before Quad's x4) to
+// `targ` (T_Damage; `inflictor` a nail, a rocket, a grenade, a thrown thing, a shot): armed (Killed pops its head) if it
+// strikes its head: where a shot or a nail struck it (PositionalDamage's point, this frame), else where the projectile
+// is, on it (not a blast's way off). Not while a blast or a bolt is dealt (vr_decap_weapon: their own arming, their
+// toggles), nor what is armed already.
+float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_QuadArm =
+{
+    if(!VR_Decap_QuadPops(attacker) || vr_decap_weapon || targ.health <= 0 || !targ.takedamage ||
+       !VR_Decap_Allowed(targ) || (vr_decap_ent == targ && vr_decap_time == time))
+    {
+        return FALSE;
+    }
+    vector at;
+    vector dir = inflictor.velocity;
+    if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    {
+        at = vr_hitpart_pos;
+        if(inflictor == attacker || vlen(dir) < 1)
+        {
+            dir = at - (attacker.origin + attacker.view_ofs);
+        }
+    }
+    else if(inflictor != attacker && inflictor != world)
+    {
+        at = inflictor.origin;
+        float m = 16;
+        if(at_x < targ.absmin_x - m || at_y < targ.absmin_y - m || at_z < targ.absmin_z - m ||
+           at_x > targ.absmax_x + m || at_y > targ.absmax_y + m || at_z > targ.absmax_z + m)
+        {
+            return FALSE;
+        }
+    }
+    else
+    {
+        return FALSE;
+    }
+    if(!VR_Decap_OnHead(targ, at, dir) || (targ.classname == "monster_zombie" && xDamage * 4 < VR_DECAP_ZOMBIE_DOWN))
+    {
+        return FALSE;
+    }
+    if(!VR_Decap_Arm(targ, attacker, at, normalize(dir) * VR_DECAP_SHOT_SPEED, QVR_DECAP_QUAD))
+    {
+        return FALSE;
+    }
+    vr_decap_why = sprintf("%s at the head", inflictor.classname);
+    dprint(sprintf("decap: armed: Quad Damage, %s at %s's head\n", inflictor.classname, targ.classname));
     return TRUE;
 };
 
@@ -1436,7 +1514,7 @@ void(float xTest) VR_Decap_PopTest =
             }
             vr_decap_ent = world; // (not killed: VR_Decap_After let it go; the chance it would have rolled kept)
             float c = vr_decap_chance;
-            float won = random() < c;
+            float won = VR_Decap_Roll(m); // (its roll: random, vr_decap_pop_roll; Quad Damage pops all)
             armed++;
             sum += c;
             popped += won;
@@ -1465,11 +1543,12 @@ void(float xTest) VR_Decap_PopTest =
     setorigin(self, old);
 };
 
-// Blunt melee head pops' tests (vr_decap_test 49..55; Debug > Gore Tests), on the nearest live
+// Blunt melee head pops' and Quad Damage's tests (vr_decap_test 49..58; Debug > Gore Tests), on the nearest live
 // monster: 49 each blunt class's (fist, gun, crowbar, pommel, club, Mjolnir) blow at its head at a soft, a medium and a
 // hard hit (4, 7, 11 m/s; its weapon's base damage x 0.6, 1.2, 2, x the headshot multiplier) vr_decap_poptest_n times,
-// not killing it: the chance (armed once) and the rate it pops (VR_Decap_Roll n times). 50..55 a hard killing blow of
-// each class (50 fist .. 55 Mjolnir) at health 1. `poptest:` lines.
+// not killing it: the chance (armed once) and the rate it pops (VR_Decap_Roll n times: Quad Damage pops all). 50..55 a hard
+// killing blow of each class (50 fist .. 55 Mjolnir) at health 1; 56 a nail, 57 a rocket, 58 a grenade at its head at
+// health 1 (popped only with Quad Damage: impulse 255). `poptest:` lines.
 float VR_DECAP_TEST_SPEED[3] = {4, 7, 11};
 float VR_DECAP_TEST_STRENGTH[3] = {0.6, 1.2, 2};
 
@@ -1503,7 +1582,7 @@ void(float xTest) VR_Decap_BluntTest =
     makevectors('0 1 0' * m.angles_y);
     vector at = m.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp;
     vector dir = normalize(at - (self.origin + self.view_ofs));
-    float quad = self.super_damage_finished > time;
+    float quad = VR_Decap_QuadPops(self);
     m.frame = 0; // (standing: the head zone's middle is its head's, not where a pain or run frame put it)
     if(xTest == 49)
     {
@@ -1541,10 +1620,12 @@ void(float xTest) VR_Decap_BluntTest =
         m.health = oldHealth;
         return;
     }
+    float player = self.takedamage;
     float pops = vr_decap_pops;
     float rolls = vr_decap_rolls;
-    m.health = (m.classname == "monster_zombie") ? 60 : 1;
     string what;
+    m.health = (m.classname == "monster_zombie") ? 60 : 1;
+    if(xTest >= 50 && xTest <= 55)
     {
         float k = xTest - 50;
         float d = VR_Decap_TestBluntBlow(at, k, 2);
@@ -1555,6 +1636,25 @@ void(float xTest) VR_Decap_BluntTest =
         T_Damage_VRMelee(m, self, self, d);
         VR_ClearHitKind();
     }
+    else
+    {
+        entity p = spawn();
+        p.owner = self;
+        p.movetype = MOVETYPE_FLYMISSILE;
+        p.solid = SOLID_BBOX;
+        p.angles = vectoangles(dir);
+        p.velocity = dir * ((xTest == 58) ? 600 : 1000);
+        setorigin(p, at - dir * 6);
+        entity old = self;
+        self.takedamage = DAMAGE_NO; // (the blast spares you)
+        self = p;
+        other = m;
+        if(xTest == 56) { what = "a nail"; p.classname = "spike"; spike_touch(); }
+        else if(xTest == 57) { what = "a rocket"; p.classname = "missile"; T_MissileTouch(); }
+        else { what = "a grenade"; p.classname = "grenade"; GrenadeTouch(); }
+        self = old;
+        self.takedamage = player;
+    }
     bprint(sprintf("poptest: %g %s at the head of %s (quad %g): %s, rolled %g", xTest, what, m.classname, quad,
         (vr_decap_pops > pops) ? "popped" : "not popped", vr_decap_rolls - rolls));
     bprint(sprintf(", headless %g, gibbed %g, health %g\n", m.vr_headless, m.vr_gib, m.health));
@@ -1562,7 +1662,7 @@ void(float xTest) VR_Decap_BluntTest =
 
 void(float xTest) VR_Decap_Test =
 {
-    if(xTest >= 49 && xTest <= 55)
+    if(xTest >= 49 && xTest <= 58)
     {
         VR_Decap_BluntTest(xTest);
         return;
