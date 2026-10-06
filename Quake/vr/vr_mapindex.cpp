@@ -658,6 +658,7 @@ void publish(Index&& built, za::String&& status)
 }
 
 za::String runUrl; // the pass's URL, read on the main thread as it starts (a cvar's string may be freed meanwhile)
+bool runCacheOnly = false; // the pass reads the cache only (vr_maps_fetch 0); set before its thread starts
 
 void run() noexcept
 {
@@ -669,6 +670,21 @@ void run() noexcept
     Index built;
     note("map index: started (%s, cache %s)", url.cStr(), cachePath().cStr());
 
+    if(runCacheOnly)
+    {
+        if(!loadCache(built, url, true)) // (not under the handoff's lock: loadCache's note() takes it)
+        {
+            za::LockGuard lock{handoff};
+            pendingStatus = za::String{"map index: none (vr_maps_fetch 0, and no cached copy; maps_fetch fetches it)"};
+            pendingReady.storeSeqCst(true);
+            return;
+        }
+        char status[160];
+        q_snprintf(status, sizeof(status), "map index: %d packages, from the cache (fetched %lld s ago); vr_maps_fetch 0",
+            static_cast<int>(built.entries.size()), static_cast<long long>(time(nullptr) - built.fetchedAt));
+        publish(ZA_MOVE(built), za::String{status});
+        return;
+    }
     if(loadCache(built, url, false))
     {
         char status[256];
@@ -1050,7 +1066,7 @@ void fetch_f()
         files::remove(path.cStr()); // (loadCache would otherwise take the cached copy)
     }
     lastStatus = za::String{};
-    start();
+    start(true); // (asked for: not gated by -nomapindex or vr_maps_fetch 0, which keep the start-up fetch off)
     Con_Printf("maps_fetch: fetching %s (maps_stats shows what happened)\n", indexUrl().cStr());
 }
 
@@ -1058,16 +1074,11 @@ void fetch_f()
 
 // ---------------------------------------------------------------- the API
 
-void start()
+void start(bool asked)
 {
-    if(COM_CheckParm("-nomapindex"))
+    if(!asked && COM_CheckParm("-nomapindex"))
     {
         Con_DPrintf("map index: off (-nomapindex)\n");
-        return;
-    }
-    if(!vr_maps_fetch.value)
-    {
-        Con_DPrintf("map index: off (vr_maps_fetch 0)\n");
         return;
     }
     if(running.loadSeqCst())
@@ -1080,6 +1091,8 @@ void start()
     }
     SDL_AtomicSet(&cancel, 0);
     runUrl = indexUrl();
+    // vr_maps_fetch 0: nothing is fetched, but the cached copy is read (of any age), as the cvar says.
+    runCacheOnly = !asked && !vr_maps_fetch.value;
     running.storeSeqCst(true);
     worker = za::Thread(run);
 }

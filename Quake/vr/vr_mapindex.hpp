@@ -104,8 +104,9 @@ struct Query
     int limit{0};                      // 0: every match
 };
 
-// Start-up: the fetch thread (nothing here waits for it). -nomapindex, or vr_maps_fetch 0, keeps it off.
-void start();
+// Start-up: the fetch thread (nothing here waits for it). -nomapindex, or vr_maps_fetch 0, keeps it off; `asked`
+// (maps_fetch) starts it whatever they say: they are about the start-up fetch.
+void start(bool asked = false);
 // Quit: the fetch is cancelled and its thread joined.
 void finish();
 // The main thread, every frame: takes the index the fetch thread finished (if any) and says what happened.
