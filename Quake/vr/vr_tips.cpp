@@ -831,7 +831,33 @@ void reset_f()
             return i;
         }
     }
+    if(name[0] == '#' && name[1] >= '0' && name[1] <= '9') // an unnamed map tip, by its place in the map's list
+    {
+        const int i = tipCount + Q_atoi(name + 1);
+        return i < tipTotal() ? i : -1;
+    }
     return -1;
+}
+
+// vr_tips_test list (VR Settings > Tips > List This Map's Tips): every tip here, what it is about, and how it shows.
+void listTips()
+{
+    Con_Printf("vr_tips_test: the tips here (vr_tips_test <name> shows one now):\n");
+    for(int i = 0; i < tipCount; i++)
+    {
+        Con_Printf("  %s: built-in%s\n", tips[i].name, seen(seenKeyOf(i)) ? ", seen" : "");
+    }
+    for(int i = tipCount; i < tipTotal(); i++)
+    {
+        const MapTip& mt = *mapTipOf(i);
+        const char* about = mt.ent == goneEntity ? "its entity is gone"
+                            : mt.ent >= 0        ? va("follows entity %d", mt.ent)
+                                                 : va("at %.0f %.0f %.0f", mt.pos.x, mt.pos.y, mt.pos.z);
+        const char* shown = (mt.flags & Repeat) != 0 ? ", repeats" : seen(seenKeyOf(i)) ? ", seen" : "";
+        Con_Printf("  %s: %s, range %.0f%s%s%s\n", mt.name.empty() ? va("#%d", i - tipCount) : mt.name.cStr(), about,
+            rangeOf(mt.distance), (mt.flags & Hologram) != 0 ? ", hologram" : "",
+            (mt.flags & AnyAngle) != 0 ? ", any angle" : "", shown);
+    }
 }
 
 void test_f()
@@ -842,20 +868,11 @@ void test_f()
         t = findTip(Cmd_Argv(1));
         if(t < 0)
         {
-            Con_Printf("vr_tips_test: no tip \"%s\" (the tips: ", Cmd_Argv(1));
-            for(int i = 0; i < tipCount; i++)
+            if(q_strcasecmp(Cmd_Argv(1), "list") != 0)
             {
-                Con_Printf("%s%s", i ? ", " : "", tips[i].name);
+                Con_Printf("vr_tips_test: no tip \"%s\"\n", Cmd_Argv(1));
             }
-            for(int i = 0; i < tipTotal(); i++)
-            {
-                const MapTip* mt = mapTipOf(i);
-                if(mt && !mt->name.empty())
-                {
-                    Con_Printf(", %s", mt->name.cStr());
-                }
-            }
-            Con_Printf(")\n");
+            listTips();
             return;
         }
     }
@@ -906,9 +923,7 @@ void test_f()
         }
     }
     za::stableSort(nearby.begin(), nearby.end(), [](const Near& a, const Near& b) { return a.d < b.d; });
-    const float limit = tipDelay(mapTipOf(t)) >= 0.f && mapTipOf(t) && mapTipOf(t)->distance > 0.f
-                            ? mapTipOf(t)->distance
-                            : vr_tips_distance.value;
+    const float limit = rangeOf(mapTipOf(t) ? mapTipOf(t)->distance : 0.f);
     for(size_t i = 0; i < nearby.size() && i < 3; i++)
     {
         const entity_t* e = nearby[i].ent ? liveEntity(nearby[i].ent) : nullptr;

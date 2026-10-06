@@ -82,7 +82,7 @@ void reset_f();
 
 // vr_tips_test [name]: a tip shown now (the first one by default) on the nearest of what it is about in view, however
 // far, as vr_tips shows it, without counting it as shown: to try the two ways and the settings. A map tip's name
-// (its tipname) works too.
+// (its tipname; #<n> for an unnamed one) works too. vr_tips_test list: every tip here, and how it shows.
 void test_f();
 
 } // namespace qvr::tips
