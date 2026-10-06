@@ -8,6 +8,8 @@
 
 .float vr_shock_until; // shocked until then (its arcs); the engine reads it: its ragdoll convulses until then (vr_box3d.cpp)
 .float vr_shock_len;   // ... the shock's length from the last bolt (s)
+.float vr_shock_bolt;  // ... the last bolt's time (a living one's shock is shorter: its death carries it on, VR_Shock_Killed)
+float vr_shock_carried; // living shocks carried on through a death (the tests)
 float vr_shock_sent;   // lasting shocks sent (the tests)
 float vr_shock_burnt;  // burn marks sent for them (the tests)
 
@@ -76,15 +78,45 @@ void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit =
         woundevent(t, xAt - xDir * 8, xDir, QVR_WOUND_ZAP, 30, 0);
         vr_shock_burnt++;
     }
+    // (Alive after it: vr_shock_living_time of it; its death carries it on to the whole, VR_Shock_Killed.)
+    t.vr_shock_bolt = time;
+    if(t.health > 0)
+    {
+        len = len * max(0, cvar("vr_shock_living_time"));
+        if(len <= 0)
+        {
+            return;
+        }
+    }
     bodyshockdeath(t, len);
     vr_shock_sent++;
     t.vr_shock_until = time + len;
     t.vr_shock_len = len;
 };
 
+// `t` dies (Killed, whatever kills it): a living one's lasting shock still on (shorter: vr_shock_living_time) goes on
+// to the whole vr_shock_death_time from its last bolt, as a body's; its ragdoll convulses as long. (Ended already: none.)
+void(entity t) VR_Shock_Killed =
+{
+    if(t.vr_shock_until <= time || !(t.flags & FL_MONSTER) || !cvar("vr_shock_death"))
+    {
+        return;
+    }
+    float left = t.vr_shock_bolt + cvar("vr_shock_death_time") - time;
+    if(left <= t.vr_shock_until - time)
+    {
+        return;
+    }
+    bodyshockdeath(t, left);
+    vr_shock_carried++;
+    t.vr_shock_until = time + left;
+    t.vr_shock_len = time + left - t.vr_shock_bolt;
+};
+
 // vr_shock_hit_test <damage>: a lightning bolt of that much damage (-1: just enough to kill) from the player's eyes into
 // the middle of the nearest monster or corpse (within 512 units), struck as the gun's bolt strikes what it meets
-// (VR_LightningHit: its hit kind, its head pops; whatever lies between); prints what it did.
+// (VR_LightningHit: its hit kind, its head pops; whatever lies between); prints what it did. -2: no bolt, it is killed
+// by a plain blow (its living shock carried on through its death: VR_Shock_Killed).
 void() VR_Shock_TestFrame =
 {
     float damage = cvar("vr_shock_hit_test");
@@ -118,6 +150,17 @@ void() VR_Shock_TestFrame =
     float burnt = vr_shock_burnt;
     float wounds = vr_wound_sent;
     float alive = best.health > 0;
+    if(damage == -2)
+    {
+        float carried = vr_shock_carried;
+        float before = max(0, best.vr_shock_until - time);
+        T_Damage(best, p, p, max(1, best.health + 1));
+        bprint(sprintf("shockhittest: plain kill of %s: alive_before=%g health=%g shock_left %g -> %g", best.classname, alive,
+            best.health, before, max(0, best.vr_shock_until - time)));
+        bprint(sprintf(" (whole from the last bolt %g, %g s ago) carried=%g\n", cvar("vr_shock_death_time"),
+            time - best.vr_shock_bolt, vr_shock_carried - carried));
+        return;
+    }
     if(damage < 0)
     {
         damage = alive ? best.health + 1 : 1; // (-1: just enough to kill it, not to gib it)

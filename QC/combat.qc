@@ -165,6 +165,7 @@ void(entity targ, entity attacker) Killed =
     monster_death_use();
     VR_Corpse_DieWhole(self); // VR: never gibbed (vr_corpse_nogib 2: testing ragdolls with explosions)
     VR_Decap_Killed(self); // VR: beheaded by the blow (vr_decap.qc): its ragdoll headless at once, its head flying; dies whole
+    VR_Shock_Killed(self); // VR: a living one's lasting shock (shorter) carried on as a body's (vr_shock.qc)
     float kdDown = self.vr_knockdown == 1; // VR: knocked down (vr_knockdown.qc): already a ragdoll
     float kdModel = self.modelindex;
     self.vr_knockdown = 0;

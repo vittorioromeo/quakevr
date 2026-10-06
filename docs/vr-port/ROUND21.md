@@ -26320,3 +26320,10 @@ monster kind on the map):
 Whole limbs and head: 50.6% of every humanoid. The grab case (`limbs_test.sh <agent> grab`) still holds and lifts a cut
 forearm (2.2 kg).
 
+### Living monsters' arcs half as long
+
+`vr_shock_living_time` (0.5): a living monster's lasting shock lasts that much of `vr_shock_death_time` after the last
+bolt. Its death (any kill: `VR_Shock_Killed` from Killed) carries a shock still on to the whole duration from that bolt;
+one ended already stays ended. `vr_shock_hit_test 5` on a grunt: 1.5 s left (3 x 0.5); killed 0.5 s later by a plain
+blow (`vr_shock_hit_test -2`, new): 1.0 -> 2.5 s left; a corpse struck: 3. Menu: Gore > Lightning Shock > On the Living.
+
