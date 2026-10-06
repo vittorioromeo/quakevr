@@ -10,6 +10,7 @@ Lit particles: blood in a dark corner is dark, bright under the flashlight and m
 Relighting (Graphics > Relighting): relight hip1m1 and vrtutorial in game; lamps and ceiling lights clearly brighter; reloads where you stand; try the sliders
 Elbows: aiming down sights (one/two hands) and the axe by the face keep the elbow down and in, no flips; gadget wings and salute still lift (Body > Arms > Elbows and Wrists > Elbow Tuck; 0.5 if the wrist bends too much)
 Combat decisions: fiend headshots and head pops work (guns and melee); thrown axes stick in explosive boxes and crates and move with them; thrown gibs almost always stick to walls
+Melee head pops: punches, gun butts and crowbar almost never pop a head; Mjolnir solid swings almost always; with Quad every headshot kill pops (guns at any range, nails, rockets, thrown props)
 Shove toward a high ledge: always knocks down; Ledge Reach and Ledge Margin change how far ahead (Combat > Knockdowns)
 Parallax: carved walls keep their depth when seen from the side, no swimming (Graphics > Surfaces)
 Animated buttons and slipgate panels: no pulsing between frames
