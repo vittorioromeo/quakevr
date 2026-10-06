@@ -11,6 +11,9 @@ Weapon pickups (e1m3): fresh guns fire before reloading; regrabbing, holstering 
 Recording: Bullet Time Effects defaults On; toggling it changes spectator effects without changing the headset
 Animated surfaces: e1m1 diamond buttons, e1m4 buttons, slipgate panels no longer pulse (all frames keep +0's plate sheen); compare Debug > Views > Animated Surfaces on/off
 Single Player menu: "Official Campaigns" is drawn in the big menu font; the new f, c and m read naturally next to id's letters
+Shove near a ledge (vrclimb): grunts shoved off the long ledge or into the trench always go down; down the stairs or toward the thin wall keep the normal chance (Combat > Knockdowns > Over a Ledge, Always)
+Map Library: quitting while the map index downloads on first start no longer crashes; install, Play, Cancel and uninstall from the Installed filter still work
+Flat screen: WSAD responds immediately even while agent test runs are going; typing in other apps no longer lags; after alt-tab, Caps Lock and Print Screen still work in game
 
 [Map tips]
 vrstart: the test tip near the start appears as a CRT screen with its cable when you come into range; its text size follows the map's tip_size
