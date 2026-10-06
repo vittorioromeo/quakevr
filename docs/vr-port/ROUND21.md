@@ -26848,3 +26848,18 @@ facing south (`setpos 480 -352 88 0 270 0`, test 15), 10 throws each, stuck of 1
 In VR:
 - [ ] Throw gibs and heads at a wall: a soft or normal throw sticks; a hard one (a fast arm) bursts them in a mist,
   heavy ones too.
+
+### Rocks and bricks in multiplayer: as in single player
+
+His answer: Most in Multiplayer (`vr_debris_mp_max`) defaults to "same as single player". The single player cap is
+Most in a Map (`vr_debris_max`, 160) and the free entities; multiplayer took the smaller of that and
+`vr_debris_mp_max` (0: none). Now -1 (the new default, shown as "Single Player's" at the slider's leftmost step,
+Settings > Rocks and Bricks) leaves multiplayer the single player's cap, following Most in a Map; 0 is still none, a
+number still caps. Config 94 moves the old default 0 to -1. Measured (e1m1, `vr_debug_debris 1`): single player 34
+pieces; a two-player listen server (`-listen 2`, coop) 29 (limit 160), `vr_debris_mp_max 0` none, 16 gives 16; a
+config with `vr_debris_mp_max "0"` at version 34 loads as -1. Bandwidth (MULTIPLAYER.md, the mpsplit measurements:
+the same 29 pieces): a remote client by the rocks 256 -> 739 B of its 1400 B datagram a frame, about 17 B a piece in
+sight, until resting pieces get baselines.
+
+In VR (multiplayer):
+- [ ] Host e1m1 for a friend: rocks lie about as in single player; pick one up and throw it, the other player sees it.

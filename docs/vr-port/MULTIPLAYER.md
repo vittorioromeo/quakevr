@@ -120,7 +120,7 @@ Load adds to these [code]:
 | Box3D props (`vr_box3d`, `vr_physics`, `vr_rigid`) | Server only: one world stepped per server frame (`vr_box3d.cpp:5307-5446`); 3 substeps at 20 Hz. Deterministic, single-threaded. | Ordinary entity updates (INT32COORD, short angles); about 24 B per moving prop per frame, resent while it differs from the baseline | Linear Euler lerp wobbles on tumbling props. At 20 Hz a fast throw over the 100-unit lerp threshold snaps. Pushes, bats and standing reactions are one round trip late. | Keep the server authoritative (no client Box3D: two sims diverge and cost CPU). Add snapshot or quaternion interpolation with about 2 ticks of render delay. Delta-compress `U_QVR_*`. Client prediction only for props in the local hand (already done by drawing). |
 | Hand and weapon kinematic bodies | Server, for **all** clients (`hands.resize(maxclients+1)`, `vr_box3d.cpp:1708-1715`) | From the move | **Host shortcuts:**<br>• `vr_box3d.cpp:1726`: fist spheres only for `i == 1`, from `held::fist` (the host's drawn hand).<br>• `vr_box3d.cpp:1929`: `if(i == 1 && cls.state == ca_connected)` player 1's weapon body is the drawn model hull (`view::drawnWeapon`); others get a hand-to-muzzle capsule.<br>• Scale uses the host's `vr_world_scale × vr_gunmodelscale`.<br>On a dedicated server everyone gets a 4.5 cm sphere plus a capsule. Jittery remote moves give velocity spikes (capped by `limitPushes`). | Per-client rig (P0-2): fist spheres from the client, weapon hull from the weapon id plus that client's offsets (computed server-side from the model, not from `view::`). |
 | Standing on props | Server, per client (`stands.resize(maxclients+1)`, `VR_StandsOn`) | Nothing extra | Felt a round trip late (no prediction). | Fine. It improves with movement prediction (P2). |
-| Debris (`vr_debris`: rocks and bricks) | Server (interactable: picked up, thrown) | Entities | In multiplayer at most `vr_debris_mp_max` (default 0: none, as before; 2026-10-06). | Decided (2026-10-06): interactable debris stays server-side; VFX-only debris is client-side. See "Debris and effects". |
+| Debris (`vr_debris`: rocks and bricks) | Server (interactable: picked up, thrown) | Entities | In multiplayer at most `vr_debris_mp_max` (default -1: as many as in single player, `vr_debris_max`; the author, 2026-10-06; 0: none). | Decided (2026-10-06): interactable debris stays server-side; VFX-only debris is client-side. See "Debris and effects". |
 | Force grab (`vr_wpnforcegrab.qc`, `vr_fgfx`, `vr_drawblend`) | Server QC (target, lock, fly home toward the server's copy of the hand). The client draws glows and the catch blend. | `STAT_QVR_FG*` (owner only); `QVR_SVC_CATCHBLEND` 29 B reliable, once per catch | Others see no glows. Homes on the lagged server hand. World weapons are force-grabbable only in single player (`vr_wpnforcegrab.qc:121,132`). Host `vr_forcegrab_mode` and flick speed. | Keep. Prefs channel. On the client, blend the flying object toward the drawn hand in its last 100 ms. |
 | Player and monster narrow hulls (`vr_hull`, `vr_unstick`) | Server C++, compiled from `sv.worldmodel`; unstick per client | Nothing | One `vr_hull_width` for all (a server rule, fine). The client's lean recentering (`worldtrace::playerBoxFits`, `vr_hull.cpp:3064`) uses the narrow box only when `world == sv.worldmodel`; remote clients use the 32-wide hull 1. | Keep on the server. Send the width in serverinfo and let the client compile the hull from `cl.worldmodel` (or accept hull 1). |
 | Teleport (`vr_teleport`) | Client aims with `worldtrace::move` (`vr_teleport.cpp:41`, listen-only); the server validates with its own `vr_teleport_range` | `teleportTarget` 12 B plus a bit, every move | **A remote client cannot teleport**: the trace returns nothing [code]. The range is the host's while the aim uses the client's. | Aim with a client-side hull trace (`worldtrace::world`/`hullTrace`). Server range becomes a server rule; the client clamps to the server's range. |
@@ -186,9 +186,13 @@ entities**. Every spawner was audited; each was already on its side, so no spawn
 | Wooden crates placed about the map (`vr_crates.cpp`) | Server | Props | Server | Still single player only (`svs.maxclients == 1`). A crate placed by a mapper (`vr_crate`) works in multiplayer. |
 
 **Rocks and bricks in multiplayer:** `vr_debris_mp_max` (Settings > Rocks and Bricks > Most in Multiplayer, the host's
-value) caps the pieces in a multiplayer map. Its default is 0 (none), as before. A remote client standing near a
-cluster of pieces spends about 480 B of its 1400 B datagram on them every frame (measured below). So a nonzero default
-needs the author's call, or the baselines fix below first.
+value) caps the pieces in a multiplayer map. Its default is -1, "Single Player's": the same as in single player (Most
+in a Map, `vr_debris_max` 160, and the free-entity limit), the author's call (2026-10-06; config 94 moves the old 0).
+0: none. A remote client standing near a cluster of pieces spends about 480 B of its 1400 B datagram on them every
+frame (measured below: about 17 B a piece in sight, while the baselines fix below is not done). e1m1 at the default:
+34 pieces in single player, 29 on a two-player listen server (`-listen 2`, coop 1, `vr_debug_debris 1`; the same 29
+as the measured `vr_debris_mp_max` 64 row below, so that row is the default's cost: 256 -> 739 B a frame by them);
+`vr_debris_mp_max 16` gives 16, 0 none.
 
 **Measured** (e1m1, release build, `vr_net_stats`; a listen server started with `-listen 2 -ip 127.0.0.1`, and a second
 game connected over UDP; ROUND notes for the scripts):
@@ -331,7 +335,7 @@ The client reads the local server:
 | P2-4 | Quantize the `clc_move` VR block (291 → about 150 B). | S |
 | P2-5 | Haptics: continuous buzzes unreliable. Climb hold stats: unreliable or event-based. | S |
 | P2-6 | Anti-cheat caps: throw speed, hotspot distance, hand distance from head. | S |
-| P3 | Debris in multiplayer: decided and classified (2026-10-06, "Debris and effects"). Left: resting-piece baselines, a default for `vr_debris_mp_max`; force-grabbing world weapons in multiplayer. | M |
+| P3 | Debris in multiplayer: decided and classified (2026-10-06, "Debris and effects"). Left: resting-piece baselines (`vr_debris_mp_max` defaults to single player's, 2026-10-06); force-grabbing world weapons in multiplayer. | M |
 
 Sizes: S < 1 day, M 1-3 days, L 4-7 days, XL > 1 week. The estimates are rough.
 

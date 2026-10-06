@@ -909,7 +909,7 @@ const char* materialName(Material m)
 
 bool enabledHere()
 {
-    return vr_debris.value != 0.f && sv.active && sv.worldmodel && (svs.maxclients == 1 || vr_debris_mp_max.value > 0.f) &&
+    return vr_debris.value != 0.f && sv.active && sv.worldmodel && (svs.maxclients == 1 || vr_debris_mp_max.value != 0.f) &&
            !inList(vr_debris_exclude.string, sv.name) &&
            worldspawnValue("_vr_debris") > 0.f;
 }
@@ -1065,9 +1065,9 @@ int plan()
 
     const int freeEdicts = qcvm->max_edicts - qcvm->num_edicts - static_cast<int>(za::max(vr_debris_edicts_left.value, 0.f));
     int most = za::min(static_cast<int>(za::max(vr_debris_max.value, 0.f)), za::max(freeEdicts, 0));
-    if(svs.maxclients != 1)
+    if(svs.maxclients != 1 && vr_debris_mp_max.value >= 0.f) // (below 0: as in single player)
     {
-        most = za::min(most, static_cast<int>(za::max(vr_debris_mp_max.value, 0.f))); // (each in sight costs every client)
+        most = za::min(most, static_cast<int>(vr_debris_mp_max.value)); // (each in sight costs every client)
     }
     const float areaSize = za::max(vr_debris_area_size.value, 32.f);
     const int areaMax = static_cast<int>(za::max(vr_debris_area_max.value, 1.f));

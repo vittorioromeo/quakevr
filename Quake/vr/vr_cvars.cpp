@@ -426,8 +426,11 @@ const DefaultChange defaultChanges[] = {
     // 93: Relighting's Light Textures 1.2 (the author relit hip1m1 so, 2026-10-06: "Maybe those should be the new
     // defaults"); relight_maps.py's --light-texture-strength too.
     {93, &vr_relight_strength, "1"},        // 1.2
+    // 94: rocks and bricks in multiplayer as many as in single player (the author, 2026-10-06; MULTIPLAYER.md, "Rocks
+    // and bricks in multiplayer"): Most in Multiplayer's old 0 (none) to -1 (Single Player's: Most in a Map).
+    {94, &vr_debris_mp_max, "0"},           // -1
 };
-constexpr int configVersion = 93;
+constexpr int configVersion = 94;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

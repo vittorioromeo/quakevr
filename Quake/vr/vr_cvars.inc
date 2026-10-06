@@ -653,7 +653,7 @@ QVR_CVAR(vr_debris_rocks, "1", CVAR_ARCHIVE)             // rocks (natural floor
 QVR_CVAR(vr_debris_bricks, "1", CVAR_ARCHIVE)            // bricks (brick walls)
 QVR_CVAR(vr_debris_seed, "0", CVAR_ARCHIVE)              // mixed with the map's name: another layout (the same each load)
 QVR_CVAR(vr_debris_exclude, "vrfiringrange vrclimb vrexample", CVAR_ARCHIVE) // maps with none (names, spaces between)
-QVR_CVAR(vr_debris_mp_max, "0", CVAR_ARCHIVE)            // most pieces in a multiplayer map (server entities, to pick up and throw: each in sight costs every remote client's datagram); 0: none
+QVR_CVAR(vr_debris_mp_max, "-1", CVAR_ARCHIVE)           // most pieces in a multiplayer map (server entities, to pick up and throw: each in sight costs every remote client's datagram); -1: as in single player (vr_debris_max), 0: none
 QVR_CVAR(vr_debris_edicts_left, "2048", CVAR_ARCHIVE)    // entities left free for the game at least (max_edicts less the map's): fewer pieces if needed
 QVR_CVAR(vr_debug_debris, "0", CVAR_NONE)                // 1: a line per map (pieces, spots, time, the layout's hash); 2: and each piece; 3: and each spot rejected, why
 // Wooden crates (vr_crates.cpp, QC vr_crates.qc; ROUND21.md, "Wooden crates"): placed at map load by walls and in

@@ -281,6 +281,20 @@ void restartVr()
     return i;
 }
 
+// Rocks and bricks in a multiplayer map (vr_debris_mp_max), its leftmost step -1: as many as in single player (Most in a
+// Map, the default: the author's, 2026-10-06).
+[[nodiscard]] Item debrisMultiplayerSlider()
+{
+    Item i = slider("Most in Multiplayer", vr_debris_mp_max, -8.f, 160.f, 8.f, "%.0f")
+                 .extend(-8.f, 400.f)
+                 .help("The most in a multiplayer map (yours as the host). They are the server's, to pick up and throw: "
+                       "each one in sight costs every player's network packets (about 18 bytes a frame). Single Player's: "
+                       "as many as Most in a Map. 0: none. Next map.");
+    i.negativeLabel = "Single Player's";
+    i.negativeStart = 0.f;
+    return i;
+}
+
 // An effect's hue (degrees), its leftmost step -1: the player's (vr_player_hue, vr_hue.hpp).
 [[nodiscard]] Item hueSlider(const char* label, cvar_t& cvar)
 {
@@ -3087,9 +3101,7 @@ void hologramTestMessage()
         slider("Most Together", vr_debris_cluster, 1.f, 6.f, 1.f, "%.0f").help("Most pieces lying together at one place. Next map."),
         slider("Most in a Map", vr_debris_max, 0.f, 400.f, 10.f, "%.0f").extend(0.f, 2000.f)
             .help("Fewer if the map has few entities to spare (vr_debris_edicts_left). Next map."),
-        slider("Most in Multiplayer", vr_debris_mp_max, 0.f, 160.f, 8.f, "%.0f").extend(0.f, 400.f)
-            .help("The most in a multiplayer map (yours as the host). They are the server's, to pick up and throw: each one "
-                  "in sight costs every player's network packets. 0: none. Next map."),
+        debrisMultiplayerSlider(),
         slider("Most in an Area", vr_debris_area_max, 1.f, 30.f, 1.f, "%.0f").extend(1.f, 200.f)
             .help("Most pieces in a square of vr_debris_area_size units (384: about 12 m). Next map."),
         slider("Spacing", vr_debris_spacing, 0.f, 256.f, 8.f, "%.0f units").extend(0.f, 2048.f)
