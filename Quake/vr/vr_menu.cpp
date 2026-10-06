@@ -4121,6 +4121,11 @@ za::Vector<Item> pageDebugReports()
             .help("vr_extmaps_frames: each animated texture of the map (the wall buttons' +0basebtn...) frame by frame: the "
                   "frame whose surface it is drawn with, its normal, specular and glow maps and detail, and whether its "
                   "frames share one surface (Animated Surfaces A/B)."),
+        command("Relighting: Texture Lights", "vr_relight_lights")
+            .help("vr_relight_lights: the lights the map's glowing textures get with Graphics > Relighting's settings, a line "
+                  "each texture (its kind, where its glow came from: fullbright pixels or a glow image's file, its lights), "
+                  "and the lights into relight_lights.txt (to compare with relight_maps.py --list-glows)."),
+        command("Relighting: Status", "vr_relight_status").help("vr_relight_status: the relighting's state, how the map in play is lit, the light.exe found."),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
 }
