@@ -461,6 +461,7 @@ struct Toolbar
     int menu{m_none};  // the menu it was last drawn over (m_none: not drawn)
     int hovered{-1};   // the button under the laser
     int focused{-1};   // the button the sticks selected (-1: the menu has the selection)
+    bool bannerHovered{false}; // the spectator camera's switch under the laser
     int focusMenu{m_none};
     glm::vec2 focusMouse{0.f}; // the laser's spot when they did: moving it on gives the selection back
 };
@@ -550,6 +551,94 @@ void haptic(int hand, float seconds, float amplitude)
     }
 }
 
+// The spectator camera's switch, in the bottom left corner of every menu in the headset (the VR menu style): whether
+// the window shows the spectator camera (a whole extra render of the scene: so that it is not left on after
+// recording), a click switches it (Graphics > Recording > Window View, and the desktop mirror on if it was off).
+[[nodiscard]] bool spectatorOn()
+{
+    return vr_mirror.value > 0.f && static_cast<int>(vr_window_view.value) == 2;
+}
+
+struct BannerLayout
+{
+    float x0{0.f}, x1{0.f}, yc{0.f};
+    const char* text{""};
+};
+
+// Its right edge as the buttons' (left of the menu and its help), the long text where it fits, else the short; else
+// the short in the corner.
+[[nodiscard]] BannerLayout bannerLayout(const ToolbarLayout& l)
+{
+    const bool on = spectatorOn();
+    const char* const texts[2]{on ? "Spectator camera: On" : "Spectator camera: Off", on ? "Spectator: On" : "Spectator: Off"};
+    BannerLayout b;
+    b.yc = l.bottom - (ToolbarLayout::corner + ToolbarLayout::half) / l.k;
+    float width = 0.f;
+    for(const char* text : texts)
+    {
+        b.text = text;
+        width = 4.f + 6.f + 4.f + 8.f * static_cast<float>(strlen(text)) + 5.f;
+        b.x1 = 16.f - 8.f;
+        b.x0 = b.x1 - width;
+        if(b.x0 >= l.left + ToolbarLayout::corner)
+        {
+            return b;
+        }
+    }
+    b.x0 = l.left + ToolbarLayout::corner;
+    b.x1 = b.x0 + width;
+    return b;
+}
+
+// Whether a spot of the menu is on the switch (as far as the panel's edges; drawn over this menu: the VR style's).
+[[nodiscard]] bool bannerAt(float x, float y)
+{
+    if(toolbar.menu != m_state || !qvr::menuui::active())
+    {
+        return false;
+    }
+    const ToolbarLayout l = toolbarLayout();
+    const BannerLayout b = bannerLayout(l);
+    return x >= l.left && x <= b.x1 + 2.f && y >= b.yc - (ToolbarLayout::half + 2.f) / l.k && y <= l.bottom;
+}
+
+// What the switch changed, to put back when it is switched off: the window's view before, and the desktop mirror's
+// setting when it was off (-1: it was on).
+struct SpectatorSwitch
+{
+    float view{0.f};
+    float mirror{-1.f};
+};
+SpectatorSwitch spectatorSwitch;
+
+void toggleSpectator(int hand)
+{
+    SpectatorSwitch& s = spectatorSwitch;
+    if(spectatorOn())
+    {
+        Cvar_SetValueQuick(&vr_window_view, s.view);
+        if(s.mirror >= 0.f)
+        {
+            Cvar_SetValueQuick(&vr_mirror, s.mirror);
+        }
+        s = {};
+    }
+    else
+    {
+        s.view = static_cast<int>(vr_window_view.value) == 2 ? 0.f : vr_window_view.value;
+        s.mirror = vr_mirror.value > 0.f ? -1.f : vr_mirror.value;
+        Cvar_SetValueQuick(&vr_window_view, 2.f);
+        if(vr_mirror.value <= 0.f)
+        {
+            Cvar_SetValueQuick(&vr_mirror, 1.f);
+        }
+    }
+    Con_DPrintf("spectator camera switched %s (vr_window_view %g, vr_mirror %g)\n", spectatorOn() ? "on" : "off",
+        vr_window_view.value, vr_mirror.value);
+    S_LocalSound("misc/menu3.wav");
+    haptic(hand, 0.02f, 0.3f);
+}
+
 // ----------------------------------------------------------------------------
 // Scrolling with the stick
 // ----------------------------------------------------------------------------
@@ -627,6 +716,14 @@ void update(const hands::State& s)
     }
     toolbar.hovered = hovered;
 
+    // And the spectator camera's switch.
+    const bool bannerHovered = on && hits[pointingHand].valid && bannerAt(m_mousex, m_mousey);
+    if(bannerHovered && !toolbar.bannerHovered)
+    {
+        haptic(pointingHand, 0.01f, 0.15f);
+    }
+    toolbar.bannerHovered = bannerHovered;
+
     // The sticks' selection on them lasts while the menu stays and the laser is not moved on (a
     // hand's tremor aside).
     if(toolbar.focused >= 0 &&
@@ -642,6 +739,13 @@ void mockLaser_f()
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "off"))
     {
         mockLaser.on = false;
+        return;
+    }
+    if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "spectator"))
+    {
+        const BannerLayout b = bannerLayout(toolbarLayout());
+        mockLaser = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
+        pointingHand = HAND_MAIN;
         return;
     }
     if(Cmd_Argc() == 2)
@@ -663,8 +767,8 @@ void mockLaser_f()
         pointingHand = HAND_MAIN;
         return;
     }
-    Con_Printf("vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | off: the main hand's laser on "
-               "that spot of the menu\n");
+    Con_Printf("vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | spectator | off: the main "
+               "hand's laser on that spot of the menu\n");
 }
 
 void mockMouse_f()
@@ -1315,28 +1419,21 @@ extern "C" void VR_MenuDrawOverlay()
     }
     toolbar.menu = m_state;
 
-    // While the window shows the spectator camera (a whole extra render of the scene): a reminder in the bottom left
-    // corner, so it is not left on after recording. Its right edge as the buttons' (left of the menu and its help) where
-    // it fits, else in the corner.
-    if(window::view() == window::View::Spectator)
+    // The spectator camera's switch (the headset's menus: the window's view is the headset's mirror), bottom left.
+    if(menuui::active())
     {
-        constexpr const char* text = "Spectator camera on";
-        const float width = 4.f + 6.f + 4.f + 8.f * static_cast<float>(strlen(text)) + 5.f;
-        const float yc = l.bottom - (ToolbarLayout::corner + ToolbarLayout::half) / l.k;
-        float x1 = 16.f - 8.f;
-        float x0 = x1 - width;
-        if(x0 < l.left + ToolbarLayout::corner)
+        const BannerLayout b = bannerLayout(l);
+        const bool hot = toolbar.bannerHovered;
+        const bool on = spectatorOn();
+        p.rounded(b.x0, b.x1, b.yc, ToolbarLayout::half, 3.f, hot ? colors::highlightEdge : colors::boxBorder);
+        p.rounded(b.x0 + 1.f, b.x1 - 1.f, b.yc, ToolbarLayout::half - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
+        p.disc(b.x0 + 7.f, b.yc, 2.5f, on ? colors::recording : colors::boxBorder); // as a camera's recording light
+        float x = b.x0 + 4.f + 6.f + 4.f;
+        const char* state = strchr(b.text, ':');
+        for(const char* c = b.text; *c; c++, x += 8.f)
         {
-            x0 = l.left + ToolbarLayout::corner;
-            x1 = x0 + width;
-        }
-        p.rounded(x0, x1, yc, ToolbarLayout::half, 3.f, colors::boxBorder);
-        p.rounded(x0 + 1.f, x1 - 1.f, yc, ToolbarLayout::half - 1.f, 2.f, colors::boxFill);
-        p.disc(x0 + 7.f, yc, 2.5f, colors::recording); // as a camera's recording light
-        float x = x0 + 4.f + 6.f + 4.f;
-        for(const char* c = text; *c; c++, x += 8.f)
-        {
-            Draw_CharacterEx(x, yc - 4.f, 8.f, 8.f, *c | 128);
+            // The label in the menus' tan, On or Off white (all white under the laser).
+            Draw_CharacterEx(x, b.yc - 4.f, 8.f, 8.f, hot || (state && c > state) ? *c : (*c | 128));
         }
     }
 
@@ -1359,6 +1456,12 @@ extern "C" int VR_MenuKey(int key, int repeat)
         return 0;
     }
 
+    if(key == K_MOUSE1 && bannerAt(m_mousex, m_mousey))
+    {
+        toolbar.focused = -1;
+        toggleSpectator(pointingHand);
+        return 1;
+    }
     if(key == K_MOUSE1)
     {
         const int t = toolAt(m_mousex, m_mousey);

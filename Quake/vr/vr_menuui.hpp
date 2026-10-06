@@ -52,8 +52,9 @@ void backToGame(int hand);
 [[nodiscard]] bool toolbarRow(); // on a flat screen: a row of icons along the canvas's top
 void focusToolbar(int dir);
 
-// vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | off (tests): the main
-// hand's laser on a spot of the menu, or on one of the corner's buttons, whatever the hand's pose.
+// vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | spectator | off (tests): the
+// main hand's laser on a spot of the menu, on one of the corner's buttons or on the spectator camera's switch (bottom
+// left), whatever the hand's pose.
 void mockLaser_f();
 
 // vr_mock_mouse <x> <y> | <button> [click] (tests, flat screen): the desktop mouse moved to a spot of the menu (menu

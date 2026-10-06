@@ -24832,3 +24832,19 @@ Library 142, Checklist 72; Back to Game closed the menu). Keys: 20 ups on VR Set
 Levels, Enter opened it; a right then down went back to VR Settings' first row; a right-stick click on the main menu,
 two rights, Enter opened the Console page. `vr_mock_laser`'s names were off by one past Search (`advanced` pointed at
 Console; its table had 5 names for 7 buttons): now all seven.
+
+## Spectator camera switch on every menu (2026-10-06)
+
+Vittorio: the "Spectator mode" banner at the bottom always visible, saying on or off, and clickable to switch it. The
+reminder at the menus' bottom left (shown only while the window showed the spectator camera) is now on every menu in
+the headset (the VR menu style): "Spectator camera: On" with the red recording light, or "Off" with a dim one, the
+state in white; it lights up under the laser like the corner buttons (with a tick), and a trigger click switches it
+(`Quake/vr/vr_menuui.cpp` `bannerLayout`, `bannerAt`, `toggleSpectator`). On: Window View (`vr_window_view`) to
+Spectator Camera, and the desktop mirror (`vr_mirror`) to Left Eye if it was off (the window shows no view without it);
+Off: both back as they were (the view the switch found, Left Eye (raw) if it found the camera already on). Where: its
+right edge 8, as the column's, with "Spectator: On/Off" where the long text does not fit, else in the corner as before.
+Not on a flat screen: the window is the game there, no headset view to mirror or film. `vr_mock_laser spectator` puts
+the laser on it.
+
+Tested (mock headset, e1m1, main menu): Window View Smoothed Mirror -> click -> 2 (On) -> click -> 1; Window View 0 and
+mirror 0 -> click -> 2 and mirror 1 -> click -> 0 and 0. Eye images (`vr_eyeshot 3`): Off, On under the laser, On.
