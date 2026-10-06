@@ -10,6 +10,8 @@ Smoke: lightning-hit and burnt enemies/corpses smoulder for a few seconds (visib
 Lightning on you: a shambler bolt (god mode) puts arcs on your hands, arms, torso and legs for about a second; soft blue light; not distracting while aiming (Gore > Lightning Shock > Arcs on You)
 Shadow: your shadow now has a head (flashlight in hand, explosions nearby), never visible in your view; washing bloody hands shows no triangle lines at any level; relighting default is Light Textures 1.2
 Weapon pickups: spinning pickups (e1m1-e1m5) are the same models and size as the weapons you hold and drop; knock a floating one loose (Settings > Items > Weapon Pickups Look)
+Gore tweaks: enforcer lasers pop heads/limbs of other monsters; flying cut limbs and heads spurt briefly; cut limbs feel lighter (forearm ~2 kg); arcs on living enemies last half as long; Show Hit Zones > Decapitation now follows the animated model
+Menus: long help text fits (wider/taller box, long ones page through: Menu Settings > Help Reading Speed); Checklist > Undo Last Tick; Search shows your 6 recent results under the keyboard; Map Library Uninstall/Reinstall (press twice)
 Lit particles: blood in a dark corner is dark, bright under the flashlight and muzzle flashes; fire, sparks and explosions as bright as before (Graphics > Models and Effects > Effects > Lit Particles)
 Relighting (Graphics > Relighting): relight this map or a whole episode/game in the background; progress bar (and on the wrist gadget), Cancel keeps finished maps; a second run skips unchanged maps; lamps clearly brighter in hip1m1 and vrtutorial; no hitches as each map starts
 Relighting without ericw-tools: the page offers Download ericw-tools (27.5 MB) with a progress bar and Cancel, then relights (test with vr_relight_tool_dir pointed at an empty folder)
@@ -83,6 +85,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
+Saves from another build show a warning once on screen: too naggy while you rebuild often (make it a setting)? Menu help box costs ~3 list rows on every page: OK? Limb weight fractions OK?
 Ragdoll masses: vore 160 kg, centroid 180 kg (its arms outweigh its body): OK?
 Limb gore: explosion reach 96 units pops limbs on a whole grunt beside the blast: OK?
 Main menu: keep the row as "Advanced VR" ("Advanced VR Settings" doesn't fit the flat screen in the big font)? Pages show ~2 fewer rows below the moved shortcut column: OK?
