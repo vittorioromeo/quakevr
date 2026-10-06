@@ -10,28 +10,16 @@ build/
 /.vs
 /out/
 
-# QVR: Quake VR's build and packaging output (quakevr/ and Quake/vr/ have their own .gitignore)
+# QVR: Quake VR's build and packaging output (quakevr/ and Quake/vr/ have their own .gitignore: the game folder's
+# files go there)
 /build-cmake/
 /dist/
 __pycache__/
 /build.log
 .venv-transcribe/
+.vscode/
 Misc/quakevr/scratch/
-quakevr/maps/autosave/
-quakevr/ad
-quakevr/apsp3
-quakevr/body_collide_trace.txt
-quakevr/decal_atlas.png
-quakevr/grasp_dump.obj
-quakevr/ironwail.cfg.backup_2026-09-29_0222
-quakevr/ironwail.cfg.from-tests
-quakevr/weight_test.csv
-quakevr/maps/apsp3.bsp
-quakevr/maps/vrwip.bsp
-quakevr/maps/vrwip.leak.prt
-quakevr/maps/vrwip.lit
-quakevr/maps/vrwip.lux
-quakevr/maps/vrwip.map
-quakevr/maps/warden.bsp
-quakevr/progs/hand_rig.md5mesh.old
+# The agent kit's per-worktree output (qvr-kit: build.sh, eval.sh, run.sh)
+/scratch/
+/evaltakes/
 Windows/VisualStudio/zancle.vcxproj.user
