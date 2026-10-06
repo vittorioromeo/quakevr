@@ -66,9 +66,9 @@ void putf(za::Vector<byte>& out, float v)
     for(int i = 0; i < 224; i++)
     {
         const unsigned v = d_8to24table[i];
-        if(v == 0u && i != 0)
+        if(v == 0u)
         {
-            continue;
+            continue; // (no palette loaded: a dedicated server, whose skins nobody sees)
         }
         const float dr = static_cast<float>(v & 255u) - want[0];
         const float dg = static_cast<float>((v >> 8) & 255u) - want[1];

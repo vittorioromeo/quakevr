@@ -25815,3 +25815,79 @@ the engine's `vr_box3d.cpp` ("Limb gore": the cuts), `vr_limbmodel.cpp` (the lim
   `vr_limbs_blast_radius` of it by chance (`vr_limbs_blast_chance`, falling off with distance), the body left a
   ragdoll instead of gibs when any popped. **Full gibbing** (`vr_gib_limbs`): 0 Quake's gibs only, 1 the monster's own
   limbs thrown besides them (default), 2 instead of the meat gibs.
+
+### What was built
+
+- **Limb models at load time** (decision 1: the runtime way; nothing derived from id art is committed).
+  `vr_limbmodel.cpp` answers Mod_LoadModel's derived-file hook (`VR_DerivedModelFile`, as the wall torch's flame) for
+  `<monster>.mdl#limb<bone>` and `#limb<bone>m<bones>` (a limb whose end was cut before: the forearm without its hand).
+  It reads the player's own .mdl and the ragdoll rig (`vertBone`), keeps the triangles whose three corners are on the
+  limb's bones in the rest pose (frame 0), centres them on `ragdoll::limbMiddle`, and caps the cut: each triangle that
+  crossed it with two corners on the limb gives a cap triangle from those two to the cap's middle, its texels on an
+  8-row strip of the palette's nearest blood reds appended under every skin (one frame, EF_GIB; a zombie's EF_ZOMGIB).
+  The grunt's: 32-116 triangles a limb, caps of 6-10; the fiend's up to 238 (`vr_limb_models`). Built in well under a
+  millisecond; late-precached the first time a limb flies (the dummy's way), so a server entity in multiplayer (a
+  client builds the same model from its own files; a client without that monster's rig can't load it).
+- **Ragdoll cuts** (`vr_box3d.cpp`, `cutLimb`: Decapitation's `cutHead` generalized): the joint's subtree loses its
+  bodies (Box3D takes their joints: the ragdoll collides without them), every cut bone's `body` entry names the part
+  it hangs from now (a hand cut before its forearm is remapped too), its vertices are drawn at the joint as the neck's.
+  `ragdollcutlimb`, `ragdolllimb` (the joint a hit cuts: the nearest vertex's bone as drawn, then the nearest of its
+  pivot and its children's), `ragdolllimbs`, `limbmodel`, `limbplace`; `ragdollcut(e, 4|5, bone)` a stump.
+  `.vr_limbcut` holds the cut bones: a saved game's ragdoll is cut again (read before the head's re-cut, which
+  rewrites it).
+- **QC** (`vr_limbs.qc`): the head's hooks (`VR_Decap_Blow`, `_Saw`, `_Thrown`, `_Pellet`, `_BlastArm`, `_BoltArm`,
+  `_ThrownArm`, `_QuadArm`, `_CorpseBlow`) are now wrappers: the head's (renamed `VR_Decap_Head*`) first, then the limb
+  struck, armed with the same globals (`vr_decap_limb`: -1 the head). `VR_Decap_Roll` multiplies by
+  `vr_decap_chance_scale` or `vr_limbs_chance_scale` (Quad Damage still always). A blast's pellets are summed per limb
+  (`.vr_limb_bdmg[16]`): the limb with most of the blast, if it holds Blast's Head Share of it. A thrown limb is a gib
+  (`vr_limb`: grabbable, rigid, destroyable, sticking, carrying its monster's small gib counts), capped by
+  `vr_limbs_max` (Quake's big gibs had no cap to share). The fountain (`VR_Decap_FountainThink`) takes a stump's joint.
+- **Zombies and mummies** (decision 5): both have rigs (their ragdoll was only made when beheaded); a limb lost kills
+  them for good (a zombie whatever the damage, as beheaded: blunt and shots need a knock-down blow, 25), switchable
+  apart from their beheading (`vr_limbs_zombies`; `vr_decap_zombies` stays the zombie's head).
+- **Explosions** (decision 3): `vr_limbs_blast 1` (default): a blast's kill pops the top limbs (whole arms, legs,
+  tails) within `vr_limbs_blast_radius` (96) by chance (`vr_limbs_blast_chance` 0.6 at the blast, falling to 0; times
+  Limb Chance; Quad always); any popped, it dies whole as a ragdoll; none, it gibs as before; corpses in a blast lose
+  limbs the same way. `vr_gib_limbs 1` (default): a body gibbed throws its own top limbs besides Quake's meat gibs
+  (2: instead of them).
+- **Held weapons** (decision 4): unchanged: the weapon arm's loss is a killing blow, and the death code drops the gun.
+- **Training dummy** (decision 7): it is armed as its enemy, so with Dummy Dies (`vr_dummy_gib`) it loses the limb as
+  that enemy (the grunt's forearm, the death knight's).
+- **Menu**: Gore > Limb Gore (the toggle, Limb Chance, Head Chance, Corpses, Zombies and Mummies, Body's Speed After,
+  Most Limbs Lying About, Explosions Pop Limbs, Explosion Reach and Chance, Gibbed Bodies Throw Limbs); Head Chance on
+  Gore > Decapitation too; Debug > Gore Tests > Limb Gore Tests (Spawn Its Limbs and the tests).
+
+### Tests (`bash Misc/quakevr/limbs/limbs_test.sh <agent> [cases]`; firing range, mock headset)
+
+- **Limb models** (`models`): every rigged monster's limbs build (grunt 9, fiend 14, rottweiler 11 with the jaw, scrag
+  9 with its tail pieces, ...). Eyeshots: the grunt's limbs hung before you, the same in both eyes; a corpse cut
+  apart lies as a bloody torso, its limbs round it with their blood caps.
+- **Corpses down to the torso** (`corpse`): the grunt's ends first: 11 parts, then 10, 9, ... 3 after its eight
+  joints (masks `#limb9m512` and the like for an upper limb whose end went first), 2 (pelvis and chest) after the head;
+  whole limbs first: 11, 9, 7, 5, 3, 2. Every cut a limb gib and a fountain at its stump.
+- **Living killing blows** (`live`, every rigged monster: grunt, ogre, zombie, shambler, scrag, knight, death knight,
+  rottweiler, enforcer, fiend, gremlin, mummy): a sword's slash at a forearm cuts it (12 of 12: a ragdoll at once,
+  health -1, the limb flying, 2-3 small gibs); a fist's pops it (11 of 12; the zombie's arm takes the melee's limb
+  multiplier, 15 damage, under its knock-down 25: it gibs as before); a shotgun blast pops it (9 of 12) and a bolt
+  (7 of 12) where the shot reaches the arm: the misses are the view's angle (pellets on the torso, the share under
+  Blast's Head Share; a railing in the bolt's way), not the rules. An explosion beside it pops the limbs near it
+  (the body a ragdoll, not gibbed); gibbed, it throws its 3-5 own limbs.
+- **Chances** (`chance`, 2000 rolls at 0.5): head 0.493, limb 0.512 at scale 1; 0.250 and 0.248 at 0.5; head 1.000 at
+  2; limb 0.000 at 0.
+- **Cap** (`cap`): 12 thrown with Most Limbs 6: 6 lie about. **Grab** (`grab`): the off hand on a cut forearm, the
+  grip: held, lifted 20 units with the hand. **Save** (`save`): the corpse missing head, arms and legs saved and
+  loaded: made again with 2 parts, each cut "made so again", the thrown limbs still there. **Zombie** (`zombie`): a
+  10-damage slash at its forearm at full health: cut, dead for good (a ragdoll); `vr_limbs_zombies 0`: untouched.
+  **Blast** (`blast`): `vr_limbs_blast 0` gibs (four limbs thrown with the gibs), 1 pops its four limbs, a ragdoll.
+- **Dummy**: as a grunt and as a death knight with Dummy Dies, a killing slash at its forearm cuts it off.
+- **Performance** (`perf`): 8 dismembered ragdolls and 64 limbs (128 thrown, capped): the physics step 0.127 ms
+  mean (p99 0.40, 319 bodies) while they settle, 0.038 ms at rest. A limb model builds in well under a millisecond.
+- e1m1 smoke: no errors. QC 0 warnings, statics check clean. eval.sh not run (the melee takes are missing).
+
+### For the author to try in VR
+
+Slash a grunt's forearm and an ogre's leg as the killing blow; punch and shoot limbs (by chance); cut a corpse apart
+down to the torso and pick the limbs up; a rocket into a group (Explosions Pop Limbs); gib one (its limbs fly with the
+gibs). Limb Chance and Head Chance on Gore > Limb Gore. Open: the explosion reach (96) takes a grunt's whole body from
+a blast at its arm; the stump of the body is the limb's skin drawn into the joint (as the neck's), painted with
+wounds; the cap of the limb is a flat blood colour.

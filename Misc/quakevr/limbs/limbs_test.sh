@@ -14,7 +14,7 @@
 #   zombie   a zombie slashed at a limb at full health (12): dies for good, a ragdoll; vr_limbs_zombies 0: it doesn't
 #   blast    vr_limbs_blast 0 and 1: an explosion's kill gibs, or pops the limbs near it (the body a ragdoll)
 #   perf     64 limbs lying about and 8 dismembered ragdolls: the physics step's time (vr_physics_steptime)
-#   eyes     screenshots into the kit's scratch (limbs_eyes.png): the grunt's limbs hung before you, a corpse missing
+#   eyes     eyeshots (vr_eyeshot: both eyes) into the kit's scratch (limbs_eyes.png): the grunt's limbs hung before you, a corpse missing
 #            limbs (its stumps), a forearm cut off lying on the floor
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
@@ -52,7 +52,7 @@ for c in $CASES; do
         # leap would strike the limb as a blow.)
         run "$PRE;vr_gib_destroy 0;vr_test_spawn_dist 60;impulse 241;wait30;vr_limb_test 4;wait300;vr_limb_test 14;wait30;vr_mock_hand_to off nearest vr_limb 12;wait2;vr_mock_hand_to off nearest vr_limb 12;wait5;vr_limb_test 15;+graboff;vr_mock_button off grip 1;wait1;vr_mock_hand_to off nearest vr_limb 1;wait2;vr_mock_hand_to off nearest vr_limb 1;wait30;vr_limb_test 15;wait5;vr_mock_hand_to off by 0 0 20;wait30;vr_limb_test 15;wait5;-graboff;vr_mock_button off grip 0;wait60;vr_limb_test 15;vr_gib_destroy 1;toggleconsole;quit" ;;
     save)
-        run "$PRE;vr_test_spawn_dist 90;vr_test_spawn_dead 1;impulse 241;wait60;vr_debug_ragdoll 1;vr_limb_test 13;vr_limb_test 3;wait5;vr_ragdoll_list;save limbtest;wait10;load limbtest;wait60;vr_ragdoll_list;vr_limb_test 13;toggleconsole;quit" "" "^limbtest|^vr_ragdoll_list|made so again|rror|CRASH" ;;
+        run "$PRE;vr_test_spawn_dist 90;vr_test_spawn_dead 1;impulse 241;wait60;vr_debug_ragdoll 1;vr_limb_test 13;vr_limb_test 3;wait5;vr_ragdoll_list;save limbtest;wait10;load limbtest;wait60;vr_ragdoll_list 1;wait5;vr_limb_test 15;wait5;vr_limb_test 13;toggleconsole;quit" "" "^limbtest|^vr_ragdoll_list|cut off|rror|CRASH" ;;
     zombie)
         run "$PRE;vr_test_spawn 2;vr_test_spawn_dist 90;impulse 241;wait30;vr_limb_test 12;wait60;vr_mock_look 0 60;vr_limbs_zombies 0;impulse 241;wait30;vr_limb_test 12;wait30;vr_limbs_zombies 1;toggleconsole;quit" ;;
     blast)
@@ -62,7 +62,7 @@ for c in $CASES; do
         for y in 0 45 90 135 180 225 270 315; do S="$S;vr_mock_look 0 $y;impulse 241;wait30;vr_limb_test 3;wait5"; done
         run "$S;vr_limb_test 11;wait300;vr_physics_steptime;wait90;vr_physics_steptime;toggleconsole;quit" "" "^limbtest: 11|^vr_physics_steptime|steptime|rror|CRASH" ;;
     eyes)
-        run "map vrfiringrange;wait20;god;notarget;vr_test_spawn 0;vr_test_spawn_dist 250;impulse 241;wait30;vr_limb_test 1;wait200;screenshot;vr_test_spawn_dist 70;vr_mock_look 0 90;vr_test_spawn_dead 1;impulse 241;wait60;vr_limb_test 2;wait10;vr_limb_test 2;wait300;vr_mock_look 45 90;wait5;screenshot;toggleconsole;quit" limbs_eyes.png "composed|rror" ;;
+        run "map vrfiringrange;wait20;god;notarget;vr_test_spawn 0;vr_test_spawn_dist 250;impulse 241;wait30;vr_limb_test 1;wait200;vr_eyeshot 1;vr_test_spawn_dist 70;vr_mock_look 0 90;vr_test_spawn_dead 1;impulse 241;wait60;vr_limb_test 2;wait10;vr_limb_test 2;wait300;vr_mock_look 45 90;wait5;vr_eyeshot 1;toggleconsole;quit" limbs_eyes.png "composed|rror" ;;
     *) echo "unknown case $c" ;;
     esac
 done

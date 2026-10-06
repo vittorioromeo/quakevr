@@ -768,6 +768,7 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     else
     {
         VR_SmallGib_Gibbed(dm); // (ThrowHead's, with a head)
+        VR_Limb_GibAll(dm); // (and its own limbs: vr_gib_limbs, vr_limbs.qc)
         self.solid = SOLID_NOT;
         self.model = string_null;
         self.modelindex = 0;

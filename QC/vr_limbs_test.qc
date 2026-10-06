@@ -20,6 +20,18 @@ float() VR_Limb_TestCount =
     return n;
 };
 
+float() VR_Limb_TestSmallGibs =
+{
+    float n = 0;
+    for(entity e = find(world, classname, "vr_smallgib"); e; e = find(e, classname, "vr_smallgib"))
+    {
+        n++;
+    }
+    return n;
+};
+
+float vr_limb_test_sgibs; // small gibs before the test's blow
+
 float() VR_Limb_TestFountains =
 {
     float n = 0;
@@ -79,7 +91,8 @@ void(entity m, string xWhat, float xCuts, float xPops, float xLimbs, float xFoun
     vector parts = isragdoll(m) ? ragdollcut(m, 7) : '0 0 0';
     bprint(sprintf("limbtest: %s on %s: cut %g popped %g, limbs %g -> %g, fountains +%g", xWhat, m.classname,
         vr_limb_cuts - xCuts, vr_limb_pops - xPops, xLimbs, VR_Limb_TestCount(), VR_Limb_TestFountains() - xFountains));
-    bprint(sprintf(", health %g ragdoll %g parts %g cut %g gib %g\n", m.health, isragdoll(m), parts_z, parts_x, m.vr_gib));
+    bprint(sprintf(", health %g ragdoll %g parts %g cut %g gib %g small gibs +%g\n", m.health, isragdoll(m), parts_z, parts_x,
+        m.vr_gib, VR_Limb_TestSmallGibs() - vr_limb_test_sgibs));
     if(vr_limb_cuts > xCuts && vr_limb_last != world)
     {
         entity h = vr_limb_last;
@@ -94,6 +107,7 @@ void(float xTest) VR_Limb_Test =
     float pops = vr_limb_pops;
     float limbs = VR_Limb_TestCount();
     float fountains = VR_Limb_TestFountains();
+    vr_limb_test_sgibs = VR_Limb_TestSmallGibs();
     float b;
     float all;
     vector parts;
@@ -117,6 +131,17 @@ void(float xTest) VR_Limb_Test =
                 cvar_hget(k ? cvarh_vr_limbs_chance_scale : cvarh_vr_decap_chance_scale), won, won / 2000));
         }
         vr_decap_limb = oldLimb;
+        return;
+    }
+    if(xTest == 16)
+    {
+        // (The nearest dead monster's pelvis: how fast its body goes a few frames after the blow: vr_limbs_body_speed.)
+        m = VR_Limb_TestTarget(0);
+        if(m == world)
+        {
+            m = VR_Decap_TestTarget(FALSE);
+        }
+        bprint(sprintf("limbtest: 16 %s's body at %.0f u/s (ragdoll %g)\n", m.classname, vlen(limbplace(m, 0, 2)), isragdoll(m)));
         return;
     }
     if(xTest == 14 || xTest == 15)
