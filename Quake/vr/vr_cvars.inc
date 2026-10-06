@@ -1926,7 +1926,7 @@ QVR_CVAR(vr_dummy_attack_reach, "80", CVAR_ARCHIVE)      // units (origin to ori
 QVR_CVAR(vr_dummy_attack_damage, "10", CVAR_ARCHIVE)     // a blow's damage, before a parry (as a monster's blow: armour, god mode and the parry apply)
 QVR_CVAR(vr_dummy_attack_windup, "0.6", CVAR_ARCHIVE)    // s of wind-up (the tell: a sound, the rifle raised, a glow) before each blow
 QVR_CVAR(vr_dummy_gore, "1", CVAR_ARCHIVE)               // the training dummy bleeds as a grunt: gore sprays and mist, wounds on its model, small gibs, blood thrown onto you and your gear (0: clean, as before)
-QVR_CVAR(vr_dummy_gib, "0", CVAR_ARCHIVE)                // Dummy Dies: what would kill a grunt (its 30 health over the run of hits) kills the training dummy as one (beheaded, head popped, dying, a ragdoll or gibbed as a grunt would be; no loot), and it stands again after vr_dummy_gib_respawn
+QVR_CVAR(vr_dummy_gib, "1", CVAR_ARCHIVE)                // Dummy Dies: what would kill a grunt (its 30 health over the run of hits) kills the training dummy as one (beheaded, head popped, dying, a ragdoll or gibbed as a grunt would be; no loot), and it stands again after vr_dummy_gib_respawn
 QVR_CVAR(vr_dummy_gib_respawn, "2", CVAR_ARCHIVE)        // s a killed training dummy takes to stand again (its body stays, as a grunt's)
 QVR_CVAR(vr_leg_holster_model_enabled, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_scale, "0.5", CVAR_ARCHIVE)

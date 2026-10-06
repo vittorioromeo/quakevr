@@ -2166,7 +2166,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         toggle("Dummy Bleeds", vr_dummy_gore)
             .help("The firing range's training dummy bleeds as a grunt: blood sprays and mist, wounds on its model, small gibs, blood on you and what you hold. Off: it stays clean."),
         toggle("Dummy Dies", vr_dummy_gib)
-            .help("What would kill a grunt (its 30 health over a run of hits) kills the training dummy as one: beheaded, its head popped, dying, lying as a ragdoll or gibbed exactly as a grunt would be. Then it stands again. No loot. Off as shipped."),
+            .help("What would kill a grunt (its 30 health over a run of hits) kills the training dummy as one: beheaded, its head popped, dying, lying as a ragdoll or gibbed exactly as a grunt would be. Then it stands again. No loot. On as shipped."),
         slider("Dummy Stands Again", vr_dummy_gib_respawn, 0.5f, 10.f, 0.5f, "%.1f s").extend(0.1f, 60.f)
             .help("How long a killed training dummy takes to stand again (its body stays, as a grunt's)."),
         header("Marks"),
