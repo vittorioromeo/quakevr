@@ -87,6 +87,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
+MG1 Horde solo: dying loads your earlier save if you saved this session (engine autoload) instead of restarting the arena as the official game does: skip autoload in Horde?
 Saves from another build show a warning once on screen: too naggy while you rebuild often (make it a setting)? Menu help box costs ~3 list rows on every page: OK? Limb weight fractions OK?
 Ragdoll masses: vore 160 kg, centroid 180 kg (its arms outweigh its body): OK?
 Limb gore: explosion reach 96 units pops limbs on a whole grunt beside the blast: OK?
