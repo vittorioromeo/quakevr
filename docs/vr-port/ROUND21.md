@@ -26863,3 +26863,29 @@ sight, until resting pieces get baselines.
 
 In VR (multiplayer):
 - [ ] Host e1m1 for a friend: rocks lie about as in single player; pick one up and throw it, the other player sees it.
+
+## AO bakes: a disk cache, and a faster bake (2026-10-06)
+
+His words: "Can we store them on disk with some sort of hash that correctly detects any modification to the model to
+recompute them? Can we optimize the algorithm itself?" (PROFILING_2026-10.md, item 2: 123 models, 9.3 s of 4 pool
+threads after the firing range's first load, redone every session.)
+
+**Disk cache** (`vr_ao_cache`, default 1; 0 bakes every time; 2 bakes anyway and compares with the file;
+`vr_ao_cache_info`; Debug menu: "AO Bakes on Disk", "Keep AO Bakes on Disk"). Each bake
+is a file `<gamedir>/cache/ao/v<BAKE_VERSION>/<key>.ao`, beside the normal maps' cache. The key is the SHA-256
+(vr_sha256) of everything the bake reads: `BAKE_VERSION`, the ray count, the reach/nearest/lift shares, the rays'
+directions, Quake's 162 vertex normals, and the model's poses (positions and normal indices), triangles (as the bake
+sees them), scale and origin. A file holds a 64-byte header (magic `QVRA`, version, vertex and pose counts, the whole
+32-byte key, the payload's size and FNV-1a 64) and the bytes; a file whose header, key, size or checksum is wrong is
+"rejected", baked again and written over. Reads and writes run on the bake task (never the main thread): hashing,
+reading and checking 123 models takes 31-48 ms in all (0.26-0.39 ms each). Writes go to a `.tmp` beside the file and
+are renamed. The bake task's first write in each game directory removes the other versions' folders and, past 64 MB,
+the oldest files (a full firing-range set is 1.4 MB, 121 files: two models share one bake). No cvar changes a bake;
+changing any of its constants changes the key. `BAKE_VERSION` must be bumped when the algorithm's output or the
+file's layout changes.
+
+Checked on the firing range (developer 1 prints each model's bytes' FNV): the first session baked 121 and wrote 121
+(2 read: same data as another model); the second read 123 from disk, baked 0, `vr_ao_finish` waited for nothing; all
+123 FNVs equal to the bakes before the change. One model's last vertex changed, plus three files damaged (a payload
+byte, the magic, a truncation): exactly those 4 baked again (3 "rejected"), 119 read. A changed constant (the lift
+share, a test build): all baked again. `vr_ao_cache 2`: 123 compared, 0 differed.
