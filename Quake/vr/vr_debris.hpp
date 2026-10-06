@@ -51,8 +51,9 @@ struct Obstacle
 // 24; items, weapons, monsters, explosive boxes, torches 40; anything else with a model or a solid 24) and `extra`.
 void gatherObstacles(za::Vector<Obstacle>& out, float extra = 0.f);
 
-// A number the map's worldspawn sets for Quake VR (`key`: "_vr_debris", "_vr_crates"), 1 if it has none.
-[[nodiscard]] float worldspawnValue(const char* key);
+// A number the map's worldspawn sets for Quake VR (`key`: "_vr_debris", "_vr_crates", "_vr_tips_repeat"), `absent` if
+// it has none. (QC cannot read these: the engine drops the keys that start with '_' as it spawns the entities.)
+[[nodiscard]] float worldspawnValue(const char* key, float absent = 1.f);
 
 // Whether `name` is one of the names in `list` (spaces, commas or semicolons between; case ignored).
 [[nodiscard]] bool inList(const char* list, const char* name);

@@ -63,8 +63,7 @@ void() func_vr_tip =
         flags = flags + QVR_TIP_HOLOGRAM;
     if(self.spawnflags & 4)
         flags = flags + QVR_TIP_ANYANGLE;
-    if(world._vr_tips_repeat != 0) // the whole map's tips repeat (a tutorial map)
-        flags = flags | QVR_TIP_REPEAT;
+    // (The worldspawn's _vr_tips_repeat, every tip in the map repeating, is the engine's: QC never sees '_' keys.)
 
     float h = vr_tip_make();
     self.tiphandle = h;

@@ -2,6 +2,7 @@
 
 #include "vr_tips.hpp"
 #include "vr_cvars.hpp"
+#include "vr_debris.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
@@ -531,6 +532,13 @@ void writeTip(sizebuf_t* msg, int handle, const MapTip& mt, unsigned int protoco
     return mapTips[static_cast<size_t>(handle)];
 }
 
+// The map's worldspawn "_vr_tips_repeat": every tip in it repeats (a tutorial map). Read here, as QC never sees a key
+// that starts with '_'.
+[[nodiscard]] int mapFlags()
+{
+    return debris::worldspawnValue("_vr_tips_repeat", 0.f) > 0.f ? Repeat : 0;
+}
+
 } // namespace
 
 void serverReset()
@@ -547,9 +555,12 @@ int serverMake()
 
     serverTips.emplaceBack();
     const int handle = static_cast<int>(serverTips.size() - 1);
+    serverTips.back().flags = mapFlags();
     if(sizebuf_t* msg = broadcast())
     {
         beginMessage(msg, QVR_SVC_TIP_MAKE, handle);
+        beginMessage(msg, QVR_SVC_TIP_FLAGS, handle);
+        MSG_WriteByte(msg, serverTips.back().flags);
     }
     return handle;
 }
@@ -637,7 +648,7 @@ void serverSetDelay(int handle, float delay)
 void serverSetFlags(int handle, int flags)
 {
     MapTip& mt = serverTip(handle);
-    mt.flags = flags;
+    mt.flags = flags | mapFlags();
     if(sizebuf_t* msg = broadcast())
     {
         beginMessage(msg, QVR_SVC_TIP_FLAGS, handle);

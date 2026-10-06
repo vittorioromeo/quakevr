@@ -561,31 +561,31 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
     }
 }
 
-// A number the worldspawn sets for Quake VR ("_vr_debris", "_vr_crates": 1 if it has none): 0 none in this map,
+// A number the worldspawn sets for Quake VR ("_vr_debris", "_vr_crates": `absent` if it has none): 0 none in this map,
 // another number times the chance.
-[[nodiscard]] float worldspawnKey(const char* wanted)
+[[nodiscard]] float worldspawnKey(const char* wanted, float absent)
 {
     if(!sv.worldmodel || !sv.worldmodel->entities)
     {
-        return 1.f;
+        return absent;
     }
     const char* data = COM_Parse(sv.worldmodel->entities);
     if(!data || com_token[0] != '{')
     {
-        return 1.f;
+        return absent;
     }
     while(true)
     {
         data = COM_Parse(data);
         if(!data || com_token[0] == '}')
         {
-            return 1.f;
+            return absent;
         }
         const za::String key = com_token;
         data = COM_Parse(data);
         if(!data)
         {
-            return 1.f;
+            return absent;
         }
         if(key == wanted)
         {
@@ -852,9 +852,9 @@ void gatherObstacles(za::Vector<Obstacle>& out, float extra)
     obstaclesOf(out, extra);
 }
 
-float worldspawnValue(const char* key)
+float worldspawnValue(const char* key, float absent)
 {
-    return worldspawnKey(key);
+    return worldspawnKey(key, absent);
 }
 
 bool inList(const char* list, const char* name)
