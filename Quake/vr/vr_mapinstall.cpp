@@ -1526,6 +1526,12 @@ bool uninstall(const za::String& sha)
     {
         return false;
     }
+    if(busy(sha))
+    {
+        // (its thread is writing into the folder this would remove, and would record files that are gone)
+        Con_Printf("maps: %s is being installed again; cancel that first (maps_cancel).\n", sha.cStr());
+        return false;
+    }
     if(activeSha == sha)
     {
         activate(za::String{}); // (its folder off the search path before it goes)
