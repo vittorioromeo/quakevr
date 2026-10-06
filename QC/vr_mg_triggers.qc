@@ -596,14 +596,16 @@ void() MG_trigger_explosion_activate = {
     activator = self.enemy;
     self.delay = 0;
     SUB_UseTargets();
-    if(!(self.spawnflags & 1)) T_RadiusDamage(self, self.owner, 120, self);
+    // (world the attacker, as upstream: the activator as one would halve its own damage, credit it with the
+    // monsters' kills and anger them at it, and teamplay would spare the other players)
+    if(!(self.spawnflags & 1)) T_RadiusDamage(self, world, 120, self);
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
     WriteVec3(MSG_BROADCAST, self.origin);
     BecomeExplosion();
 };
 void() MG_trigger_explosion_use = {
-    self.enemy = self.owner = activator;
+    self.enemy = activator;
     if(self.delay > 0) { self.think = MG_trigger_explosion_activate; self.nextthink = time + self.delay; }
     else MG_trigger_explosion_activate();
 };

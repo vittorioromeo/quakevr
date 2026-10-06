@@ -236,6 +236,8 @@ void() trigger_secret =
     entity secamb;
     float sk;
 
+    // (before it is counted: one the official campaigns leave out in this mode would make 100% impossible)
+    if(MG_MonsterInhibited()) return;
     total_secrets += 1;
     self.wait = -1;
 

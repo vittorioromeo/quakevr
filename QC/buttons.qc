@@ -391,9 +391,13 @@ float(entity xThing) VR_Button_Thrown =
 // isn't pressed by the body, only by a hand), and anything thrown at it.
 void() button_touch_any =
 {
+    local vector dir;
+
     if(other.classname == "player")
     {
-        if(self.movedir_z == -1 || self.movedir_z == -2)
+        // (by its direction: the official campaigns keep an authored movedir as the whole move, '0 0 -8')
+        dir = normalize(self.movedir);
+        if(dir_z < -0.7)
         {
             vr_button_how = "stepped on";
             button_touch();
