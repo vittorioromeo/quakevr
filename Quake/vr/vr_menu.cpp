@@ -4731,6 +4731,12 @@ za::Vector<Item> pageDebugTests()
         command("Hand on the Stuck Axe", "impulse 207")
             .help("Moves you so that your main hand is on the handle of the nearest stuck axe: grip to pull it out."),
         command("Report the Axes", "impulse 208").help("Prints each thrown axe: what it is stuck in, where (developer 1)."),
+        command("Push the Props Axes Are In", "vr_test_axe_host 1; impulse 208")
+            .help("Each prop an axe is stuck in (a box, a crate, a pickup) is pushed up and across: the axe moves with it "
+                  "(Report the Axes again to see; vr_test_axe_host 1)."),
+        command("Break the Props Axes Are In", "vr_test_axe_host 2; impulse 208")
+            .help("Each prop an axe is stuck in is broken (an explosive box blows up, a crate breaks, a pickup is taken by "
+                  "you): the axe falls (vr_test_axe_host 2)."),
         command("Slide the Nearest Prop", "vr_physics_fling nearest 150")
             .help("Sends the loose prop nearest you skidding along the floor the way you face, at 150 units/s (5.7 m/s): "
                   "its scrape (Physics Sounds; Logs: Physics Sounds prints it)."),

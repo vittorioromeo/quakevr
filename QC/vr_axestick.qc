@@ -596,9 +596,54 @@ void() VR_AxeStick_TestReach =
         trace_fraction * 100, hand == cVR_MainHand ? "main" : "off", e.netname, e.vr_stick_ent == world ? "the level" : e.vr_stick_ent.classname, forcegrabpoint(e)));
 };
 
+// Tests (impulse 208 with vr_test_axe_host 1 or 2, once): what each axe is stuck in that is a prop pushed up and
+// across at 200 u/s (1: the axe follows it), or broken (2: an explosive box or a crate dealt 1000, a pickup taken by
+// you, your health lowered for it: the axe falls).
+void() VR_AxeStick_TestHost =
+{
+    float what = cvar("vr_test_axe_host");
+    cvar_set("vr_test_axe_host", "0");
+    entity p = self;
+    for(entity e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+    {
+        entity h = e.vr_stick_ent;
+        if(e.weapon != WID_AXE || e.vr_stick_kind != AXESTICK_PROP || h == world)
+        {
+            continue;
+        }
+        if(what == 1)
+        {
+            makevectors('0 1 0' * p.v_viewangle_y);
+            float pushed = physicspush(h, (h.absmin + h.absmax) * 0.5, v_right * 140 + '0 0 140');
+            dprint(sprintf("axe test: %s pushed (%g) from %v\n", h.classname, pushed, h.origin));
+        }
+        else if(what == 2)
+        {
+            dprint(sprintf("axe test: breaking %s (health %g, takedamage %g)\n", h.classname, h.health, h.takedamage));
+            if(h.takedamage)
+            {
+                T_Damage(h, p, p, 1000);
+            }
+            else if(h.touch)
+            {
+                p.health = 10;
+                other = p;
+                self = h;
+                self.touch();
+                self = p;
+                p.health = 100;
+            }
+        }
+    }
+};
+
 // Tests (impulse 208): prints each stuck axe: what it is in, where, its blade.
 void() VR_AxeStick_TestReport =
 {
+    if(cvar("vr_test_axe_host"))
+    {
+        VR_AxeStick_TestHost();
+    }
     dprint(sprintf("axe test: you at %v, head %v, view %v\n", self.origin, VRGetHeadPos(self), self.v_viewangle));
     for(entity e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
     {

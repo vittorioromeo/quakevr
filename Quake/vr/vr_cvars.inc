@@ -161,7 +161,7 @@ QVR_CVAR(vr_axestick_leniency, "1", CVAR_ARCHIVE)   // 0..2: how much of the bla
 QVR_CVAR(vr_axestick_depth, "5", CVAR_ARCHIVE)       // cm the edge goes in at twice the least speed (half as deep at it; at most 60% of the blade)
 QVR_CVAR(vr_axestick_bleed, "5", CVAR_ARCHIVE)       // health a second a monster an axe is stuck in loses (0: none), the thrower's damage
 QVR_CVAR(vr_axestick_tug, "0.3", CVAR_ARCHIVE)       // seconds a force grab tugs a stuck axe before it comes free
-QVR_CVAR(vr_axestick_metal, "0", CVAR_ARCHIVE)     // 1: thrown axes stick in the explosive boxes too; 0: they bounce off them (metal drums)
+QVR_CVAR(vr_axestick_metal, "1", CVAR_ARCHIVE)     // 1: thrown axes stick in the explosive boxes too (the author, 2026-10-06: props in general); 0: they bounce off them (metal drums)
 // Aim assist (QC; on, the author's values, NOTES.md vrfiringrange_2026-09-30_11-25-52): bends a throw by up to vr_throw_assist_strength onto a monster or
 // breakable within vr_throw_assist_cone degrees of it (fully within vr_throw_assist_full), in
 // range and in sight, on a ballistic arc, allowing vr_throw_assist_speed more speed.
@@ -2174,6 +2174,7 @@ QVR_CVAR(vr_test_axe_weapon, "0", CVAR_NONE)        // ... this weapon (QC WID_*
 QVR_CVAR(vr_test_axe_dist, "0", CVAR_NONE)          // ... you moved first to this many units from what is ahead of your eyes (0: where you are)
 QVR_CVAR(vr_test_axe_up, "0", CVAR_NONE)            // ... at a target: this many units above its middle (15: a grunt's head; the decapitation tests)
 QVR_CVAR(vr_test_axe_at, "0", CVAR_NONE)            // ... at the nearest live monster (1), door (2), loose prop (3) or wall button (4), from its side facing you, level with its middle
+QVR_CVAR(vr_test_axe_host, "0", CVAR_NONE)          // impulse 208 (tests), once: the props axes are stuck in pushed (1) or broken (2) first (vr_axestick.qc)
 QVR_CVAR(vr_test_weaponinst, "0", CVAR_NONE)          // impulse 120 (tests): the weapons moved by the game's own functions (QC vr_weaponinst_test.qc): 0 list what has which weapon (id, magazine), 1 holster the main hand's, 2 draw it, 3 drop the main hand's, 4 take the nearest lying, 5 hand off to the off hand, 6 take back, 7 switch hands, 8 back, 9 drop the off hand's
 QVR_CVAR(vr_test_weaponinst_slot, "0", CVAR_NONE)     // ... the holster (QC QVR_HS_*: 3-6 shoulders and hips, 8-9 upper; 0 the right hip)
 QVR_CVAR(vr_test_held_destroy, "0", CVAR_NONE)       // impulse 252 (tests): its gib or head can be destroyed, as a real one (VR_Gib_MakeDestroyable; gib_2h_throw_test.sh)

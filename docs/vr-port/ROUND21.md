@@ -25495,3 +25495,34 @@ again: a config at version 83 with `vr_ragdoll 0`, `vr_migrate_config`: "1"; the
 (default). Every monster with a rig killed with the defaults (`vr_test_spawn_dead 1`, 5 s later `vr_ragdoll_list`):
 grunt, ogre, shambler, scrag, knight, death knight, rottweiler, enforcer, fiend and gremlin limp and asleep (4.2-4.6 s
 limp); the zombie and the mummy lie down without one, as designed (a ragdoll only when beheaded).
+
+### Thrown axes stick in props, explosive boxes too
+
+His answer: an axe sticks in boxes, crates and props in general; explosive boxes don't catch fire (metal). Every Box3D
+prop already took a stuck axe (`vr_axestick.cpp`: the props' ray, kind 2: kept in the prop's frame, it moves and turns
+with it; `VR_AxeStick_Think` drops it when the prop goes or its model changes: blown up, broken, a pickup taken)
+except the explosive boxes, which rang it off (`vr_axestick_metal` 0). Now **Axes Stick in Explosive Boxes** is on by
+default (`vr_axestick_metal` "1"; config 92 moves a saved 0). The only blade with an edge test is the axe's: swords and
+other thrown things don't stick, as before. Explosive boxes still never burn (`VR_Burn_Metal`).
+
+Test aid: `vr_test_axe_host` 1 or 2 with impulse 208 (Debug > Tests > Thrown Axe: Push the Props Axes Are In, Break the
+Props Axes Are In): each prop an axe is stuck in pushed up and across (`physicspush`), or broken (1000 damage; a pickup
+taken by you).
+
+Tests (e1m1, the prop 96 units ahead, `vr_test_axe_at 3`, blade first at 10 m/s, `vr_debug_axestick 1`):
+
+| prop | stuck | pushed: the prop's corner, the axe | broken |
+|---|---|---|---|
+| explosive box (40 kg) | kind 2, 1.6 units deep | 464,-272,48 -> 517,-271,60; axe 480,-273,80 -> 543,-273,84 (turned with it) | blew up, "Axe falls out of explo_box" |
+| small explosive box | kind 2 | 464 -> 515; axe 480 -> 531 | blew up, falls out |
+| small crate | kind 2 | 480 -> 539; axe 480 -> 539 | vr_crate_broken, falls out |
+| large crate | kind 2 | 480 -> 540; axe 480 -> 540 | vr_crate_broken, falls out |
+| item_shells | kind 2 (a sidearm throw) | | |
+
+`vr_burn_test 1` and 3 at an explosive box: "an explosive box (metal) can't burn". The test can't hit a health box
+blade first: a horizontal throw at a box 16 units tall meets it with the handle's end (the test's aim, not the rule: a
+pickup is a prop as any other).
+
+In VR:
+- [ ] Throw the axe into an explosive box, a crate, a health box: it sticks; kick or carry the box, the axe goes with it;
+  blow it up or break it, the axe falls.

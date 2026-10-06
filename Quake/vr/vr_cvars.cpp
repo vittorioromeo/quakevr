@@ -417,8 +417,11 @@ const DefaultChange defaultChanges[] = {
     {89, &vr_counter_damage, "1.2"},        // 1.5 (vr_defaults.cfg's 1.2 dropped: the compiled default again)
     // 90: the training dummy dies (Combat > Gore > Dummy Dies; the author, 2026-10-06: "make gib mode the default")
     {91, &vr_dummy_gib, "0"},               // 1
+    // 92: the author's decisions (2026-10-06; ROUND21.md, "The author's combat decisions"): thrown axes stick in
+    // explosive boxes as in every other prop.
+    {92, &vr_axestick_metal, "0"},          // 1
 };
-constexpr int configVersion = 91;
+constexpr int configVersion = 92;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
