@@ -16,6 +16,9 @@ Map Library: quitting while the map index downloads on first start no longer cra
 Flat screen: WSAD responds immediately even while agent test runs are going; typing in other apps no longer lags; after alt-tab, Caps Lock and Print Screen still work in game
 Parallax: walk close along carved walls; compare Graphics > Surfaces Parallax Side Fade 83/86/90 and Refinement 0/4 (no swimming); try Depth Write on with Show Parallax Depth (hands, weapons, gibs, water against relief) and decide if worth 0.1-0.6 ms
 Lightning: killed enemies keep crawling arcs for 3 s and ragdolls convulse (judge strength); burn marks on living hits and kills; vore/no-ragdoll enemies get arcs + burns too; check from spectator view (Gore > Lightning's Shock)
+Head pops: SSG/SG headshot kills always pop within ~3 player lengths, rarer with range (SG much sooner), never past 15 lengths; lightning always; thrown heavy weapons/props (4 kg+) pop, a thrown shotgun doesn't (Gore > Decapitation > Head Pop Chance)
+Flat menus: corner buttons as an icon row top-left (hover shows names, clicks open pages, keyboard up/left/right/Enter); plaque at 16:10 not covered (Menu Settings to disable)
+VR menus: Spectator camera On/Off switch bottom-left; click toggles it, also while recording
 
 [Map tips]
 vrstart: the test tip near the start appears as a CRT screen with its cable when you come into range; its text size follows the map's tip_size
