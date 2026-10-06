@@ -11,6 +11,7 @@
 // Each page is shown again where it was left (its selected row, found by its label when the page is
 // built anew, on the same line of the view), across restarts too (vr_menu_positions).
 
+#include "vr_serverrules.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
@@ -436,7 +437,7 @@ using PageBuilder = za::Vector<Item> (*)();
 //   released at a map change like any scratch.
 struct MenuReadouts
 {
-    za::String motionNote, motionLastSaved, extendableHelp;
+    za::String motionNote, motionLastSaved, extendableHelp, serverRuleHelp;
     za::String weight[2];              // weightReadout, by hand
     za::String weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
     za::String heldObjectMass;
@@ -450,7 +451,7 @@ struct MenuReadouts
     char buildVersion[64];             // buildVersionLine
     auto members()
     {
-        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
+        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
             weaponWeightsDrop, weaponWeightsHits, weaponOffsetsStock, checklistSummary, stamina, renderScaleHelp, buildVersion);
     }
 };
@@ -4148,6 +4149,12 @@ za::Vector<Item> pageDebugReports()
         header("Other"),
         command("Limits", "vr_limits")
             .help("vr_limits: every hardcoded limit's usage against its maximum (cvars, memory, models, edicts, lights...)."),
+        command("Network: Entities Sent", "vr_net_stats")
+            .help("vr_net_stats [reset]: the entities in use, and for each client the entities in sight and sent in its last "
+                  "datagram, their bytes and its room (1400 to a remote client), the peak, the mean, the frames that were full."),
+        command("Server Rules", "vr_serverrules")
+            .help("vr_serverrules: the settings the server judges by for every player (melee timing): their values, and on "
+                  "a remote server's client the server's against yours."),
         command("Keyboard Hook", "vr_keyhook_status")
             .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
                   "the longest it went unserviced since the last report: every key press on the desktop waits for it."),
@@ -7418,7 +7425,7 @@ void resetThisPage()
     int n = 0;
     for(const Item& item : items(page))
     {
-        if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar))
+        if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar) && !serverrules::locked(item.cvar))
         {
             Cvar_SetQuick(item.cvar, item.cvar->default_string);
             n++;
@@ -7507,12 +7514,25 @@ void openInTree(int target)
     }
 }
 
+// A setting's value as shown: a server rule's is the remote server's (vr_serverrules.cpp), the rest their own.
+[[nodiscard]] float valueOf(const Item& item)
+{
+    return serverrules::shown(item.cvar);
+}
+
+// A server rule while connected to a remote server: shown, dimmed, not changed from here.
+[[nodiscard]] bool lockedItem(const Item& item)
+{
+    return (item.kind == Item::Slider || item.kind == Item::Cycle) && serverrules::locked(item.cvar);
+}
+
 [[nodiscard]] int currentChoice(const Item& item)
 {
+    const float cur = valueOf(item);
     int best = 0;
     for(int i = 0; i < static_cast<int>(item.choices.size()); i++)
     {
-        if(za::fabs(item.choices[i].value - item.cvar->value) < za::fabs(item.choices[best].value - item.cvar->value))
+        if(za::fabs(item.choices[i].value - cur) < za::fabs(item.choices[best].value - cur))
         {
             best = i;
         }
@@ -7609,6 +7629,11 @@ float stepSlider(const Item& item, int dir, bool repeat)
 // read before.)
 void change(const Item& item, int dir, bool repeat = false)
 {
+    if(lockedItem(item))
+    {
+        S_LocalSound("misc/menu3.wav"); // the server's rule: not changed from here
+        return;
+    }
     switch(item.kind)
     {
         case Item::Slider:
@@ -7733,6 +7758,10 @@ void scrollTo(float cy)
 // midPos + 76), on its steps.
 void setSliderAt(const Item& item, float cx)
 {
+    if(lockedItem(item))
+    {
+        return; // the server's rule
+    }
     const float frac = CLAMP(0.f, (cx - midPos - 4.f) / 72.f, 1.f);
     float v = item.min + frac * (item.max - item.min);
     v = za::round(v / item.step) * item.step;
@@ -8105,6 +8134,11 @@ void drawItem(const Item& item, int y, bool selected)
     }
 
     const int labelX = midPos - 28 - 8 * static_cast<int>(strlen(item.label));
+    const bool locked = lockedItem(item); // the remote server's rule: dimmed, its value shown
+    if(locked)
+    {
+        GL_PushCanvasColor(1.f, 1.f, 1.f, 0.5f);
+    }
     M_Print(labelX, y, item.label);
     if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar))
     {
@@ -8116,17 +8150,18 @@ void drawItem(const Item& item, int y, bool selected)
     {
         case Item::Slider:
         {
-            if(item.negativeLabel && item.cvar->value < 0.f)
+            const float value = valueOf(item);
+            if(item.negativeLabel && value < 0.f)
             {
                 q_strlcpy(buf, item.negativeLabel, sizeof(buf));
             }
             else
             {
-                q_snprintf(buf, sizeof(buf), item.format, item.cvar->value);
+                q_snprintf(buf, sizeof(buf), item.format, value);
             }
             // Past an end: the thumb stays there, marked, and the value (the real one) is white.
-            const float range = (item.cvar->value - item.min) / (item.max - item.min);
-            const int past = item.negativeLabel && item.cvar->value < 0.f ? 0 : pastEnd(item, item.cvar->value);
+            const float range = (value - item.min) / (item.max - item.min);
+            const int past = item.negativeLabel && value < 0.f ? 0 : pastEnd(item, value);
             char tinted[64];
             const char* text = past ? COM_TintString(buf, tinted, sizeof(tinted)) : buf;
             if(!menuui::drawSlider(midPos, y, range, past, text))
@@ -8138,7 +8173,7 @@ void drawItem(const Item& item, int y, bool selected)
         case Item::Cycle:
             if(isToggle(item))
             {
-                M_DrawCheckbox(midPos, y, item.cvar->value); // a switch in the VR menu style
+                M_DrawCheckbox(midPos, y, valueOf(item)); // a switch in the VR menu style
             }
             else
             {
@@ -8147,6 +8182,10 @@ void drawItem(const Item& item, int y, bool selected)
             break;
         case Item::Action: M_Print(midPos - 4, y, "..."); break;
         default: break;
+    }
+    if(locked)
+    {
+        GL_PopCanvasColor();
     }
 
     if(selected)
@@ -8172,6 +8211,22 @@ void drawItem(const Item& item, int y, bool selected)
                                    "edges, slower. Below 1: faster, blurrier.",
         w, h, s.width, s.height);
     return text;
+}
+
+// A server rule's help on a remote server's client: the server sets it (its value shown), yours applies when you host.
+[[nodiscard]] const char* serverRuleHelp(const Item& item, const char* help)
+{
+    za::String& text = readouts.serverRuleHelp;
+    char own[48], line[160];
+    q_snprintf(own, sizeof(own), item.kind == Item::Slider ? item.format : "%g", item.cvar->value);
+    q_snprintf(line, sizeof(line), "Set by the server you are connected to (its value shown). Yours, %s, applies when you host or play alone.", own);
+    text = line;
+    if(help && help[0])
+    {
+        text += ' ';
+        text += help;
+    }
+    return text.cStr();
 }
 
 // An extendable slider's help: its own (`help`, may be null), and that left and right go past the
@@ -9055,7 +9110,11 @@ extern "C" void VR_Menu_Draw()
     {
         const Item& item = list[cursor];
         const char* help = item.cvar == &vr_render_scale ? renderScaleHelp() : item.helpArg ? item.helpArg(item.arg) : item.helpText;
-        if(item.kind == Item::Slider && item.extendable)
+        if(lockedItem(item))
+        {
+            help = serverRuleHelp(item, help);
+        }
+        else if(item.kind == Item::Slider && item.extendable)
         {
             help = extendableHelp(item, help);
         }

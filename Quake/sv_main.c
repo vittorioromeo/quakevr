@@ -698,6 +698,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 {
 	int		e, i, j, numents;
 	int		bits;
+	int		startsize = msg->cursize; // QVR: vr_net_stats
 	byte	*pvs;
 	vec3_t	org, forward, right, up;
 	float	miss, dist, size;
@@ -970,6 +971,7 @@ stats:
 	dev_stats.packetsize = msg->cursize;
 	dev_peakstats.packetsize = q_max(msg->cursize, dev_peakstats.packetsize);
 	//johnfitz
+	VR_NetStatsEntities (clent, j, numents, msg->cursize - startsize, msg->maxsize); // QVR
 }
 
 /*

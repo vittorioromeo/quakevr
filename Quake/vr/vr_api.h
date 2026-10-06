@@ -356,6 +356,9 @@ enum
 	QVR_LIMIT_COUNT
 };
 void VR_LimitHit (int limit);
+// SV_WriteEntitiesToClient: the entities sent to `clent` this frame of those in its sight, their bytes, the datagram's
+// room (vr_net_stats, vr_server.cpp).
+void VR_NetStatsEntities (edict_t *clent, int sent, int insight, int bytes, int maxsize);
 
 // Spatial audio (vr_audio.cpp: Steam Audio's HRTF, occlusion and reverb, Doppler, the near field, the hands' sounds),
 // over Quake's mixer (snd_dma.c, snd_mix.c). Each does nothing with vr_snd_spatial 0, outside VR, or without phonon.dll,

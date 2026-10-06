@@ -58,6 +58,7 @@ enum SvcQuakeVr : int
     QVR_SVC_TIP_SIZE = 28,        // [short handle][float]: its screen's text size (0: vr_tips_size)
     QVR_SVC_TIP_DELAY = 29,       // [short handle][float]: seconds near and seen before it shows (< 0: vr_tips_delay)
     QVR_SVC_TIP_FLAGS = 30,       // [short handle][byte]: its flags (qvr::tips::Flags)
+    QVR_SVC_RULES = 31,           // [byte count]([string cvar][float value]) x count: server rules' values (vr_serverrules.cpp; reliable, with the spawn state and on a change)
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
 

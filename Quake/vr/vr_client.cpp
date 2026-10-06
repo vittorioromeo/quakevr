@@ -27,6 +27,7 @@
 #include "vr_posing.hpp"
 #include "vr_rope.hpp"
 #include "vr_protocol.hpp"
+#include "vr_serverrules.hpp"
 #include "vr_shells.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_shock.hpp"
@@ -581,6 +582,7 @@ void init()
     Cmd_AddCommand("vr_particle_test", particleTest_f);
     shells::registerCommands();
     explosiondebris::registerCommands();
+    serverrules::registerCommands();
     fireparticles::registerCommands();
     Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);
     shock::registerCommands();
@@ -669,6 +671,7 @@ extern "C" void VR_OnClientClearState()
     decals::clear();
     worldtext::clientReset();
     tips::clientReset();
+    serverrules::clientReset();
     throwing::reset();
     thrownValid[0] = thrownValid[1] = false;
     twohand::reset();
@@ -797,6 +800,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_SHOCK: shock::parse(); break;
         case QVR_SVC_FIRED: weaponfx::parseFired(); break;
         case QVR_SVC_TRACER: weaponfx::parseTracer(); break;
+        case QVR_SVC_RULES: serverrules::clientParse(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 
