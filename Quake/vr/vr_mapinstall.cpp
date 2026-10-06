@@ -1022,7 +1022,7 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
         // here is invisible to it until the listings are forgotten - vr_fscache.cpp)
     }
 
-    if(written == 0)
+    if(written == 0 && skipped == 0) // (every file there already - a package installed again - is an install that worked)
     {
         why = notes.size() ? notes : za::String{"the zip holds no file this engine can use"};
         return false;
