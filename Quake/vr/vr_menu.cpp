@@ -4413,7 +4413,9 @@ za::Vector<Item> pageDebugTools()
         command("Download Cache Usage", "maps_cache")
             .help("maps_cache [trim]: the download cache's zips, oldest first (the first removed when it is over the size above), and how much of it they use. maps_cache trim: trimmed to the size now."),
         command("Map Browser Costs", "maps_page_stats")
-            .help("maps_page_stats: the Map Library page - how many times its list was built and what it cost, what a frame of the page costs, and its layout. The list is built when the text, a filter or the index changes, never per frame."),
+            .help("maps_page_stats: the Map Library page - how many times its list was built and what it cost, what a frame of the page costs, and its layout, and where its first row, Uninstall and Reinstall are drawn. The list is built when the text, a filter or the index changes, never per frame."),
+        command("Clear Search's Recent List", "menu_vr recent clear")
+            .help("menu_vr recent [clear]: the Search page's results opened recently (quakevr/search_recent.txt), printed with where each is drawn, or cleared."),
         command("Open the Map Browser", "maps_page")
             .help("maps_page [text]: the Map Library page (the corner's Maps button, Single Player > Map Library), with the text typed in. maps_install <sha> gets a package, maps_play <sha> starts it."),
         header("Test Effects"),

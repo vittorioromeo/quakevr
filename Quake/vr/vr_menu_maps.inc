@@ -3,7 +3,9 @@
 // and the filters on its bottom bar choose which packages are listed, on the right; one picked shows its
 // description, file count and size on the left and offers Install (its zip downloaded and unpacked into the game dir,
 // its progress shown on the bar) or, when its files are there already, Play. Installing never starts a map: Play is
-// its own action (vr_mapinstall.cpp). Included by vr_menu.cpp, after vr_menu_search.inc, whose text box, keyboard,
+// its own action (vr_mapinstall.cpp). An installed package also gets Uninstall and Reinstall under its detail, each
+// pressed twice (the second within mapsConfirmSeconds) to act: Uninstall removes its files and its record
+// (mapinstall::uninstall, as maps_uninstall), Reinstall does that and installs it again. Included by vr_menu.cpp, after vr_menu_search.inc, whose text box, keyboard,
 // key hit test and text drawing this page uses, and whose layout(), drawHelp and pages' bookkeeping it shares.
 //
 // The list is built once per change: the results are cached here and mapindex::search is run again only when the
@@ -15,6 +17,7 @@ constexpr float mapsRowHeight = 18.f;            // a package's two lines (menu 
 constexpr int mapsDetailChars = 640;             // a description's length shown
 constexpr float mapsPageWidth = 460.f;           // the page across, as Search caps its own
 constexpr float mapsKeySplit = 0.5f;             // the keyboard's share (the list gets the rest)
+constexpr double mapsConfirmSeconds = 5.0;       // Uninstall / Reinstall: the second press's time to confirm
 
 // The bottom bar's buttons, in order.
 enum MapsButton
@@ -25,6 +28,8 @@ enum MapsButton
     MapButtonRating,
     MapButtonInstalled,
     MapButtonAction,
+    MapButtonUninstall, // under the detail, for an installed package (not on the bar)
+    MapButtonReinstall,
     MapButtonCount
 };
 
@@ -109,7 +114,10 @@ struct MapsPage
     za::U32 notesGeneration{0};
     int notesInstalled{-1};
     za::String notes;
-
+    // Uninstall / Reinstall pressed once: which, for which package, when (a second press in time acts).
+    int armedButton{-1};
+    za::String armedSha;
+    double armedAt{0.0};
 
     // measured (maps_page_stats)
     int searchRuns{0};
@@ -301,6 +309,7 @@ struct MapsLayout
     MapsBar bar;
     float detailTop; // the picked package, under the keys
     float listBottom; // both columns stop above the bar
+    float manageYc;   // Uninstall and Reinstall's middle: the detail's foot, for an installed package
 };
 
 [[nodiscard]] MapsLayout mapsLayout()
@@ -337,13 +346,28 @@ struct MapsLayout
     }
     m.bar.x0[MapButtonAction] = m.s.right - action;
     m.bar.x1[MapButtonAction] = m.s.right;
+    // Uninstall and Reinstall side by side across the left column, at the detail's foot.
+    const float mid = (m.s.left + m.s.split - 6.f) * 0.5f;
+    m.bar.x0[MapButtonUninstall] = m.s.left;
+    m.bar.x1[MapButtonUninstall] = mid - 2.f;
+    m.bar.x0[MapButtonReinstall] = mid + 2.f;
+    m.bar.x1[MapButtonReinstall] = m.s.split - 6.f;
+    m.manageYc = m.listBottom - m.bar.half / m.s.k;
     return m;
 }
 
+[[nodiscard]] bool mapsManageShown();
+
 [[nodiscard]] bool mapsButtonHit(const MapsLayout& m, int button, float x, float y)
 {
+    const bool manage = button == MapButtonUninstall || button == MapButtonReinstall;
+    if(manage && !mapsManageShown())
+    {
+        return false;
+    }
+    const float yc = manage ? m.manageYc : m.bar.yc;
     const float h = (m.bar.half + 2.f) / m.s.k;
-    return x >= m.bar.x0[button] - 1.f && x <= m.bar.x1[button] + 1.f && y >= m.bar.yc - h && y <= m.bar.yc + h;
+    return x >= m.bar.x0[button] - 1.f && x <= m.bar.x1[button] + 1.f && y >= yc - h && y <= yc + h;
 }
 
 // The row under a spot of the list (-1: none).
@@ -432,6 +456,58 @@ void mapsPlayAt(int r)
     }
 }
 
+// Uninstall and Reinstall are offered for the package selected: installed, no job running.
+bool mapsManageShown()
+{
+    const int r = mapsSelected();
+    return r >= 0 && !mapsBusy() && mapinstall::installed(za::String{mapindex::index().field(mapPage.results[r]->sha256)});
+}
+
+// Uninstall or Reinstall pressed: the first press arms it (its label asks to confirm), a second for the same package
+// within mapsConfirmSeconds acts. Reinstall: uninstalled, then installed again from the index (its zip from the cache
+// when there).
+void mapsManageAt(int button)
+{
+    const int r = mapsSelected();
+    if(r < 0 || !mapsManageShown())
+    {
+        return;
+    }
+    const mapindex::Entry* e = mapPage.results[r];
+    const za::String sha{mapindex::index().field(e->sha256)};
+    if(mapPage.armedButton != button || mapPage.armedSha != sha || realtime - mapPage.armedAt > mapsConfirmSeconds)
+    {
+        mapPage.armedButton = button;
+        mapPage.armedSha = sha;
+        mapPage.armedAt = realtime;
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    mapPage.armedButton = -1;
+    const bool removed = mapinstall::uninstall(sha);
+    Con_Printf("maps: %s %s%s\n", mapindex::index().field(e->title), removed ? "uninstalled" : "not uninstalled",
+        removed && button == MapButtonReinstall ? "; installing it again" : "");
+    if(!removed)
+    {
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    if(button == MapButtonReinstall)
+    {
+        mapsInstallAt(r); // (its own sound)
+        return;
+    }
+    S_LocalSound("misc/menu3.wav");
+}
+
+// Whether Uninstall or Reinstall waits for its confirming press now.
+[[nodiscard]] bool mapsArmed(int button)
+{
+    const int r = mapsSelected();
+    return mapPage.armedButton == button && r >= 0 && realtime - mapPage.armedAt <= mapsConfirmSeconds &&
+           mapPage.armedSha == mapindex::index().field(mapPage.results[r]->sha256);
+}
+
 // Enter on a row: install what isn't installed, play what is.
 void mapsPrimaryAt(int r)
 {
@@ -478,6 +554,8 @@ void mapsButtonAt(int button)
             }
             mapsPrimaryAt(mapsSelected());
             return; // (its own sound)
+        case MapButtonUninstall:
+        case MapButtonReinstall: mapsManageAt(button); return;
         default: return;
     }
     S_LocalSound("misc/menu1.wav");
@@ -531,6 +609,34 @@ void mapsMoveImpl(int dx, int dy)
     const int keys = static_cast<int>(m.s.keys.size());
     const int results = static_cast<int>(mapPage.results.size());
 
+    if(mapPage.focusButton == MapButtonUninstall || mapPage.focusButton == MapButtonReinstall)
+    {
+        // Under the detail: left and right between the two (right of Reinstall: the list), down to the bar, up to the
+        // keyboard's bottom row.
+        if(dy > 0)
+        {
+            mapPage.focusButton = 0;
+        }
+        else if(dy < 0)
+        {
+            mapPage.focusButton = -1;
+            mapPage.focusKey = keys - 3; // (Space)
+        }
+        else if(dx < 0)
+        {
+            mapPage.focusButton = MapButtonUninstall;
+        }
+        else if(mapPage.focusButton == MapButtonUninstall)
+        {
+            mapPage.focusButton = MapButtonReinstall;
+        }
+        else if(results > 0)
+        {
+            mapPage.focusButton = -1;
+            mapPage.focusResult = mapPage.resultScroll;
+        }
+        return;
+    }
     if(mapPage.focusButton >= 0)
     {
         if(dy < 0)
@@ -542,7 +648,7 @@ void mapsMoveImpl(int dx, int dy)
         if(dx != 0)
         {
             const int next = mapPage.focusButton + dx;
-            if(next >= 0 && next < MapButtonCount)
+            if(next >= 0 && next <= MapButtonAction)
             {
                 mapPage.focusButton = next;
             }
@@ -623,7 +729,7 @@ void mapsMoveImpl(int dx, int dy)
             }
         }
         mapPage.focusKey = -1;
-        mapPage.focusButton = 0;
+        mapPage.focusButton = mapsManageShown() ? MapButtonUninstall : 0; // (the detail's buttons first, when shown)
         return;
     }
     // Up: the row above, or the corner's buttons from the top row.
@@ -811,6 +917,10 @@ void mapsPageStatsPrint()
                "action %.0f..%.0f\n",
         m.s.left, m.s.right, m.s.split - m.s.left, m.s.right - m.s.split, mapPage.visibleResults, m.s.resultsTop,
         m.listBottom, m.bar.yc, m.bar.x0[MapButtonAction], m.bar.x1[MapButtonAction]);
+    Con_Printf("map browser buttons: first row %.0f %.0f; Uninstall %.0f %.0f, Reinstall %.0f %.0f (%s)\n",
+        (m.s.split + m.s.right) * 0.5f, m.s.resultsTop + 4.f, (m.bar.x0[MapButtonUninstall] + m.bar.x1[MapButtonUninstall]) * 0.5f,
+        m.manageYc, (m.bar.x0[MapButtonReinstall] + m.bar.x1[MapButtonReinstall]) * 0.5f, m.manageYc,
+        mapsManageShown() ? "shown" : "not shown: no installed package selected");
 }
 
 // ----------------------------------------------------------------------------
@@ -885,7 +995,7 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
     namespace colors = menupaint::colors;
     const float x = m.s.left;
     const float width = m.s.split - 6.f - m.s.left;
-    const float bottom = m.listBottom;
+    const float bottom = mapsManageShown() ? m.manageYc - (m.bar.half + 3.f) / m.s.k : m.listBottom;
     float y = m.detailTop;
     const int r = mapsSelected();
     if(r < 0)
@@ -1183,6 +1293,21 @@ void drawMapsPage()
         else
         {
             drawMapsButton(p, m, MapButtonAction, "Install / Play", hot, false);
+        }
+    }
+
+    // Under the detail of an installed package: Uninstall and Reinstall (a second press confirms: the label asks, "Uninstall?").
+    if(mapsManageShown())
+    {
+        MapsLayout under = m;
+        under.bar.yc = m.manageYc; // (drawMapsButton draws on the bar's line)
+        for(int b = MapButtonUninstall; b <= MapButtonReinstall; b++)
+        {
+            const bool hot = mapPage.hoverButton == b || mapPage.focusButton == b;
+            const bool armed = mapsArmed(b);
+            const char* label = b == MapButtonUninstall ? (armed ? "Uninstall?" : "Uninstall")
+                                                        : (armed ? "Reinstall?" : "Reinstall");
+            drawMapsButton(p, under, b, label, hot || armed, true);
         }
     }
 

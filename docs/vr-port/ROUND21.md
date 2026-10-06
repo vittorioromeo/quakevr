@@ -26251,3 +26251,19 @@ the layout without the list). `menu_vr recent [clear]` prints them (SRECENT, wit
   Turn Speed, Grenade. Restarted: the same three read from the file; the laser on Grenade and the trigger opened Weapon
   Damage on Grenade, now first. Flat (`vr_enabled 0`): `vr_mock_mouse 134 123 click` on Turn Speed opened VR Settings
   on Turn Speed, now first.
+
+## Map Library: Uninstall and Reinstall (2026-10-06)
+
+Vittorio (vanisch01): "I cannot see an uninstall button in the map library. Is it there?" It was not: only the console's
+`maps_uninstall`. An installed package selected on the Map Library page (and no download running) now shows
+**Uninstall** and **Reinstall** side by side at the foot of its detail (the left column, above the filter bar; the
+detail's text stops above them). Each needs a second press within 5 s (`mapsConfirmSeconds`): the first turns its
+label into "Uninstall?" / "Reinstall?". Uninstall is `mapinstall::uninstall` (the package's folder in qvr_addons removed,
+its files dropped from cache/maps_installed.txt, as maps_uninstall); Reinstall does that, then installs it again as
+Install does. The sticks reach them down from the keyboard's bottom row (then down: the bar; right of Reinstall: the
+list). `maps_page_stats` also prints where the first row, Uninstall and Reinstall are drawn (for tests).
+- Tested with a package faked into the kit's base (Lost Place: a dummy file in its qvr_addons folder and its registry
+  line; nothing downloaded): mock headset, laser on Uninstall, trigger: "Uninstall?"; trigger again: "maps: removed 1
+  file(s)", the folder gone, the registry its header only, `maps_installed`: nothing installed, the buttons and
+  "INSTALLED" gone from the detail. The same with the flat mouse (`vr_mock_mouse 54 211 click` twice). Reinstall was
+  only armed, not confirmed (it downloads).
