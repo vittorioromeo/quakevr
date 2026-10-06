@@ -565,6 +565,10 @@ void gameFolderName(const char* path, char* out, size_t size)
 
 } // namespace
 
+// VR_LoadOwnedLocalization's store/rerelease roots, found once (they do not change while the game runs).
+static za::Vector<za::String> ownedLocalizationRoots;
+static bool ownedLocalizationRootsKnown = false;
+
 // The filesystem asks for roots here without changing its writable basedirs.
 // Language tables are borrowed individually; this never mounts their maps/models or
 // changes com_basedirs (and therefore cannot redirect saves/configs to a store).
@@ -574,11 +578,10 @@ extern "C" char* VR_LoadOwnedLocalization(const char* name)
     // The store and rerelease roots only, found once (Steam's and GOG's lookups are not free, and the roots do not
     // change while the game runs): a base dir itself is on the search path already, its table read by LOC_ReadFile,
     // and reading it here too parsed and kept every entry twice.
-    static za::Vector<za::String> roots;
-    static bool rootsKnown = false;
-    if(!rootsKnown)
+    za::Vector<za::String>& roots = ownedLocalizationRoots;
+    if(!ownedLocalizationRootsKnown)
     {
-        rootsKnown = true;
+        ownedLocalizationRootsKnown = true;
         for(const za::String& r : ownedRoots())
         {
             bool base = false;
