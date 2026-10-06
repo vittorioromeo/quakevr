@@ -16,9 +16,9 @@
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
-#include "Zancle/Base/Swap.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/SmallVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -33,7 +33,6 @@
 #include "vr_zancle.hpp"
 
 #include <string.h>
-
 namespace qvr::hull
 {
 namespace
@@ -115,7 +114,11 @@ mem::Cache<Brushes> built{"hull brushes", mem::MapChange};
 // split by each node's plane on the way down; at a solid (or sky: solid to Quake's clipping hulls) leaf what is
 // left is that leaf's brush.
 
-using Winding = za::Vector<glm::dvec3>;
+// A face's points, in place up to 8 (PROFILING_2026-10.md, "Hull build: the containers": a winding starts as 4 points
+// and gains one at most a cut; measured on warden, ad_grendel, e4m7 and e1m1: 4.1-4.6 points on average, 9 at the 99th
+// percentile, 24 at most; 98.5% of warden's and 99.97% of the others' fit). Over 8 they spill to the heap.
+constexpr za::SizeT windingInline = 8;
+using Winding = za::SmallVector<glm::dvec3, windingInline>;
 
 struct Face
 {
@@ -123,6 +126,7 @@ struct Face
     double dist;
     Winding w; // empty: the plane bounds the piece but its face was lost to the epsilon (the plane is kept)
     int tag = -1; // method A's build (Tree): the face's plane in the tree's table while not yet split on, else -1
+    ZA_ENABLE_TRIVIAL_RELOCATION_IF(za::isTriviallyRelocatable<Winding>); // (Poly's growth: a copy of its bytes)
 };
 using Poly = za::Vector<Face>;
 
@@ -147,22 +151,13 @@ void clipWinding(const Winding& in, const glm::dvec3& n, double d, bool keepFron
         return;
     }
     const double sign = keepFront ? 1.0 : -1.0;
-    // The points' distances and sides: on the stack for a winding of up to 64 points (nearly all of them; the heap's
-    // two allocations a call were a third of a large map's hull build, its threads queueing on the heap's lock).
-    constexpr za::SizeT stackPoints = 64;
-    double distsLocal[stackPoints];
-    int sidesLocal[stackPoints];
-    za::Vector<double> distsHeap;
-    za::Vector<int> sidesHeap;
-    double* dists = distsLocal;
-    int* sides = sidesLocal;
-    if(count > stackPoints)
-    {
-        distsHeap.resize(count);
-        sidesHeap.resize(count);
-        dists = distsHeap.data();
-        sides = sidesHeap.data();
-    }
+    // The points' distances and sides: in place for a winding of up to 64 points (all of them in practice: 24 at most
+    // measured; the heap's two allocations a call were a third of a large map's hull build, its threads queueing on the
+    // heap's lock), on the heap above.
+    za::SmallVector<double, 64> dists;
+    za::SmallVector<int, 64> sides;
+    dists.resize(count);
+    sides.resize(count);
     bool anyBack = false, anyFront = false;
     for(za::SizeT i = 0; i < count; ++i)
     {
@@ -180,7 +175,7 @@ void clipWinding(const Winding& in, const glm::dvec3& n, double d, bool keepFron
     {
         return;
     }
-    out.reserve(count + 1); // (a convex winding cut by a plane gains one point at most)
+    // (A convex winding cut by a plane gains one point at most: up to windingInline - 1 points in, it stays in place.)
     for(za::SizeT i = 0; i < count; ++i)
     {
         const za::SizeT j = (i + 1) % count;
@@ -230,44 +225,38 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
         back = ZA_MOVE(p);
         return;
     }
-    Winding cap = baseWinding(n, d), tmp;
-    front.reserve(p.size() + 1); // (each side: a face of each of p's at most, and the cap)
+    // The cap: the plane's winding clipped by each face in turn (two windings, each clip into the other).
+    Winding caps[2] = {baseWinding(n, d), {}};
+    int cap = 0;
+    front.reserve(p.size() + 1); // (each side: a face of each of p's at most, and the cap: references stay valid)
     back.reserve(p.size() + 1);
     for(Face& f : p)
     {
-        clipWinding(cap, f.normal, f.dist, false, tmp);
-        za::genericSwap(cap, tmp);
+        clipWinding(caps[cap], f.normal, f.dist, false, caps[cap ^ 1]);
+        cap ^= 1;
         if(f.w.empty())
         {
             front.pushBack(f);
             back.pushBack(f);
             continue;
         }
-        Face fb{f.normal, f.dist, {}, f.tag};
-        clipWinding(f.w, n, d, false, fb.w);
-        clipWinding(f.w, n, d, true, tmp);
-        const bool frontLeft = !tmp.empty();
-        if(frontLeft)
+        // Each side's face clipped straight into its place, taken back if nothing is left of it, unless nothing is left
+        // on both sides (a sliver of a face lost to the epsilon): its plane still bounds both pieces. Dropped, a piece
+        // could lose its only bound that way (found with a monster's 24-wide hull on e1m4: a piece reaching to the bogus
+        // winding's end, its leaf solid out in the open).
+        front.pushBack(Face{f.normal, f.dist, {}, f.tag});
+        back.pushBack(Face{f.normal, f.dist, {}, f.tag});
+        clipWinding(f.w, n, d, true, front.back().w);
+        clipWinding(f.w, n, d, false, back.back().w);
+        const bool frontLeft = !front.back().w.empty(), backLeft = !back.back().w.empty();
+        if(frontLeft != backLeft)
         {
-            front.pushBack(Face{f.normal, f.dist, ZA_MOVE(tmp), f.tag});
-            tmp = Winding{}; // (moved from: the next clip makes it again)
-        }
-        if(!fb.w.empty())
-        {
-            back.pushBack(ZA_MOVE(fb));
-        }
-        else if(!frontLeft)
-        {
-            // Lost to the epsilon on both sides (a sliver of a face): its plane still bounds both pieces. Dropped, a
-            // piece could lose its only bound that way (found with a monster's 24-wide hull on e1m4: a piece reaching
-            // to the bogus winding's end, its leaf solid out in the open).
-            front.pushBack(Face{f.normal, f.dist, {}, f.tag});
-            back.pushBack(Face{f.normal, f.dist, {}, f.tag});
+            (frontLeft ? back : front).popBack();
         }
     }
     // The cap's plane bounds both pieces even when its face is lost to the epsilon.
-    front.pushBack(Face{-n, -d, cap});
-    back.pushBack(Face{n, d, ZA_MOVE(cap)});
+    front.pushBack(Face{-n, -d, caps[cap]});
+    back.pushBack(Face{n, d, ZA_MOVE(caps[cap])});
 }
 
 Poly boxPoly(const glm::dvec3& mins, const glm::dvec3& maxs)
@@ -291,7 +280,7 @@ Poly boxPoly(const glm::dvec3& mins, const glm::dvec3& maxs)
             if(&g != &f)
             {
                 clipWinding(f.w, g.normal, g.dist, false, tmp);
-                za::genericSwap(f.w, tmp);
+                f.w = tmp;
             }
         }
     }
@@ -1250,24 +1239,35 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
 // it (every face of that brush already split on, the leaf on its inside), empty where none reaches. Being Quake's own
 // clipnodes and planes, it is traced by SV_RecursiveHullCheck exactly as hull 1 is (in the box centre's space).
 
+// A table's planes by TreeBuilder::key(dist), each key's in the order they were added.
+using PlaneIndex = ankerl::unordered_dense::map<long long, za::Vector<int>>;
+
 struct Tree
 {
     za::Vector<mclipnode_t> nodes;
     za::Vector<mplane_t> planes;
     za::Vector<int> heads;                    // [sub]: its tree's root in nodes; -1 not built yet
+    // Its planes' index (TreeBuilder), kept from one model's build to the next: the first `indexed` planes are in it. Made
+    // again for each model's build it was most of a big map's allocations (ad_grendel: 5.2 million of 8.5, its 440 brush
+    // models times two trees, each indexing all the tree's planes again).
+    PlaneIndex index;
+    za::SizeT indexed = 0;
     const mclipnode_t* forClipnodes = nullptr; // the Brushes it was built from (their world's hull 0)
     glm::vec3 ext{0.f};                        // the half size of the box it was built for
     int redone = 0;                            // pieces of its builds on the pool done again on one thread (buildTree)
     double ms = 0.0;                           // the builds so far
     int solidLeaves = 0, emptyLeaves = 0;
-    auto members() { return qvr::mem::list(nodes, planes, heads, forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone); }
+    auto members()
+    {
+        return qvr::mem::list(nodes, planes, heads, index, indexed, forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone);
+    }
 };
 mem::Cache<Tree> tree{"hull tree", mem::MapChange};
 
 // Its bytes, for a set holding trees (found by the set's heldBytes of a vector of them).
 za::SizeT heldBytes(const Tree& t)
 {
-    return mem::heldBytes(t.nodes) + mem::heldBytes(t.planes) + mem::heldBytes(t.heads);
+    return mem::heldBytes(t.nodes) + mem::heldBytes(t.planes) + mem::heldBytes(t.heads) + mem::heldBytes(t.index);
 }
 
 // Monsters' trees (vr_mhull): one per box size their widths ask for (a few: the widths come from the classes'
@@ -1293,7 +1293,11 @@ struct Frag
     glm::dvec3 lo, hi;
     int live = 0; // its faces (a winding left) on planes not yet split on: none, and it fills its node's space
     const Brush* brush = nullptr; // the brush it is a piece of
+    ZA_ENABLE_TRIVIAL_RELOCATION_IF(za::isTriviallyRelocatable<Poly>);
 };
+// A node's pieces, in place up to 4 (PROFILING_2026-10.md, "Hull build: the containers": a split's sides hold 3 at the
+// median, 4.4-6.1 on average; in place, a node's two sides cost no allocation two times in three).
+using Frags = za::SmallVector<Frag, 4>;
 
 // A plane asked of the table (TreeBuilder::plane) by a builder on the pool: what it asked and what it got (the merge
 // asks the tree's table the same, in the order the build on one thread would have: see Merge).
@@ -1307,14 +1311,22 @@ struct PlaneAsk
 class TreeBuilder
 {
 public:
-    // The builder of a tree: its planes and nodes go straight into t.
+    // The builder of a tree: its planes and nodes go straight into t, its planes' index kept in t (made up to date here:
+    // the planes added since, or all of them again if the table is shorter than the index, e.g. emptied).
     explicit TreeBuilder(Tree& t)
-        : planes_{&t.planes}, nodes_{&t.nodes}, solid_{&t.solidLeaves}, empty_{&t.emptyLeaves}, ext_{t.ext}
+        : planes_{&t.planes}, nodes_{&t.nodes}, solid_{&t.solidLeaves}, empty_{&t.emptyLeaves}, ext_{t.ext},
+          index_{&t.index}, indexed_{&t.indexed}
     {
-        for(za::SizeT i = 0; i < planes_->size(); ++i)
+        if(t.indexed > planes_->size())
         {
-            index_[key((*planes_)[i].dist)].pushBack(static_cast<int>(i));
+            t.index.clear();
+            t.indexed = 0;
         }
+        for(za::SizeT i = t.indexed; i < planes_->size(); ++i)
+        {
+            (*index_)[key((*planes_)[i].dist)].pushBack(static_cast<int>(i));
+        }
+        t.indexed = planes_->size();
     }
 
     // A builder on the pool over `base` (its table as it is now, only read: base does not change while this one works):
@@ -1377,7 +1389,11 @@ public:
             p.type = static_cast<byte>(a.x > 1.0 - 1e-6 ? 0 : (a.y > 1.0 - 1e-6 ? 1 : (a.z > 1.0 - 1e-6 ? 2 : 3 + major)));
             planes_->pushBack(p);
             id = static_cast<int>(count()) - 1;
-            index_[k].pushBack(id);
+            (*index_)[k].pushBack(id);
+            if(indexed_)
+            {
+                *indexed_ = planes_->size();
+            }
         }
         if(log_)
         {
@@ -1391,8 +1407,12 @@ public:
     {
         while(planes_->size() > to)
         {
-            index_[key(planes_->back().dist)].popBack(); // (the plane added last is its key's last)
+            (*index_)[key(planes_->back().dist)].popBack(); // (the plane added last is its key's last)
             planes_->popBack();
+        }
+        if(indexed_)
+        {
+            *indexed_ = planes_->size();
         }
     }
 
@@ -1439,7 +1459,7 @@ public:
     int rebounded = 0; // pieces cut back to their brush's bounds (bounded)
 
     // The pieces' leaf: its contents (counted), or 0 when they need a node.
-    int leaf(const za::Vector<Frag>& frags)
+    int leaf(const Frags& frags)
     {
         if(frags.empty())
         {
@@ -1459,7 +1479,7 @@ public:
 
     // The pieces split by the plane chosen for their node (returned; n, d: it facing its way) into the front's and
     // the back's.
-    int split(za::Vector<Frag>& frags, za::Vector<Frag> (&sides)[2], glm::dvec3& n, double& d)
+    int split(Frags& frags, Frags (&sides)[2], glm::dvec3& n, double& d)
     {
         const int split = choose(frags);
         const mplane_t& mp = planeAt(split);
@@ -1491,7 +1511,7 @@ public:
     }
 
     // The tree of the pieces; its root (a node, or a leaf's contents). region: the node's space (only when watching).
-    int build(za::Vector<Frag>& frags, Poly* region = nullptr)
+    int build(Frags& frags, Poly* region = nullptr)
     {
         bool watched = false;
         if(watch && region)
@@ -1517,7 +1537,7 @@ public:
         {
             return contents;
         }
-        za::Vector<Frag> sides[2];
+        Frags sides[2];
         glm::dvec3 n;
         double d;
         const int split = this->split(frags, sides, n, d);
@@ -1557,8 +1577,8 @@ private:
                 return id;
             }
         }
-        const auto found = index_.find(kk);
-        if(found == index_.end())
+        const auto found = index_->find(kk);
+        if(found == index_->end())
         {
             return -1;
         }
@@ -1696,7 +1716,7 @@ private:
 
     // qbsp's choice (qbsp3's SelectSplitSide, on the pieces' bounds): the plane that most pieces lie on and that splits
     // the fewest, balanced, axial first. Many pieces: a sample of the planes (the build's time).
-    int choose(const za::Vector<Frag>& frags)
+    int choose(const Frags& frags)
     {
         seen_.resize(count(), 0);
         facing_.resize(count(), 0);
@@ -1781,7 +1801,9 @@ private:
     int* empty_;
     glm::vec3 ext_;                     // the box's half size
     za::Vector<PlaneAsk>* log_ = nullptr;
-    ankerl::unordered_dense::map<long long, za::Vector<int>> index_; // its planes by key(dist), each key's in the order added
+    PlaneIndex ownIndex_;                // (a builder on the pool) its own planes' index
+    PlaneIndex* index_ = &ownIndex_;     // its planes by key(dist): the tree's, or its own
+    za::SizeT* indexed_ = nullptr;       // (the tree's builder) how many of the tree's planes its index holds
     za::Vector<za::SizeT> seen_;
     za::Vector<int> facing_;
     za::SizeT stamp_ = 0;
@@ -1819,7 +1841,7 @@ struct Unit
     int split = 0;
     za::UniquePtr<Unit> kids[2]{nullptr, nullptr};
     za::Vector<mclipnode_t> nodes;
-    za::Vector<Frag> input;
+    Frags input;
 };
 
 // The merge's state: which unit's plane each plane added to the tree's table since `start` is.
@@ -1919,7 +1941,7 @@ struct Merge
 jobs::Site speculateSite{"hull speculate"}; // (its parallelFor: vr_jobs_sites)
 
 // A unit of the tree's top (its pieces), over base; its sides' units at once below it.
-void speculate(Unit& u, const TreeBuilder& base, za::Vector<Frag>&& frags, int depth)
+void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth)
 {
     u.baseCount = base.count();
     TreeBuilder tb{base, u.planes, u.nodes, u.solid, u.empty, u.log};
@@ -1938,7 +1960,7 @@ void speculate(Unit& u, const TreeBuilder& base, za::Vector<Frag>&& frags, int d
     {
         u.kind = 1;
         u.input = frags;
-        za::Vector<Frag> sides[2];
+        Frags sides[2];
         glm::dvec3 n;
         double d;
         u.split = tb.split(frags, sides, n, d);
@@ -2024,7 +2046,7 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch 
             list.pushBack(&b.brushes[static_cast<za::SizeT>(c)]);
         }
     }
-    za::Vector<Frag> frags;
+    Frags frags;
     auto growAll = [&]
     {
         for(const Brush* br : list)
