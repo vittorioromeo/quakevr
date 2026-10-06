@@ -1161,6 +1161,8 @@ enum
 	MAIN_MULTIPLAYER,
 	MAIN_MAPLIBRARY, // QVR: the map browser (vr_menu_maps.inc)
 	MAIN_OPTIONS,
+	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), Back from them to this menu
+	MAIN_VRADVANCED, // QVR: the Advanced VR Options (as the corner's Advanced VR)
 	MAIN_MODS,
 	MAIN_QUIT, // QVR: no Help/Ordering row
 
@@ -1171,7 +1173,7 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"VR Calibration", "Single Player", "Multiplayer", "Map Library", "Options", "Mods", "Quit",
+	"VR Calibration", "Single Player", "Multiplayer", "Map Library", "Options", "VR Settings", "Advanced VR", "Mods", "Quit",
 };
 
 const char *M_Main_RowLabel (void) // QVR: menu_vr pos
@@ -1199,9 +1201,24 @@ void M_Menu_Main_f (void)
 }
 
 
+// QVR: the rows' spacing: Quake's 20, closer where the canvas is too short for them all (the headset's panel at Menu
+// Height 1 with the Mods row: the last row's letters, 20 tall, kept inside it).
+static int M_Main_Step (void)
+{
+	drawtransform_t transform;
+	float left, top, right, bottom;
+	int rows = MAIN_ITEMS - !m_main_mods;
+	int step;
+
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
+	step = (int)((bottom - 2 - 32 - 20) / (rows - 1));
+	return CLAMP (16, step, 20);
+}
+
 void M_Main_Draw (void)
 {
-	int		cursor, i, row; // QVR: i, row
+	int		cursor, i, row, step; // QVR: i, row, step
 	qpic_t	*p;
 	qboolean text; // QVR: the rows as text (VR_BigFont_Draw)
 
@@ -1216,37 +1233,46 @@ void M_Main_Draw (void)
 		if ((i != MAIN_MODS || m_main_mods) && !VR_BigFont_CanDraw (m_main_labels[i]))
 			text = false;
 
+	step = M_Main_Step ();
 	if (text)
 	{
 		for (i = 0, row = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text
 			if (i != MAIN_MODS || m_main_mods)
-				VR_BigFont_Draw (73, 32 + row++ * 20, m_main_labels[i]);
+				VR_BigFont_Draw (73, 32 + row++ * step, m_main_labels[i]);
 	}
 	else
-	{ // QVR: the VR Calibration row above the picture's, Map Library after its Multiplayer (in the mods' row's letters)
-		int split = 40; // the picture's Single Player and Multiplayer rows
-		M_PrintEx (74, 32 + 1, 16, "VR CALIBRATION");
-
+	{ // QVR: the picture's rows (its Help row left out), VR Calibration, Map Library and the VR Settings rows between
+	  // them in the mods' row's letters
 		p = Draw_CachePic ("gfx/mainmenu.lmp");
-		M_DrawSubpic (72, 52, p, 0, 0, p->width, split);
-		M_PrintEx (74, 52 + split + 1, 16, "MAP LIBRARY");
-		M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, 20); // Options
-		row = 52 + split + 40;
-		if (m_main_mods)
+		for (i = 0, row = 32; i < MAIN_ITEMS; i++)
 		{
-			if (m_main_mods > 0)
-				M_DrawTransPic (72, row, Draw_CachePic ("gfx/menumods.lmp"));
-			else
-				M_PrintEx (74, row + 1, 16, "MODS");
-			row += 20;
+			switch (i)
+			{
+			case MAIN_SINGLEPLAYER: M_DrawSubpic (72, row, p, 0, 0, p->width, 20); break;
+			case MAIN_MULTIPLAYER: M_DrawSubpic (72, row, p, 0, 20, p->width, 20); break;
+			case MAIN_OPTIONS: M_DrawSubpic (72, row, p, 0, 40, p->width, 20); break;
+			case MAIN_QUIT: M_DrawSubpic (72, row, p, 0, 80, p->width, p->height - 80); break;
+			case MAIN_MODS:
+				if (!m_main_mods)
+					continue;
+				if (m_main_mods > 0)
+					M_DrawTransPic (72, row, Draw_CachePic ("gfx/menumods.lmp"));
+				else
+					M_PrintEx (74, row + 1, 16, "MODS");
+				break;
+			case MAIN_VRCALIBRATION: M_PrintEx (74, row + 1, 16, "VR CALIBRATION"); break;
+			case MAIN_MAPLIBRARY: M_PrintEx (74, row + 1, 16, "MAP LIBRARY"); break;
+			case MAIN_VRSETTINGS: M_PrintEx (74, row + 1, 16, "VR SETTINGS"); break;
+			case MAIN_VRADVANCED: M_PrintEx (74, row + 1, 16, "ADVANCED VR"); break;
+			}
+			row += step;
 		}
-		M_DrawSubpic (72, row, p, 0, split + 40, p->width, p->height - split - 40); // Quit (the picture's Help row left out)
 	}
 
 	cursor = m_main_cursor;
 	if (!m_main_mods && cursor > MAIN_MODS)
 		--cursor;
-	M_DrawQuakeCursor (54, 32 + cursor * 20);
+	M_DrawQuakeCursor (54, 32 + cursor * step);
 }
 
 
@@ -1314,6 +1340,14 @@ void M_Main_Key (int key)
 			M_Menu_Options_f ();
 			break;
 
+		case MAIN_VRSETTINGS: // QVR
+			VR_Menu_OpenFromMain (0);
+			break;
+
+		case MAIN_VRADVANCED: // QVR
+			VR_Menu_OpenFromMain (1);
+			break;
+
 		case MAIN_MODS:
 			M_Menu_Mods_f ();
 			break;
@@ -1328,7 +1362,7 @@ void M_Main_Key (int key)
 void M_Main_Mousemove (float cx, float cy)
 {
 	int prev = m_main_cursor;
-	M_UpdateCursor (cy, 32, 20, MAIN_ITEMS - !m_main_mods, &m_main_cursor);
+	M_UpdateCursor (cy, 32, M_Main_Step (), MAIN_ITEMS - !m_main_mods, &m_main_cursor); // QVR: M_Main_Step
 	if (m_main_cursor >= MAIN_MODS && !m_main_mods)
 		++m_main_cursor;
 	if (m_main_cursor != prev)

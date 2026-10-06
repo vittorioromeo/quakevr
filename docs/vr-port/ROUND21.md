@@ -25742,3 +25742,33 @@ still, only the icons in the corner, as before (`toolbarLayout`, `bannerLayout`,
   as before (`layout().listTop`, `VR_MenuBounds`): about 2 rows fewer on a VR page at the shipped settings. At Menu
   Height 1 with Spacing 1 (the smallest panel) the column is icons only and a VR page shows only a row or two (it
   showed three or four with seven buttons).
+
+## Main menu: VR Settings and Advanced VR rows (2026-10-06)
+
+Vittorio: "VR Settings" and "Advanced VR Settings" rows on the main menu, directly under Options, in the big font.
+The main menu is now VR Calibration, Single Player, Multiplayer, Map Library, Options, **VR Settings**, **Advanced
+VR**, Mods (when shown), Quit (`Quake/menu.c` `MAIN_VRSETTINGS`, `MAIN_VRADVANCED`, `m_main_labels`).
+- **"Advanced VR", not "Advanced VR Settings" (decided here, conservative):** the big font's letters are Quake's
+  menu size, and "Advanced VR Settings" is 341 pixels wide: from the rows' x 73 it would end at 414, past the flat
+  screen's menu canvas (it ends at about 370) and far right of the menu. "Advanced VR" (198) ends at 271, and is the
+  corner button's name for the same page. One word in `m_main_labels` if a longer label is wanted (the headset's panel
+  has room for it; a flat screen does not).
+- **The rows:** VR Settings opens the VR Settings page, Advanced VR the Advanced VR Options (as the corner button:
+  Menu Detail raised to Advanced if lower); Back from the VR Settings goes back to the main menu (its cursor on the
+  row) when they were opened from it, to Options otherwise as before (`VR_Menu_OpenFromMain`, `openedFromMainMenu`).
+- **The letters:** "Advanced VR" needed A and v alone (the pictures have neither: V was made from Save's v before).
+  v is Save's v without a's leg (the same piece as V, unstretched); A is "Join a Game"'s a, two rows taller as R is r
+  (its top 1 up, its feet 1 down: a capital's height, rows 1 to 16) (`Misc/quakevr/make_bigfont.py`, the .inc written
+  again: two glyphs added, the others unchanged; `vr_bigfont`: 32 of 32 letters cut from Quake 1.06's pak).
+- **Height:** nine rows 20 apart end at about 212: inside the flat screen's canvas (320 tall at any menu scale) and
+  the headset's panel at the shipped Menu Height 1.35. Where the canvas is shorter (the panel at Menu Height 1 with
+  the Mods row) the rows close up to keep the last one inside it (`M_Main_Step`: 18 there, at least 16); the cursor
+  and the mouse/laser rows follow (on so small a panel the spectator switch, in the corner, overlaps Quit's first
+  letters). The picture fallback (`vr_menu_bigfont 0`, or a mod's own pictures) draws its rows
+  one at a time at the same spacing, the new rows in the mods' row's letters.
+- **Tests:** flat 1280x720 and 1024x768 and the mock headset: the rows drawn in Quake's lettering, VR Calibration to
+  Options unchanged (pixel diff of the eye images: no difference above the new rows); a click on y 140 opened VR
+  Settings and Escape returned to the main menu on "VR Settings"; y 160 opened Advanced VR Options (Escape: VR
+  Settings, then the main menu on "Advanced VR"); VR Settings opened from Options still goes back to Options. The
+  laser on y 140 picks VR Settings with `vr_menu_bigfont 0`; at Menu Height 1 / Spacing 1 the laser on y 189 picks
+  Quit.

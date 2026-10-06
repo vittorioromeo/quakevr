@@ -8662,13 +8662,34 @@ int qvr::menu::retroOverridePage()
     return pageIndex(pageRetroOverride);
 }
 
+// Whether the VR Settings were opened from the main menu's rows (Back from them goes back there, else to Options).
+namespace
+{
+bool openedFromMainMenu = false;
+}
+
 extern "C" void VR_Menu_Open()
 {
     IN_DeactivateForMenu();
     key_dest = key_menu;
     m_state = m_vr;
     m_entersound = true;
+    openedFromMainMenu = false;
     showPage(PageMain);
+}
+
+// The main menu's VR Settings and Advanced VR rows (menu.c).
+extern "C" void VR_Menu_OpenFromMain(int advanced)
+{
+    if(advanced)
+    {
+        qvr::menu::jumpToAdvanced();
+    }
+    else
+    {
+        VR_Menu_Open();
+    }
+    openedFromMainMenu = true;
 }
 
 // Single Player > Map Library (menu.c): the map browser page, from Quake's own menu.
@@ -9252,7 +9273,14 @@ extern "C" void VR_Menu_Key(int key, int repeat)
             }
             else if(page == PageMain)
             {
-                M_Menu_Options_f();
+                if(openedFromMainMenu)
+                {
+                    M_Menu_Main_f(); // (its sound as it is drawn)
+                }
+                else
+                {
+                    M_Menu_Options_f();
+                }
             }
             else
             {
