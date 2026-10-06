@@ -10,6 +10,9 @@
 // graphics settings and the counts at the start and end (scripts check the set-up was the same from run to run), and
 // prints one "vr_bench: ..." line. vr_bench_seed <n> restarts the C library's random numbers (QuakeC's random())
 // before a scenario's set-up, as motion playback does. Recording costs a few stores a frame; nothing else changes.
+// vr_bench_mark <label> splits the window at the next frame: the JSON's "marks" give each part's worst and mean frame
+// (a scenario's events: the first cut of each monster, a crowd's blow). A map's load ending inside the window adds its
+// stages and work (vr_startup_times' breakdown) and the worst frame of the second after it to the JSON's "loads".
 
 #pragma once
 
@@ -27,6 +30,17 @@ extern bool recording;
 void frame(double periodMs, double hostMs, double busyMs, const za::I64 (&phaseNs)[profile::PhaseCount]);
 // vr_profile.cpp: a frame's GPU phases read back (ms; 0 for a phase it did not time).
 void gpuFrame(const double (&phaseMs)[profile::PhaseCount]);
+
+// vr_startup.cpp: a map's load ended (its first frame drawn) while recording: what it was ("map e1m2: e1m2"), the map,
+// its total, its frames before the signon, its stages in order (count 1) and its kinds of work (ms summed, count).
+struct LoadStage
+{
+    const char* name;
+    double ms;
+    int count;
+};
+void loadDone(const char* what, const char* map, double totalMs, int frames, const LoadStage* stages, int stageCount,
+    const LoadStage* work, int workCount);
 
 void registerCommands();
 

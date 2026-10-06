@@ -1197,14 +1197,29 @@ float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_He
 // shotgun blast at the body (health 1), 17 a shotgun blast at the head at health 500 (not killed), 18 a bolt at the body
 // (health 1); a zombie at its 60. Prints `decaptest:` lines: beheaded or not, the heads thrown, popped, gibbed.
 
-// The nearest monster (live: xLive 1; a dead one: 0) to `self` within 400 units.
+// The gore tests on a crowd (vr_gore_test_crowd: the benchmarks' gore scenarios, Debug > Gore Tests): each monster
+// within its radius tested in turn as if it were the nearest (vr_gore_test_only), the tests' lines left out but one.
+entity vr_gore_test_only;
+float vr_gore_test_quiet;
+void(float xTest, float xDecap) VR_Gore_TestCrowd;
+
+void(string xText) VR_Gore_Print =
+{
+    if(!vr_gore_test_quiet)
+    {
+        bprint(xText);
+    }
+};
+
+// The nearest monster (live: xLive 1; a dead one: 0) to `self` within 400 units (a crowd's test: its monster in turn).
 entity(float xLive) VR_Decap_TestTarget =
 {
     entity best = world;
-    float bestDist = 400;
+    float bestDist = vr_gore_test_only != world ? 999999 : 400;
     for(entity e = nextent(world); e; e = nextent(e))
     {
-        if(!(e.flags & FL_MONSTER) || e.vr_gib || e.vr_headless || (xLive ? e.health <= 0 : e.health > 0))
+        if(!(e.flags & FL_MONSTER) || e.vr_gib || e.vr_headless || (xLive ? e.health <= 0 : e.health > 0) ||
+           (vr_gore_test_only != world && e != vr_gore_test_only))
         {
             continue;
         }
@@ -1268,6 +1283,10 @@ float vr_poptest_spread; // (VR_Decap_PopTest: the test shot with its weapon's s
 void(float xWeapon, vector xAt) VR_Decap_TestShot =
 {
     vector src = self.origin + self.view_ofs;
+    if(vr_gore_test_only != world)
+    {
+        src = xAt + normalize(src - xAt) * 24; // (a crowd's: from just before it, not through the others)
+    }
     vector dir = normalize(xAt - src);
     VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
     vr_decap_weapon = xWeapon;
@@ -1700,7 +1719,7 @@ void(float xTest) VR_Decap_Test =
     }
     if(xTest == 32)
     {
-        bprint(sprintf("gremlingrabtest: held=%g\n", ragdollheld(self, cVR_MainHand)));
+        VR_Gore_Print(sprintf("gremlingrabtest: held=%g\n", ragdollheld(self, cVR_MainHand)));
         return;
     }
     if(xTest == 30)
@@ -1708,7 +1727,7 @@ void(float xTest) VR_Decap_Test =
         entity small = spawn(); small.vr_rigid = 1; small.classname = "vr_smallgib"; small.vr_sgib = time;
         float rejected = !VR_Button_Thrown(small);
         small.classname = "gib"; small.vr_sgib = 0;
-        bprint(sprintf("buttongibtest: small_rejected=%g large_allowed=%g\n", rejected, VR_Button_Thrown(small)));
+        VR_Gore_Print(sprintf("buttongibtest: small_rejected=%g large_allowed=%g\n", rejected, VR_Button_Thrown(small)));
         remove(small);
         return;
     }
@@ -1732,7 +1751,7 @@ void(float xTest) VR_Decap_Test =
     if(xTest == 33 && m != world)
     {
         LightningDamage(self.origin + self.view_ofs, m.origin + 0.5 * (m.mins + m.maxs), self, 1);
-        bprint(sprintf("bodyshocktest: target=%s health=%g corpse=%g\n", m.classname, m.health, m.vr_corpse));
+        VR_Gore_Print(sprintf("bodyshocktest: target=%s health=%g corpse=%g\n", m.classname, m.health, m.vr_corpse));
         return;
     }
     if(xTest == 8)
@@ -1748,7 +1767,7 @@ void(float xTest) VR_Decap_Test =
     }
     if(m == world)
     {
-        bprint(sprintf("decaptest: %g: no %s monster near\n", xTest, (xTest == 5 || xTest == 8 || xTest == 10) ? "dead" : "live"));
+        VR_Gore_Print(sprintf("decaptest: %g: no %s monster near\n", xTest, (xTest == 5 || xTest == 8 || xTest == 10) ? "dead" : "live"));
         return;
     }
     // Its head: the head zone's middle (a ragdoll: its head part's).
@@ -1771,7 +1790,7 @@ void(float xTest) VR_Decap_Test =
     if(xTest == 11)
     {
         m.health = 1; // (no blow: the next one kills it, a thrown axe's)
-        bprint(sprintf("decaptest: 11 %s at health 1\n", m.classname));
+        VR_Gore_Print(sprintf("decaptest: 11 %s at health 1\n", m.classname));
         return;
     }
     float dmg = 30;
@@ -1867,7 +1886,7 @@ void(float xTest) VR_Decap_Test =
         {
             m.health = 60; // (a zombie: its own health, as it always is)
         }
-        bprint(sprintf("decaptest: %g at health %g\n", xTest, m.health));
+        VR_Gore_Print(sprintf("decaptest: %g at health %g\n", xTest, m.health));
         VR_Decap_TestShot(weapon, aim);
     }
     else
@@ -1894,17 +1913,17 @@ void(float xTest) VR_Decap_Test =
     float headsNow = VR_Decap_TestHeads(); // (not in the call's arguments: a call there overwrites the ones before it)
     float rag = isragdoll(m);
     // (sprintf takes at most 7 values: QC builtins take 8 parameters)
-    bprint(sprintf("decaptest: %g %s on %s: %s, health %g, headless %g", xTest, what, m.classname,
+    VR_Gore_Print(sprintf("decaptest: %g %s on %s: %s, health %g, headless %g", xTest, what, m.classname,
         (vr_decap_count > before) ? "beheaded" : "not beheaded", m.health, m.vr_headless));
-    bprint(sprintf(", ragdoll %g, heads %g -> %g, popped %g, gibbed %g\n", rag, heads, headsNow, vr_decap_pops - pops,
+    VR_Gore_Print(sprintf(", ragdoll %g, heads %g -> %g, popped %g, gibbed %g\n", rag, heads, headsNow, vr_decap_pops - pops,
         m.vr_gib));
     if(vr_decap_count > before && vr_decap_lasthead != world)
     {
         entity h = vr_decap_lasthead;
         vector neck = ragdollcut(m, 4);
-        bprint(sprintf("decaptest: head %s at %v (the neck %v), %.0f u/s %v", h.model, h.origin, neck, vlen(h.velocity),
+        VR_Gore_Print(sprintf("decaptest: head %s at %v (the neck %v), %.0f u/s %v", h.model, h.origin, neck, vlen(h.velocity),
             h.velocity));
-        bprint(sprintf(", spin %.1f rad/s %v (gib %g, rigid %g)\n", vlen(h.vr_spin), h.vr_spin, h.vr_gib, h.vr_rigid));
+        VR_Gore_Print(sprintf(", spin %.1f rad/s %v (gib %g, rigid %g)\n", vlen(h.vr_spin), h.vr_spin, h.vr_gib, h.vr_rigid));
     }
 };
 
@@ -1979,6 +1998,12 @@ void() VR_Decap_TestFrame =
     }
     entity oself = self;
     self = p;
+    if(cvar("vr_gore_test_crowd") > 0)
+    {
+        VR_Gore_TestCrowd(ask, TRUE);
+        self = oself;
+        return;
+    }
     VR_Decap_Test(ask);
     self = oself;
 };
