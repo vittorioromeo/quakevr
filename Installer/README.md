@@ -67,7 +67,7 @@ one unsigned `QuakeVR-Setup.exe`; see INSTALLER.md, "Hosting and SmartScreen").
 ```
 qvr-setup detect                                   # what is on this PC (Quake, expansions, runtimes, VC++)
 qvr-setup manifest <package folder> --version <v>  # write manifest.json (package-quakevr.ps1 has its own writer)
-qvr-setup install --package dist\QuakeVR.zip --target <dir> [--shortcuts-dir <dir>] [--textures <zip>] [--relight]
+qvr-setup install --package dist\QuakeVR.zip --target <dir> [--shortcuts-dir <dir>] [--textures <zip>] [--relight] [--vispatch id1_vis.tgz ...]
 qvr-setup verify --target <dir>
 qvr-setup uninstall --target <dir> [--remove-textures]
 qvr-setup download --url <u> [--url <mirror>] --out <file> --size <n> --sha256 <hex>
@@ -82,15 +82,16 @@ The console never writes the real desktop or Start menu: shortcuts only with `--
 dotnet run --project tests/QuakeVR.Installer.SelfTest -- <scratch folder> [name filter]
 ```
 
-20 tests: VDF parsing, a fake Steam (libraries, app manifests), GOG and Epic, id1 kinds, the engine's resource checks
+21 tests: VDF parsing, a fake Steam (libraries, app manifests), GOG and Epic, id1 kinds, the engine's resource checks
 and pack states (ported from `Quake/vr/vr_gamedir.cpp`), expansion roots and priorities, OpenXR/Virtual Desktop/VC++
 detection, launch arguments and shortcut plans, `.lnk` round trips, manifest safety (paths outside the folder
 refused), install target rules, install/verify/update/uninstall end to end (zip and folder packages, player files kept,
 the Quake folder unchanged), damaged and cancelled installs, HD textures for owned packs only, downloads (mirror
 fall-back, a wrong file skipped, resume with HTTP Range, pinned SHA-256) and the release feed, all against a local
 HTTP server; the skin's readers (pak search order, palette, WAD2 pictures and CONCHARS, a BSP's textures, 8/16-bit WAV,
-junk refused) on made-up files, and local packages (found beside the installer, checked for a manifest, texture packs
-skipped). The machine is a `MemorySystemProbe`: no test reads the real registry or writes outside the scratch folder.
+junk refused) on made-up files, local packages (found beside the installer, checked for a manifest, texture packs
+skipped), and VisPatch's data (made-up `.tgz` archives from a local server: mirror order, pinned hash, safe unpacking,
+installed where the game looks, kept by updates, removed by uninstall). The machine is a `MemorySystemProbe`: no test reads the real registry or writes outside the scratch folder.
 xUnit/MSTest were not used because their NuGet packages are not available offline here; moving the tests to xUnit later
 is mechanical.
 

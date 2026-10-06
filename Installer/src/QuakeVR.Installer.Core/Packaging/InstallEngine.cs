@@ -33,6 +33,9 @@ public sealed class InstallPlan
     public bool RelightOnFirstRun { get; init; }
     /// <summary>The HD texture pack's zip (already checked against its pinned SHA-256 by the download), or null.</summary>
     public string? HdTexturesZip { get; init; }
+    /// <summary>VisPatch's archives (.tgz), already checked against their pinned SHA-256: their data files go into
+    /// quakevr\tools\vispatch, where the game's relight finds them (see-through water).</summary>
+    public IReadOnlyList<string> VisPatchArchives { get; init; } = [];
     /// <summary>Mission packs the player owns ("hipnotic", "rogue"): only theirs get textures.</summary>
     public IReadOnlyCollection<string> OwnedPacks { get; init; } = [];
 }
@@ -151,6 +154,26 @@ public sealed class InstallEngine
                     (skippedOwn > 0 ? $"; {skippedOwn} of your own texture files left as they are" : ""));
             }
 
+            if (plan.VisPatchArchives.Count > 0)
+            {
+                var visFiles = 0;
+                foreach (var archive in plan.VisPatchArchives)
+                {
+                    foreach (var (rel, data) in VisPatch.Extract(archive))
+                    {
+                        var dest = PathUtil.SafeCombine(target, rel);
+                        if (File.Exists(dest) && !oldRecorded.ContainsKey(rel))
+                        {
+                            Report(0, "Reading the package", $"{rel}: your own copy, left as it is");
+                            continue;
+                        }
+                        items.Add(new StageItem(rel, Components.VisPatch, () => new MemoryStream(data, writable: false), data.Length, null));
+                        ++visFiles;
+                    }
+                }
+                Report(0, "Reading the package", $"See-through water (VisPatch): {visFiles} data file(s) for the relight");
+            }
+
             var total = items.Sum(i => i.Size);
             var drive = new DriveInfo(Path.GetPathRoot(target)!);
             if (drive.IsReady && drive.AvailableFreeSpace < total + (64L << 20))
@@ -191,7 +214,12 @@ public sealed class InstallEngine
                             if (fraction - lastReported >= 0.002)
                             {
                                 lastReported = fraction;
-                                Report(fraction, item.Component == Components.Core ? "Copying Quake VR" : "Copying HD textures");
+                                Report(fraction, item.Component switch
+                                {
+                                    Components.Core => "Copying Quake VR: Unleashed",
+                                    Components.VisPatch => "Copying the VisPatch data",
+                                    _ => "Copying HD textures",
+                                });
                             }
                         }
                     }
@@ -237,6 +265,7 @@ public sealed class InstallEngine
                 {
                     HdTextures = plan.HdTexturesZip is not null || (old?.Choices.HdTextures ?? false),
                     RelightOnFirstRun = plan.RelightOnFirstRun,
+                    VisPatch = plan.VisPatchArchives.Count > 0 || (old?.Choices.VisPatch ?? false),
                     DesktopShortcut = plan.Shortcuts.Desktop,
                     StartMenuShortcuts = plan.Shortcuts.StartMenu,
                     FlatShortcut = plan.Shortcuts.Flat,
@@ -253,9 +282,10 @@ public sealed class InstallEngine
                 var removed = 0;
                 foreach (var f in old.Files.Where(f => !now.Contains(f.Path)))
                 {
-                    if (f.Component == Components.HdTextures && plan.HdTexturesZip is null)
+                    if ((f.Component == Components.HdTextures && plan.HdTexturesZip is null) ||
+                        (f.Component == Components.VisPatch && plan.VisPatchArchives.Count == 0))
                     {
-                        record.Files.Add(f); // textures installed before and not reinstalled now: still ours
+                        record.Files.Add(f); // textures or VisPatch data installed before and not reinstalled now: still ours
                         continue;
                     }
                     var path = PathUtil.SafeCombine(target, f.Path);

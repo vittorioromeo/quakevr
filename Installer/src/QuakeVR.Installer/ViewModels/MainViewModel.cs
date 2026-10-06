@@ -839,6 +839,8 @@ public sealed class MainViewModel : ObservableObject
                 "Dissolution of Eternity" => "rogue",
                 _ => "",
             }).Where(s => s.Length > 0).ToList();
+            // See-through water: VisPatch's data with the relight (never fatal: without it the water stays opaque).
+            var visPatch = Relight ? await GetVisPatchAsync(http, owned, ct) : [];
             var plan = new InstallPlan
             {
                 PackagePath = package,
@@ -847,6 +849,7 @@ public sealed class MainViewModel : ObservableObject
                 QuakeStore = SelectedQuake.Install.Store.ToString(),
                 RelightOnFirstRun = Relight,
                 HdTexturesZip = textures,
+                VisPatchArchives = visPatch,
                 OwnedPacks = owned,
                 Shortcuts = new ShortcutOptions
                 {
@@ -931,6 +934,49 @@ public sealed class MainViewModel : ObservableObject
         await new Downloader(http).DownloadAsync(file.Mirrors, dest, file.Size, file.Sha256, progress, ct);
         AddLog(LogLevel.Success, $"{what} downloaded and checked (SHA-256).");
         return dest;
+    }
+
+    /// <summary>VisPatch's archives for id1 and the owned packs: a copy beside the installer or in the downloads folder
+    /// when it matches the pinned SHA-256, else a download from its original location (installer-settings.json's
+    /// visPatchUrls). Each one that cannot be had is skipped with a note; the relight still runs.</summary>
+    async Task<List<string>> GetVisPatchAsync(HttpClient http, IReadOnlyList<string> owned, CancellationToken ct)
+    {
+        var result = new List<string>();
+        var dir = _options.Downloads ?? Path.Combine(_probe.GetFolder(KnownFolder.LocalAppData) ?? Path.GetTempPath(), "QuakeVR-Installer", "downloads");
+        var missing = new List<string>();
+        foreach (var archive in VisPatch.For(owned))
+        {
+            var beside = Path.Combine(AppContext.BaseDirectory, archive.File);
+            if (VisPatch.Matches(beside, archive))
+            {
+                result.Add(beside);
+                continue;
+            }
+            if (_options.Offline)
+            {
+                missing.Add(archive.File);
+                continue;
+            }
+            StatusText = $"Downloading the VisPatch data ({archive.File})";
+            try
+            {
+                var dest = Path.Combine(dir, archive.File);
+                await new Downloader(http).DownloadAsync(VisPatch.Mirrors(archive, _settings.VisPatchUrls), dest, archive.Size, archive.Sha256, null, ct);
+                AddLog(LogLevel.Info, $"VisPatch data: {archive.File} ({PathUtil.FormatSize(archive.Size)}) downloaded and checked (SHA-256).");
+                result.Add(dest);
+            }
+            catch (Exception e) when (e is InstallException or HttpRequestException or IOException or UriFormatException)
+            {
+                AddLog(LogLevel.Info, $"{archive.File}: {e.Message}");
+                missing.Add(archive.File);
+            }
+        }
+        if (missing.Count > 0)
+        {
+            AddLog(LogLevel.Warning, $"See-through water skipped for {string.Join(", ", missing)}: the VisPatch data could not be downloaded. " +
+                                     "The maps are still relit, their water stays opaque; run Setup again later to add it.");
+        }
+        return result;
     }
 
     // ---- Done ---------------------------------------------------------------------------------------------------

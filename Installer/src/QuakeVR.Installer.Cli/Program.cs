@@ -10,7 +10,7 @@ const string Usage = """
     qvr-setup detect [--qvr <dir>] [--epic-manifests <dir>]
     qvr-setup manifest <package folder> --version <text>
     qvr-setup install --package <zip|folder> --target <dir> [--quake <dir>] [--shortcuts-dir <dir>]
-                      [--textures <zip>] [--relight] [--unverified]
+                      [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
     qvr-setup uninstall --target <dir> [--remove-textures]
     qvr-setup verify --target <dir>
     qvr-setup download --url <url> [--url <mirror>...] --out <file> [--size <bytes>] [--sha256 <hex>]
@@ -94,6 +94,7 @@ try
                 AllowUnverified = Flag("unverified"),
                 RelightOnFirstRun = Flag("relight"),
                 HdTexturesZip = Opt("textures"),
+                VisPatchArchives = options.TryGetValue("vispatch", out var vis) ? vis : [],
                 OwnedPacks = owned,
                 Shortcuts = shortcutsDir is null
                     ? new ShortcutOptions { Desktop = false, StartMenu = false }

@@ -116,6 +116,14 @@ public sealed class InstallerSettings
 
     public string GitHubApi { get; set; } = "https://api.github.com/repos/vittorioromeo/quakevr/releases/latest";
 
+    /// <summary>Where VisPatch's archives are downloaded, in order (<c>{file}</c>: <c>id1_vis.tgz</c>...): its original
+    /// SourceForge location. A mirror added here must serve the same files (their SHA-256 is pinned).</summary>
+    public List<string> VisPatchUrls { get; set; } =
+    [
+        "https://sourceforge.net/projects/vispatch/files/vispatch%20data/1.0/{file}/download",
+        "https://downloads.sourceforge.net/project/vispatch/vispatch%20data/1.0/{file}",
+    ];
+
     public static InstallerSettings Load(string? path)
     {
         if (path is null || !File.Exists(path))

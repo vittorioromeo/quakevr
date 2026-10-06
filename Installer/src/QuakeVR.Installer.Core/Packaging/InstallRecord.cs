@@ -6,6 +6,8 @@ public static class Components
 {
     public const string Core = "core";
     public const string HdTextures = "hdtextures";
+    /// <summary>VisPatch's data (see-through water for the relight), with the relight component.</summary>
+    public const string VisPatch = "vispatch";
 }
 
 public sealed class InstalledFile
@@ -20,6 +22,7 @@ public sealed class InstallChoices
 {
     public bool HdTextures { get; set; }
     public bool RelightOnFirstRun { get; set; }
+    public bool VisPatch { get; set; }
     public bool DesktopShortcut { get; set; }
     public bool StartMenuShortcuts { get; set; }
     public bool FlatShortcut { get; set; }

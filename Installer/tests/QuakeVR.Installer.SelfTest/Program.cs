@@ -535,6 +535,75 @@ var tests = new List<(string Name, Action Body)>
              QuakeFormats.ReadWav([1, 2, 3]) is null, "junk is refused, not thrown");
         True(QuakeFileSystem.OpenDir(Dir("assets/empty")) is null, "no paks: no file system");
     }),
+    ("vispatch: downloaded from a mirror list, pinned hash, .tgz unpacked safely, installed and recorded, removed on uninstall", () =>
+    {
+        // Made-up archives in VisPatch's layout (id1.vis at the top; a pack's <game>/vispatch.dat; a readme; an entry
+        // trying to leave the folder), served by a local server: no real download.
+        byte[] Tgz(params (string Name, byte[] Data)[] entries)
+        {
+            using var ms = new MemoryStream();
+            using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionLevel.Fastest, leaveOpen: true))
+            using (var tar = new System.Formats.Tar.TarWriter(gz, System.Formats.Tar.TarEntryFormat.Ustar))
+            {
+                foreach (var (name, data) in entries)
+                {
+                    tar.WriteEntry(new System.Formats.Tar.UstarTarEntry(System.Formats.Tar.TarEntryType.RegularFile, name) { DataStream = new MemoryStream(data) });
+                }
+            }
+            return ms.ToArray();
+        }
+        var id1 = Tgz(("id1.vis", RandomNumberGenerator.GetBytes(5000)), ("../evil.vis", [1, 2, 3]), ("readme.txt", [4]));
+        var hip = Tgz(("hipnotic/vispatch.dat", RandomNumberGenerator.GetBytes(3000)));
+        var rogue = Tgz(("rogue.vis", RandomNumberGenerator.GetBytes(4000)), ("rogue.txt", [5]));
+        string Sha(byte[] b) => Convert.ToHexStringLower(SHA256.HashData(b));
+        var archives = new List<VisPatchArchive>
+        {
+            new("id1", "id1_vis.tgz", id1.Length, Sha(id1)),
+            new("hipnotic", "hipnotic_vis.tgz", hip.Length, Sha(hip)),
+            new("rogue", "rogue_vis.tgz", rogue.Length, Sha(rogue)),
+        };
+        using var server = new LocalHttpServer();
+        server.Serve("sf/id1_vis.tgz", id1);
+        server.Serve("sf/hipnotic_vis.tgz", hip);
+        server.Serve("sf/rogue_vis.tgz", rogue);
+        Eq("id1|rogue", string.Join("|", VisPatch.For(["rogue"], archives).Select(a => a.Game)), "id1 and the owned packs only");
+        var templates = new[] { server.Url("dead/{file}").ToString().Replace("%7B", "{").Replace("%7D", "}"),
+                                server.Url("sf/{file}").ToString().Replace("%7B", "{").Replace("%7D", "}") };
+        using var http = Downloader.CreateClient();
+        var downloads = Dir("vis-dl");
+        var paths = new List<string>();
+        foreach (var a in VisPatch.For(["hipnotic", "rogue"], archives))
+        {
+            var dest = Path.Combine(downloads, a.File);
+            new Downloader(http).DownloadAsync(VisPatch.Mirrors(a, templates), dest, a.Size, a.Sha256, null, CancellationToken.None, attemptsPerMirror: 1)
+                .GetAwaiter().GetResult();
+            True(VisPatch.Matches(dest, a), $"{a.File} checked");
+            paths.Add(dest);
+        }
+        Eq("quakevr/tools/vispatch/id1.vis", string.Join("|", VisPatch.Extract(paths[0]).Select(f => f.Relative)), "only the data, nothing outside");
+        var quake = Dir("vis-quake");
+        var target = Path.Combine(run, "vis-QuakeVR");
+        var r = new InstallEngine().Install(new InstallPlan
+        {
+            PackagePath = Fixtures.MakePackage(Dir("vis-pkg"), "v1"), TargetDir = target, QuakeDir = quake, RelightOnFirstRun = true, VisPatchArchives = paths,
+        }, null, CancellationToken.None);
+        var vis = r.Files.Where(f => f.Component == Components.VisPatch).Select(f => f.Path).Order().ToList();
+        Eq("quakevr/tools/vispatch/hipnotic/vispatch.dat|quakevr/tools/vispatch/id1.vis|quakevr/tools/vispatch/rogue.vis", string.Join("|", vis), "installed where the game looks");
+        True(r.Choices.VisPatch, "recorded as chosen");
+        True(!File.Exists(Path.Combine(target, "quakevr", "tools", "vispatch", "rogue.txt")) && !File.Exists(Path.Combine(target, "quakevr", "tools", "evil.vis")), "nothing else");
+        // An update without the archives keeps the data (still recorded); uninstall removes it.
+        var u = new InstallEngine().Install(new InstallPlan
+        {
+            PackagePath = Fixtures.MakePackage(Dir("vis-pkg2"), "v2"), TargetDir = target, QuakeDir = quake,
+        }, null, CancellationToken.None);
+        Eq(3, u.Files.Count(f => f.Component == Components.VisPatch), "kept by an update");
+        Uninstaller.Uninstall(target, new UninstallOptions());
+        True(!File.Exists(Path.Combine(target, "quakevr", "tools", "vispatch", "id1.vis")), "removed on uninstall");
+        // A damaged archive is refused, not half-read.
+        var bad = Path.Combine(downloads, "bad_vis.tgz");
+        File.WriteAllBytes(bad, id1[..(id1.Length / 2)]);
+        Throws<InvalidDataException>(() => VisPatch.Extract(bad), "truncated archive");
+    }),
     ("local packages: found beside the installer, checked for a manifest, texture packs ignored", () =>
     {
         var dir = Dir("beside");
