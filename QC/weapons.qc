@@ -1938,6 +1938,8 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
 
     ClearMultiDamage();
     VR_SmallGib_BlastBegin(); // VR: the blast's pellets one hit for the small gibs (vr_smallgibs.qc)
+    vr_decap_pellets = shotcount; // VR: head pops' chance (vr_decap.qc): the share of the blast at the head, the range
+    vr_decap_src = src;
     while(shotcount > 0)
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
@@ -5697,7 +5699,12 @@ void() forcegrabbable_touch =
                 dprint(sprintf("throw: %s fell on its thrower at %.0f u/s, %.2f s after the throw: %.1f damage\n",
                     self.classname, vlen(self.velocity), time - self.carry_letgo_time, adjDmg));
             }
+            float pop = VR_Decap_ThrownArm(other, self, thrower, adjDmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
             T_Damage(other, self, thrower, adjDmg);
+            if(pop)
+            {
+                VR_Decap_After(other);
+            }
             self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)
         }
         // hit wall

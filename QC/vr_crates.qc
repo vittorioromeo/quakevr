@@ -303,7 +303,12 @@ void(float xSpeed) VR_SolidProp_Impact =
             {
                 spawn_touchblood(dmg);
             }
+            float pop = VR_Decap_ThrownArm(other, self, thrower, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
             T_Damage(other, self, thrower, dmg);
+            if(pop)
+            {
+                VR_Decap_After(other);
+            }
             self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)
             self.owner = world; // (as above)
             self.vr_throw_self = 0;

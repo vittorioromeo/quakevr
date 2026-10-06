@@ -1731,8 +1731,29 @@ QVR_CVAR(vr_decap_shotgun, "1", CVAR_ARCHIVE)         // a shotgun blast killing
 QVR_CVAR(vr_decap_super_shotgun, "1", CVAR_ARCHIVE)   // ... a super shotgun blast
 QVR_CVAR(vr_decap_lightning, "1", CVAR_ARCHIVE)       // ... a lightning gun bolt at the head that kills
 QVR_CVAR(vr_decap_head_share, "0.5", CVAR_ARCHIVE)    // share of a blast's damage on him (after the headshot multiplier) its head pellets must deal to pop the head
+// Head pop chance (QC vr_decap.qc, "Head pop chance"; ROUND21.md): a shotgun's or super shotgun's headshot kill pops the head
+// always within _always_range, never beyond _never_range (player lengths, 56 units), and between by chance:
+// scale x (1 - t)^falloff x ((1 - pellet_weight) + pellet_weight x the share of the blast's pellets at the head), t the
+// way from the one range to the other.
+QVR_CVAR(vr_decap_pop_chance, "1", CVAR_ARCHIVE)          // shots' head pops by chance (0: every headshot kill pops, as before)
+QVR_CVAR(vr_decap_pop_always_range, "3", CVAR_ARCHIVE)    // player lengths (56 units): a shotgun's or super shotgun's headshot kill this near always pops
+QVR_CVAR(vr_decap_pop_never_range, "15", CVAR_ARCHIVE)    // player lengths: this far or farther it never does (the lightning gun's always: aside)
+QVR_CVAR(vr_decap_pop_ssg_scale, "1.25", CVAR_ARCHIVE)    // the super shotgun's chance between the ranges, times this
+QVR_CVAR(vr_decap_pop_ssg_falloff, "1", CVAR_ARCHIVE)     // its falloff exponent over the way between them (1: straight; higher: dies away sooner)
+QVR_CVAR(vr_decap_pop_sg_scale, "0.75", CVAR_ARCHIVE)     // the shotgun's chance between the ranges, times this
+QVR_CVAR(vr_decap_pop_sg_falloff, "4", CVAR_ARCHIVE)     // its falloff exponent (stronger than the super shotgun's)
+QVR_CVAR(vr_decap_pop_pellet_weight, "0.75", CVAR_ARCHIVE) // how much the share of the blast's pellets at the head weighs (0: none; 1: in proportion)
+QVR_CVAR(vr_decap_pop_lightning_always, "1", CVAR_ARCHIVE) // a lightning bolt's headshot kill always pops, at any range (0: the ranges, the super shotgun's falloff, all of it at the head)
+QVR_CVAR(vr_decap_pop_thrown, "1", CVAR_ARCHIVE)          // a thrown (or flung) blunt weapon or prop killing with a headshot pops the head
+QVR_CVAR(vr_decap_pop_thrown_mass, "4", CVAR_ARCHIVE)     // kg: this heavy or heavier, always
+QVR_CVAR(vr_decap_pop_thrown_light_chance, "0", CVAR_ARCHIVE) // a lighter one's chance (0: never)
+QVR_CVAR(vr_decap_pop_roll, "-1", CVAR_NONE)              // tests: the head pop roll's value (0..1; below 0: random)
 QVR_CVAR(vr_decap_test, "0", CVAR_NONE)               // the QC runs decapitation test n on the nearest monster or corpse (vr_decap.qc; Debug > Gore Tests)
 QVR_CVAR(vr_shock_hit_test, "0", CVAR_NONE)          // the QC strikes the nearest monster or corpse ahead with a lightning bolt of this much damage (-1: just enough to kill), once (vr_shock.qc; Debug > Gore Tests)
+QVR_CVAR(vr_decap_poptest_dist, "10", CVAR_NONE)       // vr_decap_test 41..46 (head pop chance): shot from this many player lengths (56 units) off
+QVR_CVAR(vr_decap_poptest_n, "200", CVAR_NONE)         // vr_decap_test 45, 46: blasts fired
+QVR_CVAR(vr_decap_poptest_wid, "10", CVAR_NONE)        // vr_decap_test 47: the weapon thrown (QC WID_*: 10 the rocket launcher)
+QVR_CVAR(vr_decap_poptest_body, "0", CVAR_NONE)        // vr_decap_test 47, 48: thrown at the body instead
 QVR_CVAR(vr_ragdoll_held_local, "1", CVAR_ARCHIVE)    // a held limb's ragdoll follows your hand at the frame rate, as a held prop does (the server's step lags it); 0 the server's pose only
 // Per monster class (Gibs and Corpses > Ragdolls > Grunt, > Knight): -1 (Global) is the setting above, any other value replaces it
 // for that class. Each class's mass is its own by default (the author, 2026-10-03: ROUND21.md, "Ragdoll masses per monster").

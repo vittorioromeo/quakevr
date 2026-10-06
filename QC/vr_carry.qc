@@ -731,7 +731,12 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
         attacker == world ? "nobody" : attacker.netname));
     sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
     spawn_touchblood(dmg); // (splinters off a crate: spawn_touchblood)
+    float pop = VR_Decap_ThrownArm(other, self, attacker, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
     T_Damage(other, self, attacker, dmg);
+    if(pop)
+    {
+        VR_Decap_After(other);
+    }
     return TRUE;
 };
 

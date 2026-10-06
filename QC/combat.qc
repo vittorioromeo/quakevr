@@ -243,10 +243,14 @@ float QVR_DECAP_SHOTGUN = 4;   // a shotgun blast
 float QVR_DECAP_SSG = 5;       // a super shotgun blast
 float QVR_DECAP_LIGHTNING = 6; // a lightning gun bolt
 float vr_decap_weapon;
+float vr_decap_pellets; // the blast's pellets fired (FireBulletsImpl; Head pop chance: the share at the head)
+vector vr_decap_src;    // and where from
 void(entity e, float xDamage, vector xAt, vector xDir) VR_Decap_Pellet;
 float(entity targ) VR_Decap_BlastArm;
 float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm;
 float(entity m, entity xAxe) VR_Decap_Thrown;
+float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm;
+float(entity e) VR_Decap_Roll;
 void() VR_Decap_TestFrame;
 void() VR_Decap_ZombieDie;
 
@@ -651,7 +655,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     if(vr_decap_ent == targ && vr_decap_time == time && !targ.vr_headless)
     {
         vr_decap_ent = world;
-        if(VR_Decap_Cut(targ, vr_decap_by, vr_decap_vel, vr_decap_how))
+        if(VR_Decap_Roll(targ) && VR_Decap_Cut(targ, vr_decap_by, vr_decap_vel, vr_decap_how))
         {
             return TRUE;
         }

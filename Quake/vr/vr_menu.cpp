@@ -1994,6 +1994,38 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("A popped head's body: how much of the shot's knock its headless ragdoll keeps (its own motion, as it ran, "
                   "in full: Keeps Its Own Motion). The shot's force went into the head, so it slumps where it stood; 1: flung "
                   "as before (vr_decap_pop_body_speed)."),
+        header("Head Pop Chance"),
+        toggle("By Chance", vr_decap_pop_chance)
+            .help("A shotgun or super shotgun headshot kill pops the head always up close, never far off, and by chance between "
+                  "(the rows below); off: every headshot kill pops it, as before (vr_decap_pop_chance)."),
+        slider("Always Within", vr_decap_pop_always_range, 0.f, 10.f, 0.5f, "%.1f lengths").extend(0.f, 50.f)
+            .help("A shotgun's or super shotgun's headshot kill this near (in player lengths, 56 units: about 1.75 m) "
+                  "always pops the head (vr_decap_pop_always_range)."),
+        slider("Never Beyond", vr_decap_pop_never_range, 1.f, 40.f, 1.f, "%.0f lengths").extend(0.f, 200.f)
+            .help("This far or farther it never does; between the two, the chance falls off (vr_decap_pop_never_range)."),
+        slider("Super Shotgun Chance", vr_decap_pop_ssg_scale, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The super shotgun's chance between the ranges, times this (vr_decap_pop_ssg_scale)."),
+        slider("Super Shotgun Falloff", vr_decap_pop_ssg_falloff, 0.f, 5.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("How fast its chance dies away with range: 1 straight down to the far range, higher sooner, 0 not at all "
+                  "(vr_decap_pop_ssg_falloff)."),
+        slider("Shotgun Chance", vr_decap_pop_sg_scale, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The shotgun's chance between the ranges, times this (vr_decap_pop_sg_scale)."),
+        slider("Shotgun Falloff", vr_decap_pop_sg_falloff, 0.f, 5.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("How fast the shotgun's chance dies away with range (stronger than the super shotgun's) "
+                  "(vr_decap_pop_sg_falloff)."),
+        slider("Pellets at the Head", vr_decap_pop_pellet_weight, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much the share of the blast's pellets that struck the head weighs on the chance: 1 in proportion, "
+                  "0 not at all (vr_decap_pop_pellet_weight)."),
+        toggle("Lightning Always Pops", vr_decap_pop_lightning_always)
+            .help("A lightning bolt's headshot kill always pops the head, at any range; off: the ranges, with the super "
+                  "shotgun's falloff (vr_decap_pop_lightning_always)."),
+        toggle("Thrown Things", vr_decap_pop_thrown)
+            .help("A blunt weapon or prop thrown (or flung) into a head that kills pops it, when heavy enough (not a sword, "
+                  "an axe or the chainsaw: an axe's edge cuts the head off) (vr_decap_pop_thrown)."),
+        slider("Thrown: Always From", vr_decap_pop_thrown_mass, 0.f, 20.f, 0.5f, "%.1f kg").extend(0.f, 200.f)
+            .help("This heavy or heavier, a thrown thing's headshot kill always pops the head (vr_decap_pop_thrown_mass)."),
+        slider("Thrown: Lighter's Chance", vr_decap_pop_thrown_light_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A lighter one's chance (0: never) (vr_decap_pop_thrown_light_chance)."),
     };
 }
 
@@ -4172,6 +4204,23 @@ za::Vector<Item> pageDebugTools()
         command("Sweep the Head Zone", "vr_decap_test 19")
             .help("vr_decap_test 19: blows moved level at the nearest live monster's head from 16 sides, at heights 24 units below "
                   "its head's middle to 16 above: how many meet the melee's beheading zone at each (decapsweep: in the console)."),
+        header("Head Pop Chance Tests (poptest: ... in the console)"),
+        slider("Test Range", vr_decap_poptest_dist, 0.5f, 25.f, 0.5f, "%.1f lengths")
+            .help("The tests below shoot (or throw) from this many player lengths (56 units) off the nearest live monster's head "
+                  "(you are moved there and back; round it till the way is clear) (vr_decap_poptest_dist)."),
+        command("Chance Table", "vr_decap_test 40")
+            .help("vr_decap_test 40: each weapon's head pop chance at ranges, for all, half and a fifth of the pellets at the head."),
+        command("Shotgun Headshot Kill", "vr_decap_test 41").help("vr_decap_test 41: a shotgun blast (no spread) at its head at health 1, from the Test Range."),
+        command("Super Shotgun Headshot Kill", "vr_decap_test 42").help("vr_decap_test 42: the same with the super shotgun."),
+        command("Lightning Headshot Kill", "vr_decap_test 43").help("vr_decap_test 43: the same with a lightning bolt."),
+        command("Super Shotgun Body Kill", "vr_decap_test 44").help("vr_decap_test 44: a super shotgun blast at its body at health 1: never popped."),
+        command("Shotgun Rates", "vr_decap_test 45")
+            .help("vr_decap_test 45: vr_decap_poptest_n shotgun blasts with its spread at its head from the Test Range, not killing "
+                  "it: the mean chance, the rate it would pop, by pellets at the head."),
+        command("Super Shotgun Rates", "vr_decap_test 46").help("vr_decap_test 46: the same with the super shotgun."),
+        command("Throw a Weapon at Its Head", "vr_decap_test 47")
+            .help("vr_decap_test 47: weapon vr_decap_poptest_wid (10: the rocket launcher) thrown at 16 m/s into its head at health 1."),
+        command("Throw an Explosive Box at Its Head", "vr_decap_test 48").help("vr_decap_test 48: the same with an explosive box (that never blows up)."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
             .help("vr_burn_test 1: the nearest monster, corpse, crate or crate's piece set on fire (an explosive box: it can't burn) as a lit torch's blow would, where it faces you "
