@@ -170,6 +170,7 @@ Request request;
 bool writeRegistry();
 void rebuildPackages();
 void migrateMerged();
+bool safePath(const char* name, za::String& out);
 
 void loadRegistry()
 {
@@ -211,7 +212,9 @@ void loadRegistry()
         f.sha = za::String{l.substrByPosLen(0, a)};
         f.bytes = static_cast<za::U64>(strtoull(za::String{l.substrByPosLen(a + 1, b - a - 1)}.cStr(), nullptr, 10));
         f.path = za::String{l.substrByPosLen(b + 1, l.size() - b - 1)};
-        if(f.sha.size() && f.path.size())
+        // (a line edited by hand, or damaged, is dropped: the sha names a folder uninstall removes, the path a file)
+        za::String checked;
+        if(mapindex::validSha(f.sha) && safePath(f.path.cStr(), checked) && checked == f.path)
         {
             registry.files.pushBack(ZA_MOVE(f));
         }
@@ -324,6 +327,39 @@ bool endsFolded(const za::String& s, const char* suffix)
     return s.size() >= n && !q_strcasecmp(s.cStr() + (s.size() - n), suffix);
 }
 
+// A path segment every file system writes as named: no separator, drive colon or character Windows refuses
+// (<>:"|?*, a control character), no trailing dot or space (Windows drops them: "maps/.. /x" made a folder ".. " that
+// Explorer cannot remove, "x. " was written as "x" and recorded as "x. "), and no device name (CON, NUL, AUX.txt, COM1:
+// a file Windows does not write, or one that cannot be removed again).
+[[nodiscard]] bool portableSegment(const za::String& part)
+{
+    for(const char c : part)
+    {
+        if(static_cast<unsigned char>(c) < ' ' || strchr("<>:\"|?*\\", c))
+        {
+            return false;
+        }
+    }
+    const char last = part.back();
+    if(last == '.' || last == ' ')
+    {
+        return false;
+    }
+    const za::SizeT dot = part.findFirstOf('.');
+    const za::String stem = dot == za::StringView::nPos ? part : za::String{part.substrByPosLen(0, dot)};
+    static constexpr const char* devices[] = {"con", "prn", "aux", "nul", "conin$", "conout$"};
+    for(const char* d : devices)
+    {
+        if(!q_strcasecmp(stem.cStr(), d))
+        {
+            return false;
+        }
+    }
+    const bool numbered = stem.size() == 4 && (!q_strncasecmp(stem.cStr(), "com", 3) || !q_strncasecmp(stem.cStr(), "lpt", 3)) &&
+                          stem[3] >= '0' && stem[3] <= '9';
+    return !numbered;
+}
+
 // A zip entry's name as a path inside the game dir (false: it does not belong here). `..`, an absolute path, a drive
 // letter, a Windows separator and an empty segment are all refused, so that nothing written here can leave the game dir.
 bool safePath(const char* name, za::String& out)
@@ -348,7 +384,7 @@ bool safePath(const char* name, za::String& out)
             j++;
         }
         const za::String part{name + i, j - i};
-        if(part.empty() || part == "." || part == ".." || part.findFirstOf(":\\") != za::StringView::nPos)
+        if(part.empty() || part == "." || part == ".." || !portableSegment(part))
         {
             return false;
         }

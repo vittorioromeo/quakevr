@@ -126,6 +126,10 @@ void registerCommands();
 // `out` cleared, then every match in the query's order (the caller keeps `out`; the menu keeps it in its scratch).
 void search(const Query&, za::Vector<const Entry*>& out);
 
+// A sha256 as the index gives it: 64 hex digits. Anything else is no package's (an entry with one is dropped): it
+// names the package's folder on disk (vr_mapinstall.cpp's addonDir), so it must never be a path.
+[[nodiscard]] bool validSha(za::StringView sha);
+
 // A package by its sha256, or by an unambiguous prefix of it. Null: none, or more than one.
 [[nodiscard]] const Entry* find(const za::String& shaPrefix);
 

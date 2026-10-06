@@ -180,7 +180,7 @@ void parseEntry(Index& idx, const jsonentry_t* e, za::Vector<za::String>& zipNam
 {
     za::String zipName; // the filename tag (its ratings' key)
     const char* sha = JSON_FindString(e, "sha256");
-    if(!sha || !sha[0])
+    if(!sha || !validSha(za::StringView{sha}))
     {
         return;
     }
@@ -514,7 +514,7 @@ bool loadCache(Index& idx, const za::String& url, bool anyAge)
         // sha title author date types modes sizes themes bytes startmap extract progs urls description files rating
         // userRating
         za::String fields[17];
-        if(splitFields(l.data(), l.size(), fields) < 17)
+        if(splitFields(l.data(), l.size(), fields) < 17 || !validSha(fields[0]))
         {
             return;
         }
@@ -1168,6 +1168,22 @@ void poll()
 const Index& index()
 {
     return indexSet;
+}
+
+bool validSha(za::StringView sha)
+{
+    if(sha.size() != 64)
+    {
+        return false;
+    }
+    for(const char c : sha)
+    {
+        if(!isxdigit(static_cast<unsigned char>(c)))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 za::U32 generation()
