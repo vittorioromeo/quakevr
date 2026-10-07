@@ -495,6 +495,17 @@ void SV_SendServerinfo (client_t *client)
 
 	client->sendsignon = PRESPAWN_FLUSH;
 	client->spawned = false;		// need prespawn, spawn, etc
+
+	// QVR: the client clears its stats on svc_serverinfo (CL_ClearState), so forget what it was sent: a stat whose
+	// value carries across a changelevel (STAT_QVR_RELOADMODE, Immersive) was otherwise never sent again and read 0
+	// on the new map (the author's note e1m2_2026-10-07_22-43-20: no ammo pouch nor magazines after a slipgate).
+	memset (client->oldstats_i, 0, sizeof(client->oldstats_i));
+	memset (client->oldstats_f, 0, sizeof(client->oldstats_f));
+	for (i = 0; i < MAX_CL_STATS; i++)
+	{
+		VR_HeapFree (client->oldstats_s[i]);
+		client->oldstats_s[i] = NULL;
+	}
 }
 
 /*
