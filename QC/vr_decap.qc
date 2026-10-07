@@ -409,6 +409,11 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
         return FALSE;
     }
     entity b = VR_Blow(vr_hithand);
+    if(b.mh_kind == VR_MKIND_SLAP)
+    {
+        dprint(sprintf("decap: no: a slap (%s)\n", targ.classname));
+        return FALSE; // a slap never pops a head (vr_melee_slap)
+    }
     if(b.mh_kind == VR_MKIND_POMMEL || b.mh_wid == WID_MJOLNIR || b.mh_thing == VR_MTHING_FIST || b.mh_thing == VR_MTHING_GUN ||
        b.mh_thing == VR_MTHING_CROWBAR || b.mh_thing == VR_MTHING_CLUB)
     {

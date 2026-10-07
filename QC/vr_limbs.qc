@@ -386,6 +386,10 @@ float(entity targ, entity attacker, float xDamage) VR_Limb_Blow =
         return FALSE;
     }
     entity b = VR_Blow(vr_hithand);
+    if(b.mh_kind == VR_MKIND_SLAP)
+    {
+        return FALSE; // a slap never takes a limb off (vr_melee_slap)
+    }
     float bone = VR_Limb_At(targ, b.mh_c_pos);
     if(bone < 0)
     {

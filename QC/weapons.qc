@@ -1523,7 +1523,13 @@ void(float xHand) W_FistMelee =
 
     org = trace_endpos - v_forward*4;
 
-    if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+    if(VRGetMeleeHitSoundPlayed(xHand) == FALSE && vr_melee_slap)
+    {
+        // A slap (vr_melee_slap; only on what takes damage: VR_Melee_SlapLands): skin on skin, no knock.
+        VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSound(""), 1.0, ATTN_NORM);
+        playedsound = TRUE;
+    }
+    else if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         // (A held rock or brick knocks as it does; a fist on an explosive box, a metal knock: VR_Melee_HitSoundOn.)
         VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) :
@@ -1539,7 +1545,10 @@ void(float xHand) W_FistMelee =
     {
         VRMeleeHapticByHand(xHand);
         trace_ent.axhitme = 1;
-        VR_HitBloodSplash(trace_ent, org, xdmg);
+        if(!vr_melee_slap)
+        {
+            VR_HitBloodSplash(trace_ent, org, xdmg); // (a slap draws no blood)
+        }
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
     }
     else

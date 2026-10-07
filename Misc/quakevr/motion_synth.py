@@ -595,6 +595,21 @@ def preset(name, args):
         take.hold(0.4)
         take.hold(0.3, phase="tail")
         return take
+    if name in ("slap_forehand", "slap_backhand", "no_hit_slow_slap"):
+        # An open hand (no grip) swung across the target's face, fingers ahead and the thumb up (the main hand's palm to
+        # its left): the forehand right to left, palm first; the backhand back, the back of the hand first. Slowly: no
+        # slap (QC vr_melee.qc VR_Melee_Slaps: as fast as a punch).
+        take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, target=(d, 0.0), note="synthetic")
+        q = hand_pose("main", (1, 0, 0), (0, 0, 1))
+        p0, p1, p2 = (0.45, -0.55, eye - 0.25), (0.95, -0.02, eye - 0.25), (0.45, 0.5, eye - 0.25)
+        if name == "slap_backhand":
+            p0, p2 = p2, p0
+        take.start({"main": (p0, q)})
+        take.hold(0.4)
+        take.move(0.9 if name.startswith("no_hit") else T, lambda s: {"main": (bezier(p0, p1, p2, s), q)}, phase="rec")
+        take.hold(0.3)
+        take.move(0.8, lambda s: {"main": (lerp(p2, p0, s), q)}, phase="tail")  # back slowly (a jump reads as a blow)
+        return take
     if name == "no_hit_wave":
         take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, target=(d, 0.0), note="synthetic")
         q = hand_pose("main", (1, 0, 0.3), (0, 0, 1))
@@ -651,8 +666,9 @@ DECAP_PRESETS = ["decapitation_horizontal_rtl", "decapitation_horizontal_ltr", "
 FIX_PRESETS = ["chop_horizontal", "chop_diagonal", "chop_overhead", "punch_down_gib", "chop_down_gib",
                "punch_straight_off", "palm_shove_2h_torch", "palm_shove_torch_only"]
 PRESETS = ["slash_overhead", "slash_horizontal_rtl", "slash_horizontal_ltr", "slash_diagonal_down_left", "stab",
-           "punch_straight", "palm_shove_1h", "palm_shove_2h", "no_hit_slow_punch", "no_hit_wave"]
-DEFAULT_DURATION = {"stab": 0.15, "no_decapitation_stab": 0.15, "punch_straight": 0.15, "palm_shove_1h": 0.15, "palm_shove_2h": 0.15,
+           "punch_straight", "palm_shove_1h", "palm_shove_2h", "no_hit_slow_punch", "no_hit_wave", "slap_forehand",
+           "slap_backhand", "no_hit_slow_slap"]
+DEFAULT_DURATION = {"slap_forehand": 0.18, "slap_backhand": 0.18, "stab": 0.15, "no_decapitation_stab": 0.15, "punch_straight": 0.15, "palm_shove_1h": 0.15, "palm_shove_2h": 0.15,
                     "chop_horizontal": 0.22, "chop_diagonal": 0.22, "chop_overhead": 0.22, "punch_down_gib": 0.16,
                     "chop_down_gib": 0.22, "punch_straight_off": 0.15, "palm_shove_2h_torch": 0.15,
                     "palm_shove_torch_only": 0.15}

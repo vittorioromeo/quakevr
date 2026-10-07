@@ -8,6 +8,8 @@ float IsExplosionDamage;
 // thrown things, deflected projectiles) the dummy works out from the inflictor.
 float QVR_HITKIND_NONE     = 0; // worked out from the inflictor
 float QVR_HITKIND_MELEE    = 1; // a swing of a hand (vr_hithand): fist, weapon or a gun used as a club
+float vr_melee_slap; // the blow being struck is a slap (vr_melee.qc VR_MKIND_SLAP; set around the weapons' melee by
+                     // PlayerVRMeleeImpl, client.qc): its own sound, no blood, gore or overkill (T_DamageImpl)
 float QVR_HITKIND_HEADBUTT = 2;
 float QVR_HITKIND_BASH     = 3; // a weapon's guard driven forward (vr_bash)
 float QVR_HITKIND_SHOVE    = 4; // both empty hands driven forward (vr_bash)
@@ -1497,6 +1499,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     // do the damage
     targ.health = targ.health - take;
+    if(isVRMelee && vr_melee_slap && (targ.flags & FL_MONSTER) && targ.health < -1)
+    {
+        targ.health = -1; // VR: a slap kills but never gibs (vr_melee_slap): no overkill
+    }
 
     if(targ.health <= 0)
     {

@@ -30328,3 +30328,34 @@ every melee and combat setting (`vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry
 | `vr_melee_phase` | 0 | 1 |
 | `vr_melee_phase_speed` | 2.25 | 4 (his 3.996: slider noise) |
 | `vr_melee_phase_time` | 0.15 | 0.35 (his 0.34965) |
+
+## Slaps (2026-10-08)
+
+The author's note (vrfiringrange 23-52-45): a blow needed a closed hand; a fully open hand swung registered nothing, which
+felt weird. Wanted: a slap, weaker than a punch, never popping a head "or anything like that", with its own sound, the
+damage tweakable, and the open-hand shoves (one hand, two hands) always shoves.
+
+- **What is a slap** (QC `vr_melee.qc` `VR_Melee_Slaps`): the punch's sweep and tests (the fist's point, `VR_Melee_Decide`:
+  as fast as a punch, `VR_MELEE_RUN`, the wrist moved, not wiggled), for an open hand (`VR_Melee_OpenHand`: empty, the
+  grip not held, no flashlight, not steadying a weapon, not climbing) that is not in a shove's push (`mh_pushing`) and
+  goes across: its velocity within 60 degrees of sideways (`VR_SLAP_ACROSS` 0.5: not a pat down or up) and not out from
+  its shoulder (`VR_SLAP_RADIAL` 0.7; a shove's palm extends the arm at 0.82 and more, `VR_BASH_PALM_RADIAL`; between
+  the two: neither). A palm pushed out ahead is a shove however fast, and an open hand thrust forward palm sideways is
+  nothing (as before). The arm's line from the shoulder is `VR_Melee_ArmOut`, shared with `VR_Bash_Extends`.
+- **What it does**: kind `VR_MKIND_SLAP` ("slap", its own motion category and `melee/slap` event); damage a punch's times
+  `vr_melee_slap_mult` (0.5); only on what takes damage (`VR_Melee_SlapLands`: not walls, not loose gibs or heads). No
+  head pop or beheading (`VR_Decap_HeadBlow`), no limb off (`VR_Limb_Blow`), no small gibs (`VR_SmallGib_*`), no blood
+  splash, and no overkill: a slap that kills leaves the monster at health -1 (`T_DamageImpl`), so it never gibs. Monsters
+  are woken only when it lands (an open hand never whooshes). `vr_melee_slap 0`: an open hand never strikes (as before).
+- **Sound**: `vr/slap1..3.wav`, synthesized (`make_sounds.py slap`: a bright crack, the palm then the fingers 4.5 ms
+  later, over a light smack of flesh and a small thump; three a little apart in pitch, never the same twice in a row).
+- **Settings**: Melee Settings > Slaps (`vr_melee_slap` 1), Slap Damage Mult. (`vr_melee_slap_mult` 0.5).
+- **Motion takes**: the recorder's "Expected Slap" category (forehand, backhand; `expect.cfg`: `melee/slap`), and
+  `motion_synth.py slap_forehand | slap_backhand | no_hit_slow_slap`.
+
+Checked (headless, the dummy 1.15 m ahead): `slap_forehand` and `slap_backhand` slap (15.4 at x1.03, 9.9 m/s; with
+`vr_melee_slap_mult 1` 30.8, a punch at 10 m/s 30.2), `no_hit_slow_slap` (0.9 s) and `no_hit_wave` nothing (no stroke,
+no push: nothing woken), `palm_shove_1h`/`_2h` shoves only, `punch_straight` a punch; an open hand thrust forward at 8
+m/s nothing; `vr_melee_slap 0` nothing. A grunt slapped at `vr_melee_dmg_multiplier 20`: dead, "decap: no: a slap", no
+gibs; punched the same: a pop roll and gibbed. (The synthetic takes' eval verdicts read FAIL for the hits that do
+happen: their events name the dummy's enemy, `monster_army`, the verdict wants `vr_dummy`; not from this change.)

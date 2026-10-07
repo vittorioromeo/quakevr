@@ -94,6 +94,8 @@ const za::Vector<Category> categoryList = {
     {{"no_decapitation", "No Decapitation"},
         {any, {"stab", "Stab"}, {"pommel", "Pommel"}, {"hilt", "Hilt"}, {"flat", "Flat Slap"}, {"slow", "Too Slow"},
             {"body", "Body Slash"}, {"shoulder", "Shoulder Slash"}}},
+    // Slaps (QC vr_melee.qc VR_Melee_Slaps; ROUND21.md, "Slaps"): an open hand swung across.
+    {{"slap", "Expected Slap"}, {any, {"forehand", "Forehand"}, {"backhand", "Backhand"}}},
 };
 } // namespace
 
@@ -106,7 +108,8 @@ za::Vector<int> categoryOrder()
 {
     // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
     static constexpr const char* order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
-        "hilt_pommel", "punch", "palm_shove_1h", "palm_shove_2h", "gun_strike", "decapitation", "no_decapitation", "other"};
+        "hilt_pommel", "punch", "slap", "palm_shove_1h", "palm_shove_2h", "gun_strike", "decapitation", "no_decapitation",
+        "other"};
     const auto& list = categories();
     za::Vector<int> out;
     for(const char* name : order)

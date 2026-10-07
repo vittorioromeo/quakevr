@@ -37,6 +37,8 @@
 #   (the ogres' chainsaw's saw_*.wav: recorded, cut by make_chainsaw_sounds.py)
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
+#   slap1..3.wav  an open hand's slap landing (QC vr_melee.qc VR_Melee_HitSound, vr_melee_slap): the sharp crack of
+#                 skin on skin, the palm then the fingers, over a light smack of flesh; a little apart in pitch
 #   (the grunts' burst rifles' burst1..3.wav: recorded, cut by make_burst_sounds.py)
 #   crowbar_hit1..3.wav, crowbar_wall1..2.wav  the crowbar (QC vr_crowbar.qc): its blow landing on a body (a steel bar's
 #                 dull tonk, its ring stopped by the flesh, over a meaty smack) and on a wall (a hard clack of steel on
@@ -436,6 +438,36 @@ def pommel(pitch, seed):
         s = click * 0.6 + knock * 1.6 + crunch * 1.1 + thud(t, phase, 58 * pitch, 95 * pitch, 0.05) * 0.6 + body * 0.8
         out.append(math.tanh(s * 1.6))
     return finish(out, 0.92)
+
+
+def slap(pitch, seed):
+    """An open hand slapping a face or a body (QC vr_melee.qc, vr_melee_slap): skin on skin. A bright crack (high
+    noise in a few ms: the palm, then the fingers a few ms after it), a short smack of flesh in the mids and a small
+    light thump; no whoosh, no knock (a punch's and a pommel's), and a short room tail."""
+    rng = random.Random(seed)
+    n = int(RATE * 0.28)
+    crack_hp, crack_lp = OnePole(1700 * pitch), OnePole(7000 * pitch)
+    smack_lp, smack_hp = OnePole(2400 * pitch), OnePole(450 * pitch)
+    tail_lp = OnePole(1100 * pitch)
+    phase = [0.0]
+    fingers = 0.0045 / pitch  # the fingers land after the palm
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        hi = crack_lp(noise - crack_hp(noise))
+        env = math.exp(-t / 0.009) * min(1.0, t / 0.0004)
+        if t >= fingers:
+            u = t - fingers
+            env += 0.6 * math.exp(-u / 0.007) * min(1.0, u / 0.0004)
+        crack = hi * env
+        smack = smack_lp(noise)
+        smack -= smack_hp(smack)
+        smack *= math.exp(-t / 0.026) * min(1.0, t / 0.001)
+        tail = tail_lp(noise) * math.exp(-t / 0.05) * min(1.0, t / 0.004)
+        s = crack * 2.2 + smack * 1.3 + thud(t, phase, 115 * pitch, 110 * pitch, 0.028) * 0.35 + tail * 0.25
+        out.append(math.tanh(s * 1.4))
+    return finish(out, 0.9)
 
 
 # ---- The crowbar (QC vr_crowbar.qc; docs/vr-port/ROUND21.md, "The crowbar"): a hexagonal steel bar 67 cm long rings
@@ -1189,6 +1221,11 @@ def main():
     for k, pitch in enumerate((1.0, 0.89, 1.12)):
         name = "pommel%d.wav" % (k + 1)
         write_wav(os.path.join(out, name), pommel(pitch, 131 + k))
+        print(name + " -> " + os.path.normpath(out))
+    # Slaps (QC vr_melee.qc): three, a little apart in pitch, picked at random.
+    for k, pitch in enumerate((1.0, 0.9, 1.1)):
+        name = "slap%d.wav" % (k + 1)
+        write_wav(os.path.join(out, name), slap(pitch, 151 + k))
         print(name + " -> " + os.path.normpath(out))
     # The crowbar (QC vr_crowbar.qc): three blows on a body, two on a wall, a little apart in pitch.
     for k, pitch in enumerate((1.0, 0.93, 1.07)):
