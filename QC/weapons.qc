@@ -4307,8 +4307,8 @@ void() VR_GrenShot_TestShoot =
 
 // QVR: impulse 252 with vr_test_held_pick 9-13 (tests): the nearest rock, a hand grenade from the pouch, the nearest box
 // of shells, the nearest brick, the nearest crate or barrel (13) put into the empty off hand (the two-handed re-grip tests: ROUND21.md, "Every prop in
-// both hands").
-void(float xPick) VR_Test_HeldProp =
+// both hands"); the main hand with vr_test_held_hand 1.
+void(float xPick, float xHand) VR_Test_HeldProp =
 {
     if(xPick == 10)
     {
@@ -4316,8 +4316,8 @@ void(float xPick) VR_Test_HeldProp =
         {
             self.ammo_rockets = 1;
         }
-        VR_HandGrenade_Take(cVR_OffHand);
-        dprint("test: a hand grenade in the off hand\n");
+        VR_HandGrenade_Take(xHand);
+        dprint(xHand == cVR_MainHand ? "test: a hand grenade in the main hand\n" : "test: a hand grenade in the off hand\n");
         return;
     }
     if(xPick == 13)
@@ -4359,9 +4359,9 @@ void(float xPick) VR_Test_HeldProp =
         dprint(sprintf("test: no %s\n", heldClass));
         return;
     }
-    setorigin(heldNear, VRGetHandPos(cVR_OffHand));
-    VR_Carry_Start(self, cVR_OffHand, heldNear);
-    dprint(sprintf("test: %s (%s) in the off hand\n", heldNear.model, heldClass));
+    setorigin(heldNear, VRGetHandPos(xHand));
+    VR_Carry_Start(self, xHand, heldNear);
+    dprint(sprintf("test: %s (%s) in the %s hand\n", heldNear.model, heldClass, xHand == cVR_MainHand ? "main" : "off"));
 };
 
 // impulse 211: a hand grenade from the pouch into the empty off hand (a rocket for it if you have none), let go of
@@ -5008,11 +5008,12 @@ void() ImpulseCommands =
         }
     }
     // QVR: a gib or a head in the empty off hand, each in turn (fitted hands tests, round 21).
-    if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand) && cvar("vr_test_held_pick") >= 9)
+    float testHeldHand = cvar("vr_test_held_hand") ? cVR_MainHand : cVR_OffHand;
+    if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, testHeldHand) && cvar("vr_test_held_pick") >= 9)
     {
-        VR_Test_HeldProp(floor(cvar("vr_test_held_pick")));
+        VR_Test_HeldProp(floor(cvar("vr_test_held_pick")), testHeldHand);
     }
-    else if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand))
+    else if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, testHeldHand))
     {
         if(cvar("vr_test_held_pick") >= 0)
         {
@@ -5039,9 +5040,9 @@ void() ImpulseCommands =
         {
             VR_Gib_MakeDestroyable(testGib, (testModel == "progs/gib1.mdl" || testModel == "progs/gib2.mdl" || testModel == "progs/gib3.mdl") ? 1 : 1.5); // (a head 1.5)
         }
-        setorigin(testGib, VRGetHandPos(cVR_OffHand));
-        VR_Carry_Start(self, cVR_OffHand, testGib);
-        dprint("test: "); dprint(testModel); dprint(" in the off hand\n");
+        setorigin(testGib, VRGetHandPos(testHeldHand));
+        VR_Carry_Start(self, testHeldHand, testGib);
+        dprint("test: "); dprint(testModel); dprint(testHeldHand == cVR_MainHand ? " in the main hand\n" : " in the off hand\n");
     }
     // QVR: prints the held weapons' hotspots (weaponhotspot, weaponhotspotinfo; round 21).
     if(self.impulse == 253)

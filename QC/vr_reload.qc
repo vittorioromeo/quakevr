@@ -1374,9 +1374,35 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgClose =
 // self (its front 40%): `xSide` -1 from above (the gun's own down; it breaks open: vr_reload_ssg_hit_open_speed, _angle), 1 from below
 // (its own up; open, it snaps shut: vr_reload_ssg_hit_close_*), within vr_reload_ssg_hit_reach of them (open: as they
 // are turned down by vr_reload_ssg_open_angle from the breech), at the hands' relative speed: a fist, a held prop's
-// middle, the other gun's line from its hand to its muzzle. Not while both hands hold it (the pry and the lift are
+// box (its nearest point: VR_Reload_BoxNearest), the other gun's line from its hand to its muzzle. Not while both hands hold it (the pry and the lift are
 // theirs), nor a round the hand holds (brought to the breech to load). What it was in vr_ssg_hitdesc.
 string vr_ssg_hitdesc;
+
+// The point of `e`'s box (its origin plus its size: a held prop's, moved with the hand) nearest the segment `xA`..`xB`
+// (nine points along it tried): a prop hits with its surface, not its middle (the author's note
+// grenedin_2026-10-08_00-05-36: a held prop is kept off the gun by the hands' collisions, its middle out of reach).
+vector(entity e, vector xA, vector xB) VR_Reload_BoxNearest =
+{
+    vector lo = e.origin + e.mins;
+    vector hi = e.origin + e.maxs;
+    vector best = e.origin;
+    float bestDist = 100000;
+    for(float i = 0; i <= 8; i++)
+    {
+        vector p = xA + (xB - xA) * (i / 8);
+        vector q = p;
+        q_x = max(lo_x, min(hi_x, p_x));
+        q_y = max(lo_y, min(hi_y, p_y));
+        q_z = max(lo_z, min(hi_z, p_z));
+        if(vlen(q - p) < bestDist)
+        {
+            bestDist = vlen(q - p);
+            best = q;
+        }
+    }
+    return best;
+};
+
 float(float xGunHand, float xSide) VR_Reload_SsgHit =
 {
     float other = VRGetOtherHand(xGunHand);
@@ -1420,7 +1446,7 @@ float(float xGunHand, float xSide) VR_Reload_SsgHit =
     {
         if(k == 0)
         {
-            q = held != world ? held.origin : VRGetEntHandPos(self, other);
+            q = held != world ? VR_Reload_BoxNearest(held, p0, p1) : VRGetEntHandPos(self, other);
         }
         else if(VRGetEntWeapon(self, other) != WID_FIST)
         {

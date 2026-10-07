@@ -5702,6 +5702,9 @@ za::Vector<Item> pageDebugTests()
                   "torso and the big chunk are the large ones (Misc/quakevr/gib_2h_models_test.sh throws each). Rock, "
                   "Shells Box, Brick: the nearest lying about; Hand Grenade: one from the pouch (Misc/quakevr/"
                   "twohand_regrip_test.sh takes each in both hands and hands it over)."),
+        toggle("Into the Main Hand", vr_test_held_hand)
+            .help("vr_test_held_hand: Gib in the Off Hand fills the main hand instead (hold its grip): a prop to hit the "
+                  "super shotgun's barrels open or shut with, the gun in the off hand (reload_test.sh section 11)."),
         toggle("Real Gib", vr_test_held_destroy)
             .help("vr_test_held_destroy: the off hand's test gib can be burst as a real one (shot, struck, thrown hard "
                   "at a wall). Misc/quakevr/gib_2h_throw_test.sh throws it with both hands along several arcs."),

@@ -30570,3 +30570,9 @@ vrfiringrange_2026-10-08_00-00-42, 00-01-10, and his typed note on the pouch's s
   `vr_ssg_fire_anim_speed` (1.4: 40% faster, 0.43 s instead of id's 0.6 s; `player_shot_pace`, the super shotgun only;
   its rate of fire stays 0.7 s). Weapons > Reloading > Super Shotgun, "Firing Animation Speed". The log says how soon
   after the shot it broke open: 0.59, 0.42, 0.31 s at 1, 1.4 and 2 (B/Y pressed every other frame).
+- **A held prop hits the super shotgun's barrels open and shut** (grenedin 00-05-36: only a fist or a gun did). A held
+  prop counted by its middle, which a prop of any size keeps out of the 6 units of Hit Reach as its surface meets the
+  barrels; it now counts by the nearest point of its box to the barrels' front (`VR_Reload_BoxNearest`). Test aid:
+  `vr_test_held_hand 1` (Debug > Tests, "Into the Main Hand") puts impulse 252's gib or prop in the main hand. A head
+  held in the main hand brought to 20 cm over the barrels opens the gun, to 20 cm under shuts it; a fist stopping as far
+  off does neither.

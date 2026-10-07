@@ -2402,6 +2402,7 @@ QVR_CVAR(vr_test_weaponinst, "0", CVAR_NONE)          // impulse 120 (tests): th
 QVR_CVAR(vr_test_weaponinst_slot, "0", CVAR_NONE)     // ... the holster (QC QVR_HS_*: 3-6 shoulders and hips, 8-9 upper; 0 the right hip)
 QVR_CVAR(vr_test_held_destroy, "0", CVAR_NONE)       // impulse 252 (tests): its gib or head can be destroyed, as a real one (VR_Gib_MakeDestroyable; gib_2h_throw_test.sh)
 QVR_CVAR(vr_test_held_pick, "-1", CVAR_NONE)          // impulse 252 (tests): which gib or head (0 gib1, 1 h_player, 2 gib2, 3 gib3, 4-8 heads; 9 the nearest rock, 10 a hand grenade, 11 the nearest shells box, 12 the nearest brick, 13 the nearest crate or barrel); -1 each gib in turn (gib_2h_throw_test.sh MODELS)
+QVR_CVAR(vr_test_held_hand, "0", CVAR_NONE)          // impulse 252 (tests): the hand it fills: 0 the off hand, 1 the main hand (reload_test.sh: a prop in the main hand hitting the super shotgun's barrels)
 QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): the prop nearest you sent at the nearest monster at this many m/s (VR_Test_Fling)
 QVR_CVAR(vr_test_fling_at, "0", CVAR_NONE)            // and at: 0 the nearest monster, 1 you (from ahead)
 QVR_CVAR(vr_test_fling_away, "0", CVAR_NONE)          // 1: from inside the edge of its box, away from it (a prop batted away, still in your box)
@@ -2499,7 +2500,7 @@ QVR_CVAR(vr_reload_ssg_pry_speed, "250", CVAR_ARCHIVE) // degrees a second it mu
 QVR_CVAR(vr_reload_ssg_lift_angle, "60", CVAR_ARCHIVE) // degrees the front hand must come back up from its most (the barrels lifted shut)
 QVR_CVAR(vr_reload_ssg_lift_speed, "300", CVAR_ARCHIVE) // degrees a second it must be moving at
 QVR_CVAR(vr_reload_ssg_lift_hold, "0.2", CVAR_ARCHIVE) // seconds it must stay lifted that far (a jolt doesn't shut it)
-QVR_CVAR(vr_reload_ssg_hit_reach, "6", CVAR_ARCHIVE)   // units from the front 40% of its barrels a hit lands within (a fist, a held prop's middle, the other gun's line)
+QVR_CVAR(vr_reload_ssg_hit_reach, "6", CVAR_ARCHIVE)   // units from the front 40% of its barrels a hit lands within (a fist, the nearest point of a held prop's box, the other gun's line)
 QVR_CVAR(vr_reload_ssg_hit_open_speed, "3", CVAR_ARCHIVE) // m/s a hit from above must come at to break it open (the hands' relative speed)
 QVR_CVAR(vr_reload_ssg_hit_open_angle, "40", CVAR_ARCHIVE) // degrees off straight down (the gun's own down, as held) it may come from
 QVR_CVAR(vr_reload_ssg_hit_close_speed, "3", CVAR_ARCHIVE) // m/s a hit from below must come at to snap it shut
