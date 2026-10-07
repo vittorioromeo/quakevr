@@ -253,12 +253,15 @@ SPLIT_OUTPUTS = {"v_shot.mdl": ["vr_pump_on_v_shot.mdl", "vr_pumpbody_on_v_shot.
 
 # The shotgun's loading port (docs/vr-port/RELOAD_PLAN.md: immersive reloading, shells pushed in from below): an opening
 # under the receiver ahead of the trigger guard and behind the pump, as a pump gun's. Parts can only be added, never cut
-# (the old triangles stay): the opening is a black floor laid just under the receiver's keel (following it, a grid of
-# rays), walled in by a worn steel frame standing out of the receiver round it, deep enough to read as a hole from below; a
-# brass shell lifter shows at its back. vr_view.cpp's loadPorts table has its middle (PORT below) for the reload.
+# (the old triangles stay, and with them the anchors' strip order): the opening is a well under the receiver's keel, a
+# steel housing round it whose inner walls, lined from a dull steel at its mouth to black up at the keel, go up to a black
+# ceiling laid just under the keel (following it, a grid of rays): from below a deep dark hole (the author: the framed
+# plate it was didn't read as one), the shells sliding up into it (vr_collectfx.cpp, its "into the gun" variant); a brass
+# shell lifter shows at its back, up inside. vr_view.cpp's loadPorts table has its middle (PORT below) for the reload:
+# the load point stays where it was (inside the well, near its mouth).
 PORT_X0, PORT_X1, PORT_HW = 11.0, 16.2, 0.78  # along the gun, and half its width
-PORT_FRAME = 0.26                              # the frame's bars: width,
-PORT_DEPTH = 0.42                              # and how far they stand out of the keel
+PORT_FRAME = 0.26                              # the housing's walls: thickness,
+PORT_DEPTH = 0.9                               # and how far they stand out of the keel (the well's depth)
 
 
 def loading_port(p):
@@ -274,7 +277,7 @@ def loading_port(p):
     for i in range(len(xs) - 1):
         for j in range(len(ys) - 1):
             p.face([grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]], -Z, "black", 0.15, key)
-    # The frame: four bars round it on the keel, standing PORT_DEPTH out (its inner faces the hole's walls).
+    # The housing: four walls round it on the keel, standing PORT_DEPTH out (their inner faces lined below).
     h = PORT_DEPTH
     m = PORT_FRAME / 2
     for y in (-PORT_HW - m, PORT_HW + m):
@@ -285,9 +288,20 @@ def loading_port(p):
         a, b = under(x, -PORT_HW), under(x, PORT_HW)
         p.bar(a - Z * (h / 2 - 0.1), b - Z * (h / 2 - 0.1), -Z, PORT_FRAME, h, "steel", key=key, bevel=0.04,
               levels=(0.25, 0.36))
-    # The shell lifter's lip at the back of the opening: a brass plate across it, half as deep as the frame.
+    # The well's lining: the walls' inner faces, facing into it, in bands from its mouth (a dull steel) up to the keel
+    # (black), so that it reads as deep.
+    bands = ((0.0, 0.3, "black", 0.2), (0.3, 0.6, "steel", 0.08), (0.6, 0.97, "steel", 0.18))  # (from, to: of the depth)
+    in_d = h - 0.1  # (the mouth: as far under the keel as the walls reach)
+    sides = (((PORT_X0, -PORT_HW), (PORT_X1, -PORT_HW), Y), ((PORT_X1, PORT_HW), (PORT_X0, PORT_HW), -Y),
+             ((PORT_X0, PORT_HW), (PORT_X0, -PORT_HW), X), ((PORT_X1, -PORT_HW), (PORT_X1, PORT_HW), -X))
+    for (x0, y0), (x1, y1), inward in sides:
+        k0, k1 = under(x0, y0), under(x1, y1)
+        for f, t, material, level in bands:
+            p.face([k0 - Z * (0.1 + in_d * f), k1 - Z * (0.1 + in_d * f), k1 - Z * (0.1 + in_d * t),
+                    k0 - Z * (0.1 + in_d * t)], inward, material, level, key)
+    # The shell lifter's lip at the back of the well, up inside it: a brass plate across it.
     a, b = under(PORT_X0 + 0.45, -PORT_HW + 0.08), under(PORT_X0 + 0.45, PORT_HW - 0.08)
-    p.bar(a - Z * 0.12, b - Z * 0.12, -Z, 0.5, 0.2, "bronze", key=key, bevel=0.03)
+    p.bar(a - Z * 0.3, b - Z * 0.3, -Z, 0.5, 0.2, "bronze", key=key, bevel=0.03)
 
 
 def shotgun2(p):
