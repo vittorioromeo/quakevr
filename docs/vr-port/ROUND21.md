@@ -30581,3 +30581,6 @@ vrfiringrange_2026-10-08_00-00-42, 00-01-10, and his typed note on the pouch's s
   (`vr_reload_battery_smoke_time`, 7 s), held or lying about; plain nails' don't. Test step `vr_reload_test 16` (Debug >
   Tests > Reloading, "Spent Lava Nails or Plasma in the Off Hand's Gun"): the off hand's gun on its other ammo, its
   magazine fired dry.
+- **A spent magazine doesn't go back into the pouch** (vrfiringrange 00-01-10): a magazine taken out empty and let go of
+  at the pouch falls from the hand (`VR_Reload_IsSpentMag`: refused by `VR_Reload_Refund`, so also never taken as a
+  pickup or at a holster); a part-used one still goes back, its rounds refunded.

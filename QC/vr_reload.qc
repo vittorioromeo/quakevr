@@ -413,10 +413,22 @@ void(entity r) VR_Reload_SetModel =
     setsize(r, lo * 1.25, hi * 1.25); // (its prop slot's Size: as the spent shells are drawn)
 };
 
+// Whether `r` is a spent magazine (taken out empty): it never goes back into the pouch, nor is taken as a pickup (the
+// author's note vrfiringrange_2026-10-08_00-01-10: let go of at the pouch, it falls).
+float(entity r) VR_Reload_IsSpentMag =
+{
+    return r.vr_ammo_wid && r.vr_ammo_count <= 0;
+};
+
 // Back into the reserve of `p` (a hand let go of it at the pouch, or took it as a pickup): TRUE if it fit (and it is
-// gone), FALSE if the reserve is full (it stays). A magazine gives its rounds back (an empty one is put away).
+// gone), FALSE if the reserve is full or it is a spent magazine (it stays). A magazine gives its rounds back.
 float(entity p, entity r, float xHand) VR_Reload_Refund =
 {
+    if(VR_Reload_IsSpentMag(r))
+    {
+        VR_Reload_Log(sprintf("%s is spent: not back in the pouch, it falls (hand %g)", VR_Reload_Desc(r), xHand));
+        return FALSE;
+    }
     if(VR_AmmoUtil_GetAmmoCountByAmmoId(p, r.vr_ammo_aid) + r.vr_ammo_count > VR_MaxAmmo(p, r.vr_ammo_aid))
     {
         VR_Reload_Haptic(p, xHand, 0.12, 30, 0.8);

@@ -350,4 +350,10 @@ for g in 157 156; do
 done
 log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse 157};vr_reload_test 5;impulse 125;wait3;$BY;wait60;toggleconsole;quit" -Filter "^reload: (a spent|a magazine of)" 2>&1)
 check $(echo "$log" | grep -q "a magazine of 0 out of the gun" && ! echo "$log" | grep -q "a spent" && echo 1 || echo 0) "a plain nail magazine taken out empty doesn't smoke"
+# A spent magazine doesn't go back into the pouch (00-01-10): the nailgun's emptied (vr_reload_test 5), pulled off into
+# the hand and let go of at the pouch, it falls: the hand empty, the reserve as it was.
+SNAP="$WELL;$GRIP;vr_mock_hand_to main lport;wait3;vr_mock_hand main 0.45 0.85 -0.1 0 0 70;wait1;vr_mock_hand main 0.5 0.8 -0.05 0 0 90;wait10"
+log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;vr_reload_bump_speed 100;vr_reload_test 5;impulse 125;wait3;$SNAP;$REP;$POUCH;$LETGO;wait30;$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand|mode)" 2>&1)
+holds=$(echo "$log" | grep "^reload: off hand")
+check $(h 2 | grep -q "holds a round of 0" && echo "$log" | grep -q "a magazine of 0 is spent: not back in the pouch, it falls (hand 1)" && h 3 | grep -q "main hand weapon 0 clip 0 holds nothing" && ! echo "$log" | grep -q "back in the pouch (hand" && [ "$(echo "$log" | grep "^reload: mode" | sed -n 2p | grep -o "nails [0-9]*")" = "$(echo "$log" | grep "^reload: mode" | sed -n 3p | grep -o "nails [0-9]*")" ] && echo 1 || echo 0) "a spent magazine let go of at the pouch falls: not put back"
 exit $fail
