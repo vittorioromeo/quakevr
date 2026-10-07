@@ -14,8 +14,12 @@
 // What was written is recorded in quakevr/cache/maps_installed.txt (one line per file), which is what "Installed"
 // lists and what uninstall removes.
 //
-// The guards (the same for the page and the console): a package over maxZipBytes is refused; a zip whose files would
-// unpack to more than maxUnpackedBytes, or hold more than maxFiles, is refused; a file path that would leave the game
+// The guards (the same for the page and the console): a package over vr_maps_max_download_mb is refused (0, the
+// default: no limit); one the disk has no room for is refused before it is downloaded (its zip and diskMargin) and
+// before it is unpacked (its files and diskMargin), saying how much is needed and free; the zip is streamed to disk as
+// it arrives (never held in memory) and checked against the index's sha256; a zip whose files would unpack to more than
+// maxUnpackRatio times its own size (past unpackRatioFloor: a zip bomb), or hold more than maxFiles, is refused; a file
+// path that would leave the game
 // dir (`..`, an absolute path, a drive letter) is left out; `__MACOSX` and `.DS_Store` are; a single top-level folder
 // around everything is stripped (the index's zipbasedir tag); a BSP whose version is not 29, 2PSB, BSP2 or Q64 is left
 // out and said; a package carrying game code (progs.dat, qwprogs.dat, csprogs.dat: a mod, in the zip or in one of its
@@ -34,9 +38,13 @@
 namespace qvr::mapinstall
 {
 
-constexpr za::U64 maxZipBytes = 200ull * 1024 * 1024; // a package's zip, refused above this
-constexpr za::U64 maxUnpackedBytes = 400ull * 1024 * 1024; // and its files, unpacked
-constexpr int maxFiles = 4000;
+// A zip whose files unpack to more than maxUnpackRatio times its size is refused as a zip bomb (a real package's files
+// are 1 to 10 times its zip; deflate's ceiling is about 1000), unless they come to unpackRatioFloor or less.
+constexpr za::U64 maxUnpackRatio = 100;
+constexpr za::U64 unpackRatioFloor = 256ull * 1024 * 1024;
+// Left free on the disk past a download's zip, and past an unpacking's files.
+constexpr za::U64 diskMargin = 64ull * 1024 * 1024;
+constexpr int maxFiles = 20000;
 
 // Where a job is. Downloaded means the zip is in the cache; Installed means its files are in the game dir.
 enum class Phase

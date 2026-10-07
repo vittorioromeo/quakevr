@@ -86,24 +86,53 @@ void compress(za::U32 (&h)[8], const za::U8* block)
 
 Digest of(const void* data, za::SizeT n)
 {
-    za::U32 h[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+    Hasher hasher;
+    hasher.update(data, n);
+    return hasher.finish();
+}
+
+void Hasher::update(const void* data, za::SizeT n)
+{
     const za::U8* p = static_cast<const za::U8*>(data);
-    za::SizeT left = n;
-    while(left >= 64)
+    total += n;
+    if(held)
+    {
+        const za::SizeT take = n < 64 - held ? n : 64 - held;
+        memcpy(block + held, p, take);
+        held += take;
+        p += take;
+        n -= take;
+        if(held < 64)
+        {
+            return;
+        }
+        compress(h, block);
+        held = 0;
+    }
+    while(n >= 64)
     {
         compress(h, p);
         p += 64;
-        left -= 64;
+        n -= 64;
     }
+    if(n)
+    {
+        memcpy(block, p, n);
+        held = n;
+    }
+}
+
+Digest Hasher::finish()
+{
     // The tail, the 0x80 byte, zeros, and the length in bits (big-endian): one block or two.
     za::U8 tail[128] = {};
-    if(left)
+    if(held)
     {
-        memcpy(tail, p, left);
+        memcpy(tail, block, held);
     }
-    tail[left] = 0x80;
-    const za::SizeT tailBytes = left + 1 + 8 <= 64 ? 64 : 128;
-    const za::U64 bits = static_cast<za::U64>(n) * 8;
+    tail[held] = 0x80;
+    const za::SizeT tailBytes = held + 1 + 8 <= 64 ? 64 : 128;
+    const za::U64 bits = total * 8;
     for(int i = 0; i < 8; i++)
     {
         tail[tailBytes - 1 - i] = static_cast<za::U8>(bits >> (i * 8));
@@ -203,6 +232,36 @@ void selfTest_f()
             char got[65];
             toHex(d, got);
             Con_Printf("vr_sha256_test: \"%.20s\" x%d: %s, expected %s\n", v.text, v.repeat, got, v.hex);
+        }
+    }
+    // The same vectors fed in uneven pieces (the Hasher a download is checked with: 1 to 97 bytes at a time).
+    for(const Vector& v : vectors)
+    {
+        total++;
+        const za::SizeT len = strlen(v.text);
+        za::Vector<char> buf;
+        buf.resize(len * static_cast<za::SizeT>(v.repeat));
+        for(int i = 0; i < v.repeat; i++)
+        {
+            memcpy(buf.data() + i * len, v.text, len);
+        }
+        Hasher hasher;
+        za::SizeT at = 0;
+        za::SizeT piece = 1;
+        while(at < buf.size())
+        {
+            const za::SizeT take = buf.size() - at < piece ? buf.size() - at : piece;
+            hasher.update(buf.data() + at, take);
+            at += take;
+            piece = piece % 97 + 1;
+        }
+        if(matches(hasher.finish(), v.hex))
+        {
+            passed++;
+        }
+        else
+        {
+            Con_Printf("vr_sha256_test: \"%.20s\" x%d in pieces: wrong\n", v.text, v.repeat);
         }
     }
     Con_Printf("vr_sha256_test: %d/%d vectors %s\n", passed, total, passed == total ? "match" : "FAILED");

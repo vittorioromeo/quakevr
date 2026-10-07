@@ -4688,6 +4688,10 @@ za::Vector<Item> pageDebugTools()
             .help("vr_maps_allow_progs: packages that ship their own progs.dat replace the game's code, so they are left out of the list by default. They are in the index either way (maps_info shows them, maps_stats counts them)."),
         slider("Download Cache Size", vr_maps_cache_mb, 0.f, 4096.f, 64.f, "%.0f MB").extend(0.f, 65536.f)
             .help("vr_maps_cache_mb: the downloaded packages' zips (cache/maps/) kept up to this size; past it the oldest are removed (before a download, at start-up, and when this is lowered). 0: none kept once a package is installed. Installed maps are not affected."),
+        slider("Largest Download", vr_maps_max_download_mb, 0.f, 4096.f, 64.f, "%.0f MB").extend(0.f, 65536.f)
+            .help("vr_maps_max_download_mb: a package whose zip is over this size is refused (the index's size, and the bytes as they arrive). 0: no limit (the default). The free disk space is checked either way, before the download and before the unpacking."),
+        slider("Pretend Free Disk Space", vr_maps_debug_free_mb, 0.f, 4096.f, 64.f, "%.0f MB").extend(0.f, 65536.f)
+            .help("vr_maps_debug_free_mb: test aid - the map installer is told the disk has this much free (a low disk simulated: its message, before the download or the unpacking). 0: the disk's real free space."),
         command("Download Cache Usage", "maps_cache")
             .help("maps_cache [trim]: the download cache's zips, oldest first (the first removed when it is over the size above), and how much of it they use. maps_cache trim: trimmed to the size now."),
         command("Map Browser Costs", "maps_page_stats")

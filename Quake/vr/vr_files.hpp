@@ -121,6 +121,10 @@ struct Identity
 // A file's size in bytes (std::filesystem::file_size); 0 when it is not there (or is a directory).
 [[nodiscard]] za::U64 fileSize(const char* path);
 
+// The bytes free to this user on the volume holding `path` (a file or a directory that is there; std::filesystem::
+// space's `available`). False: unknown.
+[[nodiscard]] bool freeSpace(const char* path, za::U64& out);
+
 // The part after the last '/' or '\' (std::filesystem::path::filename).
 [[nodiscard]] za::StringView fileName(za::StringView path);
 

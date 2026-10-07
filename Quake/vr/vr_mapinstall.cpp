@@ -164,12 +164,21 @@ struct Request
     za::U64 zipBytes{0};
     bool install{true};
     bool wasInstalled{false}; // the registry names it already (otherwise its folder holds nothing of ours yet)
+    za::U64 maxZipBytes{0};   // vr_maps_max_download_mb in bytes (0: no limit)
+    za::U64 fakeFreeBytes{0}; // vr_maps_debug_free_mb in bytes (0: the disk's own free space)
 };
 Request request;
 
 [[nodiscard]] za::String zipPath(const za::String& sha)
 {
     return cacheDirName + "/" + sha + ".zip";
+}
+
+// The zip while it downloads (renamed to zipPath once its sha256 matches). Never a cache name (cachedZipName): a trim
+// never counts or removes it.
+[[nodiscard]] za::String partPath(const za::String& sha)
+{
+    return zipPath(sha) + ".part";
 }
 
 // ---------------------------------------------------------------- the installed list
@@ -539,30 +548,79 @@ bool bspVersionOk(const char* data, za::SizeT n, za::String& what)
     return false;
 }
 
+// ---------------------------------------------------------------- the disk
+
+// The bytes free on the volume holding `path` (a folder that is there), or vr_maps_debug_free_mb's when it is set (a
+// low disk simulated). False: unknown.
+[[nodiscard]] bool freeBytes(const za::String& path, za::U64& out)
+{
+    if(request.fakeFreeBytes)
+    {
+        out = request.fakeFreeBytes;
+        return true;
+    }
+    return files::freeSpace(path.cStr(), out);
+}
+
+// Whether `need` bytes and diskMargin fit on the volume holding `dir`; `why` says what is needed and free when not. An
+// unknown free space passes (a write that fails says so itself).
+[[nodiscard]] bool roomFor(const za::String& dir, za::U64 need, const char* what, za::String& why)
+{
+    za::U64 avail = 0;
+    if(!freeBytes(dir, avail) || need + diskMargin <= avail)
+    {
+        return true;
+    }
+    why = za::String{"not enough disk space: "} + what + " needs " + formatBytes(need) + " and " +
+          formatBytes(diskMargin) + " to spare, and " + formatBytes(avail) + " is free on " + dir;
+    return false;
+}
+
 // ---------------------------------------------------------------- the download
 
-// The download passed maxZipBytes (the job thread's own: writeChunk runs on it, inside Download).
-bool downloadTooBig = false;
+// One mirror's transfer, streamed to the .part file as it arrives (never held in memory), hashed on the way (the job
+// thread's own: writeChunk runs on it, inside Download).
+struct Stream
+{
+    FILE* file{nullptr};
+    sha256::Hasher hasher;
+    za::U64 bytes{0};
+    za::U64 cap{0};      // vr_maps_max_download_mb's bytes (0: none)
+    za::U64 overrun{0};  // far past the index's size: not the package (0: the index gives none)
+    bool tooBig{false};  // passed `cap`
+    bool overran{false}; // passed `overrun`
+    bool writeFailed{false};
+};
 
-size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* stream)
+size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* opaque)
 {
     if(SDL_AtomicGet(&cancelJob))
     {
         return 0; // (the transfer stops: as vr_mapindex.cpp's and host_cmd.c's do)
     }
-    za::Vector<char>& body = *static_cast<za::Vector<char>*>(stream);
-    const za::SizeT n = size * nmemb;
-    if(static_cast<za::U64>(body.size()) + n > maxZipBytes)
+    Stream& st = *static_cast<Stream*>(opaque);
+    const za::U64 n = static_cast<za::U64>(size) * nmemb;
+    if(st.cap && st.bytes + n > st.cap)
     {
-        downloadTooBig = true; // (the index's size is checked before; a server that sends more is stopped here)
+        st.tooBig = true; // (the index's size is checked before; a server that sends more is stopped here)
         return 0;
     }
-    body.reserveMore(n);
-    body.unsafeEmplaceBackRange(static_cast<const char*>(buffer), n);
-    SDL_AtomicSet(&liveBytes, static_cast<int>(za::min(static_cast<za::U64>(body.size()), static_cast<za::U64>(0x7fffffff))));
+    if(st.overrun && st.bytes + n > st.overrun)
+    {
+        st.overran = true; // (a server that sends on and on never fills the disk)
+        return 0;
+    }
+    if(n && fwrite(buffer, 1, static_cast<size_t>(n), st.file) != n)
+    {
+        st.writeFailed = true; // (a full disk, most likely)
+        return 0;
+    }
+    st.hasher.update(buffer, static_cast<za::SizeT>(n));
+    st.bytes += n;
+    SDL_AtomicSet(&liveBytes, static_cast<int>(za::min(st.bytes, static_cast<za::U64>(0x7fffffff))));
     if(request.zipBytes)
     {
-        const za::U64 got = static_cast<za::U64>(body.size());
+        const za::U64 got = st.bytes;
         SDL_AtomicSet(&progress, static_cast<int>(downloadShare * (got < request.zipBytes ? got : request.zipBytes) / request.zipBytes));
     }
     return nmemb;
@@ -589,7 +647,9 @@ void splitUrls(const za::String& urls, za::Vector<za::String>& out)
     }
 }
 
-bool downloadZip(za::Vector<char>& body, za::String& why)
+// The zip into `part` (a file on disk), its sha256 the index's. False: `why` says what stopped it (the part file may
+// be left: run() removes it).
+bool downloadZip(const za::String& part, za::String& why)
 {
     za::Vector<za::String> urls;
     splitUrls(request.urls, urls);
@@ -611,32 +671,54 @@ bool downloadZip(za::Vector<char>& body, za::String& why)
         }
         SDL_AtomicSet(&liveMirror, mirror);
         SDL_AtomicSet(&liveBytes, 0);
-        body.clear();
+        Stream st;
+        st.file = Sys_fopen(part.cStr(), "wb");
+        if(!st.file)
+        {
+            why = za::String{"could not write "} + part;
+            return false;
+        }
+        st.cap = request.maxZipBytes;
+        st.overrun = request.zipBytes ? request.zipBytes * 2 + 16ull * 1024 * 1024 : 0;
         download_t dl{};
         dl.write_fn = writeChunk;
-        dl.write_data = &body;
+        dl.write_data = &st;
         dl.abort = &cancelJob;
-        downloadTooBig = false;
         const bool ok = Download(url.cStr(), &dl);
+        const bool closed = fclose(st.file) == 0;
         if(SDL_AtomicGet(&cancelJob))
         {
             why = cancelText();
             return false;
         }
-        if(downloadTooBig)
+        if(st.tooBig)
         {
-            body.clear();
-            why = za::String{"the download passed "} + za::toString(maxZipBytes / 1024 / 1024) + " MB (the index says " +
+            why = za::String{"the download passed "} + formatBytes(st.cap) + " (vr_maps_max_download_mb; the index says " +
                   formatBytes(request.zipBytes) + "): stopped";
             return false;
         }
+        if(st.writeFailed || !closed)
+        {
+            za::U64 avail = 0;
+            why = za::String{"could not write "} + part + " after " + formatBytes(st.bytes);
+            if(freeBytes(cacheDirName, avail))
+            {
+                why += za::String{" ("} + formatBytes(avail) + " free on the disk)";
+            }
+            return false;
+        }
         za::String failed;
-        if(!ok)
+        if(st.overran)
+        {
+            failed = za::String{"the server sent over "} + formatBytes(st.overrun) + ", the index says " +
+                     formatBytes(request.zipBytes) + ": stopped";
+        }
+        else if(!ok)
         {
             failed = dl.error ? za::String{dl.error}
                               : za::String{"HTTP "} + za::toString(dl.response ? dl.response : 0);
         }
-        else if(body.empty())
+        else if(st.bytes == 0)
         {
             failed = "it came back empty";
         }
@@ -644,14 +726,13 @@ bool downloadZip(za::Vector<char>& body, za::String& why)
         {
             // The zip against the index's sha256 (the hash of the zip's bytes, the package's identifier): a corrupted
             // download, or a file changed on the server, is neither kept nor unpacked; the next mirror is tried.
-            const sha256::Digest got = sha256::of(body.data(), body.size());
+            const sha256::Digest got = st.hasher.finish();
             if(sha256::matches(got, request.sha.cStr()))
             {
                 return true;
             }
             char hex[65];
             sha256::toHex(got, hex);
-            body.clear();
             failed = za::String{"its sha256 is "} + za::String{hex, 16} + "..., not the index's " +
                      za::String{request.sha.cStr(), za::min(request.sha.size(), za::SizeT{16})} +
                      "... (a corrupted download or a changed file): not unpacked";
@@ -666,20 +747,72 @@ bool downloadZip(za::Vector<char>& body, za::String& why)
     return false;
 }
 
-size_t readFromMemory(void* opaque, mz_uint64 ofs, void* buf, size_t n)
+// The zip read from its file (miniz's reader: what it asks for, where it asks; never the whole zip in memory).
+struct ZipFile
 {
-    const za::Vector<char>& body = *static_cast<const za::Vector<char>*>(opaque);
-    if(ofs + n > body.size())
+    FILE* file{nullptr};
+    za::U64 size{0};
+    za::U64 pos{0}; // where the file is (a read that follows the last needs no seek)
+};
+
+size_t readFromFile(void* opaque, mz_uint64 ofs, void* buf, size_t n)
+{
+    ZipFile& zf = *static_cast<ZipFile*>(opaque);
+    if(ofs + n > zf.size)
     {
         return 0;
     }
-    memcpy(buf, body.data() + ofs, n);
-    return n;
+    if(ofs != zf.pos && Sys_fseek(zf.file, static_cast<qfileofs_t>(ofs), SEEK_SET) != 0)
+    {
+        zf.pos = ~za::U64{0};
+        return 0;
+    }
+    const size_t got = fread(buf, 1, n, zf.file);
+    zf.pos = ofs + got;
+    return got;
 }
+
+// A zip open for reading (its file and miniz's reader), closed when it goes.
+struct ZipReader
+{
+    ZipFile zf;
+    mz_zip_archive z{};
+    bool open{false};
+
+    // False: not a file, or not a zip miniz can read.
+    [[nodiscard]] bool init(const za::String& path)
+    {
+        zf.size = files::fileSize(path.cStr());
+        zf.file = Sys_fopen(path.cStr(), "rb");
+        if(!zf.file)
+        {
+            return false;
+        }
+        z.m_pRead = readFromFile;
+        z.m_pIO_opaque = &zf;
+        open = mz_zip_reader_init(&z, static_cast<mz_uint64>(zf.size), 0) != MZ_FALSE;
+        return open;
+    }
+
+    ZipReader() = default;
+    ZipReader(const ZipReader&) = delete;
+    ZipReader& operator=(const ZipReader&) = delete;
+    ~ZipReader()
+    {
+        if(open)
+        {
+            mz_zip_reader_end(&z);
+        }
+        if(zf.file)
+        {
+            fclose(zf.file);
+        }
+    }
+};
 
 // ---------------------------------------------------------------- the unpacking
 
-// `body` (a zip) into the game dir. Appends what it wrote to `job.wrote`; `why` says what stopped it.
+// `zipFile` (a zip on disk, read as miniz asks) into the package's folder. Appends what it wrote to `job.wrote`; `why` says what stopped it.
 // The game code a mod carries (a zip's or a pak's file): a package holding one is refused.
 [[nodiscard]] bool gameCode(const za::String& path)
 {
@@ -740,22 +873,20 @@ size_t readFromMemory(void* opaque, mz_uint64 ofs, void* buf, size_t n)
     return out;
 }
 
-bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
+bool extractZip(const za::String& zipFile, Job& job, za::String& why)
 {
-    mz_zip_archive z{};
-    z.m_pRead = readFromMemory;
-    z.m_pIO_opaque = const_cast<za::Vector<char>*>(&body);
-    if(!mz_zip_reader_init(&z, static_cast<mz_uint64>(body.size()), 0))
+    ZipReader reader;
+    if(!reader.init(zipFile))
     {
         why = "not a zip this engine can read"; // (miniz.c's error string is compiled out of the engine's build)
         return false;
     }
+    mz_zip_archive& z = reader.z;
 
     const int count = static_cast<int>(z.m_total_files); // (mz_zip_reader_get_num_files is compiled out too)
     if(count <= 0 || count > maxFiles)
     {
         why = za::String{"the zip holds "} + za::toString(count) + " files (up to " + za::toString(maxFiles) + ")";
-        mz_zip_reader_end(&z);
         return false;
     }
 
@@ -792,7 +923,6 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
         {
             // A mod, not a map package: its own game code would take the place of Quake VR's.
             why = za::String{"it carries its own game code ("} + it.path + "): a mod Quake VR cannot play";
-            mz_zip_reader_end(&z);
             return false;
         }
         if(!it.dir && startupConfig(it.path))
@@ -807,11 +937,20 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
         }
         items.pushBack(ZA_MOVE(it));
     }
-    if(unpacked > maxUnpackedBytes)
+    // A zip bomb: files that unpack to far more than a real package's would from a zip of its size (the sizes are the
+    // zip's own; miniz stops a file that unpacks to more than its entry says).
+    const za::U64 zipSize = za::max(reader.zf.size, za::U64{1});
+    if(unpacked > unpackRatioFloor && unpacked / zipSize >= maxUnpackRatio)
     {
-        why = za::String{"its files would unpack to "} + za::toString(unpacked / 1024 / 1024) + " MB (up to " +
-              za::toString(maxUnpackedBytes / 1024 / 1024) + " MB)";
-        mz_zip_reader_end(&z);
+        why = za::String{"its files would unpack to "} + formatBytes(unpacked) + " from a zip of " + formatBytes(zipSize) +
+              " (" + za::toString(unpacked / zipSize) + " to 1; up to " + za::toString(maxUnpackRatio) +
+              " to 1): refused as a zip bomb";
+        return false;
+    }
+    // Room for them (the package's folder is made first: the free space is asked of the volume it is on).
+    files::createDirectories(request.root.cStr());
+    if(!roomFor(request.root, unpacked, "unpacking its files", why))
+    {
         return false;
     }
 
@@ -881,30 +1020,20 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
         return true;
     };
 
-    // The packs at the package's root (pak0.pak, ...): their files unpacked after the loose ones, in order.
+    // The packs at the package's root (pak0.pak, ...): their files unpacked after the loose ones, in order, each pak
+    // taken out of the zip only then (one in memory at a time).
     struct Pak
     {
         int number{0};
-        void* data{nullptr};
-        size_t size{0};
+        int index{0}; // the zip's entry
     };
     za::Vector<Pak> paks;
-    const auto freePaks = [&]
-    {
-        for(Pak& k : paks)
-        {
-            free(k.data);
-        }
-        paks.clear();
-    };
 
     for(const Item& it : items)
     {
         if(SDL_AtomicGet(&cancelJob))
         {
             why = cancelText();
-            freePaks();
-            mz_zip_reader_end(&z);
             return false;
         }
         za::String rel = it.path;
@@ -948,6 +1077,11 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
             continue;
         }
 
+        if(pakNumber >= 0)
+        {
+            paks.pushBack(Pak{pakNumber, it.index}); // (unpacked below, after every loose file)
+            continue;
+        }
         size_t got = 0;
         void* data = mz_zip_reader_extract_to_heap(&z, static_cast<mz_uint>(it.index), &got, 0);
         if(!data)
@@ -957,33 +1091,46 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
             notes += "; ";
             continue;
         }
-        if(pakNumber >= 0)
-        {
-            paks.pushBack(Pak{pakNumber, data, got}); // (unpacked below, after every loose file)
-            continue;
-        }
         place(placed, data, static_cast<za::SizeT>(got), false);
         free(data);
     }
-    mz_zip_reader_end(&z);
 
     // The packs, unpacked into loose files of the package's folder (a pak in a package's folder would not be read:
     // the engine reads paks only from the game dirs it adds itself). Refused whole if one carries game code.
     za::heapSort(paks.begin(), paks.end(), [](const Pak& x, const Pak& y) { return x.number < y.number; });
-    for(const Pak& k : paks)
+    struct PakData // (one pak's bytes, freed when the next is taken)
     {
+        void* data{nullptr};
+        size_t size{0};
+        PakData() = default;
+        PakData(const PakData&) = delete;
+        PakData& operator=(const PakData&) = delete;
+        ~PakData()
+        {
+            free(data);
+        }
+    };
+    for(const Pak& pak : paks)
+    {
+        PakData k;
+        k.data = mz_zip_reader_extract_to_heap(&z, static_cast<mz_uint>(pak.index), &k.size, 0);
+        if(!k.data)
+        {
+            notes += "could not unpack pak" + za::toString(pak.number) + ".pak; ";
+            continue;
+        }
         const char* d = static_cast<const char*>(k.data);
         za::I32 dirOfs = 0, dirLen = 0;
         if(k.size < 12 || memcmp(d, "PACK", 4))
         {
-            notes += "pak" + za::toString(k.number) + ".pak is not a pak; ";
+            notes += "pak" + za::toString(pak.number) + ".pak is not a pak; ";
             continue;
         }
         memcpy(&dirOfs, d + 4, 4);
         memcpy(&dirLen, d + 8, 4);
         if(dirOfs < 12 || dirLen < 0 || dirLen % 64 || static_cast<za::U64>(dirOfs) + static_cast<za::U64>(dirLen) > k.size)
         {
-            notes += "pak" + za::toString(k.number) + ".pak is damaged; ";
+            notes += "pak" + za::toString(pak.number) + ".pak is damaged; ";
             continue;
         }
         for(za::I32 e = 0; e < dirLen / 64; e++)
@@ -992,9 +1139,8 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
             memcpy(raw, d + dirOfs + e * 64, 56);
             if(gameCode(za::String{raw}))
             {
-                why = za::String{"its pak"} + za::toString(k.number) + ".pak carries its own game code (" + raw +
+                why = za::String{"its pak"} + za::toString(pak.number) + ".pak carries its own game code (" + raw +
                       "): a mod Quake VR cannot play";
-                freePaks();
                 return false;
             }
         }
@@ -1003,7 +1149,6 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
             if(SDL_AtomicGet(&cancelJob))
             {
                 why = cancelText();
-                freePaks();
                 return false;
             }
             char raw[57] = {};
@@ -1026,7 +1171,6 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
             place(mapFileName(name), d + pos, static_cast<za::SizeT>(len), true);
         }
     }
-    freePaks();
     if(configs)
     {
         notes += za::toString(configs) + " config file(s) left out (quake.rc, *.cfg); ";
@@ -1178,6 +1322,29 @@ void reportTrim(const CacheTrim& t, const char* when)
     }
 }
 
+// The part files a download the game quit in the middle of left (<sha>.zip.part; start-up, no job running).
+void removeStaleParts()
+{
+    za::Vector<za::String> parts;
+    files::forEachEntry(cacheDirName.cStr(),
+        [&](const char* name, bool isDirectory)
+        {
+            za::String sha;
+            const za::SizeT n = strlen(name);
+            if(!isDirectory && n > 5 && !strcmp(name + n - 5, ".part") && cachedZipName(za::String{name, n - 5}.cStr(), sha))
+            {
+                parts.pushBack(partPath(sha));
+            }
+        });
+    for(const za::String& p : parts)
+    {
+        if(files::remove(p.cStr()))
+        {
+            Con_SafePrintf("maps: download cache: %s removed (a download that never finished)\n", p.cStr());
+        }
+    }
+}
+
 // poll(): the first frame (the config read by then) and a changed cap trim the cache to it.
 void trimCacheIfCapChanged()
 {
@@ -1187,6 +1354,10 @@ void trimCacheIfCapChanged()
     }
     const bool first = trimmedCapMb < 0.f;
     trimmedCapMb = vr_maps_cache_mb.value;
+    if(first && !jobRunning.loadSeqCst())
+    {
+        removeStaleParts();
+    }
     reportTrim(trimCache(cacheCapBytes(), za::String{}), first ? "start-up" : "its size changed");
 }
 
@@ -1228,27 +1399,32 @@ int run()
     job->zipBytes = request.zipBytes;
     job->phase = Phase::Download;
 
-    za::Vector<char> body;
     za::String why;
     bool ok = false;
-    if(job->zipBytes > maxZipBytes)
+    files::createDirectories(cacheDirName.cStr());
+    const za::String part = partPath(job->sha);
+    if(request.maxZipBytes && job->zipBytes > request.maxZipBytes)
     {
-        why = za::String{"the package is "} + za::toString(job->zipBytes / 1024 / 1024) + " MB (up to " +
-              za::toString(maxZipBytes / 1024 / 1024) + " MB)";
+        why = za::String{"the package is "} + formatBytes(job->zipBytes) + " (vr_maps_max_download_mb " +
+              formatBytes(request.maxZipBytes) + "; 0: no limit)";
     }
-    else
+    // Room for the zip, and (installing) for its files at least as large again; the unpacking checks their own size.
+    else if(roomFor(cacheDirName, job->zipBytes * (request.install ? 2 : 1),
+                request.install ? "its zip and its files" : "its zip", why))
     {
         const za::U32 d0 = SDL_GetTicks();
-        ok = downloadZip(body, why);
+        ok = downloadZip(part, why);
         job->downloadMs = static_cast<int>(SDL_GetTicks() - d0);
     }
 
     if(ok)
     {
-        files::createDirectories(cacheDirName.cStr());
         const za::String zp = zipPath(job->sha);
-        // (said in the job's message, not printed: this is the job's thread, and the console is the main thread's)
-        const bool zipWritten = files::writeBytes(zp.cStr(), body.data(), body.size());
+        // The checked zip into the cache under its own name (the unpacking reads it from there); one that cannot be
+        // renamed is unpacked from its part file. (Said in the job's message, not printed: this is the job's thread,
+        // and the console is the main thread's.)
+        const bool zipWritten = files::rename(part.cStr(), zp.cStr());
+        const za::String& zipFile = zipWritten ? zp : part;
         if(request.install)
         {
             job->phase = Phase::Extract;
@@ -1262,7 +1438,7 @@ int run()
                 files::removeAll(request.root.cStr());
             }
             za::String note;
-            const bool extracted = extractZip(body, *job, note);
+            const bool extracted = extractZip(zipFile, *job, note);
             job->extractMs = static_cast<int>(SDL_GetTicks() - e0);
             if(!extracted)
             {
@@ -1299,6 +1475,10 @@ int run()
         }
     }
 
+    if(files::isFile(part.cStr()))
+    {
+        files::remove(part.cStr()); // (a download that failed, or a zip unpacked from it that could not be kept)
+    }
     if(!ok)
     {
         job->phase = Phase::Failed;
@@ -1555,6 +1735,10 @@ bool begin(const mapindex::Entry* entry, bool install, za::String* why)
     request.zipBytes = entry->bytes;
     request.install = install;
     request.wasInstalled = installed(request.sha);
+    request.maxZipBytes = vr_maps_max_download_mb.value > 0.f
+        ? static_cast<za::U64>(static_cast<double>(vr_maps_max_download_mb.value) * 1024.0 * 1024.0) : 0;
+    request.fakeFreeBytes = vr_maps_debug_free_mb.value > 0.f
+        ? static_cast<za::U64>(static_cast<double>(vr_maps_debug_free_mb.value) * 1024.0 * 1024.0) : 0;
     trimCacheForDownload(request.sha, request.zipBytes); // (the download cache: room made under the cap)
     SDL_AtomicSet(&cancelJob, 0);
     SDL_AtomicSet(&cancelReason, CancelNone);

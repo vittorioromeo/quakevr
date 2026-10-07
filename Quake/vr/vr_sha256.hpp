@@ -17,6 +17,20 @@ struct Digest
 // The hash of n bytes at data.
 [[nodiscard]] Digest of(const void* data, za::SizeT n);
 
+// The same hash fed in pieces (a download as it arrives: vr_mapinstall.cpp streams its zip to disk).
+class Hasher
+{
+public:
+    void update(const void* data, za::SizeT n);
+    [[nodiscard]] Digest finish(); // (once; the hasher is spent after it)
+
+private:
+    za::U32 h[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+    za::U8 block[64] = {};
+    za::SizeT held = 0; // bytes in `block`
+    za::U64 total = 0;  // bytes fed
+};
+
 // The digest as 64 lowercase hex digits and a NUL.
 void toHex(const Digest& d, char (&out)[65]);
 

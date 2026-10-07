@@ -29856,3 +29856,39 @@ In VR:
 - [ ] Punch the magazine's far end: it pops out.
 - [ ] The hand on the magazine: does it look right? Tune Hand X/Y/Z and the turn per gun.
 - [ ] The ammo button from the front, as you press it: does it press every time? From behind: never.
+
+## Map Library: no 200 MB limit on packages (2026-10-07)
+
+Asked: the Map Library would not download the Liminal Spaces Jam (510,755,797 bytes in the index, 1013 files):
+"the package is 487 MB (up to 200 MB)". The limits were `vr_mapinstall.hpp`'s constants: `maxZipBytes` 200 MB (the
+index's size before the download, and the bytes as they arrived) and `maxUnpackedBytes` 400 MB (the zip's files), with
+`maxFiles` 4000; the whole zip was downloaded into memory, hashed, written to the cache, then unpacked from memory, with
+every root pak held in memory until the end. Now:
+
+- **No size limit by default.** `vr_maps_max_download_mb` (0 = none; Debug > External Map Index > Largest Download)
+  refuses a larger package before and during its download, for whoever wants one. A server that sends over twice the
+  index's size (and 16 MB) is stopped as not the package (the sha256 would fail anyway; the disk never fills).
+- **Streamed to disk**: each mirror's transfer goes to `cache/maps/<sha256>.zip.part`, hashed as it arrives
+  (`sha256::Hasher`, incremental; `vr_sha256_test` 12/12: the 6 vectors whole and fed in 1-97 byte pieces), renamed to
+  `<sha256>.zip` once it matches the index (the sha256 check kept: a mismatch fails that mirror and tries the next).
+  The unpacking reads the zip from its file (miniz's reader on a FILE*, seeks only when needed); one file in memory at
+  a time, root paks taken out of the zip one at a time after the loose files. A part file is removed when its job
+  fails, and a stale one (the game quit mid-download) at the next start-up. Trims never count it.
+- **Free disk space checked** (`files::freeSpace`: GetDiskFreeSpaceExW / statvfs): before the download, the zip and as
+  much again for its files (installing) plus `diskMargin` 64 MB on the cache's volume; before the unpacking, the files'
+  own size plus 64 MB on the package folder's volume. The message: "not enough disk space: unpacking its files needs
+  200.0 MB and 64.0 MB to spare, and 200.0 MB is free on <folder>". A write that fails mid-download says how much was
+  free. `vr_maps_debug_free_mb` (Debug > External Map Index > Pretend Free Disk Space) simulates a low disk.
+- **Zip-bomb guard by ratio**, not size: files that unpack to more than 100 times the zip (`maxUnpackRatio`, past
+  `unpackRatioFloor` 256 MB) are refused ("1024.0 MB from a zip of 1020 KB (1028 to 1; up to 100 to 1): refused as a
+  zip bomb"). Real packages are 1-10 to 1. `maxFiles` 4000 -> 20000.
+- **The cache trim** already skipped the running job's zip; the part file isn't a cache name. Tested with the cap at
+  1 MB, then 2 MB in the middle of a 300 MB install: installed, its zip removed only after the job.
+
+Test: `python Misc/quakevr/maplibrary_large_test.py <agent>` (packages generated in scratch/maplib/, a test index
+written over the agent's cached one and put back, served from 127.0.0.1:8766; one real-time run): low disk refused
+before the download, `vr_maps_max_download_mb 100` refused, a wrong sha256 refused, a 1 GB-of-zeros bomb refused, low
+disk (200 MB) refused before unpacking a 24 MB zip of 200 MB, a 300 MB stored package (incompressible) installed
+("2 file(s) written (download 1842 ms, unpack 869 ms)"), then uninstalled and trimmed: 7/7.
+
+- [ ] Map Library: Liminal Spaces Jam (487 MB): downloads, installs, plays (its start map).

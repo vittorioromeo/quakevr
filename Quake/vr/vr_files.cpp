@@ -23,6 +23,7 @@
 #include <windows.h>
 #include <io.h>
 #else
+#include <sys/statvfs.h>
 #include <unistd.h>
 #endif
 
@@ -295,6 +296,28 @@ za::U64 fileSize(const char* path)
         return 0;
     }
     return static_cast<za::U64>(st.st_size);
+#endif
+}
+
+bool freeSpace(const char* path, za::U64& out)
+{
+#ifdef _WIN32
+    wchar_t w[MAX_PATH];
+    ULARGE_INTEGER available;
+    if(!wide(path, w) || !GetDiskFreeSpaceExW(w, &available, nullptr, nullptr))
+    {
+        return false;
+    }
+    out = static_cast<za::U64>(available.QuadPart);
+    return true;
+#else
+    struct statvfs st;
+    if(statvfs(path, &st) != 0)
+    {
+        return false;
+    }
+    out = static_cast<za::U64>(st.f_bavail) * static_cast<za::U64>(st.f_frsize);
+    return true;
 #endif
 }
 
