@@ -2423,14 +2423,14 @@ QVR_CVAR(vr_ammo_pouch_show, "1", CVAR_ARCHIVE)        // draw it (0: it works u
 // The ammo pouch's counter: how many of what it gives are left, on a small screen (the guns' ammo screens' look), off the
 // pouch: X out of the body, Y to the right, Z up (units, times its Size); its turn off facing the eyes looking down at it.
 QVR_CVAR(vr_ammo_pouch_counter, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_counter_x, "2.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_counter_x, "2.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_counter_y, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_counter_z, "3.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_counter_z, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_counter_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_counter_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_counter_roll, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_counter_scale, "0.8", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_leg_follow, "1", CVAR_ARCHIVE) // it rides both thighs' animation (full body: walking), as the hip holsters do (vr_holster_leg_follow): 0 fixed on the belt, 1 all the way
+QVR_CVAR(vr_ammo_pouch_counter_scale, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_leg_follow, "0.5", CVAR_ARCHIVE) // it rides both thighs' animation (full body: walking), as the hip holsters do (vr_holster_leg_follow): 0 fixed on the belt, 1 all the way
 // Immersive reloading's rules (QC vr_reload.qc; Weapons > Reloading).
 QVR_CVAR(vr_reload_shell_pairs, "0", CVAR_ARCHIVE)     // 1: the pouch gives two shells taped together (both go in at once; one if one fits)
 QVR_CVAR(vr_reload_haptics, "1", CVAR_ARCHIVE)         // times the reload's vibrations (taking, putting back, loading, the empty pouch); 0 none
@@ -2439,12 +2439,12 @@ QVR_CVAR(vr_reload_loose_max, "24", CVAR_ARCHIVE)      // rounds lying about at 
 QVR_CVAR(vr_reload_grab_slack, "3", CVAR_ARCHIVE)     // cm from a round lying about within which a gripping fist takes it (they are small and lie flat)
 QVR_CVAR(vr_reload_loose_time, "90", CVAR_ARCHIVE)     // seconds a round lies about before it fades away (0: never)
 // Magazines (phase 2: the nailgun, the super nailgun, the thunderbolt; vr_reload.qc).
-QVR_CVAR(vr_reload_bump_speed, "2", CVAR_ARCHIVE)      // m/s a hit on a seated magazine must come at to knock it out (a fist, a held prop or magazine, the other gun: the bump reload's first step)
-QVR_CVAR(vr_reload_pull_speed, "2.5", CVAR_ARCHIVE)    // m/s a hand holding a gun's magazine (the two-handed grip) must pull it away from the gun at to take it out; or,
-QVR_CVAR(vr_reload_pull_snap, "600", CVAR_ARCHIVE)     // its wrist turning at this many degrees/s or more; or the hands this much further apart:
+QVR_CVAR(vr_reload_bump_speed, "3", CVAR_ARCHIVE)      // m/s a hit on a seated magazine must come at to knock it out (a fist, a held prop or magazine, the other gun: the bump reload's first step)
+QVR_CVAR(vr_reload_pull_speed, "2", CVAR_ARCHIVE)    // m/s a hand holding a gun's magazine (a two-handed grip) must pull it out of its well at (along it) to take it out; or,
+QVR_CVAR(vr_reload_pull_snap, "300", CVAR_ARCHIVE)     // its wrist turning against the gun's hand at this many degrees/s or more; or the hands this much further apart:
 QVR_CVAR(vr_reload_pull_apart, "10", CVAR_ARCHIVE)     // units further apart than as it took hold (any one of the three; a gentle pull only holds it)
-QVR_CVAR(vr_reload_hit_reach, "4", CVAR_ARCHIVE)       // units from a seated magazine's top a hit counts within (the fist, a held prop, the other gun's line)
-QVR_CVAR(vr_reload_pull_reach, "6", CVAR_ARCHIVE)      // units from the magazine's middle within which a gripping hand holds it
+QVR_CVAR(vr_reload_hit_reach, "2", CVAR_ARCHIVE)       // units from a seated magazine (its box, anywhere on it) a hit counts within (the fist, a held prop, the other gun's line)
+QVR_CVAR(vr_reload_pull_reach, "2", CVAR_ARCHIVE)      // units off the attached magazine's box within which a gripping hand holds it (0: on it)
 // The super shotgun broken open (phase 2b; vr_reload.qc; vr_view.cpp draws it open: make_ssg_open.py's parts).
 QVR_CVAR(vr_reload_ssg_break, "1", CVAR_ARCHIVE)       // with Immersive: its spent shells stay in; broken open (the flick, the pry) it throws them out and loads by hand (0: the flick reloads it as before)
 QVR_CVAR(vr_reload_ssg_open_angle, "35", CVAR_ARCHIVE) // degrees its barrels drop about the hinge, open (looks only; the load point goes with them)
@@ -2474,10 +2474,10 @@ QVR_CVAR(vr_reload_port_sshot_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_z, "0", CVAR_ARCHIVE)
 // Each gun's load point's radius (world units): a shell's middle, or a magazine's reference point within it plus the
 // magazine's own radius, goes in (the author: per gun, the wells small).
-QVR_CVAR(vr_reload_port_shot_radius, "4", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_port_nail_radius, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_port_snail_radius, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_port_light_radius, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_shot_radius, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_nail_radius, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_snail_radius, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_light_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_radius, "3", CVAR_ARCHIVE) // (a taped pair's middle, between its two shells)
 // Each magazine's reference point: its top (its feed end) moved by these (its model units: +x along its gun, +y left,
 // +z up its length), and its radius (world units).
@@ -2493,7 +2493,7 @@ QVR_CVAR(vr_reload_mag_light_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_radius, "0.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_collide_leniency, "30", CVAR_ARCHIVE) // cm a round held from the pouch may go into the other hand's gun's box before they are drawn kept apart (Held Things Collide), to reach its port or well
+QVR_CVAR(vr_reload_collide_leniency, "4", CVAR_ARCHIVE) // cm a round held from the pouch may go into the other hand's gun's box before they are drawn kept apart (Held Things Collide), to reach its port or well
 // Each magazine gun's well (its receiver, drawn on it; visual only): moved (the gun's model units) and turned (degrees)
 // about its seat, to sit flush. Show Load Points marks its seat (cyan).
 QVR_CVAR(vr_reload_well_nail_x, "0", CVAR_ARCHIVE)

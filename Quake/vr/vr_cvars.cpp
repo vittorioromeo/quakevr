@@ -448,8 +448,24 @@ const DefaultChange defaultChanges[] = {
     // 97: immersive manual reloading is the shipped mode (the author, 2026-10-07; docs/vr-port/RELOAD_PLAN.md): a config with
     // the old default (Hip Holsters) takes it; one that chose Off or All Holsters keeps its choice.
     {97, &vr_reload_mode, "2"},                     // 3
+    // 98: the author's reloading values (ROUND21.md, "Immersive reloading: magazines, both grips, the pull").
+    {98, &vr_ammo_pouch_counter_x, "2.5"}, // 2.25
+    {98, &vr_ammo_pouch_counter_z, "3.2"}, // 2
+    {98, &vr_ammo_pouch_counter_scale, "0.8"}, // 0.6
+    {98, &vr_ammo_pouch_leg_follow, "1"}, // 0.5
+    {98, &vr_reload_bump_speed, "2"},   // 3
+    {98, &vr_reload_pull_speed, "2.5"}, // 2
+    {98, &vr_reload_pull_snap, "600"},  // 300
+    {98, &vr_reload_hit_reach, "4"},    // 2
+    {98, &vr_reload_pull_reach, "6"},   // 2
+    {98, &vr_reload_collide_leniency, "30"}, // 4
+    {98, &vr_reload_port_shot_radius, "4"}, // 1.5
+    {98, &vr_reload_port_nail_radius, "1"}, // 1.5
+    {98, &vr_reload_port_snail_radius, "1"}, // 1.5
+    {98, &vr_reload_port_light_radius, "1"}, // 1.5
+    {98, &vr_reload_bump_speed, "6.5"},         // 3: the author's, raised while the hand reaching to hold the magazine knocked it out (fixed)
 };
-constexpr int configVersion = 97;
+constexpr int configVersion = 98;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

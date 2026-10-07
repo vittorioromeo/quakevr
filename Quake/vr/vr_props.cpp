@@ -54,8 +54,9 @@ constexpr const char* keyDefaults[numKeys] = {
 // 54: the author's grenade and multi-grenade fits; 55: the author's weights and sizes (slots 6-16 his items); 56: every
 // prop in both hands; 57: the gibs' and heads' sizes; 58: the author's lighter gibs and heads (and the gremlin's head);
 // 59: the monsters' heads weigh what a head cut off their ragdoll does (Mass -1); 60: immersive reloading's shells
-// (slots 49-50); 61: reloading's magazines; 62: vrstart2's barrel (slot 61).
-constexpr int settingsVersion = 63;
+// (slots 49-50); 61: reloading's magazines; 62: vrstart2's barrel (slot 61); 63: the magazines' sizes; 64: the live
+// shell's grip.
+constexpr int settingsVersion = 64;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -535,6 +536,11 @@ void migrate()
         {
             takeShippedSlot(slot);
         }
+    }
+    // 64: the live shell's grip (slot 49) the author's: up 0.5 units, centred.
+    if(from < 64)
+    {
+        takeShippedSlot(48);
     }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);
 }
