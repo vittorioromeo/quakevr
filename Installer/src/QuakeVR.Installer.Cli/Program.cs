@@ -70,7 +70,7 @@ List<Uri> Feeds(string key)
     {
         list = new InstallerSettings().FeedUrls;
     }
-    else if (!list.SequenceEqual(new InstallerSettings().FeedUrls, StringComparer.OrdinalIgnoreCase))
+    else if (!InstallerSettings.IsReleaseHostFeeds(list))
     {
         Console.WriteLine($"TEST FEED: {string.Join(", ", list)}");
     }

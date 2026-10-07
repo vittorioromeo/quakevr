@@ -775,6 +775,7 @@ var tests = new List<(string Name, Action Body)>
         Environment.SetEnvironmentVariable(InstallerSettings.FeedEnvVar, old);
         True(new InstallerSettings().HasDefaultFeeds, "the defaults are the release hosts'");
         True(!new InstallerSettings { FeedUrls = ["http://127.0.0.1:1/latest.json"] }.HasDefaultFeeds, "another feed is a test feed");
+        True(new InstallerSettings { FeedUrls = ["https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json"] }.HasDefaultFeeds, "one release host alone is no test");
     }),
     ("release feed and GitHub releases API from a local server", () =>
     {

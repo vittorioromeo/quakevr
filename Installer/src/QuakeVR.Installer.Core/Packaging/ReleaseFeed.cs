@@ -133,7 +133,11 @@ public sealed class InstallerSettings
         [.. (Environment.GetEnvironmentVariable(FeedEnvVar) ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
 
     /// <summary>The release hosts' own feeds (a build that reads any other is a test: the window says so).</summary>
-    public bool HasDefaultFeeds => FeedUrls.SequenceEqual(new InstallerSettings().FeedUrls, StringComparer.OrdinalIgnoreCase);
+    public bool HasDefaultFeeds => IsReleaseHostFeeds(FeedUrls);
+
+    /// <summary>Whether every one of these feeds is one of the release hosts' own (only those are not a test).</summary>
+    public static bool IsReleaseHostFeeds(IEnumerable<string> feeds) =>
+        feeds.All(f => new InstallerSettings().FeedUrls.Contains(f, StringComparer.OrdinalIgnoreCase));
 
     public static InstallerSettings Load(string? path)
     {
