@@ -204,6 +204,7 @@ char		m_return_reason [32];
 void M_ConfigureNetSubsystem(void);
 void M_SetSkillMenuMap (const char *name);
 void M_Options_SelectMods (void);
+void M_Menu_LevelsFrom (void); // QVR: Ironwail's Levels from another menu (the main menu's Play Custom Map)
 void M_Options_Init (enum m_state_e state);
 void M_ChooseQuitMessage (void);
 void M_DrawQuitMessage (void);
@@ -1175,10 +1176,11 @@ enum
 	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), right after VR Calibration; Back from them to this menu
 	MAIN_SINGLEPLAYER,
 	MAIN_MULTIPLAYER,
-	MAIN_MAPLIBRARY, // QVR: the map browser (vr_menu_maps.inc)
+	MAIN_MAPLIBRARY, // QVR: Download Maps, the map browser (vr_menu_maps.inc)
+	MAIN_PLAYCUSTOM, // QVR: Play Custom Map, Ironwail's Levels (the maps installed)
 	MAIN_OPTIONS,
 	MAIN_VRADVANCED, // QVR: the Advanced VR Options (as the corner's Advanced VR)
-	MAIN_MODS,
+	MAIN_MODS, // QVR: shown with vr_menu_main_mods only (Options > Mods otherwise)
 	MAIN_QUIT, // QVR: no Help/Ordering row
 
 	MAIN_ITEMS,
@@ -1188,12 +1190,27 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"VR Calibration", "VR Settings", "Single Player", "Multiplayer", "Map Library", "Options", "Advanced VR", "Mods", "Quit",
+	"VR Calibration", "VR Settings", "Single Player", "Multiplayer", "Download Maps", "Play Custom Map", "Options",
+	"Advanced VR", "Mods", "Quit",
 };
 
 const char *M_Main_RowLabel (void) // QVR: menu_vr pos
 {
 	return m_main_labels[m_main_cursor];
+}
+
+// QVR: whether a row is shown: Mods only where Ironwail shows it (no mod with its own menu) and vr_menu_main_mods asks
+// for it (Advanced VR > HUD and Menus > Menu; Options > Mods has it).
+static qboolean M_Main_Shown (int item)
+{
+	return item != MAIN_MODS || (m_main_mods && VR_MenuMainShowsMods ());
+}
+
+// QVR: the rows in groups, a gap above each but the first: the VR rows, playing (Single Player, Multiplayer), the maps
+// (Download Maps, Play Custom Map), the rest.
+static qboolean M_Main_GroupStart (int item)
+{
+	return item == MAIN_SINGLEPLAYER || item == MAIN_MAPLIBRARY || item == MAIN_OPTIONS;
 }
 
 void M_Menu_Main_f (void)
@@ -1208,7 +1225,7 @@ void M_Menu_Main_f (void)
 	// to 'Options' to nudge the player toward the secondary location.
 	// TODO (maybe): inform the user about the missing option
 	// and its alternative location?
-	if (!m_main_mods && m_main_cursor == MAIN_MODS)
+	if (!M_Main_Shown (MAIN_MODS) && m_main_cursor == MAIN_MODS) // QVR: or not shown (vr_menu_main_mods)
 	{
 		m_main_cursor = MAIN_OPTIONS;
 		M_Options_SelectMods ();
@@ -1216,24 +1233,41 @@ void M_Menu_Main_f (void)
 }
 
 
-// QVR: the rows' spacing: Quake's 20, closer where the canvas is too short for them all (the headset's panel at Menu
-// Height 1 with the Mods row: the last row's letters, 20 tall, kept inside it).
-static int M_Main_Step (void)
+// QVR: the rows' spacing and the groups' gaps: Quake's 20 and 10, closer where the canvas is too short for them all (a
+// flat screen's 200 rows, the headset's panel at Menu Height 1): the gaps a little first, then the rows (to 15), then the
+// gaps the rest of the way; the last row's letters, 20 tall, kept inside it.
+void M_Main_Layout (int *step, int *gap)
 {
 	drawtransform_t transform;
 	float left, top, right, bottom;
-	int rows = MAIN_ITEMS - !m_main_mods;
-	int step;
+	int rows = 0, i, avail;
 
+	for (i = 0; i < MAIN_ITEMS; i++)
+		rows += M_Main_Shown (i);
 	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
 	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
-	step = (int)((bottom - 2 - 32 - 20) / (rows - 1));
-	return CLAMP (16, step, 20);
+	avail = (int)(bottom - 2 - 32 - 20);
+	*step = CLAMP (15, (avail - 3 * 6) / (rows - 1), 20);
+	*gap = CLAMP (0, (avail - (rows - 1) * *step) / 3, 10);
+}
+
+// QVR: a row's top (menu y): Quake's 32 for the first, a step for each row shown above it, a gap for each group.
+static int M_Main_RowY (int item, int step, int gap)
+{
+	int i, y = 32;
+
+	for (i = 0; i < item; i++)
+		if (M_Main_Shown (i))
+			y += step;
+	for (i = 1; i <= item; i++)
+		if (M_Main_GroupStart (i))
+			y += gap;
+	return y;
 }
 
 void M_Main_Draw (void)
 {
-	int		cursor, i, row, step; // QVR: i, row, step
+	int		i, step, gap; // QVR: i, step, gap
 	qpic_t	*p;
 	qboolean text; // QVR: the rows as text (VR_BigFont_Draw)
 
@@ -1242,25 +1276,27 @@ void M_Main_Draw (void)
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
 	// QVR: the rows as text in the picture's letters when the pictures give every one (a mod's own pictures may not):
-	// else the picture, with VR Calibration above it in the letters of the mods' fallback row.
+	// else the picture's rows, the others in the mods' fallback row's letters.
 	text = true;
 	for (i = 0; i < MAIN_ITEMS; i++)
-		if ((i != MAIN_MODS || m_main_mods) && !VR_BigFont_CanDraw (m_main_labels[i]))
+		if (M_Main_Shown (i) && !VR_BigFont_CanDraw (m_main_labels[i]))
 			text = false;
 
-	step = M_Main_Step ();
+	M_Main_Layout (&step, &gap);
 	if (text)
 	{
-		for (i = 0, row = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text
-			if (i != MAIN_MODS || m_main_mods)
-				VR_BigFont_Draw (73, 32 + row++ * step, m_main_labels[i]);
+		for (i = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text
+			if (M_Main_Shown (i))
+				VR_BigFont_Draw (73, M_Main_RowY (i, step, gap), m_main_labels[i]);
 	}
 	else
-	{ // QVR: the picture's rows (its Help row left out), VR Calibration, Map Library and the VR Settings rows between
-	  // them in the mods' row's letters
+	{ // QVR: the picture's rows (its Help row left out), the others in the mods' row's letters
 		p = Draw_CachePic ("gfx/mainmenu.lmp");
-		for (i = 0, row = 32; i < MAIN_ITEMS; i++)
+		for (i = 0; i < MAIN_ITEMS; i++)
 		{
+			int row = M_Main_RowY (i, step, gap);
+			if (!M_Main_Shown (i))
+				continue;
 			switch (i)
 			{
 			case MAIN_SINGLEPLAYER: M_DrawSubpic (72, row, p, 0, 0, p->width, 20); break;
@@ -1268,28 +1304,35 @@ void M_Main_Draw (void)
 			case MAIN_OPTIONS: M_DrawSubpic (72, row, p, 0, 40, p->width, 20); break;
 			case MAIN_QUIT: M_DrawSubpic (72, row, p, 0, 80, p->width, p->height - 80); break;
 			case MAIN_MODS:
-				if (!m_main_mods)
-					continue;
 				if (m_main_mods > 0)
 					M_DrawTransPic (72, row, Draw_CachePic ("gfx/menumods.lmp"));
 				else
 					M_PrintEx (74, row + 1, 16, "MODS");
 				break;
 			case MAIN_VRCALIBRATION: M_PrintEx (74, row + 1, 16, "VR CALIBRATION"); break;
-			case MAIN_MAPLIBRARY: M_PrintEx (74, row + 1, 16, "MAP LIBRARY"); break;
+			case MAIN_MAPLIBRARY: M_PrintEx (74, row + 1, 16, "DOWNLOAD MAPS"); break;
+			case MAIN_PLAYCUSTOM: M_PrintEx (74, row + 1, 16, "PLAY CUSTOM MAP"); break;
 			case MAIN_VRSETTINGS: M_PrintEx (74, row + 1, 16, "VR SETTINGS"); break;
 			case MAIN_VRADVANCED: M_PrintEx (74, row + 1, 16, "ADVANCED VR"); break;
 			}
-			row += step;
 		}
 	}
 
-	cursor = m_main_cursor;
-	if (!m_main_mods && cursor > MAIN_MODS)
-		--cursor;
-	M_DrawQuakeCursor (54, 32 + cursor * step);
+	M_DrawQuakeCursor (54, M_Main_RowY (m_main_cursor, step, gap));
 }
 
+// QVR: the cursor to the next row shown up (-1) or down (1), round the ends.
+static void M_Main_MoveCursor (int dir)
+{
+	int i;
+
+	for (i = 0; i < MAIN_ITEMS; i++)
+	{
+		m_main_cursor = (m_main_cursor + dir + MAIN_ITEMS) % MAIN_ITEMS;
+		if (M_Main_Shown (m_main_cursor))
+			break;
+	}
+}
 
 void M_Main_Key (int key)
 {
@@ -1306,18 +1349,12 @@ void M_Main_Key (int key)
 
 	case K_DOWNARROW:
 		M_ThrottledSound ("misc/menu1.wav");
-		if (++m_main_cursor >= MAIN_ITEMS)
-			m_main_cursor = 0;
-		else if (!m_main_mods && m_main_cursor == MAIN_MODS)
-			++m_main_cursor;
+		M_Main_MoveCursor (1); // QVR: past a row not shown
 		break;
 
 	case K_UPARROW:
 		M_ThrottledSound ("misc/menu1.wav");
-		if (--m_main_cursor < 0)
-			m_main_cursor = MAIN_ITEMS - 1;
-		else if (!m_main_mods && m_main_cursor == MAIN_MODS)
-			--m_main_cursor;
+		M_Main_MoveCursor (-1);
 		break;
 
 	case K_ENTER:
@@ -1351,6 +1388,10 @@ void M_Main_Key (int key)
 			VR_OpenMapLibrary ();
 			break;
 
+		case MAIN_PLAYCUSTOM: // QVR: Ironwail's Levels; Back from them to this menu
+			M_Menu_LevelsFrom ();
+			break;
+
 		case MAIN_OPTIONS:
 			M_Menu_Options_f ();
 			break;
@@ -1374,12 +1415,29 @@ void M_Main_Key (int key)
 	}
 }
 
+// QVR: the row under the mouse (the laser's spot in the headset): each row from its top down a step, the first above it
+// and the last below it too; in a gap between groups, the row selected stays.
 void M_Main_Mousemove (float cx, float cy)
 {
 	int prev = m_main_cursor;
-	M_UpdateCursor (cy, 32, M_Main_Step (), MAIN_ITEMS - !m_main_mods, &m_main_cursor); // QVR: M_Main_Step
-	if (m_main_cursor >= MAIN_MODS && !m_main_mods)
-		++m_main_cursor;
+	int i, y, step, gap, first = -1, last = -1;
+
+	M_Main_Layout (&step, &gap);
+	for (i = 0; i < MAIN_ITEMS; i++)
+	{
+		if (!M_Main_Shown (i))
+			continue;
+		if (first < 0)
+			first = i;
+		last = i;
+		y = M_Main_RowY (i, step, gap);
+		if (cy >= y && cy < y + step)
+			m_main_cursor = i;
+	}
+	if (first >= 0 && cy < M_Main_RowY (first, step, gap))
+		m_main_cursor = first;
+	else if (last >= 0 && cy >= M_Main_RowY (last, step, gap) + step)
+		m_main_cursor = last;
 	if (m_main_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
 }
@@ -1864,6 +1922,13 @@ static void M_Maps_Init (void)
 	M_List_CenterCursor (&mapsmenu.list);
 
 	mapsmenu.prev_cursor = mapsmenu.list.cursor;
+}
+
+// QVR: the Levels from the main menu's Play Custom Map (as the menu_maps command opens them).
+void M_Menu_LevelsFrom (void)
+{
+	Cmd_TokenizeString ("menu_maps"); // (M_Menu_Maps_f looks at its command's arguments)
+	M_Menu_Maps_f ();
 }
 
 void M_Menu_Maps_f (void)

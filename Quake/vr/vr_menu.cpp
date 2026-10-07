@@ -80,6 +80,7 @@ extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
 int M_TextLeft(void); // menu.c: its leftmost text (Ironwail's lists; 320 for Quake's menus)
+void M_Main_Layout(int* step, int* gap); // menu.c: the main menu's rows' spacing and its groups' gaps
 }
 
 using namespace qvr;
@@ -10392,6 +10393,11 @@ extern "C" void VR_OpenCampaignSelector()
     openInTree(pageIndex(pageCampaigns));
 }
 
+extern "C" int VR_MenuMainShowsMods()
+{
+    return vr_menu_main_mods.value != 0.f;
+}
+
 extern "C" void VR_OpenMapLibrary()
 {
     qvr::menu::openMaps();
@@ -10487,7 +10493,10 @@ void qvr::menu::command_f()
                                                            : "other";
             if(key_dest == key_menu && m_state == m_main)
             {
-                Con_Printf("menu_vr pos: menu %d (%s), row \"%s\"%s\n", static_cast<int>(m_state), name, M_Main_RowLabel(), corner);
+                int step, gap;
+                M_Main_Layout(&step, &gap);
+                Con_Printf("menu_vr pos: menu %d (%s), row \"%s\"%s (rows %d apart, groups %d more)\n", static_cast<int>(m_state),
+                    name, M_Main_RowLabel(), corner, step, gap);
                 menuui::printLaser();
                 return;
             }

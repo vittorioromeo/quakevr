@@ -11,9 +11,10 @@
 #     band's own offset plus dy (flip: the rows upside down);
 #   X(x0, x1, y0, y1): clears that part of the cell (a neighbour's pixels that reach into a letter's columns).
 # The pictures have no V, R, C or b (VR Calibration), L or y alone (Map Library), f or c (Official Campaigns), A or v
-# alone (Advanced VR): they are made from others, stretched or mirrored: V, R, C and b from v (Save), r (Player), G
+# alone (Advanced VR), D or w (Download Maps): they are made from others, stretched or mirrored: V, R, C and b from v (Save), r (Player), G
 # (Game) and p (Options); L from P's stem and l's foot; y from ay; f from e without its bottom arm, on i's foot; c from
-# o's left half and G's end; v is Save's without a's leg, A is a (Join a Game's) 2 rows taller, as R is r. m is Game's.
+# o's left half and G's end; v is Save's without a's leg, A is a (Join a Game's) 2 rows taller, as R is r and D is d; w is v with its right
+# stroke twice more. m is Game's.
 # "ay" is one glyph: the two letters overlap in the pictures.
 # --preview draws the given texts (the main menu's rows by default) with the pak's letters, 3 times the size.
 import argparse
@@ -77,6 +78,9 @@ glyph('c', 18, [C('M2', 67, 77), C('S0', 83, 90, 0, 5, dx=11, dy=2),  # o's left
 glyph('v', 19, [C('S2', 32, 51), X(0, 1, 6, 8), X(0, 2, 8, 9), X(0, 3, 9, 11), X(0, 4, 11, 12), X(0, 5, 12, 13),
                 X(0, 6, 13, 14), X(0, 7, 14, 16)])  # Save's v, without a's leg (as V)
 glyph('A', 19, [C('J0', 71, 90, 0, 5, dy=-1), C('J0', 71, 90, 4, 12), C('J0', 71, 90, 11, 16, dy=1)])  # a, 2 rows taller
+glyph('D', 19, [C('S1', 58, 77, 0, 5, dy=-1), C('S1', 58, 77, 4, 12), C('S1', 58, 77, 11, 16, dy=1)])  # d, 2 rows taller
+glyph('w', 29, [C('S2', 32, 51), X(0, 1, 6, 8), X(0, 2, 8, 9), X(0, 3, 9, 11), X(0, 4, 11, 12), X(0, 5, 12, 13),
+                X(0, 6, 13, 14), X(0, 7, 14, 16), X(11, 19, 0, 24), C('S2', 40, 51, dx=10), C('S2', 40, 51, dx=18)])  # v, its right stroke twice more
 
 
 def read_pak(path):
