@@ -46,7 +46,7 @@
                     </Image.Effect>
                 </Image>
             </Grid>
-            <TextBlock Text="Quake, in virtual reality" Style="{StaticResource PageTitle}" FontSize="32" Margin="0,8,0,0" />
+            <TextBlock Style="{StaticResource PageTitle}" FontSize="32" Margin="0,8,0,0" ><Run Text="Quake, "/><Run Language="it-it" Text="UNLEASHED"/><Run Language="it-it" Text=" "/><Run Text="in virtual reality"/></TextBlock>
             <TextBlock Style="{StaticResource PageSubtitle}" FontSize="15" MaxWidth="640" HorizontalAlignment="Left">
                 Hands, physics, full-body melee and a tuned look, built on the Ironwail engine. This installer sets
                 everything up in a few clicks.
@@ -88,7 +88,7 @@
                         <TextBlock Text="&#xE793;" Style="{StaticResource FeatureGlyph}" />
                     </Border>
                     <StackPanel>
-                        <TextBlock Style="{StaticResource Body}" FontWeight="SemiBold" ><Run Text="Retro look powered by modern "/><Run Language="it-it" Text="shaders"/></TextBlock>
+                        <TextBlock Style="{StaticResource Body}" FontWeight="SemiBold" ><Run Language="it-it" Text="Enhances maps and graphics"/></TextBlock>
                         <TextBlock Style="{StaticResource Small}" Margin="0,3,0,0"
                                    ><Run Text="HD textures"/><Run Text=", "/><Run Text="relit maps"/><Run Text=", dynamic lights, and parallax mapping -- filtered through customizable retro shaders"/><Run Language="it-it" Text="."/></TextBlock>
                     </StackPanel>
