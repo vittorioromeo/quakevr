@@ -65,6 +65,7 @@ SKY_TOP = 2304
 FLOOR_Z = -1024       # the terrain prisms' bottoms
 WATER_Z = 0
 SEA_DEPTH = 300       # the lake's floor, far from the shores
+GROUND_STEP = 8       # the island's ground heights are multiples of this (height(): Quake's collision)
 
 PN = Perlin(7)        # terrain
 PN2 = Perlin(11)      # the cliffs' line and heights
@@ -343,7 +344,13 @@ def height(x, y):
             h = min(h, lerp(bed, h, k ** 1.6))
     ch = cliff_height(x, y)
     if ch is not None:
-        h = max(h, ch)
+        return max(h, ch)
+    # The island's walkable ground in steps of GROUND_STEP units: triangles nearly but not quite coplanar (the noise, the
+    # blends, rounding) make Quake's collision snag the player on flat ground (the hull traces start "solid" at their
+    # seams); with heights in steps most neighbours are exactly coplanar, the rest at clear angles. (A walk test of 36
+    # legs over gentle ground: 24 stopped short before, 7 after; ROUND21.md, "vrstart2".)
+    if h > 6 and d > -100:
+        h = max(8, GROUND_STEP * round(h / GROUND_STEP))
     return h
 
 

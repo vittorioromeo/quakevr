@@ -27998,7 +27998,7 @@ ropes and brackets are func_detail_illusionary. CPU busy about 1.5 ms (vrstart 0
 caster search walking the big world tree (`dlight casters` 0.6 ms); fine against the 11.1 ms budget.
 
 **Tested headless**: the path walked leg by leg with the mock stick (`Misc/quakevr/maps/vrstart2_walktest.py`: 18
-legs, pier, stairs, terrace, bridge, pavilion, stairs, range, shore path, the ladder's foot; 17 pass); a swim from the pier to a cliff ledge and out (40 s);
+legs, pier, stairs, terrace, bridge, pavilion, stairs, range, shore path, the ladder's foot); a swim from the pier to a cliff ledge and out (40 s);
 `vr_setup_option turning` pressed by hand (Snap 30), the Scourge of Armagon lectern pressed
 (`vr_activestartpaknameidx` 1, its echo), the slipgate's changelevel; a rung held and pulled up (`vr_climb_debug`:
 "main hand holds at 132", the body rising); `vr_climb_probe` lists the rungs as ledges;
@@ -28006,12 +28006,18 @@ legs, pier, stairs, terrace, bridge, pavilion, stairs, range, shore path, the la
 no hold on vrclimb either in this harness (a hand 5 units off); qbsp needs `-maxnodesize 0` (the midsplit's portals
 lost visible faces: holes in the cliffs) and `-forcegoodtree` (an invisible bump on the shore path's clip hull).
 
-**Open: a snag on the shore path.** Walking south-east from the range's south-west corner, the player stops on flat
-ground about (470, -280..-390) in some runs (the walk test's leg 15; where depends on the line walked, and a little
-from run to run). Not the hulls as far as I can tell: `vr_stuck_test` finds the box free all over there (hull 1 and the
-16-wide one), the terrain there is flat (54-57), nothing solid stands there (only terrain prisms; no entity's box),
-and it happens with `vr_hull_width 0`, `vr_body_mode 0`, either movement mode and the tips off; the brush sweep
-(`vr_hull_method 0`) stops on fewer lines. Worth a look by whoever knows the VR locomotion; walk round it meanwhile.
+**The snag on the shore path, found and fixed: nearly coplanar terrain.** The player stopped dead on flat ground
+(the shore path near (470, -280..-390), and elsewhere): not at a fixed place (a walk from y -262 stopped at -266, one
+from -265 went through), the box free everywhere there (`vr_stuck_test` every unit), with every hull (Quake's,
+the compiled 16-wide one, the brush sweep), the body off, the tips off, and on the terrain alone (a map of only its
+prisms). The cause: the ground's triangles nearly but not quite coplanar (the noise, the zones' blends, heights
+rounded to units), so the hulls' planes cross at tiny angles and a trace can start "solid" at their seams. Proved
+with the terrain alone: flattening that area exactly to 56 removed every stop there. **Fix**: the island's ground
+heights are multiples of 8 (`GROUND_STEP`, at the end of `height()`; not below 8, so no ground lies in the water's
+surface): most neighbouring triangles are now exactly coplanar (one plane), the rest meet at clear angles. A walk
+test of 36 legs (24 random 300-unit legs over gentle ground, 12 across the shore path) on the terrain alone: 24
+stopped short before, 7 with steps of 4, 3 with steps of 8 (two of them swims in the ravine); a second seed: 2, both
+swims. The ground reads as gently faceted; things are placed from the same `height()`.
 
 **To try in VR**: the whole walk at night (is it bright enough? `_sunlight`, the torches' `light` in the script's
 `TORCH`); reading the boards and the lecterns; the ladder; the dive; swimming out to the islets and the crystals;
