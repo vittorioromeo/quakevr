@@ -12,6 +12,16 @@ namespace qvr::relight
 // vr_relight_lights, vr_relight_vispatch.
 void registerCommands();
 
+// The installer's first-start marker (Installer > Options, relight ticked): its name in the game folder the game writes
+// in (com_gamedir: <Quake VR>\quakevr).
+inline constexpr const char* firstStartMarker = "relight_on_first_start.txt";
+
+// quake.rc's vr_startgame, however the game was started (Play, a shortcut, Steam): when the installer's marker is in
+// com_gamedir, it is removed and every map relit (vr_relight_batch everything, queued first: before the hub or the map
+// loads), once. A marker that cannot be removed is left alone and nothing started (it would run at every start).
+// true: the batch was queued.
+bool firstStart();
+
 // VR_HostFrameEnd: the light processes' progress read, their results taken when they end, the next maps started, the
 // map in play reloaded.
 void poll();

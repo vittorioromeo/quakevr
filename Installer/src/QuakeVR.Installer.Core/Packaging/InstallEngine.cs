@@ -323,6 +323,8 @@ public sealed class InstallEngine
                 Uninstaller.RemoveShortcut(stale, target);
             }
 
+            // The relight at the first start, however the game is started: the game's own marker (FirstStartRelight).
+            FirstStartRelight.Set(target, plan.RelightOnFirstRun);
             if (plan.RelightOnFirstRun && !File.Exists(Path.Combine(target, "quakevr", "tools", "ericw-tools", "light.exe")))
             {
                 Report(0.98, "Finishing", "The package has no light.exe: the game will offer to download ericw-tools before relighting.", LogLevel.Warning);

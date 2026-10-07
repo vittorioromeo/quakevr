@@ -324,6 +324,43 @@ var tests = new List<(string Name, Action Body)>
         True(!Directory.Exists(Path.Combine(target, "quakevr", "tools")), "empty folders removed");
         Eq(quakeBefore, Snapshot(quake), "Quake folder untouched");
     }),
+    ("first-start relight: the game's marker written when ticked, removed when unticked and by uninstall", () =>
+    {
+        var quake = Dir("fs-quake");
+        Fixtures.MakeOriginal(quake);
+        var pkg = Fixtures.MakePackage(Dir("fs-pkg"), "v1");
+        var target = Path.Combine(run, "fs-QuakeVR");
+        InstallRecord Install(bool relight) => new InstallEngine().Install(new InstallPlan
+        {
+            PackagePath = pkg, TargetDir = target, QuakeDir = quake, RelightOnFirstRun = relight,
+        }, null, CancellationToken.None);
+
+        var record = Install(true);
+        Eq(Path.Combine(target, "quakevr", "relight_on_first_start.txt"), FirstStartRelight.MarkerPath(target), "marker path");
+        True(FirstStartRelight.Pending(target), "marker written");
+        True(record.RelightPending, "asked for");
+        True(!record.Files.Any(f => f.Path.Contains(FirstStartRelight.MarkerName, StringComparison.OrdinalIgnoreCase)), "marker not a recorded file");
+        Eq(0, Uninstaller.Verify(target).Count, "verify clean with the marker");
+        True(!LaunchCommand.Arguments(quake, target, LaunchVariant.Vr).Contains("relight"), "no relight argument on the command line");
+        // The engine looks for the same name (Quake/vr/vr_relight.hpp), when the checkout is there.
+        for (var d = new DirectoryInfo(AppContext.BaseDirectory); d is not null; d = d.Parent)
+        {
+            var hpp = Path.Combine(d.FullName, "Quake", "vr", "vr_relight.hpp");
+            if (File.Exists(hpp))
+            {
+                True(File.ReadAllText(hpp).Contains($"firstStartMarker = \"{FirstStartRelight.MarkerName}\""), "engine's marker name");
+                break;
+            }
+        }
+
+        Install(false);
+        True(!FirstStartRelight.Pending(target), "unticked at an update: marker removed");
+        Install(true);
+        True(FirstStartRelight.Pending(target), "ticked again");
+        var u = Uninstaller.Uninstall(target, new UninstallOptions());
+        True(!File.Exists(FirstStartRelight.MarkerPath(target)), "uninstall removes the marker");
+        True(u.FolderRemoved, "folder removed (the marker is not a player file)");
+    }),
     ("uninstall of an untouched install removes the folder", () =>
     {
         var quake = Dir("clean-quake");

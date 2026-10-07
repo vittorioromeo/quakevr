@@ -3614,6 +3614,25 @@ void poll()
     }
 }
 
+bool firstStart()
+{
+    const za::String marker = files::join(za::StringView{com_gamedir}, za::StringView{firstStartMarker});
+    if(!files::exists(marker.cStr()))
+    {
+        return false;
+    }
+    if(!files::remove(marker.cStr()))
+    {
+        Con_Printf("Relight: %s cannot be removed: the installer's first-start relight is not started (Graphics > "
+                   "Relighting starts it)\n",
+            marker.cStr());
+        return false;
+    }
+    Con_Printf("Relight: a first start after the installer: every map relit (vr_relight_batch everything)\n");
+    Cbuf_InsertText("vr_relight_batch everything\n");
+    return true;
+}
+
 void shutdown()
 {
     tool::finish(); // (an ericw-tools download cancelled, its half-made folder removed)

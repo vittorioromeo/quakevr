@@ -201,22 +201,11 @@ void VR_Restart_f()
     }
 }
 
-// quake.rc's last command: with VR enabled, start in the vrstart hub (tutorial, settings and
-// the mission packs' portals) as the old engine did; otherwise play the attract demos. A map
-// or demo started from the command line runs instead of either.
-void VR_StartGame_f()
+// vr_startgame's start, queued (Cbuf_InsertText): with VR enabled, the vrstart hub (tutorial, settings and the mission
+// packs' portals) as the old engine did, or the calibration room at a first start; otherwise the attract demos. A map or
+// demo started from the command line runs instead of any.
+void startGameCommands()
 {
-    if(cls.state == ca_dedicated)
-    {
-        return;
-    }
-
-    // (A vr_motion_eval from the start-up script loads its own map: neither the hub nor the demos meanwhile.)
-    if(qvr::motion::evaluating())
-    {
-        return;
-    }
-
     if(vr_enabled.value && !sv.active && !cls.demoplayback && cls.state != ca_connected)
     {
         if(vr_setup_pending.value != 0.f)
@@ -232,6 +221,27 @@ void VR_StartGame_f()
     }
 
     Cbuf_InsertText("startdemos demo1 demo2 demo3\n");
+}
+
+// quake.rc's last command (startGameCommands), then the installer's first-start relight.
+void VR_StartGame_f()
+{
+    if(cls.state == ca_dedicated)
+    {
+        return;
+    }
+
+    // (A vr_motion_eval from the start-up script loads its own map: neither the hub nor the demos meanwhile.)
+    if(qvr::motion::evaluating())
+    {
+        return;
+    }
+
+    startGameCommands();
+    // The installer's marker in the game folder (vr_relight.cpp), whichever way the game was started (its Play, a
+    // shortcut, Steam): inserted last, so it runs first, before the hub or the map loads, as the installer's old
+    // +vr_relight_batch everything did.
+    qvr::relight::firstStart();
 }
 
 void printPose(const char* label, const qvr::Pose& pose)

@@ -33,9 +33,4 @@ public static class LaunchCommand
         };
         return string.IsNullOrWhiteSpace(extra) ? args : args + " " + extra.Trim();
     }
-
-    /// <summary>The one-off arguments of the first launch when the player ticked the relight: every map, relit in
-    /// the game's own tool (Graphics &gt; Relighting, <c>vr_relight_batch everything</c>, which skips maps already lit
-    /// with the same settings).</summary>
-    public const string FirstRunRelight = "+vr_relight_batch everything";
 }

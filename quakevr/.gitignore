@@ -30,6 +30,7 @@
 /textures_ext/
 /retro_overrides.txt
 /imagehash.txt
+/relight_on_first_start.txt
 /relit_custom/
 /relight_lights.txt
 # Saves anywhere in the game folder (tests write them under maps/ too) and the config's copies (the kit's

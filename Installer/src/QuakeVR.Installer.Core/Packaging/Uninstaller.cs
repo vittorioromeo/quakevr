@@ -62,6 +62,7 @@ public static class Uninstaller
                 ++result.ShortcutsRemoved;
             }
         }
+        FirstStartRelight.Set(target, false); // (the game had not started since: the installer's marker)
         InstallEngine.RemoveEmptyDirectories(record.Directories.Select(d => PathUtil.SafeCombine(target, d)));
 
         var remaining = Directory.EnumerateFiles(target, "*", SearchOption.AllDirectories)

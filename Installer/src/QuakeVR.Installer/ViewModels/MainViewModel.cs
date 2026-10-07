@@ -1000,7 +1000,7 @@ public sealed class MainViewModel : ObservableObject
         if (Record?.RelightPending == true)
         {
             DoneNotes.Add(new CheckItem(CheckStatus.Info, "Relit maps",
-                "Start with Play in VR below: the game relights every map with the HD textures (about a minute; the wrist gadget shows its progress). " +
+                "At its first start (Play below, a shortcut or Steam) the game relights every map with the HD textures (about a minute; the wrist gadget shows its progress). " +
                 "Later: Graphics > Relighting."));
         }
         if (_report?.Vr.SuggestVdxr == true)
@@ -1017,14 +1017,9 @@ public sealed class MainViewModel : ObservableObject
         {
             return;
         }
-        string? extra = null;
-        if (variant == LaunchVariant.Vr && Record.RelightPending)
-        {
-            extra = LaunchCommand.FirstRunRelight;
-            Record.RelightPending = false;
-            Record.Save(InstallDir);
-        }
-        Process.Start(new ProcessStartInfo(Path.Combine(InstallDir, LaunchCommand.Exe), LaunchCommand.Arguments(quake, InstallDir, variant, extra))
+        // (The relight at the first start needs no argument: the game starts it from the installer's marker,
+        // FirstStartRelight, however it is started.)
+        Process.Start(new ProcessStartInfo(Path.Combine(InstallDir, LaunchCommand.Exe), LaunchCommand.Arguments(quake, InstallDir, variant))
         {
             WorkingDirectory = InstallDir,
             UseShellExecute = false,
