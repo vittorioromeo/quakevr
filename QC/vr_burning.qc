@@ -59,6 +59,7 @@ float VR_BURN_TOUCH = 1;     // a touch (no mark but its flame's),
 float VR_BURN_NAIL = 2;      // a missile (its own hit marks it)
 float VR_BURN_SPREAD = 3;    // burning wood touching it (vr_burn_crate_spread)
 float VR_BURN_SCATTER = 4;   // a piece of a crate broken while burning (no sound: they come many at once)
+float VR_BURN_LAVA = 5;      // wood in lava (VR_Burn_LavaFrame)
 
 // What fire doesn't hurt (VR_Liquid_Immune's: what lives in lava or water, the bosses), but the training dummy burns.
 float(entity e) VR_Burn_Fireproof =
@@ -633,7 +634,8 @@ void() VR_Burn_Think =
         VR_Burn_Out(self, "gone or gibbed");
         return;
     }
-    if(VR_Wound_Level(v) >= 2)
+    // (In a liquid: out, but wood in lava, which lit it: VR_Burn_LavaFrame.)
+    if(VR_Wound_Level(v) >= 2 && !(vr_wound_liquid == CONTENT_LAVA && VR_Burn_Wood(v)))
     {
         particle2((v.absmin + v.absmax) * 0.5, '0 0 30', QVR_PARTICLE_PRESET_BIGSMOKE, 6);
         if(self.burn_smoke_out)
@@ -866,6 +868,10 @@ void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_B
     else if(xHow == VR_BURN_SCATTER)
     {
         how = "its crate broke burning";
+    }
+    else if(xHow == VR_BURN_LAVA)
+    {
+        how = "lava";
     }
     dprint(sprintf("burning: %s lit (%s) by %s: burns till %.1f, %g flames\n", xVictim.classname, how,
                    xAttacker.classname, f.burn_end, f.burn_count));
@@ -1283,6 +1289,38 @@ void(entity n) VR_Burn_NailLaunched =
     {
         VR_Burn_NailCheck(n, torches, n.origin, n.origin + n.velocity * frametime * 2);
     }
+};
+
+// Wood in lava (NOTES.md start_2026-10-07_23-42-39; vr_burn_lava): a crate, a barrel or a piece of one whose bottom is
+// in lava catches fire there (and burns its time on in it: VR_Burn_Think puts a fire out in water and slime, not lava).
+// Looked at every VR_BURN_LAVA_LOOK s.
+float VR_BURN_LAVA_LOOK = 0.2;
+float vr_burn_lava_next;
+void(string xClass) VR_Burn_LavaWood =
+{
+    for(entity e = find(world, classname, xClass); e; e = find(e, classname, xClass))
+    {
+        if(e.burn_fire != world || e.carry_player != world || !VR_Burn_Wood(e))
+        {
+            continue;
+        }
+        vector at = (e.absmin + e.absmax) * 0.5;
+        at_z = e.absmin_z + 2;
+        if(pointcontents(at) == CONTENT_LAVA && VR_Burn_Can(e))
+        {
+            VR_Burn_Ignite(e, world, at, '0 0 1', VR_BURN_LAVA);
+        }
+    }
+};
+void() VR_Burn_LavaFrame =
+{
+    if(time < vr_burn_lava_next || !cvar_hget(cvarh_vr_burn_lava))
+    {
+        return;
+    }
+    vr_burn_lava_next = time + VR_BURN_LAVA_LOOK;
+    VR_Burn_LavaWood("vr_crate");
+    VR_Burn_LavaWood("vr_crate_piece");
 };
 
 // Every server frame (StartFrame): the nails in flight that pass a lit torch's flame this frame (from where they were

@@ -3152,6 +3152,8 @@ void hologramTestMessage()
         header("Crates"),
         toggle("Crates Burn", vr_burn_crates)
             .help("Wooden crates catch fire: a lit torch's blow or touch, a lava nail, a burning crate touching them."),
+        toggle("Wood Burns in Lava", vr_burn_lava)
+            .help("Crates, barrels and their pieces dropped in lava catch fire there, and burn on in it."),
         slider("Crate Burn Time", vr_burn_crate_time, 1.f, 60.f, 1.f, "%.0f s").extend(0.5f, 300.f)
             .help("How long a crate burns before it breaks (or its fire goes out)."),
         toggle("Burnt Crates Break", vr_burn_crate_break)
