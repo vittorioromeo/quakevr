@@ -140,6 +140,14 @@ void drawOptionScreens()
     }
     constexpr const char* prefix = "vr_setup_option ";
     const size_t prefixLength = ZA_STRLEN(prefix);
+    // The button's label board's top over its top (QC buttons.qc), when it has one: a screen goes above it, 2 clear of
+    // it (its half height: 0.3's characters, vr_text3d.cpp's screens), or at least `least` over the button's top.
+    const int labelTopField = ED_FindFieldOffset("vr_button_label_top");
+    const auto overTop = [&](edict_t* e, float least) {
+        const eval_t* const v = labelTopField >= 0 ? GetEdictFieldValue(e, labelTopField) : nullptr;
+        constexpr float screenHalf = 2.4f * 0.5f + 2.4f * 0.375f + 2.4f * 0.3f;
+        return v ? za::max(least, v->_float + 2.f + screenHalf) : least;
+    };
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
@@ -160,7 +168,7 @@ void drawOptionScreens()
                 const glm::vec3 hi{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]};
                 const glm::vec3 dir{e->v.movedir[0], e->v.movedir[1], e->v.movedir[2]};
                 // (in front of the button: a lectern's cap may overhang it)
-                const glm::vec3 at3 = 0.5f * (lo + hi) + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + 14.f} - dir * 8.f;
+                const glm::vec3 at3 = 0.5f * (lo + hi) + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + overTop(e, 14.f)} - dir * 8.f;
                 text3d::queue("SELECTED", at3, glm::vec3{0.f, glm::degrees(za::atan2(dir.y, dir.x)), 0.f},
                     text3d::Align::Centre, 0.3f, true);
             }
@@ -186,7 +194,7 @@ void drawOptionScreens()
         const glm::vec3 hi{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]};
         const glm::vec3 dir{e->v.movedir[0], e->v.movedir[1], e->v.movedir[2]};
         const glm::vec3 centre = 0.5f * (lo + hi);
-        const glm::vec3 at3 = centre + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + 9.f} + dir * 2.f;
+        const glm::vec3 at3 = centre + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + overTop(e, 9.f)} + dir * 2.f;
         const float yaw = glm::degrees(za::atan2(dir.y, dir.x));
         text3d::queue(text, at3, glm::vec3{0.f, yaw, 0.f}, text3d::Align::Centre, 0.3f, true);
     }

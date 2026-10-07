@@ -164,6 +164,7 @@
 .string worldtext;
 .float worldtext_halign;
 .float worldtext_scale;
+.float vr_button_label_top; // a func_button's label board's top over the button's top (vr_setup.cpp puts its screens above it)
 .float angle;
 
 //

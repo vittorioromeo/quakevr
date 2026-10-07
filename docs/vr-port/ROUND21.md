@@ -28030,8 +28030,11 @@ as deep (6, the settings 8). `button_tex()` lays the texture as Valve 220 axes f
 its frame on the face's edges (scale = size / 32, shifts putting texel 0 on the left and top edges); on the sides, top
 and bottom the texture's outer 4-texel frame band across the depth from the front edge, the front's fit along the
 other way, as if the front were folded round. `+abasebtn` (the pressed frame) is the same size, so it fits the same.
-The labels stay where they were (QC's `func_button`: 12 over the button's centre, 6 in front), now just above the
-button instead of on its upper half; the settings' value screens (vr_setup.cpp: 9 over the top) sit above them.
+The labels: QC's `func_button` put them 12 over the button's centre (6 in front), which on the small buttons
+overlapped the settings' value screens (vr_setup.cpp, 9 over the top). Now a button shorter than 24 has its label
+board 2 over its top (its half height from the label's rows and scale, as vr_text3d.cpp draws boards), and keeps the
+board's top in `vr_button_label_top`; vr_setup.cpp puts the value screen (and a campaign's SELECTED) 2 clear above
+that, never lower than before. Taller buttons (the test hall's, every other map's) are as they were.
 ## Dawn of the Machine (MG3): weapons (2026-10-07)
 
 Phase C of [MG3_PLAN.md](MG3_PLAN.md) (M3-11..14), by Vittorio's decisions of 2026-10-06 and the agglomeration

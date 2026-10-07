@@ -546,9 +546,24 @@ void() func_button =
         vector dir = self.movedir;
         vector ang = vectoangles(dir);
 
+        // Its board's half height (vr_text3d.cpp's boards: 8 units a character at scale 1, half a character a row,
+        // 1.2 characters of margin and bezel). On a button shorter than 24 (vrstart2's) just over the button, its board
+        // 2 above the top; on the others 12 over its centre, as always.
+        float sc = self.worldtext_scale != 0 ? self.worldtext_scale : 1;
+        float rows = 1;
+        float n = strlen(self.worldtext);
+        for(float i = 0; i < n; i++)
+        {
+            if(str2chr(self.worldtext, i) == 10) rows++;
+        }
+        float half = 8 * sc * (rows * 0.5 + 1.2);
+        float up = 12;
+        if(self.size_z < 24) up = self.size_z * 0.5 + 2 + half;
+        self.vr_button_label_top = up + half - self.size_z * 0.5;
+
         float wth = worldtext_hmake();
         worldtext_hsettext(wth, self.worldtext);
-        worldtext_hsetpos(wth, realorigin(self) + '0 0 12' - dir * 6.0);
+        worldtext_hsetpos(wth, realorigin(self) + '0 0 1' * up - dir * 6.0);
         worldtext_hsetangles(wth, ang);
         worldtext_hsethalign(wth, self.worldtext_halign);
         
