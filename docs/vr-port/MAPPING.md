@@ -234,28 +234,24 @@ for looking, measuring and trying things; carry what you keep back into the scri
 ```
 python Misc/trenchbroom/make_id_wad.py                 # once: id's textures from your paks (git-ignored WAD)
 python Misc/quakevr/maps/vrstart2_gen.py               # the .map (about 10 s)
-python Misc/quakevr/maps/vrstart2_gen.py --compile --preset fast    # iterating: vis -fast, plain light (~5 min)
+python Misc/quakevr/maps/vrstart2_gen.py --compile --preset fast    # iterating: vis -fast, plain light (~1.5 min)
 python Misc/quakevr/maps/vrstart2_gen.py --compile     # the shipped build (preset final: full vis, light -extra4
-                                                       #   -dirt -bounce, the light grid): ~15 min
-python Misc/quakevr/maps/vrstart2_gen.py --compile --check 300000   # and the hole test over the result
+                                                       #   -dirt -bounce, the light grid): ~8 min
+python Misc/quakevr/maps/vrstart2_gen.py --compile --check 1000000  # and the hole test over the result
 python Misc/quakevr/maps/bsp_holes.py quakevr/maps/vrstart2.bsp --rays 300000   # the hole test alone, any BSP
 python Misc/quakevr/maps/make_vs2_sky.py               # the sky box (quakevr/gfx/env/vs2night*.png, committed)
 ```
 
-**Compiling** (ericw-tools 2.0 for qbsp, vis and light, as everywhere else): qbsp runs twice at once and the results
-are spliced (`bsp_splice.py`): hull 0 (all that is drawn and lit) from `-nofill -noclip -forcegoodtree -tjunc rotate`,
-the clipping hulls from a normal run. 2.0's fill floods through the BSP's portals, and on this map some portals were
-never made: it turned air solid (slabs standing in the air, without faces); unfilled, though, the clipping hulls are
-18 million clipnodes (250 MB). `-forcegoodtree`: the default midsplit's nodes cut the terrain into slivers it lost faces
-at. `-tjunc rotate`: T-junctions mended as 0.18 did (2.0's default cuts each such face into triangles: a fifth more
-faces and lightmap). The presets (`--preset`, `--help`): **fast** (vis -fast; light -lit -lux and a 128-unit light
-grid: no ambient occlusion, bounce or extra samples) and **final** (full vis; light -extra4 -dirt -dirtscale 1.5
--dirtdepth 96 -bounce -lit -lux -lightgrid 64). The shipped .bsp is always a final build. Times (the machine shared with
-other agents' games, so +-20%): final qbsp 30 s (hull 0) and 210-310 s (the clipping hulls, in parallel), vis 16-29 s,
-light 560-630 s; fast: the same qbsp, vis 16 s, light 58 s. (Before, with 0.18.1's qbsp: final 39 + 9 + 356 s, fast
-37 + 23 s with no vis.)
+**Compiling**: qbsp is **ericw-tools 0.18.1's** (`-bsp2 -splitturb`; `--qbsp`), vis and light 2.0's (the author's
+decision). 2.0-alpha11's qbsp makes faces from its BSP's portals and fills through them; on this map, even with the
+geometry cleaned up for it (below), a few portals failed in every build: missing faces and air made solid, 0-9 holes in
+600,000 rays and moving with any edit. 0.18.1's makes faces by CSG: 0 holes in a million rays. `-splitturb` cuts the
+water's faces to lightmap size and leaves them lit (no patch needed). The presets (`--preset`, `--help`): **fast**
+(vis -fast; light -lit -lux and a 128-unit light grid: no ambient occlusion, bounce or extra samples) and **final**
+(full vis; light -extra4 -dirt -dirtscale 1.5 -dirtdepth 96 -bounce -lit -lux -lightgrid 64). The shipped .bsp is a
+final build. `bsp_splice.py` (hull 0 from one compile, the clipping hulls from another) is from the 2.0 attempt, unused.
 
-**What ericw-tools 2.0's qbsp needs from the geometry** (it makes faces from portals: a portal whose brush side it
+**What the geometry avoids** (kept from the 2.0 attempt: fewer brushes, and 2.0 could be tried again; 2.0 makes faces from portals: a portal whose brush side it
 can't find gets none, "N sides not found"; a sliver thinner than its epsilons breaks its portals): no two faces nearly
 but not exactly coplanar, no corner a fraction of a unit through another brush's face, no nearly straight runs of
 terrain edges. The generator ensures it (`mapgeom.py`): `terrain_mesh` (neighbouring tops exactly coplanar or at least

@@ -6,7 +6,7 @@
 # Why (vrstart2_gen.py, compile_map): ericw-tools 2.0's qbsp fills from the occupants (or the outside) through the
 # BSP's portals; on this map some portals fail and it made air solid in hull 0 (invisible slabs with no faces: holes),
 # so hull 0 comes from a -nofill run; that run's clipping hulls, unfilled, are 100 times bigger (18 million clipnodes),
-# so they come from a normal one.
+# so they come from a normal one. (Not used by vrstart2_gen.py since vrstart2 went back to 0.18.1's qbsp; kept for 2.0 tests.)
 import struct
 import sys
 

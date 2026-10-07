@@ -29950,3 +29950,29 @@ and Turning pressed by hand (`vr_debug_wallbuttons`: the same three buttons as o
 crates resting within 2 units of where they rested; 289 recovered clip brushes (180); e1m1's smoke test. **Loads**
 (exclusive, 4 alternating runs, hull files there): cold 1,240 ms (old 1,212), warm 310 ms (old 282): the water's
 surface is 7,500 faces (5,700: its wave mesh +15 ms) and hull 0 is twice the nodes.
+
+### Back to qbsp 0.18.1, the cleaned-up map kept (the author's decision)
+
+qbsp is 0.18.1's again (`-bsp2 -splitturb`, one run; `bsp_splice.py` kept, unused), vis and light 2.0's. `-splitturb`
+cuts the water's faces to 240 units and leaves them lit: no `lit_liquids` patch, the water one brush. Fixed on the way:
+`hull`'s axis turn put faces facing -x/-y/-z at the mirrored coordinate (8 of the terrace's stones were broken brushes:
+0.18 said "Couldn't create brush faces"; 2.0 had dropped them silently). Results (final preset):
+
+| | shipped (0.18.1, old map) | now (0.18.1, cleaned map) |
+|---|---|---|
+| .map brushes | 14,399 | 10,432 |
+| faces / leaves / clipnodes | 77,042 / 35,200 / 124,036 | 71,398 / 32,307 / 151,675 |
+| .bsp | 18.1 MB | 17.7 MB |
+| holes (bsp_holes.py, 1,000,000 rays) | 0 | 0 |
+| final compile | qbsp 39 s, vis 9 s, light 356 s | qbsp 31 s, vis 7 s, light 399 s (7m32) |
+| fast compile | qbsp 37 s, light 23 s (no vis) | qbsp 36 s, vis 7 s, light 40 s (1m34) |
+| load cold / warm (exclusive, 4 alternating) | 1,196 / 285 ms | 1,256 / 299 ms |
+
+The load is 14 ms slower warm and about 60 cold: `VR_NewMap: liquids` (the water's wave mesh) takes 117 ms against 102
+(5,278 water faces cut along the BSP by -splitturb, against the old 2,500 160-unit tiles; -subdivide 160 made it 128);
+the rest is the same. Tested: walk test 18 of 18 in 4 of 5 runs (one run missed the terrace and bridge legs: the old map
+also misses one now and then), the three buttons pressed by hand as before, the 20 barrels and crates within 2 units of
+their old rest, `vr_menu_path_check` 0 missing, e1m1's smoke test. The contact sheet (`scratch/contact_vs2bsp_q018.png`
+in the agent's worktree): the same look (differences 0.6-3.8 per channel, the campfire's 12 its flames, smoke and a
+barrel's random skin) except the slipgate's surface, now lit and showing its texture (as the first 2.0 builds drew it;
+0.18 without -splitturb left it unlit and dark).

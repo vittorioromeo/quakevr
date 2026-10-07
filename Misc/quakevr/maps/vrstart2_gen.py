@@ -1,7 +1,7 @@
 # vrstart2_gen.py -- writes quakevr/maps/vrstart2.map, the new VR hub (an island at night), and with --compile builds
-# it (ericw-tools 2.0's qbsp, vis, light; presets "fast" and "final": compile_map, PRESETS, MAPPING.md).
+# it (qbsp 0.18.1, ericw-tools 2.0's vis and light; presets "fast" and "final": compile_map, PRESETS, MAPPING.md).
 #
-#   python Misc/quakevr/maps/vrstart2_gen.py [--compile [--preset fast|final] [--check RAYS]] [--tools DIR]
+#   python Misc/quakevr/maps/vrstart2_gen.py [--compile [--preset fast|final] [--check RAYS]] [--tools DIR] [--qbsp EXE]
 #   (first: python Misc/trenchbroom/make_id_wad.py, the id textures' WAD)
 #
 # Everything in the map is made here (reproducible; the .map stays editable in TrenchBroom: the generated parts are
@@ -35,7 +35,13 @@ from mapgeom import (Tex, MapWriter, Perlin, add, box, beam, catmull_rom, cross,
                      lerp, ngon, norm, point_in_poly, polyline_dist, prism, seg_dist, smoothstep, sub, mul, terrain_mesh, simplify_points, unbend)
 
 ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
-DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # qbsp, vis, light
+DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # vis, light
+# qbsp: ericw-tools 0.18.1's (the author's decision, 2026-10-07). 2.0-alpha11's makes faces from its BSP's portals and
+# fills through them; on this map, even with the slivers it loses faces at taken out (terrain_mesh, unbend, hull...),
+# a few portals still failed: missing faces and air made solid (0-9 holes in 600,000 rays per build, chaotic: any edit
+# moved them), and its fix (an unfilled hull 0 spliced with filled clipping hulls) made loads slower. 0.18.1's makes
+# faces by CSG: 0 holes in a million rays (bsp_holes.py). ROUND21.md, "vrstart2 on ericw-tools 2.0 again".
+DEFAULT_QBSP = "C:/OHWorkspace/ericw-tools-v0.18.1-32-g6660c5f-win64/bin/qbsp.exe"
 MAPNAME = "vrstart2"
 OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")
 
@@ -1105,7 +1111,7 @@ def build_world(mw):
     S = BOX + 32
 
     def outside(n, c):
-        # the floor's faces towards the void: skip (hull 0 is compiled -nofill, which would keep and light them)
+        # the floor's faces towards the void: skip (never drawn; nothing for qbsp or light to keep)
         return T("skip") if dot(n, (-c[0], -c[1], -c[2])) <= 0 else None
 
     w.append(box(-S, -S, FLOOR_Z - 32, S, S, FLOOR_Z, T("cliff2"), outside))
@@ -1674,17 +1680,9 @@ def write_map():
           mapgeom.AXIS_STATS["snapped"]))
 
 
-# Compiling (ericw-tools 2.0 for all three tools, as the rest of the repo; MAPPING.md, "vrstart2"). qbsp runs twice
-# (at once) and the results are spliced (bsp_splice.py):
-# - hull 0 (all that is drawn and lit): -nofill -noclip -forcegoodtree. -nofill: the map is sealed by its sky box, and
-#   2.0's fill flooded through portals its BSP had failed to make and turned air solid (slabs standing in the air with
-#   no faces: holes, 25 in 300,000 rays even with the geometry below cleaned up). -forcegoodtree: the cheap midsplit's
-#   nodes cut the terrain into slivers it lost faces at.
-# - the clipping hulls (1, 2: collision): a normal run (filled: unfilled they are 18 million clipnodes, 250 MB).
-# -tjunc rotate in both: T-junctions fixed as 0.18 did (2.0's default, mwt, cuts every face that has one into
-# triangles: 98,000 faces against 82,000, a third more lightmap to light).
-QBSP_HULL0 = ["-nofill", "-noclip", "-forcegoodtree", "-tjunc", "rotate"]
-QBSP_CLIP = ["-tjunc", "rotate"]
+# Compiling: qbsp 0.18.1 (DEFAULT_QBSP) -bsp2 -splitturb (the water's faces cut to lightmap size and lit, as 2.0 lit them:
+# no lit_liquids patch needed), then 2.0's vis and light.
+QBSP_ARGS = ["-bsp2", "-splitturb"]
 # The two presets: "fast" for iterating (vis -fast, plain light: no ambient occlusion, bounce or extra samples), and
 # "final", the one the shipped .bsp is built with (MAPPING.md's Full profile with -bounce).
 PRESETS = {
@@ -1694,52 +1692,32 @@ PRESETS = {
 }
 
 
-def compile_map(tools, work, preset, check=0):
-    """qbsp (twice, spliced: see QBSP_HULL0), vis and light (ericw-tools 2.0 in `tools`) in `work`, the .bsp, .lit and
-    .lux copied next to the .map. Prints each stage's time and qbsp's "sides not found" (portals it made no face for);
-    `check`: rays of the hole test (bsp_holes.py) over the result."""
-    os.makedirs(os.path.join(work, "clip"), exist_ok=True)
+def compile_map(tools, work, preset, check=0, qbsp=DEFAULT_QBSP):
+    """qbsp (0.18.1's), vis and light (ericw-tools 2.0 in `tools`) in `work`, the .bsp, .lit and .lux copied next to
+    the .map. Prints each stage's time and its warnings; `check`: rays of the hole test (bsp_holes.py) over the
+    result."""
+    os.makedirs(work, exist_ok=True)
     src = os.path.join(work, MAPNAME + ".map")
     bsp = os.path.join(work, MAPNAME + ".bsp")
-    clip_src = os.path.join(work, "clip", MAPNAME + ".map")
-    clip_bsp = os.path.join(work, "clip", MAPNAME + ".bsp")
     shutil.copyfile(OUT, src)
-    shutil.copyfile(OUT, clip_src)
     pr = PRESETS[preset]
-    qbsp = os.path.join(tools, "qbsp.exe")
+    cmds = [[qbsp, "-nopercent"] + QBSP_ARGS + ["-wadpath", ROOT, src, bsp],
+            [os.path.join(tools, "vis.exe"), "-nolog", "-nopercent"] + pr["vis"] + [bsp],
+            [os.path.join(tools, "light.exe"), "-nolog", "-nopercent"] + pr["light"] + [bsp]]
     total = time.time()
-
-    def report(name, cmd, out, t0, code):
-        lines = out.splitlines()
-        side = [l for l in lines if "couldn't find portal side" in l]
-        warnings = [l for l in lines if ("WARNING" in l.upper() or "ERROR" in l.upper() or "LEAK" in l.upper())
-                    and "sides not found" not in l]
-        print("%s: exit %d (%.0f s)%s%s" % (name, code, time.time() - t0,
-                                           "; %d sides not found" % len(side) if "qbsp" in name else "",
-                                           "".join("\n  " + w_ for w_ in warnings[:15])))
-        with open(os.path.join(work, name.replace(" ", "_") + ".log"), "w") as f:
-            f.write("\n".join(lines))
-        if code:
-            sys.exit(1)
-
-    t0 = time.time()
-    procs = [("qbsp (hull 0)", subprocess.Popen([qbsp, "-nolog", "-nopercent", "-verbose"] + QBSP_HULL0 +
-                                               ["-wadpath", ROOT, src, bsp], stdout=subprocess.PIPE,
-                                               stderr=subprocess.STDOUT, text=True)),
-             ("qbsp (clipping hulls)", subprocess.Popen([qbsp, "-nolog", "-nopercent"] + QBSP_CLIP +
-                                                       ["-wadpath", ROOT, clip_src, clip_bsp], stdout=subprocess.PIPE,
-                                                       stderr=subprocess.STDOUT, text=True))]
-    for name, pp in procs:
-        out, _ = pp.communicate()
-        report(name, pp.args, out, t0, pp.returncode)
-    sys.path.insert(0, HERE)
-    import bsp_splice
-    bsp_splice.splice(bsp, clip_bsp, bsp)
-    for cmd in ([os.path.join(tools, "vis.exe"), "-nolog", "-nopercent"] + pr["vis"] + [bsp],
-                [os.path.join(tools, "light.exe"), "-nolog", "-nopercent"] + pr["light"] + [bsp]):
+    for cmd in cmds:
         t0 = time.time()
         result = subprocess.run(cmd, capture_output=True, text=True)
-        report(os.path.basename(cmd[0])[:-4], cmd, result.stdout + result.stderr, t0, result.returncode)
+        lines = (result.stdout + result.stderr).splitlines()
+        name = os.path.basename(cmd[0])[:-4]
+        warnings = [l for l in lines if ("WARNING" in l.upper() or "ERROR" in l.upper() or "LEAK" in l.upper())
+                    and "info_player_deathmatch" not in l]
+        print("%s: exit %d (%.0f s)%s" % (name, result.returncode, time.time() - t0,
+                                         "".join("\n  " + w_ for w_ in warnings[:15])))
+        with open(os.path.join(work, name + ".log"), "w") as f:
+            f.write("\n".join(lines))
+        if result.returncode:
+            sys.exit(1)
     print("compiled (%s) in %.0f s" % (preset, time.time() - total))
     for ext in (".bsp", ".lit", ".lux"):
         if os.path.exists(os.path.join(work, MAPNAME + ext)):
@@ -1751,22 +1729,22 @@ def compile_map(tools, work, preset, check=0):
 def main():
     ap = argparse.ArgumentParser(
         description="Writes quakevr/maps/vrstart2.map; with --compile also its .bsp, .lit and .lux (ericw-tools 2.0).",
-        epilog="qbsp runs twice, spliced (bsp_splice.py): hull 0 with %s, the clipping hulls with %s. "
-               "Presets (--preset): fast = vis -fast, light -lit -lux (no -extra4, -dirt or -bounce; a coarser "
-               "light grid), for iterating. final = full vis, light %s: the shipped build. Check a build for holes: "
-               "--check 120000 (bsp_holes.py)."
-               % (" ".join(QBSP_HULL0), " ".join(QBSP_CLIP), " ".join(PRESETS["final"]["light"])))
+        epilog="qbsp: ericw-tools 0.18.1's (%s; --qbsp), vis and light 2.0's (--tools). Presets (--preset): "
+               "fast = vis -fast, light -lit -lux and a 128-unit light grid (no -extra4, -dirt or -bounce), for "
+               "iterating; final = full vis, light %s: the shipped build. Check a build for holes: --check 1000000 "
+               "(bsp_holes.py)." % (" ".join(QBSP_ARGS), " ".join(PRESETS["final"]["light"])))
     ap.add_argument("--compile", action="store_true", help="also build the .bsp, .lit and .lux")
     ap.add_argument("--preset", choices=sorted(PRESETS), default="final", help="the compile preset (default: final)")
     ap.add_argument("--fast", action="store_true", help="the same as --preset fast")
     ap.add_argument("--check", type=int, default=0, metavar="RAYS", help="after compiling, the hole test with RAYS rays")
-    ap.add_argument("--tools", default=DEFAULT_TOOLS, help="ericw-tools 2.0's folder (qbsp, vis, light)")
+    ap.add_argument("--tools", default=DEFAULT_TOOLS, help="ericw-tools 2.0's folder (vis, light)")
+    ap.add_argument("--qbsp", default=DEFAULT_QBSP, help="the qbsp.exe (0.18.1's: see DEFAULT_QBSP)")
     ap.add_argument("--only-terrain", action="store_true", help="debugging: write <map>_terrain.map, the terrain alone")
     ap.add_argument("--work", default=os.path.join(tempfile.gettempdir(), MAPNAME + "_build"))
     args = ap.parse_args()
     write_map()
     if args.compile:
-        compile_map(args.tools, args.work, "fast" if args.fast else args.preset, args.check)
+        compile_map(args.tools, args.work, "fast" if args.fast else args.preset, args.check, args.qbsp)
 
 
 if __name__ == "__main__":

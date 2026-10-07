@@ -311,7 +311,7 @@ def _axial(planes, ons):
                 worst = out if worst is None else max(worst, out)
         if worst is None or worst > AXIS_DIST:
             continue
-        pts = [tuple(d if i == ax else q[i] for i in range(3)) for q in ons[r]]
+        pts = [tuple(n[ax] * d if i == ax else q[i] for i in range(3)) for q in ons[r]]  # (d is along n)
         del planes[r]
         if nk in planes:
             ons[nk] = sorted(set(ons[nk]) | set(pts))
