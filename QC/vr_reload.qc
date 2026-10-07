@@ -67,7 +67,9 @@ void() VR_Reload_Precache =
     precache_sound("vr/reload_mag_in.wav");  // a magazine seated
     precache_sound("vr/reload_mag_out.wav"); // and released
     precache_sound("vr/reload_pouch.wav");    // a round taken from the pouch, or put back
-    precache_sound("vr/reload_shell_in.wav"); // a shell pushed into the port
+    precache_sound("vr/reload_shell_in.wav");   // a shell pushed into the port: three takes (recorded,
+    precache_sound("vr/reload_shell_in_2.wav"); // make_reload_shell_sounds.py), one picked at random per insert
+    precache_sound("vr/reload_shell_in_3.wav");
     precache_sound("vr/reload_empty.wav");    // the pouch found empty
     precache_sound("vr/reload_blocked.wav");  // a shell held to a full shotgun: the gate won't open
     precache_sound("vr/reload_full.wav");     // the last shell in: the tube full
@@ -160,6 +162,14 @@ void(entity e, float xChannel, string xSample, float xVolume) VR_Reload_Sound =
     {
         VR_SoundVaried(e, xChannel, xSample, min(1, v), ATTN_NORM);
     }
+};
+
+// The shell pushed into the port (VR_Reload_Load): one of the three takes at random, so a tube filled shell by shell
+// does not repeat itself.
+string() VR_Reload_ShellInSound =
+{
+    float k = floor(random() * 3);
+    return k < 1 ? "vr/reload_shell_in.wav" : (k < 2 ? "vr/reload_shell_in_2.wav" : "vr/reload_shell_in_3.wav");
 };
 
 void(string xWhat) VR_Reload_Log =
@@ -917,7 +927,7 @@ float(float xHand, entity r) VR_Reload_Load =
     VRSetEntWeaponClip(self, gunHand, clip + n);
     r.vr_ammo_count = r.vr_ammo_count - n;
     VR_Reload_AmmoChanged(self);
-    VR_Reload_Sound(self, VRGetGunChannel(gunHand), "vr/reload_shell_in.wav", 1);
+    VR_Reload_Sound(self, VRGetGunChannel(gunHand), VR_Reload_ShellInSound(), 1);
     VR_Reload_Haptic(self, xHand, 0.05, 160, 0.8);   // the shell pushed home
     VR_Reload_Haptic(self, gunHand, 0.08, 70, 0.7);  // the gun taking it
     VR_Reload_Log(sprintf("%g into the gun (hand %g): its magazine %g of %g, %g in the reserve", n, gunHand, clip + n,

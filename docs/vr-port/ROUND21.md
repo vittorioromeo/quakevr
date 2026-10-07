@@ -29313,3 +29313,29 @@ The author's second and third rounds of VR notes on immersive reloading (worktre
 - **The ammo button** is pressed only by a fingertip coming at it from its front, within `vr_weapon_button_cone` (50)
   degrees of the way its face looks (Hand/Gun Calibration, "Ammo Button Cone"; 180: from anywhere).
 - Tests: reload_test.sh section 6 (TESTING.md); the self-test 56 of 56.
+
+## Immersive reloading: the recorded shell insert (2026-10-07)
+
+The author picked zer0_sol's "Shotgun Reload Sound effects" (OpenGameArt, CC0; docs/vr-port/CREDITS.md) for the shell
+insert. `Misc/quakevr/make_reload_shell_sounds.py` cuts three takes from the downloaded MP3s (not in the repository) into
+`reload_shell_in.wav`, `reload_shell_in_2.wav` and `reload_shell_in_3.wav` (44100 Hz 16-bit mono, 0.18-0.23 s); QC
+`VR_Reload_ShellInSound` picks one at random per insert (the pitch jitter on top), so a tube filled shell by shell does
+not repeat. The synthesized insert is gone from make_sounds.py.
+
+- **What is cut**: every shell in the takes is two clusters, the shell handled at the port (rattling clicks) and then
+  pushed into the tube (a scrape rising as the spring gives, ending in the shell latch's click on its rim, -80 dB floor
+  between). Only the push: 80 ms of scrape before the click, 100-150 ms after it (two takes keep the thumb's small tick
+  110 ms after the click), faded in 15 ms and out 30 ms. The click lands at 80 ms, where `reload_full.wav`'s second
+  knock and thud fall, so the last shell's click and the full knock coincide.
+- **Level**: the takes are bright (40-70% of the energy above 6 kHz, nothing below 300 Hz; the synthesized insert was
+  74% below 300 Hz), so they are matched by A-weighted loudness, not RMS: -14.6 dB over the loud frames, as the
+  synthesized insert (Quake's weapons/guncock.wav -18.1, the magazine seat -12.3); peaks soft-limited under -1 dBFS
+  (about 1% of the samples). Kept at 44100 Hz: 5-8% of the clicks' energy is above 11 kHz.
+- **Not replaced**: the "full" cue and the "can't" click stay synthesized. "Shell in Chamber" ends in the action
+  closing, a 250 ms bright triple click: over the last insert it smears the latch's click and sounds like the gun being
+  cycled; the synthesized full knock is low (78% below 300 Hz) and gives the bright recording weight under it. "Shell
+  in Chamber"'s first click (0.51 s, a single dull click, 80 ms) would suit the "can't" click if the synthesized one
+  sounds out of place next to the recording.
+
+Test in VR: fill the shotgun shell by shell (the three takes alternate, none too loud or quiet next to the pouch and the
+magazines), the last shell's click with the full knock under it.
