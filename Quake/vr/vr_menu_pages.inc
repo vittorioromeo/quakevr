@@ -666,6 +666,16 @@ void resetHandMoves()
         slider("Yaw", "vr_ammo_pouch_yaw", -90.f, 90.f, 5.f, "%.0f"),
         slider("Roll", "vr_ammo_pouch_roll", -90.f, 90.f, 5.f, "%.0f"),
         slider("Size", "vr_ammo_pouch_scale", 0.5f, 2.f, 0.05f, "%.2fx").help("As drawn (its reach is Reach's)."),
+        toggle("Counter", "vr_ammo_pouch_counter")
+            .help("A small screen on the pouch: how many of what it gives (shells, nails, cells) you have left."),
+        slider("Counter X", "vr_ammo_pouch_counter_x", -10.f, 10.f, 0.25f, "%.2f").extend().help("Out of the body."),
+        slider("Counter Y", "vr_ammo_pouch_counter_y", -10.f, 10.f, 0.25f, "%.2f").extend().help("To the right."),
+        slider("Counter Z", "vr_ammo_pouch_counter_z", -10.f, 10.f, 0.25f, "%.2f").extend().help("Up."),
+        slider("Counter Pitch", "vr_ammo_pouch_counter_pitch", -90.f, 90.f, 5.f, "%.0f")
+            .help("Its turn off facing your eyes as you look down at the pouch."),
+        slider("Counter Yaw", "vr_ammo_pouch_counter_yaw", -90.f, 90.f, 5.f, "%.0f"),
+        slider("Counter Roll", "vr_ammo_pouch_counter_roll", -90.f, 90.f, 5.f, "%.0f"),
+        slider("Counter Size", "vr_ammo_pouch_counter_scale", 0.2f, 3.f, 0.1f, "%.1fx"),
         slider("Follow Legs", "vr_ammo_pouch_leg_follow", 0.f, 1.f, 0.05f, "%.2f")
             .help("With the full body, how much the pouch moves with your legs as you walk, as the belt does (the hip "
                   "holsters' Follow Legs likewise). 0: fixed on the belly."),

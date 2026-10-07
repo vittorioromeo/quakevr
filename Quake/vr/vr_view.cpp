@@ -347,6 +347,7 @@ struct Entities
 Entities entities;
 int lastAddedFrame = -1;
 const entity_t* worldWeaponsNear[maxWorldWeapons]{}; // setupWorldWeapons' nearest, for their magazines (setupMagazines)
+int pouchCounterFrame = -1; // the ammo pouch's counter queued in this frame (setupAmmoPouch: the view may be set up twice)
 
 // Hidden for a clean shot (vr_shot_hide; Debug > Cheats and Recording): 1 the wrist gadget (setupGadget hides it whole,
 // its screen and messages with it), 2 the hands and what they hold, 4 the body and the holsters. Drawn only: they
@@ -4855,6 +4856,27 @@ void setupAmmoPouch(const hands::State& s)
     turnHolster(pose, at, frame, {vr_ammo_pouch_pitch.value, vr_ammo_pouch_yaw.value, vr_ammo_pouch_roll.value});
     place(ve, model, pose.slotPos, pose.slotAngles, ammoPouchFrame(), false);
     ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f)};
+
+    // Its counter (vr_ammo_pouch_counter): how many of what it gives are left, on a small screen as the guns' ammo
+    // counters, at vr_ammo_pouch_counter_x/y/z off the pouch (out of the body, to the right, up) facing the eyes as they
+    // look down at it, turned by vr_ammo_pouch_counter_pitch/yaw/roll. Queued once a frame.
+    if(vr_ammo_pouch_counter.value && cl.stats[protocol::STAT_QVR_POUCHKIND] > 0 && pouchCounterFrame != host_framecount)
+    {
+        pouchCounterFrame = host_framecount;
+        const float k = CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f);
+        const glm::vec3 side = glm::normalize(glm::cross(frame.up, frame.out)); // (the body's right, looking out)
+        const glm::vec3 pos = at + (frame.out * vr_ammo_pouch_counter_x.value + side * vr_ammo_pouch_counter_y.value +
+                                       frame.up * vr_ammo_pouch_counter_z.value) * k;
+        const glm::vec3 look = glm::normalize(frame.out * 0.35f - frame.up);
+        const float pitch = -glm::degrees(za::asin(CLAMP(-1.f, look.z, 1.f)));
+        const float yaw = glm::degrees(za::atan2(look.y, look.x));
+        const glm::vec3 angles{pitch + vr_ammo_pouch_counter_pitch.value, yaw + vr_ammo_pouch_counter_yaw.value,
+            vr_ammo_pouch_counter_roll.value};
+        char buf[16];
+        q_snprintf(buf, sizeof(buf), "%d", cl.stats[protocol::STAT_QVR_POUCHCOUNT]);
+        text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * vr_ammo_pouch_counter_scale.value * k,
+            vr_weapon_screen.value != 0.f);
+    }
     highlight(ve, s.hotspot[HAND_OFF] == body::HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == body::HS_AMMO_POUCH);
 }
 
