@@ -21,6 +21,8 @@
 #   reload_pouch.wav, reload_shell_in.wav, reload_empty.wav  immersive reloading (QC vr_reload.qc): a shell taken from
 #                 the front ammo pouch or put back (a dry rustle, shells knocking), one pushed into the shotgun's port (a
 #                 plastic scrape, the latch's steel click), and the pouch found empty (soft pats on flat leather)
+#   reload_mag_in.wav, reload_mag_out.wav  a magazine seated in its gun (a slide, the catch's click, a metal clack) and
+#                 let go of (the catch's click, a falling scrape)
 #   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
 #                 its holder (a wooden scrape and a knock), its fire going out (a puff and a hiss), fire catching (a
 #                 whoosh and crackles), a burning torch's blow (a burst of flame)
@@ -742,6 +744,52 @@ def reload_shell_in():
     return finish(out, 0.85)
 
 
+def reload_mag_in():
+    """A magazine seated in its gun: a short slide of steel on steel, then the catch snapping over it (a hard click) and
+    the magazine's own weight knocking home (a dull metal clack, a short ring)."""
+    rng = random.Random(619)
+    n = int(RATE * 0.3)
+    slide_lp, slide_hp = OnePole(4200), OnePole(900)
+    click = ((2870, 0.9, 0.012), (4410, 0.6, 0.008), (6230, 0.35, 0.005))
+    clack = ((940, 0.8, 0.05), (1530, 0.55, 0.035), (2270, 0.35, 0.025), (610, 0.4, 0.06))
+    phase = [0.0]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        slide = slide_lp(noise)
+        slide -= slide_hp(slide)
+        env = min(1.0, t / 0.01) * (1.0 if t < 0.045 else math.exp(-(t - 0.045) / 0.005))
+        hit = 0.0
+        tc = t - 0.05
+        if tc >= 0:
+            hit = partials(tc, 1.0, click) * min(1.0, tc / 0.0002) * 0.9
+            hit += partials(tc, 1.0, clack) * min(1.0, tc / 0.0004) + thud(tc, phase, 80.0, 140.0, 0.05) * 0.8
+        out.append(math.tanh(slide * env * 0.6 + hit * 1.2))
+    return finish(out, 0.9)
+
+
+def reload_mag_out():
+    """A magazine let go of by its gun: the catch's click, then the magazine sliding out (a falling scrape)."""
+    rng = random.Random(621)
+    n = int(RATE * 0.26)
+    slide_lp, slide_hp = OnePole(3600), OnePole(700)
+    click = ((3120, 0.9, 0.01), (4870, 0.5, 0.007), (2050, 0.4, 0.015))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        hit = partials(t, 1.0, click) * min(1.0, t / 0.0002)
+        slide = slide_lp(noise)
+        slide -= slide_hp(slide)
+        ts = t - 0.02
+        env = 0.0
+        if ts >= 0:
+            env = min(1.0, ts / 0.01) * math.exp(-ts / 0.07)
+        out.append(math.tanh(hit * 1.1 + slide * env * 0.8))
+    return finish(out, 0.8)
+
+
 def reload_empty():
     """A hand finding the ammo pouch empty: fingers patting flat leather (two soft dull pats, no shell to knock)."""
     rng = random.Random(617)
@@ -1064,6 +1112,8 @@ def main():
         "reload_pouch.wav": reload_pouch,
         "reload_shell_in.wav": reload_shell_in,
         "reload_empty.wav": reload_empty,
+        "reload_mag_in.wav": reload_mag_in,
+        "reload_mag_out.wav": reload_mag_out,
         "torch_pull.wav": torch_pull,
         "torch_out.wav": torch_out,
         "torch_light.wav": torch_light,
