@@ -212,6 +212,26 @@ def tex_pad(w, h, base, ring, seed):
             elif 0.56 <= d <= 0.74 and min(abs(math.sin(a)), abs(math.cos(a))) < 0.035:
                 c, full = shade(ring, 0.85), True
             row.append((c, full))
+def tex_target(w, h, seed=7):
+    """A shooting target: a paper bullseye (rings, a red centre) pinned on a weathered board."""
+    n = noise_field(w, h, seed, 0.12)
+    img = []
+    cx, cy = (w - 1) / 2, (h - 1) / 2
+    for y in range(h):
+        row = []
+        for x in range(w):
+            r = math.hypot(x - cx, y - cy) / (w / 2)
+            if r > 0.88:
+                grain = 0.85 + 0.15 * math.sin(y * 0.9 + math.sin(x * 0.3) * 2)
+                c = shade((96, 72, 44), n[y][x] * grain)
+            elif r < 0.12:
+                c = shade((190, 30, 24), n[y][x])
+            else:
+                ring = int(r / 0.152)
+                c = shade((222, 214, 190) if ring % 2 == 0 else (40, 36, 34), n[y][x])
+                if abs(r - 0.152 * round(r / 0.152)) < 0.012:
+                    c = (30, 28, 26)
+            row.append((c, False))
         img.append(row)
     return img
 
@@ -233,6 +253,7 @@ TEXTURES = [
     ("origin", lambda: tex_special(64, 64, (60, 160, 90), (40, 120, 70))),
     # the calibration room (Misc/quakevr/make_vrcalibration_map.py)
     ("qvrc_pad", lambda: tex_pad(128, 128, (47, 47, 47), (171, 231, 255), 26)),
+    ("qvr_target", lambda: tex_target(64, 64)),
 ]
 
 

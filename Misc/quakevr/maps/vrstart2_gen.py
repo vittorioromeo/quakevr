@@ -44,10 +44,10 @@ OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")
 # and Quake VR's (quakevr_dev.wad, Misc/trenchbroom/make_assets.py) for what id has none of.
 TEXN = {
     "grass": "grass1_1", "grass2": "ground1_2", "path": "ground1_8", "sand": "rock3_2", "seabed": "ground1_5",
-    "cliff": "rock5_2", "cliff2": "rock3_8", "cliffwet": "rock5_1", "moss": "rock4_2", "plank": "wood1_1",
-    "beam": "wood1_3", "log": "cliff2_1", "logend": "wood1_7", "board": "woodflr1_2", "rope": "rock3_8",
+    "cliff": "rock5_2", "cliff2": "rock3_8", "cliffwet": "rock5_1", "moss": "rock4_2", "plank": "woodflr1_2",
+    "beam": "wood1_3", "log": "cliff2_1", "logend": "wood1_7", "board": "wood1_1", "rope": "rock3_8",
     "iron": "metal1_1", "flag": "azfloor1_1", "block": "wswamp2_1", "trim": "wall14_5", "water": "*04awater1",
-    "portal": "*teleport", "sky": "sky1", "crystal": "+0light01", "button": "+0basebtn", "target": "qvr_panel",
+    "portal": "*teleport", "sky": "sky1", "crystal": "+0light01", "button": "+0basebtn", "target": "qvr_target",
     "bark": "cliff2_1", "needles": "wgrass1_1", "lamp": "light1_1", "roof": "wizwood1_2", "rune": "sliplite",
     "clip": "clip", "trigger": "trigger", "skip": "skip",
 }
@@ -605,7 +605,10 @@ def deck(out, x0, y0, x1, y1, ztop, along, width=11, gap=1, thick=3, zfn=None, r
             ya, yb = y0 + k * pitch, y0 + k * pitch + pitch - gap
             z = zfn(0.5 * (x0 + x1), 0.5 * (ya + yb)) if zfn else ztop
             j0, j1 = rnd.uniform(-1.5, 1.5), rnd.uniform(-1.5, 1.5)
-            out.append(box(x0 + j0, ya, z - thick, x1 + j1, yb, z, wood("plank", (1, 0, 0), rnd)))
+            sc = (yb - ya) / 15  # one of the texture's 16-texel boards on each plank
+            tex = T("plank", mode="grain", axis=(1, 0, 0), scale=sc, uoff=yb / sc + 16 * rnd.randrange(4) + 0.5,
+                    voff=rnd.randrange(64), end=T("logend", scale=0.75))
+            out.append(box(x0 + j0, ya, z - thick, x1 + j1, yb, z, tex))
     else:
         n = int((x1 - x0) // (width + gap))
         pitch = (x1 - x0) / n
@@ -613,7 +616,10 @@ def deck(out, x0, y0, x1, y1, ztop, along, width=11, gap=1, thick=3, zfn=None, r
             xa, xb = x0 + k * pitch, x0 + k * pitch + pitch - gap
             z = zfn(0.5 * (xa + xb), 0.5 * (y0 + y1)) if zfn else ztop
             j0, j1 = rnd.uniform(-1.5, 1.5), rnd.uniform(-1.5, 1.5)
-            out.append(box(xa, y0 + j0, z - thick, xb, y1 + j1, z, wood("plank", (0, 1, 0), rnd)))
+            sc = (xb - xa) / 15
+            tex = T("plank", mode="grain", axis=(0, 1, 0), scale=sc, uoff=-xa / sc + 16 * rnd.randrange(4) + 0.5,
+                    voff=rnd.randrange(64), end=T("logend", scale=0.75))
+            out.append(box(xa, y0 + j0, z - thick, xb, y1 + j1, z, tex))
 
 
 def rock(out, cx, cy, cz, rx, ry, rz, seed, tex=None, flat=0.35):
@@ -998,8 +1004,9 @@ def build_entities(mw):
 WORLD_KEYS = {
     "classname": "worldspawn", "mapversion": "220", "wad": WADS,
     "_tb_mod": "hipnotic;rogue;quakevr", "message": "Quake VR", "worldtype": "0", "sounds": "0",
-    "light": "12", "_sunlight": "60", "_sunlight_mangle": "35 -40 0", "_sunlight_color": "0.6 0.7 1.0",
+    "light": "12", "_sunlight": "60", "_sunlight_mangle": "35 -38 0", "_sunlight_color": "0.6 0.7 1.0",
     "_sunlight2": "18", "_sunlight2_color": "0.25 0.32 0.55", "_vr_debris": "0", "_vr_crates": "0",
+    "sky": "vs2night", "fog": "0.035 0.045 0.055 0.08",
 }
 
 
