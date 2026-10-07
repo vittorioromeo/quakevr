@@ -452,6 +452,11 @@ void resetHandMoves()
         slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for melee bloodlust health restoration."),
         open("Weapon Damage", pageIndex(pageWeaponDamage))
             .help("Each weapon's base damage: the fist, the axe, the crowbar, Mjolnir, the swords..."),
+        header("Swing Through Enemies"),
+        toggle("Swing Through Enemies", "vr_melee_phase").help("While your hand swings fast, your fist and the weapon in it pass through enemies instead of being drawn stopped at their bodies (Hands Stop at Models). Walls and things lying about still stop them. The blow is tested where your real hand goes either way: this shows the swing where it is tested. After the swing the hand is eased back out of the enemy. Off: stopped at enemies however fast (as before)."),
+        slider("Swing Through Speed", "vr_melee_phase_speed", 1.f, 6.f, 0.25f, "%.2f m/s").extend(0.25f, 10.f).help("How fast the hand must move to pass through. 2.25: a stab's least speed at Swing Speed 3 (a punch 3, a weapon's swing 3.75). Lower: slower pushes pass through too; higher: only hard blows."),
+        slider("Swing Through Follow-Through", "vr_melee_phase_time", 0.f, 0.5f, 0.01f, "%.2f s").extend(0.f, 2.f).help("How long the hand still passes through after it slowed down, so a blow's end isn't stopped inside the enemy."),
+        toggle("Swing Through: Guns and Props", "vr_melee_phase_hold").help("Also a gun or a prop held in one hand, swung as a club. Off: only fists and melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)."),
         header("Headbutt"),
         toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
         slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").extend().help("How fast the head must lunge (towards where you look)."),

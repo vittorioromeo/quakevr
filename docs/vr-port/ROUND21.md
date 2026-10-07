@@ -29628,3 +29628,41 @@ Only the one-use-only weapons."
   the first rifle taken into the gripped main hand, a chainsaw thrown up as the oldest, three other weapons dropped):
   vrfiringrange, the most lying at any tick 48 of 48, the others 3 of 3, the held one held, the flying chainsaw kept
   until it landed, then the first to go; saved and loaded, 10 more: the oldest (4.20 .. 5.30) went in order, 48 of 48.
+
+## Melee phasing (2026-10-07)
+
+The author: melee attacks sometimes don't seem to register because of the collision with the enemy's model; while a
+swing is fast enough, the enemy's collision with the hand and what it holds should be disabled for a split second, as
+an option to try (worktree `meleephase`).
+
+- **What stops the hand at a monster:** only vr_model_collide (vr_modelcollide.cpp, "Hands Stop at Models", "Held
+  Things Stop at Monsters"): the hand, its weapon and a prop held alone are *drawn* held out of the monsters' drawn
+  triangles (up to `vr_model_collide_max` 20 cm; deeper, less; none at twice that). It is drawn only: endView takes the
+  push back out of what the game reads, so the server's melee (QC vr_melee.qc VR_Melee_Sweep: the tracked hand's
+  points swept against the model as drawn, grown by the melee tolerance; a sweep starting inside counts, t 0) tests
+  the tracked hand whatever is drawn. The server's own hand placement (vr_handpose.cpp stopAtWall) already lets monsters
+  through (ROUND15's fix for swords jerked back at monsters' boxes); Box3D's hand and weapon bodies meet props only;
+  the carried props' QC traces are walls only. So no blow is lost to the stop itself: the headless punches below hit
+  once with it on or off. What it does is show the swing stopped at the surface (the push eases in within ~12 ms)
+  while the blow is tested further in, and a blow that misses or lands on another point than it looks.
+- **The option** (Combat > Melee > Swing Through Enemies; vr_modelcollide.cpp updatePhase): `vr_melee_phase` 1 (0 by
+  default: as before, for A/B): while the hand's grip goes at least `vr_melee_phase_speed` (2.25 m/s: a stab's least
+  speed, 0.75 x Swing Speed 3; the controller's velocity, the player's own movement left out) and for
+  `vr_melee_phase_time` (0.15 s) after it slowed, the monsters (Kind::Monster: FL_MONSTER or FL_CLIENT, corpses with
+  them) are left out of that hand's test: its push let go at once. Walls (vr_handpose.cpp) and things lying about
+  (vr_model_collide 2) still stop it. Fists and the melee weapons (the axe, Mjolnir and the Super Axe, the swords, the
+  crowbar, the chainsaw: by model) always; a gun or a prop held alone with `vr_melee_phase_hold` 1 (default). After
+  the phase a hand left inside a monster is eased back out (time constant 0.06 s instead of 0.012 s) until it reaches
+  where the push puts it (at most 0.5 s), not snapped out in a frame. Hits are untouched: once per swing as before (the
+  rearm rules, VR_Melee_Rearm). Debug > Views > Show Model Collisions (`vr_debug_model_collide` 1) also prints
+  "melee phase main: on/off at t, m/s" and marks the lines "phasing" or "released".
+- **Test:** Misc/quakevr/melee_phase_test.sh (7 of 7; fixed 90 Hz frames, mock punches with a closed fist,
+  vr_melee_push 0): a 5.3 m/s punch through the training dummy, off: 1 hit, drawn held out up to 5.7 units; on: 1 hit,
+  0.00 units drawn while phasing, then eased out over 22 frames (each closing at most 18% of the gap), out 0.23 s
+  after; a 0.5 m/s push into it, on: 0 hits, held out up to 6.0 units, no phasing; a punch ending inside a grunt, off
+  and on: 1 hit each, on eased out (at most 17% a frame); the shotgun swung into it with `vr_melee_phase_hold` 0: not
+  phased (held out 5.3 units), 1: phased.
+- **In the headset:** Combat > Melee > Swing Through Enemies on: punch and swing at grunts and the dummy, with the
+  follow-through you'd use. Does the fist or the blade going through feel better or worse than stopping at the body,
+  and do blows feel more reliable? Try Swing Through Speed lower (pushes pass through too) or higher (hard blows only),
+  and Follow-Through longer if the hand is seen stopping inside at the end of a swing.

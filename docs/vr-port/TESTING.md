@@ -150,6 +150,10 @@ The round logs before round 21 (`ROUND6.md` to `ROUND20.md`) were removed on 202
 prints it.
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
+  - **Swing Through Enemies** (ROUND21.md, "Melee phasing"; off by default): Combat > Melee > Swing Through Enemies.
+    While your hand swings fast, the fist and what it holds pass through enemies instead of being drawn stopped at their
+    bodies (the blow was always tested where your real hand goes: this shows it there). **Tell me if melee feels better
+    or worse with it on**, and try Swing Through Speed and Follow-Through.
   - **The crowbar** (ROUND21.md, same title): one lies in the firing range's prop area, north of the chainsaw. Hold it
     as a sword: by its black tape, one hand or two (the other hand below the first, or on the bar above the hands,
     sliding along it short of the hook). Its blows are blunt, the hook's hardest; its chisel end jabs as a pommel does;

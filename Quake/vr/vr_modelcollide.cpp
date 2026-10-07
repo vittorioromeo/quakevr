@@ -858,7 +858,9 @@ const za::Vector<glm::vec3>* propSamples(int num)
 }
 
 // The push of `hand` out of the models near it, from its tracked pose.
-Result test(const hands::State& s, int hand)
+// `phase`: the hand swings (vr_melee_phase): the monsters (and corpses, other players) don't stop it; the things lying
+// about still do.
+Result test(const hands::State& s, int hand, bool phase)
 {
     Result result;
     const Recorded& r = recorded[hand];
@@ -945,7 +947,7 @@ Result test(const hands::State& s, int hand)
             continue;
         }
         const Kind kind = kindOf(num, e, hosting);
-        if(kind == Kind::None || (kind == Kind::Object && (mode < 2 || prop))) // (a held prop pushes things lying there)
+        if(kind == Kind::None || (kind == Kind::Object && (mode < 2 || prop)) || (kind == Kind::Monster && phase)) // (a held prop pushes things lying there)
         {
             continue;
         }
@@ -1061,6 +1063,93 @@ Result test(const hands::State& s, int hand)
 // ----------------------------------------------------------------------------
 // The pushes, drawn.
 
+// Melee phasing (vr_melee_phase; ROUND21.md, "Melee phasing"): a hand swinging at least vr_melee_phase_speed, and for
+// vr_melee_phase_time after it slowed, passes through the monsters (test's `phase`), its push let go at once (easeIn);
+// when it ends in one, it is eased back out (releaseEase), not snapped out (easeIn) in a frame: until the push is reached
+// (or releaseTime, at most).
+constexpr float releaseEase = 0.06f; // s (time constant): pushed back out of a monster after a swing went into it,
+constexpr float releaseTime = 0.5f;  // at most this long after the phasing ended
+float phaseLeft[2]{0.f, 0.f};        // s it still passes through (vr_melee_phase_time, from when it last went fast)
+float releaseLeft[2]{0.f, 0.f};      // s it is still eased out slowly
+bool phasing[2]{false, false};
+
+// The melee weapons' models (QC WeaponIdToModel: the axe, Mjolnir and MG3's Super Axe, the knights' swords, the
+// chainsaw, the crowbar): they phase with vr_melee_phase alone; a gun or a held prop also needs vr_melee_phase_hold.
+constexpr const char* meleeModels[]{"progs/v_axe.mdl", "progs/v_hammer.mdl", "progs/v_ksword.mdl", "progs/v_hksword.mdl",
+    "progs/v_chainsaw.mdl", "progs/v_crowbar.mdl"};
+
+[[nodiscard]] bool meleeModel(const qmodel_t* model)
+{
+    if(!model)
+    {
+        return false;
+    }
+    const za::SizeT len = strlen(model->name);
+    for(const char* m : meleeModels)
+    {
+        const za::SizeT n = strlen(m);
+        if(len >= n && !q_strcasecmp(model->name + (len - n), m))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Whether what `hand` holds may phase: a fist or a melee weapon; a gun or a prop held alone with vr_melee_phase_hold.
+[[nodiscard]] bool phaseable(int hand)
+{
+    const bool hold = vr_melee_phase_hold.value != 0.f;
+    if(held::heldAlone(hand))
+    {
+        return hold;
+    }
+    if(weapons::heldSlot(hand) == weapons::fistSlot() || meleeModel(weapons::heldModel(hand)))
+    {
+        return true;
+    }
+    return hold;
+}
+
+// Once a frame (beginView), before the test: whether `hand` passes through the monsters this frame.
+void updatePhase(const hands::State& s, int hand, float dt)
+{
+    const bool was = phasing[hand];
+    const bool on = vr_melee_phase.value != 0.f && s.valid && phaseable(hand);
+    const float speed = s.valid ? glm::length(s.vel[hand]) : 0.f;
+    const bool fast = on && speed >= za::fmax(vr_melee_phase_speed.value, 0.1f);
+    if(!on)
+    {
+        phaseLeft[hand] = 0.f;
+    }
+    else if(fast)
+    {
+        phaseLeft[hand] = za::fmax(vr_melee_phase_time.value, 0.f);
+    }
+    else
+    {
+        phaseLeft[hand] = za::fmax(phaseLeft[hand] - dt, 0.f);
+    }
+    phasing[hand] = on && (fast || phaseLeft[hand] > 0.f);
+    if(phasing[hand])
+    {
+        releaseLeft[hand] = 0.f;
+    }
+    else if(was)
+    {
+        releaseLeft[hand] = releaseTime;
+    }
+    else
+    {
+        releaseLeft[hand] = za::fmax(releaseLeft[hand] - dt, 0.f);
+    }
+    if(vr_debug_model_collide.value >= 1.f && was != phasing[hand])
+    {
+        Con_Printf("melee phase %s: %s at t %.3f, %.2f m/s\n", hand == HAND_MAIN ? "main" : "off", phasing[hand] ? "on" : "off",
+            cl.time, speed);
+    }
+}
+
 glm::vec3 drawn[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 glm::vec3 pressed[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // a weapon pressed against the prop in the other hand (held::drawnPush)
 Result last[2];
@@ -1102,15 +1191,21 @@ void beginView(hands::State& s)
         for(int hand = 0; hand < 2; hand++)
         {
             Result res;
+            updatePhase(s, hand, dt);
             if(tested(s, hand))
             {
                 QVR_PROFILE("model collide");
-                res = test(s, hand);
+                res = test(s, hand, phasing[hand]);
             }
             const glm::vec3 target = res.given;
-            // Out at once (nearly), back in more slowly.
+            // Out at once (nearly), back in more slowly; a swing that passed into a monster, out of it smoothly. Phasing:
+            // the push let go at once.
             const bool deeper = glm::dot(target - drawn[hand], target) > 0.f;
-            const float tau = deeper ? easeIn : easeOut;
+            const float tau = phasing[hand] ? easeIn : deeper ? (releaseLeft[hand] > 0.f ? releaseEase : easeIn) : easeOut;
+            if(!deeper && glm::length(target) > 0.f)
+            {
+                releaseLeft[hand] = 0.f; // out where it is pushed to: as any contact from here
+            }
             drawn[hand] += (target - drawn[hand]) * (dt > 0.f ? 1.f - za::exp(-dt / tau) : 1.f);
             if(glm::length(drawn[hand]) < 1e-3f && glm::length(target) == 0.f)
             {
@@ -1121,10 +1216,11 @@ void beginView(hands::State& s)
             {
                 const Stats& st = res.stats;
                 Con_Printf("model collide %s: t %.3f push %.2f (%.2f %.2f %.2f) given %.2f drawn %.2f (%.2f %.2f %.2f); ent %d, "
-                           "%d models, %d tris, %d rays, %d rounds, %d planes\n",
+                           "%d models, %d tris, %d rays, %d rounds, %d planes%s\n",
                     hand == HAND_MAIN ? "main" : "off", cl.time, glm::length(res.push), res.push.x, res.push.y, res.push.z,
                     glm::length(res.given), glm::length(drawn[hand]), drawn[hand].x, drawn[hand].y, drawn[hand].z, st.entity,
-                    st.models, st.triangles, st.rays, st.rounds, st.planes);
+                    st.models, st.triangles, st.rays, st.rounds, st.planes,
+                    phasing[hand] ? "; phasing" : (releaseLeft[hand] > 0.f ? "; released" : ""));
             }
             if(vr_debug_model_collide.value >= 2.f && tested(s, hand) && !held::heldAlone(hand))
             {
@@ -1245,6 +1341,8 @@ void reset()
     for(int hand = 0; hand < 2; hand++)
     {
         drawn[hand] = pressed[hand] = glm::vec3{0.f};
+        phaseLeft[hand] = releaseLeft[hand] = 0.f;
+        phasing[hand] = false;
         recorded[hand] = Recorded{};
         last[hand] = Result{};
     }
@@ -1329,7 +1427,7 @@ void bench_f()
                 entry.second->frame = -1; // posed afresh each time, as each frame
             }
             const auto t0 = za::Clock::nowNanoseconds();
-            res = test(s, hand);
+            res = test(s, hand, false);
             us.pushBack(za::nanosecondsToMicroseconds(za::Clock::nowNanoseconds() - t0));
         }
         za::quickSort(us.begin(), us.end());
