@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Reload fixes: super shotgun opens only after its firing animation (B/Y right after a shot waits), flick no longer opens it by default; dropped open SSG lies open with its shells; super nailgun magazine left, button right; lightning cell sparks in/out, empty cell smokes ~7 s (Reloading > Thunderbolt); shotgun shell port from below: no shimmer; your settings are now defaults (vignette 0.5 and detail off were NOT promoted: say if they should be)
 Main menu: VR rows, Single Player/Multiplayer, Download Maps/Play Custom Map, the rest in separate groups; Play Custom Map opens the Levels and Back returns to the main menu; laser picks only drawn rows (nothing in the gaps); Mods gone (Advanced VR > HUD and Menus > Menu > Mods on the Main Menu brings it back)
 Back goes where you came from: Single Player > Official Campaigns > Back = Single Player; a corner button (Search, Advanced VR, Levels...) from any menu, Back returns there with the same row selected; a Search result's page goes back up its own menus, not to Search
 VR Settings new rows: Reloading Mode (Immersive/Simple/Disabled), Swimming (Immersive/Vanilla), Leaning Detection, Bullet Time > Activation (Wrist Gadget / Left or Right Thumbstick Press); Holster Calibration: hip, chest and back pairs move Forward/Inward/Up mirrored and show while chosen; Reset Holsters
