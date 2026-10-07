@@ -55,10 +55,15 @@ void() VR_Reload_TestReport =
     }
     bprint(sprintf("reload: mode %g (immersive %g), shells %g nails %g cells %g, %g lying about\n",
         cvar_hget(cvarh_vr_reload_mode), VR_Reload_Immersive(), self.ammo_shells, self.ammo_nails, self.ammo_cells, loose));
+    float f = VRGetEntWeaponFlags(self, cVR_OffHand);
+    // (The off hand's super shotgun on a line of its own: sprintf takes at most seven values.)
+    string ssg = VRGetEntWeapon(self, cVR_OffHand) == WID_SUPER_SHOTGUN ? sprintf("reload: the super shotgun open %g spent %g\n",
+        !!(f & QVR_WPNFLAG_SSG_OPEN), VR_Reload_SsgSpentOf(f)) : "";
     bprint(sprintf("reload: off hand weapon %g clip %g mag %g holds %s | main hand weapon %g clip %g holds %s\n",
         VRGetEntWeapon(self, cVR_OffHand), VRGetEntWeaponClip(self, cVR_OffHand),
-        !(VRGetEntWeaponFlags(self, cVR_OffHand) & QVR_WPNFLAG_NOMAG), VR_Reload_TestHeld(cVR_OffHand),
+        !(f & QVR_WPNFLAG_NOMAG), VR_Reload_TestHeld(cVR_OffHand),
         VRGetEntWeapon(self, cVR_MainHand), VRGetEntWeaponClip(self, cVR_MainHand), VR_Reload_TestHeld(cVR_MainHand)));
+    bprint(ssg);
 };
 
 // The off hand holding a shotgun (given if it holds another weapon or none), the main hand empty.
@@ -104,6 +109,82 @@ entity(float xShells, float xCount, string xWhat) VR_Reload_TestTake =
         sprintf("%s: %g shells left (want %g), a round of %g in the hand (want %g)", xWhat, self.ammo_shells, xShells,
             count, xCount));
     return r;
+};
+
+// How many rounds lie about (not in a hand).
+float() VR_Reload_TestLoose =
+{
+    float n = 0;
+    entity e = VR_Reload_NextRound(world);
+    while(e)
+    {
+        n = n + (e.carry_player == world ? 1 : 0);
+        e = VR_Reload_NextRound(e);
+    }
+    return n;
+};
+
+// The super shotgun broken open (phase 2b): in the off hand, the main hand taking pairs; fired shells stay in as spent,
+// breaking it open throws them out (and a live one as a round), the pouch always gives a pair, it loads only open, a pair
+// with one chamber free loads one (the other stays in the hand), closed it fires; Break Open off: as before.
+void() VR_Reload_SsgSelfTest =
+{
+    entity r;
+    cvar_set("vr_reload_ssg_break", "1");
+    VR_WeaponUtil_EntAddWeapon(self, WID_SUPER_SHOTGUN);
+    VRGiveEntWeapon(self, cVR_OffHand, WID_SUPER_SHOTGUN, 0, 0);
+    VRSetEntWeaponClip(self, cVR_OffHand, 2);
+    self.ammo_shells = 10;
+    VR_Reload_AmmoChanged(self);
+    VR_Reload_Check(VR_Reload_ManualFor(WID_SUPER_SHOTGUN) && VR_Reload_AmmoFor(self, cVR_OffHand) == AID_SHELLS &&
+        !VR_Reload_SsgIsOpen(self, cVR_OffHand), "immersive: the super shotgun loads by hand (shut)");
+    VRTryReloadWeapon(self, cVR_OffHand, WID_SUPER_SHOTGUN, 0);
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    VR_Reload_SsgFired(cVR_OffHand, 2);
+    VR_Reload_Check(VR_Reload_SsgSpentOf(VRGetEntWeaponFlags(self, cVR_OffHand)) == 2 && self.ammo_shells == 10,
+        "both barrels fired: two spent shells stay in (no reload)");
+    r = VR_Reload_TestTake(8, 2, "the super shotgun: always a taped pair");
+    VR_Reload_Check(!VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 0 && r.vr_ammo_full,
+        "shut, its chambers take nothing (the can't click)");
+    r.vr_ammo_full = FALSE;
+    // One live, one spent: broken open, the spent one out (the casings), the live one a round lying about.
+    VRSetEntWeaponClip(self, cVR_OffHand, 1);
+    float f = VRGetEntWeaponFlags(self, cVR_OffHand);
+    VRSetEntWeaponFlags(self, cVR_OffHand, (f - (f & QVR_WPNFLAG_SSG_SPENT)) | QVR_WPNFLAG_SSG_SPENT_ONE);
+    float loose = VR_Reload_TestLoose();
+    VR_Reload_SsgBreak(self, cVR_OffHand, "the test");
+    f = VRGetEntWeaponFlags(self, cVR_OffHand);
+    VR_Reload_Check(VR_Reload_SsgIsOpen(self, cVR_OffHand) && VR_Reload_SsgSpentOf(f) == 0 &&
+        VRGetEntWeaponClip(self, cVR_OffHand) == 0 && VR_Reload_TestLoose() == loose + 1,
+        sprintf("broken open: open, empty, the live shell thrown out (%g lying about, want %g)", VR_Reload_TestLoose(),
+            loose + 1));
+    VR_Reload_Check(VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 2 &&
+        VR_Carry_Held(self, cVR_MainHand) == world, "open, the pair in the chambers: both loaded");
+    VR_Reload_SsgClose(self, cVR_OffHand, "the test");
+    VR_Reload_Check(!VR_Reload_SsgIsOpen(self, cVR_OffHand) && VRGetEntWeaponClip(self, cVR_OffHand) == 2,
+        "closed: two loaded");
+    // One chamber free (a live shell taken back from the floor loaded first): a pair loads one, the other stays in hand.
+    f = VRGetEntWeaponFlags(self, cVR_OffHand);
+    VRSetEntWeaponFlags(self, cVR_OffHand, f | QVR_WPNFLAG_SSG_OPEN);
+    VRSetEntWeaponClip(self, cVR_OffHand, 1);
+    r = VR_Reload_TestTake(6, 2, "another pair");
+    VR_Reload_Check(!VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 2 &&
+        r.vr_ammo_count == 1 && VR_Carry_Held(self, cVR_MainHand) == r,
+        sprintf("one chamber free: one in, the other stays in the hand (a round of %g)", r.vr_ammo_count));
+    VR_Reload_Refund(self, r, cVR_MainHand);
+    VR_Reload_SsgClose(self, cVR_OffHand, "the test");
+    // Break Open off: the super shotgun as before (the flick's or the holsters' reload; spent shells not kept).
+    cvar_set("vr_reload_ssg_break", "0");
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    self.ammo_shells = 10;
+    VRTryReloadWeapon(self, cVR_OffHand, WID_SUPER_SHOTGUN, 0);
+    VR_Reload_Check(!VR_Reload_ManualFor(WID_SUPER_SHOTGUN) && VRGetEntWeaponClip(self, cVR_OffHand) == 2 &&
+        self.ammo_shells == 8, sprintf("Break Open off: it reloads as before (magazine %g, %g shells; want 2, 8)",
+            VRGetEntWeaponClip(self, cVR_OffHand), self.ammo_shells));
+    VRSetEntWeaponFlags(self, cVR_OffHand, 0);
+    VRGiveEntWeapon(self, cVR_OffHand, WID_SHOTGUN, 0, 0);
+    self.ammo_shells = 10;
+    VR_Reload_AmmoChanged(self);
 };
 
 // The magazines (phase 2): the nailgun in the off hand, the main hand taking, seating, pulling and bumping; the super
@@ -200,8 +281,10 @@ void() VR_Reload_SelfTest =
     vr_reload_test_fail = 0;
     float mode = cvar_hget(cvarh_vr_reload_mode);
     float pairs = cvar_hget(cvarh_vr_reload_shell_pairs);
+    float ssgBreak = cvar_hget(cvarh_vr_reload_ssg_break);
     cvar_set("vr_reload_mode", "3");
     cvar_set("vr_reload_shell_pairs", "0");
+    cvar_set("vr_reload_ssg_break", "0"); // (phases 1 and 2: the super shotgun as before; its own section below)
     VR_Reload_TestSetup();
     VR_Reload_Check(VR_Reload_Immersive() && VR_Reload_ManualFor(WID_SHOTGUN) && !VR_Reload_ManualFor(WID_SUPER_SHOTGUN),
         "immersive: the shotgun loads by hand, the super shotgun does not");
@@ -310,6 +393,8 @@ void() VR_Reload_SelfTest =
     self.ammo_shells = 10;
 
     VR_Reload_MagSelfTest();
+    VR_Reload_SsgSelfTest();
+    cvar_set("vr_reload_ssg_break", "0");
 
     // The modes: the holsters' reload (2) fills the shotgun from the reserve, Immersive (3) doesn't, Off (0) has no
     // magazines.
@@ -351,6 +436,7 @@ void() VR_Reload_SelfTest =
     VR_Reload_AmmoChanged(self);
     cvar_set("vr_reload_mode", ftos(mode));
     cvar_set("vr_reload_shell_pairs", ftos(pairs));
+    cvar_set("vr_reload_ssg_break", ftos(ssgBreak));
     bprint(sprintf("reload: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
 };
 

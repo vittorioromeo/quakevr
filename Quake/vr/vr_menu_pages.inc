@@ -616,6 +616,36 @@ void resetHandMoves()
         slider("Collision Leniency", "vr_reload_collide_leniency", 0.f, 30.f, 1.f, "%.0f cm").extend(0.f, 100.f)
             .help("A shell or magazine in your hand is drawn kept off the gun in the other hand (Held Things Collide): it "
                   "may go this far into the gun's box first, to reach the port under the shotgun or a magazine well."),
+        header("Super Shotgun"),
+        toggle("Break Open", "vr_reload_ssg_break")
+            .help("With Immersive: its fired shells stay in its barrels. Break it open (the flick, or the pry below) to "
+                  "throw them out (live ones too, to take again); it stays open, can't fire, and its chambers take the "
+                  "pouch's taped pair (always a pair for it) at its breech. Off: the flick reloads it as before."),
+        slider("Open Angle", "vr_reload_ssg_open_angle", 10.f, 60.f, 1.f, "%.0f deg")
+            .help("How far its barrels drop about the hinge when it is open (looks; its load point goes with them)."),
+        toggle("Pry Open", "vr_reload_ssg_pry")
+            .help("Holding it with both hands (the two-handed grip on its fore-end), push the barrels down with the front "
+                  "hand against the back hand (or lift the stock): it breaks open."),
+        slider("Pry Angle", "vr_reload_ssg_pry_angle", 10.f, 60.f, 1.f, "%.0f deg")
+            .help("How far the front hand must go down from the back hand's aim (or the stock up) to pry it open."),
+        slider("Pry Speed", "vr_reload_ssg_pry_speed", 20.f, 400.f, 10.f, "%.0f deg/s")
+            .help("How quickly: a steady two-handed aim never pries it open."),
+        toggle("Close by Flick", "vr_reload_ssg_close_flick")
+            .help("Open, the flick snaps it shut."),
+        toggle("Close by Lifting the Barrels", "vr_reload_ssg_close_pry")
+            .help("Open and held with both hands, the front hand lifting the barrels back up (as far and as fast as the "
+                  "pry) snaps it shut."),
+        toggle("Close When Loaded", "vr_reload_ssg_close_auto")
+            .help("Open, it snaps shut by itself once both chambers are loaded."),
+        slider("Super Shotgun Breech X", "vr_reload_port_sshot_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the super shotgun's load point (its breech face, between the chambers) forward (the gun's model "
+                  "units, as closed; it turns with the barrels open)."),
+        slider("Super Shotgun Breech Y", "vr_reload_port_sshot_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the super shotgun's load point left (the gun's model units)."),
+        slider("Super Shotgun Breech Z", "vr_reload_port_sshot_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the super shotgun's load point up (the gun's model units)."),
+        slider("Super Shotgun Breech Radius", "vr_reload_port_sshot_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the breech a held pair's middle must come to go in (Show Load Points draws it)."),
         header("Load Points"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "

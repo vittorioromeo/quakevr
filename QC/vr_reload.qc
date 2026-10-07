@@ -17,6 +17,15 @@
 // are. Holster, button and flick reloads skip the hand-loaded guns in this mode (VRTryReloadWeapon); the others keep the
 // hip holsters' reload.
 //
+// The super shotgun (phase 2b, vr_reload_ssg_break): its fired shells stay in its barrels (QVR_WPNFLAG_SSG_SPENT); broken
+// open (by the flick, or by both hands prying it: the front hand pushing the barrels down against the back hand, which
+// the engine sends as the flick: vr_flick.cpp), it
+// throws them out, and any live ones as rounds to take again, and stays open (QVR_WPNFLAG_SSG_OPEN; drawn open, it
+// can't fire: a dry click). Open, its chambers take the pouch's taped pair (always a pair for it) at its load point (the
+// breech face, as drawn open); a pair with one chamber free loads one and keeps the other in the hand (as the shotgun's).
+// It closes by the flick again (vr_reload_ssg_close_flick), the front hand lifting the barrels back (the reverse pry:
+// vr_reload_ssg_close_pry), or by itself once both chambers are loaded (vr_reload_ssg_close_auto).
+//
 // Magazines (phase 2: the nailgun, the super nailgun, the thunderbolt; VR_Reload_UsesMag): the gun's magazine is its
 // record's (.wi_clip: what the attached magazine holds); none attached is the weapon flag QVR_WPNFLAG_NOMAG (it travels with
 // the gun as its flags do; the clients draw the attached one: vr_view.cpp setupMagazines). The pouch gives a magazine for
@@ -51,6 +60,8 @@
 .float vr_ammo_full;     // the full gun's tap given (until it leaves the port)
 .float vr_reload_at;     // a player's hands at the ammo pouch last frame (1 off, 2 main)
 .float vr_reload_tried;  // and those whose grip press there was used
+.float vr_ssg_flick;     // a player's hands' flick reload bits last frame (1 off, 2 main: the super shotgun's flick)
+.float vr_ssg_toggled;   // when a super shotgun of the player's was last broken open or closed
 
 string VR_RELOAD_SHELL = "progs/vr_shell_live.mdl";
 string VR_RELOAD_PAIR = "progs/vr_shell_pair.mdl";
@@ -73,6 +84,10 @@ void() VR_Reload_Precache =
     precache_sound("vr/reload_empty.wav");    // the pouch found empty
     precache_sound("vr/reload_blocked.wav");  // a shell held to a full shotgun: the gate won't open
     precache_sound("vr/reload_full.wav");     // the last shell in: the tube full
+    precache_sound("vr/reload_ssg_open.wav");  // the super shotgun broken open (make_reload_ssg_sounds.py),
+    precache_sound("vr/reload_ssg_eject.wav"); // its shells thrown out (make_sounds.py),
+    precache_sound("vr/reload_ssg_close.wav"); // and snapped shut
+    precache_sound("gunclick.wav");            // fired open: the dry click
     precache_sound("vr/shell_tink1.wav");     // a round knocking about (the spent shells' tinks)
     precache_sound("vr/shell_tink2.wav");
     precache_sound("vr/shell_tink3.wav");
@@ -96,7 +111,34 @@ float(float xWeapon) VR_Reload_UsesMag =
 // Whether `xWeapon` loads by hand (immersive reloading): no holster, button or flick reload for it.
 float(float xWeapon) VR_Reload_ManualFor =
 {
-    return VR_Reload_Immersive() && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon));
+    return VR_Reload_Immersive() && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) ||
+        (xWeapon == WID_SUPER_SHOTGUN && cvar_hget(cvarh_vr_reload_ssg_break)));
+};
+
+// Whether the gun in `xHand` of `p` is a super shotgun broken open (phase 2b: it can't fire; it loads by hand).
+float(entity p, float xHand) VR_Reload_SsgIsOpen =
+{
+    return VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && VR_Reload_ManualFor(WID_SUPER_SHOTGUN) &&
+           (VRGetEntWeaponFlags(p, xHand) & QVR_WPNFLAG_SSG_OPEN);
+};
+
+// How many spent shells the super shotgun with flags `xFlags` has in its barrels.
+float(float xFlags) VR_Reload_SsgSpentOf =
+{
+    return floor((xFlags & QVR_WPNFLAG_SSG_SPENT) / QVR_WPNFLAG_SSG_SPENT_ONE);
+};
+
+// The super shotgun in `xHand` of self fired `xCount` barrels (W_FireSuperShotgun, W_FireShotgun): with immersive
+// reloading their shells stay in, spent (thrown out as it is broken open).
+void(float xHand, float xCount) VR_Reload_SsgFired =
+{
+    if(!VR_Reload_ManualFor(WID_SUPER_SHOTGUN) || VRGetEntWeapon(self, xHand) != WID_SUPER_SHOTGUN)
+    {
+        return;
+    }
+    float f = VRGetEntWeaponFlags(self, xHand);
+    float spent = min(2, VR_Reload_SsgSpentOf(f) + xCount);
+    VRSetEntWeaponFlags(self, xHand, (f - (f & QVR_WPNFLAG_SSG_SPENT)) | (spent * QVR_WPNFLAG_SSG_SPENT_ONE));
 };
 
 // The hand's angular velocity (radians per second, world axes).
@@ -464,6 +506,10 @@ void(float xHand, entity r) VR_Reload_SeatMag =
 // The radius of the load point of the gun `xWeapon` (Weapons > Reloading: vr_reload_port_<gun>_radius).
 float(float xWeapon) VR_Reload_PortRadius =
 {
+    if(xWeapon == WID_SUPER_SHOTGUN)
+    {
+        return cvar_hget(cvarh_vr_reload_port_sshot_radius);
+    }
     if(xWeapon == WID_NAILGUN)
     {
         return cvar_hget(cvarh_vr_reload_port_nail_radius);
@@ -644,7 +690,9 @@ void(float xHand) VR_Reload_Take =
         VR_Reload_Log("the pouch is empty");
         return;
     }
-    float n = (cvar_hget(cvarh_vr_reload_shell_pairs) && have >= 2) ? 2 : 1;
+    // (The super shotgun in the other hand: always a taped pair, its two chambers loaded at once.)
+    float ssg = VRGetEntWeapon(self, VRGetOtherHand(xHand)) == WID_SUPER_SHOTGUN && VR_Reload_ManualFor(WID_SUPER_SHOTGUN);
+    float n = ((cvar_hget(cvarh_vr_reload_shell_pairs) || ssg) && have >= 2) ? 2 : 1;
     if(w)
     {
         n = min(WeaponIdToBaseClipSize(w), have);
@@ -853,6 +901,116 @@ void(float xHand) VR_Reload_MagFrame =
     }
 };
 
+// ----------------------------------------------------------------------------
+// The super shotgun broken open (phase 2b)
+
+// The super shotgun in `xHand` of `p` breaks open (`xHow`: what did it, for the log): its spent shells thrown out (the
+// clients' casings, vr_shells.cpp), its live ones too, as rounds lying about to take again; open, empty, until closed.
+void(entity p, float xHand, string xHow) VR_Reload_SsgBreak =
+{
+    float f = VRGetEntWeaponFlags(p, xHand);
+    float spent = VR_Reload_SsgSpentOf(f);
+    float live = VRGetEntWeaponClip(p, xHand);
+    VRSetEntWeaponFlags(p, xHand, (f - (f & QVR_WPNFLAG_SSG_SPENT)) | QVR_WPNFLAG_SSG_OPEN);
+    VRSetEntWeaponClip(p, xHand, 0);
+    VR_Reload_AmmoChanged(p);
+    p.vr_ssg_toggled = time;
+    VR_Reload_Sound(p, VRGetGunChannel(xHand), "vr/reload_ssg_open.wav", 1);
+    VR_Reload_Haptic(p, xHand, 0.08, 60, 0.9);
+    if(spent + live > 0)
+    {
+        VR_Reload_Sound(p, CHAN_AUTO, "vr/reload_ssg_eject.wav", 0.9);
+        VR_Reload_Haptic(p, xHand, 0.05, 140, 0.6);
+    }
+    if(spent > 0)
+    {
+        entity oself = self;
+        self = p;
+        ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, spent, 0.08, 0);
+        self = oself;
+    }
+    // The live ones: out of the chambers (the breech face, as drawn), back over the hand and up.
+    vector at = xHand == cVR_MainHand ? p.loadportpos : p.offloadportpos;
+    if(vlen(at - VRGetEntHandPos(p, xHand)) > 64)
+    {
+        at = VRGetEntHandPos(p, xHand); // (no port reported: a bot's, a test's)
+    }
+    makevectors(VRGetEntHandRot(p, xHand));
+    for(float i = 0; i < live; i++)
+    {
+        float side = i ? -1 : 1;
+        entity r = VR_Reload_MakeRound(0, AID_SHELLS, 1, at + v_right * side * 1.2, VRGetEntHandRot(p, xHand));
+        r.velocity = VRGetEntHandVel(p, xHand) * VRMetersToUnits() - v_forward * 70 + v_up * 90 + v_right * side * 25;
+        r.avelocity = '0 1 0' * (crandom() * 400) + '1 0 0' * (crandom() * 300);
+        r.flags = r.flags - (r.flags & FL_ONGROUND);
+    }
+    VR_Reload_Log(sprintf("the super shotgun (hand %g) broken open by %s: %g spent and %g live thrown out", xHand, xHow,
+        spent, live));
+};
+
+// The super shotgun in `xHand` of `p` snaps shut (`xHow`, for the log): it fires again (what its chambers hold).
+void(entity p, float xHand, string xHow) VR_Reload_SsgClose =
+{
+    float f = VRGetEntWeaponFlags(p, xHand);
+    VRSetEntWeaponFlags(p, xHand, f - (f & QVR_WPNFLAG_SSG_OPEN));
+    p.vr_ssg_toggled = time;
+    VR_Reload_Sound(p, VRGetGunChannel(xHand), "vr/reload_ssg_close.wav", 1);
+    VR_Reload_Haptic(p, xHand, 0.1, 55, 1);
+    if(VRIsHandEmpty(p, VRGetOtherHand(xHand)))
+    {
+        VR_Reload_Haptic(p, VRGetOtherHand(xHand), 0.06, 80, 0.6);
+    }
+    VR_Reload_Log(sprintf("the super shotgun (hand %g) closed by %s: %g loaded", xHand, xHow, VRGetEntWeaponClip(p,
+        xHand)));
+};
+
+// Every player frame, for the super shotgun in `xHand` of self (VR_Reload_HandFrame): its flick bit's rising edge (the
+// flick; or the pry, with both hands on it: the engine's vr_flick.cpp, which also keeps the settings: Pry Open, Close
+// by Flick, Close by Lifting the Barrels) breaks it open, or, open, closes it; open with both chambers loaded it closes
+// by itself (vr_reload_ssg_close_auto).
+void(float xHand) VR_Reload_SsgFrame =
+{
+    float bit = xHand == cVR_MainHand ? 2 : 1;
+    float flick = VR_HandGrabUtil_IsHandReloadFlicking(self, xHand);
+    float flickWas = (self.vr_ssg_flick & bit) != 0;
+    self.vr_ssg_flick = self.vr_ssg_flick - (self.vr_ssg_flick & bit);
+    if(flick)
+    {
+        self.vr_ssg_flick = self.vr_ssg_flick | bit;
+    }
+    float f = VRGetEntWeaponFlags(self, xHand);
+    if(VRGetEntWeapon(self, xHand) != WID_SUPER_SHOTGUN || !VR_Reload_ManualFor(WID_SUPER_SHOTGUN) || self.health <= 0 ||
+       !self.ishuman || (f & QVR_WPNFLAG_FOREGRIP_CARRIED))
+    {
+        return;
+    }
+    float open = f & QVR_WPNFLAG_SSG_OPEN;
+    // (The flick isn't sent with the other hand holding the gun: the pry is.)
+    float other = VRGetOtherHand(xHand);
+    string how = "a flick";
+    if(VRIsHandEmpty(self, other) && VR_HandGrabUtil_IsHandGrabbing(self, other))
+    {
+        how = "the pry";
+    }
+    if(flick && !flickWas && VRIsWeaponReloadFlickingEnabledFor(self, xHand) && time >= self.vr_ssg_toggled + 0.35)
+    {
+        if(!open)
+        {
+            VR_Reload_SsgBreak(self, xHand, how);
+        }
+        else
+        {
+            VR_Reload_SsgClose(self, xHand, how);
+        }
+        return;
+    }
+    if(open && cvar_hget(cvarh_vr_reload_ssg_close_auto) && VRGetEntWeaponClip(self, xHand) >= 2 &&
+       time >= self.vr_ssg_toggled + 0.3)
+    {
+        VR_Reload_SsgClose(self, xHand, "itself (both loaded)");
+    }
+};
+
 // Every player frame, for `xHand` of self (W_Frame, beside the grenade pouch's): at the ammo pouch, a tap as the hand
 // arrives (with a round to take for the other hand's gun, or one to put back), and a grip pressed there by an empty
 // hand takes one (VR_Reload_Take).
@@ -871,6 +1029,7 @@ void(float xHand) VR_Reload_HandFrame =
         self.vr_reload_tried = self.vr_reload_tried - (self.vr_reload_tried & bit);
     }
     VR_Reload_MagFrame(xHand);
+    VR_Reload_SsgFrame(xHand);
     if(!at || !self.ishuman || (!deathmatch && time < readytime))
     {
         return;
@@ -911,6 +1070,18 @@ float(float xHand, entity r) VR_Reload_Load =
     float w = VRGetEntWeapon(self, gunHand);
     float clip = VRGetEntWeaponClip(self, gunHand);
     float room = WeaponIdToBaseClipSize(w) - clip;
+    if(w == WID_SUPER_SHOTGUN && !VR_Reload_SsgIsOpen(self, gunHand))
+    {
+        if(!r.vr_ammo_full)
+        {
+            // (Shut: its chambers can't be reached. Once as it comes within the load point's range, until it leaves it.)
+            r.vr_ammo_full = TRUE;
+            VR_Reload_Haptic(self, xHand, 0.06, 40, 0.6);
+            VR_Reload_Sound(self, VRGetGunChannel(gunHand), "vr/reload_blocked.wav", 1);
+            VR_Reload_Log("the super shotgun is shut: break it open first");
+        }
+        return FALSE;
+    }
     if(room <= 0)
     {
         if(!r.vr_ammo_full)

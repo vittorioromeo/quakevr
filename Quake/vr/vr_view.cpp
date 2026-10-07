@@ -279,6 +279,10 @@ struct LoadPort
 constexpr LoadPort loadPorts[] = {
     {modelmeta::Id::VShot, {13.6f, 0.f, 0.3f}, {&vr_reload_port_shot_x, &vr_reload_port_shot_y, &vr_reload_port_shot_z},
         &vr_reload_port_shot_radius, false},
+    // The super shotgun's breech face, between its chambers (make_ssg_open.py's barrels: ssgBreech), turned down with the
+    // barrels as it is drawn open (setupWeapon): a held taped pair's middle there loads both.
+    {modelmeta::Id::VShot2, {12.7f, 0.f, 7.f}, {&vr_reload_port_sshot_x, &vr_reload_port_sshot_y, &vr_reload_port_sshot_z},
+        &vr_reload_port_sshot_radius, false},
     // The magazine guns' wells: where the attached magazine's top sits when seated (make_mags.py's seats): a held
     // magazine's top (its reference point: magProps) brought there, within the two radii, seats it.
     {modelmeta::Id::VNail, {6.9f, 0.f, -1.45f}, {&vr_reload_port_nail_x, &vr_reload_port_nail_y, &vr_reload_port_nail_z},
@@ -375,6 +379,83 @@ constexpr int weaponFlagNoMag = 16; // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc)
 constexpr const char* pumpModelName = "progs/vr_pump_on_v_shot.mdl";
 constexpr const char* pumpBodyModelName = "progs/vr_pumpbody_on_v_shot.mdl";
 
+// The super shotgun broken open (immersive reloading's phase 2b; QC vr_reload.qc, QVR_WPNFLAG_SSG_OPEN): drawn as
+// make_ssg_open.py's two parts of v_shot2.mdl (made in its model space: +x forward, +y left, +z up), the frame where the
+// gun is and the barrels turned down about the hinge by vr_reload_ssg_open_angle, dropping open and snapping shut over a
+// few frames (ssgStep: smooth at any frame rate); the barrels' skin shows its loaded chambers (0, 1, 2). Closed, the gun
+// is drawn as itself. Its load point turns with the barrels (setupWeapon), as its casings do (vr_shells.cpp).
+constexpr const char* ssgFrameModel = "progs/vr_ssg_frame_on_v_shot2.mdl";
+constexpr const char* ssgBarrelsModel = "progs/vr_ssg_barrels_on_v_shot2.mdl";
+constexpr glm::vec3 ssgHinge{12.6f, 0.f, 3.2f}; // the hinge pin, under the barrels at the receiver's front
+constexpr int weaponFlagSsgOpen = 32;           // QC's QVR_WPNFLAG_SSG_OPEN (vr_defs.qc)
+constexpr float ssgOpenSpeed = 450.f;           // degrees a second the barrels drop open,
+constexpr float ssgCloseSpeed = 900.f;          // and snap shut
+
+struct SsgDrawn
+{
+    float angle{0.f};             // degrees the barrels are drawn turned down
+    double time{-1.0};            // vr_gametime of its last step
+    const qmodel_t* gun{nullptr}; // the model it was for (another gun: no animation)
+    bool parts{false};            // drawn in its parts this frame (the gun itself not drawn)
+};
+SsgDrawn ssgHands[2];
+SsgDrawn ssgHolsters[HolsterCount];
+
+[[nodiscard]] bool ssgBreaks()
+{
+    return cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 && vr_reload_ssg_break.value != 0.f;
+}
+
+// A point (or a direction) of the super shotgun's model turned down `deg` degrees about its hinge, as its barrels are.
+[[nodiscard]] glm::vec3 ssgTurn(const glm::vec3& p, float deg, bool point = true)
+{
+    const float a = glm::radians(deg);
+    const float c = std::cos(a);
+    const float s = std::sin(a);
+    const glm::vec3 d = point ? p - ssgHinge : p;
+    const glm::vec3 r{d.x * c + d.z * s, d.y, -d.x * s + d.z * c};
+    return point ? ssgHinge + r : r;
+}
+
+// The angle the super shotgun `gun` (flags `flags`) is drawn open at now, stepped towards open or shut.
+float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags)
+{
+    const bool ssg = gun && modelmeta::is(gun, modelmeta::Id::VShot2);
+    const float target = ssg && ssgBreaks() && (flags & weaponFlagSsgOpen) ? CLAMP(0.f, vr_reload_ssg_open_angle.value, 80.f) : 0.f;
+    const float dt = st.time >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - st.time, 0.1)) : 0.f;
+    st.time = vr_gametime;
+    if(gun != st.gun)
+    {
+        st.gun = gun;
+        st.angle = target; // (a gun come to the hand, or holstered: as it is)
+    }
+    else if(st.angle < target)
+    {
+        st.angle = za::min(target, st.angle + ssgOpenSpeed * dt);
+    }
+    else if(st.angle > target)
+    {
+        st.angle = za::max(target, st.angle - ssgCloseSpeed * dt);
+    }
+    return st.angle;
+}
+
+// A world point on the super shotgun `gun` (as drawn closed) turned with its barrels `deg` degrees down about the
+// hinge if it is on them (in front of the hinge): through the gun's model space (its drawn transform, mirrored or not,
+// inverted from four of its points).
+[[nodiscard]] glm::vec3 ssgTurnWorld(const view::ViewEntity& gun, const glm::vec3& w, float deg)
+{
+    const glm::vec3 o = view::modelPoint(gun, glm::vec3{0.f});
+    const glm::mat3 m{view::modelPoint(gun, {1.f, 0.f, 0.f}) - o, view::modelPoint(gun, {0.f, 1.f, 0.f}) - o,
+        view::modelPoint(gun, {0.f, 0.f, 1.f}) - o};
+    if(std::abs(glm::determinant(m)) < 1e-9f)
+    {
+        return w;
+    }
+    const glm::vec3 local = glm::inverse(m) * (w - o);
+    return local.x > ssgHinge.x ? view::modelPoint(gun, ssgTurn(local, deg)) : w; // (behind the hinge: the frame's)
+}
+
 struct Entities
 {
     view::ViewEntity weapon[2];
@@ -402,6 +483,10 @@ struct Entities
     view::ViewEntity worldWell[maxWorldWeapons];   // and lying nearest
     view::ViewEntity pumpBody[2]; // the shotgun in a hand while its auto pump strokes: the gun without its fore-end,
     view::ViewEntity pump[2];     // drawn instead of it, and the fore-end, slid back (setupPumps)
+    view::ViewEntity ssgFrame[2];                  // the super shotgun open (setupSsgParts): its frame and barrels,
+    view::ViewEntity ssgBarrels[2];                // in the hands,
+    view::ViewEntity holsterSsgFrame[HolsterCount]; // and holstered
+    view::ViewEntity holsterSsgBarrels[HolsterCount];
     view::ViewEntity sawHandle;  // the chainsaw's cord's handle out of its seat (vr_chainsaw.cpp handleEntity)
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
@@ -439,13 +524,14 @@ int pouchCounterFrame = -1; // the ammo pouch's counter queued in this frame (se
                          among(entities.hand[1]) || among(entities.button) || among(entities.frontButton) ||
                          among(entities.muzzleFlash) || &ve == &entities.flashlight || &ve == &entities.sawHandle ||
                          among(entities.mag) || among(entities.well) || among(entities.pumpBody) ||
-                         among(entities.pump)))
+                         among(entities.pump) || among(entities.ssgFrame) || among(entities.ssgBarrels)))
     {
         return true;
     }
     return (hide & 4) && (&ve == &entities.body || among(entities.pauldron) || among(entities.pauldronArm) ||
                              among(entities.holster) || among(entities.holsterSlot) || among(entities.holsterButton) ||
-                             &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.holsterMag) || among(entities.holsterWell));
+                             &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.holsterMag) || among(entities.holsterWell) ||
+                             among(entities.holsterSsgFrame) || among(entities.holsterSsgBarrels));
 }
 
 template <typename F>
@@ -517,6 +603,16 @@ void forEachEntity(F&& f)
     for(view::ViewEntity& ve : entities.pump)
     {
         f(ve);
+    }
+    for(int i = 0; i < 2; i++)
+    {
+        f(entities.ssgFrame[i]);
+        f(entities.ssgBarrels[i]);
+    }
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        f(entities.holsterSsgFrame[h]);
+        f(entities.holsterSsgBarrels[h]);
     }
     f(entities.sawHandle);
     for(view::ViewEntity& ve : entities.button)
@@ -1405,6 +1501,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     const bool fixed2H = model && slot >= 0 && hasGripHotspot(slot);
     ve.zeroBlend = weapons::value(slot, fixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
 
+    // The super shotgun broken open: how far its barrels are drawn down now (its parts: setupSsgParts).
+    const float ssgOpen = ssgStep(ssgHands[hand], floating ? nullptr : model,
+        cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2]);
+
     // Its loading port (a gun held by its handle; vr_reload_mode 3): where a round from the ammo pouch goes in.
     s.loadPortValid[hand] = false;
     if(model && slot >= 0 && !carried)
@@ -1415,7 +1515,8 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
             if(info.is(port.model))
             {
                 const glm::vec3 moved{port.offset[0]->value, port.offset[1]->value, port.offset[2]->value};
-                s.loadPort[hand] = view::modelPoint(ve, port.point + moved);
+                s.loadPort[hand] = view::modelPoint(ve, port.model == modelmeta::Id::VShot2 ?
+                    ssgTurn(port.point + moved, ssgOpen) : port.point + moved);
                 s.loadPortValid[hand] = true;
                 if(vr_reload_show_ports.value && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3)
                 {
@@ -1463,6 +1564,11 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
                 {
                     w.pos = w.end = view::modelPoint(ve, mount->centre);
                 }
+            }
+            // The super shotgun open: its fore-end (where the other hand holds it) turned down with the barrels.
+            if(ssgOpen > 0.f)
+            {
+                w.pos = w.end = ssgTurnWorld(ve, w.pos, ssgOpen);
             }
         }
         else if(h.type == weapons::HotspotType::Blade && s.muzzleValid[hand])
@@ -4884,6 +4990,111 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, 
     }
 }
 
+// One of the open super shotgun's parts (`model`) where the gun `gun` is drawn (its frame, its lerp, its kick: a copy),
+// turned down `deg` degrees about the hinge (the barrels; 0 the frame), with the skin `skin`.
+void setSsgPart(view::ViewEntity& part, const view::ViewEntity& gun, const char* model, float deg, int skin)
+{
+    qmodel_t* const m = viewModel(model);
+    if(!m)
+    {
+        part.visible = false;
+        return;
+    }
+    const qmodel_t* last = part.lastModel;
+    part = gun;
+    part.ent.model = m;
+    part.ent.skinnum = skin;
+    part.lastModel = last;
+    // (The parts share the gun's model header, but its Scale applies about each model's own corner: as setMagazine.)
+    const glm::vec3 corner = view::modelPoint(gun, glm::vec3{0.f}) - view::modelPoint(part, glm::vec3{0.f});
+    for(int i = 0; i < 3; i++)
+    {
+        part.ent.origin[i] += corner[i];
+    }
+    if(deg == 0.f)
+    {
+        return;
+    }
+    // Turned in the gun's frame about its +y (pitch: the muzzle down, unchanged by the mirroring), then moved so the
+    // hinge stays where the gun has it.
+    const glm::vec3 view{-part.ent.angles[0], part.ent.angles[1], part.ent.angles[2]};
+    const glm::vec3 turned = composeAngles(view, glm::vec3{deg, 0.f, 0.f});
+    part.ent.angles[0] = -turned.x;
+    part.ent.angles[1] = turned.y;
+    part.ent.angles[2] = turned.z;
+    const glm::vec3 to = view::modelPoint(gun, ssgHinge) - view::modelPoint(part, ssgHinge);
+    for(int i = 0; i < 3; i++)
+    {
+        part.ent.origin[i] += to[i];
+    }
+}
+
+// Every frame, after the guns are placed: the super shotguns broken open (immersive reloading, phase 2b), in the hands
+// (their drawn angle stepped by setupWeapon) and the holsters (as they are), in their two parts; the gun itself is then
+// not drawn (drawnInParts). The barrels' skin: how many chambers are loaded.
+void setupSsgParts()
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const view::ViewEntity& gun = entities.weapon[hand];
+        SsgDrawn& st = ssgHands[hand];
+        st.parts = gun.visible && st.gun == gun.ent.model && st.angle > 0.f;
+        if(!st.parts)
+        {
+            entities.ssgFrame[hand].visible = entities.ssgBarrels[hand].visible = false;
+            continue;
+        }
+        const int clip = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
+        setSsgPart(entities.ssgFrame[hand], gun, ssgFrameModel, 0.f, 0);
+        setSsgPart(entities.ssgBarrels[hand], gun, ssgBarrelsModel, st.angle, CLAMP(0, clip, 2));
+        if(vr_reload_debug.value >= 2 && developer.value)
+        {
+            // (The barrels as drawn against the gun's turned model space: the breech's middle, both ways.)
+            const glm::vec3 breech{12.7f, 0.f, 7.f};
+            const glm::vec3 a = view::modelPoint(entities.ssgBarrels[hand], breech);
+            const glm::vec3 b = view::modelPoint(gun, ssgTurn(breech, st.angle));
+            Con_Printf("ssg: hand %d open %.1f deg, its breech %.2f %.2f %.2f (turned %.2f off)\n", hand,
+                static_cast<double>(st.angle), static_cast<double>(a.x), static_cast<double>(a.y),
+                static_cast<double>(a.z), static_cast<double>(glm::distance(a, b)));
+        }
+    }
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        const view::ViewEntity& gun = entities.holster[h];
+        SsgDrawn& st = ssgHolsters[h];
+        const float deg = ssgStep(st, gun.visible ? gun.ent.model : nullptr, cl.stats[protocol::STAT_QVR_HOLSTERWEAPONFLAGS0 + h]);
+        st.parts = gun.visible && deg > 0.f;
+        if(!st.parts)
+        {
+            entities.holsterSsgFrame[h].visible = entities.holsterSsgBarrels[h].visible = false;
+            continue;
+        }
+        setSsgPart(entities.holsterSsgFrame[h], gun, ssgFrameModel, 0.f, 0);
+        setSsgPart(entities.holsterSsgBarrels[h], gun, ssgBarrelsModel, deg,
+            CLAMP(0, cl.stats[protocol::STAT_QVR_HOLSTERWEAPONCLIP0 + h], 2));
+    }
+}
+
+// Whether `ve` is a super shotgun drawn in its parts this frame (setupSsgParts): not drawn itself.
+[[nodiscard]] bool drawnInParts(const view::ViewEntity& ve)
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(&ve == &entities.weapon[hand])
+        {
+            return ssgHands[hand].parts;
+        }
+    }
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        if(&ve == &entities.holster[h])
+        {
+            return ssgHolsters[h].parts;
+        }
+    }
+    return false;
+}
+
 // Every frame, after the guns are placed: their magazines (immersive reloading: the server's mode, the guns' flags; a
 // lying gun's U_QVR_NOMAG); with Show Load Points, a held magazine's reference point and radius (orange).
 void setupMagazines()
@@ -5735,6 +5946,18 @@ void setupFrontButton(int hand)
 
 namespace qvr::view
 {
+
+float ssgOpenAngle(int hand)
+{
+    return hand >= 0 && hand < 2 && entities.weapon[hand].visible && ssgHands[hand].gun == entities.weapon[hand].ent.model
+               ? ssgHands[hand].angle
+               : 0.f;
+}
+
+glm::vec3 ssgTurned(const glm::vec3& p, float deg, bool point)
+{
+    return ssgTurn(p, deg, point);
+}
 
 bool weaponButtonHandTarget(int hand, int side, float units, glm::vec3& out)
 {
@@ -6699,6 +6922,7 @@ extern "C" void VR_SetupViewEntities()
 
     setupMagazines();
     setupPumps();
+    setupSsgParts();
     patchModelFlags();
 
     // The screen may be redrawn more than once per frame (a modal dialog); add the entities only once.
@@ -6712,7 +6936,8 @@ extern "C" void VR_SetupViewEntities()
     weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
 
     forEachEntity([](view::ViewEntity& ve) {
-        if(ve.visible && ve.ent.model && !hiddenForShot(ve) && !drawnAsPump(ve) && cl_numvisedicts < MAX_VISEDICTS)
+        if(ve.visible && ve.ent.model && !hiddenForShot(ve) && !drawnAsPump(ve) && !drawnInParts(ve) &&
+           cl_numvisedicts < MAX_VISEDICTS)
         {
             cl_visedicts[cl_numvisedicts++] = &ve.ent;
         }

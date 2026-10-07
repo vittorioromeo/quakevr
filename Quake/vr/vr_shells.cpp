@@ -370,7 +370,15 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
     for(int i = 0; i < p.count; i++)
     {
         const int port = i % w->ports;
-        const glm::vec3 at = w->port[port] + shift;
+        glm::vec3 at = w->port[port] + shift;
+        glm::vec3 portDir = w->dir[port];
+        if(const float open = w->model == modelmeta::Id::VShot2 ? view::ssgOpenAngle(p.hand) : 0.f; open > 0.f)
+        {
+            // The super shotgun broken open (immersive reloading): out of its chambers as they are drawn, turned down
+            // with the barrels (vr_view.cpp; make_ssg_open.py's breech face at x 12.7, z 7), backwards and up.
+            at = view::ssgTurned(glm::vec3{12.7f, w->port[port].y, 7.f}, open) + shift;
+            portDir = view::ssgTurned(portDir, open, false);
+        }
         const glm::vec3 pos = view::modelPoint(ve, at);
 
         // The weapon's axes at the port (right-handed again when the model is mirrored).
@@ -378,7 +386,7 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         glm::vec3 up = worldDir(ve, at, {0.f, 0.f, 1.f});
         const glm::vec3 left = glm::normalize(glm::cross(up, fwd));
         up = glm::cross(fwd, left);
-        const glm::vec3 dir = worldDir(ve, at, w->dir[port]);
+        const glm::vec3 dir = worldDir(ve, at, portDir);
 
         Shell& s = newShell();
         s = Shell{};

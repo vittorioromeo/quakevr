@@ -48,6 +48,12 @@ struct ViewEntity
 // button shown.
 [[nodiscard]] bool weaponButtonHandTarget(int hand, int side, float units, glm::vec3& out);
 
+// Immersive reloading's super shotgun broken open (phase 2b): how far (degrees) the barrels of the gun in `hand` are
+// drawn turned down about its hinge now (0: closed, or not a super shotgun), and a point (or a direction, `point`
+// false) of its model (v_shot2.mdl's space) turned with them by `deg` (vr_shells.cpp: its casings out of the chambers).
+[[nodiscard]] float ssgOpenAngle(int hand);
+[[nodiscard]] glm::vec3 ssgTurned(const glm::vec3& p, float deg, bool point = true);
+
 // World position of a point given in `ve`'s model space (as its frames' vertices).
 [[nodiscard]] glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);
 

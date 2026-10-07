@@ -21,6 +21,12 @@ float QVR_WPNFLAG_SAW_STATE = 12; // both (QVR_WPNFLAG_SAW_RUNNING | QVR_WPNFLAG
 // level's parms) as its flags do. The engine draws the attached magazine of a gun without it (vr_view.cpp; a weapon
 // prop's: U_QVR_NOMAG).
 float QVR_WPNFLAG_NOMAG = VRUTIL_POWER_OF_TWO(4);
+// Immersive reloading's super shotgun (vr_reload.qc, phase 2b): broken open (drawn open, it can't fire, its chambers take
+// shells by hand), and the spent shells still in its barrels (fired, not yet thrown out by opening it: 0, 1 or 2, in two
+// bits: QVR_WPNFLAG_SSG_SPENT_ONE times the count). Both travel with the gun as its flags do (vr_view.cpp draws it open).
+float QVR_WPNFLAG_SSG_OPEN = VRUTIL_POWER_OF_TWO(5);
+float QVR_WPNFLAG_SSG_SPENT_ONE = VRUTIL_POWER_OF_TWO(6);
+float QVR_WPNFLAG_SSG_SPENT = 192; // (both bits: 64 and 128)
 
 //
 //

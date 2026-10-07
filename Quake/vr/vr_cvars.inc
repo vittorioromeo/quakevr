@@ -2428,6 +2428,15 @@ QVR_CVAR(vr_reload_pull_snap, "600", CVAR_ARCHIVE)     // its wrist turning at t
 QVR_CVAR(vr_reload_pull_apart, "10", CVAR_ARCHIVE)     // units further apart than as it took hold (any one of the three; a gentle pull only holds it)
 QVR_CVAR(vr_reload_hit_reach, "4", CVAR_ARCHIVE)       // units from a seated magazine's top a hit counts within (the fist, a held prop, the other gun's line)
 QVR_CVAR(vr_reload_pull_reach, "6", CVAR_ARCHIVE)      // units from the magazine's middle within which a gripping hand holds it
+// The super shotgun broken open (phase 2b; vr_reload.qc; vr_view.cpp draws it open: make_ssg_open.py's parts).
+QVR_CVAR(vr_reload_ssg_break, "1", CVAR_ARCHIVE)       // with Immersive: its spent shells stay in; broken open (the flick, the pry) it throws them out and loads by hand (0: the flick reloads it as before)
+QVR_CVAR(vr_reload_ssg_open_angle, "35", CVAR_ARCHIVE) // degrees its barrels drop about the hinge, open (looks only; the load point goes with them)
+QVR_CVAR(vr_reload_ssg_pry, "1", CVAR_ARCHIVE)         // both hands on it (the two-handed hold), the front one pushing the barrels down against the back one breaks it open
+QVR_CVAR(vr_reload_ssg_pry_angle, "30", CVAR_ARCHIVE)  // degrees the front hand must go down from the back hand's aim (or the stock up), from its least since they took hold
+QVR_CVAR(vr_reload_ssg_pry_speed, "100", CVAR_ARCHIVE) // degrees a second it must be moving at (a steady two-handed aim never pries)
+QVR_CVAR(vr_reload_ssg_close_flick, "1", CVAR_ARCHIVE) // open, the flick closes it again
+QVR_CVAR(vr_reload_ssg_close_pry, "1", CVAR_ARCHIVE)   // open, the front hand lifting the barrels back (the reverse pry: as far, as fast) closes it
+QVR_CVAR(vr_reload_ssg_close_auto, "0", CVAR_ARCHIVE)  // open, it closes by itself once both chambers are loaded
 QVR_CVAR(vr_reload_eject_button, "1", CVAR_ARCHIVE)    // the gun's controller's B/Y lets its magazine drop (0: off; weapon cycling keeps the button then)
 // Each gun's load point moved (model units of the gun: +x forward, +y left, +z up): the shotgun's port, the magazine
 // guns' wells (the lava nailguns' and the plasma gun's with theirs). vr_reload_show_ports draws them and their ranges.
@@ -2443,12 +2452,16 @@ QVR_CVAR(vr_reload_port_snail_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_sshot_x, "0", CVAR_ARCHIVE)    // the super shotgun's: its breech face's middle, between the chambers (turned with the barrels, open)
+QVR_CVAR(vr_reload_port_sshot_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_sshot_z, "0", CVAR_ARCHIVE)
 // Each gun's load point's radius (world units): a shell's middle, or a magazine's reference point within it plus the
 // magazine's own radius, goes in (the author: per gun, the wells small).
 QVR_CVAR(vr_reload_port_shot_radius, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_nail_radius, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_snail_radius, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_radius, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_sshot_radius, "3", CVAR_ARCHIVE) // (a taped pair's middle, between its two shells)
 // Each magazine's reference point: its top (its feed end) moved by these (its model units: +x along its gun, +y left,
 // +z up its length), and its radius (world units).
 QVR_CVAR(vr_reload_mag_nail_x, "0", CVAR_ARCHIVE)

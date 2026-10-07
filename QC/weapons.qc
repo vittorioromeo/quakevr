@@ -2118,6 +2118,10 @@ void(float xHand) W_FireShotgun =
     {
         ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 1, 0.45, 0);
     }
+    else if(VRGetWeapon(xHand) == WID_SUPER_SHOTGUN)
+    {
+        VR_Reload_SsgFired(xHand, 1); // (immersive reloading: spent in its barrel until it is broken open)
+    }
 
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 
@@ -2167,6 +2171,10 @@ void(float xHand) W_FireSuperShotgun =
     if(!VRIsWeaponReloadingEnabledFor(self, xHand))
     {
         ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 2, 0.45, 0);
+    }
+    else
+    {
+        VR_Reload_SsgFired(xHand, 2); // (immersive reloading: spent in its barrels until it is broken open)
     }
 
     particle2(VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
@@ -3284,6 +3292,18 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     if(VR_IsEnemyGun(xWeapon))
     {
         VR_EnemyGun_Attack(xHand, xWeapon, xAttackFinished, xOutAttackFinished);
+        return;
+    }
+
+    // The super shotgun broken open (immersive reloading, vr_reload.qc): its hammers fall on nothing.
+    if(VR_Reload_SsgIsOpen(self, xHand))
+    {
+        if(time > xAttackFinished)
+        {
+            sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
+            *xOutAttackFinished = time + 0.5;
+            VR_Reload_Log(sprintf("a dry click: the super shotgun (hand %g) is open", xHand));
+        }
         return;
     }
 
