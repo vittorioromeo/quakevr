@@ -250,7 +250,7 @@ again. `vr_hull_keeptest` rebuilds everything from scratch and checks the hashes
 The world's compiled trees that took 250 ms or more to build are also written to
 `<gamedir>/cache/hulls/<build>/<world>_<box>.hul` (<world>: `keyOf`, the world's content; <box>: the tree's half size;
 <build>: vr_hull.cpp's compile time, so changed code never reads an old tree) and read at the next load of the same
-map in any session instead of being compiled: vrstart2's cold start 10.4 s to 1.3 s (four trees of 1.2-1.4 million
+map in any session instead of being compiled: vrstart's (then vrstart2) cold start 10.4 s to 1.3 s (four trees of 1.2-1.4 million
 nodes, 24 ms each to read, 105 MB on disk). A file is checked as it is read (magic, version, world, box, sizes, every
 node's numbers, a sum of its bytes); one amiss is compiled again and written over. 1 GB budget, oldest files first.
 `vr_hull_cache` (default 1; Debug > Tests, Hitboxes on Disk): 0 off, 2 read, then compiled anyway and compared

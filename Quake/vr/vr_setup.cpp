@@ -61,7 +61,7 @@ constexpr Option options[] = {
     {"hud", "HUD", "vr_hud_mode", {{1.f, "Wrist Gadget"}, {0.f, "Status Bar"}}, 2},
     {"crosshair", "Crosshair", "vr_crosshair", {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft Laser"}}, 4},
     {"climb", "Climbing", "vr_climb", {{1.f, "On"}, {0.f, "Off"}}, 2},
-    // vrstart2's settings pavilion (ROUND21.md, "vrstart2"): the old hub's raw-cvar buttons, with their screens now
+    // vrstart's settings pavilion (ROUND21.md, "vrstart"): the old hub's raw-cvar buttons, with their screens now
     {"holsters", "Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}, 2},
     {"reload", "Reloading", "vr_reload_mode", {{3.f, "Immersive"}, {2.f, "Hip Holsters"}, {1.f, "All Holsters"}, {0.f, "Off"}}, 4},
     {"twohand", "Two-Handed Aim", "vr_2h_mode", {{2.f, "Virtual Stock"}, {1.f, "Basic"}, {0.f, "Off"}}, 3},

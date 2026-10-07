@@ -121,7 +121,7 @@ models) and keeps the classic pixel look; none of it needs new art.
   0.6 in the courtyard, 0.75 indoors) and the lamp posts' four lights at 60, plus the glowing textures' lights
   (`glow_lights`, coloured `.lit`), `-dirt -dirtscale 1.5`, no bounce, and a faint cool sky and moon over the open
   courtyard (`_sunlight2` 80, `_sunlight` 50); its sixteen "light" 1200 fill lamps 300 units up are dropped. Pools
-  of light at the boards and lamps, dark corners and corridors between them. `vrstart` is left fullbright (no
+  of light at the boards and lamps, dark corners and corridors between them. `vrstart_old` (the old hub) is left fullbright (no
   lightmap and no lights; its worldspawn `"light" "300"` is a minimum light for a menu-like hub).
 - **Light fixtures** (round 15, `glow_lights` in `relight_maps.py`, `quakevr/relight_textures.cfg`). Lamps,
   light panels and strip lights (textures named `*light*`/`*lamp*` and those the file names: `tlight*`, `light1_*`,

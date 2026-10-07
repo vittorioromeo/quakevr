@@ -1,6 +1,6 @@
-# make_vs2_sky.py -- draws vrstart2's night sky: a sky box (quakevr/gfx/env/vs2night{rt,bk,lf,ft,up,dn}.png), our
+# make_vs2_sky.py -- draws vrstart's night sky: a sky box (quakevr/gfx/env/vs2night{rt,bk,lf,ft,up,dn}.png), our
 # own pictures (no game's data): a deep blue gradient to a faint glow at the horizon, thousands of stars, the Milky
-# Way's band, a few thin clouds and the moon where vrstart2's moonlight comes from (its worldspawn _sunlight_mangle).
+# Way's band, a few thin clouds and the moon where vrstart's moonlight comes from (its worldspawn _sunlight_mangle).
 #
 #   python Misc/quakevr/maps/make_vs2_sky.py [--size 1024]
 #
@@ -19,7 +19,7 @@ NAME = "vs2night"
 SUFFIX = ["rt", "bk", "lf", "ft", "up", "dn"]
 SKYTEXORDER = [0, 2, 1, 3, 4, 5]
 ST_TO_VEC = [(3, -1, 2), (-3, 1, 2), (1, 3, 2), (-1, -3, 2), (-2, -1, 3), (2, -1, -3)]
-# the moonlight's direction (vrstart2_gen.py's _sunlight_mangle, yaw and pitch): the moon is opposite it
+# the moonlight's direction (vrstart_gen.py's _sunlight_mangle, yaw and pitch): the moon is opposite it
 MOON_MANGLE = (240, -30)
 
 

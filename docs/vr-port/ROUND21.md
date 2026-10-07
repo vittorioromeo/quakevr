@@ -29976,3 +29976,28 @@ their old rest, `vr_menu_path_check` 0 missing, e1m1's smoke test. The contact s
 in the agent's worktree): the same look (differences 0.6-3.8 per channel, the campfire's 12 its flames, smoke and a
 barrel's random skin) except the slipgate's surface, now lit and showing its texture (as the first 2.0 builds drew it;
 0.18 without -splitturb left it unlit and dark).
+
+## vrstart2 becomes vrstart; the old hub is vrstart_old (2026-10-07)
+
+The author's request: the island is the hub. `git mv`: `vrstart.bsp`/`.ent` -> `vrstart_old.*`, `vrstart2.bsp/.lit/.lux/.map`
+-> `vrstart.*`, `vrstart2_gen.py` -> `vrstart_gen.py` (MAPNAME `vrstart`; the .map the same but its header line),
+`vrstart2_walktest.py` -> `vrstart_walktest.py`. Engine: `VR_HubMap()` is `vrstart`, or `vrstart_old` when `vr_hub_map`
+names it (default `vrstart`); `VR_IsVrMap` knows `vrstart_old` (and `vrstart2`); **`VR_MapAlias`** (SV_SpawnServer):
+`vrstart2` loads `vrstart`, so an old save made on the island, a bind or a script still work (the same map: the save's
+entities fit). `vr_cfg_version` 99: a config's `vr_hub_map vrstart2` becomes `vrstart` (without it, it would be
+`vrstart` anyway). Seen tips: `tips_seen.txt` keys `vrstart2:...` count as `vrstart:...` (the island's tips stay seen;
+the old hub's tip names are different). Debug > Tests > Hubs > The Old Hub (`vr_campaign_hub vrstart_old`). The
+tutorial's, calibration room's, test hall's and example map's ways back already said `map vrstart`: they lead to the
+island now. Bench scenario `load_vrstart2` -> `load_vrstart`; `stray_press_test.sh` loads vrstart and vrstart_old; docs
+(MAPPING, TESTING, FEATURES, GRAPHICS, HULLS, RELOAD_PLAN, EXPANSIONS), the checklist, code comments and the FGD's
+help follow.
+
+**Not aliased: a save made on the old hub** (mapname `vrstart`) now loads the island with the old hub's entities
+(wrong). The hub is rarely saved in; the alias would need to tell the two apart (the save's entity count, say).
+
+**Tested**: a fresh start (`vr_startgame`) and `vr_campaign_hub` land in vrstart; `vr_campaign_hub vrstart_old` loads
+the old hub; `map vrstart2` loads vrstart; `changelevel vrstart` from the calibration room; a save whose map was
+renamed to vrstart2 loads on vrstart; a config at vr_cfg_version 98 with `vr_hub_map vrstart2` comes up `vrstart` (99);
+`vrstart2:vs2_welcome` in tips_seen.txt shows as seen in vrstart; the walk test 18 of 18 (twice), the three buttons, the
+bench scenario `load_vrstart` validates (3 loads, the same twice), `vr_menu_path_check maps/vrstart.map` 0 missing,
+e1m1's smoke test.

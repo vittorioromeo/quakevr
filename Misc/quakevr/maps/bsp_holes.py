@@ -3,7 +3,7 @@
 # lie on one of the world's faces on that plane. A point on none is a hole (a face qbsp lost: ericw-tools' "sides not
 # found", a sliver of sky or void seen through the ground). Pure Python (no numpy), spread over the CPU's cores.
 #
-#   python Misc/quakevr/maps/bsp_holes.py quakevr/maps/vrstart2.bsp [--rays 120000] [--seed 1] [--focus x0,y0,z0,x1,y1,z1]
+#   python Misc/quakevr/maps/bsp_holes.py quakevr/maps/vrstart.bsp [--rays 120000] [--seed 1] [--focus x0,y0,z0,x1,y1,z1]
 #
 # Prints the hits (a hole's point, the plane, the two contents) clustered by 64-unit cell, and "holes: N".
 import argparse

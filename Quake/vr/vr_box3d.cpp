@@ -1008,7 +1008,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
     }
     za::quickSort(grid.begin(), grid.end());
     // Each cell's run in the grid (looked up by key: a binary search of the grid for each of 27 cells round each step
-    // along each edge was most of vrstart2's 570 ms mesh, 90k faces).
+    // along each edge was most of vrstart's 570 ms mesh, 90k faces).
     ankerl::unordered_dense::map<uint64_t, za::Pair<int, int>> cellRuns;
     cellRuns.reserve(grid.size());
     for(za::SizeT i = 0; i < grid.size();)
@@ -1053,7 +1053,7 @@ jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
 
     // A face's outline: its corners, and the T-junctions put into its edges. Found for runs of faces at once on the pool
     // (each run's outlines one after the other; read only: the map, the grid), then made into triangles in the faces'
-    // order, as on one thread (the same mesh; vrstart2's 90k faces: 430 ms of searching on one thread).
+    // order, as on one thread (the same mesh; vrstart's 90k faces: 430 ms of searching on one thread).
     struct Outlines
     {
         za::Vector<int> outline;

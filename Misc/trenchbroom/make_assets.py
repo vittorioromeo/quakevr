@@ -277,7 +277,7 @@ TEXTURES = [
     # the calibration room (Misc/quakevr/make_vrcalibration_map.py)
     ("qvrc_pad", lambda: tex_pad(128, 128, (47, 47, 47), (171, 231, 255), 26)),
     ("qvr_target", lambda: tex_target(64, 64)),
-    # vrstart2's lanterns (Misc/quakevr/maps/vrstart2_gen.py)
+    # vrstart's lanterns (Misc/quakevr/maps/vrstart_gen.py)
     ("qvr_lantern", lambda: tex_lantern(32, 32)),
 ]
 

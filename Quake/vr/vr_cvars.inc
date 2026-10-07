@@ -10,7 +10,7 @@ QVR_CVAR(vr_hull_width, "16", CVAR_ARCHIVE)            // Movement > Player Hitb
 QVR_CVAR(vr_hull_method, "1", CVAR_ARCHIVE)            // how that is done: 0 the brush sweep (Quake 2's), 1 a clipping hull compiled for the width at load (qbsp's)
 QVR_CVAR(vr_hull_ent_width, "-1", CVAR_ARCHIVE)        // the player's width against monsters, players and solid boxes (8-32; 0: Quake's 32; -1: vr_hull_width's)
 QVR_CVAR(vr_hull_brushmodels, "1", CVAR_ARCHIVE)       // the narrow width against brush models too (doors, lifts, func_walls, external .bsp models), not only the world
-QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)             // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart2 cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
+QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)             // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
 QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)              // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
 QVR_CVAR(vr_hull_monsters, "1", CVAR_ARCHIVE)          // the narrow entity width between the player and monsters (both ways)
 QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players
@@ -610,7 +610,7 @@ QVR_CVAR(vr_motion_review_speed, "0.5", CVAR_ARCHIVE)   // the ghost replay's pa
 QVR_CVAR(vr_motion_relabel_category, "0", CVAR_NONE)    // Relabel: the category (vr_motion_category's index) and detail a take is given
 QVR_CVAR(vr_motion_relabel_detail, "0", CVAR_NONE)
 QVR_CVAR(vr_memstats_log_gpu, "0", CVAR_ARCHIVE)  // 1: the memory log's GPU columns (clocks, slowdowns, each program's GPU use: a sampling thread) always; 0: only while profiling (vr_profile, vr_profile_overlay, vr_profile_csv)
-QVR_CVAR(vr_heap_load_hold, "60000", CVAR_ARCHIVE)  // ms a map load keeps the memory it frees for its own later allocations (the heap's purge delay while it loads, vr_crtheap.c), all given back at its first frame drawn: 0 off (purged as vr_heap_purge_delay says; vrstart2's hull build 1.7x slower)
+QVR_CVAR(vr_heap_load_hold, "60000", CVAR_ARCHIVE)  // ms a map load keeps the memory it frees for its own later allocations (the heap's purge delay while it loads, vr_crtheap.c), all given back at its first frame drawn: 0 off (purged as vr_heap_purge_delay says; vrstart's hull build 1.7x slower)
 QVR_CVAR(vr_heap_purge_delay, "0", CVAR_ARCHIVE)  // ms mimalloc (the heap, vr_crtheap.c) keeps freed memory before giving it back to the system: 0 at once (the smallest working set), 1000 mimalloc's own default (loads ~15% quicker, 0.3-1 GB more held after them), -1 never. MIMALLOC_PURGE_DELAY sets the start-up value
 QVR_CVAR(vr_memstats_log, "60", CVAR_ARCHIVE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off)
 QVR_CVAR(vr_image_cache_mb, "512", CVAR_ARCHIVE)   // decoded image files (a texture pack's world textures, material maps, skies, skins) kept across map loads, up to this many MB (vr_imgcache.cpp: keyed by the file itself; the least recently used go first; vr_image_cache_info); 0: none kept, each load decodes them again
@@ -2282,7 +2282,7 @@ QVR_CVAR(vr_handgrenade_fuse, "2.5", CVAR_ARCHIVE)      // s from arming a hand 
 QVR_CVAR(vr_handgrenade_arm, "0", CVAR_ARCHIVE)         // 0: the trigger pulls the pin (let go of unarmed, it is a dud); 1: letting go arms it (the lever flies off)
 QVR_CVAR(vr_ogre_aim_height, "1", CVAR_ARCHIVE)          // ogres (and zombies) lob at your height: a ballistic arc at their throw's speed (0: Quake's flat lob)
 QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_hub_map, "vrstart", CVAR_ARCHIVE)           // the VR hub (where VR starts, and the menus' VR Hub): vrstart, or vrstart2 (the island at night, ROUND21.md "vrstart2"); anything else is vrstart
+QVR_CVAR(vr_hub_map, "vrstart", CVAR_ARCHIVE)           // the VR hub (where VR starts, and the menus' VR Hub): vrstart (the island at night, Misc/quakevr/maps/vrstart_gen.py; vrstart2 until 2026-10-07: vr_cfg_version 99 moves it), or vrstart_old (the old hub); anything else is vrstart
 QVR_CVAR(vr_verbosebots, "0", CVAR_NONE)
 QVR_CVAR(vr_finger_grip_bias, "0.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrabbable_ammo_boxes, "1", CVAR_ARCHIVE)

@@ -898,7 +898,7 @@ void() vr_crate =
 };
 
 /*QUAKED vr_barrel (0.6 0.45 0.25) (-11 -11 -16) (11 11 16) LYING
-Quake VR: a wooden barrel, placed by hand (vrstart2's, by the pier and the pavilion): a crate in all but its shape (a
+Quake VR: a wooden barrel, placed by hand (vrstart's, by the pier and the pavilion): a crate in all but its shape (a
 heavy physics prop: pushed, tipped, rolled, stood on, carried by hand; broken into boards by shots, blows, explosions
 and hard hits, sometimes holding a small box of ammo or health; it hides the player from monsters behind it). 22 units
 across, 32 high; its origin is its middle. "angle": its yaw; "skin": 0 pine, 1 brown, 2 weathered; LYING: on its side

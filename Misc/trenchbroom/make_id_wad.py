@@ -6,7 +6,7 @@
 Reads every map in id1's paks (and the mission packs' hipnotic/pak0.pak and rogue/pak0.pak, when installed), takes
 each texture the maps embed (by name; the first one found wins: id1, then hipnotic, then rogue) and writes them, as
 they are (8-bit, Quake's palette, their mip levels), into quakevr/wads/id_textures.wad (git-ignored: id's data is not
-in the repository). Maps made with it (vrstart2: Misc/quakevr/maps/vrstart2_gen.py) name it in their worldspawn's
+in the repository). Maps made with it (vrstart: Misc/quakevr/maps/vrstart_gen.py) name it in their worldspawn's
 `wad`; qbsp finds it with `-wadpath <checkout>`. A .bsp compiled from such a map embeds id's textures: the author
 decided that the hub maps may ship so (MAPPING.md, "Textures and id's data").
 

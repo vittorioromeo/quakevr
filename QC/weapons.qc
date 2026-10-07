@@ -4829,7 +4829,7 @@ void() ImpulseCommands =
         }
         else if(spawnKind == 111 || spawnKind == 112)
         {
-            // A barrel (vr_crates.qc's vr_barrel: vrstart2's), upright or lying across your view (it may roll).
+            // A barrel (vr_crates.qc's vr_barrel: vrstart's), upright or lying across your view (it may roll).
             traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, spawnPlayer); // (on the floor)
             self = spawn();
             self.angles = '0 1 0' * (spawnPlayer.v_viewangle_y + 90);

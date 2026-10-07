@@ -54,7 +54,7 @@ constexpr const char* keyDefaults[numKeys] = {
 // 54: the author's grenade and multi-grenade fits; 55: the author's weights and sizes (slots 6-16 his items); 56: every
 // prop in both hands; 57: the gibs' and heads' sizes; 58: the author's lighter gibs and heads (and the gremlin's head);
 // 59: the monsters' heads weigh what a head cut off their ragdoll does (Mass -1); 60: immersive reloading's shells
-// (slots 49-50); 61: reloading's magazines; 62: vrstart2's barrel (slot 61); 63: the magazines' sizes; 64: the live
+// (slots 49-50); 61: reloading's magazines; 62: vrstart's barrel (slot 61); 63: the magazines' sizes; 64: the live
 // shell's grip.
 constexpr int settingsVersion = 64;
 
@@ -523,7 +523,7 @@ void migrate()
             takeShippedSlot(slot);
         }
     }
-    // 62: vrstart2's barrel (vr_barrel; make_crates.py) has slot 60 (vr_prop_*_61): it takes its shipped settings, a
+    // 62: vrstart's barrel (vr_barrel; make_crates.py) has slot 60 (vr_prop_*_61): it takes its shipped settings, a
     // model the menu had put there moving to a free slot.
     if(from < 62)
     {

@@ -5551,6 +5551,10 @@ za::Vector<Item> pageDebugTests()
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Each held gun's load point and radius, a held magazine's top, an attached magazine's box (blue)."),
         toggle("Show the Pouches' Reach", "vr_show_grenade_pouch").help("Spheres where the grenade pouch and the ammo pouch are reached."),
+        header("Hubs"),
+        command("The Old Hub (vrstart_old)", "vr_campaign_hub vrstart_old")
+            .help("vr_campaign_hub vrstart_old: the hub before the island (vrstart until 2026-10-07). Nothing goes there by "
+                  "default; vr_hub_map vrstart_old makes it the hub again."),
         header("Climbing"),
         command("Climbing Test Map", "map vrclimb").help("map vrclimb: rungs, ledges, a jump wall, moving and floating ledges."),
         command("To the Jump Wall", "setpos -40 -310 24 0 0 0; noclip")
@@ -5742,7 +5746,7 @@ za::Vector<Item> pageDebugTests()
                   "built at every load."),
         cycle("Hitboxes on Disk", vr_hull_cache, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Check"}})
             .help("A big map's compiled hulls kept on disk (cache/hulls) and read at its next load instead of compiled "
-                  "again (vrstart2: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
+                  "again (vrstart: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
                   "them). Off: compiled at every load (vr_hull_cache)."),
         command("Hitbox Keep Test", "vr_hull_keeptest")
             .help("Builds the map's brushes and compiled hulls again from scratch and prints whether the server's (kept "

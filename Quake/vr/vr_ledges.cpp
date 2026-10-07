@@ -340,7 +340,7 @@ void findPiecesIn(const qmodel_t* model, const Hull& h, int begin, int end, za::
 jobs::Site piecesSite{"ledge pieces"}; // (its parallelFor: vr_jobs_sites)
 
 // The model's faces' pieces, found for runs of faces at once on the pool (each run into its own list, joined in the
-// faces' order: the same pieces as on one thread; vrstart2's floor faces, three hull 0 point tests an edge: 110 ms on
+// faces' order: the same pieces as on one thread; vrstart's floor faces, three hull 0 point tests an edge: 110 ms on
 // one thread).
 void findPieces(const qmodel_t* model, const Hull& h, za::Vector<Piece>& pieces, int& faces)
 {

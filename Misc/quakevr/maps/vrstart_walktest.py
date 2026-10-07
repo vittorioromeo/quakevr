@@ -1,8 +1,8 @@
-# vrstart2_walktest.py -- walks vrstart2's path headless, one leg at a time (setpos at the leg's start facing its end,
+# vrstart_walktest.py -- walks vrstart's path headless, one leg at a time (setpos at the leg's start facing its end,
 # the mock stick forward for the leg's length at running speed, viewpos at its end), and checks where each leg ended.
 #
-#   python Misc/quakevr/maps/vrstart2_walktest.py script        # writes quakevr/vs2walk.cfg (git-ignored)
-#   bash <kit>/run.sh <agent> -Script "exec vs2walk.cfg" -Filter "Player pos|WP" | python Misc/quakevr/maps/vrstart2_walktest.py check
+#   python Misc/quakevr/maps/vrstart_walktest.py script        # writes quakevr/vs2walk.cfg (git-ignored)
+#   bash <kit>/run.sh <agent> -Script "exec vs2walk.cfg" -Filter "Player pos|WP" | python Misc/quakevr/maps/vrstart_walktest.py check
 #
 # A leg passes when it ends within 48 units of its end (and 24 in height). (One cfg exec'd, the waits as aliases: the
 # kit's -Script expands waitN into N lines, which overflows the command buffer for a walk this long.)
@@ -23,7 +23,7 @@ def wait(n):
 
 
 def script():
-    out = ['alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "map vrstart2"] + wait(30)
+    out = ['alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "map vrstart"] + wait(30)
     for (ax, ay, az), (bx, by, bz) in zip(W, W[1:]):
         yaw = math.degrees(math.atan2(by - ay, bx - ax))
         frames = max(1, int(math.hypot(bx - ax, by - ay) / 320 * 72))

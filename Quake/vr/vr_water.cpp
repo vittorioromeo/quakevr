@@ -558,7 +558,7 @@ float cross2(const glm::vec2& a, const glm::vec2& b)
 }
 
 // Items (faces, rim segments) bucketed by the xy cells their boxes cover: a point's cell lists every item whose box
-// holds it (buildMesh's lookups, which went through every face or segment of a group: 2.2 s a load on vrstart2's lake,
+// holds it (buildMesh's lookups, which went through every face or segment of a group: 2.2 s a load on vrstart's lake,
 // 1/10th of its faces level water). The boxes' cells are found with the same arithmetic as the point's, so an item whose
 // box holds the point is always in the point's cell.
 struct XYBuckets

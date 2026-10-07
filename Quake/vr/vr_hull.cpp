@@ -2001,7 +2001,7 @@ private:
     {
         // The pieces' live faces' planes (in the order first met) and how many faces lie on each: counted in a table
         // the size of the faces (open addressed), not of the tree's planes (an array of all the planes a builder was
-        // 5 MB on vrstart2, made and zeroed by each of the pool's 2000 builders a tree: a third of its build).
+        // 5 MB on vrstart, made and zeroed by each of the pool's 2000 builders a tree: a third of its build).
         za::SizeT faces = 0;
         for(const Frag& f : frags)
         {
@@ -2345,7 +2345,7 @@ jobs::Site growSite{"hull grow"}; // (its parallelFor: vr_jobs_sites)
 // of its own and every ask logged. Then, brush by brush in list's order, its asks are put to tb's table as on one thread:
 // if every answer is a plane of the same values as the run's answer (so its cuts were the same), its piece is taken, its
 // faces' planes renumbered to the table's; else (a nearly equal plane added before it by a brush the run did not see)
-// what its asks added is taken back out and the brush grown again here. vrstart2's 33k brushes a tree: 1.5 s on one
+// what its asks added is taken back out and the brush grown again here. vrstart's 33k brushes a tree: 1.5 s on one
 // thread.
 constexpr za::SizeT growRun = 256;
 
@@ -2375,7 +2375,7 @@ void growAllOnPool(TreeBuilder& tb, const Brushes& b, const za::Vector<const Bru
     const za::SizeT baseCount = tb.count();
     // The planes the table gives the brushes' own planes (the most of its asks), asked in list's order of a builder over
     // tb, as on one thread: the runs cut with these, so a brush's cuts are mostly the build on one thread's even where a
-    // brush before it, in another run, added a nearly equal plane first (most of vrstart2's brushes: its terrain's
+    // brush before it, in another run, added a nearly equal plane first (most of vrstart's brushes: its terrain's
     // prisms share their sides' planes to within the table's epsilons).
     za::Vector<za::U32> givenStart;
     za::Vector<mplane_t> given;
@@ -2989,7 +2989,7 @@ void compileTrees(const za::Vector<Tree*>& todo, const Brushes& b)
 // the world's content (keyOf: hull 0's and hull 1's nodes, the planes, the models' heads), <box> the tree's box, <build>
 // this file's compile time (changed code never reads an old tree). A tree is the same bytes whenever the same brushes are
 // compiled for the same box (the build on the pool is the build on one thread's, node for node), so a file is that
-// build's result: a cold start of a big map reads it instead of compiling it (vrstart2: four trees of 1.2-1.4 million
+// build's result: a cold start of a big map reads it instead of compiling it (vrstart: four trees of 1.2-1.4 million
 // nodes, 9 s of 32 threads). Only trees that took diskMinMs or more are written (a small map's build is about as quick
 // as its file). A file is read and checked (magic, version, sizes, the world and the box, every node's numbers, a sum of
 // its bytes) on the tree's own job; anything amiss is compiled again and written over. Written beside its place and
@@ -3000,7 +3000,7 @@ void compileTrees(const za::Vector<Tree*>& todo, const Brushes& b)
 constexpr char diskMagic[4] = {'Q', 'V', 'R', 'H'};
 constexpr za::U32 diskVersion = 1;
 constexpr double diskMinMs = 250.0;
-constexpr za::U64 diskBudget = 1024ull << 20; // bytes in the build's folder (vrstart2's four trees: 105 MB)
+constexpr za::U64 diskBudget = 1024ull << 20; // bytes in the build's folder (vrstart's four trees: 105 MB)
 
 za::String makeDiskBuild()
 {
@@ -3176,7 +3176,7 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
     if(ok)
     {
         // (room for the brush models' trees that follow in the same arrays, prepareBrushModels: exact sizes would grow
-        // by half at their first node, 10 MB more a tree on vrstart2)
+        // by half at their first node, 10 MB more a tree on vrstart)
         nodes.reserve(za::SizeT{h.nodes} + h.nodes / 16 + 1024);
         planes.reserve(za::SizeT{h.planes} + h.planes / 16 + 1024);
         nodes.resize(h.nodes);

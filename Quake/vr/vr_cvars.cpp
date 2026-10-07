@@ -465,7 +465,7 @@ const DefaultChange defaultChanges[] = {
     {98, &vr_reload_port_light_radius, "1"}, // 1.5
     {98, &vr_reload_bump_speed, "6.5"},         // 3: the author's, raised while the hand reaching to hold the magazine knocked it out (fixed)
 };
-constexpr int configVersion = 98;
+constexpr int configVersion = 99;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -751,6 +751,12 @@ void migrateConfig()
     {
         Con_DPrintf("VR: vr_flashlight_cord: 1, the low-poly chain (was %s)\n", vr_flashlight_cord.string);
         Cvar_SetQuick(&vr_flashlight_cord, "1");
+    }
+    // 99: the island hub vrstart2 is vrstart now (the old vrstart is vrstart_old): a config naming vrstart2 names vrstart.
+    if(from < 99 && !strcmp(vr_hub_map.string, "vrstart2"))
+    {
+        Con_DPrintf("VR: vr_hub_map: vrstart (was vrstart2: the island hub's old name)\n");
+        Cvar_SetQuick(&vr_hub_map, "vrstart");
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

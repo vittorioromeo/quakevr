@@ -203,7 +203,7 @@ is read-only and can mask an incomplete local test fixture; verify resolved tabl
    The implementation and measured acceptance results are recorded above; neither pack is now required for Quake.
 3. **Official campaign discovery and launcher order** (existing store/base discovery and `vr_gamedir.cpp`): detect
    owned Dopa/MG1/MG3 without network/install writes; validate content and maintain VR progs priority.
-4. **Campaign selection and hub** (`vr_gamedir.cpp`, `vr_menu.cpp`, `vrstart.ent`, QC campaign helper): select paths,
+4. **Campaign selection and hub** (`vr_gamedir.cpp`, `vr_menu.cpp`, `vrstart_old.ent`, QC campaign helper): select paths,
    startmap and state schema together, restore VR Hub, guard unavailable/unsupported choices and map-name collisions.
 5. **Dopa entities** (new prefixed QC helpers, `progs.src`, FGD): implement explosions/fog; acceptance e5m1/e5m2
    and e5start/e5end have zero dropped gameplay entities and correct progression.

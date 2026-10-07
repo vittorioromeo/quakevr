@@ -198,7 +198,20 @@ bool addKey(za::StringView key)
         {
             j++;
         }
-        added += addKey(list.substrByPosLen(i, j - i)) ? 1 : 0;
+        za::StringView key = list.substrByPosLen(i, j - i);
+        // the island hub's tips seen under its old name, vrstart2 (vrstart since 2026-10-07; the old hub, vrstart_old,
+        // has other tip names): seen under vrstart
+        constexpr za::StringView oldHub{"vrstart2"};
+        if(key.size() > oldHub.size() && key.substrByPosLen(0, oldHub.size()) == oldHub &&
+           (key[oldHub.size()] == ':' || key[oldHub.size()] == '#'))
+        {
+            const za::String renamed = za::String{"vrstart"} + za::String{key.substrByPosLen(oldHub.size(), key.size() - oldHub.size())};
+            added += addKey(za::StringView{renamed.cStr()}) ? 1 : 0;
+        }
+        else
+        {
+            added += addKey(key) ? 1 : 0;
+        }
         i = j;
     }
     return added;

@@ -857,7 +857,7 @@ void campaignSelectCommand()
     selectCampaign(i, !q_strcasecmp(Cmd_Argv(0), "vr_campaign_native"), true);
 }
 
-// vr_campaign_hub [vrstart|vrstart2|vrtutorial|vrfiringrange]: Quake's campaign, then that VR map (the hub, vr_hub_map,
+// vr_campaign_hub [vrstart|vrstart_old|vrtutorial|vrfiringrange]: Quake's campaign, then that VR map (the hub, vr_hub_map,
 // by default). A command of its own: a changelevel there from another campaign cannot rebuild the game folders
 // mid-spawn.
 void campaignHubCommand()
@@ -1115,16 +1115,25 @@ int campaignForMap(const char* map, int current)
 } // namespace
 
 // Quake VR's own maps: they run in Quake's campaign (a map or a changelevel there from another campaign first
-// switches back to it). vrstart2 is the island hub (Misc/quakevr/maps/vrstart2_gen.py).
+// switches back to it). vrstart is the island hub (Misc/quakevr/maps/vrstart_gen.py; it was vrstart2 until
+// 2026-10-07), vrstart_old the old hub (loadable, Debug > Tests > Hubs; nothing goes to it by default).
 extern "C" int VR_IsVrMap(const char* map)
 {
-    return !strcmp(map, "vrstart") || !strcmp(map, "vrstart2") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange");
+    return !strcmp(map, "vrstart") || !strcmp(map, "vrstart_old") || !strcmp(map, "vrstart2") || !strcmp(map, "vrtutorial") ||
+           !strcmp(map, "vrfiringrange");
 }
 
-// The hub: vr_hub_map when it names one of the two, else the classic vrstart.
+// The hub: vrstart, or vrstart_old when vr_hub_map names it (vrstart2, the island's old name, is vrstart).
 extern "C" const char* VR_HubMap()
 {
-    return !strcmp(qvr::vr_hub_map.string, "vrstart2") ? "vrstart2" : "vrstart";
+    return !strcmp(qvr::vr_hub_map.string, "vrstart_old") ? "vrstart_old" : "vrstart";
+}
+
+// A map's current name: vrstart2 (the island hub's name until 2026-10-07) is vrstart, so an old save made there, a
+// bind or a script's "map vrstart2" still load it (SV_SpawnServer).
+extern "C" const char* VR_MapAlias(const char* map)
+{
+    return !strcmp(map, "vrstart2") ? "vrstart" : map;
 }
 
 extern "C" int VR_CanLoadCampaignMap(const char* map)

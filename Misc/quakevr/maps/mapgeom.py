@@ -1,4 +1,4 @@
-# mapgeom.py -- geometry for the script-generated maps (vrstart2_gen.py): exact convex brushes from points, prisms
+# mapgeom.py -- geometry for the script-generated maps (vrstart_gen.py): exact convex brushes from points, prisms
 # over a triangulated height field, Valve 220 texture axes, Perlin noise, a Delaunay triangulation, and the .map
 # writer. Pure Python (no numpy): the machines that build the maps have none.
 #

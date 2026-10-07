@@ -1966,6 +1966,7 @@ static void SV_SpawnServerRun (const char *server);
 // QVR: a map's load, a scope of its own for the profiler (its hitch log).
 void SV_SpawnServer (const char *server)
 {
+	server = VR_MapAlias (server); // QVR: vrstart2 is vrstart now (old saves, binds)
 	VR_CheckSpawnCampaignMap (server); // QVR: never a campaign switch here (map and load chose it before they disconnected)
 	VR_NoteMapSpawn (server); // QVR: the map (and its map package) a crash report names
 	VR_ProfileBegin ("map spawn");

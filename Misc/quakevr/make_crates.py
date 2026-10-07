@@ -5,7 +5,7 @@
 #                                  frame of battens on every face, nailed; three skins (pine, brown, weathered)
 #   quakevr/progs/vr_crate2.mdl    the large crate, 40 x 40 x 48: the same, and a diagonal brace across each side
 #   quakevr/progs/vr_barrel.mdl    a barrel, 22 across and 32 high: staves bound by iron hoops, boards across its heads;
-#                                  three skins as the crates' (vrstart2's, QC vr_barrel: a crate's physics, its pieces)
+#                                  three skins as the crates' (vrstart's, QC vr_barrel: a crate's physics, its pieces)
 #   quakevr/progs/vr_plank1..4.mdl what a crate breaks into: a whole board, a board broken off, a splinter, a batten
 #                                  broken off; three skins each, matching the crates', and a fourth: charred (a crate
 #                                  burnt through breaks into these, burnt black: vr_burning.qc, VR_PIECE_SKIN_CHARRED)
@@ -534,7 +534,7 @@ def charred(along, across, layer, P, E, fib, ends, shade, seed, res):
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# The barrel (vrstart2's, by the pier and the pavilion; QC vr_barrel): a wooden cask, its staves bound by iron hoops
+# The barrel (vrstart's, by the pier and the pavilion; QC vr_barrel): a wooden cask, its staves bound by iron hoops
 
 
 BARREL_SIDES = 12   # the shape's facets round it (each shows two staves)
@@ -690,7 +690,7 @@ BOARDS = [  # (file, seed, length, width, thickness, broken end, broken start, t
     ("vr_plank3.mdl", 83, 13.0, 4.0, 1.3, 2, 2, 0.12, ()),
     ("vr_plank4.mdl", 84, 26.0, 3.8, 2.2, 3, 0, 0.0, (-11.0,)),
 ]
-BARRELS = [  # (file, seed, belly's radius, ends' radius, half height): vrstart2's barrels' size (22 across, 32 high)
+BARRELS = [  # (file, seed, belly's radius, ends' radius, half height): vrstart's barrels' size (22 across, 32 high)
     ("vr_barrel.mdl", 91, 11.0, 9.4, 16.0),
 ]
 

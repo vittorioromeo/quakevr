@@ -335,10 +335,11 @@ def scenarios():
         "`changelevel e1m2` from E1M1 (the in-game path: spawn parms kept), then `changelevel e1m1` (its models "
         "warm); each load and the second after it (first-use hitches).", setup=LOADS, warm=60,
         body=loads_body([("e1m2", "changelevel e1m2"), ("e1m1", "changelevel e1m1")]), loads=2, frames=0)
-    add("load_vrstart2", ["loading", "maps"], "vrstart2, the island hub (a 21 MB BSP2), loaded cold, warm, restarted",
-        None, "`map vrstart2` with nothing loaded before (cold: the world's hulls compiled, its liquids' wave mesh "
-        "made), `map vrstart2` again (warm: the hulls kept, vr_hull_keep), `restart`: the biggest map we ship.",
-        setup=LOADS, warm=30, body=loads_body([("cold", "map vrstart2"), ("warm", "map vrstart2"),
+    add("load_vrstart", ["loading", "maps"], "vrstart, the island hub (an 18 MB BSP2), loaded cold, warm, restarted",
+        None, "`map vrstart` with nothing loaded before (cold: the world's hulls compiled, its liquids' wave mesh "
+        "made), `map vrstart` again (warm: the hulls kept, vr_hull_keep), `restart`: the biggest map we ship. (It was "
+        "load_vrstart, the island's name until 2026-10-07.)",
+        setup=LOADS, warm=30, body=loads_body([("cold", "map vrstart"), ("warm", "map vrstart"),
             ("restart", "restart")]), loads=3, frames=0)
     for m in ("warden", "ad_grendel"):
         add(f"load_{m}", ["loading", "maps"], f"the custom map {m} loaded cold and warm ({TOUR_SOURCES[m]})", None,

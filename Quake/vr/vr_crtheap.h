@@ -37,7 +37,7 @@ void VR_CrtHeapMessages(unsigned long long* messages, unsigned long long* errors
 void VR_CrtHeapSetPurgeDelay(long milliseconds);
 // A map load (VR_TimeLoadBegin on, its first frame drawn or its failure off): while it runs, freed memory is kept for
 // `milliseconds` (the purge delay raised, when shorter) and so used again by the load's own allocations instead of being
-// given back to the OS and asked for again (vrstart2's hull build: 37% of its CPU time in VirtualAlloc/VirtualFree, its
+// given back to the OS and asked for again (vrstart's hull build: 37% of its CPU time in VirtualAlloc/VirtualFree, its
 // 32 threads queueing on the kernel); at the end it is all given back at once (mi_collect(true)) and the delay put back.
 // 0: off (vr_heap_load_hold).
 void VR_CrtHeapLoadHold(int on, long milliseconds);

@@ -556,7 +556,7 @@ void() func_button =
         vector ang = vectoangles(dir);
 
         // Its board's half height (vr_text3d.cpp's boards: 8 units a character at scale 1, half a character a row,
-        // 1.2 characters of margin and bezel). On a button shorter than 24 (vrstart2's) just over the button, its board
+        // 1.2 characters of margin and bezel). On a button shorter than 24 (vrstart's) just over the button, its board
         // 2 above the top; on the others 12 over its centre, as always.
         float sc = self.worldtext_scale != 0 ? self.worldtext_scale : 1;
         float rows = 1;

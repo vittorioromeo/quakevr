@@ -1,7 +1,8 @@
-# vrstart2_gen.py -- writes quakevr/maps/vrstart2.map, the new VR hub (an island at night), and with --compile builds
+# vrstart_gen.py -- writes quakevr/maps/vrstart.map, the VR hub (an island at night; vrstart until 2026-10-07, the old hub
+# is vrstart_old), and with --compile builds
 # it (qbsp 0.18.1, ericw-tools 2.0's vis and light; presets "fast" and "final": compile_map, PRESETS, MAPPING.md).
 #
-#   python Misc/quakevr/maps/vrstart2_gen.py [--compile [--preset fast|final] [--check RAYS]] [--tools DIR] [--qbsp EXE]
+#   python Misc/quakevr/maps/vrstart_gen.py [--compile [--preset fast|final] [--check RAYS]] [--tools DIR] [--qbsp EXE]
 #   (first: python Misc/trenchbroom/make_id_wad.py, the id textures' WAD)
 #
 # Everything in the map is made here (reproducible; the .map stays editable in TrenchBroom: the generated parts are
@@ -40,9 +41,9 @@ DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # vis, light
 # fills through them; on this map, even with the slivers it loses faces at taken out (terrain_mesh, unbend, hull...),
 # a few portals still failed: missing faces and air made solid (0-9 holes in 600,000 rays per build, chaotic: any edit
 # moved them), and its fix (an unfilled hull 0 spliced with filled clipping hulls) made loads slower. 0.18.1's makes
-# faces by CSG: 0 holes in a million rays (bsp_holes.py). ROUND21.md, "vrstart2 on ericw-tools 2.0 again".
+# faces by CSG: 0 holes in a million rays (bsp_holes.py). ROUND21.md, "vrstart on ericw-tools 2.0 again".
 DEFAULT_QBSP = "C:/OHWorkspace/ericw-tools-v0.18.1-32-g6660c5f-win64/bin/qbsp.exe"
-MAPNAME = "vrstart2"
+MAPNAME = "vrstart"
 OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -355,7 +356,7 @@ def height(x, y):
     # The island's walkable ground in steps of GROUND_STEP units: triangles nearly but not quite coplanar (the noise, the
     # blends, rounding) make Quake's collision snag the player on flat ground (the hull traces start "solid" at their
     # seams); with heights in steps most neighbours are exactly coplanar, the rest at clear angles. (A walk test of 36
-    # legs over gentle ground: 24 stopped short before, 7 after; ROUND21.md, "vrstart2".)
+    # legs over gentle ground: 24 stopped short before, 7 after; ROUND21.md, "vrstart".)
     if h > 6 and d > -100:
         h = max(8, GROUND_STEP * round(h / GROUND_STEP))
     return h
@@ -1671,7 +1672,7 @@ def write_map():
     build_lights(mw)
     build_decor(mw)
     build_entities(mw)
-    header = "// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/maps/vrstart2_gen.py: edit that, not this.\n"
+    header = "// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/maps/vrstart_gen.py: edit that, not this.\n"
     mw.write(OUT, WORLD_KEYS, header)
     nb = len(mw.world) + sum(len(b) for _, b in mw.groups) + sum(len(b) for _, b in mw.entities)
     print("wrote %s: %d brushes, %d entities (%.1f s); %d nearly coplanar faces folded into their neighbours (%d kept), "
@@ -1728,7 +1729,7 @@ def compile_map(tools, work, preset, check=0, qbsp=DEFAULT_QBSP):
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Writes quakevr/maps/vrstart2.map; with --compile also its .bsp, .lit and .lux (ericw-tools 2.0).",
+        description="Writes quakevr/maps/vrstart.map; with --compile also its .bsp, .lit and .lux (qbsp 0.18.1, 2.0's vis and light).",
         epilog="qbsp: ericw-tools 0.18.1's (%s; --qbsp), vis and light 2.0's (--tools). Presets (--preset): "
                "fast = vis -fast, light -lit -lux and a 128-unit light grid (no -extra4, -dirt or -bounce), for "
                "iterating; final = full vis, light %s: the shipped build. Check a build for holes: --check 1000000 "

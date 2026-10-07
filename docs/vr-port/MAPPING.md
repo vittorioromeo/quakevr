@@ -61,7 +61,7 @@ browser with help, key types, choices and a model preview.
 | `quakevr/maps/vrexample.map` (`.bsp`, `.lit`, `.lux`) | the example map and its compiled files |
 | `quakevr/maps/vrclimb.map` (`.bsp`, `.lit`, `.lux`) | the climbing test map (`Misc/quakevr/climb/make_vrclimb_map.py`) |
 | `quakevr/maps/vrslipgates.map` (`.bsp`, `.lit`, `.lux`) | the slipgate test map, id's textures (`Misc/quakevr/slipgates/make_vrslipgates_map.py`; ROUND21.md, "Slipgate test map") |
-| `quakevr/maps/vrstart2.map` (`.bsp`, `.lit`, `.lux`) | the island hub at night (`Misc/quakevr/maps/vrstart2_gen.py`, its geometry library `mapgeom.py`; the sky box `make_vs2_sky.py`, `quakevr/gfx/env/vs2night*.png`): below |
+| `quakevr/maps/vrstart.map` (`.bsp`, `.lit`, `.lux`) | the island hub at night (`Misc/quakevr/maps/vrstart_gen.py`, its geometry library `mapgeom.py`; the sky box `make_vs2_sky.py`, `quakevr/gfx/env/vs2night*.png`): below |
 | `Misc/trenchbroom/make_id_wad.py` | writes `quakevr/wads/id_textures.wad` (git-ignored) from your paks: above |
 
 ## The entities
@@ -106,7 +106,7 @@ engine finds them when the map loads, `vr_debug_ledges 1` shows them):
 **What Quake VR changed in id's entities** (all in their help):
 - `func_button`: pressed by a hand or a weapon (vertical ones also by stepping on them); a label (`worldtext`,
   `worldtext_halign`, `worldtext_scale`, drawn on its face); `buttonEffect` 3 runs its `targetname` as a console
-  command (vrstart's hub buttons; end it with `\n`); Honey's "Starts disabled" flag and `items`.
+  command (vrstart_old's hub buttons; end it with `\n`); Honey's "Starts disabled" flag and `items`.
 - Weapons, armour, keys, powerups: they float at torso height (`vr_item_float_height`, 26 units) and are taken by hand:
   a weapon by a grip, armour by letting go of it over the torso, keys and runes at a holster. Place them on the floor.
 - Ammo and health boxes: physics objects (carried, thrown, nudged, force-grabbed), taken at a holster or by walking
@@ -168,8 +168,8 @@ have them), takes each texture they embed (by name: id1's first, then the missio
 (8-bit, their mip levels) to `quakevr/wads/id_textures.wad`: 893 textures, 8.4 MB. The WAD is **git-ignored**: id's
 data never enters the repository. A map lists it in its worldspawn `wad` before Quake VR's own
 (`quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad`); qbsp finds both with `-wadpath <checkout>`. The
-compiled `.bsp` then embeds id's textures: **the author's decision is that the hub maps may ship so** (vrstart2:
-`Misc/quakevr/maps/vrstart2_gen.py`). Keep that to the maps that need it. `--list` prints each texture, its size and
+compiled `.bsp` then embeds id's textures: **the author's decision is that the hub maps may ship so** (vrstart:
+`Misc/quakevr/maps/vrstart_gen.py`). Keep that to the maps that need it. `--list` prints each texture, its size and
 the map it came from (find names there; TrenchBroom shows them once the WAD is built).
 
 The WAD path in the worldspawn is **relative to the game path**: TrenchBroom looks for it there (and beside the map);
@@ -222,9 +222,9 @@ map entity's prefix (`info_`, `item_`, `weapon_`, `monster_`, `func_`, `trigger_
 `ambient_`, `trap_`, `vr_`...), is never used as a value (think, touch, use...) and has no helper suffix (`_think`,
 `_use`...). A helper that still looks like one goes in `entities.fgd` as `//! internal <name> <reason>`.
 
-## vrstart2: the island hub (a generated map)
+## vrstart: the island hub (a generated map)
 
-`quakevr/maps/vrstart2.map` is written by `Misc/quakevr/maps/vrstart2_gen.py`: **edit the script, not the .map** (it
+`quakevr/maps/vrstart.map` is written by `Misc/quakevr/maps/vrstart_gen.py`: **edit the script, not the .map** (it
 rewrites it). The .map opens in TrenchBroom (Valve format; each part a group: the terrain's three func_detail groups,
 each structure a func_detail, and the things spread over the map, pines, boulders, torch posts, crystals,
 func_details by 768-unit tile; ropes and brackets func_detail_illusionary, not solid; the barrels `vr_barrel` physics
@@ -233,12 +233,12 @@ for looking, measuring and trying things; carry what you keep back into the scri
 
 ```
 python Misc/trenchbroom/make_id_wad.py                 # once: id's textures from your paks (git-ignored WAD)
-python Misc/quakevr/maps/vrstart2_gen.py               # the .map (about 10 s)
-python Misc/quakevr/maps/vrstart2_gen.py --compile --preset fast    # iterating: vis -fast, plain light (~1.5 min)
-python Misc/quakevr/maps/vrstart2_gen.py --compile     # the shipped build (preset final: full vis, light -extra4
+python Misc/quakevr/maps/vrstart_gen.py               # the .map (about 10 s)
+python Misc/quakevr/maps/vrstart_gen.py --compile --preset fast    # iterating: vis -fast, plain light (~1.5 min)
+python Misc/quakevr/maps/vrstart_gen.py --compile     # the shipped build (preset final: full vis, light -extra4
                                                        #   -dirt -bounce, the light grid): ~8 min
-python Misc/quakevr/maps/vrstart2_gen.py --compile --check 1000000  # and the hole test over the result
-python Misc/quakevr/maps/bsp_holes.py quakevr/maps/vrstart2.bsp --rays 300000   # the hole test alone, any BSP
+python Misc/quakevr/maps/vrstart_gen.py --compile --check 1000000  # and the hole test over the result
+python Misc/quakevr/maps/bsp_holes.py quakevr/maps/vrstart.bsp --rays 300000   # the hole test alone, any BSP
 python Misc/quakevr/maps/make_vs2_sky.py               # the sky box (quakevr/gfx/env/vs2night*.png, committed)
 ```
 
@@ -283,6 +283,8 @@ with no face there is a hole.
 - **Campaigns**: the lecterns run `vr_activestartpaknameidx 0/1/2` (the slipgate, a `trigger_changelevel` to
   `start` without intermission, starts that one; SELECTED shows over the chosen lectern) and `vr_campaign_select dopa`
   (Dimension of the Past starts at once).
-- **The hub**: `vr_hub_map vrstart2` makes it the hub VR starts in and the menus' VR Hub returns to (default:
-  `vrstart`). `map vrstart2` loads it any time.
-- **Checks**: `vr_menu_path_check maps/vrstart2.map` (the boards' `{menu:...}` names: 4 found, 0 missing).
+- **The hub**: it is `vrstart`, the hub VR starts in and the menus' VR Hub returns to (it was `vrstart` until
+  2026-10-07: `map vrstart`, a config's `vr_hub_map vrstart` (vr_cfg_version 99 moves it) and old saves made there
+  still load it, `VR_MapAlias`). The old hub is `vrstart_old` (`vrstart_old.bsp`, `.ent`): Debug > Tests > Hubs, or
+  `vr_hub_map vrstart_old` to make it the hub again.
+- **Checks**: `vr_menu_path_check maps/vrstart.map` (the boards' `{menu:...}` names: 4 found, 0 missing).
