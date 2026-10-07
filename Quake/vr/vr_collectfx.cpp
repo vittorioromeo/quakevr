@@ -10,6 +10,12 @@
 // target, which is placed on the body every frame, so the copy follows the body as it moves. It is shrunk about its
 // origin in vr_render.cpp (applyPre: everything the item's own transforms do, inside), and its origin is set so that its
 // drawn middle is where it should be.
+//
+// Its "into the gun" variant (hotspot collectfx::intoGun: immersive reloading's shells, QC vr_reload.qc VR_Reload_Load):
+// the hand has let go of a shell (or the super shotgun's pair) at the load point of the gun in its other hand, loaded at
+// once; the copy slides from where it was to the load point and on into the gun (view::loadPath: up the shotgun's port
+// into its tube, into the super shotgun's chambers) over vr_reload_insert_time, at its size, carried by the gun (its
+// place and turn kept in the gun's model space: it follows the gun as it moves), and is gone inside it.
 
 #include "vr_collectfx.hpp"
 #include "vr_body.hpp"
@@ -18,6 +24,7 @@
 #include "vr_held.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -46,9 +53,14 @@ struct Item
     double start{0.0};
     float shrink{1.f};
     int drawnFrame{-1}; // host_framecount it was added to the scene
+    bool intoGun{false};          // the "into the gun" variant: the gun in the other hand
+    int gunHand{0};
+    glm::vec3 startLocal{0.f};    // its middle when let go of, in the gun's model space
+    glm::mat3 axesLocal{1.f};     // its turn in the gun's (its axes')
 };
 
 constexpr int maxItems = collectfx::maxCopies;
+constexpr int intoGunHotspot = 240; // QC's QVR_CFX_INTO_GUN: into the gun in the other hand (vr_reload.qc)
 za::Array<Item, maxItems> items;
 
 // Where the thing goes: the holster's or pouch's point on the body (the hand's hotspot when it let go), as drawn.
@@ -136,8 +148,9 @@ void parse()
         v = MSG_ReadFloat();
     }
 
-    if(!vr_collect_fx.value || vr_collect_fx_time.value <= 0.f || cls.demoplayback || modelIndex <= 0 ||
-        modelIndex >= MAX_MODELS)
+    const bool intoGun = hotspot == intoGunHotspot;
+    if((intoGun ? vr_reload_insert_time.value <= 0.f : (!vr_collect_fx.value || vr_collect_fx_time.value <= 0.f)) ||
+        cls.demoplayback || modelIndex <= 0 || modelIndex >= MAX_MODELS)
     {
         return;
     }
@@ -197,6 +210,18 @@ void parse()
     it.entNum = ent;
     it.start = vr_gametime;
     it.live = true;
+    if(intoGun)
+    {
+        it.intoGun = true;
+        it.gunHand = 1 - hand;
+        glm::mat3 gun;
+        if(!view::gunFromWorld(it.gunHand, it.from, it.startLocal) || !view::gunAxes(it.gunHand, gun))
+        {
+            it.live = false;
+            return;
+        }
+        it.axesLocal = glm::transpose(gun) * it.axes;
+    }
     if(vr_debug_collect_fx.value)
     {
         Con_Printf("collect fx: %s (entity %d, %s pose) by hand %d into hotspot %d, from %.1f %.1f %.1f\n", model->name,
@@ -215,7 +240,8 @@ void frame(const hands::State& s)
         {
             continue;
         }
-        const float t = time > 0.f ? static_cast<float>((vr_gametime - it.start) / time) : 1.f;
+        const float span = it.intoGun ? vr_reload_insert_time.value : time;
+        const float t = span > 0.f ? static_cast<float>((vr_gametime - it.start) / span) : 1.f;
         if(t >= 1.f || t < 0.f || !it.ent.model)
         {
             if(vr_debug_collect_fx.value && it.ent.model)
@@ -223,6 +249,48 @@ void frame(const hands::State& s)
                 Con_Printf("collect fx: %s gone in\n", it.ent.model->name);
             }
             it.live = false;
+            continue;
+        }
+
+        if(it.intoGun)
+        {
+            // Into the gun: to its load point (the first half), then on inside it, carried by the gun; at its size.
+            glm::vec3 port, deep, end, centre;
+            glm::mat3 gun;
+            if(!view::loadPath(it.gunHand, port, deep, end) || !view::gunAxes(it.gunHand, gun))
+            {
+                it.live = false;
+                continue;
+            }
+            const float u = t * t * (3.f - 2.f * t); // (eased in and out)
+            const glm::vec3 local = u < 0.5f ? glm::mix(it.startLocal, port, u / 0.5f)
+                                    : u < 0.75f ? glm::mix(port, deep, (u - 0.5f) / 0.25f)
+                                                : glm::mix(deep, end, (u - 0.75f) / 0.25f);
+            if(!view::gunToWorld(it.gunHand, local, centre))
+            {
+                it.live = false;
+                continue;
+            }
+            it.axes = gun * it.axesLocal;
+            held::anglesFromAxes(it.axes, it.ent.angles, it.ent.model->type == mod_brush);
+            it.shrink = 1.f;
+            const glm::vec3 origin = centre - it.axes * it.centreLocal;
+            for(int i = 0; i < 3; ++i)
+            {
+                it.ent.origin[i] = origin[i];
+            }
+            if(vr_debug_collect_fx.value)
+            {
+                Con_Printf("collect fx: in gun %d t %.2f, %.2f off its port: %.2f %.2f %.2f, world %.1f %.1f %.1f\n",
+                    it.gunHand, static_cast<double>(t), static_cast<double>(glm::distance(local, port)),
+                    static_cast<double>(local.x), static_cast<double>(local.y), static_cast<double>(local.z),
+                    static_cast<double>(centre.x), static_cast<double>(centre.y), static_cast<double>(centre.z));
+            }
+            if(cl_numvisedicts < MAX_VISEDICTS)
+            {
+                cl_visedicts[cl_numvisedicts++] = &it.ent;
+                it.drawnFrame = host_framecount;
+            }
             continue;
         }
 

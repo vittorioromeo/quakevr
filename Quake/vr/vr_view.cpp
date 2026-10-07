@@ -6250,6 +6250,78 @@ void setupFrontButton(int hand)
 namespace qvr::view
 {
 
+bool gunToWorld(int hand, const glm::vec3& p, glm::vec3& out)
+{
+    if(hand < 0 || hand > 1 || !entities.weapon[hand].visible || !entities.weapon[hand].ent.model)
+    {
+        return false;
+    }
+    out = modelPoint(entities.weapon[hand], p);
+    return true;
+}
+
+bool gunFromWorld(int hand, const glm::vec3& w, glm::vec3& out)
+{
+    glm::vec3 o, x, y, z;
+    if(!gunToWorld(hand, glm::vec3{0.f}, o) || !gunToWorld(hand, {1.f, 0.f, 0.f}, x) || !gunToWorld(hand, {0.f, 1.f, 0.f}, y) ||
+        !gunToWorld(hand, {0.f, 0.f, 1.f}, z))
+    {
+        return false;
+    }
+    const glm::mat3 m{x - o, y - o, z - o};
+    if(std::abs(glm::determinant(m)) < 1e-9f)
+    {
+        return false;
+    }
+    out = glm::inverse(m) * (w - o);
+    return true;
+}
+
+bool gunAxes(int hand, glm::mat3& out)
+{
+    if(hand < 0 || hand > 1 || !entities.weapon[hand].visible || !entities.weapon[hand].ent.model)
+    {
+        return false;
+    }
+    out = held::axesFromAngles(entities.weapon[hand].ent.angles, false);
+    return true;
+}
+
+bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
+{
+    if(hand < 0 || hand > 1 || !entities.weapon[hand].visible || !entities.weapon[hand].ent.model)
+    {
+        return false;
+    }
+    const qmodel_t* model = entities.weapon[hand].ent.model;
+    const auto& info = modelmeta::get(model);
+    for(const LoadPort& lp : loadPorts)
+    {
+        if(!info.is(lp.model) || lp.magazine)
+        {
+            continue;
+        }
+        const glm::vec3 at = lp.point + glm::vec3{lp.offset[0]->value, lp.offset[1]->value, lp.offset[2]->value};
+        if(lp.model == modelmeta::Id::VShot2)
+        {
+            // Into the chambers, along the barrels as they are drawn open.
+            const float open = ssgOpenAngle(hand);
+            const glm::vec3 along = ssgTurn({1.f, 0.f, 0.f}, open, false);
+            port = ssgTurn(at, open);
+            deep = port + along * 1.f;
+            end = port + along * 2.2f;
+            return true;
+        }
+        // The shotgun: up through the port's well (polish_weapons.py loading_port: its ceiling 1 unit up), then forward
+        // into the magazine tube.
+        port = at;
+        deep = at + glm::vec3{0.f, 0.f, 1.6f};
+        end = deep + glm::vec3{2.5f, 0.f, 0.4f};
+        return true;
+    }
+    return false;
+}
+
 float ssgOpenAngle(int hand)
 {
     return hand >= 0 && hand < 2 && entities.weapon[hand].visible && ssgHands[hand].gun == entities.weapon[hand].ent.model

@@ -54,6 +54,18 @@ struct ViewEntity
 [[nodiscard]] float ssgOpenAngle(int hand);
 [[nodiscard]] glm::vec3 ssgTurned(const glm::vec3& p, float deg, bool point = true);
 
+// The gun drawn in `hand` this frame (its model's space: as its frames' vertices; none: false): a point of it in the world,
+// a world point in it, and its turn (forward, left, up: its angles', not mirrored). Immersive reloading's shells sliding
+// into it (vr_collectfx.cpp).
+[[nodiscard]] bool gunToWorld(int hand, const glm::vec3& p, glm::vec3& out);
+[[nodiscard]] bool gunFromWorld(int hand, const glm::vec3& w, glm::vec3& out);
+[[nodiscard]] bool gunAxes(int hand, glm::mat3& out);
+// The way a round goes into the gun drawn in `hand` (its model's space), past its load point: `port` (the load point, as
+// the reload takes it: its offsets; the open super shotgun's turned with its barrels), then `deep` and `end`, inside it
+// (the shotgun: up through its loading port's well, then forward into the tube; the super shotgun: into its chambers).
+// False: no gun there with a load point.
+[[nodiscard]] bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end);
+
 // World position of a point given in `ve`'s model space (as its frames' vertices).
 [[nodiscard]] glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);
 

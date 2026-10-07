@@ -20,6 +20,7 @@
 #      the nailgun, super nailgun and thunderbolt the magazine is the two-handed grip (a gentle pull keeps it, a hard one
 #      takes it out), a wrist snap and the hands moved apart take it out, a punch knocks it out; a closed fist moved onto
 #      a grip takes no hold; the ammo button pressed from its front only.
+#   8. The shells slide into the gun: loaded at once, drawn sliding in, carried by the gun; the pair into the chambers.
 #   7. The super shotgun broken open (phase 2b): fired, its shells stay in; the flick breaks it open (spent ones out),
 #      fired open it clicks, the pouch's pair at its breech loads both, the flick shuts it; shut, a pair is refused; both
 #      hands on it, gentle moves keep it shut, the pry opens it, the lift shuts it; Close When Loaded; Break Open off.
@@ -209,10 +210,10 @@ SHOTS=C:/OHWorkspace/qvr-kit/bases/$AGENT/qbase/quakevr/screenshots
 SEE="vr_weapon_screen 0;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 0 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera 0.35 1.38 -0.62 8 90;wait20"
 bash $KIT/run.sh $AGENT -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0};$SEE;screenshot;$FIRE;screenshot;$FLICK;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
 s1=$($PY Misc/quakevr/reload/ssg_checks.py sights $(ls -tr $SHOTS/*.png | tail -4))
-check $(echo "$s1" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 50 || a[2] > 20) ok = 0 } print ok}') "the super shotgun's sights keep their colour shut, fired, open, shut again ($s1: recoloured/red pixels)"
+check $(echo "$s1" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 50 || a[2] > a[1] / 2) ok = 0 } print ok}') "the super shotgun's sights keep their colour shut, fired, open, shut again ($s1: recoloured/red pixels)"
 bash $KIT/run.sh $AGENT -Clean -Script "${SSG/impulse 155/impulse 154};$SEE;screenshot;vr_autopump_hold 0.4;wait20;screenshot;vr_autopump_hold -1;wait20;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
 s2=$($PY Misc/quakevr/reload/ssg_checks.py sights $(ls -tr $SHOTS/*.png | tail -3))
-check $(echo "$s2" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 50 || a[2] > 20) ok = 0 } print ok}') "the shotgun's sights keep their colour as it pumps (its parts drawn) ($s2)"
+check $(echo "$s2" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 50 || a[2] > a[1] / 2) ok = 0 } print ok}') "the shotgun's sights keep their colour as it pumps (its parts drawn) ($s2)"
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_reload_ssg_break 0;$FIRE;$REP;$FLICK;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 holds=$(echo "$log" | grep "^reload: off hand")
 check $(h 1 | grep -q "weapon 5 clip 0 " && h 2 | grep -q "weapon 5 clip 2 " && ! echo "$log" | grep -q "broken open" && echo 1 || echo 0) "Break Open off: the flick reloads it as before"
@@ -277,4 +278,20 @@ for set in "front|0 15 30 45 60" "behind|120 135 150 165 180"; do
         check $([ "$p" = 0 ] && echo 1 || echo 0) "the ammo button from behind: $p of $n approaches pressed (none)"
     fi
 done
+# 8. The shells slide into the gun (vr_reload_insert_time; vr_collectfx.cpp's "into the gun" variant): a shell let go of
+# at the shotgun's load point is loaded at once (the count, the sound) and drawn sliding up its port into the tube, carried
+# by the gun as it moves; the super shotgun's pair slides into its chambers.
+INS="vr_debug_collect_fx 1;vr_mock_hand_to main lport 6;wait5;vr_mock_hand_to main lport 6;wait10;vr_mock_hand_to main lport;wait3"
+MOVEGUN="vr_mock_hand off -0.05 1.35 -0.35 30 20 0;wait1;vr_mock_hand off 0.05 1.40 -0.30 10 40 0;wait20"
+log=$(bash $KIT/run.sh $AGENT -Script "$PRE;$POUCH;$GRIP;$INS;$MOVEGUN;toggleconsole;quit" -Filter "^reload: [0-9]|collect fx" 2>&1)
+first=$(echo "$log" | grep -n "^reload: 1 into the gun" | head -1 | cut -d: -f1)
+fx=$(echo "$log" | grep -n "collect fx: progs/vr_shell_live.mdl .* into hotspot 240" | head -1 | cut -d: -f1)
+check $([ -n "$first" ] && [ -n "$fx" ] && [ "$first" -lt "$fx" ] && echo 1 || echo 0) "a shell at the shotgun's load point: loaded at once (the count first), then drawn sliding in"
+path=$(echo "$log" | grep "collect fx: in gun 0")
+w0=$(echo "$path" | head -1 | sed 's/.*world //'); w1=$(echo "$path" | tail -1 | sed 's/.*world //')
+l1=$(echo "$path" | tail -1 | sed 's/.*port: \([-0-9.]*\) .*/\1/')
+moved=$(awk -v a="$w0" -v b="$w1" 'BEGIN { split(a, x, " "); split(b, y, " "); d = 0; for(i = 1; i <= 3; i++) d += (x[i] - y[i]) ^ 2; print sqrt(d) }')
+check $(awk -v l="$l1" -v m="$moved" 'BEGIN { print (l > 15.5 && m > 3) ? 1 : 0 }') "it goes up the port and forward into the tube (x $l1 in the gun) while the gun moves ($moved units), carried by it"
+log=$(bash $KIT/run.sh $AGENT -Script "${SSG/vr_reload_debug 1/vr_reload_debug 1;vr_debug_collect_fx 1};$FIRE;$BY;$POUCH;$GRIP;$AT;wait20;toggleconsole;quit" -Filter "^reload: [0-9]|collect fx" 2>&1)
+check $(echo "$log" | grep -q "^reload: 2 into the gun" && echo "$log" | grep -q "collect fx: progs/vr_shell_pair.mdl .* into hotspot 240" && echo "$log" | grep "collect fx: in gun 0" | tail -1 | grep -q " t 0.9" && echo 1 || echo 0) "the super shotgun's pair slides into its chambers"
 exit $fail

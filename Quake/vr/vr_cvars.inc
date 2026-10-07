@@ -2449,6 +2449,7 @@ QVR_CVAR(vr_reload_pull_apart, "10", CVAR_ARCHIVE)     // units further apart th
 QVR_CVAR(vr_reload_hit_reach, "2", CVAR_ARCHIVE)       // units from a seated magazine (its box, anywhere on it) a hit counts within (the fist, a held prop, the other gun's line)
 QVR_CVAR(vr_reload_pull_reach, "2", CVAR_ARCHIVE)      // units off the attached magazine's box within which a gripping hand holds it (0: on it)
 // The super shotgun broken open (phase 2b; vr_reload.qc; vr_view.cpp draws it open: make_ssg_open.py's parts).
+QVR_CVAR(vr_reload_insert_time, "0.13", CVAR_ARCHIVE) // seconds a shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it (vr_collectfx.cpp; 0: gone at once). Loaded at once all the same
 QVR_CVAR(vr_reload_ssg_break, "1", CVAR_ARCHIVE)       // with Immersive: its spent shells stay in; broken open (the ways below) it throws them out and loads by hand (0: the flick reloads it as before)
 QVR_CVAR(vr_reload_ssg_open_angle, "45", CVAR_ARCHIVE) // degrees its barrels drop about the hinge, open (looks only; the load point goes with them)
 // How it opens (each its own switch; opening throws every shell out, spent and live) and closes.

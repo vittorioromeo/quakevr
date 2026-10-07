@@ -203,7 +203,8 @@ float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
 float QVR_HS_CARRIED_GRIP           = 10; // the handle of the gun the other hand carries by its foregrip
 float QVR_HS_GRENADE_POUCH          = 11; // the grenade pouch at the small of the back (vr_handgrenade: vr_grenade.qc)
 float QVR_HS_AMMO_POUCH             = 12; // the ammo pouch on the front of the belt (vr_reload_mode 3: vr_reload.qc)
-float QVR_HS_MAGAZINE               = 13; // the magazine attached to the other hand's gun (vr_reload_mode 3: vr_reload.qc)
+float QVR_HS_MAGAZINE               = 13;
+float QVR_CFX_INTO_GUN              = 240; // collectfx's "hotspot" for a round slid into the gun in the other hand (vr_reload.qc; vr_collectfx.cpp) // the magazine attached to the other hand's gun (vr_reload_mode 3: vr_reload.qc)
 
 //
 //

@@ -979,6 +979,9 @@ void resetHandMoves()
         open("Super Nailgun", pageIndex(pageReloadSuperNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Thunderbolt", pageIndex(pageReloadThunderbolt)).help("Its well, its cell's top, its receiver, the hand holding the cell, pulling it out."),
         header("All Guns"),
+        slider("Shell Slide In", "vr_reload_insert_time", 0.f, 0.5f, 0.01f, "%.2f s")
+            .help("A shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it for this "
+                  "long, following the gun (0: gone at once). It is loaded at once all the same."),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
                   "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "

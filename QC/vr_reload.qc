@@ -1409,14 +1409,18 @@ float(float xHand, entity r) VR_Reload_Load =
         VR_Reload_Haptic(self, gunHand, 0.14, 50, 0.9);
         VR_Reload_Log("the gun is full now");
     }
+    // Drawn sliding into the gun on the player's client (vr_reload_insert_time; vr_collectfx.cpp's "into the gun"): the
+    // round let go of at once (loaded already), as it was; of a pair with one place, a single shell where it is.
     if(r.vr_ammo_count <= 0)
     {
+        collectfx(xHand, r, QVR_CFX_INTO_GUN, r.modelindex, r.origin, r.angles);
         VR_Carry_SetHeld(self, xHand, world);
         r.carry_player = world;
         remove(r);
         return TRUE;
     }
     VR_Reload_SetModel(r); // (a pair's other shell, still in the fingers)
+    collectfx(xHand, world, QVR_CFX_INTO_GUN, r.modelindex, r.origin, r.angles);
     return FALSE;
 };
 
