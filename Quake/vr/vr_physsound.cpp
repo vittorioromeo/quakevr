@@ -62,7 +62,15 @@ constexpr float scrapeStartVolume = 0.05f; // a scrape starts this loud at least
 constexpr double scrapeDelay = 0.08; // s: a prop scrapes once it has slid this long (not a bounce's graze)
 constexpr double grainLength = 0.5; // s (make_physics_sounds.py GRAIN)
 constexpr double grainFade = 0.08;  // s: the next grain starts this long before one ends (FADE)
-constexpr int scrapeChannels[2] = {5, 7}; // the prop's own channels for its scrape (QC's props use 0 to 4)
+constexpr int scrapeChannels[2] = {5, 7}; // the prop's own channels for its scrape (QC's props use 0 to 4; a burning
+                                           // body's crackle 6: QC CHAN_BURN)
+constexpr float bodyScrapeGain = 0.7f;     // a body's drag (soft flesh on the floor): under a prop's scrape of its weight
+// A body's drag (its parts bump, roll and flop: their contacts come and go): it starts once it has slid this long, a
+// slide this short apart still in a row, and it stops only after that long without one; never again this soon after it
+// stopped (a falling ragdoll's limbs flopping: one shuffle, not a stutter).
+constexpr double bodyScrapeDelay = 0.15;
+constexpr double bodySlideGrace = 0.2;
+constexpr double bodyScrapeGap = 0.6;
 
 // The recordings: impacts by material and weight (light, medium, heavy), scrapes and grabs by material. The names are
 // literals: they outlive the server's precache list that points at them.
@@ -133,6 +141,8 @@ struct Body
     bool scraping{false};
     int channel{0};         // the next grain's (scrapeChannels)
     double nextGrain{0.0};
+    double lastSlide{-1e9};     // a body's (slide's `body`): the server's time it last slid
+    double scrapeStopped{-1e9}; // the server's time its last scrape stopped
 };
 
 struct Hit
@@ -151,6 +161,7 @@ struct Slide
     Material material;
     float mass, slip, press;
     glm::vec3 at;
+    bool body;
 };
 
 // The server's state (the main thread): the precache indices, the props' sound state, this frame's hits and slides.
@@ -321,6 +332,7 @@ void stop(int ent, int channel)
 void stopScrape(int num, Body& b, const char* why)
 {
     b.scraping = false;
+    b.scrapeStopped = qcvm->time;
     for(const int ch : scrapeChannels)
     {
         stop(num, ch);
@@ -544,11 +556,11 @@ bool scrapesWanted()
     return master() > 0.f && vr_physsound_scrape.value > 0.f;
 }
 
-void slide(int num, Material material, float mass, float slip, float press, const glm::vec3& at)
+void slide(int num, Material material, float mass, float slip, float press, const glm::vec3& at, bool body)
 {
     if(material != Material::None)
     {
-        state.slides.pushBack({num, material, mass, slip, press, at});
+        state.slides.pushBack({num, material, mass, slip, press, at, body});
     }
 }
 
@@ -617,12 +629,17 @@ void frameEnd()
     for(const Slide& s : state.slides)
     {
         Body& b = bodyOf(s.num);
-        if(b.slideFrame + 1 != frame)
+        if(b.slideFrame + 1 != frame && !(s.body && now - b.lastSlide <= bodySlideGrace))
         {
             b.slideSince = now;
         }
         b.slideFrame = frame;
-        const float volume = scrapeVolume(s.material, s.mass, s.slip, s.press);
+        if(s.body)
+        {
+            b.lastSlide = now;
+        }
+        const float volume = scrapeVolume(s.material, s.mass, s.slip, s.press) *
+                             (s.body ? za::clamp(vr_physsound_bodies.value, 0.f, 2.f) * bodyScrapeGain : 1.f);
         if(volume <= 0.01f)
         {
             b.slideFrame = 0; // (not sliding enough: as if it didn't)
@@ -630,7 +647,8 @@ void frameEnd()
         }
         if(!b.scraping)
         {
-            if(now - b.slideSince < scrapeDelay - 1e-4 || volume < scrapeStartVolume)
+            if(now - b.slideSince < (s.body ? bodyScrapeDelay : scrapeDelay) - 1e-4 || volume < scrapeStartVolume ||
+               (s.body && now - b.scrapeStopped < bodyScrapeGap))
             {
                 continue;
             }
@@ -671,7 +689,13 @@ void frameEnd()
         {
             continue;
         }
-        if(b.slideFrame != frame || num >= qcvm->num_edicts || EDICT_NUM(num)->free || master() <= 0.f)
+        const bool gone = num >= qcvm->num_edicts || EDICT_NUM(num)->free || master() <= 0.f;
+        if(!gone && b.slideFrame != frame && qcvm->time - b.lastSlide <= bodySlideGrace)
+        {
+            still.pushBack(num); // (a body: its parts' contacts come and go)
+            continue;
+        }
+        if(b.slideFrame != frame || gone)
         {
             stopScrape(num, b, b.slideFrame != frame ? "not sliding" : "gone");
             continue;

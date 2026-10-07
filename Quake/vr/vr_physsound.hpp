@@ -42,7 +42,8 @@ void hit(int num, Material material, float mass, float speed, const glm::vec3& a
 
 // A prop sliding this frame (vr_box3d.cpp, its contacts after the step): `slip` m/s at its contacts, `press` how hard it
 // is pressed onto them (1: its weight). Called once a frame for each prop that slides; one not called stops scraping.
-void slide(int num, Material material, float mass, float slip, float press, const glm::vec3& at);
+// `body`: a ragdoll's or a pushable corpse's drag (`mass` the sliding part's), vr_physsound_bodies loud.
+void slide(int num, Material material, float mass, float slip, float press, const glm::vec3& at, bool body = false);
 
 // The end of Box3D's frame (VR_PhysicsFrameEnd): the frame's hits played (rate-limited per prop, the loudest first) and
 // the scrapes carried on or stopped.

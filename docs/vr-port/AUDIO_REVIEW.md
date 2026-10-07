@@ -57,7 +57,7 @@ Effort: S an hour or so, QC or one engine function; M a day, engine work across 
 | Row | State | What was done (ROUND21.md has each one's notes) |
 |---|---|---|
 | 1 | done (ca888732) | channels 8 and 9 (`CHAN_HAND`, `CHAN_HAND2`, `VRGetHandChannel`): any-free channels from the main and off hand |
-| 2 | done (5a18f374) | ragdoll parts and pushable corpses knock as flesh through the physics sounds; the dragging scrape left (row 2b below) |
+| 2 | done (5a18f374, then the drag) | ragdoll parts and pushable corpses knock as flesh through the physics sounds; dragged, shoved or blown along the floor they scrape softly (`noteBodySlide`: `scrape_soft1..4`, only while the whole body moves 0.4 m/s or more, rate-limited) |
 | 3 | done (0fc1340d) | `sound()`'s pitch argument; `VR_SoundVaried` and `vr_snd_pitch_jitter` (4%) on the frequent sounds |
 | 4 | done (layer) | a blunt blow's second layer of what it hit (flesh, armour, wood, a wall) under the thud, varied in pitch (`VR_Blunt_HitLayer`, `vr_snd_hit_layer`); the new punch and cut recordings still to source |
 | 6 | done | a metal click from the helping hand and a 30 ms pulse in it as it takes a foregrip, a quieter click as it lets go (`vr_twohand.cpp` gripFeedback, `vr_2h_grip_sound` 0.6) |

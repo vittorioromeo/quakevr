@@ -27742,7 +27742,8 @@ Checked (`-Sound -RealTime`, `vr_snd_spatial 0`, `snd_show 2`; a shotgun in the 
 A burning monster, corpse, crate or crate piece was silent after the catching whoosh (`vr/torch_light.wav`). Its fire
 now crackles (`vr_burning.qc` VR_Burn_Crackle, from VR_Burn_Think): Quake's torch loop (`ambience/fire1.wav`, the wall
 torches' crackle; now precached in `world.qc`, as it was only on maps with torches) on the body's own channel
-(`CHAN_BURN`, 7, new in `defs.qc`: no monster uses it but Armagon, who is fireproof), so it follows the body, heard only
+(`CHAN_BURN`, 6, new in `defs.qc`: no monster uses it but Armagon, who is fireproof; 5 and 7 are the bodies' drag
+scrapes, below), so it follows the body, heard only
 near (`ATTN_STATIC`), at `vr_burn_sound`. It starts 0.3 s after the fire (the whoosh first); in the flames' last 1.5 s
 it plays at 0.6 of that, in the last 0.75 s at 0.3 (the loop restarted lower: a three-step fade), back to full if the
 body is lit again; every way a fire ends goes through VR_Burn_Out (burnt out, gibbed or removed, doused, a crate broken
@@ -27753,7 +27754,7 @@ you (you cry out: VR_Burn_OnYou). `vr_burn_sound` 0.6 (0 none) and `vr_burn_soun
 **Crackle Volume** and **Most Crackling**. `developer 1` prints `burning: <class> crackles at <volume> (<n> crackling)`.
 
 Checked (`-Sound -RealTime`, `snd_show 2`, `vr_burn_sound_max 2`, `vr_burn_corpse_time 4`; three things set on fire
-with `vr_burn_test 1`): a crate and the first grunt's corpse crackle (`ambience/fire1.wav [L]` on channel 7 of each),
+with `vr_burn_test 1`): a crate and the first grunt's corpse crackle (`ambience/fire1.wav [L]` on channel 6 of each),
 the second corpse stays silent (2 crackling); the first corpse fades 0.36, 0.18, then stops (1 crackling) and goes out;
 the second, then in its own last second, doesn't start.
 
@@ -27772,3 +27773,25 @@ Checked (`-Sound -RealTime`, `snd_show 2`): a crowbar dropped ahead (`impulse 21
 `weapons/pkup.wav` on its channel 0; let go of and taken again: `vr/phys/grab_metal1.wav` on the player's channel 8
 (the main hand), pitch 0.997; the shotgun let go of and taken by the mock hand (`vr_mock_hand_to main weapon 0.3`):
 `grab_metal2.wav` on channel 8.
+
+## Bodies dragged along the floor (AUDIO_REVIEW.md row 2, the drag left from it, 2026-10-07)
+
+A ragdoll dragged by a limb, shoved along or blown across the floor, and a pushable corpse pushed, slid silently (row 2
+gave them knocks only). Box3D's scrape detection (`vr_box3d.cpp` noteSlide, the props') is now `bodySlide` for any
+body, and `noteBodySlide` looks at each awake part of a ragdoll (not its cut ones) or the corpse's body after it is
+written: the part sliding hardest on the level, a door, a fixture or a prop (not on another body or its own parts:
+`catCorpse`, a hand or a player), reported to the physics sounds as flesh (`physsound::slide`'s `body`: the soft scrape
+grains, `vr/phys/scrape_soft1..4`, on the body's channels 5 and 7, its weight the part's, times `vr_physsound_bodies`
+and 0.7 under a prop's scrape). Only while the body as a whole goes along the floor (its parts' mass-weighted level
+speed at least 0.4 m/s): a ragdoll crumpling as it dies or settling is all but silent. A body's scrape starts after
+0.15 s of sliding (a prop's 0.08), slides 0.2 s apart count as one, it stops only after 0.2 s without one (its parts'
+contacts come and go), and never restarts within 0.6 s of stopping (`vr_physsound.cpp` bodyScrapeDelay,
+bodySlideGrace, bodyScrapeGap). The burning crackle moved to channel 6 (it was on 7, a scrape channel: a burning body
+dragged would have cut it).
+
+Checked (`vr_debug_physsound 1`; `-Sound -RealTime`, `snd_show 2`): a settled grunt's ragdoll blown along with
+`vr_ragdoll_blast_test 60`: `scrape starts, flesh at 0.55 m/s`, `vr/phys/scrape_soft2.wav` on channel 5 then
+`scrape_soft1` on 7 of the corpse for 2 s, then `scrape stops`; `ragdoll_sound_test.sh flat pile`: a body dying on the
+floor shuffles 0.2-0.4 s at volume 0.1 (before the speed gate: 2.5-3 s), the knocks as before. Dragging by a limb uses
+the same contacts; its mock (`vr_mock_hand_to off ragdoll near 3` and a grip) failed to take the limb in most runs here
+(the stock `ragdoll_test.sh grab` too, once of two): to try in VR.

@@ -606,8 +606,9 @@ float CHAN_OTHER   = 6;
 float CHAN_HAND    = 8;
 float CHAN_HAND2   = 9;
 // Quake VR: a burning body's crackle (vr_burning.qc VR_Burn_Crackle: a loop, replaced by misc/null.wav as it goes out).
-// Channel 7: no monster's sound uses it (only Armagon, a boss: fireproof).
-float CHAN_BURN    = 7;
+// Channel 6: no monster's sound uses it (only Armagon, a boss: fireproof); 5 and 7 are a body's drag (the engine's
+// physics sounds' scrapes, vr_physsound.cpp scrapeChannels).
+float CHAN_BURN    = 6;
 
 float ATTN_NONE   = 0;
 float ATTN_NORM   = 1;

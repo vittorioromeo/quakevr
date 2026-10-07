@@ -6281,24 +6281,25 @@ void liftAgain()
 // speed along the contact relative to the other body (rolling gives none: each point's own velocity, spin and all), and
 // how hard it is pressed there (the step's normal impulse over its weight's: 1 lying on it, less grazing a wall).
 // `dt`: the step's (the frame's last piece).
-void noteSlide(int num, const Slot& s, float dt)
+// `ignore`: the categories not slid on as well (a body's: other bodies and its own parts). False: no slide.
+[[nodiscard]] bool bodySlide(b3BodyId body, float dt, uint64_t ignore, float& bestSlip, float& bestPress)
 {
     za::Array<b3ContactData, 16> contacts;
-    const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
+    const int count = b3Body_GetContactData(body, contacts.data(), static_cast<int>(contacts.size()));
     if(count <= 0)
     {
-        return;
+        return false;
     }
-    const glm::vec3 v = glmv(b3Body_GetLinearVelocity(s.body)), w = glmv(b3Body_GetAngularVelocity(s.body));
-    const float mass = b3Body_GetMass(s.body);
+    const glm::vec3 v = glmv(b3Body_GetLinearVelocity(body)), w = glmv(b3Body_GetAngularVelocity(body));
+    const float mass = b3Body_GetMass(body);
     const float weightImpulse = mass * (world->gravity / world->m2u) * dt;
-    float bestSlip = 0.f, bestPress = 0.f;
+    bestSlip = bestPress = 0.f;
     for(int i = 0; i < count; i++)
     {
         const b3ContactData& c = contacts[i];
-        const bool isA = B3_ID_EQUALS(b3Shape_GetBody(c.shapeIdA), s.body);
+        const bool isA = B3_ID_EQUALS(b3Shape_GetBody(c.shapeIdA), body);
         const b3ShapeId other = isA ? c.shapeIdB : c.shapeIdA;
-        if(b3Shape_GetFilter(other).categoryBits & (catPlayer | catActor | catHand | catReach))
+        if(b3Shape_GetFilter(other).categoryBits & (catPlayer | catActor | catHand | catReach | ignore))
         {
             continue;
         }
@@ -6338,9 +6339,70 @@ void noteSlide(int num, const Slot& s, float dt)
             }
         }
     }
-    if(bestSlip > 0.f)
+    return bestSlip > 0.f;
+}
+
+void noteSlide(int num, const Slot& s, float dt)
+{
+    float slip = 0.f, press = 0.f;
+    if(bodySlide(s.body, dt, 0, slip, press))
     {
-        physsound::slide(num, s.sound, mass, bestSlip, bestPress, s.origin);
+        physsound::slide(num, s.sound, b3Body_GetMass(s.body), slip, press, s.origin);
+    }
+}
+
+// A body's slide (AUDIO_REVIEW.md row 2, the drag): the ragdoll's part sliding hardest on the level, a door, a fixture
+// or a prop (not on another body nor its own parts, a hand or a player), or a pushable corpse's, as flesh
+// (physsound::slide's `body`: Flesh's soft scrapes, vr_physsound_bodies loud; its weight the sliding part's), so a body
+// dragged by a limb, shoved along or sliding down a slope shuffles. Only its awake parts, and only while the body as a
+// whole goes along the floor (its parts' mass-weighted level speed at least bodyDragSpeed): a ragdoll crumpling as it
+// dies or settling, its limbs flopping, is silent (its knocks are heard: soundHits).
+constexpr float bodyDragSpeed = 0.4f; // m/s
+
+void noteBodySlide(int num, const Slot& s, float dt)
+{
+    float bestSlip = 0.f, bestPress = 0.f, bestMass = 0.f, massSum = 0.f;
+    glm::vec3 at = s.origin, momentum{0.f};
+    const auto consider = [&](b3BodyId body) {
+        float slip = 0.f, press = 0.f;
+        if(B3_IS_NULL(body) || !b3Body_IsValid(body) || !b3Body_IsAwake(body))
+        {
+            return;
+        }
+        const float m = b3Body_GetMass(body);
+        const glm::vec3 v = glmv(b3Body_GetLinearVelocity(body));
+        momentum += glm::vec3{v.x, v.y, 0.f} * m;
+        massSum += m;
+        if(!bodySlide(body, dt, catCorpse, slip, press))
+        {
+            return;
+        }
+        if(slip * za::min(press, 1.f) > bestSlip * za::min(bestPress, 1.f))
+        {
+            bestSlip = slip;
+            bestPress = press;
+            bestMass = b3Body_GetMass(body);
+            at = world->toU(b3Body_GetPosition(body));
+        }
+    };
+    if(s.ragdoll >= 0)
+    {
+        const RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
+        for(int b = 0; b < r.count; b++)
+        {
+            if(!partCut(r, b))
+            {
+                consider(r.body[static_cast<za::SizeT>(b)]);
+            }
+        }
+    }
+    else
+    {
+        consider(s.body);
+    }
+    if(bestSlip > 0.f && massSum > 0.f && glm::length(momentum) >= bodyDragSpeed * massSum)
+    {
+        physsound::slide(num, physsound::Material::Flesh, bestMass, bestSlip, bestPress, at, true);
     }
 }
 
@@ -11272,17 +11334,26 @@ extern "C" void VR_PhysicsFrameEnd(void)
     const double tWrite = Sys_DoubleTime();
     updateRecoveries(); // (knocked-down monsters getting up: Knockdowns)
     const bool scrapes = physsound::scrapesWanted();
+    const bool bodyScrapes = scrapes && vr_physsound_bodies.value > 0.f;
     for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         Slot& s = world->slots[num];
         if(s.ragdoll >= 0)
         {
             writeRagdoll(EDICT_NUM(num), s); // (every frame: a part may be awake in an island of its own, his shotgun)
+            if(bodyScrapes && s.ragdoll >= 0 && !EDICT_NUM(num)->free)
+            {
+                noteBodySlide(num, s, dt / static_cast<float>(pieces));
+            }
             continue;
         }
         if(s.kind == Kind::Corpse && s.corpseDynamic && (!s.asleep || b3Body_IsAwake(s.body)))
         {
             writeCorpse(EDICT_NUM(num), s);
+            if(bodyScrapes && !s.asleep && !EDICT_NUM(num)->free)
+            {
+                noteBodySlide(num, s, dt / static_cast<float>(pieces));
+            }
             continue;
         }
         if(s.kind == Kind::Prop && (!s.asleep || b3Body_IsAwake(s.body)))
