@@ -210,7 +210,45 @@ var tests = new List<(string Name, Action Body)>
         File.WriteAllText(Path.Combine(corrupt, "hipnotic", "pak0.pak"), "PACK garbage");
         Eq(PackStatus.Incomplete, PackInspector.Inspect("hipnotic", PackLists.Resources("hipnotic"), [corrupt]).Status, "corrupt pak");
     }),
-    ("expansions: base dirs for hipnotic/rogue, owned roots for dopa/mg1/mg3, mg1 not yet supported", () =>
+    ("expansions: readiness matches the engine (campaigns[].nativeReady, soloOnly() in Quake/vr/vr_gamedir.cpp)", () =>
+    {
+        using var stream = typeof(Program).Assembly.GetManifestResourceStream("vr_gamedir.cpp");
+        True(stream is not null, "vr_gamedir.cpp embedded");
+        var source = new StreamReader(stream!).ReadToEnd();
+        var table = System.Text.RegularExpressions.Regex.Match(source, @"Campaign campaigns\[\] = \{(.*?)\n\};", System.Text.RegularExpressions.RegexOptions.Singleline);
+        True(table.Success, "campaigns[] found in vr_gamedir.cpp");
+        var rows = System.Text.RegularExpressions.Regex.Matches(table.Groups[1].Value, @"\{""(\w+)"",\s*""([^""]*)"",\s*""\w+"",\s*(\d+),\s*(true|false),")
+            .Select(m => (Folder: m.Groups[1].Value, Title: m.Groups[2].Value, Index: int.Parse(m.Groups[3].Value), Ready: m.Groups[4].Value == "true"))
+            .ToList();
+        Eq(ExpansionDetector.Campaigns.Count + 1, rows.Count, "campaigns[] rows (id1 and the installer's expansions)");
+        var solo = System.Text.RegularExpressions.Regex.Match(source, @"bool soloOnly\(int index\)\s*\{\s*return ([^;]*);", System.Text.RegularExpressions.RegexOptions.Singleline);
+        True(solo.Success && System.Text.RegularExpressions.Regex.IsMatch(solo.Groups[1].Value, @"^index == \d+( \|\| index == \d+)*$"),
+            $"soloOnly() is a list of indices (got <{solo.Groups[1].Value}>): teach this test its new form");
+        var soloIndices = System.Text.RegularExpressions.Regex.Matches(solo.Groups[1].Value, @"\d+").Select(m => int.Parse(m.Value)).ToHashSet();
+        foreach (var c in ExpansionDetector.Campaigns)
+        {
+            var row = rows.SingleOrDefault(r => r.Folder == c.Folder);
+            True(row.Folder is not null, $"{c.Folder} in campaigns[]");
+            Eq(row.Title, c.Title, $"{c.Folder} title");
+            Eq(row.Ready, c.NativeReady, $"{c.Folder} NativeReady (campaigns[].nativeReady)");
+            Eq(soloIndices.Contains(row.Index), c.SoloOnly, $"{c.Folder} SoloOnly (soloOnly({row.Index}))");
+        }
+        // The labels follow the flags.
+        var quake = Dir("exp-labels");
+        Fixtures.MakeOriginal(quake);
+        var rerelease = Path.Combine(quake, "rerelease");
+        Fixtures.MakeRerelease(rerelease);
+        foreach (var c in ExpansionDetector.Campaigns)
+        {
+            Fixtures.MakePack(c.InBaseDirs ? quake : rerelease, c.Folder);
+        }
+        foreach (var e in ExpansionDetector.Detect([quake], []))
+        {
+            var c = ExpansionDetector.Campaigns.Single(x => x.Folder == e.Folder);
+            Eq(!c.NativeReady ? "detected, not yet supported" : c.SoloOnly ? "ready (single player)" : "ready", e.Detail, $"{e.Folder} label");
+        }
+    }),
+    ("expansions: base dirs for hipnotic/rogue, owned roots for dopa/mg1/mg3, mg3 not yet supported", () =>
     {
         var quake = Dir("exp-quake");
         Fixtures.MakeOriginal(quake);
@@ -219,6 +257,7 @@ var tests = new List<(string Name, Action Body)>
         Fixtures.MakeRerelease(rerelease);
         Fixtures.MakePack(rerelease, "dopa");
         Fixtures.MakePack(rerelease, "mg1");
+        Fixtures.MakePack(rerelease, "mg3");
         // A textures-only dopa folder in the Quake VR folder (higher priority) must not hide the real one.
         var qvr = Dir("exp-qvr");
         Directory.CreateDirectory(Path.Combine(qvr, "dopa", "textures"));
@@ -228,8 +267,9 @@ var tests = new List<(string Name, Action Body)>
         Eq(ExpansionState.NotFound, byName["rogue"].State, "rogue");
         Eq(ExpansionState.Ready, byName["dopa"].State, "dopa");
         Eq(rerelease, byName["dopa"].Root, "dopa from <base>\\rerelease");
-        Eq(ExpansionState.DetectedNotSupported, byName["mg1"].State, "mg1");
-        Eq(ExpansionState.NotFound, byName["mg3"].State, "mg3");
+        Eq(ExpansionState.Ready, byName["mg1"].State, "mg1");
+        Eq("ready (single player)", byName["mg1"].Detail, "mg1 label");
+        Eq(ExpansionState.DetectedNotSupported, byName["mg3"].State, "mg3");
     }),
     ("vr: active runtime, VD suggestion, VC++ runtime", () =>
     {

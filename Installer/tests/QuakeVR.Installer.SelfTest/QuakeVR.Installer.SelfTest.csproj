@@ -6,6 +6,10 @@
     <RootNamespace>QuakeVR.Installer.SelfTest</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The engine's campaign table: the expansions' readiness test compares it with ExpansionDetector.Campaigns. -->
+    <EmbeddedResource Include="..\..\..\Quake\vr\vr_gamedir.cpp" LogicalName="vr_gamedir.cpp" Link="Engine\vr_gamedir.cpp" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\QuakeVR.Installer.Core\QuakeVR.Installer.Core.csproj" />
   </ItemGroup>
 </Project>

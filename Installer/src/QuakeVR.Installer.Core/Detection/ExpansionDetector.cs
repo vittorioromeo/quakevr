@@ -6,7 +6,7 @@ public enum ExpansionState
     Ready,
     /// <summary>Some of its data is there but not all, or a file is damaged: the player should verify the game's files.</summary>
     Incomplete,
-    /// <summary>Installed and intact, but the game cannot play it yet (mg1, mg3: decision 9).</summary>
+    /// <summary>Installed and intact, but the game cannot play it yet (its <c>nativeReady</c> is false: decision 9).</summary>
     DetectedNotSupported,
 }
 
@@ -22,16 +22,21 @@ public sealed record ExpansionInfo(string Folder, string Title, ExpansionState S
 /// </summary>
 public static class ExpansionDetector
 {
-    public sealed record Campaign(string Folder, string Title, bool NativeReady, bool InBaseDirs);
+    /// <param name="NativeReady">The engine's <c>campaigns[].nativeReady</c>: the game plays it.</param>
+    /// <param name="SoloOnly">The engine's <c>soloOnly()</c>: accepted for single player only.</param>
+    /// <param name="InBaseDirs">Looked for in the base dirs (else in the owned roots).</param>
+    public sealed record Campaign(string Folder, string Title, bool NativeReady, bool SoloOnly, bool InBaseDirs);
 
-    /// <summary>The engine's <c>campaigns[]</c> table, less id1.</summary>
+    /// <summary>The engine's <c>campaigns[]</c> table (Quake/vr/vr_gamedir.cpp), less id1. The self-test
+    /// "expansions: readiness matches the engine" reads that file and fails when a title, <c>nativeReady</c> or
+    /// <c>soloOnly()</c> differs from this table: flip a campaign there, then here.</summary>
     public static readonly IReadOnlyList<Campaign> Campaigns =
     [
-        new("hipnotic", "Scourge of Armagon", true, true),
-        new("rogue", "Dissolution of Eternity", true, true),
-        new("dopa", "Dimension of the Past", true, false),
-        new("mg1", "Dimension of the Machine", false, false),
-        new("mg3", "Dawn of the Machine", false, false),
+        new("hipnotic", "Scourge of Armagon", NativeReady: true, SoloOnly: false, InBaseDirs: true),
+        new("rogue", "Dissolution of Eternity", NativeReady: true, SoloOnly: false, InBaseDirs: true),
+        new("dopa", "Dimension of the Past", NativeReady: true, SoloOnly: true, InBaseDirs: false),
+        new("mg1", "Dimension of the Machine", NativeReady: true, SoloOnly: true, InBaseDirs: false),
+        new("mg3", "Dawn of the Machine", NativeReady: false, SoloOnly: false, InBaseDirs: false),
     ];
 
     /// <summary>The store roots of <c>ownedRoots</c>, lowest priority first.</summary>
@@ -118,7 +123,7 @@ public static class ExpansionDetector
             };
             var detail = state switch
             {
-                ExpansionState.Ready => c.Folder == "dopa" ? "ready (single player)" : "ready",
+                ExpansionState.Ready => c.SoloOnly ? "ready (single player)" : "ready",
                 ExpansionState.DetectedNotSupported => "detected, not yet supported",
                 ExpansionState.Incomplete => status.Detail + ": verify the game's files in your store",
                 _ => "not installed",

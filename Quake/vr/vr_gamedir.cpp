@@ -367,6 +367,8 @@ struct Campaign
     int status;
     char root[MAX_OSPATH];
 };
+// The installer mirrors nativeReady and soloOnly() (Installer/.../ExpansionDetector.cs, its "ready" labels); its
+// self-test "expansions: readiness matches the engine" fails until both agree.
 Campaign campaigns[] = {
     {"id1", "Quake", "start", 0, true, nullptr, 0, 1, {}},
     {"hipnotic", "Scourge of Armagon", "start", 1, true, nullptr, 0, 0, {}},

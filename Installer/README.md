@@ -90,7 +90,7 @@ dotnet run --project tests/QuakeVR.Installer.SelfTest -- <scratch folder> [name 
 ```
 
 Tests: the Statement page's answers (all 81 mixes of unanswered/YES/NO: Continue only with YES to all four, no way back to unanswered), VDF parsing, a fake Steam (libraries, app manifests), GOG and Epic, id1 kinds, the engine's resource checks
-and pack states (ported from `Quake/vr/vr_gamedir.cpp`), expansion roots and priorities, OpenXR/Virtual Desktop/VC++
+and pack states (ported from `Quake/vr/vr_gamedir.cpp`), expansion roots and priorities, the expansions' readiness labels (checked against the engine's `campaigns[]` and `soloOnly()` in `Quake/vr/vr_gamedir.cpp`), OpenXR/Virtual Desktop/VC++
 detection (the registry key and the three DLLs the game imports), the VC++ redistributable's install (the real
 Authenticode check on files already here; the download, signature and version checks, exit codes and dry run with a local
 server and a fake runner: nothing is ever run elevated), the first-start relight's marker, the Apps & Features entry (in a made-up registry root: values, update from Setup's
