@@ -143,12 +143,6 @@ void(float xHand, float xCount) VR_Reload_SsgFired =
     VRSetEntWeaponFlags(self, xHand, (f - (f & QVR_WPNFLAG_SSG_SPENT)) | (spent * QVR_WPNFLAG_SSG_SPENT_ONE));
 };
 
-// The hand's angular velocity (radians per second, world axes).
-vector(entity e, float xHand) VR_Reload_HandAVel =
-{
-    return xHand == cVR_OffHand ? e.offhandavel : e.handavel;
-};
-
 // The magazine's model for guns `xWeapon`.
 string(float xWeapon) VR_Reload_MagModel =
 {
@@ -880,12 +874,89 @@ void(float xGunHand) VR_Reload_HitFrame =
     VR_Reload_Haptic(self, other, 0.06, 90, 0.8);
 };
 
-// Every player frame, for `xHand` of self (VR_Reload_HandFrame): the magazines' ejects. The gun in this hand: its B/Y
-// pressed lets its magazine drop (vr_reload_eject_button); a hit knocks it out (VR_Reload_HitFrame). This hand empty, its
-// grip closing within vr_reload_pull_reach of the other hand's gun's magazine: it holds it (vr_mag_pull: the engine's
-// two-handed grip is there, the gun aimed from it; nothing comes out), and it comes out into the hand only pulled off hard
-// (away from the gun at vr_reload_pull_speed m/s), with the wrist snapping (vr_reload_pull_snap degrees/s), or with the
-// hands gone vr_reload_pull_apart units further apart than when it took hold: any one of the three.
+// The wrist snap (VR_Reload_MagFrame): how fast the hand holding a magazine turns against the gun's hand (degrees per
+// second), the turn between its pose in the gun hand's frame now and as it was at least vr_reload_snap_window seconds ago
+// (then that one is kept: a window, the same at any frame rate, a tracking jitter of a frame averaged out). The rate of
+// the last window until the next. `xStart`: from now (the grip just taken), 0.
+// (The hands' .handavel was the throw's estimate: while the grip is held "as if let go now", the peak of the last
+// moments; the gun's hand, not gripping, kept its last release's spin: the old snap test read either.)
+.vector vr_mag_snap_f0;  // the off hand's forward and up, in the gun hand's axes (x forward, y right, z up), at
+.vector vr_mag_snap_u0;
+.float vr_mag_snap_t0;   // this time
+.float vr_mag_snap_rate0;
+.vector vr_mag_snap_f1;  // the main hand's
+.vector vr_mag_snap_u1;
+.float vr_mag_snap_t1;
+.float vr_mag_snap_rate1;
+float vr_reload_snap_window = 0.04;
+float(float xHand, float xGunHand, float xStart) VR_Reload_SnapRate =
+{
+    makevectors(VRGetEntHandRot(self, xGunHand));
+    vector gf = v_forward;
+    vector gr = v_right;
+    vector gu = v_up;
+    makevectors(VRGetEntHandRot(self, xHand));
+    vector f = (v_forward * gf) * '1 0 0' + (v_forward * gr) * '0 1 0' + (v_forward * gu) * '0 0 1';
+    vector u = (v_up * gf) * '1 0 0' + (v_up * gr) * '0 1 0' + (v_up * gu) * '0 0 1';
+    float main = xHand == cVR_MainHand;
+    float t0 = main ? self.vr_mag_snap_t1 : self.vr_mag_snap_t0;
+    if(xStart || t0 > time || time - t0 > 1)
+    {
+        t0 = time;
+    }
+    else if(time - t0 >= vr_reload_snap_window)
+    {
+        vector f0 = main ? self.vr_mag_snap_f1 : self.vr_mag_snap_f0;
+        vector u0 = main ? self.vr_mag_snap_u1 : self.vr_mag_snap_u0;
+        // The turn's angle from the trace of the relative rotation (f.f0 + u.u0 + r.r0, r = f x u: Binet-Cauchy).
+        float c = ((f * f0) + (u * u0) + (f * f0) * (u * u0) - (f * u0) * (u * f0) - 1) * 0.5;
+        c = max(-1, min(1, c));
+        vector turn = vectoangles(c * '1 0 0' + sqrt(max(0, 1 - c * c)) * '0 1 0');
+        float angle = turn_y;
+        float rate = angle / (time - t0);
+        if(main)
+        {
+            self.vr_mag_snap_rate1 = rate;
+        }
+        else
+        {
+            self.vr_mag_snap_rate0 = rate;
+        }
+        t0 = time;
+    }
+    else
+    {
+        return main ? self.vr_mag_snap_rate1 : self.vr_mag_snap_rate0; // (inside the window: its last)
+    }
+    if(main)
+    {
+        self.vr_mag_snap_f1 = f;
+        self.vr_mag_snap_u1 = u;
+        self.vr_mag_snap_t1 = t0;
+        if(xStart)
+        {
+            self.vr_mag_snap_rate1 = 0;
+        }
+        return self.vr_mag_snap_rate1;
+    }
+    self.vr_mag_snap_f0 = f;
+    self.vr_mag_snap_u0 = u;
+    self.vr_mag_snap_t0 = t0;
+    if(xStart)
+    {
+        self.vr_mag_snap_rate0 = 0;
+    }
+    return self.vr_mag_snap_rate0;
+};
+
+// Every player frame, for `xHand` of self (VR_Reload_HandFrame): the magazines' ejects. The gun in this hand (held or
+// carried): its B/Y pressed lets its magazine drop (vr_reload_eject_button); a hit knocks it out (VR_Reload_HitFrame).
+// This hand empty, its grip closing on the other hand's gun's magazine (the engine's hotspot HS_MAGAZINE: within
+// vr_reload_pull_reach of the magazine's box, nearer it than the gun's own two-handed grip; the engine's two-handed grip
+// takes it there too, the gun aimed from it): it holds it (vr_mag_pull; nothing comes out), and it comes out into the hand
+// only pulled off hard (the hands' relative speed along the magazine's way out of its well, vr_reload_pull_speed m/s),
+// with the wrist snapping against the gun's hand (vr_reload_pull_snap degrees/s: VR_Reload_SnapRate), or with the hands
+// gone vr_reload_pull_apart units further apart than when it took hold: any one of the three.
 void(float xHand) VR_Reload_MagFrame =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
@@ -937,6 +1008,7 @@ void(float xHand) VR_Reload_MagFrame =
             {
                 self.vr_mag_pull_apart0 = apart;
             }
+            VR_Reload_SnapRate(xHand, gunHand, TRUE);
             VR_Reload_Haptic(self, xHand, 0.04, 140, 0.4);
             VR_Reload_Log(sprintf("hand %g holds the magazine of the gun in hand %g", xHand, gunHand));
         }
@@ -947,10 +1019,14 @@ void(float xHand) VR_Reload_MagFrame =
         self.vr_mag_pull = self.vr_mag_pull - (self.vr_mag_pull & bit);
         return;
     }
+    // The pull: the hands' relative speed (the controllers', m/s) along the magazine's way out of its well (its box's
+    // length, from its feed end down; without the box, away from the well).
     vector rel = VRGetEntHandVel(self, xHand) - VRGetEntHandVel(self, gunHand);
-    vector away = normalize(VRGetEntHandPos(self, xHand) - VRGetEntHandPos(self, gunHand));
-    float speed = rel * away; // (pulled off, away from the gun's hand)
-    float snap = vlen(VR_Reload_HandAVel(self, xHand) - VR_Reload_HandAVel(self, gunHand)) * 57.2958;
+    vector out = VR_Reload_HasMagBox(self, gunHand)
+                     ? normalize(-VR_Reload_MagBoxUp(self, gunHand))
+                     : normalize(VRGetEntHandPos(self, xHand) - (gunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos));
+    float speed = rel * out;
+    float snap = VR_Reload_SnapRate(xHand, gunHand, FALSE);
     float further = apart - (xHand == cVR_MainHand ? self.vr_mag_pull_apart1 : self.vr_mag_pull_apart0);
     if(cvar_hget(cvarh_vr_reload_debug) >= 2)
     {

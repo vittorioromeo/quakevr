@@ -143,6 +143,20 @@ for gun in 156 157 161; do
     held=$(echo "$log" | grep -c "hand 0 holds the magazine of the gun in hand 1")
     check $(echo "$d1" | grep -q "helping 1" && echo "$d2" | grep -q "helping 1" && [ "$held" = 1 ] && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "mag 1 holds nothing" && echo 1 || echo 0) "impulse $gun's gun: its front grip holds it two-handed (the magazine untouched), its magazine too (held: $held)"
 done
+# The pull's four ways, at the defaults: a gentle pull keeps it; a hard pull along its way out, a wrist snap, the hands
+# moved apart each take it out into the off hand (24 nails in it).
+GENTLE=$(for i in $(seq 12); do printf "vr_mock_hand_to off by 0 0 -0.3;wait2;"; done)
+APART=$(for i in $(seq 40); do printf "vr_mock_hand_to off by -0.4 0 -0.2;wait2;"; done)
+for way in "gentle|$GENTLE|" "hard|vr_mock_hand_to off mag -6 0;wait10|pulled off at" "snap|vr_mock_hand_turn off 0 0 80;wait10|snapped off at" "apart|$APART|units further apart"; do
+    name=${way%%|*}; rest=${way#*|}; moves=${rest%%|*}; why=${rest#*|}
+    log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;$(OTO "mag 0");$OGRIP;reset vr_reload_bump_speed;wait5;$moves;wait5;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+    last=$(echo "$log" | grep "^reload: off hand" | tail -1)
+    if [ -z "$why" ]; then
+        check $(echo "$log" | grep -q "holds the magazine of the gun in hand 1" && ! echo "$log" | grep -q "out of the gun" && echo "$last" | grep -q "main hand weapon 6 clip 24 holds nothing, main mag 1" && echo 1 || echo 0) "the pull, $name: held, it stays in"
+    else
+        check $(echo "$log" | grep -q "$why" && echo "$last" | grep -q "holds a round of 24 | main hand weapon 6 clip 0 holds nothing, main mag 0" && echo 1 || echo 0) "the pull, $name: out into the off hand ($(echo "$log" | grep -o "out of the gun ([^)]*" | head -1))"
+    fi
+done
 # The magazine's shape: Pull Reach 0 holds it only gripped on it (a unit off its side: not held; inside its box: held);
 # a hit at its far end (0.3 units off it, 90% of the way down; Knock Out Speed 1: the mock hand is slow) knocks it out.
 log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;vr_reload_pull_reach 0;$(OTO "mag 0 1");$OGRIP;$OLETGO;$(OTO "mag 0 -0.6");$OGRIP;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
