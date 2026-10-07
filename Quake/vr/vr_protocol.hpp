@@ -24,6 +24,9 @@ inline constexpr int U_QVR_NOROTATE = 1 << 27;     // no data: a rigid body, who
 inline constexpr int U_QVR_WEAPONUID = 1 << 28;    // long: a weapon prop's weapon id (QC vr_weaponinst.qc: its record's)
 inline constexpr int U_QVR_SPIN = 1 << 29;         // no data: drawn spinning as an EF_ROTATE pickup (a weapon pickup drawn as its prop)
 inline constexpr int U_QVR_NOMAG = 1 << 30;        // no data: a weapon prop with no magazine in (QC QVR_WPNFLAG_NOMAG: immersive reloading)
+// The bits above are full (1 << 31 is the sign: sv_main.c's "bits >= 1 << 24" test); this one is the protocol's spare
+// U_UNUSED21, set only by the VR server (VR_EntityUpdateBits) and read only by the VR client (VR_ParseEntityUpdate).
+inline constexpr int U_QVR_SSGOPEN = 1 << 21;      // byte: a super shotgun prop broken open (QC QVR_WPNFLAG_SSG_OPEN), its chambers loaded (0-2)
 
 // Server -> client.
 inline constexpr int svc_quakevr = 39;

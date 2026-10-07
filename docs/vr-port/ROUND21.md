@@ -30101,3 +30101,8 @@ The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh
   (frame N): not opened"), and the open parts are always drawn at rest (frame 0, no blending: vr_view.cpp `setSsgPart`).
   The magazine guns have no such race: ejected mid-burst their clip is empty and the animation ends by itself
   (`player_nail_BaseImpl`, `player_light1`); their magazine is drawn at frame 0 already.
+- **A dropped super shotgun shows its state** (22-08-37). A super shotgun prop broken open is sent with
+  `U_QVR_SSGOPEN` (the protocol's spare `U_UNUSED21`, the VR bits above 24 being full; a byte: its loaded chambers) and
+  drawn open in its two parts as in the hands (vr_view.cpp `setupWorldSsgs`, the first 4 lying about; their own
+  entities taken out of the frame's list), at the open angle, the barrels' skin its loaded chambers. `vr_reload_debug 1`
+  with `developer 1` prints "ssg: a super shotgun lying open" once a second.

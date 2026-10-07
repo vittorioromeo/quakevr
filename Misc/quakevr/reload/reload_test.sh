@@ -299,4 +299,9 @@ check $(echo "$log" | grep -q "^reload: 2 into the gun" && echo "$log" | grep -q
 BYNOW="vr_mock_button off secondary 1;wait3;vr_mock_button off secondary 0;wait3"
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;+offhandattack;wait2;-offhandattack;$BYNOW;$REP;wait80;$BY;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "is still firing (frame [1-6]): not opened" && echo "$log" | grep -q "broken open by the button: 2 spent" && [ "$(opens "$log")" = 01 ] && echo 1 || echo 0) "B/Y during the super shotgun's firing animation: not opened; after it: opened ($(opens "$log"), want 01)"
+# A super shotgun dropped broken open lies drawn open (its prop's U_QVR_SSGOPEN: drawn in its parts); dropped shut, whole.
+DROP="vr_weapon_grip_mode 0;+graboff;vr_mock_button off grip 1;wait5;vr_mock_button off grip 0;-graboff;wait60"
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$BY;$DROP;toggleconsole;quit" -Filter "^ssg: a super|broken open" 2>&1)
+log2=$(bash $KIT/run.sh $AGENT -Script "$SSG;$DROP;toggleconsole;quit" -Filter "^ssg: a super" 2>&1)
+check $(echo "$log" | grep -q "^ssg: a super shotgun lying open (entity [0-9]*), 0 loaded, drawn in its parts" && ! echo "$log2" | grep -q "^ssg: a super shotgun lying open" && echo 1 || echo 0) "dropped open, the super shotgun lies drawn open (its parts); dropped shut, whole"
 exit $fail

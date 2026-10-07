@@ -19,6 +19,8 @@ struct EntityVr
     bool spin{false};     // spins as an EF_ROTATE pickup though its model is not one (a weapon pickup drawn as its prop)
     int weaponUid{0};     // a weapon prop's weapon id (QC vr_weaponinst.qc; 0: not a weapon): its blood (vr_wounds.cpp)
     bool noMag{false};    // a weapon prop with no magazine in (U_QVR_NOMAG: vr_view.cpp setupMagazines draws none)
+    bool ssgOpen{false};  // a super shotgun prop broken open (U_QVR_SSGOPEN: vr_view.cpp setupSsgParts draws it open)
+    int ssgLoaded{0};     // and its chambers loaded (0-2: the barrels' skin)
 };
 
 void init(); // registers input commands

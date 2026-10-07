@@ -764,6 +764,8 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     data.spin = (bits & U_QVR_SPIN) != 0;
     data.weaponUid = (bits & U_QVR_WEAPONUID) ? MSG_ReadLong() : 0;
     data.noMag = (bits & U_QVR_NOMAG) != 0;
+    data.ssgOpen = (bits & U_QVR_SSGOPEN) != 0;
+    data.ssgLoaded = data.ssgOpen ? MSG_ReadByte() : 0;
 }
 
 extern "C" void VR_DebugDrawnBoxes(void)

@@ -261,6 +261,7 @@ enum Holster : int
 
 // Weapons lying in the world near the player that show their ammo screen and button (the nearest).
 constexpr int maxWorldWeapons = 6;
+constexpr int maxWorldSsgs = 4; // super shotguns lying about broken open, drawn open (setupWorldSsgs)
 
 // The guns' loading ports (immersive reloading; docs/vr-port/RELOAD_PLAN.md): where a round held in the other hand goes
 // in, in the model's space (+x forward, +y left, +z up, frame 0; mirrored with the model in the off hand): the shotgun's
@@ -448,6 +449,7 @@ struct SsgDrawn
 };
 SsgDrawn ssgHands[2];
 SsgDrawn ssgHolsters[HolsterCount];
+double worldSsgPrinted = -1.0; // (setupWorldSsgs' debug print: once a second)
 
 [[nodiscard]] bool ssgBreaks()
 {
@@ -551,6 +553,8 @@ struct Entities
     view::ViewEntity ssgBarrels[2];                // in the hands,
     view::ViewEntity holsterSsgFrame[HolsterCount]; // and holstered
     view::ViewEntity holsterSsgBarrels[HolsterCount];
+    view::ViewEntity worldSsgFrame[maxWorldSsgs];   // and lying about (setupWorldSsgs)
+    view::ViewEntity worldSsgBarrels[maxWorldSsgs];
     view::ViewEntity sawHandle;  // the chainsaw's cord's handle out of its seat (vr_chainsaw.cpp handleEntity)
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
@@ -677,6 +681,11 @@ void forEachEntity(F&& f)
     {
         f(entities.holsterSsgFrame[h]);
         f(entities.holsterSsgBarrels[h]);
+    }
+    for(int i = 0; i < maxWorldSsgs; i++)
+    {
+        f(entities.worldSsgFrame[i]);
+        f(entities.worldSsgBarrels[i]);
     }
     f(entities.sawHandle);
     for(view::ViewEntity& ve : entities.button)
@@ -5371,6 +5380,47 @@ void setupSsgParts()
     }
 }
 
+// The super shotguns lying about broken open (a prop's U_QVR_SSGOPEN; the author's note vrfiringrange_2026-10-07_22-08-37:
+// a dropped gun shows its state): drawn open as in the hands, at the open angle, the barrels' skin its loaded chambers,
+// in place of their own entities (taken out of this frame's list; the first maxWorldSsgs of them).
+void setupWorldSsgs()
+{
+    int n = 0;
+    const bool on = ssgBreaks();
+    int kept = 0;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        entity_t* const e = cl_visedicts[i];
+        const bool numbered = on && e && e >= cl_entities && e < cl_entities + cl_max_edicts;
+        const client::EntityVr* net = numbered ? client::entityVr(static_cast<int>(e - cl_entities)) : nullptr;
+        if(n < maxWorldSsgs && net && net->ssgOpen && e->model && e->model->type == mod_alias &&
+           modelmeta::is(e->model, modelmeta::Id::VShot2) && viewModel(ssgFrameModel) && viewModel(ssgBarrelsModel))
+        {
+            view::ViewEntity gun;
+            gun.ent = *e;
+            gun.ent.frame = 0;
+            gun.visible = true;
+            setSsgPart(entities.worldSsgFrame[n], gun, ssgFrameModel, 0.f, 0);
+            setSsgPart(entities.worldSsgBarrels[n], gun, ssgBarrelsModel, CLAMP(0.f, vr_reload_ssg_open_angle.value, 80.f),
+                CLAMP(0, net->ssgLoaded, 2));
+            if(vr_reload_debug.value >= 1 && developer.value && cl.time >= worldSsgPrinted + 1.0)
+            {
+                worldSsgPrinted = cl.time;
+                Con_Printf("ssg: a super shotgun lying open (entity %d), %d loaded, drawn in its parts\n",
+                    static_cast<int>(e - cl_entities), net->ssgLoaded);
+            }
+            n++;
+            continue; // (not drawn itself)
+        }
+        cl_visedicts[kept++] = e;
+    }
+    cl_numvisedicts = kept;
+    for(int i = n; i < maxWorldSsgs; i++)
+    {
+        entities.worldSsgFrame[i].visible = entities.worldSsgBarrels[i].visible = false;
+    }
+}
+
 // Whether `ve` is a super shotgun drawn in its parts this frame (setupSsgParts): not drawn itself.
 [[nodiscard]] bool drawnInParts(const view::ViewEntity& ve)
 {
@@ -7306,6 +7356,7 @@ extern "C" void VR_SetupViewEntities()
     setupMagazines();
     setupPumps();
     setupSsgParts();
+    setupWorldSsgs();
     patchModelFlags();
 
     // The screen may be redrawn more than once per frame (a modal dialog); add the entities only once.

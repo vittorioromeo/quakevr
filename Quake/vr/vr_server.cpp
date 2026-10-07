@@ -750,6 +750,8 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
 
 // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc): a magazine gun with no magazine in (vr_reload.qc).
 constexpr int weaponFlagNoMag = 16;
+// QC's QVR_WPNFLAG_SSG_OPEN (vr_defs.qc): a super shotgun broken open (vr_reload.qc).
+constexpr int weaponFlagSsgOpen = 32;
 
 extern "C" int VR_EntityUpdateBits(edict_t* ent)
 {
@@ -788,6 +790,10 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
         {
             bits |= U_QVR_NOMAG; // its magazine out (immersive reloading: the client draws none on it)
         }
+        if(static_cast<int>(fieldFloatOr(ent, f.weaponflags, 0.f)) & weaponFlagSsgOpen)
+        {
+            bits |= U_QVR_SSGOPEN; // a super shotgun broken open (the client draws it open, its chambers loaded)
+        }
     }
     return bits;
 }
@@ -824,6 +830,12 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
     if(bits & U_QVR_WEAPONUID)
     {
         MSG_WriteLong(msg, weaponUid(weaponInst(ent, f.weaponinst)));
+    }
+    if(bits & U_QVR_SSGOPEN)
+    {
+        edict_t* const inst = weaponInst(ent, f.weaponinst);
+        const float clip = inst ? fieldFloatOr(inst, f.wi_clip, 0.f) : 0.f;
+        MSG_WriteByte(msg, CLAMP(0, static_cast<int>(clip), 2)); // its chambers loaded
     }
 }
 
