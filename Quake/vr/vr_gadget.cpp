@@ -192,6 +192,7 @@ struct BrightFont
     bool built{false};
     za::Vector<byte> data;            // its texels (palette indices; 0 transparent): kept while drawn (a reload's)
     gltexture_t* texture{nullptr};
+    gltexture_t* consoleFont{nullptr}; // char_texture while useBrightFont() is on
 };
 BrightFont brightFont;
 constexpr const char* brightFontName = "vr_gadget_conchars";
@@ -273,7 +274,7 @@ struct Palette
     p.line = cap(hue::color(own, 0.58f, 0.55f * bright));
     p.text = glm::vec4{cap(hue::color(own, 0.55f, bright)), 1.f};
     p.label = cap(glm::mix(hue::color(own, 0.5f, 0.9f), glm::vec3{0.82f}, whiteness) * bright); // (a step under the values)
-    p.value = cap(glm::mix(hue::color(own, 0.5f, 1.f), glm::vec3{0.97f}, whiteness) * bright);
+    p.value = cap(whitened(hue::color(own, 0.5f, 1.f), whiteness) * bright);
     p.dim = cap(hue::color(own, 0.45f, 0.55f * bright));
     p.warn = cap(glm::vec3{1.f, 0.42f, 0.36f} * bright);
     p.shadow = p.background * 0.2f;
@@ -298,8 +299,7 @@ void drawText(float x, float y, float size, const char* str, const glm::vec3& rg
 {
     constexpr float o = 0.5f;
     static constexpr float offsets[4][2] = {{-o, 0.f}, {o, 0.f}, {0.f, -o}, {0.f, o}};
-    gltexture_t* const consoleFont = char_texture;
-    char_texture = brightFontTexture(); // (Draw_StringEx binds char_texture)
+    useBrightFont(true);
     gfx::draw2D::color(glm::vec4{pal.shadow, 1.f});
     for(const auto& d : offsets)
     {
@@ -308,7 +308,7 @@ void drawText(float x, float y, float size, const char* str, const glm::vec3& rg
     gfx::draw2D::color(glm::vec4{rgb, 1.f});
     gfx::draw2D::text(x, y, size, str);
     gfx::draw2D::color(white);
-    char_texture = consoleFont;
+    useBrightFont(false);
 }
 
 // A grey picture in `rgb`, `scale`d, over the same outline (the game's own when it has no grey one).
@@ -2258,6 +2258,25 @@ void drawScreen()
 float textGlow()
 {
     return CLAMP(0.f, vr_screen_text_glow.value, 3.f);
+}
+
+glm::vec3 whitened(const glm::vec3& colour, float whiteness)
+{
+    return glm::mix(colour, glm::vec3{0.97f}, CLAMP(0.f, whiteness, 1.f));
+}
+
+void useBrightFont(bool on)
+{
+    if(on && !brightFont.consoleFont)
+    {
+        brightFont.consoleFont = char_texture;
+        char_texture = brightFontTexture(); // (Draw_StringEx binds char_texture)
+    }
+    else if(!on && brightFont.consoleFont)
+    {
+        char_texture = brightFont.consoleFont;
+        brightFont.consoleFont = nullptr;
+    }
 }
 
 bool screenGlow(Glow& out)

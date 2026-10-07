@@ -68,6 +68,7 @@ za::SizeT queuedCount = 0;
     return queued[queuedCount++];
 }
 za::Vector<gfx::Vertex> vertices; // glyphs
+za::Vector<gfx::Vertex> screenGlyphs; // the ammo screens' whitened glyphs without the CRT look (in the brightened font)
 za::Vector<gfx::Vertex> panels;   // screens behind them
 za::Vector<gfx::Vertex> floating; // floating texts (blended: they fade)
 za::Vector<gfx::Vertex> backings; // the wrist log's backing (blended; drawOverlay, over the eye's image)
@@ -86,6 +87,7 @@ struct ScreenImage
     za::String drawn;       // what is drawn in it: the text, its alignment and the palette (redrawn when they change)
     int drawnAlign{-1};
     glm::vec3 drawnFace{-1.f}, drawnText{-1.f};
+    bool trueColor{false}; // drawn in its own colours (its text whitened: vr_ammo_screen_text_white)
 };
 za::Array<ScreenImage, maxScreenImages> screenImages;
 
@@ -96,6 +98,7 @@ struct ScreenQuad
     glm::vec4 params;
     glm::vec3 size;
     gfx::Texture texture;
+    bool trueColor{false}; // its text whitened (vr_ammo_screen_text_white): the image in its own colours
 };
 za::Vector<ScreenQuad> screenQuads;
 int screenCount = 0; // screen texts laid out this frame
@@ -131,6 +134,30 @@ struct ScreenShape
 {
     const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
     return hue::color(vr_gadget_screen_hue, 0.57f, 0.12f * za::max(back, 0.2f));
+}
+
+// Their text's own colour (vr_ammo_screen_text_white): the screen's colour towards near-white as the wrist gadget's
+// values (gadget::whitened, in its brightened font). The face, the frame's glow and the CRT's phosphor (its static, its
+// rolling bar) stay screenText().
+[[nodiscard]] float screenWhiteness()
+{
+    return CLAMP(0.f, vr_ammo_screen_text_white.value, 1.f);
+}
+
+[[nodiscard]] glm::vec3 screenInk()
+{
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    return glm::min(gadget::whitened(hue::color(vr_gadget_screen_hue, 0.55f, 1.f), screenWhiteness()) * bright,
+        glm::vec3{1.f});
+}
+
+// The face as the CRT shader shows it without whitened text (Shade::Screen's lit(): its brightness in the phosphor's
+// colour), to draw it in its own colours under whitened text (State::trueColor) and look the same.
+[[nodiscard]] glm::vec3 screenFaceLit()
+{
+    const glm::vec3 f = screenFace();
+    const float lit = 0.5f * za::max(f.r, za::max(f.g, f.b)) + 0.6f * glm::dot(f, glm::vec3{0.2126f, 0.7152f, 0.0722f});
+    return screenText() * lit;
 }
 
 // Map text boards (world texts: the tutorial's, func_worldtext_banner) as CRT screens
@@ -510,6 +537,8 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
     // (vr_weapon_screen_crt), the face and the text are its image (renderScreens), drawn over the
     // face through the CRT shader, with a glitch of its own: the screens glitch at other moments.
     glm::vec4 textColor{1.f};
+    glm::vec4 inkColor{1.f}; // the glyphs' (a screen's whitened text: vr_ammo_screen_text_white)
+    za::Vector<gfx::Vertex>* glyphs = &vertices;
     bool imaged = false;
     if(screen)
     {
@@ -517,6 +546,8 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         const glm::vec3 n = glm::normalize(glm::cross(right, up));
         const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
         textColor = glm::vec4{screenText(), 1.f};
+        inkColor = glm::vec4{screenInk(), 1.f};
+        glyphs = screenWhiteness() > 0.f ? &screenGlyphs : &vertices;
 
         const float halfW = charSize * static_cast<float>(longest) * 0.5f;
         const float halfH = charSize * static_cast<float>(textLines.size()) * 0.5f;
@@ -549,7 +580,8 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
             screenQuads.pushBack({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
                 .params = {time, crt, gadget::glitch(realtime + offset) * za::min(crt, 1.f), gadget::textGlow()},
                 .size = {static_cast<float>(image->width), static_cast<float>(image->height), 1.f},
-                .texture = image->target.texture});
+                .texture = image->target.texture,
+                .trueColor = image->trueColor});
         }
         else
         {
@@ -572,7 +604,7 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         {
             if(c != ' ')
             {
-                glyph(p, hInc, vInc, static_cast<unsigned char>(c), textColor);
+                glyph(p, hInc, vInc, static_cast<unsigned char>(c), screen ? inkColor : textColor, *glyphs);
             }
             p += hInc;
         }
@@ -1091,8 +1123,11 @@ void renderScreens()
         image.height = static_cast<int>(textLines.size()) * 8 + pad * 2;
         image.frame = host_framecount;
         // Drawn again only when something in it changed (it holds until then; the counters change
-        // with a shot, not every frame).
-        const glm::vec3 face = screenFace(), text = screenText();
+        // with a shot, not every frame). Its text whitened (vr_ammo_screen_text_white): in its own colours, the
+        // text in the brightened font, the face as the shader would have lit it (screenFaceLit).
+        const bool trueColor = screenWhiteness() > 0.f;
+        const glm::vec3 face = trueColor ? screenFaceLit() : screenFace(), text = trueColor ? screenInk() : screenText();
+        image.trueColor = trueColor;
         if(image.target.texture && image.target.width == image.width * screenScale &&
             image.target.height == image.height * screenScale && image.drawn == q.text &&
             image.drawnAlign == static_cast<int>(q.align) && image.drawnFace == face && image.drawnText == text)
@@ -1112,12 +1147,14 @@ void renderScreens()
         gfx::begin2D(image.target, image.width, image.height);
         gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), face);
         gfx::draw2D::color(glm::vec4{text, 1.f});
+        gadget::useBrightFont(trueColor);
         for(size_t i = 0; i < textLines.size(); i++)
         {
             const za::String line{textLines[i]};
             const float x = static_cast<float>(pad) + 8.f * indent(q.align, longest, line.size());
             gfx::draw2D::text(x, static_cast<float>(pad + 8 * static_cast<int>(i)), 8.f, line.cStr());
         }
+        gadget::useBrightFont(false);
         gfx::draw2D::color(glm::vec4{1.f});
         gfx::end2D();
     }
@@ -1156,6 +1193,7 @@ extern "C" void VR_DrawSceneOpaque()
     {
         builtFrame = host_framecount;
         vertices.clear();
+        screenGlyphs.clear();
         panels.clear();
         floating.clear();
         backings.clear();
@@ -1221,11 +1259,19 @@ extern "C" void VR_DrawSceneOpaque()
     gfx::draw(vertices, viewProjection,
         {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
         gfx::fontTexture());
+    if(!screenGlyphs.empty())
+    {
+        gadget::useBrightFont(true);
+        gfx::draw(screenGlyphs, viewProjection,
+            {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
+            gfx::fontTexture());
+        gadget::useBrightFont(false);
+    }
     for(const ScreenQuad& q : screenQuads)
     {
         gfx::draw(q.vertices, viewProjection,
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
-                .params = q.params, .screen = q.size},
+                .params = q.params, .screen = q.size, .trueColor = q.trueColor},
             q.texture);
     }
     // The blended ones wait for the translucent pass (drawTranslucent): drawn here, writing no

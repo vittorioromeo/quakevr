@@ -52,6 +52,14 @@ void renderScreen();
 // (vr_screen_text_glow, 0..3; Shade::Screen's glow).
 [[nodiscard]] float textGlow();
 
+// The screens' text towards white (the gadget's values: vr_gadget_screen_text_white; the ammo screens' and the pouch
+// counter's: vr_ammo_screen_text_white): `colour` mixed with near-white by `whiteness` (clamped 0..1).
+[[nodiscard]] glm::vec3 whitened(const glm::vec3& colour, float whiteness);
+
+// While on, gfx::draw2D::text and gfx::fontTexture() draw in the screens' font: the console's brightened, so that
+// near-white text comes out near-white, not mid-grey. Off: the console's again.
+void useBrightFont(bool on);
+
 // Draws the texture over the model's screen, in one phosphor colour and as a small CRT
 // (vr_gadget_crt: scanlines, a flicker, faint static and now and then a glitch), in each eye's
 // scene after the opaque entities (VR_DrawSceneOpaque), where the bloom catches its light.

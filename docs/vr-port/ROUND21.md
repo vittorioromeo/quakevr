@@ -29229,3 +29229,15 @@ into the map, the Scourge lectern); the walk test 18 of 18; e1m1's smoke test. (
 
 **To try in VR:** load vrstart2 and vrstart a few times, from the menu, a save and the slipgates (come back from the
 tutorial or the firing range): no button presses itself; the buttons by the start still press at once.
+
+## White text on the ammo screens (2026-10-07)
+
+Your note: the ammo screens' text in the wrist gadget's white, the frames kept green, the pouch counter too.
+`vr_ammo_screen_text_white` (1, on; Graphics' ammo screen rows "White Ammo Screen Text", and Weapons > Reloading
+"White Counter Text", the same setting): the guns' ammo screens and the ammo pouch's counter draw their numbers near-white
+in the gadget's brightened console font (`gadget::whitened`, `gadget::useBrightFont`: the gadget's own mechanism, now
+shared; its `drawText` uses it too); 0 the screen's colour as before (between: a mix). The face, the frame's glow and the
+CRT's static stay the screen's colour: as a CRT (`vr_weapon_screen_crt`) the screen's image is drawn in its own colours
+(Shade::Screen's trueColor, as the gadget's), its face pre-lit as the one-colour shader showed it; without the CRT look
+the glyphs go in a batch of their own in the bright font. Pictures: `scratch/ammo_text_white.png` (gun screen off/on,
+pouch counter off/on).

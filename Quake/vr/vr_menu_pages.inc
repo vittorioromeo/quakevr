@@ -676,6 +676,8 @@ void resetHandMoves()
         slider("Counter Yaw", "vr_ammo_pouch_counter_yaw", -90.f, 90.f, 5.f, "%.0f"),
         slider("Counter Roll", "vr_ammo_pouch_counter_roll", -90.f, 90.f, 5.f, "%.0f"),
         slider("Counter Size", "vr_ammo_pouch_counter_scale", 0.2f, 3.f, 0.1f, "%.1fx"),
+        toggle("White Counter Text", "vr_ammo_screen_text_white")
+            .help("The counter's number near-white, as the wrist gadget's (the guns' ammo screens' too: the same setting)."),
         slider("Follow Legs", "vr_ammo_pouch_leg_follow", 0.f, 1.f, 0.05f, "%.2f")
             .help("With the full body, how much the pouch moves with your legs as you walk, as the belt does (the hip "
                   "holsters' Follow Legs likewise). 0: fixed on the belly."),
