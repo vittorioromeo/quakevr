@@ -922,7 +922,7 @@ the script crashes at the culprit instead (ROUND21.md, "Map load crash: the cach
 the console is up, so a script's `toggleconsole` closed it and `quit` opened the quit confirmation and waited there
 until the kit's timeout (so did `quit` after `menu_vr ...`). A player's `quit` outside the console still asks.
 
-Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the menu shown and, on a VR page, its
+Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the layout (ROUND21.md, "The menus' corner column moved left": where the menu's text starts, the corner buttons' right edge and bottom, beside or over the menu; on a VR page the rows' top and count), then the menu shown and, on a VR page, its
 selected row (with the header above it), its scroll and the page Back goes to. While a drop-down list is open (ROUND21.md, "Drop-down lists in the VR menus") a second line gives its row, highlighted choice, scroll and box (menu coordinates, for `vr_mock_laser`). `menu_vr recent [clear]` prints Search's recent list (SRECENT lines, each row's middle in menu coordinates while Search is shown) or clears it (quakevr/search_recent.txt). `menu_vr list`: every page's number
 and place in the tree. `menu_vr dump` prints every page reached from VR Settings and its rows (MDPAGE/MDROW lines);
 `python Misc/quakevr/menu_coverage.py before.log after.log` compares two dumps (every setting and action still on a

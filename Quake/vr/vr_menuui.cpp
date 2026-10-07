@@ -391,13 +391,16 @@ struct ToolbarLayout
     static constexpr float gap = 2.f;       // between two buttons
     static constexpr float icon = 9.f;      // an icon's width
     static constexpr float iconButton = 4.f + icon + 4.f; // a button without its label
-    static constexpr float columnRight = -8.f;  // the labelled column's right edge (menu x): 16 clear of the menus' x 8
-    static constexpr float columnNearest = 8.f; // ... and on a narrow panel, the nearest the menus it goes
+    static constexpr float columnRight = -136.f; // the labelled column's right edge (menu x): clear of the VR pages'
+                                                 // labels up to 38 characters (from x -128) and Ironwail's lists
+    static constexpr float columnGap = 8.f;      // at least this clear of the menu's leftmost text (menu x)
 
     float left{0.f}, top{0.f}; // the canvas's corner
     float bottom{0.f};         // the canvas's bottom edge (menu y)
     float k{1.f};
     float x0{0.f}, x1{0.f};    // the column's edges (the row: its first button's)
+    float edge{0.f};           // where the column's right edge goes: columnRight, or left of a wider menu
+    float limit{0.f};          // the nearest the column may come to the menu (menu::contentLeft, less columnGap)
     bool labels{false};
     bool row{false};           // the flat screen's row of icons
 
@@ -442,9 +445,10 @@ struct ToolbarLayout
     Draw_GetTransformBounds(&t, &l.left, &l.top, &right, &l.bottom);
     l.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // as Painter's
 
-    // All as wide as the widest label, their right edges at columnRight (clear of the menus: Quake's plaque at x 16,
-    // the VR pages' rows from x 8, the Search and Map Library pages from 12): on a wide panel near the menu rather than
-    // out at its corner. On a narrower one as far left as the panel goes (no nearer the menu than x 8); where the
+    // All as wide as the widest label, their right edges at columnRight, clear left of what the menus draw (the VR
+    // pages' labels reach left of Quake's 320 columns, right-aligned to the values' column; Ironwail's lists span
+    // the canvas's middle), the same on almost every page; further left on a page whose text reaches further
+    // (menu::contentLeft). On a narrower panel as far left as it goes (no nearer the menu than `limit`); where the
     // labels do not fit even so, only the icons, in the corner.
     float widest = 0.f;
     for(const char* label : toolLabels)
@@ -452,14 +456,16 @@ struct ToolbarLayout
         widest = za::fmax(widest, 8.f * static_cast<float>(strlen(label)));
     }
     const float width = 4.f + ToolbarLayout::icon + 4.f + widest + 5.f;
-    l.x1 = ToolbarLayout::columnRight;
+    l.limit = menu::contentLeft() - ToolbarLayout::columnGap;
+    l.edge = za::fmin(ToolbarLayout::columnRight, l.limit);
+    l.x1 = l.edge;
     l.x0 = l.x1 - width;
     if(l.x0 < l.left + ToolbarLayout::corner)
     {
         l.x0 = l.left + ToolbarLayout::corner;
         l.x1 = l.x0 + width;
     }
-    l.labels = l.x1 <= ToolbarLayout::columnNearest;
+    l.labels = l.x1 <= l.limit;
     l.row = !qvr::menuui::active(); // (a flat screen)
     if(!l.labels || l.row)
     {
@@ -480,6 +486,33 @@ struct Toolbar
     glm::vec2 focusMouse{0.f}; // the laser's spot when they did: moving it on gives the selection back
 };
 Toolbar toolbar;
+
+// The status box (VR_MenuDrawStatus) as last drawn: its lines' count and the longest's length, for the menus' rows to
+// keep clear of it (menuui::statusBottom).
+struct StatusBox
+{
+    int lines{0};
+    int widest{0};
+};
+StatusBox statusBox;
+
+// Its size: small on a flat screen (the menu's canvas is near the window's size); nearer the corner buttons' 8 in the
+// headset. Measured in true pixels down (the box, the rows' tops), as the Painter draws: on a page whose rows are
+// spaced out (vr_menu_spacing, the canvas's y scaled by k) the characters keep their size (Draw_KeepMenuGlyphSize),
+// so the rows are placed in true pixels too, and the box fits them on every page.
+struct StatusMetrics
+{
+    float size, step, pad;
+    [[nodiscard]] float width(int widest) const { return size * static_cast<float>(widest) + 2.f * pad; }
+    [[nodiscard]] float height(int lines) const { return step * static_cast<float>(lines) + 2.f * pad - (step - size); }
+};
+[[nodiscard]] StatusMetrics statusMetrics()
+{
+    const bool headset = menuui::active();
+    return {headset ? 7.f : 5.f, headset ? 9.f : 7.f, 4.f};
+}
+constexpr int statusReserve = 40; // the box taken as this many characters wide at least, for the rows below it (so
+                                  // that a line growing by a digit does not move them)
 
 // On a flat screen the desktop mouse lights a button up only once it has moved over the menus (until then the menus'
 // mouse is where it was last, or where the laser left it).
@@ -592,14 +625,14 @@ struct BannerLayout
     {
         b.text = text;
         width = 4.f + 6.f + 4.f + 8.f * static_cast<float>(strlen(text)) + 5.f;
-        b.x1 = ToolbarLayout::columnRight;
+        b.x1 = l.edge;
         b.x0 = b.x1 - width;
         if(b.x0 < l.left + ToolbarLayout::corner)
         {
             b.x0 = l.left + ToolbarLayout::corner; // (as far left as the panel goes, as the column)
             b.x1 = b.x0 + width;
         }
-        if(b.x1 <= ToolbarLayout::columnNearest)
+        if(b.x1 <= l.limit)
         {
             return b;
         }
@@ -644,7 +677,7 @@ void placePreview(const ToolbarLayout& l, const BannerLayout& b)
     }
     const float aspect = static_cast<float>(vid.height) / static_cast<float>(vid.width); // the camera's: the window's
     const float x0 = za::fmax(b.x0, l.left + ToolbarLayout::corner);
-    float x1 = za::fmin(b.x1, ToolbarLayout::columnNearest);
+    float x1 = za::fmin(b.x1, l.limit);
     const float bottom = b.yc - (ToolbarLayout::half + 2.f * ToolbarLayout::gap) / l.k;
     const float room = (bottom - (l.buttonsBottom() + 2.f * ToolbarLayout::gap / l.k)) * l.k; // true pixels
     float height = (x1 - x0 - 2.f * border) * aspect + 2.f * border;
@@ -959,6 +992,41 @@ float toolbarRight()
 float toolbarLeft()
 {
     return toolbarShown() ? toolbarLayout().bx0(0) : -1e9f;
+}
+
+bool toolbarBeside()
+{
+    if(!toolbarShown())
+    {
+        return false;
+    }
+    const ToolbarLayout l = toolbarLayout();
+    return !l.row && l.right() <= l.limit;
+}
+
+float statusBottom(float contentRight)
+{
+    if(!vr_menu_status.value || statusBox.lines <= 0)
+    {
+        return -1e9f;
+    }
+    const ToolbarLayout l = toolbarLayout();
+    drawtransform_t t;
+    Draw_GetCanvasTransform(CANVAS_MENU, &t);
+    float left, top, right, bottom;
+    Draw_GetTransformBounds(&t, &left, &top, &right, &bottom);
+    const StatusMetrics m = statusMetrics();
+    const float x0 = right - ToolbarLayout::corner - m.width(q_max(statusBox.widest, statusReserve));
+    if(contentRight <= x0 - ToolbarLayout::gap)
+    {
+        return -1e9f;
+    }
+    return l.top + (ToolbarLayout::corner + m.height(statusBox.lines)) / l.k;
+}
+
+float toolbarLimit()
+{
+    return toolbarShown() ? toolbarLayout().limit : 0.f;
 }
 
 bool toolbarRow()
@@ -1332,18 +1400,32 @@ extern "C" int VR_MenuHidesPlaque()
     return qvr::menuui::active();
 }
 
-// The menus that lay out from the canvas's bounds (Ironwail's lists: levels, mods, options, key
-// bindings) start below the corner's buttons; not under a flat screen's row of icons, which stays above their tops
-// (their bounds 10 below the canvas's top at least, their titles 4 more).
-extern "C" void VR_MenuBounds(int* top, int* height)
+// The menus that lay out from the canvas's bounds (Ironwail's lists: levels, mods, options, key bindings). In the
+// headset (the VR menu style): no wider than leaves the corner's column where it stands on the other menus, left of
+// them (columnRight, columnGap), and from the top, beside it (below the buttons only where a narrow panel puts them
+// over the lists; below the status box where a list reaches under it). Not under a flat screen's row of icons,
+// which stays above their tops (their bounds 10 below the canvas's top at least, their titles 4 more).
+extern "C" void VR_MenuBounds(int* left, int* top, int* width, int* height)
 {
     if(menuui::toolbarRow())
     {
         return;
     }
-    const float bottom = menuui::toolbarBottom();
+    if(menuui::active())
+    {
+        const int nearest = static_cast<int>(ToolbarLayout::columnRight + ToolbarLayout::columnGap);
+        if(*left < nearest)
+        {
+            const int centre = *left + *width / 2;
+            *width = q_max(320, 2 * (centre - nearest)) & ~15;
+            *left = centre - *width / 2;
+        }
+    }
+    // (The lists centred: their right edge as far right of x 160 as their left is left of it.)
+    const float bottom = za::fmax(menuui::toolbarBeside() ? -1e9f : menuui::toolbarBottom(),
+        menuui::active() ? menuui::statusBottom(320.f - menu::contentLeft()) : -1e9f);
     const int below = static_cast<int>(za::ceil(bottom)) + 4;
-    if(below <= *top)
+    if(bottom < -1e8f || below <= *top)
     {
         return;
     }
@@ -1466,24 +1548,21 @@ extern "C" void VR_MenuDrawStatus()
         float left, top, bottom;
         Draw_GetTransformBounds(&t, &left, &top, &right, &bottom);
     }
-    // Small on a flat screen (the menu's canvas is near the window's size); nearer the corner buttons' 8 in the headset.
-    const bool headset = menuui::active();
-    const float size = headset ? 7.f : 5.f, step = headset ? 9.f : 7.f, pad = 4.f;
+    const StatusMetrics m = statusMetrics();
+    const float size = m.size, step = m.step, pad = m.pad;
     za::SizeT widest = 0;
     for(const za::String& line : lines)
     {
         widest = line.size() > widest ? line.size() : widest;
     }
-    // Measured in true pixels down (the box, the rows' tops), as the Painter draws: on a page whose rows are spaced
-    // out (vr_menu_spacing, the canvas's y scaled by k) the characters keep their size (Draw_KeepMenuGlyphSize), so
-    // the rows are placed in true pixels too, and the box fits them on every page.
-    const float width = size * static_cast<float>(widest) + 2.f * pad;
+    statusBox.lines = static_cast<int>(lines.size());
+    statusBox.widest = static_cast<int>(widest);
+    const float width = m.width(statusBox.widest);
     const float x1 = right - ToolbarLayout::corner;
     const float x0 = x1 - width;
-    const float height = step * static_cast<float>(lines.size()) + 2.f * pad - (step - size);
+    const float height = m.height(statusBox.lines);
     const float y0 = l.top + ToolbarLayout::corner / l.k;
-    const float yc = y0 + height * 0.5f / p.k;
-    p.rounded(x0, x1, yc, height * 0.5f, 3.f, colors::boxBorder);
+    const float yc = y0 + height * 0.5f / p.k;    p.rounded(x0, x1, yc, height * 0.5f, 3.f, colors::boxBorder);
     p.rounded(x0 + 1.f, x1 - 1.f, yc, height * 0.5f - 1.f, 2.f, colors::boxFill);
     for(za::SizeT i = 0; i < lines.size(); i++)
     {
@@ -1499,7 +1578,7 @@ extern "C" void VR_MenuDrawStatus()
 }
 
 // The corner's buttons (over every menu, not while a key is being bound): their labels where they fit
-// left of Quake's plaque (x 16), else only their icons. In the headset with the VR menu style, and on a flat screen
+// left of the menu (toolbarLayout), else only their icons. In the headset with the VR menu style, and on a flat screen
 // (vr_menu_flat_shortcuts), where the desktop mouse lights them up.
 extern "C" void VR_MenuDrawOverlay()
 {

@@ -78,6 +78,7 @@ extern qboolean keydown[MAX_KEYS]; // keys.c
 extern cvar_t ui_mouse_sound; // menu.c
 extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
+int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
 }
 
 using namespace qvr;
@@ -8549,7 +8550,13 @@ HelpBox helpBox;
 {
     const int height = menuui::menuHeight();
     const int top = (200 - height) / 2;
-    const int listTop = q_max(top + 36, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2); // below the corner's buttons
+    // Under the title, or below the corner's buttons where they are over the rows (not left of them: a narrow panel),
+    // and below the status box in the top right corner where the page reaches under it (Search and the Map Library,
+    // from x 12 440 and 460 across; the other pages to their scrollbar).
+    int listTop = menuui::toolbarBeside() ? top + 36 : q_max(top + 36, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2);
+    const auto build = pages[page].build;
+    const float right = build == pageMaps ? 12.f + 460.f : build == pageSearch ? 12.f + 440.f : midPos + 200.f;
+    listTop = q_max(listTop, static_cast<int>(za::ceil(menuui::statusBottom(right))) + 2);
     return {top, listTop, top + height - 4 - 8 * helpBoxLines(), top + height};
 }
 
@@ -8563,6 +8570,37 @@ HelpBox helpBox;
         }
     }
     return false;
+}
+
+// A VR page's rows' leftmost text (menu x), for the corner's buttons (menu::contentLeft): each label right-aligned
+// to the values' column (drawItem: midPos - 28 - its width), headers and lines of information centred (these 40
+// characters at most). Kept per page and build.
+struct RowsLeft
+{
+    int page{-1};
+    int build{-1};
+    int left{0};
+};
+RowsLeft rowsLeft;
+
+[[nodiscard]] int pageRowsLeft()
+{
+    if(rowsLeft.page != page || rowsLeft.build != builds[page])
+    {
+        rowsLeft.page = page;
+        rowsLeft.build = builds[page];
+        int left = 0;
+        for(const Item& item : menuPages.built[page])
+        {
+            const int len = item.label ? static_cast<int>(strlen(item.label)) : 0;
+            const int x = item.kind == Item::Header ? (320 - 8 * len) / 2
+                          : item.kind == Item::Info ? 0
+                                                    : midPos - 28 - 8 * len;
+            left = q_min(left, x);
+        }
+        rowsLeft.left = left;
+    }
+    return rowsLeft.left;
 }
 
 [[nodiscard]] int visibleRows(const za::Vector<Item>& list)
@@ -10174,6 +10212,16 @@ void qvr::menu::command_f()
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "pos"))
     {
         const char* corner = menuui::toolbarFocused() ? ", corner buttons selected" : "";
+        if(key_dest == key_menu)
+        {
+            // The layout (menu coordinates): the corner's column left of the menu's text, the rows from the top.
+            Con_Printf("menu_vr pos: text from x %.0f, buttons to x %.0f (%s), y %.1f\n", menu::contentLeft(),
+                menuui::toolbarRight(), menuui::toolbarBeside() ? "beside" : "over", menuui::toolbarBottom());
+            if(m_state == m_vr)
+            {
+                Con_Printf("menu_vr pos: rows from y %d, %d shown\n", layout().listTop, visibleRows(items(page)));
+            }
+        }
         if(key_dest != key_menu || m_state != m_vr)
         {
             const char* name = key_dest != key_menu      ? "closed"
@@ -10354,6 +10402,20 @@ void qvr::menu::search_f()
             e.path.cStr(), search.results[r].byCvar ? va(": %s", e.lowCvar.cStr()) : "",
             e.level > menuLevel() ? va(" (%s)", levelName(e.level)) : "");
     }
+}
+
+float qvr::menu::contentLeft()
+{
+    if(m_state != m_vr)
+    {
+        return static_cast<float>(M_ContentLeft());
+    }
+    const auto build = pages[page].build;
+    if(build == pageSearch || build == pageMaps || build == pageConsole)
+    {
+        return 0.f; // (Search and the Map Library from x 12 at least; the console's page right of the buttons)
+    }
+    return static_cast<float>(q_min(pageRowsLeft(), (320 - 8 * helpColumns()) / 2));
 }
 
 bool qvr::menu::developerLevel()

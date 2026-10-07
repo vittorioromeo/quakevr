@@ -7383,7 +7383,23 @@ static void M_UpdateBounds (void)
 	m_width &= ~15;
 	m_left = left + (width - m_width) / 2;
 	m_top = top + (height - m_height) / 2;
-	VR_MenuBounds (&m_top, &m_height); // QVR: below the corner's buttons
+	VR_MenuBounds (&m_left, &m_top, &m_width, &m_height); // QVR: beside the corner's buttons
+}
+
+// QVR: the left edge of what the menu shown draws (menu x): Ironwail's lists laid out from the canvas's width (levels,
+// mods and a mod's details) reach further left than Quake's 320 columns; the others stay within them. The VR menu
+// style's corner buttons stand left of it (vr_menuui.cpp).
+int M_ContentLeft (void)
+{
+	switch (M_GetBaseState (m_state))
+	{
+	case m_maps:
+	case m_mods:
+	case m_modinfo:
+		return q_min (m_left, 0);
+	default:
+		return 0;
+	}
 }
 
 void M_Draw (void)

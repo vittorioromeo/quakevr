@@ -56,6 +56,11 @@ void jumpToRelighting();
 // The presets' callbacks (Locomotion's Comfort, Body and Display's Handedness) and VR Settings' own rows (Turning Mode, Move Towards, the hands), once the cvars are registered.
 void init();
 
+// The leftmost x (menu pixels) the menu shown draws text at: a VR page's longest label (right-aligned to the values'
+// column, reaching left of Quake's 320 columns) or its help; Ironwail's lists laid out from the canvas's width; else 0.
+// The corner's buttons stand left of it (vr_menuui.cpp).
+[[nodiscard]] float contentLeft();
+
 // Menu Detail at Developer (vr_menu_level 2): the tuning and testing pages, the corner's Checklist button.
 [[nodiscard]] bool developerLevel();
 

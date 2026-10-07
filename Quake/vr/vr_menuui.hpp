@@ -56,6 +56,14 @@ void backToGame(int hand);
 [[nodiscard]] float toolbarLeft();  // and their left edge (menu x; far left when they are not shown)
 [[nodiscard]] bool toolbarFocused();
 [[nodiscard]] bool toolbarRow(); // on a flat screen: a row of icons along the canvas's top
+// In the headset: whether the column (its buttons, the banner under them, the spectator switch) stands clear left of
+// what the menu draws, so that the menu's rows start at its top rather than below the buttons; and the nearest the
+// column comes to the menu (menu x: the menu's leftmost text, less a gap).
+[[nodiscard]] bool toolbarBeside();
+[[nodiscard]] float toolbarLimit();
+// The status box's bottom (menu y) where it is over a menu reaching right to `contentRight` (menu x); far above the
+// menu where it is not (or is off).
+[[nodiscard]] float statusBottom(float contentRight);
 void focusToolbar(int dir);
 
 // vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | spectator | off (tests): the

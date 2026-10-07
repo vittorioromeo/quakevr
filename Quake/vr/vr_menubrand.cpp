@@ -34,7 +34,6 @@ constexpr const char* bannerImage = "gfx/vr/menu_banner"; // png, tga or jpg
 constexpr float plaqueHeight = 144.f;                     // gfx/qplaque.lmp's height (menu pixels)
 constexpr float plaqueCentre = 14.f;     // the banner's middle from the plaque's left (its column 32 wide: 16 would put
                                          // a 48 wide banner's right edge on the main menu's cursor, at x 54)
-constexpr float columnRight = -8.f;      // the VR style's corner buttons' column's right edge (vr_menuui.cpp)
 constexpr float columnHeight = 216.f;    // the banner's height there (true pixels: the plaque's at the shipped row spacing,
                                          // 1.5), the same on every menu (their canvases stretch y by different amounts)
 constexpr float columnGap = 8.f;         // under the buttons, and above the panel's bottom (true pixels)
@@ -155,7 +154,7 @@ extern "C" void VR_MenuDrawBannerColumn()
     if(x1 - x0 < columnMinHeight)
     {
         x0 = glcanvas.left + 4.f;
-        x1 = columnRight;
+        x1 = qvr::menuui::toolbarLimit(); // (as near the menu as the column may come)
     }
     const float top = qvr::menuui::toolbarBottom() + columnGap / k;
     float height = za::fmin(columnHeight, (glcanvas.bottom - top) * k - columnGap); // true pixels

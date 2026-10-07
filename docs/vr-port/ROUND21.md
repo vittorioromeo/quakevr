@@ -29241,3 +29241,40 @@ CRT's static stay the screen's colour: as a CRT (`vr_weapon_screen_crt`) the scr
 (Shade::Screen's trueColor, as the gadget's), its face pre-lit as the one-colour shader showed it; without the CRT look
 the glyphs go in a batch of their own in the bright font. Pictures: `scratch/ammo_text_white.png` (gun screen off/on,
 pouch counter off/on).
+## The menus' corner column moved left; the rows from the top (2026-10-07)
+
+Your note: in the headset the shortcut column (Back to game, Search, ... Relighting) and the vertical Quake VR banner
+under it often overlapped the menus; move them left, and use the room freed at the top for more rows.
+
+- **The column (its buttons, the banner under them, the spectator switch at the bottom) now stands clear left of what
+  the menu draws.** Its right edge was at menu x -8, but a VR page's labels are right-aligned to the values' column and
+  reach left of Quake's 320 columns (a 26-character label from x -32, a 38-character one from -128), and Ironwail's
+  lists (Levels, Mods) span the canvas's middle from about -136: they ran under the buttons and the banner. Its right
+  edge is now at x -136 (`ToolbarLayout::columnRight`) on almost every page, the same place each time for the laser; a
+  page whose text reaches further left (`menu::contentLeft`: its longest label, a long header, the help's width) moves
+  it further, 8 clear: Status Bar's and Wrist Gadget's long links, Debug - Tools' long headers, Debug - Views, a few
+  others (most at Menu Detail: Developer). Ironwail's lists are kept narrower in the headset so that they start right of
+  the column's usual place (`VR_MenuBounds`, now with their left and width): the column stays put on Levels and Mods.
+  On a narrow panel (no room left of the menu) it still falls back to the corner's icons and the rows below them.
+- **The rows start under the page's title, not below the buttons**, wherever the column is beside the menu
+  (`menuui::toolbarBeside`): the VR pages show 27-28 rows instead of 22-24 (VR Settings 23 -> 28 at Developer, 24 ->
+  28 at Standard; Graphics 22 -> 27; Melee 22 -> 27; Debug - Tools 22 -> 27), Levels, Mods, Options' lists and the key
+  bindings about 4-5 more, Search and the Map Library's keyboard and results higher by as much.
+- **The status box in the top right corner stays clear:** a menu reaching right under it (Ironwail's lists, Search, the
+  Map Library) starts below it (`menuui::statusBottom`, the box taken as 40 characters wide at least so that a line
+  growing by a digit does not move the rows). Levels' title now sits under it; the VR pages end left of it.
+- The flat screen's row of icons along the top is unchanged (it never overlapped).
+- `menu_vr pos` prints the layout: where the menu's text starts (menu x), the buttons' right edge and bottom, beside or
+  over the menu, and on a VR page the rows' top and how many are shown.
+
+**Tested** with the mock (vr_eyeshot 3, the left eye's panel): Main, Options, Levels, VR Settings, Status Bar, Graphics,
+Map Library, Checklist, Debug - Tools (a long help) and the key bindings before and after; nothing overlaps the column,
+the banner, the status box or the spectator switch. The laser clicks the moved buttons (Advanced VR from Status Bar,
+whose column is further left; Checklist from Debug - Tools; Levels; the spectator switch). The flat screen's menus
+unchanged (VR Settings and the Map Library start where they did). `vr_menu_path_check maps/vrcalibration.map`: 0
+missing. e1m1's smoke test.
+
+**To try in VR:** open the menu on a few pages (VR Settings, a long Advanced page, Levels, the Map Library): the column
+and the banner stand left of the menu, more rows show at once, and the corner's buttons are as easy to hit with the
+laser. Status Bar and Wrist Gadget (their long "... VR Settings, Body and Display" links) move the column further left:
+say if that jump bothers you (the alternative is a fixed place left of every page, further from the menu).
