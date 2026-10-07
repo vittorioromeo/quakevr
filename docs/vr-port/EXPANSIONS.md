@@ -902,3 +902,12 @@ report, 2 seed masks, 3 add a bit, 4 capacity check in any campaign, 5 take this
 ROUND21.md, "Dawn of the Machine (MG3): foundation". The six MG3 decisions (plan section 4) were unanswered when these
 tasks were built, so they use the defaults (official base health 50 and caps); Vittorio has since answered them
 (MG3_PLAN.md, "Decisions (Vittorio, 2026-10-06)").
+
+## Dawn of the Machine world and progression (mg3b, 2026-10-07)
+
+Phase B of [MG3_PLAN.md](MG3_PLAN.md) (M3-05..10). Measurements: ROUND21.md, "Dawn of the Machine (MG3): world and
+progression". Map triggers (`QC/vr_mg3_triggers.qc`): `trigger_always`, `trigger_door_relay`,
+`trigger_teleport_silent` (VR: carried things come along), `trigger_multitouch`, `trigger_explosion_repeater`,
+`trigger_music`, `trigger_heal`, and upstream's unplaced `trigger_doorgroup_relay`, `trigger_quad`,
+`trigger_relay_killmonster`; they need no MG3 data, so every campaign has them. Debug > Tests > Dawn of the Machine
+Tests: Map Triggers Check (`vr_mg3_test 6`) and Explosion Repeaters Check (`7`), both any campaign.

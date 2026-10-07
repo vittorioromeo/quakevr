@@ -87,10 +87,168 @@ void() MG3_T_Collect = {
     if(kinds & 16) MG3_Check(VR_MaxAmmo(p, AID_CELLS) == c0 + (hadC ? 0 : 10) && p.ammo_cells == (hadC ? 0 : VR_MaxAmmo(p, AID_CELLS)), "cells +10 once, filled");
     dprint(sprintf("mg3test: upgrades %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
 };
+// ----------------------------------------------------------------------------
+// M3-05 map triggers (any campaign). Request 6: this map's silent teleports (each from its middle: moved by its
+// height, keeping x/y, landing in the open) and door relays (each target toggled by its state and flags), then
+// spawned trigger_always / multitouch / heal / music / quad / doorgroup / explosion repeater / killmonster, with the
+// timed checks half a second later. Request 7: uses every trigger_explosion_repeater on the map (secret2's 60) and
+// counts their blasts 20 seconds later.
+.float MG3_T_want;
+float MG3_T_blasts0, MG3_T_reps, MG3_T_repcount;
+entity MG3_T_player;
+float MG3_T_health0;
+entity(string tname) MG3_T_Sink = { return MG_T_NewSink(tname); };
+float(string tname) MG3_T_SinkCount = { entity e = find(world, targetname, tname); return e ? e.cnt : -1; };
+entity(string cls) MG3_T_Spawn = {
+    entity e = spawn(); e.classname = cls;
+    setorigin(e, MG3_T_player.origin + '0 0 -4096'); // far below the map: nothing touches it by itself
+    return e;
+};
+void(entity e) MG3_T_Touch = { entity os = self, oo = other; self = e; other = MG3_T_player; activator = MG3_T_player; e.touch(); self = os; other = oo; };
+void(entity e) MG3_T_Use = { entity os = self; self = e; activator = MG3_T_player; e.use(); self = os; };
+void() MG3_T_TriggersLate = {
+    entity p = MG3_T_player;
+    MG3_Check(MG3_T_SinkCount("mg3tt_always") == 1, "trigger_always fired its target once after load");
+    MG3_Check(MG3_T_SinkCount("mg3tt_multi") == 2, "multitouch: first touch, then emptied");
+    MG3_Check(MG3_T_SinkCount("mg3tt_multi16") == 1, "multitouch IGNORE_FIRST_TOUCH: emptied only");
+    MG3_Check(MG3_T_SinkCount("mg3tt_multi64") == 0, "multitouch REQUIRE_ONGROUND: an airborne player does nothing");
+    MG3_Check(!find(world, classname, "mg3tt_repeater") && MG3_explosion_blasts - MG3_T_blasts0 == 3, "explosion repeater: count 3 blasts, then gone");
+    MG3_Check(p.super_damage_finished <= time, "the quad of trigger_quad ends after leaving it");
+    p.flags = p.flags - (p.flags & FL_GODMODE); p.health = MG3_T_health0;
+    dprint(sprintf("mg3test: triggers %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    remove(self);
+};
+void() MG3_T_Triggers = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    p.flags = p.flags | FL_GODMODE; MG3_T_health0 = p.health;
+    vector keep = p.origin;
+    // Silent teleports.
+    float n = 0, moved = 0, open = 0;
+    entity e = find(world, classname, "trigger_teleport_silent");
+    while(e) {
+        vector c = (e.absmin + e.absmax) * 0.5;
+        setorigin(p, c);
+        MG3_T_Touch(e);
+        float want = c_z + e.height; if(e.height < 0) want = want + 1;
+        n++;
+        if(p.origin_z == want && p.origin_x == c_x && p.origin_y == c_y) moved++;
+        if(pointcontents(p.origin) != CONTENT_SOLID) open++;
+        else dprint(sprintf("mg3test: silent teleport at %v lands in solid at %v\n", c, p.origin));
+        e = find(e, classname, "trigger_teleport_silent");
+    }
+    setorigin(p, keep);
+    dprint(sprintf("mg3test: %g silent teleports, %g moved by their height, %g land in the open\n", n, moved, open));
+    if(n) MG3_Check(moved == n && open == n, "every silent teleport moves the player by its height into the open");
+    // Door relays: each target toggled by its state unless the flags say leave it.
+    float rn = 0, rok = 0;
+    e = find(world, classname, "trigger_door_relay");
+    while(e) {
+        entity t = find(world, targetname, e.target);
+        while(t) {
+            t.MG3_T_want = 10 + t.state; // unchanged
+            if(t.classname == "func_door" || t.classname == "func_button") {
+                if((t.state == STATE_TOP || t.state == STATE_UP) && !(e.spawnflags & 1)) t.MG3_T_want = 1;
+                if((t.state == STATE_BOTTOM || t.state == STATE_DOWN) && !(e.spawnflags & 2)) t.MG3_T_want = 2;
+            }
+            t = find(t, targetname, e.target);
+        }
+        MG3_T_Use(e);
+        float good = TRUE;
+        t = find(world, targetname, e.target);
+        while(t) {
+            if(t.MG3_T_want == 1 && t.state != STATE_DOWN && t.state != STATE_BOTTOM) good = FALSE;
+            if(t.MG3_T_want == 2 && t.state != STATE_UP && t.state != STATE_TOP) good = FALSE;
+            if(t.MG3_T_want >= 10 && t.state != t.MG3_T_want - 10) good = FALSE;
+            if(!good) dprint(sprintf("mg3test: door relay %s: %s state %g (want %g)\n", e.target, t.classname, t.state, t.MG3_T_want));
+            t = find(t, targetname, e.target);
+        }
+        rn++; if(good) rok++;
+        e = find(e, classname, "trigger_door_relay");
+    }
+    dprint(sprintf("mg3test: %g door relays, %g toggled their targets\n", rn, rok));
+    if(rn) MG3_Check(rok == rn, "every door relay toggles its doors and buttons by state");
+    // Spawned triggers.
+    entity os = self;
+    MG3_T_Sink("mg3tt_always");
+    e = MG3_T_Spawn("mg3tt"); e.target = "mg3tt_always"; self = e; trigger_always(); self = os;
+    MG3_T_Sink("mg3tt_multi"); MG3_T_Sink("mg3tt_multi16"); MG3_T_Sink("mg3tt_multi64");
+    e = MG3_T_Spawn("mg3tt"); e.target = "mg3tt_multi"; self = e; trigger_multitouch(); self = os;
+    MG3_T_Touch(e); MG3_T_Touch(e);
+    MG3_Check(MG3_T_SinkCount("mg3tt_multi") == 1, "multitouch fires once on the first touch");
+    e = MG3_T_Spawn("mg3tt"); e.target = "mg3tt_multi16"; e.spawnflags = 16; self = e; trigger_multitouch(); self = os;
+    MG3_T_Touch(e);
+    float pf = p.flags; p.flags = p.flags - (p.flags & FL_ONGROUND);
+    e = MG3_T_Spawn("mg3tt"); e.target = "mg3tt_multi64"; e.spawnflags = 64 | 16; self = e; trigger_multitouch(); self = os;
+    MG3_T_Touch(e); p.flags = pf;
+    e = MG3_T_Spawn("mg3tt"); e.dmg = 5; self = e; trigger_heal(); self = os;
+    p.health = 10; MG3_T_Touch(e); float h1 = p.health; MG3_T_Touch(e);
+    MG3_Check(h1 == 15 && p.health == 15, "trigger_heal heals dmg once per wait");
+    e = MG3_T_Spawn("trigger_music"); e.targetname = "mg3tt_music"; e.style = (world.sounds == 7) ? 8 : 7; self = e; trigger_music(); self = os;
+    MG3_T_Use(e);
+    MG3_Check(e.sounds == e.style && e.style != world.sounds, "trigger_music switches to its style");
+    e = MG3_T_Spawn("mg3tt"); self = e; trigger_quad(); self = os;
+    MG3_T_Touch(e);
+    MG3_Check(VR_ItemUtil_EntHasItem(p, IID_QUAD) && p.super_damage_finished > time, "trigger_quad gives quad inside");
+    MG3_T_Sink("mg3tt_group");
+    entity d1 = MG3_T_Spawn("mg3tt_door"), d2 = MG3_T_Spawn("mg3tt_door");
+    d1.category = d2.category = "mg3tt_cat"; d1.state = STATE_TOP; d2.state = STATE_BOTTOM;
+    d1.goal_state = STATE_TOP; d2.goal_state = STATE_TOP;
+    e = MG3_T_Spawn("mg3tt"); e.category = "mg3tt_cat"; e.target = "mg3tt_group"; self = e; trigger_doorgroup_relay(); self = os;
+    MG3_T_Use(e); float g1 = MG3_T_SinkCount("mg3tt_group");
+    d2.state = STATE_UP; MG3_T_Use(e);
+    MG3_Check(g1 == 0 && MG3_T_SinkCount("mg3tt_group") == 1, "doorgroup relay fires only with every door at its goal");
+    MG3_T_blasts0 = MG3_explosion_blasts;
+    e = MG3_T_Spawn("mg3tt_repeater"); e.spawnflags = 4; e.count = 3; e.wait = 0.1; self = e; trigger_explosion_repeater(); self = os;
+    MG3_T_Use(e);
+    MG3_Check(MG3_explosion_blasts - MG3_T_blasts0 == 1, "explosion repeater blasts at once without a delay");
+    entity m = nextent(world);
+    while(m && !((m.flags & FL_MONSTER) && m.health > 0)) m = nextent(m);
+    if(m) {
+        string mt = m.targetname; m.targetname = "mg3tt_victim";
+        e = MG3_T_Spawn("mg3tt"); e.targetname = "mg3tt_kill"; e.target = "mg3tt_victim"; self = e; trigger_relay_killmonster(); self = os;
+        MG3_T_Use(e);
+        MG3_Check(m.health <= 0, "trigger_relay_killmonster kills its target");
+        m.targetname = mt;
+    }
+    e = spawn(); e.think = MG3_T_TriggersLate; e.nextthink = time + 0.5;
+};
+void() MG3_T_RepeatersLate = {
+    float left = 0, fired = 0;
+    entity e = find(world, classname, "trigger_explosion_repeater");
+    while(e) { left++; if(e.MG3_explosions > 0) fired++; e = find(e, classname, "trigger_explosion_repeater"); }
+    float done = MG3_T_reps - left;
+    dprint(sprintf("mg3test: repeaters %g used, %g done and gone, %g still going (%g of them fired), blasts %g (counts sum %g)\n",
+        MG3_T_reps, done, left, fired, MG3_explosion_blasts - MG3_T_blasts0, MG3_T_repcount));
+    MG3_test_pass = MG3_test_fail = 0;
+    MG3_Check(MG3_T_reps > 0 && done + fired == MG3_T_reps, "every repeater fired");
+    MG3_Check(MG3_T_repcount == 0 || MG3_explosion_blasts - MG3_T_blasts0 >= MG3_T_repcount, "counted repeaters blasted their counts");
+    MG3_T_player.flags = MG3_T_player.flags - (MG3_T_player.flags & FL_GODMODE);
+    dprint(sprintf("mg3test: repeaters %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    remove(self);
+};
+void() MG3_T_Repeaters = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_T_player = p; p.flags = p.flags | FL_GODMODE;
+    MG3_T_blasts0 = MG3_explosion_blasts; MG3_T_reps = MG3_T_repcount = 0;
+    entity e = find(world, classname, "trigger_explosion_repeater");
+    while(e) {
+        entity nx = find(e, classname, "trigger_explosion_repeater");
+        MG3_T_reps++; if(e.spawnflags & 4) MG3_T_repcount = MG3_T_repcount + e.count;
+        MG3_T_Use(e);
+        e = nx;
+    }
+    dprint(sprintf("mg3test: used %g explosion repeaters\n", MG3_T_reps));
+    e = spawn(); e.think = MG3_T_RepeatersLate; e.nextthink = time + 20;
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     cvar_set("vr_mg3_test", "0");
-    if(request == 4) { entity os = self, oo = other; MG3_T_Caps(); self = os; other = oo; return; }
+    if(request == 4 || request == 6 || request == 7) { // any campaign
+        entity os = self, oo = other, oa = activator;
+        if(request == 4) MG3_T_Caps(); else if(request == 6) MG3_T_Triggers(); else MG3_T_Repeaters();
+        self = os; other = oo; activator = oa; return;
+    }
     if(!MG3_Campaign()) { dprint("mg3test: Dawn of the Machine developer campaign required (vr_campaign_native mg3)\n"); return; }
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_T_Report();

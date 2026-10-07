@@ -2283,6 +2283,11 @@ after speed seconds per letter of the page. A point entity, despite its name."
 [
 ]
 
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_always : "Fires its targets once, a tenth of a second after the map loads (Dawn of the Machine)."
+[
+]
+
 @SolidClass base(Appearflags, Target, Targetname) =
 	trigger_babyboost : "Honey: spawn booster
 
@@ -2421,6 +2426,23 @@ only the decoy player can trigger this once triggers, all targets are used"
 [
 ]
 
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_door_relay : "When used, opens each func_door and presses each func_button it targets that is closed (or closing), and closes each one that is open (or opening). IGNORE_IF_TOP: leave open ones alone; IGNORE_IF_BOTTOM: leave closed ones alone (Dawn of the Machine)."
+[
+	spawnflags(flags) =
+	[
+		1 : "IGNORE IF TOP" : 0
+		2 : "IGNORE IF BOTTOM" : 0
+	]
+	target(target_destination) : "Target" :  : "The entities (by targetname) it triggers."
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_doorgroup_relay : "When used, fires its targets if every door and button whose 'category' is this one's is at its 'goal_state' (0 open, 1 closed): pressure plates, switch codes (Dawn of the Machine)."
+[
+	target(target_destination) : "Target" :  : "The entities (by targetname) it triggers."
+]
+
 @SolidClass color(128 128 128) =
 	trigger_dragon : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
 
@@ -2470,6 +2492,16 @@ Trigger to kill the level-wide earthquake."
 	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
 ]
 
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_explosion_repeater : "Once used, explodes at its origin (120 damage) after 'delay', then every 'wait' (default 0.8) plus up to 'pausetime' random seconds; with USE_COUNT only 'count' times (Dawn of the Machine)."
+[
+	spawnflags(flags) =
+	[
+		4 : "USE COUNT" : 0
+	]
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
 @PointClass base(Targetname, Target) =
 	trigger_fade : "Fade dead targets over delay seconds, then remove them. Living targets remain."
 [
@@ -2510,6 +2542,13 @@ while inside the global fog is faded to the specified color and density. the tra
 @PointClass base(Targetname, Target) =
 	trigger_freeze : "Toggle suspension of named targets' scheduled think; retains authored resume time."
 [
+]
+
+@SolidClass color(128 128 128) =
+	trigger_heal : "Heals a player inside it 'dmg' health (default 1) every 'wait' seconds (default 0.1), up to the player's maximum (Dawn of the Machine)."
+[
+	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
 ]
 
 @SolidClass base(Appearflags, Targetname) color(128 128 128) =
@@ -2576,6 +2615,23 @@ Variable sized repeatable trigger. Must be targeted at one or more entities. If 
 	cnt(integer) : "Count (cnt)" :  : "A count: see the help for this entity."
 ]
 
+@SolidClass color(128 128 128) =
+	trigger_multitouch : "Fires its targets when a player first enters it and again when the last one has left it (0.2 s without a touch). IGNORE_FIRST_TOUCH / IGNORE_EMPTIED drop either; REQUIRE_ONGROUND counts only players standing (Dawn of the Machine)."
+[
+	spawnflags(flags) =
+	[
+		16 : "IGNORE FIRST TOUCH" : 0
+		32 : "IGNORE EMPTIED" : 0
+		64 : "REQUIRE ONGROUND" : 0
+	]
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_music : "When used (it needs a targetname), switches the music to track 'style' (default 3) (Dawn of the Machine)."
+[
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+]
+
 @SolidClass base(Trigger) color(128 128 128) =
 	trigger_once : "Trigger: Activate once
 
@@ -2620,11 +2676,23 @@ speed: velocity of push. (default 1000)"
 	speed(integer) : "Speed" : 1000
 ]
 
+@SolidClass color(128 128 128) =
+	trigger_quad : "A player inside it has Quad Damage (it ends a tenth of a second after leaving) (Dawn of the Machine)."
+[
+]
+
 @PointClass base(Trigger) color(128 128 128) size(-8 -8 -8, 8 8 8) =
 	trigger_relay : "Trigger: Relay
 
 This fixed size trigger cannot be touched, it can only be fired by other events. It can contain killtargets, targets, delays, and messages."
 [
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_relay_killmonster : "When used, kills the living monsters it targets (Dawn of the Machine)."
+[
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+	target(target_destination) : "Target" :  : "The entities (by targetname) it triggers."
 ]
 
 @PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
@@ -2761,6 +2829,12 @@ If the trigger_teleport has a targetname, it will only teleport entities when it
 		2 : "Silent" : 0
 		4 : "CTF ONLY" : 0
 	]
+]
+
+@SolidClass color(128 128 128) =
+	trigger_teleport_silent : "Moves a player who touches it by 'height' units straight up (positive) or down (negative; default -2048), keeping speed and view, without effect or sound (Dawn of the Machine)."
+[
+	height(float) : "Height" :  : "Units: see the help for this entity."
 ]
 
 @SolidClass color(0 128 0) =

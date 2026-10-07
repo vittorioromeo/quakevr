@@ -64,6 +64,7 @@ monsters.qc
 plats.qc
 player.qc
 triggers.qc
+vr_mg3_triggers.qc
 weapons.qc
 vr_chainsaw.qc
 // Decapitation after the chainsaw (its bar) and weapons.qc (positional damage's head zone).

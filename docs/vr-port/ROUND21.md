@@ -27810,3 +27810,24 @@ channel another sound took is never touched. Menu: Recording > Bullet Time, **En
 Checked (`-Sound -RealTime`, `vr_snd_spatial 0`, `snd_show 2`; `vr_bullettime` on, 40 frames, off): `items/inv2.wav`
 at L/R 255 for 1.0 s, then 253 down to 1 over 0.25 s, then gone (`cut 0.25 s after its fade began`); started again
 0.3 s after with `vr_bullettime_sound_on ""`: 85, 68, 51, 34, 17, then `cut 0.06 s after`.
+
+## Dawn of the Machine (MG3): world and progression (2026-10-07)
+
+Phase B of [MG3_PLAN.md](MG3_PLAN.md) (M3-05..10), following Vittorio's decisions and the agglomeration principle (an
+official expansion's entities work in any map when their data is there). MG3 stays gated (`nativeReady` false); MG3
+tests use `vr_campaign_native mg3`, `-nomapindex -noaddons`, developer 1.
+
+- **M3-05 map triggers I.** `QC/vr_mg3_triggers.qc` (adapted `mg3_triggers.qc`/`triggers.qc`, GPL header kept), in
+  every campaign (none needs MG3's data): `trigger_always` (fires 0.1 s after load), `trigger_door_relay` (toggles its
+  func_doors/func_buttons by state; flags 1/2 leave open/closed ones), `trigger_teleport_silent` (moves the player by
+  `height`, default -2048, +1 going down; telefrags; what the hands carry comes along: `VR_Carry_Teleported`),
+  `trigger_multitouch` (first touch / emptied after 0.2 s; flags 16/32/64), `trigger_explosion_repeater` (after
+  `delay`, a 120-damage blast every `wait` + random `pausetime`; flag 4 counts), `trigger_music` (CD track `style`),
+  `trigger_heal` (`dmg` every `wait`), plus upstream's unplaced `trigger_doorgroup_relay`, `trigger_quad`,
+  `trigger_relay_killmonster` (all official, for other maps). Coop flags 32768/131072 as upstream. Measured
+  (`vr_mg3_test 6`, Map Triggers Check, any campaign; `7`, Explosion Repeaters Check): secret6 31/31 silent teleports
+  moved by their height into the open, 14/14 door relays toggle their targets; map7 4/4 relays; spawned
+  always/multitouch(x3)/heal/music/quad/doorgroup/repeater/killmonster 13-15/0 on secret6, map7, hub, boss, map3 and
+  stock e1m1; secret2's 60 repeaters (all `explosions`, count 2..8) all fired, 325 blasts = the counts' sum. Checker:
+  35 missing, 1,189 placements (from 42/1,328). Regression: MG3 map1 shared triggers 34/0; Dopa triggers 34/0, world
+  19/0; MG1 hub 20/0, Horde 24/0; e1m1.

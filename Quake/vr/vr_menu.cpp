@@ -4915,6 +4915,10 @@ za::Vector<Item> pageMg3Tests()
             .help("Destructive, any campaign: print the health/ammo capacities, overfill and bound every ammunition, heal from 1."),
         command("Take This Map's Upgrades", "vr_mg3_test 5")
             .help("Destructive: empty health/ammo, take every capacity upgrade here by its real pickup, check masks, caps and refills."),
+        command("Map Triggers Check", "vr_mg3_test 6")
+            .help("Destructive, any campaign: silent teleports and door relays here, plus spawned always/multitouch/heal/music/quad/doorgroup/repeater/killmonster triggers."),
+        command("Explosion Repeaters Check", "vr_mg3_test 7")
+            .help("Destructive, any campaign: use every explosion repeater here (secret2: 60) and count their blasts 20 seconds later."),
     };
 }
 
