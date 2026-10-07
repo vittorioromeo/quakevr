@@ -28170,3 +28170,48 @@ hub `vr_mg_hub_test 1` 20/0; Hipnotic hip1m1 laser cannon 18/25, 23 bounces (3/0
 together; e1m1 smoke; QC 0 warnings, statics, QC precedence and FGD (304 entities) checks pass. `eval.sh`: no current
 melee takes (skipped).
 
+## Performance batch: first spawns, the memory log, load allocations, the GPU wait, decoded images, campaign switches (2026-10-07)
+
+The decision list of PROFILING_2026-10.md, items approved by Vittorio, one commit each. Numbers: `bench.sh
+--exclusive`, his settings (`his_cfg_20261006_1237.cfg`), medians of 3 unless said; "base" is da5c33be.
+
+### 1. A kind of monster's first appearance (`vr_probe_kinds`, QC vr_probe.qc)
+
+**Why.** The firing range's first ogre, enforcer and death knight dropped a frame as they appeared (`gore_first_cuts`'
+`spawn1_*`: 19.7, 23.8, 15.1 ms). Two causes, found with `developer 1` (each `late precache` and `hull: ... compiled
+for` line) and the hitch log: their compiled hull built at the first move (the ogre's 40-wide tree 18.7 ms, the
+enforcer's 28-wide 16.9 ms: "quake physics", 33 MB of allocations), and the second row's heads and missiles precached
+at the spawn (`h_hellkn.mdl` 10 ms, `k_spike.mdl` 5 ms, `h_mega.mdl`...: "quakec"). Precaching at run time is what
+modelcorrupt (91b808ca) had to repair for saves; making them ready at the map's load needs none.
+
+**How.** As the map's entities have spawned (`VR_OnSpawnServerSpawned`, still loading), QC's `VR_Probe_Kinds` makes one
+monster of each kind that can appear later, on a new entity, counted nowhere (the dummy's `VR_Dummy_Make`; the
+dispensers' own spawn chain, now `VR_EnemyDispenser_Spawn`, for the four kinds that are no dummy type). Its spawn
+function precaches its models and sounds; the engine then builds the compiled hulls of every monster there (the
+probes' sizes with the map's) and frees every entity the probes made (a snapshot of the free slots before: whatever a
+spawn function made too), before the first server frame: nothing of them is run, sent or saved. The kinds: the
+firing range's dispensers', every type a training dummy can stand as (the menu changes it at any time), monsters
+waiting for a trigger (Honey's trigger-spawned, Machine Games' deferred: their size and limbs unknown until then; their
+limbs made with the map's), and with `vr_probe_test_spawn` 1/2 the debug spawner's kind or every kind (0 by default:
+impulse 241 works on any map). A kind a monster of the map already is needs none. While the probes spawn, QC's
+`random()` draws from its own numbers (`VR_ProbeRandom`), so the map's own spawns and first frames draw what they drew
+before: the firing range's entities at the benchmark's start are the same, field for field (classnames, models,
+origins, angles; without it a weapon rack's draws moved and two more entities stood there).
+
+Limbs: `vr_limbs_prebuild` 1 (the default) makes the map's kinds' (and the waiting monsters') limbs as before; 2 also
+the probes' (132 limb models on the firing range: +0.5 s to its first load of a session, warm disk caches, for first
+cuts that already fit in the frame at 90 Hz: `cut1_*` medians 11.1-11.7 ms either way), so not the default.
+
+| `gore_first_cuts`, worst frame (median of 3; CPU busy) | base | after |
+|---|---|---|
+| `spawn1_ogre` | 19.7 (19.7) | 11.4 (4.7) |
+| `spawn1_enforcer` | 23.8 (23.8) | 11.1 |
+| `spawn1_hknight` | 15.1 (15.1) | 11.1 |
+| any `spawn1_*`/`spawn2_*` over 11.5 ms | 3 | 0 |
+| firing range, the session's first load (3 runs) | 1272-1301 ms | 1399-1426 ms (+130 ms: 19 probes' models, 4 more hull sizes on the pool) |
+| firing range, loaded again | 104-111 ms | 102-104 ms |
+
+The `start` counts (edicts 253, Box3D bodies 142) are the base's. `precache_test.sh` (dummy, death, restart, legacy):
+every `vr_model_check` 0 wrong. `developer 1`: `probes: pass 1/2, N entities ... ms` and `probes: kinds ready <bits>,
+monsters counted N before, N after` (the same). Debug > Profiling and Memory: Ready What Can Appear, Ready the Debug
+Spawner's; Gore > Limb Gore > Make Limbs as the Map Loads is a three-way choice.

@@ -776,6 +776,35 @@ string(float choice) VR_EnemyDispenser_Model =
     return NULLSTR;
 };
 
+// The monster `choice` (a dispenser's "weapon") spawned on self: its classname and its spawn function, as a map's
+// (VR_Probe_Kinds makes each kind the map's dispensers can make this way as the map loads, then removes it).
+void(float choice) VR_EnemyDispenser_Spawn =
+{
+    // The classname a map's monster has: sight sounds, obituaries and the like go by it.
+         if(choice == 0)  { self.classname = "monster_army";        monster_army(); }
+    else if(choice == 1)  { self.classname = "monster_ogre";        monster_ogre(); }
+    else if(choice == 2)  { self.classname = "monster_zombie";      monster_zombie(); }
+    else if(choice == 3)  { self.classname = "monster_shambler";    monster_shambler(); }
+    else if(choice == 4)  { self.classname = "monster_wizard";      monster_wizard(); }
+    else if(choice == 5)  { self.classname = "monster_knight";      monster_knight(); }
+    else if(choice == 6)  { self.classname = "monster_hell_knight"; monster_hell_knight(); }
+    else if(choice == 7)  { self.classname = "monster_dog";         monster_dog(); }
+    else if(choice == 8)  { self.classname = "monster_enforcer";    monster_enforcer(); }
+    else if(choice == 9)  { self.classname = "monster_demon1";      monster_demon1(); }
+    else if(choice == 10) { self.classname = "monster_shalrath";    monster_shalrath(); }
+    else if(choice == 11) { self.classname = "monster_tarbaby";     monster_tarbaby(); }
+    else if(choice == 12) { self.classname = "monster_gremlin";     monster_gremlin(); }
+    else if(choice == 13) { self.classname = "monster_scourge";     monster_scourge(); }
+    else if(choice == 14) { self.classname = "monster_mummy";       monster_mummy(); }
+    else if(choice == 15) { self.classname = "monster_sword";       monster_sword(); }
+    else if(choice == 16) { self.classname = "monster_wrath";       monster_wrath(); }
+    else if(choice == 17) { self.classname = "monster_super_wrath"; monster_super_wrath(); }
+    else if(choice == 18) { self.classname = "monster_morph";       self.spawnflags = 4 /* MORPH_EGYPT */; monster_morph(); }
+    else if(choice == 19) { self.classname = "monster_dragon";      monster_dragon(); }
+    else if(choice == 20) { self.classname = "monster_ogre_marksman"; monster_ogre_marksman(); }
+
+};
+
 void() func_enemy_dispenser_use =
 {
     vector org = self.origin;
@@ -815,28 +844,7 @@ void() func_enemy_dispenser_use =
         self.targetname = "vr_test_statue"; // (a statue wakes when used: woken below, as its map's trigger would)
     }
 
-    // The classname a map's monster has: sight sounds, obituaries and the like go by it.
-         if(choice == 0)  { self.classname = "monster_army";        monster_army(); }
-    else if(choice == 1)  { self.classname = "monster_ogre";        monster_ogre(); }
-    else if(choice == 2)  { self.classname = "monster_zombie";      monster_zombie(); }
-    else if(choice == 3)  { self.classname = "monster_shambler";    monster_shambler(); }
-    else if(choice == 4)  { self.classname = "monster_wizard";      monster_wizard(); }
-    else if(choice == 5)  { self.classname = "monster_knight";      monster_knight(); }
-    else if(choice == 6)  { self.classname = "monster_hell_knight"; monster_hell_knight(); }
-    else if(choice == 7)  { self.classname = "monster_dog";         monster_dog(); }
-    else if(choice == 8)  { self.classname = "monster_enforcer";    monster_enforcer(); }
-    else if(choice == 9)  { self.classname = "monster_demon1";      monster_demon1(); }
-    else if(choice == 10) { self.classname = "monster_shalrath";    monster_shalrath(); }
-    else if(choice == 11) { self.classname = "monster_tarbaby";     monster_tarbaby(); }
-    else if(choice == 12) { self.classname = "monster_gremlin";     monster_gremlin(); }
-    else if(choice == 13) { self.classname = "monster_scourge";     monster_scourge(); }
-    else if(choice == 14) { self.classname = "monster_mummy";       monster_mummy(); }
-    else if(choice == 15) { self.classname = "monster_sword";       monster_sword(); }
-    else if(choice == 16) { self.classname = "monster_wrath";       monster_wrath(); }
-    else if(choice == 17) { self.classname = "monster_super_wrath"; monster_super_wrath(); }
-    else if(choice == 18) { self.classname = "monster_morph";       self.spawnflags = 4 /* MORPH_EGYPT */; monster_morph(); }
-    else if(choice == 19) { self.classname = "monster_dragon";      monster_dragon(); }
-    else if(choice == 20) { self.classname = "monster_ogre_marksman"; monster_ogre_marksman(); }
+    VR_EnemyDispenser_Spawn(choice);
 
     setorigin(self, org);
     if(self.targetname == "vr_test_statue" && self.use)
@@ -858,7 +866,7 @@ void() func_enemy_dispenser =
     else
     {
         // The model now, if installed (no hitch at the first press); the monster's other models and
-        // its sounds are precached (late) when it first spawns.
+        // its sounds as the map ends spawning (vr_probe.qc: one made then removed).
         string mdl = VR_EnemyDispenser_Model(self.weapon);
         if(mdl != NULLSTR && fileexists(mdl))
         {

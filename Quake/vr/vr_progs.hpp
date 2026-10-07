@@ -53,6 +53,7 @@ struct Bindings
     func_t Motion_Equip{0};
     func_t Dummy_Replay{0}; // a motion take's strike of the training dummy (QC vr_dummy.qc)
     func_t Dummy_RetypeAll{0}; // the training dummies as vr_dummy_type has them, now (QC vr_dummy.qc)
+    func_t Probe_Kinds{0}; // one of each kind of monster that can appear later, as the map spawns (QC vr_probe.qc)
     func_t Carry_Handtouch{0}; // a thing a hand can carry (QC vr_carry.qc VR_Carry_Setup): taken by the fist's touch
     func_t Scene_Clean{0}; // Debug > Cheats and Recording's cleanups (QC vr_cheats.qc; vr_cheats.cpp)
     func_t Ragdoll_Handtouch{0}; // a ragdoll's limb under a hand (QC vr_carry.qc; vr_box3d.cpp gives it to a ragdoll)

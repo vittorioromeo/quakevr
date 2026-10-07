@@ -2251,9 +2251,11 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
                   "stood; 1: flung as a kill) (vr_limbs_body_speed)."),
         slider("Most Limbs Lying About", vr_limbs_max, 1.f, 64.f, 1.f, "%.0f").extend(1.f, 256.f)
             .help("Past it, the oldest go first (not one in your hand) (vr_limbs_max)."),
-        toggle("Make Limbs as the Map Loads", vr_limbs_prebuild)
-            .help("On: the limbs of every kind of monster the map has are made as it loads (about 5 ms each: a tenth of a "
-                  "second or so more), not at their first cut (a dropped frame). The next map load (vr_limbs_prebuild)."),
+        cycle("Make Limbs as the Map Loads", "vr_limbs_prebuild", {{0.f, "Off"}, {1.f, "The Map's"}, {2.f, "And the Range's"}})
+            .help("The Map's: the limbs of every kind of monster the map has (those waiting to appear too) are made as it "
+                  "loads (about 5 ms each: a tenth of a second or so more), not at their first cut (a dropped frame). And the "
+                  "Range's: also every kind the firing range's dispensers and dummies can make (half a second more there, "
+                  "once a session). The next map load (vr_limbs_prebuild)."),
         slider("Limb Weight", vr_limbs_mass_scale, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("A limb (or head) cut off weighs its share of its monster's ragdoll Mass by the kind of limb: a whole arm "
                   "6.3%, a forearm and hand 2.8%, a hand 0.8%, a whole leg 15.5%, a shin and foot 6%, the head 7% (four "
@@ -4355,6 +4357,13 @@ za::Vector<Item> pageDebugProfiling()
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),
+        toggle("Ready What Can Appear", vr_probe_kinds)
+            .help("On: the kinds of monster that can appear later on a map (the firing range's dispensers and dummies, monsters "
+                  "waiting for a trigger) are made ready as it loads: their models, sounds and compiled hull, so their first "
+                  "appearance drops no frame (15-25 ms otherwise). The next map load (vr_probe_kinds)."),
+        cycle("Ready the Debug Spawner's", "vr_probe_test_spawn", {{0.f, "Off"}, {1.f, "Its Kind"}, {2.f, "Every Kind"}})
+            .help("The debug spawner's monsters (vr_test_spawn, impulse 241) made ready as each map loads too: Its Kind the one "
+                  "vr_test_spawn names, Every Kind all 23 (a longer load). The next map load (vr_probe_test_spawn)."),
         header("Particles' Fill"),
         toggle("Skip Hidden Particles", vr_particle_saturate)
             .help("vr_particle_saturate: in dense effects the particles are composited in reverse order into a layer of "

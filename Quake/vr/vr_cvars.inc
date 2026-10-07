@@ -1893,7 +1893,7 @@ QVR_CVAR(vr_limbs_blast, "1", CVAR_ARCHIVE) // explosions: 1 pop the limbs near 
 QVR_CVAR(vr_limbs_blast_radius, "96", CVAR_ARCHIVE) // units: limbs this near an explosion may pop
 QVR_CVAR(vr_limbs_blast_chance, "0.6", CVAR_ARCHIVE) // a limb's chance to pop at the blast itself (falling to 0 at the radius)
 QVR_CVAR(vr_gib_limbs, "1", CVAR_ARCHIVE) // a body gibbed throws its own limbs: 0 no (Quake's gibs), 1 besides Quake's gibs, 2 instead of the meat gibs
-QVR_CVAR(vr_limbs_prebuild, "1", CVAR_ARCHIVE) // limb gore: the whole limbs of the map's kinds of monster made as it loads (0: at the first cut, a hitch)
+QVR_CVAR(vr_limbs_prebuild, "1", CVAR_ARCHIVE) // limb gore: the whole limbs of the map's kinds of monster (those waiting for a trigger too) made as it loads (0: at the first cut, a hitch); 2: also the kinds the firing range's dispensers and dummies (and vr_probe_test_spawn's) can make (a longer load: the firing range +0.5 s once a session)
 QVR_CVAR(vr_limbs_max, "24", CVAR_ARCHIVE) // most limbs lying about: past it, the oldest go (not one in a hand)
 QVR_CVAR(vr_pickup_test, "0", CVAR_NONE) // the QC runs weapon pickup test n: 1 every weapon pickup in a row ahead with the same weapon dropped, 2 the nearest taken (vr_pickup_test.qc; Debug > Tests)
 QVR_CVAR(vr_limbs_mass_scale, "1", CVAR_ARCHIVE) // a limb (or head) cut off weighs its share of its ragdoll's mass by the kind of limb (an arm 6.3%, a leg 15.5%, the head 7%) times this (0: its model's volume of flesh, as before)
@@ -2292,6 +2292,8 @@ QVR_CVAR(vr_test_pile_count, "500", CVAR_NONE)       // Debug > Tests > Physics 
 QVR_CVAR(vr_test_pile_crates, "80", CVAR_NONE)       // and the crates its Wall of Crates has (vr_physics_bigpile crates)
 QVR_CVAR(vr_test_spawn_hold, "0", CVAR_NONE)          // 1: a box or a crate (vr_test_spawn 100..104, 107..109) put into the empty main hand (QC weapons.qc)
 QVR_CVAR(vr_test_spawn_flags, "0", CVAR_NONE)         // a test monster's spawnflags (vr_test_spawn 0..20; QC buttons.qc): 2 a Rogue statue knight or hell knight, a multi-grenade ogre
+QVR_CVAR(vr_probe_kinds, "1", CVAR_ARCHIVE)          // the kinds of monster that can appear later on a map (the firing range's dispensers, the training dummies' types, monsters waiting for a trigger) made ready as it loads: their models, sounds, limbs and compiled hull (QC vr_probe.qc; no 15-25 ms hitch at their first appearance); 0: at their first appearance
+QVR_CVAR(vr_probe_test_spawn, "0", CVAR_ARCHIVE)     // ... and the debug spawner's monsters made ready as each map loads (QC vr_probe.qc: models, sounds, limbs, hull; no hitch at its first impulse 241): 1 vr_test_spawn's kind, 2 every kind (a longer load); 0 none (the firing range's dispensers, dummies and waiting monsters are always)
 QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse); 2: killed hard enough to gib (QC weapons.qc: 100 damage past its health)
 QVR_CVAR(vr_test_spawn_yaw, "0", CVAR_NONE)           // 100..104: a box let loose (a physics prop), turned this many degrees about its upright (grappling hook tests: a turned box's empty corners)
 QVR_CVAR(vr_test_spawn_tilt, "0", CVAR_NONE)          // ... and tipped this many degrees about the way you face, its lowest corner on the floor (it topples: sv_gravity 0 holds it so)

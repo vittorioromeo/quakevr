@@ -21,6 +21,7 @@
 #include "vr_props.hpp"
 #include "vr_melee_shared.h"
 
+#include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -183,6 +184,7 @@ extern "C" void VR_OnProgsLoaded()
         b.Motion_Equip = findFunction("VR_Motion_Equip");
         b.Dummy_Replay = findFunction("VR_Dummy_Replay");
         b.Dummy_RetypeAll = findFunction("VR_Dummy_RetypeAll");
+        b.Probe_Kinds = findFunction("VR_Probe_Kinds");
         b.Carry_Handtouch = findFunction("VR_Carry_Handtouch");
         b.Ragdoll_Handtouch = findFunction("VR_Ragdoll_Handtouch");
         b.Scene_Clean = findFunction("VR_Scene_Clean");
@@ -292,10 +294,85 @@ extern "C" void VR_OnEntitySpawned(edict_t* ent)
     qvr::hull::entitySpawned(ent); // a monster's compiled hull, as soon as its width is known
 }
 
+namespace
+{
+
+// While the probes spawn, QuakeC's random() draws from its own numbers, not the C library's: the map's own spawns and
+// first frames draw the same numbers as without them (vr_bench_seed's runs the same; the firing range's weapons).
+bool probing = false;
+za::U32 probeRandom = 0x2545F491u;
+
+// The entities QC's VR_Probe_Kinds made: one monster of each kind that can appear later on the map (the firing range's
+// dispensers, the training dummies' types, monsters waiting for a trigger; vr_probe.qc). Made as the map ends
+// spawning, so their models and sounds are precached, their limb models made and their compiled hulls built with the
+// map's (none at their first appearance: 17-30 ms frames); removed before the map's first server frame.
+// `pass`: QC's (1 the monsters waiting for a trigger, 2 the dispensers', dummies' and debug spawner's kinds); the
+// entities made added to `probes`.
+void probeKinds(za::Vector<int>& probes, int pass)
+{
+    if(!sv_bindings.Probe_Kinds || qvr::vr_probe_kinds.value == 0.f || !VR_AllowLatePrecache())
+    {
+        return;
+    }
+    const double t0 = Sys_DoubleTime();
+    const za::SizeT made = probes.size();
+    const int before = qcvm->num_edicts;
+    za::Vector<unsigned char> wasFree;
+    wasFree.resize(static_cast<za::SizeT>(before), 0);
+    for(int i = 0; i < before; ++i)
+    {
+        wasFree[static_cast<za::SizeT>(i)] = EDICT_NUM(i)->free ? 1 : 0;
+    }
+    probing = true;
+    probeRandom = 0x2545F491u + static_cast<za::U32>(pass); // (the same numbers each load)
+    G_FLOAT(OFS_PARM0) = static_cast<float>(pass);
+    callSpawnServerEntryPoint(sv_bindings.Probe_Kinds);
+    probing = false;
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
+    {
+        if(!EDICT_NUM(i)->free && (i >= before || wasFree[static_cast<za::SizeT>(i)] != 0) &&
+            za::find(probes.begin(), probes.end(), i) == probes.end())
+        {
+            probes.pushBack(i); // (its own entities too: whatever its spawn function made)
+        }
+    }
+    VR_TimeAdd("VR after spawn: kinds that can appear (probes)", Sys_DoubleTime() - t0);
+    Con_DPrintf("probes: pass %d, %d entities for the kinds that can appear later, %.1f ms\n", pass,
+        static_cast<int>(probes.size() - made), (Sys_DoubleTime() - t0) * 1000.0);
+}
+
+void probesEnd(const za::Vector<int>& probes)
+{
+    for(const int i : probes)
+    {
+        edict_t* ent = EDICT_NUM(i);
+        if(!ent->free)
+        {
+            ED_Free(ent);
+        }
+    }
+}
+
+} // namespace
+
 extern "C" void VR_OnSpawnServerSpawned()
 {
+    // The kinds that can appear later, made now (removed below): the map's monsters waiting for a trigger, then (after
+    // the map's monsters' limbs, unless vr_limbs_prebuild 2) the dispensers', dummies' and debug spawner's kinds.
+    za::Vector<int> probes;
+    probeKinds(probes, 1);
+    const bool allLimbs = qvr::vr_limbs_prebuild.value >= 2.f;
+    if(!allLimbs)
+    {
+        qvr::limbmodel::prebuild(); // the limbs of the map's monsters (before serverinfo: in every client's list)
+    }
+    probeKinds(probes, 2);
+    if(allLimbs)
+    {
+        qvr::limbmodel::prebuild();
+    }
     qvr::hull::spawned(); // the monsters' compiled hulls (their widths now known), on the pool
-    qvr::limbmodel::prebuild(); // the limbs of the map's monsters (before serverinfo: in every client's list)
+    probesEnd(probes);
 }
 
 extern "C" void VR_OnEdictFree(edict_t* ed)
@@ -758,6 +835,17 @@ extern "C" int VR_LatePrecacheModel(const char* name)
 
     PR_RunError("VR_LatePrecacheModel: overflow");
     return -1;
+}
+
+// PF_random while the probes spawn (VR_OnSpawnServerSpawned): its own numbers, in 0..0x7fff as rand()'s; -1 otherwise.
+extern "C" int VR_ProbeRandom()
+{
+    if(!probing)
+    {
+        return -1;
+    }
+    probeRandom = probeRandom * 1664525u + 1013904223u;
+    return static_cast<int>((probeRandom >> 16) & 0x7fffu);
 }
 
 extern "C" int VR_AllowLatePrecache()
