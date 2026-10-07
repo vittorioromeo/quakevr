@@ -54,7 +54,7 @@ constexpr Option options[] = {
     {"teleport", "Teleport", "vr_teleport_enabled", {{0.f, "Off"}, {1.f, "On"}}, 2},
     {"grip", "Weapon Grip", "vr_weapon_grip_mode", {{0.f, "Hold"}, {1.f, "Sticky"}}, 2},
     {"gadget", "Wrist Gadget Arm", "vr_gadget_arm", {{0.f, "Left"}, {1.f, "Right"}}, 2},
-    {"torch", "Flashlight Side", "vr_flashlight_side", {{0.f, "Left hip"}, {1.f, "Right hip"}}, 2},
+    {"torch", "Flashlight Side", "vr_flashlight_side", {{0.f, "Left"}, {1.f, "Right"}}, 2},
     {"position", "Position", "vr_bodycal_seated", {{0.f, "Standing"}, {1.f, "Seated"}}, 2},
     {"scale", "World Scale", "vr_world_scale", {{1.f, "1.00: world larger"}, {1.25f, "1.25: normal"}, {1.5f, "1.50: world smaller"}}, 3},
     {"body", "Body", "vr_body_mode", {{0.f, "Off"}, {2.f, "Torso and Arms"}, {3.f, "Full Body"}}, 3},
