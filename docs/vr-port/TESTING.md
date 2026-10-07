@@ -1720,6 +1720,10 @@ calls"). The kit runs it with `bash <kit>/build.sh <name> --debug` (QC and the D
 worktree's `scratch/build_debug.log`), then `bash <kit>/run.sh <name> -Debug -Script "..."`: the same run as Release's
 (SDL_ASSERT=abort set, as for every run), and an assertion prints as `exit=42 (an SDL assertion failed ...)`. Its
 console shows OpenGL's debug messages (`GL api error ...`), so filter on `ENGINE|exit=|TIMEOUT` rather than `rror`.
+A clean run has no `GL api error` or `GL api undefined` line (ROUND21.md, "GL errors in Debug builds"): filter on
+`GL api (error|undefined)|GL error caller|exit=` to check. Each error or undefined-behaviour message is followed, once
+per distinct stack, by `GL error caller: fn (file.c:12) < caller (file.c:34) < ...` (the debug output is synchronous,
+so the GL call that failed is on that stack; frames in the driver show as addresses).
 
 
 ## Slipgate and melee regression fixtures (2026-10-04)

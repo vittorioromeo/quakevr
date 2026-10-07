@@ -27583,3 +27583,29 @@ rest (it failed on the first missing one), never counts `eval_status.csv` as a t
 are none; run.sh `-Debug` runs the Debug build (`build.sh <name> --debug`; TESTING.md, "Debug build assertions");
 `-Instance k` handles an `id1/maps` that `bench_maps.ps1` made a real folder; `quakevr/tips_seen.txt` is put back
 after each run as `ironwail.cfg` is; a relative `-Out` lands in the worktree's `scratch/`.
+
+## GL errors in Debug builds (2026-10-07)
+
+A Debug build's short e1m1 run printed 760 `GL api error [#1282] GL_INVALID_OPERATION ... Invalid component count`
+and 16 `GL api undefined [#131222] ... a sampler ... with a texture object (0) with a non-depth format, by a shader
+that samples it with a shadow sampler`. To find them, the GL debug callback (gl_vidsdl.c, GL_DebugCallback) now prints
+the caller's stack after an error or undefined-behaviour message, once per distinct stack (`GL error caller: ...`;
+vr_crash.cpp's VR_DescribeCallers, DbgHelp loaded on the first one, symbols from the .pdb).
+
+- **Invalid component count** (every eye, every frame): vr_bloom.cpp's `pass` set `Params` (`glUniform4f` at location
+  0) for every pass, the mean pass too, whose shader has no uniforms. `pass` takes `withParams`; the mean pass leaves
+  it out. The failed call changed nothing, so the bloom is the same.
+- **Shadow sampler on texture 0**: the world and alias shaders' `ShadowAtlas` / `ShadowStatic` (units 4 and 5,
+  `sampler2DShadow`) had no texture when the atlas wasn't made (shadows off, or no shadowed map lights: no static
+  atlas), so every draw sampled texture 0. vr_lighting.cpp binds a 1 x 1 depth placeholder (`noAtlas`, made the first
+  time it is needed) for a missing atlas. The shaders don't read it then (the shadow flags), so nothing draws
+  differently.
+
+Debug runs, `GL api (error|undefined)` count, all 0 after: e1m1; vrstart; vrfiringrange; start, and start at its
+slipgates (`setpos 232 1320 24 0 90 0`) in VR with `vr_light_test`, `vr_eyeshot 3`, the spectator and
+`vr_portals_maxviews 8`, and flat with `vr_portals_shot`, `r_scale 2`, `viewsize 80`; the bench's `combined` and
+`particles_dense`; the menus (`menu_vr`, Debug > Checklist, Recording, the main menu, the console) and no map; both
+eyes (`vr_mirror 2`, `vr_eyeshot 1`); the spectator with Bullet Time; flat e1m1 with `r_showtris`, `r_lightmap`,
+`r_fullbright`; `vr_profile_overlay 2`, `vr_parallax_debug 1`, `vr_bloom 0`, `vid_restart`; vrcalibration; shadows off
+and back on. Release screenshots (e1m1, vrfiringrange, start's slipgates, e1m1 with shadows off) differ from the old
+build's no more than two runs of the old build differ from each other.

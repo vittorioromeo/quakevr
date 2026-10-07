@@ -223,13 +223,16 @@ void destroy(Target& t)
     return true;
 }
 
-void pass(const Target& target, GLuint prog, GLuint source, float a, float b, float c, float d)
+// One full-screen triangle of prog into target, source on unit 0; Params (location 0) set unless withParams is false
+// (the mean shader has no uniforms: a glUniform to a location the program lacks is a GL error).
+void pass(const Target& target, GLuint prog, GLuint source, float a, float b, float c, float d, bool withParams = true)
 {
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
     glViewport(0, 0, target.width, target.height);
     GL_UseProgram(prog);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, source);
-    GL_Uniform4fFunc(0, a, b, c, d);
+    if(withParams)
+        GL_Uniform4fFunc(0, a, b, c, d);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
@@ -284,7 +287,7 @@ void apply(GLuint sceneTex, int width, int height)
         const Target& source = down[l - 1];
         pass(down[l], downProgram, source.tex, spread, 0.f, 1.f / source.width, 1.f / source.height);
     }
-    pass(mean, meanProgram, down[levels - 1].tex, 0.f, 0.f, 0.f, 0.f);
+    pass(mean, meanProgram, down[levels - 1].tex, 0.f, 0.f, 0.f, 0.f, false);
 
     GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, mean.tex);
     for(int l = levels - 2; l >= 0; l--)

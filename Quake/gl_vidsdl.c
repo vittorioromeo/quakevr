@@ -935,6 +935,9 @@ void GL_EndGroup (void)
 GL_DebugCallback
 ===============
 */
+static unsigned gl_debug_callers[64]; // GL_DebugCallback: the stacks already printed (VR_DescribeCallers' hashes)
+static int gl_debug_callers_count;
+
 static void APIENTRY GL_DebugCallback (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
 {
 	const char *str_source = "";
@@ -987,6 +990,22 @@ static void APIENTRY GL_DebugCallback (GLenum source, GLenum type, GLuint id, GL
 	{
 		Con_SafePrintf ("\x02GL %s %s[#%u/%s]: ", str_source, str_type, id, str_severity);
 		Con_SafePrintf ("%s\n", message);
+		// QVR: an error or undefined behaviour names the code that caused it (synchronous output: the GL call is on
+		// this thread's stack), once per distinct stack.
+		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
+		{
+			char callers[1024];
+			unsigned hash = VR_DescribeCallers (callers, sizeof (callers), 1, 12);
+			int i;
+			for (i = 0; hash && i < gl_debug_callers_count; i++)
+				if (gl_debug_callers[i] == hash)
+					break;
+			if (hash && i == gl_debug_callers_count && gl_debug_callers_count < (int) countof (gl_debug_callers))
+			{
+				gl_debug_callers[gl_debug_callers_count++] = hash;
+				Con_SafePrintf ("GL error caller: %s\n", callers);
+			}
+		}
 	}
 }
 

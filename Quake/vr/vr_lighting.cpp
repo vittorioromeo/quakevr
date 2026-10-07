@@ -73,6 +73,8 @@ struct DepthTarget
 
 DepthTarget atlas;        // rendered every frame: dynamic lights, and map lights' moving casters
 DepthTarget staticAtlas;  // map lights' world depth, cached
+DepthTarget noAtlas;      // 1 x 1, bound for an atlas not made (shadows off, no map lights): a shadow sampler on a unit
+                          // without a depth texture is undefined behaviour (a GL debug warning every draw)
 // GPU time of the shadow pass: begin and end timestamps, a few frames in flight.
 constexpr int timerFrames = 4;
 GLuint timers[timerFrames][2]{};
@@ -2071,8 +2073,12 @@ extern "C" void VR_PushMapLights(void)
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);
     r_framedata.dlightangle = za::clamp(vr_dlight_angle.value, 0.f, 1.f);
 
-    GL_BindNative(GL_TEXTURE4, GL_TEXTURE_2D, atlas.tex);
-    GL_BindNative(GL_TEXTURE5, GL_TEXTURE_2D, staticAtlas.tex);
+    if((!atlas.tex || !staticAtlas.tex) && !noAtlas.tex)
+    {
+        ensure(noAtlas, 1, 1, "shadow atlas placeholder");
+    }
+    GL_BindNative(GL_TEXTURE4, GL_TEXTURE_2D, atlas.tex ? atlas.tex : noAtlas.tex);
+    GL_BindNative(GL_TEXTURE5, GL_TEXTURE_2D, staticAtlas.tex ? staticAtlas.tex : noAtlas.tex);
     ao::upload(); // dynamic ambient occlusion's occluders for this eye (vr_ao.cpp; uniform block 2)
 
     if(!frameEnabled)
