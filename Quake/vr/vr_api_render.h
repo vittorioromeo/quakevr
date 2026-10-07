@@ -37,6 +37,7 @@ struct qmodel_s;
 
 // Stereo rendering (gl_screen.c, gl_rmain.c).
 int VR_PortalDrawing (void); // the offscreen pass requires a composite target in every camera mode
+int VR_PortalHideTeleport (void); // in a view through a slipgate, its teleport faces left out (vr_portals_recursion 0)
 void VR_RenderPortalForView (void); // V_RenderView: this camera and its entities are ready
 int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the eyes
 int VR_RenderingEye (void);							// forces the post-process path while rendering an eye

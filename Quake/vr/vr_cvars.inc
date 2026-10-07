@@ -1574,6 +1574,10 @@ QVR_CVAR(vr_portals_walk, "1", CVAR_ARCHIVE)          // ... walking and shootin
 QVR_CVAR(vr_portals, "1", CVAR_ARCHIVE)               // slipgates show where they lead, for each visible gate and camera (vr_portals.cpp): how much of it, 0 Quake's shimmer
 QVR_CVAR(vr_slipgate_pair_exits, "1", CVAR_ARCHIVE) // a gate whose destination stands in front of a gate of its size facing out (a two-way pair) comes out of that gate's face: 0 out at the destination marker, as built (vrslipgates: 48 units out, a gap)
 QVR_CVAR(vr_portals_maxviews, "4", CVAR_ARCHIVE) // visible destination scenes per camera, 1..8
+QVR_CVAR(vr_portals_recursion, "2", CVAR_ARCHIVE) // views within views: how many more gates deep a gate seen through a gate shows where it leads (0 none: its faces left out, as before; 1..3)
+QVR_CVAR(vr_portals_recursion_views, "2", CVAR_ARCHIVE) // ... the gates shown so within a view through a gate, 1..8 (deeper: the nearest and largest alone)
+QVR_CVAR(vr_portals_recursion_max, "4", CVAR_ARCHIVE) // ... at most this many views within views for an eye (the gate looked at most first), 0..64
+QVR_CVAR(vr_portals_recursion_scale, "2", CVAR_ARCHIVE) // ... each gate deeper drawn at this many times fewer pixels a side (1..4; r_scale for that view)
 QVR_CVAR(vr_slipgate_self_head, "1", CVAR_ARCHIVE) // your body seen through a slipgate has its head (the eyes' own views never draw it): 0 headless there too
 QVR_CVAR(vr_slipgate_surface_size, "1.12", CVAR_ARCHIVE) // entrance shimmer's visual size; collision aperture is unchanged
 QVR_CVAR(vr_slipgate_surface_opacity, "1", CVAR_ARCHIVE) // entrance shimmer's share over the portal view

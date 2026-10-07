@@ -60,11 +60,15 @@ struct SceneTargets
 };
 SceneTargets eyeTargets;
 SceneTargets spectatorTargets;
+// The views through slipgates: one set of scene targets (each view is drawn and copied out before the next begins:
+// a view's own views before it, vr_portals_recursion) and a texture array for each depth of view (1..4), whose layers
+// the cameras one depth up show.
 struct PortalTargets
 {
     SceneTargets scene;
-    GLuint array = 0, fbo = 0;
-    int layers = 0;
+    GLuint fbo = 0;
+    za::Array<GLuint, 4> array{};
+    za::Array<int, 4> layers{};
 };
 PortalTargets eyePortals, spectatorPortals; // separate sizes avoid reallocating every camera each frame
 bool creatingSceneTargets = false; // VR_SceneColorFormat, VR_SceneSamples
@@ -547,45 +551,78 @@ void drawHiddenArea()
     gfx::draw(hiddenTriangles, glm::mat4{1.f}, state);
 }
 
-// The view through a slipgate for the eye about to be drawn (vr_portals.cpp): the scene from that eye carried through
-// the gate (VR_PortalView, VR_PortalClip), all but the gate's box on screen skipped (VR_DrawPortalMask), into targets
-// of the eye's size (the per-view caches, sized as the eye's, aren't made anew) without MSAA (it is only read, by the
-// gate's pixels). Its scene colour is the teleport faces' then (VR_PortalTexture).
-void renderPortal(int width, int height)
+void renderPortal(int width, int height, int depth);
+
+// The views a camera of `depth` sees through gates (r_refdef: that camera), each drawn (with its own views first).
+void renderPortals(int width, int height, int depth)
+{
+    portals::update(r_refdef.vieworg, r_refdef.viewangles, depth);
+    for(int i = 0; i < portals::viewCount(depth) && portals::moreViews(depth); ++i)
+    {
+        portals::selectView(i, depth);
+        if(portals::wantedForView()) { renderPortal(width, height, depth + 1); }
+    }
+}
+
+// The view through a slipgate of `depth` (1: seen by the eye; 2 seen in such a view, ...: vr_portals_recursion) for the
+// eye about to be drawn (vr_portals.cpp): first the views seen in it (its camera carried through the gate), then the
+// scene from that eye carried through the gate (VR_PortalView, VR_PortalClip), all but the gate's box on screen skipped
+// (VR_DrawPortalMask), into targets of the eye's size (the per-view caches, sized as the eye's, aren't made anew)
+// without MSAA (it is only read, by the gate's pixels), at fewer pixels deeper (portals::scaleAt: r_refdef.scale, as
+// r_scale draws). Its scene colour is the teleport faces' then (VR_PortalTexture), from its depth's array.
+void renderPortal(int width, int height, int depth)
 {
     QVR_GPU_PROFILE("portal");
     const glframebufs_t savedTargets = framebufs;
     const refdef_t savedView = r_refdef;
+    if(depth < portals::maxDepth())
+    {
+        portals::carryCamera(depth);
+        renderPortals(width, height, depth);
+        r_refdef = savedView;
+    }
     PortalTargets& target = spectatorView ? spectatorPortals : eyePortals;
-    const int layers = portals::viewLimit();
+    const int slot = za::clamp(depth, 1, 4) - 1;
+    const int layers = portals::viewLimit(depth - 1);
     const bool same = sceneTargetsFit(target.scene, width, height, 0.f);
     ensureSceneTargets(target.scene, width, height, 0.f);
-    if(!same || target.layers != layers || !target.array)
+    GLuint& array = target.array[slot];
+    if(!same || target.layers[slot] != layers || !array)
     {
-        if(target.array) { GL_DeleteNativeTexture(target.array); }
-        glGenTextures(1, &target.array);
-        GL_BindNative(GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, target.array);
+        for(int d = 0; d < 4; d++) // (all of them: another size)
+        {
+            if(target.array[d] && (d == slot || !same))
+            {
+                GL_DeleteNativeTexture(target.array[d]);
+                target.array[d] = 0;
+                target.layers[d] = 0;
+            }
+        }
+        glGenTextures(1, &array);
+        GL_BindNative(GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, array);
         GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, target.scene.format, width, height, layers);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        target.layers = layers;
+        target.layers[slot] = layers;
     }
     if(!target.fbo) { GL_GenFramebuffersFunc(1, &target.fbo); }
     framebufs = target.scene.fb;
-    portals::beginView();
+    r_refdef.scale = za::clamp(savedView.scale * portals::scaleAt(depth), 1, za::max(vid.maxscale, 1));
+    const int layer = portals::layer(depth);
+    portals::beginView(depth);
     R_RenderView(); // the caller already set up this camera and its entities
     foveated::endScene();
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.scene.fb.composite.fbo);
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, target.fbo);
-    GL_FramebufferTextureLayerFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, target.array, 0, portals::layer());
+    GL_FramebufferTextureLayerFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, array, 0, layer);
     if(GL_CheckFramebufferStatusFunc(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
         Sys_Error("portal view array framebuffer is incomplete");
     }
     GL_BlitFramebufferFunc(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    portals::endView(target.array);
+    portals::endView(array, depth);
     if(portals::shotWanted())
     {
         portals::takeShot(target.scene.fb.composite.fbo, width, height);
@@ -773,12 +810,7 @@ using namespace qvr;
 // Each view prepares its own portal; R_RenderView directly avoids recursion and a second entity setup.
 extern "C" void VR_RenderPortalForView()
 {
-    portals::update(r_refdef.vieworg, r_refdef.viewangles);
-    for(int i = 0; i < portals::viewCount(); ++i)
-    {
-        portals::selectView(i);
-        if(portals::wantedForView()) { stereo::renderPortal(vid.width, vid.height); }
-    }
+    stereo::renderPortals(vid.width, vid.height, 0);
 }
 
 extern "C" int VR_RenderView()

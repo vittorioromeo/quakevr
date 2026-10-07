@@ -813,7 +813,7 @@ static qboolean R_EntHasWater (entity_t *ent, qboolean translucent)
 	for (i = TEXTYPE_FIRSTLIQUID; i < TEXTYPE_LASTLIQUID+1; i++)
 	{
 		int numtex = ent->model->texofs[i+1] - ent->model->texofs[i];
-		if (i == TEXTYPE_TELE && VR_PortalDrawing ()) // only the entrance overlays stars
+		if (i == TEXTYPE_TELE && VR_PortalHideTeleport ()) // QVR: only the entrance overlays stars (views within views: theirs too)
 			continue;
 		if (numtex && (GL_WaterAlphaForEntityTextureType (ent, (textype_t)i) < 1.f) == translucent)
 			return true;
@@ -910,7 +910,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		{
 			texture_t *t = model->textures[model->usedtextures[j]];
 			if ((isworld && VR_WaterMeshActive () && t->type != TEXTYPE_TELE) ||
-				(t->type == TEXTYPE_TELE && VR_PortalDrawing ()))
+				(t->type == TEXTYPE_TELE && VR_PortalHideTeleport ()))
 				continue;
 			if ((GL_WaterAlphaForEntityTextureType (e, t->type) < 1.f) != translucent)
 				continue;

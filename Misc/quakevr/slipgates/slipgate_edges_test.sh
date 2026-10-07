@@ -1,5 +1,5 @@
 #!/bin/bash
-# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|head|all]: headless checks of the slipgate edge cases in
+# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|head|recursion|all]: headless checks of the slipgate edge cases in
 # vrslipgates (ROUND21.md, "Slipgates: exits on their gates, props through, held objects, the force grab's beam"), with
 # the agent kit (C:/OHWorkspace/qvr-kit). Each section prints one line or a few, with what it must say.
 #   clip   a crate resting where a gate's exit used to stand (48 out of the north gallery's wall), paired exits off and
@@ -149,5 +149,15 @@ if want head; then
             eyeshot "slipgate_head_${v}_$h" "vr_mock_eye_size 2048;$START;vr_portals $v;vr_slipgate_self_head $h;setpos -1560 560 24 0 180 0;wait5;noclip 0;wait20"
         done
         echo "head: views $v: your head makes $(differ slipgate_head_${v}_1 slipgate_head_${v}_0 6 1000,995,1045,1045) pixels in the left eye"             "$( [ $v = 1 ] && echo '(through the loop gate: over 30)' || echo '(no gate view: 0)')"
+    done
+fi
+
+# recursion: facing T's west gate 40 units out (4096-pixel eyes): the loop's green signs stacked in the middle of the
+# left eye, one more each gate deeper (vr_portals_recursion 0, 1, 2: 1, 2, 3 signs), and the views drawn at each depth
+if want recursion; then
+    for r in 0 1 2; do
+        eyeshot "slipgate_recursion_$r" "vr_mock_eye_size 4096;$START;vr_portals_recursion $r;setpos -1560 560 24 0 180 0;wait5;noclip 0;wait20;vr_portals_view;wait2"
+        echo "recursion $r: $("$PY" "$HERE/slipgate_signs.py" "$TREE/scratch/slipgate_recursion_$r.png" | awk '{print $2}') signs ($((r + 1)));" \
+            "$(grep -E '^  (last camera|within the last view)' "$LOG" | sed -E 's/^ +//; s/ rendered \(limit [0-9]+\)//; s/, the first through side -?[0-9]+//' | tr '\n' ';' | sed 's/;$//')"
     done
 fi
