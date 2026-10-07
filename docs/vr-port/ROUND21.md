@@ -29119,3 +29119,44 @@ alone can't tell a lean from a step at once. The head during a smooth 180 at the
 mode 2 holds it within 1.5 units (the box's move reaches the server a frame later; it catches up when the turn stops),
 mode 1 swings it 15 units. Turning and moving into e1m1's walls turns the torso 6-11 degrees (the hands stopped at the
 wall pull it, `stopAtWall`), with or without a lean, in either mode: not the turn's.
+
+## Immersive manual reloading, phase 2: magazines (2026-10-07)
+
+RELOAD_PLAN.md's phase 2: the nailgun, the super nailgun and the thunderbolt take magazines (immersive mode; the lava
+nailguns and the plasma gun too, with their ammo).
+
+- **Models** (make_mags.py; normal maps baked): the nailgun's a box magazine under the receiver ahead of the trigger
+  guard, raked forward (the old nailgun pickup's leg), brown with stamped ribs, a steel base plate, nail heads in its
+  lips; the super nailgun's a bigger box out of its outer side (right, mirrored in the left hand), 37 degrees up, a
+  window down its top face showing the nails; the thunderbolt's an octagonal blued cell hung under its body, bronze
+  bands, a copper contact. Each as a prop (`vr_mag_nail/snail/light.mdl`: prop slots 51-53, `vr_props_version` 61: in
+  the palm, one hand) and as drawn in its gun (`vr_mag_on_<gun>.mdl`, made in that gun's model space; the engine gives
+  it the gun's Scale and offsets, vr_weapons.cpp `makeModelTransform`, and corrects for the bounds' corner the Scale
+  is applied about; it moves with the gun's firing kick by an anchor vertex).
+- **State.** The magazine's rounds are the gun's record's clip (it stays with the gun); none in is the weapon flag
+  `QVR_WPNFLAG_NOMAG` (16), which travels with the gun's flags (holsters, throws, level changes). The client draws the
+  attached magazine from the hands' and holsters' flag stats and, for a gun lying about, a new entity bit `U_QVR_NOMAG`
+  (vr_view.cpp `setupMagazines`).
+- **The pouch** gives the magazine of the gun in the other hand, holding min(its size, the reserve). Held within
+  `vr_reload_mag_leniency` (5 units) of the gun's well it seats if the gun has none. With one in, only a **bump** seats
+  it: the hands meeting at `vr_reload_bump_speed` (1.2 m/s) or more knocks the old one out (flying, its count kept) and
+  seats the new one; slower, nothing happens (a dull tap).
+- **Ejects:** (1) B/Y on the gun's controller (`vr_reload_eject_button`; weapon cycling keeps the button off a magazine
+  gun then); (2) the other hand gripping within `vr_reload_pull_reach` (6 units) of the magazine holds it (as a
+  foregrip: nothing comes out), and pulling it away from the gun at `vr_reload_pull_speed` (1.5 m/s) with the wrist
+  turning at `vr_reload_pull_snap` (200 deg/s) takes it out into that hand (a freshly pulled one doesn't re-seat until
+  it has left the well); (3) the bump. Out, a magazine is a round as the shells are: taken again, force grabbed,
+  refunded at the pouch (a part-used one its count), under the loose rounds' cap and fade. Switching a lava nailgun's
+  ammo drops its magazine.
+- **Multiplayer (phase 1's flag fixed):** a new stat `STAT_QVR_RELOADMODE` is the server's mode as it applies; the client
+  draws the ammo pouch, the magazines and the ammo screens' clip by it, not by its own `vr_reload_mode`.
+- Sounds (make_sounds.py): `reload_mag_in.wav`, `reload_mag_out.wav`. Weapons > Reloading has a Magazines group (Well
+  Leniency, Eject Button, Pull Speed, Pull Wrist Snap, Pull Reach, Bump Speed); Debug > Tests > Reloading: Nailgun in the
+  Off Hand, Eject the Off Hand's Magazine (`vr_reload_test 6`).
+- **Tests:** reload_test.sh: the self-test 47 of 47 (the magazines' 20 checks among them), phase 1's 9 mock checks, and 9
+  magazine ones by the mock hands (B/Y drop, take, seat, a gentle pull that holds, a hard pull with a snap, the part-used
+  refund, a second seat, a slow meeting that does nothing, the bump). Loaded map guns' transfer and pickups pass, the
+  e1m1 smoke and the weapon instance steps, `vr_menu_path_check`; QC 0 warnings.
+
+Open for the author: the magazines' size and place on each gun; the pull and bump thresholds; the pouch still shows
+shells whatever the gun (frames per round kind are phase 3's).

@@ -138,8 +138,8 @@ Headless (mock hands, `vr_fixed_frames 1`), per phase:
    default), the front pouch (drawn, placed, sized, turned), the shotgun's port, the shell props (single, taped pair),
    the pouch take / put back / waste, force grab of loose shells, haptics and sound, the shell's pose (its prop slot),
    loading with a leniency, the Reloading page and the Debug test aids. Other guns as before (the hip holster reload).
-2. **Magazines**: nailgun, super nailgun, thunderbolt: magazine models and props, a magazine in the gun (drawn by its
-   count), the three ejects: B/Y on the gun's controller; the other hand pulling it out with force and a wrist snap
+2. **Magazines** (done 2026-10-07: ROUND21.md, "Immersive manual reloading, phase 2"): nailgun, super nailgun,
+   thunderbolt: magazine models and props, a magazine in the gun (drawn while it is in), the three ejects: B/Y on the gun's controller; the other hand pulling it out with force and a wrist snap
    (thresholds on the page); a bump with a fresh magazine (the "Iraqi reload": the old one knocked out, the new one in).
    A partly used magazine keeps its count.
 3. **Grenade and proximity launchers**: a port under each; grenades from the front pouch (a launcher's grenade or a

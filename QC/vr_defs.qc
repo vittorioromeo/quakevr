@@ -17,6 +17,10 @@ float QVR_WPNFLAG_FOREGRIP_CARRIED = VRUTIL_POWER_OF_TWO(1);
 float QVR_WPNFLAG_SAW_RUNNING = VRUTIL_POWER_OF_TWO(2);
 float QVR_WPNFLAG_SAW_CHAIN = VRUTIL_POWER_OF_TWO(3);
 float QVR_WPNFLAG_SAW_STATE = 12; // both (QVR_WPNFLAG_SAW_RUNNING | QVR_WPNFLAG_SAW_CHAIN): stripped as it leaves the hands
+// Immersive reloading's magazine guns (vr_reload.qc): no magazine in (ejected); travels with the gun (holsters, throws, the
+// level's parms) as its flags do. The engine draws the attached magazine of a gun without it (vr_view.cpp; a weapon
+// prop's: U_QVR_NOMAG).
+float QVR_WPNFLAG_NOMAG = VRUTIL_POWER_OF_TWO(4);
 
 //
 //

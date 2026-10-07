@@ -3918,7 +3918,16 @@ void(float xHand) ToggleSecondaryAmmo =
         return;
     }
 
-    VRTryUnloadWeapon(self, xHand, weapon, VRGetWeaponFlags(xHand));
+    if(VR_Reload_MagIn(self, xHand))
+    {
+        // Immersive reloading: the magazine of the old ammo drops out (its rounds in it); one of the new goes in by hand.
+        makevectors(VRGetEntHandRot(self, xHand));
+        VR_Reload_Eject(self, xHand, VRGetEntHandVel(self, xHand) * VRMetersToUnits() - v_up * 40, -1, "the ammo changed");
+    }
+    else
+    {
+        VRTryUnloadWeapon(self, xHand, weapon, VRGetWeaponFlags(xHand));
+    }
 
     VRGunHaptic(VRGetOtherHand(xHand), 0.3, 75, 1.0);
     sound(self, VRGetGunChannel(xHand), "buttons/switch02.wav", 0.5, ATTN_NORM);
@@ -4504,7 +4513,8 @@ void() ImpulseCommands =
 
     // The hand's B/Y also reels a grappling hook in (vr_grapple.qc: its own gun's, or the other hand's when its own has
     // none out): while it drives one, it cycles nothing.
-    if(self.impulse == 10 && time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand))
+    if(self.impulse == 10 && time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand) &&
+       !VR_Reload_MagIn(self, cVR_MainHand)) // (B ejects its magazine: vr_reload.qc)
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
@@ -4514,7 +4524,8 @@ void() ImpulseCommands =
         }
     }
 
-    if(self.impulse == 12 && time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand))
+    if(self.impulse == 12 && time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand) &&
+       !VR_Reload_MagIn(self, cVR_OffHand)) // (Y ejects its magazine: vr_reload.qc)
     {
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {

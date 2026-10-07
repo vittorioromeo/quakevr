@@ -1838,3 +1838,9 @@ port: in), a shell let go of away from the pouch (lying about), `vr_mock_hand_to
 then `... 1` (taken again: the fist must arrive gripping), let go of at the pouch (refunded). `vr_reload_test 0;
 impulse 125` prints the counts; `vr_reload_debug 1` (with `developer 1`) each take, load, refund and loss, 2 a held
 shell's distance to the port every frame.
+Magazines (phase 2): the same script's section 4: `impulse 156; vr_test_weaponinst 7; impulse 120` (the nailgun into
+the off hand), `vr_mock_button off secondary 1` (B/Y: its magazine drops), the main hand at the pouch takes a magazine,
+`vr_mock_hand_to main lport` seats it (the well), the empty main hand gripping at `lport` holds the magazine: moved in
+small steps it stays (`vr_mock_hand_to main by ...`), jumped away with a turn in one frame (`vr_mock_hand main ... 0 0 70`)
+it comes out into the hand; a magazine brought up in small steps to a full gun does nothing, jumped there it bumps the
+old one out. `vr_reload_debug 2` prints the pull's speed and snap and the bump's speed every frame.
