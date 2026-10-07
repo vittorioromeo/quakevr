@@ -23,6 +23,7 @@ inline constexpr int U_QVR_OFFSET = 1 << 26;       // 3 coords
 inline constexpr int U_QVR_NOROTATE = 1 << 27;     // no data: a rigid body, whose EF_ROTATE model keeps its angles
 inline constexpr int U_QVR_WEAPONUID = 1 << 28;    // long: a weapon prop's weapon id (QC vr_weaponinst.qc: its record's)
 inline constexpr int U_QVR_SPIN = 1 << 29;         // no data: drawn spinning as an EF_ROTATE pickup (a weapon pickup drawn as its prop)
+inline constexpr int U_QVR_NOMAG = 1 << 30;        // no data: a weapon prop with no magazine in (QC QVR_WPNFLAG_NOMAG: immersive reloading)
 
 // Server -> client.
 inline constexpr int svc_quakevr = 39;
@@ -109,6 +110,9 @@ enum Stat : int
     STAT_QVR_WEAPONUID2, // the off hand's
     STAT_QVR_HOLSTERWEAPONUID0, // 6: each holster's weapon's id (0 none): its blood goes with it, drawn holstered too
     STAT_QVR_AMMOTYPE = STAT_QVR_HOLSTERWEAPONUID0 + 6, // the main hand's ammo type (.currentammo: QC's AID_*; the off hand's: STAT_QVR_AMMO2): the wrist gadget's MAIN tile
+    // The server's reloading mode as it applies (vr_reload_mode; 0 without Weapon Mode Immersive): the client draws the
+    // ammo pouch, the guns' magazines and the clip on the ammo screens by it, not by its own setting (multiplayer).
+    STAT_QVR_RELOADMODE,
     STAT_QVR_END
 };
 

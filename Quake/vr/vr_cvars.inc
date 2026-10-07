@@ -2384,6 +2384,13 @@ QVR_CVAR(vr_reload_volume, "1", CVAR_ARCHIVE)          // times the reload's sou
 QVR_CVAR(vr_reload_loose_max, "24", CVAR_ARCHIVE)      // rounds lying about at most (dropped, thrown): the oldest not in a hand goes for a new one
 QVR_CVAR(vr_reload_grab_slack, "3", CVAR_ARCHIVE)     // cm from a round lying about within which a gripping fist takes it (they are small and lie flat)
 QVR_CVAR(vr_reload_loose_time, "90", CVAR_ARCHIVE)     // seconds a round lies about before it fades away (0: never)
+// Magazines (phase 2: the nailgun, the super nailgun, the thunderbolt; vr_reload.qc).
+QVR_CVAR(vr_reload_mag_leniency, "5", CVAR_ARCHIVE)    // units from a gun's magazine well within which a held magazine seats (or bumps)
+QVR_CVAR(vr_reload_bump_speed, "1.2", CVAR_ARCHIVE)    // m/s the hands must meet at for a new magazine to knock the one in out and seat (the bump reload)
+QVR_CVAR(vr_reload_pull_speed, "1.5", CVAR_ARCHIVE)    // m/s a hand holding a gun's magazine must pull it away from the gun at to take it out,
+QVR_CVAR(vr_reload_pull_snap, "200", CVAR_ARCHIVE)     // with its wrist turning at this many degrees/s or more (a gentle pull only holds it)
+QVR_CVAR(vr_reload_pull_reach, "6", CVAR_ARCHIVE)      // units from the magazine's middle within which a gripping hand holds it
+QVR_CVAR(vr_reload_eject_button, "1", CVAR_ARCHIVE)    // the gun's controller's B/Y lets its magazine drop (0: off; weapon cycling keeps the button then)
 QVR_CVAR(vr_reload_debug, "0", CVAR_NONE)              // 1: print the reload's takes, loads, refunds and losses (dprint), and each held round's distance to the port
 QVR_CVAR(vr_reload_test, "0", CVAR_NONE)               // Debug > Tests > Reloading: the step `impulse 125` runs (vr_reload.qc VR_Reload_Test)
 QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)

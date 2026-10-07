@@ -514,6 +514,14 @@ void migrate()
         takeShippedSlot(48);
         takeShippedSlot(49);
     }
+    // 61: the magazines (phase 2: slots 51-53, the nailgun's, the super nailgun's, the thunderbolt's cell).
+    if(from < 61)
+    {
+        for(const int slot : {50, 51, 52})
+        {
+            takeShippedSlot(slot);
+        }
+    }
     // 62: vrstart2's barrel (vr_barrel; make_crates.py) has slot 60 (vr_prop_*_61): it takes its shipped settings, a
     // model the menu had put there moving to a free slot.
     if(from < 62)

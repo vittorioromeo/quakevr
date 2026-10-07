@@ -674,6 +674,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_WEAPONCLIPSIZE, f.weaponclipsize);
     stat(STAT_QVR_WEAPONCLIPSIZE2, f.weaponclipsize2);
     stat(STAT_QVR_MELEE, f.vr_melee_hud);
+    statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value == 0.f ? static_cast<int>(vr_reload_mode.value) : 0;
 
     const int holsterWeapon[numHolsters] = {f.holsterweapon0, f.holsterweapon1,
         f.holsterweapon2, f.holsterweapon3, f.holsterweapon4, f.holsterweapon5};
@@ -726,6 +727,9 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     }
 }
 
+// QC's QVR_WPNFLAG_NOMAG (vr_defs.qc): a magazine gun with no magazine in (vr_reload.qc).
+constexpr int weaponFlagNoMag = 16;
+
 extern "C" int VR_EntityUpdateBits(edict_t* ent)
 {
     if(!vrProtocol())
@@ -759,6 +763,10 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
     if(NUM_FOR_EDICT(ent) > svs.maxclients && weaponUid(weaponInst(ent, f.weaponinst)) != 0)
     {
         bits |= U_QVR_WEAPONUID; // a weapon prop (not a player: his .weaponinst is his main hand's, sent as a stat)
+        if(static_cast<int>(fieldFloatOr(ent, f.weaponflags, 0.f)) & weaponFlagNoMag)
+        {
+            bits |= U_QVR_NOMAG; // its magazine out (immersive reloading: the client draws none on it)
+        }
     }
     return bits;
 }

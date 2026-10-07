@@ -733,6 +733,7 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     data.noRotate = (bits & U_QVR_NOROTATE) != 0;
     data.spin = (bits & U_QVR_SPIN) != 0;
     data.weaponUid = (bits & U_QVR_WEAPONUID) ? MSG_ReadLong() : 0;
+    data.noMag = (bits & U_QVR_NOMAG) != 0;
 }
 
 extern "C" void VR_DebugDrawnBoxes(void)

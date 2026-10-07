@@ -5482,6 +5482,9 @@ za::Vector<Item> pageDebugTests()
         header("Reloading"),
         command("Shotgun in the Off Hand", "impulse 154; wait; vr_test_weaponinst 7; impulse 120; give s 40")
             .help("A loaded shotgun into the off hand and 40 shells: the main hand is free for the ammo pouch."),
+        command("Nailgun in the Off Hand", "impulse 156; wait; vr_test_weaponinst 7; impulse 120; give n 100")
+            .help("A loaded nailgun into the off hand and 100 nails (impulse 157: the super nailgun, 161 the thunderbolt)."),
+        command("Eject the Off Hand's Magazine", "vr_reload_test 6; impulse 125").help("As its B/Y does."),
         command("Empty the Off Hand's Gun", "vr_reload_test 5; impulse 125")
             .help("Its magazine back into your ammo (to load it again)."),
         command("Take a Shell (Main Hand)", "vr_reload_test 1; impulse 125")

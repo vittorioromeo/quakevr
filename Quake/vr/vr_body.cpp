@@ -7,6 +7,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
+#include "vr_protocol.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Math/Abs.hpp"
@@ -431,7 +432,9 @@ glm::vec3 pouchPosition(const hands::State& s, HolsterPlate* plate)
 
 bool ammoPouchEnabled()
 {
-    return vr_reload_mode.value == 3.f && vr_holster_mode.value == 0.f;
+    // The server's mode as it applies (STAT_QVR_RELOADMODE: Immersive, with Weapon Mode Immersive), not this client's own
+    // setting: in multiplayer the server's rules are the ones that hold.
+    return cl.stats[protocol::STAT_QVR_RELOADMODE] == 3;
 }
 
 float ammoPouchReach()

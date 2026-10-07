@@ -332,4 +332,22 @@ QVR_PROP_DEFAULT(49, FingerCurlPinky, "0.95")
 QVR_PROP_DEFAULT(60, ID, "progs/vr_barrel.mdl")
 QVR_PROP_DEFAULT(60, Mass, "30")
 QVR_PROP_DEFAULT(60, ForceGrab, "0")
+// Immersive reloading's magazines (phase 2; make_mags.py): the nailgun's, the super nailgun's, the thunderbolt's cell.
+// Held in the palm (the fingers fitted round the box), in one hand; their weights. vr_props_version 61 gives these slots
+// to configs saved before.
+QVR_PROP_DEFAULT(50, ID, "progs/vr_mag_nail.mdl")
+QVR_PROP_DEFAULT(50, Mass, "0.45")
+QVR_PROP_DEFAULT(50, TwoHands, "0")
+QVR_PROP_DEFAULT(50, GripMode, "2")
+QVR_PROP_DEFAULT(50, Overlap, "0.4")
+QVR_PROP_DEFAULT(51, ID, "progs/vr_mag_snail.mdl")
+QVR_PROP_DEFAULT(51, Mass, "0.7")
+QVR_PROP_DEFAULT(51, TwoHands, "0")
+QVR_PROP_DEFAULT(51, GripMode, "2")
+QVR_PROP_DEFAULT(51, Overlap, "0.4")
+QVR_PROP_DEFAULT(52, ID, "progs/vr_mag_light.mdl")
+QVR_PROP_DEFAULT(52, Mass, "0.9")
+QVR_PROP_DEFAULT(52, TwoHands, "0")
+QVR_PROP_DEFAULT(52, GripMode, "2")
+QVR_PROP_DEFAULT(52, Overlap, "0.4")
 #endif

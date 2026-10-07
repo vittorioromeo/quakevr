@@ -595,9 +595,11 @@ void resetHandMoves()
     return {
         cycle("Reloading", "vr_reload_mode", {{0.f, "Off"}, {1.f, "Holsters (All)"}, {2.f, "Holsters (Hips)"}, {3.f, "Immersive"}})
             .help("Off: the guns fire from your ammo, no magazines. Holsters: a gun held at a holster (any, or the hips') "
-                  "reloads. Immersive: the shotgun is loaded by hand: with it in one hand, the other takes a shell from the "
-                  "ammo pouch on the front of your belt and pushes it into the port under the gun, until it is full or the "
-                  "pouch is empty; the other guns reload at the hip holsters for now. Needs Weapon Mode Immersive."),
+                  "reloads. Immersive: guns are loaded by hand from the ammo pouch on the front of your belt (it gives "
+                  "what the gun in your other hand takes): the shotgun a shell at a time into the port under it; the "
+                  "nailgun, the super nailgun and the thunderbolt a magazine into its well (out by B/Y, a hard pull, or "
+                  "bumped out by the next); the other guns reload at the hip holsters for now. Needs Weapon Mode "
+                  "Immersive."),
         header("Shells"),
         toggle("Shell Pairs", "vr_reload_shell_pairs")
             .help("The pouch gives two shells taped together: both go into the shotgun at once (one, if only one fits)."),
@@ -606,6 +608,21 @@ void resetHandMoves()
         open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
                   "The taped pair has its own."),
+        header("Magazines"),
+        slider("Well Leniency", "vr_reload_mag_leniency", 1.f, 12.f, 0.5f, "%.1f units").extend(0.5f, 40.f)
+            .help("How near the gun's magazine well a held magazine must come to seat (or to bump the one in out)."),
+        toggle("Eject Button", "vr_reload_eject_button")
+            .help("The B/Y button of the controller holding a nailgun, super nailgun or thunderbolt drops its magazine."),
+        slider("Pull Speed", "vr_reload_pull_speed", 0.3f, 5.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
+            .help("Grab a gun's magazine with the other hand and pull it off: this fast away from the gun (and the "
+                  "wrist snapping, below) takes it out. A gentle pull only holds it, as a foregrip."),
+        slider("Pull Wrist Snap", "vr_reload_pull_snap", 0.f, 1000.f, 25.f, "%.0f deg/s").extend(0.f, 3000.f)
+            .help("How fast the pulling wrist must turn as well (0: the pull's speed alone)."),
+        slider("Pull Reach", "vr_reload_pull_reach", 2.f, 12.f, 0.5f, "%.1f units")
+            .help("How near the magazine a gripping hand must be to hold it."),
+        slider("Bump Speed", "vr_reload_bump_speed", 0.2f, 5.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
+            .help("A new magazine hitting the one in at this speed knocks it out and seats (the bump reload); slower, "
+                  "nothing happens."),
         header("Ammo Pouch"),
         toggle("Show", "vr_ammo_pouch_show").help("Draw the pouch (off: it still works where it is)."),
         slider("X", "vr_ammo_pouch_x", -10.f, 10.f, 0.25f, "%.2f").extend()

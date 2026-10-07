@@ -97,6 +97,7 @@ QVR_MODEL_TRAIT(ExplosiveBox, Prefix, "maps/b_explob")
 QVR_MODEL_TRAIT(ExplosiveCrate, Prefix, "maps/b_exbox")
 QVR_MODEL_TRAIT(ShellBox, Prefix, "maps/b_shell")
 QVR_MODEL_TRAIT(LiveShell, Prefix, "progs/vr_shell_") // a shell from the ammo pouch, and a taped pair (QC vr_reload.qc)
+QVR_MODEL_TRAIT(Magazine, Prefix, "progs/vr_mag_")    // a magazine from the ammo pouch or out of a gun (QC vr_reload.qc), and as drawn in one
 QVR_MODEL_TRAIT(NailBox, Prefix, "maps/b_nail")
 QVR_MODEL_TRAIT(RocketBox, Prefix, "maps/b_rock")
 QVR_MODEL_TRAIT(BatteryBox, Prefix, "maps/b_batt")

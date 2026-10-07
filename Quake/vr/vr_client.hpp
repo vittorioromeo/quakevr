@@ -18,6 +18,7 @@ struct EntityVr
     bool noRotate{false}; // a rigid body: an EF_ROTATE model (the backpack) must not spin
     bool spin{false};     // spins as an EF_ROTATE pickup though its model is not one (a weapon pickup drawn as its prop)
     int weaponUid{0};     // a weapon prop's weapon id (QC vr_weaponinst.qc; 0: not a weapon): its blood (vr_wounds.cpp)
+    bool noMag{false};    // a weapon prop with no magazine in (U_QVR_NOMAG: vr_view.cpp setupMagazines draws none)
 };
 
 void init(); // registers input commands

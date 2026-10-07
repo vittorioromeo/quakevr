@@ -30,6 +30,7 @@
 #include "vr_ledges.hpp"
 #include "vr_lines.hpp"
 #include "vr_protocol.hpp"
+#include "vr_client.hpp"
 #include "vr_render.hpp"
 #include "vr_shells.hpp"
 #include "vr_explosiondebris.hpp"
@@ -259,6 +260,49 @@ enum Holster : int
 // Weapons lying in the world near the player that show their ammo screen and button (the nearest).
 constexpr int maxWorldWeapons = 6;
 
+// The guns' loading ports (immersive reloading; docs/vr-port/RELOAD_PLAN.md): where a round held in the other hand goes
+// in, in the model's space (+x forward, +y left, +z up, frame 0; mirrored with the model in the off hand): the shotgun's
+// under its receiver (polish_weapons.py loading_port: the opening's middle, a little below its frame). Sent to the server
+// with each move (VrMove::loadPort -> .loadportpos, .offloadportpos), which loads a round held within
+// vr_reload_port_leniency of it (QC vr_reload.qc).
+struct LoadPort
+{
+    modelmeta::Id model;
+    glm::vec3 point;
+};
+constexpr LoadPort loadPorts[] = {
+    {modelmeta::Id::VShot, {13.6f, 0.f, 0.3f}},
+    // The magazine guns' wells: where the attached magazine's middle is (make_mags.py prints them): a held magazine's
+    // middle brought there seats it (vr_reload_mag_leniency), and a hand gripping near it holds it (the pull).
+    {modelmeta::Id::VNail, {7.36f, 0.f, -4.72f}},
+    {modelmeta::Id::VLava, {7.36f, 0.f, -4.72f}},
+    {modelmeta::Id::VNail2, {7.2f, -9.35f, 3.03f}},
+    {modelmeta::Id::VLava2, {7.2f, -9.35f, 3.03f}},
+    {modelmeta::Id::VLight, {11.6f, 0.f, -0.6f}},
+    {modelmeta::Id::VPlasma, {11.6f, 0.f, -0.6f}},
+};
+
+// The magazines drawn in the magazine guns (immersive reloading's phase 2; QC vr_reload.qc): each gun's attached
+// magazine model (make_mags.py: vr_mag_on_<gun>.mdl, made in the gun's model space; its Scale and offsets the gun's:
+// vr_weapons.cpp makeModelTransform), drawn with the gun's place, turn and mirroring while the server's mode is
+// Immersive and the gun has its magazine in (not QVR_WPNFLAG_NOMAG). `anchor`: a vertex of the gun's body by the
+// magazine (vr_anchor.hpp's strip order) whose move from frame 0 (the firing animation's kick) moves it too.
+struct MagMount
+{
+    modelmeta::Id gun;
+    const char* model;
+    int anchor;
+};
+constexpr MagMount magMounts[] = {
+    {modelmeta::Id::VNail, "progs/vr_mag_on_v_nail.mdl", 1497},
+    {modelmeta::Id::VLava, "progs/vr_mag_on_v_lava.mdl", 1499},
+    {modelmeta::Id::VNail2, "progs/vr_mag_on_v_nail2.mdl", 192},
+    {modelmeta::Id::VLava2, "progs/vr_mag_on_v_lava2.mdl", 250},
+    {modelmeta::Id::VLight, "progs/vr_mag_on_v_light.mdl", 655},
+    {modelmeta::Id::VPlasma, "progs/vr_mag_on_v_plasma.mdl", 667},
+};
+constexpr int weaponFlagNoMag = 16; // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc)
+
 struct Entities
 {
     view::ViewEntity weapon[2];
@@ -278,6 +322,9 @@ struct Entities
     view::ViewEntity flashlight; // vr_flashlight.cpp
     view::ViewEntity pouch;      // the grenade pouch at the small of the back (vr_handgrenade)
     view::ViewEntity ammoPouch;  // the ammo pouch on the front of the belt (vr_reload_mode 3)
+    view::ViewEntity mag[2];                       // the magazines in the guns in the hands (setupMagazines),
+    view::ViewEntity holsterMag[HolsterCount];     // in the holstered ones,
+    view::ViewEntity worldMag[maxWorldWeapons];    // and in the ones lying nearest (setupWorldWeapons' nearest)
     view::ViewEntity sawHandle;  // the chainsaw's cord's handle out of its seat (vr_chainsaw.cpp handleEntity)
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
@@ -288,6 +335,7 @@ struct Entities
 
 Entities entities;
 int lastAddedFrame = -1;
+const entity_t* worldWeaponsNear[maxWorldWeapons]{}; // setupWorldWeapons' nearest, for their magazines (setupMagazines)
 
 // Hidden for a clean shot (vr_shot_hide; Debug > Cheats and Recording): 1 the wrist gadget (setupGadget hides it whole,
 // its screen and messages with it), 2 the hands and what they hold, 4 the body and the holsters. Drawn only: they
@@ -311,13 +359,14 @@ int lastAddedFrame = -1;
     };
     if((hide & 2) && (among(entities.weapon) || among(entities.weaponMorph) || among(entities.hand[0]) ||
                          among(entities.hand[1]) || among(entities.button) || among(entities.frontButton) ||
-                         among(entities.muzzleFlash) || &ve == &entities.flashlight || &ve == &entities.sawHandle))
+                         among(entities.muzzleFlash) || &ve == &entities.flashlight || &ve == &entities.sawHandle ||
+                         among(entities.mag)))
     {
         return true;
     }
     return (hide & 4) && (&ve == &entities.body || among(entities.pauldron) || among(entities.pauldronArm) ||
                              among(entities.holster) || among(entities.holsterSlot) || among(entities.holsterButton) ||
-                             &ve == &entities.pouch || &ve == &entities.ammoPouch);
+                             &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.holsterMag));
 }
 
 template <typename F>
@@ -358,6 +407,18 @@ void forEachEntity(F&& f)
     f(entities.flashlight);
     f(entities.pouch);
     f(entities.ammoPouch);
+    for(view::ViewEntity& ve : entities.mag)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.holsterMag)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.worldMag)
+    {
+        f(ve);
+    }
     f(entities.sawHandle);
     for(view::ViewEntity& ve : entities.button)
     {
@@ -480,9 +541,11 @@ void view::prepareModels()
     {
         names.pushBack("progs/vrpouch.mdl"); // (setupPouch)
     }
-    if(body::ammoPouchEnabled())
+    // (Whatever the mode: the server's, STAT_QVR_RELOADMODE, comes after the precache.)
+    names.pushBack("progs/vrpouch_ammo.mdl"); // (setupAmmoPouch)
+    for(const MagMount& m : magMounts)
     {
-        names.pushBack("progs/vrpouch_ammo.mdl"); // (setupAmmoPouch)
+        names.pushBack(m.model); // (setupMagazines)
     }
     for(const char* name : names)
     {
@@ -629,7 +692,7 @@ ankerl::unordered_dense::map<const qmodel_t*, int> clipSizes;
 {
     const int ammo = idleAmmo(model);
     const za::String ammoText = ammo >= 0 ? za::toString(ammo) : za::String{"--"};
-    const bool reloading = vr_reload_mode.value != 0.f && vr_holster_mode.value == 0.f;
+    const bool reloading = cl.stats[protocol::STAT_QVR_RELOADMODE] != 0; // (the server's mode as it applies)
     const auto size = clipSizes.find(model);
     if(reloading && clip >= 0 && size != clipSizes.end() && size->second != 0)
     {
@@ -692,7 +755,7 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
     const int clip = cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2];
     const int clipSize = cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2];
     const int ammo = cl.stats[main ? STAT_QVR_AMMOCOUNTER : STAT_QVR_AMMOCOUNTER2];
-    const bool reloading = vr_reload_mode.value != 0.f && vr_holster_mode.value == 0.f;
+    const bool reloading = cl.stats[protocol::STAT_QVR_RELOADMODE] != 0; // (the server's mode as it applies)
     if(clipSize != 0)
     {
         clipSizes[ve.ent.model] = clipSize;
@@ -1185,19 +1248,6 @@ void setupGhosts()
     }
 }
 
-// The guns' loading ports (immersive reloading; docs/vr-port/RELOAD_PLAN.md): where a round held in the other hand goes
-// in, in the model's space (+x forward, +y left, +z up, frame 0; mirrored with the model in the off hand): the shotgun's
-// under its receiver (polish_weapons.py loading_port: the opening's middle, a little below its frame). Sent to the server
-// with each move (VrMove::loadPort -> .loadportpos, .offloadportpos), which loads a round held within
-// vr_reload_port_leniency of it (QC vr_reload.qc).
-struct LoadPort
-{
-    modelmeta::Id model;
-    glm::vec3 point;
-};
-constexpr LoadPort loadPorts[] = {
-    {modelmeta::Id::VShot, {13.6f, 0.f, 0.3f}},
-};
 
 // `floating`: the posing mode's weapon (vr_posing.cpp), never a carried gun.
 void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool floating = false)
@@ -4646,6 +4696,84 @@ void setupPouch(const hands::State& s)
     highlight(ve, s.hotspot[HAND_OFF] == body::HS_GRENADE_POUCH || s.hotspot[HAND_MAIN] == body::HS_GRENADE_POUCH);
 }
 
+// The magazine in the gun `gun` (`show`: the server's mode Immersive and the gun's magazine in): its attached model, the
+// gun's place, turn, mirroring, scale and light, moved with the gun's body by the firing animation (magMounts).
+void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show)
+{
+    const MagMount* mount = nullptr;
+    if(show && gun.visible && gun.ent.model && gun.ent.model->type == mod_alias)
+    {
+        const auto& info = modelmeta::get(gun.ent.model);
+        for(const MagMount& m : magMounts)
+        {
+            if(info.is(m.gun))
+            {
+                mount = &m;
+            }
+        }
+    }
+    qmodel_t* const model = mount ? viewModel(mount->model) : nullptr;
+    if(!model)
+    {
+        mag.visible = false;
+        return;
+    }
+    const qmodel_t* last = mag.lastModel;
+    mag = gun;
+    mag.ent.model = model;
+    mag.ent.frame = 0;
+    mag.ent.lerpflags |= LERP_RESETANIM; // (one frame: never blended with the gun's)
+    mag.zeroBlend = 0.f;
+    mag.morph = 0.f;
+    mag.lastModel = last;
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(gun.ent.model));
+    const glm::vec3 k{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    const glm::vec3 o{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    const glm::vec3 now = anchor::posedVertex(gun.ent, mount->anchor, gun.zeroBlend) * k + o;
+    const glm::vec3 rest = anchor::posedVertex(gun.ent, mount->anchor, 1.f) * k + o;
+    const glm::vec3 kick = view::modelPoint(gun, now) - view::modelPoint(gun, rest);
+    // The weapon's Scale applies about each model's own bounds' corner (its header's origin: vr_render.cpp applyPost),
+    // which the magazine's model doesn't share with the gun's: the point that is the gun's model-space origin drawn where
+    // the gun draws it (the rest follows: the two differ by a move only).
+    const glm::vec3 corner = view::modelPoint(gun, glm::vec3{0.f}) - view::modelPoint(mag, glm::vec3{0.f});
+    for(int i = 0; i < 3; i++)
+    {
+        mag.ent.origin[i] += kick[i] + corner[i];
+    }
+}
+
+// Every frame, after the guns are placed: their magazines (immersive reloading: the server's mode, the guns' flags; a
+// lying gun's U_QVR_NOMAG).
+void setupMagazines()
+{
+    const bool on = cl.stats[protocol::STAT_QVR_RELOADMODE] == 3;
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
+        setMagazine(entities.mag[hand], entities.weapon[hand], on && !(flags & weaponFlagNoMag));
+    }
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        const int flags = cl.stats[protocol::STAT_QVR_HOLSTERWEAPONFLAGS0 + h];
+        setMagazine(entities.holsterMag[h], entities.holster[h], on && !(flags & weaponFlagNoMag));
+    }
+    for(int i = 0; i < maxWorldWeapons; i++)
+    {
+        const entity_t* e = worldWeaponsNear[i];
+        const bool numbered = e && e >= cl_entities && e < cl_entities + cl_max_edicts;
+        const client::EntityVr* net = numbered ? client::entityVr(static_cast<int>(e - cl_entities)) : nullptr;
+        if(!e || (net && net->noMag) || !on)
+        {
+            entities.worldMag[i].visible = false;
+            continue;
+        }
+        view::ViewEntity gun;
+        gun.ent = *e;
+        gun.visible = true;
+        setMagazine(entities.worldMag[i], gun, true);
+    }
+}
+
 // The ammo pouch (immersive reloading, vr_reload_mode 3; docs/vr-port/RELOAD_PLAN.md): vrpouch_ammo.mdl (make_ammo_pouch.py:
 // as vrpouch.mdl, +x out of the body, its back at the origin) on the front of the belt between the hip holsters, facing
 // the belly's surface there (straight forward without the body), turned by vr_ammo_pouch_pitch/yaw/roll about where the
@@ -4748,6 +4876,7 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
     for(int i = 0; i < maxWorldWeapons; i++)
     {
         view::ViewEntity& button = entities.worldButton[i];
+        worldWeaponsNear[i] = nullptr;
         if(i >= count)
         {
             button.visible = false;
@@ -4755,6 +4884,7 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
             continue;
         }
         const entity_t& e = *nearest[i].e;
+        worldWeaponsNear[i] = &e;
         const int slot = weapons::slotForModel(e.model);
         idleAttachments(e, false, slot, button, entities.worldFrontButton[i], -1, queueTexts);
         if(emissive::isLavaGun(e.model) && 2 + HolsterCount + lights < emissive::lavaGunLights)
@@ -6167,6 +6297,7 @@ extern "C" void VR_SetupViewEntities()
         });
     }
 
+    setupMagazines();
     patchModelFlags();
 
     // The screen may be redrawn more than once per frame (a modal dialog); add the entities only once.
