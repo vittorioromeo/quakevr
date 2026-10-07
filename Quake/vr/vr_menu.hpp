@@ -72,6 +72,7 @@ void init();
 // Search (the corner's button): the Search page, from any menu (vr_menu_search.inc).
 void openSearch();
 void search_f(); // vr_menu_search <text>
+void sliderStep_f(); // vr_menu_slider_step <cvar> <steps> [fine]: steps a slider as the menu's keys do (tests)
 
 // Console (the corner's button): Quake's console with a keyboard, from any menu (vr_menu_console.inc).
 void openConsole();

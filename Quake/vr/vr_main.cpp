@@ -1418,6 +1418,7 @@ extern "C" void VR_Init()
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     Cmd_AddCommand("vr_menu_search", menu::search_f);
+    Cmd_AddCommand("vr_menu_slider_step", menu::sliderStep_f);
     Cmd_AddCommand("maps_page_stats", menu::mapsPageStats_f); // (the map browser page: vr_menu_maps.inc)
     Cmd_AddCommand("maps_page", menu::mapsPage_f);
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);

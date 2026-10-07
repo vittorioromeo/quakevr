@@ -9409,9 +9409,11 @@ SliderHold sliderHold; // (stepSlider: the menu's keys)
 // The sliders' fine adjustment: while either grip is held in the headset (a grip does nothing else in the menus), or
 // Shift on a flat screen, a slider steps by vr_menu_fine_step of its step (0.1: a tenth), and shows the decimals that
 // takes (sliderText).
+bool fineForced = false; // (vr_menu_slider_step's "fine": the modifier as if held)
+
 [[nodiscard]] bool fineHeld()
 {
-    return keydown[K_SHIFT] || keydown[K_LSHOULDER] || keydown[K_RSHOULDER];
+    return fineForced || keydown[K_SHIFT] || keydown[K_LSHOULDER] || keydown[K_RSHOULDER];
 }
 
 [[nodiscard]] float sliderStep(const Item& item)
@@ -9494,9 +9496,12 @@ float stepSlider(const Item& item, int dir, bool repeat)
         const double held = realtime - outsideSince;
         step *= held < 1.0 ? 1.f : held < 2.0 ? 2.f : held < 3.0 ? 5.f : 10.f;
     }
-    // On the fine steps' grid (a value fine-tuned keeps its fine part on a whole step).
-    const float grid = item.step * CLAMP(0.01f, vr_menu_fine_step.value, 1.f);
-    float v = za::round((cur + dir * step) / grid) * grid;
+    // On the steps' grid: a plain step lands on a whole step (a round value, as before the fine steps: on the fine grid
+    // it landed off it with a fine step that isn't a whole fraction, 0.6998, 0.7997 with vr_menu_fine_step 0.0999: the
+    // author's note vrfiringrange_2026-10-07_22-23-40); a fine one on the fine steps' grid.
+    const double grid = fineHeld() ? static_cast<double>(item.step) * CLAMP(0.01f, vr_menu_fine_step.value, 1.f)
+                                   : static_cast<double>(item.step);
+    float v = static_cast<float>(std::round((static_cast<double>(cur) + dir * static_cast<double>(step)) / grid) * grid);
 
     float lo = item.min;
     float hi = item.max;
@@ -11076,6 +11081,52 @@ void qvr::menu::mapsPageStats_f()
 }
 
 // vr_menu_search <text>: the Search page's results for the text, best first, with their scores and pages.
+// vr_menu_slider_step <cvar> <steps> [fine]: the slider of `cvar` (the first on the VR menus' pages) stepped that many
+// times (negative: down) as the menu's keys step it, with the fine modifier held if "fine"; each value printed as the
+// cvar holds it and as the slider shows it (the plain steps' round values: the author's note
+// vrfiringrange_2026-10-07_22-23-40).
+void qvr::menu::sliderStep_f()
+{
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_menu_slider_step <cvar> <steps> [fine]\n");
+        return;
+    }
+    const char* name = Cmd_Argv(1);
+    const int steps = Q_atoi(Cmd_Argv(2));
+    const bool fine = Cmd_Argc() > 3 && !q_strcasecmp(Cmd_Argv(3), "fine");
+    const int was = levelOverride;
+    levelOverride = LevelDeveloper;
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(pages[p].build == pageSearch || pages[p].build == pageChanged)
+        {
+            continue;
+        }
+        for(const Item& found : items(p))
+        {
+            if(found.kind != Item::Slider || !found.cvar || q_strcasecmp(found.cvar->name, name))
+            {
+                continue;
+            }
+            const Item item = found; // (change may build the page again)
+            fineForced = fine;
+            for(int i = 0; i < za::abs(steps); i++)
+            {
+                change(item, steps > 0 ? 1 : -1);
+                char text[64];
+                sliderText(item, item.cvar->value, text, sizeof(text));
+                Con_Printf("vr_menu_slider_step: %s \"%s\" shown %s\n", item.cvar->name, item.cvar->string, text);
+            }
+            fineForced = false;
+            levelOverride = was;
+            return;
+        }
+    }
+    levelOverride = was;
+    Con_Printf("vr_menu_slider_step: no slider of %s\n", name);
+}
+
 void qvr::menu::search_f()
 {
     if(Cmd_Argc() < 2)

@@ -480,6 +480,7 @@ const DefaultChange defaultChanges[] = {
     {100, &vr_weapon_throw_damage_mult, "0.5"}, // 0.35
     // 101: detail textures off by default (the author, 2026-10-07).
     {101, &vr_detail, "1"}, // 0
+    {101, &vr_menu_fine_step, "0.0999"}, // 0.1: the author's, slider noise from plain steps landing off the grid (fixed)
 };
 constexpr int configVersion = 101;
 
