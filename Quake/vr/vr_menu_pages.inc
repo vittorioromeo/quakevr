@@ -603,8 +603,6 @@ void resetHandMoves()
         header("Shells"),
         toggle("Shell Pairs", "vr_reload_shell_pairs")
             .help("The pouch gives two shells taped together: both go into the shotgun at once (one, if only one fits)."),
-        slider("Port Leniency", "vr_reload_port_leniency", 1.f, 12.f, 0.5f, "%.1f units").extend(0.5f, 40.f)
-            .help("How near the gun's loading port a held shell must come to go in (4: about 15 cm)."),
         open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
                   "The taped pair has its own."),
@@ -613,8 +611,8 @@ void resetHandMoves()
                   "may go this far into the gun's box first, to reach the port under the shotgun or a magazine well."),
         header("Load Points"),
         toggle("Show Load Points", "vr_reload_show_ports")
-            .help("Draws each held gun's load point (yellow), where a held round goes in within (green: Port Leniency, "
-                  "Well Leniency), and a magazine's pull reach (blue), to tune the offsets below live."),
+            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
+                  "radius (orange), and a magazine's pull reach (blue), to tune the offsets below live."),
         slider("Shotgun Port X", "vr_reload_port_shot_x", -6.f, 6.f, 0.1f, "%.1f").extend()
             .help("Moves the shotgun port's load point forward (the gun's model units; negative: the other way)."),
         slider("Shotgun Port Y", "vr_reload_port_shot_y", -6.f, 6.f, 0.1f, "%.1f").extend()
@@ -639,9 +637,39 @@ void resetHandMoves()
             .help("Moves the thunderbolt well's load point left (the gun's model units; negative: the other way)."),
         slider("Thunderbolt Well Z", "vr_reload_port_light_z", -6.f, 6.f, 0.1f, "%.1f").extend()
             .help("Moves the thunderbolt well's load point up (the gun's model units; negative: the other way)."),
+        slider("Shotgun Port Radius", "vr_reload_port_shot_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the shotgun port's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        slider("Nailgun Well Radius", "vr_reload_port_nail_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the nailgun well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        slider("Super Nailgun Well Radius", "vr_reload_port_snail_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the super nailgun well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        slider("Thunderbolt Well Radius", "vr_reload_port_light_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the thunderbolt well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        slider("Nailgun Magazine X", "vr_reload_mag_nail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun magazine's reference point (its top, its feed end) along its gun (its model units)."),
+        slider("Nailgun Magazine Y", "vr_reload_mag_nail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun magazine's reference point (its top, its feed end) to its left (its model units)."),
+        slider("Nailgun Magazine Z", "vr_reload_mag_nail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun magazine's reference point (its top, its feed end) up its length (its model units)."),
+        slider("Nailgun Magazine Radius", "vr_reload_mag_nail_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
+            .help("The nailgun magazine's own radius round its reference point (added to the well's)."),
+        slider("Super Nailgun Magazine X", "vr_reload_mag_snail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun magazine's reference point (its top, its feed end) along its gun (its model units)."),
+        slider("Super Nailgun Magazine Y", "vr_reload_mag_snail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun magazine's reference point (its top, its feed end) to its left (its model units)."),
+        slider("Super Nailgun Magazine Z", "vr_reload_mag_snail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun magazine's reference point (its top, its feed end) up its length (its model units)."),
+        slider("Super Nailgun Magazine Radius", "vr_reload_mag_snail_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
+            .help("The super nailgun magazine's own radius round its reference point (added to the well's)."),
+        slider("Thunderbolt Cell X", "vr_reload_mag_light_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt cell's reference point (its top, its feed end) along its gun (its model units)."),
+        slider("Thunderbolt Cell Y", "vr_reload_mag_light_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt cell's reference point (its top, its feed end) to its left (its model units)."),
+        slider("Thunderbolt Cell Z", "vr_reload_mag_light_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt cell's reference point (its top, its feed end) up its length (its model units)."),
+        slider("Thunderbolt Cell Radius", "vr_reload_mag_light_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
+            .help("The thunderbolt cell's own radius round its reference point (added to the well's)."),
         header("Magazines"),
-        slider("Well Leniency", "vr_reload_mag_leniency", 1.f, 12.f, 0.5f, "%.1f units").extend(0.5f, 40.f)
-            .help("How near the gun's magazine well a held magazine must come to seat (or to bump the one in out)."),
         toggle("Eject Button", "vr_reload_eject_button")
             .help("The B/Y button of the controller holding a nailgun, super nailgun or thunderbolt drops its magazine."),
         slider("Pull Speed", "vr_reload_pull_speed", 0.3f, 5.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)

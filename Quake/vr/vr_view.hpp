@@ -39,6 +39,10 @@ struct ViewEntity
 [[nodiscard]] glm::vec3 entityAnchorPosition(
     const entity_t& e, bool mirrored, float zeroBlend, int anchorIndex, const glm::vec3& extra);
 
+// Immersive reloading: the reference point of the round `hand` holds (a magazine's top, moved by its
+// vr_reload_mag_<kind>_x/y/z, and its radius in `radius`; a shell's middle, radius -1), as drawn. False: it holds none.
+[[nodiscard]] bool heldRoundRef(int hand, glm::vec3& out, float* radius = nullptr);
+
 // World position of a point given in `ve`'s model space (as its frames' vertices).
 [[nodiscard]] glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);
 

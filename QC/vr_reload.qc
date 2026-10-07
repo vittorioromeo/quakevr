@@ -8,7 +8,7 @@
 // The guns that load by hand (VR_Reload_ManualFor: the shotgun so far) take their rounds from the ammo pouch on the front
 // of the belt: a hand gripping at it (the engine's hotspot QVR_HS_AMMO_POUCH) takes a round for the gun in the OTHER hand
 // (a shell; with vr_reload_shell_pairs, two taped together), its ammo leaving the reserve at once; held within
-// vr_reload_port_leniency of that gun's loading port (the engine's .loadportpos, .offloadportpos: as drawn) it goes into
+// the gun's load point's radius of its loading port (the engine's .loadportpos, .offloadportpos: as drawn) it goes into
 // the gun's magazine (its record: it stays with the gun). Let go of at the pouch (or at a holster, or the trigger pressed,
 // as any carried pickup) it goes back into the reserve; let go of anywhere else it drops, a physics prop that can be taken
 // again by hand or force grab, until the cap of rounds lying about (vr_reload_loose_max) or its time
@@ -20,7 +20,7 @@
 // Magazines (phase 2: the nailgun, the super nailgun, the thunderbolt; VR_Reload_UsesMag): the gun's magazine is its
 // record's (.wi_clip: what the attached magazine holds); none attached is the weapon flag QVR_WPNFLAG_NOMAG (it travels with
 // the gun as its flags do; the clients draw the attached one: vr_view.cpp setupMagazines). The pouch gives a magazine for
-// the other hand's gun holding min(its size, the reserve); one held at the gun's magazine well (vr_reload_mag_leniency)
+// the other hand's gun holding min(its size, the reserve); one whose top meets the gun's well (the two radii)
 // seats if the gun has none; if it has one, only a bump seats it (the hands meeting at vr_reload_bump_speed: the old one
 // knocked out, flying). A seated one comes out by the gun's controller's B/Y (vr_reload_eject_button), or by the other hand
 // gripping it and pulling it off hard with a wrist snap (vr_reload_pull_speed and vr_reload_pull_snap: a gentle pull only
@@ -438,6 +438,75 @@ void(float xHand, entity r) VR_Reload_SeatMag =
     remove(r);
 };
 
+// The radius of the load point of the gun `xWeapon` (Weapons > Reloading: vr_reload_port_<gun>_radius).
+float(float xWeapon) VR_Reload_PortRadius =
+{
+    if(xWeapon == WID_NAILGUN)
+    {
+        return cvar_hget(cvarh_vr_reload_port_nail_radius);
+    }
+    if(xWeapon == WID_SUPER_NAILGUN)
+    {
+        return cvar_hget(cvarh_vr_reload_port_snail_radius);
+    }
+    if(xWeapon == WID_LIGHTNING)
+    {
+        return cvar_hget(cvarh_vr_reload_port_light_radius);
+    }
+    return cvar_hget(cvarh_vr_reload_port_shot_radius);
+};
+
+// A magazine's own radius round its reference point (vr_reload_mag_<kind>_radius; 0: a shell).
+float(float xWid) VR_Reload_MagRadius =
+{
+    if(xWid == WID_NAILGUN)
+    {
+        return cvar_hget(cvarh_vr_reload_mag_nail_radius);
+    }
+    if(xWid == WID_SUPER_NAILGUN)
+    {
+        return cvar_hget(cvarh_vr_reload_mag_snail_radius);
+    }
+    if(xWid == WID_LIGHTNING)
+    {
+        return cvar_hget(cvarh_vr_reload_mag_light_radius);
+    }
+    return 0;
+};
+
+// A magazine's reference point in the world: its top, its feed end (make_mags.py: up its +z from its middle, 3.3 the
+// nailgun's, 4.7 the super nailgun's, 3.6 the cell's), moved by vr_reload_mag_<kind>_x/y/z, as it is turned and sized
+// (its prop slot's Size). The engine draws the same (vr_view.cpp heldRoundRef).
+vector(entity r) VR_Reload_MagRef =
+{
+    float top = 3.3;
+    vector off = '0 0 0';
+    if(r.vr_ammo_wid == WID_SUPER_NAILGUN)
+    {
+        top = 4.7;
+        off = cvar_hget(cvarh_vr_reload_mag_snail_x) * '1 0 0' + cvar_hget(cvarh_vr_reload_mag_snail_y) * '0 1 0' +
+              cvar_hget(cvarh_vr_reload_mag_snail_z) * '0 0 1';
+    }
+    else if(r.vr_ammo_wid == WID_LIGHTNING)
+    {
+        top = 3.6;
+        off = cvar_hget(cvarh_vr_reload_mag_light_x) * '1 0 0' + cvar_hget(cvarh_vr_reload_mag_light_y) * '0 1 0' +
+              cvar_hget(cvarh_vr_reload_mag_light_z) * '0 0 1';
+    }
+    else
+    {
+        off = cvar_hget(cvarh_vr_reload_mag_nail_x) * '1 0 0' + cvar_hget(cvarh_vr_reload_mag_nail_y) * '0 1 0' +
+              cvar_hget(cvarh_vr_reload_mag_nail_z) * '0 0 1';
+    }
+    float k = propvalue(r, "size");
+    if(k <= 0)
+    {
+        k = 1;
+    }
+    makevectors('-1 0 0' * r.angles_x + '0 1 0' * r.angles_y + '0 0 1' * r.angles_z); // (a model's pitch is the other way)
+    return r.origin + (v_forward * off_x - v_right * off_y + v_up * (top + off_z)) * k;
+};
+
 // Whether a magazine `r` fits the gun `p` holds in `xHand` by its handle: that gun's, of its ammo.
 float(entity p, float xHand, entity r) VR_Reload_MagFits =
 {
@@ -787,7 +856,8 @@ float(float xHand, entity r) VR_Reload_Load =
 };
 
 // While `xHand` of self holds the round `r` (VR_Carry_HandFrame, gripping): at the loading port of the gun in the other
-// hand (within vr_reload_port_leniency of it), it goes in. TRUE if it is gone from the hand.
+// hand (a shell's middle within the gun's radius; a magazine's top within the gun's radius plus its own), it goes in. TRUE
+// if it is gone from the hand.
 float(float xHand, entity r) VR_Reload_HeldFrame =
 {
     if(!VR_Reload_IsRound(r))
@@ -806,8 +876,8 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
         return FALSE;
     }
     vector port = gunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
-    float d = vlen(r.origin - port);
-    float leniency = cvar_hget(r.vr_ammo_wid ? cvarh_vr_reload_mag_leniency : cvarh_vr_reload_port_leniency);
+    float d = vlen((r.vr_ammo_wid ? VR_Reload_MagRef(r) : r.origin) - port);
+    float leniency = VR_Reload_PortRadius(VRGetEntWeapon(self, gunHand)) + VR_Reload_MagRadius(r.vr_ammo_wid);
     if(cvar_hget(cvarh_vr_reload_debug) >= 2)
     {
         dprint(sprintf("reload: a held round %.1f units from the port (leniency %g)\n", d, leniency));

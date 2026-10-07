@@ -263,34 +263,54 @@ constexpr int maxWorldWeapons = 6;
 // The guns' loading ports (immersive reloading; docs/vr-port/RELOAD_PLAN.md): where a round held in the other hand goes
 // in, in the model's space (+x forward, +y left, +z up, frame 0; mirrored with the model in the off hand): the shotgun's
 // under its receiver (polish_weapons.py loading_port: the opening's middle, a little below its frame). Sent to the server
-// with each move (VrMove::loadPort -> .loadportpos, .offloadportpos), which loads a round held within
-// vr_reload_port_leniency of it (QC vr_reload.qc).
-// Each moved by its gun's Load Point offsets (Weapons > Reloading: vr_reload_port_<gun>_x/y/z, model units: +x forward,
-// +y left, +z up), tuned with vr_reload_show_ports.
+// with each move (VrMove::loadPort -> .loadportpos, .offloadportpos), which loads a round held within the gun's radius
+// of it (QC vr_reload.qc).
+// Each moved by its gun's Load Point offsets and sized by its radius (Weapons > Reloading: vr_reload_port_<gun>_x/y/z,
+// model units: +x forward, +y left, +z up; _radius, world units), tuned with vr_reload_show_ports.
 struct LoadPort
 {
     modelmeta::Id model;
     glm::vec3 point;
     cvar_t* offset[3];
-    bool magazine; // a magazine's well (vr_reload_mag_leniency, and the pull's reach); else a shell port
+    cvar_t* radius;
+    bool magazine; // a magazine's well (the pull's reach too); else a shell port
 };
 constexpr LoadPort loadPorts[] = {
     {modelmeta::Id::VShot, {13.6f, 0.f, 0.3f}, {&vr_reload_port_shot_x, &vr_reload_port_shot_y, &vr_reload_port_shot_z},
-        false},
-    // The magazine guns' wells: where the attached magazine's middle is (make_mags.py prints them): a held magazine's
-    // middle brought there seats it (vr_reload_mag_leniency), and a hand gripping near it holds it (the pull).
-    {modelmeta::Id::VNail, {7.36f, 0.f, -4.72f}, {&vr_reload_port_nail_x, &vr_reload_port_nail_y, &vr_reload_port_nail_z},
-        true},
-    {modelmeta::Id::VLava, {7.36f, 0.f, -4.72f}, {&vr_reload_port_nail_x, &vr_reload_port_nail_y, &vr_reload_port_nail_z},
-        true},
-    {modelmeta::Id::VNail2, {7.2f, -9.35f, 3.03f},
-        {&vr_reload_port_snail_x, &vr_reload_port_snail_y, &vr_reload_port_snail_z}, true},
-    {modelmeta::Id::VLava2, {7.2f, -9.35f, 3.03f},
-        {&vr_reload_port_snail_x, &vr_reload_port_snail_y, &vr_reload_port_snail_z}, true},
-    {modelmeta::Id::VLight, {11.6f, 0.f, -0.6f},
-        {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, true},
-    {modelmeta::Id::VPlasma, {11.6f, 0.f, -0.6f},
-        {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, true},
+        &vr_reload_port_shot_radius, false},
+    // The magazine guns' wells: where the attached magazine's top sits when seated (make_mags.py's seats): a held
+    // magazine's top (its reference point: magProps) brought there, within the two radii, seats it.
+    {modelmeta::Id::VNail, {6.9f, 0.f, -1.45f}, {&vr_reload_port_nail_x, &vr_reload_port_nail_y, &vr_reload_port_nail_z},
+        &vr_reload_port_nail_radius, true},
+    {modelmeta::Id::VLava, {6.9f, 0.f, -1.45f}, {&vr_reload_port_nail_x, &vr_reload_port_nail_y, &vr_reload_port_nail_z},
+        &vr_reload_port_nail_radius, true},
+    {modelmeta::Id::VNail2, {7.2f, -5.6f, 0.2f},
+        {&vr_reload_port_snail_x, &vr_reload_port_snail_y, &vr_reload_port_snail_z}, &vr_reload_port_snail_radius, true},
+    {modelmeta::Id::VLava2, {7.2f, -5.6f, 0.2f},
+        {&vr_reload_port_snail_x, &vr_reload_port_snail_y, &vr_reload_port_snail_z}, &vr_reload_port_snail_radius, true},
+    {modelmeta::Id::VLight, {11.6f, 0.f, 3.f},
+        {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
+    {modelmeta::Id::VPlasma, {11.6f, 0.f, 3.f},
+        {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
+};
+
+// The magazines' reference points (QC vr_reload.qc VR_Reload_MagRef): each prop's top, its feed end (make_mags.py: up its
+// +z from its middle), moved by vr_reload_mag_<kind>_x/y/z (its model units), with its own radius: it seats when it comes
+// within the gun's radius plus its own of the gun's point.
+struct MagProp
+{
+    const char* model;
+    float top;
+    cvar_t* offset[3];
+    cvar_t* radius;
+};
+constexpr MagProp magProps[] = {
+    {"progs/vr_mag_nail.mdl", 3.3f, {&vr_reload_mag_nail_x, &vr_reload_mag_nail_y, &vr_reload_mag_nail_z},
+        &vr_reload_mag_nail_radius},
+    {"progs/vr_mag_snail.mdl", 4.7f, {&vr_reload_mag_snail_x, &vr_reload_mag_snail_y, &vr_reload_mag_snail_z},
+        &vr_reload_mag_snail_radius},
+    {"progs/vr_mag_light.mdl", 3.6f, {&vr_reload_mag_light_x, &vr_reload_mag_light_y, &vr_reload_mag_light_z},
+        &vr_reload_mag_light_radius},
 };
 
 // The magazines drawn in the magazine guns (immersive reloading's phase 2; QC vr_reload.qc): each gun's attached
@@ -1329,9 +1349,9 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
                 s.loadPortValid[hand] = true;
                 if(vr_reload_show_ports.value && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3)
                 {
-                    // The acceptance range: a held round's (a magazine's middle) within it goes in; a magazine's well
-                    // also its pull's reach (blue), where a gripping hand holds the magazine.
-                    const float within = port.magazine ? vr_reload_mag_leniency.value : vr_reload_port_leniency.value;
+                    // The gun's point and radius (a held magazine's reference point and radius: heldRoundRef's, drawn by
+                    // setupMagazines); a magazine's well also its pull's reach (blue), where a gripping hand holds it.
+                    const float within = za::max(port.radius->value, 0.f);
                     lines::point(s.loadPort[hand], 0.6f, glm::vec4{1.f, 1.f, 0.2f, 0.9f});
                     lines::point(s.loadPort[hand], 2.f * within, glm::vec4{0.2f, 1.f, 0.3f, 0.3f});
                     if(port.magazine)
@@ -4768,10 +4788,23 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show)
 }
 
 // Every frame, after the guns are placed: their magazines (immersive reloading: the server's mode, the guns' flags; a
-// lying gun's U_QVR_NOMAG).
+// lying gun's U_QVR_NOMAG); with Show Load Points, a held magazine's reference point and radius (orange).
 void setupMagazines()
 {
     const bool on = cl.stats[protocol::STAT_QVR_RELOADMODE] == 3;
+    if(on && vr_reload_show_ports.value)
+    {
+        for(int hand = 0; hand < 2; hand++)
+        {
+            glm::vec3 ref;
+            float radius = 0.f;
+            if(view::heldRoundRef(hand, ref, &radius) && radius >= 0.f)
+            {
+                lines::point(ref, 0.5f, glm::vec4{1.f, 0.6f, 0.1f, 0.9f});
+                lines::point(ref, 2.f * radius, glm::vec4{1.f, 0.5f, 0.1f, 0.3f});
+            }
+        }
+    }
     for(int hand = 0; hand < 2; hand++)
     {
         const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
@@ -5471,6 +5504,36 @@ const ViewEntity* find(const entity_t* e)
     static_assert(sizeof(Entities) % sizeof(ViewEntity) == 0 && alignof(Entities) == alignof(ViewEntity));
     const auto* ve = reinterpret_cast<const ViewEntity*>(&entities) + (p - first) / sizeof(ViewEntity);
     return &ve->ent == e ? ve : nullptr;
+}
+
+bool heldRoundRef(int hand, glm::vec3& out, float* radius)
+{
+    const int num = hand == 0 || hand == 1 ? held::heldEntity(hand) : 0;
+    if(num <= 0 || num >= cl_max_edicts || !cl_entities[num].model)
+    {
+        return false;
+    }
+    const entity_t& e = cl_entities[num];
+    out = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    if(radius)
+    {
+        *radius = -1.f; // (a shell: its middle, no radius of its own)
+    }
+    for(const MagProp& m : magProps)
+    {
+        if(!strcmp(e.model->name, m.model))
+        {
+            ViewEntity tmp;
+            tmp.ent = e;
+            tmp.visible = true;
+            out = modelPoint(tmp, glm::vec3{m.offset[0]->value, m.offset[1]->value, m.top + m.offset[2]->value});
+            if(radius)
+            {
+                *radius = za::max(m.radius->value, 0.f);
+            }
+        }
+    }
+    return true;
 }
 
 glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point)
