@@ -29160,3 +29160,36 @@ nailguns and the plasma gun too, with their ammo).
 
 Open for the author: the magazines' size and place on each gun; the pull and bump thresholds; the pouch still shows
 shells whatever the gun (frames per round kind are phase 3's).
+
+## Immersive reloading: the author's first notes (2026-10-07)
+
+His voice notes on phase 1, one commit each:
+
+1. **The pouch rides the legs** (`vr_ammo_pouch_leg_follow`, default 1; Reloading > Follow Legs): with the full body it
+   moves with both thighs' animation as the belt does, half each, as the hip holsters do with `vr_holster_leg_follow`
+   (vr_body.cpp `onBothThighs`).
+2. **Adjustable load points** (Reloading > Load Points): each gun's port or well moved by
+   `vr_reload_port_<shot|nail|snail|light>_x/y/z` (the gun's model units; the lava nailguns' and the plasma gun's with
+   theirs); **Show Load Points** (`vr_reload_show_ports`) draws the point (yellow), its acceptance range (green: Port or
+   Well Leniency) and a well's pull reach (blue), live.
+3. **Collision Leniency** (`vr_reload_collide_leniency`, 12 cm): a held shell or magazine may go that far into the
+   other hand's gun's box (Held Things Collide keeps them apart by the boxes: the gun's goes down to its grip, so the
+   shell stopped short of the port under the receiver) before they are kept apart (vr_held.cpp).
+4. **Ammo boxes into the pouch** (QC `VR_Reload_PouchTakesBox`): an ammo box (shells, nails, rockets, cells, the
+   mission packs', the horde's) let go of at the ammo pouch goes in, whatever `vr_carry_take` says, with its rustle.
+5. **The real count**: the pouch's model (make_ammo_pouch.py, 14 frames) shows what it gives, one in sight per round
+   left: 1-5 shells, 1-3 nailgun magazines, 1-2 super nailgun magazines, 1-3 cells (a part-filled one counting); empty,
+   it falls in (vr_view.cpp `ammoPouchFrame`).
+6. **The counter** (`vr_ammo_pouch_counter`, on; Reloading > Counter, X/Y/Z, Pitch/Yaw/Roll, Size): the reserve of what
+   the pouch gives, on a small screen as the guns' ammo counters, above the pouch facing the eyes as they look down.
+7. and 8. **By ammo, not gun; the last kind kept** (QC `VR_Reload_PouchKind`, `VR_Reload_PlayerFrame`): the pouch gives
+   the other hand's gun's ammo (any shotgun, the super shotgun too: shells, though it has no immersive rules: a shell
+   brought to it does nothing; a nailgun, super nailgun, thunderbolt: its magazine); with nothing of the kind in the
+   other hand (empty, a melee weapon) the last kind held (the main hand's first; shells at first), to take, throw and put
+   back. The server sends what it gives and how many are left (`STAT_QVR_POUCHKIND`, `STAT_QVR_POUCHCOUNT`). The
+   rocket and grenade launchers give nothing yet (phases 3-4).
+
+Also: rebased on the wrist gadget redesign (45425224): `STAT_QVR_RELOADMODE` and the new two stats follow its
+`STAT_QVR_AMMOTYPE`. Tests: reload_test.sh 24 of 24 (the self-test 54 of 54; section 5: the legs, a load point moved,
+Collision Leniency 0 against 12, an ammo box with `vr_carry_take 1`, the pouch's frame for 50 nails), the loaded map
+guns', the e1m1 smoke, `vr_menu_path_check`; QC 0 warnings.

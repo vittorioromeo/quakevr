@@ -16,6 +16,9 @@
 #      at the well; a few nails fired; the main hand gripping the magazine and pulling it gently (it stays in), then
 #      snapping it off (out into the hand, its count kept); put back in the pouch (the part-used count refunded); another
 #      seated; a third brought up to the full gun slowly (nothing) and then fast (the bump: the old one out, the new in).
+#   5. The author's notes on phase 1: the pouch riding the legs as he walks, a load point moved by its offset, Collision
+#      Leniency letting a held shell reach the port, an ammo box let go of at the pouch going in, the pouch's frame by
+#      what it gives and how much (the self-test checks the pouch by ammo and its last kind).
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
@@ -69,4 +72,22 @@ check $(echo "$log" | grep -q "a magazine of $fired back in the pouch (hand 1): 
 check $(h 8 | grep -q "clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "another seated in the empty gun"
 check $(h 9 | grep -q "clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds a round of 24" && [ $(echo "$log" | grep -c "knocked out by a bump") = 1 ] && echo 1 || echo 0) "a slow meeting with the full gun: nothing happens"
 check $(echo "$log" | grep -q "knocked out by a bump" && h 10 | grep -q "clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "a bump: the old one knocked out, the new one seated"
+
+# 5. The author's phase 1 notes (ROUND21.md, "Immersive reloading: the author's first notes").
+# The pouch rides the legs: walking, it is somewhere else with Follow Legs 1 than with 0.
+p0=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait60;vr_ammo_pouch_leg_follow 0;+forward;wait25;vr_dumpview;-forward;wait3;toggleconsole;quit" -Filter "^ammo pouch at" 2>&1 | grep -m1 "ammo pouch at" | sed 's/.*at (\([^)]*\)).*/\1/')
+p1=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait60;vr_ammo_pouch_leg_follow 1;+forward;wait25;vr_dumpview;-forward;wait3;toggleconsole;quit" -Filter "^ammo pouch at" 2>&1 | grep -m1 "ammo pouch at" | sed 's/.*at (\([^)]*\)).*/\1/')
+moved=$(awk -v a="$p0" -v b="$p1" 'BEGIN { split(a, x, " "); split(b, y, " "); d = 0; for(i = 1; i <= 3; i++) d += (x[i] - y[i]) ^ 2; print (sqrt(d) > 0.1) ? 1 : 0 }')
+check $moved "the pouch rides the legs walking (follow 0: $p0; 1: $p1)"
+# A load point moved by its offset; Collision Leniency lets a held shell reach the port; an ammo box at the pouch goes in
+# (with vr_carry_take 1, where a holster wouldn't take it); the pouch's frame by what it gives and how much.
+SG="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait10"
+log=$(bash $KIT/run.sh $AGENT -Script "$SG;vr_mock_hand_to main lport;wait10;vr_reload_port_shot_z -3;wait10;vr_mock_hand_to main lport;wait5;vr_reload_port_shot_z 0;$POUCH;$GRIP;vr_reload_port_leniency 0.1;vr_reload_collide_leniency 0;vr_mock_hand_to main lport 1;wait5;vr_mock_hand_to main lport 1;wait10;echo PHASE_A;vr_debug_carry 1;wait3;vr_debug_carry 0;vr_reload_collide_leniency 12;wait10;echo PHASE_B;vr_debug_carry 1;wait3;vr_debug_carry 0;echo PHASE_C;vr_mock_hand_to main ammopouch;wait5;$LETGO;vr_carry_take 1;give n 0;vr_rigid_place item_spikes main 0 3 0;+grabright;vr_mock_button main grip 1;wait20;$POUCH;vr_mock_button main grip 0;-grabright;wait10;$REP;impulse 156;wait10;vr_dumpview;toggleconsole;quit" -Filter "^held:.*meet .*deep|PHASE|loading port|^reload: (an ammo|mode)|vrpouch_ammo.mdl" 2>&1)
+z0=$(echo "$log" | grep -m1 "loading port" | awk '{print $NF}'); z1=$(echo "$log" | grep "loading port" | sed -n 2p | awk '{print $NF}')
+check $(awk -v a="$z0" -v b="$z1" 'BEGIN { print (a - b > 0.5) ? 1 : 0 }') "the shotgun's port moved down by Load Points Z (z $z0 to $z1)"
+pushedA=$(echo "$log" | sed -n '/PHASE_A/,/PHASE_B/p' | grep -c "^held:")
+pushedB=$(echo "$log" | sed -n '/PHASE_B/,/PHASE_C/p' | grep -c "^held:")
+check $([ "$pushedA" -gt 0 ] && [ "$pushedB" = 0 ] && echo 1 || echo 0) "Collision Leniency: a shell at the port kept off the gun with 0 ($pushedA frames), not with 12 ($pushedB)"
+check $(echo "$log" | grep -q "an ammo box into the pouch" && echo "$log" | grep "^reload: mode" | tail -1 | grep -q "nails 50 " && echo 1 || echo 0) "an ammo box let go of at the pouch goes in (50 nails)"
+check $(echo "$log" | grep "vrpouch_ammo.mdl" | tail -1 | grep -q "frame 8 " && echo 1 || echo 0) "the pouch shows 3 nailgun magazines for 50 nails, the third part-filled (frame 8)"
 exit $fail
