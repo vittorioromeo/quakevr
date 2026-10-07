@@ -3,6 +3,11 @@
 #   quakevr/progs/vr_shell.mdl   a fired 12-gauge shell, low poly: a red plastic hull (its crimp
 #                                opened by the shot, dark inside) on a brass head with a rim and a
 #                                primer. 7 cm long, 2 cm across, 8-sided.
+#   quakevr/progs/vr_shell_live.mdl  an unfired shell, as taken from the front ammo pouch (immersive reloading, QC
+#                                vr_reload.qc; docs/vr-port/RELOAD_PLAN.md): the same head and hull, its end closed
+#                                by a six-fold star crimp, sunk a little.
+#   quakevr/progs/vr_shell_pair.mdl  two unfired shells side by side (along y), taped together round the middle with
+#                                a band of grey cloth tape (the pouch's Shell Pairs: both go in at once).
 #
 # Usage: python Misc/quakevr/make_shell.py [output game folder]
 #
@@ -36,9 +41,19 @@ CRIMP = FRONT - 0.0025    # where the opened crimp starts to flare,
 FLARE_R = 0.0104          # and how far out it flares.
 
 
+# The live shells' skin, 64 x 32: the spent shell's four regions (the crimp's star painted where its mouth was) and the
+# tape on the right half.
+LIVE_W, LIVE_H = 64, 32
+LIVE_REGIONS = dict(REGIONS, crimp=REGIONS["mouth"], tape=(32, 0, 64, 32))
+CRIMP_SINK = 0.0018  # how far the star crimp's middle sits into the hull
+TAPE_X, TAPE_HALF, TAPE_T = 0.004, 0.0085, 0.0006  # the pair's tape: its middle, half its width, its thickness
+
+
 class Builder:
-    def __init__(self):
-        self.mesh = mdlgen.Mesh(SKIN_W, SKIN_H, REGIONS)
+    def __init__(self, w=SKIN_W, h=SKIN_H, regions=REGIONS, y=0.0):
+        self.regions = regions
+        self.mesh = mdlgen.Mesh(w, h, regions)
+        self.y = y  # the shell's axis, sideways (a pair's two)
 
     def vert(self, p, n, st):
         self.mesh.verts.append((mul(p, UNITS), n, (int(round(st[0])), int(round(st[1])))))
@@ -54,18 +69,18 @@ class Builder:
 
     def ring_point(self, x, r, k):
         a = 2 * math.pi * (k + 0.5) / SIDES
-        return (x, r * math.cos(a), r * math.sin(a))
+        return (x, self.y + r * math.cos(a), r * math.sin(a))
 
     def band(self, xa, ra, xb, rb, region, facing=None):
         """A band of quads round the axis between (xa, ra) and (xb, rb), facing away from the axis
         (or along `facing`, for a flat step)."""
-        s0, t0, s1, t1 = REGIONS[region]
+        s0, t0, s1, t1 = self.regions[region]
         for k in range(SIDES):
             pts = [self.ring_point(xa, ra, k), self.ring_point(xa, ra, k + 1), self.ring_point(xb, rb, k + 1),
                    self.ring_point(xb, rb, k)]
             n = norm(cross(sub(pts[1], pts[0]), sub(pts[3], pts[0])))
             centre = mul(add(add(pts[0], pts[1]), add(pts[2], pts[3])), 0.25)
-            want = facing if facing else (0.0, centre[1], centre[2])
+            want = facing if facing else (0.0, centre[1] - self.y, centre[2])
             if dot(n, want) < 0.0:
                 n = mul(n, -1.0)
             # Along the axis down the region's t, round it across its s.
@@ -74,17 +89,18 @@ class Builder:
             self.tri(i[0], i[1], i[2], n)
             self.tri(i[0], i[2], i[3], n)
 
-    def disc(self, x, r, facing, region):
-        """A flat octagon across the axis at `x`, facing +x (1) or -x (-1), the region's picture on it."""
+    def disc(self, x, r, facing, region, sink=0.0):
+        """A flat octagon across the axis at `x`, facing +x (1) or -x (-1), the region's picture on it; `sink`: its
+        middle that far back into the shell (a shallow cone: the star crimp's)."""
         n = (float(facing), 0.0, 0.0)
-        s0, t0, s1, t1 = REGIONS[region]
+        s0, t0, s1, t1 = self.regions[region]
         cs, ct = (s0 + s1) / 2, (t0 + t1) / 2
-        centre = self.vert((x, 0.0, 0.0), n, (cs, ct))
+        centre = self.vert((x - facing * sink, self.y, 0.0), n, (cs, ct))
         ring = []
         for k in range(SIDES):
             a = 2 * math.pi * (k + 0.5) / SIDES
             y, z = math.cos(a), math.sin(a)
-            ring.append(self.vert((x, r * y, r * z), n, (cs + y * (s1 - s0 - 2) / 2, ct + z * (t1 - t0 - 2) / 2)))
+            ring.append(self.vert((x, self.y + r * y, r * z), n, (cs + y * (s1 - s0 - 2) / 2, ct + z * (t1 - t0 - 2) / 2)))
         for k in range(SIDES):
             self.tri(centre, ring[k], ring[(k + 1) % SIDES], n)
 
@@ -104,6 +120,110 @@ def build():
     # The open mouth: dark inside, the hull's edge round it.
     b.disc(FRONT - 0.0008, FLARE_R, 1, "mouth")
     return b.mesh
+
+
+def build_live(b):
+    """An unfired shell into the builder `b` (at its sideways place): the spent one's head and hull, the hull straight
+    to its end, rounding in a little where the star crimp's folds turn over, and the crimp closing it."""
+    front = (1.0, 0.0, 0.0)
+    b.disc(BACK, RIM_R, -1, "base")
+    b.band(BACK, RIM_R, RIM_END, RIM_R, "brass")
+    b.band(RIM_END, RIM_R, RIM_END, HEAD_R, "brass", front)
+    b.band(RIM_END, HEAD_R, HEAD_END, HEAD_R, "brass")
+    b.band(HEAD_END, HEAD_R, HEAD_END, HULL_R, "brass", front)
+    b.band(HEAD_END, HULL_R, CRIMP, HULL_R, "hull")
+    b.band(CRIMP, HULL_R, FRONT, HULL_R * 0.93, "hull")
+    b.disc(FRONT, HULL_R * 0.93, 1, "crimp", CRIMP_SINK)
+
+
+def build_single():
+    b = Builder(LIVE_W, LIVE_H, LIVE_REGIONS)
+    build_live(b)
+    return b.mesh
+
+
+def pair_outline(r):
+    """The outline round both shells of a pair (their axes HULL_R either side of y 0) at radius `r` from each axis:
+    the +y shell's far half-octagon, then the -y shell's, as (y, z) points going round."""
+    pts = []
+    for centre, start in ((HULL_R, -math.pi / 2), (-HULL_R, math.pi / 2)):
+        for k in range(SIDES // 2 + 1):
+            a = start + math.pi * k / (SIDES // 2)
+            pts.append((centre + r * math.cos(a), r * math.sin(a)))
+    return pts
+
+
+def build_pair():
+    """Two shells touching side by side, and the tape round both from TAPE_X - TAPE_HALF to TAPE_X + TAPE_HALF: its
+    outside a little out of the hulls, its two edges closed down to them."""
+    b = Builder(LIVE_W, LIVE_H, LIVE_REGIONS, HULL_R)
+    build_live(b)
+    b.y = -HULL_R
+    build_live(b)
+    outside, inside = pair_outline(HULL_R + TAPE_T), pair_outline(HULL_R)
+    x0, x1 = TAPE_X - TAPE_HALF, TAPE_X + TAPE_HALF
+    s0, t0, s1, t1 = LIVE_REGIONS["tape"]
+    n = len(outside)
+    lengths = [math.hypot(outside[(i + 1) % n][0] - outside[i][0], outside[(i + 1) % n][1] - outside[i][1])
+               for i in range(n)]
+    run = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        (ya, za), (yb, zb) = outside[i], outside[j]
+        ua = s0 + 1 + run / sum(lengths) * (s1 - s0 - 2)
+        run += lengths[i]
+        ub = s0 + 1 + run / sum(lengths) * (s1 - s0 - 2)
+        out = norm((0.0, (ya + yb) / 2 - (HULL_R if (ya + yb) > 0 else -HULL_R) * (abs(ya + yb) > 1e-9), (za + zb) / 2))
+        ids = [b.vert(p, out, uv) for p, uv in zip(
+            [(x0, ya, za), (x0, yb, zb), (x1, yb, zb), (x1, ya, za)],
+            [(ua, t0 + 1), (ub, t0 + 1), (ub, t1 - 2), (ua, t1 - 2)])]
+        b.tri(ids[0], ids[1], ids[2], out)
+        b.tri(ids[0], ids[2], ids[3], out)
+    for x, facing in ((x0, -1.0), (x1, 1.0)):
+        nrm = (facing, 0.0, 0.0)
+        for i in range(n):
+            j = (i + 1) % n
+            ids = [b.vert((x, y, z), nrm, (s0 + 2, t1 - 2)) for y, z in (outside[i], outside[j], inside[j], inside[i])]
+            b.tri(ids[0], ids[1], ids[2], nrm)
+            b.tri(ids[0], ids[2], ids[3], nrm)
+    return b.mesh
+
+
+def paint_live():
+    """The live shells' skin: the spent shell's hull, brass and base as they are painted there, the crimp (a red star
+    of six folds, each fold's edge a shade darker, its middle pinched shut) and the tape (grey cloth tape, its weave in
+    faint streaks along it, its edges a shade darker, a little grime)."""
+    spent = paint()
+    rng = random.Random(2026)
+    px = bytearray(LIVE_W * LIVE_H)
+    c0, ct0, c1, ct1 = LIVE_REGIONS["crimp"]
+    g0, gt0, g1, gt1 = LIVE_REGIONS["tape"]
+    for t in range(LIVE_H):
+        for s in range(LIVE_W):
+            k = rng.random()
+            if c0 <= s < c1 and ct0 <= t < ct1:
+                u, v = (s - c0 + 0.5) / (c1 - c0) - 0.5, (t - ct0 + 0.5) / (ct1 - ct0) - 0.5
+                d = math.hypot(u, v) * 2
+                a = (math.atan2(v, u) / (2 * math.pi) * 6) % 1.0  # six folds round it
+                if d < 0.14:
+                    shade = 72
+                elif a < 0.14 or a > 0.94:
+                    shade = 73 if k < 0.7 else 72  # a fold's edge
+                else:
+                    shade = (77 if k < 0.6 else 78 if k < 0.85 else 76) - (1 if d > 0.85 else 0)
+                px[t * LIVE_W + s] = shade
+            elif s < SKIN_W:
+                px[t * LIVE_W + s] = spent[t * SKIN_W + s]
+            else:
+                v = (t - gt0 + 0.5) / (gt1 - gt0)
+                streak = (t * 7 + (s // 5) * 3) % 4
+                shade = 9 if streak == 0 else 8 if streak < 3 else 10
+                if v < 0.08 or v > 0.92:
+                    shade -= 2
+                if k < 0.06:
+                    shade -= 2
+                px[t * LIVE_W + s] = shade
+    return bytes(px)
 
 
 def paint():
@@ -155,10 +275,17 @@ def main():
     mesh = build()
     path = os.path.join(game, "progs", "vr_shell.mdl")
     # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
-    guard = genguard.Guard("make_shell.py", [path])
+    live_path = os.path.join(game, "progs", "vr_shell_live.mdl")
+    pair_path = os.path.join(game, "progs", "vr_shell_pair.mdl")
+    guard = genguard.Guard("make_shell.py", [path, live_path, pair_path])
     mdlgen.write_mdl(path, mesh, [paint()], "shell")
     print("vr_shell.mdl: %d vertices, %d triangles -> %s" % (len(mesh.verts), len(mesh.tris), os.path.normpath(path)))
     print("  %.2f units long, rim radius %.3f units" % (LENGTH * UNITS, RIM_R * UNITS))
+    live = paint_live()
+    for p, m, name in ((live_path, build_single(), "shell_live"), (pair_path, build_pair(), "shell_pair")):
+        mdlgen.write_mdl(p, m, [live], name)
+        print("%s: %d vertices, %d triangles -> %s" % (os.path.basename(p), len(m.verts), len(m.tris),
+                                                       os.path.normpath(p)))
     guard.finish()
 
 

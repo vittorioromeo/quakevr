@@ -76,6 +76,46 @@ def shotgun(p):
     for x in (20.0, 23.6, 27.2, 30.8):
         p.box((x, 0.0, 5.7), Z, Y, X, (0.16, 0.2, 0.28), "gunmetal", key)
     p.bar((19.4, 0.0, 5.9), (31.9, 0.0, 5.9), Z, 0.5, 0.14, "gunmetal", key=key, bevel=0.05)
+    loading_port(p)
+
+
+# The shotgun's loading port (docs/vr-port/RELOAD_PLAN.md: immersive reloading, shells pushed in from below): an opening
+# under the receiver ahead of the trigger guard and behind the pump, as a pump gun's. Parts can only be added, never cut
+# (the old triangles stay): the opening is a black floor laid just under the receiver's keel (following it, a grid of
+# rays), walled in by a worn steel frame standing out of the receiver round it, deep enough to read as a hole from below; a
+# brass shell lifter shows at its back. vr_view.cpp's loadPorts table has its middle (PORT below) for the reload.
+PORT_X0, PORT_X1, PORT_HW = 11.0, 16.2, 0.78  # along the gun, and half its width
+PORT_FRAME = 0.26                              # the frame's bars: width,
+PORT_DEPTH = 0.42                              # and how far they stand out of the keel
+
+
+def loading_port(p):
+    key = p.carrier_at((13.6, 0.0, 0.9))
+
+    def under(x, y):
+        return p.hit((x, y, -10.0), Z)[0]
+
+    # The floor, a step below the keel all over the opening (5 x 3 quads), facing down.
+    xs = np.linspace(PORT_X0, PORT_X1, 6)
+    ys = np.linspace(-PORT_HW, PORT_HW, 4)
+    grid = [[under(x, y) - Z * 0.1 for y in ys] for x in xs]  # (z is stored in steps of 0.067)
+    for i in range(len(xs) - 1):
+        for j in range(len(ys) - 1):
+            p.face([grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]], -Z, "black", 0.15, key)
+    # The frame: four bars round it on the keel, standing PORT_DEPTH out (its inner faces the hole's walls).
+    h = PORT_DEPTH
+    m = PORT_FRAME / 2
+    for y in (-PORT_HW - m, PORT_HW + m):
+        a, b = under(PORT_X0 - 2 * m, y), under(PORT_X1 + 2 * m, y)
+        p.bar(a - Z * (h / 2 - 0.1), b - Z * (h / 2 - 0.1), -Z, PORT_FRAME, h, "steel", key=key, bevel=0.04,
+              levels=(0.25, 0.36))
+    for x in (PORT_X0 - m, PORT_X1 + m):
+        a, b = under(x, -PORT_HW), under(x, PORT_HW)
+        p.bar(a - Z * (h / 2 - 0.1), b - Z * (h / 2 - 0.1), -Z, PORT_FRAME, h, "steel", key=key, bevel=0.04,
+              levels=(0.25, 0.36))
+    # The shell lifter's lip at the back of the opening: a brass plate across it, half as deep as the frame.
+    a, b = under(PORT_X0 + 0.45, -PORT_HW + 0.08), under(PORT_X0 + 0.45, PORT_HW - 0.08)
+    p.bar(a - Z * 0.12, b - Z * 0.12, -Z, 0.5, 0.2, "bronze", key=key, bevel=0.03)
 
 
 def shotgun2(p):
