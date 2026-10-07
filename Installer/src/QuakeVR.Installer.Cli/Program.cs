@@ -24,7 +24,7 @@ const string Usage = """
     qvr-setup feed [--url <latest.json url>]                  (default: QVR_SETUP_FEED, else the release hosts' feeds)
     qvr-setup feed --file <latest.json> [--assets <folder with its files>]   (exit 1 when a file's size or SHA-256 differs)
     qvr-setup assets --game <id1 folder> [--map <maps/x.bsp>] [--prefix <path prefix>]
-    qvr-setup serve --dir <folder> [--port <n>] [--drop-after <bytes>] [--minutes <n>]
+    qvr-setup serve --dir <folder> [--port <n>] [--drop-after <bytes>] [--minutes <n>] [--log <file>]
                     (a local release's assets over HTTP on 127.0.0.1, with Range; --drop-after cuts each file's first
                      download there, to test resuming; runs until Ctrl+C or --minutes)
     """;
@@ -311,12 +311,25 @@ try
         {
             // A local release's assets (make_release.ps1 -Local) for the installer's real download path; 127.0.0.1 only.
             var dir = Opt("dir") ?? positional.FirstOrDefault() ?? throw new ArgumentException("--dir <folder> is required");
-            using var server = new LocalFeedServer(dir, Opt("port") is { } port ? int.Parse(port) : 0,
-                line => Console.WriteLine($"{DateTime.Now:HH:mm:ss} {line}"))
+            var logFile = Opt("log");
+            var logLock = new Lock();
+            void Log(string line)
+            {
+                line = $"{DateTime.Now:HH:mm:ss} {line}";
+                Console.WriteLine(line);
+                if (logFile is not null)
+                {
+                    lock (logLock)
+                    {
+                        File.AppendAllText(logFile, line + Environment.NewLine);
+                    }
+                }
+            }
+            using var server = new LocalFeedServer(dir, Opt("port") is { } port ? int.Parse(port) : 0, Log)
             {
                 DropAfter = Opt("drop-after") is { } drop ? long.Parse(drop) : null,
             };
-            Console.WriteLine($"serving {Path.GetFullPath(dir)} on {server.Url()} (feed: {server.Url("latest.json")}); Ctrl+C stops");
+            Log($"serving {Path.GetFullPath(dir)} on {server.Url()} (feed: {server.Url("latest.json")}); Ctrl+C stops");
             using var stop = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) =>
             {
@@ -330,7 +343,7 @@ try
             catch (OperationCanceledException)
             {
             }
-            Console.WriteLine($"stopped: {server.Requests} requests, {server.RangeRequests} with Range, {server.Drops} cut");
+            Log($"stopped: {server.Requests} requests, {server.RangeRequests} with Range, {server.Drops} cut");
             return 0;
         }
         case "shortcut-args":

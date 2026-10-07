@@ -86,9 +86,9 @@ if ($StopServer) {
 }
 
 # qvr-setup: the copy beside the release (this build's), else the repository's Release build.
-$cli = Join-Path $Release "tools\qvr-setup\qvr-setup.exe"
-if (-not (Test-Path -LiteralPath $cli)) { $cli = Join-Path $root "Installer\src\QuakeVR.Installer.Cli\bin\Release\net9.0-windows\qvr-setup.exe" }
-if (-not (Test-Path -LiteralPath $cli)) { throw "no qvr-setup.exe (dotnet build Installer\QuakeVR.Installer.sln -c Release)" }
+$qvrSetup = Join-Path $Release "tools\qvr-setup\qvr-setup.exe"
+if (-not (Test-Path -LiteralPath $qvrSetup)) { $qvrSetup = Join-Path $root "Installer\src\QuakeVR.Installer.Cli\bin\Release\net9.0-windows\qvr-setup.exe" }
+if (-not (Test-Path -LiteralPath $qvrSetup)) { throw "no qvr-setup.exe (dotnet build Installer\QuakeVR.Installer.sln -c Release)" }
 
 # ---------------------------------------------------------------------------------------------------------------------
 Step "Local server ($base)"
@@ -117,10 +117,11 @@ else {
     if ($Hidden) {
         New-Item -ItemType Directory -Force (Join-Path $Release "logs") | Out-Null
         $serverLog = Join-Path $Release "logs\server-$(Get-Date -Format yyyyMMdd-HHmmss).log"
-        $proc = Start-Process -FilePath $cli -ArgumentList $serveArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $serverLog -RedirectStandardError "$serverLog.err"
+        # (Its own --log, not -RedirectStandardOutput: a redirected child would hold this script's console pipes open.)
+        $proc = Start-Process -FilePath $qvrSetup -ArgumentList "$serveArgs --log `"$serverLog`"" -WindowStyle Hidden -PassThru
     }
     else {
-        $proc = Start-Process -FilePath $cli -ArgumentList $serveArgs -PassThru   # its own console window: the requests scroll there
+        $proc = Start-Process -FilePath $qvrSetup -ArgumentList $serveArgs -PassThru   # its own console window: the requests scroll there
     }
     $serverPid = $proc.Id
     for ($i = 0; $i -lt 50 -and (Test-Serving) -ne "this"; $i++) { Start-Sleep -Milliseconds 200 }
@@ -146,9 +147,9 @@ Say "  no Apps & Features entry; the VC++ runtime is only checked. Throw the tes
 
 if ($Cli) {
     Step "qvr-setup install --feed $feedUrl --sandbox (no window)"
-    & $cli install --feed $feedUrl --sandbox $Sandbox --relight --hd --setup-from $setup --accept-statement
+    & $qvrSetup install --feed $feedUrl --sandbox $Sandbox --relight --hd --setup-from $setup --accept-statement
     if ($LASTEXITCODE -ne 0) { throw "qvr-setup install failed (exit $LASTEXITCODE)" }
-    & $cli verify --target (Join-Path $Sandbox "QuakeVR")
+    & $qvrSetup verify --target (Join-Path $Sandbox "QuakeVR")
     if ($LASTEXITCODE -ne 0) { throw "qvr-setup verify failed" }
     return
 }
