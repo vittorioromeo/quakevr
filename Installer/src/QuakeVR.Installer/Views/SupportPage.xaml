@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:skin="clr-namespace:QuakeVR.Installer.Skin"
              xmlns:sfx="clr-namespace:QuakeVR.Installer.Audio">
-    <!-- After Play: a word from the author, and Ko-fi. Warm and confident, never a toll gate: Finish is right there. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <Grid>
             <Grid.ColumnDefinitions>
@@ -12,17 +11,17 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Margin="0,0,24,0">
-                <TextBlock Text="Keep the fires burning" Style="{StaticResource PageTitle}" FontSize="38" />
-                <TextBlock Style="{StaticResource PageSubtitle}" Text="A word from Vittorio, who made Quake VR: Unleashed." />
+                <TextBlock Text="Keep the blood flowing" Style="{StaticResource PageTitle}" FontSize="38" />
+                <TextBlock Style="{StaticResource PageSubtitle}" Text="A humble request..." />
 
                 <TextBlock Style="{StaticResource Body}" FontSize="15.5" LineHeight="23" Margin="0,22,0,0">
                     Quake VR: Unleashed is a labour of love. It took a huge amount of time and care to make, and I funded every
-                    hour of it from my own savings, because I wanted Quake in VR to feel the way I always imagined it: your
-                    hands, your body, the weight of every weapon.
+                    hour of it from my own savings, because I wanted Quake in VR to feel the way I always imagined it: immersive, visceral, and 
+					giving full freedom to the player.
                 </TextBlock>
                 <TextBlock Style="{StaticResource Body}" FontSize="15.5" LineHeight="23" Margin="0,14,0,0">
-                    It's free, and it will stay free. If it gives you a few great nights in the slipgate, a token of
-                    appreciation on Ko-fi would mean a lot: it tells me the work landed, and it helps keep the project moving.
+                    It's free and open-source, and it will stay as such. If it gives you a few great nights of slaughter, a token of
+                    appreciation on Ko-fi would mean a lot: it tells me my work was worth it, keeps me motivated, and it helps keep the project moving forward.
                 </TextBlock>
 
                 <Button Style="{StaticResource AccentButton}" Command="{Binding OpenKofiCommand}" sfx:UiSounds.Kind="Support"
@@ -36,7 +35,7 @@
                 <TextBlock Text="ko-fi.com/vittorioromeovee" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="2,8,0,0" />
 
                 <TextBlock Style="{StaticResource Small}" FontSize="14" Margin="0,26,0,0">
-                    <Run Text="Either way: thank you for playing. See you in the slipgate." />
+                    <Run Text="Either way: thank you for playing!" />
                     <LineBreak />
                     <Run Text="— Vittorio" FontFamily="{StaticResource DisplayFont}" FontSize="20" Foreground="{StaticResource Text}" />
                 </TextBlock>
