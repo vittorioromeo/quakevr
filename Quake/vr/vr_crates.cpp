@@ -567,8 +567,7 @@ void list_f()
         }
     }
     PR_PopQCVM(oldVm);
-    Con_Printf("crates: %d crates, %d pieces, %d overlapping pairs; %d over 2 units off their planned places (at most %.1f)
-", n,
+    Con_Printf("crates: %d crates, %d pieces, %d overlapping pairs; %d over 2 units off their planned places (at most %.1f)\n", n,
         pieces, overlaps, moved, placements.empty() ? 0.f : most);
 }
 
