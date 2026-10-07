@@ -222,7 +222,7 @@ void() MG3_MT_Step =
         float saws = 0;
         entity w = find(world, classname, "thrown_weapon");
         while(w) { if(w.weapon == WID_CHAINSAW) { saws = saws + 1; } w = find(w, classname, "thrown_weapon"); }
-        MG3_MT_Check(saws == 0, sprintf("no chainsaw dropped (%g)", saws));
+        MG3_MT_Check(saws == 1, sprintf("its chainsaw dropped (%g)", saws));
         mg3mt_step = 0;
         MG3_MT_Total();
         return;

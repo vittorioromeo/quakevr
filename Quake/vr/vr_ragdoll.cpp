@@ -405,8 +405,10 @@ constexpr Seed scorSeeds[] = {
 
 // Dawn of the Machine's rocket ogre (owned/mg3/progs/ogre_rocket.mdl, read from MG3's pack in place: 982 vertices, 147
 // frames in id's ogre's order: its death frames checked against Quake VR's ogre's, ROUND21.md "Dawn of the Machine (MG3):
-// monsters"). The rest pose ($stand1): x forward, y left, z up; upright, his left arm down, his rocket launcher (a box
-// and a long barrel behind him) in his right hand, kept on the hand (he does not drop it). Measured on his frames
+// monsters"). The rest pose ($stand1): x forward, y left, z up; upright, his left arm down (his rocket launcher on its
+// forearm), his chainsaw (a box and a long bar behind him) in his right hand: collapsed in his death frames (he drops
+// it: vr_monstermods.cpp), the loose bone, hidden; his right hand's bone on his fist (rig.py had it on the chainsaw).
+// Measured on his frames
 // (Misc/quakevr/ragdoll/rig.py ogre_rocket ogre_rocket_bones.json, RIG_PAK MG3's pak0.pak): clusters 1.06 units rms,
 // bones 1.19. Death frames 112-125 ($death1-14) and 126-135 ($bdeath1-10), as the ogre's.
 constexpr Seed ogreRocketSeeds[] = {
@@ -418,7 +420,7 @@ constexpr Seed ogreRocketSeeds[] = {
     {"hand_l", 4, Joint::Ball, {10.3f, 17.4f, -13.7f}, {3.1f, 17.7f, 1.7f}, {17.5f, 17.1f, -29.1f}, 0.f, 40.f, 30.f, 0.f, {}},
     {"upperarm_r", 1, Joint::Ball, {2.8f, -16.5f, 17.3f}, {3.6f, -13.5f, 21.5f}, {0.f, -20.6f, 11.3f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 6, Joint::Hinge, {0.4f, -19.7f, 7.2f}, {0.f, -20.6f, 11.3f}, {1.9f, -20.5f, 0.3f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"hand_r", 7, Joint::Ball, {-7.9f, -21.6f, -7.4f}, {1.9f, -20.5f, 0.3f}, {-17.8f, -22.7f, -15.f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"hand_r", 7, Joint::Ball, {0.2f, -20.4f, -2.f}, {1.9f, -20.5f, 0.3f}, {-0.9f, -20.6f, -5.f}, 0.f, 40.f, 30.f, 0.f, {}},
     {"thigh_l", 0, Joint::Ball, {2.9f, 6.9f, -5.8f}, {-3.2f, 5.7f, 4.4f}, {4.7f, 12.7f, -10.4f}, 4.5f, 70.f, 30.f, 0.f, {}},
     {"shin_l", 9, Joint::Hinge, {4.f, 7.4f, -20.9f}, {4.7f, 12.7f, -10.4f}, {4.f, 7.7f, -20.4f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
     {"thigh_r", 0, Joint::Ball, {1.3f, -8.6f, -10.6f}, {-0.4f, -11.6f, -2.1f}, {-2.3f, -12.8f, -19.5f}, 4.5f, 70.f, 30.f, 0.f, {}},

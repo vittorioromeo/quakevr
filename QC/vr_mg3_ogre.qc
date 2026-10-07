@@ -25,7 +25,8 @@
 // of the Machine data is there (decision 5), removed where it is not. Its class is the ogre's (as upstream: no infighting,
 // the ogre's head zone class, beheading, ragdoll settings, hulls, grapple), marked .vr_mg3_mon MG3_MON_ROCKET_OGRE. Its
 // own: its rig (vr_ragdoll.cpp ogreRocketSeeds: the model's death frames are in id's ogre's order), its head zone
-// (MG3_PositionalHead), Armagon's voice (MG3's armagon/ sounds), no chainsaw dropped (it holds a rocket launcher), and
+// (MG3_PositionalHead), Armagon's voice (MG3's armagon/ sounds), its chainsaw dropped as it dies (in its right hand,
+// hidden in its death frames and ragdoll: vr_monstermods.cpp; its launcher is on its left arm), and
 // at range a volley of two rockets instead of a grenade: led at where you will be, the second 64 units aside; a rocket
 // explodes for 40 (its blast 40), a zombie 60, a shambler 20; within 0.2 s of its launch it only stabs for 20. A pain
 // that does not take 200 x random() makes it flinch, and its pain lasts 2 s longer. Its rockets are monsters' missiles:

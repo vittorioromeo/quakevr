@@ -9,7 +9,8 @@
 //
 // The ogres drop their chainsaws likewise (QC VR_DropOgreChainsaw: v_chainsaw.mdl, made by
 // Misc/quakevr/make_chainsaw.py): Quake VR's ogre's chainsaw is hidden in its death frames ("death*" and
-// "bdeath*") by its known vertices; id's ogre (or another) is left alone. So are the grunts' shotguns and the
+// "bdeath*") by its known vertices; id's ogre (or another) is left alone; Dawn of the Machine's rocket ogre's too (MG3's
+// model, its chainsaw in his right hand). So are the grunts' shotguns and the
 // enforcers' laser rifles (QC vr_enemyguns.qc: v_gruntgun.mdl and v_enfrifle.mdl, made by
 // Misc/quakevr/make_enemyguns.py): Quake VR's soldier's and enforcer's guns, by their known vertices.
 //
@@ -182,6 +183,23 @@ const KnownSword knownSwords[] = {
          return v;
      }(),
         -1, -1},
+    // Dawn of the Machine's rocket ogre (owned/mg3/progs/ogre_rocket.mdl, read in place): the chainsaw in his right hand
+    // (a box and a long bar behind him, a piece of its own: 0..47, 649..652, 940..981), hidden in his deaths (frames
+    // unnamed, id's ogre's order: death1-14 and bdeath1-10, 112..135); he drops one (QC ogre_die), his ragdoll holds none.
+    {qvr::modelmeta::Id::Mg3OgreRocket, 982, 1367, [] {
+         za::Vector<int> v(48);
+         za::iota(v.begin(), v.end(), 0);
+         for(int i = 649; i <= 652; i++)
+         {
+             v.pushBack(i);
+         }
+         for(int i = 940; i <= 981; i++)
+         {
+             v.pushBack(i);
+         }
+         return v;
+     }(),
+        112, 135},
     // Hipnotic's gremlin: the gun he steals (its own piece, tucked inside his body but in his g* frames), hidden in his
     // deaths (death1-12, flip1-8: he drops it, gremlin_die), so his ragdoll holds none (ROUND21.md, "Ragdolls 5").
     {qvr::modelmeta::Id::Grem, 123, 245, [] {
@@ -196,7 +214,7 @@ const KnownSword knownSwords[] = {
 [[nodiscard]] const char* droppedName(const char* model)
 {
     const auto id = qvr::modelmeta::identifyPath(model);
-    if(id == qvr::modelmeta::Id::Ogre)
+    if(id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Mg3OgreRocket)
     {
         return "chainsaw";
     }
@@ -400,9 +418,11 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     }
     const bool knight = id == qvr::modelmeta::Id::Knight;
     const bool hellKnight = id == qvr::modelmeta::Id::Hknight;
-    // The ogre, the soldier and the enforcer: only Quake VR's own models (by their known vertices); the gremlin: Hipnotic's.
+    // The ogre, the soldier and the enforcer: only Quake VR's own models (by their known vertices); the gremlin: Hipnotic's;
+    // the rocket ogre: MG3's.
     const bool knownOnly = id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Soldier ||
-                           id == qvr::modelmeta::Id::Enforcer || id == qvr::modelmeta::Id::Grem;
+                           id == qvr::modelmeta::Id::Enforcer || id == qvr::modelmeta::Id::Grem ||
+                           id == qvr::modelmeta::Id::Mg3OgreRocket;
     if(!knight && !hellKnight && !knownOnly)
     {
         return;
