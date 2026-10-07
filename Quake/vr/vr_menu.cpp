@@ -4368,6 +4368,13 @@ za::Vector<Item> pageDebugProfiling()
             .help("Image files decoded once are kept for later loads up to this size (a texture pack's world textures and "
                   "material maps: QRP's E1M1 loads 0.5 s faster the second time); the least recently used go first. 0: none "
                   "kept (vr_image_cache_mb)."),
+        toggle("Campaign Switch Keeps Models", vr_campaign_keep_models)
+            .help("On: a switch of campaign (id1 to a mission pack and back) keeps the models whose files are the same in "
+                  "its folders (each file their load looked for is found the same again), instead of loading every one "
+                  "again (vr_campaign_keep_models)."),
+        command("Kept Models Info", "vr_model_keep_info")
+            .help("vr_model_keep_info: how many models the last campaign switch kept, of how many, and the time its check "
+                  "took (console)."),
         command("Decoded Image Cache Info", "vr_image_cache_info")
             .help("vr_image_cache_info: the images kept, their size, and since the start how many were found there and how many "
                   "decoded (console). vr_image_cache_clear empties it."),

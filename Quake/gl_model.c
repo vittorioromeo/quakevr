@@ -317,7 +317,7 @@ void Mod_ClearAll (void)
 
 void Mod_ResetAll (void)
 {
-	int		i;
+	int		i, kept = 0;
 	qmodel_t	*mod;
 
 	//ericw -- free alias model VBOs
@@ -325,11 +325,20 @@ void Mod_ResetAll (void)
 
 	for (i=0 , mod=mod_known ; i<mod_numknown ; i++, mod++)
 	{
+		if (VR_ModelKept (mod)) // QVR: a campaign switch keeps it, in its slot (vr_modelkeep.cpp)
+		{
+			kept = i + 1;
+			continue;
+		}
+		if (mod->type == mod_alias) // QVR: its buffers (GLMesh_DeleteVertexBuffers frees only the last map's)
+			GLMesh_DeleteVertexBuffer (mod);
 		if (!mod->needload) //otherwise Mod_ClearAll() did it already
 			TexMgr_FreeTexturesForOwner (mod);
+		VR_ModelSourcesForget (mod); // QVR
 		memset(mod, 0, sizeof(qmodel_t));
+		mod->needload = true; // QVR: an empty slot (no name: Mod_FindName gives it to the next new model)
 	}
-	mod_numknown = 0;
+	mod_numknown = kept; // QVR: up to the last kept one (none: 0, as before)
 }
 
 /*
@@ -357,11 +366,20 @@ static qmodel_t *Mod_FindName (const char *name)
 
 	if (i == mod_numknown)
 	{
-		if (mod_numknown == MAX_MOD_KNOWN)
-			Sys_Error ("mod_numknown == MAX_MOD_KNOWN");
+		// QVR: a slot emptied by a campaign switch that kept the models around it (Mod_ResetAll), else a new one
+		for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+		{
+			if (!mod->name[0])
+				break;
+		}
+		if (i == mod_numknown)
+		{
+			if (mod_numknown == MAX_MOD_KNOWN)
+				Sys_Error ("mod_numknown == MAX_MOD_KNOWN");
+			mod_numknown++;
+		}
 		q_strlcpy (mod->name, name, MAX_QPATH);
 		mod->needload = true;
-		mod_numknown++;
 	}
 
 	return mod;
@@ -397,6 +415,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 {
 	byte	*buf;
 	int		mod_type;
+	qboolean	derived, recorded; // QVR
 
 	if (!mod->needload)
 	{
@@ -421,9 +440,11 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 // load the file
 //
 	VR_ModelMetadataChanged (mod); // QVR: alias-cache eviction and explicit reload invalidate copied metadata
+	VR_ModelSourcesForget (mod); // QVR: the files it was made from (a campaign switch's check: recorded below)
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
 		return mod;
 	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
+	derived = buf != NULL; // QVR
 	if (!buf)
 		buf = COM_LoadMallocFile (VR_ModelFile (mod->name), &mod->path_id); // QVR: relit maps
 	if (!buf)
@@ -448,6 +469,11 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	mod->needload = false;
 
 	mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
+	// QVR: an alias model's load records the files it looks for, its own first (the lookup just made): a campaign switch
+	// keeps it if each is the same file again (vr_modelkeep.cpp)
+	recorded = !derived && mod_type == IDPOLYHEADER;
+	if (recorded)
+		VR_ModelSourcesBegin (mod, VR_ModelFile (mod->name));
 	switch (mod_type)
 	{
 	case IDPOLYHEADER:
@@ -481,6 +507,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		Mod_LoadBrushModel (mod, buf);
 		break;
 	}
+	if (recorded)
+		VR_ModelSourcesEnd (mod); // QVR
 
 	VR_HeapFree (buf);
 

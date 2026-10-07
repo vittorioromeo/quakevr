@@ -245,6 +245,16 @@ void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const
 void VR_BeamDrawn (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam's ends as drawn this frame: Quad Damage's arcs along it (vr_beam_arcs)
 void VR_WallTorchFlames (void);							// CL_ReadFromServer, after the temp entities: the taken wall torches' flames (vr_walltorch.cpp)
 #include "vr_modelmetadata.h" // shared model identities/traits and loader invalidation
+// A campaign switch keeps the alias models whose files are the same in its game folders (vr_modelkeep.cpp)
+void VR_ModelSourcesBegin (struct qmodel_s *mod, const char *file); // Mod_LoadModel, an alias model's: its lookups recorded (its own file, just found, first)
+void VR_ModelSourcesEnd (struct qmodel_s *mod);			// ... to its loader's end
+void VR_ModelSourcesForget (const struct qmodel_s *mod);	// its slot reloaded or emptied
+void VR_FileLookupNoted (const char *name, int found);		// COM_FindFile, while com_lookups_noted: a lookup (com_filesource, file_from_pak, com_fileoffset its file)
+void VR_ModelsKeepBefore (int campaign);				// COM_SwitchGame, before the game folders change: the palette's and colormap's files noted
+void VR_ModelsKeepDecide (void);					// ... after: the alias models every lookup of which finds the same file again, kept
+int VR_ModelKept (const struct qmodel_s *mod);			// nonzero: kept (Mod_ResetAll, Cache_FlushExcept, TexMgr_NewGame, GLMesh_DeleteVertexBuffers leave it)
+qboolean VR_ModelCacheKept (cache_user_t *c);			// Cache_FlushExcept's test: a kept model's cache entry
+void VR_ModelsKeepEnd (void);						// ... the switch done: none kept any more (their records stay)
 int VR_SyntheticModel (struct qmodel_s *mod);				// Mod_LoadModel: a model made in memory from another ("<model>#rag": a ragdoll's skinned body, vr_ragdoll.cpp); nonzero if made
 void VR_RagdollSwap (void);								// end of CL_RelinkEntities: the server's ragdolls drawn with their skinned models (vr_ragdoll.cpp)
 void VR_RagdollRestore (void);							// CL_ReadFromServer, first: their own models back before the server's messages

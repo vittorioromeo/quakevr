@@ -11,6 +11,7 @@
 #include "vr_unstick.hpp"
 #include "vr_engine.hpp"
 #include "vr_imgcache.hpp"
+#include "vr_modelkeep.hpp"
 #include "vr_imgprefetch.hpp"
 #include "vr_anchor.hpp"
 #include "vr_chainsaw.hpp"
@@ -1430,6 +1431,7 @@ extern "C" void VR_Init()
     detail::init();
     extmaps::init();
     imgcache::init();
+    modelkeep::init();
     hull::init();
     unstick::init();
     particles::init();

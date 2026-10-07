@@ -939,6 +939,23 @@ void Cache_Flush (void)
 
 /*
 ============
+Cache_FlushExcept -- QVR: Cache_Flush, but the entries `keep` accepts stay (a campaign switch's kept alias models)
+============
+*/
+void Cache_FlushExcept (qboolean (*keep) (cache_user_t *c))
+{
+	cache_system_t	*cs, *next;
+
+	for (cs = cache_head.next; cs != &cache_head; cs = next)
+	{
+		next = cs->next;
+		if (!keep (cs->user))
+			Cache_Free (cs->user, true);
+	}
+}
+
+/*
+============
 Cache_Print
 
 ============

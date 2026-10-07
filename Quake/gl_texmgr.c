@@ -925,7 +925,15 @@ TexMgr_NewGame
 */
 void TexMgr_NewGame (void)
 {
-	TexMgr_FreeTextures (0, TEXPREF_PERSIST); //deletes all textures where TEXPREF_PERSIST is unset
+	gltexture_t *glt, *next;
+
+	//deletes all textures where TEXPREF_PERSIST is unset (QVR: but a campaign switch's kept alias models', vr_modelkeep.cpp)
+	for (glt = active_gltextures; glt; glt = next)
+	{
+		next = glt->next;
+		if (!(glt->flags & TEXPREF_PERSIST) && !VR_ModelKept (glt->owner))
+			TexMgr_FreeTexture (glt);
+	}
 	TexMgr_LoadPalette ();
 }
 

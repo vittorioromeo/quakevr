@@ -28287,3 +28287,37 @@ in-headset status line's VRAM figure (sampled each second while shown, the same 
 
 The CSV: the same 103 columns, every row whole; VRAM used/total/free agree with NVX's (5236 vs 5303 MB used between two
 runs, total 24564 both).
+
+### 6. A campaign switch keeps the unchanged alias models (`vr_campaign_keep_models`, vr_modelkeep.cpp)
+
+**Why.** A campaign switch (`COM_ReloadVRGame`: id1 to Scourge of Armagon and back, a map package) rebuilds the game
+folders and Ironwail then forgets every model (`Mod_ResetAll`, `Cache_Flush`, `TexMgr_NewGame`): hip1m1 and back to
+E1M1, 450-650 ms of alias models each way, though here the folders are the same both ways (quakevr, rogue, hipnotic,
+id1: the campaign changes which start maps are skipped) and so are the files.
+
+**How.** An alias model's load records every file it looks for, found or not (`COM_FindFile` while
+`com_lookups_noted`: its .mdl, .md3/.md5mesh, each skin's external images and normal maps in every format; 10-40 a
+model): the pak, its entry's offset and length, or the loose file's path and size, with the write time. At a campaign
+switch, once the new folders are in, each lookup is made again (the directory listings cached for it,
+`VR_FileCacheEnable`); a model is kept when every one finds the same file again and the ones found nowhere are still
+found nowhere, and the palette's and colormap's files are the same (else none is kept). A kept model stays in its slot
+(`Mod_ResetAll`; the emptied slots are reused by `Mod_FindName`), its cache entry (`Cache_FlushExcept`), its textures
+(`TexMgr_NewGame`; the players' coloured skins, which it owns, are freed first: `R_FreePlayerTextures`) and its
+buffers (`GLMesh_DeleteVertexBuffers`); the VR caches holding models empty as before (`VR_OnGameDirChanged`) and are
+made again. The `game` command keeps none (it runs the new game's configuration, whose settings may load models
+otherwise). The non-kept alias models' buffers are now freed at the reset (they leaked when not in the last map's
+precache list).
+
+| `load_hip1m1` (median of 3) | base | with the image cache (5.) | after |
+|---|---|---|---|
+| back to E1M1 (the switch back) | 985 ms (alias models 647) | 556 ms (271) | **308 ms** (12) |
+| hip1m1 from the start (the first switch: nothing to keep) | 962 ms | 785 ms | 810 ms |
+| hip1m1 again | 226 ms | 183 ms | 179 ms |
+| E1M1 cold / warm / restart (`load_e1m1`, the recording's cost) | 743 / 197 / 191 | 712 / 158 / 147 | 720 / 161 / 147 |
+
+The switch's check: 103-111 models, 3851-4212 lookups, 30-55 ms (without the listings cached: 520-660 ms). Checked: hip1m1
+-> E1M1 -> hip1m1 kept 103/103 and 106/106, `vr_model_check` 0 wrong both; a file put in quakevr/ while the game ran
+(`progs/soldier.mdl_0_norm.png`, an authored normal map the grunt's load had found nowhere): the next switch kept 91 of
+92, the grunt loaded again with it; E1M1 after a switch with and without keeping, the same picture (12-13 pixels differ
+by at most 8 levels, as between two runs). `vr_model_keep_info [model]` (the last switch; a model's recorded lookups),
+Debug > Profiling and Memory: Campaign Switch Keeps Models, Kept Models Info.

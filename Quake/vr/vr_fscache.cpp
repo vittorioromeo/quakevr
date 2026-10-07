@@ -104,6 +104,11 @@ extern "C" void VR_FileCacheEnable(int on)
     dirs.clear();
 }
 
+extern "C" int VR_FileCacheEnabled()
+{
+    return enabled.loadSeqCst() ? 1 : 0;
+}
+
 extern "C" void VR_FileCacheForget()
 {
     if(za::ThisThread::getId() != owner)

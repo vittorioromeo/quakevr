@@ -379,6 +379,7 @@ void GLMesh_DeleteVertexBuffers (void)
 	{
 		if (!(m = cl.model_precache[j])) break;
 		if (m->type != mod_alias) continue;
+		if (VR_ModelKept (m)) continue; // QVR: a campaign switch keeps it (vr_modelkeep.cpp)
 		
 		GL_DeleteBuffersFunc (1, &m->meshvbo);
 		m->meshvbo = 0;

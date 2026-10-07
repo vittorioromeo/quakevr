@@ -1809,6 +1809,8 @@ int		com_numbasedirs;
 char	com_nightdivedir[MAX_OSPATH];
 char	com_userprefdir[MAX_OSPATH];
 THREAD_LOCAL int	file_from_pak;		// ZOID: global indicating that file came from a pak
+THREAD_LOCAL long long	com_fileoffset;		// QVR: where the last file found starts in its pak (0: a file of its own)
+int	com_lookups_noted;			// QVR: each lookup told to VR_FileLookupNoted (a model's load recording its files)
 
 searchpath_t	*com_searchpaths;
 searchpath_t	*com_base_searchpaths;
@@ -2002,7 +2004,18 @@ If neither of file or handle is set, this
 can be used for detecting a file's presence.
 ===========
 */
+static int COM_FindFileRun (const char *filename, int *handle, FILE **file, unsigned int *path_id);
+
 static int COM_FindFile (const char *filename, int *handle, FILE **file,
+							unsigned int *path_id)
+{
+	int ret = COM_FindFileRun (filename, handle, file, path_id);
+	if (com_lookups_noted) // QVR: a model's load records the files it looked for (vr_modelkeep.cpp: a campaign switch keeps it)
+		VR_FileLookupNoted (filename, ret != -1);
+	return ret;
+}
+
+static int COM_FindFileRun (const char *filename, int *handle, FILE **file,
 							unsigned int *path_id)
 {
 	searchpath_t	*search;
@@ -2015,6 +2028,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 
 	file_from_pak = 0;
 	com_filesource[0] = 0;
+	com_fileoffset = 0; // QVR
 
 	{ // QVR: "owned/<folder>/<path>": an owned expansion's file read in place, not mounted (vr_gamedir.cpp)
 		char owned[MAX_OSPATH];
@@ -2073,6 +2087,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 				// found it!
 				q_strlcpy(com_filesource, pak->filename, sizeof(com_filesource));
 				com_filesize = pak->files[i].filelen;
+				com_fileoffset = pak->files[i].filepos; // QVR
 				file_from_pak = 1;
 				if (path_id)
 					*path_id = search->path_id;
@@ -2786,20 +2801,24 @@ static void COM_SwitchGameInternal (const char *paths, qboolean vrCampaign)
 	// stop parsing map files before changing file system search paths
 	ExtraMaps_Clear ();
 
+	VR_ModelsKeepBefore (vrCampaign); // QVR: a campaign switch keeps the alias models whose files stay the same
 	COM_ResetGameDirectories(paths);
+	VR_ModelsKeepDecide (); // QVR: ... decided now, in the new folders (vr_modelkeep.cpp)
 
 	//clear out and reload appropriate data
-	Cache_Flush ();
+	Cache_FlushExcept (VR_ModelCacheKept); // QVR: Cache_Flush but the kept models'
 	Mod_ResetAll();
 	Sky_ClearAll();
 	if (!isDedicated)
 	{
+		R_FreePlayerTextures (); // QVR: (their owner, the player's model, may be kept)
 		TexMgr_NewGame ();
 		Draw_NewGame ();
 		R_NewGame ();
 		BGM_Stop ();
 	}
 	VR_OnGameDirChanged (); // QVR
+	VR_ModelsKeepEnd (); // QVR
 	ExtraMaps_Init ();
 	Host_Resetdemos ();
 	DemoList_Rebuild ();

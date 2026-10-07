@@ -414,6 +414,8 @@ extern	char	com_gamedir[MAX_OSPATH];
 extern	char	com_nightdivedir[MAX_OSPATH];
 extern THREAD_LOCAL char com_filesource[MAX_OSPATH]; // exact last resolved root/archive, including duplicate basedirs
 extern	THREAD_LOCAL int	file_from_pak;	// global indicating that file came from a pak
+extern	THREAD_LOCAL long long	com_fileoffset;	// QVR: where the last file found starts in its pak (0: a file of its own)
+extern	int	com_lookups_noted;	// QVR: each lookup told to VR_FileLookupNoted (vr_modelkeep.cpp)
 
 void COM_WriteFile (const char *filename, const void *data, int len);
 qboolean COM_WriteFile_OSPath (const char *filename, const void *data, size_t len);

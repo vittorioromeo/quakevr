@@ -406,6 +406,7 @@ extern float r_matproj[16];
 extern float r_matviewproj[16];
 
 void R_NewGame (void);
+void R_FreePlayerTextures (void); // QVR: the players' coloured skins freed (a campaign switch)
 
 #define LIGHT_TILES_X			32
 #define LIGHT_TILES_Y			16

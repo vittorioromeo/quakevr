@@ -493,6 +493,24 @@ void R_NewGame (void)
 
 /*
 =============
+R_FreePlayerTextures -- QVR: the players' coloured skins freed before TexMgr_NewGame (it keeps a kept player model's
+textures, and these are made again on demand)
+=============
+*/
+void R_FreePlayerTextures (void)
+{
+	int i;
+
+	for (i = 0; i < MAX_SCOREBOARD; i++)
+	{
+		if (playertextures[i])
+			TexMgr_FreeTexture (playertextures[i]);
+		playertextures[i] = NULL;
+	}
+}
+
+/*
+=============
 R_ParseWorldspawn
 
 called at map load
