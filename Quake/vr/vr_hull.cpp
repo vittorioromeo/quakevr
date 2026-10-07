@@ -1634,6 +1634,26 @@ public:
         return id;
     }
 
+    // (A builder on the pool) the asked plane answered as `as` (the table's plane of those very values, added if none):
+    // logged as asked.
+    int planeAs(const glm::dvec3& n, double d, const mplane_t& as)
+    {
+        const long long k = key(as.dist);
+        int id = -1;
+        for(long long kk = k - 1; kk <= k + 1 && id < 0; ++kk)
+        {
+            id = findSame(kk, as);
+        }
+        if(id < 0)
+        {
+            planes_->pushBack(as);
+            id = static_cast<int>(count()) - 1;
+            (*index_)[k].pushBack(id);
+        }
+        log_->pushBack(PlaneAsk{n, d, id});
+        return id;
+    }
+
     // The planes added since the table had `to` let go (the last first; the tree's builder only).
     void rollback(za::SizeT to)
     {
@@ -1649,7 +1669,9 @@ public:
     }
 
     // A brush grown by the box as a piece (false: nothing left of it).
-    bool grow(const Brushes& b, const Brush& br, const glm::dvec3& ext, Frag& out)
+    // given (growAllOnPool): the planes the table will answer for its brush's planes, found beforehand (a builder on
+    // the pool takes those for its cuts, so they are the build on one thread's).
+    bool grow(const Brushes& b, const Brush& br, const glm::dvec3& ext, Frag& out, const mplane_t* given = nullptr)
     {
         const glm::dvec3 pad = br.clip ? glm::dvec3{2.0} : ext + 2.0;
         Poly p = boxPoly(glm::dvec3{br.mins} - pad, glm::dvec3{br.maxs} + pad), front, back;
@@ -1657,7 +1679,7 @@ public:
         {
             const Plane& q = b.planes[br.first + i];
             const glm::dvec3 n0{q.normal};
-            const int tag = plane(n0, q.dist + support(q, ext));
+            const int tag = given ? planeAs(n0, q.dist + support(q, ext), given[i]) : plane(n0, q.dist + support(q, ext));
             glm::dvec3 n;
             double d;
             oriented(tag, n0, n, d);
@@ -1820,6 +1842,33 @@ private:
             // qbsp's epsilons (a normal's components, not their dot: far from the origin a small turn is far off)
             if(za::abs(p.dist - d) < 0.01 && za::abs(p.normal[0] - n.x) < 1e-5 && za::abs(p.normal[1] - n.y) < 1e-5 &&
                 za::abs(p.normal[2] - n.z) < 1e-5)
+            {
+                return id;
+            }
+        }
+        return -1;
+    }
+
+    // The first plane of the key's with these values (base's first), else -1.
+    int findSame(long long kk, const mplane_t& as) const
+    {
+        if(base_)
+        {
+            if(const int id = base_->findSame(kk, as); id >= 0)
+            {
+                return id;
+            }
+        }
+        const auto found = index_->find(kk);
+        if(found == index_->end())
+        {
+            return -1;
+        }
+        for(const int id : found->second)
+        {
+            const mplane_t& p = planeAt(id);
+            if(p.normal[0] == as.normal[0] && p.normal[1] == as.normal[1] && p.normal[2] == as.normal[2] &&
+                p.dist == as.dist && p.type == as.type && p.signbits == as.signbits)
             {
                 return id;
             }
@@ -2289,6 +2338,156 @@ int emit(TreeBuilder& tb, Unit& u, Merge& m)
     return node;
 }
 
+jobs::Site growSite{"hull grow"}; // (its parallelFor: vr_jobs_sites)
+
+// The brushes grown by the box into pieces (in list's order, into frags) as tb.grow on one thread grows them, but on the
+// pool: runs of growRun brushes, each run grown by a builder over tb's table as it is (only read meanwhile), with planes
+// of its own and every ask logged. Then, brush by brush in list's order, its asks are put to tb's table as on one thread:
+// if every answer is a plane of the same values as the run's answer (so its cuts were the same), its piece is taken, its
+// faces' planes renumbered to the table's; else (a nearly equal plane added before it by a brush the run did not see)
+// what its asks added is taken back out and the brush grown again here. vrstart2's 33k brushes a tree: 1.5 s on one
+// thread.
+constexpr za::SizeT growRun = 256;
+
+// The same plane in value (a zero's sign aside: a plane first asked for facing the other way is stored negated, -0 in
+// its zero components; every cut made with either is the same).
+bool sameValues(const mplane_t& a, const mplane_t& b)
+{
+    return a.normal[0] == b.normal[0] && a.normal[1] == b.normal[1] && a.normal[2] == b.normal[2] && a.dist == b.dist &&
+           a.type == b.type && a.signbits == b.signbits;
+}
+
+void growAllOnPool(TreeBuilder& tb, const Brushes& b, const za::Vector<const Brush*>& list, const glm::dvec3& ext,
+    Frags& frags)
+{
+    struct Run
+    {
+        za::Vector<mplane_t> planes;
+        za::Vector<mclipnode_t> nodes; // (unused: a builder's)
+        int solid = 0, empty = 0;
+        za::Vector<PlaneAsk> log;
+        Frags frags;
+        za::Vector<za::U32> logStart; // [brush of the run]: its first ask in log (and one past the last's)
+        za::Vector<int> fragOf;       // [brush of the run]: its piece in frags, or -1 (nothing left of it)
+        za::Vector<int> rebounded;    // [brush of the run]: its pieces cut back (bounded)
+        za::Vector<int> map;          // its planes' numbers in tb's table (-1: not yet)
+    };
+    const za::SizeT baseCount = tb.count();
+    // The planes the table gives the brushes' own planes (the most of its asks), asked in list's order of a builder over
+    // tb, as on one thread: the runs cut with these, so a brush's cuts are mostly the build on one thread's even where a
+    // brush before it, in another run, added a nearly equal plane first (most of vrstart2's brushes: its terrain's
+    // prisms share their sides' planes to within the table's epsilons).
+    za::Vector<za::U32> givenStart;
+    za::Vector<mplane_t> given;
+    {
+        za::Vector<mplane_t> planes;
+        za::Vector<mclipnode_t> nodes;
+        int solid = 0, empty = 0;
+        za::Vector<PlaneAsk> log;
+        TreeBuilder pb{tb, planes, nodes, solid, empty, log};
+        givenStart.reserve(list.size() + 1);
+        for(const Brush* br : list)
+        {
+            givenStart.pushBack(static_cast<za::U32>(given.size()));
+            for(za::U32 i = 0; i < br->count; ++i)
+            {
+                const Plane& q = b.planes[br->first + i];
+                given.pushBack(pb.planeAt(pb.plane(glm::dvec3{q.normal}, q.dist + support(q, ext))));
+            }
+        }
+        givenStart.pushBack(static_cast<za::U32>(given.size()));
+    }
+    za::Vector<Run> runs((list.size() + growRun - 1) / growRun);
+    jobs::parallelFor(growSite, runs.size(), 1,
+        [&](za::SizeT begin, za::SizeT end)
+        {
+            for(za::SizeT r = begin; r < end; ++r)
+            {
+                Run& run = runs[r];
+                TreeBuilder lb{tb, run.planes, run.nodes, run.solid, run.empty, run.log};
+                const za::SizeT last = za::min(list.size(), (r + 1) * growRun);
+                for(za::SizeT i = r * growRun; i < last; ++i)
+                {
+                    run.logStart.pushBack(static_cast<za::U32>(run.log.size()));
+                    const int before = lb.rebounded;
+                    Frag f;
+                    if(lb.grow(b, *list[i], ext, f, given.data() + givenStart[i]))
+                    {
+                        run.fragOf.pushBack(static_cast<int>(run.frags.size()));
+                        run.frags.pushBack(ZA_MOVE(f));
+                    }
+                    else
+                    {
+                        run.fragOf.pushBack(-1);
+                    }
+                    run.rebounded.pushBack(lb.rebounded - before);
+                }
+                run.logStart.pushBack(static_cast<za::U32>(run.log.size()));
+            }
+        });
+    za::Vector<za::SizeT> touched; // (a brush's) the run's planes it gave numbers to
+    for(za::SizeT r = 0; r < runs.size(); ++r)
+    {
+        Run& run = runs[r];
+        run.map.clear();
+        run.map.resize(run.planes.size(), -1);
+        for(za::SizeT k = 0; k + 1 < run.logStart.size(); ++k)
+        {
+            const za::SizeT saved = tb.count();
+            touched.clear();
+            bool same = true;
+            for(za::U32 q = run.logStart[k]; q < run.logStart[k + 1] && same; ++q)
+            {
+                const PlaneAsk& a = run.log[q];
+                const int got = tb.plane(a.n, a.d);
+                const auto id = static_cast<za::SizeT>(a.id);
+                const mplane_t& had = id < baseCount ? tb.planeAt(a.id) : run.planes[id - baseCount];
+                same = sameValues(tb.planeAt(got), had);
+                if(same && id >= baseCount)
+                {
+                    int& to = run.map[id - baseCount];
+                    if(to < 0)
+                    {
+                        to = got;
+                        touched.pushBack(id - baseCount);
+                    }
+                    same = to == got;
+                }
+            }
+            const Brush& br = *list[r * growRun + k];
+            if(!same)
+            {
+                tb.rollback(saved);
+                for(const za::SizeT p : touched)
+                {
+                    run.map[p] = -1;
+                }
+                Frag f;
+                if(tb.grow(b, br, ext, f))
+                {
+                    frags.pushBack(ZA_MOVE(f));
+                }
+                continue;
+            }
+            tb.rebounded += run.rebounded[k];
+            if(run.fragOf[k] < 0)
+            {
+                continue;
+            }
+            Frag& f = run.frags[static_cast<za::SizeT>(run.fragOf[k])];
+            for(Face& face : f.poly)
+            {
+                if(face.tag >= 0 && static_cast<za::SizeT>(face.tag) >= baseCount)
+                {
+                    face.tag = run.map[static_cast<za::SizeT>(face.tag) - baseCount];
+                }
+            }
+            frags.pushBack(ZA_MOVE(f));
+        }
+        mem::release(run.frags);
+    }
+}
+
 // The tree of one model (sub), built into t (its root: a node; a lone leaf gets a node of its own). Only t is written:
 // trees for different boxes are built at once on the pool (report false there: the pieces cut back are returned, for
 // the main thread to print). On the pool (vr_jobs_parallel) unless watching (vr_hull_leafdebug).
@@ -2328,7 +2527,7 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch 
     if(!watch && jobs::parallel() && jobs::pool())
     {
         Merge m;
-        growAll();
+        growAllOnPool(tb, b, list, ext, frags);
         Unit top;
         speculate(top, tb, ZA_MOVE(frags), shareDepth);
         m.start = tb.count();
