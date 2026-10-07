@@ -27567,3 +27567,19 @@ near. The FGD's default is -1. A map that set `tip_delay 0` meaning the player's
 on `tiptest` with `vr_tips_delay 3`, a tip with `tip_delay 0`, one with `-1`, one without the key, each 30 frames
 near then 400 more: before, none was seen after 30 frames; after, `tip_delay 0` shows within the 30 frames
 (`tips: "d0"`, `seen`) and the other two still only after the player's 3 s.
+
+## Test runs: quit with no map, and kit fixes (2026-10-07)
+
+A test script with no map loaded (`wait5; toggleconsole; quit`) or after `menu_vr dump` hung at its end until the
+kit's 120 s timeout. Without a map the console is up (forced); `toggleconsole` closed it, so `quit` (Host_Quit_f, not
+from the console) opened the quit confirmation, which waited for a key forever; `menu_vr` left the VR menu with the
+keys the same way. `quit` now quits at once in a test run (`QVR_TEST_BACKGROUND`: the kit's run.ps1 and the motion
+review's child copies set it); a player's quit outside the console still asks. Proved headless: the three scripts
+(`wait5;toggleconsole;quit`, `menu_vr dump` then `quit`, and with `toggleconsole`) went from TIMEOUT to `exit=0` in
+2-3 s; e1m1 with `toggleconsole;quit` still `exit=0`.
+
+The kit's side (outside git; kit/README.md): eval.sh skips canary takes missing from the motions folder and runs the
+rest (it failed on the first missing one), never counts `eval_status.csv` as a take, and prints `0 takes` when there
+are none; run.sh `-Debug` runs the Debug build (`build.sh <name> --debug`; TESTING.md, "Debug build assertions");
+`-Instance k` handles an `id1/maps` that `bench_maps.ps1` made a real folder; `quakevr/tips_seen.txt` is put back
+after each run as `ironwail.cfg` is; a relative `-Out` lands in the worktree's `scratch/`.

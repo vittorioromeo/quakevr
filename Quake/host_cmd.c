@@ -45,7 +45,10 @@ Host_Quit_f
 */
 void Host_Quit_f (void)
 {
-	if (key_dest != key_console && cls.state != ca_dedicated)
+	// QVR: an automated test run (the kit's run.ps1, the motion review's child copies: QVR_TEST_BACKGROUND) quits at
+	// once; the confirmation would wait for a key forever where a script closed the console or opened a menu (no map
+	// loaded: "toggleconsole" closes the console that was up; "menu_vr ...").
+	if (key_dest != key_console && cls.state != ca_dedicated && !getenv ("QVR_TEST_BACKGROUND"))
 	{
 		M_Menu_Quit_f ();
 		return;

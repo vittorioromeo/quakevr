@@ -916,6 +916,10 @@ Crash reports (ROUND21.md, "clang-cl"): in a test run (`QVR_NO_ERROR_DIALOG`, wh
 and run.sh prints it as `ENGINE CRASH`. `vr_debug_crash` (an access violation) or `vr_debug_crash abort` crashes on
 purpose, to check it (Debug > Profiling and Memory > Crash the Game).
 
+`quit` in a test run (`QVR_TEST_BACKGROUND`, which the kit sets) quits at once, whatever has the keys: without a map
+the console is up, so a script's `toggleconsole` closed it and `quit` opened the quit confirmation and waited there
+until the kit's timeout (so did `quit` after `menu_vr ...`). A player's `quit` outside the console still asks.
+
 Menus (ROUND21.md, "Menu: scroll memory and shortcuts"): `menu_vr pos` prints the menu shown and, on a VR page, its
 selected row (with the header above it), its scroll and the page Back goes to. While a drop-down list is open (ROUND21.md, "Drop-down lists in the VR menus") a second line gives its row, highlighted choice, scroll and box (menu coordinates, for `vr_mock_laser`). `menu_vr recent [clear]` prints Search's recent list (SRECENT lines, each row's middle in menu coordinates while Search is shown) or clears it (quakevr/search_recent.txt). `menu_vr list`: every page's number
 and place in the tree. `menu_vr dump` prints every page reached from VR Settings and its rows (MDPAGE/MDROW lines);
@@ -1712,7 +1716,10 @@ trust. Run it with `SDL_ASSERT=abort` in the environment (the kit's run.ps1 sets
 quit` and `map start; wait200; map e1m1; wait30; impulse 9; vr_flashlight 1; wait200; quit`: `exit=0` each. Exit 42
 means an assertion: put a `Sys_Error` before the suspect `SDL_assert` (its message lands in `qvr_error.txt`) to see
 which. warden's lit water used to fail `num_instances > 0` in R_AddBModelCall (ROUND21.md, "Zero-instance water
-calls").
+calls"). The kit runs it with `bash <kit>/build.sh <name> --debug` (QC and the Debug engine; MSBuild's log in the
+worktree's `scratch/build_debug.log`), then `bash <kit>/run.sh <name> -Debug -Script "..."`: the same run as Release's
+(SDL_ASSERT=abort set, as for every run), and an assertion prints as `exit=42 (an SDL assertion failed ...)`. Its
+console shows OpenGL's debug messages (`GL api error ...`), so filter on `ENGINE|exit=|TIMEOUT` rather than `rror`.
 
 
 ## Slipgate and melee regression fixtures (2026-10-04)
