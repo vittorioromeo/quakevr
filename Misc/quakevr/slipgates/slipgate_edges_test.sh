@@ -1,0 +1,96 @@
+#!/bin/bash
+# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|all]: headless checks of the slipgate edge cases in
+# vrslipgates (ROUND21.md, "Slipgates: exits on their gates, props through, held objects, the force grab's beam"), with
+# the agent kit (C:/OHWorkspace/qvr-kit). Each section prints one line or a few, with what it must say.
+#   clip   a crate resting where a gate's exit used to stand (48 out of the north gallery's wall), paired exits off and
+#          on: never drawn cut (0 frames); one straddling the flush player gate: cut (a positive control)
+#   push   a small crate slid at 250 u/s, and kept sliding at 60 u/s (a steady push), into the 8-deep flush player gate;
+#          the big crate at 60 u/s through the player, 48-deep large and wide gates: each ends in the north room (y > 928)
+#   held   a shells box held 16 units ahead, walked into the flush player gate: its middle (in the room it is in) frame
+#          by frame, the largest step (a few units: the walk's frame pacing) and frames drawn whole inside the wall (0)
+#   cross  the player walked into the flush player gate: where he is carried from and to (640 -> 928: its face onto
+#          the other gate's face) and his largest step a tick across the crossing
+#   grab   a health box in the north gallery aimed at from the south one through the flush large gate: the force
+#          grab's beam ends at the box's image (y 712), not at the box (y 1000)
+#   cull   a full-size shells box half through T's north gate, seen from U with the entrance behind the camera: the
+#          pixels its half out of U's gate makes (thousands; 0 when brush props were culled by their own place)
+AGENT=${1:?agent}; WHAT=${2:-all}
+KIT=C:/OHWorkspace/qvr-kit
+HERE=$(cd "$(dirname "$0")" && pwd)
+TREE=$(cd "$HERE/../../.." && pwd -W)
+LOG=$KIT/bases/$AGENT/qbase/qconsole.log
+PY=python; for p in /c/Python313/python python3; do "$p" -c "import PIL" 2>/dev/null && PY=$p && break; done
+mkdir -p "$TREE/scratch"
+run() { bash $KIT/run.sh $AGENT "$@" > /dev/null; }
+START="developer 1;map vrslipgates;wait60;god;notarget"
+want() { [ "$WHAT" = "$1" ] || [ "$WHAT" = all ]; }
+
+# The last place of entity 221 (the first thing spawned) in vr_portals_debug_split's lines: its middle's y.
+lastY() { grep -E "^portal split: frame [0-9]+ ent 221 " "$LOG" | tail -1 | awk '{for (i = 1; i < NF; i++) if ($i == "middle") print $(i+2)}'; }
+
+if want clip; then
+    for pe in 0 1; do
+        run -Script "$START;vr_slipgate_pair_exits $pe;setpos 352 1032 24 0 270 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 56;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
+        echo "clip: pair exits $pe: a crate resting 48 out of a gate drawn cut in $(grep -c 'ent 221 .*cut by the plane' "$LOG") frames (0)"
+    done
+    run -Script "$START;setpos -256 600 24 0 90 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 40;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
+    echo "clip: a crate straddling the flush player gate drawn cut in $(grep -c 'ent 221 .*cut by the plane' "$LOG") frames (every frame: over 0)"
+fi
+
+if want push; then
+    slide() { # slide <spawn> <x> <speed> <flings>: from 64 units in front of FA's gate at x, kept at speed
+        local S="$START;setpos $2 536 24 0 90 0;wait5;noclip 0;vr_test_spawn $1;vr_test_spawn_dist 40;impulse 241;wait30;setpos $2 336 24 0 90 0;wait5;vr_portals_debug_split 221"
+        for i in $(seq 1 $4); do S="$S;vr_physics_fling 221 $3 90;wait3"; done
+        run -Script "$S;wait60;toggleconsole;quit"
+        echo "push: $( [ $1 = 107 ] && echo small || echo big ) crate at $3 u/s ($4 pushes) into the gate at x $2: ends at y $(lastY) (> 928: through)"
+    }
+    slide 107 -256 250 1; slide 107 -256 60 60; slide 108 -256 60 60; slide 108 0 60 60; slide 108 352 60 60
+fi
+
+if want held; then
+    S="$START;setpos -256 560 24 0 90 0;wait5;noclip 0;vr_mock_hand main 0.15 1.25 -0.40 0 0 0;wait20;+grabright;vr_mock_button main grip 1;wait5;vr_test_spawn 101;vr_test_spawn_hold 1;impulse 241;wait30;vr_portals_debug_split -1;vr_mock_stick off 0 0.5"
+    for i in $(seq 1 50); do S="$S;wait2"; done
+    run -Script "$S;toggleconsole;quit"
+    "$PY" - "$LOG" <<'PYEOF'
+import re, sys
+pts = []
+for l in open(sys.argv[1], errors='replace'):
+    m = re.match(r'portal split: frame (\d+) ent 221 \S* ?at (\S+) (\S+) (\S+) (.*) middle (\S+) (\S+) (\S+)', l)
+    if m: pts.append((int(m.group(1)), [float(v) for v in m.group(2, 3, 4)], m.group(5).startswith('whole'), [float(v) for v in m.group(6, 7, 8)]))
+d = lambda a, b: sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+# each step: the smaller of the drawn place's (jumps when the player is carried) and the middle's in its room (jumps
+# when the middle crosses a plane); a hitch moves both
+steps = [(b[0], min(d(a[1], b[1]), d(a[3], b[3]))) for a, b in zip(pts, pts[1:]) if b[0] == a[0] + 1]
+inwall = sum(1 for p in pts if p[2] and 640 < p[3][1] < 928)
+big = max(steps, key=lambda s: s[1]) if steps else (0, 0)
+print(f"held: {len(pts)} frames, the largest step {big[1]:.1f} units (frame {big[0]}), drawn whole inside the wall {inwall} (0), ends at y {pts[-1][3][1] if pts else 0:.0f} (> 928)")
+PYEOF
+fi
+
+if want cross; then
+    S="$START;setpos -256 576 24 0 90 0;wait5;noclip 0;wait5;vr_mock_stick off 0 1"
+    for i in $(seq 1 30); do S="$S;wait1;viewpos"; done
+    run -Script "$S;toggleconsole;quit"
+    from=$(grep -o "carried edict 1 through side [0-9]*: .*" "$LOG" | head -1 | cut -d: -f2)
+    step=$(awk -F'[()]' '/^Player pos:/ {split($2, p, " "); if (n++) {dy = p[2] - y; if (dy > 200) dy -= 288; if (dy < 0) dy = -dy; if (dy > m) m = dy} y = p[2]} END {print m}' "$LOG")
+    echo "cross: carried$from (-256 640 24 -> -256 928 24, a few units on: the face onto the other gate's face); the largest step a tick across it, less the gates' 288: $step units (a walk's 4-6)"
+fi
+
+if want grab; then
+    run -Script "$START;setpos 0 940 24 0 90 0;wait5;noclip 0;vr_test_spawn 100;vr_test_spawn_dist 60;impulse 241;wait30;setpos 0 590 24 0 90 0;wait5;noclip 0;vr_mock_hand main 0.000 1.300 -0.450 56 0 0;wait10;vr_portals_debug_split 1;+attack;wait3;vr_portals_debug_split 0;-attack;toggleconsole;quit"
+    echo "grab: $(grep 'force grab beam' "$LOG" | head -1) (to y 712, its image; its middle y 1000)"
+fi
+
+if want cull; then
+    for sp in 1 0; do
+        SPAWN="vr_test_spawn 101;vr_test_spawn_dist 76;impulse 241"; [ $sp = 0 ] && SPAWN="wait1"
+        bash $KIT/run.sh $AGENT -Clean -Out "slipgate_cull_$sp.png" -Script "vr_forcegrabbable_box_scale 1;map vrslipgates;wait60;god;notarget;setpos -1280 690 24 0 90 0;wait5;noclip 0;$SPAWN;wait60;setpos -1040 1408 24 0 0 0;wait5;noclip 0;vr_mirror 2;vr_window_view 0;vr_mock_look 10 0;wait20;screenshot;wait5;toggleconsole;quit" > /dev/null
+    done
+    "$PY" - "$TREE/scratch" <<'PYEOF'
+import sys
+from PIL import Image, ImageChops
+a = Image.open(sys.argv[1] + '/slipgate_cull_1.png').convert('RGB'); b = Image.open(sys.argv[1] + '/slipgate_cull_0.png').convert('RGB')
+d = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 24 else 0)
+print(f"cull: the box's half out of the exit makes {d.histogram()[255]} pixels (thousands; 0: culled)")
+PYEOF
+fi

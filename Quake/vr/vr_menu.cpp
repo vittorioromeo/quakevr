@@ -5890,6 +5890,14 @@ za::Vector<Item> pageDebugTests()
         command("To the Heights and Water", "setpos -400 -960 24 0 180 0; noclip")
             .help("In vrslipgates: facing the floor-level gate that comes out over the 128-high platform; the pool's two "
                   "gates are in the east and south walls."),
+        command("Slide A Crate Through", "map vrslipgates; wait60; setpos -256 536 24 0 90 0; wait5; noclip 0; vr_test_spawn 107; vr_test_spawn_dist 40; impulse 241; wait30; vr_physics_fling nearest 250 90")
+            .help("In vrslipgates: a small crate slid along the floor into the flush player gate (8 deep, a wall right "
+                  "behind it): it goes through and comes out of the north gallery's gate (it stopped against the wall "
+                  "behind the sheet before Box3D's level contacts were clipped at the gate)."),
+        toggle("Print Gate Cuts", "vr_portals_debug_split")
+            .help("vr_portals_debug_split 1: each frame, every entity drawn cut by a slipgate (where, the plane, how far "
+                  "through), the force grab's beam end, and each thrown or rigid thing's middle and why a gate did not "
+                  "take it. -1 (console) also follows the main hand's held object, a number that entity, every frame."),
         header("Visibility: Hidden Staircase"),
         command("Hidden Staircase Probe", "map start; wait120; setpos 278 1728 24 7 -20 0; wait60; vr_hull_leafdebug")
             .help("Places the player at the reported staircase spot. setpos enables noclip; turn it off before "
