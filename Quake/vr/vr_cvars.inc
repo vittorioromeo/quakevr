@@ -459,9 +459,9 @@ QVR_CVAR(vr_melee_pommel_wait, "0.05", CVAR_ARCHIVE)  // s a pommel's (a handle'
 // what it holds pass through the monsters' drawn models instead of being drawn stopped at their surface (Hands Stop at
 // Models, vr_model_collide); the walls and the things lying about still stop them. Drawn only, as that stop is: the blow
 // is the tracked hand's either way (QC vr_melee.qc), so the weapon is drawn where the blow is tested.
-QVR_CVAR(vr_melee_phase, "0", CVAR_ARCHIVE)          // 1: on; 0: the hand is drawn stopped at a monster however fast it goes (as before)
-QVR_CVAR(vr_melee_phase_speed, "2.25", CVAR_ARCHIVE) // m/s the hand (its grip, relative to the play space) goes at from which it passes through (2.25: the least speed of any blow, a stab's: 0.75 x vr_melee_speed 3)
-QVR_CVAR(vr_melee_phase_time, "0.15", CVAR_ARCHIVE)  // s it still passes through after it slowed below that (the follow-through); then it is eased back out of the model over about 0.2 s, not snapped
+QVR_CVAR(vr_melee_phase, "1", CVAR_ARCHIVE)          // 1: on (the author's, 2026-10-07); 0: the hand is drawn stopped at a monster however fast it goes (as before)
+QVR_CVAR(vr_melee_phase_speed, "4", CVAR_ARCHIVE) // m/s the hand (its grip, relative to the play space) goes at from which it passes through (the author's 4; 2.25: the least speed of any blow, a stab's: 0.75 x vr_melee_speed 3)
+QVR_CVAR(vr_melee_phase_time, "0.35", CVAR_ARCHIVE)  // s it still passes through after it slowed below that (the follow-through); then it is eased back out of the model over about 0.2 s, not snapped
 QVR_CVAR(vr_melee_phase_hold, "1", CVAR_ARCHIVE)     // 1: also a gun and a prop held in one hand (swung as clubs); 0: only fists and the melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)
 QVR_CVAR(vr_melee_butt_run, "0.45", CVAR_ARCHIVE)   // m a gun's grip must have come towards a butt strike within 0.3 s (a gun wiggled spins in place, its butt fast: 0.34 at most; the author's butt strikes 0.54-0.73; 0.2: as every blow)
 QVR_CVAR(vr_gunyaw, "4", CVAR_ARCHIVE)

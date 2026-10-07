@@ -30314,3 +30314,17 @@ of it (a missile or not still judged on the hand's speed). A gib let go of while
 VR_Burn_LavaFrame (every 0.2 s): a crate, a barrel or an uncharred piece whose bottom is in lava is lit there
 (VR_BURN_LAVA), and burns on in it (VR_Burn_Think puts fires out in water and slime only, for wood). vr_burn_lava 1. A
 crate and a barrel dropped into e1m7's lava: lit at once, burnt through at 12 s, charred pieces.
+
+## Swing Through Enemies on by default (2026-10-08)
+
+The author's note (vrfiringrange 23-52-45): "Make the new melee settings the defaults. I enabled Swing Through Enemies to
+make melee feel more responsive." His config against the effective defaults (`vr_cvars.inc` plus `vr_defaults.cfg`),
+every melee and combat setting (`vr_melee_*`, `vr_bash*`, `vr_shove*`, `vr_parry*`, `vr_headbutt*`, `vr_decap*`,
+`vr_knockdown*`, `vr_stamina*`, `vr_gore*`...): only the three phasing settings differ, all promoted (config version
+102, each moved only where a config still holds the old default):
+
+| Setting | Was | Now (his) |
+|---|---|---|
+| `vr_melee_phase` | 0 | 1 |
+| `vr_melee_phase_speed` | 2.25 | 4 (his 3.996: slider noise) |
+| `vr_melee_phase_time` | 0.15 | 0.35 (his 0.34965) |

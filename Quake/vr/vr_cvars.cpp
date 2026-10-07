@@ -481,8 +481,12 @@ const DefaultChange defaultChanges[] = {
     // 101: detail textures off by default (the author, 2026-10-07).
     {101, &vr_detail, "1"}, // 0
     {101, &vr_menu_fine_step, "0.0999"}, // 0.1: the author's, slider noise from plain steps landing off the grid (fixed)
+    // 102: Swing Through Enemies on, the author's values (his note vrfiringrange 23-52-45: "more responsive").
+    {102, &vr_melee_phase, "0"}, // 1
+    {102, &vr_melee_phase_speed, "2.25"}, // 4 (his 3.996: slider noise)
+    {102, &vr_melee_phase_time, "0.15"}, // 0.35 (his 0.34965)
 };
-constexpr int configVersion = 101;
+constexpr int configVersion = 102;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
