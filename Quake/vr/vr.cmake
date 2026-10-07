@@ -18,6 +18,10 @@ target_include_directories(ironwail PRIVATE
 	"${CMAKE_CURRENT_LIST_DIR}/external"
 	"${CMAKE_CURRENT_LIST_DIR}/external/zancle/include")
 target_compile_definitions(ironwail PRIVATE ZA_STATIC)
+# The version (vr_crash.cpp, VR_Version): the repository's VERSION file; a dev build (docs/vr-port/RELEASING.md).
+file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../../VERSION" QVR_VERSION LIMIT_COUNT 1)
+string(STRIP "${QVR_VERSION}" QVR_VERSION)
+target_compile_definitions(ironwail PRIVATE "QVR_VERSION=\"${QVR_VERSION}\"")
 # OpenXR: the vendored Windows loader. The backend's graphics binding is OpenGL on Windows (WGL)
 # only, so elsewhere the build has the mock backend alone until it gets a GLX/EGL binding.
 if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)

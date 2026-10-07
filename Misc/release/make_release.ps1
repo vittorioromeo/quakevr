@@ -4,24 +4,33 @@ Makes a Quake VR: Unleashed release: builds the game and the installer (Release)
 latest.json, and (with -Publish) tags the commit and creates the GitHub release. docs/vr-port/RELEASING.md has the steps.
 
 .DESCRIPTION
-  Misc\release\make_release.ps1 -Version 1.0.0 -DryRun     # the checks and the plan; builds and writes nothing
-  Misc\release\make_release.ps1 -Version 1.0.0             # build, check, package into out\release\1.0.0 (no tag, nothing online)
-  Misc\release\make_release.ps1 -Version 1.0.0 -Publish    # ... then tag v1.0.0, push the tag, create a DRAFT GitHub release
-  Misc\release\make_release.ps1 -Version 1.0.0 -Publish -NoDraft   # ... a public release straight away
+  Misc\release\make_release.ps1 -DryRun                    # the checks and the plan; builds and writes nothing
+  Misc\release\make_release.ps1                            # build, check, package into out\release\<VERSION> (no tag, nothing online)
+  Misc\release\make_release.ps1 -Publish                   # ... then tag v<VERSION>, push the tag, create a DRAFT GitHub release
+  Misc\release\make_release.ps1 -Publish -NoDraft          # ... a public release straight away
+  Misc\release\make_release.ps1 -Version 1.0.0 -BumpVersion   # first commit VERSION = 1.0.0 ("Version 1.0.0"), then as above
+
+The version is the repository's VERSION file (docs/vr-port/RELEASING.md, "Versions"). -Version is optional: it must be
+VERSION's, or with -BumpVersion the script first commits VERSION = -Version (that file alone, on a tree without other
+changes; not pushed: it goes with the branch); with -DryRun it only says it would.
 
 Works on whatever branch is checked out (its upstream is where the tag goes); never pushes a branch. Everything it
 writes is under out\release\<version>\ (git-ignored); a folder left by an earlier run is moved aside to
 out\release\<version>.old-<time>, never deleted.
 
-The version is stamped into this build only (nothing is committed): the engine reports "<version> (<date> <hash>)"
-(VR_BuildVersion: the console, the VR Settings page, crash reports), the package's manifest.json and latest.json carry the
-same text, and QuakeVR-Setup.exe's file and assembly version is <version>. The annotated tag v<version> records it.
+The build is a release build (/p:QvrReleaseVersion): the engine reports "<version> (<date> <hash>)", without a dev
+build's "-dev" (VR_BuildVersion: the console, the VR Settings page, crash reports; VR_Version: the menus' corner label),
+the package's manifest.json and latest.json carry the same text, and QuakeVR-Setup.exe's file and assembly version is
+<version>. The annotated tag v<version> records it.
 #>
 
 [CmdletBinding()]
 param(
-    # x.y.z, or x.y.z-suffix for a prerelease (e.g. 1.0.0-beta.1): the tag is v<Version>.
-    [Parameter(Mandatory = $true)][string]$Version,
+    # x.y.z, or x.y.z-suffix for a prerelease (e.g. 1.0.0-beta.1): the tag is v<Version>. Default: the VERSION file's;
+    # another one needs -BumpVersion.
+    [string]$Version = "",
+    # With a -Version other than VERSION's: commit VERSION = -Version ("Version x.y.z") before building.
+    [switch]$BumpVersion,
     # Release notes (Markdown). Default: the commit subjects since the previous v* tag. The files' SHA-256 table is added.
     [string]$Notes = "",
     # With -Publish: create the release as a draft (the default). -Draft:$false publishes it at once.
@@ -61,6 +70,10 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version 2
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$versionFile = Join-Path $root "VERSION"
+$fileVersion = if (Test-Path -LiteralPath $versionFile -PathType Leaf) { "$(Get-Content -LiteralPath $versionFile -TotalCount 1)".Trim() } else { "" }
+if (-not $fileVersion) { throw "no version in $versionFile (one line: MAJOR.MINOR.PATCH; RELEASING.md, 'Versions')" }
+if (-not $Version) { $Version = $fileVersion }
 $tag = "v$Version"
 if ($NoDraft) { $Draft = $false }
 $problems = New-Object System.Collections.Generic.List[string]   # fatal for this mode
@@ -107,7 +120,26 @@ function Size([long]$bytes) {
 # ------------------------------------------------------------------------------------------------------------------
 Step "Preconditions ($tag)"
 
-if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.]*)?$') { throw "-Version must be x.y.z or x.y.z-suffix (got '$Version')" }
+$semver = '^\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.]*)?$'
+if ($Version -notmatch $semver) { throw "-Version must be x.y.z or x.y.z-suffix (got '$Version')" }
+if ($fileVersion -notmatch $semver) { throw "VERSION must hold x.y.z or x.y.z-suffix (got '$fileVersion')" }
+Say "version $Version (VERSION: $fileVersion)"
+if ($Version -ne $fileVersion) {
+    if (-not $BumpVersion) {
+        throw "-Version $Version is not VERSION's ${fileVersion}: leave -Version out to release $fileVersion, or add -BumpVersion to commit VERSION = $Version first"
+    }
+    $numeric = { param($v) [version]($v -replace '-.*$', '') }
+    if ((& $numeric $Version) -lt (& $numeric $fileVersion)) { throw "-BumpVersion: $Version is older than VERSION's $fileVersion" }
+    if ($DryRun) { Warn "-BumpVersion: would commit VERSION = $Version (now $fileVersion) before building; the checks below are of the tree as it is" }
+    elseif ((GitRun @("--no-optional-locks", "status", "--porcelain", "--untracked-files=no")).Text) {
+        throw "-BumpVersion: commit or stash your other changes first (the version commit holds VERSION alone)"
+    }
+    else {
+        [System.IO.File]::WriteAllText($versionFile, "$Version`n", (New-Object System.Text.UTF8Encoding($false)))
+        if ((GitRun @("commit", "-q", "-m", "Version $Version", "--", "VERSION")).Code -ne 0) { throw "-BumpVersion: git commit of VERSION failed" }
+        Say "committed VERSION = $Version ($((GitRun @("rev-parse", "--short=8", "HEAD")).Text); not pushed)"
+    }
+}
 $prerelease = $Version.Contains("-")
 if ($Publish -and $DryRun) { throw "-Publish and -DryRun together: pick one" }
 if ($AllowDirty -and $online) { throw "-AllowDirty is for testing the script: never with -Publish or -PushTag" }

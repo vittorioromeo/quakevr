@@ -8,7 +8,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>0.1.0</Version>
+    <!-- The game's version, the repository's VERSION file (docs/vr-port/RELEASING.md, "Versions"): the installer's file and
+         assembly version (its window's "Installer x.y.z"). The release script passes the same with /p:Version. -->
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\VERSION').Trim())</Version>
     <Company>Vittorio Romeo</Company>
     <Product>Quake VR Installer</Product>
     <Copyright>GPL-2.0-or-later</Copyright>

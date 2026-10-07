@@ -119,13 +119,22 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <ObjectFileName>$(IntDir)mimalloc\</ObjectFileName>
     </ClCompile>
   </ItemGroup>
-  <!-- The build's version (VR_BuildVersion, vr_crash.cpp: the console, the main VR Settings page, qvr_crash.txt):
-       $(IntDir)qvr_buildver.h, the last commit's date and short hash, "-dirty" when tracked files differ from it. Written
-       only when it changes (only vr_crash.cpp then recompiles); "unknown build" without git. -->
+  <!-- The build's version (vr_crash.cpp: VR_Version, the menus' corner label; VR_BuildVersion, the console, the main VR
+       Settings page, qvr_crash.txt): $(IntDir)qvr_buildver.h. The version is the repository's VERSION file (one line,
+       MAJOR.MINOR.PATCH[-prerelease]; docs/vr-port/RELEASING.md, "Versions"); a build not made by the release script
+       is a dev build ("0.9.0-dev"), the release script's says the plain version. Then the last commit's date and short
+       hash, "-dirty" when tracked files differ from it: "0.9.0-dev (2026-10-07 afd53921)". Written only when it changes
+       (only vr_crash.cpp then recompiles); "unknown build" in place of the date and hash without git. -->
   <Target Name="QvrBuildVersion" BeforeTargets="ClCompile">
     <PropertyGroup>
       <QvrRepo>$(MSBuildThisFileDirectory)..\..</QvrRepo>
+      <QvrSemver>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</QvrSemver>
     </PropertyGroup>
+    <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(QvrSemver)', '^\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.]*)?$'))"
+           Text="VERSION must hold MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-prerelease (got '$(QvrSemver)')" />
+    <!-- A release (Misc/release/make_release.ps1, /p:QvrReleaseVersion=1.2.3) is VERSION's own: the script checks it. -->
+    <Error Condition="'$(QvrReleaseVersion)'!='' and '$(QvrReleaseVersion)'!='$(QvrSemver)'"
+           Text="QvrReleaseVersion $(QvrReleaseVersion) is not VERSION's $(QvrSemver): bump VERSION (make_release.ps1 -BumpVersion)" />
     <Exec Command="git -C &quot;$(QvrRepo)&quot; log -1 --date=format:%25%25Y-%25%25m-%25%25d --format=&quot;%25%25cd %25%25h&quot; --abbrev=8"
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitCommit" />
@@ -139,11 +148,15 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <QvrVersion Condition="'$(QvrGitExit)'=='0'">$(QvrGitCommit)</QvrVersion>
       <QvrVersion Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">$(QvrGitCommit)-dirty</QvrVersion>
       <QvrVersion Condition="'$(QvrGitExit)'!='0'">unknown build</QvrVersion>
-      <!-- A release (Misc/release/make_release.ps1, /p:QvrReleaseVersion=1.2.3): "1.2.3 (2026-10-07 afd53921)". -->
-      <QvrVersion Condition="'$(QvrReleaseVersion)'!=''">$(QvrReleaseVersion) ($(QvrVersion))</QvrVersion>
+      <QvrDev>1</QvrDev>
+      <QvrDev Condition="'$(QvrReleaseVersion)'!=''">0</QvrDev>
+      <QvrVersionShown>$(QvrSemver)-dev</QvrVersionShown>
+      <QvrVersionShown Condition="'$(QvrDev)'=='0'">$(QvrSemver)</QvrVersionShown>
+      <QvrVersion>$(QvrVersionShown) ($(QvrVersion))</QvrVersion>
     </PropertyGroup>
     <MakeDir Directories="$(IntDir)" />
-    <WriteLinesToFile File="$(IntDir)qvr_buildver.h" Lines="#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <WriteLinesToFile File="$(IntDir)qvr_buildver.h" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="#define QVR_VERSION &quot;$(QvrSemver)&quot;;#define QVR_VERSION_DEV $(QvrDev);#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;" />
     <Message Importance="normal" Text="Quake VR build $(QvrVersion)" />
   </Target>
   <!-- Zancle's own sources (Quake/vr/external/zancle/README.md): a static library with its own settings (optimised,

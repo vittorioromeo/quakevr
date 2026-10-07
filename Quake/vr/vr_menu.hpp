@@ -61,6 +61,11 @@ void init();
 // The corner's buttons stand left of it (vr_menuui.cpp).
 [[nodiscard]] float contentLeft();
 
+// The rightmost x (menu pixels) the menu shown draws at from menu y `y` down (-1e9: nothing there): a VR page's rows and
+// their scrollbar, its help box at its widest, Search's, the Map Library's and the console's keyboards; Quake's and
+// Ironwail's menus as menu.c's M_ContentExtent says. The corner's version label keeps right of it (vr_menubrand.cpp).
+[[nodiscard]] float contentRightBelow(float y);
+
 // Menu Detail at Developer (vr_menu_level 2): the tuning and testing pages, the corner's Checklist button.
 [[nodiscard]] bool developerLevel();
 

@@ -80,6 +80,7 @@ extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
 extern int m_singleplayer_cursor; // menu.c: Single Player's (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
+void M_ContentExtent(float* right, float* bottom); // menu.c: how far right and down its menu shown draws
 int M_TextLeft(void); // menu.c: its leftmost text (Ironwail's lists; 320 for Quake's menus)
 void M_Main_Layout(int* step, int* gap); // menu.c: the main menu's rows' spacing and its groups' gaps
 }
@@ -8842,10 +8843,37 @@ HelpBox helpBox;
     return helpBox.lines;
 }
 
+// The console page's left and right edges (menu x; vr_menu_console.inc).
+void consoleEdges(float& left, float& right);
+
+// How far right a page draws anywhere (menu x): its rows' scrollbar's box, its help box at its widest (drawHelp: centred,
+// its paging bar right of it); Search's, the Map Library's and the console's keyboards and buttons.
+[[nodiscard]] float pageRight(za::Vector<Item> (*build)())
+{
+    if(build == pageConsole)
+    {
+        float left, right;
+        consoleEdges(left, right);
+        return right;
+    }
+    if(build == pageMaps || build == pageSearch)
+    {
+        return build == pageMaps ? 12.f + 460.f : 12.f + 440.f;
+    }
+    return za::fmax(static_cast<float>(midPos + 200), static_cast<float>((320 + 8 * helpColumns()) / 2 + 5));
+}
+
 [[nodiscard]] Layout layout()
 {
     const int height = menuui::menuHeight();
     const int top = (200 - height) / 2;
+    // The version label in the bottom right corner (vr_menubrand.cpp): where the page reaches under it (a flat screen's
+    // narrower canvas), the page ends above it.
+    int bottom = top + height;
+    if(float labelLeft, labelTop; menuui::versionLabelClearance(labelLeft, labelTop) && pageRight(pages[page].build) > labelLeft)
+    {
+        bottom = q_min(bottom, static_cast<int>(za::floor(labelTop)));
+    }
     // Under the title, or below the corner's buttons where they are over the rows (not left of them: a narrow panel),
     // and below the status box in the top right corner where the page reaches under it (Search and the Map Library,
     // from x 12 440 and 460 across; the other pages to their scrollbar).
@@ -8853,7 +8881,7 @@ HelpBox helpBox;
     const auto build = pages[page].build;
     const float right = build == pageMaps ? 12.f + 460.f : build == pageSearch ? 12.f + 440.f : midPos + 200.f;
     listTop = q_max(listTop, static_cast<int>(za::ceil(menuui::statusBottom(right))) + 2);
-    return {top, listTop, top + height - 4 - 8 * helpBoxLines(), top + height};
+    return {top, listTop, bottom - 4 - 8 * helpBoxLines(), bottom};
 }
 
 [[nodiscard]] bool hasHelp(const za::Vector<Item>& list)
@@ -10844,6 +10872,7 @@ void qvr::menu::command_f()
                 Con_Printf("menu_vr pos: banner x %.0f..%.0f, y %.0f..%.0f (text from x %d)\n", bx0, bx1, by0, by1,
                     m_state == m_vr ? static_cast<int>(menu::contentLeft()) : M_TextLeft());
             }
+            menuui::printVersionLabel();
         }
         if(key_dest != key_menu || m_state != m_vr)
         {
@@ -11042,6 +11071,36 @@ float qvr::menu::contentLeft()
         return 0.f; // (Search and the Map Library from x 12 at least; the console's page right of the buttons)
     }
     return static_cast<float>(q_min(pageRowsLeft(), (320 - 8 * helpColumns()) / 2));
+}
+
+float qvr::menu::contentRightBelow(float y)
+{
+    if(m_state != m_vr)
+    {
+        float right, bottom;
+        M_ContentExtent(&right, &bottom);
+        return y < bottom ? right : -1e9f;
+    }
+    const auto build = pages[page].build;
+    const Layout l = layout();
+    if(build == pageConsole || build == pageSearch || build == pageMaps)
+    {
+        return y < static_cast<float>(l.bottom) ? pageRight(build) : -1e9f; // (their keyboards and buttons down to the bottom)
+    }
+    // The rows down to the help's box (or the bottom), as far right as their scrollbar's box (scrollbarX + 12); the help
+    // centred at its widest (helpColumns), its paging bar right of it (drawHelp).
+    const za::Vector<Item>& list = menuPages.built[page];
+    const bool help = hasHelp(list);
+    float right = -1e9f;
+    if(y < static_cast<float>(help ? l.helpTop - 4 : l.bottom - 8))
+    {
+        right = static_cast<float>(midPos + 200);
+    }
+    if(help && y < static_cast<float>(l.helpTop + 8 * helpBoxLines()))
+    {
+        right = za::fmax(right, static_cast<float>((320 + 8 * helpColumns()) / 2 + 5));
+    }
+    return right;
 }
 
 bool qvr::menu::developerLevel()

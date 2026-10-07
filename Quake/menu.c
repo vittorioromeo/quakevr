@@ -7469,6 +7469,33 @@ int M_ContentLeft (void)
 	}
 }
 
+// QVR: how far right and down (menu x and y) the menu shown draws, for the corner's version label to keep clear of it
+// (vr_menubrand.cpp): Quake's menus within its 320 x 200; Options' and the key bindings' lists down to their last row
+// (their scroll bar, search box and hint under it); Ironwail's lists laid out from the canvas's width as wide and as
+// tall as the menu's bounds. (The VR pages: qvr::menu::contentRightBelow.)
+void M_ContentExtent (float *right, float *bottom)
+{
+	*right = 320.f;
+	*bottom = 200.f;
+	switch (M_GetBaseState (m_state))
+	{
+	case m_maps:
+	case m_mods:
+	case m_modinfo:
+		*right = (float) q_max (320, m_left + m_width);
+		*bottom = (float) q_max (200, m_top + m_height);
+		break;
+	case m_options:
+		*bottom = (float) q_max (200, optionsmenu.y + OPTIONS_LISTOFS + optionsmenu.yofs + optionsmenu.list.viewsize * 8 + 8);
+		break;
+	case m_keys:
+		*bottom = (float) q_max (200, keysmenu.y + KEYLIST_TOP + keysmenu.list.viewsize * 8 + KEYLIST_BOTTOM);
+		break;
+	default:
+		break;
+	}
+}
+
 // QVR: where the menu shown draws its leftmost text, for the flat screen's banner (vr_menubrand.cpp): the lists' left
 // (their cursor's column); Quake's menus, laid out round the plaque's column, 320 (nothing in its way).
 int M_TextLeft (void)
@@ -7515,6 +7542,7 @@ void M_Draw (void)
 
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 	VR_MenuDrawBannerColumn (); // QVR: the VR menu style's banner, under the corner's buttons
+	VR_MenuDrawVersion (); // QVR: the version label in the bottom right corner (under the page: what opens over it hides it)
 
 	switch (M_GetBaseState (m_state))
 	{

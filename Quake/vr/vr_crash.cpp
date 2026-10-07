@@ -12,20 +12,38 @@
 extern "C" void VR_InstallZancleAssertHandler (void);
 
 // The build's version: qvr_buildver.h, written by every Visual Studio build in its intermediate folder
-// (Windows/VisualStudio/quakevr.props, QvrBuildVersion: the last commit's date and short hash, "-dirty" with
-// uncommitted changes to tracked files). Builds without it (the Makefile's) say "unknown build".
+// (Windows/VisualStudio/quakevr.props, QvrBuildVersion): QVR_VERSION, the repository's VERSION file ("0.9.0");
+// QVR_VERSION_DEV, 1 unless the release script built it; QVR_BUILD_VERSION, the version ("-dev" on a dev build), the last
+// commit's date and short hash, "-dirty" with uncommitted changes to tracked files. The CMake and Makefile builds pass
+// QVR_VERSION from VERSION (Quake/vr/vr.cmake, vr.mk) and are dev builds.
 #if defined(__has_include)
 #if __has_include("qvr_buildver.h")
 #include "qvr_buildver.h"
 #endif
 #endif
+#ifndef QVR_VERSION
+#define QVR_VERSION "0.0.0"
+#endif
+#ifndef QVR_VERSION_DEV
+#define QVR_VERSION_DEV 1
+#endif
 #ifndef QVR_BUILD_VERSION
-#define QVR_BUILD_VERSION "unknown build"
+#define QVR_BUILD_VERSION QVR_VERSION "-dev (unknown build)"
 #endif
 
 extern "C" const char *VR_BuildVersion (void)
 {
 	return QVR_BUILD_VERSION;
+}
+
+extern "C" const char *VR_Version (void)
+{
+	return QVR_VERSION;
+}
+
+extern "C" int VR_VersionIsDev (void)
+{
+	return QVR_VERSION_DEV;
 }
 
 #ifdef _WIN32

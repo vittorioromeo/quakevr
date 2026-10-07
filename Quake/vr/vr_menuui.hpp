@@ -11,6 +11,12 @@ namespace qvr::menuui
 
 // Where a flat screen's banner (vr_menubrand.cpp, M_DrawPlaque) was last drawn, menu x and y (x1 < x0: not drawn).
 void bannerRect(float& x0, float& x1, float& y0, float& y1);
+// menu_vr pos: the version label (vr_menubrand.cpp, VR_MenuDrawVersion) as last drawn: its text, its box (menu x and y)
+// and what the menu draws right to under it, or why it was left out.
+void printVersionLabel();
+// Where the version label is on (vr_menu_version): the menus keep left of x or above y (menu x and y) to stay clear of it
+// (a VR page whose rows or help reach under it ends above it: vr_menu.cpp, layout).
+[[nodiscard]] bool versionLabelClearance(float& x, float& y);
 // Opens Ironwail's menu `state` (m_main, m_singleplayer, m_options...) as its own way in does; m_none closes the menu.
 void openMenu(int state);
 // A menu is open in the headset with vr_menu_vr_style on.

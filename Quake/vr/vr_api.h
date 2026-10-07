@@ -101,7 +101,9 @@ typedef struct
 const char *VR_ParseToken (const char *data, const char **token); // Cmd_TokenizeString: COM_Parse for an argument of any length
 
 // Automated test runs (QVR_NO_ERROR_DIALOG; vr_crash.cpp, Windows only).
-const char *VR_BuildVersion (void);	// vr_crash.cpp: this build, the last commit's date and short hash ("2026-10-06 9460b8e1"; "-dirty": changed files)
+const char *VR_BuildVersion (void);	// vr_crash.cpp: this build: its version, the last commit's date and short hash ("0.9.0-dev (2026-10-07 9460b8e1)"; "-dirty": changed files)
+const char *VR_Version (void);		// vr_crash.cpp: the version, the repository's VERSION file ("0.9.0"; docs/vr-port/RELEASING.md, "Versions")
+int VR_VersionIsDev (void);		// vr_crash.cpp: 1 unless the release script built this (Misc/release/make_release.ps1)
 void VR_InstallCrashHandler (void);	// main, first: a crash writes qvr_crash.txt (the stack, the map) and qvr_crash.dmp (test runs and players' alike); Zancle's asserts reported (vr_zancle.cpp)
 int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero if written to qvr_error.txt instead
 
@@ -372,6 +374,7 @@ int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' verti
 // The menus' branding (vr_menubrand.cpp): the Quake VR banner in place of Quake's plaque, and their browns turned red.
 int VR_MenuDrawBanner (int x, int y);					// M_DrawPlaque: the banner where the plaque's top left would be; nonzero if drawn (0: no image, draw the plaque)
 void VR_MenuDrawBannerColumn (void);					// M_Draw, before the page: the VR menu style's banner, in the left column under the corner's buttons
+void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: Unleashed - v0.9" / "by Vittorio Romeo" in the bottom right corner (vr_menu_version)
 void VR_MenuRecolor (float *params);					// Draw_SetMenuRecolor: the gui shader's MenuRecolor (vr_menu_recolor; x 0: off)
 int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
 void VR_MenuBounds (int *left, int *top, int *width, int *height);	// M_UpdateBounds: the menus laid out from the canvas's bounds beside the corner's buttons

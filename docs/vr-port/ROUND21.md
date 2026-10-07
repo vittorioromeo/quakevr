@@ -29693,3 +29693,28 @@ them; your theory: the bigger prop's original hitbox kept after the prop is made
   42.3 cm (93) -> 0. Floor boxes still taken by the fist ("carry: taken") and stacked three high asleep
   (`vr_physics_stack`, 4.7-4.8 units apart); twohand_regrip_test.sh 7 of 7; e1m1 smoke clean.
 - In the headset: walk over the firing range's ammo boxes holding a box or a torch low: steady in the hand.
+
+## Versions and the menus' version label (2026-10-07)
+
+Asked: a versioning scheme, and "Quake VR: Unleashed - vX.X" over "by Vittorio Romeo" in the menus' bottom right corner.
+
+- **One source of truth:** `VERSION` at the repository's root (`0.9.0`; semver, prereleases `-beta.N`). The engine
+  (quakevr.props writes `QVR_VERSION`, `QVR_VERSION_DEV` and `QVR_BUILD_VERSION` into `qvr_buildver.h`; vr.cmake and
+  vr.mk pass `QVR_VERSION`), the installer (Directory.Build.props: was 0.1.0, now VERSION's), a hand-made package's
+  manifest and the release script read it. Builds are dev builds (`0.9.0-dev (2026-10-07 afd53921)`) except the release
+  script's (`/p:QvrReleaseVersion`, refused unless it is VERSION's). `VR_Version`/`VR_VersionIsDev` (vr_crash.cpp).
+- **Release script:** `-Version` optional (default VERSION's); another one stops it unless `-BumpVersion`, which commits
+  VERSION alone ("Version x.y.z"; refused on a dirty tree or an older version; with `-DryRun` only said). The safer
+  flow: nothing is changed or committed without the explicit switch. RELEASING.md, "Versions" (when to bump what).
+- **Starting version 0.9.0:** the old Quake VR's tags reached v0.8.2; 1.0.0 is left for the release called finished.
+- **The label** (vr_menubrand.cpp, VR_MenuDrawVersion; `vr_menu_version` 1, HUD and Menus > Menu: "Version Label"):
+  two right-aligned lines at the status box's size (7 in the headset, 5 flat), the canvas's corner 4 in, in the menus'
+  tan (turned red), the title at 85%, the author at 60%, a dev build's "-dev" at 45%. "vX.X": `vMAJOR.MINOR` while
+  PATCH is 0, the whole version otherwise (v0.9.1, v1.0.0-beta.1). Drawn before the page (a drop-down over it hides
+  it). Never over the menu: `qvr::menu::contentRightBelow` (VR pages: the rows to their scrollbar's box, the help at its
+  widest; Search, Map Library, console keyboards; Quake/Ironwail menus via menu.c's `M_ContentExtent`: 320 x 200,
+  Options' and the bindings' list to their last row, Ironwail's lists the menu's bounds) and the status box; where they
+  reach under it, it is left out. A VR page whose rows or help reach under it (on a flat screen: 50-column help on a
+  420-wide canvas) ends above it (`layout`, `versionLabelClearance`): VR unchanged (24/25 rows on VR Settings and Debug -
+  Tools, label on or off); flat 20/20 rows (22/23 with it off). Left out on flat Key Bindings and Levels (their lists
+  reach the corner). `menu_vr pos` prints it.

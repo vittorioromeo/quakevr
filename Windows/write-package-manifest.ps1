@@ -4,8 +4,8 @@
 #
 #   Windows\write-package-manifest.ps1 -Dir <package folder> [-Version <text>]
 #
-# -Version defaults to the build's own form (quakevr.props): the last commit's date and short hash, "-dirty" when
-# tracked files differ from it.
+# -Version defaults to a dev build's own form (quakevr.props): the repository's VERSION with "-dev", then the last
+# commit's date and short hash, "-dirty" when tracked files differ from it ("0.9.0-dev (2026-10-07 afd53921)").
 
 param(
     [Parameter(Mandatory = $true)][string]$Dir,
@@ -16,9 +16,10 @@ $ErrorActionPreference = "Stop"
 $Dir = (Resolve-Path $Dir).Path
 if (-not $Version) {
     $repo = Split-Path -Parent $PSScriptRoot
-    $Version = (& git -C $repo log -1 --date=format:%Y-%m-%d --format="%cd %h" --abbrev=8) -join ""
-    if ($LASTEXITCODE -ne 0 -or -not $Version) { $Version = "unknown build" }
-    elseif (& git -C $repo --no-optional-locks status --porcelain --untracked-files=no) { $Version += "-dirty" }
+    $stamp = (& git -C $repo log -1 --date=format:%Y-%m-%d --format="%cd %h" --abbrev=8) -join ""
+    if ($LASTEXITCODE -ne 0 -or -not $stamp) { $stamp = "unknown build" }
+    elseif (& git -C $repo --no-optional-locks status --porcelain --untracked-files=no) { $stamp += "-dirty" }
+    $Version = "$((Get-Content -LiteralPath (Join-Path $repo 'VERSION') -TotalCount 1).Trim())-dev ($stamp)"
 }
 
 $files = New-Object System.Collections.Generic.List[object]

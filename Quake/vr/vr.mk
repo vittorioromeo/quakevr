@@ -9,6 +9,11 @@ OBJS += $(VROBJS)
 OBJDEPS += $(VROBJS:%.o=%.d)
 # No exceptions (docs/vr-port/CODE_STYLE.md): the module and Zancle are built without them.
 VR_CXXFLAGS = $(filter-out -std=%,$(CFLAGS)) -std=c++23 -fno-exceptions -DZA_STATIC -I. -Ivr -Ivr/external -Ivr/external/zancle/include
+# The version (vr_crash.cpp, VR_Version): the repository's VERSION file; a dev build (docs/vr-port/RELEASING.md).
+QVR_VERSION := $(strip $(shell cat ../VERSION 2>/dev/null))
+ifneq ($(QVR_VERSION),)
+VR_CXXFLAGS += -DQVR_VERSION='"$(QVR_VERSION)"'
+endif
 
 # Zancle (vr/external/zancle/README.md), the modules the Quake VR code uses: C++23, optimised and without Zancle's
 # asserts (NDEBUG); with DEBUG=1 and QVR_ZANCLE_DEBUG=1 (the default while the migration settles; 0 to switch it off)
