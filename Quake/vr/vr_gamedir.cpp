@@ -846,12 +846,13 @@ void campaignSelectCommand()
     selectCampaign(i, !q_strcasecmp(Cmd_Argv(0), "vr_campaign_native"), true);
 }
 
-// vr_campaign_hub [vrstart|vrtutorial|vrfiringrange]: Quake's campaign, then that VR map (the hub by default). A command
-// of its own: a changelevel there from another campaign cannot rebuild the game folders mid-spawn.
+// vr_campaign_hub [vrstart|vrstart2|vrtutorial|vrfiringrange]: Quake's campaign, then that VR map (the hub, vr_hub_map,
+// by default). A command of its own: a changelevel there from another campaign cannot rebuild the game folders
+// mid-spawn.
 void campaignHubCommand()
 {
-    const char* map = Cmd_Argc() > 1 ? Cmd_Argv(1) : "vrstart";
-    if(strcmp(map, "vrstart") && strcmp(map, "vrtutorial") && strcmp(map, "vrfiringrange")) { map = "vrstart"; }
+    const char* map = Cmd_Argc() > 1 ? Cmd_Argv(1) : VR_HubMap();
+    if(!VR_IsVrMap(map)) { map = VR_HubMap(); }
     if(selectCampaign(0, false, false)) { Cbuf_InsertText(va("map %s\n", map)); }
 }
 } // namespace
@@ -1101,10 +1102,23 @@ int campaignForMap(const char* map, int current)
 }
 } // namespace
 
+// Quake VR's own maps: they run in Quake's campaign (a map or a changelevel there from another campaign first
+// switches back to it). vrstart2 is the island hub (Misc/quakevr/maps/vrstart2_gen.py).
+extern "C" int VR_IsVrMap(const char* map)
+{
+    return !strcmp(map, "vrstart") || !strcmp(map, "vrstart2") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange");
+}
+
+// The hub: vr_hub_map when it names one of the two, else the classic vrstart.
+extern "C" const char* VR_HubMap()
+{
+    return !strcmp(qvr::vr_hub_map.string, "vrstart2") ? "vrstart2" : "vrstart";
+}
+
 extern "C" int VR_CanLoadCampaignMap(const char* map)
 {
     if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
-    if(!strcmp(map, "vrstart") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange"))
+    if(VR_IsVrMap(map))
     { return activeCampaign == 0 || selectCampaign(0, false, false); }
     int requested = campaignForMap(map, activeCampaign);
     if(!strcmp(map, "start") && activeCampaign <= 2)
@@ -1140,7 +1154,7 @@ extern "C" void VR_CheckSpawnCampaignMap(const char* map)
         const int legacy = static_cast<int>(qvr::vr_activestartpaknameidx.value);
         requested = legacy >= 0 && legacy <= 2 ? legacy : activeCampaign;
     }
-    if(!strcmp(map, "vrstart") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange")) { requested = 0; }
+    if(VR_IsVrMap(map)) { requested = 0; }
     if(requested != activeCampaign)
     {
         if(requested <= 2 && activeCampaign <= 2 && campaigns[requested].status == 1)
@@ -1221,7 +1235,7 @@ extern "C" int VR_ShouldMountCampaignDirectory(const char* dir)
 extern "C" int VR_CanChangeCampaignMap(const char* map)
 {
     if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
-    if((!strcmp(map, "vrstart") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange")) && activeCampaign != 0)
+    if(VR_IsVrMap(map) && activeCampaign != 0)
     { Cbuf_InsertText(va("vr_campaign_hub %s\n", map)); return 0; }
     int requested = activeCampaign;
     if(!strcmp(map, "start") && activeCampaign <= 2)

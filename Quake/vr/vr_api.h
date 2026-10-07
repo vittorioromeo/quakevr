@@ -411,6 +411,8 @@ int VR_PortalReachMove(struct edict_s* player, const float* start, const float* 
 
 void VR_RegisterPackStatus(void);
 int VR_CanLoadCampaignMap(const char *map);
+int VR_IsVrMap(const char *map);			// vrstart, vrstart2, vrtutorial, vrfiringrange: Quake VR's own maps, run in Quake's campaign
+const char *VR_HubMap(void);				// the hub the game starts in and returns to: vr_hub_map (vrstart or vrstart2)
 int VR_CanChangeCampaignMap(const char *map);
 int VR_CanLoadCampaignSave(const char *text);
 

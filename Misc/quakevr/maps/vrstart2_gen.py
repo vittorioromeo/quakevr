@@ -152,7 +152,7 @@ def build_layout():
     ZONES.append(("set", ("rect", rg["x1"] - 10, rg["y0"] - 40, rg["x1"] + 90, rg["y1"] + 40), rg["z"] + 120, 50))
     # along the shore to the tower
     ZONES.append(("set", ("circle", tw["x"], tw["y"], tw["half"] + 50), tw["z"], 60))
-    PATHS.append(([(rg["line"] - 40, rg["y0"] + 10, rg["z"]), (520, -470, 60), (760, -640, 58), (980, -700, 56),
+    PATHS.append(([(rg["line"] - 40, rg["y0"] + 10, rg["z"]), (520, -470, 60), (760, -640, 58), (980, -676, 56),
                    (tw["x"] - 20, tw["y"] + tw["half"] + 40, tw["z"])], 50))
 
 
@@ -291,9 +291,9 @@ def path_height(x, y):
     best = (0.0, 0.0)
     for pts, hw in PATHS:
         d, i, t = polyline_dist(x, y, pts)
-        if d < hw + 70:
+        if d < hw + 130:
             z = lerp(pts[i][2], pts[i + 1][2], t)
-            w = 1.0 - smoothstep(hw - 10, hw + 70, d)
+            w = 1.0 - smoothstep(hw - 10, hw + 130, d)  # (wide banks: gentle enough to walk off the path)
             if w > best[0]:
                 best = (w, z - 3)
     return best
@@ -794,7 +794,7 @@ def build_terrace(mw):
             a = math.pi * k / 12
             q.append((gx + 44 * math.cos(a), yy, spring + 44 * math.sin(a)))
     mw.add({"classname": "func_illusionary"}, [hull(q, T("portal", scale=0.5))])
-    mw.add({"classname": "trigger_changelevel", "map": "start"},
+    mw.add({"classname": "trigger_changelevel", "map": "start", "spawnflags": "1"},  # (no intermission)
            [box(gx - 40, gy - 10, zb, gx + 40, gy + 10, spring + 30, "trigger")])
     # the campaign lecterns (their buttons are entities: build_entities)
     for lx in LECTERNS_X:
@@ -969,8 +969,8 @@ def build_tower(mw):
     ly = cy + h
     for sx in (-25, 21):
         out.append(box(cx + sx, ly, z - 8, cx + sx + 4, ly + 10, top + 40, wood("beam", (0, 0, 1))))
-    for k in range(1, tw["deck"] // 20 + 1):
-        rz = z + 20 * k
+    for k in range(tw["deck"] // 20 + 1):
+        rz = z + 16 + 20 * k  # (16, 36, 56... over the ground: vrclimb's rung wall's heights, where the climbing plays work)
         if rz > top - 16:
             break
         out.append(box(cx - 21, ly + 2, rz - 4, cx + 21, ly + 7, rz, wood("log", (1, 0, 0))))
@@ -1114,12 +1114,14 @@ def build_lights(mw):
             torch_post(mw, out, xx, yy, rg["z"], yaw, h=64)
     for yy in (rg["y0"] + 40, rg["y1"] - 40):
         brazier(mw, out, rg["x1"] - 90, yy, rg["z"])
-    for yy in (-130, 50):
-        post(out, rg["line"] - 46, yy, rg["z"] - 10, rg["z"] + 96, 3.5)
-        out.append(box(rg["line"] - 49, yy - 2, rg["z"] + 90, rg["line"] - 18, yy + 2, rg["z"] + 94, wood("beam", (1, 0, 0))))
-        lantern(mw, out, rg["line"] - 22, yy, rg["z"] + 76, 170, hang=4)
+    for (ya, yb) in ((-200, -60), (-20, 120)):  # lantern posts at the benches' outer ends, arms over them
+        yy, sy = (ya - 6, 1) if ya < -100 else (yb + 6, -1)
+        post(out, rg["line"] - 17, yy, rg["z"] - 10, rg["z"] + 96, 3.5)
+        out.append(box(rg["line"] - 19, min(yy, yy + sy * 40), rg["z"] + 90, rg["line"] - 15, max(yy, yy + sy * 40),
+                       rg["z"] + 94, wood("beam", (0, 1, 0))))
+        lantern(mw, out, rg["line"] - 17, yy + sy * 36, rg["z"] + 76, 170, hang=4)
     # the path along the shore: torches on posts
-    for (x, y, yaw) in ((560, -420, 135), (880, -620, 120)):
+    for (x, y, yaw) in ((600, -400, 225), (900, -590, 250)):  # (beside the path, inland)
         torch_post(mw, out, x, y, height(x, y), yaw)
     # the tower: torches at the ladder's foot, a lantern on the deck
     for sx in (-1, 1):
@@ -1147,9 +1149,150 @@ def build_lights(mw):
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Entities
+def button(mw, label, command, x0, y0, z0, x1, y1, z1, angle, scale="0.2", tex="button"):
+    """A func_button running `command` (buttonEffect 3), `label` on its face; pushed towards `angle`."""
+    mw.add({"classname": "func_button", "buttonEffect": "3", "targetname": command + "\\n", "worldtext": label,
+            "worldtext_halign": "1", "worldtext_scale": scale, "angle": str(angle), "wait": "1", "speed": "50",
+            "lip": "4", "sounds": "1"}, [box(x0, y0, z0, x1, y1, z1, T(tex, scale=0.5))])
+
+
+def banner(mw, text, x, y, z, angle, scale="0.3", speed=None):
+    """A text board (func_worldtext_banner) facing `angle`; lines split with \\n, pages with $."""
+    k = {"classname": "func_worldtext_banner", "worldtext": text, "worldtext_halign": "1", "worldtext_scale": scale,
+         "angle": str(angle), "origin": "%d %d %d" % (x, y, z)}
+    if speed:
+        k["speed"] = str(speed)
+    mw.add(k)
+
+
+def tip(mw, name, message, x, y, z, distance=200, target=None, size=None):
+    k = {"classname": "func_vr_tip", "tipname": name, "message": message, "distance": str(distance),
+         "origin": "%d %d %d" % (x, y, z)}
+    if target:
+        k["target"] = target
+    if size:
+        k["tip_size"] = str(size)
+    mw.add(k)
+
+
+N = "\\n"
+
+# the campaign lecterns' buttons: (label, command); the first three choose what the slipgate starts (the old hub's
+# vr_activestartpaknameidx; QC's buttons.qc marks a mission pack that is not installed), the fourth starts at once
+CAMPAIGNS = [("QUAKE", "vr_activestartpaknameidx 0; echo Quake selected: step into the slipgate"),
+             ("SCOURGE OF" + N + "ARMAGON", "vr_activestartpaknameidx 1; echo Scourge of Armagon selected: step into the slipgate"),
+             ("DISSOLUTION" + N + "OF ETERNITY", "vr_activestartpaknameidx 2; echo Dissolution of Eternity selected: step into the slipgate"),
+             ("DIMENSION" + N + "OF THE PAST" + N + "(starts now)", "vr_campaign_select dopa")]
+
+# the pavilion's setting buttons (vr_setup_option <key>: Quake/vr/vr_setup.cpp's table; each press steps the setting,
+# shows it on a screen over the button and saves the config): the north board's rows, the south board's
+SETTINGS_NORTH = [[("TURNING", "turning"), ("TURN SPEED", "turnspeed"), ("MOVE" + N + "TOWARDS", "movedir"),
+                   ("SWAP STICKS", "sticks"), ("RUN OR WALK", "run")],
+                  [("TELEPORT", "teleport"), ("CLIMBING", "climb"), ("WORLD SCALE", "scale"),
+                   ("STANDING" + N + "OR SEATED", "position"), ("TIPS", "tips")]]
+SETTINGS_SOUTH = [[("BODY", "body"), ("HUD", "hud"), ("CROSSHAIR", "crosshair"), ("WEAPON GRIP", "grip"),
+                   ("GADGET ARM", "gadget")],
+                  [("TORCH SIDE", "torch"), ("WEAPON MODE", "holsters"), ("RELOADING", "reload"),
+                   ("TWO-HANDED" + N + "AIM", "twohand")]]
+
+
 def build_entities(mw):
-    p = PIER
+    p, t, pv, rg, tw = PIER, TERRACE, PAVILION, RANGE, TOWER
     mw.add({"classname": "info_player_start", "origin": "%d %d %d" % (p["x"], p["y1"] + 60, p["z"] + 24), "angle": "90"})
+    # ---- the arrival
+    wx, wy = WELCOME
+    banner(mw, N.join(["WELCOME TO QUAKE VR", "", "Follow the torches up the steps:", "the campaigns, then the settings,",
+                       "the firing range and the lookout."]), wx, wy - 5, 14 + 92, 270, "0.4")
+    banner(mw, N.join(["Walk with the stick; turn with the other.", "In the water: stroke with your arms."]),
+           wx, wy - 5, 14 + 64, 270, "0.3")
+    qx, qy = QUICK
+    banner(mw, N.join(["NEW TO VR?", "The tutorial teaches the basics;", "calibration fits the game to your body."]),
+           qx, qy - 6, 14 + 96, 270, "0.3")
+    button(mw, "VR" + N + "TUTORIAL", "map vrtutorial", qx - 34, qy - 10, 14 + 26, qx - 4, qy - 4, 14 + 54, 90)
+    button(mw, "VR" + N + "CALIBRATION", "map vrcalibration", qx + 4, qy - 10, 14 + 26, qx + 34, qy - 4, 14 + 54, 90)
+    tip(mw, "vs2_welcome", "Welcome! Walk with the stick and follow" + N + "the torches up to the campaigns.",
+        p["x"], p["y1"] + 160, p["z"] + 40, 260)
+    # ---- the campaign terrace
+    gx, gy = GATE["x"], GATE["y"]
+    zb = t["z"]
+    for (label, cmd), lx in zip(CAMPAIGNS, LECTERNS_X):
+        cx = gx + lx
+        button(mw, label, cmd, cx - 19, LECTERN_Y - 6, zb + 28, cx + 19, LECTERN_Y, zb + 56, 90,
+               scale="0.17" if "starts" in label else "0.2")
+    banner(mw, N.join(["CHOOSE A CAMPAIGN", "Press its stone, then step into the slipgate."]),
+           gx, gy - 24, zb + 16 + 205, 270, "0.45")
+    banner(mw, N.join(["Every campaign, and what", "its data needs:", "{menu:Official Campaigns}"]),
+           gx - 250, LECTERN_Y - 20, zb + 60, 270, "0.25")
+    tip(mw, "vs2_campaign", "Press a campaign's stone with your hand," + N + "then walk into the slipgate.",
+        gx - 55, LECTERN_Y - 10, zb + 50, 220, target=CAMPAIGNS[0][1] + "\\n")
+    # ---- the pavilion's settings
+    x0, x1, y0, y1, z = pv["x0"], pv["x1"], pv["y0"], pv["y1"], pv["z"]
+    cxs = [-228, -168, -108, -48, 12]
+    for row, entries in enumerate(SETTINGS_NORTH):
+        zz = z + 26 + 48 * row
+        for (label, key), cx in zip(entries, cxs):
+            button(mw, label, "vr_setup_option " + key, cx - 16, y1 - 34, zz, cx + 16, y1 - 26, zz + 28, 90)
+    for row, entries in enumerate(SETTINGS_SOUTH):
+        zz = z + 26 + 48 * row
+        off = 30 if len(entries) < 5 else 0
+        for (label, key), cx in zip(entries, cxs):
+            button(mw, label, "vr_setup_option " + key, cx + off - 16, y0 + 26, zz, cx + off + 16, y0 + 34, zz + 28, 270)
+    banner(mw, N.join(["MOVING AND TURNING", "More: {menu:Locomotion}"]), -108, y1 - 27, z + 138, 270, "0.3")
+    banner(mw, N.join(["BODY AND HANDS", "More: {menu:Body and Display}"]), -108, y0 + 27, z + 138, 90, "0.3")
+    banner(mw, N.join(["SETTINGS", "Each button steps its setting and saves it;", "the screen above it shows the choice."]),
+           x0 - 30, 0.5 * (y0 + y1) + 70, z + 40, 180, "0.3")
+    tip(mw, "vs2_settings", "Press a button to change that setting:" + N + "the screen above it shows what it is now.",
+        -168, y1 - 40, z + 50, 200, target="vr_setup_option turning\\n")
+    # ---- the firing range: guns and ammunition on the benches, targets down the lanes
+    lx = rg["line"] - 17
+    top = rg["z"] + 44
+    for (w, y) in ((4, -180), (5, -110), (6, 10)):
+        mw.add({"classname": "func_weapon_grabbable", "weapon": str(w), "origin": "%d %d %d" % (lx, y, top), "angle": "90"})
+    mw.add({"classname": "weapon_crowbar", "origin": "%d %d %d" % (lx, 100, top), "angles": "0 80 90"})
+    for (cls, y) in (("item_shells", -145), ("item_shells", -80), ("item_spikes", 40), ("item_spikes", 70)):
+        mw.add({"classname": cls, "origin": "%d %d %d" % (lx, y, top)})
+    mw.add({"classname": "item_health", "origin": "%d %d %d" % (rg["line"] - 60, 140, rg["z"] + 8)})
+    banner(mw, N.join(["FIRING RANGE", "Grip a gun from the bench; put", "ammunition in at a holster."]),
+           rg["line"] - 70, -40, rg["z"] + 104, 180, "0.3")
+    banner(mw, N.join(["Shoot the targets, the crates, the rocks", "on the shelf. Stronger weapons wait", "in the campaigns."]),
+           rg["line"] - 70, -40, rg["z"] + 78, 180, "0.25")
+    tip(mw, "vs2_range", "Grip a gun from the bench with either hand." + N + "Hold a box of ammunition to a holster to load.",
+        lx, -40, top + 10, 200)
+    zf = rg["z"]
+    # lane 1 (y -160): a stack of crates
+    for (x, y, zz, large) in ((1100, -178, zf, 0), (1100, -142, zf, 0), (1100, -160, zf + 32, 0), (1260, -170, zf, 1)):
+        k = {"classname": "vr_crate", "origin": "%d %d %d" % (x, y, zz + 2), "angle": str(RND.randrange(0, 30)),
+             "skin": str(RND.randrange(3))}
+        if large:
+            k["spawnflags"] = "1"
+        mw.add(k)
+    # lane 2 (y -40): a training dummy, an exploding box further on
+    mw.add({"classname": "vr_dummy", "origin": "%d %d %d" % (780, -40, zf + 24), "angle": "180"})
+    mw.add({"classname": "misc_explobox2", "origin": "%d %d %d" % (1300, -40, zf + 2)})
+    # lane 3 (y 80): rocks and bricks on the shelf, crates further on
+    sx, sy = SHELF
+    for i, mdl in enumerate(("vr_rock1", "vr_brick1", "vr_rock3", "vr_brick3", "vr_rock5")):
+        mw.add({"classname": "vr_debris_piece", "model": "progs/%s.mdl" % mdl, "origin": "%d %d %d" % (sx, sy - 30 + 15 * i, zf + 40),
+                "angle": str(RND.randrange(0, 360)), "skin": str(RND.randrange(6))})
+    for (x, y, zz) in ((1240, 70, zf), (1240, 102, zf), (1240, 86, zf + 32)):
+        mw.add({"classname": "vr_crate", "origin": "%d %d %d" % (x, y, zz + 2), "angle": str(RND.randrange(0, 30)),
+                "skin": str(RND.randrange(3))})
+    # ---- the lookout tower
+    banner(mw, N.join(["THE LOOKOUT", "Climb the ladder: grip a rung with", "an empty hand, pull yourself up."]),
+           tw["x"] - 70, tw["y"] + tw["half"] + 60, tw["z"] + 80, 90, "0.28")
+    banner(mw, N.join(["From the top: dive into deep water.", "Climbing: {menu:Climbing}"]),
+           tw["x"] - 70, tw["y"] + tw["half"] + 60, tw["z"] + 56, 90, "0.25")
+    tip(mw, "vs2_ladder", "Grip a rung with an empty hand and pull" + N + "down to climb. Let go to drop.",
+        tw["x"], tw["y"] + tw["half"] + 8, tw["z"] + 60, 160)
+    # ---- props: crates by the pier and the pavilion, night sounds
+    for (x, y, large) in ((-1290, -830, 1), (-1285, -790, 0), (-1110, -840, 0), (110, -220, 0), (-330, 70, 1)):
+        k = {"classname": "vr_crate", "origin": "%d %d %d" % (x, y, height(x, y) + 4), "angle": str(RND.randrange(0, 90)),
+             "skin": str(RND.randrange(3))}
+        if large:
+            k["spawnflags"] = "1"
+        mw.add(k)
+    for (x, y) in ((-900, 400), (300, 500), (900, -300), (-700, -700)):
+        mw.add({"classname": "ambient_swamp1", "origin": "%d %d %d" % (x, y, height(x, y) + 40)})
 
 
 WORLD_KEYS = {
@@ -1196,7 +1339,7 @@ def compile_map(tools, work, fast):
     src = os.path.join(work, MAPNAME + ".map")
     bsp = os.path.join(work, MAPNAME + ".bsp")
     shutil.copyfile(OUT, src)
-    cmds = [[os.path.join(tools, "qbsp.exe"), "-nolog", "-nopercent", "-maxnodesize", "0", "-wadpath", ROOT, src, bsp]]
+    cmds = [[os.path.join(tools, "qbsp.exe"), "-nolog", "-nopercent", "-maxnodesize", "0", "-forcegoodtree", "-wadpath", ROOT, src, bsp]]
     if not fast:
         cmds.append([os.path.join(tools, "vis.exe"), "-nolog", "-nopercent", bsp])
         cmds.append([os.path.join(tools, "light.exe"), "-nolog", "-nopercent", "-extra4", "-dirt", "-dirtscale", "1.5",

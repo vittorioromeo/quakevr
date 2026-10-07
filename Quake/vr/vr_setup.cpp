@@ -61,6 +61,11 @@ constexpr Option options[] = {
     {"hud", "HUD", "vr_hud_mode", {{1.f, "Wrist Gadget"}, {0.f, "Status Bar"}}, 2},
     {"crosshair", "Crosshair", "vr_crosshair", {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft Laser"}}, 4},
     {"climb", "Climbing", "vr_climb", {{1.f, "On"}, {0.f, "Off"}}, 2},
+    // vrstart2's settings pavilion (ROUND21.md, "vrstart2"): the old hub's raw-cvar buttons, with their screens now
+    {"holsters", "Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}, 2},
+    {"reload", "Reloading", "vr_reload_mode", {{2.f, "Hip Holsters"}, {1.f, "All Holsters"}, {0.f, "Off"}}, 3},
+    {"twohand", "Two-Handed Aim", "vr_2h_mode", {{2.f, "Virtual Stock"}, {1.f, "Basic"}, {0.f, "Off"}}, 3},
+    {"tips", "Tips", "vr_tips", {{1.f, "Floating Screens"}, {2.f, "Wrist Gadget"}, {0.f, "Off"}}, 3},
 };
 
 [[nodiscard]] const Option* findOption(const char* key)
@@ -143,6 +148,24 @@ void drawOptionScreens()
             continue;
         }
         const char* target = PR_GetString(e->v.targetname);
+        // A hub's campaign buttons ("vr_activestartpaknameidx <n>; ..."): "SELECTED" over the one chosen (the portal
+        // takes you to its start)
+        constexpr const char* campaignPrefix = "vr_activestartpaknameidx ";
+        const size_t campaignLength = ZA_STRLEN(campaignPrefix);
+        if(!q_strncasecmp(target, campaignPrefix, campaignLength))
+        {
+            if(Q_atoi(target + campaignLength) == static_cast<int>(qvr::vr_activestartpaknameidx.value))
+            {
+                const glm::vec3 lo{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]};
+                const glm::vec3 hi{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]};
+                const glm::vec3 dir{e->v.movedir[0], e->v.movedir[1], e->v.movedir[2]};
+                // (in front of the button: a lectern's cap may overhang it)
+                const glm::vec3 at3 = 0.5f * (lo + hi) + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + 14.f} - dir * 8.f;
+                text3d::queue("SELECTED", at3, glm::vec3{0.f, glm::degrees(za::atan2(dir.y, dir.x)), 0.f},
+                    text3d::Align::Centre, 0.3f, true);
+            }
+            continue;
+        }
         if(q_strncasecmp(target, prefix, prefixLength))
         {
             continue;
@@ -584,7 +607,7 @@ void frame()
     // A first start (vr_setup_pending, vr_cvars.cpp) begun without the headset: VR Calibration once it tracks, with no
     // game running or in the vrstart hub (where VR starts), as the main menu's VR Calibration row; only once. (Started
     // with VR on, vr_startgame goes to the calibration room at once: vr_main.cpp.)
-    if(vr_setup_pending.value != 0.f && vrActive() && tracking().head.valid && (!sv.active || !strcmp(sv.name, "vrstart")) &&
+    if(vr_setup_pending.value != 0.f && vrActive() && tracking().head.valid && (!sv.active || !strcmp(sv.name, VR_HubMap())) &&
         !running() && !flow.pending)
     {
         Cvar_SetValueQuick(&vr_setup_pending, 0.f);
