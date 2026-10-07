@@ -1872,3 +1872,11 @@ the same. `vr_debug_weaponfx 2` prints the travel every frame. Pictures: `vr_aut
 that point of the stroke (0.35-0.45 at the back); `vr_light_test` lights the gun; a side view of the main hand's gun
 (`vr_mock_hand main 0.15 1.2 -0.45 70 0 0`): `vr_mock_camera 0.62 1.22 -0.74 3 90`; from behind above the right rod:
 `vr_mock_camera 0.3 1.3 -0.55 20 60`.
+The super shotgun broken open (phase 2b; section 7): `impulse 155; vr_test_weaponinst 7; impulse 120` (it into the off
+hand), `+offhandattack` (both barrels: `vr_reload_test 0; impulse 125` prints `reload: the super shotgun open 0 spent
+2`), `+flickreloadleft` (`broken open by a flick: 2 spent and 0 live thrown out`), the trigger again (`a dry click`),
+the pouch and `vr_mock_hand_to main lport` (the breech, turned with the barrels: `2 into the gun`), the flick again
+(`closed by a flick`). The pry: `vr_mock_hand_to main heldspot 0` and the grip (`ssg: both hands on it`), then the main
+hand down 10 units in four frames (`ssg: pried open`, `broken open by the pry`), up again (`ssg: the barrels lifted
+shut`); `vr_reload_debug 2` prints the pry's angle every frame and `ssg: hand N open A deg, its breech ...` (the drawn
+barrels against the model's turned breech: `turned 0.00 off`). The self-test's section: `reload: PASS ... super shotgun`.

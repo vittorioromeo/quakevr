@@ -29529,3 +29529,40 @@ Open: the tags v0.8.0 to v0.8.2 exist only in the local repository (not on GitHu
 v0.8.2 (about 1900 commits, capped at 150): write the first release's notes by hand (`-Notes`). The newest GitHub
 release is the HQ texture pack (`textures-2026-10-03`); a game release published as latest takes over
 `releases/latest/download/latest.json`, which is what the installer wants.
+
+## Immersive reloading: the super shotgun broken open (2026-10-07)
+
+Phase 2b of RELOAD_PLAN.md (worktree `reload`), with immersive reloading on and Weapons > Reloading > Super Shotgun >
+Break Open (`vr_reload_ssg_break`, 1):
+
+- **Fired, its shells stay in** (QC `QVR_WPNFLAG_SSG_SPENT`: 0-2 spent shells, in the weapon's flags; travels with the
+  gun). No holster, button or flick reload for it.
+- **Breaking it open** throws the spent shells out (the engine's casings, out of the chambers as drawn open, with a
+  pop: `reload_ssg_eject.wav`) and any live ones as rounds lying about (taken again or refunded at the pouch). It stays
+  open (`QVR_WPNFLAG_SSG_OPEN`): drawn open, the trigger only clicks (`gunclick.wav`). Two ways:
+  - the flick (the old flick reload's gesture or `+flickreload*`): no reload and no spin any more, it only breaks open;
+  - the pry: both hands on it (the two-handed grip on its fore-end, the grip held), the front hand's angle below the
+    back controller's aim going up by `vr_reload_ssg_pry_angle` (30 degrees) from its least since they took hold, at
+    `vr_reload_ssg_pry_speed` (100 deg/s) or faster: the front hand pushing the barrels down, or the stock lifted. The
+    engine detects it (vr_flick.cpp: the server's hand angles are the two-handed aim, which follows the hands' line) and
+    sends it as the gun hand's flick bit for a moment. A steady two-handed aim moves both together: it never pries.
+- **Loading**: the pouch always gives it a taped pair (`vr_shell_pair.mdl`); open, the pair's middle at its breech
+  (`vr_reload_port_sshot_x/y/z`, radius `vr_reload_port_sshot_radius` 3; the point turns down with the barrels; Show
+  Load Points draws it) loads both. **One chamber free** (a live shell picked up from the floor loaded first): the pair
+  loads one and the other stays in the hand (as the shotgun's pairs); shut, a pair is refused with the "can't" click.
+- **Closing**: the flick again (`vr_reload_ssg_close_flick` 1), the barrels lifted back with both hands (the reverse
+  pry, as far and as fast: `vr_reload_ssg_close_pry` 1), or by itself once both are loaded (`vr_reload_ssg_close_auto`,
+  0). The close: `reload_ssg_close.wav` and a heavier buzz in both hands.
+- **The model**: `Misc/quakevr/make_ssg_open.py` cuts `v_shot2.mdl` at its hinge into `vr_ssg_frame_on_v_shot2.mdl`
+  (the frame, its open front closed by a standing breech with two firing pins) and `vr_ssg_barrels_on_v_shot2.mdl` (the
+  barrels and fore-end, their back closed by a breech face with two chamber mouths; skins 0, 1, 2: the chambers empty,
+  one, both loaded with brass heads and primers), Quake palette, normal maps baked. Closed, the gun is drawn as itself;
+  open (and opening, closing: 450 and 900 deg/s, smooth at any frame rate) as its two parts, the barrels turned
+  `vr_reload_ssg_open_angle` (35) down about the hinge (vr_view.cpp setupSsgParts); held or holstered (lying in the
+  world it shows shut). Its two-handed grip turns down with the fore-end.
+- **Sounds**: the open and the close cut from zer0_sol's CC0 pack (`make_reload_ssg_sounds.py`; CREDITS.md), the
+  eject pop synthesised.
+- **Immersive off** (or Break Open off): the flick reloads it as before (the self-test and reload_test.sh check it).
+- Tests: the self-test 66 of 66 (its super shotgun section); reload_test.sh section 7 (46 of 46 in all).
+- Not done: a gun lying in the world is drawn shut even when open; its muzzle point (the aim line) stays where the shut
+  barrels are while open (it can't fire then).
