@@ -507,6 +507,7 @@ QVR_CVAR(vr_height_calibration, "1.646099", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_distance, "80", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_status, "1", CVAR_ARCHIVE)            // a status box in the menus' top right corner (vr_menuui.cpp): VR / mock / flat, the runtime, the resolution rendered, the target rate, fps, CPU/GPU ms, RAM/VRAM
 QVR_CVAR(vr_menu_vr_style, "1", CVAR_ARCHIVE)          // menus made for the headset (vr_menuui.cpp): filling the panel, rows spaced out, modern sliders and switches, a laser pointer
+QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
 QVR_CVAR(vr_menu_laser_hue, "-1", CVAR_ARCHIVE)        // that laser's colour: hue (degrees; 35 amber; -1 vr_player_hue)
 QVR_CVAR(vr_menu_recolor, "1", CVAR_ARCHIVE)          // the menus' browns, tans and oranges (letters, pictures, sliders, panels) turned blood red by their hue alone, the Quake VR banner left as it is (vr_menubrand.cpp; gl_shaders.h's gui shader)

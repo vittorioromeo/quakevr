@@ -4627,6 +4627,7 @@ za::Vector<Item> pageDebugReports()
         command("Relighting: Status", "vr_relight_status").help("vr_relight_status: the relighting's state (a batch's maps done, each light running: its stage and process id; the progress and time left), how the map in play is lit, the light.exe found."),
         command("Relighting: Tool Lookup", "vr_relight_get_tool status").help("vr_relight_get_tool status: the light.exe found (or not), the folder Download ericw-tools writes, the pinned file (version, size, sha256), its URL and the last download's result. vr_relight_tool_dir points both lookup and download at a test folder; vr_relight_tool_url at a test server."),
         command("Relighting: Batch's Maps", "vr_relight_batch -list").help("vr_relight_batch -list: the maps Graphics > Relighting's Relight These Maps would take (Maps, Episode, Game), with their files and sizes, without relighting them."),
+        command("Menu Rows", "menu_vr rows").help("menu_vr rows: this page's rows as drawn (MROW: row, top, label), the scroll, the section gap, and whether the laser and mouse find each row where it is drawn."),
         command("Menu Help Fit", "menu_vr helpcheck").help("menu_vr helpcheck [columns]: every VR page's help wrapped as drawn: the pages whose box grew, the help shown in parts, the longest (HELPSUM)."),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
@@ -8717,10 +8718,86 @@ RowsLeft rowsLeft;
     return rowsLeft.left;
 }
 
-[[nodiscard]] int visibleRows(const za::Vector<Item>& list)
+// The rows' heights: 8 pixels each, a section's header (and the first, under the title) with a gap above it
+// (vr_menu_section_gap, in rows: 0 to 2). The list scrolls a row at a time, so how many rows show depends on where it is
+// scrolled to (the headers among them); each function below takes the gaps into account.
+[[nodiscard]] int sectionGap()
+{
+    return static_cast<int>(za::round(CLAMP(0.f, vr_menu_section_gap.value, 2.f) * 8.f));
+}
+
+[[nodiscard]] int rowGap(const za::Vector<Item>& list, int i)
+{
+    return list[i].kind == Item::Header ? sectionGap() : 0;
+}
+
+// The list's height (pixels from listTop): down to the help's box, or the menu's bottom.
+[[nodiscard]] int listSpace(const za::Vector<Item>& list)
 {
     const Layout l = layout();
-    return ((hasHelp(list) ? l.helpTop - 4 : l.bottom - 8) - l.listTop) / 8;
+    return (hasHelp(list) ? l.helpTop - 4 : l.bottom - 8) - l.listTop;
+}
+
+// How many rows show from row `first` on (as many as fit, at least one; 0 past the list's end).
+[[nodiscard]] int rowsFrom(const za::Vector<Item>& list, int first)
+{
+    const int space = listSpace(list);
+    const int n = static_cast<int>(list.size());
+    int y = 0;
+    int rows = 0;
+    for(int i = q_max(first, 0); i < n; i++)
+    {
+        y += rowGap(list, i) + 8;
+        if(y > space)
+        {
+            break;
+        }
+        rows++;
+    }
+    return first < n ? q_max(rows, 1) : 0;
+}
+
+// Row i's top (pixels below listTop) with the list scrolled to `first` (i >= first): its gap included.
+[[nodiscard]] int rowTop(const za::Vector<Item>& list, int first, int i)
+{
+    int y = 0;
+    for(int k = first; k < i; k++)
+    {
+        y += rowGap(list, k) + 8;
+    }
+    return y + rowGap(list, i);
+}
+
+// The scroll that shows row `last` at the list's bottom: the first row of as many as fit up to it.
+[[nodiscard]] int scrollShowing(const za::Vector<Item>& list, int last)
+{
+    const int space = listSpace(list);
+    int y = rowGap(list, last) + 8;
+    int first = last;
+    while(first > 0 && y + rowGap(list, first - 1) + 8 <= space)
+    {
+        first--;
+        y += rowGap(list, first) + 8;
+    }
+    return first;
+}
+
+// The furthest the list scrolls (0: it fits).
+[[nodiscard]] int maxScroll(const za::Vector<Item>& list)
+{
+    return list.empty() ? 0 : scrollShowing(list, static_cast<int>(list.size()) - 1);
+}
+
+// The rows shown on the page as it is scrolled now.
+[[nodiscard]] int visibleRows(const za::Vector<Item>& list)
+{
+    return rowsFrom(list, scrolls[page]);
+}
+
+// The rows the list's height holds (the scrollbar's track).
+[[nodiscard]] int trackRows(const za::Vector<Item>& list)
+{
+    return q_max(listSpace(list) / 8, 1);
 }
 
 [[nodiscard]] int firstSelectable(const za::Vector<Item>& list)
@@ -9135,28 +9212,44 @@ void change(const Item& item, int dir, bool repeat = false)
 [[nodiscard]] int rowAt(float cy)
 {
     const auto& list = items(page);
-    const int row = static_cast<int>(za::floor((cy - layout().listTop) / 8.f));
-    const int i = scrolls[page] + row;
-    if(row < 0 || row >= visibleRows(list) || i >= static_cast<int>(list.size()))
+    const float yrel = cy - static_cast<float>(layout().listTop);
+    const int first = scrolls[page];
+    const int last = first + visibleRows(list);
+    int i = -1;
+    float y = 0.f;
+    for(int k = first; k < last && yrel >= y; k++)
     {
-        return -1;
+        y += static_cast<float>(rowGap(list, k));
+        if(yrel >= y && yrel < y + 8.f)
+        {
+            i = k;
+            break;
+        }
+        y += 8.f;
+    }
+    if(i < 0)
+    {
+        return -1; // above the list, below it, or in a section's gap
     }
     // A long text's next line: its first, while shown.
-    return i - list[i].partOf >= scrolls[page] ? i - list[i].partOf : -1;
+    return i - list[i].partOf >= first ? i - list[i].partOf : -1;
 }
 
 // A long list's scrollbar, right of the values (as far as the screen goes), as Ironwail's lists
 // have: its thumb's top (pixels below listTop) and height (rows). False when the list fits.
 int scrollbarX = midPos + 188; // where it was drawn
 
-[[nodiscard]] bool scrollbar(int n, int rows, int& y, int& height)
+[[nodiscard]] bool scrollbar(const za::Vector<Item>& list, int& y, int& height)
 {
-    if(n <= rows)
+    const int most = maxScroll(list);
+    if(most <= 0)
     {
         return false;
     }
-    height = q_max(static_cast<int>(rows * rows / static_cast<float>(n) + 0.5f), 2);
-    y = static_cast<int>(scrolls[page] * 8 / static_cast<float>(n - rows) * (rows - height) + 0.5f);
+    const int track = trackRows(list);
+    const int n = static_cast<int>(list.size());
+    height = CLAMP(2, static_cast<int>(track * visibleRows(list) / static_cast<float>(n) + 0.5f), track);
+    y = static_cast<int>(CLAMP(0, scrolls[page], most) * 8 / static_cast<float>(most) * (track - height) + 0.5f);
     return true;
 }
 
@@ -9178,20 +9271,51 @@ void keepCursorVisible()
     }
 }
 
+// menu_vr rows (tests, Debug > Tools): the VR page shown, its rows as drawn: MROW|row|top y|label (menu coordinates), then
+// MROWS with the rows shown, the scroll and its most, the section gap, and whether the mouse finds each row where it is
+// drawn (rowAt, the laser's and the desktop mouse's) and nothing in the gaps.
+void printRows()
+{
+    if(m_state != m_vr)
+    {
+        Con_Printf("menu_vr rows: not on a VR page\n");
+        return;
+    }
+    const auto& list = items(page);
+    const Layout l = layout();
+    const int first = scrolls[page];
+    const int shown = visibleRows(list);
+    int bad = 0;
+    for(int i = first; i < first + shown; i++)
+    {
+        const int top = l.listTop + rowTop(list, first, i);
+        Con_Printf("MROW|%d|%d|%s\n", i, top, list[i].label ? list[i].label : "");
+        const int hit = rowAt(static_cast<float>(top) + 4.f);
+        const int expected = i - list[i].partOf >= first ? i - list[i].partOf : -1;
+        bad += hit != expected;
+        if(rowGap(list, i) > 1 && rowAt(static_cast<float>(top - rowGap(list, i)) + 0.5f) != -1)
+        {
+            bad++;
+        }
+    }
+    Con_Printf("MROWS|%d shown from %d of %d|scroll most %d|gap %d px|bottom %d of %d|rowAt %s\n", shown, first,
+        static_cast<int>(list.size()), maxScroll(list), sectionGap(), shown > 0 ? l.listTop + rowTop(list, first, first + shown - 1) + 8 : l.listTop,
+        l.listTop + listSpace(list), bad ? "MISMATCH" : "agrees");
+}
+
 // The list scrolled to where the mouse holds the scrollbar, the cursor kept on a visible setting.
 void scrollTo(float cy)
 {
     const auto& list = items(page);
-    const int n = static_cast<int>(list.size());
-    const int rows = visibleRows(list);
     int y, height;
-    if(!scrollbar(n, rows, y, height))
+    if(!scrollbar(list, y, height))
     {
         return;
     }
+    const int most = maxScroll(list);
     const float yrel = cy - layout().listTop - height * 4.f;
-    const int range = (rows - height) * 8;
-    scrolls[page] = CLAMP(0, static_cast<int>(yrel * (n - rows) / range + 0.5f), n - rows);
+    const int range = q_max((trackRows(list) - height) * 8, 1);
+    scrolls[page] = CLAMP(0, static_cast<int>(yrel * most / range + 0.5f), most);
     keepCursorVisible();
 }
 
@@ -9338,7 +9462,7 @@ void openDropDown(const Item& item, int row)
     }
 
     // Up and down: the current choice level with the row, the box inside the menu.
-    const int rowY = l.listTop + (row - scrolls[page]) * 8;
+    const int rowY = l.listTop + rowTop(items(page), scrolls[page], row);
     d.top = rowY - (cur - d.scroll) * 8;
     d.top = CLAMP(l.top + 12, d.top, q_max(l.top + 12, l.bottom - 12 - d.rows * 8));
     S_LocalSound("misc/menu3.wav");
@@ -10317,6 +10441,11 @@ void qvr::menu::command_f()
         dumpPages();
         return;
     }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "rows"))
+    {
+        printRows();
+        return;
+    }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "recent"))
     {
         searchRecentCommand(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "clear"));
@@ -10664,13 +10793,12 @@ bool qvr::menu::scroll(int rows)
         return true;
     }
     const auto& list = items(page);
-    const int n = static_cast<int>(list.size());
-    const int visible = visibleRows(list);
-    if(n <= visible)
+    const int most = maxScroll(list);
+    if(most <= 0)
     {
         return false;
     }
-    scrolls[page] = CLAMP(0, scrolls[page] + rows, n - visible);
+    scrolls[page] = CLAMP(0, scrolls[page] + rows, most);
     keepCursorVisible();
     return true;
 }
@@ -10777,17 +10905,17 @@ extern "C" void VR_Menu_Draw()
     const char* name = pages[page].title;
     M_PrintWhite((320 - 8 * static_cast<int>(strlen(name))) / 2, l.top + 28, name);
 
-    const int rows = visibleRows(list);
     const int n = static_cast<int>(list.size());
     if(cursor < scroll)
     {
         scroll = cursor > 0 && list[cursor - 1].kind == Item::Header ? cursor - 1 : cursor;
     }
-    if(cursor >= scroll + rows)
+    if(cursor < n && cursor >= scroll + rowsFrom(list, scroll))
     {
-        scroll = cursor - rows + 1;
+        scroll = scrollShowing(list, cursor);
     }
-    scroll = CLAMP(0, scroll, q_max(n - rows, 0));
+    scroll = CLAMP(0, scroll, maxScroll(list));
+    const int rows = visibleRows(list);
 
     // Where the page is, to keep (on a change only: no strings built every frame).
     int& notedPage = notedPlace.page;
@@ -10807,10 +10935,10 @@ extern "C" void VR_Menu_Draw()
     const bool rowSelected = !menuui::toolbarFocused();
     for(int i = scroll; i < n && i < scroll + rows; i++)
     {
-        drawItem(list[i], l.listTop + (i - scroll) * 8, rowSelected && i - list[i].partOf == cursor);
+        drawItem(list[i], l.listTop + rowTop(list, scroll, i), rowSelected && i - list[i].partOf == cursor);
     }
 
-    if(int y, height; scrollbar(n, rows, y, height))
+    if(int y, height; scrollbar(list, y, height))
     {
         scrollbarX = q_min(midPos + 188, static_cast<int>(glcanvas.right) - 16);
         M_DrawTextBox(scrollbarX - 4, l.listTop + y - 4, 0, height - 1);
@@ -10927,7 +11055,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 
         case K_MOUSE1:
             // On the scrollbar: it is dragged.
-            if(int y, height; m_mousex >= scrollbarX - 8 && scrollbar(static_cast<int>(list.size()), visibleRows(list), y, height))
+            if(int y, height; m_mousex >= scrollbarX - 8 && scrollbar(list, y, height))
             {
                 scrollGrab = true;
                 scrollTo(m_mousey);
