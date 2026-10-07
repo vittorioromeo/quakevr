@@ -304,4 +304,9 @@ DROP="vr_weapon_grip_mode 0;+graboff;vr_mock_button off grip 1;wait5;vr_mock_but
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$BY;$DROP;toggleconsole;quit" -Filter "^ssg: a super|broken open" 2>&1)
 log2=$(bash $KIT/run.sh $AGENT -Script "$SSG;$DROP;toggleconsole;quit" -Filter "^ssg: a super" 2>&1)
 check $(echo "$log" | grep -q "^ssg: a super shotgun lying open (entity [0-9]*), 0 loaded, drawn in its parts" && ! echo "$log2" | grep -q "^ssg: a super shotgun lying open" && echo 1 || echo 0) "dropped open, the super shotgun lies drawn open (its parts); dropped shut, whole"
+# The super nailgun's magazine on its left, its ammo button on its right (22-10-39): in the off hand (drawn mirrored) at
+# x -0.15, both inward of it the magazine, outward the button.
+log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse 157};vr_reload_bump_speed 100;vr_mock_hand_to main mag 0;wait5;vr_mock_hand_to main mag 0;wait5;vr_mock_hand_to main wbutton front;wait5;vr_mock_hand_to main wbutton front;wait5;toggleconsole;quit" -Filter "vr_mock_hand_to: main hand at" 2>&1)
+mx=$(echo "$log" | grep "main hand at" | sed -n 2p | awk '{print $5}'); bx=$(echo "$log" | grep "main hand at" | sed -n 4p | awk '{print $5}')
+check $(awk -v m="$mx" -v b="$bx" 'BEGIN { print (m != "" && b != "" && m > -0.1 && b < -0.2) ? 1 : 0 }') "the super nailgun in the off hand (x -0.15): its magazine inward (x $mx), its ammo button outward (x $bx)"
 exit $fail

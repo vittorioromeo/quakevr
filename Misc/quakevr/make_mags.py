@@ -14,8 +14,10 @@
 #                                     (vr_view.cpp setupMagazines), its Scale and offsets the gun's (vr_weapons.cpp
 #                                     makeModelTransform: a file per gun, as each gun has its own settings): the nailgun's
 #                                     under the receiver ahead of the trigger guard, raked forward a little; the super
-#                                     nailgun's out of the outer (right, -y) side of its body, square to its upper face
-#                                     (22 degrees up: the author's note, 37 was too steep); the
+#                                     nailgun's out of the inner (left, +y) side of its body (the author's note
+#                                     vrfiringrange_2026-10-07_22-10-39: the magazine on the left, the ammo button on
+#                                     the right; it was on the right), square to its upper face (22 degrees up: the
+#                                     author's note, 37 was too steep): made on the right face and mirrored; the
 #                                     thunderbolt's under its body, ahead of the grip.
 # The props (the first three) have their origin at their middle (they tumble about it), the magazine's insertion axis
 # along +z (its top, the feed end, up). vr_view.cpp's magMounts and loadPorts tables take the `well` points printed here
@@ -50,18 +52,22 @@ class Mesh(mdlgen.Mesh):
         super().__init__(SKIN_W, SKIN_H, REGIONS)
 
 
-def transformed(mesh, rot, at):
-    """A copy of `mesh` turned by `rot` (rows: where local x, y, z go) and moved to `at`: as it sits in its gun."""
+def transformed(mesh, rot, at, mirror=False):
+    """A copy of `mesh` turned by `rot` (rows: where local x, y, z go) and moved to `at`: as it sits in its gun; with
+    `mirror`, then mirrored to the gun's other side (y to -y, the triangles' winding reversed)."""
     out = Mesh()
+    k = -1.0 if mirror else 1.0
 
     def tr(p):
-        return add(add(add(mul(rot[0], p[0]), mul(rot[1], p[1])), mul(rot[2], p[2])), at)
+        q = add(add(add(mul(rot[0], p[0]), mul(rot[1], p[1])), mul(rot[2], p[2])), at)
+        return (q[0], k * q[1], q[2])
 
     def trn(n):
-        return norm(add(add(mul(rot[0], n[0]), mul(rot[1], n[1])), mul(rot[2], n[2])))
+        q = norm(add(add(mul(rot[0], n[0]), mul(rot[1], n[1])), mul(rot[2], n[2])))
+        return (q[0], k * q[1], q[2])
 
     out.verts = [(tr(p), trn(n), st) for p, n, st in mesh.verts]
-    out.tris = list(mesh.tris)
+    out.tris = [(a, c, b) for a, b, c in mesh.tris] if mirror else list(mesh.tris)
     return out
 
 
@@ -117,21 +123,22 @@ def rot_y(deg):
 
 
 # Where each sits in its gun: (prop, attached name, its turn, the seat in gun space (where its top meets the gun),
-# the guns it fits).
+# the guns it fits, mirrored to the gun's other side).
 def mounts():
     nail, nail_top = nail_mag()
     snail, snail_top = snail_mag()
     cell, cell_top = cell_mag()
     # The super nailgun's: square to the face it goes into (the author: 37 degrees was too steep), the upper of the body's
     # two right faces (normal (0, -0.93, 0.38): 22 degrees up): its length along that face's inward normal, local -y (the
-    # face with the window) up towards the eyes, local x along the gun.
+    # face with the window) up towards the eyes, local x along the gun; then mirrored onto the left face (its normal
+    # (0, 0.93, 0.36): the body's two sides match within a degree), seat (7.2, 5.44, 1.2).
     n = norm((0.0, 0.926, -0.378))
     snail_rot = ((1.0, 0.0, 0.0), (0.0, n[2], -n[1]), n)
     return [
-        ("vr_mag_nail", nail, nail_top, rot_y(-8.0), (6.9, 0.0, -1.45), ("v_nail.mdl", "v_lava.mdl")),
-        ("vr_mag_snail", snail, snail_top, snail_rot, (7.2, -5.44, 1.2), ("v_nail2.mdl", "v_lava2.mdl")),
+        ("vr_mag_nail", nail, nail_top, rot_y(-8.0), (6.9, 0.0, -1.45), ("v_nail.mdl", "v_lava.mdl"), False),
+        ("vr_mag_snail", snail, snail_top, snail_rot, (7.2, -5.44, 1.2), ("v_nail2.mdl", "v_lava2.mdl"), True),
         ("vr_mag_light", cell, cell_top, ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), (11.6, 0.0, 3.0),
-         ("v_light.mdl", "v_plasma.mdl")),
+         ("v_light.mdl", "v_plasma.mdl"), False),
     ]
 
 
@@ -224,11 +231,11 @@ def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
     paths = []
     for name, *_ in mounts():
-        paths += [os.path.join(out, name + ".mdl")] + [os.path.join(out, pre + g) for g in _[-1]
+        paths += [os.path.join(out, name + ".mdl")] + [os.path.join(out, pre + g) for g in _[-2]
                                                         for pre in ("vr_mag_on_", "vr_magwell_on_")]
     guard = genguard.Guard("make_mags.py", paths)
     sections = {"vr_mag_nail": (1.7, 0.85), "vr_mag_snail": (2.3, 1.05), "vr_mag_light": (1.75, 1.5)}
-    for name, mesh, top, rot, seat, guns in mounts():
+    for name, mesh, top, rot, seat, guns, mirror in mounts():
         skin, fiery = paint(name), paint(name, True)
         # The prop: skin 0 plain, 1 the lava nails' or plasma's (QC sets it by the ammo).
         mdlgen.write_mdl(os.path.join(out, name + ".mdl"), mesh, [skin, fiery], name)
@@ -238,10 +245,12 @@ def main():
         well = magwell(sections[name][0], sections[name][1], top)
         for k, g in enumerate(guns):
             own = fiery if k == 1 else skin  # (the second gun of each pair is the lava or plasma one)
-            mdlgen.write_mdl(os.path.join(out, "vr_mag_on_" + g), transformed(mesh, rot, at), [own], name + "_on")
-            mdlgen.write_mdl(os.path.join(out, "vr_magwell_on_" + g), transformed(well, rot, at), [skin], name + "_well")
-        print("%s: %d vertices, %d triangles; in %s its middle (the well) at (%.2f %.2f %.2f)" % (
-            name, len(mesh.verts), len(mesh.tris), "/".join(guns), at[0], at[1], at[2]))
+            mdlgen.write_mdl(os.path.join(out, "vr_mag_on_" + g), transformed(mesh, rot, at, mirror), [own], name + "_on")
+            mdlgen.write_mdl(os.path.join(out, "vr_magwell_on_" + g), transformed(well, rot, at, mirror), [skin],
+                             name + "_well")
+        k = -1.0 if mirror else 1.0
+        print("%s: %d vertices, %d triangles; in %s its middle (the well) at (%.2f %.2f %.2f), its seat (%.2f %.2f %.2f)" % (
+            name, len(mesh.verts), len(mesh.tris), "/".join(guns), at[0], k * at[1], at[2], seat[0], k * seat[1], seat[2]))
     guard.finish()
 
 

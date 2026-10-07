@@ -30106,3 +30106,8 @@ The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh
   drawn open in its two parts as in the hands (vr_view.cpp `setupWorldSsgs`, the first 4 lying about; their own
   entities taken out of the frame's list), at the open angle, the barrels' skin its loaded chambers. `vr_reload_debug 1`
   with `developer 1` prints "ssg: a super shotgun lying open" once a second.
+- **The super nailgun's magazine on its left, its ammo button on its right** (22-10-39). make_mags.py makes the
+  magazine and its well on the right face as before and mirrors them onto the left one (seat (7.2, 5.44, 1.2), middle
+  y 9.79: vr_view.cpp `loadPorts`, `magMounts`; the kick anchors 196 and 254, the mirrors of 192 and 250); the ammo
+  button's Y and Roll mirrored (slots 4 and 12: -1.5, 65.4), and weapon settings version 37 takes them where a config
+  still has the old ones. In the left hand the gun is drawn mirrored: the magazine stays on the inner side.

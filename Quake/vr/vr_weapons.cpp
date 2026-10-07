@@ -154,7 +154,7 @@ namespace
 // and 25 (Dawn of the Machine's Super Axe and its glowing twin, MG3's model read in place: QC vr_mg3_weapons.qc; unused
 // placeholders before). A first
 // start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 36;
+constexpr int settingsVersion = 37;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -516,6 +516,12 @@ void migrate()
     {
         resetSlot(24);
         resetSlot(25);
+    }
+    if(vr_wofs_version.value < 37) // the super nailguns' ammo button on their right, the magazine on the left (the author's
+    {                              // note vrfiringrange_2026-10-07_22-10-39): where still the old default
+        const OldDefault changes[] = {{4, Key::WpnButtonY, 1.500001f}, {4, Key::WpnButtonRoll, -65.399933f},
+            {12, Key::WpnButtonY, 1.500001f}, {12, Key::WpnButtonRoll, -65.399933f}};
+        takeWhereOld(changes);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
