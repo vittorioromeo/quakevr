@@ -909,7 +909,8 @@ void resetHandMoves()
         slider("Contact Sparks", "vr_reload_battery_sparks", 0.f, 40.f, 1.f, "%.0f").extend(0.f, 200.f)
             .help("Sparks a cell throws as it makes or breaks contact: seated in the gun, or taken out (0: none)."),
         slider("Spent Cell Smoke", "vr_reload_battery_smoke_time", 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
-            .help("Seconds a spent cell (taken out empty) smokes from its top, in the hand or lying about (0: never)."),
+            .help("Seconds a spent cell (taken out empty) smokes from its top, in the hand or lying about; a spent "
+                  "magazine of lava nails too (0: never)."),
         slider("Smoke Opacity", "vr_reload_battery_smoke_alpha", 0.f, 1.f, 0.05f, "%.2f")
             .help("How thick each wisp of a spent cell's smoke is as it leaves it."),
         open("Cell Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))

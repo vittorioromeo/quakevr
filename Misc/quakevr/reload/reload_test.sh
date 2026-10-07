@@ -340,4 +340,14 @@ PROP="$GRIP;vr_test_held_hand 1;vr_test_held_pick 4;impulse 252;wait5"
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$PROP;$(PHIT 45 20);$REP;$(PHIT -45 -20);$REP;toggleconsole;quit" -Filter "$F7|^test:" 2>&1)
 log2=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$(PHIT 45 20);$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "^test: progs/h_guard.mdl in the main hand" && echo "$log" | grep -q "broken open by a hit from above" && echo "$log" | grep -q "closed by a hit from below" && [ "$(opens "$log")" = 10 ] && [ "$(opens "$log2")" = 0 ] && echo 1 || echo 0) "a prop held in the other hand hits the barrels open and shut by its surface (prop $(opens "$log"), want 10; the fist as far off: $(opens "$log2"), want 0)"
+# Spent lava nail magazines smoke as the spent cells do (00-00-42): the super nailgun and the nailgun on lava nails, fired
+# dry (vr_reload_test 16), their magazine out: smoking for Spent Cell Smoke (2 s here); a plain nail magazine emptied
+# (vr_reload_test 5) doesn't.
+for g in 157 156; do
+    log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse $g};vr_reload_battery_smoke_time 2;vr_reload_test 16;impulse 125;wait3;$BY;wait300;toggleconsole;quit" -Filter "^reload: (a spent|the spent)" 2>&1)
+    st=$(echo "$log" | grep "the spent lava nail magazine stopped smoking after" | sed 's/.*after \([0-9.]*\) s: \([0-9]*\) wisps.*/\1 \2/')
+    check $(echo "$log" | grep -q "a spent lava nail magazine smoking for 2 s" && echo "$st" | awk '{print ($1 >= 1.9 && $1 <= 2.3 && $2 >= 8) ? 1 : 0}') "impulse $g's gun on lava nails, its spent magazine out: it smokes for 2 s (after, wisps: ${st:-none})"
+done
+log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse 157};vr_reload_test 5;impulse 125;wait3;$BY;wait60;toggleconsole;quit" -Filter "^reload: (a spent|a magazine of)" 2>&1)
+check $(echo "$log" | grep -q "a magazine of 0 out of the gun" && ! echo "$log" | grep -q "a spent" && echo 1 || echo 0) "a plain nail magazine taken out empty doesn't smoke"
 exit $fail

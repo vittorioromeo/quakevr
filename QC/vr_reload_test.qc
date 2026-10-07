@@ -719,5 +719,24 @@ void() VR_Reload_Test =
             bprint("reload: the off hand holds no super shotgun shut (immersive reloading on?)\n");
         }
     }
+    else if(step == 16)
+    {
+        // The off hand's nailgun or thunderbolt on its other ammo (lava nails, plasma: 100 of it given), its magazine
+        // emptied as by firing it dry (taken out, it is a spent one: VR_Reload_CellSpent).
+        float tw = VRGetEntWeapon(self, cVR_OffHand);
+        if(tw != WID_NAILGUN && tw != WID_SUPER_NAILGUN && tw != WID_LIGHTNING)
+        {
+            bprint("reload: the off hand holds no nailgun, super nailgun or thunderbolt\n");
+        }
+        else
+        {
+            VRSetEntWeaponFlags(self, cVR_OffHand, VRGetEntWeaponFlags(self, cVR_OffHand) | QVR_WPNFLAG_USE_SECONDARY_AMMO);
+            float ta = WeaponIdToAmmoId(tw, VRGetEntWeaponFlags(self, cVR_OffHand));
+            VR_AmmoUtil_AddAmmoCountByAmmoId(self, ta, 100);
+            VRSetEntWeaponClip(self, cVR_OffHand, 0);
+            VR_Reload_AmmoChanged(self);
+            bprint(sprintf("reload: the off hand's gun on its other ammo (%g), its magazine spent\n", ta));
+        }
+    }
     VR_Reload_TestReport();
 };

@@ -75,7 +75,7 @@
 .float vr_pouch_kind;
 .float vr_pouch_count;
 .float vr_ammo_born;     // when it was last in a hand or flying (its time lying about runs from here)
-.float vr_ammo_smoke;    // a spent thunderbolt cell: when it stops smoking (vr_reload_battery_smoke_time; 0 not smoking)
+.float vr_ammo_smoke;    // a spent thunderbolt cell (or lava nails' magazine): when it stops smoking (vr_reload_battery_smoke_time; 0 not smoking)
 .float vr_ammo_puffs;    // and the wisps it has given off, since (for the log)
 .float vr_ammo_smoke_from;
 .float vr_ammo_tink;     // its last knock's sound
@@ -491,12 +491,21 @@ void(entity p, float xHand, entity r, string xHow) VR_Reload_CellSparks =
     VR_Reload_Log(sprintf("the cell's contact sparks (%s): %g", xHow, n));
 };
 
-// A spent thunderbolt cell (taken out empty) smokes for vr_reload_battery_smoke_time (the author's note
-// vrfiringrange_2026-10-07_22-14-33), held or lying about: a wisp off its top every tenth of a second, thinning out.
+// What a spent magazine that smokes is called in the log: a thunderbolt cell, or a magazine of lava nails (the author's
+// note vrfiringrange_2026-10-08_00-00-42: they smoke as the cells do).
+string(entity r) VR_Reload_SmokerName =
+{
+    return r.vr_ammo_wid == WID_LIGHTNING ? "cell" : "lava nail magazine";
+};
+
+// A spent thunderbolt cell or magazine of lava nails (taken out empty) smokes for vr_reload_battery_smoke_time (the
+// author's notes vrfiringrange_2026-10-07_22-14-33, 2026-10-08_00-00-42), held or lying about: a wisp off its top every
+// tenth of a second, thinning out.
 void(entity r) VR_Reload_CellSpent =
 {
     float t = cvar_hget(cvarh_vr_reload_battery_smoke_time);
-    if(r.vr_ammo_wid != WID_LIGHTNING || r.vr_ammo_count > 0 || t <= 0)
+    if(!(r.vr_ammo_wid == WID_LIGHTNING || (r.vr_ammo_wid && r.vr_ammo_aid == AID_LAVA_NAILS)) || r.vr_ammo_count > 0 ||
+       t <= 0)
     {
         return;
     }
@@ -504,7 +513,7 @@ void(entity r) VR_Reload_CellSpent =
     r.vr_ammo_puffs = 0;
     r.vr_ammo_smoke_from = time;
     r.nextthink = time + 0.05;
-    VR_Reload_Log(sprintf("a spent cell smoking for %g s", t));
+    VR_Reload_Log(sprintf("a spent %s smoking for %g s", VR_Reload_SmokerName(r), t));
 };
 
 void(entity r) VR_Reload_CellSmoke =
@@ -516,8 +525,8 @@ void(entity r) VR_Reload_CellSmoke =
     float t = max(0.1, cvar_hget(cvarh_vr_reload_battery_smoke_time));
     if(time >= r.vr_ammo_smoke)
     {
-        VR_Reload_Log(sprintf("the spent cell stopped smoking after %.1f s: %g wisps%s", time - r.vr_ammo_smoke_from,
-            r.vr_ammo_puffs, r.carry_player != world ? " (held)" : ""));
+        VR_Reload_Log(sprintf("the spent %s stopped smoking after %.1f s: %g wisps%s", VR_Reload_SmokerName(r),
+            time - r.vr_ammo_smoke_from, r.vr_ammo_puffs, r.carry_player != world ? " (held)" : ""));
         r.vr_ammo_smoke = 0;
         return;
     }

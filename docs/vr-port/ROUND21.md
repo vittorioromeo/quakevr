@@ -30576,3 +30576,8 @@ vrfiringrange_2026-10-08_00-00-42, 00-01-10, and his typed note on the pouch's s
   `vr_test_held_hand 1` (Debug > Tests, "Into the Main Hand") puts impulse 252's gib or prop in the main hand. A head
   held in the main hand brought to 20 cm over the barrels opens the gun, to 20 cm under shuts it; a fist stopping as far
   off does neither.
+- **Spent lava nail magazines smoke** as the spent thunderbolt cells do (vrfiringrange 00-00-42): a magazine of lava
+  nails (the nailgun's or the super nailgun's) taken out empty smokes off its top for Spent Cell Smoke
+  (`vr_reload_battery_smoke_time`, 7 s), held or lying about; plain nails' don't. Test step `vr_reload_test 16` (Debug >
+  Tests > Reloading, "Spent Lava Nails or Plasma in the Off Hand's Gun"): the off hand's gun on its other ammo, its
+  magazine fired dry.
