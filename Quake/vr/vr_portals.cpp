@@ -89,6 +89,7 @@ za::Vector<Side> sides;
 [[nodiscard]] bool onGate(const Side& sd, const glm::vec3& onPlane, float margin);
 const qmodel_t* builtFor = nullptr;
 int builtGeneration = -1;
+float builtPairExits = -1.f; // vr_slipgate_pair_exits as built (pairExits)
 int chosen = -1;  // the side looked through this frame (-1: none)
 int lastChosen = -1;
 struct ViewCandidate { int side = -1; float score = 0.f; };
@@ -209,12 +210,69 @@ void finish(Side& sd, qmodel_t* m, glm::vec3 dest, float destYaw)
     }
 }
 
+// A gate whose destination stands in front of another gate of its size, facing the way one walks out (a two-way pair, as
+// vrslipgates' and most custom maps' are: the destination marker stands clear of that gate's trigger, 48 units out, for
+// Quake's teleport of monsters): the crossing comes out of that gate's face, not out of the open air in front of it. Else
+// the player popped out 48 units past the gate he seemed to walk out of, the view through showed the room from there,
+// and the exit plane (reverseSide) stood in the middle of the room: a prop or a held object straddling it there was cut
+// and drawn again back at the entrance, and Box3D dropped its contacts behind that plane (ROUND21.md, "Slipgates: exits
+// on their gates"). `to` is moved so that the carried aperture is that gate's (its middle onto that gate's middle: a
+// sill's height too, which the destination marker on the floor left out).
+// A side's aperture's two extents in its plane (a wall's: its width along the wall and its height; a floor's: its sides,
+// the shorter first), from its box (a slanted wall's face spans its box corner to corner).
+[[nodiscard]] glm::vec2 apertureExtents(const Side& sd)
+{
+    const glm::vec3 size = sd.maxs - sd.mins;
+    if(za::fabs(sd.normal.z) < 0.7f)
+    {
+        const glm::vec3 along = glm::normalize(glm::cross(sd.normal, glm::vec3{0.f, 0.f, 1.f}));
+        return {za::fabs(size.x * along.x) + za::fabs(size.y * along.y), size.z};
+    }
+    return {za::min(size.x, size.y), za::max(size.x, size.y)};
+}
+
+void pairExits()
+{
+    if(vr_slipgate_pair_exits.value <= 0.f) { return; }
+    for(za::SizeT i = 0; i < sides.size(); i++)
+    {
+        Side& sd = sides[i];
+        const Side exit = reverseSide(sd);
+        const glm::vec3 exitMid = (exit.mins + exit.maxs) * 0.5f;
+        const glm::vec2 exitSize = apertureExtents(sd);
+        float best = 1e9f;
+        glm::vec3 shift{0.f};
+        for(za::SizeT j = 0; j < sides.size(); j++)
+        {
+            const Side& o = sides[j];
+            if(j == i || glm::dot(o.normal, exit.normal) < 0.999f) { continue; }
+            const float out = glm::dot(o.normal, exitMid) - o.dist; // how far out of that gate's face it lands
+            const glm::vec3 mid = (o.mins + o.maxs) * 0.5f;
+            const glm::vec3 across = (mid - exitMid) + o.normal * out; // the miss along the face
+            if(out < -1.f || out > 128.f || glm::any(glm::greaterThan(glm::abs(apertureExtents(o) - exitSize), glm::vec2{4.f})) ||
+               glm::length(across) > 64.f || out >= best)
+            {
+                continue;
+            }
+            best = out;
+            shift = mid - exitMid;
+        }
+        if(best < 1e9f && glm::length(shift) > 0.01f)
+        {
+            sd.to += shift;
+            Con_DPrintf("VR portals: side %d comes out of its pair's face (moved %.1f %.1f %.1f)\n", static_cast<int>(i),
+                shift.x, shift.y, shift.z);
+        }
+    }
+}
+
 // The map's gates: each trigger_teleport's teleport faces, by plane, and its destination (the server's entities).
 void build()
 {
     sides.clear();
     builtFor = sv.worldmodel;
     builtGeneration = worldGeneration();
+    builtPairExits = vr_slipgate_pair_exits.value;
     qmodel_t* m = sv.worldmodel;
     if(!m)
     {
@@ -318,13 +376,17 @@ void build()
             q++;
         }
     }
+    pairExits();
     PR_PopQCVM(oldVm);
     Con_DPrintf("VR portals: %d slipgate sides\n", static_cast<int>(sides.size()));
 }
 
 [[nodiscard]] bool current()
 {
-    if(builtFor != sv.worldmodel || builtGeneration != worldGeneration()) { return false; }
+    if(builtFor != sv.worldmodel || builtGeneration != worldGeneration() || builtPairExits != vr_slipgate_pair_exits.value)
+    {
+        return false;
+    }
     if(vr_campaign.value >= 3.f && vr_campaign.value <= 5.f)
     {
         // Use the server VM directly: current() also runs from the client's render path.

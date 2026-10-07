@@ -1569,6 +1569,7 @@ QVR_CVAR(vr_portals_ai_test, "0", CVAR_NONE)          // disposable mock fixture
 QVR_CVAR(vr_portals_ai, "1", CVAR_ARCHIVE)            // monsters see and fire at one-hop player images; melee/navigation stay local
 QVR_CVAR(vr_portals_walk, "1", CVAR_ARCHIVE)          // ... walking and shooting through them is seamless (kept where you are, how you move and look, as the view through the gate shows; missiles and grenades too): 0 Quake's teleport
 QVR_CVAR(vr_portals, "1", CVAR_ARCHIVE)               // slipgates show where they lead, for each visible gate and camera (vr_portals.cpp): how much of it, 0 Quake's shimmer
+QVR_CVAR(vr_slipgate_pair_exits, "1", CVAR_ARCHIVE) // a gate whose destination stands in front of a gate of its size facing out (a two-way pair) comes out of that gate's face: 0 out at the destination marker, as built (vrslipgates: 48 units out, a gap)
 QVR_CVAR(vr_portals_maxviews, "4", CVAR_ARCHIVE) // visible destination scenes per camera, 1..8
 QVR_CVAR(vr_slipgate_surface_size, "1.12", CVAR_ARCHIVE) // entrance shimmer's visual size; collision aperture is unchanged
 QVR_CVAR(vr_slipgate_surface_opacity, "1", CVAR_ARCHIVE) // entrance shimmer's share over the portal view
