@@ -48,6 +48,9 @@ VR Settings: last line shows the build (date + commit); Map Library installs sti
 MG3 monsters (Debug spawner Things 30-36, 40-45, or Training Dummy): infected knight beheaded bursts and its zombie keeps its head; bat back rocket-ogre rockets and ranged-knight diamonds; parry a demo dog's leap; ranged knight head zone fair?
 MG3 monsters 2: orb flung on death blows up where it lands; touch a ghost with your hand and it vanishes; slime splits twice; lava man shrugs off non-lightning hits; super shambler beheads, head-pops and loses limbs
 MG3 Shub (boss2, or Debug spawner Thing 60): pillars sinking under you are comfortable; her zombies rise and ragdoll; sweeping beam and blasts readable; lights go out at her death and the credits follow
+MG3 Chthon (boss map, or Debug spawner Thing 50): comfort fade at both arena moves (Locomotion > Comfort > Fade on Scripted Teleports: 0.6 vs 1.2 s); head zone; bat his spheres back; fight length fair with arm hits at 0.35x; finale gibs then credits
+vrstart2: cold start ~1 s after the first one (which saves hitbox files); death/restart quick; swimming, climbing and shore path unchanged
+vrstart2 buttons: 18-unit buttons comfortable to press; one texture copy each; labels just above, value screens above the labels
 
 [Menus and maps]
 Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
