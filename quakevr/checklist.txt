@@ -45,6 +45,8 @@ Music: plays from your own rerelease install in e1m1, hip1m1, r1m1, an mg3 and a
 Firing range: buttons visible from the far end; doors/buttons don't flicker against frames up close; labels fit their text even after playing a Map Library package
 Map Library: Debug > External Map Index shows Download Cache Size (512 MB) and Usage; an oversized cache trims at start
 VR Settings: last line shows the build (date + commit); Map Library installs still work (downloads now checked by sha256)
+MG3 monsters (Debug spawner Things 30-36, 40-45, or Training Dummy): infected knight beheaded bursts and its zombie keeps its head; bat back rocket-ogre rockets and ranged-knight diamonds; parry a demo dog's leap; ranged knight head zone fair?
+MG3 monsters 2: orb flung on death blows up where it lands; touch a ghost with your hand and it vanishes; slime splits twice; lava man shrugs off non-lightning hits; super shambler beheads, head-pops and loses limbs
 
 [Menus and maps]
 Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
@@ -96,6 +98,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
+MG3 monsters: ghosts drawn solid (no transparency upstream)? lava man 0.8 damage by what hit it? super shambler/rocket ogre/ranged knight share stock ragdoll settings? demo dog ragdolls (not gibs) when beheaded/limb cut on the killing blow?
 MG3 (defaults used until you answer): axe buttons only axe/Super Axe? Super Axe burst on a 2nd hit? base health 50 + caps 50/100/20/100? bloody shotguns faster refire? new hi-poly monsters with copied/box rigs?
 Profiling: which of the top 5 (same-map hull cache, AO disk cache, shadow casters per light, low-res retro particles, more hull work)?
 Defaults: which of the ~20 candidate settings from your config (INSTALLER.md appendix)?
