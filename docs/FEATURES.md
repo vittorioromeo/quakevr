@@ -356,8 +356,8 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
   automatically, with its weapons, monsters and maps. Quake, the hub, tutorial and firing range work without
   either pack; unavailable campaign buttons are labelled in the hub. Quake VR's QuakeC contains all three campaigns.
 - **Official campaigns** (Single Player > *Official Campaigns*, or Play): the re-release's Dimension of the
-  Past plays natively in VR when you own it; Dimension of the Machine (with its Horde mode) and Dawn of the Machine are
-  detected, and their native ports are in progress. See [INSTALL.md](INSTALL.md#official-campaigns).
+  Past and Dimension of the Machine (with its Horde mode) play natively in VR, in single player, when you own them;
+  Dawn of the Machine is detected, and its native port is in progress. See [INSTALL.md](INSTALL.md#official-campaigns).
 - **Map Library** (the main menu, or the corner's *Map Library*): browse [Quaddicted](https://www.quaddicted.com/)'s
   archive of custom maps, then download, install and play one in the game; *Uninstall* and *Reinstall* manage what you
   installed, and the download cache is capped (Debug > Tools > *Download Cache Size*). See

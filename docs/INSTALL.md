@@ -176,9 +176,12 @@ The selector shows Quake, the two mission packs, Dimension of the Past (`dopa`),
 and Dawn of the Machine (`mg3`). Each entry reports missing data, incomplete/corrupt data, or installed data with
 its native gameplay readiness. **Dimension of the Past is ready for native single-player VR**, including authored
 normal/secret routes, deferred monsters, fog/exploding geometry, VR inventory carry/save/reset and readable
-completion text/menu. Dopa coop context/join/respawn behavior is not accepted; ordinary launch requires `coop 0`, `deathmatch 0`, and `maxplayers 1`.
-**Dimension of the Machine and Dawn of the Machine remain in progress**; ordinary selection refuses them until
-their gameplay and progression are ready. Installed maps alone do not establish support.
+completion text/menu. **Dimension of the Machine is ready for native single-player VR** too: its hub and five
+episodes through the rune gates to the final gate, mgend and the credits, the electrode puzzle, the seven Horde arenas,
+and VR inventory carry/save/reset. Coop context/join/respawn behavior of either is not accepted yet (MG1's Horde coop
+is tested between two local processes only); ordinary launch requires `coop 0`, `deathmatch 0`, and `maxplayers 1`.
+**Dawn of the Machine remains in progress**; ordinary selection refuses it until its gameplay and progression are
+ready. Installed maps alone do not establish support.
 
 For an owned Steam installation, Quake VR checks the original Quake folder and its `rerelease` folders. It also
 checks explicit `-basedir` roots and the existing Steam/GOG discovery paths. No expansion download or separate

@@ -937,6 +937,11 @@ loads horde2.
 triggers 15/0, map3 items 4/0; e1m1 smoke; Release, QC (3 warnings, all in vr_mg3_test.qc:543, not this work),
 statics, precedence, FGD 321.
 
+**Readiness:** MG1 `nativeReady` is true (vr_gamedir.cpp, its own commit): ordinary selection starts it; like Dopa it
+is single player only (`soloOnly`: coop, deathmatch or maxplayers > 1 refused with the same message), its multiplayer
+and Horde coop on the developer path (`vr_campaign_native mg1`). Checked: `vr_campaign_status` "mg1: ready", language
+0 missing; `coop 1` refused; `coop 0` starts `start`.
+
 **Still needs a human:** a real two-headset coop session (late joins, revival spots, the story campaign in coop);
 melee feel, gore and ragdolls on MG1 monsters in VR; rune grip/holster collection by hand; the five hub return
 positions seen; the Machine ending/credits menu read in the headset.
