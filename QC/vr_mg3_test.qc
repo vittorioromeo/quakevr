@@ -540,7 +540,8 @@ void() MG3_T_CheckLoadout = {
     entity p = find(world, classname, "player"); if(!p) return;
     MG3_test_pass = MG3_test_fail = 0;
     dprint(sprintf("mg3test: loadout serverflags %g skill %g bloody %g: hands %g/%g holsters %g %g", serverflags, skill, MG3_bloody, p.weapon, p.weapon2, p.holsterweapon0, p.holsterweapon1));
-    dprint(sprintf(" %g %g %g %g items %g armour %g ammo %g %g %g %g\n", p.holsterweapon2, p.holsterweapon3, p.holsterweapon4, p.holsterweapon5, p.items, p.armorvalue, p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells));
+    dprint(sprintf(" %g %g %g %g items %g armour %g", p.holsterweapon2, p.holsterweapon3, p.holsterweapon4, p.holsterweapon5, p.items, p.armorvalue));
+    dprint(sprintf(" ammo %g %g %g %g\n", p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells)); // (sprintf: 8 arguments at most)
     if(!(serverflags & MG3_SF_BN_ACTIVE)) { dprint("mg3test: not a Bloody Nightmare game: nothing stripped\n"); return; }
     float ssg = (MG3_bloody & MG3_BLOODY_SSG) ? WID_SUPER_SHOTGUN : WID_FIST;
     MG3_Check(p.holsterweapon0 == ssg && p.holsterweapon1 == WID_FIST && p.holsterweapon2 == WID_AXE && p.holsterweapon3 == WID_FIST

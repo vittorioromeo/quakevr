@@ -1193,6 +1193,15 @@ The final boss (end.bsp): killed only by telefragging it (a teleporter onto its 
 [
 ]
 
+@PointClass color(255 0 0) size(-32 -32 -24, 32 32 64) model({ "path": "owned/mg3/progs/teleporter_eye_blink.mdl" }) =
+	monster_orb : "Dawn of the Machine's orb (needs the owned Dawn of the Machine data, else nothing spawns): a flying eye of 300 health that sees behind it too, bursts spheres at you (18 each) and throws lightning when hurt; killed, it is flung and blows up (100) where it lands."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+]
+
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/hknight.mdl" }) =
 	monster_ranged_knight : "Ranged knight (Dawn of the Machine)
 

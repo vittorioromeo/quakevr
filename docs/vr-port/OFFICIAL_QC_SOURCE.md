@@ -29,4 +29,6 @@ QC/vr_mg3_items.qc adapts quakec_mg3/mg3_items.qc and the lava suit of items.qc/
 QC/vr_mg3_weapons.qc adapts quakec_mg3/mg3_weapons.qc (HIP_FireMjolnir: the Super Axe's blow, zombie and finishing
 multipliers, second-hit lightning burst) and mg3_items.qc/mg3_triggers.qc (weapon_mjolnir's silent-teleport pickup),
 retaining the original license header.
+QC/vr_mg3_orb.qc adapts quakec_mg3/monsters/mg3_orb.qc, its ai.qc branches and boss_final.qc's pain_lightning
+(same header; its RANGE_FAR call of wiz_run1 is orb_run1 here).
 Plan and task list: [MG3_PLAN.md](MG3_PLAN.md).

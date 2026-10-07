@@ -71,7 +71,7 @@ constexpr const char* propPrefixes[] = {"vr_crate", "vr_rock", "vr_brick", "vr_p
 constexpr const char* monsterFiles[] = {"soldier.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
     "shambler.", "zombie.", "shalrath.", "enforcer.", "fish.", "tarbaby.", "boss.", "oldone.", "player.", "scor.",
     "grem.", "armabody.", "armalegs.", "mummy.", "eel.", "lavaman.", "dragon.", "ogre_", "sword.", "frogman",
-    "dog_explosive.", "rknight."}; // (the last two Dawn of the Machine's: read in place, owned/mg3/progs/)
+    "dog_explosive.", "rknight.", "teleporter_eye", "shambler_blood."}; // (the last four Dawn of the Machine's: read in place, owned/mg3/progs/)
 constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key.", "m_s_key.", "m_g_key.", "b_s_key.",
     "b_g_key.", "invulner.", "suit.", "invisibl.", "quaddama.", "end1.", "end2.", "end3.", "end4.", "empathy.",
     "wetsuit.", "shield.", "antigrav."};

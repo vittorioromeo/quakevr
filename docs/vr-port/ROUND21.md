@@ -28542,3 +28542,49 @@ bat the diamonds back, parry them; behead it (its helmet is small: the head zone
 Numbering (additive, to merge with M3-19..23's): spawner Things 30..36 (30-33 the infected, 34 rocket ogre, 35 demo
 dog, 36 ranged knight), training dummy types 19-21 (`VR_DUMMY_TYPES` 22), `.vr_mg3_mon` 1-3 (`MG3_MON_*`,
 `vr_mg3_ogre.qc`).
+## Dawn of the Machine (MG3): monsters II, the orb to Bloody Nightmare (2026-10-07)
+
+Phase D of [MG3_PLAN.md](MG3_PLAN.md), M3-19..23 (M3-15..18 are another worker's), by Vittorio's decision 5: MG3's
+monsters spawn wherever its data is (any campaign: the Debug spawner, the training dummy), read in place from the owned
+pack (`owned/mg3/...`). Numbers kept apart from the other worker's: the spawner's (`vr_test_spawn`, `func_enemy_dispenser`
+`weapon`) from **40**, the training dummy's (`vr_dummy_type`) from **30** (19..29 left to theirs; the dummy's tried/available
+bits now go past 24 types: a second pair of floats). Tests: `vr_mg3_btest N` (`QC/vr_mg3_bestiary_test.qc`, developer 1;
+Debug > Tests > Dawn of the Machine Bestiary).
+
+**Sounds read in place too.** `VR_OwnedFile` (vr_gamedir.cpp) now takes `sound/owned/<folder>/<path>` as that folder's
+`sound/<path>`: a QC sound named `owned/mg3/orb/orb_pain.wav` (precache_sound and sound() put `sound/` before it) plays
+MG3's file in any campaign. Model traits: `teleporter_eye*` and `shambler_blood.` are monster files
+(`vr_modelmetadata.cpp` monsterFiles).
+
+### M3-19 The orb
+
+`monster_orb` (`QC/vr_mg3_orb.qc`, upstream `mg3_orb.qc` and its `ai.qc` branches): a flying eye
+(`owned/mg3/progs/teleporter_eye_blink.mdl`: three frames, hover and two blinks), 300 health, the shambler's box. It
+blinks and bursts 4-6 spheres (`owned/mg3/progs/rogue/sphere.mdl`, 18 each; 400/450/500 a second by skill, leading you a
+quarter of the way) one to three times, then strafes or closes in (the scrag's attack check). **Its second eye**: it sees
+you behind it in the same cone as ahead (`infront`); a blocked strafe turns it at you (`ai_run_slide`); sight sound
+`boss2/sight.wav`. Hurt (8 s apart, the harder the likelier): eyes shut, three bolts of lightning about it
+(`MG3_PainLightning`, upstream's `pain_lightning`, kept for the super shambler and the bosses; Quake VR's beam message
+has the beam id byte). Killed: flung (monster_death_use takes its flight: it falls), and from its third death frame the
+first thing it touches that is not a trigger nor a projectile (the floor, a wall, you) blows it up (`TE_EXPLOSION2`,
+100 radius damage). Counted once. Its spheres pass through orbs, lava men and super shamblers (upstream).
+- **Upstream's bug, fixed:** at RANGE_FAR its attack check called `wiz_run1` (left from the scrag it was made from): the
+  eye ran the scrag's 14 run frames, which it has not, with the scrag's idle sounds, until its next check. Here
+  `orb_run1` (the same 16-unit run).
+- **VR:** no ragdoll (a rigid eye: no rig), no head zone, no limbs, no decapitation (none to cut); not a melee monster
+  (no parry); grapple mass 120 kg (`VR_Grapple_MonsterMass`: between the small ones you reel in and the huge ones that
+  reel you); small gibs and corpse damage as any unknown monster (it never lies as a corpse: it blows up). Its dead
+  body can be grabbed while it falls and thrown: it blows up where it lands.
+- **Anywhere:** the Debug spawner's Thing 40 "Orb" (Debug > Tests > Thing; `func_enemy_dispenser` 40: "Needs Dawn of the
+  Machine (mg3)" without the data), the training dummy's enemy 30 (Weapons > Firing Range > Dummy Enemy, listed when MG3's
+  data is there), FGD `monster_orb` (326 entities). Without the data a map's orb is not spawned (`VR_Pack_RequireSpawn`).
+
+Tests (`vr_mg3_btest 2`, e1m1, the id1 campaign with MG3 owned) **11/0**: an orb ahead (its model, 300, counted once,
+120 kg, dummy type 30 available); it flies; its eyes: ahead 1, behind 1, aside 0; woken, 21 spheres in 6 s; a hard hit:
+its pain (lightning; the first run found the beam message lacking Quake VR's beam id: `Bad server message`, fixed);
+killed: counted once, flung (-458 529 260), blown up where it landed (1), still counted once. MG3 map7 (`vr_campaign_native
+mg3`): 11 orbs alive (the 12th has a rune flag: `NOT_IF_0_RUNES`); map1's 12 all have rune flags (later visits). Checker
+after M3-19: 20 missing classes, 577 placements (21 and 625 before).
+
+**In the headset.** [ ] Debug > Tests > Dawn of the Machine Bestiary > An Orb Ahead: its spheres (dodge them, bat them),
+walk behind it (it still sees you), shoot it till it falls and blows up; grab its falling body and throw it at a monster.

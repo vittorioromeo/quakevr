@@ -343,6 +343,11 @@ float(entity targ) infront =
     {
         return TRUE;
     }
+    // QVR: Dawn of the Machine's orb has a second eye at its back (upstream ai.qc: the same cone behind it).
+    if(self.classname == "monster_orb" && -dot > 0.3)
+    {
+        return TRUE;
+    }
 
     return FALSE;
 };
@@ -527,6 +532,8 @@ void() SightSound =
     {
         sound(self, CHAN_VOICE, "dragon/see.wav", 1, ATTN_NORM);
     }
+    else if(self.classname == "monster_orb") // QVR: Dawn of the Machine's (vr_mg3_orb.qc)
+        sound(self, CHAN_VOICE, "boss2/sight.wav", 1, ATTN_NORM);
 };
 
 void() FoundTarget =
@@ -936,6 +943,7 @@ float()    DogCheckAttack;
 //MED
 float()  GremlinCheckAttack;
 float()  ScourgeCheckAttack;
+float()  OrbCheckAttack;
 float()  ArmagonCheckAttack;
 
 float() CheckAnyAttack =
@@ -974,6 +982,9 @@ float() CheckAnyAttack =
 
     if(self.classname == "monster_armagon")
         return ArmagonCheckAttack();
+
+    if(self.classname == "monster_orb") // QVR: Dawn of the Machine's (vr_mg3_orb.qc)
+        return OrbCheckAttack();
 
     return CheckAttack();
 };
@@ -1039,6 +1050,15 @@ void() ai_run_slide =
 
     if(walkmove(self.ideal_yaw + ofs, movedist))
         return;
+
+    // QVR: Dawn of the Machine's orb gives up a blocked strafe: the other way next time, straight at you now (upstream).
+    if(self.classname == "monster_orb")
+    {
+        self.lefty = 1 - self.lefty;
+        self.attack_state = AS_STRAIGHT;
+        self.think = self.th_run;
+        return;
+    }
 
     self.lefty = 1 - self.lefty;
 

@@ -286,6 +286,7 @@ void restartVr()
         out.pushBack({19.f, "Rocket Ogre"});
         out.pushBack({20.f, "Demo Dog"});
         out.pushBack({21.f, "Ranged Knight"});
+        out.pushBack({30.f, "Orb"});
     }
     return out;
 }
@@ -5111,6 +5112,23 @@ za::Vector<Item> pageMg3MonsterTests()
     };
 }
 
+// Dawn of the Machine's monsters, M3-19..23 (MG3_PLAN.md): "mg3btest:" lines with developer 1 (QC/vr_mg3_bestiary_test.qc).
+// They spawn in any campaign when the Dawn of the Machine data is there (read from it in place).
+za::Vector<Item> pageMg3BestiaryTests()
+{
+    return {
+        header("Dawn of the Machine Bestiary"),
+        command("An Orb Ahead", "vr_test_spawn 40; vr_test_spawn_dist 160; impulse 241")
+            .help("Dawn of the Machine's orb 160 units ahead: a flying eye that sees behind it too, bursts spheres at you, and "
+                  "blows up where it lands when killed."),
+        command("Bestiary Report", "vr_mg3_btest 1")
+            .help("The Dawn of the Machine data each monster needs, and how many of each this map has (developer 1)."),
+        command("Orb Test", "vr_mg3_btest 2")
+            .help("Destructive: an orb ahead, woken (god mode meanwhile): its eyes, its spheres, its pain, its death and blast "
+                  "(developer 1)."),
+    };
+}
+
 za::Vector<Item> pageDebugTests()
 {
     return {
@@ -5128,6 +5146,8 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
         open("Machine Horde Tests", pageIndex(pageMachineHordeTests))
             .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
+        open("Dawn of the Machine Bestiary", pageIndex(pageMg3BestiaryTests))
+            .help("Dawn of the Machine's monsters in any campaign with its data: the orb, ..."),
         open("Dawn of the Machine Weapons", pageIndex(pageMg3WeaponTests))
             .help("The Super Axe (any campaign with the Dawn of the Machine data), the axe buttons, the laser cannon, the bloody shotguns."),
         open("Dawn of the Machine Monsters", pageIndex(pageMg3MonsterTests))
@@ -5234,13 +5254,13 @@ za::Vector<Item> pageDebugTests()
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
              {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"},
              {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
-             {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"},
+             {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"}, {40.f, "Orb"},
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},
              {110.f, "Rocks and Bricks"}})
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed; Dawn "
-                  "of the Machine's (its infected, which burst into zombies and fiends; its own monsters: MG3's data, read in place)."),
+                  "of the Machine's (its infected, which burst into zombies and fiends; its own monsters, the orb: MG3's data, read in place)."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("Into the Main Hand", vr_test_spawn_hold)
             .help("A box or a crate (Health Box .. Explosive Box, the crates) put into your empty main hand, as if gripped: "
@@ -6178,6 +6198,7 @@ const Page pages[] = {
     {"Dawn of the Machine Tests", pageMg3Tests, pageDebugTests, LevelDeveloper},
     {"Dawn of the Machine Weapons", pageMg3WeaponTests, pageDebugTests, LevelDeveloper},
     {"Dawn of the Machine Monsters", pageMg3MonsterTests, pageDebugTests, LevelDeveloper},
+    {"Dawn of the Machine Bestiary", pageMg3BestiaryTests, pageDebugTests, LevelDeveloper},
     {"Debug - Cheats and Recording", pageDebugCheats, pageDebug, LevelDeveloper}, // (vr_menu_cheats.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));

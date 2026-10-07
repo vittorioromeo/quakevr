@@ -158,6 +158,14 @@ void(float xType) VR_Dummy_Type =
         vr_dt_snd1 = "owned/mg3/rknight/pain_01.wav"; vr_dt_snd2 = "owned/mg3/rknight/pain_02.wav";
         return;
     }
+    // Dawn of the Machine's, from 30 (19..29 left to its other monsters), read in place from the owned pack.
+    if(xType == 30)
+    {
+        vr_dt_class = "monster_orb"; vr_dt_name = "Orb"; vr_dt_pack = 3;
+        vr_dt_stand = 0; vr_dt_stands = 1; vr_dt_pain = 2; vr_dt_pains = 1; vr_dt_atk = 1; vr_dt_atks = 2; // (three frames: hover, two blinks)
+        vr_dt_snd1 = "owned/mg3/orb/orb_pain.wav";
+        return;
+    }
     vr_dt_class = "monster_army"; vr_dt_name = "Grunt";
     vr_dt_stand = 0; vr_dt_stands = 8; vr_dt_pain = 40; vr_dt_pains = 6; vr_dt_atk = 81; vr_dt_atks = 9;
     vr_dt_snd1 = "soldier/pain1.wav"; vr_dt_snd2 = "soldier/pain2.wav";
@@ -187,6 +195,7 @@ void(float xType) VR_Dummy_TypeSpawn =
     if(xType == 19) { monster_ogre_rocket(); return; }
     if(xType == 20) { monster_demodog(); return; }
     if(xType == 21) { monster_ranged_knight(); return; }
+    if(xType == 30) { monster_orb(); return; }
     monster_army();
 };
 
@@ -220,7 +229,8 @@ float(float xType) VR_Dummy_Make =
 };
 
 nosave float vr_dummy_tried;     // types tried on a stand-in this map (bits): whether they can be made here,
-nosave float vr_dummy_available; // and which can
+nosave float vr_dummy_available; // and which can (types 0..23; 24 on: the second pair, bit xType - 24: a float's exact bits)
+nosave float vr_dummy_tried2, vr_dummy_available2;
 
 // Whether `xType` can be made here (its pack's files present): tried once a map, on a stand-in (VR_Dummy_Make).
 float(float xType) VR_Dummy_Available =
@@ -229,19 +239,20 @@ float(float xType) VR_Dummy_Available =
     {
         return xType == 0;
     }
-    float bit = pow(2, xType);
-    if(!(vr_dummy_tried & bit))
+    float high = xType >= 24;
+    float bit = pow(2, high ? xType - 24 : xType);
+    if(!((high ? vr_dummy_tried2 : vr_dummy_tried) & bit))
     {
-        vr_dummy_tried = vr_dummy_tried | bit;
+        if(high) { vr_dummy_tried2 = vr_dummy_tried2 | bit; } else { vr_dummy_tried = vr_dummy_tried | bit; }
         entity oldSelf = self;
         self = spawn();
         entity probe = self;
         if(VR_Dummy_Make(xType))
         {
-            vr_dummy_available = vr_dummy_available | bit;
+            if(high) { vr_dummy_available2 = vr_dummy_available2 | bit; } else { vr_dummy_available = vr_dummy_available | bit; }
             remove(probe);
         }
         self = oldSelf;
     }
-    return (vr_dummy_available & bit) != 0;
+    return ((high ? vr_dummy_available2 : vr_dummy_available) & bit) != 0;
 };

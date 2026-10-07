@@ -230,6 +230,7 @@ float(entity m) VR_Grapple_MonsterMass =
     if(c == "monster_dog")           { return 35; }
     if(c == "monster_eel")           { return 40; }
     if(c == "monster_wizard")        { return 50; }
+    if(c == "monster_orb")           { return 120; } // (Dawn of the Machine's flying eye: as big as a shambler, hollow)
     if(c == "monster_zombie")        { return 70; }
     if(c == "monster_army")          { return 80; }
     if(c == "monster_knight")        { return 90; }
