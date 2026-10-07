@@ -47,6 +47,7 @@ Map Library: Debug > External Map Index shows Download Cache Size (512 MB) and U
 VR Settings: last line shows the build (date + commit); Map Library installs still work (downloads now checked by sha256)
 MG3 monsters (Debug spawner Things 30-36, 40-45, or Training Dummy): infected knight beheaded bursts and its zombie keeps its head; bat back rocket-ogre rockets and ranged-knight diamonds; parry a demo dog's leap; ranged knight head zone fair?
 MG3 monsters 2: orb flung on death blows up where it lands; touch a ghost with your hand and it vanishes; slime splits twice; lava man shrugs off non-lightning hits; super shambler beheads, head-pops and loses limbs
+MG3 Shub (boss2, or Debug spawner Thing 60): pillars sinking under you are comfortable; her zombies rise and ragdoll; sweeping beam and blasts readable; lights go out at her death and the credits follow
 
 [Menus and maps]
 Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
