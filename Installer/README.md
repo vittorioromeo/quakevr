@@ -109,3 +109,10 @@ is mechanical.
 `Windows/package-quakevr.ps1` writes `manifest.json` into the package (`Windows/write-package-manifest.ps1`): the
 version and each file's path, size and SHA-256. The installer installs exactly those files and refuses a package whose
 files do not match (`--unverified` on the console accepts one without a manifest, for development).
+
+## Releases
+
+`python Misc/quakevr/make_release.py --package dist/QuakeVR --setup <QuakeVR-Setup.exe> [--textures <zip>] [--asset <file>]`
+makes a release from a package: the zip, the assets, `latest.json` in the format `ReleaseFeed` reads, and `PUBLISH.txt`
+with the `gh release create` command and the upload to vittorioromeo.com (it publishes nothing). The steps are in
+docs/vr-port/INSTALLER.md, "Publishing a release".

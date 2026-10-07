@@ -315,6 +315,44 @@ installer and the update check try one, then the other). There is **no code-sign
 - If it becomes a problem: Azure Trusted Signing (a monthly subscription, no hardware token) signs the installer and
   the exe without changing anything else.
 
+### Publishing a release (what Vittorio does)
+
+The installer already reads the final addresses (`InstallerSettings` in `Installer/src/QuakeVR.Installer.Core/Packaging/ReleaseFeed.cs`, the
+defaults when no `installer-settings.json` sits beside the exe; one there overrides them, for tests or a move):
+
+| Feed, in order | Status |
+|---|---|
+| `https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json` | Works as soon as a release has a `latest.json` asset and is the newest non-draft, non-prerelease one (GitHub's "latest" skips both) |
+| `https://vittorioromeo.com/quakevr/latest.json` | **Needs you to create it**: the `/quakevr/` folder on the site and the file, uploaded with each release |
+
+Until a release exists both answer 404: the installer then offers "Use a local package" (and installs from a
+`QuakeVR.zip` beside it with no network at all), so nothing has to change in the code.
+
+Steps for each release:
+
+1. Build and package: `Windows\package-quakevr.ps1 -Build` (dist\QuakeVR with `manifest.json`, and dist\QuakeVR.zip). The
+   installer: `dotnet publish Installer/src/QuakeVR.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true`.
+2. `python Misc/quakevr/make_release.py --package dist/QuakeVR --setup <publish>\QuakeVR-Setup.exe
+   [--textures <HD texture pack>.zip] --asset ericw-tools-2.0.0-alpha11-src.zip` writes `dist/release/<tag>/`: `QuakeVR.zip`
+   (zipped from the folder after checking every file against its manifest), the other assets, `latest.json` (schema 1:
+   version, `package`, `components.hdtextures`; each with file, size, SHA-256 and URLs
+   `https://github.com/vittorioromeo/quakevr/releases/download/<tag>/<file>`, the release's own assets, so an old `latest.json`
+   never points at newer files) and `PUBLISH.txt`. The tag defaults to `v` + the package's version
+   (`2026-10-06 c131f4bf` gives `v2026-10-06-c131f4bf`); `--tag` sets another.
+3. Create the GitHub release with every file of that folder (latest.json included), from the folder (the command is in
+   `PUBLISH.txt`; the script runs nothing):
+   `gh release create <tag> --repo vittorioromeo/quakevr --target <commit> --title "Quake VR: Unleashed <version>" --notes-file <notes.md> "QuakeVR.zip" "QuakeVR-Setup.exe" ... "latest.json"`
+4. Upload the same `latest.json` to `https://vittorioromeo.com/quakevr/latest.json`. For a download mirror there too, also
+   upload the other files (e.g. to `/quakevr/releases/<tag>/`) and run the script again with
+   `--url-base "https://github.com/vittorioromeo/quakevr/releases/download/{tag}/{file}" --url-base "https://vittorioromeo.com/quakevr/releases/{tag}/{file}"`
+   before uploading (the URLs are in `latest.json`; its hashes do not change).
+5. Check: `qvr-setup feed --url <each feed>` prints the version and the package's size; then the installer with no local
+   package.
+
+Verified (2026-10-07) without publishing: a release made from a scratch package, served by a local HTTP server
+(`--url-base http://127.0.0.1:8765/{file}`), read by `qvr-setup feed`, its package downloaded and checked (size, SHA-256),
+installed, verified and uninstalled; the default run's `latest.json` and `gh` command checked by hand.
+
 ### Release checklist: third-party files
 
 - **ericw-tools' source next to every release** (GPL-3, section 3; the package ships `light.exe` and the game can
@@ -387,7 +425,7 @@ Found by the research; the ones marked **fixed** were fixed on branch `agent/rel
 | Update | the same | Over an existing install: the new payload replaces the old; files the old version shipped and the new one does not are removed when unchanged (kept and reported when the player changed them); stale shortcuts removed; textures kept unless reinstalled; everything not in the record is the player's and is never touched |
 | Uninstall | `Uninstaller` | Removes the recorded files that are unchanged, the recorded shortcuts whose target is inside the install, then the folders it made once empty; HD textures only when asked; reports the player's files left. `Verify` lists missing or changed files |
 | Shortcuts | `Shortcuts/` | `IShellLinkW` through COM. Named after the product, **Quake VR: Unleashed** (as a file name `Quake VR Unleashed`: Windows refuses `:`). Desktop: Quake VR Unleashed; Start menu `Quake VR Unleashed\`: Quake VR Unleashed, (flat screen) `+vr_enabled 0`, (log for bug reports) `-condebug`, Quake VR Unleashed files (the `quakevr` folder). An update removes the old names' shortcuts (recorded in `install.json`) and the emptied older `Quake VR` Start menu folder. All: `ironwail.exe -basedir "<Quake>" -basedir "<QVR>" -game quakevr`, started in `<QVR>`, paths without a trailing backslash |
-| Downloads | `Downloader`, `ReleaseFeed` | `latest.json` (schema 1: version, `package` and `components.hdtextures`, each with file, size, SHA-256 and mirror URLs) read from the first host that answers (GitHub's `releases/latest/download/latest.json`, then `vittorioromeo.com/quakevr/latest.json`: placeholders until the first release has one); each file from its mirrors in order, resumed with HTTP Range, checked for size and SHA-256 before it gets its name, a mirror serving another file skipped. `GitHubReleases` reads the releases API (assets' `digest: sha256:...`) for a later fallback. Tested only against local servers |
+| Downloads | `Downloader`, `ReleaseFeed` | `latest.json` (schema 1: version, `package` and `components.hdtextures`, each with file, size, SHA-256 and mirror URLs) read from the first host that answers (GitHub's `releases/latest/download/latest.json`, then `vittorioromeo.com/quakevr/latest.json`: the final addresses; the first release and the site's file make them answer: "Publishing a release"); each file from its mirrors in order, resumed with HTTP Range, checked for size and SHA-256 before it gets its name, a mirror serving another file skipped. `GitHubReleases` reads the releases API (assets' `digest: sha256:...`) for a later fallback. Tested only against local servers |
 | Window | `QuakeVR.Installer` | Welcome (the official logo; update/remove when installed) > Your PC (the checks with status icons and fix hints; another folder) > Options (where the package comes from, folder, components with sizes, shortcuts) > Install (progress, log, Cancel) > Play (Play in VR, on the monitor, open the folder; VR Calibration, relight and VDXR notes; the Steam "Add a Non-Steam Game" steps with launch options to copy, decision 11) > Thanks (a word from the author and Ko-fi). Title "Quake VR: Unleashed Setup", the square logo as its icon. Writes no game settings (section 6); its only file is the mute choice (`%LOCALAPPDATA%\QuakeVR-Installer\ui.json`) |
 | Package source | `LocalPackages`, `MainViewModel` | A package (zip or folder with `manifest.json`) beside the installer (`QuakeVR.zip`, a `QuakeVR` folder, or any other `QuakeVR*.zip` that has a manifest; texture packs skipped) or picked by the player installs with no network at all. Otherwise the release feed is asked in the background at start: online is the default only when a feed answers. When none answers (no release published yet, offline), the Options page says so in plain words and offers **Use a local package…** and **Try again**; Install stays off until one of them works. If the download fails at Install anyway, the error offers the same button and installs from the picked package. The HD textures are skipped with a note (or taken from a picked zip) when their download is unavailable |
 | Skin | `Skin/`, `Themes/Theme.xaml` | "Quake VR: Unleashed" in a grimy Quake look: soot-black stone and riveted iron, ember and brass, bone-white text; the official logos (wide on the Welcome page, square in the sidebar, on Play and Thanks). Textures come from the **player's own Quake, read at run time** (`Core/Assets`: a PAK reader, `gfx/palette.lmp`, WAD2 pictures, the textures of `maps/start.bsp`, `e1m1`, `e1m2`, WAV decoding): bricks `wbrick1_5` behind the page, `wizmet1_2` in the sidebar, `metal1_4` on buttons and the footer, `wizmet1_3` on plaques, `*lava1` (warped like the engine's liquids) in the progress bar, the status bar's digits for the percentage, the palette for the flames. Nothing of id Software's is in the repository or the installer: before Quake is found (a quiet detection starts with the window) or without it, the same slots get generated textures (seeded noise: bricks, brushed metal with seams, rivets and rust, lava) and a smooth fire ramp. Fonts (SIL OFL 1.1, embedded with their licences, shown under "credits"): Grenze Gotisch for titles, Barlow for text, Barlow Semi Condensed for labels and buttons |
@@ -424,7 +462,7 @@ flame frames, a sheet of the textures the skin can pick from, and `report.txt` (
 sound engine's check, the live window's frame rate and CPU). The local-package path ran end to end: a package beside a
 copied `QuakeVR-Setup.exe`, `--offline`, into scratch folders (files, `install.json`, five shortcuts).
 
-Open questions for the author: the hosts' exact `latest.json` URLs and the release asset names; whether to show the installer's own version check before the Welcome page.
+Open questions for the author: whether to show the installer's own version check before the Welcome page.
 
 
 ## Appendix A: the author's config against a fresh install
