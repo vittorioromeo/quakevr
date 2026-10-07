@@ -7,12 +7,15 @@
 #                                     gun's outer side; a window down its side shows the nails.
 #   quakevr/progs/vr_mag_light.mdl    the thunderbolt's: a power cell hung under it: an octagonal steel can with bronze
 #                                     bands, a copper contact on top, a dark insulated foot.
+#   quakevr/progs/vr_magwell_on_<gun>.mdl its well (its receiver: a steel collar round the magazine's top, flush with the
+#                                     gun at the seat), drawn on the gun whether a magazine is in or not.
 #   quakevr/progs/vr_mag_on_<gun>.mdl each as it sits in its gun (v_nail, v_lava, v_nail2, v_lava2, v_light, v_plasma),
 #                                     in that gun's model space: drawn with the gun's own place, turn and mirroring
 #                                     (vr_view.cpp setupMagazines), its Scale and offsets the gun's (vr_weapons.cpp
 #                                     makeModelTransform: a file per gun, as each gun has its own settings): the nailgun's
 #                                     under the receiver ahead of the trigger guard, raked forward a little; the super
-#                                     nailgun's out of the outer (right, -y) side of its body, 37 degrees upward; the
+#                                     nailgun's out of the outer (right, -y) side of its body, square to its upper face
+#                                     (22 degrees up: the author's note, 37 was too steep); the
 #                                     thunderbolt's under its body, ahead of the grip.
 # The props (the first three) have their origin at their middle (they tumble about it), the magazine's insertion axis
 # along +z (its top, the feed end, up). vr_view.cpp's magMounts and loadPorts tables take the `well` points printed here
@@ -119,26 +122,32 @@ def mounts():
     nail, nail_top = nail_mag()
     snail, snail_top = snail_mag()
     cell, cell_top = cell_mag()
-    up37 = 37.0
-    # The super nailgun's: its length along (0, cos 37, -sin 37) into the gun from the right and above: local z (its
-    # feed end) goes there, local -y (the face with the window) up towards the eyes, local x along the gun.
-    a = math.radians(up37)
-    snail_rot = ((1.0, 0.0, 0.0), (0.0, -math.sin(a), -math.cos(a)), (0.0, math.cos(a), -math.sin(a)))
+    # The super nailgun's: square to the face it goes into (the author: 37 degrees was too steep), the upper of the body's
+    # two right faces (normal (0, -0.93, 0.38): 22 degrees up): its length along that face's inward normal, local -y (the
+    # face with the window) up towards the eyes, local x along the gun.
+    n = norm((0.0, 0.926, -0.378))
+    snail_rot = ((1.0, 0.0, 0.0), (0.0, n[2], -n[1]), n)
     return [
         ("vr_mag_nail", nail, nail_top, rot_y(-8.0), (6.9, 0.0, -1.45), ("v_nail.mdl", "v_lava.mdl")),
-        ("vr_mag_snail", snail, snail_top, snail_rot, (7.2, -5.6, 0.2), ("v_nail2.mdl", "v_lava2.mdl")),
+        ("vr_mag_snail", snail, snail_top, snail_rot, (7.2, -5.44, 1.2), ("v_nail2.mdl", "v_lava2.mdl")),
         ("vr_mag_light", cell, cell_top, ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), (11.6, 0.0, 3.0),
          ("v_light.mdl", "v_plasma.mdl")),
     ]
 
 
-def paint(kind):
+def paint(kind, variant=False):
     """Each magazine's skin: the body in its gun's colours (the nailguns' brown boxes, stamped ribs; the cell's blued
-    steel), worn steel, the feed end (nail heads in rows, or the copper contact), bronze bands, the window, the foot."""
-    rng = random.Random({"vr_mag_nail": 701, "vr_mag_snail": 702, "vr_mag_light": 703}[kind])
+    steel), worn steel, the feed end (nail heads in rows, or the copper contact), bronze bands, the window, the foot.
+    `variant` (skin 1; the lava and plasma guns' own): the lava nails' magazines a dark red body, their nails glowing
+    (fullbright orange heads, red-hot shanks in the window); the plasma cell a deep blue can, its bands and contact a
+    glowing pale blue: never taken for the plain ones."""
+    rng = random.Random({"vr_mag_nail": 701, "vr_mag_snail": 702, "vr_mag_light": 703}[kind] + (50 if variant else 0))
     body_ramp = [17, 18, 19, 20, 21, 22, 23] if kind != "vr_mag_light" else [0, 32, 33, 34, 35, 36, 37]
     steel = [3, 4, 5, 6, 7, 8, 9]
     band = [96, 97, 98, 99, 100, 101] if kind == "vr_mag_light" else [16, 17, 18]
+    if variant:
+        body_ramp = [70, 72, 73, 74, 75, 76, 77] if kind != "vr_mag_light" else [220, 216, 215, 214, 213, 212, 211]
+        band = [70, 72, 74] if kind != "vr_mag_light" else [244, 245, 244, 246]
     px = bytearray(SKIN_W * SKIN_H)
 
     def pick(ramp, v):
@@ -168,12 +177,14 @@ def paint(kind):
             elif region == "top":
                 if kind == "vr_mag_light":
                     d = math.hypot(u - 0.5, v - 0.5)
-                    c = pick([112, 113, 114, 115, 116, 117], 0.6 if d < 0.3 else 0.3)  # copper
+                    c = pick([244, 245, 246] if variant else [112, 113, 114, 115, 116, 117],
+                             0.6 if d < 0.3 else 0.3)  # copper (plasma: a pale blue glow)
                 else:
                     # Two rows of nail heads (grey discs) in the dark lips.
                     cx = (u * 6) % 1.0
                     cy = (v * 2) % 1.0
-                    c = pick(steel, 0.75) if math.hypot(cx - 0.5, cy - 0.5) < 0.32 else 1
+                    head = [233, 234, 235, 236] if variant else steel
+                    c = pick(head, 0.75) if math.hypot(cx - 0.5, cy - 0.5) < 0.32 else (226 if variant else 1)
             elif region == "band":
                 c = pick(band, 0.55 + (0.25 if v < 0.25 else -0.2 if v > 0.75 else 0.0))
             elif region == "window":
@@ -181,16 +192,31 @@ def paint(kind):
                 if u < 0.08 or u > 0.92 or v < 0.05 or v > 0.95:
                     c = pick(steel, 0.5)
                 elif int(v * 16) % 2 == 0:
-                    c = pick(steel, 0.65)
+                    c = pick([231, 232, 233] if variant else steel, 0.65)
                 else:
                     c = 1
             elif region == "foot":
                 c = pick([1, 2, 3, 4], 0.4) if kind == "vr_mag_light" else pick(steel, 0.35)
             else:
                 c = 2
-            assert c < 224
+            assert c < 224 or variant  # (the variants' glow: fullbright on purpose)
             px[t * SKIN_W + s] = c
     return bytes(px)
+
+
+def magwell(hx, hy, top, wall=0.32, height=1.1):
+    """A magazine's well (its receiver, drawn on the gun: vr_view.cpp setupMagazines): a steel collar round the magazine's
+    top end, flush with the gun at the seat (the magazine's top, local z `top`) and down its length `height`, its walls
+    `wall` thick round the magazine's section (half sizes hx, hy, a little gap), a lighter lip at its mouth."""
+    m = Mesh()
+    gx, gy = hx + 0.08, hy + 0.08
+    zc = top - height / 2
+    for sx in (-1.0, 1.0):
+        m.box((sx * (gx + wall / 2), 0.0, zc), (wall / 2, gy + wall, height / 2), "steel", cap_region="foot")
+    for sy in (-1.0, 1.0):
+        m.box((0.0, sy * (gy + wall / 2), zc), (gx, wall / 2, height / 2), "steel", cap_region="foot")
+    m.box((0.0, 0.0, top - height + 0.08), (gx + wall + 0.06, gy + wall + 0.06, 0.08), "band", cap_region="band")
+    return m
 
 
 def main():
@@ -198,16 +224,22 @@ def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
     paths = []
     for name, *_ in mounts():
-        paths += [os.path.join(out, name + ".mdl")] + [os.path.join(out, "vr_mag_on_" + g) for g in _[-1]]
+        paths += [os.path.join(out, name + ".mdl")] + [os.path.join(out, pre + g) for g in _[-1]
+                                                        for pre in ("vr_mag_on_", "vr_magwell_on_")]
     guard = genguard.Guard("make_mags.py", paths)
+    sections = {"vr_mag_nail": (1.7, 0.85), "vr_mag_snail": (2.3, 1.05), "vr_mag_light": (1.75, 1.5)}
     for name, mesh, top, rot, seat, guns in mounts():
-        skin = paint(name)
-        mdlgen.write_mdl(os.path.join(out, name + ".mdl"), mesh, [skin], name)
-        # As it sits: its top at the seat, turned.
+        skin, fiery = paint(name), paint(name, True)
+        # The prop: skin 0 plain, 1 the lava nails' or plasma's (QC sets it by the ammo).
+        mdlgen.write_mdl(os.path.join(out, name + ".mdl"), mesh, [skin, fiery], name)
+        # As it sits: its top at the seat, turned; its well round it.
         top_at = add(add(mul(rot[0], 0.0), mul(rot[1], 0.0)), mul(rot[2], top))
         at = sub(seat, top_at)
-        for g in guns:
-            mdlgen.write_mdl(os.path.join(out, "vr_mag_on_" + g), transformed(mesh, rot, at), [skin], name + "_on")
+        well = magwell(sections[name][0], sections[name][1], top)
+        for k, g in enumerate(guns):
+            own = fiery if k == 1 else skin  # (the second gun of each pair is the lava or plasma one)
+            mdlgen.write_mdl(os.path.join(out, "vr_mag_on_" + g), transformed(mesh, rot, at), [own], name + "_on")
+            mdlgen.write_mdl(os.path.join(out, "vr_magwell_on_" + g), transformed(well, rot, at), [skin], name + "_well")
         print("%s: %d vertices, %d triangles; in %s its middle (the well) at (%.2f %.2f %.2f)" % (
             name, len(mesh.verts), len(mesh.tris), "/".join(guns), at[0], at[1], at[2]))
     guard.finish()

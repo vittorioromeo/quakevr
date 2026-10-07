@@ -284,9 +284,9 @@ constexpr LoadPort loadPorts[] = {
         &vr_reload_port_nail_radius, true},
     {modelmeta::Id::VLava, {6.9f, 0.f, -1.45f}, {&vr_reload_port_nail_x, &vr_reload_port_nail_y, &vr_reload_port_nail_z},
         &vr_reload_port_nail_radius, true},
-    {modelmeta::Id::VNail2, {7.2f, -5.6f, 0.2f},
+    {modelmeta::Id::VNail2, {7.2f, -5.44f, 1.2f},
         {&vr_reload_port_snail_x, &vr_reload_port_snail_y, &vr_reload_port_snail_z}, &vr_reload_port_snail_radius, true},
-    {modelmeta::Id::VLava2, {7.2f, -5.6f, 0.2f},
+    {modelmeta::Id::VLava2, {7.2f, -5.44f, 1.2f},
         {&vr_reload_port_snail_x, &vr_reload_port_snail_y, &vr_reload_port_snail_z}, &vr_reload_port_snail_radius, true},
     {modelmeta::Id::VLight, {11.6f, 0.f, 3.f},
         {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
@@ -317,21 +317,56 @@ constexpr MagProp magProps[] = {
 // magazine model (make_mags.py: vr_mag_on_<gun>.mdl, made in the gun's model space; its Scale and offsets the gun's:
 // vr_weapons.cpp makeModelTransform), drawn with the gun's place, turn and mirroring while the server's mode is
 // Immersive and the gun has its magazine in (not QVR_WPNFLAG_NOMAG). `anchor`: a vertex of the gun's body by the
-// magazine (vr_anchor.hpp's strip order) whose move from frame 0 (the firing animation's kick) moves it too.
+// magazine (vr_anchor.hpp's strip order) whose move from frame 0 (the firing animation's kick) moves it too. `well`: its
+// receiver (make_mags.py vr_magwell_on_<gun>.mdl: a collar round the magazine's top, flush with the gun at `seat`), drawn
+// in Immersive whether a magazine is in or not, moved and turned about its seat by vr_reload_well_<gun>_* (visual only).
+// `centre`: the magazine's middle, where the gun's two-handed grip is in Immersive (the author: gripping the magazine is
+// the two-handed aim; it comes out only pulled off hard, snapped, or the hands far apart: QC vr_reload.qc).
 struct MagMount
 {
     modelmeta::Id gun;
     const char* model;
     int anchor;
+    const char* well;
+    glm::vec3 seat;
+    glm::vec3 centre;
+    cvar_t* wellOffset[6]; // x, y, z (model units), pitch, yaw, roll (degrees)
 };
+#define QVR_WELL_OFFSETS(k)                                                                                             \
+    {&vr_reload_well_##k##_x, &vr_reload_well_##k##_y, &vr_reload_well_##k##_z, &vr_reload_well_##k##_pitch,         \
+        &vr_reload_well_##k##_yaw, &vr_reload_well_##k##_roll}
 constexpr MagMount magMounts[] = {
-    {modelmeta::Id::VNail, "progs/vr_mag_on_v_nail.mdl", 1497},
-    {modelmeta::Id::VLava, "progs/vr_mag_on_v_lava.mdl", 1499},
-    {modelmeta::Id::VNail2, "progs/vr_mag_on_v_nail2.mdl", 192},
-    {modelmeta::Id::VLava2, "progs/vr_mag_on_v_lava2.mdl", 250},
-    {modelmeta::Id::VLight, "progs/vr_mag_on_v_light.mdl", 655},
-    {modelmeta::Id::VPlasma, "progs/vr_mag_on_v_plasma.mdl", 667},
+    {modelmeta::Id::VNail, "progs/vr_mag_on_v_nail.mdl", 1497, "progs/vr_magwell_on_v_nail.mdl", {6.9f, 0.f, -1.45f},
+        {7.36f, 0.f, -4.72f}, QVR_WELL_OFFSETS(nail)},
+    {modelmeta::Id::VLava, "progs/vr_mag_on_v_lava.mdl", 1499, "progs/vr_magwell_on_v_lava.mdl", {6.9f, 0.f, -1.45f},
+        {7.36f, 0.f, -4.72f}, QVR_WELL_OFFSETS(nail)},
+    {modelmeta::Id::VNail2, "progs/vr_mag_on_v_nail2.mdl", 192, "progs/vr_magwell_on_v_nail2.mdl", {7.2f, -5.44f, 1.2f},
+        {7.2f, -9.79f, 2.98f}, QVR_WELL_OFFSETS(snail)},
+    {modelmeta::Id::VLava2, "progs/vr_mag_on_v_lava2.mdl", 250, "progs/vr_magwell_on_v_lava2.mdl", {7.2f, -5.44f, 1.2f},
+        {7.2f, -9.79f, 2.98f}, QVR_WELL_OFFSETS(snail)},
+    {modelmeta::Id::VLight, "progs/vr_mag_on_v_light.mdl", 655, "progs/vr_magwell_on_v_light.mdl", {11.6f, 0.f, 3.f},
+        {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light)},
+    {modelmeta::Id::VPlasma, "progs/vr_mag_on_v_plasma.mdl", 667, "progs/vr_magwell_on_v_plasma.mdl", {11.6f, 0.f, 3.f},
+        {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light)},
 };
+#undef QVR_WELL_OFFSETS
+
+[[nodiscard]] const MagMount* magMountFor(const qmodel_t* gun)
+{
+    if(!gun || gun->type != mod_alias)
+    {
+        return nullptr;
+    }
+    const auto& info = modelmeta::get(gun);
+    for(const MagMount& m : magMounts)
+    {
+        if(info.is(m.gun))
+        {
+            return &m;
+        }
+    }
+    return nullptr;
+}
 constexpr int weaponFlagNoMag = 16; // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc)
 
 struct Entities
@@ -356,6 +391,9 @@ struct Entities
     view::ViewEntity mag[2];                       // the magazines in the guns in the hands (setupMagazines),
     view::ViewEntity holsterMag[HolsterCount];     // in the holstered ones,
     view::ViewEntity worldMag[maxWorldWeapons];    // and in the ones lying nearest (setupWorldWeapons' nearest)
+    view::ViewEntity well[2];                      // the magazine guns' wells (receivers): in the hands,
+    view::ViewEntity holsterWell[HolsterCount];    // holstered,
+    view::ViewEntity worldWell[maxWorldWeapons];   // and lying nearest
     view::ViewEntity sawHandle;  // the chainsaw's cord's handle out of its seat (vr_chainsaw.cpp handleEntity)
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
@@ -392,13 +430,13 @@ int pouchCounterFrame = -1; // the ammo pouch's counter queued in this frame (se
     if((hide & 2) && (among(entities.weapon) || among(entities.weaponMorph) || among(entities.hand[0]) ||
                          among(entities.hand[1]) || among(entities.button) || among(entities.frontButton) ||
                          among(entities.muzzleFlash) || &ve == &entities.flashlight || &ve == &entities.sawHandle ||
-                         among(entities.mag)))
+                         among(entities.mag) || among(entities.well)))
     {
         return true;
     }
     return (hide & 4) && (&ve == &entities.body || among(entities.pauldron) || among(entities.pauldronArm) ||
                              among(entities.holster) || among(entities.holsterSlot) || among(entities.holsterButton) ||
-                             &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.holsterMag));
+                             &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.holsterMag) || among(entities.holsterWell));
 }
 
 template <typename F>
@@ -448,6 +486,18 @@ void forEachEntity(F&& f)
         f(ve);
     }
     for(view::ViewEntity& ve : entities.worldMag)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.well)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.holsterWell)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.worldWell)
     {
         f(ve);
     }
@@ -578,6 +628,7 @@ void view::prepareModels()
     for(const MagMount& m : magMounts)
     {
         names.pushBack(m.model); // (setupMagazines)
+        names.pushBack(m.well);
     }
     for(const char* name : names)
     {
@@ -4743,21 +4794,10 @@ void setupPouch(const hands::State& s)
 
 // The magazine in the gun `gun` (`show`: the server's mode Immersive and the gun's magazine in): its attached model, the
 // gun's place, turn, mirroring, scale and light, moved with the gun's body by the firing animation (magMounts).
-void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show)
+void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, bool well = false)
 {
-    const MagMount* mount = nullptr;
-    if(show && gun.visible && gun.ent.model && gun.ent.model->type == mod_alias)
-    {
-        const auto& info = modelmeta::get(gun.ent.model);
-        for(const MagMount& m : magMounts)
-        {
-            if(info.is(m.gun))
-            {
-                mount = &m;
-            }
-        }
-    }
-    qmodel_t* const model = mount ? viewModel(mount->model) : nullptr;
+    const MagMount* mount = show && gun.visible ? magMountFor(gun.ent.model) : nullptr;
+    qmodel_t* const model = mount ? viewModel(well ? mount->well : mount->model) : nullptr;
     if(!model)
     {
         mag.visible = false;
@@ -4785,6 +4825,36 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show)
     {
         mag.ent.origin[i] += kick[i] + corner[i];
     }
+    if(!well)
+    {
+        return;
+    }
+    // The well's own offsets (vr_reload_well_<gun>_*, visual only): turned in the gun's frame about its seat, then its seat
+    // moved (model units).
+    const glm::vec3 move{mount->wellOffset[0]->value, mount->wellOffset[1]->value, mount->wellOffset[2]->value};
+    glm::vec3 turn{mount->wellOffset[3]->value, mount->wellOffset[4]->value, mount->wellOffset[5]->value};
+    if(turn != glm::vec3{0.f})
+    {
+        if(gun.mirrored)
+        {
+            turn.y = -turn.y;
+            turn.z = -turn.z;
+        }
+        const glm::vec3 view{-mag.ent.angles[0], mag.ent.angles[1], mag.ent.angles[2]};
+        const glm::vec3 turned = composeAngles(view, turn);
+        mag.ent.angles[0] = -turned.x;
+        mag.ent.angles[1] = turned.y;
+        mag.ent.angles[2] = turned.z;
+    }
+    const glm::vec3 to = view::modelPoint(gun, mount->seat + move) + kick - view::modelPoint(mag, mount->seat);
+    for(int i = 0; i < 3; i++)
+    {
+        mag.ent.origin[i] += to[i];
+    }
+    if(vr_reload_show_ports.value)
+    {
+        lines::point(view::modelPoint(mag, mount->seat), 0.4f, glm::vec4{0.2f, 0.9f, 1.f, 0.9f}); // (cyan: its seat)
+    }
 }
 
 // Every frame, after the guns are placed: their magazines (immersive reloading: the server's mode, the guns' flags; a
@@ -4809,26 +4879,29 @@ void setupMagazines()
     {
         const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
         setMagazine(entities.mag[hand], entities.weapon[hand], on && !(flags & weaponFlagNoMag));
+        setMagazine(entities.well[hand], entities.weapon[hand], on, true);
     }
     for(int h = 0; h < HolsterCount; h++)
     {
         const int flags = cl.stats[protocol::STAT_QVR_HOLSTERWEAPONFLAGS0 + h];
         setMagazine(entities.holsterMag[h], entities.holster[h], on && !(flags & weaponFlagNoMag));
+        setMagazine(entities.holsterWell[h], entities.holster[h], on, true);
     }
     for(int i = 0; i < maxWorldWeapons; i++)
     {
         const entity_t* e = worldWeaponsNear[i];
         const bool numbered = e && e >= cl_entities && e < cl_entities + cl_max_edicts;
         const client::EntityVr* net = numbered ? client::entityVr(static_cast<int>(e - cl_entities)) : nullptr;
-        if(!e || (net && net->noMag) || !on)
+        if(!e || !on)
         {
-            entities.worldMag[i].visible = false;
+            entities.worldMag[i].visible = entities.worldWell[i].visible = false;
             continue;
         }
         view::ViewEntity gun;
         gun.ent = *e;
         gun.visible = true;
-        setMagazine(entities.worldMag[i], gun, true);
+        setMagazine(entities.worldMag[i], gun, !(net && net->noMag));
+        setMagazine(entities.worldWell[i], gun, true, true);
     }
 }
 
@@ -4847,7 +4920,7 @@ void setupMagazines()
         int first, most, each; // its frames' first, the most it shows, the rounds one shows
     };
     constexpr Kind kinds[] = {{1, 5, 1}, {6, 3, 24}, {9, 2, 36}, {11, 3, 36}};
-    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND];
+    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND] & 7; // (8: the lava nails' or plasma's: its skin 1)
     const int left = cl.stats[protocol::STAT_QVR_POUCHCOUNT];
     if(kind < 1 || kind > 4 || left <= 0)
     {
@@ -4888,6 +4961,7 @@ void setupAmmoPouch(const hands::State& s)
     HolsterPose pose{at - frame.out * clearance, aliasAngles(frame.out, frame.up), at, glm::vec3{0.f}};
     turnHolster(pose, at, frame, {vr_ammo_pouch_pitch.value, vr_ammo_pouch_yaw.value, vr_ammo_pouch_roll.value});
     place(ve, model, pose.slotPos, pose.slotAngles, ammoPouchFrame(), false);
+    ve.ent.skinnum = (cl.stats[protocol::STAT_QVR_POUCHKIND] & 8) ? 1 : 0;
     ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f)};
 
     // Its counter (vr_ammo_pouch_counter): how many of what it gives are left, on a small screen as the guns' ammo

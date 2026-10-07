@@ -552,7 +552,7 @@
   "by": "make_crates.py"
  },
  "quakevr/progs/vr_mag_light.mdl": {
-  "sha256": "7be792cd4b78f01806b6ed58cbaaf5fa7c42c7ab24fe5854a3490044ee43a630",
+  "sha256": "d9ff852f898c628fdb236725effdd7d7f5d765c45167225d9282ab256585c670",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_light.mdl_0_norm.png": {
@@ -560,7 +560,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_nail.mdl": {
-  "sha256": "e5ab60e5bacdbcfccbcf09710ad06b36d9994deba43e22455d752c60ff312d4f",
+  "sha256": "d1d67c8d890ef0e7b9fbf858ec7eb8712eb8ba0e6892a37b1d10f51a79edb557",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_nail.mdl_0_norm.png": {
@@ -568,19 +568,19 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_lava.mdl": {
-  "sha256": "ca664874f97bbcae6a55d4ad766bef186e19c8f7ea7e7055330ea467ca440992",
+  "sha256": "c781342fe2ae06050dd3a4ef7e6605d8ba67bccbed87178abeee7f260e9bca84",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_lava.mdl_0_norm.png": {
-  "sha256": "bd656a5a50e9913239fd1a86ef7c9504633c11bd4ffe7ad8af521e7373d583ae",
+  "sha256": "3f14cccc1a97bf10e8e19134cf850ec63adadfef82c331bf9bc9060d1fbbf7e6",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_lava2.mdl": {
-  "sha256": "de58b1d50f1b68464a56b5a8b99b9e6981dc8933d815d3a4fac904a1223e6c51",
+  "sha256": "0d5efd5593ea19dece69717d38ddec4344a20df583b7fef7c3c70c3e7f3accbe",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_lava2.mdl_0_norm.png": {
-  "sha256": "a78a82b8ecf725995354641f9dcfd77b743c55e664c77bcff00485d0470b5980",
+  "sha256": "b12447da057d3bb5c1d02db1b1f545a9dbf06490852ed04edf2e1782ca7da9f4",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_light.mdl": {
@@ -600,27 +600,75 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_nail2.mdl": {
-  "sha256": "de58b1d50f1b68464a56b5a8b99b9e6981dc8933d815d3a4fac904a1223e6c51",
+  "sha256": "de317b10bb54bc911cc973ae110ecc30a62c31bc2534d57c9d117341b4c039c4",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_nail2.mdl_0_norm.png": {
-  "sha256": "a78a82b8ecf725995354641f9dcfd77b743c55e664c77bcff00485d0470b5980",
+  "sha256": "083f994869e91eef878bf3f2b74b39ed3e0218491a9e55264371bb0321820c84",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_plasma.mdl": {
-  "sha256": "7ef6f4910d1c174dbe687da4d197725c40aabfbd61a445801135f92a17ee15da",
+  "sha256": "c0d2f61859bb70dae838f7c7da18ca1937b295b53984fac4e4f76b88a757655f",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_plasma.mdl_0_norm.png": {
-  "sha256": "1ce42fb3c9a69b1387c1b2dd22ce58d90408e05c9115bdba3cec550eb3a11e90",
+  "sha256": "e4f1d8c49d88eb089e727375c5a9c597ab4b8c77feb9f3fb2e245675c0995928",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_snail.mdl": {
-  "sha256": "c0f208bf56aa6876ea564a35620ac2e03ecf99cb4817401f7c0fd9561c55499c",
+  "sha256": "cd1e4b9fe3f30783fc044247219692c88a197185c5963f696c6fb887d535f8f8",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_snail.mdl_0_norm.png": {
   "sha256": "399b88d385a3555b9e79f88aa2f35b6add87efe610f7058c73252fcadbcfdd16",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_lava.mdl": {
+  "sha256": "9d38c0399cca8b044f75765515532ade82f011dffb9cb3d117adf4111b037616",
+  "by": "make_mags.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_lava.mdl_0_norm.png": {
+  "sha256": "58a0390e6bdf0e7ba2ab40af7f2bab36f41ede30c9185223adc8018663564187",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_lava2.mdl": {
+  "sha256": "1f9683d52a43d2aeddfb4e1703ec505316a05d7775e714a4ed1931f90cff3062",
+  "by": "make_mags.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_lava2.mdl_0_norm.png": {
+  "sha256": "4e75ef76e25d3ea22498b43104f118db1caef66fe90dfa1488faf9c34693f408",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_light.mdl": {
+  "sha256": "8aa3959b0cf25cbe626e980dd95ce52e9098b059d0897b7cb401aa9198fba9dd",
+  "by": "make_mags.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_light.mdl_0_norm.png": {
+  "sha256": "cb0370dd7212b8b502d24c5ec7dd7c2c6126ea5414a66f1fab5e79cf939d9980",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_nail.mdl": {
+  "sha256": "9d38c0399cca8b044f75765515532ade82f011dffb9cb3d117adf4111b037616",
+  "by": "make_mags.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_nail.mdl_0_norm.png": {
+  "sha256": "58a0390e6bdf0e7ba2ab40af7f2bab36f41ede30c9185223adc8018663564187",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_nail2.mdl": {
+  "sha256": "1f9683d52a43d2aeddfb4e1703ec505316a05d7775e714a4ed1931f90cff3062",
+  "by": "make_mags.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_nail2.mdl_0_norm.png": {
+  "sha256": "4e75ef76e25d3ea22498b43104f118db1caef66fe90dfa1488faf9c34693f408",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_plasma.mdl": {
+  "sha256": "8aa3959b0cf25cbe626e980dd95ce52e9098b059d0897b7cb401aa9198fba9dd",
+  "by": "make_mags.py"
+ },
+ "quakevr/progs/vr_magwell_on_v_plasma.mdl_0_norm.png": {
+  "sha256": "cb0370dd7212b8b502d24c5ec7dd7c2c6126ea5414a66f1fab5e79cf939d9980",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_muzzleflash.mdl": {
@@ -1068,7 +1116,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrpouch_ammo.mdl": {
-  "sha256": "72ffede855397f5bd388c45a4b79a551571675b79f2ca90fe70877cfb69dfaaf",
+  "sha256": "c9dd5f09eb743397a67da50cee9531c1c481761c406efe56a5caddc52738c7e1",
   "by": "make_ammo_pouch.py"
  },
  "quakevr/progs/vrpouch_ammo.mdl_0_norm.png": {

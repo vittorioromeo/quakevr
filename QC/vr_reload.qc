@@ -361,6 +361,7 @@ entity(float xWid, float xAid, float xCount, vector xOrg, vector xAngles) VR_Rel
     r.vr_ammo_aid = xAid;
     r.vr_ammo_count = xCount;
     VR_Reload_SetModel(r);
+    r.skin = (xWid && (xAid == AID_LAVA_NAILS || xAid == AID_PLASMA)) ? 1 : 0; // (the lava nails' and plasma's look)
     setorigin(r, xOrg);
     r.angles = xAngles;
     r.movetype = MOVETYPE_TOSS;
@@ -594,6 +595,10 @@ void() VR_Reload_PlayerFrame =
     }
     float w = self.vr_pouch_wid;
     self.vr_pouch_kind = w == WID_NAILGUN ? 2 : (w == WID_SUPER_NAILGUN ? 3 : (w == WID_LIGHTNING ? 4 : 1));
+    if(self.vr_pouch_aid == AID_LAVA_NAILS || self.vr_pouch_aid == AID_PLASMA)
+    {
+        self.vr_pouch_kind = self.vr_pouch_kind + 8; // (the clients draw them glowing: the pouch's skin 1)
+    }
     self.vr_pouch_count = VR_AmmoUtil_GetAmmoCountByAmmoId(self, self.vr_pouch_aid);
 };
 

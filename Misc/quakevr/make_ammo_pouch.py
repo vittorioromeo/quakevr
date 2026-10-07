@@ -144,7 +144,7 @@ def build(frame):
     return m
 
 
-def paint_skin():
+def paint_skin(variant=False):
     """make_pouch.py's skin, its grenade regions repainted: the hull's red (dark at the bottom, ribbed), the brass head
     (dull, a darker rim line) above it; the head's top brass with a grey primer in a dark ring."""
     px = bytearray(pouch.paint_skin())
@@ -175,12 +175,12 @@ def paint_skin():
     import make_mags
     px += bytes(pouch.SKIN_W * pouch.SKIN_H)
     for k, name in enumerate(("vr_mag_nail", "vr_mag_snail", "vr_mag_light")):
-        mag = make_mags.paint(name)
+        mag = make_mags.paint(name, variant)
         for t in range(make_mags.SKIN_H):
             row = (MAG_SKIN_T + t) * w + k * 64
             px[row:row + 64] = mag[t * make_mags.SKIN_W:(t + 1) * make_mags.SKIN_W]
     for c in px:
-        assert c < 224, "no fullbright texels"
+        assert c < 224 or variant, "no fullbright texels (but the lava nails' and plasma's glow)"
     return bytes(px)
 
 
@@ -192,7 +192,8 @@ def main():
         assert len(f.verts) == len(frames[0].verts) and f.tris == frames[0].tris, "frames of the same mesh"
     path = os.path.join(out, "vrpouch_ammo.mdl")
     guard = genguard.Guard("make_ammo_pouch.py", [path])
-    mdlgen.write_mdl(path, frames[0], [paint_skin()], "pouch", frames=frames[1:])
+    # Skin 1: the lava nails' magazines and the plasma cells (STAT_QVR_POUCHKIND's 8: vr_view.cpp ammoPouchFrame).
+    mdlgen.write_mdl(path, frames[0], [paint_skin(), paint_skin(True)], "pouch", frames=frames[1:])
     print("vrpouch_ammo.mdl: %d vertices, %d triangles, %d frames -> %s" % (len(frames[0].verts), len(frames[0].tris),
                                                                            FRAMES, os.path.normpath(path)))
     guard.finish()
