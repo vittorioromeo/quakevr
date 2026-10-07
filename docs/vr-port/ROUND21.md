@@ -28928,3 +28928,62 @@ Fight): at his third fit you are moved to the lower room, and 15 s later to the 
 comes back (Locomotion > Comfort > Fade on Scripted Teleports: try 0.6 and 1.2 s); kill him: the finale text, then the
 credits.
 
+## vrstart2's load: profiled and fixed (2026-10-07)
+
+Your request: vrstart2 takes very long for a cold start; profile it (VTune) and optimise map loading. Measured with
+`vr_startup_times` (run.sh, fast, exclusive; median of 3) and the new bench scenario `load_vrstart2` (cold, warm,
+restart: `bash kit/bench.sh <agent> --scenarios load_vrstart2`); VTune with `qvrprof.sh ... load_vrstart2` (MODE=2,
+loads only).
+
+| load (ms) | before | after |
+|---|---|---|
+| cold, every disk cache empty (first start ever) | 20,800 | 8,800 |
+| cold, hull files not there yet (a new build of vr_hull.cpp) | 20,500 | 8,800 |
+| cold, disk caches there (every later start) | 20,500 | 1,180 (bench: 1,040) |
+| warm (`map vrstart2` again) | 2,405 | 310 (bench: 283) |
+| restart (a death's reload) | 2,372 | 275 (bench: 261) |
+
+Where it went (VTune, the three loads, 256 s of CPU): the world's hull trees (the player's 16 wide and the monsters'
+24, 28, 40: four trees of 1.2-1.4 million nodes from 33,682 brushes, built at once on 32 threads, 16.4 s waited), of
+which 94 s in VirtualAlloc/VirtualFree (mimalloc giving freed pages back at once, `vr_heap_purge_delay 0`, and asking
+for them again: 32 threads queueing on the kernel), then `choose`, `clipWinding`, `splitPoly`, `finish`; and the
+liquids' wave mesh, 2.16 s on every load (warm and restart too).
+
+Fixed, a commit each (the outputs the same bytes: tree hashes, the mesh's, the ledges', `vr_hull_keeptest` PASS):
+
+1. **Liquids' wave mesh**: the rim samples' "inside another face" test and the pins' nearest rim segment looked up
+   in xy buckets (`XYBuckets`) instead of every face or segment of the group: 2,160 to 118 ms a load.
+2. **Heap held during loads** (`vr_heap_load_hold`, default 60000 ms; Debug > Memory, Heap: Hold During Loads): from
+   a load's start to its first frame drawn the purge delay is raised, so the load's freed memory is used again; at
+   the end all of it is given back (`mi_collect(true)`) and the delay put back. Cold 19.4 to 10.9 s; mimalloc's
+   committed memory after the load the same (2,555 MB against 2,638).
+3. **choose()**: the pieces' planes counted in a table the size of their faces (the pool's ~2,000 builders a tree
+   each made and zeroed 5 MB arrays of all the tree's planes): 10.87 to 10.43 s.
+4. **Hull disk cache** (`vr_hull_cache`, default 1; Debug > Tests, Hitboxes on Disk; HULLS.md, "Kept on disk"):
+   trees that took 250 ms or more written to `cache/hulls/<build>/<world>_<box>.hul`, read at the next load (24 ms a
+   tree): 10.4 s to 1.3 s. Checked on read; a corrupted file is rejected, rebuilt and rewritten; 2 compares (4 of 4
+   the same); e1m1 and e4m7 write nothing.
+5. **Box3D world mesh**: the T-junction search per face on the pool, each nearby cell looked up once: 573 to 154 ms
+   (its wait at the first server frames 149 ms to 0): 1,320 to 1,182 ms.
+6. **Ledges**: the lip pieces found on the pool: 109 to 17 ms: 1,182 to 1,145 ms.
+7. **choose()**: the pieces' bounds laid out an array per axis, branch-free counts: first build 10.42 to 9.57 s.
+8. **The brushes grown on the pool** (`growAllOnPool`): the table's answers to the brushes' own planes found first in
+   order, runs of 256 brushes grown with them, each brush's asks then put to the table in order and kept if every
+   answer has the same values (99.7%; the rest grown again in order): a tree's grow 1.2-1.8 s to 0.4-0.8 s.
+
+Not done (ranked by what they would save):
+
+- **The trees' first build, 8-9 s** (only once per vr_hull.cpp build now): ~150 s of CPU in `choose`, `clipWinding`,
+  `finish`, `splitPoly` and Face copies (240-byte faces with 8 inline double points). Its peak memory is 11 GB
+  (process working set): each shared unit copies its input pieces (`Unit::input`, kept only for a redo that never
+  happened here). A map-side alternative: vrstart2's 33,682 brushes are hull 0's solid leaves (the terrain's prisms
+  cut by the BSP); building from the map's own brushes (BSPX BRUSHLIST, qbsp `-wrbrushes`) would be ~11k brushes, but
+  changes what the hull is built from.
+- **Alias models, 420-460 ms** of every first load of a session (142 models, their normal maps 230 ms even with the
+  cache; 1.2 s with it empty): loaded one by one on the main thread.
+- **The wave mesh, 104 ms on every load** (warm and restart too): it could be kept for a reload of the same map.
+- **"map: campaign (game folders)" 112 ms** and the first map's normal maps (cache empty: 780 ms for 110 skins).
+- The world's brushes (362 ms, `recoverClips`' `boxInTree`) are on the pool and hidden by the spawn.
+
+Map-side: nothing changed in vrstart2 (the fixes are the engine's; the look and the paths the same: the walk test
+18 of 18 legs, screenshots).
