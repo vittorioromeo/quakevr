@@ -142,6 +142,13 @@ Headless (mock hands, `vr_fixed_frames 1`), per phase:
    thunderbolt: magazine models and props, a magazine in the gun (drawn while it is in), the three ejects: B/Y on the gun's controller; the other hand pulling it out with force and a wrist snap
    (thresholds on the page); a bump with a fresh magazine (the "Iraqi reload": the old one knocked out, the new one in).
    A partly used magazine keeps its count.
+2b. **The immersive super shotgun** (next, after the author's rounds 2 and 3; not started): with immersive reloading
+   on, the super shotgun's shells stay in after firing (two spent shells in the barrels); the flick only breaks it open
+   and throws the spent shells out, and the model stays visibly broken open (a hinged-open pose or frame) until it is
+   closed (a flick back up, or the hand snapping it shut); the pouch always gives a taped pair for it, loaded into the
+   open barrels at an adjustable hotspot (its own load point, radius and offsets, as the other guns'); closed with two
+   in, it fires again. With immersive reloading off (or the mode not Immersive), the flick keeps ejecting and reloading
+   as today. Tests: the flick only opens (no reload), spent shells out, the pair at the barrels loads 2, closing.
 3. **Grenade and proximity launchers**: a port under each; grenades from the front pouch (a launcher's grenade or a
    proximity one by the B/Y as the back pouch's multi-grenade; armed and dropped as a back pouch grenade is); the back
    pouch stays.

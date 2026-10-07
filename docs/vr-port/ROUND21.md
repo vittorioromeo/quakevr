@@ -29278,3 +29278,38 @@ missing. e1m1's smoke test.
 and the banner stand left of the menu, more rows show at once, and the corner's buttons are as easy to hit with the
 laser. Status Bar and Wrist Gadget (their long "... VR Settings, Body and Display" links) move the column further left:
 say if that jump bothers you (the alternative is a fixed place left of every page, further from the menu).
+## Immersive reloading: rounds 2 and 3 (2026-10-07)
+
+The author's second and third rounds of VR notes on immersive reloading (worktree `reload`).
+
+- **Shells**: spent shells are drawn plainly apart: a darker, scuffed and sooty hull, dulled brass, a dented black primer (make_shell.py `paint_spent`). A shell
+  coming within reach of a full shotgun's port clicks "can't" once (`reload_blocked.wav`, a short haptic), again only
+  after it left the port's range; the last shell in plays a heavier "full" knock (`reload_full.wav`). The insert sound
+  `reload_shell_in.wav` is duller (a muffled "shk-chk"), still synthesized (make_sounds.py) under that name.
+  Open-source candidates for the author to pick (nothing downloaded): see the round's report.
+- **Load points**: each gun has its own point and radius (`vr_reload_port_<shot|nail|snail|light>_x/y/z/_radius`:
+  4, 1, 1, 1); the old `vr_reload_port_leniency` and `vr_reload_mag_leniency` are gone. A magazine's reference point is
+  its top (`vr_reload_mag_<nail|snail|light>_x/y/z`, radius `_radius` 0.5): it seats when that top is within the gun's
+  radius plus its own of the gun's point (where the seated magazine's top sits). Show Load Points draws both.
+- **Magazines**: taken from the pouch top up, in the loading pose (props 50-52 Grip X/Y/Z, GripMode 1; the author's
+  sizes 0.55/0.45/0.45 as defaults; `vr_props_version` 63 takes the shipped slots). The super nailgun's magazine now
+  stands perpendicular to the ridged face it attaches to. Each magazine gun has a visible receiver (`vr_magwell_on_<gun>.mdl`,
+  make_mags.py `magwell`), drawn on the gun at its well, moved and turned by `vr_reload_well_<gun>_x/y/z/pitch/yaw/roll`
+  (looks only). Lava nails' magazines are fiery (skin 1: reds, glowing nails); plasma cells' bluish; the pouch too.
+- **The magazine is the two-handed grip** on the nailgun, super nailgun and thunderbolt: their 2H hotspot is the seated
+  magazine; gripping it aims two-handed and holds it in; it comes out into that hand only by a hard pull
+  (`vr_reload_pull_speed` 2.5 m/s), a wrist snap (`vr_reload_pull_snap` 600 deg/s) or the hands moved apart
+  (`vr_reload_pull_apart` 10 units, about 40 cm); a gentle pull keeps it.
+- **Hits**: a seated magazine pops out when hit at `vr_reload_bump_speed` (2 m/s) or more by a fist, a held prop or
+  magazine, or the other gun (its line from the hand to the muzzle) within `vr_reload_hit_reach` (4 units) of its top;
+  it flies along the blow with the gun's own speed. Not within half a second of a seat (the hand that pushed it in
+  follows through by the well). The bump reload is two steps: a magazine meeting a full well only knocks the old one out;
+  it seats once taken away (`vr_reload_collide_leniency + 4` units) and brought back.
+- **Collision**: a hand holding a round from the pouch goes through the other hand near that hand's gun's port
+  (vr_selfcollide.cpp; `vr_reload_collide_leniency` now 30 cm): pushed apart, the gun's port moved away from the round.
+- **Grips on the rising edge** (`vr_2h_grip_edge` 1, Aiming, "Grip Must Close On It"): a two-handed grip on any gun
+  takes hold only when the grip closes on its hotspot; a fist already closed moved onto it doesn't.
+- **The pouch counter** turns with the pouch (its look and up from the pouch's frame), not the head.
+- **The ammo button** is pressed only by a fingertip coming at it from its front, within `vr_weapon_button_cone` (50)
+  degrees of the way its face looks (Hand/Gun Calibration, "Ammo Button Cone"; 180: from anywhere).
+- Tests: reload_test.sh section 6 (TESTING.md); the self-test 56 of 56.

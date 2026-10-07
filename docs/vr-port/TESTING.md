@@ -1849,3 +1849,14 @@ the off hand), `vr_mock_button off secondary 1` (B/Y: its magazine drops), the m
 small steps it stays (`vr_mock_hand_to main by ...`), jumped away with a turn in one frame (`vr_mock_hand main ... 0 0 70`)
 it comes out into the hand; a magazine brought up in small steps to a full gun does nothing, jumped there it bumps the
 old one out. `vr_reload_debug 2` prints the pull's speed and snap and the bump's speed every frame.
+The author's rounds 2 and 3 (section 6; ROUND21.md, "Immersive reloading: rounds 2 and 3"): the bump is two steps (a hit
+only knocks the old magazine out: `knocked out by a hit at N m/s`; the new one seats once taken away and back:
+`vr_mock_hand_to main lport 8`, then `lport`); `vr_mock_hand_to main lportmid` puts a held magazine's middle at the
+well (not seated: it seats by its top); `vr_mock_hand_to main heldspot 0` with the grip closing there is the two-handed
+grip on a magazine gun's magazine (`hand 1 holds the magazine of the gun in hand 0`, `vr_dumpview`: `helping 1`); out by
+`vr_mock_hand_to main by 0 0 -6` (`pulled off at`), `vr_mock_hand_turn main 0 0 80` (a wrist snap in one frame:
+`snapped off at`) or 40 small steps apart (`the hands N units further apart`). A grip already closed moved onto a grip
+prints `2h grip: ... already closed: no hold (vr_2h_grip_edge)`. The ammo button: `vr_mock_hand_to main wbutton
+<front|side|back> [units]` puts the main fingertip off the off gun's button; `developer 1` prints `weapon button N:
+pressed` or `not pressed, the fingertip came A deg off its face (cone C)`. Run the mock scripts one at a time per
+worktree: two run.sh at once on the same worktree share its base folder and fail.
