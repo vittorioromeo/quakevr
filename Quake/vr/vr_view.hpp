@@ -43,6 +43,11 @@ struct ViewEntity
 // vr_reload_mag_<kind>_x/y/z, and its radius in `radius`; a shell's middle, radius -1), as drawn. False: it holds none.
 [[nodiscard]] bool heldRoundRef(int hand, glm::vec3& out, float* radius = nullptr);
 
+// Where `hand` goes for its fingertip to be `units` off the ammo button of the other hand's gun: in front of its face
+// (side 0), beside it (1) or behind it (2), as drawn last frame (the mock's "vr_mock_hand_to <hand> wbutton"). False: no
+// button shown.
+[[nodiscard]] bool weaponButtonHandTarget(int hand, int side, float units, glm::vec3& out);
+
 // World position of a point given in `ve`'s model space (as its frames' vertices).
 [[nodiscard]] glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);
 

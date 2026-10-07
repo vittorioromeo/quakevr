@@ -2458,6 +2458,7 @@ QVR_CVAR(vr_reload_well_light_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_well_light_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_well_light_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_show_ports, "0", CVAR_NONE)          // draw each held gun's load point (yellow), its acceptance range (green) and a well's pull reach (blue)
+QVR_CVAR(vr_weapon_button_cone, "50", CVAR_ARCHIVE)   // degrees off a weapon's ammo button's face the other fingertip may come from and press it (180: from anywhere, behind or beside it too)
 QVR_CVAR(vr_2h_grip_edge, "1", CVAR_ARCHIVE)          // a two-handed grip takes hold only when the grip closes on the hotspot (a fist moved onto it doesn't); 0: as before (gripping anywhere, then moved onto it)
 QVR_CVAR(vr_reload_debug, "0", CVAR_NONE)              // 1: print the reload's takes, loads, refunds and losses (dprint), and each held round's distance to the port
 QVR_CVAR(vr_reload_test, "0", CVAR_NONE)               // Debug > Tests > Reloading: the step `impulse 125` runs (vr_reload.qc VR_Reload_Test)

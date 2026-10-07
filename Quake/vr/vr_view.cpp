@@ -5454,11 +5454,37 @@ void setupPauldrons()
 // hand's); the grappling gun's is the detach. Its front button (near the muzzle): 44, 45, the reel-in.
 struct ButtonState
 {
-    bool hover{false};
+    bool hover{false};     // the other fingertip within reach of it at the last check
     double lastCheck{0.0}; // cl.time
 };
 ButtonState buttonStates[2];
 ButtonState frontButtonStates[2];
+
+// The fingertip of `hand` that presses the other gun's buttons.
+[[nodiscard]] glm::vec3 buttonFingertip(const hands::State& s, int hand)
+{
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.rot[hand], fwd, right, up);
+    return s.pos[hand] + fwd * 2.f - up * 2.5f;
+}
+
+// The way a weapon button's face looks (the model's +z, as drawn).
+[[nodiscard]] glm::vec3 buttonFace(const view::ViewEntity& button)
+{
+    const glm::vec3 d = view::modelPoint(button, {0.f, 0.f, 1.f}) - view::modelPoint(button, {0.f, 0.f, 0.f});
+    return glm::length(d) > 1e-4f ? glm::normalize(d) : glm::vec3{0.f, 0.f, 1.f};
+}
+
+// The author: the ammo button pressed only from its front, never from behind it or its side. A fingertip coming within
+// reach of it is a press only within vr_weapon_button_cone degrees of the button's face direction (180: from anywhere,
+// as before). Its angle off the face in `angle`.
+[[nodiscard]] bool buttonFromFront(const glm::vec3& fingertip, const glm::vec3& at, const glm::vec3& face, float& angle)
+{
+    const glm::vec3 d = fingertip - at;
+    const float len = glm::length(d);
+    angle = len > 0.05f ? glm::degrees(std::acos(CLAMP(-1.f, glm::dot(d / len, face), 1.f))) : 0.f;
+    return vr_weapon_button_cone.value >= 180.f || angle <= vr_weapon_button_cone.value;
+}
 
 void pressWeaponButtons(const hands::State& s)
 {
@@ -5480,20 +5506,34 @@ void pressWeaponButtons(const hands::State& s)
         st.lastCheck = cl.time;
 
         const int other = 1 - hand;
-        glm::vec3 fwd, right, up;
-        hands::angleVectors(s.rot[other], fwd, right, up);
-        const glm::vec3 fingertip = s.pos[other] + fwd * 2.f - up * 2.5f;
+        const glm::vec3 fingertip = buttonFingertip(s, other);
         const glm::vec3 buttonPos{button.ent.origin[0], button.ent.origin[1], button.ent.origin[2]};
+        float angle = 0.f;
+        const bool fromFront = buttonFromFront(fingertip, buttonPos, buttonFace(button), angle);
 
         const bool hover = glm::distance(fingertip, buttonPos) < 2.7f;
         if(developer.value >= 2 && glm::distance(fingertip, buttonPos) < 8.f) // (placing a button: how near the finger is)
         {
-            Con_Printf("weapon button %d%s: the other fingertip %.1f from it (%.1f %.1f %.1f)\n", hand, front ? " (front)" : "",
-                static_cast<double>(glm::distance(fingertip, buttonPos)), static_cast<double>(fingertip.x),
-                static_cast<double>(fingertip.y), static_cast<double>(fingertip.z));
+            Con_Printf("weapon button %d%s: the other fingertip %.1f from it (%.1f %.1f %.1f), %.0f deg off its face\n", hand,
+                front ? " (front)" : "", static_cast<double>(glm::distance(fingertip, buttonPos)),
+                static_cast<double>(fingertip.x), static_cast<double>(fingertip.y), static_cast<double>(fingertip.z),
+                static_cast<double>(angle));
         }
-        if(hover && !st.hover)
+        if(hover && !st.hover && !fromFront)
         {
+            if(developer.value)
+            {
+                Con_Printf("weapon button %d%s: not pressed, the fingertip came %.0f deg off its face (cone %g)\n", hand,
+                    front ? " (front)" : "", static_cast<double>(angle), static_cast<double>(vr_weapon_button_cone.value));
+            }
+        }
+        else if(hover && !st.hover)
+        {
+            if(developer.value)
+            {
+                Con_Printf("weapon button %d%s: pressed, the fingertip came %.0f deg off its face\n", hand,
+                    front ? " (front)" : "", static_cast<double>(angle));
+            }
             // (Inserted: it runs next, before the rest of a mock script; a real game's buffer is empty then.)
             Cbuf_InsertText(front ? (hand == HAND_OFF ? "impulse 44\n" : "impulse 45\n") : (hand == HAND_OFF ? "impulse 42\n" : "impulse 43\n"));
         }
@@ -5568,6 +5608,23 @@ void setupFrontButton(int hand)
 
 namespace qvr::view
 {
+
+bool weaponButtonHandTarget(int hand, int side, float units, glm::vec3& out)
+{
+    const hands::State& s = hands::current();
+    const view::ViewEntity& button = entities.button[1 - hand];
+    if(!s.valid || !button.visible)
+    {
+        return false;
+    }
+    const glm::vec3 at{button.ent.origin[0], button.ent.origin[1], button.ent.origin[2]};
+    const glm::vec3 face = buttonFace(button);
+    glm::vec3 across = glm::cross(face, glm::vec3{0.f, 0.f, 1.f});
+    across = glm::length(across) > 1e-3f ? glm::normalize(across) : glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 dir = side == 0 ? face : side == 1 ? across : -face;
+    out = at + dir * units - (buttonFingertip(s, hand) - s.pos[hand]);
+    return true;
+}
 
 bool emptyHandPose(const hands::State& s, int hand, EmptyHand& out)
 {

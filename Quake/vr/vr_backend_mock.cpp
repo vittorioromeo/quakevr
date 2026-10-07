@@ -453,6 +453,8 @@ void mockLook_f()
 // "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "vr_mock_hand_to <main|off> lport
 // [<units>]": what the hand holds (a shell's middle, a magazine's top: view::heldRoundRef) at the loading port of the gun the
 // other hand holds, `units` below it; "lportmid": its middle there (a magazine's too: the top-of-the-magazine tests).
+// "vr_mock_hand_to <main|off> wbutton <front|side|back> [<units>]": its fingertip `units` (2) off the other gun's ammo
+// button, in front of its face, beside it or behind it (vr_weapon_button_cone).
 
 // The thrown_weapon nearest the player (the server's: its qcvm pushed), or null.
 edict_t* nearestThrownWeapon()
@@ -606,6 +608,20 @@ void mockHandTo_f()
     const bool ammoPouch = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "ammopouch");
     const bool loadPortMid = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "lportmid");
     const bool loadPort = ((Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "lport")) || loadPortMid;
+    if(Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "wbutton") && hand >= 0)
+    {
+        // The fingertip off the other gun's ammo button: in front of it, beside it or behind it (vr_weapon_button_cone).
+        const char* how = Cmd_Argv(3);
+        const int side = !q_strcasecmp(how, "front") ? 0 : !q_strcasecmp(how, "side") ? 1 : 2;
+        glm::vec3 target;
+        if(!view::weaponButtonHandTarget(hand, side, Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 2.f, target))
+        {
+            Con_Printf("vr_mock_hand_to: the other hand's gun shows no button\n");
+            return;
+        }
+        moveHandTo(hand, target);
+        return;
+    }
     if((ammoPouch || loadPort) && hand >= 0)
     {
         // Immersive reloading (vr_reload.qc): at the ammo pouch's reach point; or what the hand holds (a round from it)
