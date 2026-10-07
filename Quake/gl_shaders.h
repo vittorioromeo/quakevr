@@ -1488,6 +1488,7 @@ QVR_ALIAS_FS_INPUTS // QVR: the alias fragment shader's Quake VR inputs
 OIT_OUTPUT (out_fragcolor)
 "\n"
 QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, morphs
+QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a slipgate shown in this view (QVR_ALIAS_FS_GLOW)
 "void main()\n"
 "{\n"
 "	vec2 uv = in_texcoord;\n"
@@ -1602,8 +1603,11 @@ QVR_RETRO_GLSL(QS_STRINGIFY (QVR_RETRO_LUT_UNIT_SPRITE)) // QVR: retro textures 
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
+QVR_BEHIND_SHOWN_GATE // QVR: behind a slipgate shown in this view
 "void main()\n"
 "{\n"
+"	if (BehindShownGate(in_pos + EyePos)) // QVR: hidden by the view through the gate (a see-through surface: no depth)\n"
+"		discard;\n"
 "	vec2 duvdx = dFdx(in_uv), duvdy = dFdy(in_uv); // QVR: retro textures\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos);\n"
 "	RetroBegin(RetroSprite.x, RetroSprite.yz, duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
@@ -1683,8 +1687,11 @@ QVR_RETRO_GLSL(QS_STRINGIFY (QVR_RETRO_LUT_UNIT_SPRITE)) // QVR: retro textures 
 "\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
+QVR_BEHIND_SHOWN_GATE // QVR: behind a slipgate shown in this view
 "void main()\n"
 "{\n"
+"	if (BehindShownGate(in_pos + EyePos)) // QVR: hidden by the view through the gate (a see-through surface: no depth)\n"
+"		discard;\n"
 "	out_fragcolor = in_color;\n"
 "	float radius = length(in_uv);\n"
 "	int rs = int(RetroParticles + 0.5); // QVR: retro textures: snapped, a square (as Quake drew them); its colour in\n"

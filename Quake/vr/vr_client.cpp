@@ -559,13 +559,25 @@ void parsePrecacheSound()
     cl.sound_precache[index] = S_PrecacheSound(name);
 }
 
+// vr_particle_test quake: Quake's own effects there instead (whatever vr_particles is): its explosion's particles
+// (R_ParticleExplosion) and its explosion sprite (progs/s_explod.spr), held there two seconds, its frames running
+// (VR_TestEffects). For seeing Quake's particles and sprites where Quake VR's are not drawn (behind a slipgate's
+// see-through surface: slipgate_edges_test.sh particles).
+struct TestSprite
+{
+    glm::vec3 at{0.f};
+    double start = 0.0, until = -1.0;
+    qmodel_t* model = nullptr;
+};
+TestSprite testSprite;
+
 // vr_particle_test <preset> [count]: a particle2 preset 64 units in front of the view (tuning); a splash (14) where
 // the view first meets a liquid's surface, if it does within 2048 units (going that way).
 void particleTest_f()
 {
     if(Cmd_Argc() < 2 || cls.state != ca_connected)
     {
-        Con_Printf("usage: vr_particle_test <preset 0..11> [count]\n");
+        Con_Printf("usage: vr_particle_test <preset 0..11 | quake> [count]\n");
         return;
     }
     vec3_t fwd, right, up;
@@ -573,6 +585,14 @@ void particleTest_f()
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     const glm::vec3 f{fwd[0], fwd[1], fwd[2]};
     glm::vec3 org = eye + f * 64.f;
+    if(!q_strcasecmp(Cmd_Argv(1), "quake"))
+    {
+        vec3_t o{org.x, org.y, org.z};
+        R_ParticleExplosion(o);
+        testSprite = {org, cl.time, cl.time + 2.0, Mod_ForName("progs/s_explod.spr", false)};
+        Con_Printf("vr_particle_test: Quake's explosion particles and sprite at %.0f %.0f %.0f\n", org.x, org.y, org.z);
+        return;
+    }
     glm::vec3 dir{0.f};
     const auto preset = static_cast<particles::Preset>(Q_atoi(Cmd_Argv(1)));
     if(preset == particles::Preset::Splash && cl.worldmodel)
@@ -615,6 +635,26 @@ void particleTest_f()
 }
 
 } // namespace
+
+// CL_ReadFromServer, after the temp entities: vr_particle_test quake's sprite.
+extern "C" void VR_TestEffects(void)
+{
+    TestSprite& s = testSprite;
+    if(!s.model || cl.time > s.until || cl.time < s.start)
+    {
+        return;
+    }
+    entity_t* ent = CL_NewTempEntity();
+    if(!ent)
+    {
+        return;
+    }
+    ent->origin[0] = s.at.x;
+    ent->origin[1] = s.at.y;
+    ent->origin[2] = s.at.z;
+    ent->model = s.model;
+    ent->frame = static_cast<int>((cl.time - s.start) * 10.0) % za::max(s.model->numframes, 1);
+}
 
 namespace qvr::client
 {

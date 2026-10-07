@@ -157,6 +157,15 @@ QVR_TONE_GLSL
 "	vec4	SceneTone; // QVR: x the brightest models write (vr/vr_tonemap.cpp), yzw the force grab glow's colour\n"\
 "	vec4	FrameWater3; // QVR: zw your own wounds' relief, burns' and blood's (vr/vr_wounds.cpp: vr_wounds_bump_burns, vr_wounds_bump_blood)\n"\
 "	vec4	RetroLight[6]; // QVR: retro lighting (vr/vr_retrolight.h), as FRAMEDATA_BUFFER's\n"\
+"	vec4	FrameRipple; // QVR: as FRAMEDATA_BUFFER's, up to the slipgates shown (QVR_BEHIND_SHOWN_GATE)\n"\
+"	vec4	FrameRippleAt[32];\n"\
+"	vec4	FrameRippleAmp[8];\n"\
+"	vec4	FrameDecalClock;\n"\
+"	vec4	FrameWaterCube;\n"\
+"	vec4	FrameWaterCube2;\n"\
+"	vec4	FramePortalPlane[8];\n"\
+"	vec4	FramePortalMin[8];\n"\
+"	vec4	FramePortalMax[8];\n"\
 "};\n"\
 "\n"\
 
@@ -2399,7 +2408,41 @@ SPECULAR_AA_FUNCTIONS
 "	}\n" \
 "	result.rgb += morphSeam; // QVR: a morph's glowing seam\n" \
 "	if (!morphShown) // QVR: this model is not there yet (or any more) in a morph\n" \
+"		discard;\n" \
+"	if (in_color.a < 1.0 && BehindShownGate(in_pos + EyePos)) // QVR: see-through, behind a slipgate shown in this view\n" \
 "		discard;\n"
+
+// What lies behind a slipgate shown in this view (vr/vr_portals.cpp VR_PortalFrameData: PortalPlane, PortalMin,
+// PortalMax), seen through its aperture from the eye: the view through the gate covers it, but a see-through gate
+// surface (vr_slipgate_surface_opacity under 1) writes no depth, and what is drawn after it (Quake's particles, sprites,
+// see-through models) showed over it. `pos`: in the world.
+// (The alias shaders' frame data has its own names: QVR_BEHIND_SHOWN_GATE_ALIAS.)
+#define QVR_BEHIND_SHOWN_GATE \
+"bool BehindShownGate(vec3 pos)\n" \
+"{\n" \
+"	vec3 eye = EyePos;\n" \
+"	for (int i = 0; i < 8; ++i)\n" \
+"	{\n" \
+"		if (PortalMin[i].w <= 0.)\n" \
+"			continue;\n" \
+"		float a = dot(eye, PortalPlane[i].xyz) - PortalPlane[i].w;\n" \
+"		float b = dot(pos, PortalPlane[i].xyz) - PortalPlane[i].w;\n" \
+"		if (a <= 0. || b >= 0.)\n" \
+"			continue;\n" \
+"		vec3 c = eye + (pos - eye) * (a / (a - b));\n" \
+"		if (all(greaterThanEqual(c, PortalMin[i].xyz - 1.)) && all(lessThanEqual(c, PortalMax[i].xyz + 1.)))\n" \
+"			return true;\n" \
+"	}\n" \
+"	return false;\n" \
+"}\n"
+
+#define QVR_BEHIND_SHOWN_GATE_ALIAS \
+"#define PortalPlane FramePortalPlane\n" \
+"#define PortalMin FramePortalMin\n" \
+"#define PortalMax FramePortalMax\n" \
+"#define EyePos FrameEyePos\n" \
+QVR_BEHIND_SHOWN_GATE \
+"#undef EyePos\n"
 
 // soft sprites, fading out close in front of the scene
 #define QVR_SPRITES_FS_SOFT \

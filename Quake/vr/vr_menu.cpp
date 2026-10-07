@@ -5925,6 +5925,10 @@ za::Vector<Item> pageDebugTests()
         command("To the Turning Gates", "setpos -1280 640 24 0 90 0; noclip")
             .help("In vrslipgates: facing the gate that comes out of the next room's east wall (90 degrees); the loop is "
                   "left and right of you, the 45-degree wall behind you to the left."),
+        command("Into the Loop", "setpos -1560 560 24 0 180 0; noclip")
+            .help("In vrslipgates: 40 units from the loop's west gate, which comes out of the east one: you see your own "
+                  "back (with its head) and, through the gate beyond it, yourself again, as many gates deep as Graphics > "
+                  "Slipgates > Gates Within Gates (vr_portals_view prints the views drawn at each depth)."),
         command("To the Heights and Water", "setpos -400 -960 24 0 180 0; noclip")
             .help("In vrslipgates: facing the floor-level gate that comes out over the 128-high platform; the pool's two "
                   "gates are in the east and south walls."),
@@ -5932,6 +5936,10 @@ za::Vector<Item> pageDebugTests()
             .help("In vrslipgates: a small crate slid along the floor into the flush player gate (8 deep, a wall right "
                   "behind it): it goes through and comes out of the north gallery's gate (it stopped against the wall "
                   "behind the sheet before Box3D's level contacts were clipped at the gate)."),
+        command("Quake's Effects Behind A Gate", "map start; wait90; god; notarget; noclip; setpos 1040 1650 -330 0 270 0; wait5; vr_particle_test quake; setpos 1040 1830 -330 0 270 0")
+            .help("start's underwater gate: Quake's own explosion particles and sprite (vr_particle_test quake) made "
+                  "behind it, then seen from in front: with a see-through gate surface (Graphics > Slipgates > Portal "
+                  "Stars > Opacity under 1) they must not show over the view through the gate."),
         toggle("Print Gate Cuts", "vr_portals_debug_split")
             .help("vr_portals_debug_split 1: each frame, every entity drawn cut by a slipgate (where, the plane, how far "
                   "through), the force grab's beam end, and each thrown or rigid thing's middle and why a gate did not "

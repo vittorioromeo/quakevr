@@ -247,6 +247,7 @@ void VR_ForgetEndedRopes (void); // CL_UpdateTEnts, before the beams: the ropes 
 void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam lights the room along its length (vr_beam_lights)
 void VR_BeamDrawn (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam's ends as drawn this frame: Quad Damage's arcs along it (vr_beam_arcs)
 void VR_WallTorchFlames (void);							// CL_ReadFromServer, after the temp entities: the taken wall torches' flames (vr_walltorch.cpp)
+void VR_TestEffects (void);								// ... vr_particle_test quake's explosion sprite (vr_client.cpp)
 #include "vr_modelmetadata.h" // shared model identities/traits and loader invalidation
 // A campaign switch keeps the alias models whose files are the same in its game folders (vr_modelkeep.cpp)
 void VR_ModelSourcesBegin (struct qmodel_s *mod, const char *file); // Mod_LoadModel, an alias model's: its lookups recorded (its own file, just found, first)
