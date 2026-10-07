@@ -30127,3 +30127,19 @@ The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh
   (29 before); seen from below between two frames 202 pixels changed (511 with the old model). Other same-facing
   coplanar pairs remain elsewhere on v_shot.mdl (by the trigger at x 8, along the top at z 4.4, at the muzzle): not
   touched.
+- **The author's tweaks are the defaults** (22-08-51; his config of 22:46 against the shipped defaults). Config version
+  100 (`vr_cvars.cpp` defaultChanges: a config still holding the old default takes the new one):
+  `vr_ammo_pouch_counter` 0 (was 1), `vr_ammo_pouch_x` 3.02 (0), `vr_decap_pop_sg_falloff` 1.5 (4),
+  `vr_flashlight_flick_speed` 800 (600), `vr_knockdown_ledge_drop` 16 (64), `_margin` 24 (16), `_reach` 1.25 (1),
+  `vr_reload_pull_snap` 225 (300), `vr_reload_ssg_flick_close_speed` 400 (650), `vr_reload_ssg_open_flick` 0 (1: the
+  flick no longer opens the super shotgun), `vr_weapon_button_cone` 50 (80), `vr_weapon_throw_damage_mult` 0.35 (0.5).
+  Held object settings version 65: the gremlin's head at Size 0.6 (slot 7). His weapon settings match the shipped ones
+  (but for the super nailgun's button, mirrored above). Left as they are: bookkeeping (`vr_cfg_version`,
+  `vr_props_version`, `vr_bindings_version`, `vr_xr_runtime`), his body (`vr_height_calibration`, `vr_bodycal_*`, the
+  arms' `vr_body_elbow_back/hand/lift`: the player's), the motion recorder's (`vr_motion_*`), the menus' state and
+  looks (`vr_menu_positions`, `_level` 2, `_scale` 0.16, `_distance`, `_fine_step`), the desktop window
+  (`vr_window_view` 0, `vr_spectator_fov` 120, `vr_mirror_hide_hud_text` 1), performance (`vr_foveated` 2,
+  `vr_detail` 0), comfort (`vr_comfort_vignette_strength` 0.5), slider noise (`vr_ammo_pouch_scale` 0.999,
+  `vr_relight_strength` 1.1988), and the held object slots the game filled for him (`vr_prop_id_33`, `_54` to `_59`).
+  reload_test.sh's super shotgun runs set the flick on (and its close speed 650) and its ammo button runs cone 80, as
+  they test those ways.

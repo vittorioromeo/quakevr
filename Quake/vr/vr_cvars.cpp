@@ -464,8 +464,22 @@ const DefaultChange defaultChanges[] = {
     {98, &vr_reload_port_snail_radius, "1"}, // 1.5
     {98, &vr_reload_port_light_radius, "1"}, // 1.5
     {98, &vr_reload_bump_speed, "6.5"},         // 3: the author's, raised while the hand reaching to hold the magazine knocked it out (fixed)
+    // 100: the author's settings at the firing range, 2026-10-07 (his note vrfiringrange_2026-10-07_22-08-51: "make all
+    // the tweaks I'm making the new defaults"; ROUND21.md, "Reloading: the firing range notes of 10-07").
+    {100, &vr_ammo_pouch_counter, "1"}, // 0
+    {100, &vr_ammo_pouch_x, "0"}, // 3.02
+    {100, &vr_decap_pop_sg_falloff, "4"}, // 1.5
+    {100, &vr_flashlight_flick_speed, "600"}, // 800
+    {100, &vr_knockdown_ledge_drop, "64"}, // 16
+    {100, &vr_knockdown_ledge_margin, "16"}, // 24
+    {100, &vr_knockdown_ledge_reach, "1"}, // 1.25
+    {100, &vr_reload_pull_snap, "300"}, // 225
+    {100, &vr_reload_ssg_flick_close_speed, "650"}, // 400
+    {100, &vr_reload_ssg_open_flick, "1"}, // 0
+    {100, &vr_weapon_button_cone, "80"}, // 50
+    {100, &vr_weapon_throw_damage_mult, "0.5"}, // 0.35
 };
-constexpr int configVersion = 99;
+constexpr int configVersion = 100;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
