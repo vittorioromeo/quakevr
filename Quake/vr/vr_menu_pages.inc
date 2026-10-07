@@ -467,6 +467,7 @@ void resetHandMoves()
             .help("Your other hand taking hold of a weapon's foregrip clicks softly from that hand (and pulses in it); "
                   "letting go, a quieter click. How loud (0: no sound, the pulse stays)."),
         slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops."),
+        toggle("Grip Must Close On It", "vr_2h_grip_edge").help("The other hand takes a weapon's two-handed grip only by closing its grip there; a fist already closed moved onto it doesn't take hold (so a hand reloading can pass by)."),
         slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
         header("2H Grip Stickiness"),
         slider("Stickiness", vr_2h_sticky, 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)

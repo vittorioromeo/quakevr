@@ -2436,6 +2436,7 @@ QVR_CVAR(vr_reload_mag_light_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_radius, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_collide_leniency, "12", CVAR_ARCHIVE) // cm a round held from the pouch may go into the other hand's gun's box before they are drawn kept apart (Held Things Collide), to reach its port or well
 QVR_CVAR(vr_reload_show_ports, "0", CVAR_NONE)          // draw each held gun's load point (yellow), its acceptance range (green) and a well's pull reach (blue)
+QVR_CVAR(vr_2h_grip_edge, "1", CVAR_ARCHIVE)          // a two-handed grip takes hold only when the grip closes on the hotspot (a fist moved onto it doesn't); 0: as before (gripping anywhere, then moved onto it)
 QVR_CVAR(vr_reload_debug, "0", CVAR_NONE)              // 1: print the reload's takes, loads, refunds and losses (dprint), and each held round's distance to the port
 QVR_CVAR(vr_reload_test, "0", CVAR_NONE)               // Debug > Tests > Reloading: the step `impulse 125` runs (vr_reload.qc VR_Reload_Test)
 QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)
