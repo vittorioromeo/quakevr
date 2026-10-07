@@ -972,19 +972,19 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_ssg_barrels_on_v_shot2.mdl": {
-  "sha256": "b37349d635b467a4587c9f59bfc6f3297ef70fda6c580663a8b6da4efa8ff3c1",
+  "sha256": "9a9f821e2deefeee60cbdb22d94cb65991b0742165160747e58c4fe9437f1e06",
   "by": "make_ssg_open.py"
  },
  "quakevr/progs/vr_ssg_barrels_on_v_shot2.mdl_0_norm.png": {
-  "sha256": "2276091d8aa5c0dd15545c979a687898f7602b97b62d9687bdde9a98b001b032",
+  "sha256": "1fa53a8dff36542bc6f1073181540edf1ce8a969c64a720195986d1b796ff668",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_ssg_frame_on_v_shot2.mdl": {
-  "sha256": "6bffe305f2a9eea6c2c59a9127fa290f14108d26a31fcb1339600336d77bbe48",
+  "sha256": "3dc80034f32072551ad06ec042477f566078a404383010ebc1a7bd5b66276924",
   "by": "make_ssg_open.py"
  },
  "quakevr/progs/vr_ssg_frame_on_v_shot2.mdl_0_norm.png": {
-  "sha256": "338687fc8c6204c0b038a6ef86f889a7bbdef4972ef6b93bf1db1cd179ba8e3f",
+  "sha256": "0914be4ec715d4ec06e08a0901864c3caffcc9db48101ed4216b898772514a9d",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrbody.md5anim": {

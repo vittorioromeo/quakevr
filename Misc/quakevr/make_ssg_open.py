@@ -12,7 +12,7 @@
 # gun's place, the barrels turned about the hinge), its skin with rows added under it for the plates. The gun closed
 # is drawn as v_shot2.mdl itself; only an open (or opening, closing) gun is drawn in its two parts.
 #
-# The cut: a triangle whose middle is in front of x = CUT is the barrels'; the two tapers joining the barrels to the
+# The cut: a triangle whose middle is in front of x = CUT is the barrels', and so is the rear sight's ring; the two tapers joining the barrels to the
 # receiver above the fore-end (triangles across the cut higher than z 5) are dropped, the plates closing the holes they
 # leave. Run after v_shot2.mdl changes (polish_weapons.py), then check vr_view.cpp's ssg* constants (the hinge, the
 # chambers' middle) still match, and bake their normal maps: python Misc/quakevr/make_ssg_open.py, then
@@ -35,6 +35,7 @@ PROGS = os.path.join(HERE, "..", "..", "quakevr", "progs")
 SRC = os.path.join(PROGS, "v_shot2.mdl")
 CUT = 12.5           # model x of the cut (the receiver's front)
 TAPER_Z = 5.0        # triangles across the cut above this are the tapers (dropped)
+RING_BOX = (12.0, 12.7, 0.6, 6.95)  # x from, x to, |y| under, z over: the rear sight's ring (its whole piece moves)
 CHAMBERS = ((1.25, 7.0), (-1.25, 7.0))  # (y, z) of the chambers' (and the firing pins') middles
 CHAMBER_R = 0.6      # the chamber mouth's radius (its chamfer's outer edge)
 BREECH_X = 11.72     # the standing breech plate, just in front of the receiver's open front
@@ -57,7 +58,18 @@ def classify(m):
     X = P[T][:, :, 0]
     C = P[T].mean(1)
     taper = (X.min(1) < CUT) & (X.max(1) > CUT) & (C[:, 2] >= TAPER_Z)
-    barrels = (C[:, 0] > CUT) & ~taper
+    # The rear sight's ring (a piece of its own on the barrels' rib, over the cut: x 12.14-12.6) goes with the barrels
+    # (the author: it stayed on the frame and floated there as the gun broke open).
+    mesh = mp.Mesh0(m)
+    ring = np.zeros(len(T), bool)
+    for ti in np.nonzero((C[:, 0] > RING_BOX[0]) & (C[:, 0] < RING_BOX[1]) & (np.abs(C[:, 1]) < RING_BOX[2]) &
+                         (C[:, 2] > RING_BOX[3]))[0]:
+        piece = mp.piece_of_tri(mesh, ti)
+        if P[piece][:, 0].min() < RING_BOX[0] or P[piece][:, 0].max() > RING_BOX[1]:
+            continue  # (a taper, part of the receiver's piece: not the ring)
+        vs = set(piece.tolist())
+        ring |= np.array([t[0] in vs for t in T])
+    barrels = ((C[:, 0] > CUT) & ~taper) | ring
     frame = ~barrels & ~taper
     return P, T, frame, barrels
 
