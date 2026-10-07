@@ -1,7 +1,10 @@
 """Dawn of the Machine (MG3) entity coverage: which of the owned MG3 maps' classnames and keys Quake VR's QC lacks.
 
-  python check_mg3_entities.py [--pak <rerelease/mg3/pak0.pak>] [--qc <QC dir>] [--map NAME] [--quiet]
-                               [--expect-missing N] [--expect-placements N]
+  python check_mg3_entities.py [--campaign mg3|mg1|dopa] [--pak <rerelease/<campaign>/pak0.pak>] [--qc <QC dir>]
+                               [--map NAME] [--quiet] [--expect-missing N] [--expect-placements N] [--expect-fields N]
+
+--campaign picks the owned rerelease PAK (default mg3; check_mg1_entities.py is this with mg1); the totals line is
+prefixed with its name ("mg1entities: ...").
 
 Reads the owned PAK read-only (the entity lumps of its BSPs; nothing is copied or written) and the VR QC sources:
 a classname is resolved when a QC function of that name exists (a spawn function), a key when a QC entity field of
@@ -24,10 +27,10 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QC = os.path.normpath(os.path.join(HERE, "..", "..", "QC"))
-STEAM_PAKS = [
-    r"C:/Program Files (x86)/Steam/steamapps/common/Quake/rerelease/mg3/pak0.pak",
-    r"C:/Program Files/Steam/steamapps/common/Quake/rerelease/mg3/pak0.pak",
-    os.path.expanduser("~/.steam/steam/steamapps/common/Quake/rerelease/mg3/pak0.pak"),
+STEAM_ROOTS = [
+    r"C:/Program Files (x86)/Steam/steamapps/common/Quake/rerelease",
+    r"C:/Program Files/Steam/steamapps/common/Quake/rerelease",
+    os.path.expanduser("~/.steam/steam/steamapps/common/Quake/rerelease"),
 ]
 
 FUNC_RE = re.compile(r'^\s*void\s*(?:\(\s*\)\s*([A-Za-z_]\w*)\s*(?:=|$)|([A-Za-z_]\w*)\s*\(\s*(?:void)?\s*\)\s*(?:\{|$))',
@@ -87,19 +90,24 @@ def engine_key(key):
     return {"angle": "angles", "light": "light_lev"}.get(key, key)
 
 
-def main():
+def main(default_campaign="mg3"):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--campaign", default=default_campaign, choices=("mg3", "mg1", "dopa"))
     ap.add_argument("--pak")
     ap.add_argument("--qc", default=DEFAULT_QC)
     ap.add_argument("--map", help="only this map (e.g. map1)")
     ap.add_argument("--quiet", action="store_true", help="totals only")
     ap.add_argument("--expect-missing", type=int)
     ap.add_argument("--expect-placements", type=int)
+    ap.add_argument("--expect-fields", type=int)
     a = ap.parse_args()
+    tag = a.campaign + "entities"
+    env = "QVR_%s_PAK" % a.campaign.upper()
 
-    pak = a.pak or os.environ.get("QVR_MG3_PAK") or next((p for p in STEAM_PAKS if os.path.isfile(p)), None)
+    pak = a.pak or os.environ.get(env) or next(
+        (p for p in (os.path.join(r, a.campaign, "pak0.pak") for r in STEAM_ROOTS) if os.path.isfile(p)), None)
     if not pak or not os.path.isfile(pak):
-        print("mg3entities: the owned rerelease/mg3/pak0.pak was not found (--pak or QVR_MG3_PAK)")
+        print("%s: the owned rerelease/%s/pak0.pak was not found (--pak or %s)" % (tag, a.campaign, env))
         return 2
 
     funcs, fields = qc_names(a.qc)
@@ -112,6 +120,7 @@ def main():
     missing_classes = collections.Counter()
     missing_maps = collections.defaultdict(set)
     missing_fields = collections.Counter()
+    empty_keys = collections.Counter()  # unknown keys with an empty value: editor leftovers that set nothing
     with open(pak, "rb") as pf:
         for mp in maps:
             short = os.path.basename(mp)[:-4]
@@ -122,10 +131,13 @@ def main():
                 classes[cls] += 1
                 if cls not in funcs:
                     mc[cls] += 1
-                for k, _ in kv:
+                for k, v in kv:
                     f = engine_key(k)
                     if f and f != "classname" and f not in fields:
-                        mf[f] += 1
+                        if v.strip():
+                            mf[f] += 1
+                        else:
+                            empty_keys["%s/%s" % (short, f)] += 1
             missing_classes.update(mc)
             missing_fields.update(mf)
             for c in mc:
@@ -141,12 +153,15 @@ def main():
             print("  %-34s %4d/%d" % (c, n, len(missing_maps[c])))
         if missing_fields:
             print("unknown keys (uses): " + " ".join("%s:%d" % kv for kv in sorted(missing_fields.items())))
+        if empty_keys:
+            print("empty unknown keys, ignored (map/key:uses): " +
+                  " ".join("%s:%d" % kv for kv in sorted(empty_keys.items())))
     placements = sum(missing_classes.values())
-    print("mg3entities: maps %d classes %d missing %d placements %d fields %d field_uses %d"
-          % (len(maps), len(classes), len(missing_classes), placements, len(missing_fields),
+    print("%s: maps %d classes %d missing %d placements %d fields %d field_uses %d"
+          % (tag, len(maps), len(classes), len(missing_classes), placements, len(missing_fields),
              sum(missing_fields.values())))
     bad = (a.expect_missing is not None and a.expect_missing != len(missing_classes)) or \
-          (a.expect_placements is not None and a.expect_placements != placements)
+          (a.expect_placements is not None and a.expect_placements != placements) or           (a.expect_fields is not None and a.expect_fields != len(missing_fields))
     return 1 if bad else 0
 
 
