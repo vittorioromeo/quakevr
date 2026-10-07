@@ -157,6 +157,9 @@
             .help("Real seconds after it ends (or is stopped) before it can start again; the meter waits too."),
         slider("Least Meter to Start", "vr_bullettime_min", 0.05f, 1.f, 0.05f, "%.2f")
             .help("How full the meter must be to start (it then runs until empty or stopped)."),
+        slider("End Sound Plays At Most", "vr_bullettime_sound_off_max", 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
+            .help("The sound as it ends plays this long at most, then fades out (and stops at once if you start it "
+                  "again). 0: the whole sound."),
         toggle("Sandevistan: You at Full Speed", "vr_bullettime_sandevistan")
             .help("On: only the world slows; you move, turn, swing, throw, shoot and reload at full speed. Off: you are "
                   "slowed with the world but your view (your hands follow your controllers as the slowed world allows)."),

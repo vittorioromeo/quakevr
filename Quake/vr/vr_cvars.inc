@@ -358,6 +358,7 @@ QVR_CVAR(vr_bullettime_trigger_cooldown, "0.5", CVAR_ARCHIVE) // real seconds af
 QVR_CVAR(vr_bullettime_haptic, "1", CVAR_ARCHIVE)     // the tick in both hands when a press or tap counts (0 off .. 2)
 QVR_CVAR(vr_bullettime_sound_on, "items/inv1.wav", CVAR_ARCHIVE)     // its sounds (empty: none)
 QVR_CVAR(vr_bullettime_sound_off, "items/inv2.wav", CVAR_ARCHIVE)
+QVR_CVAR(vr_bullettime_sound_off_max, "1", CVAR_ARCHIVE) // real seconds the "off" sound plays at most, then fades out over 0.25 s (it is cut as bullet time starts again; 0: the whole sound)
 QVR_CVAR(vr_bullettime_sound_denied, "misc/menu2.wav", CVAR_ARCHIVE) // pressed with the meter too low or cooling down
 QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting, stopping and refused, and each press and tap; 2: also the fingertip's distance to the button every frame; 3: the wrist tap's distance and speeds every frame
 // The flat HUD (the status bar, hudstyle) over the window's view while in VR: over the mirror (Left Eye, Smoothed

@@ -60,6 +60,7 @@ Effort: S an hour or so, QC or one engine function; M a day, engine work across 
 | 2 | done (5a18f374, then the drag) | ragdoll parts and pushable corpses knock as flesh through the physics sounds; dragged, shoved or blown along the floor they scrape softly (`noteBodySlide`: `scrape_soft1..4`, only while the whole body moves 0.4 m/s or more, rate-limited) |
 | 3 | done (0fc1340d) | `sound()`'s pitch argument; `VR_SoundVaried` and `vr_snd_pitch_jitter` (4%) on the frequent sounds |
 | 4 | done (layer) | a blunt blow's second layer of what it hit (flesh, armour, wood, a wall) under the thud, varied in pitch (`VR_Blunt_HitLayer`, `vr_snd_hit_layer`); the new punch and cut recordings still to source |
+| 5 | partly | the placeholders stay (for Vittorio to pick); the 3 s "off" sound plays 1 s at most then fades over 0.25 s, and is cut as bullet time starts again (`vr_bullettime_sound_off_max`) |
 | 6 | done | a metal click from the helping hand and a 30 ms pulse in it as it takes a foregrip, a quieter click as it lets go (`vr_twohand.cpp` gripFeedback, `vr_2h_grip_sound` 0.6) |
 | 7 | done | `ambience/fire1.wav` looped on the burning body's channel 7, near only, a three-step fade in the last 1.5 s, stopped however the fire ends; at most `vr_burn_sound_max` (4) at once (`VR_Burn_Crackle`, `vr_burn_sound` 0.6) |
 | 8 | done | your own weapon taken back (thrown, dropped, let go of, caught, force-grabbed): `vr/phys/grab_metal1..3` (an axe `grab_wood`) at 0.9 from the hand and a shorter pulse; the chime only for a weapon new to you (`.vr_wpn_from`) |

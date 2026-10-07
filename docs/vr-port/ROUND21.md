@@ -27795,3 +27795,18 @@ Checked (`vr_debug_physsound 1`; `-Sound -RealTime`, `snd_show 2`): a settled gr
 floor shuffles 0.2-0.4 s at volume 0.1 (before the speed gate: 2.5-3 s), the knocks as before. Dragging by a limb uses
 the same contacts; its mock (`vr_mock_hand_to off ragdoll near 3` and a grip) failed to take the limb in most runs here
 (the stock `ragdoll_test.sh grab` too, once of two): to try in VR.
+
+## Bullet time's "off" sound no longer outlasts a short burst (AUDIO_REVIEW.md row 5, 2026-10-07)
+
+The sounds are still the placeholders (`items/inv1.wav` on, `items/inv2.wav` off: the Ring of Shadows'; Vittorio picks
+the real ones), but the 3 s "off" sound ran on long after a short burst. Now (`vr_bullettime.cpp` OffSound): it plays at
+most `vr_bullettime_sound_off_max` real seconds (1; 0 the whole sound), then fades out over 0.25 s and stops; started
+again (or a denied press), it fades out over 0.06 s at once (the "on" sound, a local sound on the same channel, already
+replaced it; this covers an empty `vr_bullettime_sound_on`). The fade lowers its channel's `master_vol` each frame
+(advance); the channel is found again each frame by its sound, the player's entity and the local channel -1, so a
+channel another sound took is never touched. Menu: Recording > Bullet Time, **End Sound Plays At Most**.
+`vr_debug_bullettime 1` prints `the off sound cut <t> s after its fade began`.
+
+Checked (`-Sound -RealTime`, `vr_snd_spatial 0`, `snd_show 2`; `vr_bullettime` on, 40 frames, off): `items/inv2.wav`
+at L/R 255 for 1.0 s, then 253 down to 1 over 0.25 s, then gone (`cut 0.25 s after its fade began`); started again
+0.3 s after with `vr_bullettime_sound_on ""`: 85, 68, 51, 34, 17, then `cut 0.06 s after`.

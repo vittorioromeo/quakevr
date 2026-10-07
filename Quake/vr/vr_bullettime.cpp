@@ -39,6 +39,76 @@ struct State
 };
 State state;
 
+// The "off" sound (vr_bullettime_sound_off: a placeholder 3 s long, longer than a short burst): played for at most
+// vr_bullettime_sound_off_max real seconds, then faded out over offFade; cut (faded over offCut) as bullet time starts
+// again, or a denied press sounds. Its channel found again each frame (by its sound, the player's entity and the local
+// sounds' channel -1, as S_LocalSound starts it): a channel taken by another sound since is never touched.
+struct OffSound
+{
+    sfx_t* sfx = nullptr;   // playing (nullptr: none, or done with)
+    double fadeFrom = 0.0;  // realtime its fade starts
+    double fadeLen = 0.0;   // ... and lasts
+};
+OffSound offSound;
+constexpr double offFade = 0.25;
+constexpr double offCut = 0.06;
+
+[[nodiscard]] channel_t* offChannel()
+{
+    if(!offSound.sfx || cl.viewentity <= 0)
+    {
+        return nullptr;
+    }
+    for(int i = 0; i < MAX_DYNAMIC_CHANNELS; i++)
+    {
+        channel_t* ch = &snd_channels[i];
+        if(ch->sfx == offSound.sfx && ch->entnum == cl.viewentity && ch->entchannel == -1)
+        {
+            return ch;
+        }
+    }
+    return nullptr;
+}
+
+// The "off" sound's fade, each frame (advance).
+void fadeOffSound()
+{
+    channel_t* ch = offChannel();
+    if(!ch)
+    {
+        offSound.sfx = nullptr;
+        return;
+    }
+    const double t = realtime - offSound.fadeFrom;
+    if(t <= 0.0)
+    {
+        return;
+    }
+    const double gain = offSound.fadeLen > 0.0 ? 1.0 - t / offSound.fadeLen : 0.0;
+    if(gain <= 0.0)
+    {
+        ch->sfx = nullptr; // (as S_StopSound: this channel only)
+        ch->end = 0;
+        offSound.sfx = nullptr;
+        if(vr_debug_bullettime.value)
+        {
+            Con_Printf("bullet time: the off sound cut %.2f s after its fade began\n", t);
+        }
+        return;
+    }
+    ch->master_vol = za::min(ch->master_vol, static_cast<int>(255.0 * gain));
+}
+
+// Its fade from now, over `seconds` (not later than one under way).
+void cutOffSound(double seconds)
+{
+    if(offSound.sfx && realtime + seconds < offSound.fadeFrom + offSound.fadeLen)
+    {
+        offSound.fadeFrom = realtime;
+        offSound.fadeLen = seconds;
+    }
+}
+
 [[nodiscard]] bool inGame()
 {
     return vr_bullettime_enabled.value != 0.f && sv.active && svs.maxclients == 1 && cls.state == ca_connected &&
@@ -73,6 +143,14 @@ void stop(bool quiet)
     if(!quiet)
     {
         playSound(vr_bullettime_sound_off);
+        offSound = OffSound{};
+        const float most = vr_bullettime_sound_off_max.value;
+        if(most > 0.f && vr_bullettime_sound_off.string && vr_bullettime_sound_off.string[0])
+        {
+            offSound.sfx = S_PrecacheSound(vr_bullettime_sound_off.string);
+            offSound.fadeFrom = realtime + static_cast<double>(most);
+            offSound.fadeLen = offFade;
+        }
     }
     if(vr_debug_bullettime.value)
     {
@@ -255,6 +333,7 @@ void toggle()
     }
     if(state.cooldown > 0.f || state.level < za::clamp(vr_bullettime_min.value, 0.01f, 1.f))
     {
+        cutOffSound(offCut);
         playSound(vr_bullettime_sound_denied);
         if(vr_debug_bullettime.value)
         {
@@ -264,6 +343,7 @@ void toggle()
     }
     state.active = true;
     highlights::bulletTime(true, scale());
+    cutOffSound(offCut);
     playSound(vr_bullettime_sound_on);
     if(vr_debug_bullettime.value)
     {
@@ -275,6 +355,7 @@ void toggle()
 void advance(double dt)
 {
     const float fadeTime = 0.25f;
+    fadeOffSound();
     if(!sv.active)
     {
         state = State{};
