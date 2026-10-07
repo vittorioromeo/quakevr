@@ -30090,3 +30090,14 @@ Checklist:
   `quakevr/ironwail.cfg.baseline` (an October 4 config) was the runs' config, after it whatever the last run left.
 - Runs without `quakevr/ironwail.cfg.baseline` in the worktree (the kit's, untracked) keep each run's cvars in
   `ironwail.cfg`: moving it aside for a bisect polluted later runs until it was put back.
+## Reloading: the firing range notes of 10-07 (2026-10-07)
+
+The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh section 10 checks each).
+
+- **The super shotgun isn't broken open while it fires** (22-07-20, "major"). Opened during its firing animation, the
+  gun was drawn in its two parts copied from the gun's entity, whose frame blending the renderer no longer moved on (it
+  wasn't drawn): frozen at the firing frame, its muzzle flash held, open. Now every way to open it (flick, pry, hit,
+  B/Y) does nothing until its animation is over (QC `VR_Reload_SsgFrame`: weapon frame 0; the log says "is still firing
+  (frame N): not opened"), and the open parts are always drawn at rest (frame 0, no blending: vr_view.cpp `setSsgPart`).
+  The magazine guns have no such race: ejected mid-burst their clip is empty and the animation ends by itself
+  (`player_nail_BaseImpl`, `player_light1`); their magazine is drawn at frame 0 already.

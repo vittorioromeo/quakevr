@@ -1269,6 +1269,17 @@ void(float xHand) VR_Reload_SsgFrame =
     float flicks = VRIsWeaponReloadFlickingEnabledFor(self, xHand);
     if(!(f & QVR_WPNFLAG_SSG_OPEN))
     {
+        // Not while it fires (the author's note, vrfiringrange_2026-10-07_22-07-20): its firing animation runs to its end
+        // (the gun back at rest, frame 0) before anything breaks it open; a way tried meanwhile does nothing.
+        if(VRGetWeaponFrame(xHand) != 0)
+        {
+            if(flickEdge || pryEdge || secEdge)
+            {
+                VR_Reload_Log(sprintf("the super shotgun (hand %g) is still firing (frame %g): not opened", xHand,
+                    VRGetWeaponFrame(xHand)));
+            }
+            return;
+        }
         if(flickEdge && flicks && cvar_hget(cvarh_vr_reload_ssg_open_flick))
         {
             VR_Reload_SsgBreak(self, xHand, "a flick");

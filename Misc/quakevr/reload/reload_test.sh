@@ -294,4 +294,9 @@ moved=$(awk -v a="$w0" -v b="$w1" 'BEGIN { split(a, x, " "); split(b, y, " "); d
 check $(awk -v l="$l1" -v m="$moved" 'BEGIN { print (l > 15.5 && m > 3) ? 1 : 0 }') "it goes up the port and forward into the tube (x $l1 in the gun) while the gun moves ($moved units), carried by it"
 log=$(bash $KIT/run.sh $AGENT -Script "${SSG/vr_reload_debug 1/vr_reload_debug 1;vr_debug_collect_fx 1};$FIRE;$BY;$POUCH;$GRIP;$AT;wait20;toggleconsole;quit" -Filter "^reload: [0-9]|collect fx" 2>&1)
 check $(echo "$log" | grep -q "^reload: 2 into the gun" && echo "$log" | grep -q "collect fx: progs/vr_shell_pair.mdl .* into hotspot 240" && echo "$log" | grep "collect fx: in gun 0" | tail -1 | grep -q " t 0.9" && echo 1 || echo 0) "the super shotgun's pair slides into its chambers"
+# 10. The author's notes of vrfiringrange_2026-10-07 (ROUND21.md, "Reloading: the firing range notes of 10-07").
+# The super shotgun isn't broken open while it fires: B/Y pressed during its firing animation does nothing, after it opens it.
+BYNOW="vr_mock_button off secondary 1;wait3;vr_mock_button off secondary 0;wait3"
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;+offhandattack;wait2;-offhandattack;$BYNOW;$REP;wait80;$BY;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+check $(echo "$log" | grep -q "is still firing (frame [1-6]): not opened" && echo "$log" | grep -q "broken open by the button: 2 spent" && [ "$(opens "$log")" = 01 ] && echo 1 || echo 0) "B/Y during the super shotgun's firing animation: not opened; after it: opened ($(opens "$log"), want 01)"
 exit $fail

@@ -5295,6 +5295,11 @@ void setSsgPart(view::ViewEntity& part, const view::ViewEntity& gun, const char*
     part = gun;
     part.ent.model = m;
     part.ent.skinnum = skin;
+    // At rest (open, it can't fire): never the gun's firing frames, whose blending, frozen while the gun itself isn't
+    // drawn, would hold its muzzle flash (the author's note, vrfiringrange_2026-10-07_22-07-20).
+    part.ent.frame = 0;
+    part.ent.lerpflags |= LERP_RESETANIM;
+    part.zeroBlend = 0.f;
     part.lastModel = last;
     // (The parts share the gun's model header, but its Scale applies about each model's own corner: as setMagazine.)
     const glm::vec3 corner = view::modelPoint(gun, glm::vec3{0.f}) - view::modelPoint(part, glm::vec3{0.f});
