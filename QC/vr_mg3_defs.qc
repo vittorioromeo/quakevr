@@ -193,7 +193,8 @@ void() MG3_BloodyNightmareStrip = {
     MG3_BNPutBack(WID_SHOTGUN, 14);
     float items = IT_SHOTGUN | IT_AXE;
     if((MG3_bloody | parm56) & MG3_BLOODY_SSG) { MG3_BNPutBack(WID_SUPER_SHOTGUN, 0); items = items | IT_SUPER_SHOTGUN; }
-    if(parm1 & IT_ARMOR3) items = items | IT_ARMOR3;
+    if(parm3 <= 0) {} // (no armour left: none worn)
+    else if(parm1 & IT_ARMOR3) items = items | IT_ARMOR3;
     else if(parm1 & IT_ARMOR2) items = items | IT_ARMOR2;
     else if(parm1 & IT_ARMOR1) items = items | IT_ARMOR1;
     parm1 = items;

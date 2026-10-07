@@ -510,7 +510,7 @@ void() ExitIntermission =
             MG_intermissiontext = "";
             return;
         }
-        if((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
+        if((cvar("vr_campaign") >= 3 && cvar("vr_campaign") <= 5) && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
         if(world.model == "maps/e1m7.bsp")
         {
             WriteByte(MSG_ALL, SVC_CDTRACK);
@@ -604,7 +604,7 @@ void() ExitIntermission =
 
     if(intermission_running == 3)
     {
-        if((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
+        if((cvar("vr_campaign") >= 3 && cvar("vr_campaign") <= 5) && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
         if(!cvar_hget(cvarh_registered))
         {    // shareware episode has been completed, go to sell screen
             WriteByte(MSG_ALL, SVC_SELLSCREEN);

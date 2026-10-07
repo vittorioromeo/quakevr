@@ -27911,3 +27911,19 @@ tests use `vr_campaign_native mg3`, `-nomapindex -noaddons`, developer 1.
   once: a crash in `GL_BuildBModelMarkBuffers` (r_brush.c:828, R_NewMap) on hub -> map3 after a test seeded holster
   ids without weapon records (2 of 5 such runs; 0 of 6 plain hub -> map3, 0 of 5 with records): unrelated engine
   fragility, noted.
+- **M3-10 endings and credits.** `MG3_BossEnding` (upstream boss_end; monster_boss_final, M3-24/25, will call it 8 s
+  after Chthon dies): a dead single player completes nothing; every player back to 25 shells, no other ammunition,
+  no armour (VR: its plating items too); a Bloody Nightmare game goes to its new game (map1, serverflags
+  ACTIVE|DISCOVERED|NEWGAME: runes cleared, capacity upgrades cleared, health 50; the bloody weapons stay; the level's
+  strip leaves the axe and shotgun), otherwise the next map is `start` (the credits); the finale text
+  `$mg3_qc_boss_finale`. Upstream sends the normal ending to the credits, not the hub as the plan's M3-10 line says.
+  `MG3_ShubEnding` (upstream oldnew_credits; monster_oldone_new, M3-26/27): its final text (upstream's
+  `$map_dopa_endtext_final`), then the credits. ExitIntermission's native completion (disconnect, `menu_credits`)
+  covers campaign 5; the credits menu's title is "Dawn of the Machine" for it (menu.c). map8's and start's authored
+  `endtext` already showed through the MG framework (checked). Measured (`vr_mg3_test 21/22/13/14`): boss: finale text
+  "You did it! ...", stages 1-3, next map start (the credits' command queued); Bloody Nightmare (menu path) + seeded
+  upgrades, bloody bits and loadout: next map map1, then serverflags 448, masks 0 (bloody 3 kept), health 50/50,
+  ammunition 25/0/0/0, armour 0 (no plating bit), holsters SSG, -, axe, -, shotgun, Super Axe; its hub's exit leads
+  to boss2; boss2: "CONGRATULATIONS AND WELL DONE!", next map start; map8 -> hub "You have gained a rune of
+  power!..."; start -> map1 "You are drained..."; the credits menu titled Dawn of the Machine (screenshot). Loads:
+  start, hub, map1, map4, boss, boss2, secret6 exit 0. Regression as before.

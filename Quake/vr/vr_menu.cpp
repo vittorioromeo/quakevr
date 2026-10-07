@@ -4967,6 +4967,14 @@ za::Vector<Item> pageMg3Tests()
             .help("After a level change: in a Bloody Nightmare game only the axe, shotgun, Super Axe (and the bloody super shotgun) are left."),
         command("Bloody Nightmare Damage Check", "vr_mg3_test 18")
             .help("Destructive: 50 on a monster and 10 from it on you: 80% and 120% on Bloody Nightmare, else 100%."),
+        command("Bloody Nightmare New Game Flags", "vr_mg3_test 19")
+            .help("Destructive: Bloody Nightmare on, found and its new game (upstream impulses 223/224), skill 3."),
+        command("Walk Into the Exit to secret2", "vr_mg3_test 20")
+            .help("On the hub: touch its final exit; in Bloody Nightmare's new game it leads to boss2."),
+        command("Chthon Beaten (Ending)", "vr_mg3_test 21")
+            .help("Destructive: the Chthon ending as if he died: the finale text and the credits, or on Bloody Nightmare its new game on map1. Then Leave the Intermission."),
+        command("Shub Beaten (Ending)", "vr_mg3_test 22")
+            .help("Destructive: the Shub ending: the final text, then the credits. Then Leave the Intermission."),
         toggle("Aggro Groups", vr_mg3_aggro_groups)
             .help("A waking monster wakes what its aggro_target names (map3, map7, map8). Upstream ships this off; off by default."),
     };

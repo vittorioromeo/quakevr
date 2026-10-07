@@ -609,6 +609,8 @@ void() MG3_TestFrame = {
         entity pl2 = find(world, classname, "player");
         if(cl2 && pl2) { MG3_T_player = pl2; MG3_T_Touch(cl2); dprint(sprintf("mg3test: the exit to %s leads to %s\n", cl2.map, nextmap)); }
     }
+    else if(request == 21) { dprint(sprintf("mg3test: Chthon beaten, serverflags %g\n", serverflags)); MG3_BossEnding(); }
+    else if(request == 22) { dprint("mg3test: Shub beaten\n"); MG3_ShubEnding(); }
     else if(request == 14) { // leave the intermission (a button press)
         entity ip = find(world, classname, "player");
         dprint(sprintf("mg3test: intermission %g, next map %s\n", intermission_running, nextmap));

@@ -925,3 +925,6 @@ Skill and Bloody Nightmare: the hub's `trigger_relay_setskill` and `trigger_bloo
 Nightmare each level starts with the axe, shotgun, Super Axe (and the bloody super shotgun) in the holsters, the
 player deals 80% and takes 120%, and its new game leaves the hub for boss2. Official Campaigns shows "Dawn of the
 Machine: Bloody Nightmare" only once it was found in a game (`vr_mg3_bn_discovered`). Tests 15-20.
+Endings: `MG3_BossEnding` (Chthon: finale then credits, or Bloody Nightmare's new game on map1) and `MG3_ShubEnding`
+(Shub: final text then credits), for the finale monsters to call; the native completion and the credits menu
+("Dawn of the Machine") cover campaign 5. Tests 21-22.

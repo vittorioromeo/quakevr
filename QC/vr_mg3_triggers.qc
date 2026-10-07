@@ -455,3 +455,45 @@ not (Dawn of the Machine).
 void() trigger_bloodynightmare_relay = {
     self.use = MG3_bn_relay_use;
 };
+
+// ----------------------------------------------------------------------------
+// Endings (MG3_PLAN.md M3-10; upstream boss_final.qc boss_end, mg3_oldone_new.qc oldnew_credits). The finales'
+// monsters (monster_boss_final, monster_oldone_new: M3-24..27) call these when beaten.
+// Chthon beaten (8 s after his death): the finale text, then the credits (next map "start"); in a Bloody Nightmare
+// game its new game instead: map1 with runes cleared, ACTIVE|DISCOVERED|NEWGAME, the capacity upgrades gone and the
+// player back to 50 health, 25 shells and nothing else (the next level's Bloody Nightmare strip leaves him the axe and
+// shotgun; the bloody weapons stay). A dead single player completes nothing.
+void() MG3_BossEnding = {
+    entity p = find(world, classname, "player");
+    if(!coop && p && p.health <= 0) { dprint("MG3_BossEnding: the player is dead, no completion\n"); return; }
+    p = find(world, classname, "player");
+    while(p) {
+        p.ammo_shells = 25; p.ammo_nails = 0; p.ammo_rockets = 0; p.ammo_cells = 0;
+        p.armortype = 0; p.armorvalue = 0;
+        VR_ItemUtil_EntDelItem(p, IID_ARMOR1); VR_ItemUtil_EntDelItem(p, IID_ARMOR2); VR_ItemUtil_EntDelItem(p, IID_ARMOR3);
+        p = find(p, classname, "player");
+    }
+    if(serverflags & MG3_SF_BN_ACTIVE) {
+        if(serverflags & MG3_SF_BN_NEWGAME) nextmap = "boss2"; // (upstream: should not happen)
+        else {
+            nextmap = "map1";
+            serverflags = MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED | MG3_SF_BN_NEWGAME; // the runes cleared
+            MG3_upgrade_health = MG3_upgrade_shells = MG3_upgrade_nails = MG3_upgrade_rockets = MG3_upgrade_cells = 0;
+            p = find(world, classname, "player");
+            while(p) {
+                p.max_health = VR_MaxHealth(p);
+                p.health = p.max_health;
+                p = find(p, classname, "player");
+            }
+        }
+    }
+    else nextmap = "start";
+    MG_intermissiontext = "$mg3_qc_boss_finale";
+    execute_changelevel();
+};
+// Shub beaten (Bloody Nightmare's new game): the final text, then the credits.
+void() MG3_ShubEnding = {
+    nextmap = "start";
+    MG_intermissiontext = "$map_dopa_endtext_final"; // (upstream's choice of text)
+    execute_changelevel();
+};

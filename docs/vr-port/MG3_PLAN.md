@@ -1,6 +1,6 @@
 # Dawn of the Machine (MG3): native Quake VR port plan
 
-Status: plan (2026-10-06); phase A (M3-01..04) built the same day (EXPANSIONS.md). Vittorio's decisions
+Status: plan (2026-10-06); phase A (M3-01..04) built the same day (EXPANSIONS.md); phase B (M3-05..10) on 2026-10-07 (ROUND21.md). Vittorio's decisions
 (the last section) override section 4's defaults and the tasks that assumed them (M3-11, M3-12). Target: **full native Quake VR gameplay** (VR hands, weapons, melee, holsters, magazines,
 transition/save state), not compatibility mode. Campaign id **5** (`vr_campaign`/`vr_campaign_schema`), `nativeReady`
 false at `Quake/vr/vr_gamedir.cpp:375` until the acceptance in section 5 passes.
