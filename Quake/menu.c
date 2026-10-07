@@ -7402,6 +7402,23 @@ int M_ContentLeft (void)
 	}
 }
 
+// QVR: where the menu shown draws its leftmost text, for the flat screen's banner (vr_menubrand.cpp): the lists' left
+// (their cursor's column); Quake's menus, laid out round the plaque's column, 320 (nothing in its way).
+int M_TextLeft (void)
+{
+	switch (m_state)
+	{
+	case m_maps:
+		return mapsmenu.x - 8;
+	case m_mods:
+		return modsmenu.x - 8;
+	case m_modinfo:
+		return modinfomenu.x - 8;
+	default:
+		return 320;
+	}
+}
+
 void M_Draw (void)
 {
 	qboolean recolor; // QVR

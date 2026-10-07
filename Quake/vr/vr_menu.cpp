@@ -79,6 +79,7 @@ extern cvar_t ui_mouse_sound; // menu.c
 extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
+int M_TextLeft(void); // menu.c: its leftmost text (Ironwail's lists; 320 for Quake's menus)
 }
 
 using namespace qvr;
@@ -10467,6 +10468,13 @@ void qvr::menu::command_f()
             if(m_state == m_vr)
             {
                 Con_Printf("menu_vr pos: rows from y %d, %d shown\n", layout().listTop, visibleRows(items(page)));
+            }
+            float bx0, bx1, by0, by1;
+            menuui::bannerRect(bx0, bx1, by0, by1);
+            if(!menuui::active() && bx1 >= bx0)
+            {
+                Con_Printf("menu_vr pos: banner x %.0f..%.0f, y %.0f..%.0f (text from x %d)\n", bx0, bx1, by0, by1,
+                    m_state == m_vr ? static_cast<int>(menu::contentLeft()) : M_TextLeft());
             }
         }
         if(key_dest != key_menu || m_state != m_vr)

@@ -17,6 +17,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hue.hpp"
+#include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -26,6 +27,8 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/Pow.hpp"
+
+extern "C" int M_TextLeft(void); // menu.c
 
 namespace
 {
@@ -38,6 +41,7 @@ constexpr float columnHeight = 216.f;    // the banner's height there (true pixe
                                          // 1.5), the same on every menu (their canvases stretch y by different amounts)
 constexpr float columnGap = 8.f;         // under the buttons, and above the panel's bottom (true pixels)
 constexpr float columnMinHeight = 40.f;  // the least banner worth drawing there (true pixels)
+constexpr float flatGap = 8.f;           // a flat screen's banner: at least this clear left of the menu's text (menu x)
 
 struct Banner
 {
@@ -47,6 +51,13 @@ struct Banner
 };
 
 Banner banner;
+
+// Where the banner was last drawn (menu x and y; nothing: x1 < x0), for menu_vr pos.
+struct BannerPlace
+{
+    float x0{0.f}, x1{-1.f}, y0{0.f}, y1{-1.f};
+};
+BannerPlace bannerPlace;
 
 [[nodiscard]] qpic_t* bannerPic()
 {
@@ -128,10 +139,37 @@ extern "C" int VR_MenuDrawBanner(int x, int y)
     {
         return 0;
     }
-    const float height = plaqueHeight * glyphStretch();
-    const float width = height * bannerAspect();
-    drawBanner(pic, static_cast<float>(x) + plaqueCentre - width * 0.5f, static_cast<float>(y), width, height);
+    const float k = glyphStretch();
+    float height = plaqueHeight * k;
+    float width = height * bannerAspect();
+    float left = static_cast<float>(x) + plaqueCentre - width * 0.5f;
+    // Clear left of the menu's text, as the headset's column is (menu::contentLeft): the VR pages' long labels and help,
+    // and Ironwail's lists, reach into the plaque's column. As far left as the canvas goes; narrower (and shorter) where
+    // even that is too near; left out where too little of it would be left.
+    const float text = m_state == m_vr ? qvr::menu::contentLeft() : static_cast<float>(M_TextLeft());
+    const float right = za::fmin(left + width, text - flatGap);
+    if(right < left + width)
+    {
+        left = za::fmax(right - width, glcanvas.left + 2.f);
+        width = right - left;
+        height = width / bannerAspect();
+        if(height < columnMinHeight)
+        {
+            bannerPlace = {};
+            return 1; // (no plaque either)
+        }
+    }
+    drawBanner(pic, left, static_cast<float>(y), width, height);
+    bannerPlace = {left, left + width, static_cast<float>(y), static_cast<float>(y) + height / k};
     return 1;
+}
+
+void qvr::menuui::bannerRect(float& x0, float& x1, float& y0, float& y1)
+{
+    x0 = bannerPlace.x0;
+    x1 = bannerPlace.x1;
+    y0 = bannerPlace.y0;
+    y1 = bannerPlace.y1;
 }
 
 // The VR menu style: the banner in the corner buttons' column (or, where they are only icons, the panel's margin left

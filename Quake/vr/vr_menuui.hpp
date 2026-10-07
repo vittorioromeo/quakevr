@@ -9,6 +9,8 @@
 namespace qvr::menuui
 {
 
+// Where a flat screen's banner (vr_menubrand.cpp, M_DrawPlaque) was last drawn, menu x and y (x1 < x0: not drawn).
+void bannerRect(float& x0, float& x1, float& y0, float& y1);
 // A menu is open in the headset with vr_menu_vr_style on.
 [[nodiscard]] bool active();
 
