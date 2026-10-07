@@ -6393,6 +6393,11 @@ const Page pages[] = {
     {"Dawn of the Machine: Chthon", pageMg3ChthonTests, pageDebugTests, LevelDeveloper},
     {"Debug - Cheats and Recording", pageDebugCheats, pageDebug, LevelDeveloper}, // (vr_menu_cheats.inc)
     {"Reloading", pageReloading, pageWeaponsHub},
+    {"Reloading - Shotgun", pageReloadShotgun, pageReloading},
+    {"Reloading - Super Shotgun", pageReloadSuperShotgun, pageReloading},
+    {"Reloading - Nailgun", pageReloadNailgun, pageReloading},
+    {"Reloading - Super Nailgun", pageReloadSuperNailgun, pageReloading},
+    {"Reloading - Thunderbolt", pageReloadThunderbolt, pageReloading},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -7290,7 +7295,7 @@ za::Vector<Item> pageWeaponsHub()
         open("Weight and Damage", pageIndex(pageWeightDamage)),
         open("Weapon Damage", pageIndex(pageWeaponDamage)).help("Every weapon's base damage, to balance them."),
         open("Immersion", pageIndex(pageImmersionSettings)).help("Holsters, reloading, throwing weapons, shell casings, haptics."),
-        open("Reloading", pageIndex(pageReloading)).help("Reloading's mode; immersive reloading's ammo pouch and shells."),
+        open("Reloading", pageIndex(pageReloading)).help("Reloading's mode; the ammo pouch; a page per gun (its load point, its magazine, holding and pulling it)."),
         open("Lightning Gun in Water", pageIndex(pageLightningWater)).help("The shock fired under water, and electrified water."),
         open("Weapon Effects", pageIndex(pageWeaponEffects)).help("Recoil, muzzle flashes and bullet tracers."),
         header("Holsters"),

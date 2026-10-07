@@ -605,7 +605,334 @@ void resetHandMoves()
 
 [[nodiscard]] za::Vector<Item> pageHeldObjectOffsets();
 
-// Immersive reloading (docs/vr-port/RELOAD_PLAN.md; QC vr_reload.qc): the mode, the ammo pouch on the belt, the rounds.
+// Weapons > Reloading > Shotgun: its shells and its loading port.
+[[nodiscard]] za::Vector<Item> pageReloadShotgun()
+{
+    return {
+        header("Shells"),
+        toggle("Shell Pairs", "vr_reload_shell_pairs")
+            .help("The pouch gives two shells taped together: both go into the shotgun at once (one, if only one fits)."),
+        open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
+            .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
+                  "The taped pair has its own."),
+        header("Load Point"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
+                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
+                  "where a hit knocks it out), to tune the offsets live."),
+        slider("Port X", "vr_reload_port_shot_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the shotgun port's load point forward (the gun's model units; negative: the other way)."),
+        slider("Port Y", "vr_reload_port_shot_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the shotgun port's load point left (the gun's model units; negative: the other way)."),
+        slider("Port Z", "vr_reload_port_shot_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the shotgun port's load point up (the gun's model units; negative: the other way)."),
+        slider("Port Radius", "vr_reload_port_shot_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the shotgun port's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+    };
+}
+
+// Weapons > Reloading > Super Shotgun: broken open (phase 2b) and its breech.
+[[nodiscard]] za::Vector<Item> pageReloadSuperShotgun()
+{
+    return {
+        header("Break Open"),
+        toggle("Break Open", "vr_reload_ssg_break")
+            .help("With Immersive: its fired shells stay in its barrels. Break it open (the flick, or the pry below) to "
+                  "throw them out (live ones too, to take again); it stays open, can't fire, and its chambers take the "
+                  "pouch's taped pair (always a pair for it) at its breech. Off: the flick reloads it as before."),
+        slider("Open Angle", "vr_reload_ssg_open_angle", 0.f, 90.f, 1.f, "%.0f deg")
+            .help("How far its barrels drop about the hinge when it is open (looks; its load point goes with them)."),
+        toggle("Pry Open", "vr_reload_ssg_pry")
+            .help("Holding it with both hands (the two-handed grip on its fore-end), push the barrels down with the front "
+                  "hand against the back hand (or lift the stock): it breaks open."),
+        slider("Pry Angle", "vr_reload_ssg_pry_angle", 0.f, 90.f, 1.f, "%.0f deg")
+            .help("How far the front hand must go down from the back hand's aim (or the stock up) to pry it open."),
+        slider("Pry Speed", "vr_reload_ssg_pry_speed", 0.f, 800.f, 10.f, "%.0f deg/s").extend(0.f, 3000.f)
+            .help("How quickly: a steady two-handed aim never pries it open."),
+        toggle("Close by Flick", "vr_reload_ssg_close_flick")
+            .help("Open, the flick snaps it shut."),
+        toggle("Close by Lifting the Barrels", "vr_reload_ssg_close_pry")
+            .help("Open and held with both hands, the front hand lifting the barrels back up (as far and as fast as the "
+                  "pry) snaps it shut."),
+        toggle("Close When Loaded", "vr_reload_ssg_close_auto")
+            .help("Open, it snaps shut by itself once both chambers are loaded."),
+        header("Load Point"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
+                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
+                  "where a hit knocks it out), to tune the offsets live."),
+        slider("Breech X", "vr_reload_port_sshot_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the super shotgun's load point (its breech face, between the chambers) forward (the gun's model "
+                  "units, as closed; it turns with the barrels open)."),
+        slider("Breech Y", "vr_reload_port_sshot_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the super shotgun's load point left (the gun's model units)."),
+        slider("Breech Z", "vr_reload_port_sshot_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the super shotgun's load point up (the gun's model units)."),
+        slider("Breech Radius", "vr_reload_port_sshot_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the breech a held pair's middle must come to go in (Show Load Points draws it)."),
+    };
+}
+
+// Weapons > Reloading > Nailgun: its well, its magazine, holding and pulling it.
+[[nodiscard]] za::Vector<Item> pageReloadNailgun()
+{
+    return {
+        header("Load Point"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
+                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
+                  "where a hit knocks it out), to tune the offsets live."),
+        slider("Well X", "vr_reload_port_nail_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun well's load point forward (the gun's model units; negative: the other way)."),
+        slider("Well Y", "vr_reload_port_nail_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun well's load point left (the gun's model units; negative: the other way)."),
+        slider("Well Z", "vr_reload_port_nail_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun well's load point up (the gun's model units; negative: the other way)."),
+        slider("Well Radius", "vr_reload_port_nail_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the nailgun well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        header("The Magazine's Top"),
+        slider("Top X", "vr_reload_mag_nail_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun magazine's reference point (its top, its feed end) along its gun (its model units)."),
+        slider("Top Y", "vr_reload_mag_nail_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun magazine's reference point (its top, its feed end) to its left (its model units)."),
+        slider("Top Z", "vr_reload_mag_nail_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun magazine's reference point (its top, its feed end) up its length (its model units)."),
+        slider("Top Radius", "vr_reload_mag_nail_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
+            .help("The nailgun magazine's own radius round its reference point (added to the well's)."),
+        open("Magazine Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
+            .help("How a magazine out of the gun sits in the hand: take one from the pouch, then tune it there."),
+        header("Receiver (looks only)"),
+        slider("Receiver X", "vr_reload_well_nail_x", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the nailgun receiver (the collar round the magazine's top, drawn on the gun) forward, to sit flush (the gun's model units; looks only)."),
+        slider("Receiver Y", "vr_reload_well_nail_y", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the nailgun receiver (the collar round the magazine's top, drawn on the gun) left, to sit flush (the gun's model units; looks only)."),
+        slider("Receiver Z", "vr_reload_well_nail_z", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the nailgun receiver (the collar round the magazine's top, drawn on the gun) up, to sit flush (the gun's model units; looks only)."),
+        slider("Receiver Pitch", "vr_reload_well_nail_pitch", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the nailgun receiver about its seat (looks only)."),
+        slider("Receiver Yaw", "vr_reload_well_nail_yaw", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the nailgun receiver about its seat (looks only)."),
+        slider("Receiver Roll", "vr_reload_well_nail_roll", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the nailgun receiver about its seat (looks only)."),
+        header("Holding the Attached Magazine"),
+        slider("Hand X", "vr_reload_hold_nail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached magazine is drawn moved forward (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Y", "vr_reload_hold_nail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached magazine is drawn moved left (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Z", "vr_reload_hold_nail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached magazine is drawn moved up (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Pitch", "vr_reload_hold_nail_pitch", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
+        slider("Hand Yaw", "vr_reload_hold_nail_yaw", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
+        slider("Hand Roll", "vr_reload_hold_nail_roll", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
+        toggle("Fingers Set by Hand", "vr_reload_hold_nail_fingers")
+            .help("Off: the fingers close round the magazine as it is. On: each finger at its curl below."),
+        slider("Thumb Curl", "vr_reload_hold_nail_curl_thumb", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Index Curl", "vr_reload_hold_nail_curl_index", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Middle Curl", "vr_reload_hold_nail_curl_middle", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Ring Curl", "vr_reload_hold_nail_curl_ring", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Little Curl", "vr_reload_hold_nail_curl_pinky", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        header("Pull and Knock Out (All Magazines)"),
+        slider("Pull Speed", "vr_reload_pull_speed", 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f)
+            .help("Grip a gun's magazine with the other hand: it is a two-handed grip, and it stays in. It comes out "
+                  "into that hand only pulled out of its well (along it) this fast, or with the wrist snap or the "
+                  "hands apart below."),
+        slider("Pull Wrist Snap", "vr_reload_pull_snap", 0.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
+            .help("A wrist turning this fast against the gun's hand while holding the magazine takes it out too."),
+        slider("Pull Apart", "vr_reload_pull_apart", 0.f, 40.f, 0.5f, "%.1f units").extend(0.f, 200.f)
+            .help("And the hands moved this much further apart while holding it (about 40 cm at 10)."),
+        slider("Pull Reach", "vr_reload_pull_reach", 0.f, 12.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How far off the magazine (its box, as drawn) a hand closing its grip may be and still hold it "
+                  "(0: on it). Nearer the gun's own two-handed grip, the hand takes that instead."),
+        slider("Knock Out Speed", "vr_reload_bump_speed", 0.f, 15.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
+            .help("A hit on a seated magazine this hard pops it out: a punch, a held prop, another magazine (the bump "
+                  "reload: the new one is then seated at the well), or the other gun."),
+        slider("Knock Out Reach", "vr_reload_hit_reach", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the magazine (anywhere on it) a hit must land."),
+    };
+}
+
+// Weapons > Reloading > Super Nailgun: its well, its magazine, holding and pulling it.
+[[nodiscard]] za::Vector<Item> pageReloadSuperNailgun()
+{
+    return {
+        header("Load Point"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
+                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
+                  "where a hit knocks it out), to tune the offsets live."),
+        slider("Well X", "vr_reload_port_snail_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun well's load point forward (the gun's model units; negative: the other way)."),
+        slider("Well Y", "vr_reload_port_snail_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun well's load point left (the gun's model units; negative: the other way)."),
+        slider("Well Z", "vr_reload_port_snail_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun well's load point up (the gun's model units; negative: the other way)."),
+        slider("Well Radius", "vr_reload_port_snail_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the super nailgun well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        header("The Magazine's Top"),
+        slider("Top X", "vr_reload_mag_snail_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun magazine's reference point (its top, its feed end) along its gun (its model units)."),
+        slider("Top Y", "vr_reload_mag_snail_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun magazine's reference point (its top, its feed end) to its left (its model units)."),
+        slider("Top Z", "vr_reload_mag_snail_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun magazine's reference point (its top, its feed end) up its length (its model units)."),
+        slider("Top Radius", "vr_reload_mag_snail_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
+            .help("The super nailgun magazine's own radius round its reference point (added to the well's)."),
+        open("Magazine Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
+            .help("How a magazine out of the gun sits in the hand: take one from the pouch, then tune it there."),
+        header("Receiver (looks only)"),
+        slider("Receiver X", "vr_reload_well_snail_x", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the super nailgun receiver (the collar round the magazine's top, drawn on the gun) forward, to sit flush (the gun's model units; looks only)."),
+        slider("Receiver Y", "vr_reload_well_snail_y", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the super nailgun receiver (the collar round the magazine's top, drawn on the gun) left, to sit flush (the gun's model units; looks only)."),
+        slider("Receiver Z", "vr_reload_well_snail_z", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the super nailgun receiver (the collar round the magazine's top, drawn on the gun) up, to sit flush (the gun's model units; looks only)."),
+        slider("Receiver Pitch", "vr_reload_well_snail_pitch", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the super nailgun receiver about its seat (looks only)."),
+        slider("Receiver Yaw", "vr_reload_well_snail_yaw", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the super nailgun receiver about its seat (looks only)."),
+        slider("Receiver Roll", "vr_reload_well_snail_roll", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the super nailgun receiver about its seat (looks only)."),
+        header("Holding the Attached Magazine"),
+        slider("Hand X", "vr_reload_hold_snail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached magazine is drawn moved forward (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Y", "vr_reload_hold_snail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached magazine is drawn moved left (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Z", "vr_reload_hold_snail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached magazine is drawn moved up (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Pitch", "vr_reload_hold_snail_pitch", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
+        slider("Hand Yaw", "vr_reload_hold_snail_yaw", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
+        slider("Hand Roll", "vr_reload_hold_snail_roll", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
+        toggle("Fingers Set by Hand", "vr_reload_hold_snail_fingers")
+            .help("Off: the fingers close round the magazine as it is. On: each finger at its curl below."),
+        slider("Thumb Curl", "vr_reload_hold_snail_curl_thumb", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Index Curl", "vr_reload_hold_snail_curl_index", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Middle Curl", "vr_reload_hold_snail_curl_middle", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Ring Curl", "vr_reload_hold_snail_curl_ring", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Little Curl", "vr_reload_hold_snail_curl_pinky", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        header("Pull and Knock Out (All Magazines)"),
+        slider("Pull Speed", "vr_reload_pull_speed", 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f)
+            .help("Grip a gun's magazine with the other hand: it is a two-handed grip, and it stays in. It comes out "
+                  "into that hand only pulled out of its well (along it) this fast, or with the wrist snap or the "
+                  "hands apart below."),
+        slider("Pull Wrist Snap", "vr_reload_pull_snap", 0.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
+            .help("A wrist turning this fast against the gun's hand while holding the magazine takes it out too."),
+        slider("Pull Apart", "vr_reload_pull_apart", 0.f, 40.f, 0.5f, "%.1f units").extend(0.f, 200.f)
+            .help("And the hands moved this much further apart while holding it (about 40 cm at 10)."),
+        slider("Pull Reach", "vr_reload_pull_reach", 0.f, 12.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How far off the magazine (its box, as drawn) a hand closing its grip may be and still hold it "
+                  "(0: on it). Nearer the gun's own two-handed grip, the hand takes that instead."),
+        slider("Knock Out Speed", "vr_reload_bump_speed", 0.f, 15.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
+            .help("A hit on a seated magazine this hard pops it out: a punch, a held prop, another magazine (the bump "
+                  "reload: the new one is then seated at the well), or the other gun."),
+        slider("Knock Out Reach", "vr_reload_hit_reach", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the magazine (anywhere on it) a hit must land."),
+    };
+}
+
+// Weapons > Reloading > Thunderbolt: its well, its cell, holding and pulling it.
+[[nodiscard]] za::Vector<Item> pageReloadThunderbolt()
+{
+    return {
+        header("Load Point"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
+                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
+                  "where a hit knocks it out), to tune the offsets live."),
+        slider("Well X", "vr_reload_port_light_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt well's load point forward (the gun's model units; negative: the other way)."),
+        slider("Well Y", "vr_reload_port_light_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt well's load point left (the gun's model units; negative: the other way)."),
+        slider("Well Z", "vr_reload_port_light_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt well's load point up (the gun's model units; negative: the other way)."),
+        slider("Well Radius", "vr_reload_port_light_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the thunderbolt well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        header("The Magazine's Top"),
+        slider("Top X", "vr_reload_mag_light_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt cell's reference point (its top, its feed end) along its gun (its model units)."),
+        slider("Top Y", "vr_reload_mag_light_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt cell's reference point (its top, its feed end) to its left (its model units)."),
+        slider("Top Z", "vr_reload_mag_light_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt cell's reference point (its top, its feed end) up its length (its model units)."),
+        slider("Top Radius", "vr_reload_mag_light_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
+            .help("The thunderbolt cell's own radius round its reference point (added to the well's)."),
+        open("Cell Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
+            .help("How a cell out of the gun sits in the hand: take one from the pouch, then tune it there."),
+        header("Receiver (looks only)"),
+        slider("Receiver X", "vr_reload_well_light_x", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the thunderbolt receiver (the collar round the magazine's top, drawn on the gun) forward, to sit flush (the gun's model units; looks only)."),
+        slider("Receiver Y", "vr_reload_well_light_y", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the thunderbolt receiver (the collar round the magazine's top, drawn on the gun) left, to sit flush (the gun's model units; looks only)."),
+        slider("Receiver Z", "vr_reload_well_light_z", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the thunderbolt receiver (the collar round the magazine's top, drawn on the gun) up, to sit flush (the gun's model units; looks only)."),
+        slider("Receiver Pitch", "vr_reload_well_light_pitch", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the thunderbolt receiver about its seat (looks only)."),
+        slider("Receiver Yaw", "vr_reload_well_light_yaw", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the thunderbolt receiver about its seat (looks only)."),
+        slider("Receiver Roll", "vr_reload_well_light_roll", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the thunderbolt receiver about its seat (looks only)."),
+        header("Holding the Attached Cell"),
+        slider("Hand X", "vr_reload_hold_light_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached cell is drawn moved forward (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Y", "vr_reload_hold_light_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached cell is drawn moved left (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Z", "vr_reload_hold_light_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached cell is drawn moved up (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Pitch", "vr_reload_hold_light_pitch", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the cell where it holds it. Looks only."),
+        slider("Hand Yaw", "vr_reload_hold_light_yaw", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the cell where it holds it. Looks only."),
+        slider("Hand Roll", "vr_reload_hold_light_roll", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the cell where it holds it. Looks only."),
+        toggle("Fingers Set by Hand", "vr_reload_hold_light_fingers")
+            .help("Off: the fingers close round the cell as it is. On: each finger at its curl below."),
+        slider("Thumb Curl", "vr_reload_hold_light_curl_thumb", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Index Curl", "vr_reload_hold_light_curl_index", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Middle Curl", "vr_reload_hold_light_curl_middle", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Ring Curl", "vr_reload_hold_light_curl_ring", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Little Curl", "vr_reload_hold_light_curl_pinky", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        header("Pull and Knock Out (All Magazines)"),
+        slider("Pull Speed", "vr_reload_pull_speed", 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f)
+            .help("Grip a gun's magazine with the other hand: it is a two-handed grip, and it stays in. It comes out "
+                  "into that hand only pulled out of its well (along it) this fast, or with the wrist snap or the "
+                  "hands apart below."),
+        slider("Pull Wrist Snap", "vr_reload_pull_snap", 0.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
+            .help("A wrist turning this fast against the gun's hand while holding the magazine takes it out too."),
+        slider("Pull Apart", "vr_reload_pull_apart", 0.f, 40.f, 0.5f, "%.1f units").extend(0.f, 200.f)
+            .help("And the hands moved this much further apart while holding it (about 40 cm at 10)."),
+        slider("Pull Reach", "vr_reload_pull_reach", 0.f, 12.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How far off the magazine (its box, as drawn) a hand closing its grip may be and still hold it "
+                  "(0: on it). Nearer the gun's own two-handed grip, the hand takes that instead."),
+        slider("Knock Out Speed", "vr_reload_bump_speed", 0.f, 15.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
+            .help("A hit on a seated magazine this hard pops it out: a punch, a held prop, another magazine (the bump "
+                  "reload: the new one is then seated at the well), or the other gun."),
+        slider("Knock Out Reach", "vr_reload_hit_reach", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the magazine (anywhere on it) a hit must land."),
+    };
+}
+
+// Weapons > Reloading (General): the mode, a page per gun, the ammo pouch, what is the same for every gun
+// (docs/vr-port/RELOAD_PLAN.md; QC vr_reload.qc).
 [[nodiscard]] za::Vector<Item> pageReloading()
 {
     return {
@@ -616,195 +943,62 @@ void resetHandMoves()
                   "nailgun, the super nailgun and the thunderbolt a magazine into its well (out by B/Y, a hard pull, or "
                   "bumped out by the next); the other guns reload at the hip holsters for now. Needs Weapon Mode "
                   "Immersive."),
-        header("Shells"),
-        toggle("Shell Pairs", "vr_reload_shell_pairs")
-            .help("The pouch gives two shells taped together: both go into the shotgun at once (one, if only one fits)."),
-        open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
-            .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
-                  "The taped pair has its own."),
-        slider("Collision Leniency", "vr_reload_collide_leniency", 0.f, 30.f, 1.f, "%.0f cm").extend(0.f, 100.f)
-            .help("A shell or magazine in your hand is drawn kept off the gun in the other hand (Held Things Collide): it "
-                  "may go this far into the gun's box first, to reach the port under the shotgun or a magazine well."),
-        header("Super Shotgun"),
-        toggle("Break Open", "vr_reload_ssg_break")
-            .help("With Immersive: its fired shells stay in its barrels. Break it open (the flick, or the pry below) to "
-                  "throw them out (live ones too, to take again); it stays open, can't fire, and its chambers take the "
-                  "pouch's taped pair (always a pair for it) at its breech. Off: the flick reloads it as before."),
-        slider("Open Angle", "vr_reload_ssg_open_angle", 10.f, 60.f, 1.f, "%.0f deg")
-            .help("How far its barrels drop about the hinge when it is open (looks; its load point goes with them)."),
-        toggle("Pry Open", "vr_reload_ssg_pry")
-            .help("Holding it with both hands (the two-handed grip on its fore-end), push the barrels down with the front "
-                  "hand against the back hand (or lift the stock): it breaks open."),
-        slider("Pry Angle", "vr_reload_ssg_pry_angle", 10.f, 60.f, 1.f, "%.0f deg")
-            .help("How far the front hand must go down from the back hand's aim (or the stock up) to pry it open."),
-        slider("Pry Speed", "vr_reload_ssg_pry_speed", 20.f, 400.f, 10.f, "%.0f deg/s")
-            .help("How quickly: a steady two-handed aim never pries it open."),
-        toggle("Close by Flick", "vr_reload_ssg_close_flick")
-            .help("Open, the flick snaps it shut."),
-        toggle("Close by Lifting the Barrels", "vr_reload_ssg_close_pry")
-            .help("Open and held with both hands, the front hand lifting the barrels back up (as far and as fast as the "
-                  "pry) snaps it shut."),
-        toggle("Close When Loaded", "vr_reload_ssg_close_auto")
-            .help("Open, it snaps shut by itself once both chambers are loaded."),
-        slider("Super Shotgun Breech X", "vr_reload_port_sshot_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the super shotgun's load point (its breech face, between the chambers) forward (the gun's model "
-                  "units, as closed; it turns with the barrels open)."),
-        slider("Super Shotgun Breech Y", "vr_reload_port_sshot_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the super shotgun's load point left (the gun's model units)."),
-        slider("Super Shotgun Breech Z", "vr_reload_port_sshot_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the super shotgun's load point up (the gun's model units)."),
-        slider("Super Shotgun Breech Radius", "vr_reload_port_sshot_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the breech a held pair's middle must come to go in (Show Load Points draws it)."),
-        header("Load Points"),
+        header("Weapons"),
+        open("Shotgun", pageIndex(pageReloadShotgun)).help("Its shells (pairs, their pose) and its loading port."),
+        open("Super Shotgun", pageIndex(pageReloadSuperShotgun)).help("Broken open: the flick, the pry, closing it; its breech."),
+        open("Nailgun", pageIndex(pageReloadNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
+        open("Super Nailgun", pageIndex(pageReloadSuperNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
+        open("Thunderbolt", pageIndex(pageReloadThunderbolt)).help("Its well, its cell's top, its receiver, the hand holding the cell, pulling it out."),
+        header("All Guns"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
-                  "radius (orange), and a magazine's pull reach (blue), to tune the offsets below live."),
-        slider("Shotgun Port X", "vr_reload_port_shot_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the shotgun port's load point forward (the gun's model units; negative: the other way)."),
-        slider("Shotgun Port Y", "vr_reload_port_shot_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the shotgun port's load point left (the gun's model units; negative: the other way)."),
-        slider("Shotgun Port Z", "vr_reload_port_shot_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the shotgun port's load point up (the gun's model units; negative: the other way)."),
-        slider("Nailgun Well X", "vr_reload_port_nail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun well's load point forward (the gun's model units; negative: the other way)."),
-        slider("Nailgun Well Y", "vr_reload_port_nail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun well's load point left (the gun's model units; negative: the other way)."),
-        slider("Nailgun Well Z", "vr_reload_port_nail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun well's load point up (the gun's model units; negative: the other way)."),
-        slider("Super Nailgun Well X", "vr_reload_port_snail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun well's load point forward (the gun's model units; negative: the other way)."),
-        slider("Super Nailgun Well Y", "vr_reload_port_snail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun well's load point left (the gun's model units; negative: the other way)."),
-        slider("Super Nailgun Well Z", "vr_reload_port_snail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun well's load point up (the gun's model units; negative: the other way)."),
-        slider("Thunderbolt Well X", "vr_reload_port_light_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt well's load point forward (the gun's model units; negative: the other way)."),
-        slider("Thunderbolt Well Y", "vr_reload_port_light_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt well's load point left (the gun's model units; negative: the other way)."),
-        slider("Thunderbolt Well Z", "vr_reload_port_light_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt well's load point up (the gun's model units; negative: the other way)."),
-        slider("Shotgun Port Radius", "vr_reload_port_shot_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the shotgun port's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
-        slider("Nailgun Well Radius", "vr_reload_port_nail_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the nailgun well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
-        slider("Super Nailgun Well Radius", "vr_reload_port_snail_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the super nailgun well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
-        slider("Thunderbolt Well Radius", "vr_reload_port_light_radius", 0.25f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the thunderbolt well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
-        slider("Nailgun Magazine X", "vr_reload_mag_nail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun magazine's reference point (its top, its feed end) along its gun (its model units)."),
-        slider("Nailgun Magazine Y", "vr_reload_mag_nail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun magazine's reference point (its top, its feed end) to its left (its model units)."),
-        slider("Nailgun Magazine Z", "vr_reload_mag_nail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun magazine's reference point (its top, its feed end) up its length (its model units)."),
-        slider("Nailgun Magazine Radius", "vr_reload_mag_nail_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
-            .help("The nailgun magazine's own radius round its reference point (added to the well's)."),
-        slider("Super Nailgun Magazine X", "vr_reload_mag_snail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun magazine's reference point (its top, its feed end) along its gun (its model units)."),
-        slider("Super Nailgun Magazine Y", "vr_reload_mag_snail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun magazine's reference point (its top, its feed end) to its left (its model units)."),
-        slider("Super Nailgun Magazine Z", "vr_reload_mag_snail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun magazine's reference point (its top, its feed end) up its length (its model units)."),
-        slider("Super Nailgun Magazine Radius", "vr_reload_mag_snail_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
-            .help("The super nailgun magazine's own radius round its reference point (added to the well's)."),
-        slider("Thunderbolt Cell X", "vr_reload_mag_light_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt cell's reference point (its top, its feed end) along its gun (its model units)."),
-        slider("Thunderbolt Cell Y", "vr_reload_mag_light_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt cell's reference point (its top, its feed end) to its left (its model units)."),
-        slider("Thunderbolt Cell Z", "vr_reload_mag_light_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt cell's reference point (its top, its feed end) up its length (its model units)."),
-        slider("Thunderbolt Cell Radius", "vr_reload_mag_light_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
-            .help("The thunderbolt cell's own radius round its reference point (added to the well's)."),
-        slider("Nailgun Receiver X", "vr_reload_well_nail_x", -4.f, 4.f, 0.05f, "%.2f").extend()
-            .help("Moves the nailgun receiver (the collar round the magazine's top, drawn on the gun) forward, to sit flush (the gun's model units; looks only)."),
-        slider("Nailgun Receiver Y", "vr_reload_well_nail_y", -4.f, 4.f, 0.05f, "%.2f").extend()
-            .help("Moves the nailgun receiver (the collar round the magazine's top, drawn on the gun) left, to sit flush (the gun's model units; looks only)."),
-        slider("Nailgun Receiver Z", "vr_reload_well_nail_z", -4.f, 4.f, 0.05f, "%.2f").extend()
-            .help("Moves the nailgun receiver (the collar round the magazine's top, drawn on the gun) up, to sit flush (the gun's model units; looks only)."),
-        slider("Nailgun Receiver Pitch", "vr_reload_well_nail_pitch", -45.f, 45.f, 1.f, "%.0f").extend()
-            .help("Turns the nailgun receiver about its seat (looks only)."),
-        slider("Nailgun Receiver Yaw", "vr_reload_well_nail_yaw", -45.f, 45.f, 1.f, "%.0f").extend()
-            .help("Turns the nailgun receiver about its seat (looks only)."),
-        slider("Nailgun Receiver Roll", "vr_reload_well_nail_roll", -45.f, 45.f, 1.f, "%.0f").extend()
-            .help("Turns the nailgun receiver about its seat (looks only)."),
-        slider("Super Nailgun Receiver X", "vr_reload_well_snail_x", -4.f, 4.f, 0.05f, "%.2f").extend()
-            .help("Moves the super nailgun receiver (the collar round the magazine's top, drawn on the gun) forward, to sit flush (the gun's model units; looks only)."),
-        slider("Super Nailgun Receiver Y", "vr_reload_well_snail_y", -4.f, 4.f, 0.05f, "%.2f").extend()
-            .help("Moves the super nailgun receiver (the collar round the magazine's top, drawn on the gun) left, to sit flush (the gun's model units; looks only)."),
-        slider("Super Nailgun Receiver Z", "vr_reload_well_snail_z", -4.f, 4.f, 0.05f, "%.2f").extend()
-            .help("Moves the super nailgun receiver (the collar round the magazine's top, drawn on the gun) up, to sit flush (the gun's model units; looks only)."),
-        slider("Super Nailgun Receiver Pitch", "vr_reload_well_snail_pitch", -45.f, 45.f, 1.f, "%.0f").extend()
-            .help("Turns the super nailgun receiver about its seat (looks only)."),
-        slider("Super Nailgun Receiver Yaw", "vr_reload_well_snail_yaw", -45.f, 45.f, 1.f, "%.0f").extend()
-            .help("Turns the super nailgun receiver about its seat (looks only)."),
-        slider("Super Nailgun Receiver Roll", "vr_reload_well_snail_roll", -45.f, 45.f, 1.f, "%.0f").extend()
-            .help("Turns the super nailgun receiver about its seat (looks only)."),
-        slider("Thunderbolt Receiver X", "vr_reload_well_light_x", -4.f, 4.f, 0.05f, "%.2f").extend()
-            .help("Moves the thunderbolt receiver (the collar round the magazine's top, drawn on the gun) forward, to sit flush (the gun's model units; looks only)."),
-        slider("Thunderbolt Receiver Y", "vr_reload_well_light_y", -4.f, 4.f, 0.05f, "%.2f").extend()
-            .help("Moves the thunderbolt receiver (the collar round the magazine's top, drawn on the gun) left, to sit flush (the gun's model units; looks only)."),
-        slider("Thunderbolt Receiver Z", "vr_reload_well_light_z", -4.f, 4.f, 0.05f, "%.2f").extend()
-            .help("Moves the thunderbolt receiver (the collar round the magazine's top, drawn on the gun) up, to sit flush (the gun's model units; looks only)."),
-        slider("Thunderbolt Receiver Pitch", "vr_reload_well_light_pitch", -45.f, 45.f, 1.f, "%.0f").extend()
-            .help("Turns the thunderbolt receiver about its seat (looks only)."),
-        slider("Thunderbolt Receiver Yaw", "vr_reload_well_light_yaw", -45.f, 45.f, 1.f, "%.0f").extend()
-            .help("Turns the thunderbolt receiver about its seat (looks only)."),
-        slider("Thunderbolt Receiver Roll", "vr_reload_well_light_roll", -45.f, 45.f, 1.f, "%.0f").extend()
-            .help("Turns the thunderbolt receiver about its seat (looks only)."),
-        header("Magazines"),
+                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
+                  "where a hit knocks it out), to tune the offsets live."),
+        slider("Collision Leniency", "vr_reload_collide_leniency", 0.f, 60.f, 1.f, "%.0f cm").extend(0.f, 200.f)
+            .help("A shell or magazine in your hand is drawn kept off the gun in the other hand (Held Things Collide): it "
+                  "may go this far into the gun's box first, to reach the port under the shotgun or a magazine well."),
         toggle("Eject Button", "vr_reload_eject_button")
             .help("The B/Y button of the controller holding a nailgun, super nailgun or thunderbolt drops its magazine."),
-        slider("Pull Speed", "vr_reload_pull_speed", 0.5f, 6.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
-            .help("Grip a gun's magazine with the other hand: it is the two-handed grip, and it stays in. It comes out "
-                  "into that hand only pulled away from the gun this fast, or with the wrist snap or the hands apart below."),
-        slider("Pull Wrist Snap", "vr_reload_pull_snap", 100.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 5000.f)
-            .help("A wrist snapping this fast while holding the magazine takes it out too."),
-        slider("Pull Apart", "vr_reload_pull_apart", 2.f, 30.f, 0.5f, "%.1f units").extend(0.f, 100.f)
-            .help("And the hands moved this much further apart while holding it (about 40 cm at 10)."),
-        slider("Pull Reach", "vr_reload_pull_reach", 2.f, 12.f, 0.5f, "%.1f units")
-            .help("How near the magazine a hand closing its grip must be to hold it."),
-        slider("Knock Out Speed", "vr_reload_bump_speed", 0.5f, 6.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
-            .help("A hit on a seated magazine this hard pops it out: a punch, a held prop, another magazine (the bump "
-                  "reload: the new one is then seated at the well), or the other gun."),
-        slider("Knock Out Reach", "vr_reload_hit_reach", 1.f, 10.f, 0.5f, "%.1f units")
-            .help("How near the magazine's top a hit must land."),
         header("Ammo Pouch"),
         toggle("Show", "vr_ammo_pouch_show").help("Draw the pouch (off: it still works where it is)."),
         slider("X", "vr_ammo_pouch_x", -10.f, 10.f, 0.25f, "%.2f").extend()
             .help("Forward (negative: back, round the hips). With the body drawn, 0 is on the belly."),
         slider("Y", "vr_ammo_pouch_y", -10.f, 10.f, 0.25f, "%.2f").extend().help("To the right (negative: left)."),
         slider("Z", "vr_ammo_pouch_z", -10.f, 10.f, 0.25f, "%.2f").extend().help("Up, from the hip holsters' height."),
-        slider("Reach", "vr_ammo_pouch_thresh", 1.f, 12.f, 0.25f, "%.2f").extend()
+        slider("Reach", "vr_ammo_pouch_thresh", 0.5f, 20.f, 0.25f, "%.2f").extend(0.f, 40.f)
             .help("How near a hand must come to reach into it. The hip holsters beside it win where a hand is nearer them."),
-        slider("Pitch", "vr_ammo_pouch_pitch", -90.f, 90.f, 5.f, "%.0f").help("Its top tipped away from the body."),
-        slider("Yaw", "vr_ammo_pouch_yaw", -90.f, 90.f, 5.f, "%.0f"),
-        slider("Roll", "vr_ammo_pouch_roll", -90.f, 90.f, 5.f, "%.0f"),
-        slider("Size", "vr_ammo_pouch_scale", 0.5f, 2.f, 0.05f, "%.2fx").help("As drawn (its reach is Reach's)."),
+        slider("Pitch", "vr_ammo_pouch_pitch", -180.f, 180.f, 5.f, "%.0f")
+            .help("Its top tipped away from the body."),
+        slider("Yaw", "vr_ammo_pouch_yaw", -180.f, 180.f, 5.f, "%.0f"),
+        slider("Roll", "vr_ammo_pouch_roll", -180.f, 180.f, 5.f, "%.0f"),
+        slider("Size", "vr_ammo_pouch_scale", 0.2f, 3.f, 0.05f, "%.2fx").extend(0.05f, 10.f)
+            .help("As drawn (its reach is Reach's)."),
         toggle("Counter", "vr_ammo_pouch_counter")
             .help("A small screen on the pouch: how many of what it gives (shells, nails, cells) you have left."),
         slider("Counter X", "vr_ammo_pouch_counter_x", -10.f, 10.f, 0.25f, "%.2f").extend().help("Out of the body."),
         slider("Counter Y", "vr_ammo_pouch_counter_y", -10.f, 10.f, 0.25f, "%.2f").extend().help("To the right."),
         slider("Counter Z", "vr_ammo_pouch_counter_z", -10.f, 10.f, 0.25f, "%.2f").extend().help("Up."),
-        slider("Counter Pitch", "vr_ammo_pouch_counter_pitch", -90.f, 90.f, 5.f, "%.0f")
+        slider("Counter Pitch", "vr_ammo_pouch_counter_pitch", -180.f, 180.f, 5.f, "%.0f")
             .help("Its turn off facing your eyes as you look down at the pouch."),
-        slider("Counter Yaw", "vr_ammo_pouch_counter_yaw", -90.f, 90.f, 5.f, "%.0f"),
-        slider("Counter Roll", "vr_ammo_pouch_counter_roll", -90.f, 90.f, 5.f, "%.0f"),
-        slider("Counter Size", "vr_ammo_pouch_counter_scale", 0.2f, 3.f, 0.1f, "%.1fx"),
+        slider("Counter Yaw", "vr_ammo_pouch_counter_yaw", -180.f, 180.f, 5.f, "%.0f"),
+        slider("Counter Roll", "vr_ammo_pouch_counter_roll", -180.f, 180.f, 5.f, "%.0f"),
+        slider("Counter Size", "vr_ammo_pouch_counter_scale", 0.1f, 5.f, 0.1f, "%.1fx").extend(0.05f, 10.f),
         toggle("White Counter Text", "vr_ammo_screen_text_white")
             .help("The counter's number near-white, as the wrist gadget's (the guns' ammo screens' too: the same setting)."),
         slider("Follow Legs", "vr_ammo_pouch_leg_follow", 0.f, 1.f, 0.05f, "%.2f")
             .help("With the full body, how much the pouch moves with your legs as you walk, as the belt does (the hip "
                   "holsters' Follow Legs likewise). 0: fixed on the belly."),
         header("Feedback"),
-        slider("Haptics", "vr_reload_haptics", 0.f, 2.f, 0.1f, "%.1fx")
+        slider("Haptics", "vr_reload_haptics", 0.f, 3.f, 0.1f, "%.1fx")
             .help("Taking a shell, putting it back, loading it, and the empty pouch's dull knock (0: none)."),
-        slider("Sounds", "vr_reload_volume", 0.f, 2.f, 0.1f, "%.1fx").help("The pouch's rustle, the port's click (0: none)."),
+        slider("Sounds", "vr_reload_volume", 0.f, 3.f, 0.1f, "%.1fx")
+            .help("The pouch's rustle, the port's click (0: none)."),
         header("Dropped Rounds"),
-        slider("Most Lying About", "vr_reload_loose_max", 4.f, 64.f, 4.f, "%.0f").extend(1.f, 256.f)
+        slider("Most Lying About", "vr_reload_loose_max", 1.f, 128.f, 1.f, "%.0f").extend(1.f, 1024.f)
             .help("Shells dropped or thrown lie about, to be taken again (or force grabbed); past this many the oldest goes."),
-        slider("Grab Leniency", "vr_reload_grab_slack", 0.f, 10.f, 0.5f, "%.1f cm")
+        slider("Grab Leniency", "vr_reload_grab_slack", 0.f, 20.f, 0.5f, "%.1f cm").extend(0.f, 50.f)
             .help("A dropped shell is small and lies flat: the fist takes it this far from it."),
-        slider("Fade After", "vr_reload_loose_time", 0.f, 300.f, 10.f, "%.0f s")
+        slider("Fade After", "vr_reload_loose_time", 0.f, 600.f, 10.f, "%.0f s").extend(0.f, 3600.f)
             .help("Seconds a dropped shell lies about before it fades away (0: never). A shell gone is a shell lost."),
     };
 }
