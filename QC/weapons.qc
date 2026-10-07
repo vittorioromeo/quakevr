@@ -454,6 +454,8 @@ void(entity xTarget) PositionalHeadshotFeedback =
 HIPNOTIC WEAPONS
 ================
 */
+float vr_laser_bounces, vr_laser_bounce_ratio, vr_laser_stops; // the laser cannon's bolts' bounces and stops (tests)
+
 void() HIP_LaserTouch =
 {
     vector org;
@@ -502,6 +504,8 @@ void() HIP_LaserTouch =
     }
     else
     {
+       vr_laser_bounces++; // (tests: vr_mg3_weapons_test.qc)
+       vr_laser_bounce_ratio = 0.9;
        self.dmg = 0.9 * self.dmg;
        self.velocity = oldvel+(2*trace_plane_normal);
        self.velocity = normalize(self.velocity);
@@ -514,6 +518,8 @@ void() HIP_LaserTouch =
        return;
     }
 
+    vr_laser_stops++;
+    if(cvar("developer") > 1) { dprint(sprintf("laser bolt stopped: touch %g on %s (health %g)\n", self.cnt, other.classname, other.health)); }
     sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
     remove(self);
 };
@@ -654,6 +660,18 @@ void(vector xFrom, vector xTo) VR_TouchTrace =
     }
 };
 
+// A bolt's damage (self: who fires it): Weapon Damage's Laser Cannon (18; one in ten lit, `xLit`, 25/18 of it), and in Dawn
+// of the Machine (campaign 5) its own laser cannon's 15 and 20 (official mg3_weapons.qc HIP_LaunchLaser: the same
+// weapon, the same bouncing bolts, less damage; MG3_LaserScale, vr_mg3_weapons.qc).
+float(float xLit) VR_LaserBoltDamage =
+{
+    if(xLit)
+    {
+        return 25 * VR_WpnDmgScale(self, cvarh_vr_dmg_laser, 18) * MG3_LaserScale(TRUE);
+    }
+    return VR_WpnDmg(self, cvarh_vr_dmg_laser, 18) * MG3_LaserScale(FALSE);
+};
+
 entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
 {
     sound(self, CHAN_WEAPON, "hipweap/laserg.wav", 1, ATTN_NORM);
@@ -677,7 +695,7 @@ entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
     setorigin(newmis, org);
 
     newmis.speed = 1750;
-    newmis.dmg = VR_WpnDmg(self, cvarh_vr_dmg_laser, 18);
+    newmis.dmg = VR_LaserBoltDamage(FALSE);
     newmis.velocity = vec * newmis.speed + extraVel;
     newmis.old_velocity = newmis.velocity;
     newmis.angles = vectoangles(newmis.velocity);
@@ -754,7 +772,7 @@ void(float xHand, float stat) HIP_FireLaser =
         {
             newmis = HIP_LaunchLaser(org, dir, extraVel, 1);
             VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
-            newmis.dmg = 25 * VR_WpnDmgScale(self, cvarh_vr_dmg_laser, 18);
+            newmis.dmg = VR_LaserBoltDamage(TRUE);
         }
         else
         {

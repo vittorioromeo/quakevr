@@ -281,7 +281,8 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
   hit, not on a shotgun blast or a non-axe hand; map8 18 buttons all reachable by test. Dep: M3-11. **Built
   2026-10-07** with decision 1 (any melee blow, thrown things too; ROUND21.md).
 - **M3-13 Laser cannon (MG3).** behaviour deltas vs Hipnotic, MG3-PAK model resolution, no Hipnotic install needed.
-  Accept: map2b laser pickup works with Hipnotic absent; bolts bounce/damage as source.
+  Accept: map2b laser pickup works with Hipnotic absent; bolts bounce/damage as source. **Built 2026-10-07**: the same
+  weapon (`WID_LASER_CANNON`), MG3's 15/20 bolt damage in campaign 5 (ROUND21.md).
 - **M3-14 Bloody shotguns.** BN-only pickups, persistent bits (M3-02), model/skin swap, refire (Q4).
   Accept: BN new game collects bloody SG on map1, it survives changelevel/save and BN strip; non-BN game: pickup inert.
 

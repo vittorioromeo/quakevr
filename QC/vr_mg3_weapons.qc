@@ -342,3 +342,22 @@ void() func_axe_button =
         self.touch = MG3_AxeButton_Touch;
     }
 };
+
+// ----------------------------------------------------------------------------
+// The laser cannon (M3-13). Dawn of the Machine's weapon_laser_gun is Hipnotic's laser cannon taken whole (official
+// mg3_weapons.qc "Taken directly from the hipnotic qc"): the same bouncing bolts (a bounce off a wall keeps 0.9 of the
+// damage; the third touch, or one in seven, stops it; a second hit on the same monster halves it), the same 1 cell a
+// shot and cadence. So it stays one weapon, WID_LASER_CANNON, with campaign-specific numbers: MG3 lowered a bolt's
+// damage from 18 to 15 and a lit bolt's from 25 to 20. Its models need no Hipnotic install: Quake VR ships
+// progs/v_laserg.mdl (the one held, its own remodel; MG3's own is shadowed by it) and progs/lasrspik.mdl, and in
+// campaign 5 MG3's pak gives progs/g_laserg.mdl (the classic pickup; without one, the held model is the pickup).
+// Not ported: MG3's respawn_ammo (an out-of-cells laser respawns the map's SAFETY_RESPAWN cell boxes): an ammo-items
+// feature for every weapon (client.qc), left to the items' task.
+float(float xLit) MG3_LaserScale =
+{
+    if(!MG3_Campaign())
+    {
+        return 1;
+    }
+    return xLit ? 20 / 25 : 15 / 18;
+};

@@ -939,6 +939,6 @@ its own beside Hipnotic's Mjolnir; MG3 maps' `weapon_mjolnir` spawns it in campa
 removed and the model laid as the axe's at load time, weapon settings slots 24/25, `vr_wofs_version` 36); official
 40 damage, zombie x3, finishing x2, second-hit lightning burst (15 cells) within `vr_superaxe_burst_window` (1.5 s);
 map2's silent-teleport secret pickup. **Axe buttons** (M3-12): `func_axe_button` opens to any melee blow (fists,
-axes, swords, gun butts, headbutts, bashes, thrown weapons and props), never a shot or blast ("Use the axe").
-Tests: Debug > Tests > Dawn of the Machine Weapons (`vr_mg3_wtest`).
+axes, swords, gun butts, headbutts, bashes, thrown weapons and props), never a shot or blast ("Use the axe"). **Laser cannon** (M3-13): Hipnotic's weapon, MG3's bolts 15 (lit 20) in
+campaign 5; Quake VR ships its models and sounds, so no Hipnotic install is needed. Tests: Debug > Tests > Dawn of the Machine Weapons (`vr_mg3_wtest`).
 Measurements: ROUND21.md, "Dawn of the Machine (MG3): weapons".

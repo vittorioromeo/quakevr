@@ -28115,3 +28115,24 @@ func_axe_button 15.0 by a melee blow ... punch (straight) with the knuckles", op
 **In the headset.** [ ] map6's first button: shoot it (the message), then punch it, swing the axe at it, throw a
 weapon at it: each opens one (map8 has 18).
 
+### M3-13 The laser cannon
+
+**One weapon, campaign-specific numbers.** MG3's `weapon_laser_gun` is Hipnotic's laser cannon "taken directly from
+the hipnotic qc" (official `mg3_weapons.qc`): the same bolts (a bounce keeps 0.9 of the damage; the third touch, or one
+in seven, stops it; a second hit on the same monster halves it), the same cell a shot and cadence. The only gameplay
+deltas: a bolt's damage 18 -> 15 and a lit bolt's 25 -> 20. So it stays `WID_LASER_CANNON` with
+`VR_LaserBoltDamage` (weapons.qc: Weapon Damage's Laser Cannon, times `MG3_LaserScale`: 15/18 and 20/25 in campaign 5,
+1 elsewhere). Not ported: MG3's `respawn_ammo` (an out-of-cells laser, lightning gun or nailgun makes the map's
+SAFETY_RESPAWN cell boxes come back): an ammo-items feature for every weapon (client.qc), left to the items' task.
+
+**No Hipnotic install needed.** Quake VR ships the held model (`progs/v_laserg.mdl`, its own remodel), the bolt
+(`progs/lasrspik.mdl`) and the sounds (`hipweap/laserg.wav`, `laserric.wav`); MG3's own `v_laserg.mdl` is shadowed by
+Quake VR's (its offsets are tuned to it). `vr_campaign_probe` on map2b: `v_laserg.mdl`, `lasrspik.mdl`,
+`hipweap/laserg.wav` from `quakevr`; `g_laserg.mdl` (the classic pickup) from MG3's `pak0.pak`.
+
+Tests: `vr_mg3_wtest 9` (bolt damage, then 12 bolts fired at the floor ahead, `HIP_LaserTouch`'s new counters
+`vr_laser_bounces`/`vr_laser_stops`): e1m1 18/25, 19 bounces at 0.9, 12 stopped (3/0); MG3 map2b 15/20, 18 bounces,
+12 stopped (3/0). `vr_mg3_wtest 10` on map2b: the nearest `weapon_laser_gun` taken into the main hand (12,
+`progs/v_laserg.mdl`, 30 cells) (2/0). (A bolt started inside your own box strikes you at once: the test fires from
+28 units ahead.)
+

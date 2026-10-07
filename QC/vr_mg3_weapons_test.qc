@@ -10,6 +10,9 @@
 //     prop, a headbutt
 //   7 the player put in front of the nearest closed axe button, facing it (a real punch or swing next: vr_motion_play)
 //   8 whether the nearest axe button opened
+//   9 the laser cannon's bolts: their damage (MG3's 15 and 20 in campaign 5, else 18 and 25), 12 fired at the floor
+//     ahead and how they bounced (a bounce keeps 0.9 of it)
+//  10 the nearest weapon_laser_gun taken by the empty main hand (map2b: with or without Hipnotic)
 
 float mg3wt_pass, mg3wt_fail;
 float mg3wt_step;      // the running request's step (2's), 0: none
@@ -374,6 +377,102 @@ void() MG3_WT_AxeButtonState =
     dprint(sprintf("mg3wtest: nearest axe button at %s state %g (1 shut) health %g\n", vtos((b.absmin + b.absmax) * 0.5), b.state, b.health));
 };
 
+.float mg3wt_bolt;     // a test's laser bolt (request 9)
+float mg3wt_bolts_bounced, mg3wt_bolts_seen; // HIP_LaserTouch's counts as the bolts were fired
+
+// Request 9, at once: the damage of a bolt, then 12 bolts at the wall ahead (MG3_WT_LaserStep counts them after).
+void() MG3_WT_Laser =
+{
+    entity p = MG3_WT_Player();
+    mg3wt_pass = mg3wt_fail = 0;
+    entity oldself = self;
+    self = p;
+    float plain = VR_LaserBoltDamage(FALSE), lit = VR_LaserBoltDamage(TRUE);
+    float want = MG3_Campaign() ? 15 : 18, wantLit = MG3_Campaign() ? 20 : 25;
+    float scale = cvar_hget(cvarh_vr_dmg_laser) / 18;
+    dprint(sprintf("mg3wtest: laser bolt %g, lit %g (campaign %g, Weapon Damage x%g)\n", plain, lit, cvar("vr_campaign"), scale));
+    MG3_WT_Check(fabs(plain - want * scale) < 0.01 && fabs(lit - wantLit * scale) < 0.01,
+        sprintf("a bolt %g, a lit one %g", want * scale, wantLit * scale));
+    // At the floor ahead, 40 degrees down, fanned (the floor: world, near, whatever the map; monsters seldom on it).
+    makevectors(p.v_angle_y * '0 1 0');
+    vector from = p.origin + v_forward * 28 + '0 0 16'; // (out of your box: a bolt starting in it strikes you)
+    makevectors(p.v_angle_y * '0 1 0' + '40 0 0');
+    dprint(sprintf("mg3wtest: bolts at the floor ahead (yaw %g)\n", p.v_angle_y));
+    mg3wt_bolts_bounced = vr_laser_bounces; // (the counts before: weapons.qc HIP_LaserTouch)
+    mg3wt_bolts_seen = vr_laser_stops;
+    vr_laser_bounce_ratio = 0;
+    for(float i = 0; i < 12; i++)
+    {
+        vector dir = normalize(v_forward + v_right * (i - 5.5) * 0.05);
+        entity bolt = HIP_LaunchLaser(from, dir, '0 0 0', 0);
+        bolt.mg3wt_bolt = 1;
+    }
+    self = oldself;
+    mg3wt_step = 20;
+    mg3wt_next = time + 1; // (their bounces and stops counted by then)
+};
+
+void() MG3_WT_LaserStep =
+{
+    float alive = 0;
+    entity e = find(world, classname, "hiplaser");
+    while(e)
+    {
+        if(e.mg3wt_bolt)
+        {
+            alive++;
+            remove(e);
+        }
+        e = find(e, classname, "hiplaser");
+    }
+    float bounces = vr_laser_bounces - mg3wt_bolts_bounced, stops = vr_laser_stops - mg3wt_bolts_seen;
+    dprint(sprintf("mg3wtest: of 12 bolts: %g bounces (each keeping %g of the damage), %g stopped, %g still flying\n",
+        bounces, vr_laser_bounce_ratio, stops, alive));
+    MG3_WT_Check(bounces >= 1 && vr_laser_bounce_ratio == 0.9, "bolts bounce off the floor, keeping 0.9 of their damage");
+    MG3_WT_Check(stops >= 1, "bolts stop (the one in seven, the third touch, or what they hit)");
+    dprint(sprintf("mg3wtest: laser %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+    mg3wt_step = 0;
+};
+
+// Request 10: the nearest weapon_laser_gun into the empty main hand.
+void() MG3_WT_LaserPickup =
+{
+    entity p = MG3_WT_Player();
+    mg3wt_pass = mg3wt_fail = 0;
+    entity best = world;
+    float bestDist = 999999;
+    entity e = find(world, classname, "weapon_laser_gun");
+    while(e)
+    {
+        if(e.model != string_null && vlen(e.origin - p.origin) < bestDist) { best = e; bestDist = vlen(e.origin - p.origin); }
+        e = find(e, classname, "weapon_laser_gun");
+    }
+    MG3_WT_Check(best != world, sprintf("a weapon_laser_gun in %s", mapname));
+    if(!best) return;
+    dprint(sprintf("mg3wtest: laser pickup %s (Hipnotic %g), its model %s; v_laserg %g lasrspik %g\n", vtos(best.origin),
+        VR_Pack_Hipnotic(), best.model, fileexists("progs/v_laserg.mdl"), fileexists("progs/lasrspik.mdl")));
+    entity oldself = self, oldother = other;
+    self = p;
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    self = oldself;
+    setorigin(p, best.origin + '0 0 24');
+    p.touchinghand = cVR_MainHand;
+    best.handtouch_hand = cVR_MainHand;
+    best.handtouch_ent = p;
+    other = p;
+    self = best;
+    float oldCatching = forcegrabCatching;
+    forcegrabCatching = TRUE;
+    best.handtouch();
+    forcegrabCatching = oldCatching;
+    self = oldself;
+    other = oldother;
+    dprint(sprintf("mg3wtest: hand %g model %s cells %g\n", p.weapon, p.weaponmodel, p.ammo_cells));
+    MG3_WT_Check(p.weapon == WID_LASER_CANNON && p.weaponmodel == "progs/v_laserg.mdl", "taken: the laser cannon in the main hand");
+    dprint(sprintf("mg3wtest: laser pickup %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+};
+
 void() MG3_WeaponsTestFrame =
 {
     if(mg3wt_step == 10 && time >= mg3wt_next)
@@ -382,6 +481,10 @@ void() MG3_WeaponsTestFrame =
         mg3wt_step = 0;
         MG3_WT_Pickup(); // (request 3: its pickup settled first)
         self = os1; other = oo1; activator = oa1;
+    }
+    if(mg3wt_step == 20 && time >= mg3wt_next)
+    {
+        MG3_WT_LaserStep();
     }
     if(mg3wt_step && time >= mg3wt_next)
     {
@@ -407,5 +510,7 @@ void() MG3_WeaponsTestFrame =
     else if(request == 6) MG3_WT_AxeButtons();
     else if(request == 7) MG3_WT_FaceAxeButton();
     else if(request == 8) MG3_WT_AxeButtonState();
+    else if(request == 9) MG3_WT_Laser();
+    else if(request == 10) MG3_WT_LaserPickup();
     self = oldself; other = oldother; activator = oldact;
 };
