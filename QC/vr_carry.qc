@@ -341,7 +341,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     {
         if(!vr_carry_quiet)
         {
-            sound(self, CHAN_AUTO, "vr/pommel2.wav", 0.35, ATTN_NORM); // a wooden stick taken up: a soft knock
+            sound(self, VRGetHandChannel(xHand), "vr/pommel2.wav", 0.35, ATTN_NORM); // a wooden stick taken up: a soft knock
         }
     }
     else if(!vr_carry_quiet)
@@ -355,7 +355,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
         }
         else
         {
-            sound(self, CHAN_AUTO, "knight/sword2.wav", 0.4, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "knight/sword2.wav", 0.4, ATTN_NORM);
         }
     }
     haptic(xHand, 0.0, 0.1, 70, 0.6);
@@ -1185,7 +1185,7 @@ void(float xHand) VR_Carry_TrySecondHand =
     VR_Carry_SetHeld(self, xHand, box);
     box.carry_2h = TRUE;
     carry2h(box, self, TRUE); // the grips are kept
-    sound(self, CHAN_AUTO, "knight/sword2.wav", 0.25, ATTN_NORM);
+    sound(self, VRGetHandChannel(xHand), "knight/sword2.wav", 0.25, ATTN_NORM);
     haptic(xHand, 0.0, 0.1, 70, 0.6);
 };
 

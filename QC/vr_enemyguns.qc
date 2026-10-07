@@ -113,7 +113,7 @@ void(float xWid) VR_DropEnemyGun =
 // The grunt's burst rifle: a round, a single bullet from its muzzle along the aim.
 void(float xHand) VR_FireBurstRound =
 {
-    sound(self, CHAN_AUTO, VR_BurstSound(), 1, ATTN_NORM); // (not the gun's channel: each round's tail rings on)
+    sound(self, VRGetHandChannel(xHand), VR_BurstSound(), 1, ATTN_NORM); // (any free one of the hand's, not the gun's: each round's tail rings on)
     self.punchangle_x = -1;
     vr_pellet_damage = cvar_hget(cvarh_vr_gruntgun_damage);
     FireBullets(xHand, 1, VRGetWeaponFireRotFwd(xHand), VR_BURST_SPREAD);
@@ -267,7 +267,7 @@ void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinishe
     {
         if(time > xAttackFinished)
         {
-            sound(self, CHAN_AUTO, "gunclick.wav", 1, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
             *xOutAttackFinished = time + 0.5;
             if(cvar_hget(cvarh_vr_debug_shots))
             {

@@ -1437,7 +1437,7 @@ void(float xHand) W_ChainsawMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, CHAN_AUTO, VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;
@@ -1447,7 +1447,7 @@ void(float xHand) W_ChainsawMelee =
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);
-        sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
+        sound(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
         VRSetMeleeHitSoundPlayed(xHand, TRUE);
     }
     particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
@@ -3241,7 +3241,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     {
         if(time > xAttackFinished)
         {
-            sound(self, CHAN_AUTO, "gunclick.wav", 1, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
             *xOutAttackFinished = time + 0.5;
             if(cvar_hget(cvarh_vr_debug_shots))
             {
@@ -3348,7 +3348,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
             *xOutAttackFinished = time + 0.1;
         }
 
-        sound(self, CHAN_AUTO, "weapons/lstart.wav", 1, ATTN_NORM);
+        sound(self, VRGetHandChannel(xHand), "weapons/lstart.wav", 1, ATTN_NORM);
     }
     // HYPNOTIC
 //MED
@@ -5183,7 +5183,7 @@ void(float xHand) W_WeaponFrameImpl =
         if(!VRGetFireButtonPressed(xHand) &&
            (VRGetWeapon(xHand) == WID_NAILGUN || VRGetWeapon(xHand) == WID_SUPER_NAILGUN))
         {
-            sound(self, CHAN_AUTO, "lavagun/snail.wav", 1, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "lavagun/snail.wav", 1, ATTN_NORM);
             particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 6);
             VRSetLavaGunFired(xHand, 0);
         }
@@ -6568,7 +6568,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
     }
     // (QVR_WEAPONTHROWMODE_DISCARD: nothing is thrown, the weapon is gone.)
 
-    sound(ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+    sound(ent, VRGetHandChannel(xHand), "knight/sword2.wav", 0.7, ATTN_NORM);
     VRSetHandEmpty(ent, xHand);
     W_SetCurrentAmmoFor(xHand);
 }
@@ -6579,10 +6579,10 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags) DropWeaponInHan
 }
 
 // `xInst`: the weapon's record (the hand's, moved; a quick slot's copy: WeaponInst_Clone).
-void(entity entPlayer, float xHotspot, float xWeapon, float xWeaponFlags, entity xInst)
+void(entity entPlayer, float xHand, float xHotspot, float xWeapon, float xWeaponFlags, entity xInst)
 VRPutWeaponInHolster =
 {
-    sound(entPlayer, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+    sound(entPlayer, VRGetHandChannel(xHand), "weapons/holster1.wav", 1, ATTN_NORM);
 
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_SAW_STATE); // a chainsaw's engine stops
@@ -6598,7 +6598,7 @@ VRReloadWeapon =
 {
     float clip = VRGetEntWeaponClip(entPlayer, xHand);
     VRGunHaptic(xHand, 0.25, 70, 1.0);
-    sound(entPlayer, CHAN_BODY, "reload1.wav", 1, ATTN_NORM);
+    sound(entPlayer, VRGetHandChannel(xHand), "reload1.wav", 1, ATTN_NORM);
 
     float ammoId = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
     float missingAmmo = WeaponIdToBaseClipSize(xWeapon) - clip;
@@ -6625,7 +6625,7 @@ VRUnloadWeapon =
 {
     float clip = VRGetEntWeaponClip(entPlayer, xHand);
     VRGunHaptic(xHand, 0.25, 70, 1.0);
-    sound(entPlayer, CHAN_BODY, "reload1.wav", 1, ATTN_NORM);
+    sound(entPlayer, VRGetHandChannel(xHand), "reload1.wav", 1, ATTN_NORM);
 
     float ammoId = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
 
@@ -6771,7 +6771,7 @@ void(entity ent, float xHand) VRHandOffWeapon =
     VRSetHandEmpty(ent, xHand);
     W_SetCurrentAmmo();
 
-    sound(ent, CHAN_BODY, "weapons/holster0.wav", 0.5, ATTN_NORM);
+    sound(ent, VRGetHandChannel(other), "weapons/holster0.wav", 0.5, ATTN_NORM);
     VRGunHaptic(other, 0.08, 75, 0.6);
 };
 
@@ -6807,7 +6807,7 @@ void(entity ent, float xHand) VRTakeCarriedWeapon =
     VRSetHandEmpty(ent, other);
     W_SetCurrentAmmo();
 
-    sound(ent, CHAN_BODY, "weapons/holster0.wav", 0.5, ATTN_NORM);
+    sound(ent, VRGetHandChannel(xHand), "weapons/holster0.wav", 0.5, ATTN_NORM);
     VRGunHaptic(xHand, 0.08, 75, 0.6);
 }
 
@@ -6840,7 +6840,7 @@ void(float xHand) VRWeightWrenchFrame =
 // empty. (`self` is `ent`: the holster's getters are self's.)
 void(entity ent, float xHand, float xHotspot) VRHolsterHandWeapon =
 {
-    VRPutWeaponInHolster(ent, xHotspot, VRGetEntWeapon(ent, xHand), VRGetEntWeaponFlags(ent, xHand),
+    VRPutWeaponInHolster(ent, xHand, xHotspot, VRGetEntWeapon(ent, xHand), VRGetEntWeaponFlags(ent, xHand),
         VRGetEntWeaponInst(ent, xHand));
     VRSetHandEmpty(ent, xHand);
     W_SetCurrentAmmoFor(xHand);
@@ -6851,7 +6851,7 @@ void(entity ent, float xHand) VRSwitchWeaponHands =
 {
     float other = VRGetOtherHand(xHand);
     float wflags = VRGetEntWeaponFlags(ent, xHand);
-    sound(ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+    sound(ent, VRGetHandChannel(other), "knight/sword2.wav", 0.7, ATTN_NORM);
     VRSetEntWeapon(ent, other, VRGetEntWeapon(ent, xHand));
     VRSetEntWeaponFlags(ent, other, wflags - (wflags & QVR_WPNFLAG_FOREGRIP_CARRIED));
     VRMoveEntWeaponInst(ent, xHand, other); // (its magazine, its id)
@@ -6866,7 +6866,7 @@ void(entity ent, float xHand, float xHotspot) VRDrawHolsterWeapon =
 {
     float wid = getHolsterWeapon(xHotspot);
     entity holstered = VRGetEntHolsterWeaponInst(ent, xHotspot);
-    sound(ent, CHAN_BODY, "weapons/holster0.wav", 1, ATTN_NORM);
+    sound(ent, VRGetHandChannel(xHand), "weapons/holster0.wav", 1, ATTN_NORM);
     VRSetEntWeapon(ent, xHand, wid);
     VRSetEntWeaponFlags(ent, xHand, getHolsterWeaponFlags(xHotspot));
     if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
@@ -6971,10 +6971,10 @@ void(entity ent, float xHand,
             {
                 if(getHolsterWeapon(xHotspot) != xWeapon)
                 {
-                    sound(ent, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
+                    // (its sound: VRPutWeaponInHolster's, from the hand)
 
                     // (The holster keeps a copy: the hand keeps its weapon.)
-                    VRPutWeaponInHolster(ent, xHotspot, xWeapon, xWeaponFlags,
+                    VRPutWeaponInHolster(ent, xHand, xHotspot, xWeapon, xWeaponFlags,
                         WeaponInst_Clone(VRGetEntWeaponInst(ent, xHand)));
                 }
             }

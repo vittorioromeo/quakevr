@@ -223,8 +223,8 @@ void(entity e, vector xVel, float xHand, string xHow) VR_Deflect_Send =
     }
     dprint(sprintf("deflect: %s by a %s, in %v (%.0f u/s), out %v (%.0f u/s)\n", what, xHow, vin, vlen(vin),
         e.velocity, speed));
-    sound(self, CHAN_AUTO, "weapons/tink1.wav", 1, ATTN_NORM);
-    sound(self, CHAN_AUTO, "player/axhit2.wav", 0.6, ATTN_NORM);
+    sound(self, VRGetHandChannel(xHand), "weapons/tink1.wav", 1, ATTN_NORM);
+    sound(self, VRGetHandChannel(xHand), "player/axhit2.wav", 0.6, ATTN_NORM);
     particle2(e.origin, dir * 120, QVR_PARTICLE_PRESET_SPARKS, 20);
     VR_Motion_Event("deflect", what, xHand, 0, e.origin, oldOwner, xHow);
     if(xHand != cVR_OffHand)

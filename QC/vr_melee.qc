@@ -1830,7 +1830,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
         s = "weapons/ax1.wav";
         if(b.mh_thing == VR_MTHING_SAW)
         {
-            chan = CHAN_AUTO; // its engine's sound is on the weapon's channel (vr_chainsaw.qc)
+            chan = VRGetHandChannel(xHand); // its engine's sound is on the weapon's channel (vr_chainsaw.qc)
         }
     }
     else if(b.mh_thing == VR_MTHING_GUN && b.mh_vfar_z < -0.6 * vlen(b.mh_vfar))
@@ -2125,7 +2125,7 @@ void(entity p, float hand) VR_Counter_Open =
     float volume = min(1, max(0, cvar_hget(cvarh_vr_counter_sound)));
     if(volume > 0)
     {
-        sound(p, CHAN_AUTO, "vr/counter_open.wav", volume, ATTN_NORM);
+        sound(p, hand >= 0 ? VRGetHandChannel(hand) : CHAN_AUTO, "vr/counter_open.wav", volume, ATTN_NORM);
     }
     dprint(sprintf("counter: open for %.2f s (%s)\n", window, hand < 0 ? "crossed arms" : sprintf("hand %g", hand)));
 };
@@ -2861,15 +2861,16 @@ void() VR_Bash =
 
     // Each its own sound (vr_bash_sound; round 18), apart from the blows'; 0: the old ones.
     float bashSound = min(1, cvar_hget(cvarh_vr_bash_sound));
+    float bashChan = both ? CHAN_AUTO : VRGetHandChannel(readyHand); // (both hands: in front of the chest)
     if(bashSound > 0)
     {
-        sound(self, CHAN_AUTO, (counter && armed) ? "vr/bash_parry.wav" : (armed ? "vr/bash.wav" : "vr/shove.wav"),
+        sound(self, bashChan, (counter && armed) ? "vr/bash_parry.wav" : (armed ? "vr/bash.wav" : "vr/shove.wav"),
               bashSound * (both ? 1 : 0.7), ATTN_NORM);
     }
     else
     {
-        sound(self, CHAN_AUTO, armed ? "player/axhit2.wav" : "fisthit.wav", 1, ATTN_NORM);
-        sound(self, CHAN_AUTO, "demon/dland2.wav", both ? 0.7 : 0.45, ATTN_NORM);
+        sound(self, bashChan, armed ? "player/axhit2.wav" : "fisthit.wav", 1, ATTN_NORM);
+        sound(self, bashChan, "demon/dland2.wav", both ? 0.7 : 0.45, ATTN_NORM);
     }
     if(both)
     {

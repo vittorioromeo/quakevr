@@ -386,6 +386,7 @@ void VR_NetStatsEntities (edict_t *clent, int sent, int insight, int bytes, int 
 // except the listener (the head, in VR) and the hands' and moving sounds (VR_SndSpatialize).
 void VR_SndListener (float *origin, float *forward, float *right, float *up);	// S_Update: the listener (in VR, the head)
 int VR_SndSpatialize (channel_t *ch);				// start of SND_Spatialize: nonzero if it set the volumes (a hand's sound); moves a sound following its entity
+int VR_SndHandOf (const channel_t *ch, float *hand);	// snd_show 2: the hand (0 main, 1 off; -1 not a hand's) a channel plays from, `hand` its place
 void VR_SndStarted (channel_t *ch);					// end of S_StartSound: a new sound on the channel
 int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
 int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices

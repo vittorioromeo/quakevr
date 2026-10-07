@@ -1301,17 +1301,20 @@ void testHands(Result& res)
         Con_Printf("snd_test hands: skipped (needs a map, VR and sound)\n");
         return;
     }
-    for(int h = 0; h < 2; h++)
+    for(int k = 0; k < 4; k++)
     {
+        // The weapon channels (1, 5: from the muzzle), then the hands' own (SND_CHAN_HAND, SND_CHAN_HAND2: from the hand).
+        const int h = k % 2 == 0 ? HAND_MAIN : HAND_OFF;
+        const bool own = k >= 2;
         channel_t ch{};
         ch.entnum = cl.viewentity;
-        ch.entchannel = h == HAND_MAIN ? 1 : 5;
+        ch.entchannel = own ? (h == HAND_MAIN ? SND_CHAN_HAND : SND_CHAN_HAND2) : (h == HAND_MAIN ? 1 : 5);
         ch.master_vol = 255;
         ch.dist_mult = 1.f / 1000.f;
         VectorCopy(listener_origin, ch.origin);
         const int handled = VR_SndSpatialize(&ch);
         const glm::vec3 at{ch.origin[0], ch.origin[1], ch.origin[2]};
-        const glm::vec3 hand = hs.muzzleValid[h] ? hs.muzzle[h] : hs.pos[h];
+        const glm::vec3 hand = !own && hs.muzzleValid[h] ? hs.muzzle[h] : hs.pos[h];
         const glm::vec3 head{listener_origin[0], listener_origin[1], listener_origin[2]};
         const glm::vec3 right{listener_right[0], listener_right[1], listener_right[2]};
         const float side = glm::dot(hand - head, right);
@@ -1320,7 +1323,8 @@ void testHands(Result& res)
             h == HAND_MAIN ? "main" : "off", ch.entchannel, at.x, at.y, at.z, glm::length(at - hand), glm::length(at - head),
             side, ch.leftvol, ch.rightvol);
         const bool panned = za::abs(side) < 2.f || (side > 0.f) == (ch.rightvol > ch.leftvol);
-        res.check(h == HAND_MAIN ? "hands: the main hand's weapon channel plays from it" : "hands: the off hand's from it",
+        res.check(own ? (h == HAND_MAIN ? "hands: the main hand's own channel plays from the hand" : "hands: the off hand's own from it")
+                      : (h == HAND_MAIN ? "hands: the main hand's weapon channel plays from it" : "hands: the off hand's from it"),
             handled && glm::length(at - hand) < 0.5f && panned);
     }
 }

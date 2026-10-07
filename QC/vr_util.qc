@@ -148,6 +148,11 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetGunChannel,
                           CHAN_WEAPON2,
                           CHAN_WEAPON);
 
+// A sound from the hand xHand (any free channel: CHAN_HAND, CHAN_HAND2), not the middle of the head.
+VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandChannel,
+                          CHAN_HAND2,
+                          CHAN_HAND);
+
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetFireButtonPressed,
                           self.button3,
                           self.button0);

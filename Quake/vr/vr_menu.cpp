@@ -1108,7 +1108,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Sounds muffled while your head is in water, slime or lava (your head's place, not your body's). 0 off."),
         header("Movement and Nearness"),
         toggle("Weapons From Your Hands", vr_snd_hands)
-            .help("Your guns' shots and your blows sound from the hand that holds the weapon, not from the middle of your "
+            .help("Your guns' shots, your blows and what your hands do (a parry, a reload, drawing and holstering, a dry "
+                  "click, the grenade pouch, a chainsaw's cord) sound from the hand doing it, not from the middle of your "
                   "head."),
         toggle("Sounds Follow Things", vr_snd_follow)
             .help("A sound stays with what made it as it moves (a monster, a door, a hook in flight)."),

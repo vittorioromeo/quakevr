@@ -1037,7 +1037,7 @@ void(float xHand) VR_HandGrenade_Take =
     VR_GrenShot_Make(g); // (shots meet it once it leaves the hand: a dud lying about too)
     // Its turn in the hand as it comes out (vr_grenade_pouch_hold_*), on top of its grip (vr_grip.cpp serverFromPouch).
     g.carry_offset = carrypouch(g, VRGetEntHandRot(p, xHand), g.carry_offset);
-    sound(p, CHAN_AUTO, "vr/grenade_pouch.wav", 0.9, ATTN_NORM);
+    sound(p, VRGetHandChannel(xHand), "vr/grenade_pouch.wav", 0.9, ATTN_NORM);
     VR_HandGrenade_Haptic(p, xHand, 0.1, 90, 0.8);
     dprint(sprintf("grenade: hand %s taken from the pouch by hand %g, %g %s left\n", multi ? "multi-grenade" : "grenade",
         xHand, VR_HandGrenade_Ammo(p, g), multi ? "multi-rockets" : "rockets"));
@@ -1062,7 +1062,7 @@ float(float xHand, entity g) VR_HandGrenade_LetGo =
     g.carry_player = world;
     VR_HandGrenade_AmmoBack(self, g);
     VR_HandGrenade_AmmoChanged(self);
-    sound(self, CHAN_AUTO, "vr/grenade_pouch.wav", 0.6, ATTN_NORM);
+    sound(self, VRGetHandChannel(xHand), "vr/grenade_pouch.wav", 0.6, ATTN_NORM);
     VR_HandGrenade_Haptic(self, xHand, 0.08, 90, 0.6);
     dprint(sprintf("grenade: hand %s put back in the pouch by hand %g, %g %s\n", g.vr_hgren_multi ? "multi-grenade" :
         "grenade", xHand, VR_HandGrenade_Ammo(self, g), g.vr_hgren_multi ? "multi-rockets" : "rockets"));

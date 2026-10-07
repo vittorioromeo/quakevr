@@ -27411,3 +27411,41 @@ Checked: the icon groups extracted from the Release ironwail.exe and QuakeVR-Set
 .ico files at all ten sizes. Old and new side by side at 16/24/32/48, 1x and 4x: "QVR:U" reads at 48 and still reads
 at 32 (the old "QUAKE VR" was barely legible at 32 and "UNLEASHED" never); at 24 and 16 the text is a smudge in both,
 the emblem carries the icon.
+
+## Hand sounds from the hand (AUDIO_REVIEW.md row 1, 2026-10-07)
+
+Only the two weapon channels (1 and 5) played from the hand; everything else a hand does (a parry, a bash, a reload,
+drawing and holstering, a dry click, the grenade pouch, a chainsaw's cord, a carry's swish) played from the middle of
+the head on `CHAN_AUTO`/`CHAN_BODY`.
+
+- **Engine.** Two new channels, `SND_CHAN_HAND` 8 and `SND_CHAN_HAND2` 9 (`protocol.h`): "any free one" as channel 0
+  (`S_AUTOCHANNEL`, `snd_dma.c`: they never cut a sound off), played from the main and the off hand (`vr_audio.cpp`
+  `handOf`; the hand itself, `handSoundAt`, where the weapon channels keep the muzzle), in the Steam Audio voices and
+  in Quake's own panning alike (`VR_SndSpatialize`), with `vr_snd_hands` (on) as before. `SV_StartSound` takes channels
+  0 to 9 (`SND_MAX_CHANNEL`); 8 and up go with `SND_LARGEENTITY` (the channel a byte: FitzQuake's message carried it,
+  and the old `SND_LARGESOUND` choice for `channel >= 8` did not). NetQuake's protocol (3 bits) sends them as channel 0.
+  Old demos: unchanged messages, parsed as before (`demo1` played); a demo recorded with them plays them back.
+- **QC.** `CHAN_HAND`, `CHAN_HAND2` (`defs.qc`) through `VRGetHandChannel(xHand)` (`vr_util.qc`). Converted:
+  `combat.qc` a corpse struck (VR_Corpse blow: fisthit/axhit2), the one-handed parry's ring (`vr/parry`, `axhit2`;
+  the old `axhit2`/`tink1`); `vr_melee.qc` the chainsaw's swing (was `CHAN_AUTO`), the counter's opening chime (its
+  parrying hand; crossed arms stay in the middle), a one-handed bash/shove (`vr/bash`, `bash_parry`, `shove`, or the
+  old `axhit2`/`fisthit` + `dland2`; both hands stay in the middle); `weapons.qc` the axe's hit on a body and on a wall,
+  the dry click (`gunclick`), the lightning gun's `lstart`, the lava nailgun's `snail`, the throw's swish
+  (DropWeaponInHandScaled), holstering (`holster1`: VRPutWeaponInHolster now takes the hand; the quick-slot path's own
+  second `holster1` dropped), reload and unload (`reload1`), the hand-off and the hand switch (`holster0`, `sword2`,
+  from the hand taking it), taking a carried gun back and drawing from a holster (`holster0`); `vr_carry.qc` a torch
+  taken up (`pommel2`), the carry swish, the second hand joining a carry; `vr_grapple.qc` the hook home in the gun
+  (`tink1`), the quick-release and detach clicks, the rope's twang (`grapple_taut`), the reel's and unreel's clicks;
+  `vr_juice.qc` a deflection (`tink1`, `axhit2`); `vr_enemyguns.qc` a burst's rounds and the dry click;
+  `vr_grenade.qc` the pouch (taking one out, putting one back); `vr_chainsaw.qc` the cord's pulls (weak, failed) and
+  the dry click. Left in the middle of the head: gasps, the counter's landing, the headbutt, the Quad's sound, item
+  pickups (row 13).
+- **Debug.** `snd_show 2` prints each channel's place (`at x y z`) and, for a hand's, the hand and how far the sound is
+  from it and from the head. `vr_snd_test hands` checks channels 8 and 9 too (from the hand, panned to its side).
+
+Checked (`run.sh -Sound`, `snd_show 2`): the off hand's empty shotgun clicks on channel 9 from the off hand
+(`at 471 -342 102 | off hand 471 -342 102 (0.0 off)`); the main hand reaching a holster reloads on channel 8 from it
+(`reload1.wav at 491 -348 99 | main hand ... (0.0 off; the head 23.5)`); `vr_snd_test hands` 4 PASS.
+
+In VR: parry with one hand, reload at a holster, holster and draw, dry-fire an empty gun, pull a grenade from the pouch:
+each should sound from that hand (turn your head: it stays with the hand).

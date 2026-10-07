@@ -600,6 +600,11 @@ float CHAN_ITEM    = 3;
 float CHAN_BODY    = 4;
 float CHAN_WEAPON2 = 5;
 float CHAN_OTHER   = 6;
+// Quake VR: the hands' own channels (any free one, as CHAN_AUTO, never cutting a sound off), played from the main
+// and the off hand (the engine's protocol.h SND_CHAN_HAND; vr_audio.cpp handOf): a parry, a reload, a holster. Through
+// VRGetHandChannel(xHand). Only the player's sounds are moved to a hand; on another entity they are CHAN_AUTO's.
+float CHAN_HAND    = 8;
+float CHAN_HAND2   = 9;
 
 float ATTN_NONE   = 0;
 float ATTN_NORM   = 1;

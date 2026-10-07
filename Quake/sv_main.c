@@ -272,7 +272,7 @@ void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume
 	if (attenuation < 0 || attenuation > 4)
 		Host_Error ("SV_StartSound: attenuation = %f", attenuation);
 
-	if (channel < 0 || channel > 7)
+	if (channel < 0 || channel > SND_MAX_CHANNEL) // QVR: and the hands' (protocol.h SND_CHAN_HAND)
 		Host_Error ("SV_StartSound: channel = %i", channel);
 
 	if (sv.datagram.cursize > MAX_DATAGRAM-21)
@@ -306,7 +306,14 @@ void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume
 			return; //don't send any info protocol can't support
 		field_mask |= SND_LARGEENTITY;
 	}
-	if (sound_num >= 256 || channel >= 8)
+	if (channel >= 8) // QVR: the hands' channels: the channel as a byte (SND_LARGESOUND, as it was, didn't carry it)
+	{
+		if (sv.protocol == PROTOCOL_NETQUAKE)
+			channel = 0; // (any free one: played from the player)
+		else
+			field_mask |= SND_LARGEENTITY;
+	}
+	if (sound_num >= 256)
 	{
 		if (sv.protocol == PROTOCOL_NETQUAKE)
 			return; //don't send any info protocol can't support

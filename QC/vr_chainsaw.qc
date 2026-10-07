@@ -524,12 +524,12 @@ void(float xHand) VR_Chainsaw_Frame =
     {
         if(running)
         {
-            sound(self, CHAN_AUTO, "vr/saw_pull_weak.wav", 0.6, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "vr/saw_pull_weak.wav", 0.6, ATTN_NORM);
             VR_Saw_Debug(sprintf("chainsaw: %s hand's cord pulled: already running\n", VR_Saw_HandName(xHand)));
         }
         else if(fuel <= 0)
         {
-            sound(self, CHAN_AUTO, "vr/saw_pull_weak.wav", 1, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "vr/saw_pull_weak.wav", 1, ATTN_NORM);
             VR_Saw_Debug(sprintf("chainsaw: %s hand's cord pulled: no fuel\n", VR_Saw_HandName(xHand)));
         }
         else if(!VR_Saw_ForcedFail(xHand) && random() < cvar_hget(cvarh_vr_chainsaw_start_chance))
@@ -545,7 +545,7 @@ void(float xHand) VR_Chainsaw_Frame =
         }
         else
         {
-            sound(self, CHAN_AUTO, "vr/saw_pull.wav", 1, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "vr/saw_pull.wav", 1, ATTN_NORM);
             VRGunHaptic(xHand, 0.15, 40, 0.4);
             VR_Saw_Debug(sprintf("chainsaw: %s hand's cord pulled: it didn't catch\n", VR_Saw_HandName(xHand)));
         }
@@ -656,7 +656,7 @@ void(float xHand) VR_Chainsaw_Frame =
         float click = xHand == cVR_OffHand ? self.vr_saw_click_next2 : self.vr_saw_click_next;
         if(time >= click)
         {
-            sound(self, CHAN_AUTO, "gunclick.wav", 1, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "gunclick.wav", 1, ATTN_NORM);
             if(xHand == cVR_OffHand) self.vr_saw_click_next2 = time + 0.5;
             else                     self.vr_saw_click_next = time + 0.5;
             VR_Saw_Debug(sprintf("chainsaw: %s hand's trigger: empty click at %g\n", VR_Saw_HandName(xHand), time));

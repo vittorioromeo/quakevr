@@ -1487,14 +1487,17 @@ void ensure()
         (Sys_DoubleTime() - start) * 1000.0);
 }
 
-// The player's weapon channel's hand (QC VRGetGunChannel: CHAN_WEAPON the main hand, CHAN_WEAPON2 the off hand).
+// The hand of one of the player's hand channels: the weapon channels (QC VRGetGunChannel: CHAN_WEAPON the main hand,
+// CHAN_WEAPON2 the off hand; from the muzzle) and the hands' own (VRGetHandChannel: CHAN_HAND, CHAN_HAND2, protocol.h
+// SND_CHAN_HAND; any free one, from the hand: a parry, a reload, a holster). -1 for the player's other channels.
 int handOf(const channel_t* ch)
 {
     if(vr_snd_hands.value == 0.f || ch->entnum != cl.viewentity || cl.viewentity <= 0 || !VR_IsActive())
     {
         return -1;
     }
-    if(ch->entchannel != 1 && ch->entchannel != 5)
+    const int c = ch->entchannel;
+    if(c != 1 && c != 5 && c != SND_CHAN_HAND && c != SND_CHAN_HAND2)
     {
         return -1;
     }
@@ -1502,7 +1505,15 @@ int handOf(const channel_t* ch)
     {
         return -1;
     }
-    return ch->entchannel == 5 ? HAND_OFF : HAND_MAIN;
+    return c == 5 || c == SND_CHAN_HAND2 ? HAND_OFF : HAND_MAIN;
+}
+
+// Where a hand channel's sound plays from: a weapon channel's from the muzzle (or the hand), a hand's own from the hand.
+glm::vec3 handSoundAt(const channel_t* ch, int hand)
+{
+    const hands::State& hs = hands::current();
+    const bool weapon = ch->entchannel == 1 || ch->entchannel == 5;
+    return weapon && hs.muzzleValid[hand] ? hs.muzzle[hand] : hs.pos[hand];
 }
 
 // vr_snd_falloff: Quake's distance falloff scaled (1 Quake's own; 0.5 a sound carries twice as far).
@@ -2474,6 +2485,19 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
     report();
 }
 
+extern "C" int VR_SndHandOf(const channel_t* ch, float* hand)
+{
+    const int h = handOf(ch);
+    if(h >= 0)
+    {
+        const glm::vec3 p = handSoundAt(ch, h);
+        hand[0] = p.x;
+        hand[1] = p.y;
+        hand[2] = p.z;
+    }
+    return h < 0 ? -1 : h == HAND_MAIN ? 0 : 1;
+}
+
 extern "C" int VR_SndSpatialize(channel_t* ch)
 {
     if(!live)
@@ -2485,8 +2509,7 @@ extern "C" int VR_SndSpatialize(channel_t* ch)
     if(hand >= 0)
     {
         // The hand's muzzle (or the hand), panned as Quake would a sound there.
-        const hands::State& hs = hands::current();
-        const glm::vec3 p = hs.muzzleValid[hand] ? hs.muzzle[hand] : hs.pos[hand];
+        const glm::vec3 p = handSoundAt(ch, hand);
         ch->origin[0] = p.x;
         ch->origin[1] = p.y;
         ch->origin[2] = p.z;

@@ -101,6 +101,8 @@ typedef struct
 void S_Init (void);
 void S_Startup (void);
 void S_Shutdown (void);
+/* QVR: a channel that never overrides another sound of its entity's: 0, and the hands' (protocol.h SND_CHAN_HAND) */
+#define S_AUTOCHANNEL(c)	((c) == 0 || (c) == 8 || (c) == 9)
 void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float fvol, float attenuation);
 void S_StaticSound (sfx_t *sfx, vec3_t origin, float vol, float attenuation);
 void S_StopSound (int entnum, int entchannel);

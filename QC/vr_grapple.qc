@@ -896,7 +896,7 @@ void(entity h, string xWhy) VR_Grapple_Home =
                 if(gg_hand == cVR_OffHand) self.gh_rearm2 = TRUE;
                 else                       self.gh_rearm = TRUE;
             }
-            sound(self, CHAN_AUTO, "weapons/tink1.wav", 0.6, ATTN_NORM);
+            sound(self, VRGetHandChannel(gg_hand), "weapons/tink1.wav", 0.6, ATTN_NORM);
             VR_Grapple_Haptic(gg_hand, 0.08, 120, 0.6);
             self = oldSelf;
         }
@@ -1027,7 +1027,7 @@ void(float xHand) VR_Grapple_QuickRelease =
     VR_Grapple_Haptic(xHand, 0.05, 160, 0.5);
     if(h == world)
     {
-        sound(self, CHAN_AUTO, "weapons/tink1.wav", 0.3, ATTN_NORM); // (nothing out: a click)
+        sound(self, VRGetHandChannel(xHand), "weapons/tink1.wav", 0.3, ATTN_NORM); // (nothing out: a click)
         if(VR_Grapple_Debug())
         {
             dprint(sprintf("grapple: hand %g reel-in button: no hook out\n", xHand));
@@ -1045,7 +1045,7 @@ void(float xHand) VR_Grapple_Detach =
     VR_Grapple_Haptic(xHand, 0.05, 160, 0.5);
     if(h == world || (h.gh_state != GS_BITTEN && h.gh_state != GS_FLYING))
     {
-        sound(self, CHAN_AUTO, "weapons/tink1.wav", 0.3, ATTN_NORM); // (nothing in: a click)
+        sound(self, VRGetHandChannel(xHand), "weapons/tink1.wav", 0.3, ATTN_NORM); // (nothing in: a click)
         if(VR_Grapple_Debug())
         {
             dprint(sprintf("grapple: hand %g detach button: %s\n", xHand, h == world ? "no hook out" :
@@ -1481,7 +1481,7 @@ void(entity h, float xHand, float xSpeed) VR_Grapple_Taut =
         return;
     }
     float k = min(1, (xSpeed - 120) / 500);
-    sound(self, CHAN_AUTO, "vr/grapple_taut.wav", 0.35 + 0.65 * k, ATTN_NORM);
+    sound(self, VRGetHandChannel(xHand), "vr/grapple_taut.wav", 0.35 + 0.65 * k, ATTN_NORM);
     VR_Grapple_Haptic(xHand, 0.08, 70, 0.3 + 0.7 * k);
     if(VR_Grapple_Debug())
     {
@@ -1707,7 +1707,7 @@ void(entity h, float xHand, float xLoad, float xMoving) VR_Grapple_ReelFeel =
         // Clicks a little slower under a heavy load, none when it stalls (only the strain in the hand).
         if(xMoving)
         {
-            sound(self, CHAN_AUTO, "vr/grapple_reel.wav", 0.55, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "vr/grapple_reel.wav", 0.55, ATTN_NORM);
         }
         h.gh_sound_at = time + 0.25 * (1 + 0.6 * xLoad);
     }
@@ -1907,7 +1907,7 @@ void(entity h, float xHand, float xUnreeling) VR_Grapple_Unwind =
     {
         if(moving)
         {
-            sound(self, CHAN_AUTO, "vr/grapple_unreel.wav", 0.5, ATTN_NORM);
+            sound(self, VRGetHandChannel(xHand), "vr/grapple_unreel.wav", 0.5, ATTN_NORM);
         }
         h.gh_sound_at = time + 0.25;
     }
