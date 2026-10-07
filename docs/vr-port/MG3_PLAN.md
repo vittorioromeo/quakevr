@@ -302,7 +302,8 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
 - **M3-18 Ranged knight.** Accept: projectile attack, parry, hit zones on rknight.mdl.
   **Built 2026-10-07**: its own rig and head zone, the death knight's tables, any campaign with MG3's data, training
   dummy 21 (ROUND21.md).
-- **M3-19 Orb.** Accept: flies/teleports, projectiles, death; no ragdoll; grapple rules.
+- **M3-19 Orb.** Accept: flies/teleports, projectiles, death; no ragdoll; grapple rules. **M3-19..23 built 2026-10-07**
+  (ROUND21.md, "Dawn of the Machine (MG3): monsters II").
 - **M3-20 Ghost, sacrifices, slime.** monster_ghost, misc_sacrifice + counter, monster_slime. Accept: map8 sacrifice
   count reaches its target; slime spawns tarbabies; ghost phases.
 - **M3-21 MG3 lava man.** campaign-scoped branch of the existing class. Accept: map2b lava men behave per MG3; Rogue r2m* lava man unchanged.
