@@ -14,6 +14,7 @@
 #include "vr_protocol.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -802,11 +803,12 @@ void sayLog(const DeriveLog& log)
     }
 }
 
-// Any thread: reads the model's data (loaded: Mod_Extradata on the main thread first) and writes `rig` and `log` only.
-bool derive(qmodel_t* model, const SeedTable& table, Rig& rig, DeriveLog& log)
+// Any thread: reads the model's data `hdr` (Mod_Extradata, taken on the main thread: Cache_Check relinks the cache's LRU
+// list, which a worker must never touch; the cache does not move while the pool runs this) and writes `rig` and `log`
+// only.
+bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig& rig, DeriveLog& log)
 {
     const double t0 = Sys_DoubleTime();
-    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
     if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ||
         hdr->numverts != table.numVerts || hdr->numposes < 2 || table.count > maxBones)
     {
@@ -1475,7 +1477,7 @@ const Rig* rigFor(qmodel_t* model)
     }
     za::UniquePtr<Rig> r = za::makeUnique<Rig>();
     DeriveLog log;
-    const bool ok = derive(model, *table, *r, log);
+    const bool ok = derive(model, static_cast<const aliashdr_t*>(Mod_Extradata(model)), *table, *r, log);
     sayLog(log);
     if(!ok)
     {
@@ -1493,6 +1495,7 @@ void warmRigs(qmodel_t* const* models, int count)
     struct Job
     {
         qmodel_t* model{nullptr};
+        const aliashdr_t* hdr{nullptr}; // (Mod_Extradata here, on the main thread: derive runs on the pool)
         const SeedTable* table{nullptr};
         za::UniquePtr<Rig> rig;
         DeriveLog log;
@@ -1512,22 +1515,34 @@ void warmRigs(qmodel_t* const* models, int count)
         {
             twice = twice || j.model == model;
         }
-        if(twice || !Mod_Extradata(model))
+        const auto* hdr = twice ? nullptr : static_cast<const aliashdr_t*>(Mod_Extradata(model));
+        if(!hdr)
         {
             continue;
         }
         Job j;
         j.model = model;
+        j.hdr = hdr;
         j.table = table;
         j.rig = za::makeUnique<Rig>();
         work.pushBack(static_cast<Job&&>(j));
+    }
+    // The headers again once every model is loaded (a load above may have let an earlier one go from the cache):
+    // Cache_Check loads nothing, so these stay put until the pool is done.
+    for(za::SizeT k = work.size(); k-- > 0;)
+    {
+        work[k].hdr = static_cast<const aliashdr_t*>(Cache_Check(&work[k].model->cache));
+        if(!work[k].hdr)
+        {
+            work.erase(work.begin() + static_cast<za::PtrDiffT>(k));
+        }
     }
     // Each its own on the pool (tens of milliseconds each: the map's monsters were a quarter of a second in a row).
     qvr::jobs::parallelFor(warmSite, work.size(), 1, [&work](za::SizeT begin, za::SizeT end) {
         for(za::SizeT k = begin; k < end; k++)
         {
             Job& j = work[k];
-            j.ok = derive(j.model, *j.table, *j.rig, j.log);
+            j.ok = derive(j.model, j.hdr, *j.table, *j.rig, j.log);
         }
     });
     // Kept in the order asked (as rigFor one by one would have).

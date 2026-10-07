@@ -76,6 +76,7 @@ extern "C" {
 extern float m_mousex, m_mousey; // menu.c: the mouse in menu coordinates
 extern qboolean keydown[MAX_KEYS]; // keys.c
 extern cvar_t ui_mouse_sound; // menu.c
+extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
 }
 
@@ -4374,6 +4375,10 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Split Work Between Threads", vr_jobs_parallel)
             .help("The game's thread pool shares out the grasp solve, the liquids' volume, the decal atlas and the models' "
                   "occlusion bakes. Off: the calling thread does all of it (the same results, slower: to compare)."),
+        toggle("Catch Memory Use off the Main Thread", vr_zone_threadcheck)
+            .help("The game crashes at once, with the culprit's stack (qvr_crash.txt), when a thread other than the main one "
+                  "uses the hunk, the model cache or the zone (none of them is thread-safe; vr_zone_threadcheck). For "
+                  "testing: a map load's crash in its data is often one of these."),
         cycle("Worker Threads", vr_jobs_threads, {{0.f, "Auto"}, {1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"}})
             .help("The thread pool's workers besides the main thread (Auto: the CPU's threads less one). Changed, the pool is "
                   "made again. -jobs <n> on the command line sets it from the start."),

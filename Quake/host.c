@@ -1661,6 +1661,7 @@ void Host_Init (void)
 	Cmd_Init ();
 	LOG_Init (host_parms);
 	Cvar_Init (); //johnfitz
+	Memory_InitCvars (); // QVR: vr_zone_threadcheck
 	COM_Init ();
 	COM_InitFilesystem ();
 	VR_TimeMark ("filesystem (paks, game dirs)"); // QVR

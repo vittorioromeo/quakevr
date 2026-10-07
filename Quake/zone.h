@@ -72,6 +72,7 @@ Zone block
 */
 
 void Memory_Init (void *buf, int size);
+void Memory_InitCvars (void); // QVR: vr_zone_threadcheck (after Cvar_Init)
 
 #ifdef __cplusplus
 extern "C" {

@@ -48,6 +48,27 @@ typedef struct
 
 void Cache_FreeLow (int new_low_hunk);
 
+// QVR: vr_zone_threadcheck 1: the hunk, the cache and the zone used from any thread but the main one crash at once, with
+// that thread's stack (qvr_crash.txt). None of them is thread-safe: even Cache_Check (Mod_Extradata) relinks the cache's
+// LRU list, and a pool worker's (ragdoll rigs at a map load) corrupted it, and through it the map's data on the hunk
+// (ROUND21.md, "Map load crash: the cache's LRU list from the pool").
+cvar_t vr_zone_threadcheck = {"vr_zone_threadcheck", "0", CVAR_NONE};
+static SDL_threadID zone_main_thread;
+static FUNC_NOINLINE void Zone_WrongThread (void)
+{
+	*(volatile int *)16 = 0; // (the crash handler prints this thread's stack: the caller is the culprit)
+}
+static inline void Zone_CheckThread (void)
+{
+	if (vr_zone_threadcheck.value && zone_main_thread && SDL_ThreadID () != zone_main_thread)
+		Zone_WrongThread ();
+}
+
+void Memory_InitCvars (void)
+{
+	Cvar_RegisterVariable (&vr_zone_threadcheck);
+}
+
 
 /*
 ==============================================================================
@@ -87,6 +108,7 @@ Z_Free
 */
 void Z_Free (void *ptr)
 {
+	Zone_CheckThread ();
 	memblock_t	*block, *other;
 
 	if (!ptr)
@@ -217,6 +239,7 @@ Z_Malloc
 */
 void *Z_Malloc (int size)
 {
+	Zone_CheckThread ();
 	void	*buf;
 
 #ifdef PARANOID
@@ -238,6 +261,7 @@ Z_Realloc
 */
 void *Z_Realloc(void *ptr, int size)
 {
+	Zone_CheckThread ();
 	int old_size;
 	void *old_ptr;
 	memblock_t *block;
@@ -558,6 +582,7 @@ Hunk_AllocInternal
 */
 static void *Hunk_AllocInternal (int size, const char *name, hunkflags_t flags)
 {
+	Zone_CheckThread ();
 	hunkseg_t	*seg;
 	hunk_t		*h;
 	int			i;
@@ -698,6 +723,7 @@ void Hunk_Usage (int *used, int *peak, int *size, int *segments, int *maxsegment
 
 void Hunk_FreeToLowMark (int mark)
 {
+	Zone_CheckThread ();
 	int i;
 
 	if (mark < 0 || mark > hunk_low_used)
@@ -961,6 +987,7 @@ Frees the memory and removes it from the LRU list
 */
 void Cache_Free (cache_user_t *c, qboolean freetextures) //johnfitz -- added second argument
 {
+	Zone_CheckThread ();
 	cache_system_t	*cs;
 
 	if (!c->data)
@@ -992,6 +1019,7 @@ Cache_Check
 */
 void *Cache_Check (cache_user_t *c)
 {
+	Zone_CheckThread ();
 	cache_system_t	*cs;
 
 	if (!c->data)
@@ -1014,6 +1042,7 @@ Cache_Alloc
 */
 void *Cache_Alloc (cache_user_t *c, int size, const char *name)
 {
+	Zone_CheckThread ();
 	cache_system_t	*cs;
 
 	if (c->data)
@@ -1077,6 +1106,7 @@ Memory_Init
 */
 void Memory_Init (void *buf, int size)
 {
+	zone_main_thread = SDL_ThreadID ();
 	int p;
 	int zonesize = DYNAMIC_SIZE;
 
