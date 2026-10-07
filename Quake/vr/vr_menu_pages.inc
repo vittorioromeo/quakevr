@@ -900,6 +900,13 @@ void resetHandMoves()
             .help("Moves the thunderbolt cell's reference point (its top, its feed end) up its length (its model units)."),
         slider("Top Radius", "vr_reload_mag_light_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
             .help("The thunderbolt cell's own radius round its reference point (added to the well's)."),
+        header("Sparks and Smoke"),
+        slider("Contact Sparks", "vr_reload_battery_sparks", 0.f, 40.f, 1.f, "%.0f").extend(0.f, 200.f)
+            .help("Sparks a cell throws as it makes or breaks contact: seated in the gun, or taken out (0: none)."),
+        slider("Spent Cell Smoke", "vr_reload_battery_smoke_time", 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("Seconds a spent cell (taken out empty) smokes from its top, in the hand or lying about (0: never)."),
+        slider("Smoke Opacity", "vr_reload_battery_smoke_alpha", 0.f, 1.f, 0.05f, "%.2f")
+            .help("How thick each wisp of a spent cell's smoke is as it leaves it."),
         open("Cell Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a cell out of the gun sits in the hand: take one from the pouch, then tune it there."),
         header("Receiver (looks only)"),

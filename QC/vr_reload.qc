@@ -58,6 +58,9 @@
 .float vr_pouch_kind;
 .float vr_pouch_count;
 .float vr_ammo_born;     // when it was last in a hand or flying (its time lying about runs from here)
+.float vr_ammo_smoke;    // a spent thunderbolt cell: when it stops smoking (vr_reload_battery_smoke_time; 0 not smoking)
+.float vr_ammo_puffs;    // and the wisps it has given off, since (for the log)
+.float vr_ammo_smoke_from;
 .float vr_ammo_tink;     // its last knock's sound
 .float vr_ammo_full;     // the full gun's tap given (until it leaves the port)
 .float vr_reload_at;     // a player's hands at the ammo pouch last frame (1 off, 2 main)
@@ -398,9 +401,69 @@ void(entity r, string xWhy) VR_Reload_Lose =
     remove(r);
 };
 
-// Held or flying its time waits; lying about past vr_reload_loose_time it fades away over two seconds.
+vector(entity r) VR_Reload_MagRef;
+
+// A thunderbolt cell (`p`'s gun in `xHand`, `r` the cell) making or breaking contact (the author's note
+// vrfiringrange_2026-10-07_22-14-04: it is a battery): vr_reload_battery_sparks sparks at the gun's well (its seat), or at
+// the cell's top without the client's well.
+void(entity p, float xHand, entity r, string xHow) VR_Reload_CellSparks =
+{
+    float n = cvar_hget(cvarh_vr_reload_battery_sparks);
+    if(n <= 0 || r.vr_ammo_wid != WID_LIGHTNING)
+    {
+        return;
+    }
+    vector at = xHand == cVR_MainHand ? p.loadportpos : p.offloadportpos;
+    if(vlen(at - VRGetEntHandPos(p, xHand)) > 64)
+    {
+        at = VR_Reload_MagRef(r);
+    }
+    particle2(at, '0 0 0', QVR_PARTICLE_PRESET_CONTACTSPARKS, n);
+    VR_Reload_Log(sprintf("the cell's contact sparks (%s): %g", xHow, n));
+};
+
+// A spent thunderbolt cell (taken out empty) smokes for vr_reload_battery_smoke_time (the author's note
+// vrfiringrange_2026-10-07_22-14-33), held or lying about: a wisp off its top every tenth of a second, thinning out.
+void(entity r) VR_Reload_CellSpent =
+{
+    float t = cvar_hget(cvarh_vr_reload_battery_smoke_time);
+    if(r.vr_ammo_wid != WID_LIGHTNING || r.vr_ammo_count > 0 || t <= 0)
+    {
+        return;
+    }
+    r.vr_ammo_smoke = time + t;
+    r.vr_ammo_puffs = 0;
+    r.vr_ammo_smoke_from = time;
+    r.nextthink = time + 0.05;
+    VR_Reload_Log(sprintf("a spent cell smoking for %g s", t));
+};
+
+void(entity r) VR_Reload_CellSmoke =
+{
+    if(!r.vr_ammo_smoke)
+    {
+        return;
+    }
+    float t = max(0.1, cvar_hget(cvarh_vr_reload_battery_smoke_time));
+    if(time >= r.vr_ammo_smoke)
+    {
+        VR_Reload_Log(sprintf("the spent cell stopped smoking after %.1f s: %g wisps%s", time - r.vr_ammo_smoke_from,
+            r.vr_ammo_puffs, r.carry_player != world ? " (held)" : ""));
+        r.vr_ammo_smoke = 0;
+        return;
+    }
+    if(random() < 0.35 + 0.65 * (r.vr_ammo_smoke - time) / t)
+    {
+        particle2(VR_Reload_MagRef(r), '0 0 0', QVR_PARTICLE_PRESET_BATTERYSMOKE, 1);
+        r.vr_ammo_puffs = r.vr_ammo_puffs + 1;
+    }
+};
+
+// Held or flying its time waits; lying about past vr_reload_loose_time it fades away over two seconds. A spent cell
+// smokes meanwhile (VR_Reload_CellSmoke: thinks every tenth of a second while it does).
 void() VR_Reload_RoundThink =
 {
+    VR_Reload_CellSmoke(self);
     float life = cvar_hget(cvarh_vr_reload_loose_time);
     if(self.carry_player != world || (!(self.flags & FL_ONGROUND) && vlen(self.velocity) > 1))
     {
@@ -409,7 +472,7 @@ void() VR_Reload_RoundThink =
     if(self.carry_player != world || life <= 0 || time < self.vr_ammo_born + life)
     {
         self.alpha = 0;
-        self.nextthink = time + 0.25;
+        self.nextthink = time + (self.vr_ammo_smoke ? 0.1 : 0.25);
         return;
     }
     if(!self.alpha)
@@ -533,6 +596,8 @@ entity(entity p, float xHand, vector xVel, float xInto, string xHow) VR_Reload_E
         r.flags = r.flags - (r.flags & FL_ONGROUND);
     }
     VR_Reload_Log(sprintf("%s out of the gun (hand %g, %s)", VR_Reload_Desc(r), xHand, xHow));
+    VR_Reload_CellSparks(p, xHand, r, "taken out");
+    VR_Reload_CellSpent(r);
     return r;
 };
 
@@ -559,6 +624,7 @@ void(float xHand, entity r) VR_Reload_SeatMag =
     VR_Reload_Haptic(self, xHand, 0.06, 150, 0.9);
     VR_Reload_Haptic(self, gunHand, 0.1, 60, 0.9);
     VR_Reload_Log(sprintf("%s seated (hand %g): the gun holds %g", VR_Reload_Desc(r), gunHand, r.vr_ammo_count));
+    VR_Reload_CellSparks(self, gunHand, r, "seated");
     remove(r);
 };
 

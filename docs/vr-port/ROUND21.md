@@ -30111,3 +30111,11 @@ The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh
   y 9.79: vr_view.cpp `loadPorts`, `magMounts`; the kick anchors 196 and 254, the mirrors of 192 and 250); the ammo
   button's Y and Roll mirrored (slots 4 and 12: -1.5, 65.4), and weapon settings version 37 takes them where a config
   still has the old ones. In the left hand the gun is drawn mirrored: the magazine stays on the inner side.
+- **The thunderbolt's cell sparks and smokes** (22-14-04, 22-14-33). Seated or taken out (the button, the pull, a
+  knock), a cell throws `vr_reload_battery_sparks` (14; 0 none) small blue-white sparks at the gun's well (QC
+  `VR_Reload_CellSparks`; the new particle preset 17, ContactSparks: glowing, streaked, gone in 0.1-0.4 s). Taken out
+  spent (empty), it smokes for `vr_reload_battery_smoke_time` (7 s; 0 never), held or lying about: a thin grey wisp off
+  its top every tenth of a second, thinning out towards the end (`VR_Reload_CellSmoke` from the round's think; preset 18,
+  BatterySmoke, each wisp `vr_reload_battery_smoke_alpha` 0.45 opaque). Weapons > Reloading > Thunderbolt, "Sparks and
+  Smoke". The log: "the cell's contact sparks (seated|taken out)", "a spent cell smoking for 7 s", "the spent cell
+  stopped smoking after 7.1 s: 52 wisps".

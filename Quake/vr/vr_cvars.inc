@@ -2448,6 +2448,9 @@ QVR_CVAR(vr_reload_pull_snap, "300", CVAR_ARCHIVE)     // its wrist turning agai
 QVR_CVAR(vr_reload_pull_apart, "10", CVAR_ARCHIVE)     // units further apart than as it took hold (any one of the three; a gentle pull only holds it)
 QVR_CVAR(vr_reload_hit_reach, "2", CVAR_ARCHIVE)       // units from a seated magazine (its box, anywhere on it) a hit counts within (the fist, a held prop, the other gun's line)
 QVR_CVAR(vr_reload_pull_reach, "2", CVAR_ARCHIVE)      // units off the attached magazine's box within which a gripping hand holds it (0: on it)
+QVR_CVAR(vr_reload_battery_sparks, "14", CVAR_ARCHIVE)  // sparks a thunderbolt cell throws as it is seated or taken out (0: none)
+QVR_CVAR(vr_reload_battery_smoke_time, "7", CVAR_ARCHIVE) // seconds a spent thunderbolt cell smokes, taken out empty (held or lying about; 0: never)
+QVR_CVAR(vr_reload_battery_smoke_alpha, "0.45", CVAR_ARCHIVE) // each wisp's opacity as it leaves the cell (0..1)
 // The super shotgun broken open (phase 2b; vr_reload.qc; vr_view.cpp draws it open: make_ssg_open.py's parts).
 QVR_CVAR(vr_reload_insert_time, "0.13", CVAR_ARCHIVE) // seconds a shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it (vr_collectfx.cpp; 0: gone at once). Loaded at once all the same
 QVR_CVAR(vr_reload_ssg_break, "1", CVAR_ARCHIVE)       // with Immersive: its spent shells stay in; broken open (the ways below) it throws them out and loads by hand (0: the flick reloads it as before)

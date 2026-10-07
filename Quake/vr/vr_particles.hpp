@@ -50,7 +50,13 @@ enum class Preset : int
     WoodDust,
     // A running chainsaw's exhaust (QC vr_chainsaw.qc, lying running; vr_chainsaw.cpp in a hand): `count` faint puffs,
     // vr_chainsaw_smoke_alpha opaque, drifting out along `dir` and up.
-    ChainsawSmoke
+    ChainsawSmoke,
+    // A thunderbolt cell making or breaking contact as it is seated or taken out (QC vr_reload.qc): `count` small
+    // blue-white sparks, bright and quick, thrown out and falling.
+    ContactSparks,
+    // A spent thunderbolt cell smoking (QC vr_reload.qc, vr_reload_battery_smoke_time): `count` thin grey wisps rising
+    // off its top, each vr_reload_battery_smoke_alpha opaque.
+    BatterySmoke
 };
 
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the
@@ -99,6 +105,11 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength);
 // A running chainsaw's exhaust smoke (Preset::ChainsawSmoke): `count` puffs at `org` going out along `dir` (a unit
 // vector, or zero), each vr_chainsaw_smoke_alpha opaque. Nothing with vr_particles 0.
 void chainsawSmoke(const glm::vec3& org, const glm::vec3& dir, int count);
+
+// A thunderbolt cell's contact sparks (Preset::ContactSparks) and a spent one's smoke (Preset::BatterySmoke): `count` of
+// them at `org`. Nothing with vr_particles 0.
+void contactSparks(const glm::vec3& org, int count);
+void batterySmoke(const glm::vec3& org, int count);
 
 void lavaNailTrail(const glm::vec3& from, const glm::vec3& to);
 

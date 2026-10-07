@@ -523,6 +523,8 @@ void parseParticle2()
         case Preset::Splash: break; // Quake had none (vr_particles.cpp)
         case Preset::WoodDust: puff(22, count * 2); break; // (the browns)
         case Preset::ChainsawSmoke: break;                 // (too faint for Quake's dots)
+        case Preset::ContactSparks: puff(111, count); break;
+        case Preset::BatterySmoke: break;                  // (too faint for Quake's dots)
         default: puff(73, count); break;
     }
 }

@@ -309,4 +309,14 @@ check $(echo "$log" | grep -q "^ssg: a super shotgun lying open (entity [0-9]*),
 log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse 157};vr_reload_bump_speed 100;vr_mock_hand_to main mag 0;wait5;vr_mock_hand_to main mag 0;wait5;vr_mock_hand_to main wbutton front;wait5;vr_mock_hand_to main wbutton front;wait5;toggleconsole;quit" -Filter "vr_mock_hand_to: main hand at" 2>&1)
 mx=$(echo "$log" | grep "main hand at" | sed -n 2p | awk '{print $5}'); bx=$(echo "$log" | grep "main hand at" | sed -n 4p | awk '{print $5}')
 check $(awk -v m="$mx" -v b="$bx" 'BEGIN { print (m != "" && b != "" && m > -0.1 && b < -0.2) ? 1 : 0 }') "the super nailgun in the off hand (x -0.15): its magazine inward (x $mx), its ammo button outward (x $bx)"
+# The thunderbolt's cell sparks as it is taken out and seated (22-14-04); taken out spent, it smokes for
+# vr_reload_battery_smoke_time (7 s; 22-14-33), then stops; a part-used one doesn't smoke.
+SEAT="vr_mock_hand_to main lport 6;wait10;vr_mock_hand_to main lport;wait5;vr_mock_hand_to main lport;wait10"
+log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse 161};give c 100;$BY;$POUCH;$GRIP;$SEAT;$REP;+offhandattack;wait400;-offhandattack;$REP;$BY;$REP;wait700;$REP;toggleconsole;quit" -Filter "^reload: (the cell|a spent|the spent|a magazine)" 2>&1)
+check $(echo "$log" | grep -q "a magazine of 36 out of the gun" && [ "$(echo "$log" | grep -c "the cell's contact sparks (taken out): 14")" = 2 ] && echo "$log" | grep -q "the cell's contact sparks (seated): 14" && [ "$(echo "$log" | grep -c "a spent cell smoking")" = 1 ] && echo 1 || echo 0) "the thunderbolt's cell: sparks taken out (twice) and seated; only the spent one smokes"
+st=$(echo "$log" | grep "the spent cell stopped smoking after" | sed 's/.*after \([0-9.]*\) s: \([0-9]*\) wisps.*/\1 \2/')
+check $(echo "$st" | awk '{print ($1 >= 6.9 && $1 <= 7.3 && $2 >= 30) ? 1 : 0}') "the spent cell smokes for 7 s, then stops (after, wisps: ${st:-none})"
+log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse 161};give c 100;vr_reload_battery_sparks 0;vr_reload_battery_smoke_time 2;+offhandattack;wait400;-offhandattack;$BY;wait300;$REP;toggleconsole;quit" -Filter "^reload: (the cell|a spent|the spent)" 2>&1)
+st=$(echo "$log" | grep "the spent cell stopped smoking after" | sed 's/.*after \([0-9.]*\) s.*/\1/')
+check $(! echo "$log" | grep -q "contact sparks" && awk -v t="$st" 'BEGIN { print (t != "" && t >= 1.9 && t <= 2.3) ? 1 : 0 }') "Contact Sparks 0: none; Spent Cell Smoke 2: it smokes for 2 s ($st)"
 exit $fail

@@ -1719,6 +1719,8 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::Splash: splash(org, dir, count); break;
         case Preset::WoodDust: woodDust(org, dir, count); break;
         case Preset::ChainsawSmoke: chainsawSmoke(org, glm::length(dir) > 0.01f ? glm::normalize(dir) : dir, count); break;
+        case Preset::ContactSparks: contactSparks(org, count); break;
+        case Preset::BatterySmoke: batterySmoke(org, count); break;
         default: blood(org, dir, count); break;
     }
     return true;
@@ -1909,6 +1911,58 @@ void chainsawSmoke(const glm::vec3& org, const glm::vec3& dir, int count)
         p.acc = gravity(-0.035f);
         p.org = org + inBox(0.3f);
         p.vel = dir * rnd(6.f, 12.f) + inBox(2.5f);
+    });
+}
+
+void contactSparks(const glm::vec3& org, int count)
+{
+    if(!vr_particles.value || count <= 0 || !ensureAtlas())
+    {
+        return;
+    }
+    // An electric arc's spatter: tiny blue-white points, glowing, streaked by their speed, gone in a fraction of a second.
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSpark;
+        const float w = rnd(0.8f, 1.f);
+        p.color = glm::vec4{w * rnd(0.7f, 0.9f), w * rnd(0.85f, 1.f), w, 1.f};
+        const float life = rnd(0.12f, 0.4f);
+        p.die = cl.time + life;
+        p.scale = rnd(0.2f, 0.4f);
+        p.type = Custom;
+        p.fade = -1.f / life;
+        p.grow = -0.3f;
+        p.drag = 1.5f;
+        p.additive = true;
+        p.streak = 0.025f;
+        p.acc = gravity(0.6f);
+        p.org = org + inBox(0.3f);
+        p.vel = glm::vec3{rnd(-70.f, 70.f), rnd(-70.f, 70.f), rnd(-20.f, 100.f)};
+    });
+}
+
+void batterySmoke(const glm::vec3& org, int count)
+{
+    const float alpha = za::clamp(vr_reload_battery_smoke_alpha.value, 0.f, 1.f);
+    if(!vr_particles.value || alpha <= 0.f || count <= 0 || !ensureAtlas())
+    {
+        return;
+    }
+    // Burnt insulation's thin acrid wisp: small as it leaves the contact, spreading and rising as it fades.
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        const float g = rnd(0.3f, 0.42f);
+        p.color = glm::vec4{g, g * 0.98f, g * 0.94f, alpha * rnd(0.7f, 1.1f)};
+        const float life = rnd(1.4f, 2.2f);
+        p.die = cl.time + life;
+        p.scale = rnd(0.2f, 0.35f);
+        p.type = Custom;
+        p.fade = -p.color.a / life;
+        p.grow = rnd(1.f, 1.7f);
+        p.drag = 2.f;
+        p.spin = rnd(-0.8f, 0.8f);
+        p.acc = gravity(-0.04f);
+        p.org = org + inBox(0.25f);
+        p.vel = inBox(1.5f) + glm::vec3{0.f, 0.f, rnd(4.f, 9.f)};
     });
 }
 
