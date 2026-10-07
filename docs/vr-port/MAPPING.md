@@ -228,18 +228,45 @@ map entity's prefix (`info_`, `item_`, `weapon_`, `monster_`, `func_`, `trigger_
 rewrites it). The .map opens in TrenchBroom (Valve format; each part a group: the terrain's three func_detail groups,
 each structure a func_detail, and the things spread over the map, pines, boulders, torch posts, crystals,
 func_details by 768-unit tile; ropes and brackets func_detail_illusionary, not solid; the barrels `vr_barrel` physics
-props)
+props; the structural world is only the sealing box and the water)
 for looking, measuring and trying things; carry what you keep back into the script.
 
 ```
 python Misc/trenchbroom/make_id_wad.py                 # once: id's textures from your paks (git-ignored WAD)
-python Misc/quakevr/maps/vrstart2_gen.py               # the .map (about 6 s)
-python Misc/quakevr/maps/vrstart2_gen.py --compile     # and the .bsp/.lit/.lux: ericw-tools 0.18.1's qbsp -bsp2 (2.0's
-                                                       #   lost faces here: holes), the water lit (lit_liquids), 2.0's vis
-                                                       #   and light (the Full profile with -bounce): about 13 min
-python Misc/quakevr/maps/vrstart2_gen.py --compile --fast   # no vis, plain light (about 2 min)
+python Misc/quakevr/maps/vrstart2_gen.py               # the .map (about 10 s)
+python Misc/quakevr/maps/vrstart2_gen.py --compile --preset fast    # iterating: vis -fast, plain light (~5 min)
+python Misc/quakevr/maps/vrstart2_gen.py --compile     # the shipped build (preset final: full vis, light -extra4
+                                                       #   -dirt -bounce, the light grid): ~15 min
+python Misc/quakevr/maps/vrstart2_gen.py --compile --check 300000   # and the hole test over the result
+python Misc/quakevr/maps/bsp_holes.py quakevr/maps/vrstart2.bsp --rays 300000   # the hole test alone, any BSP
 python Misc/quakevr/maps/make_vs2_sky.py               # the sky box (quakevr/gfx/env/vs2night*.png, committed)
 ```
+
+**Compiling** (ericw-tools 2.0 for qbsp, vis and light, as everywhere else): qbsp runs twice at once and the results
+are spliced (`bsp_splice.py`): hull 0 (all that is drawn and lit) from `-nofill -noclip -forcegoodtree -tjunc rotate`,
+the clipping hulls from a normal run. 2.0's fill floods through the BSP's portals, and on this map some portals were
+never made: it turned air solid (slabs standing in the air, without faces); unfilled, though, the clipping hulls are
+18 million clipnodes (250 MB). `-forcegoodtree`: the default midsplit's nodes cut the terrain into slivers it lost faces
+at. `-tjunc rotate`: T-junctions mended as 0.18 did (2.0's default cuts each such face into triangles: a fifth more
+faces and lightmap). The presets (`--preset`, `--help`): **fast** (vis -fast; light -lit -lux and a 128-unit light
+grid: no ambient occlusion, bounce or extra samples) and **final** (full vis; light -extra4 -dirt -dirtscale 1.5
+-dirtdepth 96 -bounce -lit -lux -lightgrid 64). The shipped .bsp is always a final build. Times (the machine shared with
+other agents' games, so +-20%): final qbsp 30 s (hull 0) and 210-310 s (the clipping hulls, in parallel), vis 16-29 s,
+light 560-630 s; fast: the same qbsp, vis 16 s, light 58 s. (Before, with 0.18.1's qbsp: final 39 + 9 + 356 s, fast
+37 + 23 s with no vis.)
+
+**What ericw-tools 2.0's qbsp needs from the geometry** (it makes faces from portals: a portal whose brush side it
+can't find gets none, "N sides not found"; a sliver thinner than its epsilons breaks its portals): no two faces nearly
+but not exactly coplanar, no corner a fraction of a unit through another brush's face, no nearly straight runs of
+terrain edges. The generator ensures it (`mapgeom.py`): `terrain_mesh` (neighbouring tops exactly coplanar or at least
+1.5 degrees / a unit apart, corners moved onto each other's planes, the island's walkable ground left as it is; tops
+within 0.6 degrees of level made level; corners near the water's surface put on it, the clearance 4 units across the
+slope); `unbend` (the terrain's points moved off nearly straight lines of edges); `hull` (a brush's faces within 3
+degrees of each other merged, faces within 1.5 degrees of an axis turned to it, corners within 1.5 units of the ground
+or the water's surface moved clear of it); pines' cones end inside the cone above (they shared a tip); boulders' flat
+undersides buried 4 units; ropes in two pieces. Exactly coplanar terrain triangles of one texture are merged into convex
+prisms. Check a build with `--check` (or `bsp_holes.py`): rays from random open points; a hit where the contents change
+with no face there is a hole.
 
 - **Layout** (x east, y north, the water's surface at z 0): a lake 8000 units across ringed by cliffs and mountains,
   the island in its middle (about 3100 x 2200), and the path from the south-west: the pier (the player's start) ->
@@ -251,9 +278,10 @@ python Misc/quakevr/maps/make_vs2_sky.py               # the sky box (quakevr/gf
   top of the script (`PIER`, `TERRACE`, `GATE`, `BRIDGE`, `PAVILION`, `RANGE`, `TOWER`, `STAIR1`, `STAIR2`).
 - **Terrain**: a height function (the island's coast spline, hills, the flattened places and paths, the ravine, the
   lake's floor, the cliffs' ring), sampled on a jittered lattice (64 units on the island, 128-512 further out) plus
-  the places' and paths' outlines, triangulated (Delaunay, exact integer arithmetic) and built as prisms down to z
-  -1024; neighbours whose tops are within half a unit of coplanar share one plane exactly (`terrain_planes`: the
-  compilers lost faces in the thin wedges between such planes). Textures by slope and height: rock5_2/rock3_8 on
+  the places' and paths' outlines, simplified away from the island (`simplify_points`: a point is left out where the
+  surface without it is within 3 units on the lake's floor, 2 on the cliffs, 6 on the mountains), triangulated
+  (Delaunay, exact integer arithmetic), cleaned for qbsp (above) and built as convex prisms down to z -1024 (the tops
+  written as exact reals, 6 decimals). Textures by slope and height: rock5_2/rock3_8 on
   slopes over 44 degrees, grass1_1/ground1_2 on the island,
   ground1_8 on the paths, rock3_2 on the beach, ground1_5 under water.
 - **Campaigns**: the lecterns run `vr_activestartpaknameidx 0/1/2` (the slipgate, a `trigger_changelevel` to

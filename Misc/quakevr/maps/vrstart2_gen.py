@@ -1,7 +1,7 @@
 # vrstart2_gen.py -- writes quakevr/maps/vrstart2.map, the new VR hub (an island at night), and with --compile builds
-# it (qbsp, vis, light; MAPPING.md's "Full" profile).
+# it (ericw-tools 2.0's qbsp, vis, light; presets "fast" and "final": compile_map, PRESETS, MAPPING.md).
 #
-#   python Misc/quakevr/maps/vrstart2_gen.py [--compile] [--fast] [--tools DIR] [--qbsp EXE]
+#   python Misc/quakevr/maps/vrstart2_gen.py [--compile [--preset fast|final] [--check RAYS]] [--tools DIR]
 #   (first: python Misc/trenchbroom/make_id_wad.py, the id textures' WAD)
 #
 # Everything in the map is made here (reproducible; the .map stays editable in TrenchBroom: the generated parts are
@@ -30,16 +30,12 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import mapgeom
 from mapgeom import (Tex, MapWriter, Perlin, add, box, beam, catmull_rom, cross, cylinder, delaunay, dot, hull, length,
-                     lerp, ngon, norm, point_in_poly, polyline_dist, prism, seg_dist, smoothstep, sub, mul)
+                     lerp, ngon, norm, point_in_poly, polyline_dist, prism, seg_dist, smoothstep, sub, mul, terrain_mesh, simplify_points, unbend)
 
 ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
-DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # vis, light
-# qbsp: ericw-tools 0.18.1's. 2.0-alpha11's qbsp lost faces all over this map (its "N sides not found": 519 portals
-# with no face, holes in the ground, the cliffs, the lake's floor and its surface; 417 even with the terrain's planes
-# shared, terrain_planes); 0.18.1's, once those planes are shared, none (a ray test of 120 000 rays, ROUND21.md,
-# "vrstart2: holes"). It is also six times faster here (36 s).
-DEFAULT_QBSP = "C:/OHWorkspace/ericw-tools-v0.18.1-32-g6660c5f-win64/bin/qbsp.exe"
+DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # qbsp, vis, light
 MAPNAME = "vrstart2"
 OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")
 
@@ -69,7 +65,6 @@ BOX = 4000            # the inside of the sealing box: x, y in -BOX..BOX
 SKY_TOP = 2304
 FLOOR_Z = -1024       # the terrain prisms' bottoms
 WATER_Z = 0
-WATER_TILE = 160      # the water's brushes (build_world): 2 * BOX a multiple of it; a face's lightmap at most 256 units
 SEA_DEPTH = 300       # the lake's floor, far from the shores
 GROUND_STEP = 8       # the island's ground heights are multiples of this (height(): Quake's collision)
 
@@ -506,131 +501,77 @@ def terrain_texture(c, n, x, y):
     return T("cliff2", mode="face", scale=2)
 
 
-TERRAIN_SNAP = 0.5  # units: neighbours whose tops are this close to coplanar are put on one plane (terrain_planes)
+# The terrain is simplified away from the island (mapgeom.simplify_points): a point is left out where the surface
+# without it is within this many units of it. The island, its shore and the islets keep every point.
+TERRAIN_TOL_LAKE = 3      # the lake's floor (under 16 to 300 units of dark water)
+TERRAIN_TOL_CLIFF = 2     # the cliffs, from their feet to their tops (the ledges a swimmer climbs out on)
+TERRAIN_TOL_FAR = 6       # the mountains behind the cliffs' tops
 
 
-def terrain_planes(pts, tris, hz):
-    """The plane each triangle's top lies on: its own, or one shared with neighbours nearly coplanar with it.
-
-    Two neighbouring prisms whose tops are nearly but not exactly coplanar (a hundredth of a degree apart: the heights
-    are integers, the island's in steps of GROUND_STEP) leave between their planes a wedge thinner than the compilers'
-    epsilons; both qbsps (ericw-tools 2.0's "couldn't find portal side", 0.18's CSG) then lost faces there: holes in the
-    ground, the cliffs, the lake's floor and its surface (the lake's foam drew the holes' outlines). So neighbours whose
-    tops come within TERRAIN_SNAP of each other's planes share one plane, exactly: the smaller group joins the larger's
-    if every corner of it is within TERRAIN_SNAP of that plane (exactly coplanar neighbours are a group from the start).
-    A corner so moved is off its neighbours' by less than that (a step, not a gap: the prisms are solid down to the
-    floor). Returns, per triangle, the three points of the plane it takes (None: its own)."""
-    P = [(p[0], p[1], hz[p]) for p in pts]
-    n = len(tris)
-    corners = [[P[i] for i in t] for t in tris]
-
-    def plane_of(q):
-        nrm = norm(cross(sub(q[1], q[0]), sub(q[2], q[0])))
-        if nrm[2] < 0:
-            nrm = mul(nrm, -1)
-        return nrm, dot(nrm, q[0])
-
-    def off(pl, p):
-        return abs(dot(pl[0], p) - pl[1])
-
-    area = [abs(cross(sub(q[1], q[0]), sub(q[2], q[0]))[2]) / 2 for q in corners]
-    parent = list(range(n))
-    members = [[i] for i in range(n)]
-    garea = area[:]
-    gplane = [plane_of(q) for q in corners]
-
-    def find(i):
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-
-    def spread(g, pl):
-        return max(off(pl, p) for m in members[g] for p in corners[m])
-
-    def join(small, big):
-        parent[small] = big
-        members[big] += members[small]
-        members[small] = []
-        garea[big] += garea[small]
-
-    edges = {}
-    for ti, t in enumerate(tris):
-        for k in range(3):
-            edges[(t[k], t[(k + 1) % 3])] = (ti, t[(k + 2) % 3])
-    exact, near = [], []
-    for (a, b), (ti, c) in edges.items():
-        if a < b and (b, a) in edges:
-            tj, d = edges[(b, a)]
-            gap = max(off(gplane[ti], P[d]), off(gplane[tj], P[c]))
-            (exact if gap < 1e-6 else near).append((gap, ti, tj))
-    for _, ti, tj in exact:
-        gi, gj = find(ti), find(tj)
-        if gi != gj:
-            big, small = (gi, gj) if garea[gi] >= garea[gj] else (gj, gi)
-            join(small, big)
-    unresolved = 0
-    for gap, ti, tj in sorted(near):
-        if gap > TERRAIN_SNAP:
-            break
-        gi, gj = find(ti), find(tj)
-        if gi == gj:
-            continue
-        big, small = (gi, gj) if garea[gi] >= garea[gj] else (gj, gi)
-        if spread(small, gplane[big]) <= TERRAIN_SNAP:
-            join(small, big)
-        elif spread(big, gplane[small]) <= TERRAIN_SNAP:
-            join(big, small)
-        else:
-            unresolved += 1
-    # each group's plane: its founding triangle's (the one whose index is the group's)
-    tops = []
-    shared = 0
-    for ti in range(n):
-        g = find(ti)
-        if g == ti:
-            tops.append(None)
-        else:
-            tops.append(corners[g])
-            shared += 1
-    # what is left nearly coplanar (planes apart by less than TERRAIN_SNAP over the pair, not the same)
-    left = 0
-    for gap, ti, tj in near:
-        gi, gj = find(ti), find(tj)
-        if gi != gj and max(off(gplane[gi], p) for p in corners[tj]) < TERRAIN_SNAP:
-            left += 1
-    print("terrain: %d tops on a neighbour's plane, %d nearly coplanar pairs left (%d not joined)" % (shared, left, unresolved))
-    return tops
+def terrain_tolerance(x, y):
+    if abs(x) >= BOX or abs(y) >= BOX or coast_distance(x, y) > -300:
+        return 0
+    for (ix, iy, rr, _) in ISLETS:
+        if math.hypot(x - ix, y - iy) < rr * 1.8:
+            return 0
+    e = math.hypot(x, y) - cliff_radius(math.atan2(y, x))
+    if e > 320:
+        return TERRAIN_TOL_FAR
+    if e > -260:
+        return TERRAIN_TOL_CLIFF
+    return TERRAIN_TOL_LAKE
 
 
 def build_terrain(mw):
     t0 = time.time()
     pts = terrain_points()
+    H = [int(round(height(p[0], p[1]))) for p in pts]
+    tol = [terrain_tolerance(p[0], p[1]) for p in pts]
+    kept = simplify_points(pts, H, tol, [i for i in range(len(pts)) if tol[i] == 0])
+    print("terrain: %d of %d points kept (%.1f s)" % (len(kept), len(pts), time.time() - t0))
+    pts = [pts[i] for i in kept]
+    pts, moves, left = unbend(pts, set(i for i, p in enumerate(pts) if abs(p[0]) >= BOX or abs(p[1]) >= BOX), rounds=12)
+    print("terrain: %d points moved off nearly straight lines of edges (%d left)" % (moves, left))
+    H = [int(round(height(p[0], p[1]))) for p in pts]
     tris = delaunay(pts)
     area = sum(abs((pts[b][0] - pts[a][0]) * (pts[c][1] - pts[a][1]) - (pts[b][1] - pts[a][1]) * (pts[c][0] - pts[a][0]))
                for a, b, c in tris) / 2
     if abs(area - (2 * BOX) ** 2) > 1:
         print("WARNING: the triangulation covers %.0f, not %.0f" % (area, (2 * BOX) ** 2))
-    hz = {}
-    for p in pts:
-        hz[p] = int(round(height(p[0], p[1])))
+    texcache = {}
+
+    def tri_tex(ti, H):
+        if ti not in texcache:
+            a, b, c = tris[ti]
+            tri = [(pts[i][0], pts[i][1], H[i]) for i in (a, b, c)]
+            cx, cy, cz = [sum(q[k] for q in tri) / 3 for k in range(3)]
+            nrm = norm(cross(sub(tri[1], tri[0]), sub(tri[2], tri[0])))
+            if nrm[2] < 0:
+                nrm = mul(nrm, -1)
+            texcache[ti] = terrain_texture((cx, cy, cz), nrm, cx, cy)
+        t = texcache[ti]
+        return (t.name, t.mode, t.scale)
+
+    # watertight, no nearly coplanar neighbours (ericw-tools 2.0's qbsp loses faces at those: mapgeom.terrain_mesh),
+    # exactly coplanar neighbours of one texture merged into convex prisms
+    # the island's walkable ground keeps its heights (steps of GROUND_STEP: exactly level or clearly sloped, which is
+    # what keeps the player from snagging on it; height())
+    walk = [i for i, p in enumerate(pts) if coast_distance(p[0], p[1]) > -100 and H[i] % GROUND_STEP == 0 and H[i] >= 8]
+    H, polys, st = terrain_mesh(pts, tris, H, tri_tex, pinned=walk, levels=(WATER_Z,))
+    print("terrain: %d corners moved (at most %.2f units, %d moves): %d nearly coplanar pairs and %d nearly level tops left; "
+          "%d triangles -> %d prisms" % (st["moved"], st["drift"], st["moves"], st["left"], st["tilted"], st["tris"], st["polys"]))
     # detail: the structural world is only the sealing box (an open lake: vis has nothing to cull, and a structural
     # height field of ten thousand prisms makes qbsp's tree enormous)
     groups = {"terrain island": mw.detail("terrain: island"), "terrain lake": mw.detail("terrain: lake floor"),
               "terrain cliffs": mw.detail("terrain: cliffs and mountains")}
     side = T("cliff2")
-    tops = terrain_planes(pts, tris, hz)
-    for k, (a, b, c) in enumerate(tris):
-        pa, pb, pc = pts[a], pts[b], pts[c]
-        tri = [(pa[0], pa[1], hz[pa]), (pb[0], pb[1], hz[pb]), (pc[0], pc[1], hz[pc])]
-        cx = (pa[0] + pb[0] + pc[0]) / 3
-        cy = (pa[1] + pb[1] + pc[1]) / 3
-        cz = (tri[0][2] + tri[1][2] + tri[2][2]) / 3
-        nrm = norm(cross(sub(tri[1], tri[0]), sub(tri[2], tri[0])))
-        if nrm[2] < 0:
-            nrm = (-nrm[0], -nrm[1], -nrm[2])
-        tex = terrain_texture((cx, cy, cz), nrm, cx, cy)
-        br = prism(tri, FLOOR_Z, tex, side, top=tops[k])
+    for ti in range(len(tris)):
+        tri_tex(ti, H)
+    for cyc, members in polys:
+        poly = [(pts[i][0], pts[i][1], H[i]) for i in cyc]
+        cx = sum(q[0] for q in poly) / len(poly)
+        cy = sum(q[1] for q in poly) / len(poly)
+        br = prism(poly, FLOOR_Z, texcache[members[0]], side)
         d = coast_distance(cx, cy)
         r = math.hypot(cx, cy)
         if d > -300:
@@ -640,7 +581,10 @@ def build_terrain(mw):
         else:
             groups["terrain lake"].append(br)
     print("terrain: %d points, %d triangles (%.1f s)" % (len(pts), len(tris), time.time() - t0))
-    return hz
+    # the things built on it keep their corners clear of the ground and the water's surface (mapgeom.SURFACES)
+    mapgeom.SURFACES[:] = [(mapgeom.MeshSurface(pts, tris, H), True),
+                           (lambda x, y: WATER_Z if abs(x) < BOX and abs(y) < BOX else None, False)]
+    return H
 
 
 def ground(x, y):
@@ -727,8 +671,9 @@ def rail(out, p, q, w=4, h=3, key="beam"):
 NONSOLID = []
 
 
-def rope(out, p, q, sag=4, segs=4):
-    """A rope from p to q, sagging in the middle (thin beams, not solid)."""
+def rope(out, p, q, sag=4, segs=2):
+    """A rope from p to q, sagging in the middle (thin beams, not solid): two pieces (with more, the pieces' faces
+    meet at a degree or two, slivers ericw-tools 2.0's qbsp loses faces at; and they are more brushes)."""
     out = NONSOLID
     pts = []
     for i in range(segs + 1):
@@ -753,7 +698,7 @@ def railing(out, pts, top=36, mid=20, every=56, sq=2.5, rope_mid=False):
             for k in range(n):
                 t0, t1 = k / n, (k + 1) / n
                 rope(out, (lerp(a[0], b[0], t0), lerp(a[1], b[1], t0), lerp(a[2], b[2], t0) + mid),
-                     (lerp(a[0], b[0], t1), lerp(a[1], b[1], t1), lerp(a[2], b[2], t1) + mid), 3, 3)
+                     (lerp(a[0], b[0], t1), lerp(a[1], b[1], t1), lerp(a[2], b[2], t1) + mid), 3)
         elif mid:
             rail(out, (a[0], a[1], a[2] + mid), (b[0], b[1], b[2] + mid), 3, 3)
 
@@ -796,9 +741,17 @@ def rock(out, cx, cy, cz, rx, ry, rz, seed, tex=None, flat=0.35):
         rr = math.sqrt(1 - u * u)
         k = rnd.uniform(0.82, 1.0)
         px, py, pz = rr * math.cos(a) * rx * k, rr * math.sin(a) * ry * k, u * rz * k
-        if pz < -rz * flat:
+        bottom = pz < -rz * flat
+        if bottom:
             pz = -rz * flat - rnd.uniform(0, rz * 0.4)
-        pts.append((cx + px * c - py * s, cy + px * s + py * c, cz + pz))
+        x, y, z = cx + px * c - py * s, cy + px * s + py * c, cz + pz
+        if bottom and mapgeom.SURFACES:
+            # the flattened underside well under the ground (its faces nearly level with the ground just under or
+            # over it would be slivers; ericw-tools 2.0's qbsp loses faces at those)
+            g = mapgeom.SURFACES[0][0](x, y)
+            if g is not None:
+                z = min(z, g - 4)
+        pts.append((x, y, z))
     b = hull(pts, tex or T("cliff", mode="face", uoff=rnd.randrange(256), voff=rnd.randrange(256)))
     if b:
         out.append(b)
@@ -1150,21 +1103,20 @@ def build_world(mw):
     """The sealing box (sky round and above, rock under) and the lake's water."""
     w = mw.world
     S = BOX + 32
-    w.append(box(-S, -S, FLOOR_Z - 32, S, S, FLOOR_Z, T("cliff2")))
-    w.append(box(-S, -S, SKY_TOP, S, S, SKY_TOP + 32, T("sky")))
+
+    def outside(n, c):
+        # the floor's faces towards the void: skip (hull 0 is compiled -nofill, which would keep and light them)
+        return T("skip") if dot(n, (-c[0], -c[1], -c[2])) <= 0 else None
+
+    w.append(box(-S, -S, FLOOR_Z - 32, S, S, FLOOR_Z, T("cliff2"), outside))
+    w.append(box(-S, -S, SKY_TOP, S, S, SKY_TOP + 32, T("sky")))  # (sky: unlit; skip on it would make it solid)
     w.append(box(-S, -S, FLOOR_Z, -BOX, S, SKY_TOP, T("sky")))
     w.append(box(BOX, -S, FLOOR_Z, S, S, SKY_TOP, T("sky")))
     w.append(box(-BOX, -S, FLOOR_Z, BOX, -BOX, SKY_TOP, T("sky")))
     w.append(box(-BOX, BOX, FLOOR_Z, BOX, S, SKY_TOP, T("sky")))
-    # The lake's water: tiles WATER_TILE square, every other one's texture shifted a whole copy (64 texels: drawn the
-    # same), so that qbsp 0.18 merges no two into one face (it leaves liquids' faces whole): each face small enough for
-    # a lightmap (lit_liquids: the water lit as ericw-tools 2.0's qbsp made it, the torches' light on it).
-    n = 2 * BOX // WATER_TILE
-    for i in range(n):
-        for j in range(n):
-            x0, y0 = -BOX + i * WATER_TILE, -BOX + j * WATER_TILE
-            w.append(box(x0, y0, FLOOR_Z, x0 + WATER_TILE, y0 + WATER_TILE, WATER_Z,
-                         T("water", scale=1.0, uoff=64 * ((i + j) % 2))))
+    # The lake's water: one brush (ericw-tools 2.0's qbsp cuts its surface into faces small enough for a lightmap: the
+    # water lit, the torches' light on it)
+    w.append(box(-BOX, -BOX, FLOOR_Z, BOX, BOX, WATER_Z, T("water", scale=1.0)))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1351,20 +1303,31 @@ def keep_clear(x, y, margin=0):
 
 
 def pine(out, x, y, g, h, rnd):
-    """A pine: a bark trunk and three or four cones of needles."""
+    """A pine: a bark trunk and three or four cones of needles. Each cone's tip is well inside the cone above it (were
+    the tips at one point, the cones' faces would meet there nearly coplanar: slivers ericw-tools 2.0's qbsp loses
+    faces at)."""
     trunk = rnd.uniform(5, 8)
     out.append(cylinder((x, y, g - 16), (x, y, g + h * 0.8), trunk, 7, T("bark", mode="face", scale=0.5)))
     layers = rnd.randint(3, 4)
     base = g + max(64, h * rnd.uniform(0.26, 0.34))
+    tiers = []
     for i in range(layers):
         f = i / layers
         r = h * (0.36 - 0.22 * f) * rnd.uniform(0.9, 1.1)
         z0 = base + (h - (base - g)) * f * 0.9
-        tip = z0 + r * 1.5
-        pts = [(px, py, z0) for (px, py) in ngon(x + rnd.uniform(-3, 3), y + rnd.uniform(-3, 3), r, 8, rnd.uniform(0, 1))]
-        pts += [(px, py, z0 - r * 0.18) for (px, py) in ngon(x, y, r * 0.55, 8, rnd.uniform(0, 1))]
-        pts.append((x + rnd.uniform(-2, 2), y + rnd.uniform(-2, 2), min(tip, g + h)))
-        b = hull(pts, T("needles", mode="face", scale=0.5, uoff=rnd.randrange(64), voff=rnd.randrange(64)))
+        ring = ngon(x + rnd.uniform(-3, 3), y + rnd.uniform(-3, 3), r, 8, rnd.uniform(0, 1))
+        under = ngon(x, y, r * 0.55, 8, rnd.uniform(0, 1))
+        tip = (x + rnd.uniform(-2, 2), y + rnd.uniform(-2, 2), z0 + r * 1.5)
+        tex = T("needles", mode="face", scale=0.5, uoff=rnd.randrange(64), voff=rnd.randrange(64))
+        tiers.append([r, z0, ring, under, tip, tex])
+    top = g + h
+    for t in reversed(tiers):
+        r, z0, ring, under, tip, tex = t
+        t[4] = (tip[0], tip[1], min(tip[2], top))
+        top = z0 + (t[4][2] - z0) * 0.75  # the next cone down ends three quarters of the way up this one
+    for r, z0, ring, under, tip, tex in tiers:
+        pts = [(px, py, z0) for (px, py) in ring] + [(px, py, z0 - r * 0.18) for (px, py) in under] + [tip]
+        b = hull(pts, tex)
         if b:
             out.append(b)
     split(out)
@@ -1458,7 +1421,7 @@ def build_decor(mw):
     # the rowboat, tied to the pier's end
     p = PIER
     rowboat(props, p["x"] - p["w"] / 2 - 40, p["y1"] + 150, 0)
-    rope(props, (p["x"] - p["w"] / 2 - 4, p["y1"] + 104, p["z"] - 6), (p["x"] - p["w"] / 2 - 104, p["y1"] + 150, 12), 6, 5)
+    rope(props, (p["x"] - p["w"] / 2 - 4, p["y1"] + 104, p["z"] - 6), (p["x"] - p["w"] / 2 - 104, p["y1"] + 150, 12), 6)
     # a brazier and boulders on each islet: places to swim to
     for (ix, iy, r, peak) in ISLETS:
         if peak < 40:
@@ -1705,81 +1668,105 @@ def write_map():
     header = "// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/maps/vrstart2_gen.py: edit that, not this.\n"
     mw.write(OUT, WORLD_KEYS, header)
     nb = len(mw.world) + sum(len(b) for _, b in mw.groups) + sum(len(b) for _, b in mw.entities)
-    print("wrote %s: %d brushes, %d entities (%.1f s)" % (OUT, nb, len(mw.entities), time.time() - t0))
+    print("wrote %s: %d brushes, %d entities (%.1f s); %d nearly coplanar faces folded into their neighbours (%d kept), "
+          "%d corners settled off the ground or the water, %d faces turned to an axis" % (OUT, nb, len(mw.entities),
+          time.time() - t0, mapgeom.FOLD_STATS["dropped"], mapgeom.FOLD_STATS["kept"], mapgeom.SETTLE_STATS["moved"],
+          mapgeom.AXIS_STATS["snapped"]))
 
 
-def lit_liquids(bsp, names=(TEXN["water"],)):
-    """Clears TEX_SPECIAL on the texinfos of the liquids `names` in a Quake BSP2 (qbsp 0.18 sets it on every '*'
-    texture: no lightmap, the water drawn unlit): light then lights them, as ericw-tools 2.0's qbsp left them (the
-    engine draws a liquid face with a lightmap lit: gl_model.c). Their faces must be small enough for a lightmap
-    (build_world's water tiles). Returns how many texinfos it changed."""
-    import struct
-    with open(bsp, "r+b") as f:
-        d = bytearray(f.read())
-        assert d[:4] == b"BSP2", d[:4]
-        lumps = [struct.unpack_from("<ii", d, 4 + 8 * i) for i in range(15)]
-        toff = lumps[2][0]
-        mips = []
-        for k in range(struct.unpack_from("<i", d, toff)[0]):
-            o = struct.unpack_from("<i", d, toff + 4 + 4 * k)[0]
-            mips.append(bytes(d[toff + o:toff + o + 16]).split(b"\0")[0].decode("latin1") if o >= 0 else "")
-        ioff, ilen = lumps[6]
-        changed = 0
-        for i in range(ilen // 40):
-            miptex, flags = struct.unpack_from("<ii", d, ioff + i * 40 + 32)
-            if 0 <= miptex < len(mips) and mips[miptex] in names and flags & 1:
-                struct.pack_into("<i", d, ioff + i * 40 + 36, flags & ~1)
-                changed += 1
-        f.seek(0)
-        f.write(d)
-    return changed
+# Compiling (ericw-tools 2.0 for all three tools, as the rest of the repo; MAPPING.md, "vrstart2"). qbsp runs twice
+# (at once) and the results are spliced (bsp_splice.py):
+# - hull 0 (all that is drawn and lit): -nofill -noclip -forcegoodtree. -nofill: the map is sealed by its sky box, and
+#   2.0's fill flooded through portals its BSP had failed to make and turned air solid (slabs standing in the air with
+#   no faces: holes, 25 in 300,000 rays even with the geometry below cleaned up). -forcegoodtree: the cheap midsplit's
+#   nodes cut the terrain into slivers it lost faces at.
+# - the clipping hulls (1, 2: collision): a normal run (filled: unfilled they are 18 million clipnodes, 250 MB).
+# -tjunc rotate in both: T-junctions fixed as 0.18 did (2.0's default, mwt, cuts every face that has one into
+# triangles: 98,000 faces against 82,000, a third more lightmap to light).
+QBSP_HULL0 = ["-nofill", "-noclip", "-forcegoodtree", "-tjunc", "rotate"]
+QBSP_CLIP = ["-tjunc", "rotate"]
+# The two presets: "fast" for iterating (vis -fast, plain light: no ambient occlusion, bounce or extra samples), and
+# "final", the one the shipped .bsp is built with (MAPPING.md's Full profile with -bounce).
+PRESETS = {
+    "fast": dict(vis=["-fast"], light=["-lit", "-lux", "-lightgrid", "-lightgrid_dist", "128", "128", "128"]),
+    "final": dict(vis=[], light=["-extra4", "-dirt", "-dirtscale", "1.5", "-dirtdepth", "96", "-bounce", "-lit", "-lux",
+                                 "-lightgrid", "-lightgrid_dist", "64", "64", "64"]),
+}
 
 
-def compile_map(tools, work, fast, qbsp=DEFAULT_QBSP):
-    os.makedirs(work, exist_ok=True)
+def compile_map(tools, work, preset, check=0):
+    """qbsp (twice, spliced: see QBSP_HULL0), vis and light (ericw-tools 2.0 in `tools`) in `work`, the .bsp, .lit and
+    .lux copied next to the .map. Prints each stage's time and qbsp's "sides not found" (portals it made no face for);
+    `check`: rays of the hole test (bsp_holes.py) over the result."""
+    os.makedirs(os.path.join(work, "clip"), exist_ok=True)
     src = os.path.join(work, MAPNAME + ".map")
     bsp = os.path.join(work, MAPNAME + ".bsp")
+    clip_src = os.path.join(work, "clip", MAPNAME + ".map")
+    clip_bsp = os.path.join(work, "clip", MAPNAME + ".bsp")
     shutil.copyfile(OUT, src)
-    if "0.18" in qbsp:
-        cmds = [[qbsp, "-bsp2", "-nopercent", "-wadpath", ROOT, src, bsp]]
-    else:  # (2.0's: its best options here)
-        cmds = [[qbsp, "-nolog", "-nopercent", "-maxnodesize", "0", "-forcegoodtree", "-wadpath", ROOT, src, bsp]]
-    if not fast:
-        cmds.append([os.path.join(tools, "vis.exe"), "-nolog", "-nopercent", bsp])
-        cmds.append([os.path.join(tools, "light.exe"), "-nolog", "-nopercent", "-extra4", "-dirt", "-dirtscale", "1.5",
-                     "-dirtdepth", "96", "-bounce", "-lit", "-lux", "-lightgrid", "-lightgrid_dist", "64", "64", "64", bsp])
-    else:
-        cmds.append([os.path.join(tools, "light.exe"), "-nolog", "-nopercent", "-lit", "-lux", bsp])
-    for cmd in cmds:
+    shutil.copyfile(OUT, clip_src)
+    pr = PRESETS[preset]
+    qbsp = os.path.join(tools, "qbsp.exe")
+    total = time.time()
+
+    def report(name, cmd, out, t0, code):
+        lines = out.splitlines()
+        side = [l for l in lines if "couldn't find portal side" in l]
+        warnings = [l for l in lines if ("WARNING" in l.upper() or "ERROR" in l.upper() or "LEAK" in l.upper())
+                    and "sides not found" not in l]
+        print("%s: exit %d (%.0f s)%s%s" % (name, code, time.time() - t0,
+                                           "; %d sides not found" % len(side) if "qbsp" in name else "",
+                                           "".join("\n  " + w_ for w_ in warnings[:15])))
+        with open(os.path.join(work, name.replace(" ", "_") + ".log"), "w") as f:
+            f.write("\n".join(lines))
+        if code:
+            sys.exit(1)
+
+    t0 = time.time()
+    procs = [("qbsp (hull 0)", subprocess.Popen([qbsp, "-nolog", "-nopercent", "-verbose"] + QBSP_HULL0 +
+                                               ["-wadpath", ROOT, src, bsp], stdout=subprocess.PIPE,
+                                               stderr=subprocess.STDOUT, text=True)),
+             ("qbsp (clipping hulls)", subprocess.Popen([qbsp, "-nolog", "-nopercent"] + QBSP_CLIP +
+                                                       ["-wadpath", ROOT, clip_src, clip_bsp], stdout=subprocess.PIPE,
+                                                       stderr=subprocess.STDOUT, text=True))]
+    for name, pp in procs:
+        out, _ = pp.communicate()
+        report(name, pp.args, out, t0, pp.returncode)
+    sys.path.insert(0, HERE)
+    import bsp_splice
+    bsp_splice.splice(bsp, clip_bsp, bsp)
+    for cmd in ([os.path.join(tools, "vis.exe"), "-nolog", "-nopercent"] + pr["vis"] + [bsp],
+                [os.path.join(tools, "light.exe"), "-nolog", "-nopercent"] + pr["light"] + [bsp]):
         t0 = time.time()
         result = subprocess.run(cmd, capture_output=True, text=True)
-        lines = (result.stdout + result.stderr).splitlines()
-        warnings = [l for l in lines if "WARNING" in l.upper() or "ERROR" in l.upper() or "LEAK" in l.upper()]
-        print("%s: exit %d (%.0f s)%s" % (os.path.basename(cmd[0]), result.returncode, time.time() - t0,
-                                          "".join("\n  " + w_ for w_ in warnings[:15])))
-        with open(os.path.join(work, os.path.basename(cmd[0]) + ".log"), "w") as f:
-            f.write("\n".join(lines))
-        if result.returncode:
-            sys.exit(1)
-        if cmd[0] == qbsp:
-            print("lit_liquids: %d texinfos" % lit_liquids(bsp))
+        report(os.path.basename(cmd[0])[:-4], cmd, result.stdout + result.stderr, t0, result.returncode)
+    print("compiled (%s) in %.0f s" % (preset, time.time() - total))
     for ext in (".bsp", ".lit", ".lux"):
         if os.path.exists(os.path.join(work, MAPNAME + ext)):
             shutil.copyfile(os.path.join(work, MAPNAME + ext), os.path.join(os.path.dirname(OUT), MAPNAME + ext))
+    if check:
+        subprocess.run([sys.executable, os.path.join(HERE, "bsp_holes.py"), bsp, "--rays", str(check), "--show", "10"])
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--compile", action="store_true", help="also build the .bsp, .lit and .lux (ericw-tools 2.0)")
-    ap.add_argument("--fast", action="store_true", help="no vis, plain light (blocking out)")
-    ap.add_argument("--tools", default=DEFAULT_TOOLS, help="ericw-tools 2.0's folder (vis, light)")
-    ap.add_argument("--qbsp", default=DEFAULT_QBSP, help="the qbsp.exe (0.18.1's: see DEFAULT_QBSP)")
+    ap = argparse.ArgumentParser(
+        description="Writes quakevr/maps/vrstart2.map; with --compile also its .bsp, .lit and .lux (ericw-tools 2.0).",
+        epilog="qbsp runs twice, spliced (bsp_splice.py): hull 0 with %s, the clipping hulls with %s. "
+               "Presets (--preset): fast = vis -fast, light -lit -lux (no -extra4, -dirt or -bounce; a coarser "
+               "light grid), for iterating. final = full vis, light %s: the shipped build. Check a build for holes: "
+               "--check 120000 (bsp_holes.py)."
+               % (" ".join(QBSP_HULL0), " ".join(QBSP_CLIP), " ".join(PRESETS["final"]["light"])))
+    ap.add_argument("--compile", action="store_true", help="also build the .bsp, .lit and .lux")
+    ap.add_argument("--preset", choices=sorted(PRESETS), default="final", help="the compile preset (default: final)")
+    ap.add_argument("--fast", action="store_true", help="the same as --preset fast")
+    ap.add_argument("--check", type=int, default=0, metavar="RAYS", help="after compiling, the hole test with RAYS rays")
+    ap.add_argument("--tools", default=DEFAULT_TOOLS, help="ericw-tools 2.0's folder (qbsp, vis, light)")
     ap.add_argument("--only-terrain", action="store_true", help="debugging: write <map>_terrain.map, the terrain alone")
     ap.add_argument("--work", default=os.path.join(tempfile.gettempdir(), MAPNAME + "_build"))
     args = ap.parse_args()
     write_map()
     if args.compile:
-        compile_map(args.tools, args.work, args.fast, args.qbsp)
+        compile_map(args.tools, args.work, "fast" if args.fast else args.preset, args.check)
 
 
 if __name__ == "__main__":
