@@ -37,6 +37,7 @@ sealed class CreditsWindow : Window
         var sb = new StringBuilder();
         sb.AppendLine("QUAKE VR: UNLEASHED, by Vittorio Romeo. Free software (GPL-2.0-or-later).");
         sb.AppendLine("Support the project: https://ko-fi.com/vittorioromeovee");
+        sb.AppendLine("Chat, help and news: https://discord.me/quakevr");
         sb.AppendLine();
         sb.AppendLine("Quake's textures and sounds in this installer are read while it runs from your own copy of Quake");
         sb.AppendLine("(id Software). None of them is included with Quake VR: Unleashed or its installer; before Quake is");
@@ -47,6 +48,7 @@ sealed class CreditsWindow : Window
         sb.AppendLine("  Barlow, Barlow Semi Condensed: Copyright 2017 The Barlow Project Authors (github.com/jpt/barlow)");
         sb.AppendLine();
         sb.AppendLine("The Ko-fi logo is Ko-fi's (ko-fi.com), from its brand assets, linking to the author's Ko-fi page.");
+        sb.AppendLine("The Discord logo is Discord's (discord.com), drawn from Simple Icons' path (CC0), linking to the Quake VR Discord server.");
         sb.AppendLine("Icons: Segoe Fluent Icons (Windows).");
         foreach (var name in new[] { "OFL-GrenzeGotisch.txt", "OFL-Barlow.txt" })
         {

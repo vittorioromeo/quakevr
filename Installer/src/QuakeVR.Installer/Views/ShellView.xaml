@@ -12,7 +12,8 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- Sidebar: the logo over flames, the steps, Ko-fi, sound and credits. Riveted metal from Quake's walls. -->
+        <!-- Sidebar: the logo over flames, the steps, Ko-fi, Discord, sound and credits. Riveted metal from Quake's walls.
+             On a screen too short for it (high scaling on a small screen) it scrolls. -->
         <Grid>
             <Rectangle Fill="{DynamicResource SkinPanelBrush}" />
             <Rectangle>
@@ -27,101 +28,117 @@
             <Rectangle Width="1" HorizontalAlignment="Right" Margin="0,0,2,0" Fill="#FF5C4A3B" />
             <Rectangle Width="2" HorizontalAlignment="Right" Fill="#FF030202" />
 
-            <DockPanel Margin="0,0,3,0">
-                <!-- The logo, flames licking up behind it. -->
-                <Grid DockPanel.Dock="Top" Height="214" ClipToBounds="True">
-                    <skin:FireView x:Name="LogoFire" Heat="0.62" CellSize="4" EmberCount="14" FireOpacity="0.85" Glow="0.35" />
-                    <Rectangle Height="40" VerticalAlignment="Bottom">
-                        <Rectangle.Fill>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                <GradientStop Color="#00080605" Offset="0" />
-                                <GradientStop Color="#C0080605" Offset="1" />
-                            </LinearGradientBrush>
-                        </Rectangle.Fill>
-                    </Rectangle>
-                    <Image Source="/QuakeVR-Setup;component/Assets/logo_square.png" Width="196" Height="196" Margin="0,10,0,0"
-                           VerticalAlignment="Top" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" CacheMode="BitmapCache">
-                        <Image.Effect>
-                            <DropShadowEffect Color="Black" ShadowDepth="0" BlurRadius="18" Opacity="0.9" />
-                        </Image.Effect>
-                    </Image>
-                </Grid>
+            <ScrollViewer x:Name="SidebarScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,3,0">
+                <DockPanel>
+                    <!-- The logo, flames licking up behind it. -->
+                    <Grid DockPanel.Dock="Top" Height="204" ClipToBounds="True">
+                        <skin:FireView x:Name="LogoFire" Heat="0.62" CellSize="4" EmberCount="14" FireOpacity="0.85" Glow="0.35" />
+                        <Rectangle Height="40" VerticalAlignment="Bottom">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#00080605" Offset="0" />
+                                    <GradientStop Color="#C0080605" Offset="1" />
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <Image Source="/QuakeVR-Setup;component/Assets/logo_square.png" Width="196" Height="196" Margin="0,6,0,0"
+                               VerticalAlignment="Top" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" CacheMode="BitmapCache">
+                            <Image.Effect>
+                                <DropShadowEffect Color="Black" ShadowDepth="0" BlurRadius="18" Opacity="0.9" />
+                            </Image.Effect>
+                        </Image>
+                    </Grid>
 
-                <!-- Ko-fi (always in view), sound, credits, version. -->
-                <StackPanel DockPanel.Dock="Bottom" Margin="20,0,18,18">
-                    <Button Style="{StaticResource KofiButton}" Command="{Binding OpenKofiCommand}" sfx:UiSounds.Kind="Support"
-                            ToolTip="ko-fi.com/vittorioromeovee: support Quake VR: Unleashed">
-                        <DockPanel>
-                            <Image Source="/QuakeVR-Setup;component/Assets/kofi_symbol.png" Height="22" Margin="0,0,10,0"
-                                   RenderOptions.BitmapScalingMode="HighQuality" VerticalAlignment="Center" />
+                    <!-- Ko-fi and Discord (always in view), sound, credits, version. -->
+                    <StackPanel DockPanel.Dock="Bottom" Margin="20,0,18,18">
+                        <Button Style="{StaticResource KofiButton}" Command="{Binding OpenKofiCommand}" sfx:UiSounds.Kind="Support"
+                                ToolTip="ko-fi.com/vittorioromeovee: support Quake VR: Unleashed">
+                            <DockPanel>
+                                <Image Source="/QuakeVR-Setup;component/Assets/kofi_symbol.png" Height="22" Margin="0,0,10,0"
+                                       RenderOptions.BitmapScalingMode="HighQuality" VerticalAlignment="Center" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Support me on Ko-fi" FontFamily="{StaticResource CondensedFont}" FontWeight="Bold" FontSize="15"
+                                               Foreground="{StaticResource Text}" skin:Fx.Pulse="0.55" />
+                                    <TextBlock Text="a token of thanks helps" FontSize="11.5" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Button>
+                        <Button Style="{StaticResource DiscordButton}" Command="{Binding OpenDiscordCommand}" sfx:UiSounds.Kind="Support"
+                                Margin="0,8,0,0" ToolTip="discord.me/quakevr: the Quake VR Discord server">
+                            <DockPanel>
+                                <!-- As wide as the Ko-fi cup with its gap (22 high: 27.4), so the two texts line up. -->
+                                <Viewbox Width="24" Height="22" Margin="2,0,11,0" VerticalAlignment="Center" Stretch="Uniform">
+                                    <Path Data="{StaticResource DiscordMark}" Fill="#FF5865F2" Width="24" Height="24" Stretch="None" />
+                                </Viewbox>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Join the Discord" FontFamily="{StaticResource CondensedFont}" FontWeight="Bold" FontSize="15"
+                                               Foreground="{StaticResource Text}" />
+                                    <TextBlock Text="chat, help and news" FontSize="11.5" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Button>
+                        <DockPanel Margin="0,14,0,0" LastChildFill="True">
+                            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource IconToggle}" IsChecked="{Binding Sound.Muted}"
+                                          ToolTip="Sounds on or off">
+                                <Grid>
+                                    <TextBlock Text="&#xE767;" FontSize="14"
+                                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource Glyph}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Sound.Muted}" Value="True">
+                                                        <Setter Property="Text" Value="&#xE74F;" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </ToggleButton>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="Support me on Ko-fi" FontFamily="{StaticResource CondensedFont}" FontWeight="Bold" FontSize="15"
-                                           Foreground="{StaticResource Text}" skin:Fx.Pulse="0.55" />
-                                <TextBlock Text="a token of thanks helps" FontSize="11.5" Foreground="{StaticResource Faint}" />
+                                <TextBlock Text="{Binding InstallerVersion}" FontSize="11.5" Foreground="{StaticResource Faint}" />
+                                <TextBlock FontSize="11.5" Foreground="{StaticResource Faint}" Margin="0,2,0,0">
+                                    <Run Text="by Vittorio Romeo " /><Hyperlink Command="{Binding ShowCreditsCommand}" Foreground="{StaticResource Subtle}">credits</Hyperlink>
+                                </TextBlock>
                             </StackPanel>
                         </DockPanel>
-                    </Button>
-                    <DockPanel Margin="0,14,0,0" LastChildFill="True">
-                        <ToggleButton DockPanel.Dock="Right" Style="{StaticResource IconToggle}" IsChecked="{Binding Sound.Muted}"
-                                      ToolTip="Sounds on or off">
-                            <Grid>
-                                <TextBlock Text="&#xE767;" FontSize="14"
-                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource Glyph}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Sound.Muted}" Value="True">
-                                                    <Setter Property="Text" Value="&#xE74F;" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </Grid>
-                        </ToggleButton>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="{Binding InstallerVersion}" FontSize="11.5" Foreground="{StaticResource Faint}" />
-                            <TextBlock FontSize="11.5" Foreground="{StaticResource Faint}" Margin="0,2,0,0">
-                                <Run Text="by Vittorio Romeo " /><Hyperlink Command="{Binding ShowCreditsCommand}" Foreground="{StaticResource Subtle}">credits</Hyperlink>
-                            </TextBlock>
-                        </StackPanel>
-                    </DockPanel>
-                </StackPanel>
+                    </StackPanel>
 
-                <!-- The steps: iron runes; the current one glows. -->
-                <ItemsControl ItemsSource="{Binding Steps}" Margin="24,18,16,0" VerticalAlignment="Top">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="0,0,0,14">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid Width="30" Height="30">
-                                    <Rectangle x:Name="Rune" Width="21" Height="21" Fill="{Binding MarkerBrush}" Stroke="#FF5C4A3B" StrokeThickness="1"
-                                               RadiusX="2" RadiusY="2">
-                                        <Rectangle.LayoutTransform><RotateTransform Angle="45" /></Rectangle.LayoutTransform>
-                                    </Rectangle>
-                                    <TextBlock Text="{Binding Marker}" FontFamily="{Binding MarkerFont}" FontSize="13" FontWeight="Bold"
-                                               Foreground="{Binding MarkerText}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <!-- The steps: iron runes; the current one glows. -->
+                    <ItemsControl ItemsSource="{Binding Steps}" Margin="24,16,16,0" VerticalAlignment="Top">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid Width="30" Height="30">
+                                        <Rectangle x:Name="Rune" Width="21" Height="21" Fill="{Binding MarkerBrush}" Stroke="#FF5C4A3B" StrokeThickness="1"
+                                                   RadiusX="2" RadiusY="2">
+                                            <Rectangle.LayoutTransform><RotateTransform Angle="45" /></Rectangle.LayoutTransform>
+                                        </Rectangle>
+                                        <TextBlock Text="{Binding Marker}" FontFamily="{Binding MarkerFont}" FontSize="13" FontWeight="Bold"
+                                                   Foreground="{Binding MarkerText}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{Binding TitleBrush}" FontSize="16"
+                                               FontFamily="{StaticResource CondensedFont}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" />
                                 </Grid>
-                                <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{Binding TitleBrush}" FontSize="16"
-                                           FontFamily="{StaticResource CondensedFont}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" />
-                            </Grid>
-                            <DataTemplate.Triggers>
-                                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                    <Setter TargetName="Rune" Property="Effect">
-                                        <Setter.Value>
-                                            <DropShadowEffect Color="#FFFF7A20" ShadowDepth="0" BlurRadius="14" Opacity="0.9" />
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Setter TargetName="Rune" Property="Stroke" Value="#FFFFC27A" />
-                                </DataTrigger>
-                            </DataTemplate.Triggers>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </DockPanel>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                        <Setter TargetName="Rune" Property="Effect">
+                                            <Setter.Value>
+                                                <DropShadowEffect Color="#FFFF7A20" ShadowDepth="0" BlurRadius="14" Opacity="0.9" />
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter TargetName="Rune" Property="Stroke" Value="#FFFFC27A" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </ScrollViewer>
         </Grid>
 
         <!-- The page over dark stone, embers rising from a glow below; the footer an iron ledge. -->

@@ -198,6 +198,7 @@ public sealed class MainViewModel : ObservableObject
         UninstallCommand = new RelayCommand(() => _ = UninstallAsync(), () => _existing is not null && !Installing);
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string ?? ""));
         OpenKofiCommand = new RelayCommand(() => OpenUrl(KofiUrl));
+        OpenDiscordCommand = new RelayCommand(() => OpenUrl(DiscordUrl));
         ShowCreditsCommand = new RelayCommand(() => new Views.CreditsWindow(Application.Current.MainWindow).ShowDialog());
         RetryFeedCommand = new RelayCommand(() => _ = CheckFeedAsync(), () => !HasLocalPackage && _feedState != FeedState.Checking);
         PickPackageAndInstallCommand = new RelayCommand(() =>
@@ -217,6 +218,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public const string KofiUrl = "https://ko-fi.com/vittorioromeovee";
+    public const string DiscordUrl = "https://discord.me/quakevr";
     public const string ProductName = "Quake VR: Unleashed";
     public SoundSettings Sound => UiSounds.Settings;
 
@@ -284,6 +286,7 @@ public sealed class MainViewModel : ObservableObject
     public ICommand UninstallCommand { get; }
     public ICommand OpenUrlCommand { get; }
     public ICommand OpenKofiCommand { get; }
+    public ICommand OpenDiscordCommand { get; }
     public ICommand ShowCreditsCommand { get; }
     public ICommand RetryFeedCommand { get; }
     public ICommand PickPackageAndInstallCommand { get; }

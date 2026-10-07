@@ -2,7 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:v="clr-namespace:QuakeVR.Installer.Views"
-        Title="Quake VR: Unleashed Setup" Icon="/QuakeVR-Setup;component/Assets/app.ico" Width="1040" Height="720" MinWidth="920" MinHeight="660"
+        xmlns:local="clr-namespace:QuakeVR.Installer"
+        Title="Quake VR: Unleashed Setup" Icon="/QuakeVR-Setup;component/Assets/app.ico"
+        Width="{x:Static local:MainWindow.DefaultWidth}" Height="{x:Static local:MainWindow.DefaultHeight}"
+        MinWidth="{x:Static local:MainWindow.MinimumWidth}" MinHeight="{x:Static local:MainWindow.MinimumHeight}"
         WindowStartupLocation="CenterScreen" Background="{StaticResource Bg}">
     <v:ShellView />
 </Window>

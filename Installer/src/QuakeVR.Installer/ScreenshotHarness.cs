@@ -30,9 +30,20 @@ namespace QuakeVR.Installer;
 /// </summary>
 static class ScreenshotHarness
 {
-    // The window's client area (MainWindow.xaml: 1040 x 720 with its frame).
-    const int Width = 1024;
-    const int Height = 680;
+    // The window's client area at its default size (MainWindow: the size with its frame).
+    const int Width = (int)(MainWindow.DefaultWidth - MainWindow.FrameWidth);
+    const int Height = (int)(MainWindow.DefaultHeight - MainWindow.FrameHeight);
+
+    // The fit check (fit.txt): each page laid out in the client area the window gets on these screens (the window is
+    // never taller than the work area, in DIPs: the screen less a 48 px taskbar at 100%, scaled), and whatever would
+    // need scrolling there. Widths: the default fits all three.
+    static readonly (string Screen, int Height)[] FitScreens =
+    [
+        ("default", Height),
+        ("1366x768 at 100%", Math.Min(Height, 768 - 48 - (int)MainWindow.FrameHeight)),
+        ("1920x1080 at 150%", Math.Min(Height, (1080 - 72) * 2 / 3 - (int)MainWindow.FrameHeight)),
+    ];
+    static readonly StringBuilder FitReport = new();
 
     public static async Task<int> RunAsync(StartupOptions options, string dir)
     {
@@ -134,6 +145,15 @@ static class ScreenshotHarness
             var again = new MainViewModel(new WindowsSystemProbe(), options);
             await Save(new ShellView { DataContext = again }, Path.Combine(dir, "1b-welcome-installed.png"));
         }
+
+        // High scaling: the Welcome page at 150% (the sidebar's logos, crisp), and the Statement page in the window a
+        // 1080p screen at 150% leaves room for (the page and the sidebar scroll).
+        vm.GoTo(Page.Welcome);
+        await Save(view, Path.Combine(dir, "7-welcome-150pct.png"), scale: 1.5);
+        vm.GoTo(Page.Statement);
+        await Save(view, Path.Combine(dir, "7b-statement-150pct-1080p.png"), scale: 1.5, height: FitScreens[2].Height);
+        await File.WriteAllTextAsync(Path.Combine(dir, "fit.txt"), FitReport.ToString());
+        Console.WriteLine(FitReport.ToString().TrimEnd());
 
         if (options.Extras)
         {
@@ -340,6 +360,8 @@ static class ScreenshotHarness
         window.Show();
         window.Activate();
         await Task.Delay(500);
+        var size = string.Create(CultureInfo.InvariantCulture,
+            $"window {window.ActualWidth:0}x{window.ActualHeight:0} (min {window.MinWidth:0}x{window.MinHeight:0}; work area {SystemParameters.WorkArea.Width:0}x{SystemParameters.WorkArea.Height:0})");
         var proc = Process.GetCurrentProcess();
         double Measure(out long ticks)
         {
@@ -417,7 +439,7 @@ static class ScreenshotHarness
             e.Dispose();
         }
         return string.Create(CultureInfo.InvariantCulture,
-            $"device rings over {ringSeconds:0} s of the live window: {(rings.All(e => e.Available) ? ringReport : "no audio device")}; Windows animation effects {(windowsAnimations ? "on" : "off")}; {(FrameClock.Hardware ? "GPU" : "software")} rendering; live window (active {active}): {ticks / 2.0:0} ticks/s, process CPU {busy:0.0}% of one core; {governor} reduced motion: {stillTicks / 2.0:0} ticks/s, CPU {still:0.0}%;{detail}");
+            $"device rings over {ringSeconds:0} s of the live window: {(rings.All(e => e.Available) ? ringReport : "no audio device")}; Windows animation effects {(windowsAnimations ? "on" : "off")}; {(FrameClock.Hardware ? "GPU" : "software")} rendering; live window (active {active}, {size}): {ticks / 2.0:0} ticks/s, process CPU {busy:0.0}% of one core; {governor} reduced motion: {stillTicks / 2.0:0} ticks/s, CPU {still:0.0}%;{detail}");
     }
 
     static void Layout(FrameworkElement e, double w, double h)
@@ -427,9 +449,9 @@ static class ScreenshotHarness
         e.UpdateLayout();
     }
 
-    static void SavePng(Visual v, int w, int h, string path)
+    static void SavePng(Visual v, int w, int h, string path, double scale = 1)
     {
-        var bitmap = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap((int)Math.Round(w * scale), (int)Math.Round(h * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
         bitmap.Render(v);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -437,11 +459,15 @@ static class ScreenshotHarness
         encoder.Save(file);
     }
 
-    static async Task Save(FrameworkElement view, string path)
+    static async Task Save(FrameworkElement view, string path, double scale = 1, int height = Height)
     {
         // Let bindings and item containers settle, then lay out and render at the window's size.
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-        Layout(view, Width, Height);
+        if (scale == 1 && height == Height)
+        {
+            await FitCheck(view, Path.GetFileNameWithoutExtension(path));
+        }
+        Layout(view, Width, height);
         await Task.Delay(350); // The controls' short animations (a check mark popping in) end.
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
         view.UpdateLayout();
@@ -453,7 +479,51 @@ static class ScreenshotHarness
             page.RenderTransform = Transform.Identity;
         }
         view.UpdateLayout();
-        SavePng(view, Width, Height, path);
+        SavePng(view, Width, height, path, scale);
+    }
+
+    /// <summary>The page laid out on each of <see cref="FitScreens"/>: what would scroll there, and by how much (the
+    /// shown page's scrolling parts and the sidebar's).</summary>
+    static async Task FitCheck(FrameworkElement view, string name)
+    {
+        var line = new StringBuilder($"{name}:");
+        foreach (var (screen, height) in FitScreens)
+        {
+            Layout(view, Width, height);
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            view.UpdateLayout();
+            var over = FindAll<System.Windows.Controls.ScrollViewer>(view)
+                .Where(sv => Shown(sv, view) && sv.ExtentHeight > sv.ViewportHeight + 0.5)
+                .Select(sv => string.Create(CultureInfo.InvariantCulture,
+                    $"{(sv.Name is { Length: > 0 } n ? n : Owner(sv)?.GetType().Name ?? "?")} +{sv.ExtentHeight - sv.ViewportHeight:0}px"))
+                .ToList();
+            line.Append($" {screen} ({Width}x{height}): {(over.Count == 0 ? "fits" : "scrolls " + string.Join(", ", over))};");
+        }
+        FitReport.AppendLine(line.ToString());
+    }
+
+    static bool Shown(DependencyObject d, DependencyObject root)
+    {
+        for (; d is not null && d != root; d = VisualTreeHelper.GetParent(d))
+        {
+            if (d is UIElement { Visibility: not Visibility.Visible })
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static UserControl? Owner(DependencyObject d)
+    {
+        for (d = VisualTreeHelper.GetParent(d); d is not null; d = VisualTreeHelper.GetParent(d))
+        {
+            if (d is UserControl u)
+            {
+                return u;
+            }
+        }
+        return null;
     }
 
     /// <summary>

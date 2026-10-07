@@ -10,7 +10,7 @@ can update or remove what it installed. The design, the research behind it and t
 | Folder | What |
 |---|---|
 | `src/QuakeVR.Installer.Core` | Everything that is not UI, testable without a window: detection (`Detection/`), packages, manifests, local packages, install/update/uninstall and downloads (`Packaging/`), shortcuts (`Shortcuts/`), the registry and special folders behind an interface (`Platform/`), Quake's file formats for the skin (`Assets/`: PAK, palette, WAD2, BSP textures, WAV), the sounds' mixer (`Audio/`, no device) |
-| `src/QuakeVR.Installer` | The wizard window (`QuakeVR-Setup.exe`): Welcome, Statement, Your PC, Options, Install, Play, Thanks. `ViewModels/MainViewModel.cs` holds the state; `Views/` the pages; `Themes/Theme.xaml` the look; `Skin/` the textures (from the player's Quake, or generated), flames, lava and the frame clock; `Audio/` the sounds and the wave-out device; `Fonts/` and `Assets/` the embedded fonts (SIL OFL), logos, icon and Ko-fi logo; `ScreenshotHarness.cs` renders the pages to PNG |
+| `src/QuakeVR.Installer` | The wizard window (`QuakeVR-Setup.exe`): Welcome, Statement, Your PC, Options, Install, Play, Thanks. `ViewModels/MainViewModel.cs` holds the state; `Views/` the pages; `Themes/Theme.xaml` the look; `Skin/` the textures (from the player's Quake, or generated), flames, lava and the frame clock; `Audio/` the sounds and the wave-out device; `Fonts/` and `Assets/` the embedded fonts (SIL OFL), logos, icon and Ko-fi logo (the sidebar's Ko-fi and Discord buttons); the window is 1200 x 800 (`MainWindow.DefaultWidth`/`DefaultHeight`), never larger than the screen's work area (the pages and the sidebar then scroll); `ScreenshotHarness.cs` renders the pages to PNG |
 | `src/QuakeVR.Installer.Cli` | `qvr-setup.exe`: the core from a console (detection report, install/uninstall/verify from a local package, manifests, downloads) |
 | `tests/QuakeVR.Installer.SelfTest` | The core's tests, as a console program (see "Tests") |
 
@@ -30,6 +30,7 @@ uses textures and sounds made in code. What is embedded:
 | `Fonts/Barlow-*.ttf`, `Fonts/BarlowSemiCondensed-*.ttf` | Barlow Regular/Medium/SemiBold/Bold (text), Barlow Semi Condensed SemiBold/Bold (labels, buttons), from the google/fonts repository | SIL OFL 1.1, `Fonts/OFL-Barlow.txt` |
 | `Assets/logo_wide.png`, `logo_square.png`, `app.ico` | The official Quake VR: Unleashed logos (Vittorio's; the originals are `docs/images/*.webp`). `app.ico` (the exe's and the window's icon) is the icon logo, `docs/images/quakevr-unleashed-icon.webp` ("QVR:U" under the emblem), made by `Misc/quakevr/make_exe_icon.py` like the game's `Windows/QuakeVR.ico` | the project's |
 | `Assets/kofi_symbol.png` | Ko-fi's cup logo, unaltered, from Ko-fi's brand assets (`kofi_brandasset.zip`) | Ko-fi's brand asset, used to link to the author's page |
+| `DiscordMark` in `Themes/Theme.xaml` | Discord's mark ("Clyde"), vector path data typed in from Simple Icons' `discord` path (not downloaded; swap in Discord's official asset if wanted), in Discord's blurple #5865F2 | Simple Icons' paths are CC0; the mark is Discord's, used to link to the Quake VR Discord server (`discord.me/quakevr`) |
 
 The fonts' licences are also shown in the window ("credits" in the sidebar).
 
@@ -57,7 +58,7 @@ about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and Smart
 | `--shortcuts-dir <dir>` | Shortcuts go to `<dir>\Desktop` and `<dir>\Programs` instead of the real desktop and Start menu (tests) |
 | `--feed <url>` | Where `latest.json` is read (repeatable; default: GitHub, then vittorioromeo.com). Also `installer-settings.json` beside the exe |
 | `--downloads <dir>` | Where downloads go (default `%LOCALAPPDATA%\QuakeVR-Installer\downloads`) |
-| `--screenshots <dir>` | Render every page to PNG and exit, no window (the Statement page unanswered, mixed and all YES; exit 1 unless its Continue is enabled exactly with YES to all four) (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
+| `--screenshots <dir>` | Render every page to PNG and exit, no window (the Statement page unanswered, mixed and all YES; exit 1 unless its Continue is enabled exactly with YES to all four); `fit.txt` (also printed) says which page would scroll, and by how much, at the default size, on 1366x768 at 100% and on 1080p at 150%; `7-*-150pct*.png` are renders at 150% (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
 | `--offline` | Never ask the network: the online release counts as unavailable (the "Use a local package" path) |
 | `--no-quake-look` | The generated textures and sounds even when Quake is found (screenshots of the fallback) |
 | `--reduce-motion` | Animations off, as with Windows' "Animation effects" off |

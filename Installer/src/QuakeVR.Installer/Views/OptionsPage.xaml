@@ -31,17 +31,18 @@
                     <DockPanel>
                         <ProgressBar DockPanel.Dock="Right" IsIndeterminate="True" Width="90" Height="6" VerticalAlignment="Center"
                                      Visibility="{Binding FeedChecking, Converter={StaticResource BoolToVis}}" />
-                        <TextBlock Text="{Binding PackageSourceTitle}" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="16,0,0,0"
+                                    Visibility="{Binding FeedUnavailable, Converter={StaticResource BoolToVis}}">
+                            <Button Content="Use a local package…" Style="{StaticResource AccentButton}" Command="{Binding BrowsePackageCommand}" />
+                            <Button Content="Try again" Style="{StaticResource GhostButton}" Command="{Binding RetryFeedCommand}" Margin="10,0,0,0" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding PackageSourceTitle}" Style="{StaticResource Body}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </DockPanel>
                     <TextBlock Text="{Binding PackageSourceText}" Style="{StaticResource Small}" Margin="0,3,0,0" />
                     <TextBlock Text="{Binding FeedErrorDetail}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" FontSize="11.5" Margin="0,4,0,0"
                                Visibility="{Binding FeedUnavailable, Converter={StaticResource BoolToVis}}" />
                     <TextBlock Text="{Binding PackageError}" Style="{StaticResource Small}" Foreground="{StaticResource Error}" Margin="0,6,0,0"
                                Visibility="{Binding HasPackageError, Converter={StaticResource BoolToVis}}" />
-                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding FeedUnavailable, Converter={StaticResource BoolToVis}}">
-                        <Button Content="Use a local package…" Style="{StaticResource AccentButton}" Command="{Binding BrowsePackageCommand}" />
-                        <Button Content="Try again" Style="{StaticResource GhostButton}" Command="{Binding RetryFeedCommand}" Margin="10,0,0,0" />
-                    </StackPanel>
                     <Button Content="Use a local package instead…" Style="{StaticResource LinkButton}" Command="{Binding BrowsePackageCommand}"
                             HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="{Binding FeedAvailable, Converter={StaticResource BoolToVis}}" />
                     <Button Content="Use another package…" Style="{StaticResource LinkButton}" Command="{Binding BrowsePackageCommand}"
@@ -95,15 +96,15 @@
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>
+                    <!-- The shortcuts: one row under the components (the page fits a 1366 x 768 screen). -->
+                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="-16,0" Padding="16,12,16,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Shortcuts" Style="{StaticResource Body}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,24,0" />
+                            <CheckBox IsChecked="{Binding DesktopShortcut}" Content="On the desktop" Margin="0,0,28,0" />
+                            <CheckBox IsChecked="{Binding StartMenuShortcuts}" Content="In the Start menu" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-            </Border>
-
-            <TextBlock Text="SHORTCUTS" Style="{StaticResource SectionTitle}" />
-            <Border Style="{StaticResource CardBorder}" Padding="16,14,16,4">
-                <UniformGrid Columns="2">
-                    <CheckBox IsChecked="{Binding DesktopShortcut}" Content="On the desktop" Margin="0,0,0,12" />
-                    <CheckBox IsChecked="{Binding StartMenuShortcuts}" Content="In the Start menu" Margin="0,0,0,12" />
-                </UniformGrid>
             </Border>
 
         </StackPanel>
