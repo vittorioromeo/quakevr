@@ -28,6 +28,10 @@ extern bool recording;
 
 // vr_profile.cpp: a frame ended. Its period, its host frame and its work (ms), and each phase's CPU time (ns).
 void frame(double periodMs, double hostMs, double busyMs, const za::I64 (&phaseNs)[profile::PhaseCount]);
+// vr_main.cpp: this frame's pose sampled (the runtime's frame begun); vr_stereo.cpp: its frame submitted (xrEndFrame):
+// the time between, the latency's proxy ("pose_to_submit_ms").
+void poseSampled();
+void submitted();
 // vr_profile.cpp: a frame's GPU phases read back (ms; 0 for a phase it did not time).
 void gpuFrame(const double (&phaseMs)[profile::PhaseCount]);
 

@@ -28321,3 +28321,41 @@ The switch's check: 103-111 models, 3851-4212 lookups, 30-55 ms (without the lis
 92, the grunt loaded again with it; E1M1 after a switch with and without keeping, the same picture (12-13 pixels differ
 by at most 8 levels, as between two runs). `vr_model_keep_info [model]` (the last switch; a model's recorded lookups),
 Debug > Profiling and Memory: Campaign Switch Keeps Models, Kept Models Info.
+
+### 4. The GPU wait (`GL_AcquireFrameResources`): measured, not changed
+
+**Asked.** Less CPU burnt in the wait for the frame two back (`glClientWaitSync`: 4.7 of 8 s of the main thread in
+`combined` under VTune, PROFILING_2026-10.md), with no latency added: else report.
+
+**Measured with.** Two new per-frame figures in the benchmark JSON (BENCHMARKS.md): `pose_to_submit_ms`, from the
+frame's pose (the runtime's frame begun, the tracking sampled) to its `xrEndFrame` (the fence wait lies between), the
+latency's proxy; `main_mcycles`, the main thread's CPU cycles a frame (`QueryThreadCycleTime`: a spinning wait counts,
+a sleep does not). Tried (not kept): the fence polled (`glClientWaitSync` with no timeout) with 1 a pause loop between
+polls, 2 the same then `SwitchToThread` past 200 us, 3 the same with `Sleep(0)`; never a timed sleep. His settings, 90
+Hz paced, exclusive, the modes interleaved, 3 runs each (2 for the old shadows):
+
+| `combined` (median of runs) | frame p50 / p99 | pose to submit p50 / p99 | main thread Mcycles a frame | GPU 3D |
+|---|---|---|---|---|
+| 2048 eyes, driver's wait (as shipped) | 11.11 / 12.26 | 5.94 / 12.20 | 16.6 | 8.04 |
+| ... polled, pause | 11.11 / 11.51 | 5.04 / 11.41 | 15.3 | 7.56 |
+| ... polled, SwitchToThread | 11.11 / 12.43 | 5.31 / 12.34 | 15.4 | 8.02 |
+| ... polled, Sleep(0) | 11.11 / 12.01 | 5.12 / 11.96 | 15.6 | 8.02 |
+| 3072 eyes (GPU-bound), driver's wait | 16.80 / 21.42 | 16.23 / 21.36 | 14.9 | 13.71 |
+| ... polled, pause | 18.75 / 23.04 | 18.33 / 22.94 | 15.6 | 15.78 |
+| ... polled, SwitchToThread | 18.02 / 23.07 | 17.52 / 22.75 | 15.5 | 15.14 |
+| ... polled, Sleep(0) | 18.20 / 22.84 | 17.61 / 22.72 | 15.4 | 15.25 |
+| 2048, old shadows (`vr_shadow_layered 0`, the profile's state), driver's | 16.31 / 19.92 | 5.78 / 11.44 | 16.1 | 13.74 |
+| ... polled, pause / Sleep(0) | 17.16 / 89.24, 15.93 / 20.27 | 6.34 / 15.32, 5.55 / 10.86 | 18.5, 15.5 | 14.89, 13.40 |
+
+`idle_e1m1`: every mode 11.11 / 11.2-11.35 ms, pose to submit 0.60 / 1.0-1.2 ms, 2.7-3.2 Mcycles.
+
+**Findings.** The main thread does not burn the wait today: with the driver's wait its cycles a frame are the same as
+polling's (15-17 M, about 3 ms of a 5.5 GHz core, in 11-17 ms frames); a GPU-bound frame (3072 eyes) waits ~10 ms in
+the fence and still uses 14.9 M cycles. So NVIDIA's `glClientWaitSync` blocks rather than spins here (VTune's 4.7 s may
+have counted the wait as time in the function, or another driver state). With the layered shadows (`combined` no
+longer GPU-bound at 2048) the fence wait is short; with the old shadows the frame waits in the runtime's calls and the
+swap instead. Polling saved nothing measurable and, GPU-bound, every polled mode came out 1.3-2.1 ms later from pose to
+submit at the median (and its GPU 10-15% slower: polling the driver may cost its thread, or the GPU's two clock states;
+not separated). No mode is latency-neutral with a gain: nothing shipped (the measuring patch:
+`scratch/gpuwait_experiment.patch` and `scratch/gpuwait_experiment_vr_gpuwait.cpp` in the perfbatch worktree). The two
+benchmark figures stay.

@@ -103,10 +103,22 @@ enum Series
     DrawCalls,
     AliasDrawn,
     HeapEvents, // the main thread's new/malloc/calloc/realloc
+    MainCycles, // the main thread's CPU cycles (millions: QueryThreadCycleTime; its waits that spin count, its sleeps not)
     SeriesCount
 };
 constexpr const char* seriesNames[SeriesCount] = {
-    "frame_ms", "host_ms", "cpu_busy_ms", "traces", "draw_calls", "alias_drawn", "heap_allocs"};
+    "frame_ms", "host_ms", "cpu_busy_ms", "traces", "draw_calls", "alias_drawn", "heap_allocs", "main_mcycles"};
+
+// The main thread's CPU cycles so far (0 where not known).
+[[nodiscard]] za::U64 mainCycles()
+{
+#ifdef _WIN32
+    ULONG64 cycles = 0;
+    return QueryThreadCycleTime(GetCurrentThread(), &cycles) ? static_cast<za::U64>(cycles) : 0u;
+#else
+    return 0u;
+#endif
+}
 
 // What there is, every 16th frame and at the start and end.
 enum Count
@@ -172,6 +184,11 @@ struct Capture
     za::Vector<float> series[SeriesCount];
     za::Vector<float> gpuEyes;
     za::Vector<float> gpu3d; // the whole 3D refresh (flat mode's view too)
+    // The latency's proxy: a frame's pose (the tracking sampled, xrWaitFrame and xrLocateViews returned) to its submit
+    // (xrEndFrame returned), ms; frames that submitted only.
+    za::Vector<float> poseToSubmit;
+    za::I64 poseNs{0};
+    za::U64 cyclesBefore{0};
     double cpuPhaseSum[PhaseCount]{};
     double gpuPhaseSum[PhaseCount]{};
     int gpuFrames{0};
@@ -442,6 +459,7 @@ void finish()
         writeStats(f, seriesNames[i], s[i]);
     }
     writeStats(f, "gpu_eyes_ms", eyes);
+    writeStats(f, "pose_to_submit_ms", stats(c.poseToSubmit));
     writeStats(f, "gpu_3d_ms", view3d, true);
     fprintf(f, "  },\n  \"hitches\": {\"over_11ms\": %d, \"over_14ms\": %d, \"over_33ms\": %d, \"over_100ms\": %d, "
                "\"over_250ms\": %d, \"over_2x_median\": %d},\n",
@@ -537,6 +555,9 @@ void begin_f()
     c.gpuEyes.reserve(reserve);
     c.gpu3d.clear();
     c.gpu3d.reserve(reserve);
+    c.poseToSubmit.clear();
+    c.poseToSubmit.reserve(reserve);
+    c.poseNs = 0;
     for(int i = 0; i < PhaseCount; i++)
     {
         c.cpuPhaseSum[i] = 0.0;
@@ -611,6 +632,24 @@ void seed_f()
 
 } // namespace
 
+void poseSampled()
+{
+    if(recording)
+    {
+        capture.poseNs = za::Clock::nowNanoseconds();
+    }
+}
+
+void submitted()
+{
+    Capture& c = capture;
+    if(recording && c.poseNs != 0 && c.skip == 0)
+    {
+        c.poseToSubmit.pushBack(static_cast<float>(static_cast<double>(za::Clock::nowNanoseconds() - c.poseNs) / 1e6));
+    }
+    c.poseNs = 0;
+}
+
 void frame(double periodMs, double hostMs, double busyMs, const za::I64 (&phaseNs)[profile::PhaseCount])
 {
     Capture& c = capture;
@@ -622,15 +661,19 @@ void frame(double periodMs, double hostMs, double busyMs, const za::I64 (&phaseN
         c.heapBefore = events;
         c.heapRequestedStart = c.heapRequestedBefore = heap.requestedBytes;
         c.startNs = za::Clock::nowNanoseconds();
+        c.cyclesBefore = mainCycles();
         if(c.skip == 0 && vr_bench_profiler.value == 1.f)
         {
             collect(true, "the window");
         }
         return;
     }
+    const za::U64 cycles = mainCycles();
     const float values[SeriesCount] = {static_cast<float>(periodMs), static_cast<float>(hostMs),
         static_cast<float>(busyMs), static_cast<float>(vr_profcounts.traces), static_cast<float>(vr_profcounts.drawcalls),
-        static_cast<float>(vr_profcounts.aliasdrawn), static_cast<float>(events - c.heapBefore)};
+        static_cast<float>(vr_profcounts.aliasdrawn), static_cast<float>(events - c.heapBefore),
+        static_cast<float>(static_cast<double>(cycles - c.cyclesBefore) / 1e6)};
+    c.cyclesBefore = cycles;
     c.heapBefore = events;
     c.heapRequestedBefore = heap.requestedBytes;
     for(int i = 0; i < SeriesCount; i++)

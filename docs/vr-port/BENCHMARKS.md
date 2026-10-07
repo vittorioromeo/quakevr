@@ -67,6 +67,8 @@ Debug > Profiling and Memory > **Benchmark Capture (10 s)** does the same in the
 | `frame.gpu_3d_ms` | the whole 3D refresh's GPU time (`3D`: both eyes and the mirror in VR, the one view flat) |
 | `frame.traces`, `draw_calls`, `alias_drawn` | a frame's collision traces, OpenGL draw calls and alias model instances |
 | `frame.heap_allocs` | the main thread's heap events a frame (new, malloc, calloc, realloc); `heap_requested_kib` the total |
+| `frame.main_mcycles` | the main thread's CPU cycles a frame, millions (`QueryThreadCycleTime`: a wait that spins counts, a sleep does not) |
+| `frame.pose_to_submit_ms` | the latency's proxy: from the frame's pose (the runtime's frame begun, the tracking sampled) to its submit (`xrEndFrame` returned); frames that submitted |
 | `hitches` | frames over 11.1 ms (a 90 Hz refresh), 13.9 (72 Hz), 33.3, 100, 250 ms, and over twice the median |
 | `cpu_phase_ms` | each always-on phase's CPU time a frame (server, SV_Physics, client read, view entities, screen, eyes, sound, rigid bodies, shadow maps, world+brush, alias, particles, vr particles, decals, 3D) |
 | `gpu_phase_ms` | each GPU phase a frame: the eyes, the runtime's calls, shadow maps, world+brush, alias, particles, vr particles, decals, 3D |

@@ -9,6 +9,7 @@
 // UI is drawn over the final image at its full size. The left eye is then mirrored to the window, where
 // the 2D layer is drawn as usual.
 
+#include "vr_bench.hpp"
 #include "vr_fgfx.hpp"
 #include "vr_gfx.hpp"
 #include "vr_bloom.hpp"
@@ -922,6 +923,7 @@ extern "C" int VR_RenderView()
     profile::begin("xr submit", true); // xrEndFrame
     be->endFrame(eyesRendered == 2);
     profile::end();
+    bench::submitted();
 
     // The window's spectator camera, once the headset has its images: it does not delay them.
     if(window::view() == window::View::Spectator && eyesRendered == 2)

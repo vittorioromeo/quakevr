@@ -1560,6 +1560,7 @@ extern "C" void VR_BeginFrame()
     profile::begin("xr wait", false); // the runtime's pacing (xrWaitFrame) and the tracking
     const bool began = !state->backend || state->backend->beginFrame(state->tracking, state->frame);
     profile::end();
+    bench::poseSampled(); // (the latency's proxy: from here to the submit)
     QVR_PROFILE("vr frame setup"); // the rest: the recorder, the texts queued anew, the input
     if(!began)
     {
