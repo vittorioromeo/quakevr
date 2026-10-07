@@ -2984,6 +2984,13 @@ void hologramTestMessage()
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").extend().help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a box thrown at about 6 m/s; more the faster."),
+        slider("Heavy Throws From", vr_throw_heavy_from, 0.f, 40.f, 1.f, "%.0f kg").extend(0.f, 200.f)
+            .help("Props heavier than this (a crate, a barrel) hurt more thrown: by their mass over it (Heavy Throw Curve), "
+                  "up to Heavy Throw Most. A barrel thrown with both hands hurt for about 14 before. 0: off. Never weapons."),
+        slider("Heavy Throw Curve", vr_throw_heavy_exp, 0.f, 2.f, 0.05f, "%.2f")
+            .help("1: a prop twice as heavy as Heavy Throws From hurts twice as much thrown; 0: no more."),
+        slider("Heavy Throw Most", vr_throw_heavy_max, 1.f, 10.f, 0.25f, "x%.2f")
+            .help("The most a heavy prop's throw is multiplied by."),
         open("Flung Props (Throwing and Physics)", pageIndex(pageThrowing))
             .help("Whether props batted, knocked flying or swung on the grapple hurt monsters (and players), and how much."),
         open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets))

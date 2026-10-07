@@ -1771,6 +1771,11 @@ QVR_CVAR(vr_carry_nudge, "1", CVAR_ARCHIVE)           // how hard hands and guns
 QVR_CVAR(vr_carry_throw_mult, "1", CVAR_ARCHIVE)      // how fast they leave the hand
 QVR_CVAR(vr_carry_melee_mult, "1.5", CVAR_ARCHIVE)    // punches with a box in hand hurt this much more
 QVR_CVAR(vr_carry_throw_damage, "8", CVAR_ARCHIVE)    // damage of a box thrown hard (at about 6 m/s; more the faster)
+// A heavy prop thrown (QC vr_carry.qc VR_Thrown_HeavyMult; NOTES.md vrfiringrange_2026-10-07_23-00-55: a barrel thrown with
+// both hands hurt for about 14, a blow with it about 90): its throw's damage times (mass / from)^exp, at most max.
+QVR_CVAR(vr_throw_heavy_from, "8", CVAR_ARCHIVE)       // kg: props heavier than this hurt more thrown (0: off; weapons never)
+QVR_CVAR(vr_throw_heavy_exp, "1", CVAR_ARCHIVE)        // the curve's exponent (1: in proportion to the mass)
+QVR_CVAR(vr_throw_heavy_max, "5", CVAR_ARCHIVE)        // the most it multiplies by
 QVR_CVAR(vr_gib_throw_damage, "4", CVAR_ARCHIVE)      // and of a gib or head
 // Flung props (vr_carry.qc VR_Prop_Flung): a prop never thrown (flung on the grapple, batted, knocked flying) that meets a
 // monster (or a player) fast enough hurts it: its throw's base damage (vr_carry_throw_damage, vr_gib_throw_damage, a
@@ -2378,7 +2383,7 @@ QVR_CVAR(vr_test_axe_host, "0", CVAR_NONE)          // impulse 208 (tests), once
 QVR_CVAR(vr_test_weaponinst, "0", CVAR_NONE)          // impulse 120 (tests): the weapons moved by the game's own functions (QC vr_weaponinst_test.qc): 0 list what has which weapon (id, magazine), 1 holster the main hand's, 2 draw it, 3 drop the main hand's, 4 take the nearest lying, 5 hand off to the off hand, 6 take back, 7 switch hands, 8 back, 9 drop the off hand's
 QVR_CVAR(vr_test_weaponinst_slot, "0", CVAR_NONE)     // ... the holster (QC QVR_HS_*: 3-6 shoulders and hips, 8-9 upper; 0 the right hip)
 QVR_CVAR(vr_test_held_destroy, "0", CVAR_NONE)       // impulse 252 (tests): its gib or head can be destroyed, as a real one (VR_Gib_MakeDestroyable; gib_2h_throw_test.sh)
-QVR_CVAR(vr_test_held_pick, "-1", CVAR_NONE)          // impulse 252 (tests): which gib or head (0 gib1, 1 h_player, 2 gib2, 3 gib3, 4-8 heads; 9 the nearest rock, 10 a hand grenade, 11 the nearest shells box, 12 the nearest brick); -1 each gib in turn (gib_2h_throw_test.sh MODELS)
+QVR_CVAR(vr_test_held_pick, "-1", CVAR_NONE)          // impulse 252 (tests): which gib or head (0 gib1, 1 h_player, 2 gib2, 3 gib3, 4-8 heads; 9 the nearest rock, 10 a hand grenade, 11 the nearest shells box, 12 the nearest brick, 13 the nearest crate or barrel); -1 each gib in turn (gib_2h_throw_test.sh MODELS)
 QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): the prop nearest you sent at the nearest monster at this many m/s (VR_Test_Fling)
 QVR_CVAR(vr_test_fling_at, "0", CVAR_NONE)            // and at: 0 the nearest monster, 1 you (from ahead)
 QVR_CVAR(vr_test_fling_away, "0", CVAR_NONE)          // 1: from inside the edge of its box, away from it (a prop batted away, still in your box)

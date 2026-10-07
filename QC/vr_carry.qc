@@ -413,10 +413,26 @@ float(entity e) VR_Thrown_HitSpeed =
     return throwweight(1, VR_Thrown_Mass(e), VR_Thrown_Own(e, "w_throwmin"));
 };
 
+// A heavy prop thrown (NOTES.md vrfiringrange_2026-10-07_23-00-55: a barrel thrown with both hands hurt for about 14, a
+// blow with it about 90): its throw's damage times (mass / vr_throw_heavy_from)^vr_throw_heavy_exp, at most
+// vr_throw_heavy_max, for props heavier than vr_throw_heavy_from kg (a crate, a barrel; weightdamage's curve, which
+// every throw has, flattens out: a heavy thing thrown leaves the hand slow); 1 for a weapon (its own Weapon Weights) and
+// lighter things.
+float(entity e, float xMass) VR_Thrown_HeavyMult =
+{
+    float from = cvar_hget(cvarh_vr_throw_heavy_from);
+    if(e.classname == "thrown_weapon" || from <= 0 || xMass <= from)
+    {
+        return 1;
+    }
+    return min(pow(xMass / from, max(0, cvar_hget(cvarh_vr_throw_heavy_exp))), max(1, cvar_hget(cvarh_vr_throw_heavy_max)));
+};
+
 // Its damage hitting something at `xSpeed` units/s (0: too slow): its base (GetThrownWeaponBaseDamage) times its speed
 // over the throw's full-damage speed (.throwdmgspeed; that times VR_Thrown_Lenient for a heavy thing, as its thresholds
 // are; eased in just over its hit speed: throwdamage), its own Throw Damage x and Throw Damage Curve, the weight's curve
-// (weightdamage) and vr_weapon_throw_damage_mult (every throw's, not only a weapon's: 0.5 since 2026-10-02).
+// (weightdamage), a heavy prop's own (VR_Thrown_HeavyMult) and vr_weapon_throw_damage_mult (every throw's, not only a
+// weapon's: 0.5 since 2026-10-02).
 float(entity e, float xSpeed) VR_Thrown_Damage =
 {
     float dmgSpeed = e.throwdmgspeed;
@@ -426,7 +442,8 @@ float(entity e, float xSpeed) VR_Thrown_Damage =
     float mass = VR_Thrown_Mass(e);
     float curve = weightdamage(mass);
     float bySpeed = throwweight(2, mass, VR_Thrown_Own(e, "w_throwmin"), VR_Thrown_Own(e, "w_throwcurve"), xSpeed, dmgSpeed);
-    return bySpeed * GetThrownWeaponBaseDamage(e) * own * curve * cvar_hget(cvarh_vr_weapon_throw_damage_mult);
+    return bySpeed * GetThrownWeaponBaseDamage(e) * own * curve * VR_Thrown_HeavyMult(e, mass) *
+           cvar_hget(cvarh_vr_weapon_throw_damage_mult);
 };
 
 float VR_THROW_MISSILE_SPEED = 250; // u/s (times VR_Thrown_Lenient): a thing let go of this fast is thrown, a missile

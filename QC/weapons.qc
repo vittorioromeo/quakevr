@@ -4296,8 +4296,8 @@ void() VR_GrenShot_TestShoot =
     VR_Test_Fire(kind, at);
 };
 
-// QVR: impulse 252 with vr_test_held_pick 9-12 (tests): the nearest rock, a hand grenade from the pouch, the nearest box
-// of shells, the nearest brick put into the empty off hand (the two-handed re-grip tests: ROUND21.md, "Every prop in
+// QVR: impulse 252 with vr_test_held_pick 9-13 (tests): the nearest rock, a hand grenade from the pouch, the nearest box
+// of shells, the nearest brick, the nearest crate or barrel (13) put into the empty off hand (the two-handed re-grip tests: ROUND21.md, "Every prop in
 // both hands").
 void(float xPick) VR_Test_HeldProp =
 {
@@ -4309,6 +4309,29 @@ void(float xPick) VR_Test_HeldProp =
         }
         VR_HandGrenade_Take(cVR_OffHand);
         dprint("test: a hand grenade in the off hand\n");
+        return;
+    }
+    if(xPick == 13)
+    {
+        // The nearest crate or barrel (prop_2h_test.sh's REPEAT: thrown, taken again), between the hands.
+        entity crateNear = world;
+        float crateDist = 512;
+        for(entity crateE = nextent(world); crateE; crateE = nextent(crateE))
+        {
+            if(VR_Crate_Is(crateE) && crateE.carry_player == world && vlen(crateE.origin - self.origin) < crateDist)
+            {
+                crateNear = crateE;
+                crateDist = vlen(crateE.origin - self.origin);
+            }
+        }
+        if(crateNear == world)
+        {
+            dprint("test: no crate or barrel\n");
+            return;
+        }
+        setorigin(crateNear, (VRGetHandPos(cVR_OffHand) + VRGetHandPos(cVR_MainHand)) * 0.5 - (crateNear.mins + crateNear.maxs) * 0.5);
+        VR_Carry_Start(self, cVR_OffHand, crateNear);
+        dprint(sprintf("test: %s (health %.0f) in the off hand\n", crateNear.model, crateNear.health));
         return;
     }
     string heldClass = xPick == 9 ? "vr_rock" : (xPick == 11 ? "item_shells" : "vr_brick");
