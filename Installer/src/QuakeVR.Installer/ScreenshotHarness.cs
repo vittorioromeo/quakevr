@@ -10,6 +10,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using QuakeVR.Installer.Audio;
 using QuakeVR.Installer.Core.Assets;
+using QuakeVR.Installer.Core.Audio;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
 using QuakeVR.Installer.Skin;
@@ -143,6 +144,8 @@ static class ScreenshotHarness
                 {
                     await TextureSheet(fs, Path.Combine(dir, "quake-textures.png"));
                     report.AppendLine($"sounds: {SoundCheck(fs)}");
+                    var quakeSounds = UiSounds.QuakeClips(fs, Synth.All());
+                    report.AppendLine($"offline mix, Quake's sounds: {MixCheck(quakeSounds.Clips, quakeSounds.Ambience ?? Synth.Crackle(), Path.Combine(dir, "ui-mix-quake.wav"))}");
                     // The window's sound path, muted: the device, the class handlers, Quake's clips, a click.
                     UiSounds.Settings.Muted = true;
                     UiSounds.Start(null);
@@ -153,6 +156,7 @@ static class ScreenshotHarness
                     UiSounds.Stop();
                 }
             }
+            report.AppendLine($"offline mix, synthesized sounds: {MixCheck(Synth.All(), Synth.Crackle(), Path.Combine(dir, "ui-mix-synth.wav"))}");
             report.AppendLine(SoundEngineCheck());
             report.AppendLine(await LiveWindowCheck(options));
             report.AppendLine($"synthesized sounds: {string.Join(", ", Synth.All().Select(kv => $"{kv.Key} {kv.Value.Samples.Length * 1000 / SoundEngine.Rate} ms"))}");
@@ -252,6 +256,77 @@ static class ScreenshotHarness
         return $"sound engine: {during} buffers while a 220 ms sound played, {after - during} more in the next 600 ms (idle: nothing sent)";
     }
 
+    /// <summary>The wave-out rings the live window check compares (frames per buffer, buffers): the old one (it
+    /// crackled: INSTALLER.md, "Sounds"), one just too short, the shortest that holds, and the installer's.</summary>
+    static readonly (int Frames, int Count)[] DeviceRings = [(512, 4), (441, 5), (441, 6), (SoundEngine.BufferFrames, SoundEngine.BufferCount)];
+
+    /// <summary>A scripted session mixed offline (no device): the fire, clicks, a burst of typing (voices of one
+    /// sound stolen), the install's sounds, a mute and back; written to <paramref name="wav"/> and measured.</summary>
+    static string MixCheck(Dictionary<Sfx, SoundClip> clips, SoundClip ambience, string wav)
+    {
+        var mixer = new SoundMixer();
+        var rng = new Random(7);
+        var events = new List<(double At, Action Do)>
+        {
+            (0, () => mixer.SetLoop(ambience, UiSounds.AmbienceLevel, 0.5)),
+            (7.5, () => mixer.MasterVolume = 0),
+            (8.0, () => mixer.MasterVolume = 1),
+        };
+        void At(double t, Sfx kind) => events.Add((t, () =>
+        {
+            var (volume, pitch) = UiSounds.VolumeAndPitch(kind, rng);
+            mixer.Play(clips[kind], volume, pitch);
+        }));
+        At(0.6, Sfx.Select);
+        At(0.9, Sfx.Click);
+        At(1.1, Sfx.Back);
+        At(1.3, Sfx.Toggle);
+        for (var t = 1.6; t < 3.0; t += 0.055)
+        {
+            At(t, Sfx.Type);
+        }
+        for (var t = 3.2; t < 4.0; t += 0.1)
+        {
+            At(t, Sfx.Click);
+            At(t + 0.05, Sfx.Toggle);
+        }
+        At(4.2, Sfx.InstallStart);
+        At(5.0, Sfx.InstallDone);
+        At(6.0, Sfx.Error);
+        At(6.5, Sfx.Support);
+        At(7.2, Sfx.Select);
+        events.Sort((a, b) => a.At.CompareTo(b.At));
+        const int block = 256;
+        var pcm = new short[(int)(9.0 * SoundMixer.Rate) / block * block];
+        var next = 0;
+        for (var f = 0; f < pcm.Length; f += block)
+        {
+            while (next < events.Count && events[next].At * SoundMixer.Rate <= f)
+            {
+                events[next++].Do();
+            }
+            mixer.Mix(pcm.AsSpan(f, block));
+        }
+        SoundMixer.WriteWav(wav, pcm);
+        var a = SoundMixer.Analyze(pcm);
+        // The loudest a source alone moves from one sample to the next (at its volume): jumps above it are the mixer's.
+        var source = clips.Max(kv => MaxJump(kv.Value.Samples) * UiSounds.VolumeAndPitch(kv.Key, new Random(0)).Volume);
+        var dc = clips.Values.Max(c => Math.Abs(c.Samples.Average()));
+        var ends = clips.Values.Max(c => Math.Max(Math.Abs(c.Samples[0]), Math.Abs(c.Samples[^1])));
+        return string.Create(CultureInfo.InvariantCulture,
+            $"{Path.GetFileName(wav)}: sources' DC up to {dc:0.0000}, first/last samples up to {ends:0.000}; the mixer's own steps: largest {mixer.MaxEdge:0.0000}, {mixer.Edges} over 0.01; peak {a.Peak:0.000}, {a.FullScale} samples at full scale, largest jump {a.MaxJump:0.0000} ({a.Jumps} over 0.05; the sources' own largest {source:0.0000}), largest second difference {a.MaxCurve:0.0000} ({a.Curves} over 0.05)");
+    }
+
+    static double MaxJump(float[] s)
+    {
+        double m = 0;
+        for (var i = 1; i < s.Length; ++i)
+        {
+            m = Math.Max(m, Math.Abs(s[i] - s[i - 1]));
+        }
+        return m;
+    }
+
     /// <summary>The real window, shown off screen for two seconds: how often the frame clock ticks and what the
     /// process costs while animating, then with reduced motion.</summary>
     static async Task<string> LiveWindowCheck(StartupOptions options)
@@ -282,6 +357,22 @@ static class ScreenshotHarness
             return (proc.TotalProcessorTime - cpu0).TotalMilliseconds / sw.Elapsed.TotalMilliseconds * 100;
         }
         var active = window.IsActive;
+        // The device under the window's load: rings of buffers mixing the fire and a click every 120 ms at a
+        // thousandth of their volume (inaudible), counting the times the device ran dry.
+        var rings = DeviceRings.Select(r => new SoundEngine(r.Frames, r.Count) { MasterVolume = 0.001f }).ToList();
+        var clips = Synth.All();
+        foreach (var e in rings)
+        {
+            e.SetLoop(Synth.Crackle(), 0.1f, 0.01);
+        }
+        var clicker = new Timer(_ =>
+        {
+            foreach (var e in rings)
+            {
+                e.Play(clips[Sfx.Click], 0.3f);
+            }
+        }, null, 0, 120);
+        var ringClock = Stopwatch.StartNew();
         Measure(out _); // Warm up: the first frames compile shaders and fill caches.
         var busy = Measure(out var ticks);
         var governed = Measure(out var governedTicks); // After the governor's first look.
@@ -317,8 +408,16 @@ static class ScreenshotHarness
         var still = Measure(out var stillTicks);
         FrameClock.OverrideReduceMotion(options.ReduceMotion ? true : null);
         window.Close();
+        clicker.Dispose();
+        var ringSeconds = ringClock.Elapsed.TotalSeconds;
+        var ringReport = string.Join("; ", rings.Zip(DeviceRings, (e, r) => string.Create(CultureInfo.InvariantCulture,
+            $"{r.Count}x{r.Frames} ({r.Count * r.Frames * 1000.0 / SoundEngine.Rate:0} ms queued): {e.Underruns} underruns, fewest queued {(e.MinQueued == int.MaxValue ? "-" : e.MinQueued.ToString(CultureInfo.InvariantCulture))}, {e.TimeoutWakes} timeouts, played {e.PlayedSeconds:0.00} s of audio in {e.StreamedSeconds:0.00} s")));
+        foreach (var e in rings)
+        {
+            e.Dispose();
+        }
         return string.Create(CultureInfo.InvariantCulture,
-            $"Windows animation effects {(windowsAnimations ? "on" : "off")}; {(FrameClock.Hardware ? "GPU" : "software")} rendering; live window (active {active}): {ticks / 2.0:0} ticks/s, process CPU {busy:0.0}% of one core; {governor} reduced motion: {stillTicks / 2.0:0} ticks/s, CPU {still:0.0}%;{detail}");
+            $"device rings over {ringSeconds:0} s of the live window: {(rings.All(e => e.Available) ? ringReport : "no audio device")}; Windows animation effects {(windowsAnimations ? "on" : "off")}; {(FrameClock.Hardware ? "GPU" : "software")} rendering; live window (active {active}): {ticks / 2.0:0} ticks/s, process CPU {busy:0.0}% of one core; {governor} reduced motion: {stillTicks / 2.0:0} ticks/s, CPU {still:0.0}%;{detail}");
     }
 
     static void Layout(FrameworkElement e, double w, double h)

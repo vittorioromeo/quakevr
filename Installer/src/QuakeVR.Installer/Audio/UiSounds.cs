@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using QuakeVR.Installer.Core.Assets;
+using QuakeVR.Installer.Core.Audio;
 using QuakeVR.Installer.ViewModels;
 
 namespace QuakeVR.Installer.Audio;
@@ -143,7 +144,17 @@ public static class UiSounds
     /// <summary>Switches to Quake's sounds (any missing one keeps its synthesized stand-in).</summary>
     public static void UseQuake(QuakeFileSystem fs)
     {
-        var clips = new Dictionary<Sfx, SoundClip>(_clips.Count > 0 ? _clips : Synth.All());
+        var (clips, ambience, found) = QuakeClips(fs, _clips.Count > 0 ? _clips : Synth.All());
+        _clips = clips;
+        _ambience = ambience ?? _ambience;
+        Settings.Source = $"Quake's sounds ({found} of {QuakeFiles.Count})";
+        StartAmbience();
+    }
+
+    /// <summary>Quake's sounds over <paramref name="fallback"/> (the synthesized ones), its fire, and how many were found.</summary>
+    internal static (Dictionary<Sfx, SoundClip> Clips, SoundClip? Ambience, int Found) QuakeClips(QuakeFileSystem fs, Dictionary<Sfx, SoundClip> fallback)
+    {
+        var clips = new Dictionary<Sfx, SoundClip>(fallback);
         var found = 0;
         foreach (var (kind, file) in QuakeFiles)
         {
@@ -153,14 +164,19 @@ public static class UiSounds
                 ++found;
             }
         }
-        _clips = clips;
-        if (Load(fs, QuakeAmbience) is { } fire)
-        {
-            _ambience = fire;
-        }
-        Settings.Source = $"Quake's sounds ({found} of {QuakeFiles.Count})";
-        StartAmbience();
+        return (clips, Load(fs, QuakeAmbience), found);
     }
+
+    /// <summary>A sound's volume and pitch as <see cref="Play"/> gives them (the harness's offline mix plays the same).</summary>
+    internal static (float Volume, double Pitch) VolumeAndPitch(Sfx kind, Random rng) =>
+        (Volumes.GetValueOrDefault(kind, 0.3f), kind switch
+        {
+            Sfx.Type => 1.2 + rng.NextDouble() * 0.2,
+            Sfx.Toggle => 1.1,
+            _ => 1.0,
+        });
+
+    internal const float AmbienceLevel = AmbienceVolume;
 
     static SoundClip? Load(QuakeFileSystem fs, string file) =>
         fs.Read(file) is { } data && QuakeFormats.ReadWav(data) is { } wav
@@ -213,13 +229,8 @@ public static class UiSounds
             return;
         }
         LastPlayed[kind] = now;
-        var pitch = kind switch
-        {
-            Sfx.Type => 1.2 + Rng.NextDouble() * 0.2,
-            Sfx.Toggle => 1.1,
-            _ => 1.0,
-        };
-        _engine.Play(clip, Volumes.GetValueOrDefault(kind, 0.3f), pitch);
+        var (volume, pitch) = VolumeAndPitch(kind, Rng);
+        _engine.Play(clip, volume, pitch);
     }
 
     static void OnClick(object sender, RoutedEventArgs e)

@@ -29339,3 +29339,34 @@ not repeat. The synthesized insert is gone from make_sounds.py.
 
 Test in VR: fill the shotgun shell by shell (the three takes alternate, none too loud or quiet next to the pouch and the
 magazines), the last shell's click with the full knock under it.
+
+## Installer sounds crackled (2026-10-07)
+
+Vittorio heard crackling in the installer's UI sounds. Two causes, measured (`QuakeVR-Setup --screenshots <dir> --extras`,
+report.txt: "device rings" and "offline mix").
+
+- **Underruns (the crackle).** `SoundEngine` queued 4 buffers of 512 frames (46 ms) on wave-out. With the fire's loop
+  and a click every 120 ms while the live window animated, that ring played 20.1 s of audio in 26.1 s (the device's
+  own position, `waveOutGetPosition`): 430 underruns (every buffer done at a refill), a ~14 ms gap every ~60 ms. The
+  event was right (CALLBACK_EVENT on `_deviceEvent`, ~870 device wakes; the old 50 ms timeout was not the cause: with a
+  20 ms timeout the 46 ms ring still drained 428 times). Windows' wave-out, emulated over WASAPI, starves with 50 ms or
+  less queued: 5 x 441 (50 ms) played 21.7 s in 26.0 s, and there WHDR_DONE missed it (one underrun counted; the
+  emulation holds the last buffer while it starves), 6 x 441 (60 ms) held with one buffer to spare, 8 x 441 (80 ms)
+  with six. Now 8 x 441 (10 ms each, the audio engine's period; a click waits at most 80 ms), the wait 20 ms. Reading
+  the device's position at every refill hid the gaps (the emulation's timing changes), so the harness reads it once
+  at the end.
+- **The mixer's own steps (clicks).** Quake's 8-bit sounds start and end off zero (first/last samples up to 0.07, DC
+  up to 0.03; the 8-bit conversion, `(b - 128) / 128`, is centred), a fourth voice of one sound was cut mid-play (a
+  burst of typing: `misc/menu1` is 507 ms), the loop jumped from its last sample to its first, and the mute cut the
+  output. An offline render of a scripted 9 s session with Quake's sounds (clicks, 26 keystrokes 55 ms apart, the
+  install's sounds, a mute): the mixer's own largest step 0.027 with 20 over 0.01, now 0.001 and none. Now every
+  voice fades in over 2 ms and out over its last 4 ms, a stolen voice fades out over 6 ms, the loop's last 40 ms is
+  crossfaded into its start (`SoundMixer.Seamless`), the master volume ramps over 10 ms (the thread keeps sending
+  until it reaches 0), and the limiter is linear to 0.6 then a tanh bend (the old knee `s - 0.15 s^3` jumped from 0.85
+  to 1 at |s| = 1; no session reached it: peak 0.44).
+
+The mixer moved to the core (`Core/Audio/SoundMixer.cs`, no device) with a self-test ("sounds: the mixer never steps
+the output"); `SoundEngine` keeps the device, counts `Underruns`, `MinQueued`, `TimeoutWakes` and played versus
+streamed seconds.
+
+Test on the PC: the installer's clicks, a burst of typing in the folder box, and the mute button, over the fire.

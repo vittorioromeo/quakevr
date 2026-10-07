@@ -9,8 +9,8 @@ can update or remove what it installed. The design, the research behind it and t
 
 | Folder | What |
 |---|---|
-| `src/QuakeVR.Installer.Core` | Everything that is not UI, testable without a window: detection (`Detection/`), packages, manifests, local packages, install/update/uninstall and downloads (`Packaging/`), shortcuts (`Shortcuts/`), the registry and special folders behind an interface (`Platform/`), Quake's file formats for the skin (`Assets/`: PAK, palette, WAD2, BSP textures, WAV) |
-| `src/QuakeVR.Installer` | The wizard window (`QuakeVR-Setup.exe`): Welcome, Statement, Your PC, Options, Install, Play, Thanks. `ViewModels/MainViewModel.cs` holds the state; `Views/` the pages; `Themes/Theme.xaml` the look; `Skin/` the textures (from the player's Quake, or generated), flames, lava and the frame clock; `Audio/` the sounds and their mixer; `Fonts/` and `Assets/` the embedded fonts (SIL OFL), logos, icon and Ko-fi logo; `ScreenshotHarness.cs` renders the pages to PNG |
+| `src/QuakeVR.Installer.Core` | Everything that is not UI, testable without a window: detection (`Detection/`), packages, manifests, local packages, install/update/uninstall and downloads (`Packaging/`), shortcuts (`Shortcuts/`), the registry and special folders behind an interface (`Platform/`), Quake's file formats for the skin (`Assets/`: PAK, palette, WAD2, BSP textures, WAV), the sounds' mixer (`Audio/`, no device) |
+| `src/QuakeVR.Installer` | The wizard window (`QuakeVR-Setup.exe`): Welcome, Statement, Your PC, Options, Install, Play, Thanks. `ViewModels/MainViewModel.cs` holds the state; `Views/` the pages; `Themes/Theme.xaml` the look; `Skin/` the textures (from the player's Quake, or generated), flames, lava and the frame clock; `Audio/` the sounds and the wave-out device; `Fonts/` and `Assets/` the embedded fonts (SIL OFL), logos, icon and Ko-fi logo; `ScreenshotHarness.cs` renders the pages to PNG |
 | `src/QuakeVR.Installer.Cli` | `qvr-setup.exe`: the core from a console (detection report, install/uninstall/verify from a local package, manifests, downloads) |
 | `tests/QuakeVR.Installer.SelfTest` | The core's tests, as a console program (see "Tests") |
 
@@ -99,7 +99,7 @@ refused), install target rules, install/verify/update/uninstall end to end (zip 
 the Quake folder unchanged), damaged and cancelled installs, HD textures for owned packs only, downloads (mirror
 fall-back, a wrong file skipped, resume with HTTP Range, pinned SHA-256) and the release feed, all against a local
 HTTP server; the skin's readers (pak search order, palette, WAD2 pictures and CONCHARS, a BSP's textures, 8/16-bit WAV,
-junk refused) on made-up files, local packages (found beside the installer, checked for a manifest, texture packs
+junk refused) on made-up files, the sounds' mixer (no step in the output: voice fades, stolen voices, the loop's seam, the mute, a smooth limiter), local packages (found beside the installer, checked for a manifest, texture packs
 skipped), and VisPatch's data (made-up `.tgz` archives from a local server: mirror order, pinned hash, safe unpacking,
 installed where the game looks, kept by updates, removed by uninstall). The machine is a `MemorySystemProbe`: no test reads the real registry or writes outside the scratch folder.
 xUnit/MSTest were not used because their NuGet packages are not available offline here; moving the tests to xUnit later

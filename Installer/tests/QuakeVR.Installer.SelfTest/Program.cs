@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using QuakeVR.Installer.Core;
 using QuakeVR.Installer.Core.Assets;
+using QuakeVR.Installer.Core.Audio;
 using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
@@ -753,6 +754,87 @@ var tests = new List<(string Name, Action Body)>
         Eq("v1", tag, "tag");
         Eq(sha, assets[0].Sha256, "digest");
         Eq(null, assets[1].Sha256, "no digest");
+    }),
+    ("sounds: the mixer never steps the output (voice fades, stolen voices, the loop's seam, the mute, a smooth limiter)", () =>
+    {
+        // The limiter: unchanged below the knee, continuous (and so is its slope) at the knee, never above full scale.
+        Eq(0.5f, SoundMixer.Limit(0.5f), "below the knee");
+        Eq(-0.5f, SoundMixer.Limit(-0.5f), "below the knee, negative");
+        const float k = SoundMixer.KneeStart;
+        True(Math.Abs(SoundMixer.Limit(k + 1e-4f) - SoundMixer.Limit(k - 1e-4f)) < 3e-4, "continuous at the knee");
+        var previous = 0f;
+        for (var x = 0f; x < 8; x += 0.001f)
+        {
+            var y = SoundMixer.Limit(x);
+            True(y >= previous && y <= 1 && y - previous <= 0.001f + 1e-6f, $"monotonic, below 1, slope at most 1 at {x}");
+            previous = y;
+        }
+        True(SoundMixer.Limit(1) > 0.88f && SoundMixer.Limit(1) < 0.92f, "1 bends to about 0.9");
+
+        // Quake's 8-bit sounds rarely start or end on zero: a clip of pure DC (0.5) is the worst case.
+        var dc = new SoundClip("dc", Enumerable.Repeat(0.5f, SoundMixer.Rate / 4).ToArray());
+        short[] Render(SoundMixer m, int frames, Action<int>? at = null)
+        {
+            const int block = 441;
+            var pcm = new short[frames / block * block];
+            for (var f = 0; f < pcm.Length; f += block)
+            {
+                at?.Invoke(f);
+                m.Mix(pcm.AsSpan(f, block));
+            }
+            return pcm;
+        }
+        var mixer = new SoundMixer();
+        mixer.Play(dc, 1);
+        var one = Render(mixer, SoundMixer.Rate / 2);
+        var a = SoundMixer.Analyze(one);
+        True(a.Peak > 0.48, $"the clip plays (peak {a.Peak})");
+        True(a.MaxJump < 0.5 / SoundMixer.FadeInFrames * 1.5, $"fades in and out (largest jump {a.MaxJump})");
+        True(!mixer.Busy, "ended");
+        Eq(0, mixer.Edges, "no edges");
+
+        // Five plays of one sound 20 ms apart: two voices are stolen, and fade out.
+        mixer = new SoundMixer();
+        var stolen = Render(mixer, SoundMixer.Rate / 2, f =>
+        {
+            if (f % 882 == 0 && f < 882 * 5)
+            {
+                mixer.Play(dc, 0.2f);
+            }
+        });
+        a = SoundMixer.Analyze(stolen);
+        True(a.MaxJump < 0.2 / SoundMixer.FadeInFrames * 1.5 + 0.2 / SoundMixer.StealFrames * 3, $"stolen voices fade (largest jump {a.MaxJump})");
+        Eq(0, mixer.Edges, "no edges with stolen voices");
+
+        // A loop whose end and start differ (a ramp from -0.5 to 0.5): no seam; then the mute ramps.
+        var ramp = new SoundClip("ramp", Enumerable.Range(0, SoundMixer.Rate / 5).Select(i => i / (float)(SoundMixer.Rate / 5) - 0.5f).ToArray());
+        mixer = new SoundMixer();
+        mixer.SetLoop(ramp, 1, 0.001);
+        var muted = false;
+        var loop = Render(mixer, SoundMixer.Rate, f =>
+        {
+            if (!muted && f >= SoundMixer.Rate * 3 / 4)
+            {
+                mixer.MasterVolume = 0;
+                muted = true;
+            }
+        });
+        a = SoundMixer.Analyze(loop);
+        True(a.MaxJump < 0.01, $"the loop wraps and mutes without a step (largest jump {a.MaxJump})");
+        True(!mixer.Busy, "muted: nothing to send");
+        Eq(0, loop[^1], "silent once muted");
+        Eq(0, mixer.Edges, "no edges in the loop");
+
+        // The loop's seam itself: the crossfaded copy's last sample flows into its first.
+        var seamless = SoundMixer.Seamless(ramp.Samples);
+        Eq(ramp.Samples.Length - SoundMixer.SeamFrames, seamless.Length, "seamless length");
+        True(Math.Abs(seamless[0] - seamless[^1]) < 0.01, $"seam {seamless[^1]} -> {seamless[0]}");
+
+        // Rendered to a WAV that reads back.
+        var wav = Path.Combine(Dir("sounds"), "mix.wav");
+        SoundMixer.WriteWav(wav, stolen);
+        var back = QuakeFormats.ReadWav(File.ReadAllBytes(wav));
+        True(back is not null && back.SampleRate == SoundMixer.Rate && back.Samples.Length == stolen.Length, "the WAV reads back");
     }),
     ("skin assets: pak search order, palette, WAD pictures and CONCHARS, a map's textures, WAV decoding", () =>
     {

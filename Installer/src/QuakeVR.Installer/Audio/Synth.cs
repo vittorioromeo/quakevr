@@ -1,3 +1,5 @@
+using QuakeVR.Installer.Core.Audio;
+
 namespace QuakeVR.Installer.Audio;
 
 /// <summary>
