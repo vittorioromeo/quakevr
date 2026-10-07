@@ -918,3 +918,6 @@ Items (`QC/vr_mg3_items.qc`): armour shards, the two draughts (rings moving the 
 the lava suit (lava/slime immunity) and the hell knight's head (Bloody Nightmare on and discovered for good:
 `vr_mg3_bn_discovered`); MG3's SPAWNED and DROPTOFLOOR_DISABLE item flags in campaign 5. Items Check:
 `vr_mg3_test 9`.
+Runes and hub: campaign 5's `item_sigil`, `trigger_rune_relay`, `trigger_rune_counter`; NOT_IF_<n>_RUNES removes
+items, monsters, triggers, corpses and intermission views by the runes home (map1, map3, map5, map7 are revisited);
+the hub (worldtype 0) keeps the inventory. Tests 10-14 (runes, hub rune check, rune count report, exit, intermission).

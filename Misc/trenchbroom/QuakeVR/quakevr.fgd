@@ -2773,6 +2773,24 @@ Variable sized trigger that removes the thing that touches it. Does not affect m
 	pausetime(float) : "Random added interval" : 0
 ]
 
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_rune_counter : "When used, fires its targets if at least 'count' runes (default 2) have been collected (Dawn of the Machine)."
+[
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_rune_relay : "When used, fires its targets if every rune its flags name has been collected (Dawn of the Machine)."
+[
+	spawnflags(flags) =
+	[
+		1 : "RUNE1" : 0
+		2 : "RUNE2" : 0
+		4 : "RUNE3" : 0
+		8 : "RUNE4" : 0
+	]
+]
+
 @PointClass base(Targetname) =
 	trigger_screenshake : "Authored quake audio and controller vibration. Does not alter headset/view angles or tracked position."
 [

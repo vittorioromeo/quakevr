@@ -27868,3 +27868,20 @@ tests use `vr_campaign_native mg3`, `-nomapindex -noaddons`, developer 1.
   hidden, one appears when used. Checker: 28 missing classes, 701 placements. Regression as before (all pass).
   Unrelated: `map map2` crashed 2 of 7 loads in `vr_hull.cpp:450` (hull walk on a worker thread, before any test
   ran); the other 5 and every other map loaded.
+- **M3-08 runes and hub.** Campaign 5's `item_sigil` (`MG3_item_sigil`, vr_mg3_items.qc: end1..4 models,
+  `$mg3_qc_rune1..4` centre-printed to everyone, the bit in `style`, spawnflag 128 hidden until a trigger uses it:
+  map8's; a holster object); `trigger_rune_relay` (passes a use on 0.1 s later with every rune its flags name) and
+  `trigger_rune_counter` (fires with at least `count` runes, default 2), in any campaign. Upstream's
+  RemovedRuneCheck (`MG3_RuneRemoved`, vr_mg3_defs.qc): an entity with NOT_IF_<n>_RUNES (262144 << n) for the runes
+  home is not there: items (StartItem), monsters (every start, through `MG_MonsterPrepare`, and the spawn functions'
+  `MG_MonsterInhibited`), triggers, corpses, intermission views; campaign 5 only. `trigger_door_relay` now also takes
+  VR's door classname "door" (id's doors.qc renames func_door; upstream MG3 does not): the M3-05 relay check had passed
+  without moving a door, and now counts the doors moved (secret6 24, secret4 11; map7's four only close open doors,
+  0 at load). The hub is worldtype 0, so the inventory carries through it (map3 -> hub -> map5: weapons, ammunition,
+  holsters kept; keys dropped as on any changelevel). Measured (`vr_mg3_test 10/11/12/13/14`): secret1 -> secret5 ->
+  hub -> secret3 -> map8 runes 1, 3, 7, 15 (map8's hidden rune brought out first); the hub's entry check with 2 runes
+  opens rune 1 and 2 doors, not 3/4 nor the exit; with 4 all four and the exit (2/0 each); `save`, `map start`
+  (serverflags 0), `load`: 15; map1 with 0 runes 88 monsters, 2 corpses, 1 intermission view, with 1 rune 66, 13
+  and 1 (the map's two versions; before, both at once); secret2's exit: changelevel to boss (intermission, next map
+  boss). Checker: 26 missing classes, 675 placements. Regression: Dopa triggers 34/0, world 19/0, MG1 hub 20/0, Horde
+  24/0, e1m1.

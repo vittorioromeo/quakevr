@@ -48,7 +48,7 @@ void() MG3_door_relay_use = {
         if(t.state == STATE_TOP || t.state == STATE_UP) {
             if(!(oself.spawnflags & MG3_DOOR_RELAY_IGNORE_IF_TOP)) {
                 self = t;
-                if(t.classname == "func_door") door_go_down();
+                if(t.classname == "door" || t.classname == "func_door") door_go_down(); // (VR's doors are "door", as id's)
                 else if(t.classname == "func_button") button_return();
                 self = oself;
             }
@@ -56,7 +56,7 @@ void() MG3_door_relay_use = {
         else if(t.state == STATE_BOTTOM || t.state == STATE_DOWN) {
             if(!(oself.spawnflags & MG3_DOOR_RELAY_IGNORE_IF_BOTTOM)) {
                 self = t;
-                if(t.classname == "func_door") door_go_up();
+                if(t.classname == "door" || t.classname == "func_door") door_go_up();
                 else if(t.classname == "func_button") button_fire();
                 self = oself;
             }
@@ -373,4 +373,32 @@ void() trigger_lore = {
     }
     InitTrigger();
     self.touch = MG3_lore_touch;
+};
+
+// ----------------------------------------------------------------------------
+// M3-08: rune relays (any campaign: the runes are serverflags 1, 2, 4, 8 everywhere).
+// trigger_rune_relay: passes a use on (0.1 s later) when every rune its spawnflags name has been brought home.
+void() MG3_rune_relay_use = {
+    if((self.spawnflags & MG3_SF_RUNES & serverflags) != (self.spawnflags & MG3_SF_RUNES)) return;
+    self.think = SUB_UseTargets;
+    self.nextthink = time + 0.1;
+};
+/*QUAKED trigger_rune_relay (.5 .5 .5) (-8 -8 -8) (8 8 8) RUNE1 RUNE2 RUNE3 RUNE4
+When used, fires its targets if every rune its flags name has been collected (Dawn of the Machine).
+*/
+void() trigger_rune_relay = {
+    if(MG3_CoopRemoved()) return;
+    self.use = MG3_rune_relay_use;
+};
+// trigger_rune_counter: fires its targets when used with at least "count" runes (default 2) home.
+void() MG3_rune_counter_use = {
+    if(MG3_RuneCount() >= self.count) SUB_UseTargets();
+};
+/*QUAKED trigger_rune_counter (.5 .5 .5) (-8 -8 -8) (8 8 8)
+When used, fires its targets if at least "count" runes (default 2) have been collected (Dawn of the Machine).
+*/
+void() trigger_rune_counter = {
+    if(MG3_CoopRemoved()) return;
+    if(!self.count) self.count = 2;
+    self.use = MG3_rune_counter_use;
 };

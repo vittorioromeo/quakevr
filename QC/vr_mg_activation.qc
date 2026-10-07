@@ -27,6 +27,7 @@
 .entity MG_monster_activator;
 float() MG_MonsterInhibited = {
     if(!MG_WorldCampaign()) return FALSE;
+    if(MG3_RuneRemoved()) return TRUE; // Dawn of the Machine: not with this many runes (vr_mg3_defs.qc)
     if((!coop && (self.spawnflags & 32768)) || (coop && (self.spawnflags & 131072))) {
         remove(self); return TRUE;
     }
@@ -61,6 +62,7 @@ void() MG_MonsterActivate = {
     self.nextthink = time + 0.1;
 };
 float(void() start) MG_MonsterPrepare = {
+    if(MG3_RuneRemoved()) return TRUE; // Dawn of the Machine: not with this many runes (every monster's start)
     if(!MG_WorldCampaign() || !(self.spawnflags & 4)) return FALSE;
     self.MG_monster_start = start;
     self.MG_monster_model = self.model;

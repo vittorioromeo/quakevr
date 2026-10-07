@@ -258,7 +258,8 @@ void() PlaceItem =
     {
         item_unspawn();
     }
-    else if(MG3_Campaign() && (self.spawnflags & MG3_ITEM_SPAWNED) && self.classname != "item_sigil")
+    else if(MG3_Campaign() && ((self.classname != "item_sigil" && (self.spawnflags & MG3_ITEM_SPAWNED))
+        || (self.classname == "item_sigil" && (self.spawnflags & 128))))
     {
         MG3_ItemUnspawn(); // Dawn of the Machine: one a trigger brings (upstream SPAWNED; vr_mg3_items.qc)
     }
@@ -1792,6 +1793,7 @@ End of level sigil, pick up to end episode and return to jrstart.
 void() item_sigil =
 {
     if(cvar("vr_campaign") == 4) { MG1_item_sigil(); return; }
+    if(cvar("vr_campaign") == 5) { MG3_item_sigil(); return; } // vr_mg3_items.qc
     if(!self.spawnflags)
         objerror ("no spawnflags");
 

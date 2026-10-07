@@ -141,13 +141,13 @@ void() MG3_T_Triggers = {
     dprint(sprintf("mg3test: %g silent teleports, %g moved by their height, %g land in the open\n", n, moved, open));
     if(n) MG3_Check(moved == n && open == n, "every silent teleport moves the player by its height into the open");
     // Door relays: each target toggled by its state unless the flags say leave it.
-    float rn = 0, rok = 0;
+    float rn = 0, rok = 0, toggles = 0;
     e = find(world, classname, "trigger_door_relay");
     while(e) {
         entity t = find(world, targetname, e.target);
         while(t) {
             t.MG3_T_want = 10 + t.state; // unchanged
-            if(t.classname == "func_door" || t.classname == "func_button") {
+            if(t.classname == "door" || t.classname == "func_door" || t.classname == "func_button") {
                 if((t.state == STATE_TOP || t.state == STATE_UP) && !(e.spawnflags & 1)) t.MG3_T_want = 1;
                 if((t.state == STATE_BOTTOM || t.state == STATE_DOWN) && !(e.spawnflags & 2)) t.MG3_T_want = 2;
             }
@@ -160,13 +160,14 @@ void() MG3_T_Triggers = {
             if(t.MG3_T_want == 1 && t.state != STATE_DOWN && t.state != STATE_BOTTOM) good = FALSE;
             if(t.MG3_T_want == 2 && t.state != STATE_UP && t.state != STATE_TOP) good = FALSE;
             if(t.MG3_T_want >= 10 && t.state != t.MG3_T_want - 10) good = FALSE;
+            if(t.MG3_T_want == 1 || t.MG3_T_want == 2) toggles++;
             if(!good) dprint(sprintf("mg3test: door relay %s: %s state %g (want %g)\n", e.target, t.classname, t.state, t.MG3_T_want));
             t = find(t, targetname, e.target);
         }
         rn++; if(good) rok++;
         e = find(e, classname, "trigger_door_relay");
     }
-    dprint(sprintf("mg3test: %g door relays, %g toggled their targets\n", rn, rok));
+    dprint(sprintf("mg3test: %g door relays, %g toggled their targets (%g doors and buttons moved)\n", rn, rok, toggles));
     if(rn) MG3_Check(rok == rn, "every door relay toggles its doors and buttons by state");
     // Spawned triggers.
     entity os = self;
@@ -433,6 +434,63 @@ void() MG3_T_Items = {
     p.health = 100;
     dprint(sprintf("mg3test: items %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
 };
+// ----------------------------------------------------------------------------
+// M3-08 runes and hub (developer campaign). Request 10: brings out a hidden rune (map8's) and takes every rune here
+// by its real pickup; prints serverflags. Request 11 (the hub): fires `runecheck` as its entry trigger does, and 6 s
+// later checks each rune's doors (open with that rune) and the exit (open only with all four). Request 12: the
+// rune-count report (entities removed by NOT_IF_<n>_RUNES are gone: counts of monsters and items now).
+void() MG3_T_Runes = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    float sf = serverflags, n = 0;
+    entity e = find(world, classname, "item_sigil");
+    while(e) {
+        if(e.model == string_null && e.use == MG3_ItemSpawn) { entity os = self; self = e; e.use(); self = os; }
+        if(e.model != string_null) {
+            float bit = e.style;
+            MG3_T_Take(e); n++;
+            MG3_Check(e.model == string_null && (serverflags & bit), "a rune taken sets its bit");
+        }
+        e = find(e, classname, "item_sigil");
+    }
+    dprint(sprintf("mg3test: %g runes taken: serverflags %g -> %g (runes %g)\n", n, sf, serverflags, MG3_RuneCount()));
+    dprint(sprintf("mg3test: runes %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+};
+float(string door) MG3_T_DoorOpen = {
+    float open = 0, all = 0;
+    entity d = find(world, targetname, door);
+    while(d) { if(d.classname == "door") { all++; if(d.state == STATE_TOP || d.state == STATE_UP) open++; } d = find(d, targetname, door); }
+    if(!all) return -1;
+    return open == all;
+};
+void() MG3_T_HubLate = {
+    MG3_test_pass = MG3_test_fail = 0;
+    float r1 = MG3_T_DoorOpen("rune_1"), r2 = MG3_T_DoorOpen("rune_2"), r3 = MG3_T_DoorOpen("rune_3"), r4 = MG3_T_DoorOpen("rune_4");
+    float ex = MG3_T_DoorOpen("exit");
+    dprint(sprintf("mg3test: hub with serverflags %g (%g runes): rune doors %g %g %g %g, exit %g\n", serverflags, MG3_RuneCount(), r1, r2, r3, r4, ex));
+    MG3_Check(r1 == !!(serverflags & 1) && r2 == !!(serverflags & 2) && r3 == !!(serverflags & 4) && r4 == !!(serverflags & 8), "each rune's doors open with that rune only");
+    MG3_Check(ex == (MG3_RuneCount() == 4), "the exit opens with all four runes only");
+    dprint(sprintf("mg3test: hub %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    remove(self);
+};
+void() MG3_T_Hub = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_T_player = p;
+    MG_T_Fire("runecheck", p);
+    entity e = spawn(); e.think = MG3_T_HubLate; e.nextthink = time + 6;
+};
+void() MG3_T_RuneReport = {
+    float mon = 0, items = 0, inter = 0, corpses = 0;
+    entity e = nextent(world);
+    while(e) {
+        if((e.flags & FL_MONSTER) || e.MG_deferred) mon++;
+        else if(e.flags & FL_ITEM) items++;
+        if(e.classname == "info_intermission") inter++;
+        if(e.classname == "misc_corpse") corpses++;
+        e = nextent(e);
+    }
+    dprint(sprintf("mg3test: %s with %g runes: %g monsters, %g items, %g intermission views, %g corpses (total_monsters %g)\n", mapname, MG3_RuneCount(), mon, items, inter, corpses, total_monsters));
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     cvar_set("vr_mg3_test", "0");
@@ -456,6 +514,19 @@ void() MG3_TestFrame = {
     else if(request == 5) MG3_T_Collect();
     else if(request == 8) MG3_T_Keys();
     else if(request == 9) MG3_T_Items();
+    else if(request == 10) MG3_T_Runes();
+    else if(request == 11) MG3_T_Hub();
+    else if(request == 12) MG3_T_RuneReport();
+    else if(request == 13) { // walk into this map's first changelevel (its route)
+        entity cl = find(world, classname, "trigger_changelevel");
+        entity pl = find(world, classname, "player");
+        if(cl && pl) { dprint(sprintf("mg3test: changelevel to %s\n", cl.map)); MG3_T_player = pl; MG3_T_Touch(cl); }
+    }
+    else if(request == 14) { // leave the intermission (a button press)
+        entity ip = find(world, classname, "player");
+        dprint(sprintf("mg3test: intermission %g, next map %s\n", intermission_running, nextmap));
+        if(intermission_running && ip) { self = ip; ExitIntermission(); }
+    }
     else dprint(sprintf("mg3test: unknown request %g\n", request));
     self = oldself; other = oldother; activator = oldact;
 };

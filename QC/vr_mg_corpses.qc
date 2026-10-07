@@ -74,6 +74,7 @@ MG_poseInfo MG_poses[] =
 
 void() misc_corpse = {
     if(!MG_WorldGuard()) return;
+    if(MG3_RuneRemoved()) return; // Dawn of the Machine: not with this many runes
     if(self.style < 0 || self.style >= MG_poses.length)
     {
         objerror("misc_corpse with invalid style.");

@@ -112,3 +112,26 @@ float MG3_SF_TETTE = 512;
 .string comment;
 .float dirt;
 .float fog_sky_factor;
+
+// The runes brought home (upstream RemovedRuneCheck's count).
+float() MG3_RuneCount = {
+    float n = 0;
+    if(serverflags & MG3_SF_RUNE1) n++;
+    if(serverflags & MG3_SF_RUNE2) n++;
+    if(serverflags & MG3_SF_RUNE3) n++;
+    if(serverflags & MG3_SF_RUNE4) n++;
+    return n;
+};
+// Upstream RemovedRuneCheck: campaign 5's maps are played again after runes come home (map1 first and later), and
+// an entity whose spawnflag NOT_IF_<n>_RUNES (262144 << n, n = 0..4) matches the count is not there (removed: TRUE).
+// Items, monsters, triggers, corpses and intermission views ask (StartItem and the monsters' and triggers' starts
+// through MG_MonsterInhibited/MG_MonsterPrepare, misc_corpse, info_intermission).
+float MG3_NOT_IF_0_RUNES = 262144;
+float() MG3_RuneRemoved = {
+    if(!MG3_Campaign() || self.spawnflags < MG3_NOT_IF_0_RUNES) return FALSE;
+    float bit = MG3_NOT_IF_0_RUNES, n = MG3_RuneCount();
+    while(n > 0) { bit = bit * 2; n--; }
+    if(!(self.spawnflags & bit)) return FALSE;
+    remove(self);
+    return TRUE;
+};

@@ -16,6 +16,7 @@ Use mangle instead of angle, so you can set pitch or roll as well as yaw.  'pitc
 */
 void() info_intermission =
 {
+    MG3_RuneRemoved(); // Dawn of the Machine: a view only with so many runes (vr_mg3_defs.qc)
 };
 
 void() SetChangeParms =

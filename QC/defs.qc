@@ -893,5 +893,7 @@ void(entity targ, entity attacker) MG3_HealthTarget;
 void() MG3_LorePostThink;
 float() MG3_Campaign;
 void() MG3_ItemUnspawn;
+float() MG3_RuneRemoved;
+void() MG3_item_sigil;
 float MG3_ITEM_SPAWNED = 4; // an item a trigger brings (upstream SPAWNED, campaign 5)
 .float lavasuit_finished, lavasuit_time; // the lava suit (vr_mg3_items.qc): its end, its warning's next flash

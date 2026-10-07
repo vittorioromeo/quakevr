@@ -4923,6 +4923,16 @@ za::Vector<Item> pageMg3Tests()
             .help("Destructive: a health_target monster hit down past its relay (fires once), an aggro_target group woken, a lore text shown and cleared."),
         command("Items Check", "vr_mg3_test 9")
             .help("Destructive: take every armour shard here, touch each draught, wear a lava suit in lava and slime, take the hell knight's head (Bloody Nightmare on)."),
+        command("Take This Map's Runes", "vr_mg3_test 10")
+            .help("Destructive: bring out a hidden rune and take every rune here by its pickup; prints serverflags."),
+        command("Hub Rune Check", "vr_mg3_test 11")
+            .help("On the hub: fire its rune check as entering does; 6 s later each rune's doors and the exit (all four runes) are checked."),
+        command("Rune Count Report", "vr_mg3_test 12")
+            .help("Monsters, items, intermission views and corpses here with this many runes (NOT_IF_n_RUNES removes the others)."),
+        command("Walk Into the Exit", "vr_mg3_test 13")
+            .help("Destructive: touch this map's first changelevel (its route); then Leave the Intermission."),
+        command("Leave the Intermission", "vr_mg3_test 14")
+            .help("One button press of the intermission (text, then the next map)."),
         toggle("Aggro Groups", vr_mg3_aggro_groups)
             .help("A waking monster wakes what its aggro_target names (map3, map7, map8). Upstream ships this off; off by default."),
     };

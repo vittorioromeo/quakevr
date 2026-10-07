@@ -199,3 +199,36 @@ void() MG3_ItemUnspawn = {
     item_unspawn();
     self.use = MG3_ItemSpawn;
 };
+
+// ----------------------------------------------------------------------------
+// Dawn of the Machine's runes (campaign 5's item_sigil, upstream items_runes.qc): end1..4 models, its own names, the
+// serverflags bit in `style`; spawnflag 128: hidden until a trigger uses it (map8's). Taken at a holster like id's
+// and MG1's; everyone is told (centre print); itemTouch fires its targets.
+void() MG3_sigil_touch = {
+    if(other.classname != "player" || other.health <= 0 || self.model == string_null) return;
+    VRItemPickupHaptic(other);
+    MG_PrintAll(self.netname);
+    sound(other, CHAN_ITEM, self.noise, 1, ATTN_NORM);
+    stuffcmd(other, "bf\n");
+    self.solid = SOLID_NOT;
+    self.model = string_null;
+    serverflags = serverflags | self.style;
+};
+void() MG3_item_sigil = {
+    float hidden = self.spawnflags & 128;
+    if(!(self.spawnflags & 15)) self.spawnflags = self.spawnflags | 1;
+    precache_sound("misc/runekey.wav");
+    self.noise = "misc/runekey.wav";
+    string mdl;
+    if(self.spawnflags & 1) { self.style = 1; mdl = "progs/end1.mdl"; self.netname = "$mg3_qc_rune1"; }
+    else if(self.spawnflags & 2) { self.style = 2; mdl = "progs/end2.mdl"; self.netname = "$mg3_qc_rune2"; }
+    else if(self.spawnflags & 4) { self.style = 4; mdl = "progs/end3.mdl"; self.netname = "$mg3_qc_rune3"; }
+    else { self.style = 8; mdl = "progs/end4.mdl"; self.netname = "$mg3_qc_rune4"; }
+    self.spawnflags = self.style + hidden;
+    precache_model(mdl);
+    setmodel(self, mdl);
+    self.handtouch = MG3_sigil_touch;
+    setsize(self, '-16 -16 -24', '16 16 32');
+    StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_HOLSTER);
+};
