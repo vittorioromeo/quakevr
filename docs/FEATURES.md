@@ -1,13 +1,13 @@
 # Quake VR features
 
-What Quake VR does and how to use it. Menu paths are under **Options > VR Settings** (the main page) and
-**VR Settings > Advanced VR Options** (every other page: "Combat > *Knockdowns*" means Advanced VR Options > Combat >
-Knockdowns). Pages marked *(Developer)* show at *Menu Detail: Developer*. [SETTINGS.md](SETTINGS.md) lists the settings
+What Quake VR does and how to use it. Menu paths are under **VR Settings** (the main page: the main menu's *VR
+Settings*, or Options > VR Settings) and **Advanced VR Options** (every other page: the main menu's *Advanced VR* row or
+the corner's *Advanced VR* button; "Combat > *Knockdowns*" means Advanced VR Options > Combat > Knockdowns). Pages marked *(Developer)* show at *Menu Detail: Developer*. [SETTINGS.md](SETTINGS.md) lists the settings
 themselves; the menus' *Search* finds any of them by name.
 
 The controls named here are the defaults: trigger, grip, A/B on the main hand, X/Y on the off hand, and the sticks.
 The main hand is the right controller, the off hand the left: both hands hold, fire, swing and climb alike. *Handedness*
-(VR Settings) sets everything that has a side at once, for right- or left-handed players; each also has its own
+(Body and Display) sets everything that has a side at once, for right- or left-handed players; each also has its own
 setting: *Swap Stick Functions* (the right stick moves), *Wrist Gadget Arm* and *Flashlight Side*.
 
 - [Weapons](#weapons)
@@ -213,7 +213,7 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
 
 - **Smooth locomotion** with the left stick (the right one with *Swap Stick Functions*), towards your head or that
   hand (*Move Towards*). Run or walk by default (*Default Speed*); clicking the off-hand stick switches to the other.
-- **Turning:** smooth, or snap 30, 45 or 90 degrees. *Comfort* (VR Settings) sets turning, teleport and speed
+- **Turning:** smooth, or snap 30, 45 or 90 degrees. *Comfort* (Locomotion) sets turning, teleport and speed
   together.
 - **Teleport** (off by default): turn on *Teleport* and bind a button to `+teleport`, for example
   `bind LTHUMB +teleport`. Aim with the off hand and let go on a blue spot.
@@ -231,14 +231,14 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
 
 ## Body and hands
 
-- **Body** (VR Settings > Body and Display > *Body*): *Off*, *Torso and arms*, or *Full body* (the default), with
+- **Body** (Body and Display > *Body*; *Body Type* on VR Settings): *Off*, *Torso and arms*, or *Full body* (the default), with
   legs that walk and step round as you turn. Your arms reach your hands (inverse kinematics), the elbows stay tucked
   when you aim by your face, and the body crouches and leans with your head. It casts a shadow, head and all. Hands,
   arms, the gadget and held weapons stop at each other instead of passing through.
 - **Build:** lean, athletic or brawny.
 - **Calibration:** *VR Calibration* (the main menu's first row) runs at the first start: it measures your height and
-  body, then leaves you in a room whose wall buttons set the main options. *Body Calibration* and *Hand/Gun
-  Calibration* (VR Settings) fine-tune your arms and where your hands sit on the controllers.
+  body, then leaves you in a room whose wall buttons set the main options. *Body Calibration* (Body) and *Hand/Gun
+  Calibration* (Weapons; both hands at once: VR Settings > Hand Calibration) fine-tune your arms and where your hands sit on the controllers.
 - **What you wear:** the ranger's clothes, pauldrons, your armour (green, yellow or red plates), your wounds, and
   your powerups (quad damage sparks round your hands, the pentagram glows red, the ring fades you).
 - **Hands:** fitted to what they hold, fingers that curl with the trigger (index), the grip (middle to little finger)
@@ -265,16 +265,16 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
   the last six results you opened are listed under the keyboard.
 - **Console:** Quake's console with a keyboard, to type commands in the headset.
 - **Menu Detail** (at the bottom of every page): *Standard*, *Advanced* or *Developer*. Changed settings have a `*`;
-  *Changed Settings* (VR Settings) lists them, and each page's *Reset This Page* puts its settings back.
+  *Changed Settings* (on Advanced VR Options) lists them, and each page's *Reset This Page* puts its settings back.
 - **Tips:** the first time you come near something you can use (a wall torch, or what a map's author marked with a
-  tip of their own), a small screen beside it, or the wrist gadget, explains it, once (VR Settings > *Tips*).
+  tip of their own), a small screen beside it, or the wrist gadget, explains it, once (the *Tips* page).
 - **Map boards** (the text signs in the hub, tutorial and firing range) are CRT screens.
 - **Colours:** one *Player Effects Hue* colours the gadget's screen, the force grab, the teleport arc, the crosshair
   and the menu laser (HUD and Menus > *Colours*).
 
 ## Flashlight
 
-A torch on your belt, at the hip *Flashlight Side* chooses (VR Settings > Body and Display > *Chest Flashlight*). Put a
+A torch on your belt, at the hip *Flashlight Side* chooses (Body and Display > *Chest Flashlight*). Put a
 hand at it and pull the trigger to switch it on or off. Grip it to take it in your hand, and let go to send it back
 on its chain. In the hand, B or Y, or a sharp flick of the wrist, turns it over between the low grip and the overhead
 one (Flashlight > *Flick to Turn Over*). Bring it to the gun in your other hand and press B or Y to clip it on the gun
@@ -337,7 +337,7 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
 
 ## Sound
 
-- **Spatial sound** with Valve's Steam Audio (VR Settings > *Sound*): sounds around your head (HRTF), muffled behind
+- **Spatial sound** with Valve's Steam Audio (the *Sound* page; *Spatial Sound* on VR Settings): sounds around your head (HRTF), muffled behind
   walls (occlusion), the room's reverb, air absorption over distance, your weapons heard from your hands, and a
   muffle under water. Voices keep their full band (Quake's own mix cut the highs).
 - **Physics sounds:** props, thrown weapons and gibs knock and scrape; a climbing hand grips with a sound, and a hand
@@ -355,7 +355,7 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
 - **Mission packs:** Hipnotic and Rogue are independent optional packs. Validated installed data is used
   automatically, with its weapons, monsters and maps. Quake, the hub, tutorial and firing range work without
   either pack; unavailable campaign buttons are labelled in the hub. Quake VR's QuakeC contains all three campaigns.
-- **Official campaigns** (Single Player > *Official Campaigns*, or VR Settings): the re-release's Dimension of the
+- **Official campaigns** (Single Player > *Official Campaigns*, or Play): the re-release's Dimension of the
   Past plays natively in VR when you own it; Dimension of the Machine (with its Horde mode) and Dawn of the Machine are
   detected, and their native ports are in progress. See [INSTALL.md](INSTALL.md#official-campaigns).
 - **Map Library** (the main menu, or the corner's *Map Library*): browse [Quaddicted](https://www.quaddicted.com/)'s

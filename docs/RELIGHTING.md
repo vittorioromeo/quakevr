@@ -132,13 +132,15 @@ If you write the paths as `--quake .` from inside the Quake folder, that works t
 
 ## In the game
 
-- **Relit maps** are used automatically from the next map you load. *VR Settings > Advanced VR Options >
+- **Relit maps** are used automatically from the next map you load. *Advanced VR >
   Graphics > Relit Maps* (`vr_relit_maps`) switches between the relit and the original lighting. A map that has
   no relit version plays with its own light.
-- **See-through water:** set how transparent it is in *VR Settings > Advanced VR Options > Graphics > Transparency >
+- **See-through water:** set how transparent it is in *Advanced VR > Graphics > Transparency >
   Water Alpha* (`r_wateralpha`, **0.3** by default in Quake VR; 1 is opaque). Maps that aren't water-vised keep opaque
   water whatever it says. Slime and teleporters have their own (*Slime Alpha* 0.6, *Tele Alpha* 0.9), and lava too
-  (*Lava Alpha* 0.9, though VisPatch doesn't vis lava, so it looks opaque). All four are saved in the config.
+  (*Lava Alpha* 0.9). VisPatch vises lava too where a map has it (`vis_maps.py --check` on the relit maps: 33 of 73
+  vised for lava, among them start, e1m6 to e1m8 and dm4), so there lava is a little see-through; 1 makes it opaque.
+  All four are saved in the config.
 
 ## Checking the result
 
@@ -230,7 +232,7 @@ are already relit in the package.
 
 ## Relighting in the game
 
-*VR Settings > Advanced VR Options > Graphics > Relighting* relights the map you are in, with the settings on that page,
+*Advanced VR > Graphics > Relighting* relights the map you are in, with the settings on that page,
 and shows you the result where you stand. It needs no Python: the game runs ericw-tools' `light` itself, in the
 background, while you keep playing. Quake VR's package has it in `quakevr\tools\ericw-tools\`; without it, the page
 uses `vr_relight_tool` (the full path of a `light.exe`), the `ERICW_LIGHT` environment variable or a `light.exe` on
@@ -274,7 +276,7 @@ The settings:
 | Ambient Occlusion | `vr_relight_ao` (1.5) | Darker corners (0: none). |
 | Minimum Light | `vr_relight_minlight` (0) | No place darker than this. |
 | Shadow Quality | `vr_relight_quality` (1) | Smooth (soft edges) or Fast (about four times quicker). |
-| See-Through Liquids | `vr_relight_seethrough` (1) | id's maps (Quake and the mission packs) get VisPatch's water visibility, so their water, slime and teleporters can be see-through (how much: *Transparency*'s alphas). Off: their liquids stay opaque. Needs the VisPatch files: without them the row is dimmed, and its help says where to get them. |
+| See-Through Liquids | `vr_relight_seethrough` (1) | id's maps (Quake and the mission packs) get VisPatch's water visibility, so their water, slime, teleporters and lava can be see-through (how much: *Transparency*'s alphas). Off: their liquids stay opaque. Needs the VisPatch files: without them the row is dimmed, and its help says where to get them. |
 
 At their defaults the result is the relight script's (the lights given to `light` are the same, to the last digit).
 *Defaults* puts them back. The console has the same: `vr_relight` (the map in play, or `vr_relight e1m2` for another one,

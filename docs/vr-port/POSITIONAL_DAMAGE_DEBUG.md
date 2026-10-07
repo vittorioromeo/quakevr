@@ -1,6 +1,6 @@
 # Animated positional damage view
 
-Open **VR Settings > Advanced VR Options > Debug > Views > Show Hit Zones** and choose **Positional Damage** (`vr_debug_hitzones 1`). With precise hit detection enabled, the model's animated surface is colored red for head, green for body, yellow for extremities and blue for legs. **Hit Zones Through Walls** (`vr_debug_hitzones_xray 1`) makes it visible through the model and level geometry; default off shows visible surfaces.
+Open **Advanced VR > Debug > Views > Show Hit Zones** and choose **Positional Damage** (`vr_debug_hitzones 1`). With precise hit detection enabled, the model's animated surface is colored red for head, green for body, yellow for extremities and blue for legs. **Hit Zones Through Walls** (`vr_debug_hitzones_xray 1`) makes it visible through the model and level geometry; default off shows visible surfaces.
 
 The regions come from `PositionalHead` and the body's lateral threshold sent by QuakeC through `debughitzone`. Each rendered triangle is partitioned in exactly the same standing-pose coordinates as `hitmodel_rest`, then its clipped polygons are carried onto the current rendered triangle by barycentric interpolation. This follows frame blending, movement, rotation, network model transforms and animated corpses. The debug renderer uses the client renderer's triangles, rather than a server animation snapshot. Stale entities outside the current update are skipped.
 

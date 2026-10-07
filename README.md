@@ -168,8 +168,8 @@ Dimension of the Machine and Dawn of the Machine are detected; their native VR g
   [QRP Archive on ModDB](https://www.moddb.com/addons/quake-revitalization-project-archive): their `textures`
   folders go in `id1`, `hipnotic` and `rogue`.
 - **Relit maps and see-through water:** made on your own PC from your copy of Quake. id Software's maps can't be
-  redistributed, so they aren't in the package. The game relights maps itself (*VR Settings > Advanced VR Options >
-  Graphics > Relighting*: this map, an episode, a game or every map, in the background); the script in
+  redistributed, so they aren't in the package. The game relights maps itself (*Advanced VR > Graphics >
+  Relighting*: this map, an episode, a game or every map, in the background); the script in
   `quakevr\tools`, with the VisPatch data, also makes water, slime and teleporters see-through.
   [docs/RELIGHTING.md](docs/RELIGHTING.md) has the steps. It takes about a minute.
 - **Transcribing voice notes** with Whisper. This is for playtesters.
@@ -191,33 +191,35 @@ Dimension of the Machine and Dawn of the Machine are detected; their native VR g
 Every button can be rebound in **Options > Key Setup** or with `bind` in the console. They are named like gamepad
 keys (`RTRIGGER`, `LSHOULDER`, `ABUTTON`...). See [docs/SETTINGS.md](docs/SETTINGS.md#controls-and-bindings).
 
-**VR Settings** (menu > Options > VR Settings, or `menu_vr` in the console) has the settings most people need. Point
-at it with the laser and pull the trigger, or use the sticks: A selects, B goes back. The first time you start with the
-headset on, **VR Calibration** runs by itself: it measures your height and body, and its room's buttons set the main
-options (VR Settings > *Run VR Calibration Again*, or the main menu's first row, runs it again). Worth checking first:
+**VR Settings** (the main menu's *VR Settings*, menu > Options > VR Settings, or `menu_vr` in the console) has the
+settings most people need, each with a line of help. Point at it with the laser and pull the trigger, or use the sticks:
+A selects, B goes back. The first time you start with the headset on, **VR Calibration** runs by itself: it measures
+your height and body, and its room's buttons set the main options (the main menu's first row, or *Advanced VR > Run VR
+Calibration Again*, runs it again). Worth checking first, top to bottom:
 
-1. **Comfort:** *Comfort* sets turning, teleport and walking speed together (Comfortable, Moderate or Full Freedom);
-   then *Turning* (smooth, or snap 30/45/90 degrees), *Turn Speed*, *Move Towards* (head or the moving stick's hand),
-   *Default Speed* and *Teleport* to taste.
-2. **You:** *Handedness* (right- or left-handed: which stick moves you, the wrist gadget's arm and the flashlight's
-   hip), *Height* (stand straight and pick *Set Height Now*), *Body Calibration* and *Dominant Eye*.
-3. **Weapons:** if guns don't point where your controller points, adjust *Gun Angle* and *Off Hand Angle*. *Weapon
-   Grip* set to *Sticky* keeps weapons in your hand without holding the grip.
-4. **Sound and Display:** *Volume*, *Music Volume*, *HUD* (wrist gadget or status bar), *Crosshair*, *Headset Gamma*
-   and the *Graphics Preset*.
-5. **Body and Display** and **Headset** (at the bottom): the body model and its build, world scale, the status bar,
-   the desktop mirror; the *OpenXR Runtime* (system default, Virtual Desktop's VDXR, or SteamVR), *Render Scale*,
-   upscaling and foveated rendering.
+1. **Height and hands:** *Height* (stand straight and pick *Set Height Now*), *World Scale*, *Floor Offset*; then
+   *Show Controller* and the *Hand* rows to line the drawn hands up with your real ones. If shots go above or below
+   where the gun seems to point, change *Hand Pitch* first.
+2. **Moving:** *Move Towards* (head or a hand), *Default Speed*, *Swap Stick Functions*, the comfort *Vignette*,
+   *Teleport*, and *Turning Mode* (smooth, or snap 30/45/90 degrees) with its speed or angle.
+3. **Weapons and body:** *Weapon Grip* set to *Sticky* keeps weapons in your hand without holding the grip;
+   *Two-Handed*, *Body Type*, *Wrist Gadget Arm*, the *Flashlight* and its hip.
+4. **Sound and display:** *Volume*, *Music Volume*, *HUD* (wrist gadget or status bar), *Crosshair*, *Headset Gamma*,
+   *Render Scale* with its upscaling and foveated rendering, and the main graphics switches.
 
-**Performance:** the shipped settings are tuned for a fast PC. If frames drop, pick a lower *Graphics Preset* (Off,
-Low, Medium, High or Ultra) and lower *Render Scale* (Headset) below 1.
+Everything else is in **Advanced VR** (the main menu's *Advanced VR* row, or the corner's *Advanced VR* button): the
+*Comfort* preset, *Handedness*, *Body Calibration*, each hand's own calibration, the *Graphics Preset*, the *OpenXR
+Runtime* and every gameplay page.
 
-**Search:** the corner's *Search* button (or *Search Settings* on VR Settings) finds any setting by its name or what it
+**Performance:** the shipped settings are tuned for a fast PC. If frames drop, pick a lower *Graphics Preset* (Advanced
+VR > Graphics: Off, Low, Medium, High or Ultra) and lower *Render Scale* (VR Settings) below 1.
+
+**Search:** the corner's *Search* button finds any setting by its name or what it
 does, as you type, and opens its page on it (a cvar's name works too, e.g. `vr_snap_turn`).
 
 **Tips:** new players get a tip the first time they come near something they can use (for now, a wall torch), shown
 once: a small CRT screen like the maps' text boards floating beside it with a cable to it (turned towards you, or with
-*Panel Facing: Square to your view* always flat in front of you), or, with *VR Settings > Tips > Tips: Wrist gadget*, in the
+*Panel Facing: Square to your view* always flat in front of you), or, with *Advanced VR > Tips > Tips: Wrist gadget*, in the
 gadget's hologram (it chimes and buzzes until you look at it). The Tips page sets how near you must be, whether it must be
 in sight and in view, the delay and how long a tip shows; *Show Tips Again* resets them, *Show the Torch Tip Now* tries
 one on the nearest torch.
@@ -227,10 +229,10 @@ headset: *Run* runs the line, *Tab* completes it, *Prev* and *Next* go through t
 console); the stick, the wheel or Page Up and Down scroll the text.
 
 **More:** every page ends with **Menu Detail**. *Standard* (the default) shows what every player sets; *Advanced* shows
-every gameplay, display and graphics setting (Advanced VR Options: about sixty pages: combat, movement, carrying and
+every gameplay, display and graphics setting (Advanced VR Options, the main menu's *Advanced VR*: about sixty pages: combat, movement, carrying and
 throwing, gore, the body, weapons, the HUD, graphics...); *Developer* adds the tuning pages (weapon and prop offsets and
 weights, ragdolls, hitboxes), recording, debug and tests. A setting you changed has a `*` by it; *Changed Settings*
-(VR Settings) lists them all, and each page's *Reset This Page* puts its settings back. [docs/SETTINGS.md](docs/SETTINGS.md)
+(Advanced VR) lists them all, and each page's *Reset This Page* puts its settings back. [docs/SETTINGS.md](docs/SETTINGS.md)
 covers them.
 
 **Starting over:** *Options > Reset All* restores the shipped settings and bindings. Your settings are saved in

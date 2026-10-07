@@ -15,8 +15,8 @@ the first things to set. This page goes further: every menu page, the controls, 
 
 ## The VR Settings menu
 
-Open the menu with the controller's menu button (on Index controllers, the left B button) and go to **Options > VR
-Settings**. `menu_vr` in the console opens it directly, and `menu_vr <n>` opens page *n* (0 is VR Settings, 1 is
+Open the menu with the controller's menu button (on Index controllers, the left B button) and pick **VR Settings**
+(also Options > VR Settings) or **Advanced VR** (the corner's *Advanced VR* button too). `menu_vr` in the console opens it directly, and `menu_vr <n>` opens page *n* (0 is VR Settings, 1 is
 Advanced VR Options, then the pages in the order listed below; `menu_vr list` prints the numbers).
 
 **Using the menus:** point with the laser from your hand and pull the trigger to click. Drag sliders with the
@@ -33,7 +33,7 @@ weapon and prop offsets and weights, ragdolls, hitboxes, the motion recorder, de
 Checklist button). The corner's *Advanced VR* button switches Standard to Advanced. `menu_vr <n>` opens any page,
 whatever the level. Each setting has one home page; other pages link to it ("Grenade Pouch: Hip Holsters").
 
-**Search** (the corner's *Search* button in the headset, or *Search Settings* at the top of VR Settings): a text box
+**Search** (the corner's *Search* button, in the headset or with the flat screen's corner buttons): a text box
 and a keyboard on the left (the laser or the sticks press its keys; a real keyboard types too), the results on the right,
 best first, updated as you type: each with the pages it is on in small letters. It looks at every setting, action and
 page, whatever Menu Detail shows: names first, then the help, the pages above and the cvar's name; whole words, word
@@ -53,8 +53,9 @@ main menu's first row runs it again.
 settings pages, and it pauses while a monster is after you (Menu page > *Live Preview*).
 
 The main page is for a first-time player: a few settings in each section, every one with a line of help. Everything
-else, and each of these again, is under *Advanced VR Options* (its first row; at Menu Detail: Standard the row raises
-Menu Detail to Advanced). *Search Settings* is above it.
+else, and each of these again, is under *Advanced VR Options* (the main menu's *Advanced VR* row or the corner's
+*Advanced VR* button, not a row here; at Menu Detail: Standard they raise Menu Detail to Advanced). Search is the
+corner's *Search* button.
 
 | Section | Settings |
 |---|---|
@@ -107,8 +108,12 @@ Notes:
 - **Vibration Strength** (`vr_haptics_strength`, 0 to 2): every vibration times this; 0 none. Haptics on or off
   (`vr_disablehaptics`) is still on Immersion.
 - **Reset All to Defaults:** every saved Quake VR setting (`vr_*`) and the other settings on this page back to their
-  shipped defaults, your height, body and hand calibration included. Kept: the config's bookkeeping (`*_version`, the
-  tips seen, VR Calibration pending, the pages' places), Menu Detail, VR on or off and the OpenXR runtime.
+  shipped defaults, but not your calibration: what was measured or fitted to you stays (`vr_height_calibration`,
+  `vr_floor_offset`, Body Calibration's `vr_bodycal_*` but its preview, the tweaks on it `vr_body_tweak_*`, the body's
+  proportions `vr_body_arm_length`, `vr_body_eye_forward`/`_up`, `vr_body_torso_back`, and both hands' calibration
+  `vr_handcal_*`, `vr_gunangle`/`vr_gunyaw`, `vr_offhandpitch`/`vr_offhandyaw`: *Reset Hand Offsets* resets those).
+  Also kept: the config's bookkeeping (`*_version`, the tips seen, VR Calibration pending, the pages' places), Menu
+  Detail, VR on or off and the OpenXR runtime. World Scale is reset.
 - **Render Scale:** from 0.5 to 1.5 times the runtime's resolution. The image is resampled to the headset, so
   dragging it doesn't restart anything.
 - **Upscaling:** below Render Scale 1, how the eyes are enlarged to the headset's size. *FSR* (AMD FidelityFX Super
@@ -154,7 +159,7 @@ about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 
 | Page | What's on it |
 |---|---|
-| **Locomotion** | Movement speed, default speed and run multiplier, joystick turning, lean and its recentre, room-scale jump (the comfort settings are on VR Settings) |
+| **Locomotion** | Movement speed, default speed and run multiplier, joystick turning, lean and its recentre, room-scale jump, the Comfort preset (the vignette is on VR Settings) |
 | **Climbing** | Climbing ledges and rungs hand over hand (on by default): ledges, grab leniency, mantling onto slopes, the grunt, climbing stamina, the hand's pose on a hold |
 | **Swimming** | The stick's speed in shallow water, wading and swimming; stroke strength, speed curve, palm, recovery; telling a stroke from the return of the arms; *Reset Swimming to Defaults* |
 | **Grappling Hook** | Dissolution of Eternity's hook: the rope (length, physics, thickness), reeling in and out, its buttons, swinging (air drag, top speed), pulling props |
@@ -188,7 +193,7 @@ about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 |---|---|
 | **Body** | Walking legs (step rate, turning before stepping), wading and swimming kicks, armour and wounds, powerups, anchors, body collisions; the body's placement (torso, legs, eyes), crouch tilt |
 | **Body - Arms and Pauldrons** (D) | Tweaks on top of Body Calibration (upper arm, forearm, the shoulders' place, rise and swing), arm length and stretch; forearm twist, wrist limits, elbows; pauldrons |
-| **Body Calibration** | Measures your body (also on VR Settings) |
+| **Body Calibration** | Measures your body (VR Calibration does too) |
 | **Player Calibration** | World scale, floor offset |
 | **Flashlight** | The flashlight on your belt: brightness, range, visible beam, shadows, cord, hue; flicking it over; grabbing it, clipping it on a gun or your head; placement (and, at Developer, its grips) |
 
@@ -217,10 +222,10 @@ about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 | **Crosshair** | Crosshair type, depth, size, alpha, hue, height offset |
 | **Menu** | Menu scale and distance, VR menu style, laser hue, row spacing, menu height, live preview, reopen where left |
 
-**Sound** (on VR Settings, Menu Detail: Advanced): Steam Audio's spatial sound (HRTF, occlusion, air absorption, room
+**Sound** (Advanced VR Options > Setup; Volume, Music Volume and Spatial Sound on VR Settings): Steam Audio's spatial sound (HRTF, occlusion, air absorption, room
 reverb, sounds from your hands, Doppler, near field), the underwater muffle and the mix limiter.
 
-**Tips** (on VR Settings): the first-time tips (distance, line of sight, delay, time shown, the panel), *Show Tips
+**Tips** (Advanced VR Options > Setup): the first-time tips (distance, line of sight, delay, time shown, the panel), *Show Tips
 Again*.
 
 **Debug** (D): the checklist, voice notes, and the Views, Logging, Profiling and Memory, Reports, Tools and Tests
@@ -267,8 +272,8 @@ its own switch or slider. For the cost of each, see the profiler in [INSTALL.md]
 ## Weapon offsets
 
 Each weapon model has its own set of settings: where it sits in the hand, where the hand sits on it, the muzzle,
-where the other hand holds it two-handed, the ammo screen, and its weight. **VR Settings > Weapon Offsets (Held
-Weapon)** edits the weapon your main hand is holding. Open it while holding the weapon in a game.
+where the other hand holds it two-handed, the ammo screen, and its weight. **Advanced VR > Weapons > Weapon
+Offsets (Held Weapon)** (Menu Detail: Developer) edits the weapon your main hand is holding. Open it while holding the weapon in a game.
 
 The main page has the weapon's title, *Edit the Other Hand's Weapon* (every page has it), *Inherit From* (use
 another weapon's settings), **Posing Mode** (pose the weapon in your hand, its hotspots, or it in a holster), and a
@@ -361,7 +366,7 @@ built-in ones.
 | `vr_height_calibration` | 1.646 | your height in metres (*Set Height Now*) |
 | `vr_world_scale` | 1.2 (shipped) | size of the world around you |
 | `vr_floor_offset` | -21 | floor height |
-| `vr_stick_swap` | 0 | 1: the right stick moves and the left turns (*Swap Stick Functions*, on Body and Display; *Handedness* on VR Settings sets it too) |
+| `vr_stick_swap` | 0 | 1: the right stick moves and the left turns (*Swap Stick Functions*, on Body and Display; *Handedness* on Body and Display sets it too) |
 | `vr_gadget_arm` | 0 | the wrist gadget's arm: 0 left, 1 right |
 | `vr_flashlight_side` | 0 | the hip the torch hangs on: 0 left, 1 right |
 | `vr_body_mode` | 3 (shipped) | 0 off, 2 torso and arms, 3 full body |

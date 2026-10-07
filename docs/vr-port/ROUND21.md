@@ -27503,3 +27503,30 @@ body's and its gear's knocks 0.968 to 1.031; other sounds (`guncock`, the ambien
 
 In VR: punch a wall or a grunt a few times, swing a sword in the air: each a little different; Audio > Pitch Variation
 0 to compare.
+## VR Settings follow-ups: no Advanced or Search rows, Reset All keeps calibration, the menus' red (2026-10-07)
+
+Vittorio's decisions after the VR Settings revamp and the menu colours:
+
+- **No *Search Settings* or *Advanced VR Options* rows** at the top of VR Settings. The main menu's *Advanced VR* row
+  and the corner's *Advanced VR* and *Search* buttons open them. Search, the boards' menu paths (`menu::pathTo`) and
+  `menu_vr dump` walked the links from VR Settings only, so the Advanced pages would have dropped out: they now walk
+  from both roots (`menuRoots`: VR Settings, then Advanced VR Options). Search shows "Advanced VR Options > Combat" as
+  before (the entries' paths lost their "VR Settings > "; recent searches saved under the old path are moved over as
+  `search_recent.txt` is read); board paths read "Advanced VR > Movement > Locomotion" (what the main menu row and the
+  corner button say), without a Menu Detail note for Advanced, which the row raises itself. `vr_menu_path_check
+  maps/vrcalibration.map`: 14 found, 0 missing. Back from the Advanced VR Options opened from the main menu's row goes
+  back to the main menu (VR Settings no longer links them); from anywhere else, to VR Settings as before (`menu_vr 1`,
+  the corner).
+- **Reset All to Defaults keeps the calibration** (`keptOnResetAll`): `vr_height_calibration`, `vr_floor_offset`,
+  `vr_bodycal_*` but `vr_bodycal_preview` (the measurements, seated, Undo), `vr_body_tweak_*`, `vr_body_arm_length`,
+  `vr_body_eye_forward`/`_up`, `vr_body_torso_back`, `vr_handcal_*`, `vr_gunangle`/`vr_gunyaw`,
+  `vr_offhandpitch`/`vr_offhandyaw` (Reset Hand Offsets resets the hands). World Scale and the body preview are choices:
+  reset. Test: those set off their defaults, Reset All pressed twice by `vr_mock_key enter`: all kept, `vr_world_scale`,
+  `vr_bodycal_preview`, `vr_turn_speed`, `vr_menu_recolor_hue` back to their defaults.
+- **The menus' red as Vittorio has it:** `vr_menu_recolor_saturation` 3 (was 1.25; hue 0 and strength 1 were the
+  defaults already). Config 96 moves a config still at 1.25; a custom value (1.8) stays.
+- **Docs:** README, FEATURES, SETTINGS, INSTALL, RELIGHTING and the vr-port notes no longer send players to rows that
+  moved off VR Settings (Search Settings, Handedness, Gun Angle, Tips, Sound, Changed Settings, Body Calibration) or
+  through "VR Settings > Advanced VR Options". RELIGHTING.md said VisPatch doesn't vis lava: it does (`vis_maps.py
+  --check` on the relit maps: 33 of 73 vised for lava, start among them), so `r_lavaalpha 0.9` shows it a little
+  through; GRAPHICS.md's "lava is opaque by default (`r_lavaalpha 1`)" was stale too.

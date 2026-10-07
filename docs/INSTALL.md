@@ -293,7 +293,7 @@ python quakevr\tools\relight_maps.py --quake "C:\Program Files (x86)\Steam\steam
 It takes about a minute on a fast PC and writes about 210 MB to `quakevr\relit\`. The package's own `light.exe`
 (`quakevr\tools\ericw-tools\light.exe`) works for `--light` too.
 
-**Or in the game, without Python:** *VR Settings > Advanced VR Options > Graphics > Relighting* (Menu Detail:
+**Or in the game, without Python:** *Advanced VR > Graphics > Relighting* (Menu Detail:
 Advanced) relights the map you are in, an episode, a game or every map, in the background while you play, with
 brightness sliders. With the VisPatch files in `quakevr\tools\vispatch` it makes the water see-through too
 (*See-Through Liquids*, on by default; dimmed without the files). See

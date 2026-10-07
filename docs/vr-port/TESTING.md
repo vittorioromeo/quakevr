@@ -60,7 +60,7 @@ Useful settings:
 |---|---|---|
 | `vr_snap_turn` | 0 | degrees per snap; 0 = smooth turning at `vr_turn_speed` |
 | `vr_controller_legacy_pose` | 1 | the hands follow the controller pose the old engine used (SteamVR's raw pose, rebuilt from OpenXR's grip pose for Touch/Quest and Index controllers), so the old tuned offsets line up; 0 uses the grip pose as is |
-| `vr_gunangle`, `vr_offhandpitch` | 39.5, 40.25 | weapon pitch relative to the controller (the shipped values, tuned for that raw pose): Options > VR Settings > Gun Angle |
+| `vr_gunangle`, `vr_offhandpitch` | 39.5, 40.25 | weapon pitch relative to the controller (the shipped values, tuned for that raw pose): Advanced VR > Weapons > Hand/Gun Calibration (both hands at once: VR Settings > Hand Pitch) |
 | `vr_world_scale` | 1.25 | |
 | `vr_height_calibration`, `vr_floor_offset` | 1.646, -21 | |
 | `vr_mirror` | 1 | desktop window: 0 off, 1 left eye, 2 both eyes |
@@ -233,7 +233,7 @@ prints it.
     **Anti-Aliasing** choice (Recording page); climbing's mantle and lenient grab, the props' settings and two caches
     are cheaper or fixed with the same results; no GPU-sampling thread runs unless you profile (Debug > Profiling and
     Memory > Memory Log: GPU keeps it on for the Memory Log).
-  - **Profiling: where the time goes** (ROUND21.md, same title): VR Settings > Advanced VR Options > Debug >
+  - **Profiling: where the time goes** (ROUND21.md, same title): Advanced VR > Debug >
     Profiling and Memory. Profiler Panel (In Front) shows each system's milliseconds a frame with a bar against the budget; CSV
     Capture writes a row a second while on; the Hitch Log names what took a slow frame's time. See "Profiling" below.
     Also found with it: the foveated rendering's setup waited for the driver each eye (0.2-0.4 ms of the CPU a frame,
@@ -665,7 +665,7 @@ prints it.
     health box (or, in single player, a weapon lying in the level). It sparkles. Pull the trigger to lock on,
     then flick your hand back or up. It flies to your hand in an arc and arrives in about half a second. Close
     your hand (grip) as it arrives to catch it; too early or too late and it drops at your feet. It flies through
-    walls, so it cannot get stuck. Tuning: VR Settings > Advanced VR Options > Force Grab. `developer 1` prints
+    walls, so it cannot get stuck. Tuning: Advanced VR > Force Grab. `developer 1` prints
     each pull, catch and miss.
   - **Melee:** any swing faster than `vr_melee_speed` (3 m/s) hits once, whatever its direction; damage grows
     with speed, and punches (knuckles first) do 25% more (`vr_melee_punch_mult`). Tell me if weak swings still
@@ -843,7 +843,7 @@ is the most useful thing to send me along with a description. In particular:
 - **The picture is wrong** (double vision, wrong scale, swimming): `vr_status` output while it happens, and a
   screenshot of the desktop mirror (`vr_mirror 2` shows both eyes).
 - **Hands or weapons are in the wrong place or at the wrong angle:** `vr_status` and `vr_dumpview` while holding the
-  pose. Gun Angle in VR Settings is the first thing to adjust.
+  pose. Hand Pitch on VR Settings (Hand Calibration) is the first thing to adjust.
 - **Fingers wrong on something held** (through it, or stuck open): `vr_debug_grasp 1` prints each grasp solve;
   `vr_grasp_dump main hand.obj` writes the drawn hand and the held model as an .obj to send me. Hand/Gun
   Calibration > Fit Fingers to What You Hold off shows the controller's curls alone, Jointed Hand off the old

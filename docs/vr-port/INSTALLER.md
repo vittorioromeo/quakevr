@@ -346,7 +346,7 @@ installer and the update check try one, then the other). There is **no code-sign
 | 2 | Layout | The installer defaults to **its own folder** (B); Quake's folder is left untouched. The zip stays for A. |
 | 3 | Which of his ~20 tuning values become defaults | **He picks later** from Appendix A's "promote?" tables; each then gets a `vr_default` line and a `defaultChanges` entry. |
 | 4 | HQ textures (0.6 GB) and the relight (~1 min) by default? | **Both ticked by default.** |
-| 5 | Embedded Python for the relight? | No: the relight became an **in-game tool** (VR Settings > Advanced VR Options > Graphics > Relighting), with
+| 5 | Embedded Python for the relight? | No: the relight became an **in-game tool** (Advanced VR > Graphics > Relighting), with
 the VisPatch step in it (*See-Through Liquids*: the data files in `<QVR>\quakevr\tools\vispatch`). |
 | 6 | Hosting; code signing | Host on **both GitHub and vittorioromeo.com**; **no code-signing certificate** (SmartScreen: [section 9](#hosting-and-smartscreen-decision-6)). |
 | 7 | Bundle ericw-tools' `light.exe`? | **Bundle it**, since GPL-3 does not extend to our code: it is a separate program run as its own process (mere aggregation), shipped unmodified with its licence and a source offer. Were that ever in doubt, download it on demand (pinned hash) instead. |
