@@ -82,7 +82,7 @@
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="{Binding InstallerVersion}" FontSize="11.5" Foreground="{StaticResource Faint}" />
                             <TextBlock FontSize="11.5" Foreground="{StaticResource Faint}" Margin="0,2,0,0">
-                                <Run Text="by Vittorio Romeo · GPL · " /><Hyperlink Command="{Binding ShowCreditsCommand}" Foreground="{StaticResource Subtle}">credits</Hyperlink>
+                                <Run Text="by Vittorio Romeo " /><Hyperlink Command="{Binding ShowCreditsCommand}" Foreground="{StaticResource Subtle}">credits</Hyperlink>
                             </TextBlock>
                         </StackPanel>
                     </DockPanel>
