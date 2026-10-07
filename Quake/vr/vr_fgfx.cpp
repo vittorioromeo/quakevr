@@ -1,6 +1,7 @@
 // vr_fgfx.cpp -- see vr_fgfx.hpp.
 
 #include "vr_fgfx.hpp"
+#include "vr_portals.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
@@ -226,7 +227,14 @@ void queue(const hands::State& s)
             continue;
         }
         const glm::vec3 palm = s.pos[hand] + hands::forward(s.rot[hand]) * 2.f;
-        const glm::vec3 to = centre(t.ent);
+        // To where it is seen from the hand: through a slipgate, its image behind the gate's surface (the beam is drawn
+        // over the scene, so it goes on into the gate to the thing seen there), not its place in the room beyond.
+        const glm::vec3 to = portals::pullImageSeen(palm, centre(t.ent));
+        if(vr_portals_debug_split.value != 0.f)
+        {
+            Con_Printf("force grab beam: hand %d ent %d to %.1f %.1f %.1f (its middle %.1f %.1f %.1f)\n", hand, t.ent, to.x,
+                to.y, to.z, centre(t.ent).x, centre(t.ent).y, centre(t.ent).z);
+        }
         if(t.state == Aimed)
         {
             const glm::vec4 beam = tint(0.7f, 1.f, 1.f);

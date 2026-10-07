@@ -1611,6 +1611,15 @@ glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate)
     }
     return result;
 }
+glm::vec3 pullImageSeen(const glm::vec3& from, const glm::vec3& point)
+{
+    if(!walkOn()) { return point; }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    const glm::vec3 image = pullImage(from, point);
+    PR_PopQCVM(oldVm);
+    return image;
+}
 } // namespace qvr::portals
 
 // A force grab homes in the destination room until it crosses the exit aperture,
