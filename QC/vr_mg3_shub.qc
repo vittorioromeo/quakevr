@@ -81,9 +81,7 @@ void(float b, float a, float c) oldnew_autogun_check;
 void() oldnew_cleanup;
 void() oldnew_finale_4;
 
-// One of upstream's, M3-27's: a shub zombie raised at one of the map's info_szombie_spawn (vr_mg3_shub_zombie.qc).
-void() MG3_SZombie_Raise = {};
-void() MG3_SZombie_Precache = {};
+// A living shub zombie (raised by MG3_SZombie_Raise: vr_mg3_shub_zombie.qc).
 float(entity e) MG3_SZombie_Is = { return (e.mg3_szombie && (e.health > 0)); };
 
 // a x b

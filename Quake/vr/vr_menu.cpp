@@ -5174,6 +5174,8 @@ za::Vector<Item> pageMg3ShubTests()
             .help("Dawn of the Machine's Shub-Niggurath 256 units ahead (needs room: she is 256 units wide): volleys of diamonds, "
                   "autoguns, lobbed plasma, a sweeping beam, eyes and a seeker by her phase; she raises shub zombies where the "
                   "map has their spawns. One from here is free: killed, she bursts but ends nothing."),
+        command("A Shub Zombie Ahead", "vr_test_spawn 61; vr_test_spawn_dist 96; impulse 241")
+            .help("One of Shub's zombies: Quake's zombie lying there, up 7 s later and after you; it throws its flesh only up close."),
         command("Shub's Eye Ahead", "vr_test_spawn 62; vr_test_spawn_dist 160; impulse 241")
             .help("One of Shub's eyes: it hangs there and after 2 s spirals 72 spheres at you, then bursts. 120 health."),
         command("Shub's Seeker Ahead", "vr_test_spawn 63; vr_test_spawn_dist 200; impulse 241")
@@ -5184,6 +5186,10 @@ za::Vector<Item> pageMg3ShubTests()
             .help("Destructive (god mode meanwhile): the map's Shub (boss2: you are taken to the arena) or a free one ahead: her "
                   "wounds through her four phases, her thrash, her waves, each phase's children, her autoguns, every child "
                   "dead (developer 1)."),
+        command("Shub Zombies and Pillars Test", "vr_mg3_shubtest 3")
+            .help("Destructive (boss2; god mode meanwhile): her zombies raised at the map's spawns (33 at most), up 7 s later, "
+                  "her spheres and their flesh passing each other; the pillars sinking 20 a hit, with you on one: down with it, "
+                  "the floor holding you as it sinks on (developer 1)."),
         command("Shub Death Test", "vr_mg3_shubtest 4")
             .help("Destructive (god mode meanwhile): Shub killed: her children cleared, the lights out, her burst; the map's "
                   "then shows the final text and the credits (developer 1)."),
@@ -5321,7 +5327,7 @@ za::Vector<Item> pageDebugTests()
              {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"},
              {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
              {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"}, {40.f, "Orb"}, {41.f, "Slime"}, {42.f, "Ghost"}, {43.f, "Sacrifice"}, {44.f, "Lava Man (Dawn of the Machine)"}, {45.f, "Super Shambler"},
-             {60.f, "Shub-Niggurath (Free)"}, {62.f, "Shub's Eye"}, {63.f, "Shub's Seeker"},
+             {60.f, "Shub-Niggurath (Free)"}, {61.f, "Shub Zombie"}, {62.f, "Shub's Eye"}, {63.f, "Shub's Seeker"},
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},

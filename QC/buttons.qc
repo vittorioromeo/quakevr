@@ -756,8 +756,8 @@ void() func_weapon_grabbable =
 // 34 the rocket ogre (vr_mg3_ogre.qc), 35 the demo dog (vr_mg3_demodog.qc), 36 the ranged knight (vr_mg3_rknight.qc).
 // Dawn of the Machine's (read in place from the owned pack: owned/mg3/), from 40: 40 the orb, 41 the slime, 42 a ghost,
 // 43 a hanging sacrifice (misc_sacrifice: gibbed when struck or used), 44 the lava man (MG3's: monster_lava_man_mg3),
-// 45 the super shambler; from 60 (vr_mg3_shub.qc): 60 Shub-Niggurath (free: killed, she ends nothing), 62 an eye of hers
-// that spirals spheres at you, 63 her seeker eye.
+// 45 the super shambler; from 60 (vr_mg3_shub.qc): 60 Shub-Niggurath (free: killed, she ends nothing), 61 a shub zombie
+// (rising: vr_mg3_shub_zombie.qc), 62 an eye of hers that spirals spheres at you, 63 her seeker eye.
 // The model of the second row's monsters: the mission packs' (and the registered game's) may not be
 // installed, and precaching a missing model is an error.
 string(float choice) VR_EnemyDispenser_Model =
@@ -793,6 +793,7 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 44) { return "owned/mg3/progs/lavaman.mdl"; }
     else if(choice == 45) { return "owned/mg3/progs/shambler_blood.mdl"; }
     else if(choice == 60) { return "owned/mg3/progs/teleporter_eye.mdl"; } // (Shub: the registered game's model, her eyes MG3's)
+    else if(choice == 61) { return "progs/zombie.mdl"; }
     else if(choice == 62) { return "owned/mg3/progs/teleporter_eye.mdl"; }
     else if(choice == 63) { return "owned/mg3/progs/teleporter_eye.mdl"; }
 
@@ -839,6 +840,7 @@ void(float choice) VR_EnemyDispenser_Spawn =
     else if(choice == 44) { self.classname = "monster_lava_man";    monster_lava_man_mg3(); }
     else if(choice == 45) { self.classname = "monster_super_shambler"; monster_super_shambler(); }
     else if(choice == 60) { self.classname = "monster_oldone_new"; monster_oldone_new(); self.mg3_shub_free = TRUE; }
+    else if(choice == 61) { self.classname = "monster_szombie"; monster_szombie(); }
     else if(choice == 62) { self.classname = "monster_shub_eye"; monster_shub_eye(); }
     else if(choice == 63) { self.classname = "monster_shub_seeker"; monster_shub_seeker(); }
 

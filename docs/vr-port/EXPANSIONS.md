@@ -1024,4 +1024,7 @@ spheres; volleys of diamonds, autoguns, and by phase her children: lobbed plasma
 blow up), a sweeping lightning beam, eyes that spiral spheres at you (counted), a seeker eye. Killed: the lights out, a
 burst of gibs, the final text and the credits. Anywhere with MG3's data: Debug spawner Things 60 (free: ends nothing),
 62 an eye, 63 the seeker; training dummy 50/51. Tests: Debug > Tests > Dawn of the Machine: Shub (`vr_mg3_shubtest`).
+**Shub zombies and pillars** (M3-27, `QC/vr_mg3_shub_zombie.qc`): she raises Quake's zombies (Quake VR's, rig and gore
+included) at boss2's 36 `info_szombie_spawn`, up 7 s later, at most 33; its 8 `func_breakable` pillars sink 20 units a
+hit, so her attacks bring them down over the fight. Debug spawner Thing 61: a shub zombie.
 Measurements: ROUND21.md, "Dawn of the Machine (MG3): the Shub finale".

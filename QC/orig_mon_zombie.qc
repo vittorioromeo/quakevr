@@ -180,6 +180,11 @@ void() ZombieGrenadeTouch =
 {
     if(other == self.owner)
         return;        // don't explode on owner
+    if(self.owner.mg3_szombie && (MG3_Shub_Is(other) || other.classname == "oldnew_child"))
+    {
+        remove(self); // (a shub zombie's flesh passes Shub and her eyes: upstream SzombieGrenadeTouch)
+        return;
+    }
     if(other.takedamage)
     {
         T_Damage(other, self, self.owner, 10);

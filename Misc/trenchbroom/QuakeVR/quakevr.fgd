@@ -462,6 +462,11 @@ puts the specified message into the console when the client spawns."
 	message(string) : "Message" :  : "Text shown to the player. \n makes a new line."
 ]
 
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) =
+	info_szombie_spawn : "A spot where Dawn of the Machine's Shub-Niggurath (monster_oldone_new) raises a shub zombie: it lies there, then gets up 7 s later. Used, it rests 8 s."
+[
+]
+
 @PointClass base(PlayerClass, Targetname) color(128 128 128) size(-32 -32 0, 32 32 64) =
 	info_teleport_destination : "Teleporter destination
 
@@ -1329,6 +1334,11 @@ delay - seconds after first sighting before it attacks (default 10)"
 	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
 ]
 
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) =
+	monster_szombie : "Dawn of the Machine's shub zombie: Quake's zombie lying here, getting up 7 s later and hunting you; it throws its flesh only up close. Counted."
+[
+]
+
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 24) model({ "path": ":progs/tarbaby.mdl" }) =
 	monster_tarbaby : "Spawn (tarbaby)
 
@@ -1545,6 +1555,11 @@ Used to emulate water. To use, create a thin water brush and center it on the wa
 	func_bossgate : "Boss gate
 
 This bmodel appears unless players have all of the episode sigils."
+[
+]
+
+@SolidClass color(0 128 204) =
+	func_breakable : "Dawn of the Machine's sinking pillar (boss2): any damage sinks it 20 units (20 a second for a second from its last hit). 10000 health, restored each hit: only a blow of 10000 removes it."
 [
 ]
 

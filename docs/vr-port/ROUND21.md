@@ -28792,3 +28792,37 @@ maps 7 missing classes, 55 placements (8 and 56 before). Regression: `vr_mg3_bte
 14/0, MG1 hub 20/0, e1m1 smoke exit 0; QC 0 warnings, statics, precedence, FGD (343 entities) pass. Found while testing: the eyes of one attack rotation run at once share their spots
 and telefrag each other (upstream's spawn_boss_tdeath), so the test kills them before their next frame.
 
+### M3-27 Her zombies, the pillars, the ending
+
+**Shub zombies** (`QC/vr_mg3_shub_zombie.qc`, from upstream `monsters/mg3_shub_zombie.qc`): she raises one on frames 23
+and 45 of her loop at one of the map's `info_szombie_spawn` (boss2: 36, in a ring 163-245 units round her), none past 33
+alive; a point used rests 8 s, and the pick is upstream's (a random index under the count of rested points, counted
+over all). A shub zombie is Quake VR's `monster_zombie` with `.mg3_szombie`: the zombie's rig, ragdoll, head zone,
+beheading, limbs, knockdowns, chainsaw and Super Axe rules come with it; it lies where it rose (`$paine13`, not solid)
+and gets up 7 s later where there is room (the zombie's own paine11/12), hunting you, its flesh thrown only up close
+(Quake VR's MG3 close-throw zombie: upstream's melee "missile"). Her spheres pass it; its flesh passes her and her eyes
+(`ZombieGrenadeTouch`, upstream SzombieGrenadeTouch); her swiper does it 100; her death's cleaner gibs them one by one.
+Killed whole it throws its head too (upstream's shub zombie threw none). Debug spawner Thing 61 (`monster_szombie`).
+
+**The "ceilings" are pillars.** boss2's 8 `func_breakable` (upstream in `mg3_oldone_new.qc`) are columns round her, 206
+to 494 units tall, some with items on top (red armour, shards). Any damage sinks one 20 units (20 a second for a second
+from its last hit), its 10000 health restored each hit (only a single 10000 blow, a telefrag, removes one). Her
+diamonds, spheres, beams and plasma blasts hit them all fight long, so they come down over it: after `vr_mg3_shubtest
+2` and 70 s more of her phase 4 (god mode, at the arrival point) they had sunk 189 to 477 units. Nothing raises them;
+standing on one you go down with it, and when its top passes the floor the floor holds you (Quake's pusher, as upstream):
+no trap. The plan's "lower on phases" is this: no phase drives them.
+
+**The ending** (M3-26's death; M3-10's `MG3_ShubEnding`): see above; `vr_mg3_shubtest 4` now also raises two zombies
+first and finds them gibbed by her cleaner.
+
+Measured: boss2 `vr_mg3_shubtest 3` **14/0**: 36 spawns unused, 8 pillars (solid pushers, 10000); one raised (lying at
+a spawn point now resting, 60, counted, after you), at most 33 alive (40 asked), her sphere and its flesh pass each
+other, 20 of 33 up 8 s later (the rest wait for room: several share points), a 100 kills one, all killed and counted;
+a pillar hit sinks 20 and stops, a blast beside one sinks it, you on pillar `*52` ridden down 17 hits until its top
+passed the floor, then on the floor (feet -15.97, on the ground, not in solid). `vr_mg3_shubtest 4` **10/0** (her
+zombies gibbed), the credits reached. A live fight (test 2, then 70 s, god mode): no error, 10 shub zombies up, 618
+edicts. Debug spawner 61 on e1m1: a shub zombie, counted. Checker: boss2 **0 missing**; all maps 5 missing classes, 11
+placements. Regression: `vr_mg3_btest 2` 11/0, `7` 10/0, `vr_mg3_mtest 2` 14/0, MG1 hub 20/0, e1m1 smoke exit 0; QC 0
+warnings, FGD 346 entities. For VR QA: the pillars sinking under you (comfort), her zombies' rise and their rigs, her
+beam and blasts, the lights going out at her death.
+

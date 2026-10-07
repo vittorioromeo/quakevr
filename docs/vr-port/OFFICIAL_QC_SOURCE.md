@@ -36,5 +36,6 @@ QC/vr_mg3_slime.qc adapt mg3_player_ghost.qc, mg3_sacrifice.qc with mg3_sacrific
 combat.qc's lava man rule (same header). QC/vr_mg3_supershambler.qc adapts mg3_super_shambler.qc (same header). QC/vr_mg3_bn.qc adapts the stock monsters'
 Dawn of the Machine and Bloody Nightmare changes (soldier, enforcer, hknight, wizard, shambler, shalrath, ogre, zombie,
 combat.qc's pain rest; same header). QC/vr_mg3_shub.qc adapts monsters/mg3_oldone_new.qc with combat.qc's boss_immune
-and weapons.qc's grenade on Shub (same header).
+and weapons.qc's grenade on Shub (same header). QC/vr_mg3_shub_zombie.qc adapts monsters/mg3_shub_zombie.qc and
+mg3_oldone_new.qc's func_breakable (same header).
 Plan and task list: [MG3_PLAN.md](MG3_PLAN.md).

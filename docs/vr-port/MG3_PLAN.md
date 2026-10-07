@@ -320,6 +320,8 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
   `vr_mg3_shubtest` (ROUND21.md, "Dawn of the Machine (MG3): the Shub finale").
 - **M3-27 Shub finale II.** shub zombies (36 spawns), 8 func_breakable ceilings, ending -> credits. Accept: ceilings
   lower on phases, never trap the player outside source behaviour; death of Shub reaches credits. Dep: M3-26, M3-10.
+  **Built 2026-10-07**: `QC/vr_mg3_shub_zombie.qc`; the 8 "ceilings" are pillars round Shub that any damage sinks 20
+  units (upstream), so her attacks bring them down over the fight; boss2 0 missing (ROUND21.md, "the Shub finale").
 
 ### Phase E: acceptance and readiness
 

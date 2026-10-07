@@ -6,6 +6,9 @@
 //   2 her phases (god mode): her first wound, 3/4, 1/2, 1/4 (her thrash immune, a seeker at phase 2, her waves fired),
 //     her attack's rotation of children in each phase, her autoguns by skill, each child made, working and dead
 //     (spammer, swiper, blasters, vortex, seeker; an eye spent after 72 shots), the counts of the level's monsters
+//   3 (boss2) her zombies: raised at the map's spawn points (lying, counted, at most 33), up 7 s later, her spheres and
+//     their flesh passing each other, killed; the pillars: 20 down a hit, a blast sinks one too, you ridden down on one
+//     to the floor, which holds you as it sinks on
 //   5 the training dummy as Shub (free) and as her eye: killed as each, nothing ended, a dummy back
 //   4 her death (god mode): immune, her children cleared, the lights out, the burst of gibs, then (a map's Shub) the
 //     final text and the credits; a free one ends nothing
@@ -61,6 +64,10 @@ void() MG3_ST_Report =
     float eyes = MG3_ST_Count("oldnew_eye");
     dprint(sprintf("mg3shubtest: szombie spawns %g, pillars %g, shub zombies %g, children %g, seekers %g; monsters %g/%g\n",
         spawns, pillars, zombies, kids, eyes, killed_monsters, total_monsters));
+    string sunk = "";
+    e = find(world, classname, "func_breakable");
+    while(e) { sunk = strcat(sunk, sprintf(" %g", -e.origin_z)); e = find(e, classname, "func_breakable"); }
+    if(pillars) dprint(sprintf("mg3shubtest: pillars sunk by:%s\n", sunk));
 };
 
 // Her on this map, or a free one spawned ahead; the player at the arena's arrival point (boss2).
@@ -306,6 +313,8 @@ void() MG3_ST_EndStep =
         self = m;
         spawn_blaster();
         spawn_eye();
+        MG3_SZombie_Raise();
+        MG3_SZombie_Raise();
         self = oldself;
         m.mg3_shub_phase = 4;
         m.mg3_shub_immune = 0;
@@ -332,6 +341,10 @@ void() MG3_ST_EndStep =
         while(i < 100) { vector v = MG3_Shub_SphereDir(i); if(v_z > 0) up++; i++; }
         MG3_ST_Check(m.modelindex == 0 && !m.takedamage, "burst: gone");
         MG3_ST_Check(mg3_shub_gibs - mg3st_n == up, sprintf("her gibs: %g (%g)", mg3_shub_gibs - mg3st_n, up));
+        float zs = 0;
+        entity z = find(world, classname, "monster_zombie");
+        while(z) { if(MG3_SZombie_Is(z)) zs++; z = find(z, classname, "monster_zombie"); }
+        MG3_ST_Check(zs == 0, sprintf("her zombies gibbed by her cleaner: %g left", zs));
         if(m.mg3_shub_free)
         {
             MG3_ST_Check(intermission_running == 0, "a free Shub ends nothing");
@@ -357,6 +370,151 @@ void() MG3_ST_EndStep =
             return;
         }
         MG3_ST_Check(intermission_running == 3, sprintf("another: the credits (stage %g; disconnect, menu_credits queued)", intermission_running));
+        MG3_ST_Total();
+        return;
+    }
+};
+
+// Shub zombies and pillars (boss2; god mode).
+float(float alive) MG3_ST_SZombies =
+{
+    float n = 0;
+    entity e = find(world, classname, "monster_zombie");
+    while(e) { if(e.mg3_szombie && (!alive || e.health > 0)) n++; e = find(e, classname, "monster_zombie"); }
+    return n;
+};
+entity mg3st_z, mg3st_b;
+float mg3st_z0, mg3st_floor;
+void() MG3_ST_ZombieStep =
+{
+    entity p = find(world, classname, "player");
+    entity m = mg3st_m;
+    entity oldself = self;
+    if(mg3st_step == 50)
+    {
+        mg3st_pass = mg3st_fail = 0;
+        p.flags = p.flags | FL_GODMODE;
+        m = mg3st_m = MG3_ST_Shub(p);
+        float spawns = 0, rested = 0;
+        entity e = find(world, classname, "info_szombie_spawn");
+        while(e) { spawns++; if(e.wait == -1) rested++; e = find(e, classname, "info_szombie_spawn"); }
+        MG3_ST_Check(spawns == 36 && rested == 36, sprintf("boss2's 36 shub zombie spawns, unused (%g, %g)", spawns, rested));
+        float pillars = 0, good = 0;
+        e = find(world, classname, "func_breakable");
+        while(e)
+        {
+            pillars++;
+            if(e.solid == SOLID_BSP && e.movetype == MOVETYPE_PUSH && e.health == 10000 && e.takedamage) good++;
+            e = find(e, classname, "func_breakable");
+        }
+        MG3_ST_Check(pillars == 8 && good == 8, sprintf("its 8 pillars, solid pushers of 10000 (%g, %g)", pillars, good));
+        // One raised: lying at a spawn point, counted, after you.
+        mg3st_t = total_monsters;
+        self = m;
+        MG3_SZombie_Raise();
+        self = oldself;
+        entity z = find(world, classname, "monster_zombie");
+        while(z && !z.mg3_szombie) z = find(z, classname, "monster_zombie");
+        mg3st_z = z;
+        e = find(world, classname, "info_szombie_spawn");
+        float at = FALSE;
+        while(e) { if(e.origin == z.origin && e.wait > time) at = TRUE; e = find(e, classname, "info_szombie_spawn"); }
+        MG3_ST_Check(z && at && z.solid == SOLID_NOT && z.frame == MG3_ZOMBIE_PAINE12 + 1 && z.inpain == 2 && z.health == 60 &&
+            z.enemy == p && total_monsters == mg3st_t + 1 && z.model == "progs/zombie.mdl",
+            sprintf("a shub zombie raised: lying at a spawn point (resting now), 60, counted, after you (%v)", z.origin));
+        MG3_ST_Check(VR_Decap_HeadModel(z) == "progs/h_zombie.mdl", "a zombie's head to lose");
+        // More: never past 33 alive.
+        float i = 0;
+        self = m;
+        while(i < 40) { MG3_SZombie_Raise(); i++; }
+        self = oldself;
+        mg3st_n = MG3_ST_SZombies(TRUE);
+        MG3_ST_Check(mg3st_n == 33 && total_monsters == mg3st_t + 33, sprintf("at most 33 alive (%g; counted %g)", mg3st_n, total_monsters - mg3st_t));
+        // Her sphere passes it; its flesh passes her.
+        entity s1 = spawn();
+        s1.owner = m;
+        s1.classname = "spike";
+        s1.nextthink = time + 5;
+        self = s1; other = z;
+        sphere_mis_touch();
+        self = oldself;
+        MG3_ST_Check(z.health == 60 && s1.nextthink == -1, "her sphere passes it (gone, no harm)"); // (freed: nextthink -1)
+        self = z;
+        z.enemy = p;
+        makevectors(z.angles);
+        ZombieFireGrenade('-10 -22 30');
+        self = oldself;
+        entity g = find(world, classname, "zgrenade");
+        while(g && g.owner != z) g = find(g, classname, "zgrenade");
+        float hp = m.health;
+        self = g; other = m;
+        g.touch();
+        self = oldself;
+        MG3_ST_Check(g && m.health == hp && g.nextthink == -1, sprintf("its flesh passes her (%g)", m.health));
+        mg3st_step = 51; mg3st_next = time + 8;
+        return;
+    }
+    if(mg3st_step == 51)
+    {
+        float up = 0;
+        entity e2 = find(world, classname, "monster_zombie");
+        while(e2) { if(e2.mg3_szombie && e2.health > 0 && e2.solid == SOLID_SLIDEBOX) up++; e2 = find(e2, classname, "monster_zombie"); }
+        MG3_ST_Check(up >= 1 && mg3st_z.solid == SOLID_SLIDEBOX, sprintf("up 7 s later: %g of %g standing (the rest wait for room)", up, MG3_ST_SZombies(TRUE)));
+        // A swiper's beam does a shub zombie 100.
+        mg3st_k = killed_monsters;
+        T_Damage(mg3st_z, m, m, 100);
+        MG3_ST_Check(mg3st_z.health <= 0 && killed_monsters == mg3st_k + 1, "a 100 kills one, counted");
+        // Every one killed: counted.
+        float n = 0;
+        e2 = find(world, classname, "monster_zombie");
+        while(e2) { entity nx = find(e2, classname, "monster_zombie"); if(MG3_SZombie_Is(e2)) { T_Damage(e2, p, p, 200); n++; } e2 = nx; }
+        MG3_ST_Check(MG3_ST_SZombies(TRUE) == 0 && killed_monsters == mg3st_k + 1 + n, sprintf("all %g more killed, counted", n));
+        // A pillar hit: 20 down in a second, its health back.
+        mg3st_b = find(world, classname, "func_breakable");
+        while(mg3st_b && mg3st_b.model != "*52") mg3st_b = find(mg3st_b, classname, "func_breakable");
+        mg3st_z0 = mg3st_b.origin_z;
+        T_Damage(mg3st_b, p, p, 10);
+        MG3_ST_Check(mg3st_b.health == 10000 && mg3st_b.velocity_z == -20, "a pillar hit: sinking, its health back");
+        mg3st_step = 52; mg3st_next = time + 1.5;
+        return;
+    }
+    if(mg3st_step == 52)
+    {
+        float d = mg3st_z0 - mg3st_b.origin_z;
+        MG3_ST_Check(fabs(d - 20) < 1 && mg3st_b.velocity == '0 0 0', sprintf("20 down, stopped (%g)", d));
+        // A blast beside it (her spammer's): it sinks too.
+        entity bl = spawn();
+        setorigin(bl, (mg3st_b.absmin + mg3st_b.absmax) * 0.5 + '0 -100 0');
+        bl.origin_z = 32;
+        T_RadiusDamage(bl, bl, 100, world);
+        remove(bl);
+        MG3_ST_Check(mg3st_b.velocity_z == -20, "a blast beside it sinks it");
+        // You on it, taken down with it to the floor and no further.
+        setorigin(p, '2840 -496 0' + '0 0 1' * (mg3st_b.absmax_z + 26));
+        p.velocity = '0 0 0';
+        traceline('2700 -496 64', '2700 -496 -64', TRUE, p); // (the floor beside it)
+        mg3st_floor = trace_endpos_z;
+        mg3st_n = 0;
+        mg3st_step = 53; mg3st_next = time + 0.5;
+        return;
+    }
+    if(mg3st_step == 53)
+    {
+        // Hit each second until its top is at the floor (and once more).
+        T_Damage(mg3st_b, p, p, 1);
+        mg3st_n++;
+        if(mg3st_b.absmax_z > mg3st_floor + 2 && mg3st_n < 40) { mg3st_next = time + 0.9; return; }
+        mg3st_step = 54; mg3st_next = time + 3;
+        return;
+    }
+    if(mg3st_step == 54)
+    {
+        float feet = p.origin_z + p.mins_z;
+        float onground = (p.flags & FL_ONGROUND) != 0;
+        MG3_ST_Check(mg3st_b.absmax_z < mg3st_floor + 2 && feet >= mg3st_floor - 1 && pointcontents(p.origin) != CONTENT_SOLID &&
+            onground, sprintf("you rode it down %g hits, the floor took you as it sank on: its top %g, the floor %g, your feet %g, on the ground %g",
+            mg3st_n, mg3st_b.absmax_z, mg3st_floor, feet, onground));
+        p.flags = p.flags - (p.flags & FL_GODMODE);
         MG3_ST_Total();
         return;
     }
@@ -429,6 +587,7 @@ void() MG3_ShubTestFrame =
         if(mg3st_step < 20) MG3_ST_PhaseStep();
         else if(mg3st_step < 30) MG3_ST_EndStep();
         else if(mg3st_step < 50) MG3_ST_DummyStep();
+        else if(mg3st_step < 60) MG3_ST_ZombieStep();
         self = os; other = oo; activator = oa;
     }
     float request = cvar("vr_mg3_shubtest");
@@ -440,6 +599,11 @@ void() MG3_ShubTestFrame =
     else if(!MG3_Shub_Available()) dprint("mg3shubtest: the Dawn of the Machine data is not there (no Shub)\n");
     else if(request == 2) { mg3st_step = 1; mg3st_next = time; }
     else if(request == 4) { mg3st_step = 20; mg3st_next = time; }
+    else if(request == 3)
+    {
+        if(mapname != "boss2") dprint("mg3shubtest: Dawn of the Machine's boss2 needed\n");
+        else { mg3st_step = 50; mg3st_next = time; }
+    }
     else if(request == 5) { mg3st_step = 30; mg3st_next = time; }
     else dprint(sprintf("mg3shubtest: unknown request %g\n", request));
     self = oldself; other = oldother; activator = oldact;
