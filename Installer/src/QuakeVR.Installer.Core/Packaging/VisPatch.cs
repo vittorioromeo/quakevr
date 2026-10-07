@@ -12,7 +12,8 @@ public sealed record VisPatchArchive(string Game, string File, long Size, string
 /// game's own relight applies it (<c>vr_relight_seethrough</c>, Quake/vr/vr_relight_vis.cpp) whenever the data is in
 /// <c>&lt;QVR&gt;\quakevr\tools\vispatch</c>: <c>id1.vis</c>, <c>hipnotic.vis</c>, <c>rogue.vis</c> (or
 /// <c>&lt;game&gt;\vispatch.dat</c>). Its licence is unknown (1997 data, the SourceForge VisPatch project), so it is never
-/// shipped or mirrored by us: downloaded on demand from its original location, checked against the pinned SHA-256,
+/// shipped or mirrored by us (sezero/vispatch on GitHub has the tool's source only, no data: INSTALLER.md): downloaded on
+/// demand from its original location, checked against the pinned SHA-256,
 /// unpacked here (System.Formats.Tar over GZip), installed and recorded like any other file of the install.
 /// </summary>
 public static class VisPatch
