@@ -450,6 +450,7 @@ struct SsgDrawn
 SsgDrawn ssgHands[2];
 SsgDrawn ssgHolsters[HolsterCount];
 double worldSsgPrinted = -1.0; // (setupWorldSsgs' debug print: once a second)
+double worldMagPrinted = -1.0; // (setupMagazines' debug print of a lying gun's magazine: once a second)
 
 [[nodiscard]] bool ssgBreaks()
 {
@@ -5437,6 +5438,7 @@ void setupWorldSsgs()
             gun.ent = *e;
             gun.ent.frame = 0;
             gun.visible = true;
+            gun.netEntity = static_cast<int>(e - cl_entities); // (drawn with its networked scale and offset, as it is)
             setSsgPart(entities.worldSsgFrame[n], gun, ssgFrameModel, 0.f, 0);
             setSsgPart(entities.worldSsgBarrels[n], gun, ssgBarrelsModel, CLAMP(0.f, vr_reload_ssg_open_angle.value, 80.f),
                 CLAMP(0, net->ssgLoaded, 2));
@@ -5516,6 +5518,11 @@ void setupMagazines()
         setMagazine(entities.holsterMag[h], entities.holster[h], on && !(flags & weaponFlagNoMag));
         setMagazine(entities.holsterWell[h], entities.holster[h], on, true);
     }
+    const bool printMags = vr_reload_debug.value >= 1 && developer.value && cl.time >= worldMagPrinted + 1.0;
+    if(printMags)
+    {
+        worldMagPrinted = cl.time;
+    }
     for(int i = 0; i < maxWorldWeapons; i++)
     {
         const entity_t* e = worldWeaponsNear[i];
@@ -5529,8 +5536,27 @@ void setupMagazines()
         view::ViewEntity gun;
         gun.ent = *e;
         gun.visible = true;
+        gun.netEntity = static_cast<int>(e - cl_entities); // (its model_offset: a map's spinning pickup; the magazine too)
         setMagazine(entities.worldMag[i], gun, !(net && net->noMag));
         setMagazine(entities.worldWell[i], gun, true, true);
+        const MagMount* mount = magMountFor(e->model);
+        if(mount && entities.worldMag[i].visible && printMags)
+        {
+            // Its magazine's seat as the renderer draws it (the magazine's entity) against the gun's own (the world entity:
+            // its networked offset; the author's note e1m1_2026-10-07_22-39-10, a spinning pickup's came off).
+            const glm::vec3 zero{0.f};
+            const auto drawn = [&](const entity_t& ent) {
+                float m[16];
+                render::entityMatrix(ent, false, ENTSCALE_DEFAULT, zero, m);
+                const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(ent.model));
+                const glm::vec3 v{(mount->seat.x - hdr->scale_origin[0]) / hdr->scale[0],
+                    (mount->seat.y - hdr->scale_origin[1]) / hdr->scale[1], (mount->seat.z - hdr->scale_origin[2]) / hdr->scale[2]};
+                return glm::vec3{m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12], m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
+                    m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
+            };
+            Con_Printf("reload: a lying %s's magazine (entity %d%s): its seat drawn %.2f units off the gun's\n", e->model->name,
+                gun.netEntity, net && net->spin ? ", spinning" : "", glm::distance(drawn(entities.worldMag[i].ent), drawn(*e)));
+        }
     }
 }
 

@@ -40,13 +40,17 @@ namespace
 {
     if(e < cl_entities || e >= cl_entities + cl_max_edicts)
     {
+        if(const view::ViewEntity* ve = view::find(e); ve && ve->netEntity > 0)
+        {
+            return client::entityVr(ve->netEntity); // (a part of a world entity: a lying gun's magazine)
+        }
         return collectfx::entityVr(e); // (a thing put away, drawn going in: the item's own)
     }
 
     return client::entityVr(static_cast<int>(e - cl_entities));
 }
 
-void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[16])
+void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, const client::EntityVr* net, float m[16])
 {
     const weapons::ModelTransform t = weapons::modelTransform(e->model);
 
@@ -85,7 +89,7 @@ void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[
         ApplyTranslation(m, extra->x * s, extra->y * s, extra->z * s);
     }
 
-    if(const client::EntityVr* net = networkData(e); net && net->scale != glm::vec3{0.f})
+    if(net && net->scale != glm::vec3{0.f})
     {
         // The network scale is an offset from 1, applied about model_scale_origin.
         const glm::vec3& o = net->scaleOrigin;
@@ -101,7 +105,7 @@ void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[
     }
 }
 
-void applyPost(const entity_t* e, float m[16])
+void applyPost(const entity_t* e, const client::EntityVr* net, float m[16])
 {
     if(const float k = avatar::modelScale(e); k > 0.f)
     {
@@ -113,7 +117,7 @@ void applyPost(const entity_t* e, float m[16])
         ApplyScale(m, t.scale.x, t.scale.y, t.scale.z);
     }
 
-    if(const client::EntityVr* net = networkData(e); net && net->offset != glm::vec3{0.f})
+    if(net && net->offset != glm::vec3{0.f})
     {
         ApplyTranslation(m, net->offset.x, net->offset.y, net->offset.z);
     }
@@ -124,24 +128,37 @@ void applyPost(const entity_t* e, float m[16])
 namespace qvr::render
 {
 
-void anchorMatrix(const view::ViewEntity& ve, const glm::vec3& extra, float out[16])
+namespace
 {
-    entityMatrix(ve.ent, ve.mirrored, ENTSCALE_DEFAULT, extra, out);
-}
 
-void entityMatrix(const entity_t& e, bool mirrored, int scale, const glm::vec3& extra, float out[16])
+void entityMatrixWith(const entity_t& e, bool mirrored, int scale, const glm::vec3& extra, const client::EntityVr* net,
+    float out[16])
 {
     vec3_t origin, angles; // R_EntityMatrix takes them non-const
     VectorCopy(e.origin, origin);
     VectorCopy(e.angles, angles);
     R_EntityMatrix(out, origin, angles, static_cast<unsigned char>(scale));
-    applyPre(&e, mirrored, &extra, out);
+    applyPre(&e, mirrored, &extra, net, out);
 
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
     ApplyTranslation(out, hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]);
     ApplyScale(out, hdr->scale[0], hdr->scale[1], hdr->scale[2]);
 
-    applyPost(&e, out);
+    applyPost(&e, net, out);
+}
+
+} // namespace
+
+void anchorMatrix(const view::ViewEntity& ve, const glm::vec3& extra, float out[16])
+{
+    // (A copy of a world entity, or a part of one, with its networked transform: ve.netEntity.)
+    entityMatrixWith(ve.ent, ve.mirrored, ENTSCALE_DEFAULT, extra,
+        ve.netEntity > 0 ? client::entityVr(ve.netEntity) : networkData(&ve.ent), out);
+}
+
+void entityMatrix(const entity_t& e, bool mirrored, int scale, const glm::vec3& extra, float out[16])
+{
+    entityMatrixWith(e, mirrored, scale, extra, networkData(&e), out);
 }
 
 } // namespace qvr::render
@@ -192,7 +209,7 @@ extern "C" int VR_AliasNearEye(const entity_t* e, const float matrix[16], const 
 
 extern "C" void VR_AliasPreTransform(const entity_t* e, float matrix[16])
 {
-    applyPre(e, VR_AliasMirrored(e), nullptr, matrix);
+    applyPre(e, VR_AliasMirrored(e), nullptr, networkData(e), matrix);
 }
 
 extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])
@@ -201,7 +218,7 @@ extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])
     {
         return; // a ragdoll: placed where its bones are given from (vr_ragdoll.cpp)
     }
-    applyPost(e, matrix);
+    applyPost(e, networkData(e), matrix);
 }
 
 // Brush entities (the ammo and health boxes are brush models) take the networked scale and offset
@@ -213,8 +230,9 @@ extern "C" float VR_EntityScale(const entity_t* e)
 
 extern "C" void VR_BrushTransform(const entity_t* e, float matrix[16])
 {
-    applyPre(e, false, nullptr, matrix);
-    applyPost(e, matrix);
+    const client::EntityVr* net = networkData(e);
+    applyPre(e, false, nullptr, net, matrix);
+    applyPost(e, net, matrix);
 }
 
 // Zero-blend data for the alias instance's spare int: zero pose (premultiplied by the vertex

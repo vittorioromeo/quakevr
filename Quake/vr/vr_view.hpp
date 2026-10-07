@@ -26,6 +26,8 @@ struct ViewEntity
     glm::vec3 lightShift{0.f}; // the light sampled this far from the origin (a climbing hand: vr_climb.cpp drawnHand)
     glm::vec3 scale{1.f};  // the model's scale per axis, exact (entity_t's is a byte, in sixteenths; vr_render.cpp)
     const qmodel_t* lastModel{nullptr};
+    int netEntity{0};      // > 0: a part of that world entity (a lying gun's magazine): drawn with its networked scale and
+                           // offset (a map's spinning weapon pickup is moved by its model_offset: vr_render.cpp)
 };
 
 // Null if `e` is not a VR view entity.
