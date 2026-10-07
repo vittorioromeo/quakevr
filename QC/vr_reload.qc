@@ -33,6 +33,10 @@
 .float vr_ammo_fresh;    // a magazine just pulled out of its gun: it seats again only once it has left the well
 .float vr_mag_pull;      // a player's hands holding the attached magazine of the other hand's gun (1 off, 2 main)
 .float vr_reload_sec;    // and its hands' B/Y last frame (1 off, 2 main)
+.float vr_mag_pull_apart0; // how far apart the hands were as the off hand took hold of the magazine (the pull)
+.float vr_mag_pull_apart1; // the main hand's
+.float vr_mag_seated0;     // when the off hand's gun last had a magazine seated (no hit knocks it out just after)
+.float vr_mag_seated1;     // the main hand's gun's
 // What a player's pouch gives (VR_Reload_PlayerFrame): its ammo (AID_*; 0 none yet: shells) and, for a magazine, the gun
 // it is for (WID_*; 0 shells): the last gun held whose ammo the pouch has (any shotgun: shells; a nailgun, a super nailgun,
 // a thunderbolt: its magazine), kept while the hands hold nothing of the kind (empty, a melee weapon). And for the
@@ -431,6 +435,14 @@ void(float xHand, entity r) VR_Reload_SeatMag =
         QVR_WPNFLAG_NOMAG));
     VR_Carry_SetHeld(self, xHand, world);
     r.carry_player = world;
+    if(gunHand == cVR_MainHand)
+    {
+        self.vr_mag_seated1 = time;
+    }
+    else
+    {
+        self.vr_mag_seated0 = time;
+    }
     VR_Reload_AmmoChanged(self);
     VR_Reload_Sound(self, VRGetGunChannel(gunHand), "vr/reload_mag_in.wav", 1);
     VR_Reload_Haptic(self, xHand, 0.06, 150, 0.9);
@@ -515,9 +527,9 @@ float(entity p, float xHand, entity r) VR_Reload_MagFits =
            VR_Reload_AmmoFor(p, xHand) == r.vr_ammo_aid;
 };
 
-// The magazine `r` in `xHand` of self, at the well of the gun in the other hand: seated if the gun has none; if it has
-// one, a bump (the hands meeting at vr_reload_bump_speed or more) knocks that one out along the bump and seats this one.
-// TRUE if it left the hand.
+// The magazine `r` in `xHand` of self, its top at the well of the gun in the other hand: seated if the gun has none. A
+// gun with one in takes nothing (a dull tap): knock that one out first (VR_Reload_HitFrame: the bump), then seat this one
+// (the author: never in one touch). TRUE if it left the hand.
 float(float xHand, entity r) VR_Reload_MagAtWell =
 {
     float gunHand = VRGetOtherHand(xHand);
@@ -526,25 +538,12 @@ float(float xHand, entity r) VR_Reload_MagAtWell =
         VR_Reload_SeatMag(xHand, r);
         return TRUE;
     }
-    vector rel = VRGetEntHandVel(self, xHand) - VRGetEntHandVel(self, gunHand);
-    if(cvar_hget(cvarh_vr_reload_debug) >= 2)
+    if(!r.vr_ammo_full)
     {
-        dprint(sprintf("reload: a magazine at a full well, the hands meeting at %.2f m/s (a bump: %g)\n", vlen(rel),
-            cvar_hget(cvarh_vr_reload_bump_speed)));
+        r.vr_ammo_full = TRUE;
+        VR_Reload_Haptic(self, xHand, 0.05, 40, 0.5); // (a magazine in already: knock it out)
     }
-    if(vlen(rel) < cvar_hget(cvarh_vr_reload_bump_speed))
-    {
-        if(!r.vr_ammo_full)
-        {
-            r.vr_ammo_full = TRUE;
-            VR_Reload_Haptic(self, xHand, 0.05, 40, 0.5); // (a magazine in already: bump it out)
-        }
-        return FALSE;
-    }
-    VR_Reload_Eject(self, gunHand, VRGetEntHandVel(self, gunHand) * VRMetersToUnits() + normalize(rel) *
-        (vlen(rel) * 0.6 * VRMetersToUnits()), -1, "knocked out by a bump");
-    VR_Reload_SeatMag(xHand, r);
-    return TRUE;
+    return FALSE;
 };
 
 // ----------------------------------------------------------------------------
@@ -695,11 +694,67 @@ float(float xHand, entity box) VR_Reload_PouchTakesBox =
     return TRUE;
 };
 
+// The magazine of the gun in `xGunHand` of self knocked out by a hit (VR_Reload_MagFrame): what the other hand brings
+// (the fist, a prop it holds, a magazine, the gun it holds: its line to the muzzle) within vr_reload_hit_reach of the
+// magazine's top at vr_reload_bump_speed or more (the hands' relative speed), not while that hand holds the magazine (the
+// two-handed grip), nor in the half second after one seated. Out it flies along the blow, with the gun's own speed. A magazine that knocked it out must leave the
+// well before it seats (the bump reload's second step).
+void(float xGunHand) VR_Reload_HitFrame =
+{
+    float other = VRGetOtherHand(xGunHand);
+    // Not just after a seat: the hand that pushed it in follows through, fast, by the well.
+    float seated = xGunHand == cVR_MainHand ? self.vr_mag_seated1 : self.vr_mag_seated0;
+    if(!VR_Reload_MagIn(self, xGunHand) || (self.vr_mag_pull & (other == cVR_MainHand ? 2 : 1)) ||
+        time < seated + 0.5)
+    {
+        return;
+    }
+    vector well = xGunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
+    vector at = VRGetEntHandPos(self, other);
+    float d = vlen(at - well);
+    entity held = VR_Carry_Held(self, other);
+    if(held != world)
+    {
+        vector p = held.vr_ammo_wid ? VR_Reload_MagRef(held) : held.origin;
+        d = min(d, vlen(p - well));
+    }
+    if(VRGetEntWeapon(self, other) != WID_FIST)
+    {
+        // The other gun: its line from the hand to the muzzle.
+        vector a = VRGetEntHandPos(self, other);
+        vector ab = (other == cVR_MainHand ? self.muzzlepos : self.offmuzzlepos) - a;
+        float t = ab * ab > 0 ? max(0, min(1, ((well - a) * ab) / (ab * ab))) : 0;
+        d = min(d, vlen(a + ab * t - well));
+    }
+    if(d > cvar_hget(cvarh_vr_reload_hit_reach))
+    {
+        return;
+    }
+    vector rel = VRGetEntHandVel(self, other) - VRGetEntHandVel(self, xGunHand);
+    if(cvar_hget(cvarh_vr_reload_debug) >= 2)
+    {
+        dprint(sprintf("reload: a hit on the magazine at %.2f m/s, %.1f units from its top (it pops out at %g)\n",
+            vlen(rel), d, cvar_hget(cvarh_vr_reload_bump_speed)));
+    }
+    if(vlen(rel) < cvar_hget(cvarh_vr_reload_bump_speed))
+    {
+        return;
+    }
+    VR_Reload_Eject(self, xGunHand, VRGetEntHandVel(self, xGunHand) * VRMetersToUnits() + normalize(rel) *
+        (vlen(rel) * 0.7 * VRMetersToUnits()) + '0 0 40', -1, sprintf("knocked out by a hit at %.2f m/s", vlen(rel)));
+    if(held != world && held.vr_ammo_wid)
+    {
+        held.vr_ammo_fresh = TRUE; // (the bump: it seats once brought back to the well)
+    }
+    VR_Reload_Haptic(self, other, 0.06, 90, 0.8);
+};
+
 // Every player frame, for `xHand` of self (VR_Reload_HandFrame): the magazines' ejects. The gun in this hand: its B/Y
-// pressed lets its magazine drop (vr_reload_eject_button). This hand empty, its grip pressed within vr_reload_pull_reach of
-// the other hand's gun's magazine: it holds it (vr_mag_pull; as a foregrip: nothing comes out), and pulled off it hard,
-// away from the gun at vr_reload_pull_speed (m/s, the hands' relative speed) with the wrist snapping at
-// vr_reload_pull_snap (degrees/s) or more, the magazine comes out into it.
+// pressed lets its magazine drop (vr_reload_eject_button); a hit knocks it out (VR_Reload_HitFrame). This hand empty, its
+// grip closing within vr_reload_pull_reach of the other hand's gun's magazine: it holds it (vr_mag_pull: the engine's
+// two-handed grip is there, the gun aimed from it; nothing comes out), and it comes out into the hand only pulled off hard
+// (away from the gun at vr_reload_pull_speed m/s), with the wrist snapping (vr_reload_pull_snap degrees/s), or with the
+// hands gone vr_reload_pull_apart units further apart than when it took hold: any one of the three.
 void(float xHand) VR_Reload_MagFrame =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
@@ -722,6 +777,7 @@ void(float xHand) VR_Reload_MagFrame =
         makevectors(VRGetEntHandRot(self, xHand));
         VR_Reload_Eject(self, xHand, VRGetEntHandVel(self, xHand) * VRMetersToUnits() - v_up * 40, -1, "the button");
     }
+    VR_Reload_HitFrame(xHand);
 
     float gunHand = VRGetOtherHand(xHand);
     float grabbing = VR_HandGrabUtil_IsHandGrabbing(self, xHand);
@@ -731,6 +787,7 @@ void(float xHand) VR_Reload_MagFrame =
         return;
     }
     vector well = gunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
+    float apart = vlen(VRGetEntHandPos(self, xHand) - VRGetEntHandPos(self, gunHand));
     if(!(self.vr_mag_pull & bit))
     {
         if(VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && VRIsHandEmpty(self, xHand) &&
@@ -738,6 +795,14 @@ void(float xHand) VR_Reload_MagFrame =
            vlen(VRGetEntHandPos(self, xHand) - well) <= cvar_hget(cvarh_vr_reload_pull_reach))
         {
             self.vr_mag_pull = self.vr_mag_pull | bit;
+            if(xHand == cVR_MainHand)
+            {
+                self.vr_mag_pull_apart1 = apart;
+            }
+            else
+            {
+                self.vr_mag_pull_apart0 = apart;
+            }
             VR_Reload_Haptic(self, xHand, 0.04, 140, 0.4);
             VR_Reload_Log(sprintf("hand %g holds the magazine of the gun in hand %g", xHand, gunHand));
         }
@@ -752,14 +817,29 @@ void(float xHand) VR_Reload_MagFrame =
     vector away = normalize(VRGetEntHandPos(self, xHand) - VRGetEntHandPos(self, gunHand));
     float speed = rel * away; // (pulled off, away from the gun's hand)
     float snap = vlen(VR_Reload_HandAVel(self, xHand) - VR_Reload_HandAVel(self, gunHand)) * 57.2958;
+    float further = apart - (xHand == cVR_MainHand ? self.vr_mag_pull_apart1 : self.vr_mag_pull_apart0);
     if(cvar_hget(cvarh_vr_reload_debug) >= 2)
     {
-        dprint(sprintf("reload: pulling the magazine at %.2f m/s, the wrist at %.0f deg/s\n", speed, snap));
+        dprint(sprintf("reload: holding the magazine: pulled at %.2f m/s, the wrist at %.0f deg/s, %.1f units further apart\n",
+            speed, snap, further));
     }
-    if(speed >= cvar_hget(cvarh_vr_reload_pull_speed) && snap >= cvar_hget(cvarh_vr_reload_pull_snap))
+    string why = "";
+    if(speed >= cvar_hget(cvarh_vr_reload_pull_speed))
+    {
+        why = sprintf("pulled off at %.2f m/s", speed);
+    }
+    else if(snap >= cvar_hget(cvarh_vr_reload_pull_snap))
+    {
+        why = sprintf("snapped off at %.0f deg/s", snap);
+    }
+    else if(further >= cvar_hget(cvarh_vr_reload_pull_apart))
+    {
+        why = sprintf("the hands %.1f units further apart", further);
+    }
+    if(why != "")
     {
         self.vr_mag_pull = self.vr_mag_pull - (self.vr_mag_pull & bit);
-        VR_Reload_Eject(self, gunHand, '0 0 0', xHand, sprintf("pulled off at %.2f m/s, %.0f deg/s", speed, snap));
+        VR_Reload_Eject(self, gunHand, '0 0 0', xHand, why);
     }
 };
 
@@ -885,12 +965,16 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
     float leniency = VR_Reload_PortRadius(VRGetEntWeapon(self, gunHand)) + VR_Reload_MagRadius(r.vr_ammo_wid);
     if(cvar_hget(cvarh_vr_reload_debug) >= 2)
     {
-        dprint(sprintf("reload: a held round %.1f units from the port (leniency %g)\n", d, leniency));
+        dprint(sprintf("reload: a held round %.1f units from the port (leniency %g): at %v, the port %v\n", d,
+            leniency, r.vr_ammo_wid ? VR_Reload_MagRef(r) : r.origin, port));
+    }
+    if(d > leniency + 4)
+    {
+        r.vr_ammo_fresh = FALSE; // (well away: a magazine just out, or that knocked one out, may seat when brought back)
     }
     if(d > leniency)
     {
         r.vr_ammo_full = FALSE;
-        r.vr_ammo_fresh = FALSE;
         return FALSE;
     }
     if(r.vr_ammo_fresh)

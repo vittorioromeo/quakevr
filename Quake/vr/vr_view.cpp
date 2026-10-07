@@ -1437,6 +1437,14 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         if(weapons::isGripType(h.type))
         {
             w.pos = w.end = glm::vec3{hsFrame * glm::vec4{h.pos, 1.f}};
+            // Immersive: a magazine gun's grip (not a cup) is its magazine, where its middle is (MagMount's centre).
+            if(h.type == weapons::HotspotType::Grip && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3)
+            {
+                if(const MagMount* mount = magMountFor(model))
+                {
+                    w.pos = w.end = view::modelPoint(ve, mount->centre);
+                }
+            }
         }
         else if(h.type == weapons::HotspotType::Blade && s.muzzleValid[hand])
         {

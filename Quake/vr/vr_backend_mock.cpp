@@ -174,6 +174,24 @@ void mockHand_f()
     }
 }
 
+// vr_mock_hand_turn <main|off> <pitch> <yaw> <roll>: the mock hand turned in place by that much (degrees, in its own
+// frame), its place kept: a wrist snap in one frame (the magazine pull's tests: QC vr_reload.qc).
+void mockHandTurn_f()
+{
+    const int hand = Cmd_Argc() == 5 ? mockHand(Cmd_Argv(1)) : -1;
+    if(hand < 0)
+    {
+        Con_Printf("usage: vr_mock_hand_turn <main|off> <pitch> <yaw> <roll>\n");
+        return;
+    }
+    if(!mockHandRotSet[hand])
+    {
+        mockHandRot[hand] = mockRotation(0.f, 0.f, 0.f);
+        mockHandRotSet[hand] = true;
+    }
+    mockHandRot[hand] = mockHandRot[hand] * mockRotation(Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)));
+}
+
 // vr_mock_play <file>: plays a scripted motion on the clock, so that it runs the same at any frame
 // rate (vr_mock_hand moves once per command: scripts paced by "wait" run at the server's rate). The
 // file has one keyframe per line, times in seconds from the start:
@@ -617,6 +635,12 @@ void mockHandTo_f()
             if(glm::vec3 ref; !loadPortMid && view::heldRoundRef(hand, ref))
             {
                 target -= ref - st.pos[hand]; // (a magazine's top, a shell's middle)
+                if(const int num = held::heldEntity(hand); num > 0)
+                {
+                    const entity_t& e = cl_entities[num];
+                    Con_Printf("vr_mock_hand_to: held %d at %.1f %.1f %.1f angles %.1f %.1f %.1f, its reference %.1f %.1f %.1f\n",
+                        num, e.origin[0], e.origin[1], e.origin[2], e.angles[0], e.angles[1], e.angles[2], ref.x, ref.y, ref.z);
+                }
             }
             else if(const int num = held::heldEntity(hand); loadPortMid && num > 0 && num < cl_max_edicts)
             {
@@ -1196,6 +1220,7 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_button", mockButton_f);
     Cmd_AddCommand("vr_mock_stick", mockStick_f);
     Cmd_AddCommand("vr_mock_hand", mockHand_f);
+    Cmd_AddCommand("vr_mock_hand_turn", mockHandTurn_f);
     Cmd_AddCommand("vr_mock_hand_to", mockHandTo_f);
     Cmd_AddCommand("vr_mock_look", mockLook_f);
     Cmd_AddCommand("vr_mock_camera", mockCamera_f);

@@ -10,6 +10,7 @@
 #include "vr_grasp.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_sightalign.hpp"
@@ -538,6 +539,14 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
     return s.grip2HValid[1 - hand] ? 1.f - za::clamp(twohand::transition(1 - hand), 0.f, 1.f) : 1.f;
 }
 
+// A hand holding a round from the ammo pouch: a shell or a magazine (QC vr_reload.qc), as drawn.
+[[nodiscard]] bool holdsRound(int hand)
+{
+    const int num = held::heldEntity(hand);
+    const qmodel_t* m = num > 0 && num < cl_max_edicts ? cl_entities[num].model : nullptr;
+    return m && (modelmeta::has(m, modelmeta::Trait::LiveShell) || modelmeta::has(m, modelmeta::Trait::Magazine));
+}
+
 // A hand holding nothing (it may be helping hold the other hand's gun).
 [[nodiscard]] bool emptyHand(int hand)
 {
@@ -578,6 +587,14 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
         if(flashlight::holds(k) && flashlight::heldPlace(s, k, torch, angles))
         {
             w *= smooth(5.f, 10.f, glm::distance(hands::palmPoint(s, j), torch));
+        }
+        // A hand holding a round from the ammo pouch (a shell, a magazine) near the loading port or well of the other
+        // hand's gun: the hands go through each other there (the author: the hand stopped short of the port; and
+        // pushed, the gun's port moved away from the round), fully within vr_reload_collide_leniency cm of it.
+        if(s.loadPortValid[j] && holdsRound(k))
+        {
+            const float within = za::max(vr_reload_collide_leniency.value, 0.f) * 0.01f * units::metresToUnits();
+            w *= smooth(within, within * 1.6f + 2.f, glm::distance(s.pos[k], s.loadPort[j]));
         }
     }
     return w;

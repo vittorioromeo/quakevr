@@ -138,15 +138,27 @@ void() VR_Reload_MagSelfTest =
     self.ammo_nails = 5;
     r = VR_Reload_TestTakeMag(0, 5, "the reserve short: a magazine of 5");
     VR_Reload_Check(VR_Reload_MagAtWell(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 5, "seated: 5");
-    // A bump: a new magazine meeting the one in slowly does nothing; at a bump's speed it knocks it out and seats.
+    // The bump, in two steps: a new magazine meeting the one in slowly does nothing; hard, it only knocks it out (the new
+    // one still in the hand); it seats once brought back to the well, not in the same touch.
     self.ammo_nails = 30;
     r = VR_Reload_TestTakeMag(6, 24, "take a magazine for the bump");
-    VR_Reload_Check(!VR_Reload_MagAtWell(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 5 &&
+    self.vr_mag_seated0 = time - 1; // (seated a while ago: a hit just after one seats does nothing)
+    self.offloadportpos = VR_Reload_MagRef(r); // (its top at the well)
+    VR_Reload_HitFrame(cVR_OffHand);
+    VR_Reload_Check(!VR_Reload_HeldFrame(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 5 &&
                     VR_Carry_Held(self, cVR_MainHand) == r, "too slow for a bump: nothing changes");
     self.handvel = '0 0 3'; // (the main hand meets the gun at 3 m/s; the engine sets it again next frame)
-    VR_Reload_Check(VR_Reload_MagAtWell(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 24,
-        sprintf("bumped in: the gun holds %g (want 24)", VRGetEntWeaponClip(self, cVR_OffHand)));
+    VR_Reload_HitFrame(cVR_OffHand);
     self.handvel = '0 0 0';
+    VR_Reload_Check(!VR_Reload_MagIn(self, cVR_OffHand) && VRGetEntWeaponClip(self, cVR_OffHand) == 0 &&
+                    VR_Carry_Held(self, cVR_MainHand) == r, "a hard bump only knocks the old one out (the new one still in the hand)");
+    VR_Reload_Check(!VR_Reload_HeldFrame(cVR_MainHand, r) && !VR_Reload_MagIn(self, cVR_OffHand),
+        "not seated in the same touch");
+    self.offloadportpos = VR_Reload_MagRef(r) + '0 0 40'; // (taken away from the well)
+    VR_Reload_HeldFrame(cVR_MainHand, r);
+    self.offloadportpos = VR_Reload_MagRef(r); // (and back)
+    VR_Reload_Check(VR_Reload_HeldFrame(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 24,
+        sprintf("brought back to the well: seated (the gun holds %g, want 24)", VRGetEntWeaponClip(self, cVR_OffHand)));
     entity old = world;
     entity e = find(world, classname, VR_RELOAD_MAGCLASS);
     while(e)

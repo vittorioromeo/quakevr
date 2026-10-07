@@ -58,7 +58,7 @@ LETGO="vr_mock_button main grip 0;-grabmain;wait5"
 WELL="vr_mock_hand_to main lport;wait5;vr_mock_hand_to main lport;wait10"
 MPRE="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 156;wait3;vr_test_weaponinst 7;impulse 120;wait3;give n 100;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait10"
 AWAY="vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait5"
-log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$REP;vr_mock_button off secondary 1;wait3;vr_mock_button off secondary 0;wait10;$REP;$POUCH;$GRIP;$REP;$WELL;$REP;$LETGO;+offhandattack;wait15;-offhandattack;wait10;$WELL;$GRIP;$GENTLE wait5;$REP;vr_mock_hand_to main lport;wait3;vr_mock_hand main 0.45 0.85 -0.1 0 0 70;wait1;vr_mock_hand main 0.5 0.8 -0.05 0 0 90;wait10;$REP;$POUCH;$LETGO;$REP;$AWAY;$POUCH;$GRIP;$WELL;$REP;$LETGO;$AWAY;$POUCH;$GRIP;vr_mock_hand_to main lport 8;wait5;vr_mock_hand_to main lport 8;wait10;$SLOW wait5;$REP;vr_mock_hand_to main lport 10;wait10;vr_mock_hand_to main lport 10;wait10;vr_mock_hand_to main lport;wait10;$REP;toggleconsole;quit" -Filter "^reload:" 2>&1 | grep -v "held round\|pulling the\|full well")
+log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$REP;vr_mock_button off secondary 1;wait3;vr_mock_button off secondary 0;wait10;$REP;$POUCH;$GRIP;$REP;$WELL;$REP;$LETGO;+offhandattack;wait15;-offhandattack;wait10;$WELL;$GRIP;$GENTLE wait5;$REP;vr_mock_hand_to main lport;wait3;vr_mock_hand main 0.45 0.85 -0.1 0 0 70;wait1;vr_mock_hand main 0.5 0.8 -0.05 0 0 90;wait10;$REP;$POUCH;$LETGO;$REP;$AWAY;$POUCH;$GRIP;$WELL;$REP;$LETGO;$AWAY;$POUCH;$GRIP;vr_mock_hand_to main lport 8;wait5;vr_mock_hand_to main lport 8;wait10;$SLOW wait5;$REP;vr_mock_hand_to main lport 10;wait10;vr_mock_hand_to main lport 10;wait10;vr_mock_hand_to main lport;wait10;$REP;vr_mock_hand_to main lport 8;wait10;vr_mock_hand_to main lport;wait10;$REP;toggleconsole;quit" -Filter "^reload:" 2>&1 | grep -v "held round\|pulling the\|full well")
 echo "$log" > "${OUT2:-/dev/null}"
 holds=$(echo "$log" | grep "^reload: off hand")
 h() { echo "$holds" | sed -n "$1p"; }
@@ -70,8 +70,9 @@ check $(h 5 | grep -q "mag 1 holds nothing | main hand weapon 0 clip 0 holds not
 check $(echo "$log" | grep -q "a magazine of $fired out of the gun (hand 0, pulled off" && h 6 | grep -q "mag 0 holds nothing | main hand weapon 0 clip 0 holds a round of $fired" && echo 1 || echo 0) "a hard pull with a wrist snap: out into the hand, its $fired kept"
 check $(echo "$log" | grep -q "a magazine of $fired back in the pouch (hand 1): $((76 + fired)) left" && echo 1 || echo 0) "the part-used magazine put back: $((76 + fired)) nails"
 check $(h 8 | grep -q "clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "another seated in the empty gun"
-check $(h 9 | grep -q "clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds a round of 24" && [ $(echo "$log" | grep -c "knocked out by a bump") = 1 ] && echo 1 || echo 0) "a slow meeting with the full gun: nothing happens"
-check $(echo "$log" | grep -q "knocked out by a bump" && h 10 | grep -q "clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "a bump: the old one knocked out, the new one seated"
+check $(h 9 | grep -q "clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds a round of 24" && [ $(echo "$log" | grep -c "knocked out by a hit") = 1 ] && echo 1 || echo 0) "a slow meeting with the full gun: nothing happens"
+check $(echo "$log" | grep -q "knocked out by a hit" && h 10 | grep -q "clip 0 mag 0 holds nothing | main hand weapon 0 clip 0 holds a round of 24" && echo 1 || echo 0) "a hit: the old one knocked out, the new one not seated by the same touch"
+check $(h 11 | grep -q "clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "then away and back: the new one seated"
 
 # 5. The author's phase 1 notes (ROUND21.md, "Immersive reloading: the author's first notes").
 # The pouch rides the legs: walking, it is somewhere else with Follow Legs 1 than with 0.
