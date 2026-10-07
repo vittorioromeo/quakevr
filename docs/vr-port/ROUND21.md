@@ -28588,3 +28588,42 @@ after M3-19: 20 missing classes, 577 placements (21 and 625 before).
 
 **In the headset.** [ ] Debug > Tests > Dawn of the Machine Bestiary > An Orb Ahead: its spheres (dodge them, bat them),
 walk behind it (it still sees you), shoot it till it falls and blows up; grab its falling body and throw it at a monster.
+
+### M3-20 Ghosts, sacrifices, the slime
+
+- **`monster_ghost`** (`QC/vr_mg3_ghost.qc`, upstream `mg3_player_ghost.qc`; map1 4, secret5 3): a player's ghost
+  (Quake's `progs/player.mdl`, no MG3 data needed) drifting about its home (a few stand loops, then a run of six frames
+  at 150 to a point `wait` away, 128 by default), 10 health, flying, not a monster (not counted). A living player's
+  touch lays it to rest, and in Quake VR **a hand's touch too** (`handtouch`); so does a blow: one of the player's
+  five deaths, then a teleport flash and it is gone. (Upstream's fifth death ends on the fourth's last frame: kept.)
+  Named `mg3_ghost_touch` (Honey has a `ghost_touch`).
+- **`misc_sacrifice`, `trigger_sacrifice_counter`, `trigger_check_sacrifices`** (`QC/vr_mg3_sacrifice.qc`, upstream
+  `mg3_sacrifice.qc`, `mg3_sacrifice_triggers.qc`; map7 1, map8 11 and map8's counter of 8): a hanging victim
+  (`owned/mg3/progs/player_hanging_animated.mdl`, swaying through frames 5-75; spawnflag 2 `player_hanging.mdl`, bobbing
+  16 units every 4 s and turning 36 degrees a second: upstream's `cos` takes degrees), 100 health (spawnflag 1: only
+  its use gibs it), gibbed when used or killed, firing its targets. **Upstream's bug, fixed:** a victim killed fired its
+  targets twice (Killed's `monster_death_use`, then the gib's own `SUB_UseTargets`): one shot down counted two on map8's
+  counter. Here its death gibs it without firing them again. The counter says "N more" to every player (MG3's
+  localized lines) and "complete" when it fires (once; never again).
+- **`monster_slime`** (`QC/vr_mg3_slime.qc`, upstream `tarbaby.qc`; map6 1 (not in skills 0-1), map8 1, secret2 1):
+  a spawn (`monster_tarbaby`, skin 0, no Rogue mitosis: Quake VR's spawn picks those at random outside the official
+  campaigns) with two generations to come (`mg3_slime` 2). Blowing up (`tbaby_die2` calls `MG3_Slime_Split`) it throws
+  two or three blobs (the vore's ball model, bouncing, 200 out and 200 up): where one lands it becomes a spawn (80
+  health, hunting its parent's enemy) with one generation fewer; on something alive it blows up instead (120, radius);
+  a child that starts in a wall goes off harmlessly. A child counts among the level's monsters only once started, so
+  every kill matches the count. Quake's models: no MG3 data needed.
+- **Anywhere:** Debug spawner 41 Slime, 42 Ghost, 43 Sacrifice (Debug > Tests > Thing; Dawn of the Machine Bestiary's
+  rows); training dummy enemy 31 Slime (always listed: Quake's model; killed with Dummy Dies, it splits). FGD: 331
+  entities.
+
+Tests (`vr_mg3_btest 3`, e1m1) **16/0** (run three times): a ghost (not counted, flying, a hand's touch set) laid to rest
+by your touch, another by a blow, both gone 2.5 s later; a sacrifice ahead struck down: gibbed, its target fired once
+(the first run caught upstream's double firing); a counter of 3: 1 left after two, fired on the third, never again; a
+slime: 2 blobs, 2 children started, counted (+3 monsters); killed: 4 blobs, each a spawn or a blast; the grandchildren do
+not split; all dead: 6 killed of 6 counted. MG3 map8 (`vr_mg3_btest 4`) **3/0**: the 8 victims used in turn (as their
+levers would), gibbed, the counter `human_killed` 8 -> 0, its target fired. Reports: map8 11 victims, the counter, 1
+slime; secret5 3 ghosts; map1 4 ghosts (0 runes). Checker: 16 missing classes, 551 placements.
+
+**In the headset.** [ ] Dawn of the Machine Bestiary > A Ghost Ahead: reach out and touch it with a hand: it dies and
+fades. [ ] A Sacrifice Ahead: punch or cut it till it bursts. [ ] A Slime Ahead: kill it and its children (watch the
+blobs arc and become spawns); the kill count should end even.

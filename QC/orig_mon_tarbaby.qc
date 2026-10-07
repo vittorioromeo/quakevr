@@ -199,6 +199,7 @@ void()    tbaby_die2    =[    $exp,        tbaby_run1    ]
     WriteByte(MSG_BROADCAST, TE_TAREXPLOSION);
     WriteVec3(MSG_BROADCAST, self.origin);
 
+    MG3_Slime_Split(); // QVR: Dawn of the Machine's slime throws its next generation (vr_mg3_slime.qc)
     BecomeExplosion();
 };
 

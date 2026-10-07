@@ -166,6 +166,12 @@ void(float xType) VR_Dummy_Type =
         vr_dt_snd1 = "owned/mg3/orb/orb_pain.wav";
         return;
     }
+    if(xType == 31)
+    {
+        vr_dt_class = "monster_tarbaby"; vr_dt_name = "Slime"; // (the spawn's model: no MG3 data needed; killed, it splits)
+        vr_dt_stand = 0; vr_dt_stands = 1; vr_dt_pain = 0; vr_dt_pains = 0; vr_dt_atk = 50; vr_dt_atks = 6; // (no pain)
+        return;
+    }
     vr_dt_class = "monster_army"; vr_dt_name = "Grunt";
     vr_dt_stand = 0; vr_dt_stands = 8; vr_dt_pain = 40; vr_dt_pains = 6; vr_dt_atk = 81; vr_dt_atks = 9;
     vr_dt_snd1 = "soldier/pain1.wav"; vr_dt_snd2 = "soldier/pain2.wav";
@@ -196,6 +202,7 @@ void(float xType) VR_Dummy_TypeSpawn =
     if(xType == 20) { monster_demodog(); return; }
     if(xType == 21) { monster_ranged_knight(); return; }
     if(xType == 30) { monster_orb(); return; }
+    if(xType == 31) { monster_slime(); return; }
     monster_army();
 };
 

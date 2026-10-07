@@ -1058,6 +1058,12 @@ Swims (place it in water) and shocks. Models and sounds from rogue."
 [
 ]
 
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) model({ "path": "progs/player.mdl" }) =
+	monster_ghost : "Dawn of the Machine's ghost: a player's ghost drifting about where it stands ('wait': how far, 128 by default). It vanishes at a living player's touch or a blow (10 health); not a monster (not counted)."
+[
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
 @PointClass color(255 0 0) size(-32 -32 -24, 32 32 64) model({ "path": "progs/grem.mdl" }) =
 	monster_gremlin : "Gremlin (Scourge of Armagon)
 
@@ -1246,6 +1252,15 @@ Only one per level please!"
 [
 	cnt(integer) : "Count (cnt)" :  : "A count: see the help for this entity."
 	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+]
+
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 24) =
+	monster_slime : "Dawn of the Machine's slime: a spawn that, blowing up, throws two or three blobs that become spawns where they land, which do the same once more (two generations). A blob landing on something alive blows up instead."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
 ]
 
 @PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) model({ "path": "progs/s_wrath.mdl" }) =
@@ -2514,6 +2529,11 @@ When the player touches this, he gets sent to the map listed in the 'map' variab
 [
 ]
 
+@SolidClass color(128 128 128) =
+	trigger_check_sacrifices : "Dawn of the Machine: touched by a player, tells everyone how many sacrifices its 'target' (a trigger_sacrifice_counter) still needs."
+[
+]
+
 @PointClass base(Targetname) color(128 128 128) size(-8 -8 -8, 8 8 8) =
 	trigger_cleanup_corpses : "Cooperative-only one-shot removal of dead monsters; preserves living monsters and players."
 [
@@ -2930,6 +2950,17 @@ Variable sized trigger that removes the thing that touches it. Does not affect m
 		4 : "RUNE3" : 0
 		8 : "RUNE4" : 0
 	]
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_sacrifice_counter : "Dawn of the Machine's sacrifice counter: after it is used 'count' times (default 2) it fires its targets once. Unless NOMESSAGE (1), every player is told how many sacrifices are left, and when they are done."
+[
+	spawnflags(flags) =
+	[
+		1 : "NOMESSAGE" : 0
+	]
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
 ]
 
 @PointClass base(Targetname) =
@@ -3532,6 +3563,17 @@ For optimzation testing, starts a lot of sounds."
 		32 : "Flag 32" : 0
 		64 : "Mg1 rune indicator active" : 0
 	]
+]
+
+@PointClass color(255 0 0) size(-16 -16 -56, 16 16 0) model({ "path": "owned/mg3/progs/player_hanging.mdl" }) =
+	misc_sacrifice : "Dawn of the Machine's hanging sacrifice (needs the owned Dawn of the Machine data, else nothing spawns): gibbed when used or killed (100 health), firing its targets. CANNOT_BE_KILLED (1): only using it gibs it. STILL_BOBBING (2): a still body that bobs and turns, else one swaying."
+[
+	spawnflags(flags) =
+	[
+		1 : "CANNOT BE KILLED" : 0
+		2 : "STILL BOBBING" : 0
+	]
+	count(integer) : "Count" :  : "A count: see the help for this entity."
 ]
 
 @PointClass base(Appearflags, Targetname) color(0 128 204) size(-8 -8 -8, 8 8 8) model({ "path": ":progs/teleport.mdl" }) =

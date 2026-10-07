@@ -288,6 +288,7 @@ void restartVr()
         out.pushBack({21.f, "Ranged Knight"});
         out.pushBack({30.f, "Orb"});
     }
+    out.pushBack({31.f, "Slime"}); // (Dawn of the Machine's splitting spawn: Quake's model)
     return out;
 }
 
@@ -5121,11 +5122,23 @@ za::Vector<Item> pageMg3BestiaryTests()
         command("An Orb Ahead", "vr_test_spawn 40; vr_test_spawn_dist 160; impulse 241")
             .help("Dawn of the Machine's orb 160 units ahead: a flying eye that sees behind it too, bursts spheres at you, and "
                   "blows up where it lands when killed."),
+        command("A Slime Ahead", "vr_test_spawn 41; vr_test_spawn_dist 160; impulse 241")
+            .help("Dawn of the Machine's slime: a spawn that, blowing up, throws blobs that become spawns, twice over."),
+        command("A Ghost Ahead", "vr_test_spawn 42; vr_test_spawn_dist 128; impulse 241")
+            .help("Dawn of the Machine's ghost: it drifts about; touch it (a hand will do) and it fades away."),
+        command("A Sacrifice Ahead", "vr_test_spawn 43; vr_test_spawn_dist 96; impulse 241")
+            .help("A hanging sacrifice (Dawn of the Machine's misc_sacrifice): struck down, it is gibbed."),
         command("Bestiary Report", "vr_mg3_btest 1")
             .help("The Dawn of the Machine data each monster needs, and how many of each this map has (developer 1)."),
         command("Orb Test", "vr_mg3_btest 2")
             .help("Destructive: an orb ahead, woken (god mode meanwhile): its eyes, its spheres, its pain, its death and blast "
                   "(developer 1)."),
+        command("Ghost, Sacrifice and Slime Test", "vr_mg3_btest 3")
+            .help("Destructive: a ghost laid to rest by your touch, a sacrifice struck down (its target fired), a slime's two "
+                  "generations of spawns counted as they start and die (developer 1)."),
+        command("The Map's Sacrifices", "vr_mg3_btest 4")
+            .help("Destructive (Dawn of the Machine's map8): every sacrifice used in turn; the counter's count down to its "
+                  "target fired (developer 1)."),
     };
 }
 
@@ -5254,13 +5267,13 @@ za::Vector<Item> pageDebugTests()
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
              {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"},
              {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
-             {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"}, {40.f, "Orb"},
+             {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"}, {40.f, "Orb"}, {41.f, "Slime"}, {42.f, "Ghost"}, {43.f, "Sacrifice"},
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},
              {110.f, "Rocks and Bricks"}})
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed; Dawn "
-                  "of the Machine's (its infected, which burst into zombies and fiends; its own monsters, the orb: MG3's data, read in place)."),
+                  "of the Machine's (its infected, which burst into zombies and fiends; its own monsters, the orb, the sacrifice: MG3's data, read in place)."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("Into the Main Hand", vr_test_spawn_hold)
             .help("A box or a crate (Health Box .. Explosive Box, the crates) put into your empty main hand, as if gripped: "
