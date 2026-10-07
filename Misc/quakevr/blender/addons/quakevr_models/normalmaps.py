@@ -29,6 +29,10 @@ GENERATED = ("vrflashlight.mdl", "vrgadget.mdl", "vrgadget_strap.mdl", "vr_shell
              "vrpauldron.mdl", "vrpauldron_arm.mdl", "vrpouch.mdl") + tuple("vr_rock%d.mdl" % k for k in range(1, 6)) + \
             tuple("vr_brick%d.mdl" % k for k in range(1, 5)) +             tuple("vr_crate%d.mdl" % k for k in range(1, 3)) + tuple("vr_plank%d.mdl" % k for k in range(1, 5)) + ("vr_barrel.mdl",) +             tuple("gib_brain%d.mdl" % k for k in range(1, 4))
 # (make_debris.py's rocks and bricks; make_crates.py's crates, their pieces and the barrel; make_brains.py's brain chunks)
+# Models drawn in place of another's parts, made from its file with its skin and texture coordinates (polish_weapons.py
+# split_auto_pump: the shotgun's auto pump's moving fore-end and the gun without it): its map, copied, so the parts
+# shade exactly as the whole gun does.
+SHARED = {"v_shot.mdl": ("vr_pump_on_v_shot.mdl", "vr_pumpbody_on_v_shot.mdl")}
 HAND_SCALE = 2   # the hand's skin is 512 x 512: its map 1024 x 1024
 BODY_SCALE = 4   # the body's is 256 x 256: 1024 x 1024
 
@@ -48,6 +52,9 @@ def target_of(name):
         return HAND
     if b == BODY or b in BODY_BUILDS or b.startswith("vrbody"):
         return BODY
+    for owner, parts in SHARED.items():
+        if b in parts:
+            return owner
     return os.path.basename(name)
 
 
@@ -57,7 +64,7 @@ def outputs(progs, target):
         return [os.path.join(progs, "hand_rig_00_00_norm.png")]
     if target == BODY:
         return [os.path.join(progs, "vrbody_00_00_norm.png"), os.path.join(progs, "vrbody_04_00_norm.png")]
-    return [os.path.join(progs, target + "_0_norm.png")]
+    return [os.path.join(progs, m + "_0_norm.png") for m in (target,) + SHARED.get(target, ())]
 
 
 def hand_skin(progs):
@@ -109,4 +116,5 @@ def bake(progs, target, base=None, details=True):
     path = os.path.join(progs, target)
     low = nb.mdl_low(path)
     img, alpha = normaltiles.bake(low, nb.skin_rgb(low.model), normaltiles.recipe(target), base=base, details=details)
-    return {outputs(progs, target)[0]: nb.to_rgba8(img, alpha)}
+    rgba = nb.to_rgba8(img, alpha)
+    return {out: rgba for out in outputs(progs, target)}

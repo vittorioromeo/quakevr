@@ -18,6 +18,9 @@
 # (the grips, triggers, foregrips, pumps): the fitted fingers close on the same surfaces as before.
 # The double shotgun then goes through reuv_shot2.py (POST): its fore-end's stretched UVs re-mapped and repainted,
 # its holes closed; UVs and texels there change, the old vertices, triangles and anchors do not.
+# The shotgun then goes through split_auto_pump (its auto pump): the first of its fore-end's rings taken out (its own
+# vertices collapsed: no anchor, the strip order unchanged), the other three given their own texels, the moving
+# fore-end and the gun without it written apart (progs/vr_pump_on_v_shot.mdl, vr_pumpbody_on_v_shot.mdl).
 #
 # What is added, in the guns' own ramps (never a fullbright index: the sights and screens keep theirs):
 # - bands: a low-poly ring (chamfered edges) round a barrel, a tube or a housing, on the outline of what it goes
@@ -28,6 +31,7 @@
 #   lighter within its own colours, some texels of the next scuffed.
 # Every part is carried by the old piece it sits on through every frame (recoil, the pump, spinning barrels).
 
+import math
 import os
 import re
 import sys
@@ -77,6 +81,174 @@ def shotgun(p):
         p.box((x, 0.0, 5.7), Z, Y, X, (0.16, 0.2, 0.28), "gunmetal", key)
     p.bar((19.4, 0.0, 5.9), (31.9, 0.0, 5.9), Z, 0.5, 0.14, "gunmetal", key=key, bevel=0.05)
     loading_port(p)
+    auto_pump(p)
+
+
+# The shotgun's auto pump (vr_autopump.cpp; ROUND21.md, "Shotgun auto pump"): after each shot the fore-end is driven
+# back and forward by the gun itself, on two guide rods along the shoulders of the fore-end, either side of the barrel
+# (seen from above and from the side, over the fore-end's top), from an actuator housing on each side of the
+# receiver's front to a yoke clamped round the barrel ahead of the fore-end. The fore-end (the id model's ribbed rings,
+# the last three: the first, next to the receiver, is taken out to leave room for the stroke and show the rods) carries
+# a shoe round each rod at its front and back, a strap along each rod's underside joining them, and an action bar back
+# from the rear shoe towards the housing. split_auto_pump (after the polish) writes the moving part apart
+# (progs/vr_pump_on_v_shot.mdl) and the gun without it (progs/vr_pumpbody_on_v_shot.mdl), drawn instead of the gun
+# while it cycles; v_shot.mdl keeps both, at rest (holstered, lying in the world).
+PUMP_RAIL_Y, PUMP_RAIL_Z, PUMP_RAIL_R = 2.2, 4.78, 0.17  # the rods' axes (+-y) and radius
+PUMP_RAIL_X0, PUMP_RAIL_X1 = 17.2, 31.6                  # their ends, in the housings and the yoke's lugs
+PUMP_RINGS = ((18.9, 21.0), (21.8, 24.1), (24.9, 27.2), (27.9, 30.3))  # the id fore-end's rings, along x
+PUMP_TAG = "pump"
+
+
+def auto_pump(p):
+    key = p.carrier_at((32.4, -1.2, 4.6))  # the barrel's and fore-end's piece: everything here recoils with it
+    y0, z0, r = PUMP_RAIL_Y, PUMP_RAIL_Z, PUMP_RAIL_R
+    for s in (1, -1):
+        y = s * y0
+        # The guide rod, polished steel.
+        mid, half = 0.5 * (PUMP_RAIL_X0 + PUMP_RAIL_X1), 0.5 * (PUMP_RAIL_X1 - PUMP_RAIL_X0)
+        p.revolve((mid, y, z0), X, Z, [(-half, 0.0), (-half, r), (half, r), (half, 0.0)], "steel", key, sides=6,
+                  shades=[0, 0.25, 0, 0])
+        # The actuator housing on the receiver's front: a blued cylinder round the rod's end, its front rim stepped
+        # down to a dark seal where the rod comes out.
+        p.revolve((17.75, y, z0), X, Z, [(-0.85, 0.0), (-0.85, 0.4), (0.62, 0.4), (0.78, 0.28), (0.9, 0.28),
+                                         (0.9, 0.0)], "gunmetal", key, sides=6, shades=[0, 0.05, 0.25, -0.25, 0.1, 0],
+                  phase=0.0)
+        # The yoke's lug from the clamp out to the rod's front end.
+        p.box((31.45, s * 1.86, z0), X, Y, Z, (0.3, 0.5, 0.27), "gunmetal", key, bevel=0.08)
+    # The yoke's clamp round the barrel, ahead of the fore-end and behind the muzzle crown.
+    p.band((31.45, 0.0, 4.3), X, Z, 0.6, 0.2, "gunmetal", key=key)
+
+    # The moving part: shoes round the rods on the first and last of its rings, a strap under each rod between them,
+    # and an action bar back from the rear shoe (towards the housing it runs into at the stroke's end).
+    p.tag = PUMP_TAG
+    for s in (1, -1):
+        y = s * y0
+        for x0, x1 in ((22.0, 23.0), (29.1, 30.1)):
+            p.box((0.5 * (x0 + x1), y, z0 - 0.04), Z, Y, X, (0.33, 0.3, 0.5), "gunmetal", key, bevel=0.1)
+        p.bar((22.4, y, z0 - 0.3), (29.6, y, z0 - 0.3), Z, 0.42, 0.12, "gunmetal", key=key)
+        p.bar((20.5, y, z0 - 0.3), (22.2, y, z0 - 0.3), Z, 0.3, 0.16, "steel", key=key)
+    p.tag = None
+
+
+def pump_ring(m, mesh, ti):
+    """Which of the id fore-end's rings (PUMP_RINGS) an old triangle of v_shot is part of (0..3), or -1."""
+    _, a, b, c = m.tris[ti]
+    root = mesh.piece[a]
+    vs = np.nonzero(mesh.piece == root)[0]
+    if len(vs) > 4:
+        return -1  # the rings are faces of 2 triangles each, apart from the rest
+    P = mesh.P[vs]
+    for k, (x0, x1) in enumerate(PUMP_RINGS):
+        if P[:, 0].min() >= x0 and P[:, 0].max() <= x1:
+            return k
+    return -1
+
+
+def write_subset(src, tris, path):
+    """`src` (an MDL file) with only the triangles `tris` (indices) and the vertices they use: the same header scale
+    and origin, skins, frames (each vertex's bytes as they were)."""
+    m = mp.Model(src)
+    used = sorted({v for t in tris for v in m.tris[t][1:]})
+    remap = {v: i for i, v in enumerate(used)}
+    m.st = [m.st[v] for v in used]
+    m.tris = [(m.tris[t][0],) + tuple(remap[v] for v in m.tris[t][1:]) for t in tris]
+    for blk in m.pose_blocks():
+        vb = blk[2] if blk[0] == "simple" else blk[1]
+        vb[:] = b"".join(bytes(vb[4 * v:4 * v + 4]) for v in used)
+    m.old_nv = len(used)
+    m.write(path)
+
+
+def tri_texels(m, tri):
+    """The skin texels whose middles a triangle covers (its UVs as the engine maps them: mdlpolish.tri_uv)."""
+    uv = mp.tri_uv(m, tri)
+    (ax, ay), (bx, by), (cx, cy) = uv
+    den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+    out = set()
+    if abs(den) < 1e-9:
+        return out
+    for y in range(int(uv[:, 1].min()), int(math.ceil(uv[:, 1].max())) + 1):
+        for x in range(int(uv[:, 0].min()), int(math.ceil(uv[:, 0].max())) + 1):
+            px, py = x + 0.5, y + 0.5
+            w0 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den
+            w1 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den
+            if min(w0, w1, 1 - w0 - w1) >= -0.05:
+                out.add((x % m.sw, y))
+    return out
+
+
+def split_auto_pump(p, path):
+    """After the polish: the first ring taken out of v_shot.mdl (its vertices collapsed onto one: its triangles
+    vanish, the vertex and triangle orders, and so every anchor, stay); the other three given their own copy of their
+    texels (the id skin paints the rings on the fore-end's body under them: the body's stripes would stay behind as the
+    rings slide) and the body's stripes painted over in the colour between them; the moving pump and the gun without
+    it written apart, next to it."""
+    m = mp.Model(path)
+    mesh = p.mesh
+    ring = [pump_ring(m, mesh, t) if t < p.m.old_nt else -1 for t in range(len(m.tris))]
+    gone = {v for t, k in enumerate(ring) if k == 0 for v in m.tris[t][1:]}
+    first = min(gone)
+    for blk in m.pose_blocks():
+        vb = blk[2] if blk[0] == "simple" else blk[1]
+        for v in gone:
+            vb[4 * v:4 * v + 3] = vb[4 * first:4 * first + 3]
+
+    # The texels: the rings', and those of every old triangle but theirs and the fore-end body's (the piece the
+    # two-handed grip's anchor is on).
+    ring_texels = set()
+    other_texels = set()
+    body = mesh.piece[strip_order(p.m.tris[:p.m.old_nt])[48]]
+    for t in range(p.m.old_nt):
+        if ring[t] >= 0:
+            ring_texels |= tri_texels(m, m.tris[t])
+        elif mesh.piece[m.tris[t][1]] != body:
+            other_texels |= tri_texels(m, m.tris[t])
+    assert not ring_texels & other_texels, "the rings share texels with more than the fore-end's body"
+    # Rings 1-3 each copied (a texel round them, for filtering) into rows added under the skin, side by side.
+    rects = []
+    for k in (1, 2, 3):
+        vs = sorted({v for t, kk in enumerate(ring) if kk == k for v in m.tris[t][1:]})
+        s = [m.st[v][1] for v in vs]
+        tt = [m.st[v][2] for v in vs]
+        rects.append((vs, max(0, min(s) - 1), max(0, min(tt) - 1), min(m.sw, max(s) + 2), max(tt) + 2))
+    rows = max(r[4] - r[2] for r in rects)
+    assert sum(r[3] - r[1] for r in rects) <= m.sw, "the rings' copies don't fit side by side"
+    t_new = m.grow_skin(rows)
+    x = 0
+    for vs, s0, t0, s1, t1 in rects:
+        for _, _, ims in m.skins:
+            for im in ims:
+                for y in range(t1 - t0):
+                    to, fr = (t_new + y) * m.sw + x, (t0 + y) * m.sw + s0
+                    im[to:to + (s1 - s0)] = im[fr:fr + (s1 - s0)]
+        for v in vs:
+            m.st[v][1] += x - s0
+            m.st[v][2] += t_new - t0
+        x += s1 - s0
+    # The body's stripes (the rings' old texels) painted over: each from the nearest texel up or down its column that
+    # is the body's own (the dark colour between the rings).
+    for _, _, ims in m.skins:
+        for im in ims:
+            src = bytes(im)
+            for (s, t) in ring_texels:
+                for d in range(1, 40):
+                    hit = [u for u in (t - d, t + d) if 0 <= u < m.old_sh and (s, u) not in ring_texels]
+                    if hit:
+                        im[t * m.sw + s] = src[hit[0] * m.sw + s]
+                        break
+    m.write(path)
+    old_nt = p.m.old_nt
+    tags = [None] * old_nt + list(p.tri_tags)
+    assert len(tags) == len(m.tris)
+    pump = [t for t in range(len(m.tris)) if ring[t] > 0 or tags[t] == PUMP_TAG]
+    body = [t for t in range(len(m.tris)) if ring[t] < 0 and tags[t] != PUMP_TAG]
+    out = os.path.dirname(path)
+    write_subset(path, pump, os.path.join(out, "vr_pump_on_v_shot.mdl"))
+    write_subset(path, body, os.path.join(out, "vr_pumpbody_on_v_shot.mdl"))
+    return len(pump), len(body)
+
+
+SPLIT_OUTPUTS = {"v_shot.mdl": ["vr_pump_on_v_shot.mdl", "vr_pumpbody_on_v_shot.mdl"]}
 
 
 # The shotgun's loading port (docs/vr-port/RELOAD_PLAN.md: immersive reloading, shells pushed in from below): an opening
@@ -225,6 +397,8 @@ def polish(name, out_dir):
     if name in RECIPES:
         RECIPES[name](p)
     tris, verts, rows = p.finish(os.path.join(out_dir, name))
+    if name == "v_shot.mdl":
+        split_auto_pump(p, os.path.join(out_dir, name))
     if name in POST:
         POST[name](os.path.join(out_dir, name))
     return p.m.old_nt, tris, verts, rows, texels
@@ -236,7 +410,8 @@ def main():
     names = [a for a in args if a.endswith(".mdl")] or sorted(list(RECIPES) + WEAR_ONLY)
     anchors = slot_anchors()
     # The files edited in Blender since a generator wrote them are not overwritten (genguard.py: --keep-edited, --force).
-    guard = genguard.Guard("polish_weapons.py", [os.path.join(out_dir, n) for n in names])
+    guard = genguard.Guard("polish_weapons.py", [os.path.join(out_dir, n) for n in names] +
+                           [os.path.join(out_dir, x) for n in names for x in SPLIT_OUTPUTS.get(n, [])])
     bad = 0
     for name in names:
         before = anchors_of(os.path.join(SRC, name), anchors.get(name, set()))

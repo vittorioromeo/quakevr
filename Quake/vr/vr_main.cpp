@@ -79,6 +79,7 @@
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
+#include "vr_autopump.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_worldtext.hpp"
@@ -1368,6 +1369,7 @@ extern "C" void VR_NewMap()
     step("view models", view::prepareModels);
     step("torch", flashlight::prepare);
     step("casings", shells::prepare);
+    step("auto pump", autopump::prepare);
     step("explosion debris", explosiondebris::prepare);
     step("muzzle flash", weaponfx::prepare);
     step("wall torches", walltorch::prepare);

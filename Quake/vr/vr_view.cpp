@@ -10,6 +10,7 @@
 #include "vr_units.hpp"
 #include "vr_color.hpp"
 #include "vr_anchor.hpp"
+#include "vr_autopump.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_climb.hpp"
 #include "vr_avatar.hpp"
@@ -369,6 +370,11 @@ constexpr MagMount magMounts[] = {
 }
 constexpr int weaponFlagNoMag = 16; // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc)
 
+// The shotgun's auto pump (vr_autopump.cpp; polish_weapons.py auto_pump, split_auto_pump): its moving fore-end and the gun
+// without it, made in v_shot.mdl's model space with its header (scale, origin) and frames (setupPumps).
+constexpr const char* pumpModelName = "progs/vr_pump_on_v_shot.mdl";
+constexpr const char* pumpBodyModelName = "progs/vr_pumpbody_on_v_shot.mdl";
+
 struct Entities
 {
     view::ViewEntity weapon[2];
@@ -394,6 +400,8 @@ struct Entities
     view::ViewEntity well[2];                      // the magazine guns' wells (receivers): in the hands,
     view::ViewEntity holsterWell[HolsterCount];    // holstered,
     view::ViewEntity worldWell[maxWorldWeapons];   // and lying nearest
+    view::ViewEntity pumpBody[2]; // the shotgun in a hand while its auto pump strokes: the gun without its fore-end,
+    view::ViewEntity pump[2];     // drawn instead of it, and the fore-end, slid back (setupPumps)
     view::ViewEntity sawHandle;  // the chainsaw's cord's handle out of its seat (vr_chainsaw.cpp handleEntity)
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
@@ -430,7 +438,8 @@ int pouchCounterFrame = -1; // the ammo pouch's counter queued in this frame (se
     if((hide & 2) && (among(entities.weapon) || among(entities.weaponMorph) || among(entities.hand[0]) ||
                          among(entities.hand[1]) || among(entities.button) || among(entities.frontButton) ||
                          among(entities.muzzleFlash) || &ve == &entities.flashlight || &ve == &entities.sawHandle ||
-                         among(entities.mag) || among(entities.well)))
+                         among(entities.mag) || among(entities.well) || among(entities.pumpBody) ||
+                         among(entities.pump)))
     {
         return true;
     }
@@ -498,6 +507,14 @@ void forEachEntity(F&& f)
         f(ve);
     }
     for(view::ViewEntity& ve : entities.worldWell)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.pumpBody)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.pump)
     {
         f(ve);
     }
@@ -630,6 +647,8 @@ void view::prepareModels()
         names.pushBack(m.model); // (setupMagazines)
         names.pushBack(m.well);
     }
+    names.pushBack(pumpModelName); // (setupPumps)
+    names.pushBack(pumpBodyModelName);
     for(const char* name : names)
     {
         (void)Mod_ForName(name, false);
@@ -4913,6 +4932,114 @@ void setupMagazines()
     }
 }
 
+// The renderer's frame blending of an alias entity (the firing animation's), from one entity to another.
+void copyLerp(entity_t& to, const entity_t& from)
+{
+    to.lerpflags = from.lerpflags;
+    to.lerpstart = from.lerpstart;
+    to.lerptime = from.lerptime;
+    to.lerpfinish = from.lerpfinish;
+    to.previouspose = from.previouspose;
+    to.currentpose = from.currentpose;
+    to.movelerpstart = from.movelerpstart;
+    for(int i = 0; i < 3; i++)
+    {
+        to.previousorigin[i] = from.previousorigin[i];
+        to.currentorigin[i] = from.currentorigin[i];
+        to.previousangles[i] = from.previousangles[i];
+        to.currentangles[i] = from.currentangles[i];
+    }
+}
+
+// A part of the gun `gun` drawn as the gun (made in its model space): a copy of its entity (place, turn, mirroring,
+// frame, blending, light, Scale and offsets: vr_weapons.cpp makeModelTransform) with `model`, moved `back` model units
+// along the gun's -x. lastModel: the gun's model, whose copy it is (setupPumps).
+void setGunPart(view::ViewEntity& part, const view::ViewEntity& gun, qmodel_t* model, float back)
+{
+    part = gun;
+    part.ent.model = model;
+    part.lastModel = gun.ent.model;
+    // (The Scale applies about each model's own header origin: the same here, but as setMagazine does.)
+    const glm::vec3 corner = view::modelPoint(gun, glm::vec3{0.f}) - view::modelPoint(part, glm::vec3{0.f});
+    const glm::vec3 slide =
+        back != 0.f ? view::modelPoint(gun, glm::vec3{-back, 0.f, 0.f}) - view::modelPoint(gun, glm::vec3{0.f}) : glm::vec3{0.f};
+    for(int i = 0; i < 3; i++)
+    {
+        part.ent.origin[i] += corner[i] + slide[i];
+    }
+}
+
+// Every frame, after the guns are placed: the shotgun's auto pump (vr_autopump.cpp). While a hand's shotgun's fore-end
+// is off its rest (a stroke after a shot; vr_autopump_hold), the gun is drawn as the gun without it
+// (progs/vr_pumpbody_on_v_shot.mdl, in its place) and the fore-end (progs/vr_pump_on_v_shot.mdl) slid back; the gun's
+// own entity is not drawn then (drawnAsPump). The renderer moves an entity's frame blending on as it draws it: the
+// body's, copied from the gun's, is copied back to the gun's each frame (the anchors read it: the hands, the muzzle).
+// Not for a shotgun model other than Quake VR's (a mod's: other frames or header).
+void setupPumps()
+{
+    bool isShotgun[2]{};
+    float where[2][3]{};
+    for(int hand = 0; hand < 2; hand++)
+    {
+        view::ViewEntity& gun = entities.weapon[hand];
+        view::ViewEntity& body = entities.pumpBody[hand];
+        view::ViewEntity& pump = entities.pump[hand];
+        const bool shotgun = gun.visible && gun.ent.model && gun.ent.model->type == mod_alias &&
+                             modelmeta::get(gun.ent.model).is(modelmeta::Id::VShot);
+        isShotgun[hand] = shotgun;
+        if(shotgun)
+        {
+            const glm::vec3 p = view::modelPoint(gun, glm::vec3{24.f, 0.f, 3.f}); // (the fore-end's middle)
+            where[hand][0] = p.x;
+            where[hand][1] = p.y;
+            where[hand][2] = p.z;
+        }
+        if(body.visible && body.lastModel == gun.ent.model)
+        {
+            copyLerp(gun.ent, body.ent);
+        }
+        const float back = shotgun ? autopump::travel(hand) : 0.f;
+        qmodel_t* const bodyModel = back > 0.f ? viewModel(pumpBodyModelName) : nullptr;
+        qmodel_t* const pumpModel = bodyModel ? viewModel(pumpModelName) : nullptr;
+        bool fits = bodyModel && pumpModel && bodyModel->type == mod_alias && pumpModel->type == mod_alias;
+        if(fits)
+        {
+            const auto* g = static_cast<const aliashdr_t*>(Mod_Extradata(gun.ent.model));
+            for(qmodel_t* m : {bodyModel, pumpModel})
+            {
+                const auto* h = static_cast<const aliashdr_t*>(Mod_Extradata(m));
+                fits = fits && h->numframes == g->numframes && h->numposes == g->numposes &&
+                       VectorCompare(h->scale, g->scale) && VectorCompare(h->scale_origin, g->scale_origin);
+            }
+        }
+        if(!fits)
+        {
+            body.visible = pump.visible = false;
+            continue;
+        }
+        setGunPart(body, gun, bodyModel, 0.f);
+        setGunPart(pump, gun, pumpModel, back);
+        if(vr_debug_weaponfx.value >= 2.f)
+        {
+            Con_Printf("autopump hand %d t %.3f travel %.3f\n", hand, cl.time, back);
+        }
+    }
+    autopump::frame(isShotgun, where);
+}
+
+// The gun entity of a hand whose shotgun is drawn as its auto pump's two parts (setupPumps).
+[[nodiscard]] bool drawnAsPump(const view::ViewEntity& ve)
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(&ve == &entities.weapon[hand] && entities.pumpBody[hand].visible)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // The ammo pouch (immersive reloading, vr_reload_mode 3; docs/vr-port/RELOAD_PLAN.md): vrpouch_ammo.mdl (make_ammo_pouch.py:
 // as vrpouch.mdl, +x out of the body, its back at the origin) on the front of the belt between the hip holsters, facing
 // the belly's surface there (straight forward without the body), turned by vr_ammo_pouch_pitch/yaw/roll about where the
@@ -6571,6 +6698,7 @@ extern "C" void VR_SetupViewEntities()
     }
 
     setupMagazines();
+    setupPumps();
     patchModelFlags();
 
     // The screen may be redrawn more than once per frame (a modal dialog); add the entities only once.
@@ -6584,7 +6712,7 @@ extern "C" void VR_SetupViewEntities()
     weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
 
     forEachEntity([](view::ViewEntity& ve) {
-        if(ve.visible && ve.ent.model && !hiddenForShot(ve) && cl_numvisedicts < MAX_VISEDICTS)
+        if(ve.visible && ve.ent.model && !hiddenForShot(ve) && !drawnAsPump(ve) && cl_numvisedicts < MAX_VISEDICTS)
         {
             cl_visedicts[cl_numvisedicts++] = &ve.ent;
         }

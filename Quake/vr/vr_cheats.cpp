@@ -12,6 +12,7 @@
 #include "vr_particles.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_shells.hpp"
+#include "vr_autopump.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_fireparticles.hpp"
 #include "vr_weaponfx.hpp"
@@ -107,6 +108,7 @@ void clientParts(int bits, bool clear)
         R_ClearParticles();
         explosiondebris::clear();
         shells::clear();
+        autopump::clear();
         smoulder::clear();
         fireparticles::clear();
         weaponfx::clear();

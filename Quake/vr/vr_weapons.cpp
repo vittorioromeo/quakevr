@@ -1204,7 +1204,7 @@ void onChanged(cvar_t* var)
     int slot = isHandPart(info) ? fistSlot() : slotForModel(model);
     // A magazine drawn in its gun (immersive reloading: make_mags.py's vr_mag_on_<gun>.mdl, made in the gun's model
     // space): the gun's own Scale and offsets.
-    for(const char* prefix : {"progs/vr_mag_on_", "progs/vr_magwell_on_"}) // (its well too)
+    for(const char* prefix : {"progs/vr_mag_on_", "progs/vr_magwell_on_", "progs/vr_pump_on_", "progs/vr_pumpbody_on_"}) // (its well too; the shotgun's auto pump's parts: vr_view.cpp setupPumps)
     {
         if(slot < 0 && !strncmp(model->name, prefix, strlen(prefix)))
         {

@@ -1037,6 +1037,14 @@ QVR_CVAR(vr_show_flashlight_zones, "0", CVAR_NONE)     // draws those zones (gre
 QVR_CVAR(vr_shells, "1", CVAR_ARCHIVE)                // 0: none
 QVR_CVAR(vr_shells_life, "20", CVAR_ARCHIVE)          // seconds they lie on the floor before fading out
 QVR_CVAR(vr_shells_sound, "1", CVAR_ARCHIVE)          // volume of their tink as they land (0 off)
+// The shotgun's auto pump (vr_autopump.cpp; ROUND21.md, "Shotgun auto pump"): after each shot its fore-end is driven back
+// along its guide rods and forward again, and the spent shell leaves as it reaches the back.
+QVR_CVAR(vr_autopump, "1", CVAR_ARCHIVE)              // 0: the fore-end stays; the shell leaves 0.22 s after the shot, as before
+QVR_CVAR(vr_autopump_time, "0.3", CVAR_ARCHIVE)       // seconds of game time the stroke takes, back and forward (0.1-0.48: done before the shotgun can fire again)
+QVR_CVAR(vr_autopump_travel, "2.5", CVAR_ARCHIVE)     // how far back the fore-end goes, in the gun model's units (0-3.2; about 3.8 cm each, drawn)
+QVR_CVAR(vr_autopump_sound, "0.5", CVAR_ARCHIVE)      // volume of its two clacks, the slide going back and slamming home (0 off)
+QVR_CVAR(vr_autopump_haptics, "1", CVAR_ARCHIVE)      // strength of the light ticks in the hand at the back and home (0 off)
+QVR_CVAR(vr_autopump_hold, "-1", CVAR_NONE)           // test: 0..1 holds every shotgun's fore-end at that point of the stroke (0.35-0.45 the back; -1 off)
 // Weapon effects (vr_weaponfx.cpp; ROUND21.md, "Weapon effects: recoil, muzzle flash, tracers"): each weapon's own
 // settings are Weapon Offsets > Effects (vr_wofs_fx_*: which weapons kick and flash, their tracers' multipliers).
 QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil (the models' own recoil animations stay)

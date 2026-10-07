@@ -5541,7 +5541,11 @@ za::Vector<Item> pageDebugTests()
             .help("vr_weaponfx_test 1 3: the main hand's weapon kicks and flashes as if it fired (its Effects), with 3 "
                   "tracers (no shot)."),
         toggle("Print Weapon Effects", vr_debug_weaponfx)
-            .help("vr_debug_weaponfx: each shot's recoil, flash and tracers (2: and the recoil each frame)."),
+            .help("vr_debug_weaponfx: each shot's recoil, flash and tracers (2: and the recoil each frame); the shotgun's auto "
+                  "pump strokes (start, back, home) and when its shell leaves."),
+        slider("Hold the Auto Pump", vr_autopump_hold, -0.05f, 1.f, 0.05f, "%.2f")
+            .help("vr_autopump_hold: every shotgun's fore-end held at that point of its auto pump's stroke, to look at it "
+                  "(0.35-0.45: at the back; below 0: off)."),
         header("Flung Props"),
         slider("Fling Speed", vr_test_fling_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(),
         cycle("Fling At", vr_test_fling_at, {{0.f, "Nearest Monster"}, {1.f, "You"}}),
@@ -7011,6 +7015,18 @@ za::Vector<Item> pageWeaponEffects()
             .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength 1."),
         slider("Muzzle Rise", vr_recoil_rise, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
             .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength 1."),
+        header("Shotgun Auto Pump"),
+        toggle("Auto Pump", vr_autopump)
+            .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "
+                  "barrel and springs home, and the spent shell leaves the port as it reaches the back. Off: the fore-end "
+                  "stays and the shell leaves as before. Looks only: the fire rate is the same."),
+        slider("Auto Pump Time", vr_autopump_time, 0.15f, 0.45f, 0.01f, "%.2f s").extend(0.1f, 0.48f)
+            .help("How long the stroke takes, back and home (the shotgun fires again after 0.5 s)."),
+        slider("Auto Pump Travel", vr_autopump_travel, 0.5f, 3.2f, 0.1f, "%.1f units").extend(0.f, 3.2f)
+            .help("How far back the fore-end goes, in the gun model's units (about 3.8 cm each, as drawn)."),
+        slider("Auto Pump Sound", vr_autopump_sound, 0.f, 1.f, 0.1f, "%.1f").help("Volume of its two clacks (0: off)."),
+        slider("Auto Pump Haptics", vr_autopump_haptics, 0.f, 2.f, 0.1f, "%.1f")
+            .help("Strength of the light ticks in the hand at the back of the stroke and home (0: off)."),
         header("Muzzle Flash"),
         toggle("Programmatic Muzzle Flash", vr_muzzle_flash)
             .help("The shotgun's flash at the muzzle of the weapons whose Muzzle Flash is on (Weapon Offsets > Effects: the "

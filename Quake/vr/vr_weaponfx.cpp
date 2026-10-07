@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
+#include "vr_autopump.hpp"
 #include "vr_engine.hpp"
 #include "vr_anchor.hpp"
 #include "vr_backend.hpp"
@@ -208,6 +209,10 @@ void playerFired(int hand)
     if(slot < 0 || slot == weapons::fistSlot())
     {
         return;
+    }
+    if(slot == weapons::slotForName("progs/v_shot.mdl"))
+    {
+        autopump::fired(hand); // (the shotgun's auto pump: vr_autopump.cpp)
     }
     HandFx& h = handFx[hand];
     if(h.slot != slot)

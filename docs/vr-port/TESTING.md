@@ -1860,3 +1860,15 @@ prints `2h grip: ... already closed: no hold (vr_2h_grip_edge)`. The ammo button
 <front|side|back> [units]` puts the main fingertip off the off gun's button; `developer 1` prints `weapon button N:
 pressed` or `not pressed, the fingertip came A deg off its face (cone C)`. Run the mock scripts one at a time per
 worktree: two run.sh at once on the same worktree share its base folder and fail.
+
+## Shotgun auto pump (2026-10-07)
+
+`bash Misc/quakevr/autopump_test.sh <agent>` (ROUND21.md, "Shotgun auto pump"): one shot of the shotgun in the main hand
+(`impulse 154`, `+attack`) with `vr_debug_weaponfx 1` (`autopump hand H start|back|home t T (real R ...)`, `shells eject
+hand H t T (auto pump back at B)`): at 72 and 120 Hz (`vr_fixed_frames_rate`) the shell leaves in the frame the fore-end
+reaches the back and the stroke is home 0.3 s after the shot; in bullet time at 0.25x the same game times take four
+times as long in real time; with `vr_autopump 0` no stroke and the shell 0.22 s after the shot; the off hand's shotgun
+the same. `vr_debug_weaponfx 2` prints the travel every frame. Pictures: `vr_autopump_hold 0..1` holds the fore-end at
+that point of the stroke (0.35-0.45 at the back); `vr_light_test` lights the gun; a side view of the main hand's gun
+(`vr_mock_hand main 0.15 1.2 -0.45 70 0 0`): `vr_mock_camera 0.62 1.22 -0.74 3 90`; from behind above the right rod:
+`vr_mock_camera 0.3 1.3 -0.55 20 60`.

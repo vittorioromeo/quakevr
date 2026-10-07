@@ -29,6 +29,7 @@
 #include "vr_protocol.hpp"
 #include "vr_serverrules.hpp"
 #include "vr_shells.hpp"
+#include "vr_autopump.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_shock.hpp"
 #include "vr_smoulder.hpp"
@@ -696,6 +697,7 @@ extern "C" void VR_OnClientClearState()
     modelcollide::reset();
     selfcollide::reset();
     shells::clear();
+    autopump::clear();
     explosiondebris::clear();
     fireparticles::clear();
     shock::clear();

@@ -724,6 +724,9 @@ class Polisher:
         self.painter = Painter(self.m, self.ramps, seed)
         self.width = width
         self.polys = []  # (points, outward, material, level, carrier key)
+        self.tag = None  # what the faces added now are tagged with (the shotgun's moving pump: polish_weapons.py)
+        self.poly_tags = []  # per poly,
+        self.tri_tags = []  # and, after finish, per new triangle
         self.carriers = {}
         self.swatches = {}
 
@@ -763,6 +766,7 @@ class Polisher:
         if len(clean) < 3:
             return
         self.polys.append((clean, np.asarray(outward, np.float64), material, float(level), key))
+        self.poly_tags.append(self.tag)
 
     def lit(self, n, base=0.45, gain=0.35):
         """A face's painted shade: lighter facing up (Quake's skins are painted lit from above)."""
@@ -981,7 +985,7 @@ class Polisher:
         parts = Parts()
         poses = self.m.num_poses()
         base = len(self.m.st)
-        for pts, outward, material, level, key in self.polys:
+        for (pts, outward, material, level, key), tag in zip(self.polys, self.poly_tags):
             s0, t0, s1, t1 = self.swatch(material, level)
             # s along the face's longest edge, from one end of the swatch to the other; t the swatch's first row.
             _, i = max((np.linalg.norm(pts[(i + 1) % len(pts)] - pts[i]), i) for i in range(len(pts)))
@@ -1000,6 +1004,7 @@ class Polisher:
                 if np.linalg.norm(np.cross(pb - pa, pc - pa)) < 1e-9:
                     continue
                 parts.tri(a, b, c, outward)
+                self.tri_tags.append(tag)
         normals = {}  # flat: each face's own
         for a, b, c in parts.tris:
             nrm = tri_normal(parts.verts[a][0], parts.verts[b][0], parts.verts[c][0])

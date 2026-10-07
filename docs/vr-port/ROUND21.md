@@ -29389,3 +29389,40 @@ reload_test.sh section 1 (56/56), grip_state_test.py PASS, e1m1 smoke clean.
 
 In VR:
 - [ ] Hold a monster's head in both hands; let go with one hand and grip it again where it is: taken, no jump.
+## Shotgun auto pump (2026-10-07)
+
+The author: "an auto-slide-pump animation after every shot (properly synchronized with the used shell ejection)", with a
+rail system on the shotgun that makes it believable the gun cycles itself (worktree `shotpump`).
+
+- **The model** (polish_weapons.py `auto_pump`, `split_auto_pump`; anchors unchanged, the loading port and its load point
+  as they were): two polished steel guide rods along the fore-end's shoulders either side of the barrel (seen over the
+  fore-end from the side and from above), from a blued actuator housing on each side of the receiver's front (a stepped,
+  dark front where the rod comes out) to a yoke clamped round the barrel ahead of the fore-end (a band and a lug out to
+  each rod). The fore-end is the id model's ribbed rings, the last three (the first, by the receiver, is gone: room for
+  the stroke, and the rods show there), with a shoe round each rod on its first and last ring, a strap under each rod
+  between them and a short action bar back from the rear shoe towards the housing. The id skin painted the rings on the
+  fore-end's body under them: the rings got their own copy of their texels (6 rows added under the skin) and the body's
+  stripes are painted over in the dark between them, so nothing stays behind as the rings slide. +432 triangles
+  (v_shot.mdl 1216 -> 1648). v_shot.mdl keeps everything at rest (holstered, lying, thrown); the moving fore-end is
+  also written apart, `progs/vr_pump_on_v_shot.mdl`, and the gun without it, `progs/vr_pumpbody_on_v_shot.mdl` (same
+  header, frames and skin; their normal maps are v_shot's, copied by bake_normals.py: normalmaps.py `SHARED`).
+- **The stroke** (vr_autopump.cpp): each shot (QVR_SVC_FIRED) starts one; game time (cl.time: slowed in bullet time,
+  the same at any frame rate). Back over its first 35% (fast, easing into the back), held 10%, home over the rest (from
+  rest, faster and faster, home at full speed). While it runs the hand's shotgun is drawn as the two parts (vr_view.cpp
+  `setupPumps`: copies of the gun's entity, the fore-end slid back along the gun's model x; the gun's own entity not
+  drawn, its frame blending copied back from the body's copy each frame), only for Quake VR's own v_shot.mdl (a mod's,
+  with other frames or header, is drawn as it is).
+- **The shell** leaves the port in the frame the fore-end reaches the back (vr_shells.cpp waits for the stroke the shot
+  started instead of the QC's 0.22 s), thrown back a little with the action (0.4 of the stroke's average speed back).
+  With Auto Pump off it leaves 0.22 s after the shot, as before.
+- **Feel**: a light tick in the hand at the back and home (`vr_autopump_haptics` 1); two clacks, the slide unlocking
+  and starting back as the stroke starts, the slide slamming home timed so its loudest moment is the stroke's end
+  (`vr_autopump_sound` 0.5; cut from zer0_sol's CC0 "Rack.mp3" by make_autopump_sounds.py: CREDITS.md).
+- **Settings** (Weapons > Weapon Effects, "Shotgun Auto Pump"): Auto Pump (`vr_autopump` 1), Time (`vr_autopump_time`
+  0.3 s; 0.1-0.48, under the shotgun's 0.5 s refire), Travel (`vr_autopump_travel` 2.5 model units, about 9.5 cm drawn;
+  0-3.2), Sound, Haptics. Debug > Tests: Hold the Auto Pump (`vr_autopump_hold` 0..1, the stroke held there for a look),
+  Print Weapon Effects (`vr_debug_weaponfx` 1: each stroke's start, back, home and the shell's eject; 2: the travel each
+  frame).
+- Tests: `Misc/quakevr/autopump_test.sh` (TESTING.md).
+- For the author in VR: the look of the rods and the stroke (Travel, Time), the clacks' volume against the shot, and
+  whether the off hand on the fore-end (two-handed) should ride with it (it stays where the controller is now).
