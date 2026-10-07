@@ -896,7 +896,7 @@ void(entity h, string xWhy) VR_Grapple_Home =
                 if(gg_hand == cVR_OffHand) self.gh_rearm2 = TRUE;
                 else                       self.gh_rearm = TRUE;
             }
-            sound(self, VRGetHandChannel(gg_hand), "weapons/tink1.wav", 0.6, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(gg_hand), "weapons/tink1.wav", 0.6, ATTN_NORM);
             VR_Grapple_Haptic(gg_hand, 0.08, 120, 0.6);
             self = oldSelf;
         }
@@ -908,7 +908,7 @@ void(entity h, string xWhy) VR_Grapple_Home =
         {
             gg_ent.weaponflags = VR_Grapple_StripTag(gg_ent.weaponflags);
             gg_ent.frame = 0;
-            sound(gg_ent, CHAN_AUTO, "weapons/tink1.wav", 0.6, ATTN_NORM);
+            VR_SoundVaried(gg_ent, CHAN_AUTO, "weapons/tink1.wav", 0.6, ATTN_NORM);
         }
     }
     VR_Carry_Forget(h);
@@ -1027,7 +1027,7 @@ void(float xHand) VR_Grapple_QuickRelease =
     VR_Grapple_Haptic(xHand, 0.05, 160, 0.5);
     if(h == world)
     {
-        sound(self, VRGetHandChannel(xHand), "weapons/tink1.wav", 0.3, ATTN_NORM); // (nothing out: a click)
+        VR_SoundVaried(self, VRGetHandChannel(xHand), "weapons/tink1.wav", 0.3, ATTN_NORM); // (nothing out: a click)
         if(VR_Grapple_Debug())
         {
             dprint(sprintf("grapple: hand %g reel-in button: no hook out\n", xHand));
@@ -1045,7 +1045,7 @@ void(float xHand) VR_Grapple_Detach =
     VR_Grapple_Haptic(xHand, 0.05, 160, 0.5);
     if(h == world || (h.gh_state != GS_BITTEN && h.gh_state != GS_FLYING))
     {
-        sound(self, VRGetHandChannel(xHand), "weapons/tink1.wav", 0.3, ATTN_NORM); // (nothing in: a click)
+        VR_SoundVaried(self, VRGetHandChannel(xHand), "weapons/tink1.wav", 0.3, ATTN_NORM); // (nothing in: a click)
         if(VR_Grapple_Debug())
         {
             dprint(sprintf("grapple: hand %g detach button: %s\n", xHand, h == world ? "no hook out" :
@@ -1061,7 +1061,7 @@ void(entity xAttacker, float xDamage) VR_Grapple_Shot =
 {
     if(self.gh_state == GS_BITTEN)
     {
-        sound(self, CHAN_AUTO, "weapons/tink1.wav", 0.8, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_AUTO, "weapons/tink1.wav", 0.8, ATTN_NORM);
         VR_Grapple_Loosen(self, sprintf("shot off by %s", xAttacker.classname));
     }
 };
@@ -1270,13 +1270,13 @@ void() GrappleAnchor =
             return;
         }
 
-        sound(self, CHAN_WEAPON, "player/axhit1.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_WEAPON, "player/axhit1.wav", 1, ATTN_NORM);
         if(T_Damage(other, self, self.owner, 10))
         {
             VR_QuadSound(self.owner, "the hook bit");
         }
     } else {
-        sound(self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_WEAPON, "player/axhit2.wav", 1, ATTN_NORM);
 
         // One point of damage inflicted upon impact. Subsequent
         // damage will only be done to PLAYERS... this way secret
@@ -1287,7 +1287,7 @@ void() GrappleAnchor =
         }
     }
 
-    sound(holder, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
+    VR_SoundVaried(holder, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
     particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 48);
 
     if(other != world && other.health <= 0 && (other.flags & FL_MONSTER))
@@ -1378,10 +1378,10 @@ float(entity h) VR_Grapple_FlightProps =
         bestT = exact;
     }
     vector at = a + (b - a) * bestT;
-    sound(h, CHAN_WEAPON, "player/axhit2.wav", 0.7, ATTN_NORM);
+    VR_SoundVaried(h, CHAN_WEAPON, "player/axhit2.wav", 0.7, ATTN_NORM);
     if(gg_player != world)
     {
-        sound(gg_player, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
+        VR_SoundVaried(gg_player, CHAN_WEAPON, "weapons/tink1.wav", 1, ATTN_NORM);
     }
     particle2(at, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 16);
     VR_Grapple_Bite(h, best, at);

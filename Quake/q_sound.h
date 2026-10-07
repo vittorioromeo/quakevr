@@ -84,7 +84,11 @@ typedef struct
 	int	master_vol;		/* 0-255 master volume				*/
 	float	frac;			/* QVR: slow motion: the fraction of a sample past pos (snd_mix.c, SND_PaintChannelRate) */
 	int	resampled;		/* QVR: ... and end counts output samples at that rate */
+	float	pitch;			/* QVR: its playback rate (protocol.h SND_PITCH; 0 or 1 as recorded): S_CHANPITCH */
 } channel_t;
+
+/* QVR: a channel's playback rate (1 as recorded) */
+#define S_CHANPITCH(ch)	((ch)->pitch > 0.f ? (ch)->pitch : 1.f)
 
 #define WAV_FORMAT_PCM	1
 
@@ -104,6 +108,7 @@ void S_Shutdown (void);
 /* QVR: a channel that never overrides another sound of its entity's: 0, and the hands' (protocol.h SND_CHAN_HAND) */
 #define S_AUTOCHANNEL(c)	((c) == 0 || (c) == 8 || (c) == 9)
 void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float fvol, float attenuation);
+void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float fvol, float attenuation, float pitch); /* QVR: at playback rate `pitch` (1 as recorded) */
 void S_StaticSound (sfx_t *sfx, vec3_t origin, float vol, float attenuation);
 void S_StopSound (int entnum, int entchannel);
 void S_StopAllSounds(qboolean clear);

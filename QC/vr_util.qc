@@ -148,6 +148,19 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetGunChannel,
                           CHAN_WEAPON2,
                           CHAN_WEAPON);
 
+// sound(), a little higher or lower each time (up to vr_snd_pitch_jitter percent, at random): the most frequent
+// sounds (blows, swings, squishes, clicks, footsteps), one recording each, less alike.
+void(entity e, float chan, string samp, float vol, float atten) VR_SoundVaried =
+{
+    float j = min(25, cvar_hget(cvarh_vr_snd_pitch_jitter));
+    if(j <= 0)
+    {
+        sound(e, chan, samp, vol, atten);
+        return;
+    }
+    sound_pitch(e, chan, samp, vol, atten, 100 + crandom() * j);
+};
+
 // A sound from the hand xHand (any free channel: CHAN_HAND, CHAN_HAND2), not the middle of the head.
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandChannel,
                           CHAN_HAND2,

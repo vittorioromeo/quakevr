@@ -1841,7 +1841,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     {
         return;
     }
-    sound(self, chan, s, 1, ATTN_NORM);
+    VR_SoundVaried(self, chan, s, 1, ATTN_NORM); // (a little higher or lower each time)
 };
 
 // ----------------------------------------------------------------------------
@@ -2869,7 +2869,7 @@ void() VR_Bash =
     }
     else
     {
-        sound(self, bashChan, armed ? "player/axhit2.wav" : "fisthit.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, bashChan, armed ? "player/axhit2.wav" : "fisthit.wav", 1, ATTN_NORM);
         sound(self, bashChan, "demon/dland2.wav", both ? 0.7 : 0.45, ATTN_NORM);
     }
     if(both)

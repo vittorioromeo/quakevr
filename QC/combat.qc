@@ -857,7 +857,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
     {
         dmg = dmg * 1.5;
     }
-    sound(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
+    VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
     haptic(xHand, 0.0, 0.1, 60, 0.7);
     SpawnBlood(at, dir * 40, dmg);
 
@@ -1999,7 +1999,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     {
         entity oldSelfX = self;
         self = targ;
-        sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
         sound(self, CHAN_AUTO, "demon/dland2.wav", 0.5, ATTN_NORM);
         haptic(cVR_MainHand, 0.0, 0.3, 60, 1.0);
         haptic(cVR_OffHand, 0.0, 0.3, 60, 1.0);
@@ -2032,12 +2032,12 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         if(parrySound > 0)
         {
             sound(self, VRGetHandChannel(hand), "vr/parry.wav", min(1, parrySound), ATTN_NORM);
-            sound(self, VRGetHandChannel(hand), "player/axhit2.wav", 0.35 * min(1, parrySound), ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(hand), "player/axhit2.wav", 0.35 * min(1, parrySound), ATTN_NORM);
         }
         else
         {
-            sound(self, VRGetHandChannel(hand), "player/axhit2.wav", 1, ATTN_NORM);
-            sound(self, VRGetHandChannel(hand), "weapons/tink1.wav", 0.6, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(hand), "player/axhit2.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(hand), "weapons/tink1.wav", 0.6, ATTN_NORM);
         }
         particle2(at, (to * -1 + '0 0 0.5') * 80, QVR_PARTICLE_PRESET_SPARKS, 24);
         haptic(hand, 0.0, 0.3, 90, 1.0);

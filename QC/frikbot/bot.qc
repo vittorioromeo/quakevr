@@ -290,6 +290,9 @@ void()                bot_menu_display;
 
 // ----------Commands---------
 void(entity e, float chan, string samp, float vol, float atten) frik_sound = #8;
+// Quake VR: the engine's sound() with its sixth argument, the pitch in percent (DP's and FTE's speedpct; 100 as
+// recorded): sound_pitch.
+void(entity e, float chan, string samp, float vol, float atten, float speedpct) frik_sound_pitch = #8;
 void(entity client, string s)    frik_stuffcmd = #21;
 void(entity client, string s)    frik_sprint = #24;
 vector(entity e, float sped)    frik_aim = #44;
@@ -399,17 +402,29 @@ vector(entity e, float sped) aim =
     return frik_aim(e, sped);
 };
 
-void(entity e, float chan, string samp, float vol, float atten) sound =
+// The bots hear a player's sounds (and those of what a player touches).
+void(entity e, string samp) bot_heard =
 {
-
-    frik_sound(e, chan, samp, vol, atten);
     if(samp == "items/inv3.wav")
         return;
     else if(e.classname == "player")
         e.b_sound = time + 1;
     else if(other.classname == "player")
         other.b_sound = time + 1;
+};
 
+void(entity e, float chan, string samp, float vol, float atten) sound =
+{
+    frik_sound(e, chan, samp, vol, atten);
+    bot_heard(e, samp);
+};
+
+// Quake VR: sound() at a pitch, `xPitch` percent (100 as recorded): the engine plays it that much higher or lower
+// (and shorter or longer; protocol.h SND_PITCH). VR_SoundVaried: a random one.
+void(entity e, float chan, string samp, float vol, float atten, float xPitch) sound_pitch =
+{
+    frik_sound_pitch(e, chan, samp, vol, atten, xPitch);
+    bot_heard(e, samp);
 };
 void(float to, float f) WriteByte =
 {

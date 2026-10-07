@@ -92,7 +92,7 @@ void(float xHand) W_CrowbarMelee =
             VRMeleeHapticByHand(xHand);
             float k = min(VR_CROWBAR_HIT_SOUNDS, 1 + floor(random() * VR_CROWBAR_HIT_SOUNDS));
             string s = k == 1 ? "vr/crowbar_hit1.wav" : (k == 2 ? "vr/crowbar_hit2.wav" : "vr/crowbar_hit3.wav");
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, s, TRUE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, s, TRUE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;

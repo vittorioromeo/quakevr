@@ -165,19 +165,19 @@ void(float xHand) player_run =
                    }
                 r = random();
                 if(r < 0.14)
-                   sound(self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
                 else if(r < 0.29)
-                   sound(self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
                 else if(r < 0.43)
-                   sound(self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
                 else if(r < 0.58)
-                   sound(self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
                 else if(r < 0.72)
-                   sound(self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
                 else if(r < 0.86)
-                   sound(self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
                 else
-                   sound(self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
             }
         }
     }
@@ -566,7 +566,7 @@ float        rs;
     if(self.axhitme == 1)
     {
         self.axhitme = 0;
-        sound(self, CHAN_VOICE, "player/axhit1.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_VOICE, "player/axhit1.wav", 1, ATTN_NORM);
         return;
     }
 

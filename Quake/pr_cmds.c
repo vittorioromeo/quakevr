@@ -680,7 +680,11 @@ static void PF_sound (void)
 	volume = G_FLOAT(OFS_PARM3) * 255;
 	attenuation = G_FLOAT(OFS_PARM4);
 
-	SV_StartSound (entity, channel, sample, volume, attenuation);
+	// QVR: a sixth argument, the pitch in percent (DP's and FTE's speedpct: 100 as recorded; 0 the same)
+	if (qcvm->argc > 5 && G_FLOAT(OFS_PARM5) > 0.f)
+		SV_StartSoundPitch (entity, channel, sample, volume, attenuation, G_FLOAT(OFS_PARM5) * 0.01f);
+	else
+		SV_StartSound (entity, channel, sample, volume, attenuation);
 }
 
 /*

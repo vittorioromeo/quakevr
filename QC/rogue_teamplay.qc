@@ -782,7 +782,7 @@ void() Team_weapon_touch =
     sprint(other, self.netname);
     sprint(other, "\n");
 // weapon touch sound
-    sound(other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
+    VR_SoundVaried(other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
     stuffcmd (other, "bf\n");
 
     bound_other_ammo ();

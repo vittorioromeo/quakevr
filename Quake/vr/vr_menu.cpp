@@ -1115,6 +1115,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("A sound stays with what made it as it moves (a monster, a door, a hook in flight)."),
         slider("Doppler", vr_snd_doppler, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 4.f)
             .help("Things coming at you sound higher, going away lower (1: as physics has it; 0 off)."),
+        slider("Pitch Variation", vr_snd_pitch_jitter, 0.f, 10.f, 1.f, "%.0f%%").extend(0.f, 25.f)
+            .help("The most frequent sounds (punches and blows, swings, squishes, clicks, knocks, casings, footsteps) "
+                  "each a little higher or lower at random, up to this much, so that one recording isn't heard the same "
+                  "every time (0 off)."),
         slider("Near Field", vr_snd_nearfield, 0.f, 2.f, 0.1f, "%.1f")
             .help("A sound within a metre of your head: the nearer ear louder, the farther one quieter and duller, by how "
                   "near and how much to the side. 0 off."),

@@ -32,7 +32,7 @@ void() RuneTouch =
 
     other.rune = other.rune | self.rune;
 
-    sound(other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
+    VR_SoundVaried(other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
 
     if(self.rune & ITEM_RUNE1)
         centerprint(other, "Earth Magic\n\nRESISTANCE");

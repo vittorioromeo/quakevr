@@ -412,7 +412,8 @@ void tink(Shell& s, float impact)
     }
     const float loud = za::clamp(impact / (4.f * unitsPerMetre()), 0.15f, 1.f);
     vec3_t org{s.pos.x, s.pos.y, s.pos.z};
-    S_StartSound(0, 0, sfx, org, za::min(vr_shells_sound.value, 1.f) * 0.45f * loud, 2.f);
+    const float pct = za::clamp(vr_snd_pitch_jitter.value, 0.f, 25.f) * 0.01f; // (a little higher or lower each time)
+    S_StartSoundPitch(0, 0, sfx, org, za::min(vr_shells_sound.value, 1.f) * 0.45f * loud, 2.f, 1.f + rng.getF(-pct, pct));
 }
 
 // Going into a liquid between `dry` and `wet` (a move's ends): where it crosses the surface, a tiny splash (the splash

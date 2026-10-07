@@ -355,7 +355,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
         }
         else
         {
-            sound(self, VRGetHandChannel(xHand), "knight/sword2.wav", 0.4, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), "knight/sword2.wav", 0.4, ATTN_NORM);
         }
     }
     haptic(xHand, 0.0, 0.1, 70, 0.6);
@@ -765,7 +765,7 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
         other.classname, xSpeed, xOwnSpeed, dmg));
     dprint(sprintf(" (base %.1f x%.2f, speed x%.2f, weight x%.2f), by %s\n", base, own, speedMult, weightMult,
         attacker == world ? "nobody" : attacker.netname));
-    sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
+    VR_SoundVaried(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
     spawn_touchblood(dmg); // (splinters off a crate: spawn_touchblood)
     float pop = VR_Decap_ThrownArm(other, self, attacker, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
     T_Damage(other, self, attacker, dmg);
@@ -1185,7 +1185,7 @@ void(float xHand) VR_Carry_TrySecondHand =
     VR_Carry_SetHeld(self, xHand, box);
     box.carry_2h = TRUE;
     carry2h(box, self, TRUE); // the grips are kept
-    sound(self, VRGetHandChannel(xHand), "knight/sword2.wav", 0.25, ATTN_NORM);
+    VR_SoundVaried(self, VRGetHandChannel(xHand), "knight/sword2.wav", 0.25, ATTN_NORM);
     haptic(xHand, 0.0, 0.1, 70, 0.6);
 };
 
@@ -2359,7 +2359,7 @@ void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blo
     dprint("gib: struck by a blow at "); dprint(ftos(xSpeed)); dprint("\n");
     VRSetMeleeHitSoundPlayed(xHand, TRUE);
     VRMeleeHapticByHand(xHand);
-    sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+    VR_SoundVaried(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
     VR_SetHitKind(QVR_HITKIND_MELEE, xHand, xAt, xDir);
     float sgib = xGib.vr_sgib;
     float sgibId = xGib.vr_sgib_id;
@@ -2547,7 +2547,7 @@ void(float xHand) VR_Gib_HeldFrameHand =
             VR_Gib_KnockOut(self, g);
             VRSetMeleeHitSoundPlayed(xHand, TRUE); // the blow landed (no punch as well)
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
             VR_SetHitKind(QVR_HITKIND_MELEE, xHand, (g.absmin + g.absmax) * 0.5, normalize(rel));
             T_Damage(g, self, self, VR_Gib_StrikeDamage(speed));
             VR_ClearHitKind();

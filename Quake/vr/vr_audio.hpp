@@ -57,6 +57,7 @@ struct VoiceInput
     glm::vec3 vel{0.f};  // units / second (Doppler)
     float gain{0.f};     // Quake's: master volume x distance falloff x sfxvolume (paint buffer units per sample unit)
     bool attached{false}; // moves with the listener (a hand's sound): no Doppler
+    float pitch{1.f};     // its playback rate (QC sound()'s pitch: protocol.h SND_PITCH), times the Doppler's
     bool hasDirect{false};
     DirectResult direct;
 };

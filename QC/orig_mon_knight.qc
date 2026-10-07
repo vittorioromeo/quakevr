@@ -100,9 +100,9 @@ void()    knight_run8    =[    $runb8,        knight_run1    ] {ai_run(6);};
 void()    knight_runatk1    =[    $runattack1,        knight_runatk2    ]
 {
 if(random() > 0.5)
-    sound(self, CHAN_WEAPON, "knight/sword2.wav", 1, ATTN_NORM);
+    VR_SoundVaried(self, CHAN_WEAPON, "knight/sword2.wav", 1, ATTN_NORM);
 else
-    sound(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
+    VR_SoundVaried(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
 ai_charge(20);
 };
 void()    knight_runatk2    =[    $runattack2,    knight_runatk3    ] {ai_charge_side();};
@@ -118,7 +118,7 @@ void()    knight_runatk11    =[    $runattack11,    knight_run1    ] {ai_charge(
 
 void()    knight_atk1    =[    $attackb1,        knight_atk2    ]
 {
-sound(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
+VR_SoundVaried(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
 ai_charge(0);};
 void()    knight_atk2    =[    $attackb2,        knight_atk3    ] {ai_charge(7);};
 void()    knight_atk3    =[    $attackb3,        knight_atk4    ] {ai_charge(4);};

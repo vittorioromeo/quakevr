@@ -291,6 +291,7 @@ QVR_CVAR(vr_snd_falloff, "0.75", CVAR_ARCHIVE)        // Quake's distance fallof
 QVR_CVAR(vr_snd_reverb, "0.5", CVAR_ARCHIVE)          // the room's reverb, simulated from the map where the head is: wet mix (0 off)
 QVR_CVAR(vr_snd_reverb_quality, "1", CVAR_ARCHIVE)    // 0 parametric (cheapest), 1 convolution (2 s of the simulated response), 2 convolution (3 s, more rays)
 QVR_CVAR(vr_snd_reverb_interval, "0.25", CVAR_ARCHIVE) // s between the room's simulations (a pool task)
+QVR_CVAR(vr_snd_pitch_jitter, "4", CVAR_ARCHIVE)     // percent: the most frequent sounds (blows, swings, squishes, knocks, casings, footsteps) each played up to this much higher or lower at random (0 off)
 QVR_CVAR(vr_snd_hands, "1", CVAR_ARCHIVE)             // your weapons' and hands' sounds (QC CHAN_HAND: a parry, a reload, a holster) from the hand, not the middle of the head
 QVR_CVAR(vr_snd_follow, "1", CVAR_ARCHIVE)            // sounds follow their thing as it moves (a rocket, a monster, a door)
 QVR_CVAR(vr_snd_doppler, "1", CVAR_ARCHIVE)           // the pitch of things coming and going: scale (0 off, 1 physical)

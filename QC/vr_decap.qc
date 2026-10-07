@@ -656,7 +656,7 @@ void(entity e, vector xAt, vector xVel) VR_Decap_PopEffects =
     VR_Gore_Burst(xAt, xVel, VR_DECAP_POP_SIZE);
     VR_SmallGib_Burst(xAt, xVel, VR_DECAP_POP_SIZE, e); // its small gibs (vr_smallgibs.qc)
     VR_SmallGib_Brains(xAt, xVel, TRUE, e); // and its brain (vr_smallgibs.qc)
-    sound(e, CHAN_AUTO, VR_Gib_SquishSound(FALSE), 1, ATTN_NORM);
+    VR_SoundVaried(e, CHAN_AUTO, VR_Gib_SquishSound(FALSE), 1, ATTN_NORM);
     sound(e, CHAN_BODY, "player/udeath.wav", 0.8, ATTN_NORM);
     vr_decap_pops++;
 };
@@ -696,7 +696,7 @@ void(entity e, vector xVel, float xHow) VR_Decap_Effects =
     woundevent(e, neck - side2 * 4, side2, QVR_WOUND_MELEE, 50, 0);
     if(!pop) // (a head pop's burst is there already)
     {
-        sound(e, CHAN_AUTO, VR_Gib_SquishSound(FALSE), 1, ATTN_NORM);
+        VR_SoundVaried(e, CHAN_AUTO, VR_Gib_SquishSound(FALSE), 1, ATTN_NORM);
         sound(e, CHAN_BODY, "player/udeath.wav", 0.5, ATTN_NORM);
         VR_BloodMist(neck, xVel, 0.6);
         VR_Gore_Burst(neck, out, 0.5);

@@ -294,7 +294,7 @@ void(float xSpeed) VR_SolidProp_Impact =
                 speed, xSpeed, dmg));
             // (An explosive box thrown, or one struck: a metal knock.)
             float metal = VR_Prop_Metal(self) || VR_Prop_Metal(other);
-            sound(self, CHAN_AUTO, metal ? VR_Metal_Sound(VR_METAL_BLUNT) : "fisthit.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, CHAN_AUTO, metal ? VR_Metal_Sound(VR_METAL_BLUNT) : "fisthit.wav", 1, ATTN_NORM);
             if(VR_Crate_Wooden(other))
             {
                 VR_Crate_Splinters(self.origin, self.velocity, dmg);

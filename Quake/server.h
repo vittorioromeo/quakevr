@@ -273,6 +273,10 @@ void SV_Init (void);
 void SV_StartParticle (vec3_t org, vec3_t dir, int color, int count);
 void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume,
     float attenuation);
+void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int volume,
+    float attenuation, float pitch); // QVR: at a playback rate (protocol.h SND_PITCH)
+qboolean SV_WriteSound (sizebuf_t *buf, int ent, int channel, int sound_num, int volume, float attenuation,
+    const vec3_t origin, float pitch); // QVR: the start-sound message (SV_StartSound's; the physics sounds')
 void SV_LocalSound (client_t *client, const char *sample); // for 2021 rerelease
 
 void SV_DropClient (qboolean crash);

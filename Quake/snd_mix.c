@@ -538,9 +538,9 @@ void S_PaintChannels (int endtime)
 			if (!sc)
 				continue;
 
-			if (rate != 1.f) // QVR: slow motion (vr_timescale_sound): read slower, interpolated
+			if (rate * S_CHANPITCH (ch) != 1.f) // QVR: slow motion (vr_timescale_sound), a pitch: read at that rate, interpolated
 			{
-				SND_PaintChannelRate (ch, sc, paintedtime, end, rate, fullband == 2 ? S_FullBandData (sc) : NULL);
+				SND_PaintChannelRate (ch, sc, paintedtime, end, rate * S_CHANPITCH (ch), fullband == 2 ? S_FullBandData (sc) : NULL);
 				continue;
 			}
 			if (ch->resampled) // QVR: back from slow motion: the end in the sound's own samples again

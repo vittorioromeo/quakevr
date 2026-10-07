@@ -130,10 +130,10 @@ void(entity g, float xVolume) VR_Gib_Squish =
 {
     if(g.vr_sgib)
     {
-        sound(g, CHAN_AUTO, VR_Gib_SquishSound(TRUE), xVolume * 0.6, ATTN_NORM);
+        VR_SoundVaried(g, CHAN_AUTO, VR_Gib_SquishSound(TRUE), xVolume * 0.6, ATTN_NORM);
         return;
     }
-    sound(g, CHAN_AUTO, random() < 0.25 ? "zombie/z_miss.wav" : VR_Gib_SquishSound(FALSE), xVolume, ATTN_NORM);
+    VR_SoundVaried(g, CHAN_AUTO, random() < 0.25 ? "zombie/z_miss.wav" : VR_Gib_SquishSound(FALSE), xVolume, ATTN_NORM);
 };
 
 // A rock's longest side (the five rocks' mean), times vr_world_scale (the pieces' size).

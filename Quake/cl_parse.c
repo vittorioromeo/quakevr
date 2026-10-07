@@ -150,6 +150,7 @@ void CL_ParseStartSoundPacket(void)
 	int	volume;
 	int	field_mask;
 	float	attenuation;
+	float	pitch; // QVR
 	int	i;
 
 	field_mask = MSG_ReadByte();
@@ -163,6 +164,11 @@ void CL_ParseStartSoundPacket(void)
 		attenuation = MSG_ReadByte () / 64.0;
 	else
 		attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
+
+	if (field_mask & SND_PITCH) // QVR: its playback rate (protocol.h)
+		pitch = (unsigned short) MSG_ReadShort () / 4000.f;
+	else
+		pitch = 1.f;
 
 	//johnfitz -- PROTOCOL_FITZQUAKE
 	if (field_mask & SND_LARGEENTITY)
@@ -195,7 +201,7 @@ void CL_ParseStartSoundPacket(void)
 		pos[i] = MSG_ReadCoord (cl.protocolflags);
 
 	if (!VR_GameSound (ent, cl.sound_precache[sound_num])) // QVR: the wrist gadget's notification
-		S_StartSound (ent, channel, cl.sound_precache[sound_num], pos, volume/255.0, attenuation);
+		S_StartSoundPitch (ent, channel, cl.sound_precache[sound_num], pos, volume/255.0, attenuation, pitch);
 }
 
 /*

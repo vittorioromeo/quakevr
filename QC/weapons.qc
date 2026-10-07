@@ -440,7 +440,7 @@ void(entity xTarget) PositionalHeadshotFeedback =
         return;
     }
 
-    sound(shooter, CHAN_AUTO, "vr/headshot.wav", min(1, v), ATTN_NORM);
+    VR_SoundVaried(shooter, CHAN_AUTO, "vr/headshot.wav", min(1, v), ATTN_NORM);
     if(cvar_hget(cvarh_vr_debug_shots))
     {
         dprint(sprintf("headshot sound: %s by %s\n", xTarget.classname, self.classname));
@@ -1137,7 +1137,7 @@ void(float xHand) HIP_FireMjolnir =
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
         if((vr_melee_blunt || VR_Hit_Metal(victim)) && VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "", FALSE), 1, ATTN_NORM); // the head's hit has none
+            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "", FALSE), 1, ATTN_NORM); // the head's hit has none
         }
         VRSetMeleeHitSoundPlayed(xHand, TRUE);
     }
@@ -1165,7 +1165,7 @@ void(float xHand) HIP_FireMjolnir =
             if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
             {
                 VRMeleeHapticByHand(xHand);
-                sound(self, VRGetGunChannel(xHand), "knight/sword1.wav", 1, ATTN_NORM);
+                VR_SoundVaried(self, VRGetGunChannel(xHand), "knight/sword1.wav", 1, ATTN_NORM);
                 VRSetMeleeHitSoundPlayed(xHand, TRUE);
             }
         }
@@ -1286,7 +1286,7 @@ void(float xHand) W_FireAxe =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
     }
@@ -1297,7 +1297,7 @@ void(float xHand) W_FireAxe =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
 
@@ -1337,7 +1337,7 @@ void(float xHand) W_GunMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
     }
@@ -1347,7 +1347,7 @@ void(float xHand) W_GunMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
 
@@ -1392,7 +1392,7 @@ void(float xHand) W_SwordMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "knight/sword2.wav", TRUE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "knight/sword2.wav", TRUE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;
@@ -1402,7 +1402,7 @@ void(float xHand) W_SwordMelee =
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);
-        sound(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
         VRSetMeleeHitSoundPlayed(xHand, TRUE);
     }
     particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
@@ -1437,7 +1437,7 @@ void(float xHand) W_ChainsawMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;
@@ -1447,7 +1447,7 @@ void(float xHand) W_ChainsawMelee =
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);
-        sound(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
         VRSetMeleeHitSoundPlayed(xHand, TRUE);
     }
     particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
@@ -3264,7 +3264,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         if(!VRHandsTracked(self) ||
            !self.ishuman)
         {
-            sound(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
             float r = random();
             if(r < 0.25)
                 player_axe1(xHand);
@@ -5723,7 +5723,7 @@ void() forcegrabbable_touch =
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
         {
-            sound(self, CHAN_AUTO, VR_Hit_Metal(other) ? VR_Metal_Sound(VR_METAL_BLADE) : "fisthit.wav", 1, ATTN_NORM); // (an explosive box: a clang)
+            VR_SoundVaried(self, CHAN_AUTO, VR_Hit_Metal(other) ? VR_Metal_Sound(VR_METAL_BLADE) : "fisthit.wav", 1, ATTN_NORM); // (an explosive box: a clang)
 
             // Where it struck, and going which way (not the trace globals, stale in a touch).
             float posDmgType = PositionalDamage(other, self.origin, normalize(self.velocity));
@@ -5752,7 +5752,7 @@ void() forcegrabbable_touch =
         {
             if(GetThrownWeaponMetalNoiseOnTouch(self))
             {
-                sound(self, CHAN_AUTO, "player/axhit2.wav", 0.65, ATTN_NORM);
+                VR_SoundVaried(self, CHAN_AUTO, "player/axhit2.wav", 0.65, ATTN_NORM);
             }
 
             particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 24);
@@ -5807,7 +5807,7 @@ void(float xHand, entity ent, entity entPlayer,
      float* xOutEntWeapon, float* xOutEntWeaponFlags)
      wpnthrow_handtouch_impl =
 {
-    sound(ent, CHAN_AUTO, "weapons/pkup.wav", 1, ATTN_NORM);
+    VR_SoundVaried(ent, CHAN_AUTO, "weapons/pkup.wav", 1, ATTN_NORM);
     VRGunHaptic(xHand, 0.3, 75, 1.0);
     if(VR_AxeStick_IsStuck(ent))
     {
@@ -6568,7 +6568,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
     }
     // (QVR_WEAPONTHROWMODE_DISCARD: nothing is thrown, the weapon is gone.)
 
-    sound(ent, VRGetHandChannel(xHand), "knight/sword2.wav", 0.7, ATTN_NORM);
+    VR_SoundVaried(ent, VRGetHandChannel(xHand), "knight/sword2.wav", 0.7, ATTN_NORM);
     VRSetHandEmpty(ent, xHand);
     W_SetCurrentAmmoFor(xHand);
 }
@@ -6582,7 +6582,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags) DropWeaponInHan
 void(entity entPlayer, float xHand, float xHotspot, float xWeapon, float xWeaponFlags, entity xInst)
 VRPutWeaponInHolster =
 {
-    sound(entPlayer, VRGetHandChannel(xHand), "weapons/holster1.wav", 1, ATTN_NORM);
+    VR_SoundVaried(entPlayer, VRGetHandChannel(xHand), "weapons/holster1.wav", 1, ATTN_NORM);
 
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_SAW_STATE); // a chainsaw's engine stops
@@ -6598,7 +6598,7 @@ VRReloadWeapon =
 {
     float clip = VRGetEntWeaponClip(entPlayer, xHand);
     VRGunHaptic(xHand, 0.25, 70, 1.0);
-    sound(entPlayer, VRGetHandChannel(xHand), "reload1.wav", 1, ATTN_NORM);
+    VR_SoundVaried(entPlayer, VRGetHandChannel(xHand), "reload1.wav", 1, ATTN_NORM);
 
     float ammoId = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
     float missingAmmo = WeaponIdToBaseClipSize(xWeapon) - clip;
@@ -6625,7 +6625,7 @@ VRUnloadWeapon =
 {
     float clip = VRGetEntWeaponClip(entPlayer, xHand);
     VRGunHaptic(xHand, 0.25, 70, 1.0);
-    sound(entPlayer, VRGetHandChannel(xHand), "reload1.wav", 1, ATTN_NORM);
+    VR_SoundVaried(entPlayer, VRGetHandChannel(xHand), "reload1.wav", 1, ATTN_NORM);
 
     float ammoId = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
 
@@ -6771,7 +6771,7 @@ void(entity ent, float xHand) VRHandOffWeapon =
     VRSetHandEmpty(ent, xHand);
     W_SetCurrentAmmo();
 
-    sound(ent, VRGetHandChannel(other), "weapons/holster0.wav", 0.5, ATTN_NORM);
+    VR_SoundVaried(ent, VRGetHandChannel(other), "weapons/holster0.wav", 0.5, ATTN_NORM);
     VRGunHaptic(other, 0.08, 75, 0.6);
 };
 
@@ -6807,7 +6807,7 @@ void(entity ent, float xHand) VRTakeCarriedWeapon =
     VRSetHandEmpty(ent, other);
     W_SetCurrentAmmo();
 
-    sound(ent, VRGetHandChannel(xHand), "weapons/holster0.wav", 0.5, ATTN_NORM);
+    VR_SoundVaried(ent, VRGetHandChannel(xHand), "weapons/holster0.wav", 0.5, ATTN_NORM);
     VRGunHaptic(xHand, 0.08, 75, 0.6);
 }
 
@@ -6851,7 +6851,7 @@ void(entity ent, float xHand) VRSwitchWeaponHands =
 {
     float other = VRGetOtherHand(xHand);
     float wflags = VRGetEntWeaponFlags(ent, xHand);
-    sound(ent, VRGetHandChannel(other), "knight/sword2.wav", 0.7, ATTN_NORM);
+    VR_SoundVaried(ent, VRGetHandChannel(other), "knight/sword2.wav", 0.7, ATTN_NORM);
     VRSetEntWeapon(ent, other, VRGetEntWeapon(ent, xHand));
     VRSetEntWeaponFlags(ent, other, wflags - (wflags & QVR_WPNFLAG_FOREGRIP_CARRIED));
     VRMoveEntWeaponInst(ent, xHand, other); // (its magazine, its id)
@@ -6866,7 +6866,7 @@ void(entity ent, float xHand, float xHotspot) VRDrawHolsterWeapon =
 {
     float wid = getHolsterWeapon(xHotspot);
     entity holstered = VRGetEntHolsterWeaponInst(ent, xHotspot);
-    sound(ent, VRGetHandChannel(xHand), "weapons/holster0.wav", 1, ATTN_NORM);
+    VR_SoundVaried(ent, VRGetHandChannel(xHand), "weapons/holster0.wav", 1, ATTN_NORM);
     VRSetEntWeapon(ent, xHand, wid);
     VRSetEntWeaponFlags(ent, xHand, getHolsterWeaponFlags(xHotspot));
     if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)

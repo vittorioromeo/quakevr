@@ -77,12 +77,12 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
     VR_Highlight_AxeStick(xSpeed);
     if(VR_AxeStick_InMonster(self))
     {
-        sound(self, CHAN_AUTO, "player/axhit1.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_AUTO, "player/axhit1.wav", 1, ATTN_NORM);
         SpawnBlood(self.vr_stick_at, self.vr_stick_dir * -60, 12);
     }
     else
     {
-        sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
         particle2(self.vr_stick_at, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 12);
     }
     if(cvar("vr_debug_axestick"))
@@ -120,7 +120,7 @@ void(entity e) VR_AxeStick_PulledOut =
     if(VR_AxeStick_InMonster(e))
     {
         SpawnBlood(e.vr_stick_at, e.vr_stick_dir * -120, 20);
-        sound(e, CHAN_AUTO, "player/axhit1.wav", 0.5, ATTN_NORM);
+        VR_SoundVaried(e, CHAN_AUTO, "player/axhit1.wav", 0.5, ATTN_NORM);
     }
     else
     {

@@ -810,7 +810,7 @@ void(entity xVictim, float xDamage) VR_Dummy_Strike =
     self.vr_dummy_atk_start = time;
     self.vr_dummy_atk_at = time + VR_DUMMY_FOLLOW;
     self.effects = self.effects - (self.effects & EF_DIMLIGHT);
-    sound(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
+    VR_SoundVaried(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
     if(xVictim == world)
     {
         VR_Motion_Event("strike", "miss", -1, 0, self.origin, self, "");

@@ -261,10 +261,91 @@ Larger attenuations will drop off.  (max 4 attenuation)
 
 ==================
 */
+/*
+QVR: writes a start-sound message for entity number `ent` (any channel 0 .. SND_MAX_CHANNEL, precache index
+`sound_num`) at `origin`, at playback rate `pitch` (1 as recorded: SND_PITCH), into `buf`. False if the protocol
+can't carry it (NetQuake: an entity from 8192 or a sound from 256) or `buf` is full. SV_StartSound's message, and
+the physics sounds' (vr/vr_physsound.cpp).
+*/
+qboolean SV_WriteSound (sizebuf_t *buf, int ent, int channel, int sound_num, int volume, float attenuation, const vec3_t origin, float pitch)
+{
+	int	i, field_mask, speed;
+
+	if (buf->cursize > buf->maxsize-24)
+		return false;
+
+	field_mask = 0;
+	if (volume != DEFAULT_SOUND_PACKET_VOLUME)
+		field_mask |= SND_VOLUME;
+	if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
+		field_mask |= SND_ATTENUATION;
+
+	//johnfitz -- PROTOCOL_FITZQUAKE
+	if (ent >= 8192)
+	{
+		if (sv.protocol == PROTOCOL_NETQUAKE)
+			return false; //don't send any info protocol can't support
+		field_mask |= SND_LARGEENTITY;
+	}
+	if (channel >= 8) // QVR: the hands' channels: the channel as a byte (SND_LARGESOUND, as it was, didn't carry it)
+	{
+		if (sv.protocol == PROTOCOL_NETQUAKE)
+			channel = 0; // (any free one: played from the player)
+		else
+			field_mask |= SND_LARGEENTITY;
+	}
+	if (sound_num >= 256)
+	{
+		if (sv.protocol == PROTOCOL_NETQUAKE)
+			return false; //don't send any info protocol can't support
+		field_mask |= SND_LARGESOUND;
+	}
+	//johnfitz
+
+	// QVR: the pitch (SND_PITCH), to a 4000th
+	speed = (int) (CLAMP (SND_PITCH_MIN, pitch, SND_PITCH_MAX) * 4000.f + 0.5f);
+	if (speed != 4000 && sv.protocol != PROTOCOL_NETQUAKE)
+		field_mask |= SND_PITCH;
+
+	MSG_WriteByte (buf, svc_sound);
+	MSG_WriteByte (buf, field_mask);
+	if (field_mask & SND_VOLUME)
+		MSG_WriteByte (buf, volume);
+	if (field_mask & SND_ATTENUATION)
+		MSG_WriteByte (buf, attenuation*64);
+	if (field_mask & SND_PITCH)
+		MSG_WriteShort (buf, speed);
+
+	//johnfitz -- PROTOCOL_FITZQUAKE
+	if (field_mask & SND_LARGEENTITY)
+	{
+		MSG_WriteShort (buf, ent);
+		MSG_WriteByte (buf, channel);
+	}
+	else
+		MSG_WriteShort (buf, (ent<<3) | channel);
+	if (field_mask & SND_LARGESOUND)
+		MSG_WriteShort (buf, sound_num);
+	else
+		MSG_WriteByte (buf, sound_num);
+	//johnfitz
+
+	for (i = 0; i < 3; i++)
+		MSG_WriteCoord (buf, origin[i], sv.protocolflags);
+	return true;
+}
+
 void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume, float attenuation)
 {
+	SV_StartSoundPitch (entity, channel, sample, volume, attenuation, 1.f);
+}
+
+// QVR: at playback rate `pitch` (1 as recorded; SND_PITCH): QC sound()'s sixth argument
+void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int volume, float attenuation, float pitch)
+{
 	int			sound_num, ent;
-	int			i, field_mask;
+	int			i;
+	vec3_t		origin;
 
 	if (volume < 0 || volume > 255)
 		Host_Error ("SV_StartSound: volume = %i", volume);
@@ -275,7 +356,7 @@ void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume
 	if (channel < 0 || channel > SND_MAX_CHANNEL) // QVR: and the hands' (protocol.h SND_CHAN_HAND)
 		Host_Error ("SV_StartSound: channel = %i", channel);
 
-	if (sv.datagram.cursize > MAX_DATAGRAM-21)
+	if (sv.datagram.cursize > MAX_DATAGRAM-24)
 		return;
 
 // find precache number for sound
@@ -293,62 +374,11 @@ void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume
 
 	ent = NUM_FOR_EDICT(entity);
 
-	field_mask = 0;
-	if (volume != DEFAULT_SOUND_PACKET_VOLUME)
-		field_mask |= SND_VOLUME;
-	if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
-		field_mask |= SND_ATTENUATION;
-
-	//johnfitz -- PROTOCOL_FITZQUAKE
-	if (ent >= 8192)
-	{
-		if (sv.protocol == PROTOCOL_NETQUAKE)
-			return; //don't send any info protocol can't support
-		field_mask |= SND_LARGEENTITY;
-	}
-	if (channel >= 8) // QVR: the hands' channels: the channel as a byte (SND_LARGESOUND, as it was, didn't carry it)
-	{
-		if (sv.protocol == PROTOCOL_NETQUAKE)
-			channel = 0; // (any free one: played from the player)
-		else
-			field_mask |= SND_LARGEENTITY;
-	}
-	if (sound_num >= 256)
-	{
-		if (sv.protocol == PROTOCOL_NETQUAKE)
-			return; //don't send any info protocol can't support
-		field_mask |= SND_LARGESOUND;
-	}
-	//johnfitz
-
-	if (sv.datagram.cursize > MAX_DATAGRAM-21)
-		return;
-
 // directed messages go only to the entity the are targeted on
-	MSG_WriteByte (&sv.datagram, svc_sound);
-	MSG_WriteByte (&sv.datagram, field_mask);
-	if (field_mask & SND_VOLUME)
-		MSG_WriteByte (&sv.datagram, volume);
-	if (field_mask & SND_ATTENUATION)
-		MSG_WriteByte (&sv.datagram, attenuation*64);
-
-	//johnfitz -- PROTOCOL_FITZQUAKE
-	if (field_mask & SND_LARGEENTITY)
-	{
-		MSG_WriteShort (&sv.datagram, ent);
-		MSG_WriteByte (&sv.datagram, channel);
-	}
-	else
-		MSG_WriteShort (&sv.datagram, (ent<<3) | channel);
-	if (field_mask & SND_LARGESOUND)
-		MSG_WriteShort (&sv.datagram, sound_num);
-	else
-		MSG_WriteByte (&sv.datagram, sound_num);
-	//johnfitz
-
 	for (i = 0; i < 3; i++)
-		MSG_WriteCoord (&sv.datagram, entity->v.origin[i]+0.5*(entity->v.mins[i]+entity->v.maxs[i]), sv.protocolflags);
-	VR_BroadcastMessageEnd (); // QVR: a boundary (vr/vr_server.cpp)
+		origin[i] = entity->v.origin[i]+0.5*(entity->v.mins[i]+entity->v.maxs[i]);
+	if (SV_WriteSound (&sv.datagram, ent, channel, sound_num, volume, attenuation, origin, pitch))
+		VR_BroadcastMessageEnd (); // QVR: a boundary (vr/vr_server.cpp)
 }
 
 /*

@@ -777,7 +777,7 @@ float(float xHand) VR_WallTorch_Melee =
     {
         VRMeleeHapticByHand(xHand);
         vr_melee_blunt = TRUE; // a wooden knock (VR_Melee_HitSound's); on an explosive box a metal one
-        sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(trace_ent, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
+        VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(trace_ent, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
         vr_melee_blunt = FALSE;
         if(lit)
         {

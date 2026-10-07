@@ -392,7 +392,7 @@ void Mixer::prepare(Voice& v, const Listener& l, const Features& f) const
         const float vl = za::clamp(glm::dot(l.vel, dir) * f.doppler, -0.5f * c, 0.5f * c);
         v.dopplerTarget = za::clamp((c + vl) / (c + vs), 0.5f, 2.f);
     }
-    v.dopplerTarget *= f.rate; // slow motion: read slower (lower), the rate eased as the Doppler's
+    v.dopplerTarget *= f.rate * v.in.pitch; // slow motion: read slower (lower), the rate eased as the Doppler's; a pitch
 
     v.closeness = f.nearfield > 0.f ? za::clamp((1.f - metres) / 0.9f, 0.f, 1.f) * f.nearfield : 0.f;
 
@@ -1657,8 +1657,8 @@ void selectVoices(int time)
         double pos = ch->pos;
         if(!L.fresh[c])
         {
-            // (Slow motion: Quake painted it at VR_SndRate's rate, its end in output samples; snd_mix.c.)
-            const float rate = VR_SndRate();
+            // (Slow motion, a pitch: Quake painted it at that rate, its end in output samples; snd_mix.c.)
+            const float rate = VR_SndRate() * S_CHANPITCH(ch);
             pos = rate == 1.f ? static_cast<double>(sc->length - (ch->end - time))
                               : static_cast<double>(sc->length) - static_cast<double>(ch->end - time) * rate;
             if(pos >= sc->length && sc->loopstart >= 0 && sc->loopstart < sc->length)
@@ -1689,6 +1689,7 @@ VoiceInput channelInput(int c, int v, const Features& f, float volume)
         za::max(0.f, 1.f - glm::length(in.pos - L.listener.pos) * ch->dist_mult * falloffScale());
     in.gain = static_cast<float>(ch->master_vol) * falloff * volume;
     in.attached = handOf(ch) >= 0;
+    in.pitch = S_CHANPITCH(ch);
     if(c < dynamicChannels && L.follow[c].active && vr_snd_follow.value != 0.f)
     {
         in.vel = L.follow[c].vel;

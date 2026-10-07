@@ -27474,3 +27474,32 @@ flesh (2-8 kg, medium) and small gibs as light squishes.
 
 In VR: kill a grunt on stairs, throw a body (grab a limb), drop a crate on a corpse, blow up a group: thuds, not
 silence; a pile left alone goes quiet.
+
+## Pitch from QuakeC, and pitch variation (AUDIO_REVIEW.md row 3, 2026-10-07)
+
+QC couldn't play a sound at a pitch, so the most frequent sounds (one recording each: `fisthit`, the swings, `tink1`,
+`pkup`, the holster and reload clicks, the squishes) sounded identical every time.
+
+- **Engine.** `sound()` takes a sixth argument, the pitch in percent (100 as recorded; DP's and FTE's `speedpct`:
+  `PF_sound`, `qcvm->argc > 5`), sent as `SND_PITCH` (`protocol.h`, bit 5: DarkPlaces' `SND_SPEEDUSHORT4000`, a short
+  of the rate * 4000 after the attenuation, 0.25 to 4), only when it isn't 1 and not in NetQuake's protocol: other
+  sounds' messages are unchanged, and old demos play as before. `SV_WriteSound` writes the message for
+  `SV_StartSound`/`SV_StartSoundPitch` and the physics sounds (`vr_physsound.cpp` emit, which wrote its own copy). The
+  client keeps it on the channel (`channel_t.pitch`, `S_StartSoundPitch`, `S_CHANPITCH`): Quake's mixer paints such a
+  channel at that rate (`SND_PaintChannelRate`, as slow motion, the two multiplied), the voices read at it (times the
+  Doppler and slow motion: `VoiceInput.pitch`); `snd_show 2` prints each channel's pitch.
+- **QC.** `sound_pitch(e, chan, samp, vol, atten, pct)` (`frikbot/bot.qc`, beside `sound`: the bots hear it too) and
+  `VR_SoundVaried(e, chan, samp, vol, atten)` (`vr_util.qc`): at 100 +/- `vr_snd_pitch_jitter` percent at random.
+  Every call playing `fisthit`, `axhit1/2`, `ax1`, `knight/sword1/2`, `weapons/tink1`, `weapons/pkup`,
+  `holster0/1`, `reload1`, `vr/headshot`, a squish (`VR_Gib_SquishSound`, `squish*`), a melee hit
+  (`VR_Melee_HitSoundOn`) or a footstep (`misc/foot1..7`) now goes through it (84 calls), and the swing's whoosh
+  (`VR_Melee_Whoosh`).
+- **Engine-side sounds:** the physics knocks (props' and bodies') and the casings' tinks (`vr_shells.cpp`, client) vary
+  by the same setting.
+- `vr_snd_pitch_jitter` (4; percent, 0 off, up to 25): Audio > Movement and Nearness, **Pitch Variation**.
+
+Checked (`-Sound`, `snd_show 2`): walking e1m1, the footsteps at 0.965 to 1.025, the shells' tinks 0.980 to 1.034, a
+body's and its gear's knocks 0.968 to 1.031; other sounds (`guncock`, the ambiences) 1.000.
+
+In VR: punch a wall or a grunt a few times, swing a sword in the air: each a little different; Audio > Pitch Variation
+0 to compare.

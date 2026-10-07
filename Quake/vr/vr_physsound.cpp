@@ -241,72 +241,29 @@ void precacheSet(const Set& set, Indices& out)
     return ind.index[k];
 }
 
-// A sound from entity `ent` on `channel` (0: any free one) at `at`, as SV_StartSound sends it (by precache index).
-bool emit(int ent, int channel, int index, float volume, float attenuation, const glm::vec3& at)
+// A sound from entity `ent` on `channel` (0: any free one) at `at`, as SV_StartSound sends it (by precache index), at
+// playback rate `pitch` (1 as recorded).
+bool emit(int ent, int channel, int index, float volume, float attenuation, const glm::vec3& at, float pitch = 1.f)
 {
     const int vol = static_cast<int>(za::lround(za::clamp(volume, 0.f, 1.f) * 255.f));
-    if(index <= 0 || vol <= 0 || sv.datagram.cursize > MAX_DATAGRAM - 24)
+    if(index <= 0 || vol <= 0)
     {
         return false;
     }
-    int mask = 0;
-    if(vol != DEFAULT_SOUND_PACKET_VOLUME)
+    const vec3_t origin{at.x, at.y, at.z};
+    if(!SV_WriteSound(&sv.datagram, ent, channel, index, vol, attenuation, origin, pitch))
     {
-        mask |= SND_VOLUME;
-    }
-    if(attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
-    {
-        mask |= SND_ATTENUATION;
-    }
-    if(ent >= 8192)
-    {
-        if(sv.protocol == PROTOCOL_NETQUAKE)
-        {
-            return false;
-        }
-        mask |= SND_LARGEENTITY;
-    }
-    if(index >= 256)
-    {
-        if(sv.protocol == PROTOCOL_NETQUAKE)
-        {
-            return false;
-        }
-        mask |= SND_LARGESOUND;
-    }
-    MSG_WriteByte(&sv.datagram, svc_sound);
-    MSG_WriteByte(&sv.datagram, mask);
-    if(mask & SND_VOLUME)
-    {
-        MSG_WriteByte(&sv.datagram, vol);
-    }
-    if(mask & SND_ATTENUATION)
-    {
-        MSG_WriteByte(&sv.datagram, static_cast<int>(attenuation * 64.f));
-    }
-    if(mask & SND_LARGEENTITY)
-    {
-        MSG_WriteShort(&sv.datagram, ent);
-        MSG_WriteByte(&sv.datagram, channel);
-    }
-    else
-    {
-        MSG_WriteShort(&sv.datagram, (ent << 3) | channel);
-    }
-    if(mask & SND_LARGESOUND)
-    {
-        MSG_WriteShort(&sv.datagram, index);
-    }
-    else
-    {
-        MSG_WriteByte(&sv.datagram, index);
-    }
-    for(int i = 0; i < 3; i++)
-    {
-        MSG_WriteCoord(&sv.datagram, at[i], sv.protocolflags);
+        return false;
     }
     VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
     return true;
+}
+
+// A random playback rate within vr_snd_pitch_jitter percent of 1 (the impacts: one recording less alike each time).
+[[nodiscard]] float jitter()
+{
+    const float pct = za::clamp(vr_snd_pitch_jitter.value, 0.f, 25.f);
+    return 1.f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2.f - 1.f) * pct * 0.01f;
 }
 
 // What entity `ent` plays on `channel` stopped (svc_stopsound: an entity under 8192).
@@ -638,7 +595,7 @@ void frameEnd()
         const char* name = "";
         const int index = pick(impactSets[m][w], state.impacts[m][w], &name);
         const float attenuation = h.volume > 0.35f ? 1.f : 1.5f;
-        if(!emit(h.num, 0, index, h.volume, attenuation, h.at))
+        if(!emit(h.num, 0, index, h.volume, attenuation, h.at, jitter()))
         {
             continue;
         }

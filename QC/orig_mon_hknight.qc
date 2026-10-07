@@ -109,9 +109,9 @@ void() CheckContinueCharge =
         return;        // done charging
     }
     if(random() > 0.5)
-        sound(self, CHAN_WEAPON, "knight/sword2.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_WEAPON, "knight/sword2.wav", 1, ATTN_NORM);
     else
-        sound(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_WEAPON, "knight/sword1.wav", 1, ATTN_NORM);
 };
 
 //===========================================================================

@@ -199,7 +199,7 @@ float() GremlinAttemptWeaponSteal =
         self = tmpSelf;
     }
 
-    sound(victim, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
+    VR_SoundVaried(victim, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
 
     // give it to our gremlin
     VR_WeaponUtil_EntAddWeapon(self, best);
