@@ -4,74 +4,13 @@
 
 [New this week]
 Reload fixes: super shotgun opens only after its firing animation (B/Y right after a shot waits), flick no longer opens it by default; dropped open SSG lies open with its shells; super nailgun magazine left, button right; lightning cell sparks in/out, empty cell smokes ~7 s (Reloading > Thunderbolt); shotgun shell port from below: no shimmer; your settings are now defaults (vignette 0.5 and detail off were NOT promoted: say if they should be)
-Main menu: VR rows, Single Player/Multiplayer, Download Maps/Play Custom Map, the rest in separate groups; Play Custom Map opens the Levels and Back returns to the main menu; laser picks only drawn rows (nothing in the gaps); Mods gone (Advanced VR > HUD and Menus > Menu > Mods on the Main Menu brings it back)
-Back goes where you came from: Single Player > Official Campaigns > Back = Single Player; a corner button (Search, Advanced VR, Levels...) from any menu, Back returns there with the same row selected; a Search result's page goes back up its own menus, not to Search
-VR Settings new rows: Reloading Mode (Immersive/Simple/Disabled), Swimming (Immersive/Vanilla), Leaning Detection, Bullet Time > Activation (Wrist Gadget / Left or Right Thumbstick Press); Holster Calibration: hip, chest and back pairs move Forward/Inward/Up mirrored and show while chosen; Reset Holsters
-Fine slider steps: hold a grip (Shift on a flat screen) while moving a slider: a tenth of the step (Held Object Offsets: 0.05 instead of 0.5), more decimals shown; Fine Step under HUD and Menus > Menu
-Section gaps: space above each section's heading on every settings page (HUD and Menus > Menu > Section Gap, 0.75 rows): try 0, 0.75, 2; scrolling, laser and help all right; Multiplayer menu shows its "untested" notice
-VR Settings rebuilt for new players (Options > VR Settings, and right after VR Calibration on the main menu): sections read well, every row's help makes sense, nothing you use is missing (old rows: Advanced VR Options pages; Search finds them)
-Hand Calibration on VR Settings: Show Controller on, Hand Forward/Inward/Up/Pitch/Yaw/Roll move both hands mirrored; Reset Hand Offsets puts them back
-Comfort Vignette (VR Settings > Comfort): edges darken while the stick moves or turns you (snap: a short blink), never for room steps or teleports; Strength 0.6 right?
-Move Towards Left Hand / Right Hand; Turning Mode Snap shows Snap Angle; Vibration Strength 0.3 weaker, 0 none; Reset Position after leaning over a railing
-Reset All to Defaults (VR Settings, bottom): first press says Press Again, second resets everything (height and hands too); Menu Detail stays
-Decisions applied: Horde solo death restarts the arena (no autoload); gibs and heads thrown at 7 m/s+ burst on walls, softer throws stick (Hard Throw Bursts: right threshold?); rottweiler headshots and beheading work; multiplayer rocks/bricks follow single player's count
-Server tick: game logic now runs at a steady 72 Hz at any refresh rate (was 36-60): check smoothness, melee and physics at 72 Hz and your highest rate; Debug > Profiling and Memory > Server Tick Stats ~72/s; toggle Fixed 72 Hz Server Tick off to compare
-Saved games (the firing-range corruption): change Dummy Enemy, cut limbs, get an autosave, die and respawn: every model right (no gremlin pillars, no head-gib buttons); loading an old save says so in the console and once on screen
-Head pops: shotgun and super shotgun headshot kills pop up close, rarer with range (shotgun sooner), never far away; lightning always; heavy thrown things pop (Gore > Decapitation > Head Pop Chance)
-Lightning: one hit puts arcs on a living enemy that last through its death; corpses convulse until the arcs end; try Duration 30 s; arcs readable, lights not too strong (Gore > Lightning Shock)
-Smoke: lightning-hit and burnt enemies/corpses smoulder for a few seconds (visible in dark rooms, not too much); Gore > Lightning Shock > Arcs on the Living off = lasting arcs only on corpses
-Lightning on you: a shambler bolt (god mode) puts arcs on your hands, arms, torso and legs for about a second; soft blue light; not distracting while aiming (Gore > Lightning Shock > Arcs on You)
-Shadow: your shadow now has a head (flashlight in hand, explosions nearby), never visible in your view; washing bloody hands shows no triangle lines at any level; relighting default is Light Textures 1.2
-Weapon pickups: spinning pickups (e1m1-e1m5) are the same models and size as the weapons you hold and drop; knock a floating one loose (Settings > Items > Weapon Pickups Look)
-Gore tweaks: enforcer lasers pop heads/limbs of other monsters; flying cut limbs and heads spurt briefly; cut limbs feel lighter (forearm ~2 kg); arcs on living enemies last half as long; Show Hit Zones > Decapitation now follows the animated model
-Movement: Bullet Time on a stick press (Combat > Bullet Time > Trigger; disables gadget/tap); flashlight flips with a sharp wrist flick (600 deg/s), never on swings; DOPA e5start sloped ledge mantles; bullet-time throws feel like real-speed ones
-Bullet-time throws: overhand at full arm speed goes flat (not 20-30 deg high); the same throw made slowly matches a normal throw (Throwing > Slow-Motion Aim / Tempo to compare)
-Throws at any frame rate: the same throw feels the same at 72/90/120 Hz (and with ASW/reprojection); overhand with a still wrist may now go a bit higher than before (it used to vary by frame timing)
-Menus: long help text fits (wider/taller box, long ones page through: Menu Settings > Help Reading Speed); Checklist > Undo Last Tick; Search shows your 6 recent results under the keyboard; Map Library Uninstall/Reinstall (press twice)
-Lit particles: blood in a dark corner is dark, bright under the flashlight and muzzle flashes; fire, sparks and explosions as bright as before (Graphics > Models and Effects > Effects > Lit Particles)
-Relighting (Graphics > Relighting): relight this map or a whole episode/game in the background; progress bar (and on the wrist gadget), Cancel keeps finished maps; a second run skips unchanged maps; lamps clearly brighter in hip1m1 and vrtutorial; no hitches as each map starts
 Relighting without ericw-tools: the page offers Download ericw-tools (27.5 MB) with a progress bar and Cancel, then relights (test with vr_relight_tool_dir pointed at an empty folder)
-Elbows: aiming down sights (one/two hands) and the axe by the face keep the elbow down and in, no flips; gadget wings and salute still lift (Body > Arms > Elbows and Wrists > Elbow Tuck; 0.5 if the wrist bends too much)
-Combat decisions: fiend headshots and head pops work (guns and melee); thrown axes stick in explosive boxes and crates and move with them; thrown gibs almost always stick to walls
-Melee head pops: punches, gun butts and crowbar almost never pop a head; Mjolnir solid swings almost always; with Quad every headshot kill pops (guns at any range, nails, rockets, thrown props)
-Limb gore (Gore > Limb Gore): killing slash at a forearm/leg cuts it; punches/shots pop limbs; cut a corpse down to the torso and pick limbs up; rocket into a group pops nearby limbs; zombies die from a lost limb; stumps and limb caps look right; no hitch on the first cut of each monster
-New ragdolls: vore and centroid (Hipnotic's scorpion) go limp, can be beheaded/head-popped and lose limbs; vore headshots now hit its real head; Rogue statue knights and multi-grenade ogres ragdoll
-Shove toward a high ledge: always knocks down; Ledge Reach and Ledge Margin change how far ahead (Combat > Knockdowns)
-Parallax: carved walls keep their depth when seen from the side, no swimming (Graphics > Surfaces)
-Animated buttons and slipgate panels: no pulsing between frames
-Flat screen: WSAD responds at once; corner buttons as an icon row at the top left
-VR menus: Spectator camera On/Off switch at the bottom left, with a small live preview above it (size readable?); top-right status box fits its text
-New defaults: a fresh config looks and plays like yours (parallax, combat, parry, retro)
-Official Campaigns: drawn in the big menu font
-Menus: shortcut bar has VR Settings and Relighting and sits clear of the page; main menu has VR Settings and Advanced VR rows under Options (new big-font A and v read naturally)
-Map tips: the CRT tip near the vrstart start appears; REPEAT tips come back; List This Map's Tips works
-Map Library: Down the Gutter now plays (page says which map Play starts); reinstall November-Schlacht to get its sky back; AD/Copper maps are flagged
-Training dummy: Gore > Training Dummy > Dummy Enemy picks any enemy (model, hit zones, gore as that enemy); health board over it refills after 3 s; dies by default and stands again; record melee takes per enemy type (TESTING.md)
-Music: plays from your own rerelease install in e1m1, hip1m1, r1m1, an mg3 and a dopa map; vrstart hub track is the one you want
-Firing range: buttons visible from the far end; doors/buttons don't flicker against frames up close; labels fit their text even after playing a Map Library package
-Map Library: Debug > External Map Index shows Download Cache Size (512 MB) and Usage; an oversized cache trims at start
 VR Settings: last line shows the build (date + commit); Map Library installs still work (downloads now checked by sha256)
-MG3 monsters (Debug spawner Things 30-36, 40-45, or Training Dummy): infected knight beheaded bursts and its zombie keeps its head; bat back rocket-ogre rockets and ranged-knight diamonds; parry a demo dog's leap; ranged knight head zone fair?
-MG3 monsters 2: orb flung on death blows up where it lands; touch a ghost with your hand and it vanishes; slime splits twice; lava man shrugs off non-lightning hits; super shambler beheads, head-pops and loses limbs
 MG3 Shub (boss2, or Debug spawner Thing 60): pillars sinking under you are comfortable; her zombies rise and ragdoll; sweeping beam and blasts readable; lights go out at her death and the credits follow
 MG3 Chthon (boss map, or Debug spawner Thing 50): comfort fade at both arena moves (Locomotion > Comfort > Fade on Scripted Teleports: 0.6 vs 1.2 s); head zone; bat his spheres back; fight length fair with arm hits at 0.35x; finale gibs then credits
-vrstart: cold start ~1 s after the first one (which saves hitbox files); death/restart quick; swimming, climbing and shore path unchanged
-vrstart buttons: 18-unit buttons comfortable to press; one texture copy each; labels just above, value screens above the labels
-Immersive reload phase 1 (Weapons > Reloading): shotgun in one hand, grip at the belly pouch = tap + rustle + shell in fist; push into the port under the gun = click + haptic + count up; put one back (refund); drop, pick up, force grab; empty pouch pats; Shell Pairs; pouch position/size, port leniency, shell pose (Held Object Offsets)
-Immersive reload phase 2: nailgun/super nailgun/thunderbolt magazines from the pouch into the well; B/Y drops it; gentle grip keeps it, hard pull + wrist snap takes it out; bump a new one in; part-used mag back in the pouch refunds its count; sizes and placement on each gun
-Reload notes applied: pouch sways with your legs (Follow Legs); Show Load Points and per-gun X/Y/Z; shell reaches the shotgun port (Collision Leniency); ammo box into the pouch; pouch shows the real count; reserve counter on the pouch; empty hands/melee/super shotgun keep giving the last ammo type
-Leaning through stick turns (Locomotion > Leaning > Lean on Turns 2): lean, smooth/snap turn 90-180, straighten up: body stays with you, no backwards lean or slide; next to a wall too; head wobble in fast smooth turns? Debug Log Body Drift ~0
-vrstart fixes: no holes in terrain/water, lanterns glow, ropes to bollards, SETTINGS banner over the doorway, one bullseye per target, brazier pillars into the rock, barrels push/tip/roll/carry/break; slipgate surface still looks right
-Reload rounds 2-3: spent shells look different; full shotgun 'can't' click and 'full' cue; magazine top must meet the gun's seat point (Show Load Points, per-gun radius); grip the mag = two-hand aim, out only by hard pull/wrist snap/hands apart; punch or the other gun knocks it out; bump = knock out, then seat; receivers visible; lava mags red, plasma blue; ammo button only from the front; fist moving onto a two-hand spot doesn't attach
-Menus in VR: shortcut column and banner clear of every page; 27-28 rows on long pages; laser still hits the shortcuts and spectator switch
-Ammo screens and pouch counter: white text (White Ammo Screen Text), green frame
-Stray presses: loading vrstart/vrstart_old (menu, save, slipgate back) never presses a far button; buttons near the start press at once
 
 [Menus and maps]
-Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
 Map Library: open it both ways, search, filter, sort, install with progress, Play, uninstall; unsupported packages refused clearly
-Map Library: quitting during the first index download doesn't crash; offline start is quiet
-Official Campaigns: base Quake hub, tutorial and range work; Dopa plays through (secrets, saves, carried guns, finale)
 MG1 developer tests: rune returns, electrode buttons, Horde, revival; quake vibration is comfortable
 MG1 Horde (horde1, horde5 bosses): die holding fire, nothing; let go and press: the arena restarts; coop: a dead teammate comes back at wave end
 
@@ -81,26 +20,12 @@ Parry: stops knight and ogre attacks and staggers them
 Bullet time: gadget button and wrist tap work; resting or swinging near the wrist doesn't trigger it
 Weapons: magazines and blood stay with each gun through holster, throw, pickup and hand-off; map pickups come loaded
 Weapons: weights feel as tuned; lightning gun second hotspot; crowbar holster poses
-Secrets (e1m1): punching and shooting secret walls gives sparks, not blood; they still open
 
 [Fire and torches]
-Burning: torch hits ignite monsters, corpses and crates; flames spread and follow ragdolls; explosive boxes don't burn
-Wall torches: grab, punch, shoot off and knock off with a thrown rock
-Torch flame: upright, upside down and swung looks right; smoke readable; it can burn your other hand
-Map flames (e1m2): braziers and wall torches burn hands and body
-Lava nails: nails through a torch flame fizz and set targets on fire
 
 [Gore]
-Gibs: squish, stick to walls when thrown, burst when punched but not in two-handed throws
-Small gibs and brain chunks: land near the wound; brain chunks fly from head bursts
-Blood: on hands, weapons, holstered guns and boxes; health heals only your wounds; water washes
-Beheading and head pops: grunt, zombie, fiend, shambler, gremlin, mummy
 
 [Ragdolls and physics]
-Ragdolls: every supported monster goes limp unseen (slow motion too), drops its weapon, feels its mass
-Ragdolls: grab, force grab, fling, pile up and burn them; wounds stay where they were hit
-Corpses: collision modes and stepping over or onto them feel right
-Props: two-handed small props never jump; floating props bob, sunk ones rest; big piles behave
 
 [Slipgates]
 Slipgates: walk, reach, shoot and throw through; frames are solid; leaning in doesn't teleport you
