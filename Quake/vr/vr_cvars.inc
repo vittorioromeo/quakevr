@@ -541,6 +541,10 @@ QVR_CVAR(vr_menu_hands_roll, "0", CVAR_NONE)
 // VR Settings > Holster Calibration: each pair of holsters (hips: vr_hip_offset_*; chest: vr_upper_holster_offset_*; back,
 // over the shoulders: vr_shoulder_holster_offset_*) moved from the shipped place, both of the pair alike (the left one's
 // mirrored, as the offsets' Y always is): units forward, inward (towards the body's middle: the offset's Y less) and up.
+// VR Settings > Bullet Time > Activation (over vr_bullettime_enabled, _trigger, _tap and _button): 0 the wrist gadget (its
+// tap and its button), 1 the left stick's press, 2 the right stick's; shown only while a config has them: 3 off, 4 the
+// gadget's tap alone, 5 its button alone, 6 the gadget with neither.
+QVR_CVAR(vr_menu_bullettime, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_hip_x, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_hip_y, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_hip_z, "0", CVAR_NONE)

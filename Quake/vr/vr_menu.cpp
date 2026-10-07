@@ -6588,7 +6588,7 @@ const HolsterWrapper holsterWrappers[] = {
             return true;
         }
     }
-    return false;
+    return &var == &vr_menu_bullettime;
 }
 
 void showWrapper(cvar_t& var, float value)
@@ -6597,6 +6597,38 @@ void showWrapper(cvar_t& var, float value)
     {
         Cvar_SetValueQuick(&var, value);
     }
+}
+
+// Bullet Time's Activation (vr_menu_bullettime) as the settings it stands for are now.
+[[nodiscard]] float bulletTimeActivation()
+{
+    if(vr_bullettime_enabled.value == 0.f)
+    {
+        return 3.f;
+    }
+    const int trigger = static_cast<int>(vr_bullettime_trigger.value);
+    if(trigger == 1 || trigger == 2)
+    {
+        return static_cast<float>(trigger);
+    }
+    const bool tap = vr_bullettime_tap.value != 0.f;
+    const bool button = vr_bullettime_button.value != 0.f;
+    return tap && button ? 0.f : tap ? 4.f : button ? 5.f : 6.f;
+}
+
+// Its choices: the three, and the settings' own combination where it is none of them (shown, not offered otherwise).
+[[nodiscard]] za::Vector<Choice> bulletTimeChoices()
+{
+    za::Vector<Choice> out{{0.f, "Wrist Gadget"}, {1.f, "Left Thumbstick Press"}, {2.f, "Right Thumbstick Press"}};
+    switch(static_cast<int>(bulletTimeActivation()))
+    {
+        case 3: out.pushBack({3.f, "Off"}); break;
+        case 4: out.pushBack({4.f, "Wrist Gadget (tap only)"}); break;
+        case 5: out.pushBack({5.f, "Wrist Gadget (button only)"}); break;
+        case 6: out.pushBack({6.f, "Wrist Gadget (tap and button off)"}); break;
+        default: break;
+    }
+    return out;
 }
 
 void syncWrappers()
@@ -6618,6 +6650,7 @@ void syncWrappers()
     {
         showWrapper(*w.wrapper, za::round(w.sign * (w.offset->value - defaultOf(*w.offset)) * 100.f) / 100.f);
     }
+    showWrapper(vr_menu_bullettime, bulletTimeActivation());
     wrapperBusy = false;
 }
 
@@ -6657,6 +6690,22 @@ void onWrapperSet(cvar_t* var)
         if(var == w.wrapper)
         {
             Cvar_SetValueQuick(w.offset, defaultOf(*w.offset) + w.sign * var->value);
+        }
+    }
+    if(var == &vr_menu_bullettime)
+    {
+        // A stick: its press alone (the gadget's tap and button do nothing then, as Combat > Bullet Time's Trigger).
+        // The gadget: its tap and its button. A config's own combination: as it was.
+        const int choice = static_cast<int>(var->value);
+        Cvar_SetValueQuick(&vr_bullettime_enabled, choice == 3 ? 0.f : 1.f);
+        if(choice != 3)
+        {
+            Cvar_SetValueQuick(&vr_bullettime_trigger, choice == 1 || choice == 2 ? static_cast<float>(choice) : 0.f);
+        }
+        if(choice == 0 || choice >= 4)
+        {
+            Cvar_SetValueQuick(&vr_bullettime_tap, choice == 0 || choice == 4 ? 1.f : 0.f);
+            Cvar_SetValueQuick(&vr_bullettime_button, choice == 0 || choice == 5 ? 1.f : 0.f);
         }
     }
     wrapperBusy = false;
@@ -6875,6 +6924,13 @@ za::Vector<Item> pageMain()
             .help("Guns have magazines. Immersive: the shotgun is loaded a shell at a time from the ammo pouch on your "
                   "belt, the other guns at the hip holsters. Simple: a gun held at a hip holster reloads. Disabled: no "
                   "reloading. Only with the Immersive weapon mode."),
+
+        header("Bullet Time"),
+        cycle("Activation", vr_menu_bullettime, bulletTimeChoices())
+            .help("What starts and stops bullet time (the world slowed while the gadget's TIME meter lasts). Wrist "
+                  "Gadget: tap its wrist hard with your other hand, or press its inner button. A thumbstick press: that "
+                  "press does only this (never its bound key), and the gadget's tap and button do nothing. More: "
+                  "Advanced VR Options > Combat > Bullet Time."),
 
         header("Body"),
         cycle("Body Type", vr_body_mode, {{3.f, "Full"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})
@@ -10636,6 +10692,7 @@ void qvr::menu::init()
     {
         Cvar_SetCallback(w.wrapper, onWrapperSet);
     }
+    Cvar_SetCallback(&vr_menu_bullettime, onWrapperSet);
 }
 
 void qvr::menu::command_f()
