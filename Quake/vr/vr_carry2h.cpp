@@ -147,6 +147,17 @@ struct Watch
 };
 ankerl::unordered_dense::map<int, Watch> watches;
 
+// Where each hand held a thing (in the thing's own frame, its grip) when that hand let go of it held in both (keep): the
+// hand gripping it again there takes it (reaches), however far its fist test is off the thing's drawn surface. A prop
+// sits where it was fitted to the drawn fist, not to its test: a small one (the heads at Size 0.7, props v57) about
+// 2.6 cm off it, past Two-Handed Grab Reach, so the hand that let go of it could not grip it again where it was.
+struct LetGo
+{
+    glm::vec3 grip[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool valid[2]{false, false};
+};
+ankerl::unordered_dense::map<int, LetGo> letGo;
+
 [[nodiscard]] bool brushModel(edict_t* ent)
 {
     const int index = static_cast<int>(ent->v.modelindex);
@@ -213,6 +224,7 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
     {
         holds[num] = record({origin, fromAngles(ent->v.angles, brush)}, hands);
         watches.erase(num);
+        letGo.erase(num); // (in both hands again)
         return origin;
     }
     Frame object = solve(it->second, hands);
@@ -243,7 +255,25 @@ bool reaches(edict_t* ent, edict_t* player, int hand)
 {
     // What the other hand holds: a little farther than a thing lying about (vr_carry_two_hands_reach), so that the hand that
     // let go of it grips it again where it is (it was fitted to the fist's drawn shape, about 1 cm off the fist's test).
-    return held::grabTouch(ent, player, hand, za::fmax(vr_carry_two_hands_reach.value, 0.f) * 0.01f * units::metresToUnits());
+    const float reach = za::fmax(vr_carry_two_hands_reach.value, 0.f) * 0.01f * units::metresToUnits();
+    if(held::grabTouch(ent, player, hand, reach))
+    {
+        return true;
+    }
+    // Or it is within that reach of where it held the thing when it let go of it (LetGo).
+    const auto it = letGo.find(NUM_FOR_EDICT(ent));
+    if(it == letGo.end() || hand < 0 || hand > 1 || !it->second.valid[hand])
+    {
+        return false;
+    }
+    const Frame object{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, fromAngles(ent->v.angles, brushModel(ent))};
+    const float off = glm::distance(foldedHand(player, hand).pos, object.pos + object.rot * it->second.grip[hand]);
+    if(vr_debug_carry.value >= 2.f)
+    {
+        Con_Printf("carry2h: %s hand %.2f cm from where it let go of it (reach %.2f cm)\n", hand == 0 ? "off" : "main",
+            off / units::metresToUnits() * 100.f, reach / units::metresToUnits() * 100.f);
+    }
+    return off <= reach;
 }
 
 int detached(edict_t* ent, edict_t* player)
@@ -332,6 +362,11 @@ void keep(edict_t* ent, edict_t* player, int hand)
     const int pos = hand == 0 ? f.offhandpos : f.handpos;
     if(it != holds.end() && pos >= 0 && (hand == 0 || hand == 1))
     {
+        // The other hand let go of it: where it held it, for gripping it again there (LetGo, reaches).
+        LetGo& g = letGo[num];
+        g.grip[1 - hand] = it->second.grip[1 - hand];
+        g.valid[1 - hand] = true;
+        g.valid[hand] = false;
         // Moved onto its grip in that hand (else it would stay as far off it as the hand was off its grip: up to the
         // drift, and the drift plus the detach pulled off), turned as it is. The client takes it there (vr_held.cpp).
         const glm::vec3 to = fieldVec(player, pos) - fromAngles(ent->v.angles, brushModel(ent)) * it->second.grip[hand];
@@ -360,12 +395,14 @@ void resetServer()
 {
     holds.clear();
     watches.clear();
+    letGo.clear();
 }
 
 void forgetEntity(int num)
 {
     holds.erase(num);
     watches.erase(num);
+    letGo.erase(num);
 }
 
 } // namespace qvr::carry2h

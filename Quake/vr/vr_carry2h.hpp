@@ -65,7 +65,8 @@ void toAngles(const glm::quat& q, float* out, bool brush);
 bool clear(int num, const Frame& from, Frame& to);
 
 // Server side (QC's carryreach): whether `player`'s `hand` (0 off, 1 main) can take hold of `ent`: its fist touches the
-// thing's drawn surface, as a hand touching it can (held::grabTouch); vr_debug_carry draws the test.
+// thing's drawn surface, as a hand touching it can (held::grabTouch); vr_debug_carry draws the test. Or, the hand that
+// let go of it held in both (keep), within Two-Handed Grab Reach of where it held it (gripping it again where it is).
 [[nodiscard]] bool reaches(edict_t* ent, edict_t* player, int hand);
 
 // Server side (QC's carry2hoff): which hands have been pulled off `ent`, held in both of `player`'s: bit 1 the off

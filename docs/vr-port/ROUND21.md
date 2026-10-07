@@ -29370,3 +29370,22 @@ the output"); `SoundEngine` keeps the device, counts `Underruns`, `MinQueued`, `
 streamed seconds.
 
 Test on the PC: the installer's clicks, a burst of typing in the folder box, and the mute button, over the fire.
+## Re-gripping a head held in both hands (2026-10-07)
+
+`twohand_regrip_test.sh` had the grunt's head held in both hands once, not 3 times ("Every prop in both hands"). Bisected
+(the head case as the oracle, 773c0cb7 good): **6b655110** (October 5 notes), the heads' Size 0.7 (props v57). A prop
+sits where it was fitted to the drawn fist, not to the fist's test spheres; the smaller head left the hand that held it
+2.58 cm off its surface, past Two-Handed Grab Reach (2 cm), so the hand that let go of it could not grip it again where
+it was ("the other hand is not within reach"). Not the test: in VR the same hand at the same place was refused.
+
+Fix (vr_carry2h.cpp): when one hand lets go of a prop held in both (keep), where it held it (its grip, in the prop's
+frame) is kept; that hand gripping again within Two-Handed Grab Reach of it takes the prop, whatever its size or fit.
+The surface test is unchanged (and still the only test for a first second-hand grip). Forgotten when held in both again,
+the entity is freed, or the map changes. vr_debug_carry 2 prints "carry2h: off hand 0.31 cm from where it let go of it".
+
+Test: twohand_regrip_test.sh 3 of 3 runs: every prop held in both 3, kept by one 2, moved at most 0.01 units; the same
+with vr_2h_grip_edge 0 (weapons only: props never used it); the off hand moved 5 cm away before gripping: refused.
+reload_test.sh section 1 (56/56), grip_state_test.py PASS, e1m1 smoke clean.
+
+In VR:
+- [ ] Hold a monster's head in both hands; let go with one hand and grip it again where it is: taken, no jump.
