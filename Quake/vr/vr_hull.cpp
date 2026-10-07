@@ -1947,9 +1947,22 @@ private:
     // the fewest, balanced, axial first. Many pieces: a sample of the planes (the build's time).
     int choose(const Frags& frags)
     {
-        seen_.resize(count(), 0);
-        facing_.resize(count(), 0);
-        ++stamp_;
+        // The pieces' live faces' planes (in the order first met) and how many faces lie on each: counted in a table
+        // the size of the faces (open addressed), not of the tree's planes (an array of all the planes a builder was
+        // 5 MB on vrstart2, made and zeroed by each of the pool's 2000 builders a tree: a third of its build).
+        za::SizeT faces = 0;
+        for(const Frag& f : frags)
+        {
+            faces += f.poly.size();
+        }
+        za::SizeT size = 16;
+        while(size < faces * 2)
+        {
+            size *= 2;
+        }
+        const za::SizeT mask = size - 1;
+        slots_.clear();
+        slots_.resize(size, -1);
         cands_.clear();
         for(const Frag& f : frags)
         {
@@ -1959,24 +1972,27 @@ private:
                 {
                     continue;
                 }
-                const auto t = static_cast<za::SizeT>(face.tag);
-                if(seen_[t] != stamp_)
+                za::SizeT i = (static_cast<za::SizeT>(static_cast<za::U32>(face.tag)) * 0x9E3779B97F4A7C15ull >> 20) & mask;
+                while(slots_[i] >= 0 && cands_[static_cast<za::SizeT>(slots_[i])].tag != face.tag)
                 {
-                    seen_[t] = stamp_;
-                    facing_[t] = 0;
-                    cands_.pushBack(face.tag);
+                    i = (i + 1) & mask;
                 }
-                ++facing_[t];
+                if(slots_[i] < 0)
+                {
+                    slots_[i] = static_cast<int>(cands_.size());
+                    cands_.pushBack(Cand{face.tag, 0});
+                }
+                ++cands_[static_cast<za::SizeT>(slots_[i])].facing;
             }
         }
         za::stablePartition(cands_.begin(), cands_.end(),
-            [this](int c) { return planeAt(c).type < 3; });
+            [this](const Cand& c) { return planeAt(c.tag).type < 3; });
         const za::SizeT step = za::max<za::SizeT>(1, cands_.size() * frags.size() / chooseBudget);
-        int best = cands_.front();
+        int best = cands_.front().tag;
         long long bestValue = LLONG_MIN;
         for(za::SizeT ci = 0; ci < cands_.size(); ci += step)
         {
-            const int c = cands_[ci];
+            const int c = cands_[ci].tag;
             const mplane_t& p = planeAt(c);
             const glm::dvec3 n{p.normal[0], p.normal[1], p.normal[2]};
             int front = 0, back = 0, splits = 0;
@@ -2009,7 +2025,7 @@ private:
                     ++splits;
                 }
             }
-            const long long value = 5ll * facing_[static_cast<za::SizeT>(c)] - 5ll * splits - za::abs(front - back) +
+            const long long value = 5ll * cands_[ci].facing - 5ll * splits - za::abs(front - back) +
                                     (p.type < 3 ? 5 : 0);
             if(value > bestValue)
             {
@@ -2033,10 +2049,13 @@ private:
     PlaneIndex ownIndex_;                // (a builder on the pool) its own planes' index
     PlaneIndex* index_ = &ownIndex_;     // its planes by key(dist): the tree's, or its own
     za::SizeT* indexed_ = nullptr;       // (the tree's builder) how many of the tree's planes its index holds
-    za::Vector<za::SizeT> seen_;
-    za::Vector<int> facing_;
-    za::SizeT stamp_ = 0;
-    za::Vector<int> cands_;
+    struct Cand
+    {
+        int tag;    // the plane
+        int facing; // the faces on it
+    };
+    za::Vector<int> slots_; // (choose) its table: an index in cands_, or -1
+    za::Vector<Cand> cands_;
 };
 
 // A tree's build shared out on the game's thread pool, the same tree as the build on one thread (buildTree's reference,
