@@ -828,12 +828,13 @@ void(float choice) VR_EnemyDispenser_Spawn =
     else if(choice == 34) { self.classname = "monster_ogre_rocket"; monster_ogre_rocket(); }
     else if(choice == 35) { self.classname = "monster_demodog"; monster_demodog(); }
     else if(choice == 36) { self.classname = "monster_ranged_knight"; monster_ranged_knight(); }
-    else if(choice == 45) { self.classname = "monster_super_shambler"; monster_super_shambler(); }
-    else if(choice == 44) { self.classname = "monster_lava_man";    monster_lava_man_mg3(); }
     else if(choice == 41) { self.classname = "monster_slime";       monster_slime(); }
     else if(choice == 42) { self.classname = "monster_ghost";       monster_ghost(); }
     else if(choice == 43) { self.classname = "misc_sacrifice";      misc_sacrifice(); }
-    else if(choice == 40) { self.classname = "monster_orb";         monster_orb(); }
+    else if(choice == 44) { self.classname = "monster_lava_man";    monster_lava_man_mg3(); }
+    else if(choice == 44) { self.classname = "monster_lava_man";    monster_lava_man_mg3(); }
+    else if(choice == 45) { self.classname = "monster_super_shambler"; monster_super_shambler(); }
+    else if(choice == 45) { self.classname = "monster_super_shambler"; monster_super_shambler(); }
 
 };
 
