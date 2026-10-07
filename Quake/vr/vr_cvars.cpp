@@ -443,8 +443,10 @@ const DefaultChange defaultChanges[] = {
     {95, &vr_ragdoll_grab_reach, "6"},              // 2
     {95, &vr_ragdoll_hand_stick, "12"},             // 2
     {95, &vr_messages_hologram_height, "5"},        // 10
+    // 96: the menus' red as the author has it (his config, 2026-10-07; hue 0 and strength 1 as shipped already).
+    {96, &vr_menu_recolor_saturation, "1.25"},      // 3
 };
-constexpr int configVersion = 95;
+constexpr int configVersion = 96;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
