@@ -13,7 +13,7 @@ void() MG1_H_Report = {
     entity e = find(world, classname, "misc_rune_indicator");
     while(e) { count++; if(e.alpha == 0.2) ghosts++; else active++; e = find(e, classname, "misc_rune_indicator"); }
     dprint(sprintf("mghubtest: report map %s flags %g indicators %g active %g ghosts %g finalgate %g\n",mapname,serverflags,count,active,ghosts,!!find(world,classname,"hub_trigger_changelevel")));
-    dprint(sprintf("mghubtest: player health %g max %g origin %v\n",p.health,p.max_health,p.origin));
+    dprint(sprintf("mghubtest: player health %g max %g origin %v skill %g intermission %g armor %g items %g\n",p.health,p.max_health,p.origin,cvar("skill"),intermission_running,p.armorvalue,p.items));
     dprint(sprintf("mghubtest: hands shells %g weapons %g/%g clips %g/%g ids %g/%g\n",p.ammo_shells,p.weapon,p.weapon2,p.weaponinst.wi_clip,p.weaponinst2.wi_clip,p.weaponinst.wi_uid,p.weaponinst2.wi_uid));
     dprint(sprintf("mghubtest: holster0 weapon %g clip %g id %g\n",p.holsterweapon0,p.holsterweaponinst0.wi_clip,p.holsterweaponinst0.wi_uid));
     dprint(sprintf("mghubtest: holster1 weapon %g clip %g id %g\n",p.holsterweapon1,p.holsterweaponinst1.wi_clip,p.holsterweaponinst1.wi_uid));
@@ -106,6 +106,88 @@ void() MG1_H_Puzzle = {
     entity manager = spawn(); manager.MG1_H_player = p; manager.think = MG1_H_PuzzleOpen; manager.nextthink = time + 17;
     self = caller;
 };
+// Route sweep: the next real exit. In the hub, the final gate once it exists, else the lowest episode's gate whose
+// rune is still missing (a sealed episode's gate is killtargeted); elsewhere the first exit, or with alt one going
+// to another map (mge1m1's secret mge1m3).
+entity(float alt) MG1_H_NextExit = {
+    entity e = world, first = world;
+    float i = 1, bit = 1;
+    if(mapname == "hub") {
+        e = find(world, classname, "hub_trigger_changelevel");
+        while(!e && i <= 5) {
+            if(!(serverflags & bit)) {
+                e = find(world, classname, "trigger_changelevel");
+                while(e && e.map != sprintf("mge%gm1", i)) e = find(e, classname, "trigger_changelevel");
+            }
+            bit *= 2; i++;
+        }
+        return e;
+    }
+    first = find(world, classname, "trigger_changelevel");
+    if(!alt) return first;
+    e = first;
+    while(e && e.map == first.map) e = find(e, classname, "trigger_changelevel");
+    return e;
+};
+// Route sweep driver: with vr_mg_route_stage set, each new map's (or loaded save's) first frame with the player in
+// it runs the private script mg1route<stage>.cfg once (the scripts raise the stage themselves). A changelevel from
+// QC is appended to the console buffer, so a script's step that leaves the map ends the script.
+nosave float MG1_H_autoran;
+void() MG1_H_RouteAutorun = {
+    float stage = cvar("vr_mg_route_stage");
+    if(!stage || MG1_H_autoran || time < 1 || !find(world, classname, "player")) return;
+    MG1_H_autoran = TRUE;
+    localcmd(sprintf("exec mg1route%g.cfg\n", stage));
+};
+// The presser: real jump presses (the client's button, as a player's) whenever an intermission may be left or the
+// player is dead. The credits (the campaign's last exit) disconnect: it then runs mg1route_end.cfg after them.
+.float MG1_H_inter;
+void() MG1_H_PresserThink = {
+    entity p = find(world, classname, "player");
+    self.nextthink = time;
+    if(intermission_running != self.MG1_H_inter) {
+        dprint(sprintf("mghubtest: intermission %g next %s map %s\n", intermission_running, nextmap, mapname));
+        if(intermission_running >= 2 && nextmap == "start" && MG1_Campaign() && !coop && !strlen(MG_intermissiontext))
+            localcmd("exec mg1route_end.cfg\n");
+        self.MG1_H_inter = intermission_running;
+    }
+    if(time < self.ltime) return;
+    if((intermission_running && time >= intermission_exittime) || (p && p.deadflag >= DEAD_DEAD)) {
+        dprint(sprintf("mghubtest: press (intermission %g dead %g)\n", intermission_running, p.deadflag));
+        localcmd("+jump\nwait\n-jump\n");
+        self.ltime = time + 1.5;
+    }
+};
+void() MG1_H_Presser = {
+    if(find(world, classname, "mghub_presser")) return;
+    entity e = spawn(); e.classname = "mghub_presser"; e.think = MG1_H_PresserThink; e.nextthink = time;
+};
+float MG1_H_spotfound;
+float(float i) MG1_H_GridFrac = { return i == 0 ? 0.5 : i == 1 ? 0.25 : i == 2 ? 0.75 : i == 3 ? 0 : 1; };
+// Where the player's box overlaps a trigger's volume and fits out of the walls (a trigger's brush may cut into them,
+// or be thinner than the player): a grid across the overlapping positions, its middle first; its centre when none fits.
+vector(entity t, entity p) MG1_H_SpotIn = {
+    vector lo = t.absmin - p.maxs + '2 2 2', hi = t.absmax - p.mins - '2 2 2', at;
+    MG1_H_spotfound = FALSE;
+    float fx = 0, fy, fz;
+    while(fx <= 4) {
+        fy = 0;
+        while(fy <= 4) {
+            fz = 0;
+            while(fz <= 4) {
+                at_x = lo_x + (hi_x - lo_x) * MG1_H_GridFrac(fx);
+                at_y = lo_y + (hi_y - lo_y) * MG1_H_GridFrac(fy);
+                at_z = lo_z + (hi_z - lo_z) * MG1_H_GridFrac(fz);
+                tracebox(at, p.mins, p.maxs, at, FALSE, p);
+                if(!trace_startsolid && !trace_allsolid) { MG1_H_spotfound = TRUE; return at; }
+                fz++;
+            }
+            fy++;
+        }
+        fx++;
+    }
+    return (t.absmin + t.absmax) * 0.5 - (p.mins + p.maxs) * 0.5;
+};
 void() MG1_H_After = { localcmd(sprintf("exec mghub_after%g.cfg\n", cvar("vr_mg_hub_stage"))); };
 void(float request) MG1_H_Route = {
     entity caller = self, p = find(world,classname,"player"); other = activator = p;
@@ -133,6 +215,29 @@ void(float request) MG1_H_Route = {
         entity gate = find(world,classname,"trigger_changelevel");
         while(gate && gate.map != dest) gate = find(gate,classname,"trigger_changelevel");
         if(gate) { self = gate; changelevel_touch(); dprint(sprintf("mghubtest: actual route exit next %s\n",nextmap)); }
+    } else if(request == 30 || request == 32) {
+        // Route sweep: put the player inside the exit's volume; the engine's own trigger touch on the next
+        // physics frame runs the real changelevel (its classname, player and coop rules included), and the
+        // presser goes through its intermission with real jump presses.
+        entity walk = MG1_H_NextExit(request == 32);
+        if(walk) {
+            setorigin(p, MG1_H_SpotIn(walk, p));
+            // An exit behind a shut door or bars: noclip there (its frame still touches the triggers it overlaps).
+            if(!MG1_H_spotfound) p.movetype = MOVETYPE_NOCLIP;
+            dprint(sprintf("mghubtest: walk spot %v fits %g exit box %v %v player %v %v\n",p.origin,MG1_H_spotfound,walk.absmin,walk.absmax,p.mins,p.maxs));
+            p.velocity = '0 0 0';
+            dprint(sprintf("mghubtest: walk %s %s -> %s skill %g flags %g\n",mapname,walk.classname,walk.map,cvar("skill"),serverflags));
+            MG1_H_Presser();
+        } else dprint(sprintf("mghubtest: walk %s no open exit\n",mapname));
+    } else if(request == 35) {
+        MG1_H_Presser();
+    } else if(request == 36) {
+        // A real death (god mode off, damage past the health): the presser's release-then-press respawns, which in
+        // single player restarts the map through the engine's autoload of the last save (sv_autoload).
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        T_Damage(p, world, world, p.health + 1000);
+        dprint(sprintf("mghubtest: died health %g deadflag %g\n", p.health, p.deadflag));
+        MG1_H_Presser();
     } else if(request == 7) {
         // Pure driver: next-map commands are appended AFTER the actual QC changelevel.
         self = p;
@@ -155,6 +260,7 @@ void(float request) MG1_H_Route = {
     self = caller;
 };
 void() MG1_H_TestFrame = {
+    MG1_H_RouteAutorun();
     float request = cvar("vr_mg_hub_test"); if(!request) return;
     cvar_set("vr_mg_hub_test","0");
     if(!MG1_Campaign()) { dprint("mghubtest: Machine developer campaign required\n"); return; }

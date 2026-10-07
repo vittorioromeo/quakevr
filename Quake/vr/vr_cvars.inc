@@ -2434,6 +2434,7 @@ QVR_CVAR(vr_mg_horde_test, "0", CVAR_NONE) // Debug > Tests: authored Horde wave
 QVR_CVAR(vr_mg_hub_test, "0", CVAR_NONE) // Debug > Tests: 1 MG1 hub/rune semantics, 2 authored electrode/egg route, 3 progression/inventory report; destructive tests reload afterward
 QVR_CVAR(vr_mg_hub_stage, "0", CVAR_NONE) // Private QC transition acceptance continuation index; not archived
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
+QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1 route sweep driver: each new map's first frame runs mg1route<stage>.cfg once (0 off; the scripts raise it); not archived
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)
 QVR_CVAR(vr_mg3_aggro_groups, "0", CVAR_ARCHIVE) // Dawn of the Machine: a waking monster wakes what its aggro_target names (upstream ships this off; Debug > Tests > Dawn of the Machine Tests)
 QVR_CVAR(vr_mg3_bn_discovered, "0", CVAR_ARCHIVE) // Dawn of the Machine: Bloody Nightmare found in a game (the hell knight's head): the Official Campaigns menu offers it

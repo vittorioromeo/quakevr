@@ -5086,6 +5086,11 @@ za::Vector<Item> pageDebugTests()
             .help("MG3 native port: state, saved upgrades and capacities. Developer campaign only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
             .help("Report runes, return position, final gate and VR equipment."),
+        command("Machine: Walk Into the Next Exit", "vr_mg_hub_test 30")
+            .help("Put you inside this map's exit (the hub: the next episode's gate, or the final gate), the real trigger "
+                  "takes you on; jump presses leave the intermission. The campaign route test's step."),
+        command("Machine: Die Here", "vr_mg_hub_test 36")
+            .help("God mode off and a killing blow; a jump press respawns (single player: the last save loads)."),
         command("Machine: mge5m2 Trigger Route", "vr_mg_trigger_test 2")
             .help("Destructive authored rune puzzle and quake sequence on mge5m2. Uses real buttons and engine movement. Reload afterward."),
         command("Official World: Fog Report", "vr_mg_world_test 1")
