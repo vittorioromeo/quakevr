@@ -48,7 +48,7 @@ TEXN = {
     "beam": "wood1_3", "log": "cliff2_1", "logend": "wood1_7", "board": "wood1_1", "rope": "rock3_8",
     "iron": "metal1_1", "flag": "azfloor1_1", "block": "wswamp2_1", "trim": "wall14_5", "water": "*04awater1",
     "portal": "*teleport", "sky": "sky1", "crystal": "tlight03", "button": "+0basebtn", "target": "qvr_target",
-    "bark": "cliff2_1", "needles": "wgrass1_1", "lamp": "light1_3", "roof": "wizwood1_2", "rune": "sliplite",
+    "bark": "cliff2_1", "needles": "wgrass1_1", "lamp": "light1_3", "roof": "wizwood1_2", "rune": "sliplite", "barrel": "wood1_5",
     "clip": "clip", "trigger": "trigger", "skip": "skip",
 }
 WADS = "quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad"
@@ -364,6 +364,8 @@ def spacing_class(x, y):
             return 1
     if d > -650:
         return 2
+    if e > 900 or d < -1100:
+        return 8  # far up the mountains, or deep in the lake (under the water's fog): 512 units
     return 4
 
 
@@ -536,6 +538,49 @@ def ground(x, y):
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Building blocks
+def part(mw, name):
+    """A structure's brushes: a func_detail (a TrenchBroom group). (As func_walls of their own the faces were as many,
+    and the dynamic lights' shadow casters' search cost more.)"""
+    return mw.detail(name)
+
+
+PIECE_CLASS = "func_detail"
+
+
+class Pieces:
+    """Things spread over the map (pines, boulders, torches' posts, crystals), split() after each: gathered by
+    768-unit tile of the map, a func_detail each, all in one TrenchBroom group (a group per tile in the editor). As
+    func_walls (brush entities) the faces were no fewer, and hundreds of them made the dynamic lights' shadow caster
+    search dearer."""
+
+    TILE = 768
+
+    def __init__(self, mw, name):
+        mw.groups.append((name, []))
+        self.mw, self.gid, self.cur, self.tiles = mw, len(mw.groups), [], {}
+
+    def split(self):
+        bs = [b for b in self.cur if b is not None]
+        self.cur = []
+        if not bs:
+            return
+        p0 = bs[0].faces[0][0]
+        key = (int(p0[0] // self.TILE), int(p0[1] // self.TILE))
+        if key not in self.tiles:
+            self.tiles[key] = []
+            self.mw.add({"classname": PIECE_CLASS, "_tb_group": str(self.gid), "_shadow": "1"}, self.tiles[key])
+        self.tiles[key].extend(bs)
+
+    def append(self, b):
+        self.cur.append(b)
+
+
+def split(out):
+    if isinstance(out, Pieces):
+        out.split()
+
+
+
 RND = random.Random(1234)
 
 
@@ -566,8 +611,14 @@ def rail(out, p, q, w=4, h=3, key="beam"):
     out.append(beam(p, q, w, h, wood(key, sub(q, p))))
 
 
+# Thin things nobody should bump into (ropes, torch brackets, lantern wires): no collision (func_detail_illusionary).
+# Their clip hulls were the trouble: a thin slanted brush grown by the player's box can reach out as an invisible wall.
+NONSOLID = []
+
+
 def rope(out, p, q, sag=4, segs=4):
-    """A rope from p to q, sagging in the middle (thin beams)."""
+    """A rope from p to q, sagging in the middle (thin beams, not solid)."""
+    out = NONSOLID
     pts = []
     for i in range(segs + 1):
         t = i / segs
@@ -640,6 +691,7 @@ def rock(out, cx, cy, cz, rx, ry, rz, seed, tex=None, flat=0.35):
     b = hull(pts, tex or T("cliff", mode="face", uoff=rnd.randrange(256), voff=rnd.randrange(256)))
     if b:
         out.append(b)
+    split(out)
 
 
 def staircase(out, st, rails=True):
@@ -677,7 +729,7 @@ def staircase(out, st, rails=True):
 # ---------------------------------------------------------------------------------------------------------------------
 # The places
 def build_pier(mw):
-    out = mw.detail("pier")
+    out = part(mw, "pier")
     p = PIER
     x, y0, y1, z, w = p["x"], p["y0"], p["y1"], p["z"], p["w"]
     deck(out, x - w / 2, y1, x + w / 2, y0, z, "x")
@@ -694,7 +746,7 @@ def build_pier(mw):
 
 
 def build_arrival(mw):
-    out = mw.detail("arrival")
+    out = part(mw, "arrival")
     ax, ay = ARRIVAL
     g = 14
     # the welcome board: two posts and a board facing the pier (south)
@@ -730,14 +782,14 @@ CAMPFIRE = (-1400, -830)
 
 
 def build_stairs(mw):
-    staircase(mw.detail("staircase up the bank"), STAIR1)
-    out = mw.detail("staircase landing")
+    staircase(part(mw, "staircase up the bank"), STAIR1)
+    out = part(mw, "staircase landing")
     s = STAIR1
     deck(out, s["cx"] - s["w"] / 2, s["cy"], s["cx"] + s["w"] / 2, s["cy"] + 40, s["zt"], "x")
     for sx in (-s["w"] / 2 + 4, s["w"] / 2 - 4):
         out.append(box(s["cx"] + sx - 4, s["cy"], s["zt"] - 14, s["cx"] + sx + 4, s["cy"] + 40, s["zt"] - 3,
                        wood("beam", (0, 1, 0))))
-    staircase(mw.detail("staircase down to the range"), STAIR2)
+    staircase(part(mw, "staircase down to the range"), STAIR2)
 
 
 LECTERNS_X = (-165, -55, 55, 165)       # from the gate's centre
@@ -745,7 +797,7 @@ LECTERN_Y = -60                          # their south faces (the buttons on the
 
 
 def build_terrace(mw):
-    out = mw.detail("campaign terrace")
+    out = part(mw, "campaign terrace")
     t = TERRACE
     cx, cy, r, z = t["x"], t["y"], t["r"], t["z"]
     pts = []
@@ -804,7 +856,7 @@ def build_terrace(mw):
 
 
 def build_bridge(mw):
-    out = mw.detail("bridge")
+    out = part(mw, "bridge")
     b = BRIDGE
     x0, x1, y, z, arch, w = b["x0"], b["x1"], b["y"], b["z"], b["arch"], b["w"]
 
@@ -839,7 +891,7 @@ def build_bridge(mw):
 
 
 def build_pavilion(mw):
-    out = mw.detail("settings pavilion")
+    out = part(mw, "settings pavilion")
     pv = PAVILION
     x0, x1, y0, y1, z = pv["x0"], pv["x1"], pv["y0"], pv["y1"], pv["z"]
     g = z - 16
@@ -898,7 +950,7 @@ TARGET_BOARDS = [(800, -160), (1150, 80), (1380, -160), (1020, -40)]
 
 
 def build_range(mw):
-    out = mw.detail("firing range")
+    out = part(mw, "firing range")
     rg = RANGE
     z, line = rg["z"], rg["line"]
     # the benches at the firing line (the guns and the ammunition on them)
@@ -938,7 +990,7 @@ SHELF = (700, 80)
 
 
 def build_tower(mw):
-    out = mw.detail("lookout tower")
+    out = part(mw, "lookout tower")
     tw = TOWER
     cx, cy, z, h = tw["x"], tw["y"], tw["z"], tw["half"]
     top = z + tw["deck"]
@@ -1012,15 +1064,17 @@ def torch_post(mw, out, x, y, g, yaw, h=72):
     """A log post with an iron bracket and a wall torch on it, facing `yaw` (degrees)."""
     post(out, x, y, g - 12, g + h, 4.5, square=False)
     c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
-    out.append(beam((x + c * 3, y + s * 3, g + h - 22), (x + c * 9, y + s * 9, g + h - 22), 3, 3, T("iron", scale=0.5)))
+    NONSOLID.append(beam((x + c * 3, y + s * 3, g + h - 22), (x + c * 9, y + s * 9, g + h - 22), 3, 3, T("iron", scale=0.5)))
     ent(mw, "light_torch_small_walltorch", x + c * 10, y + s * 10, g + h - 18, angle=yaw, **TORCH)
+    split(out)
 
 
 def wall_torch(mw, out, x, y, z, yaw):
     """A torch on a structure's upright (a bracket from its face)."""
     c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
-    out.append(beam((x - c * 2, y - s * 2, z - 4), (x + c * 5, y + s * 5, z - 4), 3, 3, T("iron", scale=0.5)))
+    NONSOLID.append(beam((x - c * 2, y - s * 2, z - 4), (x + c * 5, y + s * 5, z - 4), 3, 3, T("iron", scale=0.5)))
     ent(mw, "light_torch_small_walltorch", x + c * 6, y + s * 6, z, angle=yaw, **TORCH)
+    split(out)
 
 
 def brazier(mw, out, x, y, g, h=40, base="block"):
@@ -1033,16 +1087,18 @@ def brazier(mw, out, x, y, g, h=40, base="block"):
         q.append((px, py, g + h))
     out.append(hull(q, T("iron", scale=0.5)))
     ent(mw, "light_flame_large_yellow", x, y, g + h + 18, light=300, _color="1 0.55 0.25", wait=0.9)
+    split(out)
 
 
-def lantern(mw, out, x, y, z, light=200, hang=0):
+def lantern(mw, out, x, y, z, light=200, hang=0, above=False):
     """A hanging lantern: an iron frame round a glowing glass, and its light."""
     out.append(box(x - 5, y - 5, z - 7, x + 5, y + 5, z + 7, T("lamp", scale=0.5)))
     out.append(box(x - 6, y - 6, z + 7, x + 6, y + 6, z + 10, T("iron", scale=0.5)))
     out.append(box(x - 6, y - 6, z - 10, x + 6, y + 6, z - 7, T("iron", scale=0.5)))
     if hang:
-        out.append(box(x - 0.75, y - 0.75, z + 10, x + 0.75, y + 0.75, z + 10 + hang, T("iron", scale=0.5)))
-    ent(mw, "light", x, y, z - 16, light=light, _color="1 0.75 0.45", wait=0.8)
+        NONSOLID.append(box(x - 0.75, y - 0.75, z + 10, x + 0.75, y + 0.75, z + 10 + hang, T("iron", scale=0.5)))
+    ent(mw, "light", x, y, z + 16 if above else z - 16, light=light, _color="1 0.75 0.45", wait=0.8)
+    split(out)
 
 
 def crystal(out, x, y, g, rnd):
@@ -1062,10 +1118,11 @@ def crystal(out, x, y, g, rnd):
         b = hull(pts, T("crystal", scale=0.5))
         if b:
             out.append(b)
+    split(out)
 
 
 def build_lights(mw):
-    out = mw.detail("lights: posts, braziers, lanterns, crystals")
+    out = Pieces(mw, "lights: posts, braziers, lanterns, crystals")
     p, s1, s2, t, b, pv, rg, tw = PIER, STAIR1, STAIR2, TERRACE, BRIDGE, PAVILION, RANGE, TOWER
     # the pier's end: torches on the two tall bollards, facing the deck
     for sx in (-1, 1):
@@ -1126,7 +1183,7 @@ def build_lights(mw):
     # the tower: torches at the ladder's foot, a lantern on the deck
     for sx in (-1, 1):
         torch_post(mw, out, tw["x"] + sx * 56, tw["y"] + tw["half"] + 40, tw["z"], 90)
-    lantern(mw, out, tw["x"] - tw["half"] + 20, tw["y"] - tw["half"] + 20, tw["z"] + tw["deck"] + 40, 150)
+    lantern(mw, out, tw["x"] - tw["half"] + 20, tw["y"] - tw["half"] + 20, tw["z"] + tw["deck"] + 40, 150, above=True)
     post(out, tw["x"] - tw["half"] + 20, tw["y"] - tw["half"] + 20, tw["z"] + tw["deck"] - 2, tw["z"] + tw["deck"] + 30, 2)
     # crystals glowing on the lake's floor (a ring round the island, a few by the cliffs and the islets)
     rnd = random.Random(31)
@@ -1144,7 +1201,155 @@ def build_lights(mw):
         spots.append((x, y))
         crystal(out, x, y, g, rnd)
         ent(mw, "light", x, y, g + 72, light=380, _color="0.3 0.85 1", wait=0.8)
+    out.split()
     print("lights: %d crystals" % len(spots))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Decoration: pines, boulders along the beach, barrels, a rowboat by the pier, the islets' braziers
+def keep_clear(x, y, margin=0):
+    """False where things must not stand: the paths, the places (zones), the structures, the start."""
+    if on_path(x, y, -60 - margin):
+        return False
+    for kind, shape, target, blend in ZONES:
+        if zone_weight(shape, x, y, 30 + margin) > 0:
+            return False
+    p = PIER
+    if abs(x - p["x"]) < 120 + margin and p["y1"] - 60 < y < p["y0"] + 140:
+        return False
+    if math.hypot(x - CAMPFIRE[0], y - CAMPFIRE[1]) < 120 + margin:
+        return False
+    rd, _, _ = polyline_dist(x, y, RAVINE)
+    if rd < RAVINE_OUT + 20:
+        return False
+    return True
+
+
+def pine(out, x, y, g, h, rnd):
+    """A pine: a bark trunk and three or four cones of needles."""
+    trunk = rnd.uniform(5, 8)
+    out.append(cylinder((x, y, g - 16), (x, y, g + h * 0.8), trunk, 7, T("bark", mode="face", scale=0.5)))
+    layers = rnd.randint(3, 4)
+    base = g + max(64, h * rnd.uniform(0.26, 0.34))
+    for i in range(layers):
+        f = i / layers
+        r = h * (0.36 - 0.22 * f) * rnd.uniform(0.9, 1.1)
+        z0 = base + (h - (base - g)) * f * 0.9
+        tip = z0 + r * 1.5
+        pts = [(px, py, z0) for (px, py) in ngon(x + rnd.uniform(-3, 3), y + rnd.uniform(-3, 3), r, 8, rnd.uniform(0, 1))]
+        pts += [(px, py, z0 - r * 0.18) for (px, py) in ngon(x, y, r * 0.55, 8, rnd.uniform(0, 1))]
+        pts.append((x + rnd.uniform(-2, 2), y + rnd.uniform(-2, 2), min(tip, g + h)))
+        b = hull(pts, T("needles", mode="face", scale=0.5, uoff=rnd.randrange(64), voff=rnd.randrange(64)))
+        if b:
+            out.append(b)
+    split(out)
+
+
+def barrel(out, x, y, g, rnd, lying=False):
+    tex = T("barrel", mode="face", scale=0.5, uoff=rnd.randrange(64))
+    if lying:
+        a = rnd.uniform(0, math.pi)
+        dx, dy = 15 * math.cos(a), 15 * math.sin(a)
+        out.append(cylinder((x - dx, y - dy, g + 11), (x + dx, y + dy, g + 11), 11, 10, tex))
+    else:
+        out.append(cylinder((x, y, g - 2), (x, y, g + 30), 11, 10, tex, rnd.uniform(0, 1)))
+    split(out)
+
+
+def rowboat(out, x, y, z):
+    """A rowboat tied by the pier: its hull of planks (thin slanted brushes), a keel, two seats, oars."""
+    L, W = 76, 22          # half-length, half-width at the middle
+    def side(s):
+        q = []
+        for (px, k) in ((-L, 0.05), (-L * 0.6, 0.75), (0, 1.0), (L * 0.6, 0.75), (L, 0.05)):
+            q.append((x + px, y + s * W * k, z + 12))
+            q.append((x + px, y + s * W * k * 0.7, z - 4))
+        # each side as three convex pieces
+        for i in range(0, 8, 2):
+            pts = q[i:i + 4]
+            inner = [(p[0], y + (p[1] - y) * 0.82, p[2]) for p in pts]
+            b = hull(pts + inner, T("plank", mode="grain", axis=(1, 0, 0), scale=0.75))
+            if b:
+                out.append(b)
+    side(1)
+    side(-1)
+    out.append(hull([(x - L * 0.8, y - 4, z - 6), (x + L * 0.8, y - 4, z - 6), (x - L * 0.8, y + 4, z - 6), (x + L * 0.8, y + 4, z - 6),
+                     (x - L * 0.6, y - W * 0.55, z - 2), (x + L * 0.6, y - W * 0.55, z - 2), (x - L * 0.6, y + W * 0.55, z - 2),
+                     (x + L * 0.6, y + W * 0.55, z - 2)], T("plank", mode="grain", axis=(1, 0, 0), scale=0.75)))
+    for px in (-26, 22):
+        out.append(box(x + px - 5, y - W * 0.82, z + 5, x + px + 5, y + W * 0.82, z + 8, wood("plank", (0, 1, 0))))
+    for s in (-1, 1):
+        out.append(beam((x - 40, y + s * 6, z + 9), (x + 30, y + s * 14, z + 9), 2.5, 1.5, wood("beam", (1, 0, 0))))
+
+
+def build_decor(mw):
+    rnd = random.Random(808)
+    trees = Pieces(mw, "decor: pines")
+    rocks = Pieces(mw, "decor: boulders")
+    props = Pieces(mw, "decor: barrels, boat, islets")
+    # pines: groves on the hills and along the island's edge
+    placed = []
+    tries = 0
+    while len(placed) < 46 and tries < 20000:
+        tries += 1
+        x, y = rnd.uniform(-1500, 1550), rnd.uniform(-950, 1100)
+        d = coast_distance(x, y)
+        if d < 230 or not keep_clear(x, y, 110):  # (their branches at head height: keep them off the paths)
+            continue
+        if any(math.hypot(x - a, y - b) < 110 for a, b in placed):
+            continue
+        # groves: denser near the hills
+        near = max(math.exp(-((x - hx) ** 2 + (y - hy) ** 2) / (r * r * 2.2)) for (hx, hy, r, _) in HILLS)
+        if rnd.random() > 0.25 + 0.75 * near:
+            continue
+        placed.append((x, y))
+        pine(trees, x, y, height(x, y), rnd.uniform(150, 280), rnd)
+    # boulders along the beach and at the cliffs' feet
+    stones = []
+    tries = 0
+    while len(stones) < 90 and tries < 30000:
+        tries += 1
+        x, y = rnd.uniform(-1800, 1800), rnd.uniform(-1300, 1400)
+        d = coast_distance(x, y)
+        if not (-40 < d < 150) or not keep_clear(x, y):
+            continue
+        if any(math.hypot(x - a, y - b) < 90 for a, b in stones):
+            continue
+        stones.append((x, y))
+        s = rnd.uniform(10, 34)
+        rock(rocks, x, y, height(x, y) + s * 0.2, s * rnd.uniform(1.0, 1.6), s * rnd.uniform(0.9, 1.3), s * rnd.uniform(0.6, 1.0),
+             rnd.randrange(1 << 20))
+    for i in range(70):  # at the cliffs' feet, half in the water
+        th = rnd.uniform(0, 2 * math.pi)
+        r = cliff_radius(th) - rnd.uniform(30, 120)
+        x, y = r * math.cos(th), r * math.sin(th)
+        if abs(x) > BOX - 80 or abs(y) > BOX - 80:
+            continue
+        s = rnd.uniform(30, 90)
+        rock(rocks, x, y, height(x, y) + s * 0.1, s * 1.4, s, s * 0.8, rnd.randrange(1 << 20), T("cliff", mode="face", scale=2))
+    # barrels by the pier, the pavilion, the range
+    for (x, y, lying) in ((-1270, -900, 0), (-1255, -925, 0), (-1290, -915, 1), (-1120, -905, 0), (130, 60, 0),
+                          (150, 40, 0), (360, 150, 0), (380, 165, 1), (-280, -270, 0)):
+        barrel(props, x, y, height(x, y), rnd, lying)
+    # the rowboat, tied to the pier's end
+    p = PIER
+    rowboat(props, p["x"] - p["w"] / 2 - 40, p["y1"] + 150, 0)
+    rope(props, (p["x"] - p["w"] / 2 - 4, p["y1"] + 104, p["z"] - 6), (p["x"] - p["w"] / 2 - 104, p["y1"] + 150, 12), 6, 5)
+    # a brazier and boulders on each islet: places to swim to
+    for (ix, iy, r, peak) in ISLETS:
+        if peak < 40:
+            continue
+        g = height(ix, iy)
+        brazier(mw, props, ix, iy, g, 36, base="cliff")
+        for k in range(5):
+            a = 2 * math.pi * k / 5 + rnd.uniform(-0.3, 0.3)
+            dd = r * rnd.uniform(0.35, 0.6)
+            s = rnd.uniform(18, 40)
+            rock(rocks, ix + dd * math.cos(a), iy + dd * math.sin(a), height(ix + dd * math.cos(a), iy + dd * math.sin(a)) + s * 0.2,
+                 s * 1.3, s, s * 0.8, rnd.randrange(1 << 20))
+    for pc in (trees, rocks, props):
+        pc.split()
+    print("decor: %d pines, %d boulders" % (len(placed), len(stones)))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1314,6 +1519,7 @@ def write_map():
     build_layout()
     mw = MapWriter()
     build_world(mw)
+    mw.add({"classname": "func_detail_illusionary"}, NONSOLID)
     build_terrain(mw)
     if ONLY_TERRAIN:
         mw.write(OUT.replace(".map", "_terrain.map"), WORLD_KEYS, "// terrain only (a debugging build)\n")
@@ -1327,6 +1533,7 @@ def write_map():
     build_range(mw)
     build_tower(mw)
     build_lights(mw)
+    build_decor(mw)
     build_entities(mw)
     header = "// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/maps/vrstart2_gen.py: edit that, not this.\n"
     mw.write(OUT, WORLD_KEYS, header)

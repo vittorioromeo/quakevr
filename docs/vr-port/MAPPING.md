@@ -61,6 +61,8 @@ browser with help, key types, choices and a model preview.
 | `quakevr/maps/vrexample.map` (`.bsp`, `.lit`, `.lux`) | the example map and its compiled files |
 | `quakevr/maps/vrclimb.map` (`.bsp`, `.lit`, `.lux`) | the climbing test map (`Misc/quakevr/climb/make_vrclimb_map.py`) |
 | `quakevr/maps/vrslipgates.map` (`.bsp`, `.lit`, `.lux`) | the slipgate test map, id's textures (`Misc/quakevr/slipgates/make_vrslipgates_map.py`; ROUND21.md, "Slipgate test map") |
+| `quakevr/maps/vrstart2.map` (`.bsp`, `.lit`, `.lux`) | the island hub at night (`Misc/quakevr/maps/vrstart2_gen.py`, its geometry library `mapgeom.py`; the sky box `make_vs2_sky.py`, `quakevr/gfx/env/vs2night*.png`): below |
+| `Misc/trenchbroom/make_id_wad.py` | writes `quakevr/wads/id_textures.wad` (git-ignored) from your paks: above |
 
 ## The entities
 
@@ -160,6 +162,16 @@ Its WAD is made from your own paks, never committed: `python Misc/trenchbroom/ma
 `quakevr/wads/id_textures.wad` (every texture of id1's maps, git-ignored; the same bytes from the same paks), and the
 map's worldspawn names both WADs (`quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad`).
 
+**id's textures, built from your paks** (`Misc/trenchbroom/make_id_wad.py`): `python Misc/trenchbroom/make_id_wad.py
+[--quake <Quake folder>] [--list]` reads every map in `id1`'s paks (and `hipnotic/pak0.pak`, `rogue/pak0.pak` when you
+have them), takes each texture they embed (by name: id1's first, then the mission packs') and writes them as they are
+(8-bit, their mip levels) to `quakevr/wads/id_textures.wad`: 893 textures, 8.4 MB. The WAD is **git-ignored**: id's
+data never enters the repository. A map lists it in its worldspawn `wad` before Quake VR's own
+(`quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad`); qbsp finds both with `-wadpath <checkout>`. The
+compiled `.bsp` then embeds id's textures: **the author's decision is that the hub maps may ship so** (vrstart2:
+`Misc/quakevr/maps/vrstart2_gen.py`). Keep that to the maps that need it. `--list` prints each texture, its size and
+the map it came from (find names there; TrenchBroom shows them once the WAD is built).
+
 The WAD path in the worldspawn is **relative to the game path**: TrenchBroom looks for it there (and beside the map);
 the compile profiles pass `-wadpath <game path>` to qbsp. It resolves through `Quake\quakevr` (the link to the
 checkout's `quakevr`). `make_assets.py` makes the same bytes every time (fixed seeds).
@@ -209,3 +221,40 @@ A spawn function is a `void()` function that is not a frame function and has a Q
 map entity's prefix (`info_`, `item_`, `weapon_`, `monster_`, `func_`, `trigger_`, `light`, `misc_`, `path_`,
 `ambient_`, `trap_`, `vr_`...), is never used as a value (think, touch, use...) and has no helper suffix (`_think`,
 `_use`...). A helper that still looks like one goes in `entities.fgd` as `//! internal <name> <reason>`.
+
+## vrstart2: the island hub (a generated map)
+
+`quakevr/maps/vrstart2.map` is written by `Misc/quakevr/maps/vrstart2_gen.py`: **edit the script, not the .map** (it
+rewrites it). The .map opens in TrenchBroom (Valve format; each part a group: the terrain's three func_detail groups,
+each structure a func_detail, and the things spread over the map, pines, boulders, torch posts, crystals,
+func_details by 768-unit tile; ropes and brackets func_detail_illusionary, not solid)
+for looking, measuring and trying things; carry what you keep back into the script.
+
+```
+python Misc/trenchbroom/make_id_wad.py                 # once: id's textures from your paks (git-ignored WAD)
+python Misc/quakevr/maps/vrstart2_gen.py               # the .map (about 6 s)
+python Misc/quakevr/maps/vrstart2_gen.py --compile     # and the .bsp/.lit/.lux: qbsp -maxnodesize 0 -forcegoodtree,
+                                                       #   vis, light (the Full profile with -bounce): about 12 min
+python Misc/quakevr/maps/vrstart2_gen.py --compile --fast   # no vis, plain light (about 3 min)
+python Misc/quakevr/maps/make_vs2_sky.py               # the sky box (quakevr/gfx/env/vs2night*.png, committed)
+```
+
+- **Layout** (x east, y north, the water's surface at z 0): a lake 8000 units across ringed by cliffs and mountains,
+  the island in its middle (about 3100 x 2200), and the path from the south-west: the pier (the player's start) ->
+  the arrival beach (welcome board, VR TUTORIAL and VR CALIBRATION buttons, a campfire) -> a staircase up the bank ->
+  the campaign terrace (four lecterns, the slipgate) -> a bridge over the ravine -> the settings pavilion (19
+  `vr_setup_option` buttons, each with its value screen) -> a staircase down -> the firing range (guns and
+  ammunition on the benches; boards, crates, a dummy, an explosive box, rocks on a shelf) -> the shore path -> the
+  lookout tower (a ladder of rungs at vrclimb's heights; a diving board over deep water). The places are dicts at the
+  top of the script (`PIER`, `TERRACE`, `GATE`, `BRIDGE`, `PAVILION`, `RANGE`, `TOWER`, `STAIR1`, `STAIR2`).
+- **Terrain**: a height function (the island's coast spline, hills, the flattened places and paths, the ravine, the
+  lake's floor, the cliffs' ring), sampled on a jittered lattice (64 units on the island, 128-512 further out) plus
+  the places' and paths' outlines, triangulated (Delaunay, exact integer arithmetic) and built as prisms down to z
+  -1024. Textures by slope and height: rock5_2/rock3_8 on slopes over 44 degrees, grass1_1/ground1_2 on the island,
+  ground1_8 on the paths, rock3_2 on the beach, ground1_5 under water.
+- **Campaigns**: the lecterns run `vr_activestartpaknameidx 0/1/2` (the slipgate, a `trigger_changelevel` to
+  `start` without intermission, starts that one; SELECTED shows over the chosen lectern) and `vr_campaign_select dopa`
+  (Dimension of the Past starts at once).
+- **The hub**: `vr_hub_map vrstart2` makes it the hub VR starts in and the menus' VR Hub returns to (default:
+  `vrstart`). `map vrstart2` loads it any time.
+- **Checks**: `vr_menu_path_check maps/vrstart2.map` (the boards' `{menu:...}` names: 4 found, 0 missing).

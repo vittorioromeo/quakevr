@@ -465,11 +465,14 @@ class MapWriter:
         self.groups.append(g)
         return g[1]
 
-    def detail(self, name):
-        """A TrenchBroom group holding one func_detail: its brushes (appended to by the caller)."""
+    def detail(self, name, classname="func_detail", **keys):
+        """A TrenchBroom group holding one brush entity (func_detail by default): its brushes (appended to by the
+        caller)."""
         self.groups.append((name, []))
         brushes = []
-        self.add({"classname": "func_detail", "_tb_group": str(len(self.groups))}, brushes)
+        k = {"classname": classname, "_tb_group": str(len(self.groups))}
+        k.update(keys)
+        self.add(k, brushes)
         return brushes
 
     def add(self, keys, brushes=()):
@@ -493,6 +496,8 @@ class MapWriter:
                 f.write("}\n")
                 idx += 1
             for keys, brushes in self.entities:
+                if keys.get("classname") in ("func_wall", "func_detail") and not any(b is not None for b in brushes):
+                    continue  # (an empty piece)
                 f.write("// entity %d\n{\n" % idx)
                 for k, v in keys.items():
                     f.write('"%s" "%s"\n' % (k, v))

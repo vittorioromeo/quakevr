@@ -27954,3 +27954,65 @@ the same node (25591) with the same garbage plane number, through the hull build
   `Z_Free`, `Z_Realloc`, the hunk's allocations and frees, `Cache_Alloc`, `Cache_Check` and `Cache_Free` from any thread
   but the main one crash at once (`Zone_WrongThread`, with the culprit's stack in qvr_crash.txt). For tests: set it
   first in the script (`vr_zone_threadcheck 1; map ...`).
+## vrstart2: the island hub at night (2026-10-07)
+
+Your request: a new, much bigger and more polished hub in vrstart's spirit (a grassy island with a rocky beach in a
+lake ringed by cliffs, at night, torches and lights under the water), the player starting in a corner and led along
+one path (bridges, staircases, natural paths) past the campaign buttons and their slipgate, a settings area, a
+makeshift firing range and a ladder; props, banners and tips. Added beside vrstart, not replacing it (yet).
+
+**Made by a script** (`Misc/quakevr/maps/vrstart2_gen.py`, its geometry in `mapgeom.py`; MAPPING.md, "vrstart2"):
+reproducible, the .map editable in TrenchBroom (groups), every brush's planes exact (points on a 1/8 grid, planes
+from integer arithmetic). Terrain: a height function sampled on a jittered lattice plus the places' outlines,
+Delaunay-triangulated (exact predicates; 10,500 triangles), a prism under each. The lake is 8000 units across (244 m):
+1800-2200 units (55-67 m) of water between the island and the cliffs, 300 deep (the shelf by the island shallow),
+six rock ledges at the cliffs' feet to climb out on, four islets (braziers on two). The cliffs: a noisy ring (bays,
+headlands), faces faceted by six rings of points, mountains rising behind to 1300-1900.
+
+**Textures: id's** (the coordinator's change, your decision): `Misc/trenchbroom/make_id_wad.py` extracts every texture
+the paks' maps embed into `quakevr/wads/id_textures.wad` (git-ignored); the .bsp embeds the ones used. Planks show
+one of woodflr1_2's 16-texel boards each (their texture offsets computed per plank); cliffs at twice the scale; wood
+grain along each beam. Ours: the night sky box (`make_vs2_sky.py`: stars, the Milky Way, thin clouds, the moon where
+the moonlight comes from; 6 x 1024 PNG, 2.8 MB) and `qvr_target` (a bullseye) in quakevr_dev.wad.
+
+**Night lighting**: moonlight from the north-east (`_sunlight` 230, blue) and a dark blue sky dome, bounced light,
+fog; 32 wall torches on posts and brackets (they can be taken, as anywhere), 10 large flames (braziers, the
+campfire), lanterns, the slipgate's violet glow, 34 crystal clusters glowing cyan on the lake's floor. The fires and
+lamps have no ambient occlusion (`_dirt -1`: with it the pavilion stayed black under its roof).
+
+**Gameplay**: the campaign lecterns use the old hub's commands (`vr_activestartpaknameidx 0/1/2`, so buttons.qc's
+"(unavailable)" for a missing mission pack still works; the slipgate is a `trigger_changelevel` to `start`, now
+without intermission); Dimension of the Past's lectern runs `vr_campaign_select dopa` (starts at once: the slipgate
+only knows the three that share their folders). New engine bits: `VR_IsVrMap` (the four VR maps, replacing three
+copies of the list in vr_gamedir.cpp), **`vr_hub_map`** (archived, default `vrstart`; `vrstart2` makes the island the
+hub VR starts in and `vr_campaign_hub` returns to), vr_setup_option's `holsters`, `reload`, `twohand`, `tips` (the
+old hub's raw cvar buttons, with value screens now), and SELECTED over the chosen campaign lectern. The pavilion: 19
+setting buttons on two boards, two rows each. The range: physics guns lying on the benches (shotgun, super shotgun,
+nailgun, crowbar), shells, nails, a health box, target boards, crates, the training dummy, an explosive box, rocks
+and bricks on a shelf. The ladder: rungs every 20 units from 16 over the ground (vrclimb's heights).
+
+**Performance** (`vr_profile`, exclusive, the start, mock eyes): vrstart 0.65 ms CPU busy, GPU 0.81; vrstart2 GPU
+about 1.3 (world+brush 0.6). 88-100k faces (the terrain's prisms cut each other's faces about four times over in the
+BSP). Everything is func_detail (as func_walls the faces were no fewer and the dynamic lights' caster search dearer);
+ropes and brackets are func_detail_illusionary. CPU busy about 1.5 ms (vrstart 0.65), most of it the dynamic lights' shadow
+caster search walking the big world tree (`dlight casters` 0.6 ms); fine against the 11.1 ms budget.
+
+**Tested headless**: the path walked leg by leg with the mock stick (`Misc/quakevr/maps/vrstart2_walktest.py`: 18
+legs, pier, stairs, terrace, bridge, pavilion, stairs, range, shore path, the ladder's foot; 17 pass); a swim from the pier to a cliff ledge and out (40 s);
+`vr_setup_option turning` pressed by hand (Snap 30), the Scourge of Armagon lectern pressed
+(`vr_activestartpaknameidx` 1, its echo), the slipgate's changelevel; a rung held and pulled up (`vr_climb_debug`:
+"main hand holds at 132", the body rising); `vr_climb_probe` lists the rungs as ledges;
+`vr_menu_path_check maps/vrstart2.map`: 4 found, 0 missing. Notes: the climbing plays (`climb_plays.py ladder`) find
+no hold on vrclimb either in this harness (a hand 5 units off); qbsp needs `-maxnodesize 0` (the midsplit's portals
+lost visible faces: holes in the cliffs) and `-forcegoodtree` (an invisible bump on the shore path's clip hull).
+
+**Open: a snag on the shore path.** Walking south-east from the range's south-west corner, the player stops on flat
+ground about (470, -280..-390) in some runs (the walk test's leg 15; where depends on the line walked, and a little
+from run to run). Not the hulls as far as I can tell: `vr_stuck_test` finds the box free all over there (hull 1 and the
+16-wide one), the terrain there is flat (54-57), nothing solid stands there (only terrain prisms; no entity's box),
+and it happens with `vr_hull_width 0`, `vr_body_mode 0`, either movement mode and the tips off; the brush sweep
+(`vr_hull_method 0`) stops on fewer lines. Worth a look by whoever knows the VR locomotion; walk round it meanwhile.
+
+**To try in VR**: the whole walk at night (is it bright enough? `_sunlight`, the torches' `light` in the script's
+`TORCH`); reading the boards and the lecterns; the ladder; the dive; swimming out to the islets and the crystals;
+the cliffs from the water. `vr_hub_map vrstart2` to make it the hub.
