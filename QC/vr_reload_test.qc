@@ -170,10 +170,19 @@ void() VR_Reload_SsgSelfTest =
     f = VRGetEntWeaponFlags(self, cVR_OffHand);
     VRSetEntWeaponFlags(self, cVR_OffHand, f | QVR_WPNFLAG_SSG_OPEN);
     VRSetEntWeaponClip(self, cVR_OffHand, 1);
-    r = VR_Reload_TestTake(6, 2, "another pair");
+    // (The author: one chamber loaded, the pouch gives a single shell; a pair only for two empty ones.)
+    r = VR_Reload_TestTake(7, 1, "one chamber loaded: the pouch gives a single shell");
+    VR_Reload_Check(VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 2,
+        "the single shell into the free chamber: both loaded");
+    // A pair brought anyway (shell pairs, one taken off the floor): one in, the other stays in the hand.
+    VRSetEntWeaponClip(self, cVR_OffHand, 1);
+    r = VR_Reload_MakeRound(0, AID_SHELLS, 2, VRGetEntHandPos(self, cVR_MainHand), VRGetEntHandRot(self, cVR_MainHand));
+    vr_carry_quiet = TRUE;
+    VR_Carry_Start(self, cVR_MainHand, r);
+    vr_carry_quiet = FALSE;
     VR_Reload_Check(!VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 2 &&
         r.vr_ammo_count == 1 && VR_Carry_Held(self, cVR_MainHand) == r,
-        sprintf("one chamber free: one in, the other stays in the hand (a round of %g)", r.vr_ammo_count));
+        sprintf("one chamber free, a pair: one in, the other stays in the hand (a round of %g)", r.vr_ammo_count));
     VR_Reload_Refund(self, r, cVR_MainHand);
     VR_Reload_SsgClose(self, cVR_OffHand, "the test");
     // Break Open off: the super shotgun as before (the flick's or the holsters' reload; spent shells not kept).

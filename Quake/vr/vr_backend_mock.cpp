@@ -962,6 +962,36 @@ struct ScriptedMotion
     }
 };
 
+// A hand's turning, as its angular velocity (tracking space, radians a second), from its orientation's changes: the hands
+// turned by vr_mock_hand / vr_mock_hand_turn report it with vr_mock_turn_velocity 1 (the super shotgun's flick tests);
+// 0 (the default): none, as before.
+struct ScriptedTurn
+{
+    glm::quat last{1.f, 0.f, 0.f, 0.f};
+    glm::vec3 angVel{0.f};
+    double lastMove = 0.0;
+
+    [[nodiscard]] glm::vec3 update(const glm::quat& rot, double now)
+    {
+        if(rot != last)
+        {
+            const glm::quat d = glm::normalize(rot * glm::inverse(last));
+            const float angle = glm::angle(d);
+            angVel = lastMove > 0.0 && angle > 1e-5f
+                         ? glm::axis(d) * ((angle > glm::pi<float>() ? angle - glm::two_pi<float>() : angle) /
+                                              static_cast<float>(za::clamp(now - lastMove, 0.004, 0.05)))
+                         : glm::vec3{0.f};
+            last = rot;
+            lastMove = now;
+        }
+        else if(now - lastMove > 0.04)
+        {
+            angVel = glm::vec3{0.f};
+        }
+        return angVel;
+    }
+};
+
 class MockBackend final : public Backend
 {
 public:
@@ -1081,7 +1111,8 @@ public:
                 continue; // exact velocities
             }
             hand.linearVelocity = handMotion[h].update(hand.position, realtime);
-            hand.angularVelocity = glm::vec3{0.f};
+            const glm::vec3 turning = handTurn[h].update(hand.orientation, realtime);
+            hand.angularVelocity = vr_mock_turn_velocity.value ? turning : glm::vec3{0.f};
             if(played[h])
             {
                 hand.linearVelocity = playVel[h]; // vr_mock_play: the motion's own
@@ -1263,6 +1294,7 @@ private:
         }
     }
     ScriptedMotion handMotion[HAND_COUNT];
+    ScriptedTurn handTurn[HAND_COUNT];
     ScriptedMotion headMotion; // headbutts
     struct
     {

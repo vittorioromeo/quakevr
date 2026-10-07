@@ -64,6 +64,10 @@
 .float vr_reload_tried;  // and those whose grip press there was used
 .float vr_ssg_flick;     // a player's hands' flick reload bits last frame (1 off, 2 main: the super shotgun's flick)
 .float vr_ssg_toggled;   // when a super shotgun of the player's was last broken open or closed
+.float vr_ssg_pry;       // and the other hand's (the pry or the lift, sent so by the engine), as each gun hand saw them
+.float vr_ssg_sec;       // and its B/Y
+.float vr_ssg_held;      // both hands on the hand's super shotgun (the two-handed hold, until the other hand lets go)
+.float vr_ssg_loaded;    // when a shell last went into a super shotgun of the player's (its hand drawing back is no hit)
 
 string VR_RELOAD_SHELL = "progs/vr_shell_live.mdl";
 string VR_RELOAD_PAIR = "progs/vr_shell_pair.mdl";
@@ -748,6 +752,17 @@ void(float xHand) VR_Reload_Take =
     // (The super shotgun in the other hand: always a taped pair, its two chambers loaded at once.)
     float ssg = VRGetEntWeapon(self, VRGetOtherHand(xHand)) == WID_SUPER_SHOTGUN && VR_Reload_ManualFor(WID_SUPER_SHOTGUN);
     float n = ((cvar_hget(cvarh_vr_reload_shell_pairs) || ssg) && have >= 2) ? 2 : 1;
+    if(ssg)
+    {
+        // (One chamber free, the other loaded, or a spent shell in it: a single shell; a pair only for two.)
+        float gunHand = VRGetOtherHand(xHand);
+        float gf = VRGetEntWeaponFlags(self, gunHand);
+        float free = 2 - VRGetEntWeaponClip(self, gunHand) - ((gf & QVR_WPNFLAG_SSG_OPEN) ? 0 : VR_Reload_SsgSpentOf(gf));
+        if(free == 1)
+        {
+            n = 1;
+        }
+    }
     if(w)
     {
         n = min(WeaponIdToBaseClipSize(w), have);
@@ -1116,48 +1131,176 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgClose =
         xHand)));
 };
 
-// Every player frame, for the super shotgun in `xHand` of self (VR_Reload_HandFrame): its flick bit's rising edge (the
-// flick; or the pry, with both hands on it: the engine's vr_flick.cpp, which also keeps the settings: Pry Open, Close
-// by Flick, Close by Lifting the Barrels) breaks it open, or, open, closes it; open with both chambers loaded it closes
-// by itself (vr_reload_ssg_close_auto).
+// Whether something the other hand brings hits the front half of the barrels of the super shotgun in `xGunHand` of
+// self (its front 40%): `xSide` -1 from above (the gun's own down; it breaks open: vr_reload_ssg_hit_open_speed, _angle), 1 from below
+// (its own up; open, it snaps shut: vr_reload_ssg_hit_close_*), within vr_reload_ssg_hit_reach of them (open: as they
+// are turned down by vr_reload_ssg_open_angle from the breech), at the hands' relative speed: a fist, a held prop's
+// middle, the other gun's line from its hand to its muzzle. Not while both hands hold it (the pry and the lift are
+// theirs), nor a round the hand holds (brought to the breech to load). What it was in vr_ssg_hitdesc.
+string vr_ssg_hitdesc;
+float(float xGunHand, float xSide) VR_Reload_SsgHit =
+{
+    float other = VRGetOtherHand(xGunHand);
+    if(self.vr_ssg_held & (xGunHand == cVR_MainHand ? 2 : 1))
+    {
+        return FALSE;
+    }
+    if(time < self.vr_ssg_loaded + 0.6)
+    {
+        return FALSE; // (the hand that just loaded it, drawing back)
+    }
+    vector b = xGunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
+    vector m = xGunHand == cVR_MainHand ? self.muzzlepos : self.offmuzzlepos;
+    if(vlen(b - VRGetEntHandPos(self, xGunHand)) > 64 || vlen(m - b) < 1)
+    {
+        return FALSE; // (no port or muzzle reported: a bot's, a test's)
+    }
+    makevectors(VRGetEntHandRot(self, xGunHand));
+    vector up = v_up;
+    vector dir = normalize(m - b);
+    if(xSide > 0)
+    {
+        float a = cvar_hget(cvarh_vr_reload_ssg_open_angle) / 57.2958;
+        dir = normalize(v_forward * cos(a) - v_up * sin(a));
+    }
+    float len = vlen(m - b);
+    vector p0 = b + dir * (len * 0.6);
+    vector p1 = b + dir * len;
+    // The nearest of what the other hand brings to that half (the other gun's line in five points).
+    float d = 100000;
+    float side = 0; // (where the nearest was: above the barrels (> 0) or under them, by the gun's up)
+    entity held = VR_Carry_Held(self, other);
+    if(held != world && VR_Reload_IsRound(held))
+    {
+        return FALSE; // (a shell or a pair brought to its breech to load it: not a hit)
+    }
+    vector q = '0 0 0';
+    float t;
+    float k;
+    for(k = 0; k < 5; k++)
+    {
+        if(k == 0)
+        {
+            q = held != world ? held.origin : VRGetEntHandPos(self, other);
+        }
+        else if(VRGetEntWeapon(self, other) != WID_FIST)
+        {
+            vector om = other == cVR_MainHand ? self.muzzlepos : self.offmuzzlepos;
+            q = VRGetEntHandPos(self, other) + (om - VRGetEntHandPos(self, other)) * (k / 4);
+        }
+        else
+        {
+            break;
+        }
+        t = max(0, min(1, ((q - p0) * (p1 - p0)) / max(0.001, (p1 - p0) * (p1 - p0))));
+        if(vlen(p0 + (p1 - p0) * t - q) < d)
+        {
+            d = vlen(p0 + (p1 - p0) * t - q);
+            // (Where it came from, 50 ms before: on the barrels now, it hit them from that side.)
+            side = (q - (VRGetEntHandVel(self, other) - VRGetEntHandVel(self, xGunHand)) * (VRMetersToUnits() * 0.05) -
+                    (p0 + (p1 - p0) * t)) * up;
+        }
+    }
+    float reach = cvar_hget(cvarh_vr_reload_ssg_hit_reach);
+    if(d > reach)
+    {
+        return FALSE;
+    }
+    vector rel = VRGetEntHandVel(self, other) - VRGetEntHandVel(self, xGunHand);
+    vector want = xSide < 0 ? -up : up;
+    float speed = vlen(rel);
+    float along = rel * want;
+    float off = atan2(vlen(rel - want * along), along) * 57.2958;
+    float need = cvar_hget(xSide < 0 ? cvarh_vr_reload_ssg_hit_open_speed : cvarh_vr_reload_ssg_hit_close_speed);
+    float most = cvar_hget(xSide < 0 ? cvarh_vr_reload_ssg_hit_open_angle : cvarh_vr_reload_ssg_hit_close_angle);
+    if(cvar_hget(cvarh_vr_reload_debug) >= 2)
+    {
+        dprint(sprintf("reload: a hit on the super shotgun's barrels at %.2f m/s, %.0f deg off %s, %.1f units off them\n",
+            speed, off, xSide < 0 ? "down" : "up", d));
+    }
+    if(speed < need || off > most || side * xSide > 0)
+    {
+        return FALSE; // (too slow, from the side, or from the other side: going away)
+    }
+    vr_ssg_hitdesc = sprintf("a hit from %s at %.2f m/s (%.0f deg off)", xSide < 0 ? "above" : "below", speed, off);
+    return TRUE;
+};
+
+// Every player frame, for the super shotgun in `xHand` of self (VR_Reload_HandFrame): it opens by the flick (its hand's
+// flick bit rising: vr_reload_ssg_open_flick), the pry (the other hand's flick bit rising: the engine's vr_flick.cpp
+// sends it so, with both hands on it: vr_reload_ssg_pry), a hit from above (vr_reload_ssg_open_hit) or its B/Y
+// (vr_reload_ssg_open_button); open, it closes by the flick (vr_reload_ssg_close_flick), the barrels lifted (the other
+// hand's bit again: vr_reload_ssg_close_pry), a hit from below (vr_reload_ssg_close_hit) or by itself once both chambers
+// are loaded (vr_reload_ssg_close_auto). Each its own switch.
 void(float xHand) VR_Reload_SsgFrame =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
+    float other = VRGetOtherHand(xHand);
     float flick = VR_HandGrabUtil_IsHandReloadFlicking(self, xHand);
-    float flickWas = (self.vr_ssg_flick & bit) != 0;
-    self.vr_ssg_flick = self.vr_ssg_flick - (self.vr_ssg_flick & bit);
-    if(flick)
-    {
-        self.vr_ssg_flick = self.vr_ssg_flick | bit;
-    }
+    float pry = VR_HandGrabUtil_IsHandReloadFlicking(self, other);
+    float sec = VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_SECONDARY : QVR_VRBITS0_OFFHAND_SECONDARY);
+    float flickEdge = flick && !(self.vr_ssg_flick & bit);
+    float pryEdge = pry && !(self.vr_ssg_pry & bit);
+    float secEdge = sec && !(self.vr_ssg_sec & bit);
+    self.vr_ssg_flick = (self.vr_ssg_flick - (self.vr_ssg_flick & bit)) | (flick ? bit : 0);
+    self.vr_ssg_pry = (self.vr_ssg_pry - (self.vr_ssg_pry & bit)) | (pry ? bit : 0);
+    self.vr_ssg_sec = (self.vr_ssg_sec - (self.vr_ssg_sec & bit)) | (sec ? bit : 0);
     float f = VRGetEntWeaponFlags(self, xHand);
     if(VRGetEntWeapon(self, xHand) != WID_SUPER_SHOTGUN || !VR_Reload_ManualFor(WID_SUPER_SHOTGUN) || self.health <= 0 ||
        !self.ishuman || (f & QVR_WPNFLAG_FOREGRIP_CARRIED))
     {
+        self.vr_ssg_held = self.vr_ssg_held - (self.vr_ssg_held & bit);
         return;
     }
-    float open = f & QVR_WPNFLAG_SSG_OPEN;
-    // (The flick isn't sent with the other hand holding the gun: the pry is.)
-    float other = VRGetOtherHand(xHand);
-    string how = "a flick";
-    if(VRIsHandEmpty(self, other) && VR_HandGrabUtil_IsHandGrabbing(self, other))
+    // Both hands on it (the two-handed hold, until the other hand lets go): its hits are the pry's and the lift's.
+    float holding = VRIsHandEmpty(self, other) && VR_HandGrabUtil_IsHandGrabbing(self, other);
+    if(holding && VRGet2HAiming(self))
     {
-        how = "the pry";
+        self.vr_ssg_held = self.vr_ssg_held | bit;
     }
-    if(flick && !flickWas && VRIsWeaponReloadFlickingEnabledFor(self, xHand) && time >= self.vr_ssg_toggled + 0.35)
+    else if(!holding)
     {
-        if(!open)
+        self.vr_ssg_held = self.vr_ssg_held - (self.vr_ssg_held & bit);
+    }
+    if(time < self.vr_ssg_toggled + 0.35)
+    {
+        return;
+    }
+    float flicks = VRIsWeaponReloadFlickingEnabledFor(self, xHand);
+    if(!(f & QVR_WPNFLAG_SSG_OPEN))
+    {
+        if(flickEdge && flicks && cvar_hget(cvarh_vr_reload_ssg_open_flick))
         {
-            VR_Reload_SsgBreak(self, xHand, how);
+            VR_Reload_SsgBreak(self, xHand, "a flick");
         }
-        else
+        else if(pryEdge && cvar_hget(cvarh_vr_reload_ssg_pry))
         {
-            VR_Reload_SsgClose(self, xHand, how);
+            VR_Reload_SsgBreak(self, xHand, "the pry");
+        }
+        else if(secEdge && cvar_hget(cvarh_vr_reload_ssg_open_button))
+        {
+            VR_Reload_SsgBreak(self, xHand, "the button");
+        }
+        else if(cvar_hget(cvarh_vr_reload_ssg_open_hit) && VR_Reload_SsgHit(xHand, -1))
+        {
+            VR_Reload_SsgBreak(self, xHand, vr_ssg_hitdesc);
         }
         return;
     }
-    if(open && cvar_hget(cvarh_vr_reload_ssg_close_auto) && VRGetEntWeaponClip(self, xHand) >= 2 &&
-       time >= self.vr_ssg_toggled + 0.3)
+    if(flickEdge && flicks && cvar_hget(cvarh_vr_reload_ssg_close_flick))
+    {
+        VR_Reload_SsgClose(self, xHand, "a flick");
+    }
+    else if(pryEdge && cvar_hget(cvarh_vr_reload_ssg_close_pry))
+    {
+        VR_Reload_SsgClose(self, xHand, "the barrels lifted");
+    }
+    else if(cvar_hget(cvarh_vr_reload_ssg_close_hit) && VR_Reload_SsgHit(xHand, 1))
+    {
+        VR_Reload_SsgClose(self, xHand, vr_ssg_hitdesc);
+    }
+    else if(cvar_hget(cvarh_vr_reload_ssg_close_auto) && VRGetEntWeaponClip(self, xHand) >= 2 &&
+            time >= self.vr_ssg_toggled + 0.3)
     {
         VR_Reload_SsgClose(self, xHand, "itself (both loaded)");
     }
@@ -1251,6 +1394,10 @@ float(float xHand, entity r) VR_Reload_Load =
     r.vr_ammo_count = r.vr_ammo_count - n;
     VR_Reload_AmmoChanged(self);
     VR_Reload_Sound(self, VRGetGunChannel(gunHand), VR_Reload_ShellInSound(), 1);
+    if(w == WID_SUPER_SHOTGUN)
+    {
+        self.vr_ssg_loaded = time;
+    }
     VR_Reload_Haptic(self, xHand, 0.05, 160, 0.8);   // the shell pushed home
     VR_Reload_Haptic(self, gunHand, 0.08, 70, 0.7);  // the gun taking it
     VR_Reload_Log(sprintf("%g into the gun (hand %g): its magazine %g of %g, %g in the reserve", n, gunHand, clip + n,

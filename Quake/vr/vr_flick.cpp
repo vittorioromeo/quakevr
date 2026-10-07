@@ -54,11 +54,28 @@ constexpr int weaponFlagSsgOpen = 32; // QC's QVR_WPNFLAG_SSG_OPEN
     {
         return false;
     }
-    if(breaksOpen() && (cl.stats[main ? STAT_QVR_WEAPONFLAGS : STAT_QVR_WEAPONFLAGS2] & weaponFlagSsgOpen))
+    if(breaksOpen())
     {
-        return vr_reload_ssg_close_flick.value != 0.f;
+        // (Open by Flick, Close by Flick: each its own switch. Any shells in it are thrown out as it opens.)
+        const bool open = cl.stats[main ? STAT_QVR_WEAPONFLAGS : STAT_QVR_WEAPONFLAGS2] & weaponFlagSsgOpen;
+        return (open ? vr_reload_ssg_close_flick.value : vr_reload_ssg_open_flick.value) != 0.f;
     }
     return clip != clipSize;
+}
+
+// How fast (radians a second) the wrist must turn for a flick of the weapon in `hand`: the super shotgun that breaks open
+// its own speeds to flick it open and shut (vr_reload_ssg_flick_open_speed, _close_speed, degrees a second; the author:
+// even small flicks opened and shut it); else the classic flick reload's (vr_spinreload_x_angular_threshold).
+[[nodiscard]] float flickSpeed(int hand)
+{
+    using namespace protocol;
+    const bool main = hand == HAND_MAIN;
+    if(!breaksOpen() || cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2] != widSuperShotgun)
+    {
+        return vr_spinreload_x_angular_threshold.value;
+    }
+    const bool open = cl.stats[main ? STAT_QVR_WEAPONFLAGS : STAT_QVR_WEAPONFLAGS2] & weaponFlagSsgOpen;
+    return glm::radians(open ? vr_reload_ssg_flick_close_speed.value : vr_reload_ssg_flick_open_speed.value);
 }
 
 // The pry (vr_reload_ssg_pry): both hands on the super shotgun (the other hand's two-handed grip taken, its grip still
@@ -68,7 +85,8 @@ constexpr int weaponFlagSsgOpen = 32; // QC's QVR_WPNFLAG_SSG_OPEN
 // vr_reload_ssg_pry_speed degrees a second or more within the last quarter second: the front hand pushing the barrels
 // down against the back hand (or the stock lifted) breaks it open; open, as far the other way from its most (the front
 // hand lifting the barrels back) snaps it shut (vr_reload_ssg_close_pry). A steady two-handed aim never does: the hands
-// and the aim move together. Sent as the hand's flick bit for a moment (pried): the server toggles it on the edge.
+// and the aim move together. The lift has its own angle, speed and hold (vr_reload_ssg_lift_*). Sent as the OTHER
+// hand's flick bit for a moment (pried; its own is the flick): the server toggles it on the edge.
 struct Pry
 {
     bool armed{false};
@@ -79,6 +97,7 @@ struct Pry
     double downAt{-1.0}; // cl.time it last went down fast (the barrels pushed down), and up
     double upAt{-1.0};
     double sentAt{-1.0}; // cl.time the last toggle was sent (the bit held a moment; then a pause)
+    double liftSince{-1.0}; // cl.time the barrels were first lifted far and fast enough (vr_reload_ssg_lift_hold)
 };
 Pry pries[2];
 double prevTime = -1.0; // cl.time of the detection before this one
@@ -99,7 +118,7 @@ void updatePry(const hands::State& s, int hand, float dt)
     const bool main = hand == HAND_MAIN;
     const int other = 1 - hand;
     const bool ssg = cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2] == widSuperShotgun && breaksOpen() &&
-                     vr_reload_ssg_pry.value != 0.f;
+                     (vr_reload_ssg_pry.value != 0.f || vr_reload_ssg_close_pry.value != 0.f);
     if(!ssg || !client::grabbing(other) || (!p.armed && !twohand::helping(other)))
     {
         p.armed = false;
@@ -121,12 +140,11 @@ void updatePry(const hands::State& s, int hand, float dt)
     const float dev = a - p.base;
     const float rate = dt > 0.f ? (dev - p.prev) / dt : 0.f;
     p.prev = dev;
-    const float fast = vr_reload_ssg_pry_speed.value;
-    if(rate >= fast)
+    if(rate >= vr_reload_ssg_pry_speed.value)
     {
         p.downAt = cl.time;
     }
-    if(rate <= -fast)
+    if(rate <= -vr_reload_ssg_lift_speed.value)
     {
         p.upAt = cl.time;
     }
@@ -143,9 +161,19 @@ void updatePry(const hands::State& s, int hand, float dt)
         return;
     }
     const bool open = cl.stats[main ? STAT_QVR_WEAPONFLAGS : STAT_QVR_WEAPONFLAGS2] & weaponFlagSsgOpen;
-    const bool pry = !open && dev - p.lo >= need && p.downAt >= 0.0 && cl.time < p.downAt + 0.25;
-    const bool lift = open && vr_reload_ssg_close_pry.value != 0.f && p.hi - dev >= need && p.upAt >= 0.0 &&
-                      cl.time < p.upAt + 0.25;
+    const bool pry = !open && vr_reload_ssg_pry.value != 0.f && dev - p.lo >= need && p.downAt >= 0.0 &&
+                     cl.time < p.downAt + 0.25;
+    // The lift (the author: it shut by accident): its own angle and speed, and held that far for vr_reload_ssg_lift_hold.
+    const float liftNeed = vr_reload_ssg_lift_angle.value;
+    if(!open || vr_reload_ssg_close_pry.value == 0.f || p.hi - dev < liftNeed)
+    {
+        p.liftSince = -1.0;
+    }
+    else if(p.liftSince < 0.0 && p.upAt >= 0.0 && cl.time < p.upAt + 0.25)
+    {
+        p.liftSince = cl.time;
+    }
+    const bool lift = p.liftSince >= 0.0 && cl.time - p.liftSince >= za::fmax(vr_reload_ssg_lift_hold.value, 0.f);
     if(pry || lift)
     {
         p.sentAt = cl.time;
@@ -155,6 +183,7 @@ void updatePry(const hands::State& s, int hand, float dt)
                 main ? "main" : "off", static_cast<double>(pry ? dev - p.lo : p.hi - dev));
         }
         p.lo = p.hi = dev;
+        p.liftSince = -1.0;
     }
 }
 
@@ -200,7 +229,7 @@ void update(hands::State& s)
                     restUp[h] = up;
                 }
 
-                current[h] = speed >= vr_spinreload_x_angular_threshold.value && glm::dot(fwd, restUp[h]) > 0.6f;
+                current[h] = speed >= flickSpeed(h) && glm::dot(fwd, restUp[h]) > 0.6f;
                 if(current[h] && !before && spinLeft[h] <= 0.f)
                 {
                     Con_DPrintf("flick reload (%s hand, %.1f rad/s)\n", h == HAND_MAIN ? "main" : "off", speed);

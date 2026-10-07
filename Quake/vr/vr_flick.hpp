@@ -15,7 +15,7 @@ void update(hands::State& s);
 [[nodiscard]] bool flicking(int hand);
 
 // Whether both hands on the super shotgun in `hand` just pried it open or lifted its barrels shut (immersive reloading,
-// phase 2b): sent as its flick bit for a moment (vr_client.cpp), the server breaking it open or closing it.
+// phase 2b): sent as the other hand's flick bit for a moment (vr_client.cpp), the server breaking it open or closing it.
 [[nodiscard]] bool pried(int hand);
 
 // Whether the weapon in `hand` may be flick-reloaded now, by the gesture or the +flickreload commands: not held two-handed

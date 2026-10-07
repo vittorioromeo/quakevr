@@ -202,6 +202,9 @@ QVR_CVAR(vr_mock_grip_velocity, "0", CVAR_NONE)
 // legacy pose's velocity made with it, as VirtualDesktopXR 1.0.10 with the OpenXR backend's toLegacyPose does; its
 // runtime name then says VirtualDesktopXR (vr_angvel_frame -1); 0 (the default): in the tracking space, as OpenXR says.
 QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
+// Mock backend: 1 reports the hands' angular velocity from their turns (vr_mock_hand, vr_mock_hand_turn), as a runtime
+// would; 0 (the default): none (only vr_mock_play's motions carry it).
+QVR_CVAR(vr_mock_turn_velocity, "0", CVAR_NONE)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
@@ -2446,14 +2449,30 @@ QVR_CVAR(vr_reload_pull_apart, "10", CVAR_ARCHIVE)     // units further apart th
 QVR_CVAR(vr_reload_hit_reach, "2", CVAR_ARCHIVE)       // units from a seated magazine (its box, anywhere on it) a hit counts within (the fist, a held prop, the other gun's line)
 QVR_CVAR(vr_reload_pull_reach, "2", CVAR_ARCHIVE)      // units off the attached magazine's box within which a gripping hand holds it (0: on it)
 // The super shotgun broken open (phase 2b; vr_reload.qc; vr_view.cpp draws it open: make_ssg_open.py's parts).
-QVR_CVAR(vr_reload_ssg_break, "1", CVAR_ARCHIVE)       // with Immersive: its spent shells stay in; broken open (the flick, the pry) it throws them out and loads by hand (0: the flick reloads it as before)
-QVR_CVAR(vr_reload_ssg_open_angle, "35", CVAR_ARCHIVE) // degrees its barrels drop about the hinge, open (looks only; the load point goes with them)
-QVR_CVAR(vr_reload_ssg_pry, "1", CVAR_ARCHIVE)         // both hands on it (the two-handed hold), the front one pushing the barrels down against the back one breaks it open
-QVR_CVAR(vr_reload_ssg_pry_angle, "30", CVAR_ARCHIVE)  // degrees the front hand must go down from the back hand's aim (or the stock up), from its least since they took hold
-QVR_CVAR(vr_reload_ssg_pry_speed, "100", CVAR_ARCHIVE) // degrees a second it must be moving at (a steady two-handed aim never pries)
-QVR_CVAR(vr_reload_ssg_close_flick, "1", CVAR_ARCHIVE) // open, the flick closes it again
-QVR_CVAR(vr_reload_ssg_close_pry, "1", CVAR_ARCHIVE)   // open, the front hand lifting the barrels back (the reverse pry: as far, as fast) closes it
-QVR_CVAR(vr_reload_ssg_close_auto, "0", CVAR_ARCHIVE)  // open, it closes by itself once both chambers are loaded
+QVR_CVAR(vr_reload_ssg_break, "1", CVAR_ARCHIVE)       // with Immersive: its spent shells stay in; broken open (the ways below) it throws them out and loads by hand (0: the flick reloads it as before)
+QVR_CVAR(vr_reload_ssg_open_angle, "45", CVAR_ARCHIVE) // degrees its barrels drop about the hinge, open (looks only; the load point goes with them)
+// How it opens (each its own switch; opening throws every shell out, spent and live) and closes.
+QVR_CVAR(vr_reload_ssg_open_flick, "1", CVAR_ARCHIVE)  // open by the flick (the old flick reload's gesture)
+QVR_CVAR(vr_reload_ssg_pry, "1", CVAR_ARCHIVE)         // open by the pry: both hands on it (the two-handed hold), the front one pushing the barrels down against the back one
+QVR_CVAR(vr_reload_ssg_open_hit, "1", CVAR_ARCHIVE)    // open by a hit from above on the front of its barrels (a fist, a held prop, the other gun)
+QVR_CVAR(vr_reload_ssg_open_button, "1", CVAR_ARCHIVE) // open by its controller's B/Y
+QVR_CVAR(vr_reload_ssg_close_flick, "1", CVAR_ARCHIVE) // close by the flick
+QVR_CVAR(vr_reload_ssg_close_pry, "1", CVAR_ARCHIVE)   // close by lifting the barrels back with both hands on it (the reverse pry)
+QVR_CVAR(vr_reload_ssg_close_hit, "1", CVAR_ARCHIVE)   // close by a hit from below on the front of its open barrels
+QVR_CVAR(vr_reload_ssg_close_auto, "0", CVAR_ARCHIVE)  // close by itself once both chambers are loaded
+// Their thresholds.
+QVR_CVAR(vr_reload_ssg_flick_open_speed, "650", CVAR_ARCHIVE)  // degrees a second the wrist must turn to flick it open (the classic flick reload: vr_spinreload_x_angular_threshold)
+QVR_CVAR(vr_reload_ssg_flick_close_speed, "650", CVAR_ARCHIVE) // and to flick it shut
+QVR_CVAR(vr_reload_ssg_pry_angle, "60", CVAR_ARCHIVE)  // degrees the front hand must go down from the back hand's aim (or the stock up), from its least since they took hold
+QVR_CVAR(vr_reload_ssg_pry_speed, "250", CVAR_ARCHIVE) // degrees a second it must be moving at (a steady two-handed aim never pries)
+QVR_CVAR(vr_reload_ssg_lift_angle, "60", CVAR_ARCHIVE) // degrees the front hand must come back up from its most (the barrels lifted shut)
+QVR_CVAR(vr_reload_ssg_lift_speed, "300", CVAR_ARCHIVE) // degrees a second it must be moving at
+QVR_CVAR(vr_reload_ssg_lift_hold, "0.2", CVAR_ARCHIVE) // seconds it must stay lifted that far (a jolt doesn't shut it)
+QVR_CVAR(vr_reload_ssg_hit_reach, "6", CVAR_ARCHIVE)   // units from the front 40% of its barrels a hit lands within (a fist, a held prop's middle, the other gun's line)
+QVR_CVAR(vr_reload_ssg_hit_open_speed, "3", CVAR_ARCHIVE) // m/s a hit from above must come at to break it open (the hands' relative speed)
+QVR_CVAR(vr_reload_ssg_hit_open_angle, "40", CVAR_ARCHIVE) // degrees off straight down (the gun's own down, as held) it may come from
+QVR_CVAR(vr_reload_ssg_hit_close_speed, "3", CVAR_ARCHIVE) // m/s a hit from below must come at to snap it shut
+QVR_CVAR(vr_reload_ssg_hit_close_angle, "40", CVAR_ARCHIVE) // degrees off straight up (the gun's own up) it may come from
 QVR_CVAR(vr_reload_eject_button, "1", CVAR_ARCHIVE)    // the gun's controller's B/Y lets its magazine drop (0: off; weapon cycling keeps the button then)
 // Each gun's load point moved (model units of the gun: +x forward, +y left, +z up): the shotgun's port, the magazine
 // guns' wells (the lava nailguns' and the plasma gun's with theirs). vr_reload_show_ports draws them and their ranges.

@@ -637,25 +637,54 @@ void resetHandMoves()
     return {
         header("Break Open"),
         toggle("Break Open", "vr_reload_ssg_break")
-            .help("With Immersive: its fired shells stay in its barrels. Break it open (the flick, or the pry below) to "
-                  "throw them out (live ones too, to take again); it stays open, can't fire, and its chambers take the "
-                  "pouch's taped pair (always a pair for it) at its breech. Off: the flick reloads it as before."),
+            .help("With Immersive: its fired shells stay in its barrels. Break it open (the ways below) to throw them "
+                  "out, spent and live (live ones to take again); it stays open, can't fire, and its chambers take the "
+                  "pouch's taped pair at its breech (a single shell when one chamber is loaded). Off: the flick reloads it "
+                  "as before."),
         slider("Open Angle", "vr_reload_ssg_open_angle", 0.f, 90.f, 1.f, "%.0f deg")
             .help("How far its barrels drop about the hinge when it is open (looks; its load point goes with them)."),
-        toggle("Pry Open", "vr_reload_ssg_pry")
+        header("Open by"),
+        toggle("Open by Flick", "vr_reload_ssg_open_flick").help("A flick of the wrist (the muzzle snapped up) breaks it open."),
+        slider("Flick Open Speed", "vr_reload_ssg_flick_open_speed", 200.f, 1500.f, 25.f, "%.0f deg/s")
+            .help("How fast the wrist must turn to flick it open (higher: only a hard flick)."),
+        toggle("Open by Pry", "vr_reload_ssg_pry")
             .help("Holding it with both hands (the two-handed grip on its fore-end), push the barrels down with the front "
                   "hand against the back hand (or lift the stock): it breaks open."),
-        slider("Pry Angle", "vr_reload_ssg_pry_angle", 0.f, 90.f, 1.f, "%.0f deg")
+        slider("Pry Angle", "vr_reload_ssg_pry_angle", 10.f, 90.f, 1.f, "%.0f deg")
             .help("How far the front hand must go down from the back hand's aim (or the stock up) to pry it open."),
-        slider("Pry Speed", "vr_reload_ssg_pry_speed", 0.f, 800.f, 10.f, "%.0f deg/s").extend(0.f, 3000.f)
+        slider("Pry Speed", "vr_reload_ssg_pry_speed", 20.f, 600.f, 10.f, "%.0f deg/s")
             .help("How quickly: a steady two-handed aim never pries it open."),
-        toggle("Close by Flick", "vr_reload_ssg_close_flick")
-            .help("Open, the flick snaps it shut."),
+        toggle("Open by a Hit from Above", "vr_reload_ssg_open_hit")
+            .help("A fist, a held thing or the other gun hitting the front of its barrels from above (the gun's own up, "
+                  "as you hold it) forces it open."),
+        slider("Hit Open Speed", "vr_reload_ssg_hit_open_speed", 0.5f, 8.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
+            .help("How hard a hit from above must be to force it open."),
+        slider("Hit Open Angle", "vr_reload_ssg_hit_open_angle", 10.f, 90.f, 1.f, "%.0f deg")
+            .help("How far off straight down (the gun's own down) it may come from."),
+        toggle("Open by B/Y", "vr_reload_ssg_open_button").help("The B/Y button of the controller holding it breaks it open."),
+        header("Close by"),
+        toggle("Close by Flick", "vr_reload_ssg_close_flick").help("Open, a flick snaps it shut."),
+        slider("Flick Close Speed", "vr_reload_ssg_flick_close_speed", 200.f, 1500.f, 25.f, "%.0f deg/s")
+            .help("How fast the wrist must turn to flick it shut."),
         toggle("Close by Lifting the Barrels", "vr_reload_ssg_close_pry")
-            .help("Open and held with both hands, the front hand lifting the barrels back up (as far and as fast as the "
-                  "pry) snaps it shut."),
+            .help("Open and held with both hands, the front hand lifting the barrels back up snaps it shut."),
+        slider("Lift Angle", "vr_reload_ssg_lift_angle", 10.f, 90.f, 1.f, "%.0f deg")
+            .help("How far the front hand must come back up (from its lowest) to lift it shut."),
+        slider("Lift Speed", "vr_reload_ssg_lift_speed", 20.f, 600.f, 10.f, "%.0f deg/s")
+            .help("How quickly it must come up."),
+        slider("Lift Hold", "vr_reload_ssg_lift_hold", 0.f, 1.f, 0.05f, "%.2f s")
+            .help("How long it must stay lifted that far before it shuts (a jolt doesn't)."),
+        toggle("Close by a Hit from Below", "vr_reload_ssg_close_hit")
+            .help("Open, a fist, a held thing or the other gun hitting the front of its barrels from below snaps it shut."),
+        slider("Hit Close Speed", "vr_reload_ssg_hit_close_speed", 0.5f, 8.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
+            .help("How hard a hit from below must be to snap it shut."),
+        slider("Hit Close Angle", "vr_reload_ssg_hit_close_angle", 10.f, 90.f, 1.f, "%.0f deg")
+            .help("How far off straight up (the gun's own up) it may come from."),
         toggle("Close When Loaded", "vr_reload_ssg_close_auto")
             .help("Open, it snaps shut by itself once both chambers are loaded."),
+        header("Hits (Above and Below)"),
+        slider("Hit Reach", "vr_reload_ssg_hit_reach", 1.f, 15.f, 0.5f, "%.1f units")
+            .help("How near the front half of its barrels a hit (from above or below) must land."),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
@@ -945,7 +974,7 @@ void resetHandMoves()
                   "Immersive."),
         header("Weapons"),
         open("Shotgun", pageIndex(pageReloadShotgun)).help("Its shells (pairs, their pose) and its loading port."),
-        open("Super Shotgun", pageIndex(pageReloadSuperShotgun)).help("Broken open: the flick, the pry, closing it; its breech."),
+        open("Super Shotgun", pageIndex(pageReloadSuperShotgun)).help("Broken open: each way to open and close it, their thresholds; its breech."),
         open("Nailgun", pageIndex(pageReloadNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Super Nailgun", pageIndex(pageReloadSuperNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Thunderbolt", pageIndex(pageReloadThunderbolt)).help("Its well, its cell's top, its receiver, the hand holding the cell, pulling it out."),
