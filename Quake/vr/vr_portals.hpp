@@ -126,8 +126,10 @@ struct LightGate
 };
 // One traversal only, through active apertures reached from the light's front side.
 int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacity);
-// A rigid body's bounds crossing a fitting aperture. Either room can be its owner.
-bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, float margin = 0.f);
+// A rigid body's bounds crossing a fitting aperture. Either room can be its owner. An exit with no gate of its own (a
+// destination in the open: its aperture is only where things come out) splits only what moves out of it (`velocity`,
+// units a second; none: nothing): else a prop resting where a gate leads was cut there.
+bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, float margin = 0.f, const glm::vec3* velocity = nullptr);
 
 // An eye ahead of the body through a gate (the head leaning or walking in before the torso, which is what the gate
 // carries; or still behind once the body is through): the line from `body` (the body's axis at the eye's height) to

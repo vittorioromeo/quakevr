@@ -7,7 +7,10 @@ Erin Catto's 3D rigid-body physics engine, the successor to Box2D. MIT licence (
 - Commit: `5643cd81ff07fd0497e3bfcdf04f6425cc8a2e7f` (2026-09-25, "Remove compound mesh child material limit. (#172)")
 
 Only the library is vendored: `src/` (the C17 sources and their private headers) and `include/box3d/` (the
-public C API), unchanged. Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
+public C API), unchanged but for one local change, marked `QVR` (keep it when updating): `src/mesh_contact.c`
+b3ComputeMeshManifolds asks the pre-solve callback for a mesh's contact points too (upstream asks it only in the convex
+path, once a contact), so that a prop passing through a slipgate does not collide with the wall behind it
+(`vr_box3d.cpp` preSolve, the portal copies). Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
 
 Quake VR uses it in `Quake/vr/vr_box3d.cpp` (see `docs/vr-port/ROUND21.md`, "Box3D
 physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`):

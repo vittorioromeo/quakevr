@@ -837,6 +837,35 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 
 	B3_ASSERT( acceptedManifoldCount <= triangleCount );
 
+	// QVR (local change, README.md): the pre-solve callback for mesh contacts too, point by point (the convex path asks
+	// it once a contact, and only for contacts made after a shape enabled it: a mesh's contact lasts the body's life).
+	// Quake VR's slipgate split drops a prop's contacts with the wall behind a gate it is passing through.
+	if ( world->preSolveFcn && ( ( shapeA->flags | shapeB->flags ) & b3_enablePreSolveEvents ) )
+	{
+		b3ShapeId shapeIdA = { shapeA->id + 1, world->worldId, shapeA->generation };
+		b3ShapeId shapeIdB = { shapeB->id + 1, world->worldId, shapeB->generation };
+		int kept = 0;
+		for ( int i = 0; i < acceptedManifoldCount; ++i )
+		{
+			b3LocalManifold* m = acceptedManifolds[i];
+			int pointCount = 0;
+			for ( int j = 0; j < m->pointCount; ++j )
+			{
+				b3Pos point = b3OffsetPos( xfB.p, b3RotateVector( xfB.q, m->points[j].point ) );
+				if ( world->preSolveFcn( shapeIdA, shapeIdB, point, b3RotateVector( xfB.q, m->normal ), world->preSolveContext ) )
+				{
+					m->points[pointCount++] = m->points[j];
+				}
+			}
+			m->pointCount = pointCount;
+			if ( pointCount > 0 )
+			{
+				acceptedManifolds[kept++] = m;
+			}
+		}
+		acceptedManifoldCount = kept;
+	}
+
 	if ( acceptedManifoldCount == 0 )
 	{
 		if ( contact->manifoldCount > 0 )

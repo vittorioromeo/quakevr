@@ -6946,6 +6946,10 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
 // kinematic spheres, wedged it into the wall: Box3D threw it off at 10 to 15 m/s. ROUND21.md, "Props regressions".)
 bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
 {
+    // The level's mesh asks too, point by point (a local change to Box3D's mesh contacts: a prop passing through a
+    // slipgate must not meet the wall behind it): only the portal copies' clip planes concern it.
+    const bool level = B3_ID_EQUALS(a, world->worldShape) || B3_ID_EQUALS(b, world->worldShape);
+    if(level && world->portalCopies.empty()) { return true; }
     for(const World::PortalCopy& copy : world->portalCopies)
     {
         for(const b3ShapeId shape : {a, b})
@@ -6955,6 +6959,7 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
             if(clip && glm::dot(*clip, glm::vec4{world->toU(point), 1.f}) < -0.03125f) { return false; }
         }
     }
+    if(level) { return true; }
 
     const bool aPlayer = (b3Shape_GetFilter(a).categoryBits & catPlayer) != 0;
     if(aPlayer || (b3Shape_GetFilter(b).categoryBits & catPlayer) != 0)
@@ -7027,7 +7032,8 @@ void syncPortalCopies(float dt)
         const glm::vec3 lo = glm::min(glmv(box.lowerBound), glmv(box.lowerBound) + step);
         const glm::vec3 hi = glm::max(glmv(box.upperBound), glmv(box.upperBound) + step);
         portals::LightGate gate;
-        if(!portals::splitBounds(world->toU(b3v(lo)), world->toU(b3v(hi)), gate, 4.f)) { return; }
+        const glm::vec3 velocity = world->toU(b3Body_GetLinearVelocity(body));
+        if(!portals::splitBounds(world->toU(b3v(lo)), world->toU(b3v(hi)), gate, 4.f, &velocity)) { return; }
         World::PortalCopy c;
         c.original = body;
         c.turn = gate.turn;
