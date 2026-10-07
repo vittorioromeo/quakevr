@@ -1,9 +1,11 @@
 # HQ texture pack (PNG)
 
 The high-resolution textures the author plays Quake VR with, in one package: extract it into your Quake folder and
-the game looks exactly as it does on his PC. Download: the **`textures-2026-10-03`** release of
-[github.com/vittorioromeo/quakevr](https://github.com/vittorioromeo/quakevr/releases/tag/textures-2026-10-03),
-asset `quakevr-hq-textures-png-2026-10-03.zip`.
+the game looks exactly as it does on his PC. Download: the **`assets-2026-10-08`** release of
+[github.com/vittorioromeo/quakevr](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-10-08) (the
+support files; the installer's HD textures come from there), asset `quakevr-hq-textures-png-2026-10-03.zip`
+(614,919,925 bytes, SHA-256 `0c0df0e7b19525ba3fabfd1a88cce871b4b1321a5cae0134d5ae21636116b706`; first published as
+the `textures-2026-10-03` release).
 
 ## Install
 

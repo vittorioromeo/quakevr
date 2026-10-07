@@ -239,8 +239,9 @@ uses `vr_relight_tool` (the full path of a `light.exe`), the `ERICW_LIGHT` envir
 `PATH`. The page's Tool line says which one it found.
 
 When it finds none, the page offers **Download ericw-tools (27.5 MB)** (the console: `vr_relight_get_tool`). The game
-downloads ericw-tools 2.0.0-alpha11's Windows release zip from
-[its GitHub release](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11), always that exact file:
+downloads ericw-tools 2.0.0-alpha11's Windows release zip from Quake VR's
+[support-files release](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-10-08), then, if that
+fails, from [ericw-tools' own release](https://github.com/ericwa/ericw-tools/releases/tag/2.0.0-alpha11); always that exact file:
 it checks its size and SHA-256 (`4e5ea11b...0745f`) and unpacks nothing from a file that does not match. It keeps
 only what `light` needs and the licence texts (`light.exe`, `embree4.dll`, `tbb12.dll`, `tbbmalloc.dll`,
 `gpl_v3.txt`, `LICENSE-embree.txt`, `README.md`) plus a `NOTICE.txt`, in `quakevr\tools\ericw-tools\` of the folder
@@ -251,8 +252,8 @@ build ericw-tools and set `vr_relight_tool`). `vr_relight_get_tool status` print
 goes and the pinned file; `vr_relight_get_tool force` downloads it again even when a `light.exe` is found.
 
 For testing, `vr_relight_tool_dir <folder>` makes that folder the only place looked in (after `vr_relight_tool`) and
-the place the download goes, and `vr_relight_tool_url <url>` downloads from elsewhere (the file must still match the
-pinned SHA-256). The author's own copy (`C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64`, as `relight_maps.py`'s
+the place the download goes, and `vr_relight_tool_url "<url> [<url>...]"` downloads from elsewhere, the mirrors in order (the file must still match
+the pinned SHA-256). The author's own copy (`C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64`, as `relight_maps.py`'s
 default) is looked in last, and only at Menu Detail: Developer (`vr_menu_level 2`).
 
 1. Load the map, open the page, set the sliders.

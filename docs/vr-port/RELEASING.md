@@ -21,8 +21,10 @@ Before publishing, install the release the way a player gets it, without GitHub 
 
 1. **Build a local test release** (the same build, checks and package as a real one; nothing online, no tag):
    `powershell -ExecutionPolicy Bypass -File Misc\release\make_release.ps1 -Local -RunInstaller -QuakeDir <Quake>`
-   (add `-Textures <zip>` and `-EricwSource <zip>` as for the real release). It writes `out\release\<v>-local\`, whose
-   `latest.json` points at `http://127.0.0.1:8517/<file>` (`-LocalPort` to change it). Never upload those assets.
+   It writes `out\release\<v>-local\`, whose `latest.json` points at `http://127.0.0.1:8517/<file>` (`-LocalPort` to
+   change it). Never upload those assets. Its `hdtextures` still points at the hosted pack on GitHub ("Support files"
+   below: the local server does not have it), so ticking HD textures downloads the real 0.6 GB; `-Textures <zip>`
+   serves a copy locally instead, `-NoTextures` leaves it out.
 2. With `-RunInstaller` it then runs `Misc\release\test_local_release.ps1`: a small server (`qvr-setup serve`, its own
    window, 127.0.0.1 only) serves `assets\`, and the built `QuakeVR-Setup.exe` starts with
    `--feed http://127.0.0.1:8517/latest.json --sandbox %TEMP%\QuakeVR-test-<v>-<time>`. A yellow **TEST FEED /
@@ -42,16 +44,35 @@ Before publishing, install the release the way a player gets it, without GitHub 
 The installer takes the same feed from `QVR_SETUP_FEED` (one URL, or several separated by `;`) and `qvr-setup` too
 (`feed`, `install --feed`).
 
+## Support files
+
+The HD texture pack and ericw-tools' zips are hosted once, on their own GitHub release
+[`assets-2026-10-08`](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-10-08) (not marked latest),
+and every game release links them instead of uploading them again. `Misc\release\support_assets.json` lists that
+release's tag, its URL template and each file's size and SHA-256 (as GitHub reports them):
+
+| Key | File | Used by |
+|---|---|---|
+| `hdtextures` | `quakevr-hq-textures-png-2026-10-03.zip` (614,919,925 bytes) | latest.json's `hdtextures` component (the installer's HD textures) |
+| `ericw_source` | `ericw-tools-2.0.0-alpha11-src.zip` (86,236,331 bytes) | the release notes' "Source of ericw-tools' light.exe" link (GPL-3: the package ships `light.exe`) |
+| `ericw_win64` | `ericw-tools-2.0.0-alpha11-win64.zip` (27,503,991 bytes, = ericw's own download) | the in-game Download ericw-tools' first mirror (`vr_relight_tool.cpp` pins it separately) |
+
+- By default the script writes latest.json's `hdtextures` from that file (the hosted URL first, then each `-UrlBase`
+  that is not GitHub's or local, with the support tag), and links the source zip from the release notes. Before a
+  build (not `-DryRun`, not `-Local`) it reads the support release from GitHub's API (each file's size and `digest`)
+  and sends a HEAD request to each URL: nothing is downloaded. A mismatch stops `-Publish`.
+- `-Textures <zip>` / `-EricwSource <zip>` upload a copy with this release instead (overrides); `-NoTextures` leaves
+  the `hdtextures` component out (the installer then offers no HD textures).
+- A new texture pack: create a new support release (`assets-<date>`) with the new zip, and update
+  `support_assets.json` (tag, file, size, sha256). Never replace a file on an existing support release: old
+  latest.json files and the game pin its hash.
+
 ## Step by step
 
 1. **Commit and push** the branch you release from (`vr-ironwail` today, `master` later: the script reads the
    current branch and its upstream). The tree must be clean (tracked files): the build names its commit.
 2. **Have the extra files at hand** (once):
-   - ericw-tools' source zip, `ericw-tools-2.0.0-alpha11-src.zip`: the package ships ericw-tools' `light.exe` (GPL-3),
-     so its source goes beside it on the release page. Make it once with
-     `git clone --recursive --branch 2.0.0-alpha11 https://github.com/ericwa/ericw-tools` and zip the folder
-     (INSTALLER.md, "Release checklist"). Pass it with `-EricwSource <zip>`, or set `QVR_ERICW_SRC`.
-   - The HD texture pack's zip, if the release offers it: `-Textures <zip>` (latest.json's `hdtextures` component).
+   - Nothing for the HD textures or ericw-tools' source: they are hosted ("Support files" above).
    - A Quake folder (with `id1\pak0.pak`) for the smoke launch: `-QuakeDir <folder>`, or set `QVR_QUAKE_DIR`. Without
      one the launch is skipped with a warning. The paks are linked (or copied) into `out\release\<version>\checks\smoke`,
      never uploaded, and nothing is written into the Quake folder.
@@ -61,7 +82,7 @@ The installer takes the same feed from `QVR_SETUP_FEED` (one URL, or several sep
    other than `VERSION`'s without `-BumpVersion` stops the script; without `-Version` it releases `VERSION`'s.
 4. **Dry run**: `make_release.ps1 -DryRun` checks everything below and prints the plan, without
    building or calling `gh`. Fix any `PROBLEM` line.
-5. **Build and check** without publishing: `make_release.ps1 -EricwSource <zip> -QuakeDir <Quake>`. It
+5. **Build and check** without publishing: `make_release.ps1 -QuakeDir <Quake>`. It
    takes a few minutes; read the summary (also in `out\release\1.0.0\PUBLISH.txt`) and, if you like, edit
    `out\release\1.0.0\release-notes.md`, then pass it back with `-Notes` in the next step.
 6. **Publish (draft)**: the same command with `-Publish` (and `-Notes out\release\1.0.0\release-notes.md` if you edited
@@ -92,7 +113,7 @@ would list the ~1900 commits since `v0.8.2` (cut at 150): write those notes your
 | Engine + QuakeC | `MSBuild ironwail.sln` Release x64 (incremental; `-Rebuild` for a full one) with `/p:QvrReleaseVersion=<version>` and the fteqcc found (the build compiles `QC\progs.src`) |
 | Package | `Windows\package-quakevr.ps1 -Dist out\release\<v>\package\QuakeVR -NoZip -Version "<v> (<date> <hash>)"`: the allowlist (tracked files under `quakevr\`, less development data, plus progs.dat), the engine files, the relighting tools, ericw-tools' light.exe, `manifest.json` |
 | Installer | `dotnet publish` of `QuakeVR.Installer`, Release, win-x64, self-contained, single file (native libraries inside, compressed), `/p:Version=<version>`; fails if anything but `QuakeVR-Setup.exe` (and its .pdb) is left beside it; then the installer's self-tests (`tests\QuakeVR.Installer.SelfTest`) |
-| Assets | `Misc\quakevr\make_release.py`: `QuakeVR.zip` (zipped from the package after checking every file against the manifest), `QuakeVR-Setup.exe`, the texture pack, the ericw-tools source and `-Assets`, and `latest.json` (schema 1, the installer's `ReleaseFeed`) |
+| Assets | `Misc\quakevr\make_release.py`: `QuakeVR.zip` (zipped from the package after checking every file against the manifest), `QuakeVR-Setup.exe`, `-Textures` / `-EricwSource` copies and `-Assets` if given, and `latest.json` (schema 1, the installer's `ReleaseFeed`; `hdtextures` the hosted pack of `support_assets.json` by default) |
 | Checks | the zip holds exactly `package-quakevr.ps1 -DryRun`'s list (and none of id's files: no `id1/`, `hipnotic/`, `rogue/`, `pak*.pak`, `gfx.wad`); `qvr-setup feed --file latest.json --assets <folder>` parses it as the installer does and checks each file's size and SHA-256; the packaged `QuakeVR-Setup.exe` installs the zip offline with its off-screen harness into `checks\setup` (no registry, no real shortcuts) and `qvr-setup verify` checks the install; the packaged `ironwail.exe`, unpacked from the zip, loads `start` with the mock headset (hidden window, `vr_mock_fast`), quits cleanly and names the build in its console |
 | Notes | `-Notes <file>`, or the commit subjects since the previous `v*` tag (the last 60 commits for the first release), plus a table of the files with their sizes and SHA-256 and the SmartScreen note; `SHA256SUMS.txt` is an asset too |
 | Publish | `-PushTag` or `-Publish`: an annotated tag `v<version>` on HEAD (reused when it is already there), pushed alone (`git push <remote> refs/tags/v<version>`); `-Publish`: `gh release create v<version> <assets> --verify-tag --draft` (`--prerelease` for `x.y.z-suffix`; `--latest` with `-NoDraft`) |

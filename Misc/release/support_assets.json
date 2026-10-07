@@ -1,0 +1,24 @@
+{
+  "_comment": "The long-lived support files, hosted once on their own GitHub release (not marked latest) and linked by every game release: make_release.ps1 / make_release.py read this file (docs/vr-port/RELEASING.md, 'Support files'). Sizes and SHA-256 as GitHub reports them (gh api repos/vittorioromeo/quakevr/releases/tags/assets-2026-10-08: each asset's size and digest). Quake/vr/vr_relight_tool.cpp pins ericw_win64 separately.",
+  "repo": "vittorioromeo/quakevr",
+  "tag": "assets-2026-10-08",
+  "url": "https://github.com/vittorioromeo/quakevr/releases/download/{tag}/{file}",
+  "files": {
+    "hdtextures": {
+      "file": "quakevr-hq-textures-png-2026-10-03.zip",
+      "size": 614919925,
+      "sha256": "0c0df0e7b19525ba3fabfd1a88cce871b4b1321a5cae0134d5ae21636116b706"
+    },
+    "ericw_source": {
+      "file": "ericw-tools-2.0.0-alpha11-src.zip",
+      "size": 86236331,
+      "sha256": "551cf5df6ca71b79b3221775f27c55bdd7d9ed71abac5f38591255a886da3bcd"
+    },
+    "ericw_win64": {
+      "file": "ericw-tools-2.0.0-alpha11-win64.zip",
+      "size": 27503991,
+      "sha256": "4e5ea11be2194a1c4acac6d6da9d5b5b9f65324fda2d67efa0731d1fd8e0745f",
+      "mirrors": ["https://github.com/ericwa/ericw-tools/releases/download/2.0.0-alpha11/ericw-tools-2.0.0-alpha11-win64.zip"]
+    }
+  }
+}

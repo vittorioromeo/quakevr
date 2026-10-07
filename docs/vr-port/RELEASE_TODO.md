@@ -7,14 +7,14 @@ Short list. The full procedure is in [RELEASING.md](RELEASING.md).
 - [ ] **Version:** `VERSION` says `0.9.0`. Keep it, or bump to `1.0.0`.
 - [ ] **Release branch:** make `vr-ironwail` the main branch now or later. The script follows whatever branch you're on.
 - [ ] **Second feed:** keep `vittorioromeo.com/quakevr/latest.json` as a fallback, or drop it from the installer. GitHub alone is enough.
-- [ ] **HD texture pack:** ship it in this release (`-Textures <zip>`) or not.
+- [ ] **HD texture pack:** offered by default from the hosted `assets-2026-10-08` release (no upload); `-NoTextures` to leave it out.
 - [ ] **Debug symbols:** `ironwail.pdb` is inside the game zip. Keep it there, or move it to a separate symbols zip.
 - [ ] **Discord icon:** the installer's icon is hand-drawn. Keep it, or swap in Discord's official asset.
 - [ ] **Dawn of the Machine (MG3):** still shows "detected, not yet supported". Ship as is, or wait for its last steps (performance pass, route sweep, readiness flip).
 
 ## Prepare once
 
-- [ ] **ericw-tools source zip** (GPL; required because `light.exe` ships): `git clone --recursive --branch 2.0.0-alpha11 https://github.com/ericwa/ericw-tools`, zip it as `ericw-tools-2.0.0-alpha11-src.zip`, then set `QVR_ERICW_SRC` to its path.
+- **ericw-tools source zip** (GPL; required because `light.exe` ships): nothing to prepare, it is hosted on the `assets-2026-10-08` release; the release notes link it (RELEASING.md, "Support files"). Nothing to set.
 - [ ] **Smoke-test Quake folder:** set `QVR_QUAKE_DIR` to your Quake folder (the one with `id1\pak0.pak`).
 - [ ] **GitHub CLI:** check `gh auth status` shows you logged in.
 - [ ] **Your site** (only if you keep the second feed): create the `/quakevr/` folder.

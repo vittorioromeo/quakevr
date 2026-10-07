@@ -252,7 +252,7 @@ ModDB instead: `QuakeRevitalizationProject.7z` (1.26 GB), a complete compilation
 included. A mirror will be available on [vittorioromeo.com](https://vittorioromeo.com).
 
 **The easy way:** download `quakevr-hq-textures-png-2026-10-03.zip` from the
-[HQ texture pack (PNG)](https://github.com/vittorioromeo/quakevr/releases/tag/textures-2026-10-03) release and extract
+[Quake VR support files](https://github.com/vittorioromeo/quakevr/releases/tag/assets-2026-10-08) release and extract
 it into your Quake folder. It is the author's installed QRP pack, converted losslessly to PNG, for Quake and both mission
 packs ([vr-port/TEXTURES.md](vr-port/TEXTURES.md): contents, credits, licence). Then see step 3 below.
 

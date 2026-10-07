@@ -22,7 +22,9 @@ const string Usage = """
     qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--file <vc_redist.x64.exe>] [--assume-missing]] [--downloads <dir>]
     qvr-setup download --url <url> [--url <mirror>...] --out <file> [--size <bytes>] [--sha256 <hex>]
     qvr-setup feed [--url <latest.json url>]                  (default: QVR_SETUP_FEED, else the release hosts' feeds)
-    qvr-setup feed --file <latest.json> [--assets <folder with its files>]   (exit 1 when a file's size or SHA-256 differs)
+    qvr-setup feed --file <latest.json> [--assets <folder with its files>] [--hosted <component>]...
+                      (exit 1 when a file's size or SHA-256 differs; a --hosted component is hosted elsewhere, e.g.
+                       hdtextures on the support-files release: not looked for in the folder)
     qvr-setup assets --game <id1 folder> [--map <maps/x.bsp>] [--prefix <path prefix>]
     qvr-setup serve --dir <folder> [--port <n>] [--drop-after <bytes>] [--minutes <n>] [--log <file>]
                     (a local release's assets over HTTP on 127.0.0.1, with Range; --drop-after cuts each file's first
@@ -271,12 +273,18 @@ try
             {
                 // Each file the feed names, beside it: the size and SHA-256 the installer will check after downloading.
                 var bad = 0;
+                var hosted = options.TryGetValue("hosted", out var h) ? h : [];
                 foreach (var (what, f) in feed.Components.Select(c => (c.Key, (FeedFile?)c.Value)).Prepend(("package", feed.Package)))
                 {
                     if (f is null)
                     {
                         Console.WriteLine($"{what}: missing from the feed");
                         ++bad;
+                        continue;
+                    }
+                    if (hosted.Contains(what, StringComparer.OrdinalIgnoreCase))
+                    {
+                        Console.WriteLine($"{what}: {f.File} hosted, not in the folder ({PathUtil.FormatSize(f.Size)}, sha256 {f.Sha256[..16]}...; {f.Urls.Count} url(s), first {f.Urls[0]})");
                         continue;
                     }
                     var path = Path.Combine(assetsDir, f.File);

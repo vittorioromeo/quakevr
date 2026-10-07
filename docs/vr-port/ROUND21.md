@@ -30476,3 +30476,24 @@ The author's notes vrfiringrange_2026-10-08_00-02-05 and 00-02-55, vrstart_2026-
   boxes overlap (vrstart: 5 pairs before, 0 after).
 - Test note: a wall button's command (QC `localcmd`) runs after every command already queued, so a `-Script` can't see
   its effect before it ends: press it to see `vr_debug_wallbuttons` name it, and run its command to test the command.
+
+## Support files hosted once: assets-2026-10-08 (2026-10-08)
+
+The HD texture pack and ericw-tools' zips now live on their own GitHub release, `assets-2026-10-08` (not latest), and
+releases link them instead of re-uploading them. `Misc/release/support_assets.json` lists its tag, URL template and
+each file's size and SHA-256 (checked against GitHub's API `digest`s on 2026-10-08).
+
+- **make_release.ps1 / make_release.py**: latest.json's `hdtextures` is the hosted pack by default (its URL first, then
+  any non-GitHub, non-local `-UrlBase` with the support tag; nothing copied). The release notes link it and "Source of
+  ericw-tools' light.exe: <hosted src zip>"; `-Publish` no longer needs `-EricwSource` (nor `QVR_ERICW_SRC`, dropped as
+  a default). Before a real build it reads the support release from the API (size, digest) and HEADs each URL; a
+  mismatch is a PROBLEM for `-Publish`, a warning otherwise; skipped with `-DryRun`/`-Local`. Overrides: `-Textures`,
+  `-EricwSource` (upload a copy), `-NoTextures`. `-Local` keeps the GitHub URL for hdtextures and says so (ticking HD
+  textures in a local test downloads the real pack). `qvr-setup feed --file ... --assets ... --hosted hdtextures`
+  checks the rest of the folder and reports the hosted one.
+- **Installer**: no hard-coded texture or ericw URLs existed (textures come from latest.json with its size/SHA-256;
+  ericw-tools ships in the package; VisPatch stays on SourceForge), so nothing changed beyond the CLI's `--hosted`.
+- **In-game Download ericw-tools** (`vr_relight_tool.cpp`): mirrors in order, the support release first, then
+  ericw-tools' own; a mirror that fails (HTTP error, or a file that is not the pinned one) passes to the next, and the
+  console names each failure. `vr_relight_tool_url` takes several URLs separated by spaces. Verified with a local
+  server: 404, then a truncated zip (hash mismatch), then the real zip installed.

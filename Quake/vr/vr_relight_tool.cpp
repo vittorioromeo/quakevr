@@ -28,10 +28,15 @@ namespace
 {
 
 // The one file: ericw-tools 2.0.0-alpha11's Windows release (27,503,991 bytes; the sha256 of that file as GitHub serves
-// it). The URL can be pointed elsewhere for a test (vr_relight_tool_url): whatever it serves must still be this file.
+// it), from its mirrors in order: Quake VR's support-files release (Misc/release/support_assets.json, the same file),
+// then ericw-tools' own release. A mirror that fails (no answer, or not this file) passes to the next. The URLs can be
+// pointed elsewhere for a test (vr_relight_tool_url: one, or several separated by spaces): whatever they serve must still be this file.
 constexpr const char* version = "2.0.0-alpha11";
-constexpr const char* releaseUrl =
-    "https://github.com/ericwa/ericw-tools/releases/download/2.0.0-alpha11/ericw-tools-2.0.0-alpha11-win64.zip";
+constexpr const char* releaseUrls[] = {
+    "https://github.com/vittorioromeo/quakevr/releases/download/assets-2026-10-08/ericw-tools-2.0.0-alpha11-win64.zip",
+    "https://github.com/ericwa/ericw-tools/releases/download/2.0.0-alpha11/ericw-tools-2.0.0-alpha11-win64.zip",
+};
+constexpr int releaseUrlCount = static_cast<int>(sizeof(releaseUrls) / sizeof(releaseUrls[0]));
 constexpr const char* releaseSha = "4e5ea11be2194a1c4acac6d6da9d5b5b9f65324fda2d67efa0731d1fd8e0745f";
 constexpr za::U64 releaseBytes = 27503991;
 constexpr za::U64 maxBytes = 64ull * 1024 * 1024; // a server sending more is stopped
@@ -83,6 +88,7 @@ enum class Phase
 SDL_atomic_t cancelFlag{};
 SDL_atomic_t livePhase{};
 SDL_atomic_t liveBytes{};
+SDL_atomic_t liveMirror{}; // (the index of the mirror being tried)
 SDL_atomic_t quitting{};
 za::Atomic<bool> jobRunning{false};
 za::Thread worker;
@@ -90,7 +96,7 @@ za::Thread worker;
 // Set on the main thread before the worker starts, then only read by it.
 struct Request
 {
-    za::String url;
+    za::Vector<za::String> urls; // the mirrors, in order
     za::String dir; // the install folder
     za::String tmp; // <dir>.download
 };
@@ -170,15 +176,15 @@ size_t readFromMemory(void* opaque, mz_uint64 ofs, void* buf, size_t n)
     return dir + "/" + name;
 }
 
-// The download, into memory, checked against the pinned size and sha256.
-[[nodiscard]] bool download(za::Vector<char>& body, za::String& why)
+// One mirror's download, into memory, checked against the pinned size and sha256.
+[[nodiscard]] bool downloadFrom(const za::String& url, za::Vector<char>& body, za::String& why)
 {
     download_t dl{};
     dl.write_fn = writeChunk;
     dl.write_data = &body;
     dl.abort = &cancelFlag;
     tooBig = false;
-    const bool ok = Download(request.url.cStr(), &dl);
+    const bool ok = Download(url.cStr(), &dl);
     if(cancelled())
     {
         why = cancelText();
@@ -208,6 +214,56 @@ size_t readFromMemory(void* opaque, mz_uint64 ofs, void* buf, size_t n)
         return false;
     }
     return true;
+}
+
+// The mirrors in order until one serves the pinned file; why: each one's failure.
+[[nodiscard]] bool download(za::Vector<char>& body, za::String& why)
+{
+    za::String whys;
+    for(za::SizeT i = 0; i < request.urls.size(); ++i)
+    {
+        body.clear();
+        SDL_AtomicSet(&liveBytes, 0);
+        SDL_AtomicSet(&liveMirror, static_cast<int>(i));
+        SDL_AtomicSet(&livePhase, static_cast<int>(Phase::Download));
+        za::String one;
+        if(downloadFrom(request.urls[i], body, one))
+        {
+            return true;
+        }
+        if(cancelled())
+        {
+            why = one;
+            return false;
+        }
+        whys += whys.empty() ? "" : "; ";
+        whys += request.urls[i] + ": " + one;
+    }
+    why = request.urls.size() > 1 ? "no mirror served it (" + whys + ")" : whys;
+    return false;
+}
+
+// The mirrors: vr_relight_tool_url's (separated by spaces or ';'), else the pinned ones.
+void setUrls()
+{
+    request.urls.clear();
+    const char* p = vr_relight_tool_url.string;
+    while(*p)
+    {
+        const za::SizeT n = static_cast<za::SizeT>(strcspn(p, "; 	"));
+        if(n > 0)
+        {
+            request.urls.emplaceBack(za::String{p, n});
+        }
+        p += n + (p[n] ? 1 : 0);
+    }
+    if(request.urls.size() == 0)
+    {
+        for(const char* url : releaseUrls)
+        {
+            request.urls.emplaceBack(za::String{url});
+        }
+    }
 }
 
 // The wanted files unpacked into request.tmp (made afresh), and the notice written.
@@ -410,18 +466,19 @@ bool start()
     {
         take(); // (one that finished between two polls)
     }
-    request.url = vr_relight_tool_url.string[0] ? za::String{vr_relight_tool_url.string} : za::String{releaseUrl};
+    setUrls();
     request.dir = files::generic(za::StringView{installDir()});
     request.tmp = request.dir + ".download";
     SDL_AtomicSet(&cancelFlag, 0);
     SDL_AtomicSet(&quitting, 0);
     SDL_AtomicSet(&liveBytes, 0);
+    SDL_AtomicSet(&liveMirror, 0);
     SDL_AtomicSet(&livePhase, static_cast<int>(Phase::Download));
     shownPhase = Phase::Download;
     shownMessage.clear();
     shownBrief.clear();
-    Con_Printf("relight: downloading ericw-tools %s (%s) from %s into %s\n", version, sizeText, request.url.cStr(),
-        request.dir.cStr());
+    Con_Printf("relight: downloading ericw-tools %s (%s) from %s%s into %s\n", version, sizeText, request.urls[0].cStr(),
+        request.urls.size() > 1 ? " (then its other mirrors)" : "", request.dir.cStr());
     jobRunning.storeSeqCst(true);
     worker = za::Thread(run);
     return true;
@@ -482,8 +539,8 @@ const char* progressText()
     switch(static_cast<Phase>(SDL_AtomicGet(&livePhase)))
     {
         case Phase::Download:
-            q_snprintf(progressBuf, sizeof(progressBuf), "%s of %s", mb(static_cast<za::U64>(SDL_AtomicGet(&liveBytes))).cStr(),
-                mb(releaseBytes).cStr());
+            q_snprintf(progressBuf, sizeof(progressBuf), "%s of %s%s", mb(static_cast<za::U64>(SDL_AtomicGet(&liveBytes))).cStr(),
+                mb(releaseBytes).cStr(), SDL_AtomicGet(&liveMirror) > 0 ? " (another mirror)" : "");
             break;
         case Phase::Check: q_strlcpy(progressBuf, "Checking", sizeof(progressBuf)); break;
         case Phase::Unpack: q_strlcpy(progressBuf, "Unpacking", sizeof(progressBuf)); break;
@@ -547,7 +604,17 @@ void command()
         Con_Printf("relight: %s\n", relight::toolLine());
         Con_Printf("  install folder: %s%s\n", installDir(), testDir() ? " (vr_relight_tool_dir: the only place looked)" : "");
         Con_Printf("  file: ericw-tools %s, %s bytes, sha256 %s\n", version, za::toString(releaseBytes).cStr(), releaseSha);
-        Con_Printf("  from: %s\n", vr_relight_tool_url.string[0] ? vr_relight_tool_url.string : releaseUrl);
+        if(vr_relight_tool_url.string[0])
+        {
+            Con_Printf("  from: %s (vr_relight_tool_url)\n", vr_relight_tool_url.string);
+        }
+        else
+        {
+            for(int i = 0; i < releaseUrlCount; ++i)
+            {
+                Con_Printf("  %s %s\n", i == 0 ? "from:" : "then:", releaseUrls[i]);
+            }
+        }
         Con_Printf("  %s%s%s\n", running() ? "downloading: " : "last: ", running() ? progressText() : "",
             running() ? "" : (shownMessage.empty() ? "none in this session" : shownMessage.cStr()));
         return;
