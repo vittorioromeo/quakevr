@@ -158,6 +158,7 @@ void() OgreFireGrenade =
         missile.velocity = missile.velocity * 600;
         missile.velocity_z = 200;
         VR_Lob_Aim(missile, self.origin); // QVR: at the enemy's height (vr_ogre_aim_height)
+        missile.velocity = MG3_OgreBurstVelocity(missile.velocity); // QVR: Dawn of the Machine's Bloody Nightmare burst
     }
 
     missile.avelocity = '300 300 300';
@@ -336,6 +337,7 @@ void() ogre_nail4    =[    $shoot3,        ogre_nail5    ]
         return;
     }
     OgreFireGrenade();
+    MG3_OgreBurst(); // QVR: Dawn of the Machine's Bloody Nightmare: two more 70% of the time (vr_mg3_bn.qc)
 };
 void() ogre_nail5    =[    $shoot4,        ogre_nail6    ] {ai_face();};
 void() ogre_nail6    =[    $shoot5,        ogre_nail7    ] {ai_face();};

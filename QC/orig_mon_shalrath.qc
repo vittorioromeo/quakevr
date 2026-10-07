@@ -152,6 +152,8 @@ void() ShalMissile =
     missile.avelocity = '300 300 300';
     missile.nextthink = flytime + time;
     missile.think = ShalHome;
+    if(MG3_Campaign())
+        missile.classname = "shal_missile"; // (Dawn of the Machine's balls keep apart: MG3_ShalSteer)
     missile.enemy = self.enemy;
     missile.touch = ShalMissileTouch;
 };
@@ -166,6 +168,8 @@ void() ShalHome =
         return;
     }
     dir = normalize(vtemp - self.origin);
+    if(MG3_ShalSteer(dir))
+        return; // QVR: Dawn of the Machine's (vr_mg3_bn.qc)
     if(skill == 3)
         self.velocity = dir * 350;
     else

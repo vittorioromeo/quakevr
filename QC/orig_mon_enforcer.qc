@@ -140,6 +140,7 @@ void() enforcer_fire =
 
     if(!VR_AI_ShotReady(org)) { return; }
     LaunchLaser(org, VR_AI_Origin(self.enemy) - self.origin);
+    MG3_EnforcerAltLaser(org); // QVR: Dawn of the Machine's Bloody Nightmare: a second (vr_mg3_bn.qc)
     weaponfired(self, -1); // VR: its rifle's muzzle flash (an enforcer's: vr_weaponfx.cpp)
 };
 
@@ -257,6 +258,8 @@ void(entity attacker, float damage)    enf_pain =
     r = random();
     if(self.pain_finished > time)
         return;
+    if(MG3_ShrugsOff(200, damage))
+        return; // QVR: Dawn of the Machine's skill 3 (vr_mg3_bn.qc)
 
 
     if(r < 0.5)

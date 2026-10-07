@@ -206,6 +206,7 @@ void() Wiz_FastFire =
         newmis.classname = "wizspike";
         setmodel(newmis, "progs/w_spike.mdl");
         setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
+        MG3_WizardExtraSpikes(vec); // QVR: Dawn of the Machine's Bloody Nightmare (vr_mg3_bn.qc)
     }
 
     remove(self);
@@ -386,6 +387,7 @@ void() monster_wizard_precache =
     precache_sound("wizard/widle2.wav");
     precache_sound("wizard/wpain.wav");
     precache_sound("wizard/wsight.wav");
+    MG3_WizardPrecache();
 }
 
 /*QUAKED monster_wizard (1 0 0) (-16 -16 -24) (16 16 40) Ambush

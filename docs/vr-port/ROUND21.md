@@ -28704,3 +28704,42 @@ don't; a left claw cut off on the way. MG3 map8 (`vr_mg3_btest 8`, save, load, `
 
 **In the headset.** [ ] Bestiary > A Super Shambler Ahead: parry its claws, dodge the plasma sprays, its lightning from
 afar; shoot its head (the zone), behead it with a slash; kill it and push his ragdoll about (Ragdoll Settings > Shambler).
+
+### M3-23 Quake's monsters in Dawn of the Machine, and Bloody Nightmare
+
+Upstream's changes to the stock monsters (MG1 -> MG3 diffs: soldier 28 lines, enforcer 106, hknight 39, wizard 42,
+shambler 74, shalrath 89, zombie 18, ogre 306 (most of it the rocket ogre: M3-16's), tarbaby 171 (the slime: M3-20),
+the rest Horde fades), campaign 5 only (`QC/vr_mg3_bn.qc`, one call each in `orig_mon_*.qc`, `combat.qc`, `items.qc`):
+- **No backpacks** from grunts, enforcers and ogres (`DropBackpack` drops none for a monster in campaign 5; Quake VR's
+  enemy weapon drops stay).
+- **Skill 3:** grunts (100) and enforcers (200) shrug off light blows (no pain when random() x that > damage); the
+  nightmare pain rest (5 s after a pain) no longer holds zombies (they must flinch to go down) and Chthon; shamblers
+  cast lightning after three or four blows (`MG3_ShamblerCasts`, reset as they cast).
+- **Vores' balls** (any skill) steer every 0.1 s (Quake's 0.2), nudged apart from each other within 32 units, at 285 on
+  skill 3 (Quake's 350, MG3's "bringing back the pain").
+- **Zombies:** spawnflag 8388608 hangs one (still in its first pain frame, as the crucified; secret3's 2), spawnflag 128
+  throws flesh only up close (secret5's 7).
+- **Bloody Nightmare** (`MG3_BloodyNightmare`: campaign 5, serverflags 64): an enforcer fires a second laser beside each
+  (15 damage, 600, alternating sides); a death knight's spikes fly at 500 (300); a scrag's spikes bring one or two more
+  each (MG3's `w_spike2.mdl`, read in place); an ogre's volley brings two more grenades 70% of the time, 0.3 s apart,
+  thrown higher or lower by where you are and up to 64 aside (upstream loops the volley's frames; here a helper throws
+  them while the ogre lives: its frames untouched, M3-16 edits them).
+- Not ported: the fish's idle sound rate limit (sound only), upstream's commented-out vore trail, the hell knight's
+  infected offset fix (M3-15's).
+
+Tests (`vr_mg3_btest 10`; `11` sets Bloody Nightmare): MG3 map1 at skill 3 in Bloody Nightmare **11/0**: no backpack;
+the grunt and the enforcer flinched 0 of 20 light blows; the fiend's pain rest 5 s, the zombie's none; the shambler cast
+after 4 blows; 1 more laser; a spike at 500; the vore's ball steered at 285 every 0.1 s; six scrag spikes brought 4 more;
+the ogre's burst 2 more grenades; a hanging zombie; a close-thrower. MG3 map1 at skill 1 (no Bloody Nightmare) 11/0;
+e1m1 at skill 3 (the id1 campaign: none of it) **10/0** (a backpack, 20 of 20 flinches, both pain rests 5 s, no cast,
+no extras, 300). Regressions: Dopa triggers 34/0, MG1 hub 20/0, MG3 weapons 19/0, e1m1, hip1m1 and r1m1 load clean.
+
+**In the headset.** [ ] Dawn of the Machine in Bloody Nightmare (the hub's skill 4): enforcers' double lasers, ogres'
+triple volleys, scrags' spike fans; zombies flinch at every hit on skill 3.
+
+### Checks after M3-19..23
+
+Checker: **15 missing classes, 546 placements** (21 and 625 before M3-19: `monster_orb` 48, `monster_ghost` 7,
+`misc_sacrifice` 12, `trigger_sacrifice_counter` 1, `monster_slime` 6, `monster_super_shambler` 5 resolved). Release
+build, QC 0 warnings (the 3 of `vr_mg3_test.qc`'s 10-argument sprintf fixed in M3-19), statics, QC precedence and FGD
+(333 entities) pass. `eval.sh` not run (no melee change). Test saves in the worktree's game folder: `mg3btss.sav`.

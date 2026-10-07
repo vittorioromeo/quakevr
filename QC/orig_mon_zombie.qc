@@ -393,6 +393,7 @@ void() zombie_paind11    =[    $paind11,    zombie_paind12    ] {};
 void() zombie_paind12    =[    $paind12,    zombie_paind13    ] {};
 void() zombie_paind13    =[    $paind13,    zombie_run1    ] {};
 
+void() mg3_zombie_hang1 =[    $paine1,    mg3_zombie_hang1 ] {}; // (Dawn of the Machine's hanging zombie: vr_mg3_bn.qc)
 void() zombie_paine1    =[    $paine1,    zombie_paine2    ]
 {
     sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
@@ -727,6 +728,11 @@ void() monster_zombie =
     self.th_pain = zombie_pain;
     self.th_die = zombie_die;
     self.th_missile = zombie_missile;
+    if(MG3_Campaign() && (self.spawnflags & MG3_ZOMBIE_CLOSE_THROW))
+    {
+        self.th_missile = SUB_Null; // QVR: Dawn of the Machine's spawnflag 128: it throws flesh only up close
+        self.th_melee = zombie_missile;
+    }
 
     // HONEY
     monster_add_to_counter();
@@ -747,6 +753,12 @@ void() monster_zombie =
     {
         self.movetype = MOVETYPE_NONE;
         zombie_cruc1();
+    }
+    else if(MG3_Campaign() && (self.spawnflags & MG3_ZOMBIE_HANGING))
+    {
+        self.movetype = MOVETYPE_NONE; // QVR: Dawn of the Machine's hanging zombie: still, in its pain frame
+        setsize(self, '-16 -16 -24', '16 16 40');
+        mg3_zombie_hang1();
     }
     else if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_LYING))
     {

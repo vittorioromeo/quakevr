@@ -1359,6 +1359,8 @@ If crucified, stick the bounding box 12 pixels back into a wall to look right."
 		4 : "ambush" : 0
 		8 : "Sneaky" : 0
 		16 : "Spawn lyingdown" : 0
+		128 : "Mg3 zombie close throw" : 0
+		8388608 : "Mg3 zombie hanging" : 0
 	]
 	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
 	nextthink(float) : "Start delay (nextthink)" :  : "Seconds after the level starts before it first acts (to stagger several)."

@@ -906,4 +906,5 @@ float MG3_ITEM_SPAWNED = 4; // an item a trigger brings (upstream SPAWNED, campa
 // MG3's (rogue_lavaman.qc branches, vr_mg3_lavaman.qc), read by combat.qc and client.qc.
 .float mg3_slime, mg3_slimekin;
 .float mg3_lavaman;
+.float mg3_altside, mg3_burst, mg3_bursting; // Bloody Nightmare: an enforcer's second laser's side, an ogre's burst (vr_mg3_bn.qc)
 float(entity targ, entity inflictor, entity attacker, float damage) MG3_LavaManDamage;

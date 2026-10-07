@@ -113,7 +113,7 @@ float     ldmg;
     SpawnMeatSpray (self.origin + v_forward*16, crandom() * 100 * v_right);
 };
 void() sham_smash11    =[      $smash11,      sham_smash12   ] {ai_charge(5);};
-void() sham_smash12    =[      $smash12,      sham_run1       ] {ai_charge(4);};
+void() sham_smash12    =[      $smash12,      sham_run1       ] {ai_charge(4); if(MG3_ShamblerCasts()) self.think = sham_magic1;}; // (Dawn of the Machine's skill 3: vr_mg3_bn.qc)
 
 void() sham_swingr1;
 
@@ -154,7 +154,9 @@ void() sham_swingl7 =[      $swingl7,      sham_swingl8   ] {ai_charge(5); ShamC
 void() sham_swingl8 =[      $swingl8,      sham_swingl9   ] {ai_charge(4);};
 void() sham_swingl9 =[      $swingl9,      sham_run1  ] {
 ai_charge(8);
-if(random()<0.5)
+if(MG3_ShamblerCasts())
+    self.think = sham_magic1; // QVR: Dawn of the Machine's skill 3: its lightning after 3-4 blows (vr_mg3_bn.qc)
+else if(random()<0.5)
     self.think = sham_swingr1;
 };
 
@@ -170,7 +172,9 @@ void() sham_swingr7 =[      $swingr7,      sham_swingr8   ] {ai_charge(6); ShamC
 void() sham_swingr8 =[      $swingr8,      sham_swingr9   ] {ai_charge(3);};
 void() sham_swingr9 =[      $swingr9,      sham_run1  ] {ai_charge(1);
 ai_charge(10);
-if(random()<0.5)
+if(MG3_ShamblerCasts())
+    self.think = sham_magic1; // QVR: Dawn of the Machine's skill 3 (vr_mg3_bn.qc)
+else if(random()<0.5)
     self.think = sham_swingl1;
 };
 
@@ -236,6 +240,7 @@ self.owner.frame = 2;
 void() sham_magic6     =[      $magic6,       sham_magic9    ]
 {
 remove(self.owner);
+if(MG3_Campaign()) self.count = 0; // (Dawn of the Machine's blows before its lightning: MG3_ShamblerCasts)
 CastLightning();
 sound(self, CHAN_WEAPON, "shambler/sboom.wav", 1, ATTN_NORM);
 };

@@ -11,6 +11,9 @@
 //   7 the super shambler: its registrations, blasts at half, plasma sprays (smash 11, claw 9), its fast cast's 3 bolts,
 //     killed: a ragdoll on its own rig
 //   8, 9 (Dawn of the Machine's map8) its super shambler hurt past its health relays; after a save and a load, killed
+//  10 Quake's monsters in Dawn of the Machine (M3-23): backpacks, skill 3's skins and pain rest, the shambler's lightning,
+//     the vore's balls, Bloody Nightmare's extra lasers, spikes and grenades, hanging and close-throwing zombies (by
+//     the campaign, skill and serverflags it runs in: e1m1 expects none of it)
 //   4 (Dawn of the Machine's map8) each of the map's victims used: the counter (8) counts down, its target fired once
 
 float mg3bt_pass, mg3bt_fail;
@@ -635,6 +638,183 @@ void(float xPart) MG3_BT_MapSuperShambler =
     MG3_BT_Total();
 };
 
+// How many backpacks lie about.
+float() MG3_BT_Backpacks =
+{
+    float n = 0;
+    entity e = find(world, model, "progs/backpack.mdl");
+    while(e) { n++; e = find(e, model, "progs/backpack.mdl"); }
+    return n;
+};
+
+// `m`'s pain function called `n` times with `xDamage` (its rest cleared each time): how often it flinched (its think
+// changed).
+float(entity m, float n, float xDamage) MG3_BT_Flinches =
+{
+    entity oldself = self;
+    float flinched = 0;
+    self = m;
+    while(n > 0)
+    {
+        self.pain_finished = 0;
+        self.think = SUB_Null;
+        self.th_pain(MG3_BT_Player(), xDamage);
+        if(self.think != SUB_Null) flinched++;
+        n--;
+    }
+    self.think = self.th_run;
+    self = oldself;
+    return flinched;
+};
+
+// Quake's monsters in Dawn of the Machine (vr_mg3_bn.qc): expectations by campaign and Bloody Nightmare (the request
+// says which it runs in: an MG3 map with skill 3 and serverflags 64 for all of them; e1m1 for none).
+void() MG3_BT_StockStep =
+{
+    entity p = MG3_BT_Player();
+    entity oldself = self;
+    float mg3 = MG3_Campaign();
+    float bn = MG3_BloodyNightmare();
+    float sk3 = skill > 2;
+    if(mg3bt_step == 70)
+    {
+        mg3bt_pass = mg3bt_fail = 0;
+        p.flags = p.flags | FL_GODMODE;
+        dprint(sprintf("mg3btest: stock monsters: campaign 5 %g, skill %g, Bloody Nightmare %g\n", mg3, skill, bn));
+        // Backpacks.
+        float packs = MG3_BT_Backpacks();
+        entity g = MG3_BT_Spawn(p, 0, 120, -60, 0);
+        g.ammo_shells = 5; // (as its death code gives it)
+        self = g; DropBackpack(); self = oldself;
+        MG3_BT_Check(MG3_BT_Backpacks() == packs + (!mg3), sprintf("a grunt's backpack: %g (campaign 5: none)", MG3_BT_Backpacks() - packs));
+        // Skill 3's harder skin (a 1-damage blow, 20 times).
+        float f1 = MG3_BT_Flinches(g, 20, 1);
+        entity en = MG3_BT_Spawn(p, 8, 120, 60, 0);
+        float f2 = MG3_BT_Flinches(en, 20, 1);
+        MG3_BT_Check((mg3 && sk3) ? (f1 <= 2 && f2 <= 2) : (f1 >= 15 && f2 >= 15), sprintf("light blows: the grunt flinched %g of 20, the enforcer %g", f1, f2));
+        remove(g); remove(en);
+        // The nightmare pain rest spares zombies (T_Damage; a fiend for comparison).
+        entity z = MG3_BT_Spawn(p, 2, 120, 0, 0);
+        entity d = MG3_BT_Spawn(p, 9, 160, 0, 0);
+        mg3bt_a = z; mg3bt_b = d;
+        mg3bt_step = 71; mg3bt_next = time + 1;
+        return;
+    }
+    if(mg3bt_step == 71)
+    {
+        mg3bt_a.pain_finished = 0; mg3bt_b.pain_finished = 0;
+        T_Damage(mg3bt_a, p, p, 30);
+        T_Damage(mg3bt_b, p, p, 100);
+        float zr = mg3bt_a.pain_finished - time, dr = mg3bt_b.pain_finished - time;
+        MG3_BT_Check(sk3 ? (dr > 4.9 && (mg3 ? (zr < 4.9) : (zr > 4.9))) : TRUE,
+            sprintf("the nightmare pain rest: the fiend's %g s, the zombie's %g s", dr, zr));
+        remove(mg3bt_a); remove(mg3bt_b);
+        // The shambler's lightning after its blows (skill 3).
+        entity s = MG3_BT_Spawn(p, 3, 200, 0, 0);
+        self = s;
+        self.count = 0;
+        float calls = 0, cast = 0;
+        while(calls < 6 && !cast) { calls++; cast = MG3_ShamblerCasts(); }
+        self = oldself;
+        MG3_BT_Check((mg3 && sk3) ? (cast && calls <= (bn ? 4 : 5) && calls >= (bn ? 3 : 4)) : (!cast),
+            sprintf("the shambler's lightning after %g blows (cast %g)", calls, cast));
+        remove(s);
+        // A vore's ball.
+        mg3bt_a = MG3_BT_Spawn(p, 10, 300, 0, 0);
+        mg3bt_a.enemy = p;
+        self = mg3bt_a; ShalMissile(); self = oldself;
+        // An enforcer's shot, a death knight's spikes, a scrag's, an ogre's volley.
+        mg3bt_n = mg3_bn_extra;
+        entity e2 = MG3_BT_Spawn(p, 8, 200, -80, 0);
+        e2.enemy = p;
+        self = e2; enforcer_fire(); self = oldself;
+        MG3_BT_Check(mg3_bn_extra - mg3bt_n == bn, sprintf("the enforcer's shot: %g more lasers", mg3_bn_extra - mg3bt_n));
+        remove(e2);
+        entity h = MG3_BT_Spawn(p, 6, 200, 80, 0);
+        h.enemy = p;
+        self = h; hknight_shot(0); self = oldself;
+        entity k = find(world, classname, "knightspike");
+        entity newest = world;
+        while(k) { if(k.owner == h) newest = k; k = find(k, classname, "knightspike"); }
+        MG3_BT_Check((newest != world) && fabs(vlen(newest.velocity) - (bn ? 500 : 300)) < 1, sprintf("the death knight's spike: %g a second", vlen(newest.velocity)));
+        remove(h);
+        mg3bt_b = MG3_BT_Spawn(p, 4, 200, 0, 64);
+        mg3bt_b.enemy = p;
+        self = mg3bt_b; Wiz_StartFast(); Wiz_StartFast(); Wiz_StartFast(); self = oldself;
+        mg3bt_n = mg3_bn_extra;
+        mg3bt_step = 72; mg3bt_next = time + 0.6;
+        return;
+    }
+    if(mg3bt_step == 72)
+    {
+        entity ball = find(world, classname, "shal_missile");
+        if(mg3)
+        {
+            float steered = FALSE;
+            if(ball)
+            {
+                self = ball; ShalHome(); self = oldself;
+                float want = 250;
+                if(skill == 3) want = 285;
+                float late = ball.nextthink - time;
+                float speed = vlen(ball.velocity);
+                if(fabs(late - 0.1) < 0.01 && fabs(speed - want) < 1) steered = TRUE;
+            }
+            MG3_BT_Check(steered, sprintf("the vore's ball steers every 0.1 s at %g (%s)", vlen(ball.velocity), ball.classname));
+        }
+        remove(mg3bt_a);
+        mg3bt_step = 73; mg3bt_next = time + 1.2;
+        return;
+    }
+    if(mg3bt_step == 73)
+    {
+        float wiz = mg3_bn_extra - mg3bt_n;
+        MG3_BT_Check(bn ? (wiz >= 1) : (wiz == 0), sprintf("the scrag's six spikes brought %g more", wiz));
+        remove(mg3bt_b);
+        mg3bt_a = MG3_BT_Spawn(p, 1, 250, 0, 0); // (an ogre: started, then its volleys)
+        mg3bt_step = 74; mg3bt_next = time + 1;
+        return;
+    }
+    if(mg3bt_step == 74)
+    {
+        // The ogre: volleys until a burst starts (Bloody Nightmare: 70% of them).
+        mg3bt_a.enemy = p;
+        mg3bt_n = mg3_bn_extra;
+        float tries = 0;
+        self = mg3bt_a;
+        while(tries < 10 && !self.mg3_burst) { tries++; OgreFireGrenade(); MG3_OgreBurst(); }
+        self = oldself;
+        mg3bt_step = 75; mg3bt_next = time + 1;
+        return;
+    }
+    if(mg3bt_step == 75)
+    {
+        MG3_BT_Check(mg3_bn_extra - mg3bt_n == (bn ? 2 : 0), sprintf("the ogre's burst: %g more grenades", mg3_bn_extra - mg3bt_n));
+        remove(mg3bt_a);
+        // Zombies: hanging, and throwing only up close.
+        self = spawn();
+        setorigin(self, p.origin + '96 0 32');
+        self.classname = "monster_zombie";
+        self.spawnflags = MG3_ZOMBIE_HANGING;
+        monster_zombie();
+        mg3bt_a = self;
+        self = spawn();
+        setorigin(self, p.origin + '96 64 0');
+        self.classname = "monster_zombie";
+        self.spawnflags = MG3_ZOMBIE_CLOSE_THROW;
+        monster_zombie();
+        mg3bt_b = self;
+        self = oldself;
+        MG3_BT_Check(mg3 ? (mg3bt_a.movetype == MOVETYPE_NONE && mg3bt_a.think == mg3_zombie_hang1) : (mg3bt_a.think != mg3_zombie_hang1),
+            "a zombie with spawnflag 8388608 hangs (campaign 5)");
+        MG3_BT_Check(mg3 ? (mg3bt_b.th_melee == zombie_missile && mg3bt_b.th_missile == SUB_Null) : (mg3bt_b.th_missile == zombie_missile),
+            "spawnflag 128: its flesh thrown only up close (campaign 5)");
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        MG3_BT_Total();
+        return;
+    }
+};
+
 // Each frame (world.qc StartFrame).
 void() MG3_BestiaryTestFrame =
 {
@@ -646,6 +826,7 @@ void() MG3_BestiaryTestFrame =
         else if(mg3bt_step >= 30 && mg3bt_step < 50) MG3_BT_LavaStep();
         else if(mg3bt_step >= 50 && mg3bt_step < 60) MG3_BT_MapLavaStep();
         else if(mg3bt_step >= 60 && mg3bt_step < 70) MG3_BT_SuperShamblerStep();
+        else if(mg3bt_step >= 70 && mg3bt_step < 80) MG3_BT_StockStep();
         self = os; other = oo; activator = oa;
     }
     float request = cvar("vr_mg3_btest");
@@ -663,6 +844,8 @@ void() MG3_BestiaryTestFrame =
     else if(request == 4) MG3_BT_MapSacrifices();
     else if(request == 6) { mg3bt_step = 50; mg3bt_next = time; }
     else if(request == 8) MG3_BT_MapSuperShambler(1);
+    else if(request == 10) { mg3bt_step = 70; mg3bt_next = time; }
+    else if(request == 11) { serverflags = serverflags | MG3_SF_BN_ACTIVE; dprint("mg3btest: Bloody Nightmare on (serverflags 64)\n"); }
     else if(request == 9) MG3_BT_MapSuperShambler(2);
     else if(request == 7) { if(MG3_SuperShambler_Available()) { mg3bt_step = 60; mg3bt_next = time; } }
     else if(request == 5)

@@ -2145,6 +2145,8 @@ DropBackpack
 */
 void() DropBackpack =
 {
+    if(MG3_NoBackpack(self))
+        return; // QVR: Dawn of the Machine's monsters drop none (vr_mg3_bn.qc)
     if(self.vr_dummy_dead)
     {
         return; // VR: the firing range's training dummy killed as its enemy (vr_dummy.qc): no loot

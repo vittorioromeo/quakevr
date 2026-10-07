@@ -5152,6 +5152,12 @@ za::Vector<Item> pageMg3BestiaryTests()
         command("Super Shambler Test", "vr_mg3_btest 7")
             .help("Destructive: a super shambler ahead (god mode): its plasma sprays, its lightning, half damage from blasts, its "
                   "parries and head zone; killed: his ragdoll (developer 1)."),
+        command("Quake's Monsters in Dawn of the Machine", "vr_mg3_btest 10")
+            .help("Destructive: backpacks, skill 3's harder skins and pain rest, the shambler's lightning, the vore's balls, Bloody "
+                  "Nightmare's extra lasers, spikes and grenades, hanging and close-throwing zombies; it expects them only in "
+                  "Dawn of the Machine (and Bloody Nightmare: the next row) at skill 3 (developer 1)."),
+        command("Bloody Nightmare On", "vr_mg3_btest 11")
+            .help("Destructive: serverflags 64 (Dawn of the Machine's Bloody Nightmare) for the test above."),
         command("The Map's Sacrifices", "vr_mg3_btest 4")
             .help("Destructive (Dawn of the Machine's map8): every sacrifice used in turn; the counter's count down to its "
                   "target fired (developer 1)."),

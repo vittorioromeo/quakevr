@@ -157,6 +157,8 @@ void(entity attacker, float damage)    army_pain =
 
     if(self.pain_finished > time)
         return;
+    if(MG3_ShrugsOff(100, damage))
+        return; // QVR: Dawn of the Machine's skill 3 (vr_mg3_bn.qc)
 
     r = random();
 

@@ -1549,7 +1549,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         self.th_pain (attacker, take);
     // nightmare mode monsters don't go into pain frames often
-        if(skill == 3)
+        if(skill == 3 && MG3_NightmarePainRest(self)) // (Dawn of the Machine spares zombies and Chthon: vr_mg3_bn.qc)
             self.pain_finished = time + 5;
     }
 
