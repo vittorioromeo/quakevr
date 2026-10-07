@@ -128,15 +128,18 @@ def mounts():
     nail, nail_top = nail_mag()
     snail, snail_top = snail_mag()
     cell, cell_top = cell_mag()
-    # The super nailgun's: square to the face it goes into (the author: 37 degrees was too steep), the upper of the body's
-    # two right faces (normal (0, -0.93, 0.38): 22 degrees up): its length along that face's inward normal, local -y (the
-    # face with the window) up towards the eyes, local x along the gun; then mirrored onto the left face (its normal
-    # (0, 0.93, 0.36): the body's two sides match within a degree), seat (7.2, 5.44, 1.2).
-    n = norm((0.0, 0.926, -0.378))
+    # The super nailgun's: square to the face it goes into (the author: 37 degrees was too steep): the flat lower band of
+    # the body's upper left face (v_nail2.mdl frame 0: from (y 5.74, z 0.28) up to (4.60, 3.24), x -2.6..15.9; above it
+    # the face is ribbed), its outward normal (0, 0.933, 0.359), 21 degrees up: its length along that face's inward
+    # normal, local -y (the face with the window) up towards the eyes, local x along the gun. Made on the right side and
+    # mirrored onto the left. Its seat the band's middle (7.2, 5.17, 1.76), its receiver (magwell `sunk`) inside the
+    # band's 3.18 units with a margin, flush: only its mouth's rim stands 0.12 off the face (the author's note
+    # vrfiringrange_2026-10-07_23-58-30: it stood 1.1 units off the face and 0.55 over its lower edge, at (7.2, 5.44, 1.2)).
+    n = norm((0.0, 0.933, -0.359))
     snail_rot = ((1.0, 0.0, 0.0), (0.0, n[2], -n[1]), n)
     return [
         ("vr_mag_nail", nail, nail_top, rot_y(-8.0), (6.9, 0.0, -1.45), ("v_nail.mdl", "v_lava.mdl"), False),
-        ("vr_mag_snail", snail, snail_top, snail_rot, (7.2, -5.44, 1.2), ("v_nail2.mdl", "v_lava2.mdl"), True),
+        ("vr_mag_snail", snail, snail_top, snail_rot, (7.2, -5.17, 1.76), ("v_nail2.mdl", "v_lava2.mdl"), True),
         ("vr_mag_light", cell, cell_top, ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)), (11.6, 0.0, 3.0),
          ("v_light.mdl", "v_plasma.mdl"), False),
     ]
@@ -211,12 +214,15 @@ def paint(kind, variant=False):
     return bytes(px)
 
 
-def magwell(hx, hy, top, wall=0.32, height=1.1):
+def magwell(hx, hy, top, wall=0.32, height=1.1, sunk=None):
     """A magazine's well (its receiver, drawn on the gun: vr_view.cpp setupMagazines): a steel collar round the magazine's
     top end, flush with the gun at the seat (the magazine's top, local z `top`) and down its length `height`, its walls
-    `wall` thick round the magazine's section (half sizes hx, hy, a little gap), a lighter lip at its mouth."""
+    `wall` thick round the magazine's section (half sizes hx, hy, a little gap), a lighter lip at its mouth. `sunk`: the
+    collar goes into the gun instead (a flat face: the super nailgun's), only `sunk` units of it and its lip out of it."""
     m = Mesh()
     gx, gy = hx + 0.08, hy + 0.08
+    if sunk is not None:
+        top = top + height - sunk  # (its mouth `sunk` off the face, the rest inside the body)
     zc = top - height / 2
     for sx in (-1.0, 1.0):
         m.box((sx * (gx + wall / 2), 0.0, zc), (wall / 2, gy + wall, height / 2), "steel", cap_region="foot")
@@ -242,7 +248,7 @@ def main():
         # As it sits: its top at the seat, turned; its well round it.
         top_at = add(add(mul(rot[0], 0.0), mul(rot[1], 0.0)), mul(rot[2], top))
         at = sub(seat, top_at)
-        well = magwell(sections[name][0], sections[name][1], top)
+        well = magwell(sections[name][0], sections[name][1], top, **({"wall": 0.24, "sunk": 0.12} if name == "vr_mag_snail" else {}))
         for k, g in enumerate(guns):
             own = fiery if k == 1 else skin  # (the second gun of each pair is the lava or plasma one)
             mdlgen.write_mdl(os.path.join(out, "vr_mag_on_" + g), transformed(mesh, rot, at, mirror), [own], name + "_on")

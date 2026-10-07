@@ -319,4 +319,8 @@ check $(echo "$st" | awk '{print ($1 >= 6.9 && $1 <= 7.3 && $2 >= 30) ? 1 : 0}')
 log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse 161};give c 100;vr_reload_battery_sparks 0;vr_reload_battery_smoke_time 2;+offhandattack;wait400;-offhandattack;$BY;wait300;$REP;toggleconsole;quit" -Filter "^reload: (the cell|a spent|the spent)" 2>&1)
 st=$(echo "$log" | grep "the spent cell stopped smoking after" | sed 's/.*after \([0-9.]*\) s.*/\1/')
 check $(! echo "$log" | grep -q "contact sparks" && awk -v t="$st" 'BEGIN { print (t != "" && t >= 1.9 && t <= 2.3) ? 1 : 0 }') "Contact Sparks 0: none; Spent Cell Smoke 2: it smokes for 2 s ($st)"
+# 11. The author's night notes of 10-07/08 (ROUND21.md, "Reloading and spent guns: the night notes of 10-07/08").
+# The super nailgun's well flush on the flat band of its face (23-58-30): its rim at most 0.2 units off it, inside its edges.
+sw=$($PY Misc/quakevr/reload/ssg_checks.py snailwell)
+check $(echo "$sw" | awk '{ok = NF >= 12; for(i = 1; i <= NF; i += 6) { if($(i + 3) > 0.2 || $(i + 5) > 0) ok = 0 } print ok ? 1 : 0}') "the super nailgun's well flush on its face ($sw)"
 exit $fail

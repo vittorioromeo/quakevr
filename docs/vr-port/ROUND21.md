@@ -30550,3 +30550,18 @@ end as planned).
   straight down, the barrel lands on the butt); the other ammo mode (a multi-grenade, a multi-rocket from the
   multi-rockets, loaded); a rocket lying about shot (test step 19: it goes off); a rocket at the grenade launcher's muzzle (out); Simple mode and Load at the Muzzle off (no
   rocket from the pouch, the hip holster reloads: clip 4).
+
+## Reloading and spent guns: the night notes of 10-07/08 (2026-10-08)
+
+The author's notes grenedin_2026-10-08_00-05-36, 00-07-22, vrfiringrange_2026-10-07_23-54-46, 23-58-30,
+vrfiringrange_2026-10-08_00-00-42, 00-01-10, and his typed note on the pouch's shells. Tests: `reload_test.sh` section 11.
+
+- **The super nailgun's well flush on its face** (23-58-30: "slightly off ... too big ... popping out"). The well stood
+  1.2 units off the face (its collar ran 1.1 units out along the magazine) and reached 0.53 past the face's lower edge:
+  the seat (7.2, 5.44, 1.2) was 0.6 units below the middle of the flat band it sits on (v_nail2.mdl frame 0: the body's
+  upper left face is flat only in its lower band, from (y 5.74, z 0.28) up to (4.60, 3.24), 3.18 units across; above it
+  the face is ribbed). make_mags.py now seats it in the band's middle (7.2, 5.17, 1.76), square to the band's own normal
+  (0, 0.933, 0.359), with a thinner collar (wall 0.24) sunk into the body: only its mouth's rim stands 0.12 off the face,
+  0.16 inside both edges (`ssg_checks.py snailwell`: proud 0.15, over -0.16; before: 1.19, 0.53). The load point and the
+  magazine's middle (the two-handed grip, the hit box) moved with it (vr_view.cpp `loadPorts`, `magMounts`: middle
+  (7.2, 9.56, 3.45)). The lava gun's the same.
