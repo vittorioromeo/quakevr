@@ -29789,3 +29789,70 @@ speed against the frames' before): before 84x / 78x / 54x / 84x, 2 / 2 / 0 / 2 b
 (vr_timescale 0.25): back frames 3 / 35 / 0 / 18 before the frame-lerp fix, 0 / 1 / 0 / 0 after; the switch there is
 still 9-22x a frame's (tiny) motion: the skinned rig's fit against the .mdl's vertex animation (about a unit), as when a
 ragdoll is made.
+## Immersive reloading: magazines, both grips, the pull (2026-10-07)
+
+The author's notes from VR on the magazine guns (worktree `magfix`).
+
+- **Both two-handed grips.** The magazine had replaced the gun's own two-handed hotspot (its grip moved to the magazine's
+  middle): the front grip was gone. Now the magazine is a second grip beside the gun's own (a free hotspot index,
+  vr_view.cpp `magSpot`): the other hand takes whichever it is nearer (the magazine by its box, below). Held on the
+  front grip, the magazine is left alone; on the magazine, it is held (and pulled out from there).
+- **The magazine's shape.** The client works out a box round the attached magazine's model (`vr_mag_on_<gun>.mdl`'s
+  vertices along its length, `magazineShape`), places it with the gun as drawn (held or carried; taken back to the
+  tracked hands as the muzzles are) and sends it with each move (`VrMove::magBox` -> `.magbox*`, `.offmagbox*`). An
+  empty hand within **Pull Reach** of that box (now leniency on top of it, down to 0), nearer it than the gun's own grip
+  (or a carried gun's handle), is on it: hotspot **HS_MAGAZINE** (13). Gripping there holds it (QC latch), and the
+  two-handed grip takes it there. **Hits** anywhere on the box knock it out (the fist, a held prop, the other gun's line
+  sampled along it): `knocked out by a hit at N m/s, D units from it, T from its top`.
+- **However the gun is held.** The magazine works the same for a gun held by its handle in either hand and for one
+  carried anywhere on it (the hand-off; QVR_WPNFLAG_FOREGRIP_CARRIED): the pouch gives its magazine (or shells), its
+  well takes one, the other hand pulls it out, a hit knocks it out, B/Y drops it.
+- **The pull (what was wrong).** "Out at once, or never, whatever I set":
+  1. The wrist snap read `.handavel`, which is the *throw's* spin estimate: while the grip is held, "as if let go now"
+     (the spin at the last speed peak of the window); for a hand not gripping, the spin of its last release, kept until
+     the next grip. The difference of two such numbers is noise: after a quick reach for the magazine (or a gun hand
+     whose last release spun), over any threshold at once; otherwise never.
+  2. The hold latched only within Pull Reach of the well's top (a point), while the two-handed grip took the magazine
+     5.5 units round its middle. Measured on the magazine's surface: 1.2-1.3 units off the top at its feed end, 2.0-2.3 at
+     its middle, 2.6-4.7 at its far end. At his Pull Reach 2, holding it at its middle or below never latched: the
+     two-handed grip held a magazine that could then never come out.
+  3. The hand reaching to hold it at Knock Out Speed knocked it out before the grip latched (he had raised Knock Out
+     Speed to 6.5).
+  4. The pull's speed was taken along the line between the hands (from the handle), not the magazine's way out: the
+     thunderbolt's cell (ahead, below) pulled straight down counted a fraction.
+  Now the snap is the hand's turn against the gun hand's (their poses, over 40 ms windows: `VR_Reload_SnapRate`, the
+  same at any frame rate), the pull the hands' relative speed (m/s, the controllers') along the magazine's length out of
+  its well, the latch the hotspot, and a hand gripping onto the magazine is a hold, not a hit. Apart is still the
+  hands' distance (the controllers') against what it was as the grip took hold. Units: speeds m/s, distances world
+  units, snap degrees/s.
+- **The hand on it.** Holding the attached magazine, the hand is turned the least from the tracked hand so that its
+  grip channel lies along the magazine where it holds it (`alignChannel`, kept 1.5 units in from its ends), and the
+  fingers close round the magazine's model (not the gun's). Per magazine, in its gun's page: Hand X/Y/Z, Pitch/Yaw/Roll
+  (`vr_reload_hold_<nail|snail|light>_*`, looks only) and Fingers Set by Hand with five curls.
+- **The ammo button.** "About once in a hundred": it was checked every 0.2 s, so a fingertip coming at it was first
+  seen well inside its reach, often past its face, and refused as from behind. Now every frame (it leaves again 0.5
+  units further out; 0.2 s between presses), Ammo Button Cone 80 (was 50) and a new **Ammo Button Depth** 0.5 (the
+  cone's tip that far behind the button's middle). Mock approaches, a straight line in at a quarter unit a frame, four
+  ways round: 0-60 degrees off its face 20 of 20 (before: 0 of 20), 75-90 degrees 8 of 8, 120-180 0 of 20.
+- **Menus.** Weapons > Reloading is General (the mode, Show Load Points, Collision Leniency, Eject Button, the pouch,
+  feedback, dropped rounds) and a page per gun: Shotgun, Super Shotgun (phase 2b's rows), Nailgun, Super Nailgun,
+  Thunderbolt (each its well, its magazine's top, its pose in the hand, its receiver, the hand holding it, and the pull
+  and knock settings, shared by the three). Ranges wider (Pull Reach and Knock Out Reach from 0). Debug > Tests >
+  Reloading: Reload Prints 0-3 (3: each empty hand's distance off the other gun's magazine box), Show Load Points (the
+  magazine's box in blue).
+- **The author's values** (his ironwail.cfg) as defaults, `vr_cfg_version` 98: pouch counter X 2.25, Z 2, Size 0.6,
+  Follow Legs 0.5; port and well radii 1.5; Collision Leniency 4; Knock Out Reach 2; Pull Reach 2; Pull Speed 2; Pull
+  Wrist Snap 300 (his 225 was set against the broken reading); Knock Out Speed 3 (his 6.5 was set against the reach that
+  knocked it out; 6.5 migrates to 3); the live shell's grip Y 0, Z -1 (`vr_props_version` 64).
+- Tests: reload_test.sh sections 8 and 9 (TESTING.md). Mock: `vr_mock_hand_to <hand> mag <along> [<out>]`,
+  `vr_mock_hand_to <hand> wbutton <degrees> [units] [azimuth]`.
+
+In VR:
+- [ ] Nailgun, super nailgun, thunderbolt: take the front grip, then the magazine: both aim two-handed.
+- [ ] Hold the magazine and move gently: it stays. Yank it out along its length, snap the wrist, or move the hands
+  apart: out into the hand. Tune Pull Speed / Wrist Snap / Apart / Reach in the gun's page.
+- [ ] Hand-off the gun to the off hand (let go of the handle while the other holds the front grip): pull its magazine
+  with the free hand, load one from the pouch.
+- [ ] Punch the magazine's far end: it pops out.
+- [ ] The hand on the magazine: does it look right? Tune Hand X/Y/Z and the turn per gun.
+- [ ] The ammo button from the front, as you press it: does it press every time? From behind: never.

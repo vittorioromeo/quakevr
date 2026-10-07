@@ -1856,14 +1856,28 @@ old one out. `vr_reload_debug 2` prints the pull's speed and snap and the bump's
 The author's rounds 2 and 3 (section 6; ROUND21.md, "Immersive reloading: rounds 2 and 3"): the bump is two steps (a hit
 only knocks the old magazine out: `knocked out by a hit at N m/s`; the new one seats once taken away and back:
 `vr_mock_hand_to main lport 8`, then `lport`); `vr_mock_hand_to main lportmid` puts a held magazine's middle at the
-well (not seated: it seats by its top); `vr_mock_hand_to main heldspot 0` with the grip closing there is the two-handed
+well (not seated: it seats by its top); `vr_mock_hand_to main mag 0` with the grip closing there is the two-handed
 grip on a magazine gun's magazine (`hand 1 holds the magazine of the gun in hand 0`, `vr_dumpview`: `helping 1`); out by
-`vr_mock_hand_to main by 0 0 -6` (`pulled off at`), `vr_mock_hand_turn main 0 0 80` (a wrist snap in one frame:
+`vr_mock_hand_to main mag -6 0` (`pulled off at`), `vr_mock_hand_turn main 0 0 80` (a wrist snap in one frame:
 `snapped off at`) or 40 small steps apart (`the hands N units further apart`). A grip already closed moved onto a grip
 prints `2h grip: ... already closed: no hold (vr_2h_grip_edge)`. The ammo button: `vr_mock_hand_to main wbutton
 <front|side|back> [units]` puts the main fingertip off the off gun's button; `developer 1` prints `weapon button N:
 pressed` or `not pressed, the fingertip came A deg off its face (cone C)`. Run the mock scripts one at a time per
 worktree: two run.sh at once on the same worktree share its base folder and fail.
+The author's magazine notes (section 8; ROUND21.md, "Immersive reloading: magazines, both grips, the pull"): the gun in
+the main hand with grip mode Hold (`vr_weapon_grip_mode 0`, `+grabright; vr_mock_button main grip 1; impulse 156`).
+`vr_mock_hand_to <hand> mag <along> [<out>]` puts the hand on the attached magazine of the other hand's gun (its box,
+`hands::State::magBox`: `along` -1 its far end .. 1 its feed end, `out` units off its side; it prints the box's size);
+`heldspot 0` is the gun's own two-handed grip. The checks: both grips hold it two-handed (`vr_dumpview` `helping 1`),
+only the magazine latches; the four ways (12 small steps stay; `mag -6 0` in a frame `pulled off at`; `vr_mock_hand_turn
+off 0 0 80` `snapped off at`; 40 steps apart `the hands N units further apart`); Pull Reach 0 (a unit off its side: no
+hold; inside: held); a hit 0.3 units off its far end (`knocked out by a hit at N m/s, D units from it, T from its
+top`); a gun handed off to the off hand (the main hand lets go while the off hand holds `heldspot 0`): its magazine
+pulled out and seated again. The mock's hand arrives in one frame, far faster than a hand: set
+`vr_reload_bump_speed 100` while it comes. `vr_reload_debug 2` prints the hold's pull, snap and apart every frame, 3 each
+empty hand's distance off the magazine's box. The report line ends `, main mag M`.
+The ammo button (section 9): `vr_mock_hand_to main wbutton <degrees> [units] [azimuth]` (0 its front, 180 behind), 20
+approaches in a straight line at a quarter unit a frame from 0-60 degrees (95% must press) and 20 from 120-180 (none).
 
 ## Put-away transition (2026-10-07)
 

@@ -5540,7 +5540,12 @@ za::Vector<Item> pageDebugTests()
             .help("Prints your shells, the off hand's magazine, what each hand holds, the shells lying about."),
         command("Run the Self-Test", "vr_reload_test 9; impulse 125")
             .help("Takes, loads, refunds and drops in turn and checks every count: reload: PASS or FAIL lines."),
-        toggle("Reload Prints", "vr_reload_debug").help("Prints each take, load, refund and loss, and a held shell's distance to the port."),
+        cycle("Reload Prints", "vr_reload_debug", {{0.f, "Off"}, {1.f, "Events"}, {2.f, "Every Frame"}, {3.f, "And Magazine Grips"}})
+            .help("Events: each take, load, refund, loss, magazine out and hold. Every Frame: a held round's distance to the "
+                  "port, a held magazine's pull, snap and apart, a hit's speed. And Magazine Grips: each empty hand's "
+                  "distance off the other gun's magazine (its box) and the grip it would take."),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Each held gun's load point and radius, a held magazine's top, an attached magazine's box (blue)."),
         toggle("Show the Pouches' Reach", "vr_show_grenade_pouch").help("Spheres where the grenade pouch and the ammo pouch are reached."),
         header("Climbing"),
         command("Climbing Test Map", "map vrclimb").help("map vrclimb: rungs, ledges, a jump wall, moving and floating ledges."),

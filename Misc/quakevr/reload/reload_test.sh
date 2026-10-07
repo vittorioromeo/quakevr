@@ -109,8 +109,9 @@ check $(echo "$log" | grep "vrpouch_ammo.mdl" | tail -1 | grep -q "frame 8 " && 
 # The full shotgun's "can't" click: once as a shell comes within the port's range, again only after it left and came back.
 log=$(bash $KIT/run.sh $AGENT -Script "$SG;$POUCH;$GRIP;vr_mock_hand_to main lport 8;wait5;vr_mock_hand_to main lport 8;wait10;vr_mock_hand_to main lport;wait5;vr_mock_hand_to main lport;wait40;vr_mock_hand_to main lport 8;wait10;vr_mock_hand_to main lport;wait10;toggleconsole;quit" -Filter "^reload:" 2>&1)
 check $([ $(echo "$log" | grep -c "the gate won't open") = 2 ] && echo 1 || echo 0) "the full shotgun: one 'can't' click per approach (2 approaches: $(echo "$log" | grep -c "the gate won't open"))"
-# A magazine seats by its top at the gun's point (its middle there: not seated), the empty nailgun.
-log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;vr_mock_button off secondary 1;wait3;vr_mock_button off secondary 0;wait10;$POUCH;$GRIP;vr_mock_hand_to main lportmid;wait5;vr_mock_hand_to main lportmid;wait10;$REP;vr_mock_hand_to main lport 6;wait10;vr_mock_hand_to main lport;wait5;vr_mock_hand_to main lport;wait10;$REP;toggleconsole;quit" -Filter "^reload:" 2>&1)
+# A magazine seats by its top at the gun's point (its middle there: not seated), the empty nailgun (Well Radius 1: its
+# middle is about 1.8 units from its top).
+log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;vr_reload_port_nail_radius 1;vr_mock_button off secondary 1;wait3;vr_mock_button off secondary 0;wait10;$POUCH;$GRIP;vr_mock_hand_to main lportmid;wait5;vr_mock_hand_to main lportmid;wait10;$REP;vr_mock_hand_to main lport 6;wait10;vr_mock_hand_to main lport;wait5;vr_mock_hand_to main lport;wait10;$REP;toggleconsole;quit" -Filter "^reload:" 2>&1)
 holds=$(echo "$log" | grep "^reload: off hand")
 check $(h 1 | grep -q "mag 0 holds nothing | main hand weapon 0 clip 0 holds a round of 24" && h 2 | grep -q "clip 24 mag 1" && echo 1 || echo 0) "the magazine's top is its point: its middle at the well doesn't seat, its top does"
 # The magazine is the two-handed grip (nailgun, super nailgun, thunderbolt); a gentle pull keeps it in; a hard pull, a
