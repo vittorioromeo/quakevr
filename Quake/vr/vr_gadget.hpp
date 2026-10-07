@@ -2,7 +2,7 @@
 // hand's forearm (progs/vrgadget.mdl, from Misc/quakevr/make_gadget.py) whose screen shows the
 // HUD: the player's face, health and armour, ammo, keys, powerups and sigils, the level, kills
 // and secrets. Raise the wrist and turn it to read it, like a watch. Its screen is a small
-// monochrome CRT (vr_gadget_crt) that glows (vr_screen_glow) and casts a light in its colour the
+// CRT (vr_gadget_crt) in the player's colour with near-white values that glows (vr_screen_glow) and casts a light in its colour the
 // way it faces (vr_gadget_light), and the console's messages float over it in a small log facing
 // the player (vr_notify_wrist), rather than at the edge of the view; the game's messages (a key
 // needed, a pickup) it projects as a hologram just over its screen (vr_messages_hologram).
@@ -36,6 +36,9 @@ void setPose(const Pose& pose);
 // The screen's corners (in model space: the lower-left one, and its extent along x and y), where
 // its texture is drawn over the model's screen.
 void screenRect(glm::vec3& corner, glm::vec2& size);
+
+// The game directory changed (VR_OnGameDirChanged): the screen's grey pictures are made again from its gfx.wad.
+void onGameDirChanged();
 
 // Draws the screen's contents into its texture, at the end of the 2D pass (and the weapons' ammo
 // screens' into theirs: text3d::renderScreens).

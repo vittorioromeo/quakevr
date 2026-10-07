@@ -108,7 +108,8 @@ enum Stat : int
     STAT_QVR_WEAPONUID,  // the main hand's weapon's id (QC vr_weaponinst.qc: its record's; 0 none): its blood (vr_wounds.cpp)
     STAT_QVR_WEAPONUID2, // the off hand's
     STAT_QVR_HOLSTERWEAPONUID0, // 6: each holster's weapon's id (0 none): its blood goes with it, drawn holstered too
-    STAT_QVR_END = STAT_QVR_HOLSTERWEAPONUID0 + 6
+    STAT_QVR_AMMOTYPE = STAT_QVR_HOLSTERWEAPONUID0 + 6, // the main hand's ammo type (.currentammo: QC's AID_*; the off hand's: STAT_QVR_AMMO2): the wrist gadget's MAIN tile
+    STAT_QVR_END
 };
 
 inline constexpr int numHolsters = 6;

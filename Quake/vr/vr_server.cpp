@@ -664,6 +664,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_WEAPONFLAGS, f.weaponflags);
     stat(STAT_QVR_WEAPONFLAGS2, f.weaponflags2);
     stat(STAT_QVR_AMMO2, f.currentammo2);
+    statsf[STAT_QVR_AMMOTYPE] = ent->v.currentammo; // (the VR progs' main hand's ammo type: VRGetCurrentAmmo)
     stat(STAT_QVR_AMMOCOUNTER, f.ammocounter);
     stat(STAT_QVR_AMMOCOUNTER2, f.ammocounter2);
     statsf[STAT_QVR_WEAPONCLIP] = clip(f.weaponinst);

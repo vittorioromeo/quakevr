@@ -1,11 +1,12 @@
 // vr_gadget.cpp -- see vr_gadget.hpp.
 //
 // The screen is drawn with the engine's own 2D functions (the status bar's pictures from gfx.wad,
-// the console font; vr_gfx.hpp's draw2D) into an offscreen target, on a virtual 240 x 150 screen
-// covering it, at the end of the 2D pass. Each eye's scene then shows the texture over the model's
-// screen, a frame later, after the opaque entities (so that the bloom catches it): in one phosphor
-// colour, as a small CRT (vr_gadget_crt), with a soft glow round its edge (vr_screen_glow, drawn by
-// vr_text3d with the weapons' ammo screens').
+// made grey to take any colour; the console font; vr_gfx.hpp's draw2D) into an offscreen target, on a virtual
+// 240 x 150 screen covering it, at the end of the 2D pass, in its own colours (palette(): a dark background in the
+// screen's colour, near-white values with a dark outline, red warnings; layout() has the grid). Each eye's scene then
+// shows the texture over the model's screen, a frame later, after the opaque entities (so that the bloom catches it),
+// as a small CRT (vr_gadget_crt), with a soft glow round its edge (vr_screen_glow, drawn by vr_text3d with the
+// weapons' ammo screens').
 //
 // The log over it (vr_notify_wrist) is the console's notify lines (console.c keeps the times of
 // its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
@@ -23,6 +24,7 @@
 #include "vr_mem.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_profile.hpp"
+#include "vr_protocol.hpp"
 #include "vr_relight.hpp"
 #include "vr_text3d.hpp"
 #include "vr_hands.hpp"
@@ -96,42 +98,166 @@ constexpr int glowLightKey = -0x5C11;
     return static_cast<float>(n & 0xffffff) / static_cast<float>(0x1000000);
 }
 
-// Status bar pictures (gfx.wad) by name.
-char digitPicName[16]; // digitPic's answer: valid until its next call
-
-[[nodiscard]] const char* digitPic(int digit, bool red)
+// The status bar's pictures (gfx.wad) the screen draws, made grey (each one's brightness, its brightest texel white,
+// in the palette's grey ramp) so that they take any colour: the numbers white (or red), the icons the screen's colour.
+enum PicId : int
 {
-    char(&name)[16] = digitPicName;
-    if(digit < 0)
+    PicNum0 = 0,         // num_0 .. num_9
+    PicNumMinus = 10,    // num_minus
+    PicFace = 11,        // face5 (hurt) .. face1 (healthy)
+    PicArmor = 16,       // sb_armor1 .. 3
+    PicAmmo = 19,        // sb_shells, sb_nails, sb_rocket, sb_cells
+    PicKey = 23,         // sb_key1, 2
+    PicPowerup = 25,     // sb_invis, sb_invuln, sb_suit, sb_quad
+    PicSigil = 29,       // sb_sigil1 .. 4
+    PicCount = 33
+};
+
+constexpr const char* picNames[PicCount] = {"num_0", "num_1", "num_2", "num_3", "num_4", "num_5", "num_6", "num_7",
+    "num_8", "num_9", "num_minus", "face5", "face4", "face3", "face2", "face1", "sb_armor1", "sb_armor2", "sb_armor3",
+    "sb_shells", "sb_nails", "sb_rocket", "sb_cells", "sb_key1", "sb_key2", "sb_invis", "sb_invuln", "sb_suit", "sb_quad",
+    "sb_sigil1", "sb_sigil2", "sb_sigil3", "sb_sigil4"};
+
+// The grey pictures (made from the game's gfx.wad when first drawn; again after a game change: onGameDirChanged).
+struct GreyPics
+{
+    bool built{false};
+    za::Array<za::Vector<byte>, PicCount> pic{};  // Draw_PicBytes() each (Draw_ReplacePic's)
+    za::Array<za::Vector<byte>, PicCount> data{}; // its texels (palette indices, 255 transparent): kept while drawn
+    za::Array<bool, PicCount> ok{};
+};
+GreyPics greys;
+
+void buildGreys()
+{
+    greys.built = true;
+    for(int i = 0; i < PicCount; i++)
     {
-        return red ? "anum_minus" : "num_minus";
+        greys.ok[i] = false;
+        lumpinfo_t* info = nullptr;
+        const qpic_t* p = static_cast<const qpic_t*>(W_GetLumpName(picNames[i], &info));
+        if(!p || !info || info->type != TYP_QPIC || p->width <= 0 || p->height <= 0 || p->width > 64 || p->height > 64 ||
+            static_cast<size_t>(info->size) < sizeof(int) * 2 + static_cast<size_t>(p->width * p->height))
+        {
+            continue;
+        }
+        const int n = p->width * p->height;
+        float lum[64 * 64];
+        float top = 0.f;
+        for(int t = 0; t < n; t++)
+        {
+            const byte index = p->data[t];
+            lum[t] = 0.f;
+            if(index != 255)
+            {
+                const unsigned c = d_8to24table[index];
+                lum[t] = 0.2126f * static_cast<float>(c & 255) + 0.7152f * static_cast<float>((c >> 8) & 255) +
+                         0.0722f * static_cast<float>((c >> 16) & 255);
+                top = za::max(top, lum[t]);
+            }
+        }
+        za::Vector<byte>& d = greys.data[i];
+        d.resize(static_cast<za::SizeT>(n));
+        for(int t = 0; t < n; t++)
+        {
+            // The grey ramp (palette 0 black .. 15 the lightest), a little brighter in the middle (the numbers' shading).
+            const float v = top > 0.f ? glm::pow(lum[t] / top, 0.75f) : 0.f;
+            d[static_cast<za::SizeT>(t)] = p->data[t] == 255 ? byte{255} : static_cast<byte>(za::lround(v * 15.f));
+        }
+        if(greys.pic[i].empty())
+        {
+            greys.pic[i].resize(Draw_PicBytes(), 0);
+        }
+        char name[32];
+        q_snprintf(name, sizeof(name), "vr_gadget_%s", picNames[i]);
+        Draw_ReplacePic(reinterpret_cast<qpic_t*>(greys.pic[i].data()), name, p->width, p->height, d.data());
+        greys.ok[i] = true;
     }
-    q_snprintf(name, sizeof(name), red ? "anum_%d" : "num_%d", digit);
-    return name;
 }
 
-[[nodiscard]] const char* facePic(int level) // 0 hurt .. 4 healthy
+[[nodiscard]] qpic_t* greyPic(int id)
 {
-    static constexpr const char* names[5] = {"face5", "face4", "face3", "face2", "face1"};
-    return names[level];
+    if(!greys.built)
+    {
+        buildGreys();
+    }
+    return greys.ok[id] ? reinterpret_cast<qpic_t*>(greys.pic[id].data()) : nullptr;
 }
 
-constexpr const char* armorPics[3] = {"sb_armor1", "sb_armor2", "sb_armor3"};
-constexpr const char* ammoPics[4] = {"sb_shells", "sb_nails", "sb_rocket", "sb_cells"};
-constexpr const char* keyPics[2] = {"sb_key1", "sb_key2"};
-constexpr const char* powerupPics[4] = {"sb_invis", "sb_invuln", "sb_suit", "sb_quad"};
-constexpr const char* sigilPics[4] = {"sb_sigil1", "sb_sigil2", "sb_sigil3", "sb_sigil4"};
+// The screen's font: the console's (gl_draw.c's char_texture, padded 10 x 10 cells), its white half's greys stretched
+// so their lightest is the palette's white (index 15, 235) instead of the console's grey (index 11, 171): the text
+// comes out near-white, not mid-grey, at full colour. Made when first drawn, again after a game change.
+struct BrightFont
+{
+    bool built{false};
+    za::Vector<byte> data;            // its texels (palette indices; 0 transparent): kept while drawn (a reload's)
+    gltexture_t* texture{nullptr};
+};
+BrightFont brightFont;
+constexpr const char* brightFontName = "vr_gadget_conchars";
+
+} // namespace
+} // namespace qvr::gadget
+
+extern "C" gltexture_t* char_texture;
+extern "C" byte char_texture_data[256 * 10 * 10];
+
+namespace qvr::gadget
+{
+namespace
+{
+
+[[nodiscard]] gltexture_t* brightFontTexture()
+{
+    if(brightFont.built)
+    {
+        return brightFont.texture ? brightFont.texture : char_texture;
+    }
+    brightFont.built = true;
+    if(gltexture_t* old = TexMgr_FindTexture(nullptr, brightFontName)) // (freed already by a game change, or not)
+    {
+        TexMgr_FreeTexture(old);
+    }
+    constexpr int size = 16 * 10, whiteRows = 8 * 10; // characters 0..127: the white half
+    brightFont.data.resize(static_cast<za::SizeT>(size) * size);
+    memcpy(brightFont.data.data(), char_texture_data, static_cast<size_t>(size) * size);
+    byte top = 0;
+    for(int t = 0; t < size * whiteRows; t++)
+    {
+        const byte b = brightFont.data[static_cast<za::SizeT>(t)];
+        top = b < 16 && b > top ? b : top;
+    }
+    if(top > 0 && top < 15)
+    {
+        for(int t = 0; t < size * whiteRows; t++)
+        {
+            byte& b = brightFont.data[static_cast<za::SizeT>(t)];
+            b = b > 0 && b < 16 ? static_cast<byte>(za::min(15l, za::lround(b * 15.f / top))) : b;
+        }
+    }
+    brightFont.texture = TexMgr_LoadImage(nullptr, brightFontName, size, size, SRC_INDEXED, brightFont.data.data(), "",
+        reinterpret_cast<src_offset_t>(brightFont.data.data()),
+        TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_NOPICMIP | TEXPREF_CONCHARS | TEXPREF_UNCOMPRESSED);
+    return brightFont.texture ? brightFont.texture : char_texture;
+}
 
 constexpr glm::vec4 white{1.f};
 
-// The screen's palette, from vr_gadget_screen_hue (by default the player's, vr_hue.hpp) /
-// _brightness / _background (the default is the green of a phosphor screen).
+// The screen's palette. In its own colours (Shade::Screen's trueColor): a dark background and lines in the screen's
+// colour (vr_gadget_screen_hue, by default the player's: vr_hue.hpp; _background, _brightness), the labels and icons
+// in it, the values near-white (vr_gadget_screen_text_white) with a dark outline, warnings red. Text and values are
+// over 10:1 against the background (white 17:1), the red over 7:1.
 struct Palette
 {
     glm::vec3 background;
     glm::vec3 scanline;
-    glm::vec3 line; // frame and separators
-    glm::vec4 text;
+    glm::vec3 line;   // the frame, the rules, the bars' outlines
+    glm::vec4 text;   // the screen's colour at full strength: its light, its glow, the static (and the wrist log's)
+    glm::vec3 label;  // labels and icons
+    glm::vec3 value;  // values: the numbers, the level's name
+    glm::vec3 dim;    // a value that is nothing (no armour, no ammo), a meter not ready
+    glm::vec3 warn;   // warnings: low health, an empty weapon, no stamina
+    glm::vec3 shadow; // the outline round labels and values
 };
 
 [[nodiscard]] Palette palette()
@@ -139,281 +265,485 @@ struct Palette
     const cvar_t& own = vr_gadget_screen_hue;
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
     const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
+    const float whiteness = CLAMP(0.f, vr_gadget_screen_text_white.value, 1.f);
+    const auto cap = [](const glm::vec3& c) { return glm::min(c, glm::vec3{1.f}); };
     Palette p;
-    p.background = hue::color(own, 0.57f, 0.07f * back);
-    p.scanline = hue::color(own, 0.6f, 0.05f * back);
-    p.line = glm::min(hue::color(own, 0.58f, 0.6f * bright), glm::vec3{1.f});
-    p.text = glm::vec4{glm::min(hue::color(own, 0.55f, bright), glm::vec3{1.f}), 1.f};
+    p.background = hue::color(own, 0.6f, 0.045f * back);
+    p.scanline = hue::color(own, 0.6f, 0.032f * back);
+    p.line = cap(hue::color(own, 0.58f, 0.55f * bright));
+    p.text = glm::vec4{cap(hue::color(own, 0.55f, bright)), 1.f};
+    p.label = cap(glm::mix(hue::color(own, 0.5f, 0.9f), glm::vec3{0.82f}, whiteness) * bright); // (a step under the values)
+    p.value = cap(glm::mix(hue::color(own, 0.5f, 1.f), glm::vec3{0.97f}, whiteness) * bright);
+    p.dim = cap(hue::color(own, 0.45f, 0.55f * bright));
+    p.warn = cap(glm::vec3{1.f, 0.42f, 0.36f} * bright);
+    p.shadow = p.background * 0.2f;
     return p;
 }
 
 using gfx::draw2D::fill;
 
-// Big numbers, right-aligned in `digits` places of 24 x 24 (scaled). The screen is of one colour:
-// red ones (a warning) blink.
-void number(float x, float y, int value, int digits, bool red, float scale)
+// A warning blinks: lit 0.5 s of every 0.8 (dimmed, never gone, the rest).
+[[nodiscard]] bool blinkOn()
 {
-    if(red && za::fmod(realtime, 0.8) >= 0.5)
+    return za::fmod(realtime, 0.8) < 0.5;
+}
+
+[[nodiscard]] glm::vec3 blinking(const glm::vec3& c)
+{
+    return blinkOn() ? c : c * 0.55f;
+}
+
+// Text in the console font, `size` pixels a character, in `rgb` over a thin dark outline (half a pixel: a texel).
+void drawText(float x, float y, float size, const char* str, const glm::vec3& rgb, const Palette& pal)
+{
+    constexpr float o = 0.5f;
+    static constexpr float offsets[4][2] = {{-o, 0.f}, {o, 0.f}, {0.f, -o}, {0.f, o}};
+    gltexture_t* const consoleFont = char_texture;
+    char_texture = brightFontTexture(); // (Draw_StringEx binds char_texture)
+    gfx::draw2D::color(glm::vec4{pal.shadow, 1.f});
+    for(const auto& d : offsets)
     {
+        gfx::draw2D::text(x + d[0], y + d[1], size, str);
+    }
+    gfx::draw2D::color(glm::vec4{rgb, 1.f});
+    gfx::draw2D::text(x, y, size, str);
+    gfx::draw2D::color(white);
+    char_texture = consoleFont;
+}
+
+// A grey picture in `rgb`, `scale`d, over the same outline (the game's own when it has no grey one).
+void drawPic(float x, float y, int id, float scale, const glm::vec3& rgb, const Palette& pal)
+{
+    qpic_t* p = greyPic(id);
+    if(!p)
+    {
+        gfx::draw2D::pic(x, y, picNames[id], scale);
         return;
     }
+    const float w = static_cast<float>(p->width) * scale, h = static_cast<float>(p->height) * scale;
+    constexpr float o = 0.5f;
+    static constexpr float offsets[4][2] = {{-o, 0.f}, {o, 0.f}, {0.f, -o}, {0.f, o}};
+    const float shadow[3] = {pal.shadow.r, pal.shadow.g, pal.shadow.b};
+    for(const auto& d : offsets)
+    {
+        Draw_SubPic(x + d[0], y + d[1], w, h, p, 0.f, 0.f, 1.f, 1.f, shadow, 1.f);
+    }
+    const float c[3] = {rgb.r, rgb.g, rgb.b};
+    Draw_SubPic(x, y, w, h, p, 0.f, 0.f, 1.f, 1.f, c, 1.f);
+}
+
+// Big numbers (the status bar's), right-aligned in `digits` places of 24 x 24 (scaled).
+void number(float x, float y, int value, int digits, const glm::vec3& rgb, float scale, const Palette& pal)
+{
     char str[16];
     q_snprintf(str, sizeof(str), "%d", CLAMP(-99, value, 999));
     const int length = static_cast<int>(strlen(str));
     x += static_cast<float>(digits - length) * 24.f * scale;
     for(const char* c = str; *c; c++)
     {
-        gfx::draw2D::pic(x, y, digitPic(*c == '-' ? -1 : *c - '0', red), scale);
+        drawPic(x, y, *c == '-' ? PicNumMinus : PicNum0 + (*c - '0'), scale, rgb, pal);
         x += 24.f * scale;
     }
 }
 
-// A warning on the screen blinks as its red numbers do (number()): lit 0.5 s of every 0.8.
-[[nodiscard]] bool blinkOn()
+// What the screen shows: the client's state, or made-up readings (vr_gadget_test_state).
+struct Readout
 {
-    return za::fmod(realtime, 0.8) < 0.5;
+    int health{0};
+    int armor{0};
+    int armorType{-1};       // 0 .. 2 (green, yellow, red), -1 none
+    int handAmmo[2]{0, 0};   // each hand's count (main, off), as its weapon's own screen shows it
+    int handType[2]{-1, -1}; // its ammo's picture (0 shells .. 3 cells), -1 none (a fist, a melee weapon)
+    int pools[4]{0, 0, 0, 0};
+    int items{0};
+    meleehud::State melee;
+    bullettime::Meter time;
+    const char* relight{nullptr}; // the maps being relit (relight::indicator), null when none are
+    float relightProgress{0.f};
+    const char* level{""};
+    int kills{0}, totalKills{0}, secrets{0}, totalSecrets{0};
+};
+
+// QC's ammo type (AID_*: vr_defs.qc) as the picture of its kind (-1 none); Rogue's lava nails, multi-rockets and plasma
+// as the nails, rockets and cells.
+[[nodiscard]] int ammoPicOf(int aid)
+{
+    static constexpr int pics[8] = {-1, 0, 1, 2, 3, 1, 2, 3};
+    return aid >= 0 && aid < 8 ? pics[aid] : -1;
 }
 
-// The top row with vr_gadget_stamina (docs/vr-port/ROUND21.md, "Stamina on the gadget; the glow"), in the screen's one
-// colour, so by brightness: "STAMINA" and ten cells, lit for what's left (the one being filled lit in part), empty
-// ones outlined. Low (one more one-handed parry knocks the weapon away): the lit cells blink. None left: "EXHAUSTED"
-// blinks over the empty cells, and the screen's frame with it (layout). Coming back: a bright sweep runs along the empty cells.
-// Hanging from a hold spends it (vr_climb_stamina): "HANGING", and a dark notch runs back through the lit ones. While a counter's window is open,
-// the label is "COUNTER" lit in reverse and the rule under the row is a thick bar running out with the window; without
-// parry stamina that is all it shows, over the title. False when it shows nothing (the title then).
-bool meleeRow(const Palette& pal)
+[[nodiscard]] Readout readout()
 {
-    const meleehud::State m = meleehud::state();
+    Readout r;
+    r.health = cl.stats[STAT_HEALTH];
+    r.armor = cl.stats[STAT_ARMOR];
+    r.armorType = r.armor <= 0 ? -1 : (cl.items & IT_ARMOR3) ? 2 : (cl.items & IT_ARMOR2) ? 1 : 0;
+    r.handAmmo[0] = cl.stats[protocol::STAT_QVR_AMMOCOUNTER];
+    r.handAmmo[1] = cl.stats[protocol::STAT_QVR_AMMOCOUNTER2];
+    r.handType[0] = ammoPicOf(cl.stats[protocol::STAT_QVR_AMMOTYPE]);
+    r.handType[1] = ammoPicOf(cl.stats[protocol::STAT_QVR_AMMO2]);
+    r.pools[0] = cl.stats[STAT_SHELLS];
+    r.pools[1] = cl.stats[STAT_NAILS];
+    r.pools[2] = cl.stats[STAT_ROCKETS];
+    r.pools[3] = cl.stats[STAT_CELLS];
+    r.items = cl.items;
+    r.melee = meleehud::state();
+    r.time = bullettime::meter();
+    r.relight = relight::indicator();
+    r.relightProgress = relight::progress();
+    r.level = cl.levelname;
+    r.kills = cl.stats[STAT_MONSTERS];
+    r.totalKills = cl.stats[STAT_TOTALMONSTERS];
+    r.secrets = cl.stats[STAT_SECRETS];
+    r.totalSecrets = cl.stats[STAT_TOTALSECRETS];
+
+    switch(static_cast<int>(vr_gadget_test_state.value))
+    {
+        case 1: // low: health, the main hand's ammo, stamina
+            r.health = 18;
+            r.armor = 0;
+            r.armorType = -1;
+            r.handAmmo[0] = 0;
+            r.handType[0] = 0;
+            r.pools[0] = 0;
+            r.melee.stamina = true;
+            r.melee.left = 0.2f;
+            r.melee.low = true;
+            r.melee.counter = 0.f;
+            r.melee.draining = r.melee.recovering = false;
+            break;
+        case 2: // exhausted, a counter's window open
+            r.melee.stamina = true;
+            r.melee.left = 0.f;
+            r.melee.low = true;
+            r.melee.counter = 0.6f;
+            r.melee.draining = r.melee.recovering = false;
+            break;
+        case 3: // hanging (stamina draining), bullet time running
+            r.melee.stamina = true;
+            r.melee.left = 0.55f;
+            r.melee.low = false;
+            r.melee.counter = 0.f;
+            r.melee.draining = true;
+            r.melee.recovering = false;
+            r.time = {.enabled = true, .active = true, .cooling = false, .ready = false, .level = 0.6f};
+            break;
+        case 4: // maps being relit; stamina coming back, bullet time cooling down
+            r.relight = "RELIGHT 3/12 45% 2:10";
+            r.relightProgress = 0.45f;
+            r.melee.stamina = true;
+            r.melee.left = 0.35f;
+            r.melee.low = false;
+            r.melee.counter = 0.f;
+            r.melee.draining = false;
+            r.melee.recovering = true;
+            r.time = {.enabled = true, .active = false, .cooling = true, .ready = false, .level = 0.f};
+            break;
+        case 5: // every key, powerup and sigil; big numbers, a long name
+            r.items |= IT_KEY1 | IT_KEY2 | IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD | static_cast<int>(0xF0000000u);
+            r.health = 250;
+            r.armor = 200;
+            r.armorType = 2;
+            r.handAmmo[0] = 200;
+            r.handType[0] = 3;
+            r.handAmmo[1] = 100;
+            r.handType[1] = 2;
+            r.pools[0] = 100;
+            r.pools[1] = 200;
+            r.pools[2] = 100;
+            r.pools[3] = 200;
+            r.level = "The Gloomy Underground Lair of the Old Ones";
+            r.kills = 123;
+            r.totalKills = 456;
+            r.secrets = 12;
+            r.totalSecrets = 34;
+            break;
+        default: break;
+    }
+    return r;
+}
+
+// The screen (240 x 150), on one grid, the most important at the top and biggest:
+//
+//   HEALTH          ARMOR             two rows of tiles, 108 wide: a label over an icon and a big number
+//   [face] 100      [armour] 150      (the status bar's, white; red when low or empty)
+//   MAIN HAND       OFF HAND
+//   [ammo]  25      [ammo]  --
+//   ----------------------------------
+//   STAMINA  [] [] [] [] [] [] [] ...  three rows, their labels in one column, their meters and values in the next,
+//   TIME     [=====================]   each always in its own place (empty when it shows nothing)
+//   AMMO     [s] 25 [n] 0 [r] 0 [c] 0
+//   ----------------------------------
+//   THE SLIPGATE COMPLEX     [keys,    the level, kills and secrets (vr_gadget_show_level); the maps being relit
+//   KILLS 0/23  SECRETS 0/6   items]   in place of the kills and secrets, a bar under them; the keys, powerups and
+//   [relight progress bar]             sigils at the right
+constexpr float margin = 8.f;
+constexpr float tileWidth = 108.f;
+constexpr float tileX[2] = {margin, margin + tileWidth + 8.f};
+constexpr float tileY[2] = {4.f, 40.f};
+constexpr float labelX = margin;  // the secondary rows' labels
+constexpr float meterX = 72.f;    // and their meters and values
+constexpr float meterRight = width - margin;
+constexpr float rowY[3] = {80.f, 92.f, 104.f}; // stamina, time, ammo (the text's top)
+constexpr float ruleY[2] = {76.f, 118.f};
+constexpr float infoY[2] = {122.f, 132.f};     // the level's lines
+constexpr float barY = 142.f;                  // the relight progress bar
+
+// A tile: its label, an icon (a grey picture; -1 none) and a big number (or "--" for none).
+void tile(int column, int row, const char* label, int icon, int value, bool none, const glm::vec3& rgb, const Palette& pal)
+{
+    const float x = tileX[column], y = tileY[row];
+    drawText(x, y, 8.f, label, pal.label, pal);
+    if(icon >= 0)
+    {
+        drawPic(x, y + 9.f, icon, 1.f, pal.label, pal);
+    }
+    if(none)
+    {
+        drawPic(x + tileWidth - 48.f, y + 9.f, PicNumMinus, 1.f, pal.dim, pal);
+        drawPic(x + tileWidth - 24.f, y + 9.f, PicNumMinus, 1.f, pal.dim, pal);
+        return;
+    }
+    number(x + tileWidth - 72.f, y + 9.f, value, 3, rgb, 1.f, pal);
+}
+
+// A meter's outline, from meterX to meterRight, at a row (9 high).
+void meterFrame(float x, float y, float w, float h, const glm::vec3& rgb)
+{
+    fill(x, y, w, 1.f, rgb);
+    fill(x, y + h - 1.f, w, 1.f, rgb);
+    fill(x, y, 1.f, h, rgb);
+    fill(x + w - 1.f, y, 1.f, h, rgb);
+}
+
+// The stamina row (vr_gadget_stamina; docs/vr-port/ROUND21.md, "Stamina on the gadget; the glow"): "STAMINA" and ten
+// cells, lit for what's left (the one being filled lit in part), empty ones outlined. Low (one more one-handed parry
+// knocks the weapon away): the lit cells blink red. None left: "EXHAUSTED" blinks red over the empty cells, and the
+// screen's frame with it (layout). Coming back: a bright sweep runs along the empty cells. Hanging from a hold spends it
+// (vr_climb_stamina): "HANGING", and a dark notch runs back through the lit ones. While a counter's window is open, the
+// label is "COUNTER" lit in reverse, a thick bar under the cells running out with the window; without parry stamina
+// that is all it shows.
+void staminaRow(const Readout& r, const Palette& pal)
+{
+    const meleehud::State& m = r.melee;
     if(!vr_gadget_stamina.value || (!m.stamina && m.counter <= 0.f))
     {
-        return false;
+        return;
     }
-
-    constexpr float left = 8.f, right = width - 8.f;
-    constexpr float cellsX = 72.f, cellW = 13.f, cellGap = 3.f, cellY = 5.f, cellH = 9.f;
+    const float y = rowY[0];
+    constexpr float cellY = rowY[0] - 1.f, cellH = 9.f;
     constexpr int cells = 10;
+    constexpr float cellGap = 2.f;
+    const float cellW = za::floor((meterRight - meterX - cellGap * (cells - 1)) / cells);
 
-    // The label: STAMINA, or COUNTER in reverse while the window is open.
     if(m.counter > 0.f)
     {
-        fill(left - 2.f, 4.f, 7.f * 8.f + 4.f, 11.f, glm::vec3{pal.text});
+        fill(labelX - 2.f, y - 2.f, 7.f * 8.f + 4.f, 11.f, pal.value);
         gfx::draw2D::color(glm::vec4{pal.background, 1.f});
-        gfx::draw2D::text(left, 6.f, 8.f, "COUNTER");
+        gfx::draw2D::text(labelX, y, 8.f, "COUNTER");
+        gfx::draw2D::color(white);
+        fill(meterX, cellY + cellH + 1.f, za::max(2.f, za::round((meterRight - meterX) * m.counter)), 2.f, pal.value);
     }
     else
     {
-        gfx::draw2D::color(pal.text);
-        gfx::draw2D::text(left, 6.f, 8.f, m.draining ? "HANGING" : "STAMINA"); // (a hang drains it: vr_climb_stamina)
+        drawText(labelX, y, 8.f, m.draining ? "HANGING" : "STAMINA", pal.label, pal); // (a hang drains it: vr_climb_stamina)
     }
-    gfx::draw2D::color(white);
-
-    if(m.stamina)
+    if(!m.stamina)
     {
-        const float lit = m.left * cells; // cells' worth left
-        const bool dim = m.low && !blinkOn();
-        for(int i = 0; i < cells; i++)
-        {
-            const float x = cellsX + i * (cellW + cellGap);
-            const float share = za::clamp(lit - static_cast<float>(i), 0.f, 1.f);
-            // Its outline (an empty cell), then what's lit of it.
-            fill(x, cellY, cellW, 1.f, pal.line);
-            fill(x, cellY + cellH - 1.f, cellW, 1.f, pal.line);
-            fill(x, cellY, 1.f, cellH, pal.line);
-            fill(x + cellW - 1.f, cellY, 1.f, cellH, pal.line);
-            if(share > 0.f)
-            {
-                const float w = za::max(1.f, za::round(cellW * share));
-                fill(x, cellY, w, cellH, dim ? pal.line : glm::vec3{pal.text});
-            }
-        }
-        const float cellsEnd = cellsX + cells * (cellW + cellGap) - cellGap;
-        if(m.left <= 0.f)
-        {
-            if(blinkOn())
-            {
-                constexpr const char* word = "EXHAUSTED";
-                const float x = za::round((cellsX + cellsEnd) * 0.5f - 9.f * 4.f);
-                fill(x - 3.f, cellY - 1.f, 9.f * 8.f + 6.f, cellH + 2.f, pal.background);
-                fill(x - 3.f, cellY - 1.f, 9.f * 8.f + 6.f, 1.f, pal.line);
-                fill(x - 3.f, cellY + cellH, 9.f * 8.f + 6.f, 1.f, pal.line);
-                gfx::draw2D::color(pal.text);
-                gfx::draw2D::text(x, 6.f, 8.f, word);
-                gfx::draw2D::color(white);
-            }
-        }
-        else if(m.draining)
-        {
-            // The drain: a dark notch running back through the lit cells, towards the start, every 0.7 s.
-            const float to = cellsX + lit * (cellW + cellGap);
-            const float t = static_cast<float>(za::fmod(realtime, 0.7) / 0.7);
-            const float x = to - (to - cellsX) * t;
-            if(to - cellsX > 3.f)
-            {
-                fill(za::max(x - 2.f, cellsX), cellY + 1.f, 2.f, cellH - 2.f, pal.background);
-            }
-        }
-        else if(m.recovering)
-        {
-            // The sweep: from what's lit to the end, every 0.7 s.
-            const float from = cellsX + lit * (cellW + cellGap);
-            const float t = static_cast<float>(za::fmod(realtime, 0.7) / 0.7);
-            const float x = from + (cellsEnd - from) * t;
-            if(cellsEnd - from > 3.f)
-            {
-                fill(za::min(x, cellsEnd - 2.f), cellY + 1.f, 2.f, cellH - 2.f, glm::vec3{pal.text});
-            }
-        }
+        return;
     }
 
-    // The rule under the row; while the window is open, a thick bar running out with it (from the right).
-    fill(left, 16.f, right - left, 1.f, pal.line);
-    if(m.counter > 0.f)
+    const float lit = m.left * cells; // cells' worth left
+    const glm::vec3 on = m.low ? blinking(pal.warn) : pal.value;
+    for(int i = 0; i < cells; i++)
     {
-        fill(left, 16.f, za::max(2.f, za::round((right - left) * m.counter)), 2.f, glm::vec3{pal.text});
+        const float x = meterX + i * (cellW + cellGap);
+        const float share = za::clamp(lit - static_cast<float>(i), 0.f, 1.f);
+        meterFrame(x, cellY, cellW, cellH, m.low ? pal.warn * 0.6f : pal.line);
+        if(share > 0.f)
+        {
+            fill(x, cellY, za::max(1.f, za::round(cellW * share)), cellH, on);
+        }
     }
-    return true;
+    if(m.left <= 0.f)
+    {
+        if(blinkOn())
+        {
+            constexpr const char* word = "EXHAUSTED";
+            const float x = za::round((meterX + meterRight) * 0.5f - 9.f * 4.f);
+            fill(x - 3.f, cellY - 1.f, 9.f * 8.f + 6.f, cellH + 2.f, pal.background);
+            drawText(x, y, 8.f, word, pal.warn, pal);
+        }
+    }
+    else if(m.draining)
+    {
+        // The drain: a dark notch running back through the lit cells, towards the start, every 0.7 s.
+        const float to = meterX + lit * (cellW + cellGap);
+        const float t = static_cast<float>(za::fmod(realtime, 0.7) / 0.7);
+        const float x = to - (to - meterX) * t;
+        if(to - meterX > 3.f)
+        {
+            fill(za::max(x - 2.f, meterX), cellY + 1.f, 2.f, cellH - 2.f, pal.background);
+        }
+    }
+    else if(m.recovering)
+    {
+        // The sweep: from what's lit to the end, every 0.7 s.
+        const float from = meterX + lit * (cellW + cellGap);
+        const float t = static_cast<float>(za::fmod(realtime, 0.7) / 0.7);
+        const float x = from + (meterRight - from) * t;
+        if(meterRight - from > 3.f)
+        {
+            fill(za::min(x, meterRight - 2.f), cellY + 1.f, 2.f, cellH - 2.f, pal.value);
+        }
+    }
 }
 
-// Bullet time's meter (vr_bullettime.cpp), at the right of the keys' row: "TIME" over a bar, lit for what's left. Running:
-// the bar drains and its frame blinks; cooling down: only its frame, dim; not enough to start: the bar dim.
-void bulletTimeMeter(const Palette& pal)
+// Bullet time's meter (vr_bullettime.cpp): "TIME" and a bar, lit for what's left. Running: the label white, the bar
+// drains and its frame blinks; cooling down: only its frame, dim; not enough to start: the bar dim.
+void timeRow(const Readout& r, const Palette& pal)
 {
-    const bullettime::Meter m = bullettime::meter();
+    const bullettime::Meter& m = r.time;
     if(!m.enabled)
     {
         return;
     }
-    constexpr float x = 176.f, y = 104.f, w = 56.f, h = 8.f;
-    const glm::vec3 lit{pal.text};
-    const glm::vec3 dim = pal.line * 0.6f;
-    gfx::draw2D::color(m.active ? pal.text : glm::vec4{pal.line, 1.f});
-    gfx::draw2D::text(x - 36.f, y, 8.f, "TIME");
-    gfx::draw2D::color(white);
-    const glm::vec3 frame = m.active ? (blinkOn() ? lit : pal.line) : m.cooling ? dim : pal.line;
-    fill(x, y - 1.f, w, 1.f, frame);
-    fill(x, y + h, w, 1.f, frame);
-    fill(x - 1.f, y - 1.f, 1.f, h + 2.f, frame);
-    fill(x + w, y - 1.f, 1.f, h + 2.f, frame);
+    const float y = rowY[1] - 1.f, h = 9.f, w = meterRight - meterX;
+    drawText(labelX, rowY[1], 8.f, "TIME", m.active ? pal.value : pal.label, pal);
+    const glm::vec3 frame = m.active ? (blinkOn() ? pal.value : pal.line) : m.cooling ? pal.dim * 0.6f : pal.line;
+    meterFrame(meterX, y, w, h, frame);
     if(!m.cooling)
     {
-        fill(x + 1.f, y + 1.f, (w - 2.f) * CLAMP(0.f, m.level, 1.f), h - 2.f, m.active || m.ready ? lit : dim);
+        fill(meterX + 2.f, y + 2.f, (w - 4.f) * CLAMP(0.f, m.level, 1.f), h - 4.f, m.active || m.ready ? pal.value : pal.dim);
     }
+}
+
+// Every ammo's count: its icon (small) and the count, white (dim when none). The slots are spaced so a 3-digit count
+// still leaves a gap before the next icon (the last slot needs no gap after it).
+void ammoRow(const Readout& r, const Palette& pal)
+{
+    drawText(labelX, rowY[2], 8.f, "AMMO", pal.label, pal);
+    constexpr float iconW = 12.f, textGap = 1.f, maxCountW = 3.f * 8.f;
+    const float slot = (meterRight - meterX - (iconW + textGap + maxCountW)) / 3.f;
+    for(int i = 0; i < 4; i++)
+    {
+        const float x = za::round(meterX + slot * i);
+        drawPic(x, rowY[2] - 2.f, PicAmmo + i, 0.5f, pal.label, pal);
+        char count[8];
+        q_snprintf(count, sizeof(count), "%d", CLAMP(0, r.pools[i], 999));
+        drawText(x + iconW + textGap, rowY[2], 8.f, count, r.pools[i] > 0 ? pal.value : pal.dim, pal);
+    }
+}
+
+// The level, kills and secrets (vr_gadget_show_level), the maps being relit in place of the kills and secrets with a
+// bar under them, and the keys, powerups and sigils at the right: full size over both lines when the kills and secrets
+// still fit beside them, else at half size on the level's line only, the second line then the whole width.
+void infoRows(const Readout& r, const Palette& pal)
+{
+    constexpr int itemBits[10] = {IT_KEY1, IT_KEY2, IT_INVISIBILITY, IT_INVULNERABILITY, IT_SUIT, IT_QUAD,
+        1 << 28, 1 << 29, 1 << 30, static_cast<int>(1u << 31)};
+    const auto itemPic = [](int i) { return i < 2 ? PicKey + i : i < 6 ? PicPowerup + (i - 2) : PicSigil + (i - 6); };
+    const auto itemWidth = [&](int i) {
+        const qpic_t* p = greyPic(itemPic(i));
+        return p ? static_cast<float>(p->width) : 16.f;
+    };
+    const auto columnsLeftOf = [](float x) { return za::max(0, static_cast<int>((x - 4.f - margin) / 8.f)); };
+
+    float itemsW = 0.f; // at full size, with their gaps
+    for(int i = 0; i < 10; i++)
+    {
+        itemsW += r.items & itemBits[i] ? itemWidth(i) + 2.f : 0.f;
+    }
+
+    char stats[64], shortStats[64];
+    q_snprintf(stats, sizeof(stats), "KILLS %d/%d  SECRETS %d/%d", r.kills, r.totalKills, r.secrets, r.totalSecrets);
+    q_snprintf(shortStats, sizeof(shortStats), "K %d/%d  S %d/%d", r.kills, r.totalKills, r.secrets, r.totalSecrets);
+    const int fullColumns = columnsLeftOf(meterRight - itemsW);
+    const bool small = itemsW > 0.f && static_cast<int>(strlen(shortStats)) > fullColumns &&
+                       (r.relight || vr_gadget_show_level.value);
+    const float scale = small ? 0.5f : 1.f;
+
+    float x = meterRight;
+    for(int i = 9; i >= 0; i--)
+    {
+        if(r.items & itemBits[i])
+        {
+            x -= itemWidth(i) * scale;
+            const glm::vec3& rgb = i >= 2 && i < 6 ? pal.value : pal.label; // (powerups in use: white)
+            drawPic(x, small ? infoY[0] : infoY[0] + 1.f, itemPic(i), scale, rgb, pal);
+            x -= small ? 1.f : 2.f;
+        }
+    }
+    const int columns = columnsLeftOf(x);                          // the level's line
+    const int columns2 = small ? columnsLeftOf(meterRight) : columns; // the second line
+
+    char line[64];
+    if(vr_gadget_show_level.value)
+    {
+        q_snprintf(line, sizeof(line), "%.*s", za::min(columns, 40), r.level);
+        for(char* c = line; *c; c++) // (the level's names are in mixed case: the font's capitals read better)
+        {
+            *c = *c >= 'a' && *c <= 'z' ? static_cast<char>(*c - 'a' + 'A') : *c;
+        }
+        drawText(margin, infoY[0], 8.f, line, pal.value, pal);
+    }
+    if(r.relight)
+    {
+        q_snprintf(line, sizeof(line), "%.*s", za::min(columns2, 40), r.relight);
+        drawText(margin, infoY[1], 8.f, line, pal.value, pal);
+        const float w = meterRight - margin;
+        fill(margin, barY, w, 3.f, pal.line * 0.6f);
+        fill(margin, barY, za::round(w * CLAMP(0.f, r.relightProgress, 1.f)), 3.f, pal.value);
+        return;
+    }
+    if(!vr_gadget_show_level.value)
+    {
+        return;
+    }
+    const char* chosen = static_cast<int>(strlen(stats)) <= columns2 ? stats : shortStats;
+    q_snprintf(line, sizeof(line), "%.*s", za::min(columns2, 40), chosen); // (never past the items)
+    drawText(margin, infoY[1], 8.f, line, pal.label, pal);
 }
 
 void layout()
 {
     const Palette pal = palette();
+    const Readout r = readout();
 
-    // A tinted screen with faint scanlines (the CRT look has its own) and a frame.
+    // A dark tinted screen with faint scanlines (the CRT look has its own) and a frame.
     fill(0.f, 0.f, width, height, pal.background);
     for(int y = 0; y < height && crtStrength() <= 0.f; y += 3)
     {
         fill(0.f, static_cast<float>(y), width, 1.f, pal.scanline);
     }
-    // Exhausted (no parry stamina left, vr_gadget_stamina): the frame blinks bright, to be seen out of the corner of the eye.
-    const meleehud::State m = meleehud::state();
-    const bool alarm = vr_gadget_stamina.value && m.stamina && m.left <= 0.f && blinkOn();
-    const glm::vec3 frame = alarm ? glm::vec3{pal.text} : pal.line;
+    // Exhausted (no stamina left, vr_gadget_stamina): the frame blinks red, to be seen out of the corner of the eye.
+    const bool alarm = vr_gadget_stamina.value && r.melee.stamina && r.melee.left <= 0.f && blinkOn();
+    const glm::vec3 frame = alarm ? pal.warn : pal.line;
     fill(0.f, 0.f, width, 2.f, frame);
     fill(0.f, height - 2.f, width, 2.f, frame);
     fill(0.f, 0.f, 2.f, height, frame);
     fill(width - 2.f, 0.f, 2.f, height, frame);
 
-    // The top row: the title, or parry stamina and the counter's window (vr_gadget_stamina).
-    if(!meleeRow(pal))
+    // Health (the face its icon; red under 25) and armour.
+    const int face = r.health >= 100 ? 4 : CLAMP(0, r.health / 20, 4);
+    tile(0, 0, "HEALTH", PicFace + face, r.health, false, r.health < 25 ? blinking(pal.warn) : pal.value, pal);
+    tile(1, 0, "ARMOR", r.armorType >= 0 ? PicArmor + r.armorType : -1, r.armor, false, r.armor > 0 ? pal.value : pal.dim, pal);
+
+    // Each hand's weapon's ammo (red when empty; "--" for a weapon without).
+    for(int h = 0; h < 2; h++)
     {
-        gfx::draw2D::color(pal.text);
-        gfx::draw2D::text(8.f, 6.f, 8.f, "RANGER STATUS");
-        gfx::draw2D::color(white);
-        fill(8.f, 16.f, width - 16.f, 1.f, pal.line);
+        const int type = r.handType[h], count = r.handAmmo[h];
+        const bool none = type < 0 && count <= 0; // (a chainsaw's fuel, an enemy gun's clip: a count without a kind)
+        tile(h, 1, h == 0 ? "MAIN HAND" : "OFF HAND", type >= 0 ? PicAmmo + type : -1, count, none,
+            count <= 0 ? blinking(pal.warn) : pal.value, pal);
     }
 
-    // Face and health, armour.
-    const int health = cl.stats[STAT_HEALTH];
-    const int face = health >= 100 ? 4 : CLAMP(0, health / 20, 4);
-    gfx::draw2D::pic(8.f, 22.f, facePic(face));
-    number(36.f, 22.f, health, 3, health < 25, 1.f);
-
-    const int armor = cl.stats[STAT_ARMOR];
-    const int armorType = (cl.items & IT_ARMOR3) ? 2 : (cl.items & IT_ARMOR2) ? 1 : 0;
-    if(armor > 0)
-    {
-        gfx::draw2D::pic(128.f, 22.f, armorPics[armorType]);
-    }
-    number(156.f, 22.f, armor, 3, false, 1.f);
-
-    // Ammo: four columns, icon over count.
-    const int ammo[4] = {cl.stats[STAT_SHELLS], cl.stats[STAT_NAILS], cl.stats[STAT_ROCKETS], cl.stats[STAT_CELLS]};
-    for(int i = 0; i < 4; i++)
-    {
-        const float x = 14.f + i * 58.f;
-        gfx::draw2D::pic(x, 56.f, ammoPics[i]);
-        char count[8];
-        q_snprintf(count, sizeof(count), "%3d", ammo[i]);
-        gfx::draw2D::color(pal.text);
-        gfx::draw2D::text(x - 3.f, 84.f, 10.f, count);
-        gfx::draw2D::color(white);
-    }
-
-    // Keys, powerups and sigils in a row.
-    float x = 12.f;
-    const int keyBits[2] = {IT_KEY1, IT_KEY2};
-    for(int i = 0; i < 2; i++)
-    {
-        if(cl.items & keyBits[i])
-        {
-            gfx::draw2D::pic(x, 100.f, keyPics[i]);
-            x += 20.f;
-        }
-    }
-    const int powerupBits[4] = {IT_INVISIBILITY, IT_INVULNERABILITY, IT_SUIT, IT_QUAD};
-    for(int i = 0; i < 4; i++)
-    {
-        if(cl.items & powerupBits[i])
-        {
-            gfx::draw2D::pic(x, 100.f, powerupPics[i]);
-            x += 20.f;
-        }
-    }
-    for(int i = 0; i < 4; i++)
-    {
-        if(cl.items & (1 << (28 + i)))
-        {
-            gfx::draw2D::pic(x, 100.f, sigilPics[i]);
-            x += 12.f;
-        }
-    }
-
-    bulletTimeMeter(pal);
-
-    // The level, kills and secrets; while maps are being relit (vr_relight.cpp), that line in place of the kills and
-    // secrets, a thin bar under it.
-    const char* relit = relight::indicator();
-    if(!vr_gadget_show_level.value && !relit)
-    {
-        return;
-    }
-    fill(8.f, 122.f, width - 16.f, 1.f, pal.line);
-    char line[64];
-    gfx::draw2D::color(pal.text);
-    if(vr_gadget_show_level.value)
-    {
-        q_snprintf(line, sizeof(line), "%.22s", cl.levelname);
-        gfx::draw2D::text(8.f, 127.f, 8.f, line);
-    }
-    if(relit)
-    {
-        q_snprintf(line, sizeof(line), "%.28s", relit);
-        gfx::draw2D::text(8.f, 137.f, 8.f, line);
-        gfx::draw2D::color(white);
-        fill(8.f, 146.f, width - 16.f, 1.f, pal.line * 0.6f);
-        fill(8.f, 146.f, (width - 16.f) * CLAMP(0.f, relight::progress(), 1.f), 1.f, glm::vec3{pal.text});
-        return;
-    }
-    q_snprintf(line, sizeof(line), "K %d/%d  S %d/%d", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS],
-        cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
-    gfx::draw2D::text(8.f, 138.f, 8.f, line);
-    gfx::draw2D::color(white);
+    fill(margin, ruleY[0], width - 2.f * margin, 1.f, pal.line);
+    staminaRow(r, pal);
+    timeRow(r, pal);
+    ammoRow(r, pal);
+    fill(margin, ruleY[1], width - 2.f * margin, 1.f, pal.line);
+    infoRows(r, pal);
 }
 
 // One of the screen's lights, `out` units in front of it, in its colour times `k`.
@@ -1865,6 +2195,12 @@ namespace
 bool testCommandsRegistered = false; // (vr_message_test, vr_gadget_info: registered on the first call)
 } // namespace
 
+void onGameDirChanged()
+{
+    greys.built = false;      // (the grey pictures are made again from the new game's gfx.wad when next drawn,
+    brightFont.built = false; // and the font from its conchars)
+}
+
 void renderScreen()
 {
     QVR_GPU_PROFILE("gadget screen");
@@ -1904,7 +2240,7 @@ void drawScreen()
     const glm::vec3 xAxis = current.axes[0] * (size.x * current.scale);
     const glm::vec3 yAxis = current.axes[1] * (size.y * current.scale);
 
-    // The phosphor's colour is the text's; the texture's brightness says how lit each texel is.
+    // The texture in its own colours (palette()); the phosphor's colour (the static's) is the screen's.
     const glm::vec4 phosphor = palette().text;
     const gfx::Vertex c[4] = {{origin, {0.f, 0.f}, phosphor}, {origin + xAxis, {1.f, 0.f}, phosphor},
         {origin + xAxis + yAxis, {1.f, 1.f}, phosphor}, {origin + yAxis, {0.f, 1.f}, phosphor}};
@@ -1915,7 +2251,7 @@ void drawScreen()
     gfx::draw(quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
             .params = {time, k, k > 0.f ? glitch(realtime) * za::min(k, 1.f) : 0.f, textGlow()},
-            .screen = {width, height, 0.5f}},
+            .screen = {width, height, 0.5f}, .trueColor = true},
         target.texture);
 }
 
@@ -2110,8 +2446,7 @@ void gadgetInfo_f()
         a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z);
 }
 
-// vr_gadget_screen_dump [name]: the screen's image as drawn this frame (before the phosphor's tint, the CRT and the
-// glow), flat, to screenshots/<name>.png (default gadget_screen), for tests.
+// vr_gadget_screen_dump [name]: the screen's image as drawn this frame (before the CRT and the glow), flat, to screenshots/<name>.png (default gadget_screen), for tests.
 void screenDump_f()
 {
     if(!target.texture || !target.framebuffer)

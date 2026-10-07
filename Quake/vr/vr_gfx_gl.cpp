@@ -69,10 +69,13 @@ void main()
 // pixel at a time; while it glitches (g), bands torn sideways, the colours split and the static
 // thick. Seeded by time only: both eyes see the same. With glow s (Params.w, vr_screen_text_glow):
 // the lit strokes' cores whitish and a soft halo round them (glow(): from the texture's mipmaps),
-// under the scanlines and torn with the rest.
+// under the scanlines and torn with the rest. With TrueColor 1 (the wrist gadget's: State::trueColor) the texture is
+// shown in its own colours (its near-white text, its red warnings, its tinted background), each channel torn apart as
+// the phosphor's were; only white strokes get the whitish cores, and the halo is in the strokes' own colours.
 constexpr const char* fragmentShader = R"(
 layout(location = 2) uniform vec4 Params;
 layout(location = 3) uniform vec3 Size; // Mode 4's virtual screen: pixels across, down, scanlines a pixel
+layout(location = 16) uniform float TrueColor; // Mode 4: 1 the texture's own colours, 0 its brightness in the vertex colour
 layout(location = 4) uniform int SoftOn; // State::sceneDistances on unit 1
 layout(binding = 0) uniform sampler2D Tex;
 layout(binding = 1) uniform sampler2D SceneDistances;
@@ -130,6 +133,11 @@ float lit(vec2 at, float lod)
     vec3 c = textureLod(Tex, at, lod).rgb;
     return 0.5 * max(c.r, max(c.g, c.b)) + 0.6 * dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
+// The texture's colour at `at`, as sharp as phosphor() reads it.
+vec3 texel(vec2 at)
+{
+    return textureLod(Tex, at, max(textureQueryLod(Tex, uv).y - 1.0, 0.0)).rgb;
+}
 float phosphor(vec2 at)
 {
     // Its own texels, sharp, however small it is in the eye (as without mipmaps); only where they
@@ -162,6 +170,29 @@ vec3 glow(vec2 at, float s)
     outer = max(outer * 0.125 - face, 0.0) / (1.0 - face);
     return s * (mix(color.rgb, vec3(1.0), 0.5) * (0.9 * inner) + color.rgb * (1.2 * outer));
 }
+// TrueColor's glow: the texture's colours blurred as glow()'s rings, less the dark background's, softer (the text stays
+// crisp against its background).
+vec3 glowColor(vec2 at, float s)
+{
+    float perPixel = float(textureSize(Tex, 0).x) / Size.x;
+    vec2 px = 1.0 / Size.xy;
+    float lodInner = log2(perPixel), lodOuter = log2(perPixel * 2.0);
+    vec3 inner = vec3(0.0), outer = vec3(0.0);
+    for(int i = 0; i < 4; i++)
+    {
+        float a = 1.5707963 * float(i) + 0.7853982;
+        inner += textureLod(Tex, at + vec2(cos(a), sin(a)) * px * 0.9, lodInner).rgb;
+    }
+    for(int i = 0; i < 8; i++)
+    {
+        float a = 0.7853982 * float(i) + 0.3926991;
+        outer += textureLod(Tex, at + vec2(cos(a), sin(a)) * px * 2.5, lodOuter).rgb;
+    }
+    const float face = 0.14;
+    inner = max(inner * 0.25 - face, 0.0) / (1.0 - face);
+    outer = max(outer * 0.125 - face, 0.0) / (1.0 - face);
+    return s * (0.35 * inner + 0.45 * outer);
+}
 vec4 screen()
 {
     float t = Params.x, k = Params.y, g = Params.z;
@@ -179,7 +210,20 @@ vec4 screen()
     float lum = phosphor(at);
     vec3 rgb = color.rgb * vec3(phosphor(at - vec2(split, 0.0)), lum, phosphor(at + vec2(split, 0.0)));
     float s = Params.w;
-    if(s > 0.0)
+    if(TrueColor > 0.5)
+    {
+        vec3 c = texel(at);
+        rgb = vec3(texel(at - vec2(split, 0.0)).r, c.g, texel(at + vec2(split, 0.0)).b);
+        if(s > 0.0)
+        {
+            // Only near-white strokes pushed a little over white (for the bloom); the halo in their own colours.
+            float white = min(c.r, min(c.g, c.b)) / max(max(c.r, max(c.g, c.b)), 1e-3);
+            float core = s * 0.5 * white * smoothstep(0.5, 0.95, lum);
+            rgb = mix(rgb, vec3(1.15 * lum), min(core, 0.6));
+            rgb += glowColor(at, s);
+        }
+    }
+    else if(s > 0.0)
     {
         // The lit strokes' core pushed towards white, a little over (for the bloom), and their glow.
         float core = s * 0.8 * smoothstep(0.3, 0.9, lum);
@@ -912,6 +956,7 @@ namespace
     {
         GL_Uniform4fFunc(2, state.params.x, state.params.y, state.params.z, state.params.w);
         GL_Uniform3fFunc(3, state.screen.x, state.screen.y, state.screen.z);
+        GL_Uniform1fFunc(16, state.trueColor ? 1.f : 0.f);
     }
     GL_Uniform1iFunc(4, state.sceneDistances ? 1 : 0);
     if(retro)

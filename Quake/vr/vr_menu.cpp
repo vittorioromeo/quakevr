@@ -2522,7 +2522,7 @@ void hologramTestMessage()
         header("Wrist Gadget"),
         toggle("Level and Stats", vr_gadget_show_level),
         toggle("Stamina and Counters", vr_gadget_stamina)
-            .help("The top row shows your parry stamina (with Parry Stamina on) and COUNTER while a counter-attack's window is open."),
+            .help("The STAMINA row shows your stamina (parries, shoves and blows spend it) and COUNTER while a counter-attack's window is open."),
         slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx").extend()
             .help("The screen casts a light in its colour the way it faces, and a faint one on your hand (0 off)."),
         slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx").extend()
@@ -2575,7 +2575,10 @@ void hologramTestMessage()
         hueSlider("Screen Hue", vr_gadget_screen_hue)
             .help("The screen's colour (and your weapons' screens'). Player's: the Player Effects Hue."),
         slider("Screen Brightness", vr_gadget_screen_brightness, 0.3f, 1.5f, 0.05f, "%.2f").extend(),
-        slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f").extend(),
+        slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f").extend()
+            .help("How bright the screen's dark background is in its colour (the text reads best dark: 1)."),
+        slider("Screen Text Whiteness", vr_gadget_screen_text_white, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How white the screen's numbers and values are: 1 white, 0 the screen's colour (as its labels). Warnings stay red."),
         slider("Casing Tint", vr_gadget_tint, 0.f, 1.f, 0.05f, "%.2f").help("0 keeps the casing's own olive drab."),
         slider("Casing Tint Hue", vr_gadget_tint_hue, 0.f, 355.f, 5.f, "%.0f"),
         header("Effects"),
@@ -4680,6 +4683,10 @@ za::Vector<Item> pageDebugTools()
         command("Soak Your Arms", "vr_wounds_test self 9 0 0 52").help("vr_wounds_test self 9 0 0 52: wet as from water up to your chest; dries in about 25 seconds."),
         command("Test Light", "vr_light_test").help("vr_light_test: a white light 48 units ahead for 5 seconds."),
         command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
+        cycle("Gadget Screen Readings", "vr_gadget_test_state",
+            {{0.f, "Real"}, {1.f, "Low"}, {2.f, "Exhausted, Counter"}, {3.f, "Hanging, Bullet Time"}, {4.f, "Relighting"}, {5.f, "Every Item"}})
+            .help("vr_gadget_test_state: the wrist gadget's screen shows made-up readings, to see each state of its layout: low health, ammo and "
+                  "stamina; no stamina with a counter's window open; hanging with bullet time running; maps being relit; every key, powerup and sigil."),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
         command("Lightning Shock", "vr_shock_test 0").help("vr_shock_test 0: the lightning gun's shock in water (the flash, the arcs over your arms and body), without the damage."),
         command("Lightning Strikes You", "vr_shock_self_test 10; vr_shock_self_info")

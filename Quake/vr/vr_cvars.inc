@@ -468,6 +468,8 @@ QVR_CVAR(vr_gadget_tint, "0", CVAR_ARCHIVE)           // and strength (0: its ow
 QVR_CVAR(vr_gadget_screen_hue, "-1", CVAR_ARCHIVE)    // the screen's colour (and the ammo screens', the wrist log's): hue (degrees; 128 green, 40 amber, 200 blue; -1 vr_player_hue),
 QVR_CVAR(vr_gadget_screen_brightness, "1", CVAR_ARCHIVE) // its text and lines' brightness,
 QVR_CVAR(vr_gadget_screen_background, "1", CVAR_ARCHIVE) // and its background's
+QVR_CVAR(vr_gadget_screen_text_white, "0.85", CVAR_ARCHIVE) // how white the screen's text and numbers are (0: the screen's colour, as its lines; 1 white); warnings red either way
+QVR_CVAR(vr_gadget_test_state, "0", CVAR_NONE)        // the screen shows made-up readings, for tests (Debug > Tests): 1 low (health, ammo, stamina), 2 exhausted with a counter's window open, 3 hanging, 4 maps being relit, 5 every key, powerup and sigil
 QVR_CVAR(vr_gadget_show_level, "1", CVAR_ARCHIVE)     // the level's name, kills and secrets on the screen
 QVR_CVAR(vr_gadget_stamina, "1", CVAR_ARCHIVE)        // the screen's top row shows stamina (with parry, shove or strike stamina on: vr_parry_stamina, vr_shove_stamina, vr_strike_stamina) and flashes COUNTER while a counter's window is open (vr_meleehud.cpp)
 QVR_CVAR(vr_gadget_light, "1", CVAR_ARCHIVE)          // the screen casts a light in its colour the way it faces: strength (0 off)

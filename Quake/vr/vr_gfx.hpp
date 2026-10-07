@@ -41,7 +41,8 @@ enum class Shade
                    // (the vertex colour), as a small CRT (State::params: time in seconds, CRT strength,
                    // glitch 0..1, the lit strokes' glow; State::screen: its virtual screen's size in
                    // pixels and its scanlines per pixel). The glow needs the texture's mipmaps (a
-                   // target made with them). Its alpha: the vertex colour's.
+                   // target made with them). Its alpha: the vertex colour's. With State::trueColor (the
+                   // wrist gadget's) the texture's own colours instead, the vertex colour only the static's.
     Hologram,      // the wrist gadget's hologram (premultiplied): with State::params.w 0 its text, the texture's
                    // lit strokes in the vertex colour (its alpha: how shown), glowing, with a faint haze round
                    // them, scanlines, a flicker and glitches (params: time, effect strength, glitch 0..1;
@@ -66,6 +67,7 @@ struct State
     bool depthWrite{false};
     glm::vec4 params{0.f}; // the shade's own settings (Shade::Screen's)
     glm::vec3 screen{240.f, 150.f, 0.5f}; // Shade::Screen's pixels across, down, and scanlines a pixel
+    bool trueColor{false}; // Shade::Screen: the texture's own colours instead of its brightness in the vertex colour (the wrist gadget's)
     // Soft (premultiplied blends): the opaque scene's distances along the view (vr_water.hpp's opaqueSceneDistances,
     // half the target's size); each vertex's colour times how far in front of the scene it is over its Vertex::soft
     // (0 to 1, smoothly). 0: not soft.
