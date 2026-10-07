@@ -30444,3 +30444,35 @@ hand (`buttons/stray_press_test.sh`: 30 loads, 0 stray presses, 1 real press); `
 `vrstart_old@3e00.ent` (83 edicts; 80 from its own lump with `external_ents 0`); `vrfiringrange` loads
 `vrfiringrange@3647.ent` (268; 186 without); a valid plain `e1m1.ent` (one more item_health, a new message) applies
 (218 edicts, 217 without); `make_prop_area.py --ent-only` rewrites the pinned file unchanged.
+
+
+## Death hides the gear; vrstart's lecterns, settings wall and crates (2026-10-08)
+
+The author's notes vrfiringrange_2026-10-08_00-02-05 and 00-02-55, vrstart_2026-10-07_23-32-40, 23-34-05, 23-34-22 and
+23-36-45.
+
+- **Dead, the gear hidden** (`vr_dead_hide_gear`, on; HUD and Menus > Screens > Hide Gear When Dead): while your health
+  is 0 or less (in game, not in an intermission: `body::gearHiddenForDeath`) no holstered guns nor holster sleeves
+  (`setupHolsters`), no ammo pouch (`setupAmmoPouch`), no wrist gadget (`gadget::active()` false); the HUD is then
+  Quake's status bar on a hand, as with HUD: Status Bar (`vr_panel.cpp` `handSbar`). All back when you respawn (single
+  player: `restart`) or load a save. Not hidden: the belt's flashlight, the grenade pouch on the back. Tests:
+  `vr_gear_status` (Debug > Reports > Gear: what was drawn, and whether the status bar is on a hand) and `impulse 195`
+  (Debug > Cheats and Recording > Die Now: armour, god mode and the Pentagram set aside, not gibbed). Alive 2 guns, 4
+  sleeves, pouch 1, gadget 1, status bar 0; dead all 0 and status bar 1; after `restart` and after `load` as alive;
+  dead with the setting off as alive.
+- **The main menu**: a gap above Quit, as between its other groups (`M_Main_GroupStart`; `M_Main_Layout` counts the
+  gaps).
+- **Dimension of the Past's lectern** started the campaign at once because the campaign has its own game folder and
+  the slipgate's changelevel can't rebuild the folders (`VR_CanChangeCampaignMap` refused it). Now it selects
+  (`vr_activestartpaknameidx 3`, SELECTED over it) and the slipgate, at a hub, runs `vr_campaign_select dopa` (at most
+  once in 2 s while the gate is touched); a 3 left over on any other map is ignored ("start" is the running campaign's).
+  Test: on vrstart `vr_activestartpaknameidx 3` leaves the map vrstart; `changelevel start` then loads e5start
+  (vr_campaign 3, the hub selector back to 0); on e1m1 with 3, `changelevel start` loads Quake's start.
+- **The settings pavilion**: a tenth button on the south wall, SWIMMING (`vr_setup_option swim`: vr_swim Immersive /
+  Vanilla). TORCH SIDE already read Left / Right (30509383).
+- **Crates**: the range's two stacks put their top crate into the two under it (`crates::putPlaced` traced the level
+  only) and lane 3's two were 32 apart (they touch turned). `putPlaced` now rests a crate on one placed before it whose
+  middle is under its origin; the stacks' lower pair are 44 apart. `vr_crates_list` ends with the pairs whose turned
+  boxes overlap (vrstart: 5 pairs before, 0 after).
+- Test note: a wall button's command (QC `localcmd`) runs after every command already queued, so a `-Script` can't see
+  its effect before it ends: press it to see `vr_debug_wallbuttons` name it, and run its command to test the command.

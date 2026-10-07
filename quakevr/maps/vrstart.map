@@ -96478,10 +96478,10 @@
 {
 "classname" "func_button"
 "buttonEffect" "3"
-"targetname" "vr_campaign_select dopa\n"
-"worldtext" "DIMENSION\nOF THE PAST\n(starts now)"
+"targetname" "vr_activestartpaknameidx 3; echo Dimension of the Past selected: step into the slipgate\n"
+"worldtext" "DIMENSION\nOF THE PAST"
 "worldtext_halign" "1"
-"worldtext_scale" "0.17"
+"worldtext_scale" "0.2"
 "angle" "90"
 "wait" "1"
 "speed" "50"
@@ -96884,12 +96884,12 @@
 "sounds" "1"
 // brush 0
 {
-( -207 -198 207 ) ( -207 -206 225 ) ( -207 -206 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
-( -207 -206 207 ) ( -207 -206 225 ) ( -189 -206 207 ) +0basebtn [ -1 0 0 16 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
-( -189 -206 207 ) ( -207 -198 207 ) ( -207 -206 207 ) +0basebtn [ -1 0 0 16 ] [ 0 -1 0 29 ] 0 0.5625 2
-( -207 -206 225 ) ( -207 -198 225 ) ( -189 -206 225 ) +0basebtn [ -1 0 0 16 ] [ 0 -1 0 29 ] 0 0.5625 2
-( -189 -198 207 ) ( -207 -198 225 ) ( -207 -198 207 ) +0basebtn [ -1 0 0 16 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
-( -189 -206 207 ) ( -189 -206 225 ) ( -189 -198 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+( -237 -198 207 ) ( -237 -206 225 ) ( -237 -206 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+( -237 -206 207 ) ( -237 -206 225 ) ( -219 -206 207 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( -219 -206 207 ) ( -237 -198 207 ) ( -237 -206 207 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 -1 0 29 ] 0 0.5625 2
+( -237 -206 225 ) ( -237 -198 225 ) ( -219 -206 225 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 -1 0 29 ] 0 0.5625 2
+( -219 -198 207 ) ( -237 -198 225 ) ( -237 -198 207 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( -219 -206 207 ) ( -219 -206 225 ) ( -219 -198 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
 }
 }
 // entity 254
@@ -96907,12 +96907,12 @@
 "sounds" "1"
 // brush 0
 {
-( -147 -198 207 ) ( -147 -206 225 ) ( -147 -206 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
-( -147 -206 207 ) ( -147 -206 225 ) ( -129 -206 207 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
-( -129 -206 207 ) ( -147 -198 207 ) ( -147 -206 207 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 -1 0 29 ] 0 0.5625 2
-( -147 -206 225 ) ( -147 -198 225 ) ( -129 -206 225 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 -1 0 29 ] 0 0.5625 2
-( -129 -198 207 ) ( -147 -198 225 ) ( -147 -198 207 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
-( -129 -206 207 ) ( -129 -206 225 ) ( -129 -198 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+( -177 -198 207 ) ( -177 -206 225 ) ( -177 -206 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+( -177 -206 207 ) ( -177 -206 225 ) ( -159 -206 207 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( -159 -206 207 ) ( -177 -198 207 ) ( -177 -206 207 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 -1 0 29 ] 0 0.5625 2
+( -177 -206 225 ) ( -177 -198 225 ) ( -159 -206 225 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 -1 0 29 ] 0 0.5625 2
+( -159 -198 207 ) ( -177 -198 225 ) ( -177 -198 207 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( -159 -206 207 ) ( -159 -206 225 ) ( -159 -198 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
 }
 }
 // entity 255
@@ -96930,12 +96930,12 @@
 "sounds" "1"
 // brush 0
 {
-( -87 -198 207 ) ( -87 -206 225 ) ( -87 -206 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
-( -87 -206 207 ) ( -87 -206 225 ) ( -69 -206 207 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
-( -69 -206 207 ) ( -87 -198 207 ) ( -87 -206 207 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 -1 0 29 ] 0 0.5625 2
-( -87 -206 225 ) ( -87 -198 225 ) ( -69 -206 225 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 -1 0 29 ] 0 0.5625 2
-( -69 -198 207 ) ( -87 -198 225 ) ( -87 -198 207 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
-( -69 -206 207 ) ( -69 -206 225 ) ( -69 -198 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+( -117 -198 207 ) ( -117 -206 225 ) ( -117 -206 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+( -117 -206 207 ) ( -117 -206 225 ) ( -99 -206 207 ) +0basebtn [ -1 0 0 16 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( -99 -206 207 ) ( -117 -198 207 ) ( -117 -206 207 ) +0basebtn [ -1 0 0 16 ] [ 0 -1 0 29 ] 0 0.5625 2
+( -117 -206 225 ) ( -117 -198 225 ) ( -99 -206 225 ) +0basebtn [ -1 0 0 16 ] [ 0 -1 0 29 ] 0 0.5625 2
+( -99 -198 207 ) ( -117 -198 225 ) ( -117 -198 207 ) +0basebtn [ -1 0 0 16 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( -99 -206 207 ) ( -99 -206 225 ) ( -99 -198 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
 }
 }
 // entity 256
@@ -96953,15 +96953,38 @@
 "sounds" "1"
 // brush 0
 {
-( -27 -198 207 ) ( -27 -206 225 ) ( -27 -206 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
-( -27 -206 207 ) ( -27 -206 225 ) ( -9 -206 207 ) +0basebtn [ -1 0 0 16 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
-( -9 -206 207 ) ( -27 -198 207 ) ( -27 -206 207 ) +0basebtn [ -1 0 0 16 ] [ 0 -1 0 29 ] 0 0.5625 2
-( -27 -206 225 ) ( -27 -198 225 ) ( -9 -206 225 ) +0basebtn [ -1 0 0 16 ] [ 0 -1 0 29 ] 0 0.5625 2
-( -9 -198 207 ) ( -27 -198 225 ) ( -27 -198 207 ) +0basebtn [ -1 0 0 16 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
-( -9 -206 207 ) ( -9 -206 225 ) ( -9 -198 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+( -57 -198 207 ) ( -57 -206 225 ) ( -57 -206 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+( -57 -206 207 ) ( -57 -206 225 ) ( -39 -206 207 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( -39 -206 207 ) ( -57 -198 207 ) ( -57 -206 207 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 -1 0 29 ] 0 0.5625 2
+( -57 -206 225 ) ( -57 -198 225 ) ( -39 -206 225 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 -1 0 29 ] 0 0.5625 2
+( -39 -198 207 ) ( -57 -198 225 ) ( -57 -198 207 ) +0basebtn [ -1 0 0 26.666667 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( -39 -206 207 ) ( -39 -206 225 ) ( -39 -198 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
 }
 }
 // entity 257
+{
+"classname" "func_button"
+"buttonEffect" "3"
+"targetname" "vr_setup_option swim\n"
+"worldtext" "SWIMMING"
+"worldtext_halign" "1"
+"worldtext_scale" "0.2"
+"angle" "270"
+"wait" "1"
+"speed" "50"
+"lip" "4"
+"sounds" "1"
+// brush 0
+{
+( 3 -198 207 ) ( 3 -206 225 ) ( 3 -206 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+( 3 -206 207 ) ( 3 -206 225 ) ( 21 -206 207 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( 21 -206 207 ) ( 3 -198 207 ) ( 3 -206 207 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 -1 0 29 ] 0 0.5625 2
+( 3 -206 225 ) ( 3 -198 225 ) ( 21 -206 225 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 -1 0 29 ] 0 0.5625 2
+( 21 -198 207 ) ( 3 -198 225 ) ( 3 -198 207 ) +0basebtn [ -1 0 0 5.333333 ] [ 0 0 -1 16 ] 0 0.5625 0.5625
+( 21 -206 207 ) ( 21 -206 225 ) ( 21 -198 207 ) +0basebtn [ 0 -1 0 29 ] [ 0 0 -1 16 ] 0 2 0.5625
+}
+}
+// entity 258
 {
 "classname" "func_worldtext_banner"
 "worldtext" "MOVING AND TURNING\nMore: {menu:Locomotion}"
@@ -96970,7 +96993,7 @@
 "angle" "270"
 "origin" "-108 13 266"
 }
-// entity 258
+// entity 259
 {
 "classname" "func_worldtext_banner"
 "worldtext" "BODY AND HANDS\nMore: {menu:Body and Display}"
@@ -96979,7 +97002,7 @@
 "angle" "90"
 "origin" "-108 -205 266"
 }
-// entity 259
+// entity 260
 {
 "classname" "func_worldtext_banner"
 "worldtext" "SETTINGS\nEach button steps its setting and saves it;\nthe screen above it shows the choice."
@@ -96988,7 +97011,7 @@
 "angle" "180"
 "origin" "-330 -96 220"
 }
-// entity 260
+// entity 261
 {
 "classname" "func_vr_tip"
 "tipname" "vs2_settings"
@@ -96997,59 +97020,59 @@
 "origin" "-168 0 178"
 "target" "vr_setup_option turning\n"
 }
-// entity 261
+// entity 262
 {
 "classname" "func_weapon_grabbable"
 "weapon" "4"
 "origin" "453 -180 100"
 "angle" "90"
 }
-// entity 262
+// entity 263
 {
 "classname" "func_weapon_grabbable"
 "weapon" "5"
 "origin" "453 -110 100"
 "angle" "90"
 }
-// entity 263
+// entity 264
 {
 "classname" "func_weapon_grabbable"
 "weapon" "6"
 "origin" "453 10 100"
 "angle" "90"
 }
-// entity 264
+// entity 265
 {
 "classname" "weapon_crowbar"
 "origin" "453 100 100"
 "angles" "0 80 90"
 }
-// entity 265
+// entity 266
 {
 "classname" "item_shells"
 "origin" "453 -145 100"
 }
-// entity 266
+// entity 267
 {
 "classname" "item_shells"
 "origin" "453 -80 100"
 }
-// entity 267
+// entity 268
 {
 "classname" "item_spikes"
 "origin" "453 40 100"
 }
-// entity 268
+// entity 269
 {
 "classname" "item_spikes"
 "origin" "453 70 100"
 }
-// entity 269
+// entity 270
 {
 "classname" "item_health"
 "origin" "410 140 64"
 }
-// entity 270
+// entity 271
 {
 "classname" "func_worldtext_banner"
 "worldtext" "FIRING RANGE\nGrip a gun from the bench; put\nammunition in at a holster."
@@ -97058,7 +97081,7 @@
 "angle" "180"
 "origin" "400 -40 160"
 }
-// entity 271
+// entity 272
 {
 "classname" "func_worldtext_banner"
 "worldtext" "Shoot the targets, the crates, the rocks\non the shelf. Stronger weapons wait\nin the campaigns."
@@ -97067,7 +97090,7 @@
 "angle" "180"
 "origin" "400 -40 134"
 }
-// entity 272
+// entity 273
 {
 "classname" "func_vr_tip"
 "tipname" "vs2_range"
@@ -97075,28 +97098,28 @@
 "distance" "200"
 "origin" "453 -40 110"
 }
-// entity 273
-{
-"classname" "vr_crate"
-"origin" "1100 -178 58"
-"angle" "22"
-"skin" "0"
-}
 // entity 274
 {
 "classname" "vr_crate"
-"origin" "1100 -142 58"
-"angle" "15"
+"origin" "1100 -182 58"
+"angle" "22"
 "skin" "0"
 }
 // entity 275
+{
+"classname" "vr_crate"
+"origin" "1100 -138 58"
+"angle" "15"
+"skin" "0"
+}
+// entity 276
 {
 "classname" "vr_crate"
 "origin" "1100 -160 90"
 "angle" "25"
 "skin" "1"
 }
-// entity 276
+// entity 277
 {
 "classname" "vr_crate"
 "origin" "1260 -170 58"
@@ -97104,18 +97127,18 @@
 "skin" "1"
 "spawnflags" "1"
 }
-// entity 277
+// entity 278
 {
 "classname" "vr_dummy"
 "origin" "780 -40 80"
 "angle" "180"
 }
-// entity 278
+// entity 279
 {
 "classname" "misc_explobox2"
 "origin" "1300 -40 58"
 }
-// entity 279
+// entity 280
 {
 "classname" "vr_debris_piece"
 "model" "progs/vr_rock1.mdl"
@@ -97123,7 +97146,7 @@
 "angle" "208"
 "skin" "2"
 }
-// entity 280
+// entity 281
 {
 "classname" "vr_debris_piece"
 "model" "progs/vr_brick1.mdl"
@@ -97131,7 +97154,7 @@
 "angle" "102"
 "skin" "4"
 }
-// entity 281
+// entity 282
 {
 "classname" "vr_debris_piece"
 "model" "progs/vr_rock3.mdl"
@@ -97139,7 +97162,7 @@
 "angle" "330"
 "skin" "1"
 }
-// entity 282
+// entity 283
 {
 "classname" "vr_debris_piece"
 "model" "progs/vr_brick3.mdl"
@@ -97147,7 +97170,7 @@
 "angle" "100"
 "skin" "5"
 }
-// entity 283
+// entity 284
 {
 "classname" "vr_debris_piece"
 "model" "progs/vr_rock5.mdl"
@@ -97155,28 +97178,28 @@
 "angle" "167"
 "skin" "4"
 }
-// entity 284
-{
-"classname" "vr_crate"
-"origin" "1240 70 58"
-"angle" "20"
-"skin" "0"
-}
 // entity 285
 {
 "classname" "vr_crate"
-"origin" "1240 102 58"
+"origin" "1240 64 58"
+"angle" "20"
+"skin" "0"
+}
+// entity 286
+{
+"classname" "vr_crate"
+"origin" "1240 108 58"
 "angle" "4"
 "skin" "1"
 }
-// entity 286
+// entity 287
 {
 "classname" "vr_crate"
 "origin" "1240 86 90"
 "angle" "22"
 "skin" "1"
 }
-// entity 287
+// entity 288
 {
 "classname" "func_worldtext_banner"
 "worldtext" "THE LOOKOUT\nClimb the ladder: grip a rung with\nan empty hand, pull yourself up."
@@ -97185,7 +97208,7 @@
 "angle" "90"
 "origin" "1090 -622 136"
 }
-// entity 288
+// entity 289
 {
 "classname" "func_worldtext_banner"
 "worldtext" "From the top: dive into deep water.\nClimbing: {menu:Climbing}"
@@ -97194,7 +97217,7 @@
 "angle" "90"
 "origin" "1090 -622 112"
 }
-// entity 289
+// entity 290
 {
 "classname" "func_vr_tip"
 "tipname" "vs2_ladder"
@@ -97202,7 +97225,7 @@
 "distance" "160"
 "origin" "1160 -674 116"
 }
-// entity 290
+// entity 291
 {
 "classname" "vr_crate"
 "origin" "-1290 -830 20"
@@ -97210,28 +97233,28 @@
 "skin" "1"
 "spawnflags" "1"
 }
-// entity 291
+// entity 292
 {
 "classname" "vr_crate"
 "origin" "-1285 -790 20"
 "angle" "66"
 "skin" "1"
 }
-// entity 292
+// entity 293
 {
 "classname" "vr_crate"
 "origin" "-1110 -840 20"
 "angle" "37"
 "skin" "1"
 }
-// entity 293
+// entity 294
 {
 "classname" "vr_crate"
 "origin" "110 -220 116"
 "angle" "10"
 "skin" "0"
 }
-// entity 294
+// entity 295
 {
 "classname" "vr_crate"
 "origin" "-330 70 116"
@@ -97239,22 +97262,22 @@
 "skin" "2"
 "spawnflags" "1"
 }
-// entity 295
+// entity 296
 {
 "classname" "ambient_swamp1"
 "origin" "-900 400 152"
 }
-// entity 296
+// entity 297
 {
 "classname" "ambient_swamp1"
 "origin" "300 500 256"
 }
-// entity 297
+// entity 298
 {
 "classname" "ambient_swamp1"
 "origin" "900 -300 128"
 }
-// entity 298
+// entity 299
 {
 "classname" "ambient_swamp1"
 "origin" "-700 -700 128"
