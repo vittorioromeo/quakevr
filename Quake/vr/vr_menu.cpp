@@ -2821,6 +2821,14 @@ void hologramTestMessage()
             .help("Grip a box or a backpack to carry it, push it with a hand or gun. Off: touching takes it."),
         cycle("Take a Box", vr_carry_take, {{0.f, "At a holster"}, {1.f, "Trigger"}, {2.f, "Either"}})
             .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
+        toggle("Put-Away Transition", vr_collect_fx)
+            .help("What you put away (a box or backpack at a holster, a key, a rune or a power-up, an ammo box or a round "
+                  "at the ammo pouch, a grenade at its pouch) is seen shrinking into the holster or pouch, following you, "
+                  "instead of vanishing. Only how it looks: it is yours the moment you let go, as before."),
+        slider("Put-Away Time", vr_collect_fx_time, 0.05f, 0.6f, 0.05f, "%.2f s").extend(0.f, 2.f)
+            .help("How long it takes to go in (slowed in bullet time)."),
+        slider("Put-Away End Size", vr_collect_fx_size, 0.05f, 1.f, 0.05f, "%.2fx")
+            .help("How small it is as it goes in: its size then, of its own."),
         slider("Grab Distance Bias", vr_carry_grab_bias, -3.f, 5.f, 0.5f, "%+.1f cm")
             .extend(-10.f, 20.f)
             .help("A hand takes a box, gib, backpack or armour when its fist (the palm and the curled fingers) touches it. "
@@ -4284,6 +4292,9 @@ za::Vector<Item> pageDebugLogging()
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),
         toggle("Holster Draw Blend", vr_debug_draw_blend)
             .help("Each frame of a gun easing between a holster and a hand: the turn and the distance left."),
+        cycle("Put-Away Transition", vr_debug_collect_fx, {{0.f, "Off"}, {1.f, "Each Thing"}, {2.f, "Each Frame"}})
+            .help("Each thing put away at a holster or pouch (its model, from where, the holster) and when it has gone "
+                  "in; or also each frame's size and distance left."),
         command("Check Last Pose", "vr_pose_check")
             .help("vr_pose_check: after the posing mode, how far what you set is from what you get. A weapon or hotspot: "
                   "hold it. In a holster: holster it there; each holster of that kind holding it is measured."),
@@ -5379,7 +5390,7 @@ za::Vector<Item> pageDebugTests()
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},
-             {110.f, "Rocks and Bricks"}, {111.f, "Barrel"}, {112.f, "Barrel Lying"}})
+             {110.f, "Rocks and Bricks"}, {111.f, "Barrel"}, {112.f, "Barrel Lying"}, {113.f, "Silver Key"}})
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed; Dawn "
                   "of the Machine's (its infected, which burst into zombies and fiends; its own monsters, the orb, the sacrifice: MG3's data, read in place)."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),

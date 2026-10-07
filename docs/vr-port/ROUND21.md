@@ -29566,3 +29566,33 @@ Break Open (`vr_reload_ssg_break`, 1):
 - Tests: the self-test 66 of 66 (its super shotgun section); reload_test.sh section 7 (46 of 46 in all).
 - Not done: a gun lying in the world is drawn shut even when open; its muzzle point (the aim line) stays where the shut
   barrels are while open (it can't fire then).
+
+## Put-away transition (2026-10-07)
+
+The author: a transition when an item is collected into a holster or the ammo pouch: instead of vanishing, the thing
+becomes smaller and fits into the holster, then disappears (worktree `collectfx`).
+
+- **What:** a box or backpack let go of at a holster (into the pack), a key, rune, suit or the horn taken at a holster,
+  an ammo box or a round let go of at the ammo pouch, an unarmed hand grenade put back in the grenade pouch. Not a box
+  taken with the trigger away from a holster (nowhere to go), not armour (worn).
+- **Gameplay unchanged:** the server takes it at once as before (the pickup, its sounds, the ammo or key given), then QC
+  (vr_carry.qc `VR_CollectFx_Note` before the take keeps its model and pose, `VR_CollectFx_Send` once it is gone; in
+  `VR_Carry_Take`, `VR_Reload_LetGo`, `VR_HandGrenade_LetGo`) calls the `collectfx` builtin, which sends that player's
+  client QVR_SVC_COLLECT (32: hand, hotspot, entity, model index, origin, angles; reliable, to that player alone). Other
+  players see it vanish as before.
+- **The drawing** (vr_collectfx.cpp): the message comes with the update that no longer has the entity, so the client
+  still holds it as drawn last frame (in the hand, vr_held.cpp) and copies it (model, frame, skin, scale, its networked
+  scale and offset), else builds it from the server's pose. The copy's middle goes from where it was into the
+  holster's or pouch's point (body::holsterPosition, ammoPouchPosition, pouchPosition) while it shrinks to
+  `vr_collect_fx_size` of itself, both on an ease-in (t^2), over `vr_collect_fx_time` of vr_gametime (slowed in bullet
+  time; the same at any frame rate). The start is kept as an offset from the target, placed on the body every frame, so
+  it follows the body. The shrink is applied about the origin first in vr_render.cpp's applyPre (all the item's own
+  transforms inside it) and the origin set so its drawn middle is where it should be. The box copies cast shadows as the
+  boxes do (vr_lighting.cpp collectBrushes takes brush casters from cl_entities only; without it a held box's self-shadow
+  vanished at the release, a brightness pop). Cleared on a new map and a load; skipped in demos.
+- **Settings:** Carrying and Throwing > Carrying ("Put-Away Transition" `vr_collect_fx` 1, "Put-Away Time"
+  `vr_collect_fx_time` 0.25 s, "Put-Away End Size" `vr_collect_fx_size` 0.2). Debug > Logging: "Put-Away
+  Transition" (`vr_debug_collect_fx` 1 each thing, 2 each frame). Test aids: `vr_mock_hand_to <hand> holster <0..5>` and
+  `grenadepouch`; Debug > Tests > Thing: Silver Key (`vr_test_spawn 113`).
+- **Seen:** with the hand at the holster the thing's middle is only a few units off the holster's point, so it is mostly
+  the shrink, with a small drop into the point. Test: Misc/quakevr/collectfx_test.sh.

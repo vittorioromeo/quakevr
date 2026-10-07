@@ -1861,6 +1861,16 @@ prints `2h grip: ... already closed: no hold (vr_2h_grip_edge)`. The ammo button
 pressed` or `not pressed, the fingertip came A deg off its face (cone C)`. Run the mock scripts one at a time per
 worktree: two run.sh at once on the same worktree share its base folder and fail.
 
+## Put-away transition (2026-10-07)
+
+`bash Misc/quakevr/collectfx_test.sh <agent>` (ROUND21.md, "Put-away transition"): a shells box (`vr_test_spawn 101`,
+`vr_test_spawn_hold 1`) let go of at the right hip holster (`vr_mock_hand_to main holster 3`) and at the ammo pouch, the
+silver key (`vr_test_spawn 113`) at the hip holster, with `vr_debug_collect_fx 1` (`collect fx: <model> (entity N, drawn
+pose) by hand H into hotspot S`, then `gone in`): each taken once (`You got ...`, the reserve 20 more), drawn going in;
+`vr_collect_fx 0` nothing drawn; a save and load and a map change while it goes in. `vr_debug_collect_fx 2` prints each
+frame's size and distance left. Pictures: `vr_mock_camera 0.9 1.4 -0.9 25 150` (the player from the front right, the
+right hip in view), screenshots every `wait4` after the release (about a fifth of the way each).
+
 ## Shotgun auto pump (2026-10-07)
 
 `bash Misc/quakevr/autopump_test.sh <agent>` (ROUND21.md, "Shotgun auto pump"): one shot of the shotgun in the main hand

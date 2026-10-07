@@ -13,6 +13,7 @@
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"
+#include "vr_collectfx.hpp"
 #include "vr_cvars.hpp"
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
@@ -39,7 +40,7 @@ namespace
 {
     if(e < cl_entities || e >= cl_entities + cl_max_edicts)
     {
-        return nullptr;
+        return collectfx::entityVr(e); // (a thing put away, drawn going in: the item's own)
     }
 
     return client::entityVr(static_cast<int>(e - cl_entities));
@@ -48,6 +49,12 @@ namespace
 void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[16])
 {
     const weapons::ModelTransform t = weapons::modelTransform(e->model);
+
+    // A thing put away, shrinking into a holster or pouch (vr_collectfx.cpp), about its origin: all of it.
+    if(const float k = collectfx::shrink(e); k != 1.f)
+    {
+        ApplyScale(m, k, k, k);
+    }
 
     // A prop's Size (Held Object Offsets), about its origin: everything below grows with it.
     if(const float size = props::drawnSize(e->model); size != 1.f)

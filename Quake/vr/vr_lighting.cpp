@@ -6,6 +6,7 @@
 #include "vr_ao.hpp"
 #include "vr_avatar.hpp"
 #include "vr_main.hpp"
+#include "vr_collectfx.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -438,6 +439,26 @@ void collectBrushes(const glm::vec3& light, float radius, bool itemsOnly)
         if(indices.size() > first)
         {
             brushCasters.pushBack({&e, first, indices.size() - first});
+        }
+    }
+    // A box put away, shrinking into its holster (vr_collectfx.cpp): it cast its shadow in the hand a moment ago.
+    for(int c = 0; c < collectfx::maxCopies; c++)
+    {
+        entity_t* e = collectfx::liveCopy(c);
+        if(!e || e->model->type != mod_brush || qvr::modelmeta::has(e->model, qvr::modelmeta::Trait::Submodel) ||
+            !touches(e, light, radius))
+        {
+            continue;
+        }
+        const size_t first = indices.size();
+        const msurface_t* s = e->model->surfaces + e->model->firstmodelsurface;
+        for(int k = 0; k < e->model->nummodelsurfaces; k++, s++)
+        {
+            addSurface(s);
+        }
+        if(indices.size() > first)
+        {
+            brushCasters.pushBack({e, first, indices.size() - first});
         }
     }
 }

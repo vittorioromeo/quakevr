@@ -717,7 +717,13 @@ float(float xHand, entity r) VR_Reload_LetGo =
     {
         return FALSE;
     }
-    return VR_Reload_Refund(self, r, xHand);
+    VR_CollectFx_Note(r);
+    if(!VR_Reload_Refund(self, r, xHand))
+    {
+        return FALSE;
+    }
+    VR_CollectFx_Send(xHand, r, QVR_HS_AMMO_POUCH); // (drawn going in: vr_collect_fx)
+    return TRUE;
 };
 
 // Whether `e` is an ammo box (a map's, the mission packs', the horde's; a backpack is not).

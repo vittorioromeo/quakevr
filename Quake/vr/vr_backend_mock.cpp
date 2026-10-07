@@ -450,7 +450,8 @@ void mockLook_f()
 // rig's bone number: vr_ragdoll_info; "near": the part nearest the hand), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
 // moved by that much (world units: lifting, swinging what it holds). "vr_mock_hand_to <main|off> nearest <classname>
 // [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it.
-// "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "vr_mock_hand_to <main|off> lport
+// "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "holster <0..5>": at that holster's
+// point (body::Holster); "grenadepouch": at the grenade pouch (vr_handgrenade); "vr_mock_hand_to <main|off> lport
 // [<units>]": what the hand holds (a shell's middle, a magazine's top: view::heldRoundRef) at the loading port of the gun the
 // other hand holds, `units` below it; "lportmid": its middle there (a magazine's too: the top-of-the-magazine tests).
 // "vr_mock_hand_to <main|off> wbutton <front|side|back> [<units>]": its fingertip `units` (2) off the other gun's ammo
@@ -622,6 +623,36 @@ void mockHandTo_f()
         moveHandTo(hand, target);
         return;
     }
+    if(hand >= 0 && ((Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "holster")) ||
+                        (Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "grenadepouch"))))
+    {
+        // At a holster's point (body::Holster: 0 left shoulder, 1 right shoulder, 2 left hip, 3 right hip, 4 left upper,
+        // 5 right upper), or the grenade pouch's (vr_handgrenade): putting away what the hand holds (vr_collect_fx tests).
+        const hands::State& st = hands::current();
+        glm::vec3 target;
+        if(Cmd_Argc() == 3)
+        {
+            if(!body::pouchEnabled())
+            {
+                Con_Printf("vr_mock_hand_to: no grenade pouch (vr_handgrenade)\n");
+                return;
+            }
+            target = body::pouchPosition(st);
+        }
+        else
+        {
+            const int h = Q_atoi(Cmd_Argv(3));
+            if(h < 0 || h >= body::HolsterCount)
+            {
+                Con_Printf("vr_mock_hand_to: holster 0..%d\n", body::HolsterCount - 1);
+                return;
+            }
+            target = body::holsterPosition(st, static_cast<body::Holster>(h));
+        }
+        Con_Printf("vr_mock_hand_to: %s: %.1f %.1f %.1f\n", Cmd_Argv(2), target.x, target.y, target.z);
+        moveHandTo(hand, target);
+        return;
+    }
     if((ammoPouch || loadPort) && hand >= 0)
     {
         // Immersive reloading (vr_reload.qc): at the ammo pouch's reach point; or what the hand holds (a round from it)
@@ -751,6 +782,8 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n"
                    "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> ammopouch\n"
+                   "       vr_mock_hand_to <main|off> holster <0..5>\n"
+                   "       vr_mock_hand_to <main|off> grenadepouch\n"
                    "       vr_mock_hand_to <main|off> lport [<units below it>]\n"
                    "       vr_mock_hand_to <main|off> lportmid\n");
         return;

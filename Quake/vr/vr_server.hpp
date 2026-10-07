@@ -50,6 +50,12 @@ void sendEject(struct edict_s* player, int hand, int kind, int count, int flags,
 // to `player` alone, the others (arcs on or in a liquid round `org`) to every client, unreliable.
 void sendShock(struct edict_s* player, int kind, const float org[3], float radius, float duration);
 
+// `collectfx(hand, e, hotspot, modelindex, origin, angles)` from QC (VR_CollectFx_Send): `player`'s `hand` put away entity
+// `ent` (model `modelIndex`, there, so turned) at `hotspot` (a holster's, a pouch's): its client draws it going in
+// (vr_collectfx.cpp). To that player alone, reliable.
+void sendCollect(struct edict_s* player, int hand, int hotspot, int ent, int modelIndex, const float origin[3],
+    const float angles[3]);
+
 // Weapon effects (vr_weaponfx.cpp), to every client (the datagram: a lost one is a flash or a tracer less): `shooter`
 // fired the weapon in `hand` (-1: a monster's gun), and a hitscan pellet of its went from `from` to `to`.
 void sendFired(struct edict_s* shooter, int hand);

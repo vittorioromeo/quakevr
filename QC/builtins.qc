@@ -450,6 +450,7 @@ float QVR_SPLASH_THING = 2;  // a splash, small or big by strength
 
 void(entity target, float duration) bodyshock = #0;
 void(entity target, float left) bodysmoulder = #0; // a burning body's fire goes out in `left` s (0: just out; below 0: doused): it smokes while it burns and a while after (vr_burning.qc)
+void(float hand, entity e, float hotspot, float mi, vector org, vector ang) collectfx = #0; // QVR: e, put away by self's hand at that holster or pouch (its model and pose before it was taken), drawn going in on self's client (vr_collect_fx; vr_carry.qc VR_CollectFx_Send)
 void(entity target, float duration) bodyshockdeath = #0; // lightning's lasting shock on a body it killed or struck: arcs crawling over it, fading (vr_shock.qc)
 void(entity box, entity player, float hand, float begin) portal_carry = #0;
 

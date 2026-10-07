@@ -4,6 +4,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_collectfx.hpp"
 #include "vr_held.hpp"
 #include "vr_decals.hpp"
 #include "vr_drawblend.hpp"
@@ -702,6 +703,7 @@ extern "C" void VR_OnClientClearState()
     shells::clear();
     autopump::clear();
     explosiondebris::clear();
+    collectfx::clear();
     fireparticles::clear();
     shock::clear();
     smoulder::clear();
@@ -829,6 +831,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_FIRED: weaponfx::parseFired(); break;
         case QVR_SVC_TRACER: weaponfx::parseTracer(); break;
         case QVR_SVC_RULES: serverrules::clientParse(); break;
+        case QVR_SVC_COLLECT: collectfx::parse(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 

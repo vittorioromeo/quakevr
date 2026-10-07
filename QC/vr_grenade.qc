@@ -1064,6 +1064,8 @@ float(float xHand, entity g) VR_HandGrenade_LetGo =
     VR_HandGrenade_AmmoChanged(self);
     sound(self, VRGetHandChannel(xHand), "vr/grenade_pouch.wav", 0.6, ATTN_NORM);
     VR_HandGrenade_Haptic(self, xHand, 0.08, 90, 0.6);
+    VR_CollectFx_Note(g);
+    VR_CollectFx_Send(xHand, g, QVR_HS_GRENADE_POUCH); // (drawn going in: vr_collect_fx)
     dprint(sprintf("grenade: hand %s put back in the pouch by hand %g, %g %s\n", g.vr_hgren_multi ? "multi-grenade" :
         "grenade", xHand, VR_HandGrenade_Ammo(self, g), g.vr_hgren_multi ? "multi-rockets" : "rockets"));
     remove(g);

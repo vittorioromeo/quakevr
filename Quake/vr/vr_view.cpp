@@ -12,6 +12,7 @@
 #include "vr_anchor.hpp"
 #include "vr_autopump.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_collectfx.hpp"
 #include "vr_climb.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
@@ -6945,6 +6946,7 @@ extern "C" void VR_SetupViewEntities()
 
     // Spent casings thrown out of the weapons (vr_shells.cpp).
     shells::frame(entities.weapon);
+    collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
     explosiondebris::frame();
     fireparticles::frame();
 

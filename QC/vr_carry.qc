@@ -849,9 +849,44 @@ void(float xHand, entity xBox) VR_Carry_Release =
     VR_Grenade_Released(xBox, xHand); // a live grenade is the player's (vr_grenade.qc)
 };
 
-// Take it: its own pickup, as if the carrying hand had touched it the old way.
+// The put-away transition (vr_collect_fx: vr_collectfx.cpp): a thing a hand puts away at a holster (into the pack) or a
+// pouch is drawn going into it on that player's client, while it is taken at once here as before. VR_CollectFx_Note
+// keeps its model and pose before it is taken (a taken thing may be removed); VR_CollectFx_Send (self the player), once it
+// is gone, sends them.
+nosave entity vr_cfx_ent;
+nosave float vr_cfx_model;
+nosave vector vr_cfx_org;
+nosave vector vr_cfx_ang;
+
+void(entity e) VR_CollectFx_Note =
+{
+    vr_cfx_ent = e;
+    vr_cfx_model = e.modelindex;
+    vr_cfx_org = e.origin;
+    vr_cfx_ang = e.angles;
+};
+
+// `hotspot`: where it went (QVR_HS_*); 0: the hand's hotspot. Nothing unless that is a holster's or a pouch's.
+void(float xHand, entity e, float hotspot) VR_CollectFx_Send =
+{
+    if(!hotspot)
+    {
+        hotspot = xHand == cVR_OffHand ? self.offhand_hotspot : self.mainhand_hotspot;
+    }
+    if(e != vr_cfx_ent || !vr_cfx_model ||
+       !(isHolsterHotspot(hotspot) || hotspot == QVR_HS_GRENADE_POUCH || hotspot == QVR_HS_AMMO_POUCH))
+    {
+        return;
+    }
+    collectfx(xHand, e, hotspot, vr_cfx_model, vr_cfx_org, vr_cfx_ang);
+    vr_cfx_ent = world;
+};
+
+// Take it: its own pickup, as if the carrying hand had touched it the old way. Taken at a holster or pouch, it is drawn
+// going in (VR_CollectFx_Send).
 void(float xHand, entity xBox) VR_Carry_Take =
 {
+    VR_CollectFx_Note(xBox);
     entity oldSelf = self;
     entity oldOther = other;
     self.touchinghand = xHand;
@@ -872,6 +907,7 @@ void(float xHand, entity xBox) VR_Carry_Take =
     {
         VR_Carry_SetHeld(self, xHand, world);
         xBox.carry_player = world; // (a deathmatch item comes back: carried by no one)
+        VR_CollectFx_Send(xHand, xBox, 0);
     }
 };
 
