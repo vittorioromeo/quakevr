@@ -5409,6 +5409,11 @@ za::Vector<Item> pageDebugTests()
             .extend()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        command("Marksman Ogre: What It Is", "developer 1; vr_marksman_test 1")
+            .help("vr_marksman_test 1: the nearest marksman ogre's model (Honey's in a Honey map, else id's ogre: Dimension "
+                  "of the Machine's marksman), health, enemy and the grenades it has thrown, to the console (mkstest:)."),
+        command("Marksman Ogre: Kill It", "developer 1; vr_marksman_test 2; wait; wait; vr_marksman_test 3")
+            .help("vr_marksman_test 2, then 3: the nearest marksman ogre killed (not gibbed), then its body (ragdoll or not)."),
         command("A Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 5; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a knight killed at the Distance ahead: he goes limp as "
                   "he falls (his sword dropped)."),

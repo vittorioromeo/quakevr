@@ -46,15 +46,20 @@ void() ogre_start =
     walkmonster_start();
 };
 
+// Honey's marksman ogre (its model progs/mogre.mdl, its crown, its far sight and lobbed grenades, its chainsaw's
+// extra damage to ogres): only one spawned in a Honey map with Honey's data there. Its .wad (saved; copied by
+// ogre_start) tells it from the other marksman.
+float(entity e) VR_IsHoneyMarksman = { return e.classname == "monster_ogre_marksman" && e.wad == "progs/mogre.mdl"; };
+
 void() monster_ogre_marksman =
 {
-    if(MG_WorldCampaign()) { self.wad = "progs/ogre.mdl"; monster_ogre_real(); return; }
-    // id's own classname (its ogre.qc: an ogre), in any map: Honey's marksman needs Honey's model and crown, which
-    // Quake VR does not ship. Without them it is id's ogre (its classname too, so no Honey branch takes it), not a
-    // Host_Error at the precache (Down the Gutter, plaw01, did not start).
-    if(!VR_Has("progs/mogre.mdl") || !VR_Has("progs/s_light2.spr"))
+    // Anywhere else (Dimension of the Machine, the firing range's dispenser, id's maps, a third-party map such as Down
+    // the Gutter, plaw01, or Honey not installed): Dimension of the Machine's marksman, as id's ogre.qc has it: id's
+    // ogre under the marksman's classname (the ogre's model and behaviour: ai.qc CheckAnyAttack, OgreCheckAttack).
+    // Precaching Honey's model without it there would be a Host_Error.
+    float honeyMap = !MG_WorldCampaign() && (cvar("vr_honey_context") || VR_GameUtil_InHoneyMap());
+    if(!honeyMap || !VR_Has("progs/mogre.mdl") || !VR_Has("progs/s_light2.spr"))
     {
-        self.classname = "monster_ogre";
         self.wad = "progs/ogre.mdl";
         monster_ogre_real();
         return;
@@ -96,7 +101,7 @@ void() ogre_crown_update =
 void() ogre_spawncrown =
 {
     entity tf;
-    if(MG_WorldCampaign() || self.classname != "monster_ogre_marksman") return;
+    if(!VR_IsHoneyMarksman(self)) return;
     if(self.trigger_field) return;
 
     tf = spawn();

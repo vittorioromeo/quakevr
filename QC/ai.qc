@@ -693,7 +693,7 @@ float() FindTarget =
 
     if(!visible(client)) { return FALSE; }
     r = range (client);
-    if(r == RANGE_FAR && /* HONEY */ (MG_WorldCampaign() || self.classname != "monster_ogre_marksman")) // can see really far
+    if(r == RANGE_FAR && /* HONEY */ !VR_IsHoneyMarksman(self)) // can see really far
         return FALSE;
 
 
@@ -958,7 +958,7 @@ float() CheckAnyAttack =
         return OgreCheckAttack();
 
     if(self.classname == "monster_ogre_marksman") {
-        if(MG_WorldCampaign()) return OgreCheckAttack();
+        if(!VR_IsHoneyMarksman(self)) return OgreCheckAttack(); // (Dimension of the Machine's and id's)
         return OgreMarksmanCheckAttack();
     }
 

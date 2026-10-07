@@ -114,7 +114,7 @@ void() OgreFireGrenade =
 
     // set missile speed
     // HONEY
-    if(!MG_WorldCampaign() && self.classname == "monster_ogre_marksman")
+    if(VR_IsHoneyMarksman(self))
     {
         if(enemy_range == RANGE_NEAR)
         {
@@ -218,7 +218,7 @@ float     ldmg;
     ldmg = (random() + random() + random()) * 4;
 
     // HONEY
-    if(!MG_WorldCampaign() && self.classname == "monster_ogre_marksman"){
+    if(VR_IsHoneyMarksman(self)){
         if(self.enemy.classname == "monster_ogre"){
             ldmg = ldmg * 1.8;
         }

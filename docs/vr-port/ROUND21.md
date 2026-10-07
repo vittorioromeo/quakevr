@@ -29596,3 +29596,18 @@ becomes smaller and fits into the holster, then disappears (worktree `collectfx`
   `grenadepouch`; Debug > Tests > Thing: Silver Key (`vr_test_spawn 113`).
 - **Seen:** with the hand at the holster the thing's middle is only a few units off the holster's point, so it is mostly
   the shrink, with a small drop into the point. Test: Misc/quakevr/collectfx_test.sh.
+## The marksman ogre outside Honey (2026-10-07)
+
+"I can't spawn the marksman ogre in the firing range. The console says I need the Honey model."
+- `monster_ogre_marksman` is Honey's marksman (its model `progs/mogre.mdl`, its crown, far sight, lobbed grenades, its
+  chainsaw's extra damage to ogres: `VR_IsHoneyMarksman`, by its `.wad`) only in a Honey map (`vr_honey_context`, or
+  one of `VR_GameUtil_InHoneyMap`'s) with Honey's data there. Anywhere else (the firing range, id's maps, a third-party
+  map such as Down the Gutter, Dimension of the Machine) it is Dimension of the Machine's marksman, as id's ogre.qc has
+  it: id's ogre model and behaviour under the marksman's classname. Before, outside Dimension of the Machine every
+  Honey branch took any marksman, and without Honey's model a map's marksman became a `monster_ogre`.
+- The Debug spawner's Marksman Ogre (Thing 20) and the dispensers no longer ask for Honey's model.
+- Test aid (Debug > Tests): `vr_marksman_test` 1 the nearest ogre (model, Honey's or not, health, enemy, grenades), 2
+  killed, 3 its body. e1m1: it spawns with id's model, hunts and chainsaws the player (100 to -3), dies, ragdolls;
+  vrfiringrange: spawns, dies, ragdolls (the range's spawned ogres, plain ones too, don't notice the player); MG1 hub
+  (`vr_mg_hub_test 38`): unchanged, 20/0 on `vr_mg_hub_test 1`.
+- Not tested: Honey's own marksman (no Honey data in the test base); the logic there is unchanged.

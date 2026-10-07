@@ -87,6 +87,7 @@ vr_shock.qc
 // Debug > Cheats and Recording: the powerups, infinite ammunition, the scene's cleanups (after what they remove).
 vr_cheats.qc
 vr_smallgibs_test.qc
+vr_marksman_test.qc
 world.qc
 vr_dummy.qc
 vr_motion.qc

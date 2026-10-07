@@ -775,7 +775,8 @@ void() func_weapon_grabbable =
 //   12 gremlin, 13 centroid (Scourge of Armagon), 14 mummy, 15 phantom swordsman, 16 wrath,
 //   17 overlord (Dissolution of Eternity).
 // Tests only (impulse 241's vr_test_spawn; no button): 18 the Guardian (Dissolution of Eternity's monster_morph, its
-// Egyptian look), 19 the dragon (Dissolution of Eternity), 20 the marksman ogre (Honey's model, progs/mogre.mdl);
+// Egyptian look), 19 the dragon (Dissolution of Eternity), 20 the marksman ogre (Honey's in a Honey map, else Dimension of the
+// Machine's: id's ogre; honey_mon_ogre.qc);
 // Dawn of the Machine's from 30: 30 an infected grunt, 31 knight, 32 enforcer, 33 death knight (vr_mg3_infected.qc),
 // 34 the rocket ogre (vr_mg3_ogre.qc), 35 the demo dog (vr_mg3_demodog.qc), 36 the ranged knight (vr_mg3_rknight.qc).
 // Dawn of the Machine's (read in place from the owned pack: owned/mg3/), from 40: 40 the orb, 41 the slime, 42 a ghost,
@@ -802,7 +803,7 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 17) { return "progs/s_wrath.mdl"; }
     else if(choice == 18) { return "progs/morph_eg.mdl"; }
     else if(choice == 19) { return "progs/dragon.mdl"; }
-    else if(choice == 20) { return "progs/mogre.mdl"; }
+    else if(choice == 20) { return "progs/ogre.mdl"; } // (Honey's model only in its maps: monster_ogre_marksman)
     // Dawn of the Machine's (30..: vr_mg3_*.qc). The infected: the registered game's models they turn into.
     else if(choice == 30) { return "progs/zombie.mdl"; }
     else if(choice == 31) { return "progs/zombie.mdl"; }
@@ -887,10 +888,6 @@ void() func_enemy_dispenser_use =
             if(choice >= 40 && substring(mdl, 0, 6) == "owned/")
             {
                 centerprint(activator, "Needs Dawn of the Machine (mg3)");
-            }
-            else if(choice == 20)
-            {
-                centerprint(activator, "Needs Honey's marksman ogre (progs/mogre.mdl)");
             }
             else if(choice >= 30 && choice <= 33)
             {
