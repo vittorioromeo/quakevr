@@ -847,10 +847,11 @@ struct ViewScratch
     za::Vector<grasp::Triangle> limbTris;          // and as its shape is made of
     za::Vector<glm::vec3> magRest;                 // an attached magazine's vertices (magazineShape)
     za::Vector<glm::vec3> magNow;
+    za::Vector<glm::vec4> anywhereFist;            // an empty hand's fist in the world (fistSurfaceGap)
     auto members()
     {
         return qvr::mem::list(restVerts, nowVerts, weight, otherHand, otherHandTris, otherHandVerts, handSpheres, fistSpheres,
-            openSpheres, boneSpheres, collideSpheres, collideRig, limbPoints, limbTris, magRest, magNow);
+            openSpheres, boneSpheres, collideSpheres, collideRig, limbPoints, limbTris, magRest, magNow, anywhereFist);
     }
 };
 mem::Scratch<ViewScratch> scratch{"view hands"};
@@ -3514,9 +3515,11 @@ constexpr float groundSpotFromHandleCm = 10.f;
 
 double groundPrintAt = -1.0; // vr_debug_2h_grip 2: the next print of where an empty hand is on a weapon lying about
 
-// Weapons held anywhere (vr_weapon_grab_anywhere): a hand whose point (the middle of its grip, where a handle lies) is this
-// near (cm) a weapon's drawn surface (or in it) is on it; one lying about, with vr_weapon_grab_slack more (as the server
-// takes it: a gun lying flat is thinner than the lowest the fist gets over it).
+// Weapons held anywhere (vr_weapon_grab_anywhere): a hand whose closed fist (held::fist: the palm and the curled fingers,
+// as a prop is taken) is within vr_carry_grab_bias of a weapon's drawn surface (or in it) is on it; one lying about, with
+// vr_weapon_grab_slack more (as the server takes it: a gun lying flat is thinner than the lowest the fist gets over it).
+// It was the hand's point within 6 cm: the open hand's fingertips' reach (the author's note hip1m1_2026-10-07_22-33-15).
+// Without the jointed hand (no fist known): the point within this (cm), as before.
 constexpr float anywhereReachCm = 6.f;
 
 // How far (units) the world point `p` is from the drawn surface of `e` (its model's shape as drawn, mirrored or not):
@@ -3533,6 +3536,37 @@ constexpr float anywhereReachCm = 6.f;
     return za::max(d, 0.f);
 }
 
+// The gap (units; negative: sunk in) between `hand`'s closed fist at its tracked pose and the drawn surface of `e`;
+// `reach` or more if none of it is within `reach`. Without a fist (no jointed hand model): the hand's point's distance
+// less anywhereReachCm (as before: within that is touching).
+[[nodiscard]] float fistSurfaceGap(const entity_t& e, bool mirrored, const hands::State& s, int hand, float reach)
+{
+    const float pointReach = anywhereReachCm * 0.01f * units::metresToUnits();
+    za::Vector<glm::vec4>& spheres = scratch.anywhereFist;
+    held::fistInWorld(hand, s.pos[hand], s.rot[hand], spheres);
+    if(spheres.empty())
+    {
+        return surfaceDistance(e, mirrored, s.pos[hand], reach + pointReach) - pointReach;
+    }
+    const grasp::Shape* shape = grasp::shapeOf(e, -1);
+    if(!shape)
+    {
+        return reach;
+    }
+    const glm::mat4 toWorld = grasp::shapeToWorld(e, mirrored);
+    float gap = reach;
+    for(const glm::vec4& sp : spheres)
+    {
+        float d = 0.f;
+        glm::vec3 on, normal;
+        if(grasp::signedDistance(*shape, toWorld, glm::vec3{sp}, reach + sp.w, d, on, normal))
+        {
+            gap = za::fmin(gap, d - sp.w);
+        }
+    }
+    return gap;
+}
+
 // Each frame, before the weapons are placed: for each empty hand, the weapon lying nearest it, and the hotspot it would
 // take it by (twohand::recordGroundSpot), if any.
 void updateGroundSpots(const hands::State& s)
@@ -3540,7 +3574,9 @@ void updateGroundSpots(const hands::State& s)
     const float reach = groundSpotReachCm * 0.01f * units::metresToUnits();
     const float fromHandle = groundSpotFromHandleCm * 0.01f * units::metresToUnits();
     const float anywhereMin = za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * units::metresToUnits();
-    const float anywhereReach = (anywhereReachCm + za::max(vr_weapon_grab_slack.value, 0.f)) * 0.01f * units::metresToUnits();
+    const float anywhereAllowed =
+        (vr_carry_grab_bias.value + za::max(vr_weapon_grab_slack.value, 0.f)) * 0.01f * units::metresToUnits();
+    const float anywhereReach = za::fmax(anywhereAllowed, 0.f) + 1.f; // (how far the fist's gap is measured)
     bool printedGround = false; // (vr_debug_2h_grip 2)
     for(int hand = 0; hand < 2; hand++)
     {
@@ -3596,18 +3632,18 @@ void updateGroundSpots(const hands::State& s)
             // and its hotspots (vr_weapon_grab_anywhere_min).
             if(spot < 0 && vr_weapon_grab_anywhere.value && handle >= anywhereMin && nearestSpot >= anywhereMin)
             {
-                const float surface = surfaceDistance(*e, false, at, anywhereReach);
-                if(surface < anywhereReach && surface < closest)
+                const float surface = fistSurfaceGap(*e, false, s, hand, anywhereReach);
+                if(surface <= anywhereAllowed && za::fmax(surface, 0.f) < closest)
                 {
-                    closest = surface;
+                    closest = za::fmax(surface, 0.f);
                     spot = twohand::anywhereSpot;
                 }
             }
             if(vr_debug_2h_grip.value >= 2.f && vr_gametime >= groundPrintAt)
             {
-                Con_Printf("anywhere: %s hand %.1f units off the lying %s's surface, %.1f from its handle, %.1f from its "
+                Con_Printf("anywhere: %s hand's fist %.1f units off the lying %s's surface, %.1f from its handle, %.1f from its "
                            "nearest hotspot: %s (it lies at %.1f %.1f %.1f, angles %.1f %.1f %.1f)\n", hand == HAND_MAIN ? "main" : "off",
-                    surfaceDistance(*e, false, at, anywhereReach), e->model->name, handle, nearestSpot < 1e29f ? nearestSpot : -1.f,
+                    fistSurfaceGap(*e, false, s, hand, anywhereReach), e->model->name, handle, nearestSpot < 1e29f ? nearestSpot : -1.f,
                     spot == twohand::anywhereSpot ? "anywhere" : spot >= 0 ? "a hotspot" : "the handle", e->origin[0],
                     e->origin[1], e->origin[2], e->angles[0], e->angles[1], e->angles[2]);
                 printedGround = true;
@@ -3667,13 +3703,14 @@ void updateGroundSpots(const hands::State& s)
 double freeSpotPrintAt = -1.0; // vr_debug_2h_grip 2: the next print of where an empty hand is on the other's weapon
 
 // Each frame, after the weapons are placed: whether each empty hand is on the other hand's weapon (held or carried) where
-// gripping holds it anywhere (vr_weapon_grab_anywhere; twohand::setFreeCandidate): within anywhereReachCm of its drawn
-// surface, at least vr_weapon_grab_anywhere_min from its handle and (held by its handle) from its grip and blade hotspots,
+// gripping holds it anywhere (vr_weapon_grab_anywhere; twohand::setFreeCandidate): its fist within vr_carry_grab_bias of
+// its drawn surface (fistSurfaceGap), at least vr_weapon_grab_anywhere_min from its handle and (held by its handle) from its grip and blade hotspots,
 // which take priority.
 void updateFreeSpots(const hands::State& s)
 {
     const float minAway = za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * units::metresToUnits();
-    const float reach = anywhereReachCm * 0.01f * units::metresToUnits();
+    const float allowed = vr_carry_grab_bias.value * 0.01f * units::metresToUnits();
+    const float reach = za::fmax(allowed, 0.f) + 1.f; // (how far the fist's gap is measured)
     const bool print = vr_debug_2h_grip.value >= 2.f && vr_gametime >= freeSpotPrintAt;
     for(int hand = 0; hand < 2; hand++)
     {
@@ -3704,14 +3741,14 @@ void updateFreeSpots(const hands::State& s)
                     }
                 }
             }
-            const float surface = handle < 64.f ? surfaceDistance(w.ent, w.mirrored, at, reach) : reach;
+            const float surface = handle < 64.f ? fistSurfaceGap(w.ent, w.mirrored, s, hand, reach) : reach;
             // (A carried weapon's handle: where gripping takes it back, HS_CARRIED_GRIP.)
             const float fromHandle = weaponCarried[other] ? za::max(minAway, twohand::carriedGripRadius) : minAway;
             // (On its attached magazine: gripping there holds the magazine, hotspot HS_MAGAZINE.)
-            on = surface < reach && handle >= fromHandle && nearestSpot >= minAway && !s.onMagazine[hand];
+            on = surface <= allowed && handle >= fromHandle && nearestSpot >= minAway && !s.onMagazine[hand];
             if(print)
             {
-                Con_Printf("anywhere: %s hand %.1f units off the %s weapon's surface, %.1f from its handle, %.1f from its "
+                Con_Printf("anywhere: %s hand's fist %.1f units off the %s weapon's surface, %.1f from its handle, %.1f from its "
                            "nearest hotspot: %s\n", hand == HAND_MAIN ? "main" : "off", surface,
                     weaponCarried[other] ? "carried" : "held", handle, nearestSpot < 1e29f ? nearestSpot : -1.f,
                     on ? "on it" : "no");

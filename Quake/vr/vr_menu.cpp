@@ -2849,8 +2849,11 @@ void hologramTestMessage()
             .help("A weapon lying on the floor is taken where the fist touches it: a crowbar by its bar, a sword by its "
                   "blade. Off: only with the hand at its handle."),
         slider("Weapon Grab Slack", vr_weapon_grab_slack, 0.f, 10.f, 0.5f, "%.1f cm")
-            .help("With Weapons by the Fist: a weapon is taken with the fist this far off it too (a gun lying flat on the "
-                  "floor is thinner than the lowest your fist gets over it)."),
+            .help("With Weapons by the Fist: a weapon lying on the floor is taken with the fist this far off it too (a gun "
+                  "lying flat is thinner than the lowest your fist gets over it). Not one in the air: caught by the fist on it."),
+        toggle("Lenient Weapon Catch", vr_weapon_grab_box)
+            .help("The old catch: a weapon is also taken when your hand comes within a hand's width of its handle, the "
+                  "fist up to 20 cm off it. Off: only when your closed fist touches it, as a box or a gib."),
         toggle("Weapons by Their Hotspots", vr_weapon_grab_hotspots)
             .help("Grip a weapon on the floor nearer one of its other grips than its handle (a chainsaw's front handle, "
                   "a crowbar's bar, a sword's blade, a gun's pump) and you carry it by that grip, as when your other hand "
