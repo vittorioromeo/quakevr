@@ -884,7 +884,7 @@
   "by": "make_debris.py"
  },
  "quakevr/progs/vr_shell.mdl": {
-  "sha256": "084175d47faf7f80fec36da4a527f600402d2766dd722501b68cd6307c6ed0b1",
+  "sha256": "4e016dc63722ed6798951debc7628fa575b25579e87904d39a9c4be221f98f34",
   "by": "make_shell.py"
  },
  "quakevr/progs/vr_shell.mdl_0_norm.png": {

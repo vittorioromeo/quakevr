@@ -268,6 +268,43 @@ def paint():
     return bytes(px)
 
 
+def paint_spent():
+    """The fired shell lying about (vr_shells.cpp), made plain apart from a live one (the author's note, 2026-10-07): its
+    hull a darker, duller red with scuffs and soot from the mouth down, its brass dulled and smudged, its primer dented
+    and blackened. The live shells keep paint()'s fresh red and bright brass."""
+    rng = random.Random(1913)
+    px = bytearray(paint())
+    for t in range(SKIN_H):
+        for s in range(SKIN_W):
+            region = next(r for r, (s0, t0, s1, t1) in REGIONS.items() if s0 <= s < s1 and t0 <= t < t1)
+            s0, t0, s1, t1 = REGIONS[region]
+            u, v = (s - s0 + 0.5) / (s1 - s0), (t - t0 + 0.5) / (t1 - t0)
+            k = rng.random()
+            i = t * SKIN_W + s
+            if region == "hull":
+                shade = 71 if k < 0.5 else 72 if k < 0.8 else 70
+                if int(u * 6) % 2 == 0:
+                    shade -= 1
+                if k > 0.975:
+                    shade = 6  # a scuff
+                if v > 0.86 and k < 0.5:
+                    shade = 3 if v > 0.93 else 4  # soot from the mouth
+                px[i] = shade
+            elif region == "brass":
+                px[i] = 26 if k < 0.5 else 27 if k < 0.85 else 25 if k < 0.95 else 4  # dull, smudged
+            elif region == "base":
+                d = math.hypot(u - 0.5, v - 0.5) * 2
+                if d < 0.12:
+                    px[i] = 2       # the firing pin's dent
+                elif d < 0.28:
+                    px[i] = 5 if k < 0.6 else 4
+                elif d < 0.38:
+                    px[i] = 2
+                else:
+                    px[i] = 27 if k < 0.5 else 26 if k < 0.85 else 3
+    return bytes(px)
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     game = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr")
@@ -278,7 +315,7 @@ def main():
     live_path = os.path.join(game, "progs", "vr_shell_live.mdl")
     pair_path = os.path.join(game, "progs", "vr_shell_pair.mdl")
     guard = genguard.Guard("make_shell.py", [path, live_path, pair_path])
-    mdlgen.write_mdl(path, mesh, [paint()], "shell")
+    mdlgen.write_mdl(path, mesh, [paint_spent()], "shell")
     print("vr_shell.mdl: %d vertices, %d triangles -> %s" % (len(mesh.verts), len(mesh.tris), os.path.normpath(path)))
     print("  %.2f units long, rim radius %.3f units" % (LENGTH * UNITS, RIM_R * UNITS))
     live = paint_live()
