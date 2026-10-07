@@ -12,7 +12,8 @@ const string Usage = """
     qvr-setup manifest <package folder> --version <text>
     qvr-setup install --package <zip|folder> --target <dir> [--quake <dir>] [--shortcuts-dir <dir>]
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
-    qvr-setup uninstall --target <dir> [--remove-textures]
+                      [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register]
+    qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
     qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--file <vc_redist.x64.exe>] [--assume-missing]] [--downloads <dir>]
     qvr-setup download --url <url> [--url <mirror>...] --out <file> [--size <bytes>] [--sha256 <hex>]
@@ -47,6 +48,8 @@ for (var i = 1; i < args.Length; ++i)
 }
 string? Opt(string key) => options.TryGetValue(key, out var v) ? v[^1] : null;
 bool Flag(string key) => options.ContainsKey(key);
+// The Apps & Features entry: a made-up registry root in a JSON file (tests), the real HKCU only with --register.
+IRegistryWriter? Registry() => Opt("registry-file") is { } rf ? new JsonFileRegistry(rf) : Flag("register") ? new WindowsRegistryWriter() : null;
 
 var log = new SyncProgress<InstallProgress>(p =>
 {
@@ -98,6 +101,8 @@ try
                 HdTexturesZip = Opt("textures"),
                 VisPatchArchives = options.TryGetValue("vispatch", out var vis) ? vis : [],
                 OwnedPacks = owned,
+                SetupFiles = Opt("setup-from") is { } setupExe ? SetupCopy.FilesOf(setupExe, SetupCopy.IsSingleFile(setupExe)) : [],
+                Registry = Registry(),
                 Shortcuts = shortcutsDir is null
                     ? new ShortcutOptions { Desktop = false, StartMenu = false }
                     : new ShortcutOptions { DesktopDir = Path.Combine(shortcutsDir, "Desktop"), StartMenuDir = Path.Combine(shortcutsDir, "Programs") },
@@ -109,9 +114,9 @@ try
         case "uninstall":
         {
             var r = Uninstaller.Uninstall(Opt("target") ?? throw new ArgumentException("--target is required"),
-                new UninstallOptions { RemoveHdTextures = Flag("remove-textures") }, log);
+                new UninstallOptions { RemoveHdTextures = Flag("remove-textures"), Registry = Registry() }, log);
             Console.WriteLine($"removed {r.FilesRemoved} files, {r.ShortcutsRemoved} shortcuts; changed files kept: {r.ChangedKept.Count}; " +
-                              $"player files left: {r.PlayerFilesLeft.Count}; folder removed: {r.FolderRemoved}");
+                              $"player files left: {r.PlayerFilesLeft.Count}; folder removed: {r.FolderRemoved}; Apps & Features entry removed: {r.EntryRemoved}");
             foreach (var f in r.PlayerFilesLeft.Take(20))
             {
                 Console.WriteLine($"  left: {f}");

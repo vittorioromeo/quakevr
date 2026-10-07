@@ -1,3 +1,4 @@
+using QuakeVR.Installer.Core.Platform;
 using QuakeVR.Installer.Core.Shortcuts;
 
 namespace QuakeVR.Installer.Core.Packaging;
@@ -7,6 +8,8 @@ public sealed class UninstallOptions
     /// <summary>Also remove the HD textures the installer put in (they are large and slow to fetch again, so they are
     /// kept unless the player says so, like the rest of their data).</summary>
     public bool RemoveHdTextures { get; init; }
+    /// <summary>Where the Apps &amp; Features entry is (the real HKCU, a test root), or null to leave it.</summary>
+    public IRegistryWriter? Registry { get; init; }
 }
 
 public sealed class UninstallResult
@@ -18,6 +21,9 @@ public sealed class UninstallResult
     /// <summary>What is left in the folder: the player's own files (config, saves, screenshots, relit maps...).</summary>
     public List<string> PlayerFilesLeft { get; } = [];
     public bool FolderRemoved { get; set; }
+    /// <summary>Installed files that could not be removed (in use: Setup's copy when the uninstall runs from it).</summary>
+    public List<string> InUseKept { get; } = [];
+    public bool EntryRemoved { get; set; }
 }
 
 /// <summary>
@@ -52,8 +58,15 @@ public static class Uninstaller
                 result.ChangedKept.Add(f.Path);
                 continue;
             }
-            File.Delete(path);
-            ++result.FilesRemoved;
+            try
+            {
+                File.Delete(path);
+                ++result.FilesRemoved;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                result.InUseKept.Add(f.Path);
+            }
         }
         foreach (var link in record.Shortcuts)
         {
@@ -72,7 +85,18 @@ public static class Uninstaller
         // The player's: everything left that the installer did not put there (kept textures and changed files are ours).
         var ours = record.Files.Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
         result.PlayerFilesLeft.AddRange(remaining.Where(p => !ours.Contains(p)));
-        if (keptTextures || result.ChangedKept.Count > 0)
+        if (options.Registry is not null)
+        {
+            try
+            {
+                result.EntryRemoved = UninstallEntry.Remove(options.Registry, target);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                progress?.Report(new InstallProgress(0.95, "Removing Quake VR", $"The Apps & Features entry stays: {e.Message}", LogLevel.Warning));
+            }
+        }
+        if (keptTextures || result.ChangedKept.Count > 0 || result.InUseKept.Count > 0)
         {
             // Keep a record of what is still ours, so a later uninstall (or reinstall) can finish the job.
             record.Files.RemoveAll(f => !File.Exists(PathUtil.SafeCombine(target, f.Path)));

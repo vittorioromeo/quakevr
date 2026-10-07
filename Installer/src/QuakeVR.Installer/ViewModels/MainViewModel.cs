@@ -60,6 +60,28 @@ public sealed class StartupOptions
     public bool NoPrerequisites { get; set; }
     /// <summary>Say what the VC++ runtime's install would do; download and run nothing (tests; the harness always).</summary>
     public bool VcRedistDryRun { get; set; }
+    /// <summary>Remove the install in --target (Apps &amp; Features' Uninstall): the Remove dialogs, or none with --quiet.</summary>
+    public bool Uninstall { get; set; }
+    public bool Quiet { get; set; }
+    /// <summary>This is the copy an uninstall started from %TEMP% (so the install's own copy can be removed).</summary>
+    public bool FromTemp { get; set; }
+    /// <summary>The Apps &amp; Features entry goes into this made-up registry root (a JSON file) instead of HKCU (tests).</summary>
+    public string? RegistryFile { get; set; }
+
+    /// <summary>The arguments an uninstall passes on to its copy in %TEMP%.</summary>
+    public List<string> UninstallArguments(string target)
+    {
+        var args = new List<string> { "--uninstall", "--target", target, "--from-temp" };
+        if (Quiet)
+        {
+            args.Add("--quiet");
+        }
+        if (RegistryFile is { } f)
+        {
+            args.AddRange(["--registry-file", f]);
+        }
+        return args;
+    }
 
     public static StartupOptions Parse(string[] args)
     {
@@ -83,11 +105,17 @@ public sealed class StartupOptions
                 case "--extras": o.Extras = true; break;
                 case "--no-prerequisites": o.NoPrerequisites = true; break;
                 case "--vcredist-dry-run": o.VcRedistDryRun = true; break;
+                case "--uninstall": o.Uninstall = true; break;
+                case "--quiet": o.Quiet = true; break;
+                case "--from-temp": o.FromTemp = true; break;
+                case "--registry-file": o.RegistryFile = Next(); break;
             }
         }
         o.Package = o.Package is { } pk ? PathUtil.TryNormalize(pk) ?? pk : null;
         o.Textures = o.Textures is { } tx ? PathUtil.TryNormalize(tx) ?? tx : null;
         o.ShortcutsDir = o.ShortcutsDir is { } sc ? PathUtil.TryNormalize(sc) ?? sc : null;
+        o.Target = o.Target is { } tg ? PathUtil.TryNormalize(tg) ?? tg : null;
+        o.RegistryFile = o.RegistryFile is { } rg ? PathUtil.TryNormalize(rg) ?? rg : null; // (passed on to a copy in %TEMP%, which runs elsewhere)
         // A package beside the installer (an offline download: QuakeVR.zip, the unzipped QuakeVR folder, or another
         // QuakeVR*.zip with a manifest inside): installed from there without any network.
         var here = AppContext.BaseDirectory;
@@ -314,10 +342,37 @@ public sealed class MainViewModel : ObservableObject
         Raise(nameof(HasExisting), nameof(ExistingText), nameof(NextText), nameof(FooterHint));
     }
 
+    /// <summary>The Apps &amp; Features entry's registry: a made-up root (--registry-file), the real HKCU for a real install,
+    /// none for test installs (--shortcuts-dir) and the screenshot harness.</summary>
+    public static IRegistryWriter? RegistryFor(StartupOptions o) =>
+        o.RegistryFile is { } f ? new JsonFileRegistry(f) : o.Screenshots is null && o.ShortcutsDir is null ? new WindowsRegistryWriter() : null;
+
+    /// <summary>This Setup's own files, for its copy in the install (SetupCopy).</summary>
+    public static IReadOnlyList<(string Source, string Relative)> OwnSetupFiles() =>
+        Environment.ProcessPath is { } exe ? SetupCopy.FilesOf(exe, string.IsNullOrEmpty(typeof(MainViewModel).Assembly.Location)) : [];
+
+    /// <summary>Started as Apps &amp; Features' Uninstall (--uninstall): the Remove dialogs at once; the window closes
+    /// when the install is gone (cancelled: it stays, for an update).</summary>
+    public async Task RemoveFromCommandLineAsync()
+    {
+        await UninstallAsync();
+        if (_existing is null)
+        {
+            Application.Current.Shutdown();
+        }
+    }
+
     async Task UninstallAsync()
     {
         if (_existing is null)
         {
+            return;
+        }
+        // This Setup is the install's own copy: the uninstall restarts from a copy in %TEMP%, so this one can be removed.
+        if (!_options.FromTemp && Environment.ProcessPath is { } self && PathUtil.IsInside(self, InstallDir))
+        {
+            SetupRelaunch.Start(_options.UninstallArguments(InstallDir));
+            Application.Current.Shutdown();
             return;
         }
         if (MessageBox.Show($"Remove Quake VR: Unleashed from {InstallDir}?\n\nYour settings, saves, screenshots and relit maps are kept, and your Quake folder is not touched.",
@@ -330,7 +385,8 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             var dir = InstallDir;
-            var result = await Task.Run(() => Uninstaller.Uninstall(dir, new UninstallOptions { RemoveHdTextures = textures }));
+            var registry = RegistryFor(_options);
+            var result = await Task.Run(() => Uninstaller.Uninstall(dir, new UninstallOptions { RemoveHdTextures = textures, Registry = registry }));
             var left = result.PlayerFilesLeft.Count > 0 ? $"\n\n{result.PlayerFilesLeft.Count} of your own files are still in {dir} (settings, saves...): delete the folder yourself if you no longer want them." : "";
             MessageBox.Show($"Quake VR: Unleashed was removed: {result.FilesRemoved} files and {result.ShortcutsRemoved} shortcuts.{left}", "Remove Quake VR: Unleashed",
                 MessageBoxButton.OK, MessageBoxImage.Information);
@@ -857,6 +913,8 @@ public sealed class MainViewModel : ObservableObject
                 HdTexturesZip = textures,
                 VisPatchArchives = visPatch,
                 OwnedPacks = owned,
+                SetupFiles = OwnSetupFiles(),
+                Registry = RegistryFor(_options),
                 Shortcuts = new ShortcutOptions
                 {
                     Desktop = DesktopShortcut,

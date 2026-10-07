@@ -470,6 +470,95 @@ var tests = new List<(string Name, Action Body)>
         True(!File.Exists(FirstStartRelight.MarkerPath(target)), "uninstall removes the marker");
         True(u.FolderRemoved, "folder removed (the marker is not a player file)");
     }),
+    ("apps & features: the entry in a test registry root, Setup's copy in the install, removed by the uninstall", () =>
+    {
+        // The registry is a made-up root (a JSON file); the real one is never written. HKLM is refused outright.
+        Throws<ArgumentException>(() => new WindowsRegistryWriter().SetString(@"HKLM\Software\QuakeVRTest", "x", "y"), "HKLM refused");
+        var memory = new JsonFileRegistry();
+        memory.SetString(@"HKCU\A", "S", "text");
+        memory.SetDword(@"HKCU\A", "D", 42);
+        Eq("text", memory.GetValue(@"hkcu\a", "s"), "string back, case-insensitive");
+        Eq(42, memory.GetValue(@"HKCU\A", "D"), "dword back");
+        memory.DeleteKey(@"HKCU\A");
+        Eq(0, memory.Keys.Count, "key deleted");
+
+        // A made-up Setup (a development build: exe, its DLLs and JSON files) with things beside it that are not Setup's.
+        var setupDir = Dir("aaf-setup-build");
+        var setupExe = Path.Combine(setupDir, "QuakeVR-Setup.exe");
+        foreach (var (name, body) in new[] { ("QuakeVR-Setup.exe", "exe"), ("QuakeVR-Setup.dll", "dll"), ("QuakeVR.Installer.Core.dll", "core"),
+                     ("QuakeVR-Setup.runtimeconfig.json", "{}"), ("QuakeVR-Setup.deps.json", "{}"), ("installer-settings.json", "{}"),
+                     ("QuakeVR.zip", "a package"), ("vc_redist.x64.exe", "not setup"), ("notes.txt", "x") })
+        {
+            File.WriteAllText(Path.Combine(setupDir, name), body);
+        }
+        True(!SetupCopy.IsSingleFile(setupExe), "a development build");
+        var setupFiles = SetupCopy.FilesOf(setupExe, singleFile: false);
+        Eq("setup/QuakeVR-Setup.deps.json|setup/QuakeVR-Setup.dll|setup/QuakeVR-Setup.exe|setup/QuakeVR-Setup.runtimeconfig.json|setup/QuakeVR.Installer.Core.dll|setup/installer-settings.json",
+            string.Join("|", setupFiles.Select(f => f.Relative).Order(StringComparer.Ordinal)), "Setup's files only");
+        Eq("setup/QuakeVR-Setup.exe|setup/installer-settings.json", string.Join("|", SetupCopy.FilesOf(setupExe, singleFile: true).Select(f => f.Relative)), "single file: the exe (and the settings)");
+
+        var quake = Dir("aaf-quake");
+        Fixtures.MakeOriginal(quake);
+        var pkg = Fixtures.MakePackage(Dir("aaf-pkg"), "v1");
+        var target = Path.Combine(run, "aaf-QuakeVR");
+        var registryFile = Path.Combine(run, "aaf-registry.json");
+        var registry = new JsonFileRegistry(registryFile);
+        var logs = new List<string>();
+        var progress = new SyncProgress<InstallProgress>(p => { if (p.Log is not null) { logs.Add(p.Log); } });
+        var record = new InstallEngine().Install(new InstallPlan
+        {
+            PackagePath = pkg, TargetDir = target, QuakeDir = quake, SetupFiles = setupFiles, Registry = registry,
+        }, progress, CancellationToken.None);
+        var copy = Path.Combine(target, "setup", "QuakeVR-Setup.exe");
+        True(File.Exists(copy) && File.Exists(Path.Combine(target, "setup", "QuakeVR-Setup.dll")), "Setup copied into the install");
+        True(!File.Exists(Path.Combine(target, "setup", "QuakeVR.zip")) && !File.Exists(Path.Combine(target, "setup", "vc_redist.x64.exe")), "nothing else copied");
+        Eq(6, record.Files.Count(f => f.Component == Components.Setup), "Setup's files recorded");
+        Eq(0, Uninstaller.Verify(target).Count, "verify clean");
+        Eq(target, SetupCopy.InstallOf(copy), "the copy knows its install");
+
+        // The entry, in the test root (registry-file).
+        string? Value(string name) => new JsonFileRegistry(registryFile).GetValue(UninstallEntry.Key, name)?.ToString();
+        Eq(@"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\QuakeVRUnleashed", UninstallEntry.Key, "key");
+        Eq("Quake VR: Unleashed", Value("DisplayName"), "DisplayName");
+        Eq("Vittorio Romeo", Value("Publisher"), "Publisher");
+        Eq("v1", Value("DisplayVersion"), "DisplayVersion");
+        Eq(Path.Combine(target, "ironwail.exe") + ",0", Value("DisplayIcon"), "DisplayIcon: the game's exe icon");
+        Eq(target, Value("InstallLocation"), "InstallLocation");
+        Eq($"\"{copy}\" --uninstall --target \"{target}\"", Value("UninstallString"), "UninstallString: the copy in the install");
+        Eq($"\"{copy}\" --uninstall --quiet --target \"{target}\"", Value("QuietUninstallString"), "QuietUninstallString");
+        Eq(UninstallEntry.EstimatedSizeKb(record).ToString(), Value("EstimatedSize"), "EstimatedSize (KiB)");
+        True(new JsonFileRegistry(registryFile).GetValue(UninstallEntry.Key, "EstimatedSize") is int, "EstimatedSize is a DWORD");
+        Eq(record.InstalledAt.ToString("yyyyMMdd"), Value("InstallDate"), "InstallDate");
+        Eq("1", Value("NoModify"), "NoModify");
+        True(logs.Any(l => l.Contains("Installed apps")), "logged");
+
+        // An update run from the install's own copy: its files are in use, kept as they are (and still recorded).
+        var fromCopy = SetupCopy.FilesOf(copy, singleFile: false);
+        var r2 = new InstallEngine().Install(new InstallPlan
+        {
+            PackagePath = Fixtures.MakePackage(Dir("aaf-pkg2"), "v2"), TargetDir = target, QuakeDir = quake, SetupFiles = fromCopy, Registry = registry,
+        }, null, CancellationToken.None);
+        Eq(6, r2.Files.Count(f => f.Component == Components.Setup), "Setup's files still recorded after an update from the copy");
+        Eq("v2", Value("DisplayVersion"), "entry updated");
+        // An update without a Setup copy (the console without --setup-from) keeps the old one.
+        var r3 = new InstallEngine().Install(new InstallPlan { PackagePath = pkg, TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        Eq(6, r3.Files.Count(f => f.Component == Components.Setup), "kept by an update without one");
+        True(File.Exists(copy), "copy still there");
+
+        // Another install's entry is left alone; this one's goes with the uninstall, with the copy and its folder.
+        var other = new JsonFileRegistry();
+        other.SetString(UninstallEntry.Key, "InstallLocation", @"D:\Elsewhere\QuakeVR");
+        True(!UninstallEntry.Remove(other, target), "another folder's entry kept");
+        var u = Uninstaller.Uninstall(target, new UninstallOptions { Registry = registry });
+        True(u.EntryRemoved, "entry removed");
+        Eq(0, new JsonFileRegistry(registryFile).Keys.Count, "the test root is empty again");
+        True(!Directory.Exists(Path.Combine(target, "setup")), "Setup's copy removed");
+        True(u.FolderRemoved, "folder removed");
+
+        // The %TEMP% copy an uninstall restarts from (here a scratch folder).
+        var temp = SetupCopy.CopyToTemp(setupFiles, Dir("aaf-temp"));
+        True(File.Exists(temp) && File.Exists(Path.Combine(Path.GetDirectoryName(temp)!, "QuakeVR-Setup.dll")), "temp copy");
+    }),
     ("uninstall of an untouched install removes the folder", () =>
     {
         var quake = Dir("clean-quake");

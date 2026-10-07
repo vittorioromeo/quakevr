@@ -38,6 +38,12 @@ public sealed class InstallPlan
     public IReadOnlyList<string> VisPatchArchives { get; init; } = [];
     /// <summary>Mission packs the player owns ("hipnotic", "rogue"): only theirs get textures.</summary>
     public IReadOnlyCollection<string> OwnedPacks { get; init; } = [];
+    /// <summary>Setup's own files (source, path in the install: <see cref="SetupCopy"/>), kept in the install for the
+    /// Apps &amp; Features entry's Uninstall. Empty: none copied (an earlier copy is kept).</summary>
+    public IReadOnlyList<(string Source, string Relative)> SetupFiles { get; init; } = [];
+    /// <summary>Where the Apps &amp; Features entry goes (<see cref="UninstallEntry"/>): the real HKCU, a test root, or
+    /// null for none.</summary>
+    public IRegistryWriter? Registry { get; init; }
 }
 
 /// <summary>
@@ -174,6 +180,20 @@ public sealed class InstallEngine
                 Report(0, "Reading the package", $"See-through water (VisPatch): {visFiles} data file(s) for the relight");
             }
 
+            // Setup's copy in the install (for Apps & Features' Uninstall). Run from that copy (an update started from
+            // it), its files are already in place and in use: kept as they are.
+            var keptSetup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (setupSource, relative) in plan.SetupFiles)
+            {
+                if (PathUtil.SamePath(Path.GetFullPath(setupSource), PathUtil.SafeCombine(target, relative)))
+                {
+                    keptSetup.Add(relative);
+                    continue;
+                }
+                var path = setupSource;
+                items.Add(new StageItem(relative, Components.Setup, () => File.OpenRead(path), new FileInfo(setupSource).Length, null));
+            }
+
             var total = items.Sum(i => i.Size);
             var drive = new DriveInfo(Path.GetPathRoot(target)!);
             if (drive.IsReady && drive.AvailableFreeSpace < total + (64L << 20))
@@ -218,6 +238,7 @@ public sealed class InstallEngine
                                 {
                                     Components.Core => "Copying Quake VR: Unleashed",
                                     Components.VisPatch => "Copying the VisPatch data",
+                                    Components.Setup => "Copying Setup",
                                     _ => "Copying HD textures",
                                 });
                             }
@@ -283,7 +304,8 @@ public sealed class InstallEngine
                 foreach (var f in old.Files.Where(f => !now.Contains(f.Path)))
                 {
                     if ((f.Component == Components.HdTextures && plan.HdTexturesZip is null) ||
-                        (f.Component == Components.VisPatch && plan.VisPatchArchives.Count == 0))
+                        (f.Component == Components.VisPatch && plan.VisPatchArchives.Count == 0) ||
+                        (f.Component == Components.Setup && (plan.SetupFiles.Count == 0 || keptSetup.Contains(f.Path))))
                     {
                         record.Files.Add(f); // textures or VisPatch data installed before and not reinstalled now: still ours
                         continue;
@@ -330,12 +352,37 @@ public sealed class InstallEngine
                 Report(0.98, "Finishing", "The package has no light.exe: the game will offer to download ericw-tools before relighting.", LogLevel.Warning);
             }
             record.Save(target);
+            if (plan.Registry is not null)
+            {
+                RegisterUninstall(plan.Registry, target, record, Report);
+            }
             Report(1, "Done", $"Quake VR: Unleashed {record.Version} installed in {target}.", LogLevel.Success);
             return record;
         }
         finally
         {
             textures?.Dispose();
+        }
+    }
+
+    /// <summary>The Apps &amp; Features entry, pointing at Setup's copy in the install. Never fatal.</summary>
+    static void RegisterUninstall(IRegistryWriter registry, string target, InstallRecord record, Action<double, string, string?, LogLevel> report)
+    {
+        var setup = record.Files.FirstOrDefault(f => f.Component == Components.Setup &&
+                                                    string.Equals(Path.GetFileName(f.Path), SetupCopy.ExeName, StringComparison.OrdinalIgnoreCase));
+        if (setup is null)
+        {
+            report(0.99, "Finishing", "No copy of Setup in the install: no Apps & Features entry (remove it with Setup).", LogLevel.Warning);
+            return;
+        }
+        try
+        {
+            UninstallEntry.Write(registry, target, record, PathUtil.SafeCombine(target, setup.Path));
+            report(0.99, "Finishing", "Added to Windows' Installed apps (Apps & Features), with its Uninstall.", LogLevel.Info);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            report(0.99, "Finishing", $"Could not add the Apps & Features entry: {e.Message}", LogLevel.Warning);
         }
     }
 
