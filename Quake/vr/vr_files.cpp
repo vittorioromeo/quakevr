@@ -21,6 +21,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <io.h>
 #else
 #include <unistd.h>
 #endif
@@ -237,6 +238,43 @@ za::I64 lastWriteTime(const char* path)
     return static_cast<za::I64>(st.st_mtim.tv_sec) * 1000000000 + st.st_mtim.tv_nsec;
 #endif
 #endif
+}
+
+bool identity(FILE* f, Identity& out)
+{
+    out = Identity{};
+    if(!f)
+    {
+        return false;
+    }
+#ifdef _WIN32
+    const HANDLE h = reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(f)));
+    BY_HANDLE_FILE_INFORMATION info;
+    if(h == INVALID_HANDLE_VALUE || !GetFileInformationByHandle(h, &info))
+    {
+        return false;
+    }
+    out.volume = info.dwVolumeSerialNumber;
+    out.index = (static_cast<za::U64>(info.nFileIndexHigh) << 32) | info.nFileIndexLow;
+    out.writeTime = static_cast<za::I64>((static_cast<za::U64>(info.ftLastWriteTime.dwHighDateTime) << 32) |
+                                         info.ftLastWriteTime.dwLowDateTime);
+    out.size = (static_cast<za::U64>(info.nFileSizeHigh) << 32) | info.nFileSizeLow;
+#else
+    struct stat st;
+    if(fstat(fileno(f), &st) != 0)
+    {
+        return false;
+    }
+    out.volume = static_cast<za::U64>(st.st_dev);
+    out.index = static_cast<za::U64>(st.st_ino);
+#ifdef __APPLE__
+    out.writeTime = static_cast<za::I64>(st.st_mtimespec.tv_sec) * 1000000000 + st.st_mtimespec.tv_nsec;
+#else
+    out.writeTime = static_cast<za::I64>(st.st_mtim.tv_sec) * 1000000000 + st.st_mtim.tv_nsec;
+#endif
+    out.size = static_cast<za::U64>(st.st_size);
+#endif
+    return true;
 }
 
 za::U64 fileSize(const char* path)

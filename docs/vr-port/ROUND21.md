@@ -28235,3 +28235,33 @@ listing is made, as before, at its first lookup).
 163 K fewer allocations a warden load (58% of the main thread's `new`); the time they took (a few ms by the audit's
 estimate) is inside the loads' run-to-run spread, which the hulls' build on the pool dominates. Behaviour unchanged:
 the same lookups (the counts above), the same faces.
+
+### 5. Decoded images kept across loads (`vr_image_cache_mb`, vr_imgcache.cpp)
+
+**Why.** Ironwail frees the world's textures with the map, so every load decodes its image files again: QRP's E1M1 spent
+505 ms of an 818 ms warm load decoding the same 312 files, and every map the shipped Quetoo material maps (70 ms on
+E1M1), and a campaign switch back to id1 its skins (420 ms).
+
+**How.** `Image_LoadImage` (image.c) asks the cache once it has opened a png, tga or jpg, before decoding it, and gives
+it the pixels it decoded (stb_image's buffer, which it freed before: no copy more on a miss). The key is the file as
+opened, not its name: the file on disk (`qvr::files::identity`: Windows' volume and file index, elsewhere device and
+inode), its last write time and size, the image's offset in it (a pak's entry) and its length, with the name looked up.
+A file changed, replaced or touched, another game folder's or pack's file of the same name, another pak: another key,
+and the name's old image is dropped when the new one is kept. The decoding has no settings (always RGBA); the textures'
+settings act on the caller's copy afterwards. Least recently used first beyond `vr_image_cache_mb` (default 512; one
+image at most a quarter of it; 0 none kept, given back). Main thread only, as `Image_LoadImage` (the hunk). Registered
+with `mem::Cache` ("decoded images", in vr_memstats' largest).
+
+| load (median of 3; images = "image files found and decoded" ms) | base | after |
+|---|---|---|
+| E1M1 on QRP, warm | 818 ms (images 505, material maps 126) | **321 ms** (images 38, material maps 54) |
+| E1M1 on QRP, cold | 1489 ms (611) | 1299 ms (561) |
+| E1M1 warm / restart | 197 / 191 ms (images 40, material maps 69) | 158 / 147 ms (6, 34) |
+| hip1m1, then back to E1M1 (a campaign switch) | 985 ms (images 420) | **556 ms** (39) |
+| warden warm | 391 ms | 351 ms |
+
+Held: QRP's E1M1 330 MB (472 images with the start-up's). Checked: E1M1 on QRP warm with the cache and without, the
+same picture (8 pixels of 518400 differ, by 8 levels at most, as between two runs without it); the shipped material
+maps touched while the game ran (`touch quakevr/textures_quetoo/*`): the next load decoded those 94 again and dropped
+their old images (93 dropped), the one after found them. `vr_image_cache_info` (Debug > Profiling and Memory: Decoded
+Image Cache Info, and its size there), `vr_image_cache_clear`.

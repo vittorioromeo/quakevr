@@ -11,6 +11,8 @@
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/Vocabulary/FunctionRef.hpp"
 
+#include <stdio.h>
+
 namespace qvr::files
 {
 
@@ -103,6 +105,18 @@ void forEachEntry(const char* dir, za::FunctionRef<void(const char* name, bool i
 
 // The last write time: a stamp to compare (std::filesystem::last_write_time's resolution); 0 when it is not there.
 [[nodiscard]] za::I64 lastWriteTime(const char* path);
+
+// An open file's identity: the file on disk (Windows: its volume and file index; elsewhere its device and inode), its
+// last write time and size. The same file again (a pak opened twice) gives the same; a file changed or replaced, another.
+struct Identity
+{
+    za::U64 volume{0};
+    za::U64 index{0};
+    za::I64 writeTime{0};
+    za::U64 size{0};
+    [[nodiscard]] bool operator==(const Identity&) const = default;
+};
+[[nodiscard]] bool identity(FILE* f, Identity& out); // false: unknown (not a file on disk)
 
 // A file's size in bytes (std::filesystem::file_size); 0 when it is not there (or is a directory).
 [[nodiscard]] za::U64 fileSize(const char* path);

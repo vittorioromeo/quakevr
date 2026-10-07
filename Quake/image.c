@@ -140,6 +140,12 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 	VR_TimeAdd (data ? "image files found and decoded (png, tga, pcx, lmp)" : "image files looked for, none found", Sys_DoubleTime () - t0);
 	return data;
 }
+// QVR: VR_ImageCacheFind's allocation: the hunk, as a decoded image's
+static unsigned char *Image_HunkAlloc (int bytes, const char *what)
+{
+	return (unsigned char *) Hunk_AllocNameNoFill (bytes, what);
+}
+
 static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum srcformat *fmt)
 {
 	static const char *const stbi_formats[] = {"png", "tga", "jpg", NULL};
@@ -158,7 +164,16 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 		{
 			double t0 = Sys_DoubleTime (); // QVR
 			qboolean extmap = VR_ExtMapsIsPath (loadfilename); // QVR
-			byte *data = extmap ? NULL : VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp)
+			int length = com_filesize; // QVR: the decoded images kept across loads (vr_imgcache.cpp), by the file as opened
+			byte *data = VR_ImageCacheFind (loadfilename, f, length, width, height, Image_HunkAlloc, ext);
+			if (data)
+			{
+				fclose (f);
+				*fmt = SRC_RGBA;
+				return data;
+			}
+			long start = ftell (f); // (where the image starts: the cache's key again after the decoding)
+			data = extmap ? NULL : VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp)
 			if (!data)
 				data = stbi_load_from_file (f, width, height, NULL, 4);
 			if (data && !extmap)
@@ -168,7 +183,9 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 				int numbytes = (*width) * (*height) * 4;
 				byte *hunkdata = (byte *) Hunk_AllocNameNoFill (numbytes, ext);
 				memcpy (hunkdata, data, numbytes);
-				VR_HeapFree (data);
+				fseek (f, start, SEEK_SET); // QVR
+				if (!VR_ImageCachePut (loadfilename, f, length, data, *width, *height)) // QVR: kept for the next load
+					VR_HeapFree (data);
 				data = hunkdata;
 				*fmt = SRC_RGBA;
 				if ((developer.value || map_checks.value) && strcmp (ext, "tga") != 0)

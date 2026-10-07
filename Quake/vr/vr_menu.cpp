@@ -4364,6 +4364,13 @@ za::Vector<Item> pageDebugProfiling()
         cycle("Ready the Debug Spawner's", "vr_probe_test_spawn", {{0.f, "Off"}, {1.f, "Its Kind"}, {2.f, "Every Kind"}})
             .help("The debug spawner's monsters (vr_test_spawn, impulse 241) made ready as each map loads too: Its Kind the one "
                   "vr_test_spawn names, Every Kind all 23 (a longer load). The next map load (vr_probe_test_spawn)."),
+        slider("Decoded Image Cache", vr_image_cache_mb, 0.f, 2048.f, 64.f, "%.0f MB")
+            .help("Image files decoded once are kept for later loads up to this size (a texture pack's world textures and "
+                  "material maps: QRP's E1M1 loads 0.5 s faster the second time); the least recently used go first. 0: none "
+                  "kept (vr_image_cache_mb)."),
+        command("Decoded Image Cache Info", "vr_image_cache_info")
+            .help("vr_image_cache_info: the images kept, their size, and since the start how many were found there and how many "
+                  "decoded (console). vr_image_cache_clear empties it."),
         header("Particles' Fill"),
         toggle("Skip Hidden Particles", vr_particle_saturate)
             .help("vr_particle_saturate: in dense effects the particles are composited in reverse order into a layer of "

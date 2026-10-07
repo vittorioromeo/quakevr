@@ -134,6 +134,8 @@ const char *VR_RelightIndicator (float *fraction);
 unsigned char *VR_ImagePrefetchTake (const char *name, FILE *f, int length, int *width, int *height);
 void VR_ImagePrefetchNote (const char *name, double seconds);
 void VR_ImagePrefetchEnd (void);	// the first map load's end: the workers joined, the rest freed, the list written
+unsigned char *VR_ImageCacheFind (const char *name, FILE *f, int length, int *width, int *height, unsigned char *(*alloc) (int bytes, const char *what), const char *what); // decoded before (vr_imgcache.cpp): a copy from alloc, or NULL
+int VR_ImageCachePut (const char *name, FILE *f, int length, unsigned char *pixels, int width, int height); // ... and kept now (1: the cache frees pixels)
 
 // The normal maps made from skins, kept on disk (vr_texcache.cpp; gl_texmgr.c TexMgr_LoadImage32).
 int VR_NormalCacheMode (void);	// vr_normalmap_cache: 0 off, 1 on, 2 check
