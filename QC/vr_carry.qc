@@ -921,8 +921,8 @@ void(float xHand) VR_Carry_HandFrame =
         {
             return;
         }
-        // A round (a shell) let go of at the ammo pouch: back in the reserve (vr_reload.qc).
-        if(VR_Reload_LetGo(xHand, box))
+        // A round (a shell) let go of at the ammo pouch: back in the reserve; an ammo box: into it (vr_reload.qc).
+        if(VR_Reload_LetGo(xHand, box) || VR_Reload_PouchTakesBox(xHand, box))
         {
             return;
         }

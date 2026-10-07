@@ -520,6 +520,38 @@ float(float xHand, entity r) VR_Reload_LetGo =
     return VR_Reload_Refund(self, r, xHand);
 };
 
+// Whether `e` is an ammo box (a map's, the mission packs', the horde's; a backpack is not).
+float(entity e) VR_Reload_IsAmmoBox =
+{
+    string c = e.classname;
+    return c == "item_shells" || c == "item_spikes" || c == "item_rockets" || c == "item_cells" ||
+           c == "item_lava_spikes" || c == "item_multi_rockets" || c == "item_plasma" ||
+           e.carry_use == ammo_touch || e.carry_use == MGH_horde_ammo_touch;
+};
+
+// `xHand` of self lets go of the carried `box` (VR_Carry_HandFrame): an ammo box at the ammo pouch goes into it, as at a
+// holster (the pack), whatever vr_carry_take says (the pouch is the place for ammo); full up, it drops there. TRUE if it
+// was an ammo box at the pouch.
+float(float xHand, entity box) VR_Reload_PouchTakesBox =
+{
+    if(!VR_Reload_AtPouch(self, xHand) || !VR_Reload_IsAmmoBox(box))
+    {
+        return FALSE;
+    }
+    VR_Carry_Take(xHand, box);
+    if(box.model == string_null)
+    {
+        VR_Reload_Sound(self, VRGetHandChannel(xHand), "vr/reload_pouch.wav", 0.8);
+        VR_Reload_Haptic(self, xHand, 0.08, 90, 0.7);
+        VR_Reload_Log(sprintf("an ammo box into the pouch (hand %g)", xHand));
+        return TRUE;
+    }
+    VR_Carry_SetHeld(self, xHand, world);
+    VR_Carry_Loose(box);
+    box.velocity = '0 0 0';
+    return TRUE;
+};
+
 // Every player frame, for `xHand` of self (VR_Reload_HandFrame): the magazines' ejects. The gun in this hand: its B/Y
 // pressed lets its magazine drop (vr_reload_eject_button). This hand empty, its grip pressed within vr_reload_pull_reach of
 // the other hand's gun's magazine: it holds it (vr_mag_pull; as a foregrip: nothing comes out), and pulled off it hard,
