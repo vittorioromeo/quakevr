@@ -1379,6 +1379,18 @@ extern "C" void VR_NewMap()
     VR_TimeMark("VR_NewMap: GL object count");
 }
 
+// vr_screenshot_frames <n> (Debug > Slipgates): a screenshot of each of the next n frames drawn, every one (a `wait`
+// waits for a server tick, so a script's screenshots skip the frames between ticks over 72 Hz): a frame strip, to find
+// a frame that differs from both its neighbours (a slipgate's crossing: docs/vr-port/ROUND21.md).
+namespace
+{
+int framesToShoot = 0;
+void screenshotFrames_f()
+{
+    framesToShoot = Cmd_Argc() > 1 ? CLAMP(0, Q_atoi(Cmd_Argv(1)), 600) : 1;
+}
+} // namespace
+
 extern "C" void VR_Init()
 {
     state = new State{};
@@ -1402,6 +1414,7 @@ extern "C" void VR_Init()
 
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
+    Cmd_AddCommand("vr_screenshot_frames", screenshotFrames_f);
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     Cmd_AddCommand("vr_menu_search", menu::search_f);
@@ -1630,6 +1643,18 @@ struct UnpacedSwap
 };
 UnpacedSwap unpacedSwap;
 } // namespace
+
+extern "C" void VR_FrameDrawn()
+{
+    if(framesToShoot > 0)
+    {
+        framesToShoot--;
+        Cmd_ExecuteString("screenshot", src_command);
+        const entity_t& player = cl_entities[cl.viewentity];
+        Con_Printf("frame shot: time %.4f, the player at %.1f %.1f %.1f\n", cl.time, player.origin[0], player.origin[1],
+            player.origin[2]);
+    }
+}
 
 extern "C" int VR_SkipSwap()
 {

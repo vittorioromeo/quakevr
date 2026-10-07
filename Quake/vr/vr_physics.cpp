@@ -629,9 +629,14 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
 // Physical walking in the play space: a second, horizontal move with collision.
 extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 {
+    // With no room-scale move, through a slipgate the move just made took the torso into, now (with one, after it,
+    // below): the tick's message then sends him carried, never past the gate's plane and not yet carried (the client's
+    // eye already through it while the server's PVS was the source room's: the room seen lost its doors and floors for
+    // a frame; ROUND21.md, "A frame seen through after a slipgate").
     const VrMove* vrMove = server::clientMove(ent);
     if(!vrMove)
     {
+        VR_PortalClientCross(ent);
         return;
     }
 
@@ -639,6 +644,7 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
     const glm::vec3 move = vrMove->roomscaleMove / static_cast<float>(VR_PlayerMoveSpeedup());
     if((move.x == 0.f && move.y == 0.f) || !ZA_ISFINITE(move.x) || !ZA_ISFINITE(move.y))
     {
+        VR_PortalClientCross(ent);
         return;
     }
 

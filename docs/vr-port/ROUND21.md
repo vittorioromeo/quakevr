@@ -29718,3 +29718,39 @@ Asked: a versioning scheme, and "Quake VR: Unleashed - vX.X" over "by Vittorio R
   420-wide canvas) ends above it (`layout`, `versionLabelClearance`): VR unchanged (24/25 rows on VR Settings and Debug -
   Tools, label on or off); flat 20/20 rows (22/23 with it off). Left out on flat Key Bindings and Levels (their lists
   reach the corner). `menu_vr pos` prints it.
+## A frame seen through after a slipgate (2026-10-07)
+
+Walking through a slipgate, one frame round the crossing showed the room beyond wrong: brush entities missing (start's
+pentagram floor, a func_bossgate, gone over the pit), or at 90-120 Hz a frame drawn from inside the gate's wall, and
+then the view held still for one or two frames. Three causes, found with a frame strip (`vr_screenshot_frames`, below)
+and per-frame prints of the client's lerp:
+
+- **The server carried the player a tick late.** `VR_PortalClientCross` ran only before the move (VR_ClientSpecialMove),
+  so the tick whose move took the torso past the gate's plane sent him there, not yet carried. The server's PVS for
+  that message (`SV_WriteEntitiesToClient`, origin + view_ofs) was then behind the gate, so `VR_PortalAddPVS` skipped
+  it and the destination's entities were not sent, while the client's eye was already through (`eyeThrough`, drawn from
+  the destination): the room seen without its doors, lifts and floors for a frame. At a higher frame rate the client's
+  lerped body could itself reach past the plane uncarried: its eye, not through, drawn from inside the gate's wall.
+  Now the crossing is also tried after the move (`VR_ClientRoomscaleMove` with no room-scale move; with one it already
+  was), so a message never has him past the plane uncarried. Same crossings (slipgate_cross_test.sh, slipgates_test.sh
+  walk: every case's side and end place as before), one tick earlier.
+- **`VR_PortalAddPVS` sends both rooms while he straddles a gate** (within `kStraddle` = 32 units of its plane, over
+  its opening, either way through): a body a sill or a frame keeps half through, an eye still behind the exit's face
+  just after the crossing (drawn from the source).
+- **The client snapped to the newer place.** The client draws a tick behind (lerping from the older message's place to
+  the newer); a jump of over 100 units was Quake's teleport, no lerp: the view leapt a tick ahead and held for a frame.
+  `VR_PortalLerpFrom` (CL_RelinkEntities): when the older place carried through a gate lands within 64 units of the
+  newer, the lerp goes on from it carried (and the yaw turned by the gate's). The hands also took the gate's turn
+  through `addTurn`, which made them again in the middle of the frame from the carried body (a frame early, then the
+  same frame twice): the turn is now kept for the next frame's hands (`setServerYaw`).
+
+Frame strips (`Misc/quakevr/slipgates/teleport_frames_test.sh <agent> <rate> <fade> [start e1m1 flush]`: every frame
+drawn round the crossing, the share of pixels changed frame to frame and a transient score, 4 frames written out):
+start at 72 Hz, the hole frame's transient 2.2% before, 0.4% after; vrslipgates' flush gate at 120 Hz, a 59% frame
+(the gate's wall) and two still frames before, an even 11-16% a frame after; e1m1's gate and the comfort fade at 0.6:
+no transient (0.04%). What is left at a crossing is one step of
+lighting: the room through the gate is a little darker (17.5 against 18.9 mean luminance at start): the shimmer
+(vr_slipgate_surface_opacity, half of it) and the torches' lights in the view through (r_dynamic 0: no step), not
+looked into. `vr_screenshot_frames <n>` (Debug > Slipgates > Frame Strip Through A Gate): a screenshot of each of the
+next n frames drawn (a `wait` waits for a server tick and skips frames over 72 Hz), each with the time and the
+player's place printed.

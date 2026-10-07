@@ -1417,6 +1417,8 @@ void GL_EndRendering (void)
 {
 	GL_PostProcess ();
 	GL_ReleaseFrameResources ();
+	if (!scr_skipupdate)
+		VR_FrameDrawn (); // QVR: vr_screenshot_frames
 
 	if (!scr_skipupdate && !VR_SkipSwap ()) // QVR: unpaced test frames present only now and then
 	{

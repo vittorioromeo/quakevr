@@ -5771,6 +5771,11 @@ za::Vector<Item> pageDebugTests()
         command("Through A Gate", "map start; wait120; setpos 232 1330 24 0 90 0; wait10; noclip 0; wait80; vr_mock_stick off 0 0.5; wait20; +jump; wait30; -jump; vr_mock_stick off 0 0; wait30; vr_portals_info")
             .help("Mock movement with collision enabled: approach the first gate and jump into its opening. "
                   "The torso reaches y=1384 before crossing (developer 1: VR portal: carried edict 1 through side 0)."),
+        command("Frame Strip Through A Gate", "map start; wait120; setpos 544 1330 24 0 90 0; wait10; noclip 0; wait80; vr_mock_stick off 0 0.5; wait20; +jump; wait36; -jump; vr_screenshot_frames 12; wait20; vr_mock_stick off 0 0")
+            .help("The same jump into the middle gate (Normal skill), a screenshot of each of the 12 frames round the "
+                  "crossing (vr_screenshot_frames 12: every frame drawn, not only those on a server tick). The room "
+                  "beyond must look the same in each: the pentagram's floor over the pit (func_bossgate) was missing "
+                  "in the first frame after the crossing until the server sent both rooms while you straddle a gate."),
         command("A Shot Through A Gate", "map start; wait120; setpos 232 1360 24 0 90 0; wait10; vr_physics_fire 10 232 1500 25")
             .help("vr_physics_fire 10: a pellet's trace at a point beyond the first gate: the console says through 1 "
                   "slipgate(s), in at ..., out at ... (shots and thrown props go through as before)."),

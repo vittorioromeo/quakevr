@@ -857,8 +857,13 @@ void setServerYaw(float yaw)
     {
         // The server's angle for a walk through a slipgate: the play space turned by the gate's yaw itself (the
         // server's head angle is a frame old: its turn would be off by the head's own turn since).
+        // Not recomputed now (addTurn would): this frame's hands were made at its start, from the body where the last
+        // frame left it (the client draws a tick behind the server). Made again here, after the message that carries
+        // the body, the crossing's frame drew it a frame early and the next frame the same again: a hitch at every
+        // slipgate (ROUND21.md, "A frame seen through after a slipgate"). The next frame's hands take the turn, the
+        // carried body and the lean together.
         portalAngleTaken = true;
-        addTurn(portalJumpYaw);
+        turnYaw = za::remainder(turnYaw + portalJumpYaw, 360.f);
         return;
     }
     pendingYawValid = true;

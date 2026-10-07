@@ -62,6 +62,7 @@ int VR_SkipScreen (void);	// SCR_UpdateScreen: nonzero to skip this frame's draw
 void VR_HeadlessView (void);	// ... and instead: the eyes' views and view entities set up (what the game reads), no GL
 int VR_SkipSwap (void);		// GL_EndRendering: nonzero to leave this frame unpresented (unpaced frames present
 							// ten a second: a present waits for the display's refresh, the bulk of such a frame)
+void VR_FrameDrawn (void);	// GL_EndRendering, before the present: vr_screenshot_frames's screenshot of it
 int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a frame showing the
 							// dialog (the runtime paces it); zero without one (the loop sleeps)
 double VR_HostFrameTime (double time);	// start of _Host_Frame: the frame's time (a motion take's own while
@@ -280,6 +281,8 @@ void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable
 int VR_RunThink2 (struct edict_s *ent);				// start of SV_RunThink: 0 if the entity was freed
 void VR_ClientPreMove (struct edict_s *ent);			// SV_Physics_Client: hand and weapon touches
 void VR_ClimbPreThink (struct edict_s *ent);			// SV_Physics_Client, before PlayerPreThink: ledge holds taken and let go (vr_climb.cpp)
+int VR_PortalLerpFrom (const float older[3], const float newer[3], float from[3], float *yaw); // CL_RelinkEntities: 1 when
+							// the older place carried through a slipgate (from; the gate's yaw) lands by the newer
 int VR_ClientSpecialMove (struct edict_s *ent);		// SV_Physics_Client, before the move: 1 teleported, hung or mantled instead (to the post-think), -1 freed
 int VR_ClimbHangsFrom (struct edict_s *check, struct edict_s *pusher);	// SV_PushMove: nonzero for a player hanging from (or mantling onto) the pusher: it rides it
 int VR_ClimbCarryBlocked (struct edict_s *check, struct edict_s *pusher, const float *from, const float *move); // SV_PushMove: its ride stopped short: nonzero blocks the pusher (vr_climb_mover_crush), else it lets go
