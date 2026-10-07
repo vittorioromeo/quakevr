@@ -27927,3 +27927,30 @@ tests use `vr_campaign_native mg3`, `-nomapindex -noaddons`, developer 1.
   to boss2; boss2: "CONGRATULATIONS AND WELL DONE!", next map start; map8 -> hub "You have gained a rune of
   power!..."; start -> map1 "You are drained..."; the credits menu titled Dawn of the Machine (screenshot). Loads:
   start, hub, map1, map4, boss, boss2, secret6 exit 0. Regression as before.
+
+## Map load crash: the cache's LRU list from the pool (2026-10-07)
+
+Seen by the MG3 work: loading MG3's map2 crashed now and then on a pool worker in `vr_hull.cpp:450` (the hull build's
+walk: a hull 0 node whose plane number was garbage), and `R_NewMap` crashed in `GL_BuildBModelMarkBuffers`'
+`CompareMarkSurface` (garbage marksurfaces; the hub -> map3 crash "after a test seeded holster ids" was this one too:
+it came on a plain map2 load as well). Measured before the fix: 8 crashes in 65 map2 loads (fresh processes), always
+the same node (25591) with the same garbage plane number, through the hull build, R_NewMap or the GL driver.
+
+- **Not the hull build.** With hull 0's nodes and the planes made read-only (VirtualProtect) for the build, every
+  node checked good when the build started, the page still read-only at the crash and the node still wrong: the
+  value was written before (at the map's load), into the hunk.
+- **The culprit:** the hunk, cache and zone checked for their thread (a crash with the caller's stack): the ragdoll
+  rigs' warm-up at every map load (`warmRigs`, vr_ragdoll.cpp) runs `derive` for each monster model on the pool, and
+  `derive` called `Mod_Extradata`, whose `Cache_Check` unlinks and relinks the model's block in the cache's LRU list:
+  several workers at once corrupted the list (10 of 10 runs flagged it). Through stale LRU links a later cache
+  allocation, flush or move wrote cache links into memory the hunk had since given to the map (the world's nodes),
+  hence the same deterministic garbage. Not mimalloc, not the hull containers or the kept hulls.
+- **Fix:** the alias headers are taken on the main thread (`Mod_Extradata` while the jobs are listed, then again with
+  `Cache_Check` once every model is loaded, as a later load may have let an earlier one go) and handed to `derive`,
+  which touches no engine state. After: 0 crashes in 50 map2 loads (fresh processes); with the check on, no other
+  use off the main thread over e4m7, e1m1, start, hub (`vr_mg3_test 16`) -> map3 (`17`), map2, Release and Debug.
+  The rigs are the same (start's zombie/soldier/dog: 12/12/13 bones).
+- **`vr_zone_threadcheck`** (default 0; Debug > Threads > Catch Memory Use off the Main Thread): `Z_Malloc`,
+  `Z_Free`, `Z_Realloc`, the hunk's allocations and frees, `Cache_Alloc`, `Cache_Check` and `Cache_Free` from any thread
+  but the main one crash at once (`Zone_WrongThread`, with the culprit's stack in qvr_crash.txt). For tests: set it
+  first in the script (`vr_zone_threadcheck 1; map ...`).
