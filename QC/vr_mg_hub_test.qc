@@ -238,6 +238,24 @@ void(float request) MG1_H_Route = {
         T_Damage(p, world, world, p.health + 1000);
         dprint(sprintf("mghubtest: died health %g deadflag %g\n", p.health, p.deadflag));
         MG1_H_Presser();
+    } else if(request == 37) {
+        // The monsters near you (500 units): what each is doing (the monster tests' probe; changes nothing).
+        entity m = findradius(p.origin, 500);
+        while(m) {
+            if(m.flags & FL_MONSTER)
+                dprint(sprintf("mghubtest: monster %s health %g dist %g enemy %s frame %g\n", m.classname, m.health,
+                    vlen(m.origin - p.origin), m.enemy.classname, m.frame));
+            m = m.chain;
+        }
+    } else if(request == 38) {
+        // Dimension of the Machine's marksman ogre (id's ogre model; the dispenser's needs Honey's) vr_test_spawn_dist ahead.
+        makevectors(p.v_angle);
+        entity mk = spawn();
+        setorigin(mk, p.origin + v_forward * cvar("vr_test_spawn_dist") + '0 0 24');
+        mk.angles_y = p.v_angle_y + 180;
+        mk.classname = "monster_ogre_marksman";
+        self = mk; monster_ogre_marksman();
+        dprint(sprintf("mghubtest: spawned %s model %s health %g\n", mk.classname, mk.model, mk.health));
     } else if(request == 7) {
         // Pure driver: next-map commands are appended AFTER the actual QC changelevel.
         self = p;
