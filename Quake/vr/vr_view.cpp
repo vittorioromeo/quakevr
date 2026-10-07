@@ -4900,11 +4900,12 @@ void setupAmmoPouch(const hands::State& s)
         const glm::vec3 side = glm::normalize(glm::cross(frame.up, frame.out)); // (the body's right, looking out)
         const glm::vec3 pos = at + (frame.out * vr_ammo_pouch_counter_x.value + side * vr_ammo_pouch_counter_y.value +
                                        frame.up * vr_ammo_pouch_counter_z.value) * k;
+        // Turned with the pouch alone (the author: it turned with the view): the way the eyes look down at it and its
+        // top towards the pouch's front, both in the pouch's own frame, then the offsets in that frame.
         const glm::vec3 look = glm::normalize(frame.out * 0.35f - frame.up);
-        const float pitch = -glm::degrees(za::asin(CLAMP(-1.f, look.z, 1.f)));
-        const float yaw = glm::degrees(za::atan2(look.y, look.x));
-        const glm::vec3 angles{pitch + vr_ammo_pouch_counter_pitch.value, yaw + vr_ammo_pouch_counter_yaw.value,
-            vr_ammo_pouch_counter_roll.value};
+        const glm::vec3 top = glm::normalize(frame.out - look * glm::dot(frame.out, look));
+        const glm::vec3 angles = composeAngles(hands::anglesFromVectors(look, top),
+            {vr_ammo_pouch_counter_pitch.value, vr_ammo_pouch_counter_yaw.value, vr_ammo_pouch_counter_roll.value});
         char buf[16];
         q_snprintf(buf, sizeof(buf), "%d", cl.stats[protocol::STAT_QVR_POUCHCOUNT]);
         text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * vr_ammo_pouch_counter_scale.value * k,
