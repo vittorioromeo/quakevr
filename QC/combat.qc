@@ -788,6 +788,8 @@ float(entity p, float xHand) VR_Throw_HandMayStrike;
 
 // Every player frame, for each hand (self is the player; VR_Carry_HandFrame): a hand swung at a
 // blow's speed (vr_melee_speed) through a corpse, or what it holds, strikes it.
+void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer; // (vr_crates.qc)
+
 void(float xHand) VR_Corpse_StrikeFrame =
 {
     if(!cvar_hget(cvarh_vr_corpse_gib) || !self.ishuman || self.health <= 0)
@@ -858,6 +860,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
         dmg = dmg * 1.5;
     }
     VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
+    VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), c);
     haptic(xHand, 0.0, 0.1, 60, 0.7);
     SpawnBlood(at, dir * 40, dmg);
 

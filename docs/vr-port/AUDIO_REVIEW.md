@@ -6,7 +6,8 @@ heard from the wrong place, too loud or quiet next to the rest, or without its h
 proposed for reuse (id's `sound/` in the paks, referenced by name at runtime, and `quakevr/sound`); new recordings are
 described for sourcing.
 
-Three small fixes are in (see "Done in this review"); everything else is for Vittorio to pick from.
+Three small fixes are in (see "Done in this review"); everything else is for Vittorio to pick from. What has been
+done since is under "Status".
 
 ## Two things that shape every row
 
@@ -50,6 +51,15 @@ Effort: S an hour or so, QC or one engine function; M a day, engine work across 
 | 18 | Walking through a slipgate (`triggers.qc` VR_Portal_Crossed) | none, on purpose ("no flash, no sound") | — (a design choice) | if wanted: a faint shimmer as you pass the surface (new) | at the gate | quiet | A |
 | 19 | Voice notes (`vr_voicenotes.cpp`, a dev tool) | haptics only | you can't hear that the recording started | `misc/menu1.wav` local, start and end | 2D | 0.5 | S |
 | 20 | Blood dripping off you, washing it off | none | minor: the water's own hand sounds cover washing | none needed | — | — | — |
+
+## Status
+
+| Row | State | What was done (ROUND21.md has each one's notes) |
+|---|---|---|
+| 1 | done (ca888732) | channels 8 and 9 (`CHAN_HAND`, `CHAN_HAND2`, `VRGetHandChannel`): any-free channels from the main and off hand |
+| 2 | done (5a18f374) | ragdoll parts and pushable corpses knock as flesh through the physics sounds; the dragging scrape left (row 2b below) |
+| 3 | done (0fc1340d) | `sound()`'s pitch argument; `VR_SoundVaried` and `vr_snd_pitch_jitter` (4%) on the frequent sounds |
+| 4 | done (layer) | a blunt blow's second layer of what it hit (flesh, armour, wood, a wall) under the thud, varied in pitch (`VR_Blunt_HitLayer`, `vr_snd_hit_layer`); the new punch and cut recordings still to source |
 
 ## Well covered (no change proposed)
 

@@ -163,6 +163,65 @@ string(entity xTarg, string xSound, float xBlade) VR_Melee_HitSoundOn =
     return VR_Melee_HitSound(xSound);
 };
 
+// One of four recordings, at random (the physics sounds' sets: vr/phys/<material>_<weight>1..4).
+string(string a, string b, string c, string d) VR_Pick4 =
+{
+    float r = random();
+    return r < 0.25 ? a : (r < 0.5 ? b : (r < 0.75 ? c : d));
+};
+
+// Armour under a blow (a knight's mail, a death knight's plate, an enforcer's suit; their corpses keep it).
+float(entity e) VR_Hit_Armoured =
+{
+    string c = e.classname;
+    return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_enforcer";
+};
+
+// The second layer of a blunt blow (a fist, a gun's butt, a headbutt, a gib, a prop or a weapon struck or thrown into
+// something; the thud itself is fisthit.wav or a pommel's knock): of what the blow landed on, so that the thud sounds
+// of it and is never twice the same, played from `xFrom` on `xChan` (a hand's own channel: at the hand): a body (a
+// monster, a player, a corpse, a gib) a slap of flesh (vr/phys/flesh_m1..4), an armoured one (VR_Hit_Armoured) a light
+// metal knock (metal_l1..4) over a duller slap, wood (a crate, its pieces) a wooden knock (wood_m1..4), a wall or the
+// floor the hand's own knock (soft_m1..4). Metal (an explosive box, a door, a lift) has its own knock instead of the
+// thud already (VR_Melee_HitSoundOn): none. Each a little higher or lower (VR_SoundVaried); vr_snd_hit_layer loud (0
+// none). `developer` prints which.
+void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer =
+{
+    float vol = min(1, cvar_hget(cvarh_vr_snd_hit_layer));
+    if(vol <= 0 || (xTarg != world && VR_Hit_Metal(xTarg)))
+    {
+        return;
+    }
+    string s;
+    string s2 = "";
+    if(xTarg == world || (!xTarg.takedamage && !xTarg.vr_gib))
+    {
+        s = VR_Pick4("vr/phys/soft_m1.wav", "vr/phys/soft_m2.wav", "vr/phys/soft_m3.wav", "vr/phys/soft_m4.wav");
+        vol = vol * 0.6;
+    }
+    else if(VR_Crate_Wooden(xTarg))
+    {
+        s = VR_Pick4("vr/phys/wood_m1.wav", "vr/phys/wood_m2.wav", "vr/phys/wood_m3.wav", "vr/phys/wood_m4.wav");
+        vol = vol * 0.8;
+    }
+    else
+    {
+        s = VR_Pick4("vr/phys/flesh_m1.wav", "vr/phys/flesh_m2.wav", "vr/phys/flesh_m3.wav", "vr/phys/flesh_m4.wav");
+        vol = vol * 0.8;
+        if(VR_Hit_Armoured(xTarg))
+        {
+            s2 = VR_Pick4("vr/phys/metal_l1.wav", "vr/phys/metal_l2.wav", "vr/phys/metal_l3.wav", "vr/phys/metal_l4.wav");
+        }
+    }
+    if(s2 != "")
+    {
+        VR_SoundVaried(xFrom, xChan, s2, vol, ATTN_NORM);
+        vol = vol * 0.5;
+    }
+    VR_SoundVaried(xFrom, xChan, s, vol, ATTN_NORM);
+    dprint(sprintf("blunt hit layer: %s%s%s on %s\n", s, s2 != "" ? " + " : "", s2, xTarg.classname));
+};
+
 // Splinters and a puff of dust where a shot or a blow hits wood (`damage`: how much).
 void(vector org, vector dir, float damage) VR_Crate_Splinters =
 {
@@ -295,6 +354,10 @@ void(float xSpeed) VR_SolidProp_Impact =
             // (An explosive box thrown, or one struck: a metal knock.)
             float metal = VR_Prop_Metal(self) || VR_Prop_Metal(other);
             VR_SoundVaried(self, CHAN_AUTO, metal ? VR_Metal_Sound(VR_METAL_BLUNT) : "fisthit.wav", 1, ATTN_NORM);
+            if(!metal)
+            {
+                VR_Blunt_HitLayer(self, CHAN_AUTO, other);
+            }
             if(VR_Crate_Wooden(other))
             {
                 VR_Crate_Splinters(self.origin, self.velocity, dmg);

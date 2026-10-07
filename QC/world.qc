@@ -281,6 +281,12 @@ void() worldspawn =
     precache_sound("vr/phys/grab_stone1.wav");
     precache_sound("vr/phys/grab_stone2.wav");
     precache_sound("vr/phys/grab_stone3.wav");
+    // A blunt blow's layer on flesh (vr_crates.qc VR_Blunt_HitLayer; the engine precaches only 1 and 2 of these, for the
+    // bodies' knocks; its other layers, soft_m, wood_m and metal_l, are the physics sounds').
+    precache_sound("vr/phys/flesh_m1.wav");
+    precache_sound("vr/phys/flesh_m2.wav");
+    precache_sound("vr/phys/flesh_m3.wav");
+    precache_sound("vr/phys/flesh_m4.wav");
     precache_model("progs/v_ksword.mdl");
     precache_model("progs/v_hksword.mdl");
     VR_Chainsaw_Precache(); // VR: the ogres' chainsaw (vr_chainsaw.qc)

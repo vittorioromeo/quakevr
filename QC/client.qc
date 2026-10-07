@@ -2863,6 +2863,7 @@ void(float xThreshold) VR_Headbutt_Hit =
     self.in_headbutt = FALSE;
     self.headbutt_start_time = time + 0.4;
     VR_SoundVaried(self, CHAN_OTHER, "fisthit.wav", 1.0, ATTN_NORM);
+    VR_Blunt_HitLayer(self, CHAN_AUTO, victim);
     VRGunHaptic(cVR_OffHand, 0.15, 100, 1.0);
     VRGunHaptic(cVR_MainHand, 0.15, 100, 1.0);
 

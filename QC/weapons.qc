@@ -1287,6 +1287,7 @@ void(float xHand) W_FireAxe =
         {
             VRMeleeHapticByHand(xHand);
             VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
+            VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
     }
@@ -1338,6 +1339,7 @@ void(float xHand) W_GunMelee =
         {
             VRMeleeHapticByHand(xHand);
             VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
+            VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
     }
@@ -1438,6 +1440,7 @@ void(float xHand) W_ChainsawMelee =
         {
             VRMeleeHapticByHand(xHand);
             VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
+            VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;
@@ -1498,8 +1501,12 @@ void(float xHand) W_FistMelee =
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         // (A held rock or brick knocks as it does; a fist on an explosive box, a metal knock: VR_Melee_HitSoundOn.)
-        sound(self, VRGetGunChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) :
+        VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) :
             (VR_Hit_Metal(trace_ent) ? VR_Melee_HitSoundOn(trace_ent, "fisthit.wav", FALSE) : "fisthit.wav"), 1.0, ATTN_NORM);
+        if(!VR_Debris_Is(held))
+        {
+            VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), trace_ent);
+        }
         playedsound = TRUE;
     }
 
@@ -5724,6 +5731,7 @@ void() forcegrabbable_touch =
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
         {
             VR_SoundVaried(self, CHAN_AUTO, VR_Hit_Metal(other) ? VR_Metal_Sound(VR_METAL_BLADE) : "fisthit.wav", 1, ATTN_NORM); // (an explosive box: a clang)
+            VR_Blunt_HitLayer(self, CHAN_AUTO, other);
 
             // Where it struck, and going which way (not the trace globals, stale in a touch).
             float posDmgType = PositionalDamage(other, self.origin, normalize(self.velocity));

@@ -1119,6 +1119,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("The most frequent sounds (punches and blows, swings, squishes, clicks, knocks, casings, footsteps) "
                   "each a little higher or lower at random, up to this much, so that one recording isn't heard the same "
                   "every time (0 off)."),
+        slider("Blow Material Layer", vr_snd_hit_layer, 0.f, 1.f, 0.1f, "%.1f")
+            .help("A punch, a gun's butt, a headbutt or a thrown thing landing also sounds of what it hit: a slap of "
+                  "flesh on a body, a clink of armour on a knight or an enforcer, a knock of wood on a crate, your "
+                  "knuckles' knock on a wall. How loud, under the blow's thud (0 none)."),
         slider("Near Field", vr_snd_nearfield, 0.f, 2.f, 0.1f, "%.1f")
             .help("A sound within a metre of your head: the nearer ear louder, the farther one quieter and duller, by how "
                   "near and how much to the side. 0 off."),

@@ -27697,3 +27697,27 @@ id1 paks (git-ignored; the same script as the calibration map's). No leak, 28 ga
   eyes, every kind of gate (`scratch/slipgate_views.png`).
 - **To try in VR:** each gallery's buttons with you on the far side; throwing crates and boxes through the 8-deep and
   48-deep gates; walking the loop; the 45-degree gate's turn; the pool gates.
+## Blunt blows sound of what they hit (AUDIO_REVIEW.md row 4, 2026-10-07)
+
+A punch, a gun's butt, a headbutt, a pommel or a club, a struck or held gib, a prop flung or thrown into something
+and a thrown weapon's blunt landing all played `fisthit.wav` (one recording) whatever they hit. Each now plays a second,
+quieter layer of what it hit, from the hand (its any-free channel, `VRGetHandChannel`) or from the thrown thing
+(`vr_crates.qc` VR_Blunt_HitLayer), with the pitch variation (`VR_SoundVaried`):
+
+- a body (a monster, a player, a corpse, a gib or head): `vr/phys/flesh_m1..4` at 0.8 (RMS 9%: about 13 dB under the
+  thud's 32%);
+- an armoured one (`monster_knight`, `monster_hell_knight`, `monster_enforcer`, their corpses too): `vr/phys/metal_l1..4`
+  at 0.8 over the flesh slap at 0.4;
+- wood (a crate, its pieces): `vr/phys/wood_m1..4` at 0.8;
+- a wall or the floor (the fist's own path; `!takedamage`): `vr/phys/soft_m1..4` at 0.6;
+- metal (an explosive box, a door, a lift: `VR_Hit_Metal`): none, its heavy knock already replaces the thud.
+
+Every existing recording; `flesh_m3/4` precached in `world.qc` (the engine's bodies' set has only 1 and 2). The call
+sites: `weapons.qc` W_FireAxe, W_GunMelee, W_ChainsawMelee, W_FistMelee (not when a held rock or brick knocks as
+itself), a thrown weapon landing; `combat.qc` a corpse struck; `vr_carry.qc` a flung prop, VR_Gib_Blow, a gib struck by
+the other hand; `vr_crates.qc` a thrown prop; `client.qc` the headbutt. `vr_snd_hit_layer` (1; 0 none): Audio >
+Movement and Nearness, **Blow Material Layer**. `developer 1` prints `blunt hit layer: <sounds> on <class>`.
+
+Checked (`-Sound -RealTime`, `vr_snd_spatial 0`, `snd_show 2`; a shells box flung with `impulse 232`): into a grunt
+`fisthit.wav` (pitch 0.975) and `flesh_m4` (0.988) on the box's channel 0; into a knight `fisthit` and `metal_l4`
+over `flesh_m3`; into a zombie `fisthit` and `flesh_m1`.
