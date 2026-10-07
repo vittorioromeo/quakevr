@@ -1,5 +1,5 @@
 #!/bin/bash
-# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|all]: headless checks of the slipgate edge cases in
+# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|all]: headless checks of the slipgate edge cases in
 # vrslipgates (ROUND21.md, "Slipgates: exits on their gates, props through, held objects, the force grab's beam"), with
 # the agent kit (C:/OHWorkspace/qvr-kit). Each section prints one line or a few, with what it must say.
 #   clip   a crate resting where a gate's exit used to stand (48 out of the north gallery's wall), paired exits off and
@@ -99,4 +99,25 @@ a = Image.open(sys.argv[1] + '/slipgate_cull_1.png').convert('RGB'); b = Image.o
 d = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 24 else 0)
 print(f"cull: the box's half out of the exit makes {d.histogram()[255]} pixels (thousands; 0: culled)")
 PYEOF
+fi
+
+# particles: explosion particles behind start's underwater slipgate (a free-standing sheet), seen from in front of it
+# with the author's translucent gate surface (vr_slipgate_surface_opacity 0.3: no depth written): the pixels they make
+# over the gate (a few at most; 539 before the particles were hidden behind shown gates), and with the views off (the
+# shimmer only: they show through it, a control)
+if want particles; then
+    for c in "1 0.3" "0 1"; do
+        set -- $c
+        for sp in 1 0; do
+            P="vr_particle_test 2 400"; [ $sp = 0 ] && P="wait1"
+            bash $KIT/run.sh $AGENT -Clean -Out "slipgate_particles_$sp.png" -Script "map start;wait90;god;notarget;noclip;vr_portals $1;vr_slipgate_surface_opacity $2;setpos 1040 1700 -330 0 270 0;wait5;$P;setpos 1040 1830 -330 0 270 0;vr_mock_look 0 270;vr_mirror 2;vr_window_view 0;wait3;screenshot;wait5;toggleconsole;quit" > /dev/null
+        done
+        "$PY" - "$TREE/scratch" "$1" <<'PYEOF'
+import sys
+from PIL import Image, ImageChops
+a = Image.open(sys.argv[1] + '/slipgate_particles_1.png').convert('RGB'); b = Image.open(sys.argv[1] + '/slipgate_particles_0.png').convert('RGB')
+d = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 30 else 0)
+print(f"particles: views {sys.argv[2]}: particles behind the gate make {d.histogram()[255]} pixels" + (" (a few at most)" if sys.argv[2] == '1' else " (a control: over 100)"))
+PYEOF
+    done
 fi

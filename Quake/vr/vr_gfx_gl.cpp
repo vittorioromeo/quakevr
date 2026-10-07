@@ -77,6 +77,14 @@ layout(location = 2) uniform vec4 Params;
 layout(location = 3) uniform vec3 Size; // Mode 4's virtual screen: pixels across, down, scanlines a pixel
 layout(location = 16) uniform float TrueColor; // Mode 4: 1 the texture's own colours, 0 its brightness in the vertex colour
 layout(location = 4) uniform int SoftOn; // State::sceneDistances on unit 1
+// Slipgates shown in this view (vr_portals.cpp VR_PortalFrameData; set for the particles only, else none): what lies
+// behind one, seen through its aperture from the eye, is hidden by the view through it (a translucent gate surface,
+// vr_slipgate_surface_opacity under 1, writes no depth: torch fire behind it showed over it).
+layout(location = 64) uniform int PortalCount;
+layout(location = 65) uniform vec3 PortalEye;
+layout(location = 66) uniform vec4 PortalPlanes[8];
+layout(location = 74) uniform vec4 PortalLo[8];
+layout(location = 82) uniform vec4 PortalHi[8];
 layout(binding = 0) uniform sampler2D Tex;
 layout(binding = 1) uniform sampler2D SceneDistances;
 in vec2 uv;
@@ -310,6 +318,16 @@ void main()
     if(halfDistance < viewDepth)
         discard;
 #endif
+    for(int i = 0; i < PortalCount; ++i)
+    {
+        float a = dot(PortalEye, PortalPlanes[i].xyz) - PortalPlanes[i].w;
+        float b = dot(worldPos, PortalPlanes[i].xyz) - PortalPlanes[i].w;
+        if(a <= 0.0 || b >= 0.0)
+            continue;
+        vec3 c = PortalEye + (worldPos - PortalEye) * (a / (a - b));
+        if(all(greaterThanEqual(c, PortalLo[i].xyz - 1.0)) && all(lessThanEqual(c, PortalHi[i].xyz + 1.0)))
+            discard;
+    }
 #endif
 #if MODE == 1
     float falloff = clamp(1.0 - dot(uv, uv), 0.0, 1.0);
@@ -1339,6 +1357,21 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     GL_Uniform1fFunc(11, split.pixelScale);
     GL_Uniform1fFunc(12, split.largePixels);
     GL_Uniform1iFunc(15, 0);
+    {
+        // The slipgates shown in this view: what is behind one, through its aperture, is hidden (the fragment shader).
+        float plane[8][4], lo[8][4], hi[8][4];
+        VR_PortalFrameData(plane, lo, hi);
+        int count = 0;
+        while(count < 8 && lo[count][3] > 0.f) { ++count; }
+        GL_Uniform1iFunc(64, count);
+        GL_Uniform3fFunc(65, eye.x, eye.y, eye.z);
+        if(count > 0)
+        {
+            GL_Uniform4fvFunc(66, count, &plane[0][0]);
+            GL_Uniform4fvFunc(74, count, &lo[0][0]);
+            GL_Uniform4fvFunc(82, count, &hi[0][0]);
+        }
+    }
     const bool trimmed = program == particleProgram[7] || program == particleProgram[8] ||
         program == particleProgram[9] || program == particleProgram[10];
     if(trimmed)
