@@ -167,6 +167,7 @@ constexpr int HS_LEFT_SHOULDER_HOLSTER = 3;
 constexpr int HS_HAND_SWITCH = 7;
 constexpr int HS_RIGHT_UPPER_HOLSTER = 9;
 constexpr int HS_GRENADE_POUCH = 11;
+constexpr int HS_AMMO_POUCH = 12;
 
 using ledges::holdInset;              // the hold (the palm's middle) is this far behind the lip (vr_ledges.hpp)
 constexpr float regrabDelay = 0.4f;   // seconds without new holds after letting go of everything or mantling
@@ -973,6 +974,10 @@ Climber climbers[MAX_SCOREBOARD];
     if(hotspot == HS_GRENADE_POUCH)
     {
         return !hanging && ent->v.ammo_rockets >= 1.f; // a grenade to take (hanging: the next hold)
+    }
+    if(hotspot == HS_AMMO_POUCH)
+    {
+        return !hanging; // a round to take or put back (hanging: the next hold)
     }
     if(hotspot > HS_RIGHT_UPPER_HOLSTER)
     {

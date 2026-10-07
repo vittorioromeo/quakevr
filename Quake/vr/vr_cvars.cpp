@@ -445,8 +445,11 @@ const DefaultChange defaultChanges[] = {
     {95, &vr_messages_hologram_height, "5"},        // 10
     // 96: the menus' red as the author has it (his config, 2026-10-07; hue 0 and strength 1 as shipped already).
     {96, &vr_menu_recolor_saturation, "1.25"},      // 3
+    // 97: immersive manual reloading is the shipped mode (the author, 2026-10-07; docs/vr-port/RELOAD_PLAN.md): a config with
+    // the old default (Hip Holsters) takes it; one that chose Off or All Holsters keeps its choice.
+    {97, &vr_reload_mode, "2"},                     // 3
 };
-constexpr int configVersion = 96;
+constexpr int configVersion = 97;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

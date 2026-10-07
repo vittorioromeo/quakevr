@@ -79,6 +79,10 @@ struct State
     // and kept until the next render (moves are sent before rendering).
     bool muzzleValid[2]{false, false};
     glm::vec3 muzzle[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // Each held gun's loading port (immersive reloading, vr_view.cpp loadPorts), placed with the muzzles: where a round
+    // held in the other hand goes in.
+    bool loadPortValid[2]{false, false};
+    glm::vec3 loadPort[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 
     // Where the other hand grips each weapon in the "fixed" two-handed display mode (a
     // foregrip vertex of the weapon model), placed with the muzzles.

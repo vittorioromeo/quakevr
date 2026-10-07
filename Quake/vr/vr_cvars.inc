@@ -2352,7 +2352,36 @@ QVR_CVAR(vr_debug_grasp_trace, "0", CVAR_NONE)         // write the drawn hand's
 QVR_CVAR(vr_jobs_threads, "0", CVAR_NONE)             // the game's thread pool (vr_jobs.hpp): its workers (0: the hardware's threads less one, at most 31); changed, the pool is made again
 QVR_CVAR(vr_jobs_parallel, "1", CVAR_NONE)            // parallelFor (the grasp solve, the liquids' volume, the occlusion bakes) split between the pool's threads; 0: the calling thread runs every chunk (the single-threaded reference: the same results)
 QVR_CVAR(vr_hand_rig, "1", CVAR_ARCHIVE)               // round 21: the jointed hand (progs/hand_rig.md5mesh: three joints a finger, an opposable thumb, continuous curls; vr_handrig.cpp). 0: the palm and five finger models as before
-QVR_CVAR(vr_reload_mode, "2", CVAR_ARCHIVE)
+// Reloading (docs/vr-port/RELOAD_PLAN.md): 0 off (the guns fire from the reserve); 1 a gun held at any holster reloads, 2 at
+// the hip holsters (manual-simple); 3 manual-immersive (shipped; vr_cfg_version 97 gives it to configs with the old default
+// 2): the guns that load by hand (the shotgun so far) take rounds from the ammo pouch on the front of the belt, held in the
+// other hand and pushed into the gun's loading port; the others reload at the hip holsters, as 2. Needs Weapon Mode
+// Immersive (vr_holster_mode 0); bots never reload.
+QVR_CVAR(vr_reload_mode, "3", CVAR_ARCHIVE)
+// The ammo pouch (vr_reload_mode 3; QC vr_reload.qc, vr_view.cpp setupAmmoPouch): on the front of the belt between the
+// hip holsters. X forward, units: with the body drawn, the default (0) is on the belly and X moves it from there; Y to
+// the right; Z up (times the height calibration, as the holsters'). Reach: units a hand must be within to be at it (the
+// holsters' competition: the one a hand is most within). Pitch, Yaw, Roll: degrees, its top away from the body, about
+// where the hand reaches for it; Size: times the model's.
+QVR_CVAR(vr_ammo_pouch_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_z, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_thresh, "5", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_scale, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_show, "1", CVAR_ARCHIVE)        // draw it (0: it works unseen)
+// Immersive reloading's rules (QC vr_reload.qc; Weapons > Reloading).
+QVR_CVAR(vr_reload_port_leniency, "4", CVAR_ARCHIVE)   // units from a gun's loading port within which a held round goes in
+QVR_CVAR(vr_reload_shell_pairs, "0", CVAR_ARCHIVE)     // 1: the pouch gives two shells taped together (both go in at once; one if one fits)
+QVR_CVAR(vr_reload_haptics, "1", CVAR_ARCHIVE)         // times the reload's vibrations (taking, putting back, loading, the empty pouch); 0 none
+QVR_CVAR(vr_reload_volume, "1", CVAR_ARCHIVE)          // times the reload's sounds; 0 none
+QVR_CVAR(vr_reload_loose_max, "24", CVAR_ARCHIVE)      // rounds lying about at most (dropped, thrown): the oldest not in a hand goes for a new one
+QVR_CVAR(vr_reload_grab_slack, "3", CVAR_ARCHIVE)     // cm from a round lying about within which a gripping fist takes it (they are small and lie flat)
+QVR_CVAR(vr_reload_loose_time, "90", CVAR_ARCHIVE)     // seconds a round lies about before it fades away (0: never)
+QVR_CVAR(vr_reload_debug, "0", CVAR_NONE)              // 1: print the reload's takes, loads, refunds and losses (dprint), and each held round's distance to the port
+QVR_CVAR(vr_reload_test, "0", CVAR_NONE)               // Debug > Tests > Reloading: the step `impulse 125` runs (vr_reload.qc VR_Reload_Test)
 QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_screen, "1", CVAR_ARCHIVE)          // the weapons' ammo counters on a small screen (colours: vr_gadget_screen_*)
 QVR_CVAR(vr_weapon_screen_padding, "1", CVAR_ARCHIVE)  // room around the text on it

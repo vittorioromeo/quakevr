@@ -12,6 +12,7 @@
 #include "vr_held.hpp"
 #include "vr_hull.hpp"
 #include "vr_progs.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_move.hpp"
 #include "vr_server.hpp"
 #include "vr_portals.hpp"
@@ -168,7 +169,14 @@ constexpr float weaponDrawnReach = 48.f;
     }
     if(hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target)))
     {
-        return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1);
+        // A round lying about (a shell: QC vr_reload.qc) is small, and lies flat on the floor under the lowest the fist
+        // gets: taken within vr_reload_grab_slack of its surface.
+        const int mi = static_cast<int>(target->v.modelindex);
+        const qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
+        const float slack = model && modelmeta::has(model, modelmeta::Trait::LiveShell)
+                                ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * units::metresToUnits()
+                                : 0.f;
+        return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1, slack);
     }
     // (With vr_weapon_grab_slack more: a gun lying flat is thinner than the lowest the fist gets over the floor.)
     if(weaponByFist(target) && held::grabTouch(target, player, which == HAND_OFF ? 0 : 1,

@@ -1233,6 +1233,7 @@ void noteIntent(const hands::State& s)
         return true;
     }
     body::Holster holster;
+    bool ammoPouch = false;
     switch(s.hotspot[hand])
     {
         case body::HS_NONE: return false;
@@ -1264,13 +1265,16 @@ void noteIntent(const hands::State& s)
         case body::HS_LEFT_UPPER_HOLSTER: holster = body::LeftUpper; break;
         case body::HS_RIGHT_UPPER_HOLSTER: holster = body::RightUpper; break;
         case body::HS_GRENADE_POUCH: holster = body::HolsterCount; break; // (the pouch: nearer than the torch, a grenade)
+        case body::HS_AMMO_POUCH: holster = body::HolsterCount; ammoPouch = true; break; // (the ammo pouch: a round)
         default: return false;
     }
     const Pose lamp = lampFor(s);
     const glm::vec3 a = modelPointAt(lamp, shape().cap);
     const glm::vec3 ab = modelPointAt(lamp, shape().lens) - a;
     const float t = za::clamp(glm::dot(s.pos[hand] - a, ab) / za::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
-    const glm::vec3 spot = holster == body::HolsterCount ? body::pouchPosition(s) : body::holsterPosition(s, holster);
+    const glm::vec3 spot = ammoPouch                         ? body::ammoPouchPosition(s)
+                           : holster == body::HolsterCount ? body::pouchPosition(s)
+                                                           : body::holsterPosition(s, holster);
     return glm::distance(s.pos[hand], spot) < glm::distance(s.pos[hand], a + ab * t);
 }
 

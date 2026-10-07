@@ -567,7 +567,7 @@ void resetHandMoves()
             .help("How strongly the controllers vibrate (0: never)."),
         header("Weapons and Holsters"),
         cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),
-        cycle("Weapon Reloading Mode", "vr_reload_mode", {{0.f, "None"}, {1.f, "All Holsters"}, {2.f, "Hip Holsters"}}).help("Enables weapon reloading mechanics. Weapons can be reloaded by moving them towards an holster. Reloading only works with 'immersive' weapon mode."),
+        cycle("Weapon Reloading Mode", "vr_reload_mode", {{0.f, "None"}, {1.f, "All Holsters"}, {2.f, "Hip Holsters"}, {3.f, "Immersive"}}).help("Weapons have magazines. All Holsters, Hip Holsters: a gun held at a holster reloads. Immersive: the shotgun is loaded by hand, a shell at a time from the ammo pouch on your belt; the other guns reload at the hip holsters (Weapons > Reloading). Reloading only works with 'immersive' weapon mode."),
         cycle("Holster Haptics", "vr_holster_haptics", {{0.f, "Off"}, {1.f, "Continuous"}, {2.f, "Once"}}).help("Haptic feedback when hovering a usable holster slot."),
         slider("Holster Haptic Time", "vr_holster_haptic_time", 0.05f, 0.6f, 0.05f, "%.2f s").extend().help("How long the buzz lasts as a hand reaches a holster (Holster Haptics: Once)."),
         slider("Draw Blend Time", "vr_weapon_draw_blend", 0.f, 1.f, 0.05f, "%.2f s").help("A gun drawn from a holster eases from its holstered pose into your hand over this time, turning the shortest way (0: at once). It fires at once: only its look eases."),
@@ -582,6 +582,51 @@ void resetHandMoves()
         toggle("Shell Casings", "vr_shells").help("The shotgun throws out a spent shell each shot, the super shotgun its two as you reload (a flick reload flings them). They bounce, roll and lie on the floor."),
         slider("Shell Casing Life", "vr_shells_life", 5.f, 120.f, 5.f, "%.0f s").extend().help("How long spent shells lie on the floor before fading out."),
         slider("Shell Casing Sound", "vr_shells_sound", 0.f, 1.f, 0.1f, "%.1f").help("Volume of their tink as they land (0 off)."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageHeldObjectOffsets();
+
+// Immersive reloading (docs/vr-port/RELOAD_PLAN.md; QC vr_reload.qc): the mode, the ammo pouch on the belt, the rounds.
+[[nodiscard]] za::Vector<Item> pageReloading()
+{
+    return {
+        cycle("Reloading", "vr_reload_mode", {{0.f, "Off"}, {1.f, "Holsters (All)"}, {2.f, "Holsters (Hips)"}, {3.f, "Immersive"}})
+            .help("Off: the guns fire from your ammo, no magazines. Holsters: a gun held at a holster (any, or the hips') "
+                  "reloads. Immersive: the shotgun is loaded by hand: with it in one hand, the other takes a shell from the "
+                  "ammo pouch on the front of your belt and pushes it into the port under the gun, until it is full or the "
+                  "pouch is empty; the other guns reload at the hip holsters for now. Needs Weapon Mode Immersive."),
+        header("Shells"),
+        toggle("Shell Pairs", "vr_reload_shell_pairs")
+            .help("The pouch gives two shells taped together: both go into the shotgun at once (one, if only one fits)."),
+        slider("Port Leniency", "vr_reload_port_leniency", 1.f, 12.f, 0.5f, "%.1f units").extend(0.5f, 40.f)
+            .help("How near the gun's loading port a held shell must come to go in (4: about 15 cm)."),
+        open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
+            .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
+                  "The taped pair has its own."),
+        header("Ammo Pouch"),
+        toggle("Show", "vr_ammo_pouch_show").help("Draw the pouch (off: it still works where it is)."),
+        slider("X", "vr_ammo_pouch_x", -10.f, 10.f, 0.25f, "%.2f").extend()
+            .help("Forward (negative: back, round the hips). With the body drawn, 0 is on the belly."),
+        slider("Y", "vr_ammo_pouch_y", -10.f, 10.f, 0.25f, "%.2f").extend().help("To the right (negative: left)."),
+        slider("Z", "vr_ammo_pouch_z", -10.f, 10.f, 0.25f, "%.2f").extend().help("Up, from the hip holsters' height."),
+        slider("Reach", "vr_ammo_pouch_thresh", 1.f, 12.f, 0.25f, "%.2f").extend()
+            .help("How near a hand must come to reach into it. The hip holsters beside it win where a hand is nearer them."),
+        slider("Pitch", "vr_ammo_pouch_pitch", -90.f, 90.f, 5.f, "%.0f").help("Its top tipped away from the body."),
+        slider("Yaw", "vr_ammo_pouch_yaw", -90.f, 90.f, 5.f, "%.0f"),
+        slider("Roll", "vr_ammo_pouch_roll", -90.f, 90.f, 5.f, "%.0f"),
+        slider("Size", "vr_ammo_pouch_scale", 0.5f, 2.f, 0.05f, "%.2fx").help("As drawn (its reach is Reach's)."),
+        header("Feedback"),
+        slider("Haptics", "vr_reload_haptics", 0.f, 2.f, 0.1f, "%.1fx")
+            .help("Taking a shell, putting it back, loading it, and the empty pouch's dull knock (0: none)."),
+        slider("Sounds", "vr_reload_volume", 0.f, 2.f, 0.1f, "%.1fx").help("The pouch's rustle, the port's click (0: none)."),
+        header("Dropped Rounds"),
+        slider("Most Lying About", "vr_reload_loose_max", 4.f, 64.f, 4.f, "%.0f").extend(1.f, 256.f)
+            .help("Shells dropped or thrown lie about, to be taken again (or force grabbed); past this many the oldest goes."),
+        slider("Grab Leniency", "vr_reload_grab_slack", 0.f, 10.f, 0.5f, "%.1f cm")
+            .help("A dropped shell is small and lies flat: the fist takes it this far from it."),
+        slider("Fade After", "vr_reload_loose_time", 0.f, 300.f, 10.f, "%.0f s")
+            .help("Seconds a dropped shell lies about before it fades away (0: never). A shell gone is a shell lost."),
     };
 }
 

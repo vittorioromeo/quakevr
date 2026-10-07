@@ -5465,6 +5465,23 @@ za::Vector<Item> pageDebugTests()
             .help("The main hand's weapon carried by the off hand, as letting go of a two-handed weapon does."),
         command("Take It Back", "vr_test_weaponinst 6; impulse 120").help("The main hand takes the carried weapon's handle."),
         command("Switch Hands", "vr_test_weaponinst 7; impulse 120").help("The main hand's weapon into the off hand (8: back)."),
+        header("Reloading"),
+        command("Shotgun in the Off Hand", "impulse 154; wait; vr_test_weaponinst 7; impulse 120; give s 40")
+            .help("A loaded shotgun into the off hand and 40 shells: the main hand is free for the ammo pouch."),
+        command("Empty the Off Hand's Gun", "vr_reload_test 5; impulse 125")
+            .help("Its magazine back into your ammo (to load it again)."),
+        command("Take a Shell (Main Hand)", "vr_reload_test 1; impulse 125")
+            .help("As gripping at the ammo pouch does: a shell (or a taped pair) for the off hand's gun."),
+        command("Load the Held Shell", "vr_reload_test 2; impulse 125")
+            .help("The main hand's shell into the off hand's gun, as at its port."),
+        command("Drop the Held Shell", "vr_reload_test 3; impulse 125").help("Let go of, as anywhere but the pouch."),
+        command("Put It Back", "vr_reload_test 4; impulse 125").help("As letting go at the pouch: refunded."),
+        command("Report", "vr_reload_test 0; impulse 125")
+            .help("Prints your shells, the off hand's magazine, what each hand holds, the shells lying about."),
+        command("Run the Self-Test", "vr_reload_test 9; impulse 125")
+            .help("Takes, loads, refunds and drops in turn and checks every count: reload: PASS or FAIL lines."),
+        toggle("Reload Prints", "vr_reload_debug").help("Prints each take, load, refund and loss, and a held shell's distance to the port."),
+        toggle("Show the Pouches' Reach", "vr_show_grenade_pouch").help("Spheres where the grenade pouch and the ammo pouch are reached."),
         header("Climbing"),
         command("Climbing Test Map", "map vrclimb").help("map vrclimb: rungs, ledges, a jump wall, moving and floating ledges."),
         command("To the Jump Wall", "setpos -40 -310 24 0 0 0; noclip")
@@ -6306,6 +6323,7 @@ const Page pages[] = {
     {"Dawn of the Machine: Shub", pageMg3ShubTests, pageDebugTests, LevelDeveloper},
     {"Dawn of the Machine: Chthon", pageMg3ChthonTests, pageDebugTests, LevelDeveloper},
     {"Debug - Cheats and Recording", pageDebugCheats, pageDebug, LevelDeveloper}, // (vr_menu_cheats.inc)
+    {"Reloading", pageReloading, pageWeaponsHub},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -7037,6 +7055,7 @@ za::Vector<Item> pageWeaponsHub()
         open("Weight and Damage", pageIndex(pageWeightDamage)),
         open("Weapon Damage", pageIndex(pageWeaponDamage)).help("Every weapon's base damage, to balance them."),
         open("Immersion", pageIndex(pageImmersionSettings)).help("Holsters, reloading, throwing weapons, shell casings, haptics."),
+        open("Reloading", pageIndex(pageReloading)).help("Reloading's mode; immersive reloading's ammo pouch and shells."),
         open("Lightning Gun in Water", pageIndex(pageLightningWater)).help("The shock fired under water, and electrified water."),
         open("Weapon Effects", pageIndex(pageWeaponEffects)).help("Recoil, muzzle flashes and bullet tracers."),
         header("Holsters"),

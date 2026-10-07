@@ -36,6 +36,7 @@ enum Hotspot : int
     HS_RIGHT_UPPER_HOLSTER = 9,
     HS_CARRIED_GRIP = 10, // the handle of the gun the other hand carries by its foregrip (vr_twohand.cpp)
     HS_GRENADE_POUCH = 11, // the grenade pouch at the small of the back (vr_handgrenade; either hand)
+    HS_AMMO_POUCH = 12,    // the ammo pouch on the front of the belt (vr_reload_mode 3; either hand)
 };
 
 // Holster positions follow the body's lean and crouch (vr_avatar) with vr_body_anchors, else the
@@ -63,6 +64,13 @@ using HolsterPlates = za::Array<HolsterPlate, HolsterCount>;
 [[nodiscard]] bool pouchEnabled();
 [[nodiscard]] glm::vec3 pouchPosition(const hands::State& s, HolsterPlate* plate = nullptr);
 [[nodiscard]] float pouchReach(); // world units (vr_grenade_pouch_thresh)
+
+// The ammo pouch (immersive reloading, vr_reload_mode 3 with Weapon Mode Immersive; vr_ammo_pouch_*;
+// docs/vr-port/RELOAD_PLAN.md): on the front of the belt between the hip holsters, placed as they are (carried by the
+// pelvis, on the belly's ring with the body drawn), where a hand reaches for it, and (`plate`) the body's surface there.
+[[nodiscard]] bool ammoPouchEnabled();
+[[nodiscard]] glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate = nullptr);
+[[nodiscard]] float ammoPouchReach(); // world units (vr_ammo_pouch_thresh)
 
 // hands::bodyAnchor, carried by the chest with vr_body_anchors (the virtual stock's shoulders).
 [[nodiscard]] glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets);

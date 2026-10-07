@@ -441,6 +441,10 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
     {
         return Material::None; // (QC vr_grenade.qc's bounce: weapons/bounce.wav)
     }
+    if(info.has(modelmeta::Trait::LiveShell))
+    {
+        return Material::None; // (QC vr_reload.qc's tink: the spent shells' vr/shell_tink*.wav)
+    }
     if(info.has(modelmeta::Trait::Rock))
     {
         return Material::Stone;

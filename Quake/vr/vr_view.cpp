@@ -277,6 +277,7 @@ struct Entities
     view::ViewEntity gadgetStrap[2]; // round the forearm under its lugs (the elbow's side, the wrist's)
     view::ViewEntity flashlight; // vr_flashlight.cpp
     view::ViewEntity pouch;      // the grenade pouch at the small of the back (vr_handgrenade)
+    view::ViewEntity ammoPouch;  // the ammo pouch on the front of the belt (vr_reload_mode 3)
     view::ViewEntity sawHandle;  // the chainsaw's cord's handle out of its seat (vr_chainsaw.cpp handleEntity)
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
@@ -316,7 +317,7 @@ int lastAddedFrame = -1;
     }
     return (hide & 4) && (&ve == &entities.body || among(entities.pauldron) || among(entities.pauldronArm) ||
                              among(entities.holster) || among(entities.holsterSlot) || among(entities.holsterButton) ||
-                             &ve == &entities.pouch);
+                             &ve == &entities.pouch || &ve == &entities.ammoPouch);
 }
 
 template <typename F>
@@ -356,6 +357,7 @@ void forEachEntity(F&& f)
     f(entities.gadgetStrap[1]);
     f(entities.flashlight);
     f(entities.pouch);
+    f(entities.ammoPouch);
     f(entities.sawHandle);
     for(view::ViewEntity& ve : entities.button)
     {
@@ -477,6 +479,10 @@ void view::prepareModels()
     if(body::pouchEnabled())
     {
         names.pushBack("progs/vrpouch.mdl"); // (setupPouch)
+    }
+    if(body::ammoPouchEnabled())
+    {
+        names.pushBack("progs/vrpouch_ammo.mdl"); // (setupAmmoPouch)
     }
     for(const char* name : names)
     {
@@ -1179,6 +1185,20 @@ void setupGhosts()
     }
 }
 
+// The guns' loading ports (immersive reloading; docs/vr-port/RELOAD_PLAN.md): where a round held in the other hand goes
+// in, in the model's space (+x forward, +y left, +z up, frame 0; mirrored with the model in the off hand): the shotgun's
+// under its receiver (polish_weapons.py loading_port: the opening's middle, a little below its frame). Sent to the server
+// with each move (VrMove::loadPort -> .loadportpos, .offloadportpos), which loads a round held within
+// vr_reload_port_leniency of it (QC vr_reload.qc).
+struct LoadPort
+{
+    modelmeta::Id model;
+    glm::vec3 point;
+};
+constexpr LoadPort loadPorts[] = {
+    {modelmeta::Id::VShot, {13.6f, 0.f, 0.3f}},
+};
+
 // `floating`: the posing mode's weapon (vr_posing.cpp), never a carried gun.
 void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool floating = false)
 {
@@ -1232,6 +1252,21 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     // Not held anywhere: a hotspot's own setting (NOTES.md vrfiringrange_2026-10-01_17-13-04).
     const bool fixed2H = model && slot >= 0 && hasGripHotspot(slot);
     ve.zeroBlend = weapons::value(slot, fixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
+
+    // Its loading port (a gun held by its handle; vr_reload_mode 3): where a round from the ammo pouch goes in.
+    s.loadPortValid[hand] = false;
+    if(model && slot >= 0 && !carried)
+    {
+        const auto& info = modelmeta::get(model);
+        for(const LoadPort& port : loadPorts)
+        {
+            if(info.is(port.model))
+            {
+                s.loadPort[hand] = view::modelPoint(ve, port.point);
+                s.loadPortValid[hand] = true;
+            }
+        }
+    }
 
     if(model && slot >= 0 && !carried) // a carried gun has no aim
     {
@@ -4611,6 +4646,46 @@ void setupPouch(const hands::State& s)
     highlight(ve, s.hotspot[HAND_OFF] == body::HS_GRENADE_POUCH || s.hotspot[HAND_MAIN] == body::HS_GRENADE_POUCH);
 }
 
+// The ammo pouch (immersive reloading, vr_reload_mode 3; docs/vr-port/RELOAD_PLAN.md): vrpouch_ammo.mdl (make_ammo_pouch.py:
+// as vrpouch.mdl, +x out of the body, its back at the origin) on the front of the belt between the hip holsters, facing
+// the belly's surface there (straight forward without the body), turned by vr_ammo_pouch_pitch/yaw/roll about where the
+// hand reaches for it, scaled by vr_ammo_pouch_scale about its back. Frame 0 full (you have shells: the rounds of the
+// guns that load by hand so far), 1 empty; lit up while a hand is at it.
+void setupAmmoPouch(const hands::State& s)
+{
+    view::ViewEntity& ve = entities.ammoPouch;
+    qmodel_t* const model =
+        body::ammoPouchEnabled() && vr_ammo_pouch_show.value != 0.f ? viewModel("progs/vrpouch_ammo.mdl") : nullptr;
+    if(!model)
+    {
+        ve.visible = false;
+        return;
+    }
+    body::HolsterPlate plate;
+    const glm::vec3 pos = body::ammoPouchPosition(s, &plate);
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
+    glm::vec3 out = plate.out != glm::vec3{0.f} ? plate.out : fwd;
+    glm::vec3 surfaceUp = plate.out != glm::vec3{0.f} ? plate.up : up;
+    glm::vec3 outwards = right;
+    glm::vec3 at = pos;
+    if(vr_body_debug.value >= 2.f)
+    {
+        const glm::mat3 turn = bodyPreviewTurn();
+        at = bodyPreviewPoint(s, pos);
+        out = turn * out;
+        surfaceUp = turn * surfaceUp;
+        outwards = turn * outwards;
+    }
+    HolsterFrame frame = holsterFrame(out, surfaceUp, outwards);
+    const float clearance = plate.out != glm::vec3{0.f} ? CLAMP(0.f, plate.clearance, 4.f) : 0.f;
+    HolsterPose pose{at - frame.out * clearance, aliasAngles(frame.out, frame.up), at, glm::vec3{0.f}};
+    turnHolster(pose, at, frame, {vr_ammo_pouch_pitch.value, vr_ammo_pouch_yaw.value, vr_ammo_pouch_roll.value});
+    place(ve, model, pose.slotPos, pose.slotAngles, cl.stats[STAT_SHELLS] >= 1 ? 0 : 1, false);
+    ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f)};
+    highlight(ve, s.hotspot[HAND_OFF] == body::HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == body::HS_AMMO_POUCH);
+}
+
 // The chainsaw's cord's handle in a fist (or flying back to its seat): the chainsaw's model, its frame of the handle
 // alone, placed by vr_chainsaw.cpp, mirrored, scaled and lit as the chainsaw.
 void setupSawHandle()
@@ -5888,6 +5963,7 @@ extern "C" void VR_SetupViewEntities()
             rh.grasp.valid = false;
         }
         s.muzzleValid[HAND_OFF] = s.muzzleValid[HAND_MAIN] = false;
+        s.loadPortValid[HAND_OFF] = s.loadPortValid[HAND_MAIN] = false;
         bodyblood::clear();
         return;
     }
@@ -6005,6 +6081,7 @@ extern "C" void VR_SetupViewEntities()
     chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
     setupSawHandle();
     setupPouch(s);
+    setupAmmoPouch(s);
     dripBlood(s);
     shock::frame(s); // the lightning gun in water's arcs and flash (vr_lg_water)
     smoulder::frame(); // smoke off the bodies the lightning struck or fire burnt (vr_smoulder)
@@ -6070,7 +6147,7 @@ extern "C" void VR_SetupViewEntities()
         s = unposed;
         for(int hand = 0; hand < 2; hand++)
         {
-            s.muzzleValid[hand] = s.grip2HValid[hand] = false;
+            s.muzzleValid[hand] = s.grip2HValid[hand] = s.loadPortValid[hand] = false;
         }
     }
     else if(vrActive())
@@ -7081,6 +7158,14 @@ void dumpView_f()
         Con_Printf("grenade pouch at (%.2f %.2f %.2f), reach %.1f: main hand %.1f units off (hotspot %d), off hand %.1f (%d)\n",
             pouch.x, pouch.y, pouch.z, body::pouchReach(), glm::distance(s.pos[HAND_MAIN], pouch), s.hotspot[HAND_MAIN],
             glm::distance(s.pos[HAND_OFF], pouch), s.hotspot[HAND_OFF]);
+    }
+
+    if(body::ammoPouchEnabled())
+    {
+        const glm::vec3 pouch = body::ammoPouchPosition(s);
+        Con_Printf("ammo pouch at (%.2f %.2f %.2f), reach %.1f: main hand %.1f units off (hotspot %d), off hand %.1f (%d)\n",
+            pouch.x, pouch.y, pouch.z, body::ammoPouchReach(), glm::distance(s.pos[HAND_MAIN], pouch),
+            s.hotspot[HAND_MAIN], glm::distance(s.pos[HAND_OFF], pouch), s.hotspot[HAND_OFF]);
     }
 
     int i = 0;

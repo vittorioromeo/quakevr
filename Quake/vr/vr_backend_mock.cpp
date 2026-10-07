@@ -6,6 +6,7 @@
 
 #include "vr_angvel.hpp"
 #include "vr_backend.hpp"
+#include "vr_body.hpp"
 #include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
@@ -431,6 +432,8 @@ void mockLook_f()
 // rig's bone number: vr_ragdoll_info; "near": the part nearest the hand), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
 // moved by that much (world units: lifting, swinging what it holds). "vr_mock_hand_to <main|off> nearest <classname>
 // [<units>]": at the origin of the entity of that classname nearest you (vr_limb: a limb cut off), `units` over it.
+// "vr_mock_hand_to <main|off> ammopouch": at the ammo pouch (vr_reload_mode 3); "vr_mock_hand_to <main|off> lport
+// [<units>]": what the hand holds (a shell) at the loading port of the gun the other hand holds, `units` below it.
 
 // The thrown_weapon nearest the player (the server's: its qcvm pushed), or null.
 edict_t* nearestThrownWeapon()
@@ -581,6 +584,44 @@ void mockHandTo_f()
     const bool ragdollPart = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "ragdoll");
     const bool by = Cmd_Argc() == 6 && !q_strcasecmp(Cmd_Argv(2), "by");
     const bool nearestOf = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "nearest");
+    const bool ammoPouch = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "ammopouch");
+    const bool loadPort = (Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "lport");
+    if((ammoPouch || loadPort) && hand >= 0)
+    {
+        // Immersive reloading (vr_reload.qc): at the ammo pouch's reach point; or what the hand holds (a round from it)
+        // brought to the loading port of the gun in the other hand, `units` short of it (along the hand's down: below
+        // the port, coming up to it), as drawn last frame.
+        const hands::State& st = hands::current();
+        glm::vec3 target{0.f};
+        if(ammoPouch)
+        {
+            if(!body::ammoPouchEnabled())
+            {
+                Con_Printf("vr_mock_hand_to: no ammo pouch (vr_reload_mode 3, Weapon Mode Immersive)\n");
+                return;
+            }
+            target = body::ammoPouchPosition(st);
+            Con_Printf("vr_mock_hand_to: the ammo pouch: %.1f %.1f %.1f\n", target.x, target.y, target.z);
+        }
+        else
+        {
+            if(!st.loadPortValid[1 - hand])
+            {
+                Con_Printf("vr_mock_hand_to: the other hand holds no gun with a loading port\n");
+                return;
+            }
+            target = st.loadPort[1 - hand];
+            Con_Printf("vr_mock_hand_to: the other hand's gun's loading port: %.1f %.1f %.1f\n", target.x, target.y, target.z);
+            if(const int num = held::heldEntity(hand); num > 0 && num < cl.num_entities)
+            {
+                const entity_t& e = cl_entities[num];
+                target -= glm::vec3{e.origin[0], e.origin[1], e.origin[2]} - st.pos[hand];
+            }
+            target.z -= Cmd_Argc() == 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
+        }
+        moveHandTo(hand, target);
+        return;
+    }
     if(nearestOf && hand >= 0 && sv.active && svs.maxclients >= 1)
     {
         // The entity of that classname nearest you (a limb cut off: vr_limb), `units` over its origin (Limb gore's grab
@@ -662,7 +703,9 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> heldspot <hotspot index>\n"
                    "       vr_mock_hand_to <main|off> ragdoll <part> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n"
-                   "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n");
+                   "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n"
+                   "       vr_mock_hand_to <main|off> ammopouch\n"
+                   "       vr_mock_hand_to <main|off> lport [<units below it>]\n");
         return;
     }
     glm::vec3 target{0.f};

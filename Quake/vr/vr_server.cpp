@@ -575,6 +575,8 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         angles.y = anglemod(angles.y + gate.yaw);
         setFieldVec(ent, h ? f.muzzlepos : f.offmuzzlepos, gate.position);
         setFieldVec(ent, h ? f.shotrot : f.offshotrot, angles);
+        setFieldVec(ent, h ? f.loadportpos : f.offloadportpos,
+            portals::reachAlong(move.origin, move.hands[h].pos, move.loadPort[h]).position);
     }
     if(clientNum >= static_cast<int>(clientBits.size()))
     {
@@ -912,6 +914,8 @@ void rebaseHands(edict_t* player)
     }
     move.muzzlePos[0] += delta;
     move.muzzlePos[1] += delta;
+    move.loadPort[0] += delta;
+    move.loadPort[1] += delta;
     move.headPos += delta;
     // Re-evaluate crossing after walking, including a crossing on a release frame.
     for(int h = 0; h < 2; h++)
@@ -932,6 +936,8 @@ void rebaseHands(edict_t* player)
         angles.y = anglemod(angles.y + muzzle.yaw);
         setFieldVec(player, h ? f.muzzlepos : f.offmuzzlepos, muzzle.position);
         setFieldVec(player, h ? f.shotrot : f.offshotrot, angles);
+        setFieldVec(player, h ? f.loadportpos : f.offloadportpos,
+            portals::reachAlong(origin, hand.pos, move.loadPort[h]).position);
     }
 }
 

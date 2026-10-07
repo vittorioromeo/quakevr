@@ -293,4 +293,38 @@ QVR_PROP_DEFAULT(30, Mass, "0.15")
 QVR_PROP_DEFAULT(31, ID, "progs/vr_plank4.mdl")
 QVR_PROP_DEFAULT(31, GripMode, "2")
 QVR_PROP_DEFAULT(31, Mass, "3")
+// Immersive reloading's rounds (QC vr_reload.qc; docs/vr-port/RELOAD_PLAN.md): a shotgun shell from the ammo pouch, and
+// the taped pair (vr_reload_shell_pairs). Drawn at the spent shells' 1.25 (vr_shells.cpp, the guns' own oversize), light,
+// in one hand. Held fixed at the fingertips as for loading (Grip Mode 1: along the index finger, its brass end in the
+// fingers, its crimp forward), pinched by the thumb, the index and the middle finger, the ring finger and the pinky
+// tucked in (Fingers: manual). The author tunes them live in Held Object Offsets (a shell in the hand). vr_props_version
+// 60 gives these slots to configs saved before.
+QVR_PROP_DEFAULT(48, ID, "progs/vr_shell_live.mdl")
+QVR_PROP_DEFAULT(48, Mass, "0.04")
+QVR_PROP_DEFAULT(48, Size, "1.25")
+QVR_PROP_DEFAULT(48, TwoHands, "0")
+QVR_PROP_DEFAULT(48, GripMode, "1")
+QVR_PROP_DEFAULT(48, GripX, "-0.2")
+QVR_PROP_DEFAULT(48, GripY, "0.15")
+QVR_PROP_DEFAULT(48, GripZ, "-1.5")
+QVR_PROP_DEFAULT(48, FingerManual, "0")
+QVR_PROP_DEFAULT(48, FingerCurlThumb, "0.55")
+QVR_PROP_DEFAULT(48, FingerCurlIndex, "0.5")
+QVR_PROP_DEFAULT(48, FingerCurlMiddle, "0.55")
+QVR_PROP_DEFAULT(48, FingerCurlRing, "0.9")
+QVR_PROP_DEFAULT(48, FingerCurlPinky, "0.95")
+QVR_PROP_DEFAULT(49, ID, "progs/vr_shell_pair.mdl")
+QVR_PROP_DEFAULT(49, Mass, "0.08")
+QVR_PROP_DEFAULT(49, Size, "1.25")
+QVR_PROP_DEFAULT(49, TwoHands, "0")
+QVR_PROP_DEFAULT(49, GripMode, "1")
+QVR_PROP_DEFAULT(49, GripX, "-0.2")
+QVR_PROP_DEFAULT(49, GripY, "0.15")
+QVR_PROP_DEFAULT(49, GripZ, "-1.5")
+QVR_PROP_DEFAULT(49, FingerManual, "0")
+QVR_PROP_DEFAULT(49, FingerCurlThumb, "0.5")
+QVR_PROP_DEFAULT(49, FingerCurlIndex, "0.45")
+QVR_PROP_DEFAULT(49, FingerCurlMiddle, "0.5")
+QVR_PROP_DEFAULT(49, FingerCurlRing, "0.9")
+QVR_PROP_DEFAULT(49, FingerCurlPinky, "0.95")
 #endif

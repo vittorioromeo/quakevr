@@ -340,6 +340,10 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
     {
         return 2000.f; // an iron shell full of explosive
     }
+    if(modelmeta::has(model, modelmeta::Trait::LiveShell))
+    {
+        return 1300.f; // a shotgun shell: plastic, lead shot, a brass head (its slot's Mass sets it: 40 g)
+    }
     if(const float stone = props::stoneDensity(model); stone > 0.f)
     {
         return stone; // the rocks and bricks lying about (vr_debris.cpp)
@@ -385,7 +389,8 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
 [[nodiscard]] bool isSoft(edict_t* ent, const qmodel_t* model)
 {
     return model->type == mod_alias && !isWeaponLike(ent) && !modelmeta::has(model, modelmeta::Trait::ContainsArmor) && !isGrenade(model) &&
-        props::stoneDensity(model) <= 0.f; // (rocks and bricks are hard)
+        !modelmeta::has(model, modelmeta::Trait::LiveShell) &&
+        props::stoneDensity(model) <= 0.f; // (rocks and bricks are hard; a shell bounces and rolls)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
