@@ -914,7 +914,9 @@ timer), which the report shows as "frame cap" (idle), not work.
 Crash reports (ROUND21.md, "clang-cl"): in a test run (`QVR_NO_ERROR_DIALOG`, which the kit sets) a crash writes
 `qvr_crash.txt` (the exception and the crashing thread's stack, file and line) and `qvr_crash.dmp` in the game folder,
 and run.sh prints it as `ENGINE CRASH`. `vr_debug_crash` (an access violation) or `vr_debug_crash abort` crashes on
-purpose, to check it (Debug > Profiling and Memory > Crash the Game).
+purpose, to check it (Debug > Profiling and Memory > Crash the Game). A crash in a map's own data (a garbage node,
+plane or marksurface) is often the hunk, cache or zone touched from a pool thread: `vr_zone_threadcheck 1` first in
+the script crashes at the culprit instead (ROUND21.md, "Map load crash: the cache's LRU list from the pool").
 
 `quit` in a test run (`QVR_TEST_BACKGROUND`, which the kit sets) quits at once, whatever has the keys: without a map
 the console is up, so a script's `toggleconsole` closed it and `quit` opened the quit confirmation and waited there
