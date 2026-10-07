@@ -25,4 +25,5 @@ Dawn of the Machine (MG3) native port: QC/vr_mg3_upgrades.qc adapts the snapshot
 (capacity upgrades), retaining its original license header; the capacity constants in QC/vr_mg3_defs.qc come
 from quakec_mg3/defs.qc and client.qc. Upstream's parm10..15 state moved to parm51..56 (VR's hands own parm10..16).
 QC/vr_mg3_triggers.qc adapts the map triggers of quakec_mg3/mg3_triggers.qc and triggers.qc (same header).
+QC/vr_mg3_items.qc adapts quakec_mg3/mg3_items.qc and the lava suit of items.qc/client.qc (same header).
 Plan and task list: [MG3_PLAN.md](MG3_PLAN.md).

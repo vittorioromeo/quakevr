@@ -2428,6 +2428,7 @@ QVR_CVAR(vr_mg_hub_test, "0", CVAR_NONE) // Debug > Tests: 1 MG1 hub/rune semant
 QVR_CVAR(vr_mg_hub_stage, "0", CVAR_NONE) // Private QC transition acceptance continuation index; not archived
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)
 QVR_CVAR(vr_mg3_aggro_groups, "0", CVAR_ARCHIVE) // Dawn of the Machine: a waking monster wakes what its aggro_target names (upstream ships this off; Debug > Tests > Dawn of the Machine Tests)
+QVR_CVAR(vr_mg3_bn_discovered, "0", CVAR_ARCHIVE) // Dawn of the Machine: Bloody Nightmare found in a game (the hell knight's head): the Official Campaigns menu offers it
 // Debug > Cheats and Recording (vr_cheats.cpp, QC vr_cheats.qc; not saved, not in deathmatch):
 QVR_CVAR(vr_cheat_ammo, "0", CVAR_NONE) // infinite ammunition: your shells, nails, rockets and cells (the mission packs' too) kept full, and the magazines in your hands
 QVR_CVAR(vr_freeze_monsters, "0", CVAR_NONE) // the living monsters stand frozen where they are (their thinking and moving skipped; a blow still kills)

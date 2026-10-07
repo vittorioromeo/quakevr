@@ -584,6 +584,11 @@ Worn by hand in VR: carried and let go of over the torso."
 [
 ]
 
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) model({ "path": "progs/armorshard.mdl" }) =
+	item_armor_shard : "5 armour (green when none is worn), up to 200 (Dawn of the Machine; needs its model)."
+[
+]
+
 @PointClass base(Item, Appearflags) size(-16 -16 0, 16 16 56) model({ "path": "progs/armor.mdl", "skin": 2 }) =
 	item_armorinv : "Red armour (lower-case alias)
 
@@ -619,6 +624,11 @@ Player is invulnerable for 30 seconds"
 [
 ]
 
+@PointClass color(0 128 204) size(-16 -16 -24, 16 16 32) =
+	item_artifact_lavasuit : "The player takes no damage from lava or slime for 30 seconds (Dawn of the Machine; the biosuit's model without its data)."
+[
+]
+
 @PointClass base(Item, Appearflags) color(0 128 204) size(-16 -16 -24, 16 16 32) model({ "path": ":progs/quaddama.mdl" }) =
 	item_artifact_super_damage : "Quad damage
 
@@ -645,6 +655,24 @@ A physics object in VR: carried by hand, taken at a holster or by walking over i
 [
 ]
 
+@PointClass color(0 128 204) size(0 0 0, 32 32 32) =
+	item_draught_insight : "A ring that moves the player who touches it by 'height' (default -2048: down), or with OVERRIDE_DEST to its target teleport destination (Dawn of the Machine; needs its model)."
+[
+	spawnflags(flags) =
+	[
+		1 : "OVERRIDE DEST" : 0
+	]
+]
+
+@PointClass color(0 128 204) size(0 0 0, 32 32 32) =
+	item_draught_stupor : "A ring that moves the player who touches it by 'height' (default 2048: up), or with OVERRIDE_DEST to its target teleport destination (Dawn of the Machine; needs its model)."
+[
+	spawnflags(flags) =
+	[
+		1 : "OVERRIDE DEST" : 0
+	]
+]
+
 @PointClass color(0 128 204) size(-8 -8 -32, 8 8 24) model({ "path": "progs/ctfmodel.mdl" }) =
 	item_flag : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
 
@@ -669,6 +697,11 @@ The flag waves 90 degrees off from the entity angle. If you want the flag to poi
 blue team flag Only appears in CTF teamplay
 
 The flag waves 90 degrees off from the entity angle. If you want the flag to point at 180, set then entity angle to 90."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 -16, 16 16 40) model({ "path": "progs/g_bunny.mdl" }) =
+	item_head_hellknight : "The hell knight's head: taking it starts Bloody Nightmare (skill 3, harder monsters) and makes it selectable for good (Dawn of the Machine)."
 [
 ]
 

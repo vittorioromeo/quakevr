@@ -4921,6 +4921,8 @@ za::Vector<Item> pageMg3Tests()
             .help("Destructive, any campaign: use every explosion repeater here (secret2: 60) and count their blasts 20 seconds later."),
         command("Monster Keys and Lore Check", "vr_mg3_test 8")
             .help("Destructive: a health_target monster hit down past its relay (fires once), an aggro_target group woken, a lore text shown and cleared."),
+        command("Items Check", "vr_mg3_test 9")
+            .help("Destructive: take every armour shard here, touch each draught, wear a lava suit in lava and slime, take the hell knight's head (Bloody Nightmare on)."),
         toggle("Aggro Groups", vr_mg3_aggro_groups)
             .help("A waking monster wakes what its aggro_target names (map3, map7, map8). Upstream ships this off; off by default."),
     };

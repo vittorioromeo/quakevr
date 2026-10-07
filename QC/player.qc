@@ -887,6 +887,7 @@ void() PlayerDie =
     self.invincible_finished = 0;
     self.super_damage_finished = 0;
     self.radsuit_finished = 0;
+    self.lavasuit_finished = 0;
     //JIM
     self.wetsuit_finished = 0;
     self.effects = 0;    // 1998-07-23 Glowing corpse of players which had quad/pentagram until respawn fix by Maddes

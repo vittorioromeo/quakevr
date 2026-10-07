@@ -324,6 +324,115 @@ void() MG3_T_Keys = {
     }
     entity e = spawn(); e.think = MG3_T_KeysLate; e.nextthink = time + MG3_LORE_DWELL + 0.5;
 };
+// ----------------------------------------------------------------------------
+// M3-07 items (request 9, developer campaign; whichever this map has): every armour shard taken (5 each, green when
+// none, at most 200; a worn yellow kept), each draught touched (moved by its height into the open, or to its target
+// destination), a lava suit taken (30 s; lava and slime harmless, then harmful again), the hell knight's head taken
+// (Bloody Nightmare on and discovered, skill 3, its killtarget gone) and the hidden trigger-brought items counted.
+entity(entity e) MG3_T_Take = {
+    entity os = self, oo = other;
+    self = e; other = MG3_T_player;
+    if(self.carry_use) self.carry_use(); else self.handtouch();
+    self = os; other = oo;
+    return e;
+};
+float(entity p) MG3_T_LavaHurts = {
+    entity os = self;
+    p.health = 100; p.dmgtime = 0; p.watertype = CONTENT_LAVA; p.waterlevel = 3; p.flags = p.flags | FL_INWATER;
+    self = p; WaterMove(); float h = p.health;
+    p.dmgtime = 0; p.watertype = CONTENT_SLIME; WaterMove(); float h2 = p.health;
+    p.watertype = CONTENT_EMPTY; p.waterlevel = 0; p.dmgtime = 0; self = os;
+    return (h < 100) + 2 * (h2 < h);
+};
+void() MG3_T_Items = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    vector keep = p.origin;
+    entity e;
+    // Armour shards.
+    float n = 0, hidden = 0;
+    e = find(world, classname, "item_armor_shard");
+    if(e) {
+        VR_ItemUtil_EntDelItem(p, IID_ARMOR1); VR_ItemUtil_EntDelItem(p, IID_ARMOR2); VR_ItemUtil_EntDelItem(p, IID_ARMOR3);
+        p.armortype = 0; p.armorvalue = 0;
+        MG3_T_Take(e); n++;
+        MG3_Check(p.armorvalue == 5 && p.armortype == 0.3 && VR_ItemUtil_EntHasItem(p, IID_ARMOR1) && e.model == string_null, "a shard: 5 green armour");
+        e = find(e, classname, "item_armor_shard");
+        while(e) { if(e.model == string_null) hidden++; else { MG3_T_Take(e); n++; } e = find(e, classname, "item_armor_shard"); }
+        dprint(sprintf("mg3test: %g shards taken (%g hidden), armour %g type %g\n", n, hidden, p.armorvalue, p.armortype));
+        MG3_Check(p.armorvalue == min(200, 5 * n), "shards add 5 each, up to 200");
+        VR_ItemUtil_EntDelItem(p, IID_ARMOR1); VR_ItemUtil_EntAddItem(p, IID_ARMOR2); p.armortype = 0.6; p.armorvalue = 150;
+        e = spawn(); setorigin(e, p.origin); self = e; item_armor_shard(); self = p;
+        if(e.handtouch == MG3_armor_shard_touch) { self = e; other = p; MG3_armor_shard_touch(); self = p; }
+        MG3_Check(p.armorvalue == 155 && p.armortype == 0.6 && VR_ItemUtil_EntHasItem(p, IID_ARMOR2), "a shard on yellow armour adds 5, keeps yellow");
+    }
+    // Draughts.
+    float rn = 0, rok = 0;
+    e = nextent(world);
+    while(e) {
+        if((e.classname == "item_draught_insight" || e.classname == "item_draught_stupor") && e.model != string_null) {
+            setorigin(p, e.origin + '0 0 8'); p.health = 100;
+            vector from = p.origin;
+            entity dest = world;
+            if((e.spawnflags & 1) && e.target != string_null) dest = find(world, targetname, e.target);
+            MG3_T_Take(e);
+            float good;
+            if(dest) good = p.origin == dest.origin;
+            else {
+                float wantz = from_z + e.height;
+                if(e.height < 0) wantz = wantz + 1;
+                good = ((p.origin_z == wantz) && (pointcontents(p.origin) != CONTENT_SOLID));
+            }
+            dprint(sprintf("mg3test: %s height %g%s: %v -> %v %s\n", e.classname, e.height, dest ? " (to its target)" : "", from, p.origin, good ? "ok" : "WRONG"));
+            rn++; if(good) rok++;
+        }
+        e = nextent(e);
+    }
+    setorigin(p, keep);
+    if(rn) MG3_Check(rn == rok, "every draught moves the player by its height or to its destination");
+    // Lava suit.
+    e = find(world, classname, "item_artifact_lavasuit");
+    while(e && e.model == string_null) e = find(e, classname, "item_artifact_lavasuit");
+    if(e) {
+        float before = MG3_T_LavaHurts(p);
+        MG3_T_Take(e);
+        float t30 = p.lavasuit_finished - time;
+        float during = MG3_T_LavaHurts(p);
+        p.lavasuit_finished = time - 1; entity os = self; self = p; CheckPowerups(); self = os;
+        float after = MG3_T_LavaHurts(p);
+        dprint(sprintf("mg3test: lava suit %g s; lava/slime hurt (1 lava, 2 slime) before %g, wearing %g, worn out %g; respawns %g\n", t30, before, during, after, e.wait));
+        MG3_Check(t30 == 30 && before == 3 && during == 0 && after == 3 && !p.lavasuit_finished, "the lava suit: 30 s without lava or slime damage");
+        MG3_Check(e.model == string_null && (!e.wait || e.nextthink2 > time), "taken; with a wait it comes back");
+    }
+    // The hell knight's head.
+    e = find(world, classname, "item_head_hellknight");
+    if(e) {
+        string kt = e.killtarget;
+        float sf = serverflags;
+        cvar_set("vr_mg3_bn_discovered", "0");
+        MG3_T_Take(e);
+        dprint(sprintf("mg3test: head taken: serverflags %g -> %g skill %g discovered %g\n", sf, serverflags, cvar("skill"), cvar("vr_mg3_bn_discovered")));
+        MG3_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar("skill") == 3, "the head turns Bloody Nightmare on");
+        MG3_Check(cvar("vr_mg3_bn_discovered") == 1, "and discovers it for good (the menu)");
+        MG3_Check(kt == string_null || !find(world, targetname, kt), "its killtarget is gone");
+    }
+    else {
+        e = find(world, classname, "item_health");
+        float megas = 0; while(e) { if(e.spawnflags & H_MEGA) megas++; e = find(e, classname, "item_health"); }
+        dprint(sprintf("mg3test: no head here (serverflags %g); megahealths %g\n", serverflags, megas));
+    }
+    // Trigger-brought items.
+    float hid = 0; e = nextent(world);
+    entity first = world;
+    while(e) { if(e.use == MG3_ItemSpawn && e.model == string_null) { hid++; if(!first) first = e; } e = nextent(e); }
+    dprint(sprintf("mg3test: %g items wait for a trigger\n", hid));
+    if(first) {
+        entity os2 = self; self = first; first.use(); self = os2;
+        MG3_Check(first.model != string_null && first.solid == SOLID_TRIGGER, "a trigger-brought item appears when used");
+    }
+    p.health = 100;
+    dprint(sprintf("mg3test: items %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     cvar_set("vr_mg3_test", "0");
@@ -346,6 +455,7 @@ void() MG3_TestFrame = {
     }
     else if(request == 5) MG3_T_Collect();
     else if(request == 8) MG3_T_Keys();
+    else if(request == 9) MG3_T_Items();
     else dprint(sprintf("mg3test: unknown request %g\n", request));
     self = oldself; other = oldother; activator = oldact;
 };

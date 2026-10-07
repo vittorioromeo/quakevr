@@ -1052,6 +1052,7 @@ void() PutClientInServer =
     self.dmg = 2;           // initial water damage
     self.super_damage_finished = 0;
     self.radsuit_finished = 0;
+    self.lavasuit_finished = 0;
     self.invisible_finished = 0;
     self.invincible_finished = 0;
     self.effects = 0;
@@ -1504,7 +1505,7 @@ void() WaterMove =
 
     if(self.watertype == CONTENT_LAVA)
     {    // do damage
-        if(self.dmgtime < time)
+        if(self.dmgtime < time && self.lavasuit_finished <= time) // (the lava suit: none, MG3)
         {
             if(self.radsuit_finished > time)
                 self.dmgtime = time + 1;
@@ -1516,7 +1517,7 @@ void() WaterMove =
     }
     else if(self.watertype == CONTENT_SLIME)
     {    // do damage
-        if(self.dmgtime < time && self.radsuit_finished < time)
+        if(self.dmgtime < time && self.radsuit_finished < time && self.lavasuit_finished < time) // (the lava suit too)
         {
             self.dmgtime = time + 1;
             T_Damage(self, world, world, 4*self.waterlevel);
@@ -1909,6 +1910,33 @@ void() CheckPowerups =
             VR_ItemUtil_EntDelItem(self, IID_SUIT);
             self.rad_time = 0;
             self.radsuit_finished = 0;
+        }
+    }
+
+// lava suit (Dawn of the Machine, vr_mg3_items.qc)
+    if(self.lavasuit_finished)
+    {
+        self.air_finished = time + VR_AirSupply();        // don't drown
+        if(self.lavasuit_finished < time + 3)
+        {
+            if(self.lavasuit_time == 1)
+            {
+                sprint(self, "$mg3_qc_lavasuit_wearing_out");
+                stuffcmd(self, "bf\n");
+                sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
+                self.lavasuit_time = time + 1;
+            }
+            if(self.lavasuit_time < time)
+            {
+                self.lavasuit_time = time + 1;
+                stuffcmd(self, "bf\n");
+            }
+        }
+        if(self.lavasuit_finished < time)
+        {    // just stopped
+            if(self.radsuit_finished < time) VR_ItemUtil_EntDelItem(self, IID_SUIT);
+            self.lavasuit_time = 0;
+            self.lavasuit_finished = 0;
         }
     }
 

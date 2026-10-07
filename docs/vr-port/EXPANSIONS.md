@@ -914,3 +914,7 @@ Tests: Map Triggers Check (`vr_mg3_test 6`) and Explosion Repeaters Check (`7`),
 Monster keys: `health_target` (with `trigger_health_relay`) and `aggro_target` (off unless `vr_mg3_aggro_groups 1`:
 upstream ships it commented out); `trigger_lore` texts by VR's centre print, kept 3 s after leaving; KEX's worldspawn
 `fog_sky_factor` is read as `skyfog`. Monster Keys and Lore Check: `vr_mg3_test 8`.
+Items (`QC/vr_mg3_items.qc`): armour shards, the two draughts (rings moving the player up/down or to a destination),
+the lava suit (lava/slime immunity) and the hell knight's head (Bloody Nightmare on and discovered for good:
+`vr_mg3_bn_discovered`); MG3's SPAWNED and DROPTOFLOOR_DISABLE item flags in campaign 5. Items Check:
+`vr_mg3_test 9`.

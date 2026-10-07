@@ -27849,3 +27849,22 @@ tests use `vr_campaign_native mg3`, `-nomapindex -noaddons`, developer 1.
   localized ("Look at the heavens..." for `$mg3_map5_mural`), cleared after the dwell; secret4/dm1 "sky fog 0.2".
   Checker: 33 missing classes, 1,146 placements, 1 unknown key (`property 1`, editor noise on two secret1 lights:
   not a valid field name). Regression as M3-05 (all pass).
+- **M3-07 items.** `QC/vr_mg3_items.qc` (adapted `mg3_items.qc`/`items.qc`): `item_armor_shard` (+5 armour, green
+  0.3 when none is worn, at most 200; touch pickup like ammo), `item_draught_insight`/`_stupor` (rings that move the
+  player by `height`, -2048/+2048 by default, with the teleport flash; OVERRIDE_DEST: to the target destination by
+  `teleport_touch`; they stay; carried things come along), `item_artifact_lavasuit` (powerup: 30 s without lava or
+  slime damage nor drowning, `lavasuit_finished`, the "wearing out" warning; a holster object like the biosuit;
+  authored `wait` respawns it), `item_head_hellknight` (a holster object: Bloody Nightmare ACTIVE|DISCOVERED, skill 3,
+  and the new archived `vr_mg3_bn_discovered 1`, which M3-09's menu reads; in a Bloody Nightmare game a megahealth,
+  or the bunny once in its new game). MG3 item flags: SPAWNED (4: hidden until a trigger uses it, then back with the
+  respawn sound, through Honey's item_unspawn/item_spawn) and DROPTOFLOOR_DISABLE (65536: placed, then stays put),
+  campaign 5 only (MG1's upstream has DROPTOFLOOR_DISABLE too; not applied there). Agglomeration: each needs its model
+  on the search path (skipped otherwise), the lava suit falls back to the biosuit's model and the head to the hell
+  knight's head gib. Measured (`vr_mg3_test 9`, Items Check): shards map3 16 -> 80, map2 25 -> 125, boss 22 -> 110,
+  map2b 46 and map4 44 -> 200 (cap), one on yellow 150 -> 155 kept yellow; map2b 6 draughts (5 by height into the
+  open, 1 to its target), map2 1 to its target; boss lava suit 30 s, lava and slime hurt before, not while worn, again
+  after; taken, back after its wait; map4 head: serverflags 0 -> 192, skill 3, discovered 1, killtarget lore1 gone;
+  `changelevel map4` under Bloody Nightmare: the head is a megahealth (7 = 6 + 1); map3's 4 trigger-brought items
+  hidden, one appears when used. Checker: 28 missing classes, 701 placements. Regression as before (all pass).
+  Unrelated: `map map2` crashed 2 of 7 loads in `vr_hull.cpp:450` (hull walk on a worker thread, before any test
+  ran); the other 5 and every other map loaded.

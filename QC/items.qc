@@ -226,6 +226,10 @@ void() PlaceItem =
             remove(self);
             return;
         }
+        if(MG3_Campaign() && (self.spawnflags & 65536))
+        {
+            self.movetype = MOVETYPE_NONE; // Dawn of the Machine's DROPTOFLOOR_DISABLE: placed, then it stays put
+        }
     }
 
     // HONEY
@@ -253,6 +257,10 @@ void() PlaceItem =
     if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
     {
         item_unspawn();
+    }
+    else if(MG3_Campaign() && (self.spawnflags & MG3_ITEM_SPAWNED) && self.classname != "item_sigil")
+    {
+        MG3_ItemUnspawn(); // Dawn of the Machine: one a trigger brings (upstream SPAWNED; vr_mg3_items.qc)
     }
 
     SpawnAmmoBoxWeapons(self);
@@ -1870,6 +1878,12 @@ void() powerup_touch =
     {
         other.rad_time = 1;
         other.radsuit_finished = time + 30;
+    }
+
+    if(self.classname == "item_artifact_lavasuit") // Dawn of the Machine (vr_mg3_items.qc)
+    {
+        other.lavasuit_time = 1;
+        other.lavasuit_finished = time + 30;
     }
 
     if(self.classname == "item_artifact_invulnerability")
