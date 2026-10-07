@@ -41,6 +41,7 @@ void() VR_Crates_Precache =
     vr_crates_done = FALSE;
     precache_model("progs/vr_crate1.mdl");
     precache_model("progs/vr_crate2.mdl");
+    precache_model("progs/vr_barrel.mdl");
     precache_model("progs/vr_plank1.mdl");
     precache_model("progs/vr_plank2.mdl");
     precache_model("progs/vr_plank3.mdl");
@@ -894,6 +895,34 @@ void() vr_crate =
         return;
     }
     VR_Crate_Setup(self, kind);
+};
+
+/*QUAKED vr_barrel (0.6 0.45 0.25) (-11 -11 -16) (11 11 16) LYING
+Quake VR: a wooden barrel, placed by hand (vrstart2's, by the pier and the pavilion): a crate in all but its shape (a
+heavy physics prop: pushed, tipped, rolled, stood on, carried by hand; broken into boards by shots, blows, explosions
+and hard hits, sometimes holding a small box of ammo or health; it hides the player from monsters behind it). 22 units
+across, 32 high; its origin is its middle. "angle": its yaw; "skin": 0 pine, 1 brown, 2 weathered; LYING: on its side
+(along its yaw's left). It rests on whatever is below its origin (within 128 units). Placed whatever Crates' options are.
+*/
+void() vr_barrel =
+{
+    setmodel(self, "progs/vr_barrel.mdl"); // (precached: VR_Crates_Precache)
+    vector half = '11.5 11.5 16';
+    if(self.spawnflags & 1)
+    {
+        self.angles_z = 90;
+        half = '16 16 11.5'; // (any yaw: the lying barrel's box round it, the physics' shape is the model's)
+    }
+    traceline(self.origin + '0 0 1', self.origin - '0 0 128', TRUE, self); // (nomonsters)
+    if(trace_fraction < 1 && !trace_startsolid)
+    {
+        self.origin_z = trace_endpos_z + half_z + 0.02;
+    }
+    setsize(self, -1 * half, half);
+    setorigin(self, self.origin);
+    self.flags = self.flags | FL_ONGROUND;
+    self.groundentity = world;
+    VR_Crate_Setup(self, 1); // (a small crate's health, pieces and sounds)
 };
 
 // A test crate (vr_test_spawn 107, 108, 109: Debug > Tests > Thing): `kind` at `at`, turned by `yaw`; `stacked`: a small

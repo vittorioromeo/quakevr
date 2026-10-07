@@ -53,8 +53,9 @@ constexpr const char* keyDefaults[numKeys] = {
 // the rocks and bricks at Size 1.25; 51: the crates' small pieces in the palm; 53: the multi-grenade's as the grenade's;
 // 54: the author's grenade and multi-grenade fits; 55: the author's weights and sizes (slots 6-16 his items); 56: every
 // prop in both hands; 57: the gibs' and heads' sizes; 58: the author's lighter gibs and heads (and the gremlin's head);
-// 59: the monsters' heads weigh what a head cut off their ragdoll does (Mass -1).
-constexpr int settingsVersion = 60;
+// 59: the monsters' heads weigh what a head cut off their ragdoll does (Mass -1); 60: immersive reloading's shells
+// (slots 49-50); 61: reloading's magazines; 62: vrstart2's barrel (slot 61).
+constexpr int settingsVersion = 62;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -512,6 +513,12 @@ void migrate()
     {
         takeShippedSlot(48);
         takeShippedSlot(49);
+    }
+    // 62: vrstart2's barrel (vr_barrel; make_crates.py) has slot 60 (vr_prop_*_61): it takes its shipped settings, a
+    // model the menu had put there moving to a free slot.
+    if(from < 62)
+    {
+        takeShippedSlot(60);
     }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);
 }

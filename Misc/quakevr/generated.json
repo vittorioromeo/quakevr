@@ -363,6 +363,26 @@
   "sha256": "aae9981a3f4ede79c2d5e18f0ca2e2522d0b7d3adb5c046794ef918c31e7c7e4",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vr_barrel.mdl": {
+  "sha256": "e8fd9dadb3eca3a91f6c0d3070d14f0505df4e986a8cc5b414a6e4a30ebd40e7",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_barrel.mdl_0.png": {
+  "sha256": "7066cf561113d1f8890baa351969be8a44c0801022976847076770f015346dbf",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_barrel.mdl_0_norm.png": {
+  "sha256": "5d7008a9eb66d088b1d4928d4da9b8bad41d91427036ed4b496c82aa5c51a25e",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_barrel.mdl_1.png": {
+  "sha256": "6fcd4d9e88efd3d041b8213081556caf6e3492c972273db99d4273fe28fbfcbb",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_barrel.mdl_2.png": {
+  "sha256": "66952d15746b84d4f8eda0d93710922d181b61f5c735d2240146deaf57735fb0",
+  "by": "make_crates.py"
+ },
  "quakevr/progs/vr_brick1.mdl": {
   "sha256": "8cba49d1c36ffb581bed4f8f76e57a3ad50ec6cf455c9f95bf59e88a11a24181",
   "by": "make_debris.py"

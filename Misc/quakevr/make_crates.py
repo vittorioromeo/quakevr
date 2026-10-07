@@ -4,6 +4,8 @@
 #   quakevr/progs/vr_crate1.mdl    the small crate, 32 x 32 x 32 units (the small explosive box's size): planks inside a
 #                                  frame of battens on every face, nailed; three skins (pine, brown, weathered)
 #   quakevr/progs/vr_crate2.mdl    the large crate, 40 x 40 x 48: the same, and a diagonal brace across each side
+#   quakevr/progs/vr_barrel.mdl    a barrel, 22 across and 32 high: staves bound by iron hoops, boards across its heads;
+#                                  three skins as the crates' (vrstart2's, QC vr_barrel: a crate's physics, its pieces)
 #   quakevr/progs/vr_plank1..4.mdl what a crate breaks into: a whole board, a board broken off, a splinter, a batten
 #                                  broken off; three skins each, matching the crates', and a fourth: charred (a crate
 #                                  burnt through breaks into these, burnt black: vr_burning.qc, VR_PIECE_SKIN_CHARRED)
@@ -531,6 +533,139 @@ def charred(along, across, layer, P, E, fib, ends, shade, seed, res):
     return np.clip(c, 0, 1)
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# The barrel (vrstart2's, by the pier and the pavilion; QC vr_barrel): a wooden cask, its staves bound by iron hoops
+
+
+BARREL_SIDES = 12   # the shape's facets round it (each shows two staves)
+BARREL_STAVES = 24
+BARREL_BELLY = 5.0  # units: the upright middle band's half height; above and below it the staves lean in to the heads
+HOOPS = ((13.4, 2.4), (7.0, 2.0))  # (height of its middle off the barrel's, width), each one above and one below
+HOOP_PROUD = 0.5    # how far the hoops stand off the staves (relief)
+CHIME = 1.3         # the staves' ends standing over the heads: the rim, as end grain, this wide on the head
+
+
+def barrel_shape(r_mid, r_end, hz):
+    """A barrel `hz` half high, its belly's facets `r_mid` from its axis, its ends' `r_end`: BARREL_SIDES facets round
+    it in three bands (the belly upright, the tops and bottoms leaning in), the rims chamfered."""
+    faces = md.box(r_mid + 2, r_mid + 2, hz)
+    for f in faces:
+        f.tag = "head"
+    lean = (r_mid - r_end) / (hz - BARREL_BELLY)
+    for i in range(BARREL_SIDES):
+        a = 2 * math.pi * (i + 0.5) / BARREL_SIDES
+        c, s = math.cos(a), math.sin(a)
+        faces = md.clip(faces, (c, s, 0.0), r_mid, "stave")
+        for sz in (-1, 1):
+            n = v3((c, s, sz * lean))
+            n /= np.linalg.norm(n)
+            faces = md.clip(faces, n, float(np.dot(n, v3((c * r_mid, s * r_mid, sz * BARREL_BELLY)))), "stave")
+        for sz in (-1, 1):
+            n = v3((c, s, sz * 1.1))
+            n /= np.linalg.norm(n)
+            faces = md.clip(faces, n, md.support(faces, n) - 0.5, "chime")
+    return md.centred(faces)
+
+
+def barrel_paint(faces, P, F, E, seed, res):
+    """A barrel's three skins and its relief, as crate_paint's: staves along z (each its own shade, a dark seam between
+    them, crowned), iron hoops nailed on, rust run down from them; the heads boards across, the staves' end grain round
+    their rims."""
+    rng = np.random.default_rng(seed)
+    Fi = np.where(F < 0, 0, F)
+    tags = np.array([f.tag for f in faces])[Fi]
+    N = np.array([f.n for f in faces])[Fi]
+    x, y, z = P[..., 0], P[..., 1], P[..., 2]
+    zmax = max(p[2] for f in faces for p in f.pts)
+    head = tags == "head"
+    side = ~head
+    r = np.hypot(x, y)
+    th = np.arctan2(y, x) % (2 * math.pi)
+    sw = 2 * math.pi / BARREL_STAVES
+    sidx = np.floor(th / sw)
+    sf = th / sw - sidx
+    seam_d = np.minimum(sf, 1 - sf) * sw * r  # to the stave's own edge (its seam), units
+    # The heads: three boards across x, the rim of end grain round them.
+    rim = head & (r > (np.max(np.where(head, r, 0.0)) - CHIME))
+    hb = np.floor((y + 12.0) / 6.0)
+    hb_d = np.abs(((y + 12.0) / 6.0 - hb) - 0.5) * 6.0
+    board_d = 3.0 - hb_d
+    sid = np.where(side | rim, sidx.astype(np.int64) % 64, 64 + (hb.astype(np.int64) + (z > 0) * 4) % 16)
+    shade = rng.uniform(0.84, 1.12, 96)
+    warm = rng.uniform(-0.05, 0.05, 96)
+    tint = np.stack([shade[sid] * (1 + warm[sid]), shade[sid], shade[sid] * (1 - warm[sid])], -1)
+    layer = np.where(side, sidx * 5.0, np.where(rim, 900.0 + sidx * 5.0, 300.0 + hb * 7.0 + (z > 0) * 50.0))
+    along = np.where(side, z, x)
+    across = np.where(side, th * r + sidx * 13.7, y + hb * 13.7)
+    late, fib, pores = wood(along, across, layer, seed, res)
+    # The rim: the staves' end grain (rings round each stave's own pith, far outside).
+    ring = np.hypot(th * r * 0.0 + (r - 30.0), sf * 6.0) * 0.55
+    late = np.where(rim, md.smoothstep(ring - np.floor(ring), 0.6, 0.85), late)
+    # Hoops: iron bands round the staves, nailed every other stave.
+    hoop = np.zeros_like(x)
+    hoop_edge = np.full_like(x, 99.0)
+    for zc, w in HOOPS:
+        for sz in (-1, 1):
+            d = np.abs(z - sz * zc)
+            on = side & (d < w * 0.5)
+            hoop = np.maximum(hoop, on)
+            hoop_edge = np.where(on, np.minimum(hoop_edge, w * 0.5 - d), hoop_edge)
+    hoop = hoop > 0
+    zc_near = np.zeros_like(z)
+    for zc, w in HOOPS:
+        for sz in (-1, 1):
+            zc_near = np.where(np.abs(z - sz * zc) < w * 0.5, sz * zc, zc_near)
+    nail_d = np.where(hoop & (sidx % 2 == 0), np.hypot((sf - 0.5) * sw * r, z - zc_near), 99.0)
+    nr = 0.45
+    # Rust: on the hoops (blotched), run down from them onto the staves below.
+    rust_n = md.fbm(P * 0.35 + 5.0, seed + 33, 3)
+    rust = np.where(hoop, 0.35 + 0.5 * md.smoothstep(rust_n, 0.4, 0.8), 0.0)
+    for zc, w in HOOPS:
+        for sz in (-1, 1):
+            below = (sz * zc - w * 0.5) - z
+            streak = md.smoothstep(md.vnoise(np.stack([th * r * 1.5, np.zeros_like(z) + sz * zc, layer], -1), seed + 37), 0.55, 0.85)
+            rust = np.maximum(rust, np.where(side & ~hoop & (below > 0), np.exp(-below / 3.5) * streak * 0.7, 0.0))
+    # Worn rims, scratches, checks along the grain.
+    brk = md.vnoise(P * 0.6 + 31.0, seed + 35)
+    end_d = np.where(side, zmax - np.abs(z), E)
+    wear = np.clip((1 - md.smoothstep(end_d, 0.2, 1.0 + 0.8 * brk)) * (0.4 + 0.6 * brk), 0, 1)
+    wear = np.where(tags == "chime", np.maximum(wear, 0.5 + 0.3 * brk), wear)
+    wear = np.where(hoop, 0.0, wear)
+    scratch = np.zeros_like(x)
+    for k, ang in enumerate((0.3, 1.9, 2.6)):
+        u = along * math.cos(ang) + across * math.sin(ang)
+        v = -along * math.sin(ang) + across * math.cos(ang)
+        scratch = np.maximum(scratch, lines(u, v, seed + k, layer, 9.0, 0.12 + 0.06 * k, 0.25))
+    scratch = np.where(hoop, 0.0, scratch)
+    checks = lines(along, across, seed + 9, layer, 2.3, 0.1, 0.3) * ~hoop
+    # Its own shadow: in the staves' seams, under the hoops' edges, the heads' joints and against the rim.
+    ao = np.ones_like(x)
+    ao = np.where(side & ~hoop, 1.0 - 0.55 * np.exp(-seam_d / 0.18), ao)
+    ao = np.where(side & ~hoop, ao * (1.0 - 0.35 * np.exp(-np.maximum(np.min(np.stack(
+        [np.abs(np.abs(z) - (zc + w * 0.5)) for zc, w in HOOPS] + [np.abs(np.abs(z) - (zc - w * 0.5)) for zc, w in HOOPS]), 0), 0) / 0.4)), ao)
+    ao = np.where(head & ~rim, (1.0 - 0.5 * np.exp(-board_d / 0.25)) * (0.72 + 0.28 * md.smoothstep(
+        np.max(np.where(head, r, 0.0)) - CHIME - r, 0.0, 1.5)), ao)
+    ao = ao * np.where(N[..., 2] < -0.9, 0.8, 1.0)
+    lowdirt = md.fbm(P * 0.3, seed + 91, 3)
+    low = np.where(side, 1 - md.smoothstep(z + zmax, 0.0, 5.0 + 4.0 * lowdirt), 0.0)
+    # Relief (units): the staves crowned, their seams sunk; the hoops standing proud, edges rounded, nails domed; the
+    # heads' boards sunk under the rim; the grain.
+    crown = 1 - (2 * sf - 1) ** 2
+    h = np.where(side, 0.25 * crown - round_over(seam_d - 0.05, 0.5) - np.where(seam_d < 0.12, 0.8, 0.0), 0.0)
+    h = np.where(hoop, HOOP_PROUD - round_over(hoop_edge, 0.4) * 0.6, h)
+    h = np.where(head & ~rim, -0.8 - round_over(board_d, 0.4) * 0.8, h)
+    h = h + np.where(hoop, 0.0, WOOD_DEPTH * (0.09 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.2 * checks - 0.06 * scratch))
+    h = h - 0.4 * md.smoothstep(md.vnoise(P * 0.45 + 3.0, seed + 81), 0.86, 0.97) * ~hoop  # dents
+    h = h + nail_relief(nail_d, nr, hoop)
+    iron = hoop.astype(np.float64)
+    regions = {"ao": ao, "wear": wear, "scratch": scratch, "checks": checks, "rust": rust * (1.0 - 0.3 * iron),
+               "nail": np.maximum(iron * 0.92, np.clip((nr - nail_d) / 0.12, 0, 1)),
+               "nailhi": np.clip(1 - nail_d / (nr * 0.6), 0, 1) + iron * 0.25 * (1 - md.smoothstep(hoop_edge, 0.0, 0.4)),
+               "low": low, "fresh": np.zeros_like(x), "shade": shading(h, F, P, N, res)}
+    skins = finish((late, fib, pores, tint), N, P, seed, res, regions)
+    return skins, h
+
+
 def hires_texels(faces, uvs, size):
     """make_debris.texel_points at HIRES times the skin's size (the same atlas)."""
     md.SKIN = size
@@ -555,13 +690,22 @@ BOARDS = [  # (file, seed, length, width, thickness, broken end, broken start, t
     ("vr_plank3.mdl", 83, 13.0, 4.0, 1.3, 2, 2, 0.12, ()),
     ("vr_plank4.mdl", 84, 26.0, 3.8, 2.2, 3, 0, 0.0, (-11.0,)),
 ]
+BARRELS = [  # (file, seed, belly's radius, ends' radius, half height): vrstart2's barrels' size (22 across, 32 high)
+    ("vr_barrel.mdl", 91, 11.0, 9.4, 16.0),
+]
 
 
 def build(name):
     """A model: (name, faces, mesh, its 8-bit skins (bytes), the full-colour skins ((S, S, 3) uint8), the relief
     ((S, S) units), texels a unit of its own skin, its own skin's size); S = HIRES times that."""
     crate = next((s for s in CRATES if s[0] == name), None)
-    if crate:
+    barrel = next((s for s in BARRELS if s[0] == name), None)
+    if barrel:
+        _, seed, r_mid, r_end, hz = barrel
+        size = 256
+        md.SKIN = size
+        faces = barrel_shape(r_mid, r_end, hz)
+    elif crate:
         _, seed, half, batten, brace = crate
         size = 256
         md.SKIN = size
@@ -574,7 +718,9 @@ def build(name):
     uvs, density = md.atlas(faces)
     mesh = md.mesh_of(faces, uvs)
     P, F, E = hires_texels(faces, uvs, size)
-    if crate:
+    if barrel:
+        skins, h = barrel_paint(faces, P, F, E, seed, density * HIRES)
+    elif crate:
         skins, h = crate_paint(faces, P, F, E, seed, batten, brace, density * HIRES)
     else:
         skins, h = board_paint(faces, P, F, E, seed, nails, density * HIRES)
@@ -617,7 +763,8 @@ def main():
         prev = args[i + 1]
         del args[i:i + 2]
     game = args[0] if args else os.path.join(here, "..", "..", "quakevr")
-    models = [build(s[0]) for s in CRATES + BOARDS]
+    only = [a for a in args[1:] if a.endswith(".mdl")]
+    models = [build(s[0]) for s in CRATES + BOARDS + BARRELS if not only or s[0] in only]
     paths = [os.path.join(game, "progs", m[0]) for m in models]
     extra = [os.path.join(game, "progs", "%s_%d.png" % (m[0], k)) for m in models for k in range(len(m[4]))]
     guard = genguard.Guard("make_crates.py", paths + extra)

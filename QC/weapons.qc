@@ -4796,6 +4796,18 @@ void() ImpulseCommands =
             traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, self); // (on the floor)
             spawned = VR_Crate_TestSpawn(trace_endpos, spawnKind == 107 ? 1 : 2, spawnPlayer.v_viewangle_y + 30, spawnKind == 109);
         }
+        else if(spawnKind == 111 || spawnKind == 112)
+        {
+            // A barrel (vr_crates.qc's vr_barrel: vrstart2's), upright or lying across your view (it may roll).
+            traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, spawnPlayer); // (on the floor)
+            self = spawn();
+            self.angles = '0 1 0' * (spawnPlayer.v_viewangle_y + 90);
+            self.spawnflags = spawnKind == 112 ? 1 : 0;
+            setorigin(self, trace_endpos + '0 0 20');
+            vr_barrel();
+            spawned = self;
+            self = spawnPlayer;
+        }
         else if(spawnKind == 110)
         {
             // The rocks and bricks (vr_debris.qc), a row of each across your view, each model in another skin (rocks

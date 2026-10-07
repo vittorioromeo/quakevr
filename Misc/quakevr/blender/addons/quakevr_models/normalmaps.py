@@ -27,8 +27,8 @@ BODY = "body"
 BODY_BUILDS = ("vrbody.md5mesh", "vrbody_lean.md5mesh", "vrbody_brawny.md5mesh")
 GENERATED = ("vrflashlight.mdl", "vrgadget.mdl", "vrgadget_strap.mdl", "vr_shell.mdl", "legholster.mdl",
              "vrpauldron.mdl", "vrpauldron_arm.mdl", "vrpouch.mdl") + tuple("vr_rock%d.mdl" % k for k in range(1, 6)) + \
-            tuple("vr_brick%d.mdl" % k for k in range(1, 5)) +             tuple("vr_crate%d.mdl" % k for k in range(1, 3)) + tuple("vr_plank%d.mdl" % k for k in range(1, 5)) +             tuple("gib_brain%d.mdl" % k for k in range(1, 4))
-# (make_debris.py's rocks and bricks; make_crates.py's crates and their pieces; make_brains.py's brain chunks)
+            tuple("vr_brick%d.mdl" % k for k in range(1, 5)) +             tuple("vr_crate%d.mdl" % k for k in range(1, 3)) + tuple("vr_plank%d.mdl" % k for k in range(1, 5)) + ("vr_barrel.mdl",) +             tuple("gib_brain%d.mdl" % k for k in range(1, 4))
+# (make_debris.py's rocks and bricks; make_crates.py's crates, their pieces and the barrel; make_brains.py's brain chunks)
 HAND_SCALE = 2   # the hand's skin is 512 x 512: its map 1024 x 1024
 BODY_SCALE = 4   # the body's is 256 x 256: 1024 x 1024
 

@@ -327,4 +327,9 @@ QVR_PROP_DEFAULT(49, FingerCurlIndex, "0.45")
 QVR_PROP_DEFAULT(49, FingerCurlMiddle, "0.5")
 QVR_PROP_DEFAULT(49, FingerCurlRing, "0.9")
 QVR_PROP_DEFAULT(49, FingerCurlPinky, "0.95")
+// The barrel (vrstart2's: vr_barrel, a crate in all but its shape; make_crates.py): a little lighter than the small
+// crate, carried as the crates are, never force grabbed (vr_props_version 62 gives the slot to configs saved before).
+QVR_PROP_DEFAULT(60, ID, "progs/vr_barrel.mdl")
+QVR_PROP_DEFAULT(60, Mass, "30")
+QVR_PROP_DEFAULT(60, ForceGrab, "0")
 #endif

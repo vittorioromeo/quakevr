@@ -65,7 +65,7 @@ constexpr const char* gibPrefixes[] = {"gib1.", "gib2.", "gib3.", "gib_brain", "
 constexpr const char* handPrefixes[] = {"hand", "finger_"};
 constexpr const char* gearPrefixes[] = {"vrgadget", "vrpauldron", "vrpouch", "legholster", "vrflashlight"};
 constexpr const char* propPrefixes[] = {"vr_crate", "vr_rock", "vr_brick", "vr_plank", "vr_shell", "vrtorch.", "lantern",
-    "candle", "barrel"};
+    "candle", "barrel", "vr_barrel"};
 // Quake's monsters, the mission packs' (hipnotic: scorpions, gremlins, the armagon; rogue: mummies, eels, lava men,
 // dragons) and the player's model (other players, statues)
 constexpr const char* monsterFiles[] = {"soldier.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
