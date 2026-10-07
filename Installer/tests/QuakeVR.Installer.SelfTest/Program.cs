@@ -731,6 +731,51 @@ var tests = new List<(string Name, Action Body)>
             body.Length, sha, null, CancellationToken.None).GetAwaiter().GetResult(), "wrong hash everywhere");
         True(e.Message.Contains("SHA-256"), e.Message);
     }),
+    ("local release server (qvr-setup serve): feed, cut download resumed, ranges, nothing outside its folder", () =>
+    {
+        var assets = Dir("serve-assets");
+        var body = RandomNumberGenerator.GetBytes(400_000);
+        var sha = Convert.ToHexStringLower(SHA256.HashData(body));
+        File.WriteAllBytes(Path.Combine(assets, "QuakeVR.zip"), body);
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(assets)!, "secret.txt"), "outside");
+        using var server = new LocalFeedServer(assets) { DropAfter = 100_000 };
+        File.WriteAllText(Path.Combine(assets, "latest.json"), $$"""
+            { "schema": 1, "version": "9.9.9 (test)", "package": { "file": "QuakeVR.zip", "size": {{body.Length}}, "sha256": "{{sha}}", "urls": ["{{server.Url("QuakeVR.zip")}}"] } }
+            """);
+        using var http = Downloader.CreateClient();
+        var feed = ReleaseFeed.FetchAsync(http, [server.Url("latest.json")], CancellationToken.None).GetAwaiter().GetResult();
+        Eq("9.9.9 (test)", feed.Version, "feed read from the server");
+        var dest = Path.Combine(Dir("serve-dl"), "QuakeVR.zip");
+        new Downloader(http).DownloadAsync(feed.Package!.Mirrors, dest, feed.Package.Size, feed.Package.Sha256, null, CancellationToken.None).GetAwaiter().GetResult();
+        Eq(1, server.Drops, "the first download was cut");
+        Eq(1, server.RangeRequests, "and resumed with a Range request");
+        True(File.ReadAllBytes(dest).AsSpan().SequenceEqual(body), "resumed content");
+        // Explicit ranges, HEAD, 416, 404 and the folder's boundary.
+        using var range = new HttpRequestMessage(HttpMethod.Get, server.Url("QuakeVR.zip"));
+        range.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(10, 19);
+        using var r1 = http.Send(range);
+        Eq(System.Net.HttpStatusCode.PartialContent, r1.StatusCode, "bytes=10-19");
+        True(r1.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult().AsSpan().SequenceEqual(body.AsSpan(10, 10)), "range content");
+        using var past = new HttpRequestMessage(HttpMethod.Get, server.Url("QuakeVR.zip"));
+        past.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(body.Length, null);
+        Eq(System.Net.HttpStatusCode.RequestedRangeNotSatisfiable, http.Send(past).StatusCode, "past the end: 416");
+        using var head = http.Send(new HttpRequestMessage(HttpMethod.Head, server.Url("QuakeVR.zip")));
+        Eq((long?)body.Length, head.Content.Headers.ContentLength, "HEAD's length");
+        Eq(System.Net.HttpStatusCode.NotFound, http.Send(new HttpRequestMessage(HttpMethod.Get, server.Url("nothing.zip"))).StatusCode, "404");
+        Eq(System.Net.HttpStatusCode.NotFound, http.Send(new HttpRequestMessage(HttpMethod.Get, server.Url("..%2Fsecret.txt"))).StatusCode, "no way out of the folder");
+        True(LocalFeedServer.TryParseRange("bytes=-5", 100, out var sf, out _) && sf == 95, "suffix range");
+        True(!LocalFeedServer.TryParseRange("bytes=1-2,5-6", 100, out _, out _), "multiple ranges are not parsed");
+        // The sandbox's layout and QVR_SETUP_FEED.
+        var sb = new Sandbox(Path.Combine(assets, "box"));
+        Eq(Path.Combine(sb.Root, "QuakeVR"), sb.Target, "sandbox target");
+        Eq(Path.Combine(sb.Root, "_shortcuts"), sb.ShortcutsDir, "sandbox shortcuts");
+        var old = Environment.GetEnvironmentVariable(InstallerSettings.FeedEnvVar);
+        Environment.SetEnvironmentVariable(InstallerSettings.FeedEnvVar, " http://127.0.0.1:1/a.json ;http://127.0.0.1:1/b.json");
+        Eq("http://127.0.0.1:1/a.json|http://127.0.0.1:1/b.json", string.Join("|", InstallerSettings.FeedsFromEnvironment()), "QVR_SETUP_FEED");
+        Environment.SetEnvironmentVariable(InstallerSettings.FeedEnvVar, old);
+        True(new InstallerSettings().HasDefaultFeeds, "the defaults are the release hosts'");
+        True(!new InstallerSettings { FeedUrls = ["http://127.0.0.1:1/latest.json"] }.HasDefaultFeeds, "another feed is a test feed");
+    }),
     ("release feed and GitHub releases API from a local server", () =>
     {
         using var server = new LocalHttpServer();

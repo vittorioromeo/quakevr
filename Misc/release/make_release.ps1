@@ -9,6 +9,10 @@ latest.json, and (with -Publish) tags the commit and creates the GitHub release.
   Misc\release\make_release.ps1 -Publish                   # ... then tag v<VERSION>, push the tag, create a DRAFT GitHub release
   Misc\release\make_release.ps1 -Publish -NoDraft          # ... a public release straight away
   Misc\release\make_release.ps1 -Version 1.0.0 -BumpVersion   # first commit VERSION = 1.0.0 ("Version 1.0.0"), then as above
+  Misc\release\make_release.ps1 -Local -RunInstaller      # a LOCAL TEST release: the same build and checks into
+                                                           # out\release\<VERSION>-local, latest.json pointing at a server on
+                                                           # 127.0.0.1; then that server and the built QuakeVR-Setup.exe in a
+                                                           # sandbox (Misc\release\test_local_release.ps1 reruns it)
 
 The version is the repository's VERSION file (docs/vr-port/RELEASING.md, "Versions"). -Version is optional: it must be
 VERSION's, or with -BumpVersion the script first commits VERSION = -Version (that file alone, on a tree without other
@@ -63,6 +67,15 @@ param(
     [string]$Repo = "vittorioromeo/quakevr",
     # Testing the script itself: build from a tree with uncommitted changes (never with -Publish or -PushTag).
     [switch]$AllowDirty,
+    # A local test release (RELEASING.md, "Test a release locally"): the same build, checks and package, into
+    # out\release\<version>-local; latest.json's addresses are http://127.0.0.1:<LocalPort>/<file> (a local server,
+    # Misc\release\test_local_release.ps1); nothing online (no fetch, no gh, no tag). Never with -Publish or -PushTag.
+    [switch]$Local,
+    # The local server's port, written into latest.json's addresses (-Local).
+    [int]$LocalPort = 8517,
+    # After a -Local build (implies -Local): start the local server and run the built QuakeVR-Setup.exe against it, in a
+    # sandbox folder under %TEMP% (test_local_release.ps1).
+    [switch]$RunInstaller,
     [switch]$SkipSmoke,
     [switch]$SkipInstallerTests
 )
@@ -76,6 +89,9 @@ if (-not $fileVersion) { throw "no version in $versionFile (one line: MAJOR.MINO
 if (-not $Version) { $Version = $fileVersion }
 $tag = "v$Version"
 if ($NoDraft) { $Draft = $false }
+if ($RunInstaller) { $Local = $true }
+if ($Local -and ($Publish -or $PushTag)) { throw "-Local is a local test release: never with -Publish or -PushTag" }
+if ($Local -and -not $UrlBase) { $UrlBase = @("http://127.0.0.1:$LocalPort/{file}") }
 $problems = New-Object System.Collections.Generic.List[string]   # fatal for this mode
 $warnings = New-Object System.Collections.Generic.List[string]
 $online = $Publish -or $PushTag
@@ -166,7 +182,8 @@ else {
     if ($upstream.Code -ne 0 -or -not $upstream.Text) { Problem "branch $branch has no upstream (git push -u <remote> $branch)" -OnlineOnly }
     else {
         $remote = (GitRun @("config", "branch.$branch.remote")).Text
-        if ((GitRun @("fetch", "--quiet", $remote)).Code -ne 0) { Warn "git fetch $remote failed: the pushed check uses the last fetched state" }
+        if ($Local) { Say "-Local: no git fetch (the pushed check uses the last fetched state)" }
+        elseif ((GitRun @("fetch", "--quiet", $remote)).Code -ne 0) { Warn "git fetch $remote failed: the pushed check uses the last fetched state" }
         if ((GitRun @("merge-base", "--is-ancestor", "HEAD", $upstream.Text)).Code -ne 0) { Problem "HEAD ($short) is not on $($upstream.Text): push $branch first" -OnlineOnly }
         else { Say "HEAD is on $($upstream.Text)" }
         $remoteUrl = (GitRun @("remote", "get-url", $remote)).Text
@@ -182,7 +199,7 @@ if ($tagLocal.Code -eq 0) {
     else { Problem "tag $tag already exists on another commit ($($tagLocal.Text.Substring(0, 8)))" }
 }
 $tagRemote = ""
-if ($remote) {
+if ($remote -and -not $Local) {
     $ls = GitRun @("ls-remote", "--tags", $remote, "refs/tags/$tag", "refs/tags/$tag^{}")
     if ($ls.Code -eq 0 -and $ls.Text) {
         $tagRemote = @(@($ls.Out | Where-Object { $_ -match '\^\{\}$' }) + @($ls.Out))[0] -replace '\s.*$', ''   # (the peeled commit first)
@@ -192,7 +209,7 @@ if ($remote) {
 
 # Tools.
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { Problem "gh (GitHub CLI) not found" -OnlineOnly }
-elseif ($DryRun) { Say "gh found (not called: -DryRun)" }
+elseif ($DryRun -or $Local) { Say "gh found (not called: $(if ($Local) { '-Local' } else { '-DryRun' }))" }
 else {
     if ((Run "gh" @("auth", "status")).Code -ne 0) { Problem "gh is not logged in (gh auth login)" -OnlineOnly }
     elseif ((Run "gh" @("release", "view", $tag, "--repo", $Repo, "--json", "tagName")).Code -eq 0) { Problem "GitHub release $tag already exists in $Repo (edit or delete it on GitHub)" -OnlineOnly }
@@ -234,7 +251,7 @@ if ($SkipSmoke) { Warn "-SkipSmoke: no launch of the packaged game" }
 elseif (-not $quakeOk) { Warn "no Quake folder with id1\pak0.pak (-QuakeDir or QVR_QUAKE_DIR): the packaged game's smoke launch is skipped" }
 
 $outBase = Join-Path $root "out\release"
-$outDir = Join-Path $outBase $Version
+$outDir = Join-Path $outBase "$Version$(if ($Local) { '-local' })"
 
 if ($problems.Count) { throw "$($problems.Count) problem(s) above: nothing was built or published" }
 
@@ -247,6 +264,7 @@ if ($DryRun) {
     Say "checks         statics, QC precedence, FGD, installer self-tests, latest.json, packaged installer (install harness), smoke launch$(if (-not $quakeOk -or $SkipSmoke) { ' (skipped)' })"
     Say "assets         QuakeVR.zip, QuakeVR-Setup.exe, latest.json, SHA256SUMS.txt$(if ($Textures) { ', ' + (Split-Path -Leaf $Textures) })$(if ($EricwSource) { ', ' + (Split-Path -Leaf $EricwSource) })$(foreach ($a in $Assets) { ', ' + (Split-Path -Leaf $a) })"
     Say "tag            $tag on $short$(if ($online) { ", pushed to $remote" } else { ' (only with -Publish or -PushTag)' })"
+    if ($Local) { Say "local test     latest.json -> $($UrlBase -join ', ')$(if ($RunInstaller) { '; then the server and QuakeVR-Setup.exe in a sandbox' })" }
     Say "release        $(if ($Publish) { "gh release create $tag --repo $Repo$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' })" } else { 'none (-Publish creates it)' })"
     $list = & (Join-Path $root "Windows\package-quakevr.ps1") -DryRun
     Say "package        $(@($list).Count) files (Windows\package-quakevr.ps1 -DryRun lists them)"
@@ -316,6 +334,14 @@ if (-not $setupVersion.StartsWith($Version)) { throw "QuakeVR-Setup.exe's versio
 Say "$setup ($(Size (Get-Item $setup).Length), version $setupVersion)"
 # The rest of the solution (qvr-setup, the self-tests) in Release, for the checks below (warnings are errors).
 Invoke-Logged "dotnet" @("build", "QuakeVR.Installer.sln", "-c", "Release", "-p:Version=$Version", "-nologo") (Join-Path $logs "installer_build.log") $installerDir | Out-Null
+if ($Local) {
+    # This build's qvr-setup beside the release: test_local_release.ps1 serves the assets with it ("qvr-setup serve").
+    $cliBin = Join-Path $installerDir "src\QuakeVR.Installer.Cli\bin\Release\net9.0-windows"
+    $tools = Join-Path $outDir "tools\qvr-setup"
+    New-Item -ItemType Directory -Force $tools | Out-Null
+    Copy-Item (Join-Path $cliBin "*") $tools -Recurse -Force
+    Say "qvr-setup (the local server): $tools"
+}
 
 if ($SkipInstallerTests) { Warn "-SkipInstallerTests: the installer's self-tests were not run" }
 else {
@@ -487,23 +513,37 @@ $lines = @(
     "What to do:"
 )
 $n = 0
-if (-not $Publish) {
+if ($Local) {
+    $lines[0] = "Quake VR: Unleashed $Version LOCAL TEST release (commit $short): built, nothing published; its latest.json points at $($UrlBase -join ', ')"
+    $lines += @(
+        "  1. Test it: powershell -ExecutionPolicy Bypass -File Misc\release\test_local_release.ps1$(if ($Version -ne $fileVersion) { " -Version $Version" })",
+        "       (starts the local server on 127.0.0.1:$LocalPort in its own window, then QuakeVR-Setup.exe --feed http://127.0.0.1:$LocalPort/latest.json",
+        "        --sandbox %TEMP%\QuakeVR-test-$Version-<time>: the install, shortcuts and downloads stay in that folder; no Apps & Features entry)",
+        "  2. Never upload these assets: latest.json names 127.0.0.1. For the real release, run without -Local."
+    )
+}
+elseif (-not $Publish) {
     $lines += @(
         "  $((++$n)). Publish: run again with -Publish (tags $tag, pushes only the tag to $(if ($remote) { $remote } else { '<the upstream remote>' }), creates a draft release), or by hand:",
         "       git tag -a $tag -m ""$title"" $commit; git push $(if ($remote) { $remote } else { 'origin' }) refs/tags/$tag",
         "       $($quoted -replace '^', 'gh ')"
     )
 }
-if (-not $Publish -or $Draft) {
+if (-not $Local -and (-not $Publish -or $Draft)) {
     $lines += "  $((++$n)). Check the draft on https://github.com/$Repo/releases, then publish it (button, or: gh release edit $tag --repo $Repo --draft=false$(if (-not $prerelease) { ' --latest' })). Until it is published (and not a prerelease) https://github.com/$Repo/releases/latest/download/latest.json still serves the previous release."
 }
-$lines += @(
+if (-not $Local) { $lines += @(
     "  $((++$n)). Upload $assetsDir\latest.json to $siteFeed (the installer's second feed; same file as the release's asset).",
     "  $((++$n)). Check: qvr-setup feed --url https://github.com/$Repo/releases/latest/download/latest.json   and   --url $siteFeed",
     "             (dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url <...>: the version and the package's size)."
-)
+) }
 if ($warnings.Count) { $lines += @("", "Warnings:") + @($warnings | ForEach-Object { "  - $_" }) }
 $publishTxt = Join-Path $outDir "PUBLISH.txt"
 [System.IO.File]::WriteAllText($publishTxt, (($lines -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding $false))
 Step "Done ($publishTxt)"
 $lines | ForEach-Object { Say $_ }
+
+if ($RunInstaller) {
+    Step "Local test: the server and the installer (test_local_release.ps1)"
+    & (Join-Path $PSScriptRoot "test_local_release.ps1") -Release $outDir
+}

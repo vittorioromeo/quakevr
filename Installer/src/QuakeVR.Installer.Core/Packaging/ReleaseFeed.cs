@@ -124,6 +124,17 @@ public sealed class InstallerSettings
         "https://downloads.sourceforge.net/project/vispatch/vispatch%20data/1.0/{file}",
     ];
 
+    /// <summary>The environment variable that points the installer (window and qvr-setup) at another feed, like
+    /// <c>--feed</c>: one URL, or several separated by ';' (Misc\release\test_local_release.ps1's local server).</summary>
+    public const string FeedEnvVar = "QVR_SETUP_FEED";
+
+    /// <summary>The feeds <see cref="FeedEnvVar"/> names (none when it is unset).</summary>
+    public static List<string> FeedsFromEnvironment() =>
+        [.. (Environment.GetEnvironmentVariable(FeedEnvVar) ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+
+    /// <summary>The release hosts' own feeds (a build that reads any other is a test: the window says so).</summary>
+    public bool HasDefaultFeeds => FeedUrls.SequenceEqual(new InstallerSettings().FeedUrls, StringComparer.OrdinalIgnoreCase);
+
     public static InstallerSettings Load(string? path)
     {
         if (path is null || !File.Exists(path))

@@ -176,6 +176,12 @@
                 <v:DonePage skin:Fx.Enter="True" Visibility="{Binding IsDone, Converter={StaticResource BoolToVis}}" />
                 <v:SupportPage skin:Fx.Enter="True" Visibility="{Binding IsSupport, Converter={StaticResource BoolToVis}}" />
             </Grid>
+            <!-- A test run (another feed, a sandbox) says so on every page, so it is never taken for a real install. -->
+            <Border VerticalAlignment="Top" Background="#FFE8C020" BorderBrush="#FF1A1208" BorderThickness="0,0,0,2" Padding="12,3"
+                    Panel.ZIndex="10" Visibility="{Binding ShowTestBanner, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding TestBanner}" Foreground="#FF140E06" FontWeight="Bold" FontSize="12.5"
+                           TextTrimming="CharacterEllipsis" ToolTip="{Binding TestBanner}" />
+            </Border>
             <Grid Grid.Row="1">
                 <Rectangle Fill="{DynamicResource SkinPlateBrush}" />
                 <Rectangle Fill="#D60A0806" />

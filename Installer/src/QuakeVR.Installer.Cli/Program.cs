@@ -10,17 +10,23 @@ using QuakeVR.Installer.Core.Shortcuts;
 const string Usage = """
     qvr-setup detect [--qvr <dir>] [--epic-manifests <dir>]
     qvr-setup manifest <package folder> --version <text>
-    qvr-setup install --package <zip|folder> --target <dir> [--quake <dir>] [--shortcuts-dir <dir>]
+    qvr-setup install (--package <zip|folder> | --feed <latest.json url> [--hd] [--downloads <dir>])
+                      (--target <dir> [--shortcuts-dir <dir>] | --sandbox <dir>) [--quake <dir>]
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
                       [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register] --accept-statement
+                      (--feed: the package, and with --hd the HD textures, downloaded as the window does; QVR_SETUP_FEED
+                       is the default feed. --sandbox: <dir>\QuakeVR, shortcuts in <dir>\_shortcuts, downloads in <dir>\_downloads)
     qvr-setup statement                              (prints the author's statement on AI usage; install needs --accept-statement)
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
     qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--file <vc_redist.x64.exe>] [--assume-missing]] [--downloads <dir>]
     qvr-setup download --url <url> [--url <mirror>...] --out <file> [--size <bytes>] [--sha256 <hex>]
-    qvr-setup feed --url <latest.json url>
+    qvr-setup feed [--url <latest.json url>]                  (default: QVR_SETUP_FEED, else the release hosts' feeds)
     qvr-setup feed --file <latest.json> [--assets <folder with its files>]   (exit 1 when a file's size or SHA-256 differs)
     qvr-setup assets --game <id1 folder> [--map <maps/x.bsp>] [--prefix <path prefix>]
+    qvr-setup serve --dir <folder> [--port <n>] [--drop-after <bytes>] [--minutes <n>]
+                    (a local release's assets over HTTP on 127.0.0.1, with Range; --drop-after cuts each file's first
+                     download there, to test resuming; runs until Ctrl+C or --minutes)
     """;
 
 if (args.Length == 0)
@@ -52,6 +58,24 @@ string? Opt(string key) => options.TryGetValue(key, out var v) ? v[^1] : null;
 bool Flag(string key) => options.ContainsKey(key);
 // The Apps & Features entry: a made-up registry root in a JSON file (tests), the real HKCU only with --register.
 IRegistryWriter? Registry() => Opt("registry-file") is { } rf ? new JsonFileRegistry(rf) : Flag("register") ? new WindowsRegistryWriter() : null;
+// --url/--feed (repeatable), else QVR_SETUP_FEED, else the release hosts' feeds.
+List<Uri> Feeds(string key)
+{
+    var list = options.TryGetValue(key, out var given) ? given.Where(u => u.Length > 0).ToList() : [];
+    if (list.Count == 0)
+    {
+        list = InstallerSettings.FeedsFromEnvironment();
+    }
+    if (list.Count == 0)
+    {
+        list = new InstallerSettings().FeedUrls;
+    }
+    else if (!list.SequenceEqual(new InstallerSettings().FeedUrls, StringComparer.OrdinalIgnoreCase))
+    {
+        Console.WriteLine($"TEST FEED: {string.Join(", ", list)}");
+    }
+    return [.. list.Select(u => new Uri(u))];
+}
 
 var log = new SyncProgress<InstallProgress>(p =>
 {
@@ -97,23 +121,65 @@ try
             var probe = new WindowsSystemProbe();
             var quake = Opt("quake") ?? DetectionReport.Run(probe).DefaultQuake?.BaseDir
                 ?? throw new InstallException("No Quake found: pass --quake <folder with id1>.");
-            var target = Opt("target") ?? throw new ArgumentException("--target is required");
+            var sandbox = Opt("sandbox") is { } sb ? new Sandbox(sb) : null;
+            if (sandbox is not null && Flag("register"))
+            {
+                throw new ArgumentException("--sandbox never writes the Apps & Features entry: no --register");
+            }
+            if (sandbox is not null)
+            {
+                Console.WriteLine($"SANDBOX: {sandbox.Root}");
+            }
+            var target = Opt("target") ?? sandbox?.Target ?? throw new ArgumentException("--target (or --sandbox) is required");
             if (InstallEngine.ValidateTarget(target, quake, probe) is { } why)
             {
                 throw new InstallException(why);
             }
-            var shortcutsDir = Opt("shortcuts-dir");
+            var shortcutsDir = Opt("shortcuts-dir") ?? sandbox?.ShortcutsDir;
+            var package = Opt("package");
+            var textures = Opt("textures");
+            if (package is null)
+            {
+                // The window's path: latest.json from the feed, then the files it names (Range resume, size, SHA-256).
+                if (!options.ContainsKey("feed") && InstallerSettings.FeedsFromEnvironment().Count == 0)
+                {
+                    throw new ArgumentException("--package or --feed is required");
+                }
+                using var http = Downloader.CreateClient();
+                var feed = await ReleaseFeed.FetchAsync(http, Feeds("feed"), CancellationToken.None);
+                var downloads = Opt("downloads") ?? sandbox?.Downloads
+                    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QuakeVR-Installer", "downloads");
+                async Task<string> Fetch(string what, FeedFile file)
+                {
+                    var dest = Path.Combine(downloads, Path.GetFileName(file.File));
+                    Console.WriteLine($"downloading {what} {feed.Version} ({PathUtil.FormatSize(file.Size)}) from {file.Urls[0]}");
+                    await new Downloader(http).DownloadAsync(file.Mirrors, dest, file.Size, file.Sha256,
+                        new SyncProgress<DownloadProgress>(p => Console.Write($"\r  {p.Source}: {PathUtil.FormatSize(p.Received)} / {PathUtil.FormatSize(p.Total ?? file.Size)}   ")),
+                        CancellationToken.None);
+                    Console.WriteLine($"\r  {dest}: downloaded and checked (SHA-256)          ");
+                    return dest;
+                }
+                package = await Fetch("Quake VR", feed.Package ?? throw new InstallException("the feed names no package"));
+                if (Flag("hd") && textures is null)
+                {
+                    textures = feed.Components.GetValueOrDefault("hdtextures") is { } hd ? await Fetch("HD textures", hd) : null;
+                    if (textures is null)
+                    {
+                        Console.WriteLine("warning: the feed has no hdtextures component: no HD textures");
+                    }
+                }
+            }
             var owned = ExpansionDetector.Detect([quake, target], [])
                 .Where(e => e.Folder is "hipnotic" or "rogue" && e.State == ExpansionState.Ready).Select(e => e.Folder).ToList();
             var plan = new InstallPlan
             {
-                PackagePath = Opt("package") ?? throw new ArgumentException("--package is required"),
+                PackagePath = package,
                 TargetDir = target,
                 QuakeDir = quake,
                 QuakeStore = "manual",
                 AllowUnverified = Flag("unverified"),
                 RelightOnFirstRun = Flag("relight"),
-                HdTexturesZip = Opt("textures"),
+                HdTexturesZip = textures,
                 VisPatchArchives = options.TryGetValue("vispatch", out var vis) ? vis : [],
                 OwnedPacks = owned,
                 SetupFiles = Opt("setup-from") is { } setupExe ? SetupCopy.FilesOf(setupExe, SetupCopy.IsSingleFile(setupExe)) : [],
@@ -198,7 +264,7 @@ try
             else
             {
                 using var http = Downloader.CreateClient();
-                feed = await ReleaseFeed.FetchAsync(http, (options.TryGetValue("url", out var urls) ? urls : []).Select(u => new Uri(u)), CancellationToken.None);
+                feed = await ReleaseFeed.FetchAsync(http, Feeds("url"), CancellationToken.None);
             }
             Console.WriteLine($"version {feed.Version}; package {feed.Package?.File} {PathUtil.FormatSize(feed.Package?.Size ?? 0)}; components: {string.Join(", ", feed.Components.Keys)}");
             if (Opt("assets") is { } assetsDir)
@@ -241,6 +307,32 @@ try
             }
             return 0;
         }
+        case "serve":
+        {
+            // A local release's assets (make_release.ps1 -Local) for the installer's real download path; 127.0.0.1 only.
+            var dir = Opt("dir") ?? positional.FirstOrDefault() ?? throw new ArgumentException("--dir <folder> is required");
+            using var server = new LocalFeedServer(dir, Opt("port") is { } port ? int.Parse(port) : 0,
+                line => Console.WriteLine($"{DateTime.Now:HH:mm:ss} {line}"))
+            {
+                DropAfter = Opt("drop-after") is { } drop ? long.Parse(drop) : null,
+            };
+            Console.WriteLine($"serving {Path.GetFullPath(dir)} on {server.Url()} (feed: {server.Url("latest.json")}); Ctrl+C stops");
+            using var stop = new CancellationTokenSource();
+            Console.CancelKeyPress += (_, e) =>
+            {
+                e.Cancel = true;
+                stop.Cancel();
+            };
+            try
+            {
+                await Task.Delay(Opt("minutes") is { } m ? TimeSpan.FromMinutes(double.Parse(m, System.Globalization.CultureInfo.InvariantCulture)) : Timeout.InfiniteTimeSpan, stop.Token);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            Console.WriteLine($"stopped: {server.Requests} requests, {server.RangeRequests} with Range, {server.Drops} cut");
+            return 0;
+        }
         case "shortcut-args":
         {
             Console.WriteLine(LaunchCommand.Arguments(Opt("quake") ?? "", Opt("qvr") ?? "", LaunchVariant.Vr));
@@ -251,7 +343,7 @@ try
             return 2;
     }
 }
-catch (Exception e) when (e is InstallException or ArgumentException or IOException or InvalidDataException or UnauthorizedAccessException)
+catch (Exception e) when (e is InstallException or ArgumentException or IOException or InvalidDataException or UnauthorizedAccessException or HttpRequestException or FormatException)
 {
     Console.Error.WriteLine($"error: {e.Message}");
     return 1;

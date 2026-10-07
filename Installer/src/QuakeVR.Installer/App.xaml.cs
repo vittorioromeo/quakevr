@@ -37,12 +37,17 @@ public partial class App
         if (!options.Silent)
         {
             var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            UiSounds.Start(local.Length > 0 ? Path.Combine(local, "QuakeVR-Installer", "ui.json") : null);
+            UiSounds.Start(options.Sandbox is { } sb ? Path.Combine(sb.InstallerData, "ui.json")
+                : local.Length > 0 ? Path.Combine(local, "QuakeVR-Installer", "ui.json") : null);
         }
         var vm = new MainViewModel(new WindowsSystemProbe(), options);
         // The skin (and the sounds) come from the player's Quake as soon as one is known.
         vm.QuakeChosen += q => _ = SkinLoader.LoadFromQuakeAsync(q, sounds: !options.Silent);
         var window = new MainWindow { DataContext = vm };
+        if (vm.ShowTestBanner)
+        {
+            window.Title = "[TEST] " + window.Title;
+        }
         MainWindow = window;
         FrameClock.Attach(window);
         window.Show();

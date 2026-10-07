@@ -69,6 +69,10 @@ public sealed class StartupOptions
     public bool FromTemp { get; set; }
     /// <summary>The Apps &amp; Features entry goes into this made-up registry root (a JSON file) instead of HKCU (tests).</summary>
     public string? RegistryFile { get; set; }
+    /// <summary>--sandbox &lt;dir&gt;: a test install kept in that folder (<see cref="Core.Packaging.Sandbox"/>): the
+    /// install, shortcuts, downloads and the installer's settings go there, no Apps &amp; Features entry, the VC++ runtime
+    /// only checked.</summary>
+    public Sandbox? Sandbox { get; set; }
 
     /// <summary>The arguments an uninstall passes on to its copy in %TEMP%.</summary>
     public List<string> UninstallArguments(string target)
@@ -111,7 +115,20 @@ public sealed class StartupOptions
                 case "--quiet": o.Quiet = true; break;
                 case "--from-temp": o.FromTemp = true; break;
                 case "--registry-file": o.RegistryFile = Next(); break;
+                case "--sandbox": if (Next() is { } sb) { o.Sandbox = new Sandbox(sb); } break;
             }
+        }
+        // QVR_SETUP_FEED, like --feed (a local test release's server); --feed wins.
+        if (o.Feeds.Count == 0)
+        {
+            o.Feeds.AddRange(InstallerSettings.FeedsFromEnvironment());
+        }
+        if (o.Sandbox is { } sandbox)
+        {
+            o.Target ??= sandbox.Target;
+            o.ShortcutsDir ??= sandbox.ShortcutsDir;
+            o.Downloads ??= sandbox.Downloads;
+            o.VcRedistDryRun = true;
         }
         o.Package = o.Package is { } pk ? PathUtil.TryNormalize(pk) ?? pk : null;
         o.Textures = o.Textures is { } tx ? PathUtil.TryNormalize(tx) ?? tx : null;
@@ -226,6 +243,16 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<StepItem> Steps { get; }
     public string InstallerVersion => $"Installer {typeof(MainViewModel).Assembly.GetName().Version?.ToString(3)}";
+
+    /// <summary>A test run says so on every page: another feed than the release hosts' (--feed, QVR_SETUP_FEED,
+    /// installer-settings.json), a sandbox. Null for a real install.</summary>
+    public string? TestBanner =>
+        string.Join("   ·   ", new[]
+        {
+            _settings.HasDefaultFeeds ? null : $"TEST FEED: {string.Join(", ", _settings.FeedUrls)}",
+            _options.Sandbox is { } sb ? $"SANDBOX: {sb.Root}" : null,
+        }.OfType<string>()) is { Length: > 0 } text ? text : null;
+    public bool ShowTestBanner => TestBanner is not null;
     public string DefaultInstallDir { get; }
 
     public Page Page
@@ -385,7 +412,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The Apps &amp; Features entry's registry: a made-up root (--registry-file), the real HKCU for a real install,
     /// none for test installs (--shortcuts-dir) and the screenshot harness.</summary>
     public static IRegistryWriter? RegistryFor(StartupOptions o) =>
-        o.RegistryFile is { } f ? new JsonFileRegistry(f) : o.Screenshots is null && o.ShortcutsDir is null ? new WindowsRegistryWriter() : null;
+        o.RegistryFile is { } f ? new JsonFileRegistry(f) : o.Screenshots is null && o.ShortcutsDir is null && o.Sandbox is null ? new WindowsRegistryWriter() : null;
 
     /// <summary>This Setup's own files, for its copy in the install (SetupCopy).</summary>
     // IL3000 (the single-file publish's analyser): an empty Location is exactly the test here, "am I a single file?".
