@@ -238,7 +238,7 @@ void turn(float x)
         else if(snapTurnArmed && za::fabs(x) > 0.7f)
         {
             snapTurnArmed = false;
-            hands::addTurn(x > 0.f ? -vr_snap_turn.value : vr_snap_turn.value);
+            hands::stickTurn(x > 0.f ? -vr_snap_turn.value : vr_snap_turn.value, true);
             comfortMotion.snapPulse = 0.3f;
         }
     }
@@ -246,7 +246,7 @@ void turn(float x)
     {
         comfortMotion.turn = za::min(1.f, za::fabs(v));
         // (In slow motion at its real-time speed with vr_timescale_turn_realtime or Sandevistan.)
-        hands::addTurn(-v * static_cast<float>(host_frametime) * timescale::turnSpeedup() * 100.f * vr_turn_speed.value);
+        hands::stickTurn(-v * static_cast<float>(host_frametime) * timescale::turnSpeedup() * 100.f * vr_turn_speed.value, false);
     }
 }
 

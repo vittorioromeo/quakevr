@@ -1224,6 +1224,9 @@ prop to lay the rope over). The kit's `scratch/hook/run_all.sh` runs the 18 scen
 Leaning (round 21): `vr_mock_hand head <x> <y> <z> <pitch> <yaw> <roll>` and `vr_mock_play` head keyframes with angles
 turn the head too (pitch up, roll as the hands'); `vr_debug_lean 1` writes `lean_trace.txt` (the game directory): the
 head, the box, the lean, the pelvis, the feet and the lean's hold and cues, every frame.
+Leaning through stick turns (ROUND21.md, the section of that name): `bash Misc/quakevr/lean/lean_turn_test.sh <agent> ["0 2"] [cases]`
+prints the body's drift in the room (`vr_body_error`) after a lean, a turn or move, and straightening up; with
+`vr_lean_turn 2` about 1 cm at most throughout, 0 after. `vr_debug_body_error 1` logs it twice a second.
 Body calibration (ROUND21.md, "Body calibration"): `vr_bodycal standing` runs it in the mock too. A synthetic person
 doing its poses is a take of raw tracking played alongside: `vr_motion_play <take> watch noplace`, then
 `vr_bodycal standing` in the same frame (the scratchpad's `bodycal/gentake.py` makes them); `vr_bodycal_print`

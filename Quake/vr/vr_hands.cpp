@@ -389,6 +389,60 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
     }
 }
 
+// Body drift (vr_debug_body_error, vr_body_error): where the game has the body's box (the feet) in the room, in metres
+// on Quake's axes (x forward, y left) of the play space unturned, and which way the torso faces there (degrees): the
+// head as tracked less the lean, turned back by the play space's turn. A player standing still in the room keeps both
+// whatever the stick does; the mark is where they were.
+struct BodyDrift
+{
+    bool marked{false};
+    glm::vec2 pos{0.f};
+    float yaw{0.f};
+    bool logging{false};
+    double nextPrint{0.0};
+};
+
+BodyDrift bodyDrift;
+
+[[nodiscard]] glm::vec2 bodyInRoom(const TrackingState& t, float m2u)
+{
+    const glm::vec3 head = quakeFromTracking(glm::vec3{t.head.position.x, 0.f, t.head.position.z});
+    const glm::vec3 leanRoom = rotateYaw(lean, -turnYaw) / (m2u * za::max(0.1f, vr_roomscale_move_mult.value));
+    return glm::vec2{head.x - leanRoom.x, head.y - leanRoom.y};
+}
+
+[[nodiscard]] float bodyYawInRoom()
+{
+    return za::remainder(state.bodyYaw - turnYaw, 360.f);
+}
+
+void markBodyDrift()
+{
+    bodyDrift.marked = true;
+    bodyDrift.pos = bodyInRoom(tracking(), units::metresToUnits());
+    bodyDrift.yaw = bodyYawInRoom();
+}
+
+void printBodyDrift(const char* label)
+{
+    if(!vrActive() || !state.valid)
+    {
+        Con_Printf("body error: no headset\n");
+        return;
+    }
+    if(!bodyDrift.marked)
+    {
+        markBodyDrift();
+    }
+    const float m2u = units::metresToUnits();
+    const glm::vec2 off = (bodyInRoom(tracking(), m2u) - bodyDrift.pos) * 100.f;
+    const float yawOff = za::remainder(bodyYawInRoom() - bodyDrift.yaw, 360.f);
+    // The lean in the body's frame (cm forward, left of the torso).
+    const glm::vec3 leanBody = rotateYaw(lean, -state.bodyYaw) * (100.f / m2u);
+    Con_Printf("body error%s%s (t %.2f): pos %.1f cm (fwd %.1f left %.1f) yaw %.1f; lean fwd %.1f left %.1f cm, hold %.2f\n",
+        *label ? " " : "", label, vr_gametime, glm::length(off), off.x, off.y, yawOff, leanBody.x, leanBody.y, state.leanHold);
+}
+
 // A controller's spin (tracking space, rad/s) from its turn since its previous sample (vr_throw_spin_from_pose): what
 // its orientation did, whatever frame the runtime gives its angular velocity in (VirtualDesktopXR: the controller's
 // own, not the tracking space's). Kept within a frame resampled at the same time; none after a gap of over 0.1 s.
@@ -728,6 +782,26 @@ void update()
     twohand::updateHotspots(state); // a carried gun's handle
 
     state.valid = true;
+
+    // Body drift's log (vr_debug_body_error): marked where the body is when turned on.
+    if(vr_debug_body_error.value && vrActive())
+    {
+        if(!bodyDrift.logging || !bodyDrift.marked)
+        {
+            markBodyDrift();
+            bodyDrift.nextPrint = vr_gametime;
+        }
+        bodyDrift.logging = true;
+        if(vr_gametime >= bodyDrift.nextPrint)
+        {
+            bodyDrift.nextPrint = vr_gametime + 0.5;
+            printBodyDrift("");
+        }
+    }
+    else
+    {
+        bodyDrift.logging = false;
+    }
 }
 
 } // namespace
@@ -798,9 +872,59 @@ void addTurn(float degrees)
     stateFrame = -1;
 }
 
+// A stick turn (vr_lean_turn). The play space turns about the head (the view stays where it is), so the real body, a
+// lean behind the head, swings round it: the lean (the head off the box's middle, kept in the world's axes) turns with
+// the play space, and the box goes where the body now stands -- for a smooth turn (vr_lean_turn 2), where the box fits
+// and has floor under it (sent as room-scale walking, as the body following a step is); else, and for a snap (the view
+// jumps anyway), the head swings round the body instead, which stays where it stands. Not turned, the lean pointed the
+// way it did in the world before the turn: the drawn body leant off its own forward (backwards, after a half turn) and
+// stood off where the real one is, and straightening up made it walk or slide to catch up. The lean's learnt hands
+// (LeanSense) are off the box's middle in the world's axes too, and turn the same.
+void stickTurn(float degrees, bool snap)
+{
+    const int mode = static_cast<int>(vr_lean_turn.value);
+    if(mode > 0 && vrActive())
+    {
+        const glm::vec3 turned = rotateYaw(lean, degrees);
+        const glm::vec3 swing = lean - turned; // the box's move to keep the head where it is
+        if(mode >= 2 && !snap && lastBodyValid && glm::length(swing) > 1e-3f && !noclip_anglehack)
+        {
+            // As the body sliding back under the head: not into a wall, nor off a ledge (leant out over a drop and
+            // turning, the body would swing out over it).
+            const glm::vec3 from = lastBody + roomscaleMove;
+            const glm::vec3 to = from + swing;
+            if(worldtrace::playerBoxFits(from, to) && worldtrace::line(to, to - glm::vec3{0.f, 0.f, 48.f}) < 1.f)
+            {
+                roomscaleMove += swing;
+            }
+        }
+        lean = turned;
+        if(leanSense.handsRefValid)
+        {
+            const glm::vec3 ref = rotateYaw(glm::vec3{leanSense.handsRef, 0.f}, degrees);
+            leanSense.handsRef = glm::vec2{ref.x, ref.y};
+        }
+    }
+    addTurn(degrees);
+}
+
 float playSpaceYaw()
 {
     return turnYaw;
+}
+
+void bodyError_f()
+{
+    if(Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "mark"))
+    {
+        if(vrActive() && state.valid)
+        {
+            markBodyDrift();
+        }
+        printBodyDrift("mark");
+        return;
+    }
+    printBodyDrift(Cmd_Argc() >= 2 ? Cmd_Argv(1) : "");
 }
 
 void recenter_f()

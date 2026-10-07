@@ -129,7 +129,13 @@ void portalCrossing(float yawDegrees);
 
 // Turns the play space (thumbstick turning), in degrees, positive to the left.
 void addTurn(float degrees);
+// A turn of the turning stick (smooth, or a snap): the play space's, and the lean kept on the body (vr_lean_turn).
+void stickTurn(float degrees, bool snap);
 [[nodiscard]] float playSpaceYaw();
+
+// vr_body_error [mark|label]: where the game has the body (its box, the feet) in the room and which way it faces there,
+// against the mark (vr_debug_body_error logs it).
+void bodyError_f();
 
 // Motion playback (vr_motion_play.cpp): the play space's turn as a take had it (a pending server yaw
 // dropped), and the head's lean off the box's middle (world units, horizontal).

@@ -132,6 +132,8 @@
         slider("Lean", "vr_lean_radius", 0.f, 14.f, 1.f, "%.0f units").extend().help("How far your head may lean off the middle of your body's box before the body follows: get your face near walls and over railings. 0: the body always under the head."),
         slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").extend().help("How fast the body slides back under your head when it can (not into walls, not over ledges), at least; with Lean Detection, faster the further off it is, and not while you lean. 0: never."),
         slider("Lean Detection", "vr_lean_detect", 0.f, 2.f, 0.1f, "%.1fx").help("Tells a lean from walking in the room. Leaning (your head lower and tilted the way you lean, your hands left by your hips), your feet and hips stay where you stand and your back tilts; walking, the body follows your head. 0: off, the body always slides back under your head; higher: more readily a lean."),
+        cycle("Lean on Turns", vr_lean_turn, {{0.f, "Off"}, {1.f, "Round the Body"}, {2.f, "Round the Head"}})
+            .help("Turning with the stick while you lean keeps the lean on your body: the game's body stays where your real one stands. Round the Head: smooth turns keep your view where it is and swing the body round under it (where it fits), snap turns swing your head round the body. Round the Body: every turn swings your head round the body. Off: the old way (the body ended up leaning the wrong way, or off to a side, until it slid back)."),
         header("Room Scale"),
         slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.2f, 5.f)
             .help("How far walking in your room moves you in the game (1: as far)."),

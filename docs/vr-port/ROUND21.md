@@ -29077,3 +29077,45 @@ lectern, the tutorial: `vr_debug_wallbuttons` "pressed by player: hand 1", as on
 barrel spawned upright and lying in e1m1, pushed by the hand (it rolled); the load (exclusive, 4 runs each, alternating): cold (a
 new process, the hull files there) 1163 -> 1183 ms median (1138-1212 against 1162-1209), warm (the map again, the same
 process) 283 -> 286 ms; the hull files load in 6 ms (were 8).
+
+## Leaning through stick turns: the body kept on the real one (2026-10-07)
+
+Report: leaning, then turning or moving with the stick, put the game's body out of step with the real one.
+
+**Cause.** The lean (`hands::lean`, the head off the middle of the player's box, vr_hands.cpp) is kept in the world's
+axes, and a stick turn turns the play space about the head (`addTurn`): the head stays, the box stays, the lean stays
+pointing where it did in the world. The real body, though, is a lean behind the head in the room, so it swings round
+the head with the play space. After a half turn leaning forward 24 cm, the game had the body 49 cm off the real one
+(in front of the head instead of behind it): the drawn body leant backwards, its arms reaching back to the hands, the
+holsters and anchors off with it; straightening up, the head went "further out", the body walked or slid after it
+(about 2 s, vr_lean_recenter), and against a wall or a ledge it never came back (25 cm for good). The lean's learnt
+hands (`LeanSense::handsRef`, also in the world's axes) were turned wrong too. Stick movement alone was fine (the box
+moves, the lean is relative to it); the torso's yaw is kept in play-space degrees and was fine.
+
+**Fix (vr_lean_turn, default 2).** Stick turns go through `hands::stickTurn`: the lean and the learnt hands turn with the
+play space. 2: a smooth turn keeps the head where it is and swings the box round under it (room-scale walking, where
+the box fits and has floor under it, the recentring's own checks); else, and for snaps (the view jumps anyway), the
+head swings round the body, which stays. 1: always round the body. 0: the old way. The portal crossing's turn keeps
+its own lean turn (`addTurn`, unchanged); server yaws (teleports, spawns) still reset the lean.
+
+**Measure.** `vr_body_error [mark]` and Debug > Views > Log Body Drift (`vr_debug_body_error`): where the game has the
+body (its box) in the room and which way it faces there, against the mark. Standing still in the room, it should stay
+near 0 whatever the stick does. `Misc/quakevr/lean/lean_turn_test.sh <agent>` (pos cm after the turn / straightened /
+2.5 s later):
+
+| case | vr_lean_turn 0 | vr_lean_turn 2 |
+|---|---|---|
+| lean fwd, smooth 180 | 48.9 / 25.4 / 0 | 1.1 / 1.1 / 0 |
+| lean fwd, smooth 90 | 34.3 / 25.4 / 0 | 1.1 / 1.1 / 0 |
+| lean fwd, snap 90 | 34.6 / 25.4 / 0 | 1.1 / 1.1 / 0 |
+| lean fwd, snap 2x90 | 48.9 / 25.4 / 0 | 1.1 / 1.1 / 0 |
+| lean right, smooth 180 | 43.1 / 25.4 / 0 | 0.8 / 0.8 / 0 |
+| lean fwd, stick move | 1.1 / 1.1 / 0 | 1.1 / 1.1 / 0 |
+| lean right, turn + move | 43.2 / 25.4 / 0 | 0.8 / 0.8 / 0 |
+| at a wall, lean to it, smooth 180 | 44.0 / 25.4 / **25.4** | 0 / 0 / 0 |
+
+The 1 cm left is the lean's first instants, walked before they are known as a lean (vr_lean_detect): head and hands
+alone can't tell a lean from a step at once. The head during a smooth 180 at the default speed with a 24 cm lean:
+mode 2 holds it within 1.5 units (the box's move reaches the server a frame later; it catches up when the turn stops),
+mode 1 swings it 15 units. Turning and moving into e1m1's walls turns the torso 6-11 degrees (the hands stopped at the
+wall pull it, `stopAtWall`), with or without a lean, in either mode: not the turn's.

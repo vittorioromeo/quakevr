@@ -4166,6 +4166,13 @@ za::Vector<Item> pageDebugViews()
                   "its pose and calibration without a mirror)."),
         command("Print Torso Direction", "vr_torso_report")
             .help("vr_torso_report: the head's yaw, the old and the new torso guesses, the hands' pull and weights."),
+        toggle("Log Body Drift", vr_debug_body_error)
+            .help("Twice a second in the console: how far the game's body (its feet) has drifted in your room since it was turned "
+                  "on (or marked), and how far its facing has turned, with your lean. Stand still in the room: leaning and "
+                  "turning or moving with the stick, both should stay near 0 (vr_body_error)."),
+        command("Mark Body Drift Here", "vr_body_error mark")
+            .help("vr_body_error mark: measure the body's drift from where it stands now (stand straight, your feet where they "
+                  "are to stay)."),
         cycle("Show Body Collisions", vr_debug_body_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
             .help("The drawn hands and weapons stopping at each other and the body: each contact printed (and "
                   "body_collide_trace.txt); drawn: the capsules and the pushes."),
