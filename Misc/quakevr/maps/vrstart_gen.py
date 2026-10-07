@@ -1535,7 +1535,7 @@ SETTINGS_NORTH = [[("TURNING", "turning"), ("TURN SPEED", "turnspeed"), ("MOVE" 
 SETTINGS_SOUTH = [[("BODY", "body"), ("HUD", "hud"), ("CROSSHAIR", "crosshair"), ("WEAPON GRIP", "grip"),
                    ("GADGET ARM", "gadget")],
                   [("TORCH SIDE", "torch"), ("WEAPON MODE", "holsters"), ("RELOADING", "reload"),
-                   ("TWO-HANDED" + N + "AIM", "twohand")]]
+                   ("TWO-HANDED" + N + "AIM", "twohand"), ("SWIMMING", "swim")]]
 
 
 def build_entities(mw):
