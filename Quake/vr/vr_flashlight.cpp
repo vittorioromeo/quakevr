@@ -1818,22 +1818,34 @@ void lightBeam(const Pose& p)
 
 // The retracting cord from the clip on the belt to the lamp's tail, while it is off the belt (vr_flashlight_cord 1): a
 // rusty low-poly iron chain (vr_coil.cpp; round 21, NOTES.md start_2026-10-03_02-19-12: Quake's look), its links paid
-// out of the clip, springy and sagging, swinging as the hand moves; drawn lit in the opaque scene (drawOpaque),
-// depth-tested. It leaves the clip where the torch hung (down along the stored torch) and goes into the tail cap.
+// out of the clip (2: a coiled cord, as an old telephone's, its turns opening out as it stretches; the same line,
+// springs and relaxed length), springy and sagging, swinging as the hand moves; drawn lit in the opaque scene
+// (drawOpaque), depth-tested. It leaves the clip where the torch hung (down along the stored torch) and goes into the tail cap.
 coil::Cord cord;
 
 void updateCord(const Pose& mount, const Pose& lamp)
 {
-    // A coiled cord's relaxed length; chunky links, each a hexagon of 4 mm square iron bar, 1.6 cm by 0.8 cm inside, its
-    // faces flat-shaded; dull iron rusting.
     coil::Style style;
-    style.length = 0.243f;
-    style.chain = true;
-    style.wireRadius = 0.002f;
-    style.linkLength = 0.016f;
-    style.linkWidth = 0.008f;
-    style.albedo = glm::vec3{0.2f, 0.19f, 0.175f};
-    style.rust = glm::vec3{0.3f, 0.13f, 0.05f};
+    if(vr_flashlight_cord.value == 2.f)
+    {
+        // Coiled: 64 turns of 3.8 mm dark wire, 1.3 cm across relaxed (its relaxed length the turns touching, 0.243 m).
+        style.turns = 64;
+        style.coilRadius = 0.0065f;
+        style.wireRadius = 0.0019f;
+        style.albedo = glm::vec3{0.14f, 0.14f, 0.135f};
+    }
+    else
+    {
+        // The chain: a coiled cord's relaxed length; chunky links, each a hexagon of 4 mm square iron bar, 1.6 cm by
+        // 0.8 cm inside, its faces flat-shaded; dull iron rusting.
+        style.length = 0.243f;
+        style.chain = true;
+        style.wireRadius = 0.002f;
+        style.linkLength = 0.016f;
+        style.linkWidth = 0.008f;
+        style.albedo = glm::vec3{0.2f, 0.19f, 0.175f};
+        style.rust = glm::vec3{0.3f, 0.13f, 0.05f};
+    }
     cord.update(modelPointAt(mount, shape().cap), glm::normalize(mount.rot * glm::vec3{1.f, 0.f, 0.f}),
         modelPointAt(lamp, shape().cap), glm::normalize(lamp.rot * glm::vec3{-1.f, 0.f, 0.f}), style);
 }

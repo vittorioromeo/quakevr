@@ -30034,3 +30034,26 @@ e1m1's smoke test.
   inside it. A magazine's seat slide is noted for later (RELOAD_PLAN.md).
 - Mock: `vr_mock_turn_velocity 1` (the hands' angular velocity from their turns). Tests: reload_test.sh sections 7 and 8
   (75 checks in all), the self-test 67 of 67.
+## Flashlight cord: the coiled cord back, as a choice (2026-10-07)
+
+The author: some people liked the coiled cord; restore it, not as the default. Branch `agent/coilcord`.
+
+- **Cord** (Body > Flashlight): None / Chain / Coiled, `vr_flashlight_cord` 0 / 1 / 2; the default stays 1 (the
+  low-poly chain, compiled and `vr_defaults.cfg`); no config migration (a config's 0 or 1 means what it did).
+- **Coiled** is the cord removed in 8b90a36d, as it was: `coil::Style::turns` (64) and `coilRadius` (6.5 mm) back,
+  the helix round the same simulated line in `Cord::build` (its turns keep their wire's length: stretched, they open
+  out and the coil narrows; tapered over 1.5 cm into each end), 3.8 mm dark wire (albedo 0.14), 8/6/4 segments a turn
+  and 6/5/4 sides by distance. Its line, springs, mass and relaxed length (0.243 m) are the chain's, so it hangs,
+  stretches and swings as the chain does; the clip, the flick turn-over and hand-to-hand passing move its ends as they
+  do the chain's. Like the chain it is drawn in the opaque scene only (neither casts a shadow). The chainsaw's starter
+  cord (turns 0, a plain cable) is unchanged.
+- Checked (mock, e1m1, torch in the left hand): `scratch/cord_compare.png` (chain relaxed / stretched over coiled
+  relaxed / stretched); coiled 513 rings x 6 sides (6.1k triangles) near, chain 405-459 rings x 4 sides; `vr_profile`
+  "flashlight cord" CPU 0.026-0.041 ms coiled vs 0.019-0.031 chain, the frame's GPU time the same (0.84-0.88 ms);
+  flick_test with Coiled flips as with the chain; flash_grab_test `all` with Coiled fails the same spots as with the
+  chain (mounted 6, returning 3: not the cord's).
+
+Checklist:
+
+- [ ] Body > Flashlight > Cord: None, Chain, Coiled; Chain the default. Coiled: springy, its turns opening as you pull
+  the torch away, sagging and swinging; flick the torch over and pass it hand to hand.

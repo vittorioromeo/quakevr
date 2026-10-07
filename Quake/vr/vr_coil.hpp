@@ -1,9 +1,11 @@
 // vr_coil.hpp -- a cord between two moving ends (the flashlight's, from the belt clip to the torch; the chainsaw's starter
-// cord), sagging under its own weight and swinging as the ends move, drawn as a plain cable or as a low-poly chain of
-// links along it, lit per vertex by the world's light and the dynamic lights, depth-tested in each eye's opaque scene.
+// cord), sagging under its own weight and swinging as the ends move, drawn as a plain cable, as a helix of wire round
+// it (a coiled cord, as an old telephone's) or as a low-poly chain of links along it, lit per vertex by the world's
+// light and the dynamic lights, depth-tested in each eye's opaque scene.
 //
 // The cord's line is a chain of masses and springs (both ends pinned, a short stub at each so that it leaves them
-// along their directions): stretched, it pulls straight with a little sag; slack, it droops. Everything in world units.
+// along their directions): stretched, it pulls straight with a little sag; slack, it droops. A coil keeps its wire's
+// length: stretched, its turns open out and it narrows, as a real one does. Everything in world units.
 
 #pragma once
 
@@ -22,9 +24,11 @@ namespace qvr::coil
 
 struct Style
 {
+    int turns{0};              // turns of a coiled cord (0: a plain cable or the chain)
+    float coilRadius{0.0065f}; // metres from the line to a coil's wire's middle, relaxed
     float wireRadius{0.0019f}; // metres, the wire's thickness / 2
     glm::vec3 albedo{0.1f};
-    float length{0.f}; // metres, the line's relaxed length (0: 128 wire radii, a coiled cord's of 64 turns touching)
+    float length{0.f}; // metres, the line's relaxed length (0: the coil's turns touching, at least 64)
     // A chain instead (round 21, the flashlight's: NOTES.md start_2026-10-03_02-19-12, Quake's look): links of square
     // bar along the same line, each a hexagon of wireRadius half-thickness, its faces flat-shaded (gfx::drawTube's
     // `flat`), the same at every distance, each turned a quarter round from the last, paid out of the first end (the

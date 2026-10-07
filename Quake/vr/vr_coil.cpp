@@ -13,6 +13,7 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 
 
 namespace qvr::coil
@@ -29,6 +30,7 @@ constexpr float airDamping = 1.5f;    // per second, against its swing relative 
 constexpr float springDamping = 20.f; // per second, along each spring (the wobble along it dies quickly)
 constexpr float gravity = 9.81f;      // metres per second squared
 constexpr float substep = 1.f / 300.f;
+constexpr float taper = 0.015f;       // metres over which a coil narrows to the wire's lead into each end
 constexpr float pi = 3.14159265f;
 
 // The springs between the stubs: that many, each relaxed at the cord's relaxed length over them.
@@ -40,8 +42,8 @@ float relaxedLength(const Style& style)
     {
         return style.length;
     }
-    // As long as a coiled cord of 64 turns touching relaxed: the wire's thickness a turn.
-    return 128.f * style.wireRadius;
+    // Turns touching: the wire's thickness a turn; a plain cable as long as a coiled one of 64 turns relaxed.
+    return static_cast<float>(za::max(style.turns, 64)) * 2.f * style.wireRadius;
 }
 
 glm::vec3 catmullRom(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, float t)
@@ -404,9 +406,18 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
         nearest = za::min(nearest, glm::distance(p, eye));
     }
     const float metres = nearest / m2u;
+    const int perTurn = metres < 0.6f ? 8 : metres < 1.2f ? 6 : 4;
     const int sidesAt = metres < 0.6f ? 6 : metres < 1.2f ? 5 : 4;
-    const int rings = za::max(static_cast<int>(line.size()) - 1, 1);
+    const bool coiled = style_.turns > 0 && !style_.chain;
+    const int turns = za::max(style_.turns, 1);
+    const int rings = coiled ? turns * perTurn : za::max(static_cast<int>(line.size()) - 1, 1);
     rings_ = rings + 1;
+
+    // A coil keeps its wire's length a turn: stretched, it opens out and narrows.
+    const float pitch = length / static_cast<float>(turns);
+    const float wireTurn = 2.f * pi * style_.coilRadius * m2u;
+    const float coilRadius =
+        coiled ? za::sqrt(za::max(wireTurn * wireTurn - pitch * pitch, 0.04f * wireTurn * wireTurn)) / (2.f * pi) : 0.f;
     const float wire = style_.wireRadius * m2u;
 
     // The light: the world's at three points along it, and the dynamic lights that reach it.
@@ -443,7 +454,7 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
         return true;
     }
 
-    // The rings: their middles on the line, the wire's direction and an axis across it, and the light reaching them
+    // The rings: their middles on the line (a coil's on the helix round it), the wire's direction and an axis across it, and the light reaching them
     // (the dynamic lights' summed, from their mean direction by strength). The GPU makes the wire round them and
     // shades it (gfx::drawTube).
     za::Vector<glm::vec3>& mid = scratch.mid;
@@ -466,8 +477,12 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
         const glm::vec3 t = glm::normalize(glm::mix(tangent[seg], tangent[seg + 1], f));
         glm::vec3 n = glm::mix(normal[seg], normal[seg + 1], f);
         n = glm::normalize(n - t * glm::dot(n, t));
-        radial[r] = n;
-        mid[r] = c;
+        const glm::vec3 b = glm::cross(t, n);
+        const float phi = 2.f * pi * static_cast<float>(turns) * u;
+        radial[r] = coiled ? za::cos(phi) * n + za::sin(phi) * b : n;
+        const float edge = za::min(s, length - s) / (taper * m2u);
+        const float narrow = coiled ? za::clamp(edge, 0.f, 1.f) : 0.f;
+        mid[r] = c + radial[r] * (coilRadius * narrow * narrow * (3.f - 2.f * narrow));
 
         gfx::TubeRing& ring = out[r];
         const float w = u * 2.f;
@@ -480,7 +495,8 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
     }
     for(int r = 0; r <= rings; r++)
     {
-        // The wire's own direction, and an axis across it.
+        // The wire's own direction (a coil's along the helix), and an axis across it (a coil's from the line out to
+        // the wire).
         const glm::vec3 t = glm::normalize(mid[za::min(r + 1, rings)] - mid[za::max(r - 1, 0)]);
         glm::vec3 e = radial[r] - t * glm::dot(radial[r], t);
         e = glm::length(e) > 1e-6f ? glm::normalize(e) : anyPerpendicular(t);
