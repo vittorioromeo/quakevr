@@ -18,6 +18,9 @@
 #                 crackling fizz), and its ticks, faster and faster until it goes off
 #   grenade_pouch.wav, grenade_pin.wav  hand grenades (QC vr_grenade.qc): one taken from the pouch or put back (the
 #                 leather's rustle and flap, iron knocking on iron), and its pin pulled (a rasp, then the ring's ping)
+#   reload_pouch.wav, reload_shell_in.wav, reload_empty.wav  immersive reloading (QC vr_reload.qc): a shell taken from
+#                 the front ammo pouch or put back (a dry rustle, shells knocking), one pushed into the shotgun's port (a
+#                 plastic scrape, the latch's steel click), and the pouch found empty (soft pats on flat leather)
 #   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
 #                 its holder (a wooden scrape and a knock), its fire going out (a puff and a hiss), fire catching (a
 #                 whoosh and crackles), a burning torch's blow (a burst of flame)
@@ -686,6 +689,78 @@ def grenade_pin():
     return finish(out, 0.8)
 
 
+# ---- Immersive reloading (QC vr_reload.qc; docs/vr-port/RELOAD_PLAN.md) --------------------------------------------
+
+
+def reload_pouch():
+    """A shell taken out of the front ammo pouch (or put back): fingers in the leather (a short dry rustle, lighter than
+    the grenade pouch's), the shells in it knocking together (two small plastic tocks with a brass tick on them)."""
+    rng = random.Random(611)
+    n = int(RATE * 0.24)
+    lp1, hp1 = OnePole(3000), OnePole(600)
+    tock_lp = OnePole(2400)
+    table = ((2950, 0.5, 0.012), (4630, 0.35, 0.008), (6210, 0.2, 0.005))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        band = lp1(noise)
+        band -= hp1(band)
+        swell = sum(a * math.exp(-((t - c) / w) ** 2) for c, a, w in ((0.015, 0.7, 0.01), (0.05, 1.0, 0.016)))
+        clicks = 0.0
+        for at, a, p in ((0.045, 1.0, 1.0), (0.085, 0.6, 1.13)):
+            tc = t - at
+            if tc >= 0:
+                # A plastic tock (filtered noise burst, very short) and the brass heads' tick.
+                tock = rng.uniform(-1, 1) * math.exp(-tc / 0.004)
+                clicks += a * (tock * 0.8 + partials(tc, p, table) * min(1.0, tc / 0.0003))
+        out.append(math.tanh(band * swell * 1.3 + tock_lp(clicks) * 0.6 + clicks * 0.5))
+    return finish(out, 0.75)
+
+
+def reload_shell_in():
+    """A shell pushed into the shotgun's loading port: the hull sliding past the lifter (a short plastic scrape,
+    rising), then the shell latch snapping over its rim (a sharp steel click with a short ring) and the spring's thump."""
+    rng = random.Random(613)
+    n = int(RATE * 0.26)
+    scrape_lp, scrape_hp = OnePole(5200), OnePole(1400)
+    table = ((3380, 0.9, 0.018), (5140, 0.55, 0.011), (7020, 0.3, 0.007), (1870, 0.35, 0.03))
+    phase = [0.0]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        scrape = scrape_lp(noise)
+        scrape -= scrape_hp(scrape)
+        grains = 0.6 + 0.4 * math.sin(2 * math.pi * (220 + 1400 * t) * t)
+        env = min(1.0, t / 0.008) * (1.0 if t < 0.05 else math.exp(-(t - 0.05) / 0.006))
+        click = 0.0
+        tc = t - 0.055
+        if tc >= 0:
+            click = partials(tc, 1.0, table) * min(1.0, tc / 0.0002) + thud(tc, phase, 110.0, 160.0, 0.025) * 0.6
+        out.append(math.tanh(scrape * grains * env * 0.7 + click * 1.3))
+    return finish(out, 0.85)
+
+
+def reload_empty():
+    """A hand finding the ammo pouch empty: fingers patting flat leather (two soft dull pats, no shell to knock)."""
+    rng = random.Random(617)
+    n = int(RATE * 0.2)
+    lp = OnePole(900)
+    phase = [0.0]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = lp(rng.uniform(-1, 1))
+        s = 0.0
+        for at, a in ((0.0, 1.0), (0.07, 0.6)):
+            tp = t - at
+            if tp >= 0:
+                s += a * (noise * 2.2 * math.exp(-tp / 0.018) + thud(tp, phase, 70.0, 90.0, 0.03) * 0.35)
+        out.append(math.tanh(s))
+    return finish(out, 0.6)
+
+
 # ---- Wall torches (QC vr_walltorch.qc; docs/vr-port/ROUND21.md, "Wall torches you can take") ----------------------------
 
 
@@ -986,6 +1061,9 @@ def main():
         "grenade_tick.wav": grenade_tick,
         "grenade_pouch.wav": grenade_pouch,
         "grenade_pin.wav": grenade_pin,
+        "reload_pouch.wav": reload_pouch,
+        "reload_shell_in.wav": reload_shell_in,
+        "reload_empty.wav": reload_empty,
         "torch_pull.wav": torch_pull,
         "torch_out.wav": torch_out,
         "torch_light.wav": torch_light,
