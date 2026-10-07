@@ -19,8 +19,8 @@ NAME = "vs2night"
 SUFFIX = ["rt", "bk", "lf", "ft", "up", "dn"]
 SKYTEXORDER = [0, 2, 1, 3, 4, 5]
 ST_TO_VEC = [(3, -1, 2), (-3, 1, 2), (1, 3, 2), (-1, -3, 2), (-2, -1, 3), (2, -1, -3)]
-# the moon: opposite the moonlight's direction (vrstart2_gen.py's _sunlight_mangle "yaw pitch")
-MOON_MANGLE = (215, -38)
+# the moonlight's direction (vrstart2_gen.py's _sunlight_mangle, yaw and pitch): the moon is opposite it
+MOON_MANGLE = (240, -30)
 
 
 def face_dir(axis, s, t):

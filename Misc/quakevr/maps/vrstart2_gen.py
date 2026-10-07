@@ -47,8 +47,8 @@ TEXN = {
     "cliff": "rock5_2", "cliff2": "rock3_8", "cliffwet": "rock5_1", "moss": "rock4_2", "plank": "woodflr1_2",
     "beam": "wood1_3", "log": "cliff2_1", "logend": "wood1_7", "board": "wood1_1", "rope": "rock3_8",
     "iron": "metal1_1", "flag": "azfloor1_1", "block": "wswamp2_1", "trim": "wall14_5", "water": "*04awater1",
-    "portal": "*teleport", "sky": "sky1", "crystal": "+0light01", "button": "+0basebtn", "target": "qvr_target",
-    "bark": "cliff2_1", "needles": "wgrass1_1", "lamp": "light1_1", "roof": "wizwood1_2", "rune": "sliplite",
+    "portal": "*teleport", "sky": "sky1", "crystal": "tlight03", "button": "+0basebtn", "target": "qvr_target",
+    "bark": "cliff2_1", "needles": "wgrass1_1", "lamp": "light1_3", "roof": "wizwood1_2", "rune": "sliplite",
     "clip": "clip", "trigger": "trigger", "skip": "skip",
 }
 WADS = "quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad"
@@ -995,6 +995,157 @@ def build_world(mw):
 
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Lights: torches along the path (Quake VR's wall torches: the player can take one off its post), braziers, lanterns,
+# the campfire, the slipgate's glow, and crystals glowing on the lake's floor.
+TORCH = {"light": "230", "_color": "1 0.6 0.28", "wait": "1.1"}
+
+
+def ent(mw, cls, x, y, z, **keys):
+    k = {"classname": cls, "origin": "%d %d %d" % (round(x), round(y), round(z))}
+    if cls.startswith("light"):
+        keys.setdefault("_dirt", -1)  # no ambient occlusion on the fires and lamps (it ate the pavilion's light)
+    k.update({a: str(b) for a, b in keys.items()})
+    mw.add(k)
+
+
+def torch_post(mw, out, x, y, g, yaw, h=72):
+    """A log post with an iron bracket and a wall torch on it, facing `yaw` (degrees)."""
+    post(out, x, y, g - 12, g + h, 4.5, square=False)
+    c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    out.append(beam((x + c * 3, y + s * 3, g + h - 22), (x + c * 9, y + s * 9, g + h - 22), 3, 3, T("iron", scale=0.5)))
+    ent(mw, "light_torch_small_walltorch", x + c * 10, y + s * 10, g + h - 18, angle=yaw, **TORCH)
+
+
+def wall_torch(mw, out, x, y, z, yaw):
+    """A torch on a structure's upright (a bracket from its face)."""
+    c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    out.append(beam((x - c * 2, y - s * 2, z - 4), (x + c * 5, y + s * 5, z - 4), 3, 3, T("iron", scale=0.5)))
+    ent(mw, "light_torch_small_walltorch", x + c * 6, y + s * 6, z, angle=yaw, **TORCH)
+
+
+def brazier(mw, out, x, y, g, h=40, base="block"):
+    """A stone pillar with an iron bowl and a large flame."""
+    out.append(chamfer_box(x - 10, y - 10, g - 8, x + 10, y + 10, g + h, 2, T(base, scale=0.5)))
+    q = []
+    for (px, py) in ngon(x, y, 15, 8, math.pi / 8):
+        q.append((px, py, g + h + 10))
+    for (px, py) in ngon(x, y, 9, 8, math.pi / 8):
+        q.append((px, py, g + h))
+    out.append(hull(q, T("iron", scale=0.5)))
+    ent(mw, "light_flame_large_yellow", x, y, g + h + 18, light=300, _color="1 0.55 0.25", wait=0.9)
+
+
+def lantern(mw, out, x, y, z, light=200, hang=0):
+    """A hanging lantern: an iron frame round a glowing glass, and its light."""
+    out.append(box(x - 5, y - 5, z - 7, x + 5, y + 5, z + 7, T("lamp", scale=0.5)))
+    out.append(box(x - 6, y - 6, z + 7, x + 6, y + 6, z + 10, T("iron", scale=0.5)))
+    out.append(box(x - 6, y - 6, z - 10, x + 6, y + 6, z - 7, T("iron", scale=0.5)))
+    if hang:
+        out.append(box(x - 0.75, y - 0.75, z + 10, x + 0.75, y + 0.75, z + 10 + hang, T("iron", scale=0.5)))
+    ent(mw, "light", x, y, z - 16, light=light, _color="1 0.75 0.45", wait=0.8)
+
+
+def crystal(out, x, y, g, rnd):
+    """A cluster of glowing crystals on the lake's floor."""
+    n = rnd.randint(4, 7)
+    for i in range(n):
+        a = rnd.uniform(0, 2 * math.pi)
+        tilt = rnd.uniform(0.0, 0.5)
+        L = rnd.uniform(24, 64)
+        r = rnd.uniform(4, 8)
+        bx, by = x + math.cos(a) * rnd.uniform(0, 9), y + math.sin(a) * rnd.uniform(0, 9)
+        tip = (bx + math.cos(a) * L * tilt, by + math.sin(a) * L * tilt, g + L)
+        pts = []
+        for (px, py) in ngon(bx, by, r, 5, rnd.uniform(0, 1)):
+            pts += [(px, py, g - 6), (px + (tip[0] - bx) * 0.8, py + (tip[1] - by) * 0.8, g + L * 0.8)]
+        pts.append(tip)
+        b = hull(pts, T("crystal", scale=0.5))
+        if b:
+            out.append(b)
+
+
+def build_lights(mw):
+    out = mw.detail("lights: posts, braziers, lanterns, crystals")
+    p, s1, s2, t, b, pv, rg, tw = PIER, STAIR1, STAIR2, TERRACE, BRIDGE, PAVILION, RANGE, TOWER
+    # the pier's end: torches on the two tall bollards, facing the deck
+    for sx in (-1, 1):
+        wall_torch(mw, out, p["x"] + sx * 52 - sx * 7, p["y1"] + 8, p["z"] + 26, 0 if sx < 0 else 180)
+    # half way along the pier: a lantern on a post
+    post(out, p["x"] + 56, -1120, -10, p["z"] + 64, 4, square=False)
+    out.append(box(p["x"] + 40, -1123, p["z"] + 58, p["x"] + 58, -1117, p["z"] + 62, wood("beam", (1, 0, 0))))
+    lantern(mw, out, p["x"] + 42, -1120, p["z"] + 44, 180, hang=4)
+    # the arrival: the campfire, torches by the boards
+    fx, fy = CAMPFIRE
+    ent(mw, "light_flame_large_yellow", fx, fy, 14 + 14, light=320, _color="1 0.5 0.2", wait=0.8)
+    wx, wy = WELCOME
+    torch_post(mw, out, wx - 96, wy - 10, height(wx - 96, wy - 10), 300)
+    torch_post(mw, out, -1270, -880, height(-1270, -880), 30)
+    torch_post(mw, out, -1130, -880, height(-1130, -880), 150)
+    qx, qy = QUICK
+    torch_post(mw, out, qx + 64, qy - 8, height(qx + 64, qy - 8), 225)
+    # the staircase: torches on the newel posts at its foot and at its top
+    n1, bot1, _ = stair_info(s1)
+    for sx in (-1, 1):
+        wall_torch(mw, out, s1["cx"] + sx * (s1["w"] / 2 + 2), bot1[1] - 4, s1["zb"] + 46, 270)
+        torch_post(mw, out, s1["cx"] + sx * 64, s1["cy"] + 60, s1["zt"] - 6, 90 if sx < 0 else 90)
+    # the terrace: braziers round its rim, torches on the gate's pillars, the portal's glow
+    for a in (225, 315, 160, 20):
+        ar = math.radians(a)
+        brazier(mw, out, t["x"] + (t["r"] - 30) * math.cos(ar), t["y"] + (t["r"] - 30) * math.sin(ar), t["z"])
+    gx, gy = GATE["x"], GATE["y"]
+    for sx in (-1, 1):
+        wall_torch(mw, out, gx + sx * 58, gy - 15, t["z"] + 16 + 70, 270)
+    ent(mw, "light", gx, gy - 40, t["z"] + 70, light=260, _color="0.55 0.45 1", wait=1.4)
+    ent(mw, "light", gx, gy + 30, t["z"] + 70, light=200, _color="0.55 0.45 1", wait=1.4)
+    # the bridge's ends: torches on the tall posts
+    for xe, yaw in ((b["x0"], 0), (b["x1"], 180)):
+        for sy in (-1, 1):
+            wall_torch(mw, out, xe, b["y"] + sy * (b["w"] / 2 + 2), b["z"] + 56, yaw)
+    # the pavilion: lanterns under the roof, torches at the ways in and out
+    ym = 0.5 * (pv["y0"] + pv["y1"])
+    for xx in (pv["x0"] + 12, 0.5 * (pv["x0"] + pv["x1"]), pv["x1"] - 12):
+        lantern(mw, out, xx, ym, pv["z"] + 104, 220, hang=40)
+    for xx, yaw in ((pv["x0"] - 26, 180), (pv["x1"] + 26, 0)):
+        for sy in (-1, 1):
+            torch_post(mw, out, xx, ym + sy * 70, pv["z"] - 16, yaw)
+    # the range: torches along its fences, braziers by the targets' bank, a lantern over the benches
+    for xx in range(rg["line"] + 160, rg["x1"] - 60, 260):
+        for yy, yaw in ((rg["y0"] + 8, 90), (rg["y1"] - 8, 270)):
+            torch_post(mw, out, xx, yy, rg["z"], yaw, h=64)
+    for yy in (rg["y0"] + 40, rg["y1"] - 40):
+        brazier(mw, out, rg["x1"] - 90, yy, rg["z"])
+    for yy in (-130, 50):
+        post(out, rg["line"] - 46, yy, rg["z"] - 10, rg["z"] + 96, 3.5)
+        out.append(box(rg["line"] - 49, yy - 2, rg["z"] + 90, rg["line"] - 18, yy + 2, rg["z"] + 94, wood("beam", (1, 0, 0))))
+        lantern(mw, out, rg["line"] - 22, yy, rg["z"] + 76, 170, hang=4)
+    # the path along the shore: torches on posts
+    for (x, y, yaw) in ((560, -420, 135), (880, -620, 120)):
+        torch_post(mw, out, x, y, height(x, y), yaw)
+    # the tower: torches at the ladder's foot, a lantern on the deck
+    for sx in (-1, 1):
+        torch_post(mw, out, tw["x"] + sx * 56, tw["y"] + tw["half"] + 40, tw["z"], 90)
+    lantern(mw, out, tw["x"] - tw["half"] + 20, tw["y"] - tw["half"] + 20, tw["z"] + tw["deck"] + 40, 150)
+    post(out, tw["x"] - tw["half"] + 20, tw["y"] - tw["half"] + 20, tw["z"] + tw["deck"] - 2, tw["z"] + tw["deck"] + 30, 2)
+    # crystals glowing on the lake's floor (a ring round the island, a few by the cliffs and the islets)
+    rnd = random.Random(31)
+    spots = []
+    tries = 0
+    while len(spots) < 34 and tries < 5000:
+        tries += 1
+        x, y = rnd.uniform(-BOX + 300, BOX - 300), rnd.uniform(-BOX + 300, BOX - 300)
+        g = height(x, y)
+        d = coast_distance(x, y)
+        if not (-300 < g < -40) or d > -60:
+            continue
+        if any(math.hypot(x - a, y - b_) < 420 for a, b_ in spots):
+            continue
+        spots.append((x, y))
+        crystal(out, x, y, g, rnd)
+        ent(mw, "light", x, y, g + 72, light=380, _color="0.3 0.85 1", wait=0.8)
+    print("lights: %d crystals" % len(spots))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Entities
 def build_entities(mw):
     p = PIER
@@ -1004,8 +1155,8 @@ def build_entities(mw):
 WORLD_KEYS = {
     "classname": "worldspawn", "mapversion": "220", "wad": WADS,
     "_tb_mod": "hipnotic;rogue;quakevr", "message": "Quake VR", "worldtype": "0", "sounds": "0",
-    "light": "12", "_sunlight": "60", "_sunlight_mangle": "35 -38 0", "_sunlight_color": "0.6 0.7 1.0",
-    "_sunlight2": "18", "_sunlight2_color": "0.25 0.32 0.55", "_vr_debris": "0", "_vr_crates": "0",
+    "light": "14", "_minlight_color": "0.55 0.62 1", "_sunlight": "230", "_sunlight_mangle": "240 -30 0", "_sunlight_color": "0.62 0.72 1.0",
+    "_sunlight2": "75", "_sunlight2_color": "0.3 0.38 0.62", "_bounce": "1", "_vr_debris": "0", "_vr_crates": "0",
     "sky": "vs2night", "fog": "0.035 0.045 0.055 0.08",
 }
 
@@ -1032,6 +1183,7 @@ def write_map():
     build_pavilion(mw)
     build_range(mw)
     build_tower(mw)
+    build_lights(mw)
     build_entities(mw)
     header = "// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/maps/vrstart2_gen.py: edit that, not this.\n"
     mw.write(OUT, WORLD_KEYS, header)
