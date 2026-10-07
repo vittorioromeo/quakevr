@@ -2636,6 +2636,14 @@ void hologramTestMessage()
             .help("In slow motion (bullet time, not Sandevistan), a throw goes the way your controller moved, as the same "
                   "motion at full speed would, even when the slowed hand lags behind it; its speed stays the slowed "
                   "hand's. Off: the way the lagging hand moved to catch up (fast throws went 20 to 30 degrees high)."),
+        slider("Slow Motion: Real-Time Flicks", vr_throw_slowmo_flick, 0.f, 1.f, 0.05f, "%.2f")
+            .help("In slow motion (bullet time, not Sandevistan), a wrist flick at real speed throws as at full speed: its "
+                  "speed in your real time, not three times it in the slowed world's (a flick that threw 1 m threw 8 m). "
+                  "The arm's part of a throw is unchanged. 0: as before; between: a blend."),
+        slider("Slow Motion: Flick Spin", vr_throw_slowmo_flick_spin, 10.f, 120.f, 5.f, "%.0f rad/s").extend()
+            .help("In slow motion, a throw whose controller turned faster than this (in the slowed world's time) was a "
+                  "real-speed flick, however little the hand moved: Real-Time Flicks applies. Lower: gentler flicks too, "
+                  "but slow throws made with the world's tempo start to count as real-speed."),
         toggle("Slow Motion: Slow Throws Match", vr_throw_slowmo_tempo)
             .help("In slow motion, a throw you make slowly, with the slowed world, is judged as the same throw at full "
                   "speed (its release over the same part of the arc); one faster than the slowed hands can follow, over "

@@ -288,16 +288,25 @@ constexpr double peakFit = 0.03;
         return real;
     }
     const double from = releaseTime - za::max(vr_throw_window.value, 0.f);
-    float fastest = 0.f;
+    float fastest = 0.f, fastestSpin = 0.f;
     for(int i = 0; i < own.count; i++)
     {
         if(const Sample& s = own.at(i); s.time >= from && s.time <= releaseTime)
         {
             fastest = za::max(fastest, glm::length(s.vel));
+            fastestSpin = za::max(fastestSpin, glm::length(s.angVel));
         }
     }
     const float follows = vr_timescale_hand_speed.value > 0.f ? vr_timescale_hand_speed.value : 8.f;
-    const double past = za::clamp(za::log(static_cast<double>(za::max(fastest, 1e-3f) / follows)) / za::log(1.5), 0.0, 1.0);
+    double past = za::clamp(za::log(static_cast<double>(za::max(fastest, 1e-3f) / follows)) / za::log(1.5), 0.0, 1.0);
+    // A wrist flick moves the controller little but turns it fast: one turned faster than vr_throw_slowmo_flick_spin
+    // (rad/s of the game's time; 1.5 times it all of it) was made at real speed too (vr_throw_slowmo_flick), or a real
+    // flick (the windows then a third of it at 0.3x) was taken for a slow throw, its flick 1/scale as fast.
+    if(vr_throw_slowmo_flick.value > 0.f && vr_throw_slowmo_flick_spin.value > 0.f)
+    {
+        past = za::max(past,
+            za::clamp(za::log(static_cast<double>(za::max(fastestSpin, 1e-3f) / vr_throw_slowmo_flick_spin.value)) / za::log(1.5), 0.0, 1.0));
+    }
     return za::pow(real, past);
 }
 
@@ -487,6 +496,23 @@ void push(History& h, const Sample& s)
         const float k = za::min(speed, ownSpeed) / ownSpeed;
         out.vel = o.vel * k;
         out.flick = o.flick * k;
+        // vr_throw_slowmo_flick (NOTES.md vrfiringrange_2026-10-07_23-05-07: a wrist flick that threw 1 m at full speed
+        // threw 8 m in bullet time): the wrist's flick (the controller's own, its estimate's flick part) in the player's
+        // real time when the throw was made at real speed (`rate`, motionRate: the time scale), not 1/scale as fast in
+        // the game's time (then capped by the slowed hand's speed with the rest); one made slowly with the world keeps
+        // it all. The arm's part as before.
+        if(const float share = za::clamp(vr_throw_slowmo_flick.value, 0.f, 1.f); wrist && share > 0.f)
+        {
+            const float rateNow = static_cast<float>(rate);
+            const float kept = glm::mix(k, za::min(k, rateNow), share);
+            // The flick's share of the throw's speed (its speed over the throw's, not its part along it: the flick's way
+            // is the peak's, the throw's the hand's way before it): that share of it kept so, the rest as the arm's.
+            const float along = za::clamp(glm::length(o.flick) / ownSpeed, 0.f, 1.f);
+            out.vel = o.vel * (k * (1.f - along) + kept * along);
+            out.flick = o.flick * kept;
+            out.flickRate = rateNow;
+            out.flickShare = along;
+        }
         if(speed > 1e-4f)
         {
             out.aimTurn = glm::degrees(za::acos(za::clamp(glm::dot(e.vel, o.vel) / (speed * ownSpeed), -1.f, 1.f)));

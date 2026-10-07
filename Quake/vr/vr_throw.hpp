@@ -26,6 +26,8 @@ struct Estimate
     float aimTurn{0.f};
     float lag{0.f};
     float rate{1.f}; // the windows' seconds in the samples' clock's one (slow motion: vr_throw_slowmo_real_time, _tempo)
+    float flickRate{1.f}; // slow motion: the wrist flick's speed kept of the game's time's (vr_throw_slowmo_flick)
+    float flickShare{0.f}; // ... and the flick's share of the controller's throw (its speed over the throw's)
 };
 
 // A hand's motion at a sample: its world position, velocity, spin and (unit) aim direction, along which the held

@@ -267,8 +267,8 @@ VrMove unposed;
                 if(e.aimTurn > 0.f || e.lag > 0.f || e.rate != 1.f)
                 {
                     Con_Printf("  slow motion: windows x%.2f of the clock's, the controller's way (the slowed hand's %.1f "
-                               "deg off it), the hand %.2f m behind it at the peak\n",
-                        e.rate, e.aimTurn, e.lag);
+                               "deg off it), the hand %.2f m behind it at the peak; the flick (%.0f%% of it) x%.2f (%.2f m/s)\n",
+                        e.rate, e.aimTurn, e.lag, e.flickShare * 100.f, e.flickRate, glm::length(e.flick));
                 }
                 if(vr_debug_throw.value >= 2.f)
                 {
