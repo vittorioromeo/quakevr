@@ -27831,3 +27831,21 @@ tests use `vr_campaign_native mg3`, `-nomapindex -noaddons`, developer 1.
   stock e1m1; secret2's 60 repeaters (all `explosions`, count 2..8) all fired, 325 blasts = the counts' sum. Checker:
   35 missing, 1,189 placements (from 42/1,328). Regression: MG3 map1 shared triggers 34/0; Dopa triggers 34/0, world
   19/0; MG1 hub 20/0, Horde 24/0; e1m1.
+- **M3-06 map triggers II and keys.** `health_target` (T_Damage, before the blow as upstream: each
+  `trigger_health_relay` it names fires once when the monster is hit with less than its fraction, default 0.5, left,
+  then is removed), `aggro_target` (FoundTarget: a waking monster uses what it names 0.1 s later, waking sleeping
+  monsters at its enemy; every monster sharing the key forgets it). **Upstream ships aggro commented out**, so it is
+  off unless `vr_mg3_aggro_groups 1` (archived, default 0; Debug > Tests > Dawn of the Machine Tests > Aggro Groups);
+  it follows the key's documentation, not the commented code (which counted the group's other members and so ignored
+  a lone monster's target). `trigger_lore`: its text while standing in it, cleared `MG3_LORE_DWELL` (3 s; upstream
+  0.5) after leaving (PlayerPostThink), shown by VR's centre print (in view or the wrist hologram); hub rune hints
+  switch to their "complete" text, map4's Bloody Nightmare hint goes once it is known. New MG3 serverflag names
+  (`MG3_SF_RUNE1..4`, `MG3_SF_BN_ACTIVE/DISCOVERED/NEWGAME`, `MG3_SF_TETTE`). Keys declared: `wave1..3`,
+  `tele_target` (the finales' tasks), `comment`, `dirt`, `fog_sky_factor`; the engine reads `fog_sky_factor` as
+  Ironwail's worldspawn `skyfog` (gl_sky.c; developer 1 prints "sky fog"). All work in any campaign. Measured
+  (`vr_mg3_test 8`, Monster Keys and Lore Check): map3 demon 300/300, relay 0.5: 14 hits of 5%, fired on the first
+  hit below half, once (4/0); map8 shambler with two relays (0.75, 0.5) both on their first hit below, once (3/0);
+  map8 aggro group `second_room_shambler_01`: off 0 of 1 woke, on 1 of 1 and the key cleared; lore map3/map5
+  localized ("Look at the heavens..." for `$mg3_map5_mural`), cleared after the dwell; secret4/dm1 "sky fog 0.2".
+  Checker: 33 missing classes, 1,146 placements, 1 unknown key (`property 1`, editor noise on two secret1 lights:
+  not a valid field name). Regression as M3-05 (all pass).

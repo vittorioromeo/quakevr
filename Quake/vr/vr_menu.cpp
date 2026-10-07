@@ -4919,6 +4919,10 @@ za::Vector<Item> pageMg3Tests()
             .help("Destructive, any campaign: silent teleports and door relays here, plus spawned always/multitouch/heal/music/quad/doorgroup/repeater/killmonster triggers."),
         command("Explosion Repeaters Check", "vr_mg3_test 7")
             .help("Destructive, any campaign: use every explosion repeater here (secret2: 60) and count their blasts 20 seconds later."),
+        command("Monster Keys and Lore Check", "vr_mg3_test 8")
+            .help("Destructive: a health_target monster hit down past its relay (fires once), an aggro_target group woken, a lore text shown and cleared."),
+        toggle("Aggro Groups", vr_mg3_aggro_groups)
+            .help("A waking monster wakes what its aggro_target names (map3, map7, map8). Upstream ships this off; off by default."),
     };
 }
 

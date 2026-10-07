@@ -1433,6 +1433,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return TRUE;
     }
 
+    // QVR: Dawn of the Machine's health thresholds, read before the blow as upstream (vr_mg3_triggers.qc)
+    if(targ.health_target != string_null)
+        MG3_HealthTarget(targ, attacker);
+
     // do the damage
     targ.health = targ.health - take;
 

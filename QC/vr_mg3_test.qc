@@ -241,6 +241,89 @@ void() MG3_T_Repeaters = {
     dprint(sprintf("mg3test: used %g explosion repeaters\n", MG3_T_reps));
     e = spawn(); e.think = MG3_T_RepeatersLate; e.nextthink = time + 20;
 };
+// ----------------------------------------------------------------------------
+// M3-06 (request 8, developer campaign): the first monster with a live health_target relay is hit down to 60%, 45%
+// (no relay yet: upstream reads the health before the blow), then once more (its relays fire, once) and again (no
+// more); the first sleeping monster with an aggro_target wakes and, 0.3 s later, what it names must be awake (with
+// vr_mg3_aggro_groups 1) or still asleep (0); the first trigger_lore is touched: its text set, gone after the dwell.
+entity MG3_T_aggro_m;
+string MG3_T_aggro_name;
+float MG3_T_aggro_n;
+entity MG3_T_lore;
+.float MG3_T_mark;
+void() MG3_T_KeysLate = {
+    entity p = MG3_T_player;
+    if(MG3_T_aggro_m) {
+        float woken = 0;
+        entity b = find(world, targetname, MG3_T_aggro_name);
+        while(b) { if(b.MG3_T_mark && b.enemy) woken++; b = find(b, targetname, MG3_T_aggro_name); }
+        float on = cvar("vr_mg3_aggro_groups");
+        dprint(sprintf("mg3test: aggro %s (groups %g): %g of %g named woke\n", MG3_T_aggro_name, on, woken, MG3_T_aggro_n));
+        if(on) MG3_Check(woken == MG3_T_aggro_n && !find(world, aggro_target, MG3_T_aggro_name), "the aggro group wakes together, its key cleared");
+        else MG3_Check(woken == 0, "aggro groups off (upstream): nothing else wakes");
+    }
+    if(MG3_T_lore) MG3_Check(p.MG3_lore_clear == 0, "the lore text is cleared after the dwell");
+    p.flags = p.flags - (p.flags & FL_GODMODE); p.health = MG3_T_health0;
+    dprint(sprintf("mg3test: keys %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    remove(self);
+};
+void() MG3_T_Keys = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    p.flags = p.flags | FL_GODMODE; MG3_T_health0 = p.health;
+    // health_target
+    entity m = nextent(world), r;
+    while(m) {
+        if((m.flags & FL_MONSTER) && m.health > 0 && m.health_target != string_null) {
+            r = find(world, targetname, m.health_target);
+            if(r && r.classname == "trigger_health_relay") break;
+        }
+        m = nextent(m);
+    }
+    if(m) {
+        float relays = 0;
+        r = find(world, targetname, m.health_target);
+        while(r) { if(r.classname == "trigger_health_relay") { relays++; r.target = "mg3tt_health"; } r = find(r, targetname, m.health_target); }
+        MG3_T_Sink("mg3tt_health");
+        float full = m.max_health;
+        dprint(sprintf("mg3test: %s health %g/%g health_target %s (%g relays, fraction %g)\n", m.classname, m.health, full, m.health_target, relays, find(world, targetname, m.health_target).health));
+        // Hits of 5% each down to 30%: before each, the relays still there whose fraction is above the health are due.
+        float due = 0, hits = 0, bad = 0, early = 0;
+        while(m.health > full * 0.3 && hits < 40) {
+            float pre = m.health / full;
+            r = find(world, targetname, m.health_target);
+            while(r) { if(r.classname == "trigger_health_relay" && pre < r.health) due++; r = find(r, targetname, m.health_target); }
+            T_Damage(m, p, p, full * 0.05);
+            float fired = MG3_T_SinkCount("mg3tt_health");
+            if(fired != due) bad++;
+            if(fired > due) early++;
+            hits++;
+        }
+        dprint(sprintf("mg3test: %g hits of 5%%: relays fired %g (due %g), %g hits off, %g early; health now %g\n", hits, MG3_T_SinkCount("mg3tt_health"), due, bad, early, m.health));
+        MG3_Check(bad == 0, "each relay fires on the first hit taken below its fraction (the health before the blow), not before");
+        MG3_Check(due == relays && MG3_T_SinkCount("mg3tt_health") == relays && !find(world, targetname, m.health_target), "each relay fires once, then is gone");
+    }
+    else dprint("mg3test: no monster with a health_target relay here\n");
+    // aggro_target
+    MG3_T_aggro_m = world;
+    m = nextent(world);
+    while(m && !((m.flags & FL_MONSTER) && m.health > 0 && !m.enemy && m.aggro_target != string_null && find(world, targetname, m.aggro_target))) m = nextent(m);
+    if(m) {
+        MG3_T_aggro_m = m; MG3_T_aggro_name = m.aggro_target; MG3_T_aggro_n = 0;
+        entity b = find(world, targetname, m.aggro_target);
+        while(b) { if(b != m && !b.enemy && b.use) { b.MG3_T_mark = TRUE; MG3_T_aggro_n++; } b = find(b, targetname, m.aggro_target); }
+        entity os = self; self = m; self.enemy = p; FoundTarget(); self = os;
+    }
+    else dprint("mg3test: no sleeping monster with an aggro_target here\n");
+    // trigger_lore
+    MG3_T_lore = find(world, classname, "trigger_lore");
+    if(MG3_T_lore) {
+        dprint(sprintf("mg3test: lore %s\n", MG3_T_lore.message));
+        MG3_T_Touch(MG3_T_lore);
+        MG3_Check(p.MG3_lore_clear > time && p.MG3_lore_next > time, "touching a lore shows its text");
+    }
+    entity e = spawn(); e.think = MG3_T_KeysLate; e.nextthink = time + MG3_LORE_DWELL + 0.5;
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     cvar_set("vr_mg3_test", "0");
@@ -262,6 +345,7 @@ void() MG3_TestFrame = {
         dprint("mg3test: added health bit 64\n"); MG3_T_Report();
     }
     else if(request == 5) MG3_T_Collect();
+    else if(request == 8) MG3_T_Keys();
     else dprint(sprintf("mg3test: unknown request %g\n", request));
     self = oldself; other = oldother; activator = oldact;
 };

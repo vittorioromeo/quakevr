@@ -2050,6 +2050,8 @@ void() PlayerPostThink =
     if(BotPostFrame())
         return;
 
+    MG3_LorePostThink(); // QVR: a trigger_lore's text, gone a while after leaving it (vr_mg3_triggers.qc)
+
     if(self.view_ofs == '0 0 0')
     {
        earthquake_postthink();

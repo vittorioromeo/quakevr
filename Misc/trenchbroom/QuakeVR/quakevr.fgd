@@ -2551,6 +2551,12 @@ while inside the global fog is faded to the specified color and density. the tra
 	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
 ]
 
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_health_relay : "Named by a monster's 'health_target': fires its targets once, when the monster is hit with less than 'health' (a fraction of its full health, default 0.5) left. Can also be used as a relay (Dawn of the Machine)."
+[
+	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
+]
+
 @SolidClass base(Appearflags, Targetname) color(128 128 128) =
 	trigger_hurt : "Trigger: Hurt
 
@@ -2580,6 +2586,12 @@ Any object touching this will be hurt set dmg to damage amount defalt dmg = 5
 	]
 	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
 	volume(float) : "Volume" :  : "Sound volume, 0 to 1."
+]
+
+@SolidClass color(0 128 204) =
+	trigger_lore : "Shows its 'message' (a $localized string or text) to a player standing in it, gone a few seconds after leaving (Dawn of the Machine)."
+[
+	message(string) : "Message" :  : "Text shown to the player. \n makes a new line."
 ]
 
 @SolidClass base(Angle, Appearflags, Targetname) color(128 128 128) =

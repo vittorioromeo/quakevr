@@ -884,3 +884,10 @@ float AS_MISSILE  = 4;
 // ----------------------------------------------------------------------------
 
 #include "builtins.qc"
+
+// Dawn of the Machine's monster keys (vr_mg3_triggers.qc), read by ai.qc's FoundTarget and combat.qc's T_Damage.
+.string aggro_target; // what it uses as it wakes (its group: vr_mg3_aggro_groups)
+.string health_target; // the trigger_health_relays it fires below their health fractions
+void() MG3_AggroWake;
+void(entity targ, entity attacker) MG3_HealthTarget;
+void() MG3_LorePostThink;

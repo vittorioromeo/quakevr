@@ -553,6 +553,9 @@ void() FoundTarget =
          }
       }
 
+    if(self.aggro_target != string_null)
+        MG3_AggroWake(); // QVR: Dawn of the Machine's aggro groups (vr_mg3_triggers.qc)
+
     self.show_hostile = time + 1;        // wake up other monsters
 
     SightSound();

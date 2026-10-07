@@ -911,3 +911,6 @@ progression". Map triggers (`QC/vr_mg3_triggers.qc`): `trigger_always`, `trigger
 `trigger_music`, `trigger_heal`, and upstream's unplaced `trigger_doorgroup_relay`, `trigger_quad`,
 `trigger_relay_killmonster`; they need no MG3 data, so every campaign has them. Debug > Tests > Dawn of the Machine
 Tests: Map Triggers Check (`vr_mg3_test 6`) and Explosion Repeaters Check (`7`), both any campaign.
+Monster keys: `health_target` (with `trigger_health_relay`) and `aggro_target` (off unless `vr_mg3_aggro_groups 1`:
+upstream ships it commented out); `trigger_lore` texts by VR's centre print, kept 3 s after leaving; KEX's worldspawn
+`fog_sky_factor` is read as `skyfog`. Monster Keys and Lore Check: `vr_mg3_test 8`.

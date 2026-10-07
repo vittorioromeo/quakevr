@@ -272,3 +272,105 @@ void() trigger_relay_killmonster = {
     if(!self.targetname || !self.target) { dprint("trigger_relay_killmonster without a target or targetname: removed\n"); remove(self); return; }
     self.use = MG3_killmonster_use;
 };
+
+// ----------------------------------------------------------------------------
+// M3-06: monster keys and their relays.
+// health_target: as a monster's health (before the blow, as upstream) falls below a relay's fraction "health" of its
+// full health, the trigger_health_relays named by it fire their targets, once each.
+void(entity targ, entity attacker) MG3_HealthTarget = {
+    if(targ.max_health <= 0) return;
+    float fraction = targ.health / targ.max_health;
+    entity os = self, oa = activator;
+    entity t = find(world, targetname, targ.health_target);
+    while(t) {
+        entity nx = find(t, targetname, targ.health_target);
+        if(t.classname != "trigger_health_relay") dprint(sprintf("%s's health_target %s names a %s\n", targ.classname, targ.health_target, t.classname));
+        else if(fraction < t.health) {
+            self = t; activator = attacker;
+            SUB_UseTargets();
+            remove(t);
+        }
+        t = nx;
+    }
+    self = os; activator = oa;
+};
+/*QUAKED trigger_health_relay (.5 .5 .5) (-8 -8 -8) (8 8 8)
+Named by a monster's "health_target": fires its targets once, when the monster is hit with less than "health" (a
+fraction of its full health, default 0.5) left. Can also be used as a relay (Dawn of the Machine).
+*/
+void() trigger_health_relay = {
+    if(MG3_CoopRemoved()) return;
+    if(!self.health) self.health = 0.5;
+    self.use = SUB_UseTargets;
+};
+
+// aggro_target: as a monster wakes, the entities its aggro_target names are used (a sleeping monster wakes at its
+// enemy), a tenth of a second later; every monster sharing that aggro_target forgets it (one wake per group).
+// Upstream's snapshot ships this commented out (ai.qc, FoundTarget), so it is off unless vr_mg3_aggro_groups is 1;
+// this follows the key's documentation (monsters.qc: "a target that gets fired when the monster wakes up"), not the
+// commented code's count of the group's other members, which left a lone monster's target unused.
+void() MG3_AggroDelayed = {
+    entity oself = self, oa = activator;
+    entity b = find(world, targetname, self.target);
+    while(b) {
+        if(!b.enemy && b.use) {
+            self = b; activator = oself.enemy;
+            b.use();
+            self = oself;
+        }
+        b = find(b, targetname, oself.target);
+    }
+    activator = oa;
+    remove(self);
+};
+void() MG3_AggroWake = {
+    if(!cvar("vr_mg3_aggro_groups")) return;
+    string name = self.aggro_target;
+    self.aggro_target = string_null;
+    entity b = find(world, aggro_target, name);
+    while(b) { b.aggro_target = string_null; b = find(b, aggro_target, name); }
+    entity t = spawn();
+    t.classname = "DelayedAggro";
+    t.target = name;
+    t.enemy = self.enemy;
+    t.think = MG3_AggroDelayed;
+    t.nextthink = time + 0.1;
+};
+
+// trigger_lore: a text shown while the player stands in it (centre print: in view, or the wrist hologram), and for a
+// moment after leaving (upstream 0.5 s; VR keeps it MG3_LORE_DWELL seconds, to finish reading after a step back).
+float MG3_LORE_DWELL = 3;
+.float MG3_lore_next;  // the next refresh of the text (upstream's 0.5 s throttle)
+.float MG3_lore_clear; // when the text goes (0: none shown)
+void() MG3_lore_touch = {
+    if(!(other.flags & FL_CLIENT)) return;
+    if(time > other.MG3_lore_next) {
+        other.MG3_lore_next = time + 0.5;
+        centerprint(other, self.message);
+    }
+    other.MG3_lore_clear = time + MG3_LORE_DWELL;
+};
+void() MG3_LorePostThink = {
+    if(self.MG3_lore_clear && time > self.MG3_lore_clear) {
+        self.MG3_lore_clear = 0;
+        self.MG3_lore_next = 0;
+        centerprint(self, "");
+    }
+};
+/*QUAKED trigger_lore (0 .5 .8) ?
+Shows its "message" (a $localized string or text) to a player standing in it, gone a few seconds after leaving
+(Dawn of the Machine).
+*/
+void() trigger_lore = {
+    if(mapname == "hub") { // the hub's rune hints, once the rune is home
+        if((serverflags & MG3_SF_RUNE1) && self.message == "$mg3_hub_rune1_hint") self.message = "$mg3_hub_rune1_hint_complete";
+        else if((serverflags & MG3_SF_RUNE2) && self.message == "$mg3_hub_rune2_hint") self.message = "$mg3_hub_rune2_hint_complete";
+        else if((serverflags & MG3_SF_RUNE3) && self.message == "$mg3_hub_rune3_hint") self.message = "$mg3_hub_rune3_hint_complete";
+    }
+    if(mapname == "map4" && self.message == "$mg3_hint_bloody_nightmare_new"
+        && (serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED | MG3_SF_BN_NEWGAME))) {
+        remove(self); return; // Bloody Nightmare's hint, once it is known
+    }
+    InitTrigger();
+    self.touch = MG3_lore_touch;
+};

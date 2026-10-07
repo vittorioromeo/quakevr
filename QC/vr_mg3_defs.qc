@@ -90,3 +90,25 @@ float(float kind) MG3_Capacity = {
     else if(kind == AID_CELLS) base = MG3_BASE_CELLS;
     return base + MG3_UPGRADE_AMOUNT * MG3_BitCount(MG3_UpgradeMask(kind));
 };
+
+// ----------------------------------------------------------------------------
+// serverflags in campaign 5 (upstream items_runes.qc SIGIL_E1..4, mg3_items.qc): the four runes and the Bloody
+// Nightmare bits (ACTIVE: this game is one; DISCOVERED: the hell knight's head found; NEWGAME: the new game it starts;
+// TETTE: an easter egg).
+float MG3_SF_RUNE1 = 1;
+float MG3_SF_RUNE2 = 2;
+float MG3_SF_RUNE3 = 4;
+float MG3_SF_RUNE4 = 8;
+float MG3_SF_RUNES = 15;
+float MG3_SF_BN_ACTIVE = 64;
+float MG3_SF_BN_DISCOVERED = 128;
+float MG3_SF_BN_NEWGAME = 256;
+float MG3_SF_TETTE = 512;
+
+// Keys only MG3's boss maps and editor leave (no behaviour of their own here): the finales' waves and teleport target
+// (monster_boss_final, monster_oldone_new: their tasks), a mapper's note, a light compiler key; KEX's worldspawn sky
+// fog factor, which the engine reads as Ironwail's "skyfog" (gl_sky.c).
+.string wave1, wave2, wave3, tele_target;
+.string comment;
+.float dirt;
+.float fog_sky_factor;

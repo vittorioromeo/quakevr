@@ -595,8 +595,11 @@ void Sky_NewMap (void)
 		if (!strcmp("sky", key))
 			Sky_LoadSkyBox(value);
 
-		if (!strcmp("skyfog", key))
+		if (!strcmp("skyfog", key) || !strcmp("fog_sky_factor", key)) // QVR: also the KEX key (Dawn of the Machine)
+		{
 			skyfog = atof(value);
+			Con_DPrintf ("sky fog %g (worldspawn %s)\n", skyfog, key);
+		}
 
 #if 1 //also accept non-standard keys
 		else if (!strcmp("skyname", key)) //half-life
