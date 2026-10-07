@@ -21,6 +21,8 @@
 #   reload_pouch.wav, reload_shell_in.wav, reload_empty.wav  immersive reloading (QC vr_reload.qc): a shell taken from
 #                 the front ammo pouch or put back (a dry rustle, shells knocking), one pushed into the shotgun's port (a
 #                 plastic scrape, the latch's steel click), and the pouch found empty (soft pats on flat leather)
+#   reload_blocked.wav, reload_full.wav  a shell held to a full shotgun (the gate's dry click: it won't open), and the
+#                 last shell in (the tube full: a heavier double knock)
 #   reload_mag_in.wav, reload_mag_out.wav  a magazine seated in its gun (a slide, the catch's click, a metal clack) and
 #                 let go of (the catch's click, a falling scrape)
 #   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
@@ -721,26 +723,69 @@ def reload_pouch():
 
 
 def reload_shell_in():
-    """A shell pushed into the shotgun's loading port: the hull sliding past the lifter (a short plastic scrape,
-    rising), then the shell latch snapping over its rim (a sharp steel click with a short ring) and the spring's thump."""
+    """A shell pushed into the shotgun's loading port (the author: the first was too glassy): a dull mechanical
+    "shk-chk". The "shk": the plastic hull shoved past the spring-loaded gate, a short low scrape (filtered noise, no
+    ring); the "chk": the gate and the follower snapping back behind its rim, a dull steel knock (low partials dying in
+    milliseconds, a thump of the tube's spring), no bright ring. (A recording may replace this file under its name.)"""
     rng = random.Random(613)
-    n = int(RATE * 0.26)
-    scrape_lp, scrape_hp = OnePole(5200), OnePole(1400)
-    table = ((3380, 0.9, 0.018), (5140, 0.55, 0.011), (7020, 0.3, 0.007), (1870, 0.35, 0.03))
+    n = int(RATE * 0.2)
+    shk_lp, shk_hp = OnePole(2200), OnePole(500)
+    chk_lp = OnePole(2600)
+    knock = ((780, 0.9, 0.006), (1240, 0.6, 0.004), (1830, 0.3, 0.003), (430, 0.5, 0.012))
     phase = [0.0]
     out = []
     for i in range(n):
         t = i / RATE
         noise = rng.uniform(-1, 1)
-        scrape = scrape_lp(noise)
-        scrape -= scrape_hp(scrape)
-        grains = 0.6 + 0.4 * math.sin(2 * math.pi * (220 + 1400 * t) * t)
-        env = min(1.0, t / 0.008) * (1.0 if t < 0.05 else math.exp(-(t - 0.05) / 0.006))
-        click = 0.0
-        tc = t - 0.055
+        shk = shk_lp(noise)
+        shk -= shk_hp(shk)
+        env = min(1.0, t / 0.012) * (1.0 if t < 0.05 else math.exp(-(t - 0.05) / 0.008))
+        chk = 0.0
+        tc = t - 0.07
         if tc >= 0:
-            click = partials(tc, 1.0, table) * min(1.0, tc / 0.0002) + thud(tc, phase, 110.0, 160.0, 0.025) * 0.6
-        out.append(math.tanh(scrape * grains * env * 0.7 + click * 1.3))
+            burst = rng.uniform(-1, 1) * math.exp(-tc / 0.003)  # the strike's grit
+            chk = partials(tc, 1.0, knock) * min(1.0, tc / 0.0004) + burst * 0.5
+            chk += thud(tc, phase, 70.0, 110.0, 0.035) * 0.9
+        out.append(math.tanh(shk * env * 1.1 + chk_lp(chk) * 2.2))
+    return finish(out, 0.85)
+
+
+def reload_blocked():
+    """A shell held to a full shotgun's port: the loading gate won't give: a small dry metallic click (a flap knocked
+    against its stop), short and dull, no follow-through."""
+    rng = random.Random(631)
+    n = int(RATE * 0.09)
+    lp = OnePole(3200)
+    tick = ((1520, 0.9, 0.004), (2380, 0.5, 0.003), (960, 0.4, 0.006))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        grit = rng.uniform(-1, 1) * math.exp(-t / 0.002)
+        out.append(math.tanh(lp(partials(t, 1.0, tick) * min(1.0, t / 0.0003) + grit * 0.4) * 2.0))
+    return finish(out, 0.6)
+
+
+def reload_full():
+    """The last shell in, the tube full: the shell's "chk", then the follower bottoming against a full tube (a deeper,
+    heavier double knock: the spring compressed solid)."""
+    rng = random.Random(641)
+    n = int(RATE * 0.26)
+    lp = OnePole(2000)
+    knock = ((620, 0.9, 0.009), (980, 0.6, 0.006), (1450, 0.3, 0.004), (330, 0.6, 0.02))
+    phase = [0.0]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        x = 0.0
+        for at, a, pitch in ((0.0, 1.0, 1.0), (0.085, 0.8, 0.86)):
+            tc = t - at
+            if tc >= 0:
+                x += a * (partials(tc, pitch, knock) * min(1.0, tc / 0.0004) +
+                          rng.uniform(-1, 1) * math.exp(-tc / 0.003) * 0.4)
+        tt = t - 0.085
+        if tt >= 0:
+            x += thud(tt, phase, 55.0, 90.0, 0.06) * 0.9
+        out.append(math.tanh(lp(x) * 2.0))
     return finish(out, 0.85)
 
 
@@ -1112,6 +1157,8 @@ def main():
         "reload_pouch.wav": reload_pouch,
         "reload_shell_in.wav": reload_shell_in,
         "reload_empty.wav": reload_empty,
+        "reload_blocked.wav": reload_blocked,
+        "reload_full.wav": reload_full,
         "reload_mag_in.wav": reload_mag_in,
         "reload_mag_out.wav": reload_mag_out,
         "torch_pull.wav": torch_pull,

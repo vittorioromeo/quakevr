@@ -65,6 +65,8 @@ void() VR_Reload_Precache =
     precache_sound("vr/reload_pouch.wav");    // a round taken from the pouch, or put back
     precache_sound("vr/reload_shell_in.wav"); // a shell pushed into the port
     precache_sound("vr/reload_empty.wav");    // the pouch found empty
+    precache_sound("vr/reload_blocked.wav");  // a shell held to a full shotgun: the gate won't open
+    precache_sound("vr/reload_full.wav");     // the last shell in: the tube full
     precache_sound("vr/shell_tink1.wav");     // a round knocking about (the spent shells' tinks)
     precache_sound("vr/shell_tink2.wav");
     precache_sound("vr/shell_tink3.wav");
@@ -749,9 +751,11 @@ float(float xHand, entity r) VR_Reload_Load =
     {
         if(!r.vr_ammo_full)
         {
+            // (Once as it comes within the port's range, until it leaves it: VR_Reload_HeldFrame.)
             r.vr_ammo_full = TRUE;
             VR_Reload_Haptic(self, xHand, 0.06, 40, 0.6);
-            VR_Reload_Log("the gun is full");
+            VR_Reload_Sound(self, VRGetGunChannel(gunHand), "vr/reload_blocked.wav", 1);
+            VR_Reload_Log("the gun is full: the gate won't open");
         }
         return FALSE;
     }
@@ -764,6 +768,13 @@ float(float xHand, entity r) VR_Reload_Load =
     VR_Reload_Haptic(self, gunHand, 0.08, 70, 0.7);  // the gun taking it
     VR_Reload_Log(sprintf("%g into the gun (hand %g): its magazine %g of %g, %g in the reserve", n, gunHand, clip + n,
         WeaponIdToBaseClipSize(w), VR_AmmoUtil_GetAmmoCountByAmmoId(self, r.vr_ammo_aid)));
+    if(clip + n >= WeaponIdToBaseClipSize(w))
+    {
+        // The last one in: the tube full (a heavier knock, a second buzz).
+        VR_Reload_Sound(self, CHAN_AUTO, "vr/reload_full.wav", 1);
+        VR_Reload_Haptic(self, gunHand, 0.14, 50, 0.9);
+        VR_Reload_Log("the gun is full now");
+    }
     if(r.vr_ammo_count <= 0)
     {
         VR_Carry_SetHeld(self, xHand, world);
