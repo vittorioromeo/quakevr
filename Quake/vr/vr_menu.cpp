@@ -975,6 +975,11 @@ int campaignsBloodyShown = -1;
         header("Their Damage"),
         open("Weapon Damage", pageIndex(pageWeaponDamage))
             .help("The swords', chainsaws', burst rifles' and laser rifles' damage, with every other weapon's."),
+        header("Lying About"),
+        slider("Most Lying About", vr_enemy_weapon_drop_max, 0.f, 128.f, 4.f, "%.0f").extend(0.f, 512.f)
+            .help("The grunts' burst rifles, the enforcers' laser rifles and the ogres' chainsaws lying about: past this "
+                  "many, the oldest fades away (never one in your hand, pulled to it or in flight). Every other weapon, "
+                  "drop and prop stays. 0: no limit (vr_enemy_weapon_drop_max)."),
         header("Ogres' Chainsaws"),
         slider("Fuel When Dropped", vr_chainsaw_drop_fuel_min, 0.f, 100.f, 5.f, "%.0f%% or more")
             .help("The fuel an ogre's chainsaw has as it drops: at least this much of a full tank, at random up to full. "
@@ -5409,6 +5414,11 @@ za::Vector<Item> pageDebugTests()
             .extend()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        command("Enemy Weapon Drop Cap", "developer 1; vr_dropcap_test 1")
+            .help("vr_dropcap_test 1: 60 grunts spawned ahead and killed one by one (vr_dropcap_test_n), the first one's "
+                  "rifle taken into an empty hand, a chainsaw thrown up and three other weapons dropped: the burst rifles "
+                  "and chainsaws lying about never pass Most Lying About (vr_enemy_weapon_drop_max), the held one, the "
+                  "flying one and the others stay (dctest: lines, PASS or FAIL). vr_dropcap_test 2: the count lying about."),
         command("Marksman Ogre: What It Is", "developer 1; vr_marksman_test 1")
             .help("vr_marksman_test 1: the nearest marksman ogre's model (Honey's in a Honey map, else id's ogre: Dimension "
                   "of the Machine's marksman), health, enemy and the grenades it has thrown, to the console (mkstest:)."),

@@ -94,6 +94,96 @@ void(float xHand, float xLeft, float xNext) VR_SetBurst =
     }
 };
 
+// ----------------------------------------------------------------------------
+// The cap on dropped single-use enemy weapons (ROUND21.md, "A cap on dropped enemy weapons")
+// ----------------------------------------------------------------------------
+//
+// The grunts' burst rifles, the enforcers' laser rifles and the ogres' chainsaws (single use: their ammo or fuel their
+// own) that monsters dropped, lying about: at most vr_enemy_weapon_drop_max (48; 0: no limit). Past it, as one more is
+// made (a monster's drop, a player's drop or throw of one), the oldest (.vr_drop_born: saved, so the order survives a load) fades away; one in a hand
+// (not lying about), being carried, pulled by a force grab or in flight is spared: the next oldest goes. Every other
+// weapon, drop and prop stays.
+
+float VR_DROPCAP_FLYING = 40; // units/s: one moving faster is in flight (thrown, falling), never taken away
+float VR_DROPCAP_FADE = 0.4;  // seconds its fade takes
+
+float(float xWid) VR_EnemyWeapons_Capped = { return VR_IsEnemyGun(xWid) || xWid == WID_CHAINSAW; };
+
+// Counted under the cap: a single-use enemy weapon a monster dropped (not a map's or a dispenser's: its record's
+// .vr_enemy_drop), lying about (or flying), not one fading.
+float(entity e) VR_EnemyWeapons_Counted =
+{
+    return VR_EnemyWeapons_Capped(e.weapon) && e.weaponinst.vr_enemy_drop && !e.vr_drop_fade;
+};
+
+// One the cap never takes away: carried, pulled to a hand, in flight.
+float(entity e) VR_EnemyWeapons_Spared =
+{
+    return e.carry_player != world || e.fg_state != 0 || vlen(e.velocity) > VR_DROPCAP_FLYING;
+};
+
+void() VR_EnemyWeapons_FadeThink =
+{
+    self.alpha = max(0.01, 1 - (time - self.vr_drop_fade) / VR_DROPCAP_FADE);
+    if(time >= self.vr_drop_fade + VR_DROPCAP_FADE)
+    {
+        remove(self);
+        return;
+    }
+    self.nextthink = time + 0.02;
+};
+
+// `e` fades away and is removed: nothing can take it meanwhile (no hand, no force grab), its engine (a chainsaw's)
+// stopped.
+void(entity e) VR_EnemyWeapons_Fade =
+{
+    VR_Saw_PropStop(e);
+    e.vr_drop_fade = time;
+    e.handtouch = SUB_Null;
+    e.touch = SUB_Null;
+    e.flags = e.flags - (e.flags & FL_FORCEGRABBABLE);
+    e.fg_state = 2; // (VR_Forcegrab_IsEligible: none)
+    e.alpha = 1;
+    e.think = VR_EnemyWeapons_FadeThink;
+    e.nextthink = time + 0.02;
+};
+
+// `xNew` made (CreateThrownWeapon): if it is a single-use enemy weapon, the oldest of them go past the cap.
+void(entity xNew) VR_EnemyWeapons_MakeRoom =
+{
+    float most = cvar_hget(cvarh_vr_enemy_weapon_drop_max);
+    if(most <= 0 || !VR_EnemyWeapons_Counted(xNew))
+    {
+        return;
+    }
+    float n = 0;
+    entity e;
+    for(e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+    {
+        n = n + VR_EnemyWeapons_Counted(e);
+    }
+    while(n > most)
+    {
+        entity oldest = world;
+        for(e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+        {
+            if(e != xNew && VR_EnemyWeapons_Counted(e) && !VR_EnemyWeapons_Spared(e) &&
+               (oldest == world || e.vr_drop_born < oldest.vr_drop_born))
+            {
+                oldest = e;
+            }
+        }
+        if(oldest == world)
+        {
+            return; // (all the rest spared: over the cap a moment)
+        }
+        dprint(sprintf("dropcap: the oldest %s (made at %.2f) fades away (%g lying about, the most %g)\n", oldest.netname,
+            oldest.vr_drop_born, n, most));
+        VR_EnemyWeapons_Fade(oldest);
+        n = n - 1;
+    }
+};
+
 // A grunt or an enforcer dies: its gun falls where it held it (by its right side as it stands), full.
 void(float xWid) VR_DropEnemyGun =
 {

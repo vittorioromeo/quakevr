@@ -29611,3 +29611,20 @@ becomes smaller and fits into the holster, then disappears (worktree `collectfx`
   vrfiringrange: spawns, dies, ragdolls (the range's spawned ogres, plain ones too, don't notice the player); MG1 hub
   (`vr_mg_hub_test 38`): unchanged, 20/0 on `vr_mg_hub_test 1`.
 - Not tested: Honey's own marksman (no Honey data in the test base); the logic there is unchanged.
+
+## A cap on dropped enemy weapons (2026-10-07)
+
+"A global limit of maybe 32 or 64 on the ground; when we reach the limit, we start deleting them in a circular fashion.
+Only the one-use-only weapons."
+- The grunts' burst rifles, the enforcers' laser rifles and the ogres' chainsaws that monsters dropped (their weapon
+  record's `.vr_enemy_drop`, set as a monster drops one: it stays with the gun through hands, holsters and drops) lying
+  about: at most `vr_enemy_weapon_drop_max` (48; 0: no limit; Combat > Enemy Weapons > Most Lying About). Past it, as
+  one more is made (`CreateThrownWeapon` -> `VR_EnemyWeapons_MakeRoom`, vr_enemyguns.qc), the oldest (`.vr_drop_born`,
+  saved: the order survives a load) fades away in 0.4 s (nothing can take it meanwhile). Spared, the next oldest going
+  instead: one carried, pulled by a force grab, or moving faster than 40 u/s (in flight). One in a hand or a holster is
+  no prop: never counted. A map's or a dispenser's weapons (the firing range's chainsaw), every other drop and prop stay.
+- Not kept: the mark across a level change (a carried enemy gun's record is remade there: it is no longer capped).
+- Test (Debug > Tests > Enemy Weapon Drop Cap): `vr_dropcap_test 1` (60 grunts spawned ahead and killed one by one,
+  the first rifle taken into the gripped main hand, a chainsaw thrown up as the oldest, three other weapons dropped):
+  vrfiringrange, the most lying at any tick 48 of 48, the others 3 of 3, the held one held, the flying chainsaw kept
+  until it landed, then the first to go; saved and loaded, 10 more: the oldest (4.20 .. 5.30) went in order, 48 of 48.

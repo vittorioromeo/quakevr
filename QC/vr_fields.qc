@@ -230,4 +230,10 @@
 .float vr_was_monster;   // a monster's head (VR_MakeGibGrabbable took its FL_MONSTER): what it drops after (a gibbed
                          // grunt's backpack: SoldierDrop after ThrowHead) is still a monster's drop (.vr_monster_drop)
 
+.float vr_drop_born;     // a thrown_weapon: when it was made (dropped, thrown); the oldest single-use enemy weapon lying
+                         // about goes first past vr_enemy_weapon_drop_max (vr_enemyguns.qc VR_EnemyWeapons_MakeRoom)
+.float vr_drop_fade;     // such a weapon fading away (past the cap): when it began; it counts no more, can't be taken
+.float vr_enemy_drop;    // a weapon's record (.weaponinst): a monster dropped it (a grunt's, an enforcer's, an ogre's):
+                         // capped while it lies about, whoever let go of it since (not a map's or a dispenser's)
+
 .float carry_portal; // room mapping of a held object, one-based gate

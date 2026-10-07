@@ -5600,6 +5600,7 @@ void(entity xProp) VR_Saw_PropRuns;
 void(entity xProp) VR_Saw_PropStop;
 void(entity xProp) VR_Saw_PropTaken;
 void() VR_Saw_PropThink;
+void(entity xNew) VR_EnemyWeapons_MakeRoom;
 
 void() wpnthrow_think =
 {
@@ -6319,7 +6320,11 @@ entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
     if((thrower.flags & FL_MONSTER) || thrower.vr_was_monster) // (a gibbed one's head: TryEnemyDrop after ThrowHead)
     {
         newmis.vr_monster_drop = time; // dropped by a monster: it can't hurt players just yet (vr_prop_drop_grace)
+        newmis.weaponinst.vr_enemy_drop = 1; // (its record: still a monster's drop in a hand, a holster, dropped again)
     }
+
+    newmis.vr_drop_born = time;
+    VR_EnemyWeapons_MakeRoom(newmis); // (a single-use enemy weapon: at most vr_enemy_weapon_drop_max lie about)
 
     return newmis;
 }

@@ -88,6 +88,7 @@ vr_shock.qc
 vr_cheats.qc
 vr_smallgibs_test.qc
 vr_marksman_test.qc
+vr_dropcap_test.qc
 world.qc
 vr_dummy.qc
 vr_motion.qc
