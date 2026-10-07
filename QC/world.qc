@@ -552,6 +552,7 @@ void() StartFrame =
     teamplay = cvar_hget(cvarh_teamplay);
     skill = cvar_hget(cvarh_skill);
     VR_CVars_Frame();
+    VR_Stealth_Frame(); // QVR: the stealth AI switched off: the monsters back to Quake's AI (vr_stealth.qc)
     MG_WorldFrame();
     MG_TestFrame();
     MG_TriggerTestFrame();

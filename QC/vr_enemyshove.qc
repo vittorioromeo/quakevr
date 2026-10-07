@@ -66,6 +66,10 @@ float() VR_EnemyShove_Check =
     {
         return FALSE;
     }
+    if(self.enemy == world && VR_Stealth_MeterOn())
+    {
+        return FALSE; // (the stealth AI: an idle monster hasn't noticed you, however near; touching it gives you away)
+    }
     if(!cvar_hget(cvarh_vr_enemy_shove))
     {
         self.vr_eshove_near = 0;

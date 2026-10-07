@@ -23,6 +23,7 @@
 #include "vr_ropesim.hpp"
 #include "vr_server.hpp"
 #include "vr_shock.hpp"
+#include "vr_stealth.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
@@ -2073,6 +2074,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"torchflametouch", PF_torchflametouch},
     {"mapflametouch", PF_mapflametouch},
     {"anglemod", PF_anglemod},
+    {"stealthlight", stealth::PF_stealthlight},
+    {"flashlightbeam", stealth::PF_flashlightbeam},
+    {"pvsvisible", stealth::PF_pvsvisible},
     {"meleerun", PF_meleerun},
     {"meleewristspeed", PF_meleewristspeed},
     {"meleewiggled", PF_meleewiggled},

@@ -2071,6 +2071,9 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
     vr_tracer_from = muzzle;
     FireBulletsImpl(shotcount, dir, spread, src, 2048 + vlen(muzzle - src), TRUE);
     VR_ClearHitKind();
+    // QVR: the shot's line passing near a monster alerts it (vr_stealth.qc)
+    traceline(src, src + dir * 2048, FALSE, self);
+    VR_Stealth_Graze(muzzle, trace_endpos, self, trace_ent);
 }
 
 void(float shotcount, vector dir, vector spread) EnemyFireBullets =
@@ -2297,6 +2300,7 @@ entity(float xHand) W_FireRocket =
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
 
     // HIPNOTIC
     //MED 11/09/96
@@ -2353,6 +2357,8 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 {
     entity        e1, e2;
     vector        f;
+
+    VR_Stealth_Graze(p1, p2, from, world); // QVR: the beam passing near a monster alerts it (vr_stealth.qc)
 
     f = p2 - p1;
     normalize(f);
@@ -2791,6 +2797,7 @@ void(float xHand) W_FireGrenade =
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     VR_Grenade_Make(missile, GrenadeExplode, 2.5, TRUE); // QVR: catchable too with vr_grenade_catch 2
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
@@ -2975,6 +2982,7 @@ void(float xHand) W_FireProximityGrenade =
     setmodel(missile, "progs/proxbomb.mdl");
     setorigin(missile, VRGetMuzzlePos(xHand));
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     setsize(missile, '-1 -1 -1', '1 1 1');
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
@@ -3013,6 +3021,7 @@ entity(vector org, vector dir) launch_spike =
 
     newmis.velocity = dir * 1750;
     VR_ShotPush_Launch(newmis, QVR_SHOTPUSH_NAIL); // VR: pushes the prop it hits or flies through
+    VR_Stealth_GrazeMissile(newmis); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     return newmis;
 };
 
@@ -3347,6 +3356,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     if(!justClosing)
     {
         self.show_hostile = time + 1;
+        VR_Stealth_Shot(self, xWeapon); // QVR: heard by its loudness (vr_stealth.qc)
     }
 
     // ZOID--

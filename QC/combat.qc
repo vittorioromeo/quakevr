@@ -115,6 +115,7 @@ void(entity targ, entity attacker) Killed =
 {
     entity oself;
 
+    VR_Stealth_Died(targ); // QVR: its body may be noticed (vr_stealth.qc)
     oself = self;
     self = targ;
     // VR: the firing range's training dummy killed by what passed by its own report (VR_Dummy_Hit; a zombie it stands as
@@ -1346,6 +1347,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     else if((attacker.flags & FL_CLIENT) && (targ.flags & FL_MONSTER))
     {
         damage = damage * cvar_hget(cvarh_vr_damage_to_enemies);
+        damage = damage * VR_Stealth_SneakMult(targ, attacker); // QVR: a sneak attack (vr_stealth.qc)
     }
 
     // rune power up (Black Magic)
@@ -2305,6 +2307,7 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
 {
     VR_ExplosionRumble(inflictor.origin, damage);
     physicsblast(inflictor.origin, damage);
+    VR_Stealth_Noise(inflictor.origin, max(800, damage * 8), world, STL_N_BLAST); // QVR: heard far (vr_stealth.qc)
 
     float     points;
     entity    head;

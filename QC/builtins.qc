@@ -417,6 +417,9 @@ float() highlighting = #0; // a highlight log is running (vr_highlights; vr_high
 // A moment for the highlight log: its kind, score (0: the kind's own), what it was done to, with what, and the game time
 // it began (0: now).
 void(string kind, float score, entity subject, string detail, float since) highlight = #0;
+float(vector at) stealthlight = #0; // QVR: the light at a point (128: Quake's full light; the dynamic lights too, not the host's own flashlight's); -1 unknown (vr_stealth.cpp)
+vector(entity player, float what) flashlightbeam = #0; // QVR: the player's flashlight: what 0 its lens, 1 its axis, 2 '<on> <range> <cos of its cone's half angle>' ('0 0 0' off; only the host's lamp is known)
+float(vector a, vector b) pvsvisible = #0; // QVR: whether b is in a's potentially visible set (a noise round a corner, not through solid walls)
 float(float v) anglemod = #0; // v wrapped into [0, 360) (vr_builtins.cpp)
 
 // The melee history of a hand's blow `b` (vr_melee.qc VR_Blow: the ring of its last poses, VR_Melee_Track), looked back

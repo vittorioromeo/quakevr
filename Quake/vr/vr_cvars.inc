@@ -2748,3 +2748,45 @@ QVR_CVAR(vr_mg3_bn_start, "0", CVAR_NONE) // Official Campaigns > Bloody Nightma
 QVR_CVAR(vr_cheat_ammo, "0", CVAR_NONE) // infinite ammunition: your shells, nails, rockets and cells (the mission packs' too) kept full, and the magazines in your hands
 QVR_CVAR(vr_freeze_monsters, "0", CVAR_NONE) // the living monsters stand frozen where they are (their thinking and moving skipped; a blow still kills)
 QVR_CVAR(vr_shot_hide, "0", CVAR_NONE) // hidden for a clean shot (vr_view.cpp): 1 the wrist gadget (its screen, its messages), 2 your hands and what they hold, 4 your body and holsters (added up: 7 all)
+// Combat > Stealth AI (QC vr_stealth.qc; docs/vr-port/STEALTH_PLAN.md): monsters Idle, Alert (investigating) or Hostile.
+QVR_CVAR(vr_ai_enhanced, "1", CVAR_ARCHIVE)          // every rule below at once (the umbrella: 0 is Quake's monster AI, at once, mid-map too)
+QVR_CVAR(vr_stealth_meter, "1", CVAR_ARCHIVE)        // sight is a suspicion meter (light, distance, facing, movement, crouching): 0 Quake's instant sight
+QVR_CVAR(vr_stealth_meter_time, "1.5", CVAR_ARCHIVE) // s the meter takes to fill: in full light, near, in front, walking
+QVR_CVAR(vr_stealth_meter_decay, "0.2", CVAR_ARCHIVE) // share of the meter lost a second while not seen
+QVR_CVAR(vr_stealth_glimpse, "0.3", CVAR_ARCHIVE)    // the meter's share at which the monster turns to look (Alert)
+QVR_CVAR(vr_stealth_light_dark, "16", CVAR_ARCHIVE)  // light (128: Quake's full light) at or below which you are not seen
+QVR_CVAR(vr_stealth_light_bright, "96", CVAR_ARCHIVE) // light at or over which you are seen as fast as can be
+QVR_CVAR(vr_stealth_crouch, "0.4", CVAR_ARCHIVE)     // the meter's rate in a full crouch (a share)
+QVR_CVAR(vr_stealth_still, "0.5", CVAR_ARCHIVE)      // the meter's rate while you stand still (walking 1, running 2)
+QVR_CVAR(vr_stealth_sight_range, "1500", CVAR_ARCHIVE) // units at which a monster no longer makes you out (full rate within 128)
+QVR_CVAR(vr_stealth_peripheral, "0.3", CVAR_ARCHIVE) // the meter's rate out of a monster's front cone (behind it: none)
+QVR_CVAR(vr_stealth_contact, "1", CVAR_ARCHIVE)      // touching a monster (body, hands, a held prop) gives you away
+QVR_CVAR(vr_stealth_noise, "1", CVAR_ARCHIVE)        // monsters hear noises (running, props, blows, shots, blasts) through the level
+QVR_CVAR(vr_stealth_run_speed, "250", CVAR_ARCHIVE)  // units/s over which you run (and are heard)
+QVR_CVAR(vr_stealth_noise_run, "400", CVAR_ARCHIVE)  // units your running is heard at (in the open)
+QVR_CVAR(vr_stealth_noise_props, "1200", CVAR_ARCHIVE) // units a prop's loudest knock is heard at (a quieter one: by its volume)
+QVR_CVAR(vr_stealth_noise_guns, "1", CVAR_ARCHIVE)   // times each weapon's shot's reach (a shotgun 1100 units)
+QVR_CVAR(vr_stealth_noise_melee, "1", CVAR_ARCHIVE)  // times a blow's reach (by its strength and the weapon's weight)
+QVR_CVAR(vr_stealth_noise_wall, "0.5", CVAR_ARCHIVE) // a noise's reach kept round a corner (in sight of the place, not in line)
+QVR_CVAR(vr_stealth_noise_solid, "0.15", CVAR_ARCHIVE) // and through solid walls (out of sight of the place)
+QVR_CVAR(vr_stealth_noise_absorb, "0.6", CVAR_ARCHIVE) // and past a prop (a crate) in the way
+QVR_CVAR(vr_stealth_investigate, "1", CVAR_ARCHIVE)  // an Alert monster walks to what it heard or saw (0: it only turns and looks)
+QVR_CVAR(vr_stealth_turn, "0.6", CVAR_ARCHIVE)       // an Alert monster's turn speed (times its own)
+QVR_CVAR(vr_stealth_search_time, "5", CVAR_ARCHIVE)  // s an Alert monster searches the spot before it goes back to its post
+QVR_CVAR(vr_stealth_sensitive, "1.5", CVAR_ARCHIVE)  // its meter's rate for a while after (times)
+QVR_CVAR(vr_stealth_sensitive_time, "30", CVAR_ARCHIVE) // s it stays that wary
+QVR_CVAR(vr_stealth_share_near, "256", CVAR_ARCHIVE) // units: a monster this near another that turns Alert or Hostile does too (0: none)
+QVR_CVAR(vr_stealth_share_view, "1000", CVAR_ARCHIVE) // units: one that sees it turn Hostile within this does too (Alert: half)
+QVR_CVAR(vr_stealth_graze, "64", CVAR_ARCHIVE)       // units: a shot passing this near a monster alerts it, from any distance (0: off)
+QVR_CVAR(vr_stealth_flashlight, "1", CVAR_ARCHIVE)   // the flashlight's beam alerts monsters it lights or that see it
+QVR_CVAR(vr_stealth_torch, "400", CVAR_ARCHIVE)      // units: a held or thrown torch alerts monsters that see it this near (0: off)
+QVR_CVAR(vr_stealth_corpses, "600", CVAR_ARCHIVE)    // units: corpses and gibs seen this near alert monsters (0: off)
+QVR_CVAR(vr_stealth_sneak, "1.25", CVAR_ARCHIVE)     // damage times this to a monster that hasn't noticed anything (1: none)
+QVR_CVAR(vr_stealth_ambush_deaf, "1", CVAR_ARCHIVE)  // monsters placed in ambush (spawnflag 1) don't hear noises or other monsters (Quake's meaning)
+QVR_CVAR(vr_stealth_senses, "1", CVAR_ARCHIVE)       // each kind its own senses (dogs hear better, zombies are near deaf)
+QVR_CVAR(vr_stealth_lose, "1", CVAR_ARCHIVE)         // a Hostile monster that lost you searches where it saw you last, then gives up (Alert)
+QVR_CVAR(vr_stealth_gem, "1", CVAR_ARCHIVE)          // a gem on the wrist gadget: how visible (its glow) and how loud (its ring) you are
+QVR_CVAR(vr_stealth_marks, "0", CVAR_ARCHIVE)        // a "?" over a monster turning Alert, "!" turning Hostile
+QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed; 2: each sighting's meter and each noise heard
+QVR_CVAR(vr_stealth_light_force, "-1", CVAR_NONE)    // tests: the players' light level as this (-1: measured)
+QVR_CVAR(vr_stealth_test, "0", CVAR_NONE)            // tests: vr_stealth.qc's numbered scenes (Debug > Tests > Stealth)

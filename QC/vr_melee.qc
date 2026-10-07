@@ -3057,6 +3057,9 @@ void(float xHand) VR_Melee_Landed =
 {
     entity b = VR_Blow(xHand);
     self.show_hostile = time + 1; // a blow that landed wakes monsters up (as a gun's shot: W_AttackImpl)
+    // QVR: heard by its strength and the held thing's weight (a fist's 200 units at strength 1; vr_stealth.qc)
+    VR_Stealth_Noise(self.origin, 200 * b.mh_strength * (1 + max(0, VR_Weight_HeldMass(self, xHand)) / 3) *
+        cvar_hget(cvarh_vr_stealth_noise_melee), self, STL_N_MELEE);
     b.mh_hit_ent = b.mh_c_ent;
     b.mh_hit_time = VR_PlayerTime();
     b.mh_hit_touch = VR_PlayerTime();

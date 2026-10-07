@@ -11,6 +11,7 @@ vr_handgrabutil.qc
 
 vr_portal_ai.qc
 vr_portal_ai_test.qc
+vr_stealth_defs.qc
 ai.qc
 combat.qc
 fight.qc
@@ -56,6 +57,9 @@ vr_mg3_upgrades.qc
 vr_grapple.qc
 // Grunts' and enforcers' shoves (ai.qc calls it; the monsters' files use it).
 vr_enemyshove.qc
+// The stealth AI (ai.qc, combat.qc, weapons.qc call it; vr_stealth_defs.qc before ai.qc has its fields).
+vr_stealth.qc
+vr_stealth_test.qc
 
 buttons.qc
 vr_tips.qc

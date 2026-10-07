@@ -572,6 +572,46 @@ void slide(int num, Material material, float mass, float slip, float press, cons
     }
 }
 
+// The QC's VR_Stealth_PropNoise, looked up once per progs loaded.
+const dprograms_t* stealthFnProgs = nullptr;
+func_t stealthFn = 0;
+
+// A played knock is a noise the monsters may hear (QC vr_stealth.qc VR_Stealth_PropNoise; the stealth AI): the QC
+// globals it may clobber put back after (as vr_box3d.cpp's QcCallGuard).
+void stealthNoise(int num, float volume)
+{
+    if(stealthFnProgs != qcvm->progs)
+    {
+        stealthFnProgs = qcvm->progs;
+        stealthFn = progs::findFunction("VR_Stealth_PropNoise");
+    }
+    const func_t fn = stealthFn;
+    if(!fn || vr_ai_enhanced.value == 0.f || vr_stealth_noise.value == 0.f)
+    {
+        return;
+    }
+    globalvars_t saved;
+    memcpy(&saved, pr_global_struct, sizeof saved);
+    pr_global_struct->time = qcvm->time;
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(EDICT_NUM(num));
+    G_FLOAT(OFS_PARM1) = volume;
+    PR_ExecuteProgram(fn);
+    globalvars_t& g = *pr_global_struct;
+    memcpy(g.pad, saved.pad, sizeof g.pad);
+    g.self = saved.self;
+    g.other = saved.other;
+    g.msg_entity = saved.msg_entity;
+    g.trace_allsolid = saved.trace_allsolid;
+    g.trace_startsolid = saved.trace_startsolid;
+    g.trace_fraction = saved.trace_fraction;
+    VectorCopy(saved.trace_endpos, g.trace_endpos);
+    VectorCopy(saved.trace_plane_normal, g.trace_plane_normal);
+    g.trace_plane_dist = saved.trace_plane_dist;
+    g.trace_ent = saved.trace_ent;
+    g.trace_inopen = saved.trace_inopen;
+    g.trace_inwater = saved.trace_inwater;
+}
+
 void frameEnd()
 {
     QVR_PROFILE("physics sounds");
@@ -623,6 +663,7 @@ void frameEnd()
         state.played++;
         b.lastHit = now;
         b.lastVolume = h.volume;
+        stealthNoise(h.num, h.volume);
         if(debug())
         {
             Con_Printf("physsound: %.2f %d %s impact %s%s (%.1f kg, %s) at %.2f m/s: volume %.2f\n", qcvm->time, h.num,

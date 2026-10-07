@@ -2176,6 +2176,8 @@ void() PlayerPostThink =
         }
         else
             sound(self, CHAN_VOICE, "player/land.wav", 1, ATTN_NORM);
+        if(self.watertype != CONTENT_WATER && time - self.stl_climb_time > 0.5) // QVR: a hard landing's thud is heard (vr_stealth.qc)
+            VR_Stealth_Noise(self.origin, min(500, -self.jump_flag * 0.6), self, STL_N_STEP);
 
         self.jump_flag = 0;
     }
@@ -2185,6 +2187,7 @@ void() PlayerPostThink =
 
     CheckPowerups();
     VR_Grapple_GunFrames(); // QVR: a grappling gun whose hook is out drawn empty (vr_grapple.qc)
+    VR_Stealth_PlayerFrame(); // QVR: his running heard, his touch felt, how lit he is (vr_stealth.qc)
 };
 
 

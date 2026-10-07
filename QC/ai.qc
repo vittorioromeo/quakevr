@@ -565,6 +565,8 @@ void() FoundTarget =
     if(self.aggro_target != string_null)
         MG3_AggroWake(); // QVR: Dawn of the Machine's aggro groups (vr_mg3_triggers.qc)
 
+    VR_Stealth_Hostile(); // QVR: Alert no more; the monsters near it told (vr_stealth.qc)
+
     self.show_hostile = time + 1;        // wake up other monsters
 
     SightSound();
@@ -592,6 +594,8 @@ float() FindTarget =
 {
     entity client;
     float  r;
+
+    VR_Stealth_Tick(); // QVR: the stealth AI's meter drains, beams, torches and bodies seen (vr_stealth.qc)
 
 // if the first spawnflag bit is set, the monster will only wake up on
 // really seeing the player, not another monster getting angry
@@ -690,6 +694,13 @@ float() FindTarget =
 
    if(client.items & IT_INVISIBILITY) // (VR_ItemUtil_EntHasItem, directly: every sight check)
       return FALSE;
+
+    // QVR: the stealth AI: a player is seen by the suspicion meter (light, distance, facing, movement, crouching), not
+    // at once (vr_stealth.qc; another monster's sighting, the relay above, stays Quake's).
+    if(client.classname == "player" && !self.charmed && VR_Stealth_MeterOn())
+    {
+        return VR_Stealth_See(client);
+    }
 
     if(!visible(client)) { return FALSE; }
     r = range (client);
@@ -809,6 +820,9 @@ void(float dist) ai_walk =
    if(FindTarget ())
       return;
 
+    if(VR_Stealth_Walk(dist)) // QVR: Alert: walking to what it noticed, or back to its post (vr_stealth.qc)
+        return;
+
 //MED 11/02/96
    if(self.huntingcharmer)
       {
@@ -835,6 +849,9 @@ void() ai_stand =
 
    if(FindTarget ())
       return;
+
+    if(VR_Stealth_Stand()) // QVR: Alert: turning to look, searching (vr_stealth.qc)
+        return;
 
     if(time > self.pausetime)
     {

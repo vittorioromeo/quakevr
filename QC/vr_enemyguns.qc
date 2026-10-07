@@ -447,6 +447,7 @@ void(float xHand) VR_BurstRound =
 {
     makevectors(VRGetWeaponFireRot(xHand));
     self.show_hostile = time + 1; // wake monsters up
+    VR_Stealth_Shot(self, WID_GRUNTGUN); // QVR: heard (vr_stealth.qc)
     VRSetWeaponClip(xHand, VRGetWeaponClip(xHand) - 1);
     player_shot1(xHand);
     VR_FireBurstRound(xHand);
@@ -514,6 +515,7 @@ void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinishe
 
     makevectors(VRGetWeaponFireRot(xHand));
     self.show_hostile = time + 1; // wake monsters up
+    VR_Stealth_Shot(self, WID_GRUNTGUN); // QVR: heard (vr_stealth.qc)
     VRSetWeaponClip(xHand, VRGetWeaponClip(xHand) - 1);
     player_shot1(xHand);
     if(xWeapon == WID_GRUNTGUN)

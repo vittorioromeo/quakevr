@@ -806,6 +806,7 @@ void(string gibname, float dm) ThrowGib =
     new.nextthink = time + 10 + random()*10;
     new.frame = 0;
     new.flags = 0;
+    new.stl_notice = STL_NOTICE_BODY; // QVR: monsters seeing it are alerted (vr_stealth.qc)
     VR_MakeGibGrabbable(new);
     VR_Gib_MakeDestroyable(new, 1);
     VR_SmallGib_CarryMults(self, new); // VR: it carries this monster's small gib and brain counts (vr_smallgibs.qc)

@@ -122,4 +122,11 @@ struct Fingers
 // and the hand is at it. The off hand's Y then does not start a voice note at the mouth (vr_input.cpp).
 [[nodiscard]] bool wantsSecondary(int hand);
 
+// The beam as last lit (the host's own lamp; none while off): its lens, axis, reach (units) and the cosine of its cone's
+// half angle (the monsters' eyes, vr_stealth.cpp). False when it is off.
+[[nodiscard]] bool beamNow(glm::vec3& lens, glm::vec3& dir, float& range, float& cosOuter);
+
+// Whether a dynamic light is one of the lamp's own (its spot, spill and glow): it lights what it points at, not its holder.
+[[nodiscard]] bool ownsLight(int key);
+
 } // namespace qvr::flashlight
