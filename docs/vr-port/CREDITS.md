@@ -161,6 +161,22 @@ off under -1 dBFS.
 | `burst2.wav` | the same take's second shot | 4.398-4.898 |
 | `burst3.wav` | the second shot, 5% slower | 4.398-4.923 |
 
+### Shotgun shell insert sounds (`quakevr/sound/vr/reload_shell_in*.wav`)
+
+Immersive reloading's shell pushed into the shotgun's port (QC `vr_reload.qc`), from **Shotgun Reload Sound effects** by
+**zer0_sol** ([OpenGameArt](https://opengameart.org/content/shotgun-reload-sound-effects)), released under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (public domain: no attribution needed, credited here
+anyway). They replace the synthesised insert (2026-10-07). `Misc/quakevr/make_reload_shell_sounds.py` cuts them from the
+downloaded MP3s (not in the repository; the script's header has the link): each shell's push into the tube (the scrape
+and the shell latch's click), high-passed at 30 Hz, kept at 44100 Hz 16-bit, faded, brought to the A-weighted loudness
+of the synthesised insert, peaks rounded off under -1 dBFS. One of the three is picked at random per insert.
+
+| Files | Source | Cut (s) |
+|---|---|---|
+| `reload_shell_in.wav` | `First Shell.mp3` | 0.720-0.900 |
+| `reload_shell_in_2.wav` | `Subsequent Shells.mp3` | 1.069-1.299 |
+| `reload_shell_in_3.wav` | `5 Shell Reload.mp3`: the fourth shell | 4.515-4.745 |
+
 ### Physics sounds (`quakevr/sound/vr/phys/`)
 
 The props' knocks, scrapes and the climbing grab (`vr_physsound.cpp`; ROUND21.md, "Physics sounds"), all from sources

@@ -18,9 +18,9 @@
 #                 crackling fizz), and its ticks, faster and faster until it goes off
 #   grenade_pouch.wav, grenade_pin.wav  hand grenades (QC vr_grenade.qc): one taken from the pouch or put back (the
 #                 leather's rustle and flap, iron knocking on iron), and its pin pulled (a rasp, then the ring's ping)
-#   reload_pouch.wav, reload_shell_in.wav, reload_empty.wav  immersive reloading (QC vr_reload.qc): a shell taken from
-#                 the front ammo pouch or put back (a dry rustle, shells knocking), one pushed into the shotgun's port (a
-#                 plastic scrape, the latch's steel click), and the pouch found empty (soft pats on flat leather)
+#   reload_pouch.wav, reload_empty.wav  immersive reloading (QC vr_reload.qc): a shell taken from the front ammo pouch
+#                 or put back (a dry rustle, shells knocking), and the pouch found empty (soft pats on flat leather); (the
+#                 shell pushed into the shotgun's port, reload_shell_in*.wav: recorded, cut by make_reload_shell_sounds.py)
 #   reload_blocked.wav, reload_full.wav  a shell held to a full shotgun (the gate's dry click: it won't open), and the
 #                 last shell in (the tube full: a heavier double knock)
 #   reload_mag_in.wav, reload_mag_out.wav  a magazine seated in its gun (a slide, the catch's click, a metal clack) and
@@ -722,34 +722,6 @@ def reload_pouch():
     return finish(out, 0.75)
 
 
-def reload_shell_in():
-    """A shell pushed into the shotgun's loading port (the author: the first was too glassy): a dull mechanical
-    "shk-chk". The "shk": the plastic hull shoved past the spring-loaded gate, a short low scrape (filtered noise, no
-    ring); the "chk": the gate and the follower snapping back behind its rim, a dull steel knock (low partials dying in
-    milliseconds, a thump of the tube's spring), no bright ring. (A recording may replace this file under its name.)"""
-    rng = random.Random(613)
-    n = int(RATE * 0.2)
-    shk_lp, shk_hp = OnePole(2200), OnePole(500)
-    chk_lp = OnePole(2600)
-    knock = ((780, 0.9, 0.006), (1240, 0.6, 0.004), (1830, 0.3, 0.003), (430, 0.5, 0.012))
-    phase = [0.0]
-    out = []
-    for i in range(n):
-        t = i / RATE
-        noise = rng.uniform(-1, 1)
-        shk = shk_lp(noise)
-        shk -= shk_hp(shk)
-        env = min(1.0, t / 0.012) * (1.0 if t < 0.05 else math.exp(-(t - 0.05) / 0.008))
-        chk = 0.0
-        tc = t - 0.07
-        if tc >= 0:
-            burst = rng.uniform(-1, 1) * math.exp(-tc / 0.003)  # the strike's grit
-            chk = partials(tc, 1.0, knock) * min(1.0, tc / 0.0004) + burst * 0.5
-            chk += thud(tc, phase, 70.0, 110.0, 0.035) * 0.9
-        out.append(math.tanh(shk * env * 1.1 + chk_lp(chk) * 2.2))
-    return finish(out, 0.85)
-
-
 def reload_blocked():
     """A shell held to a full shotgun's port: the loading gate won't give: a small dry metallic click (a flap knocked
     against its stop), short and dull, no follow-through."""
@@ -1155,7 +1127,6 @@ def main():
         "grenade_pouch.wav": grenade_pouch,
         "grenade_pin.wav": grenade_pin,
         "reload_pouch.wav": reload_pouch,
-        "reload_shell_in.wav": reload_shell_in,
         "reload_empty.wav": reload_empty,
         "reload_blocked.wav": reload_blocked,
         "reload_full.wav": reload_full,
