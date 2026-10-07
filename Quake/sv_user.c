@@ -303,7 +303,12 @@ new, alternate noclip. old noclip is still handled in SV_AirMove
 */
 void SV_NoclipMove (void)
 {
-	AngleVectors (sv_player->v.v_angle, forward, right, up);
+	vec3_t	level; // QVR
+
+	if (VR_NoclipAngles (sv_player, level)) // QVR: a headset's flies as its stick walks (the head's yaw), up by upmove
+		AngleVectors (level, forward, right, up);
+	else
+		AngleVectors (sv_player->v.v_angle, forward, right, up);
 
 	velocity[0] = forward[0]*cmd.forwardmove + right[0]*cmd.sidemove;
 	velocity[1] = forward[1]*cmd.forwardmove + right[1]*cmd.sidemove;
@@ -603,6 +608,8 @@ nextmsg:
 					ret = 1;
 				else if (q_strncasecmp(s, "ban", 3) == 0)
 					ret = 1;
+				else if (q_strncasecmp(s, "vr_scene_clean", 14) == 0 || q_strncasecmp(s, "vr_scene_count", 14) == 0)
+					ret = 1; // QVR: Debug > Cheats and Recording's (vr_cheats.cpp: not in deathmatch)
 
 				if (ret == 1)
 					Cmd_ExecuteString (s, src_client);

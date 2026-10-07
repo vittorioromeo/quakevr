@@ -1,3 +1,4 @@
+#include "vr_cheats.hpp"
 #include "vr_alloccount.h"
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
 // pages: scrolling lists of labelled settings, changed with left/right (the sticks in VR), with
@@ -454,6 +455,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugReports();
 [[nodiscard]] za::Vector<Item> pageDebugTools();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
+[[nodiscard]] za::Vector<Item> pageDebugCheats();
 [[nodiscard]] za::Vector<Item> pageSpawnWeapons();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
@@ -538,6 +540,7 @@ mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
 #include "vr_menu_props.inc"
 #include "vr_menu_pages.inc"
 #include "vr_menu_recording.inc"
+#include "vr_menu_cheats.inc"
 
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
@@ -4002,6 +4005,9 @@ void checklistUndo()
             .help("What to test in the headset or give feedback on (quakevr/checklist.txt), ticked as you go. Also the "
                   "menu's corner button."),
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
+        open("Cheats and Recording", pageIndex(pageDebugCheats))
+            .help("God, noclip, the weapons and powerups; a scene set up for footage: saved and loaded, cleaned of gibs, "
+                  "corpses, props, fires and blood, slowed or frozen, the gadget and hands hidden."),
         open("Slow Motion: Recording", pageIndex(pageRecording)).help("Time Scale (slow motion) is on Graphics > Recording."),
         header("Debug"),
         open("Views", pageIndex(pageDebugViews))
@@ -5927,6 +5933,7 @@ const Page pages[] = {
     {"Ragdolls - Vore", pageRagdollVore, pageRagdolls, LevelDeveloper},
     {"Ragdolls - Centroid", pageRagdollCentroid, pageRagdolls, LevelDeveloper},
     {"Dawn of the Machine Tests", pageMg3Tests, pageDebugTests, LevelDeveloper},
+    {"Debug - Cheats and Recording", pageDebugCheats, pageDebug, LevelDeveloper}, // (vr_menu_cheats.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

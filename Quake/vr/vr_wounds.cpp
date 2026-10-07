@@ -3026,6 +3026,11 @@ void clear()
     }
 }
 
+int liveCount()
+{
+    return static_cast<int>(maskOf.size());
+}
+
 int skinLevel(int part, int level, const float* origin)
 {
     if(part < 0 || part > 2)

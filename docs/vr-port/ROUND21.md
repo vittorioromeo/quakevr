@@ -27323,3 +27323,76 @@ logo, and the menus' browns are turned blood red (Menu Settings > **Blood Red Me
 - Settings (Menu Settings): `vr_menu_recolor` 1, `vr_menu_recolor_strength` 1 (0..1), `vr_menu_recolor_hue` 0 (HSV
   degrees: 0 is the logo's own red, its median Oklab hue 29; 345 crimson; -1 the player's hue),
   `vr_menu_recolor_saturation` 1.25 (0.5..3).
+
+## Zero-instance water calls (2026-10-07)
+
+Debug builds stopped a few frames into warden and ad_grendel (exit 42 with `SDL_ASSERT=abort`; a modal "Assertion
+failure at R_AddBModelCall ... 'num_instances > 0'" without it). The cause was not the layered shadow casters: the
+slipgate-reach change (47ff1eb5c, 2026-10-05) made the brush models' batches count an entity's instances from
+`bmodel_portal_counts` (2 for a model drawn again through a slipgate), and R_DrawBrushModels_Water got the same line,
+but the water pass never fills that array: it read the last brush pass's counts, 0 past that pass's entity count
+(warden's lit water: a call with no instances, its remap's instance `num_instances - 1` underflowing) or 2 for a
+copied model (a batch one instance too many). Release drew such a batch's water with the wrong instances or not at
+all. The water pass counts one instance an entity again (Ironwail's loop), and R_AddBModelCall returns on an empty
+batch after its assert. Checked: warden in Debug `exit=42` before, `exit=0` after (and ad_grendel, start, e1m1 with
+the flashlight); `vr_shadow_layered_check 5` on warden 0 texels differ in both atlases. TESTING.md, "Debug build
+assertions", has the run.
+## Cheats and Recording (2026-10-07)
+
+A Debug > Cheats and Recording page (Developer menu level; `menu_vr 150`; `Quake/vr/vr_menu_cheats.inc`): Quake's
+cheats and what sets a scene up for footage, existing commands wherever there were some.
+
+**Rows.** The cheats on, at the top (`cheats::stateLine`). Cheats: God, Noclip, Notarget, Fly (Quake's commands), All
+Weapons, Ammo and Keys (`impulse 9`), Full Health and Armour (new `impulse 194`: 100 health, red armour 200), Infinite
+Ammo (new `vr_cheat_ammo`: QC `VR_Cheat_AmmoFrame` in PlayerPostThink keeps impulse 9's amounts and the hands'
+magazines full; not an enemy gun's magazine, not the chainsaw's fuel). Powerups: new impulses 190 to 193 switch Quad,
+Pentagram, Ring, Biosuit on for an hour, or off at once (`VR_Cheat_TogglePowerup`: no "burned out" warning); Armagon's
+wetsuit and empathy shields (impulses 200, 201, 30 s). Monsters: Kill All Monsters (`impulse 205`, Genocide), Freeze
+Monsters (new `vr_freeze_monsters`), Skill (the `skill` cvar). Scene: Quick Save/Load (`save quick`), Save/Load the
+Scene (`save scene`: a slot quick saves don't touch), Restart the Map; Clean Up (new `vr_scene_count`,
+`vr_scene_clean gibs|corpses|props|fires|decals|wounds|effects|all`); Put a Monster or Prop Ahead (`impulse 241`, the
+Thing chosen on Debug > Tests: linked, not repeated), Spawn Pickup Weapons. Time: `vr_slowmo 1/0.5/0.25/0.1`, Pause the
+World (`sv_freezenonclients`: everything but the player stops; he moves). Clean Shot: Hide (new `vr_shot_hide`), a link
+to Graphics > Recording (window view, spectator camera, slow motion, highlights) and Mark This Moment.
+
+**How.**
+- `vr_scene_clean` / `vr_scene_count` (`vr_cheats.cpp`): client commands like `god` (allowed in `sv_user.c`'s list,
+  refused in deathmatch). The client's parts are cleared where typed: decals (`decals::clear`, with the gore's pools),
+  wounds (`wounds::clear`, `bodyblood::clear`), effects (particles, casings, explosion debris, smoke, fire particles,
+  weapon effects, shock arcs, dynamic lights). The server's parts are QC's `VR_Scene_Clean` (`QC/vr_cheats.qc`), which
+  removes each thing as the game does: a fire through `VR_Burn_Out`, a head's flies silenced, a small gib through
+  `VR_SmallGib_Remove`, a player's old body (`bodyque`, reused) emptied; Box3D drops the bodies and ragdolls of freed
+  edicts. What a hand holds is kept. Gibs: `.vr_gib` (gibs, heads, cut heads), `vr_smallgib` (brains too), `vr_limb`,
+  the stumps' fountains. Corpses: dead `FL_MONSTER`s and `bodyque`. Props: loose things (rigid, tossed, thrown weapons,
+  crate pieces, backpacks) made since the map loaded: the new field `.vr_born` is set by the engine in `ED_Alloc`
+  (`VR_OnEdictAlloc`); the map's entities and what is placed as it loads (crates, rocks, bricks) are born by time 1.5;
+  the field is saved, so a loaded game knows too. Fires: `vr_burn`.
+- `vr_freeze_monsters`: `SV_Physics` skips a living monster's physics and think (`VR_MonsterFrozen`), its `nextthink`
+  pushed on by the frame, so it resumes where it stopped (a dog frozen mid-leap stays in the air). A blow still hurts
+  and kills it.
+- Noclip in the headset (`SV_NoclipMove`, `VR_NoclipAngles`): Quake flew along `.v_angle`, which is the aiming hand
+  here (the flight went where the gun pointed, pitched down by the grip angle). With tracked hands it now goes along
+  the head's yaw, level, and up or down by the stick's upmove (the moving hand's pitch), as walking and swimming steer.
+- `vr_shot_hide` (bits): 1 the gadget (hidden as when inactive: no screen, hologram or glow), 2 the hands, weapons,
+  buttons, flashlight and muzzle flashes, 4 the body, pauldrons, holsters and pouch (`hiddenForShot`, vr_view.cpp).
+  Only their drawing; they work on.
+
+**Tests (headless, e1m1).** Counts after a gibbed grunt, a corpse, a crate, a smashed crate, a fire and gore: gibs 4
+(heads 1), limbs 4, small gibs 12, corpses 1, props 18, fires 1, decals 392, wound masks 5; `gibs` removed 20,
+`corpses` 1, `props` 18, `fires` 1, `decals wounds effects` left decals 0, masks 0, particles 11. Map start: every
+server count 0 (the map's crates and debris not counted as props). An ogre's ragdoll removed (1 to 0 ragdolls, Box3D
+150 to 137 bodies); a gib held in the off hand kept ("1 held in a hand kept"); a wound on you after `wounds` paints
+again. Cheats: godmode/notarget/flymode ON; impulse 194 armour 200 at 0.8; impulses 190-193 set and clear the four
+item bits; `vr_cheat_ammo 1` puts `give s 7` back to 100. Freeze: a dog's origin unchanged over 60 frames, moving
+again once thawed; Pause the World: the dog still while the player flies 64 units. Noclip: stick forward with the head
+turned 90 degrees flies along the head (-x), level with the moving hand at 70 degrees. Save/Load the Scene: a corpse
+cleaned comes back on load (and the props' `.vr_born` with it). `vr_shot_hide 1`: `vr_gadget_info` "no gadget", back
+at 0; 2, 4, 7 hide the hands, the body, all (screenshots). Menu path check: 0 missing.
+
+**Check in the headset.**
+- [ ] Noclip: the stick flies you where you look (level), the moving hand's pitch takes you up or down; Fly the same
+      with walls.
+- [ ] Freeze Monsters mid-fight, walk round a frozen monster, unfreeze: it carries on.
+- [ ] Pause the World: you move and turn freely; your weapons may not fire while paused (the game's clock stands).
+- [ ] Each Clean Up row on a messy fight scene; Everything leaves the map as loaded (its crates and rocks kept).
+- [ ] Hide: Gadget, Hands, Body as named, on the spectator camera too.

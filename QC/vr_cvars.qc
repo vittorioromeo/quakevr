@@ -451,6 +451,7 @@ float cvarh_vr_button_prop_reach;
 float cvarh_vr_button_throw;
 float cvarh_vr_button_throw_speed;
 float cvarh_vr_debug_wallbuttons;
+float cvarh_vr_cheat_ammo;
 float cvarh_vr_axestick;
 float cvarh_vr_axestick_bleed;
 float cvarh_vr_axestick_tug;
@@ -1061,6 +1062,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_button_throw);
     VR_CVAR_HMAKE(vr_button_throw_speed);
     VR_CVAR_HMAKE(vr_debug_wallbuttons);
+    VR_CVAR_HMAKE(vr_cheat_ammo);
     VR_CVAR_HMAKE(vr_axestick);
     VR_CVAR_HMAKE(vr_axestick_bleed);
     VR_CVAR_HMAKE(vr_axestick_tug);

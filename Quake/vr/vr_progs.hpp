@@ -54,6 +54,7 @@ struct Bindings
     func_t Dummy_Replay{0}; // a motion take's strike of the training dummy (QC vr_dummy.qc)
     func_t Dummy_RetypeAll{0}; // the training dummies as vr_dummy_type has them, now (QC vr_dummy.qc)
     func_t Carry_Handtouch{0}; // a thing a hand can carry (QC vr_carry.qc VR_Carry_Setup): taken by the fist's touch
+    func_t Scene_Clean{0}; // Debug > Cheats and Recording's cleanups (QC vr_cheats.qc; vr_cheats.cpp)
     func_t Ragdoll_Handtouch{0}; // a ragdoll's limb under a hand (QC vr_carry.qc; vr_box3d.cpp gives it to a ragdoll)
     // A carried prop's touch: QC forcegrabbable_touch and those that only call it (a rock's or a brick's, a crate's
     // piece's, a thrown weapon's: vr_physics.cpp's touch spares the calls that can do nothing).

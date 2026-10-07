@@ -2025,7 +2025,7 @@ bool log(Log& out)
 
 void drawHologram()
 {
-    if(portals::viewing() || !active())
+    if(portals::viewing() || !active() || (static_cast<int>(vr_shot_hide.value) & 1)) // (hidden for a clean shot)
     {
         return;
     }

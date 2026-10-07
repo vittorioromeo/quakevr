@@ -211,6 +211,7 @@ edict_t *ED_Alloc (void)
 		if (e->freetime < 2 || qcvm->time - e->freetime > 0.5)
 		{
 			ED_ClearEdict (e);
+			VR_OnEdictAlloc (e); // QVR: when it was made (.vr_born)
 			return e;
 		}
 	}
@@ -221,6 +222,7 @@ edict_t *ED_Alloc (void)
 	e = EDICT_NUM(qcvm->num_edicts++);
 	memset(e, 0, qcvm->edict_size); // ericw -- switched sv.edicts to malloc(), so we are accessing uninitialized memory and must fully zero it, not just ED_ClearEdict
 	e->baseline.scale = ENTSCALE_DEFAULT;
+	VR_OnEdictAlloc (e); // QVR
 
 	return e;
 }

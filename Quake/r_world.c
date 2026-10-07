@@ -403,6 +403,10 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 	float		extmat[4]; // QVR
 	unsigned	extflags; // QVR
 
+	SDL_assert (num_instances > 0);
+	if (num_instances <= 0) // QVR: an empty batch draws nothing (its remap's instance would underflow)
+		return;
+
 	if (num_bmodel_calls == MAX_BMODEL_DRAWS)
 		R_FlushBModelCalls ();
 
@@ -463,7 +467,6 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		VR_RetroCall (ent, tx ? t : NULL, call->retro); // QVR
 	}
 
-	SDL_assert (num_instances > 0);
 	SDL_assert (num_instances <= MAX_BMODEL_INSTANCES);
 	bmodel_call_remap[num_bmodel_calls].src = index;
 	bmodel_call_remap[num_bmodel_calls].inst = first_instance * MAX_BMODEL_INSTANCES + (num_instances - 1);
@@ -876,7 +879,9 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		if (!R_EntHasWater (e, translucent))
 			continue;
 
-		for (numinst = bmodel_portal_counts[i-1]; i < count && ents[i]->model == model && !ents[i]->frame == !frame && numinst + bmodel_portal_counts[i] <= MAX_BMODEL_INSTANCES; i++) // QVR: one frame a batch
+		// QVR: one instance an entity here (no slipgate copies: bmodel_portal_counts is R_DrawBrushModels_Real's, stale
+		// here; reading it made zero-instance calls on warden's lit water), one frame a batch
+		for (numinst = 1; i < count && ents[i]->model == model && !ents[i]->frame == !frame && numinst < MAX_BMODEL_INSTANCES; i++)
 			numinst += R_EntHasWater (ents[i], translucent);
 
 		if (isworld && VR_WaterMeshActive ()) // QVR
