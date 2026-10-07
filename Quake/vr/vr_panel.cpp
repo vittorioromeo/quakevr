@@ -22,6 +22,7 @@
 #include "vr_mem.hpp"
 #include "vr_menuui.hpp"
 #include "vr_panel.hpp"
+#include "vr_body.hpp"
 #include "vr_profile.hpp"
 #include "vr_text3d.hpp"
 #include "vr_window.hpp"
@@ -71,11 +72,12 @@ float savedCrosshair = 0.f;
 // The HUD left out of the canvas this 2D pass, for the window (VR_SbarInCanvas).
 bool windowHudPending = false;
 
-// With vr_hud_mode 0 (a status bar on a hand), the canvas holds a classic status bar whatever
-// hudstyle is: the hand shows its rectangle (not a CSQC HUD's, drawn where the mod likes).
+// With vr_hud_mode 0 (a status bar on a hand), or dead with the gadget hidden (body::gearHiddenForDeath), the canvas
+// holds a classic status bar whatever hudstyle is: the hand shows its rectangle (not a CSQC HUD's, drawn where the mod
+// likes).
 [[nodiscard]] bool handSbar()
 {
-    return static_cast<int>(vr_hud_mode.value) == 0 && !cl.qcvm.extfuncs.CSQC_DrawHud;
+    return (static_cast<int>(vr_hud_mode.value) == 0 || body::gearHiddenForDeath()) && !cl.qcvm.extfuncs.CSQC_DrawHud;
 }
 
 // Draws the canvas as a quad: `mvp` maps the quad's (0..1, 0..1) to clip space, and its corners
@@ -346,6 +348,11 @@ bool menuQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::v
     }
     facingQuad(s, menuAngles(), panelHeight(), corner, xAxis, yAxis);
     return true;
+}
+
+bool statusBarOnHand()
+{
+    return handSbar();
 }
 
 } // namespace qvr::panel

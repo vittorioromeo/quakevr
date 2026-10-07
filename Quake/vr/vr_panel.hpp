@@ -19,4 +19,7 @@ void drawInEye(const hands::State& s, bool headText = true);
 // bottom left) and the axes spanning the canvas's width and height (up). False when it is not.
 [[nodiscard]] bool menuQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::vec3& yAxis);
 
+// The HUD is Quake's status bar on a hand (vr_hud_mode 0, or dead: body::gearHiddenForDeath), not a CSQC HUD.
+[[nodiscard]] bool statusBarOnHand();
+
 } // namespace qvr::panel

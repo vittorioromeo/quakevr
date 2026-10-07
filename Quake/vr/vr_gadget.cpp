@@ -12,6 +12,7 @@
 // its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
 
 #include "vr_gadget.hpp"
+#include "vr_body.hpp"
 #include "vr_portals.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_color.hpp"
@@ -2078,7 +2079,7 @@ float glitch(double time)
 bool active()
 {
     return vr_hud_mode.value == 1.f && vrActive() && cls.state == ca_connected && cls.signon == SIGNONS &&
-           !cl.intermission;
+           !cl.intermission && !body::gearHiddenForDeath();
 }
 
 void setPose(const Pose& pose)

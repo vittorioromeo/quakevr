@@ -460,6 +460,12 @@ glm::vec3 pouchPosition(const hands::State& s, HolsterPlate* plate)
     return now;
 }
 
+bool gearHiddenForDeath()
+{
+    return vr_dead_hide_gear.value != 0.f && cls.state == ca_connected && cls.signon == SIGNONS && !cl.intermission &&
+           cl.stats[STAT_HEALTH] <= 0;
+}
+
 bool ammoPouchEnabled()
 {
     // The server's mode as it applies (STAT_QVR_RELOADMODE: Immersive, with Weapon Mode Immersive), not this client's own

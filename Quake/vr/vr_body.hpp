@@ -73,6 +73,11 @@ using HolsterPlates = za::Array<HolsterPlate, HolsterCount>;
 [[nodiscard]] glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate = nullptr);
 [[nodiscard]] float ammoPouchReach(); // world units (vr_ammo_pouch_thresh)
 
+// The gear hidden while the player is dead (vr_dead_hide_gear, on; the author's note vrfiringrange_2026-10-08_00-02-05):
+// the holsters and their guns, the ammo pouch and the wrist gadget; the HUD is then the status bar on a hand, as with HUD:
+// Status Bar. All back on respawning or loading a save (health over 0 again).
+[[nodiscard]] bool gearHiddenForDeath();
+
 // hands::bodyAnchor, carried by the chest with vr_body_anchors (the virtual stock's shoulders).
 [[nodiscard]] glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets);
 

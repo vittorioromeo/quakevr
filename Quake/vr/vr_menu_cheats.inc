@@ -24,6 +24,7 @@
             .help("impulse 9: every weapon (the mission packs' too), full ammunition (the mission packs' where their game is "
                   "installed), the silver and gold keys."),
         command("Full Health and Armour", "impulse 194").help("impulse 194: 100 health (or more, kept) and the red armour (200)."),
+        command("Die Now", "impulse 195").help("impulse 195: you die at once (armour, god mode and the Pentagram set aside; not gibbed): to try what death does, the gear hidden (Hide Gear When Dead). Respawn or load a save."),
         toggle("Infinite Ammo", vr_cheat_ammo)
             .help("vr_cheat_ammo: your ammunition kept full, and the magazine of the weapon in either hand (not an enemy's "
                   "gun's, nor the chainsaw's fuel). Not saved."),

@@ -42,6 +42,20 @@ void() VR_Cheat_HealthArmor =
     sprint(self, "Full health and red armour\n");
 };
 
+// Impulse 195: you die now, as by a blow from nowhere (not gibbed): a test of what death does (vr_dead_hide_gear: the
+// gear hidden, back on respawning or loading a save). Armour and the Pentagram don't save you.
+void() VR_Cheat_Die =
+{
+    if(deathmatch || self.health <= 0)
+    {
+        return;
+    }
+    self.armorvalue = 0;
+    self.invincible_finished = 0;
+    self.flags = self.flags - (self.flags & FL_GODMODE);
+    T_Damage(self, world, world, self.health + 5);
+};
+
 // Infinite ammunition (vr_cheat_ammo; PlayerPostThink): the ammunition kept as impulse 9 fills it (the mission packs'
 // where their projectiles are there), and the magazine of a weapon in either hand full. The enemy guns' own magazines
 // and the chainsaws' fuel are not.

@@ -16,6 +16,7 @@
 #include "vr_climb.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
+#include "vr_panel.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_body.hpp"
 #include "vr_bodyblood.hpp"
@@ -2949,7 +2950,8 @@ void updateFist(const hands::State& s, int hand)
     held::setFist(hand, local);
 }
 
-bool gripFrameCommandRegistered = false; // (vr_grip_frame: registered on the first call)
+bool gripFrameCommandRegistered = false; // (vr_grip_frame, vr_gear_status: registered on the first call)
+void gearStatus_f();
 
 // Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
 // and angles), every frame; not measured without the jointed hand (the default hand's are used).
@@ -2961,6 +2963,7 @@ void updateGripFrame(const hands::State& s, int hand)
     {
         gripFrameCommandRegistered = true;
         Cmd_AddCommand("vr_grip_frame", gripFrame_f);
+        Cmd_AddCommand("vr_gear_status", gearStatus_f);
     }
     grip::HandFrame f;
     qmodel_t* const model = viewModel(handrig::modelName);
@@ -3006,6 +3009,22 @@ void updateGripFrame(const hands::State& s, int hand)
         }
     }
     grip::setHandFrame(hand, f);
+}
+
+// vr_gear_status: what of the gear the view drew last (a test of vr_dead_hide_gear: dead, all hidden but the status bar;
+// Debug > Reports > Gear).
+void gearStatus_f()
+{
+    int guns = 0, sleeves = 0;
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        guns += entities.holster[h].visible ? 1 : 0;
+        sleeves += entities.holsterSlot[h].visible ? 1 : 0;
+    }
+    Con_Printf("gear: health %d, hidden for death %d; holstered guns %d, holster sleeves %d, ammo pouch %d, wrist gadget %d "
+               "(drawn %d), status bar on a hand %d\n",
+        cl.stats[STAT_HEALTH], body::gearHiddenForDeath() ? 1 : 0, guns, sleeves, entities.ammoPouch.visible ? 1 : 0,
+        gadget::active() ? 1 : 0, entities.gadget.visible ? 1 : 0, panel::statusBarOnHand() ? 1 : 0);
 }
 
 // vr_grip_frame: the hands' grip frames (grip::HandFrame), for the default hand's (vr_grip.cpp defaultFrame).
@@ -5138,7 +5157,10 @@ void setupHolsters(const hands::State& s, bool queueTexts)
 
     body::HolsterPlates plates;
     const body::HolsterPositions positions = body::holsterPositions(s, &plates); // one body solve for all
-    qmodel_t* const slotModel = vr_leg_holster_model_enabled.value ? viewModel("progs/legholster.mdl") : nullptr;
+    // Dead: none drawn, the guns nor the sleeves (body::gearHiddenForDeath).
+    const bool deadHidden = body::gearHiddenForDeath();
+    qmodel_t* const slotModel =
+        vr_leg_holster_model_enabled.value && !deadHidden ? viewModel("progs/legholster.mdl") : nullptr;
     for(int h = 0; h < HolsterCount; h++)
     {
         const bool shoulder = h == LeftShoulder || h == RightShoulder;
@@ -5198,7 +5220,7 @@ void setupHolsters(const hands::State& s, bool queueTexts)
             model = posing::session().model; // where it was left (floatingHolster)
             clip = -1;
         }
-        if(isHandModel(model))
+        if(isHandModel(model) || (deadHidden && !previewHere && !posedHere))
         {
             model = nullptr;
         }
@@ -5714,8 +5736,9 @@ void setupPumps()
 void setupAmmoPouch(const hands::State& s)
 {
     view::ViewEntity& ve = entities.ammoPouch;
-    qmodel_t* const model =
-        body::ammoPouchEnabled() && vr_ammo_pouch_show.value != 0.f ? viewModel("progs/vrpouch_ammo.mdl") : nullptr;
+    qmodel_t* const model = body::ammoPouchEnabled() && vr_ammo_pouch_show.value != 0.f && !body::gearHiddenForDeath()
+                                ? viewModel("progs/vrpouch_ammo.mdl")
+                                : nullptr;
     if(!model)
     {
         ve.visible = false;
