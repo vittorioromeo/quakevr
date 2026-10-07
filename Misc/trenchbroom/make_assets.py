@@ -240,6 +240,25 @@ def tex_target(w, h, seed=7):
     return img
 
 
+def tex_lantern(w, h, seed=9):
+    """A lantern's glass: warm flame light (fullbright, brightest low in the middle, where the flame is) behind an iron
+    frame round the edge and a cross bar (lit metal)."""
+    n = noise_field(w, h, seed, 0.10)
+    img = []
+    for y in range(h):
+        row = []
+        for x in range(w):
+            e = min(x, y, w - 1 - x, h - 1 - y)
+            if e < 2 or abs(y - h * 0.38) < 1:
+                row.append((shade((70, 62, 54), (0.8 + 0.15 * e) * n[y][x]), False))
+                continue
+            r = math.hypot((x - (w - 1) / 2) / w, (y - h * 0.62) / h)
+            k = max(0.55, 1.15 - 1.4 * r) * n[y][x]
+            row.append((shade((255, 196, 110), k), True))
+        img.append(row)
+    return img
+
+
 TEXTURES = [
     # name, builder
     ("qvr_floor", lambda: tex_grid(64, 64, (74, 72, 70), (60, 58, 56), (96, 88, 70), seed=11)),
@@ -258,6 +277,8 @@ TEXTURES = [
     # the calibration room (Misc/quakevr/make_vrcalibration_map.py)
     ("qvrc_pad", lambda: tex_pad(128, 128, (47, 47, 47), (171, 231, 255), 26)),
     ("qvr_target", lambda: tex_target(64, 64)),
+    # vrstart2's lanterns (Misc/quakevr/maps/vrstart2_gen.py)
+    ("qvr_lantern", lambda: tex_lantern(32, 32)),
 ]
 
 
