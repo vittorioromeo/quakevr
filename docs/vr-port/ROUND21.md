@@ -30244,3 +30244,73 @@ a table), lying the right way; first find why the rounds collide with the gun be
   one on the floor (in); the super shotgun shut (out) and open (a pair tossed and one dropped, 2 each); Load Loose Rounds
   off (out). Test steps `vr_reload_test` 10 to 15 (`impulse 125`): toss, sideways, on the floor, from above, the loose
   rounds' report, the super shotgun broken open (Debug > Tests > Reloading).
+## Props batch: the firing range notes of 10-07 night (2026-10-08)
+
+The author's notes vrfiringrange_2026-10-07_22-55-53 .. 23-08-07, 23-51-46 and start_2026-10-07_23-42-39.
+
+### The rocket ogre drops its chainsaw
+Dawn of the Machine's rocket ogre (owned/mg3/progs/ogre_rocket.mdl) holds a chainsaw in his right hand (a piece of its
+own, 94 vertices: 0..47, 649..652, 940..981; the launcher is the tube on his left forearm, which the old comments took for
+a chainsaw-less launcher). vr_monstermods.cpp hides it in his death frames 112..135 as the ogre's, so his ragdoll makes it
+a loose bone, hidden; his ragdoll's right hand bone moved onto his fist (rig.py had put it on the chainsaw: with the saw
+gone it got no vertices and the ragdoll was refused). ogre_die drops a chainsaw for him too (the drop cap as any).
+Checked: `vr_mg3_mtest 5` (7 passed, "its chainsaw dropped (1)"); the log's "the chainsaw (94 vertices) hidden in 24
+death frames" and "rigged: 14 bones (2 loose)".
+
+### Heavy props thrown hurt by their mass
+A barrel thrown with both hands hurt for about 14: heavy things leave the hand slow (3 m/s), and weightdamage's curve
+flattens. VR_Thrown_HeavyMult: props over vr_throw_heavy_from (8 kg) deal (mass / 8)^vr_throw_heavy_exp (1), at most
+vr_throw_heavy_max (5) times more; never weapons (their Weapon Weights). Misc/quakevr/prop_2h_test.sh (mock hands, a
+barrel or crate in both hands, at an ogre 80 units ahead, the push at 6 m/s): the barrel 12.4 -> 46.7, a small crate
+10.7 -> 53.6. A two-handed blow with it stays about 90.
+
+### Barrels about the maps
+The crate planner (vr_crates.cpp) places barrels too: vr_crates_barrels (0.3) of the spots (rolled once a spot, its own
+random numbers: the crates' draws are unchanged) get an upright barrel, or, standing alone, one lying on a facet of its
+belly along the wall (vr_crates_barrel_lying 0.3; rolled a 24th of a turn so a facet is down). Stacks mix them: an
+upright barrel on a crate or a barrel, a small crate on a barrel (its middle within 0.15 of the barrel's radius). No
+crowbar on a barrel, nor on a crate standing on one (one such crate tipped 4 degrees and slid 2.7 units). Tight maps get
+more barrels than the share: their smaller footprint fits where a crate fails. vr_crates_list now says how far each lies
+from its planned place. Settled (all within 2 units after 15 s): e1m1, e1m3, e2m2, e3m1 at the defaults; e1m1, e1m2,
+e2m1, e3m2, e4m1 with half barrels and every one stacked (26 mixed stacks).
+
+### Wrist flicks in bullet time
+A flick that threw 0.9 m at full speed threw 7.9 m in bullet time. Two causes: the controller's own estimate is in the
+game's time (1/scale as fast), capped only by the slowed hand's 8 m/s, which a flick stays under; and motionRate took a
+flick (little linear speed) for a throw made slowly with the world, its windows three times too long (its spin averaged
+down). vr_throw_slowmo_flick_spin (40 rad/s of the game's time): a controller turned faster was a real-speed throw;
+vr_throw_slowmo_flick (1): the flick's share of the throw (the estimate's flick over its speed) is kept at the time scale
+(the player's real time) for a real-speed throw, the arm's share as before. Misc/quakevr/throw_slowmo/flick_slowmo_test.sh
+(three flicks about the wrist, the overhand without and with its wrist; metres at 45 degrees):
+
+| throw      | full speed | bullet time before | after | made slowly with the world |
+|------------|-----------:|-------------------:|------:|---------------------------:|
+| flick_fast |       2.06 |               9.57 |  3.22 |                       1.75 |
+| flick      |       0.92 |               7.86 |  1.22 |                       0.92 |
+| flick_soft |       0.28 |               2.48 |  2.06 |                       0.28 |
+| overhand0  |       4.03 |               6.51 |  5.81 |                       4.05 |
+| overhand   |       2.54 |               6.51 |  2.82 |                       2.43 |
+
+The slow-tempo column is unchanged by the fix. A soft flick (12 rad/s real) stays under the spin threshold and is still
+taken as slow (35 fixed it partly but moved the slow overhand by 11%). The overhand with its wrist snap loses its flick's
+amplification (its model's flick is 91% of it); the arm alone (overhand0) is within 6% of before.
+
+### Overhead slams
+A crate or barrel held in both hands over the head (the hands' middle vr_carry_slam_height 10 cm over the eyes), then
+within vr_carry_slam_window (1 s) swung down at vr_carry_slam_speed (3 m/s) or more, mostly downwards, onto anything
+(its box swept a frame and 30 ms ahead: a monster, a prop, a wall, the floor) breaks at once; what it meets takes
+vr_carry_slam_damage (2) times a punch with it in hand, times its speed over the least (at most twice). Let go of from
+over the head, its first hard landing (vr_crate_slam_throw_speed 3 m/s, within 3 s) takes vr_crate_slam_throw_damage
+(0.55) of its full health: two such throws break it. prop_2h_test.sh: slams onto the floor (barrel 5.4 m/s, crate 8.4),
+an ogre (101.8 damage) and a crate (both broke) break; the same swing from the chest doesn't; thrown down twice, broken at
+the second (41.2 each of 75). vr_carry_slam 0: off.
+
+### Thrown props keep the player's motion
+A thrown weapon takes the thrower's velocity (MakeThrown); props didn't. VR_Carry_Release adds vr_carry_throw_inherit (1)
+of it (a missile or not still judged on the hand's speed). A gib let go of while running: 320 u/s ahead running forward,
+320 back running backward.
+
+### Wood in lava burns
+VR_Burn_LavaFrame (every 0.2 s): a crate, a barrel or an uncharred piece whose bottom is in lava is lit there
+(VR_BURN_LAVA), and burns on in it (VR_Burn_Think puts fires out in water and slime only, for wood). vr_burn_lava 1. A
+crate and a barrel dropped into e1m7's lava: lit at once, burnt through at 12 s, charred pieces.
