@@ -888,6 +888,59 @@ Still open for full MG1 acceptance: a human coop session (real headsets, late jo
 melee, gore and ragdolls on Horde monsters in VR (native constructors, not separately measured here); the arena
 intermission/exit flow in coop; the story campaign's own acceptance.
 
+## Dimension of the Machine acceptance (mg1accept, 2026-10-07)
+
+Everything for MG1 readiness that can run headless (owned rerelease MG1 found through the Steam install,
+`-nomapindex`, hidden mock). The human items left are listed at the end.
+
+**Entity coverage.** `Misc/quakevr/check_mg1_entities.py` (`check_mg3_entities.py --campaign mg1`; the MG3 script
+gained `--campaign mg3|mg1|dopa` and `--expect-fields`): all 25 owned MG1 BSPs (story, hub, start, mgend, seven
+Horde arenas, four deathmatch maps), 128 classnames, **0 missing, 0 unknown keys**. Unknown keys with an empty value
+(editor leftovers: horde2's four `s`, mgdm2/mgdm3's `property 1`) set nothing and are listed apart. Dopa: 0/0 too.
+
+**Campaign route** (`Misc/quakevr/mg1_route_test.sh <agent> [skill]`; steps and checks in `mg1_route_test.py`).
+start -> hub -> mge1m1 -> mge1m3 (secret) -> mge1m2 -> hub -> mge2m1 -> mge2m2 -> hub -> mge3m1 -> mge3m2 -> hub
+-> mge4m1 -> mge4m2 -> hub -> mge5m1 -> mge5m2 -> hub -> final gate -> mgend -> its exit -> the credits. Each exit
+is the map's real trigger: the player is put inside its volume (a free spot; noclip when the exit is behind a shut
+door: mge2m1, mge4m1) and the engine's own touch runs the changelevel; intermissions and endtexts are left with
+real jump presses (the client's button). With `vr_mg_route_stage` each new map or loaded save runs the next step's
+script. Measured, skill 1 and Nightmare, 46/46 each:
+- hub: runes 0/1/3/7/15/31 with 1..6 indicators active, the final gate only with all five (also after a save and
+  load), fresh equipment on every entry (shells 25, empty hands, the default holsters; health 100/100, Nightmare
+  50/50); each rune's episode gate sealed, the next missing episode's open.
+- seeded hand magazines 3/7 and six holster magazines 1..6 (`vr_mg_hub_test 20`, both grips held) carried
+  mge1m1 -> load -> mge1m3 -> mge1m2 -> a real death (`vr_mg_hub_test 36`) whose respawn autoloads the save made
+  there, and mge2m1 -> mge2m2; health 73 carried 73 (Nightmare: 50/50).
+- mge2m2's electrode puzzle 15/0 inside the route; the five-rune text after mge5m2 (intermission stage 4); mgend's
+  exit clears the runes and opens the credits; no Host_Error, stall or missing exit.
+- Weapon ids: a carried weapon keeps its id when the new map's own records left it free, else gets a new distinct one
+  (`WeaponInst_FreeUid`; seen at Nightmare in mge2m2, 3 of 8 kept). Magazines and weapons are unaffected. Generic
+  VR behaviour, not MG1's; the check asks for 8 distinct ids.
+
+**Monsters** (`N=<agent> Misc/quakevr/ragdoll/mg1_monsters_test.sh`, MG1 context on mge1m1; `vr_mg_hub_test 37`
+reports nearby monsters, `38` spawns MG1's marksman ogre). MG1 places only stock monsters plus the marksman ogre
+(id's ogre model in MG1) and Chthon. Grunt, ogre, marksman, zombie, shambler, scrag, knight, hell knight, dog,
+enforcer, fiend and vore each attacked (40..221 damage from 999 in 600 frames; the spawn 71 in 1500), were beheaded
+by a sword's slash into a headless ragdoll, lost a limb to a killing slash, and had a head shot behead them (the
+knight's stays on, as in stock). A fiend or shambler slashed mid-leap or mid-swing can miss the head zone (stock does
+the same; idle, both behead). The spawn has no head or rig (it explodes). Zombie rules in MG1: a slash at full health,
+a non-killing head shot and a lightning bolt at the head each behead for good; a slash at a limb at full health
+kills; a 40-point knock-down gets up at 60. **Rigs:** none needed for MG1's monsters; by the agglomeration principle
+the stock fish (6 in MG1) is the only rigless corpse-leaving monster (Chthon and the spawn leave none).
+
+**Coop arena exit** (`Misc/quakevr/multiplayer/mg1_coop_exit_test.sh <agent>`: listen server + client over UDP,
+`-ip 127.0.0.1`): both players in horde1 (alive 2), the host walks into the arena's real exit ("player exited the
+level"), the coop intermission is left with a jump press, both arrive in horde2 (alive 2, wave 0 then 1), the client
+loads horde2.
+
+**Regressions:** Dopa e5m1 triggers 34/0, world 19/0; MG1 hub 20/0, mge5m2 route 10/0, horde5 24/0; MG3 secret6
+triggers 15/0, map3 items 4/0; e1m1 smoke; Release, QC (3 warnings, all in vr_mg3_test.qc:543, not this work),
+statics, precedence, FGD 321.
+
+**Still needs a human:** a real two-headset coop session (late joins, revival spots, the story campaign in coop);
+melee feel, gore and ragdolls on MG1 monsters in VR; rune grip/holster collection by hand; the five hub return
+positions seen; the Machine ending/credits menu read in the headset.
+
 ## Dawn of the Machine foundation (mg3a, 2026-10-06)
 
 Phase A of [MG3_PLAN.md](MG3_PLAN.md) (M3-01..04); MG3 stays gated (`nativeReady` false), tests use

@@ -28359,3 +28359,26 @@ submit at the median (and its GPU 10-15% slower: polling the driver may cost its
 not separated). No mode is latency-neutral with a gain: nothing shipped (the measuring patch:
 `scratch/gpuwait_experiment.patch` and `scratch/gpuwait_experiment_vr_gpuwait.cpp` in the perfbatch worktree). The two
 benchmark figures stay.
+
+## Dimension of the Machine (MG1): headless acceptance (2026-10-07)
+
+What [EXPANSIONS.md](EXPANSIONS.md) ("Dimension of the Machine acceptance") records in full: entity coverage
+(`check_mg1_entities.py`: 25 maps, 128 classes, 0 missing, 0 unknown keys), the whole campaign route through the
+real exits at skill 1 and Nightmare (`mg1_route_test.sh`: 46/46 each), every MG1 monster in the MG1 context
+(`mg1_monsters_test.sh`), the coop arena exit and intermission with two processes (`mg1_coop_exit_test.sh`), and the
+Dopa/MG1/MG3 regressions. No MG1 gameplay bug turned up; MG1 `nativeReady` is flipped in its own commit (single
+player; multiplayer stays on the developer path, as Dopa's).
+
+Test-driver lessons (for whoever writes the next route test):
+- **QuakeC's `changelevel` and `localcmd` append to the console buffer**: a script's remaining `wait`s run first, so a
+  test that walks into an exit must end there. `vr_mg_route_stage` (default 0, not archived) runs
+  `mg1route<stage>.cfg` on each new map's first frame instead (QC `MG1_H_RouteAutorun`, a `nosave` flag); setting it
+  in a map runs that map's script at once, so set it before the `map`.
+- **`kill` in single player restarts at once** (`ClientKill` -> `respawn`): a death test needs a real death
+  (`vr_mg_hub_test 36`) and one release-then-press. A press held over several frames queues one `restart` a frame
+  (stock QuakeC), each an autoload; the presser presses for one `wait`.
+- An exit trigger's centre can be in a wall (the hub's gates) or behind a shut door: the walk takes a free spot
+  inside the trigger (`tracebox` over a grid), else noclip, whose frame still touches the triggers it overlaps.
+- QuakeC builtins take 8 parameters: `sprintf` with more prints garbage for the rest (the vr_mg3_test.qc:543 warning).
+- Unexplained, harness only: `kill`, then a test request left in its cvar that spawned the presser in the restarted
+  map, left the client at signon 3 ("load failed." after 60 s). Neither real play nor the route test does that.
