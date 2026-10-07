@@ -26,3 +26,5 @@ Windows/VisualStudio/zancle.vcxproj.user
 
 # id's textures, made from your own id1 paks by Misc/trenchbroom/make_id_wad.py (never committed)
 quakevr/wads/id_textures.wad
+scratch_review/
+scratch-review/
