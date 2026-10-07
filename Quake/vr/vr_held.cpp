@@ -5,6 +5,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_painknock.hpp"
 #include "vr_grip.hpp"
@@ -1509,6 +1510,17 @@ void meetFrame(const hands::State& s)
         // vr_held_collide_max (deeper, they overlap by the rest).
         glm::vec3 n{0.f};
         depth = overlap(boxA, boxB, n);
+        // A round from the ammo pouch (a shell, a magazine: QC vr_reload.qc) against the other hand's gun: it may go
+        // vr_reload_collide_leniency cm into the gun's box before the two are kept apart, so that it reaches the port
+        // under the receiver or the well (the box is the whole gun's, down to its grip).
+        const auto isRound = [](const Held& hd) {
+            const qmodel_t* m = hd.drawn && hd.ent > 0 ? cl_entities[hd.ent].model : nullptr;
+            return m && (modelmeta::has(m, modelmeta::Trait::LiveShell) || modelmeta::has(m, modelmeta::Trait::Magazine));
+        };
+        if(meet.weapon && (isRound(a) || isRound(b)))
+        {
+            depth = za::max(0.f, depth - za::max(vr_reload_collide_leniency.value, 0.f) * units::metresToUnits() / 100.f);
+        }
         if(depth > 0.f)
         {
             const float most = za::max(vr_held_collide_max.value, 0.f) * units::metresToUnits() / 100.f;

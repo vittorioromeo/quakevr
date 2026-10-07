@@ -608,6 +608,9 @@ void resetHandMoves()
         open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
                   "The taped pair has its own."),
+        slider("Collision Leniency", "vr_reload_collide_leniency", 0.f, 30.f, 1.f, "%.0f cm").extend(0.f, 100.f)
+            .help("A shell or magazine in your hand is drawn kept off the gun in the other hand (Held Things Collide): it "
+                  "may go this far into the gun's box first, to reach the port under the shotgun or a magazine well."),
         header("Load Points"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow), where a held round goes in within (green: Port Leniency, "
