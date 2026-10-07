@@ -5815,8 +5815,26 @@ void(float xHand, entity ent, entity entPlayer,
      float* xOutEntWeapon, float* xOutEntWeaponFlags)
      wpnthrow_handtouch_impl =
 {
-    VR_SoundVaried(ent, CHAN_AUTO, "weapons/pkup.wav", 1, ATTN_NORM);
-    VRGunHaptic(xHand, 0.3, 75, 1.0);
+    if(ent.vr_wpn_from == entPlayer)
+    {
+        // Your own weapon taken back (thrown, dropped or let go of, caught, pulled by a force grab): the hand closing on
+        // its handle (vr/phys/grab_wood1..3 an axe's, grab_metal1..3 the rest's, at 0.9: a third of the chime's loudness,
+        // a third its length), from the hand, a shorter pulse; Quake's pickup chime only for a weapon new to you.
+        float k = floor(random() * 3);
+        string grab = k < 1 ? "vr/phys/grab_metal1.wav" : (k < 2 ? "vr/phys/grab_metal2.wav" : "vr/phys/grab_metal3.wav");
+        if(ent.weapon == WID_AXE)
+        {
+            grab = k < 1 ? "vr/phys/grab_wood1.wav" : (k < 2 ? "vr/phys/grab_wood2.wav" : "vr/phys/grab_wood3.wav");
+        }
+        VR_SoundVaried(entPlayer, VRGetHandChannel(xHand), grab, 0.9, ATTN_NORM);
+        VRGunHaptic(xHand, 0.12, 75, 0.7);
+        dprint(sprintf("weapon: %s taken back (%s)\n", ent.classname, grab));
+    }
+    else
+    {
+        VR_SoundVaried(ent, CHAN_AUTO, "weapons/pkup.wav", 1, ATTN_NORM);
+        VRGunHaptic(xHand, 0.3, 75, 1.0);
+    }
     if(VR_AxeStick_IsStuck(ent))
     {
         VR_AxeStick_PulledOut(ent); // out of what it was stuck in (vr_axestick.qc)
@@ -6538,6 +6556,10 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
 
     if(thrown != world)
     {
+        if(ent.flags & FL_CLIENT)
+        {
+            thrown.vr_wpn_from = ent; // (taken back: a regrip, not a pickup: wpnthrow_handtouch_impl)
+        }
         if(sawRuns)
         {
             VR_Saw_PropRuns(thrown);

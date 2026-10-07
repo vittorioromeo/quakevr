@@ -10,6 +10,7 @@
 .float thinkArg;
 .float vr_flashlight_state; // packed client lamp state, saved and carried by parm50
 .float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)
+.entity vr_wpn_from; // a weapon lying about or flying: the player whose hand it left (DropWeaponInHandScaled), else world
 .float vr_born; // when it was made (set by the engine, ED_Alloc: vr_cheats.cpp; VR_Scene_IsRuntimeProp)
 .float vr_sgib; // a small gib (vr_smallgibs.qc): when it was made
 .float vr_sgib_id; // its serial in the small gibs' ring (0: gone)

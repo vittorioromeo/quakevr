@@ -62,6 +62,7 @@ Effort: S an hour or so, QC or one engine function; M a day, engine work across 
 | 4 | done (layer) | a blunt blow's second layer of what it hit (flesh, armour, wood, a wall) under the thud, varied in pitch (`VR_Blunt_HitLayer`, `vr_snd_hit_layer`); the new punch and cut recordings still to source |
 | 6 | done | a metal click from the helping hand and a 30 ms pulse in it as it takes a foregrip, a quieter click as it lets go (`vr_twohand.cpp` gripFeedback, `vr_2h_grip_sound` 0.6) |
 | 7 | done | `ambience/fire1.wav` looped on the burning body's channel 7, near only, a three-step fade in the last 1.5 s, stopped however the fire ends; at most `vr_burn_sound_max` (4) at once (`VR_Burn_Crackle`, `vr_burn_sound` 0.6) |
+| 8 | done | your own weapon taken back (thrown, dropped, let go of, caught, force-grabbed): `vr/phys/grab_metal1..3` (an axe `grab_wood`) at 0.9 from the hand and a shorter pulse; the chime only for a weapon new to you (`.vr_wpn_from`) |
 
 ## Well covered (no change proposed)
 

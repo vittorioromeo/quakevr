@@ -27756,3 +27756,19 @@ Checked (`-Sound -RealTime`, `snd_show 2`, `vr_burn_sound_max 2`, `vr_burn_corps
 with `vr_burn_test 1`): a crate and the first grunt's corpse crackle (`ambience/fire1.wav [L]` on channel 7 of each),
 the second corpse stays silent (2 crackling); the first corpse fades 0.36, 0.18, then stops (1 crackling) and goes out;
 the second, then in its own last second, doesn't start.
+
+## Your own weapon taken back: a grip, not the pickup chime (AUDIO_REVIEW.md row 8, 2026-10-07)
+
+Taking back a weapon you had thrown, dropped or let go of (or catching it, or pulling it with the force grab) played
+Quake's pickup chime (`weapons/pkup.wav`, RMS 32%, the loudest UI-like sound) at 1.0 and a full 0.3 s pulse, as for a
+weapon new to you. A weapon leaving a player's hand (`DropWeaponInHandScaled`, both throw modes) now remembers him
+(`.vr_wpn_from`, `vr_fields.qc`); taken back by him (`wpnthrow_handtouch_impl`), it plays the hand closing on its
+handle instead: `vr/phys/grab_metal1..3` (an axe's `grab_wood1..3`; RMS 9%, 0.17 s) at 0.9 from the hand (its own
+channel), pitch-varied, and a 0.12 s pulse at 0.7. Weapons from the level, a monster, a crate or ammo box, the test
+spawns and a player's death keep the chime. Drawing from a holster was never the chime (`weapons/holster0/1.wav`).
+`developer 1` prints `weapon: <class> taken back (<sound>)`.
+
+Checked (`-Sound -RealTime`, `snd_show 2`): a crowbar dropped ahead (`impulse 217`) taken (`impulse 216`):
+`weapons/pkup.wav` on its channel 0; let go of and taken again: `vr/phys/grab_metal1.wav` on the player's channel 8
+(the main hand), pitch 0.997; the shotgun let go of and taken by the mock hand (`vr_mock_hand_to main weapon 0.3`):
+`grab_metal2.wav` on channel 8.
