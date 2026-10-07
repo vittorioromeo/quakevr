@@ -29478,3 +29478,25 @@ step, 0.05 with Shift or a grip; 0.55 saved as "0.55". Every slider's help ends 
 Test in VR: the main menu's groups and Play Custom Map (and Back from the Levels); Back from Official Campaigns and from
 a corner button; the new VR Settings rows and Holster Calibration (the pair shown on the body while its slider is
 chosen); Section Gap 0, 0.75 and 2 on a long page; a grip held while moving a Held Object Offsets slider.
+
+## Foveated rendering: white seams on models in the periphery (2026-10-07)
+
+With vr_foveated on and no MSAA (vid_fsaa 0), models in the coarse-shaded rings (the super nailgun's barrels, the
+pentagram of protection) showed dotted white lines along some triangle edges. Cause: under GL_NV_shading_rate_image a
+2x2 or 4x4 fragment's inputs are interpolated at its block's centre, which can lie past the triangle's edge, so the
+interpolated values run on beyond their vertices' range. The model's own occlusion (in_vao, vr_ao_models: 0 at deeply
+occluded vertices) went below 0 there and `sqrt(in_vao)` (the dynamic lights' share) gave NaN; NVIDIA's clamp turns NaN
+into its upper bound, so the pixel came out at the scene's brightest. Evidence: with the author's settings, vr_ao_models
+0 alone removed the lines (68 of 68 bright pixels in the gun crop); toggling parallax, normal maps, retro, retro light,
+rim light and specular AA did not; `centroid` on the skin's coordinates changed nothing (no MSAA: centroid is ignored).
+
+Fix (vr_glsl.h, QVR_ALIAS_FS_LIGHT): in_vao clamped to 0..1 before its use. Eyeshots at 1440 px, paused (the same
+frame), the author's config, foveated 3 vs 0: the gun's barrels 65 near-white pixels before, 0 after; the pentagram 144
+before, 0 after; foveated 0 unchanged. Left: two or three single coloured pixels on the gun's silhouette (the skin's
+coordinates extrapolated past the triangle into other texels: coarse shading's own, not fixable with centroid without
+MSAA). Cost: one clamp. Foveation still pays: e1m1 start, 2016 px eyes, GPU eyes 3.3-3.8 ms at foveated 3 against
+4.2-4.5 at 0 (world+brush 1.2-1.7 against 2.5-3.0). Scripts in the worktree's scratch (fovshot.sh, pentshot.sh).
+
+In VR:
+- [ ] Foveated rendering on, hold the super nailgun and look past it (and at a pentagram of protection) with the corner
+  of your eye: no white lines on its edges.

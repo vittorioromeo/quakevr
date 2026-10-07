@@ -2368,9 +2368,12 @@ SPECULAR_AA_FUNCTIONS
 "	vec3 spec; // QVR\n" \
 "	// QVR: ambient occlusion (vr/vr_ao.cpp): the model's own and that of what moves near it darken its own light;\n" \
 "	// dynamic lights get half of its own (in the log: its square root), shadows stand for the rest\n" \
-"	float occlusion = in_vao * DynamicAO(in_pos + EyePos, AONormal(n, in_bumplight.xyz), instances[in_instance].AO.x, in_coord, in_depth);\n" \
+"	// (in_vao clamped: under foveated rendering's coarse shading a fragment's inputs are interpolated at its block's\n" \
+"	// centre, which can be past the triangle's edge, where in_vao runs on below 0: sqrt gave NaN, drawn white)\n" \
+"	float vao = clamp(in_vao, 0.0, 1.0);\n" \
+"	float occlusion = vao * DynamicAO(in_pos + EyePos, AONormal(n, in_bumplight.xyz), instances[in_instance].AO.x, in_coord, in_depth);\n" \
 "	vec3 own_light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion; // QVR\n" \
-"	vec3 dyn_light = ModelDynamicLights(n, bumped, spec) * sqrt(in_vao); // QVR\n" \
+"	vec3 dyn_light = ModelDynamicLights(n, bumped, spec) * sqrt(vao); // QVR\n" \
 "	if (RetroLight[5].z > 0.) // QVR: retro lighting's levels (vr_retrolight.h; no derivatives after the discard)\n" \
 "	{\n" \
 "#if ALPHATEST\n" \
