@@ -12,7 +12,6 @@ constexpr char keyNext = 3;
 
 struct ConsolePage
 {
-    int from{PageMain}; // the page it was opened from (Back)
     int scroll{0};      // rows up from the newest
     int hoverKey{-1};   // under the laser or the mouse
     int focusKey{-1};   // the sticks' selection (-1: the laser's)
@@ -313,7 +312,7 @@ void consoleKey(int key)
         case K_ESCAPE:
         case K_BBUTTON:
         case K_MOUSE2:
-        case K_MOUSE4: showPage(consolePage.from); S_LocalSound("misc/menu2.wav"); return;
+        case K_MOUSE4: goBack(); return;
         case K_ENTER:
         case K_KP_ENTER: typeInConsole(keyRun); return;
         case K_TAB: typeInConsole(keyTab); return;
@@ -374,20 +373,13 @@ void consoleMouse(float x, float y)
 void openConsolePage()
 {
     const int target = pageIndex(pageConsole);
-    if(m_state != m_vr)
-    {
-        VR_Menu_Open();
-    }
-    else if(page == target)
+    if(m_state == m_vr && page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;
     }
-    consolePage.from = page == target ? PageMain : page;
     consolePage.scroll = 0;
     consolePage.hoverKey = -1;
     consolePage.focusKey = 0;
-    parentPage[target] = consolePage.from;
-    showPage(target);
-    S_LocalSound("misc/menu2.wav");
+    openFromAnywhere(target); // (Back: where it was opened from)
 }

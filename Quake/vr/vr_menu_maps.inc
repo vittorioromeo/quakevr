@@ -98,7 +98,6 @@ struct MapsPage
     int sigInstalled{-1};
     int hiddenProgs{0}; // packages left out for carrying their own progs.dat
 
-    int from{PageMain}; // where Back goes
     int resultScroll{0};
     int hoverKey{-1}, hoverResult{-1}, hoverButton{-1};  // under the laser
     int focusKey{-1}, focusResult{-1}, focusButton{-1};  // the sticks' selection
@@ -770,7 +769,7 @@ void mapsKey(int key)
         case K_ESCAPE:
         case K_BBUTTON:
         case K_MOUSE2:
-        case K_MOUSE4: showPage(mapPage.from); S_LocalSound("misc/menu2.wav"); return;
+        case K_MOUSE4: goBack(); return;
         case K_BACKSPACE: mapsTypeIn(keyBackspace); return;
         case K_DEL: mapsTypeIn(keyClear); return;
         case K_UPARROW: mapsMove(0, -1); S_LocalSound("misc/menu1.wav"); return;
@@ -885,22 +884,15 @@ void mapsMouse(float x, float y)
 void openMapsPage()
 {
     const int target = pageIndex(pageMaps);
-    if(m_state != m_vr)
-    {
-        VR_Menu_Open();
-    }
-    else if(page == target)
+    if(m_state == m_vr && page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;
     }
-    mapPage.from = page == target ? PageMain : page;
     mapsShown();
     mapPage.hoverKey = mapPage.hoverResult = mapPage.hoverButton = -1;
     mapPage.focusKey = 0;
-    parentPage[target] = mapPage.from;
-    showPage(target);
-    S_LocalSound("misc/menu2.wav");
+    openFromAnywhere(target); // (Back: where it was opened from)
 }
 
 // maps_page_stats (Debug > Tools): the list is built once per change, not per frame.

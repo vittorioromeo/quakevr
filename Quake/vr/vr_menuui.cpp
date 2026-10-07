@@ -1090,6 +1090,7 @@ void useTool(int tool, int hand)
                 S_LocalSound("misc/menu1.wav");
                 break;
             }
+            VR_NavJump(m_maps); // (Back from them: here)
             Cmd_TokenizeString("menu_maps"); // (it looks at its command's arguments)
             M_Menu_Maps_f();
             break;
@@ -1807,21 +1808,18 @@ extern "C" int VR_MenuKey(int key, int repeat)
     }
 }
 
-// Opening the menu: the page "Back to game" left, over the main menu (where pages that go back
-// where they came from lead, and what is left when a page cannot open now: saving outside a single
-// player game). Once: the next time, the main menu again unless it closed that way again.
-extern "C" int VR_MenuReopen()
+// One of Ironwail's menus opened as its own way in opens it (the menu's cursor as it was left): "Back to game"'s menu
+// reopened, Back from a VR page to the menu it was opened from (vr_menu.cpp, NavStack). m_none: the menu closed.
+void qvr::menuui::openMenu(int state)
 {
-    const Remembered r = remembered;
-    remembered = {};
-    if(!vr_menu_remember.value || !vrActive() || r.state == m_none)
+    switch(state)
     {
-        return 0;
-    }
-
-    M_Menu_Main_f();
-    switch(r.state)
-    {
+        case m_none:
+            IN_Activate();
+            key_dest = key_game;
+            m_state = m_none;
+            break;
+        case m_main: M_Menu_Main_f(); break;
         case m_singleplayer: M_Menu_SinglePlayer_f(); break;
         case m_load: M_Menu_Load_f(); break;
         case m_save: M_Menu_Save_f(); break;
@@ -1837,12 +1835,39 @@ extern "C" int VR_MenuReopen()
         case m_graphics:
         case m_interface:
         case m_game:
-        case m_gamepad: M_Options_Init(static_cast<m_state_e>(r.state)); break;
+        case m_gamepad: M_Options_Init(static_cast<m_state_e>(state)); break;
         case m_keys: M_Menu_Keys_f(); break;
         case m_mods: M_Menu_Mods_f(); break;
         case m_help: M_Menu_Help_f(); break;
-        case m_vr: menu::reopen(r.vrPage); break;
-        default: break;
+        default: M_Menu_Main_f(); break;
+    }
+}
+
+// Opening the menu: the page "Back to game" left, over the main menu (where pages that go back
+// where they came from lead, and what is left when a page cannot open now: saving outside a single
+// player game). Once: the next time, the main menu again unless it closed that way again.
+extern "C" int VR_MenuMouseOnButtons(float x, float y)
+{
+    return menuui::toolbarShown() && toolAt(x, y) >= 0;
+}
+
+extern "C" int VR_MenuReopen()
+{
+    const Remembered r = remembered;
+    remembered = {};
+    if(!vr_menu_remember.value || !vrActive() || r.state == m_none)
+    {
+        return 0;
+    }
+
+    M_Menu_Main_f();
+    if(r.state == m_vr)
+    {
+        menu::reopen(r.vrPage);
+    }
+    else if(r.state != m_main)
+    {
+        menuui::openMenu(r.state);
     }
 
     if(r.list && m_state == r.state)

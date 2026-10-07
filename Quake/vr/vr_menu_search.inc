@@ -45,7 +45,6 @@ struct SearchState
     za::String query;
     za::Vector<SearchEntry> index;
     za::Vector<SearchResult> results;
-    int from{PageMain};      // the page Search was opened from (Back)
     int resultScroll{0};     // the first result shown
     int hoverKey{-1};        // under the laser or the mouse
     int hoverResult{-1};
@@ -573,12 +572,30 @@ void openEntry(int entry)
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(e.level));
     }
-    const int searchPage = page;
     const int target = e.page;
     const za::String label = e.label;
     const bool isPage = e.isPage;
-    parentPage[target] = searchPage;
-    searchOpened = target;
+    // Back from the result's page goes up its place in the tree (its natural parent), not to Search: Search left off
+    // the stack, the pages above the result put on it (the VR Settings too for one of theirs; not above the Advanced
+    // VR Options), then whatever Search was opened from.
+    navSyncTop();
+    if(navTop() == page)
+    {
+        nav.count--;
+    }
+    za::Vector<int> chain;
+    for(int p = target; static_cast<int>(chain.size()) < pageCount; p = homeOf(p))
+    {
+        chain.pushBack(p);
+        if(p == PageMain || p == PageAdvanced)
+        {
+            break;
+        }
+    }
+    for(const int p : za::reversed(chain))
+    {
+        navPush(p);
+    }
     showPage(target);
     if(!isPage)
     {
@@ -593,7 +610,7 @@ void openEntry(int entry)
             }
         }
     }
-    Con_DPrintf("menu search: \"%s\" opens %s%s%s (Back: Search)\n", search.query.cStr(), pages[target].title,
+    Con_DPrintf("menu search: \"%s\" opens %s%s%s (Back: up the tree)\n", search.query.cStr(), pages[target].title,
         isPage ? "" : " on ", isPage ? "" : label.cStr());
     S_LocalSound("misc/menu2.wav");
 }
@@ -1030,7 +1047,7 @@ void searchKey(int key)
         case K_ESCAPE:
         case K_BBUTTON:
         case K_MOUSE2:
-        case K_MOUSE4: showPage(search.from); S_LocalSound("misc/menu2.wav"); return;
+        case K_MOUSE4: goBack(); return;
         case K_BACKSPACE: typeInSearch(keyBackspace); return;
         case K_DEL: typeInSearch(keyClear); return;
         case K_UPARROW: searchMove(0, -1); S_LocalSound("misc/menu1.wav"); return;
@@ -1117,24 +1134,17 @@ void searchMouse(float x, float y)
 void openSearchPage()
 {
     const int target = pageIndex(pageSearch);
-    if(m_state != m_vr)
-    {
-        VR_Menu_Open();
-    }
-    else if(page == target)
+    if(m_state == m_vr && page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;
     }
-    search.from = page == target ? PageMain : page;
     buildSearchIndex();
     runSearch();
     search.hoverKey = search.hoverResult = search.hoverRecent = -1;
     search.focusRecent = -1;
     search.focusKey = 0;
-    parentPage[target] = search.from;
-    showPage(target);
-    S_LocalSound("misc/menu2.wav");
+    openFromAnywhere(target); // (Back: where it was opened from)
 }
 
 // menu_vr recent [clear]: the recent list (SRECENT: its row shown, or "-" when no longer found; the label, the path;

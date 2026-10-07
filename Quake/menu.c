@@ -1415,29 +1415,22 @@ void M_Main_Key (int key)
 	}
 }
 
-// QVR: the row under the mouse (the laser's spot in the headset): each row from its top down a step, the first above it
-// and the last below it too; in a gap between groups, the row selected stays.
+// QVR: the row under the mouse (the laser's spot in the headset): each row from its top down a step; in a gap between
+// groups, above the rows or below them, the row selected stays.
 void M_Main_Mousemove (float cx, float cy)
 {
 	int prev = m_main_cursor;
-	int i, y, step, gap, first = -1, last = -1;
+	int i, y, step, gap;
 
 	M_Main_Layout (&step, &gap);
 	for (i = 0; i < MAIN_ITEMS; i++)
 	{
 		if (!M_Main_Shown (i))
 			continue;
-		if (first < 0)
-			first = i;
-		last = i;
 		y = M_Main_RowY (i, step, gap);
 		if (cy >= y && cy < y + step)
 			m_main_cursor = i;
 	}
-	if (first >= 0 && cy < M_Main_RowY (first, step, gap))
-		m_main_cursor = first;
-	else if (last >= 0 && cy >= M_Main_RowY (last, step, gap) + step)
-		m_main_cursor = last;
 	if (m_main_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
 }
@@ -1927,12 +1920,14 @@ static void M_Maps_Init (void)
 // QVR: the Levels from the main menu's Play Custom Map (as the menu_maps command opens them).
 void M_Menu_LevelsFrom (void)
 {
+	VR_NavJump (m_maps); // (Back from them: the main menu)
 	Cmd_TokenizeString ("menu_maps"); // (M_Menu_Maps_f looks at its command's arguments)
 	M_Menu_Maps_f ();
 }
 
 void M_Menu_Maps_f (void)
 {
+	VR_NavEntered (m_maps, m_state); // QVR: Back from them where a jump came from (Play Custom Map, the corner's Levels)
 	IN_DeactivateForMenu();
 	key_dest = key_menu;
 	m_state = m_maps;
@@ -2119,7 +2114,8 @@ void M_Maps_Key (int key)
 	case K_MOUSE4:
 	case K_MOUSE2:
 		M_List_ClearSearch (&mapsmenu.list);
-		M_Menu_SinglePlayer_f ();
+		if (!VR_NavBack (m_maps)) // QVR: where they were opened from (Play Custom Map, the corner's Levels)
+			M_Menu_SinglePlayer_f ();
 		break;
 
 	case K_ENTER:
@@ -7793,6 +7789,9 @@ void M_Mousemove (int screenx, int screeny)
 		m_ignoremouseframe = false;
 		return;
 	}
+
+	if (VR_MenuMouseOnButtons (x, y)) // QVR: on a corner button: the menu's own selection stays (Back returns to it)
+		return;
 
 	switch (M_GetBaseState (m_state))
 	{

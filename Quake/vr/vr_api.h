@@ -348,7 +348,11 @@ int VR_GameSound (int entnum, struct sfx_s *sfx);		// CL_ParseStartSoundPacket: 
 // Menu (menu.c).
 void VR_Menu_Open (void);								// Options > VR Settings
 void VR_Menu_OpenFromMain (int advanced);				// the main menu's VR Settings (advanced: Advanced VR) row: Back returns there
-int VR_MenuMainShowsMods (void);						// M_Main_Draw: the main menu's Mods row asked for (vr_menu_main_mods)
+void VR_NavJump (int state);							// a jump to Ironwail's menu `state` (Levels: Play Custom Map, the corner's): Back from it returns here
+void VR_NavEntered (int state, int previous);			// M_Menu_Maps_f: opened by a jump or by Back (kept), else from its own way in
+int VR_NavBack (int state);								// its Back: nonzero if it went back where the jump came from
+int VR_MenuMainShowsMods (void);
+int VR_MenuMouseOnButtons (float x, float y);			// M_Mousemove: the spot (menu x, y) on one of the corner's buttons (the menu's rows left alone)						// M_Main_Draw: the main menu's Mods row asked for (vr_menu_main_mods)
 void VR_OpenMapLibrary (void);							// Single Player > Map Library: the map browser page (vr_menu_maps.inc)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 void VR_Menu_Key (int key, int repeat);				// M_Keydown, m_vr (repeat: the key's auto-repeat)

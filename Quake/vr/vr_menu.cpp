@@ -78,6 +78,7 @@ extern qboolean keydown[MAX_KEYS]; // keys.c
 extern cvar_t ui_mouse_sound; // menu.c
 extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
+extern int m_singleplayer_cursor; // menu.c: Single Player's (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
 int M_TextLeft(void); // menu.c: its leftmost text (Ironwail's lists; 320 for Quake's menus)
 void M_Main_Layout(int* step, int* gap); // menu.c: the main menu's rows' spacing and its groups' gaps
@@ -8149,7 +8150,103 @@ za::Vector<Item> pageWofsFlashlight()
 }
 
 int page = PageMain;
-int parentPage[pageCount]{};
+
+// Back (ROUND21.md, "Back where you came from"): the way the player came to the page shown, as a stack of places, the page
+// shown on top: VR pages (their numbers) and, below them, the menus outside the VR pages that they were entered from
+// (outsidePlace: the main menu's VR Settings or Advanced VR rows, Single Player > Official Campaigns, Options > VR
+// Settings, a corner button over any menu), and Ironwail's Levels entered from a VR page (the corner's Levels). Back pops
+// the page shown and goes to the place under it, the cursor where it was left (each page's and menu's own). A place
+// already on the stack is gone back to rather than added again (no loops). Nothing under the page: up the menus' tree
+// (homeOf), the VR Settings to Options. A Search result's page goes back up the tree, not to Search (openEntry).
+struct NavStack
+{
+    static constexpr int capacity = 48;
+    int places[capacity]{};
+    int count{0};
+};
+NavStack nav;
+bool navReturning = false; // leaving the VR pages by Back for an outside menu (VR_NavEntered: not a new way in)
+int navJumpPending = -1;    // the outside menu a jump (VR_NavJump) is opening
+
+[[nodiscard]] constexpr int outsidePlace(int state)
+{
+    return -1 - state;
+}
+
+[[nodiscard]] int navTop()
+{
+    return nav.count > 0 ? nav.places[nav.count - 1] : -1000;
+}
+
+void navReset()
+{
+    nav.count = 0;
+}
+
+// `place` on top: back to it where it already is on the stack (what was above it dropped), else added.
+void navPush(int place)
+{
+    for(int i = nav.count - 1; i >= 0; i--)
+    {
+        if(nav.places[i] == place)
+        {
+            nav.count = i + 1;
+            return;
+        }
+    }
+    if(nav.count == NavStack::capacity)
+    {
+        for(int i = 1; i < nav.count; i++)
+        {
+            nav.places[i - 1] = nav.places[i];
+        }
+        nav.count--;
+    }
+    nav.places[nav.count++] = place;
+}
+
+// The menu outside the VR pages the player is in now (m_none: none, or one not to come back to).
+[[nodiscard]] int outsideMenu()
+{
+    if(key_dest != key_menu)
+    {
+        return m_none;
+    }
+    switch(m_state)
+    {
+        case m_none:
+        case m_vr:
+        case m_credits:
+        case m_quit:
+        case m_help: return m_none;
+        default: return m_state;
+    }
+}
+
+// Coming to the VR pages from `outside` (outsideMenu): it at the stack's bottom (kept with what is under it when it is
+// on top already: the player came back to it by Back), or nothing when there is no menu to go back to.
+void navEnterFrom(int outside)
+{
+    if(outside == m_none)
+    {
+        navReset();
+        return;
+    }
+    if(navTop() != outsidePlace(outside))
+    {
+        navReset();
+        navPush(outsidePlace(outside));
+    }
+}
+
+// The page last shown, on top of the stack (made so when something else changed the page).
+void navSyncTop()
+{
+    if(navTop() != page)
+    {
+        navPush(page);
+    }
+}
 int cursors[pageCount]{};
 int scrolls[pageCount]{};
 
@@ -8850,8 +8947,6 @@ void closeDropDown(); // (the drop-down lists, below: a page shown closes the on
 
 // The page a Search result opened (vr_menu_search.inc): Back from it returns to the results (VR Settings' Back too);
 // -1 once elsewhere.
-int searchOpened = -1;
-
 void showPage(int target)
 {
     closeDropDown();
@@ -8869,10 +8964,6 @@ void showPage(int target)
     // changed now: Changed Settings; a state a builder reads) are as they are now, not as when the page was last built
     // (by Search, a menu path or Changed Settings, which build every page).
     menuPages.done[page] = false;
-    if(target != searchOpened && parentPage[target] != searchOpened && pages[target].build != pageSearch)
-    {
-        searchOpened = -1; // elsewhere now: Back as usual (vr_menu_search.inc)
-    }
     const auto& list = items(page);
     if(!selectable(list[cursors[page]]))
     {
@@ -9003,7 +9094,8 @@ za::Vector<Item> pageChanged()
 
 void openPage(int target)
 {
-    parentPage[target] = page;
+    navSyncTop();
+    navPush(target);
     showPage(target);
     S_LocalSound("misc/menu2.wav");
 }
@@ -9023,15 +9115,98 @@ void openInTree(int target)
     {
         chain.pushBack(p);
     }
+    navSyncTop();
     for(const int p : za::reversed(chain))
     {
-        parentPage[p] = page;
+        navPush(p);
         showPage(p);
     }
     if(!chain.empty())
     {
         S_LocalSound("misc/menu2.wav");
     }
+}
+
+// The VR pages shown (as from a key: the menu's sound as it is drawn).
+void enterVrMenu()
+{
+    IN_DeactivateForMenu();
+    key_dest = key_menu;
+    m_state = m_vr;
+    m_entersound = true;
+}
+
+// `target` from whatever is shown: a VR page (its place on the stack), another menu (Back returns to it) or none.
+void openFromAnywhere(int target)
+{
+    if(m_state == m_vr && key_dest == key_menu)
+    {
+        navSyncTop();
+        navPush(target);
+        showPage(target);
+        S_LocalSound("misc/menu2.wav");
+        return;
+    }
+    navEnterFrom(outsideMenu());
+    enterVrMenu();
+    navPush(target);
+    showPage(target);
+}
+
+// Leaving the VR pages by Back for `state` (an outside menu: vr_menuui.cpp opens it as its own Back would).
+void leaveTo(int state)
+{
+    navReturning = true;
+    menuui::openMenu(state);
+    navReturning = false;
+}
+
+// Back from the page shown (a key, a button): where the player came from (NavStack), else up the tree.
+void goBack()
+{
+    navSyncTop();
+    if(nav.count >= 2)
+    {
+        nav.count--;
+        const int dest = navTop();
+        if(dest >= 0)
+        {
+            showPage(dest);
+            S_LocalSound("misc/menu2.wav");
+        }
+        else
+        {
+            leaveTo(-1 - dest);
+        }
+        return;
+    }
+    navReset();
+    if(page == PageMain)
+    {
+        M_Menu_Options_f(); // (its sound as it is drawn)
+        return;
+    }
+    const int dest = homeOf(page);
+    navPush(dest);
+    showPage(dest);
+    S_LocalSound("misc/menu2.wav");
+}
+
+// Where Back goes from the page shown (menu_vr pos): a page's number, or -1 with `outside` the menu (m_none: Options).
+[[nodiscard]] int backTarget(int& outside)
+{
+    outside = m_none;
+    if(nav.count >= 2 && navTop() == page)
+    {
+        const int dest = nav.places[nav.count - 2];
+        if(dest < 0)
+        {
+            outside = -1 - dest;
+            return -1;
+        }
+        return dest;
+    }
+    return page == PageMain ? -1 : homeOf(page);
 }
 
 // A setting's value as shown: a server rule's is the remote server's (vr_serverrules.cpp), the rest their own.
@@ -10352,23 +10527,10 @@ int qvr::menu::retroOverridePage()
     return pageIndex(pageRetroOverride);
 }
 
-// Whether the VR Settings were opened from the main menu's rows (Back from them goes back there, else to Options), and
-// whether it was its Advanced VR row (Back from the Advanced VR Options: the main menu, the VR Settings not linking them).
-namespace
-{
-bool openedFromMainMenu = false;
-bool advancedFromMainMenu = false;
-}
-
+// Options > VR Settings (and menu_vr): the VR Settings; Back returns to the menu they were opened from (NavStack).
 extern "C" void VR_Menu_Open()
 {
-    IN_DeactivateForMenu();
-    key_dest = key_menu;
-    m_state = m_vr;
-    m_entersound = true;
-    openedFromMainMenu = false;
-    advancedFromMainMenu = false;
-    showPage(PageMain);
+    openFromAnywhere(PageMain);
 }
 
 // The main menu's VR Settings and Advanced VR rows (menu.c).
@@ -10382,15 +10544,63 @@ extern "C" void VR_Menu_OpenFromMain(int advanced)
     {
         VR_Menu_Open();
     }
-    openedFromMainMenu = true;
-    advancedFromMainMenu = advanced != 0;
 }
 
 // Single Player > Map Library (menu.c): the map browser page, from Quake's own menu.
 extern "C" void VR_OpenCampaignSelector()
 {
-    VR_Menu_Open();
-    openInTree(pageIndex(pageCampaigns));
+    openFromAnywhere(pageIndex(pageCampaigns)); // (Back: Single Player, or up the tree from the hub's board)
+}
+
+// Ironwail's Levels opened by a jump (the main menu's Play Custom Map, the corner's Levels): Back from them returns
+// here (VR_NavBack).
+extern "C" void VR_NavJump(int state)
+{
+    if(m_state == m_vr && key_dest == key_menu)
+    {
+        navSyncTop();
+    }
+    else
+    {
+        navEnterFrom(outsideMenu());
+    }
+    navPush(outsidePlace(state));
+    navJumpPending = state;
+}
+
+// An outside menu opened (Ironwail's Levels; `previous` the menu shown before): by a jump or by Back into it, its place on
+// the stack kept; from its own way in (Single Player, a mod's), the stack started again (its Back its own).
+extern "C" void VR_NavEntered(int state, int previous)
+{
+    const bool kept = navJumpPending == state || navReturning || previous == m_skill || previous == state;
+    navJumpPending = -1;
+    if(!kept || navTop() != outsidePlace(state))
+    {
+        navReset();
+    }
+}
+
+// Back from an outside menu entered by a jump: where it came from (nonzero), else 0 (its own Back).
+extern "C" int VR_NavBack(int state)
+{
+    if(nav.count < 2 || navTop() != outsidePlace(state))
+    {
+        navReset();
+        return 0;
+    }
+    nav.count--;
+    const int dest = navTop();
+    if(dest >= 0)
+    {
+        enterVrMenu();
+        showPage(dest);
+        S_LocalSound("misc/menu2.wav");
+    }
+    else
+    {
+        leaveTo(-1 - dest);
+    }
+    return 1;
 }
 
 extern "C" int VR_MenuMainShowsMods()
@@ -10500,13 +10710,16 @@ void qvr::menu::command_f()
                 menuui::printLaser();
                 return;
             }
-            Con_Printf("menu_vr pos: menu %d (%s)%s\n", static_cast<int>(m_state), name, corner);
+            Con_Printf("menu_vr pos: menu %d (%s)%s%s\n", static_cast<int>(m_state), name, corner,
+                key_dest == key_menu && m_state == m_singleplayer ? va(", row %d", m_singleplayer_cursor) : "");
             return;
         }
         const auto& list = items(page);
         const int cursor = cursors[page];
-        Con_Printf("menu_vr pos: page %d \"%s\" (back to %d), row %d \"%s\" under \"%s\", scroll %d of %d rows%s\n", page,
-            pages[page].title, page == PageMain ? -1 : parentPage[page], cursor, rowLabel(list[cursor]), rowSection(list, cursor),
+        int outside = m_none;
+        const int back = backTarget(outside);
+        Con_Printf("menu_vr pos: page %d \"%s\" (back to %d%s), row %d \"%s\" under \"%s\", scroll %d of %d rows%s\n", page,
+            pages[page].title, back, outside != m_none ? va(", menu %d", outside) : "", cursor, rowLabel(list[cursor]), rowSection(list, cursor),
             scrolls[page], static_cast<int>(list.size()), corner);
         if(const Item* open = dropDownItem())
         {
@@ -10595,7 +10808,6 @@ const cvar_t* qvr::menu::selectedSetting()
 
 void qvr::menu::jumpToAdvanced()
 {
-    advancedFromMainMenu = false; // (the main menu's row: set again after this)
     if(menuLevel() < LevelAdvanced)
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(LevelAdvanced)); // (the corner's Advanced VR: the pages it lists)
@@ -10605,16 +10817,7 @@ void qvr::menu::jumpToAdvanced()
         S_LocalSound("misc/menu1.wav");
         return;
     }
-    if(m_state == m_vr)
-    {
-        S_LocalSound("misc/menu2.wav");
-    }
-    else
-    {
-        VR_Menu_Open(); // (its sound as it is drawn)
-    }
-    parentPage[PageAdvanced] = PageMain;
-    showPage(PageAdvanced);
+    openFromAnywhere(PageAdvanced); // (Back: where it was pressed)
 }
 
 void qvr::menu::openSearch()
@@ -10696,16 +10899,7 @@ void qvr::menu::jumpToChecklist()
         S_LocalSound("misc/menu1.wav");
         return;
     }
-    if(m_state == m_vr)
-    {
-        S_LocalSound("misc/menu2.wav");
-    }
-    else
-    {
-        VR_Menu_Open(); // (its sound as it is drawn)
-    }
-    parentPage[target] = PageMain;
-    showPage(target);
+    openFromAnywhere(target);
 }
 
 void qvr::menu::jumpToSettings()
@@ -10715,13 +10909,7 @@ void qvr::menu::jumpToSettings()
         S_LocalSound("misc/menu1.wav");
         return;
     }
-    if(m_state == m_vr)
-    {
-        S_LocalSound("misc/menu2.wav");
-        showPage(PageMain);
-        return;
-    }
-    VR_Menu_Open(); // (its sound as it is drawn)
+    openFromAnywhere(PageMain);
 }
 
 void qvr::menu::jumpToRelighting()
@@ -10736,20 +10924,7 @@ void qvr::menu::jumpToRelighting()
         S_LocalSound("misc/menu1.wav");
         return;
     }
-    if(m_state == m_vr)
-    {
-        S_LocalSound("misc/menu2.wav");
-    }
-    else
-    {
-        VR_Menu_Open(); // (its sound as it is drawn)
-    }
-    // Back walks up its place in the tree (Graphics, Advanced VR Options, VR Settings), as after the menus' own links.
-    for(int p = target; p != PageMain; p = homeOf(p))
-    {
-        parentPage[p] = homeOf(p);
-    }
-    showPage(target);
+    openFromAnywhere(target); // (Back: where it was pressed)
 }
 
 void qvr::menu::selectEnd(int dir)
@@ -10778,11 +10953,17 @@ void qvr::menu::selectEnd(int dir)
 
 void qvr::menu::reopen(int target)
 {
-    VR_Menu_Open();
-    if(target > PageMain && target < pageCount)
+    if(target < PageMain || target >= pageCount)
     {
-        showPage(target); // its cursor, scroll and way back as they were
+        target = PageMain;
     }
+    enterVrMenu();
+    if(navTop() != target)
+    {
+        navReset(); // (its way back gone: up the tree)
+        navPush(target);
+    }
+    showPage(target); // its cursor, scroll and way back as they were
 }
 
 bool qvr::menu::scroll(int rows)
@@ -11013,28 +11194,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
         case K_BBUTTON:
         case K_MOUSE2:
         case K_MOUSE4:
-            if(page == searchOpened)
-            {
-                searchOpened = -1; // a search result's page: back to the results
-                showPage(pageIndex(pageSearch));
-                S_LocalSound("misc/menu2.wav");
-            }
-            else if(page == PageMain || (page == PageAdvanced && advancedFromMainMenu && parentPage[page] == PageMain))
-            {
-                if(openedFromMainMenu)
-                {
-                    M_Menu_Main_f(); // (its sound as it is drawn)
-                }
-                else
-                {
-                    M_Menu_Options_f();
-                }
-            }
-            else
-            {
-                page = parentPage[page];
-                S_LocalSound("misc/menu2.wav");
-            }
+            goBack();
             break;
 
         // Up from the first setting, or down from the last: the corner's buttons (where shown), before
