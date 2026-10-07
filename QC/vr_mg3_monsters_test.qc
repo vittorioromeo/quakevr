@@ -7,6 +7,9 @@
 //   4 every infected on the map killed once: each bursts (a zombie or a fiend, or gibbed where wedged), no kill counted
 //   5 the rocket ogre (Dawn of the Machine's data): spawned ahead (its model, class, head zone), made to shoot: a volley
 //     of two rockets (batted as a monster's missile), the player hurt; killed: its corpse
+//   6 the demo dog (Dawn of the Machine's data): one shot dead beside a grunt: its grenades spill, it bursts (gibs, its
+//     head), counted; 3 s later the grunt is hurt; a second one leaps onto the player: dies, spills, the player hurt; a
+//     third beheaded: spills, lies headless (its ragdoll)
 
 float mg3mt_pass, mg3mt_fail;
 float mg3mt_step;      // the running request's step, 0: none
@@ -221,6 +224,97 @@ void() MG3_MT_Step =
         MG3_MT_Total();
         return;
     }
+    if(mg3mt_step == 30)
+    {
+        if(!MG3_DemoDog_Available())
+        {
+            dprint("mg3mtest: the Dawn of the Machine data is not there (no demo dog)\n");
+            mg3mt_step = 0;
+            return;
+        }
+        mg3mt_m1 = MG3_MT_Spawn(p, 35, 192, 0);
+        mg3mt_m2 = MG3_MT_Spawn(p, 0, 192, 40); // (a grunt beside it)
+        mg3mt_m2.health = 300; // (survives a grenade or two: hurt, not gone)
+        MG3_MT_Check(mg3mt_m1.classname == "monster_dog" && mg3mt_m1.vr_mg3_mon == MG3_MON_DEMODOG &&
+            mg3mt_m1.model == MG3_DEMODOG_MDL && mg3mt_m1.health == 25, sprintf("a demo dog (%s %s health %g)",
+            mg3mt_m1.classname, mg3mt_m1.model, mg3mt_m1.health));
+        mg3mt_step = 31; mg3mt_next = time + 0.7;
+        return;
+    }
+    if(mg3mt_step == 31)
+    {
+        mg3mt_n = vr_mg3_demo_grenades;
+        mg3mt_killed = killed_monsters;
+        mg3mt_h = mg3mt_m2.health;
+        MG3_MT_Hurt(p, mg3mt_m1, 30); // (a shotgun blast's worth: not a gib for a rottweiler)
+        MG3_MT_Check(vr_mg3_demo_grenades - mg3mt_n >= 3, sprintf("shot dead: its grenades spill (%g)",
+            vr_mg3_demo_grenades - mg3mt_n));
+        MG3_MT_Check(mg3mt_m1.model == "progs/h_dog.mdl" && killed_monsters == mg3mt_killed + 1, sprintf("it burst (%s), "
+            "counted (%g -> %g)", mg3mt_m1.model, mg3mt_killed, killed_monsters));
+        mg3mt_step = 32; mg3mt_next = time + 3.2;
+        return;
+    }
+    if(mg3mt_step == 32)
+    {
+        MG3_MT_Check(mg3mt_m2.health < mg3mt_h, sprintf("its grenades went off: the grunt beside it hurt (%g -> %g)", mg3mt_h,
+            mg3mt_m2.health));
+        if(mg3mt_m2.health > 0) { MG3_MT_Hurt(p, mg3mt_m2, mg3mt_m2.health + 50); }
+        // The second: it leaps onto the player.
+        p.health = 500;
+        mg3mt_h = p.health;
+        mg3mt_n = vr_mg3_demo_grenades;
+        mg3mt_m1 = MG3_MT_Spawn(p, 35, 128, 0);
+        mg3mt_step = 33; mg3mt_next = time + 0.7;
+        return;
+    }
+    if(mg3mt_step == 33)
+    {
+        // Its leap's landing on the player, as the engine calls it (Dog_JumpTouch): flying at him at 400 u/s. (A real
+        // leap may fall short or turn into a bite: the AI's choice, not what is tested.)
+        entity os3 = self, oo3 = other;
+        self = mg3mt_m1;
+        self.enemy = p;
+        self.velocity = normalize(p.origin - self.origin) * 400;
+        self.flags = self.flags - (self.flags & FL_ONGROUND);
+        other = p;
+        Dog_JumpTouch();
+        self = os3; other = oo3;
+        mg3mt_step = 34; mg3mt_next = time + 0.5;
+        return;
+    }
+    if(mg3mt_step == 34)
+    {
+        MG3_MT_Check(mg3mt_m1.health <= 0 && vr_mg3_demo_grenades - mg3mt_n >= 3 && p.health < mg3mt_h,
+            sprintf("its leap onto the player killed it: health %g, grenades %g, the player %g -> %g", mg3mt_m1.health,
+            vr_mg3_demo_grenades - mg3mt_n, mg3mt_h, p.health));
+        mg3mt_step = 35; mg3mt_next = time + 3;
+        return;
+    }
+    if(mg3mt_step == 35)
+    {
+        // The third: beheaded (a sword's cut at its head kills it).
+        mg3mt_m1 = MG3_MT_Spawn(p, 35, 96, 0);
+        mg3mt_step = 36; mg3mt_next = time + 0.7;
+        return;
+    }
+    if(mg3mt_step == 36)
+    {
+        mg3mt_n = vr_mg3_demo_grenades;
+        makevectors('0 1 0' * p.v_angle_y);
+        PositionalHead(mg3mt_m1);
+        makevectors('0 1 0' * mg3mt_m1.angles_y);
+        vector head = mg3mt_m1.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp;
+        makevectors('0 1 0' * p.v_angle_y);
+        float armed = VR_Decap_Arm(mg3mt_m1, p, head, v_right * 400, QVR_DECAP_SWING);
+        MG3_MT_Hurt(p, mg3mt_m1, 30);
+        VR_Decap_After(mg3mt_m1);
+        MG3_MT_Check(armed && mg3mt_m1.vr_headless && mg3mt_m1.model == MG3_DEMODOG_MDL && vr_mg3_demo_grenades - mg3mt_n >= 3,
+            sprintf("beheaded: grenades %g, it lies headless (%s headless %g)", vr_mg3_demo_grenades - mg3mt_n,
+            mg3mt_m1.model, mg3mt_m1.vr_headless));
+        mg3mt_step = 0;
+        MG3_MT_Total();
+        return;
+    }
     if(mg3mt_step == 10)
     {
         cvar_set("vr_test_spawn_flags", ftos(MG3_CORPSE_A));
@@ -295,5 +389,6 @@ void() MG3_MonstersTestFrame =
     else if(request == 3) { mg3mt_step = 10; mg3mt_next = time; }
     else if(request == 4) MG3_MT_KillInfected();
     else if(request == 5) { mg3mt_step = 20; mg3mt_next = time; }
+    else if(request == 6) { mg3mt_step = 30; mg3mt_next = time; }
     self = oldself; other = oldother; activator = oldact;
 };

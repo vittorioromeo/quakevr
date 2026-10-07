@@ -22,6 +22,9 @@ if not os.path.exists(path) and os.environ.get('RIG_PAK'):
 names, P, T = mdl.load(path)
 V = P[0]
 sel = V[(V[:, 2] > zmin) & (V[:, 0] > xmin) & (np.abs(V[:, 1]) < ymax)]
+if not len(sel):
+    sys.exit('%s: no vertices there (the stand frame: z %.1f .. %.1f, x %.1f .. %.1f)' % (name, V[:, 2].min(), V[:, 2].max(),
+                                                                                       V[:, 0].min(), V[:, 0].max()))
 c = sel.mean(0)
 r = np.percentile(np.linalg.norm(sel - c, axis=1), 80)
 print('%s: %d vertices, middle %.1f %.1f %.1f, radius (80%%) %.1f; the model: top %.1f, front %.1f'

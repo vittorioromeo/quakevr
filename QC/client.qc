@@ -2539,7 +2539,7 @@ void(entity targ, entity attacker) ClientObituary =
                 if(attacker.classname == "monster_demon1")
                     bprint(" was eviscerated by a Fiend\n");
                 if(attacker.classname == "monster_dog")
-                    bprint(" was mauled by a Rottweiler\n");
+                    bprint(attacker.vr_mg3_mon ? " was blown up by a demo dog\n" : " was mauled by a Rottweiler\n"); // (QVR: MG3's demo dog)
                 if(attacker.classname == "monster_dragon")
                     bprint(" was annihilated by the Dragon\n");
                 if(attacker.classname == "monster_dragon_dead")

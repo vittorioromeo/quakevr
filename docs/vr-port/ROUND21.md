@@ -28463,3 +28463,35 @@ owned/mg3/progs/ogre_rocket.mdl", killed as it. MG3 map5 (skill 2): 12 rocket og
 
 **In the headset.** [ ] A rocket ogre (Debug > Tests > Dawn of the Machine Monsters > A Rocket Ogre Ahead): bat its
 rockets back with a sword or a gun; behead it; knock it down. [ ] Its ragdoll: the launcher stays in its right hand.
+
+### M3-17 The demo dog
+
+`monster_demodog` (`QC/vr_mg3_demodog.qc`; official `mg3_demodog.qc`, `client.qc`'s obituary). Quake VR's rottweiler
+(`orig_mon_dog.qc`: frames, bite, leap and its parry, knockdown) drawn with MG3's model read in place
+(`owned/mg3/progs/dog_explosive.mdl`), `.vr_mg3_mon` 2, its class the rottweiler's (as upstream), removed without the
+data. Kamikaze: its leap landing on a player at speed (the rottweiler's bite of it, 10..20) kills it (upstream's 200
+from the player), unless the leap was parried (Quake VR's stagger). However it dies, its pack spills: three grenades
+(a fourth 30% of the time on Nightmare), tossed about and ahead, 60 each after 2.5 +- 0.25 s, owned by the dog,
+catchable as a monster's (`VR_Grenade_Make`); "was blown up by a demo dog". It always bursts (gib3 x3 and its head),
+as upstream; beheaded or a limb cut off by the killing blow it lies as its ragdoll instead (Quake VR's treatment, as a
+beheaded zombie: `VR_Decap_ZombieDie`; the grenades spill all the same).
+
+**Frame order** (`frameorder.py dog dog_explosive`): 86 frames in id's order, the death runs low at 12-16 and 20-25 in
+both. **Rig** (`dogExplosiveSeeds`, `dog_explosive_bones.json`): 915 vertices, the rottweiler's 13 bones (keepHinge on
+the lower legs, as his), the bomb pack's two barrels on the pelvis and the chest; clusters 0.58 units rms, bones 0.71
+(the rottweiler: 0.62). Its head is the rottweiler's mesh (`headfit.py dog -9 15`: 259 vertices, 24.0 -0.3 -1.3 r 8.6;
+the demo dog's 23.9 -0.4 -1.5 r 8.7): the rottweiler's head zone (23, 1, 7) as it is. Training dummy 20 ("Demo Dog"),
+spawner Thing 35.
+
+Measured: `vr_mg3_mtest 6` (e1m1) **6/0** (3 runs): a demo dog (monster_dog, the owned model, 25); shot dead beside a
+grunt: 3 grenades, burst (its head), kills 0 -> 1; 3.2 s later the grunt 289 -> 187; its leap's landing on the player
+(`Dog_JumpTouch` at 400 u/s): dead, 3 grenades, the player 500 -> ~390; beheaded by an armed cut: 3 grenades, lying
+headless in its own model. Knockdown: its ragdoll (915 vertices, 13 bones), up again. `MON=35 decap_test.sh live pop`:
+beheaded (head and jaw cut off, 11 parts left), popped. `KINDS=35 limbs_test.sh live`: a slash cuts, a fist pops,
+gibbed gibs (the shotgun's pop missed: the earlier dog's grenades go off among the next ones). Dummy 20: "Demo Dog
+(monster_dog) model owned/mg3/progs/dog_explosive.mdl", zones as the rottweiler's. MG3 map6 (skill 2): 18 demo dogs.
+Checker: 15 missing classes, 178 placements.
+
+**In the headset.** [ ] A demo dog leaping at you: parry it (it staggers, no blast) or let it land (it dies on you,
+its grenades at your feet); catch one of its grenades and throw it back. [ ] Behead one: it lies headless, the grenades
+still spill.

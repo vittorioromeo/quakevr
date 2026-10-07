@@ -284,6 +284,7 @@ void restartVr()
     if(VR_CampaignDataAvailable("mg3")) // (Dawn of the Machine's own: its data read in place, in any campaign)
     {
         out.pushBack({19.f, "Rocket Ogre"});
+        out.pushBack({20.f, "Demo Dog"});
     }
     return out;
 }
@@ -5221,7 +5222,7 @@ za::Vector<Item> pageDebugTests()
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
              {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"},
              {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
-             {34.f, "Rocket Ogre"},
+             {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"},
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},

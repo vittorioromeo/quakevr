@@ -75,6 +75,10 @@ void()    Dog_JumpTouch =
             {
                 return; // successful parry owns the recovery think and has cancelled the leap touch
             }
+            if(MG3_DemoDog_LeapHit())
+            {
+                return; // QVR: MG3's demo dog dies on whom it lands (vr_mg3_demodog.qc)
+            }
         }
     }
 
@@ -228,6 +232,11 @@ void() dog_dieb9        =[    $deathb9,    dog_dieb9    ] { monster_check_remove
 
 void() dog_die =
 {
+    if(self.vr_mg3_mon)
+    {
+        MG3_DemoDog_Die(); // QVR: MG3's demo dog: its bomb pack spills, it bursts (vr_mg3_demodog.qc)
+        return;
+    }
 // check for gib
     if(self.health < -35)
     {

@@ -425,6 +425,28 @@ constexpr Seed ogreRocketSeeds[] = {
     {"shin_r", 11, Joint::Hinge, {2.1f, -9.5f, -22.6f}, {-2.3f, -12.8f, -19.5f}, {-1.1f, -11.9f, -20.4f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// Dawn of the Machine's demo dog (owned/mg3/progs/dog_explosive.mdl, read in place: 915 vertices, 86 frames in id's
+// rottweiler's order, checked: frameorder.py dog dog_explosive). The rottweiler's build with a bomb pack on his back
+// (its two barrels on the pelvis and the chest); the rest pose $attack1 as the rottweiler's; his bones the rottweiler's
+// (keepHinge on the lower legs, as his). Measured on his frames (rig.py dog_explosive dog_explosive_bones.json, RIG_PAK
+// MG3's pak0.pak): clusters 0.58 units rms, bones 0.71. Death frames 8-16 ($death1-9) and 17-25 ($deathb1-9), used
+// only knocked down or beheaded (he always bursts otherwise: QC vr_mg3_demodog.qc).
+constexpr Seed dogExplosiveSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-6.7f, -0.1f, 3.8f}, {-6.7f, -0.1f, 3.8f}, {0.8f, -0.1f, 1.9f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {6.1f, -0.3f, 4.6f}, {0.8f, -0.1f, 1.9f}, {15.2f, 0.1f, -2.2f}, 0.f, 30.f, 20.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {23.4f, -0.1f, 0.3f}, {15.2f, 0.1f, -2.2f}, {31.6f, -0.3f, 2.8f}, 0.f, 50.f, 40.f, 0.f, {}},
+    {"jaw", 2, Joint::Hinge, {26.5f, -0.5f, -3.7f}, {21.2f, -0.4f, -2.8f}, {31.8f, -0.5f, -4.7f}, 0.f, 0.f, 0.f, 40.f, {0.f, 1.f, 0.f}},
+    {"upperleg_fl", 1, Joint::Ball, {8.8f, 8.f, -3.4f}, {8.2f, 3.8f, 0.4f}, {7.2f, 10.8f, -7.8f}, 2.f, 60.f, 20.f, 0.f, {}},
+    {"lowerleg_fl", 4, Joint::Hinge, {10.8f, 9.5f, -18.f}, {7.2f, 10.8f, -7.8f}, {12.4f, 8.8f, -22.6f}, 1.6f, 0.f, 0.f, 140.f, {0.f, -1.f, 0.f}, true},
+    {"upperleg_fr", 1, Joint::Ball, {12.4f, -7.5f, -6.8f}, {10.f, -3.9f, -1.7f}, {14.7f, -9.8f, -16.9f}, 2.f, 60.f, 20.f, 0.f, {}},
+    {"lowerleg_fr", 6, Joint::Hinge, {20.5f, -8.3f, -19.4f}, {14.7f, -9.8f, -16.9f}, {26.3f, -6.8f, -21.9f}, 1.6f, 0.f, 0.f, 140.f, {0.f, -1.f, 0.f}, true},
+    {"thigh_bl", 0, Joint::Ball, {-6.5f, 6.9f, -8.2f}, {-9.7f, 6.f, -0.9f}, {-7.3f, 8.1f, -14.8f}, 2.5f, 60.f, 20.f, 0.f, {}},
+    {"shin_bl", 8, Joint::Hinge, {-6.8f, 6.3f, -20.4f}, {-7.3f, 8.1f, -14.8f}, {-6.6f, 5.5f, -22.9f}, 1.6f, 0.f, 0.f, 120.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_br", 0, Joint::Ball, {-13.2f, -6.9f, -8.4f}, {-10.f, -5.8f, -1.f}, {-15.9f, -6.3f, -13.8f}, 2.5f, 60.f, 20.f, 0.f, {}},
+    {"shin_br", 10, Joint::Hinge, {-19.4f, -6.5f, -19.9f}, {-15.9f, -6.3f, -13.8f}, {-21.3f, -6.6f, -23.1f}, 1.6f, 0.f, 0.f, 120.f, {0.f, 1.f, 0.f}, true},
+    {"tail", 0, Joint::Ball, {-17.5f, -0.1f, -1.1f}, {-14.8f, -0.5f, 3.3f}, {-20.2f, 0.4f, -5.6f}, 0.f, 50.f, 30.f, 0.f, {}},
+};
+
 constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -440,6 +462,7 @@ constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Mummy, 177, mummySeeds, static_cast<int>(sizeof(mummySeeds) / sizeof(mummySeeds[0])), 2, {103, 162}, {116, 178}},
     {modelmeta::Id::Shalrath, 371, shalrathSeeds, static_cast<int>(sizeof(shalrathSeeds) / sizeof(shalrathSeeds[0])), 1, {16, 0}, {22, 0}},
     {modelmeta::Id::Scor, 235, scorSeeds, static_cast<int>(sizeof(scorSeeds) / sizeof(scorSeeds[0])), 1, {36, 0}, {40, 0}, 26, true},
+    {modelmeta::Id::Mg3DogExplosive, 915, dogExplosiveSeeds, static_cast<int>(sizeof(dogExplosiveSeeds) / sizeof(dogExplosiveSeeds[0])), 2, {8, 17}, {16, 25}},
     {modelmeta::Id::Mg3OgreRocket, 982, ogreRocketSeeds, static_cast<int>(sizeof(ogreRocketSeeds) / sizeof(ogreRocketSeeds[0])), 2, {112, 126}, {125, 135}},
 };
 

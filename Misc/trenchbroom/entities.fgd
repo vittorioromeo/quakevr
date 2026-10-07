@@ -382,6 +382,9 @@ Corpse A or B: he lies as a corpse (his death's last frame, not solid) until wok
 @PointClass base(Monster) size(-32 -32 -24, 32 32 64) model({ "path": ":progs/ogre.mdl" }) = monster_ogre_rocket : "Rocket ogre (Dawn of the Machine)
 
 200 health; a chainsaw up close, volleys of two rockets at range (40 each). Needs the Dawn of the Machine data (its model, progs/ogre_rocket.mdl, read from its pack in place); the preview is the ogre's." []
+@PointClass base(Monster) size(-32 -32 -24, 32 32 40) model({ "path": ":progs/dog.mdl" }) = monster_demodog : "Demo dog (Dawn of the Machine)
+
+25 health; a rottweiler with a bomb pack. Its leap onto you kills it; however it dies, three grenades spill (60 each, 2.5 seconds). Needs the Dawn of the Machine data (its model, progs/dog_explosive.mdl, read from its pack in place); the preview is the rottweiler's." []
 @PointClass = monster_tarbaby : "Spawn (tarbaby)
 
 80 health; bounces, and explodes when it dies." []
