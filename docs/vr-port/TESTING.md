@@ -1649,6 +1649,9 @@ out of the way; punches and throws: `debris/motions/punch2.mock`, `throw.mock` (
 set as `motions/hc.txt`), a grunt from `vr_test_spawn 0; vr_test_spawn_dist 36; impulse 241` on flat ground
 (`setpos 340 1350 -200 0 180 0; noclip` in e1m1). A worldspawn's `_vr_debris` without editing a map: a
 `maps/<map>.ent` override (`external_ents`).
+A plain `maps/<map>.ent` that names a brush model the map lacks (`*N` past its submodels: one left over from an older
+version of the map) is ignored with a warning (`... doesn't match this map (references *36, the map has 28): ignored`);
+the `.ent` files we ship are `<map>@<crc>.ent`, which apply only to their `.bsp` (`Misc/quakevr/entfile.py` prints the names).
 Align Sights to My Aim (ROUND21.md): `vr_sight_align [start [main|off] | apply | cancel | undo]` runs the Weapon Offsets page's capture (the mock hand must be lowered, then raised and held 0.4 s, for each capture; `vr_sight_align_captures`), `vr_sight_check [main|off] [size]` prints the sight line against the dominant eye (`vr_dominant_eye`), where the sights and the laser land in that eye's image, and the laser against the line; `vr_sight_lines` lists every weapon's line; `vr_show_sight_line 1` draws them. Higher eye images: `vr_mock_eye_size 2048; vr_restart`, then `vr_eyeshot 1`.
 Held props' grips (ROUND21.md, "Held props: grip modes, live offsets, palm grip, torch handle"): `vr_grip_frame` prints
 each hand's grip frame (the palm, its normal, the grip channel); `developer 1` prints `grip: taken|placed again ...` (the

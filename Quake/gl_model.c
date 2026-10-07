@@ -1049,10 +1049,36 @@ static void Mod_LoadVisibility (lump_t *l)
 
 /*
 =================
+Mod_EntsHighestSubmodel
+
+Quake VR addition: the highest brush submodel ("model" "*N") the entity text uses, or -1 for none.
+=================
+*/
+static int Mod_EntsHighestSubmodel (const char *data)
+{
+	char	key[64];
+	int		highest = -1;
+
+	while ((data = COM_Parse (data)) != NULL)
+	{
+		if (com_token[0] == '{' || com_token[0] == '}')
+			continue;
+		q_strlcpy (key, com_token, sizeof (key));
+		data = COM_Parse (data);
+		if (!data)
+			break;
+		if (!strcmp (key, "model") && com_token[0] == '*')
+			highest = q_max (highest, atoi (com_token + 1));
+	}
+	return highest;
+}
+
+/*
+=================
 Mod_LoadEntities
 =================
 */
-static void Mod_LoadEntities (lump_t *l)
+static void Mod_LoadEntities (lump_t *l, const lump_t *models)
 {
 	char	basemapname[MAX_QPATH];
 	char	entfilename[MAX_QPATH];
@@ -1081,6 +1107,23 @@ static void Mod_LoadEntities (lump_t *l)
 		q_snprintf(entfilename, sizeof(entfilename), "%s.ent", basemapname);
 		Con_DPrintf2("trying to load %s\n", entfilename);
 		ents = (char *) COM_LoadHunkFile (entfilename, &path_id);
+
+		// Quake VR addition: a plain <map>.ent applies to any .bsp of that name, so one left over from an older
+		// version of the map (an old install copied over, a zip) can name brush models the map no longer has
+		// ("Mod_LoadModel: *28 not found" when the server precaches them). Such a file is ignored, with a warning,
+		// and the map's own entities are used; a plain .ent that fits the map still applies (mappers' overrides).
+		if (ents && path_id >= loadmodel->path_id)
+		{
+			const int numsubmodels = models->filelen > 0 ? models->filelen / (int) sizeof (dmodel_t) : 0;
+			const int highest = Mod_EntsHighestSubmodel (ents);
+			if (highest >= numsubmodels)
+			{
+				Con_Warning ("%s doesn't match this map (references *%d, the map has %d): ignored; delete or update it\n",
+					entfilename, highest, numsubmodels);
+				Hunk_FreeToLowMark (mark);
+				goto _load_embedded;
+			}
+		}
 	}
 
 	if (ents)
@@ -2579,7 +2622,7 @@ static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 visdone:
 	Mod_LoadNodes (&header->lumps[LUMP_NODES], bsp2);
 	Mod_LoadClipnodes (&header->lumps[LUMP_CLIPNODES], bsp2);
-	Mod_LoadEntities (&header->lumps[LUMP_ENTITIES]);
+	Mod_LoadEntities (&header->lumps[LUMP_ENTITIES], &header->lumps[LUMP_MODELS]);
 	Mod_LoadSubmodels (&header->lumps[LUMP_MODELS]);
 
 	Mod_MakeHull0 ();

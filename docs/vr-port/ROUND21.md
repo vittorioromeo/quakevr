@@ -30417,3 +30417,30 @@ middle and why a gate did not take it.
   Slipgates, Slide A Crate Through, shows it); carry a box through the loop room's gates (never cut before it reaches
   the gate, no hitch); force grab a box lying in the room beyond a gate (the beam goes into the gate); start's
   underwater gate by the episode 4 slipgate with torch fire behind it.
+
+## A stale vrstart.ent broke the island: .ent files pinned to their .bsp, plain ones checked (2026-10-08)
+
+A player building the latest commit got `Host_Error: Mod_LoadModel: *28 not found` loading `vrstart`. The island's
+`vrstart.bsp` has 28 brush models (*0..*27); the repo tracked the old hub's `maps/vrstart.ent` (its entities, up to
+*36) until a120d0b3 moved it to `vrstart_old.ent`. Ironwail loads `maps/<map>@<crc>.ent` (the CRC of the .bsp's entity
+lump), else a plain `maps/<map>.ent` for any .bsp of that name, so a leftover `vrstart.ent` (an old copy of quakevr
+copied over, a zip, an untracked file) put the old hub's entities on the island.
+
+- **Pinned:** our shipped `.ent` files are named for their .bsp: `vrstart_old@3e00.ent`, `vrfiringrange@3647.ent`
+  (`git mv`, contents unchanged). `Misc/quakevr/entfile.py` (Quake's CRC_Block in Python) prints each map's pinned name
+  (`python Misc/quakevr/entfile.py`), finds a map's `.ent` and writes it under the .bsp's current CRC (renaming the old
+  one). `relight_quakevr_maps.py` (which rewrites the .bsp's entity lump, so its CRC) and `make_prop_area.py` use it.
+  The package takes git's files, so it needs no change.
+- **Engine guard** (gl_model.c `Mod_LoadEntities`, a Quake VR addition): a plain `<map>.ent` whose `"model" "*N"` is
+  past the .bsp's submodel count is ignored, the map's own entities used, with one warning: `maps/vrstart.ent doesn't
+  match this map (references *36, the map has 28): ignored; delete or update it`. A plain .ent that fits still applies.
+- **Installer:** an update already removes the files the previous version's manifest listed and this one doesn't
+  (unless the player changed them; InstallEngine.cs), so an installer-made install drops the old `vrstart.ent` itself.
+  Folders copied by hand or from a zip keep it: the guard covers those.
+
+Tested headless: the old hub's entities as a plain `quakevr/maps/vrstart.ent`: the warning, the island loads with 149
+edicts (as without the file), its path walked (vrstart_walktest.py: 18 of 18 legs) and a pavilion button pressed by
+hand (`buttons/stray_press_test.sh`: 30 loads, 0 stray presses, 1 real press); `vrstart_old` loads
+`vrstart_old@3e00.ent` (83 edicts; 80 from its own lump with `external_ents 0`); `vrfiringrange` loads
+`vrfiringrange@3647.ent` (268; 186 without); a valid plain `e1m1.ent` (one more item_health, a new message) applies
+(218 edicts, 217 without); `make_prop_area.py --ent-only` rewrites the pinned file unchanged.

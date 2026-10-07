@@ -4,7 +4,7 @@
 # the grenade pouch's turn; the firing range's prop area"); and an ogre's chainsaw, full, on the floor past the boxes
 # (NOTES.md vrfiringrange_2026-09-30_10-57-41), and a crowbar beside it (a weapon_crowbar: QC vr_crowbar.qc).
 #
-# vrfiringrange.bsp has no source that matches it any more (its entities are quakevr/maps/vrfiringrange.ent, which the
+# vrfiringrange.bsp has no source that matches it any more (its entities are quakevr/maps/vrfiringrange@<crc>.ent, which the
 # engine loads in place of the .bsp's), so, as make_spawn_buttons.py does for the second row of monster buttons, the
 # area's brushes are small external brush models drawn by func_wall entities of the entity file:
 #
@@ -36,6 +36,7 @@ import subprocess
 import sys
 import tempfile
 
+import entfile
 import genguard
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -137,7 +138,11 @@ def entities():
     return out
 
 
-def write_entities(path):
+def write_entities(maps):
+    # (the .ent pinned to vrfiringrange.bsp, entfile.py: the .bsp is not changed, so neither is its name)
+    path = entfile.find(maps, "vrfiringrange")
+    if path is None:
+        sys.exit("no vrfiringrange .ent in %s" % maps)
     with open(path, newline="") as f:
         text = f.read()
     blocks = re.findall(r"\{[^{}]*\}", text)
@@ -176,7 +181,7 @@ def main():
                     g.write(f.read())
                 print("wrote", os.path.normpath(dest))
         guard.finish()
-    write_entities(os.path.join(args.maps, "vrfiringrange.ent"))
+    write_entities(args.maps)
 
 
 if __name__ == "__main__":

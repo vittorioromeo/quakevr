@@ -285,6 +285,6 @@ with no face there is a hole.
   (Dimension of the Past starts at once).
 - **The hub**: it is `vrstart`, the hub VR starts in and the menus' VR Hub returns to (it was `vrstart` until
   2026-10-07: `map vrstart`, a config's `vr_hub_map vrstart` (vr_cfg_version 99 moves it) and old saves made there
-  still load it, `VR_MapAlias`). The old hub is `vrstart_old` (`vrstart_old.bsp`, `.ent`): Debug > Tests > Hubs, or
+  still load it, `VR_MapAlias`). The old hub is `vrstart_old` (`vrstart_old.bsp`, `vrstart_old@3e00.ent`: our `.ent` files are pinned to their `.bsp`, `Misc/quakevr/entfile.py`): Debug > Tests > Hubs, or
   `vr_hub_map vrstart_old` to make it the hub again.
 - **Checks**: `vr_menu_path_check maps/vrstart.map` (the boards' `{menu:...}` names: 4 found, 0 missing).

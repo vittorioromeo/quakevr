@@ -21,7 +21,7 @@
 # relight_maps.py): the map keeps its own entities.
 #
 # The worldspawn keys go into, and the dropped light entities out of, both the map's entity file
-# (<map>.ent, which the engine loads in place of the .bsp's entities, if the map has one) and the .bsp's
+# (<map>@<crc>.ent, pinned to the .bsp by entfile.py, which the engine loads in place of the .bsp's entities, if the map has one) and the .bsp's
 # own entity lump, so both describe the lighting the lightmap was made with; every other entity is kept
 # as it is. Geometry is untouched. Running it again gives the same lighting (the dropped lights stay
 # dropped, the keys are set, not added; `light` is multi-threaded, so where each face's lightmap sits in
@@ -47,6 +47,7 @@ import subprocess
 import sys
 import tempfile
 
+import entfile
 import vis_maps
 from relight_maps import (OUTPUT_ARGS, entities_text, find_light, glow_lights, id_light_values, light_command, pak_file,
                           remapped_lux, with_entities)
@@ -183,10 +184,10 @@ def run_light(command, data, name, tmp):
 
 def relight(name, settings, light, maps, out_dir, palette, legacy=None):
     bsp_path = os.path.join(maps, name + ".bsp")
-    ent_path = os.path.join(maps, name + ".ent")
+    ent_path = entfile.find(maps, name)  # (pinned to the .bsp: <map>@<crc>.ent, entfile.py)
     with open(bsp_path, "rb") as f:
         data = f.read()
-    has_ent = os.path.isfile(ent_path)
+    has_ent = ent_path is not None
     if has_ent:
         with open(ent_path, newline="") as f:
             source = f.read()
@@ -226,9 +227,8 @@ def relight(name, settings, light, maps, out_dir, palette, legacy=None):
     with open(written[0], "wb") as f:
         f.write(relit)
     if has_ent:
-        written.append(os.path.join(out_dir, name + ".ent"))
-        with open(written[-1], "w", newline="\n") as f:
-            f.write(ents)
+        # Renamed for the relit .bsp's entity lump (entfile.py): the engine loads a pinned .ent only for its .bsp.
+        written.append(entfile.write(out_dir, name, relit, ents))
     if lit_data is not None:
         written.append(os.path.join(out_dir, name + ".lit"))
         with open(written[-1], "wb") as f:
