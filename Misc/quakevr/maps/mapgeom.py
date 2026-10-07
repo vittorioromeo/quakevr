@@ -200,15 +200,24 @@ def box(x0, y0, z0, x1, y1, z1, tex, tex_for=None):
     return hull([(x, y, z) for x in (x0, x1) for y in (y0, y1) for z in (z0, z1)], tex, tex_for)
 
 
-def prism(tri, zb, top_tex, side_tex):
-    """A terrain prism: the triangle `tri` ((x, y, z) x 3, integers) on top, vertical sides down to z `zb`."""
+def prism(tri, zb, top_tex, side_tex, top=None):
+    """A terrain prism: the triangle `tri` ((x, y, z) x 3, integers) on top, vertical sides down to z `zb`. `top`: three
+    other points (integers) whose plane the top lies on instead (a neighbour's: see vrstart2_gen.py's terrain_planes)."""
     a, b, c = tri
     # counter-clockwise from above
     if (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) < 0:
         b, c = c, b
     faces = []
     nt = norm(cross(sub(b, a), sub(c, a)))
-    faces.append(_orient(a, b, c, nt) + (as_texfn(top_tex)(nt, tuple((a[i] + b[i] + c[i]) / 3 for i in range(3))),))
+    centre = tuple((a[i] + b[i] + c[i]) / 3 for i in range(3))
+    if top:
+        tp = top
+        nt = norm(cross(sub(tp[1], tp[0]), sub(tp[2], tp[0])))
+        if nt[2] < 0:
+            nt = mul(nt, -1)
+        faces.append(_orient(tp[0], tp[1], tp[2], nt) + (as_texfn(top_tex)(nt, centre),))
+    else:
+        faces.append(_orient(a, b, c, nt) + (as_texfn(top_tex)(nt, centre),))
     nb = (0.0, 0.0, -1.0)
     faces.append(_orient((a[0], a[1], zb), (b[0], b[1], zb), (c[0], c[1], zb), nb) + (as_texfn(side_tex)(nb, (a[0], a[1], zb)),))
     for p, q in ((a, b), (b, c), (c, a)):

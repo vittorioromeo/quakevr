@@ -29032,3 +29032,48 @@ models, menu, tests and phases 2-4: RELOAD_PLAN.md). Phase 1:
 Open for the author: the shell's pose in the fist (the defaults are a first fit, Held Object Offsets has them); the
 pouch's place and size; whether a shell let go of at a hip holster should go back into the pouch (it does: it is a
 pickup) or drop.
+## vrstart2: the author's screenshots of 2026-10-07 (holes, lanterns, rope, barrels...)
+
+Vittorio's 22 annotated shots (the list and my reading of each: the agent's `scratch/notes/flaws.md`). Fixed:
+
+**Holes** (12 of the shots: grey triangles in the ground, slivers in the cliffs, wedges on the lake's floor) and the
+**foam lines and triangles on the water** (2: the shoreline foam drew round holes in the water's surface) were one
+fault: faces missing from the compiled map. ericw-tools 2.0-alpha11's qbsp said "519 sides not found" (with
+`-verbose`: "couldn't find portal side at ..."): a portal between air and solid with no brush side to make its face.
+A ray test over the BSP (rays from random open points to the first change of contents, the hit point checked against
+the world's faces on that plane: 20 000 rays, 88 hits in 79 places) found them; screenshots aimed along its rays show
+them. Every one had, within a few dozen units, two neighbouring terrain prisms whose tops were 0.002-0.006 degrees
+from coplanar (integer heights; the island's in steps of 8): the wedge between the planes thinner than the
+compilers' epsilons. 0.18.1's qbsp lost faces at the same places (10 hits). Two changes:
+- `terrain_planes` (vrstart2_gen.py): neighbours whose tops come within `TERRAIN_SNAP` (0.5 unit) of each other's
+  planes share one plane exactly (a prism's top written as three points of the group's plane, `mapgeom.prism(top=)`);
+  exactly coplanar neighbours are a group from the start, the smaller group joins the larger's if every corner is
+  within the snap. 1397 of 10 518 tops moved, by under half a unit (a step, never a gap: the prisms are solid to the
+  floor). 0.18.1's qbsp: 0 holes (120 000 rays); 2.0's still 45 hits ("417 sides not found": its losses elsewhere
+  too, by rocks and crystals on the lake's floor, at no near-coplanar pair).
+- **qbsp is now ericw-tools 0.18.1's** (`DEFAULT_QBSP`, `--qbsp`; `-bsp2`), vis and light still 2.0's. Its liquids
+  are TEX_SPECIAL (unlit, and never cut into faces small enough for a lightmap): the lake is now tiles of 160 units
+  (`WATER_TILE`, every other one's texture shifted a whole copy so no two merge) and `lit_liquids` clears the flag on
+  the water's texinfos before light, so the water is lit as before (5728 lit faces, extents at most 160). The slipgate's
+  `*teleport` stays unlit (its face is 304 wide); it looks the same. qbsp takes 40-70 s (2.0: 240 s); the full compile
+  about 13 minutes.
+
+**Lanterns** ("should emit light", the pier's and the tower's): their glass is `qvr_lantern` (quakevr_dev.wad: warm
+fullbright texels behind an iron frame), so they glow at night; the pier's light 180 -> 240, the tower's 150 -> 220
+and now beside it (over it, the lantern's own top shaded the deck round its post). (A light inside the glass, the
+glass func_detail_illusionary, lit nothing: light counts those faces as shadow casters.)
+**The pier's rope** ("abruptly ends"): the second row of pilings rises to short bollards and the ropes from the end's
+bollards run to them. **SETTINGS banner** ("covered by torch"): over the pavilion's way in (z +92, centred), not in
+front of the north torch post. **Targets** ("misaligned texture"): one bullseye fitted to the 52-unit face (scale
+52/64, offsets from the face's corner). **Islets' braziers** ("gap"): the pillar sunk 64 into the rock (was 8; the
+islet's top slopes away under it). **Barrels** ("would be cool if these were new physics props like the wooden
+crates"): `vr_barrel` (QC vr_crates.qc), a crate but for its model (make_crates.py's vr_barrel.mdl: staves, iron hoops,
+three skins and a normal map), a Box3D body as the crates are (the hull of its model: lying, it rolls when pushed);
+Held Object Offsets slot 61 (30 kg; `vr_props_version` 62); Debug > Tests > Thing: Barrel, Barrel Lying.
+
+**Tested**: the ray test 0 hits (120 000 rays); before/after shots from his places (`scratch/views/contact_sheet.png`
+in the agent's worktree); the walk test 18 of 18 legs; the buttons pressed by hand (settings' Turning, the Scourge
+lectern, the tutorial: `vr_debug_wallbuttons` "pressed by player: hand 1", as on the old map); e1m1's smoke test; a
+barrel spawned upright and lying in e1m1, pushed by the hand (it rolled); the load (exclusive, 4 runs each, alternating): cold (a
+new process, the hull files there) 1163 -> 1183 ms median (1138-1212 against 1162-1209), warm (the map again, the same
+process) 283 -> 286 ms; the hull files load in 6 ms (were 8).

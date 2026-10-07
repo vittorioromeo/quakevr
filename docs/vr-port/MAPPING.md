@@ -227,15 +227,17 @@ map entity's prefix (`info_`, `item_`, `weapon_`, `monster_`, `func_`, `trigger_
 `quakevr/maps/vrstart2.map` is written by `Misc/quakevr/maps/vrstart2_gen.py`: **edit the script, not the .map** (it
 rewrites it). The .map opens in TrenchBroom (Valve format; each part a group: the terrain's three func_detail groups,
 each structure a func_detail, and the things spread over the map, pines, boulders, torch posts, crystals,
-func_details by 768-unit tile; ropes and brackets func_detail_illusionary, not solid)
+func_details by 768-unit tile; ropes and brackets func_detail_illusionary, not solid; the barrels `vr_barrel` physics
+props)
 for looking, measuring and trying things; carry what you keep back into the script.
 
 ```
 python Misc/trenchbroom/make_id_wad.py                 # once: id's textures from your paks (git-ignored WAD)
 python Misc/quakevr/maps/vrstart2_gen.py               # the .map (about 6 s)
-python Misc/quakevr/maps/vrstart2_gen.py --compile     # and the .bsp/.lit/.lux: qbsp -maxnodesize 0 -forcegoodtree,
-                                                       #   vis, light (the Full profile with -bounce): about 12 min
-python Misc/quakevr/maps/vrstart2_gen.py --compile --fast   # no vis, plain light (about 3 min)
+python Misc/quakevr/maps/vrstart2_gen.py --compile     # and the .bsp/.lit/.lux: ericw-tools 0.18.1's qbsp -bsp2 (2.0's
+                                                       #   lost faces here: holes), the water lit (lit_liquids), 2.0's vis
+                                                       #   and light (the Full profile with -bounce): about 13 min
+python Misc/quakevr/maps/vrstart2_gen.py --compile --fast   # no vis, plain light (about 2 min)
 python Misc/quakevr/maps/make_vs2_sky.py               # the sky box (quakevr/gfx/env/vs2night*.png, committed)
 ```
 
@@ -250,7 +252,9 @@ python Misc/quakevr/maps/make_vs2_sky.py               # the sky box (quakevr/gf
 - **Terrain**: a height function (the island's coast spline, hills, the flattened places and paths, the ravine, the
   lake's floor, the cliffs' ring), sampled on a jittered lattice (64 units on the island, 128-512 further out) plus
   the places' and paths' outlines, triangulated (Delaunay, exact integer arithmetic) and built as prisms down to z
-  -1024. Textures by slope and height: rock5_2/rock3_8 on slopes over 44 degrees, grass1_1/ground1_2 on the island,
+  -1024; neighbours whose tops are within half a unit of coplanar share one plane exactly (`terrain_planes`: the
+  compilers lost faces in the thin wedges between such planes). Textures by slope and height: rock5_2/rock3_8 on
+  slopes over 44 degrees, grass1_1/ground1_2 on the island,
   ground1_8 on the paths, rock3_2 on the beach, ground1_5 under water.
 - **Campaigns**: the lecterns run `vr_activestartpaknameidx 0/1/2` (the slipgate, a `trigger_changelevel` to
   `start` without intermission, starts that one; SELECTED shows over the chosen lectern) and `vr_campaign_select dopa`

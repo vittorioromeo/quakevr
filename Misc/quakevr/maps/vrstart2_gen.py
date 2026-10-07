@@ -1,7 +1,7 @@
 # vrstart2_gen.py -- writes quakevr/maps/vrstart2.map, the new VR hub (an island at night), and with --compile builds
 # it (qbsp, vis, light; MAPPING.md's "Full" profile).
 #
-#   python Misc/quakevr/maps/vrstart2_gen.py [--compile] [--fast] [--tools DIR]
+#   python Misc/quakevr/maps/vrstart2_gen.py [--compile] [--fast] [--tools DIR] [--qbsp EXE]
 #   (first: python Misc/trenchbroom/make_id_wad.py, the id textures' WAD)
 #
 # Everything in the map is made here (reproducible; the .map stays editable in TrenchBroom: the generated parts are
@@ -34,7 +34,12 @@ from mapgeom import (Tex, MapWriter, Perlin, add, box, beam, catmull_rom, cross,
                      lerp, ngon, norm, point_in_poly, polyline_dist, prism, seg_dist, smoothstep, sub, mul)
 
 ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
-DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"
+DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # vis, light
+# qbsp: ericw-tools 0.18.1's. 2.0-alpha11's qbsp lost faces all over this map (its "N sides not found": 519 portals
+# with no face, holes in the ground, the cliffs, the lake's floor and its surface; 417 even with the terrain's planes
+# shared, terrain_planes); 0.18.1's, once those planes are shared, none (a ray test of 120 000 rays, ROUND21.md,
+# "vrstart2: holes"). It is also six times faster here (36 s).
+DEFAULT_QBSP = "C:/OHWorkspace/ericw-tools-v0.18.1-32-g6660c5f-win64/bin/qbsp.exe"
 MAPNAME = "vrstart2"
 OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")
 
@@ -48,7 +53,7 @@ TEXN = {
     "beam": "wood1_3", "log": "cliff2_1", "logend": "wood1_7", "board": "wood1_1", "rope": "rock3_8",
     "iron": "metal1_1", "flag": "azfloor1_1", "block": "wswamp2_1", "trim": "wall14_5", "water": "*04awater1",
     "portal": "*teleport", "sky": "sky1", "crystal": "tlight03", "button": "+0basebtn", "target": "qvr_target",
-    "bark": "cliff2_1", "needles": "wgrass1_1", "lamp": "light1_3", "roof": "wizwood1_2", "rune": "sliplite", "barrel": "wood1_5",
+    "bark": "cliff2_1", "needles": "wgrass1_1", "lamp": "qvr_lantern", "roof": "wizwood1_2", "rune": "sliplite",
     "clip": "clip", "trigger": "trigger", "skip": "skip",
 }
 WADS = "quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad"
@@ -64,6 +69,7 @@ BOX = 4000            # the inside of the sealing box: x, y in -BOX..BOX
 SKY_TOP = 2304
 FLOOR_Z = -1024       # the terrain prisms' bottoms
 WATER_Z = 0
+WATER_TILE = 160      # the water's brushes (build_world): 2 * BOX a multiple of it; a face's lightmap at most 256 units
 SEA_DEPTH = 300       # the lake's floor, far from the shores
 GROUND_STEP = 8       # the island's ground heights are multiples of this (height(): Quake's collision)
 
@@ -500,6 +506,103 @@ def terrain_texture(c, n, x, y):
     return T("cliff2", mode="face", scale=2)
 
 
+TERRAIN_SNAP = 0.5  # units: neighbours whose tops are this close to coplanar are put on one plane (terrain_planes)
+
+
+def terrain_planes(pts, tris, hz):
+    """The plane each triangle's top lies on: its own, or one shared with neighbours nearly coplanar with it.
+
+    Two neighbouring prisms whose tops are nearly but not exactly coplanar (a hundredth of a degree apart: the heights
+    are integers, the island's in steps of GROUND_STEP) leave between their planes a wedge thinner than the compilers'
+    epsilons; both qbsps (ericw-tools 2.0's "couldn't find portal side", 0.18's CSG) then lost faces there: holes in the
+    ground, the cliffs, the lake's floor and its surface (the lake's foam drew the holes' outlines). So neighbours whose
+    tops come within TERRAIN_SNAP of each other's planes share one plane, exactly: the smaller group joins the larger's
+    if every corner of it is within TERRAIN_SNAP of that plane (exactly coplanar neighbours are a group from the start).
+    A corner so moved is off its neighbours' by less than that (a step, not a gap: the prisms are solid down to the
+    floor). Returns, per triangle, the three points of the plane it takes (None: its own)."""
+    P = [(p[0], p[1], hz[p]) for p in pts]
+    n = len(tris)
+    corners = [[P[i] for i in t] for t in tris]
+
+    def plane_of(q):
+        nrm = norm(cross(sub(q[1], q[0]), sub(q[2], q[0])))
+        if nrm[2] < 0:
+            nrm = mul(nrm, -1)
+        return nrm, dot(nrm, q[0])
+
+    def off(pl, p):
+        return abs(dot(pl[0], p) - pl[1])
+
+    area = [abs(cross(sub(q[1], q[0]), sub(q[2], q[0]))[2]) / 2 for q in corners]
+    parent = list(range(n))
+    members = [[i] for i in range(n)]
+    garea = area[:]
+    gplane = [plane_of(q) for q in corners]
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def spread(g, pl):
+        return max(off(pl, p) for m in members[g] for p in corners[m])
+
+    def join(small, big):
+        parent[small] = big
+        members[big] += members[small]
+        members[small] = []
+        garea[big] += garea[small]
+
+    edges = {}
+    for ti, t in enumerate(tris):
+        for k in range(3):
+            edges[(t[k], t[(k + 1) % 3])] = (ti, t[(k + 2) % 3])
+    exact, near = [], []
+    for (a, b), (ti, c) in edges.items():
+        if a < b and (b, a) in edges:
+            tj, d = edges[(b, a)]
+            gap = max(off(gplane[ti], P[d]), off(gplane[tj], P[c]))
+            (exact if gap < 1e-6 else near).append((gap, ti, tj))
+    for _, ti, tj in exact:
+        gi, gj = find(ti), find(tj)
+        if gi != gj:
+            big, small = (gi, gj) if garea[gi] >= garea[gj] else (gj, gi)
+            join(small, big)
+    unresolved = 0
+    for gap, ti, tj in sorted(near):
+        if gap > TERRAIN_SNAP:
+            break
+        gi, gj = find(ti), find(tj)
+        if gi == gj:
+            continue
+        big, small = (gi, gj) if garea[gi] >= garea[gj] else (gj, gi)
+        if spread(small, gplane[big]) <= TERRAIN_SNAP:
+            join(small, big)
+        elif spread(big, gplane[small]) <= TERRAIN_SNAP:
+            join(big, small)
+        else:
+            unresolved += 1
+    # each group's plane: its founding triangle's (the one whose index is the group's)
+    tops = []
+    shared = 0
+    for ti in range(n):
+        g = find(ti)
+        if g == ti:
+            tops.append(None)
+        else:
+            tops.append(corners[g])
+            shared += 1
+    # what is left nearly coplanar (planes apart by less than TERRAIN_SNAP over the pair, not the same)
+    left = 0
+    for gap, ti, tj in near:
+        gi, gj = find(ti), find(tj)
+        if gi != gj and max(off(gplane[gi], p) for p in corners[tj]) < TERRAIN_SNAP:
+            left += 1
+    print("terrain: %d tops on a neighbour's plane, %d nearly coplanar pairs left (%d not joined)" % (shared, left, unresolved))
+    return tops
+
+
 def build_terrain(mw):
     t0 = time.time()
     pts = terrain_points()
@@ -516,7 +619,8 @@ def build_terrain(mw):
     groups = {"terrain island": mw.detail("terrain: island"), "terrain lake": mw.detail("terrain: lake floor"),
               "terrain cliffs": mw.detail("terrain: cliffs and mountains")}
     side = T("cliff2")
-    for a, b, c in tris:
+    tops = terrain_planes(pts, tris, hz)
+    for k, (a, b, c) in enumerate(tris):
         pa, pb, pc = pts[a], pts[b], pts[c]
         tri = [(pa[0], pa[1], hz[pa]), (pb[0], pb[1], hz[pb]), (pc[0], pc[1], hz[pc])]
         cx = (pa[0] + pb[0] + pc[0]) / 3
@@ -526,7 +630,7 @@ def build_terrain(mw):
         if nrm[2] < 0:
             nrm = (-nrm[0], -nrm[1], -nrm[2])
         tex = terrain_texture((cx, cy, cz), nrm, cx, cy)
-        br = prism(tri, FLOOR_Z, tex, side)
+        br = prism(tri, FLOOR_Z, tex, side, top=tops[k])
         d = coast_distance(cx, cy)
         r = math.hypot(cx, cy)
         if d > -300:
@@ -745,11 +849,11 @@ def build_pier(mw):
     for yy in range(int(y1) + 8, int(y0) - 20, 96):
         out.append(box(x - 60, yy - 4, z - 19, x + 60, yy + 4, z - 11, wood("beam", (1, 0, 0))))
         for sx in (-52, 52):
-            top = z + 32 if yy == int(y1) + 8 else z - 11
+            top = z + 32 if yy == int(y1) + 8 else z + 20 if yy == int(y1) + 104 else z - 11
             out.append(cylinder((x + sx, yy, -340), (x + sx, yy, top), 7, 8, wood("log", (0, 0, 1))))
-    # ropes from the end's bollards
-    rope(out, (x - 52, y1 + 8, z + 26), (x - 52, y1 + 104, z + 6), 3)
-    rope(out, (x + 52, y1 + 8, z + 26), (x + 52, y1 + 104, z + 6), 3)
+    # ropes from the end's bollards to the short ones behind them
+    rope(out, (x - 52, y1 + 8, z + 26), (x - 52, y1 + 104, z + 15), 3)
+    rope(out, (x + 52, y1 + 8, z + 26), (x + 52, y1 + 104, z + 15), 3)
 
 
 def build_arrival(mw):
@@ -984,8 +1088,10 @@ def build_range(mw):
     for (tx, ty) in TARGET_BOARDS:
         for sy in (-20, 20):
             post(out, tx + 4, ty + sy, z - 4, z + 64, 2.5)
+        sc = 52 / 64  # one copy of the 64-texel bullseye on the board's 52-unit face (u along +y, v down)
+        face = T("target", scale=sc, uoff=(-(ty - 26) / sc) % 64, voff=((z + 82) / sc) % 64)
         out.append(box(tx, ty - 26, z + 30, tx + 3, ty + 26, z + 82, T("board"),
-                       lambda n, c: T("target") if n[0] < -0.9 else None))
+                       lambda n, c, face=face: face if n[0] < -0.9 else None))
     # a shelf for things to knock off (rocks and bricks)
     sx, sy = SHELF
     out.append(box(sx - 8, sy - 40, z + 32, sx + 8, sy + 40, z + 35, wood("plank", (0, 1, 0))))
@@ -1050,7 +1156,15 @@ def build_world(mw):
     w.append(box(BOX, -S, FLOOR_Z, S, S, SKY_TOP, T("sky")))
     w.append(box(-BOX, -S, FLOOR_Z, BOX, -BOX, SKY_TOP, T("sky")))
     w.append(box(-BOX, BOX, FLOOR_Z, BOX, S, SKY_TOP, T("sky")))
-    w.append(box(-BOX, -BOX, FLOOR_Z, BOX, BOX, WATER_Z, T("water", scale=1.0)))
+    # The lake's water: tiles WATER_TILE square, every other one's texture shifted a whole copy (64 texels: drawn the
+    # same), so that qbsp 0.18 merges no two into one face (it leaves liquids' faces whole): each face small enough for
+    # a lightmap (lit_liquids: the water lit as ericw-tools 2.0's qbsp made it, the torches' light on it).
+    n = 2 * BOX // WATER_TILE
+    for i in range(n):
+        for j in range(n):
+            x0, y0 = -BOX + i * WATER_TILE, -BOX + j * WATER_TILE
+            w.append(box(x0, y0, FLOOR_Z, x0 + WATER_TILE, y0 + WATER_TILE, WATER_Z,
+                         T("water", scale=1.0, uoff=64 * ((i + j) % 2))))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1084,9 +1198,9 @@ def wall_torch(mw, out, x, y, z, yaw):
     split(out)
 
 
-def brazier(mw, out, x, y, g, h=40, base="block"):
-    """A stone pillar with an iron bowl and a large flame."""
-    out.append(chamfer_box(x - 10, y - 10, g - 8, x + 10, y + 10, g + h, 2, T(base, scale=0.5)))
+def brazier(mw, out, x, y, g, h=40, base="block", sink=8):
+    """A stone pillar with an iron bowl and a large flame; its foot `sink` under the ground's height g."""
+    out.append(chamfer_box(x - 10, y - 10, g - sink, x + 10, y + 10, g + h, 2, T(base, scale=0.5)))
     q = []
     for (px, py) in ngon(x, y, 15, 8, math.pi / 8):
         q.append((px, py, g + h + 10))
@@ -1097,14 +1211,18 @@ def brazier(mw, out, x, y, g, h=40, base="block"):
     split(out)
 
 
-def lantern(mw, out, x, y, z, light=200, hang=0, above=False):
-    """A hanging lantern: an iron frame round a glowing glass, and its light."""
+def lantern(mw, out, x, y, z, light=200, hang=0, side=None):
+    """A hanging lantern: an iron frame round a glowing glass (qvr_lantern: fullbright, it shines at night), and its
+    light under it, or beside it towards `side` ((dx, dy): one standing on a post; over it, the lantern's own shadow hid
+    the floor round the post). (Not in the glass: light counts every face as a shadow caster, func_detail_illusionary's
+    too, and the glass kept it in.)"""
     out.append(box(x - 5, y - 5, z - 7, x + 5, y + 5, z + 7, T("lamp", scale=0.5)))
     out.append(box(x - 6, y - 6, z + 7, x + 6, y + 6, z + 10, T("iron", scale=0.5)))
     out.append(box(x - 6, y - 6, z - 10, x + 6, y + 6, z - 7, T("iron", scale=0.5)))
     if hang:
         NONSOLID.append(box(x - 0.75, y - 0.75, z + 10, x + 0.75, y + 0.75, z + 10 + hang, T("iron", scale=0.5)))
-    ent(mw, "light", x, y, z + 16 if above else z - 16, light=light, _color="1 0.75 0.45", wait=0.8)
+    lx, ly, lz = (x + side[0] * 10, y + side[1] * 10, z) if side else (x, y, z - 16)
+    ent(mw, "light", lx, ly, lz, light=light, _color="1 0.75 0.45", wait=0.8)
     split(out)
 
 
@@ -1137,7 +1255,7 @@ def build_lights(mw):
     # half way along the pier: a lantern on a post
     post(out, p["x"] + 56, -1120, -10, p["z"] + 64, 4, square=False)
     out.append(box(p["x"] + 40, -1123, p["z"] + 58, p["x"] + 58, -1117, p["z"] + 62, wood("beam", (1, 0, 0))))
-    lantern(mw, out, p["x"] + 42, -1120, p["z"] + 44, 180, hang=4)
+    lantern(mw, out, p["x"] + 42, -1120, p["z"] + 44, 240, hang=4)
     # the arrival: the campfire, torches by the boards
     fx, fy = CAMPFIRE
     ent(mw, "light_flame_large_yellow", fx, fy, 14 + 14, light=320, _color="1 0.5 0.2", wait=0.8)
@@ -1190,7 +1308,7 @@ def build_lights(mw):
     # the tower: torches at the ladder's foot, a lantern on the deck
     for sx in (-1, 1):
         torch_post(mw, out, tw["x"] + sx * 56, tw["y"] + tw["half"] + 40, tw["z"], 90)
-    lantern(mw, out, tw["x"] - tw["half"] + 20, tw["y"] - tw["half"] + 20, tw["z"] + tw["deck"] + 40, 150, above=True)
+    lantern(mw, out, tw["x"] - tw["half"] + 20, tw["y"] - tw["half"] + 20, tw["z"] + tw["deck"] + 40, 220, side=(0.7, 0.7))
     post(out, tw["x"] - tw["half"] + 20, tw["y"] - tw["half"] + 20, tw["z"] + tw["deck"] - 2, tw["z"] + tw["deck"] + 30, 2)
     # crystals glowing on the lake's floor (a ring round the island, a few by the cliffs and the islets)
     rnd = random.Random(31)
@@ -1252,15 +1370,8 @@ def pine(out, x, y, g, h, rnd):
     split(out)
 
 
-def barrel(out, x, y, g, rnd, lying=False):
-    tex = T("barrel", mode="face", scale=0.5, uoff=rnd.randrange(64))
-    if lying:
-        a = rnd.uniform(0, math.pi)
-        dx, dy = 15 * math.cos(a), 15 * math.sin(a)
-        out.append(cylinder((x - dx, y - dy, g + 11), (x + dx, y + dy, g + 11), 11, 10, tex))
-    else:
-        out.append(cylinder((x, y, g - 2), (x, y, g + 30), 11, 10, tex, rnd.uniform(0, 1)))
-    split(out)
+BARRELS = [(-1270, -900, 0), (-1255, -925, 0), (-1290, -915, 1), (-1120, -905, 0), (130, 60, 0), (150, 40, 0),
+           (360, 150, 0), (380, 165, 1), (-280, -270, 0)]  # (x, y, lying)
 
 
 def rowboat(out, x, y, z):
@@ -1334,10 +1445,16 @@ def build_decor(mw):
             continue
         s = rnd.uniform(30, 90)
         rock(rocks, x, y, height(x, y) + s * 0.1, s * 1.4, s, s * 0.8, rnd.randrange(1 << 20), T("cliff", mode="face", scale=2))
-    # barrels by the pier, the pavilion, the range
-    for (x, y, lying) in ((-1270, -900, 0), (-1255, -925, 0), (-1290, -915, 1), (-1120, -905, 0), (130, 60, 0),
-                          (150, 40, 0), (360, 150, 0), (380, 165, 1), (-280, -270, 0)):
-        barrel(props, x, y, height(x, y), rnd, lying)
+    # barrels by the pier, the pavilion, the range: physics props (QC vr_barrel: a crate's, make_crates.py's model),
+    # turned and skinned at random
+    brnd = random.Random(909)
+    for (x, y, lying) in BARRELS:
+        rnd.randrange(64), rnd.uniform(0, 1)  # (what the brush barrels drew: the islets' boulders keep their places)
+        k = {"classname": "vr_barrel", "origin": "%d %d %d" % (x, y, height(x, y) + (12 if lying else 16) + 4),
+             "angle": str(brnd.randrange(0, 360)), "skin": str(brnd.randrange(3))}
+        if lying:
+            k["spawnflags"] = "1"
+        mw.add(k)
     # the rowboat, tied to the pier's end
     p = PIER
     rowboat(props, p["x"] - p["w"] / 2 - 40, p["y1"] + 150, 0)
@@ -1347,7 +1464,7 @@ def build_decor(mw):
         if peak < 40:
             continue
         g = height(ix, iy)
-        brazier(mw, props, ix, iy, g, 36, base="cliff")
+        brazier(mw, props, ix, iy, g, 36, base="cliff", sink=64)
         for k in range(5):
             a = 2 * math.pi * k / 5 + rnd.uniform(-0.3, 0.3)
             dd = r * rnd.uniform(0.35, 0.6)
@@ -1493,8 +1610,9 @@ def build_entities(mw):
             button(mw, label, "vr_setup_option " + key, cx + off, y0 + 26, zz + 14, 270, depth=8)
     banner(mw, N.join(["MOVING AND TURNING", "More: {menu:Locomotion}"]), -108, y1 - 27, z + 138, 270, "0.3")
     banner(mw, N.join(["BODY AND HANDS", "More: {menu:Body and Display}"]), -108, y0 + 27, z + 138, 90, "0.3")
+    # (over the way in, between the torches on either side of it: it stood in front of one of them)
     banner(mw, N.join(["SETTINGS", "Each button steps its setting and saves it;", "the screen above it shows the choice."]),
-           x0 - 30, 0.5 * (y0 + y1) + 70, z + 40, 180, "0.3")
+           x0 - 30, 0.5 * (y0 + y1), z + 92, 180, "0.3")
     tip(mw, "vs2_settings", "Press a button to change that setting:" + N + "the screen above it shows what it is now.",
         -168, y1 - 40, z + 50, 200, target="vr_setup_option turning\\n")
     # ---- the firing range: guns and ammunition on the benches, targets down the lanes
@@ -1590,12 +1708,42 @@ def write_map():
     print("wrote %s: %d brushes, %d entities (%.1f s)" % (OUT, nb, len(mw.entities), time.time() - t0))
 
 
-def compile_map(tools, work, fast):
+def lit_liquids(bsp, names=(TEXN["water"],)):
+    """Clears TEX_SPECIAL on the texinfos of the liquids `names` in a Quake BSP2 (qbsp 0.18 sets it on every '*'
+    texture: no lightmap, the water drawn unlit): light then lights them, as ericw-tools 2.0's qbsp left them (the
+    engine draws a liquid face with a lightmap lit: gl_model.c). Their faces must be small enough for a lightmap
+    (build_world's water tiles). Returns how many texinfos it changed."""
+    import struct
+    with open(bsp, "r+b") as f:
+        d = bytearray(f.read())
+        assert d[:4] == b"BSP2", d[:4]
+        lumps = [struct.unpack_from("<ii", d, 4 + 8 * i) for i in range(15)]
+        toff = lumps[2][0]
+        mips = []
+        for k in range(struct.unpack_from("<i", d, toff)[0]):
+            o = struct.unpack_from("<i", d, toff + 4 + 4 * k)[0]
+            mips.append(bytes(d[toff + o:toff + o + 16]).split(b"\0")[0].decode("latin1") if o >= 0 else "")
+        ioff, ilen = lumps[6]
+        changed = 0
+        for i in range(ilen // 40):
+            miptex, flags = struct.unpack_from("<ii", d, ioff + i * 40 + 32)
+            if 0 <= miptex < len(mips) and mips[miptex] in names and flags & 1:
+                struct.pack_into("<i", d, ioff + i * 40 + 36, flags & ~1)
+                changed += 1
+        f.seek(0)
+        f.write(d)
+    return changed
+
+
+def compile_map(tools, work, fast, qbsp=DEFAULT_QBSP):
     os.makedirs(work, exist_ok=True)
     src = os.path.join(work, MAPNAME + ".map")
     bsp = os.path.join(work, MAPNAME + ".bsp")
     shutil.copyfile(OUT, src)
-    cmds = [[os.path.join(tools, "qbsp.exe"), "-nolog", "-nopercent", "-maxnodesize", "0", "-forcegoodtree", "-wadpath", ROOT, src, bsp]]
+    if "0.18" in qbsp:
+        cmds = [[qbsp, "-bsp2", "-nopercent", "-wadpath", ROOT, src, bsp]]
+    else:  # (2.0's: its best options here)
+        cmds = [[qbsp, "-nolog", "-nopercent", "-maxnodesize", "0", "-forcegoodtree", "-wadpath", ROOT, src, bsp]]
     if not fast:
         cmds.append([os.path.join(tools, "vis.exe"), "-nolog", "-nopercent", bsp])
         cmds.append([os.path.join(tools, "light.exe"), "-nolog", "-nopercent", "-extra4", "-dirt", "-dirtscale", "1.5",
@@ -1613,6 +1761,8 @@ def compile_map(tools, work, fast):
             f.write("\n".join(lines))
         if result.returncode:
             sys.exit(1)
+        if cmd[0] == qbsp:
+            print("lit_liquids: %d texinfos" % lit_liquids(bsp))
     for ext in (".bsp", ".lit", ".lux"):
         if os.path.exists(os.path.join(work, MAPNAME + ext)):
             shutil.copyfile(os.path.join(work, MAPNAME + ext), os.path.join(os.path.dirname(OUT), MAPNAME + ext))
@@ -1622,13 +1772,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--compile", action="store_true", help="also build the .bsp, .lit and .lux (ericw-tools 2.0)")
     ap.add_argument("--fast", action="store_true", help="no vis, plain light (blocking out)")
-    ap.add_argument("--tools", default=DEFAULT_TOOLS)
+    ap.add_argument("--tools", default=DEFAULT_TOOLS, help="ericw-tools 2.0's folder (vis, light)")
+    ap.add_argument("--qbsp", default=DEFAULT_QBSP, help="the qbsp.exe (0.18.1's: see DEFAULT_QBSP)")
     ap.add_argument("--only-terrain", action="store_true", help="debugging: write <map>_terrain.map, the terrain alone")
     ap.add_argument("--work", default=os.path.join(tempfile.gettempdir(), MAPNAME + "_build"))
     args = ap.parse_args()
     write_map()
     if args.compile:
-        compile_map(args.tools, args.work, args.fast)
+        compile_map(args.tools, args.work, args.fast, args.qbsp)
 
 
 if __name__ == "__main__":
