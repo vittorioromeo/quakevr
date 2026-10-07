@@ -491,7 +491,7 @@ QVR_CVAR(vr_tips_delay, "0.5", CVAR_ARCHIVE)          // seconds it must stay ne
 QVR_CVAR(vr_tips_time, "10", CVAR_ARCHIVE)            // seconds a tip shows (the hologram's: once seen)
 QVR_CVAR(vr_tips_facing, "0", CVAR_ARCHIVE)           // the floating screen: 0 turned towards your eyes and level, 1 square to your view (flat in front of you, tilting with your head)
 QVR_CVAR(vr_tips_size, "1", CVAR_ARCHIVE)             // the floating panel's text size (1: about 1.5 degrees a character)
-QVR_CVAR(vr_tips_seen, "", CVAR_ARCHIVE)              // the tips shown already (their names, by spaces); vr_tips_reset empties it
+QVR_CVAR(vr_tips_seen, "", CVAR_NONE)                 // retired: an older config's list of the tips shown (their names, by spaces), moved once into tips_seen.txt in the game folder and emptied (vr_tips.cpp loadSeen); no longer written to the config
 QVR_CVAR(vr_sbar_offset_x, "-12", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_offset_y, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_offset_z, "-3", CVAR_ARCHIVE)

@@ -27530,3 +27530,17 @@ Vittorio's decisions after the VR Settings revamp and the menu colours:
   through "VR Settings > Advanced VR Options". RELIGHTING.md said VisPatch doesn't vis lava: it does (`vis_maps.py
   --check` on the relit maps: 33 of 73 vised for lava, start among them), so `r_lavaalpha 0.9` shows it a little
   through; GRAPHICS.md's "lava is opaque by default (`r_lavaalpha 1`)" was stale too.
+## Map tips: the review's open decisions (2026-10-07)
+
+Vittorio's calls on what "Review of the map tips" left open, one commit each.
+
+**The tips seen are a file** (`Quake/vr/vr_tips.cpp`, `SeenList`): `<gamedir>/tips_seen.txt`, one key a line, sorted,
+no limit (the `vr_tips_seen` cvar was read back from the config cut at 1023 characters, some 80 keys). Read the first
+time a tip asks in a game folder (another `game`: read again); written whole through `tips_seen.txt.tmp` and a rename
+as a key is added; Show Tips Again (`vr_tips_reset`) writes it empty. **Migration**: an older config still sets
+`vr_tips_seen`; its keys, and the config line's whole value read from `ironwail.cfg` (the keys past the cut), are added
+to the file once, and the cvar is emptied. The cvar stays registered for that, no longer archived: the next config
+written leaves it out. Reset All keeps the file (it was kept as a cvar). Proved headless: a config with a 2717-character
+`vr_tips_seen` (150 keys, `vrstart:testwelcome` last, past the cut) gives `moved to tips_seen.txt (150 keys new, 150 in
+all)`, the file's 150 lines and `testwelcome ... seen`; the next run (the baseline config, no `vr_tips_seen`) reads
+it back seen, `vr_tips_reset` makes it unseen, it shows again (`tips: "testwelcome"`) and the file is that one key.

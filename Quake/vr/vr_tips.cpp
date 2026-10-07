@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_debris.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
 #include "vr_mem.hpp"
@@ -12,6 +13,7 @@
 #include "vr_units.hpp"
 #include "vr_walltorch.hpp"
 
+#include "Zancle/Algorithm/LowerBound.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -33,7 +35,7 @@ namespace
 
 struct Tip
 {
-    const char* name; // in vr_tips_seen
+    const char* name; // its key in tips_seen.txt
     const char* text; // its lines (the panel's and the hologram's)
     bool (*about)(const entity_t& e);
 };
@@ -58,7 +60,7 @@ za::Vector<MapTip> mapTips;
 
 struct TipsScratch
 {
-    za::String seenKey; // a map tip's key in vr_tips_seen (seenKeyOf)
+    za::String seenKey; // a map tip's key in tips_seen.txt (seenKeyOf)
     auto members() { return mem::list(seenKey); }
 };
 mem::Scratch<TipsScratch> scratch{"tips"};
@@ -110,7 +112,7 @@ int pendingTest = -1; // vr_tips_test's tip, shown once back in the game (the me
     return mt ? (mt->name.empty() ? "<unnamed>" : mt->name.cStr()) : tips[t].name;
 }
 
-// A tip's key in vr_tips_seen: a built-in tip's is its name; a map tip's is its map and name, so the same name in
+// A tip's key in tips_seen.txt: a built-in tip's is its name; a map tip's is its map and name, so the same name in
 // two maps is two tips, and an unnamed one is keyed by its place in the map's list.
 [[nodiscard]] const char* seenKeyOf(int t)
 {
@@ -124,8 +126,9 @@ int pendingTest = -1; // vr_tips_test's tip, shown once back in the game (the me
     if(!mt->name.empty())
     {
         key += ':';
-        // vr_tips_seen is a list split at spaces, written to the config in quotes: a name's spaces, quotes and
-        // semicolons become '_' (else its key never matches, and the tip shows again and again).
+        // A key is a word (tips_seen.txt is read split at spaces and line ends; it was vr_tips_seen, in the config in
+        // quotes): a name's spaces, quotes and semicolons become '_' (else its key never matches, and the tip shows
+        // again and again).
         for(const char c : za::StringView{mt->name.cStr()})
         {
             key += static_cast<unsigned char>(c) <= ' ' || c == '"' || c == ';' ? '_' : c;
@@ -138,43 +141,152 @@ int pendingTest = -1; // vr_tips_test's tip, shown once back in the game (the me
     return key.cStr();
 }
 
-[[nodiscard]] bool seen(const char* key)
+// The tips shown already: their keys (seenKeyOf), sorted, as in <gamedir>/tips_seen.txt (one a line). Read from the
+// file the first time they are asked for in a game folder; written whole through a temporary file as one is added.
+struct SeenList
 {
-    const za::StringView list{vr_tips_seen.string};
-    const za::StringView name{key};
+    za::String dir; // the game folder they were read from (another one: read again)
+    bool loaded{false};
+    za::Vector<za::String> keys;
+};
+SeenList seenList;
+
+[[nodiscard]] za::String seenPath()
+{
+    return za::String{com_gamedir} + "/tips_seen.txt";
+}
+
+[[nodiscard]] bool keyLess(const za::String& a, const za::StringView& b)
+{
+    return za::StringView{a.cStr()} < b;
+}
+
+[[nodiscard]] bool hasKey(za::StringView key)
+{
+    const za::String* it = za::lowerBound(seenList.keys.begin(), seenList.keys.end(), key, keyLess);
+    return it != seenList.keys.end() && za::StringView{it->cStr()} == key;
+}
+
+// False: it was there already.
+bool addKey(za::StringView key)
+{
+    if(key.empty())
+    {
+        return false;
+    }
+    const za::String* it = za::lowerBound(seenList.keys.begin(), seenList.keys.end(), key, keyLess);
+    if(it != seenList.keys.end() && za::StringView{it->cStr()} == key)
+    {
+        return false;
+    }
+    seenList.keys.insert(it, za::String{key});
+    return true;
+}
+
+// Each key of a list split at spaces, tabs and line ends; the number new.
+[[nodiscard]] int addKeys(za::StringView list)
+{
+    int added = 0;
     for(size_t i = 0; i < list.size();)
     {
-        while(i < list.size() && list[i] == ' ')
+        while(i < list.size() && static_cast<unsigned char>(list[i]) <= ' ')
         {
             i++;
         }
         size_t j = i;
-        while(j < list.size() && list[j] != ' ')
+        while(j < list.size() && static_cast<unsigned char>(list[j]) > ' ')
         {
             j++;
         }
-        if(list.substrByPosLen(i, j - i) == name)
-        {
-            return true;
-        }
+        added += addKey(list.substrByPosLen(i, j - i)) ? 1 : 0;
         i = j;
     }
-    return false;
+    return added;
+}
+
+void saveSeen()
+{
+    za::String text;
+    for(const za::String& key : seenList.keys)
+    {
+        text += key;
+        text += '\n';
+    }
+    const za::String path = seenPath();
+    const za::String tmp = path + ".tmp";
+    if(!files::writeBytes(tmp.cStr(), text.data(), text.size()) || !files::rename(tmp.cStr(), path.cStr()))
+    {
+        files::remove(tmp.cStr());
+        Con_Printf("VR: could not write %s\n", path.cStr());
+    }
+}
+
+// vr_tips_seen's value as the config's line has it, whole: a config value longer than 1023 characters is read back
+// cut (com_token), so a long list's last keys are only there. Empty: no such line.
+[[nodiscard]] za::String configSeenLine()
+{
+    za::String cfg;
+    if(!files::readText(va("%s/%s", com_gamedir, CONFIG_NAME), cfg))
+    {
+        return {};
+    }
+    const za::StringView text{cfg.cStr()};
+    const za::StringView prefix{"vr_tips_seen \""};
+    for(size_t start = 0; start < text.size();)
+    {
+        size_t end = text.find('\n', start);
+        end = end == za::StringView::nPos ? text.size() : end;
+        const za::StringView line = text.substrByPosLen(start, end - start);
+        if(line.size() > prefix.size() && line.substrByPosLen(0, prefix.size()) == prefix)
+        {
+            const za::StringView rest = line.substrByPosLen(prefix.size(), line.size() - prefix.size());
+            const size_t quote = rest.find('"');
+            return za::String{rest.substrByPosLen(0, quote == za::StringView::nPos ? rest.size() : quote)};
+        }
+        start = end + 1;
+    }
+    return {};
+}
+
+// The list as it is in this game folder: read from its file, with the old vr_tips_seen cvar's (set by an older
+// config) moved into it once.
+void loadSeen()
+{
+    if(!seenList.loaded || seenList.dir != za::StringView{com_gamedir})
+    {
+        seenList.keys.clear();
+        seenList.dir = za::String{com_gamedir};
+        seenList.loaded = true;
+        za::String text;
+        if(files::readText(seenPath().cStr(), text))
+        {
+            (void)addKeys(za::StringView{text.cStr()});
+        }
+    }
+    if(vr_tips_seen.string[0])
+    {
+        int added = addKeys(za::StringView{vr_tips_seen.string});
+        added += addKeys(za::StringView{configSeenLine().cStr()});
+        Cvar_Set(vr_tips_seen.name, "");
+        saveSeen();
+        Con_DPrintf("VR: vr_tips_seen moved to tips_seen.txt (%d keys new, %d in all)\n", added,
+            static_cast<int>(seenList.keys.size()));
+    }
+}
+
+[[nodiscard]] bool seen(const char* key)
+{
+    loadSeen();
+    return hasKey(za::StringView{key});
 }
 
 void markSeen(const char* key)
 {
-    if(seen(key))
+    loadSeen();
+    if(addKey(za::StringView{key}))
     {
-        return;
+        saveSeen();
     }
-    za::String list{vr_tips_seen.string};
-    if(!list.empty())
-    {
-        list += ' ';
-    }
-    list += key;
-    Cvar_Set(vr_tips_seen.name, list.cStr());
 }
 
 // Where the line from the panel points: the middle of what the tip is about (its model's box, turned with it: a wall
@@ -807,7 +919,9 @@ void frame()
 
 void reset_f()
 {
-    Cvar_Set(vr_tips_seen.name, "");
+    loadSeen(); // (an older config's vr_tips_seen moved first, to be cleared with the rest)
+    seenList.keys.clear();
+    saveSeen();
     showing.tip = -1;
     candidate.tip = -1;
     Con_Printf("VR: every tip will show again\n");

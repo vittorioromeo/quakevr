@@ -2,7 +2,8 @@
 // see it (vr_tips_distance, vr_tips_view_angle, vr_tips_line_of_sight, for vr_tips_delay seconds). Shown as a CRT
 // screen like the map boards' floating by it with a cable to it (vr_tips 1: over the scene; vr_tips_facing), or as one
 // of the wrist gadget's hologram messages (vr_tips 2: it waits there until you look at the gadget, which chimes and
-// buzzes your hand meanwhile; the screen when there is no hologram). The tips shown are kept in vr_tips_seen (the config), emptied by
+// buzzes your hand meanwhile; the screen when there is no hologram). The tips shown are kept in
+// <gamedir>/tips_seen.txt (one key a line, no limit; an older config's vr_tips_seen is moved there once), emptied by
 // vr_tips_reset (VR Settings > Tips > Show Tips Again).
 //
 // The built-in tips (vr_tips.cpp, `tips`): a wall torch on its wall (vr_walltorch.cpp: it can be taken and sets
@@ -14,7 +15,7 @@
 // the list (made by the vr_tip_* builtins while the map spawns), broadcasts it, and replays the whole list to each
 // client as it spawns; the client keeps a mirror and takes part in the frame loop above, after the built-in tips. A
 // map tip shows as the floating screen whatever vr_tips is (1 or 2), unless its Hologram flag asks for the gadget. Its
-// key in vr_tips_seen is <mapname>:<tipname> (or <mapname>#<index> when it has no name), so it is forgotten by
+// key in tips_seen.txt is <mapname>:<tipname> (or <mapname>#<index> when it has no name), so it is forgotten by
 // vr_tips_reset with the rest, and cleared with the map.
 
 #pragma once
@@ -42,7 +43,7 @@ constexpr int goneEntity = -2;
 // vr_tips_delay), so a placed tip follows what new players set unless the map says otherwise.
 struct MapTip
 {
-    za::String name;        // its name in vr_tips_seen, with the map's (<mapname>:<name>); empty: <mapname>#<index>
+    za::String name;        // its name in tips_seen.txt, with the map's (<mapname>:<name>); empty: <mapname>#<index>
     za::String text;        // its lines (\n new lines)
     glm::vec3 pos{0.f};     // its fixed point (or where it started, when it follows an entity)
     int ent{-1};            // the client entity it follows (its origin and model box, live); -1: a fixed point;

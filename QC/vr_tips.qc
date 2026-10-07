@@ -40,7 +40,7 @@ Quake VR: a tip for new players, placed by hand. A small CRT screen floating nea
 is about, shown when he comes within `distance` of it: the first time only, unless REPEAT or the map's worldspawn
 _vr_tips_repeat. "message": its text (\n starts a new line). "distance": how near in units (0: the player's own
 setting). "targetname" or "target": another entity's targetname — the tip follows that entity, live, instead of staying
-at its own origin. "tipname": names this tip (its name in vr_tips_seen; use it when two tips follow the same thing, or
+at its own origin. "tipname": names this tip (its name in tips_seen.txt; use it when two tips follow the same thing, or
 to try it with vr_tips_test). "tip_size": its text size (0: the player's setting). "tip_delay": seconds he must stay
 near before it shows (unset: the player's setting). REPEAT: shown every time he comes near. HOLOGRAM: in the wrist
 gadget's hologram instead of the floating screen. ANYANGLE: shown even out of the view angle or hidden from his eyes.

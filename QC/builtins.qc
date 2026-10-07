@@ -398,7 +398,7 @@ void(float h, float v) worldtext_hsetscale = #0;
 // A tip for new players placed in a map (func_vr_tip, QC/vr_tips.qc; Quake/vr/vr_tips.cpp). The server owns the list
 // and sends it to every client (and the whole list to each client as it spawns); a handle is one of its tips.
 float() vr_tip_make = #0;
-void(float h, string s) vr_tip_setname = #0;   // its name: its key in vr_tips_seen, with the map's
+void(float h, string s) vr_tip_setname = #0;   // its name: its key in tips_seen.txt, with the map's
 void(float h, string s) vr_tip_settext = #0;   // its text (\n new lines)
 void(float h, vector v) vr_tip_setpos = #0;    // its point in the map
 void(float h, entity e) vr_tip_setentity = #0; // what it follows, live (world: a fixed point)

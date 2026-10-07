@@ -148,7 +148,7 @@ Built, after "Please proceed with your plan ... on a separate branch" (each step
    the eyes and level or square to the view (`vr_tips_facing`), with a cable of the same screen to it that starts under
    the screen (no seam) and is as thick on screen all along; 2: in the wrist gadget's
    hologram, waiting to be seen (chime and buzz) and then shown `vr_tips_time` s (`gadget::tip`); the panel when there
-   is no hologram. Shown tips are kept in `vr_tips_seen`; `vr_tips_reset` (Show Tips Again) and `vr_tips_test [name]`
+   is no hologram. Shown tips are kept in `tips_seen.txt` (game folder); `vr_tips_reset` (Show Tips Again) and `vr_tips_test [name]`
    (Show the Torch Tip Now, which also prints the nearest candidates' distance, angle and sight). One tip so far: wall
    torches.
 

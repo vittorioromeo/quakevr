@@ -453,7 +453,8 @@ history since 2026-07-01 (none do).
 |---|---|---|
 | `vr_cfg_version` | 88 | 89 on a real first start |
 | `vr_props_version` / `vr_wofs_version` | 57 / 34 | set to current on a first start |
-| `vr_menu_positions`, `vr_tips_seen` | menu cursors, tips seen | empty |
+| `vr_menu_positions` | menu cursors | empty |
+| `tips_seen.txt` (a file in the game folder, not a setting; was `vr_tips_seen`) | tips seen | absent |
 | `vr_motion_button` / `_category` / `_detail` | 2 / 7 / 1 | 0 (motion recorder UI) |
 | `vr_prop_id_33`, `_49`, `_50`, `_51` | `v_crowbar`, `v_ksword`, `v_shot`, `v_light` | empty (slots assigned when first held) |
 
