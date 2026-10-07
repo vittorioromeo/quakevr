@@ -28265,3 +28265,25 @@ same picture (8 pixels of 518400 differ, by 8 levels at most, as between two run
 maps touched while the game ran (`touch quakevr/textures_quetoo/*`): the next load decoded those 94 again and dropped
 their old images (93 dropped), the one after found them. `vr_image_cache_info` (Debug > Profiling and Memory: Decoded
 Image Cache Info, and its size there), `vr_image_cache_clear`.
+
+### 2. The memory log's row off the frame
+
+**Why.** Each `vr_memstats_log` row (every 60 s by default, and 5 s after a load) took 2-12 ms of the main thread.
+Timed by part (`developer 1` now prints each row's): GPU memory query (`glGetIntegerv` of GL_NVX_gpu_memory_info, which
+waits for the driver's thread to drain) 0.05 ms on an idle E1M1 but 4.4-11.7 ms in `combined` (and once 199 ms on
+E1M1); the CSV's open/append/close 0.3-1.6 ms; the rest 0.1-0.2 ms.
+
+**How.** The GPU's memory is read with NVML (`nvmlDeviceGetMemoryInfo`: the device's total and free, every process's,
+as NVX reports them: 24564 MB total, the same used within a few MB) on a worker of the game's pool, half a second
+before the row is due (`gpustats::requestVram`; the row takes `latestVram()`); NVX's eviction counts (GL only) are
+the ones counted at the map's load with the GL objects (`countGlForLog`, already a load-time GL scan). The file is
+written by a pool task (the row's columns moved to it). Without NVML (AMD, Intel) the row asks GL as before. The
+in-headset status line's VRAM figure (sampled each second while shown, the same glGet) reads NVML's the same way.
+
+| `combined`, his settings, `vr_memstats_log 5` (4 rows a run, 2 runs) | base | after |
+|---|---|---|
+| a row's main-thread time | 1.2, 1.5, 5.1, 6.4, 7.6, 9.3, 9.3, 12.3 ms | 0.11-0.16 ms (each run's first: 0.5-1.2 ms) |
+| ... of it the GPU memory query | 0.5-11.7 ms | none (NVML on a worker) |
+
+The CSV: the same 103 columns, every row whole; VRAM used/total/free agree with NVX's (5236 vs 5303 MB used between two
+runs, total 24564 both).

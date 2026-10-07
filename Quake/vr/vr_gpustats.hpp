@@ -25,4 +25,19 @@ void stop();
 // process), the slowdown reasons seen, and the programs using the GPU most.
 void columns(za::Vector<Column>& c);
 
+// The GPU's memory, all processes' (NVML's: what GL_NVX_gpu_memory_info reports, read without the GL context, so no
+// wait for the driver's thread: the memory log's 2-4 ms), read on a worker of the game's pool. requestVram() starts a
+// read unless one is under way; latestVram() is the last one finished. `readable` false: no NVML (an AMD or Intel GPU,
+// not Windows; known once the first read has finished): the caller asks GL as before.
+struct Vram
+{
+    int totalMb{-1};
+    int freeMb{-1};
+    bool readable{true};
+    int reads{0}; // reads finished
+};
+void requestVram();
+[[nodiscard]] Vram latestVram();
+void finishVram(); // VR_Shutdown, before the pool's: a read under way finished, NVML closed
+
 } // namespace qvr::gpustats

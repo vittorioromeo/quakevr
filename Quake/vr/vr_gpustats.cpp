@@ -4,6 +4,7 @@
 // The log's row averages what was sampled since the previous row. Windows only.
 
 #include "vr_gpustats.hpp"
+#include "vr_jobs.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -49,6 +50,12 @@ struct NvmlUtilization
     unsigned int gpu;
     unsigned int memory;
 };
+struct NvmlMemory // (nvmlMemory_t, v1)
+{
+    unsigned long long total;
+    unsigned long long free;
+    unsigned long long used;
+};
 
 struct Nvml
 {
@@ -60,6 +67,7 @@ struct Nvml
     int (*getUtilizationRates)(NvmlDevice, NvmlUtilization*){nullptr};
     int (*getEncoderUtilization)(NvmlDevice, unsigned int*, unsigned int*){nullptr};
     int (*getThrottleReasons)(NvmlDevice, unsigned long long*){nullptr};
+    int (*getMemoryInfo)(NvmlDevice, NvmlMemory*){nullptr};
 
     bool open()
     {
@@ -83,6 +91,7 @@ struct Nvml
         getUtilizationRates = reinterpret_cast<decltype(getUtilizationRates)>(get("nvmlDeviceGetUtilizationRates"));
         getEncoderUtilization = reinterpret_cast<decltype(getEncoderUtilization)>(get("nvmlDeviceGetEncoderUtilization"));
         getThrottleReasons = reinterpret_cast<decltype(getThrottleReasons)>(get("nvmlDeviceGetCurrentClocksThrottleReasons"));
+        getMemoryInfo = reinterpret_cast<decltype(getMemoryInfo)>(get("nvmlDeviceGetMemoryInfo"));
         return true;
     }
 
@@ -340,6 +349,42 @@ void run()
     nvml.close();
 }
 
+// The VRAM reads (requestVram): a pool task's, one at a time. Its NVML is its own (opened by the first read, on the
+// worker; NVML counts its users), closed at finishVram.
+struct VramReader
+{
+    Nvml nvml;
+    bool tried{false}; // (the task's: one at a time)
+    za::AtomicMutex lock;
+    Vram latest; // (under lock)
+    jobs::Future<void> read; // (the main thread's)
+};
+VramReader vramReader;
+
+void readVram() noexcept
+{
+    VramReader& r = vramReader;
+    if(!r.tried)
+    {
+        r.tried = true;
+        r.nvml.open();
+    }
+    Vram v;
+    NvmlMemory mem{};
+    if(r.nvml.dll && r.nvml.getMemoryInfo && r.nvml.getMemoryInfo(r.nvml.device, &mem) == 0 && mem.total > 0)
+    {
+        v.totalMb = static_cast<int>(mem.total / 1048576ull);
+        v.freeMb = static_cast<int>(mem.free / 1048576ull);
+    }
+    else
+    {
+        v.readable = false;
+    }
+    za::LockGuard g{r.lock};
+    v.reads = r.latest.reads + 1;
+    r.latest = v;
+}
+
 #endif // _WIN32
 
 void add(za::Vector<Column>& c, const char* name, const char* fmt, double v, bool valid)
@@ -382,6 +427,44 @@ void stop()
         worker.join();
         Con_DPrintf("gpustats: sampling thread stopped\n");
     }
+#endif
+}
+
+void requestVram()
+{
+#ifdef _WIN32
+    VramReader& r = vramReader;
+    if(r.read.valid() && !r.read.ready())
+    {
+        return; // (one under way)
+    }
+    r.read = jobs::async([] { readVram(); });
+#endif
+}
+
+Vram latestVram()
+{
+#ifdef _WIN32
+    za::LockGuard g{vramReader.lock};
+    return vramReader.latest;
+#else
+    Vram v;
+    v.readable = false;
+    return v;
+#endif
+}
+
+void finishVram()
+{
+#ifdef _WIN32
+    VramReader& r = vramReader;
+    if(r.read.valid())
+    {
+        r.read.get();
+    }
+    r.read = {};
+    r.nvml.close();
+    r.tried = false;
 #endif
 }
 

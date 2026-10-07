@@ -383,6 +383,7 @@ struct MemSample
     double textureMb{0.0};
     int glTextures{0}, buffers{-1}, framebuffers{-1}, queries{-1}, programs{-1};
     double scanMs{0.0}; // what counting the GL objects took
+    double queryMs{0.0}; // what the GPU memory query took (its glGets wait for the driver's thread)
 };
 
 struct StatusSampleState
@@ -410,35 +411,42 @@ struct MemStatsCalls
 };
 MemStatsCalls memStatsCalls;
 
-MemSample sampleMemory(bool scanGl = true)
+// queryGpu: the GPU's memory asked of GL (its glGets wait for the driver's thread: 2-4 ms when the GPU is busy; the
+// memory log and the status line read NVML's on a worker instead, gpustats::latestVram, where there is one).
+MemSample sampleMemory(bool scanGl = true, bool queryGpu = true)
 {
     MemSample m;
 
     // The GPU's memory (NVIDIA: GL_NVX_gpu_memory_info, all processes'; AMD: GL_ATI_meminfo, free only).
-    while(glGetError() != GL_NO_ERROR)
+    const double queryStart = Sys_DoubleTime();
+    if(queryGpu)
     {
-    }
-    GLint total = 0, available = 0, evictions = 0, evicted = 0;
-    glGetIntegerv(0x9048, &total); // GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, KB
-    if(glGetError() == GL_NO_ERROR && total > 0)
-    {
-        glGetIntegerv(0x9049, &available); // GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX
-        glGetIntegerv(0x904A, &evictions); // GL_GPU_MEMORY_INFO_EVICTION_COUNT_NVX
-        glGetIntegerv(0x904B, &evicted);   // GL_GPU_MEMORY_INFO_EVICTED_MEMORY_NVX
-        m.vramTotal = total / 1024;
-        m.vramFree = available / 1024;
-        m.evictions = evictions;
-        m.evictedMb = evicted / 1024;
-    }
-    else
-    {
-        GLint ati[4] = {};
-        glGetIntegerv(0x87FC, ati); // GL_TEXTURE_FREE_MEMORY_ATI
-        if(glGetError() == GL_NO_ERROR && ati[0] > 0)
+        while(glGetError() != GL_NO_ERROR)
         {
-            m.vramFree = ati[0] / 1024;
+        }
+        GLint total = 0, available = 0, evictions = 0, evicted = 0;
+        glGetIntegerv(0x9048, &total); // GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, KB
+        if(glGetError() == GL_NO_ERROR && total > 0)
+        {
+            glGetIntegerv(0x9049, &available); // GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX
+            glGetIntegerv(0x904A, &evictions); // GL_GPU_MEMORY_INFO_EVICTION_COUNT_NVX
+            glGetIntegerv(0x904B, &evicted);   // GL_GPU_MEMORY_INFO_EVICTED_MEMORY_NVX
+            m.vramTotal = total / 1024;
+            m.vramFree = available / 1024;
+            m.evictions = evictions;
+            m.evictedMb = evicted / 1024;
+        }
+        else
+        {
+            GLint ati[4] = {};
+            glGetIntegerv(0x87FC, ati); // GL_TEXTURE_FREE_MEMORY_ATI
+            if(glGetError() == GL_NO_ERROR && ati[0] > 0)
+            {
+                m.vramFree = ati[0] / 1024;
+            }
         }
     }
+    m.queryMs = (Sys_DoubleTime() - queryStart) * 1000.0;
 
 #ifdef _WIN32
     ProcessMemoryCounters pmc{};
@@ -847,6 +855,8 @@ struct MemLog
     int lastFrames{0};
     const void* lastWorld{nullptr};
     double worldSince{0.0};
+    bool vramAsked{false};         // the next row's VRAM read asked for (gpustats::requestVram, half a second ahead)
+    jobs::Future<void> write;      // the last row's write (a worker's: the file's opening and closing, ~1 ms)
 };
 
 MemLog memLog;
@@ -874,7 +884,22 @@ void writeMemLogRow(const char* reason)
     memLog.lastFrames = host_framecount;
 
     QVR_PROFILE("memory log");
-    MemSample m = sampleMemory(false);
+    const double rowStart = Sys_DoubleTime();
+    // The GPU's memory: NVML's, read on a worker half a second ago (no GL: no wait for the driver's thread); its
+    // evictions (GL_NVX's only) as of the map's load (countGlForLog). No NVML (AMD, Intel): GL's as before. Not read yet
+    // (NVML still opening): the load's.
+    const gpustats::Vram vram = gpustats::latestVram();
+    const bool askGl = vram.reads > 0 && !vram.readable;
+    MemSample m = sampleMemory(false, askGl);
+    const double sampled = Sys_DoubleTime();
+    if(!askGl)
+    {
+        m.vramTotal = vram.totalMb > 0 ? vram.totalMb : glCounted.vramTotal;
+        m.vramFree = vram.totalMb > 0 ? vram.freeMb : glCounted.vramFree;
+        m.evictions = glCounted.evictions;
+        m.evictedMb = glCounted.evictedMb;
+    }
+    memLog.vramAsked = false;
     m.glTextures = glCounted.glTextures;
     m.buffers = glCounted.buffers;
     m.framebuffers = glCounted.framebuffers;
@@ -915,36 +940,59 @@ void writeMemLogRow(const char* reason)
     timingColumns(c, logReader);
     logReader = Readers{};
     gpustats::columns(c); // the GPU as the whole system uses it: clocks, slowdowns, programs
+    const double made = Sys_DoubleTime();
 
-    if(memLog.path.empty())
+    // The file's part on a worker (its opening, appending and closing: ~1 ms, more when a scanner looks at it).
+    const bool header = memLog.path.empty();
+    if(header)
     {
         char stamp[64];
         strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
         const za::String dir = za::String{com_gamedir} + "/profile";
         Sys_mkdir(dir.cStr());
         memLog.path = dir + "/memstats_" + stamp + ".csv";
-        if(FILE* f = fopen(memLog.path.cStr(), "w"))
+        Con_DPrintf("vr_memstats_log: %s\n", memLog.path.cStr());
+    }
+    if(memLog.write.valid())
+    {
+        memLog.write.get(); // (the last row's, long done: rows are seconds apart)
+    }
+    memLog.write = jobs::async([path = memLog.path, header, c = ZA_MOVE(c)]() {
+        FILE* f = fopen(path.cStr(), header ? "w" : "a");
+        if(!f)
+        {
+            return;
+        }
+        if(header)
         {
             for(za::SizeT i = 0; i < c.size(); i++)
             {
                 fprintf(f, "%s%s", i ? "," : "", c[i].name.cStr());
             }
             fprintf(f, "\n");
-            fclose(f);
         }
-        Con_DPrintf("vr_memstats_log: %s\n", memLog.path.cStr());
-    }
-    FILE* f = fopen(memLog.path.cStr(), "a");
-    if(!f)
+        for(za::SizeT i = 0; i < c.size(); i++)
+        {
+            fprintf(f, "%s%s", i ? "," : "", c[i].value.cStr());
+        }
+        fprintf(f, "\n");
+        fclose(f);
+    });
+    const double end = Sys_DoubleTime();
+    Con_DPrintf("vr_memstats_log: a row in %.2f ms on the main thread (GPU memory %s %.2f, the rest of the sample %.2f, "
+                "columns %.2f, handing the file over %.2f)\n",
+        (end - rowStart) * 1000.0, askGl ? "asked of GL" : "NVML's, read ahead", m.queryMs,
+        (sampled - rowStart) * 1000.0 - m.queryMs, (made - sampled) * 1000.0, (end - made) * 1000.0);
+}
+
+// VR_Shutdown, before the pool's: the last row written.
+void finishMemLog()
+{
+    if(memLog.write.valid())
     {
-        return;
+        memLog.write.get();
     }
-    for(za::SizeT i = 0; i < c.size(); i++)
-    {
-        fprintf(f, "%s%s", i ? "," : "", c[i].value.cStr());
-    }
-    fprintf(f, "\n");
-    fclose(f);
+    gpustats::finishVram();
 }
 
 void memLogFrame()
@@ -978,6 +1026,14 @@ void memLogFrame()
         memLog.lastWorld = cl.worldmodel;
         memLog.worldSince = realtime;
         return;
+    }
+    // The next row's VRAM read, half a second before it (on a worker: gpustats::requestVram).
+    const double due = memLog.worldSince > 0.0 ? memLog.worldSince + 5.0
+                                              : memLog.lastTime + static_cast<double>(q_max(vr_memstats_log.value, 5.f));
+    if(!memLog.vramAsked && due - realtime <= 0.5)
+    {
+        memLog.vramAsked = true;
+        gpustats::requestVram();
     }
     if(memLog.worldSince > 0.0 && realtime - memLog.worldSince >= 5.0)
     {
@@ -1195,7 +1251,17 @@ void statusLines(za::Vector<za::String>& out)
     auto& mem = statusSample.memory;
     if(realtime - sampledAt >= 1.0 || realtime < sampledAt)
     {
-        mem = sampleMemory(false);
+        // The GPU's memory: NVML's, read on a worker (the last second's); GL's without NVML (AMD, Intel).
+        const gpustats::Vram vram = gpustats::latestVram();
+        const bool askGl = vram.reads > 0 && !vram.readable;
+        const int vramTotal = mem.vramTotal, vramFree = mem.vramFree;
+        mem = sampleMemory(false, askGl);
+        if(!askGl)
+        {
+            mem.vramTotal = vram.totalMb > 0 ? vram.totalMb : vramTotal;
+            mem.vramFree = vram.totalMb > 0 ? vram.freeMb : vramFree;
+        }
+        gpustats::requestVram();
 #ifndef _WIN32
         if(FILE* f = fopen("/proc/self/statm", "r"))
         {
@@ -1453,6 +1519,7 @@ extern "C" void VR_Shutdown()
     imgprefetch::shutdown(); // (the decoding tasks finished)
     ao::shutdown(); // (the models' occlusion bakes, VR or not)
     gpustats::stop();
+    finishMemLog(); // (the last row written, the VRAM reads finished)
     highlights::shutdown(); // a log still open: its JSON and EDL written
     if(state)
     {
