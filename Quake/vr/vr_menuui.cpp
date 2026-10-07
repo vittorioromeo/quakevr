@@ -952,16 +952,25 @@ void mockMouse_f()
 
 void mockKey_f()
 {
-    const int key = Cmd_Argc() == 2 ? Key_StringToKeynum(Cmd_Argv(1)) : -1;
+    const int key = Cmd_Argc() == 2 || Cmd_Argc() == 3 ? Key_StringToKeynum(Cmd_Argv(1)) : -1;
     if(key < 0)
     {
-        Con_Printf("vr_mock_key <key>: that key pressed and released (a key's name as bind takes it: uparrow, enter...)\n");
+        Con_Printf("vr_mock_key <key> [down|up]: that key pressed and released, or only pressed (held) or released (a "
+                   "key's name as bind takes it: uparrow, enter, shift...)\n");
         return;
     }
     char name[32];
     q_strlcpy(name, Cmd_Argv(1), sizeof(name)); // (a key's action may tokenize another command: Levels)
-    Key_Event(key, true);
-    Key_Event(key, false);
+    const bool down = Cmd_Argc() < 3 || q_strcasecmp(Cmd_Argv(2), "up");
+    const bool up = Cmd_Argc() < 3 || q_strcasecmp(Cmd_Argv(2), "down");
+    if(down)
+    {
+        Key_Event(key, true);
+    }
+    if(up)
+    {
+        Key_Event(key, false);
+    }
     Con_Printf("vr_mock_key: %s, menu %d, corner button %d%s\n", name, m_state, toolbarFocused() ? toolbar.focused : -1,
         key_dest == key_menu ? "" : " (menu closed)");
 }

@@ -500,7 +500,7 @@ using PageBuilder = za::Vector<Item> (*)();
 //   released at a map change like any scratch.
 struct MenuReadouts
 {
-    za::String motionNote, motionLastSaved, extendableHelp, serverRuleHelp;
+    za::String motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp;
     za::String checklistUndoHelp;      // checklistUndoHelp
     za::String weight[2];              // weightReadout, by hand
     za::String weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
@@ -515,7 +515,7 @@ struct MenuReadouts
     char buildVersion[64];             // buildVersionLine
     auto members()
     {
-        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
+        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
             weaponWeightsDrop, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistUndoHelp, stamina, renderScaleHelp, buildVersion);
     }
 };
@@ -8834,7 +8834,7 @@ HelpBox helpBox;
 {
     for(const Item& item : list)
     {
-        if(item.helpText || item.extendable)
+        if(item.helpText || item.extendable || item.kind == Item::Slider) // (a slider's help: its fine steps at least)
         {
             return true;
         }
@@ -9314,6 +9314,64 @@ struct SliderHold
 };
 SliderHold sliderHold; // (stepSlider: the menu's keys)
 
+// The sliders' fine adjustment: while either grip is held in the headset (a grip does nothing else in the menus), or
+// Shift on a flat screen, a slider steps by vr_menu_fine_step of its step (0.1: a tenth), and shows the decimals that
+// takes (sliderText).
+[[nodiscard]] bool fineHeld()
+{
+    return keydown[K_SHIFT] || keydown[K_LSHOULDER] || keydown[K_RSHOULDER];
+}
+
+[[nodiscard]] float sliderStep(const Item& item)
+{
+    return fineHeld() ? item.step * CLAMP(0.01f, vr_menu_fine_step.value, 1.f) : item.step;
+}
+
+// The decimals that show `x` (to 4 at most).
+[[nodiscard]] int decimalsOf(float x)
+{
+    int n = 0;
+    float scaled = za::fabs(x);
+    while(n < 4 && za::fabs(scaled - za::round(scaled)) > 0.001f * q_max(1.f, scaled))
+    {
+        scaled *= 10.f;
+        n++;
+    }
+    return n;
+}
+
+// A slider's value as its format shows it, with more decimals where the value has them (a fine step) or while the fine
+// steps are on (their size's).
+void sliderText(const Item& item, float value, char* buf, size_t size)
+{
+    const char* dot = strstr(item.format, "%");
+    while(dot && *dot && *dot != '.' && *dot != 'f')
+    {
+        dot++;
+    }
+    if(!dot || *dot != '.' || dot[1] < '0' || dot[1] > '9' || dot[2] != 'f')
+    {
+        q_snprintf(buf, size, item.format, value);
+        return;
+    }
+    const int own = dot[1] - '0';
+    int n = q_max(own, decimalsOf(value));
+    if(fineHeld())
+    {
+        n = q_max(n, decimalsOf(sliderStep(item)));
+    }
+    char format[32];
+    const size_t at = static_cast<size_t>(dot - item.format) + 1;
+    if(n == own || at + 2 >= sizeof(format) || strlen(item.format) + 1 >= sizeof(format))
+    {
+        q_snprintf(buf, size, item.format, value);
+        return;
+    }
+    q_strlcpy(format, item.format, sizeof(format));
+    format[at] = static_cast<char>('0' + n);
+    q_snprintf(buf, size, format, value);
+}
+
 float stepSlider(const Item& item, int dir, bool repeat)
 {
     constexpr double endHold = 0.6;
@@ -9334,7 +9392,7 @@ float stepSlider(const Item& item, int dir, bool repeat)
     const int past = pastEnd(item, cur);
     const bool atEnd = za::fabs(cur - end) <= eps;
 
-    float step = item.step;
+    float step = sliderStep(item);
     if(!repeat || !past)
     {
         outsideSince = realtime;
@@ -9344,7 +9402,9 @@ float stepSlider(const Item& item, int dir, bool repeat)
         const double held = realtime - outsideSince;
         step *= held < 1.0 ? 1.f : held < 2.0 ? 2.f : held < 3.0 ? 5.f : 10.f;
     }
-    float v = za::round((cur + dir * step) / step) * step;
+    // On the fine steps' grid (a value fine-tuned keeps its fine part on a whole step).
+    const float grid = item.step * CLAMP(0.01f, vr_menu_fine_step.value, 1.f);
+    float v = za::round((cur + dir * step) / grid) * grid;
 
     float lo = item.min;
     float hi = item.max;
@@ -9562,7 +9622,7 @@ void setSliderAt(const Item& item, float cx)
     }
     const float frac = CLAMP(0.f, (cx - midPos - 4.f) / 72.f, 1.f);
     float v = item.min + frac * (item.max - item.min);
-    v = za::round(v / item.step) * item.step;
+    v = za::round(v / sliderStep(item)) * sliderStep(item);
     v = CLAMP(item.min, v, item.max);
     if(item.negativeLabel && v < item.negativeStart - item.step * 0.01f)
     {
@@ -9974,7 +10034,7 @@ void drawItem(const Item& item, int y, bool selected)
             }
             else
             {
-                q_snprintf(buf, sizeof(buf), item.format, value);
+                sliderText(item, value, buf, sizeof(buf));
             }
             // Past an end: the thumb stays there, marked, and the value (the real one) is white.
             const float range = (value - item.min) / (item.max - item.min);
@@ -10094,6 +10154,15 @@ const char* itemHelp(const Item& item)
     else if(item.kind == Item::Slider && item.extendable)
     {
         help = extendableHelp(item, help);
+    }
+    if(item.kind == Item::Slider && !lockedItem(item))
+    {
+        // The fine steps' modifier, last.
+        za::String& text = readouts.fineHelp;
+        text = help && help[0] ? help : "";
+        text += text.empty() ? "" : " ";
+        text += vrActive() ? "Hold a grip for fine steps." : "Hold Shift for fine steps.";
+        help = text.cStr();
     }
     return help;
 }
@@ -10778,6 +10847,13 @@ void qvr::menu::command_f()
         Con_Printf("menu_vr pos: page %d \"%s\" (back to %d%s), row %d \"%s\" under \"%s\", scroll %d of %d rows%s\n", page,
             pages[page].title, back, outside != m_none ? va(", menu %d", outside) : "", cursor, rowLabel(list[cursor]), rowSection(list, cursor),
             scrolls[page], static_cast<int>(list.size()), corner);
+        if(cursor < static_cast<int>(list.size()) && list[cursor].cvar && list[cursor].kind == Item::Slider)
+        {
+            char shown[64];
+            sliderText(list[cursor], list[cursor].cvar->value, shown, sizeof(shown));
+            Con_Printf("menu_vr pos: slider %s \"%s\" (shown %s), step %g%s\n", list[cursor].cvar->name,
+                list[cursor].cvar->string, shown, sliderStep(list[cursor]), fineHeld() ? " (fine)" : "");
+        }
         if(const Item* open = dropDownItem())
         {
             const DropDown& d = dropDown;

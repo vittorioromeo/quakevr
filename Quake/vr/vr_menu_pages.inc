@@ -18,6 +18,7 @@
         toggle("Status Box", "vr_menu_status").help("A small box in the menus' top right corner: VR, mock VR or flat screen, the runtime (SteamVR, VDXR), the resolution rendered, the target rate, fps, the CPU's and GPU's milliseconds a frame (and their share of the frame's budget), RAM and VRAM."),
         toggle("Corner Buttons on a Flat Screen", "vr_menu_flat_shortcuts").help("With VR off: the buttons at the menus' top left (Back to Game, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse."),
         toggle("Mods on the Main Menu", "vr_menu_main_mods").help("The main menu's Mods row (Ironwail's mods list). Off: only in Options > Mods."),
+        slider("Fine Step", "vr_menu_fine_step", 0.01f, 0.5f, 0.01f, "%.2fx").help("A slider's step while you hold a grip (Shift on a flat screen), over its own: 0.1, a tenth, for placing things precisely."),
         slider("Section Gap", "vr_menu_section_gap", 0.f, 2.f, 0.25f, "%.2f rows").help("Space above each section's header on the settings pages (and under the page's title), so the sections stand apart. 0: none."),
         toggle("VR Menu Style", "vr_menu_vr_style").help("The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag."),
         open("Laser Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
