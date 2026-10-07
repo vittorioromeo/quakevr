@@ -98,6 +98,8 @@ float(entity targ, entity inflictor) CanDamage =
 
 // The firing range's training dummy that died as the grunt it stands for (vr_dummy.qc, vr_dummy_gib): not counted, no loot.
 .float vr_dummy_dead;
+// QVR: Dawn of the Machine's infected (vr_mg3_infected.qc): what his first death turns him into (0: none, or turned).
+.float vr_mg3_infected;
 
 /*
 ============
@@ -140,6 +142,15 @@ void(entity targ, entity attacker) Killed =
     }
 
     self.enemy = attacker;
+
+    // QVR: Dawn of the Machine's infected (vr_mg3_infected.qc): his first death bursts him into a zombie or a fiend, not
+    // counted (upstream's .infected), before any of Quake VR's dying (beheading, ragdoll, corpse, gore).
+    if(self.vr_mg3_infected && (self.flags & FL_MONSTER))
+    {
+        MG3_Infected_Turn(attacker);
+        self = oself;
+        return;
+    }
 
 // bump the monster counter
     if((self.flags & FL_MONSTER) && !self.vr_dummy_dead && (!MGH_Active() || self.classname != "monster_zombie"))

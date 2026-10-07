@@ -200,6 +200,9 @@ honey_subs.qc
 honey_subs2.qc
 honey_trigger.qc
 honey_weapons.qc
+// Dawn of the Machine's monsters (after the stock monsters they build on).
+vr_mg3_infected.qc
+vr_mg3_monsters_test.qc
 
 // Knockdowns: shoves knock monsters down as ragdolls, alive (after everything it calls).
 vr_knockdown.qc

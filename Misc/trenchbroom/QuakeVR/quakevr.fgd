@@ -959,6 +959,17 @@ The Scourge of Armagon's final boss (3000 health): rockets and lasers. Models an
 [
 ]
 
+@PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/soldier.mdl" }) =
+	monster_army_infected : "Infected grunt (Dawn of the Machine)
+
+30 health, a grunt's shotgun. Killed, he bursts and gets up as a zombie (counted once, as the zombie). Any campaign."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+]
+
 @PointClass base(Monster) color(255 0 0) size(-128 -128 -24, 128 128 256) model({ "path": ":progs/boss.mdl" }) =
 	monster_boss : "Chthon
 
@@ -1018,6 +1029,17 @@ Swims (place it in water) and shocks. Models and sounds from rogue."
 [
 ]
 
+@PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/enforcer.mdl" }) =
+	monster_enforcer_infected : "Infected enforcer (Dawn of the Machine)
+
+80 health, an enforcer's laser. Killed, he bursts and gets up as a fiend (counted once, as the fiend). Any campaign."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+]
+
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 24) model({ "path": ":progs/fish.mdl" }) =
 	monster_fish : "Rotfish
 
@@ -1047,6 +1069,20 @@ Steals the player's weapon and uses it; splits in two when fed. Models and sound
 	]
 ]
 
+@PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/hknight.mdl" }) =
+	monster_hell_knight_infected : "Infected death knight (Dawn of the Machine)
+
+250 health, a death knight's sword and flames. Killed, he bursts and gets up as a fiend (counted once, as the fiend). Any campaign.
+Corpse A or B: he lies as a corpse (his death's last frame, not solid) until woken (his targetname used, or hurt), then rises: his death backwards (tried again every 5 seconds while something stands where he would)."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+		65536 : "Corpse A (lying until woken)" : 0 : "Dawn of the Machine's CORPSE_FLAG_A: lies in his first death's last frame (In Dawn of the Machine's maps; elsewhere this bit is also Honey's Silent wake-up)."
+		8388608 : "Corpse B (lying until woken)" : 0 : "Dawn of the Machine's CORPSE_FLAG_B: lies in his second death's last frame."
+	]
+]
+
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/knight.mdl" }) =
 	monster_knight : "Knight
 
@@ -1055,6 +1091,17 @@ Steals the player's weapon and uses it; splits in two when fed. Models and sound
 	spawnflags(flags) =
 	[
 		2 : "Statue" : 0
+	]
+]
+
+@PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/knight.mdl" }) =
+	monster_knight_infected : "Infected knight (Dawn of the Machine)
+
+75 health, a knight's sword. Killed, he bursts and gets up as a zombie (counted once, as the zombie). Any campaign."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
 	]
 ]
 

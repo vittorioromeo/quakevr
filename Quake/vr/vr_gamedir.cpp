@@ -1288,9 +1288,14 @@ extern "C" int VR_CampaignDataAvailable(const char* dir)
 // Quake VR's (its progs/v_hammer.mdl is the Super Axe, Quake VR's the Hipnotic Mjolnir). Nothing is copied or written.
 // Returns 0 when `name` is not such a name, -1 when it is but the file is not there, 1 when found: `out` the pak or
 // the loose file, `*offset`/`*length` the file inside it, `*packed` whether `out` is a pak. Any thread (a worker's
-// image lookups): it reads only what discovery found at startup, never discovering itself.
+// image lookups): it reads only what discovery found at startup, never discovering itself. A sound's name is the
+// same under sound/ ("sound/owned/mg3/rogre/ogwake.wav": precache_sound("owned/mg3/rogre/ogwake.wav"), as S_LoadSound
+// puts sound/ before it): its pack's sound/rogre/ogwake.wav.
 extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, int* length, int* packed)
 {
+    constexpr char soundPrefix[] = "sound/owned/";
+    const bool sound = !q_strncasecmp(name, soundPrefix, sizeof(soundPrefix) - 1);
+    if(sound) { name += sizeof("sound/") - 1; }
     constexpr char prefix[] = "owned/";
     if(q_strncasecmp(name, prefix, sizeof(prefix) - 1)) { return 0; }
     const char* folderStart = name + sizeof(prefix) - 1;
@@ -1303,7 +1308,13 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
     q_strlcpy(folder, folderStart, folderLength + 1);
     const int c = campaignIndex(folder);
     if(c < 3 || !discoveredCampaigns || campaigns[c].status != 1 || !campaigns[c].root[0]) { return -1; }
+    char soundFile[MAX_QPATH];
     const char* file = slash + 1;
+    if(sound)
+    {
+        q_snprintf(soundFile, sizeof(soundFile), "sound/%s", slash + 1);
+        file = soundFile;
+    }
 
     char path[MAX_OSPATH];
     q_snprintf(path, sizeof(path), "%s/%s/%s", campaigns[c].root, campaigns[c].folder, file);

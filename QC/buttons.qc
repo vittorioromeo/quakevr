@@ -751,7 +751,8 @@ void() func_weapon_grabbable =
 //   12 gremlin, 13 centroid (Scourge of Armagon), 14 mummy, 15 phantom swordsman, 16 wrath,
 //   17 overlord (Dissolution of Eternity).
 // Tests only (impulse 241's vr_test_spawn; no button): 18 the Guardian (Dissolution of Eternity's monster_morph, its
-// Egyptian look), 19 the dragon (Dissolution of Eternity), 20 the marksman ogre (Honey's model, progs/mogre.mdl).
+// Egyptian look), 19 the dragon (Dissolution of Eternity), 20 the marksman ogre (Honey's model, progs/mogre.mdl);
+// Dawn of the Machine's from 30: 30 an infected grunt, 31 knight, 32 enforcer, 33 death knight (vr_mg3_infected.qc).
 // The model of the second row's monsters: the mission packs' (and the registered game's) may not be
 // installed, and precaching a missing model is an error.
 string(float choice) VR_EnemyDispenser_Model =
@@ -772,6 +773,11 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 18) { return "progs/morph_eg.mdl"; }
     else if(choice == 19) { return "progs/dragon.mdl"; }
     else if(choice == 20) { return "progs/mogre.mdl"; }
+    // Dawn of the Machine's (30..: vr_mg3_*.qc). The infected: the registered game's models they turn into.
+    else if(choice == 30) { return "progs/zombie.mdl"; }
+    else if(choice == 31) { return "progs/zombie.mdl"; }
+    else if(choice == 32) { return "progs/demon.mdl"; }
+    else if(choice == 33) { return "progs/demon.mdl"; }
 
     return NULLSTR;
 };
@@ -802,6 +808,10 @@ void(float choice) VR_EnemyDispenser_Spawn =
     else if(choice == 18) { self.classname = "monster_morph";       self.spawnflags = 4 /* MORPH_EGYPT */; monster_morph(); }
     else if(choice == 19) { self.classname = "monster_dragon";      monster_dragon(); }
     else if(choice == 20) { self.classname = "monster_ogre_marksman"; monster_ogre_marksman(); }
+    else if(choice == 30) { self.classname = "monster_army_infected"; monster_army_infected(); }
+    else if(choice == 31) { self.classname = "monster_knight_infected"; monster_knight_infected(); }
+    else if(choice == 32) { self.classname = "monster_enforcer_infected"; monster_enforcer_infected(); }
+    else if(choice == 33) { self.classname = "monster_hell_knight_infected"; monster_hell_knight_infected(); }
 
 };
 
@@ -819,6 +829,14 @@ void() func_enemy_dispenser_use =
             if(choice == 20)
             {
                 centerprint(activator, "Needs Honey's marksman ogre (progs/mogre.mdl)");
+            }
+            else if(choice >= 30 && choice <= 33)
+            {
+                centerprint(activator, "Needs the registered Quake (pak1.pak)");
+            }
+            else if(choice >= 30)
+            {
+                centerprint(activator, "Needs Dawn of the Machine (its rerelease folder, mg3)");
             }
             else if(choice >= 14)
             {

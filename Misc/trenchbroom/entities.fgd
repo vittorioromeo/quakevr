@@ -358,6 +358,27 @@ buttons) kills it. It rises when its targetname is triggered." []
 @PointClass = monster_shalrath : "Vore (shalrath)
 
 400 health; throws homing spikes." []
+// Dawn of the Machine's monsters (QC/vr_mg3_*.qc; MG3_PLAN.md M3-15..18). The infected are stock monsters.
+@PointClass base(Monster) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/soldier.mdl" }) = monster_army_infected : "Infected grunt (Dawn of the Machine)
+
+30 health, a grunt's shotgun. Killed, he bursts and gets up as a zombie (counted once, as the zombie). Any campaign." []
+@PointClass base(Monster) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/knight.mdl" }) = monster_knight_infected : "Infected knight (Dawn of the Machine)
+
+75 health, a knight's sword. Killed, he bursts and gets up as a zombie (counted once, as the zombie). Any campaign." []
+@PointClass base(Monster) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/enforcer.mdl" }) = monster_enforcer_infected : "Infected enforcer (Dawn of the Machine)
+
+80 health, an enforcer's laser. Killed, he bursts and gets up as a fiend (counted once, as the fiend). Any campaign." []
+@PointClass base(Monster) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/hknight.mdl" }) = monster_hell_knight_infected : "Infected death knight (Dawn of the Machine)
+
+250 health, a death knight's sword and flames. Killed, he bursts and gets up as a fiend (counted once, as the fiend). Any campaign.
+Corpse A or B: he lies as a corpse (his death's last frame, not solid) until woken (his targetname used, or hurt), then rises: his death backwards (tried again every 5 seconds while something stands where he would)."
+[
+	spawnflags(flags) =
+	[
+		65536 : "Corpse A (lying until woken)" : 0 : "Dawn of the Machine's CORPSE_FLAG_A: lies in his first death's last frame (In Dawn of the Machine's maps; elsewhere this bit is also Honey's Silent wake-up)."
+		8388608 : "Corpse B (lying until woken)" : 0 : "Dawn of the Machine's CORPSE_FLAG_B: lies in his second death's last frame."
+	]
+]
 @PointClass = monster_tarbaby : "Spawn (tarbaby)
 
 80 health; bounces, and explodes when it dies." []

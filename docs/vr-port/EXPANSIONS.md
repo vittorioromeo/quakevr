@@ -1003,3 +1003,12 @@ no Hipnotic install is needed. **Bloody shotguns** (M3-14): pickups only in a Bl
 (parm56) make the shotgun refire in 0.28 s and the super shotgun fire 28 pellets; drawn as Quake VR's shotguns (bloody
 skins: BACKLOG). Tests: Debug > Tests > Dawn of the Machine Weapons (`vr_mg3_wtest`). Measurements: ROUND21.md, "Dawn
 of the Machine (MG3): weapons".
+
+## Dawn of the Machine monsters (mg3d, 2026-10-07)
+
+Phase D of [MG3_PLAN.md](MG3_PLAN.md), decision 5: its monsters wherever its data is (Debug > Tests > Ahead of You,
+Thing 30..), with Quake VR's treatment. **Infected** (M3-15: `monster_army/knight/enforcer/hell_knight_infected`,
+stock models, any campaign): killed once, they burst and get up as a zombie or a fiend (a real model change: the new
+body's rig, hit zones, gore and knockdown), counted once; death knights placed as corpses lie until woken, then rise.
+Tests: Debug > Tests > Dawn of the Machine Monsters (`vr_mg3_mtest`). Measurements: ROUND21.md, "Dawn of the Machine
+(MG3): monsters".

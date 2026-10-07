@@ -5063,6 +5063,31 @@ za::Vector<Item> pageMg3WeaponTests()
     };
 }
 
+// Dawn of the Machine's monsters (MG3_PLAN.md M3-15..18): "mg3mtest:" lines with developer 1 (QC/vr_mg3_monsters_test.qc).
+// The infected are stock monsters (any campaign); MG3's own monsters need its data (their models read from it in place).
+za::Vector<Item> pageMg3MonsterTests()
+{
+    return {
+        header("Dawn of the Machine Monsters"),
+        command("An Infected Grunt Ahead", "vr_test_spawn 30; vr_test_spawn_dist 128; impulse 241")
+            .help("An infected grunt 128 units ahead: killed, he bursts and gets up as a zombie (counted once, as it)."),
+        command("An Infected Knight Ahead", "vr_test_spawn 31; vr_test_spawn_dist 128; impulse 241"),
+        command("An Infected Enforcer Ahead", "vr_test_spawn 32; vr_test_spawn_dist 128; impulse 241")
+            .help("An infected enforcer: killed, he bursts and gets up as a fiend."),
+        command("An Infected Death Knight Ahead", "vr_test_spawn 33; vr_test_spawn_dist 128; impulse 241"),
+        command("A Death Knight Lying as a Corpse", "vr_test_spawn_flags 65536; vr_test_spawn 33; vr_test_spawn_dist 128; impulse 241; vr_test_spawn_flags 0")
+            .help("An infected death knight lying as Dawn of the Machine's corpses lie (not solid) until woken: shoot him, "
+                  "or wake him (he rises, his death backwards)."),
+        command("Monsters Report", "vr_mg3_mtest 1")
+            .help("The map's Dawn of the Machine monsters by kind, the infected turned, the kills (developer 1)."),
+        command("Infected Check", "vr_mg3_mtest 2")
+            .help("Destructive: an infected grunt, knight, enforcer and death knight ahead, each killed (bursts into a "
+                  "zombie or a fiend, not counted), then killed again (counted once each)."),
+        command("Lying Death Knight Check", "vr_mg3_mtest 3")
+            .help("Destructive: a death knight lying as a corpse (not solid, his last death frame), woken: he rises."),
+    };
+}
+
 za::Vector<Item> pageDebugTests()
 {
     return {
@@ -5082,6 +5107,8 @@ za::Vector<Item> pageDebugTests()
             .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
         open("Dawn of the Machine Weapons", pageIndex(pageMg3WeaponTests))
             .help("The Super Axe (any campaign with the Dawn of the Machine data), the axe buttons, the laser cannon, the bloody shotguns."),
+        open("Dawn of the Machine Monsters", pageIndex(pageMg3MonsterTests))
+            .help("The infected (any campaign) and Dawn of the Machine's own monsters (with its data): spawns and checks."),
         open("Dawn of the Machine Tests", pageIndex(pageMg3Tests))
             .help("MG3 native port: state, saved upgrades and capacities. Developer campaign only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
@@ -5182,11 +5209,14 @@ za::Vector<Item> pageDebugTests()
             {{0.f, "Grunt"}, {1.f, "Ogre"}, {2.f, "Zombie"}, {3.f, "Shambler"}, {4.f, "Scrag"}, {5.f, "Knight"},
              {6.f, "Hell Knight"}, {7.f, "Dog"}, {8.f, "Enforcer"}, {9.f, "Fiend"}, {10.f, "Vore"}, {11.f, "Spawn"},
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
-             {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"}, {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
+             {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"},
+             {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
+             {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},
              {110.f, "Rocks and Bricks"}})
-            .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed."),
+            .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed; Dawn "
+                  "of the Machine's (its infected, which burst into zombies and fiends; its own monsters: MG3's data, read in place)."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("Into the Main Hand", vr_test_spawn_hold)
             .help("A box or a crate (Health Box .. Explosive Box, the crates) put into your empty main hand, as if gripped: "
@@ -6123,6 +6153,7 @@ const Page pages[] = {
     {"Ragdolls - Centroid", pageRagdollCentroid, pageRagdolls, LevelDeveloper},
     {"Dawn of the Machine Tests", pageMg3Tests, pageDebugTests, LevelDeveloper},
     {"Dawn of the Machine Weapons", pageMg3WeaponTests, pageDebugTests, LevelDeveloper},
+    {"Dawn of the Machine Monsters", pageMg3MonsterTests, pageDebugTests, LevelDeveloper},
     {"Debug - Cheats and Recording", pageDebugCheats, pageDebug, LevelDeveloper}, // (vr_menu_cheats.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));

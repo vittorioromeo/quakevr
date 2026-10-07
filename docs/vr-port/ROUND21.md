@@ -28382,3 +28382,42 @@ Test-driver lessons (for whoever writes the next route test):
 - QuakeC builtins take 8 parameters: `sprintf` with more prints garbage for the rest (the vr_mg3_test.qc:543 warning).
 - Unexplained, harness only: `kill`, then a test request left in its cvar that spawned the presser in the restarted
   map, left the client at signon 3 ("load failed." after 60 s). Neither real play nor the route test does that.
+
+## Dawn of the Machine (MG3): monsters (2026-10-07)
+
+Phase D of [MG3_PLAN.md](MG3_PLAN.md) (M3-15..18; mg3d). Decision 5: Dawn of the Machine's monsters are there wherever
+its data is (Debug > Tests > Ahead of You > Thing 30.., the training dummy's types), each with Quake VR's treatment.
+MG3's sounds and models are read in place from the owned pack (`owned/mg3/...`, M3-11's `VR_OwnedFile`); a sound
+precached as `owned/mg3/<path>` is now found too (`VR_OwnedFile` takes `sound/owned/<folder>/<path>`, the name
+`S_LoadSound` asks for). Tests: Debug > Tests > Dawn of the Machine Monsters (`vr_mg3_mtest`, "mg3mtest:" lines).
+
+### M3-15 The infected
+
+`monster_army_infected`, `monster_knight_infected`, `monster_enforcer_infected`, `monster_hell_knight_infected`
+(`QC/vr_mg3_infected.qc`; official `mg3_*_infected.qc`, `combat.qc`). Stock models, so any campaign. Each is the stock
+monster (its classname the stock one's, as upstream: so every class-keyed table is his) marked `.vr_mg3_infected`.
+Killed the first time (`Killed`, before it counts or does any of Quake VR's dying: no beheading, ragdoll, corpse or
+gore pool), he bursts (the gib sound; the grunt's head thrown as a gib) and gets up as a zombie (grunt, knight) or a
+fiend (enforcer, death knight): not upstream's modelindex swap but a real `setmodel`, the zombie's or fiend's box,
+class, health, frame functions and knockdown, so the engine's rig, limb gore, hit tests and hulls all follow the new
+body. Nothing of the old death carries over: an armed beheading cut is disarmed (`VR_Decap_After` would have taken the
+new zombie's head), a knockdown ends (he stands up on the floor under his ragdoll's pelvis; `vr_ragdoll_list`: 0 left).
+Counted once: the burst not at all, the zombie's or fiend's death as any monster's. Wedged (no room for the new body:
+upstream's `walkmove(0, 0)`, here on "partial ground" so a body in the air or off a step is not taken for wedged, and
+up to 24 units higher), he dies at once, gibbed and counted, as upstream. Death knights placed as corpses (spawnflags
+65536 / 8388608: MG3's `CORPSE_FLAG_A`/`_B`; map2 has 9, map2b 1, secret5 3) lie in their death's last frame, not
+solid, until woken (their targetname or a hurt), then rise through their death backwards (MG3's `infected/death1_rev.wav`,
+else the death knight's sight sound; tried again every 5 s while something stands in the way). Alive all the while: no
+ragdoll or corpse.
+
+Measured (`vr_mg3_mtest`): e1m1 (`vr_ragdoll 1`) request 2 **14/0**: four counted (23 -> 27), the grunt knocked down
+first (a ragdoll) and the knight killed by an armed beheading cut: four turned, kills 0 -> 0, zombies 60 health
+`'12 12 24'`, fiends 300 `'16 16 24'`, the knight's zombie keeps its head, the grunt's stands (knockdown 0, solid 3);
+killed again: kills 0 -> 4, total 27. Request 3 **3/0**: lying (solid 0, frame 53, health 250), woken: risen (solid 3,
+running), killed: a fiend. MG3 map2 (skill 3): infected to zombie 10, to fiend 10, lying 7; request 4 killed the 13
+present: 13 turned, kills 0 -> 0. Checker after M3-15: 17 missing classes, 411 placements (the four infected classes,
+214 placements, gone).
+
+**In the headset.** [ ] An infected grunt or knight (Debug > Tests > Dawn of the Machine Monsters) killed by a sword
+cut at the neck: he bursts and a zombie stands up with its head. [ ] map2's lying death knights rise when the fight
+reaches them.

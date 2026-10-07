@@ -291,7 +291,9 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
 ### Phase D: monsters (registration per archetype: hit zones, decap head, ragdoll seeds, hulls, parry, knockdown, grapple, gibs, dummy, FGD)
 
 - **M3-15 Infected group.** generic + army/knight/enforcer/hknight infected, transformation, single kill count.
-  Accept: killing each infected spawns the right zombie/demon, kills +1 once; map2 counts match the checker.
+  Accept: killing each infected spawns the right zombie/demon, kills +1 once; map2 counts match the checker. **Built
+  2026-10-07**: a full model change (not upstream's modelindex swap), any campaign, the lying death knights (ROUND21.md,
+  "Dawn of the Machine (MG3): monsters").
 - **M3-16 Rocket ogre.** Accept: spawns on map1, fires rockets, rocket parry, decap/ragdoll sane; frame-order check recorded.
 - **M3-17 Demodog.** Accept: kamikaze explosion damages player and neighbours; grenades; grab/throw explodes per source.
 - **M3-18 Ranged knight.** Accept: projectile attack, parry, hit zones on rknight.mdl.
