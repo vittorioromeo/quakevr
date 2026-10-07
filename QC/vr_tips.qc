@@ -9,39 +9,47 @@ float QVR_TIP_REPEAT = 1;   // shown every time you come near, not remembered (f
 float QVR_TIP_HOLOGRAM = 2; // in the wrist gadget's hologram, not the floating screen (HOLOGRAM)
 float QVR_TIP_ANYANGLE = 4; // shown even out of the view angle or hidden from the eyes (ANYANGLE)
 
-// The entity `tip` follows: the one named by its `target`, or, without one, by its `targetname` (a tip naming itself
-// follows nothing: it stays at its own origin). world: nothing.
+// The entity `tip` follows: the one its `target` names (world: none, it stays at its own origin). Its targetname is
+// only its name: cleared as it spawns (func_vr_tip), so a teleporter's destination or a monster's path looked up by
+// that name never finds the tip.
 entity(entity tip) VR_Tip_FollowTarget =
 {
-    string name = tip.target;
-    if(name == NULLSTR)
-        name = tip.targetname;
-    if(name == NULLSTR)
+    if(tip.target == NULLSTR)
         return world;
-
-    entity e = find(world, targetname, name);
-    while(e != world && e == tip)
-        e = find(e, targetname, name);
-    return e;
+    return find(world, targetname, tip.target);
 }
 
 // A tip whose target is placed after it in the map looks for it again in the map's first frame (its record is already
 // sent: the engine updates the client's copy). The first frame, not later: a saved game is loaded over a freshly spawned
 // map after its two first frames, so a later retry would never run there (its think is not in the save's edict).
+// A tip without a target whose targetname another entity has was made for the old rule (a tip followed what its
+// targetname named): it stays at its own origin now, and says so to the mapper (developer 1).
 void() VR_Tip_Retry =
 {
-    entity e = VR_Tip_FollowTarget(self);
+    entity e;
+    if(self.target != NULLSTR)
+    {
+        e = VR_Tip_FollowTarget(self);
+        if(e != world)
+            vr_tip_setentity(self.tiphandle, e);
+        return;
+    }
+
+    e = find(world, targetname, self.tip_targetname);
     if(e != world)
-        vr_tip_setentity(self.tiphandle, e);
+        dprint(sprintf("func_vr_tip at %v: its targetname \"%s\" names a %s, which it no longer follows (a tip "
+                       "follows only its target): set its target to \"%s\" to follow it\n",
+            self.origin, self.tip_targetname, e.classname, self.tip_targetname));
 }
 
 /*QUAKED func_vr_tip (0.2 0.7 0.9) (-8 -8 -8) (8 8 8) REPEAT HOLOGRAM ANYANGLE
 Quake VR: a tip for new players, placed by hand. A small CRT screen floating near the player, with a cable to what it
 is about, shown when he comes within `distance` of it: the first time only, unless REPEAT or the map's worldspawn
 _vr_tips_repeat. "message": its text (\n starts a new line). "distance": how near in units (0: the player's own
-setting). "targetname" or "target": another entity's targetname — the tip follows that entity, live, instead of staying
-at its own origin. "tipname": names this tip (its name in tips_seen.txt; use it when two tips follow the same thing, or
-to try it with vr_tips_test). "tip_size": its text size (0: the player's setting). "tip_delay": seconds he must stay
+setting). "target": another entity's targetname — the tip follows that entity, live, instead of staying at its own
+origin. "targetname": only the tip's own name (when it has no tipname): nothing finds the tip by it, and it is not what
+the tip follows (a map made when it was gets a developer warning). "tipname": names this tip (its name in
+tips_seen.txt; use it when two tips follow the same thing, or to try it with vr_tips_test). "tip_size": its text size (0: the player's setting). "tip_delay": seconds he must stay
 near before it shows (unset: the player's setting). REPEAT: shown every time he comes near. HOLOGRAM: in the wrist
 gadget's hologram instead of the floating screen. ANYANGLE: shown even out of the view angle or hidden from his eyes.
 */
@@ -77,6 +85,10 @@ void() func_vr_tip =
     else if(self.targetname != NULLSTR)
         vr_tip_setname(h, self.targetname);
 
+    // Its targetname only names it (above): nothing finds the tip by it (VR_Tip_FollowTarget).
+    self.tip_targetname = self.targetname;
+    self.targetname = NULLSTR;
+
     if(self.distance != 0)
         vr_tip_setdistance(h, self.distance);
     if(self.tip_size != 0)
@@ -87,7 +99,7 @@ void() func_vr_tip =
     entity e = VR_Tip_FollowTarget(self);
     if(e != world)
         vr_tip_setentity(h, e);
-    else if(self.target != NULLSTR || self.targetname != NULLSTR)
+    else if(self.target != NULLSTR || self.tip_targetname != NULLSTR)
     {
         self.nextthink = time + 0.1;
         self.think = VR_Tip_Retry;

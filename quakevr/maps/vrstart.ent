@@ -581,3 +581,10 @@
 "origin" "64 348 280"
 "classname" "func_vr_tip"
 }
+{
+"message" "This tip follows a button:\nits target names the button's\ntargetname. Push one to\nchange that setting."
+"tipname" "testbutton"
+"target" "vr_snap_turn 30"
+"classname" "func_vr_tip"
+"origin" "64 400 280"
+}

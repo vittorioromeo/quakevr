@@ -27544,3 +27544,17 @@ written leaves it out. Reset All keeps the file (it was kept as a cvar). Proved 
 `vr_tips_seen` (150 keys, `vrstart:testwelcome` last, past the cut) gives `moved to tips_seen.txt (150 keys new, 150 in
 all)`, the file's 150 lines and `testwelcome ... seen`; the next run (the baseline config, no `vr_tips_seen`) reads
 it back seen, `vr_tips_reset` makes it unseen, it shows again (`tips: "testwelcome"`) and the file is that one key.
+
+**A tip follows only its `target`** (`QC/vr_tips.qc`): `targetname` is only the tip's name (its seen key when it has
+no `tipname`), kept in the new field `tip_targetname` and cleared from `.targetname` as the tip spawns, so no
+`find(world, targetname, ...)` (a teleporter's destination, a monster's path, a trigger's targets) ever finds a tip.
+A tip with no `target` whose old targetname another entity has (made for the old rule) stays at its own origin and
+says so in the map's first frame with `developer 1`: `func_vr_tip at -300 -300 300: its targetname "dest1" names a
+info_teleport_destination, which it no longer follows ...: set its target to "dest1" to follow it`. FGD: `target` is a
+`target_destination` (TrenchBroom draws the link), `targetname` has the tip's own help. `vrstart.ent` gets a second
+example tip, `testbutton`, following the Snap Turn (30) button by its `target`. Proved headless on `tiptest` (a copy
+of vrstart, its tips in the `.ent`: a tip named `dest1` placed before the `info_teleport_destination dest1`, the
+first changelevel trigger made a `trigger_teleport` to it; a tip named like a health box; a tip whose `target` names
+the other health box): before, the teleporter put the player at the tip (`Player pos: (-300 -300 300)`) and the
+named tips followed entities 13 and 53; after, the player lands at the destination (`64 448 307`), both tips stay
+at their origins with the warning, and the `target` tip still `follows entity 52`.

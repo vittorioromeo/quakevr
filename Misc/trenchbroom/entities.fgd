@@ -504,12 +504,13 @@ after speed seconds per letter of the page. A point entity, despite its name."
 A tip for new players, placed by hand: a small CRT screen floating near the player, with a cable to what the tip is
 about (the same look as the map text boards), shown when he comes within range of it. Once, unless it repeats: shown
 tips are remembered in tips_seen.txt in the game folder (vr_tips_reset shows them all again). Its own origin is the point it is about; if
-its target or targetname names another entity, it follows that entity instead, live (its model moves with it). Its
+its target names another entity, it follows that entity instead, live (its model moves with it). Its
 range, text size and delay default to what the player sets in VR Settings > Tips; the keys here override that for
 this tip. Try one with vr_tips_test <tipname>." [
 	message(string) : "Text" : : "The tip's text. \n starts a new line."
 	distance(float) : "Range (units)" : 0 : "How near the player must come for it to show (0: his own setting)."
-	target(string) : "Follows (targetname)" : : "Another entity's targetname: the tip follows that entity, live, instead of staying at its own origin. Its targetname works the same way when this is unset (a tip naming itself stays put)."
+	target(target_destination) : "Follows (targetname)" : : "Another entity's targetname: the tip follows that entity, live, instead of staying at its own origin."
+	targetname(target_source) : "Name" : : "Only this tip's name (its name in the remembered-tips list when tipname is unset). Not what it follows (that is target), and nothing finds the tip by it, so it can share a name with a teleport destination or a path."
 	tipname(string) : "Name" : : "Names this tip: its name in the remembered-tips list, and what vr_tips_test takes. Use it when two tips follow the same entity."
 	tip_size(float) : "Text size" : 0 : "Its text size (0: the player's setting). 1 is about 1.5 degrees a character."
 	tip_delay(float) : "Delay (s)" : : "Seconds he must stay near it before it shows (0: his own setting)."
