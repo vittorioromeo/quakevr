@@ -32,6 +32,9 @@
 #      magazine's box; a hit at its far end; a gun carried by the off hand, its magazine out and in again.
 #   9. The ammo button: front, behind, side at cone 50, behind at 180; 20 approaches from the front (95% pressed) and 20
 #      from behind (none).
+#  11. The night notes of 10-07/08: the super nailgun's well flush, the super shotgun's firing animation's speed, a held
+#      prop hitting its barrels, spent lava nail magazines smoking, spent magazines not pouched, spent enemy guns' smoke and
+#      crackle, the pouch's shells.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
