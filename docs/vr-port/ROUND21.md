@@ -29500,3 +29500,32 @@ MSAA). Cost: one clamp. Foveation still pays: e1m1 start, 2016 px eyes, GPU eyes
 In VR:
 - [ ] Foveated rendering on, hold the super nailgun and look past it (and at a pentagram of protection) with the corner
   of your eye: no white lines on its edges.
+
+## Release script (2026-10-07)
+
+Vittorio asked for one script that prepares and publishes a release, with no branch name in it (`vr-ironwail` will
+become the main branch). `Misc/release/make_release.ps1 -Version x.y.z [-DryRun | -Publish]` (and `make_release.sh`
+for Git Bash); the steps for him are in [RELEASING.md](RELEASING.md). It reuses what was there:
+`package-quakevr.ps1` (new `-Dist`, `-NoZip`, `-Version`), `Misc/quakevr/make_release.py` (the zip and latest.json)
+and the installer's tests. New on the way:
+
+- The version is stamped for the build only: `/p:QvrReleaseVersion` (quakevr.props) makes the engine say
+  `1.0.0 (2026-10-07 afd53921)`; the manifest and latest.json carry the same text; the installer gets `/p:Version`.
+  Nothing is committed; the annotated tag records it.
+- The installer's single-file publish failed (IL3000, warnings as errors) on the `Assembly.Location` test in
+  `MainViewModel.OwnSetupFiles`, which is exactly the "am I a single file?" test: suppressed there with a comment.
+  The publish also needs `IncludeNativeLibrariesForSelfExtract` (WPF's native DLLs inside): one 59 MB exe.
+- `qvr-setup feed --file latest.json --assets <folder>`: the feed parsed as the installer parses it, each file's size
+  and SHA-256 checked (exit 1 on a mismatch).
+- Checks run on the artifacts themselves: the zip against `package-quakevr.ps1 -DryRun`'s allowlist and for id's
+  files; the packaged `QuakeVR-Setup.exe` installs the zip with its off-screen harness, offline, into the output
+  folder, and `qvr-setup verify` checks it; the packaged `ironwail.exe` (from the zip, with linked id paks) loads
+  `start` with the mock headset and names the build in `version`.
+- Tested without publishing (version 0.9.0, nothing tagged): the full local run passes; `-Publish` is refused by the
+  preconditions (no upstream, no ericw-tools source zip); a temporary upstream showed the "not pushed" and "tag on
+  another commit" (local v0.8.2, origin's v0.0.8) checks.
+
+Open: the tags v0.8.0 to v0.8.2 exist only in the local repository (not on GitHub), so the generated notes run from
+v0.8.2 (about 1900 commits, capped at 150): write the first release's notes by hand (`-Notes`). The newest GitHub
+release is the HQ texture pack (`textures-2026-10-03`); a game release published as latest takes over
+`releases/latest/download/latest.json`, which is what the installer wants.

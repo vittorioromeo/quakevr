@@ -42,8 +42,10 @@ src\QuakeVR.Installer\bin\Debug\net9.0-windows\QuakeVR-Setup.exe
 ```
 
 `global.json` pins the SDK to 9.0.305 (or a newer 9.0 feature band). A release build for players:
-`dotnet publish src/QuakeVR.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true` (phase 2:
-one unsigned `QuakeVR-Setup.exe`; see INSTALLER.md, "Hosting and SmartScreen").
+`dotnet publish src/QuakeVR.Installer -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+-p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true` (one unsigned `QuakeVR-Setup.exe`,
+about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and SmartScreen").
+`Misc\release\make_release.ps1` does this for a release ([RELEASING.md](../docs/vr-port/RELEASING.md)).
 
 ### Command line (the window)
 
@@ -116,4 +118,5 @@ files do not match (`--unverified` on the console accepts one without a manifest
 `python Misc/quakevr/make_release.py --package dist/QuakeVR --setup <QuakeVR-Setup.exe> [--textures <zip>] [--asset <file>]`
 makes a release from a package: the zip, the assets, `latest.json` in the format `ReleaseFeed` reads, and `PUBLISH.txt`
 with the `gh release create` command and the upload to vittorioromeo.com (it publishes nothing). The steps are in
-docs/vr-port/INSTALLER.md, "Publishing a release".
+docs/vr-port/INSTALLER.md, "Publishing a release". `Misc\release\make_release.ps1` runs it as part of a whole release
+(docs/vr-port/RELEASING.md), and checks its `latest.json` with `qvr-setup feed --file latest.json --assets <folder>`.

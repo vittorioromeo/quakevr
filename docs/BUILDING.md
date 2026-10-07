@@ -104,6 +104,10 @@ way round, can break level changes and saves, so rebuild both together.
 
 ## Building the release package
 
+A whole release (this package, the installer, the checks, `latest.json`, the tag and the GitHub release) is
+`Misc\release\make_release.ps1`: [vr-port/RELEASING.md](vr-port/RELEASING.md). `-Dist <folder>`, `-NoZip` and `-Version <text>`
+below are what it uses.
+
 ```
 powershell -ExecutionPolicy Bypass -File Windows\package-quakevr.ps1 [-Build] [-Fteqcc C:\path\to\fteqcc64.exe]
 ```

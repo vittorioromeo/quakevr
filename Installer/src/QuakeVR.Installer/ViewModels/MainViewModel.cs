@@ -385,8 +385,11 @@ public sealed class MainViewModel : ObservableObject
         o.RegistryFile is { } f ? new JsonFileRegistry(f) : o.Screenshots is null && o.ShortcutsDir is null ? new WindowsRegistryWriter() : null;
 
     /// <summary>This Setup's own files, for its copy in the install (SetupCopy).</summary>
+    // IL3000 (the single-file publish's analyser): an empty Location is exactly the test here, "am I a single file?".
+#pragma warning disable IL3000
     public static IReadOnlyList<(string Source, string Relative)> OwnSetupFiles() =>
         Environment.ProcessPath is { } exe ? SetupCopy.FilesOf(exe, string.IsNullOrEmpty(typeof(MainViewModel).Assembly.Location)) : [];
+#pragma warning restore IL3000
 
     /// <summary>Started as Apps &amp; Features' Uninstall (--uninstall): the Remove dialogs at once; the window closes
     /// when the install is gone (cancelled: it stays, for an update).</summary>

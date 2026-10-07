@@ -139,6 +139,8 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <QvrVersion Condition="'$(QvrGitExit)'=='0'">$(QvrGitCommit)</QvrVersion>
       <QvrVersion Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">$(QvrGitCommit)-dirty</QvrVersion>
       <QvrVersion Condition="'$(QvrGitExit)'!='0'">unknown build</QvrVersion>
+      <!-- A release (Misc/release/make_release.ps1, /p:QvrReleaseVersion=1.2.3): "1.2.3 (2026-10-07 afd53921)". -->
+      <QvrVersion Condition="'$(QvrReleaseVersion)'!=''">$(QvrReleaseVersion) ($(QvrVersion))</QvrVersion>
     </PropertyGroup>
     <MakeDir Directories="$(IntDir)" />
     <WriteLinesToFile File="$(IntDir)qvr_buildver.h" Lines="#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;" Overwrite="true" WriteOnlyWhenDifferent="true" />

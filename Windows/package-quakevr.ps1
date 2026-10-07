@@ -4,10 +4,14 @@
 # dist\QuakeVR into a Quake folder (the one with id1) and run QuakeVR.bat.
 #
 #   Windows\package-quakevr.ps1 [-Build] [-Fteqcc <path to fteqcc64.exe>] [-DryRun] [-Root <checkout>]
+#                                [-Dist <folder>] [-NoZip] [-Version <text>]
 #
 # -Build builds ironwail.sln (Release|x64) first; FTEQCC (or -Fteqcc, or fteqcc64 on PATH)
 # compiles QC\progs.src. -DryRun builds, compiles, copies and writes nothing: it prints the
 # package's file list, one path per line. -Root packages (or lists) another checkout.
+# -Dist writes the package folder there instead of dist\QuakeVR (the zip beside it, as <Dist>.zip), -NoZip skips
+# the zip, and -Version is manifest.json's version (default: the build's own, write-package-manifest.ps1):
+# Misc\release\make_release.ps1 uses all three.
 #
 # The game folder is an allowlist: the files git tracks under quakevr\ (less the development
 # data in $devOnly) plus the build outputs in $generated. Nothing untracked ever ships: custom
@@ -18,13 +22,16 @@ param(
     [switch]$Build,
     [string]$Fteqcc = $env:FTEQCC,
     [switch]$DryRun,
-    [string]$Root = ""
+    [string]$Root = "",
+    [string]$Dist = "",
+    [switch]$NoZip,
+    [string]$Version = ""
 )
 
 $ErrorActionPreference = "Stop"
 $root = if ($Root) { (Resolve-Path $Root).Path } else { Split-Path -Parent $PSScriptRoot }
 $bin = Join-Path $root "Windows\VisualStudio\Build-ironwail\bin\x64\Release"
-$dist = Join-Path $root "dist\QuakeVR"
+$dist = if ($Dist) { [System.IO.Path]::GetFullPath($Dist) } else { Join-Path $root "dist\QuakeVR" }
 
 if ($Build -and -not $DryRun) {
     $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -162,9 +169,10 @@ ericw-tools. The steps are in docs/RELIGHTING.md in the Quake VR repository.
 "@
 
 # Every file's size and SHA-256, for the installer (Installer/; it refuses a package whose files do not match).
-& (Join-Path $PSScriptRoot "write-package-manifest.ps1") -Dir $dist
+& (Join-Path $PSScriptRoot "write-package-manifest.ps1") -Dir $dist -Version $Version
 
-$zip = Join-Path $root "dist\QuakeVR.zip"
+if ($NoZip) { "Packaged $dist"; return }
+$zip = "$dist.zip"
 if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path (Join-Path $dist "*") -DestinationPath $zip
 "Packaged $dist and $zip"

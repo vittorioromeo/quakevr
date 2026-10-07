@@ -268,7 +268,8 @@ QuakeC too (`quakevr\progs.dat`), with FTEQCC from `-p:QvrQcCompiler=<path to ft
 `Windows\package-quakevr.ps1 -Fteqcc <path to fteqcc64.exe>` puts the package in `dist\QuakeVR` and
 `dist\QuakeVR.zip`. [docs/BUILDING.md](docs/BUILDING.md) has the details. VR needs Windows x64.
 The other platforms build with a mock headset only, for development. A Windows installer (C#, WPF) is in development
-in [Installer/](Installer/README.md).
+in [Installer/](Installer/README.md). A release (both built in Release, checked, packaged, tagged and put on GitHub) is
+one command, `Misc\release\make_release.ps1 -Version x.y.z [-Publish]`: [docs/vr-port/RELEASING.md](docs/vr-port/RELEASING.md).
 
 ## Credits and licence
 

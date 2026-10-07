@@ -19,6 +19,7 @@ const string Usage = """
     qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--file <vc_redist.x64.exe>] [--assume-missing]] [--downloads <dir>]
     qvr-setup download --url <url> [--url <mirror>...] --out <file> [--size <bytes>] [--sha256 <hex>]
     qvr-setup feed --url <latest.json url>
+    qvr-setup feed --file <latest.json> [--assets <folder with its files>]   (exit 1 when a file's size or SHA-256 differs)
     qvr-setup assets --game <id1 folder> [--map <maps/x.bsp>] [--prefix <path prefix>]
     """;
 
@@ -188,9 +189,37 @@ try
         }
         case "feed":
         {
-            using var http = Downloader.CreateClient();
-            var feed = await ReleaseFeed.FetchAsync(http, (options.TryGetValue("url", out var urls) ? urls : []).Select(u => new Uri(u)), CancellationToken.None);
+            ReleaseFeed feed;
+            if (Opt("file") is { } feedFile)
+            {
+                // A latest.json on disk (Misc/release/make_release.ps1 checks the one it made), parsed as a download is.
+                feed = ReleaseFeed.Parse(File.ReadAllText(feedFile));
+            }
+            else
+            {
+                using var http = Downloader.CreateClient();
+                feed = await ReleaseFeed.FetchAsync(http, (options.TryGetValue("url", out var urls) ? urls : []).Select(u => new Uri(u)), CancellationToken.None);
+            }
             Console.WriteLine($"version {feed.Version}; package {feed.Package?.File} {PathUtil.FormatSize(feed.Package?.Size ?? 0)}; components: {string.Join(", ", feed.Components.Keys)}");
+            if (Opt("assets") is { } assetsDir)
+            {
+                // Each file the feed names, beside it: the size and SHA-256 the installer will check after downloading.
+                var bad = 0;
+                foreach (var (what, f) in feed.Components.Select(c => (c.Key, (FeedFile?)c.Value)).Prepend(("package", feed.Package)))
+                {
+                    if (f is null)
+                    {
+                        Console.WriteLine($"{what}: missing from the feed");
+                        ++bad;
+                        continue;
+                    }
+                    var path = Path.Combine(assetsDir, f.File);
+                    var ok = File.Exists(path) && new FileInfo(path).Length == f.Size && string.Equals(PackageManifest.HashFile(path), f.Sha256, StringComparison.OrdinalIgnoreCase);
+                    Console.WriteLine($"{what}: {f.File} {(ok ? "matches" : "DOES NOT MATCH")} ({f.Urls.Count} url(s), first {f.Urls[0]})");
+                    bad += ok ? 0 : 1;
+                }
+                return bad == 0 ? 0 : 1;
+            }
             return 0;
         }
         case "assets":

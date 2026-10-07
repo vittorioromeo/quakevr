@@ -320,6 +320,9 @@ installer and the update check try one, then the other). There is **no code-sign
 
 ### Publishing a release (what Vittorio does)
 
+`Misc\release\make_release.ps1 -Version x.y.z [-Publish]` now does steps 1 to 3 below (and the checks) in one go:
+[RELEASING.md](RELEASING.md). The steps stay here as what it does.
+
 The installer already reads the final addresses (`InstallerSettings` in `Installer/src/QuakeVR.Installer.Core/Packaging/ReleaseFeed.cs`, the
 defaults when no `installer-settings.json` sits beside the exe; one there overrides them, for tests or a move):
 
