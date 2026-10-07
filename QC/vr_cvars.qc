@@ -247,6 +247,7 @@ float cvarh_vr_throw_heavy_from;
 float cvarh_vr_throw_heavy_exp;
 float cvarh_vr_throw_heavy_max;
 float cvarh_vr_carry_slam;
+float cvarh_vr_carry_throw_inherit;
 float cvarh_vr_carry_slam_height;
 float cvarh_vr_carry_slam_speed;
 float cvarh_vr_carry_slam_window;
@@ -923,6 +924,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_throw_heavy_exp);
     VR_CVAR_HMAKE(vr_throw_heavy_max);
     VR_CVAR_HMAKE(vr_carry_slam);
+    VR_CVAR_HMAKE(vr_carry_throw_inherit);
     VR_CVAR_HMAKE(vr_carry_slam_height);
     VR_CVAR_HMAKE(vr_carry_slam_speed);
     VR_CVAR_HMAKE(vr_carry_slam_window);

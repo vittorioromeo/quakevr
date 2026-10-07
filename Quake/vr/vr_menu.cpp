@@ -2982,6 +2982,9 @@ void hologramTestMessage()
         slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("How hard a touch knocks a thing loose, or pushes what the hands' and weapons' bodies don't (both off)."),
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
+        slider("Throws Keep Your Motion", vr_carry_throw_inherit, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of your own velocity a thing you throw takes with it, as a thrown weapon does (1: all: a brick "
+                  "thrown running forward flies further, running back shorter). 0: none (as before)."),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").extend().help("Punching with a box in hand."),
         slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a box thrown at about 6 m/s; more the faster."),
         slider("Heavy Throws From", vr_throw_heavy_from, 0.f, 40.f, 1.f, "%.0f kg").extend(0.f, 200.f)

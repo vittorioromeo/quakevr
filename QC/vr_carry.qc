@@ -863,6 +863,15 @@ void(float xHand, entity xBox) VR_Carry_Release =
     VR_Carry_Loose(xBox);
     xBox.vr_spin = VR_Throw_Spin(VRThrowSpinCapped(VRGetHandAVel(xHand)), propvalue(xBox, "mass"), hands);
     VR_Carry_Throw(xBox, v);
+    // It goes on with the player's own motion, as a thrown weapon does (MakeThrown; NOTES.md
+    // vrfiringrange_2026-10-07_23-51-46: a brick thrown running forward fell short), vr_carry_throw_inherit of it. (Its
+    // throw, a missile or not, is judged on the hand's speed alone: VR_Carry_Throw.)
+    xBox.velocity = xBox.velocity + self.velocity * max(0, cvar_hget(cvarh_vr_carry_throw_inherit));
+    if(self.velocity != '0 0 0')
+    {
+        dprint(sprintf("carry: with your motion (%.0f u/s): %v (%.0f u/s)\n", vlen(self.velocity), xBox.velocity,
+            vlen(xBox.velocity)));
+    }
     if(hands == 2)
     {
         VR_Throw_TwoHanded(self, xBox);
