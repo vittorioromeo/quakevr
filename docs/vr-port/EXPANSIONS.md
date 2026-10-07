@@ -928,3 +928,15 @@ Machine: Bloody Nightmare" only once it was found in a game (`vr_mg3_bn_discover
 Endings: `MG3_BossEnding` (Chthon: finale then credits, or Bloody Nightmare's new game on map1) and `MG3_ShubEnding`
 (Shub: final text then credits), for the finale monsters to call; the native completion and the credits menu
 ("Dawn of the Machine") cover campaign 5. Tests 21-22.
+## Dawn of the Machine weapons (mg3c, 2026-10-07)
+
+Phase C of [MG3_PLAN.md](MG3_PLAN.md). **Owned files read in place:** `owned/<folder>/<path>` names a file of a
+discovered Dopa/MG1/MG3 folder (loose, else its highest pak), whatever campaign is active, without mounting it
+(`vr_gamedir.cpp` `VR_OwnedFile`, first in `COM_FindFile`; nothing copied or written). It is how an expansion's own
+assets reach other campaigns (the agglomeration principle) and how a pack file shadowed by Quake VR's own is still
+reached (MG3's `progs/v_hammer.mdl` under Quake VR's Mjolnir). **Super Axe** (M3-11): `WID_SUPERAXE` 18, a weapon of
+its own beside Hipnotic's Mjolnir; MG3 maps' `weapon_mjolnir` spawns it in campaign 5 only; held as the axe (its arm
+removed and the model laid as the axe's at load time, weapon settings slots 24/25, `vr_wofs_version` 36); official
+40 damage, zombie x3, finishing x2, second-hit lightning burst (15 cells) within `vr_superaxe_burst_window` (1.5 s);
+map2's silent-teleport secret pickup. Tests: Debug > Tests > Dawn of the Machine Weapons (`vr_mg3_wtest`).
+Measurements: ROUND21.md, "Dawn of the Machine (MG3): weapons".

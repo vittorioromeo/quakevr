@@ -603,7 +603,8 @@ ankerl::unordered_dense::map<const qmodel_t*, int> clipSizes;
     static constexpr za::Pair<const char*, int> ammo[] = {{"progs/v_shot.mdl", STAT_SHELLS},
         {"progs/v_shot2.mdl", STAT_SHELLS}, {"progs/v_nail.mdl", STAT_NAILS}, {"progs/v_nail2.mdl", STAT_NAILS},
         {"progs/v_rock.mdl", STAT_ROCKETS}, {"progs/v_rock2.mdl", STAT_ROCKETS}, {"progs/v_prox.mdl", STAT_ROCKETS},
-        {"progs/v_light.mdl", STAT_CELLS}, {"progs/v_laserg.mdl", STAT_CELLS}, {"progs/v_hammer.mdl", STAT_CELLS}};
+        {"progs/v_light.mdl", STAT_CELLS}, {"progs/v_laserg.mdl", STAT_CELLS}, {"progs/v_hammer.mdl", STAT_CELLS},
+        {"owned/mg3/progs/v_hammer.mdl", STAT_CELLS}, {"owned/mg3/progs/v_hammer_glow.mdl", STAT_CELLS}}; // (the Super Axe's burst)
     for(const auto& [name, stat] : ammo)
     {
         if(model && !strcmp(model->name, name))

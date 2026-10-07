@@ -28022,3 +28022,75 @@ swims. The ground reads as gently faceted; things are placed from the same `heig
 **To try in VR**: the whole walk at night (is it bright enough? `_sunlight`, the torches' `light` in the script's
 `TORCH`); reading the boards and the lecterns; the ladder; the dive; swimming out to the islets and the crystals;
 the cliffs from the water. `vr_hub_map vrstart2` to make it the hub.
+## Dawn of the Machine (MG3): weapons (2026-10-07)
+
+Phase C of [MG3_PLAN.md](MG3_PLAN.md) (M3-11..14), by Vittorio's decisions of 2026-10-06 and the agglomeration
+principle (an expansion's weapons usable in any campaign when its data is there). MG3 stays gated (`nativeReady` false).
+
+### M3-11 The Super Axe
+
+**A weapon of its own.** MG3's `weapon_mjolnir` is not Hipnotic's hammer but a great axe ("Super Axe"). It is now
+`WID_SUPERAXE` 18 (`IID_SUPERAXE` 48, `HIP_IT_SUPERAXE` bit 10), beside Mjolnir (`WID_MJOLNIR`, unchanged):
+`weapon_superaxe` (FGD), `impulse 168`/`188` (a hand), `QC/vr_mg3_weapons.qc`. An MG3 map's `weapon_mjolnir` spawns as
+a Super Axe in campaign 5 only (`hip_items.qc`); Hipnotic's maps keep Mjolnir.
+
+**MG3's model in any campaign.** The engine reads a file of an owned expansion's folder in place, unmounted:
+`owned/<folder>/<path>` (`vr_gamedir.cpp` `VR_OwnedFile`, hooked first in `COM_FindFile`: the discovered Dopa/MG1/MG3
+root, a loose file or the highest pak that has it; any thread; nothing copied or written; `-1` "not there" for such a
+name skips the search path). MG3's own `progs/v_hammer.mdl` is shadowed by Quake VR's (its Mjolnir) even in campaign
+5, so the Super Axe is always `owned/mg3/progs/v_hammer.mdl` (and `_glow`, and `g_hammer.mdl` for the classic
+pickup); `vr_have_superaxe` (`vr_packutil.qc`) says whether it is there, and `VR_Pack_WeaponAvailable(WID_SUPERAXE)`
+removes its pickups and turns a held one into an axe without it (a save from another install). Model traits of an
+owned path are its pack path's (`vr_modelmetadata.cpp` `packPathOf`: a view weapon...), its identity its own
+(`Mg3SuperAxe`, `Mg3SuperAxeGlow`).
+
+**The arm taken off, laid as the axe.** The model is a view model with the arm holding it (795 vertices: the axe 527,
+the arm 268). As it loads (`vr_monstermods.cpp` `superAxePoses`, by its vertex and triangle counts only): every piece
+but the largest (joined where vertices coincide) collapsed onto one handle vertex; every pose the first (the other
+frames swing it across the view); turned and moved so its handle's end and line are the axe's and its blade faces the
+axe's way; requantized, normals turned. Numbers: `Misc/quakevr/fit_superaxe.py` (reads the owned pak, prints):
+rotation, move, scale_origin `-3.578 -2.931 -4.576`, head 27 to 49 units up the handle (the axe's 25 to 37), muzzle
+at its middle.
+
+**Held as the axe.** Weapon settings slot 24 (`vr_wofs_*_25`) is the axe's, Offset moved by 0.66 x the scale_origins'
+difference and the hotspots by the opposite; muzzle anchor 757 (strip order: vertex 745, `vr_anchor_nearest`) and
+offset `-0.071 0.21 -0.82` (the handle's line at the head's middle); Mass 3.5, Balance 24, Span 75 (the axe's 2.5, 20,
+60). Slot 25 is the glow model, `InheritFrom 25` (its anchors repeated: they never inherit). `vr_wofs_version` 36
+resets both (they were unused placeholders). Melee: `VR_MTHING_AXE` (the head an edge; it beheads as the axe;
+blades' small gibs; a thrown one is a blade too), sounds MG3's (`hipweap/mjolslap`, `mjoltink`), envmap shine as
+Mjolnir's, cells counter as Mjolnir's, no sights.
+
+**Official behaviour.** A blow 40 (`vr_dmg_superaxe`, Combat > Weapon Damage > Dawn of the Machine > Super Axe: twice
+the axe's 20, as in MG3), x3 on a zombie, x2 when it kills (it gibs). A second blow on the same monster within
+`vr_superaxe_burst_window` (1.5 s; MG3's 0.5 s is a key-press rhythm) fires Mjolnir's lightning burst from where it
+struck (15 cells, above water only: MG3 never discharges it; `vr_dmg_mjolnir_lightning` 80, then 3/8) instead of the
+blow's damage; another monster in between, a wall or the air ends the chain. The head glows while the burst is ready
+(MG3's `v_hammer_glow.mdl`, 15 cells or more; `VR_MG3_Weapons_Frame` puts it out). The pickup with spawnflag 128 drops
+its taker by `height` (-2048) as MG3's `touch_teleport_silent`, carrying what the hands hold (`VR_Carry_Teleported`).
+
+**Tests** (`vr_mg3_wtest`, Debug > Tests > Dawn of the Machine Weapons; developer 1).
+- e1m1 (id1 campaign, MG3 data owned): `vr_mg3_wtest 2` (two ogres and a zombie; it sets Weapon Grip Mode 1 meanwhile)
+  **19/0**: first blow 40, glow, window 1.5; second within it: burst, 50 -> 35 cells, no direct damage, glow out; the
+  ogre 160 -> -1 by the lightning; after the window a first blow again; another monster ends the chain; under water
+  no burst; 10 cells: no glow, no burst; zombie 120; a killing blow 80.
+- `vr_mg3_wtest 3` (pickup ahead, grip held: `+grabright; vr_mock_button main grip 1`) **5/0**: into the main hand,
+  gone, spawnflag 128 drop (-15 for height -16), target fired.
+- MG3 map2 (`vr_campaign_native mg3; map map2`) `vr_mg3_wtest 4` **5/0**: no `weapon_mjolnir` left; the Super Axe has
+  spawnflag 128, height -2048, target `axe_secret`; taken: dropped 2047 units, secrets 0 -> 1 ("You found a secret
+  weapon!").
+- Real swings (`motion_synth.py slash_horizontal_rtl --weapon superaxe --distance 0.85`, then `slash_overhead`, played
+  in vrfiringrange, window 10): "Dummy: 35.5 damage - melee: Super Axe, chop (horizontal) with the head" (decap
+  candidate), then the burst: lightning 80, 30, 80... on the dummy, 200 -> 185 cells.
+- Changelevel e1m1 -> e1m2 and save/load: the Super Axe in the main hand and holster 0 (`vr_mg3_wtest 5`) kept (18,
+  model `owned/mg3/progs/v_hammer.mdl`). Hipnotic hip1m1: Mjolnir (main) and the Super Axe (off) held together;
+  `weapon_mjolnir` there is Mjolnir. `eval.sh`: no current takes (skipped).
+- Images (kit scratch): `superaxe_hand.png`, `axe_vs_superaxe.png` (the same grip as the axe, the head further up).
+
+**In the headset.**
+- [ ] Debug > Tests > Dawn of the Machine Weapons > A Super Axe in Your Hand: the fist on the handle where it holds the
+      axe, the blade the axe's way; tune Weapon Offsets (slot 25 in the cvars) if it sits off.
+- [ ] Two swings on a monster within 1.5 s: the head glows after the first, the lightning on the second (15 cells).
+      Tune Super Axe Burst Window if two real swings feel too slow or too easy.
+- [ ] Holster it on the hip and the chest (the axe's holstered poses).
+- [ ] MG3 map2: the secret axe drops you into the room below, as in Dawn of the Machine.
+

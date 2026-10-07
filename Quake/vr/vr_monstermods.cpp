@@ -12,6 +12,8 @@
 // "bdeath*") by its known vertices; id's ogre (or another) is left alone. So are the grunts' shotguns and the
 // enforcers' laser rifles (QC vr_enemyguns.qc: v_gruntgun.mdl and v_enfrifle.mdl, made by
 // Misc/quakevr/make_enemyguns.py): Quake VR's soldier's and enforcer's guns, by their known vertices.
+//
+// Dawn of the Machine's Super Axe loses the first-person arm its model holds it with (superAxePoses).
 
 #include "vr_modelmetadata.hpp"
 #include "vr_engine.hpp"
@@ -213,6 +215,164 @@ const KnownSword knownSwords[] = {
     return "sword";
 }
 
+// Dawn of the Machine's Super Axe (owned/mg3/progs/v_hammer.mdl and its glowing twin, read from the owned MG3 pack in
+// place: vr_gamedir.cpp VR_OwnedFile; QC vr_mg3_weapons.qc): a first-person model with the arm that holds it. Quake VR's
+// hand holds it instead. The arm (every piece of the mesh but the axe, the largest; pieces joined where their vertices
+// coincide: the seams' copies) is collapsed onto one point of the handle; every pose is the first (the swing's other
+// frames move the axe across the view: the hand moves it here); and the axe is turned and moved to lie as Quake VR's axe
+// lies (its handle's end and line on the axe's, its blade the same way; Misc/quakevr/fit_superaxe.py measures it), so the
+// axe's weapon settings, moved by the new scale_origin, hold it (slot 24: vr_weapons.inc). Only the release measured
+// (795 vertices, 1242 triangles); another is left as it is (held as drawn in the view, its arm too).
+void superAxePoses(const char* name, aliashdr_t* hdr, const dtriangle_t* tris, trivertx_t** poses)
+{
+    constexpr int knownVerts = 795, knownTris = 1242;
+    if(hdr->numverts != knownVerts || hdr->numtris != knownTris || hdr->numposes < 1)
+    {
+        Con_DPrintf("VR: %s: not the Super Axe measured (%d vertices, %d triangles): left as it is\n", name, hdr->numverts,
+            hdr->numtris);
+        return;
+    }
+    // fit_superaxe.py: the model's point p lies at R p + t (R a rotation, rows below).
+    constexpr float rot[3][3] = {{0.82941f, 0.44756f, -0.33432f}, {-0.46879f, 0.8831f, 0.01921f}, {0.30383f, 0.14079f, 0.94226f}};
+    constexpr float move[3] = {-18.621f, 20.0023f, 30.9663f};
+
+    const int n = hdr->numverts;
+    const trivertx_t* first = poses[0];
+    za::Vector<int> parent(n);
+    za::iota(parent.begin(), parent.end(), 0);
+    const auto find = [&](int a) {
+        while(parent[a] != a)
+        {
+            parent[a] = parent[parent[a]];
+            a = parent[a];
+        }
+        return a;
+    };
+    for(int i = 0; i < hdr->numtris; i++)
+    {
+        parent[find(tris[i].vertindex[0])] = find(tris[i].vertindex[1]);
+        parent[find(tris[i].vertindex[1])] = find(tris[i].vertindex[2]);
+    }
+    for(int a = 0; a < n; a++)
+    {
+        for(int b = a + 1; b < n; b++)
+        {
+            if(first[a].v[0] == first[b].v[0] && first[a].v[1] == first[b].v[1] && first[a].v[2] == first[b].v[2])
+            {
+                parent[find(a)] = find(b);
+            }
+        }
+    }
+    za::Vector<int> count(n, 0);
+    for(int v = 0; v < n; v++)
+    {
+        count[find(v)]++;
+    }
+    const int axe = static_cast<int>(za::maxElement(count.begin(), count.end()) - count.begin());
+
+    // Each vertex where it lies now (model units), the arm's on the axe's vertex nearest the arm's middle.
+    za::Vector<glm::vec3> at(n);
+    glm::vec3 armMiddle{0.f};
+    int armCount = 0;
+    for(int v = 0; v < n; v++)
+    {
+        const glm::vec3 p{first[v].v[0] * hdr->scale[0] + hdr->scale_origin[0], first[v].v[1] * hdr->scale[1] + hdr->scale_origin[1],
+            first[v].v[2] * hdr->scale[2] + hdr->scale_origin[2]};
+        for(int k = 0; k < 3; k++)
+        {
+            at[v][k] = rot[k][0] * p.x + rot[k][1] * p.y + rot[k][2] * p.z + move[k];
+        }
+        if(find(v) != axe)
+        {
+            armMiddle += at[v];
+            armCount++;
+        }
+    }
+    if(armCount > 0)
+    {
+        armMiddle /= static_cast<float>(armCount);
+        int onto = -1;
+        float best = 1e9f;
+        for(int v = 0; v < n; v++)
+        {
+            const float d = glm::length(at[v] - armMiddle);
+            if(find(v) == axe && d < best)
+            {
+                best = d;
+                onto = v;
+            }
+        }
+        for(int v = 0; v < n && onto >= 0; v++)
+        {
+            if(find(v) != axe)
+            {
+                at[v] = at[onto];
+            }
+        }
+    }
+
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    float radius = 0.f;
+    for(const glm::vec3& p : at)
+    {
+        lo = glm::min(lo, p);
+        hi = glm::max(hi, p);
+        radius = za::max(radius, glm::length(p));
+    }
+    const glm::vec3 scale = glm::max((hi - lo) / 255.f, glm::vec3{1e-4f});
+
+    // The normals turned with it (the nearest of Quake's 162).
+    za::Vector<trivertx_t> pose(n);
+    for(int v = 0; v < n; v++)
+    {
+        const float* o = r_avertexnormals[za::min<int>(first[v].lightnormalindex, NUMVERTEXNORMALS - 1)];
+        glm::vec3 turned;
+        for(int k = 0; k < 3; k++)
+        {
+            turned[k] = rot[k][0] * o[0] + rot[k][1] * o[1] + rot[k][2] * o[2];
+        }
+        int normal = 0;
+        float dot = -2.f;
+        for(int i = 0; i < NUMVERTEXNORMALS; i++)
+        {
+            const float d = turned.x * r_avertexnormals[i][0] + turned.y * r_avertexnormals[i][1] + turned.z * r_avertexnormals[i][2];
+            if(d > dot)
+            {
+                dot = d;
+                normal = i;
+            }
+        }
+        for(int k = 0; k < 3; k++)
+        {
+            pose[v].v[k] = static_cast<byte>(za::min(255.f, za::max(0.f, (at[v][k] - lo[k]) / scale[k] + 0.5f)));
+        }
+        pose[v].lightnormalindex = static_cast<byte>(normal);
+    }
+    for(int p = 0; p < hdr->numposes; p++)
+    {
+        memcpy(poses[p], pose.data(), sizeof(trivertx_t) * static_cast<size_t>(n));
+    }
+    trivertx_t boxLo{}, boxHi{};
+    for(int k = 0; k < 3; k++)
+    {
+        boxLo.v[k] = 0;
+        boxHi.v[k] = 255;
+    }
+    for(int f = 0; f < hdr->numframes; f++)
+    {
+        hdr->frames[f].bboxmin = boxLo;
+        hdr->frames[f].bboxmax = boxHi;
+    }
+    for(int k = 0; k < 3; k++)
+    {
+        hdr->scale[k] = scale[k];
+        hdr->scale_origin[k] = lo[k];
+    }
+    hdr->boundingradius = radius;
+    Con_DPrintf("VR: %s: the arm (%d vertices) taken away, laid as the axe (scale_origin %.3f %.3f %.3f)\n", name, armCount,
+        lo.x, lo.y, lo.z);
+}
+
 } // namespace
 
 static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* stverts, const dtriangle_t* tris,
@@ -233,6 +393,11 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
 {
     aliashdr_t* hdr = static_cast<aliashdr_t*>(aliashdr);
     const auto id = qvr::modelmeta::identifyPath(name);
+    if(id == qvr::modelmeta::Id::Mg3SuperAxe || id == qvr::modelmeta::Id::Mg3SuperAxeGlow)
+    {
+        superAxePoses(name, hdr, tris, poses);
+        return;
+    }
     const bool knight = id == qvr::modelmeta::Id::Knight;
     const bool hellKnight = id == qvr::modelmeta::Id::Hknight;
     // The ogre, the soldier and the enforcer: only Quake VR's own models (by their known vertices); the gremlin: Hipnotic's.

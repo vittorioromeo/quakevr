@@ -291,6 +291,7 @@ void() worldspawn =
     precache_model("progs/v_hksword.mdl");
     VR_Chainsaw_Precache(); // VR: the ogres' chainsaw (vr_chainsaw.qc)
     VR_Crowbar_Precache(); // VR: the crowbar (vr_crowbar.qc)
+    VR_MG3_Weapons_Precache(); // VR: Dawn of the Machine's weapons, when its data is there (vr_mg3_weapons.qc)
     VR_EnemyGuns_Precache(); // VR: the grunts' shotguns and the enforcers' laser rifles (vr_enemyguns.qc)
     VR_Debris_Precache(); // VR: rocks and bricks lying about (vr_debris.qc)
     VR_SmallGib_Precache(); // VR: small gibs' squishes (vr_smallgibs.qc)
@@ -555,6 +556,8 @@ void() StartFrame =
     MGH_TestFrame();
     MG3_Frame();
     MG3_TestFrame();
+    VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
+    MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     VR_Crates_Frame(); // VR: at a new map's first frame, its crates (vr_crates.qc; before the rocks and bricks: they keep clear)

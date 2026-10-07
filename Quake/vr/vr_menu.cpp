@@ -1044,6 +1044,14 @@ int campaignsBloodyShown = -1;
             .help("A rocket's direct hit, and up to a quarter more (60); its blast 1.25 times it."),
         slider("Plasma Gun", vr_dmg_plasma, 5.f, 300.f, 5.f, "%.0f").extend()
             .help("A ball's direct hit, and up to a quarter more (80); its blast 7/8 of it, its arcs 5/8."),
+        header("Dawn of the Machine"),
+        slider("Super Axe", vr_dmg_superaxe, 1.f, 150.f, 1.f, "%.0f").extend()
+            .help("A blow (40, twice the axe's), before its speed and weight; a zombie takes three times it, a blow that "
+                  "kills twice it (it gibs). Its lightning: Mjolnir's Lightning. Held when the Dawn of the Machine data is "
+                  "there (any campaign: Debug > Tests > Dawn of the Machine Weapons)."),
+        slider("Super Axe Burst Window", vr_superaxe_burst_window, 0.3f, 4.f, 0.1f, "%.1f s").extend(0.1f, 10.f)
+            .help("A second blow on the same monster within this long of the first fires the Super Axe's lightning burst "
+                  "(15 cells; the head glows while it is ready). Dawn of the Machine's own: 0.5 s, too quick for real swings."),
         header("Melee"),
         slider("Fist", vr_dmg_fist, 1.f, 60.f, 1.f, "%.0f").extend()
             .help("A punch (10), before its speed (twice Swing Speed: a full blow) and Melee's Punch Damage Mult."),
@@ -4985,6 +4993,33 @@ za::Vector<Item> pageMg3Tests()
     };
 }
 
+// Dawn of the Machine's weapons (MG3_PLAN.md M3-11..14): "mg3wtest:" lines with developer 1 (QC/vr_mg3_weapons_test.qc).
+// The Super Axe works in any campaign when the Dawn of the Machine data is there (its models are read from it in place).
+za::Vector<Item> pageMg3WeaponTests()
+{
+    return {
+        header("Dawn of the Machine Weapons"),
+        command("A Super Axe in Your Hand", "impulse 168")
+            .help("The Super Axe in the main hand (impulse 188: the off hand). Strike a monster twice within Super Axe Burst "
+                  "Window (Combat > Weapon Damage) for the lightning burst (15 cells; the head glows while it is ready)."),
+        command("A Super Axe Pickup Ahead", "vr_physics_spawn weapon_superaxe 64")
+            .help("A weapon_superaxe lying 64 units ahead, as a map places one."),
+        command("Weapons Report", "vr_mg3_wtest 1")
+            .help("The Dawn of the Machine data, your hands, holsters and cells, the Super Axe's burst chain (developer 1)."),
+        command("Super Axe Blows and Burst", "vr_mg3_wtest 2")
+            .help("Destructive: two ogres and a zombie ahead, struck by the Super Axe: first blow, burst, window, another "
+                  "monster, water, cells, zombie and killing blows checked over a few seconds."),
+        command("Super Axe Pickup", "vr_mg3_wtest 3")
+            .help("Destructive: a pickup ahead taken by the empty main hand: its target fired, its silent drop (16 units)."),
+        command("Map2's Super Axe", "vr_mg3_wtest 4")
+            .help("Destructive, Dawn of the Machine's map2: its weapon_mjolnir is a Super Axe; take it: the secret counted, "
+                  "dropped 2047 units below, as Dawn of the Machine does."),
+        command("Super Axe in Hand and Holster", "vr_mg3_wtest 5")
+            .help("Destructive: a Super Axe in the main hand and the first holster (then change level or save and load, "
+                  "and Weapons Report)."),
+    };
+}
+
 za::Vector<Item> pageDebugTests()
 {
     return {
@@ -5002,6 +5037,8 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
         open("Machine Horde Tests", pageIndex(pageMachineHordeTests))
             .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
+        open("Dawn of the Machine Weapons", pageIndex(pageMg3WeaponTests))
+            .help("The Super Axe (any campaign with the Dawn of the Machine data), the axe buttons, the laser cannon, the bloody shotguns."),
         open("Dawn of the Machine Tests", pageIndex(pageMg3Tests))
             .help("MG3 native port: state, saved upgrades and capacities. Developer campaign only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
@@ -6037,6 +6074,7 @@ const Page pages[] = {
     {"Ragdolls - Vore", pageRagdollVore, pageRagdolls, LevelDeveloper},
     {"Ragdolls - Centroid", pageRagdollCentroid, pageRagdolls, LevelDeveloper},
     {"Dawn of the Machine Tests", pageMg3Tests, pageDebugTests, LevelDeveloper},
+    {"Dawn of the Machine Weapons", pageMg3WeaponTests, pageDebugTests, LevelDeveloper},
     {"Debug - Cheats and Recording", pageDebugCheats, pageDebug, LevelDeveloper}, // (vr_menu_cheats.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));

@@ -398,7 +398,7 @@ float(entity p, float xHand) VR_Melee_Thing =
     {
         return VR_MTHING_CROWBAR;
     }
-    if(wid == WID_AXE || wid == WID_MJOLNIR)
+    if(wid == WID_AXE || wid == WID_MJOLNIR || wid == WID_SUPERAXE)
     {
         return VR_MTHING_AXE;
     }

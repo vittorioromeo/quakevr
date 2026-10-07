@@ -975,6 +975,7 @@ using namespace qvr;
         {modelmeta::Id::VLight, 0.9f, 2.5f},  {modelmeta::Id::VAxe, 0.9f, 2.f},   {modelmeta::Id::VKsword, 1.f, 1.5f},
         {modelmeta::Id::VHksword, 1.f, 1.5f}, {modelmeta::Id::VHammer, 0.8f, 2.5f},
         {modelmeta::Id::VCrowbar, 0.5f, 3.f}, // (painted: its worn steel shows at the edges and the ends)
+        {modelmeta::Id::Mg3SuperAxe, 0.8f, 2.5f}, {modelmeta::Id::Mg3SuperAxeGlow, 0.8f, 2.5f}, // (MG3's, as Mjolnir)
     };
     for(const Entry& e : table)
     {

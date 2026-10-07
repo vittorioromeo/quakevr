@@ -633,7 +633,7 @@ float(entity targ, entity xThing, entity by, float xDamage) VR_Limb_ThrownArm =
     }
     float quad = VR_Decap_QuadPops(by);
     if(xThing.classname == "thrown_weapon" && !quad &&
-       (xThing.weapon == WID_SWORD || xThing.weapon == WID_AXE || xThing.weapon == WID_CHAINSAW))
+       (xThing.weapon == WID_SWORD || xThing.weapon == WID_AXE || xThing.weapon == WID_CHAINSAW || xThing.weapon == WID_SUPERAXE))
     {
         return FALSE;
     }

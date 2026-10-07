@@ -36,6 +36,18 @@ using retro::Category;
     return f;
 }
 
+// An owned expansion's file read in place ("owned/mg3/progs/v_hammer.mdl": vr_gamedir.cpp VR_OwnedFile): the path it has
+// in its own pack ("progs/v_hammer.mdl"), whose traits it has (a view weapon, ...); its identity stays its full name.
+[[nodiscard]] const char* packPathOf(const char* name)
+{
+    if(!startsWith(name, "owned/"))
+    {
+        return name;
+    }
+    const char* slash = strchr(name + 6, '/');
+    return slash ? slash + 1 : name;
+}
+
 template <za::SizeT N>
 [[nodiscard]] bool anyPrefix(const char* f, const char* const (&prefixes)[N])
 {
@@ -336,6 +348,7 @@ ModelMetadata describePath(const char* name)
     ModelMetadata result = empty;
     if(!name) { return result; }
     result.id = identifyPath(name);
+    name = packPathOf(name);
     const char* file = fileOf(name);
     const size_t n = strlen(name);
     for(int i = 0; i < static_cast<int>(Trait::Count); i++)

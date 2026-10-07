@@ -162,6 +162,8 @@ float cvarh_vr_dmg_axe;
 float cvarh_vr_dmg_gun_bash;
 float cvarh_vr_dmg_chainsaw_swing;
 float cvarh_vr_dmg_mjolnir;
+float cvarh_vr_dmg_superaxe;
+float cvarh_vr_superaxe_burst_window;
 float cvarh_vr_chainsaw_damage;
 float cvarh_vr_chainsaw_fuel_use;
 float cvarh_vr_chainsaw_idle_fuel_use;
@@ -777,6 +779,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_dmg_gun_bash);
     VR_CVAR_HMAKE(vr_dmg_chainsaw_swing);
     VR_CVAR_HMAKE(vr_dmg_mjolnir);
+    VR_CVAR_HMAKE(vr_dmg_superaxe);
+    VR_CVAR_HMAKE(vr_superaxe_burst_window);
     VR_CVAR_HMAKE(vr_chainsaw_damage);
     VR_CVAR_HMAKE(vr_chainsaw_fuel_use);
     VR_CVAR_HMAKE(vr_chainsaw_idle_fuel_use);

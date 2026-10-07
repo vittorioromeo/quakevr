@@ -603,7 +603,7 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
         {
             return QVR_SGIB_BLUNT; // a pommel, a hilt, a butt (client.qc: the blow's part)
         }
-        if(w == WID_AXE || w == WID_SWORD)
+        if(w == WID_AXE || w == WID_SWORD || w == WID_SUPERAXE)
         {
             return QVR_SGIB_BLADES;
         }
@@ -642,7 +642,8 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
     }
     if(c == "thrown_weapon")
     {
-        return (inflictor.weapon == WID_AXE || inflictor.weapon == WID_SWORD || inflictor.weapon == WID_CHAINSAW) ?
+        return (inflictor.weapon == WID_AXE || inflictor.weapon == WID_SWORD || inflictor.weapon == WID_CHAINSAW ||
+                inflictor.weapon == WID_SUPERAXE) ?
             QVR_SGIB_BLADES : QVR_SGIB_PROPS;
     }
     if(inflictor.vr_gib || (inflictor.carry_use && !inflictor.vr_grenade) || inflictor.vr_deflect_time > 0)

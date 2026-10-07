@@ -274,7 +274,9 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
 
 - **M3-11 Super Axe.** MG3 Mjolnir branch on WID_MJOLNIR: damage/zombie/debounce/gibs, lightning burst (Q2), pickup
   silent teleport, MG3 model offset. Accept: scripted swing damage 40 (zombie rule), burst uses 15 cells, gib on
-  finishing hit; eval.sh canary unchanged. Dep: M3-01.
+  finishing hit; eval.sh canary unchanged. Dep: M3-01. **Built 2026-10-07** as a weapon of its own (decision 2:
+  `WID_SUPERAXE`, MG3's model read in place from the owned pack in any campaign; ROUND21.md, "Dawn of the Machine
+  (MG3): weapons").
 - **M3-12 Axe buttons.** `func_axe_button` with per-hand filter (Q1). Accept: map6 button opens on axe/Super Axe hand
   hit, not on a shotgun blast or a non-axe hand; map8 18 buttons all reachable by test. Dep: M3-11.
 - **M3-13 Laser cannon (MG3).** behaviour deltas vs Hipnotic, MG3-PAK model resolution, no Hipnotic install needed.

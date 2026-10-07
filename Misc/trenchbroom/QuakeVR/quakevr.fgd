@@ -544,6 +544,17 @@ weapons float at torso height (vr_item_float_height, 26 units above the floor): 
 [
 ]
 
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "owned/mg3/progs/g_hammer.mdl" }) =
+	weapon_superaxe : "Dawn of the Machine's Super Axe (Quake VR; needs the owned Dawn of the Machine data, else nothing spawns): a great axe, twice the axe's blow; a second blow on the same monster within Super Axe Burst Window fires a lightning burst (15 cells). SILENT_TELEPORT (128): taking it drops the taker straight down by 'height' (-2048 when unset), as MG3's map2.
+'target': fired when it is taken."
+[
+	spawnflags(flags) =
+	[
+		128 : "SILENT TELEPORT" : 0
+	]
+	height(float) : "Height" :  : "Units: see the help for this entity."
+]
+
 @PointClass base(Weapon) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": ":progs/g_nail2.mdl" }) =
 	weapon_supernailgun : "Super nailgun (Perforator)
 

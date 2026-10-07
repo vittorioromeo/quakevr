@@ -242,7 +242,7 @@ float(float xHand, vector xAt, float xLive) VR_Decap_Slash =
     float thing = b.mh_thing;
     vr_decap_no = "not a blade held by its handle";
     if(b.mh_free || (thing != VR_MTHING_SWORD && thing != VR_MTHING_AXE && thing != VR_MTHING_SAW) ||
-       (thing == VR_MTHING_AXE && b.mh_wid != WID_AXE))
+       (thing == VR_MTHING_AXE && b.mh_wid != WID_AXE && b.mh_wid != WID_SUPERAXE))
     {
         return 0; // (held off its handle: its pommel, hilt or handle struck with; Mjolnir: a hammer, not a blade)
     }
@@ -1107,7 +1107,7 @@ float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_HeadThrownA
     }
     float quad = VR_Decap_QuadPops(by);
     if(xThing.classname == "thrown_weapon" && !quad &&
-       (xThing.weapon == WID_SWORD || xThing.weapon == WID_AXE || xThing.weapon == WID_CHAINSAW))
+       (xThing.weapon == WID_SWORD || xThing.weapon == WID_AXE || xThing.weapon == WID_CHAINSAW || xThing.weapon == WID_SUPERAXE))
     {
         return FALSE;
     }

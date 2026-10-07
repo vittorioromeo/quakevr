@@ -2827,6 +2827,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
                     if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
                     if(!DoXHandMelee(xHand, WID_CHAINSAW, "", W_ChainsawMelee))
                     if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
+                    if(!DoXHandMelee(xHand, WID_SUPERAXE, "", W_SuperAxeMelee)) // vr_mg3_weapons.qc
                         DoXHandMeleeImpl(xHand, "", W_GunMelee);
             vr_melee_blunt = FALSE;
             vr_sgib_at = '0 0 0';

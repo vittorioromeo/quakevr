@@ -3266,7 +3266,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     RuneApplyBlackNoise(self); // make rune noise
     //--ZOID
 
-    if(xWeapon == WID_AXE || xWeapon == WID_SWORD || xWeapon == WID_CROWBAR)
+    if(xWeapon == WID_AXE || xWeapon == WID_SWORD || xWeapon == WID_CROWBAR || xWeapon == WID_SUPERAXE)
     {
         if(!VRHandsTracked(self) ||
            !self.ishuman)

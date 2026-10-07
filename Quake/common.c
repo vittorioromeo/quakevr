@@ -2016,6 +2016,45 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 	file_from_pak = 0;
 	com_filesource[0] = 0;
 
+	{ // QVR: "owned/<folder>/<path>": an owned expansion's file read in place, not mounted (vr_gamedir.cpp)
+		char owned[MAX_OSPATH];
+		int ownedOffset, ownedLength, ownedPacked;
+		const int found = VR_OwnedFile (filename, owned, sizeof(owned), &ownedOffset, &ownedLength, &ownedPacked);
+		if (found > 0)
+		{
+			q_strlcpy (com_filesource, owned, sizeof(com_filesource));
+			com_filesize = ownedLength;
+			file_from_pak = ownedPacked;
+			if (path_id)
+				*path_id = 0;
+			if (handle)
+			{
+				if (Sys_FileOpenRead (owned, handle) < 0)
+					com_filesize = -1;
+				else
+					Sys_FileSeek (*handle, ownedOffset);
+			}
+			else if (file)
+			{
+				*file = Sys_fopen (owned, "rb");
+				if (*file)
+					fseek (*file, ownedOffset, SEEK_SET);
+				else
+					com_filesize = -1;
+			}
+			return com_filesize;
+		}
+		if (found < 0)
+		{
+			if (handle)
+				*handle = -1;
+			if (file)
+				*file = NULL;
+			com_filesize = -1;
+			return com_filesize;
+		}
+	}
+
 //
 // search through the path, one element at a time
 //

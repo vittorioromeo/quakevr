@@ -87,7 +87,7 @@ constexpr Table table[] = {
 // make_enemyguns.py's, are in the table.)
 constexpr const char* melee[] = {
     "progs/v_axe.mdl", "progs/v_hammer.mdl", "progs/v_ksword.mdl", "progs/v_hksword.mdl", "progs/v_chainsaw.mdl",
-    "progs/hand.mdl", "progs/v_crowbar.mdl",
+    "progs/hand.mdl", "progs/v_crowbar.mdl", "owned/mg3/progs/v_hammer.mdl", "owned/mg3/progs/v_hammer_glow.mdl",
 };
 
 [[nodiscard]] bool isSightIndex(int i)

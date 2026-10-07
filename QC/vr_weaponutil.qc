@@ -151,6 +151,7 @@ float(float wid) WeaponIdToItemId =
     if(wid == WID_GRUNTGUN)         { return IID_GRUNTGUN; }
     if(wid == WID_ENFRIFLE)         { return IID_ENFRIFLE; }
     if(wid == WID_CROWBAR)          { return IID_CROWBAR; }
+    if(wid == WID_SUPERAXE)         { return IID_SUPERAXE; }
 
     ASSERT(FALSE);
     return -1;
@@ -187,6 +188,7 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_GRUNTGUN)         { return "progs/v_gruntgun.mdl"; }
     if(wid == WID_ENFRIFLE)         { return "progs/v_enfrifle.mdl"; }
     if(wid == WID_CROWBAR)          { return "progs/v_crowbar.mdl"; }
+    if(wid == WID_SUPERAXE)         { return "owned/mg3/progs/v_hammer.mdl"; }
 
     ASSERT(FALSE);
     return "";
@@ -223,6 +225,7 @@ float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
     if(wid == WID_GRUNTGUN)         { return AID_NONE; }
     if(wid == WID_ENFRIFLE)         { return AID_NONE; }
     if(wid == WID_CROWBAR)          { return AID_NONE; }
+    if(wid == WID_SUPERAXE)         { return AID_CELLS; }
 
     ASSERT(FALSE);
     return AID_NONE;
@@ -264,6 +267,7 @@ float(float wid) WeaponIdToThrowMult =
     if(wid == WID_GRUNTGUN)         { return 0.7; }
     if(wid == WID_ENFRIFLE)         { return 0.6; }
     if(wid == WID_CROWBAR)          { return 0.8; }
+    if(wid == WID_SUPERAXE)         { return 0.75; }
 
     ASSERT(FALSE);
     return 1;
@@ -289,6 +293,7 @@ float(float wid) WeaponIdToThrowStabilizeDim =
     if(wid == WID_GRUNTGUN)         { return 0; }
     if(wid == WID_ENFRIFLE)         { return 0; }
     if(wid == WID_CROWBAR)          { return 0; }
+    if(wid == WID_SUPERAXE)         { return 2; }
 
     ASSERT(FALSE);
     return 0;
@@ -314,6 +319,7 @@ float(float wid) WeaponIdToThrowDamage =
     if(wid == WID_GRUNTGUN)         { return 20; }
     if(wid == WID_ENFRIFLE)         { return 25; }
     if(wid == WID_CROWBAR)          { return 40; }
+    if(wid == WID_SUPERAXE)         { return 50; }
 
     ASSERT(FALSE);
     return 0;
@@ -339,6 +345,7 @@ float(float wid) WeaponIdToThrowBounds =
     if(wid == WID_GRUNTGUN)         { return 1.6; }
     if(wid == WID_ENFRIFLE)         { return 1.8; }
     if(wid == WID_CROWBAR)          { return 1.6; }
+    if(wid == WID_SUPERAXE)         { return 1.4; }
 
     ASSERT(FALSE);
     return 0;
@@ -349,6 +356,7 @@ float(string wpnClassname) WeaponClassNameToWeaponId =
     if(wpnClassname == "weapon_grapple")         { return WID_GRAPPLE; }
     if(wpnClassname == "weapon_axe")             { return WID_AXE; }
     if(wpnClassname == "weapon_mjolnir")         { return WID_MJOLNIR; }
+    if(wpnClassname == "weapon_superaxe")        { return WID_SUPERAXE; }
     if(wpnClassname == "weapon_shotgun")         { return WID_SHOTGUN; }
     if(wpnClassname == "weapon_supershotgun")    { return WID_SUPER_SHOTGUN; }
     if(wpnClassname == "weapon_nailgun")         { return WID_NAILGUN; }
@@ -383,6 +391,7 @@ float(float wid) WeaponIdToInitialAmmoCount =
     if(wid == WID_GRUNTGUN)         { return 0; }
     if(wid == WID_ENFRIFLE)         { return 0; }
     if(wid == WID_CROWBAR)          { return 0; }
+    if(wid == WID_SUPERAXE)         { return 0; }
 
     ASSERT(FALSE);
     return -1;
@@ -409,6 +418,7 @@ string(float wid) WeaponIdToWeaponName =
     if(wid == WID_GRUNTGUN)         { return "Grunt's Shotgun"; }
     if(wid == WID_ENFRIFLE)         { return "Enforcer's Laser Rifle"; }
     if(wid == WID_CROWBAR)          { return "Crowbar"; }
+    if(wid == WID_SUPERAXE)         { return "Super Axe"; }
 
     ASSERT(FALSE);
     return "";
@@ -445,6 +455,7 @@ float(float wid) WeaponIdToSupportsReload =
     if(wid == WID_GRUNTGUN)         { return FALSE; }
     if(wid == WID_ENFRIFLE)         { return FALSE; }
     if(wid == WID_CROWBAR)          { return FALSE; }
+    if(wid == WID_SUPERAXE)         { return FALSE; }
 
     ASSERT(FALSE);
     return -1;
@@ -470,6 +481,7 @@ float(float wid) WeaponIdToSupportsReloadFlicking =
     if(wid == WID_GRUNTGUN)         { return FALSE; }
     if(wid == WID_ENFRIFLE)         { return FALSE; }
     if(wid == WID_CROWBAR)          { return FALSE; }
+    if(wid == WID_SUPERAXE)         { return FALSE; }
 
     ASSERT(FALSE);
     return -1;
@@ -495,6 +507,7 @@ float(float wid) WeaponIdToBaseClipSize =
     if(wid == WID_GRUNTGUN)         { return VR_GruntGun_ClipSize(); } // a multiple of 3 (vr_enemyguns.qc)
     if(wid == WID_ENFRIFLE)         { return cvar_hget(cvarh_vr_enfrifle_ammo); }
     if(wid == WID_CROWBAR)          { return 0; }
+    if(wid == WID_SUPERAXE)         { return 0; }
 
     ASSERT(FALSE);
     return -1;

@@ -486,6 +486,7 @@ float HIP_IT_CHAINSAW          = VRUTIL_POWER_OF_TWO(6); // VR: an ogre's chains
 float HIP_IT_GRUNTGUN          = VRUTIL_POWER_OF_TWO(7); // VR: a grunt's shotgun.
 float HIP_IT_ENFRIFLE          = VRUTIL_POWER_OF_TWO(8); // VR: an enforcer's laser rifle.
 float HIP_IT_CROWBAR           = VRUTIL_POWER_OF_TWO(9); // VR: the crowbar.
+float HIP_IT_SUPERAXE          = VRUTIL_POWER_OF_TWO(10); // MG3: Dawn of the Machine's Super Axe.
 
 //
 //

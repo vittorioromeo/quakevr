@@ -174,6 +174,11 @@ HIPNOTIC WEAPONS
 */
 void() weapon_mjolnir =
 {
+    if(MG3_Campaign())
+    {
+        weapon_superaxe(); // Dawn of the Machine's weapon_mjolnir is its Super Axe (vr_mg3_weapons.qc)
+        return;
+    }
     impl_weapon_item("progs/g_hammer.mdl", WID_MJOLNIR);
 }
 

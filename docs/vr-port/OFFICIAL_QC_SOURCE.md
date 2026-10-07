@@ -26,4 +26,7 @@ Dawn of the Machine (MG3) native port: QC/vr_mg3_upgrades.qc adapts the snapshot
 from quakec_mg3/defs.qc and client.qc. Upstream's parm10..15 state moved to parm51..56 (VR's hands own parm10..16).
 QC/vr_mg3_triggers.qc adapts the map triggers of quakec_mg3/mg3_triggers.qc and triggers.qc (same header).
 QC/vr_mg3_items.qc adapts quakec_mg3/mg3_items.qc and the lava suit of items.qc/client.qc (same header).
+QC/vr_mg3_weapons.qc adapts quakec_mg3/mg3_weapons.qc (HIP_FireMjolnir: the Super Axe's blow, zombie and finishing
+multipliers, second-hit lightning burst) and mg3_items.qc/mg3_triggers.qc (weapon_mjolnir's silent-teleport pickup),
+retaining the original license header.
 Plan and task list: [MG3_PLAN.md](MG3_PLAN.md).

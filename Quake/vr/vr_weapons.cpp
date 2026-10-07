@@ -150,9 +150,11 @@ namespace
 // lightning gun's second hotspot, the laser cannon's grip bias, roll weight and ammo screen, the grunts' gun's stock pitch,
 // the enforcers' rifle's ammo screen hidden), each key only where the config still held its old default (the hotspot
 // whole, where the config has none there). 35: the author's flashlight on the grappling hook (slot 17's Torch Out -0.035 and
-// Up 0.075, 2026-10-07; INSTALLER.md, Appendix A), each key only where the config still held its old default (0). A first
+// Up 0.075, 2026-10-07; INSTALLER.md, Appendix A), each key only where the config still held its old default (0). 36: slots 24
+// and 25 (Dawn of the Machine's Super Axe and its glowing twin, MG3's model read in place: QC vr_mg3_weapons.qc; unused
+// placeholders before). A first
 // start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 35;
+constexpr int settingsVersion = 36;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -510,6 +512,11 @@ void migrate()
         const OldDefault changes[] = {{17, Key::TorchOut, 0.f}, {17, Key::TorchUp, 0.f}};
         takeWhereOld(changes);
     }
+    if(vr_wofs_version.value < 36) // Dawn of the Machine's Super Axe and its glow (unused placeholders before)
+    {
+        resetSlot(24);
+        resetSlot(25);
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -690,6 +697,11 @@ void markCurrent()
         const OldDefault grips[] = {{20, Key::Hotspot1Bias, 2.5f}, {20, Key::Hotspot2Bias, 0.f}, {20, Key::Hotspot1Sticky, 1.f},
             {20, Key::Hotspot2Sticky, 1.f}};
         takeWhereOld(grips);
+    }
+    if(vr_wofs_version.value < 36) // the Super Axe (as migrate)
+    {
+        resetSlot(24);
+        resetSlot(25);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

@@ -211,7 +211,7 @@ def bezier(p0, mid, p2, s):
 # A take
 
 WEAPONS = {"fist": 0, "axe": 2, "mjolnir": 3, "shotgun": 4, "super_shotgun": 5, "nailgun": 6, "sword": 13, "chainsaw": 14,
-           "crowbar": 17}
+           "crowbar": 17, "superaxe": 18}
 
 
 class Take:
@@ -387,7 +387,10 @@ WEAPON_FAR = {"axe": (0.155, -0.012, 0.209), "mjolnir": (0.159, -0.0025, 0.205),
               "crowbar": (0.060, 0.001, 0.345),
               # The ogres' chainsaw, held by its rear handle: the bar's tip along the hand, 80.4 cm from it (vr_hotspot_fit;
               # its melee trace's far point turned into the hand's frame as the axe's is).
-              "chainsaw": (0.769, -0.040, -0.032)}
+              "chainsaw": (0.769, -0.040, -0.032),
+              # Dawn of the Machine's Super Axe (held as the axe: its head's middle 15.4 model units further up the
+              # handle, 21.7 cm at Scale 0.34, along the axe's hand-to-head line; estimated, not measured).
+              "superaxe": (0.284, -0.022, 0.383)}
 
 
 def weapon_pose(hand, weapon, axis, right):
@@ -481,7 +484,7 @@ CHOPS = {
     "diagonal": (((0.15, -0.35, 0.05), (0.62, -0.05, -0.3), (0.35, 0.3, -0.7)), ((-0.3, -0.5, 0.8), (1, 0.2, 0), (0.4, 0.5, -0.8))),
     "overhead": (((0.1, -0.15, 0.15), (0.62, -0.12, -0.25), (0.4, -0.1, -0.7)), ((-0.3, 0, 1), (1, 0, 0.1), (0.5, 0, -0.9))),
 }
-CHOP_REACH = {"axe": 0.62, "mjolnir": 0.62, "sword": 0.3, "shotgun": 0.5, "crowbar": 0.5}  # the hand's farthest (m)
+CHOP_REACH = {"axe": 0.62, "mjolnir": 0.62, "sword": 0.3, "shotgun": 0.5, "crowbar": 0.5, "superaxe": 0.55}  # the hand's farthest (m)
 
 
 def fix_preset(name, args):
@@ -557,11 +560,12 @@ def preset(name, args):
         if two:
             take.grip("off", True)
         (p0, p1, p2), (b0, b1, b2) = swords[name]
-        if args.weapon == "chainsaw" and not two:
-            # The chainsaw along the same line (its bar's tip on the blade's; weapon_pose from its far end).
-            take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, main_weapon="chainsaw", target=(d, 0.0),
+        if args.weapon in ("chainsaw", "superaxe") and not two:
+            # The chainsaw (or the Super Axe) along the same line (its bar's tip, its head, on the blade's; weapon_pose
+            # from its far end).
+            take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, main_weapon=args.weapon, target=(d, 0.0),
                         note="synthetic")
-            weapon_swing(take, "main", "chainsaw", (p0, p1, p2), (norm(b0), norm(b1), norm(b2)), T)
+            weapon_swing(take, "main", args.weapon, (p0, p1, p2), (norm(b0), norm(b1), norm(b2)), T)
             return take
         sword_swing(take, p0, p1, p2, norm(b0), norm(b1), norm(b2), T, two)
         return take
@@ -668,7 +672,7 @@ def main():
                     "the hand (the blade level with the dummy's neck)")
     ap.add_argument("--two-handed", action="store_true", help="the sword's with the off hand on the grip")
     ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR),
-                    help="the chop presets' weapon; crowbar, chainsaw: the sword presets' too")
+                    help="the chop presets' weapon; crowbar, chainsaw, superaxe: the sword presets' too")
     ap.add_argument("--settings-from", help="write the takes for this config's hand settings (vr_gunangle, "
                     "vr_handcal_*...: an ironwail.cfg)")
     ap.add_argument("--mock", action="store_true", help="also a vr_mock_play script of each (<take>.mock)")

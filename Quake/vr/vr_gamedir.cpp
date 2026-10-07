@@ -1274,6 +1274,100 @@ extern "C" int VR_CampaignDataAvailable(const char* dir)
     return i >= 3 && campaigns[i].status == 1;
 }
 
+// A file of an owned pack read in place without mounting it (MG3_PLAN.md, "Decisions": an expansion's weapons usable
+// in any campaign when its data is there): "owned/<folder>/<path>" names <path> in that discovered Dopa/MG1/MG3 folder
+// (its loose file, else its highest pak that has it), whichever campaign is active; the pack's own files never shadow
+// Quake VR's (its progs/v_hammer.mdl is the Super Axe, Quake VR's the Hipnotic Mjolnir). Nothing is copied or written.
+// Returns 0 when `name` is not such a name, -1 when it is but the file is not there, 1 when found: `out` the pak or
+// the loose file, `*offset`/`*length` the file inside it, `*packed` whether `out` is a pak. Any thread (a worker's
+// image lookups): it reads only what discovery found at startup, never discovering itself.
+extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, int* length, int* packed)
+{
+    constexpr char prefix[] = "owned/";
+    if(q_strncasecmp(name, prefix, sizeof(prefix) - 1)) { return 0; }
+    const char* folderStart = name + sizeof(prefix) - 1;
+    const char* slash = strchr(folderStart, '/');
+    if(!slash || slash == folderStart || !slash[1] || strstr(name, "..") || strchr(name, ':') || strchr(name, '\\'))
+    { return -1; }
+    char folder[MAX_QPATH];
+    const size_t folderLength = static_cast<size_t>(slash - folderStart);
+    if(folderLength >= sizeof(folder)) { return -1; }
+    q_strlcpy(folder, folderStart, folderLength + 1);
+    const int c = campaignIndex(folder);
+    if(c < 3 || !discoveredCampaigns || campaigns[c].status != 1 || !campaigns[c].root[0]) { return -1; }
+    const char* file = slash + 1;
+
+    char path[MAX_OSPATH];
+    q_snprintf(path, sizeof(path), "%s/%s/%s", campaigns[c].root, campaigns[c].folder, file);
+    if(Sys_FileType(path) == FS_ENT_FILE)
+    {
+        FILE* loose = fopen(path, "rb");
+        if(loose)
+        {
+            fseek(loose, 0, SEEK_END);
+            const long n = ftell(loose);
+            fclose(loose);
+            if(n >= 0)
+            {
+                q_strlcpy(out, path, size);
+                *offset = 0;
+                *length = static_cast<int>(n);
+                *packed = 0;
+                return 1;
+            }
+        }
+    }
+    int last = -1;
+    for(int pak = 0; pak < 64; ++pak)
+    {
+        q_snprintf(path, sizeof(path), "%s/%s/pak%d.pak", campaigns[c].root, campaigns[c].folder, pak);
+        if(Sys_FileType(path) != FS_ENT_FILE) { break; }
+        last = pak;
+    }
+    za::Vector<PackEntry> entries; // (a few lookups a model: not kept)
+    for(int pak = last; pak >= 0; --pak)
+    {
+        q_snprintf(path, sizeof(path), "%s/%s/pak%d.pak", campaigns[c].root, campaigns[c].folder, pak);
+        FILE* f = fopen(path, "rb");
+        if(!f) { continue; }
+        fseek(f, 0, SEEK_END);
+        const long fileSize = ftell(f);
+        rewind(f);
+        struct { char id[4]; int32_t dirofs; int32_t dirlen; } header{};
+        bool found = false;
+        if(fread(&header, sizeof(header), 1, f) == 1 && !memcmp(header.id, "PACK", 4))
+        {
+            const long dirOffset = LittleLong(header.dirofs), dirLength = LittleLong(header.dirlen);
+            const long count = dirLength / static_cast<long>(sizeof(PackEntry));
+            if(dirOffset >= 12 && dirLength >= 0 && dirLength % static_cast<long>(sizeof(PackEntry)) == 0 && count <= 65536 &&
+                dirOffset <= fileSize && dirLength <= fileSize - dirOffset && !fseek(f, dirOffset, SEEK_SET))
+            {
+                entries.resize(static_cast<za::SizeT>(count));
+                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<size_t>(count), f) == static_cast<size_t>(count))
+                {
+                    for(const PackEntry& e : entries)
+                    {
+                        if(!memchr(e.name, 0, sizeof(e.name)) || q_strcasecmp(e.name, file)) { continue; }
+                        const long pos = LittleLong(e.offset), len = LittleLong(e.length);
+                        if(pos >= 12 && len >= 0 && pos <= fileSize && len <= fileSize - pos)
+                        {
+                            q_strlcpy(out, path, size);
+                            *offset = static_cast<int>(pos);
+                            *length = static_cast<int>(len);
+                            *packed = 1;
+                            found = true;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        fclose(f);
+        if(found) { return 1; }
+    }
+    return -1;
+}
+
 // Read-in-place sources for vr_music.cpp. The active campaign's folder while the quakevr folder is mounted (its music
 // is chosen per campaign, though Quake's and the two mission packs' folders are mounted together), else null.
 extern "C" const char* VR_ActiveCampaignFolder()
