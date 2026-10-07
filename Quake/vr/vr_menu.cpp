@@ -6918,6 +6918,22 @@ za::Vector<Item> pageMain()
             .help("Every pair of holsters back to its shipped place. Each pair's own values (its turn and reach too): "
                   "Advanced VR Options > Weapons > Hip Holsters, and > Hotspots."),
 
+        // (The author's note e1m1_2026-10-07_22-40-30: its basics here, after the holsters; the rest of it, its turn, its
+        // reach and the counter's place, on Advanced VR Options > Weapons > Reloading.)
+        header("Ammo Pouch"),
+        slider("Ammo Pouch Forward", vr_ammo_pouch_x, -10.f, 10.f, 0.25f, "%+.2f").extend(-40.f, 40.f)
+            .help("Immersive reloading's pouch on the front of your belt, where you take rounds and magazines: forward "
+                  "(negative: back, round the hips), in Quake's units (about 3 cm). With the body drawn, 0 is on the belly."),
+        slider("Ammo Pouch Right", vr_ammo_pouch_y, -10.f, 10.f, 0.25f, "%+.2f").extend(-40.f, 40.f)
+            .help("The ammo pouch to your right (negative: left), in Quake's units (about 3 cm)."),
+        slider("Ammo Pouch Up", vr_ammo_pouch_z, -10.f, 10.f, 0.25f, "%+.2f").extend(-40.f, 40.f)
+            .help("The ammo pouch up (negative: down) from the hip holsters' height, in Quake's units (about 3 cm)."),
+        slider("Ammo Pouch Size", vr_ammo_pouch_scale, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.05f, 10.f)
+            .help("How big the ammo pouch is drawn (how near a hand must come to reach into it: Advanced VR Options > "
+                  "Weapons > Reloading > Reach)."),
+        toggle("Ammo Counter", vr_ammo_pouch_counter)
+            .help("A small screen on the ammo pouch: how many of what it gives (shells, nails, cells) you have left."),
+
         header("Locomotion"),
         cycle("Move Towards", vr_menu_move_towards, {{1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}})
             .help("Where pushing the stick forward takes you: where you look (Head), or where that hand points, so you "
