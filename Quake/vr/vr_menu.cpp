@@ -5584,6 +5584,9 @@ za::Vector<Item> pageDebugTests()
             .help("A loaded shotgun into the off hand and 40 shells: the main hand is free for the ammo pouch."),
         command("Nailgun in the Off Hand", "impulse 156; wait; vr_test_weaponinst 7; impulse 120; give n 100")
             .help("A loaded nailgun into the off hand and 100 nails (impulse 157: the super nailgun, 161 the thunderbolt)."),
+        command("Rocket Launcher in the Off Hand", "impulse 160; wait; vr_test_weaponinst 7; impulse 120; give r 40")
+            .help("A loaded rocket launcher into the off hand and 40 rockets (impulse 158: the grenade launcher, 159 the "
+                  "proximity launcher): empty it, then load it at the muzzle."),
         command("Eject the Off Hand's Magazine", "vr_reload_test 6; impulse 125").help("As its B/Y does."),
         command("Empty the Off Hand's Gun", "vr_reload_test 5; impulse 125")
             .help("Its magazine back into your ammo (to load it again)."),
@@ -5606,12 +5609,20 @@ za::Vector<Item> pageDebugTests()
             .help("On the floor (a shell flat along the gun, a magazine upright): bring the gun down onto it."),
         command("Drop a Round From Above Its Load Point", "vr_reload_test 13; impulse 125")
             .help("From 8 units straight above: turn the gun's opening up first."),
+        command("Toss a Round in the Wrong Way Round", "vr_reload_test 16; impulse 125")
+            .help("A launcher's round thrown into the off hand's muzzle nose first: it must not go in (a proximity "
+                  "grenade does)."),
+        command("Hold the Round at the Load Point", "vr_reload_test 17; impulse 125")
+            .help("The main hand's round put at the off hand's gun's load point lying the way it goes in (a launcher's: "
+                  "butt first): it goes in."),
+        command("Hold It There the Wrong Way Round", "vr_reload_test 18; impulse 125")
+            .help("The same nose first: a dull tap, it stays in the hand (a proximity grenade goes in)."),
         command("Break the Off Hand's Super Shotgun Open", "vr_reload_test 15; impulse 125")
             .help("As the flick does (Immersive, Break Open on): its barrels take loose pairs."),
         command("Report the Loose Rounds", "vr_reload_test 14; impulse 125")
             .help("Each loose round's distance from the off hand's load point, how it lies against the way in, and "
                   "whether it passes through the gun; the load point's axis and the way its opening faces."),
-        command("Print the Collision Shapes", "vr_physics_shapes vr_ammo_shell vr_ammo_mag")
+        command("Print the Collision Shapes", "vr_physics_shapes vr_ammo_shell vr_ammo_mag vr_ammo_front")
             .help("Each loose round's body against its drawn size, each held gun's hull against the drawn gun, and how "
                   "deep its load point lies inside the hull (the console)."),
         cycle("Reload Prints", "vr_reload_debug", {{0.f, "Off"}, {1.f, "Events"}, {2.f, "Every Frame"}, {3.f, "And Magazine Grips"}})
@@ -6489,6 +6500,7 @@ const Page pages[] = {
     {"Reloading - Nailgun", pageReloadNailgun, pageReloading},
     {"Reloading - Super Nailgun", pageReloadSuperNailgun, pageReloading},
     {"Reloading - Thunderbolt", pageReloadThunderbolt, pageReloading},
+    {"Reloading - Launchers", pageReloadLaunchers, pageReloading},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

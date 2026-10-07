@@ -154,11 +154,15 @@ Headless (mock hands, `vr_fixed_frames 1`), per phase:
    magazines lying about, dropped or thrown go into the gun they meet at its load point, lying the right way (the
    engine sends each port's axis and the way its opening faces; Load Loose Rounds, Loose Leniency, Loose Angle);
    tests: contact_test.sh.
-3. **Grenade and proximity launchers**: a port under each; grenades from the front pouch (a launcher's grenade or a
-   proximity one by the B/Y as the back pouch's multi-grenade; armed and dropped as a back pouch grenade is); the back
-   pouch stays.
+3. **Grenade and proximity launchers** (done 2026-10-08 with phase 4, as the author asked instead
+   (vrfiringrange_2026-10-07_22-18-57): front loaded at the muzzle, ROUND21.md "Reloading: the launchers loaded at the
+   muzzle"): the front pouch gives the launcher's grenade (its other ammo mode's multi-grenade) or a proximity grenade,
+   put butt first into the muzzle (a proximity grenade any way round), held or loose; the back pouch stays. Not armed:
+   a round, not a hand grenade (lying about, a shot sets it off).
    Later (noted, not done: the magazine code is magfix's): a magazine seated at its well drawn sliding the last bit home
    (a short seat slide, as the shells' slide into the guns: vr_collectfx.cpp's "into the gun" variant, its path the
    well's axis).
-4. **Rockets**: a rocket prop loaded at the launcher's back end, one at a time; thrown rockets don't light, but a shot
-   (hitscan, a nail, a blast) sets them off, in the air or lying.
+4. **Rockets** (done 2026-10-08, at the muzzle instead of the back end, as the author asked): a rocket prop (the
+   multi-rocket in the other ammo mode) loaded butt first at the muzzle, one at a time up to the magazine (4); thrown
+   rockets don't light, but a shot (hitscan, a nail, a blast) sets them off, lying about (the launcher grenade's blast).
+   Not yet: the pouch's own frames showing rockets and grenades (it shows none for them; its counter counts them).

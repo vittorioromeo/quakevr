@@ -30497,3 +30497,56 @@ each file's size and SHA-256 (checked against GitHub's API `digest`s on 2026-10-
   ericw-tools' own; a mirror that fails (HTTP error, or a file that is not the pinned one) passes to the next, and the
   console names each failure. `vr_relight_tool_url` takes several URLs separated by spaces. Verified with a local
   server: 404, then a truncated zip (hash mismatch), then the real zip installed.
+
+## Reloading: the launchers loaded at the muzzle (2026-10-08)
+
+The author's note vrfiringrange_2026-10-07_22-18-57: the rocket, grenade and proximity launchers front loaded: a rocket,
+grenade or proximity grenade from the ammo pouch (the special ammo too, in the launcher's other ammo mode) put towards
+the front of the muzzle, sliding in as the shotgun shells do; thrown there, or lying on a table the right way and the
+launcher brought to it, too. Only the orientation precise: rockets and grenades butt first, a proximity grenade any way.
+This does RELOAD_PLAN.md's phases 3 and 4 (at the muzzle, not a port under the launchers or the rocket launcher's back
+end as planned).
+
+- **The rule** (QC vr_reload.qc, "Front-loaded launchers"; `vr_reload_front` 1, Immersive only: Simple and the others
+  unchanged). The three launchers load by hand (`VR_Reload_ManualFor`: no holster or button reload for them), a round at
+  a time up to their magazine (4, as before: a conservative choice, the author may want 1 for the rocket launcher). The
+  pouch gives the round of the launcher in the other hand by its ammo mode (`WeaponIdToAmmoId`): a grenade or a
+  multi-grenade, a proximity grenade, a rocket or a multi-rocket (the multi-rockets need Dissolution of Eternity's pack,
+  as the launcher's mode does), its ammo out of the reserve at once. Changing the ammo mode unloads the magazine into the
+  reserve, as before. A round is its own entity class (`vr_ammo_front`, `.vr_ammo_front` the launcher it fits): it goes
+  only into its launcher (a rocket brought to the grenade launcher stays out), and a launcher takes only its rounds.
+- **Butt first.** A round's reference point is its butt (`VR_Reload_RoundRef`: its model's back end along its +x; a
+  proximity grenade's middle); within the muzzle's radius of the load point it goes in when it lies within
+  `vr_reload_front_angle` (35) degrees of the barrel, its nose out of the muzzle. Held the wrong way round: a dull tap
+  and the blocked sound, once until it leaves the muzzle ("the wrong way round" in the log). Loose ones as the shells by
+  contact (`VR_Reload_LooseFrame`): the looser of the two angles, Load Loose Rounds and its leniency.
+- **The muzzles** (the engine's `LoadPort` table, vr_view.cpp: `front` ports): the middle of the barrel's mouth, measured
+  on the models (the grenade launcher's at x 31.4, z 5.9 of v_rock.mdl, the multi one's alike, the proximity launcher's
+  the same; the rocket launcher's tube at x 56.1, z 4.55 of v_rock2.mdl, the multi one's alike), the way in back along
+  the barrel, the opening facing forward; `vr_reload_port_gl/prox/rl_x/y/z` move them, `_radius` (2 units) their reach.
+  `view::loadPath` slides a round's middle to the muzzle, then 4.5 and 9 model units into the grenade launchers (3.4 world
+  units in all), 8 into the proximity launcher, 8 and 16 into the rocket launcher's tube.
+- **The rounds** (make_rounds.py, new: `vr_round_rocket.mdl` 30 cm, an olive body, a yellow band, a red nose, a nozzle and
+  four fins at the butt, skin 1 the multi-rocket's dark body and red band; `vr_round_grenade.mdl` 12 by 9 cm, a brass case
+  with a rim and a primer at the butt, an olive body, a rounded nose, skin 1 the multi-grenade's red; `vr_round_prox.mdl` a
+  dark ball with six spikes and a red lens band, 8 cm; normal maps baked). Their own models (the `LiveRound` trait: a
+  round's grab slack, hard and metal in Box3D, Held Things Collide's leniency), so missile.mdl, grenade.mdl and
+  proxbomb.mdl keep their sizes in flight. Prop slots 54-56 (vr_props_version 66): the rocket Along the Handle by the
+  nose half of its middle (its butt below the little finger, to go into the muzzle), the grenades in the palm.
+- **Lying about** a launcher's round is a grenade shots set off (`VR_GrenShot_Make`; `.vr_ammo_boom`, in vr_fields.qc:
+  `VR_GrenShot_SetOff` runs it, as a Quake grenade's think): a shot, a strong blow or a blast sets it off with the
+  launcher grenade's blast (`VR_Reload_RoundBoom`: let go of, no longer a round, `GrenadeExplode`), the doing of who set it
+  off; in a hand shots don't meet it; dropped or thrown it doesn't go off. Weaker blows bat it.
+- **The pouch** shows no rounds for them yet (its frames are the shells' and magazines': kinds 5 rockets, 6 grenades, 7
+  proximity grenades draw its empty frame; its counter counts them). Left for the pouch's own work.
+- Weapons > Reloading > **Launchers** (new page): Load at the Muzzle, Round Angle, Round Pose (Held Object Offsets), Show
+  Load Points, each launcher's Muzzle X/Y/Z/Radius. Debug > Tests > Reloading: Rocket Launcher in the Off Hand, Toss a
+  Round in the Wrong Way Round (`vr_reload_test 16`), Hold the Round at the Load Point (17) and the Wrong Way Round (18);
+  step 19 shoots each launcher's round lying about.
+- Tests: `Misc/quakevr/reload/front_test.sh` (32 checks, all pass), per launcher: the pouch to the muzzle by the mock hands (the reserve
+  one less, in, drawn sliding in: collect fx into hotspot 240), the hand upside down (refused; the proximity grenade in),
+  test step 18, tossed butt first (in), nose first (out; the ball in), across the muzzle (out), dropped from above into
+  it turned up (in), lying on the floor and the launcher brought to it (drawn back, down, pushed forward along it: in;
+  straight down, the barrel lands on the butt); the other ammo mode (a multi-grenade, a multi-rocket from the
+  multi-rockets, loaded); a rocket lying about shot (test step 19: it goes off); a rocket at the grenade launcher's muzzle (out); Simple mode and Load at the Muzzle off (no
+  rocket from the pouch, the hip holster reloads: clip 4).

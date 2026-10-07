@@ -606,7 +606,10 @@ void() VR_Reload_RoundBoom =
         self.carry_player = world;
     }
     VR_Reload_Log(sprintf("%s set off at %v (%s's)", VR_Reload_Desc(self), self.origin, self.owner.classname));
-    self.classname = "vr_ammo_spent"; // (no longer a round: VR_Reload_NextRound)
+    self.classname = "vr_ammo_spent"; // (no longer a round: VR_Reload_NextRound; nor taken while it goes off)
+    self.flags = self.flags - (self.flags & (FL_FORCEGRABBABLE | FL_EASYHANDTOUCH));
+    self.handtouch = SUB_Null;
+    self.carry_use = SUB_Null;
     self.movetype = MOVETYPE_NONE;
     self.velocity = '0 0 0';
     GrenadeExplode();

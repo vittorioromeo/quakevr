@@ -578,6 +578,7 @@ void() VR_Reload_TestLooseReport =
         self.offloadportaxis, self.offloadportface));
 };
 
+// Test step 19: a shot at each launcher's round lying about (it goes off).
 // Test steps 17 and 18 (a held round at the load point, VR_Reload_HeldFrame): the main hand's round placed with its
 // reference point (VR_Reload_RoundRef: a launcher's round's butt) at the off hand's gun's load point, lying the way it
 // goes in (17) or the wrong way round (18: a launcher's round nose first), then held there for one frame's check (the
@@ -691,6 +692,21 @@ void() VR_Reload_Test =
     else if(step == 17 || step == 18)
     {
         VR_Reload_TestHeldAt(step == 17);
+    }
+    else if(step == 19)
+    {
+        // A shot at every launcher's round lying about (as a shotgun's pellet): it is set off (VR_GrenShot).
+        entity e = VR_Reload_NextRound(world);
+        while(e)
+        {
+            entity next = VR_Reload_NextRound(e);
+            if(e.vr_ammo_front && e.carry_player == world)
+            {
+                bprint(sprintf("reload: %s shot (shots meet it %g)\n", VR_Reload_Desc(e), e.takedamage != DAMAGE_NO));
+                T_Damage(e, self, self, 4);
+            }
+            e = next;
+        }
     }
     else if(step == 15)
     {

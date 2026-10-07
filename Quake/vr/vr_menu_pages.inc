@@ -969,6 +969,49 @@ void resetHandMoves()
     };
 }
 
+// Weapons > Reloading > Launchers: the grenade, proximity and rocket launchers loaded at the muzzle (QC vr_reload.qc,
+// "Front-loaded launchers"), each muzzle's load point.
+[[nodiscard]] za::Vector<Item> pageReloadLaunchers()
+{
+    return {
+        toggle("Load at the Muzzle", "vr_reload_front")
+            .help("Immersive: the grenade, proximity and rocket launchers take a round at a time from the ammo pouch (a "
+                  "grenade, a proximity grenade, a rocket; in their other ammo mode the multi-grenade or multi-rocket), "
+                  "put butt first into the muzzle, or thrown in, or the launcher brought to one lying about. Off: they "
+                  "reload at the hip holsters."),
+        slider("Round Angle", "vr_reload_front_angle", 5.f, 80.f, 5.f, "%.0f deg")
+            .help("How far off the barrel a rocket or grenade may lie and still go in, butt first (its nose out of the "
+                  "muzzle). The wrong way round never loads: a dull tap. A proximity grenade goes in any way round."),
+        open("Round Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
+            .help("How a rocket or grenade sits in the hand: take one from the pouch, then tune it there (its Grip)."),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), to tune the offsets live."),
+        header("Grenade Launcher"),
+        slider("Muzzle X", "vr_reload_port_gl_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the grenade launcher's load point forward (the gun's model units; negative: back into the barrel). "
+                  "The multi-grenade launcher's too."),
+        slider("Muzzle Y", "vr_reload_port_gl_y", -10.f, 10.f, 0.1f, "%.1f").extend().help("Left (negative: right)."),
+        slider("Muzzle Z", "vr_reload_port_gl_z", -10.f, 10.f, 0.1f, "%.1f").extend().help("Up (negative: down)."),
+        slider("Muzzle Radius", "vr_reload_port_gl_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the muzzle's load point a grenade's butt must come to go in."),
+        header("Proximity Launcher"),
+        slider("Muzzle X", "vr_reload_port_prox_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the proximity launcher's load point forward (the gun's model units; negative: back)."),
+        slider("Muzzle Y", "vr_reload_port_prox_y", -10.f, 10.f, 0.1f, "%.1f").extend().help("Left (negative: right)."),
+        slider("Muzzle Z", "vr_reload_port_prox_z", -10.f, 10.f, 0.1f, "%.1f").extend().help("Up (negative: down)."),
+        slider("Muzzle Radius", "vr_reload_port_prox_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the muzzle's load point a proximity grenade's middle must come to go in."),
+        header("Rocket Launcher"),
+        slider("Muzzle X", "vr_reload_port_rl_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the rocket launcher's load point forward (the gun's model units; negative: back). The "
+                  "multi-rocket launcher's too."),
+        slider("Muzzle Y", "vr_reload_port_rl_y", -10.f, 10.f, 0.1f, "%.1f").extend().help("Left (negative: right)."),
+        slider("Muzzle Z", "vr_reload_port_rl_z", -10.f, 10.f, 0.1f, "%.1f").extend().help("Up (negative: down)."),
+        slider("Muzzle Radius", "vr_reload_port_rl_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the muzzle's load point a rocket's butt must come to go in."),
+    };
+}
+
 // Weapons > Reloading (General): the mode, a page per gun, the ammo pouch, what is the same for every gun
 // (docs/vr-port/RELOAD_PLAN.md; QC vr_reload.qc).
 [[nodiscard]] za::Vector<Item> pageReloading()
@@ -979,14 +1022,15 @@ void resetHandMoves()
                   "reloads. Immersive: guns are loaded by hand from the ammo pouch on the front of your belt (it gives "
                   "what the gun in your other hand takes): the shotgun a shell at a time into the port under it; the "
                   "nailgun, the super nailgun and the thunderbolt a magazine into its well (out by B/Y, a hard pull, or "
-                  "bumped out by the next); the other guns reload at the hip holsters for now. Needs Weapon Mode "
-                  "Immersive."),
+                  "bumped out by the next); the grenade, proximity and rocket launchers a round at a time butt first into "
+                  "the muzzle; the other guns reload at the hip holsters for now. Needs Weapon Mode Immersive."),
         header("Weapons"),
         open("Shotgun", pageIndex(pageReloadShotgun)).help("Its shells (pairs, their pose) and its loading port."),
         open("Super Shotgun", pageIndex(pageReloadSuperShotgun)).help("Broken open: each way to open and close it, their thresholds; its breech."),
         open("Nailgun", pageIndex(pageReloadNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Super Nailgun", pageIndex(pageReloadSuperNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Thunderbolt", pageIndex(pageReloadThunderbolt)).help("Its well, its cell's top, its receiver, the hand holding the cell, pulling it out."),
+        open("Launchers", pageIndex(pageReloadLaunchers)).help("The grenade, proximity and rocket launchers loaded at the muzzle: on or off, the round's angle, each muzzle's load point."),
         header("All Guns"),
         slider("Shell Slide In", "vr_reload_insert_time", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("A shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it for this "
