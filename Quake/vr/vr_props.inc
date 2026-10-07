@@ -334,8 +334,9 @@ QVR_PROP_DEFAULT(60, Mass, "30")
 QVR_PROP_DEFAULT(60, ForceGrab, "0")
 // Immersive reloading's magazines (phase 2; make_mags.py): the nailgun's, the super nailgun's, the thunderbolt's cell.
 // In one hand; their weights. vr_props_version 61 gave these slots to configs saved before. The author's sizes (his
-// config, 2026-10-07: the nailgun's 0.55, the super nailgun's and the cell's 0.45) and held as for loading (his note: they came out of the pouch upside down): fixed in the fist, its length
-// along the fist's grip channel, its top (the feed end) up out of it, the fingers fitted round it (vr_props_version 63).
+// config, 2026-10-07: the nailgun's 0.55, the super nailgun's and the cell's 0.45) and held as for loading (his note:
+// they came out of the pouch upside down): fixed in the fist, its length along the fist's grip channel, its top (the
+// feed end) up out of it, the fingers fitted round it (vr_props_version 63).
 QVR_PROP_DEFAULT(50, ID, "progs/vr_mag_nail.mdl")
 QVR_PROP_DEFAULT(50, Mass, "0.45")
 QVR_PROP_DEFAULT(50, TwoHands, "0")
