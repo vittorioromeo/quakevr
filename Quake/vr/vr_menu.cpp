@@ -6228,7 +6228,11 @@ void resetHandOffsets()
 }
 
 // Reset All to Defaults keeps the config's bookkeeping (its versions, the tips seen, VR Calibration pending, where the
-// pages were left, Menu Detail) and VR on or off and its runtime.
+// pages were left, Menu Detail), VR on or off and its runtime, and what was measured or fitted to the player rather than
+// chosen (Vittorio, 2026-10-07): the height and the floor (Height Calibration), Body Calibration's measurements, its
+// seated flag and Undo (vr_bodycal_*, its preview excepted) and the tweaks on them (vr_body_tweak_*), the body's
+// proportions (arm length, eyes over the neck, torso back), and both hands' calibration (vr_handcal_*, the hands'
+// pitch and yaw: Reset Hand Offsets resets those). The world's scale is a choice: reset.
 [[nodiscard]] bool keptOnResetAll(const cvar_t& var)
 {
     const size_t n = strlen(var.name);
@@ -6236,8 +6240,14 @@ void resetHandOffsets()
     {
         return true;
     }
+    if((!q_strncasecmp(var.name, "vr_bodycal_", 11) && &var != &vr_bodycal_preview) ||
+        !q_strncasecmp(var.name, "vr_body_tweak_", 14) || !q_strncasecmp(var.name, "vr_handcal_", 11))
+    {
+        return true;
+    }
     for(const cvar_t* kept : {&vr_menu_level, &vr_menu_positions, &vr_tips_seen, &vr_setup_pending, &vr_enabled,
-            &vr_xr_runtime})
+            &vr_xr_runtime, &vr_height_calibration, &vr_floor_offset, &vr_body_arm_length, &vr_body_eye_forward,
+            &vr_body_eye_up, &vr_body_torso_back, &vr_gunangle, &vr_gunyaw, &vr_offhandpitch, &vr_offhandyaw})
     {
         if(&var == kept)
         {
@@ -6426,8 +6436,8 @@ za::Vector<Item> pageMain()
 
         header("Reset"),
         action(resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
-            .help("Every Quake VR setting back to as it shipped (your height, body and hand calibration too). Press it twice: "
-                  "the second time within 3 seconds.")
+            .help("Every Quake VR setting back to as it shipped, but not your calibration (height, floor, body and hands: "
+                  "Reset Hand Offsets for those). Press it twice: the second time within 3 seconds.")
     );
     return list;
 }
