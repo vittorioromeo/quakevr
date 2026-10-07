@@ -181,13 +181,25 @@ void() MG3_BT_OrbStep =
         MG3_BT_Check(mg3bt_a.health <= 0 && killed_monsters == mg3bt_n + 1, "killed, counted once");
         MG3_BT_Check(!(mg3bt_a.flags & FL_FLY) && vlen(mg3bt_a.velocity) > 100 && mg3bt_a.size == '0 0 0',
             sprintf("flung (%v), falling", mg3bt_a.velocity));
-        mg3bt_step = 5; mg3bt_next = time + 4;
+        mg3bt_step = 5; mg3bt_next = time + 8;
         return;
     }
     if(mg3bt_step == 5)
     {
         MG3_BT_Check(mg3_orb_blowups == mg3bt_n2 + 1 && killed_monsters == mg3bt_n + 1,
             sprintf("it blew up where it landed (%g), still counted once", mg3_orb_blowups - mg3bt_n2));
+        if(mg3_orb_blowups == mg3bt_n2)
+            dprint(sprintf("mg3btest: the orb's body: model %s at %v velocity %v flags %g touch %g\n", mg3bt_a.model, mg3bt_a.origin,
+                mg3bt_a.velocity, mg3bt_a.flags, mg3bt_a.touch == orb_death_touch));
+        if(mg3_orb_blowups == mg3bt_n2)
+            dprint(sprintf("mg3btest: its think orb_death4 %g, next %g (now %g), frame %g, solid %g, movetype %g\n", mg3bt_a.think == orb_death4,
+                mg3bt_a.nextthink, time, mg3bt_a.frame, mg3bt_a.solid, mg3bt_a.movetype));
+        if(mg3_orb_blowups == mg3bt_n2)
+        {
+            traceline(mg3bt_a.origin, mg3bt_a.origin - '0 0 8', FALSE, mg3bt_a);
+            dprint(sprintf("mg3btest: below it: %s (solid %g, health %g, model %s) at %g\n", trace_ent.classname, trace_ent.solid,
+                trace_ent.health, trace_ent.model, trace_fraction));
+        }
         p.flags = p.flags - (p.flags & FL_GODMODE);
         MG3_BT_Total();
         return;
@@ -260,7 +272,7 @@ void() MG3_BT_GhostSlimeStep =
         mg3bt_k = killed_monsters;
         mg3bt_n = mg3_slime_blobs;
         mg3bt_c0 = mg3_slime_children;
-        mg3bt_c1 = mg3_slime_stuck;
+        mg3bt_c1 = mg3_slime_stuck + mg3_slime_hits;
         mg3bt_a = MG3_BT_Spawn(p, 41, 220, 0, 0);
         MG3_BT_Check(mg3bt_a.classname == "monster_tarbaby" && mg3bt_a.mg3_slime == 2 && mg3bt_a.skin == 0 && mg3bt_a.health == 80 &&
             mg3bt_a.th_pain == SUB_NullPain && total_monsters == mg3bt_t + 1, "a slime ahead: a plain spawn, two generations to come, counted");
@@ -281,7 +293,9 @@ void() MG3_BT_GhostSlimeStep =
         dprint(sprintf("mg3btest: slime: %g blobs, %g children started, %g blew up in a wall; monsters %g (+%g), killed %g\n",
             blobs, kids, mg3_slime_stuck - mg3bt_c1, total_monsters, total_monsters - mg3bt_t, killed_monsters - mg3bt_k));
         MG3_BT_Check(blobs >= 2 && blobs <= 3, sprintf("it blew up throwing %g blobs", blobs));
-        MG3_BT_Check(kids >= 1 && total_monsters == mg3bt_t + 1 + kids, sprintf("children started (%g), each counted once", kids));
+        float lost = mg3_slime_stuck + mg3_slime_hits - mg3bt_c1; // (where they land: walls and you vary with the spot)
+        MG3_BT_Check(kids + lost == blobs && total_monsters == mg3bt_t + 1 + kids,
+            sprintf("each blob a child or a blast (%g children, %g blasts), each child counted once", kids, lost));
         mg3bt_n2 = kids;
         mg3bt_n = mg3_slime_blobs;
         mg3bt_c1 = mg3_slime_stuck + mg3_slime_hits;

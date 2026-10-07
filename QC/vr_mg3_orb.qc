@@ -207,7 +207,19 @@ void() orb_death1 = [$blink1, orb_death2]
 };
 void() orb_death2 = [$blink2, orb_death3] {};
 void() orb_death3 = [$blink2, orb_death4] {self.touch = orb_death_touch;};
-void() orb_death4 = [$blink2, orb_death4] {self.nextthink = time + 9999;};
+// Landed it blows up as its touch would. The step physics can also stop its point-sized body against a wall without a
+// touch (flung into it: stuck, no FL_ONGROUND; e1m1, one death in four): stopped is landed too.
+void() orb_death4 = [$blink2, orb_death4]
+{
+    traceline(self.origin, self.origin - '0 0 2', TRUE, self);
+    if((self.flags & FL_ONGROUND) || trace_fraction < 1 || vlen(self.velocity) < 1)
+    {
+        other = world;
+        orb_death_touch();
+        return;
+    }
+    self.nextthink = time + 0.1;
+};
 
 void() orb_death_touch =
 {
