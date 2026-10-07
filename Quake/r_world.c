@@ -126,7 +126,12 @@ void R_MarkSurfaces (void)
 	if (r_novis.value || r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
 		vis = Mod_NoVisPVS (cl.worldmodel);
 	else if (nearwaterportal)
-		vis = SV_FatPVS (r_origin, cl.worldmodel);
+	{
+		vec3_t pvsorigin;
+		VectorCopy (r_origin, pvsorigin);
+		VR_PortalPVSOrigin (pvsorigin); // QVR: through a slipgate, round the destination, not the camera behind it
+		vis = SV_FatPVS (pvsorigin, cl.worldmodel);
+	}
 	else
 		vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
 

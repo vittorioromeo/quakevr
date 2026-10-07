@@ -60,6 +60,7 @@ browser with help, key types, choices and a model preview.
 | `quakevr/maps/vrtesthall.map` (`.bsp`, `.lit`, `.lux`) | the test hall: the old calibration room's setting buttons, pool and climbing (`Misc/quakevr/make_vrtesthall_map.py`) |
 | `quakevr/maps/vrexample.map` (`.bsp`, `.lit`, `.lux`) | the example map and its compiled files |
 | `quakevr/maps/vrclimb.map` (`.bsp`, `.lit`, `.lux`) | the climbing test map (`Misc/quakevr/climb/make_vrclimb_map.py`) |
+| `quakevr/maps/vrslipgates.map` (`.bsp`, `.lit`, `.lux`) | the slipgate test map, id's textures (`Misc/quakevr/slipgates/make_vrslipgates_map.py`; ROUND21.md, "Slipgate test map") |
 
 ## The entities
 

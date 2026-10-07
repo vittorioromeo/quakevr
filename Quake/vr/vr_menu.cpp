@@ -5369,6 +5369,23 @@ za::Vector<Item> pageDebugTests()
                   "carries you, the trigger teleports you the old way (a flash, a jump, 0.7 s locked), and "
                   "vr_portals_info says the feature is off. It is turned back on at the end; Graphics > Slipgates has "
                   "the same switch."),
+        header("Slipgates: Test Map (vrslipgates)"),
+        command("Slipgate Test Map", "map vrslipgates")
+            .help("map vrslipgates: slipgate pairs of every size (crate, player, shambler, very wide), flush with the floor "
+                  "and in frames with sills, at 90 and 45 degrees, a loop, between floor heights and by a pool. Every gate "
+                  "goes both ways; each room's buttons spawn a grunt, dog, ogre, shambler or scrag by its far wall."),
+        command("To the Flush Gates", "setpos -256 576 24 0 90 0; noclip")
+            .help("In vrslipgates: facing the player-sized flush gate (its bottom at the floor). The north gallery behind "
+                  "it is where it leads, so a monster chasing you through walks straight into it."),
+        command("To the Framed Gates", "setpos 1180 576 24 0 90 0; noclip")
+            .help("In vrslipgates: facing the player-sized gate in a frame with a 16-unit sill (a step); the next one east "
+                  "has a 32-unit sill (a jump: monsters can't)."),
+        command("To the Turning Gates", "setpos -1280 640 24 0 90 0; noclip")
+            .help("In vrslipgates: facing the gate that comes out of the next room's east wall (90 degrees); the loop is "
+                  "left and right of you, the 45-degree wall behind you to the left."),
+        command("To the Heights and Water", "setpos -400 -960 24 0 180 0; noclip")
+            .help("In vrslipgates: facing the floor-level gate that comes out over the 128-high platform; the pool's two "
+                  "gates are in the east and south walls."),
         header("Visibility: Hidden Staircase"),
         command("Hidden Staircase Probe", "map start; wait120; setpos 278 1728 24 7 -20 0; wait60; vr_hull_leafdebug")
             .help("Places the player at the reported staircase spot. setpos enables noclip; turn it off before "

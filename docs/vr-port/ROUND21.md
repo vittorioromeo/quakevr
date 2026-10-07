@@ -27651,3 +27651,49 @@ committed `.bsp` embeds them; the WAD is made from your paks at build time and n
 - **To try in the headset**: the room's scale and light (the lower wainscot is dark by design: the light comes from the
   coffer and the pilasters' lamps), reading the board from the spot (letters 0.28-0.7), the pause on the menu button and
   Position: Seated, walking out through the doorway.
+## Slipgate test map (2026-10-07)
+
+`map vrslipgates` (Debug > Slipgates: Test Map, with rows that put you at the flush, framed, turning and
+heights/water gates): slipgate pairs to test walking, props and monsters through. Made by
+`Misc/quakevr/slipgates/make_vrslipgates_map.py [--compile]` (the .map, then qbsp, vis and light as MAPPING.md's Full
+profile without `-dirt`, for even light to debug by); id's textures (the author's decision: the committed .bsp embeds the
+ones it uses) from `quakevr/wads/id_textures.wad`, which `Misc/trenchbroom/make_id_wad.py` makes from the player's own
+id1 paks (git-ignored; the same script as the calibration map's). No leak, 28 gate sides built.
+
+- **Rooms.** The hub (start; a sign, a tip, five weapons to grab, ammo). North: the flush galleries, FA's north wall and
+  FB's south wall face to face with four gates each, bottoms at the floor: crate (48x48), player (64x96), large
+  (128x160: shambler, fiend, vore), very wide (256x128). FB lies behind FA's gates, so a monster chasing you through
+  walks straight at them. East of them the framed galleries (GA/GB): the same in protruding frames (id's `slipside`)
+  with sills: a crate hatch (sill 24), player (sill 16: a step), player (sill 32: a jump), large and wide (16). West:
+  the turns room T (its west and east gates loop into each other: walk west for ever; its north gate comes out of U's
+  east wall, 90 degrees; its south-west corner is a 45-degree wall whose gate comes out of U's south wall). South: LV,
+  a floor-level gate that comes out over a 128-high platform (stairs back down), and two gates beside a sunken pool that
+  come out facing it. Every gate goes both ways; each side's destination stands 48 units out from the other side's face
+  (56 framed): clear of its trigger and frame for a shambler-sized monster (Quake's teleport puts monsters there).
+- **Props and monsters.** Each room has five buttons (grunt, dog, ogre, shambler, scrag: `func_enemy_dispenser`s by its
+  far wall). Crates, ammo boxes by the gates, a crate on a ramp in FA rolling at the crate gate, one floating in the
+  pool. `_vr_crates 0`, `_vr_debris 0`: nothing placed at random.
+- **Sheet depth.** The large flush pair's `*teleport` sheets are 48 deep, every other gate's 8 (as id's, a wall right
+  behind). A prop's box stops against that wall before its middle reaches the gate's plane when its half-width is more
+  than the sheet's depth (the split collision at the plane is the player's only): a small crate thrown at 46 u/s (a
+  crate's throws are slow) stays at the 8-deep player gate (y 626, its box against the backing) and goes through the
+  48-deep one. Fast light things (a shells box at 335 u/s) cross the 8-deep ones. Worth an engine fix (props' collision
+  split at the plane as the player's); the map shows both.
+- **Views black at some gates (fixed).** R_MarkSurfaces takes the fat PVS round the view's origin when the view leaf
+  holds a liquid's or a gate's face; in the view through a gate that origin is the camera carried behind the
+  destination (in a wall: an empty PVS), so the world through the gate was black, entities still drawn (the loop, the
+  turns, the platform gate: their destinations' leaves touch a gate's face; the galleries' don't). `VR_PortalPVSOrigin`
+  (vr_portals.cpp, from r_world.c) takes it round the destination's point instead, the point VR_PortalViewLeaf finds
+  its leaf by. `r_novis 1` showed it before the fix.
+- **Headless results** (`Misc/quakevr/slipgates/slipgates_test.sh <agent> [walk|throw|chase|views]`): the player walks
+  through every player-sized and bigger gate, both ways, flush and framed (sill 16 stepped over); the crate gates and
+  the 32 sill stop him, a jump takes him through the 32 one; the loop, 90 and 45 degree turns, the heights (out at z 152
+  on the platform) and the pool gates (into the water) carry him with the right yaw. Thrown: above. Chased (the player
+  put 150 units past the gate in the north room, the monster 200 behind him): a dog through the flush player gate in 75
+  frames, through the sill-16 frame in 60; at the sill-32 frame it bumps, slides along the wall and takes the sill-16
+  gate next to it (135 frames: out at that gate's destination); a fiend through the flush large gate in 30 frames and
+  the framed large one in 45-90 (one run of three it never left its spot). Grunts (and shamblers, ogres) stand and shoot
+  through the gate instead (PORTAL_AI.md: ranged monsters see through one gate and don't walk to you). Views: both
+  eyes, every kind of gate (`scratch/slipgate_views.png`).
+- **To try in VR:** each gallery's buttons with you on the far side; throwing crates and boxes through the 8-deep and
+  48-deep gates; walking the loop; the 45-degree gate's turn; the pool gates.

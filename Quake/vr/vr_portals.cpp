@@ -800,6 +800,29 @@ extern "C" mleaf_t* VR_PortalViewLeaf(mleaf_t* leaf)
     return dest && dest->contents != CONTENTS_SOLID ? dest : leaf;
 }
 
+// R_MarkSurfaces: a view leaf with a liquid's or a gate's face in it takes the PVS round the view's origin (SV_FatPVS,
+// for seeing through the surface). In the view through the gate that origin is the camera carried behind the
+// destination (in a wall, or another room: its PVS empty or elsewhere, the world through the gate black: vrslipgates'
+// loop, its turns and its platform gate, whose destinations' leaves touch a gate's face); there it is the destination's
+// point, the one VR_PortalViewLeaf finds the leaf by.
+extern "C" void VR_PortalPVSOrigin(float origin[3])
+{
+    if(!portals::enabled() || !portals::inView || portals::chosen < 0)
+    {
+        return;
+    }
+    const portals::Side& sd = portals::sides[static_cast<za::SizeT>(portals::chosen)];
+    const glm::vec3 p = sd.to + sd.turn * -sd.normal * 8.f;
+    vec3_t q{p.x, p.y, p.z};
+    const mleaf_t* dest = Mod_PointInLeaf(q, cl.worldmodel);
+    if(dest && dest->contents != CONTENTS_SOLID)
+    {
+        origin[0] = p.x;
+        origin[1] = p.y;
+        origin[2] = p.z;
+    }
+}
+
 // R_SetFrustum, its view matrix made (Quake's view space: x forward, y left, z up), its projection's not yet multiplied
 // in: in the view through the gate, the projection's depth row made oblique (Lengyel's), its near plane the gate's
 // plane carried to the destination: with reversed Z, depth = 1 - kOblique * (P . v) / w, P the plane (in view space,
