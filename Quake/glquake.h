@@ -498,6 +498,7 @@ void R_TranslateNewPlayerSkin (int playernum); //johnfitz -- this handles cases 
 void R_UploadFrameData (void);
 
 void R_DrawBrushModels (entity_t **ents, int count);
+qboolean R_BModelPortalSplit (entity_t *ent); // QVR: a brush prop drawn split by a slipgate (kept by R_SortEntities)
 void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent);
 void R_DrawBrushModels_SkyLayers (entity_t **ents, int count);
 void R_DrawBrushModels_SkyCubemap (entity_t **ents, int count);

@@ -660,7 +660,7 @@ static void R_SortEntities (void)
 		entity_t *ent = cl_visedicts[i];
 		if (!ent->model || ent->alpha == ENTALPHA_ZERO)
 			continue;
-		if (ent->model->type == mod_brush && R_CullModelForEntity (ent))
+		if (ent->model->type == mod_brush && R_CullModelForEntity (ent) && !R_BModelPortalSplit (ent)) // QVR: (its half through a slipgate)
 			continue;
 		cl_visedicts[j++] = ent;
 	}

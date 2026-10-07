@@ -233,6 +233,18 @@ static void R_BModelMatrix (entity_t *ent, float mat[16]) // QVR: (R_PaintBrushW
 		VR_BrushTransform (ent, mat); // QVR
 }
 
+// QVR: a brush prop (not a map's door or lift) drawn split by a slipgate (vr/vr_portals.cpp): R_SortEntities keeps it
+// though its own place is out of view, for its half drawn through the gate may be in view (a box sticking out of the
+// gate seen from the destination's side, its middle still at the entrance: its frustum cull dropped both halves).
+qboolean R_BModelPortalSplit (entity_t *ent)
+{
+	float mat[16], mapped[16], source[4], dest[4];
+	if (ent == &cl_entities[0] || !ent->model || ent->model->name[0] == '*')
+		return false;
+	R_BModelMatrix (ent, mat);
+	return VR_PortalAlias (ent, mat, mat, mapped, source, dest) != 0;
+}
+
 static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 {
 	float mat[16];

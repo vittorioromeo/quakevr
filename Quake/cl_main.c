@@ -592,6 +592,24 @@ void CL_RelinkEntities (void)
 				f = frac;
 				VectorSubtract (ent->msg_origins[0], from, delta);
 			}
+			// QVR: ... and between gates under 100 units apart (no snap: Quake's lerp went straight through the wall
+			// between them), when the older place carried lands much nearer the newer than it was
+			else if (f != 1 && VectorLength (delta) > 24.f)
+			{
+				float	t = 0.f;
+				vec3_t	c;
+				if (VR_PortalLerpFrom (ent->msg_origins[1], ent->msg_origins[0], c, &t))
+				{
+					vec3_t	rest;
+					VectorSubtract (ent->msg_origins[0], c, rest);
+					if (VectorLength (rest) < 0.5f * VectorLength (delta))
+					{
+						VectorCopy (c, from);
+						VectorCopy (rest, delta);
+						turn = t;
+					}
+				}
+			}
 
 			//johnfitz -- don't cl_lerp entities that will be r_lerped
 			if (r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
