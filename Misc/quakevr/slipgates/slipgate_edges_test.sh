@@ -79,6 +79,12 @@ fi
 if want grab; then
     run -Script "$START;setpos 0 940 24 0 90 0;wait5;noclip 0;vr_test_spawn 100;vr_test_spawn_dist 60;impulse 241;wait30;setpos 0 590 24 0 90 0;wait5;noclip 0;vr_mock_hand main 0.000 1.300 -0.450 56 0 0;wait10;vr_portals_debug_split 1;+attack;wait3;vr_portals_debug_split 0;-attack;toggleconsole;quit"
     echo "grab: $(grep 'force grab beam' "$LOG" | head -1) (to y 712, its image; its middle y 1000)"
+    # ... and pulled through (ragdoll_test.sh's take: the trigger locks, a flick up pulls): it crosses and is caught
+    G=$KIT/bases/$AGENT/qbase/id1/slipgate_pull.txt
+    printf "%s\n" "0.000 main 0.000 1.300 -0.450 56 0 0" "0.500 cmd +attack" "1.000 main 0.000 1.300 -0.450 56 0 0" \
+        "1.100 main 0.000 1.600 -0.450 56 0 0" "1.150 cmd +grabright" "1.150 button main grip 1" "1.200 cmd -attack" > $G
+    run -Script "$START;setpos 0 940 24 0 90 0;wait5;noclip 0;vr_test_spawn 100;vr_test_spawn_dist 60;impulse 241;wait30;setpos 0 590 24 0 90 0;wait5;noclip 0;wait10;vr_mock_play $G;wait300;toggleconsole;quit"
+    echo "grab: pulled through: $(grep -c 'force grab: crossed slipgate' "$LOG") crossing (1), $(grep -c 'force grab: caught' "$LOG") caught (1)"
 fi
 
 if want cull; then

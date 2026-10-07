@@ -253,11 +253,11 @@ void pairExits()
             const glm::vec3 mid = (o.mins + o.maxs) * 0.5f;
             const glm::vec3 across = (mid - exitMid) + o.normal * out; // the miss along the face
             if(out < -1.f || out > 128.f || glm::any(glm::greaterThan(glm::abs(apertureExtents(o) - exitSize), glm::vec2{4.f})) ||
-               glm::length(across) > 64.f || out >= best)
+               glm::length(across) > 64.f || glm::length(across) + 0.01f * out >= best)
             {
                 continue;
             }
-            best = out;
+            best = glm::length(across) + 0.01f * out; // (the gate it lands on the middle of: a row of gates of one size)
             shift = mid - exitMid;
         }
         sd.paired = best < 1e9f;
