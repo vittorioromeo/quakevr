@@ -1017,3 +1017,11 @@ rig): its leap onto you kills it, and every death spills three grenades; trainin
 training dummy type 21. Spawner Things 30..36.
 Tests: Debug > Tests > Dawn of the Machine Monsters (`vr_mg3_mtest`). Measurements: ROUND21.md, "Dawn of the Machine
 (MG3): monsters".
+
+**Shub-Niggurath** (M3-26, `monster_oldone_new`, boss2; `QC/vr_mg3_shub.qc`): id's Shub model, 12000 health, killable
+through four phases (her first wound, then 3/4, 1/2, 1/4 of her health), each change a thrash (immune) and a sphere of
+spheres; volleys of diamonds, autoguns, and by phase her children: lobbed plasma (splashes that call lightning and
+blow up), a sweeping lightning beam, eyes that spiral spheres at you (counted), a seeker eye. Killed: the lights out, a
+burst of gibs, the final text and the credits. Anywhere with MG3's data: Debug spawner Things 60 (free: ends nothing),
+62 an eye, 63 the seeker; training dummy 50/51. Tests: Debug > Tests > Dawn of the Machine: Shub (`vr_mg3_shubtest`).
+Measurements: ROUND21.md, "Dawn of the Machine (MG3): the Shub finale".

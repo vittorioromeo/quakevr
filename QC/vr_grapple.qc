@@ -255,6 +255,7 @@ float(entity m) VR_Grapple_MonsterMass =
     if(c == "monster_armagon")       { return 3000; }
     if(c == "monster_boss")          { return 5000; }
     if(c == "monster_oldone")        { return 10000; }
+    if(c == "monster_oldone_new")    { return 10000; } // (Dawn of the Machine's)
     // A grunt's box (24 x 24 x 51 units) is 80 kg.
     return max(10, m.size_x * m.size_y * m.size_z * (80 / (24 * 24 * 51)));
 };

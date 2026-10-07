@@ -28743,3 +28743,52 @@ Checker: **15 missing classes, 546 placements** (21 and 625 before M3-19: `monst
 `misc_sacrifice` 12, `trigger_sacrifice_counter` 1, `monster_slime` 6, `monster_super_shambler` 5 resolved). Release
 build, QC 0 warnings (the 3 of `vr_mg3_test.qc`'s 10-argument sprintf fixed in M3-19), statics, QC precedence and FGD
 (333 entities) pass. `eval.sh` not run (no melee change). Test saves in the worktree's game folder: `mg3btss.sav`.
+
+## Dawn of the Machine (MG3): the Shub finale (2026-10-07)
+
+Phase D of [MG3_PLAN.md](MG3_PLAN.md), M3-26/27 (M3-24/25, Chthon, are another worker's). Numbers kept apart from
+theirs: the Debug spawner's from **60**, the training dummy's from **50** (the dummy's tried/available bits: a third pair
+of floats for 48 on). Tests: `vr_mg3_shubtest N` (`QC/vr_mg3_shub_test.qc`, developer 1; Debug > Tests > Dawn of the
+Machine: Shub): 1 report, 2 phases and children, 3 zombies and pillars, 4 death and the credits, 5 the training dummy.
+
+### M3-26 Shub and her children
+
+`monster_oldone_new` (`QC/vr_mg3_shub.qc`, from upstream `monsters/mg3_oldone_new.qc`): id's Shub model, 12000 health,
+killable. Her 46-frame loop faces you and attacks on frames 14/29/44: a volley of diamonds (one row; two in phase 4),
+every third attack her phase's child in turn (1: spammer, swiper; 2: vortex, swiper, spammer; 3: blasters, three
+swipers; 4: spammer, seeker, swiper, blasters); her autoguns on frames 21-25 and 36-40 (the c-th of a run up to her
+phase + 2 and skill + 1, none on skill 0); a shub zombie on 23 and 45 (M3-27). Phases: her first wound 1, then under
+3/4, 1/2, 1/4 of her health 2, 3, 4 (a seeker at 2; her `wave1` key's target fired at 2, `wave2`'s at 3 and at 4, as
+upstream: boss2 sets only wave2). Each change: her thrash (1.5 s, no damage taken: `T_DamageDeal`'s early return on
+`.mg3_shub_immune`, upstream combat.qc's boss_immune) ending in a sphere of 100 spheres (skill 3: as many volleys as
+her phase). Children: the spammer (13 plasma lobs; each a splash where it lands, 2 s later a lightning bolt and a blast,
+100 radius, Shub included, as upstream), the swiper (a lightning beam swept 180 degrees in 1.3 s: 25, 100 to a shub
+zombie), the blasters and the vortex (eyes, `teleporter_eye.mdl`, 120 health, counted as they appear, 72 spheres
+spiralled at you then a burst; where one appears anything is telefragged, a player or Shub there kills the newcomer),
+the seeker (300 health, chasing, its touch 500, not counted). Killed: immune, her children told to finish (the
+upstream spammers and swipers, left thinking nothing, now removed), a zombie cleaner (one a 0.2-0.7 s), a last sphere,
+three thrashes, the lights dimmed to `a`, then 50 gibs up and about, lights back, CD track 3 and `MG3_ShubEnding`
+(M3-10: `$map_dopa_endtext_final`, next map start, the credits). A single player dead by then completes nothing (she
+idles, as upstream). VR: her and her eyes' beams carry Quake VR's beam id byte (`VR_ParseBeamEntity`); rerelease
+`EF_CANDLELIGHT` (64) is masked out by the engine for this progs (`PR_FindSupportedEffects`) and not set; no shove or
+knockback moves her (`VR_Push`), 10000 kg to the grapple, out of liquid rules, an obituary ("became one with
+Shub-Niggurath", her eyes too); a grenade striking her deals its damage to her and blasts round her (upstream
+weapons.qc; her box is far bigger than her body). Rigid models, no rig: no ragdoll or head zone (as the orb).
+
+**Anywhere** (decision 5): Debug spawner Things 60 Shub (free: `.mg3_shub_free`, killed she bursts but ends nothing), 62
+an eye (`monster_shub_eye`), 63 the seeker (`monster_shub_seeker`); training dummy 50 Shub (free), 51 her eye. She
+raises zombies only where the map has `info_szombie_spawn`.
+
+Measured: boss2 (`vr_campaign_native mg3`) `vr_mg3_shubtest 2` **31/0**: her model, 12000, 10000 kg, awake, unmoved by a
+700 shove, phases 1-4 at 11990/8990/5990/2990 with the thrash's immunity (a 100 hit ignored), a seeker at 2, waves 1/2/3,
+each phase's rotation of children exact, a volley between, none while immune, autoguns 2 of 5 at skill 1, 5 eyes
+counted; spammers' 52 plasma (13 each), the swipers gone, a fresh blaster pair spiralling spheres, one killed and one
+spent (72 shots), both counted dead, every plasma accounted for (blown up where it landed, on something alive, or still
+about). e1m1 (a free Shub ahead) **31/0**. `vr_mg3_shubtest 4` boss2 **9/0**: killed, counted once, immune, her
+children gone, 5 s of thrashes, 50 gibs, intermission with next map start and the final text, the presses to the text
+and on: "Credits: native campaign end presentation opened" (a run left at the menu); e1m1's free Shub ends nothing.
+Training dummy (`5`, e1m1) **6/0**. Checker: boss2 2 missing (`func_breakable` 8, `info_szombie_spawn` 36: M3-27), all
+maps 7 missing classes, 55 placements (8 and 56 before). Regression: `vr_mg3_btest 2` 11/0, `7` 10/0, `vr_mg3_mtest 2`
+14/0, MG1 hub 20/0, e1m1 smoke exit 0; QC 0 warnings, statics, precedence, FGD (343 entities) pass. Found while testing: the eyes of one attack rotation run at once share their spots
+and telefrag each other (upstream's spawn_boss_tdeath), so the test kills them before their next frame.
+

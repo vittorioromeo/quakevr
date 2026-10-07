@@ -560,6 +560,7 @@ void() StartFrame =
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
     MG3_BestiaryTestFrame(); // vr_mg3_btest (vr_mg3_bestiary_test.qc)
+    MG3_ShubTestFrame(); // vr_mg3_shubtest (vr_mg3_shub_test.qc)
     VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     VR_Crates_Frame(); // VR: at a new map's first frame, its crates (vr_crates.qc; before the rocks and bricks: they keep clear)

@@ -1092,6 +1092,10 @@ void(entity e, vector dir, float speed, float up) VR_Push =
     {
         return;
     }
+    if(MG3_Shub_Is(e))
+    {
+        return; // (Dawn of the Machine's Shub: rooted, as upstream)
+    }
 
     if(e.flags & FL_MONSTER)
     {
@@ -1243,6 +1247,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         {
             return FALSE;
         }
+    }
+    // Dawn of the Machine's Shub: nothing while she thrashes or dies (vr_mg3_shub.qc; upstream combat.qc's boss_immune).
+    if(targ.mg3_shub_immune)
+    {
+        return FALSE;
     }
 
     if(targ.classname == "trigger_explosion")

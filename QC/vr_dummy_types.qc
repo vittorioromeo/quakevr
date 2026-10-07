@@ -186,6 +186,20 @@ void(float xType) VR_Dummy_Type =
         vr_dt_stand = 0; vr_dt_stands = 1; vr_dt_pain = 0; vr_dt_pains = 0; vr_dt_atk = 50; vr_dt_atks = 6; // (no pain)
         return;
     }
+    // Dawn of the Machine's Shub (vr_mg3_shub.qc), from 50: her loop, her thrash; an eye of hers (one frame).
+    if(xType == 50)
+    {
+        vr_dt_class = "monster_oldone_new"; vr_dt_name = "Shub-Niggurath"; vr_dt_pack = 3;
+        vr_dt_stand = 0; vr_dt_stands = 46; vr_dt_pain = 46; vr_dt_pains = 15; vr_dt_atk = 46; vr_dt_atks = 15;
+        vr_dt_snd1 = "owned/mg3/orb/orb_pain.wav";
+        return;
+    }
+    if(xType == 51)
+    {
+        vr_dt_class = "monster_shub_eye"; vr_dt_name = "Shub's Eye"; vr_dt_pack = 3;
+        vr_dt_stand = 0; vr_dt_stands = 1; vr_dt_pain = 0; vr_dt_pains = 0; vr_dt_atk = 0; vr_dt_atks = 1; // (no pain)
+        return;
+    }
     vr_dt_class = "monster_army"; vr_dt_name = "Grunt";
     vr_dt_stand = 0; vr_dt_stands = 8; vr_dt_pain = 40; vr_dt_pains = 6; vr_dt_atk = 81; vr_dt_atks = 9;
     vr_dt_snd1 = "soldier/pain1.wav"; vr_dt_snd2 = "soldier/pain2.wav";
@@ -219,6 +233,8 @@ void(float xType) VR_Dummy_TypeSpawn =
     if(xType == 31) { monster_slime(); return; }
     if(xType == 32) { monster_lava_man_mg3(); return; }
     if(xType == 33) { monster_super_shambler(); return; }
+    if(xType == 50) { monster_oldone_new(); self.mg3_shub_free = TRUE; return; } // (killed, she ends nothing)
+    if(xType == 51) { monster_shub_eye(); return; }
     monster_army();
 };
 
@@ -254,6 +270,7 @@ float(float xType) VR_Dummy_Make =
 nosave float vr_dummy_tried;     // types tried on a stand-in this map (bits): whether they can be made here,
 nosave float vr_dummy_available; // and which can (types 0..23; 24 on: the second pair, bit xType - 24: a float's exact bits)
 nosave float vr_dummy_tried2, vr_dummy_available2;
+nosave float vr_dummy_tried3, vr_dummy_available3; // (48 on: the third pair, bit xType - 48)
 
 // Whether `xType` can be made here (its pack's files present): tried once a map, on a stand-in (VR_Dummy_Make).
 float(float xType) VR_Dummy_Available =
@@ -262,20 +279,26 @@ float(float xType) VR_Dummy_Available =
     {
         return xType == 0;
     }
-    float high = xType >= 24;
-    float bit = pow(2, high ? xType - 24 : xType);
-    if(!((high ? vr_dummy_tried2 : vr_dummy_tried) & bit))
+    float pair = floor(xType / 24); // (0, 1, 2: which pair of floats holds its bit, 24 to a float)
+    float bit = pow(2, xType - pair * 24);
+    float tried = (pair == 2) ? vr_dummy_tried3 : ((pair == 1) ? vr_dummy_tried2 : vr_dummy_tried);
+    if(!(tried & bit))
     {
-        if(high) { vr_dummy_tried2 = vr_dummy_tried2 | bit; } else { vr_dummy_tried = vr_dummy_tried | bit; }
+        if(pair == 2) { vr_dummy_tried3 = vr_dummy_tried3 | bit; }
+        else if(pair == 1) { vr_dummy_tried2 = vr_dummy_tried2 | bit; }
+        else { vr_dummy_tried = vr_dummy_tried | bit; }
         entity oldSelf = self;
         self = spawn();
         entity probe = self;
         if(VR_Dummy_Make(xType))
         {
-            if(high) { vr_dummy_available2 = vr_dummy_available2 | bit; } else { vr_dummy_available = vr_dummy_available | bit; }
+            if(pair == 2) { vr_dummy_available3 = vr_dummy_available3 | bit; }
+            else if(pair == 1) { vr_dummy_available2 = vr_dummy_available2 | bit; }
+            else { vr_dummy_available = vr_dummy_available | bit; }
             remove(probe);
         }
         self = oldSelf;
     }
-    return ((high ? vr_dummy_available2 : vr_dummy_available) & bit) != 0;
+    float available = (pair == 2) ? vr_dummy_available3 : ((pair == 1) ? vr_dummy_available2 : vr_dummy_available);
+    return (available & bit) != 0;
 };

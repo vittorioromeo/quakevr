@@ -2674,7 +2674,11 @@ void() GrenadeTouch =
 
     if(other.takedamage == DAMAGE_AIM)
     {
-        if(!((other.flags & FL_SPECIFICDAMAGE) && !(other.items & IT_GRENADE_LAUNCHER))) // HONEY
+        if(MG3_Shub_Is(other))
+        {
+            MG3_Shub_GrenadeHit(); // (Dawn of the Machine's Shub: the hit hers, the blast without her: vr_mg3_shub.qc)
+        }
+        else if(!((other.flags & FL_SPECIFICDAMAGE) && !(other.items & IT_GRENADE_LAUNCHER))) // HONEY
         {
             GrenadeExplode();
         }

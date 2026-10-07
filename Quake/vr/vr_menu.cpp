@@ -289,6 +289,8 @@ void restartVr()
         out.pushBack({30.f, "Orb"});
         out.pushBack({32.f, "Lava Man (Dawn of the Machine)"});
         out.pushBack({33.f, "Super Shambler"});
+        out.pushBack({50.f, "Shub-Niggurath"});
+        out.pushBack({51.f, "Shub's Eye"});
     }
     out.pushBack({31.f, "Slime"}); // (Dawn of the Machine's splitting spawn: Quake's model)
     return out;
@@ -5164,6 +5166,33 @@ za::Vector<Item> pageMg3BestiaryTests()
     };
 }
 
+za::Vector<Item> pageMg3ShubTests()
+{
+    return {
+        header("Dawn of the Machine: Shub"),
+        command("Shub Ahead (Free)", "vr_test_spawn 60; vr_test_spawn_dist 256; impulse 241")
+            .help("Dawn of the Machine's Shub-Niggurath 256 units ahead (needs room: she is 256 units wide): volleys of diamonds, "
+                  "autoguns, lobbed plasma, a sweeping beam, eyes and a seeker by her phase; she raises shub zombies where the "
+                  "map has their spawns. One from here is free: killed, she bursts but ends nothing."),
+        command("Shub's Eye Ahead", "vr_test_spawn 62; vr_test_spawn_dist 160; impulse 241")
+            .help("One of Shub's eyes: it hangs there and after 2 s spirals 72 spheres at you, then bursts. 120 health."),
+        command("Shub's Seeker Ahead", "vr_test_spawn 63; vr_test_spawn_dist 200; impulse 241")
+            .help("Shub's seeker eye: it chases you, faster and faster; its touch does 500. 300 health."),
+        command("Shub Report", "vr_mg3_shubtest 1")
+            .help("Her data, the map's Shub (phase, health), its shub zombie spawns, pillars, zombies and children (developer 1)."),
+        command("Shub Phases Test", "vr_mg3_shubtest 2")
+            .help("Destructive (god mode meanwhile): the map's Shub (boss2: you are taken to the arena) or a free one ahead: her "
+                  "wounds through her four phases, her thrash, her waves, each phase's children, her autoguns, every child "
+                  "dead (developer 1)."),
+        command("Shub Death Test", "vr_mg3_shubtest 4")
+            .help("Destructive (god mode meanwhile): Shub killed: her children cleared, the lights out, her burst; the map's "
+                  "then shows the final text and the credits (developer 1)."),
+        command("Training Dummy as Shub Test", "vr_mg3_shubtest 5")
+            .help("Destructive: a training dummy 300 units ahead as Shub (free), then as her eye: what it is, killed as each, "
+                  "nothing ended, a dummy back; Dummy Enemy reset to the grunt (developer 1)."),
+    };
+}
+
 za::Vector<Item> pageDebugTests()
 {
     return {
@@ -5183,6 +5212,8 @@ za::Vector<Item> pageDebugTests()
             .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
         open("Dawn of the Machine Bestiary", pageIndex(pageMg3BestiaryTests))
             .help("Dawn of the Machine's monsters in any campaign with its data: the orb, ..."),
+        open("Dawn of the Machine: Shub", pageIndex(pageMg3ShubTests))
+            .help("Dawn of the Machine's Shub-Niggurath (any campaign with its data; boss2's own): her phases, children and death."),
         open("Dawn of the Machine Weapons", pageIndex(pageMg3WeaponTests))
             .help("The Super Axe (any campaign with the Dawn of the Machine data), the axe buttons, the laser cannon, the bloody shotguns."),
         open("Dawn of the Machine Monsters", pageIndex(pageMg3MonsterTests))
@@ -5290,6 +5321,7 @@ za::Vector<Item> pageDebugTests()
              {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"},
              {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
              {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"}, {40.f, "Orb"}, {41.f, "Slime"}, {42.f, "Ghost"}, {43.f, "Sacrifice"}, {44.f, "Lava Man (Dawn of the Machine)"}, {45.f, "Super Shambler"},
+             {60.f, "Shub-Niggurath (Free)"}, {62.f, "Shub's Eye"}, {63.f, "Shub's Seeker"},
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},
@@ -6234,6 +6266,7 @@ const Page pages[] = {
     {"Dawn of the Machine Weapons", pageMg3WeaponTests, pageDebugTests, LevelDeveloper},
     {"Dawn of the Machine Monsters", pageMg3MonsterTests, pageDebugTests, LevelDeveloper},
     {"Dawn of the Machine Bestiary", pageMg3BestiaryTests, pageDebugTests, LevelDeveloper},
+    {"Dawn of the Machine: Shub", pageMg3ShubTests, pageDebugTests, LevelDeveloper},
     {"Debug - Cheats and Recording", pageDebugCheats, pageDebug, LevelDeveloper}, // (vr_menu_cheats.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));

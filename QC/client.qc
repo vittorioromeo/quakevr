@@ -2554,7 +2554,7 @@ void(entity targ, entity attacker) ClientObituary =
                     bprint(" was slashed by a Knight\n");
                 if(attacker.classname == "monster_ogre")
                     bprint(attacker.vr_mg3_mon ? " rode a rocket to hell\n" : " was destroyed by an Ogre\n"); // (QVR: MG3's rocket ogre)
-                if(attacker.classname == "monster_oldone")
+                if(attacker.classname == "monster_oldone" || MG3_Shub_Is(attacker) || MG3_Shub_IsChild(attacker)) // (QVR: MG3's and her eyes)
                     bprint(" became one with Shub-Niggurath\n");
                 if(attacker.classname == "monster_shalrath")
                     bprint(" was exploded by a Vore\n");

@@ -1208,6 +1208,16 @@ The final boss (end.bsp): killed only by telefragging it (a teleporter onto its 
 [
 ]
 
+@PointClass color(255 0 0) size(-128 -128 -24, 128 128 256) model({ "path": "progs/oldone.mdl" }) =
+	monster_oldone_new : "Dawn of the Machine's Shub-Niggurath (needs the owned Dawn of the Machine data, else nothing spawns): 12000 health, killable. She faces you, firing volleys of diamonds, autoguns and, by her phase (her first wound, then under 3/4, 1/2 and 1/4 of her health), lobbed plasma, a sweeping lightning beam, eyes that spiral spheres at you and a seeker eye; she raises shub zombies at the map's info_szombie_spawn. Killed: the final text, then the credits. 'wave1': fired at phase 2; 'wave2': at phases 3 and 4."
+[
+	spawnflags(flags) =
+	[
+		128 : "Tiny box" : 0
+	]
+	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
+]
+
 @PointClass color(255 0 0) size(-32 -32 -24, 32 32 64) model({ "path": "owned/mg3/progs/teleporter_eye_blink.mdl" }) =
 	monster_orb : "Dawn of the Machine's orb (needs the owned Dawn of the Machine data, else nothing spawns): a flying eye of 300 health that sees behind it too, bursts spheres at you (18 each) and throws lightning when hurt; killed, it is flung and blows up (100) where it lands."
 [
@@ -1251,6 +1261,16 @@ A mechanical scorpion: nails and a stinger. Models and sounds from hipnotic."
 	monster_shambler : "Shambler
 
 600 health, half damage from explosions; claws and lightning."
+[
+]
+
+@PointClass color(255 0 0) size(-32 -32 -24, 32 32 64) =
+	monster_shub_eye : "One of Dawn of the Machine's Shub's eyes (needs the owned Dawn of the Machine data, else nothing spawns): it hangs where it is and after 2 s spirals 72 spheres at you (15 each), then bursts. 120 health."
+[
+]
+
+@PointClass color(255 0 0) size(-32 -32 -24, 32 32 64) =
+	monster_shub_seeker : "Dawn of the Machine's Shub's seeker eye (needs the owned Dawn of the Machine data, else nothing spawns): it chases you, faster and faster (up to 300), and its touch does 500. 300 health; not counted."
 [
 ]
 
