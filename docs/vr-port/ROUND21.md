@@ -30584,3 +30584,15 @@ vrfiringrange_2026-10-08_00-00-42, 00-01-10, and his typed note on the pouch's s
 - **A spent magazine doesn't go back into the pouch** (vrfiringrange 00-01-10): a magazine taken out empty and let go of
   at the pouch falls from the hand (`VR_Reload_IsSpentMag`: refused by `VR_Reload_Refund`, so also never taken as a
   pickup or at a holster); a part-used one still goes back, its rounds refunded.
+- **A spent enemy gun smokes and crackles** (grenedin 00-07-22): the shot that empties a grunt's burst rifle or an
+  enforcer's laser rifle starts its cues on the gun's record (its weapon_inst, which goes with it between hand and
+  ground; vr_enemyguns.qc `VR_EnemyGun_Spent`, its think every 0.1 s): wisps of the spent cells' smoke off its muzzle in
+  the hand, off its middle lying about (holstered: none) for `vr_enemygun_spent_smoke` (5 s); lightning's lasting arcs
+  all over it, as over a struck corpse, for `vr_enemygun_spent_crackle` (2.5 s), sent again for what is left as it moves
+  between a hand and the ground; the corpses' crackle (misc/power.wav) at `vr_enemygun_spent_volume` (0.25; corpses'
+  0.5) as it starts. In the hand the arcs need a new shock kind, `KindGunShock` (8; QC `QVR_SHOCK_GUN` through
+  `watershock`, sent to that player's client only): the client draws a body's lasting shock over the gun drawn in that
+  hand (`view::heldWeapon`), its arcs 0.35 the size (a body's would dwarf the gun); dropped, the lying gun is an entity
+  and takes `bodyshockdeath` as a corpse does. `vr_shock_info` lists the hands' ones ("gun in hand N"). Combat > Enemy
+  Weapons, "Spent Rifles": Spent Smoke, Spent Crackle, Crackle Volume. `vr_debug_shots 1` prints where it is and when
+  its cues end.

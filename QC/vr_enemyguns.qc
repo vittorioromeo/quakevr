@@ -47,6 +47,7 @@ void() VR_EnemyGuns_Precache =
     precache_sound("vr/burst3.wav");
     precache_sound("enforcer/enfire.wav");  // the enforcer's laser, and where it hits
     precache_sound("enforcer/enfstop.wav");
+    precache_sound("misc/power.wav");       // a spent gun's crackle (VR_EnemyGun_Spent: the shocked corpses')
 };
 
 float(float xWid) VR_IsEnemyGun =
@@ -311,6 +312,135 @@ void(float xHand) VR_FireEnforcerRifle =
     }
 };
 
+// ----------------------------------------------------------------------------
+// A spent gun's cues (the author's note grenedin_2026-10-08_00-07-22)
+// ----------------------------------------------------------------------------
+//
+// The shot that empties a grunt's burst rifle or an enforcer's laser rifle sets it smoking for vr_enemygun_spent_smoke
+// seconds (wisps off its muzzle in the hand, off its middle lying about; holstered, none) and crackling all over with
+// lightning's lasting arcs, as a corpse the lightning struck does, for vr_enemygun_spent_crackle seconds, with the
+// corpses' crackle (misc/power.wav) at vr_enemygun_spent_volume: it is done, drop it. Kept on the gun's record (its
+// weapon_inst, which goes with it from hand to ground and back), thinking every tenth of a second while they last.
+
+.float wi_spent;        // a record's: when its gun's own ammo ran out (its cues from then; 0: none)
+.float wi_spent_where;  // ... where its arcs were last sent: 1 the off hand, 2 the main hand, 3 lying about; 0 nowhere
+.entity wi_spent_owner; // ... the player who emptied it (it is looked for in his hands)
+.float wi_spent_puffs;  // ... its wisps of smoke so far (the log)
+float vr_enemygun_spent_arcs; // the arcs sent (the tests)
+
+// The spent gun's arcs for `xLeft` s: over the gun in a hand of `p` (`xWhere` 1 off, 2 main: its client draws them on
+// the gun as drawn), or over `xLying`, the gun lying about (every client).
+void(entity p, float xWhere, entity xLying, float xLeft) VR_EnemyGun_SpentArcs =
+{
+    vr_enemygun_spent_arcs++;
+    if(xWhere == 3)
+    {
+        bodyshockdeath(xLying, xLeft);
+        return;
+    }
+    entity oldSelf = self;
+    self = p;
+    watershock(QVR_SHOCK_GUN, p.origin, xWhere == 2 ? cVR_MainHand : cVR_OffHand, xLeft);
+    self = oldSelf;
+};
+
+// Every tenth of a second while its cues last (self: the spent gun's record): where the gun is now, its smoke there,
+// its arcs sent again as it moves between a hand and the ground.
+void() VR_EnemyGun_SpentThink =
+{
+    entity inst = self;
+    float t = time - inst.wi_spent;
+    float smoke = max(0, cvar_hget(cvarh_vr_enemygun_spent_smoke));
+    float crackle = max(0, cvar_hget(cvarh_vr_enemygun_spent_crackle));
+    if(t >= smoke && t >= crackle)
+    {
+        if(cvar_hget(cvarh_vr_debug_shots))
+        {
+            dprint(sprintf("spent gun: its cues over after %.1f s: %g wisps, arcs sent %g times\n", t, inst.wi_spent_puffs,
+                vr_enemygun_spent_arcs));
+        }
+        inst.wi_spent = 0;
+        inst.wi_spent_where = 0;
+        return;
+    }
+    inst.nextthink = time + 0.1;
+    entity p = inst.wi_spent_owner;
+    float where = 0;
+    entity lying = world;
+    if(p != world && p.weaponinst2 == inst)
+    {
+        where = 1;
+    }
+    else if(p != world && p.weaponinst == inst)
+    {
+        where = 2;
+    }
+    else
+    {
+        for(entity e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+        {
+            if(e.weaponinst == inst)
+            {
+                lying = e;
+                where = 3;
+                break;
+            }
+        }
+    }
+    if(where != inst.wi_spent_where)
+    {
+        inst.wi_spent_where = where;
+        if(where && t < crackle)
+        {
+            VR_EnemyGun_SpentArcs(p, where, lying, crackle - t);
+        }
+        if(cvar_hget(cvarh_vr_debug_shots))
+        {
+            dprint(sprintf("spent gun: %s at %.1f s\n", where == 1 ? "in the off hand" : (where == 2 ? "in the main hand" :
+                (where == 3 ? "lying about" : "out of sight (holstered)")), t));
+        }
+    }
+    if(!where || t >= smoke || random() >= 0.35 + 0.65 * (smoke - t) / max(0.1, smoke))
+    {
+        return;
+    }
+    vector at = where == 1 ? p.offmuzzlepos : (where == 2 ? p.muzzlepos : lying.origin + '0 0 2');
+    if(where != 3 && vlen(at - VRGetEntHandPos(p, where == 2 ? cVR_MainHand : cVR_OffHand)) > 64)
+    {
+        at = VRGetEntHandPos(p, where == 2 ? cVR_MainHand : cVR_OffHand); // (no muzzle reported: a bot's)
+    }
+    particle2(at, '0 0 0', QVR_PARTICLE_PRESET_BATTERYSMOKE, 1);
+    inst.wi_spent_puffs = inst.wi_spent_puffs + 1;
+};
+
+// The gun in that hand of self has just fired its last round: its cues start (none if both times are 0).
+void(float xHand) VR_EnemyGun_Spent =
+{
+    entity inst = VRGetEntWeaponInst(self, xHand);
+    float smoke = max(0, cvar_hget(cvarh_vr_enemygun_spent_smoke));
+    float crackle = max(0, cvar_hget(cvarh_vr_enemygun_spent_crackle));
+    if(inst == world || (smoke <= 0 && crackle <= 0))
+    {
+        return;
+    }
+    inst.wi_spent = time;
+    inst.wi_spent_where = 0;
+    inst.wi_spent_owner = self;
+    inst.wi_spent_puffs = 0;
+    inst.think = VR_EnemyGun_SpentThink;
+    inst.nextthink = time + 0.05;
+    float vol = cvar_hget(cvarh_vr_enemygun_spent_volume);
+    if(crackle > 0 && vol > 0)
+    {
+        sound(self, CHAN_AUTO, "misc/power.wav", min(1, vol), ATTN_NORM);
+    }
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("spent gun: %s (hand %g) empty: smoking %g s, crackling %g s, volume %g\n",
+            VR_EnemyGun_Name(VRGetWeapon(xHand)), xHand, smoke, crackle, vol));
+    }
+};
+
 // A burst's round from the gun in that hand, its clip less one (the trigger pull's first, VR_EnemyGun_Attack, or the
 // burst's next, VR_EnemyGuns_Frame).
 void(float xHand) VR_BurstRound =
@@ -321,6 +451,10 @@ void(float xHand) VR_BurstRound =
     player_shot1(xHand);
     VR_FireBurstRound(xHand);
     updateAmmoCounters();
+    if(VRGetWeaponClip(xHand) < 1)
+    {
+        VR_EnemyGun_Spent(xHand);
+    }
     if(cvar_hget(cvarh_vr_debug_shots))
     {
         dprint(sprintf("burst round: hand %g, %g more in the burst, %g in the clip, at %g\n", xHand,
@@ -393,6 +527,10 @@ void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinishe
         *xOutAttackFinished = time + RuneApplyHell(0.3, self);
     }
     updateAmmoCounters();
+    if(VRGetWeaponClip(xHand) < 1)
+    {
+        VR_EnemyGun_Spent(xHand);
+    }
     if(cvar_hget(cvarh_vr_debug_shots))
     {
         dprint(sprintf("%s fired: hand %g, %g left\n", VR_EnemyGun_Name(xWeapon), xHand, VRGetWeaponClip(xHand)));

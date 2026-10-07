@@ -1029,6 +1029,14 @@ int campaignsBloodyShown = -1;
                   "1750)."),
         slider("Shots", vr_enfrifle_ammo, 1.f, 80.f, 1.f, "%.0f").extend()
             .help("The shots in a dropped rifle: its own, never refilled (cells don't). Empty, it is still a club."),
+        header("Spent Rifles"),
+        slider("Spent Smoke", vr_enemygun_spent_smoke, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("A burst rifle or a laser rifle whose last round you fire smokes this long, in the hand or dropped: it "
+                  "is done, drop it (0: never)."),
+        slider("Spent Crackle", vr_enemygun_spent_crackle, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 30.f)
+            .help("And crackles all over with lightning's arcs this long, as a corpse the lightning struck (0: never)."),
+        slider("Crackle Volume", vr_enemygun_spent_volume, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The corpses' crackle as it starts, this loud (0: silent)."),
     };
 }
 

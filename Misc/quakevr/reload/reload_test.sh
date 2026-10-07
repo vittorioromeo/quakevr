@@ -356,4 +356,18 @@ SNAP="$WELL;$GRIP;vr_mock_hand_to main lport;wait3;vr_mock_hand main 0.45 0.85 -
 log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;vr_reload_bump_speed 100;vr_reload_test 5;impulse 125;wait3;$SNAP;$REP;$POUCH;$LETGO;wait30;$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand|mode)" 2>&1)
 holds=$(echo "$log" | grep "^reload: off hand")
 check $(h 2 | grep -q "holds a round of 0" && echo "$log" | grep -q "a magazine of 0 is spent: not back in the pouch, it falls (hand 1)" && h 3 | grep -q "main hand weapon 0 clip 0 holds nothing" && ! echo "$log" | grep -q "back in the pouch (hand" && [ "$(echo "$log" | grep "^reload: mode" | sed -n 2p | grep -o "nails [0-9]*")" = "$(echo "$log" | grep "^reload: mode" | sed -n 3p | grep -o "nails [0-9]*")" ] && echo 1 || echo 0) "a spent magazine let go of at the pouch falls: not put back"
+# A spent enemy gun's cues (grenedin 00-07-22): the enforcer's rifle in the off hand, its last shot fired (impulse 214
+# leaves one): it crackles over the gun in the hand (vr_shock_info: the gun's arcs drawn), dropped it crackles on as it
+# lies (a body's lasting shock on it), and it smokes for vr_enemygun_spent_smoke (5 s); the grunt's burst rifle in the
+# main hand the same; Spent Smoke 2 and Spent Crackle 1: 2 s.
+DROPOFF="vr_weapon_grip_mode 0;+graboff;vr_mock_button off grip 1;wait5;vr_mock_button off grip 0;-graboff"
+EG="map e1m1;wait60;developer 1;vr_debug_shots 1;vr_weapon_grip_mode 1"
+HANDS="vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 50 0 0;wait10"
+FE="^spent gun|^bodyshock: (gun|entity)"
+log=$(bash $KIT/run.sh $AGENT -Script "$EG;impulse 186;wait3;$HANDS;impulse 214;wait3;+offhandattack;wait3;-offhandattack;wait30;vr_shock_info;wait2;$DROPOFF;wait60;vr_shock_info;wait2;wait400;toggleconsole;quit" -Filter "$FE" 2>&1)
+st=$(echo "$log" | grep -o "cues over after [0-9.]* s: [0-9]* wisps" | awk '{print $4, $6}')
+check $(echo "$log" | grep -q "spent gun: enforcer's rifle (hand 0) empty: smoking 5 s, crackling 2.5 s" && echo "$log" | grep -q "bodyshock: gun in hand 0 arcs=[1-9]" && echo "$log" | grep -q "spent gun: lying about" && echo "$log" | grep -q "bodyshock: entity=[0-9]* kind=4 .* arcs=[1-9]" && echo "$st" | awk '{print ($1 >= 4.9 && $1 <= 5.3 && $2 >= 15) ? 1 : 0}') "the enforcer's rifle spent: it crackles in the hand and dropped, and smokes 5 s (after, wisps: ${st:-none})"
+log=$(bash $KIT/run.sh $AGENT -Script "$EG;vr_enemygun_spent_smoke 2;vr_enemygun_spent_crackle 1;impulse 165;wait3;$HANDS;impulse 214;wait3;+attack;wait3;-attack;wait20;vr_shock_info;wait300;toggleconsole;quit" -Filter "$FE" 2>&1)
+st=$(echo "$log" | grep -o "cues over after [0-9.]* s" | awk '{print $4}')
+check $(echo "$log" | grep -q "spent gun: grunt's burst rifle (hand 1) empty: smoking 2 s, crackling 1 s" && echo "$log" | grep -q "bodyshock: gun in hand 1 arcs=[1-9]" && awk -v t="$st" 'BEGIN { print (t != "" && t >= 1.9 && t <= 2.3) ? 1 : 0 }') "the grunt's burst rifle spent in the main hand: crackling; Spent Smoke 2, Spent Crackle 1: over after 2 s ($st)"
 exit $fail

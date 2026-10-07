@@ -1731,6 +1731,9 @@ QVR_CVAR(vr_grunt_burst_damage, "5", CVAR_ARCHIVE)   // a grunt's burst: each ro
 QVR_CVAR(vr_enfrifle_damage, "15", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)
 QVR_CVAR(vr_enfrifle_speed, "1800", CVAR_ARCHIVE)    // an enforcer's dropped laser rifle: its lasers' speed, units a second (the enforcer's own: 600)
 QVR_CVAR(vr_enfrifle_ammo, "20", CVAR_ARCHIVE)       // the shots an enforcer's dropped rifle holds (its own: never refilled)
+QVR_CVAR(vr_enemygun_spent_smoke, "5", CVAR_ARCHIVE)     // seconds a grunt's burst rifle or an enforcer's laser rifle smokes once its last round is fired (held or dropped; 0: never; QC vr_enemyguns.qc)
+QVR_CVAR(vr_enemygun_spent_crackle, "2.5", CVAR_ARCHIVE) // seconds it crackles all over with lightning's lasting arcs then, as a struck corpse (0: never)
+QVR_CVAR(vr_enemygun_spent_volume, "0.25", CVAR_ARCHIVE) // the volume of the corpses' crackle (misc/power.wav) as it starts (0: silent)
 QVR_CVAR(vr_debug_chainsaw, "0", CVAR_NONE)           // 1: print the chainsaws' pulls, starts, stalls and cuts; 2: also draw the cord's reach
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
 QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0 let go of it at a holster, 1 the trigger, 2 either

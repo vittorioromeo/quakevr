@@ -1107,7 +1107,7 @@ void sendEject(edict_t* player, int hand, int kind, int count, int flags, float 
 void sendShock(edict_t* player, int kind, const float org[3], float radius, float duration)
 {
     sizebuf_t* msg = nullptr;
-    if(kind == shock::KindSelf || kind == shock::KindSelfHit)
+    if(shock::toOneClient(kind))
     {
         msg = clientMessage(player);
     }

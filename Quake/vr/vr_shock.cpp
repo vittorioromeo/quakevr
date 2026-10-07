@@ -18,6 +18,7 @@
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -311,11 +312,38 @@ bool sameBody(const qmodel_t* a, const qmodel_t* b)
 namespace
 {
 
+// A gun in this client's hand crackling (KindGunShock): its effect's "entity" is gunKey - the hand, its arcs smaller.
+constexpr int gunKey = -1000;
+constexpr float gunArcSize = 0.35f; // (a gun is a few hands long: a body's arcs would dwarf it)
+[[nodiscard]] int gunHandOf(int num)
+{
+    return num <= gunKey && num >= gunKey - 1 ? gunKey - num : -1;
+}
+
 // A body's surface as drawn now (KindBody, KindBodyDeath): its triangles into `tris`; false if it is not there to draw
-// on (gone, out of the last update; another model in its slot now: the effect ends).
+// on (gone, out of the last update; another model in its slot now: the effect ends). A gun in a hand (gunKey): the
+// gun as drawn there (none drawn: nothing this frame; another gun: the effect ends).
 [[nodiscard]] bool bodyTriangles(Effect& e, za::Vector<glm::vec3>& tris)
 {
     const int num = static_cast<int>(e.radius);
+    if(const int hand = gunHandOf(num); hand >= 0)
+    {
+        const view::ViewEntity* ve = view::heldWeapon(hand);
+        if(!ve)
+        {
+            return false;
+        }
+        if(!e.model)
+        {
+            e.model = ve->ent.model;
+        }
+        else if(e.model != ve->ent.model && !view::sameGun(e.model, ve->ent.model))
+        {
+            e.until = 0.0; // (another gun in that hand now)
+            return false;
+        }
+        return modelcollide::drawnTriangles(ve->ent, num, tris) && tris.size() >= 3;
+    }
     if(num <= 0 || num >= cl.num_entities)
     {
         return false;
@@ -419,8 +447,11 @@ void bodyArc(Random& rnd, const glm::vec3& a, const glm::vec3& na, const glm::ve
 // arcs crawling over it as over the arms, lifted off the skin to be seen: arcs walking over it from point to point
 // (crawlers), short crackles springing off it, now and then a longer one across it, limb to limb; fewer and fainter
 // as the shock wears off, with a flickering blue light. Returns the arcs drawn.
-int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Random& rnd)
+// `size`: its arcs' lengths, steps and lift (a gun's smaller: gunArcSize).
+int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Random& rnd, float size)
 {
+    const float lift = bodyArcLift * size;
+    const float lineWidth = 0.3f + 0.7f * size;
     const float amount = za::max(0.f, vr_shock_arcs.value);
     if(amount <= 0.f)
     {
@@ -474,7 +505,7 @@ int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Rando
                     continue;
                 }
                 const float d = glm::distance(a, b);
-                const float miss = (d < crawlStepMin || d > crawlStepMax ? 100.f : 0.f) + za::abs(d - crawlStep);
+                const float miss = (d < crawlStepMin * size || d > crawlStepMax * size ? 100.f : 0.f) + za::abs(d - crawlStep * size);
                 if(miss < best)
                 {
                     best = miss;
@@ -502,8 +533,8 @@ int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Rando
             continue; // flicker
         }
         const float len = glm::distance(a, b);
-        bodyArc(rnd, a + na * bodyArcLift, na, b + nb * bodyArcLift, nb, bodyArcLift + len * bodyArcBow,
-            fade * (surge ? 1.f : 0.9f), 1.f);
+        bodyArc(rnd, a + na * lift, na, b + nb * lift, nb, lift + len * bodyArcBow, fade * (surge ? 1.f : 0.9f),
+            lineWidth);
         drawn++;
     }
 
@@ -524,10 +555,10 @@ int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Rando
         }
         glm::vec3 along = rnd.dir();
         along -= out * glm::dot(along, out);
-        const float len = 5.f + 7.f * rnd();
-        const glm::vec3 from = at + out * (bodyArcLift * (1.f + rnd()));
+        const float len = (5.f + 7.f * rnd()) * size;
+        const glm::vec3 from = at + out * (lift * (1.f + rnd()));
         const glm::vec3 to = from + glm::normalize(along + out * (0.6f + 0.6f * rnd()) + 1e-3f) * len;
-        arc(rnd, from, to, 5, len * 0.15f, fade * (surge ? 1.f : 0.85f), false, 0.9f, true, true);
+        arc(rnd, from, to, 5, len * 0.15f, fade * (surge ? 1.f : 0.85f), false, 0.9f * lineWidth, true, true);
         drawn++;
     }
     // Longer ones across the body, from one part to another not far off, bowing out over it.
@@ -540,16 +571,17 @@ int drawBodyDeath(int index, Effect& e, const za::Vector<glm::vec3>& tris, Rando
             continue;
         }
         const float len = glm::distance(a, b);
-        if(len < 6.f || len > 40.f)
+        if(len < 6.f * size || len > 40.f * size)
         {
             continue;
         }
-        bodyArc(rnd, a + na * bodyArcLift, na, b + nb * bodyArcLift, nb, bodyArcLift + len * bodyArcBow, fade, 1.f);
+        bodyArc(rnd, a + na * lift, na, b + nb * lift, nb, lift + len * bodyArcBow, fade, lineWidth);
         drawn++;
     }
     if(around > 0)
     {
-        light(index, centre / static_cast<float>(around), (60.f + 90.f * k) * (surge ? 1.3f : 1.f), fade, rnd);
+        light(index, centre / static_cast<float>(around), (60.f + 90.f * k) * (surge ? 1.3f : 1.f) * (0.5f + 0.5f * size), fade,
+            rnd);
     }
     return drawn;
 }
@@ -1044,6 +1076,13 @@ void parse()
         smoulder::burning(static_cast<int>(radius), duration, kind == KindDoused);
         return;
     }
+    if(kind == KindGunShock)
+    {
+        // (A lasting shock over the gun in that hand: as a body's, keyed by the hand.)
+        add(KindBodyDeath, {org[0], org[1], org[2]}, static_cast<float>(gunKey - za::clamp(static_cast<int>(radius), 0, 1)),
+            duration);
+        return;
+    }
     if(kind == KindBody || kind == KindBodyDeath)
     {
         smoulder::struck(static_cast<int>(radius)); // (the burns it leaves smoke a while: vr_smoulder.cpp)
@@ -1168,7 +1207,7 @@ void frame(const hands::State& s)
             arcRecord = measure ? &scratch.arcPts : nullptr;
             if(e.kind == KindBodyDeath)
             {
-                e.arcs = drawBodyDeath(i, e, tris, rnd);
+                e.arcs = drawBodyDeath(i, e, tris, rnd, gunHandOf(static_cast<int>(e.radius)) >= 0 ? gunArcSize : 1.f);
                 arcRecord = nullptr;
                 if(measure)
                 {
@@ -1230,6 +1269,12 @@ void info_f()
     {
         if((effect.kind != KindBody && effect.kind != KindBodyDeath) || effect.until <= cl.time) { continue; }
         const int num = static_cast<int>(effect.radius);
+        if(const int hand = gunHandOf(num); hand >= 0)
+        {
+            active++;
+            Con_Printf("bodyshock: gun in hand %d arcs=%d remaining=%.2f\n", hand, effect.arcs, effect.until - cl.time);
+            continue;
+        }
         if(num <= 0 || num >= cl.num_entities) { continue; }
         za::Vector<glm::vec3>& triangles = scratch.tris;
         modelcollide::drawnTriangles(cl_entities[num], num, triangles);

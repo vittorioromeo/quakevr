@@ -176,6 +176,7 @@ void(float kind, vector org, float radius, float duration) watershock = #0;
 float QVR_SHOCK_SELF = 0;
 float QVR_SHOCK_SURFACE = 1;
 float QVR_SHOCK_BURST = 2;
+float QVR_SHOCK_GUN = 8; // a lasting shock over the `self` player's own gun in hand `radius` (0 off, 1 main), `duration` s (its client: vr_enemyguns.qc VR_EnemyGun_Spent)
 // `player` struck by lightning (a shambler's bolt, another's lightning gun, a trap's, the water's shock spreading) for
 // `damage` at `at`: its client draws Quad's arcs over its arms, hands and body a while (vr_shock_self_time, by the damage;
 // engine vr_shock.cpp KindSelfHit). Nothing else.
