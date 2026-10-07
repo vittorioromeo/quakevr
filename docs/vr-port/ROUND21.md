@@ -30359,3 +30359,61 @@ no push: nothing woken), `palm_shove_1h`/`_2h` shoves only, `punch_straight` a p
 m/s nothing; `vr_melee_slap 0` nothing. A grunt slapped at `vr_melee_dmg_multiplier 20`: dead, "decap: no: a slap", no
 gibs; punched the same: a pop roll and gibbed. (The synthetic takes' eval verdicts read FAIL for the hits that do
 happen: their events name the dummy's enemy, `monster_army`, the verdict wants `vr_dummy`; not from this change.)
+## Slipgates: exits on their gates, props through, held objects, the force grab's beam (2026-10-08)
+
+The author's vrslipgates notes (23-10-11 .. 23-15-34) and start's 23-44-08. Headless checks of each:
+`Misc/quakevr/slipgates/slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|all]` (one line
+each, with what it must say; about two minutes for all). Debug aid: `vr_portals_debug_split` (Debug > Slipgates, Print
+Gate Cuts): each frame the entities drawn cut by a gate (its plane, how far through, its middle in the room it is in),
+-1 also the main hand's held object every frame, N entity N; the force grab's beam end; each thrown or rigid thing's
+middle and why a gate did not take it.
+
+- **Out a step past the gate (23-13-44): the code, not the map.** The seamless mapping took everything to the
+  destination marker, which vrslipgates stands 48 units out from the paired gate (56 framed) so that Quake's teleport
+  puts monsters clear of that gate's trigger. So the player popped out 48 units past the gate he seemed to walk out of,
+  the view through showed the room from there, and the exit plane stood in the open room. `pairExits` (build): a side
+  whose destination stands in front of another gate of its size (its aperture's width and height within 4 units,
+  facing the way one walks out, within 128 units, its middle within 64 of where the aperture lands: sills included)
+  comes out of that gate's face (`vr_slipgate_pair_exits` 1, Graphics > Slipgates, Exits On Paired Gates). All 28
+  vrslipgates sides pair; the flush player gate carries 640 -> 928 (was 641 -> 977). Monsters still teleport to the
+  marker (Quake's), so a monster comes out a step past the gate.
+- **Props cut far from a gate (23-10-11) and a held prop cut on the way (23-11-57)** were that exit plane in the open
+  room: a crate resting on it was cut and its back half drawn again at the entrance. Paired, it is the gate's face. An
+  exit with no gate of its own (an id map's one-way teleporter) now splits only what moves out of it (VR_PortalAlias:
+  its last two messages' places; splitBounds: the body's velocity).
+- **Pushing a crate through (23-10-57; the 8-deep gates' known issue).** The portal copies' clip planes reached Box3D
+  only through its pre-solve callback, which Box3D asks for convex contacts alone, once a contact; the level is one mesh
+  shape, so a prop's contacts with the wall behind a gate were never clipped. A marked local change to Box3D
+  (`src/mesh_contact.c`, its README): mesh contacts ask the callback point by point; `preSolve` answers the level's
+  mesh by the copies' planes only. VR_PortalToss: the destination test turns the box with the gate and insets it 4
+  units (a crate on the floor had its Quake box under the floor: "all solid", never carried, and slid on into the
+  wall), and a prop already past the plane, still straddling it and moving in, is carried. A small crate slid at 60
+  u/s into the 8-deep player gate comes out at y 994 (was stopped at 627); the big crate through the player, large and
+  wide gates; slipgates_test.sh throw's 46 u/s crate now crosses the 8-deep gate.
+- **A held prop's hitch (23-11-57).** What the hands hold is drawn where the tracked hands are, but it was drawn
+  through a gate only while straddling it: wholly past the plane it was drawn behind the gate's surface (unseen) until
+  the player crossed. Held objects (`held::drawnInHands`) now reach through as the hands and guns do, from the hands'
+  own body (`hands::State::playerOrigin`: the view entity's lerped origin is already carried on the crossing frame,
+  one more frame behind the surface). Walking into the player gate holding a shells box: its middle's largest step a
+  frame 0.8 units, none drawn inside the wall.
+- **The force grab's beam (23-15-34)** went to the box's place in the room beyond; it now goes to its image behind
+  the gate's surface (`portals::pullImageSeen`, the server's own pullImage), into the gate to the box seen there. A
+  box force-grabbed through the large gate crosses and is caught.
+- **Torch fire seen in a gate (start 23-44-08).** With `vr_slipgate_surface_opacity` under 1 (his 0.3) the gate's
+  surface is drawn in the translucent pass and writes no depth: particles behind it were drawn over the view through
+  it. The particles' fragment shader drops what lies behind a gate shown in this view, seen through its aperture
+  (VR_PortalFrameData). Quake's own particles (`vr_particles 0`) and translucent sprites are not hidden so (not done).
+- **Found in review.** A brush prop (ammo, health box) half through a gate seen from the exit with the entrance out
+  of view lost its half coming out (R_SortEntities culled it by its own place: R_BModelPortalSplit keeps it).
+  CL_RelinkEntities lerped an entity between two gates under 100 units apart straight through the wall between them
+  (VR_PortalLerpFrom now also over 24 units a tick, when the carried place is twice as near). Shots through a gate
+  started at the marker 48 units out (an enemy right in front of the exit was skipped) and monsters' sight through a
+  gate saw the player 48 units off: both use the paired mapping now.
+- **Not done:** monsters through gates (Quake's teleport, to the marker), ragdolls and corpses through gates (no
+  portal copies: a corpse falling into a gate meets the wall behind), recursive gate views and the head seen through a
+  gate (note 23-12-32).
+- **To try in VR:** walk into vrslipgates' flush and framed gates slowly and stop half through (you are in both
+  rooms, no gap at the far gate); push a crate on the floor through a gate with the hands or the body (Debug >
+  Slipgates, Slide A Crate Through, shows it); carry a box through the loop room's gates (never cut before it reaches
+  the gate, no hitch); force grab a box lying in the room beyond a gate (the beam goes into the gate); start's
+  underwater gate by the episode 4 slipgate with torch fire behind it.
