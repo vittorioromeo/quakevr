@@ -18,7 +18,7 @@
 struct SearchEntry
 {
     za::String label;     // the row's label, or the page's title
-    za::String path;      // the pages above it, from VR Settings: "VR Settings > Advanced VR Options > Combat"
+    za::String path;      // the pages above it, from its root (menuRoots): "Advanced VR Options > Combat"
     za::String lowLabel;  // lower case, for matching
     za::String lowHelp;
     za::String lowPath;
@@ -63,7 +63,7 @@ SearchState search;
 // What an entry is kept by in the recent list: its kind, the pages above it and its label.
 [[nodiscard]] za::String searchEntryKey(const SearchEntry& e)
 {
-    return za::String{e.isPage ? "page|" : "row|"} + e.path + " > " + e.label;
+    return za::String{e.isPage ? "page|" : "row|"} + e.path + (e.path.empty() ? "" : " > ") + e.label;
 }
 
 [[nodiscard]] za::String searchRecentPath()
@@ -102,6 +102,15 @@ void searchLoadRecent()
         }
         if(!line.empty() && static_cast<int>(search.recent.size()) < searchRecentMax)
         {
+            // Saved when the Advanced VR Options were under the VR Settings (a link there before): their own tree now.
+            const za::StringView under{"VR Settings > Advanced VR Options"};
+            const size_t bar = line.find('|');
+            if(bar != za::StringView::nPos && line.substrByPosLen(bar + 1).startsWith(under))
+            {
+                search.recent.emplaceBack(za::String{line.substrByPosLen(0, bar + 1)} +
+                                          za::String{line.substrByPosLen(bar + 1 + 14)}); // (less "VR Settings > ")
+                return;
+            }
             search.recent.emplaceBack(line);
         }
     });
@@ -379,8 +388,9 @@ void searchNoteRecent(int entry)
     return total;
 }
 
-// Every page reached from VR Settings and every row on it, at Developer (the pages built for it again as they are next
-// shown), with the way there: the links' labels, breadth first (as menu paths, resolvePath).
+// Every page reached from the VR Settings or the Advanced VR Options (menuRoots) and every row on it, at Developer (the
+// pages built for it again as they are next shown), with the way there: the links' labels, breadth first (as menu paths,
+// resolvePath).
 void buildSearchIndex()
 {
     search.index.clear();
@@ -393,10 +403,15 @@ void buildSearchIndex()
     {
         f = -1;
     }
-    from[PageMain] = PageMain;
     int queue[pageCount];
     int queued = 0;
-    queue[queued++] = PageMain;
+    for(const int root : menuRoots)
+    {
+        from[root] = root;
+        link[root] = pages[root].title;
+        needs[root] = pages[root].level;
+        queue[queued++] = root;
+    }
     for(int q = 0; q < queued; q++)
     {
         const int p = queue[q];
@@ -416,11 +431,11 @@ void buildSearchIndex()
             }
         }
     }
-    za::String paths[pageCount]; // to each page, itself included: "VR Settings > Advanced VR Options > Combat"
+    za::String paths[pageCount]; // to each page, itself included: "Advanced VR Options > Combat"
     for(int q = 0; q < queued; q++)
     {
         const int p = queue[q];
-        paths[p] = p == PageMain ? za::String{pages[PageMain].title} : paths[from[p]] + " > " + link[p];
+        paths[p] = isMenuRoot(p) ? za::String{pages[p].title} : paths[from[p]] + " > " + link[p];
     }
     for(int q = 0; q < queued; q++)
     {
@@ -433,7 +448,7 @@ void buildSearchIndex()
         {
             SearchEntry e;
             e.label = link[p];
-            e.path = paths[from[p]];
+            e.path = isMenuRoot(p) ? za::String{} : paths[from[p]]; // (Advanced VR Options: its own root)
             e.page = p;
             e.level = needs[p];
             e.isPage = true;

@@ -2,7 +2,7 @@
 #include "vr_alloccount.h"
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
 // pages: scrolling lists of labelled settings, changed with left/right (the sticks in VR), with
-// actions on enter (A). "Advanced VR Options" at the bottom opens a list of further pages: the old
+// actions on enter (A). "Advanced VR Options" (the main menu's Advanced VR, the corner's) lists further pages: the old
 // Quake VR settings pages (vr_menu_pages.inc) and the new body, throwing and force grab tweaks,
 // grouped by topic, the long ones split into pages of a screenful or so. In a headset the pages are
 // taller (vr_menu_height, vr_menuui.cpp): more rows at once. Escape (B) goes back a page. With the mouse (and the VR laser pointer, vr_menuui.cpp): the row under
@@ -5948,6 +5948,15 @@ const Page pages[] = {
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
+// The roots of the pages' tree as Search and the boards' menu paths walk it (breadth first, in this order): the VR
+// Settings and the Advanced VR Options, each opened on its own (the VR Settings: Options' and the main menu's rows; the
+// Advanced VR Options: the main menu's Advanced VR row and the corner's button), neither linking the other.
+constexpr int menuRoots[] = {PageMain, PageAdvanced};
+[[nodiscard]] constexpr bool isMenuRoot(int p)
+{
+    return p == PageMain || p == PageAdvanced;
+}
+
 // Weapon Offsets' parts, as its main page links them (in WeaponOffsetsPart's order). A new part: its builder, a
 // WeaponOffsetsPart, a line in `pages` (last) and one here.
 struct WeaponOffsetsPartPage
@@ -6249,19 +6258,11 @@ void resetAll(); // (below: after the pages' building)
     return text;
 }
 
-void openSearchRow()
-{
-    qvr::menu::openSearch();
-}
-
-void advancedRow()
-{
-    qvr::menu::jumpToAdvanced();
-}
-
 // VR Settings (Options > VR Settings, the main menu's VR Settings, the corner's): what a new player sets, each in a few
 // words, in the order they come to it. Every other setting is under Advanced VR Options (ROUND21.md, "VR Settings for
-// first-time players"), and so is each row here, on its topic's page.
+// first-time players"), and so is each row here, on its topic's page. No link to them here (nor to Search): the main
+// menu's Advanced VR row and the corner's Advanced VR and Search buttons open them, and the trees of Search and of the
+// boards' menu paths start at both pages (menuRoots).
 za::Vector<Item> pageMain()
 {
     const bool snap = vr_snap_turn.value > 0.f;
@@ -6269,14 +6270,6 @@ za::Vector<Item> pageMain()
     const char* handHelp = "Both hands, mirrored: moves or turns the drawn hands (and what they hold) on your controllers, "
                            "so they sit where your real hands are. Show Controller helps; 0 is the shipped calibration.";
     za::Vector<Item> list{
-        action("Search Settings", openSearchRow)
-            .help("Find any setting by its name or what it does: type, and pick one to go to it (also the corner's Search "
-                  "button in the headset)."),
-        menuLevel() >= LevelAdvanced
-            ? open("Advanced VR Options", PageAdvanced).help("Every gameplay, display and graphics setting, by topic.")
-            : action("Advanced VR Options", advancedRow)
-                  .help("Every gameplay, display and graphics setting, by topic (Menu Detail goes to Advanced)."),
-
         header("Height Calibration"),
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
             .help("Your real height: it puts your eyes at the right height in the game and fits the body to you. Set "
@@ -9265,7 +9258,7 @@ void drawHelp(const char* text)
     }
 }
 
-// menu_vr dump: every page reached from the VR Settings through the pages' links (breadth first: its
+// menu_vr dump: every page reached from the VR Settings or the Advanced VR Options (menuRoots) through the pages' links (breadth first: its
 // depth, the page linking it first, its rows), each row (kind, header above, label, setting, page
 // opened), the links into each page, and the pages no link reaches. For the menus' coverage check
 // (docs/vr-port/menu_coverage.sh): each page is shown to be built for what the hands hold now.
@@ -9308,8 +9301,12 @@ void dumpPages()
         depth[p] = -1;
         from[p] = -1;
     }
-    za::Vector<int> queue{PageMain};
-    depth[PageMain] = 0;
+    za::Vector<int> queue;
+    for(const int root : menuRoots)
+    {
+        queue.pushBack(root);
+        depth[root] = 0;
+    }
     for(size_t q = 0; q < queue.size(); q++)
     {
         const int p = queue[q];
@@ -9416,7 +9413,8 @@ void helpCheck(int columnsAsked)
 }
 
 // The path to a page from Quake's main menu, by what the player reads on the way (menu::pathTo): the fewest links from
-// the VR Settings, each page as its link names it. False when no page has the title, no link reaches it, or (a row asked
+// the VR Settings ("Options > VR Settings > ...") or the Advanced VR Options ("Advanced VR > ...": the main menu's row
+// and the corner's button), each page as its link names it. False when no page has the title, no link reaches it, or (a row asked
 // for) the page has no row of that label.
 bool resolvePath(za::StringView spec, za::String& out)
 {
@@ -9454,7 +9452,7 @@ bool resolvePath(za::StringView spec, za::String& out)
         ~Restore() { levelOverride = was; }
     } restore{wasOverride};
     int needs = pages[target].level;
-    // The shortest way there through the pages' links (breadth first from the VR Settings, as menu_vr dump): each page
+    // The shortest way there through the pages' links (breadth first from the tree's roots, as Search): each page
     // named by the link that opens it.
     int from[pageCount];
     const char* link[pageCount]{};
@@ -9462,10 +9460,13 @@ bool resolvePath(za::StringView spec, za::String& out)
     {
         f = -1;
     }
-    from[PageMain] = PageMain;
     int queue[pageCount];
     int queued = 0;
-    queue[queued++] = PageMain;
+    for(const int root : menuRoots)
+    {
+        from[root] = root;
+        queue[queued++] = root;
+    }
     for(int q = 0; q < queued && from[target] < 0; q++)
     {
         for(const Item& item : items(queue[q]))
@@ -9484,12 +9485,14 @@ bool resolvePath(za::StringView spec, za::String& out)
         return false; // no link reaches it
     }
     za::Vector<const char*> names; // from the page up
-    for(int p = target; p != PageMain; p = from[p])
+    int root = target;
+    for(; !isMenuRoot(root); root = from[root])
     {
-        names.pushBack(link[p]);
-        needs = q_max(needs, pages[p].level);
+        names.pushBack(link[root]);
+        needs = q_max(needs, pages[root].level);
     }
-    out = za::String{"Options > "} + pages[PageMain].title;
+    needs = q_max(needs, pages[root].level);
+    out = root == PageMain ? za::String{"Options > "} + pages[PageMain].title : za::String{"Advanced VR"};
     for(const char* name : za::reversed(names))
     {
         out += " > ";
@@ -9514,7 +9517,8 @@ bool resolvePath(za::StringView spec, za::String& out)
         out += " > ";
         out += found;
     }
-    if(needs > shownLevel)
+    // (Advanced VR raises Menu Detail to Advanced itself: only a page or row above it says so on that way.)
+    if(needs > (root == PageAdvanced ? q_max(shownLevel, static_cast<int>(LevelAdvanced)) : shownLevel))
     {
         out += va(" (Menu Detail: %s)", levelName(needs));
     }
@@ -9653,10 +9657,12 @@ int qvr::menu::retroOverridePage()
     return pageIndex(pageRetroOverride);
 }
 
-// Whether the VR Settings were opened from the main menu's rows (Back from them goes back there, else to Options).
+// Whether the VR Settings were opened from the main menu's rows (Back from them goes back there, else to Options), and
+// whether it was its Advanced VR row (Back from the Advanced VR Options: the main menu, the VR Settings not linking them).
 namespace
 {
 bool openedFromMainMenu = false;
+bool advancedFromMainMenu = false;
 }
 
 extern "C" void VR_Menu_Open()
@@ -9666,6 +9672,7 @@ extern "C" void VR_Menu_Open()
     m_state = m_vr;
     m_entersound = true;
     openedFromMainMenu = false;
+    advancedFromMainMenu = false;
     showPage(PageMain);
 }
 
@@ -9681,6 +9688,7 @@ extern "C" void VR_Menu_OpenFromMain(int advanced)
         VR_Menu_Open();
     }
     openedFromMainMenu = true;
+    advancedFromMainMenu = advanced != 0;
 }
 
 // Single Player > Map Library (menu.c): the map browser page, from Quake's own menu.
@@ -9858,6 +9866,7 @@ const cvar_t* qvr::menu::selectedSetting()
 
 void qvr::menu::jumpToAdvanced()
 {
+    advancedFromMainMenu = false; // (the main menu's row: set again after this)
     if(menuLevel() < LevelAdvanced)
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(LevelAdvanced)); // (the corner's Advanced VR: the pages it lists)
@@ -10268,7 +10277,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                 showPage(pageIndex(pageSearch));
                 S_LocalSound("misc/menu2.wav");
             }
-            else if(page == PageMain)
+            else if(page == PageMain || (page == PageAdvanced && advancedFromMainMenu && parentPage[page] == PageMain))
             {
                 if(openedFromMainMenu)
                 {
