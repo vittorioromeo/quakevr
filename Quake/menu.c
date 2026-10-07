@@ -1207,10 +1207,11 @@ static qboolean M_Main_Shown (int item)
 }
 
 // QVR: the rows in groups, a gap above each but the first: the VR rows, playing (Single Player, Multiplayer), the maps
-// (Download Maps, Play Custom Map), the rest.
+// (Download Maps, Play Custom Map), the settings (Options, Advanced VR, Mods), Quit apart (the author's note
+// vrfiringrange_2026-10-08_00-02-55).
 static qboolean M_Main_GroupStart (int item)
 {
-	return item == MAIN_SINGLEPLAYER || item == MAIN_MAPLIBRARY || item == MAIN_OPTIONS;
+	return item == MAIN_SINGLEPLAYER || item == MAIN_MAPLIBRARY || item == MAIN_OPTIONS || item == MAIN_QUIT;
 }
 
 void M_Menu_Main_f (void)
@@ -1240,15 +1241,18 @@ void M_Main_Layout (int *step, int *gap)
 {
 	drawtransform_t transform;
 	float left, top, right, bottom;
-	int rows = 0, i, avail;
+	int rows = 0, groups = 0, i, avail;
 
 	for (i = 0; i < MAIN_ITEMS; i++)
+	{
 		rows += M_Main_Shown (i);
+		groups += i > 0 && M_Main_GroupStart (i);
+	}
 	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
 	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
 	avail = (int)(bottom - 2 - 32 - 20);
-	*step = CLAMP (15, (avail - 3 * 6) / (rows - 1), 20);
-	*gap = CLAMP (0, (avail - (rows - 1) * *step) / 3, 10);
+	*step = CLAMP (15, (avail - groups * 6) / (rows - 1), 20);
+	*gap = CLAMP (0, (avail - (rows - 1) * *step) / groups, 10);
 }
 
 // QVR: a row's top (menu y): Quake's 32 for the first, a step for each row shown above it, a gap for each group.
