@@ -1519,11 +1519,12 @@ def tip(mw, name, message, x, y, z, distance=200, target=None, size=None):
 N = "\\n"
 
 # the campaign lecterns' buttons: (label, command); the first three choose what the slipgate starts (the old hub's
-# vr_activestartpaknameidx; QC's buttons.qc marks a mission pack that is not installed), the fourth starts at once
+# vr_activestartpaknameidx; QC's buttons.qc marks a mission pack that is not installed); the fourth's 3 is Dimension of the
+# Past: its own game folder, so the slipgate's changelevel runs vr_campaign_select dopa (vr_gamedir.cpp)
 CAMPAIGNS = [("QUAKE", "vr_activestartpaknameidx 0; echo Quake selected: step into the slipgate"),
              ("SCOURGE OF" + N + "ARMAGON", "vr_activestartpaknameidx 1; echo Scourge of Armagon selected: step into the slipgate"),
              ("DISSOLUTION" + N + "OF ETERNITY", "vr_activestartpaknameidx 2; echo Dissolution of Eternity selected: step into the slipgate"),
-             ("DIMENSION" + N + "OF THE PAST" + N + "(starts now)", "vr_campaign_select dopa")]
+             ("DIMENSION" + N + "OF THE PAST", "vr_activestartpaknameidx 3; echo Dimension of the Past selected: step into the slipgate")]
 
 # the pavilion's setting buttons (vr_setup_option <key>: Quake/vr/vr_setup.cpp's table; each press steps the setting,
 # shows it on a screen over the button and saves the config): the north board's rows, the south board's
@@ -1558,8 +1559,7 @@ def build_entities(mw):
     zb = t["z"]
     for (label, cmd), lx in zip(CAMPAIGNS, LECTERNS_X):
         cx = gx + lx
-        button(mw, label, cmd, cx, LECTERN_Y, zb + 42, 90,
-               scale="0.17" if "starts" in label else "0.2")
+        button(mw, label, cmd, cx, LECTERN_Y, zb + 42, 90)
     banner(mw, N.join(["CHOOSE A CAMPAIGN", "Press its stone, then step into the slipgate."]),
            gx, gy - 24, zb + 16 + 205, 270, "0.45")
     banner(mw, N.join(["Every campaign, and what", "its data needs:", "{menu:Official Campaigns}"]),

@@ -83,11 +83,12 @@ void() button_fire =
 {
     if(self.buttonEffect == 3 &&
         ((substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
-         (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
+         (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue()) ||
+         (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 3; " && cvar("vr_dopa_status") != 1)))
     {
         if(self.enemy.classname == "player")
         {
-            centerprint(self.enemy, "Mission pack unavailable. Restore its owned data; Quake is available.");
+            centerprint(self.enemy, "Campaign unavailable. Restore its owned data; Quake is available.");
         }
         return;
     }
@@ -473,7 +474,8 @@ void() func_button =
     if(MG_WorldCampaign()) MG_ButtonInit();
     if(self.buttonEffect == 3 &&
        ((substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
-        (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
+        (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue()) ||
+        (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 3; " && cvar("vr_dopa_status") != 1)))
     {
         self.worldtext = strcat(self.worldtext, "\n(unavailable)");
     }

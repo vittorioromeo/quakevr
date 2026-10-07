@@ -2310,7 +2310,7 @@ QVR_CVAR(vr_handgrenade, "1", CVAR_ARCHIVE)             // hand grenades: an emp
 QVR_CVAR(vr_handgrenade_fuse, "2.5", CVAR_ARCHIVE)      // s from arming a hand grenade to its going off (the launcher's is 2.5)
 QVR_CVAR(vr_handgrenade_arm, "0", CVAR_ARCHIVE)         // 0: the trigger pulls the pin (let go of unarmed, it is a dud); 1: letting go arms it (the lever flies off)
 QVR_CVAR(vr_ogre_aim_height, "1", CVAR_ARCHIVE)          // ogres (and zombies) lob at your height: a ballistic arc at their throw's speed (0: Quake's flat lob)
-QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_activestartpaknameidx, "0", CVAR_ARCHIVE)  // the hub's campaign lecterns: what its slipgate starts (0 Quake, 1 Scourge of Armagon, 2 Dissolution of Eternity: "start"; 3 Dimension of the Past: the selector, VR_CanChangeCampaignMap)
 QVR_CVAR(vr_hub_map, "vrstart", CVAR_ARCHIVE)           // the VR hub (where VR starts, and the menus' VR Hub): vrstart (the island at night, Misc/quakevr/maps/vrstart_gen.py; vrstart2 until 2026-10-07: vr_cfg_version 99 moves it), or vrstart_old (the old hub); anything else is vrstart
 QVR_CVAR(vr_verbosebots, "0", CVAR_NONE)
 QVR_CVAR(vr_finger_grip_bias, "0.0", CVAR_ARCHIVE)

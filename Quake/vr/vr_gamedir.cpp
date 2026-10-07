@@ -383,6 +383,7 @@ bool discoveredCampaigns = false;
 bool developerNative = false;
 bool rebuildingCampaign = false;
 bool nativeCampaignPaths = false;
+double hubSelectTime = -10.0; // (realtime) when a hub's slipgate last ran the selector (VR_CanChangeCampaignMap)
 
 int campaignIndex(const char* name)
 {
@@ -1149,7 +1150,9 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
         const int legacy = static_cast<int>(qvr::vr_activestartpaknameidx.value);
         if(legacy < 0 || legacy >= int(countof(campaigns)))
         { Con_Printf("VR: invalid campaign index %d; choose a campaign first.\n", legacy); return 0; }
-        requested = legacy;
+        // (3 and over: the hub's choice of a campaign with a game folder of its own, which only its slipgate starts:
+        // VR_CanChangeCampaignMap; "start" is then the running campaign's)
+        requested = legacy <= 2 ? legacy : activeCampaign;
     }
     if(campaigns[requested].status != 1 || requested != activeCampaign ||
         (requested >= 3 && !developerNative && (!campaigns[requested].nativeReady || missingLanguage(requested) || (soloOnly(requested) && campaignMultiplayerRequested()))))
@@ -1262,7 +1265,26 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
     { Cbuf_InsertText(va("vr_campaign_hub %s\n", map)); return 0; }
     int requested = activeCampaign;
     if(!strcmp(map, "start") && activeCampaign <= 2)
-    { requested = static_cast<int>(qvr::vr_activestartpaknameidx.value); }
+    {
+        requested = static_cast<int>(qvr::vr_activestartpaknameidx.value);
+        // The hub's choice of a campaign with a game folder of its own (vrstart's Dimension of the Past lectern: 3): its
+        // slipgate runs the selector, which rebuilds the folders and starts the campaign's first map (a changelevel
+        // can't). From any other map such a choice is stale: "start" stays the running campaign's.
+        if(requested >= 3 && requested < int(countof(campaigns)))
+        {
+            if(VR_IsVrMap(sv.name))
+            {
+                // (once in 2 s: a campaign that can't start says why, not every frame its slipgate is touched)
+                if(realtime - hubSelectTime > 2.0)
+                {
+                    hubSelectTime = realtime;
+                    Cbuf_InsertText(va("vr_campaign_select %s\n", campaigns[requested].folder));
+                }
+                return 0;
+            }
+            requested = activeCampaign;
+        }
+    }
     else { requested = campaignForMap(map, activeCampaign); }
     if(requested < 0 || requested >= int(countof(campaigns)) || campaigns[requested].status != 1)
     { Con_Printf("VR: campaign unavailable; choose an installed campaign in Official Campaigns.\n"); return 0; }
