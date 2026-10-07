@@ -72,8 +72,11 @@ if want cross; then
     for i in $(seq 1 30); do S="$S;wait1;viewpos"; done
     run -Script "$S;toggleconsole;quit"
     from=$(grep -o "carried edict 1 through side [0-9]*: .*" "$LOG" | head -1 | cut -d: -f2)
-    step=$(awk -F'[()]' '/^Player pos:/ {split($2, p, " "); if (n++) {dy = p[2] - y; if (dy > 200) dy -= 288; if (dy < 0) dy = -dy; if (dy > m) m = dy} y = p[2]} END {print m}' "$LOG")
-    echo "cross: carried$from (-256 640 24 -> -256 928 24, a few units on: the face onto the other gate's face); the largest step a tick across it, less the gates' 288: $step units (a walk's 4-6)"
+    # (the steps of the three ticks either side of the crossing: elsewhere a headless run's uncapped frames now and
+    # then make a tick's step several times a walk's)
+    step=$(awk -F'[()]' '/^Player pos:/ {split($2, p, " "); y[n++] = p[2]} END {for (i = 1; i < n; i++) if (y[i] - y[i-1] > 200) c = i
+        for (i = c - 3; i <= c + 3; i++) if (i > 0 && i < n) {dy = y[i] - y[i-1]; if (dy > 200) dy -= 288; if (dy < 0) dy = -dy; if (dy > m) m = dy}; print m + 0}' "$LOG")
+    echo "cross: carried$from (-256 640 24 -> -256 928 24, a few units on: the face onto the other gate's face); the largest step of the ticks round it, less the gates' 288: $step units (a walk's 4-6)"
 fi
 
 if want grab; then
