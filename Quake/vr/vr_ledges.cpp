@@ -280,10 +280,10 @@ struct Test
 }
 
 // The lip pieces of the model's walkable faces.
-void findPieces(const qmodel_t* model, const Hull& h, za::Vector<Piece>& pieces, int& faces)
+void findPiecesIn(const qmodel_t* model, const Hull& h, int begin, int end, za::Vector<Piece>& pieces, int& faces)
 {
     za::Vector<glm::vec3> poly;
-    for(int i = 0; i < model->nummodelsurfaces; i++)
+    for(int i = begin; i < end; i++)
     {
         const msurface_t& surf = model->surfaces[model->firstmodelsurface + i];
         if(surf.flags & (SURF_DRAWSKY | SURF_DRAWTURB) || surf.numedges < 3)
@@ -334,6 +334,37 @@ void findPieces(const qmodel_t* model, const Hull& h, za::Vector<Piece>& pieces,
             }
             pieces.pushBack(Piece{v0, v1, out, normal});
         }
+    }
+}
+
+jobs::Site piecesSite{"ledge pieces"}; // (its parallelFor: vr_jobs_sites)
+
+// The model's faces' pieces, found for runs of faces at once on the pool (each run into its own list, joined in the
+// faces' order: the same pieces as on one thread; vrstart2's floor faces, three hull 0 point tests an edge: 110 ms on
+// one thread).
+void findPieces(const qmodel_t* model, const Hull& h, za::Vector<Piece>& pieces, int& faces)
+{
+    constexpr int runFaces = 2048;
+    struct Run
+    {
+        za::Vector<Piece> pieces;
+        int faces{0};
+    };
+    za::Vector<Run> runs(static_cast<za::SizeT>((model->nummodelsurfaces + runFaces - 1) / runFaces));
+    jobs::parallelFor(piecesSite, runs.size(), 1,
+        [&](za::SizeT begin, za::SizeT end)
+        {
+            for(za::SizeT r = begin; r < end; ++r)
+            {
+                const int first = static_cast<int>(r) * runFaces;
+                findPiecesIn(model, h, first, za::min(model->nummodelsurfaces, first + runFaces), runs[r].pieces,
+                    runs[r].faces);
+            }
+        });
+    for(const Run& r : runs)
+    {
+        pieces.emplaceBackRange(r.pieces.data(), r.pieces.size());
+        faces += r.faces;
     }
 }
 
