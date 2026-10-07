@@ -1,5 +1,5 @@
 #!/bin/bash
-# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|all]: headless checks of the slipgate edge cases in
+# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|head|all]: headless checks of the slipgate edge cases in
 # vrslipgates (ROUND21.md, "Slipgates: exits on their gates, props through, held objects, the force grab's beam"), with
 # the agent kit (C:/OHWorkspace/qvr-kit). Each section prints one line or a few, with what it must say.
 #   clip   a crate resting where a gate's exit used to stand (48 out of the north gallery's wall), paired exits off and
@@ -14,6 +14,9 @@
 #          grab's beam ends at the box's image (y 712), not at the box (y 1000)
 #   cull   a full-size shells box half through T's north gate, seen from U with the entrance behind the camera: the
 #          pixels its half out of U's gate makes (thousands; 0 when brush props were culled by their own place)
+#   head   facing T's west gate (the loop: it shows your back; 2048-pixel eyes): the left eye's pixels your head makes (in a box round it), drawn
+#          (vr_slipgate_self_head 1) against not (0): through the gate (hundreds), and with the views off (0: the eye's
+#          own view never draws it)
 AGENT=${1:?agent}; WHAT=${2:-all}
 KIT=C:/OHWorkspace/qvr-kit
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -122,5 +125,29 @@ a = Image.open(sys.argv[1] + '/slipgate_particles_1.png').convert('RGB'); b = Im
 d = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 30 else 0)
 print(f"particles: views {sys.argv[2]}: particles behind the gate make {d.histogram()[255]} pixels" + (" (a few at most)" if sys.argv[2] == '1' else " (a control: over 100)"))
 PYEOF
+    done
+fi
+
+# The left eye's image (vr_eyeshot) of a run, copied to scratch/<name>.png.
+eyeshot() { local out=$1; shift; rm_old=$TREE/quakevr/eyeshots/vrslipgates_000_L.png; : > "$rm_old"
+    run -Script "$*;vr_eyeshot 1;wait5;toggleconsole;quit"; cp "$rm_old" "$TREE/scratch/$out.png"; }
+# Pixels over a threshold of difference between two of those images.
+# (A box "x0,y0,x1,y1": only there; the runs' own noise, the lights' flicker, lies elsewhere.)
+differ() { "$PY" - "$TREE/scratch/$1.png" "$TREE/scratch/$2.png" "${3:-24}" "${4:-}" <<'PYEOF'
+import sys
+from PIL import Image, ImageChops
+a = Image.open(sys.argv[1]).convert('RGB'); b = Image.open(sys.argv[2]).convert('RGB'); t = int(sys.argv[3])
+d = ImageChops.difference(a, b).convert('L')
+if sys.argv[4]: d = d.crop(tuple(int(v) for v in sys.argv[4].split(',')))
+print(d.point(lambda v: 255 if v > t else 0).histogram()[255])
+PYEOF
+}
+
+if want head; then
+    for v in 1 0; do
+        for h in 1 0; do
+            eyeshot "slipgate_head_${v}_$h" "vr_mock_eye_size 2048;$START;vr_portals $v;vr_slipgate_self_head $h;setpos -1560 560 24 0 180 0;wait5;noclip 0;wait20"
+        done
+        echo "head: views $v: your head makes $(differ slipgate_head_${v}_1 slipgate_head_${v}_0 6 1000,995,1045,1045) pixels in the left eye"             "$( [ $v = 1 ] && echo '(through the loop gate: over 30)' || echo '(no gate view: 0)')"
     done
 fi
