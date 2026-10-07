@@ -943,6 +943,8 @@ struct MeshStats
     double ms{0.0};
 };
 
+jobs::Site meshSite{"box3d world mesh"}; // (its parallelFor: vr_jobs_sites)
+
 // (Only reads the map: made on the game's thread pool while the map spawns, see beforeLoad.)
 [[nodiscard]] b3MeshData* worldMesh(const qmodel_t* map, float m2u, bool junctions, MeshStats& stats)
 {
@@ -995,6 +997,20 @@ struct MeshStats
         }
     }
     za::quickSort(grid.begin(), grid.end());
+    // Each cell's run in the grid (looked up by key: a binary search of the grid for each of 27 cells round each step
+    // along each edge was most of vrstart2's 570 ms mesh, 90k faces).
+    ankerl::unordered_dense::map<uint64_t, za::Pair<int, int>> cellRuns;
+    cellRuns.reserve(grid.size());
+    for(za::SizeT i = 0; i < grid.size();)
+    {
+        za::SizeT j = i + 1;
+        while(j < grid.size() && grid[j].first == grid[i].first)
+        {
+            ++j;
+        }
+        cellRuns.emplace(grid[i].first, za::makePair(static_cast<int>(i), static_cast<int>(j)));
+        i = j;
+    }
 
     za::Vector<int32_t> remap(static_cast<size_t>(map->numvertexes), -1);
     za::Vector<b3Vec3> vertices;
@@ -1025,13 +1041,21 @@ struct MeshStats
         indices.pushBack(c);
     };
 
-    za::Vector<int> outline;
-    za::Vector<uint8_t> corner; // per outline entry: one of the face's own corners (else a T-junction put in)
-    za::Vector<za::Pair<float, int>> between;
-    for(const Face& f : faces)
+    // A face's outline: its corners, and the T-junctions put into its edges. Found for runs of faces at once on the pool
+    // (each run's outlines one after the other; read only: the map, the grid), then made into triangles in the faces'
+    // order, as on one thread (the same mesh; vrstart2's 90k faces: 430 ms of searching on one thread).
+    struct Outlines
     {
-        outline.clear();
-        corner.clear();
+        za::Vector<int> outline;
+        za::Vector<uint8_t> corner; // per outline entry: one of the face's own corners (else a T-junction put in)
+        za::Vector<int> start;      // [face of the run]: its outline's first entry (and one past the last's end)
+        za::Vector<uint8_t> split;  // [face of the run]: it got a T-junction
+        int junctions{0};
+    };
+    const auto findOutline = [&](const Face& f, Outlines& o, za::Vector<za::Pair<float, int>>& between,
+                                 za::Vector<uint64_t>& nearCells) {
+        za::Vector<int>& outline = o.outline;
+        za::Vector<uint8_t>& corner = o.corner;
         bool split = false;
         for(int k = 0; k < f.count; k++)
         {
@@ -1050,8 +1074,10 @@ struct MeshStats
                 continue;
             }
             const glm::vec3 dir = d / length;
-            // The cells along the edge (and those round them), in steps of half a cell.
+            // The cells along the edge (and those round them), in steps of half a cell; each looked in once (a corner
+            // found twice was found at the same t, and dropped as one below either way).
             between.clear();
+            nearCells.clear();
             const int steps = za::max(1, static_cast<int>(za::ceil(length / (cell * 0.5f))));
             glm::ivec3 last{INT32_MIN};
             for(int step = 0; step <= steps; step++)
@@ -1068,23 +1094,35 @@ struct MeshStats
                     {
                         for(int dx = -1; dx <= 1; dx++)
                         {
-                            const uint64_t key = keyOf(c + glm::ivec3{dx, dy, dz});
-                            for(auto it = za::lowerBound(grid.begin(), grid.end(), za::makePair(key, INT32_MIN));
-                                it != grid.end() && it->first == key; ++it)
-                            {
-                                const int v = it->second;
-                                if(v == a || v == b)
-                                {
-                                    continue;
-                                }
-                                const glm::vec3 p = position(v);
-                                const float t = glm::dot(p - pa, dir);
-                                if(t > 2.f * onEdge && t < length - 2.f * onEdge && glm::length(p - (pa + dir * t)) <= onEdge)
-                                {
-                                    between.emplaceBack(t, v);
-                                }
-                            }
+                            nearCells.pushBack(keyOf(c + glm::ivec3{dx, dy, dz}));
                         }
+                    }
+                }
+            }
+            za::quickSort(nearCells.begin(), nearCells.end());
+            for(za::SizeT i = 0; i < nearCells.size(); ++i)
+            {
+                if(i > 0 && nearCells[i] == nearCells[i - 1])
+                {
+                    continue;
+                }
+                const auto run = cellRuns.find(nearCells[i]);
+                if(run == cellRuns.end())
+                {
+                    continue;
+                }
+                for(int g = run->second.first; g < run->second.second; ++g)
+                {
+                    const int v = grid[static_cast<za::SizeT>(g)].second;
+                    if(v == a || v == b)
+                    {
+                        continue;
+                    }
+                    const glm::vec3 p = position(v);
+                    const float t = glm::dot(p - pa, dir);
+                    if(t > 2.f * onEdge && t < length - 2.f * onEdge && glm::length(p - (pa + dir * t)) <= onEdge)
+                    {
+                        between.emplaceBack(t, v);
                     }
                 }
             }
@@ -1103,10 +1141,44 @@ struct MeshStats
                 lastT = t;
                 outline.pushBack(v);
                 corner.pushBack(0);
-                stats.junctions++;
+                o.junctions++;
                 split = true;
             }
         }
+        return split;
+    };
+    constexpr za::SizeT runFaces = 1024;
+    za::Vector<Outlines> runs((faces.size() + runFaces - 1) / runFaces);
+    jobs::parallelFor(meshSite, runs.size(), 1,
+        [&](za::SizeT begin, za::SizeT end)
+        {
+            za::Vector<za::Pair<float, int>> between;
+            za::Vector<uint64_t> nearCells;
+            for(za::SizeT r = begin; r < end; ++r)
+            {
+                Outlines& o = runs[r];
+                const za::SizeT last = za::min(faces.size(), (r + 1) * runFaces);
+                for(za::SizeT i = r * runFaces; i < last; ++i)
+                {
+                    o.start.pushBack(static_cast<int>(o.outline.size()));
+                    o.split.pushBack(findOutline(faces[i], o, between, nearCells) ? 1 : 0);
+                }
+                o.start.pushBack(static_cast<int>(o.outline.size()));
+            }
+        });
+    za::Vector<int> outline;
+    za::Vector<uint8_t> corner;
+    for(za::SizeT i = 0; i < faces.size(); ++i)
+    {
+        const Face& f = faces[i];
+        const Outlines& o = runs[i / runFaces];
+        const za::SizeT j = i % runFaces;
+        const auto first = static_cast<za::SizeT>(o.start[j]), past = static_cast<za::SizeT>(o.start[j + 1]);
+        outline.clear();
+        corner.clear();
+        outline.emplaceBackRange(o.outline.data() + first, past - first);
+        corner.emplaceBackRange(o.corner.data() + first, past - first);
+        const bool split = o.split[j] != 0;
         stats.faces++;
         if(!split)
         {
@@ -1154,6 +1226,10 @@ struct MeshStats
             const int a = outline[k], b = outline[(k + 1) % outline.size()];
             triangle(m, index(a), index(b), middle, position(a), position(b), f.normal);
         }
+    }
+    for(const Outlines& o : runs)
+    {
+        stats.junctions += o.junctions;
     }
     stats.triangles = static_cast<int>(indices.size() / 3);
     b3MeshData* mesh = nullptr;
