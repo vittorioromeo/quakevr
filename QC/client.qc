@@ -2548,7 +2548,7 @@ void(entity targ, entity attacker) ClientObituary =
                     bprint(" was blasted by an Enforcer\n");
                 if(attacker.classname == "monster_fish")
                     bprint(" was fed to the Rotfish\n");
-                if(attacker.classname == "monster_hell_knight")
+                if(attacker.classname == "monster_hell_knight" || attacker.classname == "monster_ranged_knight") // (QVR: MG3's too)
                     bprint(" was slain by a Death Knight\n");
                 if(attacker.classname == "monster_knight")
                     bprint(" was slashed by a Knight\n");

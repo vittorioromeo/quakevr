@@ -237,6 +237,7 @@ float(entity m) VR_Grapple_MonsterMass =
     if(c == "monster_enforcer")      { return 100; }
     if(c == "monster_mummy")         { return 140; }
     if(c == "monster_hell_knight")   { return 150; }
+    if(c == "monster_ranged_knight") { return 150; } // (Dawn of the Machine's: a death knight's build)
     if(c == "monster_sknight")       { return 150; }
     if(c == "monster_sword")         { return 150; }
     if(c == "monster_ogre")          { return 250; }

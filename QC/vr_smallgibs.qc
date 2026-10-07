@@ -527,7 +527,10 @@ float(entity e, float xBrains) VR_SmallGib_Mult =
     else if(e.th_die == demon_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_fiend : cvarh_vr_smallgibs_mult_fiend; known = TRUE; }
     else if(e.th_die == ogre_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_ogre : cvarh_vr_smallgibs_mult_ogre; known = TRUE; }
     else if(e.th_die == knight_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_knight : cvarh_vr_smallgibs_mult_knight; known = TRUE; }
-    else if(e.th_die == hknight_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_hellknight : cvarh_vr_smallgibs_mult_hellknight; known = TRUE; }
+    else if(e.th_die == hknight_die || e.th_die == rknight_die) // (and MG3's ranged knight)
+    {
+        h = xBrains ? cvarh_vr_smallgibs_brains_mult_hellknight : cvarh_vr_smallgibs_mult_hellknight; known = TRUE;
+    }
     else if(e.th_die == shalrath_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_vore : cvarh_vr_smallgibs_mult_vore; known = TRUE; }
     else if(e.th_die == sham_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_shambler : cvarh_vr_smallgibs_mult_shambler; known = TRUE; }
     else if(e.th_die == wiz_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_scrag : cvarh_vr_smallgibs_mult_scrag; known = TRUE; }

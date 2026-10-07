@@ -200,6 +200,11 @@ float(entity e) MG3_PositionalHead =
         xHeadForward = 10; xHeadUp = 33; xHeadRadius = 9; // (headfit.py ogre_rocket 28 2 9: 9.4 0 33.5, 9.7)
         return TRUE;
     }
+    if(e.vr_mg3_mon == MG3_MON_RANGED_KNIGHT)
+    {
+        xHeadForward = 7; xHeadUp = 33; xHeadRadius = 6.5; // (headfit.py rknight 28 0 6: 7.7 -1.1 33.0, 5.9; a helmet)
+        return TRUE;
+    }
     return FALSE;
 };
 

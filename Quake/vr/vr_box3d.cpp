@@ -2144,6 +2144,11 @@ const RagdollClass ragdollClasses[] = {
         {&vr_ragdoll_gremlin_start, &vr_ragdoll_gremlin_mass, &vr_ragdoll_gremlin_friction,
             &vr_ragdoll_gremlin_joint_friction, &vr_ragdoll_gremlin_joint_stiffness, &vr_ragdoll_gremlin_limits,
             &vr_ragdoll_gremlin_damping, &vr_ragdoll_gremlin_blast, &vr_ragdoll_gremlin_inherit}},
+    // Dawn of the Machine's ranged knight (QC vr_mg3_rknight.qc): a death knight's build, the death knight's settings.
+    {"monster_ranged_knight", "progs/h_hellkn.mdl",
+        {&vr_ragdoll_hknight_start, &vr_ragdoll_hknight_mass, &vr_ragdoll_hknight_friction,
+            &vr_ragdoll_hknight_joint_friction, &vr_ragdoll_hknight_joint_stiffness, &vr_ragdoll_hknight_limits,
+            &vr_ragdoll_hknight_damping, &vr_ragdoll_hknight_blast, &vr_ragdoll_hknight_inherit}},
     {"monster_mummy", nullptr,
         {&vr_ragdoll_mummy_start, &vr_ragdoll_mummy_mass, &vr_ragdoll_mummy_friction, &vr_ragdoll_mummy_joint_friction,
             &vr_ragdoll_mummy_joint_stiffness, &vr_ragdoll_mummy_limits, &vr_ragdoll_mummy_damping,

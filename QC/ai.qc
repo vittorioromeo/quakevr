@@ -478,6 +478,8 @@ void() SightSound =
         if(self.skin == 0)
             sound(self, CHAN_VOICE, "hknight/sight1.wav", 1, ATTN_NORM);
     }
+    else if(self.classname == "monster_ranged_knight") // QVR: Dawn of the Machine's (vr_mg3_rknight.qc)
+        sound(self, CHAN_VOICE, MG3_RKnight_SightSound(), 1, ATTN_NORM);
     else if(self.classname == "monster_tarbaby")
         sound(self, CHAN_VOICE, "blob/sight1.wav", 1, ATTN_NORM);
     else if(self.classname == "monster_vomit")

@@ -447,6 +447,29 @@ constexpr Seed dogExplosiveSeeds[] = {
     {"tail", 0, Joint::Ball, {-17.5f, -0.1f, -1.1f}, {-14.8f, -0.5f, 3.3f}, {-20.2f, 0.4f, -5.6f}, 0.f, 50.f, 30.f, 0.f, {}},
 };
 
+// Dawn of the Machine's ranged knight (owned/mg3/progs/rknight.mdl, read in place: 1155 vertices, 166 frames in id's
+// death knight's order, checked: frameorder.py hknight rknight). The rest pose ($stand1): x forward, y left, z up;
+// upright, clawed, no weapon: pauldrons on the upper arms, his left hand on its forearm, his right claw a piece of its
+// own (the hand). The death knight's bones. Measured on his frames (rig.py rknight rknight_bones.json, RIG_PAK MG3's
+// pak0.pak): clusters 0.63 units rms, bones 0.77 (the death knight: 1.02, 1.29).
+// Death frames 42-53 ($death1-12) and 54-62 ($deathb1-9).
+constexpr Seed rknightSeeds[] = {
+    {"pelvis", -1, Joint::Root, {0.4f, -0.4f, 9.7f}, {0.4f, -0.4f, 9.7f}, {0.f, 0.3f, 14.f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {3.9f, -0.6f, 23.8f}, {0.f, 0.3f, 14.f}, {5.7f, -1.1f, 25.6f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {8.8f, -1.4f, 33.f}, {5.7f, -1.1f, 25.6f}, {11.9f, -1.7f, 40.5f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-0.9f, 12.8f, 21.2f}, {1.5f, 9.9f, 26.7f}, {-1.9f, 12.7f, 16.3f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {7.7f, 15.5f, 5.5f}, {-1.9f, 12.7f, 16.3f}, {17.4f, 18.4f, -5.2f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {-0.5f, -14.9f, 19.6f}, {1.3f, -12.1f, 25.2f}, {-1.7f, -16.f, 13.4f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {4.4f, -19.6f, 11.f}, {-1.7f, -16.f, 13.4f}, {5.5f, -20.9f, 9.7f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 6, Joint::Ball, {11.6f, -23.8f, 6.3f}, {5.5f, -20.9f, 9.7f}, {17.7f, -26.7f, 2.8f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {3.f, 7.2f, -2.3f}, {0.6f, 4.7f, 4.5f}, {5.4f, 7.9f, -8.1f}, 3.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 8, Joint::Hinge, {3.8f, 8.8f, -10.9f}, {5.4f, 7.9f, -8.1f}, {-0.2f, 11.7f, -20.2f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"foot_l", 9, Joint::Ball, {2.3f, 12.f, -22.6f}, {-0.2f, 11.7f, -20.2f}, {4.8f, 12.4f, -25.1f}, 0.f, 35.f, 15.f, 0.f, {}},
+    {"thigh_r", 0, Joint::Ball, {2.7f, -7.3f, -0.9f}, {0.2f, -4.5f, 5.4f}, {5.7f, -8.2f, -7.6f}, 3.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 11, Joint::Hinge, {4.7f, -8.9f, -10.4f}, {5.7f, -8.2f, -7.6f}, {0.5f, -11.3f, -20.2f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"foot_r", 12, Joint::Ball, {2.7f, -11.4f, -23.f}, {0.5f, -11.3f, -20.2f}, {4.9f, -11.6f, -25.7f}, 0.f, 35.f, 15.f, 0.f, {}},
+};
+
 constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -463,6 +486,7 @@ constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Shalrath, 371, shalrathSeeds, static_cast<int>(sizeof(shalrathSeeds) / sizeof(shalrathSeeds[0])), 1, {16, 0}, {22, 0}},
     {modelmeta::Id::Scor, 235, scorSeeds, static_cast<int>(sizeof(scorSeeds) / sizeof(scorSeeds[0])), 1, {36, 0}, {40, 0}, 26, true},
     {modelmeta::Id::Mg3DogExplosive, 915, dogExplosiveSeeds, static_cast<int>(sizeof(dogExplosiveSeeds) / sizeof(dogExplosiveSeeds[0])), 2, {8, 17}, {16, 25}},
+    {modelmeta::Id::Mg3Rknight, 1155, rknightSeeds, static_cast<int>(sizeof(rknightSeeds) / sizeof(rknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {modelmeta::Id::Mg3OgreRocket, 982, ogreRocketSeeds, static_cast<int>(sizeof(ogreRocketSeeds) / sizeof(ogreRocketSeeds[0])), 2, {112, 126}, {125, 135}},
 };
 

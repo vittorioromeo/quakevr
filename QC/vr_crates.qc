@@ -174,7 +174,7 @@ string(string a, string b, string c, string d) VR_Pick4 =
 float(entity e) VR_Hit_Armoured =
 {
     string c = e.classname;
-    return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_enforcer";
+    return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_enforcer" || c == "monster_ranged_knight";
 };
 
 // The second layer of a blunt blow (a fist, a gun's butt, a headbutt, a gib, a prop or a weapon struck or thrown into

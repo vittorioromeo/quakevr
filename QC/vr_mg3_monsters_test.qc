@@ -10,6 +10,9 @@
 //   6 the demo dog (Dawn of the Machine's data): one shot dead beside a grunt: its grenades spill, it bursts (gibs, its
 //     head), counted; 3 s later the grunt is hurt; a second one leaps onto the player: dies, spills, the player hurt; a
 //     third beheaded: spills, lies headless (its ragdoll)
+//   7 the ranged knight (Dawn of the Machine's data): spawned ahead (its model, class, head zone, no melee), made to
+//     cast a fan: six diamonds in flight (MG3's model; batted as a monster's missile), the player hurt; killed: its
+//     death frames; another gibbed: the death knight's head
 
 float mg3mt_pass, mg3mt_fail;
 float mg3mt_step;      // the running request's step, 0: none
@@ -246,6 +249,9 @@ void() MG3_MT_Step =
         mg3mt_n = vr_mg3_demo_grenades;
         mg3mt_killed = killed_monsters;
         mg3mt_h = mg3mt_m2.health;
+        mg3mt_total = vr_mg3_demo_blasts;
+        vr_mg3_demo_watch = mg3mt_m2;
+        vr_mg3_demo_nearest = 100000;
         MG3_MT_Hurt(p, mg3mt_m1, 30); // (a shotgun blast's worth: not a gib for a rottweiler)
         MG3_MT_Check(vr_mg3_demo_grenades - mg3mt_n >= 3, sprintf("shot dead: its grenades spill (%g)",
             vr_mg3_demo_grenades - mg3mt_n));
@@ -256,8 +262,12 @@ void() MG3_MT_Step =
     }
     if(mg3mt_step == 32)
     {
-        MG3_MT_Check(mg3mt_m2.health < mg3mt_h, sprintf("its grenades went off: the grunt beside it hurt (%g -> %g)", mg3mt_h,
-            mg3mt_m2.health));
+        MG3_MT_Check(vr_mg3_demo_blasts - mg3mt_total == vr_mg3_demo_grenades - mg3mt_n, sprintf("its grenades went off (%g)",
+            vr_mg3_demo_blasts - mg3mt_total));
+        // (Tossed about at random: the grunt is hurt when one goes off within its reach, 60 + 40 units.)
+        MG3_MT_Check(mg3mt_m2.health < mg3mt_h || vr_mg3_demo_nearest > 100, sprintf("the grunt beside it hurt by the "
+            "nearest (%g units off): %g -> %g", vr_mg3_demo_nearest, mg3mt_h, mg3mt_m2.health));
+        vr_mg3_demo_watch = world;
         if(mg3mt_m2.health > 0) { MG3_MT_Hurt(p, mg3mt_m2, mg3mt_m2.health + 50); }
         // The second: it leaps onto the player.
         p.health = 500;
@@ -287,7 +297,19 @@ void() MG3_MT_Step =
         MG3_MT_Check(mg3mt_m1.health <= 0 && vr_mg3_demo_grenades - mg3mt_n >= 3 && p.health < mg3mt_h,
             sprintf("its leap onto the player killed it: health %g, grenades %g, the player %g -> %g", mg3mt_m1.health,
             vr_mg3_demo_grenades - mg3mt_n, mg3mt_h, p.health));
-        mg3mt_step = 35; mg3mt_next = time + 3;
+        mg3mt_h = p.health;
+        vr_mg3_demo_watch = p;
+        vr_mg3_demo_nearest = 100000;
+        mg3mt_step = 37; mg3mt_next = time + 3;
+        return;
+    }
+    if(mg3mt_step == 37)
+    {
+        // (Reported, not checked: tossed at random, the nearest may still be behind a step or the player's own cover.)
+        dprint(sprintf("mg3mtest: its grenades at the player's feet: the nearest %g units off, the player %g -> %g\n",
+            vr_mg3_demo_nearest, mg3mt_h, p.health));
+        vr_mg3_demo_watch = world;
+        mg3mt_step = 35; mg3mt_next = time;
         return;
     }
     if(mg3mt_step == 35)
@@ -311,6 +333,67 @@ void() MG3_MT_Step =
         MG3_MT_Check(armed && mg3mt_m1.vr_headless && mg3mt_m1.model == MG3_DEMODOG_MDL && vr_mg3_demo_grenades - mg3mt_n >= 3,
             sprintf("beheaded: grenades %g, it lies headless (%s headless %g)", vr_mg3_demo_grenades - mg3mt_n,
             mg3mt_m1.model, mg3mt_m1.vr_headless));
+        mg3mt_step = 0;
+        MG3_MT_Total();
+        return;
+    }
+    if(mg3mt_step == 40)
+    {
+        if(!MG3_RKnight_Available())
+        {
+            dprint("mg3mtest: the Dawn of the Machine data is not there (no ranged knight)\n");
+            mg3mt_step = 0;
+            return;
+        }
+        mg3mt_m1 = MG3_MT_Spawn(p, 36, 256, 0);
+        MG3_MT_Check(mg3mt_m1.classname == "monster_ranged_knight" && mg3mt_m1.vr_mg3_mon == MG3_MON_RANGED_KNIGHT &&
+            mg3mt_m1.model == MG3_RKNIGHT_MDL && mg3mt_m1.health == 250 && !mg3mt_m1.th_melee, sprintf("a ranged knight "
+            "(%s %s health %g, no melee)", mg3mt_m1.classname, mg3mt_m1.model, mg3mt_m1.health));
+        MG3_MT_Check(PositionalHead(mg3mt_m1) && xHeadUp == 33 && xHeadForward == 7 && VR_Decap_HeadModel(mg3mt_m1) ==
+            "progs/h_hellkn.mdl", sprintf("its own head zone (%g up, %g forward, %g wide), the death knight's head",
+            xHeadUp, xHeadForward, xHeadRadius));
+        mg3mt_step = 41; mg3mt_next = time + 1;
+        return;
+    }
+    if(mg3mt_step == 41)
+    {
+        p.health = 500;
+        mg3mt_h = p.health;
+        mg3mt_n = vr_mg3_diamonds;
+        mg3mt_m1.enemy = p;
+        entity os4 = self;
+        self = mg3mt_m1;
+        ai_face();
+        rknight_magicc1();
+        self = os4;
+        mg3mt_step = 42; mg3mt_next = time + 0.8;
+        return;
+    }
+    if(mg3mt_step == 42)
+    {
+        entity d = find(world, classname, "knightspike");
+        MG3_MT_Check(d != world && d.model == MG3_DIAMOND_MDL && d.owner == mg3mt_m1 && VR_Deflect_IsProjectile(d),
+            sprintf("a diamond in flight, a monster's missile to bat (%s)", d.model));
+        mg3mt_step = 43; mg3mt_next = time + 1.5;
+        return;
+    }
+    if(mg3mt_step == 43)
+    {
+        float fan = vr_mg3_diamonds - mg3mt_n;
+        MG3_MT_Check(fan >= 6, sprintf("a fan of six diamonds (%g so far)", fan));
+        MG3_MT_Check(p.health < mg3mt_h, sprintf("the player hurt (%g -> %g)", mg3mt_h, p.health));
+        MG3_MT_Hurt(p, mg3mt_m1, mg3mt_m1.health + 5);
+        mg3mt_m2 = MG3_MT_Spawn(p, 36, 160, 48);
+        mg3mt_step = 44; mg3mt_next = time + 2;
+        return;
+    }
+    if(mg3mt_step == 44)
+    {
+        MG3_MT_Check(mg3mt_m1.health <= 0 && mg3mt_m1.model == MG3_RKNIGHT_MDL && mg3mt_m1.frame >= 42 && mg3mt_m1.frame <= 62,
+            sprintf("killed: a corpse in its death frames (frame %g)", mg3mt_m1.frame));
+        MG3_MT_Hurt(p, mg3mt_m2, mg3mt_m2.health + 100);
+        MG3_MT_Check(mg3mt_m2.model == "progs/h_hellkn.mdl", sprintf("another gibbed: the death knight's head (%s)",
+            mg3mt_m2.model));
         mg3mt_step = 0;
         MG3_MT_Total();
         return;
@@ -390,5 +473,6 @@ void() MG3_MonstersTestFrame =
     else if(request == 4) MG3_MT_KillInfected();
     else if(request == 5) { mg3mt_step = 20; mg3mt_next = time; }
     else if(request == 6) { mg3mt_step = 30; mg3mt_next = time; }
+    else if(request == 7) { mg3mt_step = 40; mg3mt_next = time; }
     self = oldself; other = oldother; activator = oldact;
 };

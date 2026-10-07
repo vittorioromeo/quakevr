@@ -151,6 +151,13 @@ void(float xType) VR_Dummy_Type =
         vr_dt_snd1 = "dog/dpain1.wav";
         return;
     }
+    if(xType == 21)
+    {
+        vr_dt_class = "monster_ranged_knight"; vr_dt_name = "Ranged Knight"; vr_dt_pack = 3; // (vr_mg3_rknight.qc: the death knight's frames)
+        vr_dt_stand = 0; vr_dt_stands = 9; vr_dt_pain = 37; vr_dt_pains = 5; vr_dt_atk = 155; vr_dt_atks = 11; // (magicc)
+        vr_dt_snd1 = "owned/mg3/rknight/pain_01.wav"; vr_dt_snd2 = "owned/mg3/rknight/pain_02.wav";
+        return;
+    }
     vr_dt_class = "monster_army"; vr_dt_name = "Grunt";
     vr_dt_stand = 0; vr_dt_stands = 8; vr_dt_pain = 40; vr_dt_pains = 6; vr_dt_atk = 81; vr_dt_atks = 9;
     vr_dt_snd1 = "soldier/pain1.wav"; vr_dt_snd2 = "soldier/pain2.wav";
@@ -179,6 +186,7 @@ void(float xType) VR_Dummy_TypeSpawn =
     if(xType == 18) { monster_eel(); return; }
     if(xType == 19) { monster_ogre_rocket(); return; }
     if(xType == 20) { monster_demodog(); return; }
+    if(xType == 21) { monster_ranged_knight(); return; }
     monster_army();
 };
 

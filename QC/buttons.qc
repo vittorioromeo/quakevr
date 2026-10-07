@@ -753,7 +753,7 @@ void() func_weapon_grabbable =
 // Tests only (impulse 241's vr_test_spawn; no button): 18 the Guardian (Dissolution of Eternity's monster_morph, its
 // Egyptian look), 19 the dragon (Dissolution of Eternity), 20 the marksman ogre (Honey's model, progs/mogre.mdl);
 // Dawn of the Machine's from 30: 30 an infected grunt, 31 knight, 32 enforcer, 33 death knight (vr_mg3_infected.qc),
-// 34 the rocket ogre (vr_mg3_ogre.qc), 35 the demo dog (vr_mg3_demodog.qc).
+// 34 the rocket ogre (vr_mg3_ogre.qc), 35 the demo dog (vr_mg3_demodog.qc), 36 the ranged knight (vr_mg3_rknight.qc).
 // The model of the second row's monsters: the mission packs' (and the registered game's) may not be
 // installed, and precaching a missing model is an error.
 string(float choice) VR_EnemyDispenser_Model =
@@ -781,6 +781,7 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 33) { return "progs/demon.mdl"; }
     else if(choice == 34) { return "owned/mg3/progs/ogre_rocket.mdl"; } // (MG3's own: its pack's, read in place)
     else if(choice == 35) { return "owned/mg3/progs/dog_explosive.mdl"; }
+    else if(choice == 36) { return "owned/mg3/progs/rknight.mdl"; }
 
     return NULLSTR;
 };
@@ -817,6 +818,7 @@ void(float choice) VR_EnemyDispenser_Spawn =
     else if(choice == 33) { self.classname = "monster_hell_knight_infected"; monster_hell_knight_infected(); }
     else if(choice == 34) { self.classname = "monster_ogre_rocket"; monster_ogre_rocket(); }
     else if(choice == 35) { self.classname = "monster_demodog"; monster_demodog(); }
+    else if(choice == 36) { self.classname = "monster_ranged_knight"; monster_ranged_knight(); }
 
 };
 

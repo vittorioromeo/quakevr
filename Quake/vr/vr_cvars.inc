@@ -2089,7 +2089,7 @@ QVR_CVAR(vr_dummy_attack_windup, "0.6", CVAR_ARCHIVE)    // s of wind-up (the te
 QVR_CVAR(vr_dummy_gore, "1", CVAR_ARCHIVE)               // the training dummy bleeds as a grunt: gore sprays and mist, wounds on its model, small gibs, blood thrown onto you and your gear (0: clean, as before)
 QVR_CVAR(vr_dummy_gib, "1", CVAR_ARCHIVE)                // the training dummy dies as its enemy (a grunt) once its hits take the last of its health (vr_dummy_health): beheaded, popped, gibbed (below -35) as one; it stands again after vr_dummy_gib_respawn
 QVR_CVAR(vr_dummy_gib_respawn, "2", CVAR_ARCHIVE)        // s a gibbed training dummy takes to stand again
-QVR_CVAR(vr_dummy_type, "0", CVAR_ARCHIVE)              // the enemy the training dummy stands as (vr_dummy_types.qc: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 fiend, 6 shambler, 7 zombie, 8 vore, 9 scrag, 10 rottweiler, 11 spawn, 12 rotfish, 13 gremlin, 14 centroid, 15 mummy, 16 wrath, 17 overlord, 18 electric eel; Dawn of the Machine's: 19 rocket ogre, 20 demo dog): its model, box, hit zones, head, gore and death
+QVR_CVAR(vr_dummy_type, "0", CVAR_ARCHIVE)              // the enemy the training dummy stands as (vr_dummy_types.qc: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 fiend, 6 shambler, 7 zombie, 8 vore, 9 scrag, 10 rottweiler, 11 spawn, 12 rotfish, 13 gremlin, 14 centroid, 15 mummy, 16 wrath, 17 overlord, 18 electric eel; Dawn of the Machine's: 19 rocket ogre, 20 demo dog, 21 ranged knight): its model, box, hit zones, head, gore and death
 QVR_CVAR(vr_dummy_health, "-1", CVAR_ARCHIVE)            // the training dummy's full health (below 1: its enemy's own, a grunt's 30); what its hits take away, shown over it, and what kills it (vr_dummy_gib)
 QVR_CVAR(vr_dummy_regen, "3", CVAR_ARCHIVE)              // s without a hit after which the training dummy's health fills up again (0: never)
 QVR_CVAR(vr_dummy_healthbar, "1", CVAR_ARCHIVE)          // the training dummy's health shown over it, as a bar and a number, turned to face you (0: its sign only)
@@ -2433,7 +2433,7 @@ QVR_CVAR(vr_mg_trigger_test, "0", CVAR_NONE) // Debug > Tests: 1 shared triggers
 QVR_CVAR(vr_mg_horde_test, "0", CVAR_NONE) // Debug > Tests: authored Horde waves, currency, pickups, revival and save reports
 QVR_CVAR(vr_mg_hub_test, "0", CVAR_NONE) // Debug > Tests: 1 MG1 hub/rune semantics, 2 authored electrode/egg route, 3 progression/inventory report; destructive tests reload afterward
 QVR_CVAR(vr_mg_hub_stage, "0", CVAR_NONE) // Private QC transition acceptance continuation index; not archived
-QVR_CVAR(vr_mg3_mtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Monsters: 1 report, 2 the infected (QC/vr_mg3_monsters_test.qc; not archived)
+QVR_CVAR(vr_mg3_mtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Monsters: 1 report, 2 the infected, 3 a lying death knight, 4 the map's infected, 5 the rocket ogre, 6 the demo dog, 7 the ranged knight (QC/vr_mg3_monsters_test.qc; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1 route sweep driver: each new map's first frame runs mg1route<stage>.cfg once (0 off; the scripts raise it); not archived
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)

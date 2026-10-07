@@ -1193,6 +1193,18 @@ The final boss (end.bsp): killed only by telefragging it (a teleporter onto its 
 [
 ]
 
+@PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/hknight.mdl" }) =
+	monster_ranged_knight : "Ranged knight (Dawn of the Machine)
+
+250 health, no melee: fans of glowing diamonds at range (9 each). Walks: it walks to fight. Needs the Dawn of the Machine data (its model, progs/rknight.mdl, read from its pack in place); the preview is the death knight's."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+		2 : "Walks" : 0 : "It walks to fight (its walk at its run's pace), never runs."
+	]
+]
+
 @PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": "progs/scor.mdl" }) =
 	monster_scourge : "Centroid (scourge; Scourge of Armagon)
 

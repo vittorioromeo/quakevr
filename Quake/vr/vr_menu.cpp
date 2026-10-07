@@ -285,6 +285,7 @@ void restartVr()
     {
         out.pushBack({19.f, "Rocket Ogre"});
         out.pushBack({20.f, "Demo Dog"});
+        out.pushBack({21.f, "Ranged Knight"});
     }
     return out;
 }
@@ -5093,6 +5094,17 @@ za::Vector<Item> pageMg3MonsterTests()
         command("A Rocket Ogre Ahead", "vr_test_spawn 34; vr_test_spawn_dist 192; impulse 241")
             .help("Dawn of the Machine's rocket ogre (its data read in place): volleys of two rockets; bat them back."),
         command("A Rocket Ogre's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 34; vr_test_spawn_dead 1; vr_test_spawn_dist 128; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0"),
+        command("A Demo Dog Ahead", "vr_test_spawn 35; vr_test_spawn_dist 192; impulse 241")
+            .help("Dawn of the Machine's demo dog: its leap onto you kills it; however it dies, three grenades spill."),
+        command("Demo Dog Check", "vr_mg3_mtest 6")
+            .help("Destructive: demo dogs ahead: one shot dead beside a grunt (grenades, the grunt hurt), one landing on "
+                  "you, one beheaded (it lies headless, the grenades spill all the same)."),
+        command("A Ranged Knight Ahead", "vr_test_spawn 36; vr_test_spawn_dist 256; impulse 241")
+            .help("Dawn of the Machine's ranged knight: fans of diamonds at range; bat or parry them."),
+        command("A Ranged Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 36; vr_test_spawn_dead 1; vr_test_spawn_dist 128; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0"),
+        command("Ranged Knight Check", "vr_mg3_mtest 7")
+            .help("Destructive: a ranged knight ahead: its model, class, head zone; made to cast (six diamonds, you hurt), "
+                  "killed (its death frames), another gibbed (the death knight's head)."),
         command("Rocket Ogre Check", "vr_mg3_mtest 5")
             .help("Destructive: a rocket ogre ahead: its model, class, head zone; made to shoot (two rockets, you hurt), "
                   "killed (its corpse, no chainsaw dropped)."),
@@ -5222,7 +5234,7 @@ za::Vector<Item> pageDebugTests()
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
              {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"},
              {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
-             {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"},
+             {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"},
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},

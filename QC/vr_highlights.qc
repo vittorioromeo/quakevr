@@ -90,7 +90,8 @@ float(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Highli
     {
         score = score + 2;
     }
-    else if(c == "monster_ogre" || c == "monster_demon1" || c == "monster_shalrath" || c == "monster_hell_knight")
+    else if(c == "monster_ogre" || c == "monster_demon1" || c == "monster_shalrath" || c == "monster_hell_knight" ||
+            c == "monster_ranged_knight")
     {
         score = score + 1;
     }

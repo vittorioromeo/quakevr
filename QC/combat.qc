@@ -299,6 +299,7 @@ void() demon_die;
 void() ogre_die;
 void() knight_die;
 void() hknight_die;
+void() rknight_die; // (Dawn of the Machine's ranged knight: vr_mg3_rknight.qc)
 void() shalrath_die;
 void() sham_die;
 void() wiz_die;
@@ -353,6 +354,11 @@ float(entity e) VR_Corpse_Parts =
         vr_corpse_healthh = cvarh_vr_corpse_health_ogre;
         vr_corpse_gib1 = "progs/gib3.mdl";
         vr_corpse_gib2 = "progs/gib3.mdl";
+    }
+    else if(e.th_die == rknight_die) // (Dawn of the Machine's ranged knight: the death knight's head and corpse health)
+    {
+        vr_corpse_head = "progs/h_hellkn.mdl";
+        vr_corpse_healthh = cvarh_vr_corpse_health_hellknight;
     }
     else if(e.th_die == knight_die || e.th_die == hknight_die)
     {

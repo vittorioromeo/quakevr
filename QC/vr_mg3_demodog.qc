@@ -34,6 +34,9 @@
 
 string MG3_DEMODOG_MDL = "owned/mg3/progs/dog_explosive.mdl";
 float vr_mg3_demo_grenades;      // demo dogs' grenades spilled since the map started (the tests)
+float vr_mg3_demo_blasts;        // and gone off
+entity vr_mg3_demo_watch;        // the tests: a monster whose distance to the nearest blast is kept,
+float vr_mg3_demo_nearest;       // that distance
 
 float() MG3_DemoDog_Available = { return fileexists(MG3_DEMODOG_MDL); };
 
@@ -50,6 +53,11 @@ void() MG3_DemoDog_Precache =
 
 void() MG3_DemoGrenadeExplode =
 {
+    vr_mg3_demo_blasts = vr_mg3_demo_blasts + 1;
+    if(vr_mg3_demo_watch)
+    {
+        vr_mg3_demo_nearest = min(vr_mg3_demo_nearest, vlen(vr_mg3_demo_watch.origin - self.origin));
+    }
     T_RadiusDamage(self, self.owner, self.dmg, world);
     sound(self, CHAN_VOICE, "weapons/r_exp3.wav", 1, ATTN_NORM);
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);

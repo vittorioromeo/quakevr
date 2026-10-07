@@ -2432,6 +2432,7 @@ const MonsterClass monsterClasses[] = {
     {"monster_ogre", "Ogre", &vr_mhull_ogre},
     {"monster_knight", "Knight", &vr_mhull_knight},
     {"monster_hell_knight", "Death Knight", &vr_mhull_hknight},
+    {"monster_ranged_knight", "Ranged Knight", &vr_mhull_hknight}, // (Dawn of the Machine's: the death knight's width)
     {"monster_zombie", "Zombie", &vr_mhull_zombie},
     {"monster_wizard", "Scrag", &vr_mhull_wizard},
     {"monster_demon1", "Fiend", &vr_mhull_demon},

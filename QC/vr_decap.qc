@@ -88,6 +88,7 @@ string(entity e) VR_Decap_HeadModel =
     if(c == "monster_ogre" || c == "monster_ogre_marksman") { return "progs/h_ogre.mdl"; }
     if(c == "monster_enforcer")      { return "progs/h_mega.mdl"; }
     if(c == "monster_hell_knight")   { return "progs/h_hellkn.mdl"; }
+    if(c == "monster_ranged_knight") { return "progs/h_hellkn.mdl"; } // (Dawn of the Machine's: its gib head, upstream's)
     if(c == "monster_dog")           { return "progs/h_dog.mdl"; }
     if(c == "monster_wizard")        { return "progs/h_wizard.mdl"; }
     if(c == "monster_zombie")        { return "progs/h_zombie.mdl"; }

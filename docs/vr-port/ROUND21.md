@@ -28495,3 +28495,50 @@ Checker: 15 missing classes, 178 placements.
 **In the headset.** [ ] A demo dog leaping at you: parry it (it staggers, no blast) or let it land (it dies on you,
 its grenades at your feet); catch one of its grenades and throw it back. [ ] Behead one: it lies headless, the grenades
 still spill.
+
+### M3-18 The ranged knight
+
+`monster_ranged_knight` (`QC/vr_mg3_rknight.qc`; official `mg3_rknight.qc`, `ai.qc`'s sight sounds, `client.qc`'s
+obituary). A class of its own (as upstream) with its own frame functions, MG3's model read in place
+(`owned/mg3/progs/rknight.mdl`, the death knight's frame order), removed without the data. No melee; at range three
+fans of MG3's glowing diamonds (`owned/mg3/progs/diamond_trail.mdl`), launched as knight spikes (9; 400 u/s, 600 in a
+Bloody Nightmare game: batted, parried, blocked as any monster missile): a rising fan of five (magic a), six across
+(magic c, the death knight's), or six then up to eight more scattered (magic b: 60% of its attacks from 300 units, else
+20%). Spawnflag 2: it walks to fight. 250 health, gibbed under -40 (the death knight's head). Upstream's
+`EF_CANDLELIGHT` on the diamonds is the rerelease's effect only (not in Quake VR's engine): left out.
+
+Quake VR's treatment, wired by class or by its death function (`rknight_die`), as the death knight's: beheading's head
+(`VR_Decap_HeadModel`), ragdoll settings (`ragdollClasses`: Ragdoll Settings > Death Knight), hull width
+(`vr_mhull_hknight`), grapple weight 150, armour (`VR_Hit_Armoured`), corpse gibbing (`VR_Corpse_Parts`: the death
+knight's head and corpse health), small gibs (the death knight's), highlights' score, knockdown (its death backwards,
+`VR_Knockdown_SetupReverse` as the death knight's), the obituary ("slain by a Death Knight", upstream's). Its own:
+**rig** (`rknightSeeds`, `rknight_bones.json`: 1155 vertices, the death knight's 14 bones, its right claw the hand; the
+pauldrons on the upper arms; clusters 0.63 units rms, bones 0.77; deaths 42-53, 54-62; `frameorder.py hknight rknight`:
+the same low runs at 51-53 and 61-62); **head zone** 7 forward, 33 up, 6.5 wide (`headfit.py rknight 28 0 6`: 7.7 -1.1
+33.0, 5.9: a narrow helmet); training dummy 21, spawner Thing 36.
+
+Measured: `vr_mg3_mtest 7` (e1m1) **7/0**: monster_ranged_knight, the owned model, 250, no melee; its head zone, the
+death knight's head; made to cast (magic c): a diamond in flight (MG3's model, `VR_Deflect_IsProjectile`), 10 in 2.3 s
+(its own next cast began), the player 500 -> 464; killed: frame 53; another gibbed: `progs/h_hellkn.mdl`. `MON=36
+decap_test.sh live pop`: beheaded (13 parts left), head pops by shotgun, super shotgun, lightning. `KINDS=36
+limbs_test.sh live`: a slash cuts, fist/shotgun/bolt pop, an explosion pops 8, gibbed gibs. Knockdown: its ragdoll (1155
+vertices, 14 bones), up again. Dummy 21: zones head 1, body 0, legs 3 (the death knight's too). MG3 maps (skill 2):
+map2 7 rocket ogres and 2 ranged knights, map2b 17 rocket ogres and 7 demo dogs, map4 14/2/5, secret5 9 rocket ogres
+and 15 ranged knights with 26 + 9 infected (3 lying): every map loads, exit 0. Checker after M3-18: **14 missing
+classes, 135 placements** (M3-15..18 resolved 8 classes, 1,262 placements counted from 411 before M3-16; the rest are
+M3-19.. and the bosses).
+
+Demo dog follow-up (M3-17's test): its grenades are counted as they go off (`vr_mg3_demo_blasts`) and the test reports
+the nearest blast to the player instead of failing when a random toss lands behind a step (4 of 4 runs hurt him).
+
+Checks (M3-15..18): QC 0 new warnings (the 3 left are `vr_mg3_test.qc:543`'s, from before), statics, QC precedence and
+FGD (332 entities) pass; Release built. Regressions: e1m1 `vr_mg3_test 6` 13/0, Dopa e5m1 triggers 34/0 and world
+19/0, MG1 hub 20/0 and horde 24/0, MG3 weapons `vr_mg3_wtest 2` 19/0, MG3 items (map2) 5/0, monsters 2/3/5/6/7 all
+passing on e1m1 in one run. No melee code changed: `eval.sh` not run.
+
+**In the headset.** [ ] A ranged knight's fans (Debug > Tests > Dawn of the Machine Monsters > A Ranged Knight Ahead):
+bat the diamonds back, parry them; behead it (its helmet is small: the head zone is 6.5 wide).
+
+Numbering (additive, to merge with M3-19..23's): spawner Things 30..36 (30-33 the infected, 34 rocket ogre, 35 demo
+dog, 36 ranged knight), training dummy types 19-21 (`VR_DUMMY_TYPES` 22), `.vr_mg3_mon` 1-3 (`MG3_MON_*`,
+`vr_mg3_ogre.qc`).
