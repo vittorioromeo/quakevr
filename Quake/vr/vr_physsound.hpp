@@ -35,8 +35,10 @@ void precache();
 int precacheOne(const char* name);
 
 // Box3D's hit events, each step (vr_box3d.cpp touches): prop `num` (of `material`, `mass` kg) hit something at `speed`
-// m/s (the contact's approach) at `at` (units). Only the hardest of a frame per prop plays (frameEnd).
-void hit(int num, Material material, float mass, float speed, const glm::vec3& at);
+// m/s (the contact's approach) at `at` (units). Only the loudest of a frame per prop plays (frameEnd). `body`: a
+// ragdoll's part or a pushable corpse (`num` the corpse, `mass` the part's): vr_physsound_bodies loud, from
+// vr_physsound_body_min_speed, at most every two vr_physsound_interval per body (not per part).
+void hit(int num, Material material, float mass, float speed, const glm::vec3& at, bool body = false);
 
 // A prop sliding this frame (vr_box3d.cpp, its contacts after the step): `slip` m/s at its contacts, `press` how hard it
 // is pressed onto them (1: its weight). Called once a frame for each prop that slides; one not called stops scraping.

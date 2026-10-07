@@ -2020,6 +2020,7 @@ void addCorpseShapes(edict_t* ent, int num, qmodel_t* model, Slot& s)
     s.maxs = hi;
     b3ShapeDef def = shapeDef(num, catCorpse, s.corpseMask);
     def.enableCustomFiltering = true; // (shouldCollide: thrown things, vr_corpse_collide_thrown; what it is made in)
+    def.enableHitEvents = s.corpseDynamic; // (a pushable one's knocks: vr_physsound.cpp, soundHits)
     def.baseMaterial.friction = za::max(s.corpseFriction, 0.f);
     const za::Vector<b3HullData*>* hulls = s.corpseFitted ? &corpseHulls(ent, model) : nullptr;
     const glm::vec3 boxLo{lo.x, lo.y, lo.z + 0.25f}; // (a hair off the floor it lies on, as the fitted hulls)
@@ -6427,7 +6428,8 @@ void writeProp(edict_t* ent, Slot& s)
 }
 
 // The step's hits for the physics sounds (vr_physsound.cpp): a prop's against the level, a door, a fixture, another prop,
-// a hand's or a held weapon's body (each prop of a pair its own); not a monster's or a player's body (their touches have
+// a hand's or a held weapon's body (each prop of a pair its own); a ragdoll's parts' and a pushable corpse's, as flesh
+// (each body one knock at a time: physsound::hit's `body`); not a monster's or a player's body (their touches have
 // QC's sounds). Cheap: Box3D reports only the contacts that met faster than its hit threshold (1 m/s).
 void soundHits(const b3ContactEvents& events)
 {
@@ -6443,7 +6445,14 @@ void soundHits(const b3ContactEvents& events)
         {
             const b3ShapeId self = side ? e.shapeIdB : e.shapeIdA, other = side ? e.shapeIdA : e.shapeIdB;
             const int a = numOf(self), b = numOf(other);
-            if(a <= 0 || a >= static_cast<int>(world->slots.size()) || world->slots[a].kind != Kind::Prop)
+            if(a <= 0 || a >= static_cast<int>(world->slots.size()) || a == b)
+            {
+                continue;
+            }
+            const Slot& s = world->slots[a];
+            // A body: a ragdoll's part (its own mass: a torso's thud, a hand's squish) or a pushable corpse, as flesh.
+            const bool body = s.kind == Kind::Corpse && (s.ragdoll >= 0 || s.corpseDynamic);
+            if(s.kind != Kind::Prop && !body)
             {
                 continue;
             }
@@ -6452,9 +6461,17 @@ void soundHits(const b3ContactEvents& events)
             {
                 continue;
             }
-            const Slot& s = world->slots[a];
+            if(body && ok == Kind::Corpse && b < a && (world->slots[b].ragdoll >= 0 || world->slots[b].corpseDynamic))
+            {
+                continue; // (two bodies meeting: one knock, the lower-numbered one's, not one each)
+            }
             const glm::vec3 at{static_cast<float>(e.point.x) * world->m2u, static_cast<float>(e.point.y) * world->m2u,
                 static_cast<float>(e.point.z) * world->m2u};
+            if(body)
+            {
+                physsound::hit(a, physsound::Material::Flesh, b3Body_GetMass(b3Shape_GetBody(self)), e.approachSpeed, at, true);
+                continue;
+            }
             physsound::hit(a, s.sound, b3Body_GetMass(s.body), e.approachSpeed, at);
         }
     }

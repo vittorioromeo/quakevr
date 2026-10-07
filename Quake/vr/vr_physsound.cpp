@@ -54,6 +54,7 @@ constexpr int materialCount = static_cast<int>(Material::Count);
 constexpr float lightMass = 1.5f;  // kg: lighter plays the light recordings
 constexpr float heavyMass = 10.f;  // kg: this and heavier the heavy ones
 constexpr int maxImpactsAFrame = 6;
+constexpr float bodyIntervals = 2.f; // a body (a ragdoll, a corpse) knocks at most every this many vr_physsound_interval
 constexpr double bounceWindow = 3.0; // intervals (vr_physsound_interval) after a knock: a hit this soon is a bounce's
 constexpr float bounceShare = 0.35f; // tail, silent unless at least this share of the knock's volume
 constexpr int maxGrainsAFrame = 8;
@@ -141,6 +142,7 @@ struct Hit
     float mass, speed;
     glm::vec3 at;
     float volume;
+    bool body; // a ragdoll's or a corpse's (hit)
 };
 
 struct Slide
@@ -556,9 +558,10 @@ int precacheOne(const char* name)
     return progs::bindings().isVrProgs && sv.state == ss_loading ? precacheName(name) : 0;
 }
 
-void hit(int num, Material material, float mass, float speed, const glm::vec3& at)
+void hit(int num, Material material, float mass, float speed, const glm::vec3& at, bool body)
 {
-    if(material == Material::None || master() <= 0.f || speed < vr_physsound_min_speed.value)
+    if(material == Material::None || master() <= 0.f || speed < vr_physsound_min_speed.value ||
+        (body && (vr_physsound_bodies.value <= 0.f || speed < vr_physsound_body_min_speed.value)))
     {
         return;
     }
@@ -566,15 +569,17 @@ void hit(int num, Material material, float mass, float speed, const glm::vec3& a
     {
         if(h.num == num)
         {
-            if(speed > h.speed)
+            // The loudest (a ragdoll's: of its parts, the heavier part's at a like speed; a prop's: the hardest).
+            if(impactVolume(material, mass, speed) > impactVolume(h.material, h.mass, h.speed))
             {
                 h.speed = speed;
+                h.mass = mass;
                 h.at = at;
             }
             return;
         }
     }
-    state.hits.pushBack({num, material, mass, speed, at, 0.f});
+    state.hits.pushBack({num, material, mass, speed, at, 0.f, body});
 }
 
 bool scrapesWanted()
@@ -600,7 +605,7 @@ void frameEnd()
     za::Vector<Hit>& hits = state.hits;
     for(Hit& h : hits)
     {
-        h.volume = impactVolume(h.material, h.mass, h.speed);
+        h.volume = impactVolume(h.material, h.mass, h.speed) * (h.body ? za::clamp(vr_physsound_bodies.value, 0.f, 2.f) : 1.f);
     }
     za::quickSort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) { return a.volume > b.volume || (a.volume == b.volume && a.num < b.num); });
     int played = 0;
@@ -614,7 +619,8 @@ void frameEnd()
         // Too soon after its last knock (unless twice as loud); or, a little later, a bounce's tail (a small hop after a
         // landing: far quieter than the knock).
         const double since = now - b.lastHit;
-        const float interval = za::max(vr_physsound_interval.value, 0.f);
+        // (A body: longer, for all its parts: a pile settling, a ragdoll's limbs flopping, knock once.)
+        const float interval = za::max(vr_physsound_interval.value, 0.f) * (h.body ? bodyIntervals : 1.f);
         const bool soon = since < interval && h.volume < 2.f * b.lastVolume;
         const bool bounce = since < bounceWindow * interval && h.volume < bounceShare * b.lastVolume;
         if(played >= maxImpactsAFrame || soon || bounce)
@@ -642,8 +648,8 @@ void frameEnd()
         b.lastVolume = h.volume;
         if(debug())
         {
-            Con_Printf("physsound: %.2f %d %s impact %s (%.1f kg, %s) at %.2f m/s: volume %.2f\n", qcvm->time, h.num,
-                PR_GetString(EDICT_NUM(h.num)->v.classname), materialName(h.material), h.mass,
+            Con_Printf("physsound: %.2f %d %s impact %s%s (%.1f kg, %s) at %.2f m/s: volume %.2f\n", qcvm->time, h.num,
+                PR_GetString(EDICT_NUM(h.num)->v.classname), materialName(h.material), h.body ? " body" : "", h.mass,
                 w == 0 ? "light" : w == 1 ? "medium" : "heavy", h.speed, h.volume);
         }
     }

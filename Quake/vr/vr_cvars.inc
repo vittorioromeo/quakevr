@@ -261,6 +261,8 @@ QVR_CVAR(vr_physsound_impact, "1", CVAR_ARCHIVE)      // props hitting the level
 QVR_CVAR(vr_physsound_min_speed, "1.5", CVAR_ARCHIVE) // m/s, the slowest hit that knocks (a 4 cm drop; quietly)
 QVR_CVAR(vr_physsound_full_speed, "10", CVAR_ARCHIVE) // m/s, a hit this hard or harder at full volume (a 1 m drop: 7.8)
 QVR_CVAR(vr_physsound_interval, "0.12", CVAR_ARCHIVE) // s, a prop knocks at most this often (a harder hit, twice as loud, sooner)
+QVR_CVAR(vr_physsound_bodies, "1", CVAR_ARCHIVE)     // ragdolls and pushable corpses hitting the level, props and each other (flesh): volume (0 off, up to 2)
+QVR_CVAR(vr_physsound_body_min_speed, "2", CVAR_ARCHIVE) // m/s, the slowest hit of a body's that knocks (a settling pile's twitches are slower)
 QVR_CVAR(vr_physsound_scrape, "0.8", CVAR_ARCHIVE)    // props sliding with friction (dragged, shoved, skidding): volume (0 off)
 QVR_CVAR(vr_physsound_scrape_min, "0.3", CVAR_ARCHIVE) // m/s, the slowest slide that scrapes
 QVR_CVAR(vr_physsound_scrape_full, "3", CVAR_ARCHIVE) // m/s, a slide this fast or faster at full volume

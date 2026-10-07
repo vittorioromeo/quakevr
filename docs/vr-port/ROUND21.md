@@ -27449,3 +27449,28 @@ Checked (`run.sh -Sound`, `snd_show 2`): the off hand's empty shotgun clicks on 
 
 In VR: parry with one hand, reload at a holster, holster and draw, dry-fire an empty gun, pull a grenade from the pouch:
 each should sound from that hand (turn your head: it stays with the hand).
+
+## Ragdoll impact sounds (AUDIO_REVIEW.md row 2, 2026-10-07)
+
+Bodies fell, tumbled down stairs, were flung and hit by props in silence: Box3D's hit events played only for props
+(`vr_box3d.cpp` soundHits). Now a ragdoll's parts and a pushable corpse (`vr_corpse_collide` 2/4: its body now asks
+for hit events) knock too, through the props' path (`physsound::hit` with `body`): as flesh (`vr/phys/flesh_*`,
+`squish*`; the light set, `vr/squish_s*`, for a part under 1.5 kg), the part's own mass and the contact's speed
+(a pelvis of 23 kg lands heavy, a forearm medium, a hand light), from the contact. Per body, not per part: the
+frame's loudest part plays, and a body knocks at most every two `vr_physsound_interval` (0.24 s; a hit twice as loud
+sooner; the bounce rule as props). Two bodies meeting knock once (the lower-numbered one's), not once each. A prop
+hitting a body: the prop's knock and the body's thud. Living monsters knocked down (their ragdoll) likewise.
+Detached limbs and heads were already props of flesh (`vr_limb`, heads, small gibs) and keep their knocks.
+
+- `vr_physsound_bodies` (1; 0 off, up to 2): their volume. `vr_physsound_body_min_speed` (2 m/s): a body's slowest
+  hit that knocks (props' is 1.5): a settling pile's twitches stay silent. Menu: Carrying > Physics Sounds, **Bodies**
+  and **Quietest Body Knock**.
+- Test: `Misc/quakevr/ragdoll/ragdoll_sound_test.sh [flat stairs blast pile]`.
+
+Checked (`vr_debug_physsound 1`): a grunt dying on e1m1's floor knocks twice (0.9 kg at 6.5 m/s, 6.8 kg at 9.9);
+down vrclimb's stairs 5 knocks over 2 s (0.16-0.42); blasted, 3; a pile of 6 dying on one spot 19 knocks while they
+fall (2-6 s), then none in the next 10 s of settling (0 body knocks from 6 to 16 s); cut limbs knock as `vr_limb`
+flesh (2-8 kg, medium) and small gibs as light squishes.
+
+In VR: kill a grunt on stairs, throw a body (grab a limb), drop a crate on a corpse, blow up a group: thuds, not
+silence; a pile left alone goes quiet.

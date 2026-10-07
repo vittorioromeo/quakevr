@@ -2912,6 +2912,12 @@ void hologramTestMessage()
         slider("Knock Spacing", vr_physsound_interval, 0.f, 0.5f, 0.02f, "%.2f s").extend(0.f, 2.f)
             .help("A thing knocks at most this often (a hit twice as loud sooner): a box rattling to rest or a stack "
                   "settling doesn't chatter."),
+        slider("Bodies", vr_physsound_bodies, 0.f, 1.f, 0.1f, "%.1f").extend(0.f, 2.f)
+            .help("Ragdolls and corpses knocking as they fall, tumble, are thrown or hit by things: a heavy thud for the "
+                  "torso, softer for a limb, a squish for a small part; each body at most every two Knock Spacings (0 off)."),
+        slider("Quietest Body Knock", vr_physsound_body_min_speed, 1.f, 5.f, 0.25f, "%.2f m/s").extend(1.f, 20.f)
+            .help("A body's hit slower than this is silent (2 m/s: a drop of 20 cm). Raise it if a pile of bodies "
+                  "settling thumps."),
         slider("Scrapes", vr_physsound_scrape, 0.f, 1.f, 0.1f, "%.1f")
             .help("Things sliding along the floor or each other (shoved, dragged, skidding after a throw): louder the "
                   "faster and the heavier; they stop as the thing stops (0 off)."),
