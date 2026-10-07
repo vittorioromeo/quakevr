@@ -1991,6 +1991,22 @@ private:
         za::stablePartition(cands_.begin(), cands_.end(),
             [this](const Cand& c) { return planeAt(c.tag).type < 3; });
         const za::SizeT step = za::max<za::SizeT>(1, cands_.size() * frags.size() / chooseBudget);
+        // The pieces' bounds, their centres and half sizes, an array per axis (the planes are weighed against them in
+        // turn: read in a row, not out of the pieces themselves; the same numbers as from the pieces).
+        const za::SizeT nf = frags.size();
+        bounds_.resize(nf * 12);
+        double* const box = bounds_.data();
+        for(za::SizeT i = 0; i < nf; ++i)
+        {
+            const Frag& f = frags[i];
+            for(int a = 0; a < 3; ++a)
+            {
+                box[(0 + a) * nf + i] = f.lo[a];
+                box[(3 + a) * nf + i] = f.hi[a];
+                box[(6 + a) * nf + i] = (f.lo[a] + f.hi[a]) * 0.5;
+                box[(9 + a) * nf + i] = (f.hi[a] - f.lo[a]) * 0.5;
+            }
+        }
         int best = cands_.front().tag;
         long long bestValue = LLONG_MIN;
         for(za::SizeT ci = 0; ci < cands_.size(); ci += step)
@@ -1998,36 +2014,34 @@ private:
             const int c = cands_[ci].tag;
             const mplane_t& p = planeAt(c);
             const glm::dvec3 n{p.normal[0], p.normal[1], p.normal[2]};
-            int front = 0, back = 0, splits = 0;
-            for(const Frag& f : frags)
+            const double dist = p.dist;
+            int front = 0, back = 0;
+            if(p.type < 3)
             {
-                double lo, hi;
-                if(p.type < 3)
+                const double* const lo = box + (0 + p.type) * nf;
+                const double* const hi = box + (3 + p.type) * nf;
+                for(za::SizeT i = 0; i < nf; ++i)
                 {
-                    lo = f.lo[p.type] - p.dist;
-                    hi = f.hi[p.type] - p.dist;
-                }
-                else
-                {
-                    const glm::dvec3 centre = (f.lo + f.hi) * 0.5, half = (f.hi - f.lo) * 0.5;
-                    const double s = glm::dot(n, centre) - p.dist;
-                    const double r = za::abs(n.x) * half.x + za::abs(n.y) * half.y + za::abs(n.z) * half.z;
-                    lo = s - r;
-                    hi = s + r;
-                }
-                if(hi <= onEpsilon)
-                {
-                    ++back;
-                }
-                else if(lo >= -onEpsilon)
-                {
-                    ++front;
-                }
-                else
-                {
-                    ++splits;
+                    const bool isBack = hi[i] - dist <= onEpsilon;
+                    back += isBack;
+                    front += !isBack && lo[i] - dist >= -onEpsilon;
                 }
             }
+            else
+            {
+                const double ax = za::abs(n.x), ay = za::abs(n.y), az = za::abs(n.z);
+                const double *const cx = box + 6 * nf, *const cy = box + 7 * nf, *const cz = box + 8 * nf;
+                const double *const hx = box + 9 * nf, *const hy = box + 10 * nf, *const hz = box + 11 * nf;
+                for(za::SizeT i = 0; i < nf; ++i)
+                {
+                    const double s = n.x * cx[i] + n.y * cy[i] + n.z * cz[i] - dist; // (glm::dot's order)
+                    const double r = ax * hx[i] + ay * hy[i] + az * hz[i];
+                    const bool isBack = s + r <= onEpsilon;
+                    back += isBack;
+                    front += !isBack && s - r >= -onEpsilon;
+                }
+            }
+            const int splits = static_cast<int>(nf) - front - back;
             const long long value = 5ll * cands_[ci].facing - 5ll * splits - za::abs(front - back) +
                                     (p.type < 3 ? 5 : 0);
             if(value > bestValue)
@@ -2059,6 +2073,7 @@ private:
     };
     za::Vector<int> slots_; // (choose) its table: an index in cands_, or -1
     za::Vector<Cand> cands_;
+    za::Vector<double> bounds_; // (choose) the pieces' bounds by axis: lo, hi, centre, half size
 };
 
 // A tree's build shared out on the game's thread pool, the same tree as the build on one thread (buildTree's reference,
