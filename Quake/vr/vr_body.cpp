@@ -272,6 +272,35 @@ void onTheThigh(const avatar::Follower& follow, Holster holster, glm::vec3& pos,
     }
 }
 
+// The ammo pouch on the belt between the legs (vr_ammo_pouch_leg_follow, as vr_holster_leg_follow for the hips' holsters):
+// moved as the belt is by both thighs' animation (walking, stepping round), half each (as a point of each thigh, as
+// onTheThigh moves a hip holster), by that much. Where it is drawn is where the hands find it.
+void onBothThighs(const avatar::Follower& follow, glm::vec3& pos)
+{
+    const float amount = CLAMP(0.f, vr_ammo_pouch_leg_follow.value, 1.f);
+    if(amount <= 0.f || vr_body_mode.value < 3.f)
+    {
+        return;
+    }
+    const float strap = THIGH_STRAP * units::metresToUnits() * units::bodyScale();
+    glm::vec3 moved{0.f};
+    int legs = 0;
+    for(int leg = 0; leg < 2; leg++)
+    {
+        avatar::ThighMotion m;
+        if(follow.thigh(leg, m))
+        {
+            const glm::vec3 anchor = pos + m.down * za::max(0.f, strap - glm::dot(pos - m.joint, m.down));
+            moved += m.joint + m.turn * (anchor - m.joint) - anchor;
+            legs++;
+        }
+    }
+    if(legs > 0)
+    {
+        pos += moved * (amount / static_cast<float>(legs));
+    }
+}
+
 // With vr_body_anchors: where the holster is for the standing body, carried by the pelvis (hips)
 // or the chest, and (`plate`) the body's surface there; the hips' on the thighs (onTheThigh).
 [[nodiscard]] glm::vec3 followingHolsterPosition(
@@ -460,7 +489,7 @@ glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate)
         return follow(avatar::Part::Pelvis, pos);
     }
     pos = ammoPouchOnTheBody(standing, pos);
-    const glm::vec3 now = follow(avatar::Part::Pelvis, pos);
+    glm::vec3 now = follow(avatar::Part::Pelvis, pos);
     if(plate)
     {
         const HolsterPlate p = plateOnTheRing(standing, true, pos);
@@ -468,6 +497,7 @@ glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate)
         plate->up = follow(avatar::Part::Pelvis, pos + p.up) - now;
         plate->clearance = p.clearance;
     }
+    onBothThighs(follow, now);
     return now;
 }
 

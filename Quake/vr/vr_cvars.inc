@@ -2376,6 +2376,7 @@ QVR_CVAR(vr_ammo_pouch_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_scale, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_show, "1", CVAR_ARCHIVE)        // draw it (0: it works unseen)
+QVR_CVAR(vr_ammo_pouch_leg_follow, "1", CVAR_ARCHIVE) // it rides both thighs' animation (full body: walking), as the hip holsters do (vr_holster_leg_follow): 0 fixed on the belt, 1 all the way
 // Immersive reloading's rules (QC vr_reload.qc; Weapons > Reloading).
 QVR_CVAR(vr_reload_port_leniency, "4", CVAR_ARCHIVE)   // units from a gun's loading port within which a held round goes in
 QVR_CVAR(vr_reload_shell_pairs, "0", CVAR_ARCHIVE)     // 1: the pouch gives two shells taped together (both go in at once; one if one fits)

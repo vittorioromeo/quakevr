@@ -635,6 +635,9 @@ void resetHandMoves()
         slider("Yaw", "vr_ammo_pouch_yaw", -90.f, 90.f, 5.f, "%.0f"),
         slider("Roll", "vr_ammo_pouch_roll", -90.f, 90.f, 5.f, "%.0f"),
         slider("Size", "vr_ammo_pouch_scale", 0.5f, 2.f, 0.05f, "%.2fx").help("As drawn (its reach is Reach's)."),
+        slider("Follow Legs", "vr_ammo_pouch_leg_follow", 0.f, 1.f, 0.05f, "%.2f")
+            .help("With the full body, how much the pouch moves with your legs as you walk, as the belt does (the hip "
+                  "holsters' Follow Legs likewise). 0: fixed on the belly."),
         header("Feedback"),
         slider("Haptics", "vr_reload_haptics", 0.f, 2.f, 0.1f, "%.1fx")
             .help("Taking a shell, putting it back, loading it, and the empty pouch's dull knock (0: none)."),
