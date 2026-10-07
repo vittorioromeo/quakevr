@@ -29426,3 +29426,55 @@ rail system on the shotgun that makes it believable the gun cycles itself (workt
 - Tests: `Misc/quakevr/autopump_test.sh` (TESTING.md).
 - For the author in VR: the look of the rods and the stroke (Travel, Time), the clacks' volume against the shot, and
   whether the off hand on the fore-end (two-handed) should ride with it (it stays where the controller is now).
+## Menu tweaks: VR Settings rows, section gaps, the flat banner, the main menu, Back where you came from, fine sliders
+
+**VR Settings** (`pageMain`): Weapons > **Reloading Mode** (Immersive 3 / Simple 2 / Disabled 0 on `vr_reload_mode`; a
+config's All Holsters, 1, is shown as "Simple (all holsters)" while it is set and kept until another is picked);
+Locomotion > **Swimming** (Immersive / Vanilla on `vr_swim`); Body > **Leaning Detection** (`vr_lean_detect` 1/0; a
+config's 1.5 shows On); a **Bullet Time** section, **Activation**: Wrist Gadget / Left Thumbstick Press / Right Thumbstick
+Press (`vr_menu_bullettime`, a wrapper over `vr_bullettime_trigger`, `_tap`, `_button`, `_enabled`: a stick leaves the
+gadget doing nothing, as Combat > Bullet Time's Trigger; the gadget sets its tap and button on; a config's other
+combination is shown as it is: Off, tap only, button only, neither); under Hand Calibration a **Holster Calibration**
+section: Forward / Inward / Up for the hip (`vr_hip_offset_*`), chest (`vr_upper_holster_offset_*`) and back
+(`vr_shoulder_holster_offset_*`) pairs, wrappers `vr_menu_holster_<pair>_<x|y|z>` from the shipped place (Inward is the
+offset's Y less; one setting per pair, the left mirrored, as always), the pair drawn on the body while its slider is
+chosen (vr_body.cpp queueDebug), and **Reset Holsters**. The calibration room's board was left as it is (holsters are not
+part of the calibration); `vr_menu_path_check maps/vrcalibration.map`: 4 found, 0 missing.
+
+**Section gaps** (`vr_menu_section_gap`, rows, 0.75; HUD and Menus > Menu > Section Gap, 0 to 2): a gap above each header
+of a VR page (the first too, under the title). The list still scrolls a row at a time; the rows shown are counted from
+the scroll with the gaps (rowsFrom), and the furthest scroll (maxScroll), the scroll that shows the cursor
+(scrollShowing), the scrollbar, the stick, the drop-down lists' rows and the mouse/laser's rows (rowAt: nothing in a
+gap) all use the same layout (rowTop). Checked with `menu_vr rows` at 0, 0.75 and 2, in the headset and flat.
+
+**Flat banner**: the vertical Quake VR banner moves left clear of the menu's text, as the headset's column does: VR pages
+by `menu::contentLeft` (long labels, help), Ironwail's lists by `M_TextLeft`; narrower where the canvas's edge leaves too
+little room, left out under 40 pixels tall (Status Bar's long links).
+
+**Main menu**: Map Library is **Download Maps**, with **Play Custom Map** (Ironwail's Levels) under it; the rows in four
+groups with a gap above each (M_Main_Layout: 20 apart and 10 more per group where the canvas has room, closer where it
+has not; the keys skip a hidden row; the mouse and laser select a row only where it is drawn). **Mods** is hidden unless
+`vr_menu_main_mods` (0; Menu > Mods on the Main Menu); Options > Mods has it. The lettering's D (d two rows taller) and w
+(v with its right stroke twice more) are made by make_bigfont.py. The Multiplayer menu says multiplayer is untested and
+not expected to work properly.
+
+**Back where you came from** (vr_menu.cpp, NavStack): the VR pages keep the way to the page shown as a stack (pages, and
+below them the menu outside they were entered from: main menu rows, Single Player > Official Campaigns, Options > VR
+Settings, a corner button over any menu). Back pops it; a place already on the stack is gone back to rather than added
+again (no loops); with nothing under the page, up the tree (the VR Settings: Options). Ironwail's Levels opened by a jump
+(Play Custom Map, the corner's Levels, also from a VR page) go back there (`VR_NavJump`, `VR_NavEntered`, `VR_NavBack`);
+from their own way in, their own Back. A Search result's page goes up its tree (its natural parent), not back to Search.
+The mouse or laser on a corner button no longer moves the menu's own selection (it used to jump to the first row as
+the laser went to the corner), so Back finds the row it left. Tested (flat, scripted): Single Player > Official
+Campaigns, main > VR Settings, main > Advanced VR > Gore and back twice, main > Play Custom Map, main > corner Search,
+Graphics > corner Levels, Options > VR Settings, Single Player > corner Advanced VR, Levels > corner Search and back
+twice, a Search result (Relighting: back to Graphics, Advanced VR Options, the main menu).
+
+**Fine sliders**: while a grip is held in the headset (the grips do nothing else in the menus) or Shift on a flat
+screen, a slider steps by `vr_menu_fine_step` of its step (0.1; Menu > Fine Step) and shows the decimals that takes; the
+steps' grid is the fine one, so a fine-tuned value keeps its fine part on whole steps. Held Object Offsets > X: 0.5 a
+step, 0.05 with Shift or a grip; 0.55 saved as "0.55". Every slider's help ends with the modifier.
+
+Test in VR: the main menu's groups and Play Custom Map (and Back from the Levels); Back from Official Campaigns and from
+a corner button; the new VR Settings rows and Holster Calibration (the pair shown on the body while its slider is
+chosen); Section Gap 0, 0.75 and 2 on a long page; a grip held while moving a Held Object Offsets slider.

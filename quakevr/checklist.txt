@@ -3,6 +3,11 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Main menu: VR rows, Single Player/Multiplayer, Download Maps/Play Custom Map, the rest in separate groups; Play Custom Map opens the Levels and Back returns to the main menu; laser picks only drawn rows (nothing in the gaps); Mods gone (Advanced VR > HUD and Menus > Menu > Mods on the Main Menu brings it back)
+Back goes where you came from: Single Player > Official Campaigns > Back = Single Player; a corner button (Search, Advanced VR, Levels...) from any menu, Back returns there with the same row selected; a Search result's page goes back up its own menus, not to Search
+VR Settings new rows: Reloading Mode (Immersive/Simple/Disabled), Swimming (Immersive/Vanilla), Leaning Detection, Bullet Time > Activation (Wrist Gadget / Left or Right Thumbstick Press); Holster Calibration: hip, chest and back pairs move Forward/Inward/Up mirrored and show while chosen; Reset Holsters
+Fine slider steps: hold a grip (Shift on a flat screen) while moving a slider: a tenth of the step (Held Object Offsets: 0.05 instead of 0.5), more decimals shown; Fine Step under HUD and Menus > Menu
+Section gaps: space above each section's heading on every settings page (HUD and Menus > Menu > Section Gap, 0.75 rows): try 0, 0.75, 2; scrolling, laser and help all right; Multiplayer menu shows its "untested" notice
 VR Settings rebuilt for new players (Options > VR Settings, and right after VR Calibration on the main menu): sections read well, every row's help makes sense, nothing you use is missing (old rows: Advanced VR Options pages; Search finds them)
 Hand Calibration on VR Settings: Show Controller on, Hand Forward/Inward/Up/Pitch/Yaw/Roll move both hands mirrored; Reset Hand Offsets puts them back
 Comfort Vignette (VR Settings > Comfort): edges darken while the stick moves or turns you (snap: a short blink), never for room steps or teleports; Strength 0.6 right?
