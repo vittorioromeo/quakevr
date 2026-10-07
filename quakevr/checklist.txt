@@ -56,6 +56,10 @@ Immersive reload phase 2: nailgun/super nailgun/thunderbolt magazines from the p
 Reload notes applied: pouch sways with your legs (Follow Legs); Show Load Points and per-gun X/Y/Z; shell reaches the shotgun port (Collision Leniency); ammo box into the pouch; pouch shows the real count; reserve counter on the pouch; empty hands/melee/super shotgun keep giving the last ammo type
 Leaning through stick turns (Locomotion > Leaning > Lean on Turns 2): lean, smooth/snap turn 90-180, straighten up: body stays with you, no backwards lean or slide; next to a wall too; head wobble in fast smooth turns? Debug Log Body Drift ~0
 vrstart2 fixes: no holes in terrain/water, lanterns glow, ropes to bollards, SETTINGS banner over the doorway, one bullseye per target, brazier pillars into the rock, barrels push/tip/roll/carry/break; slipgate surface still looks right
+Reload rounds 2-3: spent shells look different; full shotgun 'can't' click and 'full' cue; magazine top must meet the gun's seat point (Show Load Points, per-gun radius); grip the mag = two-hand aim, out only by hard pull/wrist snap/hands apart; punch or the other gun knocks it out; bump = knock out, then seat; receivers visible; lava mags red, plasma blue; ammo button only from the front; fist moving onto a two-hand spot doesn't attach
+Menus in VR: shortcut column and banner clear of every page; 27-28 rows on long pages; laser still hits the shortcuts and spectator switch
+Ammo screens and pouch counter: white text (White Ammo Screen Text), green frame
+Stray presses: loading vrstart2/vrstart (menu, save, slipgate back) never presses a far button; buttons near the start press at once
 
 [Menus and maps]
 Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
