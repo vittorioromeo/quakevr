@@ -56,13 +56,16 @@ void() VR_Reload_TestReport =
     bprint(sprintf("reload: mode %g (immersive %g), shells %g nails %g cells %g, %g lying about\n",
         cvar_hget(cvarh_vr_reload_mode), VR_Reload_Immersive(), self.ammo_shells, self.ammo_nails, self.ammo_cells, loose));
     float f = VRGetEntWeaponFlags(self, cVR_OffHand);
-    // (The off hand's super shotgun on a line of its own: sprintf takes at most seven values.)
+    // (The off hand's super shotgun on a line of its own: sprintf takes at most seven values. The report in two prints
+    // on one line.)
     string ssg = VRGetEntWeapon(self, cVR_OffHand) == WID_SUPER_SHOTGUN ? sprintf("reload: the super shotgun open %g spent %g\n",
         !!(f & QVR_WPNFLAG_SSG_OPEN), VR_Reload_SsgSpentOf(f)) : "";
-    bprint(sprintf("reload: off hand weapon %g clip %g mag %g holds %s | main hand weapon %g clip %g holds %s\n",
+    bprint(sprintf("reload: off hand weapon %g clip %g mag %g holds %s | ",
         VRGetEntWeapon(self, cVR_OffHand), VRGetEntWeaponClip(self, cVR_OffHand),
-        !(f & QVR_WPNFLAG_NOMAG), VR_Reload_TestHeld(cVR_OffHand),
-        VRGetEntWeapon(self, cVR_MainHand), VRGetEntWeaponClip(self, cVR_MainHand), VR_Reload_TestHeld(cVR_MainHand)));
+        !(f & QVR_WPNFLAG_NOMAG), VR_Reload_TestHeld(cVR_OffHand)));
+    bprint(sprintf("main hand weapon %g clip %g holds %s, main mag %g\n",
+        VRGetEntWeapon(self, cVR_MainHand), VRGetEntWeaponClip(self, cVR_MainHand), VR_Reload_TestHeld(cVR_MainHand),
+        !(VRGetEntWeaponFlags(self, cVR_MainHand) & QVR_WPNFLAG_NOMAG)));
     bprint(ssg);
 };
 

@@ -83,6 +83,13 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     writeVec3(buf, move.shotRot[1]);
     writeVec3(buf, move.loadPort[0]);
     writeVec3(buf, move.loadPort[1]);
+    for(const auto& box : move.magBox)
+    {
+        for(const glm::vec3& v : box)
+        {
+            writeVec3(buf, v);
+        }
+    }
 }
 
 za::Optional<VrMove> readVrMove()
@@ -124,6 +131,13 @@ za::Optional<VrMove> readVrMove()
     move.shotRot[1] = in.vec3();
     move.loadPort[0] = in.vec3();
     move.loadPort[1] = in.vec3();
+    for(auto& box : move.magBox)
+    {
+        for(glm::vec3& v : box)
+        {
+            v = in.vec3();
+        }
+    }
 
     if(!in.finite)
     {

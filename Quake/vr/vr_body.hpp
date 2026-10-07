@@ -37,6 +37,7 @@ enum Hotspot : int
     HS_CARRIED_GRIP = 10, // the handle of the gun the other hand carries by its foregrip (vr_twohand.cpp)
     HS_GRENADE_POUCH = 11, // the grenade pouch at the small of the back (vr_handgrenade; either hand)
     HS_AMMO_POUCH = 12,    // the ammo pouch on the front of the belt (vr_reload_mode 3; either hand)
+    HS_MAGAZINE = 13,      // the magazine attached to the other hand's gun (vr_reload_mode 3: an empty hand gripping it holds it)
 };
 
 // Holster positions follow the body's lean and crouch (vr_avatar) with vr_body_anchors, else the

@@ -1172,6 +1172,8 @@ void() PutClientInServer =
     self.offmuzzlepos = self.origin;
     self.loadportpos = self.origin;
     self.offloadportpos = self.origin;
+    self.magboxx = self.magboxy = self.magboxz = '0 0 0'; // (no magazine, until a move says)
+    self.offmagboxx = self.offmagboxy = self.offmagboxz = '0 0 0';
 
     self.handvel = '0 0 0';
     self.offhandvel = '0 0 0';

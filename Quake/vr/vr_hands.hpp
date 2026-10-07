@@ -83,6 +83,14 @@ struct State
     // held in the other hand goes in.
     bool loadPortValid[2]{false, false};
     glm::vec3 loadPort[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // The magazine attached to each hand's gun (held by its handle or carried; immersive reloading, vr_view.cpp
+    // magazineBox), as drawn: a box, its middle and its three half-axes (the first from the middle to the feed end, up
+    // into the well; then across it, then through it). All four zero: none. The server tests hits and grips on it.
+    bool magBoxValid[2]{false, false};
+    glm::vec3 magBox[2][4]{};
+    // Each hand on the magazine of the other hand's gun (within Pull Reach of its box, nearer it than the gun's other
+    // grips; or holding it two-handed): its hotspot is body::HS_MAGAZINE from the next frame (twohand::updateHotspots).
+    bool onMagazine[2]{false, false};
     // Where each hand was (pos) when the view placed the muzzles and ports above, at the end of its render. A move is
     // sent before the frame's render, so it carries them along by how far the hand has gone since (vr_client.cpp
     // handMuzzle): after a map load (the last render was the old map's, or this one's with the player at the world's

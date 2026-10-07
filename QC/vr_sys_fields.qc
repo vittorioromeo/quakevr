@@ -222,6 +222,16 @@
 // Each held gun's loading port as drawn (immersive reloading: vr_reload.qc; the hand's position when it has none)
 .vector loadportpos;
 .vector offloadportpos;
+// The magazine attached to each held (or carried) gun, as drawn (the engine; vr_reload.qc): a box, its middle and its three
+// half-axes (the first from the middle up to its feed end, in the well); the axes all zero: none.
+.vector magboxpos;
+.vector magboxx;
+.vector magboxy;
+.vector magboxz;
+.vector offmagboxpos;
+.vector offmagboxx;
+.vector offmagboxy;
+.vector offmagboxz;
 .vector shotrot;    // where the hand's shots go (angles): its aim turned by the weapon's Shot Pitch/Yaw (the engine)
 .vector offshotrot;
 

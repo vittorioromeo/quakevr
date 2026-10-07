@@ -110,12 +110,12 @@ holds=$(echo "$log" | grep "^reload: off hand")
 check $(h 1 | grep -q "mag 0 holds nothing | main hand weapon 0 clip 0 holds a round of 24" && h 2 | grep -q "clip 24 mag 1" && echo 1 || echo 0) "the magazine's top is its point: its middle at the well doesn't seat, its top does"
 # The magazine is the two-handed grip (nailgun, super nailgun, thunderbolt); a gentle pull keeps it in; a hard pull, a
 # wrist snap, the hands moved apart each take it out; a punch knocks it out; a fist already closed takes no grip.
-GP="vr_debug_2h_grip 1;vr_reload_bump_speed 100;vr_mock_hand_to main heldspot 0;wait3;vr_mock_hand_to main heldspot 0;wait10;$GRIP;vr_reload_bump_speed 2"
+GP="vr_debug_2h_grip 1;vr_reload_bump_speed 100;vr_mock_hand_to main mag 0;wait3;vr_mock_hand_to main mag 0;wait10;$GRIP;vr_reload_bump_speed 2"
 GENTLE8=$(for i in $(seq 8); do printf "vr_mock_hand_to main by 0 0 -0.3;wait2;"; done)
 APART=$(for i in $(seq 40); do printf "vr_mock_hand_to main by 0.4 0 -0.2;wait2;"; done)
 F2="^reload:|2h grip|hand: two-handed"
 for gun in 156 157 161; do
-    log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse $gun};give c 100;$GP;vr_dumpview;$GENTLE8 wait5;$REP;vr_mock_hand_to main by 0 0 -6;wait10;$REP;toggleconsole;quit" -Filter "$F2" 2>&1)
+    log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse $gun};give c 100;$GP;vr_dumpview;$GENTLE8 wait5;$REP;vr_mock_hand_to main mag -6 0;wait10;$REP;toggleconsole;quit" -Filter "$F2" 2>&1)
     check $(echo "$log" | grep -q "hand 1 holds the magazine of the gun in hand 0" && echo "$log" | grep -q "^main hand:.* helping 1" && echo "$log" | grep "^reload: off hand" | sed -n 1p | grep -q "mag 1 holds nothing" && echo "$log" | grep -q "pulled off at" && echo 1 || echo 0) "impulse $gun's gun: its magazine is the two-handed grip, a gentle pull keeps it in, a hard one takes it out"
 done
 log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$GP;wait5;vr_mock_hand_turn main 0 0 80;wait10;$REP;toggleconsole;quit" -Filter "$F2" 2>&1)
@@ -126,6 +126,35 @@ log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$GRIP;vr_mock_hand_to main lport 10
 check $(echo "$log" | grep -q "knocked out by a hit" && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "clip 0 mag 0 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "a punch knocks the magazine out"
 log=$(bash $KIT/run.sh $AGENT -Script "${SG/vr_reload_debug 1/vr_debug_2h_grip 1};$GRIP;vr_mock_hand_to main heldspot 0;wait3;vr_mock_hand_to main heldspot 0;wait10;vr_dumpview;vr_mock_button main grip 0;-grabmain;wait10;$GRIP;vr_dumpview;toggleconsole;quit" -Filter "$F2" 2>&1)
 check $(echo "$log" | grep -q "already closed: no hold" && echo "$log" | grep "^off hand:" | sed -n 1p | grep -q "two-handed 0.00" && echo "$log" | grep "^off hand:" | sed -n 2p | grep -q "two-handed 0.70" && echo 1 || echo 0) "a fist moved onto the shotgun's grip takes no hold; closing there does"
+# 7. The author's magazine notes (ROUND21.md, "Immersive reloading: magazines, both grips, the pull"): the gun in the MAIN
+#    hand, grip mode Hold (vr_weapon_grip_mode 0, the default: its grip held all the while), the off hand on it.
+M0PRE="map e1m1;wait60;developer 1;vr_reload_debug 2;vr_debug_2h_grip 1;vr_weapon_grip_mode 0;give n 100;give c 100;vr_mock_hand main 0.15 1.2 -0.45 70 0 0;vr_mock_hand off -0.1 1.0 -0.3;wait10;+grabright;vr_mock_button main grip 1;impulse 156;wait30"
+OGRIP="+grableft;vr_mock_button off grip 1;wait15"
+OLETGO="-grableft;vr_mock_button off grip 0;wait15"
+# (The mock's hand arrives in one frame, far faster than a hand: no knock as it comes.)
+OTO() { echo "vr_reload_bump_speed 100;vr_mock_hand_to off $1;wait3;vr_mock_hand_to off $1;wait10"; }
+MTO() { echo "vr_reload_bump_speed 100;vr_mock_hand_to main $1;wait3;vr_mock_hand_to main $1;wait10"; }
+F7="^reload:|2h grip|hand: two-handed|^weapon:"
+# Both grips (the author: the front grip was lost to the magazine): the gun's own two-handed grip holds it two-handed and
+# leaves the magazine alone; the magazine, gripped, holds it two-handed too and holds the magazine.
+for gun in 156 157 161; do
+    log=$(bash $KIT/run.sh $AGENT -Script "${M0PRE/impulse 156/impulse $gun};$(OTO "heldspot 0");$OGRIP;reset vr_reload_bump_speed;vr_dumpview;$OLETGO;$(OTO "mag 0");$OGRIP;reset vr_reload_bump_speed;vr_dumpview;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+    d1=$(echo "$log" | grep "^off hand:" | sed -n 1p); d2=$(echo "$log" | grep "^off hand:" | sed -n 2p)
+    held=$(echo "$log" | grep -c "hand 0 holds the magazine of the gun in hand 1")
+    check $(echo "$d1" | grep -q "helping 1" && echo "$d2" | grep -q "helping 1" && [ "$held" = 1 ] && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "mag 1 holds nothing" && echo 1 || echo 0) "impulse $gun's gun: its front grip holds it two-handed (the magazine untouched), its magazine too (held: $held)"
+done
+# The magazine's shape: Pull Reach 0 holds it only gripped on it (a unit off its side: not held; inside its box: held);
+# a hit at its far end (0.3 units off it, 90% of the way down; Knock Out Speed 1: the mock hand is slow) knocks it out.
+log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;vr_reload_pull_reach 0;$(OTO "mag 0 1");$OGRIP;$OLETGO;$(OTO "mag 0 -0.6");$OGRIP;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+check $([ $(echo "$log" | grep -c "holds the magazine of the gun") = 1 ] && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "main mag 1" && echo 1 || echo 0) "Pull Reach 0: off its side not held, on it held"
+log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;vr_reload_hit_reach 1;$(OTO "mag -0.9 4");vr_reload_bump_speed 1;wait5;vr_mock_hand_to off mag -0.9 0.3;wait10;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+check $(echo "$log" | grep -q "knocked out by a hit at [0-9.]* m/s, 0\.[0-9] units from it" && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "main hand weapon 6 clip 0 holds nothing, main mag 0" && echo 1 || echo 0) "a hit at the magazine's far end knocks it out ($(echo "$log" | grep -o "knocked out by a hit[^)]*" | head -1))"
+# However it is held: carried by the off hand (handed off: the main hand let go while the off hand held its front grip),
+# the main hand pulls its magazine out, takes it away and seats it again.
+log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;$(OTO "heldspot 0");$OGRIP;-grabright;vr_mock_button main grip 0;wait30;$REP;$(MTO "mag 0");+grabright;vr_mock_button main grip 1;wait15;reset vr_reload_bump_speed;vr_mock_hand_to main mag -6 0;wait10;$REP;$(MTO "lport 10");$(MTO "lport");reset vr_reload_bump_speed;wait10;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+holds=$(echo "$log" | grep "^reload: off hand")
+check $(echo "$log" | grep -q "handed off to the off hand" && h 1 | grep -q "off hand weapon 6 clip 24 mag 1" && echo "$log" | grep -q "hand 1 holds the magazine of the gun in hand 0" && h 2 | grep -q "off hand weapon 6 clip 0 mag 0 holds nothing | main hand weapon 0 clip 0 holds a round of 24" && h 3 | grep -q "off hand weapon 6 clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "a gun carried by the off hand: its magazine pulled out by the main hand, then seated again"
+
 # The ammo button: pressed from its front only (vr_weapon_button_cone 50), from anywhere at 180.
 BTN() { echo "vr_mock_hand_to main wbutton $1 6;wait10;vr_mock_hand_to main wbutton $1 6;wait10;vr_mock_hand_to main wbutton $1 1;wait10;vr_mock_hand_to main wbutton $1 1;wait15"; }
 log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$(BTN front);$(BTN side);$(BTN back);vr_weapon_button_cone 180;$(BTN back);toggleconsole;quit" -Filter "^weapon button" 2>&1 | grep "^weapon button")

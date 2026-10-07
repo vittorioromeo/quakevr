@@ -89,10 +89,13 @@ void recordHelp(const hands::State& s, int hand, const glm::vec3& drawnPos, cons
 void setCarriedHandle(int hand, const glm::vec3& pos);
 
 // After the hotspots: the empty hand at the handle of the gun the other hand carries is at
-// HS_CARRIED_GRIP (grabbing there takes the gun back).
+// HS_CARRIED_GRIP (grabbing there takes the gun back); one on the other gun's magazine (hands::State::onMagazine) at
+// HS_MAGAZINE.
 void updateHotspots(hands::State& s);
 // Units from a carried weapon's handle (as drawn) the other, empty hand takes it back.
 inline constexpr float carriedGripRadius = 6.f;
+// Units from a two-handed grip's point (less its bias) within which the other hand takes hold of it.
+inline constexpr float gripTakeUnits = 5.5f;
 
 // Weapons held anywhere (vr_weapon_grab_anywhere; ROUND21.md, "Weapons held anywhere"): the empty hand gripping the
 // other hand's weapon away from its handle and hotspots holds it there, as a prop is held. On a weapon held by its handle

@@ -1257,6 +1257,7 @@ void noteIntent(const hands::State& s)
             return glm::distance(from, s.grip2H[other]) - s.grip2HBias[other] < 8.f;
         }
         case body::HS_HAND_SWITCH:
+        case body::HS_MAGAZINE: // (the other gun's magazine: held)
         case body::HS_CARRIED_GRIP: return !weaponless(1 - hand); // (with nothing in the other hand, nothing to take)
         case body::HS_LEFT_SHOULDER_HOLSTER: holster = body::LeftShoulder; break;
         case body::HS_RIGHT_SHOULDER_HOLSTER: holster = body::RightShoulder; break;

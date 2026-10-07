@@ -1281,6 +1281,10 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
         {
             s.grip2H[hand] -= moved;
         }
+        if(s.magBoxValid[hand])
+        {
+            s.magBox[hand][0] -= moved; // (its attached magazine: grips and hits on it are the tracked hands')
+        }
     }
 }
 

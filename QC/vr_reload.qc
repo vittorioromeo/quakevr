@@ -31,9 +31,11 @@
 // the gun as its flags do; the clients draw the attached one: vr_view.cpp setupMagazines). The pouch gives a magazine for
 // the other hand's gun holding min(its size, the reserve); one whose top meets the gun's well (the two radii)
 // seats if the gun has none; if it has one, only a bump seats it (the hands meeting at vr_reload_bump_speed: the old one
-// knocked out, flying). A seated one comes out by the gun's controller's B/Y (vr_reload_eject_button), or by the other hand
-// gripping it and pulling it off hard with a wrist snap (vr_reload_pull_speed and vr_reload_pull_snap: a gentle pull only
-// holds it, as a foregrip). Out, it keeps its count: a round as the shells are (taken again, force grabbed, refunded at
+// knocked out, flying). A seated one comes out by the gun's controller's B/Y (vr_reload_eject_button), by a hit anywhere on
+// it, or by the other hand gripping it (the gun's second two-handed grip, beside its own) and pulling it off hard, snapping
+// the wrist or moving the hands apart (vr_reload_pull_*: a gentle pull only holds it, as a foregrip). The engine sends the
+// attached magazine's shape as drawn (.magbox*: a box, held or carried), which the grips and hits test. However the gun
+// is held (by its handle in either hand, or carried anywhere on it), its magazine works the same. Out, it keeps its count: a round as the shells are (taken again, force grabbed, refunded at
 // the pouch, lost to the caps).
 
 .float vr_ammo_aid;      // a round: the ammo it is (AID_*)
@@ -161,24 +163,79 @@ string(float xWeapon) VR_Reload_MagModel =
     return "progs/vr_mag_nail.mdl";
 };
 
-// Whether the gun `p` holds in `xHand` by its handle takes magazines (immersive) and has one in.
+// Whether the gun `p` holds in `xHand` (by its handle, or carried anywhere on it: QVR_WPNFLAG_FOREGRIP_CARRIED; the author:
+// a gun is a gun however it is held) takes magazines (immersive) and has one in.
 float(entity p, float xHand) VR_Reload_MagIn =
 {
     float w = VRGetEntWeapon(p, xHand);
     float f = VRGetEntWeaponFlags(p, xHand);
-    return p.ishuman && VR_Reload_Immersive() && VR_Reload_UsesMag(w) && !(f & QVR_WPNFLAG_FOREGRIP_CARRIED) &&
-           !(f & QVR_WPNFLAG_NOMAG);
+    return p.ishuman && VR_Reload_Immersive() && VR_Reload_UsesMag(w) && !(f & QVR_WPNFLAG_NOMAG);
 };
 
-// The ammo whose rounds the pouch gives for the gun `p` holds in `xHand` by its handle, if it loads by hand; else -1.
+// The ammo whose rounds the pouch gives for the gun `p` holds in `xHand` (by its handle or carried), if it loads by hand;
+// else -1.
 float(entity p, float xHand) VR_Reload_AmmoFor =
 {
     float w = VRGetEntWeapon(p, xHand);
-    if(!p.ishuman || !VR_Reload_ManualFor(w) || (VRGetEntWeaponFlags(p, xHand) & QVR_WPNFLAG_FOREGRIP_CARRIED))
+    if(!p.ishuman || !VR_Reload_ManualFor(w))
     {
         return -1;
     }
     return WeaponIdToAmmoId(w, VRGetEntWeaponFlags(p, xHand));
+};
+
+// The magazine attached to the gun in `xHand` of `p`, as the client draws it (the engine's .magbox*: a box, its middle and
+// half-axes, the first from the middle up to its feed end; held or carried; none from a bot or before the first move).
+float(entity p, float xHand) VR_Reload_HasMagBox =
+{
+    return (xHand == cVR_MainHand ? p.magboxx : p.offmagboxx) != '0 0 0';
+};
+
+vector(entity p, float xHand) VR_Reload_MagBoxPos =
+{
+    return xHand == cVR_MainHand ? p.magboxpos : p.offmagboxpos;
+};
+
+// Its first half-axis: from its middle up to its feed end (its length's half).
+vector(entity p, float xHand) VR_Reload_MagBoxUp =
+{
+    return xHand == cVR_MainHand ? p.magboxx : p.offmagboxx;
+};
+
+// How far `xPoint` is from that magazine (0 inside it); without its box, from the gun's well (its top).
+float(entity p, float xHand, vector xPoint) VR_Reload_MagDist =
+{
+    if(!VR_Reload_HasMagBox(p, xHand))
+    {
+        return vlen(xPoint - (xHand == cVR_MainHand ? p.loadportpos : p.offloadportpos));
+    }
+    vector c = VR_Reload_MagBoxPos(p, xHand);
+    vector d = xPoint - c;
+    vector nearest = c;
+    for(float i = 0; i < 3; i++)
+    {
+        vector a = i == 0 ? (xHand == cVR_MainHand ? p.magboxx : p.offmagboxx)
+                 : i == 1 ? (xHand == cVR_MainHand ? p.magboxy : p.offmagboxy)
+                          : (xHand == cVR_MainHand ? p.magboxz : p.offmagboxz);
+        float len2 = a * a;
+        if(len2 > 0)
+        {
+            nearest = nearest + a * max(-1, min(1, (d * a) / len2));
+        }
+    }
+    return vlen(xPoint - nearest);
+};
+
+// How near the line from `xFrom` to `xTo` comes to that magazine (sampled every unit or so).
+float(entity p, float xHand, vector xFrom, vector xTo) VR_Reload_MagLineDist =
+{
+    float n = max(1, min(24, ceil(vlen(xTo - xFrom))));
+    float best = 999999;
+    for(float i = 0; i <= n; i++)
+    {
+        best = min(best, VR_Reload_MagDist(p, xHand, xFrom + (xTo - xFrom) * (i / n)));
+    }
+    return best;
 };
 
 // ----------------------------------------------------------------------------
@@ -449,6 +506,10 @@ entity(entity p, float xHand, vector xVel, float xInto, string xHow) VR_Reload_E
     float f = VRGetEntWeaponFlags(p, xHand);
     float n = VRGetEntWeaponClip(p, xHand);
     vector well = xHand == cVR_MainHand ? p.loadportpos : p.offloadportpos;
+    if(VR_Reload_HasMagBox(p, xHand))
+    {
+        well = VR_Reload_MagBoxPos(p, xHand); // (where it was: its middle, the round's origin)
+    }
     if(vlen(well - VRGetEntHandPos(p, xHand)) > 64)
     {
         well = VRGetEntHandPos(p, xHand); // (no port reported: a bot's, a test's)
@@ -663,7 +724,7 @@ float(float xHand) VR_Reload_PouchKind =
 {
     float other = VRGetOtherHand(xHand);
     float aid = VR_Reload_KindOf(VRGetEntWeapon(self, other), VRGetEntWeaponFlags(self, other));
-    if(aid >= 0 && !(VRGetEntWeaponFlags(self, other) & QVR_WPNFLAG_FOREGRIP_CARRIED))
+    if(aid >= 0) // (held by its handle or carried anywhere on it)
     {
         return aid;
     }
@@ -758,11 +819,12 @@ float(float xHand, entity box) VR_Reload_PouchTakesBox =
     return TRUE;
 };
 
-// The magazine of the gun in `xGunHand` of self knocked out by a hit (VR_Reload_MagFrame): what the other hand brings
-// (the fist, a prop it holds, a magazine, the gun it holds: its line to the muzzle) within vr_reload_hit_reach of the
-// magazine's top at vr_reload_bump_speed or more (the hands' relative speed), not while that hand holds the magazine (the
-// two-handed grip), nor in the half second after one seated. Out it flies along the blow, with the gun's own speed. A magazine that knocked it out must leave the
-// well before it seats (the bump reload's second step).
+// The magazine of the gun in `xGunHand` of self (held or carried) knocked out by a hit (VR_Reload_MagFrame): what the
+// other hand brings (the fist, a prop it holds, a magazine, the gun it holds: its line to the muzzle) within
+// vr_reload_hit_reach of the magazine anywhere on it (its box, as drawn: VR_Reload_MagDist) at vr_reload_bump_speed or
+// more (the hands' relative speed); not by that hand holding the magazine (the two-handed grip) or gripping it now (its
+// grip closing on it: HS_MAGAZINE), nor in the half second after one seated. Out it flies along the blow, with the gun's
+// own speed. A magazine that knocked it out must leave the well before it seats (the bump reload's second step).
 void(float xGunHand) VR_Reload_HitFrame =
 {
     float other = VRGetOtherHand(xGunHand);
@@ -773,22 +835,26 @@ void(float xGunHand) VR_Reload_HitFrame =
     {
         return;
     }
-    vector well = xGunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
+    if(VRIsHandEmpty(self, other) && VR_HandGrabUtil_StartedHandGrabbing(self, other) &&
+       (other == cVR_MainHand ? self.mainhand_hotspot : self.offhand_hotspot) == QVR_HS_MAGAZINE)
+    {
+        return; // (taking hold of it, not hitting it: VR_Reload_MagFrame)
+    }
     vector at = VRGetEntHandPos(self, other);
-    float d = vlen(at - well);
+    float d = VR_Reload_MagDist(self, xGunHand, at);
     entity held = VR_Carry_Held(self, other);
     if(held != world)
     {
-        vector p = held.vr_ammo_wid ? VR_Reload_MagRef(held) : held.origin;
-        d = min(d, vlen(p - well));
+        d = min(d, VR_Reload_MagDist(self, xGunHand, held.origin));
+        if(held.vr_ammo_wid)
+        {
+            d = min(d, VR_Reload_MagDist(self, xGunHand, VR_Reload_MagRef(held)));
+        }
     }
     if(VRGetEntWeapon(self, other) != WID_FIST)
     {
         // The other gun: its line from the hand to the muzzle.
-        vector a = VRGetEntHandPos(self, other);
-        vector ab = (other == cVR_MainHand ? self.muzzlepos : self.offmuzzlepos) - a;
-        float t = ab * ab > 0 ? max(0, min(1, ((well - a) * ab) / (ab * ab))) : 0;
-        d = min(d, vlen(a + ab * t - well));
+        d = min(d, VR_Reload_MagLineDist(self, xGunHand, at, other == cVR_MainHand ? self.muzzlepos : self.offmuzzlepos));
     }
     if(d > cvar_hget(cvarh_vr_reload_hit_reach))
     {
@@ -797,7 +863,7 @@ void(float xGunHand) VR_Reload_HitFrame =
     vector rel = VRGetEntHandVel(self, other) - VRGetEntHandVel(self, xGunHand);
     if(cvar_hget(cvarh_vr_reload_debug) >= 2)
     {
-        dprint(sprintf("reload: a hit on the magazine at %.2f m/s, %.1f units from its top (it pops out at %g)\n",
+        dprint(sprintf("reload: a hit on the magazine at %.2f m/s, %.1f units from it (it pops out at %g)\n",
             vlen(rel), d, cvar_hget(cvarh_vr_reload_bump_speed)));
     }
     if(vlen(rel) < cvar_hget(cvarh_vr_reload_bump_speed))
@@ -805,7 +871,8 @@ void(float xGunHand) VR_Reload_HitFrame =
         return;
     }
     VR_Reload_Eject(self, xGunHand, VRGetEntHandVel(self, xGunHand) * VRMetersToUnits() + normalize(rel) *
-        (vlen(rel) * 0.7 * VRMetersToUnits()) + '0 0 40', -1, sprintf("knocked out by a hit at %.2f m/s", vlen(rel)));
+        (vlen(rel) * 0.7 * VRMetersToUnits()) + '0 0 40', -1, sprintf("knocked out by a hit at %.2f m/s, %.1f units from it, %.1f from its top",
+        vlen(rel), d, vlen(at - (xGunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos))));
     if(held != world && held.vr_ammo_wid)
     {
         held.vr_ammo_fresh = TRUE; // (the bump: it seats once brought back to the well)
@@ -850,13 +917,16 @@ void(float xHand) VR_Reload_MagFrame =
         self.vr_mag_pull = self.vr_mag_pull - (self.vr_mag_pull & bit);
         return;
     }
-    vector well = gunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
     float apart = vlen(VRGetEntHandPos(self, xHand) - VRGetEntHandPos(self, gunHand));
     if(!(self.vr_mag_pull & bit))
     {
+        // On it: the engine's hotspot (the hand within Pull Reach of the magazine's box, nearer it than the gun's other
+        // grips or a carried gun's handle; or holding it two-handed); without the client's box (a bot), by its well.
+        float on = VR_Reload_HasMagBox(self, gunHand)
+                       ? (xHand == cVR_MainHand ? self.mainhand_hotspot : self.offhand_hotspot) == QVR_HS_MAGAZINE
+                       : VR_Reload_MagDist(self, gunHand, VRGetEntHandPos(self, xHand)) <= cvar_hget(cvarh_vr_reload_pull_reach);
         if(VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && VRIsHandEmpty(self, xHand) &&
-           !VR_Forcegrab_IsHandBusy(self, xHand) &&
-           vlen(VRGetEntHandPos(self, xHand) - well) <= cvar_hget(cvarh_vr_reload_pull_reach))
+           !VR_Forcegrab_IsHandBusy(self, xHand) && on)
         {
             self.vr_mag_pull = self.vr_mag_pull | bit;
             if(xHand == cVR_MainHand)

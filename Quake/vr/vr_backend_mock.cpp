@@ -609,6 +609,26 @@ void mockHandTo_f()
     const bool ammoPouch = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "ammopouch");
     const bool loadPortMid = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "lportmid");
     const bool loadPort = ((Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "lport")) || loadPortMid;
+    if(Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "mag") && hand >= 0)
+    {
+        // On the attached magazine of the other hand's gun (its box: hands::State::magBox): `along` its length (1 its feed
+        // end, in the well; 0 its middle; -1 its far end), `out` units off its side (0 on it; negative: into it).
+        const hands::State& st = hands::current();
+        const int gun = 1 - hand;
+        if(!st.magBoxValid[gun])
+        {
+            Con_Printf("vr_mock_hand_to: the other hand's gun has no magazine in\n");
+            return;
+        }
+        const glm::vec3* box = st.magBox[gun];
+        const float side = glm::length(box[2]);
+        const float out = Cmd_Argc() >= 5 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 0.f;
+        const glm::vec3 across = side > 1e-4f ? box[2] / side : glm::vec3{0.f, 0.f, 1.f};
+        Con_Printf("vr_mock_hand_to: the magazine's box %.2f by %.2f by %.2f units (length, across, through)\n",
+            2.f * glm::length(box[1]), 2.f * side, 2.f * glm::length(box[3]));
+        moveHandTo(hand, box[0] + box[1] * static_cast<float>(Q_atof(Cmd_Argv(3))) + across * (side + out));
+        return;
+    }
     if(Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "wbutton") && hand >= 0)
     {
         // The fingertip off the other gun's ammo button: in front of it, beside it or behind it (vr_weapon_button_cone).
@@ -778,6 +798,7 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> button [<units off its face>]\n"
                    "       vr_mock_hand_to <main|off> wrist <cm>\n"
                    "       vr_mock_hand_to <main|off> heldspot <hotspot index>\n"
+                   "       vr_mock_hand_to <main|off> mag <along -1..1> [<units off its side>]\n"
                    "       vr_mock_hand_to <main|off> ragdoll <part> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n"
                    "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n"

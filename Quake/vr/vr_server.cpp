@@ -516,6 +516,24 @@ extern "C" void VR_ReliableSent()
     broadcastRoom.peakReliable = q_max(broadcastRoom.peakReliable, sv.reliable_datagram.cursize);
 }
 
+namespace
+{
+
+// The magazine box of hand `h`'s gun (VrMove::magBox) into its fields (.magbox*, .offmagbox*), carried through a portal
+// along the hand as its loading port is (all zero: none).
+void setMagBox(edict_t* ent, int h, const glm::vec3& origin, const glm::vec3& handPos, const glm::vec3 (&box)[4])
+{
+    const FieldOffsets& f = fields();
+    const bool none = box[1] == glm::vec3{0.f};
+    const portals::Reach gate = portals::reachAlong(origin, handPos, box[0]);
+    setFieldVec(ent, h ? f.magboxpos : f.offmagboxpos, none ? glm::vec3{0.f} : gate.position);
+    setFieldVec(ent, h ? f.magboxx : f.offmagboxx, none ? glm::vec3{0.f} : gate.turn * box[1]);
+    setFieldVec(ent, h ? f.magboxy : f.offmagboxy, none ? glm::vec3{0.f} : gate.turn * box[2]);
+    setFieldVec(ent, h ? f.magboxz : f.offmagboxz, none ? glm::vec3{0.f} : gate.turn * box[3]);
+}
+
+} // namespace
+
 extern "C" void VR_ReadMoveExtras(client_t* client)
 {
     if(!vrProtocol())
@@ -577,6 +595,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         setFieldVec(ent, h ? f.shotrot : f.offshotrot, angles);
         setFieldVec(ent, h ? f.loadportpos : f.offloadportpos,
             portals::reachAlong(move.origin, move.hands[h].pos, move.loadPort[h]).position);
+        setMagBox(ent, h, move.origin, move.hands[h].pos, move.magBox[h]);
     }
     if(clientNum >= static_cast<int>(clientBits.size()))
     {
@@ -927,6 +946,13 @@ void rebaseHands(edict_t* player)
     move.muzzlePos[1] += delta;
     move.loadPort[0] += delta;
     move.loadPort[1] += delta;
+    for(auto& box : move.magBox)
+    {
+        if(box[1] != glm::vec3{0.f})
+        {
+            box[0] += delta;
+        }
+    }
     move.headPos += delta;
     // Re-evaluate crossing after walking, including a crossing on a release frame.
     for(int h = 0; h < 2; h++)
@@ -949,6 +975,7 @@ void rebaseHands(edict_t* player)
         setFieldVec(player, h ? f.shotrot : f.offshotrot, angles);
         setFieldVec(player, h ? f.loadportpos : f.offloadportpos,
             portals::reachAlong(origin, hand.pos, move.loadPort[h]).position);
+        setMagBox(player, h, origin, hand.pos, move.magBox[h]);
     }
 }
 

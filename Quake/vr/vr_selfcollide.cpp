@@ -1377,6 +1377,10 @@ void endView(hands::State& s, const Drawn& d)
         {
             s.grip2H[h] -= drawn[h];
         }
+        if(s.magBoxValid[h])
+        {
+            s.magBox[h][0] -= drawn[h]; // (its attached magazine: grips and hits on it are the tracked hands')
+        }
     }
 }
 

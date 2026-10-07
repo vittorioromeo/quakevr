@@ -96,7 +96,7 @@ enum GripKind : int
 int grip[2]{GRIP_FOREGRIP, GRIP_FOREGRIP}; // per holding hand: the grip held (or last held, while letting go)
 float gripLength[2]{0.f, 0.f};             // per holding hand: the hand-to-tip length when the blade was taken
 
-constexpr float foregripTake = 5.5f;  // units from the grip point to take hold
+constexpr float foregripTake = gripTakeUnits; // units from the grip point to take hold
 constexpr float foregripKeep = 20.f;  // and to keep it
 constexpr float bladeTake = 6.f;      // units from the blade's outer part (TwoHBladeGrip -0.3 .. the tip)
 constexpr float bladeKeepMin = 0.25f; // the hands kept this share of the blade's length apart,
@@ -1427,6 +1427,12 @@ void updateHotspots(hands::State& s)
             glm::distance(s.pos[hand], handle[other]) < carriedGripRadius)
         {
             s.hotspot[hand] = body::HS_CARRIED_GRIP;
+        }
+        // On the other gun's magazine (immersive reloading; the view's last frame: nearer it than the carried gun's
+        // handle, the held gun's other grips): gripping there holds it (QC vr_reload.qc).
+        if(s.onMagazine[hand] && held::handEmpty(hand))
+        {
+            s.hotspot[hand] = body::HS_MAGAZINE;
         }
     }
 }
