@@ -317,6 +317,8 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
   training dummy 40, `vr_mg3_ctest`; boss.bsp 0 missing.
 - **M3-25 Chthon finale II.** trigger_boss_teleport (player, comfort fade), music, kill -> ending. Accept: scripted
   fight reaches the hub/NG+ route. Dep: M3-24, M3-10.
+  **Built 2026-10-07**: the comfort fade (`vr_comfort_teleport_fade`, vr_comfortfade.cpp), the map's Chthon's death ->
+  MG3_BossEnding 8 s on (credits, or Bloody Nightmare's map1); `vr_mg3_ctest 3/4` (ROUND21.md).
 - **M3-26 Shub finale I.** oldone_new phases and child spawners. Accept: boss2 loads 0 missing; each child type spawns and dies.
   **Built 2026-10-07**: `QC/vr_mg3_shub.qc`, any campaign with MG3's data (Debug spawner 60/62/63, training dummy 50/51),
   `vr_mg3_shubtest` (ROUND21.md, "Dawn of the Machine (MG3): the Shub finale").

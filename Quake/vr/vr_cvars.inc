@@ -538,6 +538,9 @@ QVR_CVAR(vr_menu_hands_roll, "0", CVAR_NONE)
 // how dark (0 .. 1: at 1 a narrow tunnel).
 QVR_CVAR(vr_comfort_vignette, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_comfort_vignette_strength, "0.6", CVAR_ARCHIVE)
+// Comfort fade (vr_comfortfade.cpp): seconds the view takes to come back from black when the game moves you at once (a
+// scripted teleport: Dawn of the Machine's boss arenas); 0 off.
+QVR_CVAR(vr_comfort_teleport_fade, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_level, "0", CVAR_ARCHIVE)             // Menu Detail (vr_menu.cpp MenuLevel): 0 Standard (what every player sets), 1 Advanced (every gameplay, display and graphics setting), 2 Developer (tuning, recording, debug and tests too)
 QVR_CVAR(vr_menu_positions, "", CVAR_ARCHIVE)          // where each VR Settings page was left, for the next start (vr_menu.cpp, written with the config): "title|section|row|index|line;..."
 QVR_CVAR(vr_checklist_hide_ticked, "1", CVAR_ARCHIVE)   // Checklist page (the menu's corner button): ticked items left out

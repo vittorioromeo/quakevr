@@ -32,6 +32,7 @@
 #include "vr_explosiondebris.hpp"
 #include "vr_shock.hpp"
 #include "vr_smoulder.hpp"
+#include "vr_comfortfade.hpp"
 #include "vr_teleport.hpp"
 #include "vr_tips.hpp"
 #include "vr_throw.hpp"
@@ -593,6 +594,7 @@ void init()
     Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);
     shock::registerCommands();
     smoulder::registerCommands();
+    comfortfade::registerCommands();
     weaponfx::registerCommands();
     Cmd_AddCommand("+offhandattack", OffhandAttackDown_f);
     Cmd_AddCommand("-offhandattack", OffhandAttackUp_f);
@@ -691,6 +693,7 @@ extern "C" void VR_OnClientClearState()
     fireparticles::clear();
     shock::clear();
     smoulder::clear();
+    comfortfade::clear();
     weaponfx::clear();
     wounds::clear();
     rope::forget();

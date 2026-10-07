@@ -6681,6 +6681,9 @@ za::Vector<Item> pageMain()
                   "Your own steps in the room never do it."),
         slider("Vignette Strength", vr_comfort_vignette_strength, 0.1f, 1.f, 0.1f, "%.1f")
             .help("How dark and how wide the vignette is: at 1 you see through a narrow tunnel."),
+        slider("Fade on Scripted Teleports", vr_comfort_teleport_fade, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("When the game moves you somewhere else at once (a boss sending you to another arena), your view goes "
+                  "black and comes back over this long. 0: no fade."),
 
         header("Teleportation"),
         toggle("Teleport", vr_teleport_enabled)

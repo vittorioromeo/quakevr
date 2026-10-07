@@ -7,7 +7,8 @@
 //     once, his rings, his gibs, no ending; a second one killed at once uses his targets five times
 //   3 (Dawn of the Machine's boss map) the fight: the player walks into the trigger that wakes him, the music, each fit
 //     and phase, wave1's knights, the move to the second arena and the countdown's trigger_boss_teleport back to him,
-//     waves 2 and 3, the spiral, killed: the gibs (and the ending: M3-25)
+//     waves 2 and 3, the spiral, killed: the gibs; the comfort fades; 8 s on the ending (the finale text, the credits next)
+//   4 the same in a Bloody Nightmare game (serverflags 64 + 128 set): the ending is its new game (map1)
 
 float mg3ct_pass, mg3ct_fail;
 float mg3ct_step;   // the running request's step, 0: none
@@ -16,7 +17,9 @@ float mg3ct_k;      // the fit being driven (1 first blood .. 6 at 16%)
 float mg3ct_waited; // since when the step waits for him
 float mg3ct_t, mg3ct_kills, mg3ct_n, mg3ct_n2, mg3ct_sph;
 float mg3ct_w1, mg3ct_w2, mg3ct_w3, mg3ct_tele, mg3ct_used; // uses of the test's targets
-float mg3ct_map;    // 1: the map's fight (request 3)
+float mg3ct_map;    // 1: the map's fight (requests 3, 4)
+float mg3ct_bn;     // 1: in a Bloody Nightmare game (request 4)
+float mg3ct_fades;  // comfort fades before
 string mg3ct_nextmap;
 entity mg3ct_c;
 float MG3_CT_WALK1 = 17, MG3_CT_SHOCKA1 = 80, MG3_CT_DEATH1 = 48, MG3_CT_DEATH9 = 56; // (boss.mdl's frames)
@@ -289,6 +292,7 @@ void(entity p) MG3_CT_FightStep =
         while(pt) { if(vlen(p.origin - pt.origin) < 64) near = 1; pt = find(pt, classname, "info_boss_teleport_first"); }
         MG3_CT_Check(near, sprintf("phase 3: the player moved to a first point (%v)", p.origin));
         MG3_CT_Check(c.think == SUB_Null && c.mg3_chthon_immune && c.frame == 0, "he sank and waits, immune");
+        MG3_CT_Check(mg3_chthon_fades == mg3ct_fades + 1, "the player's view faded in from black (comfort)");
         mg3ct_step = 14; mg3ct_next = time + 0.5; mg3ct_waited = time;
         return;
     }
@@ -311,6 +315,7 @@ void(entity p) MG3_CT_FightStep =
         float near2 = 0;
         while(pt2) { if(vlen(p.origin - pt2.origin) < 96) near2 = 1; pt2 = find(pt2, classname, "info_boss_teleport_second"); }
         MG3_CT_Check(near2, sprintf("the player moved to a second point (%v)", p.origin));
+        MG3_CT_Check(mg3_chthon_fades == mg3ct_fades + 2, "faded in from black again");
         mg3ct_step = 18; mg3ct_next = time;
         return;
     }
@@ -360,6 +365,15 @@ void(entity p) MG3_CT_FightStep =
             mg3ct_step = 22; mg3ct_next = time + 2.5; // (risen)
             return;
         }
+        // The map's: the ending (M3-10's MG3_BossEnding), 8 s after he sank: the finale text, then the credits (start), or
+        // in a Bloody Nightmare game its new game (map1, the runes cleared: serverflags 448).
+        MG3_CT_Check(mg3_chthon_endings == 1 && intermission_running && MG_intermissiontext == "$mg3_qc_boss_finale",
+                     sprintf("the ending: the finale text (intermission %g)", intermission_running));
+        if(mg3ct_bn)
+            MG3_CT_Check(nextmap == "map1" && serverflags == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED | MG3_SF_BN_NEWGAME),
+                         sprintf("Bloody Nightmare: its new game next (%s, serverflags %g)", nextmap, serverflags));
+        else
+            MG3_CT_Check(nextmap == "start", sprintf("next: %s (the credits)", nextmap));
         MG3_CT_Total();
         return;
     }
@@ -490,13 +504,16 @@ void() MG3_ChthonTestFrame =
     if(!pl) return;
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_CT_Report();
-    else if(request == 2 || request == 3)
+    else if(request == 2 || request == 3 || request == 4)
     {
         if(!MG3_Chthon_Available()) dprint("mg3ctest: the Dawn of the Machine data is not there (no Chthon)\n");
         else
         {
             mg3ct_pass = mg3ct_fail = 0;
-            mg3ct_map = request == 3;
+            mg3ct_map = request >= 3;
+            mg3ct_bn = request == 4;
+            if(mg3ct_bn) serverflags = serverflags | MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED;
+            mg3ct_fades = mg3_chthon_fades;
             pl.flags = pl.flags | FL_GODMODE;
             mg3ct_step = mg3ct_map ? 30 : 1;
             mg3ct_next = time;

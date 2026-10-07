@@ -28835,6 +28835,7 @@ edicts. Debug spawner 61 on e1m1: a shub zombie, counted. Checker: boss2 **0 mis
 placements. Regression: `vr_mg3_btest 2` 11/0, `7` 10/0, `vr_mg3_mtest 2` 14/0, MG1 hub 20/0, e1m1 smoke exit 0; QC 0
 warnings, FGD 346 entities. For VR QA: the pillars sinking under you (comfort), her zombies' rise and their rigs, her
 beam and blasts, the lights going out at her death.
+
 ## Dawn of the Machine (MG3): the Chthon finale (2026-10-07)
 
 ### M3-24 Chthon: spawn, fits and phases, waves, the second arena
@@ -28893,4 +28894,34 @@ all maps **3 missing classes, 45 placements** (8 and 56 before). Regressions: `v
 **In the headset.** [ ] Debug > Tests > Dawn of the Machine: Chthon > Chthon Ahead (an open map): dodge his sphere fans
 and volleys, shoot his head (the zone), bat a sphere back, throw a grenade at him; his fits' lightning; kill him: the
 rings, the gibs flying over you.
+
+### M3-25 Chthon: the boss teleport's comfort fade, the music, the ending
+
+- **Comfort fade** (`Quake/vr/vr_comfortfade.cpp`, new): `vr_comfort_fade [seconds]` turns the view black and brings it
+  back over `vr_comfort_teleport_fade` seconds (default **0.6**, 0 off; Locomotion > Comfort > Fade on Scripted
+  Teleports), in real time, drawn as the bonus colour shift (the eyes' blend, as the lightning-in-water flash), its last
+  share cleared at the end rather than left to the bonus flash's slow decay; `vr_comfort_fade_info` prints its state.
+  QC `VR_ComfortFade(p)` (vr_mg3_chthon.qc) stuffs it to a human player's client; Chthon's moves of the players (phase
+  3 to the first points, trigger_boss_teleport to the second) use it. Measured: a 1 s fade 0.56 s in: 114 of 255
+  (alpha 0.45); after it 0.
+- **Music:** the map's `trigger_music` (track 12) is on `chthon` with Chthon's wake (M3-05's trigger; upstream changes no
+  track at his death).
+- **The ending:** the map's Chthon (`mg3_chthon` 1) in Dawn of the Machine, once sunk (death10), calls M3-10's
+  `MG3_BossEnding` 8 s on (upstream boss_end): the finale text `$mg3_qc_boss_finale`, then the credits (`start`), or in a
+  Bloody Nightmare game its new game (map1, serverflags 448, upgrades cleared); a dead single player completes nothing.
+  The Debug spawner's Chthon, or a map's elsewhere, ends nothing. Shub's death (M3-27, `MG3_ShubEnding`) is the Bloody
+  Nightmare new game's own end (boss2); Chthon's Bloody Nightmare branch leads to it through map1 .. hub -> boss2.
+
+Tests: `vr_mg3_ctest 3` on boss.bsp **46/0** (M3-24's 42, the two fades, the finale text in the intermission, next map
+`start`); `vr_mg3_test 14` then leaves the intermission: the credits (campaign 5's native completion, M3-10). `vr_mg3_ctest
+4` (the same fight in a Bloody Nightmare game: serverflags 64 + 128 set first) **46/0**: the blows at 0.8 (64 of 100),
+the ending: next map map1, serverflags 448 (`vr_mg3_test 14` leaves the intermission towards it). `vr_mg3_ctest 2` (e1m1) 43/0
+(no ending). Rebased onto the Shub finale (M3-26/27): checker **0 missing classes, 0 placements** on all 22 maps;
+`vr_mg3_ctest 2/3/4` 43/0, 46/0, 46/0, `vr_mg3_shubtest 2` 31/0, `vr_mg3_btest 2` 11/0, `vr_mg3_mtest 2` 14/0, MG1 hub 20/0.
+Headless note: the kit's `wait N` (with a space) is one frame; `waitN` is N frames.
+
+**In the headset.** [ ] Dawn of the Machine's boss map (or Debug > Tests > Dawn of the Machine: Chthon > The Boss Map's
+Fight): at his third fit you are moved to the lower room, and 15 s later to the second arena: the view goes black and
+comes back (Locomotion > Comfort > Fade on Scripted Teleports: try 0.6 and 1.2 s); kill him: the finale text, then the
+credits.
 

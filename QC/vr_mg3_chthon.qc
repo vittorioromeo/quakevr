@@ -57,6 +57,7 @@ float MG3_CHTHON_KILLABLE = 2; // spawnflag (upstream BOSS_KILLABLE): spheres in
 .float mg3_ch_volley, mg3_ch_left; // a volley's size and the shots left in it (upstream ammo_shells, ammo_nails)
 // Counts for the tests (vr_mg3_chthon_test.qc): spheres, lava balls, volleys, spirals, gibs, and the last pain's phase.
 float mg3_chthon_spheres, mg3_chthon_lavaballs, mg3_chthon_volleys, mg3_chthon_spirals, mg3_chthon_gibs;
+float mg3_chthon_fades, mg3_chthon_endings; // comfort fades sent, endings started
 
 float() MG3_Chthon_Available =
 {
@@ -658,10 +659,20 @@ float(entity targ, entity inflictor, entity attacker, float damage) MG3_ChthonDa
 // ----------------------------------------------------------------------------
 // The second arena.
 
+// VR: player `p`'s view fades in from black (vr_comfort_fade, the engine's vr_comfortfade.cpp: vr_comfort_teleport_fade
+// seconds) as the game moves him at once.
+void(entity p) VR_ComfortFade =
+{
+    if(!p.ishuman)
+        return;
+    stuffcmd(p, "vr_comfort_fade\n");
+    mg3_chthon_fades = mg3_chthon_fades + 1;
+};
+
 // Where he and the players are moved (upstream boss_teleport): the players to the info_boss_teleport_first points (or,
 // `variant`, the info_boss_teleport_second ones, and Chthon to info_boss_teleport_boss, rising there), each player to
 // a point of his own, turned its way and popped up a little, a teleport flash before his eyes. VR: what his hands carry
-// comes along.
+// comes along; his view fades in from black (comfort).
 void(float variant) MG3_Chthon_Teleport =
 {
     string pointClass = "info_boss_teleport_first";
@@ -712,6 +723,7 @@ void(float variant) MG3_Chthon_Teleport =
         p.fixangle = TRUE;
         p.velocity = '0 0 300';
         VR_Carry_Teleported(p, from);
+        VR_ComfortFade(p);
         makevectors(pt.mangle);
         spawn_tfog(pt.origin + v_forward * 32);
         p = find(p, classname, "player");
@@ -799,8 +811,18 @@ void(vector org, vector dir) MG3_Chthon_Gib =
     mg3_chthon_gibs = mg3_chthon_gibs + 1;
 };
 
+// 8 s after he sank (upstream boss_end): the ending (vr_mg3_triggers.qc MG3_BossEnding: the finale text, then the
+// credits, or Bloody Nightmare's new game; nothing for a dead single player).
+void() MG3_Chthon_End =
+{
+    mg3_chthon_endings = mg3_chthon_endings + 1;
+    MG3_BossEnding();
+    remove(self);
+};
+
 // Upstream chthon_finale: a burst of gibs up and out over the lava where he sank (upstream get_org's directions: a
-// golden-angle spiral over the sphere, its upper half; its 19th missing), then (M3-25) the ending.
+// golden-angle spiral over the sphere, its upper half; its 19th missing), then the ending 8 s on: the map's Chthon in
+// Dawn of the Machine only (not the Debug spawner's, nor one elsewhere).
 void() MG3_Chthon_Finale =
 {
     sound(self, CHAN_VOICE, "boss2/pop2.wav", 1, ATTN_NORM);
@@ -819,6 +841,13 @@ void() MG3_Chthon_Finale =
             MG3_Chthon_Gib(self.origin + dir * 64 + '0 0 48', dir);
         }
         i = i + 1;
+    }
+    if(self.mg3_chthon == 1 && MG3_Campaign())
+    {
+        entity t = spawn();
+        t.classname = "chthon_ending";
+        t.think = MG3_Chthon_End;
+        t.nextthink = time + 8;
     }
 };
 
