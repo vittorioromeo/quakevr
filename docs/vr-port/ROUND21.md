@@ -27396,3 +27396,18 @@ at 0; 2, 4, 7 hide the hands, the body, all (screenshots). Menu path check: 0 mi
 - [ ] Pause the World: you move and turn freely; your weapons may not fire while paused (the game's clock stands).
 - [ ] Each Clean Up row on a messy fight scene; Everything leaves the map as loaded (its crates and rocks kept).
 - [ ] Hide: Gadget, Hands, Body as named, on the spectator camera too.
+
+## The exe icons: the "QVR:U" logo (2026-10-07)
+
+Vittorio's icon variation of the logo (the emblem with "QVR:U" under it, transparent background) is the icon of both
+exes: `docs/images/quakevr-unleashed-icon.webp` (the original, 1254x1254) made into the game's `Windows/QuakeVR.ico`
+(the exe resource, and the window's large and small icon through pl_win.c) and the installer's
+`Installer/src/QuakeVR.Installer/Assets/app.ico` (ApplicationIcon and MainWindow's Icon) by
+`python Misc/quakevr/make_exe_icon.py docs/images/quakevr-unleashed-icon.webp <out.ico>` (C:/Python313 has Pillow
+with WebP). The two .ico files are byte-identical. The script now takes `--sizes` and makes 16, 20, 24, 32, 40, 48, 64,
+96, 128 and 256 by default (20, 40 and 96 for 125%/150%/200% DPI), the whole logo at each size with the same mild
+unsharp mask up to 64. The installer's in-page logos (logo_square.png, logo_wide.png) are unchanged.
+Checked: the icon groups extracted from the Release ironwail.exe and QuakeVR-Setup.exe are byte-identical to the
+.ico files at all ten sizes. Old and new side by side at 16/24/32/48, 1x and 4x: "QVR:U" reads at 48 and still reads
+at 32 (the old "QUAKE VR" was barely legible at 32 and "UNLEASHED" never); at 24 and 16 the text is a smudge in both,
+the emblem carries the icon.

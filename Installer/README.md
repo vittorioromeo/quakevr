@@ -28,7 +28,7 @@ uses textures and sounds made in code. What is embedded:
 |---|---|---|
 | `Fonts/GrenzeGotisch-Bold.ttf` | Grenze Gotisch Bold (titles), from Google Fonts (a static instance of the variable font) | SIL OFL 1.1, `Fonts/OFL-GrenzeGotisch.txt` |
 | `Fonts/Barlow-*.ttf`, `Fonts/BarlowSemiCondensed-*.ttf` | Barlow Regular/Medium/SemiBold/Bold (text), Barlow Semi Condensed SemiBold/Bold (labels, buttons), from the google/fonts repository | SIL OFL 1.1, `Fonts/OFL-Barlow.txt` |
-| `Assets/logo_wide.png`, `logo_square.png`, `app.ico` | The official Quake VR: Unleashed logos (Vittorio's; the originals are `docs/images/*.webp`) | the project's |
+| `Assets/logo_wide.png`, `logo_square.png`, `app.ico` | The official Quake VR: Unleashed logos (Vittorio's; the originals are `docs/images/*.webp`). `app.ico` (the exe's and the window's icon) is the icon logo, `docs/images/quakevr-unleashed-icon.webp` ("QVR:U" under the emblem), made by `Misc/quakevr/make_exe_icon.py` like the game's `Windows/QuakeVR.ico` | the project's |
 | `Assets/kofi_symbol.png` | Ko-fi's cup logo, unaltered, from Ko-fi's brand assets (`kofi_brandasset.zip`) | Ko-fi's brand asset, used to link to the author's page |
 
 The fonts' licences are also shown in the window ("credits" in the sidebar).
