@@ -113,6 +113,8 @@ enum Stat : int
     // The server's reloading mode as it applies (vr_reload_mode; 0 without Weapon Mode Immersive): the client draws the
     // ammo pouch, the guns' magazines and the clip on the ammo screens by it, not by its own setting (multiplayer).
     STAT_QVR_RELOADMODE,
+    STAT_QVR_POUCHKIND,  // what the ammo pouch gives and shows (QC .vr_pouch_kind: 1 shells, 2 nailgun magazines, 3 super nailgun's, 4 cells)
+    STAT_QVR_POUCHCOUNT, // and how many of its ammo are left (.vr_pouch_count): its contents as drawn, its counter
     STAT_QVR_END
 };
 

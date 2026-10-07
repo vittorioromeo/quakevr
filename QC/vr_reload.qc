@@ -33,6 +33,15 @@
 .float vr_ammo_fresh;    // a magazine just pulled out of its gun: it seats again only once it has left the well
 .float vr_mag_pull;      // a player's hands holding the attached magazine of the other hand's gun (1 off, 2 main)
 .float vr_reload_sec;    // and its hands' B/Y last frame (1 off, 2 main)
+// What a player's pouch gives (VR_Reload_PlayerFrame): its ammo (AID_*; 0 none yet: shells) and, for a magazine, the gun
+// it is for (WID_*; 0 shells): the last gun held whose ammo the pouch has (any shotgun: shells; a nailgun, a super nailgun,
+// a thunderbolt: its magazine), kept while the hands hold nothing of the kind (empty, a melee weapon). And for the
+// clients (STAT_QVR_POUCHKIND, STAT_QVR_POUCHCOUNT): what it shows (1 shells, 2 nailgun magazines, 3 super nailgun
+// magazines, 4 cells; 0 none) and how many of that ammo are left.
+.float vr_pouch_aid;
+.float vr_pouch_wid;
+.float vr_pouch_kind;
+.float vr_pouch_count;
 .float vr_ammo_born;     // when it was last in a hand or flying (its time lying about runs from here)
 .float vr_ammo_tink;     // its last knock's sound
 .float vr_ammo_full;     // the full gun's tap given (until it leaves the port)
@@ -469,13 +478,76 @@ float(float xHand, entity r) VR_Reload_MagAtWell =
 // ----------------------------------------------------------------------------
 // The pouch
 
-// `xHand` of self (empty, at the pouch, its grip just pressed) takes a round for the gun in the other hand: a shell (a
-// taped pair with vr_reload_shell_pairs and two or more left), or its magazine holding min(its size, the reserve), out of
-// the reserve. None left: the empty pouch's dull pats.
+// The pouch's round for the gun `xWeapon` (its flags `xFlags`): its ammo, and `vr_reload_kind_wid` the gun a magazine is
+// for (0: shells). -1: none (a rocket launcher's, a melee weapon's: the pouch gives nothing for it yet).
+float vr_reload_kind_wid;
+float(float xWeapon, float xFlags) VR_Reload_KindOf =
+{
+    vr_reload_kind_wid = 0;
+    if(xWeapon == WID_FIST || xWeapon == WID_GRAPPLE)
+    {
+        return -1;
+    }
+    float aid = WeaponIdToAmmoId(xWeapon, xFlags);
+    if(aid == AID_SHELLS)
+    {
+        return aid; // (the shotgun, the super shotgun, the grunts' shotgun: shells, by hand into the shotgun)
+    }
+    if(VR_Reload_UsesMag(xWeapon))
+    {
+        vr_reload_kind_wid = xWeapon;
+        return aid;
+    }
+    return -1;
+};
+
+// Once a player frame (W_Frame, before the hands'): the pouch's last kind from the guns held (the main hand's first),
+// and what the clients draw.
+void() VR_Reload_PlayerFrame =
+{
+    for(float h = 0; h < 2; h++)
+    {
+        float hand = h ? cVR_OffHand : cVR_MainHand;
+        float aid = VR_Reload_KindOf(VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand));
+        if(aid >= 0 && self.ishuman && VR_Reload_Immersive())
+        {
+            self.vr_pouch_aid = aid;
+            self.vr_pouch_wid = vr_reload_kind_wid;
+            break;
+        }
+    }
+    if(!self.vr_pouch_aid)
+    {
+        self.vr_pouch_aid = AID_SHELLS;
+        self.vr_pouch_wid = 0;
+    }
+    float w = self.vr_pouch_wid;
+    self.vr_pouch_kind = w == WID_NAILGUN ? 2 : (w == WID_SUPER_NAILGUN ? 3 : (w == WID_LIGHTNING ? 4 : 1));
+    self.vr_pouch_count = VR_AmmoUtil_GetAmmoCountByAmmoId(self, self.vr_pouch_aid);
+};
+
+// What `xHand` of self takes from the pouch: the round for the gun in the other hand if the pouch has its ammo, else the
+// pouch's last kind (both hands empty, a melee weapon there). Its ammo; `vr_reload_kind_wid` the gun a magazine is for.
+float(float xHand) VR_Reload_PouchKind =
+{
+    float other = VRGetOtherHand(xHand);
+    float aid = VR_Reload_KindOf(VRGetEntWeapon(self, other), VRGetEntWeaponFlags(self, other));
+    if(aid >= 0 && !(VRGetEntWeaponFlags(self, other) & QVR_WPNFLAG_FOREGRIP_CARRIED))
+    {
+        return aid;
+    }
+    vr_reload_kind_wid = self.vr_pouch_wid;
+    return self.vr_pouch_aid ? self.vr_pouch_aid : AID_SHELLS;
+};
+
+// `xHand` of self (empty, at the pouch, its grip just pressed) takes a round by its ammo (VR_Reload_PouchKind: the gun in
+// the other hand's, else the last kind): a shell (a taped pair with vr_reload_shell_pairs and two or more left), or a
+// magazine holding min(its size, the reserve), out of the reserve. None left: the empty pouch's dull pats.
 void(float xHand) VR_Reload_Take =
 {
-    float aid = VR_Reload_AmmoFor(self, VRGetOtherHand(xHand));
-    if(aid < 0)
+    float aid = VR_Reload_PouchKind(xHand);
+    float w = vr_reload_kind_wid;
+    if(aid < 0 || !VR_Reload_Immersive())
     {
         return;
     }
@@ -487,15 +559,10 @@ void(float xHand) VR_Reload_Take =
         VR_Reload_Log("the pouch is empty");
         return;
     }
-    float w = VRGetEntWeapon(self, VRGetOtherHand(xHand));
     float n = (cvar_hget(cvarh_vr_reload_shell_pairs) && have >= 2) ? 2 : 1;
-    if(VR_Reload_UsesMag(w))
+    if(w)
     {
         n = min(WeaponIdToBaseClipSize(w), have);
-    }
-    else
-    {
-        w = 0;
     }
     entity r = VR_Reload_MakeRound(w, aid, n, VRGetEntHandPos(self, xHand), VRGetEntHandRot(self, xHand));
     VR_AmmoUtil_DelAmmoCountByAmmoId(self, aid, n);
@@ -646,7 +713,7 @@ void(float xHand) VR_Reload_HandFrame =
                                                                     QVR_VRBITS0_OFFHAND_CLIMBING);
     float emptyHand = VRIsHandEmpty(self, xHand) &&
                       !VR_Melee_HoldsTorch(self, xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !climbing;
-    float aid = VR_Reload_AmmoFor(self, VRGetOtherHand(xHand));
+    float aid = VR_Reload_Immersive() ? VR_Reload_PouchKind(xHand) : -1;
     if(!was)
     {
         entity held = VR_Carry_Held(self, xHand);

@@ -183,6 +183,7 @@ void() VR_Reload_MagSelfTest =
 
 void() VR_Reload_SelfTest =
 {
+    entity r;
     vr_reload_test_pass = 0;
     vr_reload_test_fail = 0;
     float mode = cvar_hget(cvarh_vr_reload_mode);
@@ -198,7 +199,7 @@ void() VR_Reload_SelfTest =
     VR_Reload_AmmoChanged(self);
 
     // Take, load, until full.
-    entity r = VR_Reload_TestTake(19, 1, "take");
+    r = VR_Reload_TestTake(19, 1, "take");
     VR_Reload_Check(VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 1 &&
                     VR_Carry_Held(self, cVR_MainHand) == world && self.ammo_shells == 19,
         sprintf("load: magazine %g (want 1), the hand empty, 19 shells", VRGetEntWeaponClip(self, cVR_OffHand)));
@@ -260,12 +261,41 @@ void() VR_Reload_SelfTest =
     // The empty pouch.
     VR_Reload_TestTake(0, 0, "the empty pouch gives nothing");
 
-    // Nothing for a gun that doesn't load by hand.
+    // By ammo, not gun: the super shotgun (no immersive rules) gets shells all the same; it doesn't take them.
     VRSetEntWeaponClip(self, cVR_OffHand, 0);
     self.ammo_shells = 10;
     VR_WeaponUtil_EntAddWeapon(self, WID_SUPER_SHOTGUN);
     VRGiveEntWeapon(self, cVR_OffHand, WID_SUPER_SHOTGUN, 0, 0);
-    VR_Reload_TestTake(10, 0, "nothing for the super shotgun");
+    r = VR_Reload_TestTake(9, 1, "the super shotgun: shells all the same");
+    VR_Reload_Check(!VR_Reload_HeldFrame(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 0,
+        "the super shotgun doesn't take them by hand");
+    VR_Reload_Refund(self, r, cVR_MainHand);
+    // The last kind: the nailgun held last, then the off hand emptied (or an axe in it): its magazines still.
+    VR_WeaponUtil_EntAddWeapon(self, WID_NAILGUN);
+    VRGiveEntWeapon(self, cVR_OffHand, WID_NAILGUN, 0, 0);
+    self.ammo_nails = 30;
+    VR_Reload_PlayerFrame();
+    VR_Reload_Check(self.vr_pouch_kind == 2 && self.vr_pouch_count == 30,
+        sprintf("the pouch shows nailgun magazines (kind %g, want 2), 30 nails (%g)", self.vr_pouch_kind,
+            self.vr_pouch_count));
+    VRGiveEntWeapon(self, cVR_OffHand, WID_FIST, 0, 0);
+    VR_Reload_PlayerFrame();
+    r = VR_Reload_TestTakeMag(6, 24, "empty hands: the last kind, a nailgun magazine");
+    VR_Reload_Check(r.vr_ammo_wid == WID_NAILGUN, "a nailgun's magazine");
+    VR_Reload_Refund(self, r, cVR_MainHand);
+    VRGiveEntWeapon(self, cVR_OffHand, WID_AXE, 0, 0);
+    VR_Reload_PlayerFrame();
+    r = VR_Reload_TestTakeMag(6, 24, "an axe in the other hand: the last kind still");
+    VR_Reload_Refund(self, r, cVR_MainHand);
+    VRGiveEntWeapon(self, cVR_OffHand, WID_SUPER_SHOTGUN, 0, 0);
+    VR_Reload_PlayerFrame();
+    VR_Reload_Check(self.vr_pouch_kind == 1 && self.vr_pouch_count == 10, sprintf("back to shells: kind %g, %g shells",
+        self.vr_pouch_kind, self.vr_pouch_count));
+    VRGiveEntWeapon(self, cVR_OffHand, WID_FIST, 0, 0);
+    VR_Reload_PlayerFrame();
+    r = VR_Reload_TestTake(9, 1, "empty hands after the super shotgun: a shell");
+    VR_Reload_Refund(self, r, cVR_MainHand);
+    self.ammo_shells = 10;
 
     VR_Reload_MagSelfTest();
 

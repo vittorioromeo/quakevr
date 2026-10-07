@@ -7196,6 +7196,7 @@ void() W_Frame =
     VR_WallTorch_TestShot(); // vr_test_walltorch_shot: a wall torch shot off its wall (vr_walltorch.qc)
     VR_HandGrenade_HandFrame(cVR_MainHand); // a grenade taken from the pouch at the small of the back (vr_grenade.qc)
     VR_HandGrenade_HandFrame(cVR_OffHand);
+    VR_Reload_PlayerFrame(); // what the ammo pouch gives and shows (vr_reload.qc)
     VR_Reload_HandFrame(cVR_MainHand); // a round taken from the ammo pouch on the belt (vr_reload.qc)
     VR_Reload_HandFrame(cVR_OffHand);
 
