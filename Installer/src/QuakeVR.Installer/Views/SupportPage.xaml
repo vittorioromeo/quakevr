@@ -20,7 +20,7 @@
 					giving full freedom to the player.
                 </TextBlock>
                 <TextBlock Style="{StaticResource Body}" FontSize="15.5" LineHeight="23" Margin="0,14,0,0">
-                    It's free and open-source, and it will stay as such. If it gives you a few great nights of slaughter, a token of
+                    It's free and open-source, and it will stay as such. If it gives you a few great nights of slaughtering Quake's forces, a token of
                     appreciation on Ko-fi would mean a lot: it tells me my work was worth it, keeps me motivated, and it helps keep the project moving forward.
                 </TextBlock>
 
