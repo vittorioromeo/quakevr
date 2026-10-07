@@ -22,7 +22,8 @@
 // are found and have the map) and the result goes to <game folder>/relit_custom/
 // <game>/maps/<map>.bsp, .lit and .lux, which the engine loads over relit/ (VR_ModelFile; vr_relight_use 0: not), with
 // a <map>.relight saying how it was made (and a hash of the settings, the map's file and relight_textures.cfg: a batch
-// skips a map relit from the same). Each written as .tmp and renamed into place; the work folder's copies removed.
+// skips a map relit from the same; and the map's own file's size and hash: a copy made from another version of the map
+// is moved aside at its load, customCurrent). Each written as .tmp and renamed into place; the work folder's copies removed.
 // id's paks and the game folders' maps are only read. Then the map is reloaded where you are (vr_relight_reload: a
 // quick save and load; where the game cannot save, the map restarted).
 //
@@ -67,6 +68,7 @@
 extern "C" {
 void VR_HeapFree(void* pointer);                                       // vr_alloccount.cpp
 void VR_FileCacheEnable(int on);                                       // vr_fscache.cpp
+void VR_FileCacheForget();                                             // vr_fscache.cpp
 int VR_MapGameFolder(const char* name, char* out, size_t size);        // vr_gamedir.cpp
 }
 
@@ -2223,6 +2225,7 @@ struct Slot
     za::String stem;     // <work>/<game>/<map>: light's .bsp, .lit, .lux and -light.log; our .txt log
     za::String original; // the map's own entities, put back after
     za::String hash;     // what it was lit from (the .relight's hash line)
+    za::String source;   // the map's own file it was lit from (the .relight's source line: sourceId)
     za::I64 inputWritten{0}; // the input .bsp's write time: light's results are newer
     za::SizeT logRead{0};
     za::Vector<char> logTail; // the log's last bytes (a failure's lines)
@@ -2340,6 +2343,36 @@ struct Fnv
         }
     }
 };
+
+// A map file's identity: its size and its bytes' wyhash ("<size> <hash>"). A relit copy's .relight says the one it was
+// made from ("source <game>/maps/<map>.bsp <size> <hash>"): the copy is used only while the game finds that same file
+// (customCurrent), and a batch skips it only then (relitAlready).
+[[nodiscard]] za::String sourceId(const unsigned char* data, za::SizeT size)
+{
+    namespace wy = ankerl::unordered_dense::detail::wyhash;
+    return za::String{va("%llu %016llx", static_cast<unsigned long long>(size),
+        static_cast<unsigned long long>(size ? wy::hash(data, size) : 0))};
+}
+
+// Whether a .relight's source line names the file `id` (sourceId): an old .relight (none) never does.
+[[nodiscard]] bool noteHasSource(za::StringView note, const za::String& id)
+{
+    if(id.empty())
+    {
+        return false;
+    }
+    bool same = false;
+    files::forLines(note, [&](za::StringView line) {
+        while(!line.empty() && (line[line.size() - 1] == '\r' || line[line.size() - 1] == ' '))
+        {
+            line = line.substrByPosLen(0, line.size() - 1);
+        }
+        const za::SizeT n = id.size();
+        same = same || (line.size() > 7 + n && !strncmp(line.data(), "source ", 7) && line[line.size() - n - 1] == ' ' &&
+                           line.substrByPosLen(line.size() - n, n) == za::StringView{id});
+    });
+    return same;
+}
 
 // ericw-tools' light: vr_relight_tool, else the one Quake VR ships or downloaded (tools/ericw-tools/ in a game folder),
 // ERICW_LIGHT, PATH, the author's (Menu Detail: Developer only). vr_relight_tool_dir (testing): that folder alone after
@@ -2571,8 +2604,10 @@ void removeWork(const za::String& stem)
     }
 }
 
-// The .relight of a map relit before says it was lit from exactly this (its hash line), and its files are there.
-[[nodiscard]] bool relitAlready(const maps::Source& s, const za::String& hash)
+// The .relight of a map relit before says it was lit from exactly this (its hash line) and from the map's file as it
+// is now (its source line: the hash covers relight_maps.py's copy instead when that is what light was given), and its
+// files are there.
+[[nodiscard]] bool relitAlready(const maps::Source& s, const za::String& hash, const za::String& source)
 {
     za::String note;
     if(!files::readText(outPath(s, "relight").cStr(), note) || !files::isFile(outPath(s, "bsp").cStr()) ||
@@ -2585,7 +2620,7 @@ void removeWork(const za::String& stem)
         same = same || (line.size() > 5 && !strncmp(line.data(), "hash ", 5) &&
                            line.substrByPosLen(5, line.size() - 5) == za::StringView{hash});
     });
-    return same;
+    return same && noteHasSource(za::StringView{note}, source);
 }
 
 enum class Started
@@ -2637,7 +2672,21 @@ enum class Started
         fnv.add(patch.leafs.data(), patch.leafs.size());
     }
     const za::String hash{va("%016llx", static_cast<unsigned long long>(fnv.h))};
-    if(!batch.force && relitAlready(s, hash))
+    // The map's own file (not relight_maps.py's copy, when that was read): what the game loads when there is no copy.
+    za::String source;
+    if(fromRelit)
+    {
+        za::Vector<unsigned char> own;
+        if(maps::read(s, own))
+        {
+            source = sourceId(own.data(), own.size());
+        }
+    }
+    else
+    {
+        source = sourceId(data.data(), data.size());
+    }
+    if(!batch.force && relitAlready(s, hash, source))
     {
         return Started::Skipped;
     }
@@ -2659,6 +2708,7 @@ enum class Started
     slot.stem = workStem(s);
     slot.original = original;
     slot.hash = hash;
+    slot.source = source;
     slot.lights = report.lights;
     slot.patched = patched;
     if(patched)
@@ -2899,6 +2949,11 @@ void reloadNow(const char* map, double seconds)
     }
     note += "\nhash ";
     note += slot.hash;
+    if(!slot.source.empty())
+    {
+        note += va("\nsource %s/maps/%s.bsp ", s.game.cStr(), map);
+        note += slot.source;
+    }
     note += "\n";
     const za::String tmpBsp = outBsp + ".tmp", tmpLit = outPath(s, "lit.tmp"), tmpLux = outPath(s, "lux.tmp"),
                      tmpNote = outPath(s, "relight.tmp");
@@ -3631,6 +3686,92 @@ bool firstStart()
     Con_Printf("Relight: a first start after the installer: every map relit (vr_relight_batch everything)\n");
     Cbuf_InsertText("vr_relight_batch everything\n");
     return true;
+}
+
+namespace
+{
+// customCurrent's answers, by the copy's stem: kept while the original, the copy and its .relight are as they were.
+struct CustomCheck
+{
+    za::String stamp; // the original's place, size and write time; the copy's and its .relight's write times
+    bool current{false};
+};
+ankerl::unordered_dense::map<za::String, CustomCheck> customChecks;
+
+// A stale copy's files moved into relit_custom/_stale/<game>/maps/ (an older stale copy there replaced): kept, not
+// loaded (VR_ModelFile looks in relit_custom/<game>/ only).
+void moveAside(const za::String& dir, const char* game, const char* map)
+{
+    const za::String from = files::join(dir, za::StringView{va("relit_custom/%s/maps/%s", game, map)});
+    const za::String to = files::join(dir, za::StringView{va("relit_custom/_stale/%s/maps/%s", game, map)});
+    files::createDirectories(za::String{files::parentPath(za::StringView{to})}.cStr());
+    for(const char* ext : {".bsp", ".lit", ".lux", ".relight"})
+    {
+        const za::String f = from + ext;
+        if(files::isFile(f.cStr()) && !files::rename(f.cStr(), (to + ext).cStr()))
+        {
+            Con_Printf("Relight: can't move %s aside\n", f.cStr());
+        }
+    }
+    VR_FileCacheForget();
+}
+} // namespace
+
+bool customCurrent(const char* game, const char* name)
+{
+    // The original: what the game loads without the copy.
+    if(!COM_FileExists(name, nullptr) || !com_filesource[0])
+    {
+        return true; // (nothing to compare with)
+    }
+    // (com_filesize is a .pak's file's size; a loose file's is not looked up by COM_FileExists)
+    const qfileofs_t inPak = com_filesize;
+    const za::String origin{com_filesource};
+    const bool loose = !files::isFile(origin.cStr()); // (a game folder; else a .pak)
+    const za::String originFile = loose ? files::join(origin, za::StringView{name}) : origin;
+    const za::I64 size = loose ? static_cast<za::I64>(files::fileSize(originFile.cStr())) : static_cast<za::I64>(inPak);
+    const za::I64 originTime = files::lastWriteTime(originFile.cStr());
+    // The copy: relit_custom/ in a game folder (never in a .pak: written by the game).
+    const char* relit = va("relit_custom/%s/%s", game, name);
+    if(!COM_FileExists(relit, nullptr) || !com_filesource[0] || files::isFile(com_filesource))
+    {
+        return true;
+    }
+    const za::String dir{com_filesource};
+    char map[MAX_QPATH];
+    COM_StripExtension(name + 5, map, sizeof(map)); // ("maps/")
+    const za::String stem = files::join(dir, za::StringView{va("relit_custom/%s/maps/%s", game, map)});
+    const za::String note = stem + ".relight";
+    const za::String stamp{va("%s|%lld|%lld|%lld|%lld", origin.cStr(), static_cast<long long>(size),
+        static_cast<long long>(originTime), static_cast<long long>(files::lastWriteTime((stem + ".bsp").cStr())),
+        static_cast<long long>(files::lastWriteTime(note.cStr())))};
+    const auto known = customChecks.find(stem);
+    if(known != customChecks.end() && known->second.stamp == stamp)
+    {
+        return known->second.current;
+    }
+    za::String text;
+    bool current = false;
+    // (an old .relight, with no source line: no read)
+    if(files::readText(note.cStr(), text) && za::StringView{text}.find(za::StringView{"\nsource "}) != za::StringView::nPos)
+    {
+        if(byte* bytes = COM_LoadMallocFile(name, nullptr))
+        {
+            current = noteHasSource(za::StringView{text},
+                sourceId(bytes, static_cast<za::SizeT>(za::max<qfileofs_t>(com_filesize, 0))));
+            VR_HeapFree(bytes);
+        }
+    }
+    customChecks[stem] = CustomCheck{stamp, current};
+    if(!current)
+    {
+        moveAside(dir, game, map);
+        Con_Printf("Relight: the relit copy of %s is out of date (made from another version of the map, or before "
+                   "relit copies recorded it): using the original; relight it again in Graphics > Relighting (the old "
+                   "copy is in relit_custom/_stale/)\n",
+            map);
+    }
+    return current;
 }
 
 void shutdown()

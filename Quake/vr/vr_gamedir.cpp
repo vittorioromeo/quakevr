@@ -22,6 +22,7 @@
 #include "vr_mapinstall.hpp"
 #include "vr_mem.hpp"
 #include "vr_modellight.hpp"
+#include "vr_relight.hpp"
 #include "vr_avatar.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_sightalign.hpp"
@@ -1029,7 +1030,8 @@ extern "C" const char* VR_ModelFile(const char* name)
     char(&relit)[MAX_QPATH * 2] = relitPath;
     // Relit in the game (vr_relight.cpp: relit_custom/<game>/maps/), over relight_maps.py's.
     q_snprintf(relit, sizeof(relit), "relit_custom/%s/%s", game, name);
-    if(qvr::vr_relight_use.value && COM_FileExists(relit, nullptr))
+    // (only while it was made from the map the game finds now: a stale one is moved aside, vr_relight.cpp)
+    if(qvr::vr_relight_use.value && COM_FileExists(relit, nullptr) && qvr::relight::customCurrent(game, name))
     {
         return relit;
     }

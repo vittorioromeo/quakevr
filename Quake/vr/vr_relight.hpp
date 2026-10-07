@@ -56,4 +56,11 @@ void shutdown();
 // corner): "RELIGHT 3/12 45% 2:10"; null when none runs (or vr_relight_indicator 0).
 [[nodiscard]] const char* indicator();
 
+// VR_ModelFile (vr_gamedir.cpp): whether the in-game relit copy relit_custom/<game>/<name> ("maps/e1m1.bsp") was made
+// from the map the game finds now as `name` (its .relight's source line: the original's size and hash). A copy of
+// another version of the map (a map rebuilt, a package or an expansion updated), or one whose .relight predates the
+// source line or is missing, is moved aside into relit_custom/_stale/<game>/maps/ with a console line, and false:
+// the original is loaded. The answer is kept while neither file changes (a map's load asks several times).
+[[nodiscard]] bool customCurrent(const char* game, const char* name);
+
 } // namespace qvr::relight

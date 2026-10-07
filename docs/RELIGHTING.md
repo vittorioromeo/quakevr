@@ -333,7 +333,10 @@ four; with Bounced Light 34, 33, 33 and 42 s. A map's texture lights are made on
 **Where the result goes:** `quakevr\relit_custom\<game>\maps\` (in the folder the game saves into), with a
 `<map>.relight` file saying how it was made (and its liquids: which are see-through, and the VisPatch file used). It
 is used over the relight script's map from then on (*Use In-game Relights*, `vr_relight_use`; off: the script's or the
-map's own). *Remove This Map's Relight* (`vr_relight_revert`) deletes it. The game starts from the relight script's
+map's own), as long as the map is still the one it was made from: the `.relight` file's `source` line records the
+original map file's size and hash, and when the map changes (a rebuilt map, an updated package or expansion) the old
+relit copy is moved into `relit_custom\_stale\` and the original loads, with a console line saying to relight it
+again (a `.relight` from before the `source` line counts as out of date too). *Remove This Map's Relight* (`vr_relight_revert`) deletes it. The game starts from the relight script's
 copy of the map when there is one and *See-Through Liquids* is on (it keeps that copy's see-through water, also without
 the VisPatch files), else from the map itself; id's `.pak` files and the game folders' maps are only read. The work
 folder, `relit_custom\_work\<game>\`, holds `light`'s logs (`<map>.txt`, `<map>-light.log`); the map given to it and

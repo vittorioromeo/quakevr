@@ -30143,3 +30143,23 @@ The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh
   `vr_relight_strength` 1.1988), and the held object slots the game filled for him (`vr_prop_id_33`, `_54` to `_59`).
   reload_test.sh's super shotgun runs set the flick on (and its close speed 650) and its ammo button runs cone 80, as
   they test those ways.
+
+## Stale in-game relights (relit_custom) no longer override a changed map
+
+- **Bug**: `vrstart` loaded the old hub after the island took its name: `relit_custom/quakevr/maps/vrstart.bsp`, an
+  in-game relight of the old hub, won by name (VR_ModelFile), and its `.relight` held only the settings hash.
+- **Fix**: the `.relight` gets `source <game>/maps/<map>.bsp <size> <wyhash>` (the map's own file, also when light was
+  given relight_maps.py's relit/ copy). VR_ModelFile uses a relit_custom copy only when `relight::customCurrent`
+  finds the file the game loads as `maps/<map>.bsp` has that size and hash (read and hashed once per map and session:
+  the answer is kept by the original's place, size and write time and the copy's write times). Otherwise the copy's
+  four files move to `relit_custom/_stale/<game>/maps/` (an older stale copy there replaced) and one console line
+  says so. A `.relight` without the line (all made before this) counts as stale: a relight is ~1 s a map. A batch
+  skips a map only when the hash and the source line both match (`relitAlready`), so it relights changed maps and
+  old-format ones.
+- **Checked, unchanged**: relight_maps.py's `relit/` copies (id1, hipnotic, rogue only) keep a `.relit` stamp that
+  hashes the map with the command, which the script checks; the engine does not verify them. The disk caches
+  (hulls, AO, textures, images) are keyed by content or the opened file's identity. The installer's first-start
+  marker only starts a batch.
+- **Test**: a test map relit, then its .bsp replaced by another map: the load uses the original, moves the copy aside,
+  prints the line; unchanged map: copy used; old-format `.relight`: moved aside on load, relit by a batch; batch on a
+  changed map: relit, not skipped; e1m1 (a .pak map from relit/'s copy): relit, then loaded as current.
