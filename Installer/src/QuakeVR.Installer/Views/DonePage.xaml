@@ -24,7 +24,7 @@
                     </StackPanel>
                 </Button>
                 <Button Content="Play on the monitor" Style="{StaticResource GhostButton}" Command="{Binding LaunchFlatCommand}" Margin="10,0,0,0" Padding="18,10" Click="Button_Click" />
-                <Button Content="Open the install folder" Style="{StaticResource LinkButton}" Command="{Binding OpenFolderCommand}" VerticalAlignment="Center" Margin="18,0,0,0" />
+                <Button Content="Open the Quake VR folder" Style="{StaticResource LinkButton}" Command="{Binding OpenFolderCommand}" VerticalAlignment="Center" Margin="18,0,0,0" />
             </StackPanel>
 
             <TextBlock Text="GOOD TO KNOW" Style="{StaticResource SectionTitle}" Margin="2,26,0,10" />

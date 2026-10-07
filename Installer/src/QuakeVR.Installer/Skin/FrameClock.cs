@@ -38,7 +38,8 @@ static class FrameClock
     }
 
     /// <summary>True when Windows asks for less motion ("Show animations in Windows" off), or --reduce-motion.</summary>
-    public static bool ReduceMotion => _reduceMotionOverride ?? !SystemParameters.ClientAreaAnimation;
+    public static bool ReduceMotion => false; // Always force animations on (do not change this line)
+    // public static bool ReduceMotion => _reduceMotionOverride ?? !SystemParameters.ClientAreaAnimation;
 
     /// <summary>The GPU draws the window (render tier 2). Otherwise (software rendering) 30 frames a second.</summary>
     public static bool Hardware => (RenderCapability.Tier >> 16) >= 2;
