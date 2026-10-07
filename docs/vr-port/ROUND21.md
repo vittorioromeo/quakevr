@@ -30001,3 +30001,36 @@ renamed to vrstart2 loads on vrstart; a config at vr_cfg_version 98 with `vr_hub
 `vrstart2:vs2_welcome` in tips_seen.txt shows as seen in vrstart; the walk test 18 of 18 (twice), the three buttons, the
 bench scenario `load_vrstart` validates (3 loads, the same twice), `vr_menu_path_check maps/vrstart.map` 0 missing,
 e1m1's smoke test.
+## Immersive reloading: the author's notes on the super shotgun, and the shells sliding in (2026-10-07)
+
+- **The rear sight's ring** (a piece of its own over the cut) is on the barrels part now: it swings open with them
+  (make_ssg_open.py; it floated on the frame).
+- **The sights' colour**: the guns' parts drawn instead of the gun (the shotgun's auto pump parts, the open super
+  shotgun's) were not recoloured as the gun's sights are (vr_sights.cpp lists the models by name) nor glowed as it
+  (vr_weapon_glow's boost asked the part's own slot): the sights turned the painted orange-red as the shotgun pumped and
+  the super shotgun opened. Both now (weapons::slotForPart: a part's gun's slot).
+- **Each way to open and close it is its own switch** (Weapons > Reloading > Super Shotgun: "Open by" and "Close by"):
+  open by the flick (`vr_reload_ssg_open_flick`), the pry (`vr_reload_ssg_pry`), a hit from above (`_open_hit`), B/Y
+  (`_open_button`); close by the flick (`_close_flick`), lifting the barrels (`_close_pry`), a hit from below
+  (`_close_hit`), by itself once loaded (`_close_auto`, off). Every opening throws every shell out, spent and live.
+- **Thresholds**: the flick's own speeds to open and to close (`vr_reload_ssg_flick_open_speed`, `_close_speed`: 650
+  deg/s; the classic flick reload's 6.5 rad/s was 372: small flicks opened and shut it); the pry the author's 60 deg at
+  250 deg/s (and the open angle his 45); the lift its own angle, speed and hold (`_lift_angle` 60, `_lift_speed` 300
+  deg/s, `_lift_hold` 0.2 s: a jolt doesn't shut it; it was far too easy); the hits their speed and angle off the gun's
+  own down or up (`_hit_open_speed` 3 m/s, `_hit_open_angle` 40, `_hit_close_*` the same) within `_hit_reach` (6 units)
+  of the front 40% of the barrels (turned down, open), from that side (where it came from 50 ms before), not by a round
+  in the hand nor in the 0.6 s after one went in (the loading hand drawing back), nor while both hands hold it (the pry
+  and the lift are theirs).
+- The pry is sent on the other (front) hand's flick bit, so the server tells it from a flick (QC VR_Reload_SsgFrame).
+- **The hand on the open barrels** turns down with them (vr_view.cpp: the held hotspot's world turn).
+- **The pouch** gives a single shell when one chamber is loaded (a pair only for two empty ones).
+- **The shotgun's loading port** is a well now (polish_weapons.py loading_port: a steel housing 0.9 deep under the keel,
+  its inner walls lined from dull steel at the mouth to black up at a black ceiling; parts can't be cut out of the old
+  mesh without moving the anchors). The load point is where it was.
+- **The shells slide into the gun** (`vr_reload_insert_time`, 0.13 s; vr_collectfx.cpp's "into the gun" variant, the
+  collect message's hotspot 240): the round is loaded at the contact as before (the count, the sound, the haptics) and
+  the hand lets go; its copy slides to the load point and on (up the shotgun's well into its tube; into the super
+  shotgun's chambers), at its size, carried by the gun in its model space (it follows the gun as it moves), then is gone
+  inside it. A magazine's seat slide is noted for later (RELOAD_PLAN.md).
+- Mock: `vr_mock_turn_velocity 1` (the hands' angular velocity from their turns). Tests: reload_test.sh sections 7 and 8
+  (75 checks in all), the self-test 67 of 67.

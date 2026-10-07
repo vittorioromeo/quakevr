@@ -153,5 +153,8 @@ Headless (mock hands, `vr_fixed_frames 1`), per phase:
 3. **Grenade and proximity launchers**: a port under each; grenades from the front pouch (a launcher's grenade or a
    proximity one by the B/Y as the back pouch's multi-grenade; armed and dropped as a back pouch grenade is); the back
    pouch stays.
+   Later (noted, not done: the magazine code is magfix's): a magazine seated at its well drawn sliding the last bit home
+   (a short seat slide, as the shells' slide into the guns: vr_collectfx.cpp's "into the gun" variant, its path the
+   well's axis).
 4. **Rockets**: a rocket prop loaded at the launcher's back end, one at a time; thrown rockets don't light, but a shot
    (hitscan, a nail, a blast) sets them off, in the air or lying.
