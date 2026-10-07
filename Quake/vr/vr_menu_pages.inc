@@ -608,6 +608,34 @@ void resetHandMoves()
         open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
                   "The taped pair has its own."),
+        header("Load Points"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow), where a held round goes in within (green: Port Leniency, "
+                  "Well Leniency), and a magazine's pull reach (blue), to tune the offsets below live."),
+        slider("Shotgun Port X", "vr_reload_port_shot_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the shotgun port's load point forward (the gun's model units; negative: the other way)."),
+        slider("Shotgun Port Y", "vr_reload_port_shot_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the shotgun port's load point left (the gun's model units; negative: the other way)."),
+        slider("Shotgun Port Z", "vr_reload_port_shot_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the shotgun port's load point up (the gun's model units; negative: the other way)."),
+        slider("Nailgun Well X", "vr_reload_port_nail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun well's load point forward (the gun's model units; negative: the other way)."),
+        slider("Nailgun Well Y", "vr_reload_port_nail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun well's load point left (the gun's model units; negative: the other way)."),
+        slider("Nailgun Well Z", "vr_reload_port_nail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the nailgun well's load point up (the gun's model units; negative: the other way)."),
+        slider("Super Nailgun Well X", "vr_reload_port_snail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun well's load point forward (the gun's model units; negative: the other way)."),
+        slider("Super Nailgun Well Y", "vr_reload_port_snail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun well's load point left (the gun's model units; negative: the other way)."),
+        slider("Super Nailgun Well Z", "vr_reload_port_snail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the super nailgun well's load point up (the gun's model units; negative: the other way)."),
+        slider("Thunderbolt Well X", "vr_reload_port_light_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt well's load point forward (the gun's model units; negative: the other way)."),
+        slider("Thunderbolt Well Y", "vr_reload_port_light_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt well's load point left (the gun's model units; negative: the other way)."),
+        slider("Thunderbolt Well Z", "vr_reload_port_light_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("Moves the thunderbolt well's load point up (the gun's model units; negative: the other way)."),
         header("Magazines"),
         slider("Well Leniency", "vr_reload_mag_leniency", 1.f, 12.f, 0.5f, "%.1f units").extend(0.5f, 40.f)
             .help("How near the gun's magazine well a held magazine must come to seat (or to bump the one in out)."),

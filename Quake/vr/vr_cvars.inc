@@ -2392,6 +2392,21 @@ QVR_CVAR(vr_reload_pull_speed, "1.5", CVAR_ARCHIVE)    // m/s a hand holding a g
 QVR_CVAR(vr_reload_pull_snap, "200", CVAR_ARCHIVE)     // with its wrist turning at this many degrees/s or more (a gentle pull only holds it)
 QVR_CVAR(vr_reload_pull_reach, "6", CVAR_ARCHIVE)      // units from the magazine's middle within which a gripping hand holds it
 QVR_CVAR(vr_reload_eject_button, "1", CVAR_ARCHIVE)    // the gun's controller's B/Y lets its magazine drop (0: off; weapon cycling keeps the button then)
+// Each gun's load point moved (model units of the gun: +x forward, +y left, +z up): the shotgun's port, the magazine
+// guns' wells (the lava nailguns' and the plasma gun's with theirs). vr_reload_show_ports draws them and their ranges.
+QVR_CVAR(vr_reload_port_shot_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_shot_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_shot_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_nail_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_nail_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_nail_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_snail_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_snail_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_snail_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_light_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_light_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_light_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_show_ports, "0", CVAR_NONE)          // draw each held gun's load point (yellow), its acceptance range (green) and a well's pull reach (blue)
 QVR_CVAR(vr_reload_debug, "0", CVAR_NONE)              // 1: print the reload's takes, loads, refunds and losses (dprint), and each held round's distance to the port
 QVR_CVAR(vr_reload_test, "0", CVAR_NONE)               // Debug > Tests > Reloading: the step `impulse 125` runs (vr_reload.qc VR_Reload_Test)
 QVR_CVAR(vr_show_weapon_text, "1", CVAR_ARCHIVE)

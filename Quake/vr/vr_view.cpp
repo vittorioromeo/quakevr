@@ -265,21 +265,32 @@ constexpr int maxWorldWeapons = 6;
 // under its receiver (polish_weapons.py loading_port: the opening's middle, a little below its frame). Sent to the server
 // with each move (VrMove::loadPort -> .loadportpos, .offloadportpos), which loads a round held within
 // vr_reload_port_leniency of it (QC vr_reload.qc).
+// Each moved by its gun's Load Point offsets (Weapons > Reloading: vr_reload_port_<gun>_x/y/z, model units: +x forward,
+// +y left, +z up), tuned with vr_reload_show_ports.
 struct LoadPort
 {
     modelmeta::Id model;
     glm::vec3 point;
+    cvar_t* offset[3];
+    bool magazine; // a magazine's well (vr_reload_mag_leniency, and the pull's reach); else a shell port
 };
 constexpr LoadPort loadPorts[] = {
-    {modelmeta::Id::VShot, {13.6f, 0.f, 0.3f}},
+    {modelmeta::Id::VShot, {13.6f, 0.f, 0.3f}, {&vr_reload_port_shot_x, &vr_reload_port_shot_y, &vr_reload_port_shot_z},
+        false},
     // The magazine guns' wells: where the attached magazine's middle is (make_mags.py prints them): a held magazine's
     // middle brought there seats it (vr_reload_mag_leniency), and a hand gripping near it holds it (the pull).
-    {modelmeta::Id::VNail, {7.36f, 0.f, -4.72f}},
-    {modelmeta::Id::VLava, {7.36f, 0.f, -4.72f}},
-    {modelmeta::Id::VNail2, {7.2f, -9.35f, 3.03f}},
-    {modelmeta::Id::VLava2, {7.2f, -9.35f, 3.03f}},
-    {modelmeta::Id::VLight, {11.6f, 0.f, -0.6f}},
-    {modelmeta::Id::VPlasma, {11.6f, 0.f, -0.6f}},
+    {modelmeta::Id::VNail, {7.36f, 0.f, -4.72f}, {&vr_reload_port_nail_x, &vr_reload_port_nail_y, &vr_reload_port_nail_z},
+        true},
+    {modelmeta::Id::VLava, {7.36f, 0.f, -4.72f}, {&vr_reload_port_nail_x, &vr_reload_port_nail_y, &vr_reload_port_nail_z},
+        true},
+    {modelmeta::Id::VNail2, {7.2f, -9.35f, 3.03f},
+        {&vr_reload_port_snail_x, &vr_reload_port_snail_y, &vr_reload_port_snail_z}, true},
+    {modelmeta::Id::VLava2, {7.2f, -9.35f, 3.03f},
+        {&vr_reload_port_snail_x, &vr_reload_port_snail_y, &vr_reload_port_snail_z}, true},
+    {modelmeta::Id::VLight, {11.6f, 0.f, -0.6f},
+        {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, true},
+    {modelmeta::Id::VPlasma, {11.6f, 0.f, -0.6f},
+        {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, true},
 };
 
 // The magazines drawn in the magazine guns (immersive reloading's phase 2; QC vr_reload.qc): each gun's attached
@@ -1312,8 +1323,21 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         {
             if(info.is(port.model))
             {
-                s.loadPort[hand] = view::modelPoint(ve, port.point);
+                const glm::vec3 moved{port.offset[0]->value, port.offset[1]->value, port.offset[2]->value};
+                s.loadPort[hand] = view::modelPoint(ve, port.point + moved);
                 s.loadPortValid[hand] = true;
+                if(vr_reload_show_ports.value && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3)
+                {
+                    // The acceptance range: a held round's (a magazine's middle) within it goes in; a magazine's well
+                    // also its pull's reach (blue), where a gripping hand holds the magazine.
+                    const float within = port.magazine ? vr_reload_mag_leniency.value : vr_reload_port_leniency.value;
+                    lines::point(s.loadPort[hand], 0.6f, glm::vec4{1.f, 1.f, 0.2f, 0.9f});
+                    lines::point(s.loadPort[hand], 2.f * within, glm::vec4{0.2f, 1.f, 0.3f, 0.3f});
+                    if(port.magazine)
+                    {
+                        lines::point(s.loadPort[hand], 2.f * vr_reload_pull_reach.value, glm::vec4{0.3f, 0.5f, 1.f, 0.2f});
+                    }
+                }
             }
         }
     }
