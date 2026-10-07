@@ -66,17 +66,74 @@ def shell_upright(m, x, y, lean, top, bottom, full):
            mdlgen.sub(axis_top, at(bottom, 0.0, 0)))
 
 
+# frames, one more round in sight each (a shell, or a magazine: how many the reserve fills, part-filled counting).
+KINDS = [  # (kind, its frames' first, how many it shows at most)
+    (1, 1, 5),   # shells
+    (2, 6, 3),   # nailgun magazines
+    (3, 9, 2),   # super nailgun magazines
+    (4, 11, 3),  # thunderbolt cells
+]
+FRAMES = 14
+SHELL_ORDER = [2, 1, 3, 0, 4]  # which of SHELLS show first (the middle out)
+# The magazines standing in it, feed end up, from make_mags.py (their skins below the pouch's, 64 x 64 each).
+MAGS = {2: ("nail", 0.66, (-2.45, 0.0, 2.45)), 3: ("snail", 0.5, (-1.75, 1.75)), 4: ("cell", 0.56, (-2.6, 0.0, 2.6))}
+MAG_TOP = 2.9       # their tops (the pouch's rim at 1.5; lower, the nailgun's base plates show through its rounded bottom)
+MAG_SKIN_T = 128    # the row the magazines' skins start at (each 64 wide: nail, snail, cell)
+
+
+def frame_spec(frame):
+    """(kind, count) a frame shows; (0, 0) the empty pouch."""
+    for kind, first, most in KINDS:
+        if first <= frame < first + most:
+            return kind, frame - first + 1
+    return 0, 0
+
+
+def add_part(m, part, rot, at, s_off):
+    """`part`'s triangles (a make_mags.py mesh) into `m`: turned (rows: where its x, y, z go), scaled into place at `at`,
+    its skin coordinates moved to its own square of the skin. The new vertices' range."""
+    first = len(m.verts)
+    for p, n, (s, t) in part.verts:
+        q = mdlgen.add(mdlgen.add(mdlgen.add(mdlgen.mul(rot[0], p[0]), mdlgen.mul(rot[1], p[1])), mdlgen.mul(rot[2], p[2])), at)
+        nn = mdlgen.norm(mdlgen.add(mdlgen.add(mdlgen.mul(rot[0], n[0]), mdlgen.mul(rot[1], n[1])), mdlgen.mul(rot[2], n[2])))
+        m.verts.append((q, nn, (s + s_off, t + MAG_SKIN_T)))
+    m.tris.extend((a + first, b + first, c + first) for a, b, c in part.tris)
+    return first, len(m.verts)
+
+
+def collapse(m, rng, centre):
+    """The vertices in `rng` drawn to a speck at `centre` (out of sight under the floor): a round not in the pouch."""
+    for i in range(*rng):
+        p, n, st = m.verts[i]
+        m.verts[i] = (mdlgen.add(centre, mdlgen.mul(mdlgen.sub(p, centre), 0.05)), n, st)
+
+
 def build(frame):
-    full = frame == 0
-    depth = pouch.DEPTH[frame]
-    m = pouch.Mesh(pouch.SKIN_W, pouch.SKIN_H, pouch.REGIONS)
+    kind, count = frame_spec(frame)
+    full = count > 0
+    depth = pouch.DEPTH[0 if full else 1]
+    m = pouch.Mesh(pouch.SKIN_W, pouch.SKIN_H * 2, pouch.REGIONS)
     mid = pouch.body(m, depth, full)
-    sx = pouch.BACK_X + depth * 0.5
-    for y, lean, out in SHELLS:
-        if full:
-            shell_upright(m, sx, y, lean, pouch.Z_TOP + out, pouch.Z_FLOOR - 0.2, True)
-        else:
-            shell_upright(m, sx, y * 0.7, 0.0, pouch.Z_FLOOR - 0.6, pouch.Z_BOTTOM + 0.6, False)
+    sx = pouch.BACK_X + pouch.DEPTH[0] * 0.5
+    hidden = (sx, 0.0, pouch.Z_BOTTOM + 0.5)
+    # The shells (as the first pouch had them).
+    shown = set(SHELL_ORDER[:count]) if kind == 1 else set()
+    for k, (y, lean, out) in enumerate(SHELLS):
+        first = len(m.verts)
+        shell_upright(m, sx, y, lean, pouch.Z_TOP + out, pouch.Z_FLOOR - 0.2, True)
+        if k not in shown:
+            collapse(m, (first, len(m.verts)), hidden)
+    # The magazines: along the pouch's width (their x), their thickness across its depth.
+    import make_mags
+    parts = {2: make_mags.nail_mag(), 3: make_mags.snail_mag(), 4: make_mags.cell_mag()}
+    for mk, (name, scale, ys) in MAGS.items():
+        part, top = parts[mk]
+        rot = ((0.0, scale, 0.0), (-scale, 0.0, 0.0), (0.0, 0.0, scale))
+        for j, y in enumerate(ys):
+            at = (sx, y, MAG_TOP - top * scale)
+            rng = add_part(m, part, rot, at, {2: 0, 3: 64, 4: 128}[mk])
+            if not (kind == mk and j < count):
+                collapse(m, rng, hidden)
     # Rivets at the front's top corners and a pair on its middle, where a belt loop is sewn on behind.
     for y in (-pouch.HALF_W * 0.82, pouch.HALF_W * 0.82):
         px = pouch.front_x(y, depth)
@@ -115,6 +172,13 @@ def paint_skin():
             d = math.hypot(u, v) * 2
             h = ((s * 7919 + t * 104729) % 97) / 97.0
             px[t * w + s] = (10 if h < 0.6 else 9) if d < 0.26 else 4 if d < 0.36 else (30 if h < 0.5 else 31 if h < 0.88 else 28)
+    import make_mags
+    px += bytes(pouch.SKIN_W * pouch.SKIN_H)
+    for k, name in enumerate(("vr_mag_nail", "vr_mag_snail", "vr_mag_light")):
+        mag = make_mags.paint(name)
+        for t in range(make_mags.SKIN_H):
+            row = (MAG_SKIN_T + t) * w + k * 64
+            px[row:row + 64] = mag[t * make_mags.SKIN_W:(t + 1) * make_mags.SKIN_W]
     for c in px:
         assert c < 224, "no fullbright texels"
     return bytes(px)
@@ -123,13 +187,14 @@ def paint_skin():
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
-    full, empty = build(0), build(1)
-    assert len(full.verts) == len(empty.verts) and full.tris == empty.tris, "frames of the same mesh"
+    frames = [build(f) for f in range(FRAMES)]
+    for f in frames[1:]:
+        assert len(f.verts) == len(frames[0].verts) and f.tris == frames[0].tris, "frames of the same mesh"
     path = os.path.join(out, "vrpouch_ammo.mdl")
     guard = genguard.Guard("make_ammo_pouch.py", [path])
-    mdlgen.write_mdl(path, full, [paint_skin()], "full", frames=[empty])
-    print("vrpouch_ammo.mdl: %d vertices, %d triangles, 2 frames -> %s" % (len(full.verts), len(full.tris),
-                                                                          os.path.normpath(path)))
+    mdlgen.write_mdl(path, frames[0], [paint_skin()], "pouch", frames=frames[1:])
+    print("vrpouch_ammo.mdl: %d vertices, %d triangles, %d frames -> %s" % (len(frames[0].verts), len(frames[0].tris),
+                                                                           FRAMES, os.path.normpath(path)))
     guard.finish()
 
 

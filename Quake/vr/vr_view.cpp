@@ -4801,8 +4801,28 @@ void setupMagazines()
 // The ammo pouch (immersive reloading, vr_reload_mode 3; docs/vr-port/RELOAD_PLAN.md): vrpouch_ammo.mdl (make_ammo_pouch.py:
 // as vrpouch.mdl, +x out of the body, its back at the origin) on the front of the belt between the hip holsters, facing
 // the belly's surface there (straight forward without the body), turned by vr_ammo_pouch_pitch/yaw/roll about where the
-// hand reaches for it, scaled by vr_ammo_pouch_scale about its back. Frame 0 full (you have shells: the rounds of the
-// guns that load by hand so far), 1 empty; lit up while a hand is at it.
+// hand reaches for it, scaled by vr_ammo_pouch_scale about its back. Its frame shows what it gives and how much is
+// left (ammoPouchFrame); lit up while a hand is at it.
+// The ammo pouch's frame (make_ammo_pouch.py frame_spec): what it gives (STAT_QVR_POUCHKIND) and how much of it is left
+// (STAT_QVR_POUCHCOUNT): a shell in sight each up to 5, a magazine (part-filled counting) up to 3 (the super nailgun's
+// 2); 0 empty.
+[[nodiscard]] int ammoPouchFrame()
+{
+    struct Kind
+    {
+        int first, most, each; // its frames' first, the most it shows, the rounds one shows
+    };
+    constexpr Kind kinds[] = {{1, 5, 1}, {6, 3, 24}, {9, 2, 36}, {11, 3, 36}};
+    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND];
+    const int left = cl.stats[protocol::STAT_QVR_POUCHCOUNT];
+    if(kind < 1 || kind > 4 || left <= 0)
+    {
+        return 0;
+    }
+    const Kind& k = kinds[kind - 1];
+    return k.first + za::min(k.most, (left + k.each - 1) / k.each) - 1;
+}
+
 void setupAmmoPouch(const hands::State& s)
 {
     view::ViewEntity& ve = entities.ammoPouch;
@@ -4833,7 +4853,7 @@ void setupAmmoPouch(const hands::State& s)
     const float clearance = plate.out != glm::vec3{0.f} ? CLAMP(0.f, plate.clearance, 4.f) : 0.f;
     HolsterPose pose{at - frame.out * clearance, aliasAngles(frame.out, frame.up), at, glm::vec3{0.f}};
     turnHolster(pose, at, frame, {vr_ammo_pouch_pitch.value, vr_ammo_pouch_yaw.value, vr_ammo_pouch_roll.value});
-    place(ve, model, pose.slotPos, pose.slotAngles, cl.stats[STAT_SHELLS] >= 1 ? 0 : 1, false);
+    place(ve, model, pose.slotPos, pose.slotAngles, ammoPouchFrame(), false);
     ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f)};
     highlight(ve, s.hotspot[HAND_OFF] == body::HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == body::HS_AMMO_POUCH);
 }
