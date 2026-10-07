@@ -2437,6 +2437,7 @@ const MonsterClass monsterClasses[] = {
     {"monster_wizard", "Scrag", &vr_mhull_wizard},
     {"monster_demon1", "Fiend", &vr_mhull_demon},
     {"monster_shambler", "Shambler", &vr_mhull_shambler},
+    {"monster_super_shambler", "Super Shambler", &vr_mhull_shambler}, // (Dawn of the Machine's: the shambler's width)
     {"monster_shalrath", "Vore", &vr_mhull_shalrath},
     {"monster_enforcer", "Enforcer", &vr_mhull_enforcer},
     {"monster_fish", "Rotfish", &vr_mhull_fish},

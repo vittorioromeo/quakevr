@@ -288,6 +288,7 @@ void restartVr()
         out.pushBack({21.f, "Ranged Knight"});
         out.pushBack({30.f, "Orb"});
         out.pushBack({32.f, "Lava Man (Dawn of the Machine)"});
+        out.pushBack({33.f, "Super Shambler"});
     }
     out.pushBack({31.f, "Slime"}); // (Dawn of the Machine's splitting spawn: Quake's model)
     return out;
@@ -5132,6 +5133,11 @@ za::Vector<Item> pageMg3BestiaryTests()
         command("A Lava Man Ahead", "vr_test_spawn 44; vr_test_spawn_dist 200; impulse 241")
             .help("Dawn of the Machine's lava man (MG3's model): it rises, stands as it throws lava balls, takes 0.8 of anything "
                   "but the lightning gun and the laser cannon."),
+        command("A Super Shambler Ahead", "vr_test_spawn 45; vr_test_spawn_dist 200; impulse 241")
+            .help("Dawn of the Machine's blood shambler: 2000 health, plasma sprays on its blows, lightning near and far."),
+        command("A Super Shambler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 45; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
+            .help("Ragdolls on and a super shambler killed at the Distance ahead (Debug > Tests > Ahead of You): he goes limp as he "
+                  "falls (his own rig on MG3's model)."),
         command("Bestiary Report", "vr_mg3_btest 1")
             .help("The Dawn of the Machine data each monster needs, and how many of each this map has (developer 1)."),
         command("Orb Test", "vr_mg3_btest 2")
@@ -5143,6 +5149,9 @@ za::Vector<Item> pageMg3BestiaryTests()
         command("Lava Man Test", "vr_mg3_btest 5")
             .help("Destructive: a lava man of Dawn of the Machine's ahead (god mode): it rises and flies, its first hit staggers "
                   "it, its damage rule, its throws, its death by a use; a Rogue lava man beside it unchanged (developer 1)."),
+        command("Super Shambler Test", "vr_mg3_btest 7")
+            .help("Destructive: a super shambler ahead (god mode): its plasma sprays, its lightning, half damage from blasts, its "
+                  "parries and head zone; killed: his ragdoll (developer 1)."),
         command("The Map's Sacrifices", "vr_mg3_btest 4")
             .help("Destructive (Dawn of the Machine's map8): every sacrifice used in turn; the counter's count down to its "
                   "target fired (developer 1)."),
@@ -5274,7 +5283,7 @@ za::Vector<Item> pageDebugTests()
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
              {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"},
              {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
-             {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"}, {40.f, "Orb"}, {41.f, "Slime"}, {42.f, "Ghost"}, {43.f, "Sacrifice"}, {44.f, "Lava Man (Dawn of the Machine)"},
+             {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"}, {40.f, "Orb"}, {41.f, "Slime"}, {42.f, "Ghost"}, {43.f, "Sacrifice"}, {44.f, "Lava Man (Dawn of the Machine)"}, {45.f, "Super Shambler"},
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},

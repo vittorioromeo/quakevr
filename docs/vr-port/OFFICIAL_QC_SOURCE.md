@@ -33,5 +33,5 @@ QC/vr_mg3_orb.qc adapts quakec_mg3/monsters/mg3_orb.qc, its ai.qc branches and b
 (same header; its RANGE_FAR call of wiz_run1 is orb_run1 here). QC/vr_mg3_ghost.qc, QC/vr_mg3_sacrifice.qc and
 QC/vr_mg3_slime.qc adapt mg3_player_ghost.qc, mg3_sacrifice.qc with mg3_sacrifice_triggers.qc, and tarbaby.qc's slime
 (same header). QC/vr_mg3_lavaman.qc and the .mg3_lavaman branches of QC/rogue_lavaman.qc adapt mg3_lavaman.qc and
-combat.qc's lava man rule (same header).
+combat.qc's lava man rule (same header). QC/vr_mg3_supershambler.qc adapts mg3_super_shambler.qc (same header).
 Plan and task list: [MG3_PLAN.md](MG3_PLAN.md).

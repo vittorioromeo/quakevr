@@ -94,6 +94,7 @@ string(entity e) VR_Decap_HeadModel =
     if(c == "monster_zombie")        { return "progs/h_zombie.mdl"; }
     if(c == "monster_demon1")        { return "progs/h_demon.mdl"; }
     if(c == "monster_shambler")      { return "progs/h_shams.mdl"; }
+    if(c == "monster_super_shambler") { return "progs/h_shams.mdl"; } // (Dawn of the Machine's: the shambler's head gib)
     if(c == "monster_gremlin")       { return "progs/h_grem.mdl"; }
     if(c == "monster_shalrath")      { return "progs/h_shal.mdl"; }
     if(c == "monster_scourge")       { return "progs/h_scourg.mdl"; } // (Hipnotic's centroid)

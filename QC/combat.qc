@@ -405,6 +405,11 @@ float(entity e) VR_Corpse_Parts =
         vr_corpse_head = "progs/h_scourg.mdl";
         vr_corpse_healthh = cvarh_vr_corpse_health_scourge;
     }
+    else if(e.th_die == supsham_die)
+    {
+        vr_corpse_head = "progs/h_shams.mdl"; // (Dawn of the Machine's super shambler: as the shambler)
+        vr_corpse_healthh = cvarh_vr_corpse_health_shambler;
+    }
     else if(e.th_die == VR_Decap_ZombieDie)
     {
         // A zombie or a mummy beheaded (vr_decap.qc): it died whole, its ragdoll gibbed as a corpse.
@@ -1623,7 +1628,7 @@ float(entity e) VR_Parry_MeleeMonster =
 {
     string c = e.classname;
     return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_ogre" || c == "monster_demon1" ||
-           c == "monster_dog" || c == "monster_shambler" || c == "monster_fish" || c == "monster_gremlin" ||
+           c == "monster_dog" || c == "monster_shambler" || c == "monster_super_shambler" || c == "monster_fish" || c == "monster_gremlin" ||
            c == "monster_mummy" || c == "monster_super_wrath" || c == "monster_sword" || c == "monster_morph" ||
            c == "monster_dragon" || c == "monster_scourge" || c == "monster_ogre_marksman" || c == "monster_tarbaby" ||
            e.vr_dummy_striking || e.vr_eshove_striking;
@@ -1938,7 +1943,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     vector to = attacker.origin - targ.origin;
     to_z = 0;
     // Up close only (a shambler's lightning also comes from the shambler itself).
-    if(vlen(to) > 150 || (attacker.classname == "monster_shambler" && vlen(to) > 110))
+    if(vlen(to) > 150 || (VR_IsShambler(attacker) && vlen(to) > 110))
     {
         return damage;
     }
@@ -2309,7 +2314,7 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
                     {    // shambler takes half damage from all explosions
                         float oldHitKind = vr_hitkind;
                         vr_hitkind = QVR_HITKIND_SPLASH;
-                        if(head.classname == "monster_shambler")
+                        if(VR_IsShambler(head))
                             T_Damage(head, inflictor, attacker, points*0.5);
                         else
                             T_Damage(head, inflictor, attacker, points);
@@ -2352,7 +2357,7 @@ void(entity attacker, float damage) T_BeamDamage =
                 {
                     float oldHitKind = vr_hitkind;
                     vr_hitkind = QVR_HITKIND_SPLASH;
-                    if(head.classname == "monster_shambler")
+                    if(VR_IsShambler(head))
                         T_Damage(head, attacker, attacker, points*0.5);
                     else
                         T_Damage(head, attacker, attacker, points);

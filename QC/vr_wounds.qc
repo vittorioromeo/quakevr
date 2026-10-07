@@ -124,7 +124,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     else if(inflictor.flags & (FL_MONSTER | FL_CLIENT))
     {
         kind = QVR_WOUND_MELEE; // a monster's claw, bite or blade (the shambler's lightning: from afar)
-        if(inflictor.classname == "monster_shambler" && vlen(inflictor.origin - targ.origin) > 120)
+        if(VR_IsShambler(inflictor) && vlen(inflictor.origin - targ.origin) > 120)
         {
             kind = QVR_WOUND_ZAP;
         }

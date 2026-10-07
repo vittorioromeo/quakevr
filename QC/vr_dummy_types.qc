@@ -166,6 +166,13 @@ void(float xType) VR_Dummy_Type =
         vr_dt_snd1 = "owned/mg3/orb/orb_pain.wav";
         return;
     }
+    if(xType == 33)
+    {
+        vr_dt_class = "monster_super_shambler"; vr_dt_name = "Super Shambler"; vr_dt_pack = 3; // (the shambler's frames)
+        vr_dt_stand = 0; vr_dt_stands = 17; vr_dt_pain = 77; vr_dt_pains = 6; vr_dt_atk = 35; vr_dt_atks = 12;
+        vr_dt_snd1 = "shambler/shurt2.wav";
+        return;
+    }
     if(xType == 32)
     {
         vr_dt_class = "monster_lava_man"; vr_dt_name = "Lava Man"; vr_dt_pack = 3; // (Dawn of the Machine's: MG3's model)
@@ -211,6 +218,7 @@ void(float xType) VR_Dummy_TypeSpawn =
     if(xType == 30) { monster_orb(); return; }
     if(xType == 31) { monster_slime(); return; }
     if(xType == 32) { monster_lava_man_mg3(); return; }
+    if(xType == 33) { monster_super_shambler(); return; }
     monster_army();
 };
 

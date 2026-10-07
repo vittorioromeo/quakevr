@@ -532,7 +532,7 @@ float(entity e, float xBrains) VR_SmallGib_Mult =
         h = xBrains ? cvarh_vr_smallgibs_brains_mult_hellknight : cvarh_vr_smallgibs_mult_hellknight; known = TRUE;
     }
     else if(e.th_die == shalrath_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_vore : cvarh_vr_smallgibs_mult_vore; known = TRUE; }
-    else if(e.th_die == sham_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_shambler : cvarh_vr_smallgibs_mult_shambler; known = TRUE; }
+    else if(e.th_die == sham_die || e.th_die == supsham_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_shambler : cvarh_vr_smallgibs_mult_shambler; known = TRUE; }
     else if(e.th_die == wiz_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_scrag : cvarh_vr_smallgibs_mult_scrag; known = TRUE; }
     else if(e.th_die == fish_die || e.th_die == f_death1) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_fish : cvarh_vr_smallgibs_mult_fish; known = TRUE; }
     else if(e.th_die == gremlin_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_gremlin : cvarh_vr_smallgibs_mult_gremlin; known = TRUE; }

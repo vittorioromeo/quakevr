@@ -237,6 +237,8 @@ float(entity xTarget) PositionalHead =
     if(c == "monster_hell_knight")      { xHeadForward = 6;  xHeadUp = 33; xHeadRadius = 7.2; return TRUE; }
     if(c == "monster_knight")           { xHeadForward = 4;  xHeadUp = 22; xHeadRadius = 6.2; return TRUE; }
     if(c == "monster_shambler")         { xHeadForward = 14; xHeadUp = 57; xHeadRadius = 12;  return TRUE; }
+    // Dawn of the Machine's super shambler (MG3's model, $stand1: its face at the hump's front, 33-72 up; its rig's head).
+    if(c == "monster_super_shambler")   { xHeadForward = 30; xHeadUp = 53; xHeadRadius = 13;  return TRUE; }
     // A vore's: Quake VR's own model (progs/shalrath.mdl, taller than id's): his head 40-53 above his origin (round 21).
     if(c == "monster_shalrath")         { xHeadForward = 0;  xHeadUp = 45; xHeadRadius = 8;   return TRUE; }
     if(c == "monster_zombie")           { xHeadForward = 0;  xHeadUp = 22; xHeadRadius = 6;   return TRUE; }
@@ -2219,7 +2221,7 @@ void() T_MissileTouch =
 
     if(other.health)
     {
-        if(other.classname == "monster_shambler")
+        if(VR_IsShambler(other))
             damg = damg * 0.5;    // mostly immune
         T_Damage(other, self, self.owner, damg);
     }

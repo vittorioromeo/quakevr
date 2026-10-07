@@ -1272,6 +1272,15 @@ Only one per level please!"
 	]
 ]
 
+@PointClass color(255 0 0) size(-32 -32 -24, 32 32 64) model({ "path": "owned/mg3/progs/shambler_blood.mdl" }) =
+	monster_super_shambler : "Dawn of the Machine's blood shambler (needs the owned Dawn of the Machine data, else nothing spawns): 2000 health; its smashes and claws spray plasma, it casts lightning near and far (600 to 1000 units), half damage from explosions. 'health_target': its health relays."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+]
+
 @PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) model({ "path": "progs/s_wrath.mdl" }) =
 	monster_super_wrath : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
 

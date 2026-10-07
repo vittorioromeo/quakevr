@@ -249,6 +249,7 @@ float(entity m) VR_Grapple_MonsterMass =
     if(c == "monster_scourge")       { return 300; }
     if(c == "monster_super_wrath")   { return 450; }
     if(c == "monster_shambler")      { return 600; }
+    if(c == "monster_super_shambler") { return 800; } // (Dawn of the Machine's: bigger)
     if(c == "monster_lava_man")      { return 3000; }
     if(c == "monster_dragon")        { return 3000; }
     if(c == "monster_armagon")       { return 3000; }

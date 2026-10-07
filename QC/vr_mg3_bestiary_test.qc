@@ -8,6 +8,9 @@
 //   5 a lava man of MG3's (it flies, its first hit staggers it, 0.8 but lightning and laser, none from Chthon, throws, a use
 //     kills it) and Rogue's beside it, unchanged
 //   6 (Dawn of the Machine's map2b) its lava men: waiting, risen by their trigger, killed by a use
+//   7 the super shambler: its registrations, blasts at half, plasma sprays (smash 11, claw 9), its fast cast's 3 bolts,
+//     killed: a ragdoll on its own rig
+//   8, 9 (Dawn of the Machine's map8) its super shambler hurt past its health relays; after a save and a load, killed
 //   4 (Dawn of the Machine's map8) each of the map's victims used: the counter (8) counts down, its target fired once
 
 float mg3bt_pass, mg3bt_fail;
@@ -102,6 +105,7 @@ void() MG3_BT_Report =
     float lava = 0, lavamg3 = 0, lavastep = 0;
     e = find(world, classname, "monster_lava_man");
     while(e) { lava++; if(e.mg3_lavaman) lavamg3++; if(e.movetype == MOVETYPE_STEP) lavastep++; e = find(e, classname, "monster_lava_man"); }
+    dprint(sprintf("mg3btest: monster_super_shambler %g alive\n", MG3_BT_Count("monster_super_shambler")));
     dprint(sprintf("mg3btest: monster_lava_man %g (MG3's %g, walking %g)\n", lava, lavamg3, lavastep));
 };
 
@@ -525,6 +529,112 @@ void() MG3_BT_MapLavaStep =
     }
 };
 
+// The super shambler: its registrations, its plasma, its lightning, blasts at half, killed: its ragdoll.
+void() MG3_BT_SuperShamblerStep =
+{
+    entity p = MG3_BT_Player();
+    entity oldself = self;
+    if(mg3bt_step == 60)
+    {
+        mg3bt_pass = mg3bt_fail = 0;
+        p.flags = p.flags | FL_GODMODE;
+        mg3bt_t = total_monsters;
+        mg3bt_a = MG3_BT_Spawn(p, 45, 200, 0, 0);
+        MG3_BT_Check(mg3bt_a.classname == "monster_super_shambler" && mg3bt_a.model == "owned/mg3/progs/shambler_blood.mdl" &&
+            mg3bt_a.health == 2000 && total_monsters == mg3bt_t + 1, sprintf("a super shambler ahead (%s, %g health), counted", mg3bt_a.model, mg3bt_a.health));
+        MG3_BT_Check(PositionalHead(mg3bt_a) && xHeadUp == 53 && VR_Decap_HeadModel(mg3bt_a) == "progs/h_shams.mdl", "its head zone and head gib");
+        MG3_BT_Check(VR_Parry_MeleeMonster(mg3bt_a) && VR_Grapple_MonsterMass(mg3bt_a) == 800 && VR_Dummy_Available(33),
+            "its blows parried, 800 kg to the grapple, the dummy's enemy 33");
+        mg3bt_step = 61; mg3bt_next = time + 1; // (started: hurt by shots)
+        return;
+    }
+    if(mg3bt_step == 61)
+    {
+        MG3_BT_Check(mg3bt_a.takedamage && canragdoll(mg3bt_a) && mg3bt_a.vr_kd_chance_h == cvarh_vr_knockdown_chance_shambler,
+            "started; a rig, knocked down as a shambler");
+        entity boom = spawn();
+        setorigin(boom, mg3bt_a.origin);
+        float h = mg3bt_a.health;
+        T_RadiusDamage(boom, p, 100, world);
+        remove(boom);
+        float lost = h - mg3bt_a.health;
+        MG3_BT_Check(lost > 0 && lost <= 50, sprintf("a blast at it: half (%g of 100 at most)", lost));
+        mg3bt_a.enemy = p;
+        mg3bt_n = mg3_supsham_plasma;
+        self = mg3bt_a; supsham_smash1(); self = oldself;
+        mg3bt_step = 62; mg3bt_next = time + 1.5;
+        return;
+    }
+    if(mg3bt_step == 62)
+    {
+        MG3_BT_Check(mg3_supsham_plasma - mg3bt_n == 11, sprintf("its smash sprays 11 plasma balls (%g)", mg3_supsham_plasma - mg3bt_n));
+        mg3bt_n = mg3_supsham_plasma;
+        self = mg3bt_a; supsham_swingl1(); self = oldself;
+        mg3bt_step = 63; mg3bt_next = time + 1.2;
+        return;
+    }
+    if(mg3bt_step == 63)
+    {
+        MG3_BT_Check(mg3_supsham_plasma - mg3bt_n == 9, sprintf("a claw sprays 9 (%g)", mg3_supsham_plasma - mg3bt_n));
+        mg3bt_n = mg3_supsham_bolts;
+        self = mg3bt_a; supsham_magic_b1(); self = oldself;
+        mg3bt_step = 64; mg3bt_next = time + 1.6;
+        return;
+    }
+    if(mg3bt_step == 64)
+    {
+        MG3_BT_Check(mg3_supsham_bolts - mg3bt_n == 3 && !mg3bt_a.supsham_child, sprintf("its fast cast: 3 bolts (%g), its glow gone", mg3_supsham_bolts - mg3bt_n));
+        mg3bt_k = killed_monsters;
+        mg3bt_a.health = 10;
+        T_Damage(mg3bt_a, p, p, 20); // (dies whole: not below -60)
+        MG3_BT_Check(mg3bt_a.health <= 0 && killed_monsters == mg3bt_k + 1, "killed, counted");
+        mg3bt_step = 65; mg3bt_next = time + 2;
+        return;
+    }
+    if(mg3bt_step == 65)
+    {
+        MG3_BT_Check(isragdoll(mg3bt_a) && ragdolllimbs(mg3bt_a, 0) > 0, sprintf("he lies as a ragdoll (vr_ragdoll %g), his limb bits %g", cvar("vr_ragdoll"), ragdolllimbs(mg3bt_a, 0)));
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        MG3_BT_Total();
+        return;
+    }
+};
+
+// Dawn of the Machine's map8: its super shambler's health relays fire as it is hurt (8); after a save and a load (9) it
+// fights on with its health, then dies (its target fired, counted once).
+void(float xPart) MG3_BT_MapSuperShambler =
+{
+    entity p = MG3_BT_Player();
+    mg3bt_pass = mg3bt_fail = 0;
+    entity s = find(world, classname, "monster_super_shambler");
+    while(s && s.health <= 0) s = find(s, classname, "monster_super_shambler");
+    if(!s) { dprint("mg3btest: no living monster_super_shambler here (Dawn of the Machine's map8 has one)\n"); return; }
+    if(xPart == 1)
+    {
+        float relays = 0;
+        entity r = find(world, targetname, s.health_target);
+        while(r) { if(r.classname == "trigger_health_relay") relays++; r = find(r, targetname, s.health_target); }
+        MG3_BT_Check(s.model == "owned/mg3/progs/shambler_blood.mdl" && s.health == 2000 && s.max_health == 2000 && relays >= 1,
+            sprintf("map8's super shambler (%g health, health_target %s: %g relays)", s.health, s.health_target, relays));
+        s.enemy = p;
+        T_Damage(s, p, p, 1100);
+        T_Damage(s, p, p, 1); // (its relays read its health before a blow, as upstream: the next blow fires them)
+        float left = 0;
+        r = find(world, targetname, s.health_target);
+        while(r) { if(r.classname == "trigger_health_relay") left++; r = find(r, targetname, s.health_target); }
+        MG3_BT_Check(s.health == 899 && left < relays, sprintf("hurt to %g: %g of its %g relays fired", s.health, relays - left, relays));
+    }
+    else
+    {
+        MG3_BT_Check(s.health == 899 && s.takedamage && s.model == "owned/mg3/progs/shambler_blood.mdl" && s.th_die == supsham_die,
+            sprintf("after the load: %g health, its model and death", s.health));
+        mg3bt_k = killed_monsters;
+        T_Damage(s, p, p, 950);
+        MG3_BT_Check(s.health <= 0 && killed_monsters == mg3bt_k + 1, "killed, counted once");
+    }
+    MG3_BT_Total();
+};
+
 // Each frame (world.qc StartFrame).
 void() MG3_BestiaryTestFrame =
 {
@@ -535,6 +645,7 @@ void() MG3_BestiaryTestFrame =
         else if(mg3bt_step < 20) MG3_BT_GhostSlimeStep();
         else if(mg3bt_step >= 30 && mg3bt_step < 50) MG3_BT_LavaStep();
         else if(mg3bt_step >= 50 && mg3bt_step < 60) MG3_BT_MapLavaStep();
+        else if(mg3bt_step >= 60 && mg3bt_step < 70) MG3_BT_SuperShamblerStep();
         self = os; other = oo; activator = oa;
     }
     float request = cvar("vr_mg3_btest");
@@ -551,6 +662,9 @@ void() MG3_BestiaryTestFrame =
     else if(request == 3) { mg3bt_step = 10; mg3bt_next = time; }
     else if(request == 4) MG3_BT_MapSacrifices();
     else if(request == 6) { mg3bt_step = 50; mg3bt_next = time; }
+    else if(request == 8) MG3_BT_MapSuperShambler(1);
+    else if(request == 9) MG3_BT_MapSuperShambler(2);
+    else if(request == 7) { if(MG3_SuperShambler_Available()) { mg3bt_step = 60; mg3bt_next = time; } }
     else if(request == 5)
     {
         if(!MG3_LavaMan_Available()) dprint("mg3btest: the Dawn of the Machine data is not there (no lava man)\n");

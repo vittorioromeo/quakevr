@@ -86,7 +86,7 @@ float(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Highli
     }
     // The big ones.
     string c = targ.classname;
-    if(c == "monster_shambler")
+    if(c == "monster_shambler" || c == "monster_super_shambler")
     {
         score = score + 2;
     }

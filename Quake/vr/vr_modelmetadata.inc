@@ -61,6 +61,8 @@ QVR_MODEL_ID(Shambler, "progs/shambler.mdl")
 QVR_MODEL_ID(Mummy, "progs/mummy.mdl")
 QVR_MODEL_ID(Shalrath, "progs/shalrath.mdl")
 QVR_MODEL_ID(Scor, "progs/scor.mdl")
+// Dawn of the Machine's super shambler, read from the owned MG3 pack in place (its ragdoll rig: vr_ragdoll.cpp).
+QVR_MODEL_ID(Mg3ShamblerBlood, "owned/mg3/progs/shambler_blood.mdl")
 QVR_MODEL_ID(Legholster, "progs/legholster.mdl")
 QVR_MODEL_ID(Vrflashlight, "progs/vrflashlight.mdl")
 QVR_MODEL_ID(BulletDecal, "progs/s_bullet.spr")

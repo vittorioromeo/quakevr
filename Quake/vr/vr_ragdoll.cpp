@@ -470,6 +470,31 @@ constexpr Seed rknightSeeds[] = {
     {"foot_r", 12, Joint::Ball, {2.7f, -11.4f, -23.f}, {0.5f, -11.3f, -20.2f}, {4.9f, -11.6f, -25.7f}, 0.f, 35.f, 15.f, 0.f, {}},
 };
 
+// Dawn of the Machine's super shambler (MG3's progs/shambler_blood.mdl, read in place from the owned pack: 1076 vertices,
+// 96 frames, unnamed; the shambler's 94 first, as its QC's $frames). The rest pose ($stand1): x forward, y left, z up;
+// taller than Quake VR's shambler (74 up, his face further forward), his claws low. The shambler's bones: pelvis (his
+// belly), chest (the hump), head (the face and jaw at the hump's front), upper arms, forearms (elbow hinges) and claws,
+// thighs and shins (knee hinges; capsules 5.5 and 5). Measured on his frames (Misc/quakevr/ragdoll/rig.py shambler_blood
+// shambler_blood_bones.json, RIG_PAK: MG3's pak0; 24 clusters: 1.29 units rms): bones 1.77. Seed centres set by hand
+// where the fit's would give a cluster to another bone (rig.py's warnings): pelvis 7 -1 26 (the belly's front, not the
+// head's), chest 12 -3 55, head 31 -3.5 52 (its brow, not the hump's), thigh_l 5.4 12.9 8.4 (the hip's cluster the
+// pelvis's). Death frames 83-93 ($death1-11).
+constexpr Seed shamblerBloodSeeds[] = {
+    {"pelvis", -1, Joint::Root, {7.f, -1.f, 26.f}, {7.6f, -0.9f, 30.1f}, {8.6f, 0.4f, 32.8f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {12.f, -3.f, 55.f}, {8.6f, 0.4f, 32.8f}, {22.2f, -1.1f, 48.f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {31.f, -3.5f, 52.f}, {22.2f, -1.1f, 48.f}, {42.6f, -5.5f, 47.3f}, 0.f, 30.f, 30.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {8.2f, 22.9f, 44.f}, {10.1f, 11.4f, 53.8f}, {8.8f, 30.7f, 32.6f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {25.9f, 33.8f, 19.6f}, {8.8f, 30.7f, 32.6f}, {30.9f, 36.6f, 18.5f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_l", 4, Joint::Ball, {40.8f, 29.4f, 17.7f}, {30.9f, 36.6f, 18.5f}, {50.7f, 22.2f, 16.9f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"upperarm_r", 1, Joint::Ball, {3.9f, -26.7f, 41.3f}, {10.1f, -17.3f, 51.3f}, {0.3f, -30.8f, 28.3f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 6, Joint::Hinge, {13.f, -38.5f, 12.f}, {0.3f, -30.8f, 28.3f}, {17.8f, -45.6f, 11.8f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 7, Joint::Ball, {26.8f, -42.6f, 7.2f}, {17.8f, -45.6f, 11.8f}, {35.9f, -39.6f, 2.7f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {5.4f, 12.9f, 8.4f}, {-0.5f, 5.8f, 20.6f}, {6.3f, 15.1f, 0.2f}, 5.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 9, Joint::Hinge, {1.7f, 12.9f, -13.8f}, {6.3f, 15.1f, 0.2f}, {-0.3f, 11.9f, -20.1f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {5.9f, -13.7f, 5.2f}, {-1.2f, -8.4f, 19.1f}, {7.1f, -12.6f, -9.3f}, 5.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 11, Joint::Hinge, {5.2f, -15.7f, -18.f}, {7.1f, -12.6f, -9.3f}, {4.6f, -16.6f, -20.7f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -488,6 +513,7 @@ constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Mg3DogExplosive, 915, dogExplosiveSeeds, static_cast<int>(sizeof(dogExplosiveSeeds) / sizeof(dogExplosiveSeeds[0])), 2, {8, 17}, {16, 25}},
     {modelmeta::Id::Mg3Rknight, 1155, rknightSeeds, static_cast<int>(sizeof(rknightSeeds) / sizeof(rknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {modelmeta::Id::Mg3OgreRocket, 982, ogreRocketSeeds, static_cast<int>(sizeof(ogreRocketSeeds) / sizeof(ogreRocketSeeds[0])), 2, {112, 126}, {125, 135}},
+    {modelmeta::Id::Mg3ShamblerBlood, 1076, shamblerBloodSeeds, static_cast<int>(sizeof(shamblerBloodSeeds) / sizeof(shamblerBloodSeeds[0])), 1, {83, 0}, {93, 0}, 24},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
@@ -882,7 +908,11 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ||
         hdr->numverts != table.numVerts || hdr->numposes < 2 || table.count > maxBones)
     {
-        q_snprintf(log.text, sizeof(log.text), "ragdoll: %s is not the model its seed table was made for\n", model->name);
+        q_snprintf(log.text, sizeof(log.text),
+            "ragdoll: %s is not the model its seed table was made for (%d vertices, the table's %d; pose type %d; %d poses; "
+            "surfaces %s)\n",
+            model->name, hdr ? hdr->numverts : -1, table.numVerts, hdr ? static_cast<int>(hdr->poseverttype) : -1,
+            hdr ? hdr->numposes : -1, hdr && Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ? "several" : "one");
         return false;
     }
     Mesh m;

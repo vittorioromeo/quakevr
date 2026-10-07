@@ -2157,6 +2157,11 @@ const RagdollClass ragdollClasses[] = {
         {&vr_ragdoll_vore_start, &vr_ragdoll_vore_mass, &vr_ragdoll_vore_friction, &vr_ragdoll_vore_joint_friction,
             &vr_ragdoll_vore_joint_stiffness, &vr_ragdoll_vore_limits, &vr_ragdoll_vore_damping, &vr_ragdoll_vore_blast,
             &vr_ragdoll_vore_inherit}},
+    // Dawn of the Machine's super shambler: the shambler's settings (Ragdoll Settings > Shambler) and head gib.
+    {"monster_super_shambler", "progs/h_shams.mdl",
+        {&vr_ragdoll_shambler_start, &vr_ragdoll_shambler_mass, &vr_ragdoll_shambler_friction,
+            &vr_ragdoll_shambler_joint_friction, &vr_ragdoll_shambler_joint_stiffness, &vr_ragdoll_shambler_limits,
+            &vr_ragdoll_shambler_damping, &vr_ragdoll_shambler_blast, &vr_ragdoll_shambler_inherit}},
     {"monster_scourge", "progs/h_scourg.mdl",
         {&vr_ragdoll_centroid_start, &vr_ragdoll_centroid_mass, &vr_ragdoll_centroid_friction,
             &vr_ragdoll_centroid_joint_friction, &vr_ragdoll_centroid_joint_stiffness, &vr_ragdoll_centroid_limits,

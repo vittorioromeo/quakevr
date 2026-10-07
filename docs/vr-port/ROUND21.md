@@ -28658,3 +28658,49 @@ model, after you), used again: dead, counted, gone. FGD: 332 entities.
 
 **In the headset.** [ ] MG3 map2b's lava men: they rise from the lava, throw standing; the first hit staggers them.
 [ ] Bestiary > A Lava Man Ahead: aim at its head (the zone: Debug > Show Hit Zones).
+
+### M3-22 The super shambler (blood shambler)
+
+`monster_super_shambler` (`QC/vr_mg3_supershambler.qc`, upstream `mg3_super_shambler.qc`; map2, map4, map8, secret5 x2):
+the shambler's frames on MG3's model (`owned/mg3/progs/shambler_blood.mdl`: 1076 vertices, 96 frames, unnamed; the
+shambler's 94 first), 2000 health. Up close it smashes (80%) or claws; each smash sprays 11 plasma balls in a fan
+(`owned/mg3/progs/rogue/plasma.mdl`, the knights' spike's touch: 9) and each claw 9 in a block, thrown up or down at you
+by height and distance; after three or four blows (Bloody Nightmare one fewer) its lightning. From 110 to 200 units it
+claws by the side you are on; further off (and its lightning rested) it casts: a long cast (60%, then 5 s) or a fast one
+(3 s), each three bolts reaching 600-1000 units (the shambler's 600), the glow over its hands while it winds up. Half
+damage from blasts and rockets as the shambler (`VR_IsShambler`: radius damage, rockets, Rogue's multi-rockets; its
+lightning a zap wound from afar). Gibbed below -60 (the shambler's head gib). Dying, the super shamblers it owns die too
+(upstream `cleanup_orbs`). Dropped: the KEX achievements. Upstream pathfinding (bot nav) has no Quake VR counterpart:
+it moves as the shambler.
+
+**The model is the .mdl.** Ironwail loaded MG3's KEX `shambler_blood.md5mesh` beside it (enhanced models): skeletal
+poses that the QC frames, the hit model and a vertex-animation rig cannot read ("not the model its seed table was made
+for", now with the reason: pose type 1). An owned expansion's model read in place now refuses its md5 companion
+(`VR_ModelReplacementOk`, vr_handrig.cpp: `owned/` paths), so it draws, hits and ragdolls as its .mdl (the plan's "keep
+that").
+
+**Its rig** (`vr_ragdoll.cpp` `shamblerBloodSeeds`, `Id::Mg3ShamblerBlood`): the shambler's 13 bones (pelvis, chest,
+head, upper arms, forearms (hinges), claws, thighs, shins (hinges; capsules 5.5, 5)), fitted with
+`RIG_PAK=<MG3 pak0> rig.py shambler_blood 24` then `shambler_blood_bones.json` (Misc/quakevr/ragdoll): clusters 1.29 units
+rms, bones 1.77 (the shambler's 1.21 / 1.57: the hi-poly model's hump and claws bend more). Four seed centres set by hand
+where the fit's would hand a cluster to another bone (rig.py's warnings: the belly's front to the head, the hip to the
+left thigh). Death frames 83-93. Its ragdoll settings, head gib, knockdown chance, corpse health, small gibs, hull
+width: the shambler's (`ragdollClasses` row, `VR_Knockdown_SetupReverse`, `VR_Corpse_Parts`, `VR_SmallGib_Mult`,
+`monsterClasses`). Head zone 30 forward, 53 up, radius 13 (its face at the hump's front: the head bone's vertices 33-72
+up); parried as a melee monster; grapple 800 kg.
+
+**Anywhere:** Debug spawner 45, training dummy enemy 33 (with MG3's data), Bestiary rows (A Super Shambler Ahead, ... Its
+Ragdoll There, the test). FGD 333 entities.
+
+Tests: `vr_mg3_btest 7` (e1m1, ragdolls on) **10/0**: spawned, counted, its head zone and gib, parried, 800 kg, dummy 33;
+started: a rig, knocked down as a shambler; a blast at it: half (50 of 100 at most); its smash 11 plasma balls, a claw
+9, a fast cast 3 bolts and its glow gone; killed: counted, a ragdoll ("rigged: 13 bones, clusters 1.29, bones 1.77 units
+rms, 43.7 ms"; 13 parts asleep in 11 s, 280 kg, nothing below the floor). `decap_test.sh live pop` (MON=45): a slash
+beheads it (its head thrown); shotgun, super shotgun, overkill and lightning headshots that kill pop the head; body shots
+don't; a left claw cut off on the way. MG3 map8 (`vr_mg3_btest 8`, save, load, `9`) **2/0 + 2/0**: its health relay
+(read before a blow, as upstream: the blow after the threshold fires it) fired at 899 of 2000; after the save and load
+899, its model and death; killed, counted once. map2's has rune flags (later visits). Screenshot (kit scratch
+`ss_orb.png`): the blood shambler and an orb in e1m1. Checker: 15 missing classes, 546 placements.
+
+**In the headset.** [ ] Bestiary > A Super Shambler Ahead: parry its claws, dodge the plasma sprays, its lightning from
+afar; shoot its head (the zone), behead it with a slash; kill it and push his ragdoll about (Ragdoll Settings > Shambler).

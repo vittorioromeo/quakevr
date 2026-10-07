@@ -194,7 +194,7 @@ void() MultiRocketExplode =
 
     if(other.health)
     {
-        if(other.classname == "monster_shambler")
+        if(VR_IsShambler(other))
             damg = damg * 0.5;    // mostly immune
         if(other.classname == "monster_dragon")
             damg = damg * 0.5;    // mostly immune
@@ -491,7 +491,7 @@ void() PlasmaTouch =
 
     if(other.health)
     {
-        if(other.classname == "monster_shambler")
+        if(VR_IsShambler(other))
             damg = damg * 0.5;    // mostly immune
         T_Damage(other, self, self.owner, damg);
     }
