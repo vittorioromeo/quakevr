@@ -26,6 +26,11 @@
 #   5. The author's notes on phase 1: the pouch riding the legs as he walks, a load point moved by its offset, Collision
 #      Leniency letting a held shell reach the port, an ammo box let go of at the pouch going in, the pouch's frame by
 #      what it gives and how much (the self-test checks the pouch by ammo and its last kind).
+#   8. The author's magazine notes, the gun in the main hand, grip mode Hold: the gun's own two-handed grip and its
+#      magazine both hold it (each gun); the pull's four ways (gentle stays; hard, snap, apart out); Pull Reach 0 on the
+#      magazine's box; a hit at its far end; a gun carried by the off hand, its magazine out and in again.
+#   9. The ammo button: front, behind, side at cone 50, behind at 180; 20 approaches from the front (95% pressed) and 20
+#      from behind (none).
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
@@ -126,7 +131,42 @@ log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$GRIP;vr_mock_hand_to main lport 10
 check $(echo "$log" | grep -q "knocked out by a hit" && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "clip 0 mag 0 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "a punch knocks the magazine out"
 log=$(bash $KIT/run.sh $AGENT -Script "${SG/vr_reload_debug 1/vr_debug_2h_grip 1};$GRIP;vr_mock_hand_to main heldspot 0;wait3;vr_mock_hand_to main heldspot 0;wait10;vr_dumpview;vr_mock_button main grip 0;-grabmain;wait10;$GRIP;vr_dumpview;toggleconsole;quit" -Filter "$F2" 2>&1)
 check $(echo "$log" | grep -q "already closed: no hold" && echo "$log" | grep "^off hand:" | sed -n 1p | grep -q "two-handed 0.00" && echo "$log" | grep "^off hand:" | sed -n 2p | grep -q "two-handed 0.70" && echo 1 || echo 0) "a fist moved onto the shotgun's grip takes no hold; closing there does"
-# 7. The author's magazine notes (ROUND21.md, "Immersive reloading: magazines, both grips, the pull"): the gun in the MAIN
+# 7. The super shotgun broken open (phase 2b; ROUND21.md, "Immersive reloading: the super shotgun broken open"): in the
+# off hand, both barrels fired (their shells stay in), the flick (+flickreloadleft) breaks it open (the two spent ones
+# out), fired open it only clicks, a taped pair from the pouch at its breech loads both, the flick shuts it and it fires
+# again; a pair at the shut gun is refused; both hands on it, gentle moves and turns keep it shut, the pry opens it, the
+# barrels lifted shut it; Close When Loaded; Break Open off: the flick reloads it as before.
+SSG="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_debug_2h_grip 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 155;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait10"
+FIRE="+offhandattack;wait10;-offhandattack;wait30"
+FLICK="+flickreloadleft;wait3;-flickreloadleft;wait40"
+AT="vr_mock_hand_to main lport 8;wait5;vr_mock_hand_to main lport 8;wait10;vr_mock_hand_to main lport;wait5;vr_mock_hand_to main lport;wait10"
+F7="^reload:|^ssg:|2h grip"
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$REP;$FLICK;$REP;$FIRE;$POUCH;$GRIP;$AT;$REP;$LETGO;$FLICK;$REP;$FIRE;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+st=$(echo "$log" | grep "^reload: the super shotgun open")
+check $(echo "$st" | sed -n 1p | grep -q "open 0 spent 2" && echo "$log" | grep -q "broken open by a flick: 2 spent and 0 live thrown out" && echo "$st" | sed -n 2p | grep -q "open 1 spent 0" && echo 1 || echo 0) "both barrels fired: their shells stay in; the flick breaks it open, the two spent ones out"
+check $(echo "$log" | grep -q "a dry click: the super shotgun (hand 0) is open" && echo 1 || echo 0) "fired open: a dry click"
+check $(echo "$log" | grep -q "a taped pair taken from the pouch by hand 1: 28 left" && echo "$log" | grep -q "2 into the gun (hand 0): its magazine 2 of 2" && echo 1 || echo 0) "the pouch gives it a taped pair; at the open breech both go in"
+holds=$(echo "$log" | grep "^reload: off hand")
+check $(echo "$log" | grep -q "closed by a flick: 2 loaded" && h 4 | grep -q "weapon 5 clip 2 " && h 5 | grep -q "weapon 5 clip 0 " && echo 1 || echo 0) "the flick shuts it; it fires again (both barrels)"
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$POUCH;$GRIP;$AT;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+check $(echo "$log" | grep -q "the super shotgun is shut: break it open first" && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "clip 0 .*holds a round of 2" && echo 1 || echo 0) "shut, a pair at its breech is refused (the can't click)"
+TO2H="vr_mock_hand_to main heldspot 0;wait3;vr_mock_hand_to main heldspot 0;wait10"
+GENTLE=$(for i in $(seq 10); do printf "vr_mock_hand_to main by 0 0 -0.4;wait3;"; done)
+TURN=$(for i in $(seq 4); do printf "vr_mock_hand_turn off 0 5 0;wait3;"; done)
+DOWN=$(for i in $(seq 4); do printf "vr_mock_hand_to main by 0 0 -2.5;wait1;"; done)
+UP=$(for i in $(seq 7); do printf "vr_mock_hand_to main by 0 0 2.5;wait1;"; done)
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$TO2H;$GRIP;$GENTLE wait10;$TURN wait10;$REP;$DOWN wait10;$REP;wait20;$UP wait10;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+st=$(echo "$log" | grep "^reload: the super shotgun open")
+check $(echo "$log" | grep -q "ssg: both hands on it" && echo "$st" | sed -n 1p | grep -q "open 0 spent 2" && echo 1 || echo 0) "both hands on it: gentle moves and turns keep it shut"
+check $(echo "$log" | grep -q "broken open by the pry: 2 spent" && echo "$st" | sed -n 2p | grep -q "open 1 spent 0" && echo 1 || echo 0) "the pry (the front hand down fast against the back hand) breaks it open"
+check $(echo "$log" | grep -q "closed by the pry" && echo "$st" | sed -n 3p | grep -q "open 0" && echo 1 || echo 0) "the barrels lifted back (the reverse pry) shut it"
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_reload_ssg_close_auto 1;$FIRE;$FLICK;$POUCH;$GRIP;$AT;wait30;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+check $(echo "$log" | grep -q "closed by itself (both loaded): 2 loaded" && echo "$log" | grep "^reload: the super shotgun open" | tail -1 | grep -q "open 0" && echo 1 || echo 0) "Close When Loaded: it shuts once both are in"
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_reload_ssg_break 0;$FIRE;$REP;$FLICK;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+holds=$(echo "$log" | grep "^reload: off hand")
+check $(h 1 | grep -q "weapon 5 clip 0 " && h 2 | grep -q "weapon 5 clip 2 " && ! echo "$log" | grep -q "broken open" && echo 1 || echo 0) "Break Open off: the flick reloads it as before"
+
+# 8. The author's magazine notes (ROUND21.md, "Immersive reloading: magazines, both grips, the pull"): the gun in the MAIN
 #    hand, grip mode Hold (vr_weapon_grip_mode 0, the default: its grip held all the while), the off hand on it.
 M0PRE="map e1m1;wait60;developer 1;vr_reload_debug 2;vr_debug_2h_grip 1;vr_weapon_grip_mode 0;give n 100;give c 100;vr_mock_hand main 0.15 1.2 -0.45 70 0 0;vr_mock_hand off -0.1 1.0 -0.3;wait10;+grabright;vr_mock_button main grip 1;impulse 156;wait30"
 OGRIP="+grableft;vr_mock_button off grip 1;wait15"
@@ -169,43 +209,21 @@ log=$(bash $KIT/run.sh $AGENT -Script "$M0PRE;$(OTO "heldspot 0");$OGRIP;-grabri
 holds=$(echo "$log" | grep "^reload: off hand")
 check $(echo "$log" | grep -q "handed off to the off hand" && h 1 | grep -q "off hand weapon 6 clip 24 mag 1" && echo "$log" | grep -q "hand 1 holds the magazine of the gun in hand 0" && h 2 | grep -q "off hand weapon 6 clip 0 mag 0 holds nothing | main hand weapon 0 clip 0 holds a round of 24" && h 3 | grep -q "off hand weapon 6 clip 24 mag 1 holds nothing | main hand weapon 0 clip 0 holds nothing" && echo 1 || echo 0) "a gun carried by the off hand: its magazine pulled out by the main hand, then seated again"
 
-# The ammo button: pressed from its front only (vr_weapon_button_cone 50), from anywhere at 180.
+# 9. The ammo button: from its front pressed, from behind never, at the defaults (vr_weapon_button_cone 80, _depth 0.5);
+#    from the side refused at cone 50 depth 0, from behind pressed at 180. Then approaches as a finger makes them (a
+#    straight line in to the button, a quarter unit a frame), 0-60 degrees off its face and 120-180 (behind), four ways round.
 BTN() { echo "vr_mock_hand_to main wbutton $1 6;wait10;vr_mock_hand_to main wbutton $1 6;wait10;vr_mock_hand_to main wbutton $1 1;wait10;vr_mock_hand_to main wbutton $1 1;wait15"; }
-log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$(BTN front);$(BTN side);$(BTN back);vr_weapon_button_cone 180;$(BTN back);toggleconsole;quit" -Filter "^weapon button" 2>&1 | grep "^weapon button")
-check $(echo "$log" | sed -n 1p | grep -q "pressed, the fingertip came" && echo "$log" | sed -n 2p | grep -q "not pressed" && echo "$log" | sed -n 3p | grep -q "not pressed" && echo "$log" | sed -n 4p | grep -q "^weapon button 0: pressed" && echo 1 || echo 0) "the ammo button: from its front pressed, from its side or behind not; at 180 from behind too"
-
-# 7. The super shotgun broken open (phase 2b; ROUND21.md, "Immersive reloading: the super shotgun broken open"): in the
-# off hand, both barrels fired (their shells stay in), the flick (+flickreloadleft) breaks it open (the two spent ones
-# out), fired open it only clicks, a taped pair from the pouch at its breech loads both, the flick shuts it and it fires
-# again; a pair at the shut gun is refused; both hands on it, gentle moves and turns keep it shut, the pry opens it, the
-# barrels lifted shut it; Close When Loaded; Break Open off: the flick reloads it as before.
-SSG="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_debug_2h_grip 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 155;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait10"
-FIRE="+offhandattack;wait10;-offhandattack;wait30"
-FLICK="+flickreloadleft;wait3;-flickreloadleft;wait40"
-AT="vr_mock_hand_to main lport 8;wait5;vr_mock_hand_to main lport 8;wait10;vr_mock_hand_to main lport;wait5;vr_mock_hand_to main lport;wait10"
-F7="^reload:|^ssg:|2h grip"
-log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$REP;$FLICK;$REP;$FIRE;$POUCH;$GRIP;$AT;$REP;$LETGO;$FLICK;$REP;$FIRE;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
-st=$(echo "$log" | grep "^reload: the super shotgun open")
-check $(echo "$st" | sed -n 1p | grep -q "open 0 spent 2" && echo "$log" | grep -q "broken open by a flick: 2 spent and 0 live thrown out" && echo "$st" | sed -n 2p | grep -q "open 1 spent 0" && echo 1 || echo 0) "both barrels fired: their shells stay in; the flick breaks it open, the two spent ones out"
-check $(echo "$log" | grep -q "a dry click: the super shotgun (hand 0) is open" && echo 1 || echo 0) "fired open: a dry click"
-check $(echo "$log" | grep -q "a taped pair taken from the pouch by hand 1: 28 left" && echo "$log" | grep -q "2 into the gun (hand 0): its magazine 2 of 2" && echo 1 || echo 0) "the pouch gives it a taped pair; at the open breech both go in"
-holds=$(echo "$log" | grep "^reload: off hand")
-check $(echo "$log" | grep -q "closed by a flick: 2 loaded" && h 4 | grep -q "weapon 5 clip 2 " && h 5 | grep -q "weapon 5 clip 0 " && echo 1 || echo 0) "the flick shuts it; it fires again (both barrels)"
-log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$POUCH;$GRIP;$AT;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
-check $(echo "$log" | grep -q "the super shotgun is shut: break it open first" && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "clip 0 .*holds a round of 2" && echo 1 || echo 0) "shut, a pair at its breech is refused (the can't click)"
-TO2H="vr_mock_hand_to main heldspot 0;wait3;vr_mock_hand_to main heldspot 0;wait10"
-GENTLE=$(for i in $(seq 10); do printf "vr_mock_hand_to main by 0 0 -0.4;wait3;"; done)
-TURN=$(for i in $(seq 4); do printf "vr_mock_hand_turn off 0 5 0;wait3;"; done)
-DOWN=$(for i in $(seq 4); do printf "vr_mock_hand_to main by 0 0 -2.5;wait1;"; done)
-UP=$(for i in $(seq 7); do printf "vr_mock_hand_to main by 0 0 2.5;wait1;"; done)
-log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$TO2H;$GRIP;$GENTLE wait10;$TURN wait10;$REP;$DOWN wait10;$REP;wait20;$UP wait10;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
-st=$(echo "$log" | grep "^reload: the super shotgun open")
-check $(echo "$log" | grep -q "ssg: both hands on it" && echo "$st" | sed -n 1p | grep -q "open 0 spent 2" && echo 1 || echo 0) "both hands on it: gentle moves and turns keep it shut"
-check $(echo "$log" | grep -q "broken open by the pry: 2 spent" && echo "$st" | sed -n 2p | grep -q "open 1 spent 0" && echo 1 || echo 0) "the pry (the front hand down fast against the back hand) breaks it open"
-check $(echo "$log" | grep -q "closed by the pry" && echo "$st" | sed -n 3p | grep -q "open 0" && echo 1 || echo 0) "the barrels lifted back (the reverse pry) shut it"
-log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_reload_ssg_close_auto 1;$FIRE;$FLICK;$POUCH;$GRIP;$AT;wait30;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
-check $(echo "$log" | grep -q "closed by itself (both loaded): 2 loaded" && echo "$log" | grep "^reload: the super shotgun open" | tail -1 | grep -q "open 0" && echo 1 || echo 0) "Close When Loaded: it shuts once both are in"
-log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_reload_ssg_break 0;$FIRE;$REP;$FLICK;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
-holds=$(echo "$log" | grep "^reload: off hand")
-check $(h 1 | grep -q "weapon 5 clip 0 " && h 2 | grep -q "weapon 5 clip 2 " && ! echo "$log" | grep -q "broken open" && echo 1 || echo 0) "Break Open off: the flick reloads it as before"
+log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$(BTN front);$(BTN back);vr_weapon_button_cone 50;vr_weapon_button_depth 0;$(BTN side);vr_weapon_button_cone 180;$(BTN back);toggleconsole;quit" -Filter "^weapon button" 2>&1 | grep "^weapon button")
+check $(echo "$log" | sed -n 1p | grep -q "pressed, the fingertip came 0 deg" && [ $(echo "$log" | grep -c "^weapon button 0: pressed") = 2 ] && echo "$log" | grep -q "not pressed, the fingertip came 180 deg off its face (cone 80)" && echo "$log" | grep -q "not pressed, the fingertip came 90 deg off its face (cone 50)" && echo "$log" | tail -1 | grep -q "^weapon button 0: pressed, the fingertip came 180" && echo 1 || echo 0) "the ammo button: from its front pressed, from behind not; from the side not at cone 50; at 180 from behind too"
+approach() { local s="vr_mock_hand_to main wbutton $1 8 $2;wait5;"; for u in $(seq 8 -0.25 0.25); do s+="vr_mock_hand_to main wbutton $1 $u $2;wait1;"; done; echo "$s vr_mock_hand_to main wbutton $1 9 $2;wait10;"; }
+for set in "front|0 15 30 45 60" "behind|120 135 150 165 180"; do
+    S=""; n=0
+    for a in ${set#*|}; do for z in 0 90 180 270; do S+="$(approach $a $z)"; n=$((n + 1)); done; done
+    p=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$S;toggleconsole;quit" -Filter "^weapon button" -Timeout 300 2>&1 | grep -c "^weapon button 0: pressed")
+    if [ "${set%%|*}" = front ]; then
+        check $([ $((p * 100)) -ge $((n * 95)) ] && echo 1 || echo 0) "the ammo button from the front: $p of $n approaches pressed (95% or more)"
+    else
+        check $([ "$p" = 0 ] && echo 1 || echo 0) "the ammo button from behind: $p of $n approaches pressed (none)"
+    fi
+done
 exit $fail

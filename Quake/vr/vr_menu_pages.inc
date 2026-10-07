@@ -373,7 +373,10 @@ void resetHandMoves()
         toggle("Auto close thumb", "vr_finger_auto_close_thumb"),
         slider("Ammo Button Cone", "vr_weapon_button_cone", 10.f, 180.f, 5.f, "%.0f deg")
             .help("The ammo button on a gun is pressed only by the other fingertip coming at it from its front, within "
-                  "this many degrees of the way it faces; never from behind or the side (180: from anywhere).")
+                  "this many degrees of the way it faces; never from behind (180: from anywhere)."),
+        slider("Ammo Button Depth", "vr_weapon_button_depth", 0.f, 3.f, 0.1f, "%.1f units").extend(0.f, 10.f)
+            .help("How far behind the button's middle the cone above starts: a fingertip coming in flat, just over the "
+                  "button's face, still presses it (0: the cone from its middle).")
     );
     return list;
 }

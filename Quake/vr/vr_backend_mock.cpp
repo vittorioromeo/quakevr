@@ -454,8 +454,11 @@ void mockLook_f()
 // point (body::Holster); "grenadepouch": at the grenade pouch (vr_handgrenade); "vr_mock_hand_to <main|off> lport
 // [<units>]": what the hand holds (a shell's middle, a magazine's top: view::heldRoundRef) at the loading port of the gun the
 // other hand holds, `units` below it; "lportmid": its middle there (a magazine's too: the top-of-the-magazine tests).
-// "vr_mock_hand_to <main|off> wbutton <front|side|back> [<units>]": its fingertip `units` (2) off the other gun's ammo
-// button, in front of its face, beside it or behind it (vr_weapon_button_cone).
+// "vr_mock_hand_to <main|off> mag <along> [<out>]": on the attached magazine of the other hand's gun, `along` its length
+// (1 its feed end, 0 its middle, -1 its far end), `out` units off its side (vr_reload.qc: grips and hits on its box).
+// "vr_mock_hand_to <main|off> wbutton <front|side|back|degrees> [<units>] [<azimuth>]": its fingertip `units` (2) off the
+// other gun's ammo button, in front of its face, beside it or behind it, or `degrees` off its face (0 front, 180 behind)
+// turned `azimuth` degrees round it (vr_weapon_button_cone).
 
 // The thrown_weapon nearest the player (the server's: its qcvm pushed), or null.
 edict_t* nearestThrownWeapon()
@@ -633,9 +636,13 @@ void mockHandTo_f()
     {
         // The fingertip off the other gun's ammo button: in front of it, beside it or behind it (vr_weapon_button_cone).
         const char* how = Cmd_Argv(3);
-        const int side = !q_strcasecmp(how, "front") ? 0 : !q_strcasecmp(how, "side") ? 1 : 2;
+        const float angle = !q_strcasecmp(how, "front") ? 0.f
+                            : !q_strcasecmp(how, "side") ? 90.f
+                            : !q_strcasecmp(how, "back") ? 180.f
+                                                          : static_cast<float>(Q_atof(how));
         glm::vec3 target;
-        if(!view::weaponButtonHandTarget(hand, side, Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 2.f, target))
+        if(!view::weaponButtonHandTarget(hand, angle, Cmd_Argc() >= 6 ? static_cast<float>(Q_atof(Cmd_Argv(5))) : 0.f,
+               Cmd_Argc() >= 5 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 2.f, target))
         {
             Con_Printf("vr_mock_hand_to: the other hand's gun shows no button\n");
             return;
