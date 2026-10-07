@@ -3441,7 +3441,9 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 			mod->name, version, ALIAS_VERSION);
 	mod->flags = LittleLong (pinmodel->flags);
 
-	if ((int)r_enhancedmodels.value == 1) 
+	// QVR: an owned expansion's model read in place ("owned/mg3/progs/dog_explosive.mdl": vr_gamedir.cpp VR_OwnedFile) is
+	// always its .mdl: Quake VR's rigs, hit zones and model edits are made for its frames, not its pack's .md5 companions.
+	if ((int)r_enhancedmodels.value == 1 && q_strncasecmp (mod->name, "owned/", 6))
 	{
 		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 		ModelLoader loaders[] = {

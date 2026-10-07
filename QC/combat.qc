@@ -100,6 +100,9 @@ float(entity targ, entity inflictor) CanDamage =
 .float vr_dummy_dead;
 // QVR: Dawn of the Machine's infected (vr_mg3_infected.qc): what his first death turns him into (0: none, or turned).
 .float vr_mg3_infected;
+// QVR: Dawn of the Machine's own monsters drawn and fought as a stock one (vr_mg3_ogre.qc MG3_MON_*: the rocket ogre an
+// ogre, the demo dog a rottweiler): which it is (0: the stock monster).
+.float vr_mg3_mon;
 
 /*
 ============

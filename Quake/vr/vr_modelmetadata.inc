@@ -42,6 +42,9 @@ QVR_MODEL_ID(VCrowbar, "progs/v_crowbar.mdl")
 // takes its arm away and lays it as Quake VR's axe): its own weapon (QC WID_SUPERAXE), apart from Hipnotic's Mjolnir.
 QVR_MODEL_ID(Mg3SuperAxe, "owned/mg3/progs/v_hammer.mdl")
 QVR_MODEL_ID(Mg3SuperAxeGlow, "owned/mg3/progs/v_hammer_glow.mdl")
+// Dawn of the Machine's monsters, read from the owned MG3 pack in place (QC vr_mg3_*.qc): their ragdoll rigs
+// (vr_ragdoll.cpp seedTables).
+QVR_MODEL_ID(Mg3OgreRocket, "owned/mg3/progs/ogre_rocket.mdl")
 QVR_MODEL_ID(Soldier, "progs/soldier.mdl")
 QVR_MODEL_ID(Enforcer, "progs/enforcer.mdl")
 QVR_MODEL_ID(Knight, "progs/knight.mdl")

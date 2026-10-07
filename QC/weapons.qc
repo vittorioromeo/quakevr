@@ -229,6 +229,7 @@ float xHeadRadius;
 float(entity xTarget) PositionalHead =
 {
     string c = xTarget.classname;
+    if(xTarget.vr_mg3_mon && MG3_PositionalHead(xTarget)) { return TRUE; } // (QVR: Dawn of the Machine's own models: vr_mg3_ogre.qc)
     if(c == "monster_army")             { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
     if(c == "monster_ogre" || c == "monster_ogre_marksman") { xHeadForward = 9; xHeadUp = 33; xHeadRadius = 10; return TRUE; }
     if(c == "monster_enforcer")         { xHeadForward = 2;  xHeadUp = 27; xHeadRadius = 7.4; return TRUE; }

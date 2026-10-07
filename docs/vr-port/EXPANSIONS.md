@@ -1010,5 +1010,7 @@ Phase D of [MG3_PLAN.md](MG3_PLAN.md), decision 5: its monsters wherever its dat
 Thing 30..), with Quake VR's treatment. **Infected** (M3-15: `monster_army/knight/enforcer/hell_knight_infected`,
 stock models, any campaign): killed once, they burst and get up as a zombie or a fiend (a real model change: the new
 body's rig, hit zones, gore and knockdown), counted once; death knights placed as corpses lie until woken, then rise.
+**Rocket ogre** (M3-16, MG3's `ogre_rocket.mdl` read in place: its own rig, head zone, Armagon's voice): volleys of two
+rockets (batted as any monster missile); training dummy type 19.
 Tests: Debug > Tests > Dawn of the Machine Monsters (`vr_mg3_mtest`). Measurements: ROUND21.md, "Dawn of the Machine
 (MG3): monsters".

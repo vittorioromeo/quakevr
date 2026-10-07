@@ -14,6 +14,7 @@
 #   zombie   a zombie slashed at a limb at full health (12): dies for good, a ragdoll; vr_limbs_zombies 0: it doesn't
 #   blast    vr_limbs_blast 0 and 1: an explosion's kill gibs, or pops the limbs near it (the body a ragdoll)
 #   perf     64 limbs lying about and 8 dismembered ragdolls: the physics step's time (vr_physics_steptime)
+#            Dawn of the Machine's (its data there): KINDS="34" the rocket ogre (MG3=1 adds its models to "models")
 #   eyes     eyeshots (vr_eyeshot: both eyes) into the kit's scratch (limbs_eyes.png): the grunt's limbs hung before you, a corpse missing
 #            limbs (its stumps), a forearm cut off lying on the floor
 AGENT=${1:?worktree name}; shift
@@ -29,6 +30,7 @@ for c in $CASES; do
     models)
         S="map vrfiringrange;wait10"
         for m in soldier knight ogre enforcer hknight dog wizard zombie demon shambler grem mummy shalrath scor; do S="$S;vr_limb_models progs/$m.mdl"; done
+        [ -n "$MG3" ] && for m in ogre_rocket; do S="$S;vr_limb_models owned/mg3/progs/$m.mdl"; done
         run "$S;toggleconsole;quit" ;;
     corpse)
         run "$PRE;vr_test_spawn_dist 90;vr_test_spawn_dead 1;impulse 241;wait60;vr_limb_test 2;wait20;vr_mock_look 0 60;impulse 241;wait60;vr_limb_test 3;wait20;toggleconsole;quit" ;;

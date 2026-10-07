@@ -28402,9 +28402,11 @@ fiend (enforcer, death knight): not upstream's modelindex swap but a real `setmo
 class, health, frame functions and knockdown, so the engine's rig, limb gore, hit tests and hulls all follow the new
 body. Nothing of the old death carries over: an armed beheading cut is disarmed (`VR_Decap_After` would have taken the
 new zombie's head), a knockdown ends (he stands up on the floor under his ragdoll's pelvis; `vr_ragdoll_list`: 0 left).
-Counted once: the burst not at all, the zombie's or fiend's death as any monster's. Wedged (no room for the new body:
-upstream's `walkmove(0, 0)`, here on "partial ground" so a body in the air or off a step is not taken for wedged, and
-up to 24 units higher), he dies at once, gibbed and counted, as upstream. Death knights placed as corpses (spawnflags
+Counted once: the burst not at all, the zombie's or fiend's death as any monster's. Room for the new body: upstream's
+`walkmove(0, 0)`, here on "partial ground" (a body in the air or off a step is not wedged), up to 24 units higher, 24
+to a side (crowds: a monster standing over a knocked-down body, or pushed against him: 2 of 6 runs of request 2 failed
+before), then in the old body's box (upstream never changes the box); wedged even so, he dies at once, gibbed and
+counted, as upstream. Death knights placed as corpses (spawnflags
 65536 / 8388608: MG3's `CORPSE_FLAG_A`/`_B`; map2 has 9, map2b 1, secret5 3) lie in their death's last frame, not
 solid, until woken (their targetname or a hurt), then rise through their death backwards (MG3's `infected/death1_rev.wav`,
 else the death knight's sight sound; tried again every 5 s while something stands in the way). Alive all the while: no
@@ -28421,3 +28423,43 @@ present: 13 turned, kills 0 -> 0. Checker after M3-15: 17 missing classes, 411 p
 **In the headset.** [ ] An infected grunt or knight (Debug > Tests > Dawn of the Machine Monsters) killed by a sword
 cut at the neck: he bursts and a zombie stands up with its head. [ ] map2's lying death knights rise when the fight
 reaches them.
+
+### M3-16 The rocket ogre
+
+`monster_ogre_rocket` (`QC/vr_mg3_ogre.qc`; official `ogre.qc`'s `.aflag` branches, `OgreFireRocket`,
+`T_OgreMissileTouch`, `ai.qc`'s sight, `client.qc`'s obituary). Quake VR's ogre (`orig_mon_ogre.qc`: frames, knockdown,
+chainsaw, drops) drawn with MG3's model read in place (`owned/mg3/progs/ogre_rocket.mdl`; `self.wad`, as the
+marksman's), marked `.vr_mg3_mon` 1, its class the ogre's (as upstream). Removed where the data is not
+(`VR_Pack_RequireSpawn`). Its own: Armagon's voice (MG3's `armagon/idle1..4`, `pain`, `sight`, `sight2`; "rode a rocket
+to hell"), a flinch only when `random() * 200 <= damage`, its pain 2 s longer, no chainsaw dropped (`VR_DropOgreChainsaw`
+skipped: it holds a rocket launcher), and at range (`ogre_nail4`) a volley of two rockets: led at the enemy's place
+after the flight at 1200, the second 64 units aside, 600 u/s; a hit 40 (zombie 60, shambler 20) and a 40 blast; within
+0.2 s of its launch a 20 stab. The rockets are monsters' `MOVETYPE_FLYMISSILE` missiles: batted and parried as any
+(`VR_Deflect_IsProjectile`). Never Honey's random multi-grenade boss outside the official campaigns.
+
+**Frame order** (`Misc/quakevr/ragdoll/frameorder.py ogre ogre_rocket`: per-frame height of Quake VR's `ogre.mdl`
+against MG3's): 147 frames, id's ogre's order (Quake VR's has 149: two appended). Both stand to 1.0 until 112, fall to
+0.42/0.38/0.36 (theirs 0.47/0.46/0.46) at 123-125 ($death12-14), stand again at 126 and lie at 132-135 ($bdeath7-10):
+the death ranges match.
+
+**Rig** (`vr_ragdoll.cpp` `ogreRocketSeeds`, `Misc/quakevr/ragdoll/ogre_rocket_bones.json`; `RIG_PAK=<mg3>/pak0.pak
+rig.py ogre_rocket`): 982 vertices, 13 bones as the ogre's (the launcher, a box and a long barrel, on the right hand),
+clusters 1.06 units rms, bones 1.19 (Quake VR's ogre: 1.36, 1.52); deaths 112-125, 126-135. Head zone 10 forward, 33
+up, 9 wide (`Misc/quakevr/ragdoll/headfit.py ogre_rocket 28 2 9`: middle 9.4 0 33.5, 9.7; at 31 and 9.5 a body shot
+struck the head: the training dummy's zone test now head 1, body 0, legs 3, as the ogre's). An owned model is always
+its `.mdl` (`gl_model.c`: no `.md5`/`.md3` replacement for `owned/` names: MG3's pack has `ogre_rocket.md5mesh`, whose
+anim was refused with a warning; the rigs and edits are made for the .mdl's frames). Training dummy type 19 (Dummy
+Enemy "Rocket Ogre" when MG3's data is there, `vr_dt_pack` 3); spawner Thing 34.
+
+Measured: `vr_mg3_mtest 5` (e1m1) **7/0**: monster_ogre, the owned model, 200 health, its head zone; made to shoot: a
+rocket in flight that `VR_Deflect_IsProjectile` takes, volleys of two (2 or 4 in 1.5 s: it shoots again on its own), the
+player 500 -> 412; killed: frame 125, no chainsaw. `vr_limb_models owned/mg3/progs/ogre_rocket.mdl`: 13 bones, 11 limbs
+(caps 0..19). `MON=34 decap_test.sh live corpse pop`: beheaded (12 parts left), head pops by shotgun and super shotgun.
+`KINDS=34 limbs_test.sh live`: a slash cuts, fist/shotgun/bolt pop, an explosion pops 8, gibbed gibs; `MON=34 corpse`:
+cut down to the torso. Knockdown (`vr_knockdown_test 0`, then 1): its ragdoll (982 vertices, 13 bones), up again (state
+0, no ragdoll left). Dummy (`vr_dummy_type 19`, `vr_dummy_test 1`/`3`): "Rocket Ogre (monster_ogre) model
+owned/mg3/progs/ogre_rocket.mdl", killed as it. MG3 map5 (skill 2): 12 rocket ogres alive; map1's 11 are all "not with
+0 runes" (spawnflag 262144: none on a new game's map1, as upstream).
+
+**In the headset.** [ ] A rocket ogre (Debug > Tests > Dawn of the Machine Monsters > A Rocket Ogre Ahead): bat its
+rockets back with a sword or a gun; behead it; knock it down. [ ] Its ragdoll: the launcher stays in its right hand.

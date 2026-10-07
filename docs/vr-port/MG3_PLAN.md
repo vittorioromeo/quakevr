@@ -295,6 +295,7 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
   2026-10-07**: a full model change (not upstream's modelindex swap), any campaign, the lying death knights (ROUND21.md,
   "Dawn of the Machine (MG3): monsters").
 - **M3-16 Rocket ogre.** Accept: spawns on map1, fires rockets, rocket parry, decap/ragdoll sane; frame-order check recorded.
+  **Built 2026-10-07**: its own rig and head zone, any campaign with MG3's data, training dummy 19 (ROUND21.md).
 - **M3-17 Demodog.** Accept: kamikaze explosion damages player and neighbours; grenades; grab/throw explodes per source.
 - **M3-18 Ranged knight.** Accept: projectile attack, parry, hit zones on rknight.mdl.
 - **M3-19 Orb.** Accept: flies/teleports, projectiles, death; no ragdoll; grapple rules.

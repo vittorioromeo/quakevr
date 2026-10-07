@@ -6,7 +6,8 @@
 # saved, loaded: headless again, then gibbed), monsters (a slash on each rigged monster), sweep (the melee's head zone swept on
 # each monster, vr_decap_test 19, at each Head Zone Size:Neck in ZONES); head pops (shots at the head:
 # "Head pops"): pop (vr_decap_test 12-18), popoff (each weapon's option off: 12-15 not popped), popzombie (a zombie's
-# head shot at its 60: popped, dead for good; Zombies off: not). MON (0): the monster.
+# head shot at its 60: popped, dead for good; Zombies off: not). MON (0): the monster (Dawn of the Machine's, its data
+# there: 34 the rocket ogre).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 CASES=${*:-live axe refuse corpse saw zombie thrown gib save monsters pop popoff popzombie}

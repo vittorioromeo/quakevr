@@ -47,7 +47,7 @@
 .void(entity attacker, float damage) vr_dummy_th_pain;
 .float vr_dummy_movetype;    // its enemy's movetype (it stands still: MOVETYPE_NONE)
 .float vr_dummy_floor;       // the floor it stands on (its box's bottom: its enemies' boxes differ)
-float VR_DUMMY_TYPES = 19;   // the enemies (VR_Dummy_Type: 0 grunt .. 18 electric eel)
+float VR_DUMMY_TYPES = 20;   // the enemies (VR_Dummy_Type: 0 grunt .. 18 electric eel, 19 Dawn of the Machine's rocket ogre)
 
 // An enemy's row (VR_Dummy_Type, vr_dummy_types.qc): its classname, its name, its pack (0 Quake, 1 Scourge of Armagon,
 // 2 Dissolution of Eternity), the first frame and the count of its stand loop, its pain animation and an attack (the
@@ -411,7 +411,7 @@ float() VR_Dummy_Wanted =
             vr_dummy_warned = t + 1;
             VR_Dummy_Type(t);
             bprint(sprintf("Training dummy: the %s needs %s; a grunt instead\n", vr_dt_name,
-                vr_dt_pack == 1 ? "Scourge of Armagon" : "Dissolution of Eternity"));
+                vr_dt_pack == 1 ? "Scourge of Armagon" : (vr_dt_pack == 3 ? "Dawn of the Machine" : "Dissolution of Eternity")));
         }
         t = 0;
     }

@@ -403,6 +403,28 @@ constexpr Seed scorSeeds[] = {
     {"leg_fr", 0, Joint::Ball, {-1.7f, -10.8f, -11.9f}, {-0.7f, -2.9f, -8.2f}, {-2.6f, -18.8f, -15.6f}, 0.f, 60.f, 25.f, 0.f, {}},
 };
 
+// Dawn of the Machine's rocket ogre (owned/mg3/progs/ogre_rocket.mdl, read from MG3's pack in place: 982 vertices, 147
+// frames in id's ogre's order: its death frames checked against Quake VR's ogre's, ROUND21.md "Dawn of the Machine (MG3):
+// monsters"). The rest pose ($stand1): x forward, y left, z up; upright, his left arm down, his rocket launcher (a box
+// and a long barrel behind him) in his right hand, kept on the hand (he does not drop it). Measured on his frames
+// (Misc/quakevr/ragdoll/rig.py ogre_rocket ogre_rocket_bones.json, RIG_PAK MG3's pak0.pak): clusters 1.06 units rms,
+// bones 1.19. Death frames 112-125 ($death1-14) and 126-135 ($bdeath1-10), as the ogre's.
+constexpr Seed ogreRocketSeeds[] = {
+    {"pelvis", -1, Joint::Root, {1.4f, -1.1f, 4.5f}, {1.4f, -1.1f, 4.5f}, {-2.4f, -0.6f, 13.f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {3.9f, -0.4f, 23.5f}, {-2.4f, -0.6f, 13.f}, {5.4f, -2.1f, 24.2f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {11.f, -1.6f, 31.4f}, {5.4f, -2.1f, 24.2f}, {16.5f, -1.f, 38.6f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {2.6f, 14.8f, 26.2f}, {3.7f, 9.2f, 25.2f}, {-2.4f, 15.3f, 19.2f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {1.6f, 17.6f, 6.9f}, {-2.4f, 15.3f, 19.2f}, {3.1f, 17.7f, 1.7f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_l", 4, Joint::Ball, {10.3f, 17.4f, -13.7f}, {3.1f, 17.7f, 1.7f}, {17.5f, 17.1f, -29.1f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"upperarm_r", 1, Joint::Ball, {2.8f, -16.5f, 17.3f}, {3.6f, -13.5f, 21.5f}, {0.f, -20.6f, 11.3f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 6, Joint::Hinge, {0.4f, -19.7f, 7.2f}, {0.f, -20.6f, 11.3f}, {1.9f, -20.5f, 0.3f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 7, Joint::Ball, {-7.9f, -21.6f, -7.4f}, {1.9f, -20.5f, 0.3f}, {-17.8f, -22.7f, -15.f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {2.9f, 6.9f, -5.8f}, {-3.2f, 5.7f, 4.4f}, {4.7f, 12.7f, -10.4f}, 4.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 9, Joint::Hinge, {4.f, 7.4f, -20.9f}, {4.7f, 12.7f, -10.4f}, {4.f, 7.7f, -20.4f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {1.3f, -8.6f, -10.6f}, {-0.4f, -11.6f, -2.1f}, {-2.3f, -12.8f, -19.5f}, 4.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 11, Joint::Hinge, {2.1f, -9.5f, -22.6f}, {-2.3f, -12.8f, -19.5f}, {-1.1f, -11.9f, -20.4f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -418,6 +440,7 @@ constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Mummy, 177, mummySeeds, static_cast<int>(sizeof(mummySeeds) / sizeof(mummySeeds[0])), 2, {103, 162}, {116, 178}},
     {modelmeta::Id::Shalrath, 371, shalrathSeeds, static_cast<int>(sizeof(shalrathSeeds) / sizeof(shalrathSeeds[0])), 1, {16, 0}, {22, 0}},
     {modelmeta::Id::Scor, 235, scorSeeds, static_cast<int>(sizeof(scorSeeds) / sizeof(scorSeeds[0])), 1, {36, 0}, {40, 0}, 26, true},
+    {modelmeta::Id::Mg3OgreRocket, 982, ogreRocketSeeds, static_cast<int>(sizeof(ogreRocketSeeds) / sizeof(ogreRocketSeeds[0])), 2, {112, 126}, {125, 135}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)

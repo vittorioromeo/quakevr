@@ -455,7 +455,7 @@ void() SightSound =
     }
 
     if(self.classname == "monster_ogre")
-        sound(self, CHAN_VOICE, "ogre/ogwake.wav", 1, ATTN_NORM);
+        sound(self, CHAN_VOICE, MG3_RocketOgre_Sound(MG3_RO_SIGHT, "ogre/ogwake.wav"), 1, ATTN_NORM); // (QVR: MG3's rocket ogre's)
     else if(self.classname == "monster_knight")
     {
         // ROGUE

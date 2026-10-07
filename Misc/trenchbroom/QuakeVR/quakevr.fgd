@@ -1164,6 +1164,17 @@ Lying - mummy will start lying down, and stand when player spotted. Stronger - m
 [
 ]
 
+@PointClass base(Monster) color(255 0 0) size(-32 -32 -24, 32 32 64) model({ "path": ":progs/ogre.mdl" }) =
+	monster_ogre_rocket : "Rocket ogre (Dawn of the Machine)
+
+200 health; a chainsaw up close, volleys of two rockets at range (40 each). Needs the Dawn of the Machine data (its model, progs/ogre_rocket.mdl, read from its pack in place); the preview is the ogre's."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+]
+
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 32) model({ "path": ":progs/oldone.mdl" }) =
 	monster_oldone : "Shub-Niggurath
 

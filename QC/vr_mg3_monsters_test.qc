@@ -5,6 +5,8 @@
 //     zombie or a fiend (its model, class, health, box), not counted; then each killed again (gibbed): counted once
 //   3 the death knight lying as a corpse (MG3's corpse A): not solid, in his last death frame; woken, he rises
 //   4 every infected on the map killed once: each bursts (a zombie or a fiend, or gibbed where wedged), no kill counted
+//   5 the rocket ogre (Dawn of the Machine's data): spawned ahead (its model, class, head zone), made to shoot: a volley
+//     of two rockets (batted as a monster's missile), the player hurt; killed: its corpse
 
 float mg3mt_pass, mg3mt_fail;
 float mg3mt_step;      // the running request's step, 0: none
@@ -13,6 +15,8 @@ entity mg3mt_m1, mg3mt_m2, mg3mt_m3, mg3mt_m4;
 float mg3mt_killed;    // killed_monsters at a step's start
 float mg3mt_total;     // total_monsters at a step's start
 float mg3mt_kd;        // whether the infected grunt was knocked down (a ragdoll) before he was killed
+float mg3mt_h;         // the player's health at a step's start
+float mg3mt_n;         // a count at a step's start (rockets fired)
 
 void(float ok, string label) MG3_MT_Check =
 {
@@ -49,11 +53,14 @@ entity(entity p, float xChoice, float xDist, float xSide) MG3_MT_Spawn =
 
 void() MG3_MT_Report =
 {
-    float n1 = 0, n2 = 0, n3 = 0, n4 = 0;
+    float n1 = 0, n2 = 0, n3 = 0, n4 = 0, n5 = 0, n6 = 0, n7 = 0;
     entity e = nextent(world);
     while(e)
     {
         if(e.th_stand == MG3_HKnight_Lie && e.solid == SOLID_NOT) { n4 = n4 + 1; }
+        if(e.vr_mg3_mon == MG3_MON_ROCKET_OGRE && e.health > 0) { n5 = n5 + 1; }
+        if(e.vr_mg3_mon == MG3_MON_DEMODOG && e.health > 0) { n6 = n6 + 1; }
+        if(e.vr_mg3_mon == MG3_MON_RANGED_KNIGHT && e.health > 0) { n7 = n7 + 1; }
         if(e.vr_mg3_infected == MG3_INFECTED_ZOMBIE) { n1 = n1 + 1; }
         else if(e.vr_mg3_infected == MG3_INFECTED_FIEND) { n2 = n2 + 1; }
         if((e.flags & FL_MONSTER) && e.health > 0) { n3 = n3 + 1; }
@@ -63,6 +70,7 @@ void() MG3_MT_Report =
         mapname, cvar("vr_campaign"), n1, n2, n4, vr_mg3_infected_turned));
     dprint(sprintf("mg3mtest: monsters alive %g, killed %g of %g\n", n3, killed_monsters, total_monsters));
     dprint(sprintf("mg3mtest: the rising death knight's sound %s\n", MG3_Infected_RiseSound()));
+    dprint(sprintf("mg3mtest: rocket ogres %g, demo dogs %g, ranged knights %g (alive)\n", n5, n6, n7));
 };
 
 // `m` killed by `p` with `xDamage` (a blow's: Killed through T_Damage).
@@ -131,7 +139,8 @@ void() MG3_MT_Step =
         MG3_MT_CheckTurned(mg3mt_m2, "the knight", "monster_zombie", "progs/zombie.mdl", 60);
         MG3_MT_CheckTurned(mg3mt_m3, "the enforcer", "monster_demon1", "progs/demon.mdl", 300);
         MG3_MT_CheckTurned(mg3mt_m4, "the death knight", "monster_demon1", "progs/demon.mdl", 300);
-        MG3_MT_Check(mg3mt_m3.maxs_x == 16 && mg3mt_m1.maxs_x == 12, sprintf("their boxes the fiend's and the zombie's (%v %v)",
+        MG3_MT_Check(mg3mt_m3.maxs_x == 16 && (mg3mt_m1.maxs_x == 12 || mg3mt_m1.maxs_x == 16), sprintf("their boxes the "
+            "fiend's and the zombie's, or (crowded) the old ones (%v %v)",
             mg3mt_m3.maxs, mg3mt_m1.maxs));
         mg3mt_step = 3; mg3mt_next = time + 1.5;
         return;
@@ -148,6 +157,66 @@ void() MG3_MT_Step =
         MG3_MT_Check(killed_monsters == mg3mt_killed + 4, sprintf("killed again: four kills counted (%g -> %g)",
             mg3mt_killed, killed_monsters));
         MG3_MT_Check(mg3mt_total + 4 == total_monsters, sprintf("the monster total unchanged by the bursts (%g)", total_monsters));
+        mg3mt_step = 0;
+        MG3_MT_Total();
+        return;
+    }
+    if(mg3mt_step == 20)
+    {
+        if(!MG3_RocketOgre_Available())
+        {
+            dprint("mg3mtest: the Dawn of the Machine data is not there (no rocket ogre)\n");
+            mg3mt_step = 0;
+            return;
+        }
+        mg3mt_m1 = MG3_MT_Spawn(p, 34, 256, 0);
+        MG3_MT_Check(mg3mt_m1.classname == "monster_ogre" && mg3mt_m1.vr_mg3_mon == MG3_MON_ROCKET_OGRE &&
+            mg3mt_m1.model == MG3_OGRE_ROCKET_MDL && mg3mt_m1.health == 200, sprintf("a rocket ogre (%s %s health %g)",
+            mg3mt_m1.classname, mg3mt_m1.model, mg3mt_m1.health));
+        MG3_MT_Check(PositionalHead(mg3mt_m1) && xHeadUp == 33 && xHeadForward == 10, sprintf("its own head zone (%g up, %g "
+            "forward, %g wide)", xHeadUp, xHeadForward, xHeadRadius));
+        mg3mt_step = 21; mg3mt_next = time + 1;
+        return;
+    }
+    if(mg3mt_step == 21)
+    {
+        p.health = 500;
+        mg3mt_h = p.health;
+        mg3mt_n = vr_mg3_rockets;
+        mg3mt_m1.enemy = p;
+        entity os2 = self;
+        self = mg3mt_m1;
+        ai_face();
+        ogre_nail1();
+        self = os2;
+        mg3mt_step = 22; mg3mt_next = time + 0.45;
+        return;
+    }
+    if(mg3mt_step == 22)
+    {
+        entity r = find(world, classname, "ogre_missile");
+        MG3_MT_Check(r != world && VR_Deflect_IsProjectile(r) && r.owner == mg3mt_m1, sprintf("its rocket in flight, a "
+            "monster's missile to bat (%g)", r != world));
+        mg3mt_step = 23; mg3mt_next = time + 1.5;
+        return;
+    }
+    if(mg3mt_step == 23)
+    {
+        float fired = vr_mg3_rockets - mg3mt_n; // (one volley made, more of its own may follow: it has an enemy now)
+        MG3_MT_Check(fired >= 2 && fired == floor(fired / 2) * 2, sprintf("volleys of two rockets (%g)", fired));
+        MG3_MT_Check(p.health < mg3mt_h, sprintf("the player hurt (%g -> %g)", mg3mt_h, p.health));
+        MG3_MT_Hurt(p, mg3mt_m1, mg3mt_m1.health + 5);
+        mg3mt_step = 24; mg3mt_next = time + 2;
+        return;
+    }
+    if(mg3mt_step == 24)
+    {
+        MG3_MT_Check(mg3mt_m1.health <= 0 && mg3mt_m1.model == MG3_OGRE_ROCKET_MDL && mg3mt_m1.frame >= 112 &&
+            mg3mt_m1.frame <= 135, sprintf("killed: a corpse in its death frames (frame %g)", mg3mt_m1.frame));
+        float saws = 0;
+        entity w = find(world, classname, "thrown_weapon");
+        while(w) { if(w.weapon == WID_CHAINSAW) { saws = saws + 1; } w = find(w, classname, "thrown_weapon"); }
+        MG3_MT_Check(saws == 0, sprintf("no chainsaw dropped (%g)", saws));
         mg3mt_step = 0;
         MG3_MT_Total();
         return;
@@ -225,5 +294,6 @@ void() MG3_MonstersTestFrame =
     else if(request == 2) { mg3mt_step = 1; mg3mt_next = time; }
     else if(request == 3) { mg3mt_step = 10; mg3mt_next = time; }
     else if(request == 4) MG3_MT_KillInfected();
+    else if(request == 5) { mg3mt_step = 20; mg3mt_next = time; }
     self = oldself; other = oldother; activator = oldact;
 };

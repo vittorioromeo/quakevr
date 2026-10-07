@@ -281,6 +281,10 @@ void restartVr()
         out.pushBack({17.f, "Overlord"});
         out.pushBack({18.f, "Electric Eel"});
     }
+    if(VR_CampaignDataAvailable("mg3")) // (Dawn of the Machine's own: its data read in place, in any campaign)
+    {
+        out.pushBack({19.f, "Rocket Ogre"});
+    }
     return out;
 }
 
@@ -5085,6 +5089,12 @@ za::Vector<Item> pageMg3MonsterTests()
                   "zombie or a fiend, not counted), then killed again (counted once each)."),
         command("Lying Death Knight Check", "vr_mg3_mtest 3")
             .help("Destructive: a death knight lying as a corpse (not solid, his last death frame), woken: he rises."),
+        command("A Rocket Ogre Ahead", "vr_test_spawn 34; vr_test_spawn_dist 192; impulse 241")
+            .help("Dawn of the Machine's rocket ogre (its data read in place): volleys of two rockets; bat them back."),
+        command("A Rocket Ogre's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 34; vr_test_spawn_dead 1; vr_test_spawn_dist 128; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0"),
+        command("Rocket Ogre Check", "vr_mg3_mtest 5")
+            .help("Destructive: a rocket ogre ahead: its model, class, head zone; made to shoot (two rockets, you hurt), "
+                  "killed (its corpse, no chainsaw dropped)."),
     };
 }
 
@@ -5211,6 +5221,7 @@ za::Vector<Item> pageDebugTests()
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
              {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"},
              {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
+             {34.f, "Rocket Ogre"},
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},

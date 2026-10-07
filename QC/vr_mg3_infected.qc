@@ -111,11 +111,44 @@ void(string xClass) MG3_Infected_SetEnemy =
     }
 };
 
+// Room for his new body at `xAt` (upstream's walkmove(0, 0); here as on partial ground, so a body the blow threw into the
+// air or knocked off a step is not taken for wedged: it falls as any monster does), else up to 24 units higher (a body
+// lying on a step, or on the gibs), else 24 units to a side (crowded: a monster over a body knocked down, or pushed
+// against him). FALSE: none (he is left at `xAt`).
+float(vector xAt) MG3_Infected_Room =
+{
+    float oldFlags = self.flags;
+    float side, lift;
+    for(side = 0; side < 5; side = side + 1)
+    {
+        vector at = xAt;
+        if(side == 1) { at_x = at_x + 24; }
+        else if(side == 2) { at_x = at_x - 24; }
+        else if(side == 3) { at_y = at_y + 24; }
+        else if(side == 4) { at_y = at_y - 24; }
+        for(lift = 0; lift < 4; lift = lift + 1)
+        {
+            setorigin(self, at + '0 0 8' * lift);
+            self.flags = self.flags | FL_ONGROUND | FL_PARTIALGROUND;
+            float room = walkmove(0, 0);
+            self.flags = oldFlags;
+            if(room)
+            {
+                return TRUE;
+            }
+        }
+    }
+    setorigin(self, xAt);
+    return FALSE;
+};
+
 // Killed's turn (combat.qc Killed, before it counts or does any of Quake VR's dying): the burst, then the new body.
 void(entity attacker) MG3_Infected_Turn =
 {
     float kind = self.vr_mg3_infected;
     float wasDown = self.vr_knockdown != 0; // (knocked down: his origin his ragdoll's pelvis, on the floor)
+    vector oldMins = wasDown ? self.vr_kd_mins : self.mins; // (the box he stood in: knocked down, the one he had standing)
+    vector oldMaxs = wasDown ? self.vr_kd_maxs : self.maxs;
     self.vr_mg3_infected = 0;
     self.enemy = attacker;
     vr_mg3_infected_turned = vr_mg3_infected_turned + 1;
@@ -196,8 +229,6 @@ void(entity attacker) MG3_Infected_Turn =
     setorigin(self, self.origin);
     MG3_Infected_SetEnemy(self.classname);
 
-    // Room for the new body where it stands (upstream's walkmove(0, 0); here as on partial ground, so a body the blow
-    // threw into the air or knocked off a step is not taken for wedged: it falls as any monster does).
     // Knocked down, he stands up where his body lay: his box on the floor under him.
     if(wasDown)
     {
@@ -207,18 +238,18 @@ void(entity attacker) MG3_Infected_Turn =
             setorigin(self, trace_endpos + '0 0 1' * (1 - self.mins_z));
         }
     }
-    float oldFlags = self.flags;
-    float room = FALSE;
-    float lift;
-    for(lift = 0; lift < 4 && !room; lift = lift + 1) // (else a little higher: a body lying on a step, or on the gibs)
+    float room = MG3_Infected_Room(self.origin);
+    if(!room && oldMaxs_x > 0)
     {
-        if(lift)
+        // The new body's box is in another monster or the wall (a fiend is wider than a death knight; monsters crowd):
+        // the old body's, as upstream (which never changes the box), where it stood.
+        vector newMins = self.mins, newMaxs = self.maxs;
+        setsize(self, oldMins, oldMaxs);
+        room = MG3_Infected_Room(self.origin);
+        if(!room)
         {
-            setorigin(self, self.origin + '0 0 8');
+            setsize(self, newMins, newMaxs);
         }
-        self.flags = self.flags | FL_ONGROUND | FL_PARTIALGROUND;
-        room = walkmove(0, 0);
-        self.flags = oldFlags;
     }
     if(!room)
     {

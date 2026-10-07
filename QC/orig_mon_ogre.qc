@@ -243,7 +243,7 @@ void() ogre_stand4    =[    $stand4,    ogre_stand5    ] {ai_stand();};
 void() ogre_stand5    =[    $stand5,    ogre_stand6    ]
 {
     if(random() < 0.2 && /* HONEY */ (MG_WorldCampaign() || !(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
-        sound(self, CHAN_VOICE, "ogre/ogidle.wav", 1, ATTN_IDLE);
+        sound(self, CHAN_VOICE, MG3_RocketOgre_Sound(MG3_RO_IDLE_STAND, "ogre/ogidle.wav"), 1, ATTN_IDLE); // (QVR: MG3's rocket ogre's own)
 
     ai_stand();
 };
@@ -257,7 +257,7 @@ void() ogre_walk2    =[    $walk2,        ogre_walk3    ] {ai_walk(2);};
 void() ogre_walk3    =[    $walk3,        ogre_walk4    ] {
 ai_walk(2);
 if(random() < 0.2)
-    sound(self, CHAN_VOICE, "ogre/ogidle.wav", 1, ATTN_IDLE);
+    sound(self, CHAN_VOICE, MG3_RocketOgre_Sound(MG3_RO_IDLE_WALK, "ogre/ogidle.wav"), 1, ATTN_IDLE);
 };
 void() ogre_walk4    =[    $walk4,        ogre_walk5    ] {ai_walk(2);};
 void() ogre_walk5    =[    $walk5,        ogre_walk6    ] {ai_walk(2);};
@@ -279,7 +279,7 @@ void() ogre_walk16    =[    $walk16,    ogre_walk1    ] {ai_walk(4);};
 
 void() ogre_run1    =[    $run1,        ogre_run2    ] {ai_run(9);
 if(random() < 0.2)
-    sound(self, CHAN_VOICE, "ogre/ogidle2.wav", 1, ATTN_IDLE);
+    sound(self, CHAN_VOICE, MG3_RocketOgre_Sound(MG3_RO_IDLE_RUN, "ogre/ogidle2.wav"), 1, ATTN_IDLE);
 };
 void() ogre_run2    =[    $run2,        ogre_run3    ] {ai_run(12);};
 void() ogre_run3    =[    $run3,        ogre_run4    ] {ai_run(8);};
@@ -327,7 +327,16 @@ void() ogre_smash14    =[    $smash14,        ogre_run1    ] {ai_charge(12);};
 void() ogre_nail1    =[    $shoot1,        ogre_nail2    ] {ai_face();};
 void() ogre_nail2    =[    $shoot2,        ogre_nail3    ] {ai_face();};
 void() ogre_nail3    =[    $shoot2,        ogre_nail4    ] {ai_face();};
-void() ogre_nail4    =[    $shoot3,        ogre_nail5    ] {ai_face();OgreFireGrenade();};
+void() ogre_nail4    =[    $shoot3,        ogre_nail5    ]
+{
+    ai_face();
+    if(self.vr_mg3_mon) // QVR: MG3's rocket ogre: a volley of rockets (vr_mg3_ogre.qc), aiming again for the next
+    {
+        if(MG3_RocketOgre_Shoot()) { self.think = ogre_nail2; }
+        return;
+    }
+    OgreFireGrenade();
+};
 void() ogre_nail5    =[    $shoot4,        ogre_nail6    ] {ai_face();};
 void() ogre_nail6    =[    $shoot5,        ogre_nail7    ] {ai_face();};
 void() ogre_nail7    =[    $shoot6,        ogre_run1    ] {ai_face();};
@@ -393,8 +402,10 @@ void(entity attacker, float damage)    ogre_pain =
 // don't make multiple pain sounds right after each other
     if(self.pain_finished > time)
         return;
+    if(!MG3_RocketOgre_Flinches(damage))
+        return; // QVR: MG3's rocket ogre shrugs a blow off more often (vr_mg3_ogre.qc)
 
-    sound(self, CHAN_VOICE, "ogre/ogpain1.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, MG3_RocketOgre_Sound(MG3_RO_PAIN, "ogre/ogpain1.wav"), 1, ATTN_NORM);
 
     r = random();
 
@@ -422,6 +433,10 @@ void(entity attacker, float damage)    ogre_pain =
     {
         ogre_paine1();
         self.pain_finished = time + 2;
+    }
+    if(self.vr_mg3_mon)
+    {
+        self.pain_finished = self.pain_finished + 2; // QVR: MG3's rocket ogre's pain lasts longer
     }
 };
 
@@ -502,7 +517,11 @@ void()    ogre_bdie10    =[    $bdeath10,    ogre_bdie10    ] {monster_check_rem
 void() ogre_die =
 {
     // VR: its chainsaw falls from its hand (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not.
-    VR_DropOgreChainsaw();
+    // (MG3's rocket ogre holds a rocket launcher, kept in its hand.)
+    if(!self.vr_mg3_mon)
+    {
+        VR_DropOgreChainsaw();
+    }
 
     // check for gib
     ogre_crown_die();
@@ -518,7 +537,7 @@ void() ogre_die =
         return;
     }
 
-    sound(self, CHAN_VOICE, "ogre/ogdth.wav", 1, ATTN_NORM);
+    sound(self, CHAN_VOICE, MG3_RocketOgre_Sound(MG3_RO_DEATH, "ogre/ogdth.wav"), 1, ATTN_NORM);
 
     if(random() < 0.5)
         ogre_die1();
