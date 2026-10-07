@@ -12,6 +12,7 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
@@ -19,13 +20,27 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 
+#include <string.h>
+
 namespace
 {
 
 za::Atomic<bool> enabled{false};
 za::Atomic<bool> forgetAsked{false}; // VR_FileCacheForget from another thread
 za::ThreadId owner; // the main thread: VR_FileCacheEnable's first caller (VR_TimeStart, before any other thread)
-ankerl::unordered_dense::map<za::String, ankerl::unordered_dense::set<za::String>> dirs; // directory -> its files (not subdirectories)
+// By name; looked up by a view of a stack buffer (a transparent hash): no za::String made a lookup (48 K a big map's load).
+struct NameHash
+{
+    using is_transparent = void;
+    [[nodiscard]] za::U64 operator()(za::StringView s) const { return ankerl::unordered_dense::hash<za::StringView>{}(s); }
+};
+struct NameEqual
+{
+    using is_transparent = void;
+    [[nodiscard]] bool operator()(za::StringView a, za::StringView b) const { return a == b; }
+};
+using Names = ankerl::unordered_dense::set<za::String, NameHash, NameEqual>;
+ankerl::unordered_dense::map<za::String, Names, NameHash, NameEqual> dirs; // directory -> its files (not subdirectories)
 
 #ifdef _WIN32
 constexpr bool caseInsensitive = true; // Windows' file names: the same file whatever the case (ASCII here)
@@ -33,33 +48,39 @@ constexpr bool caseInsensitive = true; // Windows' file names: the same file wha
 constexpr bool caseInsensitive = false;
 #endif
 
-void fold(za::String& s)
+void fold(char* s, za::SizeT length)
 {
     if(caseInsensitive)
     {
-        for(char& c : s)
+        for(char* c = s; c != s + length; c++)
         {
-            if(c >= 'A' && c <= 'Z')
+            if(*c >= 'A' && *c <= 'Z')
             {
-                c = static_cast<char>(c - 'A' + 'a');
+                *c = static_cast<char>(*c - 'A' + 'a');
             }
-            else if(c == '\\')
+            else if(*c == '\\')
             {
-                c = '/';
+                *c = '/';
             }
         }
     }
 }
 
-const ankerl::unordered_dense::set<za::String>& listing(const za::String& dir)
+void fold(za::String& s)
+{
+    fold(s.data(), s.size());
+}
+
+const Names& listing(za::StringView dir)
 {
     const auto it = dirs.find(dir);
     if(it != dirs.end())
     {
         return it->second;
     }
-    ankerl::unordered_dense::set<za::String>& files = dirs[dir];
-    for(findfile_t* f = Sys_FindFirst(dir.cStr(), nullptr); f; f = Sys_FindNext(f))
+    const za::String key{dir};
+    Names& files = dirs[key];
+    for(findfile_t* f = Sys_FindFirst(key.cStr(), nullptr); f; f = Sys_FindNext(f))
     {
         if(!(f->attribs & FA_DIRECTORY))
         {
@@ -111,13 +132,21 @@ extern "C" int VR_FileCacheHas(const char* path)
             return -1;
         }
     }
-    za::String full = path;
-    fold(full);
-    const size_t slash = full.findLastOf("/\\");
-    if(slash == za::StringView::nPos || slash + 1 == full.size())
+    // (folded in a buffer on the stack: a lookup makes no string; a longer path is the file system's to answer)
+    char full[MAX_OSPATH];
+    const size_t length = strlen(path);
+    if(length >= sizeof(full))
     {
         return -1;
     }
-    const ankerl::unordered_dense::set<za::String>& files = listing(za::String{full.substrByPosLen(0, slash)});
-    return files.count(za::String{full.substrByPosLen(slash + 1)}) ? 1 : 0;
+    memcpy(full, path, length + 1);
+    fold(full, length);
+    const za::StringView view{full, length};
+    const size_t slash = view.findLastOf("/\\");
+    if(slash == za::StringView::nPos || slash + 1 == length)
+    {
+        return -1;
+    }
+    const Names& files = listing(view.substrByPosLen(0, slash));
+    return files.find(view.substrByPosLen(slash + 1)) != files.end() ? 1 : 0;
 }

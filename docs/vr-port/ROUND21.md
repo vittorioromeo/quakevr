@@ -28215,3 +28215,23 @@ The `start` counts (edicts 253, Box3D bodies 142) are the base's. `precache_test
 every `vr_model_check` 0 wrong. `developer 1`: `probes: pass 1/2, N entities ... ms` and `probes: kinds ready <bits>,
 monsters counted N before, N after` (the same). Debug > Profiling and Memory: Ready What Can Appear, Ready the Debug
 Spawner's; Gore > Limb Gore > Make Limbs as the Map Loads is a three-way choice.
+
+### 3. The load's small allocations: debris faces, file lookups
+
+The za::Vector audit's two main-thread sites on a big map's load: `MapFace::pts` (vr_debris.cpp, each world face's
+corners as `debris::plan` reads them: a `za::Vector` grown 1-2-4-8) is a `za::SmallVector<glm::vec3, 8>`;
+`VR_FileCacheHas` (vr_fscache.cpp: every file lookup while loading made three `za::String`s) folds the path in a
+`char[MAX_OSPATH]` on the stack and looks the listings up by `za::StringView` (a transparent hash; a directory's
+listing is made, as before, at its first lookup).
+
+| warden, the session's first load (`vr_image_cache_mb 0`, 3 runs) | base | after |
+|---|---|---|
+| main thread `new` / `delete` over the load (`vr_alloc_sites 8`) | 275-284 K / 288-296 K | 120-121 K / 133 K |
+| `malloc` / `free` | 11.0-11.1 K / 8.2-8.5 K | 11.1 K / 8.5 K |
+| load total | 2748, 3292, 3363 ms | 2847, 2844, 2894 ms |
+| `VR_NewMap: explosion debris` stage | 24.2, 28.5 ms | 26.6 ms (one run of 90.6: the whole load ran slow) |
+| "image files looked for, none found" (1456 lookups) | 31.9, 32.5 ms | 31.4 ms |
+
+163 K fewer allocations a warden load (58% of the main thread's `new`); the time they took (a few ms by the audit's
+estimate) is inside the loads' run-to-run spread, which the hulls' build on the pool dominates. Behaviour unchanged:
+the same lookups (the counts above), the same faces.

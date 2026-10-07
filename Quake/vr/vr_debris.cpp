@@ -17,6 +17,7 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/SmallVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -309,7 +310,7 @@ struct MapFace
 {
     glm::vec3 normal;
     float dist;
-    za::Vector<glm::vec3> pts;
+    za::SmallVector<glm::vec3, 8> pts; // (a face's edges: 4-8 typical, kept inline: 65 K allocations a big map's load otherwise)
     Material material;
     const texture_t* texture;
     int surf; // its msurface_t in the world model
