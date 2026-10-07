@@ -6350,6 +6350,10 @@ extern "C" void VR_SetupViewEntities()
     {
         pressWeaponButtons(s);
     }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        s.placedFrom[hand] = s.pos[hand]; // the hands the muzzles and ports were placed on (hands::State::placedFrom)
+    }
 
     // The ring of shadows fades the hands and weapons too (as the old engine did); the gadget
     // stays readable.

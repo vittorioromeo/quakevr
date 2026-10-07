@@ -313,20 +313,31 @@ void handTouches(edict_t* ent)
 
 // Weapons poking things: the gun from each hand to its muzzle, using the networked hand
 // and muzzle positions (so it works for every client, not just a listen server's).
+// A hand's muzzle is never farther from it than this (metres): no weapon is that long. A line longer is not a weapon's
+// (a client's muzzle left where the hand was before a map load or a teleport: ROUND21.md, "A far button pressed at a map
+// load"; the client carries it with the hand now, vr_client.cpp handMuzzle), and touches nothing.
+constexpr float weaponLineMaxMetres = 4.f;
+
 void weaponTouches(edict_t* ent)
 {
     const glm::vec3 gunExtent{1.f};
     const int handPos[2] = {f().handpos, f().offhandpos};
     const int muzzlePos[2] = {f().muzzlepos, f().offmuzzlepos};
     const float handIndex[2] = {HAND_MAIN, HAND_OFF};
+    const float longest = weaponLineMaxMetres * units::metresToUnits();
 
     for(int i = 0; i < 2; i++)
     {
         const auto* tracked = server::clientMove(ent);
         const int h = i == 0 ? 1 : 0;
-        const trace_t trace = tracked ?
-            moveTrace(tracked->hands[h].pos, -gunExtent, gunExtent, tracked->muzzlePos[h], MOVE_NORMAL | MOVE_PORTALS, ent) :
-            moveTrace(fieldVec(ent, handPos[i]), -gunExtent, gunExtent, fieldVec(ent, muzzlePos[i]), MOVE_NORMAL, ent);
+        const glm::vec3 from = tracked ? tracked->hands[h].pos : fieldVec(ent, handPos[i]);
+        const glm::vec3 to = tracked ? tracked->muzzlePos[h] : fieldVec(ent, muzzlePos[i]);
+        if(glm::distance(from, to) > longest)
+        {
+            Con_DPrintf("VR: hand %d's line to its muzzle is %.0f units long: no weapon touch\n", h, glm::distance(from, to));
+            continue;
+        }
+        const trace_t trace = moveTrace(from, -gunExtent, gunExtent, to, tracked ? MOVE_NORMAL | MOVE_PORTALS : MOVE_NORMAL, ent);
 
         if(trace.fraction < 1.f && trace.ent && fieldFunc(trace.ent, f().vr_wpntouch))
         {

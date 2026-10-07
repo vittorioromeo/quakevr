@@ -1165,6 +1165,13 @@ void() PutClientInServer =
 
     self.handpos = self.origin;
     self.offhandpos = self.origin;
+    // VR: the muzzles and loading ports with them, until the first move places them (left at the world's origin, the
+    // engine's line from each hand to its muzzle crossed the map on the first frames, pressing a button on the way:
+    // ROUND21.md, "A far button pressed at a map load").
+    self.muzzlepos = self.origin;
+    self.offmuzzlepos = self.origin;
+    self.loadportpos = self.origin;
+    self.offloadportpos = self.origin;
 
     self.handvel = '0 0 0';
     self.offhandvel = '0 0 0';

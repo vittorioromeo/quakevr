@@ -29193,3 +29193,39 @@ Also: rebased on the wrist gadget redesign (45425224): `STAT_QVR_RELOADMODE` and
 `STAT_QVR_AMMOTYPE`. Tests: reload_test.sh 24 of 24 (the self-test 54 of 54; section 5: the legs, a load point moved,
 Collision Leniency 0 against 12, an ammo box with `vr_carry_take 1`, the pouch's frame for 50 nails), the loaded map
 guns', the e1m1 smoke, `vr_menu_path_check`; QC 0 warnings.
+## A far button pressed at a map load (2026-10-07)
+
+Your report (seen by a headless agent on vrstart2, and on the old vrstart): at a map load the off hand sometimes
+"pressed" a button far from it. Logged with the press's hand, its position and distances (`vr_debug_wallbuttons 1` now
+prints them under each press), the presses were never the hand's touch: they were **the engine's line from a hand to its
+muzzle** (`weaponTouches`: "pressed by player: the line from hand 0 to its muzzle", the hand 53 units from the button,
+the muzzle near the world's origin). Two ways that line crossed the map on a load's first frames:
+
+- **The client's muzzle was the last render's.** Moves are sent before the frame's render, so a move carries the muzzles
+  (and the loading ports) the view placed at the previous render, with the hands as they are now. After a map load the
+  last render was the old map's, or this map's first one with the player's entity still at the world's origin (it is
+  placed by the first entity update): the empty hand's muzzle (the fist is a "weapon" with a muzzle) sat at about
+  (+-9, 10, 21), the hand at the spawn. A teleport left it behind the same way for a frame. The view now records where
+  each hand was when it placed them (`hands::State::placedFrom`, at the end of `VR_SetupViewEntities`) and the move
+  carries the muzzle, a carried gun's tip and the port along by how far the hand has gone since (vr_client.cpp
+  `handMuzzle`). In play this also takes the one frame of hand travel off the muzzle's lag (its turn still lags a frame,
+  as before).
+- **The server's fallback, before the client's first move on the map,** traced from `.handpos` (the player's origin,
+  set at the spawn) to `.muzzlepos`, never set: the world's origin. `PutClientInServer` now sets the muzzles and ports
+  to the origin with the hands (client.qc).
+- And a guard: a line from a hand to its muzzle longer than 4 m (`weaponLineMaxMetres`; no weapon is that long) touches
+  nothing (`developer 1` prints it). It never fires after the two fixes.
+
+Hand touches themselves (buttons, pickups, weapons lying about, carried boxes: `handTouches`, `handTouch`) were never
+wrong at a load: the hands are placed from the move's own origin and moved with the body (`rebaseHands`); what used the
+muzzle line was the wall buttons and the explosive boxes (`vr_wpntouch`), and the QC's muzzle (`.muzzlepos`).
+
+**Tested** (`Misc/quakevr/buttons/stray_press_test.sh <agent>`): vrstart2 and vrstart loaded 5 times each (hands at
+rest), and a save made on the pavilion with the off hand held up by the Turning button loaded 20 times. Before: the 20
+loads pressed Turning each time (20 of 20; the 10 map loads and a save on vrstart 0, their lines blocked or missing
+buttons); after: 0 of 30, no line over 4 m, the same with `-RealTime`, and 5 fresh processes (`+map vrstart2`, then the save) 0. Real presses
+right after a spawn or a load still work (Turning by the off hand 20 frames after the load, the tutorial button 20 frames
+into the map, the Scourge lectern); the walk test 18 of 18; e1m1's smoke test. (eval.sh: no current melee takes.)
+
+**To try in VR:** load vrstart2 and vrstart a few times, from the menu, a save and the slipgates (come back from the
+tutorial or the firing range): no button presses itself; the buttons by the start still press at once.

@@ -83,6 +83,12 @@ struct State
     // held in the other hand goes in.
     bool loadPortValid[2]{false, false};
     glm::vec3 loadPort[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // Where each hand was (pos) when the view placed the muzzles and ports above, at the end of its render. A move is
+    // sent before the frame's render, so it carries them along by how far the hand has gone since (vr_client.cpp
+    // handMuzzle): after a map load (the last render was the old map's, or this one's with the player at the world's
+    // origin), a load or a teleport they were left far behind, and the server's line from the hand to its muzzle crossed
+    // the map, pressing a button on the way (ROUND21.md, "A far button pressed at a map load").
+    glm::vec3 placedFrom[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 
     // Where the other hand grips each weapon in the "fixed" two-handed display mode (a
     // foregrip vertex of the weapon model), placed with the muzzles.

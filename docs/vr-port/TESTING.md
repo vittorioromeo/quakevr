@@ -1227,6 +1227,11 @@ head, the box, the lean, the pelvis, the feet and the lean's hold and cues, ever
 Leaning through stick turns (ROUND21.md, the section of that name): `bash Misc/quakevr/lean/lean_turn_test.sh <agent> ["0 2"] [cases]`
 prints the body's drift in the room (`vr_body_error`) after a lean, a turn or move, and straightening up; with
 `vr_lean_turn 2` about 1 cm at most throughout, 0 after. `vr_debug_body_error 1` logs it twice a second.
+Stray button presses at a load (ROUND21.md, "A far button pressed at a map load"): `bash Misc/quakevr/buttons/stray_press_test.sh <agent>` loads vrstart2 and vrstart 5 times each, then 20 times a save
+made with the off hand held up beside vrstart2's Turning button, and presses it once for real: `stray presses 0, real
+presses 1, long lines 0`. `vr_debug_wallbuttons 1` (Debug > Views > Wall Buttons) prints each press with the hand's
+position and its distance from the button and from the player; `developer 1` a hand's line to its muzzle longer than any
+weapon (refused).
 Body calibration (ROUND21.md, "Body calibration"): `vr_bodycal standing` runs it in the mock too. A synthetic person
 doing its poses is a take of raw tracking played alongside: `vr_motion_play <take> watch noplace`, then
 `vr_bodycal standing` in the same frame (the scratchpad's `bodycal/gentake.py` makes them); `vr_bodycal_print`

@@ -163,20 +163,25 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     {
         muzzleOffsets.resize(slot * 2 + 2);
     }
+    // As drawn by the last render, carried along with the hand since (hands::State::placedFrom: after a map load, a load
+    // or a teleport the last render's muzzle is where the hand was, and the server's line from the hand to it crossed
+    // the map).
+    const glm::vec3 since = hs.pos[h] - hs.placedFrom[h];
     if(hs.muzzleValid[h])
     {
+        const glm::vec3 muzzle = hs.muzzle[h] + since;
         glm::vec3 f, r, u;
         hands::angleVectors(hs.visualRot[h], f, r, u);
-        const glm::vec3 d = hs.muzzle[h] - hs.pos[h];
+        const glm::vec3 d = muzzle - hs.pos[h];
         muzzleOffsets[slot * 2 + (h == HAND_OFF ? 1 : 0)] = {true, {glm::dot(d, f), glm::dot(d, r), glm::dot(d, u)}};
-        return hs.muzzle[h];
+        return muzzle;
     }
     // Carried off its handle: its tip as drawn (anywhere on it, it may never have been held by its handle).
     glm::vec3 carriedPos, carriedRot, carriedTip;
     bool carriedMirrored = false;
     if(twohand::carrying(h) && view::carriedWeaponPose(h, carriedPos, carriedRot, carriedMirrored, carriedTip))
     {
-        return carriedTip;
+        return carriedTip + since;
     }
     twohand::HeldAs held{hs.pos[h], hs.visualRot[h], h == HAND_OFF};
     if(twohand::carrying(h) && twohand::carriedWeapon(hs, h, held))
@@ -295,10 +300,10 @@ VrMove unposed;
 
         move.hotspots[h] = static_cast<za::U8>(hs.hotspot[h]);
 
-        // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame; a carried gun's from
-        // where it is drawn (handMuzzle).
+        // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame, moved with the hand since;
+        // a carried gun's from where it is drawn (handMuzzle). The loading port as the muzzle.
         move.muzzlePos[h] = handMuzzle(hs, h);
-        move.loadPort[h] = hs.loadPortValid[h] ? hs.loadPort[h] : hs.pos[h];
+        move.loadPort[h] = hs.loadPortValid[h] ? hs.loadPort[h] + (hs.pos[h] - hs.placedFrom[h]) : hs.pos[h];
 
         // Where its shots go: the aim turned by the weapon's Shot Pitch and Yaw (the drawn weapon doesn't move).
         move.shotRot[h] = weapons::shotAngles(hs.rot[h], weapons::heldSlot(h), h == HAND_OFF);

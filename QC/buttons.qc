@@ -106,6 +106,15 @@ void() button_fire =
     {
         dprint(sprintf("button: %s (target \"%s\") pressed by %s: %s\n", self.model, self.target, self.enemy.classname,
             vr_button_how != NULLSTR ? vr_button_how : "used or shot"));
+        if(self.enemy.classname == "player")
+        {
+            // Where the hand was (a hand far from the button, or from the player, is a stray press).
+            float h = VRGetTouchingHand(self.enemy);
+            vector hp = h == cVR_OffHand ? self.enemy.offhandpos : self.enemy.handpos;
+            dprint(sprintf("button:   hand %g at %v, %.0f from the button's middle %v, %.0f from the player %v (time %.2f)\n",
+                h, hp, vlen(hp - realorigin(self)), realorigin(self), vlen(hp - self.enemy.origin), self.enemy.origin,
+                time));
+        }
     }
     vr_button_how = NULLSTR;
     particle2(realorigin(self), '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 64);

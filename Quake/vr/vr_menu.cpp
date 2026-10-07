@@ -4234,7 +4234,8 @@ za::Vector<Item> pageDebugLogging()
                   "and the cord's hole drawn. The engine and cut lines need Developer Messages."),
         cycle("Wall Buttons", vr_debug_wallbuttons, {{0.f, "Off"}, {1.f, "Each Press"}, {2.f, "And Weapon Lines"}})
             .help("Each button pressed: what pressed it and how (a hand, a held weapon and its line, a thrown thing and "
-                  "its speed, stepped on). And Weapon Lines: every frame, each held weapon's line that presses buttons "
+                  "its speed, stepped on), and where the hand was: how far from the button and from you (a far one is a "
+                  "stray press). And Weapon Lines: every frame, each held weapon's line that presses buttons "
                   "(from its pommel or butt to its tip or muzzle). Needs Developer Messages."),
         toggle("Shots and Damage", vr_debug_shots)
             .help("Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
