@@ -166,6 +166,13 @@ void(float xType) VR_Dummy_Type =
         vr_dt_snd1 = "owned/mg3/orb/orb_pain.wav";
         return;
     }
+    if(xType == 32)
+    {
+        vr_dt_class = "monster_lava_man"; vr_dt_name = "Lava Man"; vr_dt_pack = 3; // (Dawn of the Machine's: MG3's model)
+        vr_dt_stand = 17; vr_dt_stands = 5; vr_dt_pain = 80; vr_dt_pains = 10; vr_dt_atk = 57; vr_dt_atks = 23;
+        vr_dt_snd1 = "boss1/pain.wav";
+        return;
+    }
     if(xType == 31)
     {
         vr_dt_class = "monster_tarbaby"; vr_dt_name = "Slime"; // (the spawn's model: no MG3 data needed; killed, it splits)
@@ -203,6 +210,7 @@ void(float xType) VR_Dummy_TypeSpawn =
     if(xType == 21) { monster_ranged_knight(); return; }
     if(xType == 30) { monster_orb(); return; }
     if(xType == 31) { monster_slime(); return; }
+    if(xType == 32) { monster_lava_man_mg3(); return; }
     monster_army();
 };
 

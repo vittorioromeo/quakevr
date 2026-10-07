@@ -23,7 +23,8 @@
 // blows up harmlessly. A child counts among the level's monsters only once it has started. Quake's models: no MG3 data
 // needed.
 
-.float mg3_slime;            // the generations still to come out of this spawn (2 a map's slime; its children 1, theirs 0)
+// .mg3_slime (defs.qc): the generations still to come out of this spawn (2 a map's slime; its children 1, theirs 0);
+// .mg3_slimekin: a slime or one of its children ("was slimed").
 float mg3_slime_blobs;       // blobs thrown, children started, children that blew up in a wall (the tests' counts)
 float mg3_slime_children;
 float mg3_slime_stuck;
@@ -77,6 +78,7 @@ void() MG3_Slime_BlobTouch =
     c.health = 80;
     setorigin(c, self.origin + '0 0 25');
     c.mg3_slime = self.mg3_slime;
+    c.mg3_slimekin = TRUE;
     c.enemy = self.enemy;
     c.ideal_yaw = c.angles_y;
     c.yaw_speed = 20;
@@ -145,6 +147,7 @@ void() monster_slime =
 {
     precache_model("progs/v_spike.mdl");
     self.mg3_slime = 2;
+    self.mg3_slimekin = TRUE;
     self.classname = "monster_tarbaby";
     monster_tarbaby();
     if(self.model == "")

@@ -252,6 +252,8 @@ float(entity xTarget) PositionalHead =
     // (lunging, his head thrust forward and level with his origin; decapitation's zone since round 20, its one source now).
     if(c == "monster_dog")              { xHeadForward = 23; xHeadUp = 1;  xHeadRadius = 7;   return TRUE; }
     if(c == "player")                   { xHeadForward = 4;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
+    // Dawn of the Machine's lava man (MG3's model, $walk1: its head forward of its shoulders, 61-79 up; Rogue's has none).
+    if(c == "monster_lava_man" && xTarget.mg3_lavaman) { xHeadForward = 31; xHeadUp = 70; xHeadRadius = 13; return TRUE; }
     return FALSE;
 };
 

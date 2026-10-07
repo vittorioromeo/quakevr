@@ -28627,3 +28627,34 @@ slime; secret5 3 ghosts; map1 4 ghosts (0 runes). Checker: 16 missing classes, 5
 **In the headset.** [ ] Dawn of the Machine Bestiary > A Ghost Ahead: reach out and touch it with a hand: it dies and
 fades. [ ] A Sacrifice Ahead: punch or cut it till it bursts. [ ] A Slime Ahead: kill it and its children (watch the
 blobs arc and become spawns); the kill count should end even.
+
+### M3-21 Dawn of the Machine's lava man
+
+MG3's `monster_lava_man` is Rogue's "with a few tweaks" (upstream `mg3_lavaman.qc` and `combat.qc`): here Rogue's
+(`rogue_lavaman.qc`) with `.mg3_lavaman` branches, set for every `monster_lava_man` in campaign 5 and by the new
+`monster_lava_man_mg3` (`QC/vr_mg3_lavaman.qc`: any map, MG3's data needed). Rogue's lava man is untouched (r2m3's 4:
+MG3's 0). MG3's:
+- **Rises when its trigger fires** (a targetname; else at once: upstream dropped Rogue's Sleeping flag 2), the lava
+  splash 50 below it (in the lava), and **stays at the lava's surface** (it flies: no drop to the floor).
+- **Stands as it throws** (Rogue's steps forward on seven attack frames), its two lava balls from lower hands (90 up,
+  65 aside; Rogue's 130/125, 65/75).
+- **Its first hit always staggers it**, with Chthon's pain cry (then 5% a hit, 2 s apart, as Rogue's).
+- **Takes 0.8 of a blow** but the lightning gun's bolt and the laser cannon's (upstream: the attacker's selected weapon;
+  here what struck: a laser bolt, or a shot from a hand holding the lightning gun), **nothing from Chthon**
+  (`MG3_LavaManDamage`, from `T_Damage`).
+- **Used again once risen it dies** (counted, its targets fired: upstream `lavaman_force_death`); sinks without Rogue's
+  blast. Model MG3's own, read in place (`owned/mg3/progs/lavaman.mdl`: no Dissolution of Eternity needed).
+- **VR:** a head zone (MG3's model, `$walk1`: 31 forward, 70 up, radius 13; Rogue's has none); grapple mass 3000 (both);
+  no ragdoll (it sinks), not a melee monster; lava never burns it (`vr_liquids.qc`, both). Obituaries "was burned to a
+  crisp" (MG3's) and, with this commit, MG3's for the slime ("was slimed"), the super shambler and the orb.
+- **Anywhere:** Debug spawner 44, training dummy enemy 32 "Lava Man (Dawn of the Machine)" (listed with MG3's data).
+
+Tests (`vr_mg3_btest 5`, e1m1) **13/0**: MG3's ahead (model, flying, 1500 health at skill 1, counted, a use kills it,
+its head zone) and Rogue's beside it unchanged (walks, Rogue's model, no head zone); a blow 80 of 100, its first hit
+staggers it (frame 80); a laser bolt and a lightning shot 100; nothing from Chthon; Rogue's takes 100; its throw (forced:
+e1m1's start walls hide you from where it walks) puts a ball in flight; it never fell; used again: dead, counted once,
+sunk and gone. MG3 map2b (`vr_mg3_btest 6`) **4/0**: its 2 lava men waiting for their trigger, risen (flying, MG3's
+model, after you), used again: dead, counted, gone. FGD: 332 entities.
+
+**In the headset.** [ ] MG3 map2b's lava men: they rise from the lava, throw standing; the first hit staggers them.
+[ ] Bestiary > A Lava Man Ahead: aim at its head (the zone: Debug > Show Hit Zones).

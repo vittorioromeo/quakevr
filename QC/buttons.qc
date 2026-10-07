@@ -755,7 +755,7 @@ void() func_weapon_grabbable =
 // Dawn of the Machine's from 30: 30 an infected grunt, 31 knight, 32 enforcer, 33 death knight (vr_mg3_infected.qc),
 // 34 the rocket ogre (vr_mg3_ogre.qc), 35 the demo dog (vr_mg3_demodog.qc), 36 the ranged knight (vr_mg3_rknight.qc).
 // Dawn of the Machine's (read in place from the owned pack: owned/mg3/), from 40: 40 the orb, 41 the slime, 42 a ghost,
-// 43 a hanging sacrifice (misc_sacrifice: gibbed when struck or used).
+// 43 a hanging sacrifice (misc_sacrifice: gibbed when struck or used), 44 the lava man (MG3's: monster_lava_man_mg3).
 // The model of the second row's monsters: the mission packs' (and the registered game's) may not be
 // installed, and precaching a missing model is an error.
 string(float choice) VR_EnemyDispenser_Model =
@@ -788,6 +788,7 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 41) { return "progs/tarbaby.mdl"; }
     else if(choice == 42) { return "progs/player.mdl"; }
     else if(choice == 43) { return "owned/mg3/progs/player_hanging_animated.mdl"; }
+    else if(choice == 44) { return "owned/mg3/progs/lavaman.mdl"; }
 
     return NULLSTR;
 };
@@ -825,6 +826,7 @@ void(float choice) VR_EnemyDispenser_Spawn =
     else if(choice == 34) { self.classname = "monster_ogre_rocket"; monster_ogre_rocket(); }
     else if(choice == 35) { self.classname = "monster_demodog"; monster_demodog(); }
     else if(choice == 36) { self.classname = "monster_ranged_knight"; monster_ranged_knight(); }
+    else if(choice == 44) { self.classname = "monster_lava_man";    monster_lava_man_mg3(); }
     else if(choice == 41) { self.classname = "monster_slime";       monster_slime(); }
     else if(choice == 42) { self.classname = "monster_ghost";       monster_ghost(); }
     else if(choice == 43) { self.classname = "misc_sacrifice";      misc_sacrifice(); }

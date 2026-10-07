@@ -5,6 +5,9 @@
 //     killed: flung, blown up where it lands, counted once; the dummy type, the spawner, the grapple's mass
 //   3 a ghost laid to rest by a touch and one by a blow, a sacrifice struck down (its target fired), a sacrifice counter,
 //     a slime's two generations (blobs, children counted as they start, every one killed: the kills match the count)
+//   5 a lava man of MG3's (it flies, its first hit staggers it, 0.8 but lightning and laser, none from Chthon, throws, a use
+//     kills it) and Rogue's beside it, unchanged
+//   6 (Dawn of the Machine's map2b) its lava men: waiting, risen by their trigger, killed by a use
 //   4 (Dawn of the Machine's map8) each of the map's victims used: the counter (8) counts down, its target fired once
 
 float mg3bt_pass, mg3bt_fail;
@@ -96,6 +99,10 @@ void() MG3_BT_Report =
     entity e = find(world, classname, "monster_tarbaby");
     while(e) { if(e.mg3_slime > 0) slimes++; e = find(e, classname, "monster_tarbaby"); }
     dprint(sprintf("mg3btest: monster_ghost %g; misc_sacrifice %g; counter %s count %g; slimes %g\n", n, sac, ctr.targetname, ctr.count, slimes));
+    float lava = 0, lavamg3 = 0, lavastep = 0;
+    e = find(world, classname, "monster_lava_man");
+    while(e) { lava++; if(e.mg3_lavaman) lavamg3++; if(e.movetype == MOVETYPE_STEP) lavastep++; e = find(e, classname, "monster_lava_man"); }
+    dprint(sprintf("mg3btest: monster_lava_man %g (MG3's %g, walking %g)\n", lava, lavamg3, lavastep));
 };
 
 // `m` wakes at `p` (as a sight of it would).
@@ -341,6 +348,183 @@ void() MG3_BT_MapSacrifices =
     MG3_BT_Total();
 };
 
+// A ball of `m`'s in flight (its throw seen).
+float(entity m) MG3_BT_LavaBalls =
+{
+    float n = 0;
+    entity b = find(world, classname, "lavaman_ball");
+    while(b) { if(b.owner == m) n++; b = find(b, classname, "lavaman_ball"); }
+    return n;
+};
+
+void() MG3_BT_LavaStep =
+{
+    entity p = MG3_BT_Player();
+    entity oldself = self, oldact = activator;
+    if(mg3bt_step == 30)
+    {
+        mg3bt_pass = mg3bt_fail = 0;
+        p.flags = p.flags | FL_GODMODE;
+        mg3bt_t = total_monsters;
+        mg3bt_a = MG3_BT_Spawn(p, 44, 260, -60, 0);
+        MG3_BT_Check(mg3bt_a.classname == "monster_lava_man" && mg3bt_a.mg3_lavaman && mg3bt_a.model == "owned/mg3/progs/lavaman.mdl",
+            sprintf("an MG3 lava man ahead (%s, %s)", mg3bt_a.classname, mg3bt_a.model));
+        MG3_BT_Check(mg3bt_a.movetype == MOVETYPE_FLY && mg3bt_a.health == 1250 + 250 * skill && total_monsters == mg3bt_t + 1,
+            sprintf("it flies (stays at the lava's surface), %g health, counted", mg3bt_a.health));
+        MG3_BT_Check(mg3bt_a.use == lavaman_force_death && PositionalHead(mg3bt_a) && xHeadUp == 70, "a use kills it; its head zone");
+        // Rogue's beside it, unchanged (when Dissolution of Eternity is here).
+        mg3bt_b = world;
+        if(VR_Pack_Rogue())
+        {
+            self = spawn();
+            makevectors('0 1 0' * p.v_angle_y);
+            setorigin(self, p.origin + v_forward * 260 + v_right * 80);
+            self.classname = "monster_lava_man";
+            monster_lava_man();
+            mg3bt_b = self;
+            self = oldself;
+            MG3_BT_Check(!mg3bt_b.mg3_lavaman && mg3bt_b.movetype == MOVETYPE_STEP && mg3bt_b.model == "progs/lavaman.mdl" &&
+                mg3bt_b.use != lavaman_force_death && !PositionalHead(mg3bt_b), "Rogue's lava man beside it: its own (walks, its model, no head zone)");
+        }
+        else
+            dprint("mg3btest: no Dissolution of Eternity here: Rogue's lava man not checked\n");
+        mg3bt_step = 31; mg3bt_next = time + 2.5; // (risen)
+        return;
+    }
+    if(mg3bt_step == 31)
+    {
+        float h = mg3bt_a.health;
+        T_Damage(mg3bt_a, p, p, 100);
+        float d1 = h - mg3bt_a.health;
+        MG3_BT_Check(d1 == 80, sprintf("a blow: 0.8 of it (%g of 100)", d1));
+        MG3_BT_Check(mg3bt_a.count == 1 && mg3bt_a.frame == 80, sprintf("its first hit staggers it (frame %g)", mg3bt_a.frame));
+        entity bolt = spawn();
+        bolt.classname = "hiplaser";
+        h = mg3bt_a.health;
+        T_Damage(mg3bt_a, bolt, p, 100);
+        remove(bolt);
+        float d2 = h - mg3bt_a.health;
+        float w1 = p.weapon, w2 = p.weapon2;
+        p.weapon = p.weapon2 = WID_LIGHTNING;
+        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', '0 0 0');
+        h = mg3bt_a.health;
+        T_Damage(mg3bt_a, p, p, 100);
+        float d3 = h - mg3bt_a.health;
+        VR_ClearHitKind();
+        p.weapon = w1; p.weapon2 = w2;
+        MG3_BT_Check(d2 == 100 && d3 == 100, sprintf("the laser cannon's bolt %g, the lightning gun's %g: whole", d2, d3));
+        entity chthon = spawn();
+        chthon.classname = "monster_boss";
+        h = mg3bt_a.health;
+        T_Damage(mg3bt_a, chthon, chthon, 100);
+        remove(chthon);
+        MG3_BT_Check(mg3bt_a.health == h, "nothing from Chthon");
+        if(mg3bt_b)
+        {
+            h = mg3bt_b.health;
+            T_Damage(mg3bt_b, p, p, 100);
+            MG3_BT_Check(h - mg3bt_b.health == 100, sprintf("Rogue's takes the whole blow (%g)", h - mg3bt_b.health));
+        }
+        MG3_BT_Wake(mg3bt_a, p);
+        self = mg3bt_a;
+        self.th_missile(); // (its throws, whatever stands between: e1m1's start has walls)
+        self = oldself;
+        mg3bt_n = 0;
+        mg3bt_n2 = mg3bt_a.origin_z;
+        mg3bt_step = 32; mg3bt_next = time + 0.5;
+        return;
+    }
+    if(mg3bt_step >= 32 && mg3bt_step < 40)
+    {
+        mg3bt_n = max(mg3bt_n, MG3_BT_LavaBalls(mg3bt_a));
+        if(mg3bt_step < 39) { mg3bt_step++; mg3bt_next = time + 0.7; return; }
+        traceline(mg3bt_a.origin + '0 0 64', p.origin, FALSE, mg3bt_a);
+        dprint(sprintf("mg3btest: lava man frame %g enemy %s attack_finished %g (now %g) sight %s; origin %v\n", mg3bt_a.frame,
+            mg3bt_a.enemy.classname, mg3bt_a.attack_finished, time, trace_ent.classname, mg3bt_a.origin));
+        MG3_BT_Check(mg3bt_n >= 1, sprintf("awake, it throws lava balls (%g in flight at once)", mg3bt_n));
+        MG3_BT_Check(mg3bt_a.origin_z - mg3bt_n2 > -1, sprintf("it never fell (%g)", mg3bt_a.origin_z - mg3bt_n2));
+        mg3bt_k = killed_monsters;
+        activator = p;
+        self = mg3bt_a;
+        self.use();
+        self = oldself; activator = oldact;
+        MG3_BT_Check(mg3bt_a.health <= 0 && killed_monsters == mg3bt_k + 1, "used again: it dies, counted");
+        if(mg3bt_b) T_Damage(mg3bt_b, p, p, 5000);
+        mg3bt_step = 40; mg3bt_next = time + 2;
+        return;
+    }
+    if(mg3bt_step == 40)
+    {
+        MG3_BT_Check(mg3bt_a.model == "" && killed_monsters == mg3bt_k + 1 + (mg3bt_b != world), "it sank and is gone, counted once");
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        MG3_BT_Total();
+        return;
+    }
+};
+
+// Dawn of the Machine's map2b: its two lava men wait for their trigger, rise when it fires, die when used again.
+void() MG3_BT_MapLavaStep =
+{
+    entity p = MG3_BT_Player();
+    entity oldself = self, oldact = activator;
+    entity e;
+    float n = 0, waiting = 0, risen = 0, dead = 0;
+    if(mg3bt_step == 50)
+    {
+        mg3bt_pass = mg3bt_fail = 0;
+        p.flags = p.flags | FL_GODMODE;
+        e = find(world, classname, "monster_lava_man");
+        while(e)
+        {
+            n++;
+            if(e.mg3_lavaman && e.use == lavaman_awake && !e.takedamage && e.targetname != "") waiting++;
+            e = find(e, classname, "monster_lava_man");
+        }
+        MG3_BT_Check(n >= 1 && waiting == n, sprintf("%g lava men of MG3's, %g waiting for their trigger", n, waiting));
+        mg3bt_t = total_monsters;
+        mg3bt_k = killed_monsters;
+        e = find(world, classname, "monster_lava_man");
+        while(e)
+        {
+            entity nxt = find(e, classname, "monster_lava_man");
+            activator = p; self = e; self.use(); self = oldself;
+            e = nxt;
+        }
+        activator = oldact;
+        mg3bt_step = 51; mg3bt_next = time + 2.5;
+        return;
+    }
+    if(mg3bt_step == 51)
+    {
+        e = find(world, classname, "monster_lava_man");
+        while(e)
+        {
+            n++;
+            if(e.takedamage && e.movetype == MOVETYPE_FLY && e.model == "owned/mg3/progs/lavaman.mdl" && e.use == lavaman_force_death && e.enemy == p) risen++;
+            e = find(e, classname, "monster_lava_man");
+        }
+        MG3_BT_Check(n >= 1 && risen == n, sprintf("its trigger fired: %g of %g risen, flying, after you", risen, n));
+        e = find(world, classname, "monster_lava_man");
+        while(e)
+        {
+            activator = p; self = e; self.use(); self = oldself;
+            e = find(e, classname, "monster_lava_man");
+        }
+        activator = oldact;
+        MG3_BT_Check(killed_monsters == mg3bt_k + n && total_monsters == mg3bt_t, sprintf("used again: all dead, counted (%g)", killed_monsters - mg3bt_k));
+        mg3bt_n = n;
+        mg3bt_step = 52; mg3bt_next = time + 2;
+        return;
+    }
+    if(mg3bt_step == 52)
+    {
+        MG3_BT_Check(!find(world, classname, "monster_lava_man") && killed_monsters == mg3bt_k + mg3bt_n, "sunk, gone, counted once");
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        MG3_BT_Total();
+        return;
+    }
+};
+
 // Each frame (world.qc StartFrame).
 void() MG3_BestiaryTestFrame =
 {
@@ -349,6 +533,8 @@ void() MG3_BestiaryTestFrame =
         entity os = self, oo = other, oa = activator;
         if(mg3bt_step < 10) MG3_BT_OrbStep();
         else if(mg3bt_step < 20) MG3_BT_GhostSlimeStep();
+        else if(mg3bt_step >= 30 && mg3bt_step < 50) MG3_BT_LavaStep();
+        else if(mg3bt_step >= 50 && mg3bt_step < 60) MG3_BT_MapLavaStep();
         self = os; other = oo; activator = oa;
     }
     float request = cvar("vr_mg3_btest");
@@ -364,5 +550,11 @@ void() MG3_BestiaryTestFrame =
     }
     else if(request == 3) { mg3bt_step = 10; mg3bt_next = time; }
     else if(request == 4) MG3_BT_MapSacrifices();
+    else if(request == 6) { mg3bt_step = 50; mg3bt_next = time; }
+    else if(request == 5)
+    {
+        if(!MG3_LavaMan_Available()) dprint("mg3btest: the Dawn of the Machine data is not there (no lava man)\n");
+        else { mg3bt_step = 30; mg3bt_next = time; }
+    }
     self = oldself; other = oldother; activator = oldact;
 };

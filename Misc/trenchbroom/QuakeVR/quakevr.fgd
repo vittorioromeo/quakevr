@@ -1134,6 +1134,15 @@ A boss that rises from lava and throws lava balls. Models and sounds from rogue.
 	]
 ]
 
+@PointClass color(255 0 0) size(-32 -32 -24, 32 32 64) =
+	monster_lava_man_mg3 : "Dawn of the Machine's lava man (needs the owned Dawn of the Machine data, else nothing spawns; in Dawn of the Machine's maps every monster_lava_man is this one): it stays at the lava's surface, rises when its trigger fires (with a targetname; else at once), throws lava balls standing, takes 0.8 of anything but the lightning gun and the laser cannon, and dies when used again."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+]
+
 @PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) model({ "path": "progs/morph_az.mdl" }) =
 	monster_morph : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
 

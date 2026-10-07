@@ -1230,6 +1230,15 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         damage = MG3_BloodyNightmareDamage(targ, attacker, damage);
     }
+    // Dawn of the Machine's lava man: 0.8 of anything but the lightning gun and the laser cannon, nothing from Chthon.
+    if(targ.mg3_lavaman)
+    {
+        damage = MG3_LavaManDamage(targ, inflictor, attacker, damage);
+        if(damage <= 0)
+        {
+            return FALSE;
+        }
+    }
 
     if(targ.classname == "trigger_explosion")
     {

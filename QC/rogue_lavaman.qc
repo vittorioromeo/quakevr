@@ -5,6 +5,9 @@ LavaMan (Smaller version of Boss E1M7)
 
 ==============================================================================
 */
+// QVR: Dawn of the Machine's lava man is this one "with a few tweaks" (quakec_mg3/monsters/mg3_lavaman.qc): the
+// branches on .mg3_lavaman (a map's monster_lava_man in campaign 5, or monster_lava_man_mg3 anywhere: vr_mg3_lavaman.qc).
+// Rogue's stays as it was.
 $frame rise1 rise2 rise3 rise4 rise5 rise6 rise7 rise8 rise9 rise10
 $frame rise11 rise12 rise13 rise14 rise15 rise16 rise17
 
@@ -229,31 +232,33 @@ void() lavaman_run29 =[    $walk29, lavaman_run30 ] {lavaman_run ();};
 void() lavaman_run30 =[    $walk30, lavaman_run31 ] {lavaman_run ();};
 void() lavaman_run31 =[    $walk31, lavaman_run1 ] {};
 
+void() lavaman_charge = { if(!self.mg3_lavaman) ai_charge(1); }; // (MG3's stands still as it throws)
+
 void() lavaman_fire1 =[ $attack1, lavaman_fire2 ] { ai_face();};
-void() lavaman_fire2 =[ $attack2, lavaman_fire3 ] {ai_charge(1);};
+void() lavaman_fire2 =[ $attack2, lavaman_fire3 ] {lavaman_charge();};
 void() lavaman_fire3 =[ $attack3, lavaman_fire4 ] { ai_face();};
 void() lavaman_fire4 =[ $attack4, lavaman_fire5 ] {ai_face();};
-void() lavaman_fire5 =[ $attack5, lavaman_fire6 ] {ai_charge(1);};
+void() lavaman_fire5 =[ $attack5, lavaman_fire6 ] {lavaman_charge();};
 void() lavaman_fire6 =[ $attack6, lavaman_fire7 ] {ai_face();};
 void() lavaman_fire7 =[ $attack7, lavaman_fire8 ] {lavaman_missile(1);};
 void() lavaman_fire8 =[ $attack8, lavaman_fire9 ] {ai_face();};
 void() lavaman_fire9 =[ $attack9, lavaman_fire10 ] {ai_face();};
-void() lavaman_fire10 =[ $attack10, lavaman_fire11 ] {ai_charge(1);};
+void() lavaman_fire10 =[ $attack10, lavaman_fire11 ] {lavaman_charge();};
 void() lavaman_fire11 =[ $attack11, lavaman_fire12 ] {ai_face();};
-void() lavaman_fire12 =[ $attack12, lavaman_fire13 ] {ai_charge(1);};
+void() lavaman_fire12 =[ $attack12, lavaman_fire13 ] {lavaman_charge();};
 void() lavaman_fire13 =[ $attack13, lavaman_fire14 ] {ai_face();};
 void() lavaman_fire14 =[ $attack14, lavaman_fire15 ] {ai_face();};
-void() lavaman_fire15 =[ $attack15, lavaman_fire16 ] {ai_charge(1);};
-void() lavaman_fire16 =[ $attack16, lavaman_fire17 ] {ai_charge(1);};
+void() lavaman_fire15 =[ $attack15, lavaman_fire16 ] {lavaman_charge();};
+void() lavaman_fire16 =[ $attack16, lavaman_fire17 ] {lavaman_charge();};
 void() lavaman_fire17 =[ $attack17, lavaman_fire18 ] {ai_face();};
 void() lavaman_fire18 =[ $attack18, lavaman_fire19 ] {lavaman_missile(2);};
 void() lavaman_fire19 =[ $attack19, lavaman_fire20 ] {ai_face();};
 void() lavaman_fire20 =[ $attack20, lavaman_fire21 ] {ai_face();};
 void() lavaman_fire21 =[ $attack21, lavaman_fire22 ] {ai_face();};
-void() lavaman_fire22 =[ $attack22, lavaman_fire23 ] {ai_charge(1);};
+void() lavaman_fire22 =[ $attack22, lavaman_fire23 ] {lavaman_charge();};
 void() lavaman_fire23 =[ $attack23, lavaman_run1 ] {};
 
-void() lavaman_shocka1 =[ $shocka1, lavaman_shocka2 ] {};
+void() lavaman_shocka1 =[ $shocka1, lavaman_shocka2 ] {if(self.mg3_lavaman) sound(self, CHAN_VOICE, "boss1/pain.wav", 1, ATTN_NORM);};
 void() lavaman_shocka2 =[ $shocka2, lavaman_shocka3 ] {};
 void() lavaman_shocka3 =[ $shocka3, lavaman_shocka4 ] {};
 void() lavaman_shocka4 =[ $shocka4, lavaman_shocka5 ] {};
@@ -266,6 +271,14 @@ void() lavaman_shocka10 =[ $shocka10, lavaman_run1 ] {};
 
 void(entity attacker, float damage) lavaman_pain =
 {
+    // MG3's: its first hit always staggers it.
+    if(self.mg3_lavaman && self.count == 0)
+    {
+        self.count = self.count + 1;
+        self.pain_finished = time + 2;
+        lavaman_shocka1();
+        return;
+    }
     if(self.pain_finished > time)
         return;
 
@@ -292,11 +305,16 @@ void() lavaman_death9 = [$death9, lavaman_death10]
     sound(self, CHAN_BODY, "boss1/out1.wav", 1, ATTN_NORM);
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LAVASPLASH);
-    WriteVec3(MSG_BROADCAST, self.origin);
+    WriteVec3(MSG_BROADCAST, self.mg3_lavaman ? self.origin - '0 0 50' : self.origin); // (MG3's in the lava below it)
 };
 
 void() lavaman_death10 = [$death9, lavaman_death10]
 {
+    if(self.mg3_lavaman)
+    {
+        remove(self); // (MG3's sinks without a blast)
+        return;
+    }
     remove(self);
 };
 
@@ -345,7 +363,11 @@ void(float AttackNumber) lavaman_missile =
     makevectors(self.angles);
 
     // Right handed throw
-    if(AttackNumber == 1)
+    if(self.mg3_lavaman)
+    {
+        org = self.origin + v_forward*40 + v_right*65 * (AttackNumber == 1 ? 1 : -1) + v_up*90; // (MG3's hands)
+    }
+    else if(AttackNumber == 1)
     {
         org = self.origin + v_forward*40 + v_right*65 + v_up*130;
     }
@@ -398,14 +420,14 @@ void(float AttackNumber) lavaman_missile =
 void() lavaman_awake =
 {
     self.solid = SOLID_SLIDEBOX;
-    self.movetype = MOVETYPE_STEP;
+    self.movetype = self.mg3_lavaman ? MOVETYPE_FLY : MOVETYPE_STEP; // (MG3's stays at the lava's surface)
     self.takedamage = DAMAGE_AIM;
     self.flags = self.flags | FL_MONSTER;
     self.ideal_yaw = self.angles * '0 1 0';
     if(!self.yaw_speed)
         self.yaw_speed = 20;
 
-    setmodel(self, "progs/lavaman.mdl");
+    setmodel(self, self.mg3_lavaman ? "owned/mg3/progs/lavaman.mdl" : "progs/lavaman.mdl");
 //    setsize(self, '-64 -64 -12', '64 64 128');
 //    setsize(self, '-32 -32 0', '32 32 120');
     setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
@@ -422,10 +444,12 @@ void() lavaman_awake =
     self.th_pain = lavaman_pain;
     self.th_die = lavaman_death1;
     self.th_melee = lavaman_fire1;
+    if(self.mg3_lavaman)
+        self.use = lavaman_force_death; // (MG3's: used again, it dies, counted, its targets fired)
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LAVASPLASH);
-    WriteVec3(MSG_BROADCAST, self.origin);
+    WriteVec3(MSG_BROADCAST, self.mg3_lavaman ? self.origin - '0 0 50' : self.origin);
 
     if(!VR_ItemUtil_EntHasItem(activator, IID_INVISIBILITY))
     {
@@ -435,7 +459,8 @@ void() lavaman_awake =
                 self.enemy = activator;
         }
     }
-    droptofloor();
+    if(!self.mg3_lavaman)
+        droptofloor();
 
     lavaman_rise1();
 };
@@ -445,6 +470,13 @@ void() lavaman_awake =
 */
 void() monster_lava_man =
 {
+    if(MG3_Campaign())
+        self.mg3_lavaman = TRUE; // (Dawn of the Machine's maps' lava men are MG3's: vr_mg3_lavaman.qc)
+    if(self.mg3_lavaman)
+    {
+        MG3_LavaMan_Spawn();
+        return;
+    }
     if(!VR_Pack_RequireSpawn(VR_Has4("progs/lavaball.mdl", "progs/lavaman.mdl", "sound/boss1/death.wav", "sound/boss1/out1.wav") && VR_Has4("sound/boss1/pain.wav", "sound/boss1/sight1.wav", "sound/boss1/throw.wav", "sound/misc/power.wav") && VR_Has4("sound/weapons/rocket1i.wav", "", "", ""), "Rogue")) { return; }
 
     if(deathmatch)

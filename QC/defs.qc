@@ -902,3 +902,8 @@ float(entity targ, entity attacker, float damage) MG3_BloodyNightmareDamage;
 void() MG3_Frame;
 float MG3_ITEM_SPAWNED = 4; // an item a trigger brings (upstream SPAWNED, campaign 5)
 .float lavasuit_finished, lavasuit_time; // the lava suit (vr_mg3_items.qc): its end, its warning's next flash
+// Dawn of the Machine's monsters (M3-20/21): a slime's generations to come and its kin (vr_mg3_slime.qc), a lava man of
+// MG3's (rogue_lavaman.qc branches, vr_mg3_lavaman.qc), read by combat.qc and client.qc.
+.float mg3_slime, mg3_slimekin;
+.float mg3_lavaman;
+float(entity targ, entity inflictor, entity attacker, float damage) MG3_LavaManDamage;

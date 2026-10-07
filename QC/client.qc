@@ -2561,7 +2561,12 @@ void(entity targ, entity attacker) ClientObituary =
                 if(attacker.classname == "monster_shambler")
                     bprint(" was smashed by a Shambler\n");
                 if(attacker.classname == "monster_tarbaby")
-                    bprint(" was slimed by a Spawn\n");
+                {
+                    if(attacker.mg3_slimekin)
+                        bprint(" was slimed\n"); // (Dawn of the Machine's slime: $mg3_qc_obit_slime)
+                    else
+                        bprint(" was slimed by a Spawn\n");
+                }
                 if(attacker.classname == "monster_vomit")
                     bprint(" was vomited on by a Vomitus\n");
                 if(attacker.classname == "monster_wizard")
@@ -2587,7 +2592,18 @@ void(entity targ, entity attacker) ClientObituary =
                 if(attacker.classname == "monster_sword")
                     bprint(" was slit open by a Phantom Swordsman\n");
                 if(attacker.classname == "monster_lava_man")
-                    bprint(" fries in Hephaestus' fury\n");
+                {
+                    if(attacker.mg3_lavaman)
+                        bprint(" was burned to a crisp\n"); // (Dawn of the Machine's: $mg3_qc_obit_lavaman)
+                    else
+                        bprint(" fries in Hephaestus' fury\n");
+                }
+
+                // Dawn of the Machine
+                if(attacker.classname == "monster_super_shambler")
+                    bprint(" met the blood shambler\n"); // ($mg3_qc_obit_supershambler)
+                if(attacker.classname == "monster_orb")
+                    bprint(" was blasted by an Orb\n"); // (upstream has none)
                 if(attacker.classname == "monster_morph")
                     bprint(" was crushed by a Guardian\n");
                 if(attacker.classname == "monster_mummy")
