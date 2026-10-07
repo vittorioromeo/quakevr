@@ -38,6 +38,10 @@
                          // VR_THROWN_BOX_TIME: VR_Explobox_Impact)
 .float carry_teleported; // on a player: until then it has just been teleported (VR_Carry_Teleported; the engine's VR
                          // teleport, vr_physics.cpp): what it carries follows its hands from where it is (VR_Carry_Follow)
+.float vr_slam_armed;    // a crate or barrel held in both hands: until when it was last over the head (VR_Crate_SlamFrame)
+.float vr_slam_thrown;   // ... let go of from there: when (its first hard landing takes vr_crate_slam_throw_damage)
+void(entity xBox) VR_Crate_SlamFrame;            // (vr_crates.qc)
+void(entity xBox, float xHands) VR_Crate_SlamReleased;
 .entity carry_letgo;     // the player who last let go of it (VR_Carry_Loose), and when: not hurt by it as it leaves the hand,
 .float carry_letgo_time; // and credited with its flung hits for a while (VR_Prop_Flung)
 .float vr_gib_made;      // when it became a gib (VR_MakeGibGrabbable; VR_Prop_Flung: harmless a while)
@@ -298,6 +302,8 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
     dprint("carry: taken\n");
     xBox.carry_player = xPlayer;
+    xBox.vr_slam_armed = 0;
+    xBox.vr_slam_thrown = 0;
     portal_carry(xBox, xPlayer, xHand, TRUE);
     VR_Head_StopFlies(xBox); // (they would buzz on where it lay)
 
@@ -861,6 +867,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
     {
         VR_Throw_TwoHanded(self, xBox);
     }
+    VR_Crate_SlamReleased(xBox, hands); // a crate or barrel let go of from over the head (vr_crates.qc)
     xBox.vr_gib_handspeed = vlen(throwVel); // (a hard throw bursts it on a wall, however heavy: VR_Gib_HardThrow)
     VR_Gib_Released(xBox, vlen(v), xHand); // a gib or head thrown hard bursts on a wall, softer may stick
     VR_Grenade_Released(xBox, xHand); // a live grenade is the player's (vr_grenade.qc)
@@ -1407,7 +1414,9 @@ void() VR_Carry_TwoHandFrame =
     {
         VR_Carry_EndTwoHands(box);
         VR_Carry_Release(cVR_MainHand, box); // stuck behind something
+        return;
     }
+    VR_Crate_SlamFrame(box); // a crate or barrel swung down from over the head onto something breaks (vr_crates.qc)
 };
 
 // ----------------------------------------------------------------------------

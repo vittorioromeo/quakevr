@@ -9,6 +9,7 @@
 #            ogre, or the floor) at about PEAK m/s, held on
 #   down     lifted overhead, then thrown down onto the floor ahead (let go halfway)
 #   low      the same swing down from the chest, not overhead (no slam: the control)
+# TKIND: what is put TARGET units ahead (vr_test_spawn: 1 an ogre, 107 a crate, 104 an explosive box that never blows up).
 # Prints one line a run: the prop, the motion, what it hit and for how much, whether it broke (the console's lines).
 # REPEAT=n: the motion n times on the same prop (a crate thrown down again: how many throws break it).
 AGENT=$1; OUT=${2:-C:/OHWorkspace/qvr-agents/$1/scratch/prop2h}; EXTRA=${3:-}; HERE=$(cd "$(dirname "$0")" && pwd -W 2>/dev/null || pwd)
@@ -42,7 +43,7 @@ def lifted(motion):
     m, rel = motion
     return keys + [[0.75 + k[0]] + k[1:] for k in m], (None if rel is None else 0.75 + rel)
 down_len = 1.1  # m: overhead to the floor ahead, roughly
-slam_end = (0.0, 0.70, -0.75, -60.0)
+slam_end = (0.0, 0.35, -0.70, -60.0)
 throws = {
     "push": line(5, PEAK, 0.30),
     "over": arc(150, 40, 95, 0.35),
@@ -78,7 +79,7 @@ TARGET=${TARGET:-120}
 run() { # <motion> <kind: vr_test_spawn 111 107 108>
     local start; start=$(cat "$OUT/$1.start"); local offp=${start%%|*} mainp=${start##*|}
     local len; len=$(cat "$OUT/$1.len"); local frames; frames=$(python -c "print(int($len * 90) + 60)")
-    local ogre=""; [ "$TARGET" != 0 ] && ogre="vr_test_spawn 1;vr_test_spawn_dist $TARGET;impulse 241;wait5;"
+    local ogre=""; [ "$TARGET" != 0 ] && ogre="vr_test_spawn_hold 0;vr_test_spawn ${TKIND:-1};vr_test_spawn_dist $TARGET;impulse 241;wait5;"
     bash $KIT/run.sh $AGENT -Script "map vrfiringrange;wait60;god;notarget;developer 1;vr_fixed_frames 1;$EXTRA;vr_mock_hand off $offp;vr_mock_hand main $mainp;wait10;${ogre}+grabright;vr_mock_button main grip 1;wait5;vr_test_spawn $2;vr_test_spawn_dist 24;vr_test_spawn_hold 1;impulse 241;wait10;+graboff;vr_mock_button off grip 1;wait10;vr_mock_play $OUT/$1.txt;wait$frames;toggleconsole;quit" \
         -Timeout 300 -Filter "carry:|test|thrown into|crate: |crate at|slam|AGAIN|test spawn|prop: flung|melee|T_Damage|ogre" > "$OUT/$1_$2.log" 2>&1
     local both=$(grep -c "carry: both hands$" "$OUT/$1_$2.log")

@@ -3281,6 +3281,23 @@ void hologramTestMessage()
         slider("Breaks On Impact", vr_crate_impact, 0.f, 30.f, 1.f, "%.0f m/s").extend(0.f, 100.f)
             .help("A crate hitting something this hard breaks (dropped from about 85 units); from 70% of it, it is damaged. "
                   "Things thrown at it damage it as they do monsters. 0: impacts never break them."),
+        toggle("Overhead Slam", vr_carry_slam)
+            .help("A crate or barrel held in both hands over your head and swung down onto a monster, a prop or a wall breaks "
+                  "at once (what it hits takes a heavy blow); thrown down from there, it takes heavy damage (two such "
+                  "throws break it)."),
+        slider("Slam: Over the Head", vr_carry_slam_height, -20.f, 40.f, 1.f, "%.0f cm").extend(-100.f, 100.f)
+            .help("How far over your eyes your hands must be for it to count as over your head."),
+        slider("Slam: Swing Speed", vr_carry_slam_speed, 1.f, 8.f, 0.25f, "%.2f m/s")
+            .help("How fast your hands must swing it down for it to break on what it meets."),
+        slider("Slam: Time to Swing", vr_carry_slam_window, 0.2f, 3.f, 0.1f, "%.1f s")
+            .help("How long after it was over your head a swing down still counts."),
+        slider("Slam: Damage", vr_carry_slam_damage, 0.f, 5.f, 0.1f, "x%.1f")
+            .help("What it is slammed onto takes this times a punch with it in hand (more the faster, up to twice)."),
+        slider("Thrown Down: Damage", vr_crate_slam_throw_damage, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Let go of from over your head, its first hard landing takes this share of its full health (0.55: two "
+                  "such throws break it)."),
+        slider("Thrown Down: Landing Speed", vr_crate_slam_throw_speed, 0.f, 10.f, 0.5f, "%.1f m/s")
+            .help("... a landing at least this fast."),
         slider("Pieces", vr_crate_pieces, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 40.f)
             .help("How many boards and splinters a small crate breaks into (a large one more). Light: they barely get in "
                   "your way, and turn to dust when hit."),

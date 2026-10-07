@@ -743,6 +743,15 @@ QVR_CVAR(vr_crates_seed, "0", CVAR_ARCHIVE)              // mixed with the map's
 QVR_CVAR(vr_crates_exclude, "vrfiringrange vrclimb vrexample vrcalibration", CVAR_ARCHIVE) // maps with none (names, spaces between)
 QVR_CVAR(vr_crate_health, "75", CVAR_ARCHIVE)            // a small crate's health (a large one's by its size: 1.6 times); 0: can't be broken
 QVR_CVAR(vr_crate_impact, "16", CVAR_ARCHIVE)            // m/s: a crate hitting something this hard breaks (less: damaged from 70% of it); 0: never
+// Overhead slams (QC vr_crates.qc VR_Crate_SlamFrame; NOTES.md vrfiringrange_2026-10-07_23-08-07): a crate or barrel held
+// in both hands over the head, swung down onto something, breaks at once; let go of from there, its first landing hurts it.
+QVR_CVAR(vr_carry_slam, "1", CVAR_ARCHIVE)             // 1: on; 0: off
+QVR_CVAR(vr_carry_slam_height, "10", CVAR_ARCHIVE)     // cm: the hands' middle at least this far over the eyes is over the head
+QVR_CVAR(vr_carry_slam_speed, "3", CVAR_ARCHIVE)       // m/s: the hands swung down at least this fast (mostly downwards) break it on what they meet
+QVR_CVAR(vr_carry_slam_window, "1", CVAR_ARCHIVE)      // s after it was last over the head a swing down still counts
+QVR_CVAR(vr_carry_slam_damage, "2", CVAR_ARCHIVE)      // what it is swung onto takes this times a punch with it in hand (times its speed over the least, at most twice)
+QVR_CVAR(vr_crate_slam_throw_damage, "0.55", CVAR_ARCHIVE) // let go of from over the head, its first hard landing takes this share of its full health (0.55: two such throws break it)
+QVR_CVAR(vr_crate_slam_throw_speed, "3", CVAR_ARCHIVE) // m/s: ... a landing at least this fast
 QVR_CVAR(vr_crate_pieces, "12", CVAR_ARCHIVE)             // pieces a small crate breaks into (a large one more, by its size)
 QVR_CVAR(vr_crate_piece_max, "48", CVAR_ARCHIVE)         // most pieces lying about at once (the oldest turn to dust)
 QVR_CVAR(vr_crate_piece_time, "60", CVAR_ARCHIVE)        // s a piece lies about before it fades away (0: for ever)
