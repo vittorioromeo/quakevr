@@ -31,6 +31,12 @@ QVR_FIELD(loadportpos)
 QVR_FIELD(vr_pouch_kind)
 QVR_FIELD(vr_pouch_count)
 QVR_FIELD(offloadportpos)
+QVR_FIELD(loadportaxis) // the way a round lies going in at each gun's port (vr_reload.qc VR_Reload_LooseFrame)
+QVR_FIELD(offloadportaxis)
+QVR_FIELD(loadportface) // and the way its opening faces
+QVR_FIELD(offloadportface)
+QVR_FIELD(vr_ammo_pass) // a loose round passing through a player's guns to their ports: the hands (vr_reload.qc; vr_box3d.cpp reachSkips)
+QVR_FIELD(vr_ammo_passer) // and the player
 QVR_FIELD(magboxpos) // the main hand's gun's attached magazine, a box: its middle and half-axes (vr_reload.qc)
 QVR_FIELD(magboxx)
 QVR_FIELD(magboxy)

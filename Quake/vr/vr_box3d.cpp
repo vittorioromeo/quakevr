@@ -5480,6 +5480,19 @@ void makeReach(
     {
         return true;
     }
+    // A loose round at the loading port of this hand's gun, lying the way it goes in (QC vr_reload.qc
+    // VR_Reload_LooseFrame: .vr_ammo_passer the player, .vr_ammo_pass the hands, 1 off, 2 main): it passes through the
+    // gun's hull, which covers the port (the receiver's opening, the well), to reach it.
+    if(const FieldOffsets& f = fields(); f.vr_ammo_pass >= 0 && f.vr_ammo_passer >= 0 &&
+        (hb.key.what == World::ReachKey::Weapon || hb.key.what == World::ReachKey::Capsule))
+    {
+        const int hands = static_cast<int>(fieldFloat(e, f.vr_ammo_pass));
+        const bool main = player < static_cast<int>(world->hands.size()) && &hb == &world->hands[player][1];
+        if((hands & (main ? 2 : 1)) && fieldInt(e, f.vr_ammo_passer) == EDICT_TO_PROG(EDICT_NUM(player)))
+        {
+            return true;
+        }
+    }
     return grenade && e->v.owner == EDICT_TO_PROG(EDICT_NUM(player)) && qcvm->time - s.born < 0.25;
 }
 
@@ -8419,6 +8432,153 @@ void list_f()
     }
 }
 
+// The extents of `body`'s hull shapes in its own frame (units; false: none), and the depth of `point` (world units)
+// inside them (the most negative plane distance: > 0 inside; < 0 outside, roughly how far).
+bool hullExtents(b3BodyId body, glm::vec3& lo, glm::vec3& hi, const glm::vec3* point, float* depth)
+{
+    za::Array<b3ShapeId, 4> shapes;
+    const int count = b3Body_GetShapes(body, shapes.data(), static_cast<int>(shapes.size()));
+    const b3WorldTransform xf = b3Body_GetTransform(body);
+    const glm::vec3 at = world->toU(xf.p);
+    lo = glm::vec3{1e9f};
+    hi = glm::vec3{-1e9f};
+    bool any = false;
+    float inside = -1e9f;
+    for(int i = 0; i < count; i++)
+    {
+        if(b3Shape_GetType(shapes[i]) != b3_hullShape)
+        {
+            continue;
+        }
+        const b3HullData* hull = b3Shape_GetHull(shapes[i]);
+        const b3Vec3* p = b3GetHullPoints(hull);
+        for(int k = 0; k < hull->vertexCount; k++)
+        {
+            lo = glm::min(lo, world->toU(p[k]));
+            hi = glm::max(hi, world->toU(p[k]));
+        }
+        any = true;
+        if(point && depth)
+        {
+            const glm::vec3 local = world->toU(b3InvRotateVector(xf.q, world->toM(*point - at)));
+            const b3Plane* planes = b3GetHullPlanes(hull);
+            float worst = -1e9f;
+            for(int k = 0; k < hull->faceCount; k++)
+            {
+                worst = za::max(worst, glm::dot(glmv(planes[k].normal), local) - planes[k].offset * world->m2u);
+            }
+            inside = za::max(inside, -worst);
+        }
+    }
+    if(depth)
+    {
+        *depth = inside;
+    }
+    return any;
+}
+
+// vr_physics_shapes [classname...]: for tests (the reload by contact's collision, ROUND21.md): each such prop's body (its
+// hull's extents in its own frame) against its drawn model's (the server's drawn vertices, as the client draws it), and
+// the first player's held weapons' reach bodies (their hulls) against the weapon as drawn (the client's view entity) and
+// how deep its loading port lies inside the hull. Units and cm.
+void shapes_f()
+{
+    if(!sv.active || !world)
+    {
+        return;
+    }
+    const VmScope vm;
+    const float cm = 100.f / world->m2u;
+    const auto box = [&](const char* what, const glm::vec3& lo, const glm::vec3& hi) {
+        const glm::vec3 s = hi - lo;
+        Con_Printf("    %s %.2f x %.2f x %.2f units (%.1f x %.1f x %.1f cm)\n", what, s.x, s.y, s.z, s.x * cm, s.y * cm,
+            s.z * cm);
+    };
+    for(int arg = 1; arg < za::max(Cmd_Argc(), 2); arg++)
+    {
+        for(edict_t* e : entitiesNamed(Cmd_Argc() > arg ? Cmd_Argv(arg) : "props"))
+        {
+            const int num = NUM_FOR_EDICT(e);
+            if(num >= static_cast<int>(world->slots.size()) || B3_IS_NULL(world->slots[num].body) ||
+                !b3Body_IsValid(world->slots[num].body))
+            {
+                continue;
+            }
+            const qmodel_t* model = modelOf(e);
+            Con_Printf("  %d %s (%s, drawn x%.2f):\n", num, PR_GetString(e->v.classname), model ? model->name : "no model",
+                model ? qvr::props::drawnSize(model) : 1.f);
+            glm::vec3 lo, hi;
+            if(hullExtents(world->slots[num].body, lo, hi, nullptr, nullptr))
+            {
+                box("body (its hull)", lo, hi);
+            }
+            else
+            {
+                Con_Printf("    body: a box (not a hull)\n");
+            }
+            za::Vector<glm::vec3>& vertices = scratch.propVerts;
+            if(held::drawnVertices(e, vertices) && !vertices.empty())
+            {
+                glm::vec3 dlo{1e9f}, dhi{-1e9f};
+                for(const glm::vec3& v : vertices)
+                {
+                    dlo = glm::min(dlo, v);
+                    dhi = glm::max(dhi, v);
+                }
+                box("drawn          ", dlo, dhi);
+            }
+            box("Quake box      ", glm::vec3{e->v.mins[0], e->v.mins[1], e->v.mins[2]},
+                glm::vec3{e->v.maxs[0], e->v.maxs[1], e->v.maxs[2]});
+        }
+    }
+    if(world->hands.size() < 2)
+    {
+        return;
+    }
+    const FieldOffsets& f = fields();
+    edict_t* player = EDICT_NUM(1);
+    for(int h = 0; h < 2; h++)
+    {
+        const World::HandBody& hb = world->hands[1][static_cast<size_t>(h)];
+        if(B3_IS_NULL(hb.reach) || hb.key.what != World::ReachKey::Weapon)
+        {
+            continue;
+        }
+        const glm::vec3 port = fieldVec(player, h ? f.loadportpos : f.offloadportpos);
+        glm::vec3 lo, hi;
+        float depth = 0.f;
+        if(!hullExtents(hb.reach, lo, hi, &port, &depth))
+        {
+            continue;
+        }
+        Con_Printf("  %s hand's weapon %s:\n", h ? "main" : "off", hb.key.model ? hb.key.model->name : "?");
+        box("reach body (its hull)", lo, hi);
+        // As drawn: the frame's vertices through the view entity (view::modelPoint), into the reach body's frame.
+        if(const view::ViewEntity* ve = view::heldWeapon(h); ve && ve->ent.model == hb.key.model)
+        {
+            const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(ve->ent.model));
+            const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes) +
+                                hdr->frames[0].firstpose * hdr->numverts;
+            const b3WorldTransform xf = b3Body_GetTransform(hb.reach);
+            const glm::vec3 at = world->toU(xf.p);
+            glm::vec3 dlo{1e9f}, dhi{-1e9f};
+            for(int k = 0; k < hdr->numverts; k++)
+            {
+                const glm::vec3 m{hdr->scale_origin[0] + hdr->scale[0] * verts[k].v[0],
+                    hdr->scale_origin[1] + hdr->scale[1] * verts[k].v[1], hdr->scale_origin[2] + hdr->scale[2] * verts[k].v[2]};
+                const glm::vec3 local = world->toU(b3InvRotateVector(xf.q, world->toM(view::modelPoint(*ve, m) - at)));
+                dlo = glm::min(dlo, local);
+                dhi = glm::max(dhi, local);
+            }
+            box("drawn                ", dlo, dhi);
+            Con_Printf("    the hull's offset from the drawn: lo %.2f %.2f %.2f, hi %.2f %.2f %.2f units\n", lo.x - dlo.x,
+                lo.y - dlo.y, lo.z - dlo.z, hi.x - dhi.x, hi.y - dhi.y, hi.z - dhi.z);
+        }
+        Con_Printf("    its loading port %s the hull: %.2f units (%.1f cm)\n", depth > 0.f ? "inside" : "outside",
+            za::fabs(depth), za::fabs(depth) * cm);
+    }
+}
+
 // vr_physics_forcegrab <number | classname | props>: whether the force grab may take each (QC's VR_Forcegrab_IsEligible,
 // as the first player's hands search), for tests: an explosive box never.
 void forcegrabCheck_f()
@@ -8739,6 +8899,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_stack", stack_f);
         Cmd_AddCommand("vr_physics_pyramid", pyramid_f);
         Cmd_AddCommand("vr_physics_list", list_f);
+        Cmd_AddCommand("vr_physics_shapes", shapes_f);
         Cmd_AddCommand("vr_physics_loose", loose_f);
         Cmd_AddCommand("vr_physics_pile", pile_f);
         Cmd_AddCommand("vr_physics_bigpile", bigPile_f);

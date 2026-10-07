@@ -593,8 +593,10 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         angles.y = anglemod(angles.y + gate.yaw);
         setFieldVec(ent, h ? f.muzzlepos : f.offmuzzlepos, gate.position);
         setFieldVec(ent, h ? f.shotrot : f.offshotrot, angles);
-        setFieldVec(ent, h ? f.loadportpos : f.offloadportpos,
-            portals::reachAlong(move.origin, move.hands[h].pos, move.loadPort[h]).position);
+        const portals::Reach port = portals::reachAlong(move.origin, move.hands[h].pos, move.loadPort[h]);
+        setFieldVec(ent, h ? f.loadportpos : f.offloadportpos, port.position);
+        setFieldVec(ent, h ? f.loadportaxis : f.offloadportaxis, port.turn * move.loadPortAxis[h]);
+        setFieldVec(ent, h ? f.loadportface : f.offloadportface, port.turn * move.loadPortFace[h]);
         setMagBox(ent, h, move.origin, move.hands[h].pos, move.magBox[h]);
     }
     if(clientNum >= static_cast<int>(clientBits.size()))
@@ -985,8 +987,10 @@ void rebaseHands(edict_t* player)
         angles.y = anglemod(angles.y + muzzle.yaw);
         setFieldVec(player, h ? f.muzzlepos : f.offmuzzlepos, muzzle.position);
         setFieldVec(player, h ? f.shotrot : f.offshotrot, angles);
-        setFieldVec(player, h ? f.loadportpos : f.offloadportpos,
-            portals::reachAlong(origin, hand.pos, move.loadPort[h]).position);
+        const portals::Reach port = portals::reachAlong(origin, hand.pos, move.loadPort[h]);
+        setFieldVec(player, h ? f.loadportpos : f.offloadportpos, port.position);
+        setFieldVec(player, h ? f.loadportaxis : f.offloadportaxis, port.turn * move.loadPortAxis[h]);
+        setFieldVec(player, h ? f.loadportface : f.offloadportface, port.turn * move.loadPortFace[h]);
         setMagBox(player, h, origin, hand.pos, move.magBox[h]);
     }
 }

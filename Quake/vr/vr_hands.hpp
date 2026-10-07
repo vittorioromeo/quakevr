@@ -83,6 +83,13 @@ struct State
     // held in the other hand goes in.
     bool loadPortValid[2]{false, false};
     glm::vec3 loadPort[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // And the way a round lies going in there (unit, world; zero: none): the shotgun's tube and the super shotgun's
+    // barrels forward (a shell's open end leads), a magazine gun's well up (the seated magazine's feed end). A loose
+    // round loads by contact only lying so (QC vr_reload.qc VR_Reload_LooseFrame).
+    glm::vec3 loadPortAxis[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // And the way its opening faces (unit, world, outwards): the shotgun's port down from the receiver, the open super
+    // shotgun's breech back from the barrels, a well down from the gun. A loose round goes in from that side only.
+    glm::vec3 loadPortFace[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     // The magazine attached to each hand's gun (held by its handle or carried; immersive reloading, vr_view.cpp
     // magazineBox), as drawn: a box, its middle and its three half-axes (the first from the middle to the feed end, up
     // into the well; then across it, then through it). All four zero: none. The server tests hits and grips on it.

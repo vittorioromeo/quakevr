@@ -996,6 +996,16 @@ void resetHandMoves()
         slider("Collision Leniency", "vr_reload_collide_leniency", 0.f, 60.f, 1.f, "%.0f cm").extend(0.f, 200.f)
             .help("A shell or magazine in your hand is drawn kept off the gun in the other hand (Held Things Collide): it "
                   "may go this far into the gun's box first, to reach the port under the shotgun or a magazine well."),
+        toggle("Load Loose Rounds", "vr_reload_contact")
+            .help("A shell or magazine lying about, dropped or thrown goes into the gun it touches at its load point, lying "
+                  "the right way: drop shells into the shotgun's port or the open super shotgun's barrels, a magazine "
+                  "feed end up into its well, or bring the gun down onto one standing on a table."),
+        slider("Loose Leniency", "vr_reload_contact_leniency", 0.f, 20.f, 1.f, "%.0f cm").extend(0.f, 60.f)
+            .help("A loose round goes in this much further from the load point than one in your hand (the gun's "
+                  "collision covers its port and well), and passes through the gun within this much more again."),
+        slider("Loose Angle", "vr_reload_contact_angle", 5.f, 80.f, 5.f, "%.0f deg")
+            .help("How far off the way it goes in a loose round may lie and still load (a shell's open end along the "
+                  "tube or the barrels, a magazine's feed end up the well). Sideways never loads."),
         toggle("Eject Button", "vr_reload_eject_button")
             .help("The B/Y button of the controller holding a nailgun, super nailgun or thunderbolt drops its magazine."),
         header("Ammo Pouch"),

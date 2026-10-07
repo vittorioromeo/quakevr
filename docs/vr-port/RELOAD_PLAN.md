@@ -150,6 +150,10 @@ Headless (mock hands, `vr_fixed_frames 1`), per phase:
    open barrels at an adjustable hotspot (its own load point, radius and offsets, as the other guns'); closed with two
    in, it fires again. With immersive reloading off (or the mode not Immersive), the flick keeps ejecting and reloading
    as today. Tests: the flick only opens (no reload), spent shells out, the pair at the barrels loads 2, closing.
+2c. **Loose rounds by contact** (done 2026-10-08: ROUND21.md, "Reloading: loose rounds load by contact"): shells and
+   magazines lying about, dropped or thrown go into the gun they meet at its load point, lying the right way (the
+   engine sends each port's axis and the way its opening faces; Load Loose Rounds, Loose Leniency, Loose Angle);
+   tests: contact_test.sh.
 3. **Grenade and proximity launchers**: a port under each; grenades from the front pouch (a launcher's grenade or a
    proximity one by the B/Y as the back pouch's multi-grenade; armed and dropped as a back pouch grenade is); the back
    pouch stays.

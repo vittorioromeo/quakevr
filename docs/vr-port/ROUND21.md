@@ -30201,3 +30201,46 @@ The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh
 - Flashlight Side: Left / Right (it hangs on the torso). VR Settings: an Ammo Pouch section after Holster Calibration
   (Forward, Right, Up, Size, Ammo Counter over `vr_ammo_pouch_x/y/z/scale/counter`). Detail textures off by default
   (`vr_detail` 0, config version 101; the presets Medium and up set it to its default).
+## Reloading: loose rounds load by contact (2026-10-08)
+
+The author's notes vrfiringrange_2026-10-07_22-15-30, 22-17-08, 22-17-26 and hip1m1_2026-10-07_22-33-03: shells go into
+the shotgun's port and the open super shotgun's barrels, and magazines into the nailgun's, super nailgun's and
+thunderbolt's wells, by contact as loose props too (dropped from above, thrown, or the gun brought down onto one lying on
+a table), lying the right way; first find why the rounds collide with the gun before they reach it.
+
+- **The collision shapes, measured** (`vr_physics_shapes [classname...]`, new; Debug > Tests > Reloading, "Print the
+  Collision Shapes"). The rounds' Box3D bodies are their drawn size: a shell 2.30 x 0.68 x 0.68 units (7.3 x 2.2 x 2.2
+  cm, its Size 1.25), the taped pair 2.30 x 1.33 x 0.68, the magazines 2.07 x 1.11 x 3.65 (nailgun), 2.23 x 1.09 x 4.25
+  (super nailgun), 1.66 x 1.44 x 3.19 (cell). Each held gun's reach body (its Box3D hull) is its drawn model's size to
+  0.04 units. Not too big, then; the cause is the hull being convex: it fills the concave port and wells, and the load
+  point lies inside it: the shotgun's 1.24 units (3.9 cm), the super shotgun's 0.56 (1.8 cm), the nailgun's 0.89 (2.8
+  cm), the super nailgun's 0.16 (0.5 cm), the thunderbolt's 1.91 (6.0 cm). A shell resting on the shotgun under its
+  port has its middle 1.6 units from the load point (radius 1.5); a cell can't reach the thunderbolt's at all. What
+  was too big: the magazines' Quake boxes (their model's bounds, not sized by their Size 0.45 to 0.55: twice the drawn
+  magazine, e.g. 3.76 x 2.02 x 6.64 for the nailgun's), now sized as drawn as the shells' already were
+  (`VR_Reload_SetModel`).
+- **Loading by contact** (QC `VR_Reload_LooseFrame`, each hand each frame). A loose round (not in a hand, not flying to
+  one) goes into the hand's gun when it fits (`VR_Reload_LooseFits`: its ammo; a magazine its gun's and none in; a
+  shell: the gun not full, the super shotgun open), lies the way it goes in (within `vr_reload_contact_angle`, 35
+  degrees: a shell's open end along the tube or the open barrels, a magazine's feed end up the well; sideways never),
+  is on the side the opening faces, and comes within the load point's radius (a magazine's radius added) plus
+  `vr_reload_contact_leniency` (6 cm) of it, along its way that frame (a falling round moves a few units a frame).
+  It goes in as a held one does (`VR_Reload_LoadInto`, `VR_Reload_SeatMagInto`: the same sounds, the gun's haptic,
+  the shells' slide-in drawn; "a loose round by contact" in the log). Within that leniency more again it passes through
+  the gun's hull (`.vr_ammo_pass`, `.vr_ammo_passer`: the engine's `reachSkips` skips its contacts with that hand's
+  gun), so the hull covering the port doesn't knock it away. One just out of a gun (a magazine dropped by B/Y or knocked
+  out, the super shotgun's live shells thrown out: `.vr_ammo_fresh`) goes in again only once it has left. Weapons >
+  Reloading: "Load Loose Rounds" (`vr_reload_contact` 1), "Loose Leniency", "Loose Angle".
+- **The engine sends each gun's way in** (`VrMove::loadPortAxis`, `loadPortFace` -> `.loadportaxis`, `.loadportface`,
+  and the off hand's): the tube's or the barrels' forward (turned down with them open) or the seated magazine's feed end
+  (its mount's middle to its seat), and the opening's outward way (the shotgun's port down, the breech and the wells
+  back along the axis), from the drawn gun (vr_view.cpp, beside the load point).
+- **The gun brought down onto one**: the shotgun's stock and grip are lower than its port, so tilted up (muzzle up 9
+  degrees) the gun meets the floor with its port 3.8 units above a shell lying there; receiver lowest (muzzle a little
+  down) 2.2, within the 3.07 the leniency gives. Magazines stand upright: the nailgun and the thunderbolt level, the
+  super nailgun rolled onto its side (its well on its left).
+- Tests: `Misc/quakevr/reload/contact_test.sh` (22 checks, all pass): the shapes; per gun a round tossed into its
+  opening (in), one lying sideways at it (out), one dropped from above into it turned up (in), the gun brought down onto
+  one on the floor (in); the super shotgun shut (out) and open (a pair tossed and one dropped, 2 each); Load Loose Rounds
+  off (out). Test steps `vr_reload_test` 10 to 15 (`impulse 125`): toss, sideways, on the floor, from above, the loose
+  rounds' report, the super shotgun broken open (Debug > Tests > Reloading).

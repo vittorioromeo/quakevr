@@ -452,6 +452,121 @@ void() VR_Reload_SelfTest =
     bprint(sprintf("reload: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
 };
 
+// The cross product of `xA` and `xB`.
+vector(vector xA, vector xB) VR_Reload_TestCross =
+{
+    vector c = '0 0 0';
+    c_x = xA_y * xB_z - xA_z * xB_y;
+    c_y = xA_z * xB_x - xA_x * xB_z;
+    c_z = xA_x * xB_y - xA_y * xB_x;
+    return c;
+};
+
+// Test steps 10 to 13 (loading by contact: VR_Reload_LooseFrame): a loose round for the off hand's gun (a shell; the
+// super shotgun's pair; its magazine, full or what the reserve has), its ammo out of the reserve, lying the way it goes
+// in: `xHow` 0 tossed into the gun's opening (from 8 units out, moving in at 200 units/s), 1 lying sideways a unit out
+// of it, still, 2 on the floor under the load point (a shell lying flat along the gun, a magazine standing upright: for
+// the gun brought down onto it), 3 dropped from 8 units straight above the load point (the gun turned so that its
+// opening faces up).
+void(float xHow) VR_Reload_TestLoosePlace =
+{
+    float w = VRGetEntWeapon(self, cVR_OffHand);
+    float aid = VR_Reload_AmmoFor(self, cVR_OffHand);
+    if(aid < 0 || self.offloadportaxis == '0 0 0')
+    {
+        bprint("reload: the off hand holds no gun that loads by hand (or no load point from the engine)\n");
+        return;
+    }
+    float wid = VR_Reload_UsesMag(w) ? w : 0;
+    float n = w == WID_SUPER_SHOTGUN ? 2 : 1;
+    if(wid)
+    {
+        n = min(WeaponIdToBaseClipSize(w), VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid));
+    }
+    VR_AmmoUtil_AddAmmoCountByAmmoId(self, aid, -n);
+    VR_Reload_AmmoChanged(self);
+    vector axis = self.offloadportaxis;
+    vector face = self.offloadportface;
+    vector port = self.offloadportpos;
+    vector perp = '0 0 0';
+    if(xHow == 1)
+    {
+        perp = VR_Reload_TestCross(axis, face);
+        if(vlen(perp) < 0.2)
+        {
+            perp = VR_Reload_TestCross(axis, '0 0 1');
+        }
+        if(vlen(perp) < 0.2)
+        {
+            perp = VR_Reload_TestCross(axis, '1 0 0');
+        }
+        axis = normalize(perp);
+    }
+    if(xHow == 2)
+    {
+        // (Lying on the floor as on a table: a shell flat along the gun, a magazine standing upright.)
+        axis_z = 0;
+        axis = wid ? '0 0 1' : normalize(axis);
+    }
+    vector ang = vectoangles(axis);
+    if(wid)
+    {
+        ang_x = ang_x - 90; // (a magazine's feed end is its +z)
+    }
+    vector at = port + face * 8;
+    if(xHow == 1)
+    {
+        at = port + face; // (right at the load point, still: only the way it lies keeps it out)
+    }
+    else if(xHow == 2)
+    {
+        traceline(port, port - '0 0 300', TRUE, self);
+        at = trace_endpos + '0 0 4';
+    }
+    else if(xHow == 3)
+    {
+        at = port + '0 0 8';
+    }
+    entity r = VR_Reload_MakeRound(wid, aid, n, at, ang);
+    if(wid && xHow != 2)
+    {
+        setorigin(r, r.origin + (at - VR_Reload_MagRef(r))); // (placed by its top)
+    }
+    if(xHow == 0)
+    {
+        r.velocity = face * -200;
+    }
+    r.flags = r.flags - (r.flags & FL_ONGROUND);
+    vector ref = r.origin;
+    if(wid)
+    {
+        ref = VR_Reload_MagRef(r);
+    }
+    float lies = VR_Reload_RoundAxis(r) * self.offloadportaxis;
+    bprint(sprintf("reload: %s placed loose (way %g): %.1f units from the load point, lying %.2f along its axis\n",
+        VR_Reload_Desc(r), xHow, vlen(ref - port), lies));
+};
+
+// Test step 14: the loose rounds against the off hand's gun's load point (where, how they lie).
+void() VR_Reload_TestLooseReport =
+{
+    entity r = VR_Reload_NextRound(world);
+    while(r)
+    {
+        if(r.carry_player == world)
+        {
+            vector ref = r.vr_ammo_wid ? VR_Reload_MagRef(r) : r.origin;
+            bprint(sprintf("reload: loose %s %.1f units from the load point (%.1f out of its opening), lying %.2f along "
+                "its axis, passing %g\n", VR_Reload_Desc(r), vlen(ref - self.offloadportpos),
+                (ref - self.offloadportpos) * self.offloadportface, VR_Reload_RoundAxis(r) * self.offloadportaxis,
+                r.vr_ammo_pass));
+        }
+        r = VR_Reload_NextRound(r);
+    }
+    bprint(sprintf("reload: the off hand's load point %v, its axis %v, its opening facing %v\n", self.offloadportpos,
+        self.offloadportaxis, self.offloadportface));
+};
+
 void() VR_Reload_Test =
 {
     float step = cvar_hget(cvarh_vr_reload_test);
@@ -522,6 +637,25 @@ void() VR_Reload_Test =
     else if(step == 9)
     {
         VR_Reload_SelfTest();
+    }
+    else if(step >= 10 && step <= 13)
+    {
+        VR_Reload_TestLoosePlace(step - 10);
+    }
+    else if(step == 14)
+    {
+        VR_Reload_TestLooseReport();
+    }
+    else if(step == 15)
+    {
+        if(VRGetEntWeapon(self, cVR_OffHand) == WID_SUPER_SHOTGUN && !VR_Reload_SsgIsOpen(self, cVR_OffHand))
+        {
+            VR_Reload_SsgBreak(self, cVR_OffHand, "test step 15");
+        }
+        else
+        {
+            bprint("reload: the off hand holds no super shotgun shut (immersive reloading on?)\n");
+        }
     }
     VR_Reload_TestReport();
 };

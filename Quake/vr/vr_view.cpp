@@ -1742,9 +1742,25 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
             if(info.is(port.model))
             {
                 const glm::vec3 moved{port.offset[0]->value, port.offset[1]->value, port.offset[2]->value};
-                s.loadPort[hand] = view::modelPoint(ve, port.model == modelmeta::Id::VShot2 ?
-                    ssgTurn(port.point + moved, ssgOpen) : port.point + moved);
+                const bool ssg = port.model == modelmeta::Id::VShot2;
+                const glm::vec3 at = port.point + moved;
+                s.loadPort[hand] = view::modelPoint(ve, ssg ? ssgTurn(at, ssgOpen) : at);
                 s.loadPortValid[hand] = true;
+                // The way a round lies going in: the tube's or the barrels' forward (+x), a well's seated magazine's
+                // feed end (its middle to its seat: magazineShape's first axis, whether one is in or not).
+                glm::vec3 axis{1.f, 0.f, 0.f};
+                if(const MagMount* mount = port.magazine ? magMountFor(model) : nullptr)
+                {
+                    axis = glm::normalize(mount->seat - mount->centre);
+                }
+                const glm::vec3 tip = ssg ? ssgTurn(at + axis, ssgOpen) : at + axis;
+                const glm::vec3 way = view::modelPoint(ve, tip) - s.loadPort[hand];
+                s.loadPortAxis[hand] = glm::length(way) > 1e-4f ? glm::normalize(way) : glm::vec3{0.f};
+                // Its opening's outward way: a well's and the breech's back along the axis, the shotgun's port down.
+                const glm::vec3 out = port.magazine || ssg ? -axis : glm::vec3{0.f, 0.f, -1.f};
+                const glm::vec3 face =
+                    view::modelPoint(ve, ssg ? ssgTurn(at + out, ssgOpen) : at + out) - s.loadPort[hand];
+                s.loadPortFace[hand] = glm::length(face) > 1e-4f ? glm::normalize(face) : glm::vec3{0.f};
                 if(vr_reload_show_ports.value && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3)
                 {
                     // The gun's point and radius (a held magazine's reference point and radius: heldRoundRef's, drawn by

@@ -306,6 +306,8 @@ VrMove unposed;
         // a carried gun's from where it is drawn (handMuzzle). The loading port as the muzzle.
         move.muzzlePos[h] = handMuzzle(hs, h);
         move.loadPort[h] = hs.loadPortValid[h] ? hs.loadPort[h] + (hs.pos[h] - hs.placedFrom[h]) : hs.pos[h];
+        move.loadPortAxis[h] = hs.loadPortValid[h] ? hs.loadPortAxis[h] : glm::vec3{0.f};
+        move.loadPortFace[h] = hs.loadPortValid[h] ? hs.loadPortFace[h] : glm::vec3{0.f};
         // Its magazine's box the same way (none: all zero).
         for(int i = 0; i < 4; i++)
         {
@@ -406,6 +408,8 @@ VrMove unposed;
             move.hotspots[h] = unposed.hotspots[h];
             move.muzzlePos[h] = unposed.muzzlePos[h] + walked;
             move.loadPort[h] = unposed.loadPort[h] + walked;
+            move.loadPortAxis[h] = unposed.loadPortAxis[h];
+            move.loadPortFace[h] = unposed.loadPortFace[h];
             for(int i = 0; i < 4; i++)
             {
                 move.magBox[h][i] = unposed.magBox[h][i];

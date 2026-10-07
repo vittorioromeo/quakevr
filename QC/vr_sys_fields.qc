@@ -222,6 +222,14 @@
 // Each held gun's loading port as drawn (immersive reloading: vr_reload.qc; the hand's position when it has none)
 .vector loadportpos;
 .vector offloadportpos;
+// And the way a round lies going in there (unit; zero: none): the shotgun's tube and the super shotgun's barrels
+// forward (a shell's open end leads), a magazine gun's well up (the seated magazine's feed end)
+.vector loadportaxis;
+.vector offloadportaxis;
+// And the way its opening faces (unit, outwards; zero: none): the shotgun's port down from the receiver, the open super
+// shotgun's breech back from the barrels, a well down from the gun
+.vector loadportface;
+.vector offloadportface;
 // The magazine attached to each held (or carried) gun, as drawn (the engine; vr_reload.qc): a box, its middle and its three
 // half-axes (the first from the middle up to its feed end, in the well); the axes all zero: none.
 .vector magboxpos;

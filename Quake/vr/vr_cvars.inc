@@ -2517,6 +2517,14 @@ QVR_CVAR(vr_reload_mag_light_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_radius, "0.5", CVAR_ARCHIVE)
+// Loose rounds (lying, dropped, thrown) load by contact (QC vr_reload.qc VR_Reload_LooseFrame): one within a held gun's
+// load point lying the way it goes in (within vr_reload_contact_angle degrees: a shell's open end along the shotgun's
+// tube or the super shotgun's open barrels, a magazine's feed end up its well) goes in, as a held one does but within
+// vr_reload_contact_leniency cm more (the gun's hull covers its port or well: the shotgun's 4 cm, the thunderbolt's 6);
+// one that fits passes through the gun's collision within that leniency more again, to reach it.
+QVR_CVAR(vr_reload_contact, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_contact_leniency, "6", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_contact_angle, "35", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_collide_leniency, "4", CVAR_ARCHIVE) // cm a round held from the pouch may go into the other hand's gun's box before they are drawn kept apart (Held Things Collide), to reach its port or well
 // Each magazine gun's well (its receiver, drawn on it; visual only): moved (the gun's model units) and turned (degrees)
 // about its seat, to sit flush. Show Load Points marks its seat (cyan).

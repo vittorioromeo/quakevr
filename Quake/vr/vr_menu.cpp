@@ -5550,6 +5550,23 @@ za::Vector<Item> pageDebugTests()
             .help("Prints your shells, the off hand's magazine, what each hand holds, the shells lying about."),
         command("Run the Self-Test", "vr_reload_test 9; impulse 125")
             .help("Takes, loads, refunds and drops in turn and checks every count: reload: PASS or FAIL lines."),
+        command("Toss a Round Into the Off Hand's Gun", "vr_reload_test 10; impulse 125")
+            .help("A loose round for it (a shell, the super shotgun's pair, its magazine), lying right, thrown into its "
+                  "opening from 8 units out: it goes in by contact (Load Loose Rounds)."),
+        command("Lay a Round Sideways at Its Opening", "vr_reload_test 11; impulse 125")
+            .help("The same lying sideways right at the opening: it must not go in."),
+        command("Lay a Round Under Its Load Point", "vr_reload_test 12; impulse 125")
+            .help("On the floor (a shell flat along the gun, a magazine upright): bring the gun down onto it."),
+        command("Drop a Round From Above Its Load Point", "vr_reload_test 13; impulse 125")
+            .help("From 8 units straight above: turn the gun's opening up first."),
+        command("Break the Off Hand's Super Shotgun Open", "vr_reload_test 15; impulse 125")
+            .help("As the flick does (Immersive, Break Open on): its barrels take loose pairs."),
+        command("Report the Loose Rounds", "vr_reload_test 14; impulse 125")
+            .help("Each loose round's distance from the off hand's load point, how it lies against the way in, and "
+                  "whether it passes through the gun; the load point's axis and the way its opening faces."),
+        command("Print the Collision Shapes", "vr_physics_shapes vr_ammo_shell vr_ammo_mag")
+            .help("Each loose round's body against its drawn size, each held gun's hull against the drawn gun, and how "
+                  "deep its load point lies inside the hull (the console)."),
         cycle("Reload Prints", "vr_reload_debug", {{0.f, "Off"}, {1.f, "Events"}, {2.f, "Every Frame"}, {3.f, "And Magazine Grips"}})
             .help("Events: each take, load, refund, loss, magazine out and hold. Every Frame: a held round's distance to the "
                   "port, a held magazine's pull, snap and apart, a hit's speed. And Magazine Grips: each empty hand's "
