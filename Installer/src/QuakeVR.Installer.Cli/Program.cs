@@ -12,7 +12,8 @@ const string Usage = """
     qvr-setup manifest <package folder> --version <text>
     qvr-setup install --package <zip|folder> --target <dir> [--quake <dir>] [--shortcuts-dir <dir>]
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
-                      [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register]
+                      [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register] --accept-statement
+    qvr-setup statement                              (prints the author's statement on AI usage; install needs --accept-statement)
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
     qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--file <vc_redist.x64.exe>] [--assume-missing]] [--downloads <dir>]
@@ -77,8 +78,21 @@ try
             Console.WriteLine($"{m.Files.Count} files, {PathUtil.FormatSize(m.TotalSize)}: {Path.Combine(folder, PackageManifest.FileName)}");
             return 0;
         }
+        case "statement":
+        {
+            Console.Write(AiStatement.Format());
+            return 0;
+        }
         case "install":
         {
+            // The wizard's Statement page: the console installs only with YES to all four, given as --accept-statement.
+            if (!Flag("accept-statement"))
+            {
+                Console.Write(AiStatement.Format());
+                Console.WriteLine();
+                Console.WriteLine("To install, pass --accept-statement: it answers YES to all four statements above.");
+                return 3;
+            }
             var probe = new WindowsSystemProbe();
             var quake = Opt("quake") ?? DetectionReport.Run(probe).DefaultQuake?.BaseDir
                 ?? throw new InstallException("No Quake found: pass --quake <folder with id1>.");

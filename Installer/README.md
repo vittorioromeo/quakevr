@@ -10,7 +10,7 @@ can update or remove what it installed. The design, the research behind it and t
 | Folder | What |
 |---|---|
 | `src/QuakeVR.Installer.Core` | Everything that is not UI, testable without a window: detection (`Detection/`), packages, manifests, local packages, install/update/uninstall and downloads (`Packaging/`), shortcuts (`Shortcuts/`), the registry and special folders behind an interface (`Platform/`), Quake's file formats for the skin (`Assets/`: PAK, palette, WAD2, BSP textures, WAV) |
-| `src/QuakeVR.Installer` | The wizard window (`QuakeVR-Setup.exe`): Welcome, Your PC, Options, Install, Play, Thanks. `ViewModels/MainViewModel.cs` holds the state; `Views/` the pages; `Themes/Theme.xaml` the look; `Skin/` the textures (from the player's Quake, or generated), flames, lava and the frame clock; `Audio/` the sounds and their mixer; `Fonts/` and `Assets/` the embedded fonts (SIL OFL), logos, icon and Ko-fi logo; `ScreenshotHarness.cs` renders the pages to PNG |
+| `src/QuakeVR.Installer` | The wizard window (`QuakeVR-Setup.exe`): Welcome, Statement, Your PC, Options, Install, Play, Thanks. `ViewModels/MainViewModel.cs` holds the state; `Views/` the pages; `Themes/Theme.xaml` the look; `Skin/` the textures (from the player's Quake, or generated), flames, lava and the frame clock; `Audio/` the sounds and their mixer; `Fonts/` and `Assets/` the embedded fonts (SIL OFL), logos, icon and Ko-fi logo; `ScreenshotHarness.cs` renders the pages to PNG |
 | `src/QuakeVR.Installer.Cli` | `qvr-setup.exe`: the core from a console (detection report, install/uninstall/verify from a local package, manifests, downloads) |
 | `tests/QuakeVR.Installer.SelfTest` | The core's tests, as a console program (see "Tests") |
 
@@ -55,7 +55,7 @@ one unsigned `QuakeVR-Setup.exe`; see INSTALLER.md, "Hosting and SmartScreen").
 | `--shortcuts-dir <dir>` | Shortcuts go to `<dir>\Desktop` and `<dir>\Programs` instead of the real desktop and Start menu (tests) |
 | `--feed <url>` | Where `latest.json` is read (repeatable; default: GitHub, then vittorioromeo.com). Also `installer-settings.json` beside the exe |
 | `--downloads <dir>` | Where downloads go (default `%LOCALAPPDATA%\QuakeVR-Installer\downloads`) |
-| `--screenshots <dir>` | Render every page to PNG and exit, no window (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
+| `--screenshots <dir>` | Render every page to PNG and exit, no window (the Statement page unanswered, mixed and all YES; exit 1 unless its Continue is enabled exactly with YES to all four) (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
 | `--offline` | Never ask the network: the online release counts as unavailable (the "Use a local package" path) |
 | `--no-quake-look` | The generated textures and sounds even when Quake is found (screenshots of the fallback) |
 | `--reduce-motion` | Animations off, as with Windows' "Animation effects" off |
@@ -71,9 +71,10 @@ one unsigned `QuakeVR-Setup.exe`; see INSTALLER.md, "Hosting and SmartScreen").
 ```
 qvr-setup detect                                   # what is on this PC (Quake, expansions, runtimes, VC++)
 qvr-setup manifest <package folder> --version <v>  # write manifest.json (package-quakevr.ps1 has its own writer)
-qvr-setup install --package dist\QuakeVR.zip --target <dir> [--shortcuts-dir <dir>] [--textures <zip>] [--relight] [--vispatch id1_vis.tgz ...]
+qvr-setup install --package dist\QuakeVR.zip --target <dir> --accept-statement [--shortcuts-dir <dir>] [--textures <zip>] [--relight] [--vispatch id1_vis.tgz ...]
                   [--setup-from QuakeVR-Setup.exe] [--registry-file <json> | --register]   # Setup's copy in <dir>\setup; the Apps & Features entry
 qvr-setup verify --target <dir>
+qvr-setup statement                                # the author's statement on AI usage (install exits 3 without --accept-statement)
 qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--assume-missing] [--file <exe>]]   # the VC++ runtime (without --dry-run: installs it, one UAC prompt)
 qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
 qvr-setup download --url <u> [--url <mirror>] --out <file> --size <n> --sha256 <hex>
@@ -88,7 +89,7 @@ The console never writes the real desktop or Start menu: shortcuts only with `--
 dotnet run --project tests/QuakeVR.Installer.SelfTest -- <scratch folder> [name filter]
 ```
 
-Tests: VDF parsing, a fake Steam (libraries, app manifests), GOG and Epic, id1 kinds, the engine's resource checks
+Tests: the Statement page's answers (all 81 mixes of unanswered/YES/NO: Continue only with YES to all four, no way back to unanswered), VDF parsing, a fake Steam (libraries, app manifests), GOG and Epic, id1 kinds, the engine's resource checks
 and pack states (ported from `Quake/vr/vr_gamedir.cpp`), expansion roots and priorities, OpenXR/Virtual Desktop/VC++
 detection (the registry key and the three DLLs the game imports), the VC++ redistributable's install (the real
 Authenticode check on files already here; the download, signature and version checks, exit codes and dry run with a local

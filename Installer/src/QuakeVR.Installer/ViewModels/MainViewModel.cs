@@ -17,6 +17,8 @@ namespace QuakeVR.Installer.ViewModels;
 public enum Page
 {
     Welcome,
+    /// <summary>The author's statement on AI usage: four YES/NO answers, all YES to go on.</summary>
+    Statement,
     Detect,
     Options,
     Install,
@@ -168,7 +170,17 @@ public sealed class MainViewModel : ObservableObject
         }
         DefaultInstallDir = Path.Combine(probe.GetFolder(KnownFolder.LocalAppData) ?? @"C:\QuakeVR", "Programs", "QuakeVR");
         _installDir = (options.Target is { } t ? PathUtil.TryNormalize(t) : null) ?? DefaultInstallDir;
-        Steps = [new(1, "Welcome"), new(2, "Your PC"), new(3, "Options"), new(4, "Install"), new(5, "Play"), new(6, "Thanks")];
+        Steps = [new(1, "Welcome"), new(2, AiStatement.Title), new(3, "Your PC"), new(4, "Options"), new(5, "Install"), new(6, "Play"), new(7, "Thanks")];
+        StatementChoices = [.. Enumerable.Range(0, AiStatement.Claims.Count).Select(i => new StatementChoice(Statement, i))];
+        Statement.Changed += () =>
+        {
+            foreach (var c in StatementChoices)
+            {
+                c.Refresh();
+            }
+            Raise(nameof(FooterHint));
+            CommandManager.InvalidateRequerySuggested();
+        };
 
         NextCommand = new RelayCommand(Next, CanNext);
         BackCommand = new RelayCommand(Back, () => ShowBack);
@@ -221,23 +233,25 @@ public sealed class MainViewModel : ObservableObject
         {
             if (Set(ref _page, value))
             {
-                Raise(nameof(IsWelcome), nameof(IsDetect), nameof(IsOptions), nameof(IsInstall), nameof(IsDone), nameof(IsSupport), nameof(NextText), nameof(ShowBack), nameof(FooterHint));
+                Raise(nameof(IsWelcome), nameof(IsStatement), nameof(IsDetect), nameof(IsOptions), nameof(IsInstall), nameof(IsDone), nameof(IsSupport), nameof(NextText), nameof(ShowBack), nameof(FooterHint));
             }
         }
     }
 
     public bool IsWelcome => Page == Page.Welcome;
+    public bool IsStatement => Page == Page.Statement;
     public bool IsDetect => Page == Page.Detect;
     public bool IsOptions => Page == Page.Options;
     public bool IsInstall => Page == Page.Install;
     public bool IsDone => Page == Page.Done;
     public bool IsSupport => Page == Page.Support;
-    public bool ShowBack => Page is Page.Detect or Page.Options or Page.Support || (Page == Page.Install && !Installing);
+    public bool ShowBack => Page is Page.Statement or Page.Detect or Page.Options or Page.Support || (Page == Page.Install && !Installing);
     public bool ShowNext => !(Page == Page.Install);
 
     public string NextText => Page switch
     {
         Page.Welcome => _existing is null ? "Get started" : "Update",
+        Page.Statement => "Continue",
         Page.Options => _existing is null ? "Install" : "Update",
         Page.Done => "Next",
         Page.Support => "Finish",
@@ -247,6 +261,7 @@ public sealed class MainViewModel : ObservableObject
     public string FooterHint => Page switch
     {
         Page.Welcome => $"Nothing is changed until you press {(_existing is null ? "Install" : "Update")}.",
+        Page.Statement => Statement.AllYes ? "Your answers are not saved or sent anywhere." : "Continue needs YES to all four.",
         Page.Detect => "Your Quake files are only read, never changed.",
         Page.Options => "Free and open source. No telemetry: nothing is sent about you.",
         Page.Support => "Quake VR: Unleashed is free, and it stays free.",
@@ -281,10 +296,13 @@ public sealed class MainViewModel : ObservableObject
             Steps[i].State = i < (int)page ? StepState.Done : i == (int)page ? StepState.Current : StepState.Upcoming;
         }
         Raise(nameof(ShowNext));
+        // The buttons' enabled state follows the new page at once (the Statement page's Continue starts disabled).
+        CommandManager.InvalidateRequerySuggested();
     }
 
     bool CanNext() => Page switch
     {
+        Page.Statement => Statement.AllYes,
         Page.Detect => !Detecting && SelectedQuake is { Playable: true },
         Page.Options => InstallDirError is null && SelectedQuake is not null && PackageReady,
         Page.Install => false,
@@ -296,6 +314,13 @@ public sealed class MainViewModel : ObservableObject
         switch (Page)
         {
             case Page.Welcome:
+                GoTo(Page.Statement);
+                break;
+            case Page.Statement:
+                if (!Statement.AllYes)
+                {
+                    break;
+                }
                 GoTo(Page.Detect);
                 _ = EnsureDetectedAsync();
                 break;
@@ -322,6 +347,18 @@ public sealed class MainViewModel : ObservableObject
             GoTo(Page == Page.Install ? Page.Options : Page == Page.Support ? Page.Done : Page - 1);
         }
     }
+
+    // ---- Statement: the author's statement on AI usage ------------------------------------------------------------
+    // The answers are only in memory for this run of Setup: never saved, never sent.
+
+    public AiStatement Statement { get; } = new();
+    public IReadOnlyList<StatementChoice> StatementChoices { get; }
+    public string StatementTitle => AiStatement.Title;
+    public string StatementSubtitle => AiStatement.Subtitle;
+    public IReadOnlyList<string> StatementParagraphs => AiStatement.Paragraphs;
+
+    /// <summary>Whether the forward button is enabled now (tests and the screenshot harness).</summary>
+    public bool CanGoNext => NextCommand.CanExecute(null);
 
     // ---- Welcome: an existing install ----------------------------------------------------------------------------
 

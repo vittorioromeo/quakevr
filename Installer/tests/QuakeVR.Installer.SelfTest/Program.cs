@@ -49,6 +49,53 @@ T Throws<T>(Action a, string what) where T : Exception
 
 var tests = new List<(string Name, Action Body)>
 {
+    ("statement: four claims, unanswered at first, Continue only with YES to all four", () =>
+    {
+        Eq(4, AiStatement.Claims.Count, "claims");
+        Eq(3, AiStatement.Paragraphs.Count, "paragraphs");
+        True(AiStatement.Paragraphs[1].Contains("renaissance") && !AiStatement.Paragraphs[1].Contains("reinassance"), "spelling fixed");
+        var s = new AiStatement();
+        var changes = 0;
+        s.Changed += () => ++changes;
+        for (var i = 0; i < 4; ++i)
+        {
+            Eq<bool?>(null, s[i], $"claim {i + 1} starts unanswered");
+        }
+        Eq(4, s.Unanswered, "unanswered");
+        True(!s.AllYes, "nothing answered: no Continue");
+        s.Answer(0, true);
+        s.Answer(1, true);
+        s.Answer(2, true);
+        True(!s.AllYes, "one unanswered: no Continue");
+        s.Answer(3, false);
+        True(!s.AllYes, "one NO: no Continue");
+        Eq<bool?>(false, s[3], "NO kept");
+        s.Answer(3, true);
+        True(s.AllYes, "all YES: Continue");
+        Eq(0, s.Unanswered, "all answered");
+        s.Answer(1, false);
+        True(!s.AllYes, "YES switched back to NO: no Continue");
+        Eq<bool?>(false, s[1], "a set claim switches between YES and NO only");
+        s.Answer(1, false);
+        Eq(6, changes, "Changed fires on real changes only");
+        // Every mix of the 3^4 states: Continue exactly when all four are YES.
+        for (var m = 0; m < 81; ++m)
+        {
+            var t = new AiStatement();
+            var allYes = true;
+            for (int i = 0, v = m; i < 4; ++i, v /= 3)
+            {
+                if (v % 3 != 0)
+                {
+                    t.Answer(i, v % 3 == 1);
+                }
+                allYes &= v % 3 == 1;
+            }
+            Eq(allYes, t.AllYes, $"mix {m}");
+        }
+        var text = AiStatement.Format();
+        True(text.Contains(AiStatement.Subtitle) && AiStatement.Claims.All(text.Contains) && AiStatement.Paragraphs.All(text.Contains), "the console's text");
+    }),
     ("vdf: libraryfolders, both formats, escapes, comments", () =>
     {
         var v = Vdf.Parse("""

@@ -152,6 +152,7 @@
 
             <Grid Margin="44,30,40,6">
                 <v:WelcomePage skin:Fx.Enter="True" Visibility="{Binding IsWelcome, Converter={StaticResource BoolToVis}}" />
+                <v:StatementPage skin:Fx.Enter="True" Visibility="{Binding IsStatement, Converter={StaticResource BoolToVis}}" />
                 <v:DetectPage skin:Fx.Enter="True" Visibility="{Binding IsDetect, Converter={StaticResource BoolToVis}}" />
                 <v:OptionsPage skin:Fx.Enter="True" Visibility="{Binding IsOptions, Converter={StaticResource BoolToVis}}" />
                 <v:InstallPage skin:Fx.Enter="True" Visibility="{Binding IsInstall, Converter={StaticResource BoolToVis}}" />

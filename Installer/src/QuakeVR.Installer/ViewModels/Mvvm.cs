@@ -139,6 +139,42 @@ public sealed class StepItem(int number, string title) : ObservableObject
     public Brush MarkerText => State == StepState.Upcoming ? (Brush)Application.Current.FindResource("Faint") : (Brush)Application.Current.FindResource("DarkText");
 }
 
+/// <summary>One claim of the Statement page as a YES/NO switch that starts with neither (radio buttons: once one is
+/// picked there is no way back to neither).</summary>
+public sealed class StatementChoice(Core.AiStatement statement, int index) : ObservableObject
+{
+    public int Number => index + 1;
+    public string Text => Core.AiStatement.Claims[index];
+
+    public bool IsYes
+    {
+        get => statement[index] == true;
+        set
+        {
+            if (value)
+            {
+                statement.Answer(index, true);
+            }
+        }
+    }
+
+    public bool IsNo
+    {
+        get => statement[index] == false;
+        set
+        {
+            if (value)
+            {
+                statement.Answer(index, false);
+            }
+        }
+    }
+
+    public bool IsUnset => statement[index] is null;
+
+    internal void Refresh() => Raise(nameof(IsYes), nameof(IsNo), nameof(IsUnset));
+}
+
 public sealed class LogLine(Core.Packaging.LogLevel level, string text)
 {
     public Core.Packaging.LogLevel Level { get; } = level;
