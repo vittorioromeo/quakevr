@@ -464,8 +464,10 @@ struct Planner
     }
 };
 
+[[nodiscard]] int modelIndexOf(const char* name); // (below)
+
 // The crates in the map now (the server's entities), each with its model, skin, place, health and whether it rests;
-// the last plan's clearance for the placed ones.
+// the last plan's clearance for the placed ones; any two placed into each other.
 void list_f()
 {
     if(!sv.active)
@@ -513,9 +515,61 @@ void list_f()
                 NUM_FOR_EDICT(PROG_TO_EDICT(e->v.owner)));
         }
     }
+    // Any two whose boxes (as drawn, turned as they lie) overlap by more than half a unit: a map's crates placed into each
+    // other (the separating axis test: the 3 + 3 faces' normals and the 9 edges' crosses).
+    struct Box
+    {
+        int num;
+        glm::vec3 c;
+        glm::mat3 axes;
+        glm::vec3 half;
+    };
+    za::Vector<Box> boxes;
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        const int model = e->free || strcmp(PR_GetString(e->v.classname), "vr_crate") ? -1 : modelIndexOf(PR_GetString(e->v.model));
+        if(model >= 0)
+        { boxes.pushBack(Box{i, vec(e->v.origin), held::axesFromAngles(e->v.angles, false), models[model].half * sizeOf(model)}); }
+    }
+    int overlaps = 0;
+    for(size_t a = 0; a < boxes.size(); a++)
+    {
+        for(size_t b = a + 1; b < boxes.size(); b++)
+        {
+            const Box& A = boxes[a];
+            const Box& B = boxes[b];
+            const glm::vec3 d = B.c - A.c;
+            float least = 1e9f;
+            const auto test = [&](glm::vec3 axis) {
+                const float len = glm::length(axis);
+                if(len < 1e-4f) { return; }
+                axis /= len;
+                float ra = 0.f, rb = 0.f;
+                for(int k = 0; k < 3; k++)
+                {
+                    ra += za::abs(glm::dot(A.axes[k], axis)) * A.half[k];
+                    rb += za::abs(glm::dot(B.axes[k], axis)) * B.half[k];
+                }
+                least = za::min(least, ra + rb - za::abs(glm::dot(d, axis)));
+            };
+            for(int k = 0; k < 3; k++)
+            {
+                test(A.axes[k]);
+                test(B.axes[k]);
+                for(int j = 0; j < 3; j++) { test(glm::cross(A.axes[k], B.axes[j])); }
+            }
+            if(least > 0.5f)
+            {
+                overlaps++;
+                Con_Printf("crates: %d and %d overlap by %.1f units\n", A.num, B.num, least);
+            }
+        }
+    }
     PR_PopQCVM(oldVm);
-    Con_Printf("crates: %d crates, %d pieces; %d over 2 units off their planned places (at most %.1f)\n", n, pieces, moved,
-        placements.empty() ? 0.f : most);
+    Con_Printf("crates: %d crates, %d pieces, %d overlapping pairs; %d over 2 units off their planned places (at most %.1f)
+", n,
+        pieces, overlaps, moved, placements.empty() ? 0.f : most);
 }
 
 // "vr_crates_goto [i | crowbar [k]]": you in front of crate i of the last plan, or the next one (a test aid: setpos, 110
@@ -1041,6 +1095,37 @@ int putPlaced(edict_t* e)
         if(!down.startsolid && down.fraction < 1.f)
         {
             top = za::max(top, down.endpos[2]);
+        }
+    }
+    // Or on a crate placed before it whose middle is under its origin (a map's stack: the trace above sees the level only,
+    // which put the top one into the ones it stands on; vrstart's range, the author's note vrstart_2026-10-07_23-36-45).
+    const int self = NUM_FOR_EDICT(e);
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    {
+        const edict_t* c = EDICT_NUM(i);
+        if(i == self || c->free || strcmp(PR_GetString(c->v.classname), "vr_crate") || c->v.origin[2] >= at.z)
+        {
+            continue;
+        }
+        const int cm = modelIndexOf(PR_GetString(c->v.model));
+        if(cm < 0)
+        {
+            continue;
+        }
+        const glm::mat3 axes = held::axesFromAngles(c->v.angles, false);
+        const glm::vec3 half = models[cm].half * sizeOf(cm);
+        const glm::vec3 centre = vec(c->v.origin);
+        const float cTop = centre.z + c->v.maxs[2];
+        for(int k = -1; k < 4; k++)
+        {
+            const glm::vec3 p = k < 0 ? at : pts[k];
+            // (under p: within its turned box across, seen from above; its top no more than 128 below)
+            const glm::vec3 d{p.x - centre.x, p.y - centre.y, 0.f};
+            if(cTop >= p.z - 128.f && za::abs(glm::dot(d, axes[0])) <= half.x && za::abs(glm::dot(d, axes[1])) <= half.y)
+            {
+                top = za::max(top, cTop);
+                break;
+            }
         }
     }
     const float floorZ = top > -1e9f ? top : at.z;

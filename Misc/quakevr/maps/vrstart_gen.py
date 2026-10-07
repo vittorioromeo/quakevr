@@ -1601,8 +1601,9 @@ def build_entities(mw):
     tip(mw, "vs2_range", "Grip a gun from the bench with either hand." + N + "Hold a box of ammunition to a holster to load.",
         lx, -40, top + 10, 200)
     zf = rg["z"]
-    # lane 1 (y -160): a stack of crates
-    for (x, y, zz, large) in ((1100, -178, zf, 0), (1100, -142, zf, 0), (1100, -160, zf + 32, 0), (1260, -170, zf, 1)):
+    # lane 1 (y -160): a stack of crates (the two below 44 apart: clear of each other turned up to 30 degrees; the top one
+    # rests on them, QC vr_crate: on a crate placed before it)
+    for (x, y, zz, large) in ((1100, -182, zf, 0), (1100, -138, zf, 0), (1100, -160, zf + 32, 0), (1260, -170, zf, 1)):
         k = {"classname": "vr_crate", "origin": "%d %d %d" % (x, y, zz + 2), "angle": str(RND.randrange(0, 30)),
              "skin": str(RND.randrange(3))}
         if large:
@@ -1616,7 +1617,7 @@ def build_entities(mw):
     for i, mdl in enumerate(("vr_rock1", "vr_brick1", "vr_rock3", "vr_brick3", "vr_rock5")):
         mw.add({"classname": "vr_debris_piece", "model": "progs/%s.mdl" % mdl, "origin": "%d %d %d" % (sx, sy - 30 + 15 * i, zf + 40),
                 "angle": str(RND.randrange(0, 360)), "skin": str(RND.randrange(6))})
-    for (x, y, zz) in ((1240, 70, zf), (1240, 102, zf), (1240, 86, zf + 32)):
+    for (x, y, zz) in ((1240, 64, zf), (1240, 108, zf), (1240, 86, zf + 32)):  # (as lane 1's)
         mw.add({"classname": "vr_crate", "origin": "%d %d %d" % (x, y, zz + 2), "angle": str(RND.randrange(0, 30)),
                 "skin": str(RND.randrange(3))})
     # ---- the lookout tower

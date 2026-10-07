@@ -47,7 +47,8 @@ bool putCrowbar(edict_t* e, int i);
 int put(edict_t* e, int i);
 
 // A crate placed by the map or a test (QC vr_crate, its model set; its "angle" its yaw): level, resting on whatever is
-// under its origin (within 128 units), its box, on the ground. Its kind: 1 small, 2 large; 0 if its model isn't a crate's.
+// under its origin (within 128 units: the level, or a crate placed before it), its box, on the ground. Its kind: 1 small,
+// 2 large; 0 if its model isn't a crate's.
 int putPlaced(edict_t* e);
 
 // Whether a monster's sight from `start` to `end` is blocked by a solid prop that blocks sight (.vr_blocksight > 0, not in
