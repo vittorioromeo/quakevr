@@ -1,5 +1,6 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
+#include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
 #include "vr_bullettime.hpp"
@@ -1416,6 +1417,7 @@ extern "C" void VR_Init()
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)
+    cheats::registerCommands(); // vr_scene_clean, vr_scene_count (vr_cheats.cpp)
 
     state->restartRequested = true;
 }

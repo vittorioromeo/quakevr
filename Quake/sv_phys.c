@@ -1320,6 +1320,9 @@ void SV_Physics (void)
 			SV_LinkEdict (ent, true);	// force retouch even for stationary
 		}
 
+		if (i > svs.maxclients && VR_MonsterFrozen (ent))
+			continue; // QVR: Debug > Cheats and Recording's Freeze Monsters (vr_freeze_monsters)
+
 		vrworld = VR_PhysicsEntityBegin (ent, i); // QVR: slow motion's Sandevistan: the player and its missiles in its own time
 		if (i > 0 && i <= svs.maxclients)
 			SV_Physics_Client (ent, i);

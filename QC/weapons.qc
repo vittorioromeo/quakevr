@@ -4518,6 +4518,17 @@ void() ImpulseCommands =
         InvisibilityCheat();
     if(self.impulse == 255)
         QuadCheat();
+    // QVR: Debug > Cheats and Recording (vr_cheats.qc): the powerups on for an hour or off at once, full health and armour.
+    if(self.impulse == 190)
+        VR_Cheat_TogglePowerup(super_damage_finished, super_time, IID_QUAD, "Quad Damage");
+    if(self.impulse == 191)
+        VR_Cheat_TogglePowerup(invincible_finished, invincible_time, IID_INVULNERABILITY, "Pentagram of Protection");
+    if(self.impulse == 192)
+        VR_Cheat_TogglePowerup(invisible_finished, invisible_time, IID_INVISIBILITY, "Ring of Shadows");
+    if(self.impulse == 193)
+        VR_Cheat_TogglePowerup(radsuit_finished, rad_time, IID_SUIT, "Biosuit");
+    if(self.impulse == 194)
+        VR_Cheat_HealthArmor();
     if(self.impulse == 243 && !deathmatch && !coop) // QVR: a backpack of your ammo ahead (physics tests)
     {
         vector playerOrigin = self.origin;

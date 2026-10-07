@@ -2081,6 +2081,8 @@ void() PlayerPostThink =
         return;
     }
 
+    VR_Cheat_AmmoFrame(); // QVR: Debug > Cheats and Recording's Infinite Ammo (vr_cheat_ammo; vr_cheats.qc)
+
     // ROGUE
     if(cutscene_running)
     {

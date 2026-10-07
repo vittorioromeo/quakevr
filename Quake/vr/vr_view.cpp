@@ -287,6 +287,37 @@ struct Entities
 Entities entities;
 int lastAddedFrame = -1;
 
+// Hidden for a clean shot (vr_shot_hide; Debug > Cheats and Recording): 1 the wrist gadget (setupGadget hides it whole,
+// its screen and messages with it), 2 the hands and what they hold, 4 the body and the holsters. Drawn only: they
+// work on as ever.
+[[nodiscard]] bool hiddenForShot(const view::ViewEntity& ve)
+{
+    const int hide = static_cast<int>(vr_shot_hide.value);
+    if(hide == 0)
+    {
+        return false;
+    }
+    const auto among = [&ve](const auto& list) {
+        for(const view::ViewEntity& e : list)
+        {
+            if(&e == &ve)
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+    if((hide & 2) && (among(entities.weapon) || among(entities.weaponMorph) || among(entities.hand[0]) ||
+                         among(entities.hand[1]) || among(entities.button) || among(entities.frontButton) ||
+                         among(entities.muzzleFlash) || &ve == &entities.flashlight || &ve == &entities.sawHandle))
+    {
+        return true;
+    }
+    return (hide & 4) && (&ve == &entities.body || among(entities.pauldron) || among(entities.pauldronArm) ||
+                             among(entities.holster) || among(entities.holsterSlot) || among(entities.holsterButton) ||
+                             &ve == &entities.pouch);
+}
+
 template <typename F>
 void forEachEntity(F&& f)
 {
@@ -4738,7 +4769,7 @@ void setupGadget(const hands::State& s)
 {
     view::ViewEntity& ve = entities.gadget;
     entities.gadgetStrap[0].visible = entities.gadgetStrap[1].visible = false;
-    if(!gadget::active())
+    if(!gadget::active() || (static_cast<int>(vr_shot_hide.value) & 1)) // (hidden for a clean shot: hiddenForShot)
     {
         ve.visible = false;
         gadget::setPose({});
@@ -6069,7 +6100,7 @@ extern "C" void VR_SetupViewEntities()
     weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
 
     forEachEntity([](view::ViewEntity& ve) {
-        if(ve.visible && ve.ent.model && cl_numvisedicts < MAX_VISEDICTS)
+        if(ve.visible && ve.ent.model && !hiddenForShot(ve) && cl_numvisedicts < MAX_VISEDICTS)
         {
             cl_visedicts[cl_numvisedicts++] = &ve.ent;
         }
