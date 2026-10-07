@@ -54,8 +54,12 @@ public sealed class SoundMixer
     SoundClip? _loopClip;
     float _master = 1; // Ramps towards MasterVolume.
 
-    /// <summary>All sounds' volume (0 mutes, after a short ramp).</summary>
+    /// <summary>All sounds' volume (0 mutes, after a ramp of <see cref="MasterFadeSeconds"/>).</summary>
     public float MasterVolume { get; set; } = 1;
+
+    /// <summary>How long the master volume takes from 0 to 1 or back: <see cref="MasterRampFrames"/> (10 ms, the
+    /// speaker button), longer for a fade (the mute when the game starts).</summary>
+    public double MasterFadeSeconds { get; set; } = MasterRampFrames / (double)Rate;
 
     /// <summary>Something to mix: a voice plays and the master volume is not (yet) 0.</summary>
     public bool Busy
@@ -237,7 +241,7 @@ public sealed class SoundMixer
             }
         }
         var target = MasterVolume;
-        const float ramp = 1f / MasterRampFrames;
+        var ramp = 1f / Math.Max(1, (int)(MasterFadeSeconds * Rate));
         for (var f = 0; f < frames; ++f)
         {
             _master = _master < target ? Math.Min(target, _master + ramp) : Math.Max(target, _master - ramp);

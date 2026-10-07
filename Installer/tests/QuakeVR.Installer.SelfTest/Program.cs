@@ -871,6 +871,19 @@ var tests = new List<(string Name, Action Body)>
         Eq(0, loop[^1], "silent once muted");
         Eq(0, mixer.Edges, "no edges in the loop");
 
+        // The mute at Play: a 0.3 s fade (the installer's MuteForGame), heard half-way, silent at its end.
+        mixer = new SoundMixer();
+        mixer.SetLoop(ramp, 1, 0.001);
+        Render(mixer, SoundMixer.Rate / 10, _ => { });
+        mixer.MasterFadeSeconds = 0.3;
+        mixer.MasterVolume = 0;
+        var half = Render(mixer, SoundMixer.Rate * 15 / 100, _ => { });
+        var rest = Render(mixer, SoundMixer.Rate * 20 / 100, _ => { });
+        True(half.Skip(half.Length - 441).Any(x => x != 0), "the fade is still heard half-way");
+        True(rest.Skip(rest.Length - SoundMixer.Rate * 4 / 100).All(x => x == 0), "silent once the fade ends");
+        True(Math.Max(SoundMixer.Analyze(half).MaxJump, SoundMixer.Analyze(rest).MaxJump) < 0.01, "the fade has no step");
+        True(!mixer.Busy, "faded out: nothing to send");
+
         // The loop's seam itself: the crossfaded copy's last sample flows into its first.
         var seamless = SoundMixer.Seamless(ramp.Samples);
         Eq(ramp.Samples.Length - SoundMixer.SeamFrames, seamless.Length, "seamless length");

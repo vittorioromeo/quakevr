@@ -23,6 +23,7 @@ sealed class SoundEngine : IDisposable
     readonly Thread? _thread;
     readonly IntPtr _device;
     volatile bool _stop;
+    readonly bool _offline;
 
     public bool Available => _device != IntPtr.Zero;
 
@@ -76,6 +77,13 @@ sealed class SoundEngine : IDisposable
         }
     }
 
+    /// <summary>How long a change of <see cref="MasterVolume"/> takes (<see cref="SoundMixer.MasterFadeSeconds"/>).</summary>
+    public double MasterFadeSeconds
+    {
+        get => _mixer.MasterFadeSeconds;
+        set => _mixer.MasterFadeSeconds = value;
+    }
+
     /// <summary>The ring: 8 buffers of 10 ms (Windows' audio engine period). Windows' wave-out (emulated over
     /// WASAPI) starves with 50 ms or less queued: the old 4 x 512 frames (46 ms) played 20.1 s of audio in 26.1 s of
     /// the live window, with 430 underruns; 6 x 441 held with one buffer to spare, 8 x 441 with six (INSTALLER.md, "Sounds").
@@ -89,6 +97,27 @@ sealed class SoundEngine : IDisposable
 
     public SoundEngine() : this(BufferFrames, BufferCount)
     {
+    }
+
+    /// <summary>No device and no thread: the mixer alone, pulled by <see cref="MixOffline"/> (the harness's check that
+    /// Play mutes the sounds, without a sound).</summary>
+    internal static SoundEngine Offline() => new(offline: true);
+
+    SoundEngine(bool offline)
+    {
+        _offline = offline;
+        _headers = [];
+        _buffers = [];
+        _pcm = [];
+    }
+
+    /// <summary>The next <paramref name="pcm"/>.Length frames of the offline engine's mix.</summary>
+    internal void MixOffline(Span<short> pcm)
+    {
+        if (_offline)
+        {
+            _mixer.Mix(pcm);
+        }
     }
 
     /// <summary>A ring of <paramref name="bufferCount"/> buffers of <paramref name="bufferFrames"/> frames (the harness compares rings).</summary>
@@ -126,7 +155,7 @@ sealed class SoundEngine : IDisposable
     /// <summary>Plays a sound once; <paramref name="pitch"/> 1 is its own pitch.</summary>
     public void Play(SoundClip clip, float volume, double pitch = 1)
     {
-        if (!Available)
+        if (!Available && !_offline)
         {
             return;
         }
@@ -137,7 +166,7 @@ sealed class SoundEngine : IDisposable
     /// <summary>Starts (or changes) the background loop, fading in over <paramref name="fadeSeconds"/>; null fades it out.</summary>
     public void SetLoop(SoundClip? clip, float volume, double fadeSeconds = 1.5)
     {
-        if (!Available)
+        if (!Available && !_offline)
         {
             return;
         }

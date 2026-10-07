@@ -1208,12 +1208,17 @@ public sealed class MainViewModel : ObservableObject
         }
         // (The relight at the first start needs no argument: the game starts it from the installer's marker,
         // FirstStartRelight, however it is started.)
-        Process.Start(new ProcessStartInfo(Path.Combine(InstallDir, LaunchCommand.Exe), LaunchCommand.Arguments(quake, InstallDir, variant))
+        StartGame(new ProcessStartInfo(Path.Combine(InstallDir, LaunchCommand.Exe), LaunchCommand.Arguments(quake, InstallDir, variant))
         {
             WorkingDirectory = InstallDir,
             UseShellExecute = false,
         });
+        // The game has the sound now: the installer's fades out and stays muted (the speaker button shows it).
+        UiSounds.MuteForGame();
     }
+
+    /// <summary>Starts the game (the screenshot harness records the start instead).</summary>
+    internal Action<ProcessStartInfo> StartGame { get; set; } = info => Process.Start(info);
 
     static void OpenUrl(string target)
     {

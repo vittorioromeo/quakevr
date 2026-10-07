@@ -44,6 +44,16 @@ public sealed class SoundSettings : ObservableObject
         }
     }
 
+    /// <summary>Muted without remembering it (the mute at Play): the speaker button shows it; the next run of the
+    /// installer starts as the player last set the button.</summary>
+    internal void MuteWithoutSaving()
+    {
+        if (Set(ref _muted, true, nameof(Muted)))
+        {
+            UiSounds.ApplyMute();
+        }
+    }
+
     public string Source { get; internal set; } = "";
 }
 
@@ -95,10 +105,21 @@ public static class UiSounds
     static readonly Random Rng = new();
     static string? _settingsPath;
 
+    static bool _hooked;
+    static double? _nextFade;
+
+    /// <summary>The fade out when Play starts the game (the speaker button's mute is 10 ms).</summary>
+    public const double GameStartFadeSeconds = 0.3;
+
     public static SoundSettings Settings { get; } = new();
 
+    /// <summary>The engine the sounds play on (the harness's offline one, after <c>Start(null, SoundEngine.Offline())</c>).</summary>
+    internal static SoundEngine? Engine => _engine;
+
     /// <summary>Opens the device, makes the synthesized sounds and hooks the controls (the real window only).</summary>
-    public static void Start(string? settingsPath)
+    public static void Start(string? settingsPath) => Start(settingsPath, new SoundEngine());
+
+    internal static void Start(string? settingsPath, SoundEngine engine)
     {
         _settingsPath = settingsPath;
         try
@@ -113,9 +134,14 @@ public static class UiSounds
         {
             // A damaged settings file: the defaults.
         }
-        _engine = new SoundEngine();
+        _engine = engine;
         UseSynthesized();
         ApplyMute();
+        if (_hooked)
+        {
+            return;
+        }
+        _hooked = true;
         EventManager.RegisterClassHandler(typeof(ButtonBase), ButtonBase.ClickEvent, new RoutedEventHandler(OnClick));
         EventManager.RegisterClassHandler(typeof(TextBoxBase), UIElement.PreviewTextInputEvent, new TextCompositionEventHandler((_, _) => Play(Sfx.Type)));
         EventManager.RegisterClassHandler(typeof(TextBoxBase), UIElement.PreviewKeyDownEvent, new KeyEventHandler((s, e) =>
@@ -195,8 +221,19 @@ public static class UiSounds
     {
         if (_engine is not null)
         {
+            _engine.MasterFadeSeconds = _nextFade ?? SoundMixer.MasterRampFrames / (double)SoundMixer.Rate;
             _engine.MasterVolume = Settings.Muted ? 0 : 1;
         }
+        _nextFade = null;
+    }
+
+    /// <summary>Play pressed (the game starts): every sound, the fire's loop too, fades out over
+    /// <see cref="GameStartFadeSeconds"/> and stays muted, also after the game exits (the speaker button unmutes).</summary>
+    public static void MuteForGame()
+    {
+        _nextFade = GameStartFadeSeconds;
+        Settings.MuteWithoutSaving();
+        _nextFade = null;
     }
 
     internal static void SaveSettings()

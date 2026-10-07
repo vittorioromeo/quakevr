@@ -115,6 +115,13 @@ static class ScreenshotHarness
 
         vm.SimulateDone(record);
         await Save(view, Path.Combine(dir, "5-done.png"));
+        if (await PlayMuteCheck(vm, view, report) is { } muteFailed)
+        {
+            report.AppendLine($"play mute check FAILED: {muteFailed}");
+            await File.WriteAllTextAsync(Path.Combine(dir, "report.txt"), report.ToString());
+            Console.Error.WriteLine($"play mute check FAILED: {muteFailed}");
+            return 1;
+        }
         vm.GoTo(Page.Support);
         await Save(view, Path.Combine(dir, "6-support.png"));
 
@@ -532,6 +539,83 @@ static class ScreenshotHarness
     /// picked one cannot go back to neither, and the footer's Continue is enabled only with YES to all four. Returns
     /// what went wrong, or null.
     /// </summary>
+    /// <summary>The Play page's two Play buttons, pressed through their automation peers with the game's start
+    /// recorded instead of run: each mutes the installer (the speaker button's flag), the fire's loop fading out over
+    /// <see cref="UiSounds.GameStartFadeSeconds"/> on an offline engine (no device: nothing heard), then silence. Null
+    /// when it holds (or when no Quake is found: Play does nothing then).</summary>
+    static async Task<string?> PlayMuteCheck(MainViewModel vm, ShellView view, StringBuilder report)
+    {
+        if (vm.SelectedQuake is null)
+        {
+            report.AppendLine("play mute: skipped (no Quake found: Play starts nothing)");
+            return null;
+        }
+        var started = new List<string>();
+        var startGame = vm.StartGame;
+        vm.StartGame = info => started.Add(info.Arguments);
+        UiSounds.Settings.Muted = false;
+        UiSounds.Start(null, SoundEngine.Offline());
+        var engine = UiSounds.Engine!;
+        short Peak(double seconds, double lastSeconds)
+        {
+            var pcm = new short[(int)(seconds * SoundEngine.Rate)];
+            engine.MixOffline(pcm);
+            var from = pcm.Length - (int)(lastSeconds * SoundEngine.Rate);
+            short peak = 0;
+            for (var i = Math.Max(0, from); i < pcm.Length; ++i)
+            {
+                peak = Math.Max(peak, Math.Abs(pcm[i]));
+            }
+            return peak;
+        }
+        try
+        {
+            var buttons = FindAll<System.Windows.Controls.Button>(view).ToList();
+            var steps = new List<string>();
+            foreach (var command in new[] { vm.LaunchVrCommand, vm.LaunchFlatCommand })
+            {
+                var button = buttons.SingleOrDefault(b => b.Command == command);
+                if (button is null)
+                {
+                    return "a Play button is missing from the Play page";
+                }
+                var before = Peak(1.0, 0.1); // (the fire fades in over 2.5 s)
+                ((System.Windows.Automation.Provider.IInvokeProvider)new System.Windows.Automation.Peers.ButtonAutomationPeer(button)
+                    .GetPattern(System.Windows.Automation.Peers.PatternInterface.Invoke)).Invoke();
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                var fading = Peak(UiSounds.GameStartFadeSeconds / 2, 0.01);
+                var faded = Peak(UiSounds.GameStartFadeSeconds / 2 + 0.05, 0.03);
+                var after = Peak(1.0, 1.0);
+                var label = command == vm.LaunchVrCommand ? "Play in VR" : "Play on the monitor";
+                steps.Add($"{label}: peak {before} before, {fading} half-way through the fade, {faded} at its end, {after} in the next second; muted {UiSounds.Settings.Muted}");
+                if (started.Count != steps.Count)
+                {
+                    return $"{label}: the game was not started";
+                }
+                if (!UiSounds.Settings.Muted)
+                {
+                    return $"{label}: the installer is not muted";
+                }
+                if (command == vm.LaunchVrCommand && (before == 0 || fading == 0))
+                {
+                    return $"{label}: no fade (peak {before} before, {fading} half-way)";
+                }
+                if (faded != 0 || after != 0)
+                {
+                    return $"{label}: not silent after the fade (peak {faded}, then {after})";
+                }
+            }
+            report.AppendLine($"play mute: {string.Join("; ", steps)}");
+            return null;
+        }
+        finally
+        {
+            vm.StartGame = startGame;
+            UiSounds.Stop();
+            UiSounds.Settings.Muted = false;
+        }
+    }
+
     static async Task<string?> StatementCheck(MainViewModel vm, ShellView view, string dir, StringBuilder report)
     {
         vm.GoTo(Page.Statement);
