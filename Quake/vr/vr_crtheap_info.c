@@ -121,11 +121,45 @@ void VR_CrtHeapPrintStats(void (*out)(const char* text, void* arg), void* arg)
     mi_options_print_out(out, arg);
 }
 
+// A map load's hold (VR_CrtHeapLoadHold): the delay it raised and the one to put back at its end.
+static int loadHeld;
+static long loadHeldDelay;
+
 void VR_CrtHeapSetPurgeDelay(long milliseconds)
 {
     if(VR_CrtHeapIsMimalloc())
     {
+        if(loadHeld)
+        {
+            loadHeldDelay = milliseconds; // (put back at the load's end)
+            return;
+        }
         mi_option_set(mi_option_purge_delay, milliseconds);
+    }
+}
+
+void VR_CrtHeapLoadHold(int on, long milliseconds)
+{
+    if(!VR_CrtHeapIsMimalloc())
+    {
+        return;
+    }
+    if(on && !loadHeld)
+    {
+        const long delay = mi_option_get(mi_option_purge_delay);
+        if(milliseconds <= 0 || delay < 0 || delay >= milliseconds)
+        {
+            return; // (off, or the heap already keeps freed memory as long)
+        }
+        loadHeld = 1;
+        loadHeldDelay = delay;
+        mi_option_set(mi_option_purge_delay, milliseconds);
+    }
+    else if(!on && loadHeld)
+    {
+        loadHeld = 0;
+        mi_collect(true); // what the load freed and kept, purged (first: at a delay of 0 mimalloc purges nothing kept)
+        mi_option_set(mi_option_purge_delay, loadHeldDelay);
     }
 }
 

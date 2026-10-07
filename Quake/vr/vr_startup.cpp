@@ -6,6 +6,8 @@
 // (vr_bench_begin) goes into its JSON too (bench::loadDone: the stages, the work, the frames to the signon).
 
 #include "vr_bench.hpp"
+#include "vr_crtheap.h"
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -244,6 +246,7 @@ extern "C" void VR_TimeLoadBegin(const char* what)
     }
     load.open = true;
     VR_FileCacheEnable(1);
+    VR_CrtHeapLoadHold(1, static_cast<long>(qvr::vr_heap_load_hold.value));
 }
 
 extern "C" void VR_TimeLoadCommand(const char* what)
@@ -269,6 +272,7 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
         load.marks.clear();
         load.sums.clear();
         VR_FileCacheEnable(startup.open ? 1 : 0);
+        VR_CrtHeapLoadHold(0, 0);
     }
     if(load.open && !signedOn && !idle)
     {
@@ -291,6 +295,7 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
         qvr::bench::loadEnded();
         VR_ImagePrefetchEnd();
         VR_FileCacheEnable(0);
+        VR_CrtHeapLoadHold(0, 0);
         const double ms = (load.last - load.start) * 1000.0;
         loads.pushBack(va("vr_startup_times: load %d: %.1f ms (%s)", static_cast<int>(loads.size()) + 1, ms,
             load.title.cStr() + load.title.find('(')));

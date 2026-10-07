@@ -35,6 +35,12 @@ void VR_CrtHeapHooks(void);
 void VR_CrtHeapMessages(unsigned long long* messages, unsigned long long* errors, int* lastError, const char** text);
 // How long mimalloc keeps freed memory before it goes back to the OS (ms; 0 at once, -1 never): vr_heap_purge_delay.
 void VR_CrtHeapSetPurgeDelay(long milliseconds);
+// A map load (VR_TimeLoadBegin on, its first frame drawn or its failure off): while it runs, freed memory is kept for
+// `milliseconds` (the purge delay raised, when shorter) and so used again by the load's own allocations instead of being
+// given back to the OS and asked for again (vrstart2's hull build: 37% of its CPU time in VirtualAlloc/VirtualFree, its
+// 32 threads queueing on the kernel); at the end it is all given back at once (mi_collect(true)) and the delay put back.
+// 0: off (vr_heap_load_hold).
+void VR_CrtHeapLoadHold(int on, long milliseconds);
 // Returns the memory mimalloc holds unused to the OS (mi_collect(true), on this thread's heap and the abandoned ones).
 void VR_CrtHeapCollect(void);
 

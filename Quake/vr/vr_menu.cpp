@@ -4506,6 +4506,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_heap_purge_delay: how long the heap (mimalloc) keeps freed memory before giving it back to the system. "
                   "At once: the smallest working set. 1 s, mimalloc's own default: map loads about 15% quicker, 0.3 to 1 GB "
                   "more memory held after them."),
+        cycle("Heap: Hold During Loads", "vr_heap_load_hold", {{0.f, "Off"}, {60000.f, "On"}})
+            .help("vr_heap_load_hold: a map load keeps the memory it frees for its own later allocations, then gives it all "
+                  "back at its first frame drawn. Off: freed memory goes back as Purge Delay says (a big map's hitbox "
+                  "build much slower: its threads queue on the system's memory calls)."),
         command("Heap: Return Free Memory", "vr_heap collect")
             .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Crashes"),
