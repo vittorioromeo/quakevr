@@ -30163,3 +30163,41 @@ The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh
 - **Test**: a test map relit, then its .bsp replaced by another map: the load uses the original, moves the copy aside,
   prints the line; unchanged map: copy used; old-format `.relight`: moved aside on load, relit by a batch; batch on a
   changed map: relit, not skipped; e1m1 (a .pak map from relit/'s copy): relit, then loaded as current.
+## Evening notes of 10-07: reloading after a map change, quiet fists, strict catches (2026-10-08)
+
+- **Immersive reloading lost after a slipgate** (e1m2_2026-10-07_22-43-20). The client clears its stats on
+  `svc_serverinfo` (CL_ClearState), but the server only sends a stat when it differs from what it sent last
+  (`client->oldstats_*`), and kept those across a changelevel: `STAT_QVR_RELOADMODE` stayed 3, was never resent, and
+  read 0 on the new map (no pouch, no magazines; the cvar still said Immersive; changing the mode resent it). A loaded
+  game reconnects, so it was fine. `SV_SendServerinfo` now forgets what it sent. Any stat equal on both maps had it.
+  Test: `Misc/quakevr/stats_levelchange_test.sh` (the pouch on e1m1, after `changelevel e1m2`, after a save and load).
+- **A closed fist woke monsters** (e1m2_2026-10-07_22-44-33). The trigger on a fist (and on a melee weapon the tracked
+  hands swing) ran `W_AttackImpl`, which sets `show_hostile` ("wake monsters up") before finding it has nothing to
+  fire. Now skipped for those; a real swing or punch sets it where it whooshes (`VR_Melee_Whoosh`) or lands
+  (`VR_Melee_Landed`). Test: `Misc/quakevr/fist_alert_test.sh` (show_hostile read from saves: the fist closed and held
+  none; a mock punch and a shotgun shot set it).
+- **Weapons caught from 20 cm off** (hip1m1_2026-10-07_22-33-15, vrfiringrange_2026-10-07_22-49-20). The server took a
+  thrown weapon when the fist touched its drawn shape within `vr_weapon_grab_slack` (5 cm, meant for a gun lying flat),
+  or else by the hand's 5-unit box at its point (the front top of the fist) against the box round the handle with the
+  easy-touch bonus: a crowbar floating in the air was taken with the fist 7-9 cm off it, from 15 cm over it. Now only by
+  the fist on it (`vr_carry_grab_bias`, as props), the slack only for one lying on something (`lyingWeapon`: resting
+  with something under it within 8 units, or stuck); `vr_weapon_grab_box 1` (Hands > Lenient Weapon Catch) brings the
+  box back. The view's anywhere tests (a weapon lying about; the other hand's weapon) measure the fist's gap to the
+  drawn shape (`fistSurfaceGap`) instead of the hand's point within 6 cm, which was the open fingertips' reach. A force
+  grab's catch doesn't go through the touch test (unchanged). Test: `Misc/quakevr/weapon_catch_test.sh`: in the air
+  (sv_gravity 0) the fist lowered 1-2 cm a step: not taken at 4.71, 3.02, 1.38, 0.30 cm, taken at -0.11; the old catch
+  takes it from 12 cm over; lying on the floor taken at 3.69 cm (slack 5), as before.
+- **Spinning pickups' magazines off the gun** (e1m1_2026-10-07_22-39-10). A map's weapon drawn as its prop spins about
+  its middle by its `model_offset` (VR_WeaponPickup_Centre); a lying gun's magazine (and well, and an open super
+  shotgun's parts) were placed and drawn without the gun's networked transform: 7.1 units off on the nailgun, 9.7 on the
+  super nailgun. `ViewEntity::netEntity` draws a part with its world entity's scale and offset. `vr_reload_debug 1`
+  prints each lying gun's magazine seat against the gun's once a second. Test: `Misc/quakevr/pickup_mag_test.sh` (0.00
+  units for both nailguns' pickups and dropped ones).
+- **Slider steps off round values** (vrfiringrange_2026-10-07_22-23-40). Every step snapped to the fine steps' grid
+  (step x `vr_menu_fine_step`); his fine step had drifted to 0.0999, so plain steps landed on 0.6998, 0.7997. Plain
+  steps snap to the slider's own step again (as before the fine steps), fine ones to the fine grid. Config version 101
+  moves `vr_menu_fine_step` 0.0999 to 0.1. Test aid `vr_menu_slider_step <cvar> <steps> [fine]`; test
+  `Misc/quakevr/slider_step_test.sh`.
+- Flashlight Side: Left / Right (it hangs on the torso). VR Settings: an Ammo Pouch section after Holster Calibration
+  (Forward, Right, Up, Size, Ammo Counter over `vr_ammo_pouch_x/y/z/scale/counter`). Detail textures off by default
+  (`vr_detail` 0, config version 101; the presets Medium and up set it to its default).
