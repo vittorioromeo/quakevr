@@ -1989,6 +1989,13 @@ int placeInHand(int hand, glm::vec3& origin, glm::mat3& axes, bool& bothHands, g
     return hd.ent;
 }
 
+bool drawnInHands(int num)
+{
+    if(num <= 0) { return false; }
+    return heldEntity(0) == num || heldEntity(1) == num ||
+        (both.ent == num && cl.stats[protocol::STAT_QVR_CARRYMAIN] == num && cl.stats[protocol::STAT_QVR_CARRYOFF] == num);
+}
+
 int heldEntity(int hand)
 {
     const Held& hd = holding[hand];

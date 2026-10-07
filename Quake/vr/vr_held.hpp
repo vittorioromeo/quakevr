@@ -49,6 +49,11 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
 // Client side: the entity the local player's `hand` (0 off, 1 main) holds, drawn in that hand this frame (0: none).
 [[nodiscard]] int heldEntity(int hand);
 
+// Client side: whether entity `num` is drawn in the local player's hands this frame (one hand's, or both's): where the
+// tracked hands are, in his room's coordinates, not where the server has it (vr_portals.cpp: drawn through a slipgate
+// the hand reaches through, as the hands and guns are).
+[[nodiscard]] bool drawnInHands(int num);
+
 // Client side: whether the local player's `hand` (0 off, 1 main) is empty, as QC's VRIsHandEmpty: no weapon (the fist)
 // and carrying nothing (STAT_QVR_CARRYMAIN, STAT_QVR_CARRYOFF: a box, a gib, a torch), and not holding a ledge
 // (climb::holding). What may grip a weapon's two-handed hotspots, take the carried gun's handle or the flashlight.

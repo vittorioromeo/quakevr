@@ -6,6 +6,7 @@
 #include "vr_files.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_held.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_move.hpp"
@@ -2156,8 +2157,8 @@ void logSplit(const entity_t* e, const Side* picked, const glm::vec3& centre, co
     splitLogged.pushBack(num);
     if(!picked)
     {
-        Con_Printf("portal split: frame %d ent %d %s at %.1f %.1f %.1f whole\n", host_framecount, num, e->model->name,
-            centre.x, centre.y, centre.z);
+        Con_Printf("portal split: frame %d ent %d %s at %.1f %.1f %.1f whole middle %.1f %.1f %.1f\n", host_framecount, num,
+            e->model->name, centre.x, centre.y, centre.z, centre.x, centre.y, centre.z);
         return;
     }
     float lo = 1e9f, hi = -1e9f;
@@ -2166,9 +2167,12 @@ void logSplit(const entity_t* e, const Side* picked, const glm::vec3& centre, co
         const float d = glm::dot(picked->normal, p) - picked->dist;
         lo = za::min(lo, d); hi = za::max(hi, d);
     }
-    Con_Printf("portal split: frame %d ent %d %s at %.1f %.1f %.1f cut by the plane %.2f %.2f %.2f %.1f (box %.1f..%.1f from it)\n",
+    // Its middle in the room it is in (carried through when past the plane): what a test follows frame by frame.
+    const float d = glm::dot(picked->normal, centre) - picked->dist;
+    const glm::vec3 seen = d < 0.f ? carried(*picked, centre) : centre;
+    Con_Printf("portal split: frame %d ent %d %s at %.1f %.1f %.1f cut by the plane %.2f %.2f %.2f %.1f (box %.1f..%.1f from it) middle %.1f %.1f %.1f\n",
         host_framecount, num, e->model->name, centre.x, centre.y, centre.z, picked->normal.x, picked->normal.y,
-        picked->normal.z, picked->dist, lo, hi);
+        picked->normal.z, picked->dist, lo, hi, seen.x, seen.y, seen.z);
 }
 } // namespace
 } // namespace qvr::portals
@@ -2208,8 +2212,16 @@ extern "C" int VR_PortalAlias(const entity_t* e, const float boundsMatrix[16], c
             (c & 2) ? e->model->maxs[1] : e->model->mins[1], (c & 4) ? e->model->maxs[2] : e->model->mins[2], 1.f}};
         centre += corners[c] / 8.f;
     }
-    const bool own = qvr::view::find(e) != nullptr;
-    const glm::vec3 root = cl.viewentity > 0 && cl.viewentity < cl.num_entities ? vec(cl_entities[cl.viewentity].origin) : hands::current().head;
+    // The player's own models (hands, guns) and what his hands hold (drawn where the tracked hands are, in his room's
+    // coordinates): wholly past a gate's plane in front of him, they are drawn through it, not behind its surface.
+    const bool own = qvr::view::find(e) != nullptr ||
+        (e >= cl_entities && e < cl_entities + cl_max_edicts && held::drawnInHands(static_cast<int>(e - cl_entities)));
+    // The body the hands reach from, where the hands are placed from (hands::State: the same frame's; the view entity's
+    // lerped origin is already carried on the frame of a crossing while the hands are placed from the body before it:
+    // a held object or a gun reaching through was drawn behind the gate's surface for that frame, a hitch).
+    const hands::State& hs = hands::current();
+    const glm::vec3 root = hs.valid ? hs.playerOrigin
+        : cl.viewentity > 0 && cl.viewentity < cl.num_entities ? vec(cl_entities[cl.viewentity].origin) : hs.head;
     float nearest = 1e9f;
     Side picked;
     bool found = false;
