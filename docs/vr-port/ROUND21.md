@@ -28022,6 +28022,16 @@ swims. The ground reads as gently faceted; things are placed from the same `heig
 **To try in VR**: the whole walk at night (is it bright enough? `_sunlight`, the torches' `light` in the script's
 `TORCH`); reading the boards and the lecterns; the ladder; the dive; swimming out to the islets and the crystals;
 the cliffs from the water. `vr_hub_map vrstart2` to make it the hub.
+
+**Smaller buttons, one texture each** (the author: "the buttons are too big and the texture repeats"): every button
+(tutorial, calibration, campaigns, settings) is now 18 square (`BUTTON_SIZE`; they were 28 tall and 30-38 wide, the
+32x32 `+0basebtn` at scale 0.5 tiling about twice each way; e1m1's are 32 square at scale 1), centred where it was and
+as deep (6, the settings 8). `button_tex()` lays the texture as Valve 220 axes fitted to the box: on the front one copy,
+its frame on the face's edges (scale = size / 32, shifts putting texel 0 on the left and top edges); on the sides, top
+and bottom the texture's outer 4-texel frame band across the depth from the front edge, the front's fit along the
+other way, as if the front were folded round. `+abasebtn` (the pressed frame) is the same size, so it fits the same.
+The labels stay where they were (QC's `func_button`: 12 over the button's centre, 6 in front), now just above the
+button instead of on its upper half; the settings' value screens (vr_setup.cpp: 9 over the top) sit above them.
 ## Dawn of the Machine (MG3): weapons (2026-10-07)
 
 Phase C of [MG3_PLAN.md](MG3_PLAN.md) (M3-11..14), by Vittorio's decisions of 2026-10-06 and the agglomeration

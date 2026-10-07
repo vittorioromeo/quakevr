@@ -1361,11 +1361,53 @@ def build_decor(mw):
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Entities
-def button(mw, label, command, x0, y0, z0, x1, y1, z1, angle, scale="0.2", tex="button"):
-    """A func_button running `command` (buttonEffect 3), `label` on its face; pushed towards `angle`."""
+BUTTON_SIZE = 18     # a button's face, square (e1m1's are 32: in VR a hand-sized 18 is plenty); its label shows above it
+BUTTON_TEX = 32      # +0basebtn's (and +abasebtn's, its pressed frame) size in texels
+BUTTON_BAND = 4      # the texels of the texture's outer frame the button's sides, top and bottom show
+
+
+def button_tex(lo, hi, d, key="button"):
+    """A TexFn laying one copy of the button texture on a button's box (`lo`, `hi`) pushed along `d` (horizontal,
+    axis-aligned): fitted to the front face (its frame on the face's edges, never tiled), and on the sides, top and
+    bottom the texture's outer frame band (BUTTON_BAND texels across the depth from the front edge, the face's own
+    fit along the other way), as if the front were folded round them."""
+    right = (d[1], -d[0], 0.0)                   # seen from the front (looking along d)
+    corners = [(x, y, z) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])]
+    r0, r1 = min(dot(c, right) for c in corners), max(dot(c, right) for c in corners)
+    d0, d1 = min(dot(c, d) for c in corners), max(dot(c, d) for c in corners)
+    z1 = hi[2]
+    width, height, depth = r1 - r0, hi[2] - lo[2], d1 - d0
+    su, sv, sd = width / BUTTON_TEX, height / BUTTON_TEX, depth / BUTTON_BAND
+    down = (0.0, 0.0, -1.0)
+    name = TEXN[key]
+
+    def off(o, sc):  # the shift that puts texel 0 at the coordinate o along an axis scaled by sc (mod one copy)
+        return (-o / sc) % BUTTON_TEX
+
+    def spec(n, c):
+        if abs(dot(n, d)) > 0.9:   # the front (and the back, in the panel)
+            return (name, right, down, off(r0, su), off(-z1, sv), su, sv)
+        if abs(n[2]) > 0.9:        # the top and the bottom: across, the face's fit; back from the front edge, the band
+            return (name, right, d, off(r0, su), off(d0, sd), su, sd)
+        return (name, d, down, off(d0, sd), off(-z1, sv), sd, sv)  # the sides
+
+    return spec
+
+
+def button(mw, label, command, x, y, z, angle, depth=6, size=BUTTON_SIZE, scale="0.2", key="button"):
+    """A func_button running `command` (buttonEffect 3), `label` above it (QC's buttons.qc: 12 over its centre, 6 in
+    front); pushed towards `angle` (90 or 270 here). (x, y): the middle of its back, on the panel it is set in; z: its
+    centre's height; it stands `depth` out of the panel, `size` square."""
+    a = math.radians(angle)
+    d = (round(math.cos(a)), round(math.sin(a)), 0.0)
+    h = size / 2
+    rx, ry = abs(d[1]) * h, abs(d[0]) * h
+    fx, fy = x - d[0] * depth, y - d[1] * depth
+    lo = (min(x, fx) - rx, min(y, fy) - ry, z - h)
+    hi = (max(x, fx) + rx, max(y, fy) + ry, z + h)
     mw.add({"classname": "func_button", "buttonEffect": "3", "targetname": command + "\\n", "worldtext": label,
             "worldtext_halign": "1", "worldtext_scale": scale, "angle": str(angle), "wait": "1", "speed": "50",
-            "lip": "4", "sounds": "1"}, [box(x0, y0, z0, x1, y1, z1, T(tex, scale=0.5))])
+            "lip": "4", "sounds": "1"}, [box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], button_tex(lo, hi, d, key))])
 
 
 def banner(mw, text, x, y, z, angle, scale="0.3", speed=None):
@@ -1420,8 +1462,8 @@ def build_entities(mw):
     qx, qy = QUICK
     banner(mw, N.join(["NEW TO VR?", "The tutorial teaches the basics;", "calibration fits the game to your body."]),
            qx, qy - 6, 14 + 96, 270, "0.3")
-    button(mw, "VR" + N + "TUTORIAL", "map vrtutorial", qx - 34, qy - 10, 14 + 26, qx - 4, qy - 4, 14 + 54, 90)
-    button(mw, "VR" + N + "CALIBRATION", "map vrcalibration", qx + 4, qy - 10, 14 + 26, qx + 34, qy - 4, 14 + 54, 90)
+    button(mw, "VR" + N + "TUTORIAL", "map vrtutorial", qx - 19, qy - 4, 14 + 40, 90)
+    button(mw, "VR" + N + "CALIBRATION", "map vrcalibration", qx + 19, qy - 4, 14 + 40, 90)
     tip(mw, "vs2_welcome", "Welcome! Walk with the stick and follow" + N + "the torches up to the campaigns.",
         p["x"], p["y1"] + 160, p["z"] + 40, 260)
     # ---- the campaign terrace
@@ -1429,7 +1471,7 @@ def build_entities(mw):
     zb = t["z"]
     for (label, cmd), lx in zip(CAMPAIGNS, LECTERNS_X):
         cx = gx + lx
-        button(mw, label, cmd, cx - 19, LECTERN_Y - 6, zb + 28, cx + 19, LECTERN_Y, zb + 56, 90,
+        button(mw, label, cmd, cx, LECTERN_Y, zb + 42, 90,
                scale="0.17" if "starts" in label else "0.2")
     banner(mw, N.join(["CHOOSE A CAMPAIGN", "Press its stone, then step into the slipgate."]),
            gx, gy - 24, zb + 16 + 205, 270, "0.45")
@@ -1443,12 +1485,12 @@ def build_entities(mw):
     for row, entries in enumerate(SETTINGS_NORTH):
         zz = z + 26 + 48 * row
         for (label, key), cx in zip(entries, cxs):
-            button(mw, label, "vr_setup_option " + key, cx - 16, y1 - 34, zz, cx + 16, y1 - 26, zz + 28, 90)
+            button(mw, label, "vr_setup_option " + key, cx, y1 - 26, zz + 14, 90, depth=8)
     for row, entries in enumerate(SETTINGS_SOUTH):
         zz = z + 26 + 48 * row
         off = 30 if len(entries) < 5 else 0
         for (label, key), cx in zip(entries, cxs):
-            button(mw, label, "vr_setup_option " + key, cx + off - 16, y0 + 26, zz, cx + off + 16, y0 + 34, zz + 28, 270)
+            button(mw, label, "vr_setup_option " + key, cx + off, y0 + 26, zz + 14, 270, depth=8)
     banner(mw, N.join(["MOVING AND TURNING", "More: {menu:Locomotion}"]), -108, y1 - 27, z + 138, 270, "0.3")
     banner(mw, N.join(["BODY AND HANDS", "More: {menu:Body and Display}"]), -108, y0 + 27, z + 138, 90, "0.3")
     banner(mw, N.join(["SETTINGS", "Each button steps its setting and saves it;", "the screen above it shows the choice."]),
