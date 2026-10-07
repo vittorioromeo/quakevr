@@ -3329,7 +3329,16 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     }
 
     makevectors(VRGetWeaponFireRot(xHand)); // calculate forward angle for velocity
-    self.show_hostile = time + 1; // wake monsters up
+    // Wake monsters up: not for a hand merely closing (the trigger on a fist, or on a melee weapon the tracked hands
+    // swing themselves: nothing happens here; the author's note e1m2_2026-10-07_22-44-33). A real swing or punch wakes
+    // them where it whooshes or lands (VR_Melee_Whoosh, VR_Melee_Landed).
+    float tracked = VRHandsTracked(self) && self.ishuman;
+    float justClosing = xWeapon == WID_FIST || (tracked && (xWeapon == WID_AXE || xWeapon == WID_SWORD ||
+        xWeapon == WID_CROWBAR || xWeapon == WID_SUPERAXE || xWeapon == WID_MJOLNIR));
+    if(!justClosing)
+    {
+        self.show_hostile = time + 1;
+    }
 
     // ZOID--
     RuneApplyBlackNoise(self); // make rune noise

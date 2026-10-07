@@ -1820,6 +1820,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
         return;
     }
     b.mh_whooshed = TRUE;
+    self.show_hostile = time + 1; // a real swing or punch wakes monsters up (a hand merely closing doesn't: W_AttackImpl)
     VR_Motion_Event("stroke", VR_Melee_Category(b.mh_thing == VR_MTHING_FIST ? VR_MKIND_PUNCH : VR_MKIND_SLASH, b.mh_thing), xHand, vlen(b.mh_vfar), b.mh_far, world, "");
     vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
     string s = vr_melee_whoosh_alt ? "knight/sword2.wav" : "knight/sword1.wav";
@@ -2974,6 +2975,7 @@ float(float xHand) VR_Melee_Strike =
 void(float xHand) VR_Melee_Landed =
 {
     entity b = VR_Blow(xHand);
+    self.show_hostile = time + 1; // a blow that landed wakes monsters up (as a gun's shot: W_AttackImpl)
     b.mh_hit_ent = b.mh_c_ent;
     b.mh_hit_time = VR_PlayerTime();
     b.mh_hit_touch = VR_PlayerTime();
