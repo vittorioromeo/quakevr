@@ -4215,6 +4215,9 @@ za::Vector<Item> pageDebugViews()
         command("Clip Flashlight on Head", "vr_flashlight_clip_head right")
             .help("vr_flashlight_clip_head right: the flashlight clipped at your right temple, from wherever it is "
                   "(left: the left one)."),
+        command("Flashlight Home", "vr_flashlight_home")
+            .help("vr_flashlight_home: the flashlight back on the belt at once, from a hand, a gun or the head (the light "
+                  "stays as it was)."),
         command("Flashlight Cord Info", "vr_flashlight_cord_info")
             .help("vr_flashlight_cord_info: in the console, the cord's last frame (Body > Flashlight > Cord): its "
                   "length, its rings and triangles, a chain's links."),

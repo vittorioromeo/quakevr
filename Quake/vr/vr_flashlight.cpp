@@ -489,6 +489,13 @@ struct State
     bool gripDown[2]{};
     bool tookGrip[2]{};     // see flashlight::tookGrip
     bool hovered[2]{};
+    // At each hand's last press (any button): whether the lamp was lit up for it then (the last view's, which the press
+    // is judged after), whether the game's grip won there (a holster nearer than the lamp on the body: a draw), and how
+    // many presses (vr_flashlight_probe: a probe before the press reads the view before that one, a frame stale for a
+    // lamp springing home; flash_grab_test.py judges the press by these).
+    bool pressLit[2]{};
+    bool pressGame[2]{};
+    int presses[2]{};
     bool drawnAt[2]{}; // the hand as drawn at the lamp (vr_flashlight_probe: the drawn hand agrees with the lit lamp)
     const qmodel_t* world{nullptr};
 
@@ -2109,9 +2116,27 @@ void clipHead_f()
     clipOnHead(side);
 }
 
+// vr_flashlight_home: the torch back on the belt at once, from a hand, a gun or the head (no flight home); the light
+// stays as it was. Turning the flashlight off and on (vr_flashlight 0, 1) keeps where it is since its attachment is
+// saved (a236bb0d); a test aid (flash_grab_test.py, between trials; Debug > Views).
+void home_f()
+{
+    st.mode = Mode::Mounted;
+    st.holder = -1;
+    st.gunHand = -1;
+    st.gunModel = nullptr;
+    st.gunSlot = -1;
+    st.nearGun = false;
+    st.nearHead = false;
+    st.clipPending = false;
+    st.lateUntil[0] = st.lateUntil[1] = -1.0;
+    st.placed = false;
+}
+
 // vr_flashlight_probe [tag]: per hand, whether the lamp is lit up for it (the last view) and what a press there would
 // see on the hands the game reads (at the lamp, the game's grip winning and its hotspot, empty, still): "highlighted
-// implies grabbable" (Misc/quakevr/flashgrab). With developer 1, also the torso's yaw, the lamp's middle and the hands.
+// implies grabbable" (Misc/quakevr/flashgrab); and whether it was lit at the hand's last press (presslit) and how many
+// presses (a probe after a press tells what the press saw: the view just before it). With developer 1, also the torso's yaw, the lamp's middle and the hands.
 void probe_f()
 {
     const hands::State& s = hands::current();
@@ -2161,10 +2186,11 @@ void probe_f()
     for(int hand = 0; hand < 2; hand++)
     {
         const bool at = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand);
-        Con_Printf("torchprobe %s %s lit %d drawn %d at %d game %d hotspot %d empty %d still %d\n", tag,
-            hand == HAND_MAIN ? "main" : "off", st.hovered[hand] ? 1 : 0, st.drawnAt[hand] ? 1 : 0, at ? 1 : 0,
+        Con_Printf("torchprobe %s %s lit %d drawn %d at %d game %d hotspot %d empty %d still %d presslit %d pressgame %d presses %d\n",
+            tag, hand == HAND_MAIN ? "main" : "off", st.hovered[hand] ? 1 : 0, st.drawnAt[hand] ? 1 : 0, at ? 1 : 0,
             at && !reachesLamp(s, hand) ? 1 : 0, static_cast<int>(s.hotspot[hand]), handEmpty(hand) ? 1 : 0,
-            still(s, hand) ? 1 : 0);
+            still(s, hand) ? 1 : 0, st.pressLit[hand] ? 1 : 0,
+            st.pressGame[hand] ? 1 : 0, st.presses[hand]);
     }
     if(developer.value)
     {
@@ -2218,6 +2244,7 @@ void init()
     Cmd_AddCommand("vr_flashlight_clip_gun", clipGun_f);
     Cmd_AddCommand("vr_flashlight_give", give_f);
     Cmd_AddCommand("vr_flashlight_clip_head", clipHead_f);
+    Cmd_AddCommand("vr_flashlight_home", home_f);
     Cmd_AddCommand("vr_flashlight_cord_info", cordInfo_f);
 }
 
@@ -2590,6 +2617,13 @@ bool button(int hand, Button b, bool pressed)
         st.gripDown[hand] = pressed;
     }
     bool& swallowed = st.swallowed[hand][static_cast<int>(b)];
+    if(pressed)
+    {
+        st.pressLit[hand] = st.hovered[hand];
+        st.pressGame[hand] = st.placed && (st.mode == Mode::Mounted || st.mode == Mode::Returning) &&
+                             gameGripWins(hands::current(), hand);
+        st.presses[hand]++;
+    }
 
     if(!pressed)
     {

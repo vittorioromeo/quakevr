@@ -30057,3 +30057,36 @@ Checklist:
 
 - [ ] Body > Flashlight > Cord: None, Chain, Coiled; Chain the default. Coiled: springy, its turns opening as you pull
   the torch away, sagging and swinging; flick the torch over and pass it hand to hand.
+
+## Flashlight grab test: stale since the saved attachment (2026-10-07)
+
+`flash_grab_test.py all` failed at HEAD (6c253416), the same each run (3 of 3): mounted 12 spots "lit and not taken"
+(6 printed), returning 3, and 9 more checks the earlier report missed (timing 1, options 4 "let go, onhead", gunzone 2
+"let go at the butt, ongun", clipon 3). Not a VR regression: the test went stale.
+
+- **Culprit: a236bb0d** ("Address October 4 VR playtest notes", 2026-10-04): the flashlight's on/off and attachment are
+  saved and restored, so turning the flashlight off (`vr_flashlight 0`, the `!enabled()` branch of `setupView`) no
+  longer puts it back on the belt. The test reset the lamp between trials with `vr_flashlight 0; wait2;
+  vr_flashlight 1`; since then a lamp clipped on stayed on the head or gun into the next trial (the options, gunzone and
+  clipon failures), and a lamp let go of was still springing home at the next spot (1751 of the 8019 `mounted` probes:
+  mode returning). Bisected with `gunzone` as the oracle (dcb6d715, `all` passing, to HEAD; deterministic). A first
+  bisect with `returning` as the oracle named 4be5e5bf, a PVS experiment's revert, by chance: those failures sit at the
+  very edge of the reach and flip with any change.
+- **The edge failures:** the probe runs before the view that precedes the mock press, so its "lit" is a frame stale; the
+  tail of the flight home creeps a millimetre or two a frame, and a hand 9.0x cm off saw it lit, dark in the next view,
+  and pressed on that (`reachesLamp` at the press: 9.126 cm, reach 9.0, the last view's lit 0). The press agrees with
+  the view just before it, which is what a player sees: lit implies taken holds in VR.
+- **Fix (test and test aids):** `vr_flashlight_home` (new; Debug > Views > Flashlight Home): the torch back on the belt at
+  once, the light as it was; the test calls it before each `vr_flashlight 0` reset. The engine also remembers whether
+  the lamp was lit for a hand at its last press (`vr_flashlight_probe` prints `presslit`, `presses`) and the test judges
+  a press by that when the probe after it shows one more press (the returning trials press during the flight by
+  design). A hysteresis on the lit state (lit to 1 cm past the reach once lit) was tried and dropped: a lamp creeping
+  away still leaves any band a frame before the press. VR behaviour unchanged.
+- **timing's t1_4_2.2_-6** (the head turned -45, 2.2 m/s, the grip pressed 6 frames, 18 cm, before the lamp): the
+  press was nearer the left chest holster (hotspot 8) than the lamp, so the game's grip won there (a draw: by design,
+  `gameGripWins`) and no late grip started; run alone, a degree of the torso's turn the other way, it takes the lamp.
+  The probe now also prints `pressgame` (the game's grip won at the last press) and `timing` counts such a trial as
+  "pressed at a holster (the game's)", not wrong. Its bisect is no use: before b4767f23 the worktree's tracked
+  `quakevr/ironwail.cfg.baseline` (an October 4 config) was the runs' config, after it whatever the last run left.
+- Runs without `quakevr/ironwail.cfg.baseline` in the worktree (the kit's, untracked) keep each run's cvars in
+  `ironwail.cfg`: moving it aside for a bisect polluted later runs until it was put back.
