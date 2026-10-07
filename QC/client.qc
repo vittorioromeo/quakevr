@@ -37,6 +37,7 @@ void() SetChangeParms =
     if(MG1_Hub()) { SetNewParms(); return; }
 
     VR_HandGrenade_LevelEnd(); // an unarmed hand grenade in a hand: its rocket goes on with you (vr_grenade.qc)
+    VR_Reload_LevelEnd(); // a round in a hand back into the reserve (vr_reload.qc)
 
     VR_ItemUtil_EntDelItem(self, IID_KEY1);
     VR_ItemUtil_EntDelItem(self, IID_KEY2);
@@ -274,6 +275,14 @@ void() SetNewParms =
     parm36 = 0;
     parm37 = 0;
     parm38 = 0;
+    // Immersive reloading (vr_reload.qc): the shotgun you start with (in the right hip holster) comes loaded from your
+    // shells, as a map's pickup does; after that its magazine is loaded by hand from the ammo pouch. (The holsters'
+    // reload filled it as it was first drawn.)
+    if(VR_Reload_ManualFor(parm14))
+    {
+        parm36 = min(WeaponIdToBaseClipSize(parm14), parm4);
+        parm4 = parm4 - parm36;
+    }
     parm41 = 0; // (new weapons: new ids)
     parm42 = 0;
     parm43 = 0;

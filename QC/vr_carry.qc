@@ -881,7 +881,7 @@ void(float xHand, entity xBox) VR_Carry_Take =
 float(float xHand) VR_Carry_AtHolster =
 {
     float hotspot = xHand == cVR_OffHand ? self.offhand_hotspot : self.mainhand_hotspot;
-    return isHolsterHotspot(hotspot) || hotspot == QVR_HS_GRENADE_POUCH;
+    return isHolsterHotspot(hotspot) || hotspot == QVR_HS_GRENADE_POUCH || hotspot == QVR_HS_AMMO_POUCH;
 };
 
 // Every player frame, for each hand (self is the player).
@@ -918,6 +918,11 @@ void(float xHand) VR_Carry_HandFrame =
     {
         // An unarmed hand grenade let go of at the grenade pouch: back in it (vr_grenade.qc).
         if(VR_HandGrenade_LetGo(xHand, box))
+        {
+            return;
+        }
+        // A round (a shell) let go of at the ammo pouch: back in the reserve (vr_reload.qc).
+        if(VR_Reload_LetGo(xHand, box))
         {
             return;
         }
@@ -989,6 +994,12 @@ void(float xHand) VR_Carry_HandFrame =
         }
     }
     box.carry_trigger = trigger;
+
+    // A round (a shell) held at the loading port of the gun in the other hand goes into it (vr_reload.qc).
+    if(VR_Reload_HeldFrame(xHand, box))
+    {
+        return;
+    }
 
     // Follow the hand, turning with it (its angles set; its place in the hand the grip's: moved at once by a change to its
     // Held Object Offsets); not through walls (monsters: VR_Carry_Follow).

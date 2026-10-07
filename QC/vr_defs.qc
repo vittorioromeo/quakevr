@@ -192,6 +192,7 @@ float QVR_HS_LEFT_UPPER_HOLSTER     = 8;
 float QVR_HS_RIGHT_UPPER_HOLSTER    = 9;
 float QVR_HS_CARRIED_GRIP           = 10; // the handle of the gun the other hand carries by its foregrip
 float QVR_HS_GRENADE_POUCH          = 11; // the grenade pouch at the small of the back (vr_handgrenade: vr_grenade.qc)
+float QVR_HS_AMMO_POUCH             = 12; // the ammo pouch on the front of the belt (vr_reload_mode 3: vr_reload.qc)
 
 //
 //
@@ -223,6 +224,9 @@ float QVR_WEAPONMODE_CYCLEQUICKSLOT = 1;
 float QVR_RELOADMODE_NONE        = 0;
 float QVR_RELOADMODE_ALLHOLSTERS = 1;
 float QVR_RELOADMODE_HIPHOLSTERS = 2;
+// Manual-immersive (docs/vr-port/RELOAD_PLAN.md): the guns that load by hand (VR_Reload_ManualFor, vr_reload.qc) take
+// their ammo from the front pouch, one round or magazine at a time; the others reload at the hip holsters, as 2.
+float QVR_RELOADMODE_IMMERSIVE   = 3;
 
 //
 //

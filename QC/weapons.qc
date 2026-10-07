@@ -4399,12 +4399,19 @@ void() VR_Test_CrateCoverReport =
 };
 
 void() VR_WeaponInst_Test; // (vr_weaponinst_test.qc)
+void() VR_Reload_Test;     // (vr_reload_test.qc)
 
 void() ImpulseCommands =
 {
     if(self.impulse == 120 && !deathmatch && !coop) // QVR test: the weapons moved, and what has which (vr_weaponinst_test.qc)
     {
         VR_WeaponInst_Test();
+        self.impulse = 0;
+        return;
+    }
+    if(self.impulse == 125 && !deathmatch && !coop) // QVR test: immersive reloading's steps (vr_reload_test.qc)
+    {
+        VR_Reload_Test();
         self.impulse = 0;
         return;
     }
@@ -5354,7 +5361,8 @@ float(float xHotspot) isReloadHolsterHotspot =
         return TRUE;
     }
 
-    ASSERT(cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_HIPHOLSTERS);
+    ASSERT(cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_HIPHOLSTERS ||
+           cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_IMMERSIVE);
 
     return xHotspot == QVR_HS_LEFT_HIP_HOLSTER ||
            xHotspot == QVR_HS_RIGHT_HIP_HOLSTER;
@@ -6715,7 +6723,7 @@ VRUnloadWeapon =
 void(entity entPlayer, float xHand, float xWeapon, float xWeaponFlags)
 VRTryReloadWeapon =
 {
-    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) &&
+    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) && !VR_Reload_ManualFor(xWeapon) &&
        (VRGetEntWeaponClip(entPlayer, xHand) < WeaponIdToBaseClipSize(xWeapon)) &&
        PlayerHasAmmoForWeapon(entPlayer, xWeapon, xWeaponFlags))
     {
@@ -6781,14 +6789,16 @@ float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
 }
 
 // Where a weapon let go of falls (or flies) from the hand, rather than going in a holster or to the other hand
-// (2H hotspots: unusable, as you can only dual wield with no weapon out; the grenade pouch holds grenades only).
+// (2H hotspots: unusable, as you can only dual wield with no weapon out; the grenade pouch holds grenades only, the ammo
+// pouch rounds).
 float(float xHotspot) VRLetGoDropsAt =
 {
     return xHotspot == QVR_HS_NONE ||
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
            xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
            xHotspot == QVR_HS_CARRIED_GRIP ||
-           xHotspot == QVR_HS_GRENADE_POUCH;
+           xHotspot == QVR_HS_GRENADE_POUCH ||
+           xHotspot == QVR_HS_AMMO_POUCH;
 }
 
 // Whether the weapon in `xHand` leaves it this frame (DoHandImpl's let-go: thrown, dropped or holstered), as
@@ -7130,7 +7140,8 @@ void(entity ent, float xHand,
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
            xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
            xHotspot == QVR_HS_HAND_SWITCH ||
-           xHotspot == QVR_HS_GRENADE_POUCH) // (a grenade from the pouch: VR_HandGrenade_HandFrame)
+           xHotspot == QVR_HS_GRENADE_POUCH || // (a grenade from the pouch: VR_HandGrenade_HandFrame)
+           xHotspot == QVR_HS_AMMO_POUCH)      // (a round from the ammo pouch: VR_Reload_HandFrame)
         {
             // Intentionally left empty.
         }
@@ -7162,6 +7173,8 @@ void() W_Frame =
     VR_WallTorch_TestShot(); // vr_test_walltorch_shot: a wall torch shot off its wall (vr_walltorch.qc)
     VR_HandGrenade_HandFrame(cVR_MainHand); // a grenade taken from the pouch at the small of the back (vr_grenade.qc)
     VR_HandGrenade_HandFrame(cVR_OffHand);
+    VR_Reload_HandFrame(cVR_MainHand); // a round taken from the ammo pouch on the belt (vr_reload.qc)
+    VR_Reload_HandFrame(cVR_OffHand);
 
     UpdateHolsterHover(self);
 

@@ -29,6 +29,8 @@ vr_carry.qc
 vr_melee.qc
 vr_juice.qc
 vr_grenade.qc
+vr_reload.qc
+vr_reload_test.qc
 vr_debris.qc
 vr_crates.qc
 vr_smallgibs.qc

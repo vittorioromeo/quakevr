@@ -296,6 +296,7 @@ void() worldspawn =
     VR_Debris_Precache(); // VR: rocks and bricks lying about (vr_debris.qc)
     VR_SmallGib_Precache(); // VR: small gibs' squishes (vr_smallgibs.qc)
     VR_Crates_Precache(); // VR: wooden crates (vr_crates.qc)
+    VR_Reload_Precache(); // VR: immersive reloading's shells and sounds (vr_reload.qc)
 
     // setup precaches allways needed
     precache_sound("items/itembk2.wav");        // item respawn sound

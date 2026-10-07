@@ -219,6 +219,9 @@
 
 .vector muzzlepos;
 .vector offmuzzlepos;
+// Each held gun's loading port as drawn (immersive reloading: vr_reload.qc; the hand's position when it has none)
+.vector loadportpos;
+.vector offloadportpos;
 .vector shotrot;    // where the hand's shots go (angles): its aim turned by the weapon's Shot Pitch/Yaw (the engine)
 .vector offshotrot;
 
