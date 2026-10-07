@@ -28136,3 +28136,37 @@ Tests: `vr_mg3_wtest 9` (bolt damage, then 12 bolts fired at the floor ahead, `H
 `progs/v_laserg.mdl`, 30 cells) (2/0). (A bolt started inside your own box strikes you at once: the test fires from
 28 units ahead.)
 
+### M3-14 The bloody shotguns
+
+`weapon_bloody_sg` (map1) and `weapon_bloody_ssg` (secret4) (`QC/vr_mg3_weapons.qc`, official `mg3_items.qc`): in
+Dawn of the Machine only in a Bloody Nightmare new game (`serverflags & 256`; else the pickup is removed 0.5 s after
+the map starts, as upstream's `bloody_weapon_check`; outside campaign 5 a map's one simply spawns). They are physical
+weapon pickups of the shotgun and the super shotgun ("Bloody Shotgun", "Bloody Super Shotgun"); taken, they set their
+bit in `MG3_bloody` (parm56, M3-02: kept through changelevel, death and saves, cleared by a new game), give upstream's
+30 shells (to the cap) and say "You found a secret weapon!"; their targets fire as any pickup's. The bit changes every
+shotgun of its kind the player fires, as upstream's does: the bloody shotgun's next shot after 0.28 s instead of 0.5
+(`MG3_BloodyShotgunRefire`, weapons.qc W_Attack; reloading unchanged), the bloody super shotgun 28 pellets for 2
+shells, spread wider across (`'0.075 0.025 0'` for `'0.035 0.025 0'`: upstream's 0.3/0.14 widening). Drawn as Quake
+VR's shotguns: their own bloody skins are a BACKLOG item (decision 4). The Bloody Nightmare strip (axe and shotgun,
+plus Mjolnir/the bloody super shotgun) is M3-09's.
+
+Tests (`vr_mg3_wtest` 11 sets both bits, 12 reports, 13 takes the map's (or two spawned) bloody shotguns, 14 sets the
+new-game flag, 15 clears the bits):
+- e1m1: two spawned and taken **6/0**: bits 0 -> 1 -> 3, shells 25 -> 47 (+8 in the clip) -> 75, refire 0.28. Real
+  fire (`vr_debug_shots 1`): the bloody super shotgun "28 world"; the shotgun pressed every 0.3 s six times: 3 shots
+  without the bit, 6 with it.
+- MG3 map1 (`vr_campaign_native mg3; map map1`): not a Bloody Nightmare game: "Bloody Shotgun removed". With
+  `vr_mg3_wtest 14` and `changelevel map1`: it stays, taken **4/0** (bit 1, "You found a secret weapon!"); changelevel
+  map2: bits 1 (parm56 1); `map map3` (a new game): 0; the map2 save loaded: 1, the shotgun in hand, 47 shells.
+
+**In the headset.** [ ] A bloody shotgun (Debug > Tests > Dawn of the Machine Weapons > Bloody Bits On, then any
+shotgun): the shotgun fires again much sooner; the super shotgun's spread is twice as wide and twice as dense.
+
+### Phase C checks
+
+Checker (`check_mg3_entities.py`) after M3-14: 39 missing classes, 1,293 placements (42 and 1,328 after M3-04:
+`func_axe_button` 33, `weapon_bloody_sg`/`_ssg` 2 resolved). Regressions: Dopa e5m1 `vr_mg_trigger_test 1` 34/0, MG1
+hub `vr_mg_hub_test 1` 20/0; Hipnotic hip1m1 laser cannon 18/25, 23 bounces (3/0), Mjolnir and the Super Axe held
+together; e1m1 smoke; QC 0 warnings, statics, QC precedence and FGD (304 entities) checks pass. `eval.sh`: no current
+melee takes (skipped).
+

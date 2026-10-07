@@ -940,5 +940,7 @@ removed and the model laid as the axe's at load time, weapon settings slots 24/2
 40 damage, zombie x3, finishing x2, second-hit lightning burst (15 cells) within `vr_superaxe_burst_window` (1.5 s);
 map2's silent-teleport secret pickup. **Axe buttons** (M3-12): `func_axe_button` opens to any melee blow (fists,
 axes, swords, gun butts, headbutts, bashes, thrown weapons and props), never a shot or blast ("Use the axe"). **Laser cannon** (M3-13): Hipnotic's weapon, MG3's bolts 15 (lit 20) in
-campaign 5; Quake VR ships its models and sounds, so no Hipnotic install is needed. Tests: Debug > Tests > Dawn of the Machine Weapons (`vr_mg3_wtest`).
+campaign 5; Quake VR ships its models and sounds, so no Hipnotic install is needed. **Bloody shotguns** (M3-14):
+pickups only in a Bloody Nightmare new game; their bits (parm56) make the shotgun refire in 0.28 s and the super
+shotgun fire 28 pellets; drawn as Quake VR's shotguns (bloody skins: BACKLOG). Tests: Debug > Tests > Dawn of the Machine Weapons (`vr_mg3_wtest`).
 Measurements: ROUND21.md, "Dawn of the Machine (MG3): weapons".

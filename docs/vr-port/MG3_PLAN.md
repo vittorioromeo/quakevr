@@ -285,6 +285,8 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
   weapon (`WID_LASER_CANNON`), MG3's 15/20 bolt damage in campaign 5 (ROUND21.md).
 - **M3-14 Bloody shotguns.** BN-only pickups, persistent bits (M3-02), model/skin swap, refire (Q4).
   Accept: BN new game collects bloody SG on map1, it survives changelevel/save and BN strip; non-BN game: pickup inert.
+  **Built 2026-10-07** (decision 4: refire 0.28 s, 28 pellets; drawn as Quake VR's shotguns, their skins a BACKLOG
+  item; the BN strip is M3-09's; ROUND21.md).
 
 ### Phase D: monsters (registration per archetype: hit zones, decap head, ragdoll seeds, hulls, parry, knockdown, grapple, gibs, dummy, FGD)
 

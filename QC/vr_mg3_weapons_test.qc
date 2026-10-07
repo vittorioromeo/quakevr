@@ -13,6 +13,9 @@
 //   9 the laser cannon's bolts: their damage (MG3's 15 and 20 in campaign 5, else 18 and 25), 12 fired at the floor
 //     ahead and how they bounced (a bounce keeps 0.9 of it)
 //  10 the nearest weapon_laser_gun taken by the empty main hand (map2b: with or without Hipnotic)
+//  11 the bloody bits set (both: any campaign), 12 their report (bits, the shotgun's refire), 13 the map's bloody
+//     shotguns (none: two spawned ahead) taken, one by one, by the empty main hand (bits, shells), 14 the Bloody
+//     Nightmare new game flag set (serverflags 256: then changelevel), 15 the bloody bits cleared
 
 float mg3wt_pass, mg3wt_fail;
 float mg3wt_step;      // the running request's step (2's), 0: none
@@ -473,6 +476,67 @@ void() MG3_WT_LaserPickup =
     dprint(sprintf("mg3wtest: laser pickup %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
 };
 
+// Requests 11..15: the bloody shotguns.
+void() MG3_WT_BloodyReport =
+{
+    entity p = MG3_WT_Player();
+    dprint(sprintf("mg3wtest: bloody bits %g (parm56 %g) serverflags %g; shotgun refire %g; shells %g; hands %g/%g\n",
+        MG3_BloodyBits(), parm56, serverflags, MG3_BloodyShotgunRefire(0.5), p.ammo_shells, p.weapon, p.weapon2));
+};
+
+entity() MG3_WT_NextBloody =
+{
+    entity e = nextent(world);
+    while(e)
+    {
+        if(e.vr_bloody_bit && e.model != string_null && (e.classname == "weapon_shotgun" || e.classname == "weapon_supershotgun"))
+        {
+            return e;
+        }
+        e = nextent(e);
+    }
+    return world;
+};
+
+void() MG3_WT_BloodyTake =
+{
+    entity p = MG3_WT_Player();
+    mg3wt_pass = mg3wt_fail = 0;
+    float taken = 0;
+    entity it = MG3_WT_NextBloody();
+    while(it && taken < 4)
+    {
+        float bit = it.vr_bloody_bit, wid = it.weapon, shells = p.ammo_shells, bits = MG3_BloodyBits();
+        entity oldself = self, oldother = other;
+        self = p;
+        VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        self = oldself;
+        p.touchinghand = cVR_MainHand;
+        it.handtouch_hand = cVR_MainHand;
+        it.handtouch_ent = p;
+        other = p;
+        self = it;
+        float oldCatching = forcegrabCatching;
+        forcegrabCatching = TRUE;
+        it.handtouch();
+        forcegrabCatching = oldCatching;
+        self = oldself;
+        other = oldother;
+        float clip = p.weaponclipsize;
+        dprint(sprintf("mg3wtest: took %s: hand %g, bits %g -> %g, shells %g -> %g (clip %g)\n", it.netname, p.weapon, bits,
+            MG3_BloodyBits(), shells, p.ammo_shells, clip));
+        MG3_WT_Check(p.weapon == wid && (MG3_BloodyBits() & bit) && it.model == string_null, sprintf("%s taken: its bit set", it.netname));
+        MG3_WT_Check(p.ammo_shells + clip >= min(shells + 30, VR_MaxAmmo(p, AID_SHELLS)) - 0.5, "30 shells (to the cap)");
+        taken++;
+        it = MG3_WT_NextBloody();
+    }
+    MG3_WT_Check(taken > 0, sprintf("bloody shotguns taken: %g", taken));
+    MG3_WT_BloodyReport();
+    MG3_WT_Check(!(MG3_BloodyBits() & MG3_BLOODY_SG) || MG3_BloodyShotgunRefire(0.5) == 0.28, "the bloody shotgun refires in 0.28 s");
+    dprint(sprintf("mg3wtest: bloody %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+};
+
 void() MG3_WeaponsTestFrame =
 {
     if(mg3wt_step == 10 && time >= mg3wt_next)
@@ -485,6 +549,13 @@ void() MG3_WeaponsTestFrame =
     if(mg3wt_step == 20 && time >= mg3wt_next)
     {
         MG3_WT_LaserStep();
+    }
+    if(mg3wt_step == 30 && time >= mg3wt_next)
+    {
+        entity os3 = self, oo3 = other, oa3 = activator;
+        mg3wt_step = 0;
+        MG3_WT_BloodyTake(); // (request 13: the pickups settled first)
+        self = os3; other = oo3; activator = oa3;
     }
     if(mg3wt_step && time >= mg3wt_next)
     {
@@ -512,5 +583,23 @@ void() MG3_WeaponsTestFrame =
     else if(request == 8) MG3_WT_AxeButtonState();
     else if(request == 9) MG3_WT_Laser();
     else if(request == 10) MG3_WT_LaserPickup();
+    else if(request == 11) { MG3_SetBloodyBits(MG3_BLOODY_SG | MG3_BLOODY_SSG); MG3_WT_BloodyReport(); }
+    else if(request == 12) MG3_WT_BloodyReport();
+    else if(request == 13)
+    {
+        if(!MG3_WT_NextBloody())
+        {
+            entity p13 = MG3_WT_Player();
+            makevectors(p13.v_angle_y * '0 1 0');
+            entity os13 = self;
+            self = spawn(); setorigin(self, p13.origin + v_forward * 48 + v_right * 24); weapon_bloody_sg();
+            self = spawn(); setorigin(self, p13.origin + v_forward * 48 - v_right * 24); weapon_bloody_ssg();
+            self = os13;
+            dprint("mg3wtest: two bloody shotguns spawned ahead\n");
+        }
+        mg3wt_step = 30; mg3wt_next = time + 0.7;
+    }
+    else if(request == 14) { serverflags = serverflags | MG3_SF_BN_NEWGAME; MG3_WT_BloodyReport(); }
+    else if(request == 15) { MG3_SetBloodyBits(0); MG3_WT_BloodyReport(); }
     self = oldself; other = oldother; activator = oldact;
 };

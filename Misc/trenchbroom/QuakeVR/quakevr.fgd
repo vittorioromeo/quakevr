@@ -473,6 +473,17 @@ This is the destination marker for a teleporter. It should have a 'targetname' f
 // Weapons
 //
 
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
+	weapon_bloody_sg : "Dawn of the Machine's bloody shotgun: in Dawn of the Machine only in a Bloody Nightmare new game (else gone at once). Taken: the shotgun and 30 shells, and every shotgun refires in 0.28 s for the rest of the game. 'target': fired when taken."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 32) =
+	weapon_bloody_ssg : "Dawn of the Machine's bloody super shotgun: in Dawn of the Machine only in a Bloody Nightmare new game (else gone at once). Taken: the super shotgun and 30 shells, and every super shotgun fires 28 pellets for the rest of the game.
+'target': fired when taken."
+[
+]
+
 @PointClass base(Appearflags) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/v_crowbar.mdl" }) =
 	weapon_crowbar : "Crowbar (Quake VR)
 

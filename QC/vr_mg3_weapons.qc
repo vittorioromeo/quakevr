@@ -361,3 +361,98 @@ float(float xLit) MG3_LaserScale =
     }
     return xLit ? 20 / 25 : 15 / 18;
 };
+
+// ----------------------------------------------------------------------------
+// The bloody shotguns (M3-14; official mg3_items.qc weapon_bloody_sg/ssg, bloody_weapon_touch; weapons.qc). Found
+// only in a Bloody Nightmare new game (serverflags 256; else the pickup goes 0.5 s after the map starts, as upstream),
+// map1's shotgun and secret4's super shotgun. Taken, it sets its bit for the rest of the game (MG3_bloody: parm56,
+// M3-02: kept through changelevel, death and saves, cleared by a new game), gives the weapon and 30 shells and says
+// MG3's "You found a secret weapon!". The bit changes every shotgun of that kind the player fires, as upstream's does:
+// the bloody shotgun refires in 0.28 s instead of 0.5 (Quake VR's: its trigger's next shot; reloading as ever), the
+// bloody super shotgun fires 28 pellets, spread wider across (upstream's '0.3 0.08' for '0.14 0.08'), for the same 2
+// shells. Drawn as Quake VR's shotguns for now (backlog: their own bloody skins; MG3's v_bloodshot models are first-
+// person models with an arm, made for the view). Outside Dawn of the Machine a map's bloody shotgun simply spawns.
+
+float MG3_SF_BN_NEWGAME = 256; // upstream BLOODY_NIGHTMARE_NEWGAME (serverflags)
+
+.float vr_bloody_bit;
+
+// The bloody shotgun's refire for `xNormal`'s (0.5).
+float(float xNormal) MG3_BloodyShotgunRefire =
+{
+    if(MG3_BloodyBits() & MG3_BLOODY_SG)
+    {
+        return xNormal * 0.28 / 0.5;
+    }
+    return xNormal;
+};
+
+// Its pickup taken (weapon_touch; itemTouch fires its targets).
+void() MG3_Bloody_Touch =
+{
+    entity taker = other;
+    weapon_touch();
+    if(self.model != string_null || taker.classname != "player")
+    {
+        return; // not taken
+    }
+    MG3_SetBloodyBits(MG3_BloodyBits() | self.vr_bloody_bit);
+    // Upstream gives 30 shells (weapon_touch gave the weapon's own few).
+    taker.ammo_shells = taker.ammo_shells + max(0, 30 - WeaponIdToInitialAmmoCount(self.weapon));
+    entity oldother = other;
+    other = taker;
+    bound_other_ammo();
+    other = oldother;
+    sprint(taker, "$mg3_map2_secret_weapon");
+    sprint(taker, "\n"); // (the string has none)
+    dprint(sprintf("bloody: %s taken, bloody bits %g, shells %g\n", self.netname, MG3_BloodyBits(), taker.ammo_shells));
+};
+
+// Dawn of the Machine: gone 0.5 s after the map starts unless this is a Bloody Nightmare new game (upstream's
+// bloody_weapon_check).
+void() MG3_Bloody_Check =
+{
+    entity item = self.owner;
+    if(!(serverflags & MG3_SF_BN_NEWGAME) && item.model != string_null && item.vr_bloody_bit)
+    {
+        dprint(sprintf("bloody: %s removed (not a Bloody Nightmare new game)\n", item.netname));
+        remove(item);
+    }
+    remove(self);
+};
+
+void(float xWid, float xBit, string xName) MG3_Bloody_Spawn =
+{
+    self.classname = xWid == WID_SHOTGUN ? "weapon_shotgun" : "weapon_supershotgun"; // (weapon_touch knows it by its class)
+    impl_weapon_item(xWid == WID_SHOTGUN ? "progs/g_shot0.mdl" : "progs/g_shot.mdl", xWid);
+    if(self.weapon != xWid)
+    {
+        return; // (removed)
+    }
+    self.netname = xName;
+    self.vr_bloody_bit = xBit;
+    if(self.handtouch == weapon_touch)
+    {
+        self.handtouch = MG3_Bloody_Touch;
+    }
+    if(MG3_Campaign())
+    {
+        entity check = spawn();
+        check.owner = self;
+        check.think = MG3_Bloody_Check;
+        check.nextthink = time + 0.5;
+    }
+};
+
+/*QUAKED weapon_bloody_sg (0 .5 .8) (-16 -16 0) (16 16 32)
+Dawn of the Machine's bloody shotgun: in Dawn of the Machine only in a Bloody Nightmare new game (else gone at once).
+Taken: the shotgun and 30 shells, and every shotgun refires in 0.28 s for the rest of the game. "target": fired when taken.
+*/
+void() weapon_bloody_sg = { MG3_Bloody_Spawn(WID_SHOTGUN, MG3_BLOODY_SG, "Bloody Shotgun"); };
+
+/*QUAKED weapon_bloody_ssg (0 .5 .8) (-16 -16 0) (16 16 32)
+Dawn of the Machine's bloody super shotgun: in Dawn of the Machine only in a Bloody Nightmare new game (else gone at
+once). Taken: the super shotgun and 30 shells, and every super shotgun fires 28 pellets for the rest of the game.
+"target": fired when taken.
+*/
+void() weapon_bloody_ssg = { MG3_Bloody_Spawn(WID_SUPER_SHOTGUN, MG3_BLOODY_SSG, "Bloody Super Shotgun"); };

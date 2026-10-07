@@ -1158,7 +1158,9 @@ mg3; map map2`), 5 puts one in the main hand and holster 0 for changelevel/save 
 an MG3 map (map6/7/8, secret5: shots and blasts leave them shut, each blow kind opens one), 7 stands you before the
 nearest closed axe button (then a real punch: `vr_motion_play punch_straight noplace yaw <your yaw>`), 8 says whether
 it opened, 9 the laser cannon's bolt damage (15/20 in campaign 5, else 18/25) and bounces off the floor, 10 takes the
-nearest `weapon_laser_gun`; developer 1 prints `superaxe:`
+nearest `weapon_laser_gun`, 11 sets both bloody bits (any campaign), 12 reports them, 13 takes the map's bloody
+shotguns (none: two spawned ahead), 14 sets the Bloody Nightmare new-game flag (then `changelevel`), 15 clears the
+bits (`vr_debug_shots 1`: the bloody super shotgun's 28 pellets); developer 1 prints `superaxe:` and `bloody:`
 lines (each blow, each burst). Real swings: `motion_synth.py slash_horizontal_rtl --weapon superaxe --distance 0.85`.
 `vr_anchor_nearest owned/mg3/progs/v_hammer.mdl x y z` finds its anchors; `Misc/quakevr/fit_superaxe.py` its fit.
 The crowbar (ROUND21.md, "The crowbar"): `impulse 167` puts one in the main hand (187: the off hand; hold the grip:

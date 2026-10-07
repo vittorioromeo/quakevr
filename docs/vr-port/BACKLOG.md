@@ -11,6 +11,14 @@ as they were, so they are off (`vr_head_flies` 0, Gore > Flies on Heads; NOTES.m
 To revisit and make interesting: flies on every corpse and gib (not only heads), arriving after it has lain a few
 seconds, with fly particles buzzing round it as well as the sound.
 
+### Bloody shotguns' own look (the author, MG3 decision 4, 2026-10-06: "Backlog TODO: distinct bloody textures/skins")
+
+Dawn of the Machine's bloody shotgun and super shotgun (M3-14, `QC/vr_mg3_weapons.qc`) play as intended (0.28 s
+refire; 28 pellets) but are drawn as Quake VR's own shotguns: MG3's `v_bloodshot.mdl`/`v_bloodshot2.mdl` are view
+models with an arm, made for the flat view. To do: bloody skins for `progs/v_shot.mdl`/`v_shot2.mdl` (a second skin
+picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and laid as the Super Axe's are
+(`vr_monstermods.cpp superAxePoses`), with their own weapon settings slots.
+
 ### Repository chores
 
 - **Funding links** (the author, after round 20): copy `.github/FUNDING.yml` from `master` to the port's branch

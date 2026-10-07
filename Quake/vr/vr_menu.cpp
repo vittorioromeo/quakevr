@@ -5017,6 +5017,26 @@ za::Vector<Item> pageMg3WeaponTests()
         command("Super Axe in Hand and Holster", "vr_mg3_wtest 5")
             .help("Destructive: a Super Axe in the main hand and the first holster (then change level or save and load, "
                   "and Weapons Report)."),
+        command("Axe Buttons Check", "vr_mg3_wtest 6")
+            .help("Destructive, a Dawn of the Machine map with axe buttons (map6, map7, map8, secret5): each stays shut to "
+                  "a shot and a blast, then opens to a blow (fist, Super Axe, thrown weapon, thrown prop, headbutt)."),
+        command("Stand Before an Axe Button", "vr_mg3_wtest 7")
+            .help("You stand facing the nearest closed axe button: shoot it (it says to use the axe), then strike it."),
+        command("Did the Axe Button Open", "vr_mg3_wtest 8").help("The nearest axe button's state (developer 1)."),
+        command("Laser Cannon Bolts", "vr_mg3_wtest 9")
+            .help("A bolt's damage (Dawn of the Machine's 15, lit 20; elsewhere 18, 25), then 12 bolts at the floor ahead: "
+                  "their bounces (0.9 of the damage kept) and stops."),
+        command("Take the Nearest Laser Cannon", "vr_mg3_wtest 10")
+            .help("Destructive: the nearest weapon_laser_gun into the empty main hand (map2b)."),
+        command("Bloody Bits On", "vr_mg3_wtest 11")
+            .help("Both bloody shotguns' bits set for this game: every shotgun refires in 0.28 s, every super shotgun "
+                  "fires 28 pellets."),
+        command("Bloody Bits Off", "vr_mg3_wtest 15"),
+        command("Bloody Report", "vr_mg3_wtest 12").help("The bloody bits, the shotgun's refire, your shells (developer 1)."),
+        command("Take the Bloody Shotguns", "vr_mg3_wtest 13")
+            .help("Destructive: the map's bloody shotguns (none: two spawned ahead) taken by the empty main hand."),
+        command("Bloody Nightmare New Game Flag", "vr_mg3_wtest 14")
+            .help("Destructive: serverflags 256 set (then change level: the map's bloody shotguns stay)."),
     };
 }
 

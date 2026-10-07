@@ -2142,7 +2142,14 @@ void(float xHand) W_FireSuperShotgun =
     dir = VRGetWeaponFireRotFwd(xHand);
     vr_pellet_damage = cvar_hget(cvarh_vr_dmg_super_shotgun); // (Weapon Damage)
     vr_decap_weapon = QVR_DECAP_SSG; // (head pops)
-    FireBullets(xHand, 14, dir, '0.035 0.025 0');
+    if(MG3_BloodyBits() & MG3_BLOODY_SSG)
+    {
+        FireBullets(xHand, 28, dir, '0.075 0.025 0'); // Dawn of the Machine's bloody one: twice the pellets, wider (vr_mg3_weapons.qc)
+    }
+    else
+    {
+        FireBullets(xHand, 14, dir, '0.035 0.025 0');
+    }
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
 
@@ -3307,7 +3314,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         SuperDamageSound();
         player_shot1(xHand);
         W_FireShotgun(xHand);
-        *xOutAttackFinished = time + RuneApplyHell(0.5, self);
+        *xOutAttackFinished = time + RuneApplyHell(MG3_BloodyShotgunRefire(0.5), self); // (Dawn of the Machine's bloody one: 0.28)
     }
     else if(xWeapon == WID_SUPER_SHOTGUN)
     {
