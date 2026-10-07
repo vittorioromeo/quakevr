@@ -926,8 +926,11 @@ int campaignsBloodyShown = -1;
         slider("Get-Up Speed", vr_knockdown_getup_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
             .help("How fast its get-up animation plays."),
         header("Debug"),
-        toggle("Print Rolls", vr_knockdown_debug)
-            .help("Prints each shove's chance and roll, and each get-up (developer 1)."),
+        cycle("Print Rolls", vr_knockdown_debug, {{0.f, "Off"}, {1.f, "On"}, {2.f, "And Get-Ups' Motion"}, {3.f, "And Each Frame's"}})
+            .help("Prints each shove's chance and roll, and each get-up (developer 1). And Get-Ups' Motion: a line per get-up "
+                  "of how it is drawn (how fast it moves, its biggest jump, the frames that go back on the one before: a "
+                  "jitter; the switch from its ragdoll to its animation). And Each Frame's: a line a frame as well. Knock "
+                  "one down with vr_knockdown_test 0 and get it up with vr_knockdown_test 1."),
     };
 }
 
@@ -5474,6 +5477,12 @@ za::Vector<Item> pageDebugTests()
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
                   "staggered). Developer 1 logs grunts' and enforcers' shoves and why one can't shove (Combat > Enemy Shoves)."),
+        command("Knock Down the Nearest", "vr_knockdown_test 0")
+            .help("vr_knockdown_test 0: the nearest monster that can be knocked down is, pushed away from you, whatever "
+                  "its chance (A Grunt Ahead first: Debug > Tests)."),
+        command("Get Them Up Now", "vr_knockdown_test 1")
+            .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
+                  "And Get-Ups' Motion prints how smoothly each is drawn getting up."),
         command("Remove Every Monster", "vr_knockdown_test 20")
             .help("Every monster removed, standing, knocked down or dead: a clean slate between shove tests (with a grunt "
                   "ahead: impulse 244). Shove one off vrclimb's long ledge or into its trench to see Over a Ledge, Always."),

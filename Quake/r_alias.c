@@ -98,6 +98,19 @@ static struct {
 
 /*
 =================
+R_FrameLerpFinish -- QVR: when the frame lerp of an entity whose messages carry a lerpfinish ends: as the message that
+changed its pose said, not as the latest says. (Each message sends the time to its next think again, rounded to 1/255 s:
+the lerp's end wandered by a few milliseconds from message to message, and the pose went back and forth by as much, in slow
+motion several frames' worth: a knocked-down monster's get-up jittered in bullet time.)
+=================
+*/
+float R_FrameLerpFinish (const entity_t *e)
+{
+	return e->animlerpfinish > e->lerpstart ? e->animlerpfinish : e->lerpfinish;
+}
+
+/*
+=================
 R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
 =================
 */
@@ -126,6 +139,7 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 	if (e->lerpflags & LERP_RESETANIM) //kill any lerp in progress
 	{
 		e->lerpstart = 0;
+		e->animlerpfinish = 0; // QVR
 		e->previouspose = posenum;
 		e->currentpose = posenum;
 		e->lerpflags -= LERP_RESETANIM;
@@ -135,6 +149,7 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 		if (e->lerpflags & LERP_RESETANIM2) //defer lerping one more time
 		{
 			e->lerpstart = 0;
+			e->animlerpfinish = 0; // QVR
 			e->previouspose = posenum;
 			e->currentpose = posenum;
 			e->lerpflags -= LERP_RESETANIM2;
@@ -142,6 +157,7 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 		else
 		{
 			e->lerpstart = cl.time;
+			e->animlerpfinish = (e->lerpflags & LERP_FINISH) ? e->lerpfinish : 0.f; // QVR: R_FrameLerpFinish
 			e->previouspose = e->currentpose;
 			e->currentpose = posenum;
 		}
@@ -152,7 +168,7 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 	{
 		float s = (cls.demoplayback && cls.demospeed < 0.f) ? -1.f : 1.f;
 		if (e->lerpflags & LERP_FINISH && numposes == 1)
-			lerpdata->blend = CLAMP (0.0f, (float)(cl.time - e->lerpstart) / (e->lerpfinish - e->lerpstart), 1.0f);
+			lerpdata->blend = CLAMP (0.0f, (float)(cl.time - e->lerpstart) / (R_FrameLerpFinish (e) - e->lerpstart), 1.0f); // QVR
 		else
 			lerpdata->blend = CLAMP (0.0f, (float)(cl.time - e->lerpstart) / e->lerptime * s, 1.0f);
 		if (lerpdata->blend == 1.0f)
@@ -170,6 +186,23 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 
 /*
 =================
+R_MoveLerpBlend -- QVR: how far along its last move (previousorigin .. currentorigin) a stepping entity is drawn now: over
+the time to its next think as the message that moved it said (movelerpfinish), not as the latest message says. (The
+latest's lerpfinish is its next frame's: once a stepping monster stood still through frames sent with a lerpfinish, as a
+knocked-down monster getting up does after its move to where it stands, each new frame stretched the finished move and
+it was drawn back along it and slid forward again: the get-up's jitter.)
+=================
+*/
+float R_MoveLerpBlend (const entity_t *e)
+{
+	float s = (cls.demoplayback && cls.demospeed < 0.f) ? -1.f : 1.f;
+	if (e->movelerpfinish > e->movelerpstart)
+		return CLAMP (0.0f, (float)(cl.time - e->movelerpstart) / (e->movelerpfinish - e->movelerpstart), 1.0f);
+	return CLAMP (0.0f, (float)(cl.time - e->movelerpstart) / 0.1f * s, 1.0f);
+}
+
+/*
+=================
 R_SetupEntityTransform -- johnfitz -- set up transform part of lerpdata
 =================
 */
@@ -183,6 +216,7 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 	if (e->lerpflags & LERP_RESETMOVE)
 	{
 		e->movelerpstart = 0;
+		e->movelerpfinish = 0; // QVR
 		VectorCopy (e->origin, e->previousorigin);
 		VectorCopy (e->origin, e->currentorigin);
 		VectorCopy (e->angles, e->previousangles);
@@ -192,6 +226,7 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 	else if (!VectorCompare (e->origin, e->currentorigin) || !VectorCompare (e->angles, e->currentangles)) // origin/angles changed, start new lerp
 	{
 		e->movelerpstart = cl.time;
+		e->movelerpfinish = (e->lerpflags & LERP_FINISH) ? e->lerpfinish : 0.f; // QVR: this move's (R_MoveLerpBlend)
 		VectorCopy (e->currentorigin, e->previousorigin);
 		VectorCopy (e->origin,  e->currentorigin);
 		VectorCopy (e->currentangles, e->previousangles);
@@ -201,11 +236,7 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 	//set up values
 	if (r_lerpmove.value && e != &cl.viewent && e->lerpflags & LERP_MOVESTEP)
 	{
-		float s = (cls.demoplayback && cls.demospeed < 0.f) ? -1.f : 1.f;
-		if (e->lerpflags & LERP_FINISH)
-			blend = CLAMP (0.0f, (float)(cl.time - e->movelerpstart) / (e->lerpfinish - e->movelerpstart), 1.0f);
-		else
-			blend = CLAMP (0.0f, (float)(cl.time - e->movelerpstart) / 0.1f * s, 1.0f);
+		blend = R_MoveLerpBlend (e); // QVR
 
 		//translation
 		VectorSubtract (e->currentorigin, e->previousorigin, d);

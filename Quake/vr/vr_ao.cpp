@@ -256,14 +256,14 @@ void lerpedTransform(const entity_t* e, vec3_t origin, vec3_t angles)
         return;
     }
     vec3_t from, to, afrom, ato;
-    float start;
+    bool starting = false;
     if(!VectorCompare(e->origin, e->currentorigin) || !VectorCompare(e->angles, e->currentangles))
     {
         VectorCopy(e->currentorigin, from); // a move starting this frame
         VectorCopy(e->origin, to);
         VectorCopy(e->currentangles, afrom);
         VectorCopy(e->angles, ato);
-        start = static_cast<float>(cl.time);
+        starting = true;
     }
     else
     {
@@ -271,11 +271,8 @@ void lerpedTransform(const entity_t* e, vec3_t origin, vec3_t angles)
         VectorCopy(e->currentorigin, to);
         VectorCopy(e->previousangles, afrom);
         VectorCopy(e->currentangles, ato);
-        start = e->movelerpstart;
     }
-    const float blend = (e->lerpflags & LERP_FINISH)
-                            ? za::clamp(static_cast<float>(cl.time - start) / za::max(e->lerpfinish - start, 1e-4f), 0.f, 1.f)
-                            : za::clamp(static_cast<float>(cl.time - start) / 0.1f, 0.f, 1.f);
+    const float blend = starting ? 0.f : R_MoveLerpBlend(e); // (a move starting: at its start)
     for(int i = 0; i < 3; i++)
     {
         origin[i] = from[i] + (to[i] - from[i]) * blend;

@@ -133,6 +133,10 @@ void unpublishAll();
 void swapModels();
 void restoreModels();
 
+// vr_knockdown_debug 2: entity `num`'s get-up as drawn followed from server time `from` to `until` (its motion frame by
+// frame, then a line of it: the client's swapModels).
+void watchGetup(int num, double from, double until);
+
 // The model a swapped entity (a ragdoll drawn with its skinned model) has of its own (the .mdl: its triangles, its skin's
 // layout); null if it isn't one.
 [[nodiscard]] const qmodel_t* sourceModel(const entity_t* e);

@@ -29754,3 +29754,38 @@ lighting: the room through the gate is a little darker (17.5 against 18.9 mean l
 looked into. `vr_screenshot_frames <n>` (Debug > Slipgates > Frame Strip Through A Gate): a screenshot of each of the
 next n frames drawn (a `wait` waits for a server tick and skips frames over 72 Hz), each with the time and the
 player's place printed.
+## Knockdowns: the get-up's jitter (2026-10-07)
+
+Report: a knocked-down monster getting up jittered, as if replaying keyframes. Measured with a new debug aid,
+`vr_knockdown_debug 2` (Combat > Knockdowns, Print Rolls: "And Get-Ups' Motion"; 3: each frame's): from the moment it
+starts getting up, the client's drawn vertices frame by frame (ragdoll.cpp `watchGetup`/`recordGetup`): their mean
+speed, the fastest frame, the frames that went back on the one before, and the switch from the ragdoll to the animated
+model. Debug > Tests > Enemy Shoves: Knock Down the Nearest, Get Them Up Now (`vr_knockdown_test 0`/`1`).
+
+Not the 72 Hz tick: `host_fixedtick 0` measured the same. Three causes, all on the client, all fixed:
+
+- **The move replayed at every frame (the jitter).** Getting up moves a monster's origin to where it stands (up to
+  88-98 units here, under the 100-unit teleport cut, so the client lerps it). A stepping entity's move lerp
+  (R_SetupEntityTransform) ran from the move to the *latest* message's lerpfinish, which is its next frame's: the get-up's
+  frames (0.125 s at Get-Up Speed 0.8, so they carry a lerpfinish) each pushed the end of the finished move later, and the
+  body was drawn back along it and slid forward again, at every frame (the ogre: 16-27 units back, then forward, at each
+  of its frames). Now the end is the one the moving message sent (`movelerpfinish`; `R_MoveLerpBlend`, also used by
+  vr_ao and vr_modelcollide's copies).
+- **The switch from the ragdoll to the animation flashed the old frame.** While the skinned ragdoll model is drawn,
+  R_SetupAliasFrame doesn't run for the monster's own model, so its lerp stayed at the frame it was knocked down in (a
+  standing one); drawn again it lerped from that frame to the get-up's (the grunt: a 21-unit jump and back). Now
+  swapModels keeps its lerp up with its frames (`trackPose`).
+- **Frame lerps wandered by the lerpfinish's rounding** (1/255 s, sent again in each message): the pose went back and
+  forth a little at every message, several frames' worth in bullet time (the ogre: 35 frames back). The frame lerp's end
+  is now the one the message that changed its pose sent (`animlerpfinish`, `R_FrameLerpFinish`).
+
+Also the blend from the ragdoll (vr_box3d.cpp `updateRecoveries`) lerps the frames by the server's think times (from the
+think that set the frame to the next, at the message's time) instead of from the step's time over the get-up interval:
+it lagged a step (each frame's end skipped) and, in bullet time, held still.
+
+Numbers (e1m1, grunt / ogre / knight / fiend; the fastest frame against the mean speed; frames back; the switch frame's
+speed against the frames' before): before 84x / 78x / 54x / 84x, 2 / 2 / 0 / 2 back, switch 60x / 83x / 16x / 44x; after
+8x / 12x / 11x / 7x (the ragdoll's blend itself), 0 / 1 / 0 / 0 back, switch 2.1x / 2.7x / 1.3x / 1.5x. Bullet time
+(vr_timescale 0.25): back frames 3 / 35 / 0 / 18 before the frame-lerp fix, 0 / 1 / 0 / 0 after; the switch there is
+still 9-22x a frame's (tiny) motion: the skinned rig's fit against the .mdl's vertex animation (about a unit), as when a
+ragdoll is made.

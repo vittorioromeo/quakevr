@@ -483,6 +483,8 @@ void R_MarkSurfaces (void);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 qboolean R_CullModelForEntity (entity_t *e);
 void R_EntityMatrix (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);
+float R_MoveLerpBlend (const entity_t *e); // QVR: how far along its move from previousorigin to currentorigin a stepping entity is drawn now
+float R_FrameLerpFinish (const entity_t *e); // QVR: when its frame lerp (from lerpstart) ends, with LERP_FINISH
 
 void R_InitParticles (void);
 void R_DrawParticles (qboolean alpha);

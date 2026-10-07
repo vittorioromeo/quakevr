@@ -77,10 +77,12 @@ typedef struct entity_s
 	float					lerpstart;		//johnfitz -- animation lerping
 	float					lerptime;		//johnfitz -- animation lerping
 	float					lerpfinish;		//johnfitz -- lerping -- server sent us a more accurate interval, use it instead of 0.1
+	float					animlerpfinish;	// QVR: lerpfinish as the message that changed its pose said (R_FrameLerpFinish)
 	short					previouspose;	//johnfitz -- animation lerping
 	short					currentpose;	//johnfitz -- animation lerping
 //	short					futurepose;		//johnfitz -- animation lerping
 	float					movelerpstart;	//johnfitz -- transform lerping
+	float					movelerpfinish;	// QVR: the end of the move lerp, as the message that moved it said (0: the 0.1 s Quake assumes)
 	vec3_t					previousorigin;	//johnfitz -- transform lerping
 	vec3_t					currentorigin;	//johnfitz -- transform lerping
 	vec3_t					previousangles;	//johnfitz -- transform lerping

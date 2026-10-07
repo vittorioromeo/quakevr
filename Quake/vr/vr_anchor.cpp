@@ -353,9 +353,9 @@ ankerl::unordered_dense::map<const qmodel_t*, za::UniquePtr<VertexOrder>> vertex
     }
 
     float blend = 1.f;
-    if(e.lerpflags & LERP_FINISH && e.lerpfinish > e.lerpstart)
+    if(e.lerpflags & LERP_FINISH && R_FrameLerpFinish(&e) > e.lerpstart)
     {
-        blend = static_cast<float>((cl.time - e.lerpstart) / (e.lerpfinish - e.lerpstart));
+        blend = static_cast<float>((cl.time - e.lerpstart) / (R_FrameLerpFinish(&e) - e.lerpstart));
     }
     else if(e.lerptime > 0.f)
     {

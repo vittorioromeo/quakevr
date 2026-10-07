@@ -5151,9 +5151,11 @@ void copyLerp(entity_t& to, const entity_t& from)
     to.lerpstart = from.lerpstart;
     to.lerptime = from.lerptime;
     to.lerpfinish = from.lerpfinish;
+    to.animlerpfinish = from.animlerpfinish;
     to.previouspose = from.previouspose;
     to.currentpose = from.currentpose;
     to.movelerpstart = from.movelerpstart;
+    to.movelerpfinish = from.movelerpfinish;
     for(int i = 0; i < 3; i++)
     {
         to.previousorigin[i] = from.previousorigin[i];

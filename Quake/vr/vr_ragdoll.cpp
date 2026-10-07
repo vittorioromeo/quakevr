@@ -1372,6 +1372,30 @@ struct MotionTest
 };
 MotionTest motionTest;
 
+// vr_knockdown_debug 2 (Combat > Knockdowns, Print Rolls: "And Get-Ups' Motion"): a get-up as the client draws it,
+// frame by frame from the moment the monster starts getting up (its ragdoll blended into its animation, then its
+// animation): how fast its vertices move (units a second: the frames' lengths vary), the fastest frame against the mean
+// (a jump), the frames that went back on the one before (a pose shown again: the jitter) and the frame its animated model
+// is drawn again (the switch: its speed against the frames' before). vr_knockdown_debug 3: each frame's.
+struct GetupWatch
+{
+    int num{0};          // the entity (0 none)
+    double from{0.0}, until{0.0}; // the server times it is followed from and to
+    int frames{0}, moving{0};
+    float sumSpeed{0.f}, maxSpeed{0.f}, recentSpeed{0.f}, switchRatio{0.f};
+    int maxAt{0}, backs{0}, switchAt{-1};
+    bool skinned{false}; // drawn as a ragdoll last frame
+    double startTime{0.0}, lastTime{0.0};
+};
+GetupWatch getupWatch;
+
+struct GetupPoints
+{
+    za::Vector<glm::vec3> last, step, now;
+    auto members() { return mem::list(last, step, now); }
+};
+mem::Cache<GetupPoints> getupPoints{"get-up motion", mem::MapChange};
+
 struct MotionPoints
 {
     za::Vector<glm::vec3> rag;  // a frame's maxBones (the parts')
@@ -1468,25 +1492,80 @@ void animatedPoses(const entity_t* e, const aliashdr_t* hdr, int& pose1, int& po
         blend = 0.f;
         return;
     }
-    const float span = (e->lerpflags & LERP_FINISH) ? e->lerpfinish - e->lerpstart : e->lerptime;
+    const float span = (e->lerpflags & LERP_FINISH) ? R_FrameLerpFinish(e) - e->lerpstart : e->lerptime;
     blend = span > 0.f ? za::clamp(static_cast<float>(cl.time - e->lerpstart) / span, 0.f, 1.f) : 1.f;
     pose1 = blend >= 1.f ? e->currentpose : e->previouspose;
     pose2 = e->currentpose;
 }
 
+// The animated model's lerp of `e` kept up with its frame while its skinned model is drawn (R_SetupAliasFrame's, which
+// doesn't run for it then): a knocked-down monster's get-up plays its frames under the blend from its ragdoll
+// (vr_box3d.cpp updateRecoveries), and drawn again it goes on from them. (Not kept, it went on from the frame it was
+// knocked down in, a standing one, to its get-up's: a jump of 20 units and back, the get-up's jitter.)
+void trackPose(entity_t* e)
+{
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
+    if(!hdr || hdr->numframes <= 0)
+    {
+        return;
+    }
+    const maliasframedesc_t& f = hdr->frames[za::clamp(e->frame, 0, hdr->numframes - 1)];
+    int posenum = f.firstpose;
+    if(f.numposes > 1 && f.interval > 0.f)
+    {
+        posenum += static_cast<int>(cl.time / static_cast<double>(f.interval)) % f.numposes;
+    }
+    if(e->lerpflags & (LERP_RESETANIM | LERP_RESETANIM2))
+    {
+        if(e->currentpose == posenum && !(e->lerpflags & LERP_RESETANIM))
+        {
+            return; // (RESETANIM2: as R_SetupAliasFrame, waits for the pose to change)
+        }
+        e->lerpstart = 0.f;
+        e->animlerpfinish = 0.f;
+        e->previouspose = e->currentpose = static_cast<short>(posenum);
+        e->lerpflags &= static_cast<byte>(~((e->lerpflags & LERP_RESETANIM) ? LERP_RESETANIM : LERP_RESETANIM2));
+        return;
+    }
+    if(e->currentpose != posenum)
+    {
+        e->lerpstart = static_cast<float>(cl.time);
+        e->animlerpfinish = (e->lerpflags & LERP_FINISH) ? e->lerpfinish : 0.f;
+        e->previouspose = e->currentpose;
+        e->currentpose = static_cast<short>(posenum);
+    }
+}
+
 // The animated model of `e` as it would be drawn now (its lerp; its place last frame; the .mdl's vertices in the world), for
 // comparing a ragdoll's first frame with it (vr_debug_ragdoll).
-void animatedVertices(const entity_t* e, za::Vector<glm::vec3>& out, int& pose1, int& pose2, float& blend)
+void animatedVertices(const entity_t* e, za::Vector<glm::vec3>& out, int& pose1, int& pose2, float& blend, bool now = false)
 {
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
     animatedPoses(e, hdr, pose1, pose2, blend);
     float m16[16];
     vec3_t origin, angles;
     // Where it was drawn last frame: the message before this frame's (the server moved its origin to follow the pelvis
-    // as the ragdoll was made: writeRagdoll; a listen server sends one a frame).
-    const bool moved = e->msgtime == cl.mtime[0];
+    // as the ragdoll was made: writeRagdoll; a listen server sends one a frame). `now`: where it is drawn this frame.
+    const bool moved = !now && e->msgtime == cl.mtime[0];
     VectorCopy(moved ? e->msg_origins[1] : e->origin, origin);
     VectorCopy(moved ? e->msg_angles[1] : e->angles, angles);
+    if(now && r_lerpmove.value && (e->lerpflags & LERP_MOVESTEP) && !(e->lerpflags & LERP_RESETMOVE))
+    {
+        // (A monster's steps lerped as R_SetupEntityTransform does, without changing the entity.)
+        const bool changed = !VectorCompare(e->origin, e->currentorigin) || !VectorCompare(e->angles, e->currentangles);
+        const float t = changed ? 0.f : R_MoveLerpBlend(e);
+        const float* from = changed ? e->currentorigin : e->previousorigin;
+        const float* to = e->currentorigin;
+        const float* fromA = changed ? e->currentangles : e->previousangles;
+        const float* toA = e->currentangles;
+        for(int i = 0; i < 3; i++)
+        {
+            float d = toA[i] - fromA[i];
+            d = d > 180.f ? d - 360.f : d < -180.f ? d + 360.f : d;
+            origin[i] = from[i] + (to[i] - from[i]) * t;
+            angles[i] = fromA[i] + d * t;
+        }
+    }
     R_EntityMatrix(m16, origin, angles, e->scale);
     ApplyTranslation(m16, hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]);
     ApplyScale(m16, hdr->scale[0], hdr->scale[1], hdr->scale[2]);
@@ -2029,7 +2108,127 @@ void recordMotion()
     }
 }
 
+void reportGetup()
+{
+    GetupWatch& g = getupWatch;
+    if(g.moving > 0)
+    {
+        const float mean = g.sumSpeed / static_cast<float>(g.moving);
+        Con_Printf("knockdown: %d get-up drawn: %d frames over %.2f s, %.0f units/s, the fastest %.0f (%.1fx, frame %d), %d frames "
+                   "back on the one before; the animated model from frame %d (%.1fx the frames' before)\n",
+            g.num, g.frames, g.lastTime - g.startTime, mean, g.maxSpeed, mean > 0.f ? g.maxSpeed / mean : 0.f, g.maxAt, g.backs,
+            g.switchAt, g.switchRatio);
+    }
+    g = GetupWatch{};
+}
+
+// A frame of the get-up followed (vr_knockdown_debug 2), after the swaps: its vertices as drawn now.
+void recordGetup()
+{
+    GetupWatch& g = getupWatch;
+    if(g.num <= 0)
+    {
+        return;
+    }
+    if(g.num >= cl.num_entities || !sv.active || cl.mtime[0] > g.until || cl.mtime[0] < g.from - 1.0) // (or a new map)
+    {
+        reportGetup();
+        return;
+    }
+    entity_t* e = &cl_entities[g.num];
+    bool swapped = false;
+    for(const Swapped& s : draw.swapped)
+    {
+        swapped = swapped || s.num == g.num;
+    }
+    GetupPoints& pts = getupPoints;
+    int pose1 = 0, pose2 = 0;
+    float blend = 1.f;
+    if(swapped ? !skinnedVertices(g.num, pts.now, nullptr, true) : !e->model || e->model->type != mod_alias)
+    {
+        return;
+    }
+    if(!swapped)
+    {
+        animatedVertices(e, pts.now, pose1, pose2, blend, true);
+    }
+    const double dt = cl.time - g.lastTime;
+    const bool same = g.frames > 0 && pts.last.size() == pts.now.size() && dt > 0.0;
+    if(g.frames > 0 && !same)
+    {
+        return; // (no time passed: a frame drawn twice)
+    }
+    const bool hadStep = same && pts.step.size() == pts.now.size() && g.frames > 1;
+    float step = 0.f, back = 0.f, along = 0.f;
+    pts.step.resize(pts.now.size());
+    for(za::SizeT v = 0; v < pts.now.size(); v++)
+    {
+        const glm::vec3 d = same ? pts.now[v] - pts.last[v] : glm::vec3{0.f};
+        step += glm::length(d);
+        if(hadStep)
+        {
+            back += za::max(-glm::dot(d, pts.step[v]), 0.f);
+            along += glm::length(d) * glm::length(pts.step[v]);
+        }
+        pts.step[v] = d;
+    }
+    step /= static_cast<float>(za::max(static_cast<int>(pts.now.size()), 1));
+    const float speed = same ? step / static_cast<float>(dt) : 0.f;
+    const float backShare = along > 1e-6f ? back / along : 0.f;
+    if(g.frames == 0)
+    {
+        g.startTime = cl.time;
+    }
+    if(!swapped && g.skinned && g.switchAt < 0)
+    {
+        g.switchAt = g.frames;
+        g.switchRatio = g.recentSpeed > 0.f ? speed / g.recentSpeed : 0.f;
+    }
+    g.skinned = swapped;
+    if(same)
+    {
+        g.sumSpeed += speed;
+        g.moving++;
+        if(speed > g.maxSpeed)
+        {
+            g.maxSpeed = speed;
+            g.maxAt = g.frames;
+        }
+        g.backs += backShare > 0.5f && step > 0.05f;
+        g.recentSpeed = g.recentSpeed > 0.f ? g.recentSpeed + (speed - g.recentSpeed) * 0.2f : speed;
+    }
+    if(vr_knockdown_debug.value >= 3.f)
+    {
+        glm::vec3 mid{0.f};
+        for(const glm::vec3& v : pts.now)
+        {
+            mid += v / static_cast<float>(pts.now.size());
+        }
+        Con_Printf("knockdown: %d get-up frame %d: cl.time %.4f, %s, frame %d (poses %d..%d at %.2f), %.0f units/s, %.2f back, "
+                   "middle %.1f %.1f %.1f\n",
+            g.num, g.frames, cl.time, swapped ? "ragdoll" : "animated", e->frame, pose1, pose2, blend, speed, backShare, mid.x,
+            mid.y, mid.z);
+    }
+    pts.last = pts.now;
+    g.lastTime = cl.time;
+    g.frames++;
+}
+
 } // namespace
+
+void watchGetup(int num, double from, double until)
+{
+    if(getupWatch.num > 0)
+    {
+        reportGetup();
+    }
+    getupWatch = GetupWatch{};
+    getupWatch.num = num;
+    getupWatch.from = from;
+    getupWatch.until = until;
+    getupPoints.last.clear();
+    getupPoints.step.clear();
+}
 
 void swapModels()
 {
@@ -2096,6 +2295,7 @@ void swapModels()
             }
         }
         drawnPose(num);
+        trackPose(e);
         Swapped s;
         s.num = num;
         s.original = e->model;
@@ -2143,6 +2343,7 @@ void swapModels()
         e->lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));
         draw.swapped.pushBack(s);
     }
+    recordGetup();
 }
 
 void restoreModels()

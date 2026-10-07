@@ -496,7 +496,8 @@ struct Recovery
     double start{0.0};
     float duration{0.35f};
     int frame{-1}, prevFrame{-1};
-    double changed{0.0};
+    double changed{0.0}; // the server time its frame changed (the think that changed it: due then)
+    double due{0.0};     // its next think, as of the last step
 };
 
 // Whether part `b` of `r` was cut off (its body is the part it was cut from's).
@@ -3303,15 +3304,22 @@ void updateRecoveries()
             world->recoveries.eraseAt(i);
             continue;
         }
+        // Its frames lerped as the client lerps them once it is drawn animated again, by the server's times: from the
+        // think that set the frame (due at the last step: the step's thinks run between its time and the next step's) to
+        // the next, and to the time of the message it is drawn at. (The lerp from this step's time over the get-up's
+        // interval lagged by a step: each frame's end was skipped, and in bullet time, the thinks slowed, it held still.)
         const int frame = static_cast<int>(ent->v.frame);
+        const double now = qcvm->time + host_frametime;
         if(frame != rec.frame)
         {
             rec.prevFrame = rec.frame < 0 ? frame : rec.frame;
             rec.frame = frame;
-            rec.changed = qcvm->time;
+            rec.changed = rec.due > qcvm->time && rec.due <= now ? rec.due : qcvm->time;
         }
-        const float interval = 0.1f / za::clamp(vr_knockdown_getup_speed.value, 0.1f, 10.f);
-        const float lerp = za::clamp(static_cast<float>((qcvm->time - rec.changed) / interval), 0.f, 1.f);
+        rec.due = ent->v.nextthink;
+        const double interval = rec.due > rec.changed ? rec.due - rec.changed
+                                                      : 0.1 / za::clamp(static_cast<double>(vr_knockdown_getup_speed.value), 0.1, 10.0);
+        const float lerp = za::clamp(static_cast<float>((now - rec.changed) / interval), 0.f, 1.f);
         const int pose1 = ragdoll::poseOfFrame(rec.rig->model, rec.prevFrame), pose2 = ragdoll::poseOfFrame(rec.rig->model, rec.frame);
         const glm::quat turn = glm::angleAxis(glm::radians(ent->v.angles[1]), glm::vec3{0.f, 0.f, 1.f});
         const glm::vec3 origin = vec(ent->v.origin);
@@ -11697,6 +11705,10 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
         rec.pos[static_cast<za::SizeT>(b)] = world->toU(xf.p);
     }
     rec.start = qcvm->time;
+    if(vr_knockdown_debug.value >= 2.f)
+    {
+        ragdoll::watchGetup(num, qcvm->time, qcvm->time + 2.5);
+    }
     rec.duration = za::max(vr_knockdown_blend.value, 0.f);
     destroyBody(slotOf(num));
     world->recoveries.pushBack(rec);

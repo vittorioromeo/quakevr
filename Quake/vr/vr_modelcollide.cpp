@@ -184,7 +184,7 @@ struct Lerped
     {
         if(e.lerpflags & LERP_FINISH && numposes == 1)
         {
-            l.blend = CLAMP(0.f, static_cast<float>(cl.time - e.lerpstart) / za::fmax(e.lerpfinish - e.lerpstart, 1e-4f), 1.f);
+            l.blend = CLAMP(0.f, static_cast<float>(cl.time - e.lerpstart) / za::fmax(R_FrameLerpFinish(&e) - e.lerpstart, 1e-4f), 1.f);
         }
         else
         {
@@ -209,9 +209,7 @@ struct Lerped
         }
         else
         {
-            const float blend = (e.lerpflags & LERP_FINISH)
-                                    ? CLAMP(0.f, static_cast<float>(cl.time - e.movelerpstart) / za::fmax(e.lerpfinish - e.movelerpstart, 1e-4f), 1.f)
-                                    : CLAMP(0.f, static_cast<float>(cl.time - e.movelerpstart) / 0.1f, 1.f);
+            const float blend = R_MoveLerpBlend(&e);
             const glm::vec3 previous{e.previousorigin[0], e.previousorigin[1], e.previousorigin[2]};
             const glm::vec3 previousAngles{e.previousangles[0], e.previousangles[1], e.previousangles[2]};
             l.origin = previous + (current - previous) * blend;
