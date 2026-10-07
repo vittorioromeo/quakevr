@@ -15,6 +15,33 @@ powershell -ExecutionPolicy Bypass -File Misc\release\make_release.ps1 -Version 
 The version released is the repository's `VERSION` file ("Versions" below). From Git Bash,
 `bash Misc/release/make_release.sh ...` runs the same script.
 
+## Test a release locally
+
+Before publishing, install the release the way a player gets it, without GitHub or your site:
+
+1. **Build a local test release** (the same build, checks and package as a real one; nothing online, no tag):
+   `powershell -ExecutionPolicy Bypass -File Misc\release\make_release.ps1 -Local -RunInstaller -QuakeDir <Quake>`
+   (add `-Textures <zip>` and `-EricwSource <zip>` as for the real release). It writes `out\release\<v>-local\`, whose
+   `latest.json` points at `http://127.0.0.1:8517/<file>` (`-LocalPort` to change it). Never upload those assets.
+2. With `-RunInstaller` it then runs `Misc\release\test_local_release.ps1`: a small server (`qvr-setup serve`, its own
+   window, 127.0.0.1 only) serves `assets\`, and the built `QuakeVR-Setup.exe` starts with
+   `--feed http://127.0.0.1:8517/latest.json --sandbox %TEMP%\QuakeVR-test-<v>-<time>`. A yellow **TEST FEED /
+   SANDBOX** bar is on every page and the title says `[TEST]`.
+3. **Install** as a player would: the download goes through the real path (HTTP, resume, SHA-256). The sandbox keeps
+   everything: the game in `<sandbox>\QuakeVR` (its config and saves in `QuakeVR\quakevr`), the shortcuts in
+   `<sandbox>\_shortcuts\Desktop` and `\Programs`, the downloads in `_downloads`. No Apps & Features entry, nothing on
+   your desktop or Start menu, the VC++ runtime only checked. Your Quake is detected and read, never written; HD
+   textures, the first-start relight and Play are the real ones.
+4. **Play** from the last page (or a shortcut in `_shortcuts\Desktop`).
+5. **Again, without rebuilding**: `Misc\release\test_local_release.ps1` (a new sandbox), `-Sandbox <dir>` (an update of
+   that one), `-DropAfter 5000000` (the server cuts each file's first download: the installer must resume it),
+   `-Cli` (no window: `qvr-setup install --feed ... --sandbox ...` then `verify`). Stop the server by closing its window
+   or with `test_local_release.ps1 -StopServer` (it also stops by itself after 4 hours).
+6. **Throw it away**: delete the sandbox folder (nothing is outside it) and, when done, `out\release\<v>-local`.
+
+The installer takes the same feed from `QVR_SETUP_FEED` (one URL, or several separated by `;`) and `qvr-setup` too
+(`feed`, `install --feed`).
+
 ## Step by step
 
 1. **Commit and push** the branch you release from (`vr-ironwail` today, `master` later: the script reads the
@@ -113,6 +140,9 @@ The first Ironwail-based release is **0.9.0** (2026-10-07): the old Quake VR's t
 continues from it below 1.0 until it is called finished.
 
 ## Safety
+
+- `-Local` builds a test release into `out\release\<version>-local` whose `latest.json` names 127.0.0.1: it never
+  fetches, calls `gh` or tags, and is refused with `-Publish`/`-PushTag`.
 
 - `-DryRun` builds, tags and calls `gh` for nothing. Without `-Publish` or `-PushTag` nothing leaves the PC.
 - Only the tag is ever pushed, never a branch. A re-run with the same version reuses a tag already on HEAD and stops

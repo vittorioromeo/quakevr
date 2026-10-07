@@ -65,6 +65,8 @@ about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and Smart
 | `--silent` | No sound |
 | `--no-prerequisites` | Never install the VC++ runtime (it is still detected) |
 | `--uninstall [--quiet]` | Remove the install in `--target` (default: the install this copy of Setup is in, `<QVR>\setup`): the Remove dialogs, or none with `--quiet`. Apps & Features runs this. From the install's own copy it restarts from a copy in `%TEMP%` first |
+| `--sandbox <dir>` | A test install kept in `<dir>`: the game in `<dir>\QuakeVR`, shortcuts in `<dir>\_shortcuts`, downloads in `<dir>\_downloads`, no Apps & Features entry, the VC++ runtime only checked (`Misc\release\test_local_release.ps1`). A yellow bar says SANDBOX |
+| `QVR_SETUP_FEED` (environment) | Like `--feed` (several separated by `;`); `--feed` wins. Any feed other than the release hosts' shows a yellow TEST FEED bar on every page and `[TEST]` in the title |
 | `--registry-file <json>` | The Apps & Features entry goes into this made-up registry root instead of HKCU (tests; installs with `--shortcuts-dir` and the screenshot harness write none) |
 | `--vcredist-dry-run` | Only log what the VC++ runtime's install would do (download, signature check, `/install /quiet /norestart`); download and run nothing |
 | `--extras` | With `--screenshots`: also a strip of flame frames, a sheet of Quake's textures, and `report.txt` (skin, sounds, per-frame costs, the live window's frame rate and CPU) |
@@ -77,6 +79,8 @@ qvr-setup manifest <package folder> --version <v>  # write manifest.json (packag
 qvr-setup install --package dist\QuakeVR.zip --target <dir> --accept-statement [--shortcuts-dir <dir>] [--textures <zip>] [--relight] [--vispatch id1_vis.tgz ...]
                   [--setup-from QuakeVR-Setup.exe] [--registry-file <json> | --register]   # Setup's copy in <dir>\setup; the Apps & Features entry
 qvr-setup verify --target <dir>
+qvr-setup install --feed http://127.0.0.1:8517/latest.json --sandbox <dir> --accept-statement [--hd] [--relight]   # the window's download path
+qvr-setup serve --dir out\release\<v>-local\assets --port 8517 [--drop-after <bytes>]   # a local release over HTTP (Range), 127.0.0.1 only
 qvr-setup statement                                # the author's statement on AI usage (install exits 3 without --accept-statement)
 qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--assume-missing] [--file <exe>]]   # the VC++ runtime (without --dry-run: installs it, one UAC prompt)
 qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]

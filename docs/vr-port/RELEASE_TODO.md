@@ -25,6 +25,7 @@ Short list. The full procedure is in [RELEASING.md](RELEASING.md).
 - [ ] Record new melee takes. Without them the melee regression check (`eval.sh`) can't run.
 - [ ] Review the installer: the Statement wording, the Thanks/donation text, and every page at your usual scaling.
 - [ ] Do a fresh install with the built `QuakeVR-Setup.exe` on a clean folder: detection, install, first start (relight), play.
+  One command: `Misc\release\make_release.ps1 -Local -RunInstaller` (a local server plus a sandbox in `%TEMP%`; RELEASING.md, "Test a release locally").
 
 ## Release
 
