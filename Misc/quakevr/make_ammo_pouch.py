@@ -29,10 +29,12 @@ pouch.Z_BOTTOM, pouch.Z_TOP = -2.3, 1.5
 pouch.Z_FLOOR = 0.6
 pouch.BULGE_P = 3.0
 
-# The shells standing in it: their middles (y), their lean (degrees, about x), how far their tops stand out.
-SHELLS = [(-2.55, -9.0, 1.05), (-1.3, 4.0, 1.25), (0.0, -3.0, 1.15), (1.3, 7.0, 1.3), (2.55, -6.0, 1.0)]
-SHELL_R = 0.52   # the hull's radius, world units (a 12-gauge shell at the shells' drawn size, a little larger to read)
-RIM_R = 0.58
+# The shells standing in it: their middles (y), their lean (degrees, about x), how far their tops stand out. A tidy row,
+# mirror-symmetric about the middle (the author: they looked overly big and not symmetric; they were 0.52 across the
+# hull, leaning and standing out at random): evenly spaced, fanning out a little to the sides, the middle one highest.
+SHELLS = [(-1.9, -6.0, 1.0), (-0.95, -3.0, 1.12), (0.0, 0.0, 1.2), (0.95, 3.0, 1.12), (1.9, 6.0, 1.0)]
+SHELL_R = 0.33   # the hull's radius, world units: a held shell's as drawn (make_shell.py's 0.99 cm at its 1.25 Size)
+RIM_R = 0.37     # its rim's (1.12 cm)
 BRASS = 0.55     # how much of the top is brass
 
 

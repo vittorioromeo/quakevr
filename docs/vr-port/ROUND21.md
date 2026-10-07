@@ -30596,3 +30596,9 @@ vrfiringrange_2026-10-08_00-00-42, 00-01-10, and his typed note on the pouch's s
   and takes `bodyshockdeath` as a corpse does. `vr_shock_info` lists the hands' ones ("gun in hand N"). Combat > Enemy
   Weapons, "Spent Rifles": Spent Smoke, Spent Crackle, Crackle Volume. `vr_debug_shots 1` prints where it is and when
   its cues end.
+- **The pouch's shells a shell's size, in a tidy row** (the author's typed note: "overly big and not entirely
+  symmetric"): make_ammo_pouch.py's shells were 0.52 units in hull radius (twice a real 12-gauge shell's at the size a
+  held one is drawn), leaning and standing out at random; now 0.33 (rim 0.37: make_shell.py's 0.99 and 1.12 cm at its
+  1.25 Size), evenly 0.95 apart, fanning out symmetrically (-6, -3, 0, 3, 6 degrees), the middle one standing highest.
+  `ssg_checks.py pouchshells`: across the middle one 0.68 units (was 1.07), the row's distance from its mirror image
+  0.000 (was 0.226). Normal map rebaked.

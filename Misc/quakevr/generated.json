@@ -1172,11 +1172,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrpouch_ammo.mdl": {
-  "sha256": "c9dd5f09eb743397a67da50cee9531c1c481761c406efe56a5caddc52738c7e1",
+  "sha256": "283640a2166e4fa9a79258e2bf78db05753c42c97295a49afb07867bc49b2e94",
   "by": "make_ammo_pouch.py"
  },
  "quakevr/progs/vrpouch_ammo.mdl_0_norm.png": {
-  "sha256": "bda9c97c46484394bc588f8b62e251c8ffa2301f2eadd9fb99b4c230a3a37091",
+  "sha256": "f6bb8cf0383e7d82265de9ba23f1bd920d901debe5ef2c23395dfafc7621ca66",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrtorch.mdl": {

@@ -9,6 +9,10 @@
 #                                      (make_mags.py; the author's note vrfiringrange_2026-10-07_23-58-30): how far it
 #                                      stands off the face and how far past the band's edges it reaches, for v_nail2.mdl
 #                                      and v_lava2.mdl: "snailwell <gun> proud P over O ..."
+#   ssg_checks.py pouchshells          the ammo pouch's shells (make_ammo_pouch.py; the author's note: overly big, not
+#                                      symmetric), all five shown (frame 5), above its rim: the middle one's width across
+#                                      (units) and how far the row is from its mirror image (the mean distance of each
+#                                      point mirrored to the nearest point): "pouchshells across A asym M"
 import colorsys
 import os
 import sys
@@ -60,7 +64,22 @@ def snail_well(gun):
     return (W @ nrm).max(), max(lo - (W @ w).min(), (W @ w).max() - hi)
 
 
+def pouch_shells():
+    import numpy as np
+    import mdlpolish as mp
+    m = mp.Model(os.path.join(HERE, "..", "..", "..", "quakevr", "progs", "vrpouch_ammo.mdl"))
+    P = m.positions(5)
+    P = P[P[:, 2] > 1.6]  # (above the rim: the shells' heads and hulls)
+    mid = P[np.abs(P[:, 1]) < 0.45]
+    mirrored = P * np.array([1.0, -1.0, 1.0])
+    d = np.sqrt(((mirrored[:, None, :] - P[None, :, :]) ** 2).sum(-1)).min(1)
+    return mid[:, 0].max() - mid[:, 0].min(), d.mean()
+
+
 def main():
+    if sys.argv[1] == "pouchshells":
+        print("pouchshells across %.2f asym %.3f" % pouch_shells())
+        return
     if sys.argv[1] == "snailwell":
         print(" ".join("snailwell %s proud %.2f over %.2f" % ((g,) + snail_well(g)) for g in ("v_nail2.mdl", "v_lava2.mdl")))
         return

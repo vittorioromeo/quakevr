@@ -370,4 +370,8 @@ check $(echo "$log" | grep -q "spent gun: enforcer's rifle (hand 0) empty: smoki
 log=$(bash $KIT/run.sh $AGENT -Script "$EG;vr_enemygun_spent_smoke 2;vr_enemygun_spent_crackle 1;impulse 165;wait3;$HANDS;impulse 214;wait3;+attack;wait3;-attack;wait20;vr_shock_info;wait300;toggleconsole;quit" -Filter "$FE" 2>&1)
 st=$(echo "$log" | grep -o "cues over after [0-9.]* s" | awk '{print $4}')
 check $(echo "$log" | grep -q "spent gun: grunt's burst rifle (hand 1) empty: smoking 2 s, crackling 1 s" && echo "$log" | grep -q "bodyshock: gun in hand 1 arcs=[1-9]" && awk -v t="$st" 'BEGIN { print (t != "" && t >= 1.9 && t <= 2.3) ? 1 : 0 }') "the grunt's burst rifle spent in the main hand: crackling; Spent Smoke 2, Spent Crackle 1: over after 2 s ($st)"
+# The ammo pouch's shells (the author's typed note: overly big, not symmetric): a held shell's width (0.66-0.8 units
+# across the middle one's rim; they were 1.07) and the row its own mirror image (they leaned and stood out at random).
+ps=$($PY Misc/quakevr/reload/ssg_checks.py pouchshells)
+check $(echo "$ps" | awk '{print ($3 >= 0.6 && $3 <= 0.8 && $5 <= 0.02) ? 1 : 0}') "the pouch's shells a held shell's size, the row symmetric ($ps)"
 exit $fail
