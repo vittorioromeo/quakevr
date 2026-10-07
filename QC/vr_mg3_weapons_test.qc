@@ -5,6 +5,11 @@
 //   3 its pickup: taken into the empty main hand, its target fired, spawnflag 128's silent drop (by 16 units here)
 //   4 (Dawn of the Machine's map2) the map's weapon_mjolnir is a Super Axe: taken, its secret counted, dropped 2047 units
 //   5 a Super Axe in the main hand and the first holster (then changelevel or save/load and 1)
+//   6 (an MG3 map with axe buttons: map6, map7, map8, secret5) each func_axe_button: shots and blasts leave it shut (and
+//     it says so), then each opens to a blow, the kinds in turn: a fist's, the Super Axe's, a thrown weapon, a thrown
+//     prop, a headbutt
+//   7 the player put in front of the nearest closed axe button, facing it (a real punch or swing next: vr_motion_play)
+//   8 whether the nearest axe button opened
 
 float mg3wt_pass, mg3wt_fail;
 float mg3wt_step;      // the running request's step (2's), 0: none
@@ -262,6 +267,113 @@ void() MG3_WT_Holster =
     MG3_WT_Report();
 };
 
+
+// A blow of kind `k` on button `b` (0 a fist's melee, 1 the Super Axe's melee, 2 a thrown weapon, 3 a thrown prop,
+// 4 a headbutt), or a shot (5) or a blast (6).
+void(entity p, entity b, float k) MG3_WT_HitButton =
+{
+    entity oldself = self;
+    self = p;
+    entity thing = world;
+    if(k == 2 || k == 3)
+    {
+        thing = spawn();
+        thing.classname = k == 2 ? "thrown_weapon" : "mg3wtest_prop";
+        thing.vr_rigid = k == 3;
+        thing.movetype = MOVETYPE_BOUNCE;
+        thing.owner = p;
+    }
+    if(k == 0 || k == 1) VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', '0 0 0');
+    else if(k == 4) VR_SetHitKind(QVR_HITKIND_HEADBUTT, -1, '0 0 0', '0 0 0');
+    else if(k == 5) VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', '0 0 0');
+    else if(k == 6) VR_SetHitKind(QVR_HITKIND_SPLASH, -1, '0 0 0', '0 0 0');
+    else VR_ClearHitKind();
+    if(k == 0 || k == 1) T_Damage_VRMelee(b, p, p, 20);
+    else T_Damage(b, thing != world ? thing : p, p, 20);
+    VR_ClearHitKind();
+    if(thing) remove(thing);
+    self = oldself;
+};
+
+// Request 6: every axe button of the map.
+void() MG3_WT_AxeButtons =
+{
+    entity p = MG3_WT_Player();
+    mg3wt_pass = mg3wt_fail = 0;
+    float n = 0, shut = 0, opened = 0;
+    entity b = find(world, classname, "func_axe_button");
+    while(b)
+    {
+        n++;
+        MG3_WT_HitButton(p, b, 5);
+        MG3_WT_HitButton(p, b, 6);
+        if(b.state == STATE_BOTTOM && b.health > 0) shut++;
+        b = find(b, classname, "func_axe_button");
+    }
+    dprint(sprintf("mg3wtest: %s: %g axe buttons, %g shut after a shot and a blast each\n", mapname, n, shut));
+    MG3_WT_Check(n > 0, "the map has axe buttons");
+    MG3_WT_Check(shut == n, "shots and blasts open none");
+    float k = 0;
+    b = find(world, classname, "func_axe_button");
+    while(b)
+    {
+        MG3_WT_HitButton(p, b, k);
+        if(b.state != STATE_BOTTOM) opened++;
+        else dprint(sprintf("mg3wtest: button at %s (target %s) stayed shut to blow kind %g\n", vtos((b.absmin + b.absmax) * 0.5), b.target, k));
+        k = k == 4 ? 0 : k + 1;
+        b = find(b, classname, "func_axe_button");
+    }
+    dprint(sprintf("mg3wtest: %g of %g opened by blows (fist, Super Axe, thrown weapon, thrown prop, headbutt in turn)\n", opened, n));
+    MG3_WT_Check(opened == n, "every one opens to a blow");
+    dprint(sprintf("mg3wtest: axe buttons %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+};
+
+entity(entity p, float xClosed) MG3_WT_NearestAxeButton =
+{
+    entity best = world;
+    float bestDist = 999999;
+    entity b = find(world, classname, "func_axe_button");
+    while(b)
+    {
+        vector mid = (b.absmin + b.absmax) * 0.5;
+        if((!xClosed || b.state == STATE_BOTTOM) && vlen(mid - p.origin) < bestDist)
+        {
+            best = b;
+            bestDist = vlen(mid - p.origin);
+        }
+        b = find(b, classname, "func_axe_button");
+    }
+    return best;
+};
+
+// Request 7: in front of the nearest closed axe button (its face: the way it moves when pressed, reversed), 28 units
+// from its middle (request 7), facing it, the eyes level with it.
+void() MG3_WT_FaceAxeButton =
+{
+    entity p = MG3_WT_Player();
+    entity b = MG3_WT_NearestAxeButton(p, TRUE);
+    if(!b) { dprint("mg3wtest: no closed axe button\n"); return; }
+    vector mid = (b.absmin + b.absmax) * 0.5;
+    vector out = normalize(b.movedir) * -1;
+    out_z = 0;
+    out = normalize(out);
+    vector at = mid + out * 28 - '0 0 22';
+    setorigin(p, at);
+    p.angles = vectoangles(out * -1);
+    p.v_angle = p.angles;
+    p.fixangle = TRUE;
+    p.velocity = '0 0 0';
+    dprint(sprintf("mg3wtest: facing axe button at %s (target %s) at %v from %v, yaw %g\n", vtos((b.absmin + b.absmax) * 0.5), b.target, mid, at, p.angles_y));
+};
+
+void() MG3_WT_AxeButtonState =
+{
+    entity p = MG3_WT_Player();
+    entity b = MG3_WT_NearestAxeButton(p, FALSE);
+    if(!b) return;
+    dprint(sprintf("mg3wtest: nearest axe button at %s state %g (1 shut) health %g\n", vtos((b.absmin + b.absmax) * 0.5), b.state, b.health));
+};
+
 void() MG3_WeaponsTestFrame =
 {
     if(mg3wt_step == 10 && time >= mg3wt_next)
@@ -281,7 +393,7 @@ void() MG3_WeaponsTestFrame =
     if(!request) return;
     cvar_set("vr_mg3_wtest", "0");
     if(!MG3_WT_Player()) return;
-    if(request != 1 && !VR_Pack_WeaponAvailable(WID_SUPERAXE))
+    if(request != 1 && request < 6 && !VR_Pack_WeaponAvailable(WID_SUPERAXE))
     {
         dprint("mg3wtest: the Dawn of the Machine data is not there (no Super Axe)\n");
         return;
@@ -292,5 +404,8 @@ void() MG3_WeaponsTestFrame =
     else if(request == 3) { MG3_SuperAxe_SpawnAhead(MG3_WT_Player(), 48); mg3wt_step = 10; mg3wt_next = time + 0.5; }
     else if(request == 4) MG3_WT_Map2();
     else if(request == 5) MG3_WT_Holster();
+    else if(request == 6) MG3_WT_AxeButtons();
+    else if(request == 7) MG3_WT_FaceAxeButton();
+    else if(request == 8) MG3_WT_AxeButtonState();
     self = oldself; other = oldother; activator = oldact;
 };

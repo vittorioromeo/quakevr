@@ -938,5 +938,7 @@ reached (MG3's `progs/v_hammer.mdl` under Quake VR's Mjolnir). **Super Axe** (M3
 its own beside Hipnotic's Mjolnir; MG3 maps' `weapon_mjolnir` spawns it in campaign 5 only; held as the axe (its arm
 removed and the model laid as the axe's at load time, weapon settings slots 24/25, `vr_wofs_version` 36); official
 40 damage, zombie x3, finishing x2, second-hit lightning burst (15 cells) within `vr_superaxe_burst_window` (1.5 s);
-map2's silent-teleport secret pickup. Tests: Debug > Tests > Dawn of the Machine Weapons (`vr_mg3_wtest`).
+map2's silent-teleport secret pickup. **Axe buttons** (M3-12): `func_axe_button` opens to any melee blow (fists,
+axes, swords, gun butts, headbutts, bashes, thrown weapons and props), never a shot or blast ("Use the axe").
+Tests: Debug > Tests > Dawn of the Machine Weapons (`vr_mg3_wtest`).
 Measurements: ROUND21.md, "Dawn of the Machine (MG3): weapons".

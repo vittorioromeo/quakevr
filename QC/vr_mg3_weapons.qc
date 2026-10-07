@@ -277,3 +277,68 @@ void() VR_MG3_Weapons_Frame =
         p = find(p, classname, "player");
     }
 };
+
+// ----------------------------------------------------------------------------
+// Axe buttons (M3-12; official buttons.qc func_axe_button, combat.qc's check). Upstream lets only the axe or Mjolnir
+// selected open one. Here any melee blow does (Vittorio's decision 1): an axe, the Super Axe, a fist, a sword, a gun's
+// butt, a headbutt, a bash or shove, a held prop swung, a thrown weapon, prop or gib; never a shot, a missile or a blast.
+// Anything else says MG3's "Use the axe" (spawnflag 1 NOMESSAGE: nothing), to a player only, at most twice a second.
+
+.float vr_axebtn_msg; // when the button may say it again
+
+// A blow: a hand's melee (T_Damage_VRMelee, or what PlayerVRMeleeImpl strikes), a headbutt, a bash, a shove, or a thing
+// thrown or flung (a weapon, a prop, a gib: what presses a wall button by being thrown at it, buttons.qc).
+float(entity xInflictor, entity xAttacker, float xIsVRMelee) VR_IsMeleeBlow =
+{
+    if(xIsVRMelee || vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_HEADBUTT ||
+       vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE)
+    {
+        return TRUE;
+    }
+    if(vr_hitkind == QVR_HITKIND_SHOT || vr_hitkind == QVR_HITKIND_SPLASH || vr_hitkind == QVR_HITKIND_BLEED)
+    {
+        return FALSE;
+    }
+    return xInflictor != xAttacker && xInflictor != world && !xInflictor.vr_grenade && VR_Button_Thrown(xInflictor);
+};
+
+// T_DamageImpl's gate for an axe button `targ`: TRUE lets the damage through (it opens: health 1).
+float(entity targ, entity inflictor, entity attacker, float isVRMelee) MG3_AxeButton_Struck =
+{
+    if(VR_IsMeleeBlow(inflictor, attacker, isVRMelee))
+    {
+        vr_button_how = "struck";
+        return TRUE;
+    }
+    if(!(targ.spawnflags & 1) && attacker.classname == "player" && time >= targ.vr_axebtn_msg)
+    {
+        targ.vr_axebtn_msg = time + 0.5;
+        centerprint(attacker, "$mg3_qc_axe_button");
+    }
+    return FALSE;
+};
+
+// Its touch: a thing thrown at it presses it as a wall button's (button_touch_any's); never a player's body.
+void() MG3_AxeButton_Touch =
+{
+    if(other.classname == "player")
+    {
+        return;
+    }
+    button_touch_any();
+};
+
+/*QUAKED func_axe_button (0 .5 .8) ? NOMESSAGE
+Dawn of the Machine's axe button: a func_button that only a melee blow opens (Quake VR: any blow: an axe, the Super
+Axe, a fist, a sword, a gun's butt, a headbutt or bash, a weapon or prop thrown at it); a shot or a blast makes it say
+"Use the axe" (NOMESSAGE: nothing). Keys as func_button's: "target", "angle", "wait", "lip", "speed", "sounds".
+*/
+void() func_axe_button =
+{
+    self.health = 1;
+    func_button();
+    if(self.th_die == button_killed)
+    {
+        self.touch = MG3_AxeButton_Touch;
+    }
+};

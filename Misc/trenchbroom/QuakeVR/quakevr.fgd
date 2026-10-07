@@ -1352,6 +1352,16 @@ Short wall torch Default light value is 300 Default style is 0 Quake VR: the pla
 // Brush entities
 //
 
+@SolidClass color(0 128 204) =
+	func_axe_button : "Dawn of the Machine's axe button: a func_button that only a melee blow opens (Quake VR: any blow: an axe, the Super Axe, a fist, a sword, a gun's butt, a headbutt or bash, a weapon or prop thrown at it); a shot or a blast makes it say
+'Use the axe' (NOMESSAGE: nothing). Keys as func_button's: 'target', 'angle', 'wait', 'lip', 'speed', 'sounds'."
+[
+	spawnflags(flags) =
+	[
+		1 : "NOMESSAGE" : 0
+	]
+]
+
 @SolidClass =
 	func_bob : "Official bobbing geometry. dest and dest2 are sine/cosine amplitudes, wait its period, delay its starting phase."
 [

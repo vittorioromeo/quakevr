@@ -28094,3 +28094,24 @@ its taker by `height` (-2048) as MG3's `touch_teleport_silent`, carrying what th
 - [ ] Holster it on the hip and the chest (the axe's holstered poses).
 - [ ] MG3 map2: the secret axe drops you into the room below, as in Dawn of the Machine.
 
+### M3-12 Axe buttons
+
+`func_axe_button` (`QC/vr_mg3_weapons.qc`, official `buttons.qc` + `combat.qc`'s check): a `func_button` with health 1
+that only a melee blow opens. Upstream checks the selected weapon (axe or Mjolnir); here, by Vittorio's decision 1, any
+blow (`VR_IsMeleeBlow`, gating `T_DamageImpl`): a hand's melee (`T_Damage_VRMelee` or `vr_hitkind` MELEE: fists,
+axes, the Super Axe, swords, the crowbar, the chainsaw swung, gun butts, a held prop swung), a headbutt, a bash, a
+shove, or a thing thrown at it (a thrown weapon, prop or gib: `VR_Button_Thrown`, never a live grenade); its touch
+also takes a thrown thing as a wall button's does (`button_touch_any`), never the player's body. A shot, a missile or
+a blast does nothing and, to a player, says MG3's `$mg3_qc_axe_button` ("Use the axe"; spawnflag 1 NOMESSAGE: silent;
+at most twice a second). FGD regenerated (302 entities). The checker's 33 placements (map6 1, map7 5, map8 18,
+secret5 9) now resolve.
+
+Tests: `vr_mg3_wtest 6` on map8 **3/0**: 18 buttons, all shut after a simulated shot and blast each, all 18 open to a
+blow (fist, Super Axe, thrown weapon, thrown prop, headbutt in turn); map6 3/0 (1 button). Real path on map6
+(`vr_mg3_wtest 7` stands you 28 units before the nearest closed one, facing it): the super shotgun fired at it, "6 on
+func_axe_button", "Use the axe", still shut; then `motion_synth.py punch_straight` played `noplace yaw 270`: "damage:
+func_axe_button 15.0 by a melee blow ... punch (straight) with the knuckles", opened (`vr_mg3_wtest 8`: state 0).
+
+**In the headset.** [ ] map6's first button: shoot it (the message), then punch it, swing the axe at it, throw a
+weapon at it: each opens one (map8 has 18).
+

@@ -1154,7 +1154,10 @@ Dawn of the Machine's weapons (ROUND21.md, "Dawn of the Machine (MG3): weapons";
 data): `impulse 168` puts the Super Axe in the main hand (188: the off hand), `vr_mg3_wtest` 1 reports (data, hands,
 holsters, cells, the burst chain), 2 checks its blows and burst on spawned ogres and a zombie (a few seconds; 19
 checks), 3 its pickup (hold the grip: `+grabright; vr_mock_button main grip 1`), 4 MG3 map2's own (`vr_campaign_native
-mg3; map map2`), 5 puts one in the main hand and holster 0 for changelevel/save checks; developer 1 prints `superaxe:`
+mg3; map map2`), 5 puts one in the main hand and holster 0 for changelevel/save checks, 6 checks every axe button of
+an MG3 map (map6/7/8, secret5: shots and blasts leave them shut, each blow kind opens one), 7 stands you before the
+nearest closed axe button (then a real punch: `vr_motion_play punch_straight noplace yaw <your yaw>`), 8 says whether
+it opened; developer 1 prints `superaxe:`
 lines (each blow, each burst). Real swings: `motion_synth.py slash_horizontal_rtl --weapon superaxe --distance 0.85`.
 `vr_anchor_nearest owned/mg3/progs/v_hammer.mdl x y z` finds its anchors; `Misc/quakevr/fit_superaxe.py` its fit.
 The crowbar (ROUND21.md, "The crowbar"): `impulse 167` puts one in the main hand (187: the off hand; hold the grip:

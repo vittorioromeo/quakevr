@@ -1543,6 +1543,10 @@ float(entity t) VR_WallTorch_OnWall; // (vr_walltorch.qc: it is on its wall, not
 // Deals the damage, with the gibs it may throw at the speed for what dealt it (vr_gib_speed).
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
 {
+    if(targ.classname == "func_axe_button" && !MG3_AxeButton_Struck(targ, inflictor, attacker, isVRMelee))
+    {
+        return FALSE; // only a melee blow opens it (vr_mg3_weapons.qc)
+    }
     if(targ.vr_shootnade)
     {
         return VR_GrenShot_Damage(targ, inflictor, attacker, damage, isVRMelee);
