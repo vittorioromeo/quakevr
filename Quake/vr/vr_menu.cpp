@@ -5650,6 +5650,10 @@ za::Vector<Item> pageDebugTests()
             .help("The map's brushes and compiled hulls kept in memory when it is left, for a load of the same map again "
                   "(a death's reload, restart, a changelevel back): that load skips their build (vr_hull_keep). Off: "
                   "built at every load."),
+        cycle("Hitboxes on Disk", vr_hull_cache, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Check"}})
+            .help("A big map's compiled hulls kept on disk (cache/hulls) and read at its next load instead of compiled "
+                  "again (vrstart2: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
+                  "them). Off: compiled at every load (vr_hull_cache)."),
         command("Hitbox Keep Test", "vr_hull_keeptest")
             .help("Builds the map's brushes and compiled hulls again from scratch and prints whether the server's (kept "
                   "from the last load, or built with this one) are the same (vr_hull_keeptest)."),

@@ -10,6 +10,7 @@ QVR_CVAR(vr_hull_width, "16", CVAR_ARCHIVE)            // Movement > Player Hitb
 QVR_CVAR(vr_hull_method, "1", CVAR_ARCHIVE)            // how that is done: 0 the brush sweep (Quake 2's), 1 a clipping hull compiled for the width at load (qbsp's)
 QVR_CVAR(vr_hull_ent_width, "-1", CVAR_ARCHIVE)        // the player's width against monsters, players and solid boxes (8-32; 0: Quake's 32; -1: vr_hull_width's)
 QVR_CVAR(vr_hull_brushmodels, "1", CVAR_ARCHIVE)       // the narrow width against brush models too (doors, lifts, func_walls, external .bsp models), not only the world
+QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)             // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart2 cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
 QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)              // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
 QVR_CVAR(vr_hull_monsters, "1", CVAR_ARCHIVE)          // the narrow entity width between the player and monsters (both ways)
 QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players

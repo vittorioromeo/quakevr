@@ -4,6 +4,7 @@
 #include "vr_alloccount.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
+#include "vr_files.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_progs.hpp"
@@ -32,6 +33,7 @@
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
 
+#include <atomic>
 #include <string.h>
 namespace qvr::hull
 {
@@ -1321,10 +1323,11 @@ struct Tree
     int redone = 0;                            // pieces of its builds on the pool done again on one thread (buildTree)
     double ms = 0.0;                           // the builds so far
     int solidLeaves = 0, emptyLeaves = 0;
+    bool fromDisk = false;                     // the world's tree read from the disk cache (vr_hull_cache)
     auto members()
     {
         return qvr::mem::list(nodes, planes, heads, index, indexed, keptNodes, keptPlanes, keptSolid, keptEmpty, keptHeads,
-            forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone);
+            forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone, fromDisk);
     }
 };
 mem::Cache<Tree> tree{"hull tree", mem::MapChange};
@@ -2767,15 +2770,327 @@ void compileTrees(const za::Vector<Tree*>& todo, const Brushes& b)
     }
 }
 
-// A tree compiled on the pool once the brushes are built.
+// ---------------------------------------------------------------------------------------------------------------
+// The world's compiled trees kept on disk (vr_hull_cache): `<gamedir>/cache/hulls/<build>/<world>_<box>.hul`, <world>
+// the world's content (keyOf: hull 0's and hull 1's nodes, the planes, the models' heads), <box> the tree's box, <build>
+// this file's compile time (changed code never reads an old tree). A tree is the same bytes whenever the same brushes are
+// compiled for the same box (the build on the pool is the build on one thread's, node for node), so a file is that
+// build's result: a cold start of a big map reads it instead of compiling it (vrstart2: four trees of 1.2-1.4 million
+// nodes, 9 s of 32 threads). Only trees that took diskMinMs or more are written (a small map's build is about as quick
+// as its file). A file is read and checked (magic, version, sizes, the world and the box, every node's numbers, a sum of
+// its bytes) on the tree's own job; anything amiss is compiled again and written over. Written beside its place and
+// renamed (another copy of the game never reads half a file). The first use in a session under a game directory
+// removes the other builds' folders and the oldest files past diskBudget. vr_hull_cache 2: read, then compiled anyway
+// and compared (vr_hull_stats counts them).
+
+constexpr char diskMagic[4] = {'Q', 'V', 'R', 'H'};
+constexpr za::U32 diskVersion = 1;
+constexpr double diskMinMs = 250.0;
+constexpr za::U64 diskBudget = 1024ull << 20; // bytes in the build's folder (vrstart2's four trees: 105 MB)
+
+za::String makeDiskBuild()
+{
+    const char* stamp = __DATE__ " " __TIME__;
+    za::U64 h = 14695981039346656037ull;
+    for(; *stamp; ++stamp)
+    {
+        h = (h ^ static_cast<unsigned char>(*stamp)) * 1099511628211ull;
+    }
+    char build[24];
+    snprintf(build, sizeof(build), "%016llx", static_cast<unsigned long long>(h));
+    return build;
+}
+const za::String diskBuild = makeDiskBuild(); // (made before main, only read)
+
+struct DiskHeader
+{
+    char magic[4];
+    za::U32 version;
+    za::U64 world;
+    float ext[3];
+    za::U32 nodes, planes;
+    za::I32 root, solid, empty, rebounded;
+    za::U64 sum; // of the nodes' and planes' bytes (diskSum)
+};
+
+constexpr za::U64 diskSeed = 14695981039346656037ull;
+
+// A sum of the bytes (eight at a time; the rest one by one).
+za::U64 diskSum(const void* data, za::SizeT size, za::U64 h)
+{
+    const unsigned char* c = static_cast<const unsigned char*>(data);
+    za::SizeT i = 0;
+    for(; i + 8 <= size; i += 8)
+    {
+        za::U64 w;
+        memcpy(&w, c + i, 8);
+        h = (h ^ w) * 0x9E3779B97F4A7C15ull;
+        h ^= h >> 29;
+    }
+    for(; i < size; ++i)
+    {
+        h = (h ^ c[i]) * 1099511628211ull;
+    }
+    return h;
+}
+
+za::U64 diskSumOf(const za::Vector<mclipnode_t>& nodes, const za::Vector<mplane_t>& planes)
+{
+    return diskSum(planes.data(), planes.size() * sizeof(mplane_t),
+        diskSum(nodes.data(), nodes.size() * sizeof(mclipnode_t), diskSeed));
+}
+
+// What a tree's job does with the disk (made on the main thread when it is posted: the game directory, the setting).
+struct DiskJob
+{
+    int mode = 0;    // vr_hull_cache: 0 off, 1 read and write, 2 read, then compiled anyway and compared
+    za::String path; // its file
+    za::U64 world = 0;
+};
+
+// The disk cache's counts this session (vr_hull_stats), added to by the trees' jobs.
+struct DiskCounts
+{
+    std::atomic<int> read{0}, written{0}, missed{0}, rejected{0}, same{0}, differed{0};
+    std::atomic<long long> readUs{0};
+};
+DiskCounts diskCounts;
+za::Vector<za::String> diskPruned; // the cache roots pruned this session (the main thread)
+
+za::String diskRoot()
+{
+    return za::String{com_gamedir} + "/cache/hulls";
+}
+
+// The first use in a session under a game directory (the main thread, before the trees' jobs are posted): the other
+// builds' folders removed, then the oldest files (by their last write) until the build's folder is within diskBudget.
+void diskPrune()
+{
+    const za::String root = diskRoot();
+    if(za::find(diskPruned.begin(), diskPruned.end(), root) != diskPruned.end())
+    {
+        return;
+    }
+    diskPruned.pushBack(root);
+    za::Vector<za::String> others;
+    files::forEachEntry(root.cStr(), [&](const char* name, bool) {
+        if(strcmp(name, diskBuild.cStr()) != 0)
+        {
+            others.pushBack(root + "/" + name);
+        }
+    });
+    for(const za::String& other : others)
+    {
+        files::removeAll(other.cStr());
+    }
+    struct Entry
+    {
+        za::String path;
+        za::I64 time;
+        za::U64 bytes;
+    };
+    za::Vector<Entry> entries;
+    za::U64 total = 0;
+    const za::String dir = root + "/" + diskBuild;
+    files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory) {
+        if(!isDirectory)
+        {
+            Entry e{dir + "/" + name, 0, 0};
+            e.time = files::lastWriteTime(e.path.cStr());
+            e.bytes = files::fileSize(e.path.cStr());
+            total += e.bytes;
+            entries.pushBack(ZA_MOVE(e));
+        }
+    });
+    if(total > diskBudget)
+    {
+        za::quickSort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) { return a.time < b.time; });
+        for(const Entry& e : entries)
+        {
+            if(total <= diskBudget * 3 / 4)
+            {
+                break;
+            }
+            if(files::remove(e.path.cStr()))
+            {
+                total -= e.bytes;
+            }
+        }
+    }
+    files::createDirectories(dir.cStr());
+}
+
+// The tree's job's disk (the main thread): off with the setting.
+DiskJob diskJob(const Tree& t, qmodel_t* world)
+{
+    DiskJob d;
+    d.mode = static_cast<int>(za::clamp(vr_hull_cache.value, 0.f, 2.f));
+    if(d.mode == 0 || !world || !com_gamedir[0])
+    {
+        d.mode = 0;
+        return d;
+    }
+    diskPrune();
+    d.world = keyOf(world);
+    char name[96];
+    snprintf(name, sizeof(name), "/%016llx_%g_%g_%g.hul", static_cast<unsigned long long>(d.world),
+        static_cast<double>(t.ext.x), static_cast<double>(t.ext.y), static_cast<double>(t.ext.z));
+    d.path = diskRoot() + "/" + diskBuild + name;
+    return d;
+}
+
+// The world's tree read into t (a fresh tree, its heads sized) and checked; false: no file, or one amiss (t untouched).
+bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
+{
+    FILE* in = Sys_fopen(d.path.cStr(), "rb");
+    if(!in)
+    {
+        return false;
+    }
+    Sys_fseek(in, 0, SEEK_END);
+    const qfileofs_t size = Sys_ftell(in);
+    Sys_fseek(in, 0, SEEK_SET);
+    DiskHeader h{};
+    bool ok = size >= static_cast<qfileofs_t>(sizeof(h)) && fread(&h, 1, sizeof(h), in) == sizeof(h) &&
+              memcmp(h.magic, diskMagic, 4) == 0 && h.version == diskVersion && h.world == d.world &&
+              h.ext[0] == t.ext.x && h.ext[1] == t.ext.y && h.ext[2] == t.ext.z && h.nodes > 0 && h.root >= 0 &&
+              static_cast<za::U32>(h.root) < h.nodes &&
+              size == static_cast<qfileofs_t>(sizeof(h) + za::SizeT{h.nodes} * sizeof(mclipnode_t) +
+                                              za::SizeT{h.planes} * sizeof(mplane_t));
+    za::Vector<mclipnode_t> nodes;
+    za::Vector<mplane_t> planes;
+    if(ok)
+    {
+        // (room for the brush models' trees that follow in the same arrays, prepareBrushModels: exact sizes would grow
+        // by half at their first node, 10 MB more a tree on vrstart2)
+        nodes.reserve(za::SizeT{h.nodes} + h.nodes / 16 + 1024);
+        planes.reserve(za::SizeT{h.planes} + h.planes / 16 + 1024);
+        nodes.resize(h.nodes);
+        planes.resize(h.planes);
+        ok = fread(nodes.data(), sizeof(mclipnode_t), nodes.size(), in) == nodes.size() &&
+             fread(planes.data(), sizeof(mplane_t), planes.size(), in) == planes.size();
+    }
+    fclose(in);
+    ok = ok && diskSumOf(nodes, planes) == h.sum;
+    for(za::SizeT i = 0; ok && i < nodes.size(); ++i)
+    {
+        const mclipnode_t& n = nodes[i];
+        ok = n.planenum >= 0 && static_cast<za::U32>(n.planenum) < h.planes;
+        for(const int c : n.children)
+        {
+            ok = ok && (c >= 0 ? static_cast<za::U32>(c) < h.nodes : c >= CONTENTS_SKY);
+        }
+    }
+    if(!ok)
+    {
+        ++diskCounts.rejected;
+        return false;
+    }
+    t.nodes = ZA_MOVE(nodes);
+    t.planes = ZA_MOVE(planes);
+    t.index.clear(); // (made again by the next build that needs it: TreeBuilder)
+    t.indexed = 0;
+    t.heads[0] = h.root;
+    t.solidLeaves = h.solid;
+    t.emptyLeaves = h.empty;
+    rebounded = h.rebounded;
+    checkpoint(t); // (as buildTree does for the world)
+    return true;
+}
+
+// The world's tree just compiled into t written (all its nodes and planes: the world's, nothing else built yet).
+void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
+{
+    DiskHeader h{};
+    memcpy(h.magic, diskMagic, 4);
+    h.version = diskVersion;
+    h.world = d.world;
+    h.ext[0] = t.ext.x;
+    h.ext[1] = t.ext.y;
+    h.ext[2] = t.ext.z;
+    h.nodes = static_cast<za::U32>(t.nodes.size());
+    h.planes = static_cast<za::U32>(t.planes.size());
+    h.root = t.heads[0];
+    h.solid = t.solidLeaves;
+    h.empty = t.emptyLeaves;
+    h.rebounded = rebounded;
+    h.sum = diskSumOf(t.nodes, t.planes);
+    char suffix[32];
+    snprintf(suffix, sizeof(suffix), ".%llx.tmp", static_cast<unsigned long long>(za::Clock::nowNanoseconds()));
+    const za::String tmp = d.path + suffix;
+    FILE* out = Sys_fopen(tmp.cStr(), "wb");
+    if(!out)
+    {
+        return;
+    }
+    bool ok = fwrite(&h, 1, sizeof(h), out) == sizeof(h) &&
+              fwrite(t.nodes.data(), sizeof(mclipnode_t), t.nodes.size(), out) == t.nodes.size() &&
+              fwrite(t.planes.data(), sizeof(mplane_t), t.planes.size(), out) == t.planes.size();
+    ok = fclose(out) == 0 && ok;
+    if(ok && files::rename(tmp.cStr(), d.path.cStr()))
+    {
+        ++diskCounts.written;
+    }
+    else
+    {
+        files::remove(tmp.cStr());
+    }
+}
+
+za::U32 hashOf(const Tree& t);
+
+// The world's tree in t from the disk, else compiled (and written when it took long enough); the pieces cut back.
+int diskOrCompile(Tree& t, const Brushes& b, const DiskJob& d)
+{
+    if(d.mode == 0 || (!t.heads.empty() && t.heads[0] >= 0) || !t.planes.empty() || !t.nodes.empty())
+    {
+        return compileWorldTree(t, b); // (not a fresh tree: a file holds a fresh tree's build)
+    }
+    t.heads.resize(b.subs.size(), -1);
+    const auto t0 = za::Clock::nowNanoseconds();
+    int rebounded = 0;
+    if(diskRead(t, d, rebounded))
+    {
+        const auto ns = za::Clock::nowNanoseconds() - t0;
+        ++diskCounts.read;
+        diskCounts.readUs += static_cast<long long>(ns / 1000);
+        t.ms += za::nanosecondsToMilliseconds(ns);
+        t.fromDisk = true;
+        if(d.mode == 2) // compiled anyway into a fresh tree, compared
+        {
+            Tree fresh;
+            fresh.ext = t.ext;
+            fresh.forClipnodes = t.forClipnodes;
+            fresh.heads.resize(b.subs.size(), -1);
+            (void)buildTree(fresh, b, 0, nullptr, false);
+            const bool same = fresh.heads[0] == t.heads[0] && fresh.solidLeaves == t.solidLeaves &&
+                              fresh.emptyLeaves == t.emptyLeaves && fresh.nodes.size() == t.nodes.size() &&
+                              fresh.planes.size() == t.planes.size() &&
+                              ZA_MEMCMP(fresh.nodes.data(), t.nodes.data(), t.nodes.size() * sizeof(mclipnode_t)) == 0 &&
+                              ZA_MEMCMP(fresh.planes.data(), t.planes.data(), t.planes.size() * sizeof(mplane_t)) == 0;
+            ++(same ? diskCounts.same : diskCounts.differed);
+        }
+        return rebounded;
+    }
+    ++diskCounts.missed;
+    rebounded = compileWorldTree(t, b);
+    if(t.ms >= diskMinMs && t.heads[0] >= 0)
+    {
+        diskWrite(t, d, rebounded);
+    }
+    return rebounded;
+}
+
+// A tree compiled on the pool once the brushes are built (or read from the disk: vr_hull_cache).
 void postTree(Tree* t)
 {
     pending.trees.pushBack(t);
+    DiskJob d = diskJob(*t, sv.worldmodel);
     pending.run.pushBack(jobs::async(
-        [t]
+        [t, d = ZA_MOVE(d)]
         {
             pending.brushes.wait(); // (only waited on until settle: nothing else touches it meanwhile)
-            return compileWorldTree(*t, built);
+            return diskOrCompile(*t, built, d);
         }));
 }
 
@@ -3059,10 +3374,11 @@ void stats_f()
     }
     const Tree& t = tree;
     Con_Printf("hull: %d brush models (%d external .bsp); method %s; compiled hull: %s%d nodes, %d planes, %d solid "
-               "and %d empty leaves, %.0f KB, built in %.1f ms\n",
+               "and %d empty leaves, %.0f KB, %s in %.1f ms\n",
         static_cast<int>(b->subs.size()), external, vr_hull_method.value != 0.f ? "compiled hull" : "brush sweep",
         t.forClipnodes == b->clipnodes ? "" : "(none yet) ", static_cast<int>(t.nodes.size()),
-        static_cast<int>(t.planes.size()), t.solidLeaves, t.emptyLeaves, tree.bytes() / 1024.0, t.ms);
+        static_cast<int>(t.planes.size()), t.solidLeaves, t.emptyLeaves, tree.bytes() / 1024.0,
+        t.fromDisk ? "read from the disk cache" : "built", t.ms);
     if(t.forClipnodes == b->clipnodes)
     {
         Con_Printf("hull: hash tree %gx%g %08x\n", t.ext.x * 2.f, t.ext.z * 2.f, hashOf(t));
@@ -3081,8 +3397,9 @@ void stats_f()
         }
         ++count;
         ms += m.ms;
-        Con_Printf("hull: monsters' tree %gx%g: %d nodes, %d planes, %.0f KB, built in %.1f ms\n", m.ext.x * 2.f,
-            m.ext.z * 2.f, static_cast<int>(m.nodes.size()), static_cast<int>(m.planes.size()), heldBytes(m) / 1024.0, m.ms);
+        Con_Printf("hull: monsters' tree %gx%g: %d nodes, %d planes, %.0f KB, %s in %.1f ms\n", m.ext.x * 2.f,
+            m.ext.z * 2.f, static_cast<int>(m.nodes.size()), static_cast<int>(m.planes.size()), heldBytes(m) / 1024.0,
+            m.fromDisk ? "read from the disk cache" : "built", m.ms);
         Con_Printf("hull: hash tree %gx%g %08x\n", m.ext.x * 2.f, m.ext.z * 2.f, hashOf(m));
     }
     Con_Printf("hull: monsters (vr_mhull %s): %d trees, %.0f KB, built in %.1f ms\n", vr_mhull.value != 0.f ? "on" : "off",
@@ -3092,6 +3409,11 @@ void stats_f()
         static_cast<int>(keepLimit()), static_cast<int>(kept.maps.size()), kept.bytes() / 1024.0,
         pending.kept ? "kept from its last load" : "built", static_cast<unsigned long long>(kept.hits),
         static_cast<unsigned long long>(kept.misses));
+    Con_Printf("hull: disk cache (vr_hull_cache %d, this session): %d trees read (%.1f ms), %d compiled (no file), %d "
+               "written, %d files amiss; compared (2): %d the same, %d different\n",
+        static_cast<int>(vr_hull_cache.value), diskCounts.read.load(), static_cast<double>(diskCounts.readUs.load()) / 1000.0,
+        diskCounts.missed.load(), diskCounts.written.load(), diskCounts.rejected.load(), diskCounts.same.load(),
+        diskCounts.differed.load());
 }
 
 // vr_hull_keeptest: the map's brushes and its trees' world models built again from scratch, their hashes against the
