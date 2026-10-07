@@ -96,7 +96,6 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
-Map tips: seen-tips limit (~80), targetname naming clash, tip_delay 0
 MG3 (defaults used until you answer): axe buttons only axe/Super Axe? Super Axe burst on a 2nd hit? base health 50 + caps 50/100/20/100? bloody shotguns faster refire? new hi-poly monsters with copied/box rigs?
 Profiling: which of the top 5 (same-map hull cache, AO disk cache, shadow casters per light, low-res retro particles, more hull work)?
 Defaults: which of the ~20 candidate settings from your config (INSTALLER.md appendix)?
