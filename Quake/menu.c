@@ -2383,6 +2383,12 @@ void M_MultiPlayer_Draw (void)
 
 	M_DrawQuakeCursor (54, 32 + m_multiplayer_cursor * 20);
 
+	// QVR: multiplayer is not ready in Quake VR: said plainly under the rows (right of the banner's column).
+	M_DrawTextBox (64, 100, 30, 3);
+	M_PrintWhite (72 + (240 - 26 * 8) / 2, 108, "Multiplayer is untested in");
+	M_PrintWhite (72 + (240 - 24 * 8) / 2, 116, "Quake VR and is expected");
+	M_PrintWhite (72 + (240 - 21 * 8) / 2, 124, "not to work properly.");
+
 	if (ipxAvailable || tcpipAvailable)
 		return;
 	M_PrintWhite ((320/2) - ((27*8)/2), 148, "No Communications Available");
