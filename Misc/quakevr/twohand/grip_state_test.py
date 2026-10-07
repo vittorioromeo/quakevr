@@ -91,7 +91,8 @@ def retake(h):
 def flick():
     """The double-barrelled shotgun in the main hand, a shot fired, flicked (+flickreloadright): alone, the off hand on
     its barrel's grip (hotspot 0), on its cup (1), anywhere on it."""
-    s = SETUP + "god;give s 50;" + take("main", SUPER_SHOTGUN)
+    # (The classic flick reload: Break Open off. With it on, the flick breaks the gun open instead: reload_test.sh section 7.)
+    s = SETUP + "god;give s 50;vr_reload_ssg_break 0;" + take("main", SUPER_SHOTGUN)
     fire, flk = "+attack;wait3;-attack;wait60;", "+flickreloadright;wait3;-flickreloadright;wait60;"
     off_on = lambda where: (f"vr_mock_hand_to off {where};wait5;vr_mock_hand_to off {where};wait5;+grableft;"
                             "vr_mock_button off grip 1;wait30;")
