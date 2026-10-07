@@ -1253,6 +1253,15 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         return FALSE;
     }
+    // Dawn of the Machine's Chthon (killable): none during his fits or from lava men, 0.8 but lightning and laser.
+    if(targ.mg3_chthon)
+    {
+        damage = MG3_ChthonDamage(targ, inflictor, attacker, damage);
+        if(damage <= 0)
+        {
+            return FALSE;
+        }
+    }
 
     if(targ.classname == "trigger_explosion")
     {

@@ -758,6 +758,7 @@ void() func_weapon_grabbable =
 // 43 a hanging sacrifice (misc_sacrifice: gibbed when struck or used), 44 the lava man (MG3's: monster_lava_man_mg3),
 // 45 the super shambler; from 60 (vr_mg3_shub.qc): 60 Shub-Niggurath (free: killed, she ends nothing), 61 a shub zombie
 // (rising: vr_mg3_shub_zombie.qc), 62 an eye of hers that spirals spheres at you, 63 her seeker eye.
+// 45 the super shambler; from 50 its bosses: 50 Chthon (monster_boss_final, killable, woken at you; vr_mg3_chthon.qc).
 // The model of the second row's monsters: the mission packs' (and the registered game's) may not be
 // installed, and precaching a missing model is an error.
 string(float choice) VR_EnemyDispenser_Model =
@@ -796,6 +797,7 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 61) { return "progs/zombie.mdl"; }
     else if(choice == 62) { return "owned/mg3/progs/teleporter_eye.mdl"; }
     else if(choice == 63) { return "owned/mg3/progs/teleporter_eye.mdl"; }
+    else if(choice == 50) { return "progs/boss.mdl"; } // (id's: MG3's spheres too, its spawn checks)
 
     return NULLSTR;
 };
@@ -843,6 +845,7 @@ void(float choice) VR_EnemyDispenser_Spawn =
     else if(choice == 61) { self.classname = "monster_szombie"; monster_szombie(); }
     else if(choice == 62) { self.classname = "monster_shub_eye"; monster_shub_eye(); }
     else if(choice == 63) { self.classname = "monster_shub_seeker"; monster_shub_seeker(); }
+    else if(choice == 50) { MG3_Chthon_FromSpawner(activator); }
 
 };
 

@@ -43,7 +43,10 @@ float(entity e) MG3_NoBackpack = { return MG3_Campaign() && (e.flags & FL_MONSTE
 float(float xRange, float damage) MG3_ShrugsOff = { return MG3_Campaign() && skill > 2 && random() * xRange > damage; };
 
 // T_Damage's nightmare pain rest: spared for zombies (they must flinch to be put down) and Chthon.
-float(entity e) MG3_NightmarePainRest = { return !MG3_Campaign() || (e.classname != "monster_zombie" && e.classname != "monster_boss"); };
+float(entity e) MG3_NightmarePainRest = {
+    if(e.mg3_chthon) return FALSE; // (Dawn of the Machine's Chthon, in any campaign: his fits are his phases)
+    return !MG3_Campaign() || (e.classname != "monster_zombie" && e.classname != "monster_boss");
+};
 
 // The shambler at skill 3: after `cap` blows (3 or 4, one fewer in Bloody Nightmare) its lightning (upstream
 // nightmare_attack_check: .count, reset as it casts).

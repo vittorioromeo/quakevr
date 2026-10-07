@@ -254,6 +254,21 @@ Used as a helpful aim target for rockets."
 	lip(integer) : "Lip" :  : "Units of the brush left showing at the end of its move."
 ]
 
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) =
+	info_boss_teleport_boss : "Where trigger_boss_teleport (spawnflag 1) sends Dawn of the Machine's Chthon; he rises there."
+[
+]
+
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) =
+	info_boss_teleport_first : "Where Dawn of the Machine's Chthon sends the players at his third phase (one point each)."
+[
+]
+
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) =
+	info_boss_teleport_second : "Where trigger_boss_teleport (spawnflag 1) sends the players (one point each)."
+[
+]
+
 @PointClass color(76 26 153) size(-10 -10 -8, 10 10 8) =
 	info_command : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
@@ -981,6 +996,15 @@ The Scourge of Armagon's final boss (3000 health): rockets and lasers. Models an
 The boss of episode 1 (e1m7): throws lava balls. It cannot be hurt by weapons: event_lightning (fired twice by
 buttons) kills it. It rises when its targetname is triggered."
 [
+]
+
+@PointClass color(255 0 0) size(-128 -128 -24, 128 128 256) =
+	monster_boss_final : "Dawn of the Machine's Chthon (needs the owned Dawn of the Machine data, else nothing spawns): waits under the lava until used, then rises at whoever used him; 12000 health, six fits as he is hurt. 'wave1', 'wave2', 'wave3': fired at his phases 2, 4 and 5; 'tele_target' at phase 3, when he and the players move to the info_boss_teleport points (if the map has them). KILLABLE: fans of spheres, 0.8 damage but from lightning and lasers, none during his fits."
+[
+	spawnflags(flags) =
+	[
+		2 : "KILLABLE" : 0
+	]
 ]
 
 @PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) =
@@ -2554,6 +2578,15 @@ When the player touches this, he gets sent back to the hub."
 	]
 ]
 
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_boss_teleport : "When used: the players to the info_boss_teleport_first points; with BOSS, to the info_boss_teleport_second points and Chthon to info_boss_teleport_boss, rising (Dawn of the Machine)."
+[
+	spawnflags(flags) =
+	[
+		1 : "BOSS" : 0
+	]
+]
+
 @PointClass base(Appearflags, Targetname, Target) size(-8 -8 -8, 8 8 8) =
 	trigger_buttontoggle : "Honey: button enabler
 
@@ -3118,6 +3151,7 @@ If the trigger_teleport has a targetname, it will only teleport entities when it
 		1 : "Player only" : 0
 		2 : "Silent" : 0
 		4 : "CTF ONLY" : 0
+		8 : "Flag 8" : 0
 	]
 ]
 

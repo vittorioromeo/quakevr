@@ -105,6 +105,12 @@ float(entity e) VR_Liquid_Immune =
     {
         return TRUE;
     }
+    // Dawn of the Machine (upstream SPAWNFLAG_NO_CONTENTS_DAMAGE): a monster flagged 16384 stands in lava unharmed (the boss
+    // map's knights waiting in the lava behind the arena's doors).
+    if(MG3_Campaign() && (e.spawnflags & 16384) && (e.flags & FL_MONSTER))
+    {
+        return TRUE;
+    }
     return FALSE;
 };
 

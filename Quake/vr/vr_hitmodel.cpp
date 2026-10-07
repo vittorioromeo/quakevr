@@ -121,6 +121,17 @@ za::Array<const qmodel_t*, MAX_MODELS> byIndexModel{};  // (what byIndex was fou
             return hdr->frames[f].firstpose;
         }
     }
+    // Chthon's model and its kin (id's boss.mdl, MG3's lavaman.mdl) begin under the lava (rise*): they stand in walk1.
+    if(!q_strncasecmp(hdr->frames[0].name, "rise", 4))
+    {
+        for(int f = 0; f < hdr->numframes; f++)
+        {
+            if(!q_strncasecmp(hdr->frames[f].name, "walk", 4))
+            {
+                return hdr->frames[f].firstpose;
+            }
+        }
+    }
     return hdr->frames[0].firstpose;
 }
 

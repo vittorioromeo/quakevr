@@ -28835,4 +28835,62 @@ edicts. Debug spawner 61 on e1m1: a shub zombie, counted. Checker: boss2 **0 mis
 placements. Regression: `vr_mg3_btest 2` 11/0, `7` 10/0, `vr_mg3_mtest 2` 14/0, MG1 hub 20/0, e1m1 smoke exit 0; QC 0
 warnings, FGD 346 entities. For VR QA: the pillars sinking under you (comfort), her zombies' rise and their rigs, her
 beam and blasts, the lights going out at her death.
+## Dawn of the Machine (MG3): the Chthon finale (2026-10-07)
+
+### M3-24 Chthon: spawn, fits and phases, waves, the second arena
+
+`monster_boss_final` (`QC/vr_mg3_chthon.qc`, upstream `boss_final.qc`; boss.bsp): id's Chthon (`progs/boss.mdl`, classname
+`monster_boss` as upstream, `.mg3_chthon` 1) waits under the lava until his map's trigger uses him (`chthon_count` ->
+`chthon`, which also opens the arena's doors and plays track 12), then rises at whoever woke him: 12000 health. Killable
+(spawnflag 2, the map's): fans of MG3's spheres from either hand (4/8/11/15 by skill, along the ground), and from his
+second phase on, after a throw, a volley 30% of the time (15-25 blasts of 0-6 spheres on skill 0 .. 30-40 on 3, at 10 a
+second, leading you a quarter of the way, spreading as it goes); without spawnflag 2, id's lava balls. Six fits as he
+is hurt (first blood, then 83, 66, 50, 33, 16%: shock a or b, lightning from his body), immune during each, none while
+he rises or throws a volley (skill > 0), several thresholds in one blow give one fit (upstream). After a fit his phase
+steps up: 2 fires `wave1` (`rein1`: relays open the doors of the knights' pits 1-7 s on), 3 fires `tele_target`
+(`boss_tele1`) and moves every player to his own `info_boss_teleport_first` point (popped up, turned, a teleport flash,
+what his hands carry along: `VR_Carry_Teleported`) while Chthon sinks (frame 0), frozen and immune, until
+`trigger_boss_teleport` (the lower room's countdown, 10 + 5 s after the player lands) moves him to
+`info_boss_teleport_boss` (he rises there) and the players to the `info_boss_teleport_second` points; 4 fires `wave2`, 5
+`wave3` and the spiral (four arms of plasma from above his head, 5 degrees a step every 0.15 s, 0.2 on skills 0-2, half
+the steps skipped on 0-1, while he lives). Damage (killable): none during a fit or from lava men, 0.8 of anything but the
+lightning gun's bolt and a laser cannon's (`MG3_ChthonDamage`, read by T_Damage as the lava man's); a grenade that
+touches him puts its whole blast into him (upstream GrenadeTouch: his middle is 116 units above his feet). Killed:
+counted once (upstream counts him twice), three rings of 72 spheres (1, 3, 5 s on), he sinks, his targets used up to
+five times in all (upstream), 49 gibs up and out over the lava (upstream get_org's directions: Quake VR's gibs, grabbable,
+sticking, bleeding).
+
+**Fixed on the way (the map needs them):** MG3's `trigger_teleport` spawnflag 8 (with a targetname: off until its first
+use; upstream 2026) was missing: the lower room's teleporter (`tele_c2`) was on from the start and threw the player
+straight into the second arena, skipping the countdown; boss.bsp is the only map that uses it. MG3's
+`SPAWNFLAG_NO_CONTENTS_DAMAGE` (16384) was missing: the 48 knights of the three waves stand in lava pits behind the
+doors and burned to death before the fight (`VR_Liquid_Immune`, campaign 5; MG1's source has the flag too, left as it
+was).
+
+**Quake VR:** a head zone (80 forward, 240 up, radius 45: `PositionalHead`, his head and jaw on walk1, 210-276 up); the
+precise hit model's standing pose for models that begin under the lava (frame 0 `rise*`, no `stand*`: id's boss.mdl and
+MG3's lavaman.mdl, whose M3-21 head zone was fitted on walk1) is now their first `walk*` frame (`vr_hitmodel.cpp`
+`restPoseOf`); no head to cut off, no ragdoll (he sinks, then bursts); his spheres are any monster's missiles (batted);
+grapple 5000 kg and lava immunity as id's (classname). The KEX candle light on every other sphere is not drawn (no such
+effect here). **Anywhere:** Debug spawner 50 (killable, woken at you once placed; `mg3_chthon` 2: never the ending),
+training dummy 40, Debug > Tests > Dawn of the Machine: Chthon. Without the second arena's points (any other map) phase 3
+fires `tele_target` and he fights on where he is.
+
+Tests (`vr_mg3_ctest`, developer 1): `2` in e1m1 **43/0**: the spawner's (killable, counted, head zone 80/240, no
+decapitation, 5000 kg, dummy 40), woken: rising (nothing while he rises); a plain blow 80 of 100 and fit 1 (immune,
+nothing during it); phase 1: the lightning gun's bolt 100, nothing from a lava man, 8 spheres thrown; shots on his drawn
+model: zone 1 at his head, 0 at his chest (`hitmodel_segment`); fits 2-6 at 9837, 7797, 5877 (shock b), 3837, 1797, each
+phase's target fired once (wave1, tele_target with no arena: he fights on, wave2, wave3 + the spiral); killed: counted
+once, gone under, 49 gibs, a ring of 72 spheres and two more to come, his target used once (every fit had), no ending
+9.5 s on; a second one killed before any fit: his target used 5 times. `3` on boss.bsp (`vr_campaign_native mg3; map
+boss`) **42/0**: his waves and teleport target, 4 + 4 + 1 points, trigger_boss_teleport BOSS on `tele`, 17 lava suits at
+skill 1 (of 21), the player walked into the trigger: woken at him, track 12; every fit; wave1: 12 of rein1's doors open;
+phase 3: the player at a first point, he sank, immune; 15.6 s on (the countdown) he rose at his point (2496 2400 72) and
+the player at a second point; wave2 and wave3: 9 doors each; killed: 49 gibs, the first ring. Checker: boss **0 missing**;
+all maps **3 missing classes, 45 placements** (8 and 56 before). Regressions: `vr_mg3_btest 2` 11/0, `7` 10/0,
+`vr_mg3_mtest 2` 14/0, MG1 hub `vr_mg_hub_test 1` 20/0, e1m1 smoke; QC 0 warnings, statics, FGD (345 entities).
+
+**In the headset.** [ ] Debug > Tests > Dawn of the Machine: Chthon > Chthon Ahead (an open map): dodge his sphere fans
+and volleys, shoot his head (the zone), bat a sphere back, throw a grenade at him; his fits' lightning; kill him: the
+rings, the gibs flying over you.
 

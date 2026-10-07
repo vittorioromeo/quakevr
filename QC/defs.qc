@@ -908,3 +908,7 @@ float MG3_ITEM_SPAWNED = 4; // an item a trigger brings (upstream SPAWNED, campa
 .float mg3_lavaman;
 .float mg3_altside, mg3_burst, mg3_bursting; // Bloody Nightmare: an enforcer's second laser's side, an ogre's burst (vr_mg3_bn.qc)
 float(entity targ, entity inflictor, entity attacker, float damage) MG3_LavaManDamage;
+// Dawn of the Machine's Chthon (monster_boss_final, M3-24/25: vr_mg3_chthon.qc): 1 the map's, 2 the Debug spawner's (no
+// ending); immune during his fits (upstream boss_immune); his damage rules, read by combat.qc.
+.float mg3_chthon, mg3_chthon_immune;
+float(entity targ, entity inflictor, entity attacker, float damage) MG3_ChthonDamage;

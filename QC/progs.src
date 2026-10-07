@@ -214,11 +214,13 @@ vr_mg3_sacrifice.qc
 vr_mg3_slime.qc
 vr_mg3_lavaman.qc
 vr_mg3_supershambler.qc
+vr_mg3_chthon.qc
 vr_mg3_bn.qc
 vr_mg3_shub.qc
 vr_mg3_shub_zombie.qc
 vr_mg3_shub_test.qc
 vr_mg3_bestiary_test.qc
+vr_mg3_chthon_test.qc
 
 // Knockdowns: shoves knock monsters down as ragdolls, alive (after everything it calls).
 vr_knockdown.qc

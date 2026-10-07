@@ -180,6 +180,13 @@ void(float xType) VR_Dummy_Type =
         vr_dt_snd1 = "boss1/pain.wav";
         return;
     }
+    if(xType == 40)
+    {
+        vr_dt_class = "monster_boss_final"; vr_dt_name = "Chthon"; vr_dt_pack = 3; // (id's model; MG3's spheres: its data)
+        vr_dt_stand = 17; vr_dt_stands = 31; vr_dt_pain = 80; vr_dt_pains = 10; vr_dt_atk = 57; vr_dt_atks = 23;
+        vr_dt_snd1 = "boss1/pain.wav";
+        return;
+    }
     if(xType == 31)
     {
         vr_dt_class = "monster_tarbaby"; vr_dt_name = "Slime"; // (the spawn's model: no MG3 data needed; killed, it splits)
@@ -235,6 +242,7 @@ void(float xType) VR_Dummy_TypeSpawn =
     if(xType == 33) { monster_super_shambler(); return; }
     if(xType == 50) { monster_oldone_new(); self.mg3_shub_free = TRUE; return; } // (killed, she ends nothing)
     if(xType == 51) { monster_shub_eye(); return; }
+    if(xType == 40) { monster_boss_final(); if(self.classname == "monster_boss") { MG3_Chthon_Body(); } return; } // (risen)
     monster_army();
 };
 

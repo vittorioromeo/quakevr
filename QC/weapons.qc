@@ -256,6 +256,8 @@ float(entity xTarget) PositionalHead =
     if(c == "player")                   { xHeadForward = 4;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
     // Dawn of the Machine's lava man (MG3's model, $walk1: its head forward of its shoulders, 61-79 up; Rogue's has none).
     if(c == "monster_lava_man" && xTarget.mg3_lavaman) { xHeadForward = 31; xHeadUp = 70; xHeadRadius = 13; return TRUE; }
+    // Dawn of the Machine's Chthon (id's model, $walk1: his head and jaw 210-276 up, forward of his chest; id's has none).
+    if(c == "monster_boss" && xTarget.mg3_chthon) { xHeadForward = 80; xHeadUp = 240; xHeadRadius = 45; return TRUE; }
     return FALSE;
 };
 
@@ -2672,6 +2674,19 @@ void() GrenadeTouch =
     // HONEY
     self.owner.damage_weapon = IT_GRENADE_LAUNCHER;
 
+    if(other.takedamage == DAMAGE_AIM && other.mg3_chthon)
+    {
+        // Dawn of the Machine's Chthon (upstream GrenadeTouch): the whole blast into him (his middle is far above where it
+        // struck), the rest around.
+        float gd = VR_WpnDmg(self.owner, cvarh_vr_dmg_grenade, 120);
+        T_Damage(other, self, self.owner, gd);
+        T_RadiusDamage(self, self.owner, gd, other);
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+        WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+        WriteVec3(MSG_BROADCAST, self.origin);
+        BecomeExplosion();
+        return;
+    }
     if(other.takedamage == DAMAGE_AIM)
     {
         if(MG3_Shub_Is(other))

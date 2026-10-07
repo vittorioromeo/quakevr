@@ -2436,6 +2436,7 @@ QVR_CVAR(vr_mg_hub_stage, "0", CVAR_NONE) // Private QC transition acceptance co
 QVR_CVAR(vr_mg3_mtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Monsters: 1 report, 2 the infected, 3 a lying death knight, 4 the map's infected, 5 the rocket ogre, 6 the demo dog, 7 the ranged knight (QC/vr_mg3_monsters_test.qc; not archived)
 QVR_CVAR(vr_mg3_shubtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Shub: 1 report, 2 her phases and children, 3 her zombies and pillars, 4 her death and the credits (QC/vr_mg3_shub_test.qc; not archived)
 QVR_CVAR(vr_mg3_btest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Bestiary: 1 report, 2 the orb (QC/vr_mg3_bestiary_test.qc; not archived)
+QVR_CVAR(vr_mg3_ctest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Chthon: 1 report, 2 a Chthon of the spawner's (any map), 3 the boss map's fight (QC/vr_mg3_chthon_test.qc; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1 route sweep driver: each new map's first frame runs mg1route<stage>.cfg once (0 off; the scripts raise it); not archived
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)

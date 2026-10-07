@@ -291,6 +291,7 @@ void restartVr()
         out.pushBack({33.f, "Super Shambler"});
         out.pushBack({50.f, "Shub-Niggurath"});
         out.pushBack({51.f, "Shub's Eye"});
+        out.pushBack({40.f, "Chthon (Dawn of the Machine)"});
     }
     out.pushBack({31.f, "Slime"}); // (Dawn of the Machine's splitting spawn: Quake's model)
     return out;
@@ -5199,6 +5200,25 @@ za::Vector<Item> pageMg3ShubTests()
     };
 }
 
+// Dawn of the Machine's Chthon, M3-24/25 (MG3_PLAN.md): "mg3ctest:" lines with developer 1 (QC/vr_mg3_chthon_test.qc).
+za::Vector<Item> pageMg3ChthonTests()
+{
+    return {
+        header("Dawn of the Machine: Chthon"),
+        command("Chthon Ahead", "vr_test_spawn 50; vr_test_spawn_dist 600; impulse 241")
+            .help("Dawn of the Machine's Chthon 600 units ahead (any map with its data), woken at you: fans and volleys of "
+                  "spheres, six fits as he is hurt, 0.8 damage but from lightning and lasers. He ends no game here."),
+        command("Chthon Report", "vr_mg3_ctest 1")
+            .help("This map's Chthon (phase, health, fits), the second arena's points, lava suits, music (developer 1)."),
+        command("Chthon Test", "vr_mg3_ctest 2")
+            .help("Destructive: a Chthon ahead (god mode): his damage rules, every fit and phase, the spiral, his death, rings "
+                  "and gibs (developer 1)."),
+        command("The Boss Map's Fight", "vr_mg3_ctest 3")
+            .help("Destructive (Dawn of the Machine's boss map, before the fight): you walk into his trigger; each fit and phase "
+                  "driven, the waves, both teleports, his death (god mode; developer 1)."),
+    };
+}
+
 za::Vector<Item> pageDebugTests()
 {
     return {
@@ -5220,6 +5240,8 @@ za::Vector<Item> pageDebugTests()
             .help("Dawn of the Machine's monsters in any campaign with its data: the orb, ..."),
         open("Dawn of the Machine: Shub", pageIndex(pageMg3ShubTests))
             .help("Dawn of the Machine's Shub-Niggurath (any campaign with its data; boss2's own): her phases, children and death."),
+        open("Dawn of the Machine: Chthon", pageIndex(pageMg3ChthonTests))
+            .help("Dawn of the Machine's Chthon in any campaign with its data, and its boss map's fight."),
         open("Dawn of the Machine Weapons", pageIndex(pageMg3WeaponTests))
             .help("The Super Axe (any campaign with the Dawn of the Machine data), the axe buttons, the laser cannon, the bloody shotguns."),
         open("Dawn of the Machine Monsters", pageIndex(pageMg3MonsterTests))
@@ -5328,6 +5350,7 @@ za::Vector<Item> pageDebugTests()
              {30.f, "Infected Grunt"}, {31.f, "Infected Knight"}, {32.f, "Infected Enforcer"}, {33.f, "Infected Death Knight"},
              {34.f, "Rocket Ogre"}, {35.f, "Demo Dog"}, {36.f, "Ranged Knight"}, {40.f, "Orb"}, {41.f, "Slime"}, {42.f, "Ghost"}, {43.f, "Sacrifice"}, {44.f, "Lava Man (Dawn of the Machine)"}, {45.f, "Super Shambler"},
              {60.f, "Shub-Niggurath (Free)"}, {61.f, "Shub Zombie"}, {62.f, "Shub's Eye"}, {63.f, "Shub's Seeker"},
+             {50.f, "Chthon (Dawn of the Machine)"},
              {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},
@@ -6273,6 +6296,7 @@ const Page pages[] = {
     {"Dawn of the Machine Monsters", pageMg3MonsterTests, pageDebugTests, LevelDeveloper},
     {"Dawn of the Machine Bestiary", pageMg3BestiaryTests, pageDebugTests, LevelDeveloper},
     {"Dawn of the Machine: Shub", pageMg3ShubTests, pageDebugTests, LevelDeveloper},
+    {"Dawn of the Machine: Chthon", pageMg3ChthonTests, pageDebugTests, LevelDeveloper},
     {"Debug - Cheats and Recording", pageDebugCheats, pageDebug, LevelDeveloper}, // (vr_menu_cheats.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));

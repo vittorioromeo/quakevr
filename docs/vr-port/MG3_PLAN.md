@@ -313,6 +313,8 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
   hknight/zombie (hanging), BN branches. Accept: per-monster BN test attack; stock campaigns unchanged (e1m1, hip1m1, r1m1 smoke).
 - **M3-24 Chthon finale I.** boss_final spawn, phases, waves, teleport points, lavasuits. Accept: boss.bsp loads 0
   missing; forced phase changes teleport the boss; waves spawn.
+  **Built 2026-10-07** (`QC/vr_mg3_chthon.qc`; ROUND21.md "Dawn of the Machine (MG3): the Chthon finale"): Debug spawner 50,
+  training dummy 40, `vr_mg3_ctest`; boss.bsp 0 missing.
 - **M3-25 Chthon finale II.** trigger_boss_teleport (player, comfort fade), music, kill -> ending. Accept: scripted
   fight reaches the hub/NG+ route. Dep: M3-24, M3-10.
 - **M3-26 Shub finale I.** oldone_new phases and child spawners. Accept: boss2 loads 0 missing; each child type spawns and dies.

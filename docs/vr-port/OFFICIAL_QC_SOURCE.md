@@ -38,4 +38,8 @@ Dawn of the Machine and Bloody Nightmare changes (soldier, enforcer, hknight, wi
 combat.qc's pain rest; same header). QC/vr_mg3_shub.qc adapts monsters/mg3_oldone_new.qc with combat.qc's boss_immune
 and weapons.qc's grenade on Shub (same header). QC/vr_mg3_shub_zombie.qc adapts monsters/mg3_shub_zombie.qc and
 mg3_oldone_new.qc's func_breakable (same header).
+QC/vr_mg3_chthon.qc adapts quakec_mg3/monsters/boss_final.qc (monster_boss_final, its teleport points and
+trigger_boss_teleport), mg3_oldone_new.qc's get_org directions and ThrowGibVec for the finale's gibs, combat.qc's
+killable-Chthon rule and weapons.qc's GrenadeTouch branch; QC/triggers.qc adapts triggers.qc's trigger_teleport
+spawnflag 8 (teleport_activate) and QC/vr_liquids.qc ai.qc's SPAWNFLAG_NO_CONTENTS_DAMAGE (same header).
 Plan and task list: [MG3_PLAN.md](MG3_PLAN.md).

@@ -523,6 +523,13 @@ void() teleport_use =
     self.think = SUB_Null;
 };
 
+// A Dawn of the Machine teleporter that starts off (spawnflag 8, trigger_teleport): switched on by its first use.
+void() MG3_teleport_activate =
+{
+    self.use = teleport_use;
+    self.touch = teleport_touch;
+};
+
 /*QUAKED trigger_teleport (.5 .5 .5) ? PLAYER_ONLY SILENT CTF_ONLY
 Any object touching this will be transported to the corresponding info_teleport_destination entity. You must set the "target" field, and create an object with a "targetname" field that matches.
 
@@ -555,6 +562,14 @@ void() trigger_teleport =
     if(!self.target)
         objerror ("no target");
     self.use = teleport_use;
+
+    // Dawn of the Machine (upstream, 2026): spawnflag 8 with a targetname: off until its first use, which switches it on
+    // (the boss map's arena teleports, MG3_PLAN.md M3-24).
+    if(MG3_Campaign() && (self.spawnflags & 8) && self.targetname != NULLSTR)
+    {
+        self.use = MG3_teleport_activate;
+        self.touch = SUB_Null;
+    }
 
     if(!(self.spawnflags & SILENT))
     {
