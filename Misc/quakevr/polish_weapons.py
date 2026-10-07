@@ -277,21 +277,26 @@ def loading_port(p):
     for i in range(len(xs) - 1):
         for j in range(len(ys) - 1):
             p.face([grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]], -Z, "black", 0.15, key)
-    # The housing: four walls round it on the keel, standing PORT_DEPTH out (their inner faces lined below).
-    h = PORT_DEPTH
-    m = PORT_FRAME / 2
-    for y in (-PORT_HW - m, PORT_HW + m):
-        a, b = under(PORT_X0 - 2 * m, y), under(PORT_X1 + 2 * m, y)
-        p.bar(a - Z * (h / 2 - 0.1), b - Z * (h / 2 - 0.1), -Z, PORT_FRAME, h, "steel", key=key, bevel=0.04,
-              levels=(0.25, 0.36))
-    for x in (PORT_X0 - m, PORT_X1 + m):
-        a, b = under(x, -PORT_HW), under(x, PORT_HW)
-        p.bar(a - Z * (h / 2 - 0.1), b - Z * (h / 2 - 0.1), -Z, PORT_FRAME, h, "steel", key=key, bevel=0.04,
-              levels=(0.25, 0.36))
+    # The housing: a ring of walls round it on the keel, standing PORT_DEPTH out: their outer faces and their rim at the
+    # mouth (facing down), mitred at the corners; their inner faces are the lining below (no faces of their own there:
+    # two faces in one plane flicker, the author's note vrfiringrange_2026-10-07_22-01-29, as the bars' inner faces
+    # did under the lining; the vertices' steps, 0.22 along x, 0.03 across, put both in the very same plane).
+    mouth = PORT_DEPTH - 0.1  # (how far under the keel the walls and the lining reach)
+    fr = PORT_FRAME
+    inner = [(PORT_X0, -PORT_HW), (PORT_X1, -PORT_HW), (PORT_X1, PORT_HW), (PORT_X0, PORT_HW)]
+    outer = [(PORT_X0 - fr, -PORT_HW - fr), (PORT_X1 + fr, -PORT_HW - fr), (PORT_X1 + fr, PORT_HW + fr),
+             (PORT_X0 - fr, PORT_HW + fr)]
+    outward = (-Y, X, Y, -X)  # (each side from corner i to i + 1: its outer face's way)
+    for i in range(4):
+        j = (i + 1) % 4
+        o0, o1 = under(*outer[i]), under(*outer[j])
+        i0, i1 = under(*inner[i]), under(*inner[j])
+        p.face([o0 + Z * 0.1, o1 + Z * 0.1, o1 - Z * mouth, o0 - Z * mouth], outward[i], "steel", 0.36, key)
+        p.face([i0 - Z * mouth, i1 - Z * mouth, o1 - Z * mouth, o0 - Z * mouth], -Z, "steel", 0.25, key)
     # The well's lining: the walls' inner faces, facing into it, in bands from its mouth (a dull steel) up to the keel
     # (black), so that it reads as deep.
-    bands = ((0.0, 0.3, "black", 0.2), (0.3, 0.6, "steel", 0.08), (0.6, 0.97, "steel", 0.18))  # (from, to: of the depth)
-    in_d = h - 0.1  # (the mouth: as far under the keel as the walls reach)
+    bands = ((0.0, 0.3, "black", 0.2), (0.3, 0.6, "steel", 0.08), (0.6, 1.0, "steel", 0.18))  # (from, to: of the depth)
+    in_d = mouth - 0.1  # (from the ceiling down to the mouth)
     sides = (((PORT_X0, -PORT_HW), (PORT_X1, -PORT_HW), Y), ((PORT_X1, PORT_HW), (PORT_X0, PORT_HW), -Y),
              ((PORT_X0, PORT_HW), (PORT_X0, -PORT_HW), X), ((PORT_X1, -PORT_HW), (PORT_X1, PORT_HW), -X))
     for (x0, y0), (x1, y1), inward in sides:

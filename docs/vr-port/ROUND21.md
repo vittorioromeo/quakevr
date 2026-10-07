@@ -30119,3 +30119,11 @@ The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh
   BatterySmoke, each wisp `vr_reload_battery_smoke_alpha` 0.45 opaque). Weapons > Reloading > Thunderbolt, "Sparks and
   Smoke". The log: "the cell's contact sparks (seated|taken out)", "a spent cell smoking for 7 s", "the spent cell
   stopped smoking after 7.1 s: 52 wisps".
+- **The shotgun's loading port no longer shimmers** (22-01-29). Its housing's four walls were boxes whose inner faces
+  lay in the very planes of the well's lining (the MDL's vertex steps, 0.22 units along the gun and 0.03 across, put
+  both on the same values): 29 pairs of faces in one plane, z-fighting. The housing is now its outer faces and its rim
+  at the mouth only (polish_weapons.py `loading_port`, mitred at the corners), the lining its inner faces; the lining
+  ends at the mouth (it stood 0.08 out past it). Checked: no coplanar overlapping pair left in the port
+  (29 before); seen from below between two frames 202 pixels changed (511 with the old model). Other same-facing
+  coplanar pairs remain elsewhere on v_shot.mdl (by the trigger at x 8, along the top at z 4.4, at the muzzle): not
+  touched.
