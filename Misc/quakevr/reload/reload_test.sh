@@ -142,7 +142,7 @@ check $(echo "$log" | grep -q "already closed: no hold" && echo "$log" | grep "^
 # on the barrels; the sights' colour shut, open, fired and on the shotgun's pump; the author's defaults; Break Open off.
 SSG="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_debug_2h_grip 1;vr_weapon_grip_mode 1;vr_reload_ssg_open_flick 1;vr_reload_ssg_flick_close_speed 650;impulse 9;wait2;impulse 155;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait10"
 REST="vr_mock_hand main 0.25 1.1 -0.3 0 0 0"
-FIRE="+offhandattack;wait10;-offhandattack;wait30"
+FIRE="+offhandattack;wait10;-offhandattack;wait70" # (its firing animation over: it opens only then)
 FLICK="+flickreloadleft;wait3;-flickreloadleft;wait40"
 BY="vr_mock_button off secondary 1;wait3;vr_mock_button off secondary 0;wait40"
 AT="vr_mock_hand_to main lport 8;wait5;vr_mock_hand_to main lport 8;wait10;vr_mock_hand_to main lport;wait5;vr_mock_hand_to main lport;wait10"
