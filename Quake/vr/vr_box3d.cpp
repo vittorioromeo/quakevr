@@ -344,7 +344,7 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
     {
         return 1300.f; // a shotgun shell: plastic, lead shot, a brass head (its slot's Mass sets it: 40 g)
     }
-    if(modelmeta::has(model, modelmeta::Trait::Magazine))
+    if(modelmeta::has(model, modelmeta::Trait::Magazine) || modelmeta::has(model, modelmeta::Trait::LiveRound))
     {
         return 1500.f; // a magazine: a steel box of nails, a cell (its slot's Mass sets it)
     }
@@ -394,7 +394,7 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
 {
     return model->type == mod_alias && !isWeaponLike(ent) && !modelmeta::has(model, modelmeta::Trait::ContainsArmor) && !isGrenade(model) &&
         !modelmeta::has(model, modelmeta::Trait::LiveShell) && !modelmeta::has(model, modelmeta::Trait::Magazine) &&
-        props::stoneDensity(model) <= 0.f; // (rocks and bricks are hard; a shell bounces and rolls)
+        !modelmeta::has(model, modelmeta::Trait::LiveRound) && props::stoneDensity(model) <= 0.f; // (rocks and bricks are hard; a shell bounces and rolls)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

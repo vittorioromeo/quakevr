@@ -544,7 +544,8 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
 {
     const int num = held::heldEntity(hand);
     const qmodel_t* m = num > 0 && num < cl_max_edicts ? cl_entities[num].model : nullptr;
-    return m && (modelmeta::has(m, modelmeta::Trait::LiveShell) || modelmeta::has(m, modelmeta::Trait::Magazine));
+    return m && (modelmeta::has(m, modelmeta::Trait::LiveShell) || modelmeta::has(m, modelmeta::Trait::Magazine) ||
+                 modelmeta::has(m, modelmeta::Trait::LiveRound));
 }
 
 // A hand holding nothing (it may be helping hold the other hand's gun).

@@ -947,6 +947,30 @@
   "sha256": "98009d9d8c068a2f7cc12928e0ba6f609a2d80cf437ff1257b7e7922d1e3004d",
   "by": "make_debris.py"
  },
+ "quakevr/progs/vr_round_grenade.mdl": {
+  "sha256": "31990b0de41d74db01fa6c80a855dfbe044c949e98cae4994129b10c63d12e86",
+  "by": "make_rounds.py"
+ },
+ "quakevr/progs/vr_round_grenade.mdl_0_norm.png": {
+  "sha256": "3b03fdf15e6dadee9360fe6e9f0b2128fc72956a8218317e5e0ef830399297ea",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_round_prox.mdl": {
+  "sha256": "f3a66e12e34374fb98c8b750aee1f88c3809196210eba353cf3cf16c75f9ee61",
+  "by": "make_rounds.py"
+ },
+ "quakevr/progs/vr_round_prox.mdl_0_norm.png": {
+  "sha256": "1b2ec535b09f2556d768c9feb94eeeba6887ce6b09df3f5e3605e4ebe589950d",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_round_rocket.mdl": {
+  "sha256": "2f8aa3fd749bbe96e27b6ac49300e0e5724980345793d2e4b94087634fb32105",
+  "by": "make_rounds.py"
+ },
+ "quakevr/progs/vr_round_rocket.mdl_0_norm.png": {
+  "sha256": "9e59d3eae90a8bb0d13a64be2b7ebb799a23e128cd7232646d3e69bf6534d426",
+  "by": "bake_normals.py"
+ },
  "quakevr/progs/vr_shell.mdl": {
   "sha256": "4e016dc63722ed6798951debc7628fa575b25579e87904d39a9c4be221f98f34",
   "by": "make_shell.py"

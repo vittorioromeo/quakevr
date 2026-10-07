@@ -213,6 +213,7 @@
 .float vr_shot_half;   // its model's half size (the shot box: vr_shot_radius, with vr_grenade_shoot_pad)
 .float vr_shot_off;    // set off (or gone off): no more shots meet it
 .void() vr_shot_boom;  // a Quake grenade set off: its own think (its blast), run by VR_GrenShot_Boom
+.void() vr_ammo_boom;  // a launcher's round lying about (vr_reload.qc): its blast when set off (its think is its fading)
 
 // ----------------------------------------------------------------------------
 // The parry's cooldown (combat.qc VR_Parry) and your own throws hurting you (vr_carry.qc, "Your own throws")

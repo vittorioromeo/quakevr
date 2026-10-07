@@ -175,6 +175,10 @@ void(entity g, entity xBy, float xDelay, string xHow) VR_GrenShot_SetOff =
         return;
     }
     g.vr_shot_boom = g.think; // (Quake's grenade: its think is its blast)
+    if(g.vr_ammo_boom)
+    {
+        g.vr_shot_boom = g.vr_ammo_boom; // (a launcher's round lying about: its think is its fading; vr_reload.qc)
+    }
     g.think = VR_GrenShot_Boom;
     g.nextthink = time + xDelay;
 };

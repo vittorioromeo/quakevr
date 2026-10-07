@@ -277,7 +277,9 @@ struct LoadPort
     glm::vec3 point;
     cvar_t* offset[3];
     cvar_t* radius;
-    bool magazine; // a magazine's well (the pull's reach too); else a shell port
+    bool magazine;      // a magazine's well (the pull's reach too); else a shell port
+    bool front = false; // a launcher's muzzle (front loaded: a round goes in butt first, back along the barrel)
+    float depth = 0.f;  // and how far in a round slides (model units: view::loadPath)
 };
 constexpr LoadPort loadPorts[] = {
     {modelmeta::Id::VShot, {13.6f, 0.f, 0.3f}, {&vr_reload_port_shot_x, &vr_reload_port_shot_y, &vr_reload_port_shot_z},
@@ -300,6 +302,19 @@ constexpr LoadPort loadPorts[] = {
         {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
     {modelmeta::Id::VPlasma, {11.6f, 0.f, 3.f},
         {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
+    // The launchers' muzzles (front loaded; QC vr_reload.qc, "Front-loaded launchers"): the middle of the barrel's mouth
+    // (measured on the models: the grenade launcher's hexagonal barrel ends at x 31.4, its middle 5.9 up; the rocket
+    // launcher's tube at x 56.1, 4.55 up), the way in back along the barrel (-x), the opening facing forward.
+    {modelmeta::Id::VRock, {31.4f, 0.f, 5.9f}, {&vr_reload_port_gl_x, &vr_reload_port_gl_y, &vr_reload_port_gl_z},
+        &vr_reload_port_gl_radius, false, true, 9.f},
+    {modelmeta::Id::VMulti, {31.45f, 0.f, 6.f}, {&vr_reload_port_gl_x, &vr_reload_port_gl_y, &vr_reload_port_gl_z},
+        &vr_reload_port_gl_radius, false, true, 9.f},
+    {modelmeta::Id::VProx, {31.4f, 0.f, 5.95f}, {&vr_reload_port_prox_x, &vr_reload_port_prox_y, &vr_reload_port_prox_z},
+        &vr_reload_port_prox_radius, false, true, 8.f},
+    {modelmeta::Id::VRock2, {56.1f, 0.f, 4.55f}, {&vr_reload_port_rl_x, &vr_reload_port_rl_y, &vr_reload_port_rl_z},
+        &vr_reload_port_rl_radius, false, true, 16.f},
+    {modelmeta::Id::VMulti2, {56.15f, 0.f, 4.55f}, {&vr_reload_port_rl_x, &vr_reload_port_rl_y, &vr_reload_port_rl_z},
+        &vr_reload_port_rl_radius, false, true, 16.f},
 };
 
 // The magazines' reference points (QC vr_reload.qc VR_Reload_MagRef): each prop's top, its feed end (make_mags.py: up its
@@ -1757,8 +1772,9 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
                 const glm::vec3 tip = ssg ? ssgTurn(at + axis, ssgOpen) : at + axis;
                 const glm::vec3 way = view::modelPoint(ve, tip) - s.loadPort[hand];
                 s.loadPortAxis[hand] = glm::length(way) > 1e-4f ? glm::normalize(way) : glm::vec3{0.f};
-                // Its opening's outward way: a well's and the breech's back along the axis, the shotgun's port down.
-                const glm::vec3 out = port.magazine || ssg ? -axis : glm::vec3{0.f, 0.f, -1.f};
+                // Its opening's outward way: a well's and the breech's back along the axis, the shotgun's port down, a
+                // launcher's muzzle forward (a round goes in butt first: its nose along the axis).
+                const glm::vec3 out = port.front ? axis : port.magazine || ssg ? -axis : glm::vec3{0.f, 0.f, -1.f};
                 const glm::vec3 face =
                     view::modelPoint(ve, ssg ? ssgTurn(at + out, ssgOpen) : at + out) - s.loadPort[hand];
                 s.loadPortFace[hand] = glm::length(face) > 1e-4f ? glm::normalize(face) : glm::vec3{0.f};
@@ -6469,6 +6485,14 @@ bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
             end = port + along * 2.2f;
             return true;
         }
+        if(lp.front)
+        {
+            // A launcher: back into the barrel from its muzzle, the round's middle the round's half length and more in.
+            port = at;
+            deep = at - glm::vec3{lp.depth * 0.5f, 0.f, 0.f};
+            end = at - glm::vec3{lp.depth, 0.f, 0.f};
+            return true;
+        }
         // The shotgun: up through the port's well (polish_weapons.py loading_port: its ceiling 1 unit up), then forward
         // into the magazine tube.
         port = at;
@@ -6555,6 +6579,14 @@ bool heldRoundRef(int hand, glm::vec3& out, float* radius)
                 *radius = za::max(m.radius->value, 0.f);
             }
         }
+    }
+    if(modelmeta::has(e.model, modelmeta::Trait::LiveRound) && !strstr(e.model->name, "prox"))
+    {
+        // A launcher's rocket or grenade (QC VR_Reload_RoundRef): its butt, its model's back end along its axis.
+        ViewEntity tmp;
+        tmp.ent = e;
+        tmp.visible = true;
+        out = modelPoint(tmp, glm::vec3{e.model->mins[0], 0.f, 0.f});
     }
     return true;
 }

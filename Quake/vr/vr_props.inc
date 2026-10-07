@@ -365,4 +365,22 @@ QVR_PROP_DEFAULT(52, GripX, "-2.6")
 QVR_PROP_DEFAULT(52, GripY, "0.07")
 QVR_PROP_DEFAULT(52, GripZ, "-3.73")
 QVR_PROP_DEFAULT(52, Overlap, "0.4")
+// Immersive reloading's launcher rounds (QC vr_reload.qc, "Front-loaded launchers"; make_rounds.py: their own models at
+// Size 1, so missile.mdl, grenade.mdl and proxbomb.mdl keep their sizes in flight): the rocket held along the fist (Along
+// the Handle) by the nose half of its middle, its butt free below the little finger to go into the muzzle; the
+// grenades in the palm, as the hand grenades. In one hand. vr_props_version 66 gives these slots to configs saved before.
+QVR_PROP_DEFAULT(53, ID, "progs/vr_round_rocket.mdl")
+QVR_PROP_DEFAULT(53, Mass, "1.5")
+QVR_PROP_DEFAULT(53, TwoHands, "0")
+QVR_PROP_DEFAULT(53, GripMode, "3")
+QVR_PROP_DEFAULT(53, HandleFrom, "0")
+QVR_PROP_DEFAULT(53, HandleTo, "2")
+QVR_PROP_DEFAULT(54, ID, "progs/vr_round_grenade.mdl")
+QVR_PROP_DEFAULT(54, Mass, "0.5")
+QVR_PROP_DEFAULT(54, TwoHands, "0")
+QVR_PROP_DEFAULT(54, GripMode, "2")
+QVR_PROP_DEFAULT(55, ID, "progs/vr_round_prox.mdl")
+QVR_PROP_DEFAULT(55, Mass, "0.5")
+QVR_PROP_DEFAULT(55, TwoHands, "0")
+QVR_PROP_DEFAULT(55, GripMode, "2")
 #endif

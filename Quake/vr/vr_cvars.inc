@@ -2550,6 +2550,29 @@ QVR_CVAR(vr_reload_mag_light_radius, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_contact, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_contact_leniency, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_contact_angle, "35", CVAR_ARCHIVE)
+// The launchers loaded at the muzzle (QC vr_reload.qc, "Front-loaded launchers"; the author's note
+// vrfiringrange_2026-10-07_22-18-57): with Immersive, the grenade, proximity and rocket launchers take a round from the
+// ammo pouch (a rocket, a grenade, a proximity grenade; the multi-rocket or multi-grenade in their other ammo mode) put
+// butt first into the muzzle (a proximity grenade any way round), held or loose (thrown, or the launcher brought to one
+// lying about), a round at a time up to their magazine; 0: they reload at the hip holsters as before. A rocket or a
+// grenade goes in lying within vr_reload_front_angle degrees of the barrel, its nose out of the muzzle.
+QVR_CVAR(vr_reload_front, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_front_angle, "35", CVAR_ARCHIVE)
+// Their muzzles' load points moved (the gun's model units: +x forward, +y left, +z up) and their radius (world units: a
+// round's butt, a proximity grenade's middle, within it goes in). gl: the grenade launcher's (and the multi-grenade
+// one's); prox: the proximity launcher's; rl: the rocket launcher's (and the multi-rocket one's).
+QVR_CVAR(vr_reload_port_gl_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_gl_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_gl_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_gl_radius, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_prox_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_prox_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_prox_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_prox_radius, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_rl_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_rl_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_rl_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_rl_radius, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_collide_leniency, "4", CVAR_ARCHIVE) // cm a round held from the pouch may go into the other hand's gun's box before they are drawn kept apart (Held Things Collide), to reach its port or well
 // Each magazine gun's well (its receiver, drawn on it; visual only): moved (the gun's model units) and turned (degrees)
 // about its seat, to sit flush. Show Load Points marks its seat (cyan).
