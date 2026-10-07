@@ -895,5 +895,9 @@ float() MG3_Campaign;
 void() MG3_ItemUnspawn;
 float() MG3_RuneRemoved;
 void() MG3_item_sigil;
+void() MG3_BloodyNightmareStrip;
+void() MG3_BloodyNightmareLevel;
+float(entity targ, entity attacker, float damage) MG3_BloodyNightmareDamage;
+void() MG3_Frame;
 float MG3_ITEM_SPAWNED = 4; // an item a trigger brings (upstream SPAWNED, campaign 5)
 .float lavasuit_finished, lavasuit_time; // the lava suit (vr_mg3_items.qc): its end, its warning's next flash

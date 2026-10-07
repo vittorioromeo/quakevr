@@ -715,9 +715,24 @@ void playCalibration() { Cbuf_AddText("vr_setup\n"); }
 void playHub() { Cbuf_AddText("vr_campaign_hub\n"); }
 void playTutorial() { Cbuf_AddText("map vrtutorial\n"); }
 void playFiringRange() { Cbuf_AddText("map vrfiringrange\n"); }
+// Official Campaigns > Dawn of the Machine: Bloody Nightmare: skill 3 and vr_mg3_bn_start (the start map's first frame
+// makes it a Bloody Nightmare game, QC vr_mg3_defs.qc MG3_Frame), then the campaign as its own row starts it. While
+// the campaign cannot start, only its reason is printed and nothing is set.
+void playMg3BloodyNightmare()
+{
+    if(VR_CampaignUnavailable(5) == 0)
+    {
+        Cvar_Set("skill", "3");
+        Cvar_Set("vr_mg3_bn_start", "1");
+    }
+    VR_SelectCampaign(5);
+}
 void addBotTeam0() { Cbuf_AddText("impulse 100\n"); }
 void addBotTeam1() { Cbuf_AddText("impulse 101\n"); }
 void kickBot() { Cbuf_AddText("impulse 102\n"); }
+
+// Whether Official Campaigns was built with the Bloody Nightmare row (items(): rebuilt when that changes).
+int campaignsBloodyShown = -1;
 
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
@@ -727,6 +742,17 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         Item choice = row(VR_CampaignLabel, VR_CampaignHelp, VR_SelectCampaign, i, -1);
         choice.dimArg = [](int index) -> bool { return VR_CampaignUnavailable(index) != 0; };
         items.pushBack(choice);
+    }
+    // Dawn of the Machine's hidden difficulty: offered once found in a game (the hell knight's head, or the hub's
+    // Bloody Nightmare button: QC sets vr_mg3_bn_discovered).
+    campaignsBloodyShown = vr_mg3_bn_discovered.value != 0.f ? 1 : 0;
+    if(campaignsBloodyShown)
+    {
+        Item bloody = action("Dawn of the Machine: Bloody Nightmare", playMg3BloodyNightmare)
+            .help("A new Dawn of the Machine game on Bloody Nightmare: skill 3, harder monsters, each level begun with the "
+                  "axe and shotgun only. Killing Chthon on it starts its new game.");
+        bloody.dimArg = [](int) -> bool { return VR_CampaignUnavailable(5) != 0; };
+        items.pushBack(bloody);
     }
     items.pushBack(command("Campaign Data Status", "vr_campaign_status"));
     items.pushBack(action("Return to VR Hub", playHub));
@@ -4933,6 +4959,14 @@ za::Vector<Item> pageMg3Tests()
             .help("Destructive: touch this map's first changelevel (its route); then Leave the Intermission."),
         command("Leave the Intermission", "vr_mg3_test 14")
             .help("One button press of the intermission (text, then the next map)."),
+        command("Hub Skill Buttons Check", "vr_mg3_test 15")
+            .help("On the hub: its Bloody Nightmare relays' state, then skill buttons 4, 1, 4 (Bloody Nightmare on, off, on)."),
+        command("Seed a Full Loadout", "vr_mg3_test 16")
+            .help("Destructive: guns, a sword, the shotgun and the Super Axe in the holsters, yellow armour, ammunition; then change level."),
+        command("Loadout After Bloody Nightmare", "vr_mg3_test 17")
+            .help("After a level change: in a Bloody Nightmare game only the axe, shotgun, Super Axe (and the bloody super shotgun) are left."),
+        command("Bloody Nightmare Damage Check", "vr_mg3_test 18")
+            .help("Destructive: 50 on a monster and 10 from it on you: 80% and 120% on Bloody Nightmare, else 100%."),
         toggle("Aggro Groups", vr_mg3_aggro_groups)
             .help("A waking monster wakes what its aggro_target names (map3, map7, map8). Upstream ships this off; off by default."),
     };
@@ -7950,6 +7984,11 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     if(pages[page].build == pageGraphicsRelighting && relightToolState >= 0 && relightToolState != relight::toolPageState())
     {
         done[page] = false; // light.exe found or not, a download started or ended: Download ericw-tools shown or not
+    }
+    if(pages[page].build == pageCampaigns && campaignsBloodyShown >= 0 &&
+        campaignsBloodyShown != (vr_mg3_bn_discovered.value != 0.f ? 1 : 0))
+    {
+        done[page] = false; // Dawn of the Machine's Bloody Nightmare found (or reset): its row shown or not
     }
     if(pages[page].build == pageBodyArms && armsPageCalibrated >= 0 && armsPageCalibrated != (bodycal::calibrated() ? 1 : 0))
     {

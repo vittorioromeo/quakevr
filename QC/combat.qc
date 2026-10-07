@@ -1205,6 +1205,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return FALSE;
     }
 
+    // Dawn of the Machine's Bloody Nightmare: the player's blows 80%, the rest on the player 120% (vr_mg3_defs.qc).
+    if(MG3_Campaign() && (serverflags & MG3_SF_BN_ACTIVE))
+    {
+        damage = MG3_BloodyNightmareDamage(targ, attacker, damage);
+    }
+
     if(targ.classname == "trigger_explosion")
     {
         if(IsExplosionDamage != 1)

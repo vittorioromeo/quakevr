@@ -402,3 +402,56 @@ void() trigger_rune_counter = {
     if(!self.count) self.count = 2;
     self.use = MG3_rune_counter_use;
 };
+
+// ----------------------------------------------------------------------------
+// M3-09: the hub's skill buttons and Bloody Nightmare relays.
+// trigger_relay_setskill: "message" 0..3 sets that skill (and ends a Bloody Nightmare game), 4 starts Bloody
+// Nightmare (skill 3); each says so to everyone (localized). Only a player's use counts.
+void() MG3_setskill_use = {
+    if(activator.classname != "player") return;
+    string msg = self.message;
+    if(msg != "4" && (serverflags & MG3_SF_BN_ACTIVE)) serverflags = serverflags - MG3_SF_BN_ACTIVE;
+    if(msg == "0") { bprint("$mg3_hub_selected_easy"); bprint("\n"); }
+    else if(msg == "1") { bprint("$mg3_hub_selected_normal"); bprint("\n"); }
+    else if(msg == "2") { bprint("$mg3_hub_selected_hard"); bprint("\n"); }
+    else if(msg == "3") { bprint("$mg3_hub_selected_nightmare"); bprint("\n"); }
+    else if(msg == "4") {
+        bprint("$mg3_selected_bloody_nightmare");
+        serverflags = serverflags | MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED;
+        cvar_set("vr_mg3_bn_discovered", "1");
+        msg = "3";
+    }
+    else { dprint(sprintf("trigger_relay_setskill: message %s is not a skill\n", msg)); return; }
+    cvar_set("skill", msg);
+};
+/*QUAKED trigger_relay_setskill (.5 .5 .5) (-8 -8 -8) (8 8 8)
+When a player uses it, sets the skill named by "message": 0 easy, 1 normal, 2 hard, 3 nightmare, 4 Bloody Nightmare
+(Dawn of the Machine).
+*/
+void() trigger_relay_setskill = {
+    self.use = MG3_setskill_use;
+};
+// trigger_bloodynightmare_relay: passes a use on only in the Bloody Nightmare state its flags require.
+float MG3_REQUIRE_BN_ACTIVE = 1;
+float MG3_REQUIRE_BN_NEWGAME = 2;
+float MG3_REQUIRE_BN_DISCOVERED = 4;
+float MG3_REQUIRE_BN_NOT_ACTIVE = 8;
+float MG3_REQUIRE_BN_NOT_NEWGAME = 16;
+float MG3_REQUIRE_BN_NOT_DISCOVERED = 32;
+void() MG3_bn_relay_use = {
+    float sf = self.spawnflags;
+    if((sf & MG3_REQUIRE_BN_ACTIVE) && !(serverflags & MG3_SF_BN_ACTIVE)) return;
+    if((sf & MG3_REQUIRE_BN_NEWGAME) && !(serverflags & MG3_SF_BN_NEWGAME)) return;
+    if((sf & MG3_REQUIRE_BN_DISCOVERED) && !(serverflags & MG3_SF_BN_DISCOVERED)) return;
+    if((sf & MG3_REQUIRE_BN_NOT_ACTIVE) && (serverflags & MG3_SF_BN_ACTIVE)) return;
+    if((sf & MG3_REQUIRE_BN_NOT_NEWGAME) && (serverflags & MG3_SF_BN_NEWGAME)) return;
+    if((sf & MG3_REQUIRE_BN_NOT_DISCOVERED) && (serverflags & MG3_SF_BN_DISCOVERED)) return;
+    SUB_UseTargets();
+};
+/*QUAKED trigger_bloodynightmare_relay (.5 .5 .5) (-8 -8 -8) (8 8 8) ACTIVE NEWGAME DISCOVERED NOT_ACTIVE NOT_NEWGAME NOT_DISCOVERED
+When used, fires its targets only if Bloody Nightmare is in the states its flags require: on, its new game, found, or
+not (Dawn of the Machine).
+*/
+void() trigger_bloodynightmare_relay = {
+    self.use = MG3_bn_relay_use;
+};

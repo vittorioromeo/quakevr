@@ -553,6 +553,7 @@ void() StartFrame =
     MG1_H_TestFrame();
     MGH_PowerupFrame();
     MGH_TestFrame();
+    MG3_Frame();
     MG3_TestFrame();
     VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)

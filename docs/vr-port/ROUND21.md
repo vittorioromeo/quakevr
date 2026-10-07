@@ -27885,3 +27885,29 @@ tests use `vr_campaign_native mg3`, `-nomapindex -noaddons`, developer 1.
   and 1 (the map's two versions; before, both at once); secret2's exit: changelevel to boss (intermission, next map
   boss). Checker: 26 missing classes, 675 placements. Regression: Dopa triggers 34/0, world 19/0, MG1 hub 20/0, Horde
   24/0, e1m1.
+- **M3-09 start, skill and Bloody Nightmare.** `trigger_relay_setskill` (hub buttons: 0..3 set the skill and end
+  Bloody Nightmare, 4 starts it: skill 3, ACTIVE|DISCOVERED and `vr_mg3_bn_discovered 1`; localized messages) and
+  `trigger_bloodynightmare_relay` (flags 1/2/4 require ACTIVE/NEWGAME/DISCOVERED, 8/16/32 their absence), any campaign.
+  Campaign 5 (`vr_mg3_defs.qc`): `MG3_BloodyNightmareStrip` in DecodeLevelParms (skill not 3: ACTIVE cleared; else
+  the hands' and holsters' level parms lose every weapon but the axe, shotgun, Super Axe (WID_MJOLNIR until M3-11)
+  and, with the bloody bit, the super shotgun, with their records; the axe and shotgun go back to their default
+  holsters (or the first free) when gone; items = axe|shotgun|best armour (+SSG); ammunition and armour kept);
+  boss2 on skill 3 is Bloody Nightmare (upstream's level select); damage (T_DamageDeal): the player's blows on others
+  80%, others' on the player 120%; the hub's exit to secret2 goes to boss2 in Bloody Nightmare's new game. **Official
+  Campaigns > Dawn of the Machine: Bloody Nightmare** (Vittorio's decision): the row exists only once
+  `vr_mg3_bn_discovered` is 1 (found in a game: the hell knight's head or the hub's button; the page is rebuilt when
+  it changes); it sets skill 3 and `vr_mg3_bn_start 1` (unarchived) and starts the campaign as its row does (refused
+  with its reason while MG3 is gated), and the start map's first second makes the game Bloody Nightmare (centre
+  print). The start map's own skill brushes are id's `trigger_setskill` (already there). Measured (`vr_mg3_test`
+  15-20): hub at load, serverflags 0: the head, the Bloody Nightmare button and the new-game lore gone, the skill
+  buttons kept; with 192 the head and button kept; buttons 4/1/4: 192 + skill 3 + discovered 1, then 128 + skill 1,
+  then on (3/0); a seeded loadout (holsters SSG, LG, -, sword, shotgun, Super Axe; yellow 120; ammo) after hub ->
+  map3 on Bloody Nightmare: holsters -, -, axe, -, shotgun, Super Axe, armour and ammunition kept (2/0); with the
+  bloody bits the super shotgun stays (2/0); `skill 1` + changelevel: ACTIVE cleared, nothing stripped; damage 50 ->
+  40 dealt, 10 -> 12 taken on Bloody Nightmare, 50/10 otherwise; menu path (`vr_mg3_bn_start 1`, `skill 3`, `map
+  start`): serverflags 192, skill 3, "You activated BLOODY NIGHTMARE difficulty."; `vr_menu_search Bloody Nightmare`:
+  the row with discovered 1 (2,999 rows), gone with 0 (2,998); NG+ flags (`vr_mg3_test 19`) and the hub's exit:
+  secret2 -> boss2 (plain game: secret2). Checker: 24 missing classes, 660 placements. Regression as before. Seen
+  once: a crash in `GL_BuildBModelMarkBuffers` (r_brush.c:828, R_NewMap) on hub -> map3 after a test seeded holster
+  ids without weapon records (2 of 5 such runs; 0 of 6 plain hub -> map3, 0 of 5 with records): unrelated engine
+  fragility, noted.

@@ -2348,6 +2348,20 @@ When the player touches this, he gets sent back to the hub."
 	]
 ]
 
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_bloodynightmare_relay : "When used, fires its targets only if Bloody Nightmare is in the states its flags require: on, its new game, found, or not (Dawn of the Machine)."
+[
+	spawnflags(flags) =
+	[
+		1 : "ACTIVE" : 0
+		2 : "NEWGAME" : 0
+		4 : "DISCOVERED" : 0
+		8 : "NOT ACTIVE" : 0
+		16 : "NOT NEWGAME" : 0
+		32 : "NOT DISCOVERED" : 0
+	]
+]
+
 @PointClass base(Appearflags, Targetname, Target) size(-8 -8 -8, 8 8 8) =
 	trigger_buttontoggle : "Honey: button enabler
 
@@ -2747,6 +2761,11 @@ This fixed size trigger cannot be touched, it can only be fired by other events.
 [
 	count(integer) : "Count" :  : "A count: see the help for this entity."
 	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@PointClass color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_relay_setskill : "When a player uses it, sets the skill named by 'message': 0 easy, 1 normal, 2 hard, 3 nightmare, 4 Bloody Nightmare (Dawn of the Machine)."
+[
 ]
 
 @SolidClass color(128 128 128) =

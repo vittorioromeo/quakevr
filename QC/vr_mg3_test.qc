@@ -491,6 +491,78 @@ void() MG3_T_RuneReport = {
     }
     dprint(sprintf("mg3test: %s with %g runes: %g monsters, %g items, %g intermission views, %g corpses (total_monsters %g)\n", mapname, MG3_RuneCount(), mon, items, inter, corpses, total_monsters));
 };
+// ----------------------------------------------------------------------------
+// M3-09 skill and Bloody Nightmare (developer campaign). Request 15 (the hub): its skill buttons used by the player
+// (4, then 1, then 4 again: Bloody Nightmare on, off, on) and which Bloody Nightmare relays' killtargets are gone.
+// Request 16: seeds hands and holsters with a full loadout (for a changelevel under Bloody Nightmare). Request 17:
+// the loadout after it (only axe, shotgun, Super Axe and the bloody super shotgun kept; the axe and shotgun back).
+// Request 18: Bloody Nightmare's damage (the player's blow on a monster 80%, a monster's on the player 120%).
+float(string tname) MG3_T_Named = { return !!find(world, targetname, tname); };
+void(string msg) MG3_T_Skill = {
+    entity b = find(world, classname, "trigger_relay_setskill");
+    while(b && b.message != msg) b = find(b, classname, "trigger_relay_setskill");
+    if(b) MG3_T_Use(b);
+};
+void() MG3_T_SkillButtons = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    dprint(sprintf("mg3test: hub serverflags %g: head %g bn_button %g buttons %g ng %g\n", serverflags,
+        MG3_T_Named("head"), MG3_T_Named("bn_button"), MG3_T_Named("buttons"), MG3_T_Named("ng")));
+    if(!find(world, classname, "trigger_relay_setskill")) { dprint("mg3test: no skill buttons here\n"); return; }
+    cvar_set("vr_mg3_bn_discovered", "0");
+    MG3_T_Skill("4");
+    MG3_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar("skill") == 3 && cvar("vr_mg3_bn_discovered") == 1, "skill 4: Bloody Nightmare on and found, skill 3");
+    MG3_T_Skill("1");
+    MG3_Check(!(serverflags & MG3_SF_BN_ACTIVE) && (serverflags & MG3_SF_BN_DISCOVERED) && cvar("skill") == 1, "skill 1: Bloody Nightmare off, skill 1");
+    MG3_T_Skill("4");
+    MG3_Check((serverflags & MG3_SF_BN_ACTIVE) && cvar("skill") == 3, "skill 4 again: on");
+    dprint(sprintf("mg3test: skill %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+};
+void(entity p, float slot, float wid) MG3_T_Holster = {
+    entity wi = WeaponInst_Carried(wid, 1, 0);
+    string m = WeaponIdToModel(wid, 0);
+    if(slot == 0) { p.holsterweapon0 = wid; p.holsterweaponflags0 = 0; p.holsterweaponinst0 = wi; p.holsterweaponmodel0 = m; }
+    if(slot == 1) { p.holsterweapon1 = wid; p.holsterweaponflags1 = 0; p.holsterweaponinst1 = wi; p.holsterweaponmodel1 = m; }
+    if(slot == 2) { p.holsterweapon2 = wid; p.holsterweaponflags2 = 0; p.holsterweaponinst2 = wi; p.holsterweaponmodel2 = m; }
+    if(slot == 3) { p.holsterweapon3 = wid; p.holsterweaponflags3 = 0; p.holsterweaponinst3 = wi; p.holsterweaponmodel3 = m; }
+    if(slot == 4) { p.holsterweapon4 = wid; p.holsterweaponflags4 = 0; p.holsterweaponinst4 = wi; p.holsterweaponmodel4 = m; }
+    if(slot == 5) { p.holsterweapon5 = wid; p.holsterweaponflags5 = 0; p.holsterweaponinst5 = wi; p.holsterweaponmodel5 = m; }
+};
+void() MG3_T_SeedLoadout = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_T_Holster(p, 0, WID_SUPER_SHOTGUN); MG3_T_Holster(p, 1, WID_LIGHTNING); MG3_T_Holster(p, 2, WID_FIST);
+    MG3_T_Holster(p, 3, WID_SWORD); MG3_T_Holster(p, 4, WID_SHOTGUN); MG3_T_Holster(p, 5, WID_MJOLNIR);
+    p.items = p.items | IT_ARMOR2; p.armortype = 0.6; p.armorvalue = 120;
+    p.ammo_shells = 40; p.ammo_nails = 50; p.ammo_rockets = 10; p.ammo_cells = 30;
+    dprint("mg3test: seeded holsters 5 11 0 13 4 3 (hands empty), yellow armour 120, ammo 40 50 10 30\n");
+};
+void() MG3_T_CheckLoadout = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_test_pass = MG3_test_fail = 0;
+    dprint(sprintf("mg3test: loadout serverflags %g skill %g bloody %g: hands %g/%g holsters %g %g", serverflags, skill, MG3_bloody, p.weapon, p.weapon2, p.holsterweapon0, p.holsterweapon1));
+    dprint(sprintf(" %g %g %g %g items %g armour %g ammo %g %g %g %g\n", p.holsterweapon2, p.holsterweapon3, p.holsterweapon4, p.holsterweapon5, p.items, p.armorvalue, p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells));
+    if(!(serverflags & MG3_SF_BN_ACTIVE)) { dprint("mg3test: not a Bloody Nightmare game: nothing stripped\n"); return; }
+    float ssg = (MG3_bloody & MG3_BLOODY_SSG) ? WID_SUPER_SHOTGUN : WID_FIST;
+    MG3_Check(p.holsterweapon0 == ssg && p.holsterweapon1 == WID_FIST && p.holsterweapon2 == WID_AXE && p.holsterweapon3 == WID_FIST
+        && p.holsterweapon4 == WID_SHOTGUN && p.holsterweapon5 == WID_MJOLNIR, "holsters: guns and sword gone, the axe back in its holster, shotgun and Super Axe kept");
+    MG3_Check((p.items & IT_ARMOR2) && p.armorvalue == 120 && p.ammo_nails == 50 && p.ammo_rockets == 10, "armour and ammunition kept");
+    dprint(sprintf("mg3test: strip %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+};
+void() MG3_T_BNDamage = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    MG3_test_pass = MG3_test_fail = 0;
+    entity m = nextent(world);
+    while(m && !((m.flags & FL_MONSTER) && m.health > 100 && m.takedamage)) m = nextent(m);
+    if(!m) { dprint("mg3test: no monster for the damage check\n"); return; }
+    float mh = m.health; T_Damage(m, p, p, 50); float dealt = mh - m.health;
+    p.flags = p.flags - (p.flags & FL_GODMODE); p.health = 100; p.armorvalue = 0; p.armortype = 0;
+    T_Damage(p, m, m, 10); float taken = 100 - p.health;
+    p.health = 100;
+    float bn = !!(serverflags & MG3_SF_BN_ACTIVE);
+    dprint(sprintf("mg3test: Bloody Nightmare %g: 50 on a %s deals %g; 10 from it takes %g\n", bn, m.classname, dealt, taken));
+    MG3_Check(dealt == (bn ? 40 : 50) && taken == (bn ? 12 : 10), "Bloody Nightmare: 80% dealt, 120% taken (else 100%)");
+    dprint(sprintf("mg3test: damage %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     cvar_set("vr_mg3_test", "0");
@@ -517,10 +589,25 @@ void() MG3_TestFrame = {
     else if(request == 10) MG3_T_Runes();
     else if(request == 11) MG3_T_Hub();
     else if(request == 12) MG3_T_RuneReport();
+    else if(request == 15) MG3_T_SkillButtons();
+    else if(request == 16) MG3_T_SeedLoadout();
+    else if(request == 17) MG3_T_CheckLoadout();
+    else if(request == 18) MG3_T_BNDamage();
     else if(request == 13) { // walk into this map's first changelevel (its route)
         entity cl = find(world, classname, "trigger_changelevel");
         entity pl = find(world, classname, "player");
         if(cl && pl) { dprint(sprintf("mg3test: changelevel to %s\n", cl.map)); MG3_T_player = pl; MG3_T_Touch(cl); }
+    }
+    else if(request == 19) { // Bloody Nightmare's new game (upstream impulse 223 + 224): its flags and skill 3
+        serverflags = serverflags | MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED | MG3_SF_BN_NEWGAME;
+        cvar_set("skill", "3"); skill = 3;
+        dprint(sprintf("mg3test: Bloody Nightmare new game: serverflags %g\n", serverflags));
+    }
+    else if(request == 20) { // walk into the exit to secret2 (the hub's final one)
+        entity cl2 = find(world, classname, "trigger_changelevel");
+        while(cl2 && cl2.map != "secret2") cl2 = find(cl2, classname, "trigger_changelevel");
+        entity pl2 = find(world, classname, "player");
+        if(cl2 && pl2) { MG3_T_player = pl2; MG3_T_Touch(cl2); dprint(sprintf("mg3test: the exit to %s leads to %s\n", cl2.map, nextmap)); }
     }
     else if(request == 14) { // leave the intermission (a button press)
         entity ip = find(world, classname, "player");

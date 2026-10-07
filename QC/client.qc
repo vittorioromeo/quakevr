@@ -349,6 +349,10 @@ void() DecodeLevelParms =
     if(!VR_Pack_WeaponAvailable(parm16)) { parm16 = WID_FIST; }
     parm30 = VR_Pack_WeaponFlags(parm16, parm30);
 
+    // Dawn of the Machine: boss2 on skill 3 is Bloody Nightmare, whose levels start with the axe and shotgun only.
+    MG3_BloodyNightmareLevel();
+    MG3_BloodyNightmareStrip();
+
     self.items = parm1;
     self.health = parm2;
     self.armorvalue = parm3;
@@ -737,6 +741,12 @@ void() changelevel_touch =
     }
 
     nextmap = self.map;
+    // Dawn of the Machine: the new game Bloody Nightmare starts leaves the hub for Shub (boss2), not secret2.
+    if(MG3_Campaign() && mapname == "hub" && nextmap == "secret2"
+        && (serverflags & MG3_SF_BN_NEWGAME) && (serverflags & MG3_SF_BN_ACTIVE))
+    {
+        nextmap = "boss2";
+    }
     if(MG_WorldCampaign()) MG_intermissiontext = self.endtext;
     // Dimension of the Machine finished: its runes cleared, as upstream (the hub's final gate closed again: a coop game,
     // which keeps serverflags, would otherwise start with it open).

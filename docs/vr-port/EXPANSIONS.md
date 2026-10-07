@@ -921,3 +921,7 @@ the lava suit (lava/slime immunity) and the hell knight's head (Bloody Nightmare
 Runes and hub: campaign 5's `item_sigil`, `trigger_rune_relay`, `trigger_rune_counter`; NOT_IF_<n>_RUNES removes
 items, monsters, triggers, corpses and intermission views by the runes home (map1, map3, map5, map7 are revisited);
 the hub (worldtype 0) keeps the inventory. Tests 10-14 (runes, hub rune check, rune count report, exit, intermission).
+Skill and Bloody Nightmare: the hub's `trigger_relay_setskill` and `trigger_bloodynightmare_relay`; on Bloody
+Nightmare each level starts with the axe, shotgun, Super Axe (and the bloody super shotgun) in the holsters, the
+player deals 80% and takes 120%, and its new game leaves the hub for boss2. Official Campaigns shows "Dawn of the
+Machine: Bloody Nightmare" only once it was found in a game (`vr_mg3_bn_discovered`). Tests 15-20.
