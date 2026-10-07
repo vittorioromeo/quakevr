@@ -42,9 +42,32 @@ public sealed class WindowsSystemProbe : ISystemProbe
             KnownFolder.Desktop => Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
             KnownFolder.StartMenuPrograms => Environment.GetFolderPath(Environment.SpecialFolder.Programs),
             KnownFolder.UserProfile => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            // (A 32-bit process sees SysWOW64 as System32: Sysnative is the real one.)
+            KnownFolder.System64 => Environment.Is64BitProcess || !Environment.Is64BitOperatingSystem
+                ? Environment.GetFolderPath(Environment.SpecialFolder.System)
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Sysnative"),
             _ => "",
         };
         return string.IsNullOrEmpty(path) ? null : path;
+    }
+
+    public Version? GetFileVersion(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+            var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(path);
+            return info.FileMajorPart == 0 && info.FileMinorPart == 0 && info.FileBuildPart == 0
+                ? null
+                : new Version(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart, info.FilePrivatePart);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     static RegistryKey? Open(string key)

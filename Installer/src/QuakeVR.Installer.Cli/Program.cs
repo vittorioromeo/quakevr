@@ -3,6 +3,7 @@ using QuakeVR.Installer.Core.Assets;
 using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
+using QuakeVR.Installer.Core.Prerequisites;
 using QuakeVR.Installer.Core.Shortcuts;
 
 // qvr-setup <command> [options]. Never writes the real desktop or Start menu: shortcuts go only into --shortcuts-dir.
@@ -13,6 +14,7 @@ const string Usage = """
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
     qvr-setup uninstall --target <dir> [--remove-textures]
     qvr-setup verify --target <dir>
+    qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--file <vc_redist.x64.exe>] [--assume-missing]] [--downloads <dir>]
     qvr-setup download --url <url> [--url <mirror>...] --out <file> [--size <bytes>] [--sha256 <hex>]
     qvr-setup feed --url <latest.json url>
     qvr-setup assets --game <id1 folder> [--map <maps/x.bsp>] [--prefix <path prefix>]
@@ -125,6 +127,34 @@ try
             }
             Console.WriteLine(problems.Count == 0 ? "all files intact" : $"{problems.Count} problem(s)");
             return problems.Count == 0 ? 0 : 1;
+        }
+        case "vcredist":
+        {
+            // The VC++ runtime: what is installed, a redistributable's signature, and what the install would do. Without
+            // --dry-run it really installs it when it is missing (one administrator prompt).
+            var info = VcRuntimeDetector.Detect(new WindowsSystemProbe());
+            Console.WriteLine($"VC++ runtime: {info.Describe()} ok: {info.Ok}");
+            using var http = Downloader.CreateClient();
+            var redist = VcRedist.ForWindows(http);
+            if (Opt("check") is { } check)
+            {
+                var sig = new AuthenticodeVerifier().Verify(check);
+                Console.WriteLine($"{check}: trusted {sig.Trusted}, Microsoft {sig.IsMicrosoft}, signer {sig.Signer ?? "none"} ({sig.Detail}); " +
+                                  $"version {VcRedist.FileVersionOf(check)?.ToString() ?? "none"}; {redist.Reject(check) ?? "would be run"}");
+                return 0;
+            }
+            if (Flag("assume-missing"))
+            {
+                info = new VcRuntimeInfo(null, info.Required);
+            }
+            var result = await redist.EnsureAsync(info, new VcRedistOptions
+            {
+                DryRun = Flag("dry-run"),
+                LocalCopies = Opt("file") is { } file ? [file] : [],
+                DownloadDir = Opt("downloads") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QuakeVR-Installer", "downloads"),
+            }, log, CancellationToken.None);
+            Console.WriteLine($"{result.Outcome}: {result.Message}");
+            return result.RuntimeReady || result.Outcome == VcRedistOutcome.DryRun ? 0 : 1;
         }
         case "download":
         {

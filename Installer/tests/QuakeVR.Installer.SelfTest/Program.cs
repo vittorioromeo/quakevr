@@ -4,6 +4,7 @@ using QuakeVR.Installer.Core.Assets;
 using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
+using QuakeVR.Installer.Core.Prerequisites;
 using QuakeVR.Installer.Core.Shortcuts;
 using QuakeVR.Installer.SelfTest;
 
@@ -204,6 +205,114 @@ var tests = new List<(string Name, Action Body)>
         Eq(false, VcRuntimeDetector.Detect(new MemorySystemProbe().SetValue(vc, "Major", 14).SetValue(vc, "Minor", 40)).Ok, "14.40 too old");
         Eq(true, VcRuntimeDetector.Detect(new MemorySystemProbe().SetValue(vc, "Major", 14).SetValue(vc, "Minor", 44)).Ok, "14.44 ok");
         Eq(false, VcRuntimeDetector.Detect(new MemorySystemProbe()).Ok, "absent");
+    }),
+    ("vc++ runtime: the registry key and the DLLs the game imports", () =>
+    {
+        const string vc = @"HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64";
+        var sys = Path.Combine(run, "fake-system32"); // (only a name: MemorySystemProbe's files are made up)
+        MemorySystemProbe Machine(int minor, params (string Dll, Version V)[] dlls)
+        {
+            var p = new MemorySystemProbe().SetFolder(KnownFolder.System64, sys).SetValue(vc, "Major", 14).SetValue(vc, "Minor", minor).SetValue(vc, "Bld", 35211);
+            foreach (var (dll, v) in dlls)
+            {
+                p.SetFileVersion(Path.Combine(sys, dll), v);
+            }
+            return p;
+        }
+        var good = new Version(14, 44, 35211, 0);
+        var all = VcRuntimeDetector.Dlls.Select(d => (d, good)).ToArray();
+        Eq("msvcp140.dll|vcruntime140.dll|vcruntime140_1.dll", string.Join("|", VcRuntimeDetector.Dlls), "the exe's runtime DLLs");
+        var ok = VcRuntimeDetector.Detect(Machine(44, all));
+        True(ok.Ok, "key and DLLs 14.44");
+        Eq(new Version(14, 44, 35211), ok.Installed, "version from the key");
+        var missing = VcRuntimeDetector.Detect(Machine(44, all.Where(d => d.d != "vcruntime140_1.dll").ToArray()));
+        True(!missing.Ok && missing.Describe().Contains("vcruntime140_1.dll is missing"), "a DLL missing despite the key: " + missing.Describe());
+        var oldDll = VcRuntimeDetector.Detect(Machine(44, [.. all.Where(d => d.d != "msvcp140.dll"), ("msvcp140.dll", new Version(14, 38, 33135, 0))]));
+        True(!oldDll.Ok && oldDll.Describe().Contains("msvcp140.dll is 14.38.33135"), "an old msvcp140.dll: " + oldDll.Describe());
+        True(!VcRuntimeDetector.Detect(Machine(40, all)).Ok, "key 14.40");
+        var noKey = new MemorySystemProbe().SetFolder(KnownFolder.System64, sys);
+        foreach (var (d, v) in all)
+        {
+            noKey.SetFileVersion(Path.Combine(sys, d), v);
+        }
+        True(VcRuntimeDetector.Detect(noKey).Ok, "no key but every DLL 14.44: ok");
+        Eq(false, VcRuntimeDetector.Detect(new MemorySystemProbe().SetFolder(KnownFolder.System64, sys)).Ok, "nothing at all");
+    }),
+    ("vc++ redistributable: signature and version checked, exit codes, dry run, never downloaded or run for real", () =>
+    {
+        // Real Authenticode on files already on this PC: the .NET runtime's own DLL (Microsoft's embedded signature),
+        // and a made-up one.
+        var verifier = new AuthenticodeVerifier();
+        var coreLib = typeof(object).Assembly.Location;
+        var ms = verifier.Verify(coreLib);
+        True(ms.Trusted && ms.Signer!.Contains("O=Microsoft Corporation"), $"System.Private.CoreLib.dll signed by Microsoft: {ms.Detail} {ms.Signer}");
+        True(!ms.IsMicrosoft, "but by its CN=.NET certificate, not the CN=Microsoft Corporation one the redistributable has");
+        True(new SignatureInfo(true, "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "").IsMicrosoft, "the redistributable's signer");
+        var fake = Path.Combine(Dir("vc-fake"), "vc_redist.x64.exe");
+        File.WriteAllBytes(fake, [0x4D, 0x5A, 1, 2, 3]);
+        True(!verifier.Verify(fake).Trusted, "a made-up exe is not trusted");
+        True(!new SignatureInfo(true, "CN=Evil Corp, O=Evil Corp", "").IsMicrosoft, "someone else's valid signature");
+
+        // The flow with fakes: a local server instead of aka.ms, a verifier and a runner that only record.
+        using var server = new LocalHttpServer();
+        server.Serve("vc_redist.x64.exe", new byte[] { 0x4D, 0x5A, 9, 9, 9 });
+        var runs = new List<string>();
+        var exitCode = 0;
+        var trusted = true;
+        var version = new Version(14, 44, 35211, 0);
+        var fakeVerifier = new FakeVerifier(_ => new SignatureInfo(trusted, "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond", trusted ? "ok" : "bad"));
+        var runner = new FakeRunner((exe, a) => { runs.Add($"{Path.GetFileName(exe)} {a}"); return exitCode; });
+        using var http = Downloader.CreateClient();
+        var redist = new VcRedist(fakeVerifier, runner, _ => version, http);
+        var dl = Dir("vc-downloads");
+        var missing = new VcRuntimeInfo(null, VcRuntimeDetector.Required);
+        VcRedistResult Ensure(bool dryRun = false, bool offline = false, string[]? local = null) => redist.EnsureAsync(missing, new VcRedistOptions
+        {
+            DryRun = dryRun, Offline = offline, LocalCopies = local ?? [], Mirrors = [server.Url("vc_redist.x64.exe")], DownloadDir = dl,
+        }, null, CancellationToken.None).GetAwaiter().GetResult();
+
+        Eq(VcRedistOutcome.AlreadyInstalled, redist.EnsureAsync(new VcRuntimeInfo(new Version(14, 51), VcRuntimeDetector.Required), new VcRedistOptions { DownloadDir = dl },
+            null, CancellationToken.None).GetAwaiter().GetResult().Outcome, "nothing to do");
+        var dry = Ensure(dryRun: true);
+        Eq(VcRedistOutcome.DryRun, dry.Outcome, "dry run");
+        True(dry.Message.Contains("/install /quiet /norestart"), "dry run says the command");
+        Eq(0, server.Requests, "dry run downloads nothing");
+        Eq(0, runs.Count, "dry run runs nothing");
+        Eq(VcRedistOutcome.Unavailable, Ensure(offline: true).Outcome, "offline");
+
+        var installed = Ensure();
+        Eq(VcRedistOutcome.Installed, installed.Outcome, "installed");
+        Eq("vc_redist.x64.exe /install /quiet /norestart", string.Join("|", runs), "run once, quiet, elevated by the runner");
+        Eq(1, server.Requests, "downloaded once");
+        foreach (var (code, outcome) in new[] { (3010, VcRedistOutcome.RebootRequired), (1641, VcRedistOutcome.RebootRequired), (1638, VcRedistOutcome.AlreadyInstalled),
+                     (1602, VcRedistOutcome.Cancelled), (1223, VcRedistOutcome.Cancelled), (1618, VcRedistOutcome.Busy), (1603, VcRedistOutcome.Failed) })
+        {
+            exitCode = code;
+            Eq(outcome, Ensure().Outcome, $"exit code {code}");
+        }
+        True(VcRedist.FromExitCode(3010, "x").RuntimeReady && !VcRedist.FromExitCode(1223, "x").RuntimeReady, "ready after a restart; not after a refusal");
+
+        exitCode = 0;
+        runs.Clear();
+        trusted = false;
+        var bad = Ensure();
+        Eq(VcRedistOutcome.NotTrusted, bad.Outcome, "a download not signed by Microsoft");
+        Eq(0, runs.Count, "never run");
+        True(!File.Exists(Path.Combine(dl, "vc_redist.x64.exe")), "and not kept");
+        trusted = true;
+        version = new Version(14, 36, 32532, 0);
+        Eq(VcRedistOutcome.NotTrusted, Ensure().Outcome, "an older redistributable is not run");
+        version = new Version(14, 51, 36247, 0);
+
+        // A signed copy beside the installer is used without a download; a bad one is skipped for the download.
+        var requests = server.Requests;
+        var beside = Path.Combine(Dir("vc-beside"), "vc_redist.x64.exe");
+        File.WriteAllBytes(beside, [0x4D, 0x5A]);
+        runs.Clear();
+        Eq(VcRedistOutcome.Installed, Ensure(local: [beside]).Outcome, "local copy");
+        Eq(requests, server.Requests, "no download with a good local copy");
+        True(runs.Single().StartsWith("vc_redist.x64.exe"), "the local copy ran");
+        Eq(VcRedistOutcome.DryRun, Ensure(dryRun: true, local: [beside]).Outcome, "dry run with a local copy");
     }),
     ("launch arguments and shortcut plan", () =>
     {

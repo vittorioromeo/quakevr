@@ -9,6 +9,7 @@ using QuakeVR.Installer.Core;
 using QuakeVR.Installer.Core.Detection;
 using QuakeVR.Installer.Core.Packaging;
 using QuakeVR.Installer.Core.Platform;
+using QuakeVR.Installer.Core.Prerequisites;
 using QuakeVR.Installer.Core.Shortcuts;
 
 namespace QuakeVR.Installer.ViewModels;
@@ -55,6 +56,10 @@ public sealed class StartupOptions
     public bool Silent { get; set; }
     /// <summary>The harness also writes a strip of flame frames and a sheet of Quake's textures.</summary>
     public bool Extras { get; set; }
+    /// <summary>Never install the VC++ runtime (it is only detected).</summary>
+    public bool NoPrerequisites { get; set; }
+    /// <summary>Say what the VC++ runtime's install would do; download and run nothing (tests; the harness always).</summary>
+    public bool VcRedistDryRun { get; set; }
 
     public static StartupOptions Parse(string[] args)
     {
@@ -76,6 +81,8 @@ public sealed class StartupOptions
                 case "--reduce-motion": o.ReduceMotion = true; break;
                 case "--silent": o.Silent = true; break;
                 case "--extras": o.Extras = true; break;
+                case "--no-prerequisites": o.NoPrerequisites = true; break;
+                case "--vcredist-dry-run": o.VcRedistDryRun = true; break;
             }
         }
         o.Package = o.Package is { } pk ? PathUtil.TryNormalize(pk) ?? pk : null;
@@ -500,9 +507,8 @@ public sealed class MainViewModel : ObservableObject
             : new CheckItem(CheckStatus.Absent, "SteamVR", "Not installed (optional)."));
         SystemChecks.Add(r.VcRuntime.Ok
             ? new CheckItem(CheckStatus.Ok, "Visual C++ runtime", $"{r.VcRuntime.Installed} installed.")
-            : new CheckItem(CheckStatus.Error, "Visual C++ runtime",
-                r.VcRuntime.Installed is null ? "Not installed." : $"{r.VcRuntime.Installed} is too old (Quake VR needs {r.VcRuntime.Required} or later).",
-                "Install Microsoft's Visual C++ Redistributable (x64), then check again.")
+            : new CheckItem(CheckStatus.Warning, "Visual C++ runtime", r.VcRuntime.Describe(),
+                "Setup installs Microsoft's Visual C++ Redistributable (x64) with Quake VR: Windows asks for permission once.")
             {
                 ActionText = "Get it from Microsoft",
                 Action = new RelayCommand(() => OpenUrl(VcRuntimeInfo.DownloadUrl)),
@@ -871,6 +877,7 @@ public sealed class MainViewModel : ObservableObject
                 }
             });
             Record = await new InstallEngine().InstallAsync(plan, progress, ct);
+            await EnsureVcRuntimeAsync(http, ct);
             LoadExisting();
             BuildDoneNotes();
             GoTo(Page.Done);
@@ -894,6 +901,45 @@ public sealed class MainViewModel : ObservableObject
             CommandManager.InvalidateRequerySuggested();
         }
     }
+
+    /// <summary>Microsoft's VC++ runtime when it is missing or too old (VcRedist): a signed copy beside the installer, or
+    /// a download checked by its Microsoft signature, run with one administrator prompt. Never fatal: the files are in
+    /// place, and the Play page says what is left to do. The screenshot harness and --vcredist-dry-run only log it.</summary>
+    async Task EnsureVcRuntimeAsync(HttpClient http, CancellationToken ct)
+    {
+        VcResult = null;
+        if (_options.NoPrerequisites)
+        {
+            return;
+        }
+        var info = VcRuntimeDetector.Detect(_probe);
+        if (info.Ok)
+        {
+            return;
+        }
+        StatusText = "Visual C++ runtime";
+        AddLog(LogLevel.Info, $"Visual C++ runtime: {info.Describe()}");
+        var dir = _options.Downloads ?? Path.Combine(_probe.GetFolder(KnownFolder.LocalAppData) ?? Path.GetTempPath(), "QuakeVR-Installer", "downloads");
+        var progress = new Progress<InstallProgress>(p =>
+        {
+            StatusText = p.Status;
+            if (p.Log is not null)
+            {
+                AddLog(p.Level, p.Log);
+            }
+        });
+        VcResult = await VcRedist.ForWindows(http).EnsureAsync(info, new VcRedistOptions
+        {
+            DryRun = _options.VcRedistDryRun || _options.Screenshots is not null,
+            Offline = _options.Offline,
+            LocalCopies = [Path.Combine(AppContext.BaseDirectory, VcRedist.FileName)],
+            DownloadDir = dir,
+        }, progress, ct);
+        AddLog(VcResult.RuntimeReady ? LogLevel.Success : VcResult.Outcome == VcRedistOutcome.DryRun ? LogLevel.Info : LogLevel.Warning, VcResult.Message);
+    }
+
+    /// <summary>What the last install did about the VC++ runtime (null: nothing needed).</summary>
+    public VcRedistResult? VcResult { get; private set; }
 
     async Task<string?> DownloadAsync(HttpClient http, string what, Func<ReleaseFeed, FeedFile?> pick, double from, double to, CancellationToken ct)
     {
@@ -1002,6 +1048,21 @@ public sealed class MainViewModel : ObservableObject
             DoneNotes.Add(new CheckItem(CheckStatus.Info, "Relit maps",
                 "At its first start (Play below, a shortcut or Steam) the game relights every map with the HD textures (about a minute; the wrist gadget shows its progress). " +
                 "Later: Graphics > Relighting."));
+        }
+        if (VcResult is { } vc && vc.Outcome != VcRedistOutcome.AlreadyInstalled)
+        {
+            DoneNotes.Add(vc.Outcome switch
+            {
+                VcRedistOutcome.Installed => new CheckItem(CheckStatus.Ok, "Visual C++ runtime", vc.Message),
+                VcRedistOutcome.RebootRequired => new CheckItem(CheckStatus.Info, "Visual C++ runtime", vc.Message),
+                VcRedistOutcome.DryRun => new CheckItem(CheckStatus.Info, "Visual C++ runtime", vc.Message),
+                _ => new CheckItem(CheckStatus.Warning, "Visual C++ runtime", vc.Message,
+                    "The game needs it to start: install Microsoft's Visual C++ Redistributable (x64), or run Setup again.")
+                {
+                    ActionText = "Get it from Microsoft",
+                    Action = new RelayCommand(() => OpenUrl(VcRuntimeInfo.DownloadUrl)),
+                },
+            });
         }
         if (_report?.Vr.SuggestVdxr == true)
         {

@@ -8,6 +8,7 @@ public sealed class MemorySystemProbe : ISystemProbe
 {
     readonly Dictionary<string, Dictionary<string, object>> _keys = new(StringComparer.OrdinalIgnoreCase);
     readonly Dictionary<KnownFolder, string> _folders = [];
+    readonly Dictionary<string, Version> _versions = new(StringComparer.OrdinalIgnoreCase);
 
     public MemorySystemProbe SetValue(string key, string name, object value)
     {
@@ -25,6 +26,15 @@ public sealed class MemorySystemProbe : ISystemProbe
         _folders[folder] = path;
         return this;
     }
+
+    /// <summary>A made-up file with this version (only its version exists: nothing is written).</summary>
+    public MemorySystemProbe SetFileVersion(string path, Version version)
+    {
+        _versions[Path.GetFullPath(path)] = version;
+        return this;
+    }
+
+    public Version? GetFileVersion(string path) => _versions.TryGetValue(Path.GetFullPath(path), out var v) ? v : null;
 
     public object? GetRegistryValue(string key, string name) =>
         _keys.TryGetValue(key, out var values) && values.TryGetValue(name, out var v) ? v : null;

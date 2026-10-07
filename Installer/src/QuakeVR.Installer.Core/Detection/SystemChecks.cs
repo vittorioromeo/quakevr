@@ -76,27 +76,75 @@ public static class VrDetector
     }
 }
 
-public sealed record VcRuntimeInfo(Version? Installed, Version Required)
+public sealed record VcRuntimeInfo(Version? Installed, Version Required, IReadOnlyList<string> Problems)
 {
-    public bool Ok => Installed is not null && Installed >= Required;
+    public VcRuntimeInfo(Version? installed, Version required) : this(installed, required, []) { }
+
+    /// <summary>The runtime is there, new enough, and so are the DLLs the game imports.</summary>
+    public bool Ok => Installed is not null && Installed >= Required && Problems.Count == 0;
     public const string DownloadUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe";
+
+    /// <summary>One line for the Your PC page and the report.</summary>
+    public string Describe() =>
+        Ok ? $"{Installed} installed."
+        : Problems.Count > 0 ? string.Join("; ", Problems) + $" (Quake VR needs {Required} or later)."
+        : Installed is null ? "Not installed."
+        : $"{Installed} is too old (Quake VR needs {Required} or later).";
 }
 
-/// <summary>The Visual C++ 2015-2022 x64 runtime: the engine needs 14.44 or later (older than 14.40 crashes at start
-/// in MSVCP140.dll, docs/INSTALL.md).</summary>
+/// <summary>
+/// The Visual C++ 2015-2022 x64 runtime: the engine needs 14.44 or later (older than 14.40 crashes at start in
+/// MSVCP140.dll, docs/INSTALL.md). The game is built with the 14.44 toolset and the DLL C runtime (/MD): it imports
+/// MSVCP140.dll, VCRUNTIME140.dll and VCRUNTIME140_1.dll (and the Universal CRT's api-ms-win-crt-*, part of Windows 10
+/// and later). mimalloc (Quake/vr/vr_crtheap.c) only took the heap functions out of its imports; the DLLs are the same.
+/// The redistributable's registry key (Major/Minor/Bld) says what is installed; the DLLs in System32 are checked too
+/// (a key left by a broken uninstall, or DLLs older than the key).
+/// </summary>
 public static class VcRuntimeDetector
 {
     public static readonly Version Required = new(14, 44);
 
+    /// <summary>The runtime DLLs ironwail.exe imports (dumpbin /dependents).</summary>
+    public static readonly IReadOnlyList<string> Dlls = ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
+
+    public static readonly IReadOnlyList<string> RegistryKeys =
+        [@"HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64", @"HKLM\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"];
+
     public static VcRuntimeInfo Detect(ISystemProbe probe)
     {
-        foreach (var key in new[] { @"HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64", @"HKLM\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" })
+        Version? registry = null;
+        foreach (var key in RegistryKeys)
         {
             if (probe.GetRegistryInt(key, "Major") is { } major && probe.GetRegistryInt(key, "Minor") is { } minor)
             {
-                return new VcRuntimeInfo(new Version(major, minor, probe.GetRegistryInt(key, "Bld") ?? 0), Required);
+                registry = new Version(major, minor, probe.GetRegistryInt(key, "Bld") ?? 0);
+                break;
             }
         }
-        return new VcRuntimeInfo(null, Required);
+        var problems = new List<string>();
+        Version? oldestDll = null;
+        if (probe.GetFolder(KnownFolder.System64) is { } system)
+        {
+            foreach (var dll in Dlls)
+            {
+                var v = probe.GetFileVersion(Path.Combine(system, dll));
+                if (v is null)
+                {
+                    problems.Add($"{dll} is missing");
+                    continue;
+                }
+                if (v < Required)
+                {
+                    problems.Add($"{dll} is {v.Major}.{v.Minor}.{v.Build}");
+                }
+                oldestDll = oldestDll is null || v < oldestDll ? v : oldestDll;
+            }
+            if (problems.Count > 0)
+            {
+                oldestDll = null;
+            }
+        }
+        // (No key but the DLLs all there: installed some other way; their oldest version is what counts.)
+        return new VcRuntimeInfo(registry ?? oldestDll, Required, problems);
     }
 }

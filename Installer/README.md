@@ -60,6 +60,8 @@ one unsigned `QuakeVR-Setup.exe`; see INSTALLER.md, "Hosting and SmartScreen").
 | `--no-quake-look` | The generated textures and sounds even when Quake is found (screenshots of the fallback) |
 | `--reduce-motion` | Animations off, as with Windows' "Animation effects" off |
 | `--silent` | No sound |
+| `--no-prerequisites` | Never install the VC++ runtime (it is still detected) |
+| `--vcredist-dry-run` | Only log what the VC++ runtime's install would do (download, signature check, `/install /quiet /norestart`); download and run nothing |
 | `--extras` | With `--screenshots`: also a strip of flame frames, a sheet of Quake's textures, and `report.txt` (skin, sounds, per-frame costs, the live window's frame rate and CPU) |
 
 ### qvr-setup (console)
@@ -69,6 +71,7 @@ qvr-setup detect                                   # what is on this PC (Quake, 
 qvr-setup manifest <package folder> --version <v>  # write manifest.json (package-quakevr.ps1 has its own writer)
 qvr-setup install --package dist\QuakeVR.zip --target <dir> [--shortcuts-dir <dir>] [--textures <zip>] [--relight] [--vispatch id1_vis.tgz ...]
 qvr-setup verify --target <dir>
+qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--assume-missing] [--file <exe>]]   # the VC++ runtime (without --dry-run: installs it, one UAC prompt)
 qvr-setup uninstall --target <dir> [--remove-textures]
 qvr-setup download --url <u> [--url <mirror>] --out <file> --size <n> --sha256 <hex>
 qvr-setup assets --game <Quake>\id1 [--map maps/start.bsp] [--prefix sound/misc]   # what the skin can read (nothing written)
@@ -82,9 +85,11 @@ The console never writes the real desktop or Start menu: shortcuts only with `--
 dotnet run --project tests/QuakeVR.Installer.SelfTest -- <scratch folder> [name filter]
 ```
 
-21 tests: VDF parsing, a fake Steam (libraries, app manifests), GOG and Epic, id1 kinds, the engine's resource checks
+Tests: VDF parsing, a fake Steam (libraries, app manifests), GOG and Epic, id1 kinds, the engine's resource checks
 and pack states (ported from `Quake/vr/vr_gamedir.cpp`), expansion roots and priorities, OpenXR/Virtual Desktop/VC++
-detection, launch arguments and shortcut plans, `.lnk` round trips, manifest safety (paths outside the folder
+detection (the registry key and the three DLLs the game imports), the VC++ redistributable's install (the real
+Authenticode check on files already here; the download, signature and version checks, exit codes and dry run with a local
+server and a fake runner: nothing is ever run elevated), the first-start relight's marker, launch arguments and shortcut plans, `.lnk` round trips, manifest safety (paths outside the folder
 refused), install target rules, install/verify/update/uninstall end to end (zip and folder packages, player files kept,
 the Quake folder unchanged), damaged and cancelled installs, HD textures for owned packs only, downloads (mirror
 fall-back, a wrong file skipped, resume with HTTP Range, pinned SHA-256) and the release feed, all against a local

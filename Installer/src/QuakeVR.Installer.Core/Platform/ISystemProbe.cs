@@ -10,6 +10,8 @@ public enum KnownFolder
     Desktop,
     StartMenuPrograms,
     UserProfile,
+    /// <summary>The 64-bit system folder (System32 for a 64-bit process), where the VC++ runtime's DLLs are.</summary>
+    System64,
 }
 
 /// <summary>
@@ -27,6 +29,9 @@ public interface ISystemProbe
 
     /// <summary>A special folder, or null when it cannot be resolved.</summary>
     string? GetFolder(KnownFolder folder);
+
+    /// <summary>A file's version resource (FileVersion), or null when the file or its version is missing.</summary>
+    Version? GetFileVersion(string path);
 }
 
 public static class SystemProbeExtensions
