@@ -461,6 +461,9 @@ void resetHandMoves()
             .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
                   "it when you close the other."),
         toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
+        slider("Grip Click", vr_2h_grip_sound, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Your other hand taking hold of a weapon's foregrip clicks softly from that hand (and pulses in it); "
+                  "letting go, a quieter click. How loud (0: no sound, the pulse stays)."),
         slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops."),
         slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
         header("2H Grip Stickiness"),

@@ -27721,3 +27721,18 @@ Movement and Nearness, **Blow Material Layer**. `developer 1` prints `blunt hit 
 Checked (`-Sound -RealTime`, `vr_snd_spatial 0`, `snd_show 2`; a shells box flung with `impulse 232`): into a grunt
 `fisthit.wav` (pitch 0.975) and `flesh_m4` (0.988) on the box's channel 0; into a knight `fisthit` and `metal_l4`
 over `flesh_m3`; into a zombie `fisthit` and `flesh_m1`.
+
+## The foregrip clicks (AUDIO_REVIEW.md row 6, 2026-10-07)
+
+The other hand closing on a weapon's foregrip (a gun's, a sword's grip or blade, a weapon carried off its handle, a
+free grip anywhere on it) had no sound and no haptic. Now (`vr_twohand.cpp` gripFeedback, at the end of `apply`, on
+the edge of the hand's `helpingHand`): a short metal click from that hand (`vr/phys/grab_metal1..3`, the climbing
+hand's and the explosive box's grabs, RMS 9%; client `S_StartSoundPitch` on the player's hand channel, `SND_CHAN_HAND`
+or `SND_CHAN_HAND2`, so it plays from the hand and follows it) at `vr_2h_grip_sound`, pitch-varied by
+`vr_snd_pitch_jitter`, and a 30 ms pulse (0.45) in that hand; letting go, the click at half that, no pulse. At most one
+per hand every 0.25 s (a grip at the edge of its reach). `vr_2h_grip_sound` (0.6; 0 no sound, the pulse stays): Aiming >
+**Grip Click**. `developer 1` prints `2h click: <hand> takes hold / lets go`.
+
+Checked (`-Sound -RealTime`, `vr_snd_spatial 0`, `snd_show 2`; a shotgun in the main hand, the off hand put on it at
+0.75 with `vr_mock_hand_to off held` and gripped, then let go): `grab_metal1.wav` on channel 9, pitch 0.998, `at 486
+-326 102 | off hand 486 -326 102 (0.0 off)`; letting go `grab_metal3.wav` (0.978) the same way.

@@ -60,6 +60,7 @@ Effort: S an hour or so, QC or one engine function; M a day, engine work across 
 | 2 | done (5a18f374) | ragdoll parts and pushable corpses knock as flesh through the physics sounds; the dragging scrape left (row 2b below) |
 | 3 | done (0fc1340d) | `sound()`'s pitch argument; `VR_SoundVaried` and `vr_snd_pitch_jitter` (4%) on the frequent sounds |
 | 4 | done (layer) | a blunt blow's second layer of what it hit (flesh, armour, wood, a wall) under the thud, varied in pitch (`VR_Blunt_HitLayer`, `vr_snd_hit_layer`); the new punch and cut recordings still to source |
+| 6 | done | a metal click from the helping hand and a 30 ms pulse in it as it takes a foregrip, a quieter click as it lets go (`vr_twohand.cpp` gripFeedback, `vr_2h_grip_sound` 0.6) |
 
 ## Well covered (no change proposed)
 
@@ -74,7 +75,7 @@ pain), menus (Quake's three clicks), the gadget's chime and buzz for messages ou
 
 ## Haptics pairing
 
-Missing: the two-handed grip (row 6). Present everywhere else checked: holster hover, catches, pickups, reloads, the
+Missing: the two-handed grip (row 6; done since: a pulse as the grip is taken). Present everywhere else checked: holster hover, catches, pickups, reloads, the
 force grab (eligible, lock, launch, catch), climbing, splashes, hits taken, bash, parry, hands meeting, walls.
 
 ## Done in this review

@@ -41,6 +41,7 @@
 #include "vr_cvars.hpp"
 #include "vr_handpose.hpp"
 #include "vr_held.hpp"
+#include "vr_main.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
@@ -50,6 +51,8 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Chrono/Clock.hpp"
+#include "Zancle/Random/FastNonCryptoRng.hpp"
 
 
 namespace qvr::twohand
@@ -177,6 +180,11 @@ double retakeFrom[2]{-1.0, -1.0}; // the carry (its carryLast) a retake was last
 // next gun's foregrip a blade grip: the helping hand slid along the whole gun, turned as on a blade).
 int heldWas[2]{-1, -1};
 bool carriedWas[2]{false, false};
+
+// The grip's feedback (gripFeedback): each hand's helping last frame, and when it last clicked (cl.time; -1 never).
+bool helpingWas[2]{false, false};
+double gripClickLast[2]{-1.0, -1.0};
+za::FastNonCryptoRng gripRng{static_cast<za::U64>(za::Clock::nowNanoseconds())};
 
 [[nodiscard]] RelPose relativeTo(const glm::vec3& basePos, const glm::vec3& baseRot, const glm::vec3& pos,
     const glm::vec3& rot)
@@ -896,6 +904,50 @@ void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding,
     }
 }
 
+// The other hand closing on a weapon's foregrip (a gun's, a sword's grip or blade, a weapon carried off its handle, a
+// free grip): a short metal click from that hand (vr/phys/grab_metal1..3, the climbing hand's and the explosive
+// box's grabs; on the hand's own channel, SND_CHAN_HAND: from the hand) at vr_2h_grip_sound, a little higher or lower
+// each time (vr_snd_pitch_jitter), and a short pulse in it; letting go, the click at half that and no pulse. At most
+// one every 0.25 s per hand (a grip held at the edge of its reach, taken and lost). `developer` prints each.
+void gripFeedback(const hands::State& s)
+{
+    for(int h = 0; h < 2; h++)
+    {
+        const bool now = helpingHand[h];
+        if(now == helpingWas[h])
+        {
+            continue;
+        }
+        helpingWas[h] = now;
+        const float vol = za::clamp(vr_2h_grip_sound.value, 0.f, 1.f) * (now ? 1.f : 0.5f);
+        if(cl.time - gripClickLast[h] < 0.25 && gripClickLast[h] >= 0.0)
+        {
+            continue;
+        }
+        gripClickLast[h] = cl.time;
+        Con_DPrintf("2h click: %s hand %s\n", h == HAND_MAIN ? "main" : "off", now ? "takes hold" : "lets go");
+        if(now && !vr_disablehaptics.value)
+        {
+            if(Backend* be = backend())
+            {
+                be->haptic(h, 0.03f, 160.f, 0.45f);
+            }
+        }
+        if(vol <= 0.f || cl.viewentity <= 0)
+        {
+            continue;
+        }
+        static constexpr const char* clicks[3]{"vr/phys/grab_metal1.wav", "vr/phys/grab_metal2.wav", "vr/phys/grab_metal3.wav"};
+        if(sfx_t* sfx = S_PrecacheSound(clicks[gripRng.getI(0, 2)]))
+        {
+            vec3_t org{s.pos[h].x, s.pos[h].y, s.pos[h].z};
+            const float pct = za::clamp(vr_snd_pitch_jitter.value, 0.f, 25.f) * 0.01f;
+            S_StartSoundPitch(cl.viewentity, h == HAND_MAIN ? SND_CHAN_HAND : SND_CHAN_HAND2, sfx, org, vol, 1.f,
+                1.f + gripRng.getF(-pct, pct));
+        }
+    }
+}
+
 } // namespace
 
 void apply(hands::State& s)
@@ -946,6 +998,7 @@ void apply(hands::State& s)
     }
     applyHand(s, originalRots, HAND_MAIN, HAND_OFF, mode);
     applyHand(s, originalRots, HAND_OFF, HAND_MAIN, mode);
+    gripFeedback(s);
 }
 
 bool aiming()
@@ -1061,6 +1114,7 @@ void reset()
         gripLength[h] = 0.f;
         heldWas[h] = -1;
         carriedWas[h] = false;
+        helpingWas[h] = false;
     }
     lastTime = -1.0;
     fastShare = 0.f;
