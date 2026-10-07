@@ -28987,3 +28987,48 @@ Not done (ranked by what they would save):
 
 Map-side: nothing changed in vrstart2 (the fixes are the engine's; the look and the paths the same: the walk test
 18 of 18 legs, screenshots).
+
+## Immersive manual reloading, phase 1: the ammo pouch and the shotgun (2026-10-07)
+
+The author's request: a third reloading mode, loading by hand from a pouch on the belt (design, accounting rules,
+models, menu, tests and phases 2-4: RELOAD_PLAN.md). Phase 1:
+
+- **The mode.** `vr_reload_mode` 3 "Immersive" (0 Off, 1 All Holsters, 2 Hip Holsters as before), the shipped default;
+  `vr_cfg_version` 97 moves a config still at the old default (2) to it (Off and All Holsters stay). Immersion's row,
+  the setup boards' "Reloading" option (vr_setup.cpp) and the new **Weapons > Reloading** page have it. In 3 the guns
+  that load by hand (QC `VR_Reload_ManualFor`: the shotgun) get no holster, button or flick reload
+  (`VRTryReloadWeapon`); every other gun reloads at the hip holsters, as in 2. The shotgun you start a game with comes
+  loaded from your shells (`SetNewParms`; the holsters' reload filled it as it was first drawn), as map pickups do.
+- **The ammo pouch** (`vrpouch_ammo.mdl`, make_ammo_pouch.py: make_pouch.py's leather, wider and shallower, shells
+  standing brass up; frame 1 empty, by your shells): on the front of the belt between the hip holsters, placed as they
+  are (vr_body.cpp `ammoPouchPosition`: the belly's ring with the body, carried by the pelvis; the hips' height and X
+  without it), drawn and lit by vr_view.cpp `setupAmmoPouch`, reached as hotspot `HS_AMMO_POUCH` 12 (the one a hand is
+  most within, holsters and pouches alike). `vr_ammo_pouch_x/y/z/thresh/pitch/yaw/roll/scale/show`. Climbing, the
+  flashlight, self-collision and the QC holster lists know the new hotspot.
+- **The loading port.** polish_weapons.py `loading_port`: under the shotgun's receiver, between the trigger guard and
+  the pump: a black floor a step below the keel, a worn steel frame standing out round it, the brass lifter at its
+  back (parts added; the old vertices, triangles and anchors as they were). vr_view.cpp's `loadPorts` table has its
+  point in model space; the client places it as drawn (like the muzzle) and sends it with each move
+  (`VrMove::loadPort` -> `.loadportpos`, `.offloadportpos`).
+- **The shells** (QC vr_reload.qc; `vr_shell_live.mdl`, `vr_shell_pair.mdl` from make_shell.py: the spent shell's head
+  and hull closed by a star crimp; two side by side in grey tape). An empty hand gripping at the pouch takes a shell for
+  the gun in the OTHER hand (with `vr_reload_shell_pairs`, a taped pair if two are left), out of the reserve at once; it
+  is a carried prop (prop slots 49 and 50, `vr_props_version` 60: held fixed in the fist, its crimp out in front, the
+  fingers fitted round it; tuned in Held Object Offsets). Held within `vr_reload_port_leniency` (4 units) of that gun's
+  port it goes into the magazine (the gun's record); a pair with one place left loads one and leaves a single shell; a
+  full gun takes nothing (a dull tap). Let go of at the pouch (or a holster, or the trigger pressed: its pickup) it is
+  refunded, up to the most you carry; anywhere else it drops, a Box3D prop (tinks: the spent shells' sounds) that can be
+  taken again by hand (`vr_reload_grab_slack` 3 cm: it lies flat under the lowest the fist gets) or force grabbed. At
+  most `vr_reload_loose_max` (24) lie about (the oldest not in a hand goes) and each fades after
+  `vr_reload_loose_time` (90 s): then it is lost. One in a hand at a level's end is refunded. The empty pouch gives
+  nothing: soft pats and a dull knock. Sounds (make_sounds.py): `reload_pouch.wav`, `reload_shell_in.wav`,
+  `reload_empty.wav`; haptics and volume scale by `vr_reload_haptics`, `vr_reload_volume`.
+- **Tests.** Debug > Tests > Reloading (`vr_reload_test <step>; impulse 125`: take, load, drop, put back, empty the
+  gun, report, the self-test); `vr_reload_debug` prints the steps; `vr_mock_hand_to <hand> ammopouch | lport [units]`.
+  `Misc/quakevr/reload/reload_test.sh <agent>`: the self-test (27 of 27), the mock hands' take / port / drop / regrab
+  / refund (6 of 6) and Hip Holsters unchanged (3 of 3). The loaded map guns' transfer and pickup tests pass; the e1m1
+  smoke, the weapon instance steps, `vr_menu_path_check` (0 missing) too; QC 0 warnings.
+
+Open for the author: the shell's pose in the fist (the defaults are a first fit, Held Object Offsets has them); the
+pouch's place and size; whether a shell let go of at a hip holster should go back into the pouch (it does: it is a
+pickup) or drop.

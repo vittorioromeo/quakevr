@@ -65,8 +65,8 @@ gun's port are, as drawn) and draws.
     pouch it is refunded (`VR_Reload_LetGo`, before the carry's own let-go, as the grenade's).
 - **Multiplayer and co-op.** Everything above runs per player on the server: the pouch, the props and the counts are
   that player's; other players see the props as entities. The client sends only its hotspot and port points (as it
-  does the muzzle). A loose ammo prop is anyone's to pick up, but only its owner's pouch takes it back, and loading it
-  into anyone's gun works (it is ammo). The client draws the pouch by its own `vr_reload_mode` (as it decides today
+  does the muzzle). A loose ammo prop is anyone's: picked up, it goes into whoever's gun or pouch it is put in (it is
+  ammo). The client draws the pouch by its own `vr_reload_mode` (as it decides today
   whether to show `clip/size`); a client whose setting differs from the server's sees a pouch that does nothing, or
   none: noted, a stat bit can fix it later if it matters. Bots (`!ishuman`) never reload, as today.
 
@@ -134,7 +134,7 @@ Headless (mock hands, `vr_fixed_frames 1`), per phase:
 
 ## Phases
 
-1. **Mode, pouch, shotgun** (this round): the mode (default Immersive, `vr_cfg_version` migration of the untouched
+1. **Mode, pouch, shotgun** (done 2026-10-07: ROUND21.md, "Immersive manual reloading, phase 1"): the mode (default Immersive, `vr_cfg_version` migration of the untouched
    default), the front pouch (drawn, placed, sized, turned), the shotgun's port, the shell props (single, taped pair),
    the pouch take / put back / waste, force grab of loose shells, haptics and sound, the shell's pose (its prop slot),
    loading with a leniency, the Reloading page and the Debug test aids. Other guns as before (the hip holster reload).

@@ -1823,3 +1823,15 @@ and **Same-Frame Parry Hits** (both grant 500 health; the dragon requires Rogue 
 (impulse 249) and **A Melee Blow Now** (impulse 242). With `notarget`, the latter is a controlled blow through
 the actual parry path. In VR, check a knight/ogre's multi-hit attack, crossed arms, counter timing, and turn
 Parry Stops Attacks off to compare. Do not tune or replay archived melee takes for this check.
+
+## Immersive reloading (2026-10-07)
+
+`bash Misc/quakevr/reload/reload_test.sh <agent>` (RELOAD_PLAN.md; ROUND21.md, "Immersive manual reloading"): the QC
+self-test (`vr_reload_test 9; impulse 125`: `reload: PASS|FAIL ...`, `reload: N passed, M failed`), then by the mock
+hands: `impulse 154; vr_test_weaponinst 7; impulse 120` (the shotgun into the off hand), `vr_mock_hand_to main
+ammopouch` (the ammo pouch's reach point; `vr_dumpview` prints `ammo pouch at ...`), `+grabmain; vr_mock_button main
+grip 1` (a shell taken), `vr_mock_hand_to main lport [units below]` (the held shell at the off hand's gun's loading
+port: in), a shell let go of away from the pouch (lying about), `vr_mock_hand_to main nearest vr_ammo_shell 12`, grip,
+then `... 1` (taken again: the fist must arrive gripping), let go of at the pouch (refunded). `vr_reload_test 0;
+impulse 125` prints the counts; `vr_reload_debug 1` (with `developer 1`) each take, load, refund and loss, 2 a held
+shell's distance to the port every frame.
