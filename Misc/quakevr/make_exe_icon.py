@@ -1,8 +1,11 @@
-"""Builds the engine's Windows icon (Windows/QuakeVR.ico) from the square Quake VR logo.
+"""Builds the Windows icons (the engine's Windows/QuakeVR.ico, the installer's
+Installer/src/QuakeVR.Installer/Assets/app.ico) from Vittorio's icon logo (docs/images/quakevr-unleashed-icon.webp:
+the emblem with "QVR:U" under it, made to read at icon sizes).
 
-Usage: python make_exe_icon.py <logo_square.(webp|png)> [out.ico] [--preview preview.png]
+Usage: python make_exe_icon.py <logo.(webp|png)> [out.ico] [--sizes 16,24,...] [--preview preview.png]
 
-Sizes 16..256. Each is a premultiplied-alpha Lanczos downscale of the full logo (alpha kept as the
+Sizes 16..256 by default, with 20, 40 and 96 for the 125%/150%/200% DPI small and large icons (the whole
+logo at every size: a non-square source is centred on a transparent square, never cropped). Each is a premultiplied-alpha Lanczos downscale of the full logo (alpha kept as the
 downscale gives it, never thresholded); sizes up to 64 get a mild unsharp mask on colour only, so the
 small taskbar / title-bar icons stay crisp. Sizes below 256 are stored as 32-bit BMP entries (every
 Windows icon API reads them), 256 as PNG (the usual Vista+ layout). Needs Pillow with WebP support.
@@ -13,9 +16,10 @@ import sys
 
 from PIL import Image, ImageFilter
 
-SIZES = (16, 24, 32, 48, 64, 128, 256)
+SIZES = (16, 20, 24, 32, 40, 48, 64, 96, 128, 256)
 # (radius, percent, threshold) per size: stronger at the smallest sizes, none from 128 up
-SHARPEN = {16: (0.6, 80, 1), 24: (0.6, 70, 1), 32: (0.7, 60, 1), 48: (0.8, 50, 1), 64: (0.8, 40, 1)}
+SHARPEN = {16: (0.6, 80, 1), 20: (0.6, 75, 1), 24: (0.6, 70, 1), 32: (0.7, 60, 1), 40: (0.7, 55, 1), 48: (0.8, 50, 1),
+           64: (0.8, 40, 1)}
 
 
 def make_frame(src, size):
@@ -77,6 +81,11 @@ def main():
         i = args.index("--preview")
         preview = args[i + 1]
         del args[i:i + 2]
+    sizes = SIZES
+    if "--sizes" in args:
+        i = args.index("--sizes")
+        sizes = tuple(int(v) for v in args[i + 1].split(","))
+        del args[i:i + 2]
     src = Image.open(args[0]).convert("RGBA")
     if src.width != src.height:
         side = max(src.size)
@@ -84,14 +93,14 @@ def main():
         sq.paste(src, ((side - src.width) // 2, (side - src.height) // 2))
         src = sq
     out = args[1] if len(args) > 1 else "Windows/QuakeVR.ico"
-    frames = [make_frame(src, s) for s in SIZES]
+    frames = [make_frame(src, s) for s in sizes]
     write_ico(frames, out)
     print("wrote", out, [f.size[0] for f in frames])
     if preview:
         # each size at 1x and 4x nearest-neighbour, on a light and a dark background
         tiles = []
         for bg in ((240, 240, 240, 255), (32, 32, 32, 255)):
-            row = Image.new("RGBA", (sum(s + 8 for s in SIZES) + sum(s * 3 + 8 for s in SIZES[:3]), 256 + 8), bg)
+            row = Image.new("RGBA", (sum(s + 8 for s in sizes) + sum(s * 3 + 8 for s in sizes[:3]), 256 + 8), bg)
             x = 4
             for f in frames:
                 row.alpha_composite(f, (x, 4)); x += f.width + 8
