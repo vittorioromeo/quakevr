@@ -557,6 +557,105 @@ float cross2(const glm::vec2& a, const glm::vec2& b)
     return a.x * b.y - a.y * b.x;
 }
 
+// Items (faces, rim segments) bucketed by the xy cells their boxes cover: a point's cell lists every item whose box
+// holds it (buildMesh's lookups, which went through every face or segment of a group: 2.2 s a load on vrstart2's lake,
+// 1/10th of its faces level water). The boxes' cells are found with the same arithmetic as the point's, so an item whose
+// box holds the point is always in the point's cell.
+struct XYBuckets
+{
+    float x0 = 0.f, y0 = 0.f, inv = 1.f;
+    int nx = 0, ny = 0;
+    za::Vector<int> start; // [cell .. cell + 1): its items in `items`
+    za::Vector<int> items;
+
+    [[nodiscard]] int cellX(float x) const { return za::clamp(static_cast<int>(za::floor((x - x0) * inv)), 0, nx - 1); }
+    [[nodiscard]] int cellY(float y) const { return za::clamp(static_cast<int>(za::floor((y - y0) * inv)), 0, ny - 1); }
+
+    // count items, box(i, lo, hi) their boxes (only items with box() true are bucketed); cells about `target` items
+    // across the whole area at most a few million
+    template <typename Box>
+    void build(int count, const Box& box)
+    {
+        glm::vec2 lo{1e30f}, hi{-1e30f}, a, b;
+        int n = 0;
+        for(int i = 0; i < count; ++i)
+        {
+            if(box(i, a, b))
+            {
+                lo = glm::min(lo, a);
+                hi = glm::max(hi, b);
+                ++n;
+            }
+        }
+        nx = ny = 0;
+        start.clear();
+        items.clear();
+        if(n == 0)
+        {
+            return;
+        }
+        x0 = lo.x;
+        y0 = lo.y;
+        const glm::vec2 size = glm::max(hi - lo, glm::vec2{1.f});
+        // about one item a cell, cells of 16 units at least, 1024 x 1024 cells at most
+        float cell = za::max(16.f, za::sqrt(size.x * size.y / static_cast<float>(n)));
+        cell = za::max(cell, za::max(size.x, size.y) / 1024.f);
+        inv = 1.f / cell;
+        nx = static_cast<int>(size.x * inv) + 1;
+        ny = static_cast<int>(size.y * inv) + 1;
+        start.resize(static_cast<za::SizeT>(nx) * static_cast<za::SizeT>(ny) + 1, 0);
+        const auto each = [&](const auto& visit)
+        {
+            for(int i = 0; i < count; ++i)
+            {
+                if(!box(i, a, b))
+                {
+                    continue;
+                }
+                const int ax = cellX(a.x), bx = cellX(b.x), ay = cellY(a.y), by = cellY(b.y);
+                for(int y = ay; y <= by; ++y)
+                {
+                    for(int x = ax; x <= bx; ++x)
+                    {
+                        visit(static_cast<za::SizeT>(y) * static_cast<za::SizeT>(nx) + static_cast<za::SizeT>(x), i);
+                    }
+                }
+            }
+        };
+        each([&](za::SizeT c, int) { ++start[c + 1]; });
+        for(za::SizeT c = 1; c < start.size(); ++c)
+        {
+            start[c] += start[c - 1];
+        }
+        items.resize(static_cast<za::SizeT>(start.back()));
+        za::Vector<int> fill;
+        fill.resize(start.size() - 1);
+        for(za::SizeT c = 0; c < fill.size(); ++c)
+        {
+            fill[c] = start[c];
+        }
+        each([&](za::SizeT c, int i) { items[static_cast<za::SizeT>(fill[c]++)] = i; });
+    }
+
+    // The items whose boxes may hold p (in the order they were numbered), visited until visit returns false.
+    template <typename Visit>
+    void at(const glm::vec2& p, const Visit& visit) const
+    {
+        if(nx == 0)
+        {
+            return;
+        }
+        const za::SizeT c = static_cast<za::SizeT>(cellY(p.y)) * static_cast<za::SizeT>(nx) + static_cast<za::SizeT>(cellX(p.x));
+        for(int k = start[c]; k < start[c + 1]; ++k)
+        {
+            if(!visit(items[static_cast<za::SizeT>(k)]))
+            {
+                return;
+            }
+        }
+    }
+};
+
 float segmentDistance(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b)
 {
     const glm::vec2 ab = b - a;
@@ -874,6 +973,13 @@ void buildMesh(qmodel_t* m, float cell)
     };
     za::Vector<za::Vector<Segment>> rims(groups.size());
     za::Vector<za::Vector<Segment>> faceRims(faces.size()); // the same, by the face whose edge it is on
+    XYBuckets faceBuckets; // the level faces (insideXY's slack included)
+    faceBuckets.build(static_cast<int>(faces.size()), [&](int i, glm::vec2& lo, glm::vec2& hi) {
+        const SrcFace& f = faces[static_cast<za::SizeT>(i)];
+        lo = {f.mins[0] - 0.1f, f.mins[1] - 0.1f};
+        hi = {f.maxs[0] + 0.1f, f.maxs[1] + 0.1f};
+        return f.level;
+    });
     for(za::SizeT fi = 0; fi < faces.size(); fi++)
     {
         const SrcFace& f = faces[fi];
@@ -900,14 +1006,15 @@ void buildMesh(qmodel_t* m, float cell)
                 {
                     const glm::vec2 p = a + (b - a) * ((k + 0.5f) / samples) + out * 0.5f;
                     open = true;
-                    for(int other : groups[static_cast<za::SizeT>(f.group)])
-                    {
-                        if(other != static_cast<int>(fi) && insideXY(faces[static_cast<za::SizeT>(other)], p))
+                    faceBuckets.at(p, [&](int other) {
+                        const SrcFace& o = faces[static_cast<za::SizeT>(other)];
+                        if(other != static_cast<int>(fi) && o.group == f.group && insideXY(o, p))
                         {
                             open = false;
-                            break;
+                            return false;
                         }
-                    }
+                        return true;
+                    });
                 }
                 if(open && runStart < 0)
                 {
@@ -923,18 +1030,41 @@ void buildMesh(qmodel_t* m, float cell)
             }
         }
     }
+    // the rims' segments (with their groups), bucketed by their boxes grown by the pin's reach
+    struct GroupSegment
+    {
+        int group;
+        Segment s;
+    };
+    za::Vector<GroupSegment> allRims;
+    for(za::SizeT g = 0; g < rims.size(); ++g)
+    {
+        for(const Segment& r : rims[g])
+        {
+            allRims.pushBack(GroupSegment{static_cast<int>(g), r});
+        }
+    }
+    XYBuckets rimBuckets;
+    rimBuckets.build(static_cast<int>(allRims.size()), [&](int i, glm::vec2& lo, glm::vec2& hi) {
+        const Segment& r = allRims[static_cast<za::SizeT>(i)].s;
+        lo = glm::min(r.a, r.b) - kPinDistance;
+        hi = glm::max(r.a, r.b) + kPinDistance;
+        return true;
+    });
     const auto pinAt = [&](int group, const glm::vec3& p) {
         const glm::vec2 q(p);
-        float d = kPinDistance;
-        for(const Segment& s : rims[static_cast<za::SizeT>(group)])
-        {
-            if(q.x < za::min(s.a.x, s.b.x) - d || q.x > za::max(s.a.x, s.b.x) + d || q.y < za::min(s.a.y, s.b.y) - d ||
-                q.y > za::max(s.a.y, s.b.y) + d)
+        float d = kPinDistance; // (the nearest segment's distance: the same whatever order they are looked at in)
+        rimBuckets.at(q, [&](int i) {
+            const GroupSegment& gs = allRims[static_cast<za::SizeT>(i)];
+            const Segment& s = gs.s;
+            if(gs.group != group || q.x < za::min(s.a.x, s.b.x) - d || q.x > za::max(s.a.x, s.b.x) + d ||
+                q.y < za::min(s.a.y, s.b.y) - d || q.y > za::max(s.a.y, s.b.y) + d)
             {
-                continue;
+                return true;
             }
             d = za::min(d, segmentDistance(q, s.a, s.b));
-        }
+            return true;
+        });
         return 1.f + d; // the shaders' pin: smoothstep(1, 1 + kPinDistance); the foam's distance to the shore
     };
 
