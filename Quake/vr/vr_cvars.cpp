@@ -478,8 +478,10 @@ const DefaultChange defaultChanges[] = {
     {100, &vr_reload_ssg_open_flick, "1"}, // 0
     {100, &vr_weapon_button_cone, "80"}, // 50
     {100, &vr_weapon_throw_damage_mult, "0.5"}, // 0.35
+    // 101: detail textures off by default (the author, 2026-10-07).
+    {101, &vr_detail, "1"}, // 0
 };
-constexpr int configVersion = 100;
+constexpr int configVersion = 101;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

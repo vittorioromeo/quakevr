@@ -2349,7 +2349,7 @@ void lighting::applyPreset(int preset)
     Cvar_SetQuick(&vr_soft_particles, preset >= 2 ? "1" : "0"); // soft particles and sprites (vr_particles.cpp): Medium and up
     Cvar_SetValueQuick(&vr_normalmaps, p.normalmaps); // made as the next map loads
     Cvar_SetValueQuick(&vr_parallax, p.parallax);
-    Cvar_SetQuick(&vr_detail, preset >= 2 ? "1" : "0"); // detail textures (vr_detail.cpp): Medium and up
+    Cvar_SetQuick(&vr_detail, preset >= 2 ? vr_detail.default_string : "0"); // detail textures (vr_detail.cpp): Medium and up, at the default (off)
     // Dynamic ambient occlusion (vr_ao.cpp): Medium and up.
     Cvar_SetQuick(&vr_ao_dynamic, preset >= 2 ? vr_ao_dynamic.default_string : "0");
     Cvar_SetQuick(&vr_ao_brush, preset >= 2 ? vr_ao_brush.default_string : "0");
