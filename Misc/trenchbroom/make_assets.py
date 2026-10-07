@@ -212,6 +212,10 @@ def tex_pad(w, h, base, ring, seed):
             elif 0.56 <= d <= 0.74 and min(abs(math.sin(a)), abs(math.cos(a))) < 0.035:
                 c, full = shade(ring, 0.85), True
             row.append((c, full))
+        img.append(row)
+    return img
+
+
 def tex_target(w, h, seed=7):
     """A shooting target: a paper bullseye (rings, a red centre) pinned on a weathered board."""
     n = noise_field(w, h, seed, 0.12)

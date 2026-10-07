@@ -216,7 +216,7 @@ void startGameCommands()
             Cbuf_InsertText("vr_setup\n");
             return;
         }
-        Cbuf_InsertText("maxplayers 1; deathmatch 0; coop 0; map vrstart\n");
+        Cbuf_InsertText(va("maxplayers 1; deathmatch 0; coop 0; map %s\n", VR_HubMap()));
         return;
     }
 
