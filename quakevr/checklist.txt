@@ -52,6 +52,10 @@ MG3 Chthon (boss map, or Debug spawner Thing 50): comfort fade at both arena mov
 vrstart2: cold start ~1 s after the first one (which saves hitbox files); death/restart quick; swimming, climbing and shore path unchanged
 vrstart2 buttons: 18-unit buttons comfortable to press; one texture copy each; labels just above, value screens above the labels
 Immersive reload phase 1 (Weapons > Reloading): shotgun in one hand, grip at the belly pouch = tap + rustle + shell in fist; push into the port under the gun = click + haptic + count up; put one back (refund); drop, pick up, force grab; empty pouch pats; Shell Pairs; pouch position/size, port leniency, shell pose (Held Object Offsets)
+Immersive reload phase 2: nailgun/super nailgun/thunderbolt magazines from the pouch into the well; B/Y drops it; gentle grip keeps it, hard pull + wrist snap takes it out; bump a new one in; part-used mag back in the pouch refunds its count; sizes and placement on each gun
+Reload notes applied: pouch sways with your legs (Follow Legs); Show Load Points and per-gun X/Y/Z; shell reaches the shotgun port (Collision Leniency); ammo box into the pouch; pouch shows the real count; reserve counter on the pouch; empty hands/melee/super shotgun keep giving the last ammo type
+Leaning through stick turns (Locomotion > Leaning > Lean on Turns 2): lean, smooth/snap turn 90-180, straighten up: body stays with you, no backwards lean or slide; next to a wall too; head wobble in fast smooth turns? Debug Log Body Drift ~0
+vrstart2 fixes: no holes in terrain/water, lanterns glow, ropes to bollards, SETTINGS banner over the doorway, one bullseye per target, brazier pillars into the rock, barrels push/tip/roll/carry/break; slipgate surface still looks right
 
 [Menus and maps]
 Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
