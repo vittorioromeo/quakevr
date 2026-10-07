@@ -29892,3 +29892,61 @@ disk (200 MB) refused before unpacking a 24 MB zip of 200 MB, a 300 MB stored pa
 ("2 file(s) written (download 1842 ms, unpack 869 ms)"), then uninstalled and trimmed: 7/7.
 
 - [ ] Map Library: Liminal Spaces Jam (487 MB): downloads, installs, plays (its start map).
+
+## vrstart2 on ericw-tools 2.0 again: the qbsp holes' cause, leaner geometry, compile presets (2026-10-07)
+
+Your request: vrstart2 compiled with 2.0's qbsp like everything else (no 0.18.1, no `lit_liquids`), the cause of 2.0's
+lost faces fixed in the generator, fewer brushes, detail where right, a fast and a final compile preset.
+
+**Why 2.0 lost faces.** Its qbsp makes faces from the BSP's portals and decides contents by flooding through them
+(the fill). Slivers thinner than its epsilons break both: a portal whose brush side it cannot find gets no face ("N
+sides not found"), and a missing portal lets the fill turn whole regions of air solid (slabs standing in the air, no
+faces: most of the holes, often far from the sliver that caused them; deterministic but chaotic, any edit moves them).
+Found by bisecting small regions of the map (a ddmin over brushes, qbsp on each subset) down to 2-15 brushes:
+- terrain neighbours nearly coplanar (the old wedges), or a fraction of a unit apart along their edge: the old
+  `terrain_planes` itself made those steps (a shared plane meets the neighbour's corner 0.1-0.5 off);
+- 2,500 water tiles (0.18's lighting workaround) overlapping the terrain: 766 holes with 2.0;
+- faces of one brush folded a fraction of a degree (points snapped to the 1/8 grid: crystals, beams, logs);
+- corners a fraction of a unit through the ground or the water (boulders, logs, the cliffs' feet: a cliff corner 2 units
+  over the water meets the waterline 0.3 units away);
+- pine cones sharing one tip; rope pieces meeting at a degree or two; nearly level faces beside level ones;
+- runs of nearly straight terrain edges (the jittered lattice's rows, the paths' edges): nearly parallel vertical
+  planes meeting at a corner (a thin phantom slab stood out of the ground beside the pavilion's path);
+- the fill itself: the default midsplit and the fill both made phantom solid; -forcegoodtree and -nofill none.
+
+**Fixes** (mapgeom.py, vrstart2_gen.py): `terrain_mesh` (no steps: each prism's top through its own corners, exact
+reals; nearly coplanar neighbours, under a unit across or 1.5 degrees, made exactly coplanar by moving a corner, as far
+as 3 units across a slope; the island's walkable ground pinned: its steps of 8 are what keep the player from
+snagging; tops within 0.6 degrees of level levelled; corners within 4 units across the slope of the water's surface put
+on it), then exactly coplanar triangles of one texture merged into convex prisms; `unbend` (points moved 2-4 units off
+nearly straight runs, at most 6); `simplify_points` (greedy insertion away from the island: lake floor 3 units,
+cliffs 2, mountains 6: only 86 points go, the noise needs the rest); `hull` merges folds under 3 degrees, turns faces
+within 1.5 degrees of an axis to it, settles corners within 1.5 units of the ground or the water 2 units clear; pines'
+cones end three quarters up the cone above; boulders' undersides 4 under the ground; ropes in 2 pieces (were 3-5); the
+water one brush; the sealing floor's outer faces skip. **Compile** (`compile_map`): qbsp twice at once, spliced
+(`bsp_splice.py`): hull 0 from `-nofill -noclip -forcegoodtree -tjunc rotate`, the clipping hulls from a normal run
+(unfilled they were 18 million clipnodes, a 250 MB .bsp). `-tjunc rotate`: 2.0's default cut 16,000 more faces.
+Presets `--preset fast|final` (`--help`, MAPPING.md); `--check N` runs the new hole test, `bsp_holes.py`.
+
+| | before (0.18.1 qbsp) | after (2.0) |
+|---|---|---|
+| .map brushes | 14,399 (2,500 water tiles, 10,518 terrain) | 10,432 (9,073 terrain prisms) |
+| world faces | 76,869 | 81,198 |
+| hull 0 leaves / nodes / clipnodes | 35,200 / 56,832 / 124,036 | 52,467 / 110,393 / 173,372 |
+| .bsp | 18.1 MB | 23.1 MB |
+| holes (bsp_holes.py) | 0 in 1,000,000 rays | 1 hit in 300,000 (a sub-unit sliver on the lake floor), 0 in another 300,000 |
+| qbsp "sides not found" | (0.18: n/a; 2.0 on the old map: 435) | 71 (none of them a hole the rays find) |
+| final compile | qbsp 39 s, vis 9 s, light 356 s: 6m50 | qbsp 19 s and 285 s (parallel), vis 16 s, light 458 s: 12m55 |
+| fast compile | qbsp 37 s, (no vis), light 23 s: 1m07 | qbsp 23 s and 239 s, vis 16 s, light 58 s: 5m32 |
+
+(Compile times on the shared machine: +-20%.) The hole count is not 0 in every build: 2.0's slivers are chaotic and
+every variant tried had 0-9 hits in 600,000 rays (0.18.1: 0 in a million); this one had the fewest.
+
+**Tested**: the ray test (above); before/after shots from 11 fixed places (`scratch/contact_vs2bsp.png`: before, after,
+difference x4; mean differences 0.5-3.5 per channel against 0.4-1.8 between two runs of the same map, the campfire view
+16 against 9: flames, smoke and a barrel's random skin; the slipgate's surface is lit now, as 2.0 always made it);
+the walk test 18 of 18 three times (the old map also misses a leg now and then: 1 of 4 runs); the tutorial, a lectern
+and Turning pressed by hand (`vr_debug_wallbuttons`: the same three buttons as on the old map); the 20 barrels and
+crates resting within 2 units of where they rested; 289 recovered clip brushes (180); e1m1's smoke test. **Loads**
+(exclusive, 4 alternating runs, hull files there): cold 1,240 ms (old 1,212), warm 310 ms (old 282): the water's
+surface is 7,500 faces (5,700: its wave mesh +15 ms) and hull 0 is twice the nodes.
