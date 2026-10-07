@@ -22,6 +22,9 @@ void registerCvars();
 
 // Slot whose vr_wofs_id_NN names `model`, or -1.
 [[nodiscard]] int slotForModel(const qmodel_t* model);
+// The same, or for a part drawn on a gun (a magazine, its well, the auto pump's parts, the open super shotgun's parts:
+// "progs/<prefix>_on_<gun>.mdl"), the gun's.
+[[nodiscard]] int slotForPart(const qmodel_t* model);
 // The slot whose ID is the model named `name` (-1: none), and a key by its name in the cvars ("w_mass"; Key::Count:
 // none): the QC's weaponvalue builtin (vr_builtins.cpp).
 [[nodiscard]] int slotForName(const char* name);

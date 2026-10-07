@@ -832,7 +832,7 @@ extern "C" float VR_EntityFullbrightBoost(const entity_t* e)
     {
         return 0.f;
     }
-    if(modelmeta::has(e->model, modelmeta::Trait::Hand) || modelmeta::has(e->model, modelmeta::Trait::Finger) || weapons::slotForModel(e->model) < 0)
+    if(modelmeta::has(e->model, modelmeta::Trait::Hand) || modelmeta::has(e->model, modelmeta::Trait::Finger) || weapons::slotForPart(e->model) < 0)
     {
         return 0.f;
     }

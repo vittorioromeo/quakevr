@@ -996,6 +996,24 @@ void printSlot(int slot, Part part)
     }
 }
 
+int slotForPart(const qmodel_t* model)
+{
+    int slot = slotForModel(model);
+    // A part drawn on its gun, made in the gun's model space (make_mags.py's magazine and well; the shotgun's auto pump's
+    // parts, vr_view.cpp setupPumps; the super shotgun's two, open: make_ssg_open.py): the gun's slot.
+    for(const char* prefix : {"progs/vr_mag_on_", "progs/vr_magwell_on_", "progs/vr_pump_on_", "progs/vr_pumpbody_on_",
+             "progs/vr_ssg_frame_on_", "progs/vr_ssg_barrels_on_"})
+    {
+        if(slot < 0 && model && !strncmp(model->name, prefix, strlen(prefix)))
+        {
+            char gun[MAX_QPATH];
+            q_snprintf(gun, sizeof(gun), "progs/%s", model->name + strlen(prefix));
+            slot = slotForName(gun);
+        }
+    }
+    return slot;
+}
+
 int slotForModel(const qmodel_t* model)
 {
     if(!model)
@@ -1201,20 +1219,8 @@ void onChanged(cvar_t* var)
         return t;
     }
 
-    int slot = isHandPart(info) ? fistSlot() : slotForModel(model);
-    // A magazine drawn in its gun (immersive reloading: make_mags.py's vr_mag_on_<gun>.mdl, made in the gun's model
-    // space): the gun's own Scale and offsets.
-    for(const char* prefix : {"progs/vr_mag_on_", "progs/vr_magwell_on_", "progs/vr_pump_on_", "progs/vr_pumpbody_on_",
-             "progs/vr_ssg_frame_on_", "progs/vr_ssg_barrels_on_"}) // (its well too; the shotgun's auto pump's parts:
-                                                                     // setupPumps; the super shotgun's, open: make_ssg_open.py)
-    {
-        if(slot < 0 && !strncmp(model->name, prefix, strlen(prefix)))
-        {
-            char gun[MAX_QPATH];
-            q_snprintf(gun, sizeof(gun), "progs/%s", model->name + strlen(prefix));
-            slot = slotForName(gun);
-        }
-    }
+    // (A part drawn on its gun: the gun's own Scale and offsets: slotForPart.)
+    const int slot = isHandPart(info) ? fistSlot() : slotForPart(model);
     if(slot < 0)
     {
         return t;

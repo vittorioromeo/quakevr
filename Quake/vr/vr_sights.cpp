@@ -32,6 +32,12 @@ constexpr const char* sightedModels[] = {
     "progs/g_shot0.mdl",  // the shotgun's pickup: its sights (Quake's dark red)
     "progs/v_light.mdl",  // the lightning gun: two rear posts, a front post (round 20)
     "progs/v_plasma.mdl", // its alternate, the plasma gun: the same (its coils in other reds)
+    // The guns' parts drawn in their place, made from their skins (the sights recoloured, as on the gun: the author saw
+    // them change colour as the shotgun pumped and the super shotgun broke open).
+    "progs/vr_pumpbody_on_v_shot.mdl",       // the shotgun's auto pump: the gun without its fore-end,
+    "progs/vr_pump_on_v_shot.mdl",           // and the fore-end
+    "progs/vr_ssg_frame_on_v_shot2.mdl",     // the super shotgun broken open: its frame,
+    "progs/vr_ssg_barrels_on_v_shot2.mdl",   // and its barrels (the ring sight, the front bead)
 };
 
 // The hue (degrees) the sights' gradient has as painted: its bright orange (palette 236, 227,151,79,
