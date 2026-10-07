@@ -55,6 +55,9 @@ browser with help, key types, choices and a model preview.
 | `Misc/trenchbroom/make_assets.py` | draws `Icon.png` and `quakevr/wads/quakevr_dev.wad` |
 | `Misc/trenchbroom/install.ps1` | the installer |
 | `quakevr/wads/quakevr_dev.wad` | Quake VR's own textures for mapping |
+| `Misc/trenchbroom/make_id_wad.py` | makes `quakevr/wads/id_textures.wad` (git-ignored) from your own `id1` paks: every texture of id's maps |
+| `quakevr/maps/vrcalibration.map` (`.bsp`, `.lit`, `.lux`) | the VR Calibration room (`Misc/quakevr/make_vrcalibration_map.py`; id's textures) |
+| `quakevr/maps/vrtesthall.map` (`.bsp`, `.lit`, `.lux`) | the test hall: the old calibration room's setting buttons, pool and climbing (`Misc/quakevr/make_vrtesthall_map.py`) |
 | `quakevr/maps/vrexample.map` (`.bsp`, `.lit`, `.lux`) | the example map and its compiled files |
 | `quakevr/maps/vrclimb.map` (`.bsp`, `.lit`, `.lux`) | the climbing test map (`Misc/quakevr/climb/make_vrclimb_map.py`) |
 
@@ -145,12 +148,16 @@ engine finds them when the map loads, `vr_debug_ledges 1` shows them):
 
 id's textures, models and maps are not distributed: nothing of them is committed. Maps reference them from your own
 install (models through the game path and the mods; textures from a WAD you add). A compiled `.bsp` **embeds** its
-textures, so a committed `.bsp` must only use textures we may distribute. Hence `quakevr/wads/quakevr_dev.wad`: 13
+textures, so a committed `.bsp` must only use textures we may distribute. Hence `quakevr/wads/quakevr_dev.wad`: 14
 textures drawn by `Misc/trenchbroom/make_assets.py` (grids at Quake VR's scale, trim, panel, a glowing strip, a
-button, water, and qbsp's clip, skip, trigger, hint and origin), mapped to Quake's palette read from your
+button, water, the calibration spot `qvrc_pad`, and qbsp's clip, skip, trigger, hint and origin), mapped to Quake's palette read from your
 `id1/pak0.pak` (the palette itself is not committed; the WAD holds indices). `vrexample.bsp` embeds only these.
 For your own maps you may add id's textures (a WAD of your own, as `C:\OHWorkspace\TrenchBroom\Q.wad`): then the
-`.bsp` carries id's textures and should not be committed or shipped.
+`.bsp` carries id's textures and should not be committed or shipped. **The one exception** (the author's decision,
+round 21): the VR Calibration room, `vrcalibration.bsp`, is built from id's base textures and committed with them.
+Its WAD is made from your own paks, never committed: `python Misc/trenchbroom/make_id_wad.py` writes
+`quakevr/wads/id_textures.wad` (every texture of id1's maps, git-ignored; the same bytes from the same paks), and the
+map's worldspawn names both WADs (`quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad`).
 
 The WAD path in the worldspawn is **relative to the game path**: TrenchBroom looks for it there (and beside the map);
 the compile profiles pass `-wadpath <game path>` to qbsp. It resolves through `Quake\quakevr` (the link to the

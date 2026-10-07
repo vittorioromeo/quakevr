@@ -1331,7 +1331,7 @@ void M_Main_Key (int key)
 		case MAIN_VRCALIBRATION: // QVR: the calibration room (vr_setup)
 			if (!SCR_ModalMessage (sv.active
 				? "Start VR Calibration?\n\nThe game in progress ends: you go\nto the calibration room, and the\ncalibration starts by itself.\n\n(y/n)\n"
-				: "Start VR Calibration?\n\nYou go to the calibration room, and\nthe calibration starts by itself:\nheight, body, then your main hand.\n\n(y/n)\n", 0.0f))
+				: "Start VR Calibration?\n\nYou go to the calibration room, and\nthe calibration starts by itself:\nyour height, then your body.\n\n(y/n)\n", 0.0f))
 				break;
 			IN_Activate ();
 			key_dest = key_game;

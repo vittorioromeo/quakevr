@@ -901,7 +901,7 @@ vr_spectator_scale 0.75; vr_bullettime_duration 60; vr_bullettime; wait60`, then
 in separate runs. For exact image comparison use `vr_fixed_frames 1; vr_dither 0; r_drawentities 0;
 r_particles 0; vr_particles 0; r_dynamic 0` before the map, to exclude simulation variation from the fixture.
 The two headset images must match while the spectator colour changes. Check the toggle with
-`vr_menu_search vr_spectator_bullettime_fx` and the boards with `vr_menu_path_check maps/vrcalibration.map`.
+`vr_menu_search vr_spectator_bullettime_fx` and the boards with `vr_menu_path_check maps/vrcalibration.map` (and `maps/vrtesthall.map`).
 
 The spectator camera's own settings: `vr_spectator_rate` (1 every frame, 2 or 3 every 2nd or 3rd, more than 3 at most
 that many images a second; the window pass shows the last image between: `window view` outside `spectator` in the
@@ -1171,7 +1171,7 @@ prints each shot ("grunt's shotgun fired: hand 1, 9 left") and each empty click.
 `vr_mock_hand main 0.25 1.20 -0.40 70 0 0`. The grunts' burst rifles and the rifle's lasers (ROUND21.md, "The grunts' burst rifles; the enforcer rifle's faster lasers"): `vr_debug_shots 1` prints each burst round and each rifle laser (fired: its speed; what it hit, its damage); `vr_hull_hittest <distance> <spread>` gives a spread's share of hits on you; `hullhit/hit_test.sh <worktree> 2160 "0:256" 24` a grunt's damage to you in 30 s (`vr_grunt_burst 0`: the shotgun's). `Misc/quakevr/make_enemyguns.py` makes the models (`check_mdl_holes.py`
 checks them).
 Enemy shoves (ROUND21.md, "Grunts and enforcers shove you"): `developer 1`, `vr_test_spawn 0` (or `8`),
-`vr_test_spawn_dist 40`, `impulse 241` on vrcalibration's open floor: "enemy shove: ... shoves the player ...", "the player
+`vr_test_spawn_dist 40`, `impulse 241` on vrtesthall's open floor: "enemy shove: ... shoves the player ...", "the player
 slid 63.7 units"; parry with the crowbar across (`vr_weapon_grip_mode 1; impulse 167; vr_mock_hand main 0.15 1.35 -0.35
 0 90 0`); `impulse 219` shoves the nearest monster (staggered: it can't shove); side view `vr_mock_camera -1.8 1.3 -0.7 0
 -90`. His real parries against a grunt: `vr_motion_play C:/OHWorkspace/quakevr-iw/quakevr/motions/parry_pose_<...>.csv
@@ -1218,13 +1218,18 @@ VR Calibration (ROUND21.md, "VR Calibration"): from the main menu, `togglemenu; 
 vr_mock_stick main 0 0` puts the cursor on VR CALIBRATION, `vr_test_modal_answer 1` answers the next confirmation dialog
 by itself (0: no), then `vr_mock_button main primary 1` / `0`. `vr_setup_test_take <take>` plays a synthetic person's
 take (as above, a Windows path: `cygpath -m`) from the body step's first frame and stops it after. `vr_setup here` runs
-it in any map, `vr_setup_skip` goes on to the next step (Body Calibration stopped). A wall button: `setpos <x> <y> 24 0
-<yaw> 0` 26 units in front of its face, then `vr_mock_hand main 0.0 1.4 -0.85` (from `-0.4`) presses it. **A button's
-command (QC `localcmd`) is appended after everything left in the script**: to see its effect, end the script with
-`alias fin "<checks>;quit"; bind ABUTTON fin; toggleconsole; wait5; toggleconsole; wait5; vr_mock_button main primary
-1` (the two toggles put the keys back to the game: the A button's binding then runs after the buttons' commands).
-`vr_setup_option list` prints every setting and its choice. `vr_menu_path_check [maps/vrcalibration.map]` checks the
-boards' menu paths (any missing: `MENU PATH MISSING`).
+it in any map, `vr_setup_skip` goes on to the next step (Body Calibration stopped). In the room `togglemenu` pauses it
+("paused on Body Calibration's page", `menu_vr pos` on page "Body Calibration" row "Position"); two more `togglemenu`s
+close the menu and it starts again. The doorway to the hub: `setpos 0 -100 24 0 -90 0; noclip` (setpos leaves noclip
+on), `vr_mock_stick off 0 1; wait60`; the trigger's `changelevel` runs after the rest of the script, so end it with
+`bind ABUTTON mapname; toggleconsole; wait5; toggleconsole; wait5; vr_mock_button main primary 1` (`"mapname" is
+"vrstart"`). The test hall's wall buttons (`map vrtesthall`): `setpos <x> <y> 24 0 <yaw> 0` 26 units in front of its
+face, then `vr_mock_hand main 0.0 1.4 -0.85` (from `-0.4`) presses it. **A button's command (QC `localcmd`) is appended
+after everything left in the script**: to see its effect, end the script with `alias fin "<checks>;quit"; bind ABUTTON
+fin; toggleconsole; wait5; toggleconsole; wait5; vr_mock_button main primary 1` (the two toggles put the keys back to
+the game: the A button's binding then runs after the buttons' commands). `vr_setup_option list` prints every setting
+and its choice. `vr_menu_path_check [maps/vrcalibration.map]` (and `maps/vrtesthall.map`) checks the boards' menu paths
+(any missing: `MENU PATH MISSING`).
 Elbow tucked by the face (ROUND21.md, the section of that name): `Misc/quakevr/armik/armsweep.py <tag> poses|orient|play ["<cvars>"]` (run from a scratch folder; `QVR_AGENT=<agent>`) poses the arms with the author's calibration and prints the elbows (cm past, behind and below the shoulder, the swing, the strain, `tuck`); `contin.py` and `orientsum.py` summarise the sweeps; `"vr_body_elbow_tuck 0"` is the old IK exactly. `vr_debug_arm 1` lines end with `tuck` and `torso` (the swing out of the torso).
 Arms options and holster limits (ROUND21.md, "Arms options after body calibration; holster limits"): `cvarlist
 vr_bodycal_` and `cvarlist vr_body_tweak` show the measurements and the tweaks (typing `vr_bodycal_undo` runs Undo;

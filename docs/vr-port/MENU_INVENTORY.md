@@ -387,8 +387,8 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 - **No comfort, gameplay or "realism" presets.** The nearest thing is the calibration room's per-setting preset
   buttons (`vr_setup_option <key>`, vr_setup.cpp:31-63; 15 options with 2-4 presets each).
 - **First-run wizard.** "VR Calibration" is the main menu's first row (menu.c:1159). The `vr_setup` calibration room
-  (maps/vrcalibration.bsp) measures height, then body poses (vr_bodycal), and has wall buttons for the 15 main
-  options. Boards point to menu paths by title (`{menu:...}`). It is **not launched automatically on first run**: the
+  (maps/vrcalibration.bsp) measures height, then body poses (vr_bodycal); since round 21 it is calibration only (the
+  wall buttons for the 15 main options are in the test hall, maps/vrtesthall.bsp). Boards point to menu paths by title (`{menu:...}`). It is **not launched automatically on first run**: the
   main menu cursor defaults to Single Player (menu.c:1154).
 - **Help texts.** About 86% of interactive rows have `.help()`, shown under the list while the row is selected.
 - **Resets.** Global "Reset All", plus the scattered page resets listed in section 2. There is no generic

@@ -27609,3 +27609,45 @@ eyes (`vr_mirror 2`, `vr_eyeshot 1`); the spectator with Bullet Time; flat e1m1 
 `r_fullbright`; `vr_profile_overlay 2`, `vr_parallax_debug 1`, `vr_bloom 0`, `vid_restart`; vrcalibration; shadows off
 and back on. Release screenshots (e1m1, vrfiringrange, start's slipgates, e1m1 with shadows off) differ from the old
 build's no more than two runs of the old build differ from each other.
+## The calibration room: calibration only, id's base textures (2026-10-07)
+
+Your request: nothing in `vrcalibration` but calibration (no buttons, weapons or props), a small polished room, good
+lighting, a little more interesting geometry, texture alignment checked; then: id's own textures (your decision: the
+committed `.bsp` embeds them; the WAD is made from your paks at build time and never committed).
+
+- **The room** (`Misc/quakevr/make_vrcalibration_map.py`, rewritten): an octagonal chamber 320 units (9.75 m) across,
+  176 (5.4 m) high. Every side is one `tech14_1` panel (straight sides 128, cut corners 136, their panel fitted), riveted
+  pilasters (`tech04_3`) over the joints with a small lamp (`tlight01`) each, a `tech04_1` skirting and rail round a
+  `metal4_4` wainscot, a bevelled cornice, `sfloor4_2` floor plates and an `sfloor4_1` ceiling with a stepped coffer: a
+  ring of `ceil1_1` light tiles under its step and a `light3_3` panel in its middle. The calibration spot: an octagonal
+  pad with our `qvrc_pad` (a glowing ring; `quakevr_dev.wad`). North, ahead of the player: a framed black board, its
+  texts (what happens; where height, body, hands and Position are in the menus: `{menu:...}`, 4 paths). South, behind:
+  a cased doorway, a short passage and a `*teleport` glow; walking into it (`trigger_changelevel`, no intermission) takes
+  you to the vrstart hub. Worldspawn `_vr_debris 0`, `_vr_crates 0` (no rocks or crates).
+- **Texture alignment by rule**: the script builds every brush as a convex hull and places each face's texture by a
+  rule (world-aligned so coplanar faces continue: the floor and ceiling tiles meet the walls and the coffer at their
+  joints, the south side's panel runs on above the doorway; or fitted: each strip fills its band's height exactly, the
+  cut corners' panels, the lamps, the board's frame and the spot fill their faces). Compiles clean (qbsp, vis, light
+  with bounce, dirt and the light grid; no leaks, no warnings).
+- **id's textures**: `Misc/trenchbroom/make_id_wad.py` writes `quakevr/wads/id_textures.wad` (git-ignored) from
+  `id1/pak0.pak` and `pak1.pak`: every texture of id's maps (573), each once, the same bytes every time. The map's
+  generator reads the textures' sizes from the WADs (and stops, saying how to make it, when the id WAD is missing).
+  `make_assets.py` keeps only one new texture, `qvrc_pad` (and no longer fails after writing the WAD when PIL is
+  missing).
+- **No buttons, so the calibration's text changed** (`vr_setup.cpp`): in the room the menu button **pauses** it: the
+  menu opens on Body Calibration's page (its first row is Position: standing or seated) and the calibration starts over
+  when the menu closes (elsewhere, `vr_setup here`, it still stops). The intro says "Playing seated? Open the menu: set
+  Position to Seated, then close it."; the summary and the console say the glowing doorway behind you leads to the hub;
+  a stop says the main menu's VR Calibration runs it again. The main menu's confirmation no longer mentions a main-hand
+  step ("your height, then your body").
+- **The old room became the test hall**, `maps/vrtesthall.bsp` (`make_vrtesthall_map.py`: the old generator, renamed,
+  its title board "VR TEST HALL"): its setting buttons (`vr_setup_option`), pool, climbing platform and pickups. The
+  tests that used the old room's water and open floor use it (`physbench.py` water, `parryinterrupt/test.py`;
+  TESTING.md). Delete it if you don't want it shipped: the two scripts point at it.
+- Checked headless: `vr_setup_pending 1; vr_startgame` loads the room and starts; `togglemenu` pauses on Body
+  Calibration (row Position), closing the menu starts over; the height is taken (1.70 m), `vr_setup_skip` past the body,
+  done; walking into the doorway loads `vrstart`. `vr_menu_path_check`: the room 4 found, 0 missing; the test hall 14,
+  0. Screenshots (flat and the headset's eye) from the spot, the corners, the doorway and the coffer.
+- **To try in the headset**: the room's scale and light (the lower wainscot is dark by design: the light comes from the
+  coffer and the pilasters' lamps), reading the board from the spot (letters 0.28-0.7), the pause on the menu button and
+  Position: Seated, walking out through the doorway.

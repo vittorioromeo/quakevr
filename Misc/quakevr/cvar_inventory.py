@@ -178,7 +178,7 @@ def scan(cvars):
                     add(name, "qc_write" if WRITE_RE.search(line) else "qc", path, no)
                 elif is_cfg:
                     add(name, "cfg", path, no)
-                elif path.endswith("make_vrcalibration_map.py"):
+                elif path.endswith(("make_vrcalibration_map.py", "make_vrtesthall_map.py")):
                     add(name, "board", path, no)
                 elif is_tool:
                     add(name, "tool", path, no)

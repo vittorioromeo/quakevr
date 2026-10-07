@@ -34,7 +34,7 @@ def run(label, commands):
 
 
 def setup(enabled, guard=True, stationary=True):
-    return ["map vrcalibration", wait(60), "setpos 0 0 24 0 0 0", "developer 1",
+    return ["map vrtesthall", wait(60), "setpos 0 0 24 0 0 0", "developer 1",
             "vr_enemy_shove 0", "vr_parry 1", "vr_parry_stamina 0", "vr_parry_drop_chance 0",
             "vr_parry_push_enemy 0", "vr_parry_push_player 0", "vr_parry_reduction 0.75",
             "vr_parry_interrupt " + str(enabled), "vr_parry_stagger 0.35", "vr_weapon_grip_mode 1",
@@ -84,7 +84,7 @@ if selected("timing"):
     print("0.8 s stagger: PASS health " + str(health(log)))
 
 if selected("smoke"):
-    log = run("smoke", ["map e1m1", wait(60), "vr_menu_path_check maps/vrcalibration.map"])
+    log = run("smoke", ["map e1m1", wait(60), "vr_menu_path_check maps/vrcalibration.map", "vr_menu_path_check maps/vrtesthall.map"])
     assert re.search(r"menu paths: \d+ found, 0 missing", log), "calibration menu paths"
     print("e1m1 smoke / calibration menu paths: PASS")
 

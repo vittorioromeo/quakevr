@@ -6,17 +6,20 @@
 //     Set Height Now.
 //  2. Body: Body Calibration's poses (vr_bodycal.hpp; seated without its first), applied at once when the poses agree;
 //     otherwise its page opens on the result (redo a pose, Apply or Cancel) and the setup goes on when the menu closes.
-// (No main hand step: there is no main hand setting. The sides are their own settings, on the room's buttons: SWAP
-// STICKS, GADGET ARM, TORCH SIDE.)
+// (No main hand step: there is no main hand setting.)
 //
-// Each result is printed (the wrist gadget's log) and the config saved; a summary shows at the end. The menu button stops
-// it (as Body Calibration's); the room's START CALIBRATION button (`vr_setup here`) runs it again.
+// Each result is printed (the wrist gadget's log) and the config saved; a summary shows at the end. The room is
+// calibration only (no buttons): the menu button pauses the setup on Body Calibration's page (its Position: standing or
+// seated) and it starts over when the menu closes; the main menu's VR Calibration row runs it again later. A glowing
+// doorway behind the player leads to the vrstart hub. Elsewhere (`vr_setup here`) the menu button stops it.
 //
-// The room's wall buttons (func_button with buttonEffect 3 and targetname "vr_setup_option <key>\n") each step one of
-// the main settings through its presets (the table in vr_setup.cpp: turning, locomotion, the sticks, the gadget's arm, the torch's hip, world scale, the
-// body, the HUD...), print the new value and save the config; each button's value is drawn on a small screen above it.
-// Its boards say where the rest is in the menus: their texts name the pages ({menu:<page title>}, menu::expandPaths),
-// so the paths follow the menus, and a page or row that no longer exists shows and warns (vr_menu_path_check).
+// A map's func_button with buttonEffect 3 and targetname "vr_setup_option <key>\n" (the test hall's wall buttons:
+// maps/vrtesthall.bsp) steps one of the main settings through its presets (the table in vr_setup.cpp: turning,
+// locomotion, the sticks, the gadget's arm, the torch's hip, world scale, the body, the HUD...), prints the new value and
+// saves the config; each such button's value is drawn on a small screen above it.
+// The room's board says where each calibration is in the menus: its text names the pages ({menu:<page title>},
+// menu::expandPaths), so the paths follow the menus, and a page or row that no longer exists shows and warns
+// (vr_menu_path_check).
 
 #pragma once
 

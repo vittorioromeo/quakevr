@@ -171,7 +171,8 @@ in regular use.
 | `check_statics.py`, `check_qc_precedence.py` | The code checks: no function-local statics in `Quake/vr` ([CODE_STYLE.md](vr-port/CODE_STYLE.md)), no QuakeC expression read differently from C |
 | `bench/qvrbench.py` | The benchmark scenarios, summaries and comparisons ([BENCHMARKS.md](vr-port/BENCHMARKS.md)) |
 | `menu_coverage.py` | Checks the VR menu tree from `menu_vr dump`: every setting reached, nothing lost in a reorganisation |
-| `make_vrcalibration_map.py` | Writes (and with `--compile` builds) the VR Calibration room's map |
+| `make_vrcalibration_map.py` | Writes (and with `--compile` builds) the VR Calibration room's map (id's textures: `Misc/trenchbroom/make_id_wad.py` first) |
+| `make_vrtesthall_map.py` | Writes (and with `--compile` builds) the VR test hall (the old calibration room: setting buttons, pool, climbing; the tests' open floor and water) |
 
 ## Contributing
 

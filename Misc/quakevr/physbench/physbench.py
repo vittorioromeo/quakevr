@@ -29,7 +29,7 @@ import time
 # The first player's start on vrfiringrange (info_player_start: 316 -556 56, facing west); vr_physics_bigpile piles
 # ahead of him: a pile of 500 is centred about 220 units west.
 PILE_CENTRE = (130, -556, 40)
-# Water: vrcalibration's pool (x 224 to 544, y -416 to -192; its surface at z -10, its floor at -130). (vrfiringrange's
+# Water: vrtesthall's pool (x 224 to 544, y -416 to -192; its surface at z -10, its floor at -130). (vrfiringrange's
 # water has no floor in the level's collision where it is deep enough: props sinking there fall out of the world.)
 POOL_ROCKS = (240, -350, -122)
 POOL_CRATES = (240, -240, -100)
@@ -64,7 +64,7 @@ def blasts(count=500, every=60, times=6):
 
 
 def water(rocks=120, crates=24):
-    """vrcalibration's pool: rocks lying on its floor, crates let go under its surface, rising and floating."""
+    """vrtesthall's pool: rocks lying on its floor, crates let go under its surface, rising and floating."""
     rx, ry, rz = POOL_ROCKS
     cx, cy, cz = POOL_CRATES
     return [f"vr_physics_bigpile rocks {rocks}", f"vr_physics_bigpile crates {crates}", "wait;wait",
@@ -143,7 +143,7 @@ def fx_decals(frames=900):
     return lines
 
 
-MAPS = {"water": "vrcalibration", "idle_e1m1": "e1m1"}  # (the others: vrfiringrange)
+MAPS = {"water": "vrtesthall", "idle_e1m1": "e1m1"}  # (the others: vrfiringrange)
 
 SCENES = {
     "rocks500": lambda: pile("rocks", 500),

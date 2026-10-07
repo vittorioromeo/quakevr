@@ -226,7 +226,7 @@ Quake files", survives store updates, and the engine already supports it. Two ca
 | Forced | `quakevr/quakevr.cfg`: gameplay rules (`vr_gameplayfix_*`, `vr_pickup_scale`, `sv_gameplayfix_random 0`), `vr_checkbindings`, `vr_enabled 1` | after the saved config |
 | Migrations | `defaultChanges` in `vr_cvars.cpp`, `configVersion` 89 (94 on 2026-10-06, 95 on 2026-10-07): a setting is moved to its new default only if it still has the old one; `vr_props_version` (58, `vr_props.cpp`) and `vr_wofs_version` (35, `vr_weapons.cpp`) do the same for held objects and weapon offsets | first start of a new build |
 | Graphics presets | `vr_graphics_preset` 0 off .. 4 ultra (applies a group of settings) | on demand |
-| First start | no saved config: `vr_migrate_config new` sets `vr_setup_pending 1`: **VR Calibration** starts once the headset is on (`vrcalibration.bsp`: height, body poses; wall buttons for turning, locomotion, sticks, gadget arm, torch side, world scale, body, HUD) | once |
+| First start | no saved config: `vr_migrate_config new` sets `vr_setup_pending 1`: **VR Calibration** starts once the headset is on (`vrcalibration.bsp`: height, body poses; calibration only: no buttons; the menu button pauses it on Body Calibration's page, Position: seated or standing; a doorway leads to the hub) | once |
 
 `vr_savedefaults` already leaves out personal settings (`personal()` in `vr_cvars.cpp`: config/props/weapon versions,
 height, `vr_bodycal_*`, `vr_body_tweak_*`, the arm settings `vr_body_arm_*`/`vr_body_elbow_*` (the author's decision,

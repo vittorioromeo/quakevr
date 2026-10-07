@@ -187,6 +187,7 @@ enum class Step
     Height,     // standing tall and still
     Body,       // Body Calibration running
     BodyReview, // its page open on a result it didn't trust
+    Paused,     // the menu open in the calibration room (on Body Calibration's page): starts over when it closes
     Done,       // the summary
 };
 
@@ -246,6 +247,12 @@ void enter(Step step)
     flow.anchor = tracking().head.position;
 }
 
+// The calibration room is loaded (a local game in it).
+[[nodiscard]] bool inRoom()
+{
+    return sv.active && !q_strcasecmp(sv.name, roomMap);
+}
+
 void stop(const char* why)
 {
     if(flow.step == Step::Idle)
@@ -256,8 +263,24 @@ void stop(const char* why)
     if(why)
     {
         S_LocalSound("misc/menu3.wav");
-        Con_Printf("VR Calibration stopped (%s): the START CALIBRATION button runs it again\n", why);
+        Con_Printf("VR Calibration stopped (%s): the main menu's VR Calibration runs it again\n", why);
     }
+}
+
+// The menu opened while the setup runs. In the calibration room (calibration only: no buttons) it pauses on Body
+// Calibration's page, whose first row is Position (standing or seated), and starts over when the menu closes; elsewhere
+// (`vr_setup here`) it stops.
+void menuOpened()
+{
+    if(!inRoom())
+    {
+        stop("the menu");
+        return;
+    }
+    flow.step = Step::Paused;
+    menu::reopen(menu::bodyCalibrationPage());
+    Con_Printf("VR Calibration: paused on Body Calibration's page (Position: standing or seated); it starts over when the "
+               "menu closes\n");
 }
 
 void begin()
@@ -265,14 +288,15 @@ void begin()
     flow.world = worldGeneration();
     flow.body = "Body: skipped";
     enter(Step::Intro);
-    Con_Printf("VR Calibration: starting (height, body); the menu button stops it\n");
+    Con_Printf(inRoom() ? "VR Calibration: starting (height, body); the menu button pauses it\n"
+                        : "VR Calibration: starting (height, body); the menu button stops it\n");
 }
 
 void finish()
 {
     enter(Step::Done);
     S_LocalSound("misc/talk.wav");
-    Con_Printf("VR Calibration: done. The buttons on the walls change the main options.\n");
+    Con_Printf(inRoom() ? "VR Calibration: done. The glowing doorway behind you leads to the hub.\n" : "VR Calibration: done.\n");
     saveConfigNow();
 }
 
@@ -383,8 +407,8 @@ void heightFrame(double now, za::String& text)
     Con_Printf("VR Calibration: height set: your eyes at %.2f m%s\n", eyes, seated() ? " (seated)" : "");
     if(!seated() && eyes < 1.3f)
     {
-        Con_Printf("VR Calibration: that's low for standing. Playing seated? Set POSITION (the stand) to Seated, then press "
-                   "START CALIBRATION\n");
+        Con_Printf("VR Calibration: that's low for standing. Playing seated? Open the menu: Position (on the page it opens) to "
+                   "Seated, then close it to start over\n");
     }
     flow.got = true;
     flow.gotAt = now;
@@ -415,6 +439,14 @@ void flowFrame()
         return;
     }
     const double now = realtime;
+    if(flow.step == Step::Paused)
+    {
+        if(key_dest != key_menu)
+        {
+            begin();
+        }
+        return;
+    }
     if(flow.step == Step::BodyReview)
     {
         if(key_dest != key_menu && bodycal::phase() != bodycal::Phase::Capturing)
@@ -435,7 +467,7 @@ void flowFrame()
         }
         if(key_dest == key_menu)
         {
-            stop("the menu");
+            menuOpened();
             return;
         }
         afterBody();
@@ -443,7 +475,7 @@ void flowFrame()
     }
     if(key_dest == key_menu && flow.step != Step::Done)
     {
-        stop("the menu");
+        menuOpened();
         return;
     }
 
@@ -458,7 +490,7 @@ void flowFrame()
             const int left = static_cast<int>(za::ceil(introSeconds - (now - flow.start)));
             text += "Your height, then your body.\n\n";
             text += seated() ? "Seated: sit where you will play.\n" : "Stand in the middle of your play space.\n";
-            text += "Playing seated? Press POSITION on the\nstand to your right: Seated.\n\n";
+            text += inRoom() ? "Playing seated? Open the menu: set\nPosition to Seated, then close it.\n\n" : "\n";
             text += va("starting in %d", za::max(left, 1));
             if(now - flow.start >= introSeconds)
             {
@@ -472,7 +504,10 @@ void flowFrame()
             appendGold(text, "DONE");
             // The height as the body step left it (its first pose measures it again).
             text += va("\nHeight: eyes at %.2f m\n%s\n\n", vr_height_calibration.value, flow.body);
-            text += "Explore the room: the buttons on the\nwalls change the main options, the\nboards say where the rest is.";
+            if(inRoom())
+            {
+                text += "The glowing doorway behind you\nleads to the hub.";
+            }
             if(now - flow.start >= doneSeconds || key_dest == key_menu)
             {
                 flow.step = Step::Idle;
@@ -483,7 +518,7 @@ void flowFrame()
     }
     if(flow.step != Step::Idle && flow.step != Step::Body)
     {
-        text += flow.step == Step::Done ? "" : "\n\nmenu button: stop";
+        text += flow.step == Step::Done ? "" : inRoom() ? "\n\nmenu button: pause" : "\n\nmenu button: stop";
         drawText(text);
     }
 }
@@ -522,6 +557,7 @@ void skip_f()
             finish();
             break;
         case Step::BodyReview: finish(); break;
+        case Step::Paused: begin(); break;
         case Step::Done: flow.step = Step::Idle; break;
         default: Con_Printf("vr_setup_skip: the setup isn't running\n"); break;
     }
