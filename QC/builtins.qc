@@ -136,6 +136,7 @@ float(float a, float b) min = #94;      // DP_QC_MINMAXBOUND
 float(float a, float b) max = #95;      // DP_QC_MINMAXBOUND
 float(float base, float exp) pow = #97; // DP_QC_SINCOSSQRTPOW
 float(string s) strlen = #114;          // FRIK_FILE
+float(string s) stof = #81;             // FRIK_FILE
 string(string s, float start, float length) substring = #116; // FRIK_FILE
 float(string s, float index) str2chr = #222;                  // FTE_STRINGS
 float(float y, float x) atan2 = #474;   // DP_QC_ASINACOSATANATAN2TAN, radians

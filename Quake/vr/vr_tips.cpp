@@ -968,8 +968,9 @@ void listTips()
                             : mt.ent >= 0        ? va("follows entity %d", mt.ent)
                                                  : va("at %.0f %.0f %.0f", mt.pos.x, mt.pos.y, mt.pos.z);
         const char* shown = (mt.flags & Repeat) != 0 ? ", repeats" : seen(seenKeyOf(i)) ? ", seen" : "";
-        Con_Printf("  %s: %s, range %.0f%s%s%s\n", mt.name.empty() ? va("#%d", i - tipCount) : mt.name.cStr(), about,
-            rangeOf(mt.distance), (mt.flags & Hologram) != 0 ? ", hologram" : "",
+        const char* delay = mt.delay >= 0.f ? va(", delay %g s", static_cast<double>(mt.delay)) : ""; // (its tip_delay)
+        Con_Printf("  %s: %s, range %.0f%s%s%s%s\n", mt.name.empty() ? va("#%d", i - tipCount) : mt.name.cStr(), about,
+            rangeOf(mt.distance), delay, (mt.flags & Hologram) != 0 ? ", hologram" : "",
             (mt.flags & AnyAngle) != 0 ? ", any angle" : "", shown);
     }
 }

@@ -176,7 +176,7 @@
 .string tip_targetname; // its targetname as the map set it (func_vr_tip clears .targetname: only its name)
 .float tiphandle;  // the engine's tip record this one made (vr_tip_make)
 .float tip_size;   // its screen's text size (0: vr_tips_size)
-.float tip_delay;  // seconds near before it shows (unset or < 0: vr_tips_delay)
+.string tip_delay; // seconds near before it shows: 0 at once, -1 (or no key) vr_tips_delay (a string: no key is not 0)
 
 //
 //

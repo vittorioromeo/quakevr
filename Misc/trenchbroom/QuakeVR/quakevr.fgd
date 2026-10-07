@@ -2163,7 +2163,7 @@ this tip. Try one with vr_tips_test <tipname>."
 	targetname(target_source) : "Name" :  : "Only this tip's name (its name in the remembered-tips list when tipname is unset). Not what it follows (that is target), and nothing finds the tip by it, so it can share a name with a teleport destination or a path."
 	tipname(string) : "Name" :  : "Names this tip: its name in the remembered-tips list, and what vr_tips_test takes. Use it when two tips follow the same entity."
 	tip_size(float) : "Text size" : 0 : "Its text size (0: the player's setting). 1 is about 1.5 degrees a character."
-	tip_delay(float) : "Delay (s)" :  : "Seconds he must stay near it before it shows (0: his own setting)."
+	tip_delay(float) : "Delay (s)" : -1 : "Seconds he must stay near it before it shows: 0 at once, -1 his own setting (VR Settings > Tips)."
 ]
 
 @SolidClass base(Appearflags, Targetname) color(0 128 204) =

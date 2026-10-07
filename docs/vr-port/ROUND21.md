@@ -27558,3 +27558,12 @@ first changelevel trigger made a `trigger_teleport` to it; a tip named like a he
 the other health box): before, the teleporter put the player at the tip (`Player pos: (-300 -300 300)`) and the
 named tips followed entities 13 and 53; after, the player lands at the destination (`64 448 307`), both tips stay
 at their origins with the warning, and the `target` tip still `follows entity 52`.
+
+**`tip_delay`: 0 is at once, -1 the player's** (`QC/vr_tips.qc`): the field is a string now (`.string tip_delay`, read
+with `stof`, declared in `builtins.qc` as FRIK_FILE's #81), so no key differs from 0: no key, an empty one or below 0
+leave the engine's -1 (`vr_tips_delay`, as before); 0 or more is the tip's own delay, 0 showing it the frame he comes
+near. The FGD's default is -1. A map that set `tip_delay 0` meaning the player's setting now shows that tip at once.
+`vr_tips_test list` prints a tip's own delay (`d0: at 64 448 600, range 64, delay 0 s, any angle`). Proved headless
+on `tiptest` with `vr_tips_delay 3`, a tip with `tip_delay 0`, one with `-1`, one without the key, each 30 frames
+near then 400 more: before, none was seen after 30 frames; after, `tip_delay 0` shows within the 30 frames
+(`tips: "d0"`, `seen`) and the other two still only after the player's 3 s.

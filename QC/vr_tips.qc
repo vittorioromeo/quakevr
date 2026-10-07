@@ -49,9 +49,10 @@ _vr_tips_repeat. "message": its text (\n starts a new line). "distance": how nea
 setting). "target": another entity's targetname — the tip follows that entity, live, instead of staying at its own
 origin. "targetname": only the tip's own name (when it has no tipname): nothing finds the tip by it, and it is not what
 the tip follows (a map made when it was gets a developer warning). "tipname": names this tip (its name in
-tips_seen.txt; use it when two tips follow the same thing, or to try it with vr_tips_test). "tip_size": its text size (0: the player's setting). "tip_delay": seconds he must stay
-near before it shows (unset: the player's setting). REPEAT: shown every time he comes near. HOLOGRAM: in the wrist
-gadget's hologram instead of the floating screen. ANYANGLE: shown even out of the view angle or hidden from his eyes.
+tips_seen.txt; use it when two tips follow the same thing, or to try it with vr_tips_test). "tip_size": its text
+size (0: the player's setting). "tip_delay": seconds he must stay near before it shows (0: at once; -1 or unset: the
+player's setting). REPEAT: shown every time he comes near. HOLOGRAM: in the wrist gadget's hologram instead of the
+floating screen. ANYANGLE: shown even out of the view angle or hidden from his eyes.
 */
 void() func_vr_tip =
 {
@@ -93,8 +94,9 @@ void() func_vr_tip =
         vr_tip_setdistance(h, self.distance);
     if(self.tip_size != 0)
         vr_tip_setsize(h, self.tip_size);
-    if(self.tip_delay != 0)
-        vr_tip_setdelay(h, self.tip_delay);
+    // tip_delay: 0 shows it at once; below 0 (-1), or no key (a map made when 0 meant the player's), his vr_tips_delay.
+    if(self.tip_delay != NULLSTR && stof(self.tip_delay) >= 0)
+        vr_tip_setdelay(h, stof(self.tip_delay));
 
     entity e = VR_Tip_FollowTarget(self);
     if(e != world)
