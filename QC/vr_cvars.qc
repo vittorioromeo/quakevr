@@ -631,6 +631,7 @@ float cvarh_vr_reload_ssg_open_hit;
 float cvarh_vr_reload_ssg_pry;
 float cvarh_vr_reload_ssg_open_flick;
 float cvarh_vr_reload_ssg_open_angle;
+float cvarh_vr_ssg_fire_anim_speed;
 float cvarh_vr_reload_port_sshot_radius;
 float cvarh_vr_reload_ssg_close_auto;
 float cvarh_vr_reload_ssg_break;
@@ -1316,6 +1317,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_reload_ssg_pry);
     VR_CVAR_HMAKE(vr_reload_ssg_open_flick);
     VR_CVAR_HMAKE(vr_reload_ssg_open_angle);
+    VR_CVAR_HMAKE(vr_ssg_fire_anim_speed);
     VR_CVAR_HMAKE(vr_reload_port_sshot_radius);
     VR_CVAR_HMAKE(vr_reload_ssg_close_auto);
     VR_CVAR_HMAKE(vr_reload_ssg_break);

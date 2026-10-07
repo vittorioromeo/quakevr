@@ -645,6 +645,9 @@ void resetHandMoves()
                   "as before."),
         slider("Open Angle", "vr_reload_ssg_open_angle", 0.f, 90.f, 1.f, "%.0f deg")
             .help("How far its barrels drop about the hinge when it is open (looks; its load point goes with them)."),
+        slider("Firing Animation Speed", "vr_ssg_fire_anim_speed", 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 5.f)
+            .help("How fast its firing animation plays (1: id's, 0.6 s). It breaks open only once the animation is over: "
+                  "faster, it opens sooner after a shot."),
         header("Open by"),
         toggle("Open by Flick", "vr_reload_ssg_open_flick").help("A flick of the wrist (the muzzle snapped up) breaks it open."),
         slider("Flick Open Speed", "vr_reload_ssg_flick_open_speed", 200.f, 1500.f, 25.f, "%.0f deg/s")

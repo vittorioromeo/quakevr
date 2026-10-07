@@ -88,6 +88,7 @@
 .float vr_ssg_sec;       // and its B/Y
 .float vr_ssg_held;      // both hands on the hand's super shotgun (the two-handed hold, until the other hand lets go)
 .float vr_ssg_loaded;    // when a shell last went into a super shotgun of the player's (its hand drawing back is no hit)
+.float vr_ssg_fired;     // when a super shotgun of the player's last fired (the log: how soon after it it broke open)
 
 string VR_RELOAD_SHELL = "progs/vr_shell_live.mdl";
 string VR_RELOAD_PAIR = "progs/vr_shell_pair.mdl";
@@ -179,6 +180,7 @@ void(float xHand, float xCount) VR_Reload_SsgFired =
     float f = VRGetEntWeaponFlags(self, xHand);
     float spent = min(2, VR_Reload_SsgSpentOf(f) + xCount);
     VRSetEntWeaponFlags(self, xHand, (f - (f & QVR_WPNFLAG_SSG_SPENT)) | (spent * QVR_WPNFLAG_SSG_SPENT_ONE));
+    self.vr_ssg_fired = time;
 };
 
 // The magazine's model for guns `xWeapon`.
@@ -1347,8 +1349,9 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgBreak =
         r.avelocity = '0 1 0' * (crandom() * 400) + '1 0 0' * (crandom() * 300);
         r.flags = r.flags - (r.flags & FL_ONGROUND);
     }
-    VR_Reload_Log(sprintf("the super shotgun (hand %g) broken open by %s: %g spent and %g live thrown out", xHand, xHow,
-        spent, live));
+    VR_Reload_Log(sprintf("the super shotgun (hand %g) broken open by %s: %g spent and %g live thrown out%s", xHand, xHow,
+        spent, live, (p.vr_ssg_fired && time - p.vr_ssg_fired < 5) ? sprintf(", %.2f s after its last shot",
+        time - p.vr_ssg_fired) : ""));
 };
 
 // The super shotgun in `xHand` of `p` snaps shut (`xHow`, for the log): it fires again (what its chambers hold).

@@ -323,4 +323,13 @@ check $(! echo "$log" | grep -q "contact sparks" && awk -v t="$st" 'BEGIN { prin
 # The super nailgun's well flush on the flat band of its face (23-58-30): its rim at most 0.2 units off it, inside its edges.
 sw=$($PY Misc/quakevr/reload/ssg_checks.py snailwell)
 check $(echo "$sw" | awk '{ok = NF >= 12; for(i = 1; i <= NF; i += 6) { if($(i + 3) > 0.2 || $(i + 5) > 0) ok = 0 } print ok ? 1 : 0}') "the super nailgun's well flush on its face ($sw)"
+# The super shotgun's firing animation paced by vr_ssg_fire_anim_speed (23-54-46): B/Y pressed every other frame from the
+# shot, it opens as the animation ends: about 0.6 s after the shot at 1 (id's), 0.43 s at 1.4 (the default), 0.3 s at 2.
+POLL=$(for i in $(seq 60); do printf "vr_mock_button off secondary 1;wait1;vr_mock_button off secondary 0;wait1;"; done)
+ta=""
+for k in 1 1.4 2; do
+    t=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_ssg_fire_anim_speed $k;+offhandattack;wait2;-offhandattack;$POLL;toggleconsole;quit" -Filter "broken open by" 2>&1 | grep -o "[0-9.]* s after its last shot" | head -1 | cut -d' ' -f1)
+    ta="$ta ${t:-none}"
+done
+check $(echo "$ta" | awk '{print ($1 >= 0.55 && $1 <= 0.65 && $2 >= 0.39 && $2 <= 0.47 && $3 >= 0.27 && $3 <= 0.34) ? 1 : 0}') "Firing Animation Speed 1, 1.4, 2: it opens 0.6, 0.43, 0.3 s after the shot (s:$ta)"
 exit $fail

@@ -30565,3 +30565,8 @@ vrfiringrange_2026-10-08_00-00-42, 00-01-10, and his typed note on the pouch's s
   0.16 inside both edges (`ssg_checks.py snailwell`: proud 0.15, over -0.16; before: 1.19, 0.53). The load point and the
   magazine's middle (the two-handed grip, the hit box) moved with it (vr_view.cpp `loadPorts`, `magMounts`: middle
   (7.2, 9.56, 3.45)). The lava gun's the same.
+- **The super shotgun's firing animation faster** (23-54-46: since it can't be broken open while it fires, opening
+  after a shot felt slow). Its six shot frames (shared with the shotgun's, player.qc) are paced by
+  `vr_ssg_fire_anim_speed` (1.4: 40% faster, 0.43 s instead of id's 0.6 s; `player_shot_pace`, the super shotgun only;
+  its rate of fire stays 0.7 s). Weapons > Reloading > Super Shotgun, "Firing Animation Speed". The log says how soon
+  after the shot it broke open: 0.59, 0.42, 0.31 s at 1, 1.4 and 2 (B/Y pressed every other frame).

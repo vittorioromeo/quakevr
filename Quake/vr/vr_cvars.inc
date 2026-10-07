@@ -2481,6 +2481,7 @@ QVR_CVAR(vr_reload_battery_smoke_alpha, "0.45", CVAR_ARCHIVE) // each wisp's opa
 QVR_CVAR(vr_reload_insert_time, "0.13", CVAR_ARCHIVE) // seconds a shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it (vr_collectfx.cpp; 0: gone at once). Loaded at once all the same
 QVR_CVAR(vr_reload_ssg_break, "1", CVAR_ARCHIVE)       // with Immersive: its spent shells stay in; broken open (the ways below) it throws them out and loads by hand (0: the flick reloads it as before)
 QVR_CVAR(vr_reload_ssg_open_angle, "45", CVAR_ARCHIVE) // degrees its barrels drop about the hinge, open (looks only; the load point goes with them)
+QVR_CVAR(vr_ssg_fire_anim_speed, "1.4", CVAR_ARCHIVE) // the super shotgun's firing animation speed (1: id's 0.6 s; 1.4: 0.43 s): it breaks open only once it is over (QC player.qc player_shot_pace)
 // How it opens (each its own switch; opening throws every shell out, spent and live) and closes.
 QVR_CVAR(vr_reload_ssg_open_flick, "0", CVAR_ARCHIVE)  // open by the flick (the old flick reload's gesture)
 QVR_CVAR(vr_reload_ssg_pry, "1", CVAR_ARCHIVE)         // open by the pry: both hands on it (the two-handed hold), the front one pushing the barrels down against the back one
