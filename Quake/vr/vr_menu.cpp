@@ -3048,6 +3048,11 @@ void hologramTestMessage()
             .help("How near a torch's flame a nail must pass, in units (a hand is about 4)."),
         slider("Nail Sizzle Volume", vr_burn_nail_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the short fizz a nail makes as it catches fire in a torch's flame (0 off)."),
+        slider("Crackle Volume", vr_burn_sound, 0.f, 1.f, 0.1f, "%.1f")
+            .help("A burning monster, corpse or crate crackles as a wall torch does, heard close by, quieter as its flames "
+                  "die (0 off)."),
+        slider("Most Crackling", vr_burn_sound_max, 1.f, 8.f, 1.f, "%.0f").extend(1.f, 32.f)
+            .help("At most this many burning things crackle at once; the rest burn silent until one goes out."),
         header("Crates"),
         toggle("Crates Burn", vr_burn_crates)
             .help("Wooden crates catch fire: a lit torch's blow or touch, a lava nail, a burning crate touching them."),

@@ -766,6 +766,8 @@ QVR_CVAR(vr_burn_piece_flame_size, "0.7", CVAR_ARCHIVE)  // a piece's flames' si
 QVR_CVAR(vr_burn_nail_convert, "1", CVAR_ARCHIVE)        // 1: a nail passing through a lit torch's flame (held, thrown, lying, on its wall) becomes a lava nail
 QVR_CVAR(vr_burn_nail_reach, "10", CVAR_ARCHIVE)         // units from a torch's flame a nail must pass to catch fire
 QVR_CVAR(vr_burn_nail_sound, "0.5", CVAR_ARCHIVE)        // the volume of the short fizz a nail makes catching fire in a torch's flame (0: none)
+QVR_CVAR(vr_burn_sound, "0.6", CVAR_ARCHIVE)             // the volume of the crackle a burning body, crate or piece makes (ambience/fire1.wav looped, heard near; QC vr_burning.qc VR_Burn_Crackle; 0 none)
+QVR_CVAR(vr_burn_sound_max, "4", CVAR_ARCHIVE)         // at most this many burning things crackle at once (the rest burn silent till one goes out)
 QVR_CVAR(vr_burn_self, "1", CVAR_ARCHIVE)                // 1 (the default since config 89; 0 before): your held torch burns you after vr_burn_self_time; mapper flames use the same hand/arm warnings and delay
 QVR_CVAR(vr_burn_self_time, "0.6", CVAR_ARCHIVE)         // s a held torch's flame must stay on you before you catch fire (haptic warnings till then)
 QVR_CVAR(vr_burn_self_haptic, "1", CVAR_ARCHIVE)         // the warnings' strength (the hand buzzing as the flame stays on you; 0: none)

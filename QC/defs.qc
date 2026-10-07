@@ -605,6 +605,9 @@ float CHAN_OTHER   = 6;
 // VRGetHandChannel(xHand). Only the player's sounds are moved to a hand; on another entity they are CHAN_AUTO's.
 float CHAN_HAND    = 8;
 float CHAN_HAND2   = 9;
+// Quake VR: a burning body's crackle (vr_burning.qc VR_Burn_Crackle: a loop, replaced by misc/null.wav as it goes out).
+// Channel 7: no monster's sound uses it (only Armagon, a boss: fireproof).
+float CHAN_BURN    = 7;
 
 float ATTN_NONE   = 0;
 float ATTN_NORM   = 1;

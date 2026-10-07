@@ -229,6 +229,8 @@ float cvarh_vr_burn_piece_flame_size;
 float cvarh_vr_burn_nail_convert;
 float cvarh_vr_burn_nail_reach;
 float cvarh_vr_burn_nail_sound;
+float cvarh_vr_burn_sound;
+float cvarh_vr_burn_sound_max;
 float cvarh_vr_burn_self;
 float cvarh_vr_burn_self_time;
 float cvarh_vr_burn_self_haptic;
@@ -842,6 +844,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_burn_nail_convert);
     VR_CVAR_HMAKE(vr_burn_nail_reach);
     VR_CVAR_HMAKE(vr_burn_nail_sound);
+    VR_CVAR_HMAKE(vr_burn_sound);
+    VR_CVAR_HMAKE(vr_burn_sound_max);
     VR_CVAR_HMAKE(vr_burn_self);
     VR_CVAR_HMAKE(vr_burn_self_time);
     VR_CVAR_HMAKE(vr_burn_self_haptic);

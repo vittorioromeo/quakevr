@@ -27736,3 +27736,23 @@ per hand every 0.25 s (a grip at the edge of its reach). `vr_2h_grip_sound` (0.6
 Checked (`-Sound -RealTime`, `vr_snd_spatial 0`, `snd_show 2`; a shotgun in the main hand, the off hand put on it at
 0.75 with `vr_mock_hand_to off held` and gripped, then let go): `grab_metal1.wav` on channel 9, pitch 0.998, `at 486
 -326 102 | off hand 486 -326 102 (0.0 off)`; letting go `grab_metal3.wav` (0.978) the same way.
+
+## Burning bodies crackle (AUDIO_REVIEW.md row 7, 2026-10-07)
+
+A burning monster, corpse, crate or crate piece was silent after the catching whoosh (`vr/torch_light.wav`). Its fire
+now crackles (`vr_burning.qc` VR_Burn_Crackle, from VR_Burn_Think): Quake's torch loop (`ambience/fire1.wav`, the wall
+torches' crackle; now precached in `world.qc`, as it was only on maps with torches) on the body's own channel
+(`CHAN_BURN`, 7, new in `defs.qc`: no monster uses it but Armagon, who is fireproof), so it follows the body, heard only
+near (`ATTN_STATIC`), at `vr_burn_sound`. It starts 0.3 s after the fire (the whoosh first); in the flames' last 1.5 s
+it plays at 0.6 of that, in the last 0.75 s at 0.3 (the loop restarted lower: a three-step fade), back to full if the
+body is lit again; every way a fire ends goes through VR_Burn_Out (burnt out, gibbed or removed, doused, a crate broken
+or a piece burnt away, the scene cleared), which stops it with `misc/null.wav`. At most `vr_burn_sound_max` fires
+crackle at once (`vr_burn_crackles`, recounted over the `vr_burn` entities when it says the most do, so it can't drift):
+the others burn silent and look again every 0.25 s, taking a slot as one goes out (not in their own last 1.5 s). None on
+you (you cry out: VR_Burn_OnYou). `vr_burn_sound` 0.6 (0 none) and `vr_burn_sound_max` 4: Combat > Burning,
+**Crackle Volume** and **Most Crackling**. `developer 1` prints `burning: <class> crackles at <volume> (<n> crackling)`.
+
+Checked (`-Sound -RealTime`, `snd_show 2`, `vr_burn_sound_max 2`, `vr_burn_corpse_time 4`; three things set on fire
+with `vr_burn_test 1`): a crate and the first grunt's corpse crackle (`ambience/fire1.wav [L]` on channel 7 of each),
+the second corpse stays silent (2 crackling); the first corpse fades 0.36, 0.18, then stops (1 crackling) and goes out;
+the second, then in its own last second, doesn't start.

@@ -33,6 +33,8 @@
 .float burn_catch_next;   // wood's fire: when it next sets the crates and pieces touching it on fire
 .float burn_char_at;      // a piece's fire: when the piece is charred (half its time)
 .float burn_smoke_out;    // a body's fire: when the clients were last told its flames go out (VR_Burn_Smoke; 0 not told)
+.float burn_crackle;      // the volume its crackle plays at (VR_Burn_Crackle; 0 silent)
+.float burn_crackle_next; // when its crackle is next looked at
 // On a flame (owner: its fire):
 .vector burn_off;         // where on the body: from its origin, in its yaw's axes
 .float burn_size;         // its full scale
@@ -480,10 +482,94 @@ void(entity xFire, float xLeft) VR_Burn_Smoke =
     xFire.burn_smoke_out = xLeft > 0 ? time + xLeft : 0;
 };
 
-// Out: its flames gone, the body no longer burning (it smokes on a while: VR_Burn_Smoke).
+// The crackle of a burning body, crate or piece (AUDIO_REVIEW.md row 7): Quake's torch loop (ambience/fire1.wav, as the
+// wall torches', VR_WallTorch_Crackle) on the body's own channel (CHAN_BURN: it follows the body), heard only near
+// (ATTN_STATIC), at vr_burn_sound; quieter in the last 1.5 s as the flames die (0.6, then 0.3 in the last 0.75 s: the
+// loop restarted lower), again at full if it is lit again, and stopped (misc/null.wav) as it goes out, however it does
+// (VR_Burn_Out). It starts 0.3 s after the fire (the catching whoosh first). At most vr_burn_sound_max fires crackle at
+// once (vr_burn_crackles; recounted when it says the most do): the others burn silent, each looking again every
+// 0.25 s, so one starts as another goes out (not in its last 1.5 s). Not on you (you cry out instead: VR_Burn_OnYou).
+// `developer` prints each.
+float vr_burn_crackles; // fires crackling now
+
+float() VR_Burn_CrackleCount =
+{
+    float n = 0;
+    entity e = find(world, classname, "vr_burn");
+    while(e)
+    {
+        if(e.burn_crackle > 0)
+        {
+            n = n + 1;
+        }
+        e = find(e, classname, "vr_burn");
+    }
+    vr_burn_crackles = n;
+    return n;
+};
+
+void(entity xFire, float xVol) VR_Burn_CrackleSet =
+{
+    if(xVol == xFire.burn_crackle)
+    {
+        return;
+    }
+    entity v = xFire.enemy;
+    if(xVol > 0)
+    {
+        sound(v, CHAN_BURN, "ambience/fire1.wav", xVol, ATTN_STATIC);
+        if(xFire.burn_crackle <= 0)
+        {
+            vr_burn_crackles = vr_burn_crackles + 1;
+        }
+    }
+    else
+    {
+        sound(v, CHAN_BURN, "misc/null.wav", 0.1, ATTN_STATIC);
+        vr_burn_crackles = max(0, vr_burn_crackles - 1);
+    }
+    dprint(sprintf("burning: %s crackles at %g (%g crackling)\n", v.classname, xVol, vr_burn_crackles));
+    xFire.burn_crackle = xVol;
+};
+
+void(entity xFire) VR_Burn_Crackle =
+{
+    if(time < xFire.burn_crackle_next)
+    {
+        return;
+    }
+    xFire.burn_crackle_next = time + 0.25;
+    entity v = xFire.enemy;
+    float want = (v.flags & FL_CLIENT) ? 0 : min(1, max(0, cvar_hget(cvarh_vr_burn_sound)));
+    float left = xFire.burn_end + VR_BURN_FADE - time;
+    if(left < 0.75)
+    {
+        want = want * 0.3;
+    }
+    else if(left < 1.5)
+    {
+        want = want * 0.6;
+    }
+    if(want > 0 && xFire.burn_crackle <= 0)
+    {
+        if(left < 1.5)
+        {
+            return; // (its flames dying: it never starts now)
+        }
+        float most = cvar_hget(cvarh_vr_burn_sound_max);
+        if(vr_burn_crackles >= most && VR_Burn_CrackleCount() >= most)
+        {
+            return; // (as many crackle as may: it burns silent for now)
+        }
+    }
+    VR_Burn_CrackleSet(xFire, want);
+};
+
+// Out: its flames gone, the body no longer burning (it smokes on a while: VR_Burn_Smoke), its crackle stopped.
 void(entity xFire, string xWhy) VR_Burn_Out =
 {
     entity v = xFire.enemy;
+    VR_Burn_CrackleSet(xFire, 0);
     if(xFire.burn_smoke_out)
     {
         VR_Burn_Smoke(xFire, 0);
@@ -606,6 +692,7 @@ void() VR_Burn_Think =
         return;
     }
     self.nextthink = time + 0.05;
+    VR_Burn_Crackle(self);
     if(self.burn_end + VR_BURN_FADE > self.burn_smoke_out + 0.5)
     {
         VR_Burn_Smoke(self, self.burn_end + VR_BURN_FADE - time); // (lit, or burning on longer)
@@ -739,6 +826,7 @@ void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_B
         f.burn_catch_next = time + cvar_hget(cvarh_vr_burn_crate_spread);
         f.think = VR_Burn_Think;
         f.nextthink = time;
+        f.burn_crackle_next = time + 0.3; // (the whoosh first)
         setorigin(f, xVictim.origin);
         xVictim.burn_fire = f;
         f.burn_char_at = time + len * 0.5;
