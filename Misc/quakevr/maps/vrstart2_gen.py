@@ -1,0 +1,1077 @@
+# vrstart2_gen.py -- writes quakevr/maps/vrstart2.map, the new VR hub (an island at night), and with --compile builds
+# it (qbsp, vis, light; MAPPING.md's "Full" profile).
+#
+#   python Misc/quakevr/maps/vrstart2_gen.py [--compile] [--fast] [--tools DIR]
+#   (first: python Misc/trenchbroom/make_id_wad.py, the id textures' WAD)
+#
+# Everything in the map is made here (reproducible; the .map stays editable in TrenchBroom: the generated parts are
+# TrenchBroom groups, the props func_detail): edit this script, not the .map. Layout (x east, y north, the water's
+# surface at z 0, 32.8 units a metre):
+#
+#   - a lake 8000 units across (244 m) ringed by cliffs and mountains (the map's border), sky above, at night;
+#   - the island in its middle (about 3100 x 2200 units, 95 x 67 m): a rocky beach round a grassy upland, a ravine with
+#     the sea in it cutting in from the north;
+#   - the path, from the south-west corner: the pier where the player starts -> the arrival beach (welcome, the
+#     tutorial and calibration buttons) -> a wooden staircase up the bank -> the campaign terrace (the campaign
+#     buttons and the slipgate) -> a wooden bridge over the ravine -> the settings pavilion (setting buttons) -> a
+#     staircase down -> the firing range (a few basic guns, ammunition, targets) -> a path along the shore -> the
+#     lookout tower (a ladder up; a diving board over deep water).
+#
+# Textures: id's (see TEXN).
+import argparse
+import math
+import os
+import random
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from mapgeom import (Tex, MapWriter, Perlin, add, box, beam, catmull_rom, cross, cylinder, delaunay, dot, hull, length,
+                     lerp, ngon, norm, point_in_poly, polyline_dist, prism, seg_dist, smoothstep, sub, mul)
+
+ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"
+MAPNAME = "vrstart2"
+OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Textures: id's own (quakevr/wads/id_textures.wad, extracted from the player's paks by
+# Misc/trenchbroom/make_id_wad.py, never committed: the author's decision is that the compiled hub may embed them),
+# and Quake VR's (quakevr_dev.wad, Misc/trenchbroom/make_assets.py) for what id has none of.
+TEXN = {
+    "grass": "grass1_1", "grass2": "ground1_2", "path": "ground1_8", "sand": "rock3_2", "seabed": "ground1_5",
+    "cliff": "rock5_2", "cliff2": "rock3_8", "cliffwet": "rock5_1", "moss": "rock4_2", "plank": "wood1_1",
+    "beam": "wood1_3", "log": "cliff2_1", "logend": "wood1_7", "board": "woodflr1_2", "rope": "rock3_8",
+    "iron": "metal1_1", "flag": "azfloor1_1", "block": "wswamp2_1", "trim": "wall14_5", "water": "*04awater1",
+    "portal": "*teleport", "sky": "sky1", "crystal": "+0light01", "button": "+0basebtn", "target": "qvr_panel",
+    "bark": "cliff2_1", "needles": "wgrass1_1", "lamp": "light1_1", "roof": "wizwood1_2", "rune": "sliplite",
+    "clip": "clip", "trigger": "trigger", "skip": "skip",
+}
+WADS = "quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad"
+
+
+def T(key, **kw):
+    return Tex(TEXN[key], **kw)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The world's dimensions
+BOX = 4000            # the inside of the sealing box: x, y in -BOX..BOX
+SKY_TOP = 2304
+FLOOR_Z = -1024       # the terrain prisms' bottoms
+WATER_Z = 0
+SEA_DEPTH = 300       # the lake's floor, far from the shores
+
+PN = Perlin(7)        # terrain
+PN2 = Perlin(11)      # the cliffs' line and heights
+PN3 = Perlin(23)      # texture patches
+
+# The island's coast (control points, anticlockwise from the south-west beach), smoothed
+COAST_CTRL = [(-1250, -1000), (-700, -1060), (-100, -990), (500, -1060), (980, -1010), (1250, -960), (1430, -760),
+              (1570, -320), (1620, 150), (1470, 620), (1060, 960), (500, 1110), (-100, 1060), (-500, 1170),
+              (-820, 1170), (-1220, 960), (-1520, 520), (-1630, 0), (-1560, -520), (-1440, -860)]
+COAST = catmull_rom(COAST_CTRL, 10)
+
+# Islets in the lake: (x, y, radius, peak height)
+ISLETS = [(2350, 1550, 230, 70), (-2550, 1650, 170, 40), (2050, -2150, 200, 95), (-2400, -1900, 150, 26)]
+
+# Rolling hills on the island: (x, y, radius, height added)
+HILLS = [(450, 650, 420, 170), (-150, -560, 330, 90), (900, 380, 300, 60), (-1250, 520, 380, 70), (150, 900, 300, 50)]
+
+# Flattened places: (kind, shape, target z, blend); kind 'set' (to the height), 'cut' (no higher than it);
+# shape ('circle', x, y, r) or ('rect', x0, y0, x1, y1)
+ZONES = []
+
+# Paths: polylines of (x, y, z) (z: the walking height), their half-width
+PATHS = []
+
+# The ravine (the sea in a cleft from the north coast): its centre line, the water channel's and the banks' half-widths
+RAVINE = [(-640, 1400), (-630, 950), (-665, 560), (-640, 200), (-650, -130), (-630, -330), (-610, -430)]
+RAVINE_IN, RAVINE_OUT, RAVINE_BED = 64, 175, -56
+
+# Deep water close by the shore (the diving board): (x, y, r)
+DEEP = [(1160, -1110, 260)]
+
+# ---- the places along the path (see the header)
+PIER = dict(x=-1200, y0=-850, y1=-1370, z=24, w=104)
+ARRIVAL = (-1170, -760)
+STAIR1 = dict(cx=-1200, cy=-500, dx=0, dy=-1, zb=16, zt=112, run=12, w=96)   # (its top edge, the way down)
+TERRACE = dict(x=-1150, y=-150, r=232, z=112)
+GATE = dict(x=-1150, y=46)                                                  # the slipgate (faces south)
+BRIDGE = dict(x0=-868, x1=-436, y=-150, z=112, arch=14, w=96)
+PAVILION = dict(x0=-300, x1=84, y0=-232, y1=40, z=128)
+STAIR2 = dict(cx=84, cy=-96, dx=1, dy=0, zb=56, zt=128, run=16, w=80)
+RANGE = dict(x0=300, x1=1500, y0=-250, y1=170, z=56, line=470)
+TOWER = dict(x=1160, y=-770, z=56, half=88, deck=260)
+
+
+def stair_info(st):
+    """A flight's numbers: risers, its bottom edge's centre, its footprint (x0, y0, x1, y1)."""
+    n = (st["zt"] - st["zb"]) // 8
+    L = (n - 1) * st["run"]
+    bx, by = st["cx"] + st["dx"] * L, st["cy"] + st["dy"] * L
+    hw = st["w"] / 2 + 36
+    if st["dx"]:
+        fp = (min(st["cx"], bx), st["cy"] - hw, max(st["cx"], bx), st["cy"] + hw)
+    else:
+        fp = (st["cx"] - hw, min(st["cy"], by), st["cx"] + hw, max(st["cy"], by))
+    return n, (bx, by), fp
+
+
+def build_layout():
+    """The zones and paths from the places above."""
+    t, p, b, pv, rg, tw = TERRACE, PIER, BRIDGE, PAVILION, RANGE, TOWER
+    s1, s2 = STAIR1, STAIR2
+    n1, s1_bot, fp1 = stair_info(s1)
+    n2, s2_bot, fp2 = stair_info(s2)
+    # the arrival beach, and the upland above the bank
+    ZONES.append(("set", ("rect", -1520, -930, -900, s1_bot[1] - 6), s1["zb"] - 2, 60))
+    ZONES.append(("set", ("rect", -1480, s1["cy"] - 4, -960, -300), s1["zt"] - 6, 60))
+    ZONES.append(("set", ("circle", p["x"], p["y0"] + 30, 90), 12, 60))
+    # under the staircases: a ramp below their treads
+    ZONES.append(("ramp", ("rect",) + fp1, (s1["cx"], s1["cy"], s1["zt"] - 22, s1_bot[0], s1_bot[1], s1["zb"] - 6), 8))
+    ZONES.append(("ramp", ("rect",) + fp2, (s2["cx"], s2["cy"], s2["zt"] - 24, s2_bot[0], s2_bot[1], s2["zb"] - 6), 8))
+    # the campaign terrace and the path to it
+    ZONES.append(("set", ("circle", t["x"], t["y"], t["r"] + 24), t["z"] - 8, 90))
+    PATHS.append(([(s1["cx"], s1["cy"] + 52, s1["zt"] - 6), (s1["cx"] + 20, s1["cy"] + 100, s1["zt"] - 6),
+                   (t["x"] - 10, t["y"] - t["r"] - 10, t["z"] - 6)], 52))
+    # the bridge's ends
+    ZONES.append(("set", ("rect", b["x0"] - 60, b["y"] - 90, b["x0"] + 20, b["y"] + 90), b["z"] - 6, 50))
+    ZONES.append(("set", ("rect", b["x1"] - 20, b["y"] - 90, b["x1"] + 70, b["y"] + 90), b["z"] - 6, 50))
+    # the pavilion and the path to it, the range
+    ZONES.append(("set", ("rect", pv["x0"] - 30, pv["y0"] - 30, pv["x1"] + 4, pv["y1"] + 30), pv["z"] - 16, 70))
+    PATHS.append(([(b["x1"] + 50, b["y"], b["z"] - 6), (b["x1"] + 110, b["y"] + 20, b["z"] - 4),
+                   (pv["x0"] - 40, (pv["y0"] + pv["y1"]) / 2, pv["z"] - 16)], 50))
+    ZONES.append(("set", ("rect", rg["x0"], rg["y0"], rg["x1"], rg["y1"]), rg["z"], 80))
+    PATHS.append(([(s2_bot[0] + 20, s2["cy"], s2["zb"]), (rg["line"] - 60, -60, rg["z"])], 50))
+    # the backstop: a bank of earth behind the targets
+    ZONES.append(("set", ("rect", rg["x1"] - 10, rg["y0"] - 40, rg["x1"] + 90, rg["y1"] + 40), rg["z"] + 120, 50))
+    # along the shore to the tower
+    ZONES.append(("set", ("circle", tw["x"], tw["y"], tw["half"] + 50), tw["z"], 60))
+    PATHS.append(([(rg["line"] - 40, rg["y0"] + 10, rg["z"]), (520, -470, 60), (760, -640, 58), (980, -700, 56),
+                   (tw["x"] - 20, tw["y"] + tw["half"] + 40, tw["z"])], 50))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The height field
+class Grid:
+    """A function sampled on a grid, read back bilinearly (the coast's distance: costly to compute at every point)."""
+
+    def __init__(self, fn, x0, y0, x1, y1, step):
+        self.x0, self.y0, self.step = x0, y0, step
+        self.nx, self.ny = int((x1 - x0) / step) + 2, int((y1 - y0) / step) + 2
+        self.v = [[fn(x0 + i * step, y0 + j * step) for i in range(self.nx)] for j in range(self.ny)]
+        self.x1, self.y1 = x0 + (self.nx - 1) * step, y0 + (self.ny - 1) * step
+
+    def inside(self, x, y):
+        return self.x0 <= x < self.x1 and self.y0 <= y < self.y1
+
+    def __call__(self, x, y):
+        fx, fy = (x - self.x0) / self.step, (y - self.y0) / self.step
+        i, j = int(fx), int(fy)
+        tx, ty = fx - i, fy - j
+        v = self.v
+        a = lerp(v[j][i], v[j][i + 1], tx)
+        b = lerp(v[j + 1][i], v[j + 1][i + 1], tx)
+        return lerp(a, b, ty)
+
+
+def coast_distance_exact(x, y):
+    best = 1e18
+    n = len(COAST)
+    for i in range(n):
+        a, b = COAST[i], COAST[(i + 1) % n]
+        d, _ = seg_dist(x, y, a[0], a[1], b[0], b[1])
+        best = min(best, d)
+    return best if point_in_poly(x, y, COAST) else -best
+
+
+COAST_GRID = None
+
+
+def coast_distance(x, y):
+    if COAST_GRID.inside(x, y):
+        return COAST_GRID(x, y)
+    return coast_distance_exact(x, y)
+
+
+def cliff_radius(theta):
+    """Where the cliffs rise from the lake: further out towards the corners of the square map."""
+    c, s = math.cos(theta), math.sin(theta)
+    return (3200 + 380 * (2 * c * s) ** 2 + 230 * PN2.fbm(c * 1.7 + 5, s * 1.7 + 5, 3)
+            + 110 * PN2(c * 6 + 1, s * 6 + 2) + 45 * PN2(c * 15 + 9, s * 15 - 4))
+
+
+def cliff_params(theta):
+    c, s = math.cos(theta), math.sin(theta)
+    top = 500 + 240 * PN2.fbm(c * 2.3 + 11, s * 2.3, 3) + 130 * PN2(c * 8 - 5, s * 8 + 3)
+    ridge = 1300 + 420 * PN2.fbm(c * 1.3 - 3, s * 1.3 + 7, 3) + 160 * PN2(c * 5 + 2, s * 5 - 6)
+    return top, ridge
+
+
+# Ledges at the cliffs' feet, a swimmer's way out of the water: (angle in degrees, half-width in degrees)
+CLIFF_LEDGES = [(20, 4), (95, 3), (150, 5), (215, 4), (290, 3), (340, 4)]
+
+
+def cliff_height(x, y):
+    r = math.hypot(x, y)
+    theta = math.atan2(y, x)
+    e = r - cliff_radius(theta)
+    if e < -480:
+        return None
+    top, ridge = cliff_params(theta)
+    if e < -40:
+        h = -SEA_DEPTH + (SEA_DEPTH - 90) * smoothstep(-480, -40, e) + 18 * PN.fbm(x / 300, y / 300, 3)
+        deg = math.degrees(theta) % 360
+        for a, w in CLIFF_LEDGES:
+            da = abs((deg - a + 180) % 360 - 180)
+            if da < w and e > -150:
+                h = max(h, 12 + 5 * PN.fbm(x / 60, y / 60, 2))
+        return h
+    if e < 60:
+        t = (e + 40) / 100
+        return lerp(-90, top, t ** 0.85) + 70 * PN.fbm(x / 110, y / 110, 3) * math.sin(math.pi * t) + 25 * PN(x / 50, y / 50)
+    k = smoothstep(60, 750, e)
+    rough = 130 * PN.fbm(x / 240 + 3, y / 240, 5) * (0.4 + k)
+    return top + (ridge - top) * k + rough
+
+
+def sea_height(x, y, d):
+    dd = -d
+    if dd < 100:
+        h = -dd * 0.16
+    else:
+        h = -16 - (SEA_DEPTH - 16) * (1 - math.exp(-(dd - 100) / 230))
+    h += 14 * PN.fbm(x / 420, y / 420, 3) * smoothstep(60, 400, dd)
+    for (ix, iy, r, peak) in ISLETS:
+        dist = math.hypot(x - ix, y - iy)
+        if dist < r * 3:
+            k = math.exp(-(dist / r) ** 2 * 1.3)
+            bump = (peak + SEA_DEPTH) * k - SEA_DEPTH + 30 * PN.fbm(x / 90, y / 90, 3) * k
+            h = max(h, bump)
+    for (dx, dy, r) in DEEP:
+        dist = math.hypot(x - dx, y - dy)
+        if dist < r:
+            h = min(h, lerp(h, -SEA_DEPTH, smoothstep(r, r * 0.45, dist)))
+    return h
+
+
+def land_height(x, y, d):
+    """The island above the water (d: the distance in from its coast)."""
+    beach = min(d, 150) * 0.12
+    inland = 96 + 26 * PN.fbm(x / 700, y / 700, 3)
+    for (hx, hy, r, ht) in HILLS:
+        dist2 = (x - hx) ** 2 + (y - hy) ** 2
+        inland += ht * math.exp(-dist2 / (r * r))
+    h = lerp(beach, inland, smoothstep(110, 430, d))
+    h += 5 * PN.fbm(x / 120, y / 120, 2) * smoothstep(20, 120, d)
+    return h
+
+
+def zone_weight(shape, x, y, blend):
+    if shape[0] == "circle":
+        _, cx, cy, r = shape
+        dist = math.hypot(x - cx, y - cy) - r
+    else:
+        _, x0, y0, x1, y1 = shape
+        dx = max(x0 - x, 0, x - x1)
+        dy = max(y0 - y, 0, y - y1)
+        dist = math.hypot(dx, dy)
+    if dist <= 0:
+        return 1.0
+    return 1.0 - smoothstep(0, blend, dist)
+
+
+def path_height(x, y):
+    """(weight, height) of the nearest path at (x, y)."""
+    best = (0.0, 0.0)
+    for pts, hw in PATHS:
+        d, i, t = polyline_dist(x, y, pts)
+        if d < hw + 70:
+            z = lerp(pts[i][2], pts[i + 1][2], t)
+            w = 1.0 - smoothstep(hw - 10, hw + 70, d)
+            if w > best[0]:
+                best = (w, z - 3)
+    return best
+
+
+def on_path(x, y, margin=0):
+    for pts, hw in PATHS:
+        d, _, _ = polyline_dist(x, y, pts)
+        if d < hw - margin:
+            return True
+    return False
+
+
+def height(x, y):
+    d = coast_distance(x, y)
+    if d >= 0:
+        h = land_height(x, y, d)
+    else:
+        h = sea_height(x, y, d)
+    # the flattened places
+    for kind, shape, target, blend in ZONES:
+        w = zone_weight(shape, x, y, blend)
+        if w <= 0 or target is None:
+            continue
+        if kind == "set":
+            h = lerp(h, target, w)
+
+    w, pz = path_height(x, y)
+    if w > 0:
+        h = lerp(h, pz, w)
+    for kind, shape, target, blend in ZONES:  # (the staircases' ramps over the paths' ends)
+        if kind == "ramp":
+            w = zone_weight(shape, x, y, blend)
+            if w > 0:
+                ax, ay, za, bx, by, zb = target
+                L2 = (bx - ax) ** 2 + (by - ay) ** 2
+                tt = max(0.0, min(1.0, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / L2))
+                h = lerp(h, lerp(za, zb, tt), w)
+    # the ravine
+    rd, _, _ = polyline_dist(x, y, RAVINE)
+    if rd < RAVINE_OUT:
+        bed = RAVINE_BED + 10 * PN.fbm(x / 80, y / 80, 2)
+        if rd < RAVINE_IN:
+            h = min(h, bed)
+        else:
+            k = (rd - RAVINE_IN) / (RAVINE_OUT - RAVINE_IN)
+            h = min(h, lerp(bed, h, k ** 1.6))
+    ch = cliff_height(x, y)
+    if ch is not None:
+        h = max(h, ch)
+    return h
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The terrain: points (a jittered lattice, denser where it matters, and the features' outlines), a Delaunay
+# triangulation, a prism under each triangle.
+def spacing_class(x, y):
+    """1, 2, 4 or 8: the lattice step (64 units) there."""
+    d = coast_distance(x, y)
+    if d > -200:
+        return 1
+    r = math.hypot(x, y)
+    e = r - cliff_radius(math.atan2(y, x))
+    if -260 < e < 320:
+        return 2
+    for (ix, iy, rr, _) in ISLETS:
+        if math.hypot(x - ix, y - iy) < rr * 1.8:
+            return 1
+    if d > -650:
+        return 2
+    return 4
+
+
+def terrain_points():
+    rnd = random.Random(5)
+    pts = {}
+    feat = []
+
+    def add_feat(x, y):
+        feat.append((int(round(x)), int(round(y))))
+
+    # the cliffs' foot, face and top: rings of points so the face is crisp
+    jr = random.Random(77)
+    for ring, e in enumerate((-40, -15, 10, 35, 60, 180)):
+        n = 260
+        for i in range(n):
+            th = 2 * math.pi * (i + 0.5 * (ring % 2) + jr.uniform(-0.2, 0.2)) / n
+            r = cliff_radius(th) + e + (jr.uniform(-7, 7) if -40 < e < 60 else 0)
+            x, y = r * math.cos(th), r * math.sin(th)
+            if abs(x) < BOX - 40 and abs(y) < BOX - 40:
+                add_feat(x, y)
+    # the flattened places' outlines
+    for kind, shape, target, blend in ZONES:
+        if shape[0] == "circle":
+            _, cx, cy, r = shape
+            n = max(8, int(2 * math.pi * r / 56))
+            for i in range(n):
+                a = 2 * math.pi * i / n
+                add_feat(cx + r * math.cos(a), cy + r * math.sin(a))
+        elif kind in ("set", "ramp"):
+            _, x0, y0, x1, y1 = shape
+            for (ax, ay, bx, by) in ((x0, y0, x1, y0), (x1, y0, x1, y1), (x1, y1, x0, y1), (x0, y1, x0, y0)):
+                n = max(1, int(math.hypot(bx - ax, by - ay) / 56))
+                for i in range(n):
+                    add_feat(lerp(ax, bx, i / n), lerp(ay, by, i / n))
+    # the paths' edges
+    for pts_, hw in PATHS:
+        for i in range(len(pts_) - 1):
+            ax, ay, _ = pts_[i]
+            bx, by, _ = pts_[i + 1]
+            L = math.hypot(bx - ax, by - ay)
+            nx, ny = -(by - ay) / L, (bx - ax) / L
+            n = max(1, int(L / 44))
+            for k in range(n + 1):
+                t = k / n
+                cx, cy = lerp(ax, bx, t), lerp(ay, by, t)
+                for off in (-hw, hw):
+                    add_feat(cx + nx * off, cy + ny * off)
+    # the ravine's channel
+    for i in range(len(RAVINE) - 1):
+        ax, ay = RAVINE[i]
+        bx, by = RAVINE[i + 1]
+        L = math.hypot(bx - ax, by - ay)
+        nx, ny = -(by - ay) / L, (bx - ax) / L
+        n = max(1, int(L / 60))
+        for k in range(n):
+            t = k / n
+            cx, cy = lerp(ax, bx, t), lerp(ay, by, t)
+            for off in (-RAVINE_IN, 0, RAVINE_IN):
+                add_feat(cx + nx * off, cy + ny * off)
+    featset = {}
+    for f in feat:
+        featset[(f[0] // 32, f[1] // 32)] = f
+    feat = list(featset.values())
+    bucket = {}
+    for f in feat:
+        bucket.setdefault((f[0] // 32, f[1] // 32), []).append(f)
+
+    def near_feature(x, y, r=26):
+        cx, cy = int(x) // 32, int(y) // 32
+        for i in (-1, 0, 1):
+            for j in (-1, 0, 1):
+                for f in bucket.get((cx + i, cy + j), ()):
+                    if (f[0] - x) ** 2 + (f[1] - y) ** 2 < r * r:
+                        return True
+        return False
+
+    # the lattice
+    n = BOX // 64
+    for i in range(-n, n + 1):
+        for j in range(-n, n + 1):
+            x, y = i * 64, j * 64
+            jx, jy = rnd.uniform(-15, 15), rnd.uniform(-15, 15)
+            edge = abs(i) == n or abs(j) == n
+            k = spacing_class(x, y)
+            if not edge and (i % k or j % k):
+                continue
+            if edge:
+                corner = abs(i) == n and abs(j) == n
+                if not corner and (i % 4 if abs(j) == n else j % 4):
+                    continue
+                px = BOX if i == n else -BOX if i == -n else x
+                py = BOX if j == n else -BOX if j == -n else y
+            else:
+                px, py = x + jx * (1 if k == 1 else 2), y + jy * (1 if k == 1 else 2)
+                if near_feature(px, py):
+                    continue
+            pts[(int(round(px)), int(round(py)))] = 1
+    for f in feat:
+        if abs(f[0]) < BOX and abs(f[1]) < BOX:
+            pts[f] = 1
+    return list(pts.keys())
+
+
+def terrain_texture(c, n, x, y):
+    cz = c[2]
+    d = coast_distance(x, y)
+    if n[2] < 0.72:
+        if cz < -24:
+            return T("cliffwet", mode="face", scale=2)
+        return T("cliff", mode="face", scale=2) if PN3(x / 500, y / 500) > -0.15 else T("cliff2", mode="face", scale=2)
+    if cz < -10:
+        return T("seabed", scale=2)
+    if d >= 0 and on_path(x, y, 6):
+        return T("path")
+    if d >= 0:
+        if d < 170 and cz < 30:
+            return T("sand")
+        return T("grass", scale=1.5) if PN3.fbm(x / 420, y / 420, 2) > -0.1 else T("grass2", scale=1.5)
+    # not the island: the cliffs' gentle parts, islets' tops, ledges
+    if cz < 30:
+        return T("sand") if n[2] > 0.95 else T("cliff2", mode="face", scale=2)
+    if n[2] > 0.88 and cz < 1100:
+        return T("moss", scale=2)
+    return T("cliff2", mode="face", scale=2)
+
+
+def build_terrain(mw):
+    t0 = time.time()
+    pts = terrain_points()
+    tris = delaunay(pts)
+    area = sum(abs((pts[b][0] - pts[a][0]) * (pts[c][1] - pts[a][1]) - (pts[b][1] - pts[a][1]) * (pts[c][0] - pts[a][0]))
+               for a, b, c in tris) / 2
+    if abs(area - (2 * BOX) ** 2) > 1:
+        print("WARNING: the triangulation covers %.0f, not %.0f" % (area, (2 * BOX) ** 2))
+    hz = {}
+    for p in pts:
+        hz[p] = int(round(height(p[0], p[1])))
+    # detail: the structural world is only the sealing box (an open lake: vis has nothing to cull, and a structural
+    # height field of ten thousand prisms makes qbsp's tree enormous)
+    groups = {"terrain island": mw.detail("terrain: island"), "terrain lake": mw.detail("terrain: lake floor"),
+              "terrain cliffs": mw.detail("terrain: cliffs and mountains")}
+    side = T("cliff2")
+    for a, b, c in tris:
+        pa, pb, pc = pts[a], pts[b], pts[c]
+        tri = [(pa[0], pa[1], hz[pa]), (pb[0], pb[1], hz[pb]), (pc[0], pc[1], hz[pc])]
+        cx = (pa[0] + pb[0] + pc[0]) / 3
+        cy = (pa[1] + pb[1] + pc[1]) / 3
+        cz = (tri[0][2] + tri[1][2] + tri[2][2]) / 3
+        nrm = norm(cross(sub(tri[1], tri[0]), sub(tri[2], tri[0])))
+        if nrm[2] < 0:
+            nrm = (-nrm[0], -nrm[1], -nrm[2])
+        tex = terrain_texture((cx, cy, cz), nrm, cx, cy)
+        br = prism(tri, FLOOR_Z, tex, side)
+        d = coast_distance(cx, cy)
+        r = math.hypot(cx, cy)
+        if d > -300:
+            groups["terrain island"].append(br)
+        elif r > cliff_radius(math.atan2(cy, cx)) - 300:
+            groups["terrain cliffs"].append(br)
+        else:
+            groups["terrain lake"].append(br)
+    print("terrain: %d points, %d triangles (%.1f s)" % (len(pts), len(tris), time.time() - t0))
+    return hz
+
+
+def ground(x, y):
+    return height(x, y)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Building blocks
+RND = random.Random(1234)
+
+
+def wood(key, axis, rnd=RND):
+    """Wood with its grain along `axis`, at a random place on the texture (no two planks alike)."""
+    return T(key, mode="grain", axis=axis, uoff=rnd.randrange(0, 64), voff=rnd.randrange(0, 64), scale=0.75,
+             end=T("logend", scale=0.75))
+
+
+def chamfer_box(x0, y0, z0, x1, y1, z1, c, tex):
+    pts = []
+    for x, sx in ((x0, 1), (x1, -1)):
+        for y, sy in ((y0, 1), (y1, -1)):
+            for z, sz in ((z0, 1), (z1, -1)):
+                pts += [(x + sx * c, y, z), (x, y + sy * c, z), (x, y, z + sz * c)]
+    return hull(pts, tex)
+
+
+def post(out, x, y, z0, z1, r=4, square=True, tex=None):
+    """An upright: a square timber (chamfered) or a round log."""
+    if square:
+        out.append(chamfer_box(x - r, y - r, z0, x + r, y + r, z1, min(1.0, r / 4), tex or wood("beam", (0, 0, 1))))
+    else:
+        out.append(cylinder((x, y, z0), (x, y, z1), r, 8, tex or wood("log", (0, 0, 1))))
+
+
+def rail(out, p, q, w=4, h=3, key="beam"):
+    out.append(beam(p, q, w, h, wood(key, sub(q, p))))
+
+
+def rope(out, p, q, sag=4, segs=4):
+    """A rope from p to q, sagging in the middle (thin beams)."""
+    pts = []
+    for i in range(segs + 1):
+        t = i / segs
+        pts.append((lerp(p[0], q[0], t), lerp(p[1], q[1], t), lerp(p[2], q[2], t) - sag * 4 * t * (1 - t)))
+    for i in range(segs):
+        out.append(beam(pts[i], pts[i + 1], 1.5, 1.5, T("rope", mode="grain", axis=sub(pts[i + 1], pts[i]), scale=0.5)))
+
+
+def railing(out, pts, top=36, mid=20, every=56, sq=2.5, rope_mid=False):
+    """Posts along the polyline `pts` ((x, y, z): the walking height), a top rail and a middle rail (or a rope)."""
+    for i in range(len(pts) - 1):
+        a, b = pts[i], pts[i + 1]
+        L = math.hypot(b[0] - a[0], b[1] - a[1])
+        n = max(1, int(round(L / every)))
+        for k in range(n + (1 if i == len(pts) - 2 else 0)):
+            t = k / n
+            x, y, z = lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)
+            post(out, x, y, z - 2, z + top + 2, sq)
+        rail(out, (a[0], a[1], a[2] + top), (b[0], b[1], b[2] + top), 4, 3)
+        if rope_mid:
+            for k in range(n):
+                t0, t1 = k / n, (k + 1) / n
+                rope(out, (lerp(a[0], b[0], t0), lerp(a[1], b[1], t0), lerp(a[2], b[2], t0) + mid),
+                     (lerp(a[0], b[0], t1), lerp(a[1], b[1], t1), lerp(a[2], b[2], t1) + mid), 3, 3)
+        elif mid:
+            rail(out, (a[0], a[1], a[2] + mid), (b[0], b[1], b[2] + mid), 3, 3)
+
+
+def deck(out, x0, y0, x1, y1, ztop, along, width=11, gap=1, thick=3, zfn=None, rnd=RND):
+    """Planks covering x0..x1, y0..y1, their long axis `along` ('x' or 'y'), tops at ztop (or zfn(x, y))."""
+    if along == "x":
+        n = int((y1 - y0) // (width + gap))
+        pitch = (y1 - y0) / n
+        for k in range(n):
+            ya, yb = y0 + k * pitch, y0 + k * pitch + pitch - gap
+            z = zfn(0.5 * (x0 + x1), 0.5 * (ya + yb)) if zfn else ztop
+            j0, j1 = rnd.uniform(-1.5, 1.5), rnd.uniform(-1.5, 1.5)
+            out.append(box(x0 + j0, ya, z - thick, x1 + j1, yb, z, wood("plank", (1, 0, 0), rnd)))
+    else:
+        n = int((x1 - x0) // (width + gap))
+        pitch = (x1 - x0) / n
+        for k in range(n):
+            xa, xb = x0 + k * pitch, x0 + k * pitch + pitch - gap
+            z = zfn(0.5 * (xa + xb), 0.5 * (y0 + y1)) if zfn else ztop
+            j0, j1 = rnd.uniform(-1.5, 1.5), rnd.uniform(-1.5, 1.5)
+            out.append(box(xa, y0 + j0, z - thick, xb, y1 + j1, z, wood("plank", (0, 1, 0), rnd)))
+
+
+def rock(out, cx, cy, cz, rx, ry, rz, seed, tex=None, flat=0.35):
+    """A boulder: the hull of points on a squashed ellipsoid, its base sunk in the ground."""
+    rnd = random.Random(seed)
+    pts = []
+    yaw = rnd.uniform(0, 2 * math.pi)
+    c, s = math.cos(yaw), math.sin(yaw)
+    for i in range(16):
+        u = rnd.uniform(-1, 1)
+        a = rnd.uniform(0, 2 * math.pi)
+        rr = math.sqrt(1 - u * u)
+        k = rnd.uniform(0.82, 1.0)
+        px, py, pz = rr * math.cos(a) * rx * k, rr * math.sin(a) * ry * k, u * rz * k
+        if pz < -rz * flat:
+            pz = -rz * flat - rnd.uniform(0, rz * 0.4)
+        pts.append((cx + px * c - py * s, cy + px * s + py * c, cz + pz))
+    b = hull(pts, tex or T("cliff", mode="face", uoff=rnd.randrange(256), voff=rnd.randrange(256)))
+    if b:
+        out.append(b)
+
+
+def staircase(out, st, rails=True):
+    """A wooden flight: treads on two stringers, handrails on posts. The treads' tops step 8 down from st's top edge
+    (z zt) to the ground (zb) at its bottom edge."""
+    n, bot, _ = stair_info(st)
+    dx, dy, run, w = st["dx"], st["dy"], st["run"], st["w"]
+    px, py = -dy, dx  # across the flight
+    cx, cy = st["cx"], st["cy"]
+
+    def at(dist, across, z):
+        return (cx + dx * dist + px * across, cy + dy * dist + py * across, z)
+
+    axis = (px, py, 0)
+    for i in range(1, n):
+        z = st["zt"] - 8 * i
+        a, b = at((i - 1) * run - 1, -w / 2 + 6, z - 3), at(i * run + 1, w / 2 - 6, z)
+        out.append(box(a[0], a[1], a[2], b[0], b[1], b[2], wood("plank", axis)))
+        # the riser board under the tread's back edge
+        a, b = at((i - 1) * run - 1, -w / 2 + 8, z - 9), at((i - 1) * run + 1, w / 2 - 8, z - 3)
+        out.append(box(a[0], a[1], a[2], b[0], b[1], b[2], wood("board", axis)))
+    L = (n - 1) * run
+    for side in (-1, 1):
+        across = side * (w / 2 - 3)
+        top, low = at(-4, across, st["zt"] - 4), at(L + 6, across, st["zb"] - 6)
+        out.append(beam(add(top, (0, 0, -4)), add(low, (0, 0, -4)), 6, 14, wood("beam", sub(low, top))))
+        if rails:
+            pts = [at(-8, side * (w / 2 + 2), st["zt"]), at(L, side * (w / 2 + 2), st["zb"] + 8)]
+            railing(out, pts, top=36, mid=0, every=48, sq=2.5)
+            # newel posts at both ends
+            for p_ in pts:
+                post(out, p_[0], p_[1], p_[2] - 10, p_[2] + 44, 4)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The places
+def build_pier(mw):
+    out = mw.detail("pier")
+    p = PIER
+    x, y0, y1, z, w = p["x"], p["y0"], p["y1"], p["z"], p["w"]
+    deck(out, x - w / 2, y1, x + w / 2, y0, z, "x")
+    for sx in (-36, 36):
+        out.append(box(x + sx - 4, y1 - 4, z - 11, x + sx + 4, y0, z - 3, wood("beam", (0, 1, 0))))
+    for yy in range(int(y1) + 8, int(y0) - 20, 96):
+        out.append(box(x - 60, yy - 4, z - 19, x + 60, yy + 4, z - 11, wood("beam", (1, 0, 0))))
+        for sx in (-52, 52):
+            top = z + 32 if yy == int(y1) + 8 else z - 11
+            out.append(cylinder((x + sx, yy, -340), (x + sx, yy, top), 7, 8, wood("log", (0, 0, 1))))
+    # ropes from the end's bollards
+    rope(out, (x - 52, y1 + 8, z + 26), (x - 52, y1 + 104, z + 6), 3)
+    rope(out, (x + 52, y1 + 8, z + 26), (x + 52, y1 + 104, z + 6), 3)
+
+
+def build_arrival(mw):
+    out = mw.detail("arrival")
+    ax, ay = ARRIVAL
+    g = 14
+    # the welcome board: two posts and a board facing the pier (south)
+    bx, by = WELCOME
+    for sx in (-70, 70):
+        post(out, bx + sx, by, g - 10, g + 118, 5, square=False)
+    out.append(box(bx - 76, by - 3, g + 54, bx + 76, by + 3, g + 112, wood("board", (1, 0, 0))))
+    out.append(box(bx - 80, by - 5, g + 112, bx + 80, by + 5, g + 118, wood("beam", (1, 0, 0))))
+    # the quick-start stand: a panel on two posts, facing south
+    qx, qy = QUICK
+    out.append(box(qx - 40, qy - 4, g + 6, qx + 40, qy + 4, g + 70, wood("board", (1, 0, 0))))
+    for sx in (-44, 44):
+        post(out, qx + sx, qy, g - 10, g + 76, 4)
+    # a campfire's ring of stones
+    fx, fy = CAMPFIRE
+    for i in range(9):
+        a = 2 * math.pi * i / 9
+        rock(out, fx + 26 * math.cos(a), fy + 26 * math.sin(a), g + 2, 9, 7, 6, 900 + i)
+    for a in (0.3, 1.9):
+        out.append(cylinder((fx - 18 * math.cos(a), fy - 18 * math.sin(a), g + 2),
+                            (fx + 18 * math.cos(a), fy + 18 * math.sin(a), g + 6), 3, 6,
+                            wood("log", (math.cos(a), math.sin(a), 0))))
+    # logs to sit on
+    for (lx, ly, a) in ((fx - 70, fy + 30, 1.2), (fx + 10, fy - 70, 0.1)):
+        d = (36 * math.cos(a), 36 * math.sin(a))
+        out.append(cylinder((lx - d[0], ly - d[1], g + 8), (lx + d[0], ly + d[1], g + 8), 8, 8,
+                            wood("log", (d[0], d[1], 0))))
+
+
+WELCOME = (-1350, -690)                  # the welcome board (faces south, left of the way up)
+QUICK = (-1040, -730)                    # the quick-start stand (tutorial, calibration)
+CAMPFIRE = (-1400, -830)
+
+
+def build_stairs(mw):
+    staircase(mw.detail("staircase up the bank"), STAIR1)
+    out = mw.detail("staircase landing")
+    s = STAIR1
+    deck(out, s["cx"] - s["w"] / 2, s["cy"], s["cx"] + s["w"] / 2, s["cy"] + 40, s["zt"], "x")
+    for sx in (-s["w"] / 2 + 4, s["w"] / 2 - 4):
+        out.append(box(s["cx"] + sx - 4, s["cy"], s["zt"] - 14, s["cx"] + sx + 4, s["cy"] + 40, s["zt"] - 3,
+                       wood("beam", (0, 1, 0))))
+    staircase(mw.detail("staircase down to the range"), STAIR2)
+
+
+LECTERNS_X = (-165, -55, 55, 165)       # from the gate's centre
+LECTERN_Y = -60                          # their south faces (the buttons on them)
+
+
+def build_terrace(mw):
+    out = mw.detail("campaign terrace")
+    t = TERRACE
+    cx, cy, r, z = t["x"], t["y"], t["r"], t["z"]
+    pts = []
+    for (x, y) in ngon(cx, cy, r, 24, math.pi / 24):
+        pts += [(x, y, z), (x, y, z - 14)]
+    out.append(hull(pts, T("flag", scale=0.5), lambda n, c: None if n[2] > 0.5 else T("block", mode="face", scale=0.5)))
+    # the curb round the rim, open to the south (the stairs), east (the bridge) and north (the gate)
+    gaps = [(270, 22), (0, 18), (90, 30)]
+    for i in range(24):
+        a0, a1 = 360 * i / 24, 360 * (i + 1) / 24
+        mid = (a0 + a1) / 2
+        if any(abs((mid - g + 180) % 360 - 180) < w for g, w in gaps):
+            continue
+        q = []
+        for a in (a0 + 0.6, a1 - 0.6):
+            ar = math.radians(a)
+            for rr in (r - 14, r + 1):
+                q += [(cx + rr * math.cos(ar), cy + rr * math.sin(ar), z),
+                      (cx + rr * math.cos(ar), cy + rr * math.sin(ar), z + 10)]
+        out.append(hull(q, T("block", mode="face", scale=0.5)))
+    # the slipgate: a dais, two pillars of stacked blocks, an arch of voussoirs
+    gx, gy = GATE["x"], GATE["y"]
+    out.append(chamfer_box(gx - 104, gy - 64, z - 8, gx + 104, gy + 44, z + 8, 2, T("block", scale=0.5)))
+    out.append(chamfer_box(gx - 80, gy - 40, z + 8, gx + 80, gy + 32, z + 16, 2, T("block", scale=0.5)))
+    zb = z + 16
+    spring = zb + 104
+    for sx in (-1, 1):
+        x0, x1 = gx + sx * 44, gx + sx * 72
+        for k in range(4):
+            out.append(chamfer_box(min(x0, x1), gy - 14, zb + 26 * k, max(x0, x1), gy + 14, zb + 26 * (k + 1), 2,
+                                   T("block", scale=0.5)))
+    segs = 7
+    for k in range(segs):
+        a0, a1 = math.pi * k / segs, math.pi * (k + 1) / segs
+        q = []
+        for a in (a0, a1):
+            for rr in (44, 74 if k == segs // 2 else 72):
+                for yy in (gy - 15, gy + 15):
+                    q.append((gx + rr * math.cos(a), yy, spring + rr * math.sin(a)))
+        out.append(hull(q, T("block", mode="face", scale=0.5)))
+    # the portal's surface: the opening (a rectangle with a half circle on top), not solid
+    q = []
+    for yy in (gy - 1, gy + 1):
+        q += [(gx - 44, yy, zb), (gx + 44, yy, zb)]
+        for k in range(13):
+            a = math.pi * k / 12
+            q.append((gx + 44 * math.cos(a), yy, spring + 44 * math.sin(a)))
+    mw.add({"classname": "func_illusionary"}, [hull(q, T("portal", scale=0.5))])
+    mw.add({"classname": "trigger_changelevel", "map": "start"},
+           [box(gx - 40, gy - 10, zb, gx + 40, gy + 10, spring + 30, "trigger")])
+    # the campaign lecterns (their buttons are entities: build_entities)
+    for lx in LECTERNS_X:
+        out.append(chamfer_box(gx + lx - 26, LECTERN_Y, z, gx + lx + 26, LECTERN_Y + 22, z + 62, 2, T("block", scale=0.5)))
+        out.append(chamfer_box(gx + lx - 30, LECTERN_Y - 3, z + 62, gx + lx + 30, LECTERN_Y + 25, z + 68, 2,
+                               T("trim", scale=0.5)))
+
+
+def build_bridge(mw):
+    out = mw.detail("bridge")
+    b = BRIDGE
+    x0, x1, y, z, arch, w = b["x0"], b["x1"], b["y"], b["z"], b["arch"], b["w"]
+
+    def zf(x, _y=0):
+        return z + arch * math.sin(math.pi * max(0.0, min(1.0, (x - x0) / (x1 - x0))))
+
+    deck(out, x0, y - w / 2, x1, y + w / 2, z, "y", width=10, gap=1.5, zfn=zf)
+    xs = [lerp(x0 - 20, x1 + 20, i / 10) for i in range(11)]
+    for sy in (-38, 38):
+        for i in range(10):
+            pa = (xs[i], y + sy, zf(xs[i]) - 9)
+            pb = (xs[i + 1], y + sy, zf(xs[i + 1]) - 9)
+            out.append(beam(pa, pb, 10, 12, wood("log", sub(pb, pa))))
+    # the abutments
+    for xe in (x0, x1):
+        out.append(chamfer_box(xe - 44, y - 64, z - 60, xe + 44, y + 64, z - 15, 3, T("block", scale=0.5)))
+    # the trestle in the middle
+    xm = 0.5 * (x0 + x1)
+    zt = zf(xm) - 15
+    for sy in (-46, 46):
+        out.append(cylinder((xm, y + sy, RAVINE_BED - 40), (xm, y + sy, zt), 7, 8, wood("log", (0, 0, 1))))
+    out.append(beam((xm, y - 56, zt - 4), (xm, y + 56, zt - 4), 10, 8, wood("beam", (0, 1, 0))))
+    for zz in (-20, 40):
+        rail(out, (xm, y - 46, zz), (xm, y + 46, zz + 50), 5, 5)
+        rail(out, (xm, y + 46, zz), (xm, y - 46, zz + 50), 5, 5)
+    # railings: posts, a top rail along the arch, a rope between them
+    for sy in (-w / 2 - 2, w / 2 + 2):
+        pts = [(xx, y + sy, zf(xx)) for xx in [lerp(x0, x1, i / 8) for i in range(9)]]
+        railing(out, pts, top=38, mid=20, every=54, sq=2.5, rope_mid=True)
+        for xe in (x0, x1):
+            post(out, xe, y + sy, zf(xe) - 30, z + 70, 5, square=False)
+
+
+def build_pavilion(mw):
+    out = mw.detail("settings pavilion")
+    pv = PAVILION
+    x0, x1, y0, y1, z = pv["x0"], pv["x1"], pv["y0"], pv["y1"], pv["z"]
+    g = z - 16
+    ym = 0.5 * (y0 + y1)
+    deck(out, x0, y0, x1, ym - 1, z, "y", width=11)
+    deck(out, x0, ym + 1, x1, y1, z, "y", width=11)
+    for yy in (y0 + 6, ym, y1 - 6):
+        out.append(box(x0, yy - 4, g, x1, yy + 4, z - 3, wood("beam", (1, 0, 0))))
+    # the rim boards round the deck's edge
+    for (a, b_) in (((x0 - 4, y0 - 4), (x1 + 4, y0)), ((x0 - 4, y1), (x1 + 4, y1 + 4)), ((x0 - 4, y0), (x0, y1)),
+                    ((x1, y0), (x1 + 4, y1))):
+        ax_ = (1, 0, 0) if b_[0] - a[0] > b_[1] - a[1] else (0, 1, 0)
+        out.append(box(a[0], a[1], g - 4, b_[0], b_[1], z - 1, wood("board", ax_)))
+    # the step up on the west side
+    out.append(box(x0 - 20, ym - 64, g - 4, x0 - 4, ym + 64, g + 8, wood("plank", (0, 1, 0))))
+    # the posts, the plates on them, the roof
+    eave = z + 128
+    cols = (x0 + 12, 0.5 * (x0 + x1), x1 - 12)
+    for xx in cols:
+        for yy in (y0 + 12, y1 - 12):
+            post(out, xx, yy, z - 3, eave, 6)
+            for sx in (-1, 1):  # knee braces
+                if (xx == cols[0] and sx < 0) or (xx == cols[-1] and sx > 0):
+                    continue
+                rail(out, (xx, yy, eave - 30), (xx + sx * 28, yy, eave - 2), 4, 4)
+    for yy in (y0 + 12, y1 - 12):
+        out.append(box(x0 - 8, yy - 7, eave, x1 + 8, yy + 7, eave + 12, wood("beam", (1, 0, 0))))
+    ridge = eave + 76
+    for xx in cols:
+        out.append(box(xx - 5, y0, eave + 12, xx + 5, y1, eave + 20, wood("beam", (0, 1, 0))))
+        out.append(box(xx - 4, ym - 4, eave + 20, xx + 4, ym + 4, ridge - 6, wood("beam", (0, 0, 1))))
+    out.append(box(x0 - 40, ym - 6, ridge - 10, x1 + 40, ym + 6, ridge + 2, wood("beam", (1, 0, 0))))
+
+    def roof_tex(n, c):
+        return T("roof", mode="grain", axis=(1, 0, 0), scale=0.5) if n[2] > 0.3 else wood("plank", (1, 0, 0))
+
+    slope = 76 / (ym - y0 - 12)
+    for (ya, yb) in ((y0 - 40, ym), (y1 + 40, ym)):
+        za = eave + 6 - 52 * slope
+        zb = ridge + 2
+        q = []
+        for xx in (x0 - 40, x1 + 40):
+            q += [(xx, ya, za), (xx, yb, zb), (xx, ya, za + 7), (xx, yb, zb + 7)]
+        out.append(hull(q, T("plank"), roof_tex))
+    # the setting boards: north and south walls, their faces inside
+    for (ya, yb) in ((y1 - 26, y1 - 18), (y0 + 18, y0 + 26)):
+        out.append(box(x0 + 30, ya, z, x1 - 30, yb, z + 120, wood("board", (1, 0, 0))))
+        out.append(box(x0 + 26, ya - 1, z + 120, x1 - 26, yb + 1, z + 126, wood("beam", (1, 0, 0))))
+    # railings along the open sides (west and east: the ways in and out stay open)
+    for xx in (x0 + 2, x1 - 2):
+        for (ya, yb) in ((y0 + 12, ym - 52), (ym + 52, y1 - 12)):
+            railing(out, [(xx, ya, z), (xx, yb, z)], top=36, mid=18, every=48)
+
+
+TARGET_BOARDS = [(800, -160), (1150, 80), (1380, -160), (1020, -40)]
+
+
+def build_range(mw):
+    out = mw.detail("firing range")
+    rg = RANGE
+    z, line = rg["z"], rg["line"]
+    # the benches at the firing line (the guns and the ammunition on them)
+    for (ya, yb) in ((-200, -60), (-20, 120)):
+        out.append(box(line - 34, ya, z + 31, line, yb, z + 35, wood("plank", (0, 1, 0))))
+        for xx in (line - 30, line - 4):
+            for yy in (ya + 4, yb - 4):
+                post(out, xx, yy, z - 2, z + 31, 2.5)
+        out.append(box(line - 30, ya + 4, z + 10, line - 4, yb - 4, z + 13, wood("plank", (0, 1, 0))))
+    # the side fences and the lane dividers
+    y0, y1 = rg["y0"] + 20, rg["y1"] - 20
+    for yy in (y0, y1):
+        railing(out, [(line + 30, yy, z), (rg["x1"] - 40, yy, z)], top=34, mid=16, every=96, sq=3)
+    for yy in (-100, 20):
+        railing(out, [(line + 40, yy, z), (rg["x1"] - 80, yy, z)], top=22, mid=0, every=120, sq=2.5)
+    # the backstop: a wall of logs before the bank
+    xb = rg["x1"] - 40
+    for k in range(6):
+        zz = z + 10 + 20 * k
+        out.append(cylinder((xb, y0 - 20, zz), (xb, y1 + 20, zz), 10, 8, wood("log", (0, 1, 0))))
+    for yy in (y0 - 10, -40, y1 + 10):
+        post(out, xb + 14, yy, z - 20, z + 130, 6, square=False)
+    # the target boards on their stands
+    for (tx, ty) in TARGET_BOARDS:
+        for sy in (-20, 20):
+            post(out, tx + 4, ty + sy, z - 4, z + 64, 2.5)
+        out.append(box(tx, ty - 26, z + 30, tx + 3, ty + 26, z + 82, T("board"),
+                       lambda n, c: T("target") if n[0] < -0.9 else None))
+    # a shelf for things to knock off (rocks and bricks)
+    sx, sy = SHELF
+    out.append(box(sx - 8, sy - 40, z + 32, sx + 8, sy + 40, z + 35, wood("plank", (0, 1, 0))))
+    for yy in (sy - 34, sy + 34):
+        post(out, sx, yy, z - 2, z + 32, 2.5)
+
+
+SHELF = (700, 80)
+
+
+def build_tower(mw):
+    out = mw.detail("lookout tower")
+    tw = TOWER
+    cx, cy, z, h = tw["x"], tw["y"], tw["z"], tw["half"]
+    top = z + tw["deck"]
+    pr = h - 8
+    corners = [(cx + sx * pr, cy + sy * pr) for sx in (-1, 1) for sy in (-1, 1)]
+    for (x, y) in corners:
+        out.append(cylinder((x, y, z - 24), (x, y, top + 44), 9, 8, wood("log", (0, 0, 1))))
+    # the deck: joists and planks
+    for xx in (cx - pr, cx, cx + pr):
+        out.append(box(xx - 5, cy - h, top - 13, xx + 5, cy + h, top - 3, wood("beam", (0, 1, 0))))
+    deck(out, cx - h, cy - h, cx + h, cy + h, top, "x")
+    # ring beams and cross braces on each side, at two heights
+    mid = z + 0.5 * tw["deck"] - 10
+    for (a, b_) in ((corners[0], corners[1]), (corners[2], corners[3]), (corners[0], corners[2]), (corners[1], corners[3])):
+        for zz in (mid, top - 14):
+            rail(out, (a[0], a[1], zz), (b_[0], b_[1], zz), 7, 7)
+        for (za, zb_) in ((z + 14, mid), (mid, top - 14)):
+            rail(out, (a[0], a[1], za), (b_[0], b_[1], zb_), 5, 5)
+            rail(out, (b_[0], b_[1], za), (a[0], a[1], zb_), 5, 5)
+    # railings: gaps for the ladder (north) and the diving board (south)
+    gx = 28
+    for y in (cy + pr, cy - pr):
+        railing(out, [(cx - pr, y, top), (cx - gx, y, top)], top=40, mid=20, every=60, sq=2.5)
+        railing(out, [(cx + gx, y, top), (cx + pr, y, top)], top=40, mid=20, every=60, sq=2.5)
+    for x in (cx - pr, cx + pr):
+        railing(out, [(x, cy - pr, top), (x, cy + pr, top)], top=40, mid=20, every=60, sq=2.5)
+    # the ladder (north face): two rails, rungs every 20 units (climbing: each rung a ledge)
+    ly = cy + h
+    for sx in (-25, 21):
+        out.append(box(cx + sx, ly, z - 8, cx + sx + 4, ly + 10, top + 40, wood("beam", (0, 0, 1))))
+    for k in range(1, tw["deck"] // 20 + 1):
+        rz = z + 20 * k
+        if rz > top - 16:
+            break
+        out.append(box(cx - 21, ly + 2, rz - 4, cx + 21, ly + 7, rz, wood("log", (1, 0, 0))))
+    # the diving board (south), on two braces
+    out.append(box(cx - 16, cy - h - 170, top - 4, cx + 16, cy - h, top, wood("plank", (0, 1, 0))))
+    out.append(box(cx - 14, cy - h - 170, top - 10, cx + 14, cy - h, top - 4, wood("beam", (0, 1, 0))))
+    for sx in (-10, 10):
+        rail(out, (cx + sx, cy - pr, top - 90), (cx + sx, cy - h - 80, top - 10), 5, 6)
+
+
+def build_world(mw):
+    """The sealing box (sky round and above, rock under) and the lake's water."""
+    w = mw.world
+    S = BOX + 32
+    w.append(box(-S, -S, FLOOR_Z - 32, S, S, FLOOR_Z, T("cliff2")))
+    w.append(box(-S, -S, SKY_TOP, S, S, SKY_TOP + 32, T("sky")))
+    w.append(box(-S, -S, FLOOR_Z, -BOX, S, SKY_TOP, T("sky")))
+    w.append(box(BOX, -S, FLOOR_Z, S, S, SKY_TOP, T("sky")))
+    w.append(box(-BOX, -S, FLOOR_Z, BOX, -BOX, SKY_TOP, T("sky")))
+    w.append(box(-BOX, BOX, FLOOR_Z, BOX, S, SKY_TOP, T("sky")))
+    w.append(box(-BOX, -BOX, FLOOR_Z, BOX, BOX, WATER_Z, T("water", scale=1.0)))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Entities
+def build_entities(mw):
+    p = PIER
+    mw.add({"classname": "info_player_start", "origin": "%d %d %d" % (p["x"], p["y1"] + 60, p["z"] + 24), "angle": "90"})
+
+
+WORLD_KEYS = {
+    "classname": "worldspawn", "mapversion": "220", "wad": WADS,
+    "_tb_mod": "hipnotic;rogue;quakevr", "message": "Quake VR", "worldtype": "0", "sounds": "0",
+    "light": "12", "_sunlight": "60", "_sunlight_mangle": "35 -40 0", "_sunlight_color": "0.6 0.7 1.0",
+    "_sunlight2": "18", "_sunlight2_color": "0.25 0.32 0.55", "_vr_debris": "0", "_vr_crates": "0",
+}
+
+
+ONLY_TERRAIN = "--only-terrain" in sys.argv
+
+
+def write_map():
+    global COAST_GRID
+    t0 = time.time()
+    COAST_GRID = Grid(coast_distance_exact, -2100, -1700, 2100, 1800, 24)
+    build_layout()
+    mw = MapWriter()
+    build_world(mw)
+    build_terrain(mw)
+    if ONLY_TERRAIN:
+        mw.write(OUT.replace(".map", "_terrain.map"), WORLD_KEYS, "// terrain only (a debugging build)\n")
+        return
+    build_pier(mw)
+    build_arrival(mw)
+    build_stairs(mw)
+    build_terrace(mw)
+    build_bridge(mw)
+    build_pavilion(mw)
+    build_range(mw)
+    build_tower(mw)
+    build_entities(mw)
+    header = "// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/maps/vrstart2_gen.py: edit that, not this.\n"
+    mw.write(OUT, WORLD_KEYS, header)
+    nb = len(mw.world) + sum(len(b) for _, b in mw.groups) + sum(len(b) for _, b in mw.entities)
+    print("wrote %s: %d brushes, %d entities (%.1f s)" % (OUT, nb, len(mw.entities), time.time() - t0))
+
+
+def compile_map(tools, work, fast):
+    os.makedirs(work, exist_ok=True)
+    src = os.path.join(work, MAPNAME + ".map")
+    bsp = os.path.join(work, MAPNAME + ".bsp")
+    shutil.copyfile(OUT, src)
+    cmds = [[os.path.join(tools, "qbsp.exe"), "-nolog", "-nopercent", "-maxnodesize", "0", "-wadpath", ROOT, src, bsp]]
+    if not fast:
+        cmds.append([os.path.join(tools, "vis.exe"), "-nolog", "-nopercent", bsp])
+        cmds.append([os.path.join(tools, "light.exe"), "-nolog", "-nopercent", "-extra4", "-dirt", "-dirtscale", "1.5",
+                     "-dirtdepth", "96", "-bounce", "-lit", "-lux", "-lightgrid", "-lightgrid_dist", "64", "64", "64", bsp])
+    else:
+        cmds.append([os.path.join(tools, "light.exe"), "-nolog", "-nopercent", "-lit", "-lux", bsp])
+    for cmd in cmds:
+        t0 = time.time()
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        lines = (result.stdout + result.stderr).splitlines()
+        warnings = [l for l in lines if "WARNING" in l.upper() or "ERROR" in l.upper() or "LEAK" in l.upper()]
+        print("%s: exit %d (%.0f s)%s" % (os.path.basename(cmd[0]), result.returncode, time.time() - t0,
+                                          "".join("\n  " + w_ for w_ in warnings[:15])))
+        with open(os.path.join(work, os.path.basename(cmd[0]) + ".log"), "w") as f:
+            f.write("\n".join(lines))
+        if result.returncode:
+            sys.exit(1)
+    for ext in (".bsp", ".lit", ".lux"):
+        if os.path.exists(os.path.join(work, MAPNAME + ext)):
+            shutil.copyfile(os.path.join(work, MAPNAME + ext), os.path.join(os.path.dirname(OUT), MAPNAME + ext))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--compile", action="store_true", help="also build the .bsp, .lit and .lux (ericw-tools 2.0)")
+    ap.add_argument("--fast", action="store_true", help="no vis, plain light (blocking out)")
+    ap.add_argument("--tools", default=DEFAULT_TOOLS)
+    ap.add_argument("--only-terrain", action="store_true", help="debugging: write <map>_terrain.map, the terrain alone")
+    ap.add_argument("--work", default=os.path.join(tempfile.gettempdir(), MAPNAME + "_build"))
+    args = ap.parse_args()
+    write_map()
+    if args.compile:
+        compile_map(args.tools, args.work, args.fast)
+
+
+if __name__ == "__main__":
+    main()
