@@ -807,6 +807,34 @@ def reload_mag_out():
     return finish(out, 0.8)
 
 
+def reload_ssg_eject():
+    """The super shotgun broken open throws its shells out (the ejectors' springs): a hollow pop as the hulls leave the
+    chambers (air out of the tubes), two quick plastic-and-brass clacks a few ms apart, and their whisper past the breech.
+    Under the recorded break-open (reload_ssg_open.wav, which carries the metal)."""
+    rng = random.Random(651)
+    n = int(RATE * 0.16)
+    pop_lp, pop_hp = OnePole(1400), OnePole(380)
+    air_lp = OnePole(5200)
+    clack = ((1850, 0.8, 0.006), (2900, 0.5, 0.004), (1230, 0.5, 0.009))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        pop = pop_lp(noise)
+        pop -= pop_hp(pop)
+        pop *= min(1.0, t / 0.0015) * math.exp(-t / 0.018)
+        x = pop * 2.4
+        for at, a, pitch in ((0.004, 0.9, 1.0), (0.011, 0.7, 1.07)):
+            tc = t - at
+            if tc >= 0:
+                x += a * partials(tc, pitch, clack) * min(1.0, tc / 0.0003)
+        ta = t - 0.02
+        if ta >= 0:
+            x += air_lp(noise) * min(1.0, ta / 0.01) * math.exp(-ta / 0.04) * 0.25
+        out.append(math.tanh(x * 1.2))
+    return finish(out, 0.7)
+
+
 def reload_empty():
     """A hand finding the ammo pouch empty: fingers patting flat leather (two soft dull pats, no shell to knock)."""
     rng = random.Random(617)
@@ -1132,6 +1160,7 @@ def main():
         "reload_full.wav": reload_full,
         "reload_mag_in.wav": reload_mag_in,
         "reload_mag_out.wav": reload_mag_out,
+        "reload_ssg_eject.wav": reload_ssg_eject,
         "torch_pull.wav": torch_pull,
         "torch_out.wav": torch_out,
         "torch_light.wav": torch_light,
