@@ -39,17 +39,23 @@ namespace
 
 using progs::fields;
 
-// The crates' models and their half sizes (units, unscaled: make_crates.py's CRATES; the explosive boxes' size).
+// The crates' models and their half sizes (units, unscaled: make_crates.py's CRATES; the explosive boxes' size), and
+// the barrel (make_crates.py's BARRELS: 22 across its belly's facets, 23 across their edges, 32 high; QC vr_barrel: a
+// small crate in all but its shape). `kind`: QC's crate kind (1 small, 2 large).
 struct CrateModel
 {
     modelmeta::Id id;
     [[nodiscard]] const char* name() const { return modelmeta::path(id); }
     glm::vec3 half;
+    int kind;
 };
 constexpr CrateModel models[] = {
-    {modelmeta::Id::VrCrate1, {16.f, 16.f, 16.f}}, // small (the small explosive box's size)
-    {modelmeta::Id::VrCrate2, {20.f, 20.f, 24.f}}, // large
+    {modelmeta::Id::VrCrate1, {16.f, 16.f, 16.f}, 1},   // small (the small explosive box's size)
+    {modelmeta::Id::VrCrate2, {20.f, 20.f, 24.f}, 2},   // large
+    {modelmeta::Id::VrBarrel, {11.5f, 11.5f, 16.f}, 1}, // the barrel (upright: its axis the model's z)
 };
+constexpr int barrelModel = 2;
+constexpr float barrelBelly = 11.f; // units: its belly's facets from its axis (a lying barrel rests on one)
 constexpr int numModels = static_cast<int>(za::getArraySize(models));
 constexpr int numSkins = 3; // pine, brown, weathered
 
@@ -162,6 +168,23 @@ struct Orient
     return o;
 }
 
+// A barrel turned (vr_crates_barrels): upright (`upsideDown`: on its other head), or lying on its side with its axis
+// along `yawDeg`, rolled so that a facet of its belly rests on the floor (the model's x axis meets an edge
+// between two: a 24th of a turn about its axis), its middle a facet's distance up (hu).
+[[nodiscard]] Orient barrelOrient(bool lying, int upsideDown, float yawDeg)
+{
+    if(!lying)
+    {
+        return orient(barrelModel, 4 + (upsideDown & 1), 0, yawDeg);
+    }
+    Orient o = orient(barrelModel, 0, 1, yawDeg); // the model's x up, its axis (z) level
+    const float r = glm::radians(15.f);
+    o.axes = o.axes * glm::mat3{glm::vec3{za::cos(r), za::sin(r), 0.f}, glm::vec3{-za::sin(r), za::cos(r), 0.f},
+                          glm::vec3{0.f, 0.f, 1.f}};
+    o.hu = barrelBelly * sizeOf(barrelModel);
+    return o;
+}
+
 struct Placement
 {
     int model;
@@ -211,7 +234,10 @@ void planCrowbars(uint64_t seed)
     }
     for(size_t i = 0; i < placements.size() && static_cast<int>(crowbars.size()) < most; i++)
     {
-        if(covered[i] || rng.uniform() >= chance)
+        // (Not on a barrel's round top, nor on a crate standing on a barrel: its weight off the middle tipped the crate.)
+        const int under = placements[i].below;
+        if(covered[i] || placements[i].model == barrelModel || (under >= 0 && placements[static_cast<size_t>(under)].model == barrelModel) ||
+           rng.uniform() >= chance)
         {
             continue;
         }
@@ -448,7 +474,8 @@ void list_f()
     }
     qcvm_t* oldVm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldVm);
-    int n = 0, pieces = 0;
+    int n = 0, pieces = 0, moved = 0;
+    float most = 0.f;
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
@@ -463,9 +490,20 @@ void list_f()
             continue;
         }
         n++;
-        Con_Printf("crates: %d %s skin %d at (%.1f %.1f %.1f) angles (%.0f %.0f %.0f) health %.0f%s%s\n", i,
+        // How far it lies from the nearest place of the plan (settled where it was put, or knocked off it).
+        float off = 1e9f;
+        for(const Placement& p : placements)
+        {
+            off = za::min(off, glm::length(vec(e->v.origin) - p.centre));
+        }
+        if(!placements.empty())
+        {
+            moved += off > 2.f;
+            most = za::max(most, off);
+        }
+        Con_Printf("crates: %d %s skin %d at (%.1f %.1f %.1f) angles (%.0f %.0f %.0f) health %.0f, %.1f units off its place%s%s\n", i,
             PR_GetString(e->v.model) + 6, static_cast<int>(e->v.skin), e->v.origin[0], e->v.origin[1], e->v.origin[2],
-            e->v.angles[0], e->v.angles[1], e->v.angles[2], e->v.health,
+            e->v.angles[0], e->v.angles[1], e->v.angles[2], e->v.health, placements.empty() ? 0.f : off,
             (static_cast<int>(e->v.flags) & FL_ONGROUND) ? ", resting" : "", box3d::isBox3DProp(i) ? ", a body" : "");
         // What would keep shots and blows off it: not damageable, not solid, or owned (a trace from its owner passes
         // through it: a crate thrown and never given back; NOTES.md e1m2_2026-10-01_02-52-58).
@@ -476,7 +514,8 @@ void list_f()
         }
     }
     PR_PopQCVM(oldVm);
-    Con_Printf("crates: %d crates, %d pieces\n", n, pieces);
+    Con_Printf("crates: %d crates, %d pieces; %d over 2 units off their planned places (at most %.1f)\n", n, pieces, moved,
+        placements.empty() ? 0.f : most);
 }
 
 // "vr_crates_goto [i | crowbar [k]]": you in front of crate i of the last plan, or the next one (a test aid: setpos, 110
@@ -644,6 +683,10 @@ int plan()
     const float needClear = za::max(vr_crates_clearance.value, 0.f);
     const float largeShare = za::clamp(vr_crates_large.value, 0.f, 1.f);
     const float stackChance = za::clamp(vr_crates_stack.value, 0.f, 1.f);
+    const float barrelShare = za::clamp(vr_crates_barrels.value, 0.f, 1.f);
+    const float lyingShare = za::clamp(vr_crates_barrel_lying.value, 0.f, 1.f);
+    // The barrels' own random numbers: the crates' layout draws the same numbers whatever vr_crates_barrels.
+    Rng barrelRng{seed ^ 0x3C6EF372FE94F82Bull};
     int rolled = 0, stacks = 0;
 
     for(const Spot& s : spots)
@@ -663,13 +706,23 @@ int plan()
         }
         rolled++;
         const float wallYaw = glm::degrees(za::atan2(s.along.y, s.along.x));
+        // A barrel instead (vr_crates_barrels; rolled once a spot, so that a barrel's smaller footprint, which fits more
+        // often, doesn't raise their share): upright, or alone lying along the wall (vr_crates_barrel_lying).
+        const bool barrel = barrelRng.uniform() < barrelShare;
+        const float lyingRoll = barrelRng.uniform();
         bool placed = false;
         int reason = RCount;
         for(int attempt = 0; attempt < 4 && !placed; attempt++)
         {
-            const int model = pl.rng.uniform() < largeShare ? 1 : 0;
-            const Orient o = orient(model, static_cast<int>(pl.rng.next() % 6), static_cast<int>(pl.rng.next() & 3),
-                wallYaw + pl.rng.range(-45.f, 45.f));
+            int model = pl.rng.uniform() < largeShare ? 1 : 0;
+            const int face = static_cast<int>(pl.rng.next() % 6), forwardPick = static_cast<int>(pl.rng.next() & 3);
+            const float yaw = wallYaw + pl.rng.range(-45.f, 45.f);
+            Orient o = orient(model, face, forwardPick, yaw);
+            if(barrel)
+            {
+                model = barrelModel;
+                o = barrelOrient(false, forwardPick, yaw);
+            }
             const float gap = pl.rng.range(0.5f, 5.f);
             const float extOut = o.along(s.out), extAlong = o.along(s.along);
             float slide = pl.rng.range(-6.f, 6.f);
@@ -683,6 +736,10 @@ int plan()
             glm::vec3 c = s.at + glm::vec3{s.out * (extOut + gap) + s.along * slide, 0.f};
             float floorZ = s.at.z;
             const bool stack = pl.rng.uniform() < stackChance && static_cast<int>(placements.size()) + 2 <= most;
+            if(barrel && !stack && lyingRoll < lyingShare)
+            {
+                o = barrelOrient(true, 0, wallYaw + (lyingRoll < lyingShare * 0.5f ? 0.f : 180.f));
+            }
             if(!pl.fits(o, c, true, floorZ, stack ? 8.f + 2.f * 24.f : 8.f, reason))
             {
                 continue;
@@ -737,10 +794,18 @@ int plan()
             // lower one's top), room above for both.
             if(stack)
             {
-                const int topModel = model == 1 && pl.rng.uniform() < 0.4f ? 1 : 0;
-                const Orient t = orient(topModel, static_cast<int>(pl.rng.next() % 6), static_cast<int>(pl.rng.next() & 3),
-                    o.yaw + pl.rng.range(-25.f, 25.f));
-                const float room = za::max(za::min(o.hf, o.hl) * 0.3f, 0.f);
+                int topModel = model == 1 && pl.rng.uniform() < 0.4f ? 1 : 0;
+                const int topFace = static_cast<int>(pl.rng.next() % 6), topPick = static_cast<int>(pl.rng.next() & 3);
+                const float topYaw = o.yaw + pl.rng.range(-25.f, 25.f);
+                // Crates and barrels mixed: an upright barrel on a crate or a barrel (vr_crates_barrels), or a small
+                // crate on a barrel (its middle within a third of the barrel's radius of the barrel's: well on its top).
+                Orient t = orient(topModel, topFace, topPick, topYaw);
+                if(barrelRng.uniform() < barrelShare)
+                {
+                    topModel = barrelModel;
+                    t = barrelOrient(false, topPick, topYaw);
+                }
+                const float room = za::max(za::min(o.hf, o.hl) * (model == barrelModel ? 0.15f : 0.3f), 0.f); // (a barrel's top: round, smaller)
                 const glm::vec3 off = o.fwd * pl.rng.range(-room, room) + o.left * pl.rng.range(-room, room);
                 float topZ = floorZ + o.hu * 2.f + 0.05f;
                 const glm::vec3 tc = glm::vec3{c.x, c.y, 0.f} + off;
@@ -764,11 +829,14 @@ int plan()
     if(vr_debug_crates.value || developer.value)
     {
         uint64_t layout = 1469598103934665603ull;
-        int large = 0, corners = 0;
+        int large = 0, corners = 0, barrels = 0, lying = 0, mixed = 0;
         float leastClear = 1e9f;
         for(const Placement& p : placements)
         {
             large += p.model == 1;
+            barrels += p.model == barrelModel;
+            lying += p.model == barrelModel && p.o.axes[2].z < 0.5f && p.o.axes[2].z > -0.5f;
+            mixed += p.below >= 0 && (p.model == barrelModel) != (placements[static_cast<size_t>(p.below)].model == barrelModel);
             corners += p.below < 0 && p.corner;
             leastClear = za::min(leastClear, p.clearance);
             const int q[5] = {p.model, p.skin, static_cast<int>(za::lround(p.centre.x * 8.f)), static_cast<int>(za::lround(p.centre.y * 8.f)),
@@ -778,9 +846,11 @@ int plan()
                 layout = (layout ^ static_cast<uint32_t>(v)) * 1099511628211ull;
             }
         }
-        Con_Printf("crates: %s: %d crates (%d large, %d stacked on another; %d in corners; %d crowbars on them) from %d spots, "
-                   "%d rolled; limit %d; least clearance %.0f units; %.1f ms; layout %08x\n",
-            sv.name, static_cast<int>(placements.size()), large, stacks, corners, static_cast<int>(crowbars.size()),
+        Con_Printf("crates: %s: %d crates (%d large, %d barrels, %d of them lying, %d stacked on another, %d of those a barrel "
+                   "and a crate; %d in corners; %d crowbars on them) from %d spots, %d rolled; limit %d; least clearance %.0f "
+                   "units; %.1f ms; layout %08x\n",
+            sv.name, static_cast<int>(placements.size()), large, barrels, lying, stacks, mixed, corners,
+            static_cast<int>(crowbars.size()),
             static_cast<int>(spots.size()), rolled, most,
             placements.empty() ? 0.f : leastClear, (Sys_DoubleTime() - t0) * 1000.0, static_cast<unsigned>(layout ^ (layout >> 32)));
         if(vr_debug_crates.value >= 1)
@@ -877,7 +947,7 @@ int put(edict_t* e, int i)
     e->v.frame = 0.f;
     const glm::vec3 up = p.centre + glm::vec3{0.f, 0.f, 0.02f};
     rest(e, p.o.axes, up, models[p.model].half * sizeOf(p.model));
-    return p.model + 1;
+    return models[p.model].kind;
 }
 
 bool putCrowbar(edict_t* e, int i)
@@ -976,7 +1046,7 @@ int putPlaced(edict_t* e)
     const float floorZ = top > -1e9f ? top : at.z;
     e->v.frame = 0.f;
     rest(e, o.axes, glm::vec3{at.x, at.y, floorZ + o.hu + 0.02f}, models[model].half * sizeOf(model));
-    return model + 1;
+    return models[model].kind;
 }
 
 int sightBlocked(const glm::vec3& start, const glm::vec3& end, int ignoreA, int ignoreB)

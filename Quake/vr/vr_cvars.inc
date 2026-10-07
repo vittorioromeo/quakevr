@@ -737,6 +737,8 @@ QVR_CVAR(vr_crates_max, "24", CVAR_ARCHIVE)              // most crates in a map
 QVR_CVAR(vr_crates_spacing, "224", CVAR_ARCHIVE)         // units between crate spots
 QVR_CVAR(vr_crates_stack, "0.25", CVAR_ARCHIVE)          // the chance a crate has another on top (turned and off centre a little)
 QVR_CVAR(vr_crates_large, "0.4", CVAR_ARCHIVE)           // the share of large crates (the rest small)
+QVR_CVAR(vr_crates_barrels, "0.3", CVAR_ARCHIVE)        // the share of barrels (upright; a stack's top too, on a crate or a barrel: crates and barrels mixed; the NOTES.md note 2026-10-07 23:01:54)
+QVR_CVAR(vr_crates_barrel_lying, "0.3", CVAR_ARCHIVE)   // the share of barrels standing alone that lie on their side along the wall
 QVR_CVAR(vr_crates_clearance, "72", CVAR_ARCHIVE)        // units of open floor kept in front of a crate (a passage stays passable)
 QVR_CVAR(vr_crates_margin, "56", CVAR_ARCHIVE)           // units from any other entity (doors, lifts and teleporters more, the start most)
 QVR_CVAR(vr_crates_seed, "0", CVAR_ARCHIVE)              // mixed with the map's name: another layout (the same each load)

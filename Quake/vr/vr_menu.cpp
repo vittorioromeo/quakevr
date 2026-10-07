@@ -3267,6 +3267,12 @@ void hologramTestMessage()
             .help("The chance a crate has another on it, turned and off its middle a little. Next map."),
         slider("Large Ones", vr_crates_large, 0.f, 1.f, 0.05f, "%.2f")
             .help("The share of large crates (40 x 40 x 48 units; the small ones 32 units a side). Next map."),
+        slider("Barrels", vr_crates_barrels, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of barrels among them (upright, 22 units across and 32 high), and of the tops of stacks: a "
+                  "barrel on a crate or a barrel, a small crate on a barrel. Next map."),
+        slider("Barrels Lying", vr_crates_barrel_lying, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of barrels standing alone that lie on their side along the wall (they roll when pushed). "
+                  "Next map."),
         slider("Room in Front", vr_crates_clearance, 32.f, 256.f, 8.f, "%.0f units").extend(0.f, 1024.f)
             .help("Open floor kept in front of a crate, so that it never blocks a passage or a doorway. Next map."),
         slider("Away From Things", vr_crates_margin, 24.f, 256.f, 8.f, "%.0f units").extend(0.f, 1024.f)

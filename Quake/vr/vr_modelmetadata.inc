@@ -70,6 +70,7 @@ QVR_MODEL_ID(Boss, "progs/boss.mdl")
 
 QVR_MODEL_ID(VrCrate1, "progs/vr_crate1.mdl")
 QVR_MODEL_ID(VrCrate2, "progs/vr_crate2.mdl")
+QVR_MODEL_ID(VrBarrel, "progs/vr_barrel.mdl")
 QVR_MODEL_ID(VrRock1, "progs/vr_rock1.mdl")
 QVR_MODEL_ID(VrRock2, "progs/vr_rock2.mdl")
 QVR_MODEL_ID(VrRock3, "progs/vr_rock3.mdl")
