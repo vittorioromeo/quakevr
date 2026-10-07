@@ -536,6 +536,18 @@ QVR_CVAR(vr_menu_hands_z, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_hands_pitch, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_hands_yaw, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_hands_roll, "0", CVAR_NONE)
+// VR Settings > Holster Calibration: each pair of holsters (hips: vr_hip_offset_*; chest: vr_upper_holster_offset_*; back,
+// over the shoulders: vr_shoulder_holster_offset_*) moved from the shipped place, both of the pair alike (the left one's
+// mirrored, as the offsets' Y always is): units forward, inward (towards the body's middle: the offset's Y less) and up.
+QVR_CVAR(vr_menu_holster_hip_x, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_hip_y, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_hip_z, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_chest_x, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_chest_y, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_chest_z, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_back_x, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_back_y, "0", CVAR_NONE)
+QVR_CVAR(vr_menu_holster_back_z, "0", CVAR_NONE)
 // Comfort vignette (vr_input.cpp comfortVignette, the eyes' post-process): the view's edges darkened while the sticks move
 // or turn you (not your own steps in the room, nor a teleport): 0 off, 1 moving and turning, 2 moving only, 3 turning only;
 // how dark (0 .. 1: at 1 a narrow tunnel).

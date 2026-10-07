@@ -7,6 +7,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
+#include "vr_menu.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 
@@ -559,10 +560,19 @@ void queueDebug(const hands::State& s)
 
     const cvar_t* shown[HolsterCount] = {&vr_show_shoulder_holsters, &vr_show_shoulder_holsters,
         &vr_show_hip_holsters, &vr_show_hip_holsters, &vr_show_upper_holsters, &vr_show_upper_holsters};
+    // VR Settings > Holster Calibration: the pair whose slider is chosen, shown while it is.
+    const cvar_t* chosen = menu::selectedSetting();
+    const auto pairChosen = [chosen](const cvar_t& x, const cvar_t& y, const cvar_t& z) {
+        return chosen && (chosen == &x || chosen == &y || chosen == &z);
+    };
+    const bool back = pairChosen(vr_menu_holster_back_x, vr_menu_holster_back_y, vr_menu_holster_back_z);
+    const bool hip = pairChosen(vr_menu_holster_hip_x, vr_menu_holster_hip_y, vr_menu_holster_hip_z);
+    const bool chest = pairChosen(vr_menu_holster_chest_x, vr_menu_holster_chest_y, vr_menu_holster_chest_z);
+    const bool calibrating[HolsterCount] = {back, back, hip, hip, chest, chest};
 
     for(int h = 0; h < HolsterCount; h++)
     {
-        if(!shown[h]->value)
+        if(!shown[h]->value && !calibrating[h])
         {
             continue;
         }

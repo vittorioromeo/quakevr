@@ -6543,6 +6543,27 @@ const HandWrapper handWrappers[] = {
     return var.default_string ? static_cast<float>(Q_atof(var.default_string)) : 0.f;
 }
 
+// One Holster Calibration row (VR Settings): a pair of holsters' offset (one setting for both, the left one mirrored)
+// from its default, `sign` -1 for Inward (the offsets' Y is outward).
+struct HolsterWrapper
+{
+    cvar_t* wrapper;
+    cvar_t* offset;
+    float sign;
+};
+
+const HolsterWrapper holsterWrappers[] = {
+    {&vr_menu_holster_hip_x, &vr_hip_offset_x, 1.f},
+    {&vr_menu_holster_hip_y, &vr_hip_offset_y, -1.f},
+    {&vr_menu_holster_hip_z, &vr_hip_offset_z, 1.f},
+    {&vr_menu_holster_chest_x, &vr_upper_holster_offset_x, 1.f},
+    {&vr_menu_holster_chest_y, &vr_upper_holster_offset_y, -1.f},
+    {&vr_menu_holster_chest_z, &vr_upper_holster_offset_z, 1.f},
+    {&vr_menu_holster_back_x, &vr_shoulder_holster_offset_x, 1.f},
+    {&vr_menu_holster_back_y, &vr_shoulder_holster_offset_y, -1.f},
+    {&vr_menu_holster_back_z, &vr_shoulder_holster_offset_z, 1.f},
+};
+
 [[nodiscard]] bool wrapperCvar(const cvar_t& var)
 {
     if(&var == &vr_menu_turning || &var == &vr_menu_move_towards)
@@ -6550,6 +6571,13 @@ const HandWrapper handWrappers[] = {
         return true;
     }
     for(const HandWrapper& w : handWrappers)
+    {
+        if(&var == w.wrapper)
+        {
+            return true;
+        }
+    }
+    for(const HolsterWrapper& w : holsterWrappers)
     {
         if(&var == w.wrapper)
         {
@@ -6581,6 +6609,10 @@ void syncWrappers()
     for(const HandWrapper& w : handWrappers)
     {
         showWrapper(*w.wrapper, za::round((w.main->value - defaultOf(*w.main)) * 100.f) / 100.f);
+    }
+    for(const HolsterWrapper& w : holsterWrappers)
+    {
+        showWrapper(*w.wrapper, za::round(w.sign * (w.offset->value - defaultOf(*w.offset)) * 100.f) / 100.f);
     }
     wrapperBusy = false;
 }
@@ -6616,6 +6648,13 @@ void onWrapperSet(cvar_t* var)
             Cvar_SetValueQuick(&vr_handcal_off_mirror, 1.f); // one set for both hands: the off hand mirrors the main one
         }
     }
+    for(const HolsterWrapper& w : holsterWrappers)
+    {
+        if(var == w.wrapper)
+        {
+            Cvar_SetValueQuick(w.offset, defaultOf(*w.offset) + w.sign * var->value);
+        }
+    }
     wrapperBusy = false;
 }
 
@@ -6627,6 +6666,15 @@ void resetHandOffsets()
             &vr_offhandpitch, &vr_offhandyaw})
     {
         Cvar_SetQuick(var, var->default_string);
+    }
+}
+
+// Reset Holsters: every pair of holsters back to its shipped place (Holster Calibration).
+void resetHolsters()
+{
+    for(const HolsterWrapper& w : holsterWrappers)
+    {
+        Cvar_SetQuick(w.offset, w.offset->default_string);
     }
 }
 
@@ -6671,6 +6719,19 @@ void resetAll(); // (below: after the pages' building)
     return text;
 }
 
+// VR Settings' Reloading Mode (vr_reload_mode): Immersive (3), Simple (2, the hip holsters), Disabled (0); a config's
+// All Holsters (1) shown as such while it is set (not offered otherwise).
+[[nodiscard]] za::Vector<Choice> reloadChoices()
+{
+    za::Vector<Choice> out{{3.f, "Immersive"}, {2.f, "Simple"}};
+    if(static_cast<int>(vr_reload_mode.value) == 1)
+    {
+        out.pushBack({1.f, "Simple (all holsters)"});
+    }
+    out.pushBack({0.f, "Disabled"});
+    return out;
+}
+
 // VR Settings (Options > VR Settings, the main menu's VR Settings, the corner's): what a new player sets, each in a few
 // words, in the order they come to it. Every other setting is under Advanced VR Options (ROUND21.md, "VR Settings for
 // first-time players"), and so is each row here, on its topic's page. No link to them here (nor to Search): the main
@@ -6682,6 +6743,9 @@ za::Vector<Item> pageMain()
     mainPageSnap = snap ? 1 : 0;
     const char* handHelp = "Both hands, mirrored: moves or turns the drawn hands (and what they hold) on your controllers, "
                            "so they sit where your real hands are. Show Controller helps; 0 is the shipped calibration.";
+    const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
+                              "from their shipped place (0), in Quake's units (about 3 cm). Shown on your body while "
+                              "you choose here.";
     za::Vector<Item> list{
         header("Height Calibration"),
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
@@ -6713,6 +6777,29 @@ za::Vector<Item> pageMain()
             .help("Both hands' moves and turns back to the shipped calibration. Each hand's own values: Advanced VR "
                   "Options > Weapons > Hand/Gun Calibration."),
 
+        header("Holster Calibration"),
+        slider("Hip Holsters Forward", vr_menu_holster_hip_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+            .help(holsterHelp),
+        slider("Hip Holsters Inward", vr_menu_holster_hip_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+            .help(holsterHelp),
+        slider("Hip Holsters Up", vr_menu_holster_hip_z, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+            .help(holsterHelp),
+        slider("Chest Holsters Forward", vr_menu_holster_chest_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+            .help(holsterHelp),
+        slider("Chest Holsters Inward", vr_menu_holster_chest_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+            .help(holsterHelp),
+        slider("Chest Holsters Up", vr_menu_holster_chest_z, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+            .help(holsterHelp),
+        slider("Back Holsters Forward", vr_menu_holster_back_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+            .help(holsterHelp),
+        slider("Back Holsters Inward", vr_menu_holster_back_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+            .help(holsterHelp),
+        slider("Back Holsters Up", vr_menu_holster_back_z, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+            .help(holsterHelp),
+        action("Reset Holsters", resetHolsters)
+            .help("Every pair of holsters back to its shipped place. Each pair's own values (its turn and reach too): "
+                  "Advanced VR Options > Weapons > Hip Holsters, and > Hotspots."),
+
         header("Locomotion"),
         cycle("Move Towards", vr_menu_move_towards, {{1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}})
             .help("Where pushing the stick forward takes you: where you look (Head), or where that hand points, so you "
@@ -6724,6 +6811,9 @@ za::Vector<Item> pageMain()
                   "touching the stick."),
         toggle("Swap Stick Functions", vr_stick_swap)
             .help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
+        cycle("Swimming", vr_swim, {{1.f, "Immersive"}, {0.f, "Vanilla"}})
+            .help("Immersive: in water the stick slows and strokes of your hands move you. Vanilla: the stick swims as in "
+                  "Quake."),
 
         header("Comfort"),
         cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and turning"}, {2.f, "Moving only"}, {3.f, "Turning only"}})
@@ -6777,12 +6867,20 @@ za::Vector<Item> pageMain()
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}})
             .help("Hold a gun with both hands to steady it. Virtual stock: a gun brought near your shoulder also aims "
                   "from it, as against a real stock."),
+        cycle("Reloading Mode", vr_reload_mode, reloadChoices())
+            .help("Guns have magazines. Immersive: the shotgun is loaded a shell at a time from the ammo pouch on your "
+                  "belt, the other guns at the hip holsters. Simple: a gun held at a hip holster reloads. Disabled: no "
+                  "reloading. Only with the Immersive weapon mode."),
 
         header("Body"),
         cycle("Body Type", vr_body_mode, {{3.f, "Full"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})
             .help("How much of your body you see: all of it, legs and all; the torso and arms; or only the hands."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}})
             .help("The arm the wrist gadget (health, armour and ammo) is on."),
+        cycle("Leaning Detection", vr_lean_detect, {{1.f, "On"}, {0.f, "Off"}})
+            .help("On: leaning over (your head lower and tilted, your hands by your hips) leaves your feet where they "
+                  "stand. Off: the body always slides back under your head. How readily: Advanced VR Options > Movement "
+                  "> Locomotion."),
         command("Reset Position", "vr_recenter")
             .help("Puts your body back under your head, and facing where you look, if it was left behind (after "
                   "leaning over something, or walking into a wall)."),
@@ -10190,6 +10288,10 @@ void qvr::menu::init()
     Cvar_SetCallback(&vr_menu_turning, onWrapperSet);
     Cvar_SetCallback(&vr_menu_move_towards, onWrapperSet);
     for(const HandWrapper& w : handWrappers)
+    {
+        Cvar_SetCallback(w.wrapper, onWrapperSet);
+    }
+    for(const HolsterWrapper& w : holsterWrappers)
     {
         Cvar_SetCallback(w.wrapper, onWrapperSet);
     }
