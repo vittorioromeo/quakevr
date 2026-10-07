@@ -1590,6 +1590,7 @@ void wallFrame(const hands::State& s)
         Held& hd = holding[h];
         glm::vec3 want{0.f};
         float deepest = 0.f;
+        int deepestEnt = 0; // the client entity met deepest (0: the world)
         Box box;
         if(vr_held_collide_walls.value && most > 0.f && hd.drawn && hd.ent != both.ent && s.valid && propBox(hd, box))
         {
@@ -1620,7 +1621,8 @@ void wallFrame(const hands::State& s)
                 for(const glm::vec3& point : points)
                 {
                     const glm::vec3 end = point + p;
-                    const trace_t tr = worldtrace::world(grip + p, end, true, true, holding[0].ent, holding[1].ent);
+                    int hitEnt = 0;
+                    const trace_t tr = worldtrace::world(grip + p, end, true, true, holding[0].ent, holding[1].ent, &hitEnt);
                     if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
                     {
                         continue;
@@ -1630,6 +1632,10 @@ void wallFrame(const hands::State& s)
                     if(depth + margin <= 0.f || count >= 3 * 14)
                     {
                         continue;
+                    }
+                    if(depth >= deepest)
+                    {
+                        deepestEnt = hitEnt;
                     }
                     deepest = za::max(deepest, depth);
                     planes[count++] = Plane{wallN, depth + margin + glm::dot(p, wallN)};
@@ -1711,6 +1717,19 @@ void wallFrame(const hands::State& s)
                        "corner %.2f units over the surface below\n",
                 hd.ent, h == 1 ? "main" : "off", touching ? "against" : "off", deepest / m2u * 100.f,
                 glm::length(wall) / m2u * 100.f, wall.x, wall.y, wall.z, lowest);
+            if(touching && deepestEnt)
+            {
+                // A brush entity (a door, a lift, the prop table): its model's box against the box it is drawn in.
+                const entity_t& w = cl_entities[deepestEnt];
+                glm::vec3 lo{0.f}, hi{0.f};
+                qvr::held::drawnBox(deepestEnt, lo, hi);
+                Con_Printf("held: the wall is entity %d (%s) at %.1f %.1f %.1f, angles %.1f %.1f %.1f: its model's box %.1f %.1f %.1f .. "
+                           "%.1f %.1f %.1f, drawn in %.1f %.1f %.1f .. %.1f %.1f %.1f\n",
+                    deepestEnt, w.model ? w.model->name : "?", w.origin[0], w.origin[1], w.origin[2], w.angles[0], w.angles[1],
+                    w.angles[2], w.model ? w.model->mins[0] : 0.f, w.model ? w.model->mins[1] : 0.f, w.model ? w.model->mins[2] : 0.f,
+                    w.model ? w.model->maxs[0] : 0.f, w.model ? w.model->maxs[1] : 0.f, w.model ? w.model->maxs[2] : 0.f, lo.x, lo.y,
+                    lo.z, hi.x, hi.y, hi.z);
+            }
         }
         meet.wallTouching[h] = touching;
         if(wall != glm::vec3{0.f})
@@ -2184,6 +2203,7 @@ void carryCheck()
                 listen ? 1 : 0, hd.placed ? 1 : 0, cl.time - hd.since,
                 glm::length(glm::vec3{player->v.velocity[0], player->v.velocity[1], player->v.velocity[2]}),
                 glm::distance(drawnPos, s.pos[h] + ctrl * hd.pos) / m2u * 100.f);
+            Con_Printf("carry check: the player at z %.2f, the hand at z %.2f\n", player->v.origin[2], s.pos[h].z);
         }
 
         // The drawn fist against the drawn prop: moved with it onto the physical one, measured there.

@@ -1,5 +1,6 @@
 // vr_trace.cpp -- see vr_trace.hpp.
 
+#include "vr_client.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
 #include "vr_engine.hpp"
@@ -61,8 +62,12 @@ trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& sta
 
 } // namespace
 
-trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, bool ownFiles, int skipA, int skipB)
+trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, bool ownFiles, int skipA, int skipB, int* hitEntity)
 {
+    if(hitEntity)
+    {
+        *hitEntity = 0;
+    }
     trace_t tr;
     memset(&tr, 0, sizeof(tr));
     tr.fraction = 1.f;
@@ -90,6 +95,16 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, 
         {
             continue;
         }
+        // Not the things lying round (a rigid body: an ammo or health box, an explosive box), nor a brush model drawn
+        // scaled or moved off its origin (the props' Size): its hull is the model's own, unscaled and unturned, so it
+        // stood where nothing is drawn (a box of shells, drawn 4.8 units across: a 24-unit cube from its middle up and aside), and a
+        // prop held over boxes on the floor was pushed up and about by them (wallFrame). Those are pushed in Box3D.
+        if(const client::EntityVr* net = client::entityVr(i);
+            (e.scale != 0 && e.scale != ENTSCALE_DEFAULT) ||
+            (net && (net->noRotate || net->scale != glm::vec3{0.f} || net->offset != glm::vec3{0.f})))
+        {
+            continue;
+        }
         const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
         const glm::vec3 mins = origin + glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
         const glm::vec3 maxs = origin + glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
@@ -101,6 +116,10 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, 
         if(t.fraction < tr.fraction && !t.startsolid)
         {
             tr = t;
+            if(hitEntity)
+            {
+                *hitEntity = i;
+            }
         }
     }
     return tr;

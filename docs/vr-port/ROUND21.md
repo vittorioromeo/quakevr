@@ -29666,3 +29666,30 @@ an option to try (worktree `meleephase`).
   follow-through you'd use. Does the fist or the blade going through feel better or worse than stopping at the body,
   and do blows feel more reliable? Try Swing Through Speed lower (pushes pass through too) or higher (hard blows only),
   and Follow-Through longer if the hand is seen stopping inside at the end of a swing.
+## Held props jittered over props on the floor
+
+Your note: a prop in the hand (an ammo box, a torch) walked over boxes lying on the floor went up and down, as if it met
+them; your theory: the bigger prop's original hitbox kept after the prop is made smaller. Branch `agent/heldjit`.
+
+- **The cause** (your theory, on the client): `held::wallFrame` (a prop held in one hand drawn out of the walls) traces
+  `worldtrace::world` with `ownFiles` (for the prop table, a func_wall of its own file), and so met every brush model of
+  its own file lying round: the health, ammo and explosive boxes. Their hull is the model's own, at the origin, unscaled
+  and unturned: a box of shells lying on the floor is drawn 4.8 units across about its origin (`model_scale` -0.8,
+  `model_offset` -12) while its hull is a 24-unit cube from its origin up and aside, up to the height of a hand held
+  low. The held prop (and the hand with it) was drawn pushed up onto that ghost box and let back down as the walk went
+  on. Not the server: the floor boxes' `mins/maxs` (-2.4..2.4) match what is drawn, the held prop's physical place
+  stayed 0.00 cm off its hand's place (`VR_Carry_Follow` traces nomonsters, which these are not), the player never
+  stepped up on them (his z flat, but the step off the range's ledge), and the hand pushes were none but the walls'.
+- **The fix** (`vr_trace.cpp`): `worldtrace::world` skips rigid bodies (`U_QVR_NOROTATE`: the things lying round,
+  pushed in Box3D, as the held-props notes always meant) and any brush model drawn scaled or offset (VR or Ironwail
+  scale): the hull isn't what is drawn. The prop table, doors and lifts are unchanged (a gib lowered onto the table:
+  still held out of it, 50 wall lines naming `maps/vr_proptable.bsp`). Explosion debris (`vr_explosiondebris.cpp`, the
+  other `ownFiles` caller) no longer bounces off the boxes' ghost hulls either.
+- **Debug**: `vr_debug_carry 1`'s wall line now names the wall's entity, its model's box and its drawn box
+  (`worldtrace::world` takes `hitEntity`); `vr_carry_check` prints the player's and the hand's z.
+- **Numbers** (`Misc/quakevr/held_over_props_test.sh`, hand at 0.75 m on the right, 150 frames walking at 186 u/s):
+  the held prop's drawn place in the hand, peak to peak, before -> after: shells box over 1 box 0 -> 0 (it missed the
+  one box), 3 boxes 12.0 cm (16 pushes) -> 0, 5 boxes 15.4 cm (26) -> 0; torch over 3 boxes 46.2 cm (43) -> 0, over 5
+  42.3 cm (93) -> 0. Floor boxes still taken by the fist ("carry: taken") and stacked three high asleep
+  (`vr_physics_stack`, 4.7-4.8 units apart); twohand_regrip_test.sh 7 of 7; e1m1 smoke clean.
+- In the headset: walk over the firing range's ammo boxes holding a box or a torch low: steady in the hand.
