@@ -183,6 +183,13 @@ def scenarios():
         pos="544 1320 24 0 90 0", hostile=True,
         setup=waits(3) + [f"vr_physics_spawn monster_army {320 + (i // 4) * 40} {(i % 4 - 1.5) * 24:g}" for i in range(24)]
         + waits(30) + ["vr_portals_ai_test 1"] + waits(2) + ["vr_portals_ai_test 12"], warm=90)
+    # Gates within gates (vr_portals_recursion): vrslipgates' loop, T's west gate 40 units out filling the view (its
+    # view sees the far loop gate and T's north gate: ROUND21.md "Gates within gates", the cost per level).
+    for r in range(4):
+        add(f"slipgate_loop_r{r}", ["slipgates", "recursion"] + (["core"] if r == 2 else []),
+            f"gates within gates, vr_portals_recursion {r}", "vrslipgates",
+            f"vrslipgates' loop gate filling the view (it shows itself and T's north gate) at vr_portals_recursion {r}: "
+            "each level's views by difference.", pos="-1560 560 24 0 180 0", setup=[f"vr_portals_recursion {r}"])
     # ---- combat
     add("combat_48", ["combat", "core"], "48 mixed monsters fighting you and each other", RANGE,
         "Grunts, ogres, knights and scrags against a god-mode player: AI, traces, missiles, gore, decals, sounds.",
@@ -191,6 +198,10 @@ def scenarios():
         "The server's side alone: 64 awake monsters chasing and shooting (r_drawentities 0, looking up): AI, "
         "movetogoal, traces, QuakeC; the rendering left out.", hostile=True, look=(-60, 0),
         setup=spawn_grid(64, MIXED) + ["r_drawentities 0"], warm=90)
+    add("ai_crowd_64_quakeai", ["combat", "control"], "control: ai_crowd_64 with Quake's own AI (stealth off)", RANGE,
+        "ai_crowd_64 with vr_ai_enhanced 0 (no stealth senses, noise, investigation): the enhanced AI's server cost "
+        "by difference.", hostile=True, look=(-60, 0),
+        setup=["vr_ai_enhanced 0"] + spawn_grid(64, MIXED) + ["r_drawentities 0"], warm=90)
     add("combat_48_spectator", ["combat", "features"], "combat_48 with the spectator camera (a third view)", RANGE,
         "combat_48 with vr_window_view 2 (the recording camera drawn every frame): the spectator view's cost.",
         hostile=True, setup=spawn_grid(48, MIXED) + ["vr_window_view 2", "vr_spectator_rate 1"], warm=90)
