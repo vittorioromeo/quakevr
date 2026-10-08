@@ -31190,3 +31190,15 @@ e1m1 smoke clean.
 
 2 -> 4 costs 0.05 ms at most (shadow maps 0.057 -> 0.063 ms, the rest the world shader's extra lights). The shipped
 default is already 4 (`vr_defaults.cfg`; the compiled-in 2 and LIGHTING.md's table predate it): kept.
+## Grenades back to the original models, smaller; the rocket in flight smaller; the super nailgun's receiver (2026-10-08)
+
+The author's notes vrfiringrange_2026-10-08_10-33-00 .. 10-39-35.
+
+- **The super nailgun's receiver turned out** (10-33-00: "flipped 180 degrees roll, so the receiver looks backwards ... it
+  doesn't look properly attached"). Its collar went into the body, only its lip out on the face (the "sunk" well of
+  23-58-30). make_mags.py now makes it that collar rolled 180 degrees about its seat: the lighter lip a flange flush on
+  the face at the seat, the collar out along the magazine (0.98 units of it; 0.12 into the body), so the magazine goes
+  into a receiver on the gun. The seat, the load point and the magazine's middle are unchanged (the well is drawn only).
+  `ssg_checks.py snailwell` prints how far it goes into the body too: proud 1.01, over -0.16, into 0.12 (v_nail2;
+  v_lava2 0.99, -0.16, 0.14); reload_test.sh section 11 checks proud 0.5..1.2, over <= 0, into > 0. Unchanged:
+  `vr_reload_well_snail_*` (0: the author's are 0 too).

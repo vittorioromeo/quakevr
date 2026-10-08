@@ -323,9 +323,11 @@ log=$(bash $KIT/run.sh $AGENT -Script "${MPRE/impulse 156/impulse 161};give c 10
 st=$(echo "$log" | grep "the spent cell stopped smoking after" | sed 's/.*after \([0-9.]*\) s.*/\1/')
 check $(! echo "$log" | grep -q "contact sparks" && awk -v t="$st" 'BEGIN { print (t != "" && t >= 1.9 && t <= 2.3) ? 1 : 0 }') "Contact Sparks 0: none; Spent Cell Smoke 2: it smokes for 2 s ($st)"
 # 11. The author's night notes of 10-07/08 (ROUND21.md, "Reloading and spent guns: the night notes of 10-07/08").
-# The super nailgun's well flush on the flat band of its face (23-58-30): its rim at most 0.2 units off it, inside its edges.
+# The super nailgun's well flush on the flat band of its face (23-58-30), its collar out along the magazine (2026-10-08
+# 10-33-00: it went into the body and looked turned backwards): at most 1.2 units off the face (the nailgun's collar is
+# 1.1), inside its edges, seated into the body (its flange's back below the face).
 sw=$($PY Misc/quakevr/reload/ssg_checks.py snailwell)
-check $(echo "$sw" | awk '{ok = NF >= 12; for(i = 1; i <= NF; i += 6) { if($(i + 3) > 0.2 || $(i + 5) > 0) ok = 0 } print ok ? 1 : 0}') "the super nailgun's well flush on its face ($sw)"
+check $(echo "$sw" | awk '{ok = NF >= 16; for(i = 1; i <= NF; i += 8) { if($(i + 3) > 1.2 || $(i + 3) < 0.5 || $(i + 5) > 0 || $(i + 7) <= 0) ok = 0 } print ok ? 1 : 0}') "the super nailgun's well flush on its face, its collar out ($sw)"
 # The super shotgun's firing animation paced by vr_ssg_fire_anim_speed (23-54-46): B/Y pressed every other frame from the
 # shot, it opens as the animation ends: about 0.6 s after the shot at 1 (id's), 0.43 s at 1.4 (the default), 0.3 s at 2.
 POLL=$(for i in $(seq 60); do printf "vr_mock_button off secondary 1;wait1;vr_mock_button off secondary 0;wait1;"; done)

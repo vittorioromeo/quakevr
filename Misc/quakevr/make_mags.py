@@ -217,12 +217,21 @@ def paint(kind, variant=False):
 def magwell(hx, hy, top, wall=0.32, height=1.1, sunk=None):
     """A magazine's well (its receiver, drawn on the gun: vr_view.cpp setupMagazines): a steel collar round the magazine's
     top end, flush with the gun at the seat (the magazine's top, local z `top`) and down its length `height`, its walls
-    `wall` thick round the magazine's section (half sizes hx, hy, a little gap), a lighter lip at its mouth. `sunk`: the
-    collar goes into the gun instead (a flat face: the super nailgun's), only `sunk` units of it and its lip out of it."""
+    `wall` thick round the magazine's section (half sizes hx, hy, a little gap), a lighter lip at its mouth. `sunk`: a
+    flat face (the super nailgun's): the lighter lip a flange on the face at the seat, `sunk` units of the collar and
+    the flange into the body, the collar out along the magazine (the author's note vrfiringrange_2026-10-08_10-33-00:
+    it went into the body, only its lip out, and looked turned 180 degrees, backwards, not attached; this is that collar
+    rolled 180 degrees about its seat)."""
     m = Mesh()
     gx, gy = hx + 0.08, hy + 0.08
     if sunk is not None:
-        top = top + height - sunk  # (its mouth `sunk` off the face, the rest inside the body)
+        lo, hi = top - height + sunk, top + sunk  # (out along the magazine; `sunk` of it inside the body)
+        for sx in (-1.0, 1.0):
+            m.box((sx * (gx + wall / 2), 0.0, (lo + hi) / 2), (wall / 2, gy + wall, height / 2), "steel", cap_region="foot")
+        for sy in (-1.0, 1.0):
+            m.box((0.0, sy * (gy + wall / 2), (lo + hi) / 2), (gx, wall / 2, height / 2), "steel", cap_region="foot")
+        m.box((0.0, 0.0, hi - 0.08), (gx + wall + 0.06, gy + wall + 0.06, 0.08), "band", cap_region="band")
+        return m
     zc = top - height / 2
     for sx in (-1.0, 1.0):
         m.box((sx * (gx + wall / 2), 0.0, zc), (wall / 2, gy + wall, height / 2), "steel", cap_region="foot")

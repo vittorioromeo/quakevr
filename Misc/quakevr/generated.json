@@ -632,7 +632,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava2.mdl": {
-  "sha256": "17549e6d593155789ada6f5a1e527262df465325b49fc2da83bbb0efd380e7f8",
+  "sha256": "ca128118dd81dc3391e03f189905a72c60e1613abc8573c4129765855ae7f7d3",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava2.mdl_0_norm.png": {
@@ -656,7 +656,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail2.mdl": {
-  "sha256": "17549e6d593155789ada6f5a1e527262df465325b49fc2da83bbb0efd380e7f8",
+  "sha256": "ca128118dd81dc3391e03f189905a72c60e1613abc8573c4129765855ae7f7d3",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail2.mdl_0_norm.png": {
