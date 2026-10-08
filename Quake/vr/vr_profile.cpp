@@ -152,12 +152,15 @@ struct PhaseOpen
     int gpuRec; // -1: none
 };
 za::Vector<PhaseOpen> phaseStack;
+int phaseGpuOpen = 0; // GPU records begun and not ended: each keeps room for its end
 za::I64 phaseFrameNs[PhaseCount]{};
 PhaseSums phaseSums;
 double displayPeriod = 0.0; // ms
 
 constexpr int phaseGpuSlots = 6;
-constexpr int phaseGpuQueries = 96; // a frame's at most
+// A frame's at most: each view a slipgate shows draws the scene's phases again (vr_portals_recursion 2: about 120
+// timestamps a frame; 96 left the eyes' and the 3D's ends out, read as 0).
+constexpr int phaseGpuQueries = 512;
 struct PhaseGpuRec
 {
     int phase;
@@ -226,9 +229,10 @@ void beginPhase(const char* name, bool gpu)
     {
         o.start = za::Clock::nowNanoseconds();
         PhaseGpuSlot& s = phaseSlots[phaseSlot];
-        if(gpu && phaseInfo[o.phase].gpu && phaseGpuMade && s.used + 2 <= phaseGpuQueries)
+        if(gpu && phaseInfo[o.phase].gpu && phaseGpuMade && s.used + 2 + phaseGpuOpen <= phaseGpuQueries)
         {
             GL_QueryCounterFunc(s.queries[s.used], GL_TIMESTAMP);
+            ++phaseGpuOpen;
             o.gpuRec = s.recCount++;
             s.recs[o.gpuRec] = {o.phase, s.used++, -1};
         }
@@ -250,8 +254,11 @@ void endPhase()
     }
     phaseFrameNs[o.phase] += za::Clock::nowNanoseconds() - o.start;
     PhaseGpuSlot& s = phaseSlots[phaseSlot];
-    // A begin keeps room for its own end only: scopes nested inside it can fill the slot first (its
-    // record is then left without an end, and not read back).
+    // A begin keeps room for its own end and every open one's (phaseGpuOpen): scopes nested inside it never take it.
+    if(o.gpuRec >= 0)
+    {
+        --phaseGpuOpen;
+    }
     if(o.gpuRec >= 0 && s.used < phaseGpuQueries)
     {
         GL_QueryCounterFunc(s.queries[s.used], GL_TIMESTAMP);
@@ -306,6 +313,7 @@ bool resolvePhases(PhaseGpuSlot& s)
 // the finished slots read back.
 void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
 {
+    phaseGpuOpen = 0;
     phaseStack.clear(); // a Host_Error jumped out of them, or a dialog's frame inside one
     const double period = start > 0 ? static_cast<double>(now - start) / 1e6 : 0.0;
     const bool keep = start > 0 && period <= hitchMs;
