@@ -149,8 +149,13 @@ def take_spinning(hand, cls, holster, onto=7, rounds=3):
     """A floating pickup that spins (a key): the hand held on it and the grip pressed again and again (a press takes
     what the fist touches within 0.2 s of it: VR_CARRY_GRIP_WINDOW; the thin card's turn has to come round to the
     fist), then brought to a holster (collected if held). `rounds` times."""
-    for _ in range(rounds):
-        c(LEAN)
+    for r in range(rounds):
+        if r:   # (a card knocked off its float lies on the floor: a hand reaching for it slantwise stops on the floor)
+            c("vr_mock_walk_to nearest %s 44" % cls)   # (not over it: a touch by the body is not a hand's)
+            w(120)
+            c("vr_mock_walk_to off")
+            onto = 2   # (lying flat: the fist on it)
+        c(LEAN if not r else CROUCH)   # (crouched, not leant: a lean takes the body along, onto it)
         w(10)
         for _ in range(2):
             c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, onto + 20))
@@ -159,7 +164,12 @@ def take_spinning(hand, cls, holster, onto=7, rounds=3):
             c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, onto))
             w(4)
         for _ in range(12):
+            if r:   # (lying still, it is touched only as the hand comes onto it: the grip pressed just before)
+                c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, onto + 12))
+                w(4)
             c("+grab%s" % hand, "vr_mock_button %s grip 1" % hand)
+            if r:
+                c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, onto))
             w(12)
             c("-grab%s" % hand, "vr_mock_button %s grip 0" % hand)
             w(2)
@@ -308,6 +318,7 @@ def g7_melee_key():
 
 LEAN = "vr_mock_hand head 0 1.7 -0.3"   # the head leant 30 cm forward (over a table: within vr_lean_radius)
 STAND = "vr_mock_hand head 0 1.7 0"
+CROUCH = "vr_mock_hand head 0 1.0 0"   # the head down 70 cm (reaching the floor)
 
 
 def grab_item(hand, cls, hover=20, onto=0):

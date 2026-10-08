@@ -30990,3 +30990,34 @@ rows: Route Carry Report (`vr_mg3_test 31`), Seed Hands and Holsters (32), Give 
 
 **In the headset.** [ ] Dawn of the Machine, either ending: at the finale text a button press brings the credits.
 [ ] A hub return from a secret map: you arrive at the hub's start with your hands' and holsters' weapons as you left.
+## vrtutorial2: the new tutorial, a generated military base (2026-10-08)
+
+**Asked:** a polished tutorial map made like `vrstart` (a generator, id textures, a day sky with its sun, aligned
+textures, curved halls, 0 holes), 12 lessons and an arena, heavily scripted, the official tutorial (first start, hub,
+menu) with the old `vrtutorial` still loadable.
+
+**Done.** `Misc/quakevr/maps/vrtutorial2_gen.py` writes `quakevr/maps/vrtutorial2.map` (MAPPING.md, "vrtutorial2", has
+the build, the lessons table and the start flow). Final preset: 9 s to compile, 12,580 faces (12,222 world, 4,660
+leaves), 0 holes in 1,000,000 rays (`bsp_holes.py`), no "sides not found" or "couldn't create brush faces". Worldspawn
+`_qvr_prelit 1`. Day sky `qvrday` (`make_day_sky.py`); arrows and hazard stripes in `quakevr_dev.wad`.
+- New QC (`vr_tutorial.qc`): `trigger_vr_health_gate`, `func_vr_spawner`, `func_vr_target`, `func_vr_restock`,
+  `info_vr_checkpoint`; `vr_crate` `contents`/`target`; `func_vr_tip` TRIGGERED (8). FGD regenerated.
+- Start flow: `vr_tutorial_started` (archived, 0; configs from before version 103 get 1). `vr_startgame`, the first
+  calibration's exit, the hub's and the menu's VR TUTORIAL all run `skill 0; map vrtutorial2`; the map sets it to 1.
+  vrstart.bsp's button edited in place (`bsp_set_entities.py`; `vrstart_gen.py` matches).
+- Mock autopilot for scripted tests: `vr_mock_walk_to`, `vr_mock_turn_to`, `vr_mock_hand_aim`. Debug > Tests >
+  Tutorial: the map, the old one, First Start Again, Go to a Lesson (`vr_tutorial_goto`).
+
+**Tested** (`vrtutorial2_playtest.py`): the playthrough to the hub passes 38 of 38 gates on Easy without god mode
+(health 87 after the fight, 62 after the arena), and 38 of 38 with god mode from the fight on; softlock checks 9 of 9
+(death at a checkpoint with the keycard kept, a triggered tip through save and load, ANOTHER ENEMY's limit, bench
+restocks). Start flow: a new config's `vr_startgame` goes to vrtutorial2 at skill 0 (a done one to vrstart); a first
+start runs calibration, then vrtutorial2 at skill 0; `vr_migrate_config` from 102 sets 1. Loads (exclusive): cold
+903 ms, warm 131 ms. Arena waves: ~1.0 ms CPU, ~1.0 ms GPU, worst 6.8 ms. e1m1 smoke, vrstart walk 18 of 18, menu
+path checks 0 missing, QC 0 warnings, FGD check clean.
+- A test fix: a keycard knocked off its float onto the floor is taken crouched from 44 units (a lean carries the body
+  onto it, and a body's touch isn't a hand's).
+
+**For VR:** the scale of the courtyards and the climb (ladder rungs every 20, the 112 jump wall's ledge), reaching the
+floating keycard, the throw at the barred button, the arena's pace on Easy, the brightness by day.
+**Open:** the dark course (lesson 9) relies on the flashlight entirely; whether a dim fill light is wanted.
