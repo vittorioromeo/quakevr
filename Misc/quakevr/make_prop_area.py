@@ -2,7 +2,10 @@
 # torches, and the two explosive boxes, for trying the held props and tuning them (Held Object Offsets) in the map
 # where everything else is tested (NOTES.md start_2026-09-29_23-01-20; docs/vr-port/ROUND21.md, "Bricks in the palm;
 # the grenade pouch's turn; the firing range's prop area"); and an ogre's chainsaw, full, on the floor past the boxes
-# (NOTES.md vrfiringrange_2026-09-30_10-57-41), and a crowbar beside it (a weapon_crowbar: QC vr_crowbar.qc).
+# (NOTES.md vrfiringrange_2026-09-30_10-57-41), and a crowbar beside it (a weapon_crowbar: QC vr_crowbar.qc); and, last,
+# Dawn of the Machine's Super Axe on the floor between the axe's and Mjolnir's weapon pads (ROUND21.md, "The Super Axe
+# in the firing range"): a func_weapon_grabbable with weapon 18 (WID_SUPERAXE), which makes nothing without the owned
+# MG3 data (CreateThrownWeapon: VR_Pack_WeaponAvailable), as no weapon pad is labelled.
 #
 # vrfiringrange.bsp has no source that matches it any more (its entities are quakevr/maps/vrfiringrange@<crc>.ent, which the
 # engine loads in place of the .bsp's), so, as make_spawn_buttons.py does for the second row of monster buttons, the
@@ -90,6 +93,7 @@ TABLE = (-416, -800)  # its middle; its top at FLOOR + 32
 WALL = (-600, -760)   # its front face's middle (against the west railing, whose posts end at x -608)
 CHAINSAW = (-176, -836, FLOOR + 12)  # east of the explosive boxes (x -240..-208)
 CROWBAR = (-176, -784, FLOOR + 8)    # north of the chainsaw
+SUPERAXE = (-456, -872, FLOOR + 16)  # between the axe's pad (x -488) and Mjolnir's (x -424), on the aisle's floor north of them
 
 ROCKS = ["progs/vr_rock%d.mdl" % i for i in range(1, 6)]
 BRICKS = ["progs/vr_brick%d.mdl" % i for i in range(1, 5)]
@@ -135,6 +139,10 @@ def entities():
     out.append([("classname", "func_worldtext_banner"), ("origin", "%g %g %g" % (TABLE[0], TABLE[1] + 48, FLOOR + 72)),
                 ("angle", "90"), ("worldtext", "props: tune them in Held Object Offsets"), ("worldtext_halign", "1"),
                 ("worldtext_scale", "0.3")])
+    # Dawn of the Machine's Super Axe (WID_SUPERAXE 18; MG3's model read in place: none without its data), last so that no
+    # entity before it is renumbered (the long explosive box is the map's 207: boxtopple_repro.py). It drops and settles,
+    # as the swords north of the last pads do.
+    out.append([("classname", "func_weapon_grabbable"), ("origin", "%g %g %g" % SUPERAXE), ("weapon", "18")])
     return out
 
 

@@ -1147,3 +1147,9 @@
 "worldtext_scale" "0.3"
 "_proparea" "1"
 }
+{
+"classname" "func_weapon_grabbable"
+"origin" "-456 -872 33"
+"weapon" "18"
+"_proparea" "1"
+}

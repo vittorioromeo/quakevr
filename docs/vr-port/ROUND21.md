@@ -31021,3 +31021,24 @@ path checks 0 missing, QC 0 warnings, FGD check clean.
 **For VR:** the scale of the courtyards and the climb (ladder rungs every 20, the 112 jump wall's ledge), reaching the
 floating keycard, the throw at the barred button, the arena's pace on Easy, the brightness by day.
 **Open:** the dark course (lesson 9) relies on the flashlight entirely; whether a dim fill light is wanted.
+
+## The Super Axe in the firing range (2026-10-08)
+
+Vittorio: "Can you add the super axe to vrfiringrange?" Dawn of the Machine's Super Axe (WID_SUPERAXE 18,
+vr_mg3_weapons.qc) now lies in vrfiringrange on the aisle floor between the axe's weapon pad (x -488) and Mjolnir's
+(x -424), at -456 -872, as the swords lie north of the last pads: a `func_weapon_grabbable` with weapon 18, added by
+`Misc/quakevr/make_prop_area.py --ent-only` as the entity file's last entity (no entity before it renumbered: the
+dummy stays 137, the long explosive box 207; the .ent keeps its pin, `vrfiringrange@3647.ent`, since the .bsp is not
+changed). Its model and sounds are MG3's, read in place from the owned pack; without that data
+`CreateThrownWeapon` makes nothing (`VR_Pack_WeaponAvailable`), and, as no weapon pad is labelled, nothing says so.
+No QC change. Like every weapon in the range it is placed once as the map loads (none restock).
+
+**Tested** (kit base, MG3 data found: `vr_mg3_wtest 1` "superaxe data 1"): taken from the floor by the main hand
+(`vr_mock_hand_to main weapon 0.3`, grip held: main hand weapon 18), holstered in the right shoulder and drawn back
+(`vr_test_weaponinst 1`/`2` with slot 4), a mock swing on the training dummy ("Dummy: 60 damage - melee: Super Axe"),
+thrown at it ("thrown weapon: Super Axe, 12.5 m/s ... killed"), and `motion_synth.py slash_horizontal_rtl --weapon
+superaxe --distance 0.85` after the pickup ("chop (horizontal) with the head"). Without the data (`-nosteam -nogog
+-noepic`): "superaxe data 0", no weapon 18 lying about, no errors. e1m1 smoke; menu path check 0 missing.
+- Test note: `set vr_test_weaponinst 1; impulse 120` ran as step 0 here; the plain `vr_test_weaponinst 1` works.
+
+**For VR:** whether the aisle spot reads well (it is darker than the pads), and taking it off the floor.
