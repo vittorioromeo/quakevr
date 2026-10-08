@@ -49,6 +49,7 @@ QVR_CVAR(vr_hit_tolerance_melee, "6", CVAR_ARCHIVE)   // for melee blows and sho
 QVR_CVAR(vr_hit_melee_scale, "1", CVAR_ARCHIVE)        // Combat > Hit Detection > Melee Hitbox Size: the melee probe (vr_hit_tolerance_melee) times this, 0.25..4. Not the striking points' own 3 units, not the broad-phase box.
 QVR_CVAR(vr_hit_tolerance_thrown, "2", CVAR_ARCHIVE)  // for thrown things (on top of their hit box, vr_throw_hitbox: 6)
 QVR_CVAR(vr_debug_hits, "0", CVAR_NONE)               // Debug > Show Hits: each precise hit drawn (the model as drawn then, the triangle hit, the point on the model) and printed; 2: also the shots through a box that missed the model
+QVR_CVAR(vr_hitmodel_cachestress, "0", CVAR_NONE) // Debug > Threads > Evict Models at Map Start: each hit model's data dropped from the model cache once the next is loaded (the eviction a small cache makes); the meshes must come out the same (hash)
 
 // Throwing (vr_throw.cpp, docs/vr-port/THROWING.md): the controller's own speed at its peak, in the
 // window before the moment of release (vr_throw_window), smoothed over vr_throw_peak_span seconds either

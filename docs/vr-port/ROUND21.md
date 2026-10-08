@@ -30919,3 +30919,14 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   all 50 PASS, `vr_stealth_test 1` 0 failed, slipgate_edges_test.sh all and slipgates_test.sh chase as before (the grunt
   still shoots through and stays).
 - One hop only: a point two gates away is walked to through the first gate (then searched there).
+
+## Backlog fixes: hit models and the cache, spawner angles, mapless runs, corpses through gates, torches two gates deep (2026-10-08)
+
+- **Precise hit detection's map-start meshes and the model cache** (vr_hitmodel.cpp afterLoad): the loop that gathered
+  the meshes to make on the thread pool loaded each model's data (Mod_Extradata) and kept its header; a later load could
+  let an earlier model's data go from the cache, and the pool then read a stale header. Now every model's data is loaded
+  first, then the headers are taken again with Cache_Check (loads nothing), as ragdoll's warmRigs does; one gone by then
+  is made by meshOf on the main thread. Test aid `vr_hitmodel_cachestress 1` (default 0; Debug > Threads > Evict Models
+  at Map Start) drops each model's data from the cache once the next is loaded. Test: `developer 1;
+  vr_zone_threadcheck 1; vr_hitmodel_cachestress 0|1; map e1m1; map e1m2`: the same hashes either way (e1m1 3f87ac75,
+  e1m2 c457bcba), no thread catch.

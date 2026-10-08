@@ -4528,6 +4528,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("The game crashes at once, with the culprit's stack (qvr_crash.txt), when a thread other than the main one "
                   "uses the hunk, the model cache or the zone (none of them is thread-safe; vr_zone_threadcheck). For "
                   "testing: a map load's crash in its data is often one of these."),
+        toggle("Evict Models at Map Start", vr_hitmodel_cachestress)
+            .help("vr_hitmodel_cachestress: at the next map's start, each model's data is dropped from the model cache once "
+                  "the next is loaded (what a full cache does), before precise hit detection's meshes are made on the "
+                  "thread pool. They must come out the same (developer 1: the hash in the console). For testing."),
         cycle("Worker Threads", vr_jobs_threads, {{0.f, "Auto"}, {1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"}})
             .help("The thread pool's workers besides the main thread (Auto: the CPU's threads less one). Changed, the pool is "
                   "made again. -jobs <n> on the command line sets it from the start."),

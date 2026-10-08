@@ -81,13 +81,16 @@ ankerl::unordered_dense::map<za::String, za::UniquePtr<Mesh>> meshes; // by mode
 za::Array<Mesh*, MAX_MODELS> byIndex{};                  // this map's, by model index
 za::Array<const qmodel_t*, MAX_MODELS> byIndexModel{};  // (what byIndex was found for)
 
-[[nodiscard]] const aliashdr_t* quakeAlias(const qmodel_t* model)
+// The model's data as a Quake alias model's, or none. `loaded`: its data only if already in the cache (Cache_Check,
+// which loads nothing: no other model's data moves); else loaded if need be (Mod_Extradata).
+[[nodiscard]] const aliashdr_t* quakeAlias(const qmodel_t* model, bool loaded = false)
 {
     if(!model || model->type != mod_alias)
     {
         return nullptr;
     }
-    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    auto* m = const_cast<qmodel_t*>(model);
+    const auto* hdr = static_cast<const aliashdr_t*>(loaded ? Cache_Check(&m->cache) : Mod_Extradata(m));
     if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || !hdr->indexes || !hdr->meshdesc ||
         hdr->numframes <= 0 || hdr->numverts <= 0 || hdr->numposes <= 0 || hdr->numbones)
     {
@@ -1177,12 +1180,29 @@ void afterLoad()
     int built = 0, tris = 0;
     // The meshes to make, made at once on the game's thread pool (each build writes only its own mesh), before the
     // walk below finds them made.
+    // Every model's data loaded first (the cache is the main thread's), then the headers taken again with Cache_Check,
+    // which loads nothing: a load can let an earlier model's data go from the cache (its header then stale), and the
+    // pool reads these headers (ragdoll's warmRigs). One gone again by then is made by meshOf below, on this thread.
+    const qmodel_t* prev = nullptr;
+    for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
+    {
+        const qmodel_t* model = sv.models[i];
+        if(!quakeAlias(model))
+        {
+            continue;
+        }
+        if(vr_hitmodel_cachestress.value && prev && prev != model && prev->cache.data)
+        {
+            Cache_Free(&const_cast<qmodel_t*>(prev)->cache, true); // (the test: the eviction a small cache makes)
+        }
+        prev = model;
+    }
     za::Array<bool, MAX_MODELS> had{};
     za::Vector<za::Pair<Mesh*, const aliashdr_t*>> todo;
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
     {
         const qmodel_t* model = sv.models[i];
-        const aliashdr_t* hdr = model ? quakeAlias(model) : nullptr;
+        const aliashdr_t* hdr = model ? quakeAlias(model, true) : nullptr;
         had[i] = hdr && meshes.count(model->name) && meshes[model->name]->hdr == hdr;
         if(!hdr || (byIndexModel[i] == model && byIndex[i] && byIndex[i]->hdr == hdr))
         {
