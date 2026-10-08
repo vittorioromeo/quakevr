@@ -336,7 +336,8 @@ async Task<int> UpdateCommand()
         var relight = FirstStartRelight.Pending(install.Dir) ||
                       (mode == InstallMode.Update && install.Record.Choices.RelightOnFirstRun && (plan.RelightInputsChanged.Count > 0 || getHd));
         Console.WriteLine($"first-start relight: {(relight ? "yes" : "no")}{(install.Record.Choices.RelightOnFirstRun ? "" : " (not chosen at install)")}");
-        Console.WriteLine($"Apps & Features entry: {(Registry() is null ? "not written (pass --register or --registry-file)" : $"version -> {(plan.KeepsInstalledVersion ? install.Record.Version : packageVersion)}")}");
+        var hasSetup = Opt("setup-from") is not null || install.Record.Files.Any(f => f.Component == Components.Setup);
+        Console.WriteLine($"Apps & Features entry: {(Registry() is null ? "not written (pass --register or --registry-file)" : !hasSetup ? "not written (no copy of Setup in the install: pass --setup-from)" : $"version -> {(plan.KeepsInstalledVersion ? install.Record.Version : packageVersion)}")}");
     }
     if (dryRun)
     {

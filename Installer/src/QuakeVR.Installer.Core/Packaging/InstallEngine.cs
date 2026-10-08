@@ -333,7 +333,10 @@ public sealed class InstallEngine
             // The first-start relight: a full install asks for it as ticked. An update asks again only when the relight's
             // inputs changed (a new light, VisPatch data, texture rules or HD texture pack); a repair never; a relight still
             // pending (the game has not started since) stays.
-            var relightInputs = maintenance?.RelightInputsChanged.Count > 0 || plan.HdTexturesZip is not null || plan.VisPatchArchives.Count > 0;
+            // (The VisPatch data is pinned: it counts only when newly added. An HD pack counts when it is another one.)
+            var relightInputs = maintenance?.RelightInputsChanged.Count > 0 ||
+                                (hdSha is not null && !string.Equals(hdSha, old?.HdTexturesSha256, StringComparison.OrdinalIgnoreCase)) ||
+                                (plan.VisPatchArchives.Count > 0 && old?.Choices.VisPatch != true);
             var relight = mode == InstallMode.Install
                 ? plan.RelightOnFirstRun
                 : FirstStartRelight.Pending(target) || (mode == InstallMode.Update && plan.RelightOnFirstRun && relightInputs);

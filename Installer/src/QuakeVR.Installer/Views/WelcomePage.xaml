@@ -52,14 +52,49 @@
                 everything up in a few clicks.
             </TextBlock>
 
-            <!-- An existing install: update or remove. -->
+            <!-- An existing install: the Update screen. The footer's one primary button updates (or repairs); Install
+                 again from scratch and Remove are the secondary choices. -->
             <Border Style="{StaticResource CardBorder}" Margin="0,24,0,0" BorderBrush="{StaticResource Accent}"
                     Visibility="{Binding HasExisting, Converter={StaticResource BoolToVis}}">
-                <DockPanel>
-                    <Button DockPanel.Dock="Right" Content="Remove…" Style="{StaticResource GhostButton}" Command="{Binding UninstallCommand}"
-                            VerticalAlignment="Center" Margin="12,0,0,0" />
-                    <TextBlock Text="{Binding ExistingText}" Style="{StaticResource Body}" VerticalAlignment="Center" />
-                </DockPanel>
+                <StackPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Remove…" Style="{StaticResource GhostButton}" Command="{Binding UninstallCommand}"
+                                VerticalAlignment="Top" Margin="12,0,0,0" />
+                        <StackPanel>
+                            <TextBlock Text="{Binding ExistingTitle}" Style="{StaticResource Body}" FontWeight="SemiBold" FontSize="17" />
+                            <TextBlock Text="{Binding ExistingText}" Style="{StaticResource Body}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                            <TextBlock Style="{StaticResource Small}" Margin="0,6,0,0"
+                                       Visibility="{Binding ExistingNeedsPackage, Converter={StaticResource BoolToVis}}">
+                                <Hyperlink Command="{Binding BrowsePackageCommand}" Foreground="{StaticResource AccentHover}">Pick a package…</Hyperlink>
+                                <Run Text="   " />
+                                <Hyperlink Command="{Binding RetryFeedCommand}" Foreground="{StaticResource AccentHover}">Try again</Hyperlink>
+                            </TextBlock>
+                            <TextBlock Text="{Binding ExistingDetail}" Style="{StaticResource Small}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding OtherInstallsText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="0,6,0,0"
+                                       TextWrapping="Wrap" Visibility="{Binding HasOtherInstalls, Converter={StaticResource BoolToVis}}" />
+                            <TextBlock Style="{StaticResource Small}" Margin="0,8,0,0">
+                                <Hyperlink Command="{Binding ToggleReinstallCommand}" Foreground="{StaticResource AccentHover}">Install again from scratch…</Hyperlink>
+                                <Run Text="   " />
+                                <Hyperlink Command="{Binding BrowseExistingCommand}" Foreground="{StaticResource AccentHover}">Use another install…</Hyperlink>
+                            </TextBlock>
+                        </StackPanel>
+                    </DockPanel>
+                    <!-- Install again from scratch: two choices, a backup first, then the whole wizard. -->
+                    <StackPanel Margin="0,14,0,0" Visibility="{Binding ShowReinstall, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="INSTALL AGAIN FROM SCRATCH" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Style="{StaticResource Small}" TextWrapping="Wrap"
+                                   Text="Every program file is copied again, and you pick the options again. Only what you tick here is reset or removed:" />
+                        <CheckBox IsChecked="{Binding ResetSettings}" Margin="0,10,0,0">
+                            <TextBlock Text="{Binding ReinstallSettingsText}" Style="{StaticResource Body}" />
+                        </CheckBox>
+                        <CheckBox IsChecked="{Binding RemoveSaves}" Margin="0,6,0,0">
+                            <TextBlock Text="{Binding ReinstallSavesText}" Style="{StaticResource Body}" />
+                        </CheckBox>
+                        <TextBlock Text="{Binding BackupText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                        <Button Content="Install again…" Style="{StaticResource GhostButton}" Command="{Binding ReinstallCommand}"
+                                HorizontalAlignment="Left" Margin="0,10,0,0" />
+                    </StackPanel>
+                </StackPanel>
             </Border>
 
             <StackPanel Margin="0,24,0,0">
