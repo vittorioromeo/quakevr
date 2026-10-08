@@ -3,6 +3,8 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Small batch: Swimming > Jump Out of Water off (+ Climbing on): climb out by grabbing the lip (MG3 map1 near 64 1000), pull on ground at sloped banks; MG3 armour shards: force-grab, then hip holster / pouch / chest gives armour, walking over them doesn't; your 10-08 settings are defaults (Super Axe grip + hotspot, grenade fit, SSG anim 1.75, teleporter surface opacity 0.5, stealth tweaks)
+Holding enemies (Combat > Holding Enemies, experimental, on): grip a grunt's arm/torso/gun with an empty hand: hand tracks it, it barely moves (two hands even less), drag and twist it, punch with the other hand; fiend weak, shambler almost nothing; let a grunt shove you in both Shove modes (Resist / Break Free); 35 cm let-go distance right?
 Menu corners: bottom-right box (version, by Vittorio Romeo, Support on Ko-fi with logo) like the top-right box, 4 px everywhere; laser/mouse highlights the link, press opens ko-fi.com/vittorioromeovee once on the desktop; logo readable in the headset?
 Bullet-time distortion trails (Combat > Bullet Time > Distortion Trails): bend behind bullets, nails, rockets, grenades, monster shots; same in both eyes; strength 1.25 right (subtle)? your own shots fade near the eye
 Death View (VR Settings > Comfort; default Third Person): Die Now / Die Now Blown Back (Debug > Cheats): your body ragdolls with a head, thrown by the blow; Immersive: camera on the ragdoll's head (turn speed, smoothing, fade OK?); gibbed = no body; Quake's death hop is gone in Third Person
