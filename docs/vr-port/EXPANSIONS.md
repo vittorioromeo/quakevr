@@ -906,8 +906,9 @@ door: mge2m1, mge4m1) and the engine's own touch runs the changelevel; intermiss
 real jump presses (the client's button). With `vr_mg_route_stage` each new map or loaded save runs the next step's
 script. Measured, skill 1 and Nightmare, 46/46 each:
 - hub: runes 0/1/3/7/15/31 with 1..6 indicators active, the final gate only with all five (also after a save and
-  load), fresh equipment on every entry (shells 25, empty hands, the default holsters; health 100/100, Nightmare
-  50/50); each rune's episode gate sealed, the next missing episode's open.
+  load), fresh equipment on every entry (a new game's 25 shells, empty hands, the default holsters; health 100/100,
+  Nightmare 50/50; since immersive reloading, 7c9f7692, 8 of the 25 are in the holstered shotgun's magazine and 17 in
+  the reserve, as at any new game's start: the check counts both, 2026-10-08); each rune's episode gate sealed, the next missing episode's open.
 - seeded hand magazines 3/7 and six holster magazines 1..6 (`vr_mg_hub_test 20`, both grips held) carried
   mge1m1 -> load -> mge1m3 -> mge1m2 -> a real death (`vr_mg_hub_test 36`) whose respawn autoloads the save made
   there, and mge2m1 -> mge2m2; health 73 carried 73 (Nightmare: 50/50).

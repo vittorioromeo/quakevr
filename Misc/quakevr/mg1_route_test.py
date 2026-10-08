@@ -140,8 +140,12 @@ def check(path, skill):
             continue
         ok((r["flags"] & 31) == flags and r["active"] == bin(flags).count("1") + 1 and r["gate"] == (flags == 31),
            "hub step %d: runes %d, %d indicators active, final gate %d" % (s, r["flags"] & 31, r["active"], r["gate"]))
-        ok(r["shells"] == 25 and r["hands"] == ("0", "0") and r["health"] == cap and r["max"] == cap,
-           "hub step %d: fresh equipment (shells 25, empty hands, health %g/%g)" % (s, r["health"], r["max"]))
+        # A new game's 25 shells (SetNewParms), the holstered shotgun's magazine loaded from them since immersive
+        # reloading (7c9f7692: 17 in the reserve, 8 in the gun; 25 in the reserve with it off).
+        loaded = sum(float(c) for w, c, i in r["hol"] if w == "4")
+        ok(r["shells"] + loaded == 25 and r["hands"] == ("0", "0") and r["health"] == cap and r["max"] == cap,
+           "hub step %d: fresh equipment (shells %g + %g in the holstered shotgun = 25, empty hands, health %g/%g)"
+           % (s, r["shells"], loaded, r["health"], r["max"]))
     # The seeded equipment (step 3, 9) carried through the episode's maps, a load and a death's autoload.
     for seed_step, follow in ((3, (4, 5, 6, 7)), (9, (10,))):
         seeded = [r for s, r in reps if s == seed_step]
