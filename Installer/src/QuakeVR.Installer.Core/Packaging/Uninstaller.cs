@@ -101,6 +101,10 @@ public static class Uninstaller
             // Keep a record of what is still ours, so a later uninstall (or reinstall) can finish the job.
             record.Files.RemoveAll(f => !File.Exists(PathUtil.SafeCombine(target, f.Path)));
             record.Shortcuts.Clear();
+            if (!record.Files.Any(f => f.Component == Components.HdTextures))
+            {
+                record.HdTexturesFile = record.HdTexturesSha256 = null;
+            }
             record.Save(target);
         }
         else

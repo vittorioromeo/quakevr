@@ -33,6 +33,15 @@ public sealed class InstallPlan
     public bool RelightOnFirstRun { get; init; }
     /// <summary>The HD texture pack's zip (already checked against its pinned SHA-256 by the download), or null.</summary>
     public string? HdTexturesZip { get; init; }
+    /// <summary>The pack's SHA-256 when known (the download checked it); null: hashed here. Recorded in install.json.</summary>
+    public string? HdTexturesSha256 { get; init; }
+    /// <summary>Install (every program file copied), Update or Repair (<see cref="MaintenancePlanner"/>: only the files
+    /// that differ; Update asks for the first-start relight only when its inputs changed). Over a folder without an
+    /// install, always a full install.</summary>
+    public InstallMode Mode { get; init; } = InstallMode.Install;
+    /// <summary>A backup already made for this run ("Install again from scratch" moved the player's reset files into it):
+    /// the files Setup overwrites go into it too. Null: one is made when needed.</summary>
+    public Backup? Backup { get; init; }
     /// <summary>VisPatch's archives (.tgz), already checked against their pinned SHA-256: their data files go into
     /// quakevr\tools\vispatch, where the game's relight finds them (see-through water).</summary>
     public IReadOnlyList<string> VisPatchArchives { get; init; } = [];
@@ -87,6 +96,11 @@ public sealed class InstallEngine
 
     sealed record StageItem(string Relative, string Component, Func<Stream> Open, long Size, string? Sha256);
 
+    /// <summary>The last run's plan over an existing install (null: a fresh install).</summary>
+    public MaintenancePlan? LastPlan { get; private set; }
+    /// <summary>The backup the last run put the player's changed files in (null: none needed).</summary>
+    public Backup? LastBackup { get; private set; }
+
     public Task<InstallRecord> InstallAsync(InstallPlan plan, IProgress<InstallProgress>? progress, CancellationToken ct) =>
         Task.Run(() => Install(plan, progress, ct), ct);
 
@@ -128,14 +142,40 @@ public sealed class InstallEngine
         Report(0, "Reading the package", $"Quake VR: Unleashed {manifest.Version}: {manifest.Files.Count} files, {PathUtil.FormatSize(manifest.TotalSize)}");
 
         var old = InstallRecord.Load(target);
+        var mode = old is null ? InstallMode.Install : plan.Mode;
+        MaintenancePlan? maintenance = null;
+        LastBackup = plan.Backup;
         if (old is not null)
         {
-            Report(0, "Updating", $"Updating Quake VR {old.Version} in {target}; your settings, saves and maps are kept.");
+            Report(0, mode == InstallMode.Repair ? "Repairing" : "Updating", mode switch
+            {
+                InstallMode.Update => $"Updating Quake VR: Unleashed {old.Version} in {target}; your settings, saves and maps are kept.",
+                InstallMode.Repair => $"Repairing Quake VR: Unleashed {old.Version} in {target}; your settings, saves and maps are kept.",
+                _ => $"Installing again over Quake VR: Unleashed {old.Version} in {target}; your files are kept unless you chose otherwise.",
+            });
+            Report(0, "Checking the installed files");
+            maintenance = MaintenancePlanner.Plan(target, old, manifest, mode);
+            LastPlan = maintenance;
+            if (mode != InstallMode.Install)
+            {
+                Report(0, "Checking the installed files",
+                    $"{maintenance.ToCopy.Count()} program file(s) to copy ({PathUtil.FormatSize(maintenance.CopyBytes)}), {maintenance.Count(PlannedAction.Unchanged)} already up to date, " +
+                    $"{maintenance.Count(PlannedAction.Remove)} no longer shipped; {maintenance.UserFiles.Count} of your files kept as they are.");
+                if (maintenance.KeepsInstalledVersion)
+                {
+                    Report(0, "Checking the installed files", $"The package ({manifest.Version}) is older than the install: nothing is downgraded, " +
+                        $"only files identical in both are restored{(maintenance.Count(PlannedAction.CannotRestore) is > 0 and var n ? $"; {n} damaged file(s) need {old.Version}'s package" : "")}.",
+                        maintenance.Count(PlannedAction.CannotRestore) > 0 ? LogLevel.Warning : LogLevel.Info);
+                }
+            }
         }
 
-        var items = manifest.Files.Select(f => new StageItem(f.Path, Components.Core, () => source.Open(f.Path), f.Size,
-            f.Sha256.Length == 64 ? f.Sha256 : null)).ToList();
+        var copyCore = mode == InstallMode.Install || maintenance is null ? null
+            : maintenance.ToCopy.Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var items = manifest.Files.Where(f => copyCore is null || copyCore.Contains(f.Path))
+            .Select(f => new StageItem(f.Path, Components.Core, () => source.Open(f.Path), f.Size, f.Sha256.Length == 64 ? f.Sha256 : null)).ToList();
         var oldRecorded = old?.Files.ToDictionary(f => f.Path, StringComparer.OrdinalIgnoreCase) ?? [];
+        var hdSha = plan.HdTexturesZip is null ? null : plan.HdTexturesSha256 ?? PackageManifest.HashFile(plan.HdTexturesZip);
 
         ZipArchive? textures = null;
         try
@@ -252,6 +292,20 @@ public sealed class InstallEngine
                     staged[^1] = (item, dest, temp, sha);
                 }
                 Report(0.9, "Checking", $"{items.Count} files copied and checked (SHA-256).", LogLevel.Success);
+
+                // The files about to be overwritten that the player changed (or made, where this version ships one): into
+                // the backup first, checked; nothing is moved into place before that is done.
+                var backupFirst = maintenance?.BackupFirst.Where(p => File.Exists(PathUtil.SafeCombine(target, p))).ToList() ?? [];
+                if (backupFirst.Count > 0)
+                {
+                    var backup = plan.Backup ?? Backup.Create(target, mode.ToString().ToLowerInvariant(), old?.Version, DateTimeOffset.Now);
+                    foreach (var p in backupFirst)
+                    {
+                        backup.Copy(p, "program file changed by you");
+                    }
+                    LastBackup = backup;
+                    Report(0.91, "Checking", $"{backupFirst.Count} file(s) you changed are replaced as shipped; your versions are in {backup.Dir}.", LogLevel.Warning);
+                }
             }
             catch
             {
@@ -274,27 +328,56 @@ public sealed class InstallEngine
                 File.Move(s.Temp, s.Dest, overwrite: true);
             }
 
+            // An update or a repair from the console keeps the shortcuts as they are (it is given no shortcut folders).
+            var keepShortcuts = old is not null && mode != InstallMode.Install && plan.Shortcuts.DesktopDir is null && plan.Shortcuts.StartMenuDir is null;
+            // The first-start relight: a full install asks for it as ticked. An update asks again only when the relight's
+            // inputs changed (a new light, VisPatch data, texture rules or HD texture pack); a repair never; a relight still
+            // pending (the game has not started since) stays.
+            var relightInputs = maintenance?.RelightInputsChanged.Count > 0 || plan.HdTexturesZip is not null || plan.VisPatchArchives.Count > 0;
+            var relight = mode == InstallMode.Install
+                ? plan.RelightOnFirstRun
+                : FirstStartRelight.Pending(target) || (mode == InstallMode.Update && plan.RelightOnFirstRun && relightInputs);
             var record = new InstallRecord
             {
-                Version = manifest.Version,
+                Version = maintenance?.KeepsInstalledVersion == true ? old!.Version : manifest.Version,
                 InstalledAt = old?.InstalledAt ?? DateTimeOffset.Now,
                 UpdatedAt = old is null ? null : DateTimeOffset.Now,
                 QuakeDir = quakeDir,
-                QuakeStore = plan.QuakeStore,
+                QuakeStore = plan.QuakeStore ?? old?.QuakeStore,
                 PackageSource = source.Location,
                 Choices = new InstallChoices
                 {
                     HdTextures = plan.HdTexturesZip is not null || (old?.Choices.HdTextures ?? false),
                     RelightOnFirstRun = plan.RelightOnFirstRun,
                     VisPatch = plan.VisPatchArchives.Count > 0 || (old?.Choices.VisPatch ?? false),
-                    DesktopShortcut = plan.Shortcuts.Desktop,
-                    StartMenuShortcuts = plan.Shortcuts.StartMenu,
-                    FlatShortcut = plan.Shortcuts.Flat,
-                    LogShortcut = plan.Shortcuts.Log,
+                    DesktopShortcut = keepShortcuts ? old!.Choices.DesktopShortcut : plan.Shortcuts.Desktop,
+                    StartMenuShortcuts = keepShortcuts ? old!.Choices.StartMenuShortcuts : plan.Shortcuts.StartMenu,
+                    FlatShortcut = keepShortcuts ? old!.Choices.FlatShortcut : plan.Shortcuts.Flat,
+                    LogShortcut = keepShortcuts ? old!.Choices.LogShortcut : plan.Shortcuts.Log,
                 },
-                RelightPending = plan.RelightOnFirstRun,
+                RelightPending = relight,
+                HdTexturesFile = plan.HdTexturesZip is not null ? Path.GetFileName(plan.HdTexturesZip) : old?.HdTexturesFile,
+                HdTexturesSha256 = hdSha ?? old?.HdTexturesSha256,
             };
             record.Files.AddRange(staged.Select(s => new InstalledFile { Path = s.Item.Relative, Size = new FileInfo(s.Dest).Length, Sha256 = s.Sha, Component = s.Item.Component }));
+            if (maintenance is not null && mode != InstallMode.Install)
+            {
+                // The program files not copied: as shipped already (the manifest's), or kept as installed (a repair from an
+                // older package, which keeps them recorded so that verify still sees a damaged one).
+                var shippedFiles = manifest.Files.ToDictionary(f => f.Path, StringComparer.OrdinalIgnoreCase);
+                foreach (var f in maintenance.Files)
+                {
+                    if (f.Action == PlannedAction.Unchanged)
+                    {
+                        var m = shippedFiles[f.Path];
+                        record.Files.Add(new InstalledFile { Path = m.Path, Size = m.Size, Sha256 = m.Sha256, Component = Components.Core });
+                    }
+                    else if (f.Action is PlannedAction.KeepInstalled or PlannedAction.CannotRestore && oldRecorded.TryGetValue(f.Path, out var kept))
+                    {
+                        record.Files.Add(kept);
+                    }
+                }
+            }
             record.Directories.AddRange((old?.Directories ?? []).Union(createdDirs, StringComparer.OrdinalIgnoreCase).Where(d => d.Length > 0));
 
             if (old is not null)
@@ -332,22 +415,36 @@ public sealed class InstallEngine
             }
 
             // Shortcuts.
-            Report(0.95, "Creating shortcuts");
-            var specs = ShortcutPlanner.Plan(plan.Shortcuts, quakeDir, target);
-            foreach (var spec in specs)
+            if (keepShortcuts)
             {
-                ShellLink.Save(spec);
-                record.Shortcuts.Add(spec.LinkPath);
-                Report(0.96, "Creating shortcuts", $"Shortcut: {spec.LinkPath}");
+                record.Shortcuts.AddRange(old!.Shortcuts);
             }
-            foreach (var stale in (old?.Shortcuts ?? []).Except(record.Shortcuts, StringComparer.OrdinalIgnoreCase))
+            else
             {
-                Uninstaller.RemoveShortcut(stale, target);
+                Report(0.95, "Creating shortcuts");
+                var specs = ShortcutPlanner.Plan(plan.Shortcuts, quakeDir, target);
+                foreach (var spec in specs)
+                {
+                    ShellLink.Save(spec);
+                    record.Shortcuts.Add(spec.LinkPath);
+                    Report(0.96, "Creating shortcuts", $"Shortcut: {spec.LinkPath}");
+                }
+                foreach (var stale in (old?.Shortcuts ?? []).Except(record.Shortcuts, StringComparer.OrdinalIgnoreCase))
+                {
+                    Uninstaller.RemoveShortcut(stale, target);
+                }
             }
 
             // The relight at the first start, however the game is started: the game's own marker (FirstStartRelight).
-            FirstStartRelight.Set(target, plan.RelightOnFirstRun);
-            if (plan.RelightOnFirstRun && !File.Exists(Path.Combine(target, "quakevr", "tools", "ericw-tools", "light.exe")))
+            FirstStartRelight.Set(target, relight);
+            if (mode != InstallMode.Install && old is not null && plan.RelightOnFirstRun)
+            {
+                Report(0.97, "Finishing", relight
+                    ? relightInputs ? "The relight's inputs changed: the game relights the maps they affect at its next start (the rest are skipped)."
+                                    : "The relight asked for before still runs at the game's next start."
+                    : "Relit maps: the relight's inputs are unchanged, so no relight at the next start.");
+            }
+            if (relight && !File.Exists(Path.Combine(target, "quakevr", "tools", "ericw-tools", "light.exe")))
             {
                 Report(0.98, "Finishing", "The package has no light.exe: the game will offer to download ericw-tools before relighting.", LogLevel.Warning);
             }
@@ -356,7 +453,12 @@ public sealed class InstallEngine
             {
                 RegisterUninstall(plan.Registry, target, record, Report);
             }
-            Report(1, "Done", $"Quake VR: Unleashed {record.Version} installed in {target}.", LogLevel.Success);
+            Report(1, "Done", mode switch
+            {
+                InstallMode.Update => $"Quake VR: Unleashed updated to {record.Version} in {target}.",
+                InstallMode.Repair => $"Quake VR: Unleashed {record.Version} repaired in {target}.",
+                _ => $"Quake VR: Unleashed {record.Version} installed in {target}.",
+            }, LogLevel.Success);
             return record;
         }
         finally

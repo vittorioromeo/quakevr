@@ -58,6 +58,10 @@ public sealed class InstallRecord
     /// <summary>The player asked for the relight at the first start at the last install or update (the game starts it
     /// from the marker, <see cref="FirstStartRelight"/>: whether it still has to is <see cref="FirstStartRelight.Pending"/>).</summary>
     public bool RelightPending { get; set; }
+    /// <summary>The HD texture pack installed (its file name and SHA-256, as downloaded): an update skips the textures
+    /// when the target pack has the same SHA-256. Null: none, or installed before Setup recorded it.</summary>
+    public string? HdTexturesFile { get; set; }
+    public string? HdTexturesSha256 { get; set; }
 
     public static InstallRecord? Load(string installDir)
     {
