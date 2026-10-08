@@ -178,6 +178,13 @@ void info_f()
                 glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up));
         }
     }
+    if(bullettime::Screen sc, zone; bullettime::screen(sc) && bullettime::tapZone(zone))
+    {
+        const glm::vec3 d = (zone.centre - sc.centre) / m2u * 100.f;
+        Con_Printf("screen tap zone: %.1f x %.1f cm (the screen %.1f x %.1f), moved %.1f %.1f %.1f cm (right, up, out)\n",
+            zone.halfSize.x * 2.f / m2u * 100.f, zone.halfSize.y * 2.f / m2u * 100.f, sc.halfSize.x * 2.f / m2u * 100.f,
+            sc.halfSize.y * 2.f / m2u * 100.f, glm::dot(d, sc.right), glm::dot(d, sc.up), glm::dot(d, sc.normal));
+    }
     if(s.valid)
     {
         float dynamic = 0.f;
@@ -330,12 +337,22 @@ void debugDraw()
         }
     }
 
-    // With 2, the screen tap's zone: its rectangle (with vr_bullettime_tap_margin) on the face and
-    // vr_bullettime_tap_depth over it.
+    // With 2, the screen tap's zone: its rectangle (with vr_bullettime_tap_margin, moved and sized:
+    // vr_bullettime_tap_x/y/z, _width, _height) on the face and vr_bullettime_tap_depth over it; and the tapping hand's
+    // striking points (its palm's middle, the butt of the gun it holds).
     bullettime::Screen sc;
-    if(vr_debug_gadget_button.value < 2.f || !bullettime::screen(sc))
+    if(vr_debug_gadget_button.value < 2.f || !bullettime::tapZone(sc))
     {
         return;
+    }
+    if(s.valid)
+    {
+        glm::vec3 p[2];
+        const int n = bullettime::strikingPoints(s, presser, p);
+        for(int i = 0; i < n; i++)
+        {
+            lines::point(p[i], 0.4f, glm::vec4{0.3f, 0.7f, 1.f, 0.9f});
+        }
     }
     const float cm = 0.01f * units::metresToUnits();
     const glm::vec2 half = sc.halfSize + glm::vec2{za::max(0.f, vr_bullettime_tap_margin.value) * cm};

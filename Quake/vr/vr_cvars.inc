@@ -371,6 +371,11 @@ QVR_CVAR(vr_bullettime_tap_speed, "1.2", CVAR_ARCHIVE) // m/s: the least speed i
 QVR_CVAR(vr_bullettime_tap_angle, "40", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)
 QVR_CVAR(vr_bullettime_tap_margin, "2", CVAR_ARCHIVE) // cm round the screen's edges where the strike may land too
 QVR_CVAR(vr_bullettime_tap_depth, "6", CVAR_ARCHIVE)  // cm over the screen's face at which the striking point is on it (the hand's middle is inside the hand: its palm is a few cm out)
+QVR_CVAR(vr_bullettime_tap_width, "1", CVAR_ARCHIVE) // the tap zone's width as a share of the screen's (before vr_bullettime_tap_margin) ...
+QVR_CVAR(vr_bullettime_tap_height, "1", CVAR_ARCHIVE) // ... and its height
+QVR_CVAR(vr_bullettime_tap_x, "0", CVAR_ARCHIVE)     // cm: the tap zone moved along the screen's right ...
+QVR_CVAR(vr_bullettime_tap_y, "0", CVAR_ARCHIVE)     // ... its up ...
+QVR_CVAR(vr_bullettime_tap_z, "0", CVAR_ARCHIVE)     // ... and out of it (its face: vr_bullettime_tap_depth is measured from there)
 QVR_CVAR(vr_bullettime_tap_butt, "1", CVAR_ARCHIVE)   // 1: the butt of the gun the other hand holds taps too (its rearmost end); 0: only the hand
 QVR_CVAR(vr_bullettime_tap_stop, "0.5", CVAR_ARCHIVE) // the impact: the speed into the screen must fall to this much of its peak on the screen (a hand passing by doesn't tap); 1: on arrival
 QVR_CVAR(vr_bullettime_tap_window, "0.25", CVAR_ARCHIVE) // seconds after the peak speed the impact may come

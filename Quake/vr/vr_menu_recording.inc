@@ -205,8 +205,35 @@
         slider("Tap Zone Depth", "vr_bullettime_tap_depth", 2.f, 15.f, 0.5f, "%.1f cm").extend(0.5f, 30.f)
             .help("How close over the screen your hand's middle (or the gun's butt) must stop: your palm is a few cm "
                   "out from it. Debug > Show Gadget Button: And the Screen Tap shows this zone."),
+        slider("Tap Zone Width", "vr_bullettime_tap_width", 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 5.f)
+            .help("The zone's width as a share of the screen's (before the margin). Debug > Show Gadget Button: And the "
+                  "Screen Tap shows the zone and your striking points (blue)."),
+        slider("Tap Zone Height", "vr_bullettime_tap_height", 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 5.f)
+            .help("... and its height."),
+        slider("Tap Zone Across", "vr_bullettime_tap_x", -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
+            .help("The zone moved along the screen's width (positive: to its right)."),
+        slider("Tap Zone Up", "vr_bullettime_tap_y", -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
+            .help("... along its height (positive: up the screen)."),
+        slider("Tap Zone Out", "vr_bullettime_tap_z", -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
+            .help("... and out of its face (negative: into your arm): Tap Zone Depth is measured from there."),
         toggle("The Gun's Butt Taps Too", "vr_bullettime_tap_butt")
             .help("On: the butt of the gun in your other hand taps the screen as your hand does. Off: only your hand."),
+        slider("Tap Must Stop", "vr_bullettime_tap_stop", 0.1f, 1.f, 0.05f, "%.2f")
+            .help("The impact: the speed into the screen must drop to this much of its peak on it (a hand passing by "
+                  "keeps its speed). 1: counts as it arrives, stopped or not."),
+        slider("Tap Window", "vr_bullettime_tap_window", 0.05f, 1.f, 0.05f, "%.2f s")
+            .help("How soon after its fastest the strike must stop on the screen."),
+        toggle("Tap While Holding", "vr_bullettime_tap_holding")
+            .help("On: the tapping hand may hold a weapon or a prop. Off: only an empty hand taps."),
+        toggle("Tap During Two-Handed Holds", "vr_bullettime_tap_twohanded")
+            .help("Off: no taps while both hands hold one weapon (your gadget hand on its foregrip), against accidents. "
+                  "Moving together, the hands never tap anyway."),
+        slider("Ignore Repeats For", "vr_bullettime_trigger_cooldown", 0.f, 2.f, 0.1f, "%.1f s")
+            .help("After a tap counts, how long before the next one does (a bounce is one)."),
+        slider("Haptic Tick", "vr_bullettime_haptic", 0.f, 2.f, 0.25f, "%.2f")
+            .help("The tick in both hands when a tap counts (0: none)."),
+        open("Gadget Side Button: Gear Lights", pageIndex(pageScreens))
+            .help("The button on the gadget's lower edge now dims your gear's lights (HUD and Menus > Screens)."),
         header("Distortion Trails"),
         cycle("Distortion Trails", "vr_bullettime_trails", {{0.f, "Off"}, {1.f, "In Bullet Time"}, {2.f, "Always"}})
             .help("As in F.E.A.R.: a wake behind each bullet, nail, rocket, grenade and monster's shot bends the view "
@@ -228,21 +255,5 @@
         toggle("Behind Rockets and Grenades", "vr_bullettime_trails_explosives"),
         toggle("Behind Monsters' Shots", "vr_bullettime_trails_enemy")
             .help("Enforcers' lasers, scrags' spit, knights' flames, vores' balls, zombies' flesh and grunts' bullets."),
-        slider("Tap Must Stop", "vr_bullettime_tap_stop", 0.1f, 1.f, 0.05f, "%.2f")
-            .help("The impact: the speed into the screen must drop to this much of its peak on it (a hand passing by "
-                  "keeps its speed). 1: counts as it arrives, stopped or not."),
-        slider("Tap Window", "vr_bullettime_tap_window", 0.05f, 1.f, 0.05f, "%.2f s")
-            .help("How soon after its fastest the strike must stop on the screen."),
-        toggle("Tap While Holding", "vr_bullettime_tap_holding")
-            .help("On: the tapping hand may hold a weapon or a prop. Off: only an empty hand taps."),
-        toggle("Tap During Two-Handed Holds", "vr_bullettime_tap_twohanded")
-            .help("Off: no taps while both hands hold one weapon (your gadget hand on its foregrip), against accidents. "
-                  "Moving together, the hands never tap anyway."),
-        slider("Ignore Repeats For", "vr_bullettime_trigger_cooldown", 0.f, 2.f, 0.1f, "%.1f s")
-            .help("After a tap counts, how long before the next one does (a bounce is one)."),
-        slider("Haptic Tick", "vr_bullettime_haptic", 0.f, 2.f, 0.25f, "%.2f")
-            .help("The tick in both hands when a tap counts (0: none)."),
-        open("Gadget Side Button: Gear Lights", pageIndex(pageScreens))
-            .help("The button on the gadget's lower edge now dims your gear's lights (HUD and Menus > Screens)."),
     };
 }

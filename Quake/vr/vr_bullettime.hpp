@@ -10,6 +10,11 @@
 
 #include <glm/glm.hpp>
 
+namespace qvr::hands
+{
+struct State;
+}
+
 namespace qvr::bullettime
 {
 
@@ -59,6 +64,14 @@ struct Screen
     glm::vec2 halfSize{0.f};
 };
 [[nodiscard]] bool screen(Screen& out);
+
+// The screen tap's zone: the screen moved (vr_bullettime_tap_x/y/z, cm along its right, up and normal) and sized
+// (vr_bullettime_tap_width, _height: shares of its own; vr_bullettime_tap_margin is added round it as it is tested).
+[[nodiscard]] bool tapZone(Screen& out);
+
+// The striking points of `hand` that tap the screen (its palm's middle; holding a gun, with vr_bullettime_tap_butt, the
+// gun's butt): their count (1 or 2).
+[[nodiscard]] int strikingPoints(const hands::State& s, int hand, glm::vec3 (&out)[2]);
 
 // A screen tap under way (coming at the screen fast) or one that counted half a second ago: the side button waits.
 [[nodiscard]] bool tapping();

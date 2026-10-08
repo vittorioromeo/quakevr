@@ -444,12 +444,36 @@ void frame()
     const hands::State& s = hands::current();
     Screen z;
     // A stick press starts it instead (vr_bullettime_trigger): the screen tap does nothing.
-    if(!inGame() || key_dest != key_game || !s.valid || stickHand() >= 0 || vr_bullettime_tap.value == 0.f || !screen(z))
+    if(!inGame() || key_dest != key_game || !s.valid || stickHand() >= 0 || vr_bullettime_tap.value == 0.f || !tapZone(z))
     {
         state.tapPeak = 0.f;
         return;
     }
     tapScreen(s, 1 - hands::gadgetHand(), z);
+}
+
+bool tapZone(Screen& out)
+{
+    if(!screen(out))
+    {
+        return false;
+    }
+    const float cm = 0.01f * units::metresToUnits();
+    out.centre += (out.right * vr_bullettime_tap_x.value + out.up * vr_bullettime_tap_y.value +
+                      out.normal * vr_bullettime_tap_z.value) * cm;
+    out.halfSize *= glm::vec2{za::max(0.f, vr_bullettime_tap_width.value), za::max(0.f, vr_bullettime_tap_height.value)};
+    return true;
+}
+
+int strikingPoints(const hands::State& s, int hand, glm::vec3 (&out)[2])
+{
+    Striker k[2];
+    const int n = strikers(s, hand, k);
+    for(int i = 0; i < n; i++)
+    {
+        out[i] = k[i].at;
+    }
+    return n;
 }
 
 bool screen(Screen& out)
@@ -481,7 +505,7 @@ bool tapHandTarget(int hand, float cm, float sideCm, bool butt, glm::vec3& out)
     Screen z;
     const hands::State& s = hands::current();
     glm::vec3 from{0.f};
-    if(!s.valid || !screen(z) || (butt ? !view::heldWeaponButt(hand, from) : false))
+    if(!s.valid || !tapZone(z) || (butt ? !view::heldWeaponButt(hand, from) : false))
     {
         return false;
     }
