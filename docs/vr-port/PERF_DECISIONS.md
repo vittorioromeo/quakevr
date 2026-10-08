@@ -176,11 +176,25 @@ each). Vittorio's decision: optimise, with the output identical (the same entiti
 - Left: `SUB_UseTargets` > `find` 0.46 ms of that frame (MG3's monsters' targets: `find` on .targetname walks every
   edict, ~6 us each; an index of .targetname would be the edict index's classname work again).
 
-### 11. The force grab's search every frame
+### 11. The force grab's search every frame (decided 2026-10-08: the area grid, identical results; done)
 
 `findportalcone` (each hand's force-grab target, every frame): 0.07 ms a call on secret2 (1800 entities, each one's
 model centre worked out before the portal broad phase). A box-based pre-test would need the centre's bound from the
-box (not exact for models whose centre lies outside their box). Small; not done.
+box (not exact for models whose centre lies outside their box). Vittorio's decision: query the engine's spatial grid
+instead of walking, the results identical. **Done** (`vr_forcegrab_grid`, on; vr_builtins.cpp):
+- The candidates are the edicts the area grid links (`SV_AreaEdictsUnordered`, as `VR_TouchLinks` uses it: every
+  edict that can pass is linked, only SOLID_NOT isn't) within a box round the hand and round each of its images through
+  the slipgates (`pullSearchOrigins`): the range, the broad phase's margin and 128 units for a drawn middle outside its
+  box (the most measured: a knocked-down ogre's 47 units; weapons and backpacks 6-12). Sorted into edict order and
+  tested exactly as the walk tests each edict, so the chain is the same edicts in the same order.
+- Checked: `vr_forcegrab_grid_verify 1` walks as well and compares the chain (the walk's answer used on a difference,
+  which is printed and counted: `vr_forcegrab_grid_stats`; Debug > Profiling and Memory). 0 differences in 14,186
+  searches (secret2 awake and its tour, map2 awake, its kill-all and its tour, combined, combat_48, a 1000-prop pile
+  and a blast through it, `start`'s slipgates with a pull through a gate, vrslipgates); `vr_prop_query_test` (96
+  ordered-chain comparisons, ranges 0 to 4096) passes on each.
+- **Win** (`profile_qc`, 525 frames, the same build both ways): `mg3_secret2_awake` 0.119 / 0.135 -> 0.005 / 0.006 ms
+  a frame (two runs each; ~11 edicts tested a search instead of ~1100). `combined` (300 props packed round you)
+  0.050 -> 0.057 ms: there the grid finds the pile anyway, and sorts it.
 
 ### 12. QuakeC left after the index (2026-10-08, `profile_qc` caller > builtin pairs, secret2 awake; the dprints decided and done)
 
@@ -188,8 +202,7 @@ One loop moved to a builtin: the stealth AI's look about tested each lit torch's
 QuakeC (0.05 ms a frame on secret2 after the index); `findflagsinview` does it in the engine in QuakeC's own float
 steps (`VR_Stealth_LookAbout` with its callees 0.062 -> 0.010 ms; ROUND21.md). What remains is engine work QuakeC asks
 for, or behaviour-visible:
-- `findportalcone` 0.13 ms (item 11: each model's centre before the broad phase; a bound needs the shape's fields,
-  as dear to read as the centre).
+- `findportalcone` 0.13 ms (item 11: done since, by the area grid: 0.006 ms).
 - `findradius` 0.03 (`VR_Grenade_CatchCheck`), 0.02 (`VR_Stealth_Gather`): it writes `.chain` on every solid
   entity in range, monsters or not; an index of solids would need the engine's `solid` writes (10 sites, some
   temporary inside SV_PushMove) and would hold nearly every edict anyway.

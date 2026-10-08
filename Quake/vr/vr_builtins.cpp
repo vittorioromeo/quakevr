@@ -4,6 +4,8 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
 #include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
@@ -271,9 +273,23 @@ void PF_findcone()
 struct PullSearchScratch
 {
     za::Vector<glm::vec3> origins;
-    auto members() { return mem::list(origins); }
+    za::Vector<edict_t*> found; // the area grid's edicts near the origins (vr_forcegrab_grid)
+    auto members() { return mem::list(origins, found); }
 };
 mem::Scratch<PullSearchScratch> pullSearch{"force-grab search"};
+
+// vr_forcegrab_grid's counts (vr_forcegrab_grid_stats): searches, edicts tested, and with _verify the walks compared
+// and the differences.
+struct ForcegrabGridStats
+{
+    long long searches = 0, tested = 0, walked = 0, compared = 0, differences = 0;
+};
+ForcegrabGridStats forcegrabGridStats;
+
+// How far an edict's drawn middle (physics::modelCentre) may lie outside its linked box for the area grid to find it:
+// a knocked-down ogre's lies 47 units out (the most measured: secret2, map2's kill-all, combined, combat_48), a weapon
+// or a backpack's 6-12. The edicts found are then tested exactly as the walk tests every edict.
+constexpr float forcegrabGridSlack = 128.f;
 
 // Exact live model centres, rather than Quake collision bounds (a dropped gun's
 // centre can be well outside them). Destination-room searches are conservative:
@@ -292,6 +308,42 @@ mem::Scratch<PullSearchScratch> pullSearch{"force-grab search"};
     return false;
 }
 
+// findportalcone's test of one edict (the walk's and the area grid's alike): in the cone, within range, near one of
+// the search's origins (the hand, its images through slipgates).
+[[nodiscard]] bool inPortalCone(edict_t* ent, const glm::vec3& from, float range, const glm::vec3& aim, float minCos)
+{
+    if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { return false; }
+    const glm::vec3 centre = physics::modelCentre(ent);
+    if(!nearPullSearch(centre, range)) { return false; }
+    const glm::vec3 to = portals::pullImage(from, centre) - from;
+    const float distance = glm::length(to);
+    return !(distance < 0.999f || distance > range || glm::dot(to, aim) < minCos * distance);
+}
+
+// vr_forcegrab_grid: the edicts the area grid links near the search's origins (every edict that can pass is linked:
+// only SOLID_NOT isn't, as VR_TouchLinks takes it), each once, in edict order (the walk's order, so the same chain).
+// A box round each origin: the range, nearPullSearch's margin and forcegrabGridSlack.
+void gatherPortalConeCandidates(float range)
+{
+    za::Vector<edict_t*>& found = pullSearch.found;
+    found.clear();
+    const int space = qcvm->num_edicts;
+    for(const glm::vec3& origin : pullSearch.origins)
+    {
+        const float margin = 1e-4f * (1.f + 2.f * glm::dot(glm::abs(origin), glm::vec3{1.f})) + 1.f;
+        const float reach = range + margin + forcegrabGridSlack;
+        const float lo[3] = {origin.x - reach, origin.y - reach, origin.z - reach};
+        const float hi[3] = {origin.x + reach, origin.y + reach, origin.z + reach};
+        const za::SizeT before = found.size();
+        found.resize(before + static_cast<za::SizeT>(space));
+        int count = 0;
+        SV_AreaEdictsUnordered(lo, hi, found.data() + before, &count, space);
+        found.resize(before + static_cast<za::SizeT>(count));
+    }
+    za::quickSort(found.data(), found.data() + found.size()); // edict order (the edicts are one array), each once
+    found.resize(static_cast<za::SizeT>(za::unique(found.data(), found.data() + found.size()) - found.data()));
+}
+
 void PF_findportalcone()
 {
     const float* p = G_VECTOR(OFS_PARM0);
@@ -302,24 +354,74 @@ void PF_findportalcone()
     const float minCos = G_FLOAT(OFS_PARM3) - 1e-4f;
     portals::pullSearchOrigins(from, pullSearch.origins, range);
     edict_t* chain = qcvm->edicts;
-    edict_t* ent = NEXT_EDICT(qcvm->edicts);
-    for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+    // (A range that isn't a number or is below 0: nearPullSearch lets everything through; the walk, as before.)
+    const bool grid = vr_forcegrab_grid.value != 0.f && range >= 0.f && range < 1e6f;
+    forcegrabGridStats.searches++;
+    if(grid)
     {
-        if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { continue; }
-        const glm::vec3 centre = physics::modelCentre(ent);
-        if(!nearPullSearch(centre, range)) { continue; }
-        const glm::vec3 to = portals::pullImage(from, centre) - from;
-        const float distance = glm::length(to);
-        if(distance < 0.999f || distance > range || glm::dot(to, aim) < minCos * distance) { continue; }
-        ent->v.chain = EDICT_TO_PROG(chain);
-        chain = ent;
+        gatherPortalConeCandidates(range);
+        for(edict_t* ent : pullSearch.found)
+        {
+            forcegrabGridStats.tested++;
+            if(ent == qcvm->edicts || !inPortalCone(ent, from, range, aim, minCos)) { continue; }
+            ent->v.chain = EDICT_TO_PROG(chain);
+            chain = ent;
+        }
+    }
+    else
+    {
+        edict_t* ent = NEXT_EDICT(qcvm->edicts);
+        for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+        {
+            forcegrabGridStats.walked++;
+            if(!inPortalCone(ent, from, range, aim, minCos)) { continue; }
+            ent->v.chain = EDICT_TO_PROG(chain);
+            chain = ent;
+        }
+    }
+    if(grid && vr_forcegrab_grid_verify.value)
+    {
+        // The walk as well: the same edicts, in the same order (its chain read back without writing .chain).
+        forcegrabGridStats.compared++;
+        edict_t* expected = qcvm->edicts;
+        edict_t* ent = NEXT_EDICT(qcvm->edicts);
+        bool same = true;
+        int first = 0;
+        for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+        {
+            if(!inPortalCone(ent, from, range, aim, minCos)) { continue; }
+            if(same && ent->v.chain != EDICT_TO_PROG(expected)) { same = false; first = i; }
+            expected = ent;
+        }
+        if(same && chain != expected) { same = false; first = NUM_FOR_EDICT(expected); }
+        if(!same)
+        {
+            if(forcegrabGridStats.differences++ < 10)
+            {
+                edict_t* e = EDICT_NUM(first);
+                const glm::vec3 c = physics::modelCentre(e);
+                Con_Printf("vr_forcegrab_grid ERROR: the walk finds %d %s (%s) the grid doesn't: its middle %.0f %.0f %.0f, "
+                           "its box %.0f %.0f %.0f .. %.0f %.0f %.0f, linked %d\n",
+                    first, PR_GetString(e->v.classname), PR_GetString(e->v.model), c.x, c.y, c.z, e->v.absmin[0],
+                    e->v.absmin[1], e->v.absmin[2], e->v.absmax[0], e->v.absmax[1], e->v.absmax[2], e->area.prev ? 1 : 0);
+            }
+            // The walk's answer is the one used (QuakeC sees what it always did).
+            chain = qcvm->edicts;
+            ent = NEXT_EDICT(qcvm->edicts);
+            for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+            {
+                if(!inPortalCone(ent, from, range, aim, minCos)) { continue; }
+                ent->v.chain = EDICT_TO_PROG(chain);
+                chain = ent;
+            }
+        }
     }
     if(vr_prop_query_verify.value)
     {
         // Re-run the original full scan without the broad phase. Compare the exact
         // chain (including order), without writing chain fields or calling QC.
         edict_t* expected = qcvm->edicts;
-        ent = NEXT_EDICT(qcvm->edicts);
+        edict_t* ent = NEXT_EDICT(qcvm->edicts);
         for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
         {
             if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { continue; }
@@ -2253,6 +2355,18 @@ static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200
     "VR builtins must not overlap Ironwail's downward-allocated builtins");
 
 } // namespace
+
+// vr_forcegrab_grid_stats: the force grab's searches since the last (and resets them).
+void forcegrabGridStats_f()
+{
+    ForcegrabGridStats& s = forcegrabGridStats;
+    Con_Printf("vr_forcegrab_grid: %s, %lld searches, %.1f edicts tested a search by the grid, %.1f by the walk, %lld "
+               "verified, %lld differences\n",
+        vr_forcegrab_grid.value ? "on" : "off", s.searches,
+        s.searches ? static_cast<double>(s.tested) / static_cast<double>(s.searches) : 0.0,
+        s.searches ? static_cast<double>(s.walked) / static_cast<double>(s.searches) : 0.0, s.compared, s.differences);
+    s = ForcegrabGridStats{};
+}
 
 void propQueriesTest_f()
 {

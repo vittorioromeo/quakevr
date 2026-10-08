@@ -164,4 +164,4 @@ void loadNoticeFrame();
 
 } // namespace qvr::progs
 
-namespace qvr::progs { void propQueriesTest_f(); }
+namespace qvr::progs { void propQueriesTest_f(); void forcegrabGridStats_f(); }

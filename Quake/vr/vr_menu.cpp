@@ -4586,6 +4586,15 @@ za::Vector<Item> pageDebugProfiling()
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the index's searches, rebuilds, edicts read again, searches verified and "
                   "differences since the last time."),
+        toggle("Force Grab Search by Grid", vr_forcegrab_grid)
+            .help("vr_forcegrab_grid: the force grab's target search (each hand, every frame) tests only the entities "
+                  "linked near the hand and its images through slipgates (the same results). Off: it walks every entity."),
+        toggle("Verify Force Grab Search", vr_forcegrab_grid_verify)
+            .help("vr_forcegrab_grid_verify: every search walks as well; a difference is counted and printed, and the "
+                  "walk's answer used. Force Grab Search Stats prints the counts."),
+        command("Force Grab Search Stats", "vr_forcegrab_grid_stats")
+            .help("vr_forcegrab_grid_stats: the searches, the entities each tested, searches verified and differences "
+                  "since the last time."),
         command("Game State Hash", "vr_bench_statehash")
             .help("vr_bench_statehash: one hash of every entity's QuakeC fields (and which are in use), printed with the "
                   "server's time: the same script on two builds gives the same hash when a change left the game the same."),
