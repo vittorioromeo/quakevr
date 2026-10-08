@@ -329,6 +329,8 @@ float cvarh_vr_gib_splat_throw;
 float cvarh_vr_corpse_gib;
 float cvarh_vr_corpse_health_mult;
 float cvarh_vr_corpse_nogib;
+float cvarh_vr_death_view;
+float cvarh_vr_death_ragdoll_push;
 float cvarh_vr_corpse_health_grunt;
 float cvarh_vr_corpse_health_enforcer;
 float cvarh_vr_corpse_health_dog;
@@ -1063,6 +1065,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_corpse_gib);
     VR_CVAR_HMAKE(vr_corpse_health_mult);
     VR_CVAR_HMAKE(vr_corpse_nogib);
+    VR_CVAR_HMAKE(vr_death_view);
+    VR_CVAR_HMAKE(vr_death_ragdoll_push);
     VR_CVAR_HMAKE(vr_corpse_health_grunt);
     VR_CVAR_HMAKE(vr_corpse_health_enforcer);
     VR_CVAR_HMAKE(vr_corpse_health_dog);

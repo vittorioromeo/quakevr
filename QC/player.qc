@@ -961,7 +961,11 @@ void() PlayerDie =
     self.think = SUB_Null;
     self.think2 = SUB_Null;
 
-    if(self.velocity_z < 10)
+    // VR: his body a ragdoll of its own (vr_death_view; vr_deathdoll.qc), not gibbed: he stays where he was (the view
+    // where his eyes were), no death hop.
+    if(VR_DeathDoll_Make(self))
+        self.velocity = '0 0 0';
+    else if(self.velocity_z < 10)
         self.velocity_z = self.velocity_z + random()*300;
 
     if(self.health < -40)

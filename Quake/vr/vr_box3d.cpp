@@ -2888,7 +2888,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
     r.count = rig->numBones;
     const bool headless = fieldFloatOr(ent, fields().vr_headless, 0.f) != 0.f || fieldFloatOr(ent, fields().vr_limbcut, 0.f) != 0.f;
     while(r.count > 1 && rig->bones[r.count - 1].joint == ragdoll::Joint::Loose &&
-          (now || headless || ragdoll::collapsed(*rig, pose, r.count - 1)))
+          (now || headless || rig->hideLoose || ragdoll::collapsed(*rig, pose, r.count - 1)))
     {
         r.count--;
     }

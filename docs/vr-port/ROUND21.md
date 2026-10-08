@@ -31721,3 +31721,35 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
   (max 0.23 vs 0.12), CPU +0.004 ms; `explosions_storm_bullettime` (new: no projectiles) nothing. Off: the pass does
   not run. (`bench.sh compare` of the same runs moved unrelated passes 10-28% between the two labels: run-to-run GPU
   state, not the trails.)
+## Player ragdolls: the Death View (2026-10-08)
+
+- **Death View** (`vr_death_view`, default 1 Third Person; VR Settings > Comfort): dying whole (not gibbed: health not
+  under -40), the player leaves a ragdoll body of his own (QC `vr_deathdoll.qc` `VR_DeathDoll_Make`, from PlayerDie
+  before the death hop). 0 Off: as before. 1 Third Person: the view stays where the eyes were (no death hop now), the
+  body there to look at, its head on. 2 Immersive (`vr_deathview.cpp`): the view in the body's head bone (a point 0.7 of
+  the way from its pivot to its end: the eyes), drawn headless for you (`ragdoll::hideHeadOf`); your own head's motion
+  since is added (turned with the view), its place smoothed (`vr_death_view_smooth` 0.15 s), its yaw following the
+  head's (`vr_death_view_turn` 1, at most `vr_death_view_turn_speed` 60 deg/s; the head's forward plus its crown
+  flattened, held when that is short: no spikes when the face looks up), never pitch or roll; a fade from black going
+  in and on respawning (`vr_death_view_fade` 0.5 s); the hands, the gear and the hand's status bar not drawn. A body gone
+  (gibbed, retired) leaves the view where it was until respawn.
+- **The body**: `progs/player.mdl` in the pose he was in, `FL_MONSTER`, health -1, a corpse at once (`VR_Corpse_Arm`):
+  the engine makes it a ragdoll at once (a corpse lying still: `wantsRagdoll`), gibbed by enough damage as a grunt's
+  corpse (`VR_Corpse_Parts`: `h_player.mdl`). Its motion: his, with the killing blow's push (T_Damage's, damage x 8,
+  recorded in `.vr_deathdoll_push`) times `vr_death_ragdoll_push` (1), at most 400 units/s (a rocket's push was
+  2000+). A blast throws it too (vr_box3d.cpp's recent blasts). It plays the player's death animation for the clients
+  that draw no ragdoll. Its `.vr_deathdoll` is its player; the player's `.vr_deathdoll_body` it (cleared in
+  PutClientInServer). Respawning in coop or deathmatch, no copy to the body queue (the ragdoll is the body).
+  VR_Knockdown_MakeRoom retires a dead player's own body only once he is up.
+- **The rig** (vr_ragdoll.cpp `playerSeeds`, Misc/quakevr/ragdoll/player_bones.json; rig.py `LOOSE_PIECES`): 11 bones
+  derived from Quake VR's player.mdl (733 vertices, 144 frames; rest pose $axrun1). His axe and gun are pieces of their
+  own, each in his hands or on his back by the frame: `SeedTable::looseWeapons` makes them loose and `Rig::hideLoose`
+  hides them in every ragdoll (clusters 0.69, bones 0.82 units rms; 25 ms).
+- **Multiplayer**: the dead player is not sent to the other clients while his body lies there (sv_main.c,
+  `VR_SV_HiddenFromOthers`): they see the body. Ragdolls are drawn by a listen server only, as the monsters': a remote
+  client sees the body's death animation, and his Immersive view is Third Person's. Saving while dead: not handled.
+- **Tests** (headless, e1m1): Off: no body, not hidden. Third Person, impulse 196 (Die Now, Blown Back, new): body 203 a
+  ragdoll of 11 parts, the head drawn, pushed back (pelvis 455 against 465 still). Immersive: in the body's head (the
+  view 1.0 unit from its eyes: half the eyes' spacing), head hidden, turned 75-80 degrees as it rolled. Impulse 197 (Die
+  Now, Gibbed, new): no body. Coop, Immersive, respawn: health 100, the view normal, not hidden, the body left lying.
+  Debug > Cheats: Die Now Blown Back, Die Now Gibbed, Death View Status (`vr_death_view_status`).

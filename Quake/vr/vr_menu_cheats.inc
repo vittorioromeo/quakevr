@@ -25,6 +25,9 @@
                   "installed), the silver and gold keys."),
         command("Full Health and Armour", "impulse 194").help("impulse 194: 100 health (or more, kept) and the red armour (200)."),
         command("Die Now", "impulse 195").help("impulse 195: you die at once (armour, god mode and the Pentagram set aside; not gibbed): to try what death does, the gear hidden (Hide Gear When Dead). Respawn or load a save."),
+        command("Die Now, Blown Back", "impulse 196").help("impulse 196: you die at once as by a blow from ahead: your ragdoll body (Death View) thrown back by it."),
+        command("Die Now, Gibbed", "impulse 197").help("impulse 197: you die at once, gibbed (no ragdoll body: Death View or not)."),
+        command("Death View Status", "vr_death_view_status").help("vr_death_view_status: your ragdoll body (its entity, whether it is a ragdoll, where its eyes are), whether the Immersive view is in its head and how far the view is from them, and whether the others are kept from seeing you."),
         toggle("Infinite Ammo", vr_cheat_ammo)
             .help("vr_cheat_ammo: your ammunition kept full, and the magazine of the weapon in either hand (not an enemy's "
                   "gun's, nor the chainsaw's fuel). Not saved."),

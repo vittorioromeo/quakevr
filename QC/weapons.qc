@@ -4675,7 +4675,11 @@ void() ImpulseCommands =
     if(self.impulse == 194)
         VR_Cheat_HealthArmor();
     if(self.impulse == 195)
-        VR_Cheat_Die();
+        VR_Cheat_Die(0);
+    if(self.impulse == 196)
+        VR_Cheat_Die(1);
+    if(self.impulse == 197)
+        VR_Cheat_Die(2);
     if(self.impulse == 243 && !deathmatch && !coop) // QVR: a backpack of your ammo ahead (physics tests)
     {
         vector playerOrigin = self.origin;

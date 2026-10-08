@@ -44,7 +44,9 @@ void() VR_Cheat_HealthArmor =
 
 // Impulse 195: you die now, as by a blow from nowhere (not gibbed): a test of what death does (vr_dead_hide_gear: the
 // gear hidden, back on respawning or loading a save). Armour and the Pentagram don't save you.
-void() VR_Cheat_Die =
+// Impulse 196: as by a blow from ahead (its push: your ragdoll body thrown back,
+// vr_death_view); 197: gibbed (health -60: no body).
+void(float xHow) VR_Cheat_Die =
 {
     if(deathmatch || self.health <= 0)
     {
@@ -53,7 +55,17 @@ void() VR_Cheat_Die =
     self.armorvalue = 0;
     self.invincible_finished = 0;
     self.flags = self.flags - (self.flags & FL_GODMODE);
-    T_Damage(self, world, world, self.health + 5);
+    if(xHow == 1)
+    {
+        makevectors('0 1 0' * self.v_angle_y);
+        entity blow = spawn();
+        setorigin(blow, self.origin + v_forward * 48);
+        setsize(blow, '0 0 0', '0 0 0');
+        T_Damage(self, blow, blow, self.health + 5);
+        remove(blow);
+        return;
+    }
+    T_Damage(self, world, world, self.health + (xHow == 2 ? 60 : 5));
 };
 
 // Infinite ammunition (vr_cheat_ammo; PlayerPostThink): the ammunition kept as impulse 9 fills it (the mission packs'

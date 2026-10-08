@@ -72,6 +72,8 @@ struct Rig
     // The death animations' frames (first, last), from the seed table.
     int deaths{0};
     int deathFirst[4]{}, deathLast[4]{};
+    // Its loose bone hidden in every ragdoll, whatever the frame (the player's axe and gun: SeedTable::looseWeapons).
+    bool hideLoose{false};
     // How the derivation went (vr_ragdoll_info).
     float clusterRms{0.f}, boneRms{0.f};
     double deriveMs{0.0};
@@ -164,6 +166,10 @@ bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, 
 // The .mdl's triangles with a corner on bone `bone` (its rest pose, model units: three points each), the limb a hand
 // closes round (all its corners carried with that bone: across a joint, a little off where the next bone bends).
 void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out);
+
+// The death view (vr_deathview.cpp, Immersive): edict `num`'s ragdoll drawn without its head this frame (the camera is in
+// it), 0 none. Set before the client's swapModels.
+void hideHeadOf(int num);
 
 // vr_ragdoll_info: the rig of the nearest dead monster's model (or the grunt's), its bones and how it was derived.
 void info_f();

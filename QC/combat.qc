@@ -230,6 +230,14 @@ void(entity targ, entity attacker) Killed =
 .float vr_corpse_hp;      // what damage it takes yet
 .float vr_corpse_frame;   // its frame at the last look: the death animation is over when it stops changing
 .float vr_corpse_since;   // when it died
+// VR: player ragdolls (vr_death_view, vr_deathdoll.qc; the engine's vr_deathview.cpp): a dead player's body lies as a
+// ragdoll of its own, a corpse as a monster's (gibbed as one: VR_Corpse_Parts).
+.entity vr_deathdoll;          // the body's: its player (the engine: the death view follows its head)
+.entity vr_deathdoll_body;     // the player's: his body while he is dead (the engine keeps him from the others then)
+.vector vr_deathdoll_push;     // the player's: the last blow's push (T_Damage), at vr_deathdoll_pushtime
+.float vr_deathdoll_pushtime;
+.float vr_deathdoll_next;      // the body's: its death animation's next frame and last (the players not drawing ragdolls see it)
+.float vr_deathdoll_last;
 .float vr_corpse_model;   // its modelindex when it died (the death code gibbing it changes it)
 .float vr_corpse_struck;  // when a hand last struck it (a swing strikes once)
 // VR: dying bodies (vr_corpse_dying): from the frame its death code makes it not solid (what it drops is dropped by
@@ -418,6 +426,10 @@ float(entity e) VR_Corpse_Parts =
         // A zombie or a mummy beheaded (vr_decap.qc): it died whole, its ragdoll gibbed as a corpse.
         vr_corpse_head = "progs/h_zombie.mdl";
         vr_corpse_healthh = e.classname == "monster_mummy" ? cvarh_vr_corpse_health_mummy : cvarh_vr_corpse_health_zombie;
+    }
+    else if(e.vr_deathdoll)
+    {
+        vr_corpse_head = "progs/h_player.mdl"; // (a player's ragdoll body, vr_deathdoll.qc: a grunt's corpse health)
     }
     else if(e.th_die == eel_death)
     {
@@ -1421,6 +1433,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         dir = targ.origin - (inflictor.absmin + inflictor.absmax) * 0.5;
         dir = normalize(dir);
         targ.velocity = targ.velocity + dir*damage*8;
+        if(targ.flags & FL_CLIENT)
+        {
+            targ.vr_deathdoll_push = dir*damage*8; // VR: a killing blow's push goes to his ragdoll body (vr_deathdoll.qc)
+            targ.vr_deathdoll_pushtime = time;
+        }
         // VR: a blast strong enough knocks a player off a ledge or a rung, which it throws (vr_climb_blast_letgo).
         float blastLetGo = cvar_hget(cvarh_vr_climb_blast_letgo);
         if(vr_hitkind == QVR_HITKIND_SPLASH && blastLetGo > 0 && damage >= blastLetGo)

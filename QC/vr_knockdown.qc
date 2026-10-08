@@ -80,7 +80,8 @@ float(entity xFor) VR_Knockdown_MakeRoom =
                 count = count + 1;
                 if(x.health <= 0)
                 {
-                    if(dead == world || x.vr_corpse_since < dead.vr_corpse_since)
+                    // (A dead player's own body stays while he is dead: his death view is on it, vr_deathdoll.qc.)
+                    if(!VR_DeathDoll_InUse(x) && (dead == world || x.vr_corpse_since < dead.vr_corpse_since))
                     {
                         dead = x;
                     }

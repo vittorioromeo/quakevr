@@ -824,7 +824,7 @@ void() respawn =
     {
         // make a copy of the dead body for appearances sake
         // Unless the player died from falling in a pit!
-        if(!self.enemy) // HONEY
+        if(!self.enemy && !VR_DeathDoll_Has(self)) // HONEY; VR: his ragdoll body is there already
             CopyToBodyQue(self);
 
         // get the spawn parms as they were at level start
@@ -837,7 +837,7 @@ void() respawn =
     {
         // make a copy of the dead body for appearances sake
         // Unless the player died from falling in a pit!
-        if(!self.enemy) // HONEY
+        if(!self.enemy && !VR_DeathDoll_Has(self)) // HONEY; VR: his ragdoll body is there already
             CopyToBodyQue(self);
 
         // set default spawn parms
@@ -1081,6 +1081,7 @@ void() PutClientInServer =
     entity spot;
 
     VR_Head_StopFlies(self); // QVR: flies round a gibbed player's head don't follow it back to life
+    self.vr_deathdoll_body = world; // QVR: alive again, his ragdoll body only a body (vr_deathdoll.qc); the others see him
 
     self.classname = "player";
     self.health = 100;

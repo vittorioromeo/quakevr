@@ -65,6 +65,7 @@ vr_stealth_test.qc
 
 buttons.qc
 vr_tips.qc
+vr_deathdoll.qc
 client.qc
 doors.qc
 misc.qc

@@ -42,6 +42,7 @@
 #include "vr_shock.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_comfortfade.hpp"
+#include "vr_deathview.hpp"
 #include "vr_stereo.hpp"
 #include "vr_window.hpp"
 #include "vr_text3d.hpp"
@@ -6947,6 +6948,7 @@ static void applyEyeView(const hands::State& s)
     // it is in (vr_portals_walk), not from behind the gate's surface -- that frame or two showed the gate's hidden back.
     glm::vec3 origin = s.eyeOrigin[eye], angles = s.eyeAngles[eye];
     portals::eyeThrough(glm::vec3{s.playerOrigin.x, s.playerOrigin.y, origin.z}, origin, angles);
+    deathview::eyeView(s, eye, origin, angles); // dead, Immersive: in the ragdoll's head (vr_death_view)
     for(int i = 0; i < 3; i++)
     {
         r_refdef.vieworg[i] = origin[i];
@@ -7578,6 +7580,12 @@ extern "C" void VR_SetupViewEntities()
     setupButton(HAND_OFF);
     setupFrontButton(HAND_MAIN);
     setupFrontButton(HAND_OFF);
+    if(deathview::immersive())
+    {
+        // Dead, the view in the ragdoll's head (vr_death_view 2): the hands and the gear not drawn (they stay where you
+        // stand, far from the body).
+        forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
+    }
     if(!posingNow)
     {
         selfcollide::endView(s, selfCollideDrawn(s));

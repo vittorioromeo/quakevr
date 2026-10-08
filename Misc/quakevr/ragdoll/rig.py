@@ -34,6 +34,10 @@ KNOWN = {
     'grem': (list(range(85, 123)), (104, 123)),  # (Hipnotic's gremlin: the stolen gun, tucked in his body but in the g* frames)
 }
 
+# The models whose every piece but the body is loose (vr_ragdoll.cpp SeedTable::looseWeapons: hidden in the ragdoll):
+# the player's axe and gun, each in his hands or on his back by the frame (ROUND21.md, "Player ragdolls").
+LOOSE_PIECES = {'player'}
+
 name = sys.argv[1]
 mpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../quakevr/progs/%s.mdl' % name)
 if not os.path.exists(mpath) and os.environ.get('RIG_PAK'):
@@ -110,6 +114,7 @@ for p, n in sizes.items():
     pv = [v for v in allReps if piece[v] == p]
     gap = max(np.sqrt(((P[f, pv][:, None, :] - P[f, bodyR][None, :, :]) ** 2).sum(2).min()) for f in range(0, nf, 2))
     hidden = any((P[f, pv].max(0) - P[f, pv].min(0)).max() < 0.5 for f in range(nf))
+    hidden = hidden or name in LOOSE_PIECES  # (the player's axe and gun: hidden in his ragdoll, SeedTable::looseWeapons)
     print('piece %d: %d places, gap %.1f, %s' % (p, n, gap, 'loose (hidden)' if hidden else 'body'))
     if hidden:
         loose.update(pv)

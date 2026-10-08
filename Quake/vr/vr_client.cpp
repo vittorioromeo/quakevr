@@ -37,6 +37,7 @@
 #include "vr_stealth.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_comfortfade.hpp"
+#include "vr_deathview.hpp"
 #include "vr_teleport.hpp"
 #include "vr_tips.hpp"
 #include "vr_throw.hpp"
@@ -677,6 +678,7 @@ void init()
     shock::registerCommands();
     smoulder::registerCommands();
     comfortfade::registerCommands();
+    deathview::registerCommands();
     weaponfx::registerCommands();
     bttrails::registerCommands();
     Cmd_AddCommand("+offhandattack", OffhandAttackDown_f);
@@ -779,6 +781,7 @@ extern "C" void VR_OnClientClearState()
     shock::clear();
     smoulder::clear();
     comfortfade::clear();
+    deathview::clear();
     weaponfx::clear();
     bttrails::clear();
     wounds::clear();

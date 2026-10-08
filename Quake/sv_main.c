@@ -785,6 +785,10 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			if (!ent->v.modelindex || !PR_GetString(ent->v.model)[0])
 				continue;
 
+			// QVR: a dead player whose ragdoll body lies there: the others see the body (vr/vr_deathview.cpp)
+			if (VR_SV_HiddenFromOthers (ent))
+				continue;
+
 			//johnfitz -- don't send model>255 entities if protocol is 15
 			if (sv.protocol == PROTOCOL_NETQUAKE && (int)ent->v.modelindex & 0xFF00)
 				continue;

@@ -13,6 +13,7 @@
 // from a hand points at it.
 
 #include "vr_cvars.hpp"
+#include "vr_deathview.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
 #include "vr_gfx.hpp"
@@ -322,7 +323,8 @@ void drawInEye(const hands::State& s, bool headText)
         // In game: the status bar on a hand (unless the wrist gadget shows the HUD: its screen is
         // drawn in the scene, gadget::drawScreen), the rest in front of the head.
         const SbarRect sbar = sbarRect();
-        if(!gadget::active() && sbar.rows > 0.f)
+        // (Not in the Immersive death view: the hands are where you stand, far from the view: vr_deathview.cpp.)
+        if(!gadget::active() && sbar.rows > 0.f && !deathview::immersive())
         {
             drawSbar(s, sbar);
         }
