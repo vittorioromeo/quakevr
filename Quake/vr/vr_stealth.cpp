@@ -8,11 +8,13 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_hands.hpp"
 #include "vr_move.hpp"
 #include "vr_physsound.hpp"
 #include "vr_profile.h"
 #include "vr_progs.hpp"
 #include "vr_server.hpp"
+#include "vr_text3d.hpp"
 
 #include <glm/glm.hpp>
 
@@ -345,6 +347,105 @@ void PF_stealthprofile()
         return;
     }
     s.depth--;
+}
+
+
+// ---- Debug > Tests > Stealth AI > Meters Over Monsters (vr_stealth_debug_meters)
+
+namespace
+{
+
+// A monster's label: its state (and an Alert one's phase, a Hostile one's time out of sight), its meter as a bar.
+void meterLabel(edict_t* e, int stateOfs, int phaseOfs, int meterOfs, int lostOfs, int classOfs, const glm::vec3& head)
+{
+    const auto read = [e](int ofs) {
+        const eval_t* v = ofs >= 0 ? GetEdictFieldValue(e, ofs) : nullptr;
+        return v ? v->_float : 0.f;
+    };
+    const glm::vec3 top{(e->v.absmin[0] + e->v.absmax[0]) * 0.5f, (e->v.absmin[1] + e->v.absmax[1]) * 0.5f, e->v.absmax[2]};
+    const float dist = glm::length(top - head);
+    if(dist > vr_stealth_debug_meters_range.value || dist < 1.f)
+    {
+        return;
+    }
+    const float meter = glm::clamp(read(meterOfs), 0.f, 1.f);
+    const bool hostile = e->v.enemy != 0;
+    const char* state = "idle";
+    char line[64];
+    if(read(classOfs) < 0.f)
+    {
+        state = "quake's ai";
+    }
+    else if(hostile)
+    {
+        const float lost = read(lostOfs);
+        const float hidden = lost > 0.f ? static_cast<float>(qcvm->time) - lost : 0.f;
+        q_snprintf(line, sizeof(line), hidden > 0.2f ? "HOSTILE  unseen %.1fs" : "HOSTILE", hidden);
+        state = line;
+    }
+    else if(read(stateOfs) > 0.f)
+    {
+        static constexpr const char* phases[] = {"ALERT", "ALERT turn", "ALERT walk", "ALERT search", "ALERT return"};
+        const int phase = glm::clamp(static_cast<int>(read(phaseOfs)), 0, 4);
+        state = phases[phase];
+    }
+    char text[160];
+    q_snprintf(text, sizeof(text), "%s  %.2f\n%20s", state, meter, "");
+    const float cells = 20.f;
+    const glm::vec4 color = hostile ? glm::vec4{1.f, 0.25f, 0.15f, 0.95f}
+                            : read(stateOfs) > 0.f ? glm::vec4{1.f, 0.8f, 0.2f, 0.95f}
+                                                   : glm::vec4{0.35f, 0.9f, 0.45f, 0.95f};
+    // (the bar under the state, its 20 cells the meter's 0..1; the glimpse's cell marked by the track's end)
+    const text3d::OverlayBar bar{1, 0.f, meter * cells, cells, color};
+    const float scale = glm::max(0.12f, 0.0022f * dist);
+    const glm::vec3 at = top + glm::vec3{0.f, 0.f, 10.f + 16.f * scale};
+    const glm::vec3 to = at - head; // (the text faces the way it is looked at, as the head's yaw does)
+    const float yaw = glm::degrees(glm::atan(to.y, to.x));
+    text3d::queueOverlay(text, at, glm::vec3{0.f, yaw, 0.f}, scale, za::Span<const text3d::OverlayBar>{&bar, 1}, 0.45f);
+}
+
+} // namespace
+
+void debugFrame()
+{
+    if(!vr_stealth_debug_meters.value || !sv.active || !cl.worldmodel)
+    {
+        return;
+    }
+    qcvm_t* const old = qcvm;
+    if(old != &sv.qcvm)
+    {
+        if(old)
+        {
+            PR_SwitchQCVM(nullptr);
+        }
+        PR_SwitchQCVM(&sv.qcvm);
+    }
+    const int stateOfs = ED_FindFieldOffset("stl_state");
+    const int phaseOfs = ED_FindFieldOffset("stl_phase");
+    const int meterOfs = ED_FindFieldOffset("stl_meter");
+    const int lostOfs = ED_FindFieldOffset("stl_lost_time");
+    const int classOfs = ED_FindFieldOffset("stl_class");
+    const glm::vec3 head = hands::current().head;
+    if(meterOfs >= 0)
+    {
+        for(int i = 1; i < qcvm->num_edicts; i++)
+        {
+            edict_t* e = EDICT_NUM(i);
+            if(!e->free && (static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f)
+            {
+                meterLabel(e, stateOfs, phaseOfs, meterOfs, lostOfs, classOfs, head);
+            }
+        }
+    }
+    if(old != &sv.qcvm)
+    {
+        PR_SwitchQCVM(nullptr);
+        if(old)
+        {
+            PR_SwitchQCVM(old);
+        }
+    }
 }
 
 } // namespace qvr::stealth

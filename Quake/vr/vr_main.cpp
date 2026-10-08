@@ -34,6 +34,7 @@
 #include "vr_mapinstall.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
+#include "vr_stealth.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
 #include "vr_timescale.hpp"
@@ -1614,6 +1615,7 @@ extern "C" void VR_BeginFrame()
     posing::frame();     // the weapon posing mode's text, likewise
     sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
+    stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
     setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
     retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
     configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)

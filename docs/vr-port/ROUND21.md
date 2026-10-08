@@ -31931,3 +31931,8 @@ Tests > Stealth AI the scenes (`vr_stealth_test 120`-`129`, QC `vr_stealth_test4
   meter 0.86, heard; switch off: 0, not; fence textures: 0.86, heard; not: 0, not). No map the kit has carries a solid
   `{` brush (warden's webs are illusionary), so the fence path is tested on a door model with its textures taken for
   fences (`vr_stealth_test_fence`); the world's own fences go through the same code.
+- **The meters shown** (`vr_stealth_debug_meters 0`, `vr_stealth_debug_meters_range 2000`; Debug > Tests > Stealth AI >
+  Meters Over Monsters): each living monster's state (and Alert step, Hostile's seconds unseen) and its suspicion meter
+  as a coloured bar over it, drawn by the host (vr_stealth.cpp `debugFrame`, the overlay texts the profiler's panel
+  uses: not depth tested, so seen through walls). Checked on e1m1 (a grunt ahead, the light forced to 60): "ALERT walk
+  0.32" over it, a yellow bar a third full; the map's other monsters "idle 0.00".

@@ -186,6 +186,11 @@ are in the shared ai.qc (`vr_stealth_test 106` puts down every kind the kit has:
 
 - **Visibility gem** (`vr_stealth_gem 1`): a small gem on the wrist gadget, dark when unseen, bright when lit, ringed
   by the last noise's loudness (the player's `stl_light` and `stl_loud`, sent as client stats).
+- **Meters over monsters** (`vr_stealth_debug_meters 0`, Debug > Tests > Stealth AI > Meters Over Monsters; tuning):
+  over each living monster within `vr_stealth_debug_meters_range` (2000) of the host's head, through walls, its state
+  (idle; ALERT and its step: turn, walk, search, return; HOSTILE and how long it hasn't seen you; "quake's ai" for one the
+  rules leave alone) and its meter as a 20-cell bar (green idle, yellow Alert, red Hostile). Engine-drawn
+  (`stealth::debugFrame`, the server's fields read on the host): a coop client doesn't see them.
 - **Marks** (`vr_stealth_marks 0`): a "?" over a monster going Alert, "!" going Hostile (`floattext`).
 - **Lose the player** (`vr_stealth_lose 1`): a Hostile monster that hasn't seen him for 6 s goes to where it last saw
   him and searches there (Alert), then returns.

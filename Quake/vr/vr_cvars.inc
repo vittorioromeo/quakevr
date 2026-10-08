@@ -2893,6 +2893,8 @@ QVR_CVAR(vr_stealth_lose, "1", CVAR_ARCHIVE)         // a Hostile monster that l
 QVR_CVAR(vr_stealth_gem, "1", CVAR_ARCHIVE)          // a gem on the wrist gadget: how visible (its glow) and how loud (its ring) you are
 QVR_CVAR(vr_stealth_marks, "0", CVAR_ARCHIVE)        // a "?" over a monster turning Alert, "!" turning Hostile
 QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed; 2: each sighting's meter and each noise heard
+QVR_CVAR(vr_stealth_debug_meters, "0", CVAR_NONE)    // each monster's state and suspicion meter drawn over it (Debug > Tests > Stealth AI)
+QVR_CVAR(vr_stealth_debug_meters_range, "2000", CVAR_NONE) // units from your head within which they are drawn
 QVR_CVAR(vr_stealth_light_force, "-1", CVAR_NONE)    // tests: the players' light level as this (-1: measured)
 QVR_CVAR(vr_stealth_test, "0", CVAR_NONE)            // tests: vr_stealth.qc's numbered scenes (Debug > Tests > Stealth)
 QVR_CVAR(vr_stealth_test_count, "60", CVAR_NONE)     // tests: the horde scene's monsters (vr_stealth_test 103)

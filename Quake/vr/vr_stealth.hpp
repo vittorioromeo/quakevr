@@ -43,4 +43,8 @@ void PF_traceseethrough();
 // calls: the outermost pair); -1 at a server frame's start forgets an unbalanced one.
 void PF_stealthprofile();
 
+// The host, each frame (vr_main.cpp, after the texts are cleared): with vr_stealth_debug_meters, each living monster's
+// state and suspicion meter drawn over it (Debug > Tests > Stealth AI): to watch the meter rise and drain while tuning.
+void debugFrame();
+
 } // namespace qvr::stealth

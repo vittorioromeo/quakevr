@@ -160,6 +160,10 @@
         command("The Map's Light", "vr_stealth_test 26")
             .help("The light where this map's monsters and pickups stand, as a histogram (the Dark and Lit thresholds)."),
         header("Logging"),
+        toggle("Meters Over Monsters", vr_stealth_debug_meters)
+            .help("Each monster's state (idle, ALERT and its step, HOSTILE and how long it hasn't seen you) and its "
+                  "suspicion meter as a bar over it, through walls: to watch the meter rise and drain while tuning."),
+        slider("Meters Within", vr_stealth_debug_meters_range, 250.f, 6000.f, 250.f, "%.0f units"),
         slider("Log", vr_stealth_debug, 0.f, 2.f, 1.f, "%.0f")
             .help("1: each monster's state changes (Alert, Hostile, Idle again); 2: also each meter step and noise heard."),
         slider("Force the Light on You", vr_stealth_light_force, -1.f, 160.f, 1.f, "%.0f")
