@@ -5738,10 +5738,13 @@ void setupPumps()
     {
         int first, most, each; // its frames' first, the most it shows, the rounds one shows
     };
-    constexpr Kind kinds[] = {{1, 5, 1}, {6, 3, 24}, {9, 2, 36}, {11, 3, 36}};
-    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND] & 7; // (8: the lava nails' or plasma's: its skin 1)
+    // (Shells, nailgun and super nailgun magazines, cells; the launchers' rounds, one a round: rockets, grenades,
+    // proximity grenades. make_ammo_pouch.py's KINDS.)
+    constexpr Kind kinds[] = {{1, 5, 1}, {6, 3, 24}, {9, 2, 36}, {11, 3, 36}, {14, 3, 1}, {17, 4, 1}, {21, 4, 1}};
+    // (8: the lava nails' or plasma's, the multi-rockets' or multi-grenades': its skin 1)
+    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND] & 7;
     const int left = cl.stats[protocol::STAT_QVR_POUCHCOUNT];
-    if(kind < 1 || kind > 4 || left <= 0)
+    if(kind < 1 || kind > 7 || left <= 0)
     {
         return 0;
     }
@@ -8497,8 +8500,8 @@ void dumpView_f()
     int i = 0;
     forEachEntity([&](ViewEntity& ve) {
         const entity_t& e = ve.ent;
-        Con_Printf("%2d %-24s vis %d mir %d frame %d org (%.3f %.3f %.3f) ang (%.0f %.0f %.0f)\n", i++,
-            e.model ? e.model->name : "-", ve.visible, ve.mirrored, e.frame, e.origin[0], e.origin[1],
+        Con_Printf("%2d %-24s vis %d mir %d frame %d skin %d org (%.3f %.3f %.3f) ang (%.0f %.0f %.0f)\n", i++,
+            e.model ? e.model->name : "-", ve.visible, ve.mirrored, e.frame, e.skinnum, e.origin[0], e.origin[1],
             e.origin[2], e.angles[0], e.angles[1], e.angles[2]);
     });
 }

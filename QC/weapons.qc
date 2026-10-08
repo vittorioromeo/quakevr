@@ -2817,7 +2817,7 @@ void() ProximityExplode =
 };
 
 //MED 10/31/96
-float NumProximityGrenades;
+// (float NumProximityGrenades: vr_grenade.qc, before this: a pouch's proximity grenade let go of armed is one too)
 /*
 ================
 ProximityGrenadeExplode

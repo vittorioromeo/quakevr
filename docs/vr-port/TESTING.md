@@ -194,6 +194,15 @@ prints it.
     holster. Hold that hand's **B/Y** as you grip there: the mission pack's **multi-grenade** (Dissolution of
     Eternity's, from your multi-rockets; a grenade if you have none), muted until armed, held, armed and thrown as the
     grenade is; on its fuse it bursts into five mini-grenades.
+    **One grenade from either pouch** (ROUND21.md, same title): the back pouch's grenade is now the grenade
+    launcher's round (a 40 mm grenade: brass case, olive body, a yellow stripe that glows red once armed; the
+    multi-grenade red, its stripe amber). With the grenade launcher in the other hand (Immersive reloading), turn it
+    butt first to the muzzle: it loads. With the proximity launcher in the other hand the back pouch gives a
+    proximity grenade (B/Y with no multi-rockets too, if you have that launcher): load it, or pull its pin (its lenses
+    light) and let go of it: it is a mine (sticks where it lands, watches after 2 s). The ammo pouch's grenades and
+    proximity grenades arm by the trigger the same way; armed, neither loads. Either pouch's goes back into either
+    pouch unarmed. The ammo pouch shows the launcher's rounds standing in it, as many as you have (up to 3 rockets,
+    4 grenades, 4 proximity grenades; multi-rounds in their colours).
     holster.
   - **Shooting grenades** (ROUND21.md, same title): shoot a grenade and it goes off where it is: an ogre's while it
     flies at you, your own (launcher or hand grenade) in the air or lying on the ground, or a hand grenade's dud you

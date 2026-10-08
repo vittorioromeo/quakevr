@@ -34,6 +34,12 @@
 //   gives the mission pack's multi-grenade instead while the player has multi-rockets (Dissolution of Eternity's: its
 //   ammo, progs/mervup.mdl, MultiGrenadeExplode's cluster on its fuse, MultiGrenadeTouch's rule on a hit), else the
 //   grenade: held, armed, thrown and caught as the grenade is (.vr_hgren_multi; muted until armed as well).
+// - One grenade from either pouch (ROUND21.md, "One grenade from either pouch"): the back pouch's grenade and the ammo
+//   pouch's launcher round are the same thing (VR_HandGrenade_Make): the launcher's round's model (make_rounds.py:
+//   progs/vr_round_grenade.mdl, skin 1 the multi-grenade; progs/vr_round_prox.mdl), armed by its pin as above, or, while
+//   unarmed, a launcher's round (classname vr_ammo_front, vr_reload.qc) that goes butt first into the grenade launcher
+//   (a proximity grenade into the proximity launcher). Armed, it is a live grenade (its Quake classname) and no longer
+//   loads. A proximity grenade armed has no fuse: let go of, it is the proximity launcher's mine (VR_HandGrenade_Mine).
 // - Its tick (every frame: VR_Grenade_Think) keeps its fuse (not .nextthink: a force grab's flight takes the think
 //   over, and puts it back with a nextthink of its own), and plays its bounces (a prop landing on the world touches
 //   nothing: a jump in its velocity is a bounce).
@@ -63,6 +69,13 @@
 .float vr_hgren;         // a hand grenade from the pouch (VR_HandGrenade_Take): its fuse runs only once it is armed,
 .float vr_hgren_armed;   // its pin pulled (or let go of, vr_handgrenade_arm 1)
 .float vr_hgren_multi;   // a multi-grenade (B/Y held at the pouch): its ammo is the multi-rockets, not the rockets
+.float vr_hgren_prox;    // a proximity grenade (the proximity launcher's round): armed and let go of, a mine
+void(entity g) VR_HandGrenade_GoLive;
+void(entity g, entity p) VR_HandGrenade_Mine;
+void() ProximityGrenadeTouch;
+void() ProximityBomb;
+void() ProximityGrenadeExplode;
+float NumProximityGrenades; // (Hipnotic's mines out: weapons.qc)
 .float vr_pouch_at;      // (a player) the hands at the grenade pouch last frame (1 off hand, 2 main hand),
 .float vr_pouch_tried;   // and the hands whose grip has tried the pouch (until they let go: one try a press)
 
@@ -169,7 +182,7 @@ void(entity g, entity xBy, float xDelay, string xHow) VR_GrenShot_SetOff =
         if(g.vr_hgren && !g.vr_hgren_armed)
         {
             g.vr_hgren_armed = TRUE; // (a dud: no pin, no fuse; it goes off all the same)
-            g.skin = 0;
+            VR_HandGrenade_GoLive(g);
         }
         g.vr_gren_fuse = time + xDelay; // (its tick: VR_Grenade_Think)
         return;
@@ -794,6 +807,10 @@ void(entity xBox, float xHand) VR_Grenade_Released =
     {
         VR_Grenade_Return(xBox, "thrown back"); // (thrown; dropped, it keeps its thrower's blast)
     }
+    if(xBox.vr_hgren_prox && xBox.vr_hgren_armed)
+    {
+        VR_HandGrenade_Mine(xBox, self);
+    }
 };
 
 // The lit grenade's cues: sparks, and ticks faster as it goes off (felt in the hand that holds it).
@@ -842,7 +859,7 @@ void() VR_Grenade_Think =
     float wasHeld = self.vr_gren_held;
     self.vr_gren_held = held;
     VR_GrenShot_Update(self); // (not in a hand or a palm)
-    if(time >= self.vr_gren_fuse && VR_HandGrenade_Armed(self))
+    if(time >= self.vr_gren_fuse && VR_HandGrenade_Armed(self) && (self.vr_gren_fuse > 0 || !self.vr_hgren_prox))
     {
         VR_Grenade_Explode();
         return;
@@ -866,8 +883,9 @@ void() VR_Grenade_Think =
     {
         vector dv = self.velocity - self.vr_gren_lastvel;
         dv_z = dv_z + VR_Deflect_Gravity(self) * frametime;
-        if(vlen(dv) > VR_GREN_BOUNCE && dv * self.vr_gren_lastvel < 0)
+        if(vlen(dv) > VR_GREN_BOUNCE && dv * self.vr_gren_lastvel < 0 && !self.vr_ammo_front)
         {
+            // (A pouch grenade, a launcher's round: the engine's metal knock instead, vr_physsound.cpp.)
             VR_Grenade_BounceSound(vlen(dv));
         }
     }
@@ -878,8 +896,13 @@ void() VR_Grenade_Think =
 // ----------------------------------------------------------------------------
 // Hand grenades from the back pouch (vr_handgrenade; ROUND21.md, "Hand grenades from the back pouch")
 
-float VR_HGREN_SKIN_UNARMED = 1;  // progs/grenade.mdl's (and progs/mervup.mdl's) skin with the pin in: muted, its band
-                                  // unlit (make_grenade_skins.py); the engine gives it no smoke trail (VR_GrenadeTrail)
+// The pouches' grenades are the launchers' rounds (make_rounds.py), which immersive reloading loads (vr_reload.qc):
+string VR_RELOAD_FRONTCLASS = "vr_ammo_front";           // a launcher's round (and an unarmed pouch grenade)
+string VR_RELOAD_ROCKET = "progs/vr_round_rocket.mdl";   // (skin 1 the multi-rocket)
+string VR_RELOAD_GRENADE = "progs/vr_round_grenade.mdl"; // (skin 1 the multi-grenade; 2 and 3 the two armed: their band lit)
+string VR_RELOAD_PROX = "progs/vr_round_prox.mdl";       // (skin 1 armed: its lens lit)
+float VR_HGREN_SKIN_ARMED = 2;    // added to vr_round_grenade.mdl's skin once armed (1 on vr_round_prox.mdl); unarmed, the
+                                  // engine gives it no smoke trail (VR_GrenadeTrail)
 
 // The ammo the hand grenade `g` came out of: its multi-rockets (a multi-grenade) or its rockets, of the player `p`.
 float(entity p, entity g) VR_HandGrenade_Ammo =
@@ -956,95 +979,190 @@ void(entity p) VR_HandGrenade_AmmoChanged =
     self = oldSelf;
 };
 
+// The look of the pouch grenade `g`: the launcher's round's skin, its band (a proximity grenade's lens) lit once armed.
+void(entity g) VR_HandGrenade_Look =
+{
+    if(g.vr_hgren_prox)
+    {
+        g.skin = g.vr_hgren_armed ? 1 : 0;
+        return;
+    }
+    g.skin = (g.vr_hgren_multi ? 1 : 0) + (g.vr_hgren_armed ? VR_HGREN_SKIN_ARMED : 0);
+};
+
+// The pouch grenade `g` armed (its pin pulled, or set off as a dud): a live grenade, no longer a launcher's round (its
+// Quake classname: what its blast is reported as; vr_reload.qc no longer loads it), lit.
+void(entity g) VR_HandGrenade_GoLive =
+{
+    g.classname = g.vr_hgren_prox ? "proximity_grenade" : (g.vr_hgren_multi ? "MultiGrenade" : "grenade");
+    g.vr_ammo_pass = 0; // (no longer passing through a gun to its muzzle: VR_Reload_LooseFrame)
+    VR_HandGrenade_Look(g);
+};
+
 // Arms the hand grenade `g` (`xHand` the hand holding or letting go of it, `xHow` for the log): its fuse
 // (vr_handgrenade_fuse) runs from now, and it is lit as a caught grenade is (the lever's clink and the fizz, sparks, the
-// ticks faster and faster: VR_Grenade_Cue). The trigger's pin: a ring's ping first, and a burst of sparks.
+// ticks faster and faster: VR_Grenade_Cue). The trigger's pin: a ring's ping first, and a burst of sparks. A proximity
+// grenade has no fuse: its lens lit, it is a mine once let go of (VR_HandGrenade_Mine).
 void(entity g, float xHand, string xHow) VR_HandGrenade_Arm =
 {
     float fuse = min(5, max(1, cvar_hget(cvarh_vr_handgrenade_fuse)));
     g.vr_hgren_armed = TRUE;
-    g.skin = 0; // the live grenade's look: its red band, and its smoke trail
-    g.vr_gren_fuse = time + fuse;
-    g.vr_gren_set = TRUE; // (the pin set it: a catch doesn't, unless Fuse Resets Every Catch)
-    g.vr_gren_lit = TRUE;
-    g.vr_gren_ticknext = time + 0.15;
-    g.vr_gren_sparknext = time + 0.06;
+    VR_HandGrenade_GoLive(g); // the live grenade's look: its lit band, and its smoke trail
     if(cvar_hget(cvarh_vr_handgrenade_arm) != 1)
     {
         sound(g, CHAN_AUTO, "vr/grenade_pin.wav", 1, ATTN_NORM);
     }
-    sound(g, CHAN_BODY, "vr/grenade_fuse.wav", 1, ATTN_NORM);
     particle2(g.origin + '0 0 2', '0 0 90', QVR_PARTICLE_PRESET_SPARKS, 6);
     if(g.carry_player != world)
     {
         VR_HandGrenade_Haptic(g.carry_player, xHand, 0.08, 180, 0.7);
     }
+    if(g.vr_hgren_prox)
+    {
+        g.vr_gren_fuse = 0; // (no fuse: VR_Grenade_Think)
+        dprint(sprintf("grenade: proximity grenade armed (%s): a mine once let go of\n", xHow));
+        return;
+    }
+    g.vr_gren_fuse = time + fuse;
+    g.vr_gren_set = TRUE; // (the pin set it: a catch doesn't, unless Fuse Resets Every Catch)
+    g.vr_gren_lit = TRUE;
+    g.vr_gren_ticknext = time + 0.15;
+    g.vr_gren_sparknext = time + 0.06;
+    sound(g, CHAN_BODY, "vr/grenade_fuse.wav", 1, ATTN_NORM);
     dprint(sprintf("grenade: hand grenade armed (%s): goes off in %.2f s\n", xHow, fuse));
 };
 
-// Takes a grenade from the pouch into `xHand` of self (a player; the hand empty, at the pouch, gripping): the
-// launcher's grenade, unarmed, held in the hand; a rocket leaves the ammo with it. With the hand's B/Y held and a
-// multi-rocket or more: the multi-grenade launcher's, a multi-rocket leaving the ammo (no multi-rockets: the grenade).
-// Nothing to take: a dull knock in the hand.
+// A pouch grenade (either pouch's: VR_HandGrenade_Take, vr_reload.qc VR_Reload_Take, a test's loose one) for the
+// launcher `xFront` (WID_GRENADE_LAUNCHER: a grenade, or with `xAid` AID_MULTI_ROCKETS the multi-grenade;
+// WID_PROXIMITY_GUN: a proximity grenade), `p` its owner (world: none), at `xOrg` turned `xAngles`, loose (a hand takes it
+// after). Unarmed: a launcher's round (classname VR_RELOAD_FRONTCLASS, .vr_ammo_front, .vr_ammo_aid: it goes butt first
+// into its launcher, or back into either pouch), and a hand grenade (.vr_hgren: armed by its pin, then live). The
+// launcher's grenade's blast (GrenadeExplode, GrenadeTouch: 120 over 160, its owner's, with the Quad; the multi-grenade
+// MultiGrenadeExplode's cluster, MultiGrenadeTouch). Shots, strong blows and blasts set it off (VR_GrenShot), armed or not.
+// Its ammo is taken by the caller.
+entity(entity p, float xFront, float xAid, vector xOrg, vector xAngles) VR_HandGrenade_Make =
+{
+    float prox = xFront == WID_PROXIMITY_GUN;
+    float multi = !prox && xAid == AID_MULTI_ROCKETS;
+    entity g = spawn();
+    g.classname = VR_RELOAD_FRONTCLASS;
+    g.owner = p;
+    g.movetype = MOVETYPE_BOUNCE;
+    g.solid = SOLID_BBOX;
+    setmodel(g, prox ? VR_RELOAD_PROX : VR_RELOAD_GRENADE);
+    setsize(g, '0 0 0', '0 0 0');
+    setorigin(g, xOrg);
+    g.angles = xAngles;
+    g.vr_hgren_multi = multi;
+    g.vr_hgren_prox = prox;
+    if(multi)
+    {
+        g.touch = MultiGrenadeTouch; // (rogue's: a launcher's grenade on what it hits, its cluster on its fuse)
+        VR_Grenade_Setup(g, MultiGrenadeExplode, 0);
+    }
+    else
+    {
+        g.touch = prox ? SUB_Null : GrenadeTouch; // (a proximity grenade: a mine once armed and let go of)
+        VR_Grenade_Setup(g, GrenadeExplode, 0);
+    }
+    g.flags = g.flags | FL_EASYHANDTOUCH; // (a small round lying about: as the shells)
+    g.vr_hgren = TRUE;
+    g.vr_gren_fuse = 0; // (the pin: VR_HandGrenade_Arm)
+    g.vr_ammo_front = prox ? WID_PROXIMITY_GUN : WID_GRENADE_LAUNCHER;
+    g.vr_ammo_aid = multi ? AID_MULTI_ROCKETS : AID_ROCKETS;
+    g.vr_ammo_count = 1;
+    g.vr_ammo_born = time;
+    VR_HandGrenade_Look(g); // muted, no smoke trail, until it is armed
+    VR_GrenShot_Make(g);
+    return g;
+};
+
+// The armed proximity grenade `g`, let go of by `p`: the proximity launcher's mine from here (W_FireProximityGrenade's:
+// it sticks where it lands, watches from 2 s on, goes off on what comes within 140 units, shots set it off once it lies,
+// 15 to 25 s at most), drawn as it was. No longer a rigid body, nor taken again.
+void(entity g, entity p) VR_HandGrenade_Mine =
+{
+    VR_Grenade_Spent(g);
+    g.vr_grenade = FALSE;
+    g.flags = g.flags - (g.flags & FL_EASYHANDTOUCH);
+    g.carry_use = SUB_Null;
+    g.classname = "proximity_grenade";
+    g.movetype = MOVETYPE_TOSS;
+    g.solid = SOLID_BBOX;
+    setsize(g, '-1 -1 -1', '1 1 1');
+    g.owner = p;
+    g.lastvictim = p;
+    g.takedamage = DAMAGE_NO;
+    g.health = 5;
+    g.state = 0;
+    g.avelocity = '100 600 100';
+    g.touch = ProximityGrenadeTouch;
+    g.think = ProximityBomb;
+    g.nextthink = time + 2;
+    g.delay = time + 15 + 10 * random();
+    g.th_die = ProximityGrenadeExplode;
+    NumProximityGrenades = NumProximityGrenades + 1;
+    dprint(sprintf("grenade: the proximity grenade let go of armed at %v (%.0f u/s): a mine\n", g.origin, vlen(g.velocity)));
+};
+
+// Takes a grenade from the pouch into `xHand` of self (a player; the hand empty, at the pouch, gripping): unarmed, held
+// in the hand; its ammo leaves the reserve with it (VR_HandGrenade_Make). Which: the round of the grenade or proximity
+// launcher in the other hand (by its ammo mode: the multi-grenade), else a grenade; with the hand's B/Y held, the
+// multi-grenade (a multi-rocket), or without multi-rockets a proximity grenade if the player has the proximity
+// launcher. No multi-rockets for a multi-grenade: a grenade. Nothing to take: a dull knock in the hand.
 void(float xHand) VR_HandGrenade_Take =
 {
+    float front = WID_GRENADE_LAUNCHER;
+    float aid = AID_ROCKETS;
+    float other = VRGetOtherHand(xHand);
+    float ow = VRGetEntWeapon(self, other);
     float wantsMulti = VR_HandGrenade_WantsMulti(self, xHand);
-    float multi = wantsMulti && self.ammo_multi_rockets >= 1;
-    if(!multi && self.ammo_rockets < 1)
+    if(wantsMulti)
+    {
+        if(self.ammo_multi_rockets >= 1)
+        {
+            aid = AID_MULTI_ROCKETS;
+        }
+        else if(VR_WeaponUtil_EntHasWeapon(self, WID_PROXIMITY_GUN))
+        {
+            front = WID_PROXIMITY_GUN;
+        }
+    }
+    else if(ow == WID_PROXIMITY_GUN)
+    {
+        front = WID_PROXIMITY_GUN;
+    }
+    else if(ow == WID_GRENADE_LAUNCHER && WeaponIdToAmmoId(ow, VRGetEntWeaponFlags(self, other)) == AID_MULTI_ROCKETS &&
+            self.ammo_multi_rockets >= 1)
+    {
+        aid = AID_MULTI_ROCKETS;
+    }
+    if(aid == AID_ROCKETS && self.ammo_rockets < 1)
     {
         VR_HandGrenade_Haptic(self, xHand, 0.12, 30, 0.8);
         dprint(wantsMulti ? "grenade: the pouch is empty (no multi-rockets, no rockets)\n" :
                             "grenade: the pouch is empty (no rockets)\n");
         return;
     }
-    if(wantsMulti && !multi)
+    if(wantsMulti && aid != AID_MULTI_ROCKETS && front != WID_PROXIMITY_GUN)
     {
         dprint("grenade: no multi-rockets: a grenade instead\n");
     }
     entity p = self;
-    entity g = spawn();
-    g.classname = multi ? "MultiGrenade" : "grenade";
-    g.owner = p;
-    g.movetype = MOVETYPE_BOUNCE;
-    g.solid = SOLID_BBOX;
-    setmodel(g, multi ? "progs/mervup.mdl" : "progs/grenade.mdl");
-    setsize(g, '0 0 0', '0 0 0');
-    setorigin(g, VRGetEntHandPos(p, xHand));
-    g.angles = VRGetEntHandRot(p, xHand);
-    if(multi)
-    {
-        g.touch = MultiGrenadeTouch; // (rogue's: a launcher's grenade on what it hits, its cluster on its fuse)
-        VR_Grenade_Setup(g, MultiGrenadeExplode, 0);
-        g.vr_hgren_multi = TRUE;
-    }
-    else
-    {
-        g.touch = GrenadeTouch;
-        VR_Grenade_Setup(g, GrenadeExplode, 0);
-    }
-    g.vr_hgren = TRUE;
-    g.vr_gren_fuse = 0; // (the pin: VR_HandGrenade_Arm)
-    g.skin = VR_HGREN_SKIN_UNARMED; // muted, no smoke trail, until it is armed
-
-    if(multi)
-    {
-        p.ammo_multi_rockets = p.ammo_multi_rockets - 1;
-    }
-    else
-    {
-        p.ammo_rockets = p.ammo_rockets - 1;
-    }
+    entity g = VR_HandGrenade_Make(p, front, aid, VRGetEntHandPos(p, xHand), VRGetEntHandRot(p, xHand));
+    VR_AmmoUtil_DelAmmoCountByAmmoId(p, aid, 1);
     VR_HandGrenade_AmmoChanged(p);
     vr_carry_quiet = TRUE; // (the pouch's own sound)
     VR_Carry_Start(p, xHand, g);
     vr_carry_quiet = FALSE;
-    VR_GrenShot_Make(g); // (shots meet it once it leaves the hand: a dud lying about too)
+    VR_GrenShot_Update(g); // (in a hand: no shot meets it)
     // Its turn in the hand as it comes out (vr_grenade_pouch_hold_*), on top of its grip (vr_grip.cpp serverFromPouch).
     g.carry_offset = carrypouch(g, VRGetEntHandRot(p, xHand), g.carry_offset);
     sound(p, VRGetHandChannel(xHand), "vr/grenade_pouch.wav", 0.9, ATTN_NORM);
     VR_HandGrenade_Haptic(p, xHand, 0.1, 90, 0.8);
-    dprint(sprintf("grenade: hand %s taken from the pouch by hand %g, %g %s left\n", multi ? "multi-grenade" : "grenade",
-        xHand, VR_HandGrenade_Ammo(p, g), multi ? "multi-rockets" : "rockets"));
+    dprint(sprintf("grenade: hand %s taken from the pouch by hand %g, %g %s left\n", g.vr_hgren_prox ? "proximity grenade" :
+        (g.vr_hgren_multi ? "multi-grenade" : "grenade"), xHand, VR_HandGrenade_Ammo(p, g),
+        g.vr_hgren_multi ? "multi-rockets" : "rockets"));
 };
 
 // `xHand` of self lets go of the hand grenade `g` (VR_Carry_HandFrame): unarmed at the pouch, it goes back in (the

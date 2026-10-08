@@ -158,11 +158,14 @@ Headless (mock hands, `vr_fixed_frames 1`), per phase:
    (vrfiringrange_2026-10-07_22-18-57): front loaded at the muzzle, ROUND21.md "Reloading: the launchers loaded at the
    muzzle"): the front pouch gives the launcher's grenade (its other ammo mode's multi-grenade) or a proximity grenade,
    put butt first into the muzzle (a proximity grenade any way round), held or loose; the back pouch stays. Not armed:
-   a round, not a hand grenade (lying about, a shot sets it off).
+   a round, not a hand grenade (lying about, a shot sets it off). Since (ROUND21.md, "One grenade from either pouch"):
+   the two pouches' grenades are one thing, armed by the pin or loaded while unarmed, either pouch's (a proximity
+   grenade armed and let go of is a mine).
    Later (noted, not done: the magazine code is magfix's): a magazine seated at its well drawn sliding the last bit home
    (a short seat slide, as the shells' slide into the guns: vr_collectfx.cpp's "into the gun" variant, its path the
    well's axis).
 4. **Rockets** (done 2026-10-08, at the muzzle instead of the back end, as the author asked): a rocket prop (the
    multi-rocket in the other ammo mode) loaded butt first at the muzzle, one at a time up to the magazine (4); thrown
    rockets don't light, but a shot (hitscan, a nail, a blast) sets them off, lying about (the launcher grenade's blast).
-   Not yet: the pouch's own frames showing rockets and grenades (it shows none for them; its counter counts them).
+   The pouch's frames show the rounds since (ROUND21.md, "One grenade from either pouch"): up to 3 rockets, 4 grenades,
+   4 proximity grenades, as many as the reserve has.

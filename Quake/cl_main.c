@@ -728,7 +728,7 @@ void CL_RelinkEntities (void)
 			dl->die = cl.time + 0.01;
 			VR_TuneDlight (QVR_DLIGHT_ROCKET, i, dl); // QVR
 		}
-		else if (ent->model->flags & EF_GRENADE)
+		else if ((ent->model->flags & EF_GRENADE) || VR_RoundTrail (i)) // QVR: and an armed pouch grenade
 		{
 			if (VR_GrenadeTrail (i)) // QVR: not a hand grenade with its pin in
 				CL_RocketTrail (ent, 1);

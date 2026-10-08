@@ -48,10 +48,8 @@
 // barrel). Loose (thrown, dropped, lying on a table and the launcher brought to it) as the shells by contact. Lying
 // about, a shot or a blast sets it off (VR_GrenShot: the launcher's grenade's blast); dropped or thrown it doesn't.
 
-.float vr_ammo_aid;      // a round: the ammo it is (AID_*)
-.float vr_ammo_count;    // and how many (a taped pair: 2)
+// (.vr_ammo_aid, .vr_ammo_count, .vr_ammo_front, .vr_ammo_born: vr_fields.qc)
 .float vr_ammo_wid;      // a magazine: the gun it fits (WID_*; 0 a shell)
-.float vr_ammo_front;    // a launcher's round: the launcher it fits (WID_GRENADE_LAUNCHER, _PROXIMITY_GUN, _ROCKET_LAUNCHER)
 .float vr_ammo_fresh;    // a magazine just pulled out of its gun (or dropped, knocked out; the super shotgun's live shells
                          // thrown out): it goes in again only once it has left the well
 .float vr_ammo_pass;     // a loose round passing through the guns of a player to their load points (VR_Reload_LooseFrame;
@@ -68,13 +66,13 @@
 // it is for (WID_*; 0 shells): the last gun held whose ammo the pouch has (any shotgun: shells; a nailgun, a super nailgun,
 // a thunderbolt: its magazine), kept while the hands hold nothing of the kind (empty, a melee weapon). And for the
 // clients (STAT_QVR_POUCHKIND, STAT_QVR_POUCHCOUNT): what it shows (1 shells, 2 nailgun magazines, 3 super nailgun
-// magazines, 4 cells; 0 none) and how many of that ammo are left.
+// magazines, 4 cells, 5 rockets, 6 grenades, 7 proximity grenades; 0 none; 8 more: skin 1, the lava nails, plasma, the
+// multi-rockets) and how many of that ammo are left.
 .float vr_pouch_aid;
 .float vr_pouch_wid;
 .float vr_pouch_front;   // (a launcher's round: the launcher; 0 none)
 .float vr_pouch_kind;
 .float vr_pouch_count;
-.float vr_ammo_born;     // when it was last in a hand or flying (its time lying about runs from here)
 .float vr_ammo_smoke;    // a spent thunderbolt cell (or lava nails' magazine): when it stops smoking (vr_reload_battery_smoke_time; 0 not smoking)
 .float vr_ammo_puffs;    // and the wisps it has given off, since (for the log)
 .float vr_ammo_smoke_from;
@@ -94,10 +92,7 @@ string VR_RELOAD_SHELL = "progs/vr_shell_live.mdl";
 string VR_RELOAD_PAIR = "progs/vr_shell_pair.mdl";
 string VR_RELOAD_CLASS = "vr_ammo_shell";
 string VR_RELOAD_MAGCLASS = "vr_ammo_mag";
-string VR_RELOAD_FRONTCLASS = "vr_ammo_front";
-string VR_RELOAD_ROCKET = "progs/vr_round_rocket.mdl";   // (make_rounds.py: skin 1 the multi-rocket)
-string VR_RELOAD_GRENADE = "progs/vr_round_grenade.mdl"; // (skin 1 the multi-grenade)
-string VR_RELOAD_PROX = "progs/vr_round_prox.mdl";
+// (VR_RELOAD_FRONTCLASS, VR_RELOAD_ROCKET, VR_RELOAD_GRENADE, VR_RELOAD_PROX: vr_grenade.qc, before this)
 
 void() VR_Reload_Precache =
 {
@@ -639,13 +634,20 @@ void() VR_Reload_RoundBoom =
 };
 
 // A new round of `xCount` of ammo `xAid` at `xOrg` (`xWid`: a magazine for that gun; 0 a shell; vr_reload_make_front, set
-// just before: a launcher's round for that launcher): a carried thing (taken, thrown, force grabbed; a rigid body loose).
+// just before: a launcher's round for that launcher; the grenade and proximity launchers': the pouch grenade,
+// VR_HandGrenade_Make): a carried thing (taken, thrown, force grabbed; a rigid body loose).
 float vr_reload_make_front;
 entity(float xWid, float xAid, float xCount, vector xOrg, vector xAngles) VR_Reload_MakeRound =
 {
     float front = vr_reload_make_front;
     vr_reload_make_front = 0;
     VR_Reload_MakeRoom();
+    if(front == WID_GRENADE_LAUNCHER || front == WID_PROXIMITY_GUN)
+    {
+        // The grenade launchers' rounds are the back pouch's grenades (vr_grenade.qc, "One grenade from either pouch"):
+        // armed by their pin, or loaded while unarmed.
+        return VR_HandGrenade_Make(world, front, xAid, xOrg, xAngles);
+    }
     entity r = spawn();
     r.classname = xWid ? VR_RELOAD_MAGCLASS : (front ? VR_RELOAD_FRONTCLASS : VR_RELOAD_CLASS);
     r.vr_ammo_wid = xWid;
@@ -952,13 +954,12 @@ void() VR_Reload_PlayerFrame =
     w = self.vr_pouch_front;
     if(w)
     {
-        // (5 rockets, 6 grenades, 7 proximity grenades: the clients draw the pouch without rounds in sight for them yet,
-        // its counter counting them.)
+        // (5 rockets, 6 grenades, 7 proximity grenades: the clients draw as many as are left, up to 3, 4 and 4.)
         self.vr_pouch_kind = w == WID_ROCKET_LAUNCHER ? 5 : (w == WID_GRENADE_LAUNCHER ? 6 : 7);
     }
-    if((self.vr_pouch_aid == AID_LAVA_NAILS || self.vr_pouch_aid == AID_PLASMA) && !self.vr_pouch_front)
+    if(self.vr_pouch_aid == AID_LAVA_NAILS || self.vr_pouch_aid == AID_PLASMA || self.vr_pouch_aid == AID_MULTI_ROCKETS)
     {
-        self.vr_pouch_kind = self.vr_pouch_kind + 8; // (the clients draw them glowing: the pouch's skin 1)
+        self.vr_pouch_kind = self.vr_pouch_kind + 8; // (the clients draw them glowing, or the multi-rounds: skin 1)
     }
     self.vr_pouch_count = VR_AmmoUtil_GetAmmoCountByAmmoId(self, self.vr_pouch_aid);
 };

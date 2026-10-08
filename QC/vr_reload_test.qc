@@ -57,8 +57,16 @@ void() VR_Reload_TestReport =
     }
     bprint(sprintf("reload: mode %g (immersive %g), shells %g nails %g cells %g, %g lying about\n",
         cvar_hget(cvarh_vr_reload_mode), VR_Reload_Immersive(), self.ammo_shells, self.ammo_nails, self.ammo_cells, loose));
-    bprint(sprintf("reload: rockets %g multi-rockets %g, %g rounds lying about (pouch kind %g)\n", self.ammo_rockets,
-        self.ammo_multi_rockets, VR_Reload_TestLoose(), self.vr_pouch_kind));
+    float mines = 0; // (Hipnotic's proximity mines out: a pouch's proximity grenade let go of armed is one)
+    e = find(world, classname, "proximity_grenade");
+    while(e)
+    {
+        mines++;
+        e = find(e, classname, "proximity_grenade");
+    }
+    bprint(sprintf("reload: rockets %g multi-rockets %g, %g rounds lying about (pouch kind %g count %g), %g mines, health %g\n",
+        self.ammo_rockets, self.ammo_multi_rockets, VR_Reload_TestLoose(), self.vr_pouch_kind, self.vr_pouch_count, mines,
+        self.health));
     float f = VRGetEntWeaponFlags(self, cVR_OffHand);
     // (The off hand's super shotgun on a line of its own: sprintf takes at most seven values. The report in two prints
     // on one line.)
@@ -685,8 +693,9 @@ void() VR_Reload_Test =
     {
         VR_Reload_TestLooseReport();
     }
-    else if(step == 16)
+    else if(step == 16 && VR_Reload_IsFront(VRGetEntWeapon(self, cVR_OffHand)))
     {
+        // (A launcher's round tossed the wrong way round; another gun: its spent magazine, below.)
         VR_Reload_TestLoosePlace(4);
     }
     else if(step == 17 || step == 18)

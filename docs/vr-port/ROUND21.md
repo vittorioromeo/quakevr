@@ -30537,7 +30537,7 @@ end as planned).
   `VR_GrenShot_SetOff` runs it, as a Quake grenade's think): a shot, a strong blow or a blast sets it off with the
   launcher grenade's blast (`VR_Reload_RoundBoom`: let go of, no longer a round, `GrenadeExplode`), the doing of who set it
   off; in a hand shots don't meet it; dropped or thrown it doesn't go off. Weaker blows bat it.
-- **The pouch** shows no rounds for them yet (its frames are the shells' and magazines': kinds 5 rockets, 6 grenades, 7
+- **The pouch** showed no rounds for them then (since: "One grenade from either pouch" below) (its frames are the shells' and magazines': kinds 5 rockets, 6 grenades, 7
   proximity grenades draw its empty frame; its counter counts them). Left for the pouch's own work.
 - Weapons > Reloading > **Launchers** (new page): Load at the Muzzle, Round Angle, Round Pose (Held Object Offsets), Show
   Load Points, each launcher's Muzzle X/Y/Z/Radius. Debug > Tests > Reloading: Rocket Launcher in the Off Hand, Toss a
@@ -30762,3 +30762,44 @@ The author's vrslipgates note 23-12-32 and the last section's "not done" list. H
   0..3; start's underwater gate with Opacity 0.3 and an explosion behind it (Quake's particles: Particles off); kill a
   grunt in front of FA's large gate and shoot or throw the corpse in; let a dog chase you through the flush player gate
   (it walks out of the far face, not a step out).
+
+## One grenade from either pouch; the launchers' rounds in the ammo pouch (2026-10-08)
+
+The author: the front pouch shows rockets, grenades and proximity mines as real rounds, as many as there is ammo; the
+back pouch's grenades load into the launchers, the front pouch's arm by hand, "the exact same prop/entity, maybe with a
+different default grip". Tests: `Misc/quakevr/reload/pouchgren_test.sh` (14 checks).
+
+- **One entity** (QC vr_grenade.qc `VR_HandGrenade_Make`): both pouches give the same thing, a hand grenade
+  (`.vr_hgren`: the pin, the fuse, the catch, the throw as before) that is also a launcher's round while unarmed
+  (classname `vr_ammo_front`, `.vr_ammo_front` its launcher, `.vr_ammo_aid` its ammo: vr_reload.qc loads it butt first,
+  takes it back at the ammo pouch, loose by contact, its shot/blast detonation). Armed (`VR_HandGrenade_GoLive`: the
+  pin, or a dud set off) it takes its Quake classname (`grenade`, `MultiGrenade`, `proximity_grenade`) and no longer
+  loads, nor goes back into a pouch. vr_reload.qc `VR_Reload_MakeRound` makes it for the grenade and proximity
+  launchers; rockets stay rounds only. Ammo as before: one off the rockets (the multi-rockets) as it is taken, back as
+  it is put in either pouch or at a level's end; loaded, it is the launcher's clip.
+- **Its model: the launcher's round** (make_rounds.py), not progs/grenade.mdl: Quake's grenade is 8 by 3 units, wider
+  than the launcher's bore, and has no butt; the round fits the muzzle. Decision: the back pouch's grenade looks like
+  the round now (the author's grip fit for progs/grenade.mdl, slot 4, stays for caught ogre grenades). New skins:
+  vr_round_grenade.mdl 2 and 3 the grenade and multi-grenade armed (the stripe round the body glowing red, amber; 0 and
+  1 a yellow and a dark stripe), vr_round_prox.mdl 1 armed (its lenses lit; unarmed now dull). The engine smokes an
+  armed one (vr_particles.cpp `VR_RoundTrail`, cl_main.c: the models have no trail flag, so a round lying about never
+  smokes). Its bounce is the engine's metal knock (QC's weapons/bounce.wav skipped for it). Normal maps rebaked.
+- **The two grips**: from the back pouch it comes out turned along the hand to be thrown (vr_grenade_pouch_hold_*, as
+  before); from the ammo pouch, the round's own grip (In the Palm), ready for the muzzle. Brought to the muzzle as it
+  comes out of the back pouch it lies across the barrel (the dull tap): the hand turns it butt first.
+- **Which one the back pouch gives**: the round of the grenade or proximity launcher in the other hand (by its ammo
+  mode: the multi-grenade), else a grenade; B/Y held: the multi-grenade, or with no multi-rockets a proximity grenade if
+  the player has the proximity launcher, else a grenade.
+- **A proximity grenade armed** has no fuse (its lenses lit, no ticking); let go of, it is the proximity launcher's mine
+  (`VR_HandGrenade_Mine`: W_FireProximityGrenade's think, touch and life, counted in NumProximityGrenades, now declared in
+  vr_grenade.qc), drawn as the round. Unarmed and shot it goes off with the launcher grenade's blast, as the round did.
+- **The ammo pouch's rounds** (make_ammo_pouch.py, vr_view.cpp `ammoPouchFrame`): frames 14-16 rockets (up to 3), 17-20
+  grenades (4), 21-24 proximity grenades (4), standing nose up, as many as the reserve has, spaced evenly about the
+  middle (make_rounds.py's meshes at 0.55, 0.75, 0.7); skin 1 (STAT_QVR_POUCHKIND's 8, now also for the multi-rockets)
+  the multi-rocket's and multi-grenade's colours. 25 frames, 6982 vertices (the file 0.97 MB, was 0.38).
+- Test aids: `vr_dumpview` prints each view entity's skin; the reload test report (`vr_reload_test 0`) prints the
+  pouch's count, the mines out and health.
+- Unchecked in VR: the back pouch's grenade's turn in the hand as a round (vr_grenade_pouch_hold_* were fitted to
+  grenade.mdl); the round's weight in a throw (0.5 kg, slot 55; grenade.mdl's 1.2).
+- Also: `vr_reload_test 16` was two steps (the launchers' round tossed the wrong way round shadowed the spent lava
+  magazine's, so reload_test.sh's two lava smoke checks failed): the first now only with a launcher in the off hand.

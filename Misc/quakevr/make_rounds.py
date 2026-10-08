@@ -6,9 +6,11 @@
 #                                       launcher's 8 cm tube). Skin 1: the multi-rocket (a dark body, red bands).
 #   quakevr/progs/vr_round_grenade.mdl  the grenade launcher's grenade: a brass case with a rim and a primer at its butt,
 #                                       an olive body, a rounded nose. 12 cm long, 9 cm across (the launcher's bore is
-#                                       11). Skin 1: the multi-grenade (a red body).
+#                                       11). Skin 1: the multi-grenade (a red body). Skins 2 and 3: the two armed (QC
+#                                       vr_grenade.qc VR_HandGrenade_Arm: the pouches' grenades are these): the stripe
+#                                       round the body glowing, red (the grenade's, as Quake's grenade's band) or amber.
 #   quakevr/progs/vr_round_prox.mdl     the proximity launcher's grenade: a dark steel ball with six short spikes and a
-#                                       red lens band; 8 cm across (any way round goes in).
+#                                       red lens band; 8 cm across (any way round goes in). Skin 1: armed, the lenses lit.
 #
 # Usage: python Misc/quakevr/make_rounds.py [output game folder]
 #
@@ -208,8 +210,12 @@ def build_prox():
     return b.mesh
 
 
-def paint(kind, special):
-    """The skin: `kind` rocket, grenade or prox; `special` the multi-rocket's or multi-grenade's."""
+GREN_STRIPE = (0.30, 0.42)  # the grenade's stripe round its body (of the body region's length, from the case)
+
+
+def paint(kind, special, armed=False):
+    """The skin: `kind` rocket, grenade or prox; `special` the multi-rocket's or multi-grenade's; `armed` a pouch grenade
+    armed (its stripe, or the proximity grenade's lenses, glowing: fullbright)."""
     rng = random.Random(1996 + len(kind) * 7 + special)
     px = bytearray()
     for t in range(SKIN_H):
@@ -229,6 +235,12 @@ def paint(kind, special):
                     shade = 55 if k < 0.55 else 56 if k < 0.8 else 54  # olive drab
                 if k > 0.97:
                     shade = 7  # a scuff
+                if kind == "grenade" and GREN_STRIPE[0] <= v < GREN_STRIPE[1]:
+                    # Its stripe: a yellow marking (the multi-grenade's dark), glowing once armed (red; amber).
+                    if armed:
+                        shade = (250 if k < 0.7 else 251) if not special else (235 if k < 0.7 else 236)
+                    else:
+                        shade = (193 if k < 0.6 else 194) if not special else (2 if k < 0.6 else 3)
                 px.append(shade)
             elif region == "nose":
                 if kind == "rocket":
@@ -237,7 +249,8 @@ def paint(kind, special):
                     px.append(54 if k < 0.6 else 53 if k < 0.85 else 55)
             elif region == "band":
                 if kind == "prox":
-                    px.append(250 if 0.3 < u < 0.4 or 0.8 < u < 0.9 else 73)  # its lens (fullbright) on red
+                    lens = 0.3 < u < 0.4 or 0.8 < u < 0.9
+                    px.append((250 if armed else 70) if lens else 73)  # its lenses (lit, fullbright, once armed) on red
                 elif special:
                     px.append(74 if k < 0.7 else 73)
                 else:
@@ -261,14 +274,17 @@ def paint(kind, special):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     game = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr")
-    outputs = [("rocket", build_rocket(), 2), ("grenade", build_grenade(), 2), ("prox", build_prox(), 1)]
+    # (name, mesh, its skins: (multi, armed) each)
+    outputs = [("rocket", build_rocket(), [(0, False), (1, False)]),
+               ("grenade", build_grenade(), [(0, False), (1, False), (0, True), (1, True)]),
+               ("prox", build_prox(), [(0, False), (0, True)])]
     paths = [os.path.join(game, "progs", "vr_round_%s.mdl" % name) for name, _, _ in outputs]
     # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
     guard = genguard.Guard("make_rounds.py", paths)
     for (name, mesh, skins), path in zip(outputs, paths):
         if path in guard.kept:
             continue
-        mdlgen.write_mdl(path, mesh, [paint(name, special) for special in range(skins)], "round_" + name)
+        mdlgen.write_mdl(path, mesh, [paint(name, special, armed) for special, armed in skins], "round_" + name)
         xs = [p[0][0] for p in mesh.verts]
         rs = [math.hypot(p[0][1], p[0][2]) for p in mesh.verts]
         print("vr_round_%s.mdl: %d vertices, %d triangles, %.2f units long, %.2f across -> %s" % (
