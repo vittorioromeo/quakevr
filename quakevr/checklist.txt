@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Reloading fixes: load shells/mags while walking, strafing, turning, on a lift (load point now matches the drawn gun); auto pump waits 0.15 s after the shot (Weapon Effects > Auto Pump Delay); shell into a lying shotgun slides in, its screen shows 1/8; emptied laser/burst rifle shakes + buzzes; Super Axe silent with no cells; prox mines smaller (0.47)
 Small batch: Swimming > Jump Out of Water off (+ Climbing on): climb out by grabbing the lip (MG3 map1 near 64 1000), pull on ground at sloped banks; MG3 armour shards: force-grab, then hip holster / pouch / chest gives armour, walking over them doesn't; your 10-08 settings are defaults (Super Axe grip + hotspot, grenade fit, SSG anim 1.75, teleporter surface opacity 0.5, stealth tweaks)
 Holding enemies (Combat > Holding Enemies, experimental, on): grip a grunt's arm/torso/gun with an empty hand: hand tracks it, it barely moves (two hands even less), drag and twist it, punch with the other hand; fiend weak, shambler almost nothing; let a grunt shove you in both Shove modes (Resist / Break Free); 35 cm let-go distance right?
 Menu corners: bottom-right box (version, by Vittorio Romeo, Support on Ko-fi with logo) like the top-right box, 4 px everywhere; laser/mouse highlights the link, press opens ko-fi.com/vittorioromeovee once on the desktop; logo readable in the headset?
