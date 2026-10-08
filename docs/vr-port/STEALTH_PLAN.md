@@ -53,21 +53,29 @@ Per monster, `stl_meter` 0..1, filled while FindTarget's client is visible (its 
 
 Unseen, the meter drains at `vr_stealth_meter_decay` (0.2/s). Above `vr_stealth_glimpse` (0.3) the monster goes
 **Alert** and turns to look at where it saw him; full: **Hostile**. Coop: each player's light, crouch, speed and noise
-are his own; a monster's meter follows the player FindTarget checks this frame (`stl_suspect`), and a different player
-seen fills it on his own terms.
+are his own; a monster's meter is on the most suspicious player in its sight (`stl_suspect`, `stl_rate`): FindTarget's
+sightings take the players in turn (a tenth of a second each), and another player's sighting while its suspect, seen
+within 0.25 s, fills it faster is passed over (the suspect's next sighting counts the time between); a faster one takes
+the meter over. So a lit player is spotted as fast with a dark one beside him as alone (coop test: 3.2-4.0 s either way
+round), and the dark one doesn't speed it up.
 
 ### Player light level
 `stealthlight(vector)` (engine): the world's lightmap at the point (R_LightPoint, current light styles) plus the
 dynamic lights there (muzzle flashes, rockets, explosions, held torches: every `cl_dlights` entry by Quake's falloff),
 **not** his own flashlight's lights (they light what he points at, not him). Sampled at the player's chest, at most
-every 0.1 s, cached on the player (`stl_light`). A remote coop client's level is the same server-side lightmap (dynamic
-lights are the host's view of them). Falls back to "lit" (128) with no client world (dedicated server).
+every 0.1 s, cached on the player (`stl_light`). Each client measures the light on its own player the same way
+(`stealth::lightAt`, ten times a second, his own lamp's lights left out) and sends it in its VR move (`VrMove::light`);
+the server takes it first (`clientlight(player)`), so a coop client's level is his own (his map's lightmaps, the dynamic
+lights he sees: his muzzle flashes, rockets by him), on a dedicated server too. With none (a client that sends no VR
+move: a bot) it falls back to `stealthlight` (the host's view), and with no client world to "lit" (128).
 
 ### Flashlight and torches
-`flashlightbeam(entity player)` (engine): on, the lens, the direction, range and cone of the local player's lamp (only
-the host's player has a lamp the server can see; a remote coop client's lamp counts as off: noted limit).
+`flashlightbeam(entity player)` (engine): on, the lens, the direction, range and cone of that player's lamp, as his
+own client lit it (`flashlight::beamNow`, sent in his VR move while lit: `VrMove::lampLit` and the beam; the lens moved
+along with the hands when the server moves him, `rebaseHands`). The host's and every coop client's lamp count alike.
 - A monster **in the beam** (in the cone, in range, traced clear from the lens): Alert, turns to the lens and walks
-  towards it (it knows where the light comes from). Being lit also counts the lens as bright light for the meter.
+  towards it (it knows where the light comes from). Being lit also counts the lens as bright light for the meter, for
+  the lamp's holder only (`stl_lit_by`: another player beside him is seen by his own light).
 - A monster that **sees the beam's spot** (where the beam lands, visible to it, in front, within 1000): Alert, but
   only a rough guess at the source (the lens plus up to 256 units of error): it turns and searches there.
 - A **held or thrown torch** (`vr_stealth_torch` 400 units: a torch the monster can see in front of it within that):
@@ -92,13 +100,16 @@ BLAST, VOICE (a monster's alarm, for propagation). Each source's range:
 | a prop's impact (the physics sounds' played knocks, by volume, which already scales with mass and speed) | `vr_stealth_noise_props` (1200) times its volume |
 | a melee blow landing (strength times the held thing's weight, a fist 1) / a whoosh | 250 * strength * weight / 120 |
 | a shot, by weapon (axe 0, shotgun 1100, super shotgun 1300, nailguns 800/900, grenade launcher 600 (the launch; the blast is its own), rockets 900, lightning 900, enemy guns 1000) | times `vr_stealth_noise_guns` 1 |
-| an explosion (T_RadiusDamage) | 6 * damage, at least 600 |
+| an explosion (T_RadiusDamage, every explosion: `VR_Stealth_Blast`) | 8 * damage, at least 800 (a rocket's or a grenade's 960), times `vr_stealth_noise_blasts` 1 |
 
 **Propagation** (`VR_Stealth_Hear`): for each monster within the range (findradius), not dead, not excluded, not
 Hostile: the distance, then the path: a clear line (traceline, monsters ignored): full; blocked but the point is in the
 monster's PVS (around a corner, through a doorway): times `vr_stealth_noise_wall` (0.5); not in its PVS (thick walls,
 other rooms): times `vr_stealth_noise_solid` (0.15). A solid prop (crate) in the line: times `vr_stealth_noise_absorb`
-(0.6). Times the class's hearing. Heard when the result is at least the distance.
+(0.6). A water surface between them (the noise in water and the monster's ears not, or the other way round): times
+`vr_stealth_noise_wall` too. Times the class's hearing. Heard when the result is at least the distance (each monster
+notes the last noise it heard: `stl_heard`, its kind and source, for the tests and the log). A notarget player's own
+noises (running, blows, shots) aren't heard at all (Quake's cheat: the monsters pay him no heed; his explosions are).
 
 **What a heard noise does**: the player's own noises (STEP, MELEE, GUN) from where he is: if the monster can also see
 him (visible, any facing: it turns to the noise): Hostile (running is the one way to be spotted in the dark, per the
@@ -112,6 +123,9 @@ Phases (`stl_phase`):
    `vr_stealth_turn` (0.6: slower, wary) until facing (FacingIdeal) or 2 s.
 2. **WALK**: walk animation, `movetogoal` towards a marker entity at the point (the monster's own `stl_marker`), until
    within 64 units, stuck 3 s or out of time (10 s plus a second per 10 units of the way; `vr_stealth_investigate 0`: no walking, it searches where it stands).
+   Lava or slime just ahead of its feet (a pool level with the floor, which Quake's step check lets a monster walk
+   into) ends the walk as stuck: it searches from the edge. A kind whose walk is its stand (Rogue's invisible swordsman)
+   searches where it stands.
 3. **SEARCH**: stand animation, looking about (a new random yaw within 120 degrees every 1-1.5 s) for
    `vr_stealth_search_time` (5 s).
 4. **RETURN**: walk back to its post (where it stood when it was first alerted, and its yaw); a path walker resumes its
@@ -151,8 +165,11 @@ Climbing and shimmying make no noise (no STEP while a hand holds a ledge or rung
 
 Excluded (vanilla AI): **bosses** (monster_boss, monster_boss_final, monster_oldone, monster_oldone_new, monster_shub_*,
 monster_dragon, monster_lava_man, monster_armagon, monster_super_shambler), **flyers** (FL_FLY: scrag, wrath, orb...),
-**swimmers** (FL_SWIM: rotfish, eels), charmed monsters, monsters with no th_stand/th_walk. Everything else, id1's and
-the expansions' (hipnotic, rogue, MG1, MG3, Honey, the dopa monsters), shares it: the hooks are in the shared ai.qc.
+**swimmers** (FL_SWIM: rotfish, eels), charmed monsters, monsters with no th_stand/th_walk. **Dormant** monsters too,
+while they are (no damage taken or not solid: a statue knight before its map wakes it, Rogue's Guardian (monster_morph)
+before it rises, a monster waiting to be spawned in): no noise, touch, beam or alarm wakes them; only their map does.
+Everything else, id1's and the expansions' (hipnotic, rogue, MG1, MG3, Honey, the dopa monsters), shares it: the hooks
+are in the shared ai.qc (`vr_stealth_test 106` puts down every kind the kit has: id1's, hipnotic's and rogue's).
 
 ## Senses (`vr_stealth_senses 1`)
 
@@ -179,7 +196,7 @@ the expansions' (hipnotic, rogue, MG1, MG3, Honey, the dopa monsters), shares it
 `vr_stealth_glimpse 0.3`, `vr_stealth_light_dark 20`, `vr_stealth_light_bright 80`, `vr_stealth_crouch 0.4`,
 `vr_stealth_still 0.5`, `vr_stealth_sight_range 1500`, `vr_stealth_peripheral 0.3`, `vr_stealth_contact 1`,
 `vr_stealth_noise 1`, `vr_stealth_run_speed 250`, `vr_stealth_noise_run 400`, `vr_stealth_noise_props 1200`,
-`vr_stealth_noise_guns 1`, `vr_stealth_noise_melee 1`, `vr_stealth_noise_wall 0.5`, `vr_stealth_noise_solid 0.15`,
+`vr_stealth_noise_guns 1`, `vr_stealth_noise_melee 1`, `vr_stealth_noise_blasts 1`, `vr_stealth_noise_wall 0.5`, `vr_stealth_noise_solid 0.15`,
 `vr_stealth_noise_absorb 0.6`, `vr_stealth_investigate 1`, `vr_stealth_turn 0.6`, `vr_stealth_search_time 5`,
 `vr_stealth_sensitive 1.5`, `vr_stealth_sensitive_time 30`, `vr_stealth_share_near 256`, `vr_stealth_share_view 1000`,
 `vr_stealth_graze 64`, `vr_stealth_flashlight 1`, `vr_stealth_torch 400`, `vr_stealth_corpses 600`,
@@ -188,16 +205,19 @@ the expansions' (hipnotic, rogue, MG1, MG3, Honey, the dopa monsters), shares it
 
 ## Status (2026-10-08)
 
-All phases below are in (the tests: ROUND21.md, "Stealth AI"). Not done / limits:
-- A remote coop client's flashlight is unknown to the server (counts as off); his light level is the host's lightmap
-  view (dynamic lights as the host sees them).
-- The meter is one per monster, following the player FindTarget checks this frame (coop: per player's own light,
-  crouch, speed and noise, not a meter per player).
+All phases below are in (the tests: ROUND21.md, "Stealth AI" and "Stealth AI: the gaps closed"). Not done / limits:
+- The meter is one per monster, on the most suspicious player in its sight (not a meter per player: the dark player's
+  own suspicion isn't kept while the lit one holds it).
+- A client's light and lamp are his own client's word (sent in his VR move): a modified client could send "dark".
 - Lose the player: after a fixed 6 s out of sight (STL_LOSE_TIME), no cvar for the time.
-- The shots' noise hook (W_AttackImpl) was not exercised with a real trigger pull in the headless runs (the mock's
-  +attack fired nothing on e1m1 there); the noise path itself is tested.
 - Alert monsters walk with Quake's movetogoal (no path finding): a point across a gap or up a ledge ends their walk when
   stuck (3 s without headway), then they search where they are.
+- Quake's own relay stays: an idle monster that sees another turn Hostile (FoundTarget's `sight_entity`, a tenth of a
+  second) turns Hostile at its enemy too, whatever the light on him (as `vr_stealth_share_*`, but with Quake's sight
+  ranges).
+- Cost (`vr_stealth_test 103`, vr_profile's "stealth" scope under quakec, e1m1, Release): 45 idle grunts with you in
+  sight 0.018 ms a server frame (worst 0.11); 60 grunts, one in six dead (their bodies noticed: 50 investigating), a
+  knock every 2 s: 0.062 ms (worst 0.51, the frame a knock is heard by them all); bodies off 0.042.
 
 ## Phases
 
@@ -224,3 +244,15 @@ Each test spawns a grunt near the player on e1m1 (or uses the nearest monster), 
 6 `use` on a targeted monster (monster_use): Hostile at once (vanilla).
 7 sneak hit: a 10-damage T_Damage on an Idle grunt takes 12.5 (health before/after).
 8 `vr_ai_enhanced 0`: test 1's scene gives vanilla's instant sight (Hostile) and an Alert monster is reset.
+
+Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own grunts, put down and taken away;
+`Misc/quakevr/stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|horde|all]` runs them headless,
+`Misc/quakevr/multiplayer/stealth_mp_test.sh <agent>` the coop one):
+- 100 a real shot (the script pulls the trigger, `+attack` with the weapon in the hand: `vr_weapon_grip_mode 1; impulse
+  9; impulse 150+id`): three grunts behind him at 0.8 and 1.2 of the weapon's reach in the open and 0.8 behind a wall
+  (`vr_stealth_noise_guns` scaled to the room): only the first hears it; the noise's reach is the weapon's.
+- 101 explosions of 50 and 200 damage at his feet: 800 and 1600 units (scaled), the same three.
+- 102 coop: each client's light and lamp known to the host, the meter on the lit one (either way round), the client's
+  lamp on a grunt's back: Alert at his lens.
+- 103 the horde (cost); 104/105 an investigation saved mid-walk and carried on after the load; 106 every kind; 107
+  infighting; 108 lava's edge (e1m7).

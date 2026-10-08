@@ -30812,3 +30812,56 @@ different default grip". Tests: `Misc/quakevr/reload/pouchgren_test.sh` (14 chec
   grenade.mdl); the round's weight in a throw (0.5 kg, slot 55; grenade.mdl's 1.2).
 - Also: `vr_reload_test 16` was two steps (the launchers' round tossed the wrong way round shadowed the spent lava
   magazine's, so reload_test.sh's two lava smoke checks failed): the first now only with a launcher in the off hand.
+
+## Stealth AI: the gaps closed (2026-10-08)
+
+The coordinator's follow-up to "Stealth AI" (above): real shots, coop, a review, the cost. STEALTH_PLAN.md has the rules
+as they now stand (its Status lists what remains).
+
+- **Real shots heard** (`vr_stealth_test 100`, `stealth_tests.sh gun`): the earlier runs fired nothing because no weapon
+  was in the hand; `vr_weapon_grip_mode 1; impulse 9; impulse 150+id` puts one there and `+attack` with
+  `vr_mock_button main trigger 1` fires it (as fist_alert_test.sh). Every weapon's real trigger pull (shotgun, super
+  shotgun, both nailguns, grenade and rocket launchers, lightning) is heard by a grunt at 0.8 of its reach in the open,
+  not at 1.2, not at 0.8 behind a wall (x0.5 round it); the noise's reach is the table's (1100, 1300, 800, 900, 600, 900,
+  900). The rockets and grenades are taken away at once in the test (their blasts are scene 101's).
+- **Explosions by size** (101): 50 damage heard at 800 (near yes, 1.2 no, behind a wall no), 200 at 1600 (all three).
+  New `vr_stealth_noise_blasts` (1, Combat > Stealth AI, Explosions Heard), the plan's table corrected (8 a point of
+  damage, at least 800; it said 6 and 600).
+- **Coop** (`stealth_mp_test.sh`, listen server and a client over UDP, ~90 s): each client measures the light on its own
+  player and sends it with its lamp's beam in its VR move (`VrMove::light`, `lampLit` + lens, axis, range, cone: the
+  move block grows by a byte, a float and 32 bytes while lit); QC `clientlight(player)`, `flashlightbeam` for any player.
+  The meter is on the most suspicious player in sight (the turn-taking sightings no longer average the players: the lit
+  one is spotted in 3.2-4.0 s with the dark one beside him, either way round, as alone). A lamp's glare lights only its
+  holder (`stl_lit_by`: it spotted the dark player standing by the lamp's holder). The client's lamp on a grunt's back:
+  Alert at his lens (0 units off). The scene turns the client's lamp off and on by `stuffcmd`.
+- **Bugs found and fixed:**
+  - Rogue's invisible swordsman (`monster_sword`: its walk is its stand) overflowed the QC stack on the first noise
+    (Stand started its walk, its walk is ai_stand, which started its walk...): an Alert monster's own stand/walk switch is
+    guarded (`stl_anim_guard`), and a kind that doesn't walk searches where it stands.
+  - Dormant monsters (no damage taken or not solid: Rogue's statue knights before their trigger, the Guardian before it
+    rises, monsters waiting to be spawned in) were woken by noise, touch, a beam or another's alarm (a statue's idle "?"
+    sound, `FoundTarget` on contact): they keep Quake's AI until their map wakes them.
+  - An investigating monster walked into lava or slime level with the floor (Quake's step check lets it): the walk now
+    stops at the edge (`vr_stealth_test 108` on e1m7: it walked 6.6 s up to the lava and stopped 49 units from the first
+    dry place; placed at the edge it died in it before).
+  - A notarget player's shots and blows were heard (his running wasn't): none of his own noises are now.
+  - The crate scene (`vr_stealth_test 2`) failed when run first on a map (the props' first 4 s are unheard) or when the
+    crate flew long: it waits.
+  - A marker entity whose monster was removed without dying leaked; it now goes.
+  - The Alert log's sprintf was built on every alarm with the log off.
+- **Water:** a noise across a water surface (one under, the other not) is muffled as round a wall. Monsters standing in
+  water investigate as on land; swimmers keep Quake's AI.
+- **Checked, fine:** save and load mid-investigation (`vr_stealth_test 104`, save, load, `105`: it walked on, searched and
+  came back to 21 units of its post); a changelevel mid-alert (no error; a shot on the new map heard at once);
+  infighting (`107`: the struck grunt fights the other, nothing shared, and after it died it stands Idle, not seeing him
+  in the dark); every kind the kit has (`106`: id1's, hipnotic's and rogue's walking monsters dark-idle, knock-alert,
+  lit-spotted in 3.1-5.3 s; scrags and wraths left to Quake's AI; MG1, MG3 and the dopa monsters aren't in the kit:
+  untested); demo playback (demo1-3, both game stacks: no server runs, so no stealth QC at all: 0 stealth log lines at
+  `vr_stealth_debug 2`; the client sends no move then, its light measurement returns -1).
+- **Cost** (`vr_stealth_test 103`, a new "stealth" profiler scope round the QC's entry points, `stealthprofile`):
+  0.018 ms a server frame with 45 idle grunts watching you (worst 0.11); 0.062 ms with 60, ten dead and fifty
+  investigating them (worst 0.51 ms, the frame a knock is heard by them all); under the 0.2 ms budget, so nothing was
+  optimized beyond the players' list kept per frame (the beam check no longer searches the edicts by name per monster).
+- Tests: `bash Misc/quakevr/stealth_tests.sh <agent> all` (39 PASS, ~70 s), `bash
+  Misc/quakevr/multiplayer/stealth_mp_test.sh <agent>` (7 PASS), and the earlier `vr_stealth_test 1` / `2` (14 PASS).
+  Debug > Tests > Stealth AI has every scene.

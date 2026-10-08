@@ -1935,4 +1935,10 @@ impulse 241; wait20; vr_stealth_test 1` runs 14 scenes on the grunt (`stealthtes
 of game time); `vr_stealth_test 2` a crate knocked behind it, `32` the flashlight (`vr_flashlight_clip_head right;
 vr_flashlight_toggle; vr_mock_look 12 0` first), `22` your speed, light and crouch, `26` the map's light histogram.
 `vr_stealth_debug 1|2` logs state changes (2: each meter step, noise made and heard); `vr_stealth_light_force <n>` fixes
-the light on you. Debug > Tests > Stealth AI has them.
+the light on you. Debug > Tests > Stealth AI has them. Further scenes with their own grunts (`vr_stealth_test 100`-`108`: a real shot per weapon, explosions by size,
+coop, a horde for the profiler's "stealth" scope, save/load mid-investigation, every monster kind, infighting, lava's
+edge): `bash Misc/quakevr/stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|horde|all]` (39 PASS, ~70
+s) and the coop one `bash Misc/quakevr/multiplayer/stealth_mp_test.sh <agent>` (a listen server and a client, ~90 s);
+ROUND21.md, "Stealth AI: the gaps closed". A real shot headless: `vr_weapon_grip_mode 1; impulse 9; impulse 154` (150 +
+the weapon id: into the main hand), then `+attack; vr_mock_button main trigger 1; wait3; -attack; vr_mock_button main
+trigger 0`.

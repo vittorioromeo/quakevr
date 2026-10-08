@@ -588,7 +588,8 @@ void() VR_STT2_Frame =
     }
 
     // 103: vr_stealth_test_count (60) grunts round him, Idle, most in sight of him, in a light just over Dark (their
-    // meters at work, never full); his running steps' noise four times a second; for 20 s (vr_profile's "stealth").
+    // meters at work, hardly filling); one in six killed (bodies to notice); a knock near him every 2 s (some walk to
+    // it); for 20 s (vr_profile's "stealth" scope).
     if(stt2_step == 103)
     {
         if(stt2_stage == 0)
@@ -596,9 +597,9 @@ void() VR_STT2_Frame =
             float want = cvar("vr_stealth_test_count");
             want = want > 0 ? want : 60;
             float n = 0;
-            for(float ring = 96; ring < 1400 && n < want; ring = ring + 72)
+            for(float ring = 80; ring < 1600 && n < want; ring = ring + 56)
             {
-                for(float a2 = 0; a2 < 360 && n < want; a2 = a2 + max(6, 5000 / ring))
+                for(float a2 = 0; a2 < 360 && n < want; a2 = a2 + max(5, 3500 / ring))
                 {
                     makevectors('0 1 0' * a2);
                     vector at2 = p.origin + v_forward * ring + '0 0 8';
@@ -607,7 +608,7 @@ void() VR_STT2_Frame =
                         continue;
                     }
                     traceline(p.origin, at2, TRUE, p);
-                    if(trace_fraction < 1 && random() < 0.5)
+                    if(trace_fraction < 1 && random() < 0.3)
                     {
                         continue; // (most in his sight)
                     }
@@ -628,12 +629,19 @@ void() VR_STT2_Frame =
         }
         if(stt2_stage == 1 && t > 0.6)
         {
+            // (one in six killed where it stands: bodies the others may notice)
+            float k = 0;
             for(entity h = findflags(world, flags, FL_MONSTER); h; h = findflags(h, flags, FL_MONSTER))
             {
                 if(h.stl_notice == 77)
                 {
                     VR_STT2_Calm(h, h.angles_y);
                     h.stl_notice = 78;
+                    k++;
+                    if(k % 6 == 0)
+                    {
+                        T_Damage(h, world, world, h.health + 1);
+                    }
                 }
             }
             bprint("stealthtest: horde ready\n");
@@ -644,8 +652,11 @@ void() VR_STT2_Frame =
         {
             if(time >= stt2_tick)
             {
-                stt2_tick = time + 0.25;
-                VR_Stealth_Noise(p.origin, cvar_hget(cvarh_vr_stealth_noise_run) * 0.25, p, STL_N_STEP);
+                // (a knock somewhere near him every 2 s: a few investigate, walking)
+                stt2_tick = time + 2;
+                makevectors('0 1 0' * random() * 360);
+                traceline(p.origin, p.origin + v_forward * 400, TRUE, p);
+                VR_Stealth_Noise(trace_endpos - v_forward * 16, 350, world, STL_N_PROP);
             }
             if(t < 20)
             {

@@ -366,7 +366,10 @@ void(entity m, vector at, float xKind, float xPower, float xShare) VR_Stealth_Al
     {
         m.goalentity = VR_Stealth_MarkerAt(m, at);
     }
-    VR_Stealth_Log(m, sprintf("alert (kind %g, power %.2f) at %v", xKind, xPower, at));
+    if(cvar_hget(cvarh_vr_stealth_debug))
+    {
+        VR_Stealth_Log(m, sprintf("alert (kind %g, power %.2f) at %v", xKind, xPower, at)); // (built only when logged)
+    }
     if(first && xShare)
     {
         VR_Stealth_ShareLater(m, FALSE);
