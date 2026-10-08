@@ -32518,3 +32518,13 @@ alive. Eyeshots (vrfiringrange, the grunt from 1.6 m): the body's Laplacian sd 2
 Textures, samplers and texture coordinates were already the .mdl's (the same gltexture_t).
 Tests: `ragdoll_test.sh <agent> retro` (new case: the living grunt's and his ragdoll's skin sizes, equal).
 **For VR:** with retro textures on, kill a grunt, an ogre and a knight: the corpse's skin as detailed as alive.
+## The super shotgun's blood broken open (2026-10-08)
+
+His note vrfiringrange_2026-10-08_22-03-33: the blood on the super shotgun vanished as its barrels opened ("a
+different texture"). Broken open, the gun is drawn as make_ssg_open.py's two parts, other entities with their own
+models whose skin is the gun's with 36 rows added under it for the breech plates; the wound masks are keyed by entity,
+so the parts showed none. Now the parts read the gun's mask (`view::ssgPartSource`: a hand's, a holster's, a lying
+prop's gun), its height read as the parts' skin is taller (the gun's texels where they were, the plates' rows past
+its region, clear); blood that strikes it open is painted (and washed) through the parts as drawn
+(`view::ssgPartsOf`), into the same mask. Test: reload_test.sh section 7 (shut, open, shut: the gun's own blood open
+78% of shut here; 0% before). `vr_gore_spatter_test propoff` (Debug menu, Gore) bloodies what the off hand holds.

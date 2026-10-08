@@ -5,6 +5,8 @@
 #   ssg_checks.py sights <png> ...     the sights' colour in screenshots: per shot, the pixels of the sights as recoloured
 #                                      (the player's hue, yellow by default: within 12 degrees of 60) and as painted
 #                                      (orange-red, not recoloured): "sights N/M ..."
+#   ssg_checks.py blood <png> ...      blood in screenshots: per shot, its blood-red pixels (hue within 20 degrees of red,
+#                                      saturated, not black): "blood N ..." (the super shotgun's blood shut and open)
 #   ssg_checks.py snailwell            the super nailgun's magazine well on the flat lower band of its body's left face
 #                                      (make_mags.py; the author's notes vrfiringrange_2026-10-07_23-58-30, 2026-10-08_
 #                                      10-33-00): how far it stands off the face (its collar out along the magazine), how
@@ -92,6 +94,17 @@ def main():
         print("ring barrels %d frame %d" % (b, f))
         return
     from PIL import Image
+    if sys.argv[1] == "blood":
+        counts = []
+        for path in sys.argv[2:]:
+            n = 0
+            for r, g, b in Image.open(path).convert("RGB").getdata():
+                h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+                if s > 0.5 and v > 0.12 and (h * 360 < 20 or h * 360 > 340):
+                    n += 1
+            counts.append(str(n))
+        print("blood " + " ".join(counts))
+        return
     out = []
     for path in sys.argv[2:]:
         near = red = 0

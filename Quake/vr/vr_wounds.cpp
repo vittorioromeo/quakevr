@@ -514,6 +514,49 @@ void paintModel(entity_t* e, int n, const float* splats, int side)
     }
 }
 
+// A skin's height in texels as its texture was made (0: none).
+[[nodiscard]] int skinRows(const qmodel_t* model)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return 0;
+    }
+    auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(!hdr || hdr->numskins <= 0)
+    {
+        return 0;
+    }
+    const gltexture_t* t = hdr->gltextures[0][0];
+    return t ? static_cast<int>(t->source_height) : hdr->skinheight;
+}
+
+// The open super shotgun's part `part` reads (and takes) the blood of the gun `gun` it stands for (view::ssgPartsOf):
+// its skin the gun's with rows added under it, so its mask's height read as this much more (1: the same).
+[[nodiscard]] float partRows(const entity_t* part, const entity_t* gun)
+{
+    const int a = skinRows(part ? part->model : nullptr);
+    const int b = skinRows(gun ? gun->model : nullptr);
+    return a > b && b > 0 ? static_cast<float>(a) / static_cast<float>(b) : 1.f;
+}
+
+// What `e` is drawn as this frame: itself, or the open super shotgun's parts (painted, washed through them).
+[[nodiscard]] int drawnAs(entity_t* e, entity_t* out[2])
+{
+    const int n = view::ssgPartsOf(e, out);
+    if(n > 0)
+    {
+        return n;
+    }
+    out[0] = e;
+    return 1;
+}
+
+// The bound layer's region for `e` drawn as `as` (one of its parts: its rows read further).
+void targetAs(const Mask& m, const entity_t* e, const entity_t* as)
+{
+    glViewport(0, 0, m.w, as == e ? m.h : static_cast<int>(za::lround(static_cast<float>(m.h) * partRows(as, e))));
+}
+
 void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
 {
     if(splats.empty())
@@ -524,6 +567,8 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
     int in[2], side[2];
     const int count = layersOf(layer, in, side);
     const bool other = foreign && hasOther(layer);
+    entity_t* as[2];
+    const int drawn = drawnAs(e, as);
     for(int k = 0; k < count; k++) // (your body's: its left side and middle into its layer, its right side into the last)
     {
         target(in[k], masks[static_cast<za::SizeT>(layer)]);
@@ -531,11 +576,15 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
         {
             attachBlood(GL_DRAW_FRAMEBUFFER, in[k]);
         }
-        for(za::SizeT i = 0; i < splats.size(); i += maxSplats)
+        for(int d = 0; d < drawn; d++)
         {
-            const int n = static_cast<int>(za::min<za::SizeT>(maxSplats, splats.size() - i));
-            GL_BlendEquationFunc(GL_MAX);
-            paintModel(e, n, &splats[i].v[0].x, side[k]);
+            targetAs(masks[static_cast<za::SizeT>(layer)], e, as[d]);
+            for(za::SizeT i = 0; i < splats.size(); i += maxSplats)
+            {
+                const int n = static_cast<int>(za::min<za::SizeT>(maxSplats, splats.size() - i));
+                GL_BlendEquationFunc(GL_MAX);
+                paintModel(as[d], n, &splats[i].v[0].x, side[k]);
+            }
         }
     }
     GL_BlendEquationFunc(GL_FUNC_ADD);
@@ -1494,7 +1543,13 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
         GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
         glBlendFunc(GL_ONE, GL_ONE);
         GL_BlendEquationFunc(GL_FUNC_REVERSE_SUBTRACT);
-        paintModel(e, 1, &s.v[0].x, side[k % n]);
+        entity_t* as[2];
+        const int drawn = drawnAs(e, as); // (the open super shotgun's parts: their texels apart, the stencil holds)
+        for(int d = 0; d < drawn; d++)
+        {
+            targetAs(masks[static_cast<za::SizeT>(layer)], e, as[d]);
+            paintModel(as[d], 1, &s.v[0].x, side[k % n]);
+        }
         GL_BlendEquationFunc(GL_FUNC_ADD);
         glBlendFunc(GL_ONE, GL_ZERO);
     }
@@ -3218,11 +3273,12 @@ void spatterTest_f()
     AngleVectors(r_refdef.viewangles, fwd, right, upv);
     const glm::vec3 ahead{fwd[0], fwd[1], fwd[2]};
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    entity_t* g = gearOf(1);
+    const bool offProp = ZA_STRCMP(what, "propoff") == 0; // (as prop, on what the off hand holds)
+    entity_t* g = gearOf(offProp ? 0 : 1);
     const glm::vec3 hand = g ? originOf(*g) : own[2] ? originOf(*own[2]) : eye + ahead * 16.f;
     const bool shot = ZA_STRCMP(what, "shot") == 0, gib = ZA_STRCMP(what, "gib") == 0, saw = ZA_STRCMP(what, "saw") == 0;
     const bool propblow = ZA_STRCMP(what, "propblow") == 0;
-    const bool prop = ZA_STRCMP(what, "prop") == 0 || propblow;
+    const bool prop = ZA_STRCMP(what, "prop") == 0 || propblow || offProp;
     if(ZA_STRCMP(what, "burst") == 0) // a gibbing `distance` units ahead (48), a little under your eyes: on what lies near
     {
         const float d = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 48.f;
@@ -3262,7 +3318,7 @@ void spatterTest_f()
     {
         if(!g)
         {
-            Con_Printf("vr_gore_spatter_test: the main hand holds nothing\n");
+            Con_Printf("vr_gore_spatter_test: the %s hand holds nothing\n", offProp ? "off" : "main");
             return;
         }
         glm::vec3 mid = originOf(*g);
@@ -3489,20 +3545,23 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4], float side[4])
     {
         return;
     }
-    const auto it = maskOf.find(e);
+    // The open super shotgun's parts: the gun's blood (its mask, read over their taller skin).
+    const entity_t* gun = maskOf.empty() ? nullptr : qvr::view::ssgPartSource(e);
+    const entity_t* key = gun ? gun : e;
+    const auto it = maskOf.find(key);
     if(it == maskOf.end())
     {
         return;
     }
     Mask& m = masks[static_cast<za::SizeT>(it->second)];
-    if(!sameLayout(m.model, e->model))
+    if(!sameLayout(m.model, key->model))
     {
         return;
     }
     m.lastDrawn = vr_gametime;
     out[0] = isFine(it->second) ? -static_cast<float>(layerIn(it->second) + 1) : static_cast<float>(it->second + 1);
     out[1] = static_cast<float>(m.w);
-    out[2] = static_cast<float>(m.h);
+    out[2] = gun ? static_cast<float>(za::lround(static_cast<float>(m.h) * partRows(e, gun))) : static_cast<float>(m.h);
     out[3] = static_cast<float>(za::fmod(cl.time, 1000.0));
     if(isSided(it->second))
     {

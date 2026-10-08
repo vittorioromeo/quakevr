@@ -470,6 +470,7 @@ struct SsgDrawn
 SsgDrawn ssgHands[2];
 SsgDrawn ssgHolsters[HolsterCount];
 double worldSsgPrinted = -1.0; // (setupWorldSsgs' debug print: once a second)
+const entity_t* worldSsgSource[maxWorldSsgs]{}; // the lying gun each of entities.worldSsg* stands for (its blood's key)
 double worldMagPrinted = -1.0; // (setupMagazines' debug print of a lying gun's magazine: once a second)
 double worldScreenPrinted = -1.0; // (setupWorldWeapons' debug print of a lying gun's ammo screen: once a second)
 
@@ -5688,6 +5689,7 @@ void setupWorldSsgs()
             setSsgPart(entities.worldSsgFrame[n], gun, ssgFrameModel, 0.f, 0);
             setSsgPart(entities.worldSsgBarrels[n], gun, ssgBarrelsModel, CLAMP(0.f, vr_reload_ssg_open_angle.value, 80.f),
                 CLAMP(0, net->ssgLoaded, 2));
+            worldSsgSource[n] = e;
             if(vr_reload_debug.value >= 1 && developer.value && cl.time >= worldSsgPrinted + 1.0)
             {
                 worldSsgPrinted = cl.time;
@@ -5703,6 +5705,7 @@ void setupWorldSsgs()
     for(int i = n; i < maxWorldSsgs; i++)
     {
         entities.worldSsgFrame[i].visible = entities.worldSsgBarrels[i].visible = false;
+        worldSsgSource[i] = nullptr;
     }
 }
 
@@ -7055,6 +7058,78 @@ entity_t* holsteredWeapon(int stat)
         if(static_cast<int>(bodyHolster[h]) == stat && holsterLive[h] && ve.visible && ve.ent.model && ve.ent.model->type == mod_alias)
         {
             return &ve.ent;
+        }
+    }
+    return nullptr;
+}
+
+int ssgPartsOf(const entity_t* gun, entity_t* out[2])
+{
+    if(!gun)
+    {
+        return 0;
+    }
+    const auto both = [&](ViewEntity& frame, ViewEntity& barrels) {
+        int n = 0;
+        if(frame.visible)
+        {
+            out[n++] = &frame.ent;
+        }
+        if(barrels.visible)
+        {
+            out[n++] = &barrels.ent;
+        }
+        return n;
+    };
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(gun == &entities.weapon[hand].ent)
+        {
+            return ssgHands[hand].parts ? both(entities.ssgFrame[hand], entities.ssgBarrels[hand]) : 0;
+        }
+    }
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        if(gun == &entities.holster[h].ent)
+        {
+            return ssgHolsters[h].parts ? both(entities.holsterSsgFrame[h], entities.holsterSsgBarrels[h]) : 0;
+        }
+    }
+    for(int i = 0; i < maxWorldSsgs; i++)
+    {
+        if(gun == worldSsgSource[i])
+        {
+            return both(entities.worldSsgFrame[i], entities.worldSsgBarrels[i]);
+        }
+    }
+    return 0;
+}
+
+const entity_t* ssgPartSource(const entity_t* part)
+{
+    if(!part)
+    {
+        return nullptr;
+    }
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(part == &entities.ssgFrame[hand].ent || part == &entities.ssgBarrels[hand].ent)
+        {
+            return &entities.weapon[hand].ent;
+        }
+    }
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        if(part == &entities.holsterSsgFrame[h].ent || part == &entities.holsterSsgBarrels[h].ent)
+        {
+            return &entities.holster[h].ent;
+        }
+    }
+    for(int i = 0; i < maxWorldSsgs; i++)
+    {
+        if(part == &entities.worldSsgFrame[i].ent || part == &entities.worldSsgBarrels[i].ent)
+        {
+            return worldSsgSource[i];
         }
     }
     return nullptr;

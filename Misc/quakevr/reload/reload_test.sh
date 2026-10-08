@@ -240,6 +240,15 @@ check $(echo "$s2" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/");
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_reload_ssg_break 0;$FIRE;$REP;$FLICK;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 holds=$(echo "$log" | grep "^reload: off hand")
 check $(h 1 | grep -q "weapon 5 clip 0 " && h 2 | grep -q "weapon 5 clip 2 " && ! echo "$log" | grep -q "broken open" && echo 1 || echo 0) "Break Open off: the flick reloads it as before"
+# The blood on the super shotgun stays on it broken open (the author's note vrfiringrange_2026-10-08_22-03-33: its parts
+# read the gun's mask, their taller skin's rows mapped): shot shut, open, shut again, bloody (vr_gore_gear 1) and clean
+# (0: the hand's blood alone); the gun's own blood (the difference) open at least 60% of what it is shut.
+BLOODY="vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff -1;wait10"
+for gear in 1 0; do
+    bash $KIT/run.sh $AGENT -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0;vr_gore_gear $gear};$SEE;$FIRE;$BLOODY;screenshot;$BY;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
+    [ $gear = 1 ] && b1=$($PY Misc/quakevr/reload/ssg_checks.py blood $(ls -tr $SHOTS/*.png | tail -3)) || b0=$($PY Misc/quakevr/reload/ssg_checks.py blood $(ls -tr $SHOTS/*.png | tail -3))
+done
+check $(echo "$b1 $b0" | awk '{ shut = $2 - $6; open = $3 - $7; again = $4 - $8; print (shut > 300 && open > 0.6 * shut && again > 0.6 * shut) ? 1 : 0 }') "the super shotgun's blood stays on it open and shut again (bloody $b1, clean $b0: shut, open, shut)"
 
 # 8. The author's magazine notes (ROUND21.md, "Immersive reloading: magazines, both grips, the pull"): the gun in the MAIN
 #    hand, grip mode Hold (vr_weapon_grip_mode 0, the default: its grip held all the while), the off hand on it.
