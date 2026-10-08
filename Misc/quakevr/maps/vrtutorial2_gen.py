@@ -153,7 +153,7 @@ def dbox(out, lo, hi, tex, fit=(), anchor=None):
 # The palette (id's base textures: a well-kept military base)
 TX = {
     "floor": "sfloor4_2", "floor2": "metflor2_1", "floor3": "sfloor4_6", "ceiling": "sfloor4_1",
-    "skirting": "tech04_1", "rail": "tech04_1", "strip_v": "tech04_3", "upper": "metal4_4",
+    "skirting": "tech04_1", "rail": "tech04_1", "strip_v": "tech04_3", "upper": "metal1_2",
     "panel": "tech14_1", "panel2": "tech06_1", "panel3": "tech08_2", "panel4": "tech09_3", "panel5": "tech07_2",
     "jamb": "tech04_3", "lintel": "tech04_1", "threshold": "metal1_3",
     "pool": "sfloor4_5", "water": "*04water1", "sky": "sky1",
@@ -740,6 +740,43 @@ def room_trims():
                        ((x0, y0 + 16, zc0), (x0 + d, y1 - 16, zc1)), ((x1 - d, y0 + 16, zc0), (x1, y1 - 16, zc1))):
             if clear(lo, hi, a):
                 dbox(out, lo, hi, crown)
+        # services under an indoor room's ceiling: a pipe along each long wall on brackets, wall vents at the ends
+        if not a.style.sky and z1 - z0 >= 192:
+            long_x = (x1 - x0) >= (y1 - y0)
+            pz = z1 - 30
+            for side in (0, 1):
+                if long_x:
+                    wy = y0 if side == 0 else y1
+                    py = wy + (10 if side == 0 else -10)
+                    plo, phi = (x0 + 24, min(wy, py) - 6, pz - 6), (x1 - 24, max(wy, py) + 6, pz + 6)
+                    if clear(plo, phi, a):
+                        out.append(cylinder((x0 + 24, py, pz), (x1 - 24, py, pz), 4, 8, TX["pipe"]))
+                        for bx in range(x0 + 64, x1 - 32, 128):
+                            dbox(out, (bx - 2, min(wy, py), pz - 2), (bx + 2, max(wy, py), pz + 2), TX["rail_post"])
+                else:
+                    wx = x0 if side == 0 else x1
+                    px = wx + (10 if side == 0 else -10)
+                    plo, phi = (min(wx, px) - 6, y0 + 24, pz - 6), (max(wx, px) + 6, y1 - 24, pz + 6)
+                    if clear(plo, phi, a):
+                        out.append(cylinder((px, y0 + 24, pz), (px, y1 - 24, pz), 4, 8, TX["pipe"]))
+                        for by in range(y0 + 64, y1 - 32, 128):
+                            dbox(out, (min(wx, px), by - 2, pz - 2), (max(wx, px), by + 2, pz + 2), TX["rail_post"])
+            # a vent in the middle of each short wall, under the pipes
+            vz0, vz1 = z1 - 72, z1 - 48
+            for side in (0, 1):
+                if long_x:
+                    vx = x0 if side == 0 else x1
+                    cy = (y0 + y1) // 2
+                    lo = (vx if side == 0 else vx - 2, cy - 24, vz0)
+                    hi = (vx + 2 if side == 0 else vx, cy + 24, vz1)
+                else:
+                    vy = y0 if side == 0 else y1
+                    cx = (x0 + x1) // 2
+                    lo = (cx - 24, vy if side == 0 else vy - 2, vz0)
+                    hi = (cx + 24, vy + 2 if side == 0 else vy, vz1)
+                if clear(lo, hi, a):
+                    dbox(out, lo, hi, {"side": TX["vent"], "top": TX["lamp_frame"], "bottom": TX["lamp_frame"]},
+                         fit=("+x", "-x", "+y", "-y"))
         # a courtyard's daylight in its shade: the sky's light off the walls, soft fill lights high over the yard (the
         # sky dome alone left the shaded walls near black under the ambient occlusion)
         if a.style.sky:
@@ -834,8 +871,6 @@ def build_room1():
                    "Or simply turn your head and body.", "", "Follow the yellow arrows."]), 634, 416, 100, 180, "0.32")
     arrows([(176, 256), (272, 256), (368, 256), (464, 256), (560, 256), (650, 256)], 0)
     tip("t2_move", "Push the left stick to walk." + N + "Push the right stick sideways to turn.", 220, 256, 60, 220)
-    for y in (64, 448):
-        pipe_run(out, (16, y, 196), (624, y, 196), 5)
     return d
 
 
@@ -892,8 +927,6 @@ def build_room2():
     tip("t2_teleport", "Teleport: aim and release the stick" + N + "to jump to a spot (if you turn it on).",
         1712, 990, 40, 120)
     arrows([(1520, 704), (1648, 704), (1776, 704), (1904, 704), (2032, 704), (2104, 704)], 0)
-    for x in (1472, 2080):
-        pipe_run(out, (x, 400, 228), (x, 1008, 228), 5)
 
 
 # ---- Room 3: jumping and climbing (a courtyard). Low barriers to jump, a wall to climb by its ladder, a wall whose top
@@ -992,8 +1025,8 @@ def build_room4():
         SOLIDS.append(((px0, py0, POOL_FLOOR), (px0 + 24 * (i + 1), py0 + 64, UP - 16 * (i + 1))))
     railing(out, (px0 + 64, py0 - 8), (px1, py0 - 8), UP)
     railing(out, (px1 + 8, py0), (px1 + 8, py1), UP)
-    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], UP + 256, 2, 2)
-    light((px0 + px1) / 2, (py0 + py1) / 2, POOL_FLOOR + 40, 200, "0.7 0.85 1")
+    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], UP + 256, 2, 2, 260)
+    light((px0 + px1) / 2, (py0 + py1) / 2, POOL_FLOOR + 40, 260, "0.7 0.85 1", wait="0.6")
     light(3920, 1040, POOL_FLOOR + 48, 220, "0.7 0.85 1")
     light(4016, 1136, POOL_FLOOR + 48, 220, "0.7 0.85 1")
     setting_button("SWIMMING", "swim", 3760, r["y1"], UP + 48, 90)
@@ -1013,8 +1046,8 @@ def build_room4():
     WATER.append(((qx0, qy0, POOL_FLOOR), (qx1, qy1, WATER_Z)))
     for i in range(4):
         SOLIDS.append(((qx1 - 24 * (i + 1), qy1 - 64, POOL_FLOOR), (qx1, qy1, UP - 16 * (i + 1))))
-    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], UP + 224, 3, 2)
-    light((qx0 + qx1) / 2, (qy0 + qy1) / 2, POOL_FLOOR + 40, 200, "0.7 0.85 1")
+    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], UP + 224, 3, 2, 240)
+    light((qx0 + qx1) / 2, (qy0 + qy1) / 2, POOL_FLOOR + 40, 260, "0.7 0.85 1", wait="0.6")
     doorway("room4b_exit", r["x1"], 1136, r["x1"] + 16, 1264, UP, out)
     air("hall4bc", (4352, 1136, UP), (R4C["x0"] - 16, 1264, UP + 160), style=bands(TX["panel3"]))
     doorway("room4c_in", R4C["x0"] - 16, 1136, R4C["x0"], 1264, UP, out)
