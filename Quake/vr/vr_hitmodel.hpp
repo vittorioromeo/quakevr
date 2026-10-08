@@ -77,6 +77,11 @@ bool clip(edict_s* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
 // hit's triangle when `p` is its point; else the drawn triangle nearest `p`. False: `ent` is no target.
 bool restPoint(edict_s* ent, const glm::vec3& p, glm::vec3& out);
 
+// The point of `ent`'s model as drawn now nearest `p`: its triangle and where on it (out.tri, .u, .v: anchorFrame's), the
+// point (out.surface, .point), the triangle's outward normal, and how far `p` is from it (`dist`; inside or out). False:
+// `ent` is no target. (Holding enemies, vr_foegrab.cpp: where a hand takes hold.)
+bool nearest(edict_s* ent, const glm::vec3& p, Hit& out, float& dist);
+
 // Where the place (u, v) on triangle `tri` of `ent`'s model (a Hit's) is as drawn now, and a frame there: x along the
 // triangle's first edge, z its normal (outwards), y their cross. What stays on the model where it was hit follows it (a
 // thrown axe stuck in a monster, vr_axestick.cpp). False: no target, or no such triangle.

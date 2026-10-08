@@ -2838,6 +2838,16 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
     return w;
 }
 
+bool qvr::climb::handFree(edict_t* ent, int hand)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const VrMove* move = server::clientMove(ent);
+    return move && handEmpty(ent, move, hand) && !holsterWins(ent, move->hotspots[hand], false);
+}
+
 bool qvr::climb::holding(int hand)
 {
     return hand >= 0 && hand <= 1 && (cl.stats[protocol::STAT_QVR_CLIMB] & (1 << hand)) != 0;

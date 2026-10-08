@@ -380,6 +380,10 @@ float(entity p, float xHand) VR_Melee_Thing =
     {
         return VR_MTHING_NONE; // a hand holding a ledge pulls the body
     }
+    if(VR_FoeGrab_HandHolds(p, xHand))
+    {
+        return VR_MTHING_NONE; // a hand holding an enemy holds on (vr_foegrab.qc)
+    }
     float wid = VRGetEntWeapon(p, xHand);
     if(wid == WID_FIST)
     {
@@ -842,7 +846,8 @@ float(float xHand) VR_Melee_OpenHand =
     {
         return FALSE; // steadying the other's weapon
     }
-    return !VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING : QVR_VRBITS0_OFFHAND_CLIMBING);
+    return !VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING : QVR_VRBITS0_OFFHAND_CLIMBING) &&
+           !VR_FoeGrab_HandHolds(self, xHand);
 };
 
 // Where `xHand`'s grip is from its shoulder (play space, normalized; `xFwd`: the facing, play space): a shove extends the

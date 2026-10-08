@@ -6,6 +6,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_climb.hpp"
+#include "vr_foegrab.hpp"
 #include "vr_cvars.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
@@ -708,6 +709,7 @@ extern "C" int VR_ActiveWeaponStat(edict_t* ent)
 extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
 {
     climb::calcStats(client->edict, statsi); // any progs
+    foegrab::calcStats(client->edict, statsi);
     if(!bindings().isVrProgs)
     {
         return;
@@ -906,8 +908,10 @@ extern "C" void VR_ServerFrameEnd()
     sweepWeaponInsts(); // the weapons' records nothing has any more: freed, their ids gone
     tips::serverFrame(); // the map tips whose entity is gone (before its slot is reused)
 
+    qvr::foegrab::serverFrame(); // held enemies slowed and dragged (before their poses are kept)
     qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
     qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)
+    qvr::foegrab::afterPoses(); // the held spots placed (after the poses above); a hand pulled too far lets go
     qvr::explosiondebris::serverFrame(); // the explosions' chunks: new ones launched, the ended gone, the fades
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
 
@@ -1228,6 +1232,7 @@ void init()
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);
     Cmd_AddCommand("vr_net_stats", netStats_f);
     climb::init();
+    foegrab::init();
     ledges::init();
 }
 

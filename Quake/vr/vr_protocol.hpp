@@ -122,7 +122,10 @@ enum Stat : int
     // The stealth AI's gem on the wrist gadget (QC .stl_hud, vr_stealth.qc): how visible you are (0..100) plus 1000 times
     // how loud your last noise was (0..100); -1 with the stealth AI off.
     STAT_QVR_STEALTH,
-    STAT_QVR_END
+    STAT_QVR_FOEGRAB,     // the hands holding an enemy (vr_foegrab.cpp): bit 0 the off hand, 1 the main
+    STAT_QVR_FOEGRABOFFX, // each holding hand's palm's place on the enemy, in eighths of a unit: the drawn hand is put there
+    STAT_QVR_FOEGRABMAINX = STAT_QVR_FOEGRABOFFX + 3,
+    STAT_QVR_END = STAT_QVR_FOEGRABMAINX + 3
 };
 
 inline constexpr int numHolsters = 6;

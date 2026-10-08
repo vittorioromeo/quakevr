@@ -87,3 +87,14 @@ inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandReloadFlickin
 {
     return VRIsEntHandReloadFlickingBit(xEntPlayer, xHand);
 }
+
+// Holding enemies (engine vr_foegrab.cpp; vr_foegrab.qc):
+.float vr_foegrab_hands; // on a player, set by the engine: the hands holding an enemy (1 the off hand, 2 the main)
+.float vr_foegrab_hold;  // on a monster, set by the engine: how firmly hands hold it now (0..1; 0 not held)
+.float vr_foegrab_letgo; // on a monster, set here: every hand holding it lets go (the engine, at the frame's end)
+
+// Whether `xHand` of `p` holds an enemy (it deals no melee blows).
+float(entity p, float xHand) VR_FoeGrab_HandHolds =
+{
+    return (p.vr_foegrab_hands & (xHand == cVR_MainHand ? 2 : 1)) != 0;
+};

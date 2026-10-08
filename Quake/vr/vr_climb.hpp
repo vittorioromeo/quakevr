@@ -25,6 +25,11 @@ void precache();
 // (a weapon's second grip, a hotspot).
 [[nodiscard]] bool holding(int hand);
 
+// Server: whether `ent`'s hand `hand` (0 off, 1 main) is empty (no weapon, carried thing, force grab, flashlight) and its
+// grip there is not for a holster or a pouch (one that would draw or take something): free to hold on to something else
+// (an enemy: vr_foegrab.cpp).
+[[nodiscard]] bool handFree(edict_t* ent, int hand);
+
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).
 void reset();

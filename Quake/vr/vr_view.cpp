@@ -14,6 +14,7 @@
 #include "vr_chainsaw.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_climb.hpp"
+#include "vr_foegrab.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
 #include "vr_gearlights.hpp"
@@ -4171,6 +4172,8 @@ void setupHand(const hands::State& s, int hand)
         controllerPos, controllerRot);
     glm::vec3 lightShift{0.f}; // a hand holding a ledge or a rung: drawn on it, facing it (vr_climb.cpp), lit as without the looks' offset
     const float onHold = climb::drawnHand(s, hand, anglesBasis(weaponAngleOffsets(fist, mirrored)), controllerPos, controllerRot, lightShift);
+    // A hand holding an enemy: drawn on the spot it holds, as the model moves (vr_foegrab.cpp).
+    (void)foegrab::drawnHand(s, hand, controllerPos, controllerRot);
     if(onHold > 0.f)
     {
         // Drawn on its hold, it shakes there too (tired arms: vr_fatigue.cpp; the shake is in s's hands).

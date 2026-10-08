@@ -7,6 +7,7 @@
 #include "vr_engine.hpp"
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
+#include "vr_foegrab.hpp"
 #include "vr_ropesim.hpp"
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
@@ -250,6 +251,7 @@ void resetServerWorld()
     qvr::box3d::reset();
     qvr::ropesim::reset();
     qvr::climb::reset();
+    qvr::foegrab::reset();
     qvr::debris::reset();
     qvr::explosiondebris::serverReset(); // (a loaded game's chunks found again at its first frame)
     qvr::crates::reset();
@@ -494,6 +496,7 @@ extern "C" void VR_OnSpawnServerAfterLoad()
     qvr::hull::afterLoad(); // the player's narrower box: the map as brushes (vr_hull_width)
     timed("VR after load: hulls");
     qvr::climb::reset();
+    qvr::foegrab::reset();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerAfterLoad);
     timed("VR after load: QuakeC");
     loadingSaveGame = false;
@@ -786,6 +789,7 @@ extern "C" void VR_OnLoadGame()
 
     qvr::walltorch::restoreAfterLoad(); // the map's wall torches a save made before they were entities lacks
     qvr::climb::reset();                // (holds on the loaded game's entities: none)
+    qvr::foegrab::reset();
 
     callEntryPoint(sv_bindings.OnLoadGame);
     qvr::flashlight::restoreState();

@@ -295,6 +295,7 @@ void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable
 // Server physics (sv_phys.c, sv_user.c, world.c).
 int VR_RunThink2 (struct edict_s *ent);				// start of SV_RunThink: 0 if the entity was freed
 void VR_ClientPreMove (struct edict_s *ent);			// SV_Physics_Client: hand and weapon touches
+void VR_FoeGrabPreThink (struct edict_s *ent);			// SV_Physics_Client, after VR_ClimbPreThink: holds on enemies taken and let go (vr_foegrab.cpp)
 void VR_ClimbPreThink (struct edict_s *ent);			// SV_Physics_Client, before PlayerPreThink: ledge holds taken and let go (vr_climb.cpp)
 int VR_PortalLerpFrom (const float older[3], const float newer[3], float from[3], float *yaw); // CL_RelinkEntities: 1 when
 							// the older place carried through a slipgate (from; the gate's yaw) lands by the newer

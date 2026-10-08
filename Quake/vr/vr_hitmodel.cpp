@@ -999,6 +999,72 @@ bool clip(edict_t* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
     return segment(ent, a, b, tol + moverRadius, maxT, c, out);
 }
 
+namespace
+{
+
+// The drawn triangle nearest `p` (Ericson, Real-Time Collision Detection, 5.1.5), and where on it: its squared distance.
+float nearestDrawn(const Drawn& d, const glm::vec3& p, za::U32& tri, float& u, float& v)
+{
+    const Mesh& m = *d.mesh;
+    const Verts vs = vertsOf(d);
+    float best = 1e30f;
+    for(za::U32 k = 0; k < m.tris.size(); k++)
+    {
+        const auto& t = m.tris[k];
+        const glm::vec3 a = vs.at(d, t[0], 0.f), b = vs.at(d, t[1], 0.f), c = vs.at(d, t[2], 0.f);
+        const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
+        float s = 0.f, w = 0.f; // p's nearest point: a + ab * s + ac * w
+        const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
+        const glm::vec3 bp = p - b;
+        const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
+        const glm::vec3 cp = p - c;
+        const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
+        const float vc = d1 * d4 - d3 * d2, vb = d5 * d2 - d1 * d6, va = d3 * d6 - d5 * d4;
+        if(d1 <= 0.f && d2 <= 0.f)
+        {
+        }
+        else if(d3 >= 0.f && d4 <= d3)
+        {
+            s = 1.f;
+        }
+        else if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
+        {
+            s = d1 / (d1 - d3);
+        }
+        else if(d6 >= 0.f && d5 <= d6)
+        {
+            w = 1.f;
+        }
+        else if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
+        {
+            w = d2 / (d2 - d6);
+        }
+        else if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
+        {
+            w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+            s = 1.f - w;
+        }
+        else
+        {
+            const float denom = 1.f / (va + vb + vc);
+            s = vb * denom;
+            w = vc * denom;
+        }
+        const glm::vec3 q = a + ab * s + ac * w;
+        const float dist = glm::dot(q - p, q - p);
+        if(dist < best)
+        {
+            best = dist;
+            tri = k;
+            u = s;
+            v = w;
+        }
+    }
+    return best;
+}
+
+} // namespace
+
 bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
 {
     if(!target(ent))
@@ -1023,61 +1089,7 @@ bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
     }
     else
     {
-        // The drawn triangle nearest `p` (Ericson, Real-Time Collision Detection, 5.1.5), and where on it.
-        const Verts vs = vertsOf(d);
-        float best = 1e30f;
-        for(za::U32 k = 0; k < m.tris.size(); k++)
-        {
-            const auto& t = m.tris[k];
-            const glm::vec3 a = vs.at(d, t[0], 0.f), b = vs.at(d, t[1], 0.f), c = vs.at(d, t[2], 0.f);
-            const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-            float s = 0.f, w = 0.f; // p's nearest point: a + ab * s + ac * w
-            const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-            const glm::vec3 bp = p - b;
-            const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-            const glm::vec3 cp = p - c;
-            const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-            const float vc = d1 * d4 - d3 * d2, vb = d5 * d2 - d1 * d6, va = d3 * d6 - d5 * d4;
-            if(d1 <= 0.f && d2 <= 0.f)
-            {
-            }
-            else if(d3 >= 0.f && d4 <= d3)
-            {
-                s = 1.f;
-            }
-            else if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-            {
-                s = d1 / (d1 - d3);
-            }
-            else if(d6 >= 0.f && d5 <= d6)
-            {
-                w = 1.f;
-            }
-            else if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-            {
-                w = d2 / (d2 - d6);
-            }
-            else if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-            {
-                w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-                s = 1.f - w;
-            }
-            else
-            {
-                const float denom = 1.f / (va + vb + vc);
-                s = vb * denom;
-                w = vc * denom;
-            }
-            const glm::vec3 q = a + ab * s + ac * w;
-            const float dist = glm::dot(q - p, q - p);
-            if(dist < best)
-            {
-                best = dist;
-                tri = k;
-                u = s;
-                v = w;
-            }
-        }
+        (void)nearestDrawn(d, p, tri, u, v);
     }
     // The same place on the standing pose, in its own space, placed at its origin and turned with its yaw.
     const trivertx_t* rest = posesOf(d.hdr) + static_cast<za::SizeT>(m.restPose) * m.numverts;
@@ -1086,6 +1098,29 @@ bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
     const glm::vec3 local = d.L * (r0 + (r1 - r0) * u + (r2 - r0) * v) + d.l;
     const float yaw[3]{0.f, ent->v.angles[1], 0.f};
     out = vec(ent->v.origin) + held::axesFromAngles(yaw, false) * local;
+    return true;
+}
+
+bool nearest(edict_t* ent, const glm::vec3& p, Hit& out, float& dist)
+{
+    Drawn d;
+    if(!target(ent) || !drawnOf(ent, d) || d.mesh->tris.empty())
+    {
+        return false;
+    }
+    za::U32 tri = 0;
+    float u = 0.f, v = 0.f;
+    dist = za::sqrt(nearestDrawn(d, p, tri, u, v));
+    const Verts vs = vertsOf(d);
+    const auto& t = d.mesh->tris[tri];
+    const glm::vec3 p0 = vs.at(d, t[0], 0.f), p1 = vs.at(d, t[1], 0.f), p2 = vs.at(d, t[2], 0.f);
+    out = Hit{};
+    out.surface = out.point = p0 + (p1 - p0) * u + (p2 - p0) * v;
+    const glm::vec3 n = glm::cross(p1 - p0, p2 - p0) * d.mesh->winding;
+    out.normal = glm::length(n) > 1e-9f ? glm::normalize(n) : glm::vec3{0.f, 0.f, 1.f};
+    out.tri = static_cast<int>(tri);
+    out.u = u;
+    out.v = v;
     return true;
 }
 

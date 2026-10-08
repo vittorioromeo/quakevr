@@ -62,6 +62,8 @@ vr_stealth.qc
 vr_stealth_test2.qc
 vr_stealth_test3.qc
 vr_stealth_test.qc
+// Holding enemies (the engine calls it; after the stealth AI and the grapple, whose functions it uses).
+vr_foegrab.qc
 
 buttons.qc
 vr_tips.qc

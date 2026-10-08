@@ -727,6 +727,15 @@ float cvarh_vr_enemy_shove_distance;
 float cvarh_vr_enemy_shove_parry_reduction;
 float cvarh_vr_enemy_shove_enforcer_damage;
 float cvarh_vr_enemy_shove_enforcer_distance;
+float cvarh_vr_foegrab;
+float cvarh_vr_foegrab_strength_small;
+float cvarh_vr_foegrab_strength_medium;
+float cvarh_vr_foegrab_strength_large;
+float cvarh_vr_foegrab_by_mass;
+float cvarh_vr_foegrab_mass_light;
+float cvarh_vr_foegrab_mass_heavy;
+float cvarh_vr_foegrab_shove;
+float cvarh_vr_foegrab_shove_resist;
 float cvarh_vr_climb_blast_letgo;
 
 //
@@ -1465,6 +1474,15 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_enemy_shove_parry_reduction);
     VR_CVAR_HMAKE(vr_enemy_shove_enforcer_damage);
     VR_CVAR_HMAKE(vr_enemy_shove_enforcer_distance);
+    VR_CVAR_HMAKE(vr_foegrab);
+    VR_CVAR_HMAKE(vr_foegrab_strength_small);
+    VR_CVAR_HMAKE(vr_foegrab_strength_medium);
+    VR_CVAR_HMAKE(vr_foegrab_strength_large);
+    VR_CVAR_HMAKE(vr_foegrab_by_mass);
+    VR_CVAR_HMAKE(vr_foegrab_mass_light);
+    VR_CVAR_HMAKE(vr_foegrab_mass_heavy);
+    VR_CVAR_HMAKE(vr_foegrab_shove);
+    VR_CVAR_HMAKE(vr_foegrab_shove_resist);
     VR_CVAR_HMAKE(vr_climb_blast_letgo);
 
 #undef VR_CVAR_HMAKE
