@@ -1272,6 +1272,9 @@ void SV_Physics_Step (edict_t *ent)
 // regular thinking
 	SV_RunThink (ent);
 
+	if (!ent->free)
+		VR_PortalMonsterCross (ent); // QVR: walked (or leapt) through a paired slipgate (vr/vr_portals.cpp)
+
 	SV_CheckWaterTransition (ent);
 }
 

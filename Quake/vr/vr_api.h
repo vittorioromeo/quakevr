@@ -196,6 +196,7 @@ void VR_OnMakeStatic (edict_t *ent);	// PF_makestatic, before the entity is free
 int VR_TossKeepsGround (struct edict_s *ent);	// SV_Physics_Toss, when on the ground: nonzero to stay
 int VR_RigidToss (struct edict_s *ent);		// SV_Physics_Toss, after thinking: nonzero if it moved the entity (.vr_rigid)
 void VR_PortalToss (struct edict_s *ent);	// SV_Physics_Toss, before the move: through a slipgate (vr_portals.cpp)
+void VR_PortalMonsterCross (struct edict_s *ent);	// SV_Physics_Step, after its think: a monster through a paired slipgate (vr_portals.cpp)
 void VR_PortalTraceBegin (void);			// PF_traceline: the last portal trace's crossings forgotten
 void VR_PortalTrace (const float start[3], const float end[3], int type, struct edict_s *passedict, trace_t *trace); // ... MOVE_PORTALS: on through the slipgates it crosses
 void VR_PhysicsFrameEnd (void);				// end of SV_Physics's entity loop: Box3D's world steps (vr_box3d.cpp)

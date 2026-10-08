@@ -1,5 +1,5 @@
 #!/bin/bash
-# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|ragdoll|all]: headless checks of the slipgate edge cases in
+# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|ragdoll|monster|all]: headless checks of the slipgate edge cases in
 # vrslipgates (ROUND21.md, "Slipgates: exits on their gates, props through, held objects, the force grab's beam"), with
 # the agent kit (C:/OHWorkspace/qvr-kit). Each section prints one line or a few, with what it must say.
 #   clip   a crate resting where a gate's exit used to stand (48 out of the north gallery's wall), paired exits off and
@@ -192,5 +192,22 @@ if want ragdoll; then
             echo "ragdoll: gate at x $x, walk $w: $(grep -c 'carried through a slipgate' "$LOG") crossing, its pelvis ends at y $y" \
                 "$( [ $w = 1 ] && echo '(1, > 928: through)' || echo '(0, against the wall behind the gate: under 648, 688 the large gate; a control)')"
         done
+    done
+fi
+
+# monster: a dog spawned 200 units out of FA's flush player gate chases the player, put 150 units past the gate in the
+# north gallery (slipgates_test.sh chase): where it is first seen in the gallery (928 the far gate's face) and its step
+# there from its last place in FA, unfolded through the gate (less the gates' 288): one of its run's steps (32 units at
+# most); vr_portals_monsters 0 (a control): Quake's teleport, 48 out of the face, a jump of 60 to 110 units
+if want monster; then
+    for m in 1 0; do
+        S="developer 1;map vrslipgates;wait60;god;vr_portals_monsters $m;setpos -256 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn 7;vr_test_spawn_dist 200;impulse 241;wait40;setpos -256 1150 24 0 270 0;wait5;noclip 0"
+        for i in $(seq 1 120); do S="$S;wait1;echo SNAP $i;entities"; done
+        run -Script "$S;toggleconsole;quit"
+        awk -v m="$m" '/^SNAP/{s=$2} index($0, "progs/dog.mdl:") && s && s != seen {seen=s; split($0, a, "("); split(a[2], b, ","); y=b[2]+0
+             if (y > 900 && !thru) {thru = s; out = y; step = y - 288 - py} if (y <= 900) py = y}
+             END {if (!thru) printf "monster: vr_portals_monsters %d: never through\n", m
+                  else printf "monster: vr_portals_monsters %d: out at y %.1f (frame %d), its step from y %.1f in FA unfolded %.1f units%s\n", m, out, thru, py, step, m == 1 ? " (a run step: 32 at most)" : " (a control: 60 to 110)"}' "$LOG"
+        echo "monster: $(grep -c 'carried monster' "$LOG") seamless crossing(s) ($m)"
     done
 fi

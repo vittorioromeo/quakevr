@@ -444,8 +444,9 @@ vector    org;
     if(other.health <= 0 || other.solid != SOLID_SLIDEBOX)
         return;
 
-    // QVR: the engine walks players through slipgates (vr_portals.cpp, vr_portals_walk; VR_Portal_Crossed below)
-    if(other.classname == "player" && portal_handles(self, other))
+    // QVR: the engine walks players through slipgates (vr_portals.cpp, vr_portals_walk; VR_Portal_Crossed below), and
+    // monsters through paired ones that their box goes into (vr_portals_monsters)
+    if(portal_handles(self, other))
         return;
 
     SUB_UseTargets();

@@ -1273,18 +1273,26 @@ constexpr float kCross = 24.f;    // how near the plane the body is watched for 
 constexpr float kAperture = 0.f;  // how far outside a gate's faces its aperture still counts as its opening
 constexpr double kCooldown = 0.5; // seconds after a crossing before the next (no bouncing between two gates)
 
-// Each client's last seamless crossing.
+// Each client's last seamless crossing (and each monster's: vr_portals_monsters).
 struct ClientState
 {
     double crossed = -1e9;
     int generation = -1;
     int leavingSide = -1; // until the trailing half has cleared the destination plane
+    glm::vec3 lastTorso{0.f}; // a monster's torso at its last look (VR_PortalMonsterCross: which way it went)
+    bool torsoKnown = false;
 };
 ClientState clients[MAX_SCOREBOARD];
+za::Vector<ClientState> monsters; // by edict number
 
 ClientState& crossingState(edict_t* ent)
 {
-    ClientState& state = clients[NUM_FOR_EDICT(ent) - 1];
+    const int num = NUM_FOR_EDICT(ent);
+    if(num > svs.maxclients && static_cast<za::SizeT>(num) >= monsters.size())
+    {
+        monsters.resize(static_cast<za::SizeT>(za::max(num + 1, qcvm->num_edicts)));
+    }
+    ClientState& state = num > svs.maxclients ? monsters[static_cast<za::SizeT>(num)] : clients[num - 1];
     if(state.generation != worldGeneration())
     {
         state = {};
@@ -1297,6 +1305,15 @@ ClientState& crossingState(edict_t* ent)
 {
     return enabled() && vr_portals.value > 0.f && vr_portals_walk.value > 0.f && sv.active && sv.state == ss_active &&
         sv.worldmodel;
+}
+
+// A living monster (not a player) walking (vr_portals_monsters): it goes through paired gates as a player does, else by
+// Quake's teleport.
+[[nodiscard]] bool monsterWalks(edict_t* ent)
+{
+    return vr_portals_monsters.value > 0.f && !ent->free && NUM_FOR_EDICT(ent) > svs.maxclients &&
+        (static_cast<int>(ent->v.flags) & FL_MONSTER) && ent->v.health > 0.f &&
+        static_cast<int>(ent->v.solid) == SOLID_SLIDEBOX && static_cast<int>(ent->v.movetype) == MOVETYPE_STEP;
 }
 
 // As teleport_touch: a trigger waiting to be fired (a targetname, not IGNORE_TARGETNAME) is shut until then.
@@ -1484,21 +1501,56 @@ void crossPlayer(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, i
     }
 }
 
+// A monster carried through (VR_PortalMonsterCross): where it is, how it moves, where it faces and means to (ideal_yaw)
+// turned and shifted by the side's mapping; then what Quake's teleport does besides moving it (VR_Portal_Crossed: the
+// trigger's targets). No flash, no telefrag: it walked through.
+void crossMonster(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, int returnSide = -1)
+{
+    const glm::vec3 from = vec(ent->v.origin);
+    const glm::vec3 to = carried(sd, from);
+    setVec(ent->v.origin, to);
+    setVec(ent->v.oldorigin, to);
+    setVec(ent->v.velocity, sd.turn * vec(ent->v.velocity));
+    ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + sd.yaw);
+    ent->v.ideal_yaw = anglemod(ent->v.ideal_yaw + sd.yaw);
+    SV_LinkEdict(ent, true);
+    cs.crossed = qcvm->time;
+    cs.leavingSide = returnSide >= 0 ? -1 : static_cast<int>(&sd - sides.data());
+    cs.lastTorso = torsoOf(ent);
+    Con_DPrintf("VR portal: carried monster %d through side %d: %.1f %.1f %.1f -> %.1f %.1f %.1f\n", NUM_FOR_EDICT(ent),
+        returnSide >= 0 ? returnSide : cs.leavingSide, from.x, from.y, from.z, to.x, to.y, to.z);
+    if(const func_t fn = progs::findFunction("VR_Portal_Crossed"))
+    {
+        const int oldSelf = pr_global_struct->self;
+        const int oldOther = pr_global_struct->other;
+        pr_global_struct->self = EDICT_TO_PROG(trig);
+        pr_global_struct->other = EDICT_TO_PROG(ent);
+        pr_global_struct->time = qcvm->time;
+        setVec(G_VECTOR(OFS_PARM0), from);
+        G_FLOAT(OFS_PARM1) = returnSide >= 0 ? 1.f : 0.f;
+        PR_ExecuteProgram(fn);
+        pr_global_struct->self = oldSelf;
+        pr_global_struct->other = oldOther;
+    }
+}
+
 } // namespace
 } // namespace qvr::portals
 
 // SV_Move: while straddling a gate, each half of the body collides in its own room. The normal, intact world trace
 // remains the fallback outside a fully fitting aperture, and the gate's rim limits lateral motion during entry.
+// A monster's too (vr_portals_monsters), at paired gates only (else Quake's teleport takes it, at the trigger).
 extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* mins, const float* maxs,
                                  const float* end, int type, trace_t* trace)
 {
     using namespace qvr::portals;
     if(!ent || !walkOn() || (type != MOVE_NORMAL && type != MOVE_NOMONSTERS) || NUM_FOR_EDICT(ent) < 1 ||
-       NUM_FOR_EDICT(ent) > svs.maxclients || ent->v.health <= 0.f || vec(mins) != vec(ent->v.mins) ||
-       vec(maxs) != vec(ent->v.maxs))
+       (NUM_FOR_EDICT(ent) > svs.maxclients && !monsterWalks(ent)) || ent->v.health <= 0.f ||
+       vec(mins) != vec(ent->v.mins) || vec(maxs) != vec(ent->v.maxs))
     {
         return 0;
     }
+    const bool monster = NUM_FOR_EDICT(ent) > svs.maxclients;
     if(!current()) { build(); }
     const glm::vec3 a = vec(start), b = vec(end);
     const glm::vec3 torso = a + glm::vec3{0.f, 0.f, 0.5f * (mins[2] + maxs[2])};
@@ -1530,7 +1582,7 @@ extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* 
     {
         if(gate == &exitGate) { break; }
         const float d = glm::dot(sd.normal, torso) - sd.dist;
-        if(d < -kCross || za::fabs(d) >= nearest || !triggerActive(EDICT_NUM(sd.trigger)) ||
+        if(d < -kCross || za::fabs(d) >= nearest || (monster && !sd.paired) || !triggerActive(EDICT_NUM(sd.trigger)) ||
            !bodyFitsGateAt(ent, sd, a))
         {
             continue;
@@ -1980,7 +2032,7 @@ extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who)
 {
     using namespace qvr::portals;
     const int num = NUM_FOR_EDICT(who) - 1;
-    if(!walkOn() || num < 0 || num >= svs.maxclients || num >= MAX_SCOREBOARD)
+    if(!walkOn() || num < 0 || (num >= svs.maxclients && !monsterWalks(who)) || (num < svs.maxclients && num >= MAX_SCOREBOARD))
     {
         return 0.f;
     }
@@ -1988,7 +2040,98 @@ extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who)
     {
         build();
     }
-    return engineCarries(NUM_FOR_EDICT(trig)) ? 1.f : 0.f;
+    if(num < svs.maxclients)
+    {
+        return engineCarries(NUM_FOR_EDICT(trig)) ? 1.f : 0.f;
+    }
+    // A monster (vr_portals_monsters): a paired gate's (it comes out of the other gate's face) that its box goes into as
+    // it stands, or a step up (a sill), or already straddling; else Quake's teleport takes it (a shambler at a player's
+    // gate, one beside the opening touching the trigger: never stuck at the frame).
+    const int t = NUM_FOR_EDICT(trig);
+    const glm::vec3 o = vec(who->v.origin);
+    for(const Side& sd : sides)
+    {
+        if(sd.trigger != t || !sd.paired) { continue; }
+        const float d = glm::dot(sd.normal, torsoOf(who)) - sd.dist;
+        float low = 1e9f, high = -1e9f;
+        for(int c = 0; c < 8; c++)
+        {
+            const glm::vec3 p = o + glm::vec3{(c & 1) ? who->v.maxs[0] : who->v.mins[0],
+                (c & 2) ? who->v.maxs[1] : who->v.mins[1], (c & 4) ? who->v.maxs[2] : who->v.mins[2]};
+            const float pd = glm::dot(sd.normal, p) - sd.dist;
+            low = za::min(low, pd); high = za::max(high, pd);
+        }
+        const bool straddling = low < 0.f && high > 0.f && d > -kCross;
+        if(straddling || bodyFitsGateAt(who, sd, o) || bodyFitsGateAt(who, sd, o + glm::vec3{0.f, 0.f, 18.f}))
+        {
+            return 1.f;
+        }
+    }
+    return 0.f;
+}
+
+// SV_Physics_Step, after its think (its walk, a leap): a monster (vr_portals_monsters) carried through a paired gate as
+// its torso's middle plane goes in through the plane over the aperture, its box fitting it (as a player is:
+// VR_PortalClientCross), kept where it is and how it moves and faces relative to the gate. Stepping back out through
+// the exit before its trailing half cleared it carries it back.
+extern "C" void VR_PortalMonsterCross(edict_t* ent)
+{
+    using namespace qvr::portals;
+    if(!walkOn() || !monsterWalks(ent))
+    {
+        return;
+    }
+    if(!current())
+    {
+        build();
+    }
+    if(sides.empty())
+    {
+        return;
+    }
+    ClientState& cs = crossingState(ent);
+    const glm::vec3 torso = torsoOf(ent);
+    const glm::vec3 was = cs.torsoKnown ? cs.lastTorso : torso;
+    cs.lastTorso = torso;
+    cs.torsoKnown = true;
+    const glm::vec3 moved = torso - was;
+    if(cs.leavingSide >= 0 && cs.leavingSide < static_cast<int>(sides.size()))
+    {
+        const int index = cs.leavingSide;
+        const Side exitGate = reverseSide(sides[index]);
+        if(glm::dot(exitGate.normal, torso) < exitGate.dist && glm::dot(exitGate.normal, moved) < 0.f &&
+            bodyFitsGate(ent, exitGate))
+        {
+            crossMonster(ent, exitGate, EDICT_NUM(exitGate.trigger), cs, index);
+            return;
+        }
+    }
+    if(qcvm->time - cs.crossed < kCooldown)
+    {
+        return;
+    }
+    const Side* best = nullptr;
+    float bestD = kCross;
+    for(const Side& sd : sides)
+    {
+        const edict_t* trig = EDICT_NUM(sd.trigger);
+        if(!sd.paired || !triggerActive(trig) || !overlaps(ent, trig))
+        {
+            continue;
+        }
+        const float d = glm::dot(sd.normal, torso) - sd.dist;
+        if(d > 0.f || za::fabs(d) >= bestD || glm::dot(sd.normal, moved) >= 0.f ||
+           !onGate(sd, torso - sd.normal * d, kAperture) || !bodyFitsGate(ent, sd))
+        {
+            continue;
+        }
+        best = &sd;
+        bestD = za::fabs(d);
+    }
+    if(best)
+    {
+        crossMonster(ent, *best, EDICT_NUM(best->trigger), cs);
+    }
 }
 
 namespace qvr::portals
