@@ -44,6 +44,16 @@ $frame deathe8 deathe9
 
 float mg3_ghosts_gone; // ghosts that faded away (the tests' count)
 
+// See-through, as a ghost is meant to look (vr_mg3_ghost_alpha, 0.4; 1: solid, as the port first drew it: upstream's
+// code sets no alpha). Entity alpha: drawn in the translucent pass (order-independent with r_oit), no shadow and no
+// ambient occlusion (vr_lighting.cpp, vr_shadows.cpp, vr_ao.cpp skip translucent entities). Read again as it stands
+// and runs, so the setting takes at once.
+void() mg3_ghost_alpha =
+{
+    float a = cvar("vr_mg3_ghost_alpha");
+    self.alpha = a >= 1 ? 0 : max(0.05, a); // (0: Quake's default, opaque, with its shadow)
+};
+
 void() ghost_run1;
 void() mg3_ghost_touch;
 
@@ -63,7 +73,7 @@ void() ghost_step =
     self.velocity = vec * 150;
 };
 
-void() ghost_stand1 = [$stand1, ghost_stand2] {self.velocity = '0 0 0';};
+void() ghost_stand1 = [$stand1, ghost_stand2] {self.velocity = '0 0 0'; mg3_ghost_alpha();};
 void() ghost_stand2 = [$stand2, ghost_stand3] {};
 void() ghost_stand3 = [$stand3, ghost_stand4] {};
 void() ghost_stand4 = [$stand4, ghost_stand5] {};
@@ -78,7 +88,7 @@ void() ghost_stand5 = [$stand5, ghost_stand1]
     }
 };
 
-void() ghost_run1 = [$rockrun1, ghost_run2] {ghost_step();};
+void() ghost_run1 = [$rockrun1, ghost_run2] {ghost_step(); mg3_ghost_alpha();};
 void() ghost_run2 = [$rockrun2, ghost_run3] {};
 void() ghost_run3 = [$rockrun3, ghost_run4] {};
 void() ghost_run4 = [$rockrun4, ghost_run5] {};
@@ -192,6 +202,7 @@ void() monster_ghost =
     self.health = 10;
     self.solid = SOLID_SLIDEBOX;
     setmodel(self, "progs/player.mdl");
+    mg3_ghost_alpha();
     setsize(self, VEC_HULL_MIN, VEC_HULL_MAX);
     self.takedamage = DAMAGE_YES;
     self.touch = mg3_ghost_touch;

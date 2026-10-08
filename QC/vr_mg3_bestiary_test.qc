@@ -227,8 +227,15 @@ void() MG3_BT_GhostSlimeStep =
         self = oldself; other = oldother;
         MG3_BT_Check(mg3bt_a.health <= 0 && mg3bt_a.takedamage == DAMAGE_NO, "your touch: it dies");
         mg3bt_b = MG3_BT_Spawn(p, 42, 96, 48, 0);
-        T_Damage(mg3bt_b, p, p, 20);
+        MG3_BT_Check(mg3bt_b.alpha == (cvar("vr_mg3_ghost_alpha") >= 1 ? 0 : max(0.05, cvar("vr_mg3_ghost_alpha"))),
+            sprintf("drawn see-through: alpha %.2f (vr_mg3_ghost_alpha)", mg3bt_b.alpha));
+        float gibs0 = vr_sgib_made, cuts0 = vr_limb_cuts + vr_limb_pops;
+        T_Damage(mg3bt_b, p, p, 200);
         MG3_BT_Check(mg3bt_b.health <= 0, "a blow: it dies");
+        MG3_BT_Check(vr_sgib_made == gibs0 && vr_limb_cuts + vr_limb_pops == cuts0 && !isragdoll(mg3bt_b) &&
+            mg3bt_b.model == "progs/player.mdl",
+            sprintf("a heavy blow (200): no gibs (%g), limbs (%g) or ragdoll; it plays its death", vr_sgib_made - gibs0,
+            vr_limb_cuts + vr_limb_pops - cuts0));
         mg3bt_step = 11; mg3bt_next = time + 2.5;
         return;
     }
