@@ -148,6 +148,15 @@ glm::vec3 mockHandPos[HAND_COUNT + 1];
 bool mockHandSet[HAND_COUNT + 1]{};
 glm::quat mockHandRot[HAND_COUNT];
 bool mockHandRotSet[HAND_COUNT]{};
+
+// vr_mock_hand_glide: vr_mock_hand_to's move glided over that many seconds (realtime), the hand reporting the glide's own
+// velocity (a tap or a swing at a known speed: the wrist gadget's screen tap tests).
+struct HandGlide
+{
+    glm::vec3 from{0.f}, to{0.f};
+    double start = -1.0, length = 0.0; // start < 0: none
+};
+HandGlide handGlide[HAND_COUNT];
 glm::quat mockHeadOrientation{1.f, 0.f, 0.f, 0.f}; // vr_mock_look, vr_mock_hand head, vr_mock_play
 
 void mockHand_f()
@@ -592,7 +601,19 @@ void moveHandTo(int hand, const glm::vec3& target)
         mockHandPos[hand] = standingPose().hands[hand].position;
         mockHandSet[hand] = true;
     }
-    mockHandPos[hand] += glm::vec3{glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd)};
+    const glm::vec3 to = mockHandPos[hand] + glm::vec3{glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd)};
+    if(vr_mock_hand_glide.value > 0.f && hand < HAND_COUNT)
+    {
+        handGlide[hand] = {mockHandPos[hand], to, realtime, static_cast<double>(vr_mock_hand_glide.value)};
+    }
+    else
+    {
+        if(hand < HAND_COUNT)
+        {
+            handGlide[hand].start = -1.0;
+        }
+        mockHandPos[hand] = to;
+    }
     Con_Printf("vr_mock_hand_to: %s hand at %.3f %.3f %.3f (tracking)\n", hand == HAND_MAIN ? "main" : "off",
         mockHandPos[hand].x, mockHandPos[hand].y, mockHandPos[hand].z);
 }
@@ -1346,6 +1367,15 @@ public:
         tracking.time = realtime;
         for(int h = 0; h < HAND_COUNT; h++)
         {
+            if(HandGlide& g = handGlide[h]; g.start >= 0.0)
+            {
+                const double t = za::clamp((realtime - g.start) / za::max(g.length, 1e-3), 0.0, 1.0);
+                mockHandPos[h] = glm::mix(g.from, g.to, static_cast<float>(t));
+                if(t >= 1.0)
+                {
+                    g.start = -1.0;
+                }
+            }
             if(mockHandSet[h])
             {
                 tracking.hands[h].position = mockHandPos[h];
@@ -1420,6 +1450,10 @@ public:
             hand.linearVelocity = handMotion[h].update(hand.position, realtime);
             const glm::vec3 turning = handTurn[h].update(hand.orientation, realtime);
             hand.angularVelocity = vr_mock_turn_velocity.value ? turning : glm::vec3{0.f};
+            if(const HandGlide& g = handGlide[h]; g.start >= 0.0)
+            {
+                hand.linearVelocity = (g.to - g.from) / static_cast<float>(za::max(g.length, 1e-3)); // the glide's own
+            }
             if(played[h])
             {
                 hand.linearVelocity = playVel[h]; // vr_mock_play: the motion's own

@@ -40,7 +40,7 @@ struct ProfileScope
 };
 ProfileScope profileScope;
 
-[[nodiscard]] float lightNow(const glm::vec3& point)
+[[nodiscard]] float lightNow(const glm::vec3& point, float* dynamic = nullptr)
 {
     vec3_t at{point.x, point.y, point.z};
     float light = static_cast<float>(R_LightPoint(at, 0.f, &lightCache));
@@ -56,7 +56,12 @@ ProfileScope profileScope;
         {
             // (the colour's mean: a white light's 1; the flashlight-style scaled ones aside)
             const float c = (dl.color[0] + dl.color[1] + dl.color[2]) * (1.f / 3.f);
-            light += add * (c > 0.f ? glm::min(c, 1.f) : 1.f);
+            const float k = add * (c > 0.f ? glm::min(c, 1.f) : 1.f);
+            light += k;
+            if(dynamic)
+            {
+                *dynamic += k;
+            }
         }
     }
     return light;
@@ -89,13 +94,13 @@ float lightAt(const glm::vec3& point)
     return ownLight.light;
 }
 
-float lightFresh(const glm::vec3& point)
+float lightFresh(const glm::vec3& point, float* dynamic)
 {
     if(!cl.worldmodel || cls.state != ca_connected || cls.signon != SIGNONS)
     {
         return -1.f;
     }
-    return lightNow(point);
+    return lightNow(point, dynamic);
 }
 
 void PF_stealthlight()

@@ -143,7 +143,20 @@ void info_f()
     }
     if(s.valid)
     {
-        Con_Printf("gear lights: the stealth light on you %.2f\n", stealth::lightFresh(s.playerOrigin));
+        float dynamic = 0.f;
+        const float all = stealth::lightFresh(s.playerOrigin, &dynamic);
+        Con_Printf("gear lights: the stealth light on you %.2f (dynamic lights %.2f)\n", all, dynamic);
+        // The lights now within reach of you (the gear's among them: the gadget's two, the ammo screens' small ones).
+        for(const dlight_t& dl : cl_dlights)
+        {
+            const glm::vec3 o{dl.origin[0], dl.origin[1], dl.origin[2]};
+            const float d = glm::length(o - s.playerOrigin);
+            if(dl.die >= cl.time && dl.radius > 0.f && d < dl.radius + 64.f)
+            {
+                Con_Printf("gear lights: light %d at %.0f units (radius %.0f), colour %.3f %.3f %.3f\n", dl.key, d,
+                    dl.radius, dl.color[0], dl.color[1], dl.color[2]);
+            }
+        }
     }
 }
 

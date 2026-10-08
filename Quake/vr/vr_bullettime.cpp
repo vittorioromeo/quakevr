@@ -9,6 +9,7 @@
 #include "vr_highlights.hpp"
 #include "vr_main.hpp"
 #include "vr_twohand.hpp"
+#include "vr_timescale.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
@@ -240,7 +241,9 @@ struct Against
     a.w = glm::dot(rel, z.up);
     a.h = glm::dot(rel, z.normal);
     const glm::vec3 under = k.at - z.normal * a.h;
-    a.v = k.vel - (s.vel[g] + glm::cross(s.angVel[g], (under - s.pos[g]) / units::metresToUnits()));
+    // (In the player's real time: in slow motion the hands' velocities are the game's, sped up as the world is slowed.)
+    const glm::vec3 screenVel = s.vel[g] + glm::cross(s.angVel[g], (under - s.pos[g]) / units::metresToUnits());
+    a.v = (k.vel - screenVel) * timescale::handScale();
     a.into = -glm::dot(a.v, z.normal);
     return a;
 }

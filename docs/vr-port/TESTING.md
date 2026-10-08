@@ -262,12 +262,17 @@ prints it.
     your hands follow your controllers as fast as the slowed world allows. Try moving at a quarter speed while
     recording, then speed the footage up 4x: does it look and sound natural? Try a real-speed swing in slow motion
     (Hand Speed Limit), Slow Sounds off, Ease In and Out.
-  - **Bullet time and Sandevistan** (ROUND21.md, "Slow motion: bullet time and Sandevistan"): press the inner button
-    on your wrist gadget's lower edge with your other hand's fingertip: the world slows for as long as the TIME meter on
-    the gadget's screen lasts (6 s), the view drained and darkened at its edges; press again to stop. Combat > Bullet
-    Time: try **Sandevistan: You at Full Speed** (you move, turn, swing, shoot at full speed in the slowed world). Is
-    the button easy to find and press (Button Size, Fingertip Reach)? Is the look too strong? Graphics > Recording:
-    **Turn in Real Time**, **Move in Real Time**.
+  - **Bullet time and Sandevistan** (ROUND21.md, "Slow motion: bullet time and Sandevistan"): tap your wrist gadget's
+    screen hard and straight with your other hand (or the butt of the gun it holds): the world slows for as long as the
+    TIME meter on the gadget's screen lasts (6 s), the view drained and darkened at its edges; tap again to stop. Melee
+    swings across the gadget, soft touches and resting hands must never start it (Combat > Bullet Time > Screen Tap:
+    Tap Force, Tap Straightness). Try **Sandevistan: You at Full Speed** (you move, turn, swing, shoot at full speed in
+    the slowed world). Is the look too strong? Graphics > Recording: **Turn in Real Time**, **Move in Real Time**.
+  - **Gear lights: the gadget's side button** (ROUND21.md, "The gadget's side button: gear lights"): press the inner
+    button on the gadget's lower edge with your other hand's fingertip: a click, and the gadget's and your guns'
+    screens dim (their cast light and glow nearly gone, the text dimmer); press again to bring them back. Easy to find
+    and press, never pressed by a screen tap? HUD and Menus > Screens > Gear Lights: Button Size, Across/Up/Out, Show the
+    Button (its hit volume drawn). Headless: `Misc/quakevr/gadget_tap_test.sh <agent>`.
   - **Grappling hook: rope, reel on demand, props and monsters** (ROUND21.md, same title): the hook bites and the rope
     just holds you at its length (swing on it, walk closer; nothing pulls). Hold that hand's **B** (right) or **Y**
     (left) with the trigger to reel in; let go and the rope keeps its length. Walls and ceilings, heavy props (100 kg
