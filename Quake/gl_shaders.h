@@ -537,6 +537,9 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 
 #define OIT_OUTPUT(output_name) \
 "#define OUT_COLOR " QS_STRINGIFY (output_name) "\n"\
+"#ifndef OIT_MAX // QVR: the brightest it keeps (the world's and the liquids' shaders: SceneTone.x, above 1 in the eyes' float scene)\n"\
+"#define OIT_MAX 1.0\n"\
+"#endif\n"\
 "#if OIT\n"\
 "	vec4 OUT_COLOR;\n"\
 "	layout(location=0) out vec4 out_accum;\n"\
@@ -556,7 +559,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	void main()\n"\
 "	{\n"\
 "		main_body();\n"\
-"		OUT_COLOR = clamp(OUT_COLOR, 0.0, 1.0);\n"\
+"		OUT_COLOR = clamp(OUT_COLOR, vec4(0.0), vec4(vec3(OIT_MAX), 1.0));\n"\
 "		vec4 color = vec4(GammaToLinear(OUT_COLOR.rgb), OUT_COLOR.a);\n"\
 "		float z = 1./gl_FragCoord.w;\n"\
 "#if " QS_STRINGIFY (LINEAR_SPACE_OIT) "\n"\
@@ -703,6 +706,7 @@ static const char world_fragment_shader[] =
 "layout(binding=9) uniform sampler2D LuxTex; // QVR: the baked light's directions (deluxemaps: r_brush.c), as LMTex\n"
 "\n"
 FRAMEDATA_BUFFER
+"#define OIT_MAX SceneTone.x // QVR: translucent faces as bright as opaque ones in the eyes' float scene (a slipgate's view through)\n"
 LIGHT_BUFFER
 LIGHT_CLUSTER_IMAGE("readonly")
 QVR_RETRO_GLSL(QS_STRINGIFY (QVR_RETRO_LUT_UNIT_WORLD)) // QVR: retro textures (vr_retro.h)
@@ -1016,6 +1020,7 @@ static const char water_fragment_shader[] =
 "#endif\n"
 "\n"
 FRAMEDATA_BUFFER
+"#define OIT_MAX SceneTone.x // QVR: as the world shader's (above 1 in the eyes' float scene: lava's glow)\n"
 NOISE_FUNCTIONS
 LIQUID_FUNCTIONS // QVR
 "\n"
@@ -1785,9 +1790,9 @@ static const char oit_resove_fragment_shader[] =
 "vec3 LinearToGamma(vec3 v)\n"
 "{\n"
 "#if " QS_STRINGIFY (LINEAR_SPACE_OIT) "\n"
-"	return sqrt(clamp(v, 0.0, 1.0));\n"
+"	return sqrt(max(v, 0.0)); // QVR: above 1 kept for the eyes' float scene (OIT_MAX; a unorm target clamps)\n"
 "#else\n"
-"	return clamp(v, 0.0, 1.0);\n"
+"	return max(v, 0.0); // QVR: above 1 kept for the eyes' float scene (OIT_MAX; a unorm target clamps)\n"
 "#endif\n"
 "}\n"
 "\n"

@@ -131,8 +131,11 @@ PYEOF
 fi
 
 # The left eye's image (vr_eyeshot) of a run, copied to scratch/<name>.png.
-eyeshot() { local out=$1; shift; rm_old=$TREE/quakevr/eyeshots/vrslipgates_000_L.png; : > "$rm_old"
-    run -Script "$*;vr_eyeshot 1;wait5;toggleconsole;quit"; cp "$rm_old" "$TREE/scratch/$out.png"; }
+# The game writes it under the kit's base for this agent (com_gamedir), not the worktree; emptied first so a run that
+# took none leaves no stale image behind.
+EYESHOTS=$KIT/bases/$AGENT/qbase/quakevr/eyeshots
+eyeshot() { local out=$1; shift; local shot=$EYESHOTS/vrslipgates_000_L.png; mkdir -p "$EYESHOTS"; : > "$shot"
+    run -Script "$*;vr_eyeshot 1;wait5;toggleconsole;quit"; cp "$shot" "$TREE/scratch/$out.png"; }
 # Pixels over a threshold of difference between two of those images.
 # (A box "x0,y0,x1,y1": only there; the runs' own noise, the lights' flicker, lies elsewhere.)
 differ() { "$PY" - "$TREE/scratch/$1.png" "$TREE/scratch/$2.png" "${3:-24}" "${4:-}" <<'PYEOF'

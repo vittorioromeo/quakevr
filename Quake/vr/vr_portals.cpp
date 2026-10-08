@@ -933,7 +933,9 @@ int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacit
 // vr_portals_shot (Debug > Slipgates): the view through a gate read back from its own targets, to measure what it
 // actually shows rather than which side was picked. Its colour and its depth, over the whole target and over the
 // gate's box on the eye's screen. Mask/hidden-area depth is at the near plane; only depths strictly between clear
-// and near values count as geometry, so the mask cannot masquerade as a rendered room.
+// and near values count as geometry, so the mask cannot masquerade as a rendered room. Its float scene goes to a .pfm
+// beside the .png (as vr_eyeshot 2's), to compare with the eye's own float scene; and with the eye's in the same frame
+// (the gate's face over the same pixels: what it shows of the view).
 
 namespace
 {
@@ -1011,15 +1013,13 @@ void takeShot(unsigned sceneFbo, int width, int height)
     glReadPixels(0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, depth.data());
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, 0);
 
-    Con_Printf("VR portal shot %d: side %d eye %d, %dx%d, head (%.0f %.0f %.0f)\n", shotCount, chosen, levels[0].textureEye,
-        width, height, chosenOrigin.x, chosenOrigin.y, chosenOrigin.z);
-    if(chosen >= 0)
-    {
-        const Side &s = sides[chosen];
-        const glm::vec3 carried = carriedView(s, chosenOrigin);
-        Con_Printf("  drawn from (%.0f %.0f %.0f), turned %.0f\n", carried.x, carried.y, carried.z,
-            s.yaw);
-    }
+    // The view just drawn (endView has stepped back to its parent): its side, and the camera it was drawn from (the
+    // caller puts r_refdef back after this).
+    const int side = path[za::min(drawDepth + 1, kMaxDepth)];
+    Con_Printf("VR portal shot %d: side %d eye %d, %dx%d, eye (%.2f %.2f %.2f)\n", shotCount, side, stereo::eye(), width,
+        height, chosenOrigin.x, chosenOrigin.y, chosenOrigin.z);
+    Con_Printf("  drawn from (%.2f %.2f %.2f), angles (%.2f %.2f %.2f)\n", r_refdef.vieworg[0], r_refdef.vieworg[1],
+        r_refdef.vieworg[2], r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]);
     Con_Printf("  its box: x %.3f..%.3f y %.3f..%.3f%s\n", eyeRect.x, eyeRect.z, eyeRect.y, eyeRect.w,
         eyeRectAll ? " (the whole screen)" : "");
     const glm::vec4 all{-1.f, -1.f, 1.f, 1.f};
@@ -1040,6 +1040,17 @@ void takeShot(unsigned sceneFbo, int width, int height)
     if(Image_WritePNGPath(path.cStr(), png.data(), width, height, 24, false))
     {
         Con_Printf("  Wrote %s\n", path.cStr());
+    }
+    // Its float scene too (as vr_eyeshot 2's .pfm: bottom row first), to compare with the eye's over the same pixels.
+    const za::String pfm = dir + "/" + va("%s_%03d.pfm", cl.mapname[0] ? cl.mapname : "none", shotCount);
+    if(FILE* f = fopen(pfm.cStr(), "wb"))
+    {
+        fprintf(f, "PF\n%d %d\n-1.0\n", width, height);
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            fwrite(&rgb[i * 4], sizeof(float), 3, f);
+        }
+        fclose(f);
     }
     ++shotCount;
 }

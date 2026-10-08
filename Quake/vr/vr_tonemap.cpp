@@ -184,7 +184,8 @@ void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int heigh
         writePfm(za::String{com_gamedir} + "/" + base + ".pfm", scene, width, height);
     }
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, 0);
-    Con_Printf("Wrote %s.png\n", base.cStr());
+    Con_Printf("Wrote %s.png (the eye at %.2f %.2f %.2f, angles %.2f %.2f %.2f)\n", base.cStr(), r_refdef.vieworg[0],
+        r_refdef.vieworg[1], r_refdef.vieworg[2], r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]);
     if(eye == 1)
     {
         ++eyeshotCount;

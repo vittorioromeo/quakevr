@@ -15,4 +15,5 @@ for f in sys.argv[1:]:
         elif cur is not None:
             runs.append(cur); cur = None
     if cur: runs.append(cur)
+    runs = [r for r in runs if r[1] - r[0] >= 2]  # a sign is rows tall (the deepest, 9); a lone row of 2 pixels is a speck
     print(f, len(runs), [(a, b, c) for a, b, c in runs])

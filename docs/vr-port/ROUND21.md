@@ -31406,3 +31406,48 @@ within the curb and short of the braziers, as the four did).
 - Test note: `setpos` always turns noclip on (no trigger touched until `noclip` again), and the slipgate's
   changelevel, like a button's command, is queued after the whole `-Script`: test the gate with `changelevel start`,
   or end the script without `quit` and read the log (`-Timeout`).
+
+## Slipgates: the view through a gate as bright as the room it shows (2026-10-08)
+
+The 2.5% left at a crossing (the section above: the room through a gate brighter than the room itself, on the lamp-lit
+walls). **Cause: the gate's faces clipped the view through at 1.** They are translucent liquid faces (`r_telealpha`
+times `vr_slipgate_surface_opacity`, under 1 whatever the opacity), drawn through Ironwail's order-independent
+transparency (`r_oit` 1), whose output clamped every colour to 0..1 (`OIT_OUTPUT`, and its resolve's `LinearToGamma`).
+The view through is a float scene (`vr_tonemap`) with lamp-lit walls up to about 2, as the room is when seen directly;
+on the gate each channel was cut at 1, so an orange-lit wall turned yellower and, past the tone curve (which rolls the
+brightest channel off keeping the hue), came out brighter than the same wall rolled off whole. Hence what made it go
+away: `vr_tonemap 0` (all clipped at 1 anyway), `vr_light_contrast 1` (no lamps above 1), normal maps, sheen and bloom
+off (less above 1). `r_oit 0` (blended, no clamp) shows it gone as well.
+
+**Fixed**: the world's and the liquids' shaders keep up to `SceneTone.x` in the transparency pass too (`OIT_MAX`; the
+models' and sprites' shaders keep 1 as before), and the resolve no longer clamps above (a unorm target, the window's,
+clamps by itself). Same cost. Translucent water, slime and lava lit above 1 now roll off in the eyes as the opaque
+world does (lava's glow above 1 was meant, the shader's comment says so; it was being clipped).
+
+**Measured**, the gate view's float scene against the eye's (`vr_portals_shot` now also writes a `.pfm`, and prints the
+camera the view was drawn from; Debug > Slipgates > The View Through A Gate, Read Back), vrslipgates' flush gate, the
+eye 10 units in front, the same frame:
+
+| | Gate face / view, wall pixels 0.75-1 | 1-1.5 | Above 1 on the face |
+| --- | --- | --- | --- |
+| Before | 0.86 (clipped) | (none) | 0 pixels |
+| After (and `r_oit 0` before) | 0.962 | 0.979 | 80 000 pixels |
+
+(0.96: the shimmer's share at that distance, the same over the whole range.) `teleport_frames_test.sh`, mean luminance
+of the frames before the crossing -> the one after:
+
+| Case | Before | After |
+| --- | --- | --- |
+| flush, 120 Hz, opacity 0.3 | 84.5, 84.4, 84.9, 85.5, 86.0 -> 84.2 | 82.6, 83.0, 83.5, 83.9 -> 84.2 |
+| flush, 120 Hz, opacity 1.0 | 79.4, 81.0, 83.1, 84.9 -> 84.2 | 78.2, 79.6, 81.4, 83.0 -> 84.2 |
+| start, 72 Hz, 0.3 / 1.0 | 19.8 / 20.3 -> 21.2 | 20.2 / 20.3 -> 21.2 (the gate's part 27.5 -> 28.3, as before) |
+
+No overshoot any more: the frames before rise to the room's level as the shimmer fades out (`vr_slipgate_surface_fade`)
+and the last step is the fade's own (at opacity 1.0 its 12% still over the last frame, 1.2).
+
+Also: `slipgate_edges_test.sh`'s eye images (head, recursion) are read from the kit's base for the agent (the game's
+`eyeshots/`), not the worktree's `quakevr/`, which does not exist ("No such file").
+
+- [ ] Walk into a slipgate whose room is lit by lamps (vrslipgates' flush gate, the start map's): no flash of brighter
+  walls at the crossing; the walls through the gate look as they do once through.
+- [ ] Translucent water near a bright lamp and lava seen through water: nothing turns white or blotchy.

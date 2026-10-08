@@ -5955,6 +5955,11 @@ za::Vector<Item> pageDebugTests()
                   "gate's in front of you and the gates seen within those, as deep as Gates Within Gates - each with its "
                   "eye carried through, and what making them costs. With a point: how far a torch there counts as "
                   "(none: no view sees it)."),
+        command("The View Through A Gate, Read Back", "vr_portals_shot")
+            .help("vr_portals_shot: the next view drawn through a gate read back from its own targets - its side, the "
+                  "eye and the camera it was drawn from, its brightness over the whole view and over the gate's box - "
+                  "to portalshots/<map>_<n>.png and its float scene to .pfm, to compare with the eye's own float scene "
+                  "(vr_eyeshot 2: eyeshots/<map>_<n>_L.pfm) - in the same frame, the gate's face over the same pixels."),
         command("Against A Gate's Frame", "map start; wait120; setpos 200 1372 24 0 90 0; wait30; vr_portals_info")
             .help("You against the wall beside the first gate's opening (12 units short of its plane): nothing "
                   "teleports you and there is no jump - vr_portals_info says his box reaches 12, that is, stopped."),
