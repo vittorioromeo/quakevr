@@ -30579,6 +30579,12 @@ vrfiringrange_2026-10-08_00-00-42, 00-01-10, and his typed note on the pouch's s
   `vr_test_held_hand 1` (Debug > Tests, "Into the Main Hand") puts impulse 252's gib or prop in the main hand. A head
   held in the main hand brought to 20 cm over the barrels opens the gun, to 20 cm under shuts it; a fist stopping as far
   off does neither.
+  - The same for knocking out a magazine (nailgun, super nailgun, thunderbolt; `VR_Reload_HitFrame`): a held prop counts
+    by its box's point nearest the magazine's length. A held magazine still counts by its middle and top: its box is
+    square to the world and larger than it, so the bump knocked the old one out from 10 units off and the new one then
+    seated on the same approach (reload_test.sh "a hit: the old one knocked out", 1 run in 6 failed). Test: a head
+    brought fast to 6 units off the nailgun's magazine (the hand 5.5 off it, past Hit Reach 4; its box 1.2) knocks it
+    out; the fist as far off doesn't.
 - **Spent lava nail magazines smoke** as the spent thunderbolt cells do (vrfiringrange 00-00-42): a magazine of lava
   nails (the nailgun's or the super nailgun's) taken out empty smokes off its top for Spent Cell Smoke
   (`vr_reload_battery_smoke_time`, 7 s), held or lying about; plain nails' don't. Test step `vr_reload_test 16` (Debug >

@@ -1088,11 +1088,13 @@ float(float xHand, entity box) VR_Reload_PouchTakesBox =
 };
 
 // The magazine of the gun in `xGunHand` of self (held or carried) knocked out by a hit (VR_Reload_MagFrame): what the
-// other hand brings (the fist, a prop it holds, a magazine, the gun it holds: its line to the muzzle) within
+// other hand brings (the fist, a prop it holds: its box's point nearest the magazine, as on the super shotgun's barrels
+// (VR_Reload_BoxNearest), a magazine, the gun it holds: its line to the muzzle) within
 // vr_reload_hit_reach of the magazine anywhere on it (its box, as drawn: VR_Reload_MagDist) at vr_reload_bump_speed or
 // more (the hands' relative speed); not by that hand holding the magazine (the two-handed grip) or gripping it now (its
 // grip closing on it: HS_MAGAZINE), nor in the half second after one seated. Out it flies along the blow, with the gun's
 // own speed. A magazine that knocked it out must leave the well before it seats (the bump reload's second step).
+vector(entity e, vector xA, vector xB) VR_Reload_BoxNearest;
 void(float xGunHand) VR_Reload_HitFrame =
 {
     float other = VRGetOtherHand(xGunHand);
@@ -1111,13 +1113,25 @@ void(float xGunHand) VR_Reload_HitFrame =
     vector at = VRGetEntHandPos(self, other);
     float d = VR_Reload_MagDist(self, xGunHand, at);
     entity held = VR_Carry_Held(self, other);
-    if(held != world)
+    if(held != world && held.vr_ammo_wid)
     {
+        // A magazine (or a round): its middle and its top, as drawn (its box, square to the world, is larger than it:
+        // the bump would knock the old one out from further off, the new one then seated by the same approach).
         d = min(d, VR_Reload_MagDist(self, xGunHand, held.origin));
-        if(held.vr_ammo_wid)
+        d = min(d, VR_Reload_MagDist(self, xGunHand, VR_Reload_MagRef(held)));
+    }
+    else if(held != world)
+    {
+        // A prop: its surface, not its middle (a held prop is kept off the gun by the hands' collisions): its box's
+        // point nearest the magazine's length (the well's top without a box).
+        vector m0 = xGunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
+        vector m1 = m0;
+        if(VR_Reload_HasMagBox(self, xGunHand))
         {
-            d = min(d, VR_Reload_MagDist(self, xGunHand, VR_Reload_MagRef(held)));
+            m0 = VR_Reload_MagBoxPos(self, xGunHand) - VR_Reload_MagBoxUp(self, xGunHand);
+            m1 = VR_Reload_MagBoxPos(self, xGunHand) + VR_Reload_MagBoxUp(self, xGunHand);
         }
+        d = min(d, VR_Reload_MagDist(self, xGunHand, VR_Reload_BoxNearest(held, m0, m1)));
     }
     if(VRGetEntWeapon(self, other) != WID_FIST)
     {
