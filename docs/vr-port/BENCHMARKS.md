@@ -498,3 +498,12 @@ changes those frames):
 (reverse order, the hidden ones skipped) against **25.5 ms at half size** (all of them drawn: the half pass cannot
 skip): hence retro frames composited in reverse order stay at full resolution (after: 10.1-10.5 against 9.3-10.2 ms,
 two interleaved pairs on the busy machine). The half programs compile at their first use (a 56 ms frame, as before).
+
+### The decal grid once a frame (PERF_DECISIONS.md item 6, 2026-10-08)
+
+The world's decal grid is made in a frame's first view only; marks made during the frame show in both eyes from the
+next. Grid builds in the 620 frames after the warm-up (`vr_profile` probes, his settings, unpaced, exclusive; the
+fights are not identical run to run): `ai_crowd_64` 498 -> 456 (-8%), `gore_slash_32` 168 -> 148 (-12%),
+`decals_1024_stream` 150 -> 150 (a shot between frames). A build is 0.03-0.14 ms (1024 large marks: 0.14), so the
+saving is at most a few hundredths of a millisecond a frame in fights; the point is the eyes agreeing
+(`vr_decal_eyes_test 90`: 0 of 90 frames different). `Misc/quakevr/decal_grid_test.py`: 766 exact comparisons, pass.

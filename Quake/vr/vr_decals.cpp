@@ -11,6 +11,7 @@
 #include "vr_modellight.hpp"
 #include "vr_profile.hpp"
 #include "vr_retro.hpp"
+#include "vr_stereo.hpp"
 #include "vr_ring.hpp"
 #include "vr_trace.hpp"
 
@@ -180,7 +181,7 @@ void popOldest()
     dropCount -= isDrop(decals.front());
     decals.popFront();
 }
-int builtFrame = -1; // the host frame `vertices` were built in; -1 when decals came or went since
+int builtFrame = -1; // the host frame `vertices` were built in (-1 after a clear)
 int addedThisFrame = 0;
 int addedFrame = -1;
 int goreFrame = -1; // the host frame gore::frame last ran in
@@ -1032,8 +1033,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     slot.bucketsMask = 0;
     slot.tris.assignRange(tris.begin(), tris.end());
     dropCount += isDrop(slot);
-    builtFrame = -1;
-    worldDirty = true;
+    worldDirty = true; // (`vertices`, made each frame, take it in the next one: in both eyes together)
     return true;
 }
 
@@ -1338,6 +1338,7 @@ za::U32 worldStamp = 0;
 gfx::StorageBuffer worldDecalBuffer, worldGridBuffer;
 double worldClock = 0.0; // cl.time the marks' times count from (the floats near 0)
 long long worldBuilds = 0;
+int worldFrame = -1; // the host frame of the last view that drew the marks on the world (VR_DecalsFrame: its first view makes the grid)
 
 // Mark `d`'s buckets in first-cell order, each once, into `out`. The stamp table matches mask + 1.
 void worldBuckets(const WorldDecal& d, za::U32 mask, za::Vector<za::U32>& out)
@@ -1574,15 +1575,10 @@ void draw()
     }
 }
 
-void stress_f()
+// `count` splatter marks on the floor ahead of the player, `size` units across (vr_decal_stress, vr_decal_eyes_test):
+// how many were made.
+int stressMarks(int count, float size)
 {
-    if(!cl.worldmodel || cl.viewentity <= 0 || cl.viewentity >= cl.num_entities)
-    {
-        Con_Printf("vr_decal_stress: enter a map first\n");
-        return;
-    }
-    const int count = Cmd_Argc() > 1 ? za::clamp(atoi(Cmd_Argv(1)), 1, 64) : 64;
-    const float size = Cmd_Argc() > 2 ? za::clamp(Q_atof(Cmd_Argv(2)), 1.f, 256.f) : 64.f;
     vec3_t forward, right, up;
     AngleVectors(cl.viewangles, forward, right, up);
     const glm::vec3 f{forward[0], forward[1], 0.f}, r{right[0], right[1], 0.f};
@@ -1602,7 +1598,74 @@ void stress_f()
             made += place(Mark::Splatter, where, normal, size);
         }
     }
+    return made;
+}
+
+void stress_f()
+{
+    if(!cl.worldmodel || cl.viewentity <= 0 || cl.viewentity >= cl.num_entities)
+    {
+        Con_Printf("vr_decal_stress: enter a map first\n");
+        return;
+    }
+    const int count = Cmd_Argc() > 1 ? za::clamp(atoi(Cmd_Argv(1)), 1, 64) : 64;
+    const float size = Cmd_Argc() > 2 ? za::clamp(Q_atof(Cmd_Argv(2)), 1.f, 256.f) : 64.f;
+    const int made = stressMarks(count, size);
     Con_DPrintf("vr_decal_stress: %d of %d marks, size %.0f\n", made, count, size);
+}
+
+// vr_decal_eyes_test N: for N frames a mark is made between the eyes (as the right eye's view begins, after the left
+// eye drew), and each frame's eyes compared: the marks on the world each drew with and the grid's builds (both or
+// neither must have the new one). Printed at the end, then the cvar back to 0.
+struct EyesTest
+{
+    int frames = 0, made = 0, disagreed = 0;
+    int leftFrame = -1;
+    za::SizeT leftMarks = 0;
+    long long leftBuilds = 0;
+};
+EyesTest eyesTest;
+
+void eyesTestBegin()
+{
+    if(vr_decal_eyes_test.value <= 0.f || !stereo::isRenderingEye() || stereo::eye() != 1 || cl.viewentity <= 0 ||
+        cl.viewentity >= cl.num_entities)
+    {
+        return;
+    }
+    eyesTest.made += stressMarks(1, 24.f);
+}
+
+void eyesTestEnd()
+{
+    if(vr_decal_eyes_test.value <= 0.f || !stereo::isRenderingEye())
+    {
+        return;
+    }
+    if(stereo::eye() == 0)
+    {
+        eyesTest.leftFrame = host_framecount;
+        eyesTest.leftMarks = worldDecals.size();
+        eyesTest.leftBuilds = worldBuilds;
+        return;
+    }
+    if(eyesTest.leftFrame != host_framecount)
+    {
+        return;
+    }
+    eyesTest.frames++;
+    if(eyesTest.leftMarks != worldDecals.size() || eyesTest.leftBuilds != worldBuilds)
+    {
+        eyesTest.disagreed++;
+    }
+    if(eyesTest.frames >= static_cast<int>(vr_decal_eyes_test.value))
+    {
+        Con_Printf("vr_decal_eyes_test: %d frames, %d marks made between the eyes, %d frames the eyes drew different marks "
+                   "(0: each new mark in both or neither)\n",
+            eyesTest.frames, eyesTest.made, eyesTest.disagreed);
+        eyesTest = {};
+        Cvar_SetQuick(&vr_decal_eyes_test, "0");
+    }
 }
 
 void count_f()
@@ -1946,6 +2009,12 @@ extern "C" void VR_DecalsFrame(float clock[4])
     {
         return;
     }
+    // Made once a frame, in its first view, for every view of it: marks that come or go during the frame (blood
+    // landing in the left eye's particles, the gore's frame in its decals::draw) show in both eyes together, from the
+    // next frame (made again in the right eye, they showed there a frame before the left).
+    const bool firstView = worldFrame != host_framecount;
+    worldFrame = host_framecount;
+    eyesTestBegin();
     const double life = expire();
     if(qvr::decals::decals.empty())
     {
@@ -1955,11 +2024,12 @@ extern "C" void VR_DecalsFrame(float clock[4])
     {
         makeAtlas();
     }
-    if(worldDirty)
+    if(worldDirty && firstView)
     {
         worldDirty = false;
         buildWorld();
     }
+    eyesTestEnd();
     if(!atlas || worldDecals.empty())
     {
         return;

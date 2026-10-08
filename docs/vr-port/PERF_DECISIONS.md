@@ -86,18 +86,22 @@ Before:
 glMultiDrawElementsIndirect 34%. A reduced-resolution path for large soft particles with the retro quantisation is
 the one large GPU lever left; visual, his call.
 
-### 6. Decals on the world: the grid made twice in a frame
+### 6. Decals on the world: the grid made once a frame (decided and done 2026-10-08)
 
-Marks placed during the left eye's scene (blood landing in the particles' step, gore::frame in decals::draw) come
-after that eye's `decals::buildWorld`, so the right eye makes the grid again (the profile's "decals on the world"
-under eye R: 0.03-0.07 ms a frame in `ai_crowd_64` before this follow-up's grid fix, about half that after). The right
-eye shows the new marks a frame before the left.
+**Decided** (the author: "only one option, but both eyes should agree; if needed delay decals appearing by one frame
+so that both eyes see it at the same time"): the grid is made in a frame's first view only (`VR_DecalsFrame`), and every
+view of the frame draws with it; a mark made during the frame (blood landing in the left eye's particles, gore::frame
+in its decals::draw) shows in both eyes together from the next frame. The other option (the marks' producers moved
+before the build) is dropped; no setting. The marks drawn as triangles (`vr_decals_world 0`) likewise take a new mark
+from the next frame's build, not the right eye's.
 
-- **Option**: one grid a frame: the left eye's kept for the right (new marks in both eyes from the next frame), or the
-  marks' producers run before the build.
-- **Win**: the second build, 0.02-0.04 ms a frame in fights (after the fix).
-- **Drawback**: a new mark shows a frame later in the right eye (or earlier in the left): both eyes then agree.
-- **Recommendation**: do it (the eyes agreeing is better than now); a visual timing change, so his call.
+Before: marks placed during the left eye's scene came after that eye's `decals::buildWorld`, so the right eye made the
+grid again and showed them a frame before the left (the profile's "decals on the world" under eye R: 0.03-0.07 ms a
+frame in `ai_crowd_64` before this follow-up's grid fix, about half that after). Test: `vr_decal_eyes_test 90`
+(Debug > Decals in Both Eyes) makes a mark between the eyes' views each frame and compares them: 0 frames different
+(39 marks; 39 of 90 frames different before the first view claimed the frame). Builds in a 620-frame window (his
+settings, unpaced): `ai_crowd_64` 498 -> 456, `gore_slash_32` 168 -> 148, `decals_1024_stream` 150 -> 150 (its marks
+come between frames); at most one a frame now.
 
 ### 7. The decal grid's size from its occupied cells
 

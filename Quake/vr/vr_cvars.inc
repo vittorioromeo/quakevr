@@ -1340,6 +1340,7 @@ QVR_CVAR(vr_ambient_light_ab, "0", CVAR_NONE)          // Debug A/B: 1 hides the
 QVR_CVAR(vr_decals, "1", CVAR_ARCHIVE)                 // blood and scorch marks on the world
 QVR_CVAR(vr_decal_max, "1024", CVAR_ARCHIVE)           // how many are kept (the oldest go first)
 QVR_CVAR(vr_decal_life, "120", CVAR_ARCHIVE)           // seconds a mark stays (fading over the last five)
+QVR_CVAR(vr_decal_eyes_test, "0", CVAR_NONE)          // tests: for this many frames a mark made between the eyes' views, then whether the eyes drew the same marks each frame (printed; back to 0)
 QVR_CVAR(vr_decals_world, "1", CVAR_ARCHIVE)         // the marks drawn in the world's own shader, on its texture under its light and following its parallax relief (0: as meshes over it)
 QVR_CVAR(vr_gib_blood, "1", CVAR_ARCHIVE)              // gibs and heads bleed: Quake VR's blood trail, drops on the floor, splats where they hit (0: Quake's trail)
 QVR_CVAR(vr_gib_blood_trail, "1", CVAR_ARCHIVE)        // how dense their trail of blood and drops is (0 none)
