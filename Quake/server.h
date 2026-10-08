@@ -278,6 +278,7 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 qboolean SV_WriteSound (sizebuf_t *buf, int ent, int channel, int sound_num, int volume, float attenuation,
     const vec3_t origin, float pitch); // QVR: the start-sound message (SV_StartSound's; the physics sounds')
 void SV_LocalSound (client_t *client, const char *sample); // for 2021 rerelease
+qboolean SV_VisibleToClient (edict_t *client, edict_t *test, struct qmodel_s *worldmodel); // QVR: declared for vr_server.cpp
 
 void SV_DropClient (qboolean crash);
 

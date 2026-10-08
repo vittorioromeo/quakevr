@@ -1144,6 +1144,24 @@ void sendCollect(edict_t* player, int hand, int hotspot, int ent, int modelIndex
     }
 }
 
+void sendCollectSeen(edict_t* seen, int hand, int hotspot, int ent, int modelIndex, const float origin[3],
+    const float angles[3])
+{
+    if(!seen || seen->free || !sv.worldmodel)
+    {
+        return;
+    }
+    for(int i = 0; i < svs.maxclients; ++i)
+    {
+        const client_t& c = svs.clients[i];
+        if(!c.active || !c.spawned || !c.edict || !SV_VisibleToClient(c.edict, seen, sv.worldmodel))
+        {
+            continue;
+        }
+        sendCollect(c.edict, hand, hotspot, ent, modelIndex, origin, angles);
+    }
+}
+
 // Spent casings out of the weapon in a player's hand (vr_shells.cpp): only that player's client
 // draws them, from its own weapon model.
 void sendEject(edict_t* player, int hand, int kind, int count, int flags, float delay)

@@ -5883,7 +5883,11 @@ za::Vector<Item> pageDebugTests()
             .help("The off hand's gun let go of: it lies as a prop, its rounds with it. Guns lying about load as held "
                   "ones do, by hand and by contact."),
         command("Toss a Round Into the Lying Gun", "vr_reload_test 21; impulse 125")
-            .help("A loose round for the nearest gun lying about, tossed into its opening lying right: it goes in."),
+            .help("A loose round for the nearest gun lying about, tossed into its opening lying right: it goes in, seen "
+                  "sliding in (a shell, a pair, a launcher's round)."),
+        command("Drop a Round Onto the Lying Gun", "vr_reload_test 26; impulse 125")
+            .help("The same let go of 6 units above its load point, lying right: it falls in where the opening is up "
+                  "enough, seen sliding in."),
         command("Toss One Sideways at the Lying Gun", "vr_reload_test 24; impulse 125")
             .help("The same lying sideways a unit out of its opening: it stays out."),
         command("Hold a Round at the Lying Gun", "vr_reload_test 22; impulse 125")

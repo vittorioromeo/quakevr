@@ -590,7 +590,8 @@ void() VR_Reload_TestLooseReport =
 // (it falls and lies as a prop, its rounds with it); 21 a loose round for the nearest such gun tossed into its opening
 // lying right (from 8 units out, at 200 units/s); 22 the main hand's round placed at its load point (the right way round:
 // it goes in the next frame); 23 the lying guns' report (each one's magazine and load point); 24 a loose round for it
-// lying sideways a unit out of its opening (it stays out).
+// lying sideways a unit out of its opening (it stays out); 26 a loose round for it lying right, let go of 6 units above
+// its load point (dropped onto the gun: it falls in).
 entity() VR_Reload_TestLyingGun =
 {
     entity best = world;
@@ -658,7 +659,7 @@ void(float xStep) VR_Reload_TestLying =
         VR_Reload_PropRound(g, h); // (this frame: the carry puts it back in the hand after)
         return;
     }
-    // 21, 24: a loose round for it, out of the reserve.
+    // 21, 24, 26: a loose round for it, out of the reserve.
     float w = g.weapon;
     float aid = VR_Reload_PropAmmoFor(g);
     float wid = VR_Reload_UsesMag(w) ? w : 0;
@@ -685,6 +686,10 @@ void(float xStep) VR_Reload_TestLying =
         ang_x = ang_x - 90;
     }
     vector at = g.loadportpos + g.loadportface * (xStep == 24 ? 1 : 8);
+    if(xStep == 26)
+    {
+        at = g.loadportpos + '0 0 6';
+    }
     vr_reload_make_front = VR_Reload_IsFront(w) ? w : 0;
     entity r = VR_Reload_MakeRound(wid, aid, n, at, ang);
     setorigin(r, r.origin + (at - VR_Reload_RoundRef(r)));
@@ -694,7 +699,7 @@ void(float xStep) VR_Reload_TestLying =
     }
     r.flags = r.flags - (r.flags & FL_ONGROUND);
     bprint(sprintf("reload: %s placed loose at the lying %s (%s)\n", VR_Reload_Desc(r), g.netname,
-        xStep == 21 ? "tossed in" : "sideways"));
+        xStep == 21 ? "tossed in" : xStep == 26 ? "dropped from above" : "sideways"));
 };
 
 // Test step 25 (a held prop hits with its shape, not its box: the author's note vrfiringrange_2026-10-08_10-42-18): the
@@ -862,7 +867,7 @@ void() VR_Reload_Test =
     {
         VR_Reload_TestLooseReport();
     }
-    else if(step >= 20 && step <= 24)
+    else if((step >= 20 && step <= 24) || step == 26)
     {
         VR_Reload_TestLying(step);
     }

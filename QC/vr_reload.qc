@@ -2111,19 +2111,18 @@ float(entity g, entity r, float xLoose) VR_Reload_PropLies =
     return VR_Reload_RoundAxis(r) * normalize(g.loadportaxis) >= cos(most * 0.0174533);
 };
 
-// From `xHand` of the player `xBy`, the round `r` (its model as it is now: of a pair with one place, a single shell) went
-// into the gun lying as `g`: drawn sliding in on his client as into a held gun (vr_collectfx.cpp, QVR_CFX_INTO_PROP; the
-// author's note vrfiringrange_2026-10-08_14-18-22: it went in at once). Not a magazine (it seats, as into a held gun).
-void(entity g, entity r, entity xBy, float xHand) VR_Reload_PropSlide =
+// The round `r` (its model as it is now: of a pair with one place, a single shell) went into the gun lying as `g`, from
+// `xHand` of a player or a loose one by contact (dropped on it, thrown in): drawn sliding in as into a held gun on every
+// client that can see the gun (vr_collectfx.cpp, QVR_CFX_INTO_PROP: the engine sends it so, whoever self is; the
+// author's notes vrfiringrange_2026-10-08_14-18-22, it went in at once, and of 2026-10-08, a loose one still did). Not a
+// magazine (it seats at once, as into a held gun).
+void(entity g, entity r, float xHand) VR_Reload_PropSlide =
 {
-    if(!xBy || r.vr_ammo_wid)
+    if(r.vr_ammo_wid)
     {
         return;
     }
-    entity was = self;
-    self = xBy; // (collectfx goes to self's client)
     collectfx(xHand, g, QVR_CFX_INTO_PROP, r.modelindex, r.origin, r.angles);
-    self = was;
 };
 
 // The round `r` goes into the gun lying as `g` (which takes it and has room), from `xHand` of the player `xBy` (world: a
@@ -2162,10 +2161,10 @@ float(entity g, entity r, entity xBy, float xHand) VR_Reload_IntoProp =
     if(r.vr_ammo_count > 0)
     {
         VR_Reload_SetModel(r); // (a pair's other shell, still in the fingers, or lying)
-        VR_Reload_PropSlide(g, r, xBy, xHand);
+        VR_Reload_PropSlide(g, r, xHand);
         return FALSE;
     }
-    VR_Reload_PropSlide(g, r, xBy, xHand);
+    VR_Reload_PropSlide(g, r, xHand);
     if(xBy)
     {
         VR_Carry_SetHeld(xBy, xHand, world);

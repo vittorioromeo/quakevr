@@ -15,7 +15,9 @@
 // the hand has let go of a shell (or the super shotgun's pair) at the load point of the gun in its other hand, loaded at
 // once; the copy slides from where it was to the load point and on into the gun (view::loadPath: up the shotgun's port
 // into its tube, into the super shotgun's chambers) over vr_reload_insert_time, at its size, carried by the gun (its
-// place and turn kept in the gun's model space: it follows the gun as it moves), and is gone inside it.
+// place and turn kept in the gun's model space: it follows the gun as it moves), and is gone inside it. Into a gun lying
+// about (intoPropHotspot, the message's entity the gun): sent to every client that can see the gun, from a hand or a
+// loose round by contact (dropped on it, thrown in) alike (server::sendCollectSeen).
 
 #include "vr_collectfx.hpp"
 #include "vr_body.hpp"
@@ -61,10 +63,10 @@ struct Item
 };
 
 constexpr int maxItems = collectfx::maxCopies;
-constexpr int intoGunHotspot = 240; // QC's QVR_CFX_INTO_GUN: into the gun in the other hand (vr_reload.qc)
-// QC's QVR_CFX_INTO_PROP: into the gun lying about that the message's entity is (VR_Reload_IntoProp; the author's note
+using collectfx::intoGunHotspot;  // into the gun in the other hand (vr_reload.qc)
+// Into the gun lying about that the message's entity is (VR_Reload_IntoProp; the author's note
 // vrfiringrange_2026-10-08_14-18-22: shells loaded into a lying shotgun went in at once, without a held gun's slide).
-constexpr int intoPropHotspot = 241;
+using collectfx::intoPropHotspot;
 za::Array<Item, maxItems> items;
 
 // The gun an "into the gun" copy slides into, as drawn now: the one in its hand, or the one lying about (gunEnt).

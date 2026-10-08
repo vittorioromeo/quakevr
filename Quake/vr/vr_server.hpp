@@ -56,6 +56,11 @@ void sendShock(struct edict_s* player, int kind, const float org[3], float radiu
 void sendCollect(struct edict_s* player, int hand, int hotspot, int ent, int modelIndex, const float origin[3],
     const float angles[3]);
 
+// The same to every client whose view can see the entity `seen` (its PVS): a round into a gun lying about (QVR_CFX_INTO_PROP,
+// `ent` the gun), seen sliding in by everyone, by a hand or a loose one by contact alike.
+void sendCollectSeen(struct edict_s* seen, int hand, int hotspot, int ent, int modelIndex, const float origin[3],
+    const float angles[3]);
+
 // Weapon effects (vr_weaponfx.cpp), to every client (the datagram: a lost one is a flash or a tracer less): `shooter`
 // fired the weapon in `hand` (-1: a monster's gun), and a hitscan pellet of its went from `from` to `to`.
 void sendFired(struct edict_s* shooter, int hand);

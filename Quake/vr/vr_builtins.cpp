@@ -23,6 +23,7 @@
 #include "vr_props.hpp"
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
+#include "vr_collectfx.hpp"
 #include "vr_server.hpp"
 #include "vr_shock.hpp"
 #include "vr_stealth.hpp"
@@ -1848,11 +1849,20 @@ void PF_bodyshock()
 // collectfx(hand, e, hotspot, modelindex, origin, angles) (QC VR_CollectFx_Send; self is the player): the thing `e` that
 // hand put away at `hotspot` (a holster's, a pouch's), its model and pose as it was before it was taken: that player's
 // client draws it going in (vr_collectfx.cpp). Visual only.
+// Into a gun lying about (collectfx::intoPropHotspot, `e` the gun): to every client that can see the gun instead, self
+// or not (a loose round by contact has no player).
 void PF_collectfx()
 {
-    server::sendCollect(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)),
-        static_cast<int>(G_FLOAT(OFS_PARM2)), NUM_FOR_EDICT(G_EDICT(OFS_PARM1)), static_cast<int>(G_FLOAT(OFS_PARM3)),
-        G_VECTOR(OFS_PARM4), G_VECTOR(OFS_PARM5));
+    edict_t* e = G_EDICT(OFS_PARM1);
+    const int hotspot = static_cast<int>(G_FLOAT(OFS_PARM2));
+    if(hotspot == collectfx::intoPropHotspot)
+    {
+        server::sendCollectSeen(e, static_cast<int>(G_FLOAT(OFS_PARM0)), hotspot, NUM_FOR_EDICT(e),
+            static_cast<int>(G_FLOAT(OFS_PARM3)), G_VECTOR(OFS_PARM4), G_VECTOR(OFS_PARM5));
+        return;
+    }
+    server::sendCollect(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), hotspot,
+        NUM_FOR_EDICT(e), static_cast<int>(G_FLOAT(OFS_PARM3)), G_VECTOR(OFS_PARM4), G_VECTOR(OFS_PARM5));
 }
 
 void PF_bodyshockdeath()

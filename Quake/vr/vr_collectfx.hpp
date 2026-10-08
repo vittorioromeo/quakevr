@@ -17,6 +17,12 @@ struct EntityVr;
 namespace qvr::collectfx
 {
 
+// The "hotspots" of the "into the gun" variant (QC vr_defs.qc): QVR_CFX_INTO_GUN, into the gun in the other hand (to the
+// player alone); QVR_CFX_INTO_PROP, into the gun lying about that the message's entity is (to everyone who can see it:
+// server::sendCollectSeen, from a hand or a loose round by contact alike).
+inline constexpr int intoGunHotspot = 240;
+inline constexpr int intoPropHotspot = 241;
+
 // QVR_SVC_COLLECT: [byte hand][byte hotspot][short entity][short modelindex][float3 origin][float3 angles].
 void parse();
 

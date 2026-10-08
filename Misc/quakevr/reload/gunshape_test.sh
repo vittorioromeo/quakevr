@@ -12,6 +12,11 @@
 #   5. the author's note vrfiringrange_2026-10-08_14-18-22: the shotgun lying as a prop, a shell held at its load point
 #      slides in as into a held gun (vr_collectfx.cpp, QVR_CFX_INTO_PROP: from the port into its tube, carried by the
 #      lying gun); its ammo screen shows its clip and size alone ("0/8", then "1/8"), not the reserve.
+#   6. the author's note of 2026-10-08 (a shell dropped onto a lying shotgun or thrown into it went in at once): loose
+#      rounds loading by contact slide in too, on every client that can see the gun (server::sendCollectSeen): a shell
+#      tossed into the lying shotgun and one dropped onto it (vr_reload_test 26), the pair into the super shotgun lying
+#      open, a grenade into the lying grenade launcher; a magazine seats at once (no slide, as from a hand); a loose shell
+#      tossed into the held shotgun slides in as before (QVR_CFX_INTO_GUN).
 # Prints PASS/FAIL per check (and the numbers); exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
@@ -82,4 +87,32 @@ last=$(echo "$log" | grep "in gun $gun (lying)" | tail -1 | sed -E 's/.* t ([0-9
 check $(echo "$log" | grep -q "^reload: 1 into the Shotgun lying about (from a hand)" && echo "$log" | grep -q "collect fx: progs/vr_shell_live.mdl gone in" && awk -v f="$first" -v l="$last" 'BEGIN { split(l, x, " "); print (f != "" && f < 1 && x[1] > 0.9 && x[2] > 2.5) ? 1 : 0 }') "the lying shotgun: the shell slides in from its port ($first units off) into its tube (t, units: $last)"
 screens=$(echo "$log" | grep "^world gun $gun " | sed -E 's/.*its screen "([^"]*)".*/\1/' | sort -u | tr '\n' ' ')
 check $([ "$screens" = "0/8 1/8 " ] && echo 1 || echo 0) "the lying shotgun's screen: its clip and size alone ($screens)"
+
+# 6. Loose rounds by contact slide in too (the lying guns' and a held one's).
+slide() { # <gun> <step> [open]: the lying gun, a loose round by test step <step>
+    local S="$BASE;impulse $1;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;give n 100;give r 20;vr_mock_hand main 0.25 1.1 -0.3 0 0 0"
+    case $1 in
+        154|155|158) S="$S;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 5;impulse 125;wait2";;
+        *) S="$S;vr_mock_hand off -0.6 1.0 -0.40 50 0 0;wait10;vr_reload_test 6;impulse 125;wait60;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10";;
+    esac
+    [ "$3" = open ] && S="$S;vr_reload_test 15;impulse 125;wait20"
+    bash $KIT/run.sh $AGENT -Script "$S;vr_reload_test 20;impulse 125;wait120;vr_debug_collect_fx 1;vr_reload_test $2;impulse 125;wait150;toggleconsole;quit" -Filter "^reload: .*(into the|seated in)|^collect fx" 2>&1
+}
+slid() { # <log> <model>: 1 if the loose round went in and its copy slid from near the port to the end of the path
+    local gun=$(echo "$1" | grep -m1 "into hotspot 241" | sed -E 's/.*\(entity ([0-9]+),.*/\1/')
+    local first=$(echo "$1" | grep -m1 "in gun $gun (lying) t 0.0" | sed -E 's/.* t 0.0[0-9], ([0-9.]+) off its port.*/\1/')
+    local last=$(echo "$1" | grep "in gun $gun (lying)" | tail -1 | sed -E 's/.* t ([0-9.]+), .*/\1/')
+    echo "$1" | grep -q "lying about (a loose round by contact)" && echo "$1" | grep -q "collect fx: $2 gone in" &&
+        awk -v f="$first" -v l="$last" 'BEGIN { print (f != "" && f < 40 && l > 0.9) ? 1 : 0 }' || echo 0
+}
+for row in "154 21 progs/vr_shell_live.mdl shotgun_tossed_in" "154 26 progs/vr_shell_live.mdl shotgun_dropped_onto" "155 21 progs/vr_shell_pair.mdl super_shotgun_open,_the_pair_tossed_in open" "158 21 progs/grenade.mdl grenade_launcher_tossed_in"; do
+    set -- $row; name=${4//_/ }
+    log=$(slide $1 $2 $5)
+    check $(slid "$log" $3) "lying $name: the loose round slides in ($(echo "$log" | grep -c "(lying) t") frames drawn going in)"
+done
+log=$(slide 156 21)
+check $(echo "$log" | grep -q "seated in the Nailgun lying about (a loose round by contact)" && ! echo "$log" | grep -q "into hotspot" && echo 1 || echo 0) "lying nailgun: a loose magazine seats at once (no slide, as from a hand)"
+S="$BASE;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 5;impulse 125;wait2;vr_debug_collect_fx 1;vr_reload_test 10;impulse 125;wait150"
+log=$(bash $KIT/run.sh $AGENT -Script "$S;toggleconsole;quit" -Filter "^reload: [0-9] into|^collect fx" 2>&1)
+check $(echo "$log" | grep -q "a loose round by contact" && echo "$log" | grep -q "into hotspot 240" && echo "$log" | grep -q "collect fx: progs/vr_shell_live.mdl gone in" && echo 1 || echo 0) "held shotgun: a loose shell tossed in slides in ($(echo "$log" | grep -c "in gun [01] t") frames)"
 exit $fail

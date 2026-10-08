@@ -32205,3 +32205,24 @@ Player-visible text that said "portal" says teleporter too ("Portal Stars" is Te
 - **What still says slipgate:** id's (e1m1's name, the Slipgate Complex; the finale texts in client.qc; the mission
   packs' `$map_walk_slipgate_exit`), the aliases above and their notes, quoted commit subjects, and the names of
   scripts deleted before the rename (REPO_CLEANUP.md).
+
+## Loose rounds slide into the gun too (2026-10-08)
+
+Vittorio: a shell hand-fed into a shotgun lying as a prop slid in, but one dropped onto it or thrown into its receiver
+just vanished. The slide (vr_collectfx.cpp's "into the gun", `collectfx` hotspot 241 `QVR_CFX_INTO_PROP`) went to the
+loading player's client only, and a loose round loading by contact has no player, so `VR_Reload_PropSlide` sent nothing.
+
+- **Into a gun lying about:** `collectfx` with hotspot 241 now goes to every client that can see the gun
+  (`server::sendCollectSeen`: `SV_VisibleToClient`, the gun's fat PVS from each client's eye), whoever `self` is, from a
+  hand or a loose round alike. The client draws it as before: the round's model from the server's pose, along the
+  lying gun's load path in its model space (`view::propGun`, `modelLoadPath`), carried by the gun. Other players now
+  see a hand-fed one slide in too. Shells, the super shotgun's pair (lying open) and the launchers' rounds slide;
+  magazines seat at once, as from a hand (they have no slide either way).
+- **Into a held gun:** a loose round by contact already slid in on the holder's client (`VR_Reload_LoadInto` sends
+  `QVR_CFX_INTO_GUN` with the other hand); checked, unchanged. Other players still see it vanish (their view of
+  someone's held gun has no load path).
+- **Test aid:** `vr_reload_test 26` (Debug > Tests > Reloading, "Drop a Round Onto the Lying Gun"): a loose round
+  for the nearest lying gun let go of 6 units above its load point. `gunshape_test.sh` section 6: tossed into and
+  dropped onto the lying shotgun, the pair into the open super shotgun, a grenade into the lying launcher (each slides
+  from its port to the end of the path, 33 frames drawn), the nailgun's magazine seats with no slide, a loose shell
+  into the held shotgun slides as before.
