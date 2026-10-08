@@ -246,7 +246,7 @@ void(float xHand) VR_FireGruntGun =
 // more), a corpse, a gib or a breakable too; a prop is pushed (VR_ShotPush_Touch); the enforcer's sounds and sparks.
 void() VR_RifleLaser_Touch =
 {
-    if(other == self.owner || other.solid == SOLID_TRIGGER)
+    if(VR_OwnerSpared(other) || other.solid == SOLID_TRIGGER)
     {
         return;
     }

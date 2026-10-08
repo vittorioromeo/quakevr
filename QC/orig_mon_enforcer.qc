@@ -45,8 +45,8 @@ void() Laser_Touch =
 {
     vector org;
 
-    if(other == self.owner)
-        return;        // don't explode on owner
+    if(VR_OwnerSpared(other))
+        return;        // don't explode on owner (QVR: unless through a slipgate)
 
     if(pointcontents(self.origin) == CONTENT_SKY)
     {

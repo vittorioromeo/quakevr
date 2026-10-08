@@ -209,6 +209,7 @@ void VR_PortalToss (struct edict_s *ent);	// SV_Physics_Toss, before the move: t
 void VR_PortalMonsterCross (struct edict_s *ent);	// SV_Physics_Step, after its think: a monster through a paired slipgate (vr_portals.cpp)
 void VR_PortalTraceBegin (void);			// PF_traceline: the last portal trace's crossings forgotten
 void VR_PortalTrace (const float start[3], const float end[3], int type, struct edict_s *passedict, trace_t *trace); // ... MOVE_PORTALS: on through the slipgates it crosses
+int VR_PortalHitsOwner (struct edict_s *missile); // SV_MoveRun: nonzero if a missile was carried through a slipgate (VR_PortalToss): it meets its owner (Quake's owner rule off)
 void VR_PhysicsFrameEnd (void);				// end of SV_Physics's entity loop: Box3D's world steps (vr_box3d.cpp)
 int VR_PushSkips (struct edict_s *ent);		// SV_PushMove: nonzero for an entity it must not move (a Box3D body: lifts carry it by contact)
 void VR_PlayerBumps (struct edict_s *ent, struct edict_s *other, const float *normal); // SV_FlyMove, a move stopped by a plane of `other`: a player walking into a solid prop's side shoves it (vr_box3d_player_shove)

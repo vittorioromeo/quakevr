@@ -480,7 +480,7 @@ void(entity g) VR_Grenade_Spent =
 // not its thrower, else it bounces), except while held, and on a VR player's hands (VR_Grenade_OnBody).
 void() VR_Grenade_Touch =
 {
-    if(other == self.owner || self.carry_player != world || !self.vr_gren_fuse || self.vr_gren_trap != world)
+    if(VR_OwnerSpared(other) || self.carry_player != world || !self.vr_gren_fuse || self.vr_gren_trap != world)
     {
         return;
     }

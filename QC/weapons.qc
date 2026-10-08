@@ -2226,8 +2226,8 @@ void() T_MissileTouch =
 {
     float    damg;
 
-    if(other == self.owner)
-        return;        // don't explode on owner
+    if(VR_OwnerSpared(other))
+        return;        // don't explode on owner (QVR: unless through a slipgate)
 
     if(pointcontents(self.origin) == CONTENT_SKY)
     {
@@ -2353,6 +2353,10 @@ float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
 LightningDamage
 =================
 */
+// QVR: MOVE_HITPASS while LightningDamage strikes a bolt's piece come out of a slipgate: the one who fired it is hit too
+// (your bolt at your own image, seen through the gate).
+float vr_lightning_hitpass;
+
 void(vector p1, vector p2, entity from, float damage) LightningDamage =
 {
     entity        e1, e2;
@@ -2372,7 +2376,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     // HONEY
     self.damage_weapon = IT_LIGHTNING;
 
-    traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise),
+    traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise),
     // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
     VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
     VR_Gib_TraceHeld(p1, p2);              // and one held in the other hand
@@ -2392,7 +2396,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     }
     e1 = trace_ent;
 
-    traceline(p1 + f, p2 + f, MOVE_HITGIBS | MOVE_HITMODEL, self);
+    traceline(p1 + f, p2 + f, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self);
 //JIM
     if(trace_ent != e1 && trace_ent.takedamage &&
     !trace_ent.wetsuit_finished)
@@ -2404,7 +2408,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     }
     e2 = trace_ent;
 
-    traceline(p1 - f, p2 - f, MOVE_HITGIBS | MOVE_HITMODEL, self);
+    traceline(p1 - f, p2 - f, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self);
 //JIM
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage &&
         !trace_ent.wetsuit_finished)
@@ -2640,6 +2644,7 @@ void(float xHand) W_FireLightning =
     // QVR: through a slipgate (vr_portals.cpp, vr_portals_walk), the bolt in two pieces: to the gate, and on from its far
     // side, turned with it (its beam: PlayerLightningGunEffect)
     float through = portal_crossings() > 0;
+    float fromImage = portal_from_image(); // (the gun held through a gate: the bolt may strike you from the start)
     vector boltEnd = trace_endpos;
     vector gateIn = through ? portal_entry(0) : boltEnd;
     vector boltFrom = through ? portal_exit(portal_crossings() - 1) : org;
@@ -2654,12 +2659,15 @@ void(float xHand) W_FireLightning =
     particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', boltDir);
     vr_decap_weapon = QVR_DECAP_LIGHTNING; // (head pops)
+    vr_lightning_hitpass = fromImage ? MOVE_HITPASS : 0;
     if(through)
     {
         LightningDamage(from, gateIn, self, cvar_hget(cvarh_vr_dmg_lightning)); // the piece on this side
         from = boltFrom;
+        vr_lightning_hitpass = MOVE_HITPASS; // (the far piece strikes you too: your own image)
     }
     LightningDamage(from, boltEnd + boltDir*4, self, cvar_hget(cvarh_vr_dmg_lightning));
+    vr_lightning_hitpass = 0;
     vr_decap_weapon = 0;
     VR_ClearHitKind();
 
@@ -2685,8 +2693,8 @@ void() GrenadeExplode =
 
 void() GrenadeTouch =
 {
-    if(other == self.owner)
-        return;        // don't explode on owner
+    if(VR_OwnerSpared(other))
+        return;        // don't explode on owner (QVR: unless through a slipgate)
 
     if(VR_WallTorch_OnWall(other))
     {
@@ -3120,7 +3128,7 @@ void() spike_touch =
     float bleed;
     bleed = FALSE;
 
-    if(other == self.owner)
+    if(VR_OwnerSpared(other)) // (QVR: through a slipgate it hits you)
         return;
 
     if(other.solid == SOLID_TRIGGER)
@@ -3179,7 +3187,7 @@ void() superspike_touch =
     float bleed;
     bleed = FALSE;
 
-    if(other == self.owner)
+    if(VR_OwnerSpared(other)) // (QVR: through a slipgate it hits you)
         return;
 
     if(other.solid == SOLID_TRIGGER)

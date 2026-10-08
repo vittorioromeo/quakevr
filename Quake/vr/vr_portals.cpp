@@ -2134,7 +2134,15 @@ extern "C" void VR_PortalToss(edict_t* ent)
         }
         // Its middle carried through (its box's offset kept: it is axis-aligned), a little further on where it does not fit.
         const glm::vec3 dir = sd.turn * v;
-        const glm::vec3 to = carried(sd, vec(ent->v.origin));
+        glm::vec3 to = carried(sd, vec(ent->v.origin));
+        // A small thing (a nail, a rocket: its box shallower than its middle's way to the plane) would come out wholly
+        // behind the exit's plane, inside the wall there, and strike it: its middle put just out of the plane instead
+        // (where its path crossed, carried), the frame's move going on from there.
+        if(!behind && halfDepth < d0)
+        {
+            const Side out = reverseSide(sd);
+            to = carried(sd, c) + out.normal * (halfDepth + 0.5f) - sd.turn * mid;
+        }
         // Keep the straddling placement. Only its destination half needs to
         // clear the level; the trailing half belongs to the original room.
         const Side exit = reverseSide(sd);
@@ -2174,6 +2182,8 @@ extern "C" void VR_PortalToss(edict_t* ent)
         }
         const int gateField = ED_FindFieldOffset("vr_ai_gate");
         if(gateField >= 0) { GetEdictFieldValue(ent, gateField)->_float = 0.f; }
+        // Come out of a gate, it meets its owner (VR_PortalHitsOwner): your nail at your own image hits you.
+        if(progs::fields().vr_gate_crossed >= 0) { progs::fieldFloat(ent, progs::fields().vr_gate_crossed) = za::max(static_cast<float>(qcvm->time), 0.001f); }
         SV_LinkEdict(ent, false);
         return;
     }
@@ -2533,6 +2543,10 @@ namespace
 
 constexpr int kMaxTraceCrossings = 2;
 int traceCrossings = 0;
+bool traceFromImage = false; // the last MOVE_PORTALS traceline began at a player's image (a muzzle held through a gate)
+// A player's shot beginning this far from his box (units) began through a gate (his muzzle reached through: reachAlong,
+// carried to the far side); no arm and gun reach it.
+constexpr float kImageReach = 72.f;
 glm::vec3 traceEntry[kMaxTraceCrossings];
 glm::vec3 traceExit[kMaxTraceCrossings];
 glm::mat3 traceTurn{1.f};
@@ -2543,6 +2557,7 @@ glm::mat3 traceTurn{1.f};
 extern "C" void VR_PortalTraceBegin(void)
 {
     qvr::portals::traceCrossings = 0;
+    qvr::portals::traceFromImage = false;
     qvr::portals::traceTurn = glm::mat3{1.f};
 }
 
@@ -2562,6 +2577,19 @@ extern "C" void VR_PortalTrace(const float start[3], const float end[3], int typ
     if(sides.empty() || total < 1.f)
     {
         return;
+    }
+    // A player's shot from a muzzle held through a gate (carried to its far side, far from his body): it meets him too
+    // (MOVE_HITPASS), as one come out of a gate does: the gun reached into the loop's gate shoots your back.
+    const int passNum = passedict ? NUM_FOR_EDICT(passedict) : 0;
+    if(passNum >= 1 && passNum <= svs.maxclients && !(type & MOVE_HITPASS))
+    {
+        const glm::vec3 nearest = glm::clamp(s, vec(passedict->v.absmin), vec(passedict->v.absmax));
+        if(glm::distance(s, nearest) > kImageReach)
+        {
+            traceFromImage = true;
+            type |= MOVE_HITPASS;
+            *trace = SV_Move(const_cast<float*>(start), vec3_origin, vec3_origin, const_cast<float*>(end), type, passedict);
+        }
     }
     float before = 0.f; // the length gone before the current part
     for(int n = 0; n < kMaxTraceCrossings; n++)
@@ -2617,12 +2645,28 @@ extern "C" void VR_PortalTrace(const float start[3], const float end[3], int typ
         s = from;
         e = to;
         vec3_t a{s.x, s.y, s.z}, b{e.x, e.y, e.z};
-        *trace = SV_Move(a, vec3_origin, vec3_origin, b, type, passedict);
+        // Out of the gate it meets the shooter too (MOVE_HITPASS): your shot at your own image hits you.
+        *trace = SV_Move(a, vec3_origin, vec3_origin, b, type | MOVE_HITPASS, passedict);
     }
     if(traceCrossings)
     {
         trace->fraction = za::min((before + trace->fraction * glm::distance(s, e)) / total, 1.f);
     }
+}
+
+// QuakeC (portal_from_image): whether the last MOVE_PORTALS traceline began at a player's image, his muzzle held
+// through a gate (then what it strikes may be him: LightningDamage's MOVE_HITPASS).
+extern "C" float VR_PortalFromImage(void)
+{
+    return qvr::portals::enabled() && qvr::portals::traceFromImage ? 1.f : 0.f;
+}
+
+// SV_MoveRun: a missile carried through a gate (VR_PortalToss) meets its owner, Quake's owner rule off for it.
+extern "C" int VR_PortalHitsOwner(edict_t* missile)
+{
+    using namespace qvr;
+    const int ofs = progs::fields().vr_gate_crossed;
+    return missile && ofs >= 0 && missile->v.owner && progs::fieldFloat(missile, ofs) > 0.f ? 1 : 0;
 }
 
 // QuakeC: the last MOVE_PORTALS traceline's gates (portal_crossings), where it went into the i-th and came out of it

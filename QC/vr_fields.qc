@@ -12,6 +12,7 @@
 .float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)
 .entity vr_wpn_from; // a weapon lying about or flying: the player whose hand it left (DropWeaponInHandScaled), else world
 .float vr_born; // when it was made (set by the engine, ED_Alloc: vr_cheats.cpp; VR_Scene_IsRuntimeProp)
+.float vr_gate_crossed; // when a missile was last carried through a slipgate (set by the engine: VR_PortalToss); then it meets its owner (VR_OwnerSpared)
 .float vr_sgib; // a small gib (vr_smallgibs.qc): when it was made
 .float vr_sgib_id; // its serial in the small gibs' ring (0: gone)
 .float vr_flies; // a severed head's flies buzz round it (HeadThink, player.qc; VR_Head_StopFlies)

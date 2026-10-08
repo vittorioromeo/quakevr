@@ -49,6 +49,7 @@ typedef struct
 #define	MOVE_HITMODEL_CLASS_SHIFT	10	// QVR: and its class (the tolerance) in the two bits above: guns, grapple, melee, thrown
 #define	MOVE_HITMODEL_CLASS	(3 << MOVE_HITMODEL_CLASS_SHIFT)
 #define	MOVE_PORTALS	4096	// QVR, traceline: on through the slipgates it crosses (vr/vr_portals.cpp, vr_portals_walk)
+#define	MOVE_HITPASS	8192	// QVR, added to a type: the pass entity itself (and its owner) is hit: a path come out of a slipgate (your shot at your own image)
 #define	MOVE_HITMODEL_REACH	96	// QVR: units a model is found out of its box (an ogre's chainsaw: 33; a walking monster drawn behind it: a dog's step, 64)
 
 

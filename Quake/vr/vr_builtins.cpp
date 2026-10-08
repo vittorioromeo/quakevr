@@ -468,11 +468,18 @@ extern "C" float VR_PortalCrossings(void);                    // vr_portals.cpp
 extern "C" void VR_PortalEntry(int i, float out[3]);
 extern "C" void VR_PortalExit(int i, float out[3]);
 extern "C" void VR_PortalTurn(const float v[3], float out[3]);
+extern "C" float VR_PortalFromImage(void);
 
 // float() portal_crossings: how many slipgates the last MOVE_PORTALS traceline went through (0 none).
 void PF_portal_crossings()
 {
     G_FLOAT(OFS_RETURN) = VR_PortalCrossings();
+}
+
+// float() portal_from_image: 1 if it began at the player's image, his muzzle held through a slipgate (it may hit him).
+void PF_portal_from_image()
+{
+    G_FLOAT(OFS_RETURN) = VR_PortalFromImage();
 }
 
 // vector(float i) portal_entry, portal_exit: where it went into the i-th (from 0) and came out of it.
@@ -2170,6 +2177,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"portal_entry", PF_portal_entry},
     {"portal_exit", PF_portal_exit},
     {"portal_turn", PF_portal_turn},
+    {"portal_from_image", PF_portal_from_image},
     {"worldtext_hsethalign", PF_worldtext_hsethalign},
     {"worldtext_hsetscale", PF_worldtext_hsetscale},
     {"WriteVec3", PF_WriteVec3},
