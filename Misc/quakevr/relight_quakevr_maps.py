@@ -155,7 +155,8 @@ def relit_entities(text, settings):
                 continue
             block = with_keys(block, settings["lamp_keys"](keys))
         elif keys.get("classname") == "worldspawn":
-            block = with_keys(block, settings["worldspawn"])
+            # (+ "_qvr_prelit": lit here, so the game's relight batches pass it over: vr_relight_maps.cpp, ownMap)
+            block = with_keys(block, settings["worldspawn"] + [("_qvr_prelit", "1")])
         out.append(block)
     return "\n".join(out) + "\n"
 

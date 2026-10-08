@@ -1644,6 +1644,8 @@ WORLD_KEYS = {
     "light": "14", "_minlight_color": "0.55 0.62 1", "_sunlight": "230", "_sunlight_mangle": "240 -30 0", "_sunlight_color": "0.62 0.72 1.0",
     "_sunlight2": "75", "_sunlight2_color": "0.3 0.38 0.62", "_bounce": "1", "_vr_debris": "0", "_vr_crates": "0",
     "sky": "vs2night", "fog": "0.035 0.045 0.055 0.08",
+    # Lit here as it is meant to be: the game's relight batches pass it over (vr_relight_maps.cpp, ownMap).
+    "_qvr_prelit": "1",
 }
 
 

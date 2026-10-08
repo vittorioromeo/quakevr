@@ -122,10 +122,39 @@ constexpr int libraryRank = 1000;
     return *a ? 1 : *b ? -1 : 0;
 }
 
-// A map one can play: its entities have a place to start (info_player_*). Not the brush models a game folder keeps
-// in maps/ (quakevr's buttons and prop tables, a mod's ammo boxes not named b_*). Only the entity lump is read.
-[[nodiscard]] bool playable(const Source& s)
+// The worldspawn's (the first entity's) "_qvr_prelit" key set, not "0": a map Quake VR's own pipeline compiled and lit
+// (vrstart_gen.py, make_vrcalibration_map.py, make_vrtesthall_map.py, relight_quakevr_maps.py).
+[[nodiscard]] bool prelitKey(const char* entities)
 {
+    const char* end = strchr(entities, '}');
+    const char* key = strstr(entities, "\"_qvr_prelit\"");
+    if(!key || (end && key > end))
+    {
+        return false;
+    }
+    const char* v = key + 13;
+    while(*v == ' ' || *v == '\t')
+    {
+        v++;
+    }
+    return *v == '"' && v[1] && v[1] != '"' && !(v[1] == '0' && v[2] == '"');
+}
+
+// Quake VR's own maps, lit already as they are meant to be: the worldspawn key above, or, for those compiled before it
+// (and any made by hand), a map of the quakevr folder's own maps/ named vr* (vrstart, vrtutorial, vrfiringrange,
+// vrcalibration, vrtesthall, vrslipgates, vrslopes, vrclimb, vrexample, vrstart_old: every map we ship is named so).
+[[nodiscard]] bool ownMap(const Source& s, const char* entities)
+{
+    return prelitKey(entities) || (!s.inPak && !q_strcasecmp(s.game.cStr(), "quakevr") && s.map.size() > 2 &&
+                                      s.map[0] == 'v' && s.map[1] == 'r' && !strchr(s.map.cStr(), '/'));
+}
+
+// A map one can play: its entities have a place to start (info_player_*). Not the brush models a game folder keeps
+// in maps/ (quakevr's buttons and prop tables, a mod's ammo boxes not named b_*). Only the entity lump is read; `prelit`
+// says whether it is one of Quake VR's own maps (ownMap).
+[[nodiscard]] bool playable(const Source& s, bool& prelit)
+{
+    prelit = false;
     FILE* f = Sys_fopen(s.file.cStr(), "rb");
     if(!f)
     {
@@ -150,7 +179,12 @@ constexpr int libraryRank = 1000;
              fread(text.data(), 1, static_cast<size_t>(length), f) == static_cast<size_t>(length);
     }
     fclose(f);
-    return ok && strstr(text.data(), "info_player_") != nullptr;
+    if(!ok || !strstr(text.data(), "info_player_"))
+    {
+        return false;
+    }
+    prelit = ownMap(s, text.data());
+    return true;
 }
 
 struct Found
@@ -453,9 +487,11 @@ bool collect(Set set, const char* arg, const char* current, za::Vector<Source>& 
         {
             continue;
         }
-        if(playable(f.source))
+        bool prelit = false;
+        if(playable(f.source, prelit))
         {
             out.pushBack(f.source);
+            out.back().prelit = prelit;
         }
     }
     if(out.empty())

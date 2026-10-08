@@ -187,7 +187,8 @@ def write(path):
         f.write('// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/make_vrtesthall_map.py: edit that, not this.\n'
                 '// entity 0\n{\n"classname" "worldspawn"\n"mapversion" "220"\n'
                 '"wad" "quakevr/wads/quakevr_dev.wad"\n"_tb_mod" "hipnotic;rogue;quakevr"\n'
-                '"message" "VR Test Hall"\n"worldtype" "2"\n"light" "' + str(LIGHT[4]) + '"\n"_vr_debris" "0"\n')
+                '"message" "VR Test Hall"\n"worldtype" "2"\n"light" "' + str(LIGHT[4]) + '"\n"_vr_debris" "0"\n'
+                '"_qvr_prelit" "1"\n')  # (lit here: the game's relight batches pass it over)
         f.write("\n".join(B) + "\n}\n")
         for i, e in enumerate(E):
             f.write(f"// entity {i + 1}\n{e}\n")

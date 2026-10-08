@@ -30651,3 +30651,30 @@ installer".
   view and in the gadget's log. Headless e1m1 (`say`, `vr_message_test print/console`, `exec` of a missing file):
   0: view and wrist "You got the shells", "player: hello there" only; 1: also "couldn't exec ...", the test console
   line and the startup "VR: foveated rendering ... available". Coop 1 / maxplayers 4: the server's `say` still shows.
+## Relighting: a batch passes over Quake VR's own maps (2026-10-08)
+
+The first start's `vr_relight_batch everything` relit 82 maps in about 2 minutes, then spent over 28 on `vrstart`
+(BSP2, ~90k faces, lit by `vrstart_gen.py`'s final preset). Our maps ship lit as they are meant to be: relighting them
+only costs time.
+
+- **Which maps are ours** (`maps::Source::prelit`, `vr_relight_maps.cpp` `ownMap`): the worldspawn's
+  `"_qvr_prelit" "1"`, now written by every pipeline that compiles or lights them (`vrstart_gen.py` WORLD_KEYS,
+  `make_vrcalibration_map.py`, `make_vrtesthall_map.py`, `relight_quakevr_maps.py`); or, for the maps compiled before
+  the key (none of the shipped .bsp files has it yet: recompiling vrstart takes half an hour, and a changed entity
+  lump unpins a map's `<map>@<crc>.ent`), a loose map of the `quakevr` folder's own `maps/` named `vr*`: every map we
+  ship is (vrstart, vrstart_old, vrtutorial, vrfiringrange, vrcalibration, vrtesthall, vrslipgates, vrslopes, vrclimb,
+  vrexample). The prefix rather than a list: a new test map is covered without an engine change. A Map Library
+  package's maps are in their own folder, so never caught by it.
+- **Where they are skipped:** `vr_relight_batch` of a set (episode, game, library, everything, the page's choice):
+  each listed as `Relight: vrstart skipped: already lit (Quake VR's own map; vr_relight relights it)`, counted in the
+  start line and the summary (`..., 10 of Quake VR's own skipped (already lit)`). `-own` takes them. The map in play
+  (`map`), maps named (`vr_relight_batch vrtutorial`) and `vr_relight` (Relight This Map) still relight them.
+- **Times:** each map's light time is kept; the batch's end prints them all, the slowest first, and the maps over 60 s
+  (also flagged as each ends: `Relight: x took 75 s, over 60 s: a slow map to relight`).
+- **Test aid:** `vr_relight_whendone <commands>` runs them when the batch ends (scripted runs: `...;vr_relight_whendone
+  quit`; the kit's run.ps1 splits `-Script` on every `;`, quoted or not).
+- **Installer:** the Play page's first-start note says "a few minutes, about two on a fast PC" (was "about a minute").
+- **Verified** (kit qbase, 32 cores): `vr_relight_batch everything -force`: the 10 `vr*` maps listed as skipped,
+  `73 maps relit, 10 of Quake VR's own skipped (already lit) in 1:06` (slowest hip1m3 4.0 s; none over 60 s);
+  `-own -list` gives 83. `vr_relight vrtutorial` still relights it (2.1 s; reverted after). vrstart loads its shipped
+  light (no relit copy); e1m1 smoke fine.

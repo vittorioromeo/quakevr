@@ -23,6 +23,9 @@ struct Source
     za::I64 offset{0};
     za::I64 length{0}; // its bytes (the batch's estimate of the work it is)
     bool inPak{false};
+    // One of Quake VR's own maps, compiled and lit by its pipeline (the worldspawn's "_qvr_prelit", or the quakevr
+    // folder's vr* maps): a batch of a set passes over it, already lit (collect sets it; locate does not).
+    bool prelit{false};
 };
 
 enum class Set

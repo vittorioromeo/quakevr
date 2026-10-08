@@ -1178,7 +1178,7 @@ public sealed class MainViewModel : ObservableObject
             DoneNotes.Add(new CheckItem(CheckStatus.Info, "Relit maps", before > 0
                 ? $"The {before} maps relit before are kept. At its next start (Play below, a shortcut or Steam) the game relights only the maps that are new or changed since, " +
                   "and skips the rest (the wrist gadget shows its progress). Later: Graphics > Relighting."
-                : "At its first start (Play below, a shortcut or Steam) the game relights every map with the HD textures (about a minute; the wrist gadget shows its progress). " +
+                : "At its first start (Play below, a shortcut or Steam) the game relights every map with the HD textures (a few minutes, about two on a fast PC; the wrist gadget shows its progress). " +
                   "Later: Graphics > Relighting."));
         }
         if (VcResult is { } vc && vc.Outcome != VcRedistOutcome.AlreadyInstalled)

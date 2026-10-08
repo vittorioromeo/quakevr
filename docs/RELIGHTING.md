@@ -303,7 +303,9 @@ The page's **Many Maps** part relights a whole set with the same settings, in th
    Dissolution of Eternity, Dimension of the Past, Dimension of the Machine, Dawn of the Machine under **Game**, when
    installed), *Map Library's* (every map of the packages installed from the Map Library) or *Every Map* (all of them).
    Only maps you can play are taken (a game folder's brush models in `maps/`, the ammo boxes and Quake VR's buttons, are
-   not).
+   not). An episode, a game, the Map Library's or every map passes over Quake VR's own maps (`vrstart`, `vrtutorial`,
+   `vrfiringrange`, `vrcalibration`...: they ship lit as they are meant to be, and `vrstart`'s light takes half an
+   hour); the console lists them as `skipped: already lit`. *This Map* relights one of them when you ask.
 2. Choose **Relight These Maps**. The page shows a bar: how far the whole batch is (each map weighed by its size, the
    one being lit by its stage), the time left, the maps done of how many and each map being lit with its stage. Outside
    the menu the wrist gadget's screen shows a line in place of the kills and secrets (`RELIGHT 3/8 45% 0:27`, a thin bar
@@ -329,6 +331,8 @@ four; with Bounced Light 34, 33, 33 and 42 s. A map's texture lights are made on
 | `vr_relight_batch episode e2`, `game hipnotic`, `library`, `everything`, `map` | That set. |
 | `vr_relight_batch e1m1 dm4 start` | These maps (as the game finds them). |
 | `... -force`, `... -list` | Relight unchanged maps too; only list the maps (their files and sizes). |
+| `... -own` | Quake VR's own maps too (a set passes over them: lit already). |
+| `vr_relight_whendone <commands>` | Run these when the batch ends (at once when none runs): a script's wait. |
 | `vr_relight_status` | The batch: maps done, each `light` running (stage, process id), progress and time left. |
 
 **Where the result goes:** `quakevr\relit_custom\<game>\maps\` (in the folder the game saves into), with a

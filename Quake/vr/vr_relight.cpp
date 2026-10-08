@@ -2216,6 +2216,7 @@ struct Item
     State state{State::Queued};
     double weight{1.0}; // its share of the work: its file's size (light's time grows with the map)
     float fraction{0.f}; // how far its light is (0..1, while it runs)
+    double seconds{0.0}; // its light's time, when relit (the batch's summary)
 };
 
 // A light running: its map, its files in the work folder, what its log said.
@@ -2256,6 +2257,7 @@ struct Batch
     double nextPoll{0.0};
     za::SizeT next{0}; // the next queued item
     int relit{0}, skipped{0}, failed{0}, cancelled{0};
+    int alreadyLit{0}; // Quake VR's own maps passed over (maps::Source::prelit: lit as they ship), not in `items`
     // The map in play, when the batch relights it (vr_relight_reload): reloaded when it is done, or at the batch's end
     // (vr_relight_batch_reload).
     char reloadMap[MAX_QPATH]{};
@@ -2266,6 +2268,17 @@ struct Batch
 };
 Batch batch;
 bool saving = false; // the relit map in play saved, its save being written, before the load (poll)
+za::String whenDone;  // vr_relight_whendone's commands: run when the batch ends (scripted tests: the end's wait)
+
+// vr_relight_whendone's commands run (the batch ended or was cancelled).
+void runWhenDone()
+{
+    if(!whenDone.empty())
+    {
+        Cbuf_AddText(va("%s\n", whenDone.cStr()));
+        whenDone.clear();
+    }
+}
 
 // The page's and the commands' last word on it (statusLine).
 char status[384] = "";
@@ -2980,20 +2993,63 @@ void reloadNow(const char* map, double seconds)
     return true;
 }
 
+// A map's light over this many seconds is flagged (the console): its map is one a batch is slow on.
+constexpr double slowSeconds = 60.0;
+
+// The batch's maps relit, each with its light's time, the slowest first (the console), and those over slowSeconds.
+void batchTimes()
+{
+    za::Vector<const Item*> done;
+    for(const Item& item : batch.items)
+    {
+        if(item.state == State::Done)
+        {
+            done.pushBack(&item);
+        }
+    }
+    if(done.empty())
+    {
+        return;
+    }
+    za::stableSort(done.begin(), done.end(), [](const Item* a, const Item* b) { return a->seconds > b->seconds; });
+    za::String line{"Relight: each map's light, the slowest first:"};
+    za::String slow;
+    for(const Item* item : done)
+    {
+        line += va(" %s %.1f s,", item->source.map.cStr(), item->seconds);
+        if(item->seconds > slowSeconds)
+        {
+            slow += va("%s%s (%.0f s)", slow.empty() ? "" : ", ", item->source.map.cStr(), item->seconds);
+        }
+    }
+    line[line.size() - 1] = '\n';
+    Con_Printf("%s", line.cStr());
+    if(!slow.empty())
+    {
+        Con_Printf("Relight: over %.0f s: %s\n", slowSeconds, slow.cStr());
+    }
+}
+
 // The batch's end: what it did, and the map in play reloaded if it waited for the end.
 void endBatch()
 {
     batch.active = false;
     batch.ended = Sys_DoubleTime();
+    runWhenDone();
     const double seconds = batch.ended - batch.started;
     if(batch.single)
     {
         return; // (its map's own message said it)
     }
+    batchTimes();
     za::String line{va("%d map%s relit", batch.relit, batch.relit == 1 ? "" : "s")};
     if(batch.skipped)
     {
         line += va(", %d skipped (relit with these settings already)", batch.skipped);
+    }
+    if(batch.alreadyLit)
+    {
+        line += va(", %d of Quake VR's own skipped (already lit)", batch.alreadyLit);
     }
     if(batch.failed)
     {
@@ -3068,7 +3124,12 @@ void slotEnded(int slotIndex)
     }
     else
     {
+        item.seconds = seconds;
         itemEnded(item, State::Done);
+        if(seconds > slowSeconds)
+        {
+            Con_Printf("Relight: %s took %.0f s, over %.0f s: a slow map to relight\n", map, seconds, slowSeconds);
+        }
         char now[MAX_QPATH];
         const bool inPlay = batch.reloadMap[0] && !strcmp(batch.reloadMap, map) &&
                             !q_strcasecmp(batch.reloadGame, item.source.game.cStr()) && currentMap(now, sizeof(now)) &&
@@ -3154,7 +3215,7 @@ void fillSlots()
 
 // A batch of `sources` started with the page's settings (single: vr_relight's one map). `force`: maps relit with the
 // same settings already relit again (vr_relight's always are).
-void startBatch(za::Vector<maps::Source> sources, bool single, bool force)
+void startBatch(za::Vector<maps::Source> sources, bool single, bool force, int alreadyLit = 0)
 {
     if(busy())
     {
@@ -3172,6 +3233,7 @@ void startBatch(za::Vector<maps::Source> sources, bool single, bool force)
     batch = Batch{};
     batch.single = single;
     batch.force = single || force;
+    batch.alreadyLit = alreadyLit;
     batch.tool = tool;
     batch.root = customRoot();
     batch.look = Look::now();
@@ -3228,8 +3290,10 @@ void startBatch(za::Vector<maps::Source> sources, bool single, bool force)
     batch.active = true;
     if(!single)
     {
-        say(va("relighting %d map%s, %d at once (%d threads each)%s", static_cast<int>(batch.items.size()),
-            batch.items.size() == 1 ? "" : "s", batch.parallel, batch.threads, batch.force ? "" : "; those relit with these settings already skipped"));
+        say(va("relighting %d map%s, %d at once (%d threads each)%s%s", static_cast<int>(batch.items.size()),
+            batch.items.size() == 1 ? "" : "s", batch.parallel, batch.threads,
+            batch.force ? "" : "; those relit with these settings already skipped",
+            alreadyLit ? va("; %d of Quake VR's own skipped, already lit", alreadyLit) : ""));
     }
     fillSlots();
     if(batch.active && batch.next >= batch.items.size() && !anyRunning())
@@ -3266,6 +3330,7 @@ void cancelBatch(const char* why)
     batch.active = false;
     batch.ended = Sys_DoubleTime();
     batch.reloadPending = false;
+    runWhenDone();
     if(why)
     {
         if(batch.single)
@@ -3308,11 +3373,13 @@ void relightCommand()
 // The page's game choices (vr_relight_batch_game).
 constexpr const char* batchGames[] = {"", "id1", "hipnotic", "rogue", "dopa", "mg1", "mg3"};
 
-// vr_relight_batch [map|episode [eN]|game [folder]|library|everything | <map> <map>...] [-force] [-list]: the page's
-// choice (vr_relight_batch_set ...) without a set named.
+// vr_relight_batch [map|episode [eN]|game [folder]|library|everything | <map> <map>...] [-force] [-list] [-own]: the
+// page's choice (vr_relight_batch_set ...) without a set named. An episode, a game, the Library or everything passes
+// over Quake VR's own maps (maps::Source::prelit: they ship lit as they are meant to be, and vrstart's light takes
+// half an hour) unless -own; the map in play, maps named and vr_relight (Relight This Map) relight them.
 void batchCommand()
 {
-    bool list = false, force = false;
+    bool list = false, force = false, own = false;
     za::Vector<const char*> words;
     for(int i = 1; i < Cmd_Argc(); i++)
     {
@@ -3324,6 +3391,10 @@ void batchCommand()
         else if(!q_strcasecmp(a, "-force"))
         {
             force = true;
+        }
+        else if(!q_strcasecmp(a, "-own"))
+        {
+            own = true;
         }
         else
         {
@@ -3392,6 +3463,27 @@ void batchCommand()
         say(why.cStr());
         return;
     }
+    int alreadyLit = 0;
+    if(!own)
+    {
+        za::Vector<maps::Source> kept;
+        for(maps::Source& s : sources)
+        {
+            if(s.prelit)
+            {
+                Con_Printf("Relight: %s skipped: already lit (Quake VR's own map; vr_relight relights it)\n", s.map.cStr());
+                alreadyLit++;
+                continue;
+            }
+            kept.pushBack(ZA_MOVE(s));
+        }
+        sources = ZA_MOVE(kept);
+        if(sources.empty())
+        {
+            say(va("%d of Quake VR's own maps, already lit: nothing to relight (-own relights them)", alreadyLit));
+            return;
+        }
+    }
     if(list)
     {
         za::I64 bytes = 0;
@@ -3404,7 +3496,7 @@ void batchCommand()
         Con_Printf("Relight: %d maps, %.1f MB\n", static_cast<int>(sources.size()), static_cast<double>(bytes) / 1048576.0);
         return;
     }
-    startBatch(ZA_MOVE(sources), false, force || vr_relight_batch_force.value != 0.f);
+    startBatch(ZA_MOVE(sources), false, force || vr_relight_batch_force.value != 0.f, alreadyLit);
 }
 
 void cancelCommand()
@@ -3450,6 +3542,18 @@ void revertCommand()
     VR_FileCacheForget();
     say(removed ? va("%s's in-game relight removed: its other light from its next start", map) :
                   va("%s has no in-game relight", map));
+}
+
+// vr_relight_whendone <commands>: the commands run when the batch (or vr_relight's map) ends, at once when none
+// runs: a script's wait for a relight ("vr_relight_batch everything; vr_relight_whendone quit").
+void whenDoneCommand()
+{
+    const char* args = Cmd_Argc() == 2 ? Cmd_Argv(1) : Cmd_Args(); // ("a;b" quoted: its quotes off)
+    whenDone = za::String{args ? args : ""};
+    if(!batch.active)
+    {
+        runWhenDone();
+    }
 }
 
 void statusCommand()
@@ -3620,6 +3724,7 @@ void registerCommands()
     Cmd_AddCommand("vr_relight_cancel", cancelCommand);
     Cmd_AddCommand("vr_relight_revert", revertCommand);
     Cmd_AddCommand("vr_relight_status", statusCommand);
+    Cmd_AddCommand("vr_relight_whendone", whenDoneCommand);
     Cmd_AddCommand("vr_relight_defaults", defaultsCommand);
     Cmd_AddCommand("vr_relight_lights", lightsCommand);
     Cmd_AddCommand("vr_relight_vispatch", vispatchCommand);
@@ -3684,7 +3789,7 @@ bool firstStart()
         return false;
     }
     Con_Printf("Relight: a first start after the installer: every map relit, except those relit with these settings "
-               "already (vr_relight_batch everything)\n");
+               "already and Quake VR's own, lit as they ship (vr_relight_batch everything)\n");
     Cbuf_InsertText("vr_relight_batch everything\n");
     return true;
 }
