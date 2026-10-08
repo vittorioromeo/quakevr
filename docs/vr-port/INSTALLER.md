@@ -521,21 +521,3 @@ history since 2026-07-01 (none do).
 | `gamma` / `contrast` | 0.95 / 1.2 | 1 / 1 (check whether they reach the headset image) |
 | `scr_conscale`, `scr_menuscale`, `scr_sbarscale`, `scr_crosshairscale` | 3 | 1 |
 | `scr_centerprintbg` / `scr_menubgstyle` | 3 / 0 | 2 / -1 |
-
-### Gameplay and look: promoted (his own values)
-
-Promoted on 2026-10-07: his values are the shipped defaults (`vr_cfg_version` 95, `vr_wofs_version` 35,
-`vr_props_version` 58); a config still holding the old default takes the new one, a changed value is kept.
-`vr_dummy_gib` was not part of it (still a question).
-
-| Setting | His = now shipped | Was |
-|---|---|---|
-| `vr_fire_particles_alpha` / `_count` / `_origin` / `_size` | 1 / 8 / 0.2 / 2.5 | 0.55 / 6 / 0.25 / 2 |
-| `vr_decap_pop_always_range` / `_never_range` | 2 / 12 | 3 / 15 |
-| `vr_decap_pop_thrown_light_chance` | 0.25 | 0 |
-| `vr_ragdoll_grab_reach` / `vr_ragdoll_hand_stick` | 2 / 2 | 6 / 12 |
-| `vr_dummy_gib` | 1 | 0 (not promoted) |
-| `vr_messages_hologram_height` | 10 | 5 |
-| `vr_retro_all_average` / `_block` / `_dither` / `_fade` / `_palette` (the All Categories panel: now the shipped look every kind has had since config 89) | 0 / 0.5 / 0.5 / -1 / 1 | 1 / 1 / 0 / 1 / 0 |
-| `vr_wofs_torch_out_18` / `vr_wofs_torch_up_18` (the grappling hook's flashlight) | -0.035 / 0.075 | 0 / 0 |
-| Masses (kg), `vr_prop_mass_NN` | h_grem 9, gib2 15, gib3 10, h_guard 8, h_dog 9, h_mega 9, h_knight 8, h_hellkn 11, h_ogre 15, h_shal 10, h_shams 65, h_demon 18 (gib1 8, h_player 5, h_wizard 10, h_zombie 8, h_scourg 50 unchanged) | 18, 20, 12, 10, 12, 16, 12, 17, 30, 12, 70, 28 |
