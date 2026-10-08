@@ -31042,3 +31042,51 @@ superaxe --distance 0.85` after the pickup ("chop (horizontal) with the head"). 
 - Test note: `set vr_test_weaponinst 1; impulse 120` ran as step 0 here; the plain `vr_test_weaponinst 1` works.
 
 **For VR:** whether the aisle spot reads well (it is darker than the pads), and taking it off the floor.
+
+## Wrist flicks in bullet time: the arm tells the tempo (2026-10-08)
+
+vrfiringrange_2026-10-08_10-30-08: an upward wrist flick, the hand nearly still, went much further in bullet time than
+at full speed. The props batch's fix (vr_throw_slowmo_flick_spin 40) told a real-speed flick from one made slowly with
+the world by the controller's spin in the game's time; a gentle flick (12 rad/s real, 40 of the game's at 0.3x) sat
+at the threshold and still went 6 to 10 times as far, and the part of a flick the old share model left to the arm
+(the flick model's speed over the throw's: 54 to 85% for a pure wrist turn) stayed in the game's time.
+
+No spin threshold can do better: a gentle flick at real speed and a fast one made slowly with the world are the same
+motion. So the arm tells the tempo (vr_throw.cpp motionRate, `Tempo`): the arm's motion is the wrist's, the
+controller's point's velocity less what the hand's turn gives it 7 cm ahead of the wrist (armVelAt: vr_throw_wrist_dist
+along the throws' forward). A throw the wrist carries (the arm's fastest speed around the release under
+vr_throw_slowmo_flick_arm, 0.4, of it plus the wrist turn's at the held object; under 0.3 wholly, between a blend) is a
+wrist flick: made at real speed, all of it (the arm's small drift with it) kept in the player's real time, not capped
+by the slowed hand (whose 20 rad/s turn limit a fast flick's 130 game rad/s is many times). A throw the arm carries is
+judged as before (the controller's speed against vr_timescale_hand_speed; its flick share and the hand's cap as
+before). A hand that didn't lag its controller (a gentle flick under the turn limit) no longer skips the scaling.
+vr_throw_slowmo_flick_spin is retired (vr_cvars.cpp retiredCvars); the menu's "Flick Spin" row is now "Wrist Flick
+Below". Two-hand throws and full speed are untouched.
+
+Misc/quakevr/throw_slowmo/flick_slowmo_compare.sh runs flick_slowmo_test.sh three ways in one table (metres at 45
+degrees). The test now keys the flicks on the point the throw's velocity is of (vr_controller_legacy_pose 0 for them:
+the legacy raw point is centimetres off the grip, so the wrist the mock turned about wasn't 7 cm behind it) with the
+controller pitched as the throws' frame takes it (39.5), adds upward flicks (gentle ~12, medium ~24, fast ~40 rad/s)
+and two with the hand drifting up at 0.5 m/s, and keys the overhands at 1000 a second (at 90 they moved by 20% with
+where the frames fell when the flicks before them changed):
+
+| throw       | full | bullet before | ratio | after | ratio | made slowly before | after |
+|-------------|-----:|--------------:|------:|------:|------:|-------------------:|------:|
+| flick_fast  | 1.37 |          2.40 |  1.75 |  1.37 |  1.00 |               1.44 |  0.21 |
+| flick       | 0.75 |          0.98 |  1.31 |  0.75 |  1.00 |               0.87 |  0.10 |
+| flick_soft  | 0.30 |          1.70 |  5.67 |  0.30 |  1.00 |               0.31 |  0.01 |
+| up_gentle   | 0.26 |          1.66 |  6.38 |  0.26 |  1.00 |               0.28 |  0.01 |
+| up_medium   | 0.78 |          1.04 |  1.33 |  0.78 |  1.00 |               0.90 |  0.10 |
+| up_fast     | 1.05 |          2.93 |  2.79 |  1.05 |  1.00 |               1.61 |  0.25 |
+| up_gentle_d | 0.44 |          3.27 |  7.43 |  0.44 |  1.00 |               0.47 |  0.02 |
+| up_medium_d | 0.94 |          1.80 |  1.91 |  0.94 |  1.00 |               1.23 |  0.13 |
+| overhand0   | 4.02 |          5.83 |  1.45 |  5.83 |  1.45 |               4.06 |  4.06 |
+| overhand    | 2.45 |          2.67 |  1.09 |  2.67 |  1.09 |               2.39 |  2.39 |
+
+throw_slowmo_test.sh (keyrate 1000) in bullet time at real speed and made slowly: all eight throws bit for bit as
+before. The trade (the same-motion ambiguity): a flick made slowly with the world now goes as gently as the player
+really flicked (the "made slowly" column), where it went as at full speed. A slow-tempo arm throw with a big wrist snap
+(the overhand: the arm 0.48 of it) stays the arm's; a gentle flick with the hand moving over about 0.7 m/s real starts
+to count as the arm's (wholly from about 1.1 m/s; then amplified as an arm throw is). In VR: flick things up and forward in bullet time, gently and
+hard, hand still and moving a little: each should land about where it does at full speed; overhand and lob throws as
+before.
