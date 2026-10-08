@@ -11,6 +11,7 @@
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hue.hpp"
+#include "vr_jobs.hpp"
 #include "vr_lighting.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
@@ -2500,6 +2501,10 @@ struct LightStats
     double ms{0.0}; // lightParticles' time
 };
 LightStats lightStats;
+jobs::Site lightSite{"particle light"}; // (its parallelFor: vr_jobs_sites)
+// Particles times dynamic lights from which lightParticles splits the dynamic lights between threads (combined: 10000
+// and 21 split, 0.26 ms off the main thread; particles_dense: 8000 and 5 on the caller alone, 0.03 ms cheaper).
+constexpr za::SizeT splitLightWork = 65536;
 double lightMsSum = 0.0; // lightParticles' time over the frames since the last report
 int lightFrames = 0;
 long long lightTraceSum = 0; // ... and the traces it made
@@ -2623,6 +2628,44 @@ void lightmapOf(Particle& p, za::SizeT index, LightStats& st)
     return l * (za::max(q, 0.f) / steps / m);
 }
 
+// What litLight needs of the frame.
+struct LitFrame
+{
+    const float* curve; // lighting::lightCurve of each lightmap value
+    const FrameLight* lights;
+    int lightCount;
+    bool darkplaces, retro;
+};
+
+// A lit particle's light: its lightmap's (after the contrast, as the world's) and the dynamic lights added after it.
+[[nodiscard]] glm::vec3 litLight(const Particle& p, const LitFrame& lf)
+{
+    glm::vec3 c{lf.curve[p.lightmap[0]], lf.curve[p.lightmap[1]], lf.curve[p.lightmap[2]]};
+    for(int k = 0; k < lf.lightCount; k++)
+    {
+        const FrameLight& l = lf.lights[k];
+        const glm::vec3 to = p.org - l.pos;
+        const float d2 = glm::dot(to, to);
+        if(d2 >= l.radius * l.radius)
+        {
+            continue;
+        }
+        const float dist = za::sqrt(d2);
+        float add = lf.darkplaces ? darkplacesAtten(dist, l.radius) * 128.f : l.radius - dist; // (128: Quake's full)
+        if(l.spot.w != 0.f && dist > 1e-3f) // VR_SpotCone's
+        {
+            const float t = za::clamp(l.spot.w - glm::dot(glm::vec3{l.spot}, to) / dist, 0.f, 1.f);
+            add *= 1.f - t * t * (3.f - 2.f * t);
+        }
+        if(add > 0.f)
+        {
+            c += add * l.color;
+        }
+    }
+    const glm::vec3 f = glm::clamp(c * (1.f / 128.f), glm::vec3{0.f}, glm::vec3{2.f});
+    return lf.retro ? retroLevels(f) : f;
+}
+
 // Every particle's light this frame (lightOf), and the dynamic lights that reach any.
 void lightParticles()
 {
@@ -2659,6 +2702,12 @@ void lightParticles()
         curve[v] = k[0];
     }
     const bool retro = retrolight::on() && vr_retrolight_models.value != 0.f;
+    const LitFrame lf{curve, frameLights, frameLightCount, darkplaces, retro};
+    // The lightmap's light in order on this thread: the traces share a budget and a cache, and R_LightPoint its globals
+    // (and the model's data: never read on the pool's threads). With many particles and lights, the dynamic lights
+    // after it on the game's threads (each writing only its own lightOf: the same results however it is split);
+    // else in the same pass (a split's start costs more than it saves: particles_dense, 8000 particles and 5 lights).
+    const bool split = jobs::workers() > 0 && pool.size() * static_cast<za::SizeT>(frameLightCount) >= splitLightWork;
     for(za::SizeT i = 0; i < pool.size(); i++)
     {
         Particle& p = pool[i];
@@ -2673,36 +2722,24 @@ void lightParticles()
             continue;
         }
         lightmapOf(p, i, st);
-        // (the baked light's contrast, as the world's: the dynamic lights added after it)
-        glm::vec3 c{curve[p.lightmap[0]], curve[p.lightmap[1]], curve[p.lightmap[2]]};
-        for(int k = 0; k < frameLightCount; k++)
+        if(!split)
         {
-            const FrameLight& l = frameLights[k];
-            const glm::vec3 to = p.org - l.pos;
-            const float d2 = glm::dot(to, to);
-            if(d2 >= l.radius * l.radius)
-            {
-                continue;
-            }
-            const float dist = za::sqrt(d2);
-            float add = darkplaces ? darkplacesAtten(dist, l.radius) * 128.f : l.radius - dist; // (128: Quake's full)
-            if(l.spot.w != 0.f && dist > 1e-3f) // VR_SpotCone's
-            {
-                const float t = za::clamp(l.spot.w - glm::dot(glm::vec3{l.spot}, to) / dist, 0.f, 1.f);
-                add *= 1.f - t * t * (3.f - 2.f * t);
-            }
-            if(add > 0.f)
-            {
-                c += add * l.color;
-            }
+            lightOf[i] = litLight(p, lf);
         }
-        glm::vec3 f = glm::clamp(c * (1.f / 128.f), glm::vec3{0.f}, glm::vec3{2.f});
-        if(retro)
-        {
-            f = retroLevels(f);
-        }
-        lightOf[i] = f;
         st.lit++;
+    }
+    if(split)
+    {
+        jobs::parallelFor(lightSite, pool.size(), 1024, [&](za::SizeT begin, za::SizeT end) {
+            for(za::SizeT i = begin; i < end; i++)
+            {
+                const Particle& p = pool[i];
+                if(on && p.lighting != Lighting::Emissive)
+                {
+                    lightOf[i] = litLight(p, lf);
+                }
+            }
+        });
     }
     lightCount = pool.size();
     st.ms = static_cast<double>(za::Clock::nowNanoseconds() - start) * 1e-6;
