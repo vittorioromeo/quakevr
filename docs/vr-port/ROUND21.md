@@ -31828,3 +31828,56 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
   build doesn't have (`vr_throw_slowmo_long_travel` 0.2, `_short_travel` 0.15, `_real_strength` 0: another branch's).
   Tests: his config with these at their old defaults, and the kit's baseline (config 34), each come out at the new
   values after a map loads (config 104, weapons 38, props 68); stealth_tests.sh all: 50 PASS, 0 FAIL.
+## Holding enemies (2026-10-08)
+
+Vittorio (vrfiringrange_2026-10-08_14-36-52): hold on to living enemies with your hands. Experimental, on by default
+(`vr_foegrab 1`; Combat > Holding Enemies). Engine `Quake/vr/vr_foegrab.cpp` (the holds), QC `QC/vr_foegrab.qc` (the
+hold by kind of enemy, the touch's wake, the feel), `QC/vr_enemyshove.qc` (shoves while held), `QC/vr_melee.qc` (no
+blows from a holding hand).
+
+- **Taking hold.** An empty hand (no weapon, carried thing, force grab, flashlight; not gripping at a holster or pouch;
+  not on a ledge: the climb comes first) grips while its fist (the jointed hand's spheres, and the palm's middle) touches
+  a living monster's model as drawn (precise hits' model: `vr_hit_precise` must be on), within `vr_foegrab_leniency`
+  (1.5 cm), or is in it (25 cm deep at most). A grip pressed up to 0.2 s before the touch still takes hold (reaching
+  while closing the hand). The spot taken is the model's point nearest the touching sphere (`hitmodel::nearest`).
+  Taking hold is a touch: a sleeping or idle monster spots you and turns hostile (`VR_Stealth_Spot`, with or without the
+  stealth AI), and the hand buzzes.
+- **The spot.** It moves with the monster's body (its origin and yaw) and with its animation eased (0.12 s, at most
+  20 cm from the body's place): a limb's swing is followed, a pose's jump glides. The drawn hand is put with its palm on
+  it (`STAT_QVR_FOEGRAB*`, eased on in 0.05 s and off in 0.12 s), its controller's turn kept.
+- **The hold.** One hand's hold by kind (`VR_FoeGrab_Size` from the grapple's masses, a vore and a super wrath counted
+  huge): `vr_foegrab_strength_small` 0.85 (grunt, enforcer, zombie, knight, mummy, dog, scrag...), `_medium` 0.25 (fiend,
+  ogre, ...), `_large` 0.04 (shambler, vore and bigger); or by mass (`vr_foegrab_by_mass 1`: full at
+  `vr_foegrab_mass_light` 100 kg, none at `_mass_heavy` 650). Two hands: 1 - (1 - a)(1 - b) (a grunt: 0.98).
+- **Its effect** (each server frame's end, before the precise hits keep the poses): the monster's own flat movement
+  since the last frame (its steps, a slide, a leap) and its turning are cut by `vr_foegrab_slow` (0.8) times the hold;
+  the hands pull their spots towards them, flat, at `vr_foegrab_drag` (4/s) times the hold, at most
+  `vr_foegrab_drag_speed` (60 units/s). Moved as a monster steps (`SV_movestep`: up steps, never off a ledge).
+- **Letting go:** the grip let go; the tracked palm more than `vr_foegrab_break` (35 cm) from the held spot for 0.25 s,
+  or twice that at once; the monster dead, knocked down, gone or moved over 64 units in a frame; the hand busy with
+  something else; the option off.
+- **Shoves** (`vr_foegrab_shove`): 0 Resisted, a held grunt's or enforcer's shove's push is cut by
+  `vr_foegrab_shove_resist` (0.9) times the hold, and the player's slide carries the held monster along (so the hold
+  survives it); 1 Breaks Free, the shove pushes fully and every hand holding it lets go (`.vr_foegrab_letgo`).
+- **QuakeC:** the holding hands' grips are hidden from the QC (`.vrbits0`'s grab bits, as the climb's) from the take to
+  the grip's release; `.vr_foegrab_hands` (player) names the holding hands, `.vr_foegrab_hold` (monster) how firmly it
+  is held.
+
+Tests (headless, `vrfiringrange`, a grunt 44 units to the left, its first step taken, the main hand reaching in with
+the grip pressed; `vr_foegrab_walk_test 110 0.8` walks the nearest monster away from you for 0.8 s):
+
+| case | moved (of 88 units) | notes |
+| --- | --- | --- |
+| option off | 78.4 | nothing taken ("grips: off") |
+| grunt, one hand (0.85) | 8.7 | stretch 16 cm; the hand moved 30 units away: let go (104 cm) |
+| grunt, two hands (0.98) | 3.4 | |
+| shambler (0.04), 110 units/s for 1 s | | let go after 0.33 s, pulled 1 m away |
+| shove, Resisted | | push cut 76%: 30 units instead of 128; still held after (stretch 13 cm) |
+| shove, Breaks Free | | pushed 128 units, "it broke free" |
+
+Debug > Tests > Holding Enemies: Who Is Held? (`vr_foegrab_status`, the drawn hands too), Walk the Nearest Away, Log
+Holds (`vr_foegrab_debug` 1 holds taken and let go and why, a grip that found none and how near; 2 each frame; 3 the
+steps). Saved games keep no holds (the fields cleared on load).
+
+Seen while testing (not changed): a monster spawned by `vr_physics_spawn` (or `impulse 244`) stands 15-16 units lower
+than the floor its first step (SV_movestep) puts it on, in e1m1 and vrfiringrange alike.
