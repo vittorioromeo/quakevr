@@ -75,6 +75,37 @@ public sealed class ReleaseFeed
     }
 }
 
+/// <summary>
+/// The optional components the installer knows without a feed: when latest.json cannot be read, or names no such
+/// component, these are used instead (a feed that names one always wins). The same check as a feed's: size and SHA-256
+/// after the download. Pinned from <c>Misc/release/support_assets.json</c> (the support-files release); bumping the
+/// texture pack means changing both (docs/vr-port/RELEASING.md, "Support files"; the self-test compares them).
+/// </summary>
+public static class BuiltInComponents
+{
+    /// <summary>The HD texture pack: the support-files release first, then the release it was first published on.</summary>
+    public static FeedFile HdTextures() => new()
+    {
+        File = "quakevr-hq-textures-png-2026-10-03.zip",
+        Size = 614_919_925,
+        Sha256 = "0c0df0e7b19525ba3fabfd1a88cce871b4b1321a5cae0134d5ae21636116b706",
+        Urls =
+        [
+            "https://github.com/vittorioromeo/quakevr/releases/download/assets-2026-10-08/quakevr-hq-textures-png-2026-10-03.zip",
+            "https://github.com/vittorioromeo/quakevr/releases/download/textures-2026-10-03/quakevr-hq-textures-png-2026-10-03.zip",
+        ],
+    };
+
+    /// <summary>Every built-in component by its feed name (new copies: a caller may change them).</summary>
+    public static Dictionary<string, FeedFile> All() => new(StringComparer.OrdinalIgnoreCase) { [Components.HdTextures] = HdTextures() };
+}
+
+/// <summary>An optional component to download: from the feed, or the installer's built-in copy of it.</summary>
+public sealed record ResolvedComponent(string Name, FeedFile File, bool BuiltIn)
+{
+    public string SourceText => BuiltIn ? "built into the installer" : "from the release list";
+}
+
 /// <summary>GitHub's releases API (<c>/repos/{owner}/{repo}/releases/latest</c>): the newest release's assets, for
 /// when latest.json is not reachable. GitHub reports each asset's SHA-256 as <c>digest: "sha256:..."</c>.</summary>
 public static class GitHubReleases
@@ -123,6 +154,18 @@ public sealed class InstallerSettings
         "https://sourceforge.net/projects/vispatch/files/vispatch%20data/1.0/{file}/download",
         "https://downloads.sourceforge.net/project/vispatch/vispatch%20data/1.0/{file}",
     ];
+
+    /// <summary>The optional components used when the feed is unavailable or does not name them (defaults:
+    /// <see cref="Packaging.BuiltInComponents"/>; installer-settings.json's <c>builtInComponents</c> replaces them, for
+    /// tests).</summary>
+    public Dictionary<string, FeedFile> BuiltInComponents { get; set; } = Packaging.BuiltInComponents.All();
+
+    /// <summary>A component to download: the feed's when it names it (the feed wins), else the built-in one, else none.
+    /// <paramref name="feed"/> is null when no feed could be read.</summary>
+    public ResolvedComponent? Component(ReleaseFeed? feed, string name) =>
+        feed?.Components.GetValueOrDefault(name) is { } fromFeed ? new ResolvedComponent(name, fromFeed, false) :
+        BuiltInComponents.GetValueOrDefault(name) is { } builtIn ? new ResolvedComponent(name, builtIn, true) :
+        null;
 
     /// <summary>The environment variable that points the installer (window and qvr-setup) at another feed, like
     /// <c>--feed</c>: one URL, or several separated by ';' (Misc\release\test_local_release.ps1's local server).</summary>

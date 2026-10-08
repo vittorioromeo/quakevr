@@ -77,8 +77,8 @@
                                 <TextBlock Text="HD textures (highly recommended)" Style="{StaticResource Body}" FontWeight="SemiBold" />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" Text="{Binding TexturesText}" />
                                 <TextBlock Style="{StaticResource Small}" Margin="0,4,0,0" Foreground="{StaticResource Warn}"
-                                           Visibility="{Binding FeedUnavailableForTextures, Converter={StaticResource BoolToVis}}">
-                                    <Run Text="Their download isn't available right now: they are skipped (run Setup again later), or" />
+                                           Visibility="{Binding TexturesDownloadUnavailable, Converter={StaticResource BoolToVis}}">
+                                    <Run Text="{Binding TexturesUnavailableText, Mode=OneWay}" />
                                     <Hyperlink Command="{Binding BrowseTexturesCommand}" Foreground="{StaticResource AccentHover}">pick the texture pack's zip</Hyperlink><Run Text="." />
                                 </TextBlock>
                             </StackPanel>

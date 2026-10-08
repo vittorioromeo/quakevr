@@ -820,6 +820,94 @@ var tests = new List<(string Name, Action Body)>
         Eq(sha, assets[0].Sha256, "digest");
         Eq(null, assets[1].Sha256, "no digest");
     }),
+    ("HD textures: no feed -> the built-in pack, a feed with hdtextures wins, the SHA-256 still checked", () =>
+    {
+        // The pinned pack itself: GitHub first (the support-files release), the release it was first published on second.
+        var pinned = BuiltInComponents.HdTextures();
+        Eq("quakevr-hq-textures-png-2026-10-03.zip", pinned.File, "pinned file");
+        Eq(614_919_925L, pinned.Size, "pinned size");
+        Eq(64, pinned.Sha256.Length, "pinned SHA-256");
+        True(pinned.Urls.Count == 2 && pinned.Urls[0].Contains("/download/assets-") && pinned.Urls[1].Contains("/download/textures-") &&
+             pinned.Urls.All(u => u.StartsWith("https://github.com/vittorioromeo/quakevr/releases/download/", StringComparison.Ordinal) && u.EndsWith("/" + pinned.File, StringComparison.Ordinal)),
+            "pinned URLs: " + string.Join(", ", pinned.Urls));
+        // The same pack as the release scripts' (Misc/release/support_assets.json), when the self-test runs in the repo.
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !File.Exists(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")))
+        {
+            repo = repo.Parent;
+        }
+        if (repo is not null)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")));
+            var hd = doc.RootElement.GetProperty("files").GetProperty("hdtextures");
+            Eq(hd.GetProperty("file").GetString(), pinned.File, "support_assets.json's file");
+            Eq(hd.GetProperty("size").GetInt64(), pinned.Size, "support_assets.json's size");
+            Eq(hd.GetProperty("sha256").GetString(), pinned.Sha256, "support_assets.json's SHA-256");
+            Eq($"/download/{doc.RootElement.GetProperty("tag").GetString()}/{pinned.File}", new Uri(pinned.Urls[0]).AbsolutePath.Replace("/vittorioromeo/quakevr/releases", ""), "support_assets.json's tag first");
+        }
+        True(new InstallerSettings().Component(null, Components.HdTextures) is { BuiltIn: true } d && d.File.Sha256 == pinned.Sha256, "the defaults: the pinned pack");
+
+        // A local server: the built-in pack (as installer-settings.json would point it) and a feed's own.
+        using var server = new LocalHttpServer();
+        var builtInBody = RandomNumberGenerator.GetBytes(30_000);
+        var feedBody = RandomNumberGenerator.GetBytes(20_000);
+        server.Serve("assets/tex.zip", builtInBody);
+        server.Serve("feed/tex2.zip", feedBody);
+        string Sha(byte[] b) => Convert.ToHexStringLower(SHA256.HashData(b));
+        var settings = new InstallerSettings
+        {
+            FeedUrls = [server.Url("latest.json").ToString()],
+            BuiltInComponents = new() { [Components.HdTextures] = new FeedFile { File = "tex.zip", Size = builtInBody.Length, Sha256 = Sha(builtInBody), Urls = [server.Url("missing/tex.zip").ToString(), server.Url("assets/tex.zip").ToString()] } },
+        };
+        using var http = Downloader.CreateClient();
+        string Fetch(ResolvedComponent c, string dir)
+        {
+            var dest = Path.Combine(Dir(dir), c.File.File);
+            new Downloader(http).DownloadAsync(c.File.Mirrors, dest, c.File.Size, c.File.Sha256, null, CancellationToken.None, attemptsPerMirror: 1).GetAwaiter().GetResult();
+            return dest;
+        }
+
+        // No feed (latest.json is a 404): the built-in pack, from its second URL.
+        ReleaseFeed? noFeed = null;
+        try
+        {
+            noFeed = ReleaseFeed.FetchAsync(http, settings.FeedUrls.Select(u => new Uri(u)), CancellationToken.None).GetAwaiter().GetResult();
+        }
+        catch (InstallException)
+        {
+        }
+        Eq(null, noFeed, "no feed");
+        var c1 = settings.Component(noFeed, Components.HdTextures)!;
+        True(c1.BuiltIn, "no feed: built in");
+        True(File.ReadAllBytes(Fetch(c1, "hd-builtin")).AsSpan().SequenceEqual(builtInBody), "the built-in pack downloaded");
+
+        // A feed without hdtextures: still the built-in pack.
+        var sha = new string('b', 64);
+        server.Serve("latest.json", $$"""
+            { "schema": 1, "version": "v2", "package": { "file": "QuakeVR.zip", "size": 1, "sha256": "{{sha}}", "urls": ["{{server.Url("QuakeVR.zip")}}"] } }
+            """);
+        var bare = ReleaseFeed.FetchAsync(http, [server.Url("latest.json")], CancellationToken.None).GetAwaiter().GetResult();
+        True(settings.Component(bare, Components.HdTextures) is { BuiltIn: true }, "a feed without hdtextures: built in");
+
+        // A feed with hdtextures: the feed's, even though a built-in one exists.
+        server.Serve("latest.json", $$"""
+            { "schema": 1, "version": "v3", "package": { "file": "QuakeVR.zip", "size": 1, "sha256": "{{sha}}", "urls": ["{{server.Url("QuakeVR.zip")}}"] },
+              "components": { "hdtextures": { "file": "tex2.zip", "size": {{feedBody.Length}}, "sha256": "{{Sha(feedBody)}}", "urls": ["{{server.Url("feed/tex2.zip")}}"] } } }
+            """);
+        var full = ReleaseFeed.FetchAsync(http, [server.Url("latest.json")], CancellationToken.None).GetAwaiter().GetResult();
+        var c2 = settings.Component(full, Components.HdTextures)!;
+        True(!c2.BuiltIn && c2.File.File == "tex2.zip", "the feed wins");
+        True(File.ReadAllBytes(Fetch(c2, "hd-feed")).AsSpan().SequenceEqual(feedBody), "the feed's pack downloaded");
+
+        // The built-in pack is checked as a feed's is: a wrong SHA-256 fails the download.
+        settings.BuiltInComponents[Components.HdTextures].Sha256 = new string('0', 64);
+        var bad = settings.Component(null, Components.HdTextures)!;
+        var e = Throws<InstallException>(() => Fetch(bad, "hd-bad"), "a wrong built-in hash");
+        True(e.Message.Contains("SHA-256"), e.Message);
+
+        // No built-in and no feed: nothing.
+        Eq(null, new InstallerSettings { BuiltInComponents = [] }.Component(null, Components.HdTextures), "nothing at all");
+    }),
     ("sounds: the mixer never steps the output (voice fades, stolen voices, the loop's seam, the mute, a smooth limiter)", () =>
     {
         // The limiter: unchanged below the knee, continuous (and so is its slope) at the knee, never above full scale.

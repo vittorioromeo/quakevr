@@ -10,12 +10,15 @@ using QuakeVR.Installer.Core.Shortcuts;
 const string Usage = """
     qvr-setup detect [--qvr <dir>] [--epic-manifests <dir>]
     qvr-setup manifest <package folder> --version <text>
-    qvr-setup install (--package <zip|folder> | --feed <latest.json url> [--hd] [--downloads <dir>])
+    qvr-setup install (--package <zip|folder> | --feed <latest.json url>) [--downloads <dir>]
                       (--target <dir> [--shortcuts-dir <dir>] | --sandbox <dir>) [--quake <dir>]
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
                       [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register] --accept-statement
-                      (--feed: the package, and with --hd the HD textures, downloaded as the window does; QVR_SETUP_FEED
-                       is the default feed. --sandbox: <dir>\QuakeVR, shortcuts in <dir>\_shortcuts, downloads in <dir>\_downloads)
+                      [--hd] [--no-feed] [--dry-run]
+                      (--feed: the package downloaded as the window does; QVR_SETUP_FEED is the default feed. --hd: the
+                       HD textures, the feed's hdtextures, else the installer's built-in pack (also with --package: the feed
+                       is asked, and not needed; --no-feed never asks it). --dry-run: prints what would be downloaded and
+                       from where, then stops. --sandbox: <dir>\QuakeVR, shortcuts in <dir>\_shortcuts, downloads in <dir>\_downloads)
     qvr-setup statement                              (prints the author's statement on AI usage; install needs --accept-statement)
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
@@ -112,6 +115,46 @@ try
         }
         case "install":
         {
+            // What would be downloaded, and from where: the package (feed or --package) and the HD textures (the feed's
+            // hdtextures, else the installer's built-in pack). The feed is read only when something needs it; for the
+            // HD textures alone it is optional (--no-feed: never asked).
+            var package = Opt("package");
+            var textures = Opt("textures");
+            var dryRun = Flag("dry-run");
+            if (package is null && (Flag("no-feed") || (!options.ContainsKey("feed") && InstallerSettings.FeedsFromEnvironment().Count == 0)))
+            {
+                throw new ArgumentException("--package or --feed is required");
+            }
+            using var http = Downloader.CreateClient();
+            ReleaseFeed? feed = null;
+            var wantHd = Flag("hd") && textures is null;
+            if ((package is null || wantHd) && !Flag("no-feed"))
+            {
+                try
+                {
+                    feed = await ReleaseFeed.FetchAsync(http, Feeds("feed"), CancellationToken.None);
+                }
+                catch (InstallException e) when (package is not null)
+                {
+                    Console.WriteLine($"no release list: {e.Message}");
+                }
+            }
+            var hd = wantHd ? new InstallerSettings().Component(feed, Components.HdTextures) : null;
+            if (wantHd && hd is null)
+            {
+                Console.WriteLine("warning: no hdtextures component, in the feed or built in: no HD textures");
+            }
+            var packageFile = package is null ? feed?.Package ?? throw new InstallException("the feed names no package") : null;
+            if (dryRun)
+            {
+                Console.WriteLine(packageFile is null ? $"package: {package} (local)"
+                    : $"package: {packageFile.File} {feed!.Version} ({PathUtil.FormatSize(packageFile.Size)}, sha256 {packageFile.Sha256}) from {string.Join(" then ", packageFile.Urls)}");
+                Console.WriteLine(textures is not null ? $"hdtextures: {textures} (local)"
+                    : hd is null ? "hdtextures: none"
+                    : $"hdtextures: {hd.File.File} {hd.SourceText} ({PathUtil.FormatSize(hd.File.Size)}, {hd.File.Size} bytes, sha256 {hd.File.Sha256}) from {string.Join(" then ", hd.File.Urls)}");
+                Console.WriteLine("dry run: nothing downloaded or installed");
+                return 0;
+            }
             // The wizard's Statement page: the console installs only with YES to all four, given as --accept-statement.
             if (!Flag("accept-statement"))
             {
@@ -138,44 +181,32 @@ try
                 throw new InstallException(why);
             }
             var shortcutsDir = Opt("shortcuts-dir") ?? sandbox?.ShortcutsDir;
-            var package = Opt("package");
-            var textures = Opt("textures");
-            if (package is null)
+            // The window's path: the files the feed (or the built-in HD textures) names, with Range resume, size, SHA-256.
+            var downloads = Opt("downloads") ?? sandbox?.Downloads
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QuakeVR-Installer", "downloads");
+            async Task<string> Fetch(string what, FeedFile file)
             {
-                // The window's path: latest.json from the feed, then the files it names (Range resume, size, SHA-256).
-                if (!options.ContainsKey("feed") && InstallerSettings.FeedsFromEnvironment().Count == 0)
-                {
-                    throw new ArgumentException("--package or --feed is required");
-                }
-                using var http = Downloader.CreateClient();
-                var feed = await ReleaseFeed.FetchAsync(http, Feeds("feed"), CancellationToken.None);
-                var downloads = Opt("downloads") ?? sandbox?.Downloads
-                    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QuakeVR-Installer", "downloads");
-                async Task<string> Fetch(string what, FeedFile file)
-                {
-                    var dest = Path.Combine(downloads, Path.GetFileName(file.File));
-                    Console.WriteLine($"downloading {what} {feed.Version} ({PathUtil.FormatSize(file.Size)}) from {file.Urls[0]}");
-                    await new Downloader(http).DownloadAsync(file.Mirrors, dest, file.Size, file.Sha256,
-                        new SyncProgress<DownloadProgress>(p => Console.Write($"\r  {p.Source}: {PathUtil.FormatSize(p.Received)} / {PathUtil.FormatSize(p.Total ?? file.Size)}   ")),
-                        CancellationToken.None);
-                    Console.WriteLine($"\r  {dest}: downloaded and checked (SHA-256)          ");
-                    return dest;
-                }
-                package = await Fetch("Quake VR", feed.Package ?? throw new InstallException("the feed names no package"));
-                if (Flag("hd") && textures is null)
-                {
-                    textures = feed.Components.GetValueOrDefault("hdtextures") is { } hd ? await Fetch("HD textures", hd) : null;
-                    if (textures is null)
-                    {
-                        Console.WriteLine("warning: the feed has no hdtextures component: no HD textures");
-                    }
-                }
+                var dest = Path.Combine(downloads, Path.GetFileName(file.File));
+                Console.WriteLine($"downloading {what} ({PathUtil.FormatSize(file.Size)}) from {file.Urls[0]}");
+                await new Downloader(http).DownloadAsync(file.Mirrors, dest, file.Size, file.Sha256,
+                    new SyncProgress<DownloadProgress>(p => Console.Write($"\r  {p.Source}: {PathUtil.FormatSize(p.Received)} / {PathUtil.FormatSize(p.Total ?? file.Size)}   ")),
+                    CancellationToken.None);
+                Console.WriteLine($"\r  {dest}: downloaded and checked (SHA-256)          ");
+                return dest;
+            }
+            if (packageFile is not null)
+            {
+                package = await Fetch($"Quake VR {feed!.Version}", packageFile);
+            }
+            if (hd is not null)
+            {
+                textures = await Fetch($"HD textures, {hd.SourceText},", hd.File);
             }
             var owned = ExpansionDetector.Detect([quake, target], [])
                 .Where(e => e.Folder is "hipnotic" or "rogue" && e.State == ExpansionState.Ready).Select(e => e.Folder).ToList();
             var plan = new InstallPlan
             {
-                PackagePath = package,
+                PackagePath = package!,
                 TargetDir = target,
                 QuakeDir = quake,
                 QuakeStore = "manual",

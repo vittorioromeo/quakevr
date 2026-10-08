@@ -24,7 +24,7 @@ Before publishing, install the release the way a player gets it, without GitHub 
    It writes `out\release\<v>-local\`, whose `latest.json` points at `http://127.0.0.1:8517/<file>` (`-LocalPort` to
    change it). Never upload those assets. Its `hdtextures` still points at the hosted pack on GitHub ("Support files"
    below: the local server does not have it), so ticking HD textures downloads the real 0.6 GB; `-Textures <zip>`
-   serves a copy locally instead, `-NoTextures` leaves it out.
+   serves a copy locally instead, `-NoTextures` leaves it out (the installer then downloads its built-in pack, the same hosted zip).
 2. With `-RunInstaller` it then runs `Misc\release\test_local_release.ps1`: a small server (`qvr-setup serve`, its own
    window, 127.0.0.1 only) serves `assets\`, and the built `QuakeVR-Setup.exe` starts with
    `--feed http://127.0.0.1:8517/latest.json --sandbox %TEMP%\QuakeVR-test-<v>-<time>`. A yellow **TEST FEED /
@@ -53,7 +53,7 @@ release's tag, its URL template and each file's size and SHA-256 (as GitHub repo
 
 | Key | File | Used by |
 |---|---|---|
-| `hdtextures` | `quakevr-hq-textures-png-2026-10-03.zip` (614,919,925 bytes) | latest.json's `hdtextures` component (the installer's HD textures) |
+| `hdtextures` | `quakevr-hq-textures-png-2026-10-03.zip` (614,919,925 bytes) | latest.json's `hdtextures` component (the installer's HD textures), and the installer's built-in copy of it (below) |
 | `ericw_source` | `ericw-tools-2.0.0-alpha11-src.zip` (86,236,331 bytes) | the release notes' "Source of ericw-tools' light.exe" link (GPL-3: the package ships `light.exe`) |
 | `ericw_win64` | `ericw-tools-2.0.0-alpha11-win64.zip` (27,503,991 bytes, = ericw's own download) | the in-game Download ericw-tools' first mirror (`vr_relight_tool.cpp` pins it separately) |
 
@@ -62,10 +62,20 @@ release's tag, its URL template and each file's size and SHA-256 (as GitHub repo
   build (not `-DryRun`, not `-Local`) it reads the support release from GitHub's API (each file's size and `digest`)
   and sends a HEAD request to each URL: nothing is downloaded. A mismatch stops `-Publish`.
 - `-Textures <zip>` / `-EricwSource <zip>` upload a copy with this release instead (overrides); `-NoTextures` leaves
-  the `hdtextures` component out (the installer then offers no HD textures).
+  the `hdtextures` component out (the installer then falls back on its built-in pinned pack, below).
 - A new texture pack: create a new support release (`assets-<date>`) with the new zip, and update
   `support_assets.json` (tag, file, size, sha256). Never replace a file on an existing support release: old
-  latest.json files and the game pin its hash.
+  latest.json files, the game and the installer pin its hash.
+- **The installer's built-in pack.** The installer also pins the pack itself (`BuiltInComponents.HdTextures` in
+  `Installer/src/QuakeVR.Installer.Core/Packaging/ReleaseFeed.cs`: file, size, SHA-256 and its URLs, the support
+  release first, then `textures-2026-10-03` where it was first published). It is used whenever latest.json cannot be
+  read or names no `hdtextures`; a latest.json that names one always wins. To bump the pack: after updating
+  `support_assets.json`, change `HdTextures()` the same way (file, size, sha256; the new `assets-<date>` URL first,
+  the older releases' URLs may stay after it only if they serve the same file), rebuild the installer and run the
+  self-test: its "HD textures: no feed" test compares the pinned pack with `support_assets.json` (file, size, SHA-256,
+  tag of the first URL) and fails on any difference. `qvr-setup install --package <zip> --hd --no-feed --dry-run`
+  prints the pack and URLs a build would download. Installers already released keep their old pin: never remove
+  a file from a support release.
 
 ## Step by step
 

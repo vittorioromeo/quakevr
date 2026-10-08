@@ -59,7 +59,7 @@ param(
     # An HD texture pack zip uploaded WITH this release as latest.json's "hdtextures" component (an override). Default:
     # the pack hosted on the support-files release (support_assets.json), not uploaded again.
     [string]$Textures = "",
-    # No "hdtextures" component in latest.json (the installer then offers no HD textures).
+    # No "hdtextures" component in latest.json (the installer then downloads its built-in pinned pack).
     [switch]$NoTextures,
     # ericw-tools' source zip uploaded WITH this release (an override). Default: the release notes link the hosted one
     # (support_assets.json; GPL-3: the package ships light.exe).

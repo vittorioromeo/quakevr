@@ -730,12 +730,19 @@ public sealed class MainViewModel : ObservableObject
 
     public string TexturesSizeText =>
         _options.Textures is { } t && File.Exists(t) ? PathUtil.FormatSize(new FileInfo(t).Length) :
-        _feed?.Components.GetValueOrDefault("hdtextures") is { } f ? $"{PathUtil.FormatSize(f.Size)} download" :
-        FeedUnavailableForTextures ? "download unavailable" : "about 0.6 GB download";
+        TexturesDownloadUnavailable ? "download unavailable" :
+        _settings.Component(_feed, Components.HdTextures) is { } c ? $"{PathUtil.FormatSize(c.File.Size)} download" :
+        "about 0.6 GB download";
 
-    /// <summary>The HD textures would be downloaded, and the download cannot be reached: they are skipped unless the
-    /// player picks the texture pack's zip.</summary>
-    public bool FeedUnavailableForTextures => _options.Textures is null && _feedState == FeedState.Unavailable;
+    /// <summary>The HD textures would be downloaded, and there is nothing to download them from (offline mode, or no
+    /// release list and no built-in pack): they are skipped unless the player picks the texture pack's zip. Without a
+    /// release list the installer's built-in pack is downloaded (<see cref="BuiltInComponents"/>).</summary>
+    public bool TexturesDownloadUnavailable => _options.Textures is null &&
+        (_options.Offline || (_feedState == FeedState.Unavailable && _settings.Component(_feed, Components.HdTextures) is null));
+
+    public string TexturesUnavailableText => _options.Offline
+        ? "Nothing is downloaded in offline mode: they are skipped (run Setup again later), or"
+        : "Their download isn't available right now: they are skipped (run Setup again later), or";
 
     // ---- Where the package comes from: a local one, or the online release ----
 
@@ -799,7 +806,7 @@ public sealed class MainViewModel : ObservableObject
         _feedState = state;
         _feedError = error;
         Raise(nameof(FeedChecking), nameof(FeedAvailable), nameof(FeedUnavailable), nameof(PackageReady), nameof(PackageSourceTitle),
-            nameof(PackageSourceText), nameof(FeedErrorDetail), nameof(TexturesSizeText), nameof(FeedUnavailableForTextures), nameof(CanPickPackageAfterError));
+            nameof(PackageSourceText), nameof(FeedErrorDetail), nameof(TexturesSizeText), nameof(TexturesDownloadUnavailable), nameof(CanPickPackageAfterError));
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -936,7 +943,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             UiSounds.Play(Sfx.InstallStart);
-            var texturesOnline = HdTextures && _options.Textures is null && !FeedUnavailableForTextures;
+            var texturesOnline = HdTextures && _options.Textures is null && !TexturesDownloadUnavailable;
             var needDownload = _options.Package is null || texturesOnline;
             var installStart = needDownload ? 50.0 : 0.0;
             var package = _options.Package;
@@ -951,13 +958,14 @@ public sealed class MainViewModel : ObservableObject
                 textures = _options.Textures;
                 if (textures is null && !texturesOnline)
                 {
-                    AddLog(LogLevel.Warning, "HD textures skipped: their download isn't available right now. Run Setup again later to add them, or pick the texture pack's zip on the Options page.");
+                    AddLog(LogLevel.Warning, $"HD textures skipped: {(_options.Offline ? "nothing is downloaded in offline mode" : "their download isn't available right now")}. " +
+                                             "Run Setup again later to add them, or pick the texture pack's zip on the Options page.");
                 }
                 else if (textures is null)
                 {
                     try
                     {
-                        textures = await DownloadAsync(http, "HD textures", f => f.Components.GetValueOrDefault("hdtextures"), 15, 50, ct);
+                        textures = await DownloadTexturesAsync(http, 15, 50, ct);
                     }
                     catch (Exception e) when (e is InstallException or HttpRequestException)
                     {
@@ -1071,6 +1079,38 @@ public sealed class MainViewModel : ObservableObject
 
     async Task<string?> DownloadAsync(HttpClient http, string what, Func<ReleaseFeed, FeedFile?> pick, double from, double to, CancellationToken ct)
     {
+        var feed = await GetFeedAsync(http, what, ct);
+        return pick(feed) is { } file ? await DownloadFileAsync(http, what, $"{what} {feed.Version}", file, from, to, ct) : null;
+    }
+
+    /// <summary>The HD textures: the release list's hdtextures when it names them (the list wins), else the installer's
+    /// built-in pack (also when the list cannot be read). The SHA-256 is checked either way.</summary>
+    async Task<string?> DownloadTexturesAsync(HttpClient http, double from, double to, CancellationToken ct)
+    {
+        const string what = "HD textures";
+        ReleaseFeed? feed = null;
+        try
+        {
+            feed = await GetFeedAsync(http, what, ct);
+        }
+        catch (InstallException) when (!_options.Offline)
+        {
+            // No release list: the built-in pack below.
+        }
+        if (_settings.Component(feed, Components.HdTextures) is not { } c)
+        {
+            throw new InstallException("their download isn't available right now. Run Setup again later to add them");
+        }
+        if (c.BuiltIn)
+        {
+            AddLog(LogLevel.Info, $"HD textures: the installer's built-in pack ({c.File.File}), as the release list names none.");
+        }
+        return await DownloadFileAsync(http, what, c.BuiltIn ? what : $"{what} {feed!.Version}", c.File, from, to, ct);
+    }
+
+    /// <summary>The release list (read once): throws an InstallException that says why when it cannot be read.</summary>
+    async Task<ReleaseFeed> GetFeedAsync(HttpClient http, string what, CancellationToken ct)
+    {
         StatusText = "Checking for the latest release";
         if (_feed is null && _options.Offline)
         {
@@ -1092,13 +1132,15 @@ public sealed class MainViewModel : ObservableObject
                       $"Pick a local {ProductName} package (QuakeVR.zip) to install without the internet, or try again later.");
             }
         }
-        if (pick(_feed) is not { } file)
-        {
-            return null;
-        }
+        return _feed;
+    }
+
+    /// <summary>One file into the downloads folder, resumed, from its mirrors in order, checked (size, SHA-256).</summary>
+    async Task<string> DownloadFileAsync(HttpClient http, string what, string label, FeedFile file, double from, double to, CancellationToken ct)
+    {
         var dir = _options.Downloads ?? Path.Combine(_probe.GetFolder(KnownFolder.LocalAppData) ?? Path.GetTempPath(), "QuakeVR-Installer", "downloads");
         var dest = Path.Combine(dir, Path.GetFileName(file.File));
-        AddLog(LogLevel.Info, $"Downloading {what} {_feed.Version} ({PathUtil.FormatSize(file.Size)}).");
+        AddLog(LogLevel.Info, $"Downloading {label} ({PathUtil.FormatSize(file.Size)}).");
         var progress = new Progress<DownloadProgress>(p =>
         {
             var total = p.Total ?? file.Size;
