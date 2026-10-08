@@ -111,7 +111,7 @@ Phases (`stl_phase`):
 1. **TURN**: stand animation, `ideal_yaw` to the point, ChangeYaw at the monster's yaw speed times
    `vr_stealth_turn` (0.6: slower, wary) until facing (FacingIdeal) or 2 s.
 2. **WALK**: walk animation, `movetogoal` towards a marker entity at the point (the monster's own `stl_marker`), until
-   within 64 units, stuck 3 s or 15 s (`vr_stealth_investigate 0`: no walking, it searches where it stands).
+   within 64 units, stuck 3 s or out of time (10 s plus a second per 10 units of the way; `vr_stealth_investigate 0`: no walking, it searches where it stands).
 3. **SEARCH**: stand animation, looking about (a new random yaw within 120 degrees every 1-1.5 s) for
    `vr_stealth_search_time` (5 s).
 4. **RETURN**: walk back to its post (where it stood when it was first alerted, and its yaw); a path walker resumes its
