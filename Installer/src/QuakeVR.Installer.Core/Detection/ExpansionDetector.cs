@@ -36,7 +36,7 @@ public static class ExpansionDetector
         new("rogue", "Dissolution of Eternity", NativeReady: true, SoloOnly: false, InBaseDirs: true),
         new("dopa", "Dimension of the Past", NativeReady: true, SoloOnly: true, InBaseDirs: false),
         new("mg1", "Dimension of the Machine", NativeReady: true, SoloOnly: true, InBaseDirs: false),
-        new("mg3", "Dawn of the Machine", NativeReady: false, SoloOnly: false, InBaseDirs: false),
+        new("mg3", "Dawn of the Machine", NativeReady: true, SoloOnly: true, InBaseDirs: false),
     ];
 
     /// <summary>The store roots of <c>ownedRoots</c>, lowest priority first.</summary>
