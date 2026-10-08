@@ -130,28 +130,34 @@ entity(float alt) MG1_H_NextExit = {
     return e;
 };
 // Route sweep driver: with vr_mg_route_stage set, each new map's (or loaded save's) first frame with the player in
-// it runs the private script mg1route<stage>.cfg once (the scripts raise the stage themselves). A changelevel from
-// QC is appended to the console buffer, so a script's step that leaves the map ends the script.
+// it runs the private script mg1route<stage>.cfg (Dawn of the Machine: mg3route<stage>.cfg) once (the scripts raise
+// the stage themselves). A changelevel from QC is appended to the console buffer, so a script's step that leaves the
+// map ends the script.
 nosave float MG1_H_autoran;
 void() MG1_H_RouteAutorun = {
     float stage = cvar("vr_mg_route_stage");
     if(!stage || MG1_H_autoran || time < 1 || !find(world, classname, "player")) return;
     MG1_H_autoran = TRUE;
-    localcmd(sprintf("exec mg1route%g.cfg\n", stage));
+    localcmd(sprintf("exec %s%g.cfg\n", MG3_Campaign() ? "mg3route" : "mg1route", stage)); // (MG3: M3-29's sweep)
 };
 // The presser: real jump presses (the client's button, as a player's) whenever an intermission may be left or the
-// player is dead. The credits (the campaign's last exit) disconnect: it then runs mg1route_end.cfg after them.
-.float MG1_H_inter;
+// player is dead. The credits (the campaign's last exit) disconnect: it then runs mg1route_end.cfg (MG3:
+// mg3route_end.cfg) after them, queued behind the credits' commands: an intermission's second stage that shows a
+// finale text (one was pending) leads to the credits only at the next press, and the end script's waits would hold
+// up that press's +jump in the command buffer.
+.float MG1_H_inter, MG1_H_text;
 void() MG1_H_PresserThink = {
     entity p = find(world, classname, "player");
     self.nextthink = time;
     if(intermission_running != self.MG1_H_inter) {
         dprint(sprintf("mghubtest: intermission %g next %s map %s\n", intermission_running, nextmap, mapname));
-        if(intermission_running >= 2 && nextmap == "start" && MG1_Campaign() && !coop && !strlen(MG_intermissiontext))
-            localcmd("exec mg1route_end.cfg\n");
+        if(intermission_running >= 2 && nextmap == "start" && (MG1_Campaign() || MG3_Campaign()) && !coop &&
+           (intermission_running >= 3 || !self.MG1_H_text))
+            localcmd(MG3_Campaign() ? "exec mg3route_end.cfg\n" : "exec mg1route_end.cfg\n");
         self.MG1_H_inter = intermission_running;
     }
-    if(time < self.ltime) return;
+    self.MG1_H_text = ((strlen(MG_intermissiontext) > 0) || (strlen(world.endtext) > 0));
+    if(time < self.ltime || self.cnt) return; // (cnt: a watcher only, a test pressing for itself: MG3 route request 38)
     if((intermission_running && time >= intermission_exittime) || (p && p.deadflag >= DEAD_DEAD)) {
         dprint(sprintf("mghubtest: press (intermission %g dead %g)\n", intermission_running, p.deadflag));
         localcmd("+jump\nwait\n-jump\n");
