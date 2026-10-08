@@ -27,6 +27,7 @@ float stt2_r;         // the noise's reach (units)
 float stt2_s;         // the scale the scene set (a cvar's)
 vector stt2_at;
 vector stt2_dir;
+vector stt2_mhome;    // where a scene's monster stands
 float stt2_kind_i;    // the kinds scene's place in its list
 float stt2_tick;
 
@@ -474,11 +475,13 @@ void() VR_STT2_Frame =
             vector beam1 = flashlightbeam(p, 2);
             VR_STT2_Report("coop_client_lamp_known", beam_x == 1 && beam_y > 100 && beam1_x == 0,
                 sprintf("client's lamp on %g range %.0f cone %.2f; host's on %g", beam_x, beam_y, beam_z, beam1_x));
-            // The grunt 200 units ahead of the host, facing him; the client beside him.
-            makevectors('0 1 0' * p.v_viewangle_y);
+            // The grunt 200 units ahead of the host, facing him; the client beside him. The client's lamp off meanwhile
+            // (the server has his console: its glare would light him, whichever is lit).
             float room2 = VR_STT2_ClearWay(p.origin, '0 0 0', 400);
-            stt2_m1 = VR_STT2_Spawn(p.origin + stt2_dir * min(220, room2 - 40) + '0 0 8', vectoyaw(-stt2_dir), 0);
+            stt2_mhome = p.origin + stt2_dir * min(220, room2 - 40) + '0 0 8';
+            stt2_m1 = VR_STT2_Spawn(stt2_mhome, vectoyaw(-stt2_dir), 0);
             stt2_at = stt2_dir;
+            stuffcmd(p2, "echo MARK lamp toggled by the server;vr_flashlight_toggle\n");
             cvar_set("vr_stealth_light_force", "-1");
             cvar_set("vr_stealth_share_near", "0");
             cvar_set("vr_stealth_share_view", "0");
@@ -492,8 +495,17 @@ void() VR_STT2_Frame =
         p.stl_light = lit2 ? 0 : 128;
         p2.stl_light = lit2 ? 128 : 0;
         p.stl_light_time = p2.stl_light_time = time + 0.5;
-        if(stt2_stage == 1 && t > 0.5)
+        if(stt2_stage == 1 && t > 1)
         {
+            if(stt2_kind_i == 0)
+            {
+                vector beamOff = flashlightbeam(p2, 2);
+                VR_STT2_Report("coop_client_lamp_off_known", beamOff_x == 0, sprintf("client's lamp on %g", beamOff_x));
+            }
+            setorigin(m, stt2_mhome);
+            self = m;
+            droptofloor();
+            self = os;
             makevectors('0 1 0' * vectoyaw(-stt2_at));
             setorigin(p, m.origin - stt2_at * 200 + v_right * 32 + '0 0 8');
             setorigin(p2, m.origin - stt2_at * 200 - v_right * 32 + '0 0 8');
@@ -521,6 +533,20 @@ void() VR_STT2_Frame =
             {
                 stt2_kind_i = 1;
                 VR_STT2_Stage(1);
+                return;
+            }
+            stuffcmd(p2, "vr_flashlight_toggle\n"); // (his lamp on again)
+            p.stl_light_time = p2.stl_light_time = 0;
+            setorigin(p, stt2_phome);
+            VR_STT2_Calm(m, m.angles_y);
+            VR_STT2_Stage(4);
+            return;
+        }
+        if(stt2_stage == 4)
+        {
+            p.stl_light_time = p2.stl_light_time = 0;
+            if(t < 1)
+            {
                 return;
             }
             // The client's lamp: the grunt put 160 units down its beam, its back to the lens: Alert at the lens.
@@ -551,6 +577,10 @@ void() VR_STT2_Frame =
                 sprintf("state %g, its point %.0f from the client's lens (lamp on %g)", m.stl_state, vlen(m.stl_point - stt2_at),
                 beam2_x));
             bprint(sprintf("stealthtest: done, %g failed\n", stt2_fails));
+            if(cvar("vr_stealth_test_quitclient"))
+            {
+                stuffcmd(p2, "echo MARK told to quit;disconnect;quit\n"); // (stealth_mp_test.sh sets it: its client waits for this)
+            }
             VR_STT2_RemoveAll();
             VR_STT2_End();
         }

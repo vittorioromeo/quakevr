@@ -495,7 +495,7 @@ float(entity client) VR_Stealth_SeeNow =
     makevectors(self.angles);
     float dot = normalize(VR_AI_Origin(client) - self.origin) * v_forward;
     float facing = dot > 0.3 ? 1 : (dot > -0.3 ? cvar_hget(cvarh_vr_stealth_peripheral) : 0);
-    float light = self.stl_lit > time ? 1 : VR_Stealth_LightShare(VR_Stealth_LightOf(client));
+    float light = (self.stl_lit > time && self.stl_lit_by == client) ? 1 : VR_Stealth_LightShare(VR_Stealth_LightOf(client));
     float rate = light * nearShare * facing * VR_Stealth_MoveShare(client) * VR_Stealth_CrouchShare(client) *
         (cvar_hget(cvarh_vr_stealth_senses) ? self.stl_sight : 1) *
         (time < self.stl_wary ? cvar_hget(cvarh_vr_stealth_sensitive) : 1) / max(0.05, cvar_hget(cvarh_vr_stealth_meter_time));
@@ -577,6 +577,7 @@ void(entity m, entity p, vector eye) VR_Stealth_Beam =
         if(trace_fraction >= 1 || trace_ent == m)
         {
             m.stl_lit = time + 0.5;
+            m.stl_lit_by = p;
             VR_Stealth_Alert(m, lens, STL_A_BEAM, 1.5, TRUE);
             return;
         }

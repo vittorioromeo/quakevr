@@ -2799,3 +2799,4 @@ QVR_CVAR(vr_stealth_light_force, "-1", CVAR_NONE)    // tests: the players' ligh
 QVR_CVAR(vr_stealth_test, "0", CVAR_NONE)            // tests: vr_stealth.qc's numbered scenes (Debug > Tests > Stealth)
 QVR_CVAR(vr_stealth_test_count, "60", CVAR_NONE)     // tests: the horde scene's monsters (vr_stealth_test 103)
 QVR_CVAR(vr_stealth_test_kinds, "0", CVAR_NONE)      // tests: the kinds scene's one kind (vr_stealth_test 106; the dispenser's number; 0 all)
+QVR_CVAR(vr_stealth_test_quitclient, "0", CVAR_NONE) // tests: the coop scene (vr_stealth_test 102) tells the other player's game to quit at its end (stealth_mp_test.sh)

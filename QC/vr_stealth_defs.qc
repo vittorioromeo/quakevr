@@ -29,7 +29,8 @@
 .float stl_stuck;       // seconds it made no headway
 .float stl_scan_time;   // when it next looks for bodies, torches and beams
 .entity stl_body;       // the last body it investigated
-.float stl_lit;         // in a flashlight's beam (the lens's glare: its meter sees him lit)
+.float stl_lit;         // in a flashlight's beam (the lens's glare: its meter sees him lit), until when
+.entity stl_lit_by;     // and whose (coop: only the lamp's holder is seen lit by it)
 .float stl_lost_time;   // Hostile: when it last saw its enemy
 .vector stl_lost_at;    // and where
 .entity stl_next;       // a gathered list's next (VR_Stealth_Gather)
