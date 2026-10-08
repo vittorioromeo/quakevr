@@ -47,8 +47,13 @@ enum Kind : int
 // QVR_SVC_SHOCK.
 void parse();
 
-// Once per frame, from the view setup: the effects due drawn, the screen flash set.
+// Once per frame, from the view setup: the effects due drawn, the screen flash set; a crackling gun's hand buzzed.
 void frame(const hands::State& s);
+
+// The gun in this client's `hand` crackling (a spent enemy rifle: KindGunShock, QC vr_enemyguns.qc): how hard it still
+// shakes, 0..1 (fading as its arcs run out; 0: none, or another gun there now). vr_view.cpp setupWeapon jitters it by
+// vr_enemygun_spent_shake; frame buzzes the hand by vr_enemygun_spent_haptics (the author's note map1_2026-10-08_13-56-46).
+[[nodiscard]] float gunShake(int hand);
 
 // Arcs crawling over the hands and forearms (Quad Damage's, and the shock's): `bolts` for each hand, and a longer one
 // from the fingers to the elbow at `longChance`; `seed` shapes them (the same in both eyes: once per frame).

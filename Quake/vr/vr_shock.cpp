@@ -14,6 +14,8 @@
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
+#include "vr_backend.hpp"
+#include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
@@ -94,6 +96,8 @@ struct Struck
 Struck struck;
 
 int lastFrame = -1; // effects drawn once a frame, however often the view is set up
+double gunBuzzAt[2]{0.0, 0.0}; // a crackling gun's hand: when its next buzz is due (frame: gunShake)
+int gunBuzzes[2]{0, 0};        // and the buzzes sent so far (vr_shock_info)
 
 // vr_shock_info: the next frame measures where the bodies' arcs lie against their surfaces (measureArcs); meanwhile
 // arc() keeps its points in arcRecord.
@@ -1174,6 +1178,27 @@ void frame(const hands::State& s)
     lastFrame = host_framecount;
     QVR_PROFILE("shock arcs");
 
+    // A crackling gun buzzes in its hand, a short pulse every 60 ms, fading with its arcs.
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const float k = gunShake(hand);
+        if(k <= 0.f || vr_enemygun_spent_haptics.value <= 0.f || vr_disablehaptics.value)
+        {
+            gunBuzzAt[hand] = 0.0;
+            continue;
+        }
+        if(realtime < gunBuzzAt[hand])
+        {
+            continue;
+        }
+        gunBuzzAt[hand] = realtime + 0.06;
+        if(Backend* be = backend())
+        {
+            be->haptic(hand, 0.04f, 120.f, za::clamp(k * vr_enemygun_spent_haptics.value, 0.f, 1.f));
+            gunBuzzes[hand]++;
+        }
+    }
+
     Random rnd{static_cast<unsigned>(host_framecount) * 2246822519u + 7u};
     drawSelf(s, rnd);
     drawStruck(s, rnd.seed ^ 0x2c1b3c6du); // (its own numbers: the others' as they were)
@@ -1260,6 +1285,34 @@ void clear()
     struck = Struck{};
 }
 
+float gunShake(int hand)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return 0.f;
+    }
+    const view::ViewEntity* ve = view::heldWeapon(hand);
+    if(!ve)
+    {
+        return 0.f;
+    }
+    const double now = cl.time;
+    for(const Effect& e : effects)
+    {
+        if(e.kind != KindBodyDeath || e.until <= now || gunHandOf(static_cast<int>(e.radius)) != hand)
+        {
+            continue;
+        }
+        if(e.model && e.model != ve->ent.model && !view::sameGun(e.model, ve->ent.model))
+        {
+            return 0.f; // (another gun in that hand now)
+        }
+        const double span = za::max(0.1, e.until - e.start);
+        return za::clamp(static_cast<float>((e.until - now) / span), 0.f, 1.f);
+    }
+    return 0.f;
+}
+
 // vr_shock_info: the bodies with arcs on them now: entity, kind (3 a hit's, 4 lasting), triangles, arcs drawn last
 // frame, seconds left.
 void info_f()
@@ -1272,7 +1325,8 @@ void info_f()
         if(const int hand = gunHandOf(num); hand >= 0)
         {
             active++;
-            Con_Printf("bodyshock: gun in hand %d arcs=%d remaining=%.2f\n", hand, effect.arcs, effect.until - cl.time);
+            Con_Printf("bodyshock: gun in hand %d arcs=%d remaining=%.2f shake=%.2f buzzes=%d\n", hand, effect.arcs,
+                effect.until - cl.time, gunShake(hand), gunBuzzes[hand]);
             continue;
         }
         if(num <= 0 || num >= cl.num_entities) { continue; }

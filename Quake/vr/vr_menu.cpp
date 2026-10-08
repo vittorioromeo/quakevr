@@ -1088,6 +1088,10 @@ int campaignsBloodyShown = -1;
             .help("And crackles all over with lightning's arcs this long, as a corpse the lightning struck (0: never)."),
         slider("Crackle Volume", vr_enemygun_spent_volume, 0.f, 1.f, 0.05f, "%.2f")
             .help("The corpses' crackle as it starts, this loud (0: silent)."),
+        slider("Spent Shake", vr_enemygun_spent_shake, 0.f, 1.f, 0.05f, "%.2f units").extend(0.f, 3.f)
+            .help("While it crackles in your hand the gun shakes this much, fading with its arcs (0: still)."),
+        slider("Spent Haptics", vr_enemygun_spent_haptics, 0.f, 1.f, 0.05f, "%.2f")
+            .help("And buzzes in your hand this hard (0: not at all)."),
     };
 }
 
