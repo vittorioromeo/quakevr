@@ -90,6 +90,9 @@ struct PortalScratch
 mem::Scratch<PortalScratch> scratch{"portal mask and PVS"};
 
 za::Vector<Side> sides;
+// reverseSide of each of `sides`, made once they are built (build): the alias and brush models' split tests ask for each
+// gate's exit for every model in every view. In step with `sides` only when the sizes match (build clears it first).
+za::Vector<Side> exits;
 [[nodiscard]] Side reverseSide(const Side& entry);
 [[nodiscard]] bool onGate(const Side& sd, const glm::vec3& onPlane, float margin);
 const qmodel_t* builtFor = nullptr;
@@ -300,6 +303,7 @@ void pairExits()
 void build()
 {
     sides.clear();
+    exits.clear();
     builtFor = sv.worldmodel;
     builtGeneration = worldGeneration();
     builtPairExits = vr_slipgate_pair_exits.value;
@@ -407,6 +411,11 @@ void build()
         }
     }
     pairExits();
+    exits.reserve(sides.size());
+    for(const Side& sd : sides)
+    {
+        exits.pushBack(reverseSide(sd)); // (each made in full: `exits` still shorter than `sides`)
+    }
     PR_PopQCVM(oldVm);
     Con_DPrintf("VR portals: %d slipgate sides\n", static_cast<int>(sides.size()));
 }
@@ -586,6 +595,7 @@ void update(const float* origin, const float* angles, int depth)
     if(!enabled())
     {
         sides.clear(); // (the feature off: the gates are forgotten, and stay so until it is turned on again)
+        exits.clear();
         builtFor = nullptr;
         builtGeneration = -1;
         lastChosen = -1;
@@ -1349,6 +1359,12 @@ ClientState& crossingState(edict_t* ent)
 
 [[nodiscard]] Side reverseSide(const Side& entry)
 {
+    // One of the built sides: its exit as made in build (the same numbers).
+    const uintptr_t at = reinterpret_cast<uintptr_t>(&entry), first = reinterpret_cast<uintptr_t>(sides.data());
+    if(exits.size() == sides.size() && at >= first && at < first + sides.size() * sizeof(Side))
+    {
+        return exits[static_cast<za::SizeT>((at - first) / sizeof(Side))];
+    }
     Side exitGate;
     exitGate = entry;
     exitGate.from = entry.to;
