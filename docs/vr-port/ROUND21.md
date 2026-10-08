@@ -32240,3 +32240,11 @@ fist up to 10 cm off it. In the air nothing changes (no floor under it, or flyin
 it, slack 0), nor a force grab (its catch runs the weapon's handtouch itself, VR_Forcegrab_Catch, not handOn).
 weapon_catch_test.sh checks 4-5: taken at 7.7 cm (allowed 10), and with the leniency 0 the slack's 5 alone, not taken
 from 10 cm over it. Check 3 (the crowbar, gripped at its middle, its handle) now sets the leniency 0 to test the slack.
+
+**The super shotgun hit with shells in the hand.** The author: still unable to hit it open or shut with the off hand
+holding shells from the pouch. VR_Reload_SsgHit returned at once for any round the other hand held (it was there so a
+pair brought to the breech wouldn't count as a hit). Now a held round hits as the fist holding it or by its own shape
+(shapenearest), whichever is nearer the barrels' front half. Shut, it breaks it open (a shut gun's chambers take nothing:
+the tap at the breech is unchanged). Open, the round within the port's radius plus 4 units of the chambers loads and
+never hits (the load wins); a fast hit on the front half of the barrels from below elsewhere shuts it, the pair kept in
+the hand. reload_test.sh: a pouch pair hits it open from above, shut from below, kept (10).

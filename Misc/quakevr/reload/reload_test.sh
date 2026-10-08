@@ -181,6 +181,11 @@ check $(echo "$log" | grep -q "broken open by the button" && [ "$(opens "$log")"
 check $(echo "$log" | grep "ssg: the hand on the open barrels turned" | head -1 | grep -q "turned 45.0 deg" && echo 1 || echo 0) "the hand on the open barrels turns down with them (45 deg)"
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$HITDOWN;$REP;$HITUP;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "broken open by a hit from above" && echo "$log" | grep -q "closed by a hit from below" && [ "$(opens "$log")" = 10 ] && echo 1 || echo 0) "a hit from above on the barrels breaks it open, one from below shuts it ($(opens "$log"))"
+# A pouch pair in the hand hits too (the author's note of 2026-10-08: shells in the hand never opened or shut it): the
+# shut gun broken open by it from above, the open one shut from below (the pair kept: not loaded), and at the open
+# chambers it loads (no hit).
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$POUCH;$GRIP;$HITDOWN;$REP;$HITUP;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+check $(echo "$log" | grep -q "broken open by a hit from above" && echo "$log" | grep -q "closed by a hit from below at .*: 0 loaded" && [ "$(opens "$log")" = 10 ] && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "clip 0 .*holds a round of 2" && echo 1 || echo 0) "a pouch pair in the hand hits it open from above, shut from below, kept in the hand ($(opens "$log"), want 10)"
 T25=$(for i in $(seq 4); do printf "vr_mock_hand_turn off 25 0 0;wait1;"; done)
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_mock_turn_velocity 1;$FIRE;vr_reload_ssg_flick_open_speed 3000;$T25 wait30;$REP;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;wait30;vr_reload_ssg_flick_open_speed 650;$T25 wait30;$REP;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;wait30;vr_reload_ssg_flick_close_speed 3000;$T25 wait30;$REP;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;wait30;vr_reload_ssg_flick_close_speed 650;$T25 wait30;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "broken open by a flick" && echo "$log" | grep -q "closed by a flick" && [ "$(opens "$log")" = 0110 ] && echo 1 || echo 0) "the flick's speeds: a flick under Flick Open Speed doesn't open it, over it does; the same for Flick Close Speed ($(opens "$log"))"

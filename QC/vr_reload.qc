@@ -1443,8 +1443,13 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgClose =
 // (its own up; open, it snaps shut: vr_reload_ssg_hit_close_*), within vr_reload_ssg_hit_reach of them (open: as they
 // are turned down by vr_reload_ssg_open_angle from the breech), at the hands' relative speed: a fist, a held prop's
 // shape (its nearest point: the engine's shapenearest, its Box3D body as held), the other gun's line from its hand to its muzzle. Not while both hands hold it (the pry and the lift are
-// theirs), nor a round the hand holds (brought to the breech to load). What it was in vr_ssg_hitdesc.
+// theirs). A round the hand holds (a pouch pair, a shell) hits as the fist holding it, or by its own shape, whichever is
+// nearer (the author's note of 2026-10-08: shells in the hand never opened or shut it): the gun shut, it breaks it open
+// (shut, its chambers take nothing); open, not while the round is at its chambers (within the port's radius and 4 units
+// more: it loads, VR_Reload_HeldFrame), a hit on the barrels' front half elsewhere shuts it. What it was in vr_ssg_hitdesc.
 string vr_ssg_hitdesc;
+
+vector(entity r) VR_Reload_RoundRef;
 
 float(float xGunHand, float xSide) VR_Reload_SsgHit =
 {
@@ -1478,9 +1483,11 @@ float(float xGunHand, float xSide) VR_Reload_SsgHit =
     float d = 100000;
     float side = 0; // (where the nearest was: above the barrels (> 0) or under them, by the gun's up)
     entity held = VR_Carry_Held(self, other);
-    if(held != world && VR_Reload_IsRound(held))
+    float round = held != world && VR_Reload_IsRound(held);
+    if(round && xSide > 0 &&
+       vlen(VR_Reload_RoundRef(held) - b) <= VR_Reload_PortRadius(WID_SUPER_SHOTGUN) + VR_Reload_MagRadius(held.vr_ammo_wid) + 4)
     {
-        return FALSE; // (a shell or a pair brought to its breech to load it: not a hit)
+        return FALSE; // (open, a shell or a pair at its chambers: it loads, not a hit)
     }
     vector q = '0 0 0';
     float t;
@@ -1490,6 +1497,17 @@ float(float xGunHand, float xSide) VR_Reload_SsgHit =
         if(k == 0)
         {
             q = held != world ? shapenearest(held, p0, p1) : VRGetEntHandPos(self, other);
+            if(round)
+            {
+                // (The fist holding it, if nearer the barrels than the round's own shape.)
+                vector qh = VRGetEntHandPos(self, other);
+                float th = max(0, min(1, ((qh - p0) * (p1 - p0)) / max(0.001, (p1 - p0) * (p1 - p0))));
+                t = max(0, min(1, ((q - p0) * (p1 - p0)) / max(0.001, (p1 - p0) * (p1 - p0))));
+                if(vlen(p0 + (p1 - p0) * th - qh) < vlen(p0 + (p1 - p0) * t - q))
+                {
+                    q = qh;
+                }
+            }
         }
         else if(VRGetEntWeapon(self, other) != WID_FIST)
         {
