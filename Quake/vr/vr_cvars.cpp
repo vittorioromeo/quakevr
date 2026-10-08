@@ -499,8 +499,10 @@ const DefaultChange defaultChanges[] = {
     {104, &vr_reload_port_shot_radius, "1.5"}, // 1.6
     // 105: a smaller stick deadzone (the author, 2026-10-08; worn sticks that drift can raise it again).
     {105, &vr_deadzone, "25"}, // 10
+    // 106: the Immersive Death View by default (the author, NOTES.md vrfiringrange_2026-10-08_22-44-28).
+    {106, &vr_death_view, "1"}, // 2
 };
-constexpr int configVersion = 105;
+constexpr int configVersion = 106;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
