@@ -385,7 +385,8 @@ constexpr const char* toolNames[ToolCount]{"back", "search", "console", "setting
 struct ToolbarLayout
 {
     static constexpr float corner = 4.f;    // true pixels from the panel's edges
-    static constexpr float rowCorner = 1.f; // the row's from the canvas's top edge (the lists' titles 14 below it at least)
+    static constexpr float rowCorner = corner; // the row's from the canvas's top edge (as the status box's and the version
+                                               // box's from theirs)
     static constexpr float half = 7.f;      // half a button's height
     static constexpr float rowHalf = 6.f;   // the row's
     static constexpr float gap = 2.f;       // between two buttons
@@ -482,6 +483,7 @@ struct Toolbar
     int hovered{-1};   // the button under the laser
     int focused{-1};   // the button the sticks selected (-1: the menu has the selection)
     bool bannerHovered{false}; // the spectator camera's switch under the laser
+    bool linkHovered{false};   // the version box's Ko-fi link under the laser
     int focusMenu{m_none};
     glm::vec2 focusMouse{0.f}; // the laser's spot when they did: moving it on gives the selection back
 };
@@ -859,6 +861,14 @@ void update(const hands::State& s)
     }
     toolbar.bannerHovered = bannerHovered;
 
+    // And the version box's Ko-fi link.
+    const bool linkHovered = on && hits[pointingHand].valid && versionLinkAt(m_mousex, m_mousey);
+    if(linkHovered && !toolbar.linkHovered)
+    {
+        haptic(pointingHand, 0.01f, 0.15f);
+    }
+    toolbar.linkHovered = linkHovered;
+
     // The sticks' selection on them lasts while the menu stays and the laser is not moved on (a
     // hand's tremor aside).
     if(toolbar.focused >= 0 &&
@@ -874,6 +884,16 @@ void mockLaser_f()
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "off"))
     {
         mockLaser.on = false;
+        return;
+    }
+    if(float x, y; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "kofi"))
+    {
+        if(!versionLinkSpot(x, y))
+        {
+            Con_Printf("vr_mock_laser kofi: the version box is not shown\n");
+        }
+        mockLaser = {true, {x, y}};
+        pointingHand = HAND_MAIN;
         return;
     }
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "spectator"))
@@ -903,7 +923,7 @@ void mockLaser_f()
         return;
     }
     Con_Printf("vr_mock_laser <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
-               "checklist | spectator | off: the main hand's laser on that spot of the menu\n");
+               "checklist | spectator | kofi | off: the main hand's laser on that spot of the menu\n");
 }
 
 void mockMouse_f()
@@ -914,6 +934,14 @@ void mockMouse_f()
     {
         spot = {Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2))};
         next = 3;
+    }
+    else if(Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "kofi"))
+    {
+        if(!versionLinkSpot(spot.x, spot.y))
+        {
+            Con_Printf("vr_mock_mouse kofi: the version box is not shown\n");
+        }
+        next = 2;
     }
     else if(Cmd_Argc() >= 2)
     {
@@ -930,7 +958,7 @@ void mockMouse_f()
     if(next == 0)
     {
         Con_Printf("vr_mock_mouse <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
-                   "checklist [click]: the desktop mouse on that spot of the menu, clicked with click\n");
+                   "checklist | kofi [click]: the desktop mouse on that spot of the menu, clicked with click\n");
         return;
     }
 
@@ -986,6 +1014,19 @@ void printLaser()
     Con_Printf("menu_vr pos: laser (%s hand) %s, at %.3f %.3f of the panel%s\n", pointingHand == HAND_MAIN ? "main" : "off",
         !h.valid ? "off the menu" : h.onRuntimePanel ? "on the runtime's panel" : "on the panel in the eyes", uv.x, uv.y,
         runtime ? " (the runtime's panel shown)" : "");
+}
+
+bool pointerOn(bool hover)
+{
+    if(active())
+    {
+        return hits[pointingHand].valid;
+    }
+    if(vrActive() || !ui_mouse.value)
+    {
+        return false; // (the headset's flat-style menus: no laser)
+    }
+    return !hover || (flatMouse.moved && flatMouse.frame >= host_framecount - 1);
 }
 
 float toolbarBottom()
@@ -1593,6 +1634,15 @@ extern "C" void VR_MenuDrawStatus()
 extern "C" void VR_MenuDrawOverlay()
 {
     toolbar.menu = m_none;
+    if(!menuui::active() && key_dest == key_menu)
+    {
+        // (Whether or not the buttons are shown: the version box's link lights up under the mouse too.)
+        const glm::vec2 mouse{m_mousex, m_mousey};
+        FlatMouse& fm = flatMouse;
+        fm.moved = fm.frame >= host_framecount - 1 && (fm.moved || mouse != fm.seen); // (afresh when the menu opens)
+        fm.seen = mouse;
+        fm.frame = host_framecount;
+    }
     if(!menuui::toolbarShown() || glcanvas.type != CANVAS_MENU || M_WaitingForKeyBinding())
     {
         return;
@@ -1602,11 +1652,7 @@ extern "C" void VR_MenuDrawOverlay()
     const ToolbarLayout l = toolbarLayout();
     if(!menuui::active())
     {
-        const glm::vec2 mouse{m_mousex, m_mousey};
-        FlatMouse& fm = flatMouse;
-        fm.moved = fm.frame >= host_framecount - 1 && (fm.moved || mouse != fm.seen); // (afresh when the menu opens)
-        fm.seen = mouse;
-        fm.frame = host_framecount;
+        const FlatMouse& fm = flatMouse;
         toolbar.hovered = -1;
         for(int t = 0; fm.moved && ui_mouse.value && t < toolsShown(); t++)
         {
@@ -1699,6 +1745,12 @@ extern "C" void VR_MenuDrawOverlay()
 // other end), A or Enter presses, B gives it back; a click of either stick takes it (or gives it back).
 extern "C" int VR_MenuKey(int key, int repeat)
 {
+    if(key == K_MOUSE1 && !repeat && !M_WaitingForKeyBinding() && menuui::versionLinkPress())
+    {
+        toolbar.focused = -1;
+        haptic(pointingHand, 0.02f, 0.3f);
+        return 1;
+    }
     if(!menuui::toolbarShown() || M_WaitingForKeyBinding())
     {
         toolbar.focused = -1;
@@ -1857,7 +1909,7 @@ void qvr::menuui::openMenu(int state)
 // player game). Once: the next time, the main menu again unless it closed that way again.
 extern "C" int VR_MenuMouseOnButtons(float x, float y)
 {
-    return menuui::toolbarShown() && toolAt(x, y) >= 0;
+    return (menuui::toolbarShown() && toolAt(x, y) >= 0) || menuui::versionLinkAt(x, y);
 }
 
 extern "C" int VR_MenuReopen()

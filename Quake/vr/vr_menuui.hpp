@@ -17,6 +17,16 @@ void printVersionLabel();
 // Where the version label is on (vr_menu_version): the menus keep left of x or above y (menu x and y) to stay clear of it
 // (a VR page whose rows or help reach under it ends above it: vr_menu.cpp, layout).
 [[nodiscard]] bool versionLabelClearance(float& x, float& y);
+// The version box's "Support on Ko-fi" link (vr_menubrand.cpp): whether a spot of the menu (menu x, y) is on it (over this
+// menu now); its middle (false: not shown); and a press of the menus' mouse (K_MOUSE1: the laser's trigger, a click) on
+// it: true if it took it (the page opened, at most once in a second and a half).
+[[nodiscard]] bool versionLinkAt(float x, float y);
+[[nodiscard]] bool versionLinkSpot(float& x, float& y);
+[[nodiscard]] bool versionLinkPress();
+// Whether the menus' mouse spot (m_mousex, m_mousey) is a pointer there: the laser on the panel in the headset (the VR
+// menu style), the desktop mouse on a flat screen (ui_mouse; to light something up, `hover`: once it has moved over the
+// menus).
+[[nodiscard]] bool pointerOn(bool hover);
 // Opens Ironwail's menu `state` (m_main, m_singleplayer, m_options...) as its own way in does; m_none closes the menu.
 void openMenu(int state);
 // A menu is open in the headset with vr_menu_vr_style on.
@@ -76,9 +86,9 @@ void backToGame(int hand);
 [[nodiscard]] float statusBottom(float contentRight);
 void focusToolbar(int dir);
 
-// vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | spectator | off (tests): the
-// main hand's laser on a spot of the menu, on one of the corner's buttons or on the spectator camera's switch (bottom
-// left), whatever the hand's pose.
+// vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | spectator | kofi | off
+// (tests): the main hand's laser on a spot of the menu, on one of the corner's buttons, on the spectator camera's switch
+// (bottom left) or on the version box's Ko-fi link (bottom right), whatever the hand's pose.
 void mockLaser_f();
 
 // vr_mock_mouse <x> <y> | <button> [click] (tests, flat screen): the desktop mouse moved to a spot of the menu (menu

@@ -394,7 +394,7 @@ int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' verti
 // The menus' branding (vr_menubrand.cpp): the Quake VR banner in place of Quake's plaque, and their browns turned red.
 int VR_MenuDrawBanner (int x, int y);					// M_DrawPlaque: the banner where the plaque's top left would be; nonzero if drawn (0: no image, draw the plaque)
 void VR_MenuDrawBannerColumn (void);					// M_Draw, before the page: the VR menu style's banner, in the left column under the corner's buttons
-void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: Unleashed - v0.9" / "by Vittorio Romeo" in the bottom right corner (vr_menu_version)
+void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: Unleashed - v0.9" / "by Vittorio Romeo" / a "Support on Ko-fi" link, in a box in the bottom right corner (vr_menu_version)
 void VR_MenuRecolor (float *params);					// Draw_SetMenuRecolor: the gui shader's MenuRecolor (vr_menu_recolor; x 0: off)
 int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
 void VR_MenuBounds (int *left, int *top, int *width, int *height);	// M_UpdateBounds: the menus laid out from the canvas's bounds beside the corner's buttons

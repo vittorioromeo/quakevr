@@ -7,11 +7,14 @@
 //   (menu.c, M_DrawPlaque). With the VR menu style the plaque is left out (the panel's rows reach its column), so the
 //   banner stands in the column under the corner's buttons instead, on every menu, the same size on all. The image is mipmapped and filtered smoothly, and only its
 //   opaque rectangle is drawn (the image found from its alpha). Without the image: Quake's plaque, as before.
-// - The version label (vr_menu_version): "Quake VR: Unleashed - v0.9" over "by Vittorio Romeo", small, right-aligned
-//   in the canvas's bottom right corner of every menu (VR and flat), the version from the repository's VERSION file
-//   (VR_Version: MAJOR.MINOR while PATCH is 0, else the whole), a dev build's "-dev" fainter. Drawn before the page (what
-//   opens over it hides it), and only where nothing the menu draws reaches under it (qvr::menu::contentRightBelow) nor
-//   the status box comes down to it.
+// - The version label (vr_menu_version): "Quake VR: Unleashed - v0.9" over "by Vittorio Romeo" over a "Support on
+//   Ko-fi" link (Ko-fi's cup before it), small, right-aligned in a box like the status box's (as far from the corner,
+//   its lines as far inside it) in the canvas's bottom right corner of every menu (VR and flat), the version from the
+//   repository's VERSION file (VR_Version: MAJOR.MINOR while PATCH is 0, else the whole), a dev build's "-dev" fainter.
+//   Drawn before the page (what opens over it hides it), and only where nothing the menu draws reaches under it
+//   (qvr::menu::contentRightBelow) nor the status box comes down to it. The link lights up under the laser or the
+//   desktop mouse; a press (trigger, click) opens https://ko-fi.com/vittorioromeovee in the desktop's browser
+//   (SDL_OpenURL) once, and the link says so for a few seconds (vr_menu_link_dryrun: only printed).
 // - The colours (vr_menu_recolor): while the menus draw, the gui shader turns their browns, tans, oranges and
 //   yellows towards a blood red (gl_shaders.h, MenuRecolor; gl_draw.c, Draw_SetMenuRecolor), a true hue change in
 //   Oklab: the lightness kept, the chroma kept but for vr_menu_recolor_saturation, greys, blues and greens left
@@ -22,7 +25,9 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hue.hpp"
+#include "vr_main.hpp"
 #include "vr_menu.hpp"
+#include "vr_menupaint.hpp"
 #include "vr_menuui.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -33,7 +38,14 @@
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/Pow.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 extern "C" int M_TextLeft(void); // menu.c
+extern "C" float m_mousex, m_mousey; // menu.c: the menus' mouse, in menu coordinates
 
 namespace
 {
@@ -48,14 +60,17 @@ constexpr float columnGap = 8.f;         // under the buttons, and above the pan
 constexpr float columnMinHeight = 40.f;  // the least banner worth drawing there (true pixels)
 constexpr float flatGap = 8.f;           // a flat screen's banner: at least this clear left of the menu's text (menu x)
 
+// An image drawn in the menus: the banner, and Ko-fi's logo (the version box's link).
 struct Banner
 {
+    const char* path;             // png, tga or jpg
     alignas(16) za::U8 pic[64]{}; // its qpic_t (Draw_LoadImagePic: Draw_PicBytes () bytes)
     int bounds[4]{};              // the image's opaque rectangle (texels): left, top, right, bottom
     int state{0};                 // 0: not loaded yet, 1: loaded, -1: no image
 };
 
-Banner banner;
+Banner banner{bannerImage};
+Banner kofiLogo{"gfx/vr/kofi_symbol"}; // Ko-fi's cup, unaltered (Ko-fi's brand assets; the installer's Assets/kofi_symbol.png)
 
 // Where the banner was last drawn (menu x and y; nothing: x1 < x0), for menu_vr pos.
 struct BannerPlace
@@ -64,31 +79,41 @@ struct BannerPlace
 };
 BannerPlace bannerPlace;
 
-[[nodiscard]] qpic_t* bannerPic()
+[[nodiscard]] qpic_t* imagePic(Banner& b)
 {
-    if(banner.state == 0)
+    if(b.state == 0)
     {
-        banner.state = -1;
-        if(Draw_PicBytes() > sizeof(banner.pic))
+        b.state = -1;
+        if(Draw_PicBytes() > sizeof(b.pic))
         {
-            Con_Warning("VR: the menu banner's pic needs %d bytes\n", static_cast<int>(Draw_PicBytes()));
+            Con_Warning("VR: the menus' %s pic needs %d bytes\n", b.path, static_cast<int>(Draw_PicBytes()));
         }
-        else if(!Draw_LoadImagePic(reinterpret_cast<qpic_t*>(banner.pic), bannerImage, banner.bounds))
+        else if(!Draw_LoadImagePic(reinterpret_cast<qpic_t*>(b.pic), b.path, b.bounds))
         {
-            Con_DPrintf("VR: no %s image: Quake's plaque in the menus\n", bannerImage);
+            Con_DPrintf("VR: no %s image%s\n", b.path, &b == &banner ? ": Quake's plaque in the menus" : "");
         }
-        else if(banner.bounds[2] > banner.bounds[0] && banner.bounds[3] > banner.bounds[1])
+        else if(b.bounds[2] > b.bounds[0] && b.bounds[3] > b.bounds[1])
         {
-            banner.state = 1;
+            b.state = 1;
         }
     }
-    return banner.state > 0 ? reinterpret_cast<qpic_t*>(banner.pic) : nullptr;
+    return b.state > 0 ? reinterpret_cast<qpic_t*>(b.pic) : nullptr;
 }
 
-// The logo's width over its height.
+[[nodiscard]] qpic_t* bannerPic()
+{
+    return imagePic(banner);
+}
+
+// An image's width over its height (its opaque rectangle's).
+[[nodiscard]] float imageAspect(const Banner& b)
+{
+    return static_cast<float>(b.bounds[2] - b.bounds[0]) / static_cast<float>(b.bounds[3] - b.bounds[1]);
+}
+
 [[nodiscard]] float bannerAspect()
 {
-    return static_cast<float>(banner.bounds[2] - banner.bounds[0]) / static_cast<float>(banner.bounds[3] - banner.bounds[1]);
+    return imageAspect(banner);
 }
 
 // How much more the menu canvas stretches y than x (gl_draw.c, Draw_KeepMenuGlyphSize: pictures keep their size).
@@ -103,9 +128,9 @@ BannerPlace bannerPlace;
     return k < 1.001f ? 1.f : k;
 }
 
-// The logo from (x, top) (menu pixels) `width` across and `height` true pixels down (as wide as they are across),
-// in its own colours (not the menus' red), faded as the menu's canvas colour says.
-void drawBanner(qpic_t* pic, float x, float top, float width, float height)
+// An image (its opaque rectangle) from (x, top) (menu pixels) `width` across and `height` true pixels down (as wide as
+// they are across), in its own colours (not the menus' red), faded as the menu's canvas colour says.
+void drawImage(const Banner& b, qpic_t* pic, float x, float top, float width, float height)
 {
     const uint32_t c = glcanvas.colorstack[glcanvas.colorstacktop];
     const float rgb[3] = {static_cast<float>(c & 0xff) / 255.f, static_cast<float>((c >> 8) & 0xff) / 255.f,
@@ -116,10 +141,15 @@ void drawBanner(qpic_t* pic, float x, float top, float width, float height)
     const float k = glyphStretch();
     const qboolean recolor = Draw_SetMenuRecolor(false);
     // (Draw_SubPic moves a picture's y and shrinks its height by the stretch: give it what lands on top..height.)
-    Draw_SubPic(x, top - height * (1.f - 1.f / k) * 0.5f, width, height, pic, static_cast<float>(banner.bounds[0]) / w,
-        static_cast<float>(banner.bounds[1]) / h, static_cast<float>(banner.bounds[2] - banner.bounds[0]) / w,
-        static_cast<float>(banner.bounds[3] - banner.bounds[1]) / h, rgb, alpha);
+    Draw_SubPic(x, top - height * (1.f - 1.f / k) * 0.5f, width, height, pic, static_cast<float>(b.bounds[0]) / w,
+        static_cast<float>(b.bounds[1]) / h, static_cast<float>(b.bounds[2] - b.bounds[0]) / w,
+        static_cast<float>(b.bounds[3] - b.bounds[1]) / h, rgb, alpha);
     Draw_SetMenuRecolor(recolor);
+}
+
+void drawBanner(qpic_t* pic, float x, float top, float width, float height)
+{
+    drawImage(banner, pic, x, top, width, height);
 }
 
 // Oklab's hue (radians) of an sRGB colour (gamma 2.2, as the gui shader takes it).
@@ -220,18 +250,30 @@ namespace
 constexpr const char* versionTitle = "Quake VR: Unleashed - ";
 constexpr const char* versionAuthor = "by Vittorio Romeo";
 constexpr const char* versionDevMark = "-dev";
-constexpr float versionCorner = 4.f; // from the canvas's right and bottom edges (true pixels; the status box's)
+constexpr const char* linkText = "Support on Ko-fi";
+constexpr const char* linkUrl = "https://ko-fi.com/vittorioromeovee";
+constexpr float versionCorner = 4.f; // the box from the canvas's right and bottom edges (true pixels; the status box's)
+constexpr float versionPad = 4.f;    // its lines from its edges (true pixels; the status box's: vr_menuui.cpp, StatusMetrics)
 constexpr float versionGap = 8.f;    // clear of what the menu draws beside it (menu x) and of the status box (true pixels)
 constexpr float versionGapAbove = 4.f; // and of what it draws above it (true pixels; a VR page's help box ends 4 above its bottom)
+constexpr double linkFeedback = 3.0;   // seconds the link says it opened the page
+constexpr double linkRepeat = 1.5;     // seconds a second press does nothing (a double click, both triggers)
 
-// The label as last placed, for menu_vr pos.
+// The label as last placed, for menu_vr pos and the link's presses.
 struct VersionLabel
 {
     char text[64]{};
-    float x0{0.f}, x1{-1.f}, y0{0.f}, y1{-1.f}; // menu x and y
-    float contentRight{0.f};                    // what the menu draws right to under it (and versionGapAbove above)
+    float x0{0.f}, x1{-1.f}, y0{0.f}, y1{-1.f}; // the box (menu x and y)
+    float lx0{0.f}, lx1{-1.f}, ly0{0.f}, ly1{-1.f}; // what the link takes (menu x and y): its row, to the canvas's corner
+    float lxc{0.f}, lyc{0.f};                       // the link's middle (vr_mock_laser kofi)
+    float contentRight{0.f};                        // what the menu draws right to under it (and versionGapAbove above)
     float statusBottom{0.f};
     const char* leftOut{"no menu drawn yet"}; // why it was not drawn (nullptr: drawn)
+    int menu{m_none};                         // the menu it was last drawn over
+    int frame{-10};                           // and when (host_framecount)
+    bool hot{false};                          // the link under the laser or the mouse
+    double pressed{-100.0};                   // when the link was last pressed (realtime)
+    int opened{0};                            // the times it opened the page (or, in tests, printed it)
 };
 VersionLabel versionLabel;
 
@@ -258,22 +300,40 @@ void pushFaded(float alpha)
         static_cast<float>((c >> 16) & 0xff) / 255.f, static_cast<float>((c >> 24) & 0xff) / 255.f * alpha);
 }
 
-// `text` from x on the row whose middle is ym (menu y), `size` across, in the menus' tan (turned red with them).
-float drawSmall(float x, float ym, float size, const char* text)
+// `text` from x on the row whose middle is ym (menu y), `size` across, in the menus' tan (turned red with them), or
+// white.
+float drawSmall(float x, float ym, float size, const char* text, bool white = false)
 {
     for(const char* c = text; *c; c++, x += size)
     {
-        Draw_CharacterEx(x, ym - size * 0.5f, size, size, *c | 128);
+        Draw_CharacterEx(x, ym - size * 0.5f, size, size, white ? *c : *c | 128);
     }
     return x;
 }
 
-// Where the label goes (menu x and y), from the menu canvas's transform (as the menus lay out, whether or not it is the
-// one set): right-aligned versionCorner from the canvas's right and bottom edges, the title over the author.
+// What the link says: "Support on Ko-fi", or for a while after a press, where the page opened (the headset's
+// player does not see the desktop's browser).
+[[nodiscard]] const char* linkShown()
+{
+    if(realtime - versionLabel.pressed < linkFeedback)
+    {
+        return qvr::vrActive() ? "Opened on your desktop" : "Opened in your browser";
+    }
+    return linkText;
+}
+
+// Where the box goes (menu x and y), from the menu canvas's transform (as the menus lay out, whether or not it is the
+// one set): versionCorner from the canvas's right and bottom edges, its lines versionPad inside it, right-aligned:
+// the title, the author, and a little lower the link (Ko-fi's cup and its text).
 struct VersionBox
 {
-    float x0, x1, y0, y1;
+    float x0, x1, y0, y1;     // the box
+    float right, bottom;      // the canvas's corner
     float size, step, k;
+    float textRight;          // the lines' right end
+    float titleY, authorY, linkY; // the rows' middles
+    float linkHalf;           // the link's row: half its height, its highlight's (true pixels)
+    float iconHeight;         // Ko-fi's cup (true pixels)
     float titleWidth, authorWidth;
     bool dev;
 };
@@ -286,20 +346,54 @@ struct VersionBox
     // The status box's size: nearer the corner buttons' 8 in the headset, small on a flat screen.
     const bool headset = qvr::menuui::active();
     VersionBox b;
+    b.right = right;
+    b.bottom = bottom;
     b.size = headset ? 7.f : 5.f;
     b.step = headset ? 9.f : 7.f;
     b.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // (as glyphStretch)
+    const float linkGap = headset ? 3.f : 2.f; // the link's row a little apart from the lines above it (true pixels)
+    b.linkHalf = b.size * 0.5f + 2.f;
+    b.iconHeight = b.size + 3.f; // (within the highlight)
     char version[40];
     versionShown(version, sizeof(version));
     b.dev = VR_VersionIsDev() != 0;
     q_snprintf(title, titleSize, "%s%s", versionTitle, version);
     b.titleWidth = b.size * static_cast<float>(strlen(title) + (b.dev ? strlen(versionDevMark) : 0));
     b.authorWidth = b.size * static_cast<float>(strlen(versionAuthor));
+    // (The link as wide as its longest text, so that a press does not change the box.)
+    const float iconWidth = b.iconHeight * 1.25f + b.size * 0.5f;
+    const float linkWidth = iconWidth + b.size * static_cast<float>(strlen("Opened on your desktop"));
     b.x1 = right - versionCorner;
-    b.x0 = b.x1 - za::fmax(b.titleWidth, b.authorWidth);
+    b.textRight = b.x1 - versionPad;
+    b.x0 = b.textRight - za::fmax(za::fmax(b.titleWidth, b.authorWidth), linkWidth) - versionPad;
     b.y1 = bottom - versionCorner / b.k;
-    b.y0 = b.y1 - (b.step + b.size) / b.k;
+    const float height = versionPad + 2.f * b.step + linkGap + b.size + versionPad; // true pixels
+    b.y0 = b.y1 - height / b.k;
+    b.titleY = b.y0 + (versionPad + b.size * 0.5f) / b.k;
+    b.authorY = b.y0 + (versionPad + b.step + b.size * 0.5f) / b.k;
+    b.linkY = b.y0 + (versionPad + 2.f * b.step + linkGap + b.size * 0.5f) / b.k;
     return b;
+}
+
+// Whether the label is over this menu now (drawn this frame or the last).
+[[nodiscard]] bool labelShown()
+{
+    const VersionLabel& v = versionLabel;
+    return !v.leftOut && v.menu == m_state && key_dest == key_menu && host_framecount - v.frame <= 2;
+}
+
+// The page in the desktop's browser (SDL_OpenURL), or only its address printed: vr_menu_link_dryrun, and the kit's test
+// runs (QVR_TEST_HIDDEN), never open a browser.
+void openLink(const char* url)
+{
+    VersionLabel& v = versionLabel;
+    v.opened++;
+    const bool dry = qvr::vr_menu_link_dryrun.value || getenv("QVR_TEST_HIDDEN");
+    Con_Printf("menu link: opening %s (%d)%s\n", url, v.opened, dry ? " (dry run: no browser)" : "");
+    if(!dry && SDL_OpenURL(url) != 0)
+    {
+        Con_Printf("menu link: the browser could not be opened (%s)\n", SDL_GetError());
+    }
 }
 
 } // namespace
@@ -317,10 +411,41 @@ bool qvr::menuui::versionLabelClearance(float& x, float& y)
     return true;
 }
 
+bool qvr::menuui::versionLinkAt(float x, float y)
+{
+    const VersionLabel& v = versionLabel;
+    return labelShown() && x >= v.lx0 && x <= v.lx1 && y >= v.ly0 && y <= v.ly1;
+}
+
+bool qvr::menuui::versionLinkSpot(float& x, float& y)
+{
+    x = versionLabel.lxc;
+    y = versionLabel.lyc;
+    return labelShown();
+}
+
+bool qvr::menuui::versionLinkPress()
+{
+    VersionLabel& v = versionLabel;
+    if(!versionLinkAt(m_mousex, m_mousey) || !pointerOn(false))
+    {
+        return false;
+    }
+    if(realtime - v.pressed < linkRepeat)
+    {
+        return true; // (taken: the page is opening already)
+    }
+    v.pressed = realtime;
+    S_LocalSound("misc/menu2.wav");
+    openLink(linkUrl);
+    return true;
+}
+
 extern "C" void VR_MenuDrawVersion()
 {
     VersionLabel& v = versionLabel;
     v.x1 = v.x0 - 1.f;
+    v.hot = false;
     if(!qvr::vr_menu_version.value)
     {
         v.leftOut = "vr_menu_version 0";
@@ -332,7 +457,7 @@ extern "C" void VR_MenuDrawVersion()
         return;
     }
     const VersionBox b = versionBox(v.text, sizeof(v.text));
-    const float size = b.size, step = b.step, k = b.k;
+    const float size = b.size, k = b.k;
     v.x0 = b.x0;
     v.x1 = b.x1;
     v.y0 = b.y0;
@@ -350,21 +475,54 @@ extern "C" void VR_MenuDrawVersion()
         return;
     }
     v.leftOut = nullptr;
+    v.menu = m_state;
+    v.frame = host_framecount;
+    // The link takes its row as wide as the box, and on to the canvas's corner.
+    v.lx0 = b.x0;
+    v.lx1 = b.right;
+    v.ly0 = b.linkY - b.linkHalf / k;
+    v.ly1 = b.bottom;
+    v.lxc = (b.x0 + b.x1) * 0.5f;
+    v.lyc = b.linkY;
+    v.hot = qvr::menuui::versionLinkAt(m_mousex, m_mousey) && qvr::menuui::pointerOn(true);
 
-    const float title = v.y0 + size * 0.5f / k;
-    const float author = v.y0 + (step + size * 0.5f) / k;
+    // A box like the status box (vr_menuui.cpp, VR_MenuDrawStatus).
+    const qvr::menupaint::Painter p;
+    namespace colors = qvr::menupaint::colors;
+    const float half = (b.y1 - b.y0) * k * 0.5f;
+    const float yc = (b.y0 + b.y1) * 0.5f;
+    p.rounded(b.x0, b.x1, yc, half, 3.f, colors::boxBorder);
+    p.rounded(b.x0 + 1.f, b.x1 - 1.f, yc, half - 1.f, 2.f, colors::boxFill);
+
     pushFaded(0.85f);
-    const float devX = drawSmall(v.x1 - b.titleWidth, title, size, v.text);
+    const float devX = drawSmall(b.textRight - b.titleWidth, b.titleY, size, v.text);
     GL_PopCanvasColor();
     if(b.dev)
     {
         pushFaded(0.45f); // (subtle: a build not made for a release)
-        drawSmall(devX, title, size, versionDevMark);
+        drawSmall(devX, b.titleY, size, versionDevMark);
         GL_PopCanvasColor();
     }
     pushFaded(0.6f);
-    drawSmall(v.x1 - b.authorWidth, author, size, versionAuthor);
+    drawSmall(b.textRight - b.authorWidth, b.authorY, size, versionAuthor);
     GL_PopCanvasColor();
+
+    // The link: lit as the corner's buttons under the laser or the mouse, white for a while once pressed.
+    const bool pressed = realtime - v.pressed < linkFeedback;
+    if(v.hot)
+    {
+        p.rounded(b.x0 + 2.f, b.x1 - 2.f, b.linkY, b.linkHalf, 2.f, colors::highlightEdge);
+        p.rounded(b.x0 + 3.f, b.x1 - 3.f, b.linkY, b.linkHalf - 1.f, 1.5f, colors::buttonHover);
+    }
+    const char* text = linkShown();
+    const float textX = b.textRight - size * static_cast<float>(strlen(text));
+    drawSmall(textX, b.linkY, size, text, v.hot || pressed);
+    if(qpic_t* pic = imagePic(kofiLogo))
+    {
+        const float height = b.iconHeight;
+        const float width = height * imageAspect(kofiLogo);
+        drawImage(kofiLogo, pic, textX - size * 0.5f - width, b.linkY - height * 0.5f / k, width, height);
+    }
 }
 
 void qvr::menuui::printVersionLabel()
@@ -378,6 +536,8 @@ void qvr::menuui::printVersionLabel()
     }
     Con_Printf("menu_vr pos: version label \"%s%s\" x %.0f..%.0f, y %.1f..%.1f (menu to x %.0f, status to y %.1f; build %s)\n",
         v.text, VR_VersionIsDev() ? versionDevMark : "", v.x0, v.x1, v.y0, v.y1, v.contentRight, v.statusBottom, VR_BuildVersion());
+    Con_Printf("menu_vr pos: version link \"%s\" at %.1f %.1f, takes x %.0f..%.0f, y %.1f..%.1f%s, opened %d\n", linkShown(),
+        v.lxc, v.lyc, v.lx0, v.lx1, v.ly0, v.ly1, v.hot ? " (lit)" : "", v.opened);
 }
 
 extern "C" void VR_MenuRecolor(float* params)

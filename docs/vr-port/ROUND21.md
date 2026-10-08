@@ -31753,3 +31753,28 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
   view 1.0 unit from its eyes: half the eyes' spacing), head hidden, turned 75-80 degrees as it rolled. Impulse 197 (Die
   Now, Gibbed, new): no body. Coop, Immersive, respawn: health 100, the view normal, not hidden, the body left lying.
   Debug > Cheats: Die Now Blown Back, Die Now Gibbed, Death View Status (`vr_death_view_status`).
+## The menus' Ko-fi link and corner boxes (2026-10-08)
+
+- **The version box** (`Quake/vr/vr_menubrand.cpp`, VR_MenuDrawVersion): the bottom right corner's "Quake VR: Unleashed -
+  v0.9" and "by Vittorio Romeo" now sit in a rounded box like the status box's (the same border and fill, 4 true pixels
+  from the canvas's right and bottom edges, the lines 4 inside it), with a third row a little lower: Ko-fi's cup
+  (`quakevr/gfx/vr/kofi_symbol.png`, the installer's `Assets/kofi_symbol.png` byte for byte, drawn in its own colours)
+  and "Support on Ko-fi". The box is as wide as its longest line; the menus keep clear of it as they kept clear of the
+  label (versionLabelClearance: now the whole box, 3 rows).
+- **The link:** lit like the corner's buttons (highlight edge and fill, text white) under the laser (a haptic tick when
+  the laser gets to it) or the desktop mouse once it has moved over the menus; it takes its row and on to the canvas's
+  right and bottom edges. A press (the trigger's K_MOUSE1, a left click; down only, not repeats) plays misc/menu2.wav,
+  pulses the hand, and opens https://ko-fi.com/vittorioromeovee in the desktop's browser (SDL_OpenURL); for 3 s the
+  row reads "Opened on your desktop" (headset) or "Opened in your browser" (flat). A second press within 1.5 s is taken
+  and does nothing (a double click, both triggers): the page opens once. The menu's own selection stays (the mouse on
+  it is like on a corner button: VR_MenuMouseOnButtons), and clicking it is checked before the corner buttons' keys, so
+  it works with the corner buttons off (vr_menu_flat_shortcuts 0).
+- **Tests:** `vr_menu_link_dryrun 1` (Debug > Tools > Menu Links: Print, Do Not Open) prints `menu link: opening <url>
+  (<count>) (dry run: no browser)` instead of opening the browser; the kit's hidden runs (QVR_TEST_HIDDEN) never open it
+  either. `vr_mock_laser kofi`, `vr_mock_mouse kofi [click]` point at it; `menu_vr pos` prints `version link "<text>" at
+  x y, takes ..., (lit), opened <n>`. Verified (mock headset, then VR off): laser on it lit, trigger pressed once and
+  then again at once: one `opening` line (1) and the row reads "Opened on your desktop"; flat: the mouse on it lit, two
+  clicks at once: one more line (2); a click elsewhere still opens Single Player.
+- **The flat screen's row of icons** (vr_menuui.cpp, ToolbarLayout::rowCorner) is now 4 true pixels below the canvas's
+  top (was 1), as the status box and the version box are from their edges; it ends at 16, clear of the lists' titles at
+  16:10 and 4:3 (Levels, Options checked). The headset's column was 4 from the top already.
