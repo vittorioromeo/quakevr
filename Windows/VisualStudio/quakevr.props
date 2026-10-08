@@ -122,8 +122,8 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
   <!-- The build's version (vr_crash.cpp: VR_Version, the menus' corner label; VR_BuildVersion, the console, the main VR
        Settings page, qvr_crash.txt): $(IntDir)qvr_buildver.h. The version is the repository's VERSION file (one line,
        MAJOR.MINOR.PATCH[-prerelease]; docs/vr-port/RELEASING.md, "Versions"); a build not made by the release script
-       is a dev build ("0.9.0-dev"), the release script's says the plain version. Then the last commit's date and short
-       hash, "-dirty" when tracked files differ from it: "0.9.0-dev (2026-10-07 afd53921)". Written only when it changes
+       is a dev build ("1.0.0-dev"), the release script's says the plain version. Then the last commit's date and short
+       hash, "-dirty" when tracked files differ from it: "1.0.0-dev (2026-10-07 afd53921)". Written only when it changes
        (only vr_crash.cpp then recompiles); "unknown build" in place of the date and hash without git. -->
   <Target Name="QvrBuildVersion" BeforeTargets="ClCompile">
     <PropertyGroup>

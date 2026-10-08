@@ -4,7 +4,7 @@ Short list. The full procedure is in [RELEASING.md](RELEASING.md).
 
 ## Decide
 
-- [ ] **Version:** `VERSION` says `0.9.0`. Keep it, or bump to `1.0.0`.
+- [x] **Version:** `VERSION` says `1.0.0` (decided 2026-10-08: the first release is 1.0.0).
 - [ ] **Release branch:** make `vr-ironwail` the main branch now or later. The script follows whatever branch you're on.
 - [x] **Second feed:** dropped (Vittorio, 2026-10-08): the installer reads only GitHub's `latest.json`.
 - [ ] **HD texture pack:** offered by default from the hosted `assets-2026-10-08` release (no upload); `-NoTextures` to leave it out.

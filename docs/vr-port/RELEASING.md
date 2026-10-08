@@ -159,37 +159,37 @@ One source of truth: the `VERSION` file at the repository's root, one line, `MAJ
 a prerelease as `MAJOR.MINOR.PATCH-beta.N` (or `-rc.N`). Every build reads it:
 
 - the engine (`Windows\VisualStudio\quakevr.props`, QvrBuildVersion, into `qvr_buildver.h`; `Quake\vr\vr.cmake` and
-  `vr.mk` for the CMake and Makefile builds): `VR_Version` ("0.9.0", the menus' corner label) and `VR_BuildVersion`
+  `vr.mk` for the CMake and Makefile builds): `VR_Version` ("1.0.0", the menus' corner label) and `VR_BuildVersion`
   (the console's "Quake VR" line, the Advanced VR Options page's last line, crash reports, saves);
 - the installer (`Installer\Directory.Build.props`): `QuakeVR-Setup.exe`'s file and assembly version (its window's
-  footer, "Installer 0.9.0");
+  footer, "Installer 1.0.0");
 - a package made by hand (`Windows\package-quakevr.ps1`, `write-package-manifest.ps1`): `manifest.json`'s version;
 - the release script: the version it releases and tags (`v<VERSION>`).
 
 **Dev and release builds.** Every build is a dev build except the release script's: `VR_BuildVersion` reads
-`0.9.0-dev (2026-10-07 afd53921)` (the commit's date and short hash, `-dirty` with uncommitted changes), and the menus'
-corner label "Quake VR: Unleashed - v0.9-dev" (the "-dev" fainter). The release script builds with
-`/p:QvrReleaseVersion=<VERSION>` (the build refuses one that is not `VERSION`'s): `0.9.0 (2026-10-07 afd53921)` and
-"v0.9"; `manifest.json` and `latest.json` carry the same text, the installer's version is `0.9.0`, and the annotated
-tag `v0.9.0` records it. Between releases `VERSION` names the last release (or the one being prepared): a dev build's
+`1.0.0-dev (2026-10-07 afd53921)` (the commit's date and short hash, `-dirty` with uncommitted changes), and the menus'
+corner label "Quake VR: Unleashed - v1.0-dev" (the "-dev" fainter). The release script builds with
+`/p:QvrReleaseVersion=<VERSION>` (the build refuses one that is not `VERSION`'s): `1.0.0 (2026-10-07 afd53921)` and
+"v1.0"; `manifest.json` and `latest.json` carry the same text, the installer's version is `1.0.0`, and the annotated
+tag `v1.0.0` records it. Between releases `VERSION` names the last release (or the one being prepared): a dev build's
 `-dev` plus its commit tell it apart.
 
 **The corner label** (`vr_menu_version`, VR Settings > Advanced VR Options > HUD and Menus > Menu: "Version Label")
-shows `vMAJOR.MINOR` while PATCH is 0 ("v0.9", "v1.0") and the whole version otherwise ("v0.9.1", "v1.0.0-beta.1").
+shows `vMAJOR.MINOR` while PATCH is 0 ("v1.0", "v1.1") and the whole version otherwise ("v1.0.1", "v1.1.0-beta.1").
 
 **When to bump** (in the release's own commit, `-BumpVersion`):
 
-- **PATCH** (0.9.0 to 0.9.1): fixes only: crashes, bugs, balance tweaks, docs; nothing a player must relearn and no
+- **PATCH** (1.0.0 to 1.0.1): fixes only: crashes, bugs, balance tweaks, docs; nothing a player must relearn and no
   setting renamed; saves and configs keep working.
-- **MINOR** (0.9.x to 0.10.0): new features, new settings or pages, changed defaults, new content; old saves and configs
+- **MINOR** (1.0.x to 1.1.0): new features, new settings or pages, changed defaults, new content; old saves and configs
   still load (or are migrated).
 - **MAJOR** (0.x to 1.0.0, then 1.x to 2.0.0): 1.0.0 is the first release called finished; after it, a break: saves or
   configs that no longer load, a removed or reworked system, a new minimum (a runtime, a Quake data set).
 - **Prereleases** (`1.0.0-beta.1`, `-beta.2`, `-rc.1`): test builds of the version named; GitHub marks them as
   prereleases. The final release drops the suffix (1.0.0-rc.2 to 1.0.0).
 
-The first Ironwail-based release is **0.9.0** (2026-10-07): the old Quake VR's tags reached v0.8.2, and Unleashed
-continues from it below 1.0 until it is called finished.
+The first Ironwail-based release is **1.0.0** (decided 2026-10-08): the old Quake VR's tags reached v0.8.2, and Unleashed
+is the release called finished, so it starts at 1.0.0 rather than below it.
 
 ## What an update replaces
 

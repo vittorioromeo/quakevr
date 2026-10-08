@@ -5,7 +5,7 @@
 #   Windows\write-package-manifest.ps1 -Dir <package folder> [-Version <text>]
 #
 # -Version defaults to a dev build's own form (quakevr.props): the repository's VERSION with "-dev", then the last
-# commit's date and short hash, "-dirty" when tracked files differ from it ("0.9.0-dev (2026-10-07 afd53921)").
+# commit's date and short hash, "-dirty" when tracked files differ from it ("1.0.0-dev (2026-10-07 afd53921)").
 
 param(
     [Parameter(Mandatory = $true)][string]$Dir,
