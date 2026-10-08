@@ -109,10 +109,12 @@ fi
 
 # particles: explosion particles behind start's underwater slipgate (a free-standing sheet), seen from in front of it
 # with the author's translucent gate surface (vr_slipgate_surface_opacity 0.3: no depth written): the pixels they make
-# over the gate (a few at most; 539 before the particles were hidden behind shown gates), and with the views off (the
-# shimmer only: they show through it, a control)
+# over the gate (a few at most; 539 before the particles were hidden behind shown gates), and with the views off and the
+# same surface (the shimmer only, translucent: they show through it, a control: ~650). (The control was the views off at
+# opacity 1 until 2026-10-08: start's teleports are not vised for see-through liquids, so that shimmer is opaque and
+# hid them itself: 22-38 pixels, on the build that wrote the test too.)
 if want particles; then
-    for c in "1 0.3" "0 1"; do
+    for c in "1 0.3" "0 0.3"; do
         set -- $c
         for sp in 1 0; do
             P="vr_particle_test 2 400"; [ $sp = 0 ] && P="wait1"
