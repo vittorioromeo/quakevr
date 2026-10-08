@@ -813,6 +813,10 @@ void(vector org, float range, entity src, float kind) VR_Stealth_Noise =
             src.stl_loud_time = time;
         }
     }
+    if(cvar_hget(cvarh_vr_stealth_debug) >= 2)
+    {
+        bprint(sprintf("stealth: %.2f noise %g, range %.0f, at %v (%s)\n", time, kind, range, org, src.classname));
+    }
     entity ev = spawn();
     ev.classname = "stl_noise";
     setorigin(ev, org);

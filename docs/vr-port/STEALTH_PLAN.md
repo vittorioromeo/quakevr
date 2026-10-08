@@ -186,6 +186,19 @@ the expansions' (hipnotic, rogue, MG1, MG3, Honey, the dopa monsters), shares it
 `vr_stealth_sneak 1.25`, `vr_stealth_ambush_deaf 1`, `vr_stealth_senses 1`, `vr_stealth_lose 1`, `vr_stealth_gem 1`,
 `vr_stealth_marks 0`, `vr_stealth_debug 0` (1: state changes, 2: each meter step and noise heard).
 
+## Status (2026-10-08)
+
+All phases below are in (the tests: ROUND21.md, "Stealth AI"). Not done / limits:
+- A remote coop client's flashlight is unknown to the server (counts as off); his light level is the host's lightmap
+  view (dynamic lights as the host sees them).
+- The meter is one per monster, following the player FindTarget checks this frame (coop: per player's own light,
+  crouch, speed and noise, not a meter per player).
+- Lose the player: after a fixed 6 s out of sight (STL_LOSE_TIME), no cvar for the time.
+- The shots' noise hook (W_AttackImpl) was not exercised with a real trigger pull in the headless runs (the mock's
+  +attack fired nothing on e1m1 there); the noise path itself is tested.
+- Alert monsters walk with Quake's movetogoal (no path finding): a point across a gap or up a ledge ends their walk when
+  stuck (3 s without headway), then they search where they are.
+
 ## Phases
 
 1. Core: states, meter, light builtin, contact, vanilla scripted wakeups preserved, the master switch and its reset,

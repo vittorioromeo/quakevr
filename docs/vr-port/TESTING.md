@@ -1921,3 +1921,9 @@ then `-15`: from below), B/Y (`vr_mock_button off secondary 1`), the flick's spe
 recoloured hue against the painted orange-red; the shotgun's pump parts held back by `vr_autopump_hold 0.4`). Section 8:
 `vr_debug_collect_fx 1` prints a shell's slide into the gun (`collect fx: in gun N t ..., off its port: <model space>,
 world <world>`).
+Stealth AI (ROUND21.md, "Stealth AI"; docs/vr-port/STEALTH_PLAN.md): `map e1m1; god; vr_test_spawn 0; vr_test_spawn_dist 150;
+impulse 241; wait20; vr_stealth_test 1` runs 14 scenes on the grunt (`stealthtest: <name> PASS|FAIL` lines, about 90 s
+of game time); `vr_stealth_test 2` a crate knocked behind it, `32` the flashlight (`vr_flashlight_clip_head right;
+vr_flashlight_toggle; vr_mock_look 12 0` first), `22` your speed, light and crouch, `26` the map's light histogram.
+`vr_stealth_debug 1|2` logs state changes (2: each meter step, noise made and heard); `vr_stealth_light_force <n>` fixes
+the light on you. Debug > Tests > Stealth AI has them.

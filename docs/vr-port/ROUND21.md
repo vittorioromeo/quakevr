@@ -30678,3 +30678,31 @@ only costs time.
   `73 maps relit, 10 of Quake VR's own skipped (already lit) in 1:06` (slowest hip1m3 4.0 s; none over 60 s);
   `-own -list` gives 83. `vr_relight vrtutorial` still relights it (2.1 s; reverted after). vrstart loads its shipped
   light (no relit copy); e1m1 smoke fine.
+
+## Stealth AI: Idle, Alert, Hostile (2026-10-08)
+
+The author's request (stealth mechanics in the shared monster AI, all optional, on by default): the design, the rules,
+every cvar and the exclusions are in `docs/vr-port/STEALTH_PLAN.md`. Combat > Stealth AI (its first row **Enhanced AI**,
+`vr_ai_enhanced`, switches all of it: off is Quake's AI at once, mid-map too); Debug > Tests > Stealth AI.
+
+- QC `vr_stealth.qc` (+ `vr_stealth_defs.qc`, `vr_stealth_test.qc`): hooks in ai.qc (FindTarget's sighting of a player
+  goes to the suspicion meter; ai_stand / ai_walk run the Alert phases; FoundTarget clears Alert and spreads the alarm;
+  ai_run gives up a player lost for 6 s), combat.qc (sneak multiplier, bodies, explosions' noise), weapons.qc (shots'
+  noise, grazing lines), vr_melee.qc (a landed blow's noise), client.qc (running, landing, touch, the gem's readings),
+  vr_enemyshove.qc (an idle monster no longer shoves, i.e. notices, you), player.qc (gibs noticed), world.qc (the switch).
+- Engine `vr_stealth.cpp`: `stealthlight` (R_LightPoint plus the dynamic lights, not the host's own flashlight's),
+  `flashlightbeam` (vr_flashlight.cpp keeps the beam as last lit: `beamNow`), `pvsvisible`; vr_physsound.cpp calls
+  `VR_Stealth_PropNoise` for each knock it plays; the wrist gadget's gem (`STAT_QVR_STEALTH`, QC `.stl_hud`).
+- Map-scripted wakeups stay Quake's: monster_use, spawn-angry, damage, MG3 aggro groups call FoundTarget directly.
+- Tests (`vr_stealth_test 1` on e1m1 after `god; vr_test_spawn 0; vr_test_spawn_dist 150; impulse 241`): 14 scenes pass
+  (dark in front: Idle; lit: Hostile in 3.1 s standing still; half lit: a glimpse (Alert) at 2.2 s; running behind it:
+  Hostile; a noise behind a wall: unheard, in the open: Alert; touch; a map trigger; sneak x1.25 (25 vs 20); grazing
+  40 units: Alert, 250: not; a gib seen; the switch off mid-Alert: reset, Quake's sight, on again: dark is safe; an
+  investigation 226 units behind it: walks within 71, searches, back to 24 units of its post; lost behind walls 7 s:
+  Alert at the last sighting). `vr_stealth_test 2`: a crate knocked behind it (a real knock through the physics sounds):
+  heard, walked to within 62. `vr_stealth_test 32` with the lamp on the head: on its back Alert at the lens, in its face
+  Hostile. `vr_stealth_test 26`: the light where a map's monsters and pickups stand (e1m1-e1m3 mostly 32-96: the Dark
+  and Fully Lit defaults 20 and 80).
+- Found on the way: a new map's props settle with knocks in the first seconds (they woke e1m1's monsters): prop noises
+  before 4 s of level time are ignored. Quake's movetogoal keeps stepping the way it faces while it can, so a walk to a
+  point is re-aimed at it each second (the return walk went the wrong way for 26 s).
