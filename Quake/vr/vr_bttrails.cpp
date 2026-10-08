@@ -51,7 +51,8 @@ constexpr float kMinSpeed = 200.f;   // units a second of the game's time: slowe
 constexpr float kJump = 256.f;       // a projectile further than this from its last place went through a teleporter: a new trail
 constexpr float kHeadRamp = 10.f;    // units behind the projectile the bend fades in over
 constexpr float kWiden = 28.f;       // ... and the trail widens over to its full width
-constexpr float kNearFade = 40.f;    // units from the eye a trail fades out within (from a quarter of it)
+constexpr float kNearFade = 32.f;    // units from the eye a trail fades out within (from a quarter of it)
+constexpr float kOffLine = 0.5f;     // half widths the eye must be off a trail's line for it to be drawn (from a quarter of it)
 constexpr float kEaseIn = 0.15f;     // real seconds they take to come in as bullet time starts
 constexpr int kMargin = 32;          // pixels round the trails copied too (the most they bend)
 
@@ -88,6 +89,10 @@ unsigned frameNow = 0; // VR_AdvanceTime's count
 float ease = 0.f;      // 0 .. 1: in with bullet time, out over vr_bullettime_trails_fade after
 bool creating = false; // new trails start (bullet time, or vr_bullettime_trails 2)
 int liveCount = 0;     // trails in use
+// The last ribbons made (vr_bullettime_trails_list): their places strong enough to see (a fifth of full or more), out
+// of all, and the strongest.
+int seenPlaces = 0, allPlaces = 0;
+float strongest = 0.f;
 unsigned seedState = 0x9E3779B9u;
 
 [[nodiscard]] float random01()
@@ -413,6 +418,8 @@ void build(const glm::vec3& facing)
     QVR_PROFILE("bt trails");
     za::Vector<Vertex>& out = scratch.vertices;
     out.clear();
+    seenPlaces = allPlaces = 0;
+    strongest = 0.f;
     za::Vector<Sample>& path = scratch.path;
     const float life = lifeSeconds();
     const float m2u = units::metresToUnits();
@@ -442,15 +449,22 @@ void build(const glm::vec3& facing)
             const float l = glm::length(side);
             side = l > 1e-5f ? side / l : lastSide;
             lastSide = side;
-            // None near the eye (a shot of yours starts there: its ribbon would fill the view), nor seen end on (the
-            // ribbon edge on, its width all along the view).
-            const float eyeDistance = glm::length(toEye);
-            const float sine = l / za::max(glm::length(tangent) * eyeDistance, 1e-5f);
-            const float view = glm::smoothstep(kNearFade * 0.25f, kNearFade, eyeDistance) * glm::smoothstep(0.1f, 0.35f, sine);
             const float ageShare = za::clamp(s.age / life, 0.f, 1.f);
+            const float hw = halfWidth * (0.35f + 0.65f * glm::smoothstep(0.f, kWiden, s.along)) * (1.f + 0.6f * ageShare);
+            // None near the eye (a shot of yours starts there: its ribbon would fill the view), nor where the trail's
+            // line runs through the eye (its turn to face the eye undefined there: a shot from the eye, flat screen,
+            // or one coming straight at you). Not faded by the angle it is seen at: in VR your shots leave the gun
+            // a hand's width or two off the eyes and are always seen nearly end on (the author's note
+            // vrfiringrange_2026-10-08_22-38-43: only a faint hint at the muzzle, nothing behind the shotguns).
+            const float eyeDistance = glm::length(toEye);
+            const float offLine = l / za::max(glm::length(tangent), 1e-5f); // the eye's distance from the trail's line
+            const float view = glm::smoothstep(kNearFade * 0.25f, kNearFade, eyeDistance) *
+                               glm::smoothstep(kOffLine * 0.25f, kOffLine, offLine / za::max(hw, 0.01f));
             const float head = glm::smoothstep(0.f, kHeadRamp, s.along);
             const float fade = (i + 1 == n) ? 0.f : ease * head * view * za::pow(1.f - ageShare, 1.3f);
-            const float hw = halfWidth * (0.35f + 0.65f * glm::smoothstep(0.f, kWiden, s.along)) * (1.f + 0.6f * ageShare);
+            allPlaces++;
+            seenPlaces += fade >= 0.2f ? 1 : 0;
+            strongest = za::max(strongest, fade);
             const glm::vec4 sideW{side, hw}, data{fade, s.odometer, t.seed, 0.f};
             const Vertex a{glm::vec4(s.pos - side * hw, -1.f), sideW, data};
             const Vertex b{glm::vec4(s.pos + side * hw, 1.f), sideW, data};
@@ -625,8 +639,8 @@ void list_f()
             t.live ? "live" : "left", t.count, t.head.odometer, t.head.pos.x, t.head.pos.y, t.head.pos.z,
             static_cast<float>(clockNow - t.head.time));
     }
-    Con_Printf("bttrails: %d trails, ease %.2f, %s, %d vertices last made\n", n, ease, creating ? "making" : "not making",
-        static_cast<int>(scratch.vertices.size()));
+    Con_Printf("bttrails: %d trails, ease %.2f, %s, %d vertices last made; places seen %d of %d, strongest %.2f\n", n, ease,
+        creating ? "making" : "not making", static_cast<int>(scratch.vertices.size()), seenPlaces, allPlaces, strongest);
 }
 
 } // namespace
