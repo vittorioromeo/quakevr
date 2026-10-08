@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Stealth AI (Combat > Stealth AI; first row Enhanced AI = umbrella, flip mid-fight -> vanilla at once): sneak in the dark vs lit (spotted ~1.5 s lit); running gives you away; throw a crate as a distraction (they walk to the impact); flashlight on a monster's back turns it; visibility gem on the wrist gadget (armour tile top-right); sneak hits x1.25; light thresholds / spot time feel right?
 Reload fixes: super shotgun opens only after its firing animation (B/Y right after a shot waits), flick no longer opens it by default; dropped open SSG lies open with its shells; super nailgun magazine left, button right; lightning cell sparks in/out, empty cell smokes ~7 s (Reloading > Thunderbolt); shotgun shell port from below: no shimmer; your settings are now defaults (vignette stays 0.6; detail textures off becomes default in the next batch)
 Reload batch 2: swing a crate/head down onto the SSG barrels opens/shuts it; SSG firing animation 1.4x (Super Shotgun > Firing Animation Speed); SNG receiver flush on its face; pouch shells smaller and symmetric; empty lava nail mags smoke; an empty magazine at the pouch falls instead; fire a grunt/enforcer rifle dry: smoke 5 s + arcs 2.5 s (size OK?), also after dropping (Combat > Enemy Weapons > Spent Rifles)
 Launchers front-load (Immersive): pouch gives the round for the launcher in your other hand (multi round in the other ammo mode); rockets/grenades butt first into the muzzle (wrong way = dull tap), prox any way; toss in, or push the muzzle along a round on a table; loose rounds go off if shot; check grip on the rocket, 35 deg / 2-unit muzzle feel, slide-in depth.
@@ -50,6 +51,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
+Stealth defaults the worker chose: bosses/flyers/swimmers keep Quake AI; ambush monsters deaf to noise; sneak bonus only on Idle (not Alert); idle grunts/enforcers no longer shove you; hostile loses you after 6 s -> Alert at last sighting
 MG3 monsters: ghosts drawn solid (no transparency upstream)? lava man 0.8 damage by what hit it? super shambler/rocket ogre/ranged knight share stock ragdoll settings? demo dog ragdolls (not gibs) when beheaded/limb cut on the killing blow?
 MG3 (defaults used until you answer): axe buttons only axe/Super Axe? Super Axe burst on a 2nd hit? base health 50 + caps 50/100/20/100? bloody shotguns faster refire? new hi-poly monsters with copied/box rigs?
 Profiling: which of the top 5 (same-map hull cache, AO disk cache, shadow casters per light, low-res retro particles, more hull work)?
