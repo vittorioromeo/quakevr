@@ -3683,7 +3683,8 @@ bool firstStart()
             marker.cStr());
         return false;
     }
-    Con_Printf("Relight: a first start after the installer: every map relit (vr_relight_batch everything)\n");
+    Con_Printf("Relight: a first start after the installer: every map relit, except those relit with these settings "
+               "already (vr_relight_batch everything)\n");
     Cbuf_InsertText("vr_relight_batch everything\n");
     return true;
 }

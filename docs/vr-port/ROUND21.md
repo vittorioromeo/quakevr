@@ -30602,3 +30602,37 @@ vrfiringrange_2026-10-08_00-00-42, 00-01-10, and his typed note on the pouch's s
   1.25 Size), evenly 0.95 apart, fanning out symmetrically (-6, -3, 0, 3, 6 degrees), the middle one standing highest.
   `ssg_checks.py pouchshells`: across the middle one 0.68 units (was 1.07), the row's distance from its mirror image
   0.000 (was 0.226). Normal map rebaked.
+## Installer: the first-start relight never repeats an install's work; Play mutes the installer (2026-10-08)
+
+Vittorio, after `make_release.ps1 -Local -RunInstaller`: "If we relighted all maps during the installation, we shouldn't
+repeat the process when the game is started for the first time", and "pressing any Play button should mute the
+installer".
+
+- **What the installer does with the relight ticked:** it relights nothing itself (no `light.exe`, no
+  `relight_maps.py`; VisPatch's data is only copied into `quakevr\tools\vispatch`). It only writes the game's marker
+  (`quakevr\relight_on_first_start.txt`); the game's first start removes it and runs `vr_relight_batch everything`, which
+  skips every map whose `.relight` has the same settings hash and source line. So there is no installer output for the
+  game to redo, and nothing for `relight::customCurrent` to move to `_stale` (no installer-made copies without a
+  source line). A fresh `-RunInstaller` sandbox (`%TEMP%\QuakeVR-test-<version>-<time>`) starts with no relit maps, so
+  each new sandbox relights everything again: that is per install folder, by design.
+- **Verified** (scratch sandboxes, `qvr-setup install --package --sandbox --relight`, then the installed `ironwail.exe`
+  started as Play starts it, mock headset): first start "relighting 83 maps", 82 relit in about 2 minutes, then
+  `vrstart` alone ran for over 28 minutes (light's second phase still estimating 13 minutes when the 30-minute test
+  stopped it); 0 copies in `_stale`. An update install over it with the relight ticked again (marker rewritten), then a
+  start: only `vrstart` (the unfinished one) relit, the other 82 skipped, `e1m1` loaded with its copy (no "out of date"
+  line), 0 in `_stale`. Relight unticked: no marker, no batch at the first start (the player opted out; Graphics >
+  Relighting does it later).
+- **Changed:** the Play page's "Relit maps" note counts the copies the game made before
+  (`FirstStartRelight.RelitCopies`: `relit_custom\<game>\maps\**\*.relight`, not `_stale` or `_work`) and, when there
+  are some, says they are kept and only new or changed maps are relit; the marker's text and the game's console line
+  say that maps relit with these settings already are skipped. Self-test: the installer writes no relit maps, the
+  count, an update and an uninstall keep the game's copies.
+- **Play mutes the installer:** both Play buttons start the game, then `UiSounds.MuteForGame`: the speaker button's
+  flag set (its icon shows it), every sound and the fire's loop faded out over 0.3 s (`SoundMixer.MasterFadeSeconds`;
+  the button's own mute stays 10 ms), not saved to `ui.json` (the next run starts as the button was last set), and no
+  unmute when the game exits (he asked for muted). The Thanks page has no Play button; shortcuts start the game
+  without the installer. The harness presses both buttons through their automation peers with the start recorded on an
+  offline engine (`PlayMuteCheck`: peak 315 before, 365 half-way (the click), 0 at the fade's end and in the next
+  second) and fails otherwise; the self-test checks the 0.3 s fade (heard half-way, silent at the end, no step).
+- **Open:** `vrstart`'s in-game relight takes half an hour here (0 lights from its textures, 66 suns, a 17 MB map); the
+  Play page's "about a minute" for a first relight is far off while it does.

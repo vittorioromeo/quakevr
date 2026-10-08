@@ -557,6 +557,24 @@ var tests = new List<(string Name, Action Body)>
         var u = Uninstaller.Uninstall(target, new UninstallOptions());
         True(!File.Exists(FirstStartRelight.MarkerPath(target)), "uninstall removes the marker");
         True(u.FolderRemoved, "folder removed (the marker is not a player file)");
+
+        // The installer relights nothing itself (the game does, once): no relit copies of its own.
+        Install(true);
+        Eq(0, FirstStartRelight.RelitCopies(target), "the installer writes no relit maps");
+        True(!Directory.Exists(Path.Combine(target, "quakevr", "relit_custom")), "no relit_custom from the installer");
+        // The game's copies from an earlier start are counted (not the moved-aside or half-made ones) and kept by an
+        // update and an uninstall, so a later first-start batch skips them.
+        foreach (var rel in new[] { @"id1\maps\e1m1.relight", @"id1\maps\e1m1.bsp", @"hipnotic\maps\hip1m1.relight", @"_stale\id1\maps\e1m2.relight", @"_work\id1\e1m3.relight" })
+        {
+            var f = Path.Combine(target, "quakevr", "relit_custom", rel);
+            Directory.CreateDirectory(Path.GetDirectoryName(f)!);
+            File.WriteAllText(f, "x");
+        }
+        Eq(2, FirstStartRelight.RelitCopies(target), "relit copies counted");
+        Install(true);
+        Eq(2, FirstStartRelight.RelitCopies(target), "an update keeps the game's relit copies");
+        Uninstaller.Uninstall(target, new UninstallOptions());
+        Eq(2, FirstStartRelight.RelitCopies(target), "an uninstall keeps them (the player's files)");
     }),
     ("apps & features: the entry in a test registry root, Setup's copy in the install, removed by the uninstall", () =>
     {
