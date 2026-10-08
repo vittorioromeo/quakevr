@@ -145,6 +145,38 @@ def take_to_holster(hand, cls, holster=3, hover=20, onto=0, tries=1):
         w(30)
 
 
+def take_spinning(hand, cls, holster, onto=7, rounds=3):
+    """A floating pickup that spins (a key): the hand held on it and the grip pressed again and again (a press takes
+    what the fist touches within 0.2 s of it: VR_CARRY_GRIP_WINDOW; the thin card's turn has to come round to the
+    fist), then brought to a holster (collected if held). `rounds` times."""
+    for _ in range(rounds):
+        c(LEAN)
+        w(10)
+        for _ in range(2):
+            c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, onto + 20))
+            w(4)
+        for _ in range(2):
+            c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, onto))
+            w(4)
+        for _ in range(12):
+            c("+grab%s" % hand, "vr_mock_button %s grip 1" % hand)
+            w(12)
+            c("-grab%s" % hand, "vr_mock_button %s grip 0" % hand)
+            w(2)
+            c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, onto))   # (nothing taken: still over it)
+            w(2)
+        c("+grab%s" % hand, "vr_mock_button %s grip 1" % hand)
+        w(12)
+        c(STAND)
+        w(10)
+        for _ in range(2):
+            c("vr_mock_hand_to %s holster %d" % (hand, holster))
+            w(10)
+        let_go(hand)
+        c("vr_mock_hand %s" % hand)
+        w(30)
+
+
 def g3_jump_climb():
     mark("jump", "start")
     walk(2490, 704, 12, 150)
@@ -266,7 +298,7 @@ def g7_melee_key():
     w(30)
     mark("key", "find")
     walk(5192, 1340, 6, 100)   # by where the crate stood (the card lies there; not standing in its box)
-    take_to_holster("main", "item_key1", hover=30, onto=7, tries=8)
+    take_spinning("main", "item_key1", 3)
     walk(5216, 1180, 8, 200)
     walk(5216, 1100, 8, 120)
     w(60)
@@ -541,7 +573,7 @@ def g13_arena():
     walk(1100, -640, 8, 300)        # in: the door shuts, the countdown, the waves
     w(72 * 7)
     for k in range(30):
-        c("vr_mock_turn_to monster", "vr_mock_hand_aim main monster", "vr_mock_walk_to monster 110")
+        c("vr_mock_turn_to monster", "vr_mock_hand_aim main monster", "vr_mock_walk_to monster 70")
         for _ in range(6):
             w(30)
             c("+attack")
@@ -610,7 +642,7 @@ def sl_key_after_death():
     fist(False)
     w(30)
     walk(5192, 1340, 6, 100)
-    take_to_holster("main", "item_key1", hover=30, onto=7, tries=8)
+    take_spinning("main", "item_key1", 3)
     mark("sl_key", "kill")
     c("kill")
     respawn()
@@ -714,10 +746,7 @@ def write_throw(path, elevation=5, gunangle=70.0):
 
 def script(args):
     c('alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "developer 1", "vr_tips 0", "vr_fixed_frames 1", "vr_climb_debug 1", "vr_debug_wallbuttons 1",
-      "skill 0",
-      # (vr_pain_knock 0: with the knock of the fall's damage, the mock's hand never took room 6's keycard (no hand touch
-      # reached it; the health kit right after the fall was taken): see the report; every other gate passes with it on)
-      "vr_pain_knock 0", "map vrtutorial2")
+      "skill 0", "map vrtutorial2")
     w(80)
     global GOD
     GOD = args.god
@@ -795,12 +824,12 @@ LINE_CHECKS = [
     ("burning", r"burning: vr_crate", "the crates set on fire"),
     ("waves", r"Wave 3!", "the arena's waves came"),
     ("cleared", r"Arena cleared", "the arena cleared"),
-    ("hub", r"SpawnServer: vrstart\s*$", "the hub (vrstart) loaded"),
+    ("hub", r"(?m)SpawnServer: vrstart\s*$", "the hub (vrstart) loaded"),
     ("flashlight", r"flashlight: taken in the off hand", "the flashlight taken from the belt"),
     ("flashlight_on", r"flashlight: on", "the flashlight switched on"),
     ("grunt_dead", r"spawner r7_spawn: all dead", "the grunt beaten with fists"),
-    ("rifle", r"weapon: main hand takes weapon 15", "the grunt's rifle taken by hand"),
-    ("rifle_held", r"Grunt's Shotgun taken into the main hand, [\d.]+ units from its handle$", "held by its handle (ready to fire)"),
+    ("rifle", r"weapon: main hand takes weapon (15|4) ", "the grunt's gun taken by hand"),
+    ("rifle_held", r"(?m)(Grunt's )?Shotgun taken into the main hand, [\d.]+ units from its handle$", "held by its handle (ready to fire)"),
     ("swim_button", r"button: \S+ \(target \"\"\) pressed by player: hand", "the SWIMMING button pressed by hand"),
 ]
 

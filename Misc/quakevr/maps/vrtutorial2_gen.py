@@ -161,7 +161,7 @@ TX = {
     "door": "tech06_2", "door_frame": "tech04_3", "hazard": "qvr_hazard", "arrow": "{qvr_arrow", "skip": "skip",
     "rung": "metal1_1", "rail_post": "metal1_1", "crate": "crate0_side", "dark": "twall2_1", "dark2": "metal2_4",
     "button": "+0basebtn", "shoot": "+0shoot", "trigger": "trigger", "clip": "clip", "black": "black",
-    "target": "qvr_target", "wood": "wood1_1", "teleport": "*teleport", "court": "city4_2", "court_floor": "afloor1_8",
+    "target": "qvr_target", "wood": "wood1_1", "window": "sfloor4_4", "teleport": "*teleport", "court": "city4_2", "court_floor": "afloor1_8",
 }
 
 
@@ -578,7 +578,7 @@ def sliding_door(door, name=None, keys=None, tex=None, wait=-1, speed=100):
         bent("func_door", [b], **k)
 
 
-def ceiling_lamp(out, x, y, zc, w=64, d=32, value=260, color=WHITE, dark=False):
+def ceiling_lamp(out, x, y, zc, w=64, d=32, value=200, color=WHITE, dark=False):
     """A flat lamp under a ceiling at zc: a frame and a glowing panel, a light below."""
     if any(sx0 - 40 < x < sx1 + 40 and sy0 - 24 < y < sy1 + 24 for sx0, sy0, sx1, sy1 in SKYLIGHTS):
         return  # (a skylight there)
@@ -586,7 +586,7 @@ def ceiling_lamp(out, x, y, zc, w=64, d=32, value=260, color=WHITE, dark=False):
     dbox(out, (x - w / 2, y - d / 2, zc - 6), (x + w / 2, y + d / 2, zc - 4),
          {"bottom": TX["lamp"], "side": TX["lamp_frame"], "top": TX["lamp_frame"]}, fit=("bottom",))
     if not dark:
-        light(x, y, zc - 24, value, color)
+        light(x, y, zc - 24, value, color, wait="0.55")   # (a slower falloff: the floor 200 below well lit)
 
 
 def wall_lamp(out, side, x, y, z, value=150, color=WHITE):
@@ -598,7 +598,7 @@ def wall_lamp(out, side, x, y, z, value=150, color=WHITE):
     else:
         dbox(out, (x - 8, y if n[1] > 0 else y - 4, z - 8), (x + 8, y + 4 if n[1] > 0 else y, z + 8),
              {"side": TX["lampwall"], "top": TX["lamp_frame"], "bottom": TX["lamp_frame"]}, fit=("+y", "-y"))
-    light(x + n[0] * 16, y + n[1] * 16, z, value, color)
+    light(x + n[0] * 16, y + n[1] * 16, z, value, color, wait="0.8")
 
 
 def pipe_run(out, p, q, r=4, brackets=96):
@@ -740,6 +740,43 @@ def room_trims():
                        ((x0, y0 + 16, zc0), (x0 + d, y1 - 16, zc1)), ((x1 - d, y0 + 16, zc0), (x1, y1 - 16, zc1))):
             if clear(lo, hi, a):
                 dbox(out, lo, hi, crown)
+        # a courtyard's daylight in its shade: the sky's light off the walls, soft fill lights high over the yard (the
+        # sky dome alone left the shaded walls near black under the ambient occlusion)
+        if a.style.sky:
+            for fx in range(x0 + 192, x1 - 96, 384):
+                for fy in range(y0 + 192, y1 - 96, 384):
+                    light(fx, fy, z1 - 96, 160, "0.85 0.9 1", wait="0.3", _dirt="-1", _shadow="0")
+        # a courtyard's windows: rows of daylit panes in its walls (the base's offices round the yard), on the panels'
+        # grid, none over a doorway or another room's opening
+        for wz in getattr(a, "windows", ()):
+            zl, zh = z0 + wz, z0 + wz + 48
+            for along in range(128, 100000, 128):
+                for side in ("-y", "+y", "-x", "+x"):
+                    if side in ("-y", "+y"):
+                        if x0 + along + 56 > x1 - 64:
+                            continue
+                        cx = x0 + along
+                        yy = y0 if side == "-y" else y1
+                        s = 1 if side == "-y" else -1
+                        lo = (cx - 28, min(yy, yy + 3 * s), zl - 4)
+                        hi = (cx + 28, max(yy, yy + 3 * s), zh + 4)
+                        glass_lo, glass_hi = (cx - 24, min(yy, yy + 4 * s), zl), (cx + 24, max(yy, yy + 4 * s), zh)
+                    else:
+                        if y0 + along + 56 > y1 - 64:
+                            continue
+                        cy = y0 + along
+                        xx = x0 if side == "-x" else x1
+                        s = 1 if side == "-x" else -1
+                        lo = (min(xx, xx + 3 * s), cy - 28, zl - 4)
+                        hi = (max(xx, xx + 3 * s), cy + 28, zh + 4)
+                        glass_lo, glass_hi = (min(xx, xx + 4 * s), cy - 24, zl), (max(xx, xx + 4 * s), cy + 24, zh)
+                    probe = ((lo[0] - 8, lo[1] - 8, lo[2] - 8), (hi[0] + 8, hi[1] + 8, hi[2] + 8))
+                    if not clear(probe[0], probe[1], a) or any(overlaps((lo, hi), s_) for s_ in SOLIDS):
+                        continue
+                    dbox(out, lo, hi, TX["lamp_frame"])
+                    face = {"+x": TX["window"], "-x": TX["window"], "+y": TX["window"], "-y": TX["window"],
+                            "top": TX["lamp_frame"], "bottom": TX["lamp_frame"]}
+                    dbox(out, glass_lo, glass_hi, face, fit=("+x", "-x", "+y", "-y"))
 
 
 def doorway(name, x0, y0, x1, y1, z, out, h=128, frames=True):
@@ -749,7 +786,7 @@ def doorway(name, x0, y0, x1, y1, z, out, h=128, frames=True):
     return d
 
 
-def lamp_grid(out, x0, y0, x1, y1, zc, nx, ny, value=260, **kw):
+def lamp_grid(out, x0, y0, x1, y1, zc, nx, ny, value=200, **kw):
     for i in range(nx):
         for j in range(ny):
             ceiling_lamp(out, x0 + (i + 0.5) * (x1 - x0) / nx, y0 + (j + 0.5) * (y1 - y0) / ny, zc, value=value, **kw)
@@ -874,7 +911,7 @@ def build_room3():
     r = R3
     air("hall23", (2112, 640, 0), (2240, 768, 160), style=bands(TX["panel3"]))
     doorway("room3_in", 2240, 640, 2256, 768, 0, out)
-    room("room3", r["x0"], r["y0"], r["x1"], r["y1"], 0, 480, COURT)
+    room("room3", r["x0"], r["y0"], r["x1"], r["y1"], 0, 480, COURT).windows = (208, 352)
     checkpoint("cp3", 2320, 704, 0, 0)
     # the barriers (detail: hazard stripes): 32 and 40 high, across the court
     dbox(out, (R3_B1, r["y0"], 0), (R3_B1 + 16, r["y1"], 32), TX["hazard"])
@@ -1078,7 +1115,7 @@ def build_room7():
     doorway("room7_in", 5152, 928, 5280, 944, LOW, out)
     room("room7", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 288, bands(TX["panel2"]))
     checkpoint("cp7", 5216, 880, LOW, 270)
-    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 288, 3, 2, 280)
+    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 288, 3, 2, 220)
     banner(N.join(["LESSON 7: A FIGHT", "WARNING: AN ENEMY IS COMING", "Fight it with your fists:", "block its blows, then strike."]),
            5216, 1068, LOW + 104, 270, "0.3")
     # the alcove the grunts come from (a spawner in it); the button for another
@@ -1120,8 +1157,8 @@ def build_room8():
     for sx in (4992, 5376):
         skylight(sx, -352, sx + 128, -224, LOW + 256)
     checkpoint("cp8", 5216, 352, LOW, 270)
-    lamp_grid(out, r["x0"], R8_COUNTER, r["x1"], r["y1"], LOW + 256, 4, 1, 260)
-    lamp_grid(out, r["x0"], r["y0"], r["x1"], R8_COUNTER, LOW + 256, 3, 3, 280)
+    lamp_grid(out, r["x0"], R8_COUNTER, r["x1"], r["y1"], LOW + 256, 4, 1, 200)
+    lamp_grid(out, r["x0"], r["y0"], r["x1"], R8_COUNTER, LOW + 256, 3, 3, 220)
     # the counter, and a clip wall over it to the ceiling (shots pass, the player doesn't)
     dbox(out, (r["x0"], R8_COUNTER, LOW), (r["x1"], R8_COUNTER + 16, LOW + 40),
          {"top": TX["floor2"], "side": TX["hazard"]})
@@ -1178,7 +1215,7 @@ def build_room9():
     out = group("room9")
     r = R9V
     room("room9v", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 192, bands(TX["panel2"]))
-    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 192, 1, 1, 200)
+    lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 192, 1, 1, 260)
     checkpoint("cp9", 4704, 288, LOW, 180)
     banner(N.join(["LESSON 9: DARKNESS", "Your flashlight hangs at your hip:", "grip it; pull the trigger to switch",
                    "it on or off."]), 4640, r["y0"] + 4, LOW + 120, 90, "0.28")
@@ -1213,7 +1250,7 @@ R10_GRATE = (2880, 2976)      # the barred opening in the south wall (x), the bu
 def build_room10():
     out = group("room10")
     r = R10
-    room("room10", r["x0"], r["y0"], r["x1"], r["y1"], LOW, 352, COURT)
+    room("room10", r["x0"], r["y0"], r["x1"], r["y1"], LOW, 352, COURT).windows = (240, 368)
     checkpoint("cp10", 3380, 256, LOW, 180)
     wall_lamp(out, "-y", 3000, r["y0"], LOW + 120, 160)
     wall_lamp(out, "+y", 3000, r["y1"], LOW + 120, 160)
@@ -1331,7 +1368,7 @@ def build_room12():
     air("hall_12a", (1792, -528, LOW), (1920, -304, LOW + 160), style=bands(TX["panel3"]))
     air("hall_12b", (1424, -656, LOW), (1920, -528, LOW + 160), style=bands(TX["panel3"]))
     r = R12
-    room("room12", r["x0"], r["y0"], r["x1"], r["y1"], LOW, 400, COURT)
+    room("room12", r["x0"], r["y0"], r["x1"], r["y1"], LOW, 400, COURT).windows = (272, 416)
     d = doorway("room12_in", r["x1"], -656, r["x1"] + 16, -528, LOW, out)
     # the door stays open until he is in, then shuts (START_OPEN, used once)
     sliding_door(d, "r12_shut", keys={"spawnflags": 1}, wait=-1)
@@ -1422,6 +1459,7 @@ def build_room12():
     dbox(out, (gx0 - 16, gy, LOW), (gx0, gy + 16, LOW + 144), TX["strip_v"])
     dbox(out, (gx1, gy, LOW), (gx1 + 16, gy + 16, LOW + 144), TX["strip_v"])
     dbox(out, (gx0 - 16, gy, LOW + 128), (gx1 + 16, gy + 16, LOW + 144), TX["lintel"])
+    dbox(out, (gx0, gy, LOW), (gx1, gy + 4, LOW + 128), TX["black"])   # (the void behind the translucent surface)
     surf = mapgeom.box(gx0, gy + 4, LOW, gx1, gy + 12, LOW + 128, mapgeom.Tex(TX["teleport"]))
     bent("func_illusionary", [surf])
     trigger("to_hub", (gx0, gy, LOW), (gx1, gy + 24, LOW + 128), "trigger_changelevel", map="vrstart", spawnflags=1)
@@ -1438,7 +1476,7 @@ WORLD_KEYS = {
     "classname": "worldspawn", "mapversion": "220", "wad": ";".join(WADS),
     "_tb_mod": "hipnotic;rogue;quakevr", "message": "Quake VR: Tutorial", "worldtype": "2", "sounds": "0",
     "sky": "qvrday", "light": "0", "_sunlight": "260", "_sunlight_mangle": "225 -55 0",
-    "_sunlight_color": "1 0.96 0.88", "_sunlight2": "90", "_sunlight2_color": "0.6 0.72 1.0", "_bounce": "1",
+    "_sunlight_color": "1 0.96 0.88", "_sunlight2": "420", "_sunlight2_color": "0.6 0.72 1.0", "_bounce": "1",
     "_vr_debris": "0", "_vr_crates": "0", "_qvr_prelit": "1",
 }
 
