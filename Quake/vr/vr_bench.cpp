@@ -630,6 +630,66 @@ void seed_f()
     Con_Printf("vr_bench_seed %u\n", seed);
 }
 
+// vr_bench_statehash: one FNV-1a hash of the server's whole entity state (every edict's free flag and, in use, all its
+// QuakeC fields) and the edict count, for checking that an optimisation leaves the game the same: the same script on
+// two builds, the hashes compared (BENCHMARKS.md "Dawn of the Machine"; Debug > Profiling and Memory).
+void stateHash_f()
+{
+    if(!sv.active || !sv.qcvm.progs)
+    {
+        Con_Printf("vr_bench_statehash: no server\n");
+        return;
+    }
+    qcvm_t* old = nullptr;
+    PR_PushQCVM(&sv.qcvm, &old);
+    uint64_t h = 1469598103934665603ull;
+    const auto mix = [&h](const void* data, size_t size) {
+        const auto* bytes = static_cast<const unsigned char*>(data);
+        for(size_t i = 0; i < size; i++)
+        {
+            h = (h ^ bytes[i]) * 1099511628211ull;
+        }
+    };
+    const size_t fieldBytes = static_cast<size_t>(qcvm->progs->entityfields) * 4u;
+    int used = 0;
+    for(int i = 0; i < qcvm->num_edicts; i++)
+    {
+        edict_t* ent = EDICT_NUM(i);
+        const unsigned char isFree = ent->free ? 1 : 0;
+        mix(&isFree, 1);
+        if(!ent->free)
+        {
+            mix(&ent->v, fieldBytes);
+            used++;
+        }
+    }
+    Con_Printf("vr_bench_statehash: %d edicts (%d in use), time %.3f, %016llx\n", qcvm->num_edicts, used, qcvm->time,
+        static_cast<unsigned long long>(h));
+    // vr_bench_statehash fields: also a hash per QuakeC field (over the edicts in use), to find what two runs differ in.
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "fields"))
+    {
+        for(int f = 1; f < qcvm->progs->numfielddefs; f++)
+        {
+            const ddef_t& def = qcvm->fielddefs[f];
+            uint64_t fh = 1469598103934665603ull;
+            for(int i = 0; i < qcvm->num_edicts; i++)
+            {
+                edict_t* ent = EDICT_NUM(i);
+                if(!ent->free)
+                {
+                    const auto* bytes = reinterpret_cast<const unsigned char*>(&ent->v) + def.ofs * 4;
+                    for(int k = 0; k < 4; k++)
+                    {
+                        fh = (fh ^ bytes[k]) * 1099511628211ull;
+                    }
+                }
+            }
+            Con_Printf("statefield %s %016llx\n", PR_GetString(def.s_name), static_cast<unsigned long long>(fh));
+        }
+    }
+    PR_PopQCVM(old);
+}
+
 } // namespace
 
 void poseSampled()
@@ -792,6 +852,7 @@ void registerCommands()
     Cmd_AddCommand("vr_bench_end", end_f);
     Cmd_AddCommand("vr_bench_mark", mark_f);
     Cmd_AddCommand("vr_bench_seed", seed_f);
+    Cmd_AddCommand("vr_bench_statehash", stateHash_f);
 }
 
 } // namespace qvr::bench

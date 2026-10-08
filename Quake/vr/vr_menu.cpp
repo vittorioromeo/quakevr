@@ -4453,6 +4453,9 @@ za::Vector<Item> pageDebugProfiling()
             .help("profile 30: the 30 QuakeC functions that ran the most instructions (their own) since the last time, and "
                   "the total; then all are zeroed. Press it, do the thing, press it again. A call over 16 million is a "
                   "runaway loop error."),
+        command("Game State Hash", "vr_bench_statehash")
+            .help("vr_bench_statehash: one hash of every entity's QuakeC fields (and which are in use), printed with the "
+                  "server's time: the same script on two builds gives the same hash when a change left the game the same."),
         command("Benchmark Capture (10 s)", "vr_bench_begin manual 10s")
             .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
                   "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "
