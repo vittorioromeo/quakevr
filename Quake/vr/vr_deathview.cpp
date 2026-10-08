@@ -43,6 +43,10 @@ struct State
     float yaw{0.f};         // the view's turn now (degrees)
     double last{0.0};       // realtime of the last update
     glm::vec3 eye0{0.f};    // the first eye's view as given (tests)
+    // How far the view is in the head (0 Third Person's place .. 1 in it): out while a menu or the console is open (the
+    // author's note vrfiringrange_2026-10-08_22-42-47: a menu was nearly unusable from the head), in again after,
+    // eased over vr_death_view_menu_time each way.
+    float inHead{1.f};
 };
 State state;
 
@@ -91,6 +95,17 @@ State state;
 [[nodiscard]] int mode()
 {
     return static_cast<int>(vr_death_view.value);
+}
+
+[[nodiscard]] bool menuOpen()
+{
+    return key_dest == key_menu || key_dest == key_console;
+}
+
+// The share of the Immersive view in effect: inHead eased (smoothstep: no jolt at either end).
+[[nodiscard]] float weight()
+{
+    return glm::smoothstep(0.f, 1.f, state.inHead);
 }
 
 [[nodiscard]] bool dead()
@@ -177,10 +192,17 @@ void update(const hands::State& s)
         state.trackedRef = s.head;
         state.yawRef = state.headYaw;
         state.yaw = 0.f;
+        state.inHead = menuOpen() ? 0.f : 1.f;
         comfortfade::start(vr_death_view_fade.value);
         Con_DPrintf("deathview: in body %d's head at %.1f %.1f %.1f\n", state.doll, state.anchor.x, state.anchor.y, state.anchor.z);
     }
     state.active = true;
+    {
+        const float time = za::max(vr_death_view_menu_time.value, 0.f);
+        const float goal = menuOpen() ? 0.f : 1.f;
+        const float most = time > 0.f ? dt / time : 1.f;
+        state.inHead = state.inHead < goal ? za::min(goal, state.inHead + most) : za::max(goal, state.inHead - most);
+    }
     if(state.headValid)
     {
         const float tau = za::max(vr_death_view_smooth.value, 0.f);
@@ -199,7 +221,7 @@ void update(const hands::State& s)
             state.yaw = 0.f;
         }
     }
-    ragdoll::hideHeadOf(state.headValid ? state.doll : 0);
+    ragdoll::hideHeadOf(state.headValid && weight() > 0.5f ? state.doll : 0);
 }
 
 void status_f()
@@ -217,10 +239,10 @@ void status_f()
     float scale = 1.f;
     const bool parts = doll > 0 && ragdoll::drawnPart(doll, 0, rot, pos, scale, &rig);
     Con_Printf("deathview: mode %d health %d doll %d ragdoll %d head %d (eyes %.1f %.1f %.1f yaw %.0f) immersive %d "
-               "headhidden %d camera %.1f %.1f %.1f (%.1f from the eyes) turn %.1f hiddenfromothers %d\n",
-        mode(), cl.stats[STAT_HEALTH], doll, parts ? 1 : 0, rag ? 1 : 0, eyes.x, eyes.y, eyes.z, yaw, state.active ? 1 : 0,
-        state.active && state.headValid ? 1 : 0, state.eye0.x, state.eye0.y, state.eye0.z,
-        rag ? glm::length(state.eye0 - eyes) : -1.f, state.yaw, hiddenFromOthers ? 1 : 0);
+               "headhidden %d camera %.1f %.1f %.1f (%.1f from the eyes) turn %.1f hiddenfromothers %d inhead %.2f menu %d\n",
+        mode(), cl.stats[STAT_HEALTH], doll, parts ? 1 : 0, rag ? 1 : 0, eyes.x, eyes.y, eyes.z, yaw, immersive() ? 1 : 0,
+        immersive() && state.headValid ? 1 : 0, state.eye0.x, state.eye0.y, state.eye0.z,
+        rag ? glm::length(state.eye0 - eyes) : -1.f, state.yaw, hiddenFromOthers ? 1 : 0, state.inHead, menuOpen() ? 1 : 0);
 }
 
 } // namespace
@@ -230,10 +252,12 @@ void eyeView(const hands::State& s, int eye, glm::vec3& origin, glm::vec3& angle
     update(s);
     if(state.active)
     {
+        // In the head as far as the menu lets it (weight): from Third Person's place (the view as given) to the head's.
+        const float w = weight();
         const float r = glm::radians(state.yaw), c = za::cos(r), n = za::sin(r);
         const glm::vec3 d = origin - state.trackedRef; // (your own head since: its steps and the eyes' spacing)
-        origin = state.anchor + glm::vec3{c * d.x - n * d.y, n * d.x + c * d.y, d.z};
-        angles.y += state.yaw;
+        origin = glm::mix(origin, state.anchor + glm::vec3{c * d.x - n * d.y, n * d.x + c * d.y, d.z}, w);
+        angles.y += state.yaw * w;
     }
     if(eye == 0)
     {
@@ -243,7 +267,7 @@ void eyeView(const hands::State& s, int eye, glm::vec3& origin, glm::vec3& angle
 
 bool immersive()
 {
-    return state.active;
+    return state.active && weight() > 0.5f; // (out for a menu: the hands and gear drawn again, for its pointer)
 }
 
 void clear()

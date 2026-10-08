@@ -1624,6 +1624,10 @@ int campaignsBloodyShown = -1;
             .help("How long the Immersive Death View takes to follow your body's head: more is gentler, less is closer."),
         slider("Immersive: Fade", vr_death_view_fade, 0.f, 2.f, 0.1f, "%.1f s")
             .help("The view fades in from black as it goes into your body's head, and as you respawn. 0: no fade."),
+        slider("Immersive: Out for Menus", vr_death_view_menu_time, 0.f, 1.f, 0.05f, "%.2f s")
+            .help("Opening a menu (or the console) while dead in the Immersive Death View moves the view out to Third "
+                  "Person's place over this long, and back into your body's head as it closes (0: at once). The setting "
+                  "stays Immersive."),
         slider("Your Body: Killing Blow's Push", vr_death_ragdoll_push, 0.f, 3.f, 0.25f, "%.2fx")
             .help("Your ragdoll body: the blow that killed you throws it this much of what Quake throws the player (0: "
                   "only the motion you had), at most about 10 m/s."),

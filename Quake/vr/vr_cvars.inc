@@ -513,6 +513,7 @@ QVR_CVAR(vr_death_view_turn, "1", CVAR_ARCHIVE)      // immersive death view: th
 QVR_CVAR(vr_death_view_turn_speed, "60", CVAR_ARCHIVE) // ... at most this fast (degrees a second)
 QVR_CVAR(vr_death_view_smooth, "0.15", CVAR_ARCHIVE) // immersive death view: seconds the view takes to follow the head (smoothed; 0 at once)
 QVR_CVAR(vr_death_view_fade, "0.5", CVAR_ARCHIVE)    // immersive death view: the view fades in from black over this long as it goes into the head and back on respawning (0 none)
+QVR_CVAR(vr_death_view_menu_time, "0.3", CVAR_ARCHIVE) // immersive death view: seconds the view takes out to Third Person's place as a menu or the console opens, and back into the head as it closes (eased; 0 at once)
 QVR_CVAR(vr_death_ragdoll_push, "1", CVAR_ARCHIVE)   // your ragdoll body takes the killing blow's push times this (1 as Quake throws the player, 0 none: only the motion you had), at most 400 units/s (QC vr_deathdoll.qc)
 QVR_CVAR(vr_dead_hide_gear, "1", CVAR_ARCHIVE)        // dead: the holstered guns, the ammo pouch, the grenade pouch and the wrist gadget hidden (the flashlight always is), the HUD the status bar on a hand (as vr_hud_mode 0), till you respawn or load a save (body::gearHiddenForDeath)
 QVR_CVAR(vr_gadget_arm, "0", CVAR_ARCHIVE)            // the wrist gadget's arm: 0 the left, 1 the right (hands::gadgetHand)
