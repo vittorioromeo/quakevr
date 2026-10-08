@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [Firing range: reloading]
+Loose rounds slide in too: drop a shell onto a lying shotgun's port / throw one in; toss a pair into a lying open SSG; drop a grenade/rocket into a lying launcher: each slides in, never just vanishes
 Guns lying on a table: a shell dropped on the shotgun receiver goes in (nothing balances on air); load lying guns by hand and by tossing rounds; the lying shotgun's screen shows e.g. 1/8
 Loose rounds: shells into an upside-down shotgun, pairs into the open SSG, magazines feed-end first into NG/SNG/LG wells; sideways rounds bounce off
 Launchers: front-load from the pouch, rockets/grenades butt first (grenade by its flat end), prox any way
