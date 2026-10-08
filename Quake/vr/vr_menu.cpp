@@ -5893,6 +5893,11 @@ za::Vector<Item> pageDebugTests()
                   "side in the map why it is not looked through - behind its plane, not in your view, further than the "
                   "range, seen through another gate - or that it is, with its distance and score. It shares the test "
                   "the engine acts on, so the reasons printed are the ones applied."),
+        command("Torch Light Views", "vr_portals_lightviews")
+            .help("vr_portals_lightviews [x y z]: the views whose torches and flames light this frame - your own, each "
+                  "gate's in front of you and the gates seen within those, as deep as Gates Within Gates - each with its "
+                  "eye carried through, and what making them costs. With a point: how far a torch there counts as "
+                  "(none: no view sees it)."),
         command("Against A Gate's Frame", "map start; wait120; setpos 200 1372 24 0 90 0; wait30; vr_portals_info")
             .help("You against the wall beside the first gate's opening (12 units short of its plane): nothing "
                   "teleports you and there is no jump - vr_portals_info says his box reaches 12, that is, stopped."),

@@ -30957,3 +30957,14 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   control 606..650; with the carry off it ended at 884 and 660 (inside the wall's far side, 0 crossings). The ragdoll
   section as before (1097, 1169; controls 616, 674). Not done: corpses of the fixed kinds (vr_corpse_collide 0/1/3:
   Quake moves them, and a corpse there never flies).
+- **Torch lights through gates within gates** (vr_portals.cpp prepareLightViews, lightDistance): the views whose
+  torches and flames light (VR_TorchLights) now go as deep as the views drawn (vr_portals_recursion: maxDepth), each
+  round the gates in front of the last round's carried eyes, in their PVS, near (kRange) and beyond the exit they look
+  out of (as VR_PortalAddPVS's rooms), breadth first, at most 16 views (was 9, one gate deep). A view through a gate
+  now counts a torch only in front of its exit (its plane facing the room it looks into): in an unvised map such as
+  vrslipgates every room is in every PVS and a carried eye lands near unrelated rooms (a torch at 200 800 counted at
+  845 units from T through the loop, now 1482: out of reach). Cost: 1.1 us a frame for 16 views in vrslipgates' T
+  (0.3 us for 5 before). Debug aid `vr_portals_lightviews [x y z]` (Debug > Slipgates > Torch Light Views): the views,
+  their depth, side and eye, the cost, a point's torch distance. Tested from T (-1280 700, facing U's gate):
+  recursion 0: 5 views, depth 1 (as before); recursion 2: 16, depth 3. vrslipgates has no third room (T and U, FA and
+  FB lead to each other), so no torch there is lit only two gates deep; a map chaining three rooms would show it.

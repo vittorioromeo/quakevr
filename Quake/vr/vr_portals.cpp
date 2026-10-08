@@ -801,15 +801,20 @@ int viewDepth()
 
 namespace
 {
+constexpr int kLightViews = 16; // the eye's own and the views through gates whose torches light (prepareLightViews)
 struct LightView
 {
     glm::vec3 eye{0.f};
     za::Vector<byte> pvs;
+    int side{-1};  // the gate it looks out of (-1: the eye's own)
+    int depth{0};  // how many gates deep (0: the eye's own)
+    glm::vec3 into{0.f}; // through a gate: its exit's plane, facing into the room it looks into (what it sees is
+    float intoDist{0.f}; // in front: an unvised map's PVS has every room, and a carried eye can be near any of them)
 };
 za::SizeT heldBytes(const LightView& v) { return mem::heldBytes(v.pvs); }
 struct LightViews
 {
-    za::Array<LightView, 9> views;
+    za::Array<LightView, kLightViews> views;
     auto members() { return mem::list(views); }
 };
 // Client frame, before light selection. PVS rows are owned: Mod_LeafPVS reuses its decompression buffer.
@@ -817,35 +822,74 @@ mem::Scratch<LightViews> lightViews{"portal light views"};
 int lightViewCount = 0;
 } // namespace
 
+// The eye's PVS, then the view through each gate in it (in front of the gate, near: kRange), and within those views
+// the gates they see, a gate deeper each round, as many as the views drawn (vr_portals_recursion: maxDepth): a torch in
+// a room two gates away lights what the view within a view shows, as its lightmaps already do. Each view's eye is
+// carried through its gates (its distance to a torch is the way through them).
 void prepareLightViews(const glm::vec3& eye)
 {
     lightViewCount = 0;
     if(!cl.worldmodel) { return; }
     const int bytes = (cl.worldmodel->numleafs + 7) / 8;
-    const auto add = [&](const glm::vec3& camera, const glm::vec3& leafPoint)
+    const auto add = [&](const glm::vec3& camera, const glm::vec3& leafPoint, int side, int depth)
     {
         vec3_t p{leafPoint.x, leafPoint.y, leafPoint.z};
         mleaf_t* leaf = Mod_PointInLeaf(p, cl.worldmodel);
         LightView& view = lightViews.views[lightViewCount++];
         view.eye = camera;
+        view.side = side;
+        view.depth = depth;
+        if(side >= 0)
+        {
+            const Side& sd = sides[static_cast<za::SizeT>(side)];
+            view.into = sd.turn * -sd.normal;
+            view.intoDist = glm::dot(view.into, sd.to) - 1.f;
+        }
         view.pvs.resize(bytes);
         const byte* vis = Mod_LeafPVS(leaf, cl.worldmodel);
         memcpy(view.pvs.data(), vis, bytes);
     };
-    add(eye, eye);
+    add(eye, eye, -1, 0);
     if(!enabled() || vr_portals.value <= 0.f || !sv.active) { return; }
     if(!current()) { build(); }
     qcvm_t* oldVm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldVm);
-    for(const Side& sd : sides)
+    const int count = static_cast<int>(sides.size());
+    int first = 0, last = 1; // this round's views: those added by the last
+    for(int depth = 1; depth <= maxDepth() && first < last; depth++)
     {
-        if(lightViewCount >= 9) { break; }
-        if(glm::dot(sd.normal, eye) < sd.dist || !inPvs(lightViews.views[0].pvs.data(), sd.leaf) ||
-           glm::distance(eye, nearestPoint(sd, eye)) > kRange || !triggerActive(EDICT_NUM(sd.trigger)))
+        for(int v = first; v < last; v++)
         {
-            continue;
+            const glm::vec3 from = lightViews.views[v].eye;
+            const int out = lightViews.views[v].side;
+            for(int s = 0; s < count && lightViewCount < kLightViews; s++)
+            {
+                const Side& sd = sides[static_cast<za::SizeT>(s)];
+                if(glm::dot(sd.normal, from) < sd.dist || !inPvs(lightViews.views[v].pvs.data(), sd.leaf) ||
+                   glm::distance(from, nearestPoint(sd, from)) > kRange || !triggerActive(EDICT_NUM(sd.trigger)))
+                {
+                    continue;
+                }
+                if(out >= 0)
+                {
+                    // Beyond the exit it looks out of (as the rooms sent to a client: VR_PortalAddPVS), not the gate
+                    // it came out of nor one beside it.
+                    const Side& exit = sides[static_cast<za::SizeT>(out)];
+                    const glm::vec3 n = exit.turn * exit.normal;
+                    bool beyond = false;
+                    for(int c = 0; c < 8 && !beyond; c++)
+                    {
+                        const glm::vec3 corner{(c & 1) ? sd.maxs.x : sd.mins.x, (c & 2) ? sd.maxs.y : sd.mins.y,
+                            (c & 4) ? sd.maxs.z : sd.mins.z};
+                        beyond = glm::dot(n, corner) < glm::dot(n, exit.to) - 1.f;
+                    }
+                    if(!beyond) { continue; }
+                }
+                add(carriedView(sd, from), sd.to + sd.turn * -sd.normal * 8.f, s, depth);
+            }
         }
-        add(carriedView(sd, eye), sd.to + sd.turn * -sd.normal * 8.f);
+        first = last;
+        last = lightViewCount;
     }
     PR_PopQCVM(oldVm);
 }
@@ -856,7 +900,10 @@ float lightDistance(const glm::vec3& pos, int leaf)
     for(int i = 0; i < lightViewCount; i++)
     {
         const LightView& view = lightViews.views[i];
-        if(inPvs(view.pvs.data(), leaf)) { best = za::min(best, glm::distance(pos, view.eye)); }
+        if(inPvs(view.pvs.data(), leaf) && (view.side < 0 || glm::dot(view.into, pos) >= view.intoDist))
+        {
+            best = za::min(best, glm::distance(pos, view.eye));
+        }
     }
     return best;
 }
@@ -2401,6 +2448,51 @@ void pullTest_f()
     PR_PopQCVM(oldVm);
 }
 
+// vr_portals_lightviews [<x> <y> <z>] (Debug > Slipgates > Torch Light Views): the views whose torches light this
+// frame (prepareLightViews from the eye: each one's depth, the gate it looks out of, its eye carried through), what
+// making them costs, and with a point its distance for a torch there (lightDistance; none: not in any view's PVS).
+void lightViews_f()
+{
+    if(!cl.worldmodel)
+    {
+        return;
+    }
+    const glm::vec3 eye = vec(r_refdef.vieworg);
+    const double t0 = Sys_DoubleTime();
+    constexpr int reps = 200;
+    for(int i = 0; i < reps; i++)
+    {
+        prepareLightViews(eye);
+    }
+    const double us = (Sys_DoubleTime() - t0) * 1e6 / reps;
+    int deepest = 0;
+    for(int i = 0; i < lightViewCount; i++)
+    {
+        deepest = za::max(deepest, lightViews.views[i].depth);
+    }
+    Con_Printf("light views: %d (deepest %d; vr_portals_recursion %g) from %.0f %.0f %.0f, %.1f us to make\n", lightViewCount,
+        deepest, vr_portals_recursion.value, eye.x, eye.y, eye.z, us);
+    for(int i = 0; i < lightViewCount; i++)
+    {
+        const LightView& v = lightViews.views[i];
+        Con_Printf("  view %d: depth %d, side %d, eye %.0f %.0f %.0f\n", i, v.depth, v.side, v.eye.x, v.eye.y, v.eye.z);
+    }
+    if(Cmd_Argc() >= 4)
+    {
+        vec3_t o{static_cast<float>(Q_atof(Cmd_Argv(1))), static_cast<float>(Q_atof(Cmd_Argv(2))), static_cast<float>(Q_atof(Cmd_Argv(3)))};
+        const int leaf = static_cast<int>(Mod_PointInLeaf(o, cl.worldmodel) - cl.worldmodel->leafs) - 1;
+        const float d = lightDistance(vec(o), leaf);
+        if(d >= 1e8f)
+        {
+            Con_Printf("  point %.0f %.0f %.0f: in no view's PVS\n", o[0], o[1], o[2]);
+        }
+        else
+        {
+            Con_Printf("  point %.0f %.0f %.0f: %.0f units for a torch there\n", o[0], o[1], o[2], d);
+        }
+    }
+}
+
 void reachTest_f();
 void rebuild_f() { if(sv.active) { build(); } }
 void registerCommands()
@@ -2408,6 +2500,7 @@ void registerCommands()
     Cmd_AddCommand("vr_portals_rebuild", rebuild_f);
     Cmd_AddCommand("vr_portals_info", info_f);
     Cmd_AddCommand("vr_portals_view", viewInfo_f);
+    Cmd_AddCommand("vr_portals_lightviews", lightViews_f);
     Cmd_AddCommand("vr_portals_shot", shot_f);
     Cmd_AddCommand("vr_portals_pulltest", pullTest_f);
     Cmd_AddCommand("vr_portals_reachtest", reachTest_f);
