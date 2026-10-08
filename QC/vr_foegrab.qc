@@ -47,10 +47,14 @@ float(entity m, float xHand, float xUnused) VR_FoeGrab_Strength =
     return min(1, max(0, s));
 };
 
+float(entity e) VR_IsDummy;
+
 float(entity m, float xHand, float xUnused) VR_FoeGrab_Taken =
 {
     haptic(xHand, 0, 0.08, 120, 0.6);
-    if(m.enemy == world)
+    // (not the training dummy, nor anything with no run to hunt with: FoundTarget would set its think to a null th_run,
+    // "NULL function": NOTES.md vrfiringrange_2026-10-08_22-28-01)
+    if(m.enemy == world && !VR_IsDummy(m) && m.th_run)
     {
         if(VR_Stealth_Applies(m))
         {

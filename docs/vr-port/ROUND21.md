@@ -31885,6 +31885,13 @@ Debug > Tests > Holding Enemies: Who Is Held? (`vr_foegrab_status`, the drawn ha
 Holds (`vr_foegrab_debug` 1 holds taken and let go and why, a grip that found none and how near; 2 each frame; 3 the
 steps). Saved games keep no holds (the fields cleared on load).
 
+**The training dummy** (vrfiringrange_2026-10-08_22-28-01, "null function" on grabbing it): taking hold spotted
+the held enemy (`VR_Stealth_Spot` -> FoundTarget -> HuntTarget), which set the dummy's think to its `th_run`, which it
+has none of: the next think ran a null function. The touch's wake now skips the dummy and anything without a
+`th_run`. The dummy is held like any enemy, the hand on its model as `vr_dummy_type` has it (an ogre's: hold 0.25), and
+is never moved by the hold (it stands on its spot: `vr_dummy_think` put it back each 0.05 s, a jitter). A new type
+chosen while held is a new entity: the hand lets go. Tested: a grunt dummy and an ogre dummy held, no error.
+
 Seen while testing (not changed): a monster spawned by `vr_physics_spawn` (or `impulse 244`) stands 15-16 units lower
 than the floor its first step (SV_movestep) puts it on, in e1m1 and vrfiringrange alike.
 

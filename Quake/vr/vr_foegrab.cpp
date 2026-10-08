@@ -755,6 +755,15 @@ void qvr::foegrab::serverFrame()
         }
         const float hold = 1.f - free;
         setFieldFloat(m, fields().vr_foegrab_hold, hold);
+        if(isTrainingDummy(m))
+        {
+            // The training dummy stands on its spot (QC vr_dummy_think puts it back there): held, never moved.
+            foe.fresh = false;
+            foe.last = vec(m->v.origin);
+            foe.lastYaw = m->v.angles[1];
+            i++;
+            continue;
+        }
 
         const glm::vec3 cur = vec(m->v.origin);
         const glm::vec3 last = foe.fresh ? cur : foe.last;
