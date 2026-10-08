@@ -280,6 +280,12 @@ typedef struct qcvm_s
 
 	int			maxglobalofs;
 	int			*ofstoglobal;		// index of global at offset, or -1
+
+	// QVR: the server's fields whose stores the edict index follows (vr_edictindex.cpp): fieldwatch[field offset] is
+	// nonzero for one (NULL: none, the client VM); watchpending counts the OP_ADDRESSes of them not yet stored into.
+	const unsigned char	*fieldwatch;
+	int			fieldwatch_n;
+	int			watchpending;
 } qcvm_t;
 
 typedef struct savedata_s

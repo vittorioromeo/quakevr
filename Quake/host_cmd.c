@@ -3155,6 +3155,7 @@ static void Host_Spawn_f (void)
 		ent = host_client->edict;
 
 		memset (&ent->v, 0, qcvm->progs->entityfields * 4);
+		VR_EdictIndex_Touch (ent); // QVR
 		ent->v.colormap = NUM_FOR_EDICT(ent);
 		ent->v.team = (host_client->colors & 15) + 1;
 		ent->v.netname = PR_SetEngineString(host_client->name);

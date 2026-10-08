@@ -5,6 +5,7 @@
 #include "vr_audio.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hull.hpp"
@@ -1409,6 +1410,7 @@ extern "C" void VR_Init()
     registerCvars();
     VR_RegisterPackStatus();
     jobs::registerCommands();
+    edictindex::registerCommands();
     weapons::registerCvars();
     props::registerCvars();
     retro::registerCvars();

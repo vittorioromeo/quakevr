@@ -1000,6 +1000,16 @@ void PF_findflags()
     const int from = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
     const int field = G_INT(OFS_PARM1);
     const int flags = static_cast<int>(G_FLOAT(OFS_PARM2));
+    if(qcvm == &sv.qcvm)
+    {
+        // (the edict index's fields: the same edict as the walk; vr_edictindex.cpp)
+        const int found = VR_EdictIndex_FindFlags(from, field, flags);
+        if(found >= 0)
+        {
+            G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(found));
+            return;
+        }
+    }
     for(int i = from + 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);

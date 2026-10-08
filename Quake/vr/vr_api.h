@@ -174,6 +174,16 @@ void VR_OnClearMemory (void);			// Host_ClearMemory, before the hunk (edicts, cl
 void VR_MonsterFell (edict_t *ent, float speed);	// SV_Physics_Step, a walking monster landed at `speed` (QC VR_Monster_Fall)
 void VR_OnEdictFree (edict_t *ed);	// ED_Free (any VM's)
 void VR_OnEdictAlloc (edict_t *ed);	// ED_Alloc (any VM's), the edict cleared: when the server's was made (.vr_born; vr_cheats.cpp)
+// The edict index (vr_edictindex.cpp): find() on .classname and findflags() on a few fields without walking every edict.
+// Every change to an edict's free flag, classname or watched fields reaches it through these (server VM; others ignored).
+void VR_EdictIndex_Touch (edict_t *ed);		// the engine changed the edict (freed, taken, cleared, parsed, its classname set)
+void VR_EdictIndex_Reset (void);			// everything read again at the next query (a load)
+void VR_EdictIndex_StringSlot (int slot, int stable); // a known string's slot (re)assigned: stable when its text is never changed (PR_AllocString)
+void VR_EdictIndex_Address (int ofs, int watched);	// OP_ADDRESS of a watched field (fieldwatch's value): its store to come
+void VR_EdictIndex_Stored (int ofs);		// OP_STOREP into ofs while some are pending (watchpending)
+void VR_EdictIndex_TopLevelDone (void);		// PR_ExecuteProgram, the server's outermost call returned
+int VR_EdictIndex_Find (int start, int field, const char *s);	// PF_Find: the next match after start (0: none), -1 to walk
+int VR_EdictIndex_FindFlags (int start, int field, int flags);	// PF_findflags: the same
 int VR_MonsterFrozen (struct edict_s *ent);	// SV_Physics, past the clients: a living monster frozen (vr_freeze_monsters): skipped
 void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is sent
 void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer

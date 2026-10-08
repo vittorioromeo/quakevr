@@ -148,6 +148,7 @@ ED_AddToFreeList
 static void ED_AddToFreeList (edict_t *ed)
 {
 	ed->free = true;
+	VR_EdictIndex_Touch (ed); // QVR
 	if ((byte *)ed <= (byte *)qcvm->edicts + q_max (svs.maxclients, 1) * qcvm->edict_size)
 		return;
 	if (ed->freechain.prev)
@@ -163,6 +164,7 @@ ED_RemoveFromFreeList
 static void ED_RemoveFromFreeList (edict_t *ed)
 {
 	ed->free = false;
+	VR_EdictIndex_Touch (ed); // QVR
 	if (ed->freechain.prev)
 	{
 		RemoveLink (&ed->freechain);
@@ -184,6 +186,7 @@ void ED_ClearEdict (edict_t *e)
 	else
 		ED_RemoveFromFreeList (e);
 	memset (&e->v, 0, qcvm->progs->entityfields * 4);
+	VR_EdictIndex_Touch (e); // QVR
 }
 
 /*
@@ -222,6 +225,7 @@ edict_t *ED_Alloc (void)
 	e = EDICT_NUM(qcvm->num_edicts++);
 	memset(e, 0, qcvm->edict_size); // ericw -- switched sv.edicts to malloc(), so we are accessing uninitialized memory and must fully zero it, not just ED_ClearEdict
 	e->baseline.scale = ENTSCALE_DEFAULT;
+	VR_EdictIndex_Touch (e); // QVR
 	VR_OnEdictAlloc (e); // QVR
 
 	return e;
@@ -1422,6 +1426,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 			Host_Error ("ED_ParseEdict: parse error");
 	}
 
+	VR_EdictIndex_Touch (ent); // QVR: every field set from the text
 	if (!init)
 		ED_Free (ent);
 
@@ -2426,6 +2431,8 @@ void PR_ClearEngineString (int num)
 	if (num < 0 && num >= -qcvm->numknownstrings)
 	{
 		num = -1 - num;
+		if (qcvm == &sv.qcvm)
+			VR_EdictIndex_StringSlot (num, 0); // QVR
 		qcvm->knownstrings[num] = (const char*) qcvm->firstfreeknownstring;
 		qcvm->firstfreeknownstring = &qcvm->knownstrings[num];
 	}
@@ -2453,6 +2460,8 @@ int PR_SetEngineString (const char *s)
 	//Con_DPrintf ("PR_SetEngineString: new engine string %p\n", s);
 	i = PR_AllocStringSlot ();
 	qcvm->knownstrings[i] = s;
+	if (qcvm == &sv.qcvm)
+		VR_EdictIndex_StringSlot (i, 0); // QVR: an engine pointer: its text may change
 	return -1 - i;
 }
 
@@ -2466,6 +2475,8 @@ int PR_AllocString (int size, char **ptr)
 	qcvm->knownstrings[i] = (char *)Hunk_AllocName(size, "string");
 	if (ptr)
 		*ptr = (char *) qcvm->knownstrings[i];
+	if (qcvm == &sv.qcvm)
+		VR_EdictIndex_StringSlot (i, 1); // QVR: written once by its maker (ED_NewString, Box3D's names), then never
 	return -1 - i;
 }
 

@@ -599,7 +599,8 @@ static void PR_ExecuteProgramRun (func_t fnum);
 // QVR: the profiler's "quakec" scope round the outermost call (vr_profile_report); with profiling off, one test.
 void PR_ExecuteProgram (func_t fnum)
 {
-	if (qcvm->depth == 0 && qcvm == &sv.qcvm) // QVR: QuakeC is between broadcast messages (a full sv.datagram drops whole ones)
+	const qboolean outer_sv = qcvm->depth == 0 && qcvm == &sv.qcvm;
+	if (outer_sv) // QVR: QuakeC is between broadcast messages (a full sv.datagram drops whole ones)
 		VR_BroadcastQCRun ();
 	if (qcvm->depth == 0) // QVR: vr_qcprofile
 		QCProf_Latch ();
@@ -613,6 +614,8 @@ void PR_ExecuteProgram (func_t fnum)
 	}
 	else
 		PR_ExecuteProgramRun (fnum);
+	if (outer_sv && sv.qcvm.watchpending) // QVR: the edict index reads the edicts of OP_ADDRESSes never stored into
+		VR_EdictIndex_TopLevelDone ();
 }
 
 static void PR_ExecuteProgramRun (func_t fnum)
@@ -796,6 +799,8 @@ static void PR_ExecuteProgramRun (func_t fnum)
 	case OP_STOREP_FNC:	// pointers
 		ptr = (eval_t *)((byte *)qcvm->edicts + OPB->_int);
 		ptr->_int = OPA->_int;
+		if (qcvm->watchpending) // QVR: a watched field's store (the edict index reads the edict again)
+			VR_EdictIndex_Stored (OPB->_int);
 		break;
 	case OP_STOREP_V:
 		ptr = (eval_t *)((byte *)qcvm->edicts + OPB->_int);
@@ -815,6 +820,8 @@ static void PR_ExecuteProgramRun (func_t fnum)
 			PR_RunError("assignment to world entity");
 		}
 		OPC->_int = (byte *)((int *)&ed->v + OPB->_int) - (byte *)qcvm->edicts;
+		if (qcvm->fieldwatch && (unsigned)OPB->_int < (unsigned)qcvm->fieldwatch_n && qcvm->fieldwatch[OPB->_int])
+			VR_EdictIndex_Address (OPC->_int, qcvm->fieldwatch[OPB->_int]); // QVR: the edict index follows the store
 		break;
 
 	case OP_LOAD_F:

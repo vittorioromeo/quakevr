@@ -31514,3 +31514,49 @@ slept: PERF_DECISIONS.md item 3).
   their client entities' interpolated places) and for the server's props near the view. Effects there need no networking
   (no entity slots, no datagram bytes, no multiplayer cap) and behave the same in single player and multiplayer; the price
   is a second broadphase and step on the client, and props that never feel them (one-way).
+## QuakeC's scans through an index (2026-10-08)
+
+The author asked whether builtins could speed up the QuakeC that shows in profiles (`VR_EnemyShove_Target`,
+`VR_Burn_MapFrame`, `VR_Grapple_WorldFrame`, `VR_Burn_NailFrame`...). Measured with the new per-function timer
+(`vr_qcprofile`, `profile_qc`: TESTING.md) on combined, combat_48, ai_crowd_64, explosions_storm and secret2 awake:
+most of those functions are one loop, `for(e = find(world, classname, "x"); e; e = find(e, classname, "x"))` or
+`findflags(...)`, and their cost is the walk of every edict (an edict is ~5 KB with Quake VR's fields: each step a
+new page; secret2's ~1800 edicts walked ~50 times a frame).
+
+**The edict index** (`Quake/vr/vr_edictindex.cpp`, `vr_edictindex` 1): the same builtins, the same answers, without
+the walk; no QuakeC changed (it stays the policy).
+- `find(start, classname, s)`: a bitset of edicts per classname text; the next set bit after `start`. A classname
+  whose string's text can change without a store (a temp string, a zoned one, an engine pointer; only strings of the
+  progs or made once by `PR_AllocString`, the map's and saves', count as fixed) puts its edict in a "volatile" set
+  compared at the search with find()'s own strcmp, in edict order with the rest.
+- `findflags(start, field, flags)` on .flags (all but the bits the engine sets in C: on ground, partial ground,
+  water jump, god, notarget, jump released) and on `wt_state`, `stl_notice`, `vr_letgo_fall`, `vr_throw_self`,
+  `MG_registered` (fields no engine code writes): a bitset per bit. Any other field or bit walks as before.
+- Kept exact as edicts change: QuakeC stores into a field through OP_ADDRESS then OP_STOREP, so OP_ADDRESS of a watched
+  field records the address (`qcvm->fieldwatch`) and the STOREP into it marks the edict to be read again (after the
+  store: a search between the two still sees the old value, as the walk would). An address never stored into is read
+  at the end of the outermost call. The engine's changes: an edict freed or taken, cleared, parsed from a map or a
+  save, a client's fields cleared, Box3D's spawned props' classnames (`VR_EdictIndex_Touch`); a load, a map or the
+  progs: everything read again at the next search. Not covered (none in the QuakeC): a pointer to a watched field
+  kept past the call that took it.
+- Check: `vr_edictindex_verify 1` walks as well on every search and prints `vr_edictindex ERROR` on a difference.
+  0 differences in 839,217 searches of secret2's fight, and in stealth_tests.sh all (47 PASS), mapflameburn_test.sh
+  (all PASS), reload_test.sh (67 passed), the wall torch shot/grab tests, an enemy shove and a grapple reel (same
+  output as `vr_edictindex 0`).
+- Costs, `profile_qc` medians of 2 (timer on, exclusive):
+
+| scenario | find + findflags (ms a frame) | QuakeC a frame |
+|---|---|---|
+| mg3_secret2_awake | 0.324 -> 0.025 | 1.09 -> 0.74 |
+| combined | 0.030 -> 0.006 | 0.49 -> 0.41 |
+| combat_48 | 0.020 -> 0.005 | 0.25 -> 0.24 |
+| ai_crowd_64 | 0.023 -> 0.007 | (fight noise) |
+| explosions_storm | 0.016 -> 0.004 | 0.15 -> 0.14 |
+
+  secret2's top functions, own time: `VR_Stealth_LookAbout` 0.140 -> 0.062, `VR_EnemyShove_Target` 0.040,
+  `VR_Reload_NextRound` 0.035, `VR_Throw_SelfFrame` 0.028, `VR_Burn_MapFrame` 0.023, `MG_WorldFrame` 0.016 -> under
+  0.002; `VR_Stealth_Frame` 0.026 -> 0.004, `VR_Liquids_Frame` 0.031 -> 0.017. Without the timer the server phase
+  4.44 -> 3.39 ms (medians of 4, noisy: each fight differs).
+- Left (PERF_DECISIONS.md, 12): the force grab's `findportalcone` (0.13 ms on secret2), `findradius`, the engine's
+  traces and steps, and `VR_Prop_Flung`'s unprinted `dprint(sprintf())` (0.034 ms: a behaviour question).
+- Debug > Profiling and Memory: Edict Index, Verify Edict Index, Edict Index Stats.

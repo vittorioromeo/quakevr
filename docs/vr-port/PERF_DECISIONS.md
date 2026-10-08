@@ -132,18 +132,26 @@ no trade-off are committed. Measured and left:
 ragdolls). A death past the cap retires the oldest ragdoll to a corpse, so the cap bounds the falling bodies' cost.
 - **Recommendation**: keep 8 (the menu's slider goes to 16, 64 extended); more only for set pieces with few monsters.
 
-### 9. Per-monster walks of every entity in QuakeC (still open)
+### 9. Per-monster walks of every entity in QuakeC (done, exactly: the edict index)
 
 secret2's fight, builtin time a frame (temporary timers, 2000 frames): `findflags` 0.19 ms, mostly
 `VR_Stealth_LookAbout` (each Idle or Alert monster's FindTarget walks every entity twice: the wall torches, the
 bodies); `find(p, classname, "player")` after the first player (`VR_EnemyShove_Target`, each stand/walk/run think,
 ~11 walks a frame; `VR_Burn_MapFrame` ~5); `VR_Grapple_WorldFrame` ("hook"), `VR_Burn_NailFrame` ("spike") and
 `VR_MarksmanTest_Frame` ("ogre_grenade", a test's counter) one walk each a frame when there are none.
-- **Option**: the stealth AI's torch and body lists gathered once a frame (a chain), the players walked as clients
-  (edicts 1..maxclients), the empty searches skipped by a count.
-- **Win**: ~0.2-0.3 ms a frame in a 160-monster fight; little in an ordinary one.
-- **Drawback**: not exact: a body or torch that changes mid-frame is seen a frame later; a non-client "player" (none
-  known) would be missed. A behaviour change, however small: not done.
+- The option weighed here (lists gathered once a frame, players walked as clients) was not exact. **Done instead
+  (2026-10-08), exact**: the edict index (`vr_edictindex`, vr_edictindex.cpp; ROUND21.md, "QuakeC's scans through an
+  index"). `find()` on .classname and `findflags()` on .flags' QuakeC bits, `wt_state`, `stl_notice`,
+  `vr_letgo_fall`, `vr_throw_self` and `MG_registered` step through bitsets kept up to date by every store into those
+  fields (OP_ADDRESS/OP_STOREP) and every engine change (free, clear, parse, Box3D's classnames); classnames whose
+  text can change under the same string (temp, zoned, engine strings) are compared at the search, as before. No
+  QuakeC change; `vr_edictindex_verify 1` walks too and counts differences: 0 in 839,217 searches of secret2's fight
+  and in the stealth, map flame, reload, wall torch, enemy shove and grapple tests.
+- **Win** (`profile_qc`, medians of 2, exclusive): secret2 awake `find` 0.167 -> 0.005 ms, `findflags` 0.157 ->
+  0.019, QuakeC 1.09 -> 0.74 ms a frame (timer on); `combined` find+findflags 0.030 -> 0.006, QuakeC 0.49 -> 0.41;
+  `combat_48`, `ai_crowd_64`, `explosions_storm` find+findflags 0.015-0.023 -> 0.004-0.007. Without the timer,
+  secret2's server phase 4.44 -> 3.39 ms (medians of 4; the fight differs run to run, so this one is noisy: the walks
+  also evicted ~230 KB of cache each).
 
 ### 10. The kill frame's spawns (still open)
 
@@ -158,6 +166,21 @@ death-frame hitches (a rocket into 10 monsters: ~2 ms). Not done.
 `findportalcone` (each hand's force-grab target, every frame): 0.07 ms a call on secret2 (1800 entities, each one's
 model centre worked out before the portal broad phase). A box-based pre-test would need the centre's bound from the
 box (not exact for models whose centre lies outside their box). Small; not done.
+
+### 12. QuakeC left after the index (2026-10-08, `profile_qc` caller > builtin pairs, secret2 awake)
+
+What remains is engine work QuakeC asks for, or behaviour-visible: none moved to a builtin.
+- `findportalcone` 0.13 ms (item 11: each model's centre before the broad phase; a bound needs the shape's fields,
+  as dear to read as the centre).
+- `findradius` 0.03 (`VR_Grenade_CatchCheck`), 0.02 (`VR_Stealth_Gather`): it writes `.chain` on every solid
+  entity in range, monsters or not; an index of solids would need the engine's `solid` writes (10 sites, some
+  temporary inside SV_PushMove) and would hold nearly every edict anyway.
+- `sprintf` 0.034 ms, 21 calls a frame, in `VR_Prop_Flung`'s `dprint(sprintf(...))` for gibs touching monsters
+  while still harmless: formatted with `developer 0`. A `developer` test round it saves it, but changes the temp
+  strings' rotation (only code holding a temp string too long could see it). **Option**: guard the dprints (or a
+  `dprintf` builtin that formats only with developer on).
+- `traceline` (`point_visible`, `VR_Stealth_WalkNow`), `movetogoal` (`ai_run`, `VR_Stealth_WalkNow`): the engine's
+  traces and steps.
 
 ## Leads (2026-10-08 follow-up)
 

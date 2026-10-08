@@ -796,6 +796,13 @@ on both sides. A scenario's split: insert `vr_qcprofile 1; profile_qc 0` before 
 `profile_qc 40` after its `vr_bench_end` (`qvrbench.py script <name> --out x.cfg`). `profile [n]` (Quake's) still
 counts instructions.
 
+**The edict index** (`vr_edictindex`, on; vr_edictindex.cpp, ROUND21.md "QuakeC's scans through an index"): `find()`
+by classname and `findflags()` on .flags (QuakeC's bits: monsters, clients, items), lit wall torches, noticeable bodies
+and three more QuakeC fields step through an index instead of every edict. `vr_edictindex_verify 1` walks as well on
+every search and prints `vr_edictindex ERROR: ...` for any difference (the walk's answer is used); `vr_edictindex_stats`
+prints the searches, rebuilds, edicts read again and differences since the last. A feature test run with
+`vr_edictindex_verify 1` that prints no ERROR line found the index exact for everything it did.
+
 In the console: `vr_profile_overlay 1` / `2`, `vr_profile_csv 1` / `0` (or `vr_profile_csv_toggle`, to bind to a key),
 `vr_profile_hitch 1.5`, `vr_profile_detail 2`, `vr_profile_gpu 4` (the GPU's times on one frame in 4: each timer query
 stalls the GPU a little; 1 every frame, 0 none). All are off again after a restart.

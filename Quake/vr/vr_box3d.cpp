@@ -8137,6 +8137,7 @@ edict_t* spawnStressProp(func_t fn, const char* classname, const char* model, co
     edict_t* e = ED_Alloc();
     store(at, e->v.origin);
     e->v.classname = PR_SetEngineString(classname);
+    VR_EdictIndex_Touch(e); // (the edict index: a classname set in C)
     if(model)
     {
         e->v.model = PR_SetEngineString(model);
@@ -9155,6 +9156,7 @@ void spawn_f()
     const int s = PR_AllocString(static_cast<int>(strlen(Cmd_Argv(1))) + 1, &name);
     strcpy(name, Cmd_Argv(1));
     e->v.classname = s;
+    VR_EdictIndex_Touch(e); // (the edict index: a classname set in C)
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(e);
     PR_ExecuteProgram(fn);

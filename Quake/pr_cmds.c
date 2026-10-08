@@ -1099,6 +1099,16 @@ static void PF_Find (void)
 	if (!s)
 		PR_RunError ("PF_Find: bad search string");
 
+	if (qcvm == &sv.qcvm) // QVR: .classname through the edict index (vr_edictindex.cpp), the same edict as the walk
+	{
+		const int found = VR_EdictIndex_Find (e, f, s);
+		if (found >= 0)
+		{
+			RETURN_EDICT(EDICT_NUM(found));
+			return;
+		}
+	}
+
 	for (e++ ; e < qcvm->num_edicts ; e++)
 	{
 		ed = EDICT_NUM(e);

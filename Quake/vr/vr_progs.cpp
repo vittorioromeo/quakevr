@@ -3,6 +3,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_progs.hpp"
+#include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
 #include "vr_box3d.hpp"
 #include "vr_climb.hpp"
@@ -168,6 +169,7 @@ extern "C" void VR_OnProgsLoaded()
     {
         return;
     }
+    VR_EdictIndex_ProgsLoaded();
 
     Bindings b;
 
@@ -281,6 +283,7 @@ extern "C" void VR_OnClearMemory()
 extern "C" void VR_OnSpawnServerBeforeLoad()
 {
     resetServerWorld();
+    VR_EdictIndex_Reset(); // (the edicts cleared)
     qvr::physics::precacheWaterSounds();
     qvr::physsound::precache(); // the props' knocks and scrapes, the climbing grab
     qvr::climb::precache();     // the mantle's grunts
@@ -499,6 +502,7 @@ extern "C" void VR_OnSpawnServerAfterLoad()
 extern "C" void VR_OnBeginLoadGame()
 {
     loadingSaveGame = true;
+    VR_EdictIndex_Reset();
 }
 
 // The save's build: another build's is loaded (the models found again through the save's list, the fields by name),
@@ -765,6 +769,7 @@ void rebindLoadedModels()
 extern "C" void VR_OnLoadGame()
 {
     loadingSaveGame = false;
+    VR_EdictIndex_Reset(); // (the edicts parsed from the save)
 
     // parm17..parm56 were restored with the other globals and still hold the level-start
     // values (QC only rewrites them in SetNewParms/SetChangeParms), so they become the

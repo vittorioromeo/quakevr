@@ -4465,6 +4465,16 @@ za::Vector<Item> pageDebugProfiling()
             .help("profile_qc 30: the 30 QuakeC functions and builtins that took the most time a frame since the last "
                   "report (Time QuakeC Functions on), in the console; then all are zeroed. Press it, do the thing, press "
                   "it again."),
+        toggle("Edict Index", vr_edictindex)
+            .help("vr_edictindex: find() by classname and findflags() on monsters, clients, items, lit torches and "
+                  "bodies step straight to the next match instead of walking every entity (the same results). Off: "
+                  "they walk, as Quake did."),
+        toggle("Verify Edict Index", vr_edictindex_verify)
+            .help("vr_edictindex_verify: every indexed search walks as well and any difference is counted and printed "
+                  "(the walk's answer is used). Edict Index Stats prints the counts."),
+        command("Edict Index Stats", "vr_edictindex_stats")
+            .help("vr_edictindex_stats: the index's searches, rebuilds, edicts read again, searches verified and "
+                  "differences since the last time."),
         command("Game State Hash", "vr_bench_statehash")
             .help("vr_bench_statehash: one hash of every entity's QuakeC fields (and which are in use), printed with the "
                   "server's time: the same script on two builds gives the same hash when a change left the game the same."),
