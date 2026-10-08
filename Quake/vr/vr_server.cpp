@@ -883,7 +883,10 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
     }
     if(bits & U_QVR_WEAPONUID)
     {
-        MSG_WriteLong(msg, weaponUid(weaponInst(ent, f.weaponinst)));
+        edict_t* const inst = weaponInst(ent, f.weaponinst);
+        MSG_WriteLong(msg, weaponUid(inst));
+        // Its clip: the rounds in it, shown on its ammo screen as a held gun's (vr_view.cpp setupWorldWeapons).
+        MSG_WriteByte(msg, CLAMP(0, static_cast<int>(inst ? fieldFloatOr(inst, f.wi_clip, 0.f) : 0.f), 255));
     }
     if(bits & U_QVR_SSGOPEN)
     {

@@ -470,6 +470,7 @@ SsgDrawn ssgHands[2];
 SsgDrawn ssgHolsters[HolsterCount];
 double worldSsgPrinted = -1.0; // (setupWorldSsgs' debug print: once a second)
 double worldMagPrinted = -1.0; // (setupMagazines' debug print of a lying gun's magazine: once a second)
+double worldScreenPrinted = -1.0; // (setupWorldWeapons' debug print of a lying gun's ammo screen: once a second)
 
 [[nodiscard]] bool ssgBreaks()
 {
@@ -1051,7 +1052,9 @@ ankerl::unordered_dense::map<const qmodel_t*, int> clipSizes;
 // The ammo screen's text of a gun not in a hand: as a held one's (its clip over the ammo when reloading), with what
 // is known: the clip of a holstered gun (`clip` >= 0) and its size once seen in a hand, the player's ammo for it
 // ("--" unknown).
-[[nodiscard]] za::String idleWeaponText(const qmodel_t* model, int clip)
+// `total`: the reserve under the clip (a gun in a holster: the player's); not on a gun lying about, whose screen shows its
+// clip and size alone, as the clip's line of a held gun's (the author's note vrfiringrange_2026-10-08_14-18-22).
+[[nodiscard]] za::String idleWeaponText(const qmodel_t* model, int clip, bool total)
 {
     const int ammo = idleAmmo(model);
     const za::String ammoText = ammo >= 0 ? za::toString(ammo) : za::String{"--"};
@@ -1059,7 +1062,8 @@ ankerl::unordered_dense::map<const qmodel_t*, int> clipSizes;
     const auto size = clipSizes.find(model);
     if(reloading && clip >= 0 && size != clipSizes.end() && size->second != 0)
     {
-        return za::toString(clip) + "/" + za::toString(size->second) + "\n" + ammoText;
+        return total ? za::toString(clip) + "/" + za::toString(size->second) + "\n" + ammoText
+                     : za::toString(clip) + "/" + za::toString(size->second);
     }
     return ammoText;
 }
@@ -5149,7 +5153,7 @@ bool holsterLive[HolsterCount]{};
 // front button, `front` (setupFrontButton); the screen queued when `queueText` (once a frame). `clip`: its clip if known
 // (a holstered gun's), else -1.
 void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntity& button, view::ViewEntity& front, int clip,
-    bool queueText)
+    bool queueText, bool total = true)
 {
     const bool on = vr_weapon_screen_idle.value != 0.f && slot >= 0 && e.model && !isHandModel(e.model) &&
                     slot != weapons::fistSlot();
@@ -5207,7 +5211,7 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
         {
             angles.z = -angles.z;
         }
-        text3d::queue(idleWeaponText(e.model, clip), pos, idleAttachmentAngles(drawn, slot, mirrored, angles),
+        text3d::queue(idleWeaponText(e.model, clip, total), pos, idleAttachmentAngles(drawn, slot, mirrored, angles),
             text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale), vr_weapon_screen.value != 0.f);
     }
 }
@@ -6017,6 +6021,11 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
     }
 
     int lights = 0;
+    const bool printScreens = queueTexts && vr_reload_debug.value >= 1 && developer.value && cl.time >= worldScreenPrinted + 1.0;
+    if(printScreens)
+    {
+        worldScreenPrinted = cl.time;
+    }
     for(int i = 0; i < maxWorldWeapons; i++)
     {
         view::ViewEntity& button = entities.worldButton[i];
@@ -6030,7 +6039,20 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
         const entity_t& e = *nearest[i].e;
         worldWeaponsNear[i] = &e;
         const int slot = weapons::slotForModel(e.model);
-        idleAttachments(e, false, slot, button, entities.worldFrontButton[i], -1, queueTexts);
+        // Its clip (a weapon prop's, networked: U_QVR_WEAPONUID), as a held gun shows it; its reserve only once in a hand.
+        const bool numbered = &e >= cl_entities && &e < cl_entities + cl_max_edicts;
+        const client::EntityVr* net = numbered ? client::entityVr(static_cast<int>(&e - cl_entities)) : nullptr;
+        const int clip = net && net->weaponUid != 0 ? net->clip : -1;
+        idleAttachments(e, false, slot, button, entities.worldFrontButton[i], clip, queueTexts, clip < 0);
+        if(printScreens)
+        {
+            za::String text = idleWeaponText(e.model, clip, clip < 0);
+            for(char& c : text)
+            {
+                c = c == '\n' ? '|' : c;
+            }
+            Con_Printf("world gun %d (%s): its screen \"%s\"\n", static_cast<int>(&e - cl_entities), e.model->name, text.data());
+        }
         if(emissive::isLavaGun(e.model) && 2 + HolsterCount + lights < emissive::lavaGunLights)
         {
             emissive::lavaGunLight(2 + HolsterCount + lights++, lavaGlowPosition(e, false, 0.f, slot), vr_lavagun_light_idle.value);
@@ -6616,7 +6638,36 @@ bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
     {
         return false;
     }
-    const qmodel_t* model = entities.weapon[hand].ent.model;
+    return modelLoadPath(entities.weapon[hand].ent.model, ssgOpenAngle(hand), port, deep, end);
+}
+
+bool propGun(int num, ViewEntity& out, float& ssgOpen)
+{
+    if(num <= 0 || num >= cl.num_entities || num == cl.viewentity)
+    {
+        return false;
+    }
+    const entity_t& e = cl_entities[num];
+    glm::vec3 port, deep, end;
+    if(!e.model || e.model->type != mod_alias || !modelLoadPath(e.model, 0.f, port, deep, end))
+    {
+        return false;
+    }
+    const client::EntityVr* net = client::entityVr(num);
+    out = ViewEntity{};
+    out.ent = e;
+    out.visible = true;
+    out.netEntity = num; // (drawn with its networked scale and offset: setupMagazines' guns lying about)
+    ssgOpen = net && net->ssgOpen && ssgBreaks() ? CLAMP(0.f, vr_reload_ssg_open_angle.value, 80.f) : 0.f;
+    return true;
+}
+
+bool modelLoadPath(const qmodel_t* model, float ssgOpen, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
+{
+    if(!model)
+    {
+        return false;
+    }
     const auto& info = modelmeta::get(model);
     for(const LoadPort& lp : loadPorts)
     {
@@ -6628,7 +6679,7 @@ bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
         if(lp.model == modelmeta::Id::VShot2)
         {
             // Into the chambers, along the barrels as they are drawn open.
-            const float open = ssgOpenAngle(hand);
+            const float open = ssgOpen;
             const glm::vec3 along = ssgTurn({1.f, 0.f, 0.f}, open, false);
             port = ssgTurn(at, open);
             deep = port + along * 1.f;

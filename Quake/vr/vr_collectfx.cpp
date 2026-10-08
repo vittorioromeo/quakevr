@@ -55,13 +55,73 @@ struct Item
     int drawnFrame{-1}; // host_framecount it was added to the scene
     bool intoGun{false};          // the "into the gun" variant: the gun in the other hand
     int gunHand{0};
+    int gunEnt{0};                // or the gun lying about as this client entity (QVR_CFX_INTO_PROP; 0: in a hand)
     glm::vec3 startLocal{0.f};    // its middle when let go of, in the gun's model space
     glm::mat3 axesLocal{1.f};     // its turn in the gun's (its axes')
 };
 
 constexpr int maxItems = collectfx::maxCopies;
 constexpr int intoGunHotspot = 240; // QC's QVR_CFX_INTO_GUN: into the gun in the other hand (vr_reload.qc)
+// QC's QVR_CFX_INTO_PROP: into the gun lying about that the message's entity is (VR_Reload_IntoProp; the author's note
+// vrfiringrange_2026-10-08_14-18-22: shells loaded into a lying shotgun went in at once, without a held gun's slide).
+constexpr int intoPropHotspot = 241;
 za::Array<Item, maxItems> items;
+
+// The gun an "into the gun" copy slides into, as drawn now: the one in its hand, or the one lying about (gunEnt).
+struct GunNow
+{
+    view::ViewEntity prop; // (gunEnt's)
+    float open{0.f};       // its barrels drawn down (a super shotgun lying open)
+};
+
+[[nodiscard]] bool gunNow(const Item& it, GunNow& g)
+{
+    return it.gunEnt <= 0 || view::propGun(it.gunEnt, g.prop, g.open);
+}
+
+[[nodiscard]] bool gunPoint(const Item& it, const GunNow& g, const glm::vec3& local, glm::vec3& out)
+{
+    if(it.gunEnt <= 0)
+    {
+        return view::gunToWorld(it.gunHand, local, out);
+    }
+    out = view::modelPoint(g.prop, local);
+    return true;
+}
+
+[[nodiscard]] bool gunTurn(const Item& it, const GunNow& g, glm::mat3& out)
+{
+    if(it.gunEnt <= 0)
+    {
+        return view::gunAxes(it.gunHand, out);
+    }
+    out = held::axesFromAngles(g.prop.ent.angles, false);
+    return true;
+}
+
+[[nodiscard]] bool gunPath(const Item& it, const GunNow& g, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
+{
+    return it.gunEnt <= 0 ? view::loadPath(it.gunHand, port, deep, end)
+                          : view::modelLoadPath(g.prop.ent.model, g.open, port, deep, end);
+}
+
+// A world point in the gun's model space.
+[[nodiscard]] bool gunLocal(const Item& it, const GunNow& g, const glm::vec3& w, glm::vec3& out)
+{
+    if(it.gunEnt <= 0)
+    {
+        return view::gunFromWorld(it.gunHand, w, out);
+    }
+    const glm::vec3 o = view::modelPoint(g.prop, glm::vec3{0.f});
+    const glm::mat3 m{view::modelPoint(g.prop, {1.f, 0.f, 0.f}) - o, view::modelPoint(g.prop, {0.f, 1.f, 0.f}) - o,
+        view::modelPoint(g.prop, {0.f, 0.f, 1.f}) - o};
+    if(std::abs(glm::determinant(m)) < 1e-9f)
+    {
+        return false;
+    }
+    out = glm::inverse(m) * (w - o);
+    return true;
+}
 
 // Where the thing goes: the holster's or pouch's point on the body (the hand's hotspot when it let go), as drawn.
 [[nodiscard]] bool targetOf(const hands::State& s, int hotspot, glm::vec3& out)
@@ -148,7 +208,8 @@ void parse()
         v = MSG_ReadFloat();
     }
 
-    const bool intoGun = hotspot == intoGunHotspot;
+    const bool intoProp = hotspot == intoPropHotspot;
+    const bool intoGun = hotspot == intoGunHotspot || intoProp;
     if((intoGun ? vr_reload_insert_time.value <= 0.f : (!vr_collect_fx.value || vr_collect_fx_time.value <= 0.f)) ||
         cls.demoplayback || modelIndex <= 0 || modelIndex >= MAX_MODELS)
     {
@@ -163,7 +224,7 @@ void parse()
     // As drawn last frame (still held: its removal comes with this update), else as the server had it.
     Item& it = freeSlot();
     it = Item{};
-    const bool known = ent > 0 && ent < cl.num_entities;
+    const bool known = !intoProp && ent > 0 && ent < cl.num_entities; // (into a prop: the entity is the gun)
     const bool drawn = known && cl_entities[ent].model == model;
     if(known)
     {
@@ -214,8 +275,11 @@ void parse()
     {
         it.intoGun = true;
         it.gunHand = 1 - hand;
+        it.gunEnt = intoProp ? ent : 0;
+        it.entNum = intoProp ? 0 : ent;
         glm::mat3 gun;
-        if(!view::gunFromWorld(it.gunHand, it.from, it.startLocal) || !view::gunAxes(it.gunHand, gun))
+        GunNow g;
+        if(!gunNow(it, g) || !gunLocal(it, g, it.from, it.startLocal) || !gunTurn(it, g, gun))
         {
             it.live = false;
             return;
@@ -257,7 +321,8 @@ void frame(const hands::State& s)
             // Into the gun: to its load point (the first half), then on inside it, carried by the gun; at its size.
             glm::vec3 port, deep, end, centre;
             glm::mat3 gun;
-            if(!view::loadPath(it.gunHand, port, deep, end) || !view::gunAxes(it.gunHand, gun))
+            GunNow g;
+            if(!gunNow(it, g) || !gunPath(it, g, port, deep, end) || !gunTurn(it, g, gun))
             {
                 it.live = false;
                 continue;
@@ -266,7 +331,7 @@ void frame(const hands::State& s)
             const glm::vec3 local = u < 0.5f ? glm::mix(it.startLocal, port, u / 0.5f)
                                     : u < 0.75f ? glm::mix(port, deep, (u - 0.5f) / 0.25f)
                                                 : glm::mix(deep, end, (u - 0.75f) / 0.25f);
-            if(!view::gunToWorld(it.gunHand, local, centre))
+            if(!gunPoint(it, g, local, centre))
             {
                 it.live = false;
                 continue;
@@ -281,8 +346,8 @@ void frame(const hands::State& s)
             }
             if(vr_debug_collect_fx.value)
             {
-                Con_Printf("collect fx: in gun %d t %.2f, %.2f off its port: %.2f %.2f %.2f, world %.1f %.1f %.1f\n",
-                    it.gunHand, static_cast<double>(t), static_cast<double>(glm::distance(local, port)),
+                Con_Printf("collect fx: in gun %d%s t %.2f, %.2f off its port: %.2f %.2f %.2f, world %.1f %.1f %.1f\n",
+                    it.gunEnt > 0 ? it.gunEnt : it.gunHand, it.gunEnt > 0 ? " (lying)" : "", static_cast<double>(t), static_cast<double>(glm::distance(local, port)),
                     static_cast<double>(local.x), static_cast<double>(local.y), static_cast<double>(local.z),
                     static_cast<double>(centre.x), static_cast<double>(centre.y), static_cast<double>(centre.z));
             }

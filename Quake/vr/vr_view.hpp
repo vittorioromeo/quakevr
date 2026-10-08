@@ -73,6 +73,12 @@ struct ViewEntity
 // (the shotgun: up through its loading port's well, then forward into the tube; the super shotgun: into its chambers).
 // False: no gun there with a load point.
 [[nodiscard]] bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end);
+// The same for any gun's `model`, the super shotgun's barrels turned down `ssgOpen` degrees.
+[[nodiscard]] bool modelLoadPath(const qmodel_t* model, float ssgOpen, glm::vec3& port, glm::vec3& deep, glm::vec3& end);
+// The gun lying about as client entity `num` (a weapon prop: QC's thrown_weapon), as it is drawn this frame, in `out`
+// (for modelPoint), and how far its barrels are drawn down (a super shotgun lying open: setupWorldSsgs); false if it is
+// not there or not a gun with a load point. Shells loaded into it sliding in (vr_collectfx.cpp).
+[[nodiscard]] bool propGun(int num, ViewEntity& out, float& ssgOpen);
 
 // World position of a point given in `ve`'s model space (as its frames' vertices).
 [[nodiscard]] glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);

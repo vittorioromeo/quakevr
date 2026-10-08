@@ -2080,6 +2080,21 @@ float(entity g, entity r, float xLoose) VR_Reload_PropLies =
     return VR_Reload_RoundAxis(r) * normalize(g.loadportaxis) >= cos(most * 0.0174533);
 };
 
+// From `xHand` of the player `xBy`, the round `r` (its model as it is now: of a pair with one place, a single shell) went
+// into the gun lying as `g`: drawn sliding in on his client as into a held gun (vr_collectfx.cpp, QVR_CFX_INTO_PROP; the
+// author's note vrfiringrange_2026-10-08_14-18-22: it went in at once). Not a magazine (it seats, as into a held gun).
+void(entity g, entity r, entity xBy, float xHand) VR_Reload_PropSlide =
+{
+    if(!xBy || r.vr_ammo_wid)
+    {
+        return;
+    }
+    entity was = self;
+    self = xBy; // (collectfx goes to self's client)
+    collectfx(xHand, g, QVR_CFX_INTO_PROP, r.modelindex, r.origin, r.angles);
+    self = was;
+};
+
 // The round `r` goes into the gun lying as `g` (which takes it and has room), from `xHand` of the player `xBy` (world: a
 // loose one by contact): a magazine seats (its rounds the gun's), shells go in as many as fit. TRUE if `r` is used up.
 float(entity g, entity r, entity xBy, float xHand) VR_Reload_IntoProp =
@@ -2116,8 +2131,10 @@ float(entity g, entity r, entity xBy, float xHand) VR_Reload_IntoProp =
     if(r.vr_ammo_count > 0)
     {
         VR_Reload_SetModel(r); // (a pair's other shell, still in the fingers, or lying)
+        VR_Reload_PropSlide(g, r, xBy, xHand);
         return FALSE;
     }
+    VR_Reload_PropSlide(g, r, xBy, xHand);
     if(xBy)
     {
         VR_Carry_SetHeld(xBy, xHand, world);
