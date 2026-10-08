@@ -1374,14 +1374,19 @@ bool shadowsSupported()
     return true;
 }
 
-// vr_shadow_layered_check [repeats]: this frame's shadow maps drawn a face at a time and layered (vr_shadow_layered),
+// vr_shadow_layered_check [repeats] [cache]: this frame's shadow maps drawn a face at a time and layered (vr_shadow_layered),
 // `repeats` times each, alternating, timed (CPU: the submission; GPU: timestamps round it, waited for), then once more
 // each with the map lights' cached world drawn again too, read back and compared texel by texel (both atlases).
+// "cache": as vr_shadow_layered says both times, the casters set up for each light, then once a pass
+// (R_AliasDepthCacheBegin).
 int layeredCheckRepeats = 0;
+bool layeredCheckCache = false; // the comparison is the casters' set-up cache off and on
+bool setupCacheOn = true;
 
 void layeredCheck_f()
 {
     layeredCheckRepeats = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 1, 500) : 1;
+    layeredCheckCache = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "cache");
     if(!gl_viewport_layer_able || !depthLayeredProgram)
     {
         Con_Printf("vr_shadow_layered_check: no layered shadows here (%s), compared with themselves\n",
@@ -1450,7 +1455,9 @@ void layeredCheck(const Render& renderAll)
     GLuint queries[2] = {};
     GL_GenQueriesFunc(2, queries);
     double cpu[2] = {}, gpu[2] = {};
-    int calls[2] = {}, faces[2] = {}, models[2] = {};
+    int calls[2] = {}, faces[2] = {}, models[2] = {}, hits[2] = {}, misses[2] = {};
+    R_AliasDepthCacheStats(&hits[0], &misses[0]); // (cleared)
+    hits[0] = misses[0] = 0;
     za::Vector<float> depth[2];     // a face at a time: the atlas, the static atlas
     za::Vector<float> layeredDepth; // layered: one, then the other (three read-backs at most)
     DepthDiff diffs[2];
@@ -1458,7 +1465,8 @@ void layeredCheck(const Render& renderAll)
     {
         for(int way = 0; way < 2; way++)
         {
-            layeredOverride = way;
+            layeredOverride = layeredCheckCache ? -1 : way;
+            setupCacheOn = !layeredCheckCache || way == 1;
             const bool last = r == repeats; // the read-back: every atlas drawn again
             if(last)
             {
@@ -1473,6 +1481,10 @@ void layeredCheck(const Render& renderAll)
             const double t0 = Sys_DoubleTime();
             renderAll();
             const double t1 = Sys_DoubleTime();
+            int h = 0, m = 0;
+            R_AliasDepthCacheStats(&h, &m);
+            hits[way] += h;
+            misses[way] += m;
             GL_QueryCounterFunc(queries[1], GL_TIMESTAMP);
             GLuint64 begin = 0, end = 0;
             GL_GetQueryObjectui64vFunc(queries[0], GL_QUERY_RESULT, &begin);
@@ -1499,6 +1511,7 @@ void layeredCheck(const Render& renderAll)
         }
     }
     layeredOverride = -1;
+    setupCacheOn = true;
     GL_DeleteQueriesFunc(2, queries);
     int dl = 0, spots = 0, ml = 0;
     for(const DlightSlot& s : dlightSlots)
@@ -1514,8 +1527,9 @@ void layeredCheck(const Render& renderAll)
         spots, portalLightCount, ml);
     for(int way = 0; way < 2; way++)
     {
-        Con_Printf("  %s: %d draw calls, %d faces, %d model draws; CPU %.3f ms, GPU %.3f ms\n",
-            way ? "layered     " : "face at a time", calls[way], faces[way], models[way], cpu[way] / repeats, gpu[way] / repeats);
+        Con_Printf("  %s: %d draw calls, %d faces, %d model draws (%d set up, %d reused); CPU %.3f ms, GPU %.3f ms\n",
+            layeredCheckCache ? (way ? "set up once " : "each light  ") : way ? "layered     " : "face at a time", calls[way], faces[way], models[way],
+            misses[way] / (repeats + 1), hits[way] / (repeats + 1), cpu[way] / repeats, gpu[way] / repeats);
     }
     printDiff("atlas", atlas, diffs[0]);
     printDiff("static atlas", staticAtlas, diffs[1]);
@@ -1675,6 +1689,7 @@ extern "C" void VR_RenderShadowMaps(void)
     // Everything drawn into the atlases (twice by vr_shadow_layered_check).
     const auto renderAll = [&]()
     {
+        R_AliasDepthCacheBegin(setupCacheOn); // each caster set up once in this pass (r_alias.c)
         facesDrawn = 0;
         modelsDrawn = 0;
         glEnable(GL_SCISSOR_TEST);
@@ -1789,6 +1804,7 @@ extern "C" void VR_RenderShadowMaps(void)
         }
 
         profile::end();
+        R_AliasDepthCacheEnd();
     };
     if(layeredCheckRepeats > 0)
     {

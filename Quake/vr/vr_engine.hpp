@@ -83,6 +83,9 @@ void R_GetEntityBounds (const entity_t *e, vec3_t mins, vec3_t maxs); // gl_rmai
 void R_DrawAliasModelsDepth (entity_t **ents, int count); // r_alias.c: depth only (the shadow maps' casters)
 // r_alias.c: the same, each drawn once into all its faces (faces[i]'s bits; faceviewproj: 6 matrices; vr_shadow_layered)
 void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces, int count, const float *faceviewproj);
+void R_AliasDepthCacheBegin (qboolean on); // r_alias.c: a pass over the shadow maps' lights: each caster set up once in it
+void R_AliasDepthCacheEnd (void);
+void R_AliasDepthCacheStats (int *hits, int *misses); // r_alias.c: the set-ups reused and made since the last call
 qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, int side); // r_alias.c: into its wound mask (vr_wounds.cpp); side -1 all, 0 or 1 that side's
 qboolean R_PaintBrushWounds (entity_t *e, int numsplats, const float *splats); // r_world.c: a held brush model's box into its box mask (vr_wounds.cpp)
 void R_BModelCentre (entity_t *e, float out[3]); // r_world.c: where the middle of a brush model's box is drawn

@@ -96,6 +96,88 @@ static struct {
 	uint32_t	draws[MAX_ALIAS_INSTANCES * 6];
 } aliasfacebuf;
 
+// QVR: the shadow maps' casters set up once a pass over the lights (R_AliasDepthCacheBegin/End, vr_lighting.cpp's
+// VR_RenderShadowMaps): a caster in several lights had its lerp, matrices and zero blend worked out again for each.
+// Within a pass nothing they read changes (the entity, the time, the hands), and the first set-up's lerp updates leave
+// the entity as the next one finds it: the same numbers. Keyed by the entity (and its model and frame, against a copy
+// in the same place); a full neighbourhood just sets it up again. Not the depth draws outside a pass, not cl.viewent
+// (its gun offsets follow the camera's axes).
+#define ALIASDEPTH_CACHE_SIZE	4096	// a power of two
+#define ALIASDEPTH_CACHE_PROBES	16
+typedef struct {
+	const entity_t	*ent;
+	const qmodel_t	*model;
+	int			frame;
+	int			gen;
+	short		pose1, pose2;
+	float		blend;
+	int			totalverts;
+	int			zeroblend;
+	float		model_matrix[16];
+} aliasdepthentry_t;
+static aliasdepthentry_t	aliasdepthcache[ALIASDEPTH_CACHE_SIZE];
+static int					aliasdepthgen; // the pass's (0: none)
+static int					aliasdepthgens; // the last pass's
+static int					aliasdepthhits, aliasdepthmisses; // the last passes' (R_AliasDepthCacheStats)
+
+/*
+=================
+R_AliasDepthCacheBegin / R_AliasDepthCacheEnd -- QVR
+
+A pass over the shadow maps' lights (on: 0 sets each up every time, vr_shadow_layered_check's comparison).
+=================
+*/
+void R_AliasDepthCacheBegin (qboolean on)
+{
+	if (++aliasdepthgens <= 0)
+	{
+		memset (aliasdepthcache, 0, sizeof (aliasdepthcache));
+		aliasdepthgens = 1;
+	}
+	aliasdepthgen = on ? aliasdepthgens : 0;
+}
+
+void R_AliasDepthCacheEnd (void)
+{
+	aliasdepthgen = 0;
+}
+
+void R_AliasDepthCacheStats (int *hits, int *misses)
+{
+	*hits = aliasdepthhits;
+	*misses = aliasdepthmisses;
+	aliasdepthhits = aliasdepthmisses = 0;
+}
+
+// e's entry this pass (*hit: already set up) or the slot to keep it in; NULL none (no pass, or no room)
+static aliasdepthentry_t *R_AliasDepthSlot (const entity_t *e, qboolean *hit)
+{
+	uint64_t h;
+	int i;
+	*hit = false;
+	if (!aliasdepthgen || e == &cl.viewent)
+		return NULL;
+	h = ((uint64_t) (uintptr_t) e >> 4) * 0x9E3779B97F4A7C15ull;
+	h >>= 64 - 12;
+	for (i = 0; i < ALIASDEPTH_CACHE_PROBES; i++)
+	{
+		aliasdepthentry_t *s = &aliasdepthcache[(h + i) & (ALIASDEPTH_CACHE_SIZE - 1)];
+		if (s->gen != aliasdepthgen)
+		{
+			s->gen = 0; // claimed below once set up
+			return s;
+		}
+		if (s->ent == e)
+		{
+			if (s->model != e->model || s->frame != e->frame)
+				return NULL;
+			*hit = true;
+			return s;
+		}
+	}
+	return NULL;
+}
+
 /*
 =================
 R_FrameLerpFinish -- QVR: when the frame lerp of an entity whose messages carry a lerpfinish ends: as the message that
@@ -714,11 +796,25 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	aliasinstance_t	*instance;
 	int			totalverts;
 	int			nearflags; // QVR
+	aliasdepthentry_t	*cached; // QVR: set up already in this pass over the shadow maps' lights (R_AliasDepthSlot)
+	qboolean	cachehit;
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
 	//
 	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
+
+	cached = mode == ALIAS_DEPTH ? R_AliasDepthSlot (e, &cachehit) : NULL;
+	if (cached && cachehit)
+	{
+		lerpdata.pose1 = cached->pose1;
+		lerpdata.pose2 = cached->pose2;
+		lerpdata.blend = cached->blend;
+		memcpy (model_matrix, cached->model_matrix, sizeof (model_matrix));
+		portal_split = 0;
+		aliasdepthhits++;
+		goto cull;
+	}
 
 	R_SetupAliasFrame (e, paliashdr, &lerpdata);
 	R_SetupEntityTransform (e, &lerpdata);
@@ -757,6 +853,9 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	ApplyScale (model_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
 	VR_AliasPostTransform (e, model_matrix); // QVR
 	portal_split = mode != ALIAS_DEPTH && VR_PortalAlias (e, bounds_matrix, model_matrix, mapped_matrix, source_clip, destination_clip);
+	if (mode == ALIAS_DEPTH)
+		aliasdepthmisses++;
+cull:
 	if (!portal_split && !VR_AliasBonePoses (e, NULL) && !aliasfaces && R_CullModelForEntity(e)) // QVR: layered: the caller culled it by face
 		return;
 
@@ -819,8 +918,11 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	instance->pose2 = lerpdata.pose2;
 	instance->blend = lerpdata.blend;
 
-	for (hdr = paliashdr, totalverts = 0; hdr; hdr = Mod_NextSurface (hdr))
-		totalverts += hdr->numverts_vbo;
+	if (cached && cachehit)
+		totalverts = cached->totalverts;
+	else
+		for (hdr = paliashdr, totalverts = 0; hdr; hdr = Mod_NextSurface (hdr))
+			totalverts += hdr->numverts_vbo;
 
 	if (paliashdr->poseverttype == PV_QUAKE1 || paliashdr->poseverttype == PV_MD3)
 	{
@@ -833,7 +935,20 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 		instance->pose2 *= paliashdr->numbones;
 	}
 
-	instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
+	instance->padding = cached && cachehit ? cached->zeroblend : VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
+	if (cached && !cachehit) // QVR: kept for the pass's other lights
+	{
+		cached->ent = e;
+		cached->model = e->model;
+		cached->frame = e->frame;
+		cached->pose1 = lerpdata.pose1;
+		cached->pose2 = lerpdata.pose2;
+		cached->blend = lerpdata.blend;
+		cached->totalverts = totalverts;
+		cached->zeroblend = instance->padding;
+		memcpy (cached->model_matrix, model_matrix, sizeof (model_matrix));
+		cached->gen = aliasdepthgen;
+	}
 	VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr); // QVR
 	if (portal_split)
 	{
