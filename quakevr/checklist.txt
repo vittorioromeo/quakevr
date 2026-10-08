@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Explosion debris now real physics (server Box3D): rocket at a wall: chunks bounce, settle, glow, fade; ride a lift; a 2nd rocket scatters resting chunks; chunks hitting crates/explosive boxes make no sound and set nothing off. QC speedups (edict index): big fights (MG3 secret2) behave the same; Debug > Edict Index off/on changes nothing
 Particles/decals: blood decals appear in both eyes together; Half-Res Retro Particles stays OFF (explosions visibly soften, ~0.5 ms GPU only in explosion storms): try it in an explosion and say if you'd keep it; half-res particle edges now depth-aware (no orange fringe on crate edges)
 vrstart lecterns: six now (Quake/Armagon/Eternity left, Past/Machine/Dawn right of the gate walk): press each, SELECTED moves, the slipgate starts it (MG1/MG3 to their start maps); narrower lecterns still easy to reach and read, outer ones OK beside the braziers
 Slipgate crossing: walk slowly into a gate at Surface Opacity 1.0 and 0.3: the stars melt away over the last hand's width, no flash (Graphics > Slipgates > Portal Stars > Fade Up Close 0.3 m; try 0 and 0.5); no brighter walls at the crossing (translucent pass clamp fixed): also check translucent water near a bright lamp and lava through water: nothing white or blotchy
