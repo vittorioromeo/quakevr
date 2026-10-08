@@ -400,7 +400,7 @@ it does not enable a campaign merely because its BSPs now load. Source snapshot/
 
 `QC/vr_mg_*.qc` supplies authored fixed brush explosions/target activation, solid and non-solid bobbing,
 tossed/cascaded/shattered brushes, continuous rotation and acceleration, fog definitions/triggers/axis fades,
-light-style ramps and gas flames, ambient loops, embers/slipgate effects, decorative corpse poses/models and
+light-style ramps and gas flames, ambient loops, embers/teleporter effects, decorative corpse poses/models and
 MG3 segmented ropes. Helpers use the `MG_` prefix; mapper fields/classnames retain their authored names.
 `MG_WorldCampaign()` gates them to `vr_campaign` 3/4/5. `MG_WorldFrame()` runs registered tick callbacks beside
 existing VR frame hooks, skipping deleted entities without a dangling linked list. Reuse
@@ -647,7 +647,7 @@ precache warning. Rogue brush-explosion behavior remains in its original context
 Native quake sound and duration/ramp are retained; controller vibration replaces view
 punch so authored screenshakes never move the tracked head or camera.
 
-Visible slipgate destination caches now invalidate when native changetarget rewrites a
+Visible teleporter destination caches now invalidate when native changetarget rewrites a
 gate's target. This updates both traversal and preview. Native ignore-targetname4 is
 honored alongside existing legacy bit8 semantics. Debug portal reports print target and
 cached standing destination; standing height retains existing floor correction.
@@ -656,7 +656,7 @@ Acceptance uses private owned original-id1 plus official campaign PAK fixtures, 
 mock and `-nomapindex -noaddons -noconfigwrite`. Updated language tables are read-only
 borrowed data; no commercial asset is committed. `vr_mg_trigger_test` defaults0 and
 Debug > Tests exposes shared acceptance1, authored mge5m2 route2, lightning damage3 and
-visible slipgate retarget4. These tests deliberately alter the current map; reload it after use.
+visible teleporter retarget4. These tests deliberately alter the current map; reload it after use.
 
 Shared timing/target/cancellation/key/mover/effect tests pass34/0 in each native context
 Dopa3/MG1 4/MG3 5. Dopa pending-trigger save/load passes34/0 before and after load.
@@ -666,7 +666,7 @@ button window resets; coordinated physical presses remove both buttons and pendi
 flash, open the authored unlock door, awaken its delayed shalrath, then remove the
 quake blocker and repeater. This is representative shared progression, not full campaign QA.
 
-A separate private native-context fixture uses owned stock e1m5 slipgate geometry under
+A separate private native-context fixture uses owned stock e1m5 teleporter geometry under
 a private MG1 map name. Its five-side cache remains active and carry-enabled while the
 real changetarget advances destination X/Y by128/64 immediately; standing Z receives
 its existing13-unit floor correction. This fixture is not an authored MG1 map claim.
@@ -675,7 +675,7 @@ QC/Release/style/precedence/FGD checks pass (FGD279; QC0 warnings). The single-j
 canary cannot start because the existing exact authored motion CSV
 `no_hit_reloading_2026-09-29_23-08-51.csv` is absent; no replacement or tuning was used.
 
-Human VR QA should check keyed physical buttons, slipgate preview/traversal after
+Human VR QA should check keyed physical buttons, teleporter preview/traversal after
 retargeting and authored quake audio/vibration comfort. Corpse cleanup's isolated
 coop-context test is not network cooperative acceptance; Dopa remains solo-only.
 Default map-index startup and earlier unassigned rapid-transition failures remain outside

@@ -237,7 +237,7 @@ pages.
 |---|---|
 | **Graphics** | The [preset](#graphics-presets); anti-aliasing, smooth textures, fence coverage, relit maps, headset contrast (gamma is on VR Settings); links to the pages below; the performance profile and the FPS counter on the gadget (the memory log is on Debug - Profiling and Memory) |
 | **Relighting** | Relighting maps in the game: this map or many, the light sliders, the progress ([RELIGHTING.md](RELIGHTING.md#relighting-in-the-game)) |
-| **Slipgates** | Slipgate views and seamless slipgates (walking through), enemies seeing and shooting through them, the gates' look |
+| **Teleporters** | Teleporter views and seamless teleporters (walking through), enemies seeing and shooting through them, the gates' look |
 | **Retro Textures**, **Retro Lighting** | The retro look: blocky, palette-snapped textures per category of thing, and banded, dithered or blocky light (presets: Software Quake, Blocky Lightmaps, Banded and Dithered) |
 | **Recording** | The desktop window's view for recording (smoothing, zoom, field of view, the spectator camera), slow motion for footage, highlight markers ([vr-port/TRAILER.md](vr-port/TRAILER.md)) |
 | **Lights** | Light contrast, coloured lights, dynamic lights (falloff, uncapped, on models, angle); the lights of muzzle flashes, explosions, projectiles, lava nails, lightning beams, torches (count, brightness, shadows) and ammo screens |

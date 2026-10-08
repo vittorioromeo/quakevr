@@ -24977,7 +24977,7 @@ For the coming benchmarking and profiling round: 44 fixed scenarios and a runner
   settings header is shared with the JSON (`profile::settingCvars`, now with the retro, portal, mock and fixed-frame
   cvars).
 - **Scenarios** (`Misc/quakevr/bench/qvrbench.py`): idle (E1M1 in VR, flat and QRP; the firing range; the hub flat),
-  slipgates (the episode gate's view, off, flat; 24 grunts across it), combat (48 mixed monsters; with the spectator
+  teleporters (the episode gate's view, off, flat; 24 grunts across it), combat (48 mixed monsters; with the spectator
   camera; in bullet time; 64 monsters' AI alone; scripted jabs into 8 grunts), physics (500 props active and settled,
   32 ragdolls active and settled), effects (dense particles, 3 and 18 explosions a second, 1024 bullet marks streaming,
   4096 blood marks, 32 torches), lights (32 shadowed lights and the control, the flashlight), liquids (the range's
@@ -26401,7 +26401,7 @@ Voice notes e5start 17:12 and plaw01 17:07 (mantling fails onto a ledge whose to
 ledge map already finds lips of sloping tops (up to `minTopNormal` 0.7) and measures their depth along the plane; the
 mantle didn't stand on them: `findMantle`'s box goes to the lip's height (+1), so on a top rising away from the lip
 the box sits in the slope at every spot (22 to 38 units in) and the sweep over hits it: "no room to mantle". DOPA's
-e5start ledge by the hard slipgate (lip y 560, x 384..408, z 92) rises 4 units in its first 16 to a level top at 96.
+e5start ledge by the hard teleporter (lip y 560, x 384..408, z 92) rises 4 units in its first 16 to a level top at 96.
 
 Now (`vr_climb.cpp`): the old search is `findMantleLevel`, unchanged and tried first; when it finds nothing,
 `findMantleSloped` (with `vr_climb_mantle_lenient` 1, the default): at the same spots and sides, the player's box is let
@@ -27112,7 +27112,7 @@ matrices, bones, the head's shadow mesh), their faces chosen by the same tests a
 light's same models batch; holey skins a face at a time. Without the extension, or with `vr_shadow_layered 0`, the
 old path. `vr_shadow_layered_check [n]` (Debug > Profiling and Memory > Check Layered Shadows) draws both ways in one
 frame, times them and compares both atlases texel by texel: 0 texels differ on `combined`, `lights_32`, e1m1 (map
-lights, the flashlight) and start's slipgate (lights through it). `combined` (his settings, median of 3): draw calls
+lights, the flashlight) and start's teleporter (lights through it). `combined` (his settings, median of 3): draw calls
 7818 to 966, shadow CPU 1.69 to 1.03 ms, shadow GPU 6.7 to 0.6 ms, frame p50 22.7 to 16.6 ms; `lights_32` 3422 to
 394, 0.41 to 0.34 ms, 0.48 to 0.09 ms. Details and the table: LIGHTING.md, "Layered shadow casters".
 
@@ -27328,8 +27328,8 @@ logo, and the menus' browns are turned blood red (Menu Settings > **Blood Red Me
 
 Debug builds stopped a few frames into warden and ad_grendel (exit 42 with `SDL_ASSERT=abort`; a modal "Assertion
 failure at R_AddBModelCall ... 'num_instances > 0'" without it). The cause was not the layered shadow casters: the
-slipgate-reach change (47ff1eb5c, 2026-10-05) made the brush models' batches count an entity's instances from
-`bmodel_portal_counts` (2 for a model drawn again through a slipgate), and R_DrawBrushModels_Water got the same line,
+teleporter-reach change (47ff1eb5c, 2026-10-05) made the brush models' batches count an entity's instances from
+`bmodel_portal_counts` (2 for a model drawn again through a teleporter), and R_DrawBrushModels_Water got the same line,
 but the water pass never fills that array: it read the last brush pass's counts, 0 past that pass's entity count
 (warden's lit water: a call with no instances, its remap's instance `num_instances - 1` underflowing) or 2 for a
 copied model (a batch one instance too many). Release drew such a batch's water with the wrong instances or not at
@@ -27602,12 +27602,12 @@ vr_crash.cpp's VR_DescribeCallers, DbgHelp loaded on the first one, symbols from
   differently.
 
 Debug runs, `GL api (error|undefined)` count, all 0 after: e1m1; vrstart; vrfiringrange; start, and start at its
-slipgates (`setpos 232 1320 24 0 90 0`) in VR with `vr_light_test`, `vr_eyeshot 3`, the spectator and
+teleporters (`setpos 232 1320 24 0 90 0`) in VR with `vr_light_test`, `vr_eyeshot 3`, the spectator and
 `vr_portals_maxviews 8`, and flat with `vr_portals_shot`, `r_scale 2`, `viewsize 80`; the bench's `combined` and
 `particles_dense`; the menus (`menu_vr`, Debug > Checklist, Recording, the main menu, the console) and no map; both
 eyes (`vr_mirror 2`, `vr_eyeshot 1`); the spectator with Bullet Time; flat e1m1 with `r_showtris`, `r_lightmap`,
 `r_fullbright`; `vr_profile_overlay 2`, `vr_parallax_debug 1`, `vr_bloom 0`, `vid_restart`; vrcalibration; shadows off
-and back on. Release screenshots (e1m1, vrfiringrange, start's slipgates, e1m1 with shadows off) differ from the old
+and back on. Release screenshots (e1m1, vrfiringrange, start's teleporters, e1m1 with shadows off) differ from the old
 build's no more than two runs of the old build differ from each other.
 ## The calibration room: calibration only, id's base textures (2026-10-07)
 
@@ -27651,11 +27651,11 @@ committed `.bsp` embeds them; the WAD is made from your paks at build time and n
 - **To try in the headset**: the room's scale and light (the lower wainscot is dark by design: the light comes from the
   coffer and the pilasters' lamps), reading the board from the spot (letters 0.28-0.7), the pause on the menu button and
   Position: Seated, walking out through the doorway.
-## Slipgate test map (2026-10-07)
+## Teleporter test map (2026-10-07)
 
-`map vrslipgates` (Debug > Slipgates: Test Map, with rows that put you at the flush, framed, turning and
-heights/water gates): slipgate pairs to test walking, props and monsters through. Made by
-`Misc/quakevr/slipgates/make_vrslipgates_map.py [--compile]` (the .map, then qbsp, vis and light as MAPPING.md's Full
+`map vrteleporters` (Debug > Teleporters: Test Map, with rows that put you at the flush, framed, turning and
+heights/water gates): teleporter pairs to test walking, props and monsters through. Made by
+`Misc/quakevr/teleporters/make_vrteleporters_map.py [--compile]` (the .map, then qbsp, vis and light as MAPPING.md's Full
 profile without `-dirt`, for even light to debug by); id's textures (the author's decision: the committed .bsp embeds the
 ones it uses) from `quakevr/wads/id_textures.wad`, which `Misc/trenchbroom/make_id_wad.py` makes from the player's own
 id1 paks (git-ignored; the same script as the calibration map's). No leak, 28 gate sides built.
@@ -27685,7 +27685,7 @@ id1 paks (git-ignored; the same script as the calibration map's). No leak, 28 ga
   turns, the platform gate: their destinations' leaves touch a gate's face; the galleries' don't). `VR_PortalPVSOrigin`
   (vr_portals.cpp, from r_world.c) takes it round the destination's point instead, the point VR_PortalViewLeaf finds
   its leaf by. `r_novis 1` showed it before the fix.
-- **Headless results** (`Misc/quakevr/slipgates/slipgates_test.sh <agent> [walk|throw|chase|views]`): the player walks
+- **Headless results** (`Misc/quakevr/teleporters/teleporters_test.sh <agent> [walk|throw|chase|views]`): the player walks
   through every player-sized and bigger gate, both ways, flush and framed (sill 16 stepped over); the crate gates and
   the 32 sill stop him, a jump takes him through the 32 one; the loop, 90 and 45 degree turns, the heights (out at z 152
   on the platform) and the pool gates (into the water) carry him with the right yaw. Thrown: above. Chased (the player
@@ -27694,7 +27694,7 @@ id1 paks (git-ignored; the same script as the calibration map's). No leak, 28 ga
   gate next to it (135 frames: out at that gate's destination); a fiend through the flush large gate in 30 frames and
   the framed large one in 45-90 (one run of three it never left its spot). Grunts (and shamblers, ogres) stand and shoot
   through the gate instead (PORTAL_AI.md: ranged monsters see through one gate and don't walk to you). Views: both
-  eyes, every kind of gate (`scratch/slipgate_views.png`).
+  eyes, every kind of gate (`scratch/teleporter_views.png`).
 - **To try in VR:** each gallery's buttons with you on the far side; throwing crates and boxes through the 8-deep and
   48-deep gates; walking the loop; the 45-degree gate's turn; the pool gates.
 ## Blunt blows sound of what they hit (AUDIO_REVIEW.md row 4, 2026-10-07)
@@ -27958,7 +27958,7 @@ the same node (25591) with the same garbage plane number, through the hull build
 
 Your request: a new, much bigger and more polished hub in vrstart's spirit (a grassy island with a rocky beach in a
 lake ringed by cliffs, at night, torches and lights under the water), the player starting in a corner and led along
-one path (bridges, staircases, natural paths) past the campaign buttons and their slipgate, a settings area, a
+one path (bridges, staircases, natural paths) past the campaign buttons and their teleporter, a settings area, a
 makeshift firing range and a ladder; props, banners and tips. Added beside vrstart, not replacing it (yet).
 
 **Made by a script** (`Misc/quakevr/maps/vrstart2_gen.py`, its geometry in `mapgeom.py`; MAPPING.md, "vrstart2"):
@@ -27977,12 +27977,12 @@ the moonlight comes from; 6 x 1024 PNG, 2.8 MB) and `qvr_target` (a bullseye) in
 
 **Night lighting**: moonlight from the north-east (`_sunlight` 230, blue) and a dark blue sky dome, bounced light,
 fog; 32 wall torches on posts and brackets (they can be taken, as anywhere), 10 large flames (braziers, the
-campfire), lanterns, the slipgate's violet glow, 34 crystal clusters glowing cyan on the lake's floor. The fires and
+campfire), lanterns, the teleporter's violet glow, 34 crystal clusters glowing cyan on the lake's floor. The fires and
 lamps have no ambient occlusion (`_dirt -1`: with it the pavilion stayed black under its roof).
 
 **Gameplay**: the campaign lecterns use the old hub's commands (`vr_activestartpaknameidx 0/1/2`, so buttons.qc's
-"(unavailable)" for a missing mission pack still works; the slipgate is a `trigger_changelevel` to `start`, now
-without intermission); Dimension of the Past's lectern runs `vr_campaign_select dopa` (starts at once: the slipgate
+"(unavailable)" for a missing mission pack still works; the teleporter is a `trigger_changelevel` to `start`, now
+without intermission); Dimension of the Past's lectern runs `vr_campaign_select dopa` (starts at once: the teleporter
 only knows the three that share their folders). New engine bits: `VR_IsVrMap` (the four VR maps, replacing three
 copies of the list in vr_gamedir.cpp), **`vr_hub_map`** (archived, default `vrstart`; `vrstart2` makes the island the
 hub VR starts in and `vr_campaign_hub` returns to), vr_setup_option's `holsters`, `reload`, `twohand`, `tips` (the
@@ -28000,7 +28000,7 @@ caster search walking the big world tree (`dlight casters` 0.6 ms); fine against
 **Tested headless**: the path walked leg by leg with the mock stick (`Misc/quakevr/maps/vrstart2_walktest.py`: 18
 legs, pier, stairs, terrace, bridge, pavilion, stairs, range, shore path, the ladder's foot); a swim from the pier to a cliff ledge and out (40 s);
 `vr_setup_option turning` pressed by hand (Snap 30), the Scourge of Armagon lectern pressed
-(`vr_activestartpaknameidx` 1, its echo), the slipgate's changelevel; a rung held and pulled up (`vr_climb_debug`:
+(`vr_activestartpaknameidx` 1, its echo), the teleporter's changelevel; a rung held and pulled up (`vr_climb_debug`:
 "main hand holds at 132", the body rising); `vr_climb_probe` lists the rungs as ledges;
 `vr_menu_path_check maps/vrstart2.map`: 4 found, 0 missing. Notes: the climbing plays (`climb_plays.py ladder`) find
 no hold on vrclimb either in this harness (a hand 5 units off); qbsp needs `-maxnodesize 0` (the midsplit's portals
@@ -29054,7 +29054,7 @@ compilers' epsilons. 0.18.1's qbsp lost faces at the same places (10 hits). Two 
 - **qbsp is now ericw-tools 0.18.1's** (`DEFAULT_QBSP`, `--qbsp`; `-bsp2`), vis and light still 2.0's. Its liquids
   are TEX_SPECIAL (unlit, and never cut into faces small enough for a lightmap): the lake is now tiles of 160 units
   (`WATER_TILE`, every other one's texture shifted a whole copy so no two merge) and `lit_liquids` clears the flag on
-  the water's texinfos before light, so the water is lit as before (5728 lit faces, extents at most 160). The slipgate's
+  the water's texinfos before light, so the water is lit as before (5728 lit faces, extents at most 160). The teleporter's
   `*teleport` stays unlit (its face is 304 wide); it looks the same. qbsp takes 40-70 s (2.0: 240 s); the full compile
   about 13 minutes.
 
@@ -29227,7 +29227,7 @@ buttons); after: 0 of 30, no line over 4 m, the same with `-RealTime`, and 5 fre
 right after a spawn or a load still work (Turning by the off hand 20 frames after the load, the tutorial button 20 frames
 into the map, the Scourge lectern); the walk test 18 of 18; e1m1's smoke test. (eval.sh: no current melee takes.)
 
-**To try in VR:** load vrstart2 and vrstart a few times, from the menu, a save and the slipgates (come back from the
+**To try in VR:** load vrstart2 and vrstart a few times, from the menu, a save and the teleporters (come back from the
 tutorial or the firing range): no button presses itself; the buttons by the start still press at once.
 
 ## White text on the ammo screens (2026-10-07)
@@ -29721,9 +29721,9 @@ Asked: a versioning scheme, and "Quake VR: Unleashed - vX.X" over "by Vittorio R
   420-wide canvas) ends above it (`layout`, `versionLabelClearance`): VR unchanged (24/25 rows on VR Settings and Debug -
   Tools, label on or off); flat 20/20 rows (22/23 with it off). Left out on flat Key Bindings and Levels (their lists
   reach the corner). `menu_vr pos` prints it.
-## A frame seen through after a slipgate (2026-10-07)
+## A frame seen through after a teleporter (2026-10-07)
 
-Walking through a slipgate, one frame round the crossing showed the room beyond wrong: brush entities missing (start's
+Walking through a teleporter, one frame round the crossing showed the room beyond wrong: brush entities missing (start's
 pentagram floor, a func_bossgate, gone over the pit), or at 90-120 Hz a frame drawn from inside the gate's wall, and
 then the view held still for one or two frames. Three causes, found with a frame strip (`vr_screenshot_frames`, below)
 and per-frame prints of the client's lerp:
@@ -29735,7 +29735,7 @@ and per-frame prints of the client's lerp:
   the destination): the room seen without its doors, lifts and floors for a frame. At a higher frame rate the client's
   lerped body could itself reach past the plane uncarried: its eye, not through, drawn from inside the gate's wall.
   Now the crossing is also tried after the move (`VR_ClientRoomscaleMove` with no room-scale move; with one it already
-  was), so a message never has him past the plane uncarried. Same crossings (slipgate_cross_test.sh, slipgates_test.sh
+  was), so a message never has him past the plane uncarried. Same crossings (teleporter_cross_test.sh, teleporters_test.sh
   walk: every case's side and end place as before), one tick earlier.
 - **`VR_PortalAddPVS` sends both rooms while he straddles a gate** (within `kStraddle` = 32 units of its plane, over
   its opening, either way through): a body a sill or a frame keeps half through, an eye still behind the exit's face
@@ -29747,14 +29747,14 @@ and per-frame prints of the client's lerp:
   through `addTurn`, which made them again in the middle of the frame from the carried body (a frame early, then the
   same frame twice): the turn is now kept for the next frame's hands (`setServerYaw`).
 
-Frame strips (`Misc/quakevr/slipgates/teleport_frames_test.sh <agent> <rate> <fade> [start e1m1 flush]`: every frame
+Frame strips (`Misc/quakevr/teleporters/teleport_frames_test.sh <agent> <rate> <fade> [start e1m1 flush]`: every frame
 drawn round the crossing, the share of pixels changed frame to frame and a transient score, 4 frames written out):
-start at 72 Hz, the hole frame's transient 2.2% before, 0.4% after; vrslipgates' flush gate at 120 Hz, a 59% frame
+start at 72 Hz, the hole frame's transient 2.2% before, 0.4% after; vrteleporters' flush gate at 120 Hz, a 59% frame
 (the gate's wall) and two still frames before, an even 11-16% a frame after; e1m1's gate and the comfort fade at 0.6:
 no transient (0.04%). What is left at a crossing is one step of
 lighting: the room through the gate is a little darker (17.5 against 18.9 mean luminance at start): the shimmer
-(vr_slipgate_surface_opacity, half of it) and the torches' lights in the view through (r_dynamic 0: no step), not
-looked into. `vr_screenshot_frames <n>` (Debug > Slipgates > Frame Strip Through A Gate): a screenshot of each of the
+(vr_teleporter_surface_opacity, half of it) and the torches' lights in the view through (r_dynamic 0: no step), not
+looked into. `vr_screenshot_frames <n>` (Debug > Teleporters > Frame Strip Through A Gate): a screenshot of each of the
 next n frames drawn (a `wait` waits for a server tick and skips frames over 72 Hz), each with the time and the
 player's place printed.
 ## Knockdowns: the get-up's jitter (2026-10-07)
@@ -29947,7 +29947,7 @@ every variant tried had 0-9 hits in 600,000 rays (0.18.1: 0 in a million); this 
 
 **Tested**: the ray test (above); before/after shots from 11 fixed places (`scratch/contact_vs2bsp.png`: before, after,
 difference x4; mean differences 0.5-3.5 per channel against 0.4-1.8 between two runs of the same map, the campfire view
-16 against 9: flames, smoke and a barrel's random skin; the slipgate's surface is lit now, as 2.0 always made it);
+16 against 9: flames, smoke and a barrel's random skin; the teleporter's surface is lit now, as 2.0 always made it);
 the walk test 18 of 18 three times (the old map also misses a leg now and then: 1 of 4 runs); the tutorial, a lectern
 and Turning pressed by hand (`vr_debug_wallbuttons`: the same three buttons as on the old map); the 20 barrels and
 crates resting within 2 units of where they rested; 289 recovered clip brushes (180); e1m1's smoke test. **Loads**
@@ -29977,7 +29977,7 @@ the rest is the same. Tested: walk test 18 of 18 in 4 of 5 runs (one run missed 
 also misses one now and then), the three buttons pressed by hand as before, the 20 barrels and crates within 2 units of
 their old rest, `vr_menu_path_check` 0 missing, e1m1's smoke test. The contact sheet (`scratch/contact_vs2bsp_q018.png`
 in the agent's worktree): the same look (differences 0.6-3.8 per channel, the campfire's 12 its flames, smoke and a
-barrel's random skin) except the slipgate's surface, now lit and showing its texture (as the first 2.0 builds drew it;
+barrel's random skin) except the teleporter's surface, now lit and showing its texture (as the first 2.0 builds drew it;
 0.18 without -splitturb left it unlit and dark).
 
 ## vrstart2 becomes vrstart; the old hub is vrstart_old (2026-10-07)
@@ -30168,7 +30168,7 @@ The author's notes vrfiringrange_2026-10-07_22-01-29 .. 22-14-33 (reload_test.sh
   changed map: relit, not skipped; e1m1 (a .pak map from relit/'s copy): relit, then loaded as current.
 ## Evening notes of 10-07: reloading after a map change, quiet fists, strict catches (2026-10-08)
 
-- **Immersive reloading lost after a slipgate** (e1m2_2026-10-07_22-43-20). The client clears its stats on
+- **Immersive reloading lost after a teleporter** (e1m2_2026-10-07_22-43-20). The client clears its stats on
   `svc_serverinfo` (CL_ClearState), but the server only sends a stat when it differs from what it sent last
   (`client->oldstats_*`), and kept those across a changelevel: `STAT_QVR_RELOADMODE` stayed 3, was never resent, and
   read 0 on the new map (no pouch, no magazines; the cvar still said Immersive; changing the mode resent it). A loaded
@@ -30362,23 +30362,23 @@ no push: nothing woken), `palm_shove_1h`/`_2h` shoves only, `punch_straight` a p
 m/s nothing; `vr_melee_slap 0` nothing. A grunt slapped at `vr_melee_dmg_multiplier 20`: dead, "decap: no: a slap", no
 gibs; punched the same: a pop roll and gibbed. (The synthetic takes' eval verdicts read FAIL for the hits that do
 happen: their events name the dummy's enemy, `monster_army`, the verdict wants `vr_dummy`; not from this change.)
-## Slipgates: exits on their gates, props through, held objects, the force grab's beam (2026-10-08)
+## Teleporters: exits on their gates, props through, held objects, the force grab's beam (2026-10-08)
 
-The author's vrslipgates notes (23-10-11 .. 23-15-34) and start's 23-44-08. Headless checks of each:
-`Misc/quakevr/slipgates/slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|all]` (one line
-each, with what it must say; about two minutes for all). Debug aid: `vr_portals_debug_split` (Debug > Slipgates, Print
+The author's vrteleporters notes (23-10-11 .. 23-15-34) and start's 23-44-08. Headless checks of each:
+`Misc/quakevr/teleporters/teleporter_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|all]` (one line
+each, with what it must say; about two minutes for all). Debug aid: `vr_portals_debug_split` (Debug > Teleporters, Print
 Gate Cuts): each frame the entities drawn cut by a gate (its plane, how far through, its middle in the room it is in),
 -1 also the main hand's held object every frame, N entity N; the force grab's beam end; each thrown or rigid thing's
 middle and why a gate did not take it.
 
 - **Out a step past the gate (23-13-44): the code, not the map.** The seamless mapping took everything to the
-  destination marker, which vrslipgates stands 48 units out from the paired gate (56 framed) so that Quake's teleport
+  destination marker, which vrteleporters stands 48 units out from the paired gate (56 framed) so that Quake's teleport
   puts monsters clear of that gate's trigger. So the player popped out 48 units past the gate he seemed to walk out of,
   the view through showed the room from there, and the exit plane stood in the open room. `pairExits` (build): a side
   whose destination stands in front of another gate of its size (its aperture's width and height within 4 units,
   facing the way one walks out, within 128 units, its middle within 64 of where the aperture lands: sills included)
-  comes out of that gate's face (`vr_slipgate_pair_exits` 1, Graphics > Slipgates, Exits On Paired Gates). All 28
-  vrslipgates sides pair; the flush player gate carries 640 -> 928 (was 641 -> 977). Monsters still teleport to the
+  comes out of that gate's face (`vr_teleporter_pair_exits` 1, Graphics > Teleporters, Exits On Paired Gates). All 28
+  vrteleporters sides pair; the flush player gate carries 640 -> 928 (was 641 -> 977). Monsters still teleport to the
   marker (Quake's), so a monster comes out a step past the gate.
 - **Props cut far from a gate (23-10-11) and a held prop cut on the way (23-11-57)** were that exit plane in the open
   room: a crate resting on it was cut and its back half drawn again at the entrance. Paired, it is the gate's face. An
@@ -30392,7 +30392,7 @@ middle and why a gate did not take it.
   units (a crate on the floor had its Quake box under the floor: "all solid", never carried, and slid on into the
   wall), and a prop already past the plane, still straddling it and moving in, is carried. A small crate slid at 60
   u/s into the 8-deep player gate comes out at y 994 (was stopped at 627); the big crate through the player, large and
-  wide gates; slipgates_test.sh throw's 46 u/s crate now crosses the 8-deep gate.
+  wide gates; teleporters_test.sh throw's 46 u/s crate now crosses the 8-deep gate.
 - **A held prop's hitch (23-11-57).** What the hands hold is drawn where the tracked hands are, but it was drawn
   through a gate only while straddling it: wholly past the plane it was drawn behind the gate's surface (unseen) until
   the player crossed. Held objects (`held::drawnInHands`) now reach through as the hands and guns do, from the hands'
@@ -30402,7 +30402,7 @@ middle and why a gate did not take it.
 - **The force grab's beam (23-15-34)** went to the box's place in the room beyond; it now goes to its image behind
   the gate's surface (`portals::pullImageSeen`, the server's own pullImage), into the gate to the box seen there. A
   box force-grabbed through the large gate crosses and is caught.
-- **Torch fire seen in a gate (start 23-44-08).** With `vr_slipgate_surface_opacity` under 1 (his 0.3) the gate's
+- **Torch fire seen in a gate (start 23-44-08).** With `vr_teleporter_surface_opacity` under 1 (his 0.3) the gate's
   surface is drawn in the translucent pass and writes no depth: particles behind it were drawn over the view through
   it. The particles' fragment shader drops what lies behind a gate shown in this view, seen through its aperture
   (VR_PortalFrameData). Quake's own particles (`vr_particles 0`) and translucent sprites are not hidden so (not done).
@@ -30415,11 +30415,11 @@ middle and why a gate did not take it.
 - **Not done:** monsters through gates (Quake's teleport, to the marker), ragdolls and corpses through gates (no
   portal copies: a corpse falling into a gate meets the wall behind), recursive gate views and the head seen through a
   gate (note 23-12-32).
-- **To try in VR:** walk into vrslipgates' flush and framed gates slowly and stop half through (you are in both
+- **To try in VR:** walk into vrteleporters' flush and framed gates slowly and stop half through (you are in both
   rooms, no gap at the far gate); push a crate on the floor through a gate with the hands or the body (Debug >
-  Slipgates, Slide A Crate Through, shows it); carry a box through the loop room's gates (never cut before it reaches
+  Teleporters, Slide A Crate Through, shows it); carry a box through the loop room's gates (never cut before it reaches
   the gate, no hitch); force grab a box lying in the room beyond a gate (the beam goes into the gate); start's
-  underwater gate by the episode 4 slipgate with torch fire behind it.
+  underwater gate by the episode 4 teleporter with torch fire behind it.
 
 ## A stale vrstart.ent broke the island: .ent files pinned to their .bsp, plain ones checked (2026-10-08)
 
@@ -30473,8 +30473,8 @@ The author's notes vrfiringrange_2026-10-08_00-02-05 and 00-02-55, vrstart_2026-
 - **The main menu**: a gap above Quit, as between its other groups (`M_Main_GroupStart`; `M_Main_Layout` counts the
   gaps).
 - **Dimension of the Past's lectern** started the campaign at once because the campaign has its own game folder and
-  the slipgate's changelevel can't rebuild the folders (`VR_CanChangeCampaignMap` refused it). Now it selects
-  (`vr_activestartpaknameidx 3`, SELECTED over it) and the slipgate, at a hub, runs `vr_campaign_select dopa` (at most
+  the teleporter's changelevel can't rebuild the folders (`VR_CanChangeCampaignMap` refused it). Now it selects
+  (`vr_activestartpaknameidx 3`, SELECTED over it) and the teleporter, at a hub, runs `vr_campaign_select dopa` (at most
   once in 2 s while the gate is touched); a 3 left over on any other map is ignored ("start" is the running campaign's).
   Test: on vrstart `vr_activestartpaknameidx 3` leaves the map vrstart; `changelevel start` then loads e5start
   (vr_campaign 3, the hub selector back to 0); on e1m1 with 3, `changelevel start` loads Quake's start.
@@ -30678,7 +30678,7 @@ only costs time.
   `make_vrcalibration_map.py`, `make_vrtesthall_map.py`, `relight_quakevr_maps.py`); or, for the maps compiled before
   the key (none of the shipped .bsp files has it yet: recompiling vrstart takes half an hour, and a changed entity
   lump unpins a map's `<map>@<crc>.ent`), a loose map of the `quakevr` folder's own `maps/` named `vr*`: every map we
-  ship is (vrstart, vrstart_old, vrtutorial, vrfiringrange, vrcalibration, vrtesthall, vrslipgates, vrslopes, vrclimb,
+  ship is (vrstart, vrstart_old, vrtutorial, vrfiringrange, vrcalibration, vrtesthall, vrteleporters, vrslopes, vrclimb,
   vrexample). The prefix rather than a list: a new test map is covered without an engine change. A Map Library
   package's maps are in their own folder, so never caught by it.
 - **Where they are skipped:** `vr_relight_batch` of a set (episode, game, library, everything, the page's choice):
@@ -30722,15 +30722,15 @@ every cvar and the exclusions are in `docs/vr-port/STEALTH_PLAN.md`. Combat > St
 - Found on the way: a new map's props settle with knocks in the first seconds (they woke e1m1's monsters): prop noises
   before 4 s of level time are ignored. Quake's movetogoal keeps stepping the way it faces while it can, so a walk to a
   point is re-aimed at it each second (the return walk went the wrong way for 26 s).
-## Slipgates: your head through a gate, gates within gates, monsters and ragdolls through (2026-10-08)
+## Teleporters: your head through a gate, gates within gates, monsters and ragdolls through (2026-10-08)
 
-The author's vrslipgates note 23-12-32 and the last section's "not done" list. Headless checks:
-`Misc/quakevr/slipgates/slipgate_edges_test.sh <agent> [head|recursion|quake|ragdoll|monster|all]`.
+The author's vrteleporters note 23-12-32 and the last section's "not done" list. Headless checks:
+`Misc/quakevr/teleporters/teleporter_edges_test.sh <agent> [head|recursion|quake|ragdoll|monster|all]`.
 
 - **Your head through a gate (23-12-32).** The eyes' views collapse the body's head and neck (solveTorso); seen through
   a gate (the loop room shows your back) the body was headless. In a gate's view the body is drawn with the shadow maps'
   skin (head and neck as modelled), not when that view is drawn from within 30 cm of the eyes (an eye half through a
-  gate looking back). `vr_slipgate_self_head` 1 (Graphics > Slipgates, Your Head In Gates). head: facing the loop's west
+  gate looking back). `vr_teleporter_self_head` 1 (Graphics > Teleporters, Your Head In Gates). head: facing the loop's west
   gate (2048-pixel eyes), the head makes 62..80 pixels in a box round it, 0 with the views off.
 - **Gates within gates (23-12-32).** A camera's views are drawn before it, each view's own views first, deepest first,
   each depth into its own texture array (`stereo::renderPortals`/`renderPortal`; `portals::levels`, `path`,
@@ -30738,7 +30738,7 @@ The author's vrslipgates note 23-12-32 and the last section's "not done" list. H
   leaf, beyond its exit, within its box on the screen. In a view the teleport faces are drawn (its views; the deepest
   views' faces their shimmer). The oblique near plane stands half a unit beyond the exit: the exit gate's own faces
   facing back (a liquid's faces are made both ways) lay in it and covered the whole view, dimming it. The server sends
-  the rooms of the gates seen from a destination too. Settings (Graphics > Slipgates): `vr_portals_recursion` 2 (gates
+  the rooms of the gates seen from a destination too. Settings (Graphics > Teleporters): `vr_portals_recursion` 2 (gates
   deep beyond the first; 0 as before: faces in a view left out), `vr_portals_recursion_views` 2 (gates shown in a view
   through a gate; deeper the best one alone), `vr_portals_recursion_max` 4 (views within views an eye, the gate looked
   at most first), `vr_portals_recursion_scale` 2 (each gate deeper drawn at half the pixels a side: `r_refdef.scale`).
@@ -30754,7 +30754,7 @@ The author's vrslipgates note 23-12-32 and the last section's "not done" list. H
   surface (no depth written) they showed over the view. BehindShownGate (vr_glsl.h) in their fragment shaders (Quake's
   particles, sprites; alias models with alpha under 1; the alias shaders' frame block reaches the gates under its own
   names). Test aid: `vr_particle_test quake` (Quake's explosion particles and its explosion sprite, held two seconds),
-  Debug > Slipgates: Quake's Effects Behind A Gate. quake: behind start's underwater gate 0..2 pixels over the gate
+  Debug > Teleporters: Quake's Effects Behind A Gate. quake: behind start's underwater gate 0..2 pixels over the gate
   (671 with the test off), in front of it 15000 (a control).
 - **Ragdolls and corpses through gates** (not done last round). A ragdoll's parts get portal copies through the gate
   one of its parts goes into (each part over that aperture; one against the frame has none; the parts' boxes 4 units
@@ -30763,17 +30763,17 @@ The author's vrslipgates note 23-12-32 and the last section's "not done" list. H
   whole, every part by the gate's mapping (`portals::crossedGate`). ragdoll: a dead grunt blown head first into FA's
   player and large gates: carried, pelvis at y 1100..1170 (three runs each); `vr_portals_walk 0`: against the wall
   behind the gate. Copies for the whole ragdoll's box only (the first try) stopped it at the player gate half the runs.
-- **Monsters through paired gates** (not done last round): `vr_portals_monsters` 1 (Graphics > Slipgates, Monsters
+- **Monsters through paired gates** (not done last round): `vr_portals_monsters` 1 (Graphics > Teleporters, Monsters
   Walk Through). A monster's box goes into a paired gate's aperture (VR_PortalBodyMove, as a player's) and
   VR_PortalMonsterCross (SV_Physics_Step, after its think) carries it as its torso crosses (ideal_yaw turned too);
   QuakeC's teleport_touch leaves it to the engine when its box goes in as it stands, a step up or already straddling;
   else, and at unpaired gates (id maps' teleporters), Quake's teleport. monster: a dog chasing through the flush
   player gate comes out at y 932 (the face 928), a 32-unit run step unfolded; off: 976, a 76-unit jump.
-  slipgates_test.sh chase: all through as before (out 937..966).
+  teleporters_test.sh chase: all through as before (out 937..966).
 - **Not done:** a non-ragdoll corpse falling (MOVETYPE_STEP, dead) is not carried (ragdolls are on by default); the
   torch lights of rooms two gates deep are not selected (their lightmaps are); a monster's navigation stays local (it
   goes through a gate only when its way to its goal leads into it).
-- **To try in VR:** in vrslipgates' loop (Debug > Slipgates > Into the Loop) look into the west gate: your back with
+- **To try in VR:** in vrteleporters' loop (Debug > Teleporters > Into the Loop) look into the west gate: your back with
   its head, and yourself again a gate further and once more; check the frame rate there and with Gates Within Gates
   0..3; start's underwater gate with Opacity 0.3 and an explosion behind it (Quake's particles: Particles off); kill a
   grunt in front of FA's large gate and shoot or throw the corpse in; let a dog chase you through the flush player gate
@@ -30873,10 +30873,10 @@ as they now stand (its Status lists what remains).
   Misc/quakevr/multiplayer/stealth_mp_test.sh <agent>` (7 PASS), and the earlier `vr_stealth_test 1` / `2` (14 PASS).
   Debug > Tests > Stealth AI has every scene.
 
-## Slipgate monster tests: deterministic again; a spawned monster no longer forgets the player it just saw (2026-10-08)
+## Teleporter monster tests: deterministic again; a spawned monster no longer forgets the player it just saw (2026-10-08)
 
-- **Cause** of `slipgate_edges_test.sh monster` printing "never through" (both `vr_portals_monsters` 1 and 0) and of
-  `slipgates_test.sh chase` never reaching the north room: the stealth AI's meter. The tests give the dog 40 frames to
+- **Cause** of `teleporter_edges_test.sh monster` printing "never through" (both `vr_portals_monsters` 1 and 0) and of
+  `teleporters_test.sh chase` never reaching the north room: the stealth AI's meter. The tests give the dog 40 frames to
   spot a still, lit player 200 units ahead; the meter fills at about 0.3 a second there (seconds), so the dog was still
   Idle when he was moved behind the wall, and dogs don't look through gates (only ranged monsters do, PORTAL_AI.md).
   Both tests now run with Quake's sight (`vr_stealth_meter 0`; the rest of the stealth AI stays on): they test the
@@ -30897,10 +30897,10 @@ as they now stand (its Status lists what remains).
   marker, post and lost-at point carried when the monster crosses (VR_Portal_Crossed), or it would walk back and forth.
   (Done: the next section.)
 
-## Stealth AI through slipgates (2026-10-08)
+## Stealth AI through teleporters (2026-10-08)
 
-The three gaps above, closed (STEALTH_PLAN.md "Slipgates" has the rules; new `vr_stealth_gates 1`, Combat > Stealth AI >
-Through Slipgates; off: sight through gates is ranged monsters' only and noises stay in their room, as before).
+The three gaps above, closed (STEALTH_PLAN.md "Teleporters" has the rules; new `vr_stealth_gates 1`, Combat > Stealth AI >
+Through Teleporters; off: sight through gates is ranged monsters' only and noises stay in their room, as before).
 - **Seen through a gate**: the Alert point (a glimpse; a Hostile one's last sighting, `stl_lost_at`) is the player's
   image in the gate, with the gate (`stl_via`: the face it walks into, an exit's pair face; minus the gate when it can't
   walk through). The walk goes into the face's middle (48 behind its plane) until it crosses; a gate it can't walk
@@ -30917,13 +30917,13 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   no jumps at his real place). Ranged ones as before (stay and shoot).
 - Engine builtins `portal_ai_gateinfo(gate, what)` (count, flags 1 active / 2 paired / 4 monsters walk through, face) and
   `portal_ai_gate(gate, what, p)` (middle, normal, p held to the aperture, p carried through).
-- **Tests**: `stealth_tests.sh <agent> gates` (QC vr_stealth_test3.qc, `vr_stealth_test 110` on vrslipgates from room U;
-  Debug > Tests > Stealth AI > Through Slipgates): 11 PASS, the same numbers in 5 runs: the grunt Alert at the image
+- **Tests**: `stealth_tests.sh <agent> gates` (QC vr_stealth_test3.qc, `vr_stealth_test 110` on vrteleporters from room U;
+  Debug > Tests > Stealth AI > Through Teleporters): 11 PASS, the same numbers in 5 runs: the grunt Alert at the image
   (-1280 908, 0 off) via T's north gate after 1.2 s, through, within 63 of his spot, back at its post after 47.3 s with 2
   crossings; a knock (600 reach; 975 the straight way, 459 through the gate) the same (48.8 s), not heard with
   `vr_stealth_gates 0` nor at 0.85 of the 459; the dog through to him in 4.4 s (meter, then Hostile, through), with
   `vr_stealth_gates 0` its meter 0; `vr_ai_enhanced 0`: the dog no gate, the grunt Hostile through it. stealth_tests.sh
-  all 50 PASS, `vr_stealth_test 1` 0 failed, slipgate_edges_test.sh all and slipgates_test.sh chase as before (the grunt
+  all 50 PASS, `vr_stealth_test 1` 0 failed, teleporter_edges_test.sh all and teleporters_test.sh chase as before (the grunt
   still shoots through and stays).
 - One hop only: a point two gates away is walked to through the first gate (then searched there).
 
@@ -30939,7 +30939,7 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   e1m2 c457bcba), no thread catch.
 - **Monster dispensers face their "angle"** (buttons.qc func_enemy_dispenser_use): the monster made takes the
   dispenser's yaw before its spawn function (walkmonster_start's ideal_yaw comes from it); before, always 0 (east).
-  vrfiringrange's and vrslipgates' dispensers are at 0 (no change); vrexample's grunt at 180 now faces west. Test aid
+  vrfiringrange's and vrteleporters' dispensers are at 0 (no change); vrexample's grunt at 180 now faces west. Test aid
   `vr_test_dispenser <n>` (console; default 0): the map's n-th dispenser used as its button would, `test dispenser:`
   line. Test: `developer 1; map vrexample; vr_test_dispenser 1`: `spawn_grunt (yaw 180) made monster_army yaw 180`.
 - **Test runs use no network; a cancelled download never waits on a host name lookup** (host_cmd.c, vr_mapindex.cpp).
@@ -30959,7 +30959,7 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   gate's aperture: its body moved and turned by the gate's mapping, its speed and spin turned, its entity written there
   (writeCorpse; a box's yaw turned). Its portal copy already let it past the wall behind the gate, so before it went into
   that wall's far side and stayed there. `vr_physics_fling` now moves a pushable corpse (its body's velocity; a blast
-  does not move a 150 kg corpse). Test: `slipgate_edges_test.sh <agent> corpse` (vr_ragdoll 0, a dead grunt flung 300
+  does not move a 150 kg corpse). Test: `teleporter_edges_test.sh <agent> corpse` (vr_ragdoll 0, a dead grunt flung 300
   north into FA's player and large gates): 1 crossing each, ending at y 983..1194 (> 928, two runs); `vr_portals_walk 0`
   control 606..650; with the carry off it ended at 884 and 660 (inside the wall's far side, 0 crossings). The ragdoll
   section as before (1097, 1169; controls 616, 674). Not done: corpses of the fixed kinds (vr_corpse_collide 0/1/3:
@@ -30969,11 +30969,11 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   round the gates in front of the last round's carried eyes, in their PVS, near (kRange) and beyond the exit they look
   out of (as VR_PortalAddPVS's rooms), breadth first, at most 16 views (was 9, one gate deep). A view through a gate
   now counts a torch only in front of its exit (its plane facing the room it looks into): in an unvised map such as
-  vrslipgates every room is in every PVS and a carried eye lands near unrelated rooms (a torch at 200 800 counted at
-  845 units from T through the loop, now 1482: out of reach). Cost: 1.1 us a frame for 16 views in vrslipgates' T
-  (0.3 us for 5 before). Debug aid `vr_portals_lightviews [x y z]` (Debug > Slipgates > Torch Light Views): the views,
+  vrteleporters every room is in every PVS and a carried eye lands near unrelated rooms (a torch at 200 800 counted at
+  845 units from T through the loop, now 1482: out of reach). Cost: 1.1 us a frame for 16 views in vrteleporters' T
+  (0.3 us for 5 before). Debug aid `vr_portals_lightviews [x y z]` (Debug > Teleporters > Torch Light Views): the views,
   their depth, side and eye, the cost, a point's torch distance. Tested from T (-1280 700, facing U's gate):
-  recursion 0: 5 views, depth 1 (as before); recursion 2: 16, depth 3. vrslipgates has no third room (T and U, FA and
+  recursion 0: 5 views, depth 1 (as before); recursion 2: 16, depth 3. vrteleporters has no third room (T and U, FA and
   FB lead to each other), so no torch there is lit only two gates deep; a map chaining three rooms would show it.
 ## Dawn of the Machine (MG3): the full-campaign route sweep (2026-10-08)
 
@@ -31377,12 +31377,12 @@ really touch a magazine or the super shotgun's barrels to pop or open it.
 **Open:** the super shotgun broken open keeps its shut body (its barrels drawn turned down have none of their own);
 its pair dropped in needs 5 cm of leniency (3 with one hull).
 
-## Slipgates: the shimmer fades out up close; the step of light at a crossing (2026-10-08)
+## Teleporters: the shimmer fades out up close; the step of light at a crossing (2026-10-08)
 
-The step of light left at a crossing ("A frame seen through after a slipgate": the room through the gate a little darker
+The step of light left at a crossing ("A frame seen through after a teleporter": the room through the gate a little darker
 than the room itself). **The shimmer over the view through a gate now fades out over the eye's last 30 cm to the gate's
-plane** (`vr_slipgate_surface_fade` 0.3, metres; Graphics > Slipgates > Portal Stars > Fade Up Close; 0: it stays to the
-end): its share over the view (0.12 times `vr_slipgate_surface_opacity`) times the eye's distance in front of the plane
+plane** (`vr_teleporter_surface_fade` 0.3, metres; Graphics > Teleporters > Teleporter Stars > Fade Up Close; 0: it stays to the
+end): its share over the view (0.12 times `vr_teleporter_surface_opacity`) times the eye's distance in front of the plane
 over the fade's (LiquidShade, the eye's distance from LiquidPortal; `TeleportLook.z`, in units). Gone at the crossing.
 
 Measured with `teleport_frames_test.sh` (it now prints each frame's mean luminance), the frame before the crossing
@@ -31390,7 +31390,7 @@ against the frame after:
 
 | Case | Opacity | Before | After |
 | --- | --- | --- | --- |
-| vrslipgates' flush gate, walked into, 120 Hz | 1.0 | 79.1 -> 84.2 (a 6% step) | 79.4, 81.0, 83.1, 84.9 -> 84.2 (a ramp over the last 3 frames) |
+| vrteleporters' flush gate, walked into, 120 Hz | 1.0 | 79.1 -> 84.2 (a 6% step) | 79.4, 81.0, 83.1, 84.9 -> 84.2 (a ramp over the last 3 frames) |
 | | 0.3 | 84.4 -> 84.2 | 84.5, 84.4, 84.9, 85.5, 86.0 -> 84.2 |
 | start's middle gate, jumped into, 72 Hz | 1.0 | 20.1 -> 21.2 | 20.3 -> 21.2 |
 | | 0.3 | 19.8 -> 21.2 | 19.8 -> 21.2 |
@@ -31398,7 +31398,7 @@ against the frame after:
 - At start the whole-frame step is mostly not the view through: the frame before still shows start's own darker floor
   below the gate's sill. The gate's part of the picture (its upper 60%) goes 27.5 -> 28.3, about the walk's own rise
   from frame to frame (+0.5).
-- **What is left: the view through a gate is about 2.5% brighter than the room itself** (vrslipgates, the shimmer
+- **What is left: the view through a gate is about 2.5% brighter than the room itself** (vrteleporters, the shimmer
   faded: 86.3 against 84.2 a frame later; the 0.3 shimmer had hidden it by dimming it as much). Found by turning
   things off one at a time (the step at the crossing, 2.1 with the defaults):
 
@@ -31430,28 +31430,28 @@ Machine and Dawn of the Machine on the right (`vrstart_gen.py` `LECTERNS_X` -164
 within the curb and short of the braziers, as the four did).
 
 - **Selection**: the new lecterns run `vr_activestartpaknameidx 4` and `5` (SELECTED over them, as the others);
-  `VR_CanChangeCampaignMap` already handled any index 3 and over (at a hub the slipgate's changelevel runs
+  `VR_CanChangeCampaignMap` already handled any index 3 and over (at a hub the teleporter's changelevel runs
   `vr_campaign_select mg1` / `mg3`, which starts the campaign's `start`); only comments changed in C++.
 - **Unavailable**: QC buttons.qc's two copies of the check are one function, `button_campaign_unavailable` (1, 2 the
   mission packs; 3, 4, 5 `vr_dopa_status`, `vr_mg1_status`, `vr_mg3_status` != 1): "(unavailable)" under the label and
   the press refused ("Campaign unavailable...").
 - **Map**: rebuilt (final preset): 0 holes in 1,000,064 rays.
 - **Tested headless**: each new lectern pressed by the mock hand (`vr_debug_wallbuttons`: pressed by hand; its echo
-  "... selected: step into the slipgate"; the map stays vrstart; Dimension of the Past's too); `vr_activestartpaknameidx
-  4` / `5` then `changelevel start` (the slipgate's command): map start, `vr_campaign` 4 / 5, game
-  `id1;hipnotic;rogue;mg1;quakevr` / `...mg3...`; the real slipgate walked into with 4 and with 5 (the selector ran,
+  "... selected: step into the teleporter"; the map stays vrstart; Dimension of the Past's too); `vr_activestartpaknameidx
+  4` / `5` then `changelevel start` (the teleporter's command): map start, `vr_campaign` 4 / 5, game
+  `id1;hipnotic;rogue;mg1;quakevr` / `...mg3...`; the real teleporter walked into with 4 and with 5 (the selector ran,
   the campaign's start loaded); with `-nosteam -nogog -noepic` (no rerelease data) the three rerelease lecterns read
   "(unavailable)" and a press leaves the selector at 0; images of the row (owned, unowned, MG3 selected); the walk test
   18 of 18; `vr_menu_path_check maps/vrstart.map` 4 found, 0 missing.
-- Test note: `setpos` always turns noclip on (no trigger touched until `noclip` again), and the slipgate's
+- Test note: `setpos` always turns noclip on (no trigger touched until `noclip` again), and the teleporter's
   changelevel, like a button's command, is queued after the whole `-Script`: test the gate with `changelevel start`,
   or end the script without `quit` and read the log (`-Timeout`).
 
-## Slipgates: the view through a gate as bright as the room it shows (2026-10-08)
+## Teleporters: the view through a gate as bright as the room it shows (2026-10-08)
 
 The 2.5% left at a crossing (the section above: the room through a gate brighter than the room itself, on the lamp-lit
 walls). **Cause: the gate's faces clipped the view through at 1.** They are translucent liquid faces (`r_telealpha`
-times `vr_slipgate_surface_opacity`, under 1 whatever the opacity), drawn through Ironwail's order-independent
+times `vr_teleporter_surface_opacity`, under 1 whatever the opacity), drawn through Ironwail's order-independent
 transparency (`r_oit` 1), whose output clamped every colour to 0..1 (`OIT_OUTPUT`, and its resolve's `LinearToGamma`).
 The view through is a float scene (`vr_tonemap`) with lamp-lit walls up to about 2, as the room is when seen directly;
 on the gate each channel was cut at 1, so an orange-lit wall turned yellower and, past the tone curve (which rolls the
@@ -31465,7 +31465,7 @@ clamps by itself). Same cost. Translucent water, slime and lava lit above 1 now 
 world does (lava's glow above 1 was meant, the shader's comment says so; it was being clipped).
 
 **Measured**, the gate view's float scene against the eye's (`vr_portals_shot` now also writes a `.pfm`, and prints the
-camera the view was drawn from; Debug > Slipgates > The View Through A Gate, Read Back), vrslipgates' flush gate, the
+camera the view was drawn from; Debug > Teleporters > The View Through A Gate, Read Back), vrteleporters' flush gate, the
 eye 10 units in front, the same frame:
 
 | | Gate face / view, wall pixels 0.75-1 | 1-1.5 | Above 1 on the face |
@@ -31482,14 +31482,14 @@ of the frames before the crossing -> the one after:
 | flush, 120 Hz, opacity 1.0 | 79.4, 81.0, 83.1, 84.9 -> 84.2 | 78.2, 79.6, 81.4, 83.0 -> 84.2 |
 | start, 72 Hz, 0.3 / 1.0 | 19.8 / 20.3 -> 21.2 | 20.2 / 20.3 -> 21.2 (the gate's part 27.5 -> 28.3, as before) |
 
-No overshoot any more: the frames before rise to the room's level as the shimmer fades out (`vr_slipgate_surface_fade`)
+No overshoot any more: the frames before rise to the room's level as the shimmer fades out (`vr_teleporter_surface_fade`)
 and the last step is the fade's own (at opacity 1.0 its 12% still over the last frame, 1.2).
 
-Also: `slipgate_edges_test.sh`'s eye images (head, recursion) are read from the kit's base for the agent (the game's
+Also: `teleporter_edges_test.sh`'s eye images (head, recursion) are read from the kit's base for the agent (the game's
 `eyeshots/`), not the worktree's `quakevr/`, which does not exist ("No such file"); now all its sections pass (recursion
-2 counted a 2-pixel speck as a fourth sign: `slipgate_signs.py` ignores runs a row tall).
+2 counted a 2-pixel speck as a fourth sign: `teleporter_signs.py` ignores runs a row tall).
 
-- [ ] Walk into a slipgate whose room is lit by lamps (vrslipgates' flush gate, the start map's): no flash of brighter
+- [ ] Walk into a teleporter whose room is lit by lamps (vrteleporters' flush gate, the start map's): no flash of brighter
   walls at the crossing; the walls through the gate look as they do once through.
 - [ ] Translucent water near a bright lamp and lava seen through water: nothing turns white or blotchy.
 
@@ -31610,7 +31610,7 @@ the walk; no QuakeC changed (it stays the policy).
 
 ## Crouching: a smaller box (2026-10-08)
 
-Your note (vrslipgates_2026-10-08_14-46-51): crouching in real life should let you walk through a small teleporter
+Your note (vrteleporters_2026-10-08_14-46-51): crouching in real life should let you walk through a small teleporter
 and any low opening; the box stayed standing. Now crouched (your eyes under 36 units over your feet; half crouches 44
 and 52 too), your box is that tall against the map, bodies and shots, and you keep it until there is room to stand.
 Monsters' bullets aim lower at you crouched. The details: HULLS.md, "Crouching".
@@ -31621,7 +31621,7 @@ Monsters' bullets aim lower at you crouched. The details: HULLS.md, "Crouching".
   (Movement > Player Hitbox > Crouching; Debug > Tests > Crouch Shots, Crouch Status).
 - QuakeC: `vr_defs.qc` (`QVR_VRBITS0_CROUCHED`), `vr_crates.qc` (`VR_Crate_ShotAim`: no higher than 60% of
   `vr_crouch_height`), `vr_crouch_test.qc` (`vr_crouch_test <n>`).
-- Map: vrslipgates' crouching room east of the hub (`make_vrslipgates_map.py`): a 40-high tunnel and a 48-high gap
+- Map: vrteleporters' crouching room east of the hub (`make_vrteleporters_map.py`): a 40-high tunnel and a 48-high gap
   through a wall, cover 32 and 48 high with a monster panel beyond, and a 48x48 teleporter pair (east wall <-> south
   wall, either side of the tunnel). 0 holes.
 - Numbers (`crouch_test.sh`, mock headset 1.7 m standing, 1.3 m half, 1.0 m crouched): the tunnel stops you standing at
@@ -31635,7 +31635,7 @@ Monsters' bullets aim lower at you crouched. The details: HULLS.md, "Crouching".
   low until out), the gap with half a crouch, the small teleporters, a grunt from the panel while you crouch behind the
   low wall. Whether 36 for the lowest box (eyes about 1.1 m for a 1.7 m eye height) and the steps feel right.
 - Found on the way (not the crouch's): a player put straddling a teleporter's plane by `setpos` falls through it
-  uncarried when he walks on, standing too (vrslipgates' flush player gate).
+  uncarried when he walks on, standing too (vrteleporters' flush player gate).
 ## The gadget's side button: gear lights; bullet time from a screen tap (2026-10-08)
 
 Vittorio (map1_2026-10-08_14-07-47, vrfiringrange_2026-10-08_14-40-16): bullet time fired by accident (melee, incidental
@@ -31693,7 +31693,7 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
   (`EF_ROCKET`; Chthon's lava balls too), grenades (`EF_GRENADE` and Quake's grenade models, not a hand grenade with its
   pin in: `VR_GrenadeTrail`), monsters' (`EF_TRACER*`, `EF_ZOMGIB`, `laser.mdl`). A trail starts only for one flying
   at 200 units/s or more of the game's time (its last two messages), ends when it is not relinked, and a new one
-  starts after a jump of over 256 units (a slipgate) or a new model. Hitscan: `vr_weaponfx.cpp parseTracer` hands each
+  starts after a jump of over 256 units (a teleporter) or a new model. Hitscan: `vr_weaponfx.cpp parseTracer` hands each
   pellet over before the tracers' chance (tracer drawn or not), its head flying from the muzzle (a grunt's from his
   gun's) at the tracers' speed in `cl.time`, as the tracer does. A grunt's or enforcer's bullet is a monster's.
 - Drawing: after the heat haze (`VR_DrawHeatHaze` calls it; the haze's scene copy is now `haze::copyScene`, shared).
@@ -31704,7 +31704,7 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
   in the world across the ribbon (drawn in to its core, plus ripples anchored to the trail's odometer), projected in
   each eye, so both eyes see the same bend; not from what is in front of it (the scene's distances); blended in at its
   edges. Depth tested, no depth write; drawn before the tracers, so the tracer stays sharp. None in views through a
-  slipgate (`portals::viewing`). Foveation shades it as the scene.
+  teleporter (`portals::viewing`). Foveation shades it as the scene.
 - Only in bullet time, easing in over 0.15 s and out over `vr_bullettime_trails_fade` (0.6 s) after it ends; trails
   already there keep following their projectiles while it fades. Not with the recording's slow motion.
 - Cvars (Combat > Bullet Time > Distortion Trails): `vr_bullettime_trails` 1 (0 off, 2 always),
@@ -31817,7 +31817,7 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
   `vr_enemygun_spent_crackle` 1 (was 2.5), `vr_enemygun_spent_volume` 0.5 (0.25), `vr_snd_pitch_jitter` 10 (4),
   `vr_ssg_fire_anim_speed` 1.75 (1.4: the super shotgun's firing animation 0.34 s), `vr_stealth_corpses` 700 (600),
   `vr_stealth_meter_time` 1 (1.5), `vr_stealth_run_speed` 280 (250), `vr_stealth_torch` 500 (400),
-  `vr_slipgate_surface_opacity` 0.5 (0.3, vr_defaults.cfg), `vr_reload_port_shot_radius` 1.6 (1.5). Weapon settings
+  `vr_teleporter_surface_opacity` 0.5 (0.3, vr_defaults.cfg), `vr_reload_port_shot_radius` 1.6 (1.5). Weapon settings
   version 38: the Super Axe (slot 24, `vr_wofs_*_25`; its glowing twin inherits it) Offset Z -3.92 (0.046) and its
   first hotspot at 0.238 -1.952 -1.670, turned 4.40 / 3.50 / 2.74 (1.217 -2.025 1.354, 0 0 0). Held object settings
   version 68: the grenade (slot 4, progs/grenade.mdl) Grip X -0.3, Grip Y -1.1 (0, 0), Overlap 0.2 cm (0.75). Each where
@@ -31924,7 +31924,7 @@ Tests: `reload_test.sh` 12, `autopump_test.sh` 5, `gunshape_test.sh` 5, `pouchgr
 `empty_melee_test.sh` and `spentshake_test.sh`.
 ## Stealth AI: the author's notes of 2026-10-08 (see-through walls, the meters shown, the hunt, dogs, props)
 
-His notes (map1_14-09-24, 14-10-31, 14-10-59, 14-12-27, vrslipgates_14-42-42); STEALTH_PLAN.md has the rules, Debug >
+His notes (map1_14-09-24, 14-10-31, 14-10-59, 14-12-27, vrteleporters_14-42-42); STEALTH_PLAN.md has the rules, Debug >
 Tests > Stealth AI the scenes (`vr_stealth_test 120`-`129`, QC `vr_stealth_test4.qc`; `Misc/quakevr/stealth_tests.sh`).
 
 - **See-through walls** (`vr_stealth_seethrough 1`, Combat > Stealth AI > See-Through Walls): grates, fences, webs and
@@ -31967,7 +31967,7 @@ Tests > Stealth AI the scenes (`vr_stealth_test 120`-`129`, QC `vr_stealth_test4
   movetogoal meets them and only tries other ways at random. New `QC/vr_ai_props.qc` (`VR_AI_MoveToGoal`, in ai_run's
   chase, ai_walk's path and the stealth walks): a solid prop swept straight ahead is pushed (`physicspush` by the
   monster's weight; `vr_ai_prop_push 1`) and walked round (to the side nearer its goal with room; `vr_ai_props 1`;
-  Combat > Stealth AI > Getting Round). Test 124 (`stealth_tests.sh props`, vrslipgates room T, a knight 500 units off
+  Combat > Stealth AI > Getting Round). Test 124 (`stealth_tests.sh props`, vrteleporters room T, a knight 500 units off
   behind a row of five large crates): round them in 3.7 s (Quake's way 8.4 s). Its first form waited for movetogoal
   to fail: it never did (its random tries move the monster), so the prop is looked for before each step.
 
@@ -32055,9 +32055,9 @@ Checklist:
   main menu (two rows, clear of Advanced VR); point and pull the trigger: the releases page opens on the desktop.
 - [ ] After the next game release (marked Latest), an older build shows the notice within the hour.
 
-## Slipgates: shooting yourself, stuck behind a gate (2026-10-08)
+## Teleporters: shooting yourself, stuck behind a gate (2026-10-08)
 
-Vittorio (vrslipgates, 14:44 and 14:46): in the loop you see yourself through the gate, and a shot at your image
+Vittorio (vrteleporters, 14:44 and 14:46): in the loop you see yourself through the gate, and a shot at your image
 should hit you; and once, pushing a crate into a gate, he got stuck inside the wall behind it.
 
 **Shooting yourself.** A shot through a gate ignored its shooter the whole way: the trace's pass entity (`self`) is
@@ -32076,11 +32076,11 @@ skipped by `SV_ClipToLinks`, on the far side too, and a missile never meets its 
 - Self-damage is Quake's: armour, god mode, Quad, teamplay. The lightning gun's 600 units only reach round the loop
   room (640 wide) from close to the gate; the test fires it 23 units from the gate with the hand 0.4 m forward.
 
-`slipgate_selfhit_test.sh`: health 100 then pellet 97, nail 94, rocket -11, shotgun 92, nailgun 91, lightning 70, the
+`teleporter_selfhit_test.sh`: health 100 then pellet 97, nail 94, rocket -11, shotgun 92, nailgun 91, lightning 70, the
 shotgun held through the gate 92, god mode 100.
 
 **Stuck behind a gate.** Two ways to be left in the wall behind a gate, both found by the new fuzz
-(`slipgate_stuck_fuzz.py`: crates pushed into the flush, large, wide and loop gates by random walks, back-steps,
+(`teleporter_stuck_fuzz.py`: crates pushed into the flush, large, wide and loop gates by random walks, back-steps,
 sidesteps, jumps, flings and in-and-back bounces; `vr_portals_stuck` asks the engine after each):
 1. **The crossing cooldown.** After a crossing no other crossing was allowed for 0.5 s, but the split body (each half
    colliding in its own room) still let the torso past the plane. Stepping straight back into the gate he had just
@@ -32097,14 +32097,14 @@ sidesteps, jumps, flings and in-and-back bounces; `vr_portals_stuck` asks the en
    the body is in front of the gate's other face (a two-sided sheet's side turned the other way); now he walks back out
    (y 520 / 528).
 
-**The safety net** (`vr_portals_unstick`, default 1; Debug > Slipgates > Get Out of a Teleporter's Wall): each tick,
+**The safety net** (`vr_portals_unstick`, default 1; Debug > Teleporters > Get Out of a Teleporter's Wall): each tick,
 a walking player whose box is in the world's solid where he stands (`SV_Move` from his origin to itself: a gate's
 split included) with his torso by a gate's plane over its aperture (from half his box's depth in front to his box's
 depth and 32 behind) is got out at once: torso past the plane, carried on through (`crossPlayer`, a little further on
-if the exit holds him), else put back in front of it, else carried after all. `vr_portals_stuck` (Debug > Slipgates >
+if the exit holds him), else put back in front of it, else carried after all. `vr_portals_stuck` (Debug > Teleporters >
 Stuck in a Teleporter's Wall?) prints the state and the count. Noclip is left alone.
 
-`slipgate_unstick_test.sh`: setpos 30 and 44 into the wall: carried on (y 958, 972, unstuck 1); 20 in (a straddle): stays;
+`teleporter_unstick_test.sh`: setpos 30 and 44 into the wall: carried on (y 958, 972, unstuck 1); 20 in (a straddle): stays;
 4 in front: stays; back out from 12 and 20: out (y 520, 528); the rebound (in, out, in, then back through the exit):
 carried each time, never stuck. Off (`vr_portals_unstick 0`): Quake's `SV_CheckStuck` puts him back where he stood
 before setpos (the control).
@@ -32177,3 +32177,31 @@ lanterns, materials, sky, moonlight, fog; its cliffs at 1/1.75 scale) and compil
 - **For the take (the author)**: grab the axe anywhere (it comes by its handle); come up close behind him; swing so the
   axe's head (not its handle) crosses his head or upper neck, not his shoulders (his idle pose holds the rifle up: a
   low swing hits his arm). `vr_trailer_reset 1` between takes (or Debug > Tests > Trailer Scene > Reset Trailer Scene).
+
+## Teleporters, not slipgates (2026-10-08)
+
+Vittorio: in the Quake universe a slipgate is id's machine; the surfaces that take you elsewhere are teleporters.
+Everything of ours that called them slipgates says teleporters now: code, comments, QuakeC, menus (Graphics >
+Teleporters, its switch Quake VR Teleporters, Teleporter Stars; the Debug pages), console output, the test scripts
+(`Misc/quakevr/teleporters/`: `teleporter_edges_test.sh`, `teleporter_selfhit_test.sh`, `teleporter_unstick_test.sh`,
+`teleporters_test.sh`, `make_vrteleporters_map.py`, ...; `Misc/quakevr/teleporter_{off,cross}_test.sh`,
+`teleporter_off_profile.sh`), the bench scenarios (`teleporter_start`, ...), the docs and the maps' boards and tips.
+Player-visible text that said "portal" says teleporter too ("Portal Stars" is Teleporter Stars); `vr_portals_*` and
+`VR_Portal*` keep the name of the technique.
+
+- **Settings:** `vr_slipgates` is `vr_teleporters`, `vr_slipgate_{pair_exits,self_head,surface_size,surface_opacity,
+  surface_fade}` are `vr_teleporter_*`. The old names stay silent aliases (`VR_CvarAlias`, asked by `Cvar_FindVar` when
+  a name is not found): they read and set the new settings, so an old config's lines set them as it is executed (the
+  next write has the new names: that is the migration, no config version needed), and binds, scripts and benchmark
+  setups work. They are never listed, completed or written.
+- **The test map:** `vrslipgates` is `vrteleporters` (`.map`, `.bsp`, `.lit`, `.lux` moved with git). `VR_MapAlias`
+  loads it for `map vrslipgates` and for a save made there (tested: a save's map line edited to `vrslipgates` loads
+  `vrteleporters`); its welcome tip seen under the old names counts as seen (vr_tips.cpp).
+- **The maps' text:** vrstart (the campaign board, the lecterns' "step into the teleporter", the tip), vrtutorial2
+  (the arena's way-out board) and vrteleporters (its board, tip and title): the generators say teleporter, and each
+  regenerated `.map` differs from the committed one in those text lines only, so the BSPs' entity lumps were edited in
+  place (`bsp_set_entities.py --from-file`, as for vrstart's tutorial button) instead of a recompile: the geometry,
+  lightmaps, `.lit` and `.lux` are byte for byte the ones tested before.
+- **What still says slipgate:** id's (e1m1's name, the Slipgate Complex; the finale texts in client.qc; the mission
+  packs' `$map_walk_slipgate_exit`), the aliases above and their notes, quoted commit subjects, and the names of
+  scripts deleted before the rename (REPO_CLEANUP.md).

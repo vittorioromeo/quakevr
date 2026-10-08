@@ -52,7 +52,7 @@ Debug x64 built; a mock run loaded e1m1 (`vr_body_mode 1`), vrstart, vrfiringran
 
 | Path | Size | Why it is unused | Evidence |
 |---|---|---|---|
-| `Misc/quakevr/slipgate_dark_{cmp,diag,here,pair,sweep}.sh` | 5 KB | Diagnostics of the dark slipgate view (fixed in ce1e1ed13, round 21); each says "diagnostic (not a shipped test)" | named nowhere (`git grep`), default `AGENT=slipgate-dark` |
+| `Misc/quakevr/slipgate_dark_{cmp,diag,here,pair,sweep}.sh` | 5 KB | Diagnostics of the dark teleporter view (fixed in ce1e1ed13, round 21); each says "diagnostic (not a shipped test)" | named nowhere (`git grep`), default `AGENT=teleporter-dark` |
 | `Misc/quakevr/slipgate_see_diag.sh`, `slipgate_see_diag2.sh`, `slipgate_see_shot.sh` | 4 KB | Diagnostics of the far-gate view (89ca5735d); `see_shot` says its own readback "was taken out at the end of this round", and it sets cvars that never existed (`vr_eyeshot_mode`, `vr_hand_nudge*`, `vr_gadget_text`, `vr_hand_debug`) | named nowhere; those cvars are in no source and in no commit (`git log -S`) |
 | `Misc/quakevr/slipgate_pvs_probe.sh`, `slipgate_pvs_sweep.sh` | 2 KB | Probes of the `start` staircase PVS question (9559e0939), "diagnostic (not a shipped test)"; closed by 88c0f9fd7 ("vr_pvs_selfleaf removed: the missing-self-leaf diagnosis came from a broken BSP reader") | named nowhere |
 | `Misc/quakevr/pvs/head_map.sh`, `pvs/probe_head.sh` | 1 KB | Step probes of the same diagnosis (`AGENT=pvs-selfbit`) | named nowhere (FINDINGS.md names bspvis.py, q.py, extract_pak.py, sweep_images.sh, which stay) |
@@ -109,7 +109,7 @@ Debug x64 built; a mock run loaded e1m1 (`vr_body_mode 1`), vrstart, vrfiringran
 - Dated reports nothing names: `ALLOCATION_AUDIT_20261005.md`, `EXPLOSION_AND_FIRE_EFFECTS.md`,
   `HITZONES_AND_PORTAL_REVIEW_2026-10-04.md`, `NOTES_FEEDBACK_20261004.md`, `NOTES_FEEDBACK_20261005.md`,
   `OVERDRAW_PROP_TAILS_20261005.md`, `PARTICLES_DECALS_PERFORMANCE_2026-10-03.md`, `POSITIONAL_DAMAGE_DEBUG.md`,
-  `SLIPGATE_TORCH_REVIEW_2026-10-04.md`, `TORCH_TWOHAND_CRASH_20261005.md`, `ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md`.
+  `TELEPORTER_TORCH_REVIEW_2026-10-04.md`, `TORCH_TWOHAND_CRASH_20261005.md`, `ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md`.
 - `docs/vr-port/benchmarks/` (22 files, 1.1 MB): run manifests (`20261005_particle_optimization_manifest.json`
   alone 612 KB); `modelmetadata_20261005/{hands-control,interactions,particle-visual}.json` and `timings.csv` are
   named nowhere.

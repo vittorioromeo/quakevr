@@ -1,6 +1,6 @@
 # Benchmarks: the scenario suite
 
-A repeatable benchmarking and profiling round for every part of Quake VR: idle scenes, slipgates, combat, physics,
+A repeatable benchmarking and profiling round for every part of Quake VR: idle scenes, teleporters, combat, physics,
 gore (crowds dismembered at once, limbs lying about, first-cut hitches), particles and decals, dynamic lights,
 liquids, texture packs, menus, map loads (by phase, cold and warm) and complex custom maps, in VR (the
 mock headset, both eyes drawn) and flat. Each scenario is a fixed script; each run writes one JSON; the runner repeats
@@ -28,7 +28,7 @@ bash kit/bench.sh list [<group>]
 
 - `<agent>`: any worktree with a kit game folder (`new_agent.sh <agent>`), or `cleanup`. The build in that tree is
   measured; build it first (`build.sh`).
-- `--scenarios`: `all`, a group (`core`, `idle`, `slipgates`, `combat`, `melee`, `server`, `physics`, `gore`, `vfx`,
+- `--scenarios`: `all`, a group (`core`, `idle`, `teleporters`, `combat`, `melee`, `server`, `physics`, `gore`, `vfx`,
   `lights`, `liquids`, `textures`, `features`, `loading`, `maps`, `flat`, `control`), scenario names, or a comma list
   of them. Default `core` (13 scenarios, the round's quick picture).
 - Timing runs (the default) are **exclusive** (`run.sh --exclusive`: nothing else runs on the machine) and **paced**
@@ -105,18 +105,22 @@ bit-identical combat replays"). Their means are the measure, with three repeats 
 commands. The firing range's (`vrfiringrange`) fixtures stand at its spawn (316 -556); `vr_physics_spawn` puts
 monsters and torches ahead of the player.
 
+The teleporter scenarios were named `slipgate_*` (group `slipgates`, map `vrslipgates`) until 2026-10-08: the old
+names still select them, and result folders and baselines recorded under them (with `vr_slipgates` in their
+settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
+
 | scenario | groups | map | purpose and set-up |
 |---|---|---|---|
 | `idle_e1m1` | idle/core | e1m1 | The floor every other scenario adds to: E1M1's start, nothing moving (notarget), both eyes drawn. |
 | `idle_e1m1_flat` | idle/flat | e1m1, flat | The same view in flat mode (vr_enabled 0): what the desktop game costs, and the VR overhead by difference. |
 | `idle_e1m1_qrp` | idle/textures | e1m1 (QRP) | idle_e1m1 on the QRP base: texture memory and sampling cost of the replacement pack. |
 | `idle_range` | idle/core | vrfiringrange | The firing range at its spawn: Quake VR's content (props, text boards, decals) without action. |
-| `idle_start_flat` | idle/flat | start, flat | The start map's hall in flat mode (its slipgates in view), for the flat build's own baseline. |
-| `slipgate_start` | slipgates/core | start | Looking through the episode slipgate from its doorway: the destination scene, lights and entities per eye. |
-| `slipgate_start_off` | slipgates/control | start | slipgate_start with vr_slipgates 0: the portal's whole cost by difference. |
-| `slipgate_start_flat` | slipgates/flat | start, flat | slipgate_start in flat mode. |
-| `slipgate_ai_24` | slipgates/combat | start | Monsters' one-hop portal perception and fire across the gate (the perf suite's portal_enemies). |
-| `slipgate_loop_r0`..`r3` | slipgates/recursion (r2: core) | vrslipgates | Gates within gates: the loop's west gate 40 units out filling the view (it shows itself and T's north gate) at `vr_portals_recursion` 0-3: each level's views by difference. |
+| `idle_start_flat` | idle/flat | start, flat | The start map's hall in flat mode (its teleporters in view), for the flat build's own baseline. |
+| `teleporter_start` | teleporters/core | start | Looking through the episode teleporter from its doorway: the destination scene, lights and entities per eye. |
+| `teleporter_start_off` | teleporters/control | start | teleporter_start with vr_teleporters 0: the portal's whole cost by difference. |
+| `teleporter_start_flat` | teleporters/flat | start, flat | teleporter_start in flat mode. |
+| `teleporter_ai_24` | teleporters/combat | start | Monsters' one-hop portal perception and fire across the gate (the perf suite's portal_enemies). |
+| `teleporter_loop_r0`..`r3` | teleporters/recursion (r2: core) | vrteleporters | Gates within gates: the loop's west gate 40 units out filling the view (it shows itself and T's north gate) at `vr_portals_recursion` 0-3: each level's views by difference. |
 | `combat_48` | combat/core | vrfiringrange | Grunts, ogres, knights and scrags against a god-mode player: AI, traces, missiles, gore, decals, sounds. |
 | `ai_crowd_64` | combat/server | vrfiringrange | The server's side alone: 64 awake monsters chasing and shooting (r_drawentities 0, looking up): AI, movetogoal, traces, QuakeC; the rendering left out. |
 | `ai_crowd_64_quakeai` | combat/control | vrfiringrange | ai_crowd_64 with `vr_ai_enhanced 0` (Quake's AI: no stealth senses, noise, investigation): the enhanced AI's cost by difference. |
@@ -291,20 +295,20 @@ for each map load alone (the command to the first frame drawn), with VTune start
 
 ### Profiling run (2026-10-08)
 
-The overnight profiling run (agent `perf`): 24 scenarios (`core`, `slipgate_loop_r0..r3`, `ai_crowd_64` and its
+The overnight profiling run (agent `perf`): 24 scenarios (`core`, `teleporter_loop_r0..r3`, `ai_crowd_64` and its
 Quake-AI control, three tours, `torches_32`, `explosions_storm`, `idle_e1m1_flat`), the author's settings of 2026-10-06
 (`--settings his_cfg_20261006_1237.cfg`), paced at 90 Hz, exclusive, 900 frames. Before: `kit/benchresults/perf_base`
 (3 repeats, medians); after: `perf_final` (one run each, the final build). The controlled measure of each fix is its
 A/B (`perf_ab1_A` / `perf_ab1_B`: the two builds back to back, 3 repeats, 600 frames; in the commits). ms a frame;
 "n/a": the GPU timers of a frame with gates within gates read 0 before the profiler's fix (commit "Profiler: the
-always-on GPU phases read inside slipgate views").
+always-on GPU phases read inside teleporter views").
 
 | scenario | CPU avg before | after | CPU p99 before | after | GPU 3D before | after | frame p99 before | after |
 |---|---|---|---|---|---|---|---|---|
 | `combined` | 5.13 | 5.14 | 11.78 | 10.40 | 7.42 | 7.39 | 11.82 | 11.18 |
-| `slipgate_loop_r2` | 3.46 | **2.04** | 4.25 | 2.68 | n/a | 3.74 | 11.15 | 11.20 |
-| `slipgate_loop_r3` | 3.46 | **2.04** | 4.24 | 2.63 | n/a | 3.74 | 11.16 | 11.18 |
-| `slipgate_loop_r1` | 2.89 | **1.77** | 3.63 | 2.26 | n/a | 3.29 | 11.15 | 11.17 |
+| `teleporter_loop_r2` | 3.46 | **2.04** | 4.25 | 2.68 | n/a | 3.74 | 11.15 | 11.20 |
+| `teleporter_loop_r3` | 3.46 | **2.04** | 4.24 | 2.63 | n/a | 3.74 | 11.16 | 11.18 |
+| `teleporter_loop_r1` | 2.89 | **1.77** | 3.63 | 2.26 | n/a | 3.29 | 11.15 | 11.17 |
 | `ai_crowd_64` | 2.57 | 2.57 | 4.49 | 4.96 | 1.09 | 1.21 | 11.17 | 11.17 |
 | `combat_48` | 2.52 | **2.02** | 4.66 | 3.53 | 3.54 | 3.40 | 11.17 | 11.16 |
 | `load_e1m1` | 2.50 | 2.47 | 25.16 | 26.91 | 1.24 | 1.23 | 25.16 | 26.91 |
@@ -313,9 +317,9 @@ always-on GPU phases read inside slipgate views").
 | `gore_slash_32` | 2.01 | 2.03 | 4.75 | 4.90 | 2.49 | 2.46 | 11.15 | 11.15 |
 | `tour_warden` | 1.90 | 1.91 | 3.48 | 3.42 | 1.71 | 1.71 | 11.17 | 11.20 |
 | `ai_crowd_64_quakeai` | 1.76 | 1.79 | 4.57 | 3.49 | 0.92 | 0.96 | 11.16 | 11.19 |
-| `slipgate_loop_r0` | 1.70 | **1.18** | 2.07 | 1.60 | 2.08 | 2.07 | 11.18 | 11.19 |
+| `teleporter_loop_r0` | 1.70 | **1.18** | 2.07 | 1.60 | 2.08 | 2.07 | 11.18 | 11.19 |
 | `ragdolls_32_active` | 1.69 | 1.72 | 3.76 | 3.70 | 2.25 | 2.22 | 11.16 | 11.25 |
-| `slipgate_start` | 1.68 | **1.18** | 2.06 | 1.56 | 2.31 | 2.32 | 11.18 | 11.24 |
+| `teleporter_start` | 1.68 | **1.18** | 2.06 | 1.56 | 2.31 | 2.32 | 11.18 | 11.24 |
 | `tour_apsp3` | 1.62 | 1.66 | 2.40 | 2.46 | 1.10 | 1.10 | 11.19 | 11.18 |
 | `tour_ad_grendel` | 1.26 | 1.25 | 1.99 | 2.01 | 1.24 | 1.24 | 11.20 | 11.22 |
 | `particles_dense` | 1.15 | 1.18 | 1.62 | 1.61 | 5.72 | 5.71 | 11.19 | 11.19 |
@@ -327,7 +331,7 @@ always-on GPU phases read inside slipgate views").
 | `idle_e1m1_flat` | 0.55 | 0.57 | 0.82 | 0.87 | 0.24 | 0.24 | 11.22 | 11.22 |
 
 - **Every scenario holds 90 Hz** (frame p99 at the cap; the GPU's heaviest, `combined`, 7.4 ms of 11.1).
-- **Fixed**: the slipgate view array's framebuffer validated for every view (`slipgate_*` CPU -30 to -41% in the
+- **Fixed**: the teleporter view array's framebuffer validated for every view (`teleporter_*` CPU -30 to -41% in the
   A/B, any gate in view); `worldtrace::world`'s metadata lookup before its box test and the debris' doubled centre
   sweep (`explosions_storm` -19%, `combat_48` -16%, `ai_crowd_64` -15% in the A/B: one run of the crowd's fight
   varies more than that, see its row).
@@ -354,7 +358,7 @@ build). ms a frame.
 | `ai_crowd_64` | 2.14 | 1.92 | 1.98 | 2.07 | 4.52 | 4.19 | 0.37 | 0.38 | 0.47 | **0.32** |
 | `particles_dense` | 1.12 | 1.13 | 1.16 | 1.15 | 1.60 | 1.61 | 0.29 | 0.30 | 0.12 | 0.12 |
 | `decals_1024_stream` | 0.89 | 0.87 | 0.94 | 0.91 | 1.33 | 1.32 | 0.04 | 0.04 | 0.12 | 0.12 |
-| `slipgate_loop_r2` | 2.03 | 2.02 | 2.05 | 2.06 | 2.60 | 2.55 | 0.08 | 0.08 | 0.12 | 0.12 |
+| `teleporter_loop_r2` | 2.03 | 2.02 | 2.05 | 2.06 | 2.60 | 2.55 | 0.08 | 0.08 | 0.12 | 0.12 |
 | `idle_e1m1` | 0.66 | 0.64 | 0.70 | 0.68 | 1.18 | 1.15 | 0.01 | 0.01 | 0.12 | 0.12 |
 
 - **Particle lighting** on the game's threads (the lightmap reads still in order on the main thread; the dynamic
@@ -381,9 +385,9 @@ A/B is in its message (`perf3_cast_*`, `perf3_touch_*`, `perf3_text_*`, `perf3_e
 | scenario | CPU avg before | after | CPU p50 before | after | CPU p99 before | after | shadow maps before | after | SV_Physics before | after | screen before | after |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `combined` | 4.28 | **3.98** | 4.41 | **4.18** | 7.09 | 5.65 | 0.877 | **0.689** | 1.598 | **1.550** | 2.52 | **2.16** |
-| `slipgate_loop_r2` | 2.03 | **1.55** | 2.04 | **1.57** | 2.68 | 2.21 | 0.266 | 0.260 | 0.182 | 0.172 | 1.67 | **1.21** |
-| `slipgate_loop_r0` | 1.19 | **0.93** | 1.21 | **0.95** | 1.79 | 1.42 | 0.147 | 0.141 | 0.181 | 0.171 | 0.85 | **0.59** |
-| `slipgate_start` | 1.17 | 1.14 | 1.19 | 1.16 | 1.75 | 1.64 | 0.222 | 0.222 | 0.160 | 0.151 | 0.84 | 0.82 |
+| `teleporter_loop_r2` | 2.03 | **1.55** | 2.04 | **1.57** | 2.68 | 2.21 | 0.266 | 0.260 | 0.182 | 0.172 | 1.67 | **1.21** |
+| `teleporter_loop_r0` | 1.19 | **0.93** | 1.21 | **0.95** | 1.79 | 1.42 | 0.147 | 0.141 | 0.181 | 0.171 | 0.85 | **0.59** |
+| `teleporter_start` | 1.17 | 1.14 | 1.19 | 1.16 | 1.75 | 1.64 | 0.222 | 0.222 | 0.160 | 0.151 | 0.84 | 0.82 |
 | `props_500_active` | 2.46 | **2.37** | 2.49 | 2.42 | 4.53 | 4.36 | 0.053 | 0.054 | 1.123 | **1.071** | 1.06 | 1.03 |
 | `combat_48` | 1.47 | 1.50 | 1.42 | 1.44 | 2.86 | 2.78 | 0.094 | 0.091 | 0.363 | 0.352 | 0.94 | 0.97 |
 | `idle_e1m1` | 0.65 | 0.64 | 0.69 | 0.67 | 1.18 | 1.20 | 0.038 | 0.034 | 0.173 | 0.172 | 0.34 | 0.32 |
@@ -395,7 +399,7 @@ A/B is in its message (`perf3_cast_*`, `perf3_touch_*`, `perf3_text_*`, `perf3_e
   them into edict order as before): SV_Physics -0.05 ms in `combined` and `props_500_active`; both walks compared on
   393,216 calls: the same edicts.
 - **CRT world text boards** laid out only in the views whose frustum they reach (each eye and each gate view laid out
-  every board of the map): vrslipgates' loop -0.26 ms (r0) and -0.33 ms (r2, in its own A/B); screenshots equal.
+  every board of the map): vrteleporters' loop -0.26 ms (r0) and -0.33 ms (r2, in its own A/B); screenshots equal.
 - **Gate exits** (`reverseSide`) kept with the gates when they are built: 23,000 made a frame in the loop at recursion
   2; alias -0.09 ms there; 20.9 million kept exits compared with ones made in full: equal.
 - `combat_48`'s +0.03 ms is the fight's run-to-run spread (its phases: shadow maps and SV_Physics down).

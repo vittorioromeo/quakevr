@@ -121,7 +121,7 @@ Biggest port risks:
     - `doTouch`: if `canBeTouched && entBoxIntersection(ent,target)`, run `.touch` if set. If the target has `.handtouch` **and** ent is `FL_CLIENT` **and** (`!ent.ishuman || vr_body_interactions || vr_fakevr`), also call `VR_SetFakeHandtouchParams` (hand = 2, `cVR_FakeHand`) and run `.handtouch`.
     - `doHandtouch`, only if ent is `FL_CLIENT`: hand boxes are `handpos`/`offhandpos` ±2.5, against the target absbox ± 4.5 when it has `FL_EASYHANDTOUCH`. When `vr_enabled` is set it uses hand overlap; otherwise it uses body absbox overlap. If `handtouch && solid != SOLID_NOT` and the test passes, call `VR_SetHandtouchParams(offHandIntersects ? 0 : 1, …)` and run `.handtouch`.
   - So `.touch` of SOLID_BBOX/SLIDEBOX/BSP entities now fires on absbox overlap during linking. That is new versus vanilla.
-- **Purpose:** hand pickup of ammo, slipgates and thrown weapons; body-touch fallback for bots and pancake mode.
+- **Purpose:** hand pickup of ammo, teleporters and thrown weapons; body-touch fallback for bots and pancake mode.
 - **Ironwail:** `world.c` 287/336. It is vanilla (triggers only) and uses `sv_areanodes` and `Hunk_AllocNoFill`.
 - **Isolation idea:** replace the IW `SV_AreaTriggerEdicts`/`SV_TouchLinks` bodies when the VR progs are loaded. Put the hand part in `VR_SV_TouchLinksHands(ent, list, n)`. Keep an `if (vr_progs)` guard so vanilla behaviour stays for normal progs.
 - **Tag:** VR-CORE / GAMEPLAY

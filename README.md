@@ -87,7 +87,7 @@ are.
   you), with coloured light, ambient occlusion and lamps that light their rooms; **see-through water**.
 - A **darker, moodier look** like DarkPlaces: coloured dynamic lights, real-time shadows, bloom, lit particles,
   models lit by the map's lights, bump maps (Quetoo's material maps shipped), parallax and detail textures.
-- **Slipgates that show where they lead**, live: you, your missiles and the monsters' sight pass through.
+- **Teleporters that show where they lead**, live: you, your missiles and the monsters' sight pass through.
 - **Water** with waves, reflections, refraction, caustics, splashes and foam; tone mapping and colour grades; an
   optional **retro look**; FSR/NIS upscaling and foveated rendering.
 - **Spatial sound** with Steam Audio (HRTF, occlusion, reverb), physics sounds, and the soundtrack played from the

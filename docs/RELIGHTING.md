@@ -184,7 +184,7 @@ If you write the paths as `--quake .` from inside the Quake folder, that works t
 
 `quakevr\relight_textures.cfg` says which textures give off light and how much. Its `strength` line sets each kind's
 brightness: `fixture` (lamps, light panels and strips, the pyramid lanterns), `glow` (buttons, computer panels,
-runes, slipgates) and `liquid` (lava, slime). Rules below it make single textures brighter (`scale=`), name a
+runes, teleporters) and `liquid` (lava, slime). Rules below it make single textures brighter (`scale=`), name a
 texture a lamp (`kind=fixture`) or switch one off (`kind=off`), for every map, one game (`hipnotic/*/tlight02`) or one
 map (`e1m1/tlight11`). The comments at its top list every setting. After a change, run the relight again: only the
 maps whose lights changed are relit.
@@ -269,7 +269,7 @@ The settings:
 |---|---|---|
 | Light Textures | `vr_relight_strength` (1.2) | Everything a texture lights: lamps, light panels, glowing buttons and panels, lava. |
 | Lamps and Light Panels | `vr_relight_lamps` (1) | The light fixtures, times Light Textures (with `relight_textures.cfg`'s strength for them). |
-| Glowing Panels and Buttons | `vr_relight_glows` (1) | Buttons, computer panels, runes, slipgates, times Light Textures. |
+| Glowing Panels and Buttons | `vr_relight_glows` (1) | Buttons, computer panels, runes, teleporters, times Light Textures. |
 | Lava and Slime | `vr_relight_liquids` (1) | Their glow on the walls round them, times Light Textures. |
 | Map Lights | `vr_relight_maplights` (1) | The mapper's own lights: brighter or dimmer, reaching as far. |
 | Sunlight | `vr_relight_sunlight` (1) | The sun and sky light of maps that have them (id's maps have none). |

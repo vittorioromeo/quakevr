@@ -189,13 +189,13 @@ test without):
   kept is the nearest whatever the order).
 - **Holey skins** (`MF_HOLEY`, their fragment shader's alpha test) are drawn a face at a time after the rest.
 - Unchanged: the light's own selection and faces, the head's shadow mesh and the 30 cm skip (`vr_shadow_head`, once a
-  light as before), spot lights (one face), the lights through slipgates (their clip plane), the map lights' cached
+  light as before), spot lights (one face), the lights through teleporters (their clip plane), the map lights' cached
   world and moving casters (and their face masks).
 
 The depth is the same arithmetic as a face at a time, and bit-identical: `vr_shadow_layered_check [n]` draws the
 frame's shadow maps both ways `n` times each, then once more each with the map lights' cached world too, reads both
 atlases back and compares them (Debug > Profiling and Memory > Check Layered Shadows). On `combined`, `lights_32`,
-e1m1 (3 map lights with casters, the flashlight, test lights) and start's slipgate (8 dynamic and 2 lights through the
+e1m1 (3 map lights with casters, the flashlight, test lights) and start's teleporter (8 dynamic and 2 lights through the
 gate): 0 texels differ in either atlas. Eye images toggled in a paused frame: the same but for the known 1-level noise
 in 1-3 pixels; the spectator's the same.
 
@@ -248,10 +248,10 @@ dynamic lights are capped against bright walls, and nothing glows. Four changes,
     a quarter of the way to white for white and pale ones, a tenth for strongly coloured ones (red buttons, blue
     panels), which also get up to twice the light, a cap of 169 instead of 130 and twice the reach (`wait` 0.5).
   - Each texture has a budget of light, larger the more of it glows, shared by the glowing things in the room:
-    faces closer than 64 units are one thing (a button, a slipgate's frame), counting as their area in lights
+    faces closer than 64 units are one thing (a button, a teleporter's frame), counting as their area in lights
     (one every 128 x 128 units) or the square root of their faces; the things of every glowing texture within
     256 units add up. A button alone in its room lights it (round 11: e1m1's red buttons had 15, as their
-    texture's budget was shared by every button of the map; now 169, the room around tinted red); a slipgate's
+    texture's budget was shared by every button of the map; now 169, the room around tinted red); a teleporter's
     many faces do not flood their room. (A first version without the budget turned e1m1's arrival room red.)
   - Textures whose faces are all small (at most 2 x 128²: buttons, panels, signs, runes) get a point light 2 units
     in front of each face not in a wall, as bright as its own room allows; others get ericw's surface lights

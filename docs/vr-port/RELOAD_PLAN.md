@@ -82,7 +82,7 @@ gun's port are, as drawn) and draws.
   It is wasted only when it is gone: removed by the loose-ammo cap (`vr_reload_loose_max`, the oldest not held goes)
   or its time (`vr_reload_loose_time`, fading as small gibs do), or left behind at a level change.
 - In a hand at a level's end: refunded (as an unarmed hand grenade), so nothing is lost by walking through a
-  slipgate with a shell in the hand.
+  teleporter with a shell in the hand.
 - A partly used magazine (phase 2) keeps its count; put back in the pouch it refunds that count.
 - The mode switch never creates or destroys ammo: magazines keep what they hold whatever the mode.
 

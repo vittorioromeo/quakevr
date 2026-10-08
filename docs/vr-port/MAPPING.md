@@ -60,7 +60,7 @@ browser with help, key types, choices and a model preview.
 | `quakevr/maps/vrtesthall.map` (`.bsp`, `.lit`, `.lux`) | the test hall: the old calibration room's setting buttons, pool and climbing (`Misc/quakevr/make_vrtesthall_map.py`) |
 | `quakevr/maps/vrexample.map` (`.bsp`, `.lit`, `.lux`) | the example map and its compiled files |
 | `quakevr/maps/vrclimb.map` (`.bsp`, `.lit`, `.lux`) | the climbing test map (`Misc/quakevr/climb/make_vrclimb_map.py`) |
-| `quakevr/maps/vrslipgates.map` (`.bsp`, `.lit`, `.lux`) | the slipgate test map, id's textures (`Misc/quakevr/slipgates/make_vrslipgates_map.py`; ROUND21.md, "Slipgate test map") |
+| `quakevr/maps/vrteleporters.map` (`.bsp`, `.lit`, `.lux`) | the teleporter test map, id's textures (`Misc/quakevr/teleporters/make_vrteleporters_map.py`; ROUND21.md, "Teleporter test map") |
 | `quakevr/maps/vrstart.map` (`.bsp`, `.lit`, `.lux`) | the island hub at night (`Misc/quakevr/maps/vrstart_gen.py`, its geometry library `mapgeom.py`; the sky box `make_vs2_sky.py`, `quakevr/gfx/env/vs2night*.png`): below |
 | `quakevr/maps/vrtrailer.map` (`.bsp`, `.lit`, `.lux`) | the trailer's opening scene: a bridge across a night lake, the Super Axe on a pedestal, a grunt on the far islet (`Misc/quakevr/maps/vrtrailer_gen.py`, vrstart's parts; QC `vr_trailer.qc`): below |
 | `Misc/trenchbroom/make_id_wad.py` | writes `quakevr/wads/id_textures.wad` (git-ignored) from your paks: above |
@@ -278,7 +278,7 @@ with no face there is a hole.
 - **Layout** (x east, y north, the water's surface at z 0): a lake 8000 units across ringed by cliffs and mountains,
   the island in its middle (about 3100 x 2200), and the path from the south-west: the pier (the player's start) ->
   the arrival beach (welcome board, VR TUTORIAL and VR CALIBRATION buttons, a campfire) -> a staircase up the bank ->
-  the campaign terrace (six lecterns, the slipgate) -> a bridge over the ravine -> the settings pavilion (20
+  the campaign terrace (six lecterns, the teleporter) -> a bridge over the ravine -> the settings pavilion (20
   `vr_setup_option` buttons, each with its value screen) -> a staircase down -> the firing range (guns and
   ammunition on the benches; boards, crates, a dummy, an explosive box, rocks on a shelf) -> the shore path -> the
   lookout tower (a ladder of rungs at vrclimb's heights; a diving board over deep water). The places are dicts at the
@@ -293,10 +293,10 @@ with no face there is a hole.
   ground1_8 on the paths, rock3_2 on the beach, ground1_5 under water.
 - **Campaigns**: the lecterns (two rows of three either side of the way to the gate: id's Quake, Scourge of
   Armagon and Dissolution of Eternity on the left, the rerelease's Dimension of the Past, Dimension of the Machine and
-  Dawn of the Machine on the right; `LECTERNS_X`) run `vr_activestartpaknameidx 0` to `5` (the slipgate, a
+  Dawn of the Machine on the right; `LECTERNS_X`) run `vr_activestartpaknameidx 0` to `5` (the teleporter, a
   `trigger_changelevel` to `start` without intermission, starts that one; SELECTED shows over the chosen lectern;
   QC buttons.qc `button_campaign_unavailable` adds "(unavailable)" without the campaign's data). 3, 4 and 5 have game
-  folders of their own: at a hub the slipgate's changelevel runs `vr_campaign_select dopa`, `mg1` or `mg3` instead
+  folders of their own: at a hub the teleporter's changelevel runs `vr_campaign_select dopa`, `mg1` or `mg3` instead
   (`VR_CanChangeCampaignMap`), which starts e5start or the campaign's start; one left over anywhere else is ignored.
 - **The hub**: it is `vrstart`, the hub VR starts in and the menus' VR Hub returns to (it was `vrstart` until
   2026-10-07: `map vrstart`, a config's `vr_hub_map vrstart` (vr_cfg_version 99 moves it) and old saves made there
@@ -385,7 +385,7 @@ start, 180 ms again, 313 ms after vrstart (vrstart's 989).
 ## vrtutorial2: the tutorial (a generated map)
 
 `quakevr/maps/vrtutorial2.map` is written by `Misc/quakevr/maps/vrtutorial2_gen.py` (**edit the script, not the .map**;
-its geometry helpers are `mapgeom.py`'s). A military base by day: 12 lessons and an arena, then a slipgate to the hub.
+its geometry helpers are `mapgeom.py`'s). A military base by day: 12 lessons and an arena, then a teleporter to the hub.
 It is the tutorial (the main menu's and the hub's VR TUTORIAL, and a new install's first start: below); the old one,
 `vrtutorial`, still loads by name (Debug > Tests > Tutorial).
 
@@ -425,7 +425,7 @@ puts it).
 | 9 | room9v, room9 | the flashlight (taking it, switching it, flipping it, clipping it to a gun, the head torch) | a dark serpentine with blocks to jump and one (48) to climb |
 | 10 | room10 (a courtyard) | throwing; rockets, the grenade pouch | a button behind bars, pressed by a thrown rock |
 | 11 | room11a, 11b | fire (wall torches, burning crates; you burn too); lava nails | a passage stacked with crates to burn |
-| 12 | room12 (a courtyard) | an arena: the door shuts, a countdown, three waves (grunts, dogs, enforcers) | the waves (`func_vr_spawner`s, `trigger_counter`s); then the slipgate to `vrstart` |
+| 12 | room12 (a courtyard) | an arena: the door shuts, a countdown, three waves (grunts, dogs, enforcers) | the waves (`func_vr_spawner`s, `trigger_counter`s); then the teleporter to `vrstart` |
 
 Everything a gate uses has a supply that comes back (`func_vr_restock`: health, shells, nails, rockets, rocks and bricks,
 the shotgun, the nailgun); a player who dies comes back at the lesson's checkpoint (`info_vr_checkpoint`), his keycard

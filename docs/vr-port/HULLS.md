@@ -444,7 +444,7 @@ Quake's hull 1, 0.015 with B at 16 and 0.015 with A at 16 (29 traces and 66-73 h
 
 ## Crouching (`vr_crouch_hull`, 2026-10-08)
 
-Your note (vrslipgates_2026-10-08_14-46-51): crouching in real life should get you through a small teleporter and any
+Your note (vrteleporters_2026-10-08_14-46-51): crouching in real life should get you through a small teleporter and any
 low opening, but the box stayed standing. Now, crouched, the box is lower: the same compiled-hull machinery as the width
 (method A, or B's sweep), with boxes of a few fixed heights, each compiled at the map's load beside the standing one.
 
@@ -479,7 +479,7 @@ Settings (Movement > Player Hitbox > Crouching):
 | Heights Above It | `vr_crouch_step` | 8 | 0 (that one only), 4, 8, 12 |
 | Crouch Status | `vr_crouch_status` | | your eyes' height, your box's (0 standing), whether you could stand |
 
-Tests: `Misc/quakevr/slipgates/crouch_test.sh <agent>` in vrslipgates' crouching room (east of the hub: a 40-high
+Tests: `Misc/quakevr/teleporters/crouch_test.sh <agent>` in vrteleporters' crouching room (east of the hub: a 40-high
 tunnel, a 48-high gap, cover 32 and 48 high, a 48x48 teleporter pair); `vr_crouch_test <n>` (Debug > Tests > Crouch
 Shots, `vr_crouch_test.qc`): a grunt ahead fires n bullets as it aims them.
 

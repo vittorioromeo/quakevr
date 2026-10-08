@@ -316,10 +316,10 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
   textures (shipped; Graphics - Surfaces > *External Maps*), with a sheen under dynamic lights. Parallax makes walls
   look deep. Detail textures (stone, metal, wood grain) sharpen surfaces up close, where Quake's textures would blur.
   There is also anti-aliasing for sheen and for fences and grates.
-- **Slipgates that show where they lead:** like Portal's portals, a slipgate shows the place it takes you to, live
+- **Teleporters that show where they lead:** a teleporter shows the place it takes you to, live
   (monsters and all), in each eye, on any map. You walk through into the place you saw, keeping your speed and the way
   you face; rockets, grenades and nails fly through too, and monsters see and shoot through them. One switch (Graphics
-  > Slipgates, `vr_slipgates`) turns all of it off, back to Quake's teleporters exactly as they were.
+  > Teleporters > Quake VR Teleporters, `vr_teleporters`) turns all of it off, back to Quake's plain teleporters.
 - **Water and liquids:** waves that move the surface, reflections of the room around them and refraction, glints,
   caustics, big splashes and ripples that move the waves, shoreline foam, heat haze over lava, fog and a gentle wobble
   under water.
@@ -349,9 +349,9 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
 ## Maps, campaigns and mods
 
 - **The VR hub** (`vrstart`, an island in a lake at night) is where the game starts: a path from the pier past the
-  campaign lecterns and their slipgate, a settings pavilion, a firing range and a lookout tower. Pick Quake, Scourge of
+  campaign lecterns and their teleporter, a settings pavilion, a firing range and a lookout tower. Pick Quake, Scourge of
   Armagon, Dissolution of Eternity, Dimension of the Past, Dimension of the Machine or Dawn of the Machine and step
-  into the slipgate. Its boards and tips explain the
+  into the teleporter. Its boards and tips explain the
   basics. (The old hub is `vrstart_old`, in the Debug menu.) From *Advanced VR Options > Play* you can go back to the
   hub, the **tutorial** or the **firing range** (weapons to try, both swords, the crowbar, props, and the training
   dummy).

@@ -10,9 +10,9 @@ the runtime's waits), GPU = `gpu_3d_ms` (both eyes and the mirror). Medians of 3
 
 ## Decisions
 
-### 1. Slipgate recursion default (`vr_portals_recursion`, now 2)
+### 1. Teleporter recursion default (`vr_portals_recursion`, now 2)
 
-`slipgate_loop_r0..r3` (vrslipgates' loop gate filling the view: it shows itself and T's north gate; ms a frame):
+`teleporter_loop_r0..r3` (vrteleporters' loop gate filling the view: it shows itself and T's north gate; ms a frame):
 
 | recursion | CPU before the fix (3 runs) | CPU after (1 run) | GPU 3D after | views an eye |
 |---|---|---|---|---|
@@ -28,24 +28,24 @@ entities, alias models, shadow selection) and its GPU (about 0.4-0.8 ms a view a
 pixels a side).
 
 - **Win of a lower default**: recursion 1 saves about 0.27 ms CPU and 0.45 ms GPU against 2, only where a
-  gate is seen through a gate (vrslipgates' loop, the hub's gate rooms); 0 saves 0.86 / 1.67 ms.
+  gate is seen through a gate (vrteleporters' loop, the hub's gate rooms); 0 saves 0.86 / 1.67 ms.
 - **Drawback**: a gate seen through a gate shows its shimmer instead of the room behind it (1: one level deeper drawn).
 - **Recommendation**: keep 2. With the fix the worst case fits a 90 Hz frame with room to spare on this machine
-  (CPU about 2 ms, GPU about 3.7); a "Slipgate Detail" choice in a low graphics preset could set 1.
+  (CPU about 2 ms, GPU about 3.7); a "Teleporter Detail" choice in a low graphics preset could set 1.
 
-### 2. Shadow maps drawn again for each slipgate view
+### 2. Shadow maps drawn again for each teleporter view
 
 `VR_RenderShadowMaps` chooses its lights for the camera; a portal camera's choice differs (lights near the gate's
 exit), so the shadow atlas is rendered again whenever the camera switches between a portal view and an ordinary one:
 with a gate in view, up to four times a frame (left eye's views, left eye, right eye's views, right eye) instead of
-once. `slipgate_loop_r2`: shadow maps CPU 0.26-0.32 ms against 0.17 at recursion 0; GPU 0.53 against 0.23.
+once. `teleporter_loop_r2`: shadow maps CPU 0.26-0.32 ms against 0.17 at recursion 0; GPU 0.53 against 0.23.
 
 - **Option**: a second atlas for the portal cameras (kept for both eyes' views), or the portal cameras' lights chosen
   once a frame from the gates in view.
 - **Win**: about 0.15 ms CPU and 0.3 ms GPU a frame with a gate in view (more on a map with many shadowed lights).
 - **Drawback**: memory (a second atlas: vr_shadow_dlights' tiles again) or a shared choice that may differ from each
   view's own nearest lights (a light's shadow switching with the eye).
-- **Recommendation**: worth it only if slipgate rooms with many shadowed lights show up in his maps; not urgent.
+- **Recommendation**: worth it only if teleporter rooms with many shadowed lights show up in his maps; not urgent.
 
 ### 3. Explosion debris at rest still traced every frame
 
@@ -184,13 +184,13 @@ box (not exact for models whose centre lies outside their box). Vittorio's decis
 instead of walking, the results identical. **Done** (`vr_forcegrab_grid`, on; vr_builtins.cpp):
 - The candidates are the edicts the area grid links (`SV_AreaEdictsUnordered`, as `VR_TouchLinks` uses it: every
   edict that can pass is linked, only SOLID_NOT isn't) within a box round the hand and round each of its images through
-  the slipgates (`pullSearchOrigins`): the range, the broad phase's margin and 128 units for a drawn middle outside its
+  the teleporters (`pullSearchOrigins`): the range, the broad phase's margin and 128 units for a drawn middle outside its
   box (the most measured: a knocked-down ogre's 47 units; weapons and backpacks 6-12). Sorted into edict order and
   tested exactly as the walk tests each edict, so the chain is the same edicts in the same order.
 - Checked: `vr_forcegrab_grid_verify 1` walks as well and compares the chain (the walk's answer used on a difference,
   which is printed and counted: `vr_forcegrab_grid_stats`; Debug > Profiling and Memory). 0 differences in 14,186
   searches (secret2 awake and its tour, map2 awake, its kill-all and its tour, combined, combat_48, a 1000-prop pile
-  and a blast through it, `start`'s slipgates with a pull through a gate, vrslipgates); `vr_prop_query_test` (96
+  and a blast through it, `start`'s teleporters with a pull through a gate, vrteleporters); `vr_prop_query_test` (96
   ordered-chain comparisons, ranges 0 to 4096) passes on each.
 - **Win** (`profile_qc`, 525 frames, the same build both ways): `mg3_secret2_awake` 0.119 / 0.135 -> 0.005 / 0.006 ms
   a frame (two runs each; ~11 edicts tested a search instead of ~1100). `combined` (300 props packed round you)

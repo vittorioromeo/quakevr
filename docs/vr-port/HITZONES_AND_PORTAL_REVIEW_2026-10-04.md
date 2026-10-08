@@ -26,7 +26,7 @@ the same day). Checked against the current code; line numbers are at `bbe2ed97`.
 | Backed gates (recommendation) | **fixed** `98864d26` (option 1) | Split collision at the plane: `VR_PortalBodyMove` (`vr_portals.cpp:1182`), `portalplane` clipping in `Quake/world.c:895,1095`. Residual, **open P3**: the destination body bound is axis-aligned (`vr_portals.cpp:1563`), so a non-cardinal turn can block a narrow exit (recorded under "Verification of the fixes"). |
 | HANDOFF.md/QUEUE.md corrections | **obsolete** | These files are outside this repository (`C:/OHWorkspace/qvr-kit`) and have since been rewritten. The corrected claims ("server bit k = leaf k", "inert in flat mode", `82ebe9c5`) no longer appear in them. |
 
-Local paths: `C:/OHWorkspace/qvr-kit/...` and the `build-cmake/slipgate-review/...` logs and screenshots exist only on
+Local paths: `C:/OHWorkspace/qvr-kit/...` and the `build-cmake/teleporter-review/...` logs and screenshots exist only on
 the author's machine (an ignored build tree). They are not in Git.
 
 ## New hitzones findings
@@ -143,8 +143,8 @@ Reproduced with `vr_enabled 0` in `vrfiringrange`, at
 `setpos -460 -672 17 0 180 0`. At `vr_worldtext_crt 1`, the soldier/ogre boards
 are blank. Changing only to `vr_worldtext_crt 0` renders their labels. Images:
 
-- `build-cmake/slipgate-review/quakevr/screenshots/vrfiringrange_2026-10-04_16-05-55.png`
-- `build-cmake/slipgate-review/quakevr/screenshots/vrfiringrange_2026-10-04_16-05-56.png`
+- `build-cmake/teleporter-review/quakevr/screenshots/vrfiringrange_2026-10-04_16-05-55.png`
+- `build-cmake/teleporter-review/quakevr/screenshots/vrfiringrange_2026-10-04_16-05-56.png`
 
 Generate world-board textures in a shared frame path independent of wrist
 gadget/canvas activity, preserving GL state and avoiding duplicate work in VR.
@@ -217,13 +217,13 @@ entity-list restoration, and intended sill jump are sound. Correct these points:
   recreating the exact off-by-one bug removed by the earlier review.
 - **Flat mode:** only the rendering is stereo-restricted. `walkOn()`,
   `VR_PortalClientCross`, and `VR_PortalHandles` do not require a chosen eye
-  portal or active VR. Do not describe `vr_slipgates` as inert in flat mode or
+  portal or active VR. Do not describe `vr_teleporters` as inert in flat mode or
   prescribe ordinary Quake crossing as its intended implementation. The author
   also reports successful central crossings there.
-- **New requests supersede the flat-task gate:** `slipgate-flat` has now been
+- **New requests supersede the flat-task gate:** `teleporter-flat` has now been
   requested explicitly; include the spectator camera in that work. The
   author's latest lighting report adds a concrete destination-torch bug to the
-  existing `slipgate-lights` request. Add the banner regression and backed-gate
+  existing `teleporter-lights` request. Add the banner regression and backed-gate
   collision decision to the open items.
 - **Hit zones:** explain that contacts on the animated model map back to
   canonical zones in the standing pose. "Zones do not follow animation" is
@@ -259,7 +259,7 @@ entity-list restoration, and intended sill jump are sound. Correct these points:
   consistent with the author's observations. No GPU cost measurements or full
   hardware VR acceptance were performed in this review.
 
-Probe and build logs: `build-cmake/slipgate-review/round2-*.log`.
+Probe and build logs: `build-cmake/teleporter-review/round2-*.log`.
 
 
 ## Fixes applied after the review
@@ -289,7 +289,7 @@ session. The original findings remain above as the review record.
   contributors per view, with paired entry/exit cube shadows (tiles at most
   256 pixels). Aperture and source/exit obstacles clip the light path. Native
   dynamic-light slots are retained; virtual contributors do not recurse.
-- Graphics > Slipgates has Portal Stars Size and Opacity. Size defaults to
+- Graphics > Teleporters has Teleporter Stars Size and Opacity. Size defaults to
   1.12x (range 1..2); opacity defaults to 1 (0..1), scaling the original 12%
   entrance shimmer. Following the author's clarification, there is one star
   layer on the entrance plane and no teleport/star quads in the destination
@@ -298,7 +298,7 @@ session. The original findings remain above as the review record.
   both required attributes are enabled on the liquid surface draw pass. Visual
   scale does not enlarge the collision aperture.
 - Teleport-textured BSP liquid leaves are treated as empty for liquid interaction.
-  Explicit splash/ripple/sound paths also reject slipgate faces. Ordinary pools
+  Explicit splash/ripple/sound paths also reject teleporter faces. Ordinary pools
   retain their liquid contents, effects and sounds. Portal surfaces already omit
   the liquid ripple/foam shader paths. This applies with VR enabled or disabled.
 - The offline reader also now uses Quake's 40-byte texinfo records (not 48).
@@ -337,7 +337,7 @@ acceptance after the final composition correction, many simultaneous lights,
 varied custom gate angles and subjective size/opacity tuning remain in the in-game checklist. Non-cardinal turns use a
 conservative axis-aligned destination body bound and can block narrow exits.
 
-Logs and screenshots: `build-cmake/slipgate-review/fixes-*.log`, `portalshots/`
+Logs and screenshots: `build-cmake/teleporter-review/fixes-*.log`, `portalshots/`
 and `screenshots/` under its isolated quakevr game. Reproduction commands are
 in TESTING.md. External handoff corrections are tracked separately from Git;
 verify their live branch/agent state at the next session.
@@ -367,11 +367,11 @@ provided a reference image of the same destination to compare. Final captures:
 `start_2026-10-04_18-00-56*.png`, `eyeshots/start_000_{L,R}.png` and
 `start_2026-10-04_18-02-54.png` in the isolated game's capture directories.
 
-### Multiple visible slipgates
+### Multiple visible teleporters
 
 The author's simultaneous-gate report exposed the original one-view budget.
 Each camera now renders up to four visible gates by default, configurable from
-one to eight through Graphics > Slipgates > Visible Gates (`vr_portals_maxviews`).
+one to eight through Graphics > Teleporters > Visible Gates (`vr_portals_maxviews`).
 Each gate has its own texture-array layer; offscreen gates do not consume the
 budget. Shadows are prepared independently for each destination view. Server
 entity visibility includes all directly visible nearby gate destinations and

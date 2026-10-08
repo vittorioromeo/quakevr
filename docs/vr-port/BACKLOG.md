@@ -63,7 +63,7 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   - *Shadows in crowded, brightly lit scenes* (32 overlapping lights: 1.59 ms GPU against 1.15 ms without shadows):
     caster and bone reuse, caching for stable lights and objects, per-light update budgets, resolution by projected
     importance (`vr_lighting.cpp`, dynamic caster collection).
-  - *Slipgate views* (about 0.8 ms GPU and CPU for one doorway): the destination's resolution chosen by the
+  - *Teleporter views* (about 0.8 ms GPU and CPU for one doorway): the destination's resolution chosen by the
     aperture's projected size, tighter destination draw lists, per-frame entity preparation shared across views.
 - **Low priority: review the pickup-thinks research** (the author, 2026-10-03: "save your research regarding the
   nextthink stuff in a document so that we can review it later"): `docs/vr-port/PICKUP_THINKS.md`. Idle pickups think

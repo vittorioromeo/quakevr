@@ -49,7 +49,7 @@ happens; the durable parts belong in a guide or topic note.
 | [vr-port/IK.md](vr-port/IK.md) | The full-body avatar and its IK |
 | [vr-port/THROWING.md](vr-port/THROWING.md) | Throwing: the algorithm, the release, the research behind it |
 | [vr-port/KNOCKDOWNS_2026-10-04.md](vr-port/KNOCKDOWNS_2026-10-04.md) | Shove knockdowns: live ragdolls that get up |
-| [vr-port/PORTAL_AI.md](vr-port/PORTAL_AI.md) | Enemies seeing and shooting through seamless slipgates |
+| [vr-port/PORTAL_AI.md](vr-port/PORTAL_AI.md) | Enemies seeing and shooting through seamless teleporters |
 | [vr-port/POSITIONAL_DAMAGE_DEBUG.md](vr-port/POSITIONAL_DAMAGE_DEBUG.md) | The animated hit-zone debug view |
 | [vr-port/EXPLOSION_AND_FIRE_EFFECTS.md](vr-port/EXPLOSION_AND_FIRE_EFFECTS.md) | Explosion debris and fire particles |
 | [vr-port/MULTIPLAYER.md](vr-port/MULTIPLAYER.md) | Multiplayer: what runs on the server and what on the client |
@@ -93,7 +93,7 @@ Removed on 2026-10-06 once their knowledge was acted on or moved (open performan
 `PHYSICS_PERFORMANCE_REVIEW` and `_RESULTS`, `CPU_PERFORMANCE_FOLLOWUP`, `PARTICLES_DECALS_PERFORMANCE`,
 `PERFORMANCE_BENCHMARK`, `PERFORMANCE_AUDIT`, `DECAL_`, `PARTICLE_` and `PROP_OPTIMIZATION`, `OVERDRAW_PROP_TAILS`,
 `ALLOCATION_AUDIT`, `COMBAT_ALLOCATION_BURSTS`, `HULL_PRELOAD`) with their data in `vr-port/benchmarks/`;
-`SLIPGATE_TORCH_REVIEW` and `TORCH_TWOHAND_CRASH` (all fixed); the voice-note batches `NOTES_FEEDBACK_*` (done);
+`TELEPORTER_TORCH_REVIEW` and `TORCH_TWOHAND_CRASH` (all fixed); the voice-note batches `NOTES_FEEDBACK_*` (done);
 `MENU_INVENTORY.md` (the 2026-10-03 menu inventory; `menu_vr dump`, `Misc/quakevr/menu_coverage.py` and
 `cvar_inventory.py` give the current data); `CHECKLIST_ARCHIVE_20261005.txt`; `inventory/_agent_brief.md`; and
 `Misc/quakevr/pvs/` (the 2026-10-04 start-map visibility findings and probe scripts: both start maps' PVS is

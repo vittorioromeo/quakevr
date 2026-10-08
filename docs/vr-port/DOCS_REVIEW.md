@@ -78,7 +78,7 @@ Status: **current** (checked, nothing wrong), **fixed** (outdated, corrected in 
 | `THROWING.md` | fixed | `vr_throw_release` (not `_release_mode`), drop 0.3, lever arm 0.1, the assist's real defaults (on, cone 15, strength 0.35; no `_gaze`), the never-built `vr_debug_throw_dump` marked. Sections 1-3 are 2026-09-24 research. |
 | `TEMPORAL.md` | fixed | Stage 1 (FSR/NIS, foveated) shipped in round 20; TAA/DLSS not built (still in BACKLOG). |
 | `KNOCKDOWNS_2026-10-04.md` | fixed | Added the later ledge and wiggle cvars. A lasting topic note: rename to `KNOCKDOWNS.md` (links: none to fix). |
-| `PORTAL_AI.md` | current | Fold into a slipgates note one day. |
+| `PORTAL_AI.md` | current | Fold into a teleporters note one day. |
 | `POSITIONAL_DAMAGE_DEBUG.md` | current | A 28-line debug-view note; merge into a positional-damage note (below). |
 | `EXPLOSION_AND_FIRE_EFFECTS.md` | fixed | "On branch `codex/explosion-debris`" replaced: merged. |
 | `PICKUP_THINKS.md` | current (research) | Unbuilt; its QC line numbers drifted. Keep while in the backlog. |
@@ -101,7 +101,7 @@ Status: **current** (checked, nothing wrong), **fixed** (outdated, corrected in 
 | `HULL_PRELOAD_20261005.md` | archive | Done; its design belongs in HULLS.md (a paragraph). |
 | `MODEL_METADATA_20261005.md` | keep, rename | Describes a lasting design (`vr_modelmetadata.*`) and PORTING links it: rename to `MODEL_METADATA.md`. |
 | `HITZONES_AND_PORTAL_REVIEW_2026-10-04.md` | checked 2026-10-06 | Its status table: every finding fixed by `98864d26` (2026-10-04), the HANDOFF/QUEUE corrections obsolete; one P3 left (the body's axis-aligned bound at a turned gate's exit, `vr_portals.cpp`). |
-| `SLIPGATE_TORCH_REVIEW_2026-10-04.md` | archive | All five findings fixed, it says. |
+| `TELEPORTER_TORCH_REVIEW_2026-10-04.md` | archive | All five findings fixed, it says. |
 | `ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md` | updated 2026-10-07 | Its status table: all five defects fixed on Zancle's branch `zancle-concurrency-fixes` (one commit each, vendored at `2f8a1ca5`; to merge into `rebrand_to_zancle`); in ZANCLE_REPORT as B9-B13. |
 | `TORCH_TWOHAND_CRASH_20261005.md` | archive or delete | One fixed crash; ROUND21 has it too. |
 | `NOTES_FEEDBACK_20261004.md`, `NOTES_FEEDBACK_20261005.md`, `NOTES_FEEDBACK_20261005_BATCH2.md` | archive | Voice-note batches, implemented. |
@@ -171,7 +171,7 @@ place the knowledge lives.
 ## Not worth keeping where they are
 
 To archive under `docs/vr-port/archive/` (a move, links fixed): the 14 performance reports listed above with
-`benchmarks/`, HULL_PRELOAD, SLIPGATE_TORCH_REVIEW, TORCH_TWOHAND_CRASH, the three NOTES_FEEDBACK files, MENU_INVENTORY,
+`benchmarks/`, HULL_PRELOAD, TELEPORTER_TORCH_REVIEW, TORCH_TWOHAND_CRASH, the three NOTES_FEEDBACK files, MENU_INVENTORY,
 ROUND6 to ROUND20 (with the code comments' paths), and `Misc/quakevr/pvs/FINDINGS.md` with its scripts. After their
 open items move: HITZONES_AND_PORTAL_REVIEW, ZANCLE_CONCURRENCY_REVIEW.
 

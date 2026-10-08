@@ -48,7 +48,7 @@ Effort: S an hour or so, QC or one engine function; M a day, engine work across 
 | 15 | Shock arcs on the living and on you (`vr_shock.qc`, `vr_shock_self_*`) | the bolt's own sound; after it none | the arcs crawling on after the bolt are silent (bodies now crackle: done) | short random zaps (3 new recordings) every 0.3–0.6 s while the arcs last | on the monster / you | quiet, fading with the arcs | A |
 | 16 | Relighting a batch, a Map Library download/install finishing | the menu's own clicks | a background job finishing while you play is shown, not heard | `gadget::chime` (`misc/talk.wav`) and a buzz when a batch or an install ends in game | the gadget | once | S |
 | 17 | Teleport locomotion (off by default, `vr_teleport.cpp`) | none | arriving is silent | a short soft whoosh (new), or `misc/r_tele4.wav` at 0.2 (existing, but Quake's teleporter is louder and brighter) | 2D | — | S / A |
-| 18 | Walking through a slipgate (`triggers.qc` VR_Portal_Crossed) | none, on purpose ("no flash, no sound") | — (a design choice) | if wanted: a faint shimmer as you pass the surface (new) | at the gate | quiet | A |
+| 18 | Walking through a teleporter (`triggers.qc` VR_Portal_Crossed) | none, on purpose ("no flash, no sound") | — (a design choice) | if wanted: a faint shimmer as you pass the surface (new) | at the gate | quiet | A |
 | 19 | Voice notes (`vr_voicenotes.cpp`, a dev tool) | haptics only | you can't hear that the recording started | `misc/menu1.wav` local, start and end | 2D | 0.5 | S |
 | 20 | Blood dripping off you, washing it off | none | minor: the water's own hand sounds cover washing | none needed | — | — | — |
 

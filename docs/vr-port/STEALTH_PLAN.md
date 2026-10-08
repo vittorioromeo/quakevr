@@ -202,9 +202,9 @@ are in the shared ai.qc (`vr_stealth_test 106` puts down every kind the kit has:
   to; where it stands once it went on at him), then goes back. Off (`vr_stealth_chase_trail 0`): Quake's chase until
   it gives up, then to where it saw him last. Seen again at any time: the trail is forgotten, the hunt goes on.
 
-## Slipgates (`vr_stealth_gates 1`; seamless slipgates, PORTAL_AI.md)
+## Teleporters (`vr_stealth_gates 1`; seamless teleporters, PORTAL_AI.md)
 
-Paired gates (a gate that comes out of another gate's face, `vr_slipgate_pair_exits`) are openings to the stealth AI:
+Paired gates (a gate that comes out of another gate's face, `vr_teleporter_pair_exits`) are openings to the stealth AI:
 - **Sight**: every monster under the rules sees a player through a paired gate (Quake's AI and `vr_stealth_gates 0`:
   only ranged monsters, through every gate). The meter's distance and facing are to his image in the gate.
 - **The point is his image** (where he shows in the gate, beyond its face in the monster's room's terms), with the gate
@@ -311,7 +311,7 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   lamp on a grunt's back: Alert at his lens.
 - 103 the horde (cost); 104/105 an investigation saved mid-walk and carried on after the load; 106 every kind; 107
   infighting; 108 lava's edge (e1m7).
-- 110-113 through slipgates (`vr_stealth_test3.qc`, vrslipgates, the player in room U: `stealth_tests.sh gates`): a
+- 110-113 through teleporters (`vr_stealth_test3.qc`, vrteleporters, the player in room U: `stealth_tests.sh gates`): a
   grunt in T sees him through T's north gate (Alert at his image, not at him), walks through, on to his spot, searches
   and comes back through to its post (2 crossings); a knock in U heard only through the gate, the same walk (not heard
   with `vr_stealth_gates 0`, nor at 0.85 of the way's length); a dog sees him through the gate and comes through (not
@@ -320,7 +320,7 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   e1m1 door model put between: opaque, it neither sees him nor hears a knock where he stands (1.15 times its distance);
   alpha 0.5: both; `vr_stealth_seethrough 0`: neither; opaque but its textures taken for fences
   (`vr_stealth_test_fence`: the kit's maps have no solid `{` brush): both; not: neither.
-- 124 props in the way (`stealth_tests.sh props`, vrslipgates room T): a row of five large crates between a knight
+- 124 props in the way (`stealth_tests.sh props`, vrteleporters room T): a row of five large crates between a knight
   Hostile at him and him, 500 units apart: round them within 6 s (3.7 s); `vr_ai_props 0` for comparison (8.4 s).
 - 123 dogs' drawn steps (`stealth_tests.sh dogs`): a dog chasing him round a circle for 30 s, its drawn moves logged
   (`vr_debug_drawn_moves`), with `vr_monster_lerp_continue` 0 and 1: no jump between frames with it on.

@@ -108,7 +108,7 @@ Removing the switch deletes the old branch.
 
 Risk: each loses its fallback if a regression turns up; all date from 2026-09-24..10-06, so wait one release.
 
-Not candidates, though they also say "as before": `vr_hit_precise`, `vr_knockdown`, `vr_slipgates`,
+Not candidates, though they also say "as before": `vr_hit_precise`, `vr_knockdown`, `vr_teleporters`,
 `vr_melee_positional`, `vr_dummy_gore`, `vr_walltorch_shot`, `vr_limbs_blast`, `vr_messages_hologram`,
 `vr_pickup_prop_models`, `vr_grenade_catch` (player-facing taste or comfort), `vr_compat_muzzle` and the
 `vr_gameplayfix_*` set by quakevr.cfg (other mods' progs get vanilla), `vr_controller_legacy_pose` (runtimes differ).
