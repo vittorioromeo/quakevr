@@ -226,20 +226,32 @@ void() VR_Limb_MakeRoom =
     float most = max(1, cvar_hget(cvarh_vr_limbs_max));
     float n = 0;
     entity e;
+    // The count and the first oldest in one walk (nothing changes between them; MG3_PLAN.md M3-28: a crowd's deaths
+    // made a limb each, two walks of every entity apiece at the cap); after a removal, walked again as before.
+    entity oldest = world;
     for(e = find(world, classname, "vr_limb"); e; e = find(e, classname, "vr_limb"))
     {
         n++;
+        if(e.carry_player == world && (oldest == world || e.vr_gib_made < oldest.vr_gib_made))
+        {
+            oldest = e;
+        }
     }
+    float first = TRUE;
     while(n >= most)
     {
-        entity oldest = world;
-        for(e = find(world, classname, "vr_limb"); e; e = find(e, classname, "vr_limb"))
+        if(!first)
         {
-            if(e.carry_player == world && (oldest == world || e.vr_gib_made < oldest.vr_gib_made))
+            oldest = world;
+            for(e = find(world, classname, "vr_limb"); e; e = find(e, classname, "vr_limb"))
             {
-                oldest = e;
+                if(e.carry_player == world && (oldest == world || e.vr_gib_made < oldest.vr_gib_made))
+                {
+                    oldest = e;
+                }
             }
         }
+        first = FALSE;
         if(oldest == world)
         {
             return;

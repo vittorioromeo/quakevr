@@ -159,21 +159,34 @@ void(entity xNew) VR_EnemyWeapons_MakeRoom =
     }
     float n = 0;
     entity e;
+    // The count and the first oldest in one walk (nothing changes between them: the tests only read; MG3_PLAN.md
+    // M3-28); after a fade, walked again as before.
+    entity oldest = world;
     for(e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
     {
         n = n + VR_EnemyWeapons_Counted(e);
+        if(e != xNew && VR_EnemyWeapons_Counted(e) && !VR_EnemyWeapons_Spared(e) &&
+           (oldest == world || e.vr_drop_born < oldest.vr_drop_born))
+        {
+            oldest = e;
+        }
     }
+    float first = TRUE;
     while(n > most)
     {
-        entity oldest = world;
-        for(e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+        if(!first)
         {
-            if(e != xNew && VR_EnemyWeapons_Counted(e) && !VR_EnemyWeapons_Spared(e) &&
-               (oldest == world || e.vr_drop_born < oldest.vr_drop_born))
+            oldest = world;
+            for(e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
             {
-                oldest = e;
+                if(e != xNew && VR_EnemyWeapons_Counted(e) && !VR_EnemyWeapons_Spared(e) &&
+                   (oldest == world || e.vr_drop_born < oldest.vr_drop_born))
+                {
+                    oldest = e;
+                }
             }
         }
+        first = FALSE;
         if(oldest == world)
         {
             return; // (all the rest spared: over the cap a moment)
