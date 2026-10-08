@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Menu corners: bottom-right box (version, by Vittorio Romeo, Support on Ko-fi with logo) like the top-right box, 4 px everywhere; laser/mouse highlights the link, press opens ko-fi.com/vittorioromeovee once on the desktop; logo readable in the headset?
 Bullet-time distortion trails (Combat > Bullet Time > Distortion Trails): bend behind bullets, nails, rockets, grenades, monster shots; same in both eyes; strength 1.25 right (subtle)? your own shots fade near the eye
 Death View (VR Settings > Comfort; default Third Person): Die Now / Die Now Blown Back (Debug > Cheats): your body ragdolls with a head, thrown by the blow; Immersive: camera on the ragdoll's head (turn speed, smoothing, fade OK?); gibbed = no body; Quake's death hop is gone in Third Person
 Wrist gadget: bullet time = a firm straight tap on the screen (hand or gun butt); melee swings/blocks/two-hand holds must never fire it (Combat > Bullet Time > Screen Tap); side button = gear lights toggle (click + tick; dims gadget/gun screen lights to 0.05, text to 0.35: right levels?), find/press it easily (Debug > Show Gadget Button); old bullet-time button cvars removed
