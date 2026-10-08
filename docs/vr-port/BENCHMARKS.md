@@ -331,3 +331,36 @@ always-on GPU phases read inside slipgate views").
 - **GPU** (Nsight Systems on `combined`, OpenGL trace): glDrawArrays (particles, full-screen passes) 62% of the busy
   time, the world's glMultiDrawElementsIndirect 34%.
 - Trade-offs and leads: [PERF_DECISIONS.md](PERF_DECISIONS.md) (the recursion default among them).
+
+#### Follow-up: the leads with no trade-off (2026-10-08, later)
+
+The same set-up (his settings of 2026-10-06, paced 90 Hz, exclusive), 3 x 600 frames each, medians: before, the
+profiling run's build (2102a6da, `kit/benchresults/perf2_final_A`); after, this follow-up's commits
+(`perf2_final_B`; `combined`, `explosions_storm` and `particles_dense` from `perf2_ab_light_B5`, the last commit's
+build). ms a frame.
+
+| scenario | CPU avg before | after | CPU p50 before | after | CPU p99 before | after | vr particles before | after | view entities before | after |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `combined` | 4.70 | **4.38** | 4.85 | **4.49** | 6.76 | 7.36 | 0.79 | **0.50** | 0.15 | 0.15 |
+| `explosions_storm` | 1.66 | **1.51** | 1.71 | **1.56** | 2.14 | 2.11 | 0.32 | 0.33 | 0.46 | **0.33** |
+| `combat_48` | 1.94 | 1.75 | 1.77 | 1.51 | 3.84 | 4.00 | 0.23 | 0.27 | 0.36 | **0.23** |
+| `ai_crowd_64` | 2.14 | 1.92 | 1.98 | 2.07 | 4.52 | 4.19 | 0.37 | 0.38 | 0.47 | **0.32** |
+| `particles_dense` | 1.12 | 1.13 | 1.16 | 1.15 | 1.60 | 1.61 | 0.29 | 0.30 | 0.12 | 0.12 |
+| `decals_1024_stream` | 0.89 | 0.87 | 0.94 | 0.91 | 1.33 | 1.32 | 0.04 | 0.04 | 0.12 | 0.12 |
+| `slipgate_loop_r2` | 2.03 | 2.02 | 2.05 | 2.06 | 2.60 | 2.55 | 0.08 | 0.08 | 0.12 | 0.12 |
+| `idle_e1m1` | 0.66 | 0.64 | 0.70 | 0.68 | 1.18 | 1.15 | 0.01 | 0.01 | 0.12 | 0.12 |
+
+- **Particle lighting** on the game's threads (the lightmap reads still in order on the main thread; the dynamic
+  lights after them in a parallelFor when the last frame's work is large): `combined` vr particles -0.29 ms. Smaller
+  loads stay in one pass (`particles_dense` +0.01 ms, within noise to slight).
+- **Decal grid**: each mark keeps its buckets (only new marks hashed), the counts and fill in the grid's headers.
+  `decals::buildWorld` alone (300 builds): 949 small marks 0.114 -> 0.067 ms, 1024 large 0.258 -> 0.140 ms a build;
+  the grid word for word the same (`Misc/quakevr/decal_grid_test.py`: 766 exact comparisons; in game, 3090 builds
+  compared). The bench's phases do not show it (it is in the eye's view set-up).
+- **worldtrace::world** (debris, shells, ropes): the brush entities listed once a message instead of every entity
+  looped for each line, and their submodel test by name: view entities -0.12 ms in `explosions_storm`, -0.13 to
+  -0.15 in the fights (2.05 million lines traced both ways: the same).
+- **Framebuffer binds**: 88 a frame in `combined`, 12 of them redundant (8: each shadowed light's atlas bind); 72
+  redundant binds more a frame cost nothing measurable (shadow maps 0.900 -> 0.896 ms): no change.
+- The fights (`combat_48`, `ai_crowd_64`) go differently run to run (3000-8700 particles): their CPU rows are not a
+  measure; the phase rows are. `combined`'s p99 moves 1-4 ms between runs.

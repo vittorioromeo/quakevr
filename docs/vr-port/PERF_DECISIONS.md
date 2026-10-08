@@ -75,19 +75,52 @@ feature's cost, measured; nothing in it stood out in VTune (no stealth function 
 glMultiDrawElementsIndirect 34%. A reduced-resolution path for large soft particles with the retro quantisation is
 the one large GPU lever left; visual, his call.
 
-## Leads not done (no trade-off; for a next run)
+### 6. Decals on the world: the grid made twice in a frame
 
-- **Particle lighting on the pool's threads**: `lightParticles` 0.4 ms a frame in `combined` (11000 particles x 21
-  dynamic lights), once a frame. Split it: the lightmap reads in order (they share a trace budget, a cache and
-  R_LightPoint's globals), then each particle's dynamic lights and retro levels in a `jobs::parallelFor` (pure per
-  particle: identical results). About 0.3 ms off the main thread in fights with many lights.
-- **The decal grid rebuilt whole** (`decals::buildWorld`) whenever a mark comes or goes: 0.2 ms a frame in a fight
-  (`ai_crowd_64`, `combat_48`), mostly zero-filling and re-bucketing every mark. An incremental insert (the new mark's
-  buckets only; a full rebuild when the pool wraps or the grid grows) would make it ~0.
-- **Framebuffer binds**: Nsight Systems counts ~70 glBindFramebuffer a frame in `combined` (median 9 us each under
-  the trace, p90 65 us); in fast mode the GPU is the limit, so part of it is the driver's back-pressure. Worth a look
-  for binds of the same target twice in a row.
+Marks placed during the left eye's scene (blood landing in the particles' step, gore::frame in decals::draw) come
+after that eye's `decals::buildWorld`, so the right eye makes the grid again (the profile's "decals on the world"
+under eye R: 0.03-0.07 ms a frame in `ai_crowd_64` before this follow-up's grid fix, about half that after). The right
+eye shows the new marks a frame before the left.
+
+- **Option**: one grid a frame: the left eye's kept for the right (new marks in both eyes from the next frame), or the
+  marks' producers run before the build.
+- **Win**: the second build, 0.02-0.04 ms a frame in fights (after the fix).
+- **Drawback**: a new mark shows a frame later in the right eye (or earlier in the left): both eyes then agree.
+- **Recommendation**: do it (the eyes agreeing is better than now); a visual timing change, so his call.
+
+### 7. The decal grid's size from its occupied cells
+
+The grid's buckets are twice the cells its marks list (a power of two): in fights 131072 buckets with 900-1100
+occupied (`vr_decal_count`), 580-600 KB uploaded at every build, and the prefix pass walks every bucket (0.04 ms of a
+0.14 ms build with 1024 large marks).
+
+- **Option**: size it from the distinct cells (counted with the stamps), not every mark's cells.
+- **Win**: most of the prefix pass and the upload (about 0.05 ms a build; less GPU upload).
+- **Drawback**: fewer buckets, more cells sharing one: a bucket keeps its newest 64 marks, so a crowded one could drop
+  marks the larger grid shows (a visual change where marks pile up; `decals_1024_stream` already has 52 capped).
+- **Recommendation**: worth measuring the capped buckets with it before deciding; not urgent.
+
+## Leads (2026-10-08 follow-up)
+
+Done in the follow-up (BENCHMARKS.md, "Follow-up: the leads with no trade-off"): particle lighting on the pool's
+threads (`combined` vr particles 0.79 -> 0.50 ms), the decal grid's buckets kept with each mark (a build 0.26 -> 0.14
+ms with 1024 large marks), worldtrace::world's brush entities listed once a message (`explosions_storm` view entities
+0.46 -> 0.33 ms). Measured and left as they are:
+
+- **Framebuffer binds**: 88 a frame in `combined`, 12 redundant (8 of them each shadowed light's atlas bind,
+  vr_lighting.cpp renderLight); 72 redundant binds more a frame changed nothing measurable (shadow maps 0.900 ->
+  0.896 ms): the driver drops them. A bind cache is not worth its risk (state set behind its back).
+- **weapons::modelTransform** (its map lookup shows under the shadow maps' alias draws in VTune): a last-model memo
+  measured nothing (`combined` shadow maps 0.890 -> 0.893 ms, CPU p50 4.44 -> 4.44): not done.
+
+Not done (no trade-off; for a next run):
+
+- **The props' touch links**: Box3D's writeProp relinks each awake prop with its touches (SV_LinkEdict(ent, true) ->
+  VR_TouchLinks -> SV_AreaEdicts): `SV_AreaEdictsR` 2% of `combined`'s samples (300 props awake in a small area:
+  each walk tests the others' boxes, an edict's cache line each). A compact box array per area node would cut the
+  misses, if kept exactly in step with absmin/absmax.
+- **Shadow casters set up per light**: in `combined` the shadow maps' alias draws are 0.6 ms of the main thread; each
+  caster's set-up (R_EntityMatrix's sines, the alias pre/post transforms, lerp) is made again for each of the 8
+  shadowed lights; once a frame per entity would keep most of it.
 - **NVML's start**: the first VRAM read (`gpustats::requestVram`) initialises NVML on a worker (0.12 s, once); fine
   as it is, noted because it shows in every window's VTune profile.
-</content>
-</invoke>
