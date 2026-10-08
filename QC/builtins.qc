@@ -450,6 +450,10 @@ float(string path) fileexists = #0; // whether a file is in the search path (dat
 // The next entity after `start` (in edict order) with any of `flags` set in the float field `fld`; world when none: a
 // loop over the monsters (findflags(world, flags, FL_MONSTER)...) steps through them alone, in the engine (vr_builtins.cpp).
 entity(entity start, .float fld, float flags) findflags = #0;
+// findflags(), past the entities whose box's centre ((absmin + absmax) * 0.5) is further from `eye` than `range` (vlen) or
+// less than `mincos` ahead (normalize(centre - eye) * v_forward), in QuakeC's own float steps: the same entities pass as
+// with that test in QuakeC (VR_Stealth_LookAbout's torches and bodies; vr_builtins.cpp).
+entity(entity start, .float fld, float flags, vector eye, float range, float mincos) findflagsinview = #0;
 vector(vector start, vector end) liquidentry = #0;
 void(vector org, vector dir, float strength, float snd) watersplash = #0;
 float QVR_SPLASH_SILENT = 0; // the caller plays its own sound

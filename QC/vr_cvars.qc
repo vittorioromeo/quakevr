@@ -89,6 +89,7 @@ float cvarh_vr_stealth_share_view;
 float cvarh_vr_stealth_graze;
 float cvarh_vr_stealth_flashlight;
 float cvarh_vr_stealth_torch;
+float cvarh_vr_edictindex_verify;
 float cvarh_vr_stealth_corpses;
 float cvarh_vr_stealth_sneak;
 float cvarh_vr_stealth_ambush_deaf;
@@ -821,6 +822,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_stealth_graze);
     VR_CVAR_HMAKE(vr_stealth_flashlight);
     VR_CVAR_HMAKE(vr_stealth_torch);
+    VR_CVAR_HMAKE(vr_edictindex_verify);
     VR_CVAR_HMAKE(vr_stealth_corpses);
     VR_CVAR_HMAKE(vr_stealth_sneak);
     VR_CVAR_HMAKE(vr_stealth_ambush_deaf);

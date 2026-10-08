@@ -750,6 +750,33 @@ void(entity m, entity p, vector eye) VR_Stealth_Beam =
 };
 
 // A lit torch taken from its wall (held or thrown) or a body or gib (STL_NOTICE_BODY) m sees in front of it.
+// The next entity after `start` with `flags` in `fld` whose box's centre is within `range` of `eye` and ahead of it
+// (v_forward, cos 0.3): findflagsinview. vr_edictindex_verify: QuakeC's own test too, any difference printed.
+entity(entity start, .float fld, float flags, vector eye, float range) VR_Stealth_InView =
+{
+    entity got = findflagsinview(start, fld, flags, eye, range, 0.3);
+    if(cvar_hget(cvarh_vr_edictindex_verify))
+    {
+        entity e;
+        vector at;
+        for(e = findflags(start, fld, flags); e; e = findflags(e, fld, flags))
+        {
+            at = (e.absmin + e.absmax) * 0.5;
+            if(vlen(at - eye) > range || normalize(at - eye) * v_forward < 0.3)
+            {
+                continue;
+            }
+            break;
+        }
+        if(e != got)
+        {
+            bprint(sprintf("vr_edictindex ERROR: findflagsinview after %s at %v: %s at %v, QuakeC's %s at %v\n",
+                start.classname, start.origin, got.classname, got.origin, e.classname, e.origin));
+        }
+    }
+    return got;
+};
+
 void(entity m, vector eye) VR_Stealth_LookAbout =
 {
     float bodies = cvar_hget(cvarh_vr_stealth_corpses);
@@ -758,13 +785,14 @@ void(entity m, vector eye) VR_Stealth_LookAbout =
     vector at;
     if(torches > 0)
     {
-        for(e = findflags(world, wt_state, 1); e; e = findflags(e, wt_state, 1))
+        // (the distance and the cone in the engine, in these same float steps: findflagsinview)
+        for(e = VR_Stealth_InView(world, wt_state, 1, eye, torches); e; e = VR_Stealth_InView(e, wt_state, 1, eye, torches))
         {
-            at = (e.absmin + e.absmax) * 0.5;
-            if(e.wt_fire < 0.1 || vlen(at - eye) > torches || normalize(at - eye) * v_forward < 0.3)
+            if(e.wt_fire < 0.1)
             {
                 continue;
             }
+            at = (e.absmin + e.absmax) * 0.5;
             traceline(eye, at, TRUE, m);
             if(trace_fraction >= 1)
             {
@@ -775,17 +803,14 @@ void(entity m, vector eye) VR_Stealth_LookAbout =
     }
     if(bodies > 0)
     {
-        for(e = findflags(world, stl_notice, STL_NOTICE_BODY); e; e = findflags(e, stl_notice, STL_NOTICE_BODY))
+        for(e = VR_Stealth_InView(world, stl_notice, STL_NOTICE_BODY, eye, bodies); e;
+            e = VR_Stealth_InView(e, stl_notice, STL_NOTICE_BODY, eye, bodies))
         {
             if(e == m || e == m.stl_body || (e.stl_found && time - e.stl_found > 30))
             {
                 continue;
             }
             at = (e.absmin + e.absmax) * 0.5;
-            if(vlen(at - eye) > bodies || normalize(at - eye) * v_forward < 0.3)
-            {
-                continue;
-            }
             traceline(eye, at, TRUE, m);
             if(trace_fraction >= 1)
             {

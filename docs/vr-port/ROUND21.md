@@ -31557,6 +31557,13 @@ the walk; no QuakeC changed (it stays the policy).
   `VR_Reload_NextRound` 0.035, `VR_Throw_SelfFrame` 0.028, `VR_Burn_MapFrame` 0.023, `MG_WorldFrame` 0.016 -> under
   0.002; `VR_Stealth_Frame` 0.026 -> 0.004, `VR_Liquids_Frame` 0.031 -> 0.017. Without the timer the server phase
   4.44 -> 3.39 ms (medians of 4, noisy: each fight differs).
+- **`findflagsinview`** (a builtin; builtins.qc): after the index, `VR_Stealth_LookAbout`'s cost was its QuakeC
+  test of each lit torch and body (box centre, `vlen`, `normalize(...) * v_forward`, ~135 a call). The builtin steps
+  through findflags() and skips those out of range or out of the cone itself, in QuakeC's float steps (OP_ADD_V,
+  OP_MUL_VF, OP_SUB_V, PF_vlen's doubles, PF_normalize's, OP_MUL_V; no FP contraction), so the same entities reach
+  the QuakeC's own tests (`wt_fire`, the monster itself, an old body) and its trace. `vr_edictindex_verify 1` also runs
+  QuakeC's old loop beside it (`VR_Stealth_InView`) and prints `vr_edictindex ERROR` on a difference: none on secret2's
+  fight nor in stealth_tests.sh all (50 PASS). secret2: `VR_Stealth_LookAbout` with its callees 0.062 -> 0.010 ms.
 - Left (PERF_DECISIONS.md, 12): the force grab's `findportalcone` (0.13 ms on secret2), `findradius`, the engine's
   traces and steps, and `VR_Prop_Flung`'s unprinted `dprint(sprintf())` (0.034 ms: a behaviour question).
 - Debug > Profiling and Memory: Edict Index, Verify Edict Index, Edict Index Stats.

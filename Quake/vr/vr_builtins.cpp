@@ -995,19 +995,16 @@ void PF_particle2()
 // entity findflags(entity start, .float field, float flags): the next entity after `start` (in edict order, free ones
 // skipped) whose `field` has any of `flags` set; world when there is none (DP's extension). The frame's loops over the
 // monsters (VR_Liquids_Frame, VR_Wounds_Frame) step through them alone, instead of every entity in the VM.
-void PF_findflags()
+// findflags()'s answer: the next edict after `from` (in use) with any of `flags` in the float `field`; 0 when none.
+[[nodiscard]] int nextFlagged(int from, int field, int flags)
 {
-    const int from = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
-    const int field = G_INT(OFS_PARM1);
-    const int flags = static_cast<int>(G_FLOAT(OFS_PARM2));
     if(qcvm == &sv.qcvm)
     {
         // (the edict index's fields: the same edict as the walk; vr_edictindex.cpp)
         const int found = VR_EdictIndex_FindFlags(from, field, flags);
         if(found >= 0)
         {
-            G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(found));
-            return;
+            return found;
         }
     }
     for(int i = from + 1; i < qcvm->num_edicts; i++)
@@ -1015,11 +1012,68 @@ void PF_findflags()
         edict_t* e = EDICT_NUM(i);
         if(!e->free && (static_cast<int>(E_FLOAT(e, field)) & flags))
         {
-            G_INT(OFS_RETURN) = EDICT_TO_PROG(e);
-            return;
+            return i;
         }
     }
-    G_INT(OFS_RETURN) = EDICT_TO_PROG(qcvm->edicts);
+    return 0;
+}
+
+void PF_findflags()
+{
+    const int from = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    const int field = G_INT(OFS_PARM1);
+    const int flags = static_cast<int>(G_FLOAT(OFS_PARM2));
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(nextFlagged(from, field, flags)));
+}
+
+// entity findflagsinview(entity start, .float fld, float flags, vector eye, float range, float mincos): findflags(),
+// past the entities whose box's centre ((absmin + absmax) * 0.5) is further from `eye` than `range` (vlen) or less than
+// `mincos` ahead of it (normalize(centre - eye) * v_forward): the QuakeC test of the stealth AI's look about
+// (VR_Stealth_LookAbout), in QuakeC's own float steps (OP_ADD_V, OP_MUL_VF, OP_SUB_V, PF_vlen, PF_normalize, OP_MUL_V),
+// so the same entities pass. Its other tests and the trace stay in QuakeC.
+void PF_findflagsinview()
+{
+    int e = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    const int field = G_INT(OFS_PARM1);
+    const int flags = static_cast<int>(G_FLOAT(OFS_PARM2));
+    const float* eyep = G_VECTOR(OFS_PARM3);
+    const float eye[3] = {eyep[0], eyep[1], eyep[2]};
+    const float range = G_FLOAT(OFS_PARM4);
+    const float minCos = G_FLOAT(OFS_PARM5);
+    const float* forward = pr_global_struct->v_forward;
+    while((e = nextFlagged(e, field, flags)) != 0)
+    {
+        const edict_t* ed = EDICT_NUM(e);
+        float to[3];
+        for(int i = 0; i < 3; i++)
+        {
+            const float sum = ed->v.absmin[i] + ed->v.absmax[i];
+            const float at = 0.5f * sum;
+            to[i] = at - eye[i];
+        }
+        const double len = sqrt(static_cast<double>(to[0]) * to[0] + static_cast<double>(to[1]) * to[1] +
+                                static_cast<double>(to[2]) * to[2]);
+        if(static_cast<float>(len) > range)
+        {
+            continue;
+        }
+        float dir[3] = {0.f, 0.f, 0.f};
+        if(len != 0)
+        {
+            const double inv = 1 / len;
+            for(int i = 0; i < 3; i++)
+            {
+                dir[i] = static_cast<float>(to[i] * inv);
+            }
+        }
+        const float dot = dir[0] * forward[0] + dir[1] * forward[1] + dir[2] * forward[2];
+        if(dot < minCos)
+        {
+            continue;
+        }
+        break;
+    }
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(e));
 }
 
 // vector liquidentry(vector start, vector end): where the segment first goes into water, slime or
@@ -2158,6 +2212,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"bodysmoulder", PF_bodysmoulder},
     {"portal_carry", PF_portal_carry},
     {"findflags", PF_findflags},
+    {"findflagsinview", PF_findflagsinview},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
     {"fileexists", PF_fileexists},

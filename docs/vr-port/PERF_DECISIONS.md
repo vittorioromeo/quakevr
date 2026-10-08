@@ -169,7 +169,10 @@ box (not exact for models whose centre lies outside their box). Small; not done.
 
 ### 12. QuakeC left after the index (2026-10-08, `profile_qc` caller > builtin pairs, secret2 awake)
 
-What remains is engine work QuakeC asks for, or behaviour-visible: none moved to a builtin.
+One loop moved to a builtin: the stealth AI's look about tested each lit torch's and body's distance and cone in
+QuakeC (0.05 ms a frame on secret2 after the index); `findflagsinview` does it in the engine in QuakeC's own float
+steps (`VR_Stealth_LookAbout` with its callees 0.062 -> 0.010 ms; ROUND21.md). What remains is engine work QuakeC asks
+for, or behaviour-visible:
 - `findportalcone` 0.13 ms (item 11: each model's centre before the broad phase; a bound needs the shape's fields,
   as dear to read as the centre).
 - `findradius` 0.03 (`VR_Grenade_CatchCheck`), 0.02 (`VR_Stealth_Gather`): it writes `.chain` on every solid
