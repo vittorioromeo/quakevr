@@ -1268,9 +1268,10 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
     if(!strcmp(map, "start") && activeCampaign <= 2)
     {
         requested = static_cast<int>(qvr::vr_activestartpaknameidx.value);
-        // The hub's choice of a campaign with a game folder of its own (vrstart's Dimension of the Past lectern: 3): its
-        // slipgate runs the selector, which rebuilds the folders and starts the campaign's first map (a changelevel
-        // can't). From any other map such a choice is stale: "start" stays the running campaign's.
+        // The hub's choice of a campaign with a game folder of its own (vrstart's lecterns 3, 4 and 5: Dimension of
+        // the Past, Dimension of the Machine, Dawn of the Machine): its slipgate runs the selector, which rebuilds the
+        // folders and starts the campaign's first map (a changelevel can't). From any other map such a choice is stale:
+        // "start" stays the running campaign's.
         if(requested >= 3 && requested < int(countof(campaigns)))
         {
             if(VR_IsVrMap(sv.name))

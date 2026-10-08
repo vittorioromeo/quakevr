@@ -863,7 +863,11 @@ def build_stairs(mw):
     staircase(part(mw, "staircase down to the range"), STAIR2)
 
 
-LECTERNS_X = (-165, -55, 55, 165)       # from the gate's centre
+# the campaign lecterns, from the gate's centre: two rows of three either side of the way to the gate (50 wide, as
+# when there were four), id's three on the left, the rerelease's three on the right; 58 apart, each 40 wide under a
+# 46-wide cap (the row ends within the curb, as the four's did)
+LECTERNS_X = (-164, -106, -48, 48, 106, 164)
+LECTERN_HALF = 20                        # the lectern's half width (its cap's: 3 more)
 LECTERN_Y = -60                          # their south faces (the buttons on them)
 
 
@@ -920,9 +924,10 @@ def build_terrace(mw):
     mw.add({"classname": "trigger_changelevel", "map": "start", "spawnflags": "1"},  # (no intermission)
            [box(gx - 40, gy - 10, zb, gx + 40, gy + 10, spring + 30, "trigger")])
     # the campaign lecterns (their buttons are entities: build_entities)
+    hw = LECTERN_HALF
     for lx in LECTERNS_X:
-        out.append(chamfer_box(gx + lx - 26, LECTERN_Y, z, gx + lx + 26, LECTERN_Y + 22, z + 62, 2, T("block", scale=0.5)))
-        out.append(chamfer_box(gx + lx - 30, LECTERN_Y - 3, z + 62, gx + lx + 30, LECTERN_Y + 25, z + 68, 2,
+        out.append(chamfer_box(gx + lx - hw, LECTERN_Y, z, gx + lx + hw, LECTERN_Y + 22, z + 62, 2, T("block", scale=0.5)))
+        out.append(chamfer_box(gx + lx - hw - 3, LECTERN_Y - 3, z + 62, gx + lx + hw + 3, LECTERN_Y + 25, z + 68, 2,
                                T("trim", scale=0.5)))
 
 
@@ -1518,13 +1523,16 @@ def tip(mw, name, message, x, y, z, distance=200, target=None, size=None):
 
 N = "\\n"
 
-# the campaign lecterns' buttons: (label, command); the first three choose what the slipgate starts (the old hub's
-# vr_activestartpaknameidx; QC's buttons.qc marks a mission pack that is not installed); the fourth's 3 is Dimension of the
-# Past: its own game folder, so the slipgate's changelevel runs vr_campaign_select dopa (vr_gamedir.cpp)
+# the campaign lecterns' buttons: (label, command); each chooses what the slipgate starts (the old hub's
+# vr_activestartpaknameidx; QC's buttons.qc marks a campaign whose data is missing); 3, 4 and 5 (Dimension of the Past,
+# Dimension of the Machine, Dawn of the Machine) have game folders of their own, so the slipgate's changelevel runs
+# vr_campaign_select dopa, mg1 or mg3 (vr_gamedir.cpp)
 CAMPAIGNS = [("QUAKE", "vr_activestartpaknameidx 0; echo Quake selected: step into the slipgate"),
              ("SCOURGE OF" + N + "ARMAGON", "vr_activestartpaknameidx 1; echo Scourge of Armagon selected: step into the slipgate"),
              ("DISSOLUTION" + N + "OF ETERNITY", "vr_activestartpaknameidx 2; echo Dissolution of Eternity selected: step into the slipgate"),
-             ("DIMENSION" + N + "OF THE PAST", "vr_activestartpaknameidx 3; echo Dimension of the Past selected: step into the slipgate")]
+             ("DIMENSION" + N + "OF THE PAST", "vr_activestartpaknameidx 3; echo Dimension of the Past selected: step into the slipgate"),
+             ("DIMENSION" + N + "OF THE MACHINE", "vr_activestartpaknameidx 4; echo Dimension of the Machine selected: step into the slipgate"),
+             ("DAWN OF" + N + "THE MACHINE", "vr_activestartpaknameidx 5; echo Dawn of the Machine selected: step into the slipgate")]
 
 # the pavilion's setting buttons (vr_setup_option <key>: Quake/vr/vr_setup.cpp's table; each press steps the setting,
 # shows it on a screen over the button and saves the config): the north board's rows, the south board's

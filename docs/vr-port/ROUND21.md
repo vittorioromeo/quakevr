@@ -31380,3 +31380,29 @@ against the frame after:
   +17 there, nothing on the floor). Not the shimmer, the torches' or other dynamic lights, shadows, AO or fog. Its cause
   in the gate view's draw (both use the same world shader and frame constants) is not found yet: next, read the gate
   view's and the eye's float scenes over the same pixels (`vr_portals_shot` against `vr_eyeshot 2`).
+## vrstart: lecterns for Dimension of the Machine and Dawn of the Machine (2026-10-08)
+
+The author: "Add the missing lecterns to vrstart." MG1 and MG3 are ready (single player, `nativeReady`) but the hub
+had no way in. The terrace now has six lecterns, two rows of three either side of the way to the gate: id's Quake,
+Scourge of Armagon and Dissolution of Eternity on the left, the rerelease's Dimension of the Past, Dimension of the
+Machine and Dawn of the Machine on the right (`vrstart_gen.py` `LECTERNS_X` -164 -106 -48 48 106 164 from the gate,
+`LECTERN_HALF` 20: 40 wide under a 46-wide cap, were 52/60; the way to the gate stays 50 wide and the row ends
+within the curb and short of the braziers, as the four did).
+
+- **Selection**: the new lecterns run `vr_activestartpaknameidx 4` and `5` (SELECTED over them, as the others);
+  `VR_CanChangeCampaignMap` already handled any index 3 and over (at a hub the slipgate's changelevel runs
+  `vr_campaign_select mg1` / `mg3`, which starts the campaign's `start`); only comments changed in C++.
+- **Unavailable**: QC buttons.qc's two copies of the check are one function, `button_campaign_unavailable` (1, 2 the
+  mission packs; 3, 4, 5 `vr_dopa_status`, `vr_mg1_status`, `vr_mg3_status` != 1): "(unavailable)" under the label and
+  the press refused ("Campaign unavailable...").
+- **Map**: rebuilt (final preset): 0 holes in 1,000,064 rays.
+- **Tested headless**: each new lectern pressed by the mock hand (`vr_debug_wallbuttons`: pressed by hand; its echo
+  "... selected: step into the slipgate"; the map stays vrstart; Dimension of the Past's too); `vr_activestartpaknameidx
+  4` / `5` then `changelevel start` (the slipgate's command): map start, `vr_campaign` 4 / 5, game
+  `id1;hipnotic;rogue;mg1;quakevr` / `...mg3...`; the real slipgate walked into with 4 and with 5 (the selector ran,
+  the campaign's start loaded); with `-nosteam -nogog -noepic` (no rerelease data) the three rerelease lecterns read
+  "(unavailable)" and a press leaves the selector at 0; images of the row (owned, unowned, MG3 selected); the walk test
+  18 of 18; `vr_menu_path_check maps/vrstart.map` 4 found, 0 missing.
+- Test note: `setpos` always turns noclip on (no trigger touched until `noclip` again), and the slipgate's
+  changelevel, like a button's command, is queued after the whole `-Script`: test the gate with `changelevel start`,
+  or end the script without `quit` and read the log (`-Timeout`).

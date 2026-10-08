@@ -79,12 +79,24 @@ void() button_blocked =
 
 string vr_button_how; // what pressed the button now firing, for vr_debug_wallbuttons (button_fire clears it)
 
+// A hub's campaign lectern (vrstart's; buttonEffect 3 running "vr_activestartpaknameidx <n>; ...") whose campaign's
+// data is missing: 1 Scourge of Armagon, 2 Dissolution of Eternity (the mission packs), 3 Dimension of the Past,
+// 4 Dimension of the Machine, 5 Dawn of the Machine (vr_gamedir.cpp's campaigns: their vr_<folder>_status, 1 installed).
+float() button_campaign_unavailable =
+{
+    if(self.buttonEffect != 3) return FALSE;
+    string prefix = substring(self.targetname, 0, 28);
+    if(prefix == "vr_activestartpaknameidx 1; ") return !VR_Pack_Hipnotic();
+    if(prefix == "vr_activestartpaknameidx 2; ") return !VR_Pack_Rogue();
+    if(prefix == "vr_activestartpaknameidx 3; ") return cvar("vr_dopa_status") != 1;
+    if(prefix == "vr_activestartpaknameidx 4; ") return cvar("vr_mg1_status") != 1;
+    if(prefix == "vr_activestartpaknameidx 5; ") return cvar("vr_mg3_status") != 1;
+    return FALSE;
+};
+
 void() button_fire =
 {
-    if(self.buttonEffect == 3 &&
-        ((substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
-         (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue()) ||
-         (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 3; " && cvar("vr_dopa_status") != 1)))
+    if(button_campaign_unavailable())
     {
         if(self.enemy.classname == "player")
         {
@@ -472,10 +484,7 @@ void() func_button =
 {
     if(MG_MonsterInhibited()) return;
     if(MG_WorldCampaign()) MG_ButtonInit();
-    if(self.buttonEffect == 3 &&
-       ((substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
-        (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue()) ||
-        (substring(self.targetname, 0, 28) == "vr_activestartpaknameidx 3; " && cvar("vr_dopa_status") != 1)))
+    if(button_campaign_unavailable())
     {
         self.worldtext = strcat(self.worldtext, "\n(unavailable)");
     }

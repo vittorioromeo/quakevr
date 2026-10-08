@@ -277,7 +277,7 @@ with no face there is a hole.
 - **Layout** (x east, y north, the water's surface at z 0): a lake 8000 units across ringed by cliffs and mountains,
   the island in its middle (about 3100 x 2200), and the path from the south-west: the pier (the player's start) ->
   the arrival beach (welcome board, VR TUTORIAL and VR CALIBRATION buttons, a campfire) -> a staircase up the bank ->
-  the campaign terrace (four lecterns, the slipgate) -> a bridge over the ravine -> the settings pavilion (20
+  the campaign terrace (six lecterns, the slipgate) -> a bridge over the ravine -> the settings pavilion (20
   `vr_setup_option` buttons, each with its value screen) -> a staircase down -> the firing range (guns and
   ammunition on the benches; boards, crates, a dummy, an explosive box, rocks on a shelf) -> the shore path -> the
   lookout tower (a ladder of rungs at vrclimb's heights; a diving board over deep water). The places are dicts at the
@@ -290,10 +290,13 @@ with no face there is a hole.
   written as exact reals, 6 decimals). Textures by slope and height: rock5_2/rock3_8 on
   slopes over 44 degrees, grass1_1/ground1_2 on the island,
   ground1_8 on the paths, rock3_2 on the beach, ground1_5 under water.
-- **Campaigns**: the lecterns run `vr_activestartpaknameidx 0/1/2/3` (the slipgate, a `trigger_changelevel` to
-  `start` without intermission, starts that one; SELECTED shows over the chosen lectern). 3 is Dimension of the Past,
-  which has a game folder of its own: at a hub the slipgate's changelevel runs `vr_campaign_select dopa` instead
-  (`VR_CanChangeCampaignMap`), which starts e5start; a 3 left over anywhere else is ignored.
+- **Campaigns**: the lecterns (two rows of three either side of the way to the gate: id's Quake, Scourge of
+  Armagon and Dissolution of Eternity on the left, the rerelease's Dimension of the Past, Dimension of the Machine and
+  Dawn of the Machine on the right; `LECTERNS_X`) run `vr_activestartpaknameidx 0` to `5` (the slipgate, a
+  `trigger_changelevel` to `start` without intermission, starts that one; SELECTED shows over the chosen lectern;
+  QC buttons.qc `button_campaign_unavailable` adds "(unavailable)" without the campaign's data). 3, 4 and 5 have game
+  folders of their own: at a hub the slipgate's changelevel runs `vr_campaign_select dopa`, `mg1` or `mg3` instead
+  (`VR_CanChangeCampaignMap`), which starts e5start or the campaign's start; one left over anywhere else is ignored.
 - **The hub**: it is `vrstart`, the hub VR starts in and the menus' VR Hub returns to (it was `vrstart` until
   2026-10-07: `map vrstart`, a config's `vr_hub_map vrstart` (vr_cfg_version 99 moves it) and old saves made there
   still load it, `VR_MapAlias`). The old hub is `vrstart_old` (`vrstart_old.bsp`, `vrstart_old@3e00.ent`: our `.ent` files are pinned to their `.bsp`, `Misc/quakevr/entfile.py`): Debug > Tests > Hubs, or

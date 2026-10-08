@@ -350,7 +350,8 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
 
 - **The VR hub** (`vrstart`, an island in a lake at night) is where the game starts: a path from the pier past the
   campaign lecterns and their slipgate, a settings pavilion, a firing range and a lookout tower. Pick Quake, Scourge of
-  Armagon, Dissolution of Eternity or Dimension of the Past and step into the slipgate. Its boards and tips explain the
+  Armagon, Dissolution of Eternity, Dimension of the Past, Dimension of the Machine or Dawn of the Machine and step
+  into the slipgate. Its boards and tips explain the
   basics. (The old hub is `vrstart_old`, in the Debug menu.) From *Advanced VR Options > Play* you can go back to the
   hub, the **tutorial** or the **firing range** (weapons to try, both swords, the crowbar, props, and the training
   dummy).
