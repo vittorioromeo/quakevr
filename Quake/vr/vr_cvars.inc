@@ -2393,8 +2393,9 @@ QVR_CVAR(vr_foegrab, "1", CVAR_ARCHIVE)                  // experimental: an emp
 QVR_CVAR(vr_foegrab_leniency, "1.5", CVAR_ARCHIVE)       // cm: how far off its model the hand's skin may be and still take hold
 QVR_CVAR(vr_foegrab_break, "35", CVAR_ARCHIVE)           // cm: the hand (tracked) this far from the spot it holds lets go
 QVR_CVAR(vr_foegrab_slow, "0.8", CVAR_ARCHIVE)           // share of a fully held enemy's own movement taken off (times its hold)
-QVR_CVAR(vr_foegrab_drag, "4", CVAR_ARCHIVE)             // 1/s: how fast the hand pulls the spot it holds to it (times the hold)
-QVR_CVAR(vr_foegrab_drag_speed, "60", CVAR_ARCHIVE)      // units/s: at most this fast
+QVR_CVAR(vr_foegrab_follow, "1", CVAR_ARCHIVE)           // share of the holding hands' own move (flat) the enemy follows, times its hold (a grunt comes along)
+QVR_CVAR(vr_foegrab_drag, "10", CVAR_ARCHIVE)            // 1/s: how fast the hand pulls the spot it holds to it (times the hold)
+QVR_CVAR(vr_foegrab_drag_speed, "200", CVAR_ARCHIVE)     // units/s: at most this fast
 QVR_CVAR(vr_foegrab_strength_small, "0.85", CVAR_ARCHIVE)  // one hand's hold on a small enemy (grunt, enforcer, zombie, knight, mummy...)
 QVR_CVAR(vr_foegrab_strength_medium, "0.25", CVAR_ARCHIVE) // on a big one (fiend, ogre)
 QVR_CVAR(vr_foegrab_strength_large, "0.04", CVAR_ARCHIVE)  // on a huge one (shambler, vore and bigger)

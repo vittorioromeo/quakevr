@@ -896,8 +896,12 @@ int campaignsBloodyShown = -1;
         header("Effect"),
         slider("Slow Down", vr_foegrab_slow, 0.f, 1.f, 0.05f, "%.2f")
             .help("Share of a fully held enemy's own movement (and turning) taken off, times its hold."),
+        slider("Follow the Hand", vr_foegrab_follow, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Share of your holding hand's own movement the enemy follows, times its hold: pull your hand back, or "
+                  "walk off holding it, and a grunt comes along, an ogre a little, a shambler hardly."),
         slider("Pull", vr_foegrab_drag, 0.f, 20.f, 0.5f, "%.1f /s")
-            .help("How quickly your hand pulls the spot it holds towards it, times the hold (0: not at all)."),
+            .help("How quickly your hand pulls the spot it holds towards it, times the hold (0: not at all): takes up "
+                  "what Follow the Hand leaves."),
         slider("Pull Speed", vr_foegrab_drag_speed, 0.f, 300.f, 5.f, "%.0f units/s")
             .help("The pull's top speed (32 units are about a metre)."),
         header("Their Shoves"),

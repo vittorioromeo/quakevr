@@ -31892,6 +31892,22 @@ has none of: the next think ran a null function. The touch's wake now skips the 
 is never moved by the hold (it stands on its spot: `vr_dummy_think` put it back each 0.05 s, a jitter). A new type
 chosen while held is a new entity: the hand lets go. Tested: a grunt dummy and an ogre dummy held, no error.
 
+**The hold moves them now** (vrfiringrange_2026-10-08_22-31-08: "barely moving them even at the highest settings").
+The pull was only a spring from the spot to the hand: walking back holding a grunt, the hand got ahead of it faster than
+the spring brought it, and past `vr_foegrab_break` (his 20 cm) the hand let go after a quarter of a second. A held enemy
+now also follows its hands' own move since the last frame (flat; a pull, the player walking off with it) by
+`vr_foegrab_follow` (1, Combat > Holding Enemies > Follow the Hand) times its hold, at most 480 units/s; the spring
+takes up the rest (`vr_foegrab_drag` 4 -> 10/s, `_drag_speed` 60 -> 200 units/s). A shove's slide's carry is now
+the part the follow leaves (1 - follow). Headless, `vrfiringrange`, held by the main hand, walking back 0.5 s
+(`vr_mock_stick off 0 -1`):
+
+| case | the enemy moved | the hold |
+| --- | --- | --- |
+| grunt, before (defaults) | 4.5 units | let go after 0.60 s (75 cm) |
+| grunt, before (his: drag 20, speed 300, break 20) | 17 units | let go after 0.22 s (42 cm) |
+| grunt, now (either) | 208 units, with the player | held (stretch 0.3 cm) |
+| ogre (hold 0.25), now | 14 units | let go after 0.32 s |
+
 Seen while testing (not changed): a monster spawned by `vr_physics_spawn` (or `impulse 244`) stands 15-16 units lower
 than the floor its first step (SV_movestep) puts it on, in e1m1 and vrfiringrange alike.
 

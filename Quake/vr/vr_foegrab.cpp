@@ -47,6 +47,7 @@ constexpr double breakGrace = 0.25;  // s: a hand pulled past vr_foegrab_break l
 constexpr float breakFar = 2.f;       // or at once this many times as far
 constexpr float animTime = 0.12f;     // s: the held spot eases to where the model's animation has it
 constexpr float animMaxCm = 20.f;     // and is at most this far from where the body alone (origin, yaw) carries it
+constexpr float followMaxSpeed = 480.f; // units/s: a held enemy follows its hands' own move at most this fast
 
 // Why a hand let go (QC VR_FoeGrab_Released's xWhy).
 enum class Why : int
@@ -72,6 +73,7 @@ struct Hold
     float stretch{0.f};    // units from the tracked palm to palmAt (last frame)
     double since{0.0};
     double overSince{-1.0}; // the stretch past vr_foegrab_break since (-1: not)
+    glm::vec3 lastPalm{0.f}; // the tracked palm at the end of the last server frame (world): its move since is followed
 };
 
 struct Holder
@@ -365,6 +367,7 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     g.local = glm::transpose(body) * (point - origin);
     g.palmOff = glm::transpose(body) * (palm - point);
     g.palmAt = palm;
+    g.lastPalm = palm;
     g.since = qcvm->time;
     g.strength = za::clamp(callQc("VR_FoeGrab_Strength", player, best, static_cast<float>(h), 0.f, 0.5f), 0.f, 1.f);
     setFieldFloat(best, fields().vr_foegrab_letgo, 0.f);
@@ -810,10 +813,44 @@ void qvr::foegrab::serverFrame()
                 }
             }
         }
+        const float follow = za::clamp(vr_foegrab_follow.value, 0.f, 1.f);
         if(carriers > 0)
         {
             carry.z = 0.f;
-            target += carry / static_cast<float>(carriers) * hold;
+            target += carry / static_cast<float>(carriers) * hold * (1.f - follow); // (the hands' follow below carries the rest)
+        }
+        // It follows its hands' own move since the last frame (flat; a step, a pull, the player walking off with it), by
+        // vr_foegrab_follow times its hold: a grunt comes along, an ogre a little, a shambler hardly.
+        glm::vec3 handMove{0.f};
+        int moving = 0;
+        for(int c = 0; c < players && follow > 0.f; c++)
+        {
+            const VrMove* move = server::clientMove(EDICT_NUM(c + 1));
+            for(int h = 0; h < 2 && move; h++)
+            {
+                const Hold& g = holders[c].holds[h];
+                if(!g.active || g.ent != foe.ent || qcvm->time - g.since < 1e-6)
+                {
+                    continue;
+                }
+                glm::vec3 d = palmOf(EDICT_NUM(c + 1), *move, h) - g.lastPalm;
+                d.z = 0.f;
+                if(glm::length(d) < teleportStep)
+                {
+                    handMove += d;
+                    moving++;
+                }
+            }
+        }
+        if(moving > 0)
+        {
+            glm::vec3 step = handMove / static_cast<float>(moving) * (follow * hold);
+            const float most = followMaxSpeed * dt;
+            if(glm::length(step) > most)
+            {
+                step *= most / glm::length(step);
+            }
+            target += step;
         }
         // The hands pull their spots to them (flat): the mean of their stretches, eased by the hold.
         glm::vec3 pull{0.f};
@@ -869,8 +906,17 @@ void qvr::foegrab::serverFrame()
     }
     for(int c = 0; c < players; c++)
     {
-        holders[c].lastOrigin = vec(EDICT_NUM(c + 1)->v.origin);
+        edict_t* player = EDICT_NUM(c + 1);
+        holders[c].lastOrigin = vec(player->v.origin);
         holders[c].originKnown = true;
+        const VrMove* move = server::clientMove(player);
+        for(int h = 0; h < 2 && move; h++)
+        {
+            if(holders[c].holds[h].active)
+            {
+                holders[c].holds[h].lastPalm = palmOf(player, *move, h);
+            }
+        }
     }
     VR_ProfileEnd();
 }

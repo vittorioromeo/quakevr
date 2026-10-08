@@ -5,8 +5,11 @@
 //   triangle it touched: hitmodel::anchorFrame), the controller's turn kept;
 // - the monster is held by its hold (QC VR_FoeGrab_Strength: a small enemy's vr_foegrab_strength_small, a big one's
 //   _medium, a huge one's _large; or by its mass, vr_foegrab_by_mass), two hands' together 1 - (1 - a)(1 - b): its own
-//   movement (its steps, a slide, a leap; flat only) is cut by vr_foegrab_slow times its hold, and the hand pulls the spot
-//   towards it (vr_foegrab_drag times the hold, at most vr_foegrab_drag_speed): it can be moved a little, not thrown;
+//   movement (its steps, a slide, a leap; flat only) is cut by vr_foegrab_slow times its hold, it follows the holding
+//   hands' own move (flat: a pull, the player walking off with it) by vr_foegrab_follow times its hold, and the hand pulls
+//   the spot towards it (vr_foegrab_drag times the hold, at most vr_foegrab_drag_speed): a grunt comes along, an ogre a
+//   little, a shambler hardly;
+// - the dummy (vr_dummy.qc) is held as any enemy but never moved (it stands on its spot);
 // - its shoves (grunts, enforcers) are resisted (QC vr_enemyshove.qc: vr_foegrab_shove_resist times its hold) or, with
 //   vr_foegrab_shove 1, push you fully and break the hold;
 // - the holding hand deals no melee blows (QC .vr_foegrab_hands); the other hand fights as ever;
