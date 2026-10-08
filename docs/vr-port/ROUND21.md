@@ -32117,3 +32117,29 @@ with `oldorigin`), but a sign that the split at an exit could keep him to the ap
 
 (The fuzz's runs are packed under 7000 characters of script: a longer `-Script` is cut short on its way to the game,
 Windows' command line, and the run waits out its timeout; 80 trials take about 8 minutes at `vr_mock_eye_size 160`.)
+
+## Vittorio's decisions of 2026-10-08: 1.0.0, the deadzone, MG3's ghosts, the kill frame, dprints, spawn facing, the force grab's search
+
+- **Version 1.0.0** (`VERSION`; RELEASING.md's examples; RELEASE_TODO.md ticked): the first release is 1.0.0. The
+  console's line reads `1.0.0-dev (...)` in dev builds, the menus' corner `v1.0`.
+- **Stick deadzone 10** (was 25; `vr_deadzone`): configVersion 105 moves configs still at 25 (a config at any other
+  value keeps it). The Stick Deadzone rows' help: worn sticks that drift often need 20-25%.
+- **MG3's ghosts see-through** (`vr_mg3_ghost_alpha` 0.4, Debug > Tests > Dawn of the Machine Tests: Ghosts' Opacity;
+  QC vr_mg3_ghost.qc): entity alpha, read again as a ghost stands and runs (a change shows at once); 1 draws it solid
+  with its shadow, as before. Translucent entities cast no shadow and get no ambient occlusion (vr_lighting.cpp,
+  vr_shadows.cpp, vr_ao.cpp). The upstream source (`mg3_player_ghost.qc`) isn't in the worktree; the port's note says
+  upstream sets no alpha, so 0.4 is a choice: a faint figure, its outline still readable (a screenshot pair in e1m1
+  beside a grunt). Its death is its own animation and the teleport flash: `vr_mg3_btest 3` checks the alpha and that a
+  200 blow makes no small gibs, cut limbs or ragdoll.
+- **The kill frame** (PERF_DECISIONS.md 10) and **the dprints** (12): weapon ids without walking the records; the
+  dprint(sprintf()) of props, small gibs, limbs, the dropped guns' cap and debris formatted only with developer on.
+- **Spawn facing** (`vr_test_spawn_facing`, Debug > Tests > Ahead of You: Facing): 0 as each spawner did (Put It There
+  and impulse 244 facing you, `vr_physics_spawn` its spawn's angle 0), 1 towards you, 2 away (it looks where you look:
+  trailer shots from behind), 3 the spawn's own angle; set before the spawn function, so `ideal_yaw` agrees.
+  Checked in e1m1: each mode's three spawns at 270 / 90 / 0 with the player at 90.
+- **"Monsters spawned ahead stand 15-16 units low"** (seen while testing, above): not a spawn-height bug. In e1m1 and
+  vrfiringrange alike the player starts on a step 15-16 units above the floor ahead of him: `droptofloor` (vanilla's
+  hull trace and Quake VR's point traces agree) puts the monster on that lower floor, and its first step towards the
+  player climbs the step. Spawned beside the player on his step (24 units ahead in vrfiringrange) it stands level.
+- **The force grab's search** (PERF_DECISIONS.md 11): through the area grid, the same chain; `vr_forcegrab_grid`,
+  `_verify`, `_stats`.
