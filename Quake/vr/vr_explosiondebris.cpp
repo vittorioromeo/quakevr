@@ -78,8 +78,10 @@ glm::vec3 direction()
 // Seven offset line sweeps approximate the tiny sphere, including a centre sweep to avoid tunnelling.
 trace_t sweep(const glm::vec3& from, const glm::vec3& to, float radius)
 {
-    constexpr glm::vec3 offsets[] = {{0,0,0}, {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}};
+    // (The centre sweep once: in solid, it is the answer, as when the six were left after it.)
+    constexpr glm::vec3 offsets[] = {{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}};
     trace_t best = worldtrace::world(from, to, true, true);
+    if(best.startsolid || best.allsolid) { return best; }
     for(const glm::vec3& axis : offsets)
     {
         const glm::vec3 offset = axis * radius;

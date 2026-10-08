@@ -90,7 +90,15 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, 
     for(int i = 1; i < cl.num_entities; i++)
     {
         entity_t& e = cl_entities[i];
-        if(i == skipA || i == skipB || !e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0] ||
+        if(i == skipA || i == skipB || !e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0])
+        {
+            continue;
+        }
+        // (The line's box first: the cheap test that rejects nearly all of them, before the model's metadata lookup.)
+        const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
+        const glm::vec3 mins = origin + glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
+        const glm::vec3 maxs = origin + glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
+        if(glm::any(glm::lessThan(maxs, lo)) || glm::any(glm::greaterThan(mins, hi)) ||
             (!qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel) && !ownFiles))
         {
             continue;
@@ -102,13 +110,6 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, 
         if(const client::EntityVr* net = client::entityVr(i);
             (e.scale != 0 && e.scale != ENTSCALE_DEFAULT) ||
             (net && (net->noRotate || net->scale != glm::vec3{0.f} || net->offset != glm::vec3{0.f})))
-        {
-            continue;
-        }
-        const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
-        const glm::vec3 mins = origin + glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
-        const glm::vec3 maxs = origin + glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
-        if(glm::any(glm::lessThan(maxs, lo)) || glm::any(glm::greaterThan(mins, hi)))
         {
             continue;
         }
