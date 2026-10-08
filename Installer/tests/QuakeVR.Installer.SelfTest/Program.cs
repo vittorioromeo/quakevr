@@ -1192,6 +1192,348 @@ var tests = new List<(string Name, Action Body)>
         Directory.CreateDirectory(Path.Combine(dir, "QuakeVR"));
         Eq(Path.Combine(dir, "QuakeVR-2026-10-07.zip"), LocalPackages.FindBeside(dir), "an empty QuakeVR folder is skipped");
     }),
+    ("update detection: none on a fresh machine; the folder given, Setup's copy, the Apps & Features entry, the default folder; a moved entry", () =>
+    {
+        var registryFile = Path.Combine(run, "det-registry.json");
+        var registry = new JsonFileRegistry(registryFile);
+        var defaultDir = Path.Combine(run, "det-default", "QuakeVR");
+        var fresh = InstallDetection.Find(registry, null, Path.Combine(run, "det-setup", "QuakeVR-Setup.exe"), defaultDir);
+        True(fresh.Picked is null && fresh.Found.Count == 0 && fresh.Notes.Count == 0, "a fresh machine: no install");
+        True(fresh.Format().Contains("not installed"), "printed: " + fresh.Format());
+
+        var quake = Dir("det-quake");
+        Fixtures.MakeOriginal(quake);
+        var setupDir = Dir("det-setup-build");
+        File.WriteAllText(Path.Combine(setupDir, "QuakeVR-Setup.exe"), "exe");
+        var registered = Path.Combine(run, "det-QuakeVR");
+        new InstallEngine().Install(new InstallPlan
+        {
+            PackagePath = Fixtures.MakePackage(Dir("det-pkg"), "0.9.0 (2026-10-01 aaaaaaa1)"), TargetDir = registered, QuakeDir = quake,
+            SetupFiles = SetupCopy.FilesOf(Path.Combine(setupDir, "QuakeVR-Setup.exe"), singleFile: true), Registry = registry,
+        }, null, CancellationToken.None);
+        var d = InstallDetection.Find(registry, null, null, defaultDir);
+        Eq(registered, d.Picked?.Dir, "the registered install");
+        Eq(InstallOrigin.Registered, d.Picked!.Origin, "found from the entry");
+        Eq("0.9.0 (2026-10-01 aaaaaaa1)", d.RegisteredVersion, "the entry's version");
+
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("det-pkg2"), "0.9.0 (2026-10-01 aaaaaaa1)"), TargetDir = defaultDir, QuakeDir = quake },
+            null, CancellationToken.None);
+        d = InstallDetection.Find(registry, null, null, defaultDir);
+        Eq(2, d.Found.Count, "two installs");
+        Eq(registered, d.Picked!.Dir, "the registered one is picked over the default folder's");
+        True(d.Format().Contains("<- picked") && d.Format().Contains(defaultDir), "both printed");
+        Eq(defaultDir, InstallDetection.Find(registry, defaultDir, null, defaultDir).Picked!.Dir, "the folder given wins");
+        var running = InstallDetection.Find(registry, null, Path.Combine(defaultDir, "setup", "QuakeVR-Setup.exe"), null);
+        Eq(defaultDir, running.Picked!.Dir, "Setup's copy in an install: that install");
+        Eq(InstallOrigin.RunningFrom, running.Picked.Origin, "found from the copy");
+
+        // Moved by hand: the entry points at an empty place; the default folder's is picked, and the moved one is found by browsing.
+        var moved = Path.Combine(run, "det-moved");
+        Directory.Move(registered, moved);
+        d = InstallDetection.Find(registry, null, null, defaultDir);
+        Eq(defaultDir, d.Picked!.Dir, "the default folder's install");
+        True(d.Notes.Any(n => n.Contains("moved or deleted")), "the moved entry is said");
+        Eq(moved, InstallDetection.Find(registry, moved, null, defaultDir).Picked!.Dir, "browsed to");
+
+        var broken = Dir("det-broken");
+        File.WriteAllText(Path.Combine(broken, InstallRecord.FileName), "{ not json");
+        d = InstallDetection.Find(null, broken, null, null);
+        True(d.Picked is null && d.Notes.Any(n => n.Contains("could not be read")), "an unreadable install.json is passed over");
+    }),
+    ("versions: releases, pre-releases, builds and the old stamps ordered; update or repair", () =>
+    {
+        Eq(VersionOrder.Newer, ReleaseVersion.Compare("0.9.0 (2026-10-08 aaaaaaa1)", "0.9.1 (2026-10-09 bbbbbbb2)"), "a newer release");
+        Eq(VersionOrder.Older, ReleaseVersion.Compare("0.9.1 (2026-10-09 bbbbbbb2)", "0.9.0 (2026-10-08 aaaaaaa1)"), "an older one");
+        Eq(VersionOrder.Same, ReleaseVersion.Compare("0.9.1 (2026-10-09 bbbbbbb2)", "0.9.1 (2026-10-09 bbbbbbb2)"), "the same");
+        Eq(VersionOrder.Same, ReleaseVersion.Compare("0.9.1 (2026-10-09 bbbbbbb2-dirty)", "0.9.1 (2026-10-09 bbbbbbb2)"), "the same commit");
+        Eq(VersionOrder.Older, ReleaseVersion.Compare("0.10.0", "0.9.9"), "numbers, not text");
+        Eq(VersionOrder.Newer, ReleaseVersion.Compare("0.9.1-dev (2026-10-09 ccccccc3)", "0.9.1 (2026-10-08 bbbbbbb2)"), "a release after its pre-release");
+        Eq(VersionOrder.Older, ReleaseVersion.Compare("0.9.1 (2026-10-08 bbbbbbb2)", "0.9.1-dev (2026-10-09 ccccccc3)"), "a pre-release before its release");
+        Eq(VersionOrder.Newer, ReleaseVersion.Compare("0.9.1-dev (2026-10-08 aaaaaaa1)", "0.9.1-dev (2026-10-09 bbbbbbb2)"), "a later dev build");
+        Eq(VersionOrder.Other, ReleaseVersion.Compare("0.9.1-dev (2026-10-09 aaaaaaa1)", "0.9.1-dev (2026-10-09 bbbbbbb2)"), "another build of the same day");
+        Eq(VersionOrder.Newer, ReleaseVersion.Compare("2026-10-06 c131f4bf", "0.9.0 (2026-10-01 aaaaaaa1)"), "numbered after the old stamps");
+        Eq(VersionOrder.Newer, ReleaseVersion.Compare("2026-10-06 c131f4bf", "2026-10-07 d131f4bf"), "old stamps by date");
+        Eq("0.9.1-dev", ReleaseVersion.Parse("0.9.1-dev (2026-10-09 bbbbbbb2)").Short, "short form");
+        Eq(InstallMode.Update, MaintenancePlanner.ModeFor("0.9.0", "0.9.1"), "newer: update");
+        Eq(InstallMode.Update, MaintenancePlanner.ModeFor("0.9.1-dev (2026-10-09 aaaaaaa1)", "0.9.1-dev (2026-10-09 bbbbbbb2)"), "another build: update");
+        Eq(InstallMode.Repair, MaintenancePlanner.ModeFor("0.9.1", "0.9.1"), "same: repair");
+        Eq(InstallMode.Repair, MaintenancePlanner.ModeFor("0.9.1", "0.9.0"), "older: repair");
+    }),
+    ("update: only the program files that differ are copied, the player's files untouched (hashed before and after), changed ones backed up", () =>
+    {
+        var quake = Dir("upd-quake");
+        Fixtures.MakeOriginal(quake);
+        var quakeBefore = Snapshot(quake);
+        var target = Path.Combine(run, "upd-QuakeVR");
+        var shortcuts = Dir("upd-shortcuts");
+        var options = new ShortcutOptions { DesktopDir = Path.Combine(shortcuts, "Desktop"), StartMenuDir = Path.Combine(shortcuts, "Programs") };
+        var registryFile = Path.Combine(run, "upd-registry.json");
+        var setupExe = Path.Combine(Dir("upd-setup"), "QuakeVR-Setup.exe");
+        File.WriteAllText(setupExe, "setup exe");
+        const string v1 = "0.9.0 (2026-10-01 aaaaaaa1)", v2 = "0.9.1 (2026-10-08 bbbbbbb2)", v3 = "0.9.2 (2026-10-09 ccccccc3)";
+        var r1 = new InstallEngine().Install(new InstallPlan
+        {
+            PackagePath = Fixtures.MakePackage(Dir("upd-pkg1"), v1), TargetDir = target, QuakeDir = quake, Shortcuts = options, RelightOnFirstRun = true,
+            Registry = new JsonFileRegistry(registryFile), SetupFiles = SetupCopy.FilesOf(setupExe, singleFile: true),
+        }, null, CancellationToken.None);
+        FirstStartRelight.Set(target, false); // the game started and relit (its marker gone)
+
+        // The player plays: settings, saves, screenshots, voice notes, Map Library maps, relit maps, ticks, caches...
+        var playerFiles = new Dictionary<string, string>
+        {
+            ["quakevr/ironwail.cfg"] = "player config", ["quakevr/autoexec.cfg"] = "bind x", ["quakevr/s0.sav"] = "save",
+            ["quakevr/autosave/auto1.sav"] = "auto", ["quakevr/screenshots/shot0.png"] = "png", ["quakevr/notes/note1.wav"] = "wav",
+            ["qvr_addons/0123456789abcdef/maps/mymap.bsp"] = "bsp", ["cache/maps_installed.txt"] = "qvr_addons/0123456789abcdef/maps/mymap.bsp",
+            ["cache/maps/0123.zip"] = "zip", ["quakevr/relit_custom/id1/maps/e1m1.relight"] = "relit", ["quakevr/checklist_ticks.txt"] = "ticks",
+            ["quakevr/bodycal/body.cfg"] = "height 1.8", ["quakevr/retro_overrides.txt"] = "retro",
+        };
+        foreach (var (rel, body) in playerFiles)
+        {
+            var p = Path.Combine(target, rel.Replace('/', '\\'));
+            Directory.CreateDirectory(Path.GetDirectoryName(p)!);
+            File.WriteAllText(p, body);
+        }
+        File.AppendAllText(Path.Combine(target, "quakevr", "vr_defaults.cfg"), "\nvr_default fov 110"); // a shipped file the player changed
+        File.WriteAllText(Path.Combine(target, "quakevr", "newfile.txt"), "mine"); // the player's file where v2 ships one
+        Dictionary<string, string> Hashes() => playerFiles.Keys.ToDictionary(k => k, k => PackageManifest.HashFile(Path.Combine(target, k.Replace('/', '\\'))));
+        var before = Hashes();
+        var userBefore = UserData.Find(target, r1);
+        Eq("4 settings, 2 saves, 2 installed-map files, 6 other", UserData.Summary(userBefore), "the player's files sorted");
+        var hubTime = File.GetLastWriteTimeUtc(Path.Combine(target, "quakevr", "maps", "vrhub.bsp"));
+
+        // v2: a new engine and progs (their text has the version), SDL2.dll dropped, newfile.txt added.
+        var pkg2 = Fixtures.MakePackage(Dir("upd-pkg2"), v2, new() { ["SDL2.dll"] = "", ["quakevr/newfile.txt"] = "new" });
+        var manifest2 = PackageManifest.Parse(File.ReadAllText(Path.Combine(pkg2, PackageManifest.FileName)));
+        var plan = MaintenancePlanner.Plan(target, InstallRecord.Load(target)!, manifest2, MaintenancePlanner.ModeFor(r1.Version, v2));
+        Eq(InstallMode.Update, plan.Mode, "an older install: update");
+        string Paths(PlannedAction a) => string.Join("|", plan.Files.Where(f => f.Action == a).Select(f => f.Path).Order(StringComparer.Ordinal));
+        Eq("ironwail.exe|quakevr/progs.dat", Paths(PlannedAction.Replace), "replaced: the files v2 changed");
+        Eq("quakevr/newfile.txt", Paths(PlannedAction.Add), "added");
+        Eq("quakevr/vr_defaults.cfg", Paths(PlannedAction.Restore), "restored: the shipped file the player changed");
+        Eq("SDL2.dll", Paths(PlannedAction.Remove), "removed: no longer shipped");
+        Eq(7, plan.Count(PlannedAction.Unchanged), "the rest unchanged, not copied");
+        Eq("quakevr/newfile.txt|quakevr/vr_defaults.cfg", string.Join("|", plan.BackupFirst.Order(StringComparer.Ordinal)), "backed up first");
+        var programPaths = manifest2.Files.Select(f => f.Path).Union(r1.Files.Select(f => f.Path), StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        True(plan.Files.All(f => programPaths.Contains(f.Path)), "the plan lists only program files");
+        True(!plan.Files.Any(f => playerFiles.ContainsKey(f.Path)), "none of the player's");
+        Eq(0, plan.RelightInputsChanged.Count, "relight inputs unchanged");
+        Eq(playerFiles.Count + 1, plan.UserFiles.Count, "the player's files counted (newfile.txt is theirs until v2 ships it)");
+        True(plan.Format().Contains("update 0.9.0"), "printed");
+
+        var copied = new List<string>();
+        var logs = new List<string>();
+        var engine = new InstallEngine();
+        var r2 = engine.Install(new InstallPlan
+        {
+            Mode = InstallMode.Update, PackagePath = pkg2, TargetDir = target, QuakeDir = quake, Shortcuts = options, RelightOnFirstRun = r1.Choices.RelightOnFirstRun,
+            Registry = new JsonFileRegistry(registryFile),
+        }, new SyncProgress<InstallProgress>(p => { if (p.Log is not null) { logs.Add(p.Log); } }), CancellationToken.None);
+        Eq(v2, r2.Version, "updated");
+        True(logs.Any(l => l.Contains("4 program file(s) to copy")), "4 files copied: " + string.Join(" / ", logs));
+        Eq(hubTime, File.GetLastWriteTimeUtc(Path.Combine(target, "quakevr", "maps", "vrhub.bsp")), "an unchanged file is not rewritten");
+        Eq(v2, new JsonFileRegistry(registryFile).GetValue(UninstallEntry.Key, "DisplayVersion"), "Apps & Features version updated");
+        Eq(0, Uninstaller.Verify(target).Count, "verify clean after the update");
+        Eq(r1.Files.Count, r2.Files.Count, "11 files recorded (one dropped, one added)");
+        var after = Hashes();
+        True(before.All(kv => after[kv.Key] == kv.Value), "every player file identical after the update");
+        True(!File.Exists(Path.Combine(target, "SDL2.dll")), "dropped file removed");
+        Eq("new", File.ReadAllText(Path.Combine(target, "quakevr", "newfile.txt")), "v2's newfile.txt");
+        var backup = engine.LastBackup ?? throw new Exception("no backup");
+        True(backup.Dir.StartsWith(Path.Combine(target, "backups"), StringComparison.OrdinalIgnoreCase) && backup.Dir.EndsWith(" update", StringComparison.Ordinal), "dated backup: " + backup.Dir);
+        Eq("mine", File.ReadAllText(Path.Combine(backup.Dir, "quakevr", "newfile.txt")), "the player's newfile.txt backed up");
+        True(File.ReadAllText(Path.Combine(backup.Dir, "quakevr", "vr_defaults.cfg")).Contains("fov 110"), "the player's vr_defaults.cfg backed up");
+        Eq(0, Backup.Verify(backup.Dir).Count, "backup checked");
+        True(!FirstStartRelight.Pending(target) && !r2.RelightPending && r2.Choices.RelightOnFirstRun, "relight inputs unchanged: no relight, still chosen");
+        Eq(5, r2.Shortcuts.Count, "shortcuts kept");
+        Eq(quakeBefore, Snapshot(quake), "Quake folder untouched");
+
+        // v3 ships a new light: the relight is asked again. An update from the console (no shortcut folders) keeps the shortcuts.
+        var r3 = new InstallEngine().Install(new InstallPlan
+        {
+            Mode = InstallMode.Update, PackagePath = Fixtures.MakePackage(Dir("upd-pkg3"), v3, new() { ["SDL2.dll"] = "", ["quakevr/newfile.txt"] = "new", ["quakevr/tools/ericw-tools/light.exe"] = "fake light 2" }),
+            TargetDir = target, QuakeDir = quake, RelightOnFirstRun = true,
+        }, null, CancellationToken.None);
+        True(FirstStartRelight.Pending(target) && r3.RelightPending, "a new light.exe: relight at the next start");
+        Eq(5, r3.Shortcuts.Count, "console update: shortcuts kept");
+        True(File.Exists(Path.Combine(shortcuts, "Desktop", "Quake VR Unleashed.lnk")), "desktop shortcut still there");
+        True(before.All(kv => Hashes()[kv.Key] == kv.Value), "player files still identical");
+        // A fresh folder with Mode = Update is a normal full install.
+        var freshEngine = new InstallEngine();
+        var fresh = freshEngine.Install(new InstallPlan { Mode = InstallMode.Update, PackagePath = pkg2, TargetDir = Path.Combine(run, "upd-fresh"), QuakeDir = quake },
+            null, CancellationToken.None);
+        True(freshEngine.LastPlan is null && fresh.Files.Count == 11, "no install there: a full install");
+    }),
+    ("repair: the same version restores missing and changed program files; an older package never downgrades", () =>
+    {
+        var quake = Dir("rep-quake");
+        Fixtures.MakeOriginal(quake);
+        var target = Path.Combine(run, "rep-QuakeVR");
+        const string v1 = "0.9.1 (2026-10-08 bbbbbbb2)";
+        var pkg = Fixtures.MakePackage(Dir("rep-pkg"), v1);
+        new InstallEngine().Install(new InstallPlan { PackagePath = pkg, TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        File.WriteAllText(Path.Combine(target, "quakevr", "ironwail.cfg"), "mine");
+        File.Delete(Path.Combine(target, "quakevr", "progs.dat"));
+        File.WriteAllText(Path.Combine(target, "ironwail.pak"), "damaged");
+        Eq(2, Uninstaller.Verify(target).Count, "two problems");
+        var manifest = PackageManifest.Parse(File.ReadAllText(Path.Combine(pkg, PackageManifest.FileName)));
+        Eq(InstallMode.Repair, MaintenancePlanner.ModeFor(v1, manifest.Version), "same version: repair");
+        var plan = MaintenancePlanner.Plan(target, InstallRecord.Load(target)!, manifest, InstallMode.Repair);
+        Eq("ironwail.pak|quakevr/progs.dat", string.Join("|", plan.ToCopy.Select(f => f.Path).Order(StringComparer.Ordinal)), "only the damaged files");
+        True(plan.ToCopy.All(f => f.Action == PlannedAction.Restore), "restored");
+        var engine = new InstallEngine();
+        var r = engine.Install(new InstallPlan { Mode = InstallMode.Repair, PackagePath = pkg, TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        Eq(0, Uninstaller.Verify(target).Count, "repaired");
+        Eq(v1, r.Version, "same version");
+        Eq("damaged", File.ReadAllText(Path.Combine(engine.LastBackup!.Dir, "ironwail.pak")), "the changed file backed up first");
+        Eq("mine", File.ReadAllText(Path.Combine(target, "quakevr", "ironwail.cfg")), "settings kept");
+        True(!FirstStartRelight.Pending(target), "a repair asks for no relight");
+
+        // An older package: the files identical in both are restored, the rest of the installed version kept; no downgrade.
+        var older = Fixtures.MakePackage(Dir("rep-pkg-old"), "0.9.0 (2026-10-01 aaaaaaa1)");
+        File.WriteAllText(Path.Combine(target, "ironwail.pak"), "damaged again");
+        File.WriteAllText(Path.Combine(target, "quakevr", "progs.dat"), "damaged progs");
+        var oldManifest = PackageManifest.Parse(File.ReadAllText(Path.Combine(older, PackageManifest.FileName)));
+        Eq(InstallMode.Repair, MaintenancePlanner.ModeFor(v1, oldManifest.Version), "older: repair");
+        var oplan = MaintenancePlanner.Plan(target, InstallRecord.Load(target)!, oldManifest, InstallMode.Repair);
+        True(oplan.KeepsInstalledVersion, "keeps the installed version");
+        Eq("ironwail.pak", string.Join("|", oplan.ToCopy.Select(f => f.Path)), "only the identical file restored");
+        Eq("quakevr/progs.dat", string.Join("|", oplan.Files.Where(f => f.Action == PlannedAction.CannotRestore).Select(f => f.Path)), "progs.dat cannot be restored from 0.9.0");
+        True(oplan.Files.Any(f => f.Path == "ironwail.exe" && f.Action == PlannedAction.KeepInstalled), "0.9.1's engine kept");
+        var ro = new InstallEngine().Install(new InstallPlan { Mode = InstallMode.Repair, PackagePath = older, TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        Eq(v1, ro.Version, "still 0.9.1");
+        Eq("fake engine " + v1, File.ReadAllText(Path.Combine(target, "ironwail.exe")), "not downgraded");
+        Eq("quakevr/progs.dat", string.Join("|", Uninstaller.Verify(target).Select(p => p.Path)), "the one it could not restore still reported");
+    }),
+    ("reinstall from scratch: each choice moves its files into a dated, checked backup first; the rest untouched", () =>
+    {
+        var quake = Dir("rei-quake");
+        Fixtures.MakeOriginal(quake);
+        var target = Path.Combine(run, "rei-QuakeVR");
+        var pkg = Fixtures.MakePackage(Dir("rei-pkg"), "0.9.1 (2026-10-08 bbbbbbb2)");
+        new InstallEngine().Install(new InstallPlan { PackagePath = pkg, TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        var files = new Dictionary<string, (string Body, UserDataKind Kind)>
+        {
+            ["quakevr/ironwail.cfg"] = ("config", UserDataKind.Settings), ["quakevr/autoexec.cfg"] = ("bind", UserDataKind.Settings),
+            ["quakevr/retro_overrides.txt"] = ("retro", UserDataKind.Settings), ["quakevr/bodycal/body.txt"] = ("1.8", UserDataKind.Settings),
+            ["quakevr/s0.sav"] = ("save", UserDataKind.Saves), ["quakevr/autosave/a.sav"] = ("auto", UserDataKind.Saves),
+            ["qvr_addons/0123456789abcdef/maps/m.bsp"] = ("bsp", UserDataKind.Maps), ["cache/maps_installed.txt"] = ("list", UserDataKind.Maps),
+            ["quakevr/screenshots/s.png"] = ("png", UserDataKind.Other), ["quakevr/notes/n.wav"] = ("wav", UserDataKind.Other),
+            ["quakevr/relit_custom/id1/maps/e1m1.relight"] = ("relit", UserDataKind.Other), ["quakevr/checklist_ticks.txt"] = ("ticks", UserDataKind.Other),
+            ["cache/maps/0123.zip"] = ("zip", UserDataKind.Other),
+        };
+        void Write()
+        {
+            foreach (var (rel, (body, _)) in files)
+            {
+                var p = Path.Combine(target, rel.Replace('/', '\\'));
+                Directory.CreateDirectory(Path.GetDirectoryName(p)!);
+                File.WriteAllText(p, body);
+            }
+        }
+        Write();
+        foreach (var (rel, (_, kind)) in files)
+        {
+            Eq(kind, UserData.Classify(rel), "kind of " + rel);
+        }
+        Eq(UserDataKind.Other, UserData.Classify("cache/x.cfg"), "a cache's cfg is not a setting");
+        var hashes = files.Keys.ToDictionary(k => k, k => PackageManifest.HashFile(Path.Combine(target, k.Replace('/', '\\'))));
+        var none = new ReinstallOptions();
+        Eq(0, Reinstaller.Plan(target, none).Count, "nothing chosen: nothing to back up");
+        Eq(null, Reinstaller.Prepare(target, none, DateTimeOffset.Now), "and no backup folder");
+        True(!Reinstaller.Plan(target, new ReinstallOptions { ResetSettings = true }).Any(f => f.Path == "quakevr/default.cfg"), "shipped configs are program files");
+
+        var now = new DateTimeOffset(2026, 10, 8, 18, 30, 0, TimeSpan.Zero);
+        void Check(ReinstallOptions o, string what)
+        {
+            var expected = files.Where(f => o.Includes(f.Value.Kind)).Select(f => f.Key).Order(StringComparer.Ordinal).ToList();
+            Eq(string.Join("|", expected), string.Join("|", Reinstaller.Plan(target, o).Select(f => f.Path)), what + ": planned");
+            var b = Reinstaller.Prepare(target, o, now) ?? throw new Exception(what + ": no backup");
+            True(Path.GetFileName(b.Dir).StartsWith("2026-10-08 183000 reinstall", StringComparison.Ordinal), what + ": dated folder " + b.Dir);
+            Eq(0, Backup.Verify(b.Dir).Count, what + ": backup checked");
+            var listed = Backup.Load(b.Dir);
+            Eq(string.Join("|", expected), string.Join("|", listed.Files.Select(f => f.Path)), what + ": backup.json lists them");
+            foreach (var rel in expected)
+            {
+                Eq(hashes[rel], listed.Files.Single(f => f.Path == rel).Sha256, what + ": " + rel + " hash in backup.json");
+                Eq(hashes[rel], PackageManifest.HashFile(Path.Combine(b.Dir, rel.Replace('/', '\\'))), what + ": " + rel + " in the backup");
+                True(!File.Exists(Path.Combine(target, rel.Replace('/', '\\'))), what + ": " + rel + " gone from the install");
+            }
+            foreach (var rel in files.Keys.Except(expected))
+            {
+                Eq(hashes[rel], PackageManifest.HashFile(Path.Combine(target, rel.Replace('/', '\\'))), what + ": " + rel + " untouched");
+            }
+            if (o.RemoveSaves)
+            {
+                True(!Directory.Exists(Path.Combine(target, "qvr_addons")), what + ": the emptied map folders removed");
+            }
+            // Then the normal full install over it, with the same backup.
+            var engine = new InstallEngine();
+            var r = engine.Install(new InstallPlan { PackagePath = pkg, TargetDir = target, QuakeDir = quake, Backup = b }, null, CancellationToken.None);
+            True(r.Files.Count == 11 && Uninstaller.Verify(target).Count == 0 && engine.LastBackup == b, what + ": installed again");
+            Write(); // the next case starts from everything again
+        }
+        Check(new ReinstallOptions { ResetSettings = true }, "reset settings");
+        Check(new ReinstallOptions { RemoveSaves = true }, "remove saves");
+        Check(new ReinstallOptions { ResetSettings = true, RemoveSaves = true }, "both");
+        Eq(3, Directory.GetDirectories(Path.Combine(target, "backups")).Length, "three backups, none overwritten (-2, -3 for the same second)");
+        True(UserData.Find(target, InstallRecord.Load(target)).All(f => !f.Path.StartsWith("backups/", StringComparison.Ordinal)), "backups are never the player's files to reset");
+    }),
+    ("update: the HD pack unchanged is skipped (not downloaded), another pack replaces it and asks for the relight", () =>
+    {
+        var quake = Dir("uhd-quake");
+        Fixtures.MakeOriginal(quake);
+        var target = Path.Combine(run, "uhd-QuakeVR");
+        var zip = Fixtures.TextureZip(Path.Combine(run, "uhd-textures.zip"));
+        var zipSha = PackageManifest.HashFile(zip);
+        var r1 = new InstallEngine().Install(new InstallPlan
+        {
+            PackagePath = Fixtures.MakePackage(Dir("uhd-pkg1"), "0.9.0 (2026-10-01 aaaaaaa1)"), TargetDir = target, QuakeDir = quake, HdTexturesZip = zip, RelightOnFirstRun = true,
+        }, null, CancellationToken.None);
+        Eq(zipSha, r1.HdTexturesSha256, "the pack's SHA-256 recorded");
+        Eq("uhd-textures.zip", r1.HdTexturesFile, "and its name");
+        FirstStartRelight.Set(target, false);
+        var same = new FeedFile { File = "uhd-textures.zip", Size = new FileInfo(zip).Length, Sha256 = zipSha, Urls = ["http://127.0.0.1/x"] };
+        var other = new FeedFile { File = "new-textures.zip", Size = 10, Sha256 = new string('a', 64), Urls = ["http://127.0.0.1/y"] };
+        Eq(HdTexturesAction.Keep, MaintenancePlanner.HdTextures(target, r1, same, verify: false).Action, "same pack: kept");
+        Eq(HdTexturesAction.Replace, MaintenancePlanner.HdTextures(target, r1, other, verify: false).Action, "another pack: replaced");
+        Eq(HdTexturesAction.Keep, MaintenancePlanner.HdTextures(target, r1, same, verify: true).Action, "a repair with the files intact: kept");
+        var noSha = InstallRecord.Load(target)!;
+        noSha.HdTexturesSha256 = null;
+        Eq(HdTexturesAction.KeepUnknown, MaintenancePlanner.HdTextures(target, noSha, same, verify: false).Action, "an older record: kept");
+        var texture = Path.Combine(target, "id1", "textures", "wall1.png");
+        var textureTime = File.GetLastWriteTimeUtc(texture);
+
+        // The update with the same pack: no zip given, the textures stay as they are and stay recorded.
+        var r2 = new InstallEngine().Install(new InstallPlan
+        {
+            Mode = InstallMode.Update, PackagePath = Fixtures.MakePackage(Dir("uhd-pkg2"), "0.9.1 (2026-10-08 bbbbbbb2)"), TargetDir = target, QuakeDir = quake, RelightOnFirstRun = true,
+        }, null, CancellationToken.None);
+        Eq(textureTime, File.GetLastWriteTimeUtc(texture), "textures not rewritten");
+        Eq(r1.Files.Count(f => f.Component == Components.HdTextures), r2.Files.Count(f => f.Component == Components.HdTextures), "still recorded");
+        Eq(zipSha, r2.HdTexturesSha256, "the pack's SHA-256 kept");
+        True(!FirstStartRelight.Pending(target), "no relight: nothing it reads changed");
+
+        // A repair sees a missing texture: the pack is fetched again.
+        File.Delete(texture);
+        Eq(HdTexturesAction.Restore, MaintenancePlanner.HdTextures(target, r2, same, verify: true).Action, "a repair restores the pack");
+        Eq(HdTexturesAction.Keep, MaintenancePlanner.HdTextures(target, r2, same, verify: false).Action, "an update does not check them");
+
+        // Another pack: installed, recorded, and the relight asked again.
+        var zip2 = Path.Combine(run, "uhd-textures2.zip");
+        using (var z = System.IO.Compression.ZipFile.Open(zip2, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            using var s = z.CreateEntry("id1/textures/wall1.png").Open();
+            s.Write("png v2"u8);
+        }
+        var r3 = new InstallEngine().Install(new InstallPlan
+        {
+            Mode = InstallMode.Update, PackagePath = Fixtures.MakePackage(Dir("uhd-pkg3"), "0.9.2 (2026-10-09 ccccccc3)"), TargetDir = target, QuakeDir = quake, RelightOnFirstRun = true,
+            HdTexturesZip = zip2,
+        }, null, CancellationToken.None);
+        Eq("png v2", File.ReadAllText(texture), "the new pack's texture");
+        Eq(PackageManifest.HashFile(zip2), r3.HdTexturesSha256, "the new pack recorded");
+        True(FirstStartRelight.Pending(target), "a new pack: relight at the next start");
+    }),
 };
 
 static string JsonString(string s) => System.Text.Json.JsonSerializer.Serialize(s);
