@@ -3325,7 +3325,9 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         return;
     }
 
-    float emptyHammer = xWeapon == WID_MJOLNIR && !W_CheckNoAmmo(xHand);
+    // So is the Super Axe without its cells (they are only its burst's: vr_mg3_weapons.qc): held by the whole hand, the
+    // trigger closed round its haft, silent (the author's note, vrfiringrange_2026-10-08_14-14-01); untracked, it swings.
+    float emptyHammer = (xWeapon == WID_MJOLNIR || xWeapon == WID_SUPERAXE) && !W_CheckNoAmmo(xHand);
     if(emptyHammer && VRHandsTracked(self) && self.ishuman)
     {
         return;
