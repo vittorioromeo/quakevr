@@ -32054,3 +32054,66 @@ Checklist:
 - [ ] Debug > Update Notice: Fake 9.9.9: the box above the version box in the headset (one row) and on the desktop
   main menu (two rows, clear of Advanced VR); point and pull the trigger: the releases page opens on the desktop.
 - [ ] After the next game release (marked Latest), an older build shows the notice within the hour.
+
+## Slipgates: shooting yourself, stuck behind a gate (2026-10-08)
+
+Vittorio (vrslipgates, 14:44 and 14:46): in the loop you see yourself through the gate, and a shot at your image
+should hit you; and once, pushing a crate into a gate, he got stuck inside the wall behind it.
+
+**Shooting yourself.** A shot through a gate ignored its shooter the whole way: the trace's pass entity (`self`) is
+skipped by `SV_ClipToLinks`, on the far side too, and a missile never meets its owner (Quake's owner rule).
+- `MOVE_HITPASS` (8192, world.h; QC `MOVE_HITPASS`): the pass entity itself, and its owner, are met. `VR_PortalTrace`
+  adds it to each piece after a crossing, and to the whole trace when a player's shot starts at his image (his muzzle
+  held through a gate: carried to the far side by `reachAlong`, so it starts more than 72 units from his box; QC
+  `portal_from_image()`). The lightning's far piece (and a bolt from a muzzle held through) strikes with it
+  (`vr_lightning_hitpass`, weapons.qc).
+- A missile carried through a gate (`VR_PortalToss`) is marked (`.vr_gate_crossed`, its time) and from then on meets
+  its owner (`VR_PortalHitsOwner` in `SV_MoveRun`; QC `VR_OwnerSpared` in the player's missiles' touches: nails, super
+  nails, rockets, grenades, the enforcer's lasers, its and the rifle's). Other monsters' projectiles keep Quake's rule.
+- A small missile (a nail: its box shallower than its middle's way to the plane) was carried wholly behind the exit's
+  plane, into the wall there, and died on it at once (missiles through gates never came out). It now comes out just in
+  front of the exit, where its path crossed.
+- Self-damage is Quake's: armour, god mode, Quad, teamplay. The lightning gun's 600 units only reach round the loop
+  room (640 wide) from close to the gate; the test fires it 23 units from the gate with the hand 0.4 m forward.
+
+`slipgate_selfhit_test.sh`: health 100 then pellet 97, nail 94, rocket -11, shotgun 92, nailgun 91, lightning 70, the
+shotgun held through the gate 92, god mode 100.
+
+**Stuck behind a gate.** Two ways to be left in the wall behind a gate, both found by the new fuzz
+(`slipgate_stuck_fuzz.py`: crates pushed into the flush, large, wide and loop gates by random walks, back-steps,
+sidesteps, jumps, flings and in-and-back bounces; `vr_portals_stuck` asks the engine after each):
+1. **The crossing cooldown.** After a crossing no other crossing was allowed for 0.5 s, but the split body (each half
+   colliding in its own room) still let the torso past the plane. Stepping straight back into the gate he had just
+   come out of (or walking on into the one he had just backed out of) took the torso past the plane uncarried, and at
+   24 units past it the split ended: the full box inside the wall (`portal stuck: 1 at -256 900, torso -27.7`, behind
+   the exit after a quick in-out-in). Quake's `SV_CheckStuck` then held him at the last free place, a straddle he could
+   only slide back out of into the wall. The fuzz on the old build: 2 of 80 trials stuck at the end (torso -25 behind
+   an exit). **Fixed**: no cooldown (one crossing a tick): a carried body comes out in front of the exit moving away
+   from it, nothing bounces back. Monsters' cooldown went too (the same split).
+2. **Backing out of a gate.** With his torso past the plane but not carried (a crossing refused: blocked by the crate
+   at the exit, or the cooldown), walking back out did not move him at all: `VR_PortalBodyMove` skipped any gate whose
+   plane the torso was behind while moving back out of it ("a sheet's opposite face"), so the full box collided, inside
+   the wall. Torso 12 and 20 past the plane, stick back: frozen at y 652 / 660. **Fixed**: that skip only applies when
+   the body is in front of the gate's other face (a two-sided sheet's side turned the other way); now he walks back out
+   (y 520 / 528).
+
+**The safety net** (`vr_portals_unstick`, default 1; Debug > Slipgates > Get Out of a Teleporter's Wall): each tick,
+a walking player whose box is in the world's solid where he stands (`SV_Move` from his origin to itself: a gate's
+split included) with his torso by a gate's plane over its aperture (from half his box's depth in front to his box's
+depth and 32 behind) is got out at once: torso past the plane, carried on through (`crossPlayer`, a little further on
+if the exit holds him), else put back in front of it, else carried after all. `vr_portals_stuck` (Debug > Slipgates >
+Stuck in a Teleporter's Wall?) prints the state and the count. Noclip is left alone.
+
+`slipgate_unstick_test.sh`: setpos 30 and 44 into the wall: carried on (y 958, 972, unstuck 1); 20 in (a straddle): stays;
+4 in front: stays; back out from 12 and 20: out (y 520, 528); the rebound (in, out, in, then back through the exit):
+carried each time, never stuck. Off (`vr_portals_unstick 0`): Quake's `SV_CheckStuck` puts him back where he stood
+before setpos (the control).
+
+**The fuzz after the fixes**: seeds 21 and 5, 80 trials each: 0 stuck (seed 21 before: 2). The safety net fired in 4
+of the 160 trials (75 and 20 ticks), each time a 1-unit nudge back out of an exit whose frame the player was pressed
+into after his body left its aperture's footprint (a sidestep at the exit, a crate in the way): the split there ends
+once his body no longer fits it, his trailing half still in the wall. Harmless (Quake's `SV_CheckStuck` did the same
+with `oldorigin`), but a sign that the split at an exit could keep him to the aperture as the entry's does (open).
+
+(The fuzz's runs are packed under 7000 characters of script: a longer `-Script` is cut short on its way to the game,
+Windows' command line, and the run waits out its timeout; 80 trials take about 8 minutes at `vr_mock_eye_size 160`.)

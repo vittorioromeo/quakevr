@@ -6206,6 +6206,18 @@ za::Vector<Item> pageDebugTests()
             .help("vr_portals_debug_split 1: each frame, every entity drawn cut by a slipgate (where, the plane, how far "
                   "through), the force grab's beam end, and each thrown or rigid thing's middle and why a gate did not "
                   "take it. -1 (console) also follows the main hand's held object, a number that entity, every frame."),
+        command("Into the Loop, Lightning Gun", "setpos -1580 560 24 0 180 0; noclip; impulse 161")
+            .help("In vrslipgates: right at the loop's west teleporter with the lightning gun in your main hand. Shoot your "
+                  "own back through it: shots, nails, rockets and the bolt come out of the east teleporter and hit you "
+                  "(the bolt's 600 units reach round this room only from close to the teleporter; god mode: no damage)."),
+        command("Stuck in a Teleporter's Wall?", "vr_portals_stuck")
+            .help("vr_portals_stuck: whether your body is in the wall where you stand (a teleporter's split body "
+                  "included), the teleporter side nearest your torso and how far in front of its plane it is (under 0: "
+                  "behind it), and how many times you were got out of the wall behind a teleporter."),
+        toggle("Get Out of a Teleporter's Wall", "vr_portals_unstick")
+            .help("vr_portals_unstick 1 (default): if you end up in the wall behind a teleporter, you are carried on "
+                  "through it (your torso past its plane and room at the far side) or put back in front of it at once. "
+                  "0: off, to see a softlock as it was."),
         header("Visibility: Hidden Staircase"),
         command("Hidden Staircase Probe", "map start; wait120; setpos 278 1728 24 7 -20 0; wait60; vr_hull_leafdebug")
             .help("Places the player at the reported staircase spot. setpos enables noclip; turn it off before "
