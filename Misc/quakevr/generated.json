@@ -1212,6 +1212,14 @@
   "sha256": "1c49beeeb721a916e51f367126e3a771a1efe68a137aec51bafe0fdd0b83819a",
   "by": "make_flashlight.py"
  },
+ "quakevr/sound/vr/gadget_click_off.wav": {
+  "sha256": "e1c0349cb19f798ed0db761f76a2d081b2585901473156178ad9474c0c100fa6",
+  "by": "make_gadget_sounds.py"
+ },
+ "quakevr/sound/vr/gadget_click_on.wav": {
+  "sha256": "7af8661ab78c6480d42ab78129ca7dc1749807cd9847b85e705b0e1a19e2f1f3",
+  "by": "make_gadget_sounds.py"
+ },
  "quakevr/sound/vr/phys/flesh_h1.wav": {
   "sha256": "f7e51ffe13f63f3a8313647337df4853b93967a4cd611d7c01bcb95fc547ad41",
   "by": "make_physics_sounds.py"

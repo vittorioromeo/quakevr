@@ -89,6 +89,15 @@ float lightAt(const glm::vec3& point)
     return ownLight.light;
 }
 
+float lightFresh(const glm::vec3& point)
+{
+    if(!cl.worldmodel || cls.state != ca_connected || cls.signon != SIGNONS)
+    {
+        return -1.f;
+    }
+    return lightNow(point);
+}
+
 void PF_stealthlight()
 {
     const float* p = G_VECTOR(OFS_PARM0);

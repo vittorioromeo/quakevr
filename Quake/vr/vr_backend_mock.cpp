@@ -9,6 +9,7 @@
 #include "vr_body.hpp"
 #include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
+#include "vr_gearlights.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -437,10 +438,10 @@ void mockLook_f()
 // kept out of the floor lands short of a point under it; run it again (or a few frames on) to follow a weapon.
 // "vr_mock_hand_to <main|off> spot <index> [<height cm>]": at its hotspot `index` (a grip's point, a blade's zone's middle:
 // view::groundHotspotPoint), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> button":
-// its fingertip on the wrist gadget's bullet time button (vr_bullettime.cpp), or `units` off its face ("button
-// <units>"). "vr_mock_hand_to <main|off> wrist <cm>": its
-// middle (palm) `cm` from the bullet time tap zone's middle, on the line from there to where it is (steps make a tap:
-// vr_bullettime_tap). "vr_mock_hand_to <main|off> carried": at
+// its fingertip on the wrist gadget's side button (the gear lights: vr_gearlights.cpp), or `units` off its face ("button
+// <units>"). "vr_mock_hand_to <main|off> screen <cm> [<side cm>]": its middle (palm) `cm` over the gadget screen's middle
+// along its normal, `side cm` along its right ("screenbutt": the butt of the gun it holds instead): steps down the normal
+// make a tap (vr_bullettime_tap), steps along the right a swing across it. "vr_mock_hand_to <main|off> carried": at
 // the handle of the weapon the other hand carries (taking it back). "vr_mock_hand_to <main|off> held <fraction> [<cm>]": in the
 // weapon the other hand holds or carries, `fraction` of the way from its handle to its tip, `cm` over it
 // "vr_mock_hand_to <main|off> heldspot <index>": at hotspot `index` of the weapon the other hand holds, as drawn
@@ -604,7 +605,8 @@ void mockHandTo_f()
     const bool carried = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "carried");
     const bool inHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "held");
     const bool button = (Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "button");
-    const bool wrist = Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "wrist");
+    const bool screenButt = (Cmd_Argc() == 4 || Cmd_Argc() == 5) && !q_strcasecmp(Cmd_Argv(2), "screenbutt");
+    const bool wrist = screenButt || ((Cmd_Argc() == 4 || Cmd_Argc() == 5) && !q_strcasecmp(Cmd_Argv(2), "screen"));
     const bool heldSpot = Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "heldspot");
     const bool ragdollPart = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "ragdoll");
     const bool by = Cmd_Argc() == 6 && !q_strcasecmp(Cmd_Argv(2), "by");
@@ -803,7 +805,7 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> carried\n"
                    "       vr_mock_hand_to <main|off> held <fraction> [<cm>]\n"
                    "       vr_mock_hand_to <main|off> button [<units off its face>]\n"
-                   "       vr_mock_hand_to <main|off> wrist <cm>\n"
+                   "       vr_mock_hand_to <main|off> screen|screenbutt <cm> [<side cm>]\n"
                    "       vr_mock_hand_to <main|off> heldspot <hotspot index>\n"
                    "       vr_mock_hand_to <main|off> mag <along -1..1> [<units off its side>]\n"
                    "       vr_mock_hand_to <main|off> ragdoll <part> [<units over it>]\n"
@@ -829,18 +831,15 @@ void mockHandTo_f()
         Con_Printf("vr_mock_hand_to: the other hand's weapon's hotspot %d (type %d): %.1f %.1f %.1f\n",
             Q_atoi(Cmd_Argv(3)), h.type, target.x, target.y, target.z);
     }
-    if(button && !bullettime::buttonHandTarget(hand, target))
+    if(button && !gearlights::buttonHandTarget(hand, Cmd_Argc() == 4 ? Q_atof(Cmd_Argv(3)) : 0.f, target))
     {
         Con_Printf("vr_mock_hand_to: no gadget shown\n");
         return;
     }
-    if(glm::vec3 at, face; button && Cmd_Argc() == 4 && bullettime::button(at, face))
+    if(wrist && !bullettime::tapHandTarget(hand, Q_atof(Cmd_Argv(3)), Cmd_Argc() == 5 ? Q_atof(Cmd_Argv(4)) : 0.f,
+                    screenButt, target))
     {
-        target += face * Q_atof(Cmd_Argv(3)); // off the button's face (Button Size tests)
-    }
-    if(wrist && !bullettime::tapHandTarget(hand, Q_atof(Cmd_Argv(3)), target))
-    {
-        Con_Printf("vr_mock_hand_to: no gadget shown\n");
+        Con_Printf("vr_mock_hand_to: no gadget shown%s\n", screenButt ? ", or no gun in that hand" : "");
         return;
     }
     if(!carried && !weapon && !spot && !inHeld && !button && !wrist && !heldSpot)

@@ -66,6 +66,7 @@
 #include "vr_detail.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_selfcollide.hpp"
@@ -1454,6 +1455,7 @@ extern "C" void VR_Init()
     setup::init();
     motion::init();
     flashlight::init();
+    gearlights::init();
     chainsaw::init();
     detail::init();
     extmaps::init();
@@ -1619,7 +1621,8 @@ extern "C" void VR_BeginFrame()
     profile::overlay();  // the profiler's panel (vr_profile_overlay)
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
-    bullettime::frame(); // the gadget's bullet time button (the hands as last placed)
+    bullettime::frame(); // the gadget's screen tap for bullet time (the hands as last placed)
+    gearlights::frame(); // the gadget's side button: the gear lights (likewise)
     flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).

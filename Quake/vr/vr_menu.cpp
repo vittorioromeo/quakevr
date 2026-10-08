@@ -2554,6 +2554,37 @@ void hologramTestMessage()
             .help("The STAMINA row shows your stamina (parries, shoves and blows spend it) and COUNTER while a counter-attack's window is open."),
         slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx").extend()
             .help("The screen casts a light in its colour the way it faces, and a faint one on your hand (0 off)."),
+        header("Gear Lights: the Gadget's Side Button"),
+        toggle("Gear Lights", vr_gear_lights)
+            .help("Off: your gear's lights dim, for sneaking about in the dark: the light the gadget's and your guns' "
+                  "screens cast (monsters see you by it) and their glow, and the screens themselves. The button on the "
+                  "gadget's lower edge (the inner one) toggles this with a click; bindable: vr_gear_lights_toggle. The "
+                  "flashlight keeps its own switch."),
+        slider("Lights When Dimmed", vr_gear_lights_dim, 0.f, 0.5f, 0.01f, "%.2fx").extend(0.f, 1.f)
+            .help("While off: the screens' cast light and glow at this share (0: none at all)."),
+        slider("Screens When Dimmed", vr_gear_lights_screen_dim, 0.05f, 1.f, 0.05f, "%.2fx").extend(0.f, 1.f)
+            .help("While off: the screens' text, numbers and the hologram at this share of their brightness, readable "
+                  "up close."),
+        toggle("Side Button", vr_gadget_button)
+            .help("The button on the gadget's lower edge, pressed with your other hand's fingertip, toggles the gear "
+                  "lights."),
+        slider("Button Size", vr_gadget_button_size, 1.f, 8.f, 0.25f, "%.2f cm").extend(0.3f, 20.f)
+            .help("How near the button's middle your fingertip must come (from the button's side: never from over the "
+                  "screen). Show the Button shows it."),
+        slider("Button Across", vr_gadget_button_x, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
+            .help("The button's hit spot moved along the screen's width (positive: to the screen's right)."),
+        slider("Button Up", vr_gadget_button_y, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
+            .help("Moved along the screen's height (negative: further out past its lower edge)."),
+        slider("Button Out", vr_gadget_button_z, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
+            .help("Moved out of the screen's face (negative: down towards your arm)."),
+        slider("Fingertip Reach", vr_gadget_button_reach, -5.f, 15.f, 0.5f, "%.1f cm").extend(-20.f, 30.f)
+            .help("Where your fingertip is taken to be, ahead of your hand's point."),
+        slider("Button Cooldown", vr_gadget_button_cooldown, 0.f, 2.f, 0.1f, "%.1f s").extend(0.f, 5.f)
+            .help("After a press counts, how long before the next one does (no double toggles from a bounce)."),
+        cycle("Show the Button", vr_debug_gadget_button, {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}})
+            .help("Draws the button's hit volume (green ready, yellow pressed, red cooling down; the faint disc: no "
+                  "press from behind it) and your fingertip; And the Screen Tap: also bullet time's tap zone over the "
+                  "screen. Presses are printed."),
         slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("Scanlines, a slight flicker, faint static and now and then a glitch (0 off)."),
         slider("Screen Glow", vr_screen_glow, 0.f, 3.f, 0.1f, "%.1fx").extend()
@@ -4245,6 +4276,13 @@ za::Vector<Item> pageDebugViews()
                   "test maps the point struck to the standing pose, so these zones move with the model."),
         toggle("Hit Zones Through Walls", vr_debug_hitzones_xray)
             .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
+        cycle("Show Gadget Button", vr_debug_gadget_button, {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}})
+            .help("vr_debug_gadget_button: the wrist gadget's side button's hit volume (green ready, yellow pressed, red "
+                  "cooling down) and your fingertip, its presses printed; And the Screen Tap: also bullet time's tap "
+                  "zone over the screen."),
+        command("Gear Lights Info", "vr_gear_lights_info")
+            .help("vr_gear_lights_info: the gear lights' state, the side button's place and your fingertip's distance to "
+                  "it, and the stealth AI's light on you now."),
         cycle("Show Hits", vr_debug_hits, {{0.f, "Off"}, {1.f, "Hits"}, {2.f, "Hits and Misses"}})
             .help("Precise hit detection: each hit on a monster's model drawn for a few seconds (the model as it was then, "
                   "the triangle hit in green, the point on the model in red, where the grown model was met in yellow) and "
@@ -4327,10 +4365,10 @@ za::Vector<Item> pageDebugLogging()
             .help("The game's developer messages: needed by Shots and Damage and the Grappling Hook's log below, and many "
                   "others (melee events, grenades, deflections). Verbose: every frame's melee detail too."),
         header("Logs"),
-        cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused"}, {2.f, "And the Button's Distance"}, {3.f, "And the Wrist Tap"}})
-            .help("Bullet time starting, stopping and refused (the meter, the cooldown), each tap and press; and every "
-                  "frame, how far your fingertip is from the gadget's button, or (And the Wrist Tap) how far your other "
-                  "hand is from the gadget and how fast the hands come together."),
+        cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused"}, {2.f, "And the Screen Tap"}})
+            .help("Bullet time starting, stopping and refused (the meter, the cooldown), each tap and taps that never "
+                  "stopped on the screen; And the Screen Tap: every frame near the gadget's screen, how far over it your "
+                  "hand (and its gun's butt) is and how fast it comes into it."),
         cycle("Flashlight Flicks", vr_flashlight_flick_debug, {{0.f, "Off"}, {1.f, "Each Flick and Why"}, {2.f, "And the Wrist Every Frame"}})
             .help("vr_flashlight_flick_debug: the wrist flick that turns the held torch over, taken or refused (and why); 2: the held hand's wrist speed every frame."),
         cycle("Chainsaw", vr_debug_chainsaw, {{0.f, "Off"}, {1.f, "Pulls and Cuts"}, {2.f, "And the Bar in Monsters"}})
@@ -6939,9 +6977,7 @@ void showWrapper(cvar_t& var, float value)
     {
         return static_cast<float>(trigger);
     }
-    const bool tap = vr_bullettime_tap.value != 0.f;
-    const bool button = vr_bullettime_button.value != 0.f;
-    return tap && button ? 0.f : tap ? 4.f : button ? 5.f : 6.f;
+    return vr_bullettime_tap.value != 0.f ? 0.f : 6.f;
 }
 
 // Its choices: the three, and the settings' own combination where it is none of them (shown, not offered otherwise).
@@ -6951,9 +6987,7 @@ void showWrapper(cvar_t& var, float value)
     switch(static_cast<int>(bulletTimeActivation()))
     {
         case 3: out.pushBack({3.f, "Off"}); break;
-        case 4: out.pushBack({4.f, "Wrist Gadget (tap only)"}); break;
-        case 5: out.pushBack({5.f, "Wrist Gadget (button only)"}); break;
-        case 6: out.pushBack({6.f, "Wrist Gadget (tap and button off)"}); break;
+        case 6: out.pushBack({6.f, "Wrist Gadget (screen tap off)"}); break;
         default: break;
     }
     return out;
@@ -7022,18 +7056,17 @@ void onWrapperSet(cvar_t* var)
     }
     if(var == &vr_menu_bullettime)
     {
-        // A stick: its press alone (the gadget's tap and button do nothing then, as Combat > Bullet Time's Trigger).
-        // The gadget: its tap and its button. A config's own combination: as it was.
+        // A stick: its press alone (the gadget's screen tap does nothing then, as Combat > Bullet Time's Trigger).
+        // The gadget: its screen tap. A config's own combination (the tap off): as it was.
         const int choice = static_cast<int>(var->value);
         Cvar_SetValueQuick(&vr_bullettime_enabled, choice == 3 ? 0.f : 1.f);
         if(choice != 3)
         {
             Cvar_SetValueQuick(&vr_bullettime_trigger, choice == 1 || choice == 2 ? static_cast<float>(choice) : 0.f);
         }
-        if(choice == 0 || choice >= 4)
+        if(choice == 0)
         {
-            Cvar_SetValueQuick(&vr_bullettime_tap, choice == 0 || choice == 4 ? 1.f : 0.f);
-            Cvar_SetValueQuick(&vr_bullettime_button, choice == 0 || choice == 5 ? 1.f : 0.f);
+            Cvar_SetValueQuick(&vr_bullettime_tap, 1.f);
         }
     }
     wrapperBusy = false;
@@ -7272,9 +7305,9 @@ za::Vector<Item> pageMain()
         header("Bullet Time"),
         cycle("Activation", vr_menu_bullettime, bulletTimeChoices())
             .help("What starts and stops bullet time (the world slowed while the gadget's TIME meter lasts). Wrist "
-                  "Gadget: tap its wrist hard with your other hand, or press its inner button. A thumbstick press: that "
-                  "press does only this (never its bound key), and the gadget's tap and button do nothing. More: "
-                  "Advanced VR Options > Combat > Bullet Time."),
+                  "Gadget: tap its screen hard with your other hand (or the butt of its gun). A thumbstick press: that "
+                  "press does only this (never its bound key), and the screen tap does nothing. More: Advanced VR "
+                  "Options > Combat > Bullet Time."),
 
         header("Body"),
         cycle("Body Type", vr_body_mode, {{3.f, "Full"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})

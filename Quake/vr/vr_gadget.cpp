@@ -12,6 +12,7 @@
 // its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
 
 #include "vr_gadget.hpp"
+#include "vr_gearlights.hpp"
 #include "vr_body.hpp"
 #include "vr_portals.hpp"
 #include "vr_bullettime.hpp"
@@ -265,7 +266,7 @@ struct Palette
 [[nodiscard]] Palette palette()
 {
     const cvar_t& own = vr_gadget_screen_hue;
-    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen(); // (dimmed: the gear lights)
     const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
     const float whiteness = CLAMP(0.f, vr_gadget_screen_text_white.value, 1.f);
     const auto cap = [](const glm::vec3& c) { return glm::min(c, glm::vec3{1.f}); };
@@ -807,7 +808,7 @@ void light(int key, const Pose& pose, float out, float radius, float k)
 // until the next frame's.
 void glow(const Pose& pose)
 {
-    const float k = vr_gadget_light.value;
+    const float k = vr_gadget_light.value * gearlights::light(); // (dimmed: the gear lights)
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
     if(!pose.valid || k <= 0.f || bright <= 0.f)
     {
@@ -1521,7 +1522,7 @@ void layoutHologram()
     const float open = k > 0.f ? easeOut(static_cast<float>(realtime - holo.opened) / holoOpen) : 1.f;
     const float px = 0.26f * CLAMP(0.25f, vr_messages_hologram_size.value, 4.f) * scale / 8.f; // a font pixel
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
-    const glm::vec3 rgb = hue::color(vr_gadget_screen_hue, 0.5f, 0.95f * za::max(bright, 0.3f));
+    const glm::vec3 rgb = hue::color(vr_gadget_screen_hue, 0.5f, 0.95f * za::max(bright, 0.3f) * gearlights::screen());
     // The blocks, newest first from the bottom up, each growing as it appears.
     za::Vector<bool>& used = scratch.used;
     used.clear();
@@ -2313,7 +2314,7 @@ void useBrightFont(bool on)
 
 bool screenGlow(Glow& out)
 {
-    const float k = CLAMP(0.f, vr_screen_glow.value, 3.f);
+    const float k = CLAMP(0.f, vr_screen_glow.value, 3.f) * gearlights::light(); // (dimmed: the gear lights)
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
     if(k <= 0.f || bright <= 0.f || !active() || !current.valid || !target.texture)
     {

@@ -12,6 +12,9 @@ namespace qvr::stealth
 // world (or playing a demo). Sent in his VR move (vr_move.hpp) for the server's clientlight.
 [[nodiscard]] float lightAt(const glm::vec3& point);
 
+// The same measured now (not the tenth of a second's): vr_gear_lights_info.
+[[nodiscard]] float lightFresh(const glm::vec3& point);
+
 // float(vector at) stealthlight: the light at `at` as Quake's lightmaps give it (R_LightPoint: 128 is full light) plus
 // the dynamic lights there (Quake's falloff), the host's flashlight's own lights left out; -1 with no client world.
 void PF_stealthlight();

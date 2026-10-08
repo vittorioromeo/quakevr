@@ -16,6 +16,7 @@
 #include "vr_climb.hpp"
 #include "vr_avatar.hpp"
 #include "vr_gadget.hpp"
+#include "vr_gearlights.hpp"
 #include "vr_panel.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_body.hpp"
@@ -3897,6 +3898,59 @@ bool view::heldWeaponPoint(int hand, float fraction, float cm, glm::vec3& out)
     return true;
 }
 
+bool view::heldWeaponButt(int hand, glm::vec3& out)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const view::ViewEntity& w = entities.weapon[hand];
+    const int slot = weapons::slotForModel(w.ent.model);
+    if(!w.ent.model || w.ent.model->type != mod_alias || slot < 0 || slot == weapons::fistSlot())
+    {
+        return false;
+    }
+    const glm::vec3 handle = drawnAs[hand].pos;
+    const glm::vec3 tip = view::anchorPosition(w, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+        weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+    const glm::vec3 axis = glm::normalize(tip - handle + glm::vec3{0.f, 0.f, 1e-6f});
+    const grasp::Shape* shape = grasp::shapeOf(w.ent, -1);
+    if(!shape)
+    {
+        return false;
+    }
+    // Its rearmost drawn point along the line, then the middle of those within a unit of it.
+    const glm::mat4 m = grasp::shapeToWorld(w.ent, w.mirrored);
+    float rear = 1e30f;
+    for(const grasp::Triangle& t : shape->tris)
+    {
+        for(const glm::vec3& p : t.p)
+        {
+            rear = za::min(rear, glm::dot(glm::vec3{m * glm::vec4{p, 1.f}} - handle, axis));
+        }
+    }
+    glm::vec3 mid{0.f};
+    int n = 0;
+    for(const grasp::Triangle& t : shape->tris)
+    {
+        for(const glm::vec3& p : t.p)
+        {
+            const glm::vec3 v{m * glm::vec4{p, 1.f}};
+            if(glm::dot(v - handle, axis) <= rear + 1.f)
+            {
+                mid += v;
+                n++;
+            }
+        }
+    }
+    if(!n)
+    {
+        return false;
+    }
+    out = mid / static_cast<float>(n);
+    return true;
+}
+
 bool view::groundHotspotPoint(int entity, int index, glm::vec3& out)
 {
     if(entity <= 0 || entity >= cl_max_edicts || index < 0 || index >= weapons::maxHotspots)
@@ -7496,6 +7550,7 @@ extern "C" void VR_SetupViewEntities()
     ledges::debugDraw(); // vr_debug_ledges
     hitmodel::debugDraw(); // vr_debug_hits
     hitmodel::zonesDraw(); // vr_debug_hitzones
+    gearlights::debugDraw(); // vr_debug_gadget_button
     rope::debugDraw();     // vr_debug_rope
     if(vr_debug_hand_bones.value)
     {

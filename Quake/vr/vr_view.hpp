@@ -164,6 +164,11 @@ struct WeaponHotspot
 // held). False if it has none.
 [[nodiscard]] bool heldWeaponPoint(int hand, float fraction, float cm, glm::vec3& out);
 
+// The butt of the weapon `hand` holds, as drawn last: the middle of its drawn points within a unit of its rearmost end
+// along its line from the muzzle to the handle (a stock's heel, a pistol grip's base). The wrist gadget's screen tap
+// (vr_bullettime_tap_butt). False if it holds none (or a fist).
+[[nodiscard]] bool heldWeaponButt(int hand, glm::vec3& out);
+
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,
 // up) -- rigid; the model's vertices go in it as the view draws them (mirrored, then weapons::ModelTransform). For the

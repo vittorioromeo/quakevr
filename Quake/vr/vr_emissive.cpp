@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_emissive.hpp"
+#include "vr_gearlights.hpp"
 #include "vr_main.hpp"
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
@@ -773,7 +774,7 @@ extern "C" void VR_TorchLights(void)
 
 void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3& angles)
 {
-    const float k = vr_weapon_screen_light.value;
+    const float k = vr_weapon_screen_light.value * gearlights::light(); // (dimmed: the gear lights)
     const float bright = za::clamp(vr_gadget_screen_brightness.value, 0.f, 2.f);
     if(k <= 0.f || bright <= 0.f)
     {

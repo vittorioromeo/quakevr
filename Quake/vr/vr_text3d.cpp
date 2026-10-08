@@ -12,6 +12,7 @@
 #include "vr_worldtext.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_gadget.hpp"
+#include "vr_gearlights.hpp"
 #include "vr_profile.hpp"
 #include "vr_rope.hpp"
 #include "vr_portals.hpp"
@@ -126,7 +127,7 @@ struct ScreenShape
 // The screens' palette (the wrist gadget's, by default the player's hue): its text, and its face behind it.
 [[nodiscard]] glm::vec3 screenText()
 {
-    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen(); // (the gear lights)
     return glm::min(hue::color(vr_gadget_screen_hue, 0.55f, bright), glm::vec3{1.f});
 }
 
@@ -146,7 +147,7 @@ struct ScreenShape
 
 [[nodiscard]] glm::vec3 screenInk()
 {
-    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen(); // (the gear lights)
     return glm::min(gadget::whitened(hue::color(vr_gadget_screen_hue, 0.55f, 1.f), screenWhiteness()) * bright,
         glm::vec3{1.f});
 }
@@ -616,8 +617,8 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
             quad(bl, br, tr, tl, glm::vec4{screenFace(), 1.f});
         }
 
-        // Its glow (vr_screen_glow), over the bezel and a little beyond, just in front of the face.
-        const float k = CLAMP(0.f, vr_screen_glow.value, 3.f);
+        // Its glow (vr_screen_glow), over the bezel and a little beyond, just in front of the face (dimmed: the gear lights).
+        const float k = CLAMP(0.f, vr_screen_glow.value, 3.f) * gearlights::light();
         if(k > 0.f && bright > 0.f)
         {
             glow({.centre = pos - n * (gap * 0.5f), .right = right, .up = up, .halfSize = {halfW + pad, halfH + pad},

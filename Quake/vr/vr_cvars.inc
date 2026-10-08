@@ -343,9 +343,9 @@ QVR_CVAR(vr_timescale_turn_realtime, "1", CVAR_ARCHIVE) // 1: the smooth turn at
 QVR_CVAR(vr_timescale_move_realtime, "0", CVAR_ARCHIVE) // 1: the player's own movement (the stick, jumps, falls) and its weapons' timing in real time in slow motion; 0: slowed with the world
 QVR_CVAR(vr_sandevistan, "0", CVAR_ARCHIVE)            // 1: in any slow motion the player runs in its own time (moves, turns, hands, weapons' timing, its missiles: vr_sandevistan_missiles), only the world slowed
 QVR_CVAR(vr_sandevistan_missiles, "1", CVAR_ARCHIVE)   // in Sandevistan, the player's missiles (rockets, grenades, nails, thrown weapons, the hook) fly and think in its time too; 0: they join the slowed world
-// Bullet time (vr_bullettime.cpp; ROUND21.md, "Slow motion: bullet time and Sandevistan"): the gadget's button slows the
+// Bullet time (vr_bullettime.cpp; ROUND21.md, "Slow motion: bullet time and Sandevistan"): a hard tap on the gadget's screen slows the
 // world for as long as the meter lasts.
-QVR_CVAR(vr_bullettime_enabled, "1", CVAR_ARCHIVE)     // 1: a tap on the gadget's wrist (vr_bullettime_tap), the gadget's button (the inner one on its lower edge: vr_bullettime_button) and vr_bullettime start and stop it; 0: off
+QVR_CVAR(vr_bullettime_enabled, "1", CVAR_ARCHIVE)     // 1: a hard tap on the gadget's screen (vr_bullettime_tap) and vr_bullettime start and stop it; 0: off
 QVR_CVAR(vr_bullettime_scale, "0.3", CVAR_ARCHIVE)     // the world's time scale while it runs (0.05 .. 1)
 QVR_CVAR(vr_bullettime_duration, "6", CVAR_ARCHIVE)    // real seconds a full meter lasts
 QVR_CVAR(vr_bullettime_recharge, "20", CVAR_ARCHIVE)   // real seconds the meter takes to fill from empty (after the cooldown)
@@ -356,25 +356,26 @@ QVR_CVAR(vr_bullettime_fx, "1", CVAR_ARCHIVE)          // its look's strength (0
 QVR_CVAR(vr_bullettime_fx_desat, "0.7", CVAR_ARCHIVE)  // ... how much of the colour it takes out (0 .. 1)
 QVR_CVAR(vr_bullettime_fx_vignette, "0.5", CVAR_ARCHIVE) // ... how dark the view's edges (0 .. 1)
 QVR_CVAR(vr_bullettime_fx_tint, "0.85 0.95 1.15", CVAR_ARCHIVE) // ... the colour it multiplies by (red green blue)
-QVR_CVAR(vr_bullettime_button_radius, "1.5", CVAR_ARCHIVE) // units: how near the fingertip must come to the button's middle to press it
-QVR_CVAR(vr_bullettime_button_reach, "1", CVAR_ARCHIVE) // units: the fingertip, ahead of the hand's place
-QVR_CVAR(vr_bullettime_button, "1", CVAR_ARCHIVE)     // 1: the gadget's button starts and stops it; 0: not
-QVR_CVAR(vr_bullettime_trigger, "0", CVAR_ARCHIVE)    // what starts and stops it: 0 the gadget (its button, vr_bullettime_button, and the wrist tap, vr_bullettime_tap); 1 the left stick's press; 2 the right stick's press (that stick press then does only this in the game, never its bound key; the gadget's button and the tap do nothing)
-// The wrist tap: the other hand (its own middle, never what it holds) struck against the gadget's wrist, hard enough.
-QVR_CVAR(vr_bullettime_tap, "1", CVAR_ARCHIVE)        // 1: a tap on the gadget's wrist starts and stops it; 0: not
-QVR_CVAR(vr_bullettime_tap_radius, "15", CVAR_ARCHIVE) // cm: how near the gadget's middle the other hand's middle must come
-QVR_CVAR(vr_bullettime_tap_speed, "1", CVAR_ARCHIVE)  // m/s: the least speed of the hands towards each other (resting and brushing hands don't tap)
-QVR_CVAR(vr_bullettime_tap_stop, "0.5", CVAR_ARCHIVE) // the impact: the hands' speed must fall to this much of its peak in the zone (a hand passing by doesn't tap); 1: on arrival
+QVR_CVAR(vr_bullettime_trigger, "0", CVAR_ARCHIVE)    // what starts and stops it: 0 the gadget (a hard tap on its screen: vr_bullettime_tap); 1 the left stick's press; 2 the right stick's press (that stick press then does only this in the game, never its bound key; the screen tap does nothing)
+// The screen tap: a hard, deliberate strike on the gadget's screen by the other hand (its own middle) or the butt of the
+// gun it holds, straight into the screen, that stops there. A swing across it, a soft touch or a hand passing by don't.
+QVR_CVAR(vr_bullettime_tap, "1", CVAR_ARCHIVE)        // 1: a hard tap on the gadget's screen starts and stops it; 0: not
+QVR_CVAR(vr_bullettime_tap_speed, "1.2", CVAR_ARCHIVE) // m/s: the least speed into the screen (the hands' speed towards each other along its normal: both may move)
+QVR_CVAR(vr_bullettime_tap_angle, "40", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)
+QVR_CVAR(vr_bullettime_tap_margin, "2", CVAR_ARCHIVE) // cm round the screen's edges where the strike may land too
+QVR_CVAR(vr_bullettime_tap_depth, "6", CVAR_ARCHIVE)  // cm over the screen's face at which the striking point is on it (the hand's middle is inside the hand: its palm is a few cm out)
+QVR_CVAR(vr_bullettime_tap_butt, "1", CVAR_ARCHIVE)   // 1: the butt of the gun the other hand holds taps too (its rearmost end); 0: only the hand
+QVR_CVAR(vr_bullettime_tap_stop, "0.5", CVAR_ARCHIVE) // the impact: the speed into the screen must fall to this much of its peak on the screen (a hand passing by doesn't tap); 1: on arrival
 QVR_CVAR(vr_bullettime_tap_window, "0.25", CVAR_ARCHIVE) // seconds after the peak speed the impact may come
-QVR_CVAR(vr_bullettime_tap_holding, "1", CVAR_ARCHIVE) // 1: the tapping hand may hold something (its hand taps, not what it holds); 0: only an empty hand
+QVR_CVAR(vr_bullettime_tap_holding, "1", CVAR_ARCHIVE) // 1: the tapping hand may hold something (the hand or the gun's butt taps); 0: only an empty hand
 QVR_CVAR(vr_bullettime_tap_twohanded, "0", CVAR_ARCHIVE) // 1: taps count while both hands hold one weapon; 0: ignored then (the off hand on a foregrip)
-QVR_CVAR(vr_bullettime_trigger_cooldown, "0.5", CVAR_ARCHIVE) // real seconds after a press or tap before the next counts (no double triggers)
-QVR_CVAR(vr_bullettime_haptic, "1", CVAR_ARCHIVE)     // the tick in both hands when a press or tap counts (0 off .. 2)
+QVR_CVAR(vr_bullettime_trigger_cooldown, "0.5", CVAR_ARCHIVE) // real seconds after a tap or stick press before the next counts (no double triggers)
+QVR_CVAR(vr_bullettime_haptic, "1", CVAR_ARCHIVE)     // the tick in both hands when a tap counts (0 off .. 2)
 QVR_CVAR(vr_bullettime_sound_on, "items/inv1.wav", CVAR_ARCHIVE)     // its sounds (empty: none)
 QVR_CVAR(vr_bullettime_sound_off, "items/inv2.wav", CVAR_ARCHIVE)
 QVR_CVAR(vr_bullettime_sound_off_max, "1", CVAR_ARCHIVE) // real seconds the "off" sound plays at most, then fades out over 0.25 s (it is cut as bullet time starts again; 0: the whole sound)
 QVR_CVAR(vr_bullettime_sound_denied, "misc/menu2.wav", CVAR_ARCHIVE) // pressed with the meter too low or cooling down
-QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting, stopping and refused, and each press and tap; 2: also the fingertip's distance to the button every frame; 3: the wrist tap's distance and speeds every frame
+QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting, stopping and refused, and each tap; 2: also the screen tap's striking point and speeds every frame near the screen
 // The flat HUD (the status bar, hudstyle) over the window's view while in VR: over the mirror (Left Eye, Smoothed
 // Mirror) and over the spectator camera (off: the headset's view, the wrist gadget its HUD, for recording).
 QVR_CVAR(vr_window_hud_mirror, "1", CVAR_ARCHIVE)
@@ -497,6 +498,23 @@ QVR_CVAR(vr_gadget_test_state, "0", CVAR_NONE)        // the screen shows made-u
 QVR_CVAR(vr_gadget_show_level, "1", CVAR_ARCHIVE)     // the level's name, kills and secrets on the screen
 QVR_CVAR(vr_gadget_stamina, "1", CVAR_ARCHIVE)        // the screen's top row shows stamina (with parry, shove or strike stamina on: vr_parry_stamina, vr_shove_stamina, vr_strike_stamina) and flashes COUNTER while a counter's window is open (vr_meleehud.cpp)
 QVR_CVAR(vr_gadget_light, "1", CVAR_ARCHIVE)          // the screen casts a light in its colour the way it faces: strength (0 off)
+// Gear lights (vr_gearlights.cpp; ROUND21.md, "The gadget's side button: gear lights"): the inner button on the wrist
+// gadget's lower edge, pressed by the other hand's fingertip (or vr_gear_lights_toggle), clicks and turns the light of
+// the player's own gear down, for stealth: the gadget's and the guns' screens' lights (which the stealth AI's light on
+// the player counts) and glows, and their faces dimmer. The flashlight keeps its own switch.
+QVR_CVAR(vr_gear_lights, "1", CVAR_ARCHIVE)           // 1: the gear's lights on; 0: dimmed (the side button toggles it; kept)
+QVR_CVAR(vr_gear_lights_dim, "0.05", CVAR_ARCHIVE)    // dimmed: the screens' cast lights and glows at this share (0: none)
+QVR_CVAR(vr_gear_lights_screen_dim, "0.35", CVAR_ARCHIVE) // dimmed: the screens' faces (text, hologram) at this share of their brightness, readable up close
+QVR_CVAR(vr_gear_lights_sound_on, "vr/gadget_click_on.wav", CVAR_ARCHIVE) // the button's clicks (empty: none)
+QVR_CVAR(vr_gear_lights_sound_off, "vr/gadget_click_off.wav", CVAR_ARCHIVE)
+QVR_CVAR(vr_gadget_button, "1", CVAR_ARCHIVE)         // 1: the gadget's side button toggles the gear lights (vr_gear_lights); 0: not
+QVR_CVAR(vr_gadget_button_size, "3", CVAR_ARCHIVE)    // cm: the button's hit volume's radius (round its middle; only from its side of the screen's edge)
+QVR_CVAR(vr_gadget_button_x, "0", CVAR_ARCHIVE)       // cm: the hit volume moved along the screen's right ...
+QVR_CVAR(vr_gadget_button_y, "0", CVAR_ARCHIVE)       // ... its up (negative: further out past its lower edge) ...
+QVR_CVAR(vr_gadget_button_z, "0", CVAR_ARCHIVE)       // ... and out of it
+QVR_CVAR(vr_gadget_button_reach, "4", CVAR_ARCHIVE)   // cm: the fingertip, ahead of the hand's place
+QVR_CVAR(vr_gadget_button_cooldown, "0.6", CVAR_ARCHIVE) // real seconds after a press before the next counts (no double toggles)
+QVR_CVAR(vr_debug_gadget_button, "0", CVAR_NONE)      // Debug > Show Gadget Button: 1 its hit volume drawn (green ready, yellow pressed, red cooling down) and its presses printed; 2 also the screen tap's zone
 QVR_CVAR(vr_gadget_crt, "1", CVAR_ARCHIVE)            // the screen looks like a small CRT (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
 QVR_CVAR(vr_player_hue, "128", CVAR_ARCHIVE)          // the player's colour (vr_hue.hpp): the hue (degrees; 128 green, 40 amber, 200 blue) of the gadget's and weapons' screens, the sights, the force grab, the teleport arc, the crosshair, the menu laser (each: -1 follows it),
 QVR_CVAR(vr_player_saturation, "1", CVAR_ARCHIVE)     // and how saturated they are (1 as made, 0 white, up to 2)
