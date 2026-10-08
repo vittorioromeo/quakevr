@@ -389,4 +389,13 @@ check $(echo "$log" | grep -q "spent gun: grunt's burst rifle (hand 1) empty: sm
 # across the middle one's rim; they were 1.07) and the row its own mirror image (they leaned and stood out at random).
 ps=$($PY Misc/quakevr/reload/ssg_checks.py pouchshells)
 check $(echo "$ps" | awk '{print ($3 >= 0.6 && $3 <= 0.8 && $5 <= 0.02) ? 1 : 0}') "the pouch's shells a held shell's size, the row symmetric ($ps)"
+# 12. Reloading on the move (the author's note, 2026-10-08 14:00: walking forward, the load point was a hand's reach ahead
+# of the receiver as drawn): a shell held 12 units off the drawn port is 12 units off the server's port at every frame,
+# standing, running forward, strafing and turning (it was tested where the last frame left it: 12.8 running).
+for MV in "+forward" "+moveright" "+back;+moveleft;+left"; do
+  log=$(bash $KIT/run.sh $AGENT -Script "$PRE;$POUCH;$GRIP;vr_mock_hand_to main lport 12;wait5;vr_mock_hand_to main lport 12;wait10;vr_reload_debug 2;wait5;$MV;wait40;vr_reload_debug 1;toggleconsole;quit" -Filter "held round" 2>&1)
+  ds=$(echo "$log" | grep -o "held round [0-9.]* units" | awk '{print $3}' | sort -u | tr '
+' ' ')
+  check $([ "$(echo "$log" | grep -c "held round")" -ge 40 ] && [ "$ds" = "12.0 " ] && echo 1 || echo 0) "on the move ($MV): the held shell 12 units off the port every frame ($ds)"
+done
 exit $fail

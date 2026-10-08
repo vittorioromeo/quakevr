@@ -1065,12 +1065,6 @@ void(float xHand) VR_Carry_HandFrame =
     }
     box.carry_trigger = trigger;
 
-    // A round (a shell) held at the loading port of the gun in the other hand goes into it (vr_reload.qc).
-    if(VR_Reload_HeldFrame(xHand, box))
-    {
-        return;
-    }
-
     // Follow the hand, turning with it (its angles set; its place in the hand the grip's: moved at once by a change to its
     // Held Object Offsets); not through walls (monsters: VR_Carry_Follow).
     vector handRot = VRGetHandRot(xHand);
@@ -1083,6 +1077,12 @@ void(float xHand) VR_Carry_HandFrame =
         VR_Carry_Release(xHand, box); // stuck behind something
         return;
     }
+
+    // A round (a shell) held at the loading port of the gun in the other hand goes into it (vr_reload.qc). After it
+    // followed the hand: where the hand has it this frame, as the port is (this frame's, moved with the body). Before,
+    // it was tested where the last frame left it, a frame's walk behind the drawn gun: walking forward, the load point
+    // was found a hand's reach ahead of the receiver (4.4 units at run speed; the author's note, 2026-10-08 14:00).
+    VR_Reload_HeldFrame(xHand, box);
 };
 
 // Moves the held `box` (self is the player) towards `target`, not through walls (through monsters): FALSE if
