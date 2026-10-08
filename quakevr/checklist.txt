@@ -56,7 +56,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
-Performance decisions (docs/vr-port/PERF_DECISIONS.md): slipgate recursion default 2 (worst case now CPU 2.0 ms, GPU 3.7 ms; recommend keep); second shadow atlas for gate views (-0.15 ms CPU/-0.3 ms GPU, more memory); debris sleep state; reduced-resolution soft particles (big GPU win, visual call)
+Performance decisions (docs/vr-port/PERF_DECISIONS.md): slipgate recursion default 2 (worst case now CPU 2.0 ms, GPU 3.7 ms; recommend keep); second shadow atlas for gate views (-0.15 ms CPU/-0.3 ms GPU, more memory); debris sleep state; reduced-resolution soft particles (big GPU win, visual call); decal grid once per frame (right eye a frame late) or sized by occupied cells
 Stealth defaults the worker chose: bosses/flyers/swimmers keep Quake AI; ambush monsters deaf to noise; sneak bonus only on Idle (not Alert); idle grunts/enforcers no longer shove you; hostile loses you after 6 s -> Alert at last sighting
 MG3 monsters: ghosts drawn solid (no transparency upstream)? lava man 0.8 damage by what hit it? super shambler/rocket ogre/ranged knight share stock ragdoll settings? demo dog ragdolls (not gibs) when beheaded/limb cut on the killing blow?
 MG3 (defaults used until you answer): axe buttons only axe/Super Axe? Super Axe burst on a 2nd hit? base health 50 + caps 50/100/20/100? bloody shotguns faster refire? new hi-poly monsters with copied/box rigs?
