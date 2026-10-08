@@ -190,6 +190,25 @@ are in the shared ai.qc (`vr_stealth_test 106` puts down every kind the kit has:
 - **Lose the player** (`vr_stealth_lose 1`): a Hostile monster that hasn't seen him for 6 s goes to where it last saw
   him and searches there (Alert), then returns.
 
+## Slipgates (`vr_stealth_gates 1`; seamless slipgates, PORTAL_AI.md)
+
+Paired gates (a gate that comes out of another gate's face, `vr_slipgate_pair_exits`) are openings to the stealth AI:
+- **Sight**: every monster under the rules sees a player through a paired gate (Quake's AI and `vr_stealth_gates 0`:
+  only ranged monsters, through every gate). The meter's distance and facing are to his image in the gate.
+- **The point is his image** (where he shows in the gate, beyond its face in the monster's room's terms), with the gate
+  it is seen through (`stl_via`): an Alert monster walks into the gate's middle and through (`vr_portals_monsters`;
+  a gate it can't walk through: up to its face, then it searches there). A melee monster gone Hostile at a player it
+  sees only through a gate runs through to him (ranged ones stay and shoot through, PORTAL_AI.md).
+- **Crossing** (the engine's VR_Portal_Crossed, which now gets the gate's yaw, the face gone into and the face back):
+  its point, post (and its yaw), last sighting and walk marker go through with it: the point it walked through for is
+  in its room now; the others are beyond the face back (going back to its post it walks back through). No back and
+  forth.
+- **Noise**: a noise beyond a paired gate's exit is heard by the monsters on the gate's side at its image: the way's
+  length through the aperture (the straight line to the image; held to the aperture's edge: round a corner,
+  `vr_stealth_noise_wall`), each room's part of the way muffled by its walls and props as in the room. An Alert one walks
+  to the gate, through, and on to the noise.
+- One hop: a point two gates away is walked to through the first gate only.
+
 ## Cvars (all CVAR_ARCHIVE, Combat > Stealth AI)
 
 `vr_ai_enhanced 1`, `vr_stealth_meter 1`, `vr_stealth_meter_time 1.5`, `vr_stealth_meter_decay 0.2`,
@@ -197,7 +216,7 @@ are in the shared ai.qc (`vr_stealth_test 106` puts down every kind the kit has:
 `vr_stealth_still 0.5`, `vr_stealth_sight_range 1500`, `vr_stealth_peripheral 0.3`, `vr_stealth_contact 1`,
 `vr_stealth_noise 1`, `vr_stealth_run_speed 250`, `vr_stealth_noise_run 400`, `vr_stealth_noise_props 1200`,
 `vr_stealth_noise_guns 1`, `vr_stealth_noise_melee 1`, `vr_stealth_noise_blasts 1`, `vr_stealth_noise_wall 0.5`, `vr_stealth_noise_solid 0.15`,
-`vr_stealth_noise_absorb 0.6`, `vr_stealth_investigate 1`, `vr_stealth_turn 0.6`, `vr_stealth_search_time 5`,
+`vr_stealth_noise_absorb 0.6`, `vr_stealth_gates 1`, `vr_stealth_investigate 1`, `vr_stealth_turn 0.6`, `vr_stealth_search_time 5`,
 `vr_stealth_sensitive 1.5`, `vr_stealth_sensitive_time 30`, `vr_stealth_share_near 256`, `vr_stealth_share_view 1000`,
 `vr_stealth_graze 64`, `vr_stealth_flashlight 1`, `vr_stealth_torch 400`, `vr_stealth_corpses 600`,
 `vr_stealth_sneak 1.25`, `vr_stealth_ambush_deaf 1`, `vr_stealth_senses 1`, `vr_stealth_lose 1`, `vr_stealth_gem 1`,
@@ -246,7 +265,7 @@ Each test spawns a grunt near the player on e1m1 (or uses the nearest monster), 
 8 `vr_ai_enhanced 0`: test 1's scene gives vanilla's instant sight (Hostile) and an Alert monster is reset.
 
 Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own grunts, put down and taken away;
-`Misc/quakevr/stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|horde|all]` runs them headless,
+`Misc/quakevr/stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|horde|all]` runs them headless,
 `Misc/quakevr/multiplayer/stealth_mp_test.sh <agent>` the coop one):
 - 100 a real shot (the script pulls the trigger, `+attack` with the weapon in the hand: `vr_weapon_grip_mode 1; impulse
   9; impulse 150+id`): three grunts behind him at 0.8 and 1.2 of the weapon's reach in the open and 0.8 behind a wall
@@ -256,3 +275,8 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   lamp on a grunt's back: Alert at his lens.
 - 103 the horde (cost); 104/105 an investigation saved mid-walk and carried on after the load; 106 every kind; 107
   infighting; 108 lava's edge (e1m7).
+- 110-113 through slipgates (`vr_stealth_test3.qc`, vrslipgates, the player in room U: `stealth_tests.sh gates`): a
+  grunt in T sees him through T's north gate (Alert at his image, not at him), walks through, on to his spot, searches
+  and comes back through to its post (2 crossings); a knock in U heard only through the gate, the same walk (not heard
+  with `vr_stealth_gates 0`, nor at 0.85 of the way's length); a dog sees him through the gate and comes through (not
+  with `vr_stealth_gates 0`); `vr_ai_enhanced 0`: the dog doesn't see him through it, the grunt does.

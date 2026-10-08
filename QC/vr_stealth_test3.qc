@@ -5,7 +5,7 @@
 //   110 a grunt sees him through the gate: Alert at his image (not at him, behind T's wall), walks into the gate and
 //       through, on to where he stood, searches, and back through the gate to its post (two crossings: no ping-pong);
 //   111 a knock in U, out of a grunt's reach the straight way through the walls but not through the gate: heard, the same
-//       walk there and back; with vr_stealth_gates 0 not heard;
+//       walk there and back; with vr_stealth_gates 0 not heard; one reaching 0.85 of the way through the gate not heard;
 //   112 a dog (a melee monster) sees him through the gate (its meter fills) and goes through to him; with
 //       vr_stealth_gates 0 it doesn't see him;
 //   113 vr_ai_enhanced 0 (Quake's AI): the dog doesn't see him through the gate, the grunt does (vr_portals_ai).
@@ -206,6 +206,17 @@ void() VR_STT3_Frame =
             VR_STT2_Report("gate_noise_off", m.stl_state == STL_IDLE && m.stl_heard == 0,
                 sprintf("vr_stealth_gates 0: state %g, heard at %.1f (0)", m.stl_state, m.stl_heard));
             cvar_set("vr_stealth_gates", "1");
+            // the way through the gate is the noise's distance: a knock reaching 0.85 of it isn't heard
+            stt2_w = vlen(stt3_image - (m.origin + m.view_ofs));
+            VR_Stealth_Noise(stt3_spot, stt2_w * 0.85, world, STL_N_PROP);
+            VR_STT2_Stage(5);
+            return;
+        }
+        if(stt2_stage == 5 && t > 1)
+        {
+            VR_STT2_Report("gate_noise_reach", m.stl_state == STL_IDLE && m.stl_heard == 0,
+                sprintf("a knock reaching %.0f of the %.0f units through the gate: state %g, heard at %.1f (0)",
+                stt2_w * 0.85, stt2_w, m.stl_state, m.stl_heard));
             VR_STT3_Next(112);
         }
         return;

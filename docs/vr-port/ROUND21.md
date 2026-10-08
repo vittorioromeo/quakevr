@@ -30888,3 +30888,34 @@ as they now stand (its Status lists what remains).
   Alert point is the player's real origin (behind the wall in its room's terms), not his image, and a noise is heard
   only in the room it is made in (findradius round it, walls between). Mapping the point to the image needs the walk's
   marker, post and lost-at point carried when the monster crosses (VR_Portal_Crossed), or it would walk back and forth.
+  (Done: the next section.)
+
+## Stealth AI through slipgates (2026-10-08)
+
+The three gaps above, closed (STEALTH_PLAN.md "Slipgates" has the rules; new `vr_stealth_gates 1`, Combat > Stealth AI >
+Through Slipgates; off: sight through gates is ranged monsters' only and noises stay in their room, as before).
+- **Seen through a gate**: the Alert point (a glimpse; a Hostile one's last sighting, `stl_lost_at`) is the player's
+  image in the gate, with the gate (`stl_via`: the face it walks into, an exit's pair face; minus the gate when it can't
+  walk through). The walk goes into the face's middle (48 behind its plane) until it crosses; a gate it can't walk
+  through: up to its face, then it searches.
+- **Crossing**: the engine's VR_Portal_Crossed now gets the gate's yaw, the face gone into and the face back (players'
+  crossings too; `Side::pair` kept by pairExits). VR_Stealth_Crossed carries the point, post (and yaw), last sighting,
+  walk check and marker: the point walked for is in its room now, the others beyond the face back (its return walks back
+  through, then on along its path or to its post).
+- **Noise**: VR_Stealth_NoiseGates: each active paired gate whose exit the noise is in front of: the monsters on the
+  gate's side hear its image, the way's length through the aperture (held to its edge: x `vr_stealth_noise_wall`), each
+  room's half through VR_Stealth_NoiseLine (the room rules: walls, solid, props, water). Alert at the image via the gate.
+- **Every monster sees through paired gates** under the stealth rules (visible(); FindTarget's portal_ai_client); a
+  melee one Hostile at a player it sees only through a gate runs through (VR_Stealth_ChaseGate, before its attack checks:
+  no jumps at his real place). Ranged ones as before (stay and shoot).
+- Engine builtins `portal_ai_gateinfo(gate, what)` (count, flags 1 active / 2 paired / 4 monsters walk through, face) and
+  `portal_ai_gate(gate, what, p)` (middle, normal, p held to the aperture, p carried through).
+- **Tests**: `stealth_tests.sh <agent> gates` (QC vr_stealth_test3.qc, `vr_stealth_test 110` on vrslipgates from room U;
+  Debug > Tests > Stealth AI > Through Slipgates): 11 PASS, the same numbers in 5 runs: the grunt Alert at the image
+  (-1280 908, 0 off) via T's north gate after 1.2 s, through, within 63 of his spot, back at its post after 47.3 s with 2
+  crossings; a knock (600 reach; 975 the straight way, 459 through the gate) the same (48.8 s), not heard with
+  `vr_stealth_gates 0` nor at 0.85 of the 459; the dog through to him in 4.4 s (meter, then Hostile, through), with
+  `vr_stealth_gates 0` its meter 0; `vr_ai_enhanced 0`: the dog no gate, the grunt Hostile through it. stealth_tests.sh
+  all 50 PASS, `vr_stealth_test 1` 0 failed, slipgate_edges_test.sh all and slipgates_test.sh chase as before (the grunt
+  still shoots through and stays).
+- One hop only: a point two gates away is walked to through the first gate (then searched there).
