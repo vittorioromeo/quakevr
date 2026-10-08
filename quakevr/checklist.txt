@@ -79,9 +79,6 @@ Quetoo maps: walls by a lamp and the flashlight; pick a specular level
 Recording: slow motion with game-time sound and highlight markers line up in Resolve
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
-[Decide]
-MG3 demo dog (exploding dog, grenade pack): it always bursts as upstream; Quake VR makes it lie as a ragdoll instead when the killing blow beheads it or cuts a limb (grenades spill anyway): keep?
-
 [Tune]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
 
