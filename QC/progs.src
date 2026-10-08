@@ -244,6 +244,7 @@ vr_mg3_chthon_test.qc
 
 // Knockdowns: shoves knock monsters down as ragdolls, alive (after everything it calls).
 vr_knockdown.qc
+vr_foegrab_throw.qc
 
 frikbot/bot.qc
 frikbot/bot_way.qc

@@ -31908,6 +31908,61 @@ the part the follow leaves (1 - follow). Headless, `vrfiringrange`, held by the 
 | grunt, now (either) | 208 units, with the player | held (stretch 0.3 cm) |
 | ogre (hold 0.25), now | 14 units | let go after 0.32 s |
 
+**The two-hand throw** (vrfiringrange_2026-10-08_22-31-08: "a judo throw"; `vr_foegrab_throw 1`, Combat > Holding
+Enemies > Two-Hand Throw). Both hands holding one enemy, turned over hard, knock it down that way: the shove's
+knockdown (`VR_Knockdown_Start`: it falls as a ragdoll, lies, gets up), for sure, never by chance; both hands let go
+(a thump in each). One hand never throws (it holds: slows and pulls). Engine `throwCheck` (vr_foegrab.cpp), QC
+`QC/vr_foegrab_throw.qc`.
+
+- **The turn** (the hands' own velocities, not the player's walk; metres, m/s): two parts added. The hands turning it
+  between them as a wheel, (d x dv) / |d|^2 (d from the off palm to the main one, dv their velocities' difference: one
+  shoulder pushed down, the other pulled up), and both together toppling it about its box's middle, (r x v) / |r|^2 (r
+  to the palms' middle, v their mean velocity: its top pulled towards you or pushed to a side); each length at least
+  10 cm. Its level part only (a twist about the vertical tips nothing over), in degrees/s: at `vr_foegrab_throw_twist`
+  (150) or more, with the hands' mean speed at `vr_foegrab_throw_speed` (1 m/s) or more, after both hands have held
+  0.15 s, it throws. Its direction: the turn's axis x up (where its top goes). Straight away from you (within 45
+  degrees) is a shove's and does nothing, unless `vr_foegrab_throw_away 1`. A turn that didn't throw waits 0.5 s.
+- **Who** (his tiers): `vr_foegrab_throw_always` (grunt, enforcer, zombie, knight, rottweiler, mummy, and the word
+  `infected`: Dawn of the Machine's infected, `.vr_mg3_infected`); `vr_foegrab_throw_when_hurt` (death knight, the
+  ogres: `monster_ogre`, `_marksman`, `_rocket`; fiend, spawn, slime, scorpion, ranged knight): only below
+  `vr_foegrab_throw_hurt` (0.4) of its full health, never above; any other kind never (shambler, vore, bosses...),
+  nor anything flying or swimming. The lists are classnames (console). Or by mass (`vr_foegrab_throw_by_mass 1`:
+  always up to `_mass_always` 140 kg, when hurt up to `_mass_hurt` 300, never heavier; vores and overlords never).
+  Thrown along the turn at `vr_foegrab_throw_push` (220 units/s, times `vr_knockdown_push`) and `_lift` (100) up. A
+  kind with no knockdown set up (its get-up: `.vr_kd_chance_h`), no ragdoll or no room can't be thrown now (a short
+  low buzz in both hands, as for one too strong).
+- **The training dummy** is never knocked down (it stands): over its head "thrown", "hurt it below 40%" or "never
+  thrown", by the kind it stands as (`vr_dummy_type`) and its health bar, and the console prints the turn and speed of
+  every try, for practising the motion.
+- **Tuning:** `vr_foegrab_debug 1` (Debug > Tests > Holding Enemies > Log Holds) prints each try and, when both hands'
+  hold ends, its hardest turn and the hands' speed then; 2 every frame's turn with each palm and velocity. `Who Is
+  Held?` shows the hardest turn so far. `vr_foegrab_hurt <share>` (Hurt the Held to 30%, Heal the Held) sets the held
+  (else the nearest) enemy's health.
+
+Tests (headless, `vrfiringrange`, the monster spawned 44-60 units ahead facing you, `notarget`, both hands gripping
+its chest, then a `vr_mock_play` of the hands' move: 30 cm in 0.15 s, 2 m/s; `scratch/throwtest.py` in the agent's
+worktree):
+
+| case | turn, hands' speed | result |
+| --- | --- | --- |
+| grunt, main hand up and off hand down | 505 deg/s, 2 m/s | thrown to your left (ended 87 units left), both hands let go |
+| grunt, the other way | 511 deg/s | thrown to your right |
+| grunt, both pulled back towards you (and a little down) | 188 deg/s, 2.1 m/s | thrown towards you |
+| grunt, both pushed straight ahead | 171 deg/s | no throw (away from you: a shove's) |
+| grunt, the left twist over 1 s (0.3 m/s) | 77 deg/s at its hardest | no throw |
+| grunt, the left twist with one hand holding | | no throw, held |
+| grunt, `vr_foegrab_throw 0` | | no throw, held |
+| grunt, by mass | 504 deg/s | thrown |
+| knight, left / right | 511 / 505 deg/s | thrown (to the right: ended 27 units right) |
+| ogre at full health (by kind; by mass) | 505 / 511 deg/s | not hurt enough, held |
+| ogre at 30% (`vr_foegrab_hurt 0.3`) | 511 deg/s | thrown to your left |
+| shambler at 10% (hands on its arms; leniency 50 cm to reach) | 200 deg/s | never thrown (its kind) |
+| training dummy as a grunt | 841 deg/s | "thrown" shown, hands let go, it stands |
+| training dummy as an ogre (full health) | 842 deg/s | not hurt enough |
+
+Seen: the knight thrown to the left ended 26 units towards the player and 7 to the right, lying (its ragdoll; the
+grunt's went 87 units left): worth a look in VR whether a knight falls the way it is thrown.
+
 Seen while testing (not changed): a monster spawned by `vr_physics_spawn` (or `impulse 244`) stands 15-16 units lower
 than the floor its first step (SV_movestep) puts it on, in e1m1 and vrfiringrange alike.
 

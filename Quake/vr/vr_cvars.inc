@@ -2404,6 +2404,20 @@ QVR_CVAR(vr_foegrab_mass_light, "100", CVAR_ARCHIVE)     // kg (a grunt 80, an e
 QVR_CVAR(vr_foegrab_mass_heavy, "650", CVAR_ARCHIVE)     // kg
 QVR_CVAR(vr_foegrab_shove, "0", CVAR_ARCHIVE)            // a held grunt's or enforcer's shove: 0 resisted (vr_foegrab_shove_resist), 1 pushes you fully and breaks your hold
 QVR_CVAR(vr_foegrab_shove_resist, "0.9", CVAR_ARCHIVE)   // share of the shove's push the hold takes off (times the hold)
+// The two-hand throw (vr_foegrab.cpp throwCheck, QC vr_foegrab_throw.qc): both hands holding one enemy, turned over hard
+// (the hands' turn about it, level axis, and their speed) knock it down that way, for sure, by its kind and health.
+QVR_CVAR(vr_foegrab_throw, "1", CVAR_ARCHIVE)             // 1: the two-hand throw on
+QVR_CVAR(vr_foegrab_throw_twist, "150", CVAR_ARCHIVE)     // degrees/s: the hands' turn of the enemy (over, about a level axis through its middle) that throws
+QVR_CVAR(vr_foegrab_throw_speed, "1", CVAR_ARCHIVE)       // m/s: and the hands' mean speed then, at least
+QVR_CVAR(vr_foegrab_throw_away, "0", CVAR_ARCHIVE)        // 1: a throw straight away from you (within 45 degrees) counts too (0: that's a shove's)
+QVR_CVAR(vr_foegrab_throw_hurt, "0.4", CVAR_ARCHIVE)      // the "when hurt" enemies are thrown below this share of their full health, never above
+QVR_CVAR(vr_foegrab_throw_by_mass, "0", CVAR_ARCHIVE)     // 0: the kinds below (class lists); 1: by mass (_mass_always, _mass_hurt)
+QVR_CVAR(vr_foegrab_throw_always, "monster_army monster_enforcer monster_zombie monster_knight monster_dog monster_mummy infected", CVAR_ARCHIVE) // classnames always thrown ("infected": Dawn of the Machine's infected)
+QVR_CVAR(vr_foegrab_throw_when_hurt, "monster_hell_knight monster_ogre monster_ogre_marksman monster_ogre_rocket monster_demon1 monster_tarbaby monster_slime monster_scourge monster_ranged_knight", CVAR_ARCHIVE) // only when hurt; any other never
+QVR_CVAR(vr_foegrab_throw_mass_always, "140", CVAR_ARCHIVE) // kg, by mass: this light or lighter always (a mummy 140)
+QVR_CVAR(vr_foegrab_throw_mass_hurt, "300", CVAR_ARCHIVE)   // kg: this light or lighter only when hurt; heavier never (a vore, an overlord never)
+QVR_CVAR(vr_foegrab_throw_push, "220", CVAR_ARCHIVE)      // units/s: the thrown enemy's launch along the throw (times vr_knockdown_push)
+QVR_CVAR(vr_foegrab_throw_lift, "100", CVAR_ARCHIVE)      // units/s: and up
 QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds taken and let go (and why); 2: and each held frame
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters

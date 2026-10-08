@@ -910,6 +910,36 @@ int campaignsBloodyShown = -1;
                   "along with you. Breaks Free: its shove pushes you fully, as ever, and tears it from your hands."),
         slider("Shove Resistance", vr_foegrab_shove_resist, 0.f, 1.f, 0.05f, "%.2f")
             .help("Resisted: share of a held enemy's shove taken off, times its hold."),
+        header("Two-Hand Throw"),
+        toggle("Two-Hand Throw", vr_foegrab_throw)
+            .help("Hold one enemy with both hands and turn it over hard, a judo throw: one shoulder down and the other up, "
+                  "or its top pulled towards you or to a side. It is knocked down that way (it falls, lies, gets up), for "
+                  "sure: grunts, enforcers, zombies, knights, rottweilers, mummies and the infected always; death knights, "
+                  "ogres, fiends, spawns, scorpions and ranged knights only when hurt; never shamblers, vores, bosses, "
+                  "flyers or swimmers. One hand never throws. The training dummy shows how it would go."),
+        slider("Turn to Throw", vr_foegrab_throw_twist, 60.f, 600.f, 10.f, "%.0f deg/s").extend(10.f, 2000.f)
+            .help("How fast your hands must turn the enemy over (about a level axis) to throw it. Log Holds (Debug > "
+                  "Tests > Holding Enemies) prints your hardest turn of each hold."),
+        slider("Hands' Speed", vr_foegrab_throw_speed, 0.2f, 3.f, 0.1f, "%.1f m/s").extend(0.f, 10.f)
+            .help("And how fast your hands must move then (their mean): a slow turn never throws."),
+        slider("Hurt Below", vr_foegrab_throw_hurt, 0.05f, 1.f, 0.05f, "%.2f")
+            .help("The bigger enemies (death knights, ogres, fiends...) are thrown only below this share of their full "
+                  "health, and never above it."),
+        toggle("Throw Away From You", vr_foegrab_throw_away)
+            .help("Off: a turn that would throw the enemy straight away from you does nothing (that's a shove's job). On: "
+                  "it throws too."),
+        cycle("Who Can Be Thrown", "vr_foegrab_throw_by_mass", {{0.f, "By Kind"}, {1.f, "By Mass"}})
+            .help("By Kind: the lists in the console's vr_foegrab_throw_always and vr_foegrab_throw_when_hurt (classnames; "
+                  "\"infected\": Dawn of the Machine's infected); any other kind never. By Mass: the two masses below."),
+        slider("Always (Mass)", vr_foegrab_throw_mass_always, 10.f, 1000.f, 10.f, "%.0f kg").extend(0.f, 10000.f)
+            .help("By Mass: enemies this light or lighter are always thrown (a grunt 80 kg, a mummy 140)."),
+        slider("When Hurt (Mass)", vr_foegrab_throw_mass_hurt, 10.f, 2000.f, 10.f, "%.0f kg").extend(0.f, 20000.f)
+            .help("By Mass: enemies this light or lighter, and heavier than Always, only when hurt; heavier never (an "
+                  "ogre or a fiend 250 kg, a shambler 600). Vores and overlords never."),
+        slider("Throw Push", vr_foegrab_throw_push, 0.f, 600.f, 10.f, "%.0f units/s")
+            .help("How hard the thrown enemy is sent along the throw (times Knockdowns' Push)."),
+        slider("Throw Lift", vr_foegrab_throw_lift, 0.f, 400.f, 10.f, "%.0f units/s")
+            .help("And up."),
     };
 }
 
@@ -5842,8 +5872,14 @@ za::Vector<Item> pageDebugTests()
             .help("vr_foegrab_walk_test 110 1: the live monster nearest you walks straight away from you at 110 units/s "
                   "for a second; how far it got is printed. Held, it should hardly move (A Grunt Ahead first)."),
         cycle("Log Holds", "vr_foegrab_debug", {{0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "Every Frame"}})
-            .help("vr_foegrab_debug: the console logs each hold taken and let go and why (and a grip that found none); "
-                  "Every Frame: each held enemy's movement and each hand's stretch."),
+            .help("vr_foegrab_debug: the console logs each hold taken and let go and why (and a grip that found none), "
+                  "each two-hand throw tried and how it went, and each two-hand hold's hardest turn; Every Frame: each "
+                  "held enemy's movement, each hand's stretch, both hands' turn."),
+        command("Hurt the Held to 30%", "vr_foegrab_hurt 0.3")
+            .help("vr_foegrab_hurt 0.3: the enemy you hold (else the one nearest you) is left with 30% of its full health: "
+                  "a death knight, an ogre or a fiend can then be thrown (Combat > Holding Enemies, Hurt Below)."),
+        command("Heal the Held", "vr_foegrab_hurt 1")
+            .help("vr_foegrab_hurt 1: the enemy you hold (else the one nearest you) at its full health again."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "

@@ -749,6 +749,11 @@ float cvarh_vr_foegrab_mass_light;
 float cvarh_vr_foegrab_mass_heavy;
 float cvarh_vr_foegrab_shove;
 float cvarh_vr_foegrab_shove_resist;
+float cvarh_vr_foegrab_throw_hurt;
+float cvarh_vr_foegrab_throw_mass_always;
+float cvarh_vr_foegrab_throw_mass_hurt;
+float cvarh_vr_foegrab_throw_push;
+float cvarh_vr_foegrab_throw_lift;
 float cvarh_vr_climb_blast_letgo;
 
 //
@@ -1509,6 +1514,11 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_foegrab_mass_heavy);
     VR_CVAR_HMAKE(vr_foegrab_shove);
     VR_CVAR_HMAKE(vr_foegrab_shove_resist);
+    VR_CVAR_HMAKE(vr_foegrab_throw_hurt);
+    VR_CVAR_HMAKE(vr_foegrab_throw_mass_always);
+    VR_CVAR_HMAKE(vr_foegrab_throw_mass_hurt);
+    VR_CVAR_HMAKE(vr_foegrab_throw_push);
+    VR_CVAR_HMAKE(vr_foegrab_throw_lift);
     VR_CVAR_HMAKE(vr_climb_blast_letgo);
 
 #undef VR_CVAR_HMAKE

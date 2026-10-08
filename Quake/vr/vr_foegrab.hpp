@@ -10,6 +10,9 @@
 //   the spot towards it (vr_foegrab_drag times the hold, at most vr_foegrab_drag_speed): a grunt comes along, an ogre a
 //   little, a shambler hardly;
 // - the dummy (vr_dummy.qc) is held as any enemy but never moved (it stands on its spot);
+// - both hands holding one enemy and turning it over hard (vr_foegrab_throw_twist degrees/s, the hands at
+//   vr_foegrab_throw_speed m/s) throw it down that way (QC vr_foegrab_throw.qc: a knockdown, for sure, by its kind and
+//   health: vr_foegrab_throw_always, _when_hurt, _hurt; or by mass), and both let go (throwCheck);
 // - its shoves (grunts, enforcers) are resisted (QC vr_enemyshove.qc: vr_foegrab_shove_resist times its hold) or, with
 //   vr_foegrab_shove 1, push you fully and break the hold;
 // - the holding hand deals no melee blows (QC .vr_foegrab_hands); the other hand fights as ever;

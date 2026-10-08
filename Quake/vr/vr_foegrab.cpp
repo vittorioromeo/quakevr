@@ -19,6 +19,7 @@
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Lround.hpp"
@@ -48,6 +49,10 @@ constexpr float breakFar = 2.f;       // or at once this many times as far
 constexpr float animTime = 0.12f;     // s: the held spot eases to where the model's animation has it
 constexpr float animMaxCm = 20.f;     // and is at most this far from where the body alone (origin, yaw) carries it
 constexpr float followMaxSpeed = 480.f; // units/s: a held enemy follows its hands' own move at most this fast
+constexpr double throwSettle = 0.15;  // s: both hands on it this long before a turn throws (the reach to take hold is none)
+constexpr double throwRetry = 0.5;    // s: after a turn that didn't throw (too strong, away from you), the next try
+constexpr float throwMinArm = 0.1f;   // m: a hand nearer the enemy's middle counts as this far (the turn's measure)
+constexpr float throwAwayCos = 0.7071f; // a throw within 45 degrees of straight away from you is a shove's (vr_foegrab_throw_away 0)
 
 // Why a hand let go (QC VR_FoeGrab_Released's xWhy).
 enum class Why : int
@@ -56,6 +61,7 @@ enum class Why : int
     Pulled = 1,   // the hand pulled too far from the spot
     BrokeFree = 2, // its shove broke the hold (vr_foegrab_shove 1)
     Lost = 3,     // the enemy died, was knocked down, moved away; the option off; the hand took something else
+    Thrown = 4,   // both hands threw it down (throwCheck)
 };
 
 struct Hold
@@ -86,6 +92,12 @@ struct Holder
     double lastTime{-1.0};
     glm::vec3 lastOrigin{0.f}; // the player's at the end of the last frame (serverFrame: a shove's slide carries the held)
     bool originKnown{false};
+    // The two-hand throw (throwCheck): no try before throwAgain; both hands' hold's hardest turn so far (and the hands'
+    // speed then), for tuning (vr_foegrab_debug, vr_foegrab_status).
+    double throwAgain{0.0};
+    bool twoHanded{false};
+    float peakTwist{0.f};
+    float peakSpeed{0.f};
 };
 
 Holder holders[MAX_SCOREBOARD];
@@ -381,6 +393,167 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     return true;
 }
 
+// Whether `name` is one of the words of `list` (spaces or commas between them); "infected" stands for Dawn of the
+// Machine's infected monsters (`infected`: this one is).
+[[nodiscard]] bool inList(const char* list, const char* name, bool infected)
+{
+    char word[64];
+    const char* p = list;
+    while(*p)
+    {
+        while(*p == ' ' || *p == ',' || *p == '\t')
+        {
+            p++;
+        }
+        int n = 0;
+        while(*p && *p != ' ' && *p != ',' && *p != '\t')
+        {
+            if(n < 63)
+            {
+                word[n++] = *p;
+            }
+            p++;
+        }
+        word[n] = 0;
+        if(n > 0 && (!q_strcasecmp(word, name) || (infected && !q_strcasecmp(word, "infected"))))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The throw's kind of `m` (QC VR_FoeGrab_Throw's xTier): 0 always thrown, 1 only when hurt, 2 never (by the class lists:
+// vr_foegrab_throw_always, _when_hurt); -1 by its mass (vr_foegrab_throw_by_mass: the QC's).
+[[nodiscard]] float throwTier(edict_t* m)
+{
+    if(vr_foegrab_throw_by_mass.value != 0.f)
+    {
+        return -1.f;
+    }
+    const char* c = PR_GetString(m->v.classname);
+    const bool infected = fieldFloatOr(m, fields().vr_mg3_infected, 0.f) != 0.f;
+    if(inList(vr_foegrab_throw_always.string, c, infected))
+    {
+        return 0.f;
+    }
+    return inList(vr_foegrab_throw_when_hurt.string, c, infected) ? 1.f : 2.f;
+}
+
+[[nodiscard]] const char* throwResult(float r)
+{
+    return r >= 2.f ? "the training dummy: would be thrown (it stands)" :
+           r >= 1.f ? "thrown down" :
+           r >= 0.f ? "never thrown (its kind)" :
+           r >= -1.f ? "not hurt enough" : "can't be knocked down now (no ragdoll or get-up, no room, down already)";
+}
+
+// The two-hand throw (vr_foegrab_throw; QC vr_foegrab_throw.qc): both hands of player `c` holding one enemy, turning it
+// over. The turn (the hands' own velocities, not the player's; metres, m/s), two parts added:
+// - the hands turning it between them as a wheel: (d x dv) / |d|^2, d from the off palm to the main one (at least
+//   throwMinArm), dv the main hand's velocity less the off hand's (one shoulder pushed down, the other pulled up);
+// - both together toppling it about its middle: (r x v) / |r|^2, r from its box's middle to the palms' middle (at least
+//   throwMinArm), v their mean velocity (its top pulled towards you, or pushed to a side);
+// its level part (tipping it over; a twist about the vertical is no throw), in degrees per second. At
+// vr_foegrab_throw_twist or more, with the hands' mean speed at vr_foegrab_throw_speed or more, it goes down the way the
+// turn tips its top (turn x up): to a side, towards you; straight away from you (within 45 degrees) is a shove's, unless
+// vr_foegrab_throw_away. The QC decides by its kind and health; thrown, both hands let go.
+void throwCheck(int c)
+{
+    Holder& hd = holders[c];
+    const Hold& a = hd.holds[0];
+    const Hold& b = hd.holds[1];
+    edict_t* player = EDICT_NUM(c + 1);
+    const VrMove* move = server::clientMove(player);
+    if(!move || !a.active || !b.active || a.ent != b.ent)
+    {
+        if(hd.twoHanded && debug())
+        {
+            Con_Printf("foegrab: both hands' hold ended: its hardest turn %.0f deg/s, the hands at %.2f m/s (throws at %.0f "
+                       "deg/s, %.2f m/s)\n",
+                hd.peakTwist, hd.peakSpeed, vr_foegrab_throw_twist.value, vr_foegrab_throw_speed.value);
+        }
+        hd.twoHanded = false;
+        return;
+    }
+    if(!hd.twoHanded)
+    {
+        hd.twoHanded = true;
+        hd.peakTwist = hd.peakSpeed = 0.f;
+    }
+    const double time = qcvm->time;
+    if(vr_foegrab_throw.value == 0.f || time - za::max(a.since, b.since) < throwSettle)
+    {
+        return;
+    }
+    edict_t* m = EDICT_NUM(a.ent);
+    const float toMetres = 1.f / units::metresToUnits();
+    const glm::vec3 middle = (vec(m->v.absmin) + vec(m->v.absmax)) * 0.5f;
+    glm::vec3 r[2];
+    for(int h = 0; h < 2; h++)
+    {
+        r[h] = (palmOf(player, *move, h) - middle) * toMetres;
+    }
+    const glm::vec3 &v0 = move->hands[0].vel, &v1 = move->hands[1].vel;
+    const float speed = 0.5f * (glm::length(v0) + glm::length(v1));
+    const glm::vec3 d = r[1] - r[0];
+    const glm::vec3 wheel = glm::cross(d, v1 - v0) / za::max(glm::dot(d, d), throwMinArm * throwMinArm);
+    const glm::vec3 mid = 0.5f * (r[0] + r[1]);
+    const glm::vec3 topple = glm::cross(mid, 0.5f * (v0 + v1)) / za::max(glm::dot(mid, mid), throwMinArm * throwMinArm);
+    const glm::vec3 tip{wheel.x + topple.x, wheel.y + topple.y, 0.f};
+    const float twist = glm::degrees(glm::length(tip));
+    if(twist > hd.peakTwist)
+    {
+        hd.peakTwist = twist;
+        hd.peakSpeed = speed;
+    }
+    if(debug(2))
+    {
+        Con_Printf("foegrab: both hands on %s (%d): turn %.0f deg/s, hands %.2f m/s (off at %.2f %.2f %.2f m, moving %.2f "
+                   "%.2f %.2f; main at %.2f %.2f %.2f, moving %.2f %.2f %.2f)\n",
+            PR_GetString(m->v.classname), a.ent, twist, speed, r[0].x, r[0].y, r[0].z, v0.x, v0.y, v0.z, r[1].x, r[1].y,
+            r[1].z, v1.x, v1.y, v1.z);
+    }
+    if(time < hd.throwAgain || twist < vr_foegrab_throw_twist.value || speed < vr_foegrab_throw_speed.value)
+    {
+        return;
+    }
+    hd.throwAgain = time + throwRetry;
+    const glm::vec3 dir = glm::normalize(glm::cross(tip, glm::vec3{0.f, 0.f, 1.f}));
+    glm::vec3 away = middle - vec(player->v.origin);
+    away.z = 0.f;
+    away = glm::length(away) > 1e-3f ? glm::normalize(away) : dir;
+    const float along = glm::dot(dir, away);
+    const char* way = along > throwAwayCos ? "away from you" : along < -throwAwayCos ? "towards you" :
+                      glm::cross(away, dir).z > 0.f ? "to your left" : "to your right";
+    const bool dummy = isTrainingDummy(m);
+    const char* name = dummy ? "the training dummy" : PR_GetString(m->v.classname);
+    if(along > throwAwayCos && vr_foegrab_throw_away.value == 0.f)
+    {
+        if(debug() || dummy)
+        {
+            Con_Printf("foegrab: both hands turn %s %.0f deg/s at %.2f m/s, away from you: no throw (a shove's: "
+                       "vr_foegrab_throw_away)\n",
+                name, twist, speed);
+        }
+        return;
+    }
+    const float yaw = glm::degrees(za::atan2(dir.y, dir.x));
+    const float result = callQc("VR_FoeGrab_Throw", player, m, yaw, throwTier(m), 0.f);
+    if(debug() || dummy)
+    {
+        Con_Printf("foegrab: both hands turn %s (%d) %.0f deg/s at %.2f m/s, %s (yaw %.0f): %s\n", name, a.ent, twist, speed,
+            way, yaw, throwResult(result));
+    }
+    if(result >= 1.f)
+    {
+        for(int h = 0; h < 2; h++)
+        {
+            release(player, h, Why::Thrown, "thrown");
+        }
+    }
+}
+
 // Where the palm held by `g` is now: on its spot as the body carries it (its drawn origin and yaw), moved by the
 // animation's eased move of it (g.anim). With `dt` > 0 the ease steps on towards where the model as drawn has the spot
 // now: a limb's swing is followed, a jump of a pose (or a triangle thrown about) glides, at most animMax from the body's.
@@ -473,17 +646,9 @@ void walkTestStep(double dt)
     (void)moveFlat(m, to);
 }
 
-// vr_foegrab_walk_test <speed> <seconds>: the live monster nearest the first player walks straight away from him at
-// `speed` units/s for `seconds` (moved each server frame, before the holds slow it): how far it got is printed (held or
-// not). For tests (Debug > Tests > Holding Enemies).
-void walkTest_f()
+// The live monster nearest the first player (null: none).
+[[nodiscard]] edict_t* nearestMonster()
 {
-    if(!sv.active || svs.maxclients < 1 || Cmd_Argc() < 3)
-    {
-        Con_Printf("usage: vr_foegrab_walk_test <speed units/s> <seconds>\n");
-        return;
-    }
-    const VmScope vm;
     edict_t* player = EDICT_NUM(1);
     edict_t* best = nullptr;
     float bestDist = 1e30f;
@@ -501,6 +666,51 @@ void walkTest_f()
             best = m;
         }
     }
+    return best;
+}
+
+// vr_foegrab_hurt <share>: the enemy the first player's hands hold (else the live monster nearest him) is left with that
+// share of its full health (its .max_health): for trying the two-hand throw on a hurt one (vr_foegrab_throw_hurt). The
+// training dummy's health is vr_dummy_health's. For tests (Debug > Tests > Holding Enemies).
+void hurt_f()
+{
+    if(!sv.active || svs.maxclients < 1 || Cmd_Argc() < 2)
+    {
+        Con_Printf("usage: vr_foegrab_hurt <share of its full health, 0.01..1>\n");
+        return;
+    }
+    const VmScope vm;
+    edict_t* m = nullptr;
+    for(int h = 0; h < 2 && !m; h++)
+    {
+        const Hold& g = holders[0].holds[h];
+        m = g.active && g.ent < qcvm->num_edicts && !EDICT_NUM(g.ent)->free ? EDICT_NUM(g.ent) : nullptr;
+    }
+    m = m ? m : nearestMonster();
+    if(!m || isTrainingDummy(m))
+    {
+        Con_Printf("vr_foegrab_hurt: %s\n", m ? "the training dummy's health is vr_dummy_health's" : "no live monster");
+        return;
+    }
+    const float share = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(1))), 0.01f, 1.f);
+    const float full = m->v.max_health > 0.f ? m->v.max_health : m->v.health;
+    m->v.health = za::max(1.f, za::round(full * share));
+    Con_Printf("vr_foegrab_hurt: %s (%d) at %.0f of %.0f health\n", PR_GetString(m->v.classname), NUM_FOR_EDICT(m),
+        m->v.health, full);
+}
+
+// vr_foegrab_walk_test <speed> <seconds>: the live monster nearest the first player walks straight away from him at
+// `speed` units/s for `seconds` (moved each server frame, before the holds slow it): how far it got is printed (held or
+// not). For tests (Debug > Tests > Holding Enemies).
+void walkTest_f()
+{
+    if(!sv.active || svs.maxclients < 1 || Cmd_Argc() < 3)
+    {
+        Con_Printf("usage: vr_foegrab_walk_test <speed units/s> <seconds>\n");
+        return;
+    }
+    const VmScope vm;
+    edict_t* best = nearestMonster();
     if(!best)
     {
         Con_Printf("vr_foegrab_walk_test: no live monster\n");
@@ -543,6 +753,16 @@ void status_f()
     {
         Con_Printf("foegrab status: no hand holds an enemy\n");
     }
+    for(int c = 0; c < za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)); c++)
+    {
+        if(holders[c].twoHanded)
+        {
+            Con_Printf("foegrab status: player %d holds it with both hands: its hardest turn %.0f deg/s, the hands at %.2f "
+                       "m/s (throws at %.0f deg/s, %.2f m/s)\n",
+                c + 1, holders[c].peakTwist, holders[c].peakSpeed, vr_foegrab_throw_twist.value,
+                vr_foegrab_throw_speed.value);
+        }
+    }
     // The client's drawn hands (the stats as the view last put them on their spots).
     for(int h = 0; h < 2; h++)
     {
@@ -567,6 +787,7 @@ void qvr::foegrab::init()
 {
     Cmd_AddCommand("vr_foegrab_status", status_f);
     Cmd_AddCommand("vr_foegrab_walk_test", walkTest_f);
+    Cmd_AddCommand("vr_foegrab_hurt", hurt_f);
 }
 
 void qvr::foegrab::reset()
@@ -722,6 +943,11 @@ void qvr::foegrab::serverFrame()
                 release(player, h, Why::BrokeFree, "it broke free");
             }
         }
+    }
+
+    for(int c = 0; c < players; c++)
+    {
+        throwCheck(c);
     }
 
     for(int i = 0; i < numFoes;)
