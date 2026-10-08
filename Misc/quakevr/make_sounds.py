@@ -39,6 +39,8 @@
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #   slap1..3.wav  an open hand's slap landing (QC vr_melee.qc VR_Melee_HitSound, vr_melee_slap): the sharp crack of
 #                 skin on skin, the palm then the fingers, over a light smack of flesh; a little apart in pitch
+#   slap_whoosh1..2.wav  an open hand swung to slap (QC vr_melee.qc VR_Melee_Whoosh): a light, quick swish of air, a
+#                 hand's not a blade's (the knights' swings that punches and swords whoosh with); two, taken in turn
 #   (the grunts' burst rifles' burst1..3.wav: recorded, cut by make_burst_sounds.py)
 #   crowbar_hit1..3.wav, crowbar_wall1..2.wav  the crowbar (QC vr_crowbar.qc): its blow landing on a body (a steel bar's
 #                 dull tonk, its ring stopped by the flesh, over a meaty smack) and on a wall (a hard clack of steel on
@@ -468,6 +470,28 @@ def slap(pitch, seed):
         s = crack * 2.2 + smack * 1.3 + thud(t, phase, 115 * pitch, 110 * pitch, 0.028) * 0.35 + tail * 0.25
         out.append(math.tanh(s * 1.4))
     return finish(out, 0.9)
+
+
+def slap_whoosh(pitch, seed):
+    """An open hand swung to slap (QC vr_melee.qc VR_Melee_Whoosh; vrfiringrange_2026-10-08_10-48-14): a light, quick
+    swish of air, whether or not it lands. Lighter than the knights' blade swings a punch whooshes with: higher (a flat
+    hand cuts the air, no blade's hum), shorter (the hand passes in a fifth of a second) and thinner; the air's band
+    sweeps up as the hand comes past and falls away after it, with a little flutter of the fingers."""
+    rng = random.Random(seed)
+    n = int(RATE * 0.26)
+    peak = 0.085 / pitch  # the hand passing closest
+    air_lo, air_lo2, air_hi = VarLowPass(), VarLowPass(), VarLowPass()
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        swell = (t / peak) ** 2 if t < peak else math.exp(-(t - peak) / 0.045)
+        centre = (600 + 1500 * swell) * pitch  # the band rising and falling with the hand
+        lo = air_lo2(air_lo(noise, centre * 1.3), centre * 1.3)
+        band = lo - air_hi(lo, centre * 0.5)
+        flutter = 1.0 + 0.18 * math.sin(2 * math.pi * 34 * pitch * t + rng.uniform(-0.3, 0.3))
+        out.append(math.tanh(band * swell * flutter * 4.0))
+    return finish(out, 0.55)
 
 
 # ---- The crowbar (QC vr_crowbar.qc; docs/vr-port/ROUND21.md, "The crowbar"): a hexagonal steel bar 67 cm long rings
@@ -1226,6 +1250,11 @@ def main():
     for k, pitch in enumerate((1.0, 0.9, 1.1)):
         name = "slap%d.wav" % (k + 1)
         write_wav(os.path.join(out, name), slap(pitch, 151 + k))
+        print(name + " -> " + os.path.normpath(out))
+    # A slap's whoosh (QC vr_melee.qc VR_Melee_Whoosh): two, a little apart in pitch, taken in turn.
+    for k, pitch in enumerate((1.0, 1.1)):
+        name = "slap_whoosh%d.wav" % (k + 1)
+        write_wav(os.path.join(out, name), slap_whoosh(pitch, 171 + k))
         print(name + " -> " + os.path.normpath(out))
     # The crowbar (QC vr_crowbar.qc): three blows on a body, two on a wall, a little apart in pitch.
     for k, pitch in enumerate((1.0, 0.93, 1.07)):

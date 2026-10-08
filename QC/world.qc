@@ -274,6 +274,8 @@ void() worldspawn =
     precache_sound("vr/slap1.wav"); // slaps (VR_Melee_HitSound, vr_melee_slap)
     precache_sound("vr/slap2.wav");
     precache_sound("vr/slap3.wav");
+    precache_sound("vr/slap_whoosh1.wav"); // a slap's whoosh, landing or not (VR_Melee_Whoosh)
+    precache_sound("vr/slap_whoosh2.wav");
     precache_sound("zombie/z_miss.wav"); // a thrown gib's splat
     precache_sound("fisthit.wav");
     precache_sound("knight/sword1.wav");

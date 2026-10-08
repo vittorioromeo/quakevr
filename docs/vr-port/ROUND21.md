@@ -31090,3 +31090,21 @@ really flicked (the "made slowly" column), where it went as at full speed. A slo
 to count as the arm's (wholly from about 1.1 m/s; then amplified as an arm throw is). In VR: flick things up and forward in bullet time, gently and
 hard, hand still and moving a little: each should land about where it does at full speed; overhand and lob throws as
 before.
+
+## Slaps whoosh (2026-10-08)
+
+vrfiringrange_2026-10-08_10-48-14: slaps worked, but swung there was no sound at all, landing or not. A slap now
+whooshes as a punch or a swing does (QC vr_melee.qc `VR_Melee_Whoosh`): once a motion, as fast as it would land
+(`VR_Melee_LandNeed`, a punch's), with the same run-up, wrist and wiggle tests, for an open hand that slaps
+(`VR_Melee_Slaps`: across, not out from the shoulder, not a shove's push), two frames in a row (one frame's speed is
+no slap: the synthetic slow slap's 2 m/s read 4.1 where its 90 Hz frames beat against the 72 Hz server's). Its own
+swish, lighter than the knights' blade swings the punches use: `vr/slap_whoosh1..2.wav` (make_sounds.py
+`slap_whoosh`: band-passed air sweeping up to about 2 kHz as the hand passes and falling after it, a little finger
+flutter, 0.26 s, peak 0.55), taken in turn. Its stroke event is a slap's ("stroke", the slap category). As a punch's
+whoosh does, it wakes monsters (Slaps above: "woken only when it lands" no longer holds). `developer 1` prints
+"melee sound: vr/slap_whooshN.wav (a slap's whoosh, speed, lands from)".
+
+Checked (motion_synth.py takes, vr_motion_eval with developer 1): slap_forehand (9.9 m/s) and slap_backhand (20.0) whoosh
+then slap; slap_forehand with the dummy 3 m off (no contact) whooshes; no_hit_slow_slap, no_hit_wave, no_hit_slow_punch
+nothing; palm_shove_1h a shove, punch_straight a punch, neither a slap's whoosh. In VR: slap at the dummy and at the air
+(a light swish each time, a blade's swish for a punch as before); wave and pat slowly: silent.

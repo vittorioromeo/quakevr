@@ -200,6 +200,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float mh_lenient;     // heavy leniency: its speed thresholds' factor, from what the hand holds (VR_Weight_Leniency)
 .float mh_curve;       // its strength's rise over the speed needed, times this (VR_Weight_MeleeCurve)
 .float mh_whooshed;    // a whoosh played for this motion (until it slows)
+.float mh_overland;    // frames in a row the grip was as fast as a blow lands (VR_Melee_Whoosh: a slap's whoosh)
 .entity mh_hit_ent;    // the last thing struck (world: none, or a bash or a held gib spent the motion),
 .vector mh_hit_dir;    // the struck part's way then (play space),
 .float mh_hit_time;    // when
@@ -1888,22 +1889,34 @@ float vr_melee_whoosh_alt; // the swish played last (VR_Melee_Whoosh): the knigh
 
 // The weapon's whoosh as `xHand`'s striking part gets going as a blow would (once a motion): as fast as a blow needs,
 // come from some way off (and a fist closed). The motion recorder's "stroke". A blade's, a fist's or a gun's swish is the
-// knights' two swings in turn (knight/sword1, sword2), as their own attacks pick them: not one recording every time.
+// knights' two swings in turn (knight/sword1, sword2), as their own attacks pick them: not one recording every time; an
+// open hand's slap, its own lighter swish (vr/slap_whoosh1, 2: make_sounds.py), in turn too.
 void(float xHand, entity b) VR_Melee_Whoosh =
 {
     float minSpeed = VR_Melee_MinSpeedOf(b);
     if(b.mh_fast < minSpeed * VR_MELEE_REARM_SLOW)
     {
         b.mh_whooshed = FALSE;
+        b.mh_overland = 0;
         return;
     }
-    if(b.mh_whooshed || b.mh_thing == VR_MTHING_NONE || vlen(b.mh_vgrip) < VR_Melee_LandNeed(xHand, b, b.mh_vgrip))
+    float fastNow = vlen(b.mh_vgrip) >= VR_Melee_LandNeed(xHand, b, b.mh_vgrip);
+    b.mh_overland = fastNow ? b.mh_overland + 1 : 0;
+    if(b.mh_whooshed || b.mh_thing == VR_MTHING_NONE || !fastNow)
     {
         return;
     }
+    // An open hand: no blow, but swung across as a slap is (VR_Melee_Slaps), the slap's own lighter whoosh, landing or
+    // not (vrfiringrange_2026-10-08_10-48-14: "no sound during the attack, even if it doesn't connect").
+    float slap = FALSE;
     if(b.mh_thing == VR_MTHING_FIST && !VR_Melee_ClosedFist(xHand))
     {
-        return; // an open hand: no blow
+        // As fast two frames in a row: a frame's jitter (a slow wave's speed doubled where the frames beat) is no slap.
+        if(b.mh_overland < 2 || !VR_Melee_Slaps(xHand, b))
+        {
+            return;
+        }
+        slap = TRUE;
     }
     if(meleerun(b, TRUE) < VR_MELEE_RUN || !VR_Melee_WristMoved(b) || VR_Melee_Wiggled(b) || VR_Melee_Reloading(b))
     {
@@ -1911,11 +1924,26 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     }
     b.mh_whooshed = TRUE;
     self.show_hostile = time + 1; // a real swing or punch wakes monsters up (a hand merely closing doesn't: W_AttackImpl)
-    VR_Motion_Event("stroke", VR_Melee_Category(b.mh_thing == VR_MTHING_FIST ? VR_MKIND_PUNCH : VR_MKIND_SLASH, b.mh_thing), xHand, vlen(b.mh_vfar), b.mh_far, world, "");
+    float kind = VR_MKIND_SLASH;
+    if(slap)
+    {
+        kind = VR_MKIND_SLAP;
+    }
+    else if(b.mh_thing == VR_MTHING_FIST)
+    {
+        kind = VR_MKIND_PUNCH;
+    }
+    VR_Motion_Event("stroke", VR_Melee_Category(kind, b.mh_thing), xHand, vlen(b.mh_vfar), b.mh_far, world, "");
     vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
     string s = vr_melee_whoosh_alt ? "knight/sword2.wav" : "knight/sword1.wav";
     float chan = xHand == cVR_OffHand ? CHAN_WEAPON2 : CHAN_WEAPON;
-    if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW ||
+    if(slap)
+    {
+        s = vr_melee_whoosh_alt ? "vr/slap_whoosh2.wav" : "vr/slap_whoosh1.wav";
+        dprint(sprintf("melee sound: %s (a slap's whoosh, %.1f m/s, lands from %.1f)\n", s, vlen(b.mh_vgrip),
+            VR_Melee_LandNeed(xHand, b, b.mh_vgrip)));
+    }
+    else if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW ||
        b.mh_thing == VR_MTHING_CROWBAR)
     {
         s = "weapons/ax1.wav";
