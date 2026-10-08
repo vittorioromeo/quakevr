@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Cell cords (Weapons > Reloading > Cell Cords): laser cannon held: coiled cord from its underside to a battery in the pouch (cells shown 1 per 36, max 3); fire dry: plug falls loose, pick up cells: plugs back; two cannons: two cords; Mjolnir / Super Axe cords off by default: try them and say if they should be on; stretch at arm's length OK?
 Stealth/AI 3: seen and heard through grates/fences/alpha walls (and the flashlight beam through them); Debug > Tests > Stealth AI > meters over monsters (readable?); hostile monsters hunt you 20 s (5 s if you're far), round corners along your path; dogs with Gameplay > Monsters > Smooth Monster Steps on vs off (no teleporting jumps?); monsters walk round / push crates in their way
 Reloading fixes: load shells/mags while walking, strafing, turning, on a lift (load point now matches the drawn gun); auto pump waits 0.15 s after the shot (Weapon Effects > Auto Pump Delay); shell into a lying shotgun slides in, its screen shows 1/8; emptied laser/burst rifle shakes + buzzes; Super Axe silent with no cells; prox mines smaller (0.47)
 Small batch: Swimming > Jump Out of Water off (+ Climbing on): climb out by grabbing the lip (MG3 map1 near 64 1000), pull on ground at sloped banks; MG3 armour shards: force-grab, then hip holster / pouch / chest gives armour, walking over them doesn't; your 10-08 settings are defaults (Super Axe grip + hotspot, grenade fit, SSG anim 1.75, teleporter surface opacity 0.5, stealth tweaks)
