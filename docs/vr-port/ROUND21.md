@@ -30935,3 +30935,15 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   vrfiringrange's and vrslipgates' dispensers are at 0 (no change); vrexample's grunt at 180 now faces west. Test aid
   `vr_test_dispenser <n>` (console; default 0): the map's n-th dispenser used as its button would, `test dispenser:`
   line. Test: `developer 1; map vrexample; vr_test_dispenser 1`: `spawn_grunt (yaw 180) made monster_army yaw 180`.
+- **Test runs use no network; a cancelled download never waits on a host name lookup** (host_cmd.c, vr_mapindex.cpp).
+  Not reproduced here: 40+ mapless runs (`quit`, `toggleconsole;quit`, `togglemenu;quit`, menus, `disconnect`, crash
+  paths, qbase/qrp, -RealTime, 4 instances in parallel, quits during a live index fetch at 2-58 s) all `exit=0` in
+  2-3 s; the 2026-10-07 Host_Quit_f fix covers the quit confirmation. What remained network-bound at a short run's quit:
+  Ironwail's add-on list download (Modlist_ShutDown waits for its thread with no limit) and the map index's start-up
+  fetch, both started at every launch; with no network a host name lookup can take many seconds, and libcurl's
+  threaded resolver is waited for when a transfer is removed (EXPANSIONS.md also saw a map-index libcurl worker crash
+  in such runs). Now: a test run (`QVR_TEST_BACKGROUND`, set by the kit) skips the add-on list (`Add-on server disabled
+  (test run)`; `-addons <url>` still fetches) and reads the map index's cache only at start-up (`maps_fetch` still
+  fetches); every Download() sets `CURLOPT_QUICK_EXIT` (libcurl 8.10: a cancelled transfer lets a pending lookup's
+  thread go instead of joining it). Players' launches unchanged apart from QUICK_EXIT. Tested: mapless
+  `wait5;toggleconsole;quit` exit=0 in 2 s with both lines in the log; `maps_fetch` reads/fetches as before.

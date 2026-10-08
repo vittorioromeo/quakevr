@@ -683,7 +683,7 @@ void run() noexcept
         if(!loadCache(built, url, true)) // (not under the handoff's lock: loadCache's note() takes it)
         {
             za::LockGuard lock{handoff};
-            pendingStatus = za::String{"map index: none (vr_maps_fetch 0, and no cached copy; maps_fetch fetches it)"};
+            pendingStatus = za::String{"map index: none (vr_maps_fetch 0 or a test run, and no cached copy; maps_fetch fetches it)"};
             pendingReady.storeSeqCst(true);
             return;
         }
@@ -1100,7 +1100,8 @@ void start(bool asked)
     SDL_AtomicSet(&cancel, 0);
     runUrl = indexUrl();
     // vr_maps_fetch 0: nothing is fetched, but the cached copy is read (of any age), as the cvar says.
-    runCacheOnly = !asked && !vr_maps_fetch.value;
+    // A test run (QVR_TEST_BACKGROUND: the kit's run.ps1) reads the cache only at start-up: no network unless asked.
+    runCacheOnly = !asked && (!vr_maps_fetch.value || getenv("QVR_TEST_BACKGROUND"));
     running.storeSeqCst(true);
     worker = za::Thread(run);
 }

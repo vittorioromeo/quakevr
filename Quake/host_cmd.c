@@ -608,6 +608,9 @@ qboolean Download (const char *url, download_t *download)
 	curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 20L);
 	curl_easy_setopt (curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt (curl, CURLOPT_LOW_SPEED_TIME, 30L);
+	// QVR: a cancelled transfer whose host name is still being looked up (no network: the lookup can take many
+	// seconds) lets the resolver's thread go instead of waiting for it, so quitting never waits on it either.
+	curl_easy_setopt (curl, CURLOPT_QUICK_EXIT, 1L);
 	//curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L);
 
 	mc = curl_multi_add_handle (multi_handle, curl);
@@ -1286,6 +1289,13 @@ static void Modlist_FindOnline (void)
 	if (COM_CheckParm ("-noaddons"))
 	{
 		Con_SafePrintf ("\nAdd-on server disabled\n");
+		return;
+	}
+	// QVR: an automated test run (QVR_TEST_BACKGROUND: the kit's run.ps1) uses no network unless -addons asks:
+	// its result never depends on the network, and a short run never quits during a host name lookup.
+	if (getenv ("QVR_TEST_BACKGROUND") && !COM_CheckParm ("-addons"))
+	{
+		Con_SafePrintf ("\nAdd-on server disabled (test run)\n");
 		return;
 	}
 
