@@ -593,16 +593,17 @@ bool bodyParts(const qmodel_t* model, float out[4])
     return setFor(category, modelOverride(e), nullptr);
 }
 
-// The skin's own size in Quake texels: Quake's .mdl's; our own MD3 and IQM models' (their textures painted at about four
-// times a Quake skin's density) a quarter of their texture's, so that a block is about a Quake texel there too.
-void skinSize(const aliashdr_t* hdr, int skinnum, float& w, float& h)
+// The skin's own size in Quake texels: Quake's .mdl's (and a ragdoll's skinned copy of one: modelmeta::quakeSkin); our
+// own MD3 and IQM models' (their textures painted at about four times a Quake skin's density) a quarter of their
+// texture's, so that a block is about a Quake texel there too.
+void skinSize(const qmodel_t* model, const aliashdr_t* hdr, int skinnum, float& w, float& h)
 {
     w = h = 0.f;
     if(!hdr)
     {
         return;
     }
-    if(hdr->poseverttype == aliashdr_t::PV_QUAKE1 && hdr->skinwidth > 0 && hdr->skinheight > 0)
+    if(modelmeta::quakeSkin(model, hdr))
     {
         w = static_cast<float>(hdr->skinwidth);
         h = static_cast<float>(hdr->skinheight);
@@ -1097,7 +1098,7 @@ void list_f()
         if(e->model->type == mod_alias)
         {
             const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
-            skinSize(hdr, e->skinnum, w, h);
+            skinSize(e->model, hdr, e->skinnum, w, h);
             const int skin = e->skinnum >= 0 && e->skinnum < hdr->numskins ? e->skinnum : 0;
             if(const gltexture_t* g = hdr->gltextures[skin][0])
             {
@@ -1655,7 +1656,7 @@ extern "C" void VR_RetroAlias(const entity_t* e, const void* aliashdr, int stand
     out[0] = static_cast<float>(entitySet(e));
     if(out[0] > 0.f)
     {
-        skinSize(static_cast<const aliashdr_t*>(aliashdr), e->skinnum, out[1], out[2]);
+        skinSize(e->model, static_cast<const aliashdr_t*>(aliashdr), e->skinnum, out[1], out[2]);
         if(isBody(e))
         {
             bodyParts(e->model, part);

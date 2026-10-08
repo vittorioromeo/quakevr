@@ -32503,3 +32503,18 @@ reload_test 100/100.
 **For VR:** the empty hand and a held prop against a seated magazine (all three guns), the two guns crossed at the
 magazine, a nailgun lying on the floor (it may now lie on its magazine or tip over it), the magazine still gripped,
 pulled out, knocked out and loaded.
+
+## Ragdolls' skins as sharp as the living monster's (2026-10-09)
+
+His note: a grunt's ragdoll looks much more pixelated than the living grunt. Cause: retro textures (vr_retro 1, his
+setting). A block's size is the skin's in Quake texels (vr_retro.cpp skinSize): a .mdl's own size, but a quarter of the
+texture's for any skeletal (IQM) or MD3 model (painted at four times a Quake skin's density). A ragdoll's skinned copy
+("<model>#rag", vr_ragdoll.cpp VR_SyntheticModel) is skeletal with the .mdl's own 8-bit skin, so its blocks were four
+Quake texels wide: vr_retro_list showed `soldier.mdl skin 256x256` alive and `soldier.mdl#rag skin 64x64`. Every
+ragdoll had it (ogre, knight, dog, enforcer: the same quarter), not the grunt alone; retro lighting's model grid
+(VR_RetroLightSkinScale) took the same quarter. Now modelmeta::quakeSkin (a .mdl, or a model with the Ragdoll trait)
+keeps the .mdl's size for both: the ragdolls list 256x256 (grunt, knight, dog), 512x256 (ogre), 576x384 (enforcer), as
+alive. Eyeshots (vrfiringrange, the grunt from 1.6 m): the body's Laplacian sd 20.3 before, 24.1 after, 25.4 alive.
+Textures, samplers and texture coordinates were already the .mdl's (the same gltexture_t).
+Tests: `ragdoll_test.sh <agent> retro` (new case: the living grunt's and his ragdoll's skin sizes, equal).
+**For VR:** with retro textures on, kill a grunt, an ogre and a knight: the corpse's skin as detailed as alive.

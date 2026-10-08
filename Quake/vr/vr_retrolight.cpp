@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // settings into the frame data's RetroLight[6] (the shaders' side: vr_retrolight.h).
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_modelmetadata.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -111,22 +112,23 @@ extern "C" void VR_RetroLightFrameData(float out[24])
 }
 
 // VR_AliasInstance: the share of the skin's texture that is a Quake texel (Retro.w: retro lighting's grid on models):
-// a Quake .mdl's skin size over its texture's (an external HQ skin is larger); our own MD3 and IQM models' a quarter
-// (painted at about four times a Quake skin's density, as retro textures take them).
-extern "C" float VR_RetroLightSkinScale(const void* aliashdr, int skinnum)
+// a Quake .mdl's skin size over its texture's (an external HQ skin is larger; a ragdoll's skinned copy of a .mdl the
+// .mdl's: modelmeta::quakeSkin); our own MD3 and IQM models' a quarter (painted at about four times a Quake skin's
+// density, as retro textures take them).
+extern "C" float VR_RetroLightSkinScale(const qmodel_t* model, const void* aliashdr, int skinnum)
 {
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
     if(!hdr)
     {
         return 0.f;
     }
-    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1)
+    if(!qvr::modelmeta::quakeSkin(model, hdr))
     {
         return 0.25f;
     }
     const int skin = skinnum >= 0 && skinnum < hdr->numskins ? skinnum : 0;
     const gltexture_t* g = hdr->gltextures[skin][0];
-    if(!g || g->width <= 0 || hdr->skinwidth <= 0)
+    if(!g || g->width <= 0)
     {
         return 0.f;
     }

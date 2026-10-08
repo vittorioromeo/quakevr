@@ -404,6 +404,16 @@ retro::Category category(const qmodel_t* model)
     return result;
 }
 
+bool quakeSkin(const qmodel_t* model, const void* aliashdr)
+{
+    const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    if(!hdr || hdr->skinwidth <= 0 || hdr->skinheight <= 0)
+    {
+        return false;
+    }
+    return hdr->poseverttype == aliashdr_t::PV_QUAKE1 || has(model, Trait::Ragdoll);
+}
+
 bool bodyParts(const qmodel_t* model, float out[4])
 {
     out[0] = out[1] = out[2] = out[3] = 0.f;

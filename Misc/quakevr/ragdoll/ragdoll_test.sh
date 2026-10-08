@@ -22,11 +22,13 @@
 #   wounds   a ragdoll shot twice: the wound masks (vr_wounds_info: painted on progs/soldier.mdl#rag)
 #   walk     you walking at a ragdoll (and a corpse), You and Corpses 0 and 2: your height as you walk (on it: higher)
 #   blows    the small gibs tests' chainsaw second and blows (vr_smallgibs_test 6 and 4) on a ragdoll
+#   retro    retro textures on (vr_retro 1): the living grunt's and his ragdoll's skin size in Quake texels (vr_retro_list:
+#            the ragdoll's skinned copy keeps the .mdl's, not a quarter of its texture's: the same blocks as alive)
 # EYES=1 also takes eyeshots (flat, stairs, blast, slowmo) into the kit's scratch.
 # MON=5: the knight instead of the grunt (vr_test_spawn: the Thing ahead).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
-CASES=${*:-flat stairs blast shot gib cap save slowmo grab twohand pull pile burn wounds walk blows}
+CASES=${*:-flat stairs blast shot gib cap save slowmo grab twohand pull pile burn wounds walk blows retro}
 PRE="wait30;god;notarget;vr_ragdoll 1;$XPRE;vr_debug_ragdoll 1;vr_test_spawn ${MON:-0}"
 DEAD="vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0"
 FILTER="^ragdoll|^vr_ragdoll_list|^vr_physics_steptime|corpses in the physics|gibbed|corpse: .* hit by|rror|CRASH|pushed at|  (held|pulled) by|flames on it|^wounds|soldier.mdl#rag|force grab: (a rag|caught a)"
@@ -112,5 +114,7 @@ PY
         done; done ;;
     blows)
         run "map e1m1;$PRE;developer 1;vr_test_spawn_dist 70;$DEAD;wait300;vr_smallgibs_test_n 40;vr_smallgibs_test 6;wait100;vr_ragdoll_list;vr_smallgibs_test 4;wait100;vr_ragdoll_list;toggleconsole;quit" "" "smallgib: monster|^vr_ragdoll_list|rror" | sed 's/: chance.*//' | sort | uniq -c ;;
+    retro)
+        run "map e1m1;$PRE;vr_retro 1;vr_test_spawn_dist 90;impulse 241;wait20;vr_retro_list;$DEAD;wait100;vr_retro_list;toggleconsole;quit" "" "soldier.mdl" | grep -o "progs/soldier.mdl.*skin.*texture [0-9x]*" | sed 's/  */ /g' ;;
     esac
 done
