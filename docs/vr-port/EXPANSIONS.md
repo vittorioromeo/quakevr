@@ -541,7 +541,7 @@ room for the fallback. PAK reads validate header/directory/payload bounds and ca
 The resolver shares campaign root precedence and honors disabled Steam/GOG lookup; KPF fallback also honors
 Steam/GOG/Epic disable flags. Borrowed language lookup never mounts general id1 content or changes writable bases.
 No translated text, maps or other commercial assets are committed. The identifier-only inventories cover
-30 Dopa BSP strings, 198 MG1 QC/BSP strings and 246 MG3 QC/BSP strings; the installed updated English table
+30 Dopa BSP strings, 198 MG1 QC/BSP strings and 248 MG3 QC/BSP strings (246 until M3-29 added the two endings' texts); the installed updated English table
 resolves all of them. MG1/MG3 gameplay readiness remains false.
 
 Each parsed entry retains its actual source. Read-only `loc_probe $identifier [arguments...]` uses the same
@@ -1028,3 +1028,30 @@ burst of gibs, the final text and the credits. Anywhere with MG3's data: Debug s
 included) at boss2's 36 `info_szombie_spawn`, up 7 s later, at most 33; its 8 `func_breakable` pillars sink 20 units a
 hit, so her attacks bring them down over the fight. Debug spawner Thing 61: a shub zombie.
 Measurements: ROUND21.md, "Dawn of the Machine (MG3): the Shub finale".
+
+## Dawn of the Machine route sweep (M3-29, 2026-10-08)
+
+Phase E of [MG3_PLAN.md](MG3_PLAN.md). `bash Misc/quakevr/mg3_route_test.sh <agent> [main] [bn] [exits]` reproduces
+the whole campaign headless on the owned rerelease data (`vr_campaign_native mg3`, `-nomapindex -noaddons`, skill 1;
+steps and checks in `mg3_route_test.py`, the game side in `QC/vr_mg3_test.qc` requests 31..38 and 100+ and the shared
+route driver of `QC/vr_mg_hub_test.qc`). As in MG1's sweep, each exit is the map's real `trigger_changelevel`: the
+player is put inside its volume and the engine's own touch runs the changelevel; intermissions, finale texts and deaths
+are left with real jump presses. A first visit saves on arrival, loads that save, dies for real (the respawn autoloads
+it) and only then leaves; the three reports must agree.
+
+| Part | What | Result |
+|---|---|---|
+| Entities | `check_mg3_entities.py`, all 22 BSPs (156 classnames); the 20 playable ones loaded in one run | 0 missing classes, 0 placements, 0 fields; no spawn/field error (secret1's empty `property 1` key aside) |
+| Language | identifiers MG3's VR QC prints vs the gate (`vr_loc_mg3.inc`); the owned table | 42 of 42 in the gate (248); `VR language mg3: 0 missing` |
+| main | start (skill brush 1) -> map1 -> secret1 (rune 1) -> hub -> map1 -> map2 -> map2b -> map3 -> secret5 (rune 2) -> hub -> map3 -> map4 -> secret6 -> map5 -> secret3 (rune 3) -> hub -> map5 -> map6 -> secret4 -> map7 -> map8 (rune 4) -> hub -> secret2 -> boss (Chthon's fight, `vr_mg3_ctest 3` 46/0) -> finale text -> credits | **93/0**: 60 steps, 23 exits, 18 save/load/death cycles; hands' magazines 3/7, holsters' 1..6, 8 distinct ids, upgrade masks 5/2/8192/16384/1 and capacities 70/60/110/30/110 carried through 56 steps; runes 1/3/7/15 at the four hub returns, each rune's doors and the exit as the runes say (4 of 4) |
+| bn | hub skill buttons (Bloody Nightmare on, skill 3) -> four runes given -> secret2 (the strip: guns gone, shotgun, Super Axe, armour, ammunition kept) -> boss (`vr_mg3_ctest 4`: the new game) -> map1 (serverflags 448, masks cleared) -> secret1 (rune 1) -> hub (runes given) -> the exit to secret2 leads to boss2 -> Shub's death (`vr_mg3_shubtest 4`) -> final text -> credits | **29/0**: 15 steps, 4 save/load/death cycles |
+| exits | every `trigger_changelevel` of the 20 playable BSPs, both copies of the hub's chapter exits (34): `map <src>`, walk in, arrive | **71/0**: 34 of 34 arrive; none needed noclip |
+
+Run time: main 4.5 min, bn 1.5 min, exits 2.7 min (fast mode). Bugs found and fixed: the language gate missed the
+two endings' identifiers (`$mg3_qc_boss_finale`, `$map_dopa_endtext_final`), so an older or partial table passed it and
+showed raw identifiers at both endings; the shared route presser (also MG1's) started its end script when a finale
+text appeared, and that script's waits held the next press in the command buffer, so a text ending never reached the
+credits in a sweep (MG1's checked only its own echo): it now queues after the credits' commands. Upstream data left as
+is: secret4/dm1 `func_bob` `dest "16-32 0"` reads as `16 0 0` (as id's parser does), map7/secret1 lack a few textures
+in the BSP. Not covered: skills 0, 2, 3 of the normal game (one argument away: `SKILL` in the script), co-op, and
+everything that needs a headset (MG3_PLAN.md M3-30).

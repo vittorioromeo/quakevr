@@ -332,7 +332,9 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
 - **M3-28 Performance pass.** map2/secret2/map1 `vr_profile` with full monster counts and ragdoll caps; fixes or
   documented budgets. Run after the profiling worker; `--exclusive` for timings.
 - **M3-29 Full-campaign route sweep.** all 22 BSPs 0 missing classes/fields; every normal/secret route; runes;
-  hub returns; both endings; carry/save/load/death at each hop; language-gate checks.
+  hub returns; both endings; carry/save/load/death at each hop; language-gate checks. **Done 2026-10-08:**
+  `Misc/quakevr/mg3_route_test.sh` (main 93/0, Bloody Nightmare 29/0, every exit 71/0; results table in EXPANSIONS.md,
+  "Dawn of the Machine route sweep"; two bugs fixed: the language gate's missing ending identifiers, the sweep presser).
 - **M3-30 Readiness flip and docs.** `nativeReady` true for single-player (Q6), solo guard as Dopa, INSTALL/README/
   CREDITS/EXPANSIONS, Debug menu tests, human VR QA checklist (Super Axe contacts, axe buttons, lore readability,
   teleports/ceilings comfort, new monsters' hit zones).

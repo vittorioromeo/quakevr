@@ -5149,6 +5149,12 @@ za::Vector<Item> pageMg3Tests()
             .help("Destructive: the Chthon ending as if he died: the finale text and the credits, or on Bloody Nightmare its new game on map1. Then Leave the Intermission."),
         command("Shub Beaten (Ending)", "vr_mg3_test 22")
             .help("Destructive: the Shub ending: the final text, then the credits. Then Leave the Intermission."),
+        command("Route Carry Report", "vr_mg3_test 31")
+            .help("Runes, health, ammunition, upgrade masks and capacities, hands' and holsters' weapons, magazines and ids: compare across a level change, save/load or death (the route sweep's report)."),
+        command("Seed Hands and Holsters", "vr_mg3_test 32")
+            .help("Destructive: shotgun and nailgun in the hands (magazines 3/7; hold both grips to carry them), six shotguns holstered (1..6), upgrade masks 5 2 8192 16384 1."),
+        command("Give the Four Runes", "vr_mg3_test 36")
+            .help("Destructive: all four runes (serverflags 15), e.g. to open the hub's exit to secret2 in a Bloody Nightmare new game."),
         toggle("Aggro Groups", vr_mg3_aggro_groups)
             .help("A waking monster wakes what its aggro_target names (map3, map7, map8). Upstream ships this off; off by default."),
     };

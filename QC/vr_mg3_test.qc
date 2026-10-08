@@ -564,8 +564,95 @@ void() MG3_T_BNDamage = {
     MG3_Check(dealt == (bn ? 40 : 50) && taken == (bn ? 12 : 10), "Bloody Nightmare: 80% dealt, 120% taken (else 100%)");
     dprint(sprintf("mg3test: damage %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
 };
+// ----------------------------------------------------------------------------
+// M3-29 full-campaign route sweep (Misc/quakevr/mg3_route_test.py writes the private step scripts mg3route<N>.cfg;
+// vr_mg_hub_test.qc's route driver runs one on each new map's or loaded save's first frame, and its presser leaves
+// intermissions and respawns the dead with real jump presses). Requests: 100 + 2 m + n walk into the exit to map m
+// (MG3_T_RouteMap; 0: the first exit; n 1: its second copy, the hub has two to each chapter); 31 the route report;
+// 32 seed hands, holsters and upgrade masks; 40 + s touch start's skill brush s; 35 a real death; 36 the four runes
+// (the Bloody Nightmare leg's shortcut); 37 the presser alone (an ending's intermission); 38 it only watching (a test
+// that leaves the intermission itself).
+void() MG3_T_RouteReport = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    dprint(sprintf("mg3route: report map %s skill %g serverflags %g runes %g intermission %g\n", mapname, skill, serverflags, MG3_RuneCount(), intermission_running));
+    dprint(sprintf("mg3route: player health %g max %g armor %g shells %g nails %g rockets %g cells %g\n", p.health, p.max_health,
+                   p.armorvalue, p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells));
+    dprint(sprintf("mg3route: masks %g %g %g %g %g bloody %g", MG3_upgrade_health, MG3_upgrade_shells, MG3_upgrade_nails,
+                   MG3_upgrade_rockets, MG3_upgrade_cells, MG3_bloody));
+    dprint(sprintf(" caps %g %g %g %g %g\n", VR_MaxHealth(p), VR_MaxAmmo(p, AID_SHELLS), VR_MaxAmmo(p, AID_NAILS), VR_MaxAmmo(p, AID_ROCKETS), VR_MaxAmmo(p, AID_CELLS)));
+    dprint(sprintf("mg3route: hands %g/%g clips %g/%g ids %g/%g\n", p.weapon, p.weapon2, p.weaponinst.wi_clip, p.weaponinst2.wi_clip,
+                   p.weaponinst.wi_uid, p.weaponinst2.wi_uid));
+    dprint(sprintf("mg3route: holsters %g %g %g %g %g %g", p.holsterweapon0, p.holsterweapon1, p.holsterweapon2, p.holsterweapon3,
+                   p.holsterweapon4, p.holsterweapon5));
+    dprint(sprintf(" clips %g %g %g %g %g %g", p.holsterweaponinst0.wi_clip, p.holsterweaponinst1.wi_clip, p.holsterweaponinst2.wi_clip,
+                   p.holsterweaponinst3.wi_clip, p.holsterweaponinst4.wi_clip, p.holsterweaponinst5.wi_clip));
+    dprint(sprintf(" ids %g %g %g %g %g %g\n", p.holsterweaponinst0.wi_uid, p.holsterweaponinst1.wi_uid, p.holsterweaponinst2.wi_uid,
+                   p.holsterweaponinst3.wi_uid, p.holsterweaponinst4.wi_uid, p.holsterweaponinst5.wi_uid));
+};
+string(float i) MG3_T_RouteMap = { // (mg3_route_test.py MAPS: no string cvars in this QC)
+    if(i == 1) return "start"; if(i == 2) return "map1"; if(i == 3) return "map2"; if(i == 4) return "map2b";
+    if(i == 5) return "map3"; if(i == 6) return "map4"; if(i == 7) return "map5"; if(i == 8) return "map6";
+    if(i == 9) return "map7"; if(i == 10) return "map8"; if(i == 11) return "hub"; if(i == 12) return "secret1";
+    if(i == 13) return "secret2"; if(i == 14) return "secret3"; if(i == 15) return "secret4"; if(i == 16) return "secret5";
+    if(i == 17) return "secret6"; if(i == 18) return "boss"; if(i == 19) return "boss2";
+    return "";
+};
+void(float m, float nth) MG3_T_RouteWalk = {
+    entity p = find(world, classname, "player"); if(!p) return;
+    string dest = MG3_T_RouteMap(m);
+    entity cl = find(world, classname, "trigger_changelevel");
+    if(strlen(dest)) {
+        while(cl && cl.map != dest) cl = find(cl, classname, "trigger_changelevel");
+        if(cl && nth >= 1) { cl = find(cl, classname, "trigger_changelevel"); while(cl && cl.map != dest) cl = find(cl, classname, "trigger_changelevel"); }
+    }
+    if(!cl) { dprint(sprintf("mg3route: walk %s no exit to %s\n", mapname, dest)); return; }
+    // Inside the exit's volume: the engine's own trigger touch on the next physics frame runs the real changelevel;
+    // an exit behind a shut door or bars is reached in noclip (its frame still touches the triggers it overlaps).
+    setorigin(p, MG1_H_SpotIn(cl, p));
+    if(!MG1_H_spotfound) p.movetype = MOVETYPE_NOCLIP;
+    p.velocity = '0 0 0';
+    dprint(sprintf("mg3route: walk %s -> %s fits %g\n", mapname, cl.map, MG1_H_spotfound));
+    MG1_H_Presser();
+};
+void() MG3_T_RouteFrame = {
+    float request = cvar("vr_mg3_test");
+    entity p = find(world, classname, "player");
+    if(request >= 100 && request < 140) MG3_T_RouteWalk(floor((request - 100) / 2), (request - 100) & 1);
+    else if(request == 31) MG3_T_RouteReport();
+    else if(request == 32) {
+        MG1_H_Route(20); // (vr_mg_hub_test.qc: hands' magazines 3/7, holsters' 1..6, health 73, shells 42)
+        MG3_SetUpgradeMask(MG3_UPGRADE_HEALTH, 5); MG3_SetUpgradeMask(AID_SHELLS, 2); MG3_SetUpgradeMask(AID_NAILS, 8192);
+        MG3_SetUpgradeMask(AID_ROCKETS, 16384); MG3_SetUpgradeMask(AID_CELLS, 1);
+        if(p) p.max_health = VR_MaxHealth(p);
+        dprint("mg3route: seeded equipment and masks 5 2 8192 16384 1\n");
+    }
+    else if(request >= 40 && request <= 43) {
+        entity b = find(world, classname, "trigger_setskill");
+        while(b && stof(b.message) != request - 40) b = find(b, classname, "trigger_setskill");
+        if(b && p) { MG3_T_player = p; MG3_T_Touch(b); }
+        dprint(sprintf("mg3route: skill brush %g found %g: skill cvar %g\n", request - 40, !!b, cvar("skill")));
+    }
+    else if(request == 35 && p) {
+        // A real death (god mode off, damage past the health): the presser's press respawns, which in single player
+        // restarts the map through the engine's autoload of the last save.
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        T_Damage(p, world, world, p.health + 1000);
+        dprint(sprintf("mg3route: died health %g deadflag %g\n", p.health, p.deadflag));
+        MG1_H_Presser();
+    }
+    else if(request == 36) { serverflags = serverflags | MG3_SF_RUNES; dprint(sprintf("mg3route: four runes given: serverflags %g\n", serverflags)); }
+    else if(request == 37) MG1_H_Presser();
+    else if(request == 38) { MG1_H_Presser(); entity pr = find(world, classname, "mghub_presser"); if(pr) pr.cnt = 1; }
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
+    if(((request >= 31 && request <= 38) || (request >= 40 && request <= 43) || (request >= 100 && request < 140)) && MG3_Campaign()) {
+        entity ros = self, roo = other, roa = activator;
+        MG3_T_RouteFrame();
+        self = ros; other = roo; activator = roa;
+        cvar_set("vr_mg3_test", "0");
+        return;
+    }
     cvar_set("vr_mg3_test", "0");
     if(request == 4 || request == 6 || request == 7) { // any campaign
         entity os = self, oo = other, oa = activator;

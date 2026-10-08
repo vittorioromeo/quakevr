@@ -1179,6 +1179,12 @@ shotguns (none: two spawned ahead), 14 sets the Bloody Nightmare new-game flag (
 bits (`vr_debug_shots 1`: the bloody super shotgun's 28 pellets); developer 1 prints `superaxe:` and `bloody:`
 lines (each blow, each burst). Real swings: `motion_synth.py slash_horizontal_rtl --weapon superaxe --distance 0.85`.
 `vr_anchor_nearest owned/mg3/progs/v_hammer.mdl x y z` finds its anchors; `Misc/quakevr/fit_superaxe.py` its fit.
+Dawn of the Machine's whole campaign (M3-29; EXPANSIONS.md, "Dawn of the Machine route sweep"): `bash
+Misc/quakevr/mg3_route_test.sh <agent> [main] [bn] [exits]` (about 9 min for all three; logs `scratch/mg3route_<leg>.log`
+and `.check`): the entity checker, the language gate, then the normal game start -> credits with a save, load and real
+death in every first visit (main), Bloody Nightmare's two endings (bn) and every exit of the 20 playable BSPs (exits).
+`vr_mg3_test 31` is its carry report (Debug > Tests > Dawn of the Machine Tests > Route Carry Report), 32 seeds hands,
+holsters and masks, 36 gives the four runes, 100 + 2 m + n walks into the exit to map m (`mg3_route_test.py MAPS`).
 The crowbar (ROUND21.md, "The crowbar"): `impulse 167` puts one in the main hand (187: the off hand; hold the grip:
 `+grabright; vr_mock_button main grip 1`, or `vr_weapon_grip_mode 1`), `impulse 217` drops one 48 units ahead, `216`
 takes the one lying nearest into an empty hand (the grip held), `218` prints each lying about and whether your hands

@@ -30968,3 +30968,25 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   their depth, side and eye, the cost, a point's torch distance. Tested from T (-1280 700, facing U's gate):
   recursion 0: 5 views, depth 1 (as before); recursion 2: 16, depth 3. vrslipgates has no third room (T and U, FA and
   FB lead to each other), so no torch there is lit only two gates deep; a map chaining three rooms would show it.
+## Dawn of the Machine (MG3): the full-campaign route sweep (2026-10-08)
+
+M3-29 of [MG3_PLAN.md](MG3_PLAN.md); the results table is in EXPANSIONS.md, "Dawn of the Machine route sweep".
+`bash Misc/quakevr/mg3_route_test.sh <agent> [main] [bn] [exits]` (about 9 min): the entity checker (22 BSPs, 0
+missing), the language gate (static and the owned table), then three headless legs on the owned data:
+- **main** (skill 1, 93/0): start's skill brush, every chapter and secret map in order through their real exits, the
+  four runes and four hub returns (doors and exit as the runes say), secret2, Chthon's fight and death, the finale text,
+  the credits. Hands, holsters, magazines, ids, upgrade masks and capacities seeded in map1 are carried through every
+  later step; each first visit saves, loads and dies for real (the respawn's autoload), and the three reports agree.
+- **bn** (29/0): the hub's skill buttons to Bloody Nightmare, its strip after a changelevel, Chthon's death into its new
+  game (map1, serverflags 448, masks cleared), secret1's rune, the hub's exit to secret2 leading to boss2, Shub's death,
+  the final text, the credits.
+- **exits** (71/0): all 34 exits of the 20 playable BSPs (both of the hub's exits to each chapter) arrive in their map.
+
+Fixed: `Quake/vr/vr_loc_mg3.inc` (the language gate) lacked `$mg3_qc_boss_finale` and `$map_dopa_endtext_final`, the
+two endings' texts (now 248 identifiers; the owned table has both); the route presser of `QC/vr_mg_hub_test.qc` (MG1's
+and MG3's sweeps) ran its end script as soon as a finale text appeared, whose waits kept the next press's +jump in the
+command buffer: now it runs it after the credits' commands are queued. New Debug > Tests > Dawn of the Machine Tests
+rows: Route Carry Report (`vr_mg3_test 31`), Seed Hands and Holsters (32), Give the Four Runes (36).
+
+**In the headset.** [ ] Dawn of the Machine, either ending: at the finale text a button press brings the credits.
+[ ] A hub return from a secret map: you arrive at the hub's start with your hands' and holsters' weapons as you left.
