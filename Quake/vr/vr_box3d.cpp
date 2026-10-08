@@ -6909,8 +6909,8 @@ void writeProp(edict_t* ent, Slot& s)
     s.velocity = velocity;
     s.spin = spin;
     s.asleep = asleep;
-    SV_LinkEdict(ent, true); // (its triggers)
-    if(!ent->free && origin != was)
+    SV_LinkEdict(ent, !s.chunk); // (its triggers; an explosion's chunk has none to touch, nor splashes: silent, as before)
+    if(!ent->free && origin != was && !s.chunk)
     {
         SV_CheckWaterTransition(ent);
     }

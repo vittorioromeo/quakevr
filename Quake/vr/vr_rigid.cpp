@@ -433,7 +433,12 @@ extern "C" int VR_RigidToss(edict_t* ent)
     }
     const FieldOffsets& f = fields();
     const bool rigid = f.vr_rigid >= 0 && fieldFloat(ent, f.vr_rigid) != 0.f;
-    keepInWorld(ent, rigid);
+    // (Not an explosion's chunk, vr_explosiondebris.cpp: a sphere at its origin that Box3D keeps out of the level; its
+    // drawn centre and box asked every frame were the most of its cost.)
+    if(!(rigid && f.vr_xdebris >= 0 && fieldFloat(ent, f.vr_xdebris) > 0.f))
+    {
+        keepInWorld(ent, rigid);
+    }
 
     // Its first move: SV_CheckWaterTransition takes the contents it ends in as where it spawned, so a
     // rocket or a nail fired into water from close by never went in (no splash, vr_physics.cpp). One

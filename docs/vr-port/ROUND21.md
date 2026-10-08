@@ -31452,3 +31452,54 @@ Also: `slipgate_edges_test.sh`'s eye images (head, recursion) are read from the 
 - [ ] Walk into a slipgate whose room is lit by lamps (vrslipgates' flush gate, the start map's): no flash of brighter
   walls at the crossing; the walls through the gate look as they do once through.
 - [ ] Translucent water near a bright lamp and lava seen through water: nothing turns white or blotchy.
+
+## Explosion debris as Box3D bodies (2026-10-08)
+
+The author's decision: the explosions' incandescent chunks become the server's physics objects, as the rocks and bricks
+lying about are (vr_debris.cpp), instead of the client's own models moved by seven line traces a step each (which never
+slept: PERF_DECISIONS.md item 3).
+
+- **Where they come from:** every explosion QuakeC broadcasts (its temp entity `TE_EXPLOSION`, `TE_EXPLOSION2` or
+  `TE_TAREXPLOSION`: rockets, grenades, explosive boxes, the ogres', the tarbabies', the mission packs') is seen whole as it
+  is written (vr_server.cpp `VR_BroadcastWritten`, the broadcast's temp-entity parser) and launches its chunks at the
+  server frame's end (`explosiondebris::serverFrame`). The client no longer makes any (the particle preset and the three
+  `VR_*Explosion` hooks lost their spawns); `vr_explosion_debris_test` (the menu's Preview an Explosion, the benchmarks)
+  draws the explosion on the client and queues a listen server's chunks.
+- **What they are:** entities of `progs/vr_explosion_debris.mdl` (precached by QC `VR_Debris_Precache`), `.vr_rigid`
+  `MOVETYPE_BOUNCE` `SOLID_NOT` props with their own mass (`.vr_prop_mass` 0.02 kg) and a serial (`.vr_xdebris`). Box3D
+  (vr_box3d.cpp `isChunk`, `addChunkShape`) gives each a sphere as wide as the chunk (its box), bouncing as
+  `vr_explosion_debris_bounce`, with rolling resistance; continuous collision against the world always, and as a bullet
+  (against doors, lifts and props) while it moves more than a third of its size a step (the props' rule); asleep at
+  rest (the small props' threshold, 0.15 m/s). Its category `catChunk`: it meets the level, doors, lifts, monsters,
+  players, props and corpses, never the hands or what they hold; a contact with one makes no sound (physsound: none), no
+  touch and no impact (`chunkPair`: a chunk at 9 m/s would knock a crate's sound or set off an explosive box's hard
+  hit), and no hit box along its flight (`touchNearby` skipped). So they ride lifts and plats, later blasts throw them
+  (`physicsblast`), they knock props without moving them (20 g into a 6 kg health box: it stays where it was).
+- **The same launch:** a random direction biased up (`vr_explosion_debris_up`), speed, size and life between the
+  settings' ends, a random spin (±600 degrees/s an axis), out along its way to a free point for a blast at a wall (or
+  not that chunk). Size: the entity's `scale` (a byte on the wire, the sixteenths the client's drawn scale was); the fade:
+  its `alpha` over its last half second (a third of a short life), then the engine frees it (SUB_Remove a second later
+  only if the list lost it: a saved game's are found again at its first frame). At most `vr_explosion_debris_max` (96,
+  hard cap 256), the oldest retired first, never leaving fewer than 512 free entities; in multiplayer at most
+  `vr_explosion_debris_mp_max` (new, 24; -1 as single player, 0 none: `vr_debris_mp_max`'s semantics; MULTIPLAYER.md).
+  The settings keep their meaning; count, speeds, up, sizes, lives, bounce and the maxima are the server's now (the
+  host's), trail and lights the client's.
+- **Drawn:** ordinary entities, interpolated as any. The fire trail is drawn each frame from where the chunk was drawn
+  last to where it is drawn now (`VR_ExplosionDebrisTrail`, called by `CL_RelinkEntities` for an entity without a trail
+  of Quake's, before its `trailorg` moves on), so it is smooth at the render rate; the nearest
+  `vr_explosion_debris_lights` glow. How hot a chunk is comes from its age against the life settings' middle (the client
+  doesn't know its life) and its alpha once it fades.
+- **Tests:** `Misc/quakevr/explosion_debris_test.sh <agent>` (all PASS): the cap (ten explosions of 12 under a cap of 40
+  leave 40, 80 retired) and the life (none 5.5 s later); multiplayer (`maxplayers 4`: 10, -1 gives 40, 0 none); three
+  dropped on vrtesthall's floor asleep within 2 s; 1900 units/s into the south and west panels and down onto the table,
+  and into vrclimb's lift side-on (a kinematic body): each stays on its near side; one on vrclimb's lift rises with it
+  (41 -> 121 in 10 s), one on its plat goes down 40 with it; a blast throws resting ones; chunks into a health box leave
+  it where it was. A real QuakeC explosion (an explosive box set off by `vr_physics_blast`) launches its chunks. Debug >
+  Tests > Physics Stress: Explosion Debris Ahead, Explosion Debris List (`vr_explosion_debris_list`: each chunk's place,
+  speed, resting or moving and on what); `vr_explosion_debris_launch <x y z> <vx vy vz> [size] [life]` for one chunk.
+- **A future option (not done):** a separate client-only Box3D world for purely visual physics: these chunks, the spent
+  shell casings, sparks, small gore. It would be built from `cl.worldmodel` (in single player its mesh shared read-only
+  with the server world's, which builds the same one), with kinematic proxies for the brush entities (doors and lifts at
+  their client entities' interpolated places) and for the server's props near the view. Effects there need no networking
+  (no entity slots, no datagram bytes, no multiplayer cap) and behave the same in single player and multiplayer; the price
+  is a second broadphase and step on the client, and props that never feel them (one-way).

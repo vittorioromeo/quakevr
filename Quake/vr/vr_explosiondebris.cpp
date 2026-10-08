@@ -334,13 +334,16 @@ void launch(const glm::vec3& org)
         for(int attempt = 0; attempt < 6; ++attempt)
         {
             const glm::vec3 candidate = org + dir * (size + attempt * 2.f * units::worldScale());
-            vec3_t from{org.x, org.y, org.z}, to{candidate.x, candidate.y, candidate.z};
+            // The way out to the ball's far side: clear from a blast in the open, the ball is (one trace; Box3D
+            // pushes a sideways graze out). From inside a solid, out along it to a ball found clear.
+            const glm::vec3 beyond = candidate + dir * (size * 0.5f);
+            vec3_t from{org.x, org.y, org.z}, to{beyond.x, beyond.y, beyond.z};
             const trace_t route = SV_Move(from, vec3_origin, vec3_origin, to, MOVE_NOMONSTERS, nullptr);
             if(!route.startsolid && route.fraction < 1.f)
             {
                 break;
             }
-            if(ballFree(candidate, size * 0.5f))
+            if(!route.startsolid || ballFree(candidate, size * 0.5f))
             {
                 at = candidate;
                 free = true;
