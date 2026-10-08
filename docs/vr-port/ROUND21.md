@@ -32528,3 +32528,27 @@ prop's gun), its height read as the parts' skin is taller (the gun's texels wher
 its region, clear); blood that strikes it open is painted (and washed) through the parts as drawn
 (`view::ssgPartsOf`), into the same mask. Test: reload_test.sh section 7 (shut, open, shut: the gun's own blood open
 78% of shut here; 0% before). `vr_gore_spatter_test propoff` (Debug menu, Gore) bloodies what the off hand holds.
+
+## The super shotgun hit with shells in the hand as with it empty (2026-10-08)
+
+His note vrfiringrange_2026-10-08_22-11-35: opening and shutting the super shotgun with the other hand felt perfect empty,
+but holding pouch shells it took more force and a more precise hit. The differences found (VR_Reload_SsgHit and around):
+
+- The hit point: empty, the hand's point; holding a round, the nearer of the hand's point and the round's own shape
+  (shapenearest), whose side test (where it came from 50 ms before) read off the round. Now a round changes nothing:
+  the hand's point, as empty.
+- Load before hit: open, a round within the port's radius **plus 4 units** of the chambers refused every hit. The
+  barrels' front 40% (the hit zone) starts about 7 units from the breech, so the refusal reached it: hits from below
+  near the breech never shut it with shells in the hand (the mock: none of the swings at 0.6 and 0.75 of the gun did).
+  Now only within the port's own radius, where the round loads this very frame (VR_Reload_HeldFrame).
+- The haptic: shut by a hit, the hitting hand buzzed only if empty; now holding a round too.
+- The same: the speed (the hand's tracked velocity: no weight lag worth a mention, 0.1 kg, the spring 0.02 cm off),
+  the reach, the angle checks, the timing (Hit After Loading only after a load, which an empty hand never makes).
+
+Left as it is (looks only, not the hit): an empty hand is drawn held off the gun's surface (vr_hand_collide, its
+mesh) with a buzz as it meets it; a hand holding a round has the held things' box collision instead (the round against
+the gun's box, vr_reload_collide_leniency 4 cm into it: so a round reaches a port under a receiver). Worth his look.
+
+Test: reload_test.sh section 7, the same glided swings (exact speed, the same tracked poses after the same visit to the
+pouch) empty and holding a pair: from below near the breech and at the front, from above, at 2.5, 3.8 and 7.6 m/s: the
+same outcome and speed.
