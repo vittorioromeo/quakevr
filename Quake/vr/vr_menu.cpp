@@ -1610,6 +1610,23 @@ int campaignsBloodyShown = -1;
         slider("Eyes Up", vr_body_eye_up, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f).help("From the top of the neck to the eyes, up."),
         slider("Crouch Tilt", vr_body_crouch_tilt, 0.f, 80.f, 5.f, "%.0f deg").extend()
             .help("How far the back tilts forward in a full crouch (the hips stay under you)."),
+        header("Death View"),
+        cycle("Death View", vr_death_view, {{0.f, "Off"}, {1.f, "Third Person"}, {2.f, "Immersive"}})
+            .help("When you die (not gibbed) your body falls as a ragdoll (also on VR Settings, Comfort). Off: no body. "
+                  "Third Person: your view stays where your eyes were. Immersive: your view goes into your body's head "
+                  "(Third Person while a menu is open)."),
+        toggle("Immersive: Turn With the Body", vr_death_view_turn)
+            .help("Immersive Death View: your view turns sideways as your body's head does, slowly (Turn Speed). Off: "
+                  "only its place follows the head; you turn yourself."),
+        slider("Immersive: Turn Speed", vr_death_view_turn_speed, 10.f, 180.f, 10.f, "%.0f deg/s")
+            .help("The fastest the Immersive Death View turns with your body's head."),
+        slider("Immersive: Smoothing", vr_death_view_smooth, 0.f, 0.5f, 0.05f, "%.2f s")
+            .help("How long the Immersive Death View takes to follow your body's head: more is gentler, less is closer."),
+        slider("Immersive: Fade", vr_death_view_fade, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("The view fades in from black as it goes into your body's head, and as you respawn. 0: no fade."),
+        slider("Your Body: Killing Blow's Push", vr_death_ragdoll_push, 0.f, 3.f, 0.25f, "%.2fx")
+            .help("Your ragdoll body: the blow that killed you throws it this much of what Quake throws the player (0: "
+                  "only the motion you had), at most about 10 m/s."),
     };
 }
 
@@ -3558,9 +3575,6 @@ void hologramTestMessage()
             .help("A dying grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend, shambler or gremlin goes limp: his body becomes jointed parts that fall, tumble, are pushed, grabbed "
                   "and thrown (vr_ragdoll). Their settings: Ragdoll Settings."),
         open("Ragdoll Settings", pageIndex(pageRagdolls)),
-        slider("Your Body: Killing Blow's Push", vr_death_ragdoll_push, 0.f, 3.f, 0.25f, "%.2fx")
-            .help("Your own ragdoll body when you die (Death View: VR Settings, Comfort): the blow that killed you throws it "
-                  "this much of what Quake throws the player (0: only the motion you had), at most about 10 m/s."),
     };
 }
 
@@ -7434,16 +7448,8 @@ za::Vector<Item> pageMain()
             .help("When you die (not gibbed) your body falls as a ragdoll, thrown by the blow that killed you. Off: no "
                   "body, as in Quake. Third Person: your view stays where your eyes were, your body there to look at. "
                   "Immersive: your view goes into your body's head and follows it as it falls (its place smoothed, its "
-                  "turns only sideways, never pitch or roll; the hands hidden). Back to normal when you respawn."),
-        toggle("Immersive Death: Turn With the Body", vr_death_view_turn)
-            .help("Immersive Death View: your view turns sideways as your body's head does, slowly (Turn Speed). Off: "
-                  "only its place follows the head; you turn yourself."),
-        slider("Immersive Death: Turn Speed", vr_death_view_turn_speed, 10.f, 180.f, 10.f, "%.0f deg/s")
-            .help("The fastest the Immersive Death View turns with your body's head."),
-        slider("Immersive Death: Smoothing", vr_death_view_smooth, 0.f, 0.5f, 0.05f, "%.2f s")
-            .help("How long the Immersive Death View takes to follow your body's head: more is gentler, less is closer."),
-        slider("Immersive Death: Fade", vr_death_view_fade, 0.f, 2.f, 0.1f, "%.1f s")
-            .help("The view fades in from black as it goes into your body's head, and as you respawn. 0: no fade."),
+                  "turns only sideways, never pitch or roll; the hands hidden; Third Person while a menu is open). Back "
+                  "to normal when you respawn. Its fine tuning: Advanced VR Options > Body, Death View."),
 
         header("Teleportation"),
         toggle("Teleport", vr_teleport_enabled)
@@ -7654,7 +7660,7 @@ za::Vector<Item> pageAdvanced()
         open("World", pageIndex(pageGameplay)).help("Monsters, the weapons they drop, weapon drops, rumble and heartbeat."),
         open("Gore", pageIndex(pageGore)),
         header("Body and Weapons"),
-        open("Body", pageIndex(pageBody)).help("The body, its arms and pauldrons, body and player calibration."),
+        open("Body", pageIndex(pageBody)).help("The body, its arms and pauldrons, body and player calibration, the Death View."),
         open("Flashlight", pageIndex(pageFlashlight)),
         open("Weapons", pageIndex(pageWeaponsHub))
             .help("Weapon offsets and weights, hand/gun calibration, fingers, aiming, weight, holsters and immersion."),
