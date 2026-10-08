@@ -313,10 +313,14 @@ float (entity client) visible =
     else                                   { res = point_visible(spot1, spot2); }
     if(res && VR_Crate_HidesFrom(self, client, spot1)) { res = FALSE; }
     // Through a gate: not across a water surface either (point_visible's rule: one end in a liquid, the other not).
-    if(!res && track && VR_AI_PortalEligible() && client.classname == "player" &&
+    // Ranged monsters through every gate; under the stealth rules every monster through paired ones (vr_stealth_gates:
+    // a melee one walks through to him, VR_Stealth_ChaseGate).
+    float ranged = !res && track && VR_AI_PortalEligible();
+    if(!res && track && (ranged || VR_Stealth_GateSight()) && client.classname == "player" &&
        (pointcontents(spot1) <= CONTENT_WATER) == (pointcontents(spot2) <= CONTENT_WATER))
     {
         self.vr_ai_gate = portal_ai_sight(self, client, spot1, spot2, 0);
+        if(!ranged && !(portal_ai_gateinfo(self.vr_ai_gate, 1) & 2)) { self.vr_ai_gate = 0; }
         res = self.vr_ai_gate > 0;
     }
     return res;
@@ -677,7 +681,7 @@ float() FindTarget =
    else
     {
         client = checkclient();
-        if(!client && VR_AI_PortalEligible()) { client = portal_ai_client(self); }
+        if(!client && (VR_AI_PortalEligible() || VR_Stealth_GateSight())) { client = portal_ai_client(self); }
       if(!client)
             return FALSE;    // current check entity isn't in PVS
     }
@@ -1199,6 +1203,13 @@ void(float dist) ai_run =
     enemy_infront = infront(self.enemy);
     enemy_range = range(self.enemy);
     enemy_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
+
+    // QVR: a melee monster seeing him only through a paired slipgate (the stealth rules) runs to it and through
+    if(self.vr_ai_gate > 0 && enemy_vis && !VR_AI_PortalEligible())
+    {
+        VR_Stealth_ChaseGate(dist);
+        return;
+    }
 
 //MED
    if(self.th_turn)

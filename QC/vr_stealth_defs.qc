@@ -8,6 +8,10 @@
 .float stl_seen;        // when the meter last filled (the player seen)
 .float stl_decayed;     // when it last drained
 .vector stl_point;      // what it investigates
+.float stl_via;         // the slipgate stl_point is seen through (its image beyond the gate, vr_stealth_gates): the
+                        // gate's face it walks through (portal_ai_gateinfo's face), minus one it can't walk through; 0 none
+.float stl_post_via;    // and its post, after it went through a gate (the face back)
+.float stl_lost_via;    // and stl_lost_at
 .float stl_phase_time;  // when the phase began
 .float stl_alert_time;  // when it was last disturbed
 .float stl_alert_power; // and how strongly (a noise's reach over its distance; a sighting 1)
@@ -85,6 +89,10 @@ void() VR_Stealth_Tick;
 float() VR_Stealth_MeterOn;
 float(entity m) VR_Stealth_Applies;
 void(entity m, vector at, float xKind, float xPower, float xShare) VR_Stealth_Alert;
+void(entity m, vector at, float xVia, float xKind, float xPower, float xShare) VR_Stealth_AlertVia;
+float() VR_Stealth_GateSight;
+void(float dist) VR_Stealth_ChaseGate;
+void(entity m, vector xFrom, float xYaw, float xFace, float xBack) VR_Stealth_Crossed;
 void() VR_Stealth_TestFrame;
 void(entity m) VR_Stealth_Died;
 void(entity mis) VR_Stealth_GrazeMissile;

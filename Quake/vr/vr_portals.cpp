@@ -76,6 +76,7 @@ struct Side
     int trigger = 0;       // its trigger_teleport's edict
     int sourceTarget = 0;  // Native authored retargeting invalidates the cached destination immediately.
     bool paired = false;   // it comes out of another gate's face (pairExits): its exit (reverseSide) is a real aperture
+    int pair = -1;         // and that gate's side (the stealth AI's way back: aiGateFace)
 };
 
 struct PortalScratch
@@ -288,6 +289,7 @@ void pairExits()
             }
             best = glm::length(across) + 0.01f * out; // (the gate it lands on the middle of: a row of gates of one size)
             shift = mid - exitMid;
+            sd.pair = static_cast<int>(j);
         }
         sd.paired = best < 1e9f;
         if(sd.paired && glm::length(shift) > 0.01f)
@@ -1472,6 +1474,42 @@ void setVec(float* out, const glm::vec3& v)
 }
 
 // Keep the exact transform; the split body trace checks exit clearance without a forward or sideways snap.
+// What Quake's teleport does besides moving `ent` (QuakeC's VR_Portal_Crossed: the trigger's targets, what the hands
+// carry, the stealth AI's points carried along): where it came from, whether it went back out of the side it was
+// leaving (`returnSide`), the gate's yaw, the face it went into and the face in the new room that leads back
+// (aiGateFace's numbering; 0 none).
+void portalCrossed(edict_t* ent, const Side& sd, edict_t* trig, const glm::vec3& from, int returnSide)
+{
+    const func_t fn = progs::findFunction("VR_Portal_Crossed");
+    if(!fn)
+    {
+        return;
+    }
+    const int count = static_cast<int>(sides.size());
+    const int index = returnSide >= 0 ? returnSide : static_cast<int>(&sd - sides.data());
+    int face = 0, back = 0;
+    if(index >= 0 && index < count)
+    {
+        const int pair = sides[index].paired ? sides[index].pair : -1;
+        const int other = pair >= 0 && pair < count ? pair + 1 : 0;
+        face = returnSide >= 0 ? other : index + 1;
+        back = returnSide >= 0 ? index + 1 : other;
+    }
+    const int oldSelf = pr_global_struct->self;
+    const int oldOther = pr_global_struct->other;
+    pr_global_struct->self = EDICT_TO_PROG(trig);
+    pr_global_struct->other = EDICT_TO_PROG(ent);
+    pr_global_struct->time = qcvm->time;
+    setVec(G_VECTOR(OFS_PARM0), from);
+    G_FLOAT(OFS_PARM1) = returnSide >= 0 ? 1.f : 0.f;
+    G_FLOAT(OFS_PARM2) = sd.yaw;
+    G_FLOAT(OFS_PARM3) = static_cast<float>(face);
+    G_FLOAT(OFS_PARM4) = static_cast<float>(back);
+    PR_ExecuteProgram(fn);
+    pr_global_struct->self = oldSelf;
+    pr_global_struct->other = oldOther;
+}
+
 void crossPlayer(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, int returnSide = -1)
 {
     const glm::vec3 from = vec(ent->v.origin);
@@ -1503,19 +1541,7 @@ void crossPlayer(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, i
     }
 
     // What Quake's teleport does besides moving him (QuakeC: its targets, what the hands carry).
-    if(const func_t fn = progs::findFunction("VR_Portal_Crossed"))
-    {
-        const int oldSelf = pr_global_struct->self;
-        const int oldOther = pr_global_struct->other;
-        pr_global_struct->self = EDICT_TO_PROG(trig);
-        pr_global_struct->other = EDICT_TO_PROG(ent);
-        pr_global_struct->time = qcvm->time;
-        setVec(G_VECTOR(OFS_PARM0), from);
-        G_FLOAT(OFS_PARM1) = returnSide >= 0 ? 1.f : 0.f;
-        PR_ExecuteProgram(fn);
-        pr_global_struct->self = oldSelf;
-        pr_global_struct->other = oldOther;
-    }
+    portalCrossed(ent, sd, trig, from, returnSide);
 }
 
 // A monster carried through (VR_PortalMonsterCross): where it is, how it moves, where it faces and means to (ideal_yaw)
@@ -1536,19 +1562,7 @@ void crossMonster(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs, 
     cs.lastTorso = torsoOf(ent);
     Con_DPrintf("VR portal: carried monster %d through side %d: %.1f %.1f %.1f -> %.1f %.1f %.1f\n", NUM_FOR_EDICT(ent),
         returnSide >= 0 ? returnSide : cs.leavingSide, from.x, from.y, from.z, to.x, to.y, to.z);
-    if(const func_t fn = progs::findFunction("VR_Portal_Crossed"))
-    {
-        const int oldSelf = pr_global_struct->self;
-        const int oldOther = pr_global_struct->other;
-        pr_global_struct->self = EDICT_TO_PROG(trig);
-        pr_global_struct->other = EDICT_TO_PROG(ent);
-        pr_global_struct->time = qcvm->time;
-        setVec(G_VECTOR(OFS_PARM0), from);
-        G_FLOAT(OFS_PARM1) = returnSide >= 0 ? 1.f : 0.f;
-        PR_ExecuteProgram(fn);
-        pr_global_struct->self = oldSelf;
-        pr_global_struct->other = oldOther;
-    }
+    portalCrossed(ent, sd, trig, from, returnSide);
 }
 
 } // namespace
@@ -1783,6 +1797,70 @@ glm::vec3 aiMap(int gate, const glm::vec3& value, bool direction)
     if(!triggerActive(EDICT_NUM(sd.trigger))) { return value; }
     const Side inverse = reverseSide(sd);
     return direction ? inverse.turn * value : carried(inverse, value);
+}
+
+// The stealth AI's gates (QC vr_stealth.qc), numbered as aiImage's: 1..count the sides' own faces, count+1..2 count
+// their exits.
+int aiGateCount()
+{
+    if(!walkOn() || !vr_portals_ai.value) { return 0; }
+    if(!current()) { build(); }
+    return static_cast<int>(sides.size());
+}
+
+namespace
+{
+[[nodiscard]] bool aiGateSide(int gate, Side& out)
+{
+    const int count = aiGateCount();
+    if(gate <= 0 || gate > 2 * count) { return false; }
+    out = gate <= count ? sides[gate - 1] : reverseSide(sides[gate - count - 1]);
+    return true;
+}
+} // namespace
+
+int aiGateFlags(int gate)
+{
+    Side sd;
+    if(!aiGateSide(gate, sd)) { return 0; }
+    const int count = static_cast<int>(sides.size());
+    const edict_t* trig = EDICT_NUM(sd.trigger);
+    if(!triggerActive(trig)) { return 0; }
+    int flags = 1;
+    if(!sd.paired) { return flags; }
+    flags |= 2;
+    // The face a monster walks into: this side's own, or (an exit) its pair's, which carries it back.
+    const int face = gate <= count ? gate - 1 : sd.pair;
+    if(face < 0 || face >= count) { return flags; }
+    const edict_t* faceTrig = EDICT_NUM(sides[face].trigger);
+    if(vr_portals_monsters.value > 0.f && sides[face].paired && triggerActive(faceTrig) &&
+       !(static_cast<int>(faceTrig->v.spawnflags) & 1))
+    {
+        flags |= 4;
+    }
+    return flags;
+}
+
+int aiGateFace(int gate)
+{
+    Side sd;
+    if(!aiGateSide(gate, sd)) { return 0; }
+    const int count = static_cast<int>(sides.size());
+    if(gate <= count) { return gate; }
+    return sd.paired && sd.pair >= 0 && sd.pair < count ? sd.pair + 1 : 0;
+}
+
+glm::vec3 aiGateVec(int gate, int what, const glm::vec3& p)
+{
+    Side sd;
+    if(!aiGateSide(gate, sd)) { return p; }
+    switch(what)
+    {
+        case 0: return (sd.mins + sd.maxs) * 0.5f;
+        case 1: return sd.normal;
+        case 2: return glm::clamp(p - sd.normal * (glm::dot(sd.normal, p) - sd.dist), sd.mins, sd.maxs);
+        default: return carried(sd, p);
+    }
 }
 
 int aiImage(edict_t* observer, edict_t* target, const glm::vec3& from, const glm::vec3& point,

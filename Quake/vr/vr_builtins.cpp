@@ -1560,6 +1560,23 @@ void PF_portal_ai_map()
     VectorCopy(&point.x, G_VECTOR(OFS_RETURN));
 }
 
+// portal_ai_gateinfo(gate, what): 0 the gates' count (0: off), 1 the gate's flags, 2 its face (portals::aiGateFlags).
+void PF_portal_ai_gateinfo()
+{
+    const int gate = static_cast<int>(G_FLOAT(OFS_PARM0));
+    const int what = static_cast<int>(G_FLOAT(OFS_PARM1));
+    const int r = what == 0 ? portals::aiGateCount() : what == 1 ? portals::aiGateFlags(gate) : portals::aiGateFace(gate);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(r);
+}
+
+// portal_ai_gate(gate, what, p): its face's middle, normal, p held to its aperture, p carried through (aiGateVec).
+void PF_portal_ai_gate()
+{
+    const auto v = portals::aiGateVec(static_cast<int>(G_FLOAT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
+        aiVec(G_VECTOR(OFS_PARM2)));
+    VectorCopy(&v.x, G_VECTOR(OFS_RETURN));
+}
+
 void PF_portal_ai_client()
 {
     edict_t* observer = G_EDICT(OFS_PARM0);
@@ -2052,6 +2069,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"portal_ai_sight", PF_portal_ai_sight},
     {"portal_ai_map", PF_portal_ai_map},
     {"portal_ai_client", PF_portal_ai_client},
+    {"portal_ai_gateinfo", PF_portal_ai_gateinfo},
+    {"portal_ai_gate", PF_portal_ai_gate},
     {"bodyshock", PF_bodyshock},
     {"bodyshockdeath", PF_bodyshockdeath},
     {"collectfx", PF_collectfx},

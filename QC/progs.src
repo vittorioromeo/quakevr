@@ -60,6 +60,7 @@ vr_enemyshove.qc
 // The stealth AI (ai.qc, combat.qc, weapons.qc call it; vr_stealth_defs.qc before ai.qc has its fields).
 vr_stealth.qc
 vr_stealth_test2.qc
+vr_stealth_test3.qc
 vr_stealth_test.qc
 
 buttons.qc

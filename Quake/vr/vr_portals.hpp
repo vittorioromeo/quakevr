@@ -88,6 +88,14 @@ void pullSearchOrigins(const glm::vec3& from, za::Vector<glm::vec3>& out, float 
 int aiImage(edict_s* observer, edict_s* target, const glm::vec3& from, const glm::vec3& point,
     int gate, glm::vec3& image);
 glm::vec3 aiMap(int gate, const glm::vec3& value, bool direction);
+// The stealth AI's gates (QC vr_stealth.qc; aiImage's numbering). aiGateCount: the sides (0: walking through off, or
+// vr_portals_ai 0). aiGateFlags: 1 its trigger active, 2 paired (its exit a real aperture), 4 a monster walks through
+// it (vr_portals_monsters). aiGateFace: the side whose own face it is (an exit: its pair's), 0 none. aiGateVec: its
+// face's middle (0), its normal (1, towards its room), p on its plane held to its aperture (2), p carried through (3).
+int aiGateCount();
+int aiGateFlags(int gate);
+int aiGateFace(int gate);
+glm::vec3 aiGateVec(int gate, int what, const glm::vec3& p);
 
 // Views within views (vr_portals_recursion): a camera's depth is how many gates it looks through (0: the eye's own,
 // the flat or the spectator camera; 1: a view through a gate; 2: a gate seen in that view; ...). maxDepth(): the

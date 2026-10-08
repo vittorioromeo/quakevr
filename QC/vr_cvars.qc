@@ -75,6 +75,7 @@ float cvarh_vr_stealth_noise_props;
 float cvarh_vr_stealth_noise_guns;
 float cvarh_vr_stealth_noise_melee;
 float cvarh_vr_stealth_noise_blasts;
+float cvarh_vr_stealth_gates;
 float cvarh_vr_stealth_noise_wall;
 float cvarh_vr_stealth_noise_solid;
 float cvarh_vr_stealth_noise_absorb;
@@ -806,6 +807,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_stealth_noise_guns);
     VR_CVAR_HMAKE(vr_stealth_noise_melee);
     VR_CVAR_HMAKE(vr_stealth_noise_blasts);
+    VR_CVAR_HMAKE(vr_stealth_gates);
     VR_CVAR_HMAKE(vr_stealth_noise_wall);
     VR_CVAR_HMAKE(vr_stealth_noise_solid);
     VR_CVAR_HMAKE(vr_stealth_noise_absorb);

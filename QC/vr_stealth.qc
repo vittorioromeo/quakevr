@@ -110,6 +110,132 @@ void(entity m, float xWalking) VR_Stealth_Anim =
     self = os;
 };
 
+entity(entity m, vector at) VR_Stealth_MarkerAt;
+
+// ----------------------------------------------------------------------------
+// Slipgates (vr_stealth_gates; seamless slipgates' paired gates, vr_portals.cpp; docs/vr-port/STEALTH_PLAN.md,
+// "Slipgates"): what a monster sees or hears through a gate is its image there (beyond the gate's face, in its own room's
+// terms). It walks into the gate and through, and its points go through with it (VR_Stealth_Crossed): the one beyond
+// is then in its room, the ones it left behind beyond the face back, so it walks on instead of back.
+
+// A sighting's gate (visible()'s vr_ai_gate) as a point's way (stl_via): the face it walks through (an exit: its pair's
+// face), or minus the gate when it can't (not paired, vr_portals_monsters 0, a player-only teleport).
+float(float xGate) VR_Stealth_Via =
+{
+    if(xGate <= 0)
+    {
+        return 0;
+    }
+    if(portal_ai_gateinfo(xGate, 1) & 4)
+    {
+        float face = portal_ai_gateinfo(xGate, 2);
+        if(face > 0)
+        {
+            return face;
+        }
+    }
+    return -xGate;
+};
+
+// Where a monster walks for `point` seen through `xVia`: into the gate's face (its middle, beyond its plane: it goes
+// through), or up to the face of one it can't walk through; no gate (or one shut since): the point.
+vector(vector point, float xVia) VR_Stealth_WayTo =
+{
+    if(!xVia || !(portal_ai_gateinfo(fabs(xVia), 1) & 1))
+    {
+        return point;
+    }
+    vector mid = portal_ai_gate(fabs(xVia), 0, VEC_ORIGIN);
+    vector n = portal_ai_gate(fabs(xVia), 1, VEC_ORIGIN);
+    return xVia > 0 ? mid - n * 48 : mid + n * 48;
+};
+
+// visible() (self): under the stealth rules every monster sees a player through paired gates (ranged ones through
+// every gate, vr_portal_ai.qc).
+float() VR_Stealth_GateSight =
+{
+    return cvar_hget(cvarh_vr_stealth_gates) && VR_Stealth_MeterOn();
+};
+
+// p carried as a crossing carried its monster from `xFrom` to `xTo`, turning `xYaw` degrees.
+vector(vector p, vector xFrom, vector xTo, float xYaw) VR_Stealth_Carried =
+{
+    float c = cos(xYaw * (3.14159265 / 180));
+    float s = sin(xYaw * (3.14159265 / 180));
+    vector d = p - xFrom;
+    vector r;
+    r_x = d_x * c - d_y * s;
+    r_y = d_x * s + d_y * c;
+    r_z = d_z;
+    return xTo + r;
+};
+
+// A point's way after its monster went through face `xFace`: there (no gate) when that was the way to it, else back
+// through `xBack` (the face in the new room that leads back).
+float(float xVia, float xFace, float xBack) VR_Stealth_ViaAfter =
+{
+    if(xVia > 0 && xVia == xFace)
+    {
+        return 0;
+    }
+    return xBack;
+};
+
+// VR_Portal_Crossed (triggers.qc): the engine walked m through a gate, from `xFrom` (now at its origin), turned `xYaw`.
+void(entity m, vector xFrom, float xYaw, float xFace, float xBack) VR_Stealth_Crossed =
+{
+    if(!(m.flags & FL_MONSTER) || !VR_Stealth_On())
+    {
+        return;
+    }
+    vector to = m.origin;
+    m.stl_point = VR_Stealth_Carried(m.stl_point, xFrom, to, xYaw);
+    m.stl_via = VR_Stealth_ViaAfter(m.stl_via, xFace, xBack);
+    m.stl_post = VR_Stealth_Carried(m.stl_post, xFrom, to, xYaw);
+    m.stl_post_via = VR_Stealth_ViaAfter(m.stl_post_via, xFace, xBack);
+    m.stl_post_yaw = anglemod(m.stl_post_yaw + xYaw);
+    m.stl_lost_at = VR_Stealth_Carried(m.stl_lost_at, xFrom, to, xYaw);
+    m.stl_lost_via = VR_Stealth_ViaAfter(m.stl_lost_via, xFace, xBack);
+    m.stl_walk_from = VR_Stealth_Carried(m.stl_walk_from, xFrom, to, xYaw);
+    if(m.stl_marker.owner == m && m.stl_marker.classname == "stl_marker")
+    {
+        if(m.stl_state == STL_ALERT && m.stl_phase == STL_WALK)
+        {
+            setorigin(m.stl_marker, VR_Stealth_WayTo(m.stl_point, m.stl_via));
+        }
+        else if(m.stl_state == STL_ALERT && m.stl_phase == STL_RETURN)
+        {
+            setorigin(m.stl_marker, VR_Stealth_WayTo(m.stl_post, m.stl_post_via));
+        }
+        else
+        {
+            setorigin(m.stl_marker, VR_Stealth_Carried(m.stl_marker.origin, xFrom, to, xYaw));
+        }
+    }
+    if(cvar_hget(cvarh_vr_stealth_debug))
+    {
+        VR_Stealth_Log(m, sprintf("through gate %g (back %g): point %v via %g, post via %g", xFace, xBack, m.stl_point,
+            m.stl_via, m.stl_post_via));
+    }
+};
+
+// In ai_run (self: Hostile, a melee monster under the stealth rules): its enemy seen only through a paired gate: it
+// runs into the gate and through (ranged ones shoot through and stay); one it can't walk through: it faces him there.
+void(float dist) VR_Stealth_ChaseGate =
+{
+    float via = VR_Stealth_Via(self.vr_ai_gate);
+    if(via <= 0)
+    {
+        self.ideal_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
+        ChangeYaw();
+        return;
+    }
+    entity goal = self.goalentity;
+    self.goalentity = VR_Stealth_MarkerAt(self, VR_Stealth_WayTo(VEC_ORIGIN, via));
+    movetogoal(dist);
+    self.goalentity = goal;
+};
+
 // A marker whose monster is gone (removed without dying: a map's killtarget, a fade) goes too.
 void() VR_Stealth_MarkerThink =
 {
@@ -200,14 +326,16 @@ void(entity m) VR_Stealth_GoBack =
 {
     vector to = m.stl_post - m.origin;
     to_z = 0;
-    if(m.stl_post_walk || vlen(to) < 32 || (m.spawnflags & 1) || m.th_walk == m.th_stand)
+    // (its post beyond a slipgate it went through: back through it first, VR_Stealth_WayTo; even to its path)
+    if((m.stl_post_via <= 0 && (m.stl_post_walk || vlen(to) < 32)) || (m.spawnflags & 1) || m.th_walk == m.th_stand)
     {
         VR_Stealth_Finish(m);
         return;
     }
     VR_Stealth_Phase(m, STL_RETURN);
-    m.goalentity = VR_Stealth_MarkerAt(m, m.stl_post);
-    m.ideal_yaw = vectoyaw(m.stl_post - m.origin); // (movetogoal keeps stepping its way while it can)
+    vector way = VR_Stealth_WayTo(m.stl_post, m.stl_post_via);
+    m.goalentity = VR_Stealth_MarkerAt(m, way);
+    m.ideal_yaw = vectoyaw(way - m.origin); // (movetogoal keeps stepping its way while it can)
     VR_Stealth_Anim(m, TRUE);
 };
 
@@ -307,7 +435,7 @@ void(entity m, float xHostile) VR_Stealth_Share =
         }
         else
         {
-            VR_Stealth_Alert(e, m.stl_point, STL_A_SHARED, 0.5, FALSE);
+            VR_Stealth_AlertVia(e, m.stl_point, m.stl_via, STL_A_SHARED, 0.5, FALSE); // (in line: the same room)
         }
     }
 };
@@ -328,8 +456,9 @@ void() VR_Stealth_ShareThink =
 
 // Something drew m's attention to `at` (STL_A_* or a noise's kind; `xPower` how strongly: a new disturbance as weak
 // or weaker within a second is ignored). Idle: Alert, it turns to look (its post recorded); Alert already: the new
-// point (walking: it walks there instead; searching or going back: it turns to it again).
-void(entity m, vector at, float xKind, float xPower, float xShare) VR_Stealth_Alert =
+// point (walking: it walks there instead; searching or going back: it turns to it again). `xVia`: the slipgate `at` is
+// seen through (stl_via; 0 none).
+void(entity m, vector at, float xVia, float xKind, float xPower, float xShare) VR_Stealth_AlertVia =
 {
     if(m.enemy != world || !VR_Stealth_Applies(m))
     {
@@ -343,6 +472,7 @@ void(entity m, vector at, float xKind, float xPower, float xShare) VR_Stealth_Al
     if(first)
     {
         m.stl_post = m.origin;
+        m.stl_post_via = 0;
         m.stl_post_yaw = m.angles_y;
         m.stl_post_goal = m.movetarget;
         m.stl_post_walk = ((m.movetarget.classname == "path_corner") && (m.pausetime < 99999999)); // (walking its path, or waiting at a corner)
@@ -355,6 +485,7 @@ void(entity m, vector at, float xKind, float xPower, float xShare) VR_Stealth_Al
     }
     m.stl_state = STL_ALERT;
     m.stl_point = at;
+    m.stl_via = xVia;
     m.stl_alert_time = time;
     m.stl_alert_power = xPower;
     if(first || m.stl_phase == STL_SEARCH || m.stl_phase == STL_RETURN)
@@ -364,16 +495,22 @@ void(entity m, vector at, float xKind, float xPower, float xShare) VR_Stealth_Al
     }
     else if(m.stl_phase == STL_WALK)
     {
-        m.goalentity = VR_Stealth_MarkerAt(m, at);
+        m.goalentity = VR_Stealth_MarkerAt(m, VR_Stealth_WayTo(at, xVia));
     }
     if(cvar_hget(cvarh_vr_stealth_debug))
     {
-        VR_Stealth_Log(m, sprintf("alert (kind %g, power %.2f) at %v", xKind, xPower, at)); // (built only when logged)
+        VR_Stealth_Log(m, sprintf("alert (kind %g, power %.2f) at %v%s", xKind, xPower, at,
+            xVia ? sprintf(" through gate %g", xVia) : "")); // (built only when logged)
     }
     if(first && xShare)
     {
         VR_Stealth_ShareLater(m, FALSE);
     }
+};
+
+void(entity m, vector at, float xKind, float xPower, float xShare) VR_Stealth_Alert =
+{
+    VR_Stealth_AlertVia(m, at, 0, xKind, xPower, xShare);
 };
 
 // m spots p (touch, a noise he made in its sight): Hostile, as Quake's FindTarget's sighting.
@@ -544,7 +681,15 @@ float(entity client) VR_Stealth_SeeNow =
     }
     if(self.stl_meter >= cvar_hget(cvarh_vr_stealth_glimpse))
     {
-        VR_Stealth_Alert(self, client.origin, STL_A_GLIMPSE, 1, TRUE);
+        // (seen through a slipgate: his image there, vr_stealth_gates; visible() above chose the gate)
+        if(self.vr_ai_gate > 0 && cvar_hget(cvarh_vr_stealth_gates))
+        {
+            VR_Stealth_AlertVia(self, VR_AI_Origin(client), VR_Stealth_Via(self.vr_ai_gate), STL_A_GLIMPSE, 1, TRUE);
+        }
+        else
+        {
+            VR_Stealth_Alert(self, client.origin, STL_A_GLIMPSE, 1, TRUE);
+        }
     }
     return FALSE;
 };
@@ -755,11 +900,11 @@ float() VR_Stealth_StandNow =
         {
             vector to = self.stl_point - self.origin;
             to_z = 0;
-            if(vlen(to) > 64 && cvar_hget(cvarh_vr_stealth_investigate) && !(self.spawnflags & 1) &&
+            if((vlen(to) > 64 || self.stl_via) && cvar_hget(cvarh_vr_stealth_investigate) && !(self.spawnflags & 1) &&
                self.th_walk != self.th_stand) // (a kind that doesn't walk searches where it stands)
             {
                 VR_Stealth_Phase(self, STL_WALK);
-                self.goalentity = VR_Stealth_MarkerAt(self, self.stl_point);
+                self.goalentity = VR_Stealth_MarkerAt(self, VR_Stealth_WayTo(self.stl_point, self.stl_via));
                 VR_Stealth_Anim(self, TRUE);
             }
             else
@@ -816,9 +961,16 @@ float(float dist) VR_Stealth_WalkNow =
         VR_Stealth_Anim(self, FALSE);
         return TRUE;
     }
-    vector goal = self.stl_phase == STL_WALK ? self.stl_point : self.stl_post;
+    // (a point beyond a slipgate: into the gate first, VR_Stealth_WayTo)
+    float via = self.stl_phase == STL_WALK ? self.stl_via : self.stl_post_via;
+    vector goal = VR_Stealth_WayTo(self.stl_phase == STL_WALK ? self.stl_point : self.stl_post, via);
     vector to = goal - self.origin;
     to_z = 0;
+    if(self.stl_phase == STL_RETURN && !via && self.stl_post_walk)
+    {
+        VR_Stealth_Finish(self); // (back through the gate to its path's room: on along its path)
+        return TRUE;
+    }
     if(time >= self.stl_walk_check)
     {
         self.stl_stuck = vlen(self.origin - self.stl_walk_from) < 16 ? self.stl_stuck + 1 : 0;
@@ -842,7 +994,8 @@ float(float dist) VR_Stealth_WalkNow =
         float c = pointcontents(trace_endpos + '0 0 1');
         molten = (c == CONTENT_LAVA || c == CONTENT_SLIME);
     }
-    if(vlen(to) < (self.stl_phase == STL_WALK ? 64 : 24) || self.stl_stuck >= 3 || time > self.stl_look_time || molten)
+    if((via <= 0 && vlen(to) < (self.stl_phase == STL_WALK ? 64 : 24)) || self.stl_stuck >= 3 || time > self.stl_look_time ||
+       molten)
     {
         if(self.stl_phase == STL_WALK)
         {
@@ -855,7 +1008,7 @@ float(float dist) VR_Stealth_WalkNow =
         }
         return TRUE;
     }
-    if(self.goalentity != self.stl_marker)
+    if(self.goalentity != self.stl_marker || self.stl_marker.origin != goal)
     {
         self.goalentity = VR_Stealth_MarkerAt(self, goal);
     }
@@ -885,6 +1038,12 @@ float(float xVis) VR_Stealth_LoseNow =
     {
         self.stl_lost_time = time;
         self.stl_lost_at = self.enemy.origin;
+        self.stl_lost_via = 0;
+        if(xVis && self.vr_ai_gate > 0 && cvar_hget(cvarh_vr_stealth_gates)) // (seen through a slipgate: his image there)
+        {
+            self.stl_lost_at = VR_AI_Origin(self.enemy);
+            self.stl_lost_via = VR_Stealth_Via(self.vr_ai_gate);
+        }
         return FALSE;
     }
     if(time - self.stl_lost_time < STL_LOSE_TIME)
@@ -893,7 +1052,7 @@ float(float xVis) VR_Stealth_LoseNow =
     }
     VR_Stealth_Log(self, "lost him");
     self.enemy = self.oldenemy = self.goalentity = self.movetarget = world;
-    VR_Stealth_Alert(self, self.stl_lost_at, STL_A_LOST, 3, FALSE);
+    VR_Stealth_AlertVia(self, self.stl_lost_at, self.stl_lost_via, STL_A_LOST, 3, FALSE);
     return TRUE;
 };
 
@@ -978,9 +1137,8 @@ float(vector v) VR_Stealth_InLiquid =
 // The way from the noise to a monster's ears: a clear line keeps its reach; walls (and doors) round a corner (the place
 // in the monster's potentially visible set) keep vr_stealth_noise_wall of it, solid walls vr_stealth_noise_solid; a prop
 // in the line vr_stealth_noise_absorb; a water surface between them (one under, the other not) as a wall.
-float(vector org, entity m, entity src) VR_Stealth_NoisePath =
+float(vector org, vector ear, entity m, entity src) VR_Stealth_NoiseLine =
 {
-    vector ear = m.origin + m.view_ofs;
     float f = 1;
     if(VR_Stealth_InLiquid(org) != VR_Stealth_InLiquid(ear))
     {
@@ -997,6 +1155,91 @@ float(vector org, entity m, entity src) VR_Stealth_NoisePath =
         return f * cvar_hget(cvarh_vr_stealth_noise_absorb);
     }
     return f;
+};
+
+float(vector org, entity m, entity src) VR_Stealth_NoisePath =
+{
+    return VR_Stealth_NoiseLine(org, m.origin + m.view_ofs, m, src);
+};
+
+// A noise heard through paired slipgates (vr_stealth_gates): at each gate whose exit the noise is beyond (in front of
+// the exit's face, within its reach), the monsters on the gate's side hear its image (the noise seen through the gate):
+// the way through the gate's opening, the straight line to the image through its aperture (or held to the aperture's
+// edge: round a corner, vr_stealth_noise_wall), each room's part of it taken by its walls as VR_Stealth_NoisePath's.
+// An Alert one walks to the gate and through, then on to the noise (VR_Stealth_Via).
+void(vector org, float range, entity src, float kind, float own) VR_Stealth_NoiseGates =
+{
+    float count = cvar_hget(cvarh_vr_stealth_gates) ? portal_ai_gateinfo(0, 0) : 0;
+    for(float g = 1; g <= count; g++)
+    {
+        if((portal_ai_gateinfo(g, 1) & 3) != 3)
+        {
+            continue; // (shut, or no real exit: a one-way Quake teleport's destination isn't an opening)
+        }
+        vector n = portal_ai_gate(g, 1, VEC_ORIGIN);
+        vector mid = portal_ai_gate(g, 0, VEC_ORIGIN);
+        vector img = portal_ai_map(g, org, FALSE);
+        float b = (img - mid) * n;
+        if(b >= 0 || vlen(portal_ai_gate(g, 2, img) - img) >= range * 1.6)
+        {
+            continue; // (not beyond this gate, or out of reach of it)
+        }
+        for(entity e = VR_Stealth_Gather(img, range * 1.6); e; e = e.stl_next)
+        {
+            if(e.enemy != world || !VR_Stealth_Applies(e) || VR_Stealth_Ambusher(e))
+            {
+                continue;
+            }
+            vector ear = e.origin + e.view_ofs;
+            float a = (ear - mid) * n;
+            if(a <= 0)
+            {
+                continue; // (not on the gate's side)
+            }
+            vector cross = ear + (img - ear) * (a / (a - b));
+            vector p = portal_ai_gate(g, 2, cross);
+            float d = vlen(ear - p) + vlen(p - img);
+            float reach = range * VR_Stealth_Hearing(e);
+            if(reach < d)
+            {
+                continue;
+            }
+            float f = vlen(p - cross) > 1 ? cvar_hget(cvarh_vr_stealth_noise_wall) : 1;
+            f = f * VR_Stealth_NoiseLine(p + n * 2, ear, e, src);
+            f = f * VR_Stealth_NoiseLine(org, portal_ai_gate(g, 3, p - n * 2), world, src);
+            reach = reach * f;
+            if(reach < d || (e.stl_heard == time && e.stl_heard_src == src && e.stl_state == STL_ALERT &&
+               reach / max(1, d) <= e.stl_alert_power))
+            {
+                continue; // (out of reach this way, or heard as loud the other way)
+            }
+            e.stl_heard = time;
+            e.stl_heard_kind = kind;
+            e.stl_heard_src = src;
+            if(cvar_hget(cvarh_vr_stealth_debug) >= 2)
+            {
+                bprint(sprintf("stealth: %.2f %s hears noise %g (range %g) through gate %g at %g units (reach %.0f)\n", time,
+                    e.classname, kind, range, g, d, reach));
+            }
+            float spotted = FALSE;
+            if(own)
+            {
+                entity os = self;
+                self = e;
+                spotted = (!(src.flags & FL_NOTARGET) && !(src.items & IT_INVISIBILITY) && visible(src));
+                self = os;
+            }
+            if(spotted)
+            {
+                VR_Stealth_Spot(e, src);
+            }
+            else
+            {
+                VR_Stealth_AlertVia(e, own ? portal_ai_map(g, src.origin, FALSE) : img, VR_Stealth_Via(g), kind,
+                    reach / max(1, d), TRUE);
+            }
+        }
+    }
 };
 
 void() VR_Stealth_NoiseThinkNow =
@@ -1047,6 +1290,7 @@ void() VR_Stealth_NoiseThinkNow =
             VR_Stealth_Alert(e, own ? src.origin : org, kind, reach / max(1, d), TRUE);
         }
     }
+    VR_Stealth_NoiseGates(org, range, src, kind, own);
     remove(ev);
 };
 

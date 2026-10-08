@@ -8,7 +8,8 @@
 //   104 / 105 an investigation saved mid-walk, then (after the script's load) carried on to its end;
 //   106 every kind of monster the game has (vr_stealth_test_kinds; id1's, the expansions' when installed);
 //   107 infighting: a monster hit by another fights it, then is Idle again (the meter, not Quake's instant sight);
-//   108 lava or slime ahead of an investigating monster's walk: it stops short.
+//   108 lava or slime ahead of an investigating monster's walk: it stops short;
+//   110-113 through seamless slipgates (vr_stealth_test3.qc).
 
 float stt2_step;
 float stt2_stage;
@@ -269,8 +270,15 @@ void(float xAsk) VR_STT2_Start =
     VR_STT2_Stage(0);
 };
 
+void() VR_STT3_Frame; // (vr_stealth_test3.qc: 110-113, through slipgates)
+
 void() VR_STT2_Frame =
 {
+    if(stt2_step >= 110 && stt2_step < 120)
+    {
+        VR_STT3_Frame();
+        return;
+    }
     entity p = stt2_p;
     float t = time - stt2_t0;
     entity os = self;

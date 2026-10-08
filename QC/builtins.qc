@@ -463,3 +463,5 @@ void(entity box, entity player, float hand, float begin) portal_carry = #0;
 float(entity observer, entity target, vector from, vector point, float gate) portal_ai_sight = #0;
 vector(float gate, vector value, float direction) portal_ai_map = #0;
 entity(entity observer) portal_ai_client = #0;
+float(float gate, float what) portal_ai_gateinfo = #0;     // QVR: what 0 the gates' count (0: off), 1 a gate's flags (1 active, 2 paired, 4 monsters walk through), 2 its face (an exit: its pair's side; 0 none)
+vector(float gate, float what, vector p) portal_ai_gate = #0; // QVR: what 0 its face's middle, 1 its normal (into its room), 2 p held to its aperture, 3 p carried through
