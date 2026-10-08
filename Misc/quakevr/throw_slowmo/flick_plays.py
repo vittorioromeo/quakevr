@@ -1,7 +1,7 @@
 # flick_plays.py <out> <Misc/quakevr folder> [stretch] -- wrist flicks for the mock (flick_slowmo_test.sh; ROUND21.md,
 # "Wrist flicks in bullet time"): the forearm still, the hand turning about the wrist (the controller's point 7 cm ahead
 # of it), the hand's pitch from a0 to a1 over `dur` s (min-jerk), let go at the middle: three forward and down, three
-# upward (gentle, medium, fast), two upward with the hand drifting up; then throw_plays.py's overhand throw without its
+# upward (gentle, medium, fast), two upward with the hand drifting up, nudges and lobs (stroke); then throw_plays.py's overhand throw without its
 # wrist (overhand0, the arm alone) and with it. `stretch`: every motion that many times slower (3.333: made slowly with
 # the world in bullet time at 0.3x). Prints the play's length (s).
 import sys, math
@@ -26,6 +26,20 @@ throws = [("flick_fast", flick(100, -10, 0.10)), ("flick", flick(100, 0, 0.14)),
 throws += [("up_gentle", flick(-45, 55, 0.27)), ("up_medium", flick(-45, 55, 0.136)), ("up_fast", flick(-45, 55, 0.082))]
 # The gentle and medium ones with the hand rising 0.5 m/s at most meanwhile ("without moving my hand much").
 throws += [("up_gentle_d", flick(-45, 55, 0.27, 0.5)), ("up_medium_d", flick(-45, 55, 0.136, 0.5))]
+# Nudges (vrfiringrange_2026-10-08_14-20-31: "a tiny upward hand movement throws massively high in bullet time"): the
+# wrist straight, the hand rising 5, 10 and 15 cm over 0.15 s (min-jerk), let go at 60% of it; one of 10 cm with a
+# small upward flick. And lobs: the arm, wrist straight, forward and up at 45 degrees 40, 50 and 60 cm over 0.25 s (the
+# deliberate throw that, made slowly with the world, must still go as at full speed).
+def stroke(dist, dur, up=1.0, fwd=0.0, a0=0.0, a1=0.0, rel=0.6):
+    n = int(dur * RATE); keys = []
+    for i in range(n + 1):
+        s = i / n; m = tp.minjerk(s); a = a0 + (a1 - a0) * m; r = math.radians(a)
+        keys.append((s * dur, WRIST[0], WRIST[1] + dist * up * m + WD * math.sin(r), WRIST[2] - dist * fwd * m - WD * math.cos(r),
+                     a + FLICK_GUN - GUN))
+    return keys, rel * dur
+throws += [("nudge5", stroke(0.05, 0.15)), ("nudge10", stroke(0.10, 0.15)), ("nudge15", stroke(0.15, 0.15))]
+throws += [("nudge10_f", stroke(0.10, 0.15, a0=-20, a1=40))]
+throws += [(f"lob{d}", stroke(d / 100, 0.25, 0.7071, 0.7071)) for d in (40, 50, 60)]
 tp.RATE = 1000.0 # smooth between the frames: at 90 keys a second the overhand moved by 20% with where the frames fell
 k, r = tp.arc_throw("overhand", 150, 40, 95, 35, -45, 0.30)
 k0, r0 = tp.arc_throw("overhand0", 150, 40, 95, 0, 0, 0.30)
@@ -40,7 +54,7 @@ for name, (keys, rel) in throws:
     # The flicks' keyed point is the one whose velocity the throw takes (not the legacy pose's raw point, the grip
     # some centimetres off it): 7 cm ahead of the wrist, as vr_throw_wrist_dist says of a real hand. The overhand
     # throws as throw_plays.py makes them (the legacy pose).
-    L.append(f"{t0 - 0.45:.3f} cmd vr_controller_legacy_pose {0 if name.startswith(('flick', 'up_')) else 1}")
+    L.append(f"{t0 - 0.45:.3f} cmd vr_controller_legacy_pose {0 if name.startswith(('flick', 'up_', 'nudge', 'lob')) else 1}")
     L.append(f"{t0 - 0.4:.3f} cmd +grabmain")
     L.append(f"{t0 - 0.4:.3f} grip main 1")
     for kk in keys:

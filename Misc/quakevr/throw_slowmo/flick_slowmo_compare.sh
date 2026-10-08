@@ -3,6 +3,8 @@
 # 0.3x made at real speed; bullet time made slowly with the world, stretch 3.333), the cvars before each, and one table:
 # metres at 45 degrees and each bullet-time column over full speed. ROUND21.md, "Wrist flicks in bullet time: the arm
 # tells the tempo": every flick in bullet time within 1.3 times its full-speed distance, the arm throws as before.
+# "Nudges in bullet time: the hand's travel tells": the nudges too (bullet within 1.3x), the lobs made slowly as at
+# full speed. "vr_throw_slowmo_real_strength 1": every bullet-time column 1.00, made slowly 0.09 (0.3 squared).
 NAME="$1"; X="${2:-}"; ROOT="C:/OHWorkspace/qvr-agents/$NAME"; D="$ROOT/Misc/quakevr/throw_slowmo"; mkdir -p "$ROOT/scratch"
 P="$ROOT/scratch/flickcmp_$(echo "$X" | md5sum | cut -c1-6)"
 bash "$D/flick_slowmo_test.sh" "$NAME" "$X" > "${P}_full.txt" 2>&1 &

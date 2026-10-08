@@ -28,6 +28,9 @@ struct Estimate
     float rate{1.f}; // the windows' seconds in the samples' clock's one (slow motion: vr_throw_slowmo_real_time, _tempo)
     float flickRate{1.f}; // slow motion: the wrist flick's speed kept of the game's time's (vr_throw_slowmo_flick)
     float flickShare{0.f}; // ... and the flick's share of the controller's throw (its speed over the throw's)
+    float nudge{0.f};      // slow motion: how far it was a nudge, as strong as at full speed (vr_throw_slowmo_short_travel)
+    float travel{0.f};     // ... the stroke's path (metres) and length (real seconds) that told
+    float strokeTime{0.f};
 };
 
 // A hand's motion at a sample: its world position, velocity, spin and (unit) aim direction, along which the held

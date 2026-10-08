@@ -31098,6 +31098,46 @@ to count as the arm's (wholly from about 1.1 m/s; then amplified as an arm throw
 hard, hand still and moving a little: each should land about where it does at full speed; overhand and lob throws as
 before.
 
+## Nudges in bullet time: the hand's travel tells (2026-10-08)
+
+vrfiringrange_2026-10-08_14-20-31, 14-39-26: flicks felt right in bullet time, but a tiny upward hand movement (wrist
+straight or flicking) threw massively high, barely at all at full speed; and a deliberate slow throw made with the
+slowed world must still go as at full speed. A nudge's speed is under what the slowed hand follows, so motionRate took
+it as made slowly with the world and kept it in the game's time: 1/0.3 as fast, 11 to 14 times as far.
+
+His rule: the hand's travel tells. vr_throw.cpp strokeOf measures the stroke on the controller's own samples: from the
+fastest speed in the release's window back while the speed stays over a fifth of it (and 0.1 m/s real), at most two
+real seconds, and on to the release; its path (metres) and length (real seconds). Under vr_throw_slowmo_short_travel
+(0.15 m) the throw is a nudge (Tempo::nudge 1): its windows in real time and its speed and spin the controller's real
+ones (the game's times the time scale), as strong as the same motion at full speed; from vr_throw_slowmo_long_travel
+(0.2 m) the bullet-time scaling as before; between a blend. The path is to the release, which comes about 60% into a
+lob (the lobs' 40/50/60 cm read 0.23/0.32/0.35 m); his "20 to 25 cm" of whole motion is about 15 to 20 to the release,
+hence the defaults. The duration bounds the stroke and is printed. vr_throw_slowmo_real_strength 1 (default 0): every
+bullet-time throw as in real time, no scaling (one made slowly goes as slowly). Both hands' throws too. Menu: Hands >
+throwing's slow-motion rows "Nudge Below", "Arm Throw From", "Throws As In Real Time". vr_debug_throw 1 prints "the
+stroke X m in Y s, a nudge xN".
+
+flick_plays.py adds nudges (the wrist straight, the hand up 5/10/15 cm over 0.15 s, let go at 60%; one of 10 cm with an
+upward flick) and lobs (the arm forward and up 40/50/60 cm over 0.25 s). flick_slowmo_compare.sh, metres at 45 degrees:
+
+| throw     | full | bullet before | ratio | after | ratio | slowly before | after | real_strength 1: bullet, slowly |
+|-----------|-----:|--------------:|------:|------:|------:|--------------:|------:|--------------------------------:|
+| nudge5    | 0.04 |          0.56 | 14.00 |  0.04 |  1.00 |          0.04 |  0.00 | 0.04, 0.00 |
+| nudge10   | 0.16 |          2.22 | 13.88 |  0.16 |  1.00 |          0.16 |  0.01 | 0.16, 0.01 |
+| nudge15   | 0.35 |          4.74 | 13.54 |  0.35 |  1.00 |          0.35 |  0.03 | 0.35, 0.03 |
+| nudge10_f | 0.88 |          7.68 |  8.73 |  0.88 |  1.00 |          0.90 |  0.04 | 0.88, 0.04 |
+| lob40     | 0.91 |          6.67 |  7.33 |  6.67 |  7.33 |          0.92 |  0.92 | 0.91, 0.08 |
+| lob50     | 1.42 |          6.52 |  4.59 |  6.52 |  4.59 |          1.43 |  1.43 | 1.42, 0.13 |
+| lob60     | 2.04 |          6.52 |  3.20 |  6.52 |  3.20 |          2.06 |  2.06 | 2.04, 0.19 |
+| overhand0 | 4.02 |          5.83 |  1.45 |  5.83 |  1.45 |          4.06 |  4.06 | 4.02, 0.33 |
+| overhand  | 2.45 |          2.67 |  1.09 |  2.67 |  1.09 |          2.41 |  2.41 | 2.45, 0.22 |
+
+The eight flicks: unchanged in every column (bullet 1.00x). throw_slowmo_test.sh (keyrate 1000), bullet time at real
+speed and made slowly: the four throws the same as with vr_throw_slowmo_short_travel 0 (the old code path; their
+strokes 0.33 to 0.60 m). The trade: a nudge made slowly with the world now goes as gently as it was made. In VR: in
+bullet time nudge things up a little (wrist straight, and with a small flick): each should go about as at full speed;
+slow lobs and overhands made with the slowed world as at full speed; try "Throws As In Real Time".
+
 ## Slaps whoosh (2026-10-08)
 
 vrfiringrange_2026-10-08_10-48-14: slaps worked, but swung there was no sound at all, landing or not. A slap now

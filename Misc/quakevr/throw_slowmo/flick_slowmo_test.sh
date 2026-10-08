@@ -29,5 +29,7 @@ for l in lines:
         out(); v = float(m.group(1)); last = f'{name:12s} {v:6.2f} m/s  at 45 degrees {v * v / 9.81:6.2f} m'; name = None
     m = re.search(r'windows x([\d.]+).*the flick \((\d+)% of it\) x([\d.]+)', l)
     if m and last: last += f'  (windows x{m.group(1)}, flick {m.group(2)}% x{m.group(3)})'
+    m = re.search(r'the stroke ([\d.]+) m in ([\d.]+) s, a nudge x([\d.]+)', l)
+    if m and last: last += f' (stroke {m.group(1)} m {m.group(2)} s, nudge {m.group(3)})'
 out()
 PY

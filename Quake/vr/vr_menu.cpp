@@ -2662,6 +2662,18 @@ void hologramTestMessage()
             .help("In slow motion, a throw your arm moves less than this share of (your wrist's turn doing the "
                   "rest) is a wrist flick, thrown as far as the same flick at full speed, however fast or gently you "
                   "flicked. A throw your arm carries keeps the arm's speed. Higher: flicks with more arm count too."),
+        slider("Slow Motion: Nudge Below", vr_throw_slowmo_short_travel, 0.f, 0.5f, 0.01f, "%.2f m").extend()
+            .help("In slow motion, a throw whose hand moved less than this up to the release (from where the motion "
+                  "got going) is a nudge, thrown as hard as the same nudge at full speed (a 10 cm nudge went 14 "
+                  "times as far). Longer throws, from Arm Throw From up, keep the bullet-time scaling. 0: off."),
+        slider("Slow Motion: Arm Throw From", vr_throw_slowmo_long_travel, 0.f, 0.6f, 0.01f, "%.2f m").extend()
+            .help("In slow motion, a throw whose hand moved this far or more up to the release is the arm's, with the "
+                  "bullet-time scaling (a slow throw made with the slowed world goes as at full speed). Between Nudge "
+                  "Below and this: a blend."),
+        toggle("Slow Motion: Throws As In Real Time", vr_throw_slowmo_real_strength)
+            .help("In slow motion, every throw is as strong as the same motion at full speed: no bullet-time scaling. "
+                  "A throw you make slowly with the slowed world then goes as slowly as you made it. Off: nudges and "
+                  "flicks as in real time, longer throws scaled."),
         toggle("Slow Motion: Slow Throws Match", vr_throw_slowmo_tempo)
             .help("In slow motion, a throw you make slowly, with the slowed world, is judged as the same throw at full "
                   "speed (its release over the same part of the arc); one faster than the slowed hands can follow, over "
