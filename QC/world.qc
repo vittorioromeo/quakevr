@@ -566,6 +566,7 @@ void() StartFrame =
     MGH_TestFrame();
     MG3_Frame();
     MG3_TestFrame();
+    VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)

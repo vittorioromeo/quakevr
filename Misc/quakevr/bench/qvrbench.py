@@ -49,6 +49,18 @@ TOURS = {
     "vanisch01": [(448, -328, 104, 225), (732, -640, 64, 0), (916, -436, 74, 180), (1056, -1072, 104, 0),
                   (1268, -832, 444, 90), (112, -912, 408, 0)],
 }
+# Dawn of the Machine (MG3, owned rerelease data, `vr_campaign_native mg3`): its three heaviest maps (BSP size, monsters
+# at skill 2 with the deferred ones brought in: map1 107, map2 218, secret2 166), their tours from bsp_waypoints.py on
+# the PAK's BSPs. Group `mg3` (also in `all`: without the owned data those runs fail to load the map).
+MG3_TOURS = {
+    "map1": [(-608, 2928, 40, 255), (-408, -904, 56, 90), (840, 1636, 88, 0), (-160, -624, -88, 90),
+             (704, -1664, -120, 0), (1552, 1328, -8, 0)],
+    "map2": [(144, -2432, 816, 180), (-256, -1844, 824, 0), (1720, -944, 88, 0), (500, -1676, 792, 0),
+             (3092, -1324, 664, 0), (80, -3104, 504, 0)],
+    "secret2": [(-1376, -912, -224, 90), (-3792, 1808, 536, 0), (-1680, 64, 856, 0), (-1600, 2272, 120, 0),
+                (32, 2160, -568, 270), (-224, -3432, -1496, 0)],
+}
+MG3 = ["vr_campaign_native mg3", "skill 2"]  # (before the map: the campaign's folders, Hard's full population)
 TOUR_SOURCES = {"warden": "author's checkout quakevr/maps (not in git)", "apsp3": "author's checkout quakevr/maps (not in git)",
                 "ad_grendel": "Map Library package", "ad_soltower1e": "Map Library package",
                 "basetohell": "Map Library package", "vanisch01": "Map Library package"}
@@ -373,6 +385,23 @@ def scenarios():
             "entities. Monsters asleep (notarget).", body=tour_body(pts), warm=60, load_wait=180)
     add("tour_warden_flat", ["maps", "flat"], "warden's tour in flat mode", "warden", "tour_warden, flat.",
         body=tour_body(TOURS["warden"]), warm=60, flat=True, load_wait=180)
+    # ---- Dawn of the Machine (MG3_PLAN.md M3-28): the whole map's monsters (vr_test_monsters: 4 the deferred ones
+    # brought in, 2 all of them woken, 3 all killed at once), at the spawn; the ragdoll cap as shipped (8) and raised.
+    for m, pts in MG3_TOURS.items():
+        add(f"tour_mg3_{m}", ["mg3", "maps"], f"Dawn of the Machine's {m}: 6 places x 4 directions, monsters asleep", m,
+            f"MG3 {m} (skill 2): the spawn and five pickups' places, each looked at four ways (notarget).",
+            header=MG3, body=tour_body(pts), warm=60, load_wait=240)
+        add(f"mg3_{m}_awake", ["mg3", "combat"], f"Dawn of the Machine's {m}: every monster of the map awake", m,
+            f"MG3 {m} (skill 2): the deferred monsters brought in, then every monster hunting the god-mode player at "
+            "the spawn: the full count's AI, movement, missiles, infighting.", header=MG3, hostile=True,
+            setup=["vr_test_monsters 4"] + waits(30) + ["vr_test_monsters 2"], warm=90, load_wait=240)
+        for cap in ((8, 32) if m == "map2" else (8,)):
+            add(f"mg3_{m}_kill" + ("" if cap == 8 else f"_r{cap}"), ["mg3", "gore"],
+                f"Dawn of the Machine's {m}: every monster killed at once, ragdoll cap {cap}", m,
+                f"MG3 {m} (skill 2): the full count woken (as mg3_{m}_awake), then all killed in one frame "
+                f"(vr_test_monsters 3, vr_ragdoll_max {cap}): the deaths' frame, the bodies falling.",
+                header=MG3, hostile=True, setup=[f"vr_ragdoll_max {cap}", "vr_test_monsters 4"] + waits(30)
+                + ["vr_test_monsters 2"], warm=90, load_wait=240, body=blow("vr_test_monsters 3"))
     add("combined", ["combat", "physics", "vfx", "lights", "core"], "300 props + 24 grunts + 16 lights + dense particles",
         RANGE, "Everything at once (the perf suite's combined): the frame's worst realistic mix.", hostile=True,
         setup=["vr_physics_bigpile mixed 300"] + [f"vr_physics_spawn monster_army {160 + (i // 6) * 48} {(i % 6 - 2.5) * 40:g}" for i in range(24)]

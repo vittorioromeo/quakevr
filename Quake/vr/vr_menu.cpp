@@ -5366,6 +5366,18 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive authored mge2m2 puzzle test. Reload afterward."),
         command("Machine: Equipment Carry Setup", "vr_mg_hub_test 20")
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
+        command("Whole-Map Monsters: Report", "vr_test_monsters 1")
+            .help("Count this map's monsters: live, awake (hunting someone), dead, waiting for their trigger (one "
+                  "monsterstest: line)."),
+        command("Whole-Map Monsters: Bring In the Waiting", "vr_test_monsters 4")
+            .help("Every monster still waiting for its trigger (the official campaigns' deferred monsters) comes in at "
+                  "once: the map's full count. Reload afterward."),
+        command("Whole-Map Monsters: Wake All", "vr_test_monsters 2")
+            .help("Every live monster of the map hunts you at once, as if it had seen you: the full count's AI "
+                  "(the benchmarks' mg3_*_awake). Reload afterward."),
+        command("Whole-Map Monsters: Kill All", "vr_test_monsters 3")
+            .help("Every live monster of the map dies at once (just enough damage: deaths, corpses and up to Most "
+                  "Ragdolls ragdolls, vr_ragdoll_max). The benchmarks' mg3_*_kill. Reload afterward."),
         open("Stealth AI", pageIndex(pageStealthTests))
             .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),
         open("Machine Horde Tests", pageIndex(pageMachineHordeTests))

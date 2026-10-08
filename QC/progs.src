@@ -105,6 +105,7 @@ vr_mg_trigger_test.qc
 vr_mg_hub_test.qc
 vr_mg_horde_test.qc
 vr_mg3_test.qc
+vr_monsters_test.qc
 vr_mg3_weapons_test.qc
 
 orig_mon_boss.qc
