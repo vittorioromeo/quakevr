@@ -505,13 +505,13 @@ void SV_PushMove (edict_t *pusher, float movetime)
 		movemask = 1 << (int)check->v.movetype;
 		if (movemask & ((1<<MOVETYPE_PUSH) | (1<<MOVETYPE_NONE) | (1<<MOVETYPE_NOCLIP)))
 			continue;
-		if (VR_PushSkips (check)) // QVR: Box3D's rigid bodies ride it by contact
-			continue;
-
 	// if the entity is standing on the pusher, it will definately be moved
-		hanging = VR_ClimbHangsFrom (check, pusher); // QVR: or hanging from it (vr_climb)
-		if ( ! ( ((int)check->v.flags & FL_ONGROUND)
-		&& PROG_TO_EDICT(check->v.groundentity) == pusher) && !hanging ) // QVR: not a hand hanging on it
+		// QVR: or a player hanging from it (vr_climb: only a client hangs; VR_ClimbHangsFrom is 0 for the rest). Its
+		// box tested before Box3D's skip (both only read): most of a big map's entities are nowhere near the pusher
+		// (MG3_PLAN.md M3-28: secret2's movers walk 1800 entities each), the same ones moved or skipped as before.
+		hanging = e <= svs.maxclients ? VR_ClimbHangsFrom (check, pusher) : 0;
+		riding = (((int)check->v.flags & FL_ONGROUND) && PROG_TO_EDICT(check->v.groundentity) == pusher) || hanging;
+		if (!riding)
 		{
 #ifdef USE_SSE2
 			__m128 check_absmin_vec = _mm_loadu_ps (check->v.absmin);
@@ -531,15 +531,15 @@ void SV_PushMove (edict_t *pusher, float movetime)
 			|| check->v.absmax[2] <= mins[2] )
 				continue;
 #endif
-
+		}
+		if (VR_PushSkips (check)) // QVR: Box3D's rigid bodies ride it by contact
+			continue;
+		if (!riding)
+		{
 		// see if the ent's bbox is inside the pusher's final position
 			if (!SV_TestEntityPosition (check))
 				continue;
-
-			riding = false;
 		}
-		else
-			riding = true;
 
 	// remove the onground flag for non-players
 		if (check->v.movetype != MOVETYPE_WALK)
