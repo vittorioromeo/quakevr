@@ -116,8 +116,10 @@ monsters and torches ahead of the player.
 | `slipgate_start_off` | slipgates/control | start | slipgate_start with vr_slipgates 0: the portal's whole cost by difference. |
 | `slipgate_start_flat` | slipgates/flat | start, flat | slipgate_start in flat mode. |
 | `slipgate_ai_24` | slipgates/combat | start | Monsters' one-hop portal perception and fire across the gate (the perf suite's portal_enemies). |
+| `slipgate_loop_r0`..`r3` | slipgates/recursion (r2: core) | vrslipgates | Gates within gates: the loop's west gate 40 units out filling the view (it shows itself and T's north gate) at `vr_portals_recursion` 0-3: each level's views by difference. |
 | `combat_48` | combat/core | vrfiringrange | Grunts, ogres, knights and scrags against a god-mode player: AI, traces, missiles, gore, decals, sounds. |
 | `ai_crowd_64` | combat/server | vrfiringrange | The server's side alone: 64 awake monsters chasing and shooting (r_drawentities 0, looking up): AI, movetogoal, traces, QuakeC; the rendering left out. |
+| `ai_crowd_64_quakeai` | combat/control | vrfiringrange | ai_crowd_64 with `vr_ai_enhanced 0` (Quake's AI: no stealth senses, noise, investigation): the enhanced AI's cost by difference. |
 | `combat_48_spectator` | combat/features | vrfiringrange | combat_48 with vr_window_view 2 (the recording camera drawn every frame): the spectator view's cost. |
 | `combat_48_bullettime` | combat/features | vrfiringrange | combat_48 with bullet time running all through: the time scale, the slowed sounds and the colour pass. |
 | `melee_punch_8` | combat/melee | vrfiringrange | Scripted jabs (vr_mock_play, no recorded takes needed) into a ring of grunts: the melee and hit systems, knockdowns, wounds. |
@@ -279,3 +281,53 @@ for each map load alone (the command to the first frame drawn), with VTune start
 `Misc/quakevr/bench/qvrprof.sh` runs a scenario that way (or under Nsight Systems).
 - **Flat mode** frames are paced by the window's swap (`swap` ~2.4 ms of the frame in fast mode): compare flat
   scenarios by `cpu_busy_ms` and `gpu_3d_ms`, not `frame_ms`.
+
+### Profiling run (2026-10-08)
+
+The overnight profiling run (agent `perf`): 24 scenarios (`core`, `slipgate_loop_r0..r3`, `ai_crowd_64` and its
+Quake-AI control, three tours, `torches_32`, `explosions_storm`, `idle_e1m1_flat`), the author's settings of 2026-10-06
+(`--settings his_cfg_20261006_1237.cfg`), paced at 90 Hz, exclusive, 900 frames. Before: `kit/benchresults/perf_base`
+(3 repeats, medians); after: `perf_final` (one run each, the final build). The controlled measure of each fix is its
+A/B (`perf_ab1_A` / `perf_ab1_B`: the two builds back to back, 3 repeats, 600 frames; in the commits). ms a frame;
+"n/a": the GPU timers of a frame with gates within gates read 0 before the profiler's fix (commit "Profiler: the
+always-on GPU phases read inside slipgate views").
+
+| scenario | CPU avg before | after | CPU p99 before | after | GPU 3D before | after | frame p99 before | after |
+|---|---|---|---|---|---|---|---|---|
+| `combined` | 5.13 | 5.14 | 11.78 | 10.40 | 7.42 | 7.39 | 11.82 | 11.18 |
+| `slipgate_loop_r2` | 3.46 | **2.04** | 4.25 | 2.68 | n/a | 3.74 | 11.15 | 11.20 |
+| `slipgate_loop_r3` | 3.46 | **2.04** | 4.24 | 2.63 | n/a | 3.74 | 11.16 | 11.18 |
+| `slipgate_loop_r1` | 2.89 | **1.77** | 3.63 | 2.26 | n/a | 3.29 | 11.15 | 11.17 |
+| `ai_crowd_64` | 2.57 | 2.57 | 4.49 | 4.96 | 1.09 | 1.21 | 11.17 | 11.17 |
+| `combat_48` | 2.52 | **2.02** | 4.66 | 3.53 | 3.54 | 3.40 | 11.17 | 11.16 |
+| `load_e1m1` | 2.50 | 2.47 | 25.16 | 26.91 | 1.24 | 1.23 | 25.16 | 26.91 |
+| `props_500_active` | 2.47 | 2.45 | 4.50 | 4.50 | 1.28 | 1.28 | 11.15 | 11.15 |
+| `explosions_storm` | 2.05 | **1.70** | 2.44 | 2.11 | 2.12 | 2.12 | 11.17 | 11.20 |
+| `gore_slash_32` | 2.01 | 2.03 | 4.75 | 4.90 | 2.49 | 2.46 | 11.15 | 11.15 |
+| `tour_warden` | 1.90 | 1.91 | 3.48 | 3.42 | 1.71 | 1.71 | 11.17 | 11.20 |
+| `ai_crowd_64_quakeai` | 1.76 | 1.79 | 4.57 | 3.49 | 0.92 | 0.96 | 11.16 | 11.19 |
+| `slipgate_loop_r0` | 1.70 | **1.18** | 2.07 | 1.60 | 2.08 | 2.07 | 11.18 | 11.19 |
+| `ragdolls_32_active` | 1.69 | 1.72 | 3.76 | 3.70 | 2.25 | 2.22 | 11.16 | 11.25 |
+| `slipgate_start` | 1.68 | **1.18** | 2.06 | 1.56 | 2.31 | 2.32 | 11.18 | 11.24 |
+| `tour_apsp3` | 1.62 | 1.66 | 2.40 | 2.46 | 1.10 | 1.10 | 11.19 | 11.18 |
+| `tour_ad_grendel` | 1.26 | 1.25 | 1.99 | 2.01 | 1.24 | 1.24 | 11.20 | 11.22 |
+| `particles_dense` | 1.15 | 1.18 | 1.62 | 1.61 | 5.72 | 5.71 | 11.19 | 11.19 |
+| `lights_32` | 1.07 | 1.07 | 1.45 | 1.43 | 1.76 | 1.76 | 11.20 | 11.16 |
+| `torches_32` | 0.98 | 1.01 | 1.34 | 1.50 | 1.29 | 1.29 | 11.16 | 11.18 |
+| `decals_1024_stream` | 0.88 | 0.88 | 1.25 | 1.29 | 1.33 | 1.32 | 11.19 | 11.19 |
+| `idle_range` | 0.83 | 0.83 | 1.18 | 1.17 | 0.97 | 0.97 | 11.16 | 11.17 |
+| `idle_e1m1` | 0.66 | 0.64 | 1.12 | 1.00 | 1.22 | 1.22 | 11.24 | 11.20 |
+| `idle_e1m1_flat` | 0.55 | 0.57 | 0.82 | 0.87 | 0.24 | 0.24 | 11.22 | 11.22 |
+
+- **Every scenario holds 90 Hz** (frame p99 at the cap; the GPU's heaviest, `combined`, 7.4 ms of 11.1).
+- **Fixed**: the slipgate view array's framebuffer validated for every view (`slipgate_*` CPU -30 to -41% in the
+  A/B, any gate in view); `worldtrace::world`'s metadata lookup before its box test and the debris' doubled centre
+  sweep (`explosions_storm` -19%, `combat_48` -16%, `ai_crowd_64` -15% in the A/B: one run of the crowd's fight
+  varies more than that, see its row).
+- **Heaviest CPU** (VTune, fast and window-only, `Misc/quakevr/bench/qvrprof.sh`): main thread mostly the GPU wait
+  (`GL_AcquireFrameResources`, the GPU the limit when unpaced); then in `combined` the shadow maps' layered draw
+  (0.6 ms), particle lighting (`lightParticles`, 0.4 ms), alias models, the props' touch links (SV_AreaEdicts 0.2 ms);
+  in fights the debris' traces (before the fix), the decal grid's rebuild (`decals::buildWorld`, 0.2 ms), particles.
+- **GPU** (Nsight Systems on `combined`, OpenGL trace): glDrawArrays (particles, full-screen passes) 62% of the busy
+  time, the world's glMultiDrawElementsIndirect 34%.
+- Trade-offs and leads: [PERF_DECISIONS.md](PERF_DECISIONS.md) (the recursion default among them).
