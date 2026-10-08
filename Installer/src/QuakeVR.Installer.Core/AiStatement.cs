@@ -27,10 +27,10 @@ public sealed class AiStatement
 
     public static readonly IReadOnlyList<string> Claims =
     [
-        "I recognize that AI-assisted development does not imply creating \"slop\".",
-        "I recognize that AI-assisted development does not imply a lack of technical expertise.",
-        "I recognize that AI-assisted development does not imply a less valuable end product.",
-        "I recognize that AI-assisted development does not imply a lack of care and effort from the author.",
+        "I recognize that AI-assisted development does *not* imply creating \"slop\".",
+        "I recognize that AI-assisted development does *not* imply lack of technical expertise.",
+        "I recognize that AI-assisted development does *not* imply less valuable end products.",
+        "I recognize that AI-assisted development does *not* imply lack of care and effort from the author.",
     ];
 
     readonly bool?[] _answers = new bool?[Claims.Count];

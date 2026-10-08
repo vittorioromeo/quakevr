@@ -8,7 +8,7 @@ public partial class MainWindow
 {
     // The window's size (DIPs), and its frame (title bar and borders) on Windows 11: the screenshot harness renders a
     // client area of the same size.
-    public const double DefaultWidth = 1200, DefaultHeight = 800, MinimumWidth = 1000, MinimumHeight = 720;
+    public const double DefaultWidth = 1200, DefaultHeight = 850, MinimumWidth = 1000, MinimumHeight = 720;
     public const double FrameWidth = 16, FrameHeight = 40;
 
     public MainWindow()
