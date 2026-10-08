@@ -32263,3 +32263,40 @@ reload" printed, the gun stayed open): the bit is now held 0.12 s, as the pry's 
 time (Hit After Loading). vr_reload_debug 2 prints the flick's speed and how far the barrel is towards the up at rest.
 reload_test.sh: loaded with the gun hand turning 150 deg/s and flicked 0.15 s later, shut; a hit from below straight
 after the load shuts it (with 0.6 it doesn't).
+
+## OBS's recording from the menus (2026-10-08)
+
+His request: when OBS is open, a row in the headset's menus above the spectator camera's switch that says whether
+OBS is recording and starts or stops it. `Quake/vr/vr_obs.cpp` is a small obs-websocket v5 client (OBS 28+ ships the
+server: Tools > WebSocket Server Settings > Enable WebSocket server, port 4455): TCP (winsock), the WebSocket handshake
+and framing, JSON (json.c), the v5 authentication (base64(sha256(base64(sha256(password + salt)) + challenge)),
+`vr_sha256`). It runs on a thread of its own (a loop that blocks on its socket); the main thread only copies the cvars
+over and the state back under a lock (no allocation a frame).
+
+- When: the thread starts the first time a menu opens with `vr_obs 1`, and asks at once, then every 5 s while a menu is
+  open. On Windows it first looks for OBS's process (obs64.exe, obs32.exe, obs.exe; Toolhelp): none, nothing is tried.
+  A connection stays open while OBS keeps it. A refused password is not tried again on its own (OBS logs each one): a
+  new `vr_obs_password`, a press on the row, `vr_obs_connect` or a menu opened again tries once more. The kit's test
+  runs never reach for OBS on their own (`vr_obs_connect` opts in).
+- The row (`vr_menuui.cpp` `obsBannerLayout`, `obsBannerAt`; drawn as the switch, right edge with it, a light red while
+  recording, dimmed while paused): `OBS: Not recording`, `OBS: Recording 00:12:34` (short: `OBS: REC 00:12:34`),
+  `OBS: Paused ...`, `OBS: Starting...`/`Stopping...`; hints `OBS found: enable its WebSocket server` (OBS's process
+  runs, nothing listens), `OBS: password needed`, `OBS: wrong password` (closed with 4009). Hidden when OBS is not
+  found, `vr_obs 0`, or before the first GetRecordStatus answers. A press: ToggleRecord (a hint's row: ask again
+  now); a second press within 1.5 s does nothing (as the menus' links). The time is OBS's outputDuration, run on
+  locally between GetRecordStatus every 2 s while a menu is open; RecordStateChanged events (Outputs subscription)
+  follow starts and stops. The spectator preview sits above both rows.
+- Cvars: `vr_obs` 1, `vr_obs_host` 127.0.0.1, `vr_obs_port` 4455, `vr_obs_password` "" (all archived: the password is
+  kept in the config in plain text, never printed), `vr_obs_process_check` 1 (0 always try; 2 test aid: act as if OBS
+  ran). Commands: `vr_obs_status`, `vr_obs_toggle` (bindable), `vr_obs_connect`. Graphics > Recording > OBS (the
+  switch with the how-to, the status line, Start or Stop Recording, Connect to OBS Now); Debug > Tools: OBS: Status,
+  OBS: Process Check. `vr_mock_laser obs` points at the row.
+
+Tested: `Misc/quakevr/obs_test.py <agent>` against `Misc/quakevr/obs_mock_server.py` (Hello/Identify with and without
+a password, GetRecordStatus, ToggleRecord, RecordStateChanged; standard library only), 15/15: hidden with nothing
+listening; the hint with the process check faked; Not recording, two presses within 1.5 s one toggle, Recording
+00:00:04, pressed again Not recording, the mock quitting hides it; password needed, wrong password (one 4009, not
+retried in 6 s), the right one identified; the password never in the output. Frames (`--exclusive`, vr_bench 450
+frames each): period p99 4.21 ms off, 4.05 trying a port nothing listens on, 4.03 connected and recording; the main
+thread's worst CPU work 0.47 / 0.30 / 0.29 ms. `obs_test.py --shot`: the eyes with the row (vr_eyeshot 3).
+In VR (his part): OBS's WebSocket server on, the row's text and its press, a recording started and stopped.

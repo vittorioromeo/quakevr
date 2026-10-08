@@ -26,6 +26,7 @@
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
+#include "vr_obs.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_review.hpp"
@@ -4905,6 +4906,14 @@ za::Vector<Item> pageDebugReports()
         command("Update Check: Status", "vr_update_status")
             .help("vr_update_status: this game's version, the latest the feed gave (where from, how long ago, cached or "
                   "asked), the feeds, the cache file's age, and the notice shown."),
+        command("OBS: Status", "vr_obs_status")
+            .help("vr_obs_status: OBS's connection (Graphics > Recording > OBS): found or not and why, the address, whether "
+                  "a password is set (never the password), obs-websocket's version, the recording's state and time, and "
+                  "the menus' row as it reads."),
+        cycle("OBS: Process Check", vr_obs_process_check, {{0.f, "Off (Always Connect)"}, {1.f, "On"}, {2.f, "Act as if Running"}})
+            .help("vr_obs_process_check: On (the default): on this PC the game connects only while OBS's process "
+                  "(obs64.exe) runs, and says when its WebSocket server is off. Off: always tries (a mock server's "
+                  "tests). Act as if Running: the hint's test (nothing listening reads as OBS's server off)."),
         command("Update Notice: Fake 9.9.9", "vr_update_test_version 9.9.9")
             .help("vr_update_test_version 9.9.9: the update notice shows as for a newer release, without asking anyone "
                   "(its page: the feed's, else the releases' latest). Update Notice: Real Version undoes it."),

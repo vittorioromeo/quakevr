@@ -33,6 +33,20 @@
             .help("No tips, no messages on the wrist gadget and no text in front of your head (pickups, centre prints, "
                   "notify lines), in the headset too: clean takes. The trailer scene (vrtrailer) turns it on by "
                   "itself while it is loaded; menus and the wrist gadget's own display stay."),
+        header("OBS"),
+        toggle("OBS Recording Control", "vr_obs")
+            .help("While a menu is open, the game looks for OBS Studio on this PC: when it finds it, a row above the "
+                  "Spectator Camera's switch (bottom left of the headset's menus) shows whether OBS is recording, and "
+                  "for how long; point at it and press to start or stop. In OBS (28 or later): Tools > WebSocket Server "
+                  "Settings > Enable WebSocket server (port 4455). With Enable Authentication on, its password (Show "
+                  "Connect Info) goes in the console: vr_obs_password \"...\" (kept in the config in plain text); or "
+                  "turn authentication off. OBS on another PC: vr_obs_host and vr_obs_port. Off: never looks."),
+        info(qvr::obs::statusLine),
+        command("Start or Stop Recording", "vr_obs_toggle")
+            .help("vr_obs_toggle (bindable): OBS's recording started or stopped, as a press on the menus' OBS row."),
+        command("Connect to OBS Now", "vr_obs_connect")
+            .help("vr_obs_connect: asks OBS now rather than at the next try (every 5 s while a menu is open); after "
+                  "turning on OBS's WebSocket server or setting vr_obs_password."),
         header("Steadying"),
         slider("Smoothing", "vr_window_smooth", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("How much the head's shake is smoothed out: the view's lag behind your head. 0.1-0.2 s takes out the "

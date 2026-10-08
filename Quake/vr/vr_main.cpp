@@ -33,6 +33,7 @@
 #include "vr_limits.hpp"
 #include "vr_mapindex.hpp"
 #include "vr_update.hpp"
+#include "vr_obs.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
@@ -1529,6 +1530,7 @@ extern "C" void VR_Init()
     audio::init(); // spatial audio's commands (vr_snd_info, vr_snd_test...); Steam Audio is loaded on first use
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
     update::registerCommands(); // vr_update_status, vr_update_check_now, vr_update_compare (vr_update.cpp)
+    obs::registerCommands(); // vr_obs_status, vr_obs_toggle, vr_obs_connect (vr_obs.cpp)
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)
@@ -1543,6 +1545,7 @@ extern "C" void VR_StopDownloads()
 {
     mapindex::finish();
     update::finish(); // the update check (vr_update.cpp)
+    obs::finish(); // OBS's connection (vr_obs.cpp): its thread's winsock before the engine's goes
     mapinstall::finish();
     relight::tool::finish(); // an ericw-tools download (Graphics > Relighting), cancelled (vr_relight_tool.cpp)
 }
@@ -1553,6 +1556,7 @@ extern "C" void VR_Shutdown()
     box3d::finishLoads();
     mapindex::finish(); // the map index fetch, cancelled and joined (vr_mapindex.cpp)
     update::finish(); // the update check, the same (vr_update.cpp)
+    obs::finish(); // OBS's connection, the same (vr_obs.cpp)
     mapinstall::finish(); // a map download or unpacking, cancelled and joined (vr_mapinstall.cpp)
     relight::shutdown(); // a light process still running stopped (vr_relight.cpp)
     imgprefetch::shutdown(); // (the decoding tasks finished)
@@ -1787,6 +1791,7 @@ extern "C" void VR_HostFrameEnd()
     }
     qvr::mapindex::poll(); // the map index the fetch thread finished, taken here (vr_mapindex.cpp)
     qvr::update::poll(); // the update check's answer (vr_update.cpp)
+    qvr::obs::poll(); // OBS's recording state, and the menus' state to its thread (vr_obs.cpp)
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
     qvr::motion::hostFrameEnd();

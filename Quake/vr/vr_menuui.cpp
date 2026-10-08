@@ -44,6 +44,7 @@
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_menupaint.hpp"
+#include "vr_obs.hpp"
 #include "vr_panel.hpp"
 #include "vr_stereo.hpp"
 #include "vr_units.hpp"
@@ -483,6 +484,7 @@ struct Toolbar
     int hovered{-1};   // the button under the laser
     int focused{-1};   // the button the sticks selected (-1: the menu has the selection)
     bool bannerHovered{false}; // the spectator camera's switch under the laser
+    bool obsHovered{false};    // OBS's row above it (vr_obs.cpp)
     bool linkHovered{false};   // the version box's Ko-fi link under the laser
     int focusMenu{m_none};
     glm::vec2 focusMouse{0.f}; // the laser's spot when they did: moving it on gives the selection back
@@ -616,12 +618,13 @@ struct BannerLayout
 
 // Its right edge as the buttons' (left of the menu and its help, as far as the panel lets them), the long text where
 // it fits, else the short; else the short in the corner.
-[[nodiscard]] BannerLayout bannerLayout(const ToolbarLayout& l)
+// `row` 0 the spectator camera's switch, 1 OBS's row above it.
+[[nodiscard]] BannerLayout bannerRowLayout(const ToolbarLayout& l, const char* const (&texts)[2], int row)
 {
-    const bool on = spectatorOn();
-    const char* const texts[2]{on ? "Spectator camera: On" : "Spectator camera: Off", on ? "Spectator: On" : "Spectator: Off"};
     BannerLayout b;
-    b.yc = l.bottom - (ToolbarLayout::corner + ToolbarLayout::half) / l.k;
+    b.yc = l.bottom - (ToolbarLayout::corner + ToolbarLayout::half + static_cast<float>(row) * (2.f * ToolbarLayout::half +
+                                                                                                    ToolbarLayout::gap)) /
+                          l.k;
     float width = 0.f;
     for(const char* text : texts)
     {
@@ -644,6 +647,20 @@ struct BannerLayout
     return b;
 }
 
+[[nodiscard]] BannerLayout bannerLayout(const ToolbarLayout& l)
+{
+    const bool on = spectatorOn();
+    const char* const texts[2]{on ? "Spectator camera: On" : "Spectator camera: Off", on ? "Spectator: On" : "Spectator: Off"};
+    return bannerRowLayout(l, texts, 0);
+}
+
+// OBS's row (vr_obs.cpp: shown while OBS answers, or is found and says why not), above the switch, as it.
+[[nodiscard]] BannerLayout obsBannerLayout(const ToolbarLayout& l, const qvr::obs::Banner& o)
+{
+    const char* const texts[2]{o.text, o.shortText};
+    return bannerRowLayout(l, texts, 1);
+}
+
 // Whether a spot of the menu is on the switch (as far as the panel's edges; drawn over this menu: the VR style's).
 [[nodiscard]] bool bannerAt(float x, float y)
 {
@@ -654,6 +671,24 @@ struct BannerLayout
     const ToolbarLayout l = toolbarLayout();
     const BannerLayout b = bannerLayout(l);
     return x >= l.left && x <= b.x1 + 2.f && y >= b.yc - (ToolbarLayout::half + 2.f) / l.k && y <= l.bottom;
+}
+
+// And on OBS's row (down to the switch's).
+[[nodiscard]] bool obsBannerAt(float x, float y)
+{
+    if(toolbar.menu != m_state || !qvr::menuui::active())
+    {
+        return false;
+    }
+    const qvr::obs::Banner o = qvr::obs::banner();
+    if(!o.shown)
+    {
+        return false;
+    }
+    const ToolbarLayout l = toolbarLayout();
+    const BannerLayout b = obsBannerLayout(l, o);
+    return x >= l.left && x <= b.x1 + 2.f && y >= b.yc - (ToolbarLayout::half + 2.f) / l.k &&
+           y <= b.yc + (ToolbarLayout::half + ToolbarLayout::gap) / l.k && !bannerAt(x, y);
 }
 
 // The spectator camera's preview (vr_spectator_preview), while it is on: above its switch, as wide as the switch (within
@@ -861,6 +896,14 @@ void update(const hands::State& s)
     }
     toolbar.bannerHovered = bannerHovered;
 
+    // And OBS's row above it.
+    const bool obsHovered = on && hits[pointingHand].valid && obsBannerAt(m_mousex, m_mousey);
+    if(obsHovered && !toolbar.obsHovered)
+    {
+        haptic(pointingHand, 0.01f, 0.15f);
+    }
+    toolbar.obsHovered = obsHovered;
+
     // And the version box's Ko-fi link (or the update notice above it).
     const bool linkHovered = on && hits[pointingHand].valid && versionLinkAt(m_mousex, m_mousey);
     if(linkHovered && !toolbar.linkHovered)
@@ -906,6 +949,18 @@ void mockLaser_f()
         pointingHand = HAND_MAIN;
         return;
     }
+    if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "obs"))
+    {
+        const qvr::obs::Banner o = qvr::obs::banner();
+        if(!o.shown)
+        {
+            Con_Printf("vr_mock_laser obs: OBS's row is not shown\n");
+        }
+        const BannerLayout b = obsBannerLayout(toolbarLayout(), o);
+        mockLaser = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
+        pointingHand = HAND_MAIN;
+        return;
+    }
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "spectator"))
     {
         const BannerLayout b = bannerLayout(toolbarLayout());
@@ -933,7 +988,7 @@ void mockLaser_f()
         return;
     }
     Con_Printf("vr_mock_laser <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
-               "checklist | spectator | kofi | update | off: the main hand's laser on that spot of the menu\n");
+               "checklist | spectator | obs | kofi | update | off: the main hand's laser on that spot of the menu\n");
 }
 
 void mockMouse_f()
@@ -1747,7 +1802,36 @@ extern "C" void VR_MenuDrawOverlay()
             // The label in the menus' tan, On or Off white (all white under the laser).
             Draw_CharacterEx(x, b.yc - 4.f, 8.f, 8.f, hot || (state && c > state) ? *c : (*c | 128));
         }
-        placePreview(l, b);
+
+        // OBS's row above it (vr_obs.cpp), while OBS answers or is found: its recording's light, red while recording
+        // (paused: dimmed); the state white. The spectator camera's preview goes above both.
+        BannerLayout top = b;
+        if(const qvr::obs::Banner o = qvr::obs::banner(); o.shown)
+        {
+            const BannerLayout ob = obsBannerLayout(l, o);
+            const bool obsHot = toolbar.obsHovered;
+            p.rounded(ob.x0, ob.x1, ob.yc, ToolbarLayout::half, 3.f, obsHot ? colors::highlightEdge : colors::boxBorder);
+            p.rounded(ob.x0 + 1.f, ob.x1 - 1.f, ob.yc, ToolbarLayout::half - 1.f, 2.f,
+                obsHot ? colors::buttonHover : colors::boxFill);
+            glm::vec4 light = colors::boxBorder;
+            if(o.recording)
+            {
+                light = colors::recording;
+                if(o.paused)
+                {
+                    light.a *= 0.4f;
+                }
+            }
+            p.disc(ob.x0 + 7.f, ob.yc, 2.5f, light);
+            float ox = ob.x0 + 4.f + 6.f + 4.f;
+            const char* obsState = strchr(ob.text, ':');
+            for(const char* c = ob.text; *c; c++, ox += 8.f)
+            {
+                Draw_CharacterEx(ox, ob.yc - 4.f, 8.f, 8.f, obsHot || (obsState && c > obsState) ? *c : (*c | 128));
+            }
+            top.yc = ob.yc; // (as wide as the switch still)
+        }
+        placePreview(l, top);
     }
 
     // On the runtime's panel (no world to draw the laser in), where the laser points: a dot in its hue.
@@ -1775,6 +1859,15 @@ extern "C" int VR_MenuKey(int key, int repeat)
         return 0;
     }
 
+    if(key == K_MOUSE1 && !repeat && obsBannerAt(m_mousex, m_mousey))
+    {
+        toolbar.focused = -1;
+        if(qvr::obs::press())
+        {
+            haptic(pointingHand, 0.02f, 0.3f);
+        }
+        return 1;
+    }
     if(key == K_MOUSE1 && bannerAt(m_mousex, m_mousey))
     {
         toolbar.focused = -1;
