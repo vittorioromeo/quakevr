@@ -169,6 +169,9 @@ monsters and torches ahead of the player.
 | `tour_basetohell` | maps | basetohell | basetohell: the spawn and five pickups' places, each looked at four ways: heavy geometry, many lights and entities. Monsters asleep (notarget). |
 | `tour_vanisch01` | maps | vanisch01 | vanisch01: the spawn and five pickups' places, each looked at four ways: heavy geometry, many lights and entities. Monsters asleep (notarget). |
 | `tour_warden_flat` | maps/flat | warden, flat | tour_warden, flat. |
+| `tour_mg3_<map>` | mg3/maps | map1, map2, secret2 (MG3) | Dawn of the Machine's map at skill 2: the spawn and five pickups' places, four ways each, monsters asleep. Needs the owned rerelease MG3 data (`vr_campaign_native mg3` in the script). |
+| `mg3_<map>_awake` | mg3/combat | map1, map2, secret2 (MG3) | The map's whole count (`vr_test_monsters 4`: the deferred ones brought in) woken at once (`vr_test_monsters 2`), hunting the god-mode player at the spawn. |
+| `mg3_<map>_kill`, `mg3_map2_kill_r32` | mg3/gore | map1, map2, secret2 (MG3) | As `_awake`, then every monster killed in one frame (`vr_test_monsters 3`), `vr_ragdoll_max` 8 (shipped) or 32: the deaths' frame (`blow`) and the bodies falling (`after`). |
 | `combined` | combat/physics/vfx/lights/core | vrfiringrange | Everything at once (the perf suite's combined): the frame's worst realistic mix. |
 
 ### Tours of complex custom maps
@@ -394,3 +397,58 @@ A/B is in its message (`perf3_cast_*`, `perf3_touch_*`, `perf3_text_*`, `perf3_e
 - `combat_48`'s +0.03 ms is the fight's run-to-run spread (its phases: shadow maps and SV_Physics down).
 - Left (PERF_DECISIONS.md, "Still open"): a compact copy of the touch walk's boxes (not exact: QC writes abs boxes
   without a relink), the static dynamic lights' world casters (`collectWorld`, ~0.12 ms in `combined`).
+
+### Dawn of the Machine (MG3 M3-28, 2026-10-08)
+
+MG3_PLAN.md M3-28: the three heaviest Dawn of the Machine maps (BSP 12.8, 14.8 and 35.1 MB) with their full monster
+counts (skill 2, the deferred monsters brought in: map1 93 + 14 = 107, map2 120 + 98 = 218, secret2 102 + 64 = 166;
+1070-1800 entities) and the ragdoll cap, group `mg3` (scenarios above; test aid `vr_test_monsters`, Debug > Tests >
+Whole-Map Monsters). The author's settings of 2026-10-06, paced 90 Hz, mock eyes 2048, exclusive, 3 x 900 frames,
+medians (`kit/benchresults/m328_base`, before this pass's fixes). ms a frame.
+
+| scenario | frame p50 | frame p99 | frame max | CPU avg | CPU p99 | GPU 3D | edicts | awake bodies |
+|---|---|---|---|---|---|---|---|---|
+| `tour_mg3_map1` | 11.11 | 11.24 | 15.40 | 1.18 | 1.90 | 1.28 | 535 | |
+| `tour_mg3_map2` | 11.11 | 11.25 | 11.76 | 1.58 | 2.42 | 1.15 | 1071 | 74 |
+| `tour_mg3_secret2` | 11.11 | 11.21 | 16.63 | 2.08 | 3.01 | 1.59 | 1497 | 96 |
+| `mg3_map1_awake` | 11.11 | 11.20 | 12.05 | 1.34 | 2.67 | 1.55 | 535 | |
+| `mg3_map2_awake` | 11.11 | 11.22 | 11.77 | 1.99 | 3.97 | 1.16 | 1142 | 280 |
+| `mg3_secret2_awake` | 11.11 | 11.27 | 64.16 | 4.14 | 9.80 | 1.36 | 1828 | 434 |
+| `mg3_map1_kill` | 11.11 | 11.21 | 13.39 | 1.80 | 4.58 | 1.59 | | |
+| `mg3_map2_kill` | 11.11 | 11.21 | 35.46 | 3.28 | 9.99 | 1.37 | | |
+| `mg3_map2_kill_r32` | 11.11 | 11.50 | 33.23 | 3.52 | 10.65 | 1.21 | | |
+| `mg3_secret2_kill` | 11.11 | 12.34 | 36.21 | 4.95 | 12.22 | 1.59 | | |
+
+- **Every MG3 scenario holds 90 Hz at the median**; the worst steady load is secret2's whole count awake (CPU 4.1 ms
+  of 11.1, p99 9.8: its 166 monsters, 430-540 awake Box3D bodies, many of them floating). One of its three runs had 4
+  frames over 33 ms (the fight goes differently each run: QuakeC's `random()` shares the CRT's `rand()` with the
+  client, so no two fights are the same, see `vr_bench_statehash`).
+- **Kill-all frames** (`blow`): 31-36 ms for 160-218 deaths in one frame, about **0.15-0.2 ms a death** (its corpse or
+  ragdoll, limbs and gibs, the gun dropped, the caps' walks of every entity); the frames after (`after`) 11-25 ms
+  while the bodies fall. A real fight's worst (a rocket into a group: 5-10 deaths) is 1-2 ms.
+- **Ragdoll cap**: 32 instead of the shipped 8 (`mg3_map2_kill_r32`): CPU +0.24 ms avg, the `after` part's worst 24.5
+  against 14.3 ms. The shipped 8 stays (PERF_DECISIONS.md, 8).
+- **Where the time goes** (VTune, secret2's fight, fast and window-only, `qvrprof.sh`): the server 2.5 ms a frame of
+  3.7: Box3D's frame end 1.0 (the water test 0.26, the step 0.29, the props' relink 0.25), QuakeC 0.86 (builtins:
+  `findflags` 0.19 ms: the stealth AI's look about for bodies and torches, two walks of every entity per monster; the
+  force grab's `findportalcone` 0.14; `MG_WorldFrame`'s walk), the movers' `SV_PushMove` 0.21, monster movement 0.5.
+  The kill frame (temporary builtin timers): `VR_Limb_MakeRoom` 2.7 ms, small gibs 2.1, `WeaponInst_Find` 1.4,
+  `VR_EnemyWeapons_MakeRoom` 0.5.
+
+Fixed (identical output; each commit's message has its check): the MG campaigns' frame ticks skip the unregistered
+entities in the engine (`MG_WorldFrame`, findflags); a body's water tests walk the hull from its column's node (2.7
+million columns compared with the old walk: equal); `SV_PushMove` tests an entity's box before its VR checks (26.8
+million decisions compared: equal); the limb and dropped-gun caps count and find the oldest in one walk. The A/B
+(`m328ab_A` / `m328ab_B`: the two builds' binaries alternated run by run, 3 x 600 frames each, medians; **taken while
+other workers built and ran on the machine**, so the paired medians, not the absolute values, are the measure):
+
+| scenario | CPU avg A | B | CPU p99 A | B | SV_Physics A | B | kill `after` max A | B |
+|---|---|---|---|---|---|---|---|---|
+| `mg3_secret2_awake` | 3.82 | **3.60** | 7.97 | 7.54 | 2.53 | **2.34** | | |
+| `tour_mg3_secret2` | 1.90 | 1.86 | 3.28 | 2.89 | 0.95 | **0.87** | | |
+| `mg3_map2_awake` | 1.84 | **1.70** | 3.42 | 3.22 | 0.97 | **0.89** | | |
+| `mg3_map2_kill` | 3.35 | 3.21 | 9.47 | 9.59 | 1.98 | **1.85** | 15.8 | 11.5 |
+
+Left (PERF_DECISIONS.md, "Dawn of the Machine"): the per-monster entity walks of the stealth AI and the enemy shove,
+the force grab's search, the kill frame's spawns. Not covered: map loads (secret2's 35 MB BSP: `load_*` has no MG3
+scenario), skills 0, 1 and 3, co-op.

@@ -330,7 +330,11 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
 ### Phase E: acceptance and readiness
 
 - **M3-28 Performance pass.** map2/secret2/map1 `vr_profile` with full monster counts and ragdoll caps; fixes or
-  documented budgets. Run after the profiling worker; `--exclusive` for timings.
+  documented budgets. Run after the profiling worker; `--exclusive` for timings. **Done 2026-10-08:** bench group `mg3` (tours, whole
+  count awake, kill-all at ragdoll caps 8 and 32; `vr_test_monsters`); every scenario holds 90 Hz at the median, the
+  worst steady load secret2's 166 monsters awake (CPU 4.1 ms of 11.1), a death 0.15-0.2 ms; fixes with identical
+  output (MG frame ticks, water tests, pushers, the caps' walks: secret2's fight SV_Physics -0.19 ms); budgets and
+  trade-offs in BENCHMARKS.md "Dawn of the Machine" and PERF_DECISIONS.md 8-11.
 - **M3-29 Full-campaign route sweep.** all 22 BSPs 0 missing classes/fields; every normal/secret route; runes;
   hub returns; both endings; carry/save/load/death at each hop; language-gate checks. **Done 2026-10-08:**
   `Misc/quakevr/mg3_route_test.sh` (main 93/0, Bloody Nightmare 29/0, every exit 71/0; results table in EXPANSIONS.md,

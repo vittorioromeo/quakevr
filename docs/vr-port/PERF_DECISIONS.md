@@ -100,6 +100,45 @@ occupied (`vr_decal_count`), 580-600 KB uploaded at every build, and the prefix 
   marks the larger grid shows (a visual change where marks pile up; `decals_1024_stream` already has 52 capped).
 - **Recommendation**: worth measuring the capped buckets with it before deciding; not urgent.
 
+## Dawn of the Machine (MG3 M3-28, 2026-10-08)
+
+BENCHMARKS.md, "Dawn of the Machine": map1, map2 and secret2 hold 90 Hz with their whole counts awake; the fixes with
+no trade-off are committed. Measured and left:
+
+### 8. The ragdoll cap with a whole map's deaths (`vr_ragdoll_max`, shipped 8)
+
+`mg3_map2_kill` (218 deaths in a frame) at 8 and 32: CPU avg 3.28 against 3.52 ms, the falling bodies' worst frame
+14.3 against 24.5 ms (paced, medians of 3); the deaths' frame itself the same (35 against 33 ms: the deaths, not the
+ragdolls). A death past the cap retires the oldest ragdoll to a corpse, so the cap bounds the falling bodies' cost.
+- **Recommendation**: keep 8 (the menu's slider goes to 16, 64 extended); more only for set pieces with few monsters.
+
+### 9. Per-monster walks of every entity in QuakeC (still open)
+
+secret2's fight, builtin time a frame (temporary timers, 2000 frames): `findflags` 0.19 ms, mostly
+`VR_Stealth_LookAbout` (each Idle or Alert monster's FindTarget walks every entity twice: the wall torches, the
+bodies); `find(p, classname, "player")` after the first player (`VR_EnemyShove_Target`, each stand/walk/run think,
+~11 walks a frame; `VR_Burn_MapFrame` ~5); `VR_Grapple_WorldFrame` ("hook"), `VR_Burn_NailFrame` ("spike") and
+`VR_MarksmanTest_Frame` ("ogre_grenade", a test's counter) one walk each a frame when there are none.
+- **Option**: the stealth AI's torch and body lists gathered once a frame (a chain), the players walked as clients
+  (edicts 1..maxclients), the empty searches skipped by a count.
+- **Win**: ~0.2-0.3 ms a frame in a 160-monster fight; little in an ordinary one.
+- **Drawback**: not exact: a body or torch that changes mid-frame is seen a frame later; a non-client "player" (none
+  known) would be missed. A behaviour change, however small: not done.
+
+### 10. The kill frame's spawns (still open)
+
+A death costs 0.15-0.2 ms on these maps (BENCHMARKS.md); in map2's kill-all frame the small gibs' spawns 2.1 ms,
+`WeaponInst_Find` 1.4 ms (a weapon instance's id: every record walked, by `find`), the caps' walks (done: one walk
+each). `ED_Alloc` walks from the clients up for a free edict on every spawn. An index of weapon instances by id, and a
+lowest-free hint for `ED_Alloc`, would be exact but touch save/load and every free; worth it only if real fights show
+death-frame hitches (a rocket into 10 monsters: ~2 ms). Not done.
+
+### 11. The force grab's search every frame
+
+`findportalcone` (each hand's force-grab target, every frame): 0.07 ms a call on secret2 (1800 entities, each one's
+model centre worked out before the portal broad phase). A box-based pre-test would need the centre's bound from the
+box (not exact for models whose centre lies outside their box). Small; not done.
+
 ## Leads (2026-10-08 follow-up)
 
 Done in the follow-up (BENCHMARKS.md, "Follow-up: the leads with no trade-off"): particle lighting on the pool's
