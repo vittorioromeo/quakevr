@@ -63,6 +63,7 @@ browser with help, key types, choices and a model preview.
 | `quakevr/maps/vrteleporters.map` (`.bsp`, `.lit`, `.lux`) | the teleporter test map, id's textures (`Misc/quakevr/teleporters/make_vrteleporters_map.py`; ROUND21.md, "Teleporter test map") |
 | `quakevr/maps/vrstart.map` (`.bsp`, `.lit`, `.lux`) | the island hub at night (`Misc/quakevr/maps/vrstart_gen.py`, its geometry library `mapgeom.py`; the sky box `make_vs2_sky.py`, `quakevr/gfx/env/vs2night*.png`): below |
 | `quakevr/maps/vrtrailer.map` (`.bsp`, `.lit`, `.lux`) | the trailer's opening scene: a bridge across a night lake, the Super Axe on a pedestal, a grunt on the far islet (`Misc/quakevr/maps/vrtrailer_gen.py`, vrstart's parts; QC `vr_trailer.qc`): below |
+| `quakevr/maps/vrtrailer2.map` (`.bsp`, `.lit`, `.lux`) | vrtrailer, shorter (the recording's timing): `vrtrailer_gen.py --variant 2`, below |
 | `Misc/trenchbroom/make_id_wad.py` | writes `quakevr/wads/id_textures.wad` (git-ignored) from your paks: above |
 
 ## The entities
@@ -329,6 +330,10 @@ bash Misc/quakevr/vrtrailer_test.sh <agent> ["vr_ai_enhanced 0"]       # the hea
   taken by its handle wherever the hand closes on it). **Grunt** (monster_army, `vr_oblivious 1`) at (0, 760, 64)
   facing north (yaw 90), the water ~110 units ahead of him, his back to the bridge. Nothing else: no tips, no boards, no
   ambient sounds, no other monsters or items.
+- **vrtrailer2** (`--variant 2`, the same scene for the recording's timing; `VARIANTS` in the script): the bridge's
+  first half (start to pedestal) 25% shorter, its second half (pedestal to land) 50%, the north islet 30% smaller (all
+  on it scaled about its centre): deck y -352..235, start (0, -326, 66), grunt (0, 429, 60) with ~77 units of water
+  ahead, torch pillars' pairs at y -180, 0, 180. `--variant 1` (the default) writes vrtrailer.map unchanged.
 - **The scene** (`info_vr_trailer`, QC `vr_trailer.qc`): recording mode on while the map is loaded
   (`vr_recording_clean_map 1`, set at every map load: 0 elsewhere): no tips, no wrist-gadget messages (log and
   hologram), no head-locked text, in the headset too (Graphics > Recording > Recording Mode is the player's own switch,

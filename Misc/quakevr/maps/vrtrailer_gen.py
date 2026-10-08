@@ -1,7 +1,9 @@
 # vrtrailer_gen.py -- writes quakevr/maps/vrtrailer.map, the trailer's opening scene, and with --compile builds it as
 # vrstart is built (qbsp 0.18.1, ericw-tools 2.0's vis and light; presets "fast" and "final"; MAPPING.md, "vrtrailer").
 #
-#   python Misc/quakevr/maps/vrtrailer_gen.py [--compile [--preset fast|final] [--check RAYS]] [--tools DIR] [--qbsp EXE]
+#   python Misc/quakevr/maps/vrtrailer_gen.py [--variant 1|2] [--compile [--preset fast|final] [--check RAYS]] [--tools DIR]
+#                                             [--qbsp EXE]
+#   (--variant 2: vrtrailer2.map, the same scene shorter for the recording's timing; VARIANTS below)
 #   (first: python Misc/trenchbroom/make_id_wad.py, the id textures' WAD)
 #
 # A much smaller vrstart, made of vrstart_gen.py's parts (its planks, logs, railings, ropes, boulders, pines, torches,
@@ -48,15 +50,54 @@ GROUND_STEP = 8       # the islets' ground heights are multiples of this (vrstar
 SCALE = 1.75          # vrstart's cliffs and mountains, this much smaller (its cliff_height at x * SCALE, / SCALE)
 
 DECK_Z = 40           # the bridge's walking height (1.2 m over the water)
-BRIDGE_Y = 470        # the deck runs from -BRIDGE_Y to BRIDGE_Y along x = 0
+BRIDGE_Y = 470        # vrtrailer's deck runs from -BRIDGE_Y to BRIDGE_Y along x = 0 (a variant's: BRIDGE_END)
 BRIDGE_W = 96
 LANDING = dict(x=104, y=72)   # the landing half way (half sizes): the pedestal in its middle
 PEDESTAL_TOP = DECK_Z + 33    # 1.0 m: torso height
 PILLARS_X = 168               # the torch pillars' pairs: x = +-PILLARS_X at these y
 PILLARS_Y = (-300, 0, 300)
-COAST_AT = 440                # where the islets' shores cross the bridge's line (y = +-COAST_AT)
-GRUNT = (0, 760)              # the grunt (facing north, the water about 110 units ahead of him)
-START = (0, -444)             # the player's start (facing north)
+COAST_AT = 440                # where the islets' shores cross the bridge's line (y = +-COAST_AT; a variant's: COAST)
+GRUNT = (0, 760)              # the grunt (facing north, the water about 110 units ahead of him; a variant's: north_at)
+START = (0, -444)             # the player's start (facing north; a variant's: south_at)
+NORTH_R = 215                 # the north islet's radius (the south one's: 200)
+
+# The variants (--variant): the same scene, the bridge's halves and the north islet shorter (for the recording's
+# timing). south/north: the bridge's halves' lengths (start -> pedestal, pedestal -> land); land: the north islet's size
+# (its radius, and everything on it about its centre); pillars: the torch pillars' pairs' y (evenly spaced, a pair by
+# the pedestal, clear of the north islet).
+VARIANTS = {
+    1: dict(name="vrtrailer", south=1.0, north=1.0, land=1.0, pillars=(-300, 0, 300)),
+    2: dict(name="vrtrailer2", south=0.75, north=0.5, land=0.7, pillars=(-180, 0, 180)),
+}
+BRIDGE_END = {-1: BRIDGE_Y, 1: BRIDGE_Y}     # the deck's ends: y = sy * BRIDGE_END[sy] (sy -1 south, 1 north)
+COAST = {-1: COAST_AT, 1: COAST_AT}           # where each islet's shore crosses the bridge's line
+LAND = 1.0
+NORTH_C0 = 0.0                                # vrtrailer's north islet's centre y (north_at's reference)
+
+
+def set_variant(v):
+    """The layout for variant v (1: vrtrailer as it was): the map's name, the bridge's ends, the coasts, the land and the
+    pillars; build_layout puts the islets, the start and the grunt, and the islets' decor follows them (south_at,
+    north_at)."""
+    global MAPNAME, OUT, PILLARS_Y, LAND
+    c = VARIANTS[v]
+    MAPNAME = c["name"]
+    OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")
+    for sy, k in ((-1, "south"), (1, "north")):
+        BRIDGE_END[sy] = int(round(BRIDGE_Y * c[k]))
+        COAST[sy] = BRIDGE_END[sy] - (BRIDGE_Y - COAST_AT)
+    LAND = c["land"]
+    PILLARS_Y = c["pillars"]
+
+
+def south_at(x, y):
+    """vrtrailer's (x, y) on the south islet, where it is in this variant (moved with the bridge's south end)."""
+    return x, y + (BRIDGE_Y - BRIDGE_END[-1])
+
+
+def north_at(x, y):
+    """vrtrailer's (x, y) on the north islet, where it is in this variant (about the islet's centre, scaled by LAND)."""
+    return x * LAND, ISLETS[1][1] + (y - NORTH_C0) * LAND
 
 # The islets: (cx, cy, radius, seed): their centres put so that their shores cross x = 0 at y = +-COAST_AT.
 ISLETS = []
@@ -69,7 +110,8 @@ def islet_radius(i, theta):
 
 
 def build_layout():
-    ISLETS[:] = [(0, 0, 200, 3.7), (0, 0, 215, 8.1)]
+    global NORTH_C0, GRUNT, START
+    ISLETS[:] = [(0, 0, 200, 3.7), (0, 0, NORTH_R, 8.1)]
     for i, sy in ((0, -1), (1, 1)):
         r = None
         cx, _, rr, seed = ISLETS[i]
@@ -77,7 +119,14 @@ def build_layout():
         th = math.pi / 2 if sy < 0 else -math.pi / 2
         ISLETS[i] = (cx, 0, rr, seed)
         r = islet_radius(i, th)
-        ISLETS[i] = (cx, sy * (COAST_AT + r), rr, seed)
+        if sy > 0:
+            NORTH_C0 = COAST_AT + r                # (vrtrailer's)
+            rr = NORTH_R * LAND
+            ISLETS[i] = (cx, 0, rr, seed)
+            r = islet_radius(i, th)
+        ISLETS[i] = (cx, sy * (COAST[sy] + r), rr, seed)
+    GRUNT = tuple(int(round(c)) for c in north_at(0, 760))
+    START = tuple(int(round(c)) for c in south_at(0, -444))
 
 
 def coast_distance(x, y):
@@ -95,7 +144,7 @@ def zone(x, y):
     """(weight, height) of the flattened ground: the bridge's ends (the deck's height, less the planks)."""
     w = 0.0
     for sy in (-1, 1):
-        y0, y1 = sorted((sy * (BRIDGE_Y - 40), sy * (BRIDGE_Y + 110)))
+        y0, y1 = sorted((sy * (BRIDGE_END[sy] - 40), sy * (BRIDGE_END[sy] + 110)))
         dx = max(-72 - x, 0, x - 72)
         dy = max(y0 - y, 0, y - y1)
         dist = math.hypot(dx, dy)
@@ -167,10 +216,10 @@ def terrain_points():
     # the flattened ground's edges at the bridge's ends
     for sy in (-1, 1):
         for k in range(9):
-            yy = sy * (BRIDGE_Y - 40) + sy * 150 * k / 8
+            yy = sy * (BRIDGE_END[sy] - 40) + sy * 150 * k / 8
             feat += [(-72, int(round(yy))), (72, int(round(yy)))]
         for xx in range(-72, 73, 24):
-            feat += [(xx, sy * (BRIDGE_Y + 110))]
+            feat += [(xx, sy * (BRIDGE_END[sy] + 110))]
     featset = {(f[0] // 16, f[1] // 16): f for f in feat}
     feat = list(featset.values())
 
@@ -331,21 +380,23 @@ def build_bridge(mw):
     out = mw.detail("bridge")
     rnd = random.Random(42)
     lx, ly, hw = LANDING["x"], LANDING["y"], BRIDGE_W / 2
-    deck_x(out, -hw, -BRIDGE_Y, hw, -ly, DECK_Z, rnd)
+    bs, bn = BRIDGE_END[-1], BRIDGE_END[1]
+    deck_x(out, -hw, -bs, hw, -ly, DECK_Z, rnd)
     deck_x(out, -lx, -ly, lx, ly, DECK_Z, rnd)
-    deck_x(out, -hw, ly, hw, BRIDGE_Y, DECK_Z, rnd)
+    deck_x(out, -hw, ly, hw, bn, DECK_Z, rnd)
     # the stringers: logs along the spans and round the landing, under the planks
     zs = DECK_Z - 9
     for sx in (-38, 38):
-        for (ya, yb) in ((-BRIDGE_Y - 10, -ly + 6), (ly - 6, BRIDGE_Y + 10)):
+        for (ya, yb) in ((-bs - 10, -ly + 6), (ly - 6, bn + 10)):
             out.append(beam((sx, ya, zs), (sx, yb, zs), 10, 12, wood("log", (0, 1, 0))))
     for sx in (-lx + 8, lx - 8):
         out.append(beam((sx, -ly - 4, zs), (sx, ly + 4, zs), 10, 12, wood("log", (0, 1, 0))))
     for sy in (-ly + 6, ly - 6):
         out.append(beam((-lx - 4, sy, zs - 12), (lx + 4, sy, zs - 12), 9, 10, wood("beam", (1, 0, 0))))
-    # the bents: two piles and a cap beam, every 130 units over the water; four piles under the landing's corners
+    # the bents: two piles and a cap beam, every 130 units over the water (up to 90 short of the ends); four piles under
+    # the landing's corners
     cap = DECK_Z - 15
-    for yy in (-380, -250, -130, 130, 250, 380):
+    for yy in [-y for y in (380, 250, 130) if y <= bs - 90] + [y for y in (130, 250, 380) if y <= bn - 90]:
         for sx in (-50, 50):
             pile(out, sx, yy, cap)
         out.append(box(-60, yy - 5, cap - 8, 60, yy + 5, cap, wood("beam", (1, 0, 0))))
@@ -355,17 +406,17 @@ def build_bridge(mw):
             pile(out, sx, sy, cap - 12)
     # the abutments on the islets
     for sy in (-1, 1):
-        y0, y1 = sorted((sy * (BRIDGE_Y - 34), sy * (BRIDGE_Y + 14)))
-        out.append(chamfer_box(-60, y0, ground(0, sy * BRIDGE_Y) - 40, 60, y1, DECK_Z - 3, 3, T("block", scale=0.5)))
+        y0, y1 = sorted((sy * (BRIDGE_END[sy] - 34), sy * (BRIDGE_END[sy] + 14)))
+        out.append(chamfer_box(-60, y0, ground(0, sy * BRIDGE_END[sy]) - 40, 60, y1, DECK_Z - 3, 3, T("block", scale=0.5)))
     # the railings: posts, a top rail at 38 (1.16 m), a rope between; round the landing's sides
     for s in (-1, 1):
-        pts = [(s * (hw + 2), -BRIDGE_Y + 8, DECK_Z), (s * (hw + 2), -ly, DECK_Z), (s * (lx + 2), -ly, DECK_Z),
-               (s * (lx + 2), ly, DECK_Z), (s * (hw + 2), ly, DECK_Z), (s * (hw + 2), BRIDGE_Y - 8, DECK_Z)]
+        pts = [(s * (hw + 2), -bs + 8, DECK_Z), (s * (hw + 2), -ly, DECK_Z), (s * (lx + 2), -ly, DECK_Z),
+               (s * (lx + 2), ly, DECK_Z), (s * (hw + 2), ly, DECK_Z), (s * (hw + 2), bn - 8, DECK_Z)]
         railing(out, pts, top=38, mid=20, every=54, sq=2.5, rope_mid=True)
     # the tall posts at the bridge's ends (their torches: build_lights)
     for sy in (-1, 1):
         for sx in (-1, 1):
-            post(out, sx * (hw + 2), sy * (BRIDGE_Y - 8), DECK_Z - 30, DECK_Z + 70, 5, square=False)
+            post(out, sx * (hw + 2), sy * (BRIDGE_END[sy] - 8), DECK_Z - 30, DECK_Z + 70, 5, square=False)
 
 
 def build_pedestal(mw):
@@ -421,12 +472,13 @@ def build_lights(mw):
     hw = BRIDGE_W / 2
     for sy, yaw in ((-1, 90), (1, 270)):
         for sx in (-1, 1):
-            wall_torch(mw, out, sx * (hw + 2), sy * (BRIDGE_Y - 8) - sy * 6, DECK_Z + 56, yaw)
+            wall_torch(mw, out, sx * (hw + 2), sy * (BRIDGE_END[sy] - 8) - sy * 6, DECK_Z + 56, yaw)
     # the north islet: a torch post to the grunt's left, behind him (his outline lit from the bridge's side)
-    gx, gy = GRUNT
-    torch_post(mw, out, gx - 120, gy - 70, ground(gx - 120, gy - 70), 30)
+    tx, ty = north_at(-120, 760 - 70)
+    torch_post(mw, out, tx, ty, ground(tx, ty), 30)
     # the south islet: one at the start, behind the player
-    torch_post(mw, out, 110, -560, ground(110, -560), 150)
+    tx, ty = south_at(110, -560)
+    torch_post(mw, out, tx, ty, ground(tx, ty), 150)
     out.split()
 
 
@@ -437,6 +489,7 @@ def build_decor(mw):
     # pines on the islets, clear of the bridge's line and of the view of the grunt
     for (x, y, h) in ((-130, -600, 230), (150, -660, 260), (-60, -720, 200), (40, -780, 180),
                       (-180, 560, 250), (175, 620, 220), (150, 520, 170)):
+        x, y = south_at(x, y) if y < 0 else north_at(x, y)
         if coast_distance(x, y) > 40:
             pine(trees, x, y, ground(x, y), h, rnd)
     # boulders round the islets' shores, half in the water
@@ -515,8 +568,13 @@ def main():
     ap.add_argument("--check", type=int, default=0, metavar="RAYS", help="after compiling, the hole test with RAYS rays")
     ap.add_argument("--tools", default=vs.DEFAULT_TOOLS, help="ericw-tools 2.0's folder (vis, light)")
     ap.add_argument("--qbsp", default=vs.DEFAULT_QBSP, help="the qbsp.exe (0.18.1's)")
-    ap.add_argument("--work", default=os.path.join(tempfile.gettempdir(), MAPNAME + "_build"))
+    ap.add_argument("--variant", type=int, choices=sorted(VARIANTS), default=1,
+                    help="1: vrtrailer; 2: vrtrailer2 (the bridge's halves 25%% and 50%% shorter, the far islet 30%%)")
+    ap.add_argument("--work", default=None, help="the build folder (default: TEMP/<map>_build)")
     args = ap.parse_args()
+    set_variant(args.variant)
+    if args.work is None:
+        args.work = os.path.join(tempfile.gettempdir(), MAPNAME + "_build")
     write_map()
     if args.compile:
         vs.MAPNAME, vs.OUT = MAPNAME, OUT  # (vrstart's compile_map, for this map)

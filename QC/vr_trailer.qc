@@ -46,7 +46,7 @@ float(entity targ, entity attacker, float take) VR_Trailer_Take =
 // holsters empty, none owned).
 void() VR_Trailer_StripParms =
 {
-    if(mapname != "vrtrailer")
+    if(mapname != "vrtrailer" && mapname != "vrtrailer2") // (vrtrailer2: the shorter variant, vrtrailer_gen.py)
     {
         return;
     }
