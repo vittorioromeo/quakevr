@@ -31936,3 +31936,12 @@ Tests > Stealth AI the scenes (`vr_stealth_test 120`-`129`, QC `vr_stealth_test4
   as a coloured bar over it, drawn by the host (vr_stealth.cpp `debugFrame`, the overlay texts the profiler's panel
   uses: not depth tested, so seen through walls). Checked on e1m1 (a grunt ahead, the light forced to 60): "ALERT walk
   0.32" over it, a yellow bar a third full; the map's other monsters "idle 0.00".
+- **The hunt** (his note: "they lose interest too quickly"). A Hostile monster out of sight of its player follows his
+  trail (`vr_stealth_chase_trail 1`): to where it saw him last, then ahead along his way (`vr_stealth_chase_predict
+  1.5` s of his speed, which is now his moves between its sightings, smoothed, since a VR player's own walk has no
+  velocity), then Quake's chase at him; it gives up after `vr_stealth_lose_time` 20 s unseen (was a fixed 6), or 5 s
+  with him beyond `vr_stealth_lose_far` 1500 units, and searches where the trail ended. Combat > Stealth AI >
+  Investigating: Gives Up After, Sooner Beyond, Follows Your Trail, Guesses Ahead. The meters overlay shows the trail's
+  step and the seconds unseen. Test 122 (`stealth_tests.sh hunt`): its last spot reached (2 units), its guess 334 units
+  on along his dart, gave up at 8.01 s (8), far: 2.00 s (2); 3 PASS. `vr_stealth_test 1`: 13 PASS (scene 13 now runs
+  with the trail off and 6 s, the old rule).

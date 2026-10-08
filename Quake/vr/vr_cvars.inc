@@ -2889,7 +2889,11 @@ QVR_CVAR(vr_stealth_corpses, "700", CVAR_ARCHIVE)    // units: corpses and gibs 
 QVR_CVAR(vr_stealth_sneak, "1.25", CVAR_ARCHIVE)     // damage times this to a monster that hasn't noticed anything (1: none)
 QVR_CVAR(vr_stealth_ambush_deaf, "1", CVAR_ARCHIVE)  // monsters placed in ambush (spawnflag 1) don't hear noises or other monsters (Quake's meaning)
 QVR_CVAR(vr_stealth_senses, "1", CVAR_ARCHIVE)       // each kind its own senses (dogs hear better, zombies are near deaf)
-QVR_CVAR(vr_stealth_lose, "1", CVAR_ARCHIVE)         // a Hostile monster that lost you searches where it saw you last, then gives up (Alert)
+QVR_CVAR(vr_stealth_lose, "1", CVAR_ARCHIVE)         // a Hostile monster that lost you hunts for you a while (your trail), then gives up and searches (Alert)
+QVR_CVAR(vr_stealth_lose_time, "20", CVAR_ARCHIVE)   // s without seeing you before it gives up
+QVR_CVAR(vr_stealth_lose_far, "1500", CVAR_ARCHIVE)  // units: with you farther than this it gives up after a quarter of that (0: never sooner)
+QVR_CVAR(vr_stealth_chase_trail, "1", CVAR_ARCHIVE)  // out of sight it follows your trail: where it saw you last, then the way you were going (0: straight at you, Quake's)
+QVR_CVAR(vr_stealth_chase_predict, "1.5", CVAR_ARCHIVE) // s of your speed it guesses ahead along your way
 QVR_CVAR(vr_stealth_gem, "1", CVAR_ARCHIVE)          // a gem on the wrist gadget: how visible (its glow) and how loud (its ring) you are
 QVR_CVAR(vr_stealth_marks, "0", CVAR_ARCHIVE)        // a "?" over a monster turning Alert, "!" turning Hostile
 QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed; 2: each sighting's meter and each noise heard

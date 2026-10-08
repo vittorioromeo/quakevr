@@ -37,6 +37,10 @@
 .entity stl_lit_by;     // and whose (coop: only the lamp's holder is seen lit by it)
 .float stl_lost_time;   // Hostile: when it last saw its enemy
 .vector stl_lost_at;    // and where
+.vector stl_lost_vel;   // and his speed then (the way he was going: his moves between its sightings, smoothed)
+.vector stl_lost_org;   // and where he was (stl_lost_at is his image when seen through a slipgate)
+.float stl_trail;       // out of sight: the step of his trail it follows (VR_Stealth_Trail: 1 his last spot, 2 ahead, 3 at him)
+.float stl_trail_time;  // and when it began
 .entity stl_next;       // a gathered list's next (VR_Stealth_Gather)
 .entity stl_suspect;    // the player its meter is on (coop: the most suspicious one in sight)
 .float stl_rate;        // and the meter's rate at that sighting

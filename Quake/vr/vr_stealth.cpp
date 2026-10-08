@@ -356,7 +356,8 @@ namespace
 {
 
 // A monster's label: its state (and an Alert one's phase, a Hostile one's time out of sight), its meter as a bar.
-void meterLabel(edict_t* e, int stateOfs, int phaseOfs, int meterOfs, int lostOfs, int classOfs, const glm::vec3& head)
+void meterLabel(edict_t* e, int stateOfs, int phaseOfs, int meterOfs, int lostOfs, int trailOfs, int classOfs,
+    const glm::vec3& head)
 {
     const auto read = [e](int ofs) {
         const eval_t* v = ofs >= 0 ? GetEdictFieldValue(e, ofs) : nullptr;
@@ -380,7 +381,15 @@ void meterLabel(edict_t* e, int stateOfs, int phaseOfs, int meterOfs, int lostOf
     {
         const float lost = read(lostOfs);
         const float hidden = lost > 0.f ? static_cast<float>(qcvm->time) - lost : 0.f;
-        q_snprintf(line, sizeof(line), hidden > 0.2f ? "HOSTILE  unseen %.1fs" : "HOSTILE", hidden);
+        // (out of sight: the step of his trail it follows, vr_stealth.qc VR_Stealth_Trail: 1 his last spot, 2 ahead, 3 at him)
+        if(hidden > 0.2f)
+        {
+            q_snprintf(line, sizeof(line), "HOSTILE  trail %d  unseen %.1fs", static_cast<int>(read(trailOfs)), hidden);
+        }
+        else
+        {
+            q_snprintf(line, sizeof(line), "HOSTILE");
+        }
         state = line;
     }
     else if(read(stateOfs) > 0.f)
@@ -425,6 +434,7 @@ void debugFrame()
     const int phaseOfs = ED_FindFieldOffset("stl_phase");
     const int meterOfs = ED_FindFieldOffset("stl_meter");
     const int lostOfs = ED_FindFieldOffset("stl_lost_time");
+    const int trailOfs = ED_FindFieldOffset("stl_trail");
     const int classOfs = ED_FindFieldOffset("stl_class");
     const glm::vec3 head = hands::current().head;
     if(meterOfs >= 0)
@@ -434,7 +444,7 @@ void debugFrame()
             edict_t* e = EDICT_NUM(i);
             if(!e->free && (static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f)
             {
-                meterLabel(e, stateOfs, phaseOfs, meterOfs, lostOfs, classOfs, head);
+                meterLabel(e, stateOfs, phaseOfs, meterOfs, lostOfs, trailOfs, classOfs, head);
             }
         }
     }

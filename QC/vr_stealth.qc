@@ -1061,18 +1061,122 @@ float(float dist) VR_Stealth_Walk =
     return r;
 };
 
-// In ai_run (self: Hostile), its enemy in sight or not: a player out of its sight for STL_LOSE_TIME: it gives up the
-// hunt and goes to where it saw him last, Alert (searches there, then goes back to Idle, wary). TRUE: it gave up.
-float STL_LOSE_TIME = 6;
+// The hunt (self: Hostile at a player). In sight: it knows where he is (Quake's chase, straight at him). Out of sight
+// (vr_stealth_chase_trail): his trail first: to where it saw him last (round the corner he went round), then on along
+// the way he was going (his speed then, for vr_stealth_chase_predict seconds, cut short by walls), then Quake's chase
+// again (it heads for him). It gives up after vr_stealth_lose_time seconds without seeing him (a quarter of that with
+// him farther than vr_stealth_lose_far): Alert, it searches where his trail ended (or where it stands, once it went on
+// past it), then goes back. TRUE: it gave up.
+
+// The trail's steps (stl_trail): 0 none (he is in sight), 1 to where it saw him last, 2 where he was heading, 3 on at
+// him (Quake's chase).
+void(entity m) VR_Stealth_TrailOff =
+{
+    if(m.goalentity == m.stl_marker && m.stl_marker != world && m.enemy != world)
+    {
+        m.goalentity = m.enemy;
+    }
+    m.stl_trail = 0;
+};
+
+void(entity m, float xStep, vector at) VR_Stealth_TrailTo =
+{
+    m.stl_trail = xStep;
+    m.stl_trail_time = time;
+    m.stl_walk_from = m.origin;
+    if(xStep >= 3)
+    {
+        if(m.goalentity == m.stl_marker && m.stl_marker != world)
+        {
+            m.goalentity = m.enemy;
+        }
+        if(cvar_hget(cvarh_vr_stealth_debug))
+        {
+            VR_Stealth_Log(m, "trail 3: on at him");
+        }
+        return;
+    }
+    m.goalentity = VR_Stealth_MarkerAt(m, at);
+    if(cvar_hget(cvarh_vr_stealth_debug))
+    {
+        VR_Stealth_Log(m, sprintf("trail %g: to %v (his way %v)", xStep, at, m.stl_lost_vel));
+    }
+};
+
+// Where he was heading from where it last saw him, cut short by walls; that spot itself when he stood still or it saw
+// him through a gate (one hop: the gate is the way).
+vector(entity m) VR_Stealth_TrailAhead =
+{
+    float ahead = cvar_hget(cvarh_vr_stealth_chase_predict);
+    vector v = m.stl_lost_vel;
+    v_z = 0;
+    if(ahead <= 0 || vlen(v) < 60 || m.stl_lost_via)
+    {
+        return m.stl_lost_at;
+    }
+    traceline(m.stl_lost_at, m.stl_lost_at + v * ahead, TRUE, m);
+    return trace_endpos - normalize(v) * 16;
+};
+
+void(entity m) VR_Stealth_Trail =
+{
+    if(!cvar_hget(cvarh_vr_stealth_chase_trail))
+    {
+        VR_Stealth_TrailOff(m);
+        return;
+    }
+    if(m.stl_trail == 0)
+    {
+        VR_Stealth_TrailTo(m, 1, VR_Stealth_WayTo(m.stl_lost_at, m.stl_lost_via));
+        return;
+    }
+    if(m.stl_trail >= 3)
+    {
+        return;
+    }
+    // (there, or long enough on the way: a second, and one more for every 60 units of it: a zombie's shamble)
+    vector d = m.stl_marker.origin - m.origin;
+    float there = vlen('1 0 0' * d_x + '0 1 0' * d_y) < 48 && fabs(d_z) < 72;
+    if(!there && time - m.stl_trail_time < 1 + vlen(m.stl_marker.origin - m.stl_walk_from) / 60)
+    {
+        return;
+    }
+    if(m.stl_trail == 1)
+    {
+        vector ahead = VR_Stealth_TrailAhead(m);
+        if(vlen(ahead - m.stl_lost_at) > 32)
+        {
+            VR_Stealth_TrailTo(m, 2, ahead);
+            return;
+        }
+    }
+    VR_Stealth_TrailTo(m, 3, VEC_ORIGIN);
+};
 
 float(float xVis) VR_Stealth_LoseNow =
 {
     if(self.enemy.classname != "player" || !cvar_hget(cvarh_vr_stealth_lose) || !VR_Stealth_Applies(self))
     {
+        if(self.stl_trail)
+        {
+            VR_Stealth_TrailOff(self);
+        }
         return FALSE;
     }
     if(xVis || !self.stl_lost_time)
     {
+        // (his way: how he moved between its sightings, a tenth of a second apart, smoothed over about half a second;
+        // a VR player's walk in his room moves him with no velocity)
+        float dt = time - self.stl_lost_time;
+        if(self.stl_lost_time && dt > 0.01 && dt < 0.5)
+        {
+            self.stl_lost_vel = self.stl_lost_vel * 0.6 + (self.enemy.origin - self.stl_lost_org) * (0.4 / dt);
+        }
+        else
+        {
+            self.stl_lost_vel = '0 0 0';
+        }
+        self.stl_lost_org = self.enemy.origin;
         self.stl_lost_time = time;
         self.stl_lost_at = self.enemy.origin;
         self.stl_lost_via = 0;
@@ -1081,15 +1185,43 @@ float(float xVis) VR_Stealth_LoseNow =
             self.stl_lost_at = VR_AI_Origin(self.enemy);
             self.stl_lost_via = VR_Stealth_Via(self.vr_ai_gate);
         }
+        if(self.stl_trail)
+        {
+            VR_Stealth_TrailOff(self);
+        }
         return FALSE;
     }
-    if(time - self.stl_lost_time < STL_LOSE_TIME)
+    float give = cvar_hget(cvarh_vr_stealth_lose_time);
+    float far = cvar_hget(cvarh_vr_stealth_lose_far);
+    if(far > 0 && vlen(self.enemy.origin - self.origin) > far)
     {
+        give = give * 0.25;
+    }
+    if(time - self.stl_lost_time < give)
+    {
+        VR_Stealth_Trail(self);
         return FALSE;
     }
-    VR_Stealth_Log(self, "lost him");
+    // (where his trail ended: the spot it was going to, or here once it went on at him)
+    vector at = self.stl_lost_at;
+    float via = self.stl_lost_via;
+    if(self.stl_trail >= 3)
+    {
+        at = self.origin;
+        via = 0;
+    }
+    else if(self.stl_trail == 2)
+    {
+        at = self.stl_marker.origin;
+        via = 0;
+    }
+    if(cvar_hget(cvarh_vr_stealth_debug))
+    {
+        VR_Stealth_Log(self, sprintf("lost him (%.1f s unseen, trail %g)", time - self.stl_lost_time, self.stl_trail));
+    }
+    self.stl_trail = 0;
     self.enemy = self.oldenemy = self.goalentity = self.movetarget = world;
-    VR_Stealth_AlertVia(self, self.stl_lost_at, self.stl_lost_via, STL_A_LOST, 3, FALSE);
+    VR_Stealth_AlertVia(self, at, via, STL_A_LOST, 3, FALSE);
     return TRUE;
 };
 

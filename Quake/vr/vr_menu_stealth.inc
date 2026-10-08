@@ -87,7 +87,17 @@
             .help("Its meter's speed for a while after a search that found nothing."),
         slider("Wary For", vr_stealth_sensitive_time, 0.f, 120.f, 5.f, "%.0f s"),
         toggle("Lose You", vr_stealth_lose)
-            .help("A monster that lost sight of you goes to where it saw you last and searches there, then gives up."),
+            .help("A monster hunting you that lost sight of you hunts on for a while, then gives up: it searches where "
+                  "your trail ended and goes back (Alert). Off: it hunts you for ever (Quake's)."),
+        slider("Gives Up After", vr_stealth_lose_time, 2.f, 120.f, 1.f, "%.0f s").extend(0.5f, 600.f)
+            .help("How long without seeing you before it gives up."),
+        slider("Sooner Beyond", vr_stealth_lose_far, 0.f, 6000.f, 250.f, "%.0f units")
+            .help("With you farther than this it gives up after a quarter of that time. 0: never sooner."),
+        toggle("Follows Your Trail", vr_stealth_chase_trail)
+            .help("Out of sight, it goes to where it saw you last (round the corner you went round), then on the way you "
+                  "were going, then heads for you. Off: straight at you, as Quake's monsters (they know where you are)."),
+        slider("Guesses Ahead", vr_stealth_chase_predict, 0.f, 5.f, 0.25f, "%.2f s")
+            .help("How far along your way it guesses you went: this many seconds of your speed when it last saw you."),
         header("Spreading the Alarm"),
         slider("Near Monsters Join", vr_stealth_share_near, 0.f, 1000.f, 16.f, "%.0f units")
             .help("A monster this near another that turns Alert or attacks (in line, not through a wall) does too. 0: off."),

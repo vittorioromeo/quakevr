@@ -396,11 +396,15 @@ void() VR_Stealth_TestFrame =
         }
         return;
     }
-    // 13: Hostile, then he hides (behind a wall) for 7 s: it gives up the hunt, Alert, to where it saw him last.
+    // 13: Hostile, then he hides (behind a wall) for 7 s: it gives up the hunt, Alert, to where it saw him last (the
+    // hunt as it was: 6 s, no trail: vr_stealth_lose_time 6, vr_stealth_chase_trail 0; test 122 has the trail).
     if(stt_step == 13)
     {
         if(stt_stage == 0)
         {
+            cvar_set("vr_stealth_lose_time", "6");
+            cvar_set("vr_stealth_lose_far", "0");
+            cvar_set("vr_stealth_chase_trail", "0");
             VR_STT_Reset(FALSE);
             self = m;
             self.enemy = p;
@@ -431,6 +435,9 @@ void() VR_Stealth_TestFrame =
         {
             VR_STT_Report("lose_him", m.enemy == world && m.stl_state == STL_ALERT && vlen(m.stl_point - stt_phome) < 80,
                 sprintf("enemy %s, state %g, looking %.0f from where it saw him last", m.enemy.classname, m.stl_state, vlen(m.stl_point - stt_phome)));
+            cvar_set("vr_stealth_lose_time", "20");
+            cvar_set("vr_stealth_lose_far", "1500");
+            cvar_set("vr_stealth_chase_trail", "1");
             VR_STT_Next(14);
         }
         return;

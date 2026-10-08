@@ -6,9 +6,42 @@
 //       with vr_stealth_seethrough 0, opaque again;
 //       then the wall opaque but its textures taken for fences ('{' ones: vr_stealth_test_fence, the maps the kit has
 //       have no solid fence): seen and heard through; the textures not fences: neither;
+//   122 the hunt: a grunt Hostile at him sees him dart sideways, then loses him (he is put out of sight under the floor):
+//       it follows his trail (to where it saw him last, then ahead along his way), gives up after vr_stealth_lose_time
+//       (8 s here) and searches (Alert); then with him far (vr_stealth_lose_far 600) it gives up after a quarter of it;
 
 float stt4_alpha;     // the see-through wall's alpha this stage
 entity stt4_wall;
+float stt4_trail;     // the hunt: the furthest step of the trail it took
+float stt4_near;      // how near it came to where it saw him last
+float stt4_hid;       // when he was put out of sight
+vector stt4_ahead;    // where its trail's second step went
+vector stt4_side;     // the way he darts
+
+// Him out of sight of everything: under the floor (the first solid point from 256 units down, at least `xMin` from where
+// he stood), noclip; '0 0 0' if none.
+vector(entity p, float xMin) VR_STT4_Hide =
+{
+    for(float down = max(256, xMin); down <= 4096; down = down + 64)
+    {
+        vector at = p.origin - '0 0 1' * down;
+        if(pointcontents(at) == CONTENT_SOLID && pointcontents(at + p.view_ofs) == CONTENT_SOLID)
+        {
+            p.movetype = MOVETYPE_NOCLIP;
+            p.velocity = '0 0 0';
+            setorigin(p, at);
+            return at;
+        }
+    }
+    return '0 0 0';
+};
+
+void(entity p) VR_STT4_Unhide =
+{
+    p.movetype = MOVETYPE_WALK;
+    p.velocity = '0 0 0';
+    setorigin(p, stt2_phome);
+};
 
 // The way along +x or -x from `org` with room for `xDist` units (the first clear one); '0 0 0' none.
 vector(vector org, float xDist) VR_STT4_ClearAxis =
@@ -35,6 +68,14 @@ void() VR_STT4_End =
     }
     cvar_set("vr_stealth_seethrough", "1");
     cvar_set("vr_stealth_test_fence", "");
+    cvar_set("vr_stealth_lose_time", "20");
+    cvar_set("vr_stealth_lose_far", "1500");
+    cvar_set("vr_stealth_chase_trail", "1");
+    cvar_set("vr_stealth_chase_predict", "1.5");
+    if(stt2_p.movetype == MOVETYPE_NOCLIP)
+    {
+        VR_STT4_Unhide(stt2_p);
+    }
     VR_STT2_RemoveAll();
     VR_STT2_End();
 };
@@ -117,6 +158,149 @@ void() VR_STT4_Frame =
             return;
         }
         bprint("stealthtest: seethrough done\n");
+        VR_STT4_End();
+        return;
+    }
+
+    // 122: the hunt.
+    if(stt2_step == 122)
+    {
+        if(stt2_stage == 0)
+        {
+            stt2_dir = VR_STT4_ClearAxis(p.origin, 320);
+            if(stt2_dir == '0 0 0')
+            {
+                VR_STT2_Report("hunt", FALSE, "no room");
+                VR_STT4_End();
+                return;
+            }
+            cvar_set("vr_stealth_share_near", "0");
+            cvar_set("vr_stealth_share_view", "0");
+            cvar_set("vr_stealth_light_force", "128");
+            cvar_set("vr_stealth_lose_time", "8");
+            cvar_set("vr_stealth_lose_far", "0");
+            cvar_set("vr_stealth_chase_trail", "1");
+            cvar_set("vr_stealth_chase_predict", "1.5");
+            stt2_m1 = VR_STT2_Spawn(p.origin + stt2_dir * 300 + '0 0 8', vectoyaw(-stt2_dir), 0);
+            // (he darts a way with room for his box: to a side, back, or on)
+            vector side = '-1 0 0' * stt2_dir_y + '0 1 0' * stt2_dir_x;
+            stt4_side = '0 0 0';
+            for(float k = 0; k < 4 && stt4_side == '0 0 0'; k++)
+            {
+                vector w = k == 0 ? side : (k == 1 ? -side : (k == 2 ? -stt2_dir : stt2_dir));
+                tracebox(p.origin, '-16 -16 -16', '16 16 32', p.origin + w * 200, TRUE, p);
+                if(trace_fraction >= 1)
+                {
+                    stt4_side = w;
+                }
+            }
+            if(stt4_side == '0 0 0')
+            {
+                VR_STT2_Report("hunt", FALSE, "no room to dart");
+                VR_STT4_End();
+                return;
+            }
+            VR_STT2_Stage(1);
+            return;
+        }
+        // 1: spotted, he darts sideways (1.0-1.4 s), out of sight at once
+        if(stt2_stage == 1)
+        {
+            if(t < 0.1)
+            {
+                VR_STT2_Calm(m, m.angles_y);
+                VR_Stealth_Spot(m, p);
+                return;
+            }
+            if(t < 1.4)
+            {
+                if(t >= 1)
+                {
+                    p.velocity = stt4_side * 300;
+                }
+                return;
+            }
+            // (out of sight while still darting: round a corner at a run)
+            stt2_at = p.origin;
+            if(m.enemy != p || VR_STT4_Hide(p, 256) == '0 0 0')
+            {
+                VR_STT2_Report("hunt", FALSE, sprintf("not hunting him (enemy %s) or no place out of sight", m.enemy.classname));
+                VR_STT4_End();
+                return;
+            }
+            stt4_hid = time;
+            stt4_trail = 0;
+            stt4_near = 99999;
+            stt4_ahead = '0 0 0';
+            VR_STT2_Stage(2);
+            return;
+        }
+        // 2: hunting him out of sight; it gives up at 8 s
+        if(stt2_stage == 2)
+        {
+            if(m.enemy == p)
+            {
+                if(m.stl_trail > stt4_trail)
+                {
+                    stt4_trail = m.stl_trail;
+                    if(stt4_trail == 2)
+                    {
+                        stt4_ahead = m.stl_marker.origin;
+                    }
+                }
+                stt4_near = min(stt4_near, vlen((m.origin - m.stl_lost_at) - '0 0 1' * (m.origin_z - m.stl_lost_at_z)));
+                if(t < 20)
+                {
+                    return;
+                }
+            }
+            float gave = time - m.stl_lost_time;
+            float aheadWay = (stt4_ahead - m.stl_lost_at) * stt4_side;
+            VR_STT2_Report("hunt_trail", stt4_near < 64 && stt4_trail >= 2 && aheadWay > 150,
+                sprintf("came within %.0f of where it saw him last; trail step %g; its guess %.0f units on along his way",
+                    stt4_near, stt4_trail, aheadWay));
+            VR_STT2_Report("hunt_gives_up", m.enemy == world && gave > 7.6 && gave < 8.6 && m.stl_state == STL_ALERT,
+                sprintf("gave up %.2f s after it last saw him (8), state %g", gave, m.stl_state));
+            VR_STT4_Unhide(p);
+            cvar_set("vr_stealth_lose_far", "600");
+            VR_STT2_Stage(3);
+            return;
+        }
+        // 3: again, but he goes far (over 600 units): it gives up after a quarter of the time
+        if(stt2_stage == 3)
+        {
+            if(t < 0.1)
+            {
+                VR_STT2_Calm(m, m.angles_y);
+                VR_Stealth_Spot(m, p);
+                return;
+            }
+            if(t < 1)
+            {
+                return;
+            }
+            if(m.enemy != p || VR_STT4_Hide(p, 900) == '0 0 0')
+            {
+                VR_STT2_Report("hunt_far", FALSE, "not hunting him or no place far out of sight");
+                VR_STT4_End();
+                return;
+            }
+            VR_STT2_Stage(4);
+            return;
+        }
+        if(stt2_stage == 4)
+        {
+            if(m.enemy == p && t < 10)
+            {
+                return;
+            }
+            float gave2 = time - m.stl_lost_time;
+            VR_STT2_Report("hunt_far", m.enemy == world && gave2 > 1.6 && gave2 < 2.6,
+                sprintf("him %.0f units off: gave up %.2f s after it last saw him (2)", vlen(p.origin - m.origin), gave2));
+            bprint("stealthtest: hunt done\n");
+            VR_STT4_End();
+            return;
+        }
         VR_STT4_End();
         return;
     }

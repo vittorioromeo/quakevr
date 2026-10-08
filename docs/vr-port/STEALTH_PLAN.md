@@ -192,8 +192,15 @@ are in the shared ai.qc (`vr_stealth_test 106` puts down every kind the kit has:
   rules leave alone) and its meter as a 20-cell bar (green idle, yellow Alert, red Hostile). Engine-drawn
   (`stealth::debugFrame`, the server's fields read on the host): a coop client doesn't see them.
 - **Marks** (`vr_stealth_marks 0`): a "?" over a monster going Alert, "!" going Hostile (`floattext`).
-- **Lose the player** (`vr_stealth_lose 1`): a Hostile monster that hasn't seen him for 6 s goes to where it last saw
-  him and searches there (Alert), then returns.
+- **Lose the player** (`vr_stealth_lose 1`): the hunt. A Hostile monster that doesn't see him follows his trail
+  (`vr_stealth_chase_trail 1`): first to where it saw him last (round the corner he went round: from there it often
+  sees him again), then on along the way he was going (his moves between its last sightings, smoothed: a VR player's
+  room-scale walk has no velocity; times `vr_stealth_chase_predict` 1.5 s, cut short by a wall), then straight at him
+  (Quake's chase: it knows where he is). Each step ends there (within 48 units) or after a second plus one per 60 units
+  of it. It gives up after `vr_stealth_lose_time` (20 s) unseen, or a quarter of that (5 s) with him farther than
+  `vr_stealth_lose_far` (1500 units; 0 never sooner): Alert, it searches where his trail ended (the spot it was going
+  to; where it stands once it went on at him), then goes back. Off (`vr_stealth_chase_trail 0`): Quake's chase until
+  it gives up, then to where it saw him last. Seen again at any time: the trail is forgotten, the hunt goes on.
 
 ## Slipgates (`vr_stealth_gates 1`; seamless slipgates, PORTAL_AI.md)
 
@@ -236,7 +243,8 @@ entity world owns (every brush entity and prop: a door between, a crate in the w
 `vr_stealth_noise_absorb 0.6`, `vr_stealth_gates 1`, `vr_stealth_seethrough 1`, `vr_stealth_investigate 1`, `vr_stealth_turn 0.6`, `vr_stealth_search_time 5`,
 `vr_stealth_sensitive 1.5`, `vr_stealth_sensitive_time 30`, `vr_stealth_share_near 256`, `vr_stealth_share_view 1000`,
 `vr_stealth_graze 64`, `vr_stealth_flashlight 1`, `vr_stealth_torch 400`, `vr_stealth_corpses 600`,
-`vr_stealth_sneak 1.25`, `vr_stealth_ambush_deaf 1`, `vr_stealth_senses 1`, `vr_stealth_lose 1`, `vr_stealth_gem 1`,
+`vr_stealth_sneak 1.25`, `vr_stealth_ambush_deaf 1`, `vr_stealth_senses 1`, `vr_stealth_lose 1`,
+`vr_stealth_lose_time 20`, `vr_stealth_lose_far 1500`, `vr_stealth_chase_trail 1`, `vr_stealth_chase_predict 1.5`, `vr_stealth_gem 1`,
 `vr_stealth_marks 0`, `vr_stealth_debug 0` (1: state changes, 2: each meter step and noise heard).
 
 ## Status (2026-10-08)
@@ -245,7 +253,6 @@ All phases below are in (the tests: ROUND21.md, "Stealth AI" and "Stealth AI: th
 - The meter is one per monster, on the most suspicious player in its sight (not a meter per player: the dark player's
   own suspicion isn't kept while the lit one holds it).
 - A client's light and lamp are his own client's word (sent in his VR move): a modified client could send "dark".
-- Lose the player: after a fixed 6 s out of sight (STL_LOSE_TIME), no cvar for the time.
 - Alert monsters walk with Quake's movetogoal (no path finding): a point across a gap or up a ledge ends their walk when
   stuck (3 s without headway), then they search where they are.
 - Quake's own relay stays: an idle monster that sees another turn Hostile (FoundTarget's `sight_entity`, a tenth of a
@@ -301,3 +308,7 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   e1m1 door model put between: opaque, it neither sees him nor hears a knock where he stands (1.15 times its distance);
   alpha 0.5: both; `vr_stealth_seethrough 0`: neither; opaque but its textures taken for fences
   (`vr_stealth_test_fence`: the kit's maps have no solid `{` brush): both; not: neither.
+- 122 the hunt (`stealth_tests.sh hunt`): a grunt Hostile at him sees him dart off at 300 u/s and loses him at once (he
+  is put under the floor, out of everyone's sight), `vr_stealth_lose_time 8`: it comes to his last spot, guesses on
+  along his way, gives up 8 s after it last saw him, Alert; then with him 885 units off and `vr_stealth_lose_far 600`,
+  after 2 s. Scene 13 of `vr_stealth_test 1` keeps the old rule's check (6 s, no trail: to where it saw him last).
