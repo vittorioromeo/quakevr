@@ -32226,3 +32226,17 @@ loading player's client only, and a loose round loading by contact has no player
   dropped onto the lying shotgun, the pair into the open super shotgun, a grenade into the lying launcher (each slides
   from its port to the end of the path, 33 frames drawn), the nailgun's magazine seats with no slide, a loose shell
   into the held shotgun slides as before.
+
+## Guns lying about taken by the handle; the super shotgun with pouch shells in hand (2026-10-08)
+
+**Taken by the handle.** The author: "very hard to grab guns by the main handle while they're in prop form ... without
+force grabbing". Headless (a shotgun let go of, the off hand stepped down over its handle a unit at a time): the closing
+hand nudged the gun, a Box3D prop, awake from then on, so not FL_ONGROUND, so not "lying" (vr_physics.cpp lyingWeapon):
+vr_weapon_grab_slack's 5 cm dropped to 0, and the fist pushed it on ahead of itself (the gap held at 2.6-4.9 cm, never
+taken; pushed further, 40 units across the floor). Now a weapon barely moving (under 100 units/s) with the floor under
+its handle lies too, and **vr_weapon_grab_handle_leniency** (5 cm; Hands > Handle Grab Leniency) adds to the slack when
+the hand's point is within vr_weapon_grab_anywhere_min (12 cm) of the handle (its origin): taken by the handle with the
+fist up to 10 cm off it. In the air nothing changes (no floor under it, or flying faster: the catch is by the fist on
+it, slack 0), nor a force grab (its catch runs the weapon's handtouch itself, VR_Forcegrab_Catch, not handOn).
+weapon_catch_test.sh checks 4-5: taken at 7.7 cm (allowed 10), and with the leniency 0 the slack's 5 alone, not taken
+from 10 cm over it. Check 3 (the crowbar, gripped at its middle, its handle) now sets the leniency 0 to test the slack.

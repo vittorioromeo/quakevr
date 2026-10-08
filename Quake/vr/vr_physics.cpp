@@ -155,9 +155,12 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
 }
 
 // A weapon at rest on something (on the floor, a crate, stuck in a wall), not in the air: resting (FL_ONGROUND, or not
-// moving at all) with something solid under its handle within lyingFloorReach units (a test's weapon left floating with
-// no gravity rests, in the air).
+// moving at all) or barely moving (lyingSpeed: a gun lying as a Box3D prop is awake, not FL_ONGROUND, while the closing
+// hand nudges it, and slid off the fist that would take it: the author's note of 2026-10-08, "very hard to grab guns by
+// the main handle while they're in prop form"), with something solid under its handle within lyingFloorReach units (a
+// test's weapon left floating with no gravity rests, in the air).
 constexpr float lyingFloorReach = 8.f;
+constexpr float lyingSpeed = 100.f; // units/s (a thrown or dropped weapon in flight is far faster)
 
 [[nodiscard]] bool lyingWeapon(edict_t* target)
 {
@@ -165,7 +168,7 @@ constexpr float lyingFloorReach = 8.f;
     {
         return true;
     }
-    if(!hasFlag(target, FL_ONGROUND))
+    if(!hasFlag(target, FL_ONGROUND) && glm::length(vec(target->v.velocity)) > lyingSpeed)
     {
         return false;
     }
@@ -206,8 +209,24 @@ constexpr float weaponDrawnReach = 48.f;
     {
         // (With vr_weapon_grab_slack more if it lies on the floor or is stuck: a gun lying flat is thinner than the lowest
         // the fist gets over the floor. Not one in the air: a catch is by the closed fist on it, as a prop's.)
+        // A hand at its handle (its origin; nearer than vr_weapon_grab_anywhere_min, where it is held by the handle and
+        // not anywhere) with vr_weapon_grab_handle_leniency more: a gun is taken by its grip from as far off it as the
+        // grip is from the fist's lowest over the floor. Not in the air: a force grab's catch takes it by its own
+        // handtouch, and a weapon flying at the hand is caught by the fist on it.
         const int h = which == HAND_OFF ? 0 : 1;
-        const float slack = lyingWeapon(target) ? za::max(vr_weapon_grab_slack.value, 0.f) * 0.01f * units::metresToUnits() : 0.f;
+        const float m2u = units::metresToUnits();
+        float slack = 0.f;
+        if(lyingWeapon(target))
+        {
+            slack = za::max(vr_weapon_grab_slack.value, 0.f) * 0.01f * m2u;
+            const float leniency = za::max(vr_weapon_grab_handle_leniency.value, 0.f) * 0.01f * m2u;
+            const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
+            if(leniency > 0.f &&
+                glm::distance(hand, vec(target->v.origin)) <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u)
+            {
+                slack += leniency;
+            }
+        }
         if(held::grabTouch(target, player, h, slack))
         {
             return true;
