@@ -473,6 +473,8 @@ If an entities model or origin changes from frame to frame, it must be
 relinked.  Other attributes can change without relinking.
 ==================
 */
+unsigned int cl_entityupdates; // QVR (client.h)
+
 void CL_ParseUpdate (int bits)
 {
 	int		i;
@@ -483,6 +485,8 @@ void CL_ParseUpdate (int bits)
 	int		num;
 	int		skin;
 	int		prevframe;
+
+	cl_entityupdates++; // QVR: an entity may have become a brush entity the client has (worldtrace::world)
 
 	if (cls.signon == SIGNONS - 1)
 	{	// first update is the final signon stage
