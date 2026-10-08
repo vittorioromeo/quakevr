@@ -130,6 +130,8 @@ monsters and torches ahead of the player.
 | `particles_dense` | vfx/core | vrfiringrange | 80 particles of smoke, blood or big smoke every 4 frames plus small blasts: particle fill rate, the retro particle path. |
 | `explosions_3s` | vfx | vrfiringrange | vr_explosion_debris_test every 24 frames: explosion sprites, debris chunks and their lights. |
 | `explosions_storm` | vfx/physics | vrfiringrange | vr_explosion_debris_test every 4 frames: the debris pool full, many short lights. |
+| `explosions_storm_bullettime` | vfx/features | vrfiringrange | explosions_storm with bullet time running all through: its look, the slowed debris (and the distortion trails with no projectiles). |
+| `bullettime_trails_64` | vfx/features | vrfiringrange | vr_bullettime_trails_test 8 shots across the view every 10 frames in bullet time: the distortion trails' pool (64) full, the scene's copy and the bend (vr_bttrails.cpp). |
 | `decals_1024_stream` | vfx/core | vrfiringrange | 1400 pellets fill the 1024-mark pool, then a shot every 4 frames: decal insertion, the world decal grid. |
 | `decals_blood_4096` | vfx | vrfiringrange | vr_decal_stress fills a 4096-mark pool with large blood marks, then adds one every 4 frames. |
 | `torches_32` | vfx/lights | vrfiringrange | 32 more wall torches (35 emitters): fire particles, their lights. |

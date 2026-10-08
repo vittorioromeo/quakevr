@@ -31681,3 +31681,43 @@ contact with the wrist); the side button should be a light switch for stealth in
 - To try in VR: is a deliberate tap easy (Tap Force 1.2 m/s, Straightness 40 degrees), and do melee swings, blocks and
   two-handed holds never start it? Is the button easy to find and press without the screen tap pressing it? Is the dim
   right (Lights When Dimmed 0.05, Screens When Dimmed 0.35)?
+
+## Bullet time's distortion trails (2026-10-08)
+
+Vittorio (vrfiringrange_2026-10-08_14-24-40): in bullet time, F.E.A.R.'s distorted trails behind bullets, nails and
+other projectiles, a refraction ribbon fading along its length; on by default, tweakable, in stereo, cheap.
+
+- `vr_bttrails.cpp`: a trail is the places its projectile passed and when (real time, the trails' own clock from
+  `VR_AdvanceTime`). Entities: `VR_DistortionTrail` from `CL_RelinkEntities` (after `VR_ProjectileLight`), by model:
+  nails (`progs/spike.mdl`, `s_spike.mdl`, new modelmeta ids `Spike`, `SSpike`; `lspike`, `lasrspik`), rockets
+  (`EF_ROCKET`; Chthon's lava balls too), grenades (`EF_GRENADE` and Quake's grenade models, not a hand grenade with its
+  pin in: `VR_GrenadeTrail`), monsters' (`EF_TRACER*`, `EF_ZOMGIB`, `laser.mdl`). A trail starts only for one flying
+  at 200 units/s or more of the game's time (its last two messages), ends when it is not relinked, and a new one
+  starts after a jump of over 256 units (a slipgate) or a new model. Hitscan: `vr_weaponfx.cpp parseTracer` hands each
+  pellet over before the tracers' chance (tracer drawn or not), its head flying from the muzzle (a grunt's from his
+  gun's) at the tracers' speed in `cl.time`, as the tracer does. A grunt's or enforcer's bullet is a monster's.
+- Drawing: after the heat haze (`VR_DrawHeatHaze` calls it; the haze's scene copy is now `haze::copyScene`, shared).
+  The ribbons are made once a frame (on the first eye, facing it; the spectator camera makes its own): pieces of at
+  most 24 units, cut at the trail's life and length, narrow at the projectile and widening over 28 units, wider with
+  age; faded in over 10 units behind the projectile, out with age, out within 40 units of the eye (a shot of yours
+  starts there) and where it is seen end on. The fragment shader bends what is behind as a rippling glass rod: a shift
+  in the world across the ribbon (drawn in to its core, plus ripples anchored to the trail's odometer), projected in
+  each eye, so both eyes see the same bend; not from what is in front of it (the scene's distances); blended in at its
+  edges. Depth tested, no depth write; drawn before the tracers, so the tracer stays sharp. None in views through a
+  slipgate (`portals::viewing`). Foveation shades it as the scene.
+- Only in bullet time, easing in over 0.15 s and out over `vr_bullettime_trails_fade` (0.6 s) after it ends; trails
+  already there keep following their projectiles while it fades. Not with the recording's slow motion.
+- Cvars (Combat > Bullet Time > Distortion Trails): `vr_bullettime_trails` 1 (0 off, 2 always),
+  `_strength` 1.25, `_life` 0.7 s, `_length` 4 m, `_width` 20 cm (rockets and grenades x2, monsters' x1.5), `_fade`
+  0.6 s, `_hitscan`, `_nails`, `_explosives`, `_enemy` 1. Debug: Distortion Trails Test (`vr_bullettime_trails_test
+  [count] [m/s] [distance]`: shots across the view), Distortion Trails (`vr_bullettime_trails_list`).
+- Verified (mock, 1024 eyes, paused for same-frame A/B with `_strength 0`): test shots change 1.54% of the left eye's
+  pixels and 1.56% of the right's; real missiles (`vr_physics_fire` nails, rockets, a laser, a grenade) 1.55% / 1.59%;
+  the diffs sit on the same trails in both eyes. Fades out 0.77 -> 0.06 -> 0 (trails gone) over 40 frames after bullet
+  time ends; `vr_bullettime_trails 0` clears them.
+- Cost (2048 eyes, 90 Hz paced, exclusive, `vr_profile`; the trails run inside the "heat haze" pass):
+  `bullettime_trails_64` (new scenario: the pool of 64 full, across the view) 0.024 ms GPU avg (0.16 max), 0.010 ms
+  CPU; `combat_48_bullettime` 0.121 ms GPU with trails vs 0.041 without (the ogres' explosions' haze), so +0.08 ms
+  (max 0.23 vs 0.12), CPU +0.004 ms; `explosions_storm_bullettime` (new: no projectiles) nothing. Off: the pass does
+  not run. (`bench.sh compare` of the same runs moved unrelated passes 10-28% between the two labels: run-to-run GPU
+  state, not the trails.)

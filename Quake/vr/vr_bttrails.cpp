@@ -51,6 +51,7 @@ constexpr float kMinSpeed = 200.f;   // units a second of the game's time: slowe
 constexpr float kJump = 256.f;       // a projectile further than this from its last place went through a slipgate: a new trail
 constexpr float kHeadRamp = 10.f;    // units behind the projectile the bend fades in over
 constexpr float kWiden = 28.f;       // ... and the trail widens over to its full width
+constexpr float kNearFade = 40.f;    // units from the eye a trail fades out within (from a quarter of it)
 constexpr float kEaseIn = 0.15f;     // real seconds they take to come in as bullet time starts
 constexpr int kMargin = 32;          // pixels round the trails copied too (the most they bend)
 
@@ -436,13 +437,19 @@ void build(const glm::vec3& facing)
         {
             const Sample& s = path[i];
             const glm::vec3 tangent = path[i > 0 ? i - 1 : 0].pos - path[i + 1 < n ? i + 1 : n - 1].pos;
-            glm::vec3 side = glm::cross(tangent, facing - s.pos);
+            const glm::vec3 toEye = facing - s.pos;
+            glm::vec3 side = glm::cross(tangent, toEye);
             const float l = glm::length(side);
             side = l > 1e-5f ? side / l : lastSide;
             lastSide = side;
+            // None near the eye (a shot of yours starts there: its ribbon would fill the view), nor seen end on (the
+            // ribbon edge on, its width all along the view).
+            const float eyeDistance = glm::length(toEye);
+            const float sine = l / za::max(glm::length(tangent) * eyeDistance, 1e-5f);
+            const float view = glm::smoothstep(kNearFade * 0.25f, kNearFade, eyeDistance) * glm::smoothstep(0.1f, 0.35f, sine);
             const float ageShare = za::clamp(s.age / life, 0.f, 1.f);
             const float head = glm::smoothstep(0.f, kHeadRamp, s.along);
-            const float fade = (i + 1 == n) ? 0.f : ease * head * za::pow(1.f - ageShare, 1.3f);
+            const float fade = (i + 1 == n) ? 0.f : ease * head * view * za::pow(1.f - ageShare, 1.3f);
             const float hw = halfWidth * (0.35f + 0.65f * glm::smoothstep(0.f, kWiden, s.along)) * (1.f + 0.6f * ageShare);
             const glm::vec4 sideW{side, hw}, data{fade, s.odometer, t.seed, 0.f};
             const Vertex a{glm::vec4(s.pos - side * hw, -1.f), sideW, data};
