@@ -176,7 +176,8 @@ check $(echo "$log" | grep -q "the super shotgun is shut: break it open first" &
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$EASY;$FIRE;$TO2H;$GRIP;$GENTLE wait10;$TURN wait10;$REP;$DOWN wait10;$REP;wait20;$UP wait40;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "ssg: both hands on it" && [ "$(opens "$log")" = 010 ] && echo "$log" | grep -q "broken open by the pry: 2 spent" && echo "$log" | grep -q "closed by the barrels lifted" && echo 1 || echo 0) "both hands on it: gentle moves and turns keep it shut, the pry opens it, the barrels lifted shut it ($(opens "$log"))"
 JOLT="$TO2H;$GRIP;$DOWN wait10;vr_mock_hand_to main by 0 0 36;wait3;vr_mock_hand_to main by 0 0 -36;wait40"
-log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$EASY;$FIRE;$BY;$REP;$JOLT;$REP;$LETGO;$REST;wait20;$TO2H;$GRIP;vr_reload_debug 2;wait2;vr_reload_debug 1;toggleconsole;quit" -Filter "$F7" 2>&1)
+# (Lift Hold 0.2 set: the shipped 0 since 2026-10-08, the author's, shuts it on a jolt too.)
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$EASY;vr_reload_ssg_lift_hold 0.2;$FIRE;$BY;$REP;$JOLT;$REP;$LETGO;$REST;wait20;$TO2H;$GRIP;vr_reload_debug 2;wait2;vr_reload_debug 1;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "broken open by the button" && [ "$(opens "$log")" = 11 ] && echo 1 || echo 0) "B/Y breaks it open; a jolt up and down again (under Lift Hold) doesn't shut it ($(opens "$log"))"
 check $(echo "$log" | grep "ssg: the hand on the open barrels turned" | head -1 | grep -q "turned 45.0 deg" && echo 1 || echo 0) "the hand on the open barrels turns down with them (45 deg)"
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$HITDOWN;$REP;$HITUP;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)

@@ -509,10 +509,10 @@ QVR_CVAR(vr_gun_z_offset, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_mode, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_hud_mode, "1", CVAR_ARCHIVE)              // 0 the status bar on a hand (vr_sbar_mode), 1 the wrist gadget
 QVR_CVAR(vr_death_view, "2", CVAR_ARCHIVE)           // dying (not gibbed), your body a ragdoll (vr_deathview.cpp, QC vr_deathdoll.qc): 0 off (as before: no body), 1 third person (the view stays where your eyes were, the body there to look at), 2 immersive (the view in the body's head)
-QVR_CVAR(vr_death_view_turn, "1", CVAR_ARCHIVE)      // immersive death view: the view turns with the body's head (its yaw only, smoothed; never pitch or roll); 0 only its place follows
-QVR_CVAR(vr_death_view_turn_speed, "60", CVAR_ARCHIVE) // ... at most this fast (degrees a second)
-QVR_CVAR(vr_death_view_smooth, "0.15", CVAR_ARCHIVE) // immersive death view: seconds the view takes to follow the head (smoothed; 0 at once)
-QVR_CVAR(vr_death_view_fade, "0.5", CVAR_ARCHIVE)    // immersive death view: the view fades in from black over this long as it goes into the head and back on respawning (0 none)
+QVR_CVAR(vr_death_view_turn, "0", CVAR_ARCHIVE)      // immersive death view: the view turns with the body's head (its yaw only, smoothed; never pitch or roll); 0 only its place follows
+QVR_CVAR(vr_death_view_turn_speed, "30", CVAR_ARCHIVE) // ... at most this fast (degrees a second)
+QVR_CVAR(vr_death_view_smooth, "0.25", CVAR_ARCHIVE) // immersive death view: seconds the view takes to follow the head (smoothed; 0 at once)
+QVR_CVAR(vr_death_view_fade, "0.2", CVAR_ARCHIVE)    // immersive death view: the view fades in from black over this long as it goes into the head and back on respawning (0 none)
 QVR_CVAR(vr_death_view_menu_time, "0.3", CVAR_ARCHIVE) // immersive death view: seconds the view takes out to Third Person's place as a menu or the console opens, and back into the head as it closes (eased; 0 at once)
 QVR_CVAR(vr_death_ragdoll_push, "1", CVAR_ARCHIVE)   // your ragdoll body takes the killing blow's push times this (1 as Quake throws the player, 0 none: only the motion you had), at most 400 units/s (QC vr_deathdoll.qc)
 QVR_CVAR(vr_dead_hide_gear, "1", CVAR_ARCHIVE)        // dead: the holstered guns, the ammo pouch, the grenade pouch and the wrist gadget hidden (the flashlight always is), the HUD the status bar on a hand (as vr_hud_mode 0), till you respawn or load a save (body::gearHiddenForDeath)
@@ -1173,7 +1173,7 @@ QVR_CVAR(vr_shells_sound, "1", CVAR_ARCHIVE)          // volume of their tink as
 // along its guide rods and forward again, and the spent shell leaves as it reaches the back.
 QVR_CVAR(vr_autopump, "1", CVAR_ARCHIVE)              // 0: the fore-end stays; the shell leaves 0.22 s after the shot, as before
 QVR_CVAR(vr_autopump_time, "0.3", CVAR_ARCHIVE)       // seconds of game time the stroke takes, back and forward (0.1-0.48: done before the shotgun can fire again)
-QVR_CVAR(vr_autopump_delay, "0.15", CVAR_ARCHIVE)     // seconds of game time from the shot to the stroke's start (0-0.38: delay and stroke done before the shotgun can fire again)
+QVR_CVAR(vr_autopump_delay, "0.25", CVAR_ARCHIVE)     // seconds of game time from the shot to the stroke's start (0-0.38: delay and stroke done before the shotgun can fire again)
 QVR_CVAR(vr_autopump_travel, "2.5", CVAR_ARCHIVE)     // how far back the fore-end goes, in the gun model's units (0-3.2; about 3.8 cm each, drawn)
 QVR_CVAR(vr_autopump_sound, "0.5", CVAR_ARCHIVE)      // volume of its two clacks, the slide going back and slamming home (0 off)
 QVR_CVAR(vr_autopump_haptics, "1", CVAR_ARCHIVE)      // strength of the light ticks in the hand at the back and home (0 off)
@@ -1748,10 +1748,10 @@ QVR_CVAR(vr_swim_shallow_speed, "0.85", CVAR_ARCHIVE) // the stick's speed with 
 QVR_CVAR(vr_swim_wade_speed, "0.6", CVAR_ARCHIVE)     // waist deep standing on the bottom,
 QVR_CVAR(vr_swim_stick_speed, "0.2", CVAR_ARCHIVE)    // and swimming (deeper, or off the bottom)
 QVR_CVAR(vr_swim_stroke_assist, "0.5", CVAR_ARCHIVE)  // strokes push this much more towards where the stick points (and as much less against it)
-QVR_CVAR(vr_water_jump, "1", CVAR_ARCHIVE)            // Quake's jump out of water: swimming against an edge with room over it lifts you out (0: climb out with the hands; only while vr_climb is on, QC client.qc)
+QVR_CVAR(vr_water_jump, "0", CVAR_ARCHIVE)            // Quake's jump out of water: swimming against an edge with room over it lifts you out (0: climb out with the hands; only while vr_climb is on, QC client.qc)
 QVR_CVAR(vr_cfg_version, "0", CVAR_ARCHIVE)           // the changed defaults this config has taken (vr_cvars.cpp)
 QVR_CVAR(vr_swim_stroke, "10", CVAR_ARCHIVE)          // how strongly a hand pushing the water moves you (per second, at a brisk stroke: slower less)
-QVR_CVAR(vr_swim_stroke_min, "0.4", CVAR_ARCHIVE)     // metres/second a hand must move to push
+QVR_CVAR(vr_swim_stroke_min, "1", CVAR_ARCHIVE)     // metres/second a hand must move to push
 QVR_CVAR(vr_swim_palm, "0.6", CVAR_ARCHIVE)           // how much it matters that the palm, not the edge, meets the water
 QVR_CVAR(vr_swim_max_speed, "400", CVAR_ARCHIVE)      // units/second strokes can reach
 QVR_CVAR(vr_swim_look, "0.6", CVAR_ARCHIVE)           // how much of a stroke's push sideways of where you look is lost (you swim where you look)
@@ -1763,12 +1763,12 @@ QVR_CVAR(vr_swim_power_whole, "1", CVAR_ARCHIVE)      // 1: a stroke passing the
 QVR_CVAR(vr_swim_intent_memory, "1.5", CVAR_ARCHIVE)  // seconds a hand remembers its last full stroke's direction (0 off)
 QVR_CVAR(vr_swim_reverse_damp, "0.85", CVAR_ARCHIVE)  // how much a weaker stroke against the remembered one is damped (0..1)
 QVR_CVAR(vr_swim_reverse_speed, "1", CVAR_ARCHIVE)    // a stroke against the remembered one counts fully from this fraction of its peak speed (1.2: 20% faster); 0.3 less: damped fully
-QVR_CVAR(vr_swim_flat_exp, "1", CVAR_ARCHIVE)         // how sharply the palm's flatness matters (1 linear, 2-3: only a really flat palm pushes fully)
+QVR_CVAR(vr_swim_flat_exp, "1.5", CVAR_ARCHIVE)         // how sharply the palm's flatness matters (1 linear, 2-3: only a really flat palm pushes fully)
 QVR_CVAR(vr_swim_speed_exp, "2", CVAR_ARCHIVE)        // push over hand speed: 1 linear, 2 as water's drag (fast strokes outweigh slow ones more), up to 3
 QVR_CVAR(vr_swim_palm_dir, "0", CVAR_ARCHIVE)         // 0: the push goes against the hand's motion; 1: along the palm's facing (sweeping palms-in pushes sideways)
 QVR_CVAR(vr_swim_against_palm, "0.25", CVAR_ARCHIVE) // how much a stroke counts with the back of the hand leading (moving away from where the palm faces; 1: as a palm stroke)
-QVR_CVAR(vr_swim_stroke_pitch, "-8", CVAR_ARCHIVE)     // degrees each stroke's push is tilted up (negative: down) in its own vertical plane, last of all (NOTES.md vrstart_2026-10-02_15-17-43)
-QVR_CVAR(vr_air_supply, "2", CVAR_ARCHIVE)        // the breath under water before drowning, times Quake's 12 seconds (1 to 4; biosuit and wetsuit as ever)
+QVR_CVAR(vr_swim_stroke_pitch, "-10", CVAR_ARCHIVE)     // degrees each stroke's push is tilted up (negative: down) in its own vertical plane, last of all (NOTES.md vrstart_2026-10-02_15-17-43)
+QVR_CVAR(vr_air_supply, "2.5", CVAR_ARCHIVE)        // the breath under water before drowning, times Quake's 12 seconds (1 to 4; biosuit and wetsuit as ever)
 QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak speed, power gate, reverse damping and the push it gave
 QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // a knight's sword: its swing's damage over the axe's
 QVR_CVAR(vr_crowbar_damage, "20", CVAR_ARCHIVE)       // the crowbar (QC vr_crowbar.qc): a blow's base damage (the axe's; a knight's sword's 30; 25 before round 21's Weapon Damage), its hook's x1.2
@@ -1855,7 +1855,7 @@ QVR_CVAR(vr_held_fit_gap, "0", CVAR_ARCHIVE)          // with it: cm between the
 QVR_CVAR(vr_carry_grab_bias, "0", CVAR_ARCHIVE)       // cm: a hand takes a box, gib, backpack or armour if its fist (the palm and the curled fingers) is within this of the thing's drawn surface (negative: pressed that far into it; vr_held.cpp grabTouch)
 QVR_CVAR(vr_carry_grab_drawn, "1", CVAR_ARCHIVE)      // 1: the explosive boxes (carried, not force-grabbable) are taken by the fist against their drawn surface too, as everything else carried (vr_carry_grab_bias; with vr_box3d_hand_push_fist, your own hands); 0: by the hand's 5-unit box against their entity box (the old: taken with the fist up to 12 cm off)
 QVR_CVAR(vr_weapon_grab_drawn, "1", CVAR_ARCHIVE)     // 1: a weapon lying about (dropped, thrown, a monster's) is taken where the fist touches its drawn shape (vr_carry_grab_bias), a crowbar by its bar, a sword by its blade, or by the box round its handle as before; 0: only by that box
-QVR_CVAR(vr_weapon_grab_slack, "5", CVAR_ARCHIVE)     // cm: with vr_weapon_grab_drawn, a weapon is taken with the fist up to this much farther off its drawn surface than vr_carry_grab_bias (a gun lying flat on the floor is thinner than the lowest the fist gets over it: 3 cm)
+QVR_CVAR(vr_weapon_grab_slack, "0", CVAR_ARCHIVE)     // cm: with vr_weapon_grab_drawn, a weapon is taken with the fist up to this much farther off its drawn surface than vr_carry_grab_bias (a gun lying flat on the floor is thinner than the lowest the fist gets over it: 3 cm)
 QVR_CVAR(vr_weapon_grab_handle_leniency, "5", CVAR_ARCHIVE) // cm: a weapon lying about (resting or barely moving, not in the air) is taken by the fist at its handle (the hand's point within vr_weapon_grab_anywhere_min of it) this much farther off it than vr_weapon_grab_slack allows; not a mid-air catch, not a force grab (its catch takes it as it arrives); 0: as anywhere else on it
 QVR_CVAR(vr_weapon_grab_box, "0", CVAR_ARCHIVE)      // 1: the old, lenient catch: a weapon is also taken (caught, picked up) when the hand's 5-unit box at its point overlaps the box round its handle, the fist up to ~20 cm off it; 0: only by the fist on it (vr_weapon_grab_drawn, vr_physics.cpp handOn)
 QVR_CVAR(vr_weapon_grab_hotspots, "1", CVAR_ARCHIVE)  // 1: an empty hand gripping a weapon lying about nearer one of its grip or blade hotspots than its handle (a chainsaw's front handle, a crowbar's bar) carries it by that hotspot, as the two-handed hand-off does, until a hand takes its handle (not a cup hotspot; a force grab always takes the handle); 0: always by its handle
@@ -2655,14 +2655,14 @@ QVR_CVAR(vr_reload_ssg_flick_rest, "180", CVAR_ARCHIVE)  // degrees a second und
 QVR_CVAR(vr_reload_ssg_pry_angle, "60", CVAR_ARCHIVE)  // degrees the front hand must go down from the back hand's aim (or the stock up), from its least since they took hold
 QVR_CVAR(vr_reload_ssg_pry_speed, "250", CVAR_ARCHIVE) // degrees a second it must be moving at (a steady two-handed aim never pries)
 QVR_CVAR(vr_reload_ssg_lift_angle, "60", CVAR_ARCHIVE) // degrees the front hand must come back up from its most (the barrels lifted shut)
-QVR_CVAR(vr_reload_ssg_lift_speed, "300", CVAR_ARCHIVE) // degrees a second it must be moving at
-QVR_CVAR(vr_reload_ssg_lift_hold, "0.2", CVAR_ARCHIVE) // seconds it must stay lifted that far (a jolt doesn't shut it)
+QVR_CVAR(vr_reload_ssg_lift_speed, "250", CVAR_ARCHIVE) // degrees a second it must be moving at
+QVR_CVAR(vr_reload_ssg_lift_hold, "0", CVAR_ARCHIVE) // seconds it must stay lifted that far (a jolt doesn't shut it)
 QVR_CVAR(vr_reload_ssg_hit_reach, "6", CVAR_ARCHIVE)   // units from the front 40% of its barrels a hit lands within (a fist, the nearest point of a held prop's box, the other gun's line)
 QVR_CVAR(vr_reload_ssg_hit_after_load, "0.13", CVAR_ARCHIVE) // seconds after a shell goes into it before a hit opens or shuts it (the loading hand drawing back; was 0.6: the author's note of 2026-10-08, a long wait after loading); about vr_reload_insert_time
 QVR_CVAR(vr_reload_ssg_hit_open_speed, "3", CVAR_ARCHIVE) // m/s a hit from above must come at to break it open (the hands' relative speed)
 QVR_CVAR(vr_reload_ssg_hit_open_angle, "40", CVAR_ARCHIVE) // degrees off straight down (the gun's own down, as held) it may come from
-QVR_CVAR(vr_reload_ssg_hit_close_speed, "3", CVAR_ARCHIVE) // m/s a hit from below must come at to snap it shut
-QVR_CVAR(vr_reload_ssg_hit_close_angle, "40", CVAR_ARCHIVE) // degrees off straight up (the gun's own up) it may come from
+QVR_CVAR(vr_reload_ssg_hit_close_speed, "2.5", CVAR_ARCHIVE) // m/s a hit from below must come at to snap it shut
+QVR_CVAR(vr_reload_ssg_hit_close_angle, "35", CVAR_ARCHIVE) // degrees off straight up (the gun's own up) it may come from
 QVR_CVAR(vr_reload_eject_button, "1", CVAR_ARCHIVE)    // the gun's controller's B/Y lets its magazine drop (0: off; weapon cycling keeps the button then)
 // Each gun's load point moved (model units of the gun: +x forward, +y left, +z up): the shotgun's port, the magazine
 // guns' wells (the lava nailguns' and the plasma gun's with theirs). vr_reload_show_ports draws them and their ranges.
@@ -2717,7 +2717,7 @@ QVR_CVAR(vr_reload_contact_angle, "35", CVAR_ARCHIVE)
 // lying about), a round at a time up to their magazine; 0: they reload at the hip holsters as before. A rocket or a
 // grenade goes in lying within vr_reload_front_angle degrees of the barrel, its nose out of the muzzle.
 QVR_CVAR(vr_reload_front, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_front_angle, "35", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_front_angle, "45", CVAR_ARCHIVE)
 // The grenades' size (the author's notes vrfiringrange_2026-10-08_10-34-52 .. 10-37-30: the original models, "around
 // 25% smaller", the same in the hand and in flight): progs/grenade.mdl, the multi-grenade's progs/mervup.mdl and the
 // proximity grenade's progs/proxbomb.mdl drawn at this size wherever they are (the launchers' shots, the pouches' grenades
@@ -2736,15 +2736,15 @@ QVR_CVAR(vr_rocket_scale, "0.65", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_gl_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_gl_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_gl_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_port_gl_radius, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_gl_radius, "2.1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_prox_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_prox_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_prox_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_port_prox_radius, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_prox_radius, "2.1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_rl_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_rl_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_rl_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_port_rl_radius, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_rl_radius, "2.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_collide_leniency, "4", CVAR_ARCHIVE) // cm a round held from the pouch may go into the other hand's gun's box before they are drawn kept apart (Held Things Collide), to reach its port or well
 // Each magazine gun's well (its receiver, drawn on it; visual only): moved (the gun's model units) and turned (degrees)
 // about its seat, to sit flush. Show Load Points marks its seat (cyan).

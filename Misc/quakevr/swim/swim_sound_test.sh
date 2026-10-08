@@ -33,7 +33,7 @@ hd=$(hostile qvr_swim_dry); hc=$(hostile qvr_swim_cycle); hs=$(hostile qvr_swim_
 check $(echo "$dry" | grep -q "slap_whoosh" && echo 1 || echo 0) "dry land: an open hand swung across whooshes"
 check $([ -n "$hd" ] && echo 1 || echo 0) "dry land: the slap wakes monsters ($hd)"
 n=$(echo "$cyc" | grep -cE "VR water sound: vr/(swim_|stroke)")
-check $([ "$n" -ge 4 ] && [ "$n" -le 14 ] && echo 1 || echo 0) "swimming: the strokes heard, not spammy ($n in 6 s, both hands)"
+check $([ "$n" -ge 4 ] && [ "$n" -le 16 ] && echo 1 || echo 0) "swimming: the strokes heard, not spammy ($n in 6 s, both hands)"
 echo "$cyc" | grep -E "VR water sound: vr/(swim_|stroke)" | sed -E 's/.*vr\/([a-z_]+)[0-9].wav, volume/\1/' | sort | uniq -c | head -5
 check $(echo "$cyc" | grep -qE "slap_whoosh|knight/sword" && echo 0 || echo 1) "swimming: no slap whoosh, no swing"
 check $([ "$hc" = "$hd" ] && echo 1 || echo 0) "swimming: wakes nothing ($hd -> $hc)"

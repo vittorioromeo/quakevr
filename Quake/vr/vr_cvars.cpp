@@ -501,8 +501,32 @@ const DefaultChange defaultChanges[] = {
     {105, &vr_deadzone, "25"}, // 10
     // 106: the Immersive Death View by default (the author, NOTES.md vrfiringrange_2026-10-08_22-44-28).
     {106, &vr_death_view, "1"}, // 2
+    // 107: the author's settings of the evening of 2026-10-08 (his note vrfiringrange_2026-10-08_22-20-23: "As usual
+    // I've been tweaking lots of values, please make them the new defaults"; ROUND21.md, "Swimming strokes sound ...").
+    {107, &vr_air_supply, "2"}, // 2.5
+    {107, &vr_autopump_delay, "0.15"}, // 0.25
+    {107, &vr_death_view_fade, "0.5"}, // 0.2
+    {107, &vr_death_view_smooth, "0.15"}, // 0.25
+    {107, &vr_death_view_turn, "1"}, // 0
+    {107, &vr_death_view_turn_speed, "60"}, // 30
+    {107, &vr_reload_front_angle, "35"}, // 45
+    {107, &vr_reload_port_gl_radius, "2"}, // 2.1
+    {107, &vr_reload_port_prox_radius, "2"}, // 2.1
+    {107, &vr_reload_port_rl_radius, "2"}, // 2.5
+    {107, &vr_reload_ssg_hit_close_angle, "40"}, // 35
+    {107, &vr_reload_ssg_hit_close_speed, "3"}, // 2.5
+    {107, &vr_reload_ssg_lift_hold, "0.2"}, // 0
+    {107, &vr_reload_ssg_lift_speed, "300"}, // 250
+    {107, &vr_swim_flat_exp, "1"}, // 1.5
+    {107, &vr_swim_glide, "0.6"}, // 0.7 (vr_defaults.cfg)
+    {107, &vr_swim_max_speed, "500"}, // 400 (vr_defaults.cfg)
+    {107, &vr_swim_stroke, "12"}, // 10 (vr_defaults.cfg)
+    {107, &vr_swim_stroke_min, "0.4"}, // 1
+    {107, &vr_swim_stroke_pitch, "-8"}, // -10
+    {107, &vr_water_jump, "1"}, // 0
+    {107, &vr_weapon_grab_slack, "5"}, // 0
 };
-constexpr int configVersion = 106;
+constexpr int configVersion = 107;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

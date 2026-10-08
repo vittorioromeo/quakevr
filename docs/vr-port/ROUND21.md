@@ -32432,6 +32432,39 @@ he wanted a stroke to sound like water moved by the hands, the slaps silent unde
   slap's or punch's whoosh woke them, an open hand under water now doesn't).
 - Water entry splashes of a hand slapping the surface stay (vrfiringrange's pool: the hands going in and out).
 
-Test: `Misc/quakevr/swim/swim_sound_test.sh <agent>` (10 checks: a dry slap whooshes and wakes; 6 s of strokes heard
-10 times, no whoosh, no wake; an open hand swept under water silent, no wake, its stroke heard (swim_hard, 0.9); a
+Test: `Misc/quakevr/swim/swim_sound_test.sh <agent>` (10 checks: a dry slap whooshes and wakes; the strokes heard
+once each (14 with the defaults below), no whoosh, no wake; an open hand swept under water silent, no wake, its stroke heard (swim_hard, 0.9); a
 punch under water counts, without whoosh).
+
+## The author's settings of the evening of 2026-10-08 are the defaults
+
+His note (vrfiringrange_2026-10-08_22-20-23): "As usual I've been tweaking lots of values, please make them the new
+defaults". His config of 23:12 against a `resetall; writeconfig` dump (with vr_defaults.cfg's values over it); a value
+not in the list of the morning's promotion (above, "Out of the water by hand; ...") is one he changed since.
+Config version 107 (`vr_cvars.cpp` defaultChanges: a config still holding the old default takes the new one):
+
+- Swimming: `vr_air_supply` 2.5 (was 2), `vr_swim_flat_exp` 1.5 (1), `vr_swim_glide` 0.7 (0.6, vr_defaults.cfg),
+  `vr_swim_max_speed` 400 (500, vr_defaults.cfg), `vr_swim_stroke` 10 (12, vr_defaults.cfg), `vr_swim_stroke_min` 1
+  (0.4), `vr_swim_stroke_pitch` -10 (-8), `vr_water_jump` 0 (1: out of the water by the hands, with climbing on).
+- The immersive death view's tuning: `vr_death_view_fade` 0.2 (0.5), `_smooth` 0.25 (0.15), `_turn` 0 (1),
+  `_turn_speed` 30 (60); the mode itself Immersive since config 106 (the Death View menus' change, above).
+- Reloading: `vr_autopump_delay` 0.25 (0.15), `vr_reload_front_angle` 45 (35), `vr_reload_port_gl_radius` 2.1 (2),
+  `_prox_radius` 2.1 (2), `_rl_radius` 2.5 (2), `vr_reload_ssg_hit_close_angle` 35 (40), `_hit_close_speed` 2.5 (3),
+  `vr_reload_ssg_lift_hold` 0 (0.2: a jolt up now shuts it too), `_lift_speed` 250 (300).
+- `vr_weapon_grab_slack` 0 (5: he found it took weapons with the hand off them). A weapon lying on the floor is now
+  taken off its handle only by the fist on it, and at its handle within `vr_weapon_grab_handle_leniency` (5 cm) alone;
+  the headless shotgun-handle take saw gaps of 2.6-7.7 cm, so a lying gun may need a second try: Handle Grab Leniency
+  10 would give the handle back its 10 cm. weapon_catch_test.sh sets the slack to 5 where it tests the slack.
+- Weapon settings version 39: the nailgun's foregrip (slot 3, `vr_wofs_hs1_*_04`) at 4.95 -2.13 -3.56 (3.35 -2.01
+  -4.13), turned -10.19 / -6.64 / 6.34 (0 0 0), each key where the config still holds the old default.
+
+Left as they are: the foe grab's (`vr_foegrab_break` 20, `_drag` 20, `_drag_speed` 300, `_leniency` 1: settings
+turned up while testing it broken; its own new defaults came with its fix), `vr_forcegrab_mode` 0 (the force grab off: a feature switch, not a tuning), `vr_teleport_enabled` 1 and
+`cl_alwaysrun` 0 (the Comfortable comfort preset's), `vr_timescale_wav` 1 (Log Highlights' second recording),
+`vr_bullettime_tap_speed` 1 (the default before 15:50, when it became 1.2: his config kept the old value, not a new
+tweak), the nailgun's third hotspot (slot 3 `hs3_*`: placed, but its type is none), `gl_texture_anisotropy` 16,
+`vr_spectator_scale` 1.5, the props slots given ids (33, 57-64), and the morning's list (bookkeeping, body, motion
+recorder, menus, desktop window, `vr_foveated`, `vr_comfort_vignette_strength` 0.4995, slider noise).
+Tests: the kit's baseline config (34) and his config with these at their old defaults (105/38) both come out at the
+new values after a map loads (config 107, weapons 39), a value of his own (`vr_swim_stroke` 15) kept;
+weapon_catch_test.sh 6/6; swim_sound_test.sh 10/10; reload_test.sh 100/100 (its jolt check sets Lift Hold 0.2).

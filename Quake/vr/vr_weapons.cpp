@@ -153,9 +153,10 @@ namespace
 // Up 0.075, 2026-10-07; INSTALLER.md, Appendix A), each key only where the config still held its old default (0). 36: slots 24
 // and 25 (Dawn of the Machine's Super Axe and its glowing twin, MG3's model read in place: QC vr_mg3_weapons.qc; unused
 // placeholders before). 38: the author's Super Axe (slot 24: Offset Z and its first hotspot, 2026-10-08), each key only
-// where the config still held its old default. A first
+// where the config still held its old default. 39: the author's nailgun foregrip (slot 3: its first hotspot, the evening
+// of 2026-10-08), each key only where the config still held its old default. A first
 // start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 38;
+constexpr int settingsVersion = 39;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -528,6 +529,12 @@ void migrate()
     {
         const OldDefault changes[] = {{24, Key::OffsetZ, 0.046f}, {24, Key::Hotspot1X, 1.217f}, {24, Key::Hotspot1Y, -2.025f},
             {24, Key::Hotspot1Z, 1.354f}, {24, Key::Hotspot1Pitch, 0.f}, {24, Key::Hotspot1Yaw, 0.f}, {24, Key::Hotspot1Roll, 0.f}};
+        takeWhereOld(changes);
+    }
+    if(vr_wofs_version.value < 39) // the author's nailgun foregrip (note vrfiringrange_2026-10-08_22-20-23): where still the old default
+    {
+        const OldDefault changes[] = {{3, Key::Hotspot1X, 3.3519f}, {3, Key::Hotspot1Y, -2.0113f}, {3, Key::Hotspot1Z, -4.1278f},
+            {3, Key::Hotspot1Pitch, 0.f}, {3, Key::Hotspot1Yaw, 0.f}, {3, Key::Hotspot1Roll, 0.f}};
         takeWhereOld(changes);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
