@@ -4,6 +4,7 @@
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
+#include "vr_bttrails.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
@@ -406,6 +407,7 @@ using qvr::timescale::scaleClock;
 extern "C" void VR_AdvanceTime(double dt)
 {
     qvr::bullettime::advance(dt);
+    qvr::bttrails::advance(dt); // bullet time's distortion trails (vr_bttrails.cpp)
     const float target = qvr::timescale::wanted();
     if(scaleClock.scale != target)
     {

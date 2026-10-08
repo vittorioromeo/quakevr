@@ -19,4 +19,11 @@ namespace qvr::haze
 // Sets vr_heat_haze for a graphics preset (0 off .. 4 ultra): off in Off (Quake) and Low.
 void applyPreset(int preset);
 
+// The scene's colour under (x0, y0) .. (x1, y1) of `viewport` (the scene's, VR_SceneTarget) copied (resolved) to the
+// same place in a texture of the viewport's size, kept for this view's slot (the eyes', the spectator camera's), for a
+// pass that bends what is behind it: the heat haze, bullet time's trails (vr_bttrails.cpp). 0: none. The scene's
+// framebuffer bound again after (R_SetupGL).
+[[nodiscard]] unsigned copyScene(unsigned sceneFbo, unsigned color, int samples, const int viewport[4], int x0, int y0,
+    int x1, int y1);
+
 } // namespace qvr::haze

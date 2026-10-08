@@ -246,6 +246,7 @@ int VR_GrenadeTrail (int ent);						// CL_RelinkEntities: whether a grenade mode
 int VR_BulletHoleSprite (int ent);						// CL_RelinkEntities: Hipnotic's bullet hole sprite, a chip decal instead; nonzero if it is not drawn
 void VR_TuneDlight (int kind, int ent, void *dlight);	// after Quake sets a muzzle flash, rocket or explosion light up: size, colour, fade (the local player's flash at the gun)
 void VR_ProjectileLight (int ent);						// CL_RelinkEntities, after the trails: glowing projectiles (hell knight flames, scrag spit, vore balls, lasers) light up the room
+void VR_DistortionTrail (int ent);						// CL_RelinkEntities, after VR_ProjectileLight: bullet time's distortion trail follows a projectile (vr_bttrails.cpp)
 void VR_ProjectileImpactLight (int kind, const float *pos); // cl_tent.c: a scrag's (0) or a hell knight's (1) spike hitting a wall flashes
 void VR_HazeExplosion (const float *pos, float size);	// cl_tent.c: an explosion's heat haze (vr_haze.cpp; size 1 a rocket's)
 int VR_ModelSpins (int ent);							// CL_RelinkEntities: nonzero to spin a model as EF_ROTATE (a weapon pickup drawn as its prop)

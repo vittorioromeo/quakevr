@@ -743,6 +743,7 @@ void CL_RelinkEntities (void)
 			CL_ResetTrail (ent);
 		}
 		VR_ProjectileLight (i); // QVR: hell knight flames, scrag spit, vore balls and lasers light up the room
+		VR_DistortionTrail (i); // QVR: bullet time's distortion trail behind a projectile (vr/vr_bttrails.cpp)
 
 		ent->forcelink = false;
 

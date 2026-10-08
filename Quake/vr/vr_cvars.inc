@@ -376,6 +376,18 @@ QVR_CVAR(vr_bullettime_sound_on, "items/inv1.wav", CVAR_ARCHIVE)     // its soun
 QVR_CVAR(vr_bullettime_sound_off, "items/inv2.wav", CVAR_ARCHIVE)
 QVR_CVAR(vr_bullettime_sound_off_max, "1", CVAR_ARCHIVE) // real seconds the "off" sound plays at most, then fades out over 0.25 s (it is cut as bullet time starts again; 0: the whole sound)
 QVR_CVAR(vr_bullettime_sound_denied, "misc/menu2.wav", CVAR_ARCHIVE) // pressed with the meter too low or cooling down
+// Bullet time's distortion trails (vr_bttrails.cpp; ROUND21.md, "Bullet time's distortion trails"): F.E.A.R.'s wake
+// behind bullets and projectiles, the view behind it bent as through a glass rod, fading along its length.
+QVR_CVAR(vr_bullettime_trails, "1", CVAR_ARCHIVE)          // 1: in bullet time (and fading out over vr_bullettime_trails_fade after); 2: always (to look at them); 0: off
+QVR_CVAR(vr_bullettime_trails_strength, "1.25", CVAR_ARCHIVE) // how far they bend the view (0 .. 3; 1: up to about the trail's half width)
+QVR_CVAR(vr_bullettime_trails_life, "0.7", CVAR_ARCHIVE)   // real seconds a trail's every point lasts, fading
+QVR_CVAR(vr_bullettime_trails_length, "4", CVAR_ARCHIVE)   // metres: the longest a trail is behind its projectile
+QVR_CVAR(vr_bullettime_trails_width, "20", CVAR_ARCHIVE)   // cm wide (a bullet's and a nail's; rockets and grenades twice, enemies' balls 1.5 times)
+QVR_CVAR(vr_bullettime_trails_fade, "0.6", CVAR_ARCHIVE)   // real seconds they fade out over after bullet time ends
+QVR_CVAR(vr_bullettime_trails_hitscan, "1", CVAR_ARCHIVE)  // 1: behind your hitscan shots (the shotguns' pellets, the rifles' bullets; tracer drawn or not)
+QVR_CVAR(vr_bullettime_trails_nails, "1", CVAR_ARCHIVE)    // 1: behind nails (yours, traps')
+QVR_CVAR(vr_bullettime_trails_explosives, "1", CVAR_ARCHIVE) // 1: behind rockets and flying grenades (an ogre's too)
+QVR_CVAR(vr_bullettime_trails_enemy, "1", CVAR_ARCHIVE)    // 1: behind monsters' shots (lasers, spit, flames, vore balls, thrown flesh, grunts' bullets)
 QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting, stopping and refused, and each tap; 2: also the screen tap's striking point and speeds every frame near the screen
 // The flat HUD (the status bar, hudstyle) over the window's view while in VR: over the mirror (Left Eye, Smoothed
 // Mirror) and over the spectator camera (off: the headset's view, the wrist gadget its HUD, for recording).

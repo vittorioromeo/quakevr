@@ -189,6 +189,27 @@
                   "out from it. Debug > Show Gadget Button: And the Screen Tap shows this zone."),
         toggle("The Gun's Butt Taps Too", "vr_bullettime_tap_butt")
             .help("On: the butt of the gun in your other hand taps the screen as your hand does. Off: only your hand."),
+        header("Distortion Trails"),
+        cycle("Distortion Trails", "vr_bullettime_trails", {{0.f, "Off"}, {1.f, "In Bullet Time"}, {2.f, "Always"}})
+            .help("As in F.E.A.R.: a wake behind each bullet, nail, rocket, grenade and monster's shot bends the view "
+                  "behind it like a rippling glass rod, fading along its length. In Bullet Time: while it runs (and "
+                  "fading out after). Always: in normal time too. Off: no cost."),
+        slider("Bend", "vr_bullettime_trails_strength", 0.f, 3.f, 0.05f, "%.2f")
+            .help("How far they bend what is behind them (1: about half the trail's width)."),
+        slider("Trail Life", "vr_bullettime_trails_life", 0.1f, 3.f, 0.05f, "%.2f s").extend(0.05f, 10.f)
+            .help("Real seconds each part of a trail lasts, fading."),
+        slider("Longest Trail", "vr_bullettime_trails_length", 0.5f, 15.f, 0.5f, "%.1f m").extend(0.1f, 50.f)
+            .help("The most of a trail behind its projectile."),
+        slider("Trail Width", "vr_bullettime_trails_width", 2.f, 80.f, 1.f, "%.0f cm").extend(0.5f, 200.f)
+            .help("A bullet's and a nail's; rockets and grenades twice as wide, monsters' balls one and a half times."),
+        slider("Fade After It Ends", "vr_bullettime_trails_fade", 0.f, 3.f, 0.1f, "%.1f s")
+            .help("Real seconds the trails take to fade out as bullet time ends."),
+        toggle("Behind Your Bullets", "vr_bullettime_trails_hitscan")
+            .help("The shotguns' pellets and the rifles' bullets (whether their tracer is drawn or not)."),
+        toggle("Behind Nails", "vr_bullettime_trails_nails"),
+        toggle("Behind Rockets and Grenades", "vr_bullettime_trails_explosives"),
+        toggle("Behind Monsters' Shots", "vr_bullettime_trails_enemy")
+            .help("Enforcers' lasers, scrags' spit, knights' flames, vores' balls, zombies' flesh and grunts' bullets."),
         slider("Tap Must Stop", "vr_bullettime_tap_stop", 0.1f, 1.f, 0.05f, "%.2f")
             .help("The impact: the speed into the screen must drop to this much of its peak on it (a hand passing by "
                   "keeps its speed). 1: counts as it arrives, stopped or not."),

@@ -94,6 +94,8 @@ QVR_MODEL_ID(HOgre, "progs/h_ogre.mdl")
 QVR_MODEL_ID(HShal, "progs/h_shal.mdl")
 QVR_MODEL_ID(HShams, "progs/h_shams.mdl")
 QVR_MODEL_ID(HDemon, "progs/h_demon.mdl")
+QVR_MODEL_ID(Spike, "progs/spike.mdl")     // the nailgun's nail, a trap's (vr_bttrails.cpp)
+QVR_MODEL_ID(SSpike, "progs/s_spike.mdl")  // the super nailgun's
 
 QVR_MODEL_TRAIT(Progs, Prefix, "progs/")
 QVR_MODEL_TRAIT(AmmoBox, Prefix, "maps/b_")

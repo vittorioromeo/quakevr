@@ -221,6 +221,11 @@ def scenarios():
         "combat_48 with bullet time running all through: the time scale, the slowed sounds and the colour pass.",
         hostile=True, setup=spawn_grid(48, MIXED) + ["vr_bullettime_duration 600", "vr_bullettime_recharge 0.1",
                                                      "vr_bullettime"], warm=90)
+    add("bullettime_trails_64", ["vfx", "features"], "bullet time's distortion trails, 64 at once across the view", RANGE,
+        "vr_bullettime_trails_test 8 shots across the view every 10 frames in bullet time: the trails' pool (64) full, "
+        "their ribbons, the scene's copy and the bend (vr_bttrails.cpp).",
+        setup=["vr_bullettime_duration 600", "vr_bullettime_recharge 0.1", "vr_bullettime"], warm=60,
+        body=blasts_every(10, lambda i, r: ["vr_bullettime_trails_test 8 20 96"]))
     add("melee_punch_8", ["combat", "melee"], "8 grunts at arm's length, both hands jabbing (melee)", RANGE,
         "Scripted jabs (vr_mock_play, no recorded takes needed) into a ring of grunts: the melee and hit systems, "
         "knockdowns, wounds.", hostile=True, setup=[f"vr_physics_spawn monster_army 40 {(i - 3.5) * 14:g}" for i in range(8)],
@@ -253,6 +258,11 @@ def scenarios():
         body=blasts_every(24, lambda i, r: ["vr_explosion_debris_test normal"]))
     add("explosions_storm", ["vfx", "physics"], "18 explosions a second (debris, lights, shake)", RANGE,
         "vr_explosion_debris_test every 4 frames: the debris pool full, many short lights.",
+        body=blasts_every(4, lambda i, r: ["vr_explosion_debris_test normal"]))
+    add("explosions_storm_bullettime", ["vfx", "features"], "explosions_storm in bullet time", RANGE,
+        "explosions_storm with bullet time running all through (its look, the slowed debris; the distortion trails' "
+        "cost when there are no projectiles).",
+        setup=["vr_bullettime_duration 600", "vr_bullettime_recharge 0.1", "vr_bullettime"],
         body=blasts_every(4, lambda i, r: ["vr_explosion_debris_test normal"]))
     rng = random.Random(11)
     shots = [f"vr_physics_fire 10 {316 - rng.uniform(60, 320):.0f} {-556 + rng.uniform(-200, 200):.0f} -40" for _ in range(1400)]

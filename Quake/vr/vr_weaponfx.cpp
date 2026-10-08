@@ -3,6 +3,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_autopump.hpp"
+#include "vr_bttrails.hpp"
 #include "vr_engine.hpp"
 #include "vr_anchor.hpp"
 #include "vr_backend.hpp"
@@ -313,6 +314,13 @@ void monsterFired(int ent)
     }
 }
 
+// The tracers' speed (units a second) for the weapon in `slot` (-1: a monster's, the settings' own).
+[[nodiscard]] float tracerSpeed(int slot)
+{
+    const float mult = slot >= 0 ? za::max(weapons::value(slot, Key::TracerSpeed), 0.f) : 1.f;
+    return za::max(vr_tracer_speed.value * mult, 1.f) * units::metresToUnits();
+}
+
 void addTracer(const glm::vec3& from, const glm::vec3& to, int slot)
 {
     const glm::vec3 line = to - from;
@@ -328,7 +336,7 @@ void addTracer(const glm::vec3& from, const glm::vec3& to, int slot)
     t.dir = line / distance;
     t.distance = distance;
     const float m2u = units::metresToUnits();
-    t.speed = za::max(vr_tracer_speed.value * mult(Key::TracerSpeed), 1.f) * m2u;
+    t.speed = tracerSpeed(slot);
     t.length = za::max(vr_tracer_length.value * mult(Key::TracerLength), 0.01f) * m2u;
     t.width = za::max(vr_tracer_width.value * mult(Key::TracerWidth), 0.05f) * 0.01f * m2u;
     const bool own = slot >= 0 && weapons::value(slot, Key::TracerOwnColour) != 0.f;
@@ -361,7 +369,9 @@ void test_f()
         for(int i = 0; i < count; i++)
         {
             const glm::vec3 spread{random01() - 0.5f, random01() - 0.5f, random01() - 0.5f};
-            addTracer(m.muzzle, m.muzzle + glm::normalize(fwd + spread * (count > 1 ? 0.06f : 0.f)) * 1000.f, slot);
+            const glm::vec3 to = m.muzzle + glm::normalize(fwd + spread * (count > 1 ? 0.06f : 0.f)) * 1000.f;
+            addTracer(m.muzzle, to, slot);
+            bttrails::hitscan(m.muzzle, to, tracerSpeed(slot), false);
         }
     }
     Con_Printf("vr_weaponfx_test: hand %d slot %d, %d tracers\n", hand, weapons::heldSlot(hand), count);
@@ -400,12 +410,14 @@ void parseTracer()
 
     const bool own = hand <= 1 && ent == cl.viewentity;
     const int slot = own ? weapons::heldSlot(hand) : -1;
-    if(!tracersOn(slot) || (hand > 1 && !vr_tracers_enemies.value))
+    bool tracer = tracersOn(slot) && !(hand > 1 && !vr_tracers_enemies.value);
+    if(tracer)
     {
-        return;
+        const float chance = vr_tracer_chance.value * (slot >= 0 ? za::max(weapons::value(slot, Key::TracerChance), 0.f) : 1.f);
+        tracer = random01() < chance;
     }
-    const float chance = vr_tracer_chance.value * (slot >= 0 ? za::max(weapons::value(slot, Key::TracerChance), 0.f) : 1.f);
-    if(random01() >= chance)
+    const bool trail = bttrails::wanted(hand > 1); // bullet time's distortion trail, tracer or not (vr_bttrails.cpp)
+    if(!tracer && !trail)
     {
         return;
     }
@@ -415,6 +427,14 @@ void parseTracer()
     if(hand > 1 && ent > 0 && ent < cl.num_entities && monsterMuzzle(cl_entities[ent], muzzle, dir, gunLength))
     {
         from = muzzle;
+    }
+    if(trail)
+    {
+        bttrails::hitscan(from, to, tracerSpeed(slot), hand > 1);
+    }
+    if(!tracer)
+    {
+        return;
     }
     addTracer(from, to, slot);
     if(vr_debug_weaponfx.value)

@@ -3,6 +3,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
+#include "vr_bttrails.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_held.hpp"
@@ -677,6 +678,7 @@ void init()
     smoulder::registerCommands();
     comfortfade::registerCommands();
     weaponfx::registerCommands();
+    bttrails::registerCommands();
     Cmd_AddCommand("+offhandattack", OffhandAttackDown_f);
     Cmd_AddCommand("-offhandattack", OffhandAttackUp_f);
     Cmd_AddCommand("+grableft", GrabLeftDown_f);
@@ -778,6 +780,7 @@ extern "C" void VR_OnClientClearState()
     smoulder::clear();
     comfortfade::clear();
     weaponfx::clear();
+    bttrails::clear();
     wounds::clear();
     rope::forget();
     chainsaw::reset();

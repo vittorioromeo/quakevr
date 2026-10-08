@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_haze.hpp"
+#include "vr_bttrails.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -585,25 +586,16 @@ void draw()
     }
 
     // The copy: the part covered, resolved.
-    const GLint format = sceneFormat(color, samples);
-    if(!format || !ensureCopy(vw, vh, format))
+    const GLuint copyTexture = copyScene(sceneFbo, color, samples, viewport, x0, y0, x1, y1);
+    if(!copyTexture)
     {
         return;
-    }
-    const Copy& copy = copies[viewSlot()];
-    {
-        QVR_GPU_PROFILE("copy");
-        GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, sceneFbo);
-        GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, copy.fbo);
-        GL_BlitFramebufferFunc(viewport[0] + x0, viewport[1] + y0, viewport[0] + x1, viewport[1] + y1, x0, y0, x1, y1,
-            GL_COLOR_BUFFER_BIT, GL_NEAREST);
-        R_SetupGL();
     }
 
     glEnable(GL_SCISSOR_TEST);
     glScissor(viewport[0] + x0, viewport[1] + y0, x1 - x0, y1 - y0);
     GL_UseProgram(program);
-    GL_BindNative(GL_TEXTURE6, GL_TEXTURE_2D, copy.texture);
+    GL_BindNative(GL_TEXTURE6, GL_TEXTURE_2D, copyTexture);
     GL_BindNative(GL_TEXTURE8, GL_TEXTURE_2D, distances);
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, r_framedata.viewproj);
     GL_Uniform4fFunc(1, eye.x, eye.y, eye.z, static_cast<float>(cl.time));
@@ -667,6 +659,23 @@ void draw()
 
 } // namespace
 
+unsigned copyScene(unsigned sceneFbo, unsigned color, int samples, const int viewport[4], int x0, int y0, int x1, int y1)
+{
+    const GLint format = sceneFormat(color, samples);
+    if(!format || !ensureCopy(viewport[2], viewport[3], format))
+    {
+        return 0;
+    }
+    const Copy& copy = copies[viewSlot()];
+    QVR_GPU_PROFILE("copy");
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, sceneFbo);
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, copy.fbo);
+    GL_BlitFramebufferFunc(viewport[0] + x0, viewport[1] + y0, viewport[0] + x1, viewport[1] + y1, x0, y0, x1, y1,
+        GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    R_SetupGL();
+    return copy.texture;
+}
+
 void applyPreset(int preset)
 {
     Cvar_SetQuick(&vr_heat_haze, preset > 1 ? vr_heat_haze.default_string : "0");
@@ -700,4 +709,5 @@ extern "C" void VR_HazeExplosion(const float* pos, float size)
 extern "C" void VR_DrawHeatHaze(void)
 {
     haze::draw();
+    bttrails::draw(); // bullet time's distortion trails (vr_bttrails.cpp), bending the haze too
 }
