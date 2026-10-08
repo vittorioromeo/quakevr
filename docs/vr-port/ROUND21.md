@@ -30865,3 +30865,26 @@ as they now stand (its Status lists what remains).
 - Tests: `bash Misc/quakevr/stealth_tests.sh <agent> all` (39 PASS, ~70 s), `bash
   Misc/quakevr/multiplayer/stealth_mp_test.sh <agent>` (7 PASS), and the earlier `vr_stealth_test 1` / `2` (14 PASS).
   Debug > Tests > Stealth AI has every scene.
+
+## Slipgate monster tests: deterministic again; a spawned monster no longer forgets the player it just saw (2026-10-08)
+
+- **Cause** of `slipgate_edges_test.sh monster` printing "never through" (both `vr_portals_monsters` 1 and 0) and of
+  `slipgates_test.sh chase` never reaching the north room: the stealth AI's meter. The tests give the dog 40 frames to
+  spot a still, lit player 200 units ahead; the meter fills at about 0.3 a second there (seconds), so the dog was still
+  Idle when he was moved behind the wall, and dogs don't look through gates (only ranged monsters do, PORTAL_AI.md).
+  Both tests now run with Quake's sight (`vr_stealth_meter 0`; the rest of the stealth AI stays on): they test the
+  crossing, the stealth AI has its own tests.
+- **The old flakiness** ("now and then the dog doesn't see the player", the S2 note): walkmonster_start_go (and the
+  fly/swim ones) calls th_stand(), whose FindTarget can spot the player at once for a monster spawned mid-map (a
+  dispenser, the test spawner, a trigger-spawned one); its next lines then set `enemy = world` (Honey's not-angry
+  branch), leaving it running with no enemy, back to standing until a later look (0.1-0.6 s on). If the player had
+  gone behind the wall by then, it never saw him again. Fixed in monsters.qc: that branch leaves an enemy just found
+  (`self.think == self.th_run`). Map-start monsters are unchanged (no player to see then).
+- **Results**: monster section five runs: through at y 932 (a 32 step; once 935, a 16 step) with walking, 976 (a 64-101
+  jump) without, every run; 12 more parallel runs of each, all through. chase five runs: the flush player dog 30-60
+  frames, sill-16 dog 30-450, fiends 45-60, every run; the sill-32 dog 4 of 5 (it slides to the sill-16 gate: pathing);
+  the grunt never (it shoots through the gate, as designed). stealth_tests.sh all 39 PASS, `vr_stealth_test 1` 0 failed.
+- **Not done (stealth through gates)**: a ranged monster's meter fills through a gate (visible()'s gate route), but its
+  Alert point is the player's real origin (behind the wall in its room's terms), not his image, and a noise is heard
+  only in the room it is made in (findradius round it, walls between). Mapping the point to the image needs the walk's
+  marker, post and lost-at point carried when the monster crosses (VR_Portal_Crossed), or it would walk back and forth.

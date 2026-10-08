@@ -201,11 +201,13 @@ fi
 # monster: a dog spawned 200 units out of FA's flush player gate chases the player, put 150 units past the gate in the
 # north gallery (slipgates_test.sh chase): where it is first seen in the gallery (928 the far gate's face) and its step
 # there from its last place in FA, unfolded through the gate (less the gates' 288): one of its run's steps (32 units at
-# most); vr_portals_monsters 0 (a control): Quake's teleport, 48 out of the face, a jump of 60 to 110 units. (Now and then
-# the dog does not see the player in 200 frames, "never through": run it again.)
+# most); vr_portals_monsters 0 (a control): Quake's teleport, 48 out of the face, a jump of 60 to 110 units. Quake's sight
+# (vr_stealth_meter 0: the meter takes seconds on a still player; the dog must be hostile before he moves). It used to be
+# "never through" now and then: the dog spotted him in walkmonster_start_go's th_stand() and was made to forget him at
+# once (fixed in monsters.qc), standing till a later look, after he had gone behind the wall.
 if want monster; then
     for m in 1 0; do
-        S="developer 1;map vrslipgates;wait60;god;vr_portals_monsters $m;setpos -256 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn 7;vr_test_spawn_dist 200;impulse 241;wait40;setpos -256 1150 24 0 270 0;wait5;noclip 0"
+        S="developer 1;map vrslipgates;wait60;god;vr_stealth_meter 0;vr_portals_monsters $m;setpos -256 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn 7;vr_test_spawn_dist 200;impulse 241;wait40;setpos -256 1150 24 0 270 0;wait5;noclip 0"
         for i in $(seq 1 200); do S="$S;wait1;echo SNAP $i;entities"; done
         run -Script "$S;toggleconsole;quit"
         awk -v m="$m" '/^SNAP/{s=$2} index($0, "progs/dog.mdl:") && s && s != seen {seen=s; split($0, a, "("); split(a[2], b, ","); y=b[2]+0

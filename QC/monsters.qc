@@ -132,7 +132,9 @@ void() walkmonster_start_go =
         self.enemy = activator;
         self.nextthink = time + 0.1;
         self.think = FoundTarget;
-    }else{
+    }else if(self.think != self.th_run){
+        // QVR: (not when th_stand() or th_walk() above has just spotted the player: FoundTarget set the run. A monster
+        // spawned mid-map, by a dispenser or a trigger, used to forget him here and stand, its run with no enemy.)
         self.enemy = world;
     }
 
@@ -223,7 +225,9 @@ void() flymonster_start_go =
         //self.enemy = activator;
         self.nextthink = time + 0.1;
         self.think = FoundTarget;
-    }else{
+    }else if(self.think != self.th_run){
+        // QVR: (not when th_stand() or th_walk() above has just spotted the player: FoundTarget set the run. A monster
+        // spawned mid-map, by a dispenser or a trigger, used to forget him here and stand, its run with no enemy.)
         self.enemy = world;
     }
 };
@@ -303,7 +307,9 @@ void() swimmonster_start_go =
         //self.enemy = activator;
         self.nextthink = time + 0.1;
         self.think = FoundTarget;
-    }else{
+    }else if(self.think != self.th_run){
+        // QVR: (not when th_stand() or th_walk() above has just spotted the player: FoundTarget set the run. A monster
+        // spawned mid-map, by a dispenser or a trigger, used to forget him here and stand, its run with no enemy.)
         self.enemy = world;
     }
 
