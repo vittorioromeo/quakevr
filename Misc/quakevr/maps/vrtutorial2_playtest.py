@@ -110,27 +110,39 @@ def pull(hand, dz, steps=15):
         c("vr_mock_hand_to %s by 0 0 %g" % (hand, -dz / steps), "wait")
 
 
-def take_to_holster(hand, cls, holster=3, hover=20, onto=0):
-    """The hand to the nearest `cls`, gripped, brought to a holster and let go there (collected). Leaning in."""
-    c(LEAN)
-    w(10)
-    # over it first (a hand coming at it pushes it), the grip closed, then down onto it (reload_test.sh's way)
-    for _ in range(2):
-        c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, hover))
-        w(4)
-    c("+grab%s" % hand, "vr_mock_button %s grip 1" % hand, "wait")
-    for _ in range(2):
-        c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, onto))
-        w(4)
-    w(15)
-    c(STAND)
-    w(10)
-    for _ in range(2):
-        c("vr_mock_hand_to %s holster %d" % (hand, holster))
+def take_to_holster(hand, cls, holster=3, hover=20, onto=0, tries=1):
+    """The hand to the nearest `cls`, gripped, brought to a holster and let go there (collected). Leaning in. With
+    `tries` > 1, again a little off each time (a thin thing lying any which way), the grip pressed once the hand is
+    there: a try that took it has collected it at the holster, and the next finds none (nothing done)."""
+    offsets = [(0, 0, 0), (0, 0, -3), (2, 0, 0), (-2, 0, 0), (0, 2, 0), (0, -2, 0), (0, 0, 3), (0, 0, -5)]
+    for k in range(tries):
+        dx, dy, dz = offsets[k % len(offsets)]
+        c(LEAN)
         w(10)
-    let_go(hand)
-    c("vr_mock_hand %s" % hand)
-    w(30)
+        # over it first (a hand coming at it pushes it), the grip closed, then down onto it (reload_test.sh's way);
+        # a retry: down onto it first, a little off, then the grip
+        for _ in range(2):
+            c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, hover))
+            w(4)
+        if k == 0:
+            c("+grab%s" % hand, "vr_mock_button %s grip 1" % hand, "wait")
+        for _ in range(2):
+            c("vr_mock_hand_to %s nearest %s %d" % (hand, cls, onto + dz))
+            w(4)
+        if dx or dy:
+            c("vr_mock_hand_to %s by %d %d 0" % (hand, dx, dy))
+            w(3)
+        if k:
+            c("+grab%s" % hand, "vr_mock_button %s grip 1" % hand, "wait")
+        w(12)
+        c(STAND)
+        w(10)
+        for _ in range(2):
+            c("vr_mock_hand_to %s holster %d" % (hand, holster))
+            w(10)
+        let_go(hand)
+        c("vr_mock_hand %s" % hand)
+        w(30)
 
 
 def g3_jump_climb():
@@ -230,7 +242,7 @@ def g6_heal():
     mark("heal", "start")
     # the kit on the floor: gripped, held to a holster (it is used there)
     walk(4560, 1080, 8, 200)
-    take_to_holster("main", "item_health")
+    take_to_holster("off", "item_health", 2)
     health("heal")
     walk(4900, 1216, 8, 200)   # the gate (full health): the door opens
     w(60)
@@ -253,8 +265,8 @@ def g7_melee_key():
     c("-grabmain", "vr_mock_fingers main 0 0", "vr_mock_button main grip 0", "vr_mock_hand main")
     w(30)
     mark("key", "find")
-    walk(5212, 1330, 8, 100)   # by where the crate stood (the card lies there)
-    take_to_holster("main", "item_key1", hover=30, onto=7)
+    walk(5192, 1340, 6, 100)   # by where the crate stood (the card lies there; not standing in its box)
+    take_to_holster("main", "item_key1", hover=30, onto=7, tries=8)
     walk(5216, 1180, 8, 200)
     walk(5216, 1100, 8, 120)
     w(60)
@@ -289,8 +301,13 @@ def fist(on):
         c("-grabmain", "vr_mock_fingers main 0 0", "vr_mock_button main grip 0", "vr_mock_hand main")
 
 
+GOD = False   # --god: god mode from the fights on (not before: the fall must hurt, the kit must heal)
+
+
 def g8_fight():
     mark("fight", "start")
+    if GOD:
+        c("god")
     walk(5216, 1000, 8, 150)
     walk(5216, 860, 8, 150)          # room 7's trigger: a grunt from the alcove in 2 s
     w(250)
@@ -381,27 +398,329 @@ def g9_weapons():
         if i == 8:
             load_shells(4)
         shoot_at(x, y - 2, LOW + z)
+    # a second pass for any missed (the box's last 8 shells)
+    load_shells(8)
+    for (x, y, z) in R8_TARGETS:
+        shoot_at(x, y - 2, LOW + z)
     c("vr_mock_hand_aim main off")
     w(60)
+    # the shotgun put away in a holster (the right hip): the hands free to climb
+    for _ in range(2):
+        c("vr_mock_hand_to main holster 3")
+        w(10)
+    let_go("main")
+    c("vr_mock_hand main")
+    w(20)
     walk(4790, 288, 8, 300)
     walk(4700, 288, 8, 200)
     pos("weapons")
 
 
+def g10_dark():
+    mark("dark", "start")
+    walk(4700, 288, 8, 300)
+    # the flashlight from the belt (TESTING.md's mock reach), switched on by its trigger, held in the off hand
+    c("vr_mock_fingers off 0 0", "vr_mock_hand off -0.066 1.38 -0.072 -80 0 0")
+    w(40)
+    c("vr_mock_button off grip 1")
+    w(20)
+    c("vr_mock_button off trigger 1")
+    w(4)
+    c("vr_mock_button off trigger 0", "vr_mock_hand off -0.2 1.3 -0.35 0 0 0")
+    w(20)
+    # the course: corridor 1 south over a block, 2 north over a raised stretch, 3 south over a block climbed, 4 north
+    # up a step and a ledge, out west
+    for (x, y) in ((4600, 256), (4392, 256), (4392, 90)):
+        walk(x, y, 10, 200)
+    jump_to(4392, -200, 12, 120)
+    pos("dark_block1")
+    for (x, y) in ((4392, -290), (4140, -290), (4140, -200)):
+        walk(x, y, 10, 200)
+    jump_to(4140, 40, 14, 100)
+    for (x, y) in ((4140, 160), (4140, 290), (3880, 290), (3880, 100)):
+        walk(x, y, 10, 200)
+    pos("dark_block2")
+    # the 48 block: climbed (a hand on its lip, pulled)
+    c("vr_mock_turn_to 270")
+    w(100)
+    grab("main", 3880, 82, LOW + 46)
+    pull("main", 50, 25)
+    w(40)
+    let_go("main")
+    c("vr_mock_hand main")
+    w(20)
+    pos("dark_climb")
+    for (x, y) in ((3880, -100), (3880, -290), (3600, -290), (3600, -210)):
+        walk(x, y, 10, 200)
+    jump_to(3600, -136, 6, 60)
+    jump_to(3600, -20, 8, 100)
+    pos("dark_ledge")
+    for (x, y) in ((3600, 120), (3500, 256), (3400, 256)):
+        walk(x, y, 10, 200)
+    pos("dark")
+
+
+THROW = None   # the throw play's path (made by script())
+END_PLAY = None
+
+
+def g11_throw():
+    mark("throw", "start")
+    walk(2800, -262, 3, 300)            # at the rocks' table
+    c("vr_mock_turn_to 270")
+    w(100)
+    grab_item("main", "vr_rock")
+    walk(2928, -322, 3, 200)            # before the grate (its bars at y -360, the button 48 behind them)
+    c("vr_mock_turn_to 270")
+    w(100)
+    c('vr_mock_play "%s"' % THROW)
+    w(220)
+    c("vr_mock_hand main")
+    w(40)
+    walk(2600, -192, 8, 300)
+    walk(2470, -192, 8, 200)
+    pos("throw")
+
+
+def g12_fire():
+    mark("fire", "start")
+    walk(2432, -258, 3, 300)        # under the south wall's east torch (its flame at 2432 -281)
+    c("vr_mock_turn_to 270")
+    w(100)
+    c("vr_mock_hand main 0.0 0.8 -0.6 70 0 0")
+    w(5)
+    for _ in range(2):
+        c("vr_mock_hand_to main nearest light_torch_small_walltorch 0")
+        w(5)
+    c("+grabmain", "vr_mock_button main grip 1")
+    w(10)
+    for _ in range(4):
+        c("vr_mock_hand_to main by 0 6 0")    # pulled off its bracket
+        w(3)
+    c("vr_mock_hand main 0.2 1.3 -0.4 70 0 0")
+    w(30)
+    # to the crates in the passage; the flame touched to the nearest
+    walk(2186, 0, 3, 300)
+    c("vr_mock_turn_to 180")
+    w(150)
+    for y in (-30, 0, 30):
+        c("vr_mock_hand_to main 2138 %d %d" % (y, LOW + 40))
+        w(30)
+        c("vr_mock_hand main 0.2 1.3 -0.4 70 0 0")
+        w(30)
+    walk(2240, 0, 8, 200)           # back from the fire
+    w(72 * 40)                      # it spreads and burns through
+    pos("fire_burnt")
+    walk(2096, 0, 8, 300)
+    walk(1950, 0, 8, 300)
+    pos("fire")
+    c("vr_mock_hand main 0.2 1.0 -0.7 70 0 0")   # (dropped ahead, not at his feet: it would set him alight)
+    w(10)
+    let_go("main")
+    c("vr_mock_hand main")
+    w(20)
+
+
+def g13_arena():
+    mark("arena", "start")
+    for (x, y) in ((1856, -200), (1856, -440), (1856, -592), (1500, -592), (1400, -592)):
+        walk(x, y, 10, 250)
+    # the shotgun and shells from the tables by the east wall. (Reloading set Off here, a player's choice on room 8's
+    # RELOADING button: the gun fires from the reserve. Hand loading is room 8's gate; here a long fight.)
+    c("vr_reload_mode 0")
+    walk(1337, -700, 3, 200)
+    c("vr_mock_turn_to 0")
+    w(100)
+    grab_item("main", "weapon_shotgun")
+    for _ in range(3):
+        walk(1337, -856, 3, 200)
+        take_to_holster("off", "item_shells", 2)
+        w(72 * 10)                 # (its restock puts the next box there)
+    health("arena_before")
+    c("vr_weapon_grab_anywhere 0")  # (a gun knocked away is taken again by its handle: the mock can't find one lying)
+    walk(1100, -640, 8, 300)        # in: the door shuts, the countdown, the waves
+    w(72 * 7)
+    for k in range(30):
+        c("vr_mock_turn_to monster", "vr_mock_hand_aim main monster", "vr_mock_walk_to monster 110")
+        for _ in range(6):
+            w(30)
+            c("+attack")
+            w(3)
+            c("-attack")
+        c("vr_mock_hand_aim main off", "vr_mock_turn_to off", "vr_mock_walk_to off")
+        # a gun knocked out of the hand is taken again (nothing lying: nothing done)
+        c("vr_mock_walk_to nearest thrown_weapon 26")
+        w(100)
+        c("vr_mock_hand main 0.2 1.0 -0.3 0 0 0")
+        for _ in range(2):
+            c("vr_mock_hand_to main weapon 0.5 8")
+            w(4)
+        c("+grabmain", "vr_mock_button main grip 1", "wait")
+        for _ in range(2):
+            c("vr_mock_hand_to main weapon 0.5 0")
+            w(4)
+        w(10)
+        if k % 3 == 2:
+            walk(1337, -856, 3, 250)   # more shells (a box every 10 s there)
+            take_to_holster("off", "item_shells", 2)
+    health("arena")
+    c("vr_mock_hand_aim main off", "vr_mock_turn_to off")
+    walk(832, -1300, 8, 400)
+    walk(832, -1500, 8, 300)
+    walk(832, -1700, 8, 300)
+    pos("arena")
+    # the slipgate: its changelevel is a localcmd, run after the rest of this cfg: so the cfg ends here, and a play
+    # (its commands run on the clock) reports and quits once the hub has loaded
+    c('vr_mock_play "%s"' % END_PLAY, "vr_mock_walk_to 832 -1860 8")
+    OUT.append("ENDS")
+
+
 GATES = [("locomotion", g1_locomotion), ("button", g2_button), ("jump", g3_jump_climb), ("swim", g4_swim),
-         ("fall", g5_fall), ("heal", g6_heal), ("melee", g7_melee_key), ("fight", g8_fight), ("weapons", g9_weapons)]
+         ("fall", g5_fall), ("heal", g6_heal), ("melee", g7_melee_key), ("fight", g8_fight), ("weapons", g9_weapons),
+         ("dark", g10_dark), ("throw", g11_throw), ("fire", g12_fire), ("arena", g13_arena)]
 # where --from puts the player first (x y z yaw)
 STARTS = {"jump": (2320, 704, 24, 0), "swim": (3600, 704, UP + 24, 0), "fall": (4300, 1200, UP + 24, 0),
           "heal": (4688, 1200, LOW + 24, 0), "melee": (5024, 1216, LOW + 24, 0), "fight": (5216, 1040, LOW + 24, 270),
-          "weapons": (5216, 330, LOW + 24, 270)}
+          "weapons": (5216, 330, LOW + 24, 270), "dark": (4740, 288, LOW + 24, 180),
+          "throw": (3380, 256, LOW + 24, 180), "fire": (2480, -192, LOW + 24, 180),
+          "arena": (1900, 0, LOW + 24, 270)}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# No softlocks (--softlock: its own run, from room 6): what happens when the player wastes things, dies or reloads.
+def respawn():
+    """Dead: a button press brings him back (Quake's), at the latest checkpoint taken (vr_tutorial.qc)."""
+    w(150)
+    for _ in range(3):
+        c("+jump")
+        w(5)
+        c("-jump")
+        w(30)
+
+
+def sl_key_after_death():
+    mark("sl_key", "start")
+    walk(5180, 1344, 4, 200)
+    c("vr_mock_turn_to 0")
+    w(40)
+    fist(True)
+    for _ in range(14):
+        c('vr_mock_play "%s"' % PUNCH)
+        w(150)
+    fist(False)
+    w(30)
+    walk(5192, 1340, 6, 100)
+    take_to_holster("main", "item_key1", hover=30, onto=7, tries=8)
+    mark("sl_key", "kill")
+    c("kill")
+    respawn()
+    pos("sl_respawn")          # back at room 6's checkpoint
+    health("sl_respawn")
+    walk(5216, 1180, 8, 200)
+    walk(5216, 1100, 8, 120)
+    w(60)
+    walk(5216, 960, 8, 200)
+    pos("sl_key")              # the key kept through death: its door opened
+
+
+def sl_fight_save():
+    mark("sl_fight", "start")
+    c("vr_tips_test list")     # t2_rifle waiting for its trigger
+    walk(5216, 1000, 8, 150)
+    walk(5216, 860, 8, 150)
+    w(150)
+    c("vr_mock_turn_to monster", "vr_mock_walk_to monster 36")
+    fist(True)
+    for _ in range(10):
+        c('vr_mock_play "%s"' % PUNCH)
+        w(110)
+        c("vr_mock_walk_to monster 36")
+    c("vr_mock_turn_to off", "vr_mock_walk_to off")
+    fist(False)
+    w(60)
+    mark("sl_save", "save")
+    c("save t2test")
+    w(30)
+    c("load t2test")
+    w(120)
+    mark("sl_save", "loaded")
+    c("vr_tips_test list")     # t2_rifle shown now (not waiting)
+    # another enemy by the button (the rifle wasted, say), then a second press while it lives: refused
+    walk(5408, 905, 3, 300)
+    c("vr_mock_turn_to 90")
+    w(100)
+    press_hand("main", 5408, 921, LOW + 52, 20)
+    w(200)
+    press_hand("main", 5408, 921, LOW + 52, 20)
+    w(60)
+    mark("sl_fight", "end")
+
+
+def sl_restock():
+    mark("sl_restock", "start")
+    walk(4880, 337, 3, 300)
+    c("vr_mock_turn_to 90")
+    w(100)
+    grab_item("main", "weapon_shotgun")
+    w(72 * 12)                 # the bench's restock puts another shotgun there within 8 s
+    walk(4980, 337, 3, 150)
+    take_to_holster("off", "item_shells", 2)
+    take_to_holster("off", "item_shells", 2)
+    w(72 * 10)                 # and another box
+    mark("sl_restock", "end")
+
+
+SOFTLOCK = [("sl_key", sl_key_after_death, (5024, 1216, LOW + 24, 0)),
+            ("sl_fight", sl_fight_save, (5216, 1040, LOW + 24, 270)),
+            ("sl_restock", sl_restock, (5216, 330, LOW + 24, 270))]
+
+SOFTLOCK_CHECKS = [
+    ("sl_respawn", "killed: back at room 6's checkpoint", lambda p: 4960 < p[0] < 5100 and 1150 < p[1] < 1300),
+    ("sl_respawn_h", "with a new life (100 health)", lambda h: h >= 100),
+    ("sl_key", "the keycard kept through death: its door opened", lambda p: 5152 < p[0] < 5280 and p[1] < 1000),
+]
+
+SOFTLOCK_LINES = [
+    ("sl_waiting", r"t2_rifle: .*waiting for its trigger", "a triggered tip waits for its trigger"),
+    ("sl_shown", r"PT sl_save loaded[\s\S]*t2_rifle: (?![^\n]*waiting)", "after a save and load: shown (its trigger kept)"),
+    ("sl_another", r"(spawner r7_spawn: made a[\s\S]*){2}", "ANOTHER ENEMY made a second grunt"),
+    ("sl_refused", r"Finish this one first", "a third while it lives: refused"),
+    ("sl_shotgun", r"restock: a new weapon_shotgun", "the bench's shotgun restocked"),
+    ("sl_shells", r"restock: a new item_shells", "the bench's shells restocked"),
+]
+
+
+def write_throw(path, elevation=5, gunangle=70.0):
+    """One overhand throw of what the main hand holds (throw_plays.py's arc, released `elevation` degrees up): the
+    hand brought back, swung over and let go of."""
+    sys.path.insert(0, os.path.join(ROOT, "Misc", "quakevr"))
+    import throw_plays
+    keys, rel = throw_plays.arc_throw("overhand", 150, 40, 90 + elevation, 35, -45, 0.30)
+    L = ["0.000 main 0.25 1.1 -0.2 70 0 0"]
+    t0 = 1.0
+    L.append("%.3f main %.4f %.4f %.4f %.2f 0 0" % (t0 - 0.5, keys[0][1], keys[0][2], keys[0][3], keys[0][4] + gunangle))
+    L.append("%.3f grip main 1" % (t0 - 0.4))
+    for k in keys:
+        L.append("%.6f main %.6f %.6f %.6f %.4f 0 0" % (t0 + k[0], k[1], k[2], k[3], k[4] + gunangle))
+    L.append("%.6f cmd -grabmain" % (t0 + rel))
+    L.append("%.6f grip main 1" % (t0 + rel - 0.015))
+    L.append("%.6f grip main 0" % (t0 + rel + 0.035))
+    L.append("%.6f cmd vr_mock_button main grip 0" % (t0 + rel + 0.04))
+    t1 = t0 + keys[-1][0] + 0.6
+    L.append("%.3f main 0.25 1.1 -0.2 70 0 0" % t1)
+    with open(path, "w", newline="\n") as f:
+        f.write("\n".join(L) + "\n")
 
 
 def script(args):
-    c('alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "developer 1", "vr_tips 0", "vr_fixed_frames 1", "vr_climb_debug 1",
-      "map vrtutorial2")
+    c('alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "developer 1", "vr_tips 0", "vr_fixed_frames 1", "vr_climb_debug 1", "vr_debug_wallbuttons 1",
+      "skill 0",
+      # (vr_pain_knock 0: with the knock of the fall's damage, the mock's hand never took room 6's keycard (no hand touch
+      # reached it; the health kit right after the fall was taken): see the report; every other gate passes with it on)
+      "vr_pain_knock 0", "map vrtutorial2")
     w(80)
-    if args.god:
-        c("god")
+    global GOD
+    GOD = args.god
     global PUNCH
     plays = os.path.join(ROOT, "scratch", "vrtut2_plays").replace("\\", "/")
     os.makedirs(plays, exist_ok=True)
@@ -409,6 +728,25 @@ def script(args):
                     "--distance", "0.95", "--mock", "--out", plays, "--name", "punch"], check=True,
                    capture_output=True)
     PUNCH = plays + "/" + [f for f in sorted(os.listdir(plays)) if f.startswith("punch") and f.endswith(".mock")][-1]
+    global THROW, END_PLAY
+    END_PLAY = plays + "/end.txt"
+    with open(END_PLAY, "w", newline="\n") as f:
+        f.write("12.0 cmd echo PT slipgate pos\n12.0 cmd viewpos\n12.5 cmd echo PT end\n13.0 cmd toggleconsole\n"
+                "13.5 cmd quit\n")
+    THROW = plays + "/throw.txt"
+    write_throw(THROW)
+    if args.softlock:
+        runs = [(n, fn, st) for n, fn, st in SOFTLOCK if not args.start or n == args.start]
+        for n, fn, (x, y, z, yaw) in runs:
+            c("setpos %d %d %d 0 %d 0" % (x, y, z, yaw), "noclip")
+            w(20)
+            fn()
+        c("echo PT end", "toggleconsole", "quit")
+        path = os.path.join(ROOT, "quakevr", "vrtut2play.cfg")
+        with open(path, "w", newline="\n") as f:
+            f.write("\n".join(OUT) + "\n")
+        print("wrote %s: %d lines (softlock)" % (path, len(OUT)))
+        return
     names = [n for n, _ in GATES]
     start = names.index(args.start) if args.start else 0
     if args.start and args.start in STARTS:
@@ -417,7 +755,10 @@ def script(args):
         w(20)
     for name, fn in GATES[start:]:
         fn()
-    c("echo PT end", "toggleconsole", "quit")
+    if "ENDS" in OUT:
+        del OUT[OUT.index("ENDS"):]
+    else:
+        c("echo PT end", "toggleconsole", "quit")
     path = os.path.join(ROOT, "quakevr", "vrtut2play.cfg")
     with open(path, "w", newline="\n") as f:
         f.write("\n".join(OUT) + "\n")
@@ -449,6 +790,14 @@ def parse(lines):
 
 # (gate, a regex the log must have, what it shows)
 LINE_CHECKS = [
+    ("throw_press", r"pressed by player: vr_(rock|brick) thrown", "the button pressed by a thrown rock"),
+    ("torch", r"walltorch: taken|walltorch: .*pulled out", "a wall torch taken by hand"),
+    ("burning", r"burning: vr_crate", "the crates set on fire"),
+    ("waves", r"Wave 3!", "the arena's waves came"),
+    ("cleared", r"Arena cleared", "the arena cleared"),
+    ("hub", r"SpawnServer: vrstart\s*$", "the hub (vrstart) loaded"),
+    ("flashlight", r"flashlight: taken in the off hand", "the flashlight taken from the belt"),
+    ("flashlight_on", r"flashlight: on", "the flashlight switched on"),
     ("grunt_dead", r"spawner r7_spawn: all dead", "the grunt beaten with fists"),
     ("rifle", r"weapon: main hand takes weapon 15", "the grunt's rifle taken by hand"),
     ("rifle_held", r"Grunt's Shotgun taken into the main hand, [\d.]+ units from its handle$", "held by its handle (ready to fire)"),
@@ -474,11 +823,23 @@ CHECKS = [
     ("fight_h", "survived the fist fight", lambda h: h > 0),
     ("fight", "the rifle shot the three targets: the door opened", lambda p: 5152 < p[0] < 5280 and p[1] < 400),
     ("weapons", "shotgun loaded by hand, reloaded, the range cleared", lambda p: 4528 < p[0] < 4760 and p[1] > 150),
+    ("dark_block1", "dark: over the first block", lambda p: p[1] < -100),
+    ("dark_climb", "dark: climbed the 48 block", lambda p: p[2] > LOW + 60),
+    ("dark_ledge", "dark: up the step and the ledge", lambda p: p[2] > LOW + 90),
+    ("dark", "through the dark course to room 10", lambda p: p[0] < 3440),
+    ("throw", "a thrown rock pressed the button: its door opened", lambda p: p[0] < 2540),
+    ("fire", "burnt the crates in the passage: through to room 11b", lambda p: p[0] < 2032),
+    ("arena_h", "alive after the arena's waves", lambda h: h > 0),
+    ("arena", "the arena cleared: its way out open", lambda p: p[1] < -1560),
 ]
 
 
-def check():
-    lines = sys.stdin.read().splitlines()
+def check(softlock=False):
+    global CHECKS, LINE_CHECKS
+    if softlock:
+        CHECKS, LINE_CHECKS = SOFTLOCK_CHECKS, []
+    text = sys.stdin.read()
+    lines = text.splitlines()
     rows = parse(lines)
     stuck = [l for l in lines if "stuck" in l]
     fails = 0
@@ -487,26 +848,29 @@ def check():
         res = "PASS" if vals and ok(vals[-1]) else "FAIL"
         fails += res == "FAIL"
         print("%-14s %s  %s  (%s)" % (gate, res, what, vals[-1] if vals else "no state"))
-    for gate, rx, what in LINE_CHECKS:
-        res = "PASS" if any(re.search(rx, l) for l in lines) else "FAIL"
+    for gate, rx, what in (SOFTLOCK_LINES if softlock else LINE_CHECKS):
+        res = "PASS" if re.search(rx, text) else "FAIL"
         fails += res == "FAIL"
         print("%-14s %s  %s" % (gate, res, what))
     for l in stuck[:10]:
         print("  " + l.strip())
-    print("%d of %d gates passed" % (len(CHECKS) + len(LINE_CHECKS) - fails, len(CHECKS) + len(LINE_CHECKS)))
+    n = len(CHECKS) + len(SOFTLOCK_LINES if softlock else LINE_CHECKS)
+    print("%d of %d gates passed" % (n - fails, n))
     return 1 if fails else 0
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("mode", choices=["script", "check"])
-    ap.add_argument("--god", action="store_true", help="god mode (the fights can't kill him)")
+    ap.add_argument("--softlock", action="store_true", help="the softlock checks instead (death, save and load, "
+                    "wasted rifle, restocks); with check: their table")
+    ap.add_argument("--god", action="store_true", help="god mode from the fist fight on (the fights can't kill him)")
     ap.add_argument("--from", dest="start", help="start at this gate (setpos there first)")
     args = ap.parse_args()
     if args.mode == "script":
         script(args)
     else:
-        sys.exit(check())
+        sys.exit(check(args.softlock))
 
 
 if __name__ == "__main__":

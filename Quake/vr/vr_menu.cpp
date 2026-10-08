@@ -5671,6 +5671,20 @@ za::Vector<Item> pageDebugTests()
         command("The Old Hub (vrstart_old)", "vr_campaign_hub vrstart_old")
             .help("vr_campaign_hub vrstart_old: the hub before the island (vrstart until 2026-10-07). Nothing goes there by "
                   "default; vr_hub_map vrstart_old makes it the hub again."),
+        header("Tutorial (vrtutorial2)"),
+        command("The Tutorial", "skill 0; map vrtutorial2")
+            .help("skill 0; map vrtutorial2: the tutorial (a military base by day, 12 lessons and an arena; "
+                  "Misc/quakevr/maps/vrtutorial2_gen.py), on Easy as the start flow and the hub's button start it."),
+        command("The Old Tutorial (vrtutorial)", "map vrtutorial").help("map vrtutorial: the tutorial before 2026-10-08."),
+        command("First Start Again", "vr_tutorial_started 0")
+            .help("vr_tutorial_started 0: the next start of the game goes to the tutorial, as a new install's first start "
+                  "does (the tutorial sets it back to 1 as it loads)."),
+        cycle("Go to a Lesson", "vr_tutorial_goto",
+            {{0.f, "-"}, {1.f, "1 Moving"}, {2.f, "2 Buttons"}, {3.f, "3 Jumping"}, {4.f, "4 Swimming"}, {5.f, "5 Healing"},
+             {6.f, "6 Melee"}, {7.f, "7 A Fight"}, {8.f, "8 Weapons"}, {9.f, "9 Darkness"}, {10.f, "10 Throwing"},
+             {11.f, "11 Fire"}, {12.f, "12 The Arena"}})
+            .help("In vrtutorial2: puts you at that lesson's start (its checkpoint, taken: you come back there). Doors "
+                  "on the way stay as they are."),
         header("Climbing"),
         command("Climbing Test Map", "map vrclimb").help("map vrclimb: rungs, ledges, a jump wall, moving and floating ledges."),
         command("To the Jump Wall", "setpos -40 -310 24 0 0 0; noclip")

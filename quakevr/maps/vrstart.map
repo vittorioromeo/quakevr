@@ -96355,7 +96355,7 @@
 {
 "classname" "func_button"
 "buttonEffect" "3"
-"targetname" "map vrtutorial\n"
+"targetname" "skill 0; map vrtutorial2\n"
 "worldtext" "VR\nTUTORIAL"
 "worldtext_halign" "1"
 "worldtext_scale" "0.2"

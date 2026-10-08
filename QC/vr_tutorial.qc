@@ -353,7 +353,7 @@ float(entity xRestock) VR_Restock_Near =
     }
     for(entity e = nextent(world); e; e = nextent(e))
     {
-        if((e.classname == cls || e.classname == cls2) && e.modelindex &&
+        if((e.classname == cls || e.classname == cls2) && e.modelindex && e.model != NULLSTR && e.solid != SOLID_NOT &&
            vlen((e.absmin + e.absmax) * 0.5 - xRestock.origin) <= xRestock.distance)
         {
             n++;
@@ -364,7 +364,12 @@ float(entity xRestock) VR_Restock_Near =
 
 void() VR_Restock_Put =
 {
-    if(VR_Restock_Near(self) >= self.count)
+    float near = VR_Restock_Near(self);
+    if(cvar("developer") >= 2)
+    {
+        dprint(sprintf("restock: %g %s near %v (of %g)\n", near, self.contents, self.origin, self.count));
+    }
+    if(near >= self.count)
     {
         return;
     }
@@ -372,7 +377,11 @@ void() VR_Restock_Put =
     if(e != world)
     {
         sound(self, CHAN_VOICE, "items/itembk2.wav", 0.6, ATTN_NORM);
-        dprint(sprintf("restock: a new %s at %v\n", self.contents, self.origin));
+        dprint(sprintf("restock: a new %s at %v (%g were near)\n", self.contents, self.origin, near));
+    }
+    else
+    {
+        dprint(sprintf("restock: a new %s at %v could not be made\n", self.contents, self.origin));
     }
 };
 
@@ -504,4 +513,47 @@ float() VR_Checkpoint_Respawn =
     self.items = self.items | keys;
     dprint(sprintf("checkpoint: back at %v\n", self.origin));
     return TRUE;
+};
+
+// ----------------------------------------------------------------------------
+// Debug > Tests > Tutorial > Go to a Lesson (vr_tutorial_goto): in vrtutorial2, the player put at lesson N's
+// checkpoint ("cp<N>", taken), when the cvar changes to N (1..12). Checked every frame (StartFrame).
+
+nosave float vr_tut_goto_seen; // the value acted on (a map's start takes the cvar as it is: no jump)
+nosave float vr_tut_goto_ready;
+
+void() VR_Tutorial_Frame =
+{
+    if(mapname != "vrtutorial2")
+    {
+        return;
+    }
+    float n = cvar("vr_tutorial_goto");
+    if(!vr_tut_goto_ready)
+    {
+        vr_tut_goto_ready = TRUE;
+        vr_tut_goto_seen = n;
+        return;
+    }
+    if(n == vr_tut_goto_seen)
+    {
+        return;
+    }
+    vr_tut_goto_seen = n;
+    entity cp = find(world, targetname, sprintf("cp%g", n));
+    entity p = find(world, classname, "player");
+    if(cp == world || p == world)
+    {
+        return;
+    }
+    entity oself = self;
+    self = cp;
+    VR_Checkpoint_Take();
+    self = oself;
+    setorigin(p, cp.origin);
+    p.velocity = '0 0 0';
+    p.angles = cp.angles;
+    p.fixangle = TRUE;
+    p.flags = p.flags - (p.flags & FL_ONGROUND);
+    dprint(sprintf("tutorial: to lesson %g at %v\n", n, cp.origin));
 };

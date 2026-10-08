@@ -580,6 +580,8 @@ def sliding_door(door, name=None, keys=None, tex=None, wait=-1, speed=100):
 
 def ceiling_lamp(out, x, y, zc, w=64, d=32, value=260, color=WHITE, dark=False):
     """A flat lamp under a ceiling at zc: a frame and a glowing panel, a light below."""
+    if any(sx0 - 40 < x < sx1 + 40 and sy0 - 24 < y < sy1 + 24 for sx0, sy0, sx1, sy1 in SKYLIGHTS):
+        return  # (a skylight there)
     dbox(out, (x - w / 2 - 4, y - d / 2 - 4, zc - 4), (x + w / 2 + 4, y + d / 2 + 4, zc), TX["lamp_frame"])
     dbox(out, (x - w / 2, y - d / 2, zc - 6), (x + w / 2, y + d / 2, zc - 4),
          {"bottom": TX["lamp"], "side": TX["lamp_frame"], "top": TX["lamp_frame"]}, fit=("bottom",))
@@ -680,7 +682,64 @@ UP = 256        # room 4's floor (room 3's top: the jump wall, 112 over the ladd
 
 
 def room(name, x0, y0, x1, y1, z, top, style, **kw):
-    return air(name, (x0, y0, z), (x1, y1, top), style=style, **kw)
+    a = air(name, (x0, y0, z), (x1, y1, top), style=style, **kw)
+    a.trim = True   # its corner columns and crown moulding (room_trims)
+    return a
+
+
+SKYLIGHTS = []   # (x0, y0, x1, y1): no ceiling lamp under them (ceiling_lamp)
+
+
+def skylight(x0, y0, x1, y1, ztop, depth=64):
+    """A light well in a ceiling at ztop: a shaft `depth` high open to the sky, its sides plain metal, a frame round
+    its mouth. The sun comes down it."""
+    air("skylight_%d_%d" % (x0, y0), (x0, y0, ztop), (x1, y1, ztop + depth),
+        style=Style(TX["floor2"], None, [(0, None, TX["upper"])], sky=True))
+    SKYLIGHTS.append((x0, y0, x1, y1))
+    out = group("skylight_%d_%d" % (x0, y0))
+    fr = {"side": TX["lamp_frame"], "bottom": TX["lamp_frame"], "top": TX["lamp_frame"]}
+    dbox(out, (x0 - 8, y0 - 8, ztop - 4), (x1 + 8, y0, ztop), fr)
+    dbox(out, (x0 - 8, y1, ztop - 4), (x1 + 8, y1 + 8, ztop), fr)
+    dbox(out, (x0 - 8, y0, ztop - 4), (x0, y1, ztop), fr)
+    dbox(out, (x1, y0, ztop - 4), (x1 + 8, y1, ztop), fr)
+    # cross bars over the opening (a grille: daylight through it, nothing falls in)
+    for x in range(x0 + 32, x1, 32):
+        dbox(out, (x - 2, y0, ztop + 8), (x + 2, y1, ztop + 12), TX["rail_post"])
+
+
+def room_trims():
+    """Every room's corner columns (16 square, floor to ceiling: the riveted strip) and its crown moulding (8 by 8
+    along the walls at the ceiling; a courtyard's: a cornice 16 high under its top), all detail; none where a
+    doorway, window or alcove meets them."""
+    out = group("trims")
+    doors = [(a.lo, a.hi) for a in AIRS if a.kind == "door"]
+    others = [(a.lo, a.hi) for a in AIRS if a.kind != "door"]
+
+    def clear(lo, hi, room):
+        g = ((lo[0] - 1, lo[1] - 1, lo[2] - 1), (hi[0] + 1, hi[1] + 1, hi[2] + 1))
+        if any(overlaps(g, d) for d in doors):
+            return False
+        # (not into another air box but its own: an alcove, a pool, a skylight beside it)
+        return not any(overlaps((lo, hi), o) for o in others if o != (room.lo, room.hi))
+
+    col = {"side": TX["strip_v"], "top": TX["lamp_frame"], "bottom": TX["lamp_frame"]}
+    for a in AIRS:
+        if a.kind != "room" or not getattr(a, "trim", False):
+            continue
+        (x0, y0, z0), (x1, y1, z1) = a.lo, a.hi
+        for (cx, cy) in ((x0, y0), (x1 - 16, y0), (x0, y1 - 16), (x1 - 16, y1 - 16)):
+            lo, hi = (cx, cy, z0), (cx + 16, cy + 16, z1)
+            if clear(lo, hi, a):
+                dbox(out, lo, hi, col)
+        if a.style.sky:
+            zc0, zc1, d = z1 - 48, z1 - 32, 8
+        else:
+            zc0, zc1, d = z1 - 8, z1, 8
+        crown = {"side": TX["lamp_frame"], "top": TX["lamp_frame"], "bottom": TX["lamp_frame"]}
+        for lo, hi in (((x0 + 16, y0, zc0), (x1 - 16, y0 + d, zc1)), ((x0 + 16, y1 - d, zc0), (x1 - 16, y1, zc1)),
+                       ((x0, y0 + 16, zc0), (x0 + d, y1 - 16, zc1)), ((x1 - d, y0 + 16, zc0), (x1, y1 - 16, zc1))):
+            if clear(lo, hi, a):
+                dbox(out, lo, hi, crown)
 
 
 def doorway(name, x0, y0, x1, y1, z, out, h=128, frames=True):
@@ -734,7 +793,7 @@ def build_room1():
     lamp_grid(out, 0, 0, 640, 512, 224, 3, 2)
     ent("info_player_start", 96, 256, 24, angle=0)
     checkpoint("cp1", 96, 256, 0, 0)
-    banner(N.join(["WELCOME TO QUAKE VR", "", "MOVE: push the left stick.", "TURN: push the right stick left or right.",
+    banner(N.join(["WELCOME TO QUAKE VR", "LESSON 1 OF 12: MOVING", "", "MOVE: push the left stick.", "TURN: push the right stick left or right.",
                    "Or simply turn your head and body.", "", "Follow the yellow arrows."]), 634, 416, 100, 180, "0.32")
     arrows([(176, 256), (272, 256), (368, 256), (464, 256), (560, 256), (650, 256)], 0)
     tip("t2_move", "Push the left stick to walk." + N + "Push the right stick sideways to turn.", 220, 256, 60, 220)
@@ -774,11 +833,12 @@ def build_room2():
     checkpoint("cp2", 1232, 704, 0, 0)
     button("PUSH", None, 1440, 592, 56, 0, target="r2_door", size=20, wait="-1")
     lamp_grid(out, 1184, 512, 1440, 896, 224, 1, 3)
-    banner(N.join(["BUTTONS", "Push the button beside the door.", "Your hand, anything you hold, your body",
+    banner(N.join(["LESSON 2: BUTTONS", "Push the button beside the door.", "Your hand, anything you hold, your body",
                    "or something you throw presses a button."]), 1432, 704, 176, 180, "0.28")
     tip("t2_button", "Reach out and push the button" + N + "with your hand.", 1428, 592, 76, 150)
     # ---- the settings room: moving and turning
     room("room2b", 1456, 384, 2096, 1024, 0, 256, bands(TX["panel"]))
+    skylight(1712, 640, 1840, 768, 256)
     doorway("room2b_exit", 2096, 640, 2112, 768, 0, out)
     lamp_grid(out, 1456, 384, 2096, 1024, 256, 3, 3)
     rows = [[("TURNING", "turning"), ("TURN SPEED", "turnspeed"), ("MOVE" + N + "TOWARDS", "movedir"),
@@ -845,7 +905,7 @@ def build_room3():
     arrows([(3040, 704), (3120, 704)], R3_PLAT_Z)
     arrows([(3248, 704), (3328, 704), (3400, 704)], UP)
     wall_arrow("-x", R3_PLAT, 768, 96, "up", 40)
-    banner(N.join(["JUMPING AND CLIMBING", "", "JUMP: press A (the right controller).",
+    banner(N.join(["LESSON 3: JUMPING AND CLIMBING", "", "JUMP: press A (the right controller).",
                    "Jump the low barriers."]), 2380, r["y1"] - 4, 120, 270, "0.32")
     banner(N.join(["CLIMB: grip a rung or a ledge with an empty hand", "and pull yourself up, hand over hand.",
                    "Pull up at the top to climb onto it."]), R3_PLAT - 4, 840, 112, 180, "0.28")
@@ -900,8 +960,8 @@ def build_room4():
     light(3920, 1040, POOL_FLOOR + 48, 220, "0.7 0.85 1")
     light(4016, 1136, POOL_FLOOR + 48, 220, "0.7 0.85 1")
     setting_button("SWIMMING", "swim", 3760, r["y1"], UP + 48, 90)
-    banner(N.join(["SWIMMING", "Dive in, swim down into the passage,", "round the corner and up into the next room.",
-                   "Immersive: stroke with your arms.", "Vanilla: the stick moves you where you look."]),
+    banner(N.join(["LESSON 4: SWIMMING", "Dive in, swim down into the passage,", "round the corner and up into the next room.",
+                   "Immersive: stroke with your arms.", "Vanilla: the stick moves you where you look;", "A swims up."]),
            3760, r["y1"] - 4, UP + 150, 270, "0.28")
     tip("t2_swim", "Immersive swimming: pull your arms" + N + "through the water like a breast stroke." + N +
         "Press SWIMMING for the stick instead.", 3760, r["y1"] - 30, UP + 64, 200)
@@ -962,7 +1022,7 @@ def build_room5():
     dbox(out, (4860, 1360, LOW + 96), (r["x1"], 1440, LOW + 100), {"side": TX["lamp_frame"], "top": TX["floor2"]})
     item("item_health", 4880, 1384, LOW + 102, spawnflags=1)
     restock("item_health", 4544, 1392, LOW + 34, contentsflags=1, distance=128, wait=6)
-    banner(N.join(["HEALING", "Health kits mend you. Grip one and hold it", "to your body, or put it in a holster:",
+    banner(N.join(["LESSON 5: HEALING", "Health kits mend you. Grip one and hold it", "to your body, or put it in a holster:",
                    "at your hips, over your shoulders."]), 4544, r["y1"] - 4, LOW + 120, 270, "0.28")
     banner(N.join(["GRAB: close your hand round it.", "FORCE GRAB: point at something far", "and grip: it flies to your hand.",
                    "COLLECT: put it in a holster, your pouch,", "or over your shoulder into your pack."]),
@@ -988,12 +1048,13 @@ def build_room6():
     out = group("room6")
     r = R6
     room("room6", r["x0"], r["y0"], r["x1"], r["y1"], LOW, 64, bands(TX["panel4"]))
+    skylight(5152, 1280, 5280, 1408, 64)
     checkpoint("cp6", 5024, 1216, LOW, 0)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], 64, 2, 2)
     ent("vr_crate", 5216, 1344, LOW + 2, spawnflags=1, angle=20, skin=1, contents="item_key1", target="r6_crate")
     for (x, y, a) in ((5408, 1408, 5), (5400, 1160, 40)):
         ent("vr_crate", x, y, LOW + 2, angle=a, skin=2)
-    banner(N.join(["MELEE", "Make a fist and punch the crate", "until it breaks. Swing hard!"]),
+    banner(N.join(["LESSON 6: MELEE", "Make a fist and punch the crate", "until it breaks. Swing hard!"]),
            5216, r["y1"] - 4, LOW + 120, 270, "0.3")
     tip("t2_punch", "Make a fist (grip and trigger)" + N + "and punch the crate until it breaks.", 5216, 1300,
         LOW + 60, 200)
@@ -1018,7 +1079,7 @@ def build_room7():
     room("room7", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 288, bands(TX["panel2"]))
     checkpoint("cp7", 5216, 880, LOW, 270)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 288, 3, 2, 280)
-    banner(N.join(["WARNING: AN ENEMY IS COMING", "Fight it with your fists:", "block its blows, then strike."]),
+    banner(N.join(["LESSON 7: A FIGHT", "WARNING: AN ENEMY IS COMING", "Fight it with your fists:", "block its blows, then strike."]),
            5216, 1068, LOW + 104, 270, "0.3")
     # the alcove the grunts come from (a spawner in it); the button for another
     air("r7_alcove", (r["x1"], 608, LOW), (r["x1"] + 64, 736, LOW + 128), style=bands(TX["panel5"]))
@@ -1032,8 +1093,8 @@ def build_room7():
         LOW + 76, 150)
     tip("t2_parry", "PARRY: hold your fist or weapon across" + N + "an enemy's blow to block it: it staggers," + N +
         "open to your strike.", 5216, 780, LOW + 70, 220)
-    tip("t2_rifle", "Take its rifle: grip it, aim, pull the trigger." + N + "Its magazine is all it has:" + N +
-        "it can't be reloaded.", 5216, 640, LOW + 40, 500, delay=0, trig="r7_dead")
+    tip("t2_rifle", "Take its rifle: grip it by its handle," + N + "aim, pull the trigger. Its magazine is all" + N +
+        "it has: it can't be reloaded.", 5216, 640, LOW + 40, 500, delay=0, trig="r7_dead")
     # three targets to shoot (shootable buttons) on the west wall
     for y in (544, 672, 800):
         button("", None, r["x0"], y, LOW + 120, 180, size=28, target="r7_count", tex=TX["shoot"], health=1,
@@ -1056,6 +1117,8 @@ def build_room8():
     out = group("room8")
     r = R8
     room("room8", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 256, bands(TX["panel"]))
+    for sx in (4992, 5376):
+        skylight(sx, -352, sx + 128, -224, LOW + 256)
     checkpoint("cp8", 5216, 352, LOW, 270)
     lamp_grid(out, r["x0"], R8_COUNTER, r["x1"], r["y1"], LOW + 256, 4, 1, 260)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], R8_COUNTER, LOW + 256, 3, 3, 280)
@@ -1068,7 +1131,7 @@ def build_room8():
     ent("weapon_shotgun", 4880, 368, LOW + 40)
     for x in (4976, 5040):
         item("item_shells", x, 368, LOW + 40)
-    restock("weapon_shotgun", 4880, 368, LOW + 40, distance=4000, wait=8)
+    restock("weapon_shotgun", 4880, 368, LOW + 40, distance=128, wait=8)
     restock("item_shells", 5008, 368, LOW + 40, count=2, distance=96, wait=6)
     # the targets: boards on posts (QC func_vr_target), each needing a hit
     for i, (x, y, z) in enumerate(R8_TARGETS):
@@ -1084,7 +1147,7 @@ def build_room8():
                                 ("TWO-HANDED" + N + "AIM", "twohand"), ("WEAPON GRIP", "grip"),
                                 ("CROSSHAIR", "crosshair")], (5376, 5440, 5504, 5568, 5632)):
         setting_button(label, key, x, r["y1"], LOW + 64, 90)
-    banner(N.join(["WEAPONS", "Take the shotgun from the bench: grip it.", "Load shells: take one from the pouch at",
+    banner(N.join(["LESSON 8: WEAPONS", "Take the shotgun from the bench: grip it.", "Load shells: take one from the pouch at",
                    "your belly, push it into the gun's port.", "Destroy every target to go on."]),
            5216, r["y1"] - 4, LOW + 160, 270, "0.28")
     banner(N.join(["HOLSTERS: let go of a gun at your hip", "or shoulder to put it away; grip there",
@@ -1117,7 +1180,7 @@ def build_room9():
     room("room9v", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 192, bands(TX["panel2"]))
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 192, 1, 1, 200)
     checkpoint("cp9", 4704, 288, LOW, 180)
-    banner(N.join(["DARKNESS AHEAD", "Your flashlight hangs at your hip:", "grip it; pull the trigger to switch",
+    banner(N.join(["LESSON 9: DARKNESS", "Your flashlight hangs at your hip:", "grip it; pull the trigger to switch",
                    "it on or off."]), 4640, r["y0"] + 4, LOW + 120, 90, "0.28")
     tip("t2_torch", "Take your flashlight: grip at your hip" + N + "(the side set by TORCH SIDE), trigger" + N +
         "to switch it on.", 4640, 200, LOW + 60, 200)
@@ -1158,11 +1221,11 @@ def build_room10():
     gx0, gx1 = R10_GRATE
     door_frame(out, door_air("r10_grate", (gx0, r["y0"] - 16, LOW + 16), (gx1, r["y0"], LOW + 112)))
     air("r10_alcove", (gx0, r["y0"] - 64, LOW), (gx1, r["y0"] - 16, LOW + 128), style=bands(TX["panel5"]))
-    for x in range(gx0 + 8, gx1, 16):
+    for x in range(gx0 + 12, gx1, 24):   # (bars 24 apart: a rock goes between them, the player does not)
         out.append(cylinder((x, r["y0"] - 8, LOW + 16), (x, r["y0"] - 8, LOW + 112), 2, 8, TX["rung"]))
     bx = (gx0 + gx1) // 2
-    dbox(out, (bx - 28, r["y0"] - 64, LOW + 28), (bx + 28, r["y0"] - 62, LOW + 84), TX["hazard"])
-    button("HIT ME", None, bx, r["y0"] - 62, LOW + 56, 270, depth=8, size=32, target="r10_open", wait="-1",
+    dbox(out, (bx - 32, r["y0"] - 64, LOW + 32), (bx + 32, r["y0"] - 62, LOW + 96), TX["hazard"])
+    button("HIT ME", None, bx, r["y0"] - 62, LOW + 64, 270, depth=8, size=40, target="r10_open", wait="-1",
            scale="0.3")
     wall_lamp(out, "-y", bx, r["y0"] - 64, LOW + 112, 120)
     # the rocks and bricks on a table beside it, more as they go
@@ -1171,7 +1234,7 @@ def build_room10():
         ent("vr_debris_piece", 2768 + 16 * i, -296, LOW + 40, model="progs/%s.mdl" % mdl, angle=RND.randrange(360))
     restock("vr_debris_piece", 2784, -296, LOW + 40, count=3, distance=64, wait=3, model="progs/vr_rock3.mdl")
     restock("vr_debris_piece", 2816, -296, LOW + 40, count=3, distance=64, wait=3, model="progs/vr_brick1.mdl")
-    banner(N.join(["THROWING", "The button is out of reach behind the bars.", "Throw a rock or a brick at it:",
+    banner(N.join(["LESSON 10: THROWING", "The button is out of reach behind the bars.", "Throw a rock or a brick at it:",
                    "grip, swing, let go."]), 2928, r["y0"] + 4, LOW + 160, 90, "0.3")
     tip("t2_throw", "Grip a rock, swing your arm and let go" + N + "as it comes forward. Hit the button.",
         2800, -260, LOW + 70, 200)
@@ -1180,10 +1243,10 @@ def build_room10():
     for x in (3232, 3296):
         item("item_rockets", x, -296, LOW + 36)
     restock("item_rockets", 3264, -296, LOW + 36, distance=96, wait=8)
-    banner(N.join(["GRENADES", "With rockets in your pack, reach over your", "shoulder to the back pouch: grip a grenade.",
-                   "Trigger pulls the pin; throw it. Or set it", "down as a trap. No launcher needed."]),
+    banner(N.join(["GRENADES", "With rockets in your pack, reach behind you:", "the pouch at the small of your back gives a grenade.",
+                   "Trigger pulls the pin; throw it. Or drop it", "where they will come: a trap. No launcher needed."]),
            3264, r["y0"] + 4, LOW + 120, 90, "0.26")
-    tip("t2_grenade", "Take the rockets: they fill your back pouch." + N + "Reach behind your back to take a grenade.",
+    tip("t2_grenade", "Take the rockets (hold the box to a holster)." + N + "Then reach to the small of your back" + N + "for a grenade.",
         3264, -296, LOW + 64, 180)
     d = doorway("room10_exit", r["x0"] - 16, -256, r["x0"], -128, LOW, out)
     sliding_door(d, "r10_open")
@@ -1229,13 +1292,14 @@ def build_room11():
     for (x, y) in ((2190, -100), (2190, 100), (2220, -128)):
         ent("vr_barrel", x, y, LOW + 18, skin=k % 3)
         k += 1
-    banner(N.join(["FIRE", "Take a torch off the wall: grip it.", "Set the crates alight and watch it spread.",
+    banner(N.join(["LESSON 11: FIRE", "Take a torch off the wall: grip it.", "Set the crates alight and watch it spread.",
                    "Enemies burn too. So do you: careful!"]), r["x1"] - 4, 0, LOW + 120, 180, "0.3")
     tip("t2_torch_take", "Grip a torch and pull it off the wall.", 2272, r["y0"] + 24, LOW + 64, 160)
     tip("t2_burn", "Touch the crates with the flame" + N + "or hit them with the torch.", 2200, 0, LOW + 64, 160)
     # ---- beyond: the nailgun
     r = R11B
     room("room11b", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 256, bands(TX["panel"]))
+    skylight(1792, -64, 1920, 64, LOW + 256)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 256, 2, 2, 220)
     for (side, x, y) in (("-x", r["x0"], -128), ("-x", r["x0"], 128)):
         wall_torch(out, side, x, y, LOW + 64)
@@ -1244,7 +1308,7 @@ def build_room11():
     for x in (1856, 1888):
         item("item_spikes", x, 208, LOW + 40)
     restock("item_spikes", 1872, 208, LOW + 40, count=2, distance=128, wait=6)
-    restock("weapon_nailgun", 1792, 208, LOW + 40, distance=4000, wait=8)
+    restock("weapon_nailgun", 1792, 208, LOW + 40, distance=128, wait=8)
     banner(N.join(["LAVA NAILS", "Fire nails through a torch's flame:", "they come out burning.",
                    "(Dissolution of Eternity's lava nails)"]), 1840, r["y1"] - 4, LOW + 120, 270, "0.28")
     tip("t2_lavanails", "Hold a torch in front of the nailgun" + N + "and fire through the flame.", 1840, 200,
@@ -1306,7 +1370,7 @@ def build_room12():
         item(cls, 1368, y, LOW + 40)
     restock("item_shells", 1368, -856, LOW + 40, distance=32, wait=10)
     restock("item_spikes", 1368, -896, LOW + 40, distance=32, wait=10)
-    restock("weapon_shotgun", 1368, -700, LOW + 40, distance=6000, wait=10)
+    restock("weapon_shotgun", 1368, -700, LOW + 40, distance=128, wait=10)
     for (x, y) in ((300, -1500), (1370, -1500), (448, -560), (830, -1110)):
         item("item_health", x, y, LOW + 2)
     restock("item_health", 1370, -1500, LOW + 2, distance=96, wait=15)
@@ -1315,22 +1379,24 @@ def build_room12():
         wall_lamp(out, "-y", x, r["y0"], LOW + 140, 180)
     # the fight: shut the door, count down, three waves (QC func_vr_spawner: each fires its target when its monsters
     # are dead; a trigger_counter per wave)
-    trigger("r12_enter", (1216, -656, LOW), (1344, -528, LOW + 96), target="r12_go")
+    # (well in: the weapons' tables by the door are taken first)
+    trigger("r12_enter", (1024, -768, LOW), (1152, -512, LOW + 96), target="r12_go")
     ent("trigger_relay", 1300, -600, LOW + 40, targetname="r12_go", target="r12_shut")
     for i, (msg, t) in enumerate((("Get ready...", 1), ("3", 3), ("2", 4), ("1", 5), ("FIGHT!", 6))):
         k = {"targetname": "r12_go", "delay": t, "message": msg}
         if msg == "FIGHT!":
             k["target"] = "r12_w1"
         ent("trigger_relay", 1300, -600, LOW + 48 + 8 * i, **k)
+    # (all on the floor: one up on a mezzanine could keep out of sight and hold the wave up)
     waves = [
-        [(0, 1200, -1300, 135), (0, 450, -1200, 45), (0, 830, -440, 270)],
-        [(0, 320, -600, 0), (7, 1300, -1000, 180), (7, 500, -1450, 90), (0, 1100, -450, 270)],
-        [(8, 320, -900, 0), (8, 1200, -450, 225), (0, 830, -1450, 90), (7, 1300, -1300, 180)],
+        [(0, 1200, -1300, 135), (0, 450, -1200, 45), (0, 830, -620, 270)],
+        [(0, 440, -640, 0), (7, 1300, -1000, 180), (7, 500, -1450, 90), (0, 1100, -620, 270)],
+        [(8, 440, -900, 0), (8, 1220, -1100, 180), (0, 830, -1450, 90), (7, 1300, -1300, 180)],
     ]
     for w, spawns in enumerate(waves):
         name = "r12_w%d" % (w + 1)
         for (mon, x, y, a) in spawns:
-            z = MEZZ_Z if (y > -512 or x < 384) else LOW
+            z = LOW
             ent("func_vr_spawner", x, y, z + 32, weapon=mon, angle=a, spawnflags=2, targetname=name,
                 target=name + "_done")
         nxt = "r12_w%d" % (w + 2) if w + 1 < len(waves) else "r12_won"
@@ -1342,7 +1408,7 @@ def build_room12():
         ent("trigger_relay", 830, -900, LOW + 72, **k)
     ent("trigger_relay", 830, -900, LOW + 80, targetname="r12_won", target="r12_exit",
         message="Arena cleared! The way out is open.")
-    banner(N.join(["THE ARENA", "When you step in, the door shuts", "and enemies come in waves.",
+    banner(N.join(["LESSON 12: THE ARENA", "When you step in, the door shuts", "and enemies come in waves.",
                    "Take the weapons on the tables."]), 1400, -800, LOW + 130, 180, "0.3")
     tip("t2_arena", "Take a gun and ammunition here" + N + "before you step further in.", 1340, -760, LOW + 70,
         200)
@@ -1395,6 +1461,7 @@ def write_map():
     t0 = time.time()
     for build in ROOMS:
         build()
+    room_trims()
     check_layout()
     mw = MapWriter()
     for lo, hi in carve():

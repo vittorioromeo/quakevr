@@ -83,6 +83,15 @@ spawn functions but are not entities (`//! internal` in `entities.fgd`, with the
 | `vr_dummy` | a training dummy (a grunt) that cannot be hurt and shows every hit's damage | `angle` |
 | `weapon_shotgun` | the shotgun as a pickup (id's Quake has none) | |
 | `weapon_crowbar` | a crowbar lying ready to be picked up (a melee weapon, one hand or two): `func_weapon_grabbable` with weapon 17; QC places one with `VR_Crowbar_Spawn` | `angles` (how it lies before it falls; none: any way) |
+| `trigger_vr_health_gate` | a trigger (brush) firing its `target` once the player touches it at full health (his max_health, or `health`); below it `message` is centerprinted every 2 s (vrtutorial2's door that opens only at full health) | `target`, `message`, `health` |
+| `func_vr_spawner` | makes monsters when used, with teleport fog; fires `target` once every monster of its latest use is dead (waves: chain them with `trigger_counter` and `trigger_relay`). Spawnflags 1 ONE_AT_A_TIME (a use while one lives makes none: `message`), 2 ANGRY (they come for the user at once) | `weapon` (as `func_enemy_dispenser`: 0 grunt, 7 dog, 8 enforcer...), `count`, `wait`, `angle`, `target`, `message` |
+| `func_vr_target` | a target board (brush) that breaks into splinters when shot, struck or blown up, firing its `target` | `health` (10), `target` |
+| `func_vr_restock` | keeps a supply going: every `wait` s, when fewer than `count` of `contents` lie within `distance` of it, a new one here (single player) | `contents` (item_shells, item_spikes, item_rockets, item_cells, item_health, item_key1/2, weapon_shotgun, weapon_supershotgun, weapon_nailgun, weapon_supernailgun, vr_debris_piece, vr_crate), `contentsflags` (its spawnflags), `model` (a rock's or brick's), `count` (1), `distance` (96), `wait` (5; -1: only when used) |
+| `info_vr_checkpoint` | where a dead player comes back (single player) instead of the level restarting: taken when he comes within `distance` (96) or when used; the latest taken counts: a new life there (the level's starting items, his keys kept), the level as he left it | `targetname`, `angle`, `distance` |
+
+Also: `vr_crate`'s **`contents`** (what it holds instead of the random box: a classname as `func_vr_restock`'s, or
+`none`) and **`target`** (fired as it breaks); `func_vr_tip`'s **TRIGGERED** flag (8: not shown until its
+`targetname` is fired, a monster's death or a crate broken; a saved game keeps it shown).
 
 **Climbing (what counts as a ledge).** With Climbing on, a hand takes hold of a ledge (ROUND21.md, "Ledge map"; the
 engine finds them when the map loads, `vr_debug_ledges 1` shows them):
@@ -290,3 +299,65 @@ with no face there is a hole.
   still load it, `VR_MapAlias`). The old hub is `vrstart_old` (`vrstart_old.bsp`, `vrstart_old@3e00.ent`: our `.ent` files are pinned to their `.bsp`, `Misc/quakevr/entfile.py`): Debug > Tests > Hubs, or
   `vr_hub_map vrstart_old` to make it the hub again.
 - **Checks**: `vr_menu_path_check maps/vrstart.map` (the boards' `{menu:...}` names: 4 found, 0 missing).
+
+## vrtutorial2: the tutorial (a generated map)
+
+`quakevr/maps/vrtutorial2.map` is written by `Misc/quakevr/maps/vrtutorial2_gen.py` (**edit the script, not the .map**;
+its geometry helpers are `mapgeom.py`'s). A military base by day: 12 lessons and an arena, then a slipgate to the hub.
+It is the tutorial (the main menu's and the hub's VR TUTORIAL, and a new install's first start: below); the old one,
+`vrtutorial`, still loads by name (Debug > Tests > Tutorial).
+
+```
+python Misc/trenchbroom/make_id_wad.py                    # once: id's textures (git-ignored WAD)
+python Misc/quakevr/maps/make_day_sky.py                   # the day sky box (quakevr/gfx/env/qvrday*.png, committed)
+python Misc/quakevr/maps/vrtutorial2_gen.py                # the .map (under a second)
+python Misc/quakevr/maps/vrtutorial2_gen.py --compile --preset fast          # iterating
+python Misc/quakevr/maps/vrtutorial2_gen.py --compile --check 1000000        # the shipped build (final), the hole test
+```
+
+**How it is built.** The rooms, halls, doorways, pools and shafts are boxes of air (`Air`); the structural world is
+their shells (each box grown by the walls' 16 on every side, a side left open where a curved hall joins) minus every
+air box, cut into disjoint boxes and at the walls' bands' heights (`carve()`). A face's texture is the style of the air
+in front of it: floor, ceiling (or sky), the wall's band (skirting 0-16, panel 16-144, rail 144-160, upper wall), a
+doorway's jambs and lintel, a pool's tiles. Textures are laid with Valve 220 axes from the room's corners; rooms are
+multiples of 128 (the panels), doorways 128 wide on the panels' grid: panels, tiles and trims fit their faces. The
+bending hall is annular sectors (`arc_hall`), its walls banded too, the texture running on round the curve. Fittings are
+func_detail (door frames, lamps, corner columns and crown mouldings, skylights' frames and grilles, pipes, railings,
+ladders, tables, bars); the painted arrows func_detail_illusionary sheets (`{qvr_arrow`, quakevr_dev.wad). qbsp is
+ericw-tools 0.18.1's (`-bsp2`), vis and light 2.0's, with vrstart's presets. The worldspawn has `_qvr_prelit 1` (the
+in-game relight skips it), `worldtype 2` (keycards), `sky qvrday` (`make_day_sky.py`: the sun where `_sunlight_mangle`
+puts it).
+
+**The lessons** (x east, y north; floors at z 0, 256 and -144):
+
+| | Rooms | What it teaches | Its gate |
+|---|---|---|---|
+| 1 | room1, the bending hall | moving, turning (a board, floor arrows, two curves) | none |
+| 2 | room2a, room2b | buttons (hand, held thing, body, thrown thing); the moving and turning settings (8 buttons) | a door opened by its button |
+| 3 | room3 (a courtyard) | jumping, climbing (a ladder), a ledge caught at a jump's top | barriers 32 and 40 high, a 144 block with rungs, a wall 112 higher; a CLIMBING button if it is off |
+| 4 | room4a, 4b, 4c | swimming (a SWIMMING button), falling | a passage under water (down, round a corner, up); a hole to the floor below (400: 5 damage) |
+| 5 | room5 | healing, grabbing, force grabbing, collecting | a door that opens only at full health (`trigger_vr_health_gate`) |
+| 6 | room6 | melee | a crate holding the keycard (`vr_crate` contents `item_key1`); the keycard door |
+| 7 | room7 | a fist fight, parrying, the enemy's rifle | a grunt from the alcove (`func_vr_spawner`; ANOTHER ENEMY makes one more); three shootable buttons |
+| 8 | room8 | the shotgun, hand reloading, holsters, two hands; weapon settings | ten target boards (`func_vr_target`): more shots than a load |
+| 9 | room9v, room9 | the flashlight (taking it, switching it, flipping it, clipping it to a gun, the head torch) | a dark serpentine with blocks to jump and one (48) to climb |
+| 10 | room10 (a courtyard) | throwing; rockets, the grenade pouch | a button behind bars, pressed by a thrown rock |
+| 11 | room11a, 11b | fire (wall torches, burning crates; you burn too); lava nails | a passage stacked with crates to burn |
+| 12 | room12 (a courtyard) | an arena: the door shuts, a countdown, three waves (grunts, dogs, enforcers) | the waves (`func_vr_spawner`s, `trigger_counter`s); then the slipgate to `vrstart` |
+
+Everything a gate uses has a supply that comes back (`func_vr_restock`: health, shells, nails, rockets, rocks and bricks,
+the shotgun, the nailgun); a player who dies comes back at the lesson's checkpoint (`info_vr_checkpoint`), his keycard
+kept. He starts with no weapon, armour or shells and 100 health (client.qc's tutorial parms).
+
+**The start flow**: `vr_tutorial_started` (archived; 0 in a new install's config, 1 in any config from before
+vr_cfg_version 103) sends `vr_startgame` (and the first calibration's way out: QC changelevel_touch) to `skill 0; map
+vrtutorial2`; the map sets it to 1 as it loads, so the hub is where VR starts from then on. The hub's and the main
+menu's VR TUTORIAL run `skill 0; map vrtutorial2` too (vrstart.bsp's entity lump edited in place with
+`bsp_set_entities.py`; `vrstart_gen.py` says the same).
+
+**Tests**: `python Misc/quakevr/maps/vrtutorial2_playtest.py script [--god]` writes the headless playthrough
+(`quakevr/vrtut2play.cfg`: the mock autopilot `vr_mock_walk_to`, `vr_mock_turn_to`, `vr_mock_hand_aim`; punches,
+climbs, throws and loads with the mock hands), `bash <kit>/run.sh <agent> -Timeout 3600 -Script "exec vrtut2play.cfg"
+-Full > out.txt`, then `... check < out.txt` prints the gate table. `--softlock`: the death, save and load, wasted
+rifle and restock checks; `--from <gate>`: from that gate. Debug > Tests > Tutorial: the map, the old one, First Start
+Again, Go to a Lesson (`vr_tutorial_goto`).

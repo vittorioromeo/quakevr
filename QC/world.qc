@@ -557,6 +557,7 @@ void() StartFrame =
     skill = cvar_hget(cvarh_skill);
     VR_CVars_Frame();
     VR_Stealth_Frame(); // QVR: the stealth AI switched off: the monsters back to Quake's AI (vr_stealth.qc)
+    VR_Tutorial_Frame(); // QVR: Debug's Go to a Lesson (vrtutorial2 only: vr_tutorial.qc)
     MG_WorldFrame();
     MG_TestFrame();
     MG_TriggerTestFrame();
@@ -594,11 +595,9 @@ void() StartFrame =
 };
 
 /*
-==============================================================================
 
 BODY QUE
 
-==============================================================================
 */
 
 entity    bodyque_head;

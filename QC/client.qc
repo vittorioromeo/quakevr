@@ -477,12 +477,6 @@ entity() FindIntermission =
     if(spot)
         return spot;
 
-    // VR: single player back at a checkpoint (vr_tutorial.qc; none taken: the start)
-    if(!coop && !deathmatch)
-        spot = VR_Checkpoint_Latest();
-    if(spot)
-        return spot;
-
     objerror ("FindIntermission: no spot");
 
     return world;
@@ -943,6 +937,14 @@ entity() SelectSpawnPoint =
     spot = find(world, classname, "testplayerstart");
     if(spot)
         return spot;
+
+    // VR: single player back at the latest checkpoint taken (vr_tutorial.qc), if any
+    if(!coop && !deathmatch)
+    {
+        spot = VR_Checkpoint_Latest();
+        if(spot)
+            return spot;
+    }
 
 // choose a info_player_deathmatch point
     if(coop)

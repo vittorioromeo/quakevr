@@ -1550,7 +1550,7 @@ def build_entities(mw):
     qx, qy = QUICK
     banner(mw, N.join(["NEW TO VR?", "The tutorial teaches the basics;", "calibration fits the game to your body."]),
            qx, qy - 6, 14 + 96, 270, "0.3")
-    button(mw, "VR" + N + "TUTORIAL", "map vrtutorial", qx - 19, qy - 4, 14 + 40, 90)
+    button(mw, "VR" + N + "TUTORIAL", "skill 0; map vrtutorial2", qx - 19, qy - 4, 14 + 40, 90)  # (on Easy: the start flow's)
     button(mw, "VR" + N + "CALIBRATION", "map vrcalibration", qx + 19, qy - 4, 14 + 40, 90)
     tip(mw, "vs2_welcome", "Welcome! Walk with the stick and follow" + N + "the torches up to the campaigns.",
         p["x"], p["y1"] + 160, p["z"] + 40, 260)
