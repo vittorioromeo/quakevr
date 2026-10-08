@@ -31881,3 +31881,38 @@ steps). Saved games keep no holds (the fields cleared on load).
 
 Seen while testing (not changed): a monster spawned by `vr_physics_spawn` (or `impulse 244`) stands 15-16 units lower
 than the floor its first step (SV_movestep) puts it on, in e1m1 and vrfiringrange alike.
+
+## Reloading on the move, the auto pump's delay, guns lying about, spent rifles, the Super Axe, smaller mines (2026-10-08)
+
+The author's notes of 2026-10-08 afternoon (map1 13-56 to 14-00, vrfiringrange 14-14 to 14-35).
+
+**Reloading while walking** (map1 14-00-24, "the major bug"): standing, a shell went in where the receiver was drawn;
+walking forward he had to reach well ahead of it. The server tested a held round where the last frame had left it
+(`VR_Carry_HandFrame` ran `VR_Reload_HeldFrame` before `VR_Carry_Follow`) against this frame's load point (sent with
+the move, moved with the body by `rebaseHands`): a frame's walk apart, 4.4 units at run speed, against the shotgun's
+1.5-unit radius. The test now runs after the round followed the hand. Measured headless (a shell held 12 units off
+the drawn port): 12.0 every frame standing, running, strafing and turning (12.8 running before; `reload_test.sh` 12).
+Lifts and slopes move the hands and the port together (`rebaseHands` before PostThink).
+
+**The auto pump's delay** (13-58-48): the shot, a moment, then the stroke: `vr_autopump_delay` 0.15 s (Weapons >
+Weapon Effects > Auto Pump Delay), cut so that delay and stroke end by 0.48 s (the shotgun refires at 0.5). The shell
+still leaves as the fore-end reaches the back (`autopump::rearTime` matches the shot, not the stroke's start).
+
+**Guns lying about** (14-18-22): a shell loaded by hand into a gun lying as a prop now slides in as into a held gun
+(`collectfx` hotspot 241, `QVR_CFX_INTO_PROP`, the message's entity the gun; `view::propGun`, `view::modelLoadPath`:
+the held path's, from the lying gun's drawn transform, a super shotgun lying open turned with its barrels). Loose
+rounds by contact still go in at once (no player to send it to). A lying gun's ammo screen shows its clip and size
+alone ("1/8"): a weapon prop's clip goes with its uid (`U_QVR_WEAPONUID`: a long and now a byte). Held or holstered,
+the screen is as before (clip and size over the reserve).
+
+**Spent enemy rifles** (13-56-46): while the crackle lasts in the hand the gun shakes (`vr_enemygun_spent_shake` 0.3
+units, 4 degrees a unit, fading with its arcs; drawn only, its Box3D body follows the drawn gun) and buzzes
+(`vr_enemygun_spent_haptics` 0.35, a 40 ms pulse every 60 ms). `vr_shock_info` prints its shake and buzzes.
+
+**The Super Axe without cells** (14-14-01): no dry click, as Mjolnir: its cells are only its burst's.
+
+**Proximity mines 40% smaller** (14-30-12): `vr_prox_scale` 0.47, their own (the other grenades keep
+`vr_grenade_scale` 0.78), everywhere `drawnSize` reaches (flight, stuck, hand, pouches, launcher, boxes).
+
+Tests: `reload_test.sh` 12, `autopump_test.sh` 5, `gunshape_test.sh` 5, `pouchgren_test.sh` 6, new
+`empty_melee_test.sh` and `spentshake_test.sh`.
