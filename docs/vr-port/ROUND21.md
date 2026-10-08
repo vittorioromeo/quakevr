@@ -32248,3 +32248,18 @@ pair brought to the breech wouldn't count as a hit). Now a held round hits as th
 the tap at the breech is unchanged). Open, the round within the port's radius plus 4 units of the chambers loads and
 never hits (the load wins); a fast hit on the front half of the barrels from below elsewhere shuts it, the pair kept in
 the hand. reload_test.sh: a pouch pair hits it open from above, shut from below, kept (10).
+
+**Shut straight after loading.** The author: after loading fresh shells into the open super shotgun, a long wait before
+he could flick it shut. No timer stood in the flick's way; two things did (headless, real time, the mock's turns
+reporting their angular velocity). (1) The flick is measured from the hand's up while it was still (vr_flick.cpp
+restUp), and "still" was under 1.5 rad/s (86 deg/s): a gun hand still turning as the pair went in (bringing the gun back
+up) kept its up from before, so the flick had to swing past that before it counted, and did nothing until the hand had
+paused (a pair loaded with the gun hand turning 94 deg/s, flicked: never shut). Now **vr_reload_ssg_flick_rest** (180
+deg/s, at most 3/4 of the flick's speed; Weapons > Reloading > Flick Rest Speed) for the super shotgun that breaks open,
+and the up is tracked whether it may flick or not (it wasn't while shut with Open by Flick off, his setting). (2) A flick
+seen late in its swing set its bit for one client frame, lost among the moves the server reads at its tick (seen: "flick
+reload" printed, the gun stayed open): the bit is now held 0.12 s, as the pry's is. And a hit opened or shut it only
+0.6 s after a shell went in (the loading hand drawing back): **vr_reload_ssg_hit_after_load** 0.13 s, the slide-in's
+time (Hit After Loading). vr_reload_debug 2 prints the flick's speed and how far the barrel is towards the up at rest.
+reload_test.sh: loaded with the gun hand turning 150 deg/s and flicked 0.15 s later, shut; a hit from below straight
+after the load shuts it (with 0.6 it doesn't).

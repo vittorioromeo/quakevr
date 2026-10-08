@@ -1458,9 +1458,9 @@ float(float xGunHand, float xSide) VR_Reload_SsgHit =
     {
         return FALSE;
     }
-    if(time < self.vr_ssg_loaded + 0.6)
+    if(time < self.vr_ssg_loaded + cvar_hget(cvarh_vr_reload_ssg_hit_after_load))
     {
-        return FALSE; // (the hand that just loaded it, drawing back)
+        return FALSE; // (the hand that just loaded it, drawing back: as long as the slide-in, vr_reload_insert_time)
     }
     vector b = xGunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
     vector m = xGunHand == cVR_MainHand ? self.muzzlepos : self.offmuzzlepos;

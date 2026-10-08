@@ -2615,12 +2615,14 @@ QVR_CVAR(vr_reload_ssg_close_auto, "0", CVAR_ARCHIVE)  // close by itself once b
 // Their thresholds.
 QVR_CVAR(vr_reload_ssg_flick_open_speed, "650", CVAR_ARCHIVE)  // degrees a second the wrist must turn to flick it open (the classic flick reload: vr_spinreload_x_angular_threshold)
 QVR_CVAR(vr_reload_ssg_flick_close_speed, "400", CVAR_ARCHIVE) // and to flick it shut
+QVR_CVAR(vr_reload_ssg_flick_rest, "180", CVAR_ARCHIVE)  // degrees a second under which the wrist holding it counts as still: a flick swings the barrel towards its up then (at most 3/4 of the flick's speed; the classic flick reload: 86). The gun hand still moving after a load no longer delays the flick shut (the author's note of 2026-10-08)
 QVR_CVAR(vr_reload_ssg_pry_angle, "60", CVAR_ARCHIVE)  // degrees the front hand must go down from the back hand's aim (or the stock up), from its least since they took hold
 QVR_CVAR(vr_reload_ssg_pry_speed, "250", CVAR_ARCHIVE) // degrees a second it must be moving at (a steady two-handed aim never pries)
 QVR_CVAR(vr_reload_ssg_lift_angle, "60", CVAR_ARCHIVE) // degrees the front hand must come back up from its most (the barrels lifted shut)
 QVR_CVAR(vr_reload_ssg_lift_speed, "300", CVAR_ARCHIVE) // degrees a second it must be moving at
 QVR_CVAR(vr_reload_ssg_lift_hold, "0.2", CVAR_ARCHIVE) // seconds it must stay lifted that far (a jolt doesn't shut it)
 QVR_CVAR(vr_reload_ssg_hit_reach, "6", CVAR_ARCHIVE)   // units from the front 40% of its barrels a hit lands within (a fist, the nearest point of a held prop's box, the other gun's line)
+QVR_CVAR(vr_reload_ssg_hit_after_load, "0.13", CVAR_ARCHIVE) // seconds after a shell goes into it before a hit opens or shuts it (the loading hand drawing back; was 0.6: the author's note of 2026-10-08, a long wait after loading); about vr_reload_insert_time
 QVR_CVAR(vr_reload_ssg_hit_open_speed, "3", CVAR_ARCHIVE) // m/s a hit from above must come at to break it open (the hands' relative speed)
 QVR_CVAR(vr_reload_ssg_hit_open_angle, "40", CVAR_ARCHIVE) // degrees off straight down (the gun's own down, as held) it may come from
 QVR_CVAR(vr_reload_ssg_hit_close_speed, "3", CVAR_ARCHIVE) // m/s a hit from below must come at to snap it shut

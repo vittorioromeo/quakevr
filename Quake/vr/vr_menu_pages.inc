@@ -688,6 +688,9 @@ void resetHandMoves()
         toggle("Close by Flick", "vr_reload_ssg_close_flick").help("Open, a flick snaps it shut."),
         slider("Flick Close Speed", "vr_reload_ssg_flick_close_speed", 200.f, 1500.f, 25.f, "%.0f deg/s")
             .help("How fast the wrist must turn to flick it shut."),
+        slider("Flick Rest Speed", "vr_reload_ssg_flick_rest", 60.f, 400.f, 10.f, "%.0f deg/s")
+            .help("Under this the wrist holding it counts as still: a flick is measured from how it was then. Higher: a flick "
+                  "counts straight after loading even if the gun hand was still moving."),
         toggle("Close by Lifting the Barrels", "vr_reload_ssg_close_pry")
             .help("Open and held with both hands, the front hand lifting the barrels back up snaps it shut."),
         slider("Lift Angle", "vr_reload_ssg_lift_angle", 10.f, 90.f, 1.f, "%.0f deg")
@@ -707,6 +710,8 @@ void resetHandMoves()
         header("Hits (Above and Below)"),
         slider("Hit Reach", "vr_reload_ssg_hit_reach", 1.f, 15.f, 0.5f, "%.1f units")
             .help("How near the front half of its barrels a hit (from above or below) must land."),
+        slider("Hit After Loading", "vr_reload_ssg_hit_after_load", 0.f, 1.f, 0.01f, "%.2f s")
+            .help("How long after a shell goes in before a hit opens or shuts it (the loading hand drawing back is no hit)."),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "

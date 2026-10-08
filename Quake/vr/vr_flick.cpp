@@ -29,6 +29,10 @@ namespace
 constexpr int widSuperShotgun = 5; // QC WID_SUPER_SHOTGUN
 
 bool current[2]{false, false};
+// cl.time the super shotgun that breaks open was last flicked (its bit held flickHold seconds: one frame's bit was lost
+// among the moves the server reads at its own tick, a flick seen late in its swing doing nothing), -1 none.
+double flickedAt[2]{-1.0, -1.0};
+constexpr double flickHold = 0.12;
 float spinLeft[2]{0.f, 0.f};                            // degrees of the visual spin still to go
 glm::vec3 restUp[2]{glm::vec3{0.f, 0.f, 1.f}, glm::vec3{0.f, 0.f, 1.f}}; // hand's up while still
 double lastTime = -1.0;     // cl.time of the last detection
@@ -76,6 +80,22 @@ constexpr int weaponFlagSsgOpen = 32; // QC's QVR_WPNFLAG_SSG_OPEN
     }
     const bool open = cl.stats[main ? STAT_QVR_WEAPONFLAGS : STAT_QVR_WEAPONFLAGS2] & weaponFlagSsgOpen;
     return glm::radians(open ? vr_reload_ssg_flick_close_speed.value : vr_reload_ssg_flick_open_speed.value);
+}
+
+// Under how fast (radians a second) the wrist counts as still, its up then what a flick swings the barrel towards: the
+// classic flick reload's 1.5; the super shotgun that breaks open vr_reload_ssg_flick_rest (degrees a second), at most 3/4
+// of its flick's speed. The author's note of 2026-10-08: after loading, a flick shut it only after a significant wait: the
+// gun hand still moving as the pair went in (over 86 deg/s, the old 1.5) kept its up from before it moved, so the flick had
+// to swing past that before it counted (the hand had to pause first).
+[[nodiscard]] float restSpeed(int hand)
+{
+    using namespace protocol;
+    const bool main = hand == HAND_MAIN;
+    if(!breaksOpen() || cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2] != widSuperShotgun)
+    {
+        return 1.5f;
+    }
+    return za::fmin(glm::radians(za::fmax(vr_reload_ssg_flick_rest.value, 0.f)), 0.75f * flickSpeed(hand));
 }
 
 // The pry (vr_reload_ssg_pry): both hands on the super shotgun (the other hand's two-handed grip taken, its grip still
@@ -221,15 +241,25 @@ void update(hands::State& s)
             const bool before = current[h];
             current[h] = false;
 
+            // The hand's up while it is still (restSpeed), whether it may flick now or not: what a flick swings the barrel
+            // towards.
+            const float speed = glm::length(s.angVel[h]);
+            if(speed < restSpeed(h))
+            {
+                restUp[h] = up;
+            }
             if(canFlick(h))
             {
-                const float speed = glm::length(s.angVel[h]);
-                if(speed < 1.5f)
-                {
-                    restUp[h] = up;
-                }
-
                 current[h] = speed >= flickSpeed(h) && glm::dot(fwd, restUp[h]) > 0.6f;
+                if(vr_reload_debug.value >= 2.f && speed >= restSpeed(h))
+                {
+                    Con_Printf("flick: %s hand turning %.1f rad/s (needs %.1f), the barrel %.2f towards its up at rest (needs 0.6)\n",
+                        h == HAND_MAIN ? "main" : "off", speed, flickSpeed(h), glm::dot(fwd, restUp[h]));
+                }
+                if(current[h] && breaksOpen())
+                {
+                    flickedAt[h] = cl.time;
+                }
                 if(current[h] && !before && spinLeft[h] <= 0.f)
                 {
                     Con_DPrintf("flick reload (%s hand, %.1f rad/s)\n", h == HAND_MAIN ? "main" : "off", speed);
@@ -258,7 +288,7 @@ void update(hands::State& s)
 
 bool flicking(int hand)
 {
-    return current[hand];
+    return current[hand] || (flickedAt[hand] >= 0.0 && cl.time >= flickedAt[hand] && cl.time < flickedAt[hand] + flickHold);
 }
 
 bool allowed(int hand)
@@ -283,6 +313,7 @@ void reset()
         current[h] = false;
         spinLeft[h] = 0.f;
         pries[h] = Pry{};
+        flickedAt[h] = -1.0;
     }
     prevTime = -1.0;
     lastTime = -1.0;

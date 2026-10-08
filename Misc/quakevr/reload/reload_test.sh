@@ -186,6 +186,20 @@ check $(echo "$log" | grep -q "broken open by a hit from above" && echo "$log" |
 # chambers it loads (no hit).
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$POUCH;$GRIP;$HITDOWN;$REP;$HITUP;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "broken open by a hit from above" && echo "$log" | grep -q "closed by a hit from below at .*: 0 loaded" && [ "$(opens "$log")" = 10 ] && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "clip 0 .*holds a round of 2" && echo 1 || echo 0) "a pouch pair in the hand hits it open from above, shut from below, kept in the hand ($(opens "$log"), want 10)"
+# Shut straight after loading (the author's note of 2026-10-08: a long wait before the flick shut it): a pair loaded
+# while the gun hand turns (150 deg/s, over the old 86 deg/s rest), flicked 0.15 s after it went in, real time: shut
+# (Flick Rest Speed 180, the flick's bit held 0.12 s); a hit from below straight after the load shuts it (Hit After
+# Loading 0.13 s; at the old 0.6 s it stays open).
+LOADP="vr_mock_hand_to main lport 8;wait5;vr_mock_hand_to main lport 8;wait10;vr_mock_hand_to main lport;wait1;vr_mock_hand_to main lport;wait1"
+TILTF=$(for i in $(seq 8); do printf "vr_mock_hand_turn off -2.5 0 0;wait1;"; done; for i in $(seq 4); do printf "vr_mock_hand_turn off 25 0 0;wait1;"; done)
+log=$(bash $KIT/run.sh $AGENT -RealTime -Script "$SSG;vr_mock_turn_velocity 1;$FIRE;$FLICK;wait30;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;wait30;$POUCH;$GRIP;$LOADP;$TILTF wait30;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+check $(echo "$log" | grep -q "2 into the gun (hand 0)" && echo "$log" | grep -q "closed by a flick: 2 loaded" && echo 1 || echo 0) "loaded with the gun hand turning, flicked 0.15 s later: shut ($(opens "$log"))"
+FASTUP="$LETGO;vr_mock_hand_to main held 0.85 -25;wait2;vr_mock_hand_to main held 0.85 -25;wait2;vr_mock_hand_to main held 0.85 -12;wait3;vr_mock_hand_to main held 0.85 -2;wait10;$REST;wait30"
+for after in 0.13 0.6; do
+    log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_reload_ssg_hit_after_load $after;$FIRE;$FLICK;wait30;$POUCH;$GRIP;$LOADP;$FASTUP;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+    [ $after = 0.13 ] && check $(echo "$log" | grep -q "closed by a hit from below.*: 2 loaded" && echo 1 || echo 0) "a hit from below straight after loading shuts it ($(opens "$log"))"
+    [ $after = 0.6 ] && check $(echo "$log" | grep -q "2 into the gun" && ! echo "$log" | grep -q "closed by" && echo 1 || echo 0) "Hit After Loading 0.6: the same hit does nothing ($(opens "$log"))"
+done
 T25=$(for i in $(seq 4); do printf "vr_mock_hand_turn off 25 0 0;wait1;"; done)
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_mock_turn_velocity 1;$FIRE;vr_reload_ssg_flick_open_speed 3000;$T25 wait30;$REP;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;wait30;vr_reload_ssg_flick_open_speed 650;$T25 wait30;$REP;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;wait30;vr_reload_ssg_flick_close_speed 3000;$T25 wait30;$REP;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;wait30;vr_reload_ssg_flick_close_speed 650;$T25 wait30;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "broken open by a flick" && echo "$log" | grep -q "closed by a flick" && [ "$(opens "$log")" = 0110 ] && echo 1 || echo 0) "the flick's speeds: a flick under Flick Open Speed doesn't open it, over it does; the same for Flick Close Speed ($(opens "$log"))"
