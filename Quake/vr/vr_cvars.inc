@@ -2754,8 +2754,8 @@ QVR_CVAR(vr_stealth_meter, "1", CVAR_ARCHIVE)        // sight is a suspicion met
 QVR_CVAR(vr_stealth_meter_time, "1.5", CVAR_ARCHIVE) // s the meter takes to fill: in full light, near, in front, walking
 QVR_CVAR(vr_stealth_meter_decay, "0.2", CVAR_ARCHIVE) // share of the meter lost a second while not seen
 QVR_CVAR(vr_stealth_glimpse, "0.3", CVAR_ARCHIVE)    // the meter's share at which the monster turns to look (Alert)
-QVR_CVAR(vr_stealth_light_dark, "16", CVAR_ARCHIVE)  // light (128: Quake's full light) at or below which you are not seen
-QVR_CVAR(vr_stealth_light_bright, "96", CVAR_ARCHIVE) // light at or over which you are seen as fast as can be
+QVR_CVAR(vr_stealth_light_dark, "20", CVAR_ARCHIVE)  // light (128: Quake's full light) at or below which you are not seen
+QVR_CVAR(vr_stealth_light_bright, "80", CVAR_ARCHIVE) // light at or over which you are seen as fast as can be
 QVR_CVAR(vr_stealth_crouch, "0.4", CVAR_ARCHIVE)     // the meter's rate in a full crouch (a share)
 QVR_CVAR(vr_stealth_still, "0.5", CVAR_ARCHIVE)      // the meter's rate while you stand still (walking 1, running 2)
 QVR_CVAR(vr_stealth_sight_range, "1500", CVAR_ARCHIVE) // units at which a monster no longer makes you out (full rate within 128)

@@ -387,6 +387,66 @@ void() VR_Stealth_TestFrame =
         cvar_set("vr_stealth_light_force", "-1");
         return;
     }
+    // 20 (vr_stealth_test 22): the player's numbers for 4 s (his speed, light, crouch; the gem's visibility).
+    if(stt_step == 20)
+    {
+        if(stt_stage == 0) { cvar_set("vr_stealth_light_force", "-1"); VR_STT_Stage(1); stt_n = 0; return; }
+        if(time >= stt_n)
+        {
+            stt_n = time + 0.5;
+            vector hv = p.velocity;
+            hv_z = 0;
+            bprint(sprintf("stealthtest: probe t %.1f speed %.0f light %.1f crouch %.2f eye %.1f stand %.1f vis %.2f move %.2f\n", t, vlen(hv),
+                VR_Stealth_LightOf(p), VR_Stealth_CrouchShare(p), p.headpos_z - p.absmin_z, p.stl_stand_eye, p.stl_vis, VR_Stealth_MoveShare(p)));
+        }
+        if(t > 4) { stt_step = 0; }
+        return;
+    }
+    // 30 (vr_stealth_test 32): the flashlight (on, clipped to the head, aimed at it: the script's) on its back in the
+    // dark: Alert at the lens; then facing him, lit by it: Hostile.
+    if(stt_step == 30)
+    {
+        if(stt_stage == 0) { VR_STT_Reset(TRUE); VR_STT_Stage(1); return; }
+        if(stt_stage == 1 && t > 1.5)
+        {
+            vector bm = flashlightbeam(p, 2);
+            VR_STT_Report("beam_on_its_back", m.stl_state == STL_ALERT && vlen(m.stl_point - flashlightbeam(p, 0)) < 1,
+                sprintf("lamp on %g range %.0f; state %g, point %.0f from the lens", bm_x, bm_y, m.stl_state, vlen(m.stl_point - flashlightbeam(p, 0))));
+            bprint(sprintf("stealthtest: lens %v dir %v cos to it %.3f (cone %.3f)\n", flashlightbeam(p, 0), flashlightbeam(p, 1),
+                normalize((m.absmin + m.absmax) * 0.5 - flashlightbeam(p, 0)) * flashlightbeam(p, 1), bm_z));
+            VR_STT_Reset(FALSE);
+            VR_STT_Stage(2);
+            return;
+        }
+        if(stt_stage == 2 && t > 4)
+        {
+            VR_STT_Report("beam_in_its_face", m.enemy == p, sprintf("enemy %s (the lens's glare in the dark)", m.enemy.classname));
+            stt_step = 0;
+            cvar_set("vr_stealth_light_force", "-1");
+        }
+        return;
+    }
+    // 24 (vr_stealth_test 26): the light where the map's monsters and items are, as a histogram (the thresholds'
+    // calibration: vr_stealth_light_dark, vr_stealth_light_bright).
+    if(stt_step == 24)
+    {
+        float b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, b7 = 0, nall = 0;
+        for(entity h = nextent(world); h; h = nextent(h))
+        {
+            if(!(h.flags & (FL_MONSTER | FL_ITEM)))
+            {
+                continue;
+            }
+            float l = stealthlight(h.origin + '0 0 8');
+            nall = nall + 1;
+            if(l < 8) { b0++; } else if(l < 16) { b1++; } else if(l < 32) { b2++; } else if(l < 48) { b3++; }
+            else if(l < 64) { b4++; } else if(l < 96) { b5++; } else if(l < 128) { b6++; } else { b7++; }
+        }
+        bprint(sprintf("stealthtest: light %s: %g places: <8 %g, <16 %g, <32 %g, <48 %g", mapname, nall, b0, b1, b2, b3));
+        bprint(sprintf(", <64 %g, <96 %g, <128 %g, more %g\n", b4, b5, b6, b7));
+        stt_step = 0;
+        return;
+    }
     // 60: a crate dropped 200 units behind it: its knock is heard (the physics sounds), it walks to it.
     if(stt_step == 60)
     {
@@ -396,18 +456,17 @@ void() VR_Stealth_TestFrame =
             makevectors('0 1 0' * stt_yaw);
             traceline(m.origin, m.origin - v_forward * 200, TRUE, m);
             stt_at = trace_endpos + v_forward * 24;
-            entity c = VR_Crate_TestSpawn(stt_at + '0 0 80', 1, 0, FALSE);
-            setorigin(c, stt_at + '0 0 80');
-            c.velocity = '0 0 -50';
+            stt_gib = VR_Crate_TestSpawn(stt_at, 1, 0, FALSE);
             stt_v = 9999;
             VR_STT_Stage(1);
             return;
         }
-        stt_v = min(stt_v, vlen(m.origin - stt_at));
-        if(stt_stage == 1 && t > 1.5) { stt_n = m.stl_state; VR_STT_Stage(2); return; }
-        if(stt_stage == 2 && t > 8)
+        if(stt_stage == 1 && t > 1.5) { physicsblast((stt_gib.absmin + stt_gib.absmax) * 0.5 + '0 0 -6' + v_forward * 24, 300); VR_STT_Stage(2); return; }
+        if(stt_stage >= 3) { stt_v = min(stt_v, vlen(m.origin - stt_at)); }
+        if(stt_stage == 2 && t > 1.5) { stt_n = m.stl_state; stt_at = m.stl_point; VR_STT_Stage(3); return; }
+        if(stt_stage == 3 && (t > 45 || m.stl_phase == STL_SEARCH))
         {
-            VR_STT_Report("crate_drop", stt_n == STL_ALERT && stt_v < 100, sprintf("state after 1.5 s %g; came within %.0f of where it fell", stt_n, stt_v));
+            VR_STT_Report("crate_drop", stt_n == STL_ALERT && stt_v < 100, sprintf("state after 1.5 s %g; came within %.0f of the knock it heard (the crate now %.0f from there)", stt_n, stt_v, vlen(stt_gib.origin - stt_at)));
             stt_step = 0;
             cvar_set("vr_stealth_light_force", "-1");
         }

@@ -39,8 +39,8 @@ monster records its post at its first stealth think). Each rule has its own `vr_
 Per monster, `stl_meter` 0..1, filled while FindTarget's client is visible (its checks; through portals too):
 
 `rate = light * near * facing * moving * crouch * senses * sensitive / vr_stealth_meter_time` per second, where
-- **light**: the player's light level (below), smoothstep from `vr_stealth_light_dark` (16; Quake's lightmap scale, 128
-  full) to `vr_stealth_light_bright` (96). Dark: 0 (never seen, however close: only touch, noise or a beam gives
+- **light**: the player's light level (below), smoothstep from `vr_stealth_light_dark` (20; Quake's lightmap scale, 128
+  full) to `vr_stealth_light_bright` (80; the monsters and items of e1m1-e1m3 stand mostly in 32-96). Dark: 0 (never seen, however close: only touch, noise or a beam gives
   him away).
 - **near**: 1 within 128 units, down to 0 at `vr_stealth_sight_range` (1500).
 - **facing**: 1 in the front cone (Quake's `infront`, dot > 0.3), `vr_stealth_peripheral` (0.3) to the side, 0 behind
@@ -176,7 +176,7 @@ the expansions' (hipnotic, rogue, MG1, MG3, Honey, the dopa monsters), shares it
 ## Cvars (all CVAR_ARCHIVE, Combat > Stealth AI)
 
 `vr_ai_enhanced 1`, `vr_stealth_meter 1`, `vr_stealth_meter_time 1.5`, `vr_stealth_meter_decay 0.2`,
-`vr_stealth_glimpse 0.3`, `vr_stealth_light_dark 16`, `vr_stealth_light_bright 96`, `vr_stealth_crouch 0.4`,
+`vr_stealth_glimpse 0.3`, `vr_stealth_light_dark 20`, `vr_stealth_light_bright 80`, `vr_stealth_crouch 0.4`,
 `vr_stealth_still 0.5`, `vr_stealth_sight_range 1500`, `vr_stealth_peripheral 0.3`, `vr_stealth_contact 1`,
 `vr_stealth_noise 1`, `vr_stealth_run_speed 250`, `vr_stealth_noise_run 400`, `vr_stealth_noise_props 1200`,
 `vr_stealth_noise_guns 1`, `vr_stealth_noise_melee 1`, `vr_stealth_noise_wall 0.5`, `vr_stealth_noise_solid 0.15`,

@@ -124,6 +124,11 @@ void(entity m, float xPhase) VR_Stealth_Phase =
         m.stl_look_base = m.angles_y;
         m.stl_look_time = time + 0.8;
     }
+    else if(xPhase == STL_WALK || xPhase == STL_RETURN)
+    {
+        // (walking: the time it allows itself, by the way's length: a grunt walks about 18 units a second)
+        m.stl_look_time = time + 10 + vlen((xPhase == STL_WALK ? m.stl_point : m.stl_post) - m.origin) / 10;
+    }
 };
 
 // Back to Quake's AI (the umbrella switched off, or the rules no longer apply to it): the meter cleared, an Alert
@@ -732,7 +737,7 @@ float(float dist) VR_Stealth_Walk =
         self.stl_walk_from = self.origin;
         self.stl_walk_check = time + 1;
     }
-    if(vlen(to) < (self.stl_phase == STL_WALK ? 64 : 24) || self.stl_stuck >= 3 || time - self.stl_phase_time > 15)
+    if(vlen(to) < (self.stl_phase == STL_WALK ? 64 : 24) || self.stl_stuck >= 3 || time > self.stl_look_time)
     {
         if(self.stl_phase == STL_WALK)
         {
