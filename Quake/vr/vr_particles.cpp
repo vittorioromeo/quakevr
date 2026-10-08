@@ -2498,12 +2498,15 @@ za::SizeT lightCount = 0; // the particles lightOf is for (the pool may have gro
 struct LightStats
 {
     int lit{0}, emissive{0}, traces{0}, shared{0}, refreshed{0}, stale{0}, lights{0};
+    za::SizeT reached{0}; // a dynamic light that reaches a lit particle, counted once for each such pair
     double ms{0.0}; // lightParticles' time
 };
 LightStats lightStats;
 jobs::Site lightSite{"particle light"}; // (its parallelFor: vr_jobs_sites)
-// Particles times dynamic lights from which lightParticles splits the dynamic lights between threads (combined: 10000
-// and 21 split, 0.26 ms off the main thread; particles_dense: 8000 and 5 on the caller alone, 0.03 ms cheaper).
+// The dynamic lights' work (the last frame's lit particles times this frame's lights, and 4 for each light that
+// reached one) from which lightParticles splits it between threads: combined (6800 lit, 21 lights, 91000 reaches)
+// splits, 0.3 ms off the main thread; explosions_storm (1400 lit, 13 lights, 800 reaches), particles_dense (5700,
+// 5, 100) and combat_48 (2400, 6, 200) stay on the caller (a split's start costs more than it saves there).
 constexpr za::SizeT splitLightWork = 65536;
 double lightMsSum = 0.0; // lightParticles' time over the frames since the last report
 int lightFrames = 0;
@@ -2638,7 +2641,7 @@ struct LitFrame
 };
 
 // A lit particle's light: its lightmap's (after the contrast, as the world's) and the dynamic lights added after it.
-[[nodiscard]] glm::vec3 litLight(const Particle& p, const LitFrame& lf)
+[[nodiscard]] glm::vec3 litLight(const Particle& p, const LitFrame& lf, za::SizeT& reached)
 {
     glm::vec3 c{lf.curve[p.lightmap[0]], lf.curve[p.lightmap[1]], lf.curve[p.lightmap[2]]};
     for(int k = 0; k < lf.lightCount; k++)
@@ -2650,6 +2653,7 @@ struct LitFrame
         {
             continue;
         }
+        reached++;
         const float dist = za::sqrt(d2);
         float add = lf.darkplaces ? darkplacesAtten(dist, l.radius) * 128.f : l.radius - dist; // (128: Quake's full)
         if(l.spot.w != 0.f && dist > 1e-3f) // VR_SpotCone's
@@ -2706,8 +2710,9 @@ void lightParticles()
     // The lightmap's light in order on this thread: the traces share a budget and a cache, and R_LightPoint its globals
     // (and the model's data: never read on the pool's threads). With many particles and lights, the dynamic lights
     // after it on the game's threads (each writing only its own lightOf: the same results however it is split);
-    // else in the same pass (a split's start costs more than it saves: particles_dense, 8000 particles and 5 lights).
-    const bool split = jobs::workers() > 0 && pool.size() * static_cast<za::SizeT>(frameLightCount) >= splitLightWork;
+    // else in the same pass (splitLightWork).
+    const za::SizeT work = static_cast<za::SizeT>(lightStats.lit) * static_cast<za::SizeT>(frameLightCount) + 4 * lightStats.reached;
+    const bool split = jobs::workers() > 0 && work >= splitLightWork;
     for(za::SizeT i = 0; i < pool.size(); i++)
     {
         Particle& p = pool[i];
@@ -2724,22 +2729,26 @@ void lightParticles()
         lightmapOf(p, i, st);
         if(!split)
         {
-            lightOf[i] = litLight(p, lf);
+            lightOf[i] = litLight(p, lf, st.reached);
         }
         st.lit++;
     }
     if(split)
     {
+        za::Atomic<za::SizeT> reached{0};
         jobs::parallelFor(lightSite, pool.size(), 1024, [&](za::SizeT begin, za::SizeT end) {
+            za::SizeT n = 0;
             for(za::SizeT i = begin; i < end; i++)
             {
                 const Particle& p = pool[i];
                 if(on && p.lighting != Lighting::Emissive)
                 {
-                    lightOf[i] = litLight(p, lf);
+                    lightOf[i] = litLight(p, lf, n);
                 }
             }
+            reached.fetchAddRelaxed(n);
         });
+        st.reached = reached.loadRelaxed(); // (after the call: every chunk ran)
     }
     lightCount = pool.size();
     st.ms = static_cast<double>(za::Clock::nowNanoseconds() - start) * 1e-6;
@@ -2780,8 +2789,8 @@ void lightReport_f()
         st.emissive, st.lights);
     Con_Printf("  lit: light %.3f (lightmap %.3f, dynamic %.3f; 1 = Quake's full), colour luma %.3f (unlit %.3f)\n",
         light / m, baked / m, (light - baked) / m, colour / m, base / m);
-    Con_Printf("  this frame: %d traces, %d shared, %d flicker reads, %d stale; %.3f ms (%.3f ms a frame over %d, with %.0f traces and %.0f lit)\n",
-        st.traces, st.shared, st.refreshed, st.stale, st.ms, lightMsSum / za::max(lightFrames, 1), lightFrames,
+    Con_Printf("  this frame: %llu light reaches (a dynamic light within a lit particle's reach), %d traces, %d shared, %d flicker reads, %d stale; %.3f ms (%.3f ms a frame over %d, with %.0f traces and %.0f lit)\n",
+        static_cast<unsigned long long>(st.reached), st.traces, st.shared, st.refreshed, st.stale, st.ms, lightMsSum / za::max(lightFrames, 1), lightFrames,
         static_cast<double>(lightTraceSum) / za::max(lightFrames, 1),
         static_cast<double>(lightLitSum) / za::max(lightFrames, 1));
     lightMsSum = 0.0;
