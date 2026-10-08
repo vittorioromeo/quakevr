@@ -1475,6 +1475,18 @@ float(vector xP0, vector xP1, vector xNormal) VR_Melee_WallTaken =
 // land on into mh_c_* and TRUE, or FALSE. Things that bleed first: of the points striking this frame, the blade's
 // (or head's, fist's) over the pommel's, then the earliest along the sweep. A wall only when nothing that
 // bleeds is struck, and not by a point going down (a hand reaching for a holster).
+// Whether the hands' blows find `e` by its box (VR_Melee_Sweep, after VR_Blow_Strikable): a solid one; a living monster
+// knocked down (vr_knockdown.qc: not solid, its ragdoll struck as drawn, vr_hit_precise; a blow on it is a live one's:
+// its head cut off, its limbs, by the same rules as standing; his note 2026-10-09); a loose gib or head, an exploding
+// crate's piece (not solid: the traces pass them), not one held nor a small gib spared.
+float(entity e) VR_Melee_BoxTarget =
+{
+    return e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BBOX ||
+           (e.solid == SOLID_NOT_BUT_TOUCHABLE && e.vr_knockdown == 1 && e.health > 0 && (e.flags & FL_MONSTER)) ||
+           (e.solid == SOLID_NOT_BUT_TOUCHABLE && (e.vr_gib || e.vr_cratekind == 3) && e.carry_player == world &&
+            (!VR_SmallGib_BlowSpared(e) || VR_SmallGib_BlowBursts(e)));
+};
+
 float(float xHand, entity b) VR_Melee_Sweep =
 {
     float n = b.mh_n;
@@ -1585,10 +1597,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     while(e)
     {
         // A small gib just torn out: struck only to burst (vr_smallgibs_blow_burst), never batted (VR_SmallGib_BlowSpared).
-        if((VR_Blow_Strikable(e) || VR_SmallGib_BlowBursts(e)) &&
-           (e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BBOX ||
-            (e.solid == SOLID_NOT_BUT_TOUCHABLE && (e.vr_gib || e.vr_cratekind == 3) && e.carry_player == world &&
-             (!VR_SmallGib_BlowSpared(e) || VR_SmallGib_BlowBursts(e)))))
+        if((VR_Blow_Strikable(e) || VR_SmallGib_BlowBursts(e)) && VR_Melee_BoxTarget(e))
         {
             vector lo = e.origin + e.mins;
             vector hi = e.origin + e.maxs;

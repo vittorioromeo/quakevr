@@ -10,7 +10,8 @@
 // - Over a ledge (vr_knockdown_ledge): a shove that would carry it over the edge of a drop of vr_knockdown_ledge_drop or
 //   more (64: higher than stairs) knocks it down for sure, if its chance is above 0 (VR_Knockdown_Ledge).
 // - Down: touchable, not solid, .vr_knockdown 1: the engine makes its ragdoll at once from the frame it is drawn in, its
-//   weapon welded in its hand. Hits land on the ragdoll (its limbs as drawn) and it reacts as it does (its pain sounds,
+//   weapon welded in its hand. Hits land on the ragdoll (its limbs as drawn; the hands' blows too, as a live one's:
+//   beheading and limbs, vr_melee.qc VR_Melee_BoxTarget) and it reacts as it does (its pain sounds,
 //   blood; no pain frames: T_DamageImpl keeps its frame and think), each keeping it down vr_knockdown_hit_time longer.
 //   It is grabbed, pushed and thrown as a dead one's. Killed there, it screams and its death code runs at once (its
 //   drops; Killed: VR_Knockdown_FastForwardDeath): the ragdoll stays as it lies. Gibbed, it gibs; beheaded or its head

@@ -31996,6 +31996,20 @@ the swing plus 25 degrees off its rest (a throw, a hand) is its new rest. Measur
 5 s, every 0.28 s from 1.1 s): mean spin 2.1-3.6 rad/s, the joints 21-24 degrees off rest, the parts moving 0.7-1.3
 units on average per sample (most 1.5-2.5); with `vr_knockdown_wiggle 0` the parts settle to 0.00 within 1.4 s.
 `vr_knockdown_test 9` now also prints `strugglemotion` (the parts' movement since its last call).
+
+**A knocked-down enemy loses its head and limbs to the hands' blows** (his note, 2026-10-09: decapitation and
+dismemberment didn't work on a knocked-down grunt; a dead one's ragdoll was easy). Why: the hands' blows never struck a
+knocked-down monster at all. It is not solid (`SOLID_NOT_BUT_TOUCHABLE`): the blows' traces pass it (no
+`MOVE_HITGIBS`), their box search (`VR_Melee_Sweep`) took only solid things and loose gibs, and the corpse blows
+(`VR_Corpse_StrikeFrame`, with their own beheading) take only the dead and dying. Shots struck it (they trace with
+`MOVE_HITGIBS`). Now the box search (`VR_Melee_BoxTarget`, vr_melee.qc) takes a living knocked-down monster too, its
+ragdoll struck as drawn (vr_hit_precise), and the blow is a live one's (`T_Damage_VRMelee`): beheaded or a limb cut by
+the same rules as standing (the blade, its speed, the head and neck zone on the pose mapped to the standing model, a
+kill needed for a head as standing). Test: `vr_decap_test 61` (Debug > Gore Tests, Axe Swept Through Its Neck): the
+axe's blade swept through the nearest live monster's neck as the blows' search finds what it strikes, then the blow at
+health 1. Before: standing struck and beheaded; knocked down "the sweep misses". After: both struck and beheaded (the
+knocked-down head thrown from the floor, 23 units up). `vr_limb_test 4` (a killing slash at a forearm) cuts the limb
+standing and knocked down; `vr_decap_test 7` (not killing) beheads neither.
 | training dummy as an ogre (full health) | 842 deg/s | not hurt enough |
 
 Seen: the knight thrown to the left ended 26 units towards the player and 7 to the right, lying (its ragdoll; the

@@ -1283,6 +1283,33 @@ void(vector xAt, float xThing, float xKind, float xF, float xAlong, float xSpeed
     b.mh_c_ent = world;
 };
 
+// The made-up blow (VR_Decap_TestBlow) swept through `xAt` (its points from 10 units short of their line's place to 10
+// past, along its way) as the hand's blows find what they strike (VR_Melee_Sweep's targets, VR_Melee_BoxTarget: a
+// knocked-down one's ragdoll too; its model as drawn, hitmodel_segment): whether it meets `m`, where (b.mh_c_pos). (Not
+// VR_Melee_Sweep itself: its blow is judged by the hand's own motion, which a made-up blow has none of.)
+float(entity m, vector xAt) VR_Decap_TestSweep =
+{
+    entity b = VR_Blow(cVR_MainHand);
+    VR_Melee_LayoutOf(b);
+    vector way = b.mh_c_dir;
+    if(!VR_Blow_Strikable(m) || !VR_Melee_BoxTarget(m))
+    {
+        return FALSE;
+    }
+    float best = 2;
+    for(float k = 0; k < vr_mpt_n; k++)
+    {
+        vector p = b.mh_grip + (b.mh_far - b.mh_grip) * vr_mpt_f[k];
+        float t = hitmodel_target(m) ? hitmodel_segment(m, p - way * 10, p + way * 10, VR_MELEE_RADIUS, HITCLASS_MELEE) : 0;
+        if(t >= 0 && t < best && VR_Melee_Strikes(vr_mpt_kind[k]))
+        {
+            best = t;
+            b.mh_c_pos = p - way * 10 + way * (20 * t);
+        }
+    }
+    return best <= 1;
+};
+
 float vr_poptest_spread; // (VR_Decap_PopTest: the test shot with its weapon's spread)
 
 // A head pop's test shot from your eye at `xAt`: a blast (`xWeapon` QVR_DECAP_SHOTGUN or _SSG: its pellets, no spread)
@@ -1898,7 +1925,7 @@ void(float xTest) VR_Decap_Test =
     }
     else
     {
-        float thing = (xTest == 9) ? VR_MTHING_AXE : VR_MTHING_SWORD;
+        float thing = (xTest == 9 || xTest == 61) ? VR_MTHING_AXE : VR_MTHING_SWORD;
         float kind = VR_MKIND_SLASH;
         float f = 0.7;
         float along = 0;
@@ -1907,15 +1934,34 @@ void(float xTest) VR_Decap_Test =
         else if(xTest == 3) { what = "a pommel strike"; f = -0.15; kind = VR_MKIND_POMMEL; }
         else if(xTest == 4) { what = "a slow slash"; speed = max(0.2, cvar_hget(cvarh_vr_decap_speed) * 0.5); }
         else if(xTest == 7) { what = "a slash at full health"; dmg = 10; }
+        else if(xTest == 61) { what = "an axe's slash swept through the neck"; f = 0.85; }
         else { what = (xTest == 9) ? "an axe's slash" : "a sword's slash"; f = (xTest == 9) ? 0.85 : 0.7; }
         if(xTest != 7)
         {
             m.health = 1;
         }
         VR_Decap_TestBlow(at, thing, kind, f, along, speed);
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
-        T_Damage_VRMelee(m, self, self, dmg);
-        VR_ClearHitKind();
+        if(xTest == 61)
+        {
+            // (As a hand's blow finds what it strikes: VR_Melee_Sweep. Its contact is the blow's.)
+            float struck = VR_Decap_TestSweep(m, at);
+            VR_Gore_Print(sprintf("decaptest: 61 the sweep %s %s%s at %v\n", struck ? "strikes" : "misses", m.classname,
+                m.vr_knockdown == 1 ? " (knocked down)" : "", VR_Blow(cVR_MainHand).mh_c_pos));
+            if(!struck)
+            {
+                m = world;
+            }
+            else
+            {
+                at = VR_Blow(cVR_MainHand).mh_c_pos;
+            }
+        }
+        if(m != world)
+        {
+            VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+            T_Damage_VRMelee(m, self, self, dmg);
+            VR_ClearHitKind();
+        }
     }
     float headsNow = VR_Decap_TestHeads(); // (not in the call's arguments: a call there overwrites the ones before it)
     float rag = isragdoll(m);

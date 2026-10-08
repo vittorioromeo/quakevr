@@ -5171,6 +5171,10 @@ za::Vector<Item> pageDebugTools()
             .help("vr_decap_test 1: the nearest live monster's health 1, a sword's slash across its neck: it is beheaded "
                   "(decaptest: in the console)."),
         command("Axe Slash at Its Head", "vr_decap_test 9").help("vr_decap_test 9: the same with the axe's head."),
+        command("Axe Swept Through Its Neck", "vr_decap_test 61")
+            .help("vr_decap_test 61: the axe's slash, its blade swept through the neck as a hand's blow finds what it "
+                  "strikes (a knocked-down one's ragdoll too: Knock Down the Nearest first): struck or missed, then "
+                  "beheaded at health 1."),
         command("Stab at Its Head", "vr_decap_test 2").help("vr_decap_test 2: the blade driven along its line: killed, not beheaded."),
         command("Pommel at Its Head", "vr_decap_test 3").help("vr_decap_test 3: the pommel strikes: killed, not beheaded."),
         command("Slow Slash at Its Head", "vr_decap_test 4").help("vr_decap_test 4: half the Least Swing Speed: not beheaded."),

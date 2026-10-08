@@ -810,12 +810,12 @@ void mockHandTo_f()
         {
             qcvm_t* oldVm = nullptr;
             PR_PushQCVM(&sv.qcvm, &oldVm);
-            // (Part "near": the one nearest the hand.)
+            // (Part "near": the one nearest the hand; "head": its rig's head.)
             const edict_t* player = EDICT_NUM(1);
             const bool nearest = !q_strcasecmp(Cmd_Argv(3), "near");
             const int num = box3d::ragdollPartCentre(nearest ? hands::current().pos[hand]
                                                              : glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]},
-                nearest ? -1 : Q_atoi(Cmd_Argv(3)), target);
+                nearest ? -1 : !q_strcasecmp(Cmd_Argv(3), "head") ? -2 : Q_atoi(Cmd_Argv(3)), target);
             PR_PopQCVM(oldVm);
             if(!num)
             {
@@ -839,7 +839,7 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> screen|screenbutt <cm> [<side cm>]\n"
                    "       vr_mock_hand_to <main|off> heldspot <hotspot index>\n"
                    "       vr_mock_hand_to <main|off> mag <along -1..1> [<units off its side>]\n"
-                   "       vr_mock_hand_to <main|off> ragdoll <part> [<units over it>]\n"
+                   "       vr_mock_hand_to <main|off> ragdoll <part|near|head> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n"
                    "       vr_mock_hand_to <main|off> nearest <classname> [<units over it>]\n"
                    "       vr_mock_hand_to <main|off> ammopouch\n"

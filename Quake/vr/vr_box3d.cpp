@@ -12902,7 +12902,11 @@ int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out)
             }
         }
     }
-    if(best && part < 0) // (the part nearest `from`)
+    if(best && part == -2) // (its head)
+    {
+        part = best->rig->head >= 0 && !partCut(*best, best->rig->head) ? best->rig->head : best->count;
+    }
+    else if(best && part < 0) // (the part nearest `from`)
     {
         float distance = 0.f;
         part = nearestPart(*best, from, distance);
