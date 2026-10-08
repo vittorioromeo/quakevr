@@ -60,7 +60,7 @@ struct SceneTargets
 };
 SceneTargets eyeTargets;
 SceneTargets spectatorTargets;
-// The views through slipgates: one set of scene targets (each view is drawn and copied out before the next begins:
+// The views through teleporters: one set of scene targets (each view is drawn and copied out before the next begins:
 // a view's own views before it, vr_portals_recursion) and a texture array for each depth of view (1..4), whose layers
 // the cameras one depth up show.
 struct PortalTargets
@@ -564,7 +564,7 @@ void renderPortals(int width, int height, int depth)
     }
 }
 
-// The view through a slipgate of `depth` (1: seen by the eye; 2 seen in such a view, ...: vr_portals_recursion) for the
+// The view through a teleporter of `depth` (1: seen by the eye; 2 seen in such a view, ...: vr_portals_recursion) for the
 // eye about to be drawn (vr_portals.cpp): first the views seen in it (its camera carried through the gate), then the
 // scene from that eye carried through the gate (VR_PortalView, VR_PortalClip), all but the gate's box on screen skipped
 // (VR_DrawPortalMask), into targets of the eye's size (the per-view caches, sized as the eye's, aren't made anew)

@@ -7,7 +7,7 @@
 // not). It is drawn after the heat haze (VR_DrawHeatHaze): a ribbon in the world, its triangles made once a frame
 // (turned to face the first eye: the same ribbon in both eyes), over a copy of the scene (vr_haze.cpp copyScene) read a
 // little off to the side: a shift in the world across the ribbon, projected in each eye (the same bend in both), not
-// from what is in front of it (the scene's distances), blended in at its edges. None in views through a slipgate.
+// from what is in front of it (the scene's distances), blended in at its edges. None in views through a teleporter.
 // Only in bullet time (and fading out after it ends), unless vr_bullettime_trails 2.
 
 #pragma once

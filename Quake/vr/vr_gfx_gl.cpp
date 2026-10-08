@@ -77,9 +77,9 @@ layout(location = 2) uniform vec4 Params;
 layout(location = 3) uniform vec3 Size; // Mode 4's virtual screen: pixels across, down, scanlines a pixel
 layout(location = 16) uniform float TrueColor; // Mode 4: 1 the texture's own colours, 0 its brightness in the vertex colour
 layout(location = 4) uniform int SoftOn; // State::sceneDistances on unit 1
-// Slipgates shown in this view (vr_portals.cpp VR_PortalFrameData; set for the particles only, else none): what lies
+// Teleporters shown in this view (vr_portals.cpp VR_PortalFrameData; set for the particles only, else none): what lies
 // behind one, seen through its aperture from the eye, is hidden by the view through it (a translucent gate surface,
-// vr_slipgate_surface_opacity under 1, writes no depth: torch fire behind it showed over it).
+// vr_teleporter_surface_opacity under 1, writes no depth: torch fire behind it showed over it).
 layout(location = 64) uniform int PortalCount;
 layout(location = 65) uniform vec3 PortalEye;
 layout(location = 66) uniform vec4 PortalPlanes[8];
@@ -1412,7 +1412,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     GL_Uniform1fFunc(12, split.largePixels);
     GL_Uniform1iFunc(15, 0);
     {
-        // The slipgates shown in this view: what is behind one, through its aperture, is hidden (the fragment shader).
+        // The teleporters shown in this view: what is behind one, through its aperture, is hidden (the fragment shader).
         float plane[8][4], lo[8][4], hi[8][4];
         VR_PortalFrameData(plane, lo, hi);
         int count = 0;

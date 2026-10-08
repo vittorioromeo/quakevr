@@ -8,7 +8,7 @@ function Frames([int]$n){for($i=0;$i -lt $n;$i++){Cmd 'wait'}}
 foreach($c in @('vr_backend mock','vr_enabled 1','vr_fixed_frames 1','vr_mock_fast 1','sv_autosave 0','developer 1','vr_tips 0')){Cmd $c}
 Frames 80
 Cmd 'map start'; Frames 140
-foreach($c in @('god','notarget','vr_slipgates 1','vr_portals 1','vr_portals_walk 1','vr_grab_gibs 2',
+foreach($c in @('god','notarget','vr_teleporters 1','vr_portals 1','vr_portals_walk 1','vr_grab_gibs 2',
  'vr_roomscale_move_mult 0','vr_mock_hand head 0 1.7 0 0 0 0','setpos 544 1376 24 0 90 0')){Cmd $c}
 Frames 20; Cmd 'setpos 544 1376 24 0 90 0'; Frames 10; Cmd 'noclip 0'; Frames 10; Cmd 'vr_roomscale_move_mult 1'
 Cmd 'echo CASE_room_before'; Cmd 'vr_portals_info'
@@ -18,7 +18,7 @@ Cmd 'vr_mock_hand head 0 1.7 0 0 0 0'; Frames 5
 Cmd 'vr_roomscale_move_mult 0'; Cmd 'setpos 544 1320 24 0 90 0'; Frames 10
 Cmd 'vr_mock_hand main 0 1.2 -0.35 63 0 0'; Frames 20
 Cmd 'echo CASE_portal_pull'; Cmd 'vr_portals_pulltest'; Frames 20; Cmd '+grabright'; Cmd 'vr_mock_button main grip 1'; Frames 60; Cmd 'vr_mock_button main grip 0'; Cmd '-grabright'; Frames 90
-Cmd 'echo CASE_portal_cancel'; Cmd 'vr_portals_pulltest'; Frames 5; Cmd 'vr_slipgates 0'; Frames 45; Cmd 'vr_slipgates 1'; Frames 10
+Cmd 'echo CASE_portal_cancel'; Cmd 'vr_portals_pulltest'; Frames 5; Cmd 'vr_teleporters 0'; Frames 45; Cmd 'vr_teleporters 1'; Frames 10
 Cmd 'map e1m1'; Frames 140
 foreach($c in @('notarget','god','vr_decap 1','vr_decap_corpses 1','vr_hit_precise 1','vr_knockdown_chance 0',
  'vr_test_spawn 0','vr_test_spawn_dist 96','vr_decap_test 30')){Cmd $c}

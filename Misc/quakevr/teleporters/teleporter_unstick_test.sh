@@ -1,6 +1,6 @@
 #!/bin/bash
-# slipgate_unstick_test.sh <agent>: headless checks of the safety net that gets a player out of the wall behind a
-# slipgate (vr_portals_unstick; ROUND21.md, "Slipgates: shooting yourself, stuck behind a gate"), with the agent kit
+# teleporter_unstick_test.sh <agent>: headless checks of the safety net that gets a player out of the wall behind a
+# teleporter (vr_portals_unstick; ROUND21.md, "Teleporters: shooting yourself, stuck behind a gate"), with the agent kit
 # (C:/OHWorkspace/qvr-kit). Each line prints vr_portals_stuck after the player is put (setpos) in the flush player gate's
 # wall (its plane y 640, the far gate's y 928), standing still a moment, and what it must say.
 #   behind 20           his torso 20 past the plane: still a straddle (the split body holds within 24 of it): stays
@@ -17,7 +17,7 @@
 #                       out of the exit: never stuck (stuck 0), carried each time
 AGENT=${1:?agent}
 KIT=C:/OHWorkspace/qvr-kit
-START="developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;vr_mock_eye_size 160;map vrslipgates;wait60;god;notarget"
+START="developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;vr_mock_eye_size 160;map vrteleporters;wait60;god;notarget"
 probe() { bash $KIT/run.sh $AGENT -Filter "portal stuck" -Script "$1;toggleconsole;quit" | grep "portal stuck" | sed 's/portal stuck: //' | tr '\n' '|'; }
 put() { probe "$START;$2;setpos -256 $1 24 0 90 0;wait5;noclip 0;wait20;vr_portals_stuck"; }
 echo "behind 20:  $(put 660) (stuck 0 at y 660, unstuck 0)"

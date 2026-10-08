@@ -1209,7 +1209,7 @@ void(float dist) ai_run =
     enemy_range = range(self.enemy);
     enemy_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
 
-    // QVR: a melee monster seeing him only through a paired slipgate (the stealth rules) runs to it and through
+    // QVR: a melee monster seeing him only through a paired teleporter (the stealth rules) runs to it and through
     if(self.vr_ai_gate > 0 && enemy_vis && !VR_AI_PortalEligible())
     {
         VR_Stealth_ChaseGate(dist);

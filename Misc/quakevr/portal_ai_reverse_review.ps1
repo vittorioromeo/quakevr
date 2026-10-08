@@ -7,7 +7,7 @@ function Frames([int]$n){for($i=0;$i -lt $n;$i++){Cmd 'wait'}}
 foreach($c in @('vr_backend mock','vr_enabled 1','vr_fixed_frames 1','vr_mock_fast 1','sv_autosave 0','developer 1','vr_tips 0')){Cmd $c}
 Frames 80
 Cmd 'map start'; Frames 140
-foreach($c in @('notarget 1','god 0','vr_slipgates 1','vr_portals 1','vr_portals_walk 1','vr_portals_ai 1',
+foreach($c in @('notarget 1','god 0','vr_teleporters 1','vr_portals 1','vr_portals_walk 1','vr_portals_ai 1',
  'vr_roomscale_move_mult 0','vr_grunt_burst 1','vr_grunt_burst_damage 4','vr_mock_hand head 0 1.7 0 0 0 0',
  'setpos 544 1640 24 0 270 0','vr_test_spawn 0','vr_test_spawn_dist 0','vr_test_spawn_dead 0','impulse 241')){Cmd $c}
 Frames 30; Cmd 'setpos 544 1320 24 0 90 0'; Frames 20; Cmd 'noclip 0'; Frames 30; Cmd 'notarget 0'; Frames 1
@@ -17,9 +17,9 @@ Cmd 'echo CASE_bullet'; Cmd 'vr_portals_ai_test 2'; Frames 10; Cmd 'vr_portals_a
 Cmd 'echo CASE_laser'; Cmd 'vr_portals_ai_test 3'; Frames 45; Cmd 'vr_portals_ai_test 6'; Frames 2
 Cmd 'echo CASE_lightning'; Cmd 'vr_portals_ai_test 4'; Frames 10; Cmd 'vr_portals_ai_test 6'; Frames 2
 Cmd 'echo CASE_wizard'; Cmd 'vr_portals_ai_test 5'; Frames 110; Cmd 'vr_portals_ai_test 6'; Frames 2
-Cmd 'echo CASE_delayed_closed'; Cmd 'vr_portals_ai_test 5'; Frames 2; Cmd 'vr_slipgates 0'; Frames 110; Cmd 'vr_portals_ai_test 6'; Frames 2
+Cmd 'echo CASE_delayed_closed'; Cmd 'vr_portals_ai_test 5'; Frames 2; Cmd 'vr_teleporters 0'; Frames 110; Cmd 'vr_portals_ai_test 6'; Frames 2
 Cmd 'echo CASE_closed_acquire'; Cmd 'vr_portals_ai_test 7'; Frames 2
-Cmd 'vr_slipgates 1'; Cmd 'vr_portals_ai_test 7'; Frames 2
+Cmd 'vr_teleporters 1'; Cmd 'vr_portals_ai_test 7'; Frames 2
 Cmd 'echo CASE_near_blocked'; Cmd 'vr_portals_ai_test 8'; Frames 2; Cmd 'vr_portals_ai_test 11'; Frames 2; Cmd 'vr_portals_ai_test 7'; Frames 2; Cmd 'vr_portals_ai_test 10'; Frames 2
 Cmd 'vr_portals_ai_test 7'; Frames 2
 Cmd 'echo CASE_far_blocked'; Cmd 'vr_portals_ai_test 9'; Frames 2; Cmd 'vr_portals_ai_test 11'; Frames 2; Cmd 'vr_portals_ai_test 7'; Frames 2; Cmd 'vr_portals_ai_test 10'; Frames 2

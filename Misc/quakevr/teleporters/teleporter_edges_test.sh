@@ -1,6 +1,6 @@
 #!/bin/bash
-# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|ragdoll|corpse|monster|all]: headless checks of the slipgate edge cases in
-# vrslipgates (ROUND21.md, "Slipgates: exits on their gates, props through, held objects, the force grab's beam"), with
+# teleporter_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|ragdoll|corpse|monster|all]: headless checks of the teleporter edge cases in
+# vrteleporters (ROUND21.md, "Teleporters: exits on their gates, props through, held objects, the force grab's beam"), with
 # the agent kit (C:/OHWorkspace/qvr-kit). Each section prints one line or a few, with what it must say.
 #   clip   a crate resting where a gate's exit used to stand (48 out of the north gallery's wall), paired exits off and
 #          on: never drawn cut (0 frames); one straddling the flush player gate: cut (a positive control)
@@ -15,7 +15,7 @@
 #   cull   a full-size shells box half through T's north gate, seen from U with the entrance behind the camera: the
 #          pixels its half out of U's gate makes (thousands; 0 when brush props were culled by their own place)
 #   head   facing T's west gate (the loop: it shows your back; 2048-pixel eyes): the left eye's pixels your head makes (in a box round it), drawn
-#          (vr_slipgate_self_head 1) against not (0): through the gate (hundreds), and with the views off (0: the eye's
+#          (vr_teleporter_self_head 1) against not (0): through the gate (hundreds), and with the views off (0: the eye's
 #          own view never draws it)
 AGENT=${1:?agent}; WHAT=${2:-all}
 KIT=C:/OHWorkspace/qvr-kit
@@ -25,10 +25,10 @@ LOG=$KIT/bases/$AGENT/qbase/qconsole.log
 PY=python; for p in /c/Python313/python python3; do "$p" -c "import PIL" 2>/dev/null && PY=$p && break; done
 mkdir -p "$TREE/scratch"
 run() { bash $KIT/run.sh $AGENT "$@" > /dev/null; }
-START="developer 1;map vrslipgates;wait60;god;notarget"
+START="developer 1;map vrteleporters;wait60;god;notarget"
 want() { [ "$WHAT" = "$1" ] || [ "$WHAT" = all ]; }
 
-# The first entity a test spawns (221 before vrslipgates' crouching room, 243 with it): a crate put straddling the
+# The first entity a test spawns (221 before vrteleporters' crouching room, 243 with it): a crate put straddling the
 # flush player gate, the one thing drawn cut there (vr_portals_debug_split).
 run -Script "$START;setpos -256 600 24 0 90 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 40;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
 E=$(grep -E "^portal split: frame [0-9]+ ent [0-9]+ .*cut by the plane" "$LOG" | head -1 | awk '{print $6}')
@@ -40,7 +40,7 @@ lastY() { grep -E "^portal split: frame [0-9]+ ent $E " "$LOG" | tail -1 | awk '
 
 if want clip; then
     for pe in 0 1; do
-        run -Script "$START;vr_slipgate_pair_exits $pe;setpos 352 1032 24 0 270 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 56;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
+        run -Script "$START;vr_teleporter_pair_exits $pe;setpos 352 1032 24 0 270 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 56;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
         echo "clip: pair exits $pe: a crate resting 48 out of a gate drawn cut in $(grep -c "ent $E .*cut by the plane" "$LOG") frames (0)"
     done
     run -Script "$START;setpos -256 600 24 0 90 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 40;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
@@ -93,29 +93,29 @@ if want grab; then
     run -Script "$START;setpos 0 940 24 0 90 0;wait5;noclip 0;vr_test_spawn 100;vr_test_spawn_dist 60;impulse 241;wait30;setpos 0 590 24 0 90 0;wait5;noclip 0;vr_mock_hand main 0.000 1.300 -0.450 56 0 0;wait10;vr_portals_debug_split 1;+attack;wait3;vr_portals_debug_split 0;-attack;toggleconsole;quit"
     echo "grab: $(grep 'force grab beam' "$LOG" | head -1) (to y 712, its image; its middle y 1000)"
     # ... and pulled through (ragdoll_test.sh's take: the trigger locks, a flick up pulls): it crosses and is caught
-    G=$KIT/bases/$AGENT/qbase/id1/slipgate_pull.txt
+    G=$KIT/bases/$AGENT/qbase/id1/teleporter_pull.txt
     printf "%s\n" "0.000 main 0.000 1.300 -0.450 56 0 0" "0.500 cmd +attack" "1.000 main 0.000 1.300 -0.450 56 0 0" \
         "1.100 main 0.000 1.600 -0.450 56 0 0" "1.150 cmd +grabright" "1.150 button main grip 1" "1.200 cmd -attack" > $G
     run -Script "$START;setpos 0 940 24 0 90 0;wait5;noclip 0;vr_test_spawn 100;vr_test_spawn_dist 60;impulse 241;wait30;setpos 0 590 24 0 90 0;wait5;noclip 0;wait10;vr_mock_play $G;wait300;toggleconsole;quit"
-    echo "grab: pulled through: $(grep -c 'force grab: crossed slipgate' "$LOG") crossing (1), $(grep -c 'force grab: caught' "$LOG") caught (1)"
+    echo "grab: pulled through: $(grep -c 'force grab: crossed teleporter' "$LOG") crossing (1), $(grep -c 'force grab: caught' "$LOG") caught (1)"
 fi
 
 if want cull; then
     for sp in 1 0; do
         SPAWN="vr_test_spawn 101;vr_test_spawn_dist 76;impulse 241"; [ $sp = 0 ] && SPAWN="wait1"
-        bash $KIT/run.sh $AGENT -Clean -Out "slipgate_cull_$sp.png" -Script "vr_forcegrabbable_box_scale 1;map vrslipgates;wait60;god;notarget;setpos -1280 690 24 0 90 0;wait5;noclip 0;$SPAWN;wait60;setpos -1040 1408 24 0 0 0;wait5;noclip 0;vr_mirror 2;vr_window_view 0;vr_mock_look 10 0;wait20;screenshot;wait5;toggleconsole;quit" > /dev/null
+        bash $KIT/run.sh $AGENT -Clean -Out "teleporter_cull_$sp.png" -Script "vr_forcegrabbable_box_scale 1;map vrteleporters;wait60;god;notarget;setpos -1280 690 24 0 90 0;wait5;noclip 0;$SPAWN;wait60;setpos -1040 1408 24 0 0 0;wait5;noclip 0;vr_mirror 2;vr_window_view 0;vr_mock_look 10 0;wait20;screenshot;wait5;toggleconsole;quit" > /dev/null
     done
     "$PY" - "$TREE/scratch" <<'PYEOF'
 import sys
 from PIL import Image, ImageChops
-a = Image.open(sys.argv[1] + '/slipgate_cull_1.png').convert('RGB'); b = Image.open(sys.argv[1] + '/slipgate_cull_0.png').convert('RGB')
+a = Image.open(sys.argv[1] + '/teleporter_cull_1.png').convert('RGB'); b = Image.open(sys.argv[1] + '/teleporter_cull_0.png').convert('RGB')
 d = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 24 else 0)
 print(f"cull: the box's half out of the exit makes {d.histogram()[255]} pixels (thousands; 0: culled)")
 PYEOF
 fi
 
-# particles: explosion particles behind start's underwater slipgate (a free-standing sheet), seen from in front of it
-# with the author's translucent gate surface (vr_slipgate_surface_opacity 0.3: no depth written): the pixels they make
+# particles: explosion particles behind start's underwater teleporter (a free-standing sheet), seen from in front of it
+# with the author's translucent gate surface (vr_teleporter_surface_opacity 0.3: no depth written): the pixels they make
 # over the gate (a few at most; 539 before the particles were hidden behind shown gates), and with the views off and the
 # same surface (the shimmer only, translucent: they show through it, a control: ~650). (The control was the views off at
 # opacity 1 until 2026-10-08: start's teleports are not vised for see-through liquids, so that shimmer is opaque and
@@ -125,12 +125,12 @@ if want particles; then
         set -- $c
         for sp in 1 0; do
             P="vr_particle_test 2 400"; [ $sp = 0 ] && P="wait1"
-            bash $KIT/run.sh $AGENT -Clean -Out "slipgate_particles_$sp.png" -Script "map start;wait90;god;notarget;noclip;vr_portals $1;vr_slipgate_surface_opacity $2;setpos 1040 1700 -330 0 270 0;wait5;$P;setpos 1040 1830 -330 0 270 0;vr_mock_look 0 270;vr_mirror 2;vr_window_view 0;wait3;screenshot;wait5;toggleconsole;quit" > /dev/null
+            bash $KIT/run.sh $AGENT -Clean -Out "teleporter_particles_$sp.png" -Script "map start;wait90;god;notarget;noclip;vr_portals $1;vr_teleporter_surface_opacity $2;setpos 1040 1700 -330 0 270 0;wait5;$P;setpos 1040 1830 -330 0 270 0;vr_mock_look 0 270;vr_mirror 2;vr_window_view 0;wait3;screenshot;wait5;toggleconsole;quit" > /dev/null
         done
         "$PY" - "$TREE/scratch" "$1" <<'PYEOF'
 import sys
 from PIL import Image, ImageChops
-a = Image.open(sys.argv[1] + '/slipgate_particles_1.png').convert('RGB'); b = Image.open(sys.argv[1] + '/slipgate_particles_0.png').convert('RGB')
+a = Image.open(sys.argv[1] + '/teleporter_particles_1.png').convert('RGB'); b = Image.open(sys.argv[1] + '/teleporter_particles_0.png').convert('RGB')
 d = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 30 else 0)
 print(f"particles: views {sys.argv[2]}: particles behind the gate make {d.histogram()[255]} pixels" + (" (a few at most)" if sys.argv[2] == '1' else " (a control: over 100)"))
 PYEOF
@@ -141,7 +141,7 @@ fi
 # The game writes it under the kit's base for this agent (com_gamedir), not the worktree; emptied first so a run that
 # took none leaves no stale image behind.
 EYESHOTS=$KIT/bases/$AGENT/qbase/quakevr/eyeshots
-eyeshot() { local out=$1; shift; local shot=$EYESHOTS/vrslipgates_000_L.png; mkdir -p "$EYESHOTS"; : > "$shot"
+eyeshot() { local out=$1; shift; local shot=$EYESHOTS/vrteleporters_000_L.png; mkdir -p "$EYESHOTS"; : > "$shot"
     run -Script "$*;vr_eyeshot 1;wait5;toggleconsole;quit"; cp "$shot" "$TREE/scratch/$out.png"; }
 # Pixels over a threshold of difference between two of those images.
 # (A box "x0,y0,x1,y1": only there; the runs' own noise, the lights' flicker, lies elsewhere.)
@@ -158,9 +158,9 @@ PYEOF
 if want head; then
     for v in 1 0; do
         for h in 1 0; do
-            eyeshot "slipgate_head_${v}_$h" "vr_mock_eye_size 2048;$START;vr_portals $v;vr_slipgate_self_head $h;setpos -1560 560 24 0 180 0;wait5;noclip 0;wait20"
+            eyeshot "teleporter_head_${v}_$h" "vr_mock_eye_size 2048;$START;vr_portals $v;vr_teleporter_self_head $h;setpos -1560 560 24 0 180 0;wait5;noclip 0;wait20"
         done
-        echo "head: views $v: your head makes $(differ slipgate_head_${v}_1 slipgate_head_${v}_0 6 1000,995,1045,1045) pixels in the left eye"             "$( [ $v = 1 ] && echo '(through the loop gate: over 30)' || echo '(no gate view: 0)')"
+        echo "head: views $v: your head makes $(differ teleporter_head_${v}_1 teleporter_head_${v}_0 6 1000,995,1045,1045) pixels in the left eye"             "$( [ $v = 1 ] && echo '(through the loop gate: over 30)' || echo '(no gate view: 0)')"
     done
 fi
 
@@ -168,8 +168,8 @@ fi
 # left eye, one more each gate deeper (vr_portals_recursion 0, 1, 2: 1, 2, 3 signs), and the views drawn at each depth
 if want recursion; then
     for r in 0 1 2; do
-        eyeshot "slipgate_recursion_$r" "vr_mock_eye_size 4096;$START;vr_portals_recursion $r;setpos -1560 560 24 0 180 0;wait5;noclip 0;wait20;vr_portals_view;wait2"
-        echo "recursion $r: $("$PY" "$HERE/slipgate_signs.py" "$TREE/scratch/slipgate_recursion_$r.png" | awk '{print $2}') signs ($((r + 1)));" \
+        eyeshot "teleporter_recursion_$r" "vr_mock_eye_size 4096;$START;vr_portals_recursion $r;setpos -1560 560 24 0 180 0;wait5;noclip 0;wait20;vr_portals_view;wait2"
+        echo "recursion $r: $("$PY" "$HERE/teleporter_signs.py" "$TREE/scratch/teleporter_recursion_$r.png" | awk '{print $2}') signs ($((r + 1)));" \
             "$(grep -E '^  (last camera|within the last view)' "$LOG" | sed -E 's/^ +//; s/ rendered \(limit [0-9]+\)//; s/, the first through side -?[0-9]+//' | tr '\n' ';' | sed 's/;$//')"
     done
 fi
@@ -182,12 +182,12 @@ if want quake; then
     for at in 1650 1830; do
         for sp in 1 0; do
             P="vr_particle_test quake"; [ $sp = 0 ] && P="wait1"
-            bash $KIT/run.sh $AGENT -Clean -Out "slipgate_quakefx_$sp.png" -Script "map start;wait90;god;notarget;noclip;vr_particles 0;vr_slipgate_surface_opacity 0.3;setpos 1040 $at -330 0 270 0;wait5;$P;setpos 1040 1830 -330 0 270 0;vr_mock_look 0 270;vr_mirror 2;vr_window_view 0;wait3;screenshot;wait5;toggleconsole;quit" > /dev/null
+            bash $KIT/run.sh $AGENT -Clean -Out "teleporter_quakefx_$sp.png" -Script "map start;wait90;god;notarget;noclip;vr_particles 0;vr_teleporter_surface_opacity 0.3;setpos 1040 $at -330 0 270 0;wait5;$P;setpos 1040 1830 -330 0 270 0;vr_mock_look 0 270;vr_mirror 2;vr_window_view 0;wait3;screenshot;wait5;toggleconsole;quit" > /dev/null
         done
         "$PY" - "$TREE/scratch" "$at" <<'PYEOF'
 import sys
 from PIL import Image, ImageChops
-a = Image.open(sys.argv[1] + '/slipgate_quakefx_1.png').convert('RGB'); b = Image.open(sys.argv[1] + '/slipgate_quakefx_0.png').convert('RGB')
+a = Image.open(sys.argv[1] + '/teleporter_quakefx_1.png').convert('RGB'); b = Image.open(sys.argv[1] + '/teleporter_quakefx_0.png').convert('RGB')
 d = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 30 else 0)
 print(f"quake: Quake's particles and explosion sprite " + ("behind the gate" if sys.argv[2] == "1650" else "in front of it") + f" make {d.histogram()[255]} pixels" + (" (a few at most)" if sys.argv[2] == "1650" else " (a control: over 100)"))
 PYEOF
@@ -202,7 +202,7 @@ if want ragdoll; then
         for w in 1 0; do
             run -Script "$START;vr_ragdoll 1;vr_corpse_nogib 1;vr_limbs 0;vr_decap 0;vr_portals_walk $w;setpos $x 520 24 0 90 0;wait5;noclip 0;vr_test_spawn 0;vr_test_spawn_dist 60;vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0;wait120;vr_physics_blast $x 540 20 ${BLAST:-160};wait240;vr_ragdoll_list;toggleconsole;quit"
             y=$(grep -E "^ragdoll [0-9]+ monster_army: .* pelvis" "$LOG" | tail -1 | sed -E 's/.* pelvis [-0-9.]+ ([-0-9.]+) .*/\1/')
-            echo "ragdoll: gate at x $x, walk $w: $(grep -c 'carried through a slipgate' "$LOG") crossing, its pelvis ends at y $y" \
+            echo "ragdoll: gate at x $x, walk $w: $(grep -c 'carried through a teleporter' "$LOG") crossing, its pelvis ends at y $y" \
                 "$( [ $w = 1 ] && echo '(1, > 928: through)' || echo '(0, against the wall behind the gate: under 648, 688 the large gate; a control)')"
         done
     done
@@ -216,14 +216,14 @@ if want corpse; then
         for w in 1 0; do
             run -Script "$START;vr_ragdoll 0;vr_corpse_collide 4;vr_corpse_nogib 1;vr_limbs 0;vr_decap 0;vr_portals_walk $w;setpos $x 520 24 0 90 0;wait5;noclip 0;vr_test_spawn 0;vr_test_spawn_dist 60;vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0;wait120;vr_physics_fling monster_army ${FLING:-300} 90 60;wait240;vr_corpse_list;toggleconsole;quit"
             y=$(grep -E "^  [0-9]+ monster_army: .* at " "$LOG" | tail -1 | sed -E 's/.* at [-0-9.]+ ([-0-9.]+) .*/\1/')
-            echo "corpse: gate at x $x, walk $w: $(grep -c 'corpse: [0-9]* carried through a slipgate' "$LOG") crossing, it ends at y $y" \
+            echo "corpse: gate at x $x, walk $w: $(grep -c 'corpse: [0-9]* carried through a teleporter' "$LOG") crossing, it ends at y $y" \
                 "$( [ $w = 1 ] && echo '(1, > 928: through)' || echo '(0, short of the wall behind the gate; a control)')"
         done
     done
 fi
 
 # monster: a dog spawned 200 units out of FA's flush player gate chases the player, put 150 units past the gate in the
-# north gallery (slipgates_test.sh chase): where it is first seen in the gallery (928 the far gate's face) and its step
+# north gallery (teleporters_test.sh chase): where it is first seen in the gallery (928 the far gate's face) and its step
 # there from its last place in FA, unfolded through the gate (less the gates' 288): one of its run's steps (32 units at
 # most); vr_portals_monsters 0 (a control): Quake's teleport, 48 out of the face, a jump of 60 to 110 units. Quake's sight
 # (vr_stealth_meter 0: the meter takes seconds on a still player; the dog must be hostile before he moves). It used to be
@@ -231,7 +231,7 @@ fi
 # once (fixed in monsters.qc), standing till a later look, after he had gone behind the wall.
 if want monster; then
     for m in 1 0; do
-        S="developer 1;map vrslipgates;wait60;god;vr_stealth_meter 0;vr_portals_monsters $m;setpos -256 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn 7;vr_test_spawn_dist 200;impulse 241;wait40;setpos -256 1150 24 0 270 0;wait5;noclip 0"
+        S="developer 1;map vrteleporters;wait60;god;vr_stealth_meter 0;vr_portals_monsters $m;setpos -256 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn 7;vr_test_spawn_dist 200;impulse 241;wait40;setpos -256 1150 24 0 270 0;wait5;noclip 0"
         for i in $(seq 1 200); do S="$S;wait1;echo SNAP $i;entities"; done
         run -Script "$S;toggleconsole;quit"
         awk -v m="$m" '/^SNAP/{s=$2} index($0, "progs/dog.mdl:") && s && s != seen {seen=s; split($0, a, "("); split(a[2], b, ","); y=b[2]+0

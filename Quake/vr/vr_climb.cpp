@@ -1238,7 +1238,7 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
 }
 
 // The mantle onto a sloping top (vr_climb_mantle_lenient; voice notes e5start 17:12, plaw01 17:07: the little ledge
-// by the hard slipgate in DOPA's start map rises 4 units in its first 16 and findMantleLevel's box, at the lip's
+// by the hard teleporter in DOPA's start map rises 4 units in its first 16 and findMantleLevel's box, at the lip's
 // height, sat in it). Tried only when findMantleLevel finds nothing. For each spot (22 to 38 units in, the same sides
 // along the edge), the box is let down onto the top from as high as a slope of vr_climb_mantle_slope could rise under
 // it (to its far side) to as low as it could fall: it must land on something no steeper than that (a wall's edge, a

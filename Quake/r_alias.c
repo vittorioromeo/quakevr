@@ -546,7 +546,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 7, facebuf, (GLintptr)faceofs, facesize);
 	}
 
-	glEnable (GL_CLIP_DISTANCE1); // QVR: each instance keeps its half of the slipgate
+	glEnable (GL_CLIP_DISTANCE1); // QVR: each instance keeps its half of the teleporter
 	VR_AliasShadowClip (); // QVR: clipped virtual-light shadow, or a disabled plane
 
 	if (poseverttype == PV_IQM)

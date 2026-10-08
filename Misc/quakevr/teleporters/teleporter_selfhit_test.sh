@@ -1,5 +1,5 @@
 #!/bin/bash
-# slipgate_selfhit_test.sh <agent>: headless checks that you can shoot yourself through a slipgate (vrslipgates' loop:
+# teleporter_selfhit_test.sh <agent>: headless checks that you can shoot yourself through a teleporter (vrteleporters' loop:
 # T's west gate comes out of T's east gate, so facing west you see your own back), with the agent kit
 # (C:/OHWorkspace/qvr-kit). Each line prints your health before and after (start 100, no armour); "hit" is a drop.
 #   pellet   vr_physics_fire 10 (a shotgun pellet from your eyes) west through the loop: hit
@@ -12,7 +12,7 @@
 #   god                the shotgun under god mode: no drop
 AGENT=${1:?agent}
 KIT=C:/OHWorkspace/qvr-kit
-START="developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrslipgates;wait60;notarget"
+START="developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrteleporters;wait60;notarget"
 health() { bash $KIT/run.sh $AGENT -Filter "^health" -Script "$1" | grep -E "^health" | awk '{print $2}' | tr '\n' ' '; }
 test_fire() { # test_fire <kind>
     health "$START;setpos -1560 560 24 0 180 0;wait5;noclip 0;wait10;edict 1;vr_physics_fire $1 -1700 560 40;wait90;edict 1;toggleconsole;quit"

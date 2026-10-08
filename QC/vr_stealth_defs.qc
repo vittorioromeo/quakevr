@@ -8,7 +8,7 @@
 .float stl_seen;        // when the meter last filled (the player seen)
 .float stl_decayed;     // when it last drained
 .vector stl_point;      // what it investigates
-.float stl_via;         // the slipgate stl_point is seen through (its image beyond the gate, vr_stealth_gates): the
+.float stl_via;         // the teleporter stl_point is seen through (its image beyond the gate, vr_stealth_gates): the
                         // gate's face it walks through (portal_ai_gateinfo's face), minus one it can't walk through; 0 none
 .float stl_post_via;    // and its post, after it went through a gate (the face back)
 .float stl_lost_via;    // and stl_lost_at
@@ -38,7 +38,7 @@
 .float stl_lost_time;   // Hostile: when it last saw its enemy
 .vector stl_lost_at;    // and where
 .vector stl_lost_vel;   // and his speed then (the way he was going: his moves between its sightings, smoothed)
-.vector stl_lost_org;   // and where he was (stl_lost_at is his image when seen through a slipgate)
+.vector stl_lost_org;   // and where he was (stl_lost_at is his image when seen through a teleporter)
 .float stl_trail;       // out of sight: the step of his trail it follows (VR_Stealth_Trail: 1 his last spot, 2 ahead, 3 at him)
 .float stl_trail_time;  // and when it began
 .entity stl_next;       // a gathered list's next (VR_Stealth_Gather)

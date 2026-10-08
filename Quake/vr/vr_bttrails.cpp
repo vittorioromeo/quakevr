@@ -48,7 +48,7 @@ constexpr float kSegment = 10.f;     // units its projectile flies before a plac
 constexpr float kPiece = 24.f;       // the ribbon's longest piece (longer ones split, up to kMaxSplit)
 constexpr int kMaxSplit = 8;
 constexpr float kMinSpeed = 200.f;   // units a second of the game's time: slower entities make no trail (a grenade at rest)
-constexpr float kJump = 256.f;       // a projectile further than this from its last place went through a slipgate: a new trail
+constexpr float kJump = 256.f;       // a projectile further than this from its last place went through a teleporter: a new trail
 constexpr float kHeadRamp = 10.f;    // units behind the projectile the bend fades in over
 constexpr float kWiden = 28.f;       // ... and the trail widens over to its full width
 constexpr float kNearFade = 40.f;    // units from the eye a trail fades out within (from a quarter of it)
@@ -771,7 +771,7 @@ extern "C" void VR_DistortionTrail(int ent)
         }
     }
     const glm::vec3 origin(e.origin[0], e.origin[1], e.origin[2]);
-    // A new projectile in its place, or one gone through a slipgate: its old trail left where it was.
+    // A new projectile in its place, or one gone through a teleporter: its old trail left where it was.
     if(trail && (kind == KindNone || trail->model != e.model || e.forcelink ||
                     (trail->count > 0 && glm::distance(trail->head.pos, origin) > kJump)))
     {

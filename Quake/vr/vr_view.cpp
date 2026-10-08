@@ -7040,7 +7040,7 @@ static void applyEyeView(const hands::State& s)
         return;
     }
     const int eye = stereo::eye();
-    // An eye already through a slipgate the body has not crossed yet (or not yet through one it has): seen from the room
+    // An eye already through a teleporter the body has not crossed yet (or not yet through one it has): seen from the room
     // it is in (vr_portals_walk), not from behind the gate's surface -- that frame or two showed the gate's hidden back.
     glm::vec3 origin = s.eyeOrigin[eye], angles = s.eyeAngles[eye];
     portals::eyeThrough(glm::vec3{s.playerOrigin.x, s.playerOrigin.y, origin.z}, origin, angles);

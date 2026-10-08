@@ -20,7 +20,7 @@ def scene(name, frames):
     if name.startswith("portal"):
         setup = ["setpos 544 1320 24 0 90 0", "vr_mock_look 0 0"]
         if name == "portal_off":
-            setup += ["vr_slipgates 0"]
+            setup += ["vr_teleporters 0"]
         if "one" in name:
             setup += ["vr_portals_maxviews 1"]
         if "enemies" in name:
@@ -150,7 +150,7 @@ def script(name, frames, eye, gpu, screenshot):
                 "vr_particle_seed 7", "vr_profile_interval 0", "vr_profile_detail 1",
                 f"vr_profile_gpu {gpu}", "vr_profile_hitch 0", "vr_roomscale_move_mult 0"]
     commands += waits(80) + [f"map {'start' if name.startswith('portal') else 'vrfiringrange'}"] + waits(150)
-    commands += ["god 1", "notarget 1", "vr_slipgates 1", "vr_portals 1", "vr_portals_walk 1",
+    commands += ["god 1", "notarget 1", "vr_teleporters 1", "vr_portals 1", "vr_portals_walk 1",
                  "vr_portals_ai 1", "vr_particles 1", "vr_explosion_debris 1", "vr_decals 1"]
     setup, warm, body = scene(name, frames)
     commands += setup + ["vr_profile 1", "vr_profile_csv 1"] + waits(warm)

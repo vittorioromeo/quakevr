@@ -7,7 +7,7 @@ function Frames([int]$n){for($i=0;$i -lt $n;$i++){Cmd 'wait'}}
 foreach($c in @('vr_backend mock','vr_enabled 1','vr_fixed_frames 1','vr_mock_fast 1','sv_autosave 0','developer 1','vr_tips 0')){Cmd $c}
 Frames 80
 Cmd 'map start'; Frames 140
-foreach($c in @('god','notarget','vr_slipgates 1','vr_portals 1','vr_portals_walk 1','vr_roomscale_move_mult 0',
+foreach($c in @('god','notarget','vr_teleporters 1','vr_portals 1','vr_portals_walk 1','vr_roomscale_move_mult 0',
  'vr_mock_hand head 0 1.7 0 0 0 0','setpos 544 1360 24 0 90 0','vr_mock_hand main 0 1.2 -0.35 63 0 0')){Cmd $c}
 Frames 20
 Cmd 'setpos 544 1360 24 0 90 0'; Cmd 'noclip 0'; Frames 10

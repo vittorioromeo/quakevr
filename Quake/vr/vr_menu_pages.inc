@@ -1169,7 +1169,7 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsShadows();
 [[nodiscard]] za::Vector<Item> pageGraphicsSurfaces();
 [[nodiscard]] za::Vector<Item> pageGraphicsLiquids();
-[[nodiscard]] za::Vector<Item> pageGraphicsSlipgates();
+[[nodiscard]] za::Vector<Item> pageGraphicsTeleporters();
 [[nodiscard]] za::Vector<Item> pageGraphicsPost();
 [[nodiscard]] za::Vector<Item> pageGraphicsModels();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro();
@@ -1200,7 +1200,7 @@ void resetHandMoves()
         open("Shadows", pageIndex(pageGraphicsShadows)),
         open("Surfaces", pageIndex(pageGraphicsSurfaces)),
         open("Liquids", pageIndex(pageGraphicsLiquids)),
-        open("Slipgates", pageIndex(pageGraphicsSlipgates)),
+        open("Teleporters", pageIndex(pageGraphicsTeleporters)),
         open("Post-processing", pageIndex(pageGraphicsPost)),
         open("Models and Effects", pageIndex(pageGraphicsModels)),
         open("Retro Textures", pageIndex(pageGraphicsRetro)),
@@ -1644,26 +1644,26 @@ void retroAllUncheckCategories()
 }
 
 // Graphics: water, slime and lava.
-// Graphics: slipgates that show where they lead, and going through them (vr_portals.cpp).
-[[nodiscard]] za::Vector<Item> pageGraphicsSlipgates()
+// Graphics: teleporters that show where they lead, and going through them (vr_portals.cpp).
+[[nodiscard]] za::Vector<Item> pageGraphicsTeleporters()
 {
     return {
-        toggle("Slipgates", "vr_slipgates").help("Gates show where they lead in VR, flat screen and the spectator camera. Movement, shots and dynamic light go through them. Off: Quake's teleporters and starry surfaces. Takes effect at once, no map reload."),
-        slider("Slipgate Views", "vr_portals", 0.f, 1.f, 0.1f, "%.1f").extend().help("Slipgates show where they lead, like Portal's portals: the place they take you to, live, through their shimmer (the scene is drawn again for the visible gates). 0: Quake's plain shimmer."),
-        toggle("Seamless Slipgates", "vr_portals_walk").help("With Slipgate Views on, you walk through slipgates into the place you saw, keeping your speed and the way you face (no flash, no pause), and rockets, grenades, nails, thrown props and gunfire go through them. Off: Quake's teleport."),
-        toggle("Monsters Walk Through", "vr_portals_monsters").help("With Seamless Slipgates on, monsters walk through a slipgate that comes out of another gate's face as you do, coming out of that face. Off (and at other gates, or for a monster too big for the opening): Quake's teleport, which puts them at the destination marker, a step out."),
+        toggle("Quake VR Teleporters", "vr_teleporters").help("Teleporters show where they lead in VR, flat screen and the spectator camera. Movement, shots and dynamic light go through them. Off: Quake's plain teleporters and their starry surfaces. Takes effect at once, no map reload."),
+        slider("Teleporter Views", "vr_portals", 0.f, 1.f, 0.1f, "%.1f").extend().help("Teleporters show where they lead: the place they take you to, live, through their shimmer (the scene is drawn again for the visible gates). 0: Quake's plain shimmer."),
+        toggle("Seamless Teleporters", "vr_portals_walk").help("With Teleporter Views on, you walk through teleporters into the place you saw, keeping your speed and the way you face (no flash, no pause), and rockets, grenades, nails, thrown props and gunfire go through them. Off: Quake's teleport."),
+        toggle("Monsters Walk Through", "vr_portals_monsters").help("With Seamless Teleporters on, monsters walk through a teleporter that comes out of another gate's face as you do, coming out of that face. Off (and at other gates, or for a monster too big for the opening): Quake's teleport, which puts them at the destination marker, a step out."),
         toggle("Enemies See and Shoot Through", "vr_portals_ai").help("Ranged enemies spot players through an active aperture and aim through it. The gate and both rooms must be clear; closing it cancels delayed shots. One gate per sight line. Melee and navigation stay local."),
-        toggle("Exits On Paired Gates", "vr_slipgate_pair_exits").help("A slipgate whose destination stands in front of another gate of its size (a two-way pair) brings you, props and the view out of that gate's face, so you are halfway through both as you cross. Off: out at the destination marker, which can stand a step out from the gate."),
-        toggle("Your Head In Gates", "vr_slipgate_self_head").help("Seeing yourself through a slipgate (the loop room's gates show your back), your body has its head. Your own eyes never draw it. Off: headless there too."),
+        toggle("Exits On Paired Gates", "vr_teleporter_pair_exits").help("A teleporter whose destination stands in front of another gate of its size (a two-way pair) brings you, props and the view out of that gate's face, so you are halfway through both as you cross. Off: out at the destination marker, which can stand a step out from the gate."),
+        toggle("Your Head In Gates", "vr_teleporter_self_head").help("Seeing yourself through a teleporter (the loop room's gates show your back), your body has its head. Your own eyes never draw it. Off: headless there too."),
         slider("Visible Gates", "vr_portals_maxviews", 1.f, 8.f, 1.f, "%.0f").help("Maximum destination views drawn per camera (default 4). Each visible gate renders another scene; lower this for VR performance."),
-        slider("Gates Within Gates", "vr_portals_recursion", 0.f, 3.f, 1.f, "%.0f").help("A slipgate seen through a slipgate shows where it leads too, this many gates deep (the loop room's gates: you, again and again). Each costs another scene, drawn smaller. 0: gates seen through a gate are left out."),
+        slider("Gates Within Gates", "vr_portals_recursion", 0.f, 3.f, 1.f, "%.0f").help("A teleporter seen through a teleporter shows where it leads too, this many gates deep (the loop room's gates: you, again and again). Each costs another scene, drawn smaller. 0: gates seen through a gate are left out."),
         slider("Gates In A Gate's View", "vr_portals_recursion_views", 1.f, 8.f, 1.f, "%.0f").help("How many of the gates seen through a gate show where they lead (the nearest and largest). Deeper, only the best one does."),
         slider("Most Gates Within Gates", "vr_portals_recursion_max", 0.f, 16.f, 1.f, "%.0f").help("At most this many gates seen through gates show where they lead, for each eye: the gate you look at most first. Each costs another scene."),
         slider("Deeper Gates' Resolution", "vr_portals_recursion_scale", 1.f, 4.f, 1.f, "1/%.0f").help("Each gate deeper is drawn with this many times fewer pixels a side (2: a quarter of the pixels, then a sixteenth). 1: all at full resolution."),
-        header("Portal Stars"),
-        slider("Size", "vr_slipgate_surface_size", 1.f, 2.f, 0.02f, "%.2fx").help("Enlarges the single star layer on the entrance plane. No extra star quads are drawn inside the destination view. The collision opening keeps its size."),
-        slider("Opacity", "vr_slipgate_surface_opacity", 0.f, 1.f, 0.05f, "%.2f").help("How much entrance shimmer covers the destination view. 0: a clear view; 1: the original shimmer."),
-        slider("Fade Up Close", "vr_slipgate_surface_fade", 0.f, 1.f, 0.05f, "%.2f m").help("The shimmer over the destination view fades out as your eyes come this close to the gate, and is gone as you cross, so the room does not brighten in a step as you arrive. 0: it stays to the end."),
+        header("Teleporter Stars"),
+        slider("Size", "vr_teleporter_surface_size", 1.f, 2.f, 0.02f, "%.2fx").help("Enlarges the single star layer on the entrance plane. No extra star quads are drawn inside the destination view. The collision opening keeps its size."),
+        slider("Opacity", "vr_teleporter_surface_opacity", 0.f, 1.f, 0.05f, "%.2f").help("How much entrance shimmer covers the view through the teleporter. 0: a clear view; 1: the original shimmer."),
+        slider("Fade Up Close", "vr_teleporter_surface_fade", 0.f, 1.f, 0.05f, "%.2f m").help("The shimmer over the destination view fades out as your eyes come this close to the gate, and is gone as you cross, so the room does not brighten in a step as you arrive. 0: it stays to the end."),
     };
 }
 
@@ -1888,7 +1888,7 @@ int relightToolState = -1;
         header("Lamps and Glowing Textures"),
         slider("Light Textures", "vr_relight_strength", 0.f, 4.f, 0.1f, "%.1fx").extend().help("How bright everything a texture lights is: lamps, light panels, glowing buttons and panels, lava (1: the relight script's)."),
         slider("Lamps and Light Panels", "vr_relight_lamps", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The light fixtures' light, times Light Textures: lamps, light panels and strips, the pyramid lanterns."),
-        slider("Glowing Panels and Buttons", "vr_relight_glows", 0.f, 4.f, 0.1f, "%.1fx").extend().help("Buttons, computer panels, runes and slipgates' glow on what is round them, times Light Textures."),
+        slider("Glowing Panels and Buttons", "vr_relight_glows", 0.f, 4.f, 0.1f, "%.1fx").extend().help("Buttons, computer panels, runes and teleporters' glow on what is round them, times Light Textures."),
         slider("Lava and Slime", "vr_relight_liquids", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The red glow lava casts on the walls round it, and slime's faint green one, times Light Textures."),
         header("The Map's Light"),
         slider("Map Lights", "vr_relight_maplights", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The map's own lights (the mapper's), as far, this much brighter."),

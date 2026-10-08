@@ -51,8 +51,8 @@ typedef struct
 	vec3_t		entmins, entmaxs;
 	const float *portalplane; // clipped portion of a player straddling a gate
 	qboolean	bodymove;		// QVR: a body's move (a box, not a shot): a player it meets shows it the narrower box
-	qboolean	hitpass;		// QVR: MOVE_HITPASS: the pass entity itself is met (a shot's path come out of a slipgate)
-	qboolean	hitowner;		// QVR: ... and its owner: that, or a missile carried through a slipgate (VR_PortalHitsOwner)
+	qboolean	hitpass;		// QVR: MOVE_HITPASS: the pass entity itself is met (a shot's path come out of a teleporter)
+	qboolean	hitowner;		// QVR: ... and its owner: that, or a missile carried through a teleporter (VR_PortalHitsOwner)
 } moveclip_t;
 
 
@@ -1166,7 +1166,7 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 				!VR_OwnPropMeets (clip->passedict, touch)) // QVR: not a solid prop a player threw
 				continue;	// don't clip against own missiles
 			if (PROG_TO_EDICT(clip->passedict->v.owner) == touch && !clip->hitowner)
-				continue;	// don't clip against owner (QVR: but a missile come through a slipgate meets it: VR_PortalHitsOwner)
+				continue;	// don't clip against owner (QVR: but a missile come through a teleporter meets it: VR_PortalHitsOwner)
 		}
 
 		// QVR: precise hits (vr_hit_precise, vr/vr_hitmodel.cpp): a monster's box (grown by the
@@ -1310,7 +1310,7 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 	// QVR: a flag on the type (a traceline's "nomonsters").
 	clip.hitgibs = (type & MOVE_HITGIBS) != 0;
 	clip.hitmodel = VR_HitModelTolerance (type); // QVR: and precise hits (MOVE_HITMODEL and its class)
-	clip.hitpass = (type & MOVE_HITPASS) != 0; // QVR: through a slipgate, at itself (your shot at your own image)
+	clip.hitpass = (type & MOVE_HITPASS) != 0; // QVR: through a teleporter, at itself (your shot at your own image)
 	clip.hitowner = clip.hitpass || VR_PortalHitsOwner (passedict);
 	type &= ~MOVE_HITPASS;
 	clip.hittype = type;

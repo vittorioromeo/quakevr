@@ -248,7 +248,7 @@ int builtFrame = -1; // the host frame they were laid out in; -1 when texts were
 
 // The camera's four side planes (from r_matviewproj, as the layout is drawn: VR_DrawSceneOpaque), each a normal and
 // its offset, for the boards' cull: a board wholly outside makes no pixels in this view, so its geometry is not laid
-// out (the eyes and the slipgates' views each lay out every board of the map: vrslipgates' loop with gates within gates,
+// out (the eyes and the teleporters' views each lay out every board of the map: vrteleporters' loop with gates within gates,
 // a third of a millisecond a frame).
 glm::vec4 viewPlanes[4]{};
 

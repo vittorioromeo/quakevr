@@ -498,7 +498,7 @@ void SV_SendServerinfo (client_t *client)
 
 	// QVR: the client clears its stats on svc_serverinfo (CL_ClearState), so forget what it was sent: a stat whose
 	// value carries across a changelevel (STAT_QVR_RELOADMODE, Immersive) was otherwise never sent again and read 0
-	// on the new map (the author's note e1m2_2026-10-07_22-43-20: no ammo pouch nor magazines after a slipgate).
+	// on the new map (the author's note e1m2_2026-10-07_22-43-20: no ammo pouch nor magazines after a teleporter).
 	memset (client->oldstats_i, 0, sizeof(client->oldstats_i));
 	memset (client->oldstats_f, 0, sizeof(client->oldstats_f));
 	for (i = 0; i < MAX_CL_STATS; i++)
@@ -756,7 +756,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 // find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org, sv.worldmodel);
-	VR_PortalAddPVS (pvs, org); // QVR: and round the destinations of the slipgates it sees (vr/vr_portals.cpp)
+	VR_PortalAddPVS (pvs, org); // QVR: and round the destinations of the teleporters it sees (vr/vr_portals.cpp)
 
 // find the client's orientation
 	AngleVectors (clent->v.v_angle, forward, right, up);
@@ -1981,7 +1981,7 @@ static void SV_SpawnServerRun (const char *server);
 // QVR: a map's load, a scope of its own for the profiler (its hitch log).
 void SV_SpawnServer (const char *server)
 {
-	server = VR_MapAlias (server); // QVR: vrstart2 is vrstart now (old saves, binds)
+	server = VR_MapAlias (server); // QVR: vrstart2 is vrstart now, vrslipgates vrteleporters (old saves, binds)
 	VR_CheckSpawnCampaignMap (server); // QVR: never a campaign switch here (map and load chose it before they disconnected)
 	VR_NoteMapSpawn (server); // QVR: the map (and its map package) a crash report names
 	VR_ProfileBegin ("map spawn");

@@ -9,7 +9,7 @@
 //   122 the hunt: a grunt Hostile at him sees him dart sideways, then loses him (he is put out of sight under the floor):
 //       it follows his trail (to where it saw him last, then ahead along his way), gives up after vr_stealth_lose_time
 //       (8 s here) and searches (Alert); then with him far (vr_stealth_lose_far 600) it gives up after a quarter of it;
-//   124 props in the way (vrslipgates, room T): a row of five large crates between a knight Hostile at him and him
+//   124 props in the way (vrteleporters, room T): a row of five large crates between a knight Hostile at him and him
 //       (the knight 500 units off): with vr_ai_props 1 it gets round them to him (within 80 units) within 6 s; with 0 the
 //       time it took (or not, in 15 s) for comparison;
 //   123 a dog chasing him as he runs in circles for 30 s (it turns all the time): the script logs its drawn moves
@@ -183,7 +183,7 @@ void() VR_STT4_Frame =
         return;
     }
 
-    // 124: props in the way (vrslipgates, room T: the script loads it).
+    // 124: props in the way (vrteleporters, room T: the script loads it).
     if(stt2_step == 124)
     {
         if(stt2_stage == 0 || stt2_stage == 2)

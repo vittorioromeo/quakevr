@@ -1,4 +1,4 @@
-"""Validate forward/reverse slipgate AI fixtures, including rotated aim."""
+"""Validate forward/reverse teleporter AI fixtures, including rotated aim."""
 from pathlib import Path
 import re
 import sys

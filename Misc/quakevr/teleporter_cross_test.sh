@@ -3,7 +3,7 @@
 # The low sill intentionally requires a jump. Torso entry is y=1384; edges x211 and x253 must not cross.
 # Off-centre entries x220 and x244 must retain their offset at the destination (x532 and x556).
 K=${KIT:-C:/OHWorkspace/qvr-kit}
-A=${AGENT:-slipgate-cross}
+A=${AGENT:-teleporter-cross}
 F='CASE|carried edict|player at|torso |ENGINE CRASH|Host_Error'
 P='map start;wait120;god;notarget;developer 1;'
 for x in 211 253 220 244 232 544 864; do

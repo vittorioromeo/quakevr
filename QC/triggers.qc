@@ -444,7 +444,7 @@ vector    org;
     if(other.health <= 0 || other.solid != SOLID_SLIDEBOX)
         return;
 
-    // QVR: the engine walks players through slipgates (vr_portals.cpp, vr_portals_walk; VR_Portal_Crossed below), and
+    // QVR: the engine walks players through teleporters (vr_portals.cpp, vr_portals_walk; VR_Portal_Crossed below), and
     // monsters through paired ones that their box goes into (vr_portals_monsters)
     if(portal_handles(self, other))
         return;
@@ -493,7 +493,7 @@ vector    org;
     other.flags = other.flags - (other.flags & FL_ONGROUND);
 };
 
-// QVR: the engine has just walked `other` through the slipgate of trigger `self` (vr_portals.cpp, vr_portals_walk),
+// QVR: the engine has just walked `other` through the teleporter of trigger `self` (vr_portals.cpp, vr_portals_walk),
 // keeping where he was and how he moved relative to the gate: what Quake's teleport does besides moving him (its
 // targets, what his hands carry; no flash, no sound, no pause: he walked through).
 // `xYaw` the gate's turn, `xFace` the gate's face it went into and `xBack` the face in its new room that leads back

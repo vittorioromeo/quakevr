@@ -158,7 +158,7 @@ PhaseSums phaseSums;
 double displayPeriod = 0.0; // ms
 
 constexpr int phaseGpuSlots = 6;
-// A frame's at most: each view a slipgate shows draws the scene's phases again (vr_portals_recursion 2: about 120
+// A frame's at most: each view a teleporter shows draws the scene's phases again (vr_portals_recursion 2: about 120
 // timestamps a frame; 96 left the eyes' and the 3D's ends out, read as 0).
 constexpr int phaseGpuQueries = 512;
 struct PhaseGpuRec

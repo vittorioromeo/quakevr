@@ -877,9 +877,9 @@ on whatever is below its origin (within 128 units), whatever Rocks and Bricks' o
 
 @PointClass = particle_embers_tall : "Official taller drifting embers with authored height and scatter." []
 
-@PointClass = particle_tele : "Official inward-moving slipgate particles." []
+@PointClass = particle_tele : "Official inward-moving teleporter particles." []
 
-@PointClass = particle_tele_fountain : "Official upward slipgate fountain; can start on activation." []
+@PointClass = particle_tele_fountain : "Official upward teleporter fountain; can start on activation." []
 
 @SolidClass base(Targetname, Target) = func_explode : "Official fixed brush barrel: 20 health, delayed 160 damage radius blast; fires targets with the attacker as activator. Uses VR metal impacts." []
 @PointClass base(Targetname) = info_fog : "Authored native fog definition referenced by spawnpoints, cameras and triggers. RGB accepts normalized or 0..255 values." [

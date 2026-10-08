@@ -12,7 +12,7 @@ assert 'carried edict 1 through side 1' in before
 assert re.search(r'player at \(544 15\d\d 28\)',after)
 assert 'portalpulltest: selected=1' in text
 assert 'portalpulltest: gate=2' in text
-assert 'force grab: crossed slipgate 2' in text and 'force grab: caught' in text
+assert 'force grab: crossed teleporter 2' in text and 'force grab: caught' in text
 assert 'force grab: portal pull cancelled, object dropped in its room' in text
 assert 'buttongibtest: small_rejected=1 large_allowed=1' in text
 for test in (23,24,27):

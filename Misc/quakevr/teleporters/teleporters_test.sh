@@ -1,5 +1,5 @@
 #!/bin/bash
-# slipgates_test.sh <agent> [walk|throw|chase|views|all]: headless checks of vrslipgates (ROUND21.md, "Slipgate test map")
+# teleporters_test.sh <agent> [walk|throw|chase|views|all]: headless checks of vrteleporters (ROUND21.md, "Teleporter test map")
 # with the agent kit (C:/OHWorkspace/qvr-kit). One game run per line printed (chase and throw) or per section (walk, views).
 #   walk   the player walks into each gate from 64 units out (both sides), the high sill also with a jump: the
 #          engine's crossings (developer 1: "VR portal: carried edict 1 through side N") and where he ends up
@@ -12,19 +12,19 @@
 #          Expected: the dogs and fiends through (the sill-32 dog bumps the sill, slides along the wall and takes the
 #          sill-16 gate: 165-270 frames, now and then not within the 480); the grunt never: it stands and shoots through
 #          the gate (PORTAL_AI.md)
-#   views  a screenshot of both eyes from 64 units in front of a gate of each kind (scratch/slipgate_views.png)
+#   views  a screenshot of both eyes from 64 units in front of a gate of each kind (scratch/teleporter_views.png)
 AGENT=${1:?agent}; WHAT=${2:-all}; ONLY=$3  # ONLY: a chase's name (framed_large) to run only it
 KIT=C:/OHWorkspace/qvr-kit
 HERE=$(cd "$(dirname "$0")" && pwd)
 TREE=$(cd "$HERE/../../.." && pwd -W)
 LOG=$KIT/bases/$AGENT/qbase/qconsole.log
 mkdir -p "$TREE/scratch"
-TESTS=$(python "$HERE/make_vrslipgates_map.py" --tests)
+TESTS=$(python "$HERE/make_vrteleporters_map.py" --tests)
 run() { bash $KIT/run.sh $AGENT "$@" > /dev/null; }
 pos() { echo "$TESTS" | awk -F'|' -v n="$1" -v c="$2" '$1 == n { print $c }'; }
 
 if [ "$WHAT" = walk ] || [ "$WHAT" = all ]; then
-    S="developer 1;map vrslipgates;wait60;god;notarget"
+    S="developer 1;map vrteleporters;wait60;god;notarget"
     while IFS='|' read -r name a b fa fb; do
         for side in A B; do
             p=$a; [ $side = B ] && p=$b
@@ -40,7 +40,7 @@ if [ "$WHAT" = walk ] || [ "$WHAT" = all ]; then
 fi
 
 if [ "$WHAT" = throw ] || [ "$WHAT" = all ]; then
-    MOCK="$TREE/scratch/slipgates_throw.mock"
+    MOCK="$TREE/scratch/teleporters_throw.mock"
     python - "$MOCK" <<'PY'
 import sys
 L = ["0.000 main 0.15 1.25 -0.10 70 0 0"]
@@ -52,7 +52,7 @@ open(sys.argv[1], "w", newline="\n").write("\n".join(L) + "\n")
 PY
     for t in "101 -256 560 flush_player" "101 1000 560 framed_crate" "107 -256 600 flush_player_8deep" "107 0 600 flush_large_48deep"; do
         set -- $t
-        run -Script "developer 1;map vrslipgates;wait60;god;notarget;setpos $2 $3 24 0 90 0;wait5;noclip 0;vr_mock_hand main 0.15 1.25 -0.10 70 0 0;wait20;+grabright;vr_mock_button main grip 1;wait5;vr_test_spawn $1;vr_test_spawn_hold 1;impulse 241;wait30;echo THROWN;vr_mock_play $MOCK;wait150;echo LANDED;entities;toggleconsole;quit"
+        run -Script "developer 1;map vrteleporters;wait60;god;notarget;setpos $2 $3 24 0 90 0;wait5;noclip 0;vr_mock_hand main 0.15 1.25 -0.10 70 0 0;wait20;+grabright;vr_mock_button main grip 1;wait5;vr_test_spawn $1;vr_test_spawn_hold 1;impulse 241;wait30;echo THROWN;vr_mock_play $MOCK;wait150;echo LANDED;entities;toggleconsole;quit"
         speed=$(grep -o "carry: thrown at .*(\s*[0-9.]* u/s)" "$LOG" | grep -o "( *[0-9.]* u/s)")
         # the thing in the hand was spawned last: the highest-numbered box or crate after LANDED
         at=$(awk '/^LANDED/{f=1} f && /:(maps\/b_shell|progs\/vr_crate)/{l=$0} END{print l}' "$LOG" | grep -o "(.*)" | head -1)
@@ -64,7 +64,7 @@ if [ "$WHAT" = chase ] || [ "$WHAT" = all ]; then
     for t in "7 dog -256 flush_player" "7 dog 1180 framed_sill16" "7 dog 1360 framed_sill32" "9 demon 0 flush_large" "9 demon 1580 framed_large" "0 soldier -256 flush_player"; do
         [ -n "$ONLY" ] && [[ "$t" != *"$ONLY"* ]] && continue
         set -- $t
-        S="developer 1;map vrslipgates;wait60;god;vr_stealth_meter 0;setpos $3 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn $1;vr_test_spawn_dist 200;impulse 241;wait40;echo MOVE;setpos $3 1150 24 0 270 0;wait5;noclip 0"
+        S="developer 1;map vrteleporters;wait60;god;vr_stealth_meter 0;setpos $3 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn $1;vr_test_spawn_dist 200;impulse 241;wait40;echo MOVE;setpos $3 1150 24 0 270 0;wait5;noclip 0"
         for i in $(seq 1 32); do S="$S;wait15;echo SNAP $i;entities"; done
         run -Script "$S;toggleconsole;quit"
         awk -v m="progs/$2.mdl:" -v what="$2 at $4" '/^SNAP/{s=$2} index($0, m) && s {split($0, a, "("); split(a[2], b, ","); y=b[2]+0
@@ -74,11 +74,11 @@ if [ "$WHAT" = chase ] || [ "$WHAT" = all ]; then
 fi
 
 if [ "$WHAT" = views ] || [ "$WHAT" = all ]; then
-    S="map vrslipgates;wait60;vr_mirror 2;vr_window_view 0"
+    S="map vrteleporters;wait60;vr_mirror 2;vr_window_view 0"
     for n in flush_crate flush_player flush_large flush_wide framed_player framed_wide loop turn90 turn45 heights; do
         p=$(pos $n 2); set -- $p
         # 96 units further back than the walk's place, along the way he faces
         S="$S;setpos $(python -c "import math; x,y,z,a,b,c=map(float,'$p'.split()); r=math.radians(b); print(f'{x-96*math.cos(r):.0f} {y-96*math.sin(r):.0f} {z:.0f} 0 {b:.0f} 0')");wait30;screenshot"
     done
-    bash $KIT/run.sh $AGENT -Clean -Out slipgate_views.png -Script "$S;toggleconsole;quit" -Filter composed | tail -1
+    bash $KIT/run.sh $AGENT -Clean -Out teleporter_views.png -Script "$S;toggleconsole;quit" -Filter composed | tail -1
 fi

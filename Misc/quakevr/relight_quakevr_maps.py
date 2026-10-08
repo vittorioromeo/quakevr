@@ -13,7 +13,7 @@
 # vrtutorial: was never lit at all (an empty lightmap lump), so the engine drew every surface at full
 # brightness, whatever its 79 light entities said. It is now lit by its own lamps, given a longer reach
 # (tutorial_lamp): the strip lights over the tutorial boards, the lamp posts and the ceiling lamps, plus
-# the glowing textures (the strip lights, the lamp posts, buttons and the slipgate;
+# the glowing textures (the strip lights, the lamp posts, buttons and the teleporter;
 # relight_maps.glow_lights, coloured, .lit), strong ambient occlusion and no bounced light, so that the
 # lamps make pools of light and the corners and the space between them stay dark. The sixteen "light"
 # 1200 lamps floating 300 units up, over the whole map (a flat fill), are dropped; a faint night sky and

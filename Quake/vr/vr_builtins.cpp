@@ -309,7 +309,7 @@ constexpr float forcegrabGridSlack = 128.f;
 }
 
 // findportalcone's test of one edict (the walk's and the area grid's alike): in the cone, within range, near one of
-// the search's origins (the hand, its images through slipgates).
+// the search's origins (the hand, its images through teleporters).
 [[nodiscard]] bool inPortalCone(edict_t* ent, const glm::vec3& from, float range, const glm::vec3& aim, float minCos)
 {
     if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { return false; }
@@ -559,7 +559,7 @@ void PF_worldtext_hsetpos()
 
 extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who); // vr_portals.cpp
 
-// float(entity trig, entity who) portal_handles: 1 if the engine carries this player through the trigger's slipgate
+// float(entity trig, entity who) portal_handles: 1 if the engine carries this player through the trigger's teleporter
 // (vr_portals_walk; teleport_touch then leaves him be).
 void PF_portal_handles()
 {
@@ -572,13 +572,13 @@ extern "C" void VR_PortalExit(int i, float out[3]);
 extern "C" void VR_PortalTurn(const float v[3], float out[3]);
 extern "C" float VR_PortalFromImage(void);
 
-// float() portal_crossings: how many slipgates the last MOVE_PORTALS traceline went through (0 none).
+// float() portal_crossings: how many teleporters the last MOVE_PORTALS traceline went through (0 none).
 void PF_portal_crossings()
 {
     G_FLOAT(OFS_RETURN) = VR_PortalCrossings();
 }
 
-// float() portal_from_image: 1 if it began at the player's image, his muzzle held through a slipgate (it may hit him).
+// float() portal_from_image: 1 if it began at the player's image, his muzzle held through a teleporter (it may hit him).
 void PF_portal_from_image()
 {
     G_FLOAT(OFS_RETURN) = VR_PortalFromImage();
@@ -1786,7 +1786,7 @@ void PF_tracer()
     server::sendTracer(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), G_VECTOR(OFS_PARM2), G_VECTOR(OFS_PARM3));
 }
 
-// Ranged enemy perception through one active slipgate.
+// Ranged enemy perception through one active teleporter.
 static glm::vec3 aiVec(const float* v) { return {v[0], v[1], v[2]}; }
 
 void PF_portal_ai_sight()

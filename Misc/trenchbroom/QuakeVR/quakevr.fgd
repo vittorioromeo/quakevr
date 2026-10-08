@@ -3774,7 +3774,7 @@ load unless Honey's files are installed."
 ]
 
 @PointClass color(255 128 51) size(-8 -8 -8, 8 8 8) =
-	particle_tele : "Official inward-moving slipgate particles."
+	particle_tele : "Official inward-moving teleporter particles."
 [
 	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
 	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
@@ -3782,7 +3782,7 @@ load unless Honey's files are installed."
 ]
 
 @PointClass color(255 128 51) size(-8 -8 -8, 8 8 8) =
-	particle_tele_fountain : "Official upward slipgate fountain; can start on activation."
+	particle_tele_fountain : "Official upward teleporter fountain; can start on activation."
 [
 	spawnflags(flags) =
 	[

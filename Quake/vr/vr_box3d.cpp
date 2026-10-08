@@ -493,7 +493,7 @@ struct Slot // what one edict is in the world (by its number)
     bool corpseFitted{false};
     float corpseFriction{0.f};
     int ragdoll{-1}; // a ragdoll (vr_ragdoll): its parts in World::ragdolls (body: its pelvis); -1 none
-    // A pushable corpse's middle after the last step (carryCorpses: through a slipgate; its body made again as its
+    // A pushable corpse's middle after the last step (carryCorpses: through a teleporter; its body made again as its
     // frame changes is the same corpse).
     glm::vec3 lastMid{0.f};
     bool midKnown{false};
@@ -537,7 +537,7 @@ struct RagdollBodies
     za::Array<glm::quat, ragdoll::maxBones> struggleRest{};
     bool struggleReady{false};
     int shockJerk{-1}; // shocked (shockRagdoll): the jerk it last bucked or not at
-    // Its pelvis after the last step (carryRagdolls: the step it goes in through a slipgate carries it whole).
+    // Its pelvis after the last step (carryRagdolls: the step it goes in through a teleporter carries it whole).
     glm::vec3 lastPelvis{0.f};
     bool pelvisKnown{false};
 };
@@ -7277,7 +7277,7 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
 bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
 {
     // The level's mesh asks too, point by point (a local change to Box3D's mesh contacts: a prop passing through a
-    // slipgate must not meet the wall behind it): only the portal copies' clip planes concern it.
+    // teleporter must not meet the wall behind it): only the portal copies' clip planes concern it.
     const bool level = B3_ID_EQUALS(a, world->worldShape) || B3_ID_EQUALS(b, world->worldShape);
     if(level && world->portalCopies.empty()) { return true; }
     for(const World::PortalCopy& copy : world->portalCopies)
@@ -7471,7 +7471,7 @@ void syncPortalCopies(float dt)
     }
 }
 
-// After the step: a ragdoll whose pelvis went in through a slipgate's aperture is carried whole, every part by the gate's
+// After the step: a ragdoll whose pelvis went in through a teleporter's aperture is carried whole, every part by the gate's
 // mapping (where, how turned, how it moves), as VR_PortalToss carries what flies: its joints stay as they were, and its
 // parts still behind the plane meet the room they are in through their portal copies (syncPortalCopies).
 void carryRagdolls()
@@ -7512,7 +7512,7 @@ void carryRagdolls()
                 ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + glm::degrees(std::atan2(gate.turn[0][1], gate.turn[0][0])));
             }
             const glm::vec3 to = gate.turn * pelvis + shift;
-            Con_DPrintf("ragdoll: %d carried through a slipgate: pelvis %.1f %.1f %.1f -> %.1f %.1f %.1f\n", r.num, pelvis.x,
+            Con_DPrintf("ragdoll: %d carried through a teleporter: pelvis %.1f %.1f %.1f -> %.1f %.1f %.1f\n", r.num, pelvis.x,
                 pelvis.y, pelvis.z, to.x, to.y, to.z);
             pelvis = to;
         }
@@ -7522,7 +7522,7 @@ void carryRagdolls()
 }
 
 // After the step: a dead monster's own body (vr_corpse_collide's pushable kinds, not a ragdoll) whose middle went in
-// through a slipgate's aperture is carried whole by the gate's mapping, as carryRagdolls carries a ragdoll; until then
+// through a teleporter's aperture is carried whole by the gate's mapping, as carryRagdolls carries a ragdoll; until then
 // its portal copy kept the wall behind the gate from stopping it (syncPortalCopies). writeCorpse then moves its entity.
 void carryCorpses()
 {
@@ -7554,7 +7554,7 @@ void carryCorpses()
             }
             s.asleep = false; // (written this frame: writeCorpse)
             const glm::vec3 to = gate.turn * mid + shift;
-            Con_DPrintf("corpse: %d carried through a slipgate: middle %.1f %.1f %.1f -> %.1f %.1f %.1f\n", static_cast<int>(num),
+            Con_DPrintf("corpse: %d carried through a teleporter: middle %.1f %.1f %.1f -> %.1f %.1f %.1f\n", static_cast<int>(num),
                 mid.x, mid.y, mid.z, to.x, to.y, to.z);
             mid = to;
         }
@@ -12173,7 +12173,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             traceGibContacts();
         }
     }
-    carryRagdolls(); // (through slipgates)
+    carryRagdolls(); // (through teleporters)
     carryCorpses();
     const double t2 = Sys_DoubleTime();
     world->stepTime += t2 - t1;

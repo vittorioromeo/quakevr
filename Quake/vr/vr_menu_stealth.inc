@@ -61,8 +61,8 @@
             .help("A noise's reach kept with a wall or a door in the line but the place in the monster's sight (a doorway)."),
         slider("Through Solid Walls", vr_stealth_noise_solid, 0.f, 1.f, 0.05f, "x%.2f"),
         slider("Past a Prop", vr_stealth_noise_absorb, 0.f, 1.f, 0.05f, "x%.2f"),
-        toggle("Through Slipgates", vr_stealth_gates)
-            .help("Seamless slipgates that come out of another gate (Graphics > Slipgates): every monster sees you "
+        toggle("Through Teleporters", vr_stealth_gates)
+            .help("Seamless teleporters that come out of another gate (Graphics > Teleporters): every monster sees you "
                   "through them (not only ranged ones), noises carry through them as through an opening, and an Alert "
                   "monster walks through to look (Monsters Walk Through on). Off: sight through them is ranged "
                   "monsters' only, and noises stay in their room."),
@@ -157,8 +157,8 @@
             .help("A grunt shot by another fights it; the other dead, it stands Idle again and doesn't see you in the dark."),
         command("Lava's Edge", "god; notarget; vr_stealth_test 108")
             .help("The nearest lava or slime (e1m7's): a grunt Alert at a point across it stops at the edge."),
-        command("Through Slipgates", "map vrslipgates; wait60; god; setpos -1100 1408 24 0 180 0; wait5; noclip 0; vr_stealth_test 110")
-            .help("vrslipgates (it loads it), you in room U: a grunt in room T sees you through T's north gate, walks "
+        command("Through Teleporters", "map vrteleporters; wait60; god; setpos -1100 1408 24 0 180 0; wait5; noclip 0; vr_stealth_test 110")
+            .help("vrteleporters (it loads it), you in room U: a grunt in room T sees you through T's north gate, walks "
                   "through to where you stood and back; a knock in U heard through the gate, the same walk; a dog sees "
                   "you through it and comes through; Quake's AI: only the grunt sees you through (about 2 minutes)."),
         command("A Horde (Profiler)", "god; vr_stealth_test 103")

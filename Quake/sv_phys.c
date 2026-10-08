@@ -1191,7 +1191,7 @@ void SV_Physics_Toss (edict_t *ent)
 	VectorMA (ent->v.angles, host_frametime, ent->v.avelocity, ent->v.angles);
 
 // move origin
-	VR_PortalToss (ent); // QVR: carried through a slipgate its path crosses (vr/vr_portals.cpp)
+	VR_PortalToss (ent); // QVR: carried through a teleporter its path crosses (vr/vr_portals.cpp)
 	VectorScale (ent->v.velocity, host_frametime, move);
 	trace = SV_PushEntity (ent, move);
 	if (trace.fraction == 1)
@@ -1274,7 +1274,7 @@ void SV_Physics_Step (edict_t *ent)
 	SV_RunThink (ent);
 
 	if (!ent->free)
-		VR_PortalMonsterCross (ent); // QVR: walked (or leapt) through a paired slipgate (vr/vr_portals.cpp)
+		VR_PortalMonsterCross (ent); // QVR: walked (or leapt) through a paired teleporter (vr/vr_portals.cpp)
 
 	SV_CheckWaterTransition (ent);
 }

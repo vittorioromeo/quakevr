@@ -1,4 +1,4 @@
-"""Validate the slipgate reach and torch-contact integration fixtures."""
+"""Validate the teleporter reach and torch-contact integration fixtures."""
 from pathlib import Path
 import re
 import sys

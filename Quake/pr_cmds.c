@@ -743,7 +743,7 @@ static void PF_traceline (void)
 
 	VR_PortalTraceBegin (); // QVR: (the last portal trace's crossings forgotten)
 	trace = SV_Move (v1, vec3_origin, vec3_origin, v2, nomonsters & ~MOVE_PORTALS, ent);
-	if (nomonsters & MOVE_PORTALS) // QVR: on through the slipgates it crosses (vr/vr_portals.cpp)
+	if (nomonsters & MOVE_PORTALS) // QVR: on through the teleporters it crosses (vr/vr_portals.cpp)
 		VR_PortalTrace (v1, v2, nomonsters & ~MOVE_PORTALS, ent, &trace);
 
 	pr_global_struct->trace_allsolid = trace.allsolid;

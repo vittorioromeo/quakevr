@@ -644,7 +644,7 @@ extern "C" void VR_WallTorchFlames(void)
                 glm::vec3 walk = (player - t.player) / fdt;
                 if(glm::length(walk) > 3000.f)
                 {
-                    walk = glm::vec3{0.f}; // the player's jump too (a teleport, a slipgate): no lean from it
+                    walk = glm::vec3{0.f}; // the player's jump too (a teleport, a teleporter): no lean from it
                     v = glm::vec3{0.f};
                 }
                 v = walk + (v - walk) * za::clamp(vr_walltorch_hand_motion.value, 0.f, 4.f);

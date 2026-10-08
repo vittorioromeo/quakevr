@@ -383,8 +383,8 @@ const DefaultChange defaultChanges[] = {
     {87, &vr_gore_stick_speed, "180"},
     {87, &vr_extmaps_spec_scale, "4"},
     {87, &vr_retro, "0"},
-    {87, &vr_slipgate_surface_size, "1.12"},
-    {87, &vr_slipgate_surface_opacity, "1"},
+    {87, &vr_teleporter_surface_size, "1.12"},
+    {87, &vr_teleporter_surface_opacity, "1"},
     {87, &vr_knockdown_chance, "1"},
     {87, &vr_knockdown_damage, "2"},
     {87, &vr_knockdown_bash, "0"},
@@ -495,7 +495,7 @@ const DefaultChange defaultChanges[] = {
     {104, &vr_stealth_meter_time, "1.5"}, // 1
     {104, &vr_stealth_run_speed, "250"}, // 280
     {104, &vr_stealth_torch, "400"}, // 500
-    {104, &vr_slipgate_surface_opacity, "0.3"}, // 0.5 (vr_defaults.cfg)
+    {104, &vr_teleporter_surface_opacity, "0.3"}, // 0.5 (vr_defaults.cfg)
     {104, &vr_reload_port_shot_radius, "1.5"}, // 1.6
     // 105: a smaller stick deadzone (the author, 2026-10-08; worn sticks that drift can raise it again).
     {105, &vr_deadzone, "25"}, // 10
@@ -559,7 +559,7 @@ ConfigTrack configTrack;
             const cvar_t* var = Cvar_FindVar(name.cStr());
             if(var && (var->flags & CVAR_ARCHIVE))
             {
-                settings[name] = line.substrByPosLen(open + 1, close - open - 1);
+                settings[za::String{var->name}] = line.substrByPosLen(open + 1, close - open - 1); // (an old name: the new)
             }
         }
         line.clear();
@@ -926,6 +926,36 @@ constexpr const char* retiredCvars[] = {
     "vr_throw_lookahead", // 2026-10-06: unused since the throw's window ends at the release (ROUND21.md, "Throws at any frame rate")
     "vr_throw_slowmo_flick_spin", // 2026-10-08: vr_throw_slowmo_flick_arm (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo")
 };
+
+// Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):
+// an old config's lines set the new settings as it is executed (the next config write has the new names), as do
+// binds, scripts and benchmark setups. Never listed, completed or written. The teleporters were "slipgates" until
+// 2026-10-08 (in Quake the slipgate is id's machine; ROUND21.md, "Teleporters, not slipgates").
+struct CvarAlias
+{
+    const char* old;
+    const char* now;
+};
+constexpr CvarAlias cvarAliases[] = {
+    {"vr_slipgates", "vr_teleporters"},
+    {"vr_slipgate_pair_exits", "vr_teleporter_pair_exits"},
+    {"vr_slipgate_self_head", "vr_teleporter_self_head"},
+    {"vr_slipgate_surface_size", "vr_teleporter_surface_size"},
+    {"vr_slipgate_surface_opacity", "vr_teleporter_surface_opacity"},
+    {"vr_slipgate_surface_fade", "vr_teleporter_surface_fade"},
+};
+
+extern "C" const char* VR_CvarAlias(const char* name)
+{
+    for(const CvarAlias& a : cvarAliases)
+    {
+        if(!strcmp(name, a.old))
+        {
+            return a.now;
+        }
+    }
+    return nullptr;
+}
 
 extern "C" int VR_RetiredCvar(const char* name)
 {

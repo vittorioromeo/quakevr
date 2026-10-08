@@ -3,7 +3,7 @@
 // him, fires n bullets at him without spread, as its own attack aims them (army_fire's aim at his origin, then
 // EnemyFireBullets: VR_Crate_ShotAim lowers it); then it is taken away. Its `crouchtest:` line: whether he has his
 // crouched box (vr_crouch_hull), his eyes over his feet, the height over his feet the aim passes him at, and the damage
-// he took (his health set high for it, his armour off, then put back). Crouched behind cover (vrslipgates' crouching
+// he took (his health set high for it, his armour off, then put back). Crouched behind cover (vrteleporters' crouching
 // room: the 40-high walls) the shots should hit the cover: no damage; standing, they should hit him.
 
 void() VR_CrouchTest_Run =

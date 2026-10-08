@@ -119,7 +119,7 @@ QVR_TONE_GLSL
 "	vec4	DecalClock; // QVR: the decals on the world (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS): x now on their clock, y vr_decal_life, z 1 on (0: none, or drawn as meshes), w the decals' retro textures set (vr_retro.h; 0 none)\n" \
 "	vec4	WaterCube; // QVR: water reflections (vr/vr_envmap.cpp: vr_water_reflections): the water cube's centre (xyz), strength (w, 0 off)\n" \
 "	vec4	WaterCube2; // QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last\n" \
-"	vec4	PortalPlane[8]; // QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)\n" \
+"	vec4	PortalPlane[8]; // QVR: teleporters (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)\n" \
 "	vec4	PortalMin[8]; // QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)\n" \
 "	vec4	PortalMax[8]; // QVR: ... its box (xyz)\n" \
 "	vec4	PortalUV; // QVR: scene viewport to portal composite pixels\n" \
@@ -157,7 +157,7 @@ QVR_TONE_GLSL
 "	vec4	SceneTone; // QVR: x the brightest models write (vr/vr_tonemap.cpp), yzw the force grab glow's colour\n"\
 "	vec4	FrameWater3; // QVR: zw your own wounds' relief, burns' and blood's (vr/vr_wounds.cpp: vr_wounds_bump_burns, vr_wounds_bump_blood)\n"\
 "	vec4	RetroLight[6]; // QVR: retro lighting (vr/vr_retrolight.h), as FRAMEDATA_BUFFER's\n"\
-"	vec4	FrameRipple; // QVR: as FRAMEDATA_BUFFER's, up to the slipgates shown (QVR_BEHIND_SHOWN_GATE)\n"\
+"	vec4	FrameRipple; // QVR: as FRAMEDATA_BUFFER's, up to the teleporters shown (QVR_BEHIND_SHOWN_GATE)\n"\
 "	vec4	FrameRippleAt[32];\n"\
 "	vec4	FrameRippleAmp[8];\n"\
 "	vec4	FrameDecalClock;\n"\
@@ -916,7 +916,7 @@ QVR_ZFIX_FUNCTION \
 "layout(binding=7) uniform sampler3D LiquidVolume; // where the water and slime are (1), a cell round them into walls\n"\
 "layout(binding=8) uniform sampler2D LiquidDepth; // how far the opaque scene is (vr_water.cpp: half the size), with LiquidScene\n"\
 "layout(binding=16) uniform samplerCube LiquidCube; // the room over the water (vr_envmap.cpp), each texel's distance in alpha\n"\
-"layout(binding=17) uniform sampler2DArray PortalScene; // the view through a slipgate for this eye (vr_portals.cpp), by the eye's pixels\n"\
+"layout(binding=17) uniform sampler2DArray PortalScene; // the view through a teleporter for this eye (vr_portals.cpp), by the eye's pixels\n"\
 "\n"\
 LIQUID_SWELL \
 "// Quake's warp of the liquids' texture coordinates; lava's slower with the waves on.\n"\
@@ -996,9 +996,9 @@ LIQUID_SWELL \
 "	return vec4(textureLod(LiquidCube, o + r * t, lod).rgb, WaterCube.w * fade);\n"\
 "}\n"\
 "\n"\
-"// A slipgate showing where it leads (vr_portals; PortalPlane, PortalMin, PortalMax: vr_portals.cpp's side shown in this\n"\
+"// A teleporter showing where it leads (vr_portals; PortalPlane, PortalMin, PortalMax: vr_portals.cpp's side shown in this\n"\
 "// view): on that side's faces, seen from in front, the view through it (PortalScene: drawn for this eye, its pixels\n"\
-"// these), wavering a little as the slipgate's texture does; a its share (0: not this side, or none). eye: the eye's\n"\
+"// these), wavering a little as the teleporter's texture does; a its share (0: not this side, or none). eye: the eye's\n"\
 "// distance in front of its plane.\n"\
 "vec4 LiquidPortal(vec3 pos, vec3 facing, out float eye)\n"\
 "{\n"\
@@ -2415,12 +2415,12 @@ SPECULAR_AA_FUNCTIONS
 "	result.rgb += morphSeam; // QVR: a morph's glowing seam\n" \
 "	if (!morphShown) // QVR: this model is not there yet (or any more) in a morph\n" \
 "		discard;\n" \
-"	if (in_color.a < 1.0 && BehindShownGate(in_pos + EyePos)) // QVR: see-through, behind a slipgate shown in this view\n" \
+"	if (in_color.a < 1.0 && BehindShownGate(in_pos + EyePos)) // QVR: see-through, behind a teleporter shown in this view\n" \
 "		discard;\n"
 
-// What lies behind a slipgate shown in this view (vr/vr_portals.cpp VR_PortalFrameData: PortalPlane, PortalMin,
+// What lies behind a teleporter shown in this view (vr/vr_portals.cpp VR_PortalFrameData: PortalPlane, PortalMin,
 // PortalMax), seen through its aperture from the eye: the view through the gate covers it, but a see-through gate
-// surface (vr_slipgate_surface_opacity under 1) writes no depth, and what is drawn after it (Quake's particles, sprites,
+// surface (vr_teleporter_surface_opacity under 1) writes no depth, and what is drawn after it (Quake's particles, sprites,
 // see-through models) showed over it. `pos`: in the world.
 // (The alias shaders' frame data has its own names: QVR_BEHIND_SHOWN_GATE_ALIAS.)
 #define QVR_BEHIND_SHOWN_GATE \

@@ -461,7 +461,7 @@ typedef struct gpuframedata_s {
 	float	decalclock[4];	// QVR: the decals on the world (vr/vr_decals.cpp: VR_DecalsFrame): now on their clock, vr_decal_life, on
 	float	watercube[4];		// QVR: water reflections (vr/vr_envmap.cpp: vr_water_reflections): the water cube's centre (xyz), strength (w, 0 off)
 	float	watercube2[4];		// QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last
-	float	portalplane[8][4];		// QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)
+	float	portalplane[8][4];		// QVR: teleporters (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)
 	float	portalmin[8][4];		// QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)
 	float	portalmax[8][4];		// QVR: ... its box (xyz)
 	float	portaluv[4]; // QVR: scene viewport pixels to portal composite pixels
@@ -503,7 +503,7 @@ void R_TranslateNewPlayerSkin (int playernum); //johnfitz -- this handles cases 
 void R_UploadFrameData (void);
 
 void R_DrawBrushModels (entity_t **ents, int count);
-qboolean R_BModelPortalSplit (entity_t *ent); // QVR: a brush prop drawn split by a slipgate (kept by R_SortEntities)
+qboolean R_BModelPortalSplit (entity_t *ent); // QVR: a brush prop drawn split by a teleporter (kept by R_SortEntities)
 void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent);
 void R_DrawBrushModels_SkyLayers (entity_t **ents, int count);
 void R_DrawBrushModels_SkyCubemap (entity_t **ents, int count);

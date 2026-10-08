@@ -1,5 +1,5 @@
-# slipgate_signs.py <png>...: the green sign panels stacked in the middle column of an eye image facing vrslipgates'
-# loop gate (slipgate_edges_test.sh recursion; one more each gate deeper): runs of rows with green pixels, centre +-80 px.
+# teleporter_signs.py <png>...: the green sign panels stacked in the middle column of an eye image facing vrteleporters'
+# loop gate (teleporter_edges_test.sh recursion; one more each gate deeper): runs of rows with green pixels, centre +-80 px.
 import sys
 from PIL import Image
 for f in sys.argv[1:]:

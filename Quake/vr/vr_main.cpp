@@ -1392,9 +1392,9 @@ extern "C" void VR_NewMap()
     VR_TimeMark("VR_NewMap: GL object count");
 }
 
-// vr_screenshot_frames <n> (Debug > Slipgates): a screenshot of each of the next n frames drawn, every one (a `wait`
+// vr_screenshot_frames <n> (Debug > Teleporters): a screenshot of each of the next n frames drawn, every one (a `wait`
 // waits for a server tick, so a script's screenshots skip the frames between ticks over 72 Hz): a frame strip, to find
-// a frame that differs from both its neighbours (a slipgate's crossing: docs/vr-port/ROUND21.md).
+// a frame that differs from both its neighbours (a teleporter's crossing: docs/vr-port/ROUND21.md).
 namespace
 {
 int framesToShoot = 0;

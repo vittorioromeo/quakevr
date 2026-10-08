@@ -72,7 +72,7 @@ inline constexpr const char* settingCvars[] = {"vr_graphics_preset", "vid_fsaa",
     "vr_bloom", "vr_bloom_radius", "vr_particles", "vr_particle_mult", "r_particles", "vr_decals", "vr_decal_max",
     "vr_blob_shadows", "vr_texture_smooth", "gl_texturemode", "gl_texture_anisotropy", "vr_body_mode", "vr_body_blood",
     "vr_gib_blood", "r_dynamic", "r_softemu", "r_waterwarp", "r_lerpmodels", "vr_flashlight", "vr_retro",
-    "vr_retrolight", "vr_particle_retro_fast", "vr_particle_retro_halfres", "vr_particle_halfres", "vr_particle_light", "vr_slipgates",
+    "vr_retrolight", "vr_particle_retro_fast", "vr_particle_retro_halfres", "vr_particle_halfres", "vr_particle_light", "vr_teleporters",
     "vr_portals", "vr_window_view", "vr_enabled", "vr_mock_eye_size", "vr_mock_fast", "vr_fixed_frames", "vr_fixed_frames_rate", "vr_fixed_frames_jitter", "host_fixedtick", "vr_box3d_threads", "vr_timescale"};
 
 // Sums since the last take().

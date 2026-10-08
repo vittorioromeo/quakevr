@@ -199,19 +199,29 @@ bool addKey(za::StringView key)
             j++;
         }
         za::StringView key = list.substrByPosLen(i, j - i);
-        // the island hub's tips seen under its old name, vrstart2 (vrstart since 2026-10-07; the old hub, vrstart_old,
-        // has other tip names): seen under vrstart
-        constexpr za::StringView oldHub{"vrstart2"};
-        if(key.size() > oldHub.size() && key.substrByPosLen(0, oldHub.size()) == oldHub &&
-           (key[oldHub.size()] == ':' || key[oldHub.size()] == '#'))
+        // tips seen on a map under its old name: the island hub's, vrstart2 (vrstart since 2026-10-07; the old hub,
+        // vrstart_old, has other tip names), and the teleporter test map's, vrslipgates (vrteleporters since
+        // 2026-10-08, its welcome tip vrteleporters_welcome): seen under the new names
+        struct Renamed
         {
-            const za::String renamed = za::String{"vrstart"} + za::String{key.substrByPosLen(oldHub.size(), key.size() - oldHub.size())};
-            added += addKey(za::StringView{renamed.cStr()}) ? 1 : 0;
-        }
-        else
+            za::StringView old, now;
+        };
+        constexpr Renamed renamedMaps[] = {{"vrstart2", "vrstart"}, {"vrslipgates", "vrteleporters"}};
+        za::String renamed;
+        for(const Renamed& r : renamedMaps)
         {
-            added += addKey(key) ? 1 : 0;
+            if(key.size() > r.old.size() && key.substrByPosLen(0, r.old.size()) == r.old &&
+               (key[r.old.size()] == ':' || key[r.old.size()] == '#'))
+            {
+                renamed = za::String{r.now};
+                const za::StringView rest = key.substrByPosLen(r.old.size(), key.size() - r.old.size());
+                const size_t own = rest.find(r.old); // (vrslipgates:vrslipgates_welcome: the tip's name too)
+                renamed += own == za::StringView::nPos ? za::String{rest}
+                    : za::String{rest.substrByPosLen(0, own)} + za::String{r.now} +
+                          za::String{rest.substrByPosLen(own + r.old.size(), rest.size() - own - r.old.size())};
+            }
         }
+        added += addKey(renamed.empty() ? key : za::StringView{renamed.cStr()}) ? 1 : 0;
         i = j;
     }
     return added;

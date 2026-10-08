@@ -129,7 +129,7 @@ void R_MarkSurfaces (void)
 	{
 		vec3_t pvsorigin;
 		VectorCopy (r_origin, pvsorigin);
-		VR_PortalPVSOrigin (pvsorigin); // QVR: through a slipgate, round the destination, not the camera behind it
+		VR_PortalPVSOrigin (pvsorigin); // QVR: through a teleporter, round the destination, not the camera behind it
 		vis = SV_FatPVS (pvsorigin, cl.worldmodel);
 	}
 	else
@@ -233,7 +233,7 @@ static void R_BModelMatrix (entity_t *ent, float mat[16]) // QVR: (R_PaintBrushW
 		VR_BrushTransform (ent, mat); // QVR
 }
 
-// QVR: a brush prop (not a map's door or lift) drawn split by a slipgate (vr/vr_portals.cpp): R_SortEntities keeps it
+// QVR: a brush prop (not a map's door or lift) drawn split by a teleporter (vr/vr_portals.cpp): R_SortEntities keeps it
 // though its own place is out of view, for its half drawn through the gate may be in view (a box sticking out of the
 // gate seen from the destination's side, its middle still at the entrance: its frustum cull dropped both halves).
 qboolean R_BModelPortalSplit (entity_t *ent)
@@ -858,7 +858,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	scenedepth = VR_WaterSceneDepth (translucent);
 
 	// setup state
-	state = GLS_CULL_BACK | GLS_ATTRIBS(6); // QVR: swell pin and slipgate surface centre
+	state = GLS_CULL_BACK | GLS_ATTRIBS(6); // QVR: swell pin and teleporter surface centre
 	if (translucent)
 		state |= GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE;
 	else
@@ -879,7 +879,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, 0);
 	GL_BindNative (GL_TEXTURE8, GL_TEXTURE_2D, scenedepth); // QVR
 	GL_BindNative (GL_TEXTURE16, GL_TEXTURE_CUBE_MAP, VR_WaterCubeTexture ()); // QVR: the room reflected (LiquidCube; vr/vr_envmap.cpp)
-	GL_BindNative (GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, VR_PortalTexture ()); // QVR: where a slipgate leads (PortalScene; vr/vr_portals.cpp)
+	GL_BindNative (GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, VR_PortalTexture ()); // QVR: where a teleporter leads (PortalScene; vr/vr_portals.cpp)
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);
@@ -896,7 +896,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		if (!R_EntHasWater (e, translucent))
 			continue;
 
-		// QVR: one instance an entity here (no slipgate copies: bmodel_portal_counts is R_DrawBrushModels_Real's, stale
+		// QVR: one instance an entity here (no teleporter copies: bmodel_portal_counts is R_DrawBrushModels_Real's, stale
 		// here; reading it made zero-instance calls on warden's lit water), one frame a batch
 		for (numinst = 1; i < count && ents[i]->model == model && !ents[i]->frame == !frame && numinst < MAX_BMODEL_INSTANCES; i++)
 			numinst += R_EntHasWater (ents[i], translucent);

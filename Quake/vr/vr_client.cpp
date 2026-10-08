@@ -568,8 +568,8 @@ void parsePrecacheSound()
 
 // vr_particle_test quake: Quake's own effects there instead (whatever vr_particles is): its explosion's particles
 // (R_ParticleExplosion) and its explosion sprite (progs/s_explod.spr), held there two seconds, its frames running
-// (VR_TestEffects). For seeing Quake's particles and sprites where Quake VR's are not drawn (behind a slipgate's
-// see-through surface: slipgate_edges_test.sh particles).
+// (VR_TestEffects). For seeing Quake's particles and sprites where Quake VR's are not drawn (behind a teleporter's
+// see-through surface: teleporter_edges_test.sh particles).
 struct TestSprite
 {
     glm::vec3 at{0.f};

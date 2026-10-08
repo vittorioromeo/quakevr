@@ -6,7 +6,7 @@
 "mapversion" "220"
 "wad" "quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad"
 "_tb_mod" "hipnotic;rogue;quakevr"
-"message" "Quake VR slipgate test"
+"message" "Quake VR teleporter test"
 "worldtype" "2"
 "light" "80"
 "_vr_crates" "0"
@@ -5109,7 +5109,7 @@
 "worldtext_halign" "1"
 "worldtext_scale" "0.45"
 "speed" "0.085"
-"worldtext" "Slipgate test map$North: flush gates,\ngates in frames east$West of them: turns, a loop$South: heights and water"
+"worldtext" "Teleporter test map$North: flush gates,\ngates in frames east$West of them: turns, a loop$South: heights and water"
 }
 // entity 222
 {
@@ -5134,9 +5134,9 @@
 "classname" "func_vr_tip"
 "origin" "0 -96 64"
 "spawnflags" "4"
-"tipname" "vrslipgates_welcome"
+"tipname" "vrteleporters_welcome"
 "distance" "200"
-"message" "Slipgate test map: every gate goes both ways.\nEach room's buttons spawn monsters."
+"message" "Teleporter test map: every gate goes both ways.\nEach room's buttons spawn monsters."
 }
 // entity 225
 {

@@ -1130,7 +1130,7 @@ void(entity p, vector xFrom) VR_Carry_Teleported =
         return;
     }
     p.carry_teleported = time + 0.3;
-    // A held thing already carried through a slipgate (carry_portal: the hand reached through it, VR_PortalCarry) is in
+    // A held thing already carried through a teleporter (carry_portal: the hand reached through it, VR_PortalCarry) is in
     // the room the player now enters, by the hand: not moved again, and no longer mapped (else the next frame maps it
     // back through the gate).
     if(a != world && a.carry_player == p)

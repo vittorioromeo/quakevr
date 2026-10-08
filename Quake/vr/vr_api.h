@@ -35,7 +35,7 @@ struct edict_s;
 struct qmodel_s;
 struct sizebuf_s;
 
-// Slipgate brushes use water contents in BSP, but their interactions have no liquid effects.
+// Teleporter brushes use water contents in BSP, but their interactions have no liquid effects.
 int VR_LiquidContents(struct qmodel_s* model, const float* point, int contents);
 int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 
@@ -205,11 +205,11 @@ int VR_DropToFloor (void);				// start of PF_droptofloor: nonzero if it handled 
 void VR_OnMakeStatic (edict_t *ent);	// PF_makestatic, before the entity is freed (a static torch or flame: vr_debris.cpp)
 int VR_TossKeepsGround (struct edict_s *ent);	// SV_Physics_Toss, when on the ground: nonzero to stay
 int VR_RigidToss (struct edict_s *ent);		// SV_Physics_Toss, after thinking: nonzero if it moved the entity (.vr_rigid)
-void VR_PortalToss (struct edict_s *ent);	// SV_Physics_Toss, before the move: through a slipgate (vr_portals.cpp)
-void VR_PortalMonsterCross (struct edict_s *ent);	// SV_Physics_Step, after its think: a monster through a paired slipgate (vr_portals.cpp)
+void VR_PortalToss (struct edict_s *ent);	// SV_Physics_Toss, before the move: through a teleporter (vr_portals.cpp)
+void VR_PortalMonsterCross (struct edict_s *ent);	// SV_Physics_Step, after its think: a monster through a paired teleporter (vr_portals.cpp)
 void VR_PortalTraceBegin (void);			// PF_traceline: the last portal trace's crossings forgotten
-void VR_PortalTrace (const float start[3], const float end[3], int type, struct edict_s *passedict, trace_t *trace); // ... MOVE_PORTALS: on through the slipgates it crosses
-int VR_PortalHitsOwner (struct edict_s *missile); // SV_MoveRun: nonzero if a missile was carried through a slipgate (VR_PortalToss): it meets its owner (Quake's owner rule off)
+void VR_PortalTrace (const float start[3], const float end[3], int type, struct edict_s *passedict, trace_t *trace); // ... MOVE_PORTALS: on through the teleporters it crosses
+int VR_PortalHitsOwner (struct edict_s *missile); // SV_MoveRun: nonzero if a missile was carried through a teleporter (VR_PortalToss): it meets its owner (Quake's owner rule off)
 void VR_PhysicsFrameEnd (void);				// end of SV_Physics's entity loop: Box3D's world steps (vr_box3d.cpp)
 int VR_PushSkips (struct edict_s *ent);		// SV_PushMove: nonzero for an entity it must not move (a Box3D body: lifts carry it by contact)
 void VR_PlayerBumps (struct edict_s *ent, struct edict_s *other, const float *normal); // SV_FlyMove, a move stopped by a plane of `other`: a player walking into a solid prop's side shoves it (vr_box3d_player_shove)
@@ -299,7 +299,7 @@ void VR_ClientPreMove (struct edict_s *ent);			// SV_Physics_Client: hand and we
 void VR_FoeGrabPreThink (struct edict_s *ent);			// SV_Physics_Client, after VR_ClimbPreThink: holds on enemies taken and let go (vr_foegrab.cpp)
 void VR_ClimbPreThink (struct edict_s *ent);			// SV_Physics_Client, before PlayerPreThink: ledge holds taken and let go (vr_climb.cpp)
 int VR_PortalLerpFrom (const float older[3], const float newer[3], float from[3], float *yaw); // CL_RelinkEntities: 1 when
-							// the older place carried through a slipgate (from; the gate's yaw) lands by the newer
+							// the older place carried through a teleporter (from; the gate's yaw) lands by the newer
 int VR_ClientSpecialMove (struct edict_s *ent);		// SV_Physics_Client, before the move: 1 teleported, hung or mantled instead (to the post-think), -1 freed
 int VR_ClimbHangsFrom (struct edict_s *check, struct edict_s *pusher);	// SV_PushMove: nonzero for a player hanging from (or mantling onto) the pusher: it rides it
 int VR_ClimbCarryBlocked (struct edict_s *check, struct edict_s *pusher, const float *from, const float *move); // SV_PushMove: its ride stopped short: nonzero blocks the pusher (vr_climb_mover_crush), else it lets go
@@ -404,6 +404,7 @@ void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR
 void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile, the game folder's config: another copy's changes in it kept (vr_cvars.cpp)
 void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_RetiredCvar (const char *name);					// Cmd_ExecuteString, an unknown name: nonzero if it is a removed Quake VR setting (a config's stale line, ignored quietly)
+const char *VR_CvarAlias (const char *name);			// Cvar_FindVar, a name not found: a renamed setting's new name (vr_slipgates: vr_teleporters), or NULL
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 // The main menu's lettering as a font (vr_bigfont.cpp): its letters cut from id's menu pictures in the pak, rows of text
@@ -459,7 +460,7 @@ void VR_RegisterPackStatus(void);
 int VR_CanLoadCampaignMap(const char *map);
 int VR_IsVrMap(const char *map);			// vrstart, vrstart_old, vrtutorial, vrfiringrange: Quake VR's own maps, run in Quake's campaign
 const char *VR_HubMap(void);				// the hub the game starts in and returns to: vr_hub_map (vrstart, or vrstart_old)
-const char *VR_MapAlias(const char *map);		// a map's current name (vrstart2: vrstart)
+const char *VR_MapAlias(const char *map);		// a map's current name (vrstart2: vrstart; vrslipgates: vrteleporters)
 int VR_CanChangeCampaignMap(const char *map);
 int VR_CanLoadCampaignSave(const char *text);
 

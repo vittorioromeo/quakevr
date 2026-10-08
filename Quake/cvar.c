@@ -366,7 +366,7 @@ void Cvar_Init (void)
 Cvar_FindVar
 ============
 */
-cvar_t *Cvar_FindVar (const char *var_name)
+static cvar_t *Cvar_FindVarExact (const char *var_name)
 {
 	size_t capacity, pos, end;
 
@@ -392,6 +392,17 @@ cvar_t *Cvar_FindVar (const char *var_name)
 	while (pos != end);
 
 	return NULL;
+}
+
+cvar_t *Cvar_FindVar (const char *var_name)
+{
+	cvar_t		*var = Cvar_FindVarExact (var_name);
+	const char	*alias;
+
+	if (var || !cvar_count)
+		return var;
+	alias = VR_CvarAlias (var_name); // QVR: a renamed setting's old name (old configs, binds, scripts) is the new one
+	return alias ? Cvar_FindVarExact (alias) : NULL;
 }
 
 cvar_t *Cvar_FindVarAfter (const char *prev_name, unsigned int with_flags)

@@ -4588,7 +4588,7 @@ za::Vector<Item> pageDebugProfiling()
                   "differences since the last time."),
         toggle("Force Grab Search by Grid", vr_forcegrab_grid)
             .help("vr_forcegrab_grid: the force grab's target search (each hand, every frame) tests only the entities "
-                  "linked near the hand and its images through slipgates (the same results). Off: it walks every entity."),
+                  "linked near the hand and its images through teleporters (the same results). Off: it walks every entity."),
         toggle("Verify Force Grab Search", vr_forcegrab_grid_verify)
             .help("vr_forcegrab_grid_verify: every search walks as well; a difference is counted and printed, and the "
                   "walk's answer used. Force Grab Search Stats prints the counts."),
@@ -5537,8 +5537,8 @@ za::Vector<Item> pageDebugTests()
     return {
         command("Official Triggers: Acceptance Test", "vr_mg_trigger_test 1")
             .help("Check native target timing, cancellation, lightning, fades and comfortable quake feedback. Reload afterward."),
-        command("Official Triggers: Retarget Slipgate", "vr_mg_trigger_test 4")
-            .help("Destructive: redirect a visible native slipgate and report the new cached destination. Reload afterward."),
+        command("Official Triggers: Retarget Teleporter", "vr_mg_trigger_test 4")
+            .help("Destructive: redirect a visible native teleporter and report the new cached destination. Reload afterward."),
         command("Official Triggers: Lightning Damage", "vr_mg_trigger_test 3")
             .help("Check native positional lightning damage, backwards traces and wetsuit protection in a clear corridor."),
         command("Machine: Hub and Rune Acceptance", "vr_mg_hub_test 1")
@@ -6153,9 +6153,9 @@ za::Vector<Item> pageDebugTests()
         command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")
             .help("Walks you around the map at random for 60 seconds (hopping somewhere new every few), then prints how "
                   "often you got stuck or ended up in a wall."),
-        header("Slipgates: Crossing One (the start map; developer 1: VR portal: ...)"),
+        header("Teleporters: Crossing One (the start map; developer 1: VR portal: ...)"),
         command("The Gates In This Map", "vr_portals_info")
-            .help("vr_portals_info: every slipgate built for this map - its plane, its opening, its trigger brush - and "
+            .help("vr_portals_info: every teleporter built for this map - its plane, its opening, its trigger brush - and "
                   "where your body is against each: your box, your torso's middle plane, its distance from the gate's "
                   "plane, whether it is over the opening and how near your box can bring it. You are carried through "
                   "only after that plane reaches the gate's and your collision box fits the opening; leaning or reaching "
@@ -6194,48 +6194,48 @@ za::Vector<Item> pageDebugTests()
                   "in the first frame after the crossing until the server sent both rooms while you straddle a gate."),
         command("A Shot Through A Gate", "map start; wait120; setpos 232 1360 24 0 90 0; wait10; vr_physics_fire 10 232 1500 25")
             .help("vr_physics_fire 10: a pellet's trace at a point beyond the first gate: the console says through 1 "
-                  "slipgate(s), in at ..., out at ... (shots and thrown props go through as before)."),
-        command("The Whole Feature Off", "vr_slipgates 0; map start; wait120; setpos 232 1390 24 0 90 0; wait60; vr_portals_info; vr_slipgates 1")
-            .help("vr_slipgates 0: the slipgate feature off entirely, at once (no map reload) - no gate is built or "
+                  "teleporter(s), in at ..., out at ... (shots and thrown props go through as before)."),
+        command("The Whole Feature Off", "vr_teleporters 0; map start; wait120; setpos 232 1390 24 0 90 0; wait60; vr_portals_info; vr_teleporters 1")
+            .help("vr_teleporters 0: the see-through teleporter feature off entirely, at once (no map reload) - no gate is built or "
                   "looked through, nothing is carried or traced through one. Placed inside the first gate's trigger, nothing "
                   "carries you, the trigger teleports you the old way (a flash, a jump, 0.7 s locked), and "
-                  "vr_portals_info says the feature is off. It is turned back on at the end; Graphics > Slipgates has "
+                  "vr_portals_info says the feature is off. It is turned back on at the end; Graphics > Teleporters has "
                   "the same switch."),
-        header("Slipgates: Test Map (vrslipgates)"),
-        command("Slipgate Test Map", "map vrslipgates")
-            .help("map vrslipgates: slipgate pairs of every size (crate, player, shambler, very wide), flush with the floor "
+        header("Teleporters: Test Map (vrteleporters)"),
+        command("Teleporter Test Map", "map vrteleporters")
+            .help("map vrteleporters: teleporter pairs of every size (crate, player, shambler, very wide), flush with the floor "
                   "and in frames with sills, at 90 and 45 degrees, a loop, between floor heights and by a pool. Every gate "
                   "goes both ways; each room's buttons spawn a grunt, dog, ogre, shambler or scrag by its far wall."),
         command("To the Flush Gates", "setpos -256 576 24 0 90 0; noclip")
-            .help("In vrslipgates: facing the player-sized flush gate (its bottom at the floor). The north gallery behind "
+            .help("In vrteleporters: facing the player-sized flush gate (its bottom at the floor). The north gallery behind "
                   "it is where it leads, so a monster chasing you through walks straight into it."),
         command("To the Framed Gates", "setpos 1180 576 24 0 90 0; noclip")
-            .help("In vrslipgates: facing the player-sized gate in a frame with a 16-unit sill (a step); the next one east "
+            .help("In vrteleporters: facing the player-sized gate in a frame with a 16-unit sill (a step); the next one east "
                   "has a 32-unit sill (a jump: monsters can't)."),
         command("To the Turning Gates", "setpos -1280 640 24 0 90 0; noclip")
-            .help("In vrslipgates: facing the gate that comes out of the next room's east wall (90 degrees); the loop is "
+            .help("In vrteleporters: facing the gate that comes out of the next room's east wall (90 degrees); the loop is "
                   "left and right of you, the 45-degree wall behind you to the left."),
         command("Into the Loop", "setpos -1560 560 24 0 180 0; noclip")
-            .help("In vrslipgates: 40 units from the loop's west gate, which comes out of the east one: you see your own "
+            .help("In vrteleporters: 40 units from the loop's west gate, which comes out of the east one: you see your own "
                   "back (with its head) and, through the gate beyond it, yourself again, as many gates deep as Graphics > "
-                  "Slipgates > Gates Within Gates (vr_portals_view prints the views drawn at each depth)."),
+                  "Teleporters > Gates Within Gates (vr_portals_view prints the views drawn at each depth)."),
         command("To the Heights and Water", "setpos -400 -960 24 0 180 0; noclip")
-            .help("In vrslipgates: facing the floor-level gate that comes out over the 128-high platform; the pool's two "
+            .help("In vrteleporters: facing the floor-level gate that comes out over the 128-high platform; the pool's two "
                   "gates are in the east and south walls."),
-        command("Slide A Crate Through", "map vrslipgates; wait60; setpos -256 536 24 0 90 0; wait5; noclip 0; vr_test_spawn 107; vr_test_spawn_dist 40; impulse 241; wait30; vr_physics_fling nearest 250 90")
-            .help("In vrslipgates: a small crate slid along the floor into the flush player gate (8 deep, a wall right "
+        command("Slide A Crate Through", "map vrteleporters; wait60; setpos -256 536 24 0 90 0; wait5; noclip 0; vr_test_spawn 107; vr_test_spawn_dist 40; impulse 241; wait30; vr_physics_fling nearest 250 90")
+            .help("In vrteleporters: a small crate slid along the floor into the flush player gate (8 deep, a wall right "
                   "behind it): it goes through and comes out of the north gallery's gate (it stopped against the wall "
                   "behind the sheet before Box3D's level contacts were clipped at the gate)."),
         command("Quake's Effects Behind A Gate", "map start; wait90; god; notarget; noclip; setpos 1040 1650 -330 0 270 0; wait5; vr_particle_test quake; setpos 1040 1830 -330 0 270 0")
             .help("start's underwater gate: Quake's own explosion particles and sprite (vr_particle_test quake) made "
-                  "behind it, then seen from in front: with a see-through gate surface (Graphics > Slipgates > Portal "
+                  "behind it, then seen from in front: with a see-through gate surface (Graphics > Teleporters > Teleporter "
                   "Stars > Opacity under 1) they must not show over the view through the gate."),
         toggle("Print Gate Cuts", "vr_portals_debug_split")
-            .help("vr_portals_debug_split 1: each frame, every entity drawn cut by a slipgate (where, the plane, how far "
+            .help("vr_portals_debug_split 1: each frame, every entity drawn cut by a teleporter (where, the plane, how far "
                   "through), the force grab's beam end, and each thrown or rigid thing's middle and why a gate did not "
                   "take it. -1 (console) also follows the main hand's held object, a number that entity, every frame."),
         command("Into the Loop, Lightning Gun", "setpos -1580 560 24 0 180 0; noclip; impulse 161")
-            .help("In vrslipgates: right at the loop's west teleporter with the lightning gun in your main hand. Shoot your "
+            .help("In vrteleporters: right at the loop's west teleporter with the lightning gun in your main hand. Shoot your "
                   "own back through it: shots, nails, rockets and the bolt come out of the east teleporter and hit you "
                   "(the bolt's 600 units reach round this room only from close to the teleporter; god mode: no damage)."),
         command("Stuck in a Teleporter's Wall?", "vr_portals_stuck")
@@ -6821,7 +6821,7 @@ const Page pages[] = {
     {"Search", pageSearch, pageMain, LevelStandard},                                               // 133 (the corner's Search; vr_menu_search.inc)
     {"Console", pageConsole, pageMain, LevelStandard},                                             // 134 (the corner's Console; vr_menu_console.inc)
     {"Tips", pageTips, pageAdvanced, LevelStandard},                                                   // 135 (vr_tips.cpp)
-    {"Graphics - Slipgates", pageGraphicsSlipgates, pageGraphics},                                 // 135 (vr_portals.cpp)
+    {"Graphics - Teleporters", pageGraphicsTeleporters, pageGraphics},                                 // 135 (vr_portals.cpp)
     {"Small Gibs - Per Enemy", pageSmallGibsEnemies, pageSmallGibs, LevelDeveloper},              // 136
     {"Knockdowns", pageKnockdowns, pageCombat},                                                    // 137
     {"Explosion Debris", pageExplosionDebris, pageParticleSettings},

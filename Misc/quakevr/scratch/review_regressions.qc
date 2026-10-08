@@ -70,10 +70,10 @@ void() ReviewProbe =
     dprint(sprintf("REVIEW animated disagreements %g\n", found));
     if(found) { error("REVIEW FAIL: shot/melee zones disagree at an animated contact"); }
     remove(m);
-    if(pointcontents('232 1386 24') != CONTENT_EMPTY) { error("REVIEW FAIL: slipgate is a liquid medium"); }
-    dprint(sprintf("REVIEW slipgate effective %g entry %v\n", pointcontents('232 1386 24'), liquidentry('232 1360 24', '232 1410 24')));
+    if(pointcontents('232 1386 24') != CONTENT_EMPTY) { error("REVIEW FAIL: teleporter is a liquid medium"); }
+    dprint(sprintf("REVIEW teleporter effective %g entry %v\n", pointcontents('232 1386 24'), liquidentry('232 1360 24', '232 1410 24')));
     watersplash('232 1384 24', '0 1 0', 12, QVR_SPLASH_SHOT);
-    dprint("REVIEW slipgate forced splash must be suppressed\n");
+    dprint("REVIEW teleporter forced splash must be suppressed\n");
     dprint(sprintf("REVIEW real water effective %g (must be -3)\n", pointcontents('1408 1728 92')));
     watersplash('1408 1728 112', '0 0 -1', 12, QVR_SPLASH_SHOT);
 

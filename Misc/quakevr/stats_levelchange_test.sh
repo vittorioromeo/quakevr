@@ -1,6 +1,6 @@
 #!/bin/bash
 # stats_levelchange_test.sh <agent> -- a stat whose value carries across a map change reaches the client on the new map
-# (the author's note e1m2_2026-10-07_22-43-20: after a slipgate, Immersive reloading drew no ammo pouch nor magazines;
+# (the author's note e1m2_2026-10-07_22-43-20: after a teleporter, Immersive reloading drew no ammo pouch nor magazines;
 # the server never resent STAT_QVR_RELOADMODE, unchanged at 3, after the client had cleared its stats; SV_SendServerinfo
 # now forgets what it sent). Headless, by vr_mock_hand_to main ammopouch (which needs the client's reloading mode 3):
 #   1. e1m1: the pouch is there. 2. changelevel e1m2: still there. 3. a save and a load: still there.

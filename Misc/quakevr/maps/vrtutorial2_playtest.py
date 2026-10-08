@@ -655,7 +655,7 @@ def g13_arena():
     walk(832, -1500, 8, 300)
     walk(832, -1700, 8, 300)
     pos("arena")
-    # the slipgate: its changelevel is a localcmd, run after the rest of this cfg: so the cfg ends here, and a play
+    # the teleporter: its changelevel is a localcmd, run after the rest of this cfg: so the cfg ends here, and a play
     # (its commands run on the clock) reports and quits once the hub has loaded
     c('vr_mock_play "%s"' % END_PLAY, "vr_mock_walk_to 832 -1860 8")
     OUT.append("ENDS")
@@ -815,7 +815,7 @@ def script(args):
     global THROW, END_PLAY
     END_PLAY = plays + "/end.txt"
     with open(END_PLAY, "w", newline="\n") as f:
-        f.write("12.0 cmd echo PT slipgate pos\n12.0 cmd viewpos\n12.5 cmd echo PT end\n13.0 cmd toggleconsole\n"
+        f.write("12.0 cmd echo PT teleporter pos\n12.0 cmd viewpos\n12.5 cmd echo PT end\n13.0 cmd toggleconsole\n"
                 "13.5 cmd quit\n")
     THROW = plays + "/throw.txt"
     write_throw(THROW)

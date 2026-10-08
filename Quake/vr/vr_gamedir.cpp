@@ -383,7 +383,7 @@ bool discoveredCampaigns = false;
 bool developerNative = false;
 bool rebuildingCampaign = false;
 bool nativeCampaignPaths = false;
-double hubSelectTime = -10.0; // (realtime) when a hub's slipgate last ran the selector (VR_CanChangeCampaignMap)
+double hubSelectTime = -10.0; // (realtime) when a hub's teleporter last ran the selector (VR_CanChangeCampaignMap)
 
 int campaignIndex(const char* name)
 {
@@ -1133,11 +1133,14 @@ extern "C" const char* VR_HubMap()
     return !strcmp(qvr::vr_hub_map.string, "vrstart_old") ? "vrstart_old" : "vrstart";
 }
 
-// A map's current name: vrstart2 (the island hub's name until 2026-10-07) is vrstart, so an old save made there, a
-// bind or a script's "map vrstart2" still load it (SV_SpawnServer).
+// A map's current name: vrstart2 (the island hub's name until 2026-10-07) is vrstart, vrslipgates (the teleporter
+// test map's until 2026-10-08) vrteleporters, so an old save made there, a bind or a script's "map vrstart2" still
+// load it (SV_SpawnServer).
 extern "C" const char* VR_MapAlias(const char* map)
 {
-    return !strcmp(map, "vrstart2") ? "vrstart" : map;
+    if(!strcmp(map, "vrstart2")) { return "vrstart"; }
+    if(!strcmp(map, "vrslipgates")) { return "vrteleporters"; }
+    return map;
 }
 
 extern "C" int VR_CanLoadCampaignMap(const char* map)
@@ -1151,7 +1154,7 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
         const int legacy = static_cast<int>(qvr::vr_activestartpaknameidx.value);
         if(legacy < 0 || legacy >= int(countof(campaigns)))
         { Con_Printf("VR: invalid campaign index %d; choose a campaign first.\n", legacy); return 0; }
-        // (3 and over: the hub's choice of a campaign with a game folder of its own, which only its slipgate starts:
+        // (3 and over: the hub's choice of a campaign with a game folder of its own, which only its teleporter starts:
         // VR_CanChangeCampaignMap; "start" is then the running campaign's)
         requested = legacy <= 2 ? legacy : activeCampaign;
     }
@@ -1269,14 +1272,14 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
     {
         requested = static_cast<int>(qvr::vr_activestartpaknameidx.value);
         // The hub's choice of a campaign with a game folder of its own (vrstart's lecterns 3, 4 and 5: Dimension of
-        // the Past, Dimension of the Machine, Dawn of the Machine): its slipgate runs the selector, which rebuilds the
+        // the Past, Dimension of the Machine, Dawn of the Machine): its teleporter runs the selector, which rebuilds the
         // folders and starts the campaign's first map (a changelevel can't). From any other map such a choice is stale:
         // "start" stays the running campaign's.
         if(requested >= 3 && requested < int(countof(campaigns)))
         {
             if(VR_IsVrMap(sv.name))
             {
-                // (once in 2 s: a campaign that can't start says why, not every frame its slipgate is touched)
+                // (once in 2 s: a campaign that can't start says why, not every frame its teleporter is touched)
                 if(realtime - hubSelectTime > 2.0)
                 {
                     hubSelectTime = realtime;

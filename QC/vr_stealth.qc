@@ -126,8 +126,8 @@ void(entity m, float xWalking) VR_Stealth_Anim =
 entity(entity m, vector at) VR_Stealth_MarkerAt;
 
 // ----------------------------------------------------------------------------
-// Slipgates (vr_stealth_gates; seamless slipgates' paired gates, vr_portals.cpp; docs/vr-port/STEALTH_PLAN.md,
-// "Slipgates"): what a monster sees or hears through a gate is its image there (beyond the gate's face, in its own room's
+// Teleporters (vr_stealth_gates; seamless teleporters' paired gates, vr_portals.cpp; docs/vr-port/STEALTH_PLAN.md,
+// "Teleporters"): what a monster sees or hears through a gate is its image there (beyond the gate's face, in its own room's
 // terms). It walks into the gate and through, and its points go through with it (VR_Stealth_Crossed): the one beyond
 // is then in its room, the ones it left behind beyond the face back, so it walks on instead of back.
 
@@ -339,7 +339,7 @@ void(entity m) VR_Stealth_GoBack =
 {
     vector to = m.stl_post - m.origin;
     to_z = 0;
-    // (its post beyond a slipgate it went through: back through it first, VR_Stealth_WayTo; even to its path)
+    // (its post beyond a teleporter it went through: back through it first, VR_Stealth_WayTo; even to its path)
     if((m.stl_post_via <= 0 && (m.stl_post_walk || vlen(to) < 32)) || (m.spawnflags & 1) || m.th_walk == m.th_stand)
     {
         VR_Stealth_Finish(m);
@@ -469,7 +469,7 @@ void() VR_Stealth_ShareThink =
 
 // Something drew m's attention to `at` (STL_A_* or a noise's kind; `xPower` how strongly: a new disturbance as weak
 // or weaker within a second is ignored). Idle: Alert, it turns to look (its post recorded); Alert already: the new
-// point (walking: it walks there instead; searching or going back: it turns to it again). `xVia`: the slipgate `at` is
+// point (walking: it walks there instead; searching or going back: it turns to it again). `xVia`: the teleporter `at` is
 // seen through (stl_via; 0 none).
 void(entity m, vector at, float xVia, float xKind, float xPower, float xShare) VR_Stealth_AlertVia =
 {
@@ -694,7 +694,7 @@ float(entity client) VR_Stealth_SeeNow =
     }
     if(self.stl_meter >= cvar_hget(cvarh_vr_stealth_glimpse))
     {
-        // (seen through a slipgate: his image there, vr_stealth_gates; visible() above chose the gate)
+        // (seen through a teleporter: his image there, vr_stealth_gates; visible() above chose the gate)
         if(self.vr_ai_gate > 0 && cvar_hget(cvarh_vr_stealth_gates))
         {
             VR_Stealth_AlertVia(self, VR_AI_Origin(client), VR_Stealth_Via(self.vr_ai_gate), STL_A_GLIMPSE, 1, TRUE);
@@ -999,7 +999,7 @@ float(float dist) VR_Stealth_WalkNow =
         VR_Stealth_Anim(self, FALSE);
         return TRUE;
     }
-    // (a point beyond a slipgate: into the gate first, VR_Stealth_WayTo)
+    // (a point beyond a teleporter: into the gate first, VR_Stealth_WayTo)
     float via = self.stl_phase == STL_WALK ? self.stl_via : self.stl_post_via;
     vector goal = VR_Stealth_WayTo(self.stl_phase == STL_WALK ? self.stl_point : self.stl_post, via);
     vector to = goal - self.origin;
@@ -1181,7 +1181,7 @@ float(float xVis) VR_Stealth_LoseNow =
         self.stl_lost_time = time;
         self.stl_lost_at = self.enemy.origin;
         self.stl_lost_via = 0;
-        if(xVis && self.vr_ai_gate > 0 && cvar_hget(cvarh_vr_stealth_gates)) // (seen through a slipgate: his image there)
+        if(xVis && self.vr_ai_gate > 0 && cvar_hget(cvarh_vr_stealth_gates)) // (seen through a teleporter: his image there)
         {
             self.stl_lost_at = VR_AI_Origin(self.enemy);
             self.stl_lost_via = VR_Stealth_Via(self.vr_ai_gate);
@@ -1335,7 +1335,7 @@ float(vector org, entity m, entity src) VR_Stealth_NoisePath =
     return VR_Stealth_NoiseLine(org, m.origin + m.view_ofs, m, src);
 };
 
-// A noise heard through paired slipgates (vr_stealth_gates): at each gate whose exit the noise is beyond (in front of
+// A noise heard through paired teleporters (vr_stealth_gates): at each gate whose exit the noise is beyond (in front of
 // the exit's face, within its reach), the monsters on the gate's side hear its image (the noise seen through the gate):
 // the way through the gate's opening, the straight line to the image through its aperture (or held to the aperture's
 // edge: round a corner, vr_stealth_noise_wall), each room's part of it taken by its walls as VR_Stealth_NoisePath's.

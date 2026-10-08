@@ -1442,7 +1442,7 @@ def build_room11():
     sliding_door(d, None)
 
 
-# ---- Room 12: the arena (a courtyard). The door shuts, a countdown, three waves; then the way out to the slipgate.
+# ---- Room 12: the arena (a courtyard). The door shuts, a countdown, three waves; then the way out to the teleporter.
 R12 = dict(x0=256, y0=-1536, x1=1408, y1=-384)
 PIT = ((640, -1152), (1024, -768))
 ARENA_POOL = ((704, -1120), (960, -992))
@@ -1537,12 +1537,12 @@ def build_room12():
                    "Take the weapons on the tables."]), 1400, -800, LOW + 130, 180, "0.3")
     tip("t2_arena", "Take a gun and ammunition here" + N + "before you step further in.", 1340, -760, LOW + 70,
         200)
-    # the way out: to the slipgate room
+    # the way out: to the teleporter room
     d = doorway("room12_exit", 768, r["y0"] - 16, 896, r["y0"], LOW, out)
     sliding_door(d, "r12_exit")
-    room("slipgate", 640, -1856, 1024, -1552, LOW, LOW + 224, bands(TX["panel"]))
+    room("teleporter", 640, -1856, 1024, -1552, LOW, LOW + 224, bands(TX["panel"]))
     lamp_grid(out, 640, -1856, 1024, -1552, LOW + 224, 2, 1, 220)
-    # the slipgate: a frame on the south wall, its surface, the changelevel to the hub
+    # the teleporter: a frame on the south wall, its surface, the changelevel to the hub
     gx0, gx1, gy = 768, 896, -1856
     dbox(out, (gx0 - 16, gy, LOW), (gx0, gy + 16, LOW + 144), TX["strip_v"])
     dbox(out, (gx1, gy, LOW), (gx1 + 16, gy + 16, LOW + 144), TX["strip_v"])
@@ -1552,7 +1552,7 @@ def build_room12():
     bent("func_illusionary", [surf])
     trigger("to_hub", (gx0, gy, LOW), (gx1, gy + 24, LOW + 128), "trigger_changelevel", map="vrstart", spawnflags=1)
     light(832, -1830, LOW + 64, 250, "0.8 0.6 1")
-    banner(N.join(["WELL DONE!", "You know the basics. The slipgate", "takes you to the hub: the campaigns,",
+    banner(N.join(["WELL DONE!", "You know the basics. The teleporter", "takes you to the hub: the campaigns,",
                    "the settings, the firing range."]), 832, gy + 20, LOW + 176, 90, "0.3")
 
 

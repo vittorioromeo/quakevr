@@ -38,16 +38,16 @@ namespace qvr::portals
 namespace
 {
 
-// The whole feature (vr_slipgates). With it off nothing here runs: no gate is ever built, none is looked through, no
+// The whole feature (vr_teleporters). With it off nothing here runs: no gate is ever built, none is looked through, no
 // view is drawn through one, nothing is carried or traced through one, and Quake's trigger_teleport is what moves the
 // player - exactly as before the feature existed. Every entry point below asks this first; update() forgets the gates
 // built so far, so nothing else has anything to act on. Flipping it takes effect at once, no map reload.
 [[nodiscard]] bool enabled()
 {
-    return vr_slipgates.value > 0.f;
+    return vr_teleporters.value > 0.f;
 }
 
-constexpr float kReach = 24.f;    // how far round a trigger's brush its slipgate's faces may be
+constexpr float kReach = 24.f;    // how far round a trigger's brush its teleporter's faces may be
 constexpr float kStand = 24.f;    // a standing player's origin over the floor
 constexpr float kRange = 1536.f;  // how far from the head a gate is looked through
 constexpr float kOblique = 0.25f; // the oblique near plane's slope in the depth (see VR_PortalClip)
@@ -60,7 +60,7 @@ constexpr float kOblique = 0.25f; // the oblique near plane's slope in the depth
 constexpr float kStraddle = 32.f;
 [[nodiscard]] bool triggerActive(const edict_t* trig);
 
-// A side of a slipgate: its faces in one plane, seen from in front of it, and where they lead.
+// A side of a teleporter: its faces in one plane, seen from in front of it, and where they lead.
 struct Side
 {
     glm::vec3 normal{0.f}; // towards where it is seen from
@@ -98,7 +98,7 @@ za::Vector<Side> exits;
 [[nodiscard]] bool onGate(const Side& sd, const glm::vec3& onPlane, float margin);
 const qmodel_t* builtFor = nullptr;
 int builtGeneration = -1;
-float builtPairExits = -1.f; // vr_slipgate_pair_exits as built (pairExits)
+float builtPairExits = -1.f; // vr_teleporter_pair_exits as built (pairExits)
 int chosen = -1;  // the side being ranked or picked for a view (-1: none)
 int lastChosen = -1;
 struct ViewCandidate { int side = -1; float score = 0.f; };
@@ -244,11 +244,11 @@ void finish(Side& sd, qmodel_t* m, glm::vec3 dest, float destYaw)
 }
 
 // A gate whose destination stands in front of another gate of its size, facing the way one walks out (a two-way pair, as
-// vrslipgates' and most custom maps' are: the destination marker stands clear of that gate's trigger, 48 units out, for
+// vrteleporters' and most custom maps' are: the destination marker stands clear of that gate's trigger, 48 units out, for
 // Quake's teleport of monsters): the crossing comes out of that gate's face, not out of the open air in front of it. Else
 // the player popped out 48 units past the gate he seemed to walk out of, the view through showed the room from there,
 // and the exit plane (reverseSide) stood in the middle of the room: a prop or a held object straddling it there was cut
-// and drawn again back at the entrance, and Box3D dropped its contacts behind that plane (ROUND21.md, "Slipgates: exits
+// and drawn again back at the entrance, and Box3D dropped its contacts behind that plane (ROUND21.md, "Teleporters: exits
 // on their gates"). `to` is moved so that the carried aperture is that gate's (its middle onto that gate's middle: a
 // sill's height too, which the destination marker on the floor left out).
 // A side's aperture's two extents in its plane (a wall's: its width along the wall and its height; a floor's: its sides,
@@ -266,7 +266,7 @@ void finish(Side& sd, qmodel_t* m, glm::vec3 dest, float destYaw)
 
 void pairExits()
 {
-    if(vr_slipgate_pair_exits.value <= 0.f) { return; }
+    if(vr_teleporter_pair_exits.value <= 0.f) { return; }
     for(za::SizeT i = 0; i < sides.size(); i++)
     {
         Side& sd = sides[i];
@@ -308,7 +308,7 @@ void build()
     exits.clear();
     builtFor = sv.worldmodel;
     builtGeneration = worldGeneration();
-    builtPairExits = vr_slipgate_pair_exits.value;
+    builtPairExits = vr_teleporter_pair_exits.value;
     qmodel_t* m = sv.worldmodel;
     if(!m)
     {
@@ -419,12 +419,12 @@ void build()
         exits.pushBack(reverseSide(sd)); // (each made in full: `exits` still shorter than `sides`)
     }
     PR_PopQCVM(oldVm);
-    Con_DPrintf("VR portals: %d slipgate sides\n", static_cast<int>(sides.size()));
+    Con_DPrintf("VR portals: %d teleporter sides\n", static_cast<int>(sides.size()));
 }
 
 [[nodiscard]] bool current()
 {
-    if(builtFor != sv.worldmodel || builtGeneration != worldGeneration() || builtPairExits != vr_slipgate_pair_exits.value)
+    if(builtFor != sv.worldmodel || builtGeneration != worldGeneration() || builtPairExits != vr_teleporter_pair_exits.value)
     {
         return false;
     }
@@ -454,7 +454,7 @@ void build()
 }
 
 // Whether side i is seen through another gate (the line from the eye to its middle crosses another side over its gate,
-// from that side's front): the gate in front is the one looked through (a slipgate behind a slipgate, as in start).
+// from that side's front): the gate in front is the one looked through (a teleporter behind a teleporter, as in start).
 [[nodiscard]] bool behindGate(za::SizeT i, const glm::vec3& eye)
 {
     const glm::vec3 middle = (sides[i].mins + sides[i].maxs) * 0.5f;
@@ -930,7 +930,7 @@ int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacit
 }
 
 // ----------------------------------------------------------------------------
-// vr_portals_shot (Debug > Slipgates): the view through a gate read back from its own targets, to measure what it
+// vr_portals_shot (Debug > Teleporters): the view through a gate read back from its own targets, to measure what it
 // actually shows rather than which side was picked. Its colour and its depth, over the whole target and over the
 // gate's box on the eye's screen. Mask/hidden-area depth is at the near plane; only depths strictly between clear
 // and near values count as geometry, so the mask cannot masquerade as a rendered room. Its float scene goes to a .pfm
@@ -1094,7 +1094,7 @@ extern "C" mleaf_t* VR_PortalViewLeaf(mleaf_t* leaf)
 
 // R_MarkSurfaces: a view leaf with a liquid's or a gate's face in it takes the PVS round the view's origin (SV_FatPVS,
 // for seeing through the surface). In the view through the gate that origin is the camera carried behind the
-// destination (in a wall, or another room: its PVS empty or elsewhere, the world through the gate black: vrslipgates'
+// destination (in a wall, or another room: its PVS empty or elsewhere, the world through the gate black: vrteleporters'
 // loop, its turns and its platform gate, whose destinations' leaves touch a gate's face); there it is the destination's
 // point, the one VR_PortalViewLeaf finds the leaf by.
 extern "C" void VR_PortalPVSOrigin(float origin[3])
@@ -1226,7 +1226,7 @@ extern "C" int VR_PortalHideTeleport(void)
 
 extern "C" float VR_TeleportOpacity(void)
 {
-    return portals::enabled() ? za::clamp(vr_slipgate_surface_opacity.value, 0.f, 1.f) : 1.f;
+    return portals::enabled() ? za::clamp(vr_teleporter_surface_opacity.value, 0.f, 1.f) : 1.f;
 }
 
 // SV_WriteEntitiesToClient, the client's PVS made: the PVS round the destinations of the gates in it (in front of
@@ -1327,7 +1327,7 @@ extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3])
 }
 
 // ----------------------------------------------------------------------------
-// Walking and shooting through (vr_portals_walk): the server carries a player through a slipgate as the torso enters
+// Walking and shooting through (vr_portals_walk): the server carries a player through a teleporter as the torso enters
 // its plane, and what flies (missiles, grenades, gibs) as its path crosses it, by the side's own mapping: where it is,
 // how it moves and where it looks are kept, turned and shifted as the view through the gate shows them, so the view
 // does not jump. QuakeC's teleport_touch leaves players to it (portal_handles), including at a frame or sill;
@@ -1345,7 +1345,7 @@ constexpr float kAperture = 0.f;  // how far outside a gate's faces its aperture
 // (No cooldown after a crossing: one of 0.5 s let a player who stepped straight back into the gate he had just come out
 // of, or walked on into the one he had just backed out of, take his torso past its plane uncarried - the split body
 // lets it go there - and at 24 units past it the split ended, leaving him inside the wall behind the gate: the
-// softlock pushing a crate in, ROUND21.md "Slipgates: shooting yourself, stuck behind a gate". A carried body comes out
+// softlock pushing a crate in, ROUND21.md "Teleporters: shooting yourself, stuck behind a gate". A carried body comes out
 // in front of the exit's plane moving away from it, so nothing bounces back; one crossing a tick at most.)
 
 // Each client's last seamless crossing (and each monster's: vr_portals_monsters).
@@ -1473,7 +1473,7 @@ ClientState& crossingState(edict_t* ent)
 }
 
 // A recognised gate owns its player trigger even at its frame or below its sill. Waiting there must never bypass
-// collision through QuakeC's old teleport. Triggers with no slipgate faces retain Quake's behaviour.
+// collision through QuakeC's old teleport. Triggers with no teleporter faces retain Quake's behaviour.
 [[nodiscard]] bool engineCarries(int t)
 {
     for(const Side& sd : sides)
@@ -1785,7 +1785,7 @@ extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* 
         // Do not enter a sheet's opposite face while leaving it: the body in front of the sheet's other face (the same
         // gate's side turned the other way) walking into that face. (Any torso behind a plane walking back out of it
         // was taken for that, and a player half through a gate in a wall, not carried yet, could not back out of it:
-        // he stood frozen in the wall, ROUND21.md "Slipgates: shooting yourself, stuck behind a gate".)
+        // he stood frozen in the wall, ROUND21.md "Teleporters: shooting yourself, stuck behind a gate".)
         if(d < 0.f && glm::dot(sd.normal, b - a) > 0.f && inFrontOfOpposite(sd, torso)) { continue; }
         nearest = za::fabs(d);
         gate = &sd;
@@ -1849,7 +1849,7 @@ extern "C" int VR_PortalBodyMove(edict_t* ent, const float* start, const float* 
     return 1;
 }
 
-// VR_ClientSpecialMove (SV_Physics_Client, before the move): the player carried through a seamless slipgate (its
+// VR_ClientSpecialMove (SV_Physics_Client, before the move): the player carried through a seamless teleporter (its
 // trigger touched, active) once his torso reaches the plane and his collision box fits the aperture.
 extern "C" void VR_PortalClientCross(edict_t* ent)
 {
@@ -1917,14 +1917,14 @@ extern "C" void VR_PortalClientCross(edict_t* ent)
 
 namespace qvr::portals
 {
-// vr_portals_stuck (Debug > Slipgates): whether the local player's box is in the world's solid where he stands (a
+// vr_portals_stuck (Debug > Teleporters): whether the local player's box is in the world's solid where he stands (a
 // gate's split body included: each half in its own room), the gate side nearest his torso and how far his torso is in
 // front of its plane (under 0: behind it), and how many times he was got out of the wall behind a gate.
 void stuck_f()
 {
     if(!sv.active || !enabled() || svs.maxclients < 1 || !svs.clients[0].edict)
     {
-        Con_Printf("portal stuck: no server, or slipgates off\n");
+        Con_Printf("portal stuck: no server, or teleporters off\n");
         return;
     }
     qcvm_t* oldVm = nullptr;
@@ -1950,7 +1950,7 @@ void stuck_f()
 
 // CL_RelinkEntities: an entity's last two places far apart (over 100 units on an axis: Quake's teleport, no lerp). The
 // client draws a tick behind the server, lerping from the older place to the newer; snapping to the newer at a
-// seamless crossing jumped the view a tick ahead and then held it still for a frame, a hitch at every slipgate. When
+// seamless crossing jumped the view a tick ahead and then held it still for a frame, a hitch at every teleporter. When
 // the older place, near a gate's plane and over its opening (either way through), carried through it lands within a
 // tick's move of the newer, `from` is it carried (and `yaw` the turn): the lerp goes on in the new room.
 extern "C" int VR_PortalLerpFrom(const float older[3], const float newer[3], float from[3], float* yaw)
@@ -2200,7 +2200,7 @@ extern "C" void VR_PortalPullTarget(edict_t* ent, const float hand[3], int begin
         ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + exit.yaw);
         state->_float = 0.f;
         SV_LinkEdict(ent, false);
-        Con_DPrintf("force grab: crossed slipgate %d\n", index + 1);
+        Con_DPrintf("force grab: crossed teleporter %d\n", index + 1);
         return;
     }
     setVec(out, carried(sd, vec(hand)));
@@ -2216,7 +2216,7 @@ static int aiRoute(edict_t* entity)
 }
 }
 
-// SV_Physics_Toss, before the move: what flies (missiles, grenades, gibs) carried through a seamless slipgate as this
+// SV_Physics_Toss, before the move: what flies (missiles, grenades, gibs) carried through a seamless teleporter as this
 // frame's path crosses its plane over the gate (from the front, nothing in the way), its speed and heading turned with it.
 extern "C" void VR_PortalToss(edict_t* ent)
 {
@@ -2331,7 +2331,7 @@ extern "C" void VR_PortalToss(edict_t* ent)
     }
 }
 
-// QuakeC (portal_handles, teleport_touch): 1 if the engine carries this player through the trigger's slipgate
+// QuakeC (portal_handles, teleport_touch): 1 if the engine carries this player through the trigger's teleporter
 // (vr_portals_walk), so that Quake's teleport leaves him be until the body enters the opening.
 extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who)
 {
@@ -2442,13 +2442,13 @@ extern "C" void VR_PortalMonsterCross(edict_t* ent)
 namespace qvr::portals
 {
 
-// vr_portals_info (Debug > Slipgates): the gates built for this map, and where the local player's body is against each
+// vr_portals_info (Debug > Teleporters): the gates built for this map, and where the local player's body is against each
 // of them - his box, his torso's middle plane, its distance from the gate's plane, whether it is over the aperture and
 // how near his box can bring it. For checking a crossing by hand, and for finding a gate's geometry in a map.
 void infoBody()
 {
-    Con_Printf("VR portals: %d sides (vr_slipgates %g, vr_portals %g, vr_portals_walk %g)\n", static_cast<int>(sides.size()),
-        vr_slipgates.value, vr_portals.value, vr_portals_walk.value);
+    Con_Printf("VR portals: %d sides (vr_teleporters %g, vr_portals %g, vr_portals_walk %g)\n", static_cast<int>(sides.size()),
+        vr_teleporters.value, vr_portals.value, vr_portals_walk.value);
     for(int i = 0; i < static_cast<int>(sides.size()); i++)
     {
         const Side& sd = sides[static_cast<za::SizeT>(i)];
@@ -2497,7 +2497,7 @@ void info_f()
     }
     if(!enabled())
     {
-        Con_Printf("VR portals: off (vr_slipgates 0): no gates built, nothing goes through one, Quake's teleporters.\n");
+        Con_Printf("VR portals: off (vr_teleporters 0): no gates built, nothing goes through one, Quake's plain teleporters.\n");
         return;
     }
     if(!current())
@@ -2510,7 +2510,7 @@ void info_f()
     PR_PopQCVM(oldVm);
 }
 
-// vr_portals_view (Debug > Slipgates): why this frame looks through a gate or through none - every side of every gate
+// vr_portals_view (Debug > Teleporters): why this frame looks through a gate or through none - every side of every gate
 // in the map, and the rule that stops it (the same test update() acts on), plus what the last frame drew: the scene
 // through a gate, or nothing (the gate's faces then show their own texture). For checking the view by hand, and for
 // measuring how far away a gate is still looked through.
@@ -2523,7 +2523,7 @@ void viewInfo_f()
     }
     if(!enabled())
     {
-        Con_Printf("VR portals: off (vr_slipgates 0): nothing is looked through.\n");
+        Con_Printf("VR portals: off (vr_teleporters 0): nothing is looked through.\n");
         return;
     }
     if(!current())
@@ -2611,7 +2611,7 @@ void pullTest_f()
     PR_PopQCVM(oldVm);
 }
 
-// vr_portals_lightviews [<x> <y> <z>] (Debug > Slipgates > Torch Light Views): the views whose torches light this
+// vr_portals_lightviews [<x> <y> <z>] (Debug > Teleporters > Torch Light Views): the views whose torches light this
 // frame (prepareLightViews from the eye: each one's depth, the gate it looks out of, its eye carried through), what
 // making them costs, and with a point its distance for a torch there (lightDistance; none: not in any view's PVS).
 void lightViews_f()

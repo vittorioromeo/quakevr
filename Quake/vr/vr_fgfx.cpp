@@ -227,7 +227,7 @@ void queue(const hands::State& s)
             continue;
         }
         const glm::vec3 palm = s.pos[hand] + hands::forward(s.rot[hand]) * 2.f;
-        // To where it is seen from the hand: through a slipgate, its image behind the gate's surface (the beam is drawn
+        // To where it is seen from the hand: through a teleporter, its image behind the gate's surface (the beam is drawn
         // over the scene, so it goes on into the gate to the thing seen there), not its place in the room beyond.
         const glm::vec3 to = portals::pullImageSeen(palm, centre(t.ent));
         if(vr_portals_debug_split.value != 0.f)

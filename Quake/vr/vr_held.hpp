@@ -50,7 +50,7 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
 [[nodiscard]] int heldEntity(int hand);
 
 // Client side: whether entity `num` is drawn in the local player's hands this frame (one hand's, or both's): where the
-// tracked hands are, in his room's coordinates, not where the server has it (vr_portals.cpp: drawn through a slipgate
+// tracked hands are, in his room's coordinates, not where the server has it (vr_portals.cpp: drawn through a teleporter
 // the hand reaches through, as the hands and guns are).
 [[nodiscard]] bool drawnInHands(int num);
 

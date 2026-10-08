@@ -1,12 +1,12 @@
-# make_vrslipgates_map.py [--compile | --tests]: writes quakevr/maps/vrslipgates.map, the slipgate test map (ROUND21.md,
-# "Slipgate test map"), and with --compile builds it as MAPPING.md's "Full" profile does, without -dirt (even, bright
+# make_vrteleporters_map.py [--compile | --tests]: writes quakevr/maps/vrteleporters.map, the teleporter test map (ROUND21.md,
+# "Teleporter test map"), and with --compile builds it as MAPPING.md's "Full" profile does, without -dirt (even, bright
 # light to debug by): qbsp, vis, light (C:\OHWorkspace\ericw-tools-2.0.0-alpha11-win64) into quakevr/maps (.bsp, .lit, .lux).
-# --tests prints where to stand at each gate (slipgates_test.sh) and writes nothing.
+# --tests prints where to stand at each gate (teleporters_test.sh) and writes nothing.
 #
 # id's textures (T_* below; the gates' faces are id's *teleport): run Misc/trenchbroom/make_id_wad.py first. The .bsp
 # embeds the ones it uses (the author's decision, as for the other test maps built from id_textures.wad).
 #
-# A slipgate here is what Quake VR builds one from (Quake/vr/vr_portals.hpp): world faces textured *tele... in a
+# A teleporter here is what Quake VR builds one from (Quake/vr/vr_portals.hpp): world faces textured *tele... in a
 # wall, and a trigger_teleport over them reaching 8 units out in front of them, whose target is an
 # info_teleport_destination. Every gate is two-way: each side's destination stands DEST_OFF units out from the other
 # side's face (clear of that side's trigger and frame for a shambler-sized monster: Quake's teleport puts monsters
@@ -30,7 +30,7 @@
 import math, os, shutil, subprocess, sys
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
-OUT = os.path.join(ROOT, "quakevr", "maps", "vrslipgates.map")
+OUT = os.path.join(ROOT, "quakevr", "maps", "vrteleporters.map")
 TOOLS = r"C:\OHWorkspace\ericw-tools-2.0.0-alpha11-win64"
 WALL, TELE_DEPTH, TRIG_OUT, FRAME = 16, 8, 8, 16
 DEST_OFF = {False: 48, True: 56}  # destination's distance out from the exit's face: flush, framed
@@ -255,7 +255,7 @@ hub.door("s", -48, 48); corridors[7].door("n", -48, 48); corridors[7].door("s", 
 
 # Flush galleries: FA's north wall <-> FB's south wall, the gates at the same x.
 # The large pair's sheets are 48 deep (the rest 8, as id's): a prop's box stops against the wall behind a sheet
-# shallower than its half-width before its middle reaches the gate (ROUND21.md, "Slipgate test map").
+# shallower than its half-width before its middle reaches the gate (ROUND21.md, "Teleporter test map").
 FLUSH = [("crate", -448, 48, 48, 8), ("player", -256, 64, 96, 8), ("large", 0, 128, 160, 48), ("wide", 352, 256, 128, 8)]
 for kind, x, w, h, dp in FLUSH:
     deep = f", {dp} deep" if dp > TELE_DEPTH else ""
@@ -395,19 +395,19 @@ ent("func_worldtext_banner", origin="252 -184 148", angle="180", worldtext_halig
 # The start, its signs and a tip.
 ent("info_player_start", origin="0 -160 24", angle="90")
 ent("func_worldtext_banner", origin="0 124 132", angle="270", worldtext_halign="1", worldtext_scale="0.45",
-    speed="0.085", worldtext="Slipgate test map$North: flush gates,\ngates in frames east$West of them: turns, a loop$"
+    speed="0.085", worldtext="Teleporter test map$North: flush gates,\ngates in frames east$West of them: turns, a loop$"
                              "South: heights and water")
 ent("func_worldtext_banner", origin="-252 -64 72", angle="0", worldtext_halign="1", worldtext_scale="0.35",
     worldtext="Every gate goes both ways.\nButtons in each room spawn monsters.")
 ent("func_worldtext_banner", origin="252 -64 72", angle="180", worldtext_halign="1", worldtext_scale="0.35",
     worldtext="Grab, throw, push crates\nand boxes through the gates.")
-ent("func_vr_tip", origin="0 -96 64", spawnflags="4", tipname="vrslipgates_welcome", distance="200",
-    message="Slipgate test map: every gate goes both ways.\nEach room's buttons spawn monsters.")
+ent("func_vr_tip", origin="0 -96 64", spawnflags="4", tipname="vrteleporters_welcome", distance="200",
+    message="Teleporter test map: every gate goes both ways.\nEach room's buttons spawn monsters.")
 
 for r in ROOMS:
     r.build()
 
-if "--tests" in sys.argv:  # the gates' standing places only (slipgates_test.sh), nothing written
+if "--tests" in sys.argv:  # the gates' standing places only (teleporters_test.sh), nothing written
     for name, a, b in TESTS:  # name|A side|B side|A from 200 back|B from 200 back
         print(f"{name}|{a()}|{b()}|{a(200)}|{b(200)}")
     sys.exit(0)
@@ -415,7 +415,7 @@ if "--tests" in sys.argv:  # the gates' standing places only (slipgates_test.sh)
 with open(OUT, "w", newline="\n") as f:
     f.write('// Game: Quake VR\n// Format: Valve\n// entity 0\n{\n"classname" "worldspawn"\n"mapversion" "220"\n'
             '"wad" "' + WADS + '"\n"_tb_mod" "hipnotic;rogue;quakevr"\n'
-            '"message" "Quake VR slipgate test"\n"worldtype" "2"\n"light" "80"\n"_vr_crates" "0"\n"_vr_debris" "0"\n')
+            '"message" "Quake VR teleporter test"\n"worldtype" "2"\n"light" "80"\n"_vr_crates" "0"\n"_vr_debris" "0"\n')
     f.write("\n".join(WORLD) + "\n}\n")
     for i, (kv, brushes) in enumerate(ENTS):
         f.write(f"// entity {i + 1}\n{{\n" + "".join(f'"{k}" "{esc(v)}"\n' for k, v in kv.items()))
@@ -425,9 +425,9 @@ for name, a, b in TESTS:
     print(f"  {name}: setpos {a()}  |  {b()}")
 
 if "--compile" in sys.argv:
-    work = os.path.join(ROOT, "scratch", "vrslipgates_build")
+    work = os.path.join(ROOT, "scratch", "vrteleporters_build")
     os.makedirs(work, exist_ok=True)
-    src, bsp = os.path.join(work, "vrslipgates.map"), os.path.join(work, "vrslipgates.bsp")
+    src, bsp = os.path.join(work, "vrteleporters.map"), os.path.join(work, "vrteleporters.bsp")
     if not os.path.exists(os.path.join(ROOT, "quakevr", "wads", "id_textures.wad")):
         sys.exit("no quakevr/wads/id_textures.wad: run python Misc/trenchbroom/make_id_wad.py first")
     shutil.copyfile(OUT, src)
@@ -442,5 +442,5 @@ if "--compile" in sys.argv:
         if r.returncode:
             sys.exit(1)
     for ext in (".bsp", ".lit", ".lux"):
-        shutil.copyfile(os.path.join(work, "vrslipgates" + ext), os.path.join(os.path.dirname(OUT), "vrslipgates" + ext))
-    print("copied vrslipgates.bsp, .lit, .lux to quakevr/maps")
+        shutil.copyfile(os.path.join(work, "vrteleporters" + ext), os.path.join(os.path.dirname(OUT), "vrteleporters" + ext))
+    print("copied vrteleporters.bsp, .lit, .lux to quakevr/maps")

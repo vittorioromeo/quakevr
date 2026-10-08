@@ -660,7 +660,7 @@ static void R_SortEntities (void)
 		entity_t *ent = cl_visedicts[i];
 		if (!ent->model || ent->alpha == ENTALPHA_ZERO)
 			continue;
-		if (ent->model->type == mod_brush && R_CullModelForEntity (ent) && !R_BModelPortalSplit (ent)) // QVR: (its half through a slipgate)
+		if (ent->model->type == mod_brush && R_CullModelForEntity (ent) && !R_BModelPortalSplit (ent)) // QVR: (its half through a teleporter)
 			continue;
 		cl_visedicts[j++] = ent;
 	}
@@ -864,7 +864,7 @@ void R_SetFrustum (void)
 
 	TranslationMatrix(translation, -r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
 	MatrixMultiply(r_matview, translation);
-	VR_PortalClip (r_matproj, r_matview); // QVR: through a slipgate, the near plane its plane (vr/vr_portals.cpp)
+	VR_PortalClip (r_matproj, r_matview); // QVR: through a teleporter, the near plane its plane (vr/vr_portals.cpp)
 
 	// View projection matrix
 	memcpy(r_matviewproj, r_matproj, 16 * sizeof(float));
@@ -1065,7 +1065,7 @@ void R_SetupView (void)
 // current viewleaf
 	r_oldviewleaf = r_viewleaf;
 	r_viewleaf = Mod_PointInLeaf (r_origin, cl.worldmodel);
-	r_viewleaf = VR_PortalViewLeaf (r_viewleaf); // QVR: through a slipgate, the destination's (its PVS, its contents; vr/vr_portals.cpp)
+	r_viewleaf = VR_PortalViewLeaf (r_viewleaf); // QVR: through a teleporter, the destination's (its PVS, its contents; vr/vr_portals.cpp)
 
 	V_SetContentsColor (VR_LiquidContents (cl.worldmodel, r_origin, r_viewleaf->contents));
 	V_CalcBlend ();
@@ -2001,7 +2001,7 @@ void R_RenderScene (void)
 	R_Clear ();
 	VR_ProfileEnd (); // QVR
 	VR_DrawHiddenArea (); // QVR: the lenses' hidden area, skipped by what follows
-	VR_DrawPortalMask (); // QVR: through a slipgate, all but the gate skipped (vr/vr_portals.cpp)
+	VR_DrawPortalMask (); // QVR: through a teleporter, all but the gate skipped (vr/vr_portals.cpp)
 
 	Fog_EnableGFog (); //johnfitz
 	VR_ProfileEnd (); // QVR
@@ -2172,7 +2172,7 @@ void R_RenderView (void)
 	memcpy (r_view_visedicts, cl_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
 
 	VR_ProfileBeginGPU ("setup view"); // QVR: profile
-	VR_PortalView (); // QVR: the view through a slipgate moved there (vr/vr_portals.cpp)
+	VR_PortalView (); // QVR: the view through a teleporter moved there (vr/vr_portals.cpp)
 	R_SetupView (); //johnfitz -- this does everything that should be done once per frame
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("scene"); // QVR: profile

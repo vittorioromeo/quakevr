@@ -86,7 +86,7 @@ void() CheckForCharge =
 if(!enemy_vis)
     return;
 if(self.vr_ai_gate > 0)
-    return;        // seen only through a slipgate: a charge would run the long way to it
+    return;        // seen only through a teleporter: a charge would run the long way to it
 if(time < self.attack_finished)
     return;
 if(fabs(self.origin_z - self.enemy.origin_z) > 20)

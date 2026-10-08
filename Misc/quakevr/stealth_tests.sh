@@ -9,7 +9,7 @@
 #   saveload an investigation saved mid-walk, loaded, carried on to Idle at its post
 #   liquid   an investigation across lava or slime stops at the edge (e1m7's lava by default: LIQMAP)
 #   horde    60 idle grunts round you (vr_profile's "stealth" scope: its share of the frame)
-#   gates    through seamless slipgates (vrslipgates, QC vr_stealth_test3.qc): a grunt sees you through a gate, walks
+#   gates    through seamless teleporters (vrteleporters, QC vr_stealth_test3.qc): a grunt sees you through a gate, walks
 #            through to where you stood and back (two crossings); a knock heard through it, the same (and not with
 #            vr_stealth_gates 0); a dog sees you through it and comes through (not with vr_stealth_gates 0); Quake's AI
 #            (vr_ai_enhanced 0): only the grunt sees you through
@@ -19,7 +19,7 @@
 #            way), gives up at vr_stealth_lose_time (8 s here); with you far (vr_stealth_lose_far), after a quarter
 #   dogs     a dog chasing you as you run in circles, its drawn moves logged (vr_debug_drawn_moves): with
 #            vr_monster_lerp_continue 1 no jump between frames; 0 (Quake's drawing) for comparison
-#   props    a row of crates between a Hostile dog and you (vrslipgates, room T): it gets round them (vr_ai_props 1);
+#   props    a row of crates between a Hostile dog and you (vrteleporters, room T): it gets round them (vr_ai_props 1);
 #            with 0, Quake's way, its time for comparison
 AGENT=${1:?agent}; WHICH=${2:-all}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 W=C:/OHWorkspace/qvr-agents/$AGENT
@@ -55,7 +55,7 @@ if [ "$WHICH" = kinds ] || [ "$WHICH" = all ]; then
     run kinds "$PRE;vr_stealth_test 106;wait30000;toggleconsole;quit" # (the kit's games mount hipnotic and rogue too)
 fi
 if [ "$WHICH" = gates ] || [ "$WHICH" = all ]; then
-    run gates "developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrslipgates;wait60;god;setpos -1100 1408 24 0 180 0;wait5;noclip 0;vr_stealth_test 110;wait16000;toggleconsole;quit"
+    run gates "developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrteleporters;wait60;god;setpos -1100 1408 24 0 180 0;wait5;noclip 0;vr_stealth_test 110;wait16000;toggleconsole;quit"
     grep -q "gates done" "$W/scratch/stealth_gates.log" || { echo "stealthtest: gates FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = seethrough ] || [ "$WHICH" = all ]; then
@@ -76,7 +76,7 @@ if [ "$WHICH" = dogs ] || [ "$WHICH" = all ]; then
     done
 fi
 if [ "$WHICH" = props ] || [ "$WHICH" = all ]; then
-    run props "vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrslipgates;wait60;god;vr_stealth_test 124;wait3500;toggleconsole;quit"
+    run props "vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrteleporters;wait60;god;vr_stealth_test 124;wait3500;toggleconsole;quit"
     grep -q "props done" "$W/scratch/stealth_props.log" || { echo "stealthtest: props FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = horde ]; then

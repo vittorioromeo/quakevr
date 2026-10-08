@@ -1994,14 +1994,14 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
 
-        traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise), on through slipgates (vr_portals.cpp),
+        traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise), on through teleporters (vr_portals.cpp),
         if(xStartHits && trace_startsolid && trace_ent != world && trace_ent.takedamage)
         {
             trace_fraction = 0; // started inside it: hit there
             trace_endpos = src;
             trace_plane_normal = -direction;
         }
-        // QVR: through a slipgate, the pellet goes on from its far side, turned with it (vr_portals_walk)
+        // QVR: through a teleporter, the pellet goes on from its far side, turned with it (vr_portals_walk)
         vector shotFrom = src, shotDir = direction;
         if(portal_crossings() > 0)
         {
@@ -2227,7 +2227,7 @@ void() T_MissileTouch =
     float    damg;
 
     if(VR_OwnerSpared(other))
-        return;        // don't explode on owner (QVR: unless through a slipgate)
+        return;        // don't explode on owner (QVR: unless through a teleporter)
 
     if(pointcontents(self.origin) == CONTENT_SKY)
     {
@@ -2353,7 +2353,7 @@ float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
 LightningDamage
 =================
 */
-// QVR: MOVE_HITPASS while LightningDamage strikes a bolt's piece come out of a slipgate: the one who fired it is hit too
+// QVR: MOVE_HITPASS while LightningDamage strikes a bolt's piece come out of a teleporter: the one who fired it is hit too
 // (your bolt at your own image, seen through the gate).
 float vr_lightning_hitpass;
 
@@ -2641,7 +2641,7 @@ void(float xHand) W_FireLightning =
     makeforward(VRGetWeaponFireRot(xHand));
     vector from = VR_ShotBackPoint(xHand, org, v_forward);
     traceline(from, org + v_forward*600, TRUE | MOVE_PORTALS, self);
-    // QVR: through a slipgate (vr_portals.cpp, vr_portals_walk), the bolt in two pieces: to the gate, and on from its far
+    // QVR: through a teleporter (vr_portals.cpp, vr_portals_walk), the bolt in two pieces: to the gate, and on from its far
     // side, turned with it (its beam: PlayerLightningGunEffect)
     float through = portal_crossings() > 0;
     float fromImage = portal_from_image(); // (the gun held through a gate: the bolt may strike you from the start)
@@ -2694,7 +2694,7 @@ void() GrenadeExplode =
 void() GrenadeTouch =
 {
     if(VR_OwnerSpared(other))
-        return;        // don't explode on owner (QVR: unless through a slipgate)
+        return;        // don't explode on owner (QVR: unless through a teleporter)
 
     if(VR_WallTorch_OnWall(other))
     {
@@ -3128,7 +3128,7 @@ void() spike_touch =
     float bleed;
     bleed = FALSE;
 
-    if(VR_OwnerSpared(other)) // (QVR: through a slipgate it hits you)
+    if(VR_OwnerSpared(other)) // (QVR: through a teleporter it hits you)
         return;
 
     if(other.solid == SOLID_TRIGGER)
@@ -3187,7 +3187,7 @@ void() superspike_touch =
     float bleed;
     bleed = FALSE;
 
-    if(VR_OwnerSpared(other)) // (QVR: through a slipgate it hits you)
+    if(VR_OwnerSpared(other)) // (QVR: through a teleporter it hits you)
         return;
 
     if(other.solid == SOLID_TRIGGER)
@@ -4246,7 +4246,7 @@ entity(float xKind, vector xAt) VR_Test_Fire =
         dprint(sprintf("test fire: shot from %.3f %.3f %.3f dir %.5f %.5f %.5f ", from_x, from_y, from_z, dir_x, dir_y, dir_z));
         if(portal_crossings() > 0)
         {
-            dprint(sprintf("through %d slipgate(s) (in at %v, out at %v, on along %v) ", portal_crossings(), portal_entry(0),
+            dprint(sprintf("through %d teleporter(s) (in at %v, out at %v, on along %v) ", portal_crossings(), portal_entry(0),
                 portal_exit(portal_crossings() - 1), portal_turn(dir)));
         }
         dprint(sprintf("hit %s at %.3f %.3f %.3f\n", what, trace_endpos_x, trace_endpos_y, trace_endpos_z));
@@ -5327,7 +5327,7 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
     makeforward(VRGetWeaponFireRot(xHand));
     traceline(VR_ShotBackPoint(xHand, xOrigin, v_forward), xOrigin + v_forward*600, TRUE | MOVE_PORTALS, self); // as W_FireLightning
 
-    // QVR: through a slipgate (vr_portals.cpp), two beams: from the gun into the gate (the client draws it from the gun as
+    // QVR: through a teleporter (vr_portals.cpp), two beams: from the gun into the gate (the client draws it from the gun as
     // drawn, this long), and from the gate's far side on (the world's: drawn where it is sent)
     vector beamEnd = trace_endpos;
     if(portal_crossings() > 0)

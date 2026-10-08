@@ -1,6 +1,6 @@
-// vr_portals.hpp -- slipgate views, movement, shots and one-hop dynamic lighting.
+// vr_portals.hpp -- teleporter views, movement, shots and one-hop dynamic lighting.
 //
-// A Quake teleporter is two things the map does not tie together: the slipgate's faces (their texture *teleport, any
+// A Quake teleporter is two things the map does not tie together: the teleporter's faces (their texture *teleport, any
 // shape) and an invisible trigger_teleport brush round them, whose target is an info_teleport_destination (a point and
 // a yaw). As a map's world is ready, each trigger's teleport faces (the world's, within 24 units of its brush) are
 // grouped by plane: a side of the gate, seen from in front of its plane. Each side maps onto its destination by a turn
@@ -19,7 +19,7 @@
 // drawn), and outside the gate's box on screen the depth set to the near plane first, so that nothing is shaded there.
 // Each eye uses the same rigid turn and shift as movement and traces, at any distance: screen-space portal sampling
 // therefore shows the target a shot through that pixel reaches. Drawing the eye, the side's faces (the liquid
-// shaders, LiquidPortal) show that image by their pixels, whatever their shape, under a little of the slipgate's own
+// shaders, LiquidPortal) show that image by their pixels, whatever their shape, under a little of the teleporter's own
 // shimmer. Within a view, gates seen in it show their own views (vr_portals_recursion, up to three more gates deep, each
 // gate deeper drawn at fewer pixels); with it 0, teleport surfaces inside a destination view are omitted. The server sends what is round
 // the destinations of the gates it can see (their PVS added to its own), so the monsters and items there are seen too.
@@ -28,7 +28,7 @@
 // Dynamic-light rays are constrained to that aperture, with their folded
 // travel distance and shadow checks on both sides. Destination torches use their own PVS and folded viewing distance.
 //
-// The whole feature is one switch: vr_slipgates (Graphics > Slipgates, default on). With it 0 nothing here runs - no gate
+// The whole feature is one switch: vr_teleporters (Graphics > Teleporters, default on). With it 0 nothing here runs - no gate
 // is built, none is looked through, no view is drawn, nothing is carried or traced through one, and Quake's
 // trigger_teleport moves the player exactly as it did before this file existed. vr_portals (the view) and
 // vr_portals_walk (going through) are its two parts. Flipping it takes effect at once, no map reload.
@@ -45,7 +45,7 @@
 // through the jump. What flies (missiles, grenades, gibs, thrown props: Box3D takes the move up) as its frame's path
 // crosses the plane; traces with MOVE_PORTALS (the guns' pellets, the lightning) go on from the far side (portal_entry,
 // portal_exit, portal_turn: the beams in two pieces). QuakeC's teleport_touch leaves players to it (portal_handles):
-// for every recognised slipgate, including while the frame or sill blocks him. Triggers without recognised faces
+// for every recognised teleporter, including while the frame or sill blocks him. Triggers without recognised faces
 // retain Quake's teleport. VR_Portal_Crossed does the rest of what
 // the teleport did (its targets, what the hands carry). Monsters walk through paired gates so too (vr_portals_monsters:
 // VR_PortalMonsterCross), else teleport as in Quake; ragdolls are carried whole as the pelvis crosses (box3d).
@@ -137,14 +137,14 @@ void endView(unsigned texture, int depth);
 [[nodiscard]] bool viewing();
 [[nodiscard]] int viewDepth();
 
-// vr_portals_shot (Debug > Slipgates): read the next view through a gate back from its own targets and report what it
+// vr_portals_shot (Debug > Teleporters): read the next view through a gate back from its own targets and report what it
 // shows - its whole image and the gate's box on the eye's screen, in colour and in depth (depth over 0 in the box:
 // something was drawn there). For measuring the view itself rather than which gate is looked through.
 void requestShot();
 [[nodiscard]] bool shotWanted();
 void takeShot(unsigned sceneFbo, int width, int height);
 
-// vr_portals_info: the gates built for this map and where the local player's body is against them (Debug > Slipgates).
+// vr_portals_info: the gates built for this map and where the local player's body is against them (Debug > Teleporters).
 void registerCommands();
 
 // Torch candidate views: source and visible gate destinations, using their own PVS and folded distance.

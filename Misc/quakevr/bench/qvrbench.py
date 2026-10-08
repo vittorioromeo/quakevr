@@ -180,27 +180,27 @@ def scenarios():
     add("idle_range", ["idle", "core"], "Quake VR's own populated map: props, boards, signs", RANGE,
         "The firing range at its spawn: Quake VR's content (props, text boards, decals) without action.")
     add("idle_start_flat", ["idle", "flat"], "the hub in flat mode", "start",
-        "The start map's hall in flat mode (its slipgates in view), for the flat build's own baseline.", flat=True)
-    # ---- slipgates
-    add("slipgate_start", ["slipgates", "core"], "a slipgate's portal view: destination drawn per eye", "start",
-        "Looking through the episode slipgate from its doorway: the destination scene, lights and entities per eye.",
+        "The start map's hall in flat mode (its teleporters in view), for the flat build's own baseline.", flat=True)
+    # ---- teleporters
+    add("teleporter_start", ["teleporters", "core"], "a teleporter's portal view: destination drawn per eye", "start",
+        "Looking through the episode teleporter from its doorway: the destination scene, lights and entities per eye.",
         pos="544 1320 24 0 90 0")
-    add("slipgate_start_off", ["slipgates", "control"], "control: the same view, slipgates off", "start",
-        "slipgate_start with vr_slipgates 0: the portal's whole cost by difference.",
-        pos="544 1320 24 0 90 0", setup=["vr_slipgates 0"])
-    add("slipgate_start_flat", ["slipgates", "flat"], "a slipgate's portal view in flat mode", "start",
-        "slipgate_start in flat mode.", pos="544 1320 24 0 90 0", flat=True)
-    add("slipgate_ai_24", ["slipgates", "combat"], "24 grunts seeing and shooting through a slipgate (portal AI)",
+    add("teleporter_start_off", ["teleporters", "control"], "control: the same view, teleporters off", "start",
+        "teleporter_start with vr_teleporters 0: the portal's whole cost by difference.",
+        pos="544 1320 24 0 90 0", setup=["vr_teleporters 0"])
+    add("teleporter_start_flat", ["teleporters", "flat"], "a teleporter's portal view in flat mode", "start",
+        "teleporter_start in flat mode.", pos="544 1320 24 0 90 0", flat=True)
+    add("teleporter_ai_24", ["teleporters", "combat"], "24 grunts seeing and shooting through a teleporter (portal AI)",
         "start", "Monsters' one-hop portal perception and fire across the gate (the perf suite's portal_enemies).",
         pos="544 1320 24 0 90 0", hostile=True,
         setup=waits(3) + [f"vr_physics_spawn monster_army {320 + (i // 4) * 40} {(i % 4 - 1.5) * 24:g}" for i in range(24)]
         + waits(30) + ["vr_portals_ai_test 1"] + waits(2) + ["vr_portals_ai_test 12"], warm=90)
-    # Gates within gates (vr_portals_recursion): vrslipgates' loop, T's west gate 40 units out filling the view (its
+    # Gates within gates (vr_portals_recursion): vrteleporters' loop, T's west gate 40 units out filling the view (its
     # view sees the far loop gate and T's north gate: ROUND21.md "Gates within gates", the cost per level).
     for r in range(4):
-        add(f"slipgate_loop_r{r}", ["slipgates", "recursion"] + (["core"] if r == 2 else []),
-            f"gates within gates, vr_portals_recursion {r}", "vrslipgates",
-            f"vrslipgates' loop gate filling the view (it shows itself and T's north gate) at vr_portals_recursion {r}: "
+        add(f"teleporter_loop_r{r}", ["teleporters", "recursion"] + (["core"] if r == 2 else []),
+            f"gates within gates, vr_portals_recursion {r}", "vrteleporters",
+            f"vrteleporters' loop gate filling the view (it shows itself and T's north gate) at vr_portals_recursion {r}: "
             "each level's views by difference.", pos="-1560 560 24 0 180 0", setup=[f"vr_portals_recursion {r}"])
     # ---- combat
     add("combat_48", ["combat", "core"], "48 mixed monsters fighting you and each other", RANGE,
@@ -327,7 +327,7 @@ def scenarios():
         "E1M1's start with the flashlight in the off hand, on and pointed ahead (its spot light's shadow tile: shadow_dlights 1).",
         setup=["vr_flashlight 1", "vr_flashlight_shadows 1", "vr_flashlight_give left", "wait", "vr_flashlight_toggle", "vr_mock_hand off -0.2 1.3 -0.35 0 0 0"])
     # (vr_shadow_maplights' cost: run these with --settings files setting it to 0, 2, 3, 4)
-    add("maplights_vrstart", ["lights", "maplights"], "vrstart's campaign terrace: braziers, torches, the slipgate", "vrstart",
+    add("maplights_vrstart", ["lights", "maplights"], "vrstart's campaign terrace: braziers, torches, the teleporter", "vrstart",
         "By the terrace's west brazier facing the Quake lectern (setpos -1360 -330 136): flames' shadowed lights, map lights.",
         pos="-1360 -330 136 0 78 0")
     add("maplights_e2m1", ["lights", "maplights"], "E2M1's start: a dense id map's lights", "e2m1",
@@ -428,11 +428,18 @@ def scenarios():
     return {x.name: x for x in s}
 
 
+def renamed(name):
+    """A scenario, group or setting under its current name: the teleporters were "slipgates" until 2026-10-08
+    (teleporter_start was slipgate_start, the group teleporters slipgates, vr_teleporters vr_slipgates): old command
+    lines, result folders and baselines still work."""
+    return name.replace("slipgate", "teleporter")
+
+
 def select(spec):
     """'all', a group, scenario names, or a comma list of either."""
     table = scenarios()
     out = []
-    for item in spec.split(","):
+    for item in map(renamed, spec.split(",")):
         if item == "all":
             out += list(table)
         elif item in table:
@@ -486,7 +493,10 @@ def load_runs(root):
     runs = {}
     for path in sorted(Path(root).glob("*/r*.json")):
         try:
-            runs.setdefault(path.parent.name, []).append(json.loads(path.read_text()))
+            run = json.loads(path.read_text())
+            if isinstance(run.get("settings"), dict):
+                run["settings"] = {renamed(k): v for k, v in run["settings"].items()}
+            runs.setdefault(renamed(path.parent.name), []).append(run)
         except json.JSONDecodeError as e:
             print(f"qvrbench: bad JSON {path}: {e}", file=sys.stderr)
     return runs
@@ -719,7 +729,7 @@ def main():
             x = table[n]
             print(n if a.names else f"{n:28} {x.base:5} {x.map or "(none)":14} {'/'.join(x.groups):24} {x.stresses}")
     elif a.cmd == "script":
-        sc = scenarios().get(a.scenario)
+        sc = scenarios().get(renamed(a.scenario))
         if not sc:
             raise SystemExit(f"qvrbench: no scenario {a.scenario}")
         if a.warm is not None:

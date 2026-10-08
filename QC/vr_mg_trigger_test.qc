@@ -236,7 +236,7 @@ void() MG_T_RetargetGate = {
     entity p = find(world,classname,"player");
     entity gate = find(world,classname,"trigger_teleport");
     while(gate && !portal_handles(gate,p)) gate = find(gate,classname,"trigger_teleport");
-    if(!gate) { dprint("mgtriggertest: retarget test needs a native visible slipgate\n"); return; }
+    if(!gate) { dprint("mgtriggertest: retarget test needs a native visible teleporter\n"); return; }
     entity olddest = find(world,targetname,gate.target);
     entity dest = spawn(); self = dest; dest.targetname = "mgtt_gate_destination";
     dest.origin = olddest.origin + '128 64 -27'; dest.angles = olddest.mangle;

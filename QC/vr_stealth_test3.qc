@@ -1,5 +1,5 @@
-// vr_stealth_test3.qc -- the stealth AI through seamless slipgates (`vr_stealth_test 110` on vrslipgates, the player
-// standing in room U at -1100 1408: Misc/quakevr/stealth_tests.sh gates; docs/vr-port/STEALTH_PLAN.md, "Slipgates").
+// vr_stealth_test3.qc -- the stealth AI through seamless teleporters (`vr_stealth_test 110` on vrteleporters, the player
+// standing in room U at -1100 1408: Misc/quakevr/stealth_tests.sh gates; docs/vr-port/STEALTH_PLAN.md, "Teleporters").
 // Room T's north gate comes out of U's east wall (a 90-degree turn): a monster in T sees and hears U through it. The
 // scenes run one after the other, each printing `stealthtest: <name> PASS|FAIL`:
 //   110 a grunt sees him through the gate: Alert at his image (not at him, behind T's wall), walks into the gate and
@@ -109,7 +109,7 @@ void() VR_STT3_Frame =
         stt3_gate = VR_STT3_Gate('-1280 768 48');
         if(!stt3_gate || VR_STT3_Room(p.origin) != 2)
         {
-            VR_STT2_Report("gates", FALSE, sprintf("SKIP: not on vrslipgates in room U (gate %g, at %v), or slipgates off",
+            VR_STT2_Report("gates", FALSE, sprintf("SKIP: not on vrteleporters in room U (gate %g, at %v), or teleporters off",
                 stt3_gate, p.origin));
             VR_STT3_End();
             return;

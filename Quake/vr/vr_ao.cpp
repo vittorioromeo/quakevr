@@ -2142,7 +2142,7 @@ void ao::init()
 
 void ao::upload()
 {
-    // (through a slipgate, vr_portals.cpp: the last frame's occluders, chosen round the eyes, not there)
+    // (through a teleporter, vr_portals.cpp: the last frame's occluders, chosen round the eyes, not there)
     if(builtFrame != host_framecount && !portals::viewing())
     {
         builtFrame = host_framecount;

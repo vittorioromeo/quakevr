@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# slipgate_stuck_fuzz.py <agent> [runs] [trials per run] [seed] [extra commands] (runs x trials trials in all): the softlock fuzz (ROUND21.md,
-# "Slipgates: shooting yourself, stuck behind a gate"). Each trial loads vrslipgates, spawns a crate in front of a gate
+# teleporter_stuck_fuzz.py <agent> [runs] [trials per run] [seed] [extra commands] (runs x trials trials in all): the softlock fuzz (ROUND21.md,
+# "Teleporters: shooting yourself, stuck behind a gate"). Each trial loads vrteleporters, spawns a crate in front of a gate
 # (the flush player gate, the large or the wide one, or the loop's west gate), walks the player at it with randomized
 # offsets, stick directions, stops, back-steps, sidesteps and jumps (pushing the crate in, following it, backing out
 # while it is half through), then lets go and tries to walk back out. vr_portals_stuck (the engine's probe) is asked
@@ -35,7 +35,7 @@ def trial(rng, n):
     g = rng.choice(GATES)
     crate = rng.choice([107, 108])
     x, y = place(g, rng.uniform(40, 70), rng.uniform(-14, 14))
-    s = f"echo fuzz trial {n} {g[0]} crate {crate};developer 1;vr_mock_eye_size 160;map vrslipgates;wait60;god;notarget;{EXTRA}"
+    s = f"echo fuzz trial {n} {g[0]} crate {crate};developer 1;vr_mock_eye_size 160;map vrteleporters;wait60;god;notarget;{EXTRA}"
     s += f";setpos {x:.0f} {y:.0f} 24 0 {g[5]} 0;wait5;noclip 0;vr_test_spawn {crate};vr_test_spawn_dist {rng.randint(36, 56)};impulse 241;wait20"
     x, y = place(g, rng.uniform(70, 120), rng.uniform(-10, 10))
     s += f";setpos {x:.0f} {y:.0f} 24 0 {g[5]} 0;wait5;noclip 0"

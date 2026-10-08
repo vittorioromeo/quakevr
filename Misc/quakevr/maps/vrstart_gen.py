@@ -14,7 +14,7 @@
 #     the sea in it cutting in from the north;
 #   - the path, from the south-west corner: the pier where the player starts -> the arrival beach (welcome, the
 #     tutorial and calibration buttons) -> a wooden staircase up the bank -> the campaign terrace (the campaign
-#     buttons and the slipgate) -> a wooden bridge over the ravine -> the settings pavilion (setting buttons) -> a
+#     buttons and the teleporter) -> a wooden bridge over the ravine -> the settings pavilion (setting buttons) -> a
 #     staircase down -> the firing range (a few basic guns, ammunition, targets) -> a path along the shore -> the
 #     lookout tower (a ladder up; a diving board over deep water).
 #
@@ -110,7 +110,7 @@ PIER = dict(x=-1200, y0=-850, y1=-1370, z=24, w=104)
 ARRIVAL = (-1170, -760)
 STAIR1 = dict(cx=-1200, cy=-500, dx=0, dy=-1, zb=16, zt=112, run=12, w=96)   # (its top edge, the way down)
 TERRACE = dict(x=-1150, y=-150, r=232, z=112)
-GATE = dict(x=-1150, y=46)                                                  # the slipgate (faces south)
+GATE = dict(x=-1150, y=46)                                                  # the teleporter (faces south)
 BRIDGE = dict(x0=-868, x1=-436, y=-150, z=112, arch=14, w=96)
 PAVILION = dict(x0=-300, x1=84, y0=-232, y1=40, z=128)
 STAIR2 = dict(cx=84, cy=-96, dx=1, dy=0, zb=56, zt=128, run=16, w=80)
@@ -893,7 +893,7 @@ def build_terrace(mw):
                 q += [(cx + rr * math.cos(ar), cy + rr * math.sin(ar), z),
                       (cx + rr * math.cos(ar), cy + rr * math.sin(ar), z + 10)]
         out.append(hull(q, T("block", mode="face", scale=0.5)))
-    # the slipgate: a dais, two pillars of stacked blocks, an arch of voussoirs
+    # the teleporter: a dais, two pillars of stacked blocks, an arch of voussoirs
     gx, gy = GATE["x"], GATE["y"]
     out.append(chamfer_box(gx - 104, gy - 64, z - 8, gx + 104, gy + 44, z + 8, 2, T("block", scale=0.5)))
     out.append(chamfer_box(gx - 80, gy - 40, z + 8, gx + 80, gy + 32, z + 16, 2, T("block", scale=0.5)))
@@ -1133,7 +1133,7 @@ def build_world(mw):
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Lights: torches along the path (Quake VR's wall torches: the player can take one off its post), braziers, lanterns,
-# the campfire, the slipgate's glow, and crystals glowing on the lake's floor.
+# the campfire, the teleporter's glow, and crystals glowing on the lake's floor.
 TORCH = {"light": "230", "_color": "1 0.6 0.28", "wait": "1.1"}
 
 
@@ -1523,16 +1523,16 @@ def tip(mw, name, message, x, y, z, distance=200, target=None, size=None):
 
 N = "\\n"
 
-# the campaign lecterns' buttons: (label, command); each chooses what the slipgate starts (the old hub's
+# the campaign lecterns' buttons: (label, command); each chooses what the teleporter starts (the old hub's
 # vr_activestartpaknameidx; QC's buttons.qc marks a campaign whose data is missing); 3, 4 and 5 (Dimension of the Past,
-# Dimension of the Machine, Dawn of the Machine) have game folders of their own, so the slipgate's changelevel runs
+# Dimension of the Machine, Dawn of the Machine) have game folders of their own, so the teleporter's changelevel runs
 # vr_campaign_select dopa, mg1 or mg3 (vr_gamedir.cpp)
-CAMPAIGNS = [("QUAKE", "vr_activestartpaknameidx 0; echo Quake selected: step into the slipgate"),
-             ("SCOURGE OF" + N + "ARMAGON", "vr_activestartpaknameidx 1; echo Scourge of Armagon selected: step into the slipgate"),
-             ("DISSOLUTION" + N + "OF ETERNITY", "vr_activestartpaknameidx 2; echo Dissolution of Eternity selected: step into the slipgate"),
-             ("DIMENSION" + N + "OF THE PAST", "vr_activestartpaknameidx 3; echo Dimension of the Past selected: step into the slipgate"),
-             ("DIMENSION" + N + "OF THE MACHINE", "vr_activestartpaknameidx 4; echo Dimension of the Machine selected: step into the slipgate"),
-             ("DAWN OF" + N + "THE MACHINE", "vr_activestartpaknameidx 5; echo Dawn of the Machine selected: step into the slipgate")]
+CAMPAIGNS = [("QUAKE", "vr_activestartpaknameidx 0; echo Quake selected: step into the teleporter"),
+             ("SCOURGE OF" + N + "ARMAGON", "vr_activestartpaknameidx 1; echo Scourge of Armagon selected: step into the teleporter"),
+             ("DISSOLUTION" + N + "OF ETERNITY", "vr_activestartpaknameidx 2; echo Dissolution of Eternity selected: step into the teleporter"),
+             ("DIMENSION" + N + "OF THE PAST", "vr_activestartpaknameidx 3; echo Dimension of the Past selected: step into the teleporter"),
+             ("DIMENSION" + N + "OF THE MACHINE", "vr_activestartpaknameidx 4; echo Dimension of the Machine selected: step into the teleporter"),
+             ("DAWN OF" + N + "THE MACHINE", "vr_activestartpaknameidx 5; echo Dawn of the Machine selected: step into the teleporter")]
 
 # the pavilion's setting buttons (vr_setup_option <key>: Quake/vr/vr_setup.cpp's table; each press steps the setting,
 # shows it on a screen over the button and saves the config): the north board's rows, the south board's
@@ -1568,11 +1568,11 @@ def build_entities(mw):
     for (label, cmd), lx in zip(CAMPAIGNS, LECTERNS_X):
         cx = gx + lx
         button(mw, label, cmd, cx, LECTERN_Y, zb + 42, 90)
-    banner(mw, N.join(["CHOOSE A CAMPAIGN", "Press its stone, then step into the slipgate."]),
+    banner(mw, N.join(["CHOOSE A CAMPAIGN", "Press its stone, then step into the teleporter."]),
            gx, gy - 24, zb + 16 + 205, 270, "0.45")
     banner(mw, N.join(["Every campaign, and what", "its data needs:", "{menu:Official Campaigns}"]),
            gx - 250, LECTERN_Y - 20, zb + 60, 270, "0.25")
-    tip(mw, "vs2_campaign", "Press a campaign's stone with your hand," + N + "then walk into the slipgate.",
+    tip(mw, "vs2_campaign", "Press a campaign's stone with your hand," + N + "then walk into the teleporter.",
         gx - 55, LECTERN_Y - 10, zb + 50, 220, target=CAMPAIGNS[0][1] + "\\n")
     # ---- the pavilion's settings
     x0, x1, y0, y1, z = pv["x0"], pv["x1"], pv["y0"], pv["y1"], pv["z"]

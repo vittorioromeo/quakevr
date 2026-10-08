@@ -573,7 +573,7 @@ void CL_RelinkEntities (void)
 		else
 		{	// if the delta is large, assume a teleport and don't lerp
 			vec3_t	from;		// QVR: where the lerp starts
-			float	turn = 0.f;	// QVR: ... and the yaw a slipgate turned the entity by
+			float	turn = 0.f;	// QVR: ... and the yaw a teleporter turned the entity by
 			f = frac;
 			VectorCopy (ent->msg_origins[1], from); // QVR
 			for (j=0 ; j<3 ; j++)
@@ -585,7 +585,7 @@ void CL_RelinkEntities (void)
 					ent->lerpflags |= LERP_RESETMOVE; //johnfitz -- don't lerp teleports
 				}
 			}
-			// QVR: carried through a slipgate (vr_portals_walk): the lerp goes on from the older place carried
+			// QVR: carried through a teleporter (vr_portals_walk): the lerp goes on from the older place carried
 			// through it, not a snap to the newer (a tick ahead, then still for a frame: vr/vr_portals.cpp)
 			if (f == 1 && VR_PortalLerpFrom (ent->msg_origins[1], ent->msg_origins[0], from, &turn))
 			{
@@ -619,7 +619,7 @@ void CL_RelinkEntities (void)
 		// interpolate the origin and angles
 			for (j=0 ; j<3 ; j++)
 			{
-				ent->origin[j] = from[j] + f*delta[j]; // QVR: (from: msg_origins[1], or it carried through a slipgate)
+				ent->origin[j] = from[j] + f*delta[j]; // QVR: (from: msg_origins[1], or it carried through a teleporter)
 
 				d = ent->msg_angles[0][j] - ent->msg_angles[1][j] - (j == YAW ? turn : 0.f); // QVR: (turn)
 				if (d > 180)

@@ -144,7 +144,7 @@ struct Calibration
 // The server set the view yaw: turn the play space to match (headset only).
 void setServerYaw(float yaw);
 
-// The local player is walking through a slipgate (vr_portals.cpp): its view angle and body jump about to come are a
+// The local player is walking through a teleporter (vr_portals.cpp): its view angle and body jump about to come are a
 // turn by `yawDegrees` about the gate (the play space, the lean and the stairs' easing kept through), not a teleport's.
 void portalCrossing(float yawDegrees);
 

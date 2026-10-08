@@ -21,12 +21,12 @@ def fixtures():
             "vr_model_reload", "vr_retro_overrides_reload"] + waits(20) + ["vr_prop_query_test",
             "map e1m1"] + waits(150) + ["god 1", "notarget 1", "vr_prop_query_test"]
     portal = common + ["map start"] + waits(150) + ["god 1", "notarget 1",
-             "vr_slipgates 1", "vr_portals 1", "vr_portals_walk 1", "vr_grab_gibs 2",
+             "vr_teleporters 1", "vr_portals 1", "vr_portals_walk 1", "vr_grab_gibs 2",
              "setpos 544 1320 24 0 90 0", "vr_mock_hand main 0 1.2 -0.35 63 0 0"] + waits(20)
     portal += ["vr_prop_query_test", "vr_portals_pulltest"] + waits(20) + ["+grabright",
               "vr_mock_button main grip 1"] + waits(60) + ["vr_mock_button main grip 0", "-grabright"] + waits(90)
-    portal += ["vr_portals_pulltest"] + waits(5) + ["vr_slipgates 0"] + waits(45)
-    portal += ["vr_prop_query_test", "vr_slipgates 1", "vr_portals_walk 0"] + waits(10)
+    portal += ["vr_portals_pulltest"] + waits(5) + ["vr_teleporters 0"] + waits(45)
+    portal += ["vr_prop_query_test", "vr_teleporters 1", "vr_portals_walk 0"] + waits(10)
     portal += ["vr_prop_query_test", "vr_portals_walk 1"] + waits(10) + ["vr_prop_query_test"]
     hands = list(common)
     for pick, mx, my in ((4, .06, 1.29), (1, .06, 1.29), (0, .06, 1.25), (9, .06, 1.25),
@@ -116,7 +116,7 @@ def run(args):
             assert "prop model queries: PASS" in log and "prop force-grab queries: PASS" in log, name
         if name == "portal":
             for required in ("portalpulltest: selected=1", "portalpulltest: gate=2",
-                             "force grab: crossed slipgate 2", "force grab: caught",
+                             "force grab: crossed teleporter 2", "force grab: caught",
                              "force grab: portal pull cancelled, object dropped in its room"):
                 assert required in log, required
         if name == "ragdolls":

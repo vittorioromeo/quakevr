@@ -160,7 +160,7 @@ bool lastBodyValid = false;
 // Reset Position (vr_recenter): the body put under the head at the next frame, where its box fits.
 bool recenterPending = false;
 
-// A walk through a slipgate (portalCrossing, vr_portals.cpp): the body's coming jump is not a teleport's: the play space
+// A walk through a teleporter (portalCrossing, vr_portals.cpp): the body's coming jump is not a teleport's: the play space
 // turns by the gate's yaw (not to the server's view angle), the lean turns with it (not dropped) and the stairs' easing
 // keeps its height under the head.
 bool portalJumpPending = false;
@@ -300,7 +300,7 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
     // A teleport, a respawn, a new map: the body is put under the head.
     if(lastBodyValid && glm::length(glm::vec2{body.x - lastBody.x, body.y - lastBody.y}) > 64.f)
     {
-        if(portalJumpPending) // through a slipgate: the head where it was over the body, turned with the gate
+        if(portalJumpPending) // through a teleporter: the head where it was over the body, turned with the gate
         {
             lean = rotateYaw(lean, portalJumpYaw);
             portalJumpPending = false;
@@ -636,7 +636,7 @@ void update()
         if(portalJumpPending && lastRawOriginValid &&
             glm::length(glm::vec2{state.playerOrigin.x - lastRawOrigin.x, state.playerOrigin.y - lastRawOrigin.y}) > 64.f)
         {
-            smoothZ += z - lastRawOrigin.z; // through a slipgate: still that far under the origin
+            smoothZ += z - lastRawOrigin.z; // through a teleporter: still that far under the origin
         }
         lastRawOrigin = state.playerOrigin;
         lastRawOriginValid = true;
@@ -855,12 +855,12 @@ void setServerYaw(float yaw)
 {
     if(portalJumpPending && !portalAngleTaken)
     {
-        // The server's angle for a walk through a slipgate: the play space turned by the gate's yaw itself (the
+        // The server's angle for a walk through a teleporter: the play space turned by the gate's yaw itself (the
         // server's head angle is a frame old: its turn would be off by the head's own turn since).
         // Not recomputed now (addTurn would): this frame's hands were made at its start, from the body where the last
         // frame left it (the client draws a tick behind the server). Made again here, after the message that carries
         // the body, the crossing's frame drew it a frame early and the next frame the same again: a hitch at every
-        // slipgate (ROUND21.md, "A frame seen through after a slipgate"). The next frame's hands take the turn, the
+        // teleporter (ROUND21.md, "A frame seen through after a teleporter"). The next frame's hands take the turn, the
         // carried body and the lean together.
         portalAngleTaken = true;
         turnYaw = za::remainder(turnYaw + portalJumpYaw, 360.f);

@@ -301,7 +301,7 @@ def solid_at(data):
 # `light` spawns a surface light about every SURFLIGHT x SURFLIGHT units of a face, at least one a face.
 SURFLIGHT = 128.0
 # Faces of one glowing texture closer than GLOW_OBJECT are one thing (the faces of a button, a panel,
-# a slipgate); things closer than GLOW_ROOM light the same room together.
+# a teleporter); things closer than GLOW_ROOM light the same room together.
 GLOW_OBJECT = 64.0
 GLOW_ROOM = 256.0
 
@@ -329,7 +329,7 @@ def things(faces):
 def crowd(thing, everyone):
     """How many lights light the room of a glowing thing: all the glowing things (`everyone`, of any
     glowing texture) within GLOW_ROOM of it. A map's buttons are far apart, each lighting its room
-    alone; a slipgate's frame, lamps and panels share one room."""
+    alone; a teleporter's frame, lamps and panels share one room."""
     c = thing[0][0][0]
     return max(1.0, sum(n for g, n in everyone if near(c, g[0][0], GLOW_ROOM)))
 
@@ -784,7 +784,7 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
     buttons, blue panels) get up to twice the budget, a cap 30% higher, twice the reach and their colour
     a tenth of the way to white, so that they tint the room; white and pale ones a quarter of the way to
     white. Small glowing faces (buttons, panels, signs) get a light each in front of them, as bright as
-    their own room allows, unless in a wall; textures with big faces (a slipgate) get ericw's surface
+    their own room allows, unless in a wall; textures with big faces (a teleporter) get ericw's surface
     lights ("_surface"), as bright as their most crowded room allows.
 
     A rule's scale multiplies a texture's light, light= sets a fixture's (instead of FIXTURE_LIGHT),

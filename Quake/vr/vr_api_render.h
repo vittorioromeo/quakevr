@@ -37,7 +37,7 @@ struct qmodel_s;
 
 // Stereo rendering (gl_screen.c, gl_rmain.c).
 int VR_PortalDrawing (void); // the offscreen pass requires a composite target in every camera mode
-int VR_PortalHideTeleport (void); // in a view through a slipgate, its teleport faces left out (vr_portals_recursion 0)
+int VR_PortalHideTeleport (void); // in a view through a teleporter, its teleport faces left out (vr_portals_recursion 0)
 void VR_RenderPortalForView (void); // V_RenderView: this camera and its entities are ready
 int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the eyes
 int VR_RenderingEye (void);							// forces the post-process path while rendering an eye
@@ -113,7 +113,7 @@ void VR_AliasSurface (const struct entity_s *e, float out[4]); // instance: rim 
 unsigned VR_EnvCubeTexture (void);							// the reflections' cube map (0: none yet; vr_envmap.cpp)
 unsigned VR_WaterCubeTexture (void);						// the water's reflections' cube map (0: none this frame; vr_envmap.cpp)
 void VR_PortalView (void);
-struct mleaf_s *VR_PortalViewLeaf (struct mleaf_s *leaf);		// ... the leaf it is seen from: the destination's (R_SetupView)									// slipgates (vr_portals.cpp): the view through the gate moved there (R_RenderView)
+struct mleaf_s *VR_PortalViewLeaf (struct mleaf_s *leaf);		// ... the leaf it is seen from: the destination's (R_SetupView)									// teleporters (vr_portals.cpp): the view through the gate moved there (R_RenderView)
 void VR_PortalPVSOrigin (float origin[3]);					// ... where its PVS is taken round, near a liquid's or a gate's face (R_MarkSurfaces)
 void VR_PortalClip (float proj[16], const float view[16]);	// ... its oblique near plane (R_SetFrustum)
 void VR_DrawPortalMask (void);								// ... its depth outside the gate on screen (R_RenderScene)
@@ -246,7 +246,7 @@ float VR_SceneTone (void);						// R_SetupView: the brightest the world and mode
 float VR_SceneDither (float dither);			// R_SetupView: the scene's screen dither (0 in the eyes with vr_dither: the post-process dithers last)
 void VR_PostProcessTone (void);					// GL_PostProcess, the non-palettized program in use: the tone curve, grade (unit 3) and dither
 
-// Split alias models at an active slipgate, using the same animation pose in both rooms.
+// Split alias models at an active teleporter, using the same animation pose in both rooms.
 int VR_PortalAlias(const struct entity_s* e, const float boundsMatrix[16], const float matrix[16], float mapped[16], float sourceClip[4], float destinationClip[4]);
 
 #ifdef __cplusplus
