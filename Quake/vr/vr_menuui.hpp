@@ -17,11 +17,13 @@ void printVersionLabel();
 // Where the version label is on (vr_menu_version): the menus keep left of x or above y (menu x and y) to stay clear of it
 // (a VR page whose rows or help reach under it ends above it: vr_menu.cpp, layout).
 [[nodiscard]] bool versionLabelClearance(float& x, float& y);
-// The version box's "Support on Ko-fi" link (vr_menubrand.cpp): whether a spot of the menu (menu x, y) is on it (over this
-// menu now); its middle (false: not shown); and a press of the menus' mouse (K_MOUSE1: the laser's trigger, a click) on
-// it: true if it took it (the page opened, at most once in a second and a half).
+// The version box's "Support on Ko-fi" link and the update notice above it (vr_menubrand.cpp): whether a spot of the
+// menu (menu x, y) is on either (over this menu now); the Ko-fi link's middle and the notice's (false: not shown); and a
+// press of the menus' mouse (K_MOUSE1: the laser's trigger, a click) on one: true if it took it (its page opened, at
+// most once in a second and a half).
 [[nodiscard]] bool versionLinkAt(float x, float y);
 [[nodiscard]] bool versionLinkSpot(float& x, float& y);
+[[nodiscard]] bool updateLinkSpot(float& x, float& y);
 [[nodiscard]] bool versionLinkPress();
 // Whether the menus' mouse spot (m_mousex, m_mousey) is a pointer there: the laser on the panel in the headset (the VR
 // menu style), the desktop mouse on a flat screen (ui_mouse; to light something up, `hover`: once it has moved over the
