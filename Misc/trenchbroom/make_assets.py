@@ -259,6 +259,54 @@ def tex_lantern(w, h, seed=9):
     return img
 
 
+def tex_arrow(w, h, seed=21):
+    """A painted floor or wall arrow ('{': the background transparent, palette index 255): a worn yellow arrow with a
+    dark rim, pointing to the texture's top (minus V). Laid on a func_detail_illusionary sheet over a floor or a wall
+    (vrtutorial2_gen.py)."""
+    n = noise_field(w, h, seed, 0.18)
+    rnd = random.Random(seed)
+    wear = [[rnd.random() for _ in range(w)] for _ in range(h)]
+
+    def inside(x, y, grow):
+        # the head: a triangle from y 4 (the tip) to y 30, 52 wide; the shaft: 20 wide down to y 60
+        u, v = x + 0.5 - w / 2, y + 0.5
+        if 4 - grow <= v <= 30 + grow and abs(u) <= (v - 4 + grow * 1.6) * 26 / 26 + grow:
+            return True
+        return 30 <= v <= 60 + grow and abs(u) <= 10 + grow
+
+    img = []
+    for y in range(h):
+        row = []
+        for x in range(w):
+            if inside(x, y, 0):
+                k = n[y][x] * (0.78 if wear[y][x] < 0.07 else 1.0)
+                row.append((shade((232, 188, 36), k), False))
+            elif inside(x, y, 2):
+                row.append((shade((36, 32, 28), n[y][x]), False))
+            else:
+                row.append((None, False))
+        img.append(row)
+    return img
+
+
+def tex_hazard(w, h, seed=22):
+    """Hazard stripes: worn yellow and black diagonal bands (16 texels a pair), for the edges of obstacles and drops."""
+    n = noise_field(w, h, seed, 0.14)
+    rnd = random.Random(seed)
+    img = []
+    for y in range(h):
+        row = []
+        for x in range(w):
+            band = ((x + y) // 16) % 2 == 0
+            c = (214, 170, 30) if band else (34, 32, 30)
+            if band and rnd.random() < 0.05:
+                c = (150, 128, 70)
+            e = min(x, y, w - 1 - x, h - 1 - y)
+            row.append((shade(c, n[y][x]), False))
+        img.append(row)
+    return img
+
+
 TEXTURES = [
     # name, builder
     ("qvr_floor", lambda: tex_grid(64, 64, (74, 72, 70), (60, 58, 56), (96, 88, 70), seed=11)),
@@ -279,6 +327,9 @@ TEXTURES = [
     ("qvr_target", lambda: tex_target(64, 64)),
     # vrstart's lanterns (Misc/quakevr/maps/vrstart_gen.py)
     ("qvr_lantern", lambda: tex_lantern(32, 32)),
+    # vrtutorial2's painted arrows and hazard stripes (Misc/quakevr/maps/vrtutorial2_gen.py)
+    ("{qvr_arrow", lambda: tex_arrow(64, 64)),
+    ("qvr_hazard", lambda: tex_hazard(64, 64)),
 ]
 
 
@@ -287,20 +338,30 @@ def mips(indices, w, h, pal):
     levels = [bytes(indices)]
     cur = [[pal[indices[y * w + x]] for x in range(w)] for y in range(h)]
     fb = [[indices[y * w + x] >= 224 for x in range(w)] for y in range(h)]
+    clear = [[indices[y * w + x] == 255 for x in range(w)] for y in range(h)]  # a '{' texture's transparent texels
     cw, ch = w, h
     for _ in range(3):
         nw, nh = cw // 2, ch // 2
-        nxt, nfb, out = [], [], []
+        nxt, nfb, nclear = [], [], []
         for y in range(nh):
-            row, frow = [], []
+            row, frow, crow = [], [], []
             for x in range(nw):
-                px = [cur[2 * y + j][2 * x + i] for j in (0, 1) for i in (0, 1)]
-                f = sum(fb[2 * y + j][2 * x + i] for j in (0, 1) for i in (0, 1)) >= 2
-                row.append(tuple(sum(p[k] for p in px) / 4 for k in range(3)))
+                quad = [(j, i) for j in (0, 1) for i in (0, 1)]
+                solid = [(j, i) for j, i in quad if not clear[2 * y + j][2 * x + i]]
+                if len(solid) < 2:  # mostly transparent: transparent
+                    row.append(None)
+                    frow.append(False)
+                    crow.append(True)
+                    continue
+                px = [cur[2 * y + j][2 * x + i] for j, i in solid]
+                f = sum(fb[2 * y + j][2 * x + i] for j, i in solid) * 2 >= len(solid)
+                row.append(tuple(sum(p[k] for p in px) / len(px) for k in range(3)))
                 frow.append(f)
+                crow.append(False)
             nxt.append(row)
             nfb.append(frow)
-        cur, fb, cw, ch = nxt, nfb, nw, nh
+            nclear.append(crow)
+        cur, fb, clear, cw, ch = nxt, nfb, nclear, nw, nh
         levels.append((cur, fb))
     return levels
 
@@ -310,6 +371,8 @@ def build_wad(pal):
     cache = {}
 
     def idx(rgb, full):
+        if rgb is None:
+            return 255  # transparent (a '{' texture)
         key = (rgb, full)
         if key not in cache:
             cache[key] = painter.index(rgb, full)
@@ -323,7 +386,8 @@ def build_wad(pal):
         data = [bytes(base)]
         levels = mips(base, w, h, pal)
         for cur, fb in levels[1:]:
-            data.append(bytes(idx(tuple(clamp(v) for v in c), f) for row, frow in zip(cur, fb) for c, f in zip(row, frow)))
+            data.append(bytes(idx(None if c is None else tuple(clamp(v) for v in c), f)
+                              for row, frow in zip(cur, fb) for c, f in zip(row, frow)))
         header = struct.pack("<16sII", name.encode("latin1"), w, h)
         offs, pos = [], 40
         for d in data:
