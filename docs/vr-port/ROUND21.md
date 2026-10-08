@@ -31982,6 +31982,20 @@ Nearest Left / Right / at You.
 | grunt, 400 deg/s twist | | 87 | 7.9 | spun 200 deg/s as it fell |
 
 (topple 240: 72 deg at 0.1 s, 133 at 0.2: rather a slam.)
+
+**Knocked-down enemies struggle, visibly** (his note, 2026-10-09: "knocked-down ragdolls don't move";
+`vr_knockdown_wiggle` 1, `_frequency` 2.2 Hz, `_pause` 0). Why nothing moved: the drive (box3d `feedRagdoll`) turned
+only the chest and the head, 5 degrees either way, with at most 2.7 N m (1.8 times the joints' friction, 1.5 N m):
+too weak to lift anything lying on the floor; the chest sat 3.85 degrees off its rest, still (measured: every part's
+mean spin 0.008-0.014 rad/s from 0.4 to 1.8 s down, its deflection 3.84-3.86 degrees throughout). Now every joint is
+driven about the pose it settled in: the chest curls 12 degrees, the head nods 18, the arms and legs kick 30 (a hinge
+about its axis, a ball across its bone), each at its own pace (0.75-1.25 times the frequency, its own phase); a drive of
+its inertia (a rod, m L^2 / 3) times a 3 Hz spring, near critically damped, at most 1.8 times the joints' friction plus
+1.5 times its weight's lever (it lifts a limb off the floor); the parent takes the opposite torque. A pose more than
+the swing plus 25 degrees off its rest (a throw, a hand) is its new rest. Measured (`vr_knockdown_test 9`, a grunt down
+5 s, every 0.28 s from 1.1 s): mean spin 2.1-3.6 rad/s, the joints 21-24 degrees off rest, the parts moving 0.7-1.3
+units on average per sample (most 1.5-2.5); with `vr_knockdown_wiggle 0` the parts settle to 0.00 within 1.4 s.
+`vr_knockdown_test 9` now also prints `strugglemotion` (the parts' movement since its last call).
 | training dummy as an ogre (full health) | 842 deg/s | not hurt enough |
 
 Seen: the knight thrown to the left ended 26 units towards the player and 7 to the right, lying (its ragdoll; the
