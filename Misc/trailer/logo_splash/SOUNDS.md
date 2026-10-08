@@ -18,6 +18,7 @@ never commit them or any file extracted from them. They are fine mixed into the 
 | `weapons/r_exp3.wav`, `player/lburn1.wav`, `player/lburn2.wav` | the fire catching |
 | `ambience/fire1.wav` | the burning loop to the end (two decorrelated copies) |
 | `weapons/ax1.wav`, `player/axhit2.wav` | the axe (full version only) |
+| `player/tornoff2.wav`, `zombie/z_gib.wav`, `player/udeath.wav` (its start) | the head's rip and pop (head stem) |
 
 ## Synthesis (in `sound.py`)
 

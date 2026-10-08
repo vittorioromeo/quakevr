@@ -199,3 +199,23 @@ def gib_state(g, f):
     t = (f - HIT) / FPS
     p = (g["p"][0] + g["v"][0] * t, g["p"][1] + g["v"][1] * t, g["p"][2] + g["v"][2] * t - 0.5 * GRAVITY * t * t)
     return p, g["spin"] * t
+
+
+# --- The decapitated head (a separate overlay clip, numbered as the no-grunt version: the impact is its frame
+# NOGRUNT_LEAD): Quake VR's grunt head gib flies off the neck, tumbling up and to the right, and leaves the frame ---
+HEAD_FROM = (0.02, GRUNT_Y, 0.5)              # the intro grunt's neck (screen: just above the burst's centre)
+HEAD_VEL = (3.1, -1.6, 3.7)                   # m/s
+HEAD_AXIS = (0.25, 0.95, 0.3)                 # tumbling end over end, a little sideways
+HEAD_SPIN = -2.3                              # turns a second
+HEAD_FRAMES = NOGRUNT_LEAD + 100              # 2.17 s: it has left the frame by then
+
+
+def head_state(g):
+    """(position, axis, angle) of the head's neck at frame g of the head clip (None before the cut)."""
+    if g < NOGRUNT_LEAD:
+        return None
+    t = (g - NOGRUNT_LEAD) / FPS
+    p = tuple(HEAD_FROM[k] + HEAD_VEL[k] * t for k in range(3))
+    p = (p[0], p[1], p[2] - 0.5 * GRAVITY * t * t)
+    n = math.sqrt(sum(c * c for c in HEAD_AXIS))
+    return p, tuple(c / n for c in HEAD_AXIS), HEAD_SPIN * 2 * math.pi * t

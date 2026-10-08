@@ -423,6 +423,60 @@ def build(variant, work, id1):
     return out
 
 
+def build_head(id1):
+    """The decapitated head's stem: the rip and pop of the cut, the neck's spurts (one per heartbeat, as the blood in
+    head_clip.py), the drops pattering, panned with the head. Frame NOGRUNT_LEAD is the cut."""
+    q = Quake(id1)
+    n = (C.HEAD_FRAMES + 1) * SPF
+    mix = Mix(n)
+    rng = np.random.default_rng(11)
+    cut = C.NOGRUNT_LEAD * SPF
+
+    def pan_at(t):
+        p = C.project(C.head_state(C.NOGRUNT_LEAD + t * C.FPS)[0], 1920)
+        return pan_of(p[0]) if p else 0.0
+
+    mix.add(q.get("player/tornoff2.wav", 1.0), cut - int(0.01 * SR), 1.0, pan=0.0, rev=0.2)
+    mix.add(q.get("zombie/z_gib.wav", 1.15), cut, 0.6, pan=0.05, rev=0.2)
+    mix.add(q.get("player/udeath.wav", 1.2)[:int(0.35 * SR)], cut, 0.45, rev=0.2)
+    # The pop: a low thump and a wet crack.
+    mix.add(sine_sweep(0.25, 160, 55, 0.07), cut, 0.9, rev=0.1)
+    crk = filt(noise(int(0.06 * SR)) * env_exp(int(0.06 * SR), 0.0003, 0.008), bp(900, 6000))
+    mix.add(crk, cut, 0.7)
+    mix.add(squelch(0.4, rng, 1.1), cut + int(0.01 * SR), 0.6)
+    # The spurts: squirts on the beats (4.2 a second), dying away.
+    t = 0.0
+    while t < 1.3:
+        ph = (t * 4.2 + 0.3 / (2 * math.pi)) % 1.0
+        peak_t = t + ((0.25 - ph) % 1.0) / 4.2          # where sin(2 pi 4.2 t + 0.3) peaks
+        if peak_t >= 1.3:
+            break
+        amp = math.exp(-peak_t / 0.6)
+        m = int(rng.uniform(0.07, 0.11) * SR)
+        sq = filt(noise(m), bp(400, 3500)) * np.hanning(m).astype(np.float32) ** 0.6
+        tt = np.arange(m) / SR
+        sq *= (1 + 0.5 * np.sin(2 * np.pi * rng.uniform(25, 45) * tt)).astype(np.float32)
+        mix.add(sq, cut + int((peak_t - 0.04) * SR), 0.55 * amp + 0.1, pan=pan_at(peak_t), rev=0.15)
+        mix.add(squelch(0.08, rng, 1.4), cut + int(peak_t * SR), 0.25 * amp, pan=pan_at(peak_t))
+        t = peak_t + 0.05
+    # Drops pattering (off screen below).
+    for k in range(30):
+        tt = rng.uniform(0.3, 1.9)
+        mix.add(squelch(rng.uniform(0.02, 0.05), rng, rng.uniform(1.2, 2.2)), cut + int(tt * SR),
+                rng.uniform(0.04, 0.1), pan=rng.uniform(-0.3, 0.9))
+    ir = reverb_ir(1.2, 8)
+    wet = np.stack([convolve(mix.send[c], ir[c]) for c in range(2)])
+    st = mix.dry + wet * 0.6
+    st = st / max(1e-9, np.max(np.abs(st)))
+    ceiling = 10 ** (-1.5 / 20)
+    out = limit(st, ceiling)
+    tp = true_peak(out)
+    out = out * min(1.0, 10 ** (-1.0 / 20) / tp)
+    k = int(0.004 * SR)
+    out[:, -k:] *= np.linspace(1, 0, k)
+    return out
+
+
 def write_wav24(path, st):
     x = np.clip(st.T, -1, 1)
     i = np.ascontiguousarray(np.round(x * 8388607).astype("<i4"))
@@ -436,12 +490,12 @@ def write_wav24(path, st):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--variant", default="nogrunt", choices=("full", "nogrunt"))
+    ap.add_argument("--variant", default="nogrunt", choices=("full", "nogrunt", "head"))
     ap.add_argument("--work", default=C.WORK)
     ap.add_argument("--out", required=True)
     ap.add_argument("--id1", default=r"C:\OHWorkspace\qvr-kit\qbase\id1")
     a = ap.parse_args()
-    st = build(a.variant, a.work, a.id1)
+    st = build_head(a.id1) if a.variant == "head" else build(a.variant, a.work, a.id1)
     write_wav24(a.out, st)
     n = st.shape[1]
     print("%s: %d samples (%.3f s, %d frames), %.2f LUFS, true peak %.2f dBTP" % (

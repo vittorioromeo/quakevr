@@ -36,6 +36,7 @@ The timeline, layout, camera and shake are all in `common.py`.
 - `encode.py`: ProRes 4444 with alpha (PyAV's `prores_ks`, `yuva444p10le`, Rec.709), the preview MP4 over a checker,
   the contact sheet, the alpha test (frames over white, a bright picture and black), and the 1080p copy (scaled with
   premultiplied alpha).
+- `head_clip.py`: the decapitated head overlay (below).
 - `sound.py`: the sound track (Quake's sounds and synthesis; SOUNDS.md).
 - `render_all.sh`: everything, in order (the full version).
 
@@ -51,6 +52,19 @@ The same intro without the idling grunt and the thrown axe: `composite.py --vari
   frame his body bursts.
 - Its track: a 48 kHz, 24-bit WAV, exactly 682 frames long (545,600 samples), frame-synced (SOUNDS.md lists the
   sources).
+
+## The decapitated head (an overlay on top of the kill and the no-grunt intro)
+
+Quake VR's grunt head gib (`quakevr/progs/h_guard.mdl`, the head `vr_decap.qc` throws for `monster_army`) flies off
+the neck, tumbling up and to the right, spurting from the stump (a burst at the cut, then about four arterial spurts
+a second, dying away over 1.3 s), with a slight motion blur. It leaves the frame on the right at about frame 78.
+
+- `blender_scene.py --pass head` (night lighting: a blue-grey moon from above, flickering warm torch rims from the
+  left and the right, vrstart's colours; switch to `vrtrailer`'s once that map ships), then `head_clip.py` (the blood,
+  the shake of the no-grunt intro), then `sound.py --variant head` (its own stem: the rip and pop, the spurts).
+- Numbered as the no-grunt intro: 131 frames, **the cut is frame 30**, frames 0-29 empty. The head's neck starts at
+  **(966, 392) in 1920x1080**, 89 px above the burst's centre (960, 481): where the intro grunt's neck was. Put it on
+  a track above the intro at the same start frame.
 
 ## Versions
 

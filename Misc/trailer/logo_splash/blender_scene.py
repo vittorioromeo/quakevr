@@ -7,6 +7,7 @@
 #   letters  "QUAKE VR" falling in, letter by letter                        -> <out>/letters/letters_####.png
 #   stills   the letters at rest (each alone, all, all lit by fire) and "UNLEASHED" (plain and lit by fire)
 #            -> <out>/stills/*.png
+#   head     the decapitated head clip (night lighting)                 -> <out>/head/head_####.png
 #   test     a few frames of everything at a low resolution, for looking at the scene -> <out>/test/
 #
 # The PNGs are RGBA with straight alpha (transparent film), 8 bits. Frame numbers are the timeline's (common.py).
@@ -695,6 +696,70 @@ def fire_lights(L, on):
             add_light(name, "POINT", loc, (0, 0, 0), e, (1.0, 0.42, 0.08), 0.6)
 
 
+def build_head(pal, out):
+    """Quake VR's grunt head gib (the one decapitation throws, quakevr/progs/h_guard.mdl) on the head_state()
+    path; its neck stump (the faces textured from the skin's stump patch) written to head_meta.json for the blood."""
+    with open(os.path.join(REPO, "quakevr", "progs", "h_guard.mdl"), "rb") as f:
+        data = f.read()
+    ob = mdl_object("head", data, pal, C.GRUNT_SCALE, rough=0.5, wet=False)
+    me = ob.data
+    c = sum((v.co for v in me.vertices), Vector()) / len(me.vertices)
+    me.transform(Matrix.Translation(-c))
+    uv = me.uv_layers[0].data
+    stump = [p for p in me.polygons if all(uv[li].uv.y > 1 - 45 / 128 for li in p.loop_indices)]
+    if not stump:
+        stump = sorted(me.polygons, key=lambda p: p.center.z)[:6]
+    area = sum(p.area for p in stump) or 1.0
+    neck = sum((p.center * p.area for p in stump), Vector()) / area
+    nrm = sum((p.normal * p.area for p in stump), Vector())
+    if nrm.length < 1e-6 or nrm.dot(neck) < 0:
+        nrm = neck.normalized() if neck.length > 1e-6 else Vector((0, 0, -1))
+    nrm.normalize()
+    os.makedirs(out, exist_ok=True)
+    with open(os.path.join(out, "head_meta.json"), "w") as f:
+        json.dump(dict(neck=list(neck), normal=list(nrm), stump_faces=len(stump)), f)
+    print("HEAD neck", tuple(round(x, 3) for x in neck), "normal", tuple(round(x, 3) for x in nrm), len(stump))
+    # The stump (not the head's centre) follows head_state(): its location is the path minus the turned neck.
+    ob.rotation_mode = "AXIS_ANGLE"
+    for g in range(C.NOGRUNT_LEAD - 1, C.HEAD_FRAMES + 2):
+        p, ax, ang = C.head_state(max(g, C.NOGRUNT_LEAD))
+        R = Matrix.Rotation(ang, 3, Vector(ax))
+        ob.location = Vector(p) - R @ neck
+        ob.rotation_axis_angle = (ang,) + ax
+        ob.keyframe_insert("location", frame=g)
+        ob.keyframe_insert("rotation_axis_angle", frame=g)
+    set_interp(ob)
+    return ob, neck
+
+
+def night_lights(L):
+    """The recording map's night (vrstart's until vrtrailer ships): a blue-grey moon from above, warm flickering
+    torch rims from the left and the right, a dim blue sky."""
+    for k in L.values():
+        k.data.energy = 0
+    sc = bpy.context.scene
+    nt = sc.world.node_tree
+    nt.nodes.clear()
+    b = nt.nodes.new("ShaderNodeBackground")
+    b.inputs["Color"].default_value = (0.3, 0.38, 0.62, 1)
+    b.inputs["Strength"].default_value = 0.12
+    o = nt.nodes.new("ShaderNodeOutputWorld")
+    nt.links.new(b.outputs[0], o.inputs[0])
+    moon = bpy.data.lights.new("moon", "SUN")
+    moon.energy = 5.5
+    moon.color = (0.62, 0.72, 1.0)
+    moon.angle = math.radians(2)
+    mo = bpy.data.objects.new("moon", moon)
+    sc.collection.objects.link(mo)
+    mo.rotation_euler = (Vector((0, 0, 0)) - Vector((-0.35, -0.45, 1.0))).to_track_quat("-Z", "Y").to_euler()
+    r = __import__("random").Random(9)
+    for name, loc in (("torchL", (-3.2, -0.4, 0.2)), ("torchR", (3.6, -0.2, 0.4))):
+        t = add_light(name, "POINT", loc, (0, 0, 0), 900, (1.0, 0.55, 0.25), 0.25)
+        for g in range(0, C.HEAD_FRAMES + 2):
+            t.data.energy = 900 * (0.72 + 0.28 * (0.5 + 0.5 * math.sin(g * 0.9 + r.random() * 6)) * r.uniform(0.7, 1.0))
+            t.data.keyframe_insert("energy", frame=g)
+
+
 def main():
     a = parse_args()
     t0 = __import__("time").time()
@@ -724,7 +789,13 @@ def main():
     if pas in ("stills", "test"):
         sub = build_unleashed()
 
-    if pas == "fg":
+    if pas == "head":
+        night_lights(L)
+        sc.render.motion_blur_shutter = 0.35            # a slight blur
+        build_head(pal, out)
+        lo, hi = a["frames"] or (C.NOGRUNT_LEAD, C.HEAD_FRAMES)
+        render_frames(sc, os.path.join(out, "head"), "head", lo, hi)
+    elif pas == "fg":
         lo, hi = a["frames"] or (0, C.GIB_END)
         if a.get("noaxe"):
             lo = max(lo, C.HIT)
