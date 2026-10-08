@@ -1262,7 +1262,8 @@ extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3])
 // how it moves and where it looks are kept, turned and shifted as the view through the gate shows them, so the view
 // does not jump. QuakeC's teleport_touch leaves players to it (portal_handles), including at a frame or sill;
 // what the teleport does besides moving him is
-// QuakeC's (VR_Portal_Crossed: the trigger's targets, what the hands carry). Monsters still teleport as in Quake.
+// QuakeC's (VR_Portal_Crossed: the trigger's targets, what the hands carry). Monsters too at paired gates
+// (vr_portals_monsters: VR_PortalMonsterCross), else Quake's teleport.
 
 namespace qvr::portals
 {

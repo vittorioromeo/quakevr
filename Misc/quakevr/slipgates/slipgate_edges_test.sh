@@ -164,7 +164,8 @@ fi
 
 # quake: Quake's own explosion particles (vr_particles 0) and its explosion sprite (vr_particle_test quake) behind start's
 # underwater gate, seen as in particles with the translucent gate surface: the pixels they make over the gate (a few at
-# most; 671 with the shaders' test off), and made in front of the gate instead (a control: over 100)
+# most: 0..2, once 193 in eight runs, particles flung out in front of it; 671 with the shaders' test off), and made in
+# front of the gate instead (a control: over 100)
 if want quake; then
     for at in 1650 1830; do
         for sp in 1 0; do
@@ -198,11 +199,12 @@ fi
 # monster: a dog spawned 200 units out of FA's flush player gate chases the player, put 150 units past the gate in the
 # north gallery (slipgates_test.sh chase): where it is first seen in the gallery (928 the far gate's face) and its step
 # there from its last place in FA, unfolded through the gate (less the gates' 288): one of its run's steps (32 units at
-# most); vr_portals_monsters 0 (a control): Quake's teleport, 48 out of the face, a jump of 60 to 110 units
+# most); vr_portals_monsters 0 (a control): Quake's teleport, 48 out of the face, a jump of 60 to 110 units. (Now and then
+# the dog does not see the player in 200 frames, "never through": run it again.)
 if want monster; then
     for m in 1 0; do
         S="developer 1;map vrslipgates;wait60;god;vr_portals_monsters $m;setpos -256 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn 7;vr_test_spawn_dist 200;impulse 241;wait40;setpos -256 1150 24 0 270 0;wait5;noclip 0"
-        for i in $(seq 1 120); do S="$S;wait1;echo SNAP $i;entities"; done
+        for i in $(seq 1 200); do S="$S;wait1;echo SNAP $i;entities"; done
         run -Script "$S;toggleconsole;quit"
         awk -v m="$m" '/^SNAP/{s=$2} index($0, "progs/dog.mdl:") && s && s != seen {seen=s; split($0, a, "("); split(a[2], b, ","); y=b[2]+0
              if (y > 900 && !thru) {thru = s; out = y; step = y - 288 - py} if (y <= 900) py = y}

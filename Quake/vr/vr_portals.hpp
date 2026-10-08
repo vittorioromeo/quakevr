@@ -47,7 +47,8 @@
 // portal_exit, portal_turn: the beams in two pieces). QuakeC's teleport_touch leaves players to it (portal_handles):
 // for every recognised slipgate, including while the frame or sill blocks him. Triggers without recognised faces
 // retain Quake's teleport. VR_Portal_Crossed does the rest of what
-// the teleport did (its targets, what the hands carry). Monsters teleport as in Quake.
+// the teleport did (its targets, what the hands carry). Monsters walk through paired gates so too (vr_portals_monsters:
+// VR_PortalMonsterCross), else teleport as in Quake; ragdolls are carried whole as the pelvis crosses (box3d).
 
 #pragma once
 

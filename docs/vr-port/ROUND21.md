@@ -30706,3 +30706,59 @@ every cvar and the exclusions are in `docs/vr-port/STEALTH_PLAN.md`. Combat > St
 - Found on the way: a new map's props settle with knocks in the first seconds (they woke e1m1's monsters): prop noises
   before 4 s of level time are ignored. Quake's movetogoal keeps stepping the way it faces while it can, so a walk to a
   point is re-aimed at it each second (the return walk went the wrong way for 26 s).
+## Slipgates: your head through a gate, gates within gates, monsters and ragdolls through (2026-10-08)
+
+The author's vrslipgates note 23-12-32 and the last section's "not done" list. Headless checks:
+`Misc/quakevr/slipgates/slipgate_edges_test.sh <agent> [head|recursion|quake|ragdoll|monster|all]`.
+
+- **Your head through a gate (23-12-32).** The eyes' views collapse the body's head and neck (solveTorso); seen through
+  a gate (the loop room shows your back) the body was headless. In a gate's view the body is drawn with the shadow maps'
+  skin (head and neck as modelled), not when that view is drawn from within 30 cm of the eyes (an eye half through a
+  gate looking back). `vr_slipgate_self_head` 1 (Graphics > Slipgates, Your Head In Gates). head: facing the loop's west
+  gate (2048-pixel eyes), the head makes 62..80 pixels in a box round it, 0 with the views off.
+- **Gates within gates (23-12-32).** A camera's views are drawn before it, each view's own views first, deepest first,
+  each depth into its own texture array (`stereo::renderPortals`/`renderPortal`; `portals::levels`, `path`,
+  `drawDepth`: the render hooks act on the view being drawn). A view's views are those seen from its destination's
+  leaf, beyond its exit, within its box on the screen. In a view the teleport faces are drawn (its views; the deepest
+  views' faces their shimmer). The oblique near plane stands half a unit beyond the exit: the exit gate's own faces
+  facing back (a liquid's faces are made both ways) lay in it and covered the whole view, dimming it. The server sends
+  the rooms of the gates seen from a destination too. Settings (Graphics > Slipgates): `vr_portals_recursion` 2 (gates
+  deep beyond the first; 0 as before: faces in a view left out), `vr_portals_recursion_views` 2 (gates shown in a view
+  through a gate; deeper the best one alone), `vr_portals_recursion_max` 4 (views within views an eye, the gate looked
+  at most first), `vr_portals_recursion_scale` 2 (each gate deeper drawn at half the pixels a side: `r_refdef.scale`).
+  `vr_portals_view` prints each depth's views. recursion: facing the loop's west gate 40 units out (4096-pixel eyes),
+  the green signs stacked in the middle of the left eye: 1, 2, 3 at recursion 0, 1, 2.
+- **Cost** (2048-pixel eyes, the loop gate filling the view: its view sees the far loop gate and T's north gate;
+  settings interleaved in one run, medians of four): CPU busy a frame 2.15 ms at recursion 0, 5.65 at 1, 6.56 at 2,
+  6.99 at 3 (the fourth gate deep is out of range); scale 1 at recursion 2: 7.87; one view a gate (views 1): 5.68.
+  Profiled, an eye: the first view 0.6 ms CPU, 0.6 GPU; its two views one deeper 1.3 CPU, 0.7 GPU; two more 0.6 CPU,
+  0.4 GPU. start's episode gate (no gate within it): 4.59 -> 4.98. The machine was busy (other agents' builds and
+  relights): the frame times were noisy, the interleaved medians agree.
+- **Quake's particles, sprites and see-through models behind a gate** (not done last round): with a see-through gate
+  surface (no depth written) they showed over the view. BehindShownGate (vr_glsl.h) in their fragment shaders (Quake's
+  particles, sprites; alias models with alpha under 1; the alias shaders' frame block reaches the gates under its own
+  names). Test aid: `vr_particle_test quake` (Quake's explosion particles and its explosion sprite, held two seconds),
+  Debug > Slipgates: Quake's Effects Behind A Gate. quake: behind start's underwater gate 0..2 pixels over the gate
+  (671 with the test off), in front of it 15000 (a control).
+- **Ragdolls and corpses through gates** (not done last round). A ragdoll's parts get portal copies through the gate
+  one of its parts goes into (each part over that aperture; one against the frame has none; the parts' boxes 4 units
+  in: lying on the floor they reach under a floor-level gate's bottom edge), a dead monster's own body
+  (`vr_corpse_collide`) too; `carryRagdolls`: a ragdoll whose pelvis goes in through an aperture in a step is carried
+  whole, every part by the gate's mapping (`portals::crossedGate`). ragdoll: a dead grunt blown head first into FA's
+  player and large gates: carried, pelvis at y 1100..1170 (three runs each); `vr_portals_walk 0`: against the wall
+  behind the gate. Copies for the whole ragdoll's box only (the first try) stopped it at the player gate half the runs.
+- **Monsters through paired gates** (not done last round): `vr_portals_monsters` 1 (Graphics > Slipgates, Monsters
+  Walk Through). A monster's box goes into a paired gate's aperture (VR_PortalBodyMove, as a player's) and
+  VR_PortalMonsterCross (SV_Physics_Step, after its think) carries it as its torso crosses (ideal_yaw turned too);
+  QuakeC's teleport_touch leaves it to the engine when its box goes in as it stands, a step up or already straddling;
+  else, and at unpaired gates (id maps' teleporters), Quake's teleport. monster: a dog chasing through the flush
+  player gate comes out at y 932 (the face 928), a 32-unit run step unfolded; off: 976, a 76-unit jump.
+  slipgates_test.sh chase: all through as before (out 937..966).
+- **Not done:** a non-ragdoll corpse falling (MOVETYPE_STEP, dead) is not carried (ragdolls are on by default); the
+  torch lights of rooms two gates deep are not selected (their lightmaps are); a monster's navigation stays local (it
+  goes through a gate only when its way to its goal leads into it).
+- **To try in VR:** in vrslipgates' loop (Debug > Slipgates > Into the Loop) look into the west gate: your back with
+  its head, and yourself again a gate further and once more; check the frame rate there and with Gates Within Gates
+  0..3; start's underwater gate with Opacity 0.3 and an explosion behind it (Quake's particles: Particles off); kill a
+  grunt in front of FA's large gate and shoot or throw the corpse in; let a dog chase you through the flush player gate
+  (it walks out of the far face, not a step out).
