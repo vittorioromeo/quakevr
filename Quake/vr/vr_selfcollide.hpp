@@ -42,6 +42,8 @@ struct Drawn
     const za::Vector<glm::vec4>* hand[2]{nullptr, nullptr}; // each drawn hand's spheres (world: centre, radius)
     const entity_s* weapon[2]{nullptr, nullptr};               // the weapon drawn in the hand (its model's shape)
     bool mirrored[2]{false, false};
+    const entity_s* magazine[2]{nullptr, nullptr};             // its seated magazine, solid with it (vr_reload_mag_collide)
+    bool magMirrored[2]{false, false};
 };
 
 // The view (VR_SetupViewEntities), after vr_model_collide's beginView: each hand moved by its push (`s.pos`). Once per

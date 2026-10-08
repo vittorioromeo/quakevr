@@ -591,7 +591,8 @@ void() VR_Reload_TestLooseReport =
 // lying right (from 8 units out, at 200 units/s); 22 the main hand's round placed at its load point (the right way round:
 // it goes in the next frame); 23 the lying guns' report (each one's magazine and load point); 24 a loose round for it
 // lying sideways a unit out of its opening (it stays out); 26 a loose round for it lying right, let go of 6 units above
-// its load point (dropped onto the gun: it falls in).
+// its load point (dropped onto the gun: it falls in); 27 its seated magazine solid with it (vr_reload_mag_collide): how
+// far its body (the engine's shapenearest) is from a point in its magazine, 1.8 units down from its well (0: in it).
 entity() VR_Reload_TestLyingGun =
 {
     entity best = world;
@@ -622,6 +623,13 @@ void(float xStep) VR_Reload_TestLying =
     if(!g)
     {
         bprint("reload: no gun lying about that loads by hand\n");
+        return;
+    }
+    if(xStep == 27)
+    {
+        vector inMag = g.loadportpos - g.loadportaxis * 1.8;
+        bprint(sprintf("reload: the lying %s's body %g units from a point in its magazine (mag %g)\n", g.netname,
+            vlen(shapenearest(g, inMag, inMag) - inMag), !(g.weaponflags & QVR_WPNFLAG_NOMAG)));
         return;
     }
     if(xStep == 23)
@@ -867,7 +875,7 @@ void() VR_Reload_Test =
     {
         VR_Reload_TestLooseReport();
     }
-    else if((step >= 20 && step <= 24) || step == 26)
+    else if((step >= 20 && step <= 24) || step == 26 || step == 27)
     {
         VR_Reload_TestLying(step);
     }

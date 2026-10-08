@@ -128,7 +128,8 @@ struct Box3dScratch
     za::Vector<uint8_t> carried;       // by edict: carried by a player (syncEntities)
     za::Vector<b3ContactData> pushContacts; // a pushed prop's touching contacts, all of them (limitPushes)
     za::Vector<glm::vec4> palmPatch;   // a hand's palm, points on its skin (handFit: a limb taken)
-    auto members() { return qvr::mem::list(propVerts, actorVerts, corners, carried, pushContacts, palmPatch); }
+    za::Vector<glm::vec3> magVerts;    // a gun's seated magazine's drawn vertices (magazineHull)
+    auto members() { return qvr::mem::list(propVerts, actorVerts, corners, carried, pushContacts, palmPatch, magVerts); }
 };
 mem::Scratch<Box3dScratch> scratch{"box3d"};
 
@@ -478,6 +479,7 @@ struct Slot // what one edict is in the world (by its number)
     bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
     bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
+    const qmodel_t* mag{nullptr}; // props: a gun's seated magazine its body was made with (seatedMagazine; nullptr none)
     physsound::Material sound{physsound::Material::None}; // what its knocks and scrapes sound like (vr_physsound.cpp)
     double born{0.0};     // the server's time its body was made (a prop: thrown, let go of, launched)
     int pushedStep{-100}; // props: the last step a hand's body pushed it (limitPushes: a hit, then a shove)
@@ -734,6 +736,7 @@ struct World
         unsigned generation{0};
         float scale{0.f};
         glm::vec3 muzzle{0.f}; // (Capsule) in the hand's frame
+        const qmodel_t* mag{nullptr}; // (Weapon) its seated magazine, solid with it (view::DrawnWeapon::mag)
         bool operator==(const ReachKey&) const = default;
     };
     struct HandBody
@@ -1753,6 +1756,43 @@ template <typename Corners>
     return world->gunPieces.emplace(key, ZA_MOVE(hulls)).first->second;
 }
 
+// A gun's seated magazine (vr_reload_mag_collide: solid with the gun) as one hull (metres) of its drawn `vertices`
+// (units, in the gun's entity's axes: held::magazineVertices), kept a world by its model, `code` (a held gun's -4, -5
+// mirrored; a lying one's -6) and its vertices' box (the gun's drawn transform). nullptr: none.
+[[nodiscard]] const b3HullData* magazineHull(const qmodel_t* mag, int code, const za::Vector<glm::vec3>& vertices)
+{
+    if(vertices.size() < 4)
+    {
+        return nullptr;
+    }
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    for(const glm::vec3& v : vertices)
+    {
+        lo = glm::min(lo, v);
+        hi = glm::max(hi, v);
+    }
+    const PropHullKey key{mag, code, {lo.x, lo.y, lo.z, hi.x, hi.y, hi.z}};
+    auto it = world->propHulls.find(key);
+    if(it != world->propHulls.end())
+    {
+        return it->second;
+    }
+    za::Vector<b3Vec3> points;
+    points.reserve(vertices.size());
+    for(const glm::vec3& v : vertices)
+    {
+        points.pushBack(world->toM(v));
+    }
+    b3HullData* hull = convex::hull(points.data(), static_cast<int>(points.size()), 32);
+    if(vr_debug_box3d.value && hull)
+    {
+        Con_Printf("box3d: %s seated: a hull of %d vertices, %.2f x %.2f x %.2f units\n", mag->name, hull->vertexCount,
+            hi.x - lo.x, hi.y - lo.y, hi.z - lo.z);
+    }
+    world->propHulls.emplace(key, hull);
+    return hull;
+}
+
 [[nodiscard]] bool isGun(edict_t* ent)
 {
     const char* name = PR_GetString(ent->v.classname);
@@ -1887,6 +1927,23 @@ void addChunkShape(edict_t* ent, int num, b3BodyId body)
     b3CreateSphereShape(body, &def, &sphere);
 }
 
+// The magazine seated in the gun `ent` lying about (drawn by the client: immersive reloading, its magazine in, not
+// QVR_WPNFLAG_NOMAG), solid with it (vr_reload_mag_collide): its model (view::magazineModelOf), nullptr none.
+[[nodiscard]] const qmodel_t* seatedMagazine(edict_t* ent, const qmodel_t* model)
+{
+    if(!vr_reload_mag_collide.value || vr_holster_mode.value != 0.f || static_cast<int>(vr_reload_mode.value) != 3 ||
+        !model || model->type != mod_alias || !isGun(ent))
+    {
+        return nullptr;
+    }
+    constexpr int weaponFlagNoMag = 16; // QC's QVR_WPNFLAG_NOMAG (vr_defs.qc)
+    if(static_cast<int>(fieldFloatOr(ent, fields().weaponflags, 0.f)) & weaponFlagNoMag)
+    {
+        return nullptr;
+    }
+    return view::magazineModelOf(model);
+}
+
 // The prop's shapes on `body`: its hull or its box.
 void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, const glm::vec3& hi, b3BodyId body, bool held)
 {
@@ -1944,18 +2001,55 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
             {
                 volume += piece->volume;
             }
+            // Its seated magazine, solid with it (one more piece: the gun weighs as before).
+            const b3HullData* mag = nullptr;
+            if(const qmodel_t* magModel = held ? nullptr : seatedMagazine(ent, model))
+            {
+                za::Vector<glm::vec3>& magVertices = scratch.magVerts;
+                if(held::drawnMagazineVertices(ent, magModel, magVertices))
+                {
+                    mag = magazineHull(magModel, -6, magVertices);
+                }
+            }
+            if(mag)
+            {
+                volume += mag->volume;
+            }
             b3ShapeDef pieceDef = def;
             pieceDef.density = def.density * hull->volume / za::max(volume, 1e-9f);
             for(const b3HullData* piece : *pieces)
             {
                 b3CreateHullShape(body, &pieceDef, piece);
             }
+            if(mag)
+            {
+                b3CreateHullShape(body, &pieceDef, mag);
+            }
             return;
         }
     }
     if(hull)
     {
-        b3CreateHullShape(body, &def, hull);
+        // (One hull: its seated magazine one more, as the pieces'.)
+        const b3HullData* mag = nullptr;
+        if(const qmodel_t* magModel = held ? nullptr : seatedMagazine(ent, model))
+        {
+            za::Vector<glm::vec3>& magVertices = scratch.magVerts;
+            if(held::drawnMagazineVertices(ent, magModel, magVertices))
+            {
+                mag = magazineHull(magModel, -6, magVertices);
+            }
+        }
+        b3ShapeDef hullDef = def;
+        if(mag)
+        {
+            hullDef.density = def.density * hull->volume / za::max(hull->volume + mag->volume, 1e-9f);
+        }
+        b3CreateHullShape(body, &hullDef, hull);
+        if(mag)
+        {
+            b3CreateHullShape(body, &hullDef, mag);
+        }
         return;
     }
     const b3BoxHull box = b3MakeOffsetBoxHull(half.x, half.y, half.z, world->toM((lo + hi) * 0.5f));
@@ -4539,6 +4633,10 @@ void updateShapeGeneration()
         {
             return true;
         }
+        if(s.kind == Kind::Prop && s.mag != seatedMagazine(ent, model))
+        {
+            return true; // (its magazine taken out or put in: vr_reload_mag_collide)
+        }
         // The drawn box and the Mass: made from the settings (a weapon's box: weapons::modelTransform, the world
         // scale, the gun model scale, each weapon's own), which can change while it lies there, and the entity's box
         // and solidity (a model drawn as its box).
@@ -4702,6 +4800,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.frame = static_cast<int>(ent->v.frame);
     s.scale = scaleFields(ent);
     s.brush = model && model->type == mod_brush;
+    s.mag = kind == Kind::Prop ? seatedMagazine(ent, model) : nullptr;
     s.spins = kind == Kind::Fixture && model &&
               ((model->flags & EF_ROTATE) || fieldFloatOr(ent, fields().vr_pickup_spin, 0.f) != 0.f); // (a weapon pickup drawn as its prop)
     s.massSetting = massSetting(ent, model);
@@ -5533,6 +5632,7 @@ constexpr float restUp = 0.3f;         // a prop rests on a hand where their con
         key.what = Key::Weapon;
         key.model = d.model;
         key.mirrored = d.mirrored;
+        key.mag = vr_reload_mag_collide.value ? d.mag : nullptr;
         key.generation = shapeGeneration;
         inHand = d.inHand;
         return key;
@@ -5687,24 +5787,33 @@ void makeReach(
         {
             pieces = &mirroredPieces(pieceKey, *pieces);
         }
+        // Its seated magazine (vr_reload_mag_collide): a hull of its own, with the gun's.
+        const b3HullData* mag = nullptr;
+        if(key.mag)
+        {
+            za::Vector<glm::vec3>& magVertices = scratch.magVerts;
+            if(held::magazineVertices(key.model, key.mag, key.mirrored, magVertices))
+            {
+                mag = magazineHull(key.mag, key.mirrored ? -5 : -4, magVertices);
+            }
+        }
+        za::Vector<b3Vec3> all;
+        if(mag)
+        {
+            b3CreateHullShape(hb.reach, &shape, mag);
+            all.emplaceBackRange(b3GetHullPoints(mag), static_cast<size_t>(mag->vertexCount));
+        }
         if(!pieces->empty())
         {
-            za::Vector<b3Vec3> all;
             for(const b3HullData* piece : *pieces)
             {
                 b3CreateHullShape(hb.reach, &shape, piece);
                 all.emplaceBackRange(b3GetHullPoints(piece), static_cast<size_t>(piece->vertexCount));
             }
-            // (Swept as one: the pieces' hull, sweepReach.)
-            if(b3HullData* outline = b3CreateHull(all.data(), static_cast<int>(all.size()), 64))
-            {
-                hb.outline.emplaceBackRange(b3GetHullPoints(outline), static_cast<size_t>(outline->vertexCount));
-                b3DestroyHull(outline);
-            }
             if(vr_debug_box3d.value)
             {
-                Con_Printf("box3d: %s hand's weapon %s: %d convex pieces\n", h ? "main" : "off", key.model->name,
-                    static_cast<int>(pieces->size()));
+                Con_Printf("box3d: %s hand's weapon %s: %d convex pieces%s\n", h ? "main" : "off", key.model->name,
+                    static_cast<int>(pieces->size()), mag ? " and its magazine" : "");
             }
         }
         else if(held::modelVertices(key.model, key.mirrored, vertices) && vertices.size() >= 4)
@@ -5718,12 +5827,25 @@ void makeReach(
             if(b3HullData* hull = fittedHull(points, 32))
             {
                 b3CreateHullShape(hb.reach, &shape, hull); // (the world keeps its own copy)
+                if(mag)
+                {
+                    all.emplaceBackRange(b3GetHullPoints(hull), static_cast<size_t>(hull->vertexCount));
+                }
                 if(vr_debug_box3d.value)
                 {
-                    Con_Printf("box3d: %s hand's weapon %s: a hull of %d vertices\n", h ? "main" : "off", key.model->name,
-                        hull->vertexCount);
+                    Con_Printf("box3d: %s hand's weapon %s: a hull of %d vertices%s\n", h ? "main" : "off", key.model->name,
+                        hull->vertexCount, mag ? " and its magazine" : "");
                 }
                 b3DestroyHull(hull);
+            }
+        }
+        // (Swept as one: the pieces' and the magazine's hull, sweepReach.)
+        if(!pieces->empty() || mag)
+        {
+            if(b3HullData* outline = b3CreateHull(all.data(), static_cast<int>(all.size()), 64))
+            {
+                hb.outline.emplaceBackRange(b3GetHullPoints(outline), static_cast<size_t>(outline->vertexCount));
+                b3DestroyHull(outline);
             }
         }
         break;

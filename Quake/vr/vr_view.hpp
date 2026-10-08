@@ -185,12 +185,18 @@ struct WeaponHotspot
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,
 // up) -- rigid; the model's vertices go in it as the view draws them (mirrored, then weapons::ModelTransform). For the
 // held weapons' bodies in Box3D (vr_box3d.cpp: they push props). `when`: vr_gametime it was drawn; model nullptr: none.
+// `mag`: the magazine drawn in it (immersive reloading, its magazine in; made in the gun's model space, vertices placed as
+// the gun's: held::magazineVertices), nullptr none; `magBox` its box (hands::State::magBox's middle and half-axes) in the
+// hand's frame, as `inHand` is. Installed magazines are solid (vr_reload_mag_collide): the gun's body in Box3D, the
+// other hand and a prop in it (vr_view.cpp pushAgainst, vr_held.cpp meetFrame), the other weapon (vr_selfcollide.cpp).
 struct DrawnWeapon
 {
     const qmodel_t* model{nullptr};
     bool mirrored{false};
     glm::mat4 inHand{1.f};
     double when{-1.0};
+    const qmodel_t* mag{nullptr};
+    glm::vec3 magBox[4]{};
 };
 [[nodiscard]] const DrawnWeapon& drawnWeapon(int hand);
 
@@ -198,6 +204,9 @@ struct DrawnWeapon
 // tracked place (hands::State::pos) along its tracked turn's forward, right and up (units): the gadget's side button
 // (vr_gearlights.cpp). False without the jointed hand drawn in the last two frames.
 [[nodiscard]] bool drawnIndexTip(int hand, glm::vec3& local);
+// The magazine model attached to the magazine gun `gun` (vr_mag_on_<gun>.mdl, made in its model space), nullptr for
+// another gun (the server's guns lying about: their bodies in Box3D).
+[[nodiscard]] qmodel_t* magazineModelOf(const qmodel_t* gun);
 
 // The weapon in `hand` drawn pressed back by the other, free hand pushed into it (vr_hand_collide: each drawn moved back
 // by half how deep they meet, as a prop in that hand and the weapon do), last frame's: the model collision moves the

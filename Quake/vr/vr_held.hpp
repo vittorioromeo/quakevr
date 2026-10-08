@@ -122,6 +122,15 @@ void forgetDrawnCentres();
 // The same pose's triangles, three corners each (a held gun's convex pieces: vr_convex.hpp). False as modelVertices.
 [[nodiscard]] bool modelTriangles(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& out);
 
+// The vertices of the magazine model `mag` (made in the magazine gun `gun`'s model space: view::magazineModelOf) seated
+// in it, as the view draws it on a held `gun` (vr_view.cpp setMagazine: placed by the gun's ModelTransform), in the gun's
+// entity's axes; `mirrored` (the off hand's): y negated. False without Quake vertices. Its seated magazine solid with
+// the gun (vr_reload_mag_collide: the gun's body in Box3D).
+[[nodiscard]] bool magazineVertices(const qmodel_t* gun, const qmodel_t* mag, bool mirrored, za::Vector<glm::vec3>& out);
+
+// Server side: the same on the gun `gun` lying about (its networked scale and offset, as drawnVertices).
+[[nodiscard]] bool drawnMagazineVertices(edict_t* gun, const qmodel_t* mag, za::Vector<glm::vec3>& out);
+
 // Grab reach from the fist (ROUND21.md, "Grab reach from the fist; two-handed detach; brushing fingers"): a hand takes
 // hold of a box, backpack, gib, head or armour only if its fist touches the thing's drawn surface: the empty hand
 // closed into a fist (the jointed hand's palm and curled fingers, as the grasp's spheres). Before, the hand's point (the

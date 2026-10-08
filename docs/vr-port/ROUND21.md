@@ -32468,3 +32468,38 @@ recorder, menus, desktop window, `vr_foveated`, `vr_comfort_vignette_strength` 0
 Tests: the kit's baseline config (34) and his config with these at their old defaults (105/38) both come out at the
 new values after a map loads (config 107, weapons 39), a value of his own (`vr_swim_stroke` 15) kept;
 weapon_catch_test.sh 6/6; swim_sound_test.sh 10/10; reload_test.sh 100/100 (its jolt check sets Lift Hold 0.2).
+
+## Seated magazines are solid (2026-10-09)
+
+The author's note vrfiringrange_2026-10-08_22-25-59: a prop held in the other hand, and the empty other hand, passed
+through a magazine seated in a gun. A seated magazine (the nailguns', the thunderbolt's cell; drawn as its own model,
+vr_mag_on_<gun>.mdl, in the gun's model space) is now solid with its gun in every system the gun is
+(**vr_reload_mag_collide** 1; Weapons > Reloading, All Guns: "Solid Magazines"; 0 as before):
+- **Box3D** (the props it pushes, both held and lying): its own hull (its model's vertices through the gun's drawn
+  transform: held::magazineVertices / drawnMagazineVertices; 32 vertices at most), one more shape on the held gun's reach
+  body (ReachKey::mag: the body made again when it comes out or goes in; the swept swing sweeps it too) and on a lying
+  gun's prop body (Slot::mag: made again when a magazine is pulled or seated; the gun weighs as before). Kept a world
+  (propHulls, by model and box). Not for a carried gun or the map's spinning pickups (fixtures).
+- **The empty other hand** (vr_hand_collide, vr_view.cpp pushAgainst): the magazine's triangles as a part of the gun: each
+  of the hand's points held out of whichever it is in (or nearer); vr_debug_hand_collide prints "mag real / drawn".
+- **A prop in the other hand** (vr_held.cpp meetFrame): the magazine's box (view::DrawnWeapon::magBox, as drawn in the
+  hand) besides the gun's; the deeper wins. The round leniency (Collision Leniency) is for the gun's box only (the well
+  is taken). vr_debug_carry prints "(a weapon's magazine)". Most of the nailguns' magazines lay inside the gun's own box
+  already; what sticks out of it (below the nailgun's) was passed through.
+- **The other weapon** (vr_selfcollide.cpp): the magazine's capsules fitted as the weapon's, with the weapon's.
+- Unchanged: the grip on it (an empty hand on it is not free: not pushed), the pull and B/Y, the knock-out (the server's
+  tracked hands), contact loading (an empty well has no magazine).
+- Not done: a held gun pushed into a monster or a thing lying about (vr_modelcollide.cpp) tests the gun's own vertices,
+  not its magazine.
+
+Tests: `magcollide_test.sh` (new, 11 checks, each against the setting off): the palm 1 unit into the nailgun's magazine's
+side is drawn 0.65 units off it, pushed back 3.2 (off: in it, not pushed); a held grenade 0.5 of the magazine's length
+under it meets it (off: nothing); the held nailgun's body "12 convex pieces and its magazine"; the nailgun, super
+nailgun and thunderbolt lying: a point in the magazine 0 units from the body (off 1.69, 1.80, 1.76); the hand gripping
+each magazine holds it, drawn 0.002 units off its tracked place. Debug > Tests > Reloading "The Lying Gun's Magazine Is
+Solid" (vr_reload_test 27); vr_mock_hand_to magpalm / magheld. Box3D step, six guns in a heap swept by the held nailgun
+(exclusive): 0.050 ms a frame (worst 0.49) against 0.048 (0.32) off. contact_test 22/22, gunshape_test 22/22,
+reload_test 100/100.
+**For VR:** the empty hand and a held prop against a seated magazine (all three guns), the two guns crossed at the
+magazine, a nailgun lying on the floor (it may now lie on its magazine or tip over it), the magazine still gripped,
+pulled out, knocked out and loaded.

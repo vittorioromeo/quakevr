@@ -2631,6 +2631,7 @@ QVR_CVAR(vr_reload_pull_snap, "225", CVAR_ARCHIVE)     // its wrist turning agai
 QVR_CVAR(vr_reload_pull_apart, "10", CVAR_ARCHIVE)     // units further apart than as it took hold (any one of the three; a gentle pull only holds it)
 QVR_CVAR(vr_reload_hit_reach, "2", CVAR_ARCHIVE)       // units from a seated magazine (its box, anywhere on it) a hit counts within (the fist, a held prop, the other gun's line)
 QVR_CVAR(vr_reload_pull_reach, "2", CVAR_ARCHIVE)      // units off the attached magazine's box within which a gripping hand holds it (0: on it)
+QVR_CVAR(vr_reload_mag_collide, "1", CVAR_ARCHIVE)     // a seated magazine is solid as the gun is: props and the other hand, empty or holding something, are kept off it, as is the other gun (0: they pass through it)
 QVR_CVAR(vr_reload_battery_sparks, "14", CVAR_ARCHIVE)  // sparks a thunderbolt cell throws as it is seated or taken out (0: none)
 QVR_CVAR(vr_reload_battery_smoke_time, "7", CVAR_ARCHIVE) // seconds a spent thunderbolt cell (and a spent lava nails magazine) smokes, taken out empty (held or lying about; 0: never)
 QVR_CVAR(vr_reload_battery_smoke_alpha, "0.45", CVAR_ARCHIVE) // each wisp's opacity as it leaves the cell (0..1)

@@ -1114,6 +1114,10 @@ void resetHandMoves()
         slider("Collision Leniency", "vr_reload_collide_leniency", 0.f, 60.f, 1.f, "%.0f cm").extend(0.f, 200.f)
             .help("A shell or magazine in your hand is drawn kept off the gun in the other hand (Held Things Collide): it "
                   "may go this far into the gun's box first, to reach the port under the shotgun or a magazine well."),
+        toggle("Solid Magazines", "vr_reload_mag_collide")
+            .help("A magazine seated in a gun is solid as the gun is: the other hand stops at it, empty or holding "
+                  "something, the other gun meets it, and it pushes things about (a gun lying about too). Grabbing it "
+                  "still holds it and pulls it out. Off: they pass through it."),
         toggle("Load Loose Rounds", "vr_reload_contact")
             .help("A shell or magazine lying about, dropped or thrown goes into the gun it touches at its load point, lying "
                   "the right way: drop shells into the shotgun's port or the open super shotgun's barrels, a magazine "

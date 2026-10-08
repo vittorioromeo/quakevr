@@ -465,7 +465,9 @@ void mockLook_f()
 // [<units>]": what the hand holds (a shell's middle, a magazine's top: view::heldRoundRef) at the loading port of the gun the
 // other hand holds, `units` below it; "lportmid": its middle there (a magazine's too: the top-of-the-magazine tests).
 // "vr_mock_hand_to <main|off> mag <along> [<out>]": on the attached magazine of the other hand's gun, `along` its length
-// (1 its feed end, 0 its middle, -1 its far end), `out` units off its side (vr_reload.qc: grips and hits on its box).
+// (1 its feed end, 0 its middle, -1 its far end), `out` units off its side (vr_reload.qc: grips and hits on its box);
+// "magpalm": the palm's middle there instead of the hand's point, "magheld" the middle of what it holds (the solid
+// magazine's tests: vr_reload_mag_collide).
 // "vr_mock_hand_to <main|off> wbutton <front|side|back|degrees> [<units>] [<azimuth>]": its fingertip `units` (2) off the
 // other gun's ammo button, in front of its face, beside it or behind it, or `degrees` off its face (0 front, 180 behind)
 // turned `azimuth` degrees round it (vr_weapon_button_cone).
@@ -635,7 +637,9 @@ void mockHandTo_f()
     const bool ammoPouch = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "ammopouch");
     const bool loadPortMid = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "lportmid");
     const bool loadPort = ((Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "lport")) || loadPortMid;
-    if(Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "mag") && hand >= 0)
+    const bool magPalm = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "magpalm");
+    const bool magHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "magheld");
+    if(Cmd_Argc() >= 4 && (!q_strcasecmp(Cmd_Argv(2), "mag") || magPalm || magHeld) && hand >= 0)
     {
         // On the attached magazine of the other hand's gun (its box: hands::State::magBox): `along` its length (1 its feed
         // end, in the well; 0 its middle; -1 its far end), `out` units off its side (0 on it; negative: into it).
@@ -652,7 +656,13 @@ void mockHandTo_f()
         const glm::vec3 across = side > 1e-4f ? box[2] / side : glm::vec3{0.f, 0.f, 1.f};
         Con_Printf("vr_mock_hand_to: the magazine's box %.2f by %.2f by %.2f units (length, across, through)\n",
             2.f * glm::length(box[1]), 2.f * side, 2.f * glm::length(box[3]));
-        moveHandTo(hand, box[0] + box[1] * static_cast<float>(Q_atof(Cmd_Argv(3))) + across * (side + out));
+        // ("magpalm": the palm's middle there, not the hand's point: hands::palmPoint; "magheld": the drawn middle of what
+        // it holds. The solid magazine's tests.)
+        const int heldNum = magHeld ? held::heldEntity(hand) : 0;
+        const glm::vec3 palm = magPalm   ? hands::palmPoint(st, hand) - st.pos[hand]
+                               : heldNum ? held::drawnCentre(heldNum) - st.pos[hand]
+                                         : glm::vec3{0.f};
+        moveHandTo(hand, box[0] + box[1] * static_cast<float>(Q_atof(Cmd_Argv(3))) + across * (side + out) - palm);
         return;
     }
     if(Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "wbutton") && hand >= 0)

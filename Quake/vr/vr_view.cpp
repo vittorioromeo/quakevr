@@ -810,6 +810,12 @@ qmodel_t* view::viewModel(const char* name)
     return m;
 }
 
+qmodel_t* view::magazineModelOf(const qmodel_t* gun)
+{
+    const MagMount* mount = magMountFor(gun);
+    return mount ? viewModel(mount->model) : nullptr;
+}
+
 void view::prepareModels()
 {
     if(!vr_enabled.value) // (in VR, even before its session runs: the first map loads as it starts)
@@ -1307,6 +1313,7 @@ void recordDrawnWeapon(const hands::State& s, int hand)
         d.mirrored = ve.mirrored;
         d.inHand = glm::inverse(handPose) * entity;
         d.when = vr_gametime;
+        d.mag = nullptr; // (magazineBox: its magazine, if one is in)
     }
 }
 
@@ -1641,6 +1648,20 @@ void magazineBox(hands::State& s, int hand, const view::ViewEntity& ve, qmodel_t
         box[i + 1] = view::modelPoint(ve, shape.centre + shape.axis[i] * shape.half[i]) - box[0];
     }
     s.magBoxValid[hand] = true;
+    // For its collision (view::DrawnWeapon::mag): the magazine and its box in the hand's frame, as the gun drawn this frame.
+    view::DrawnWeapon& d = drawnWeapons[hand];
+    if(d.model == ve.ent.model && d.when == vr_gametime && vr_reload_mag_collide.value)
+    {
+        glm::mat4 handPose{held::axesFromAngles(&s.rot[hand][0], true)};
+        handPose[3] = glm::vec4{s.pos[hand], 1.f};
+        const glm::mat4 toHand = glm::inverse(handPose);
+        d.mag = viewModel(mount->model);
+        d.magBox[0] = glm::vec3{toHand * glm::vec4{box[0], 1.f}};
+        for(int i = 1; i < 4; i++)
+        {
+            d.magBox[i] = glm::mat3{toHand} * box[i];
+        }
+    }
     if(vr_reload_show_ports.value)
     {
         // Its box (blue): where a hand holds it (with Pull Reach round it) and a hit knocks it out.
@@ -2664,9 +2685,11 @@ constexpr float brushReach = 24.f;
 // off its nearest point. The winding is the model's own (grasp::signedDistance: Quake's models are wound inwards; read
 // as outwards, the hand was pushed while still outside and out through the far side). The thing's part: weaponPressed
 // (its hand, and a prop with it, moved by the model collision next frame); the hand is tested against the thing where it
-// would be without it. A buzz in both hands as they meet. The fingers rest on it (setupRigHand).
+// would be without it. A buzz in both hands as they meet. The fingers rest on it (setupRigHand). `part`: a part drawn
+// on it as its own model, solid with it (a weapon's seated magazine: vr_reload_mag_collide), moving with it: each point
+// held out of whichever of the two it is in (or nearer), its plane kept in the thing's frame all the same.
 void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool againstMirrored, float most,
-    glm::vec3& pos, const glm::vec3& handRot, bool mirrored, float dt)
+    glm::vec3& pos, const glm::vec3& handRot, bool mirrored, float dt, const entity_t* part = nullptr, bool partMirrored = false)
 {
     const float u = 0.01f * units::metresToUnits();
     const float margin = za::clamp(vr_hand_collide_props_margin.value, 0.f, 10.f) * u;
@@ -2691,6 +2714,10 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
         toWorld = grasp::shapeToWorld(against, againstMirrored);
         toWorld = glm::translate(glm::mat4{1.f}, -weaponPressed[1 - hand]) * toWorld; // where it is without the press
         const glm::mat4 toShape = glm::inverse(toWorld);
+        const grasp::Shape* partShape = part ? grasp::shapeOf(*part, part->frame) : nullptr;
+        const glm::mat4 partToWorld =
+            partShape ? glm::translate(glm::mat4{1.f}, -weaponPressed[1 - hand]) * grasp::shapeToWorld(*part, partMirrored)
+                      : glm::mat4{1.f};
         const glm::mat3 normalToWorld = glm::transpose(glm::inverse(glm::mat3{toWorld}));
         const glm::mat3 normalToShape = glm::transpose(glm::mat3{toWorld});
         const glm::mat4 rig = rigPlacement(hand, pos, handRot, mirrored, nullptr);
@@ -2720,26 +2747,55 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
         {
             float d;
             glm::vec3 at, n;
-            if(!tested[i] || !grasp::signedDistance(*shape, toWorld, points[i], reach, d, at, n))
-            {
-                continue;
-            }
+            bool in = false;
             // In it: it went in by a face from where it was drawn last frame (held out, so outside); else (no way in
             // found: the first frame near it, passing through, or the way in missed between two triangles) by the
             // nearest face's side.
-            bool in = d < 0.f;
-            if(rh.propDrawnValid[i])
-            {
-                const glm::vec3 from{toWorld * glm::vec4{rh.propDrawn[i], 1.f}};
-                glm::vec3 hit, hn;
-                bool entering = false;
-                if(glm::distance(from, points[i]) > 1e-4f && grasp::rayHit(*shape, toWorld, from, points[i], hit, hn, entering) &&
-                    entering)
+            const auto probe = [&](const grasp::Shape& sh, const glm::mat4& shToWorld, float& pd, glm::vec3& pat,
+                                   glm::vec3& pn, bool& pin) {
+                if(!grasp::signedDistance(sh, shToWorld, points[i], reach, pd, pat, pn))
                 {
-                    in = true;
-                    at = hit;
-                    n = hn;
+                    return false;
                 }
+                pin = pd < 0.f;
+                if(rh.propDrawnValid[i])
+                {
+                    const glm::vec3 from{toWorld * glm::vec4{rh.propDrawn[i], 1.f}};
+                    glm::vec3 hit, hn;
+                    bool entering = false;
+                    if(glm::distance(from, points[i]) > 1e-4f && grasp::rayHit(sh, shToWorld, from, points[i], hit, hn, entering) &&
+                        entering)
+                    {
+                        pin = true;
+                        pat = hit;
+                        pn = hn;
+                    }
+                }
+                return true;
+            };
+            if(!tested[i])
+            {
+                continue;
+            }
+            bool found = probe(*shape, toWorld, d, at, n, in);
+            if(partShape)
+            {
+                // The part: taken where the point is in it and not in the thing, or nearer it (deeper in it).
+                float pd;
+                glm::vec3 pat, pn;
+                bool pin = false;
+                if(probe(*partShape, partToWorld, pd, pat, pn, pin) && (!found || (pin && !in) || (pin == in && pd < d)))
+                {
+                    found = true;
+                    d = pd;
+                    at = pat;
+                    n = pn;
+                    in = pin;
+                }
+            }
+            if(!found)
+            {
+                continue;
             }
             if(in && rh.propPlaneValid[i])
             {
@@ -2847,7 +2903,12 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
     {
         // The real hand's and the drawn hand's nearest point to the surface (cm, negative in it): where it touched, and
         // how far the drawn hand is in (its palm and knuckles: the fingertips bend out of it, setupRigHand).
-        float real = 1e9f, drawn = 1e9f;
+        // (And its part's, the seated magazine's: "mag".)
+        const grasp::Shape* partShape = part ? grasp::shapeOf(*part, part->frame) : nullptr;
+        const glm::mat4 partToWorld = partShape ? glm::translate(glm::mat4{1.f}, -weaponPressed[1 - hand]) *
+                                                      grasp::shapeToWorld(*part, partMirrored)
+                                                : glm::mat4{1.f};
+        float real = 1e9f, drawn = 1e9f, partReal = 1e9f, partDrawn = 1e9f;
         for(int i = 0; i <= handrig::FingerCount; i++)
         {
             float d;
@@ -2861,12 +2922,22 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
             {
                 drawn = za::fmin(drawn, d);
             }
+            if(partShape && tested[i] && grasp::signedDistance(*partShape, partToWorld, points[i], 4.f * most + margin, d, at, n))
+            {
+                partReal = za::fmin(partReal, d);
+            }
+            if(partShape && tested[i] &&
+                grasp::signedDistance(*partShape, partToWorld, points[i] + apart, 4.f * most + margin, d, at, n))
+            {
+                partDrawn = za::fmin(partDrawn, d);
+            }
         }
-        if(real < 1e8f || glm::length(rh.pushed) > 0.01f)
+        if(real < 1e8f || partReal < 1e8f || glm::length(rh.pushed) > 0.01f)
         {
-            Con_Printf("handcollide: hand %d real %.2f drawn %.2f depth %.2f target %.2f pushed %.2f weapon %.2f%s\n", hand,
+            Con_Printf("handcollide: hand %d real %.2f drawn %.2f depth %.2f target %.2f pushed %.2f weapon %.2f%s%s\n", hand,
                 real / u, drawn / u, deepest / u, glm::length(target) / u, glm::length(rh.pushed) / u,
-                glm::length(weaponPressed[1 - hand]) / u, held::heldAlone(1 - hand) ? " (prop)" : "");
+                glm::length(weaponPressed[1 - hand]) / u, held::heldAlone(1 - hand) ? " (prop)" : "",
+                partShape ? va(" mag real %.2f drawn %.2f", partReal / u, partDrawn / u) : "");
         }
     }
     pos += rh.pushed;
@@ -2891,8 +2962,11 @@ void pushOut(int hand, bool free, glm::vec3& pos, const glm::vec3& handRot, bool
     const int slot = weapons::slotForModel(other.ent.model);
     if(other.visible && slot >= 0 && slot != weapons::fistSlot())
     {
+        // (Its seated magazine solid with it: vr_reload_mag_collide.)
+        const view::ViewEntity& mag = entities.mag[1 - hand];
+        const bool magSolid = vr_reload_mag_collide.value && mag.visible && mag.ent.model;
         pushAgainst(rh, hand, free, other.ent, other.mirrored, za::fmax(vr_hand_collide.value, 0.f) * u, pos, handRot,
-            mirrored, dt);
+            mirrored, dt, magSolid ? &mag.ent : nullptr, mag.mirrored);
         return;
     }
     if(const int prop = held::heldAlone(1 - hand))
@@ -7508,6 +7582,12 @@ static selfcollide::Drawn selfCollideDrawn(const hands::State& s)
         {
             d.weapon[hand] = &we.ent;
             d.mirrored[hand] = we.mirrored;
+            const view::ViewEntity& mag = entities.mag[hand]; // (its seated magazine: vr_reload_mag_collide)
+            if(vr_reload_mag_collide.value && mag.visible && mag.ent.model)
+            {
+                d.magazine[hand] = &mag.ent;
+                d.magMirrored[hand] = mag.mirrored;
+            }
         }
     }
     return d;

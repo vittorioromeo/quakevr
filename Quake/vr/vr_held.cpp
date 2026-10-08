@@ -409,6 +409,66 @@ bool modelTriangles(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>&
     return out.size() >= 3;
 }
 
+namespace
+{
+
+// A seated magazine's vertices (its first pose, in its model space: the gun's) through the gun's drawn transform `xf`.
+bool magazinePoints(const DrawnTransform& xf, const qmodel_t* mag, bool mirrored, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    if(!mag || mag->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(mag)));
+    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || hdr->numframes <= 0 || hdr->numverts <= 0)
+    {
+        return false;
+    }
+    const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes) +
+                        hdr->frames[0].firstpose * hdr->numverts;
+    const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    out.reserve(static_cast<size_t>(hdr->numverts));
+    for(int i = 0; i < hdr->numverts; i++)
+    {
+        glm::vec3 p = xf.modelPoint(so + hs * glm::vec3{verts[i].v[0], verts[i].v[1], verts[i].v[2]});
+        if(mirrored)
+        {
+            p.y = -p.y;
+        }
+        out.pushBack(p);
+    }
+    return true;
+}
+
+} // namespace
+
+bool magazineVertices(const qmodel_t* gun, const qmodel_t* mag, bool mirrored, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    if(!gun || gun->type != mod_alias)
+    {
+        return false;
+    }
+    return magazinePoints(DrawnTransform{gun, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}}, mag, mirrored, out);
+}
+
+bool drawnMagazineVertices(edict_t* gun, const qmodel_t* mag, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    const int index = static_cast<int>(gun->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const DrawnTransform xf{model, fieldVec(gun, f.model_scale), fieldVec(gun, f.model_scale_origin), fieldVec(gun, f.model_offset)};
+    return magazinePoints(xf, mag, false, out);
+}
+
 glm::vec3 drawnModelPoint(edict_t* ent, const glm::vec3& p)
 {
     using namespace progs;
@@ -1191,6 +1251,7 @@ struct Meet
     double last{-1.0};                                  // cl.time of the last frame
     bool touching{false};
     bool weapon{false};                                 // a prop against the other hand's weapon (not two props)
+    bool magazine{false};                               // against its seated magazine (deeper in it than in the gun)
     glm::vec3 wall[2]{glm::vec3{0.f}, glm::vec3{0.f}};  // each hand's prop held out of the walls, drawn now (units)
     bool wallTouching[2]{false, false};
     glm::vec3 viewPush[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and out of the monsters (the view's: viewPush)
@@ -1387,6 +1448,28 @@ void reset()
     return true;
 }
 
+// The seated magazine of the weapon drawn in hand `h` (vr_reload_mag_collide: solid with the gun), its box in the world
+// as weaponBox places the gun's: as drawn last frame in the hand (view::DrawnWeapon::magBox), placed from this frame's
+// hand `s`. False: none.
+[[nodiscard]] bool magazineBox(const hands::State& s, int h, Box& out)
+{
+    const view::DrawnWeapon& d = view::drawnWeapon(h);
+    if(!d.mag || !d.model || d.when < 0.0 || vr_gametime - d.when > 0.5 || !s.valid || !vr_reload_mag_collide.value)
+    {
+        return false;
+    }
+    const glm::mat3 rot = held::axesFromAngles(&s.rot[h][0], true);
+    out.centre = s.pos[h] + rot * d.magBox[0];
+    for(int i = 0; i < 3; i++)
+    {
+        const glm::vec3 axis = rot * d.magBox[i + 1];
+        const float len = glm::length(axis);
+        out.axes[i] = len > 1e-6f ? axis / len : glm::vec3{0.f};
+        out.half[i] = len;
+    }
+    return true;
+}
+
 // The drawn box of the prop `hd` holds, where the hand has it now.
 [[nodiscard]] bool propBox(const Held& hd, Box& out)
 {
@@ -1531,11 +1614,17 @@ void meetFrame(const hands::State& s)
     const bool propB = b.drawn && b.ent != both.ent;
     Box boxA{}, boxB{};
     bool haveA = false, haveB = false;
+    // The weapon's seated magazine (vr_reload_mag_collide), solid with it: the prop kept off whichever it is deeper in.
+    Box magA{}, magB{};
+    bool haveMagA = false, haveMagB = false;
     meet.weapon = !propA || !propB;
+    meet.magazine = false;
     if(vr_held_collide.value && (propA || propB) && a.ent != b.ent)
     {
         haveA = propA ? propBox(a, boxA) : !a.ent && weaponBox(s, 0, boxA);
         haveB = propB ? propBox(b, boxB) : !b.ent && weaponBox(s, 1, boxB);
+        haveMagA = haveA && !propA && magazineBox(s, 0, magA);
+        haveMagB = haveB && !propB && magazineBox(s, 1, magB);
     }
     if(haveA && haveB)
     {
@@ -1554,6 +1643,18 @@ void meetFrame(const hands::State& s)
         if(meet.weapon && (isRound(a) || isRound(b)))
         {
             depth = za::max(0.f, depth - za::max(vr_reload_collide_leniency.value, 0.f) * units::metresToUnits() / 100.f);
+        }
+        // Its seated magazine's own box (none of the leniency: its well is taken), where it is deeper.
+        if(haveMagA || haveMagB)
+        {
+            glm::vec3 magN{0.f};
+            const float magDepth = haveMagA ? overlap(magA, boxB, magN) : overlap(boxA, magB, magN);
+            meet.magazine = magDepth > depth;
+            if(meet.magazine)
+            {
+                depth = magDepth;
+                n = magN;
+            }
         }
         if(depth > 0.f)
         {
@@ -1602,7 +1703,7 @@ void meetFrame(const hands::State& s)
     if(vr_debug_carry.value && touching)
     {
         Con_Printf("held: %d and %d%s meet %.1f cm deep (%.1f cm apart); drawn moved apart by %.1f and %.1f cm\n", a.ent,
-            b.ent, meet.weapon ? " (a weapon)" : "", depth / units::metresToUnits() * 100.f,
+            b.ent, meet.magazine ? " (a weapon's magazine)" : meet.weapon ? " (a weapon)" : "", depth / units::metresToUnits() * 100.f,
             glm::distance(boxA.centre, boxB.centre) / units::metresToUnits() * 100.f, glm::length(meet.offset[0]) / units::metresToUnits() * 100.f,
             glm::length(meet.offset[1]) / units::metresToUnits() * 100.f);
     }

@@ -1298,23 +1298,33 @@ void endView(hands::State& s, const Drawn& d)
             rec.weapon[h].clear();
             rec.weaponModel[h] = nullptr;
             const entity_t* e = d.weapon[h];
-            if(e && e->model && atController)
-            {
-                const glm::mat4 m = grasp::shapeToWorld(*e, d.mirrored[h]);
+            // The weapon's capsules, then its seated magazine's (drawn as its own model, solid with it), in the hand's frame.
+            const auto addCaps = [&](const entity_t& part, bool partMirrored) {
+                const glm::mat4 m = grasp::shapeToWorld(part, partMirrored);
                 const glm::vec3 axes{glm::length(glm::vec3{m[0]}), glm::length(glm::vec3{m[1]}), glm::length(glm::vec3{m[2]})};
-                if(const Caps* caps = axes.x > 1e-6f && axes.y > 1e-6f && axes.z > 1e-6f ? weaponCaps(*e, axes) : nullptr)
+                const Caps* caps = axes.x > 1e-6f && axes.y > 1e-6f && axes.z > 1e-6f ? weaponCaps(part, axes) : nullptr;
+                if(!caps)
                 {
-                    const Frame wf = handFrame(s.pos[h], s.visualRot[h]);
-                    for(const Cap& k : *caps)
-                    {
-                        Cap w;
-                        w.a = wf.local(glm::vec3{m * glm::vec4{k.a / axes, 1.f}});
-                        w.b = wf.local(glm::vec3{m * glm::vec4{k.b / axes, 1.f}});
-                        w.r = k.r;
-                        w.back = (w.a.x + w.b.x) * 0.5f < -backMargin;
-                        rec.weapon[h].pushBack(w);
-                    }
-                    rec.weaponModel[h] = e->model;
+                    return false;
+                }
+                const Frame wf = handFrame(s.pos[h], s.visualRot[h]);
+                for(const Cap& k : *caps)
+                {
+                    Cap w;
+                    w.a = wf.local(glm::vec3{m * glm::vec4{k.a / axes, 1.f}});
+                    w.b = wf.local(glm::vec3{m * glm::vec4{k.b / axes, 1.f}});
+                    w.r = k.r;
+                    w.back = (w.a.x + w.b.x) * 0.5f < -backMargin;
+                    rec.weapon[h].pushBack(w);
+                }
+                return true;
+            };
+            if(e && e->model && atController && addCaps(*e, d.mirrored[h]))
+            {
+                rec.weaponModel[h] = e->model;
+                if(d.magazine[h] && d.magazine[h]->model)
+                {
+                    addCaps(*d.magazine[h], d.magMirrored[h]);
                 }
             }
         }

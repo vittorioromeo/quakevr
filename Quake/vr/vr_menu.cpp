@@ -5991,6 +5991,9 @@ za::Vector<Item> pageDebugTests()
                   "gun's load point: it goes in."),
         command("Report the Lying Guns", "vr_reload_test 23; impulse 125")
             .help("Each gun lying about: its magazine, whether its magazine is in, whether it is open, its load point."),
+        command("The Lying Gun's Magazine Is Solid", "vr_reload_test 27; impulse 125")
+            .help("The nearest gun lying about with a magazine in: how far its body is from a point inside its magazine "
+                  "(0: the magazine is part of it, Solid Magazines; off, the gun's own body further off)."),
         command("The Held Prop's Shape Against Its Box", "vr_reload_test 25; impulse 125")
             .help("The main hand's prop: how far its shape (as held) and its box are from the off hand's gun's magazine "
                   "and the front of its barrels. The magazine's bump and the super shotgun's hits count by its shape."),
