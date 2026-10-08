@@ -6,7 +6,8 @@
 # showed start's pentagram floor missing, its func_bossgate not sent; ROUND21.md, "A frame seen through after a
 # slipgate"). Prints, per case, each frame's share of pixels changed from the last and its transient score (the share
 # of pixels unlike both neighbours where the neighbours agree), the worst one, and writes the 4 frames round the
-# crossing side by side to <worktree>/scratch/tpframes_<case>_<rate>.png.
+# crossing side by side to <worktree>/scratch/tpframes_<case>_<rate>.png, and each frame's mean luminance (a step of
+# lighting at the crossing: the room through the gate against the room itself).
 #   start    start's middle skill gate (Normal), jumped into; the pentagram's floor (a func_bossgate) beyond it
 #   e1m1     e1m1's slipgate trigger_teleport (t6), jumped into
 #   flush    vrslipgates' flush player gate, walked into
@@ -44,6 +45,8 @@ for i in range(1, len(im) - 1):
     trans[i] = (changed(im[i - 1], im[i]) & changed(im[i], im[i + 1]) & ~changed(im[i - 1], im[i + 1])).mean() * 100
 print('  frames', len(im), ' changed %:', ' '.join('%.1f' % s for s in step))
 print('  transient %:', ' '.join('%.1f' % t for t in trans))
+lum = [(a[..., 0] * 0.299 + a[..., 1] * 0.587 + a[..., 2] * 0.114).mean() for a in im]
+print('  mean luminance:', ' '.join('%.1f' % l for l in lum))
 w = int(np.argmax(trans))
 print('  worst transient %.2f%% at frame %d' % (trans[w], w))
 k = int(np.argmax(step))  # the crossing: the largest step (or the worst transient's)

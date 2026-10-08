@@ -11,6 +11,7 @@
 #include "vr_gfx.hpp"
 #include "vr_stereo.hpp"
 #include "vr_jobs.hpp"
+#include "vr_units.hpp"
 
 #include "Zancle/Algorithm/Count.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
@@ -1794,6 +1795,8 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     r_framedata.teleportlook[0] = vr_slipgates.value > 0.f ? za::clamp(
         vr_slipgate_surface_size.value, 1.f, 2.f) : 1.f;
     r_framedata.teleportlook[1] = VR_TeleportOpacity();
+    // the shimmer over a gate's view fading out over the eye's last units to its plane (LiquidShade; 0: never)
+    r_framedata.teleportlook[2] = za::clamp(vr_slipgate_surface_fade.value, 0.f, 4.f) * units::metresToUnits();
     int viewport[4];
     R_SceneViewport(viewport);
     r_framedata.portaluv[2] = static_cast<float>(r_refdef.vrect.width) / za::max(viewport[2], 1);

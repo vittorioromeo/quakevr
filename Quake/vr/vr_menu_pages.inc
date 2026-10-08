@@ -1605,6 +1605,7 @@ void retroAllUncheckCategories()
         header("Portal Stars"),
         slider("Size", "vr_slipgate_surface_size", 1.f, 2.f, 0.02f, "%.2fx").help("Enlarges the single star layer on the entrance plane. No extra star quads are drawn inside the destination view. The collision opening keeps its size."),
         slider("Opacity", "vr_slipgate_surface_opacity", 0.f, 1.f, 0.05f, "%.2f").help("How much entrance shimmer covers the destination view. 0: a clear view; 1: the original shimmer."),
+        slider("Fade Up Close", "vr_slipgate_surface_fade", 0.f, 1.f, 0.05f, "%.2f m").help("The shimmer over the destination view fades out as your eyes come this close to the gate, and is gone as you cross, so the room does not brighten in a step as you arrive. 0: it stays to the end."),
     };
 }
 

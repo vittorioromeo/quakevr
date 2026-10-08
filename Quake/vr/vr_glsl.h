@@ -998,8 +998,9 @@ LIQUID_SWELL \
 "\n"\
 "// A slipgate showing where it leads (vr_portals; PortalPlane, PortalMin, PortalMax: vr_portals.cpp's side shown in this\n"\
 "// view): on that side's faces, seen from in front, the view through it (PortalScene: drawn for this eye, its pixels\n"\
-"// these), wavering a little as the slipgate's texture does; a its share (0: not this side, or none).\n"\
-"vec4 LiquidPortal(vec3 pos, vec3 facing)\n"\
+"// these), wavering a little as the slipgate's texture does; a its share (0: not this side, or none). eye: the eye's\n"\
+"// distance in front of its plane.\n"\
+"vec4 LiquidPortal(vec3 pos, vec3 facing, out float eye)\n"\
 "{\n"\
 "    for (int i = 0; i < 8; ++i)\n"\
 "    {\n"\
@@ -1008,8 +1009,10 @@ LIQUID_SWELL \
 "        vec2 size = vec2(textureSize(PortalScene, 0).xy);\n"\
 "        vec2 waver = vec2(sin(Time * 1.9 + dot(pos, vec3(0.071, 0.053, 0.089))), cos(Time * 1.6 + dot(pos, vec3(0.047, 0.083, 0.061))));\n"\
 "        vec2 uv = (gl_FragCoord.xy * PortalUV.zw + PortalUV.xy) / size + waver * 0.0012;\n"\
+"        eye = dot(EyePos, PortalPlane[i].xyz) - PortalPlane[i].w;\n"\
 "        return vec4(texture(PortalScene, vec3(uv, float(i))).rgb, PortalMin[i].w);\n"\
 "    }\n"\
+"    eye = 0.;\n"\
 "    return vec4(0.);\n"\
 "}\n"\
 "\n"\
@@ -1031,11 +1034,13 @@ LIQUID_SWELL \
 "	if (kind == 3u)\n"\
 "	{\n"\
 "		vec3 shimmer = lit * (1.0 + 0.2 * sin(Time * 3.0 + h * 8.0) * min(Water.x, 1.0));\n"\
-"		vec4 through = LiquidPortal(pos, facing); // QVR: where it leads (vr_portals), a little of its shimmer over it\n"\
+"		float eye;\n"\
+"		vec4 through = LiquidPortal(pos, facing, eye); // QVR: where it leads (vr_portals), a little of its shimmer over it\n"\
 "		if (through.a > 0.)\n"\
 "		{\n"\
 "			alpha = 1.0;\n"\
-"			return mix(shimmer, through.rgb, through.a * (1.0 - 0.12 * TeleportLook.y));\n"\
+"			float nearFade = TeleportLook.z > 0. ? clamp(eye / TeleportLook.z, 0.0, 1.0) : 1.0; // QVR: gone at the crossing\n"\
+"			return mix(shimmer, through.rgb, through.a * (1.0 - 0.12 * TeleportLook.y * nearFade));\n"\
 "		}\n"\
 "		alpha *= TeleportLook.y;\n"\
 "		return shimmer;\n"\

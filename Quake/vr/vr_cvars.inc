@@ -1587,6 +1587,7 @@ QVR_CVAR(vr_portals_recursion_scale, "2", CVAR_ARCHIVE) // ... each gate deeper 
 QVR_CVAR(vr_slipgate_self_head, "1", CVAR_ARCHIVE) // your body seen through a slipgate has its head (the eyes' own views never draw it): 0 headless there too
 QVR_CVAR(vr_slipgate_surface_size, "1.12", CVAR_ARCHIVE) // entrance shimmer's visual size; collision aperture is unchanged
 QVR_CVAR(vr_slipgate_surface_opacity, "1", CVAR_ARCHIVE) // entrance shimmer's share over the portal view
+QVR_CVAR(vr_slipgate_surface_fade, "0.3", CVAR_ARCHIVE) // ... fading out over the eye's last metres to the gate's plane (gone at the crossing: no step of light), 0 never
 QVR_CVAR(vr_water_reflections, "1", CVAR_ARCHIVE)     // water and slime reflect the room round them (a cube map of the world made at the surface near you, vr_envmap.cpp): strength, 0 a plain sheen
 QVR_CVAR(vr_water_refraction, "1", CVAR_ARCHIVE)      // what is under translucent water bent by the waves (needs r_oit 1; with anti-aliasing the scene is resolved for it first): strength
 QVR_CVAR(vr_water_glints, "1", CVAR_ARCHIVE)          // light glinting off the waves: strength
