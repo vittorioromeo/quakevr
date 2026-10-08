@@ -43,6 +43,23 @@ public sealed partial record ReleaseVersion(string Text, Version? Number, string
             s.Success ? s.Groups["commit"].Value : null);
     }
 
+    /// <summary>Two pre-release suffixes as semantic versioning orders them: dot-separated parts, numbers by value
+    /// (beta.9 &lt; beta.10), the rest as text (beta &lt; rc), fewer parts first.</summary>
+    static int CompareSuffix(string x, string y)
+    {
+        var a = x.Split('.');
+        var b = y.Split('.');
+        for (var i = 0; i < Math.Min(a.Length, b.Length); ++i)
+        {
+            var c = int.TryParse(a[i], out var na) && int.TryParse(b[i], out var nb) ? na.CompareTo(nb) : string.CompareOrdinal(a[i], b[i]);
+            if (c != 0)
+            {
+                return c;
+            }
+        }
+        return a.Length.CompareTo(b.Length);
+    }
+
     /// <summary>The number and suffix alone ("0.9.1", "0.9.1-dev"), or the whole text when it has none.</summary>
     public string Short => Number is null ? Text : Suffix is null ? Number.ToString() : $"{Number}-{Suffix}";
 
@@ -67,7 +84,7 @@ public sealed partial record ReleaseVersion(string Text, Version? Number, string
                     (null, null) => 0,
                     (null, _) => -1,
                     (_, null) => 1,
-                    _ => string.CompareOrdinal(b.Suffix, a.Suffix),
+                    _ => CompareSuffix(b.Suffix!, a.Suffix!),
                 };
             }
         }

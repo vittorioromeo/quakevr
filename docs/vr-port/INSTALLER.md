@@ -201,11 +201,70 @@ Quake files", survives store updates, and the engine already supports it. Two ca
   `notes\`, `profile\`, `relit\`, `bodycal\`, `motions\` (except shipped ones), `eyeshots\`, `checklist_ticks.txt`,
   `retro_overrides.txt`, `cache\`, `qvr_addons\` (everything the package's allowlist does not name; `quakevr\.gitignore` lists them).
 - Settings migrate by themselves on the first start (`configVersion`, [section 6](#6-out-of-the-box-settings)).
-- After an update the relight is re-run: it only relights maps whose stamp changed (fast).
+- After an update the relight is re-run only when its inputs changed (below); the game's batch then relights only the
+  maps whose stamp changed (fast).
 - Update check: the build now names itself (`VR_BuildVersion`: commit date and short hash); a small `latest.json`
   on both hosts (GitHub releases and vittorioromeo.com) names the newest. Offer, never auto-install.
 - Adopting a zip install (layout A): offer to move `quakevr\ironwail.cfg`, saves, notes, `relit\` and Map Library
   data to `<QVR>`; never delete the old ones (say what can be removed).
+
+### Update mode (done 2026-10-08)
+
+Setup started again finds the install and opens on the **Update screen** instead of the first-install wizard.
+
+- **Finding the install** (`InstallDetection`, `qvr-setup detect`): a folder with an `install.json` that reads, looked
+  for in this order: the folder given (`--target`, a sandbox, Browse), the install this Setup runs from (its copy in
+  `<QVR>\setup`), the Apps & Features entry's `InstallLocation`, the default folder (`%LOCALAPPDATA%\Programs\QuakeVR`).
+  The first found is picked; the others are listed on the screen. An entry whose folder has no install any more (moved
+  or deleted by hand) is said and passed over; **Use another install…** browses to a moved one (its next update rewrites
+  the entry).
+- **Versions** (`ReleaseVersion`): manifest.json's `1.0.1 (2026-10-20 abcdef12)`; ordered by MAJOR.MINOR.PATCH, then
+  the pre-release suffix (`1.0.1-dev` < `1.0.1`, `1.0.0-rc.1` < `1.0.0`), then the build's date. Newer (or another build of the same version and
+  day) -> **Update**; the same or older -> **Repair**. The old stamp-only versions (`2026-10-06 c131f4bf`) come before
+  every numbered one.
+- **The screen:** "Quake VR: Unleashed 1.0.0 is installed", "Update to 1.0.1: only the program files that changed are
+  replaced", and the footer's one primary button, **Update** (or **Repair**). It needs the package: the release list
+  read, or a local one; without either it says so with **Pick a package…** and **Try again**. It goes straight to the
+  Install page (the Statement was answered at install; the Quake folder, shortcuts and relight choice are install.json's).
+  An install whose Quake folder is gone goes through the wizard instead (Your PC asks for it), still as an update.
+- **Update** (`MaintenancePlanner`, `InstallEngine` with `InstallMode.Update`): every program file is hashed; only those
+  that differ from the package are staged and checked (added, replaced, restored); the rest are not touched (not even
+  rewritten). Files the previous version shipped and this one does not are removed when unchanged, kept when the player
+  changed them. A shipped file the player changed, or the player's own file where this version ships one, is copied into
+  a backup first (`<QVR>ackups\<yyyy-MM-dd HHmmss> update\`, with `backup.json`: path, size, SHA-256; checked). The
+  player's files (everything install.json does not list: configs, saves, screenshots, voice notes, Map Library maps,
+  relit maps, checklist ticks, caches) are never opened. The Apps & Features entry gets the new version.
+  - **HD textures:** install.json now records the pack (`hdTexturesFile`, `hdTexturesSha256`). The same SHA-256 as the
+    target's (the release list's `hdtextures`, else the built-in pin): skipped, not downloaded. Another pack: downloaded
+    and installed (the old pack's files it does not have are removed). Installed by an older Setup (no recorded hash):
+    kept. Not installed: an update never adds them (Install again does).
+  - **First-start relight:** asked for again only when its inputs changed (`MaintenancePlanner.IsRelightInput`:
+    `quakevr	ools\ericw-tools\*`, `quakevr	oolsispatch\*`, `quakevrelight_textures.cfg`, a new HD pack, VisPatch
+    newly added) and the player chose the relight at install; a relight still pending stays. The game's batch skips maps
+    relit with the same settings anyway (vr_relight.cpp `relitAlready`).
+  - Shortcuts: made again as chosen at install (a deleted one comes back); the console keeps them unless `--shortcuts-dir`.
+- **Repair** (same version): the same plan; missing or changed program files restored (a changed one backed up first);
+  no relight asked (a pending one stays). With the HD textures, their files are checked too and the pack is downloaded
+  again when one is missing or changed. **An older package never downgrades:** only files identical in both versions are
+  restored; the rest stay as installed, and the damaged ones it cannot restore are named (they need the installed
+  version's package); install.json and the entry keep the installed version.
+- **Install again from scratch** (secondary, on the same screen): two choices, **Reset settings** (unrecorded `*.cfg`
+  such as `ironwail.cfg` and `autoexec.cfg`, `retro_overrides.txt`, `bodycal\`) and **Remove saves and installed maps**
+  (`*.sav`, `autosave\`, `qvr_addons\`, `cache\maps_installed.txt`; the zip cache stays). Whatever is ticked is moved
+  (never deleted) into `<QVR>ackups\<date> reinstall\`, each file hashed before and after (a mismatch stops before
+  anything is installed); then the whole wizard (Statement, Your PC, Options) and a full install, every program file
+  copied again. Screenshots, voice notes, relit maps, checklist ticks and caches are never part of it. Setup never deletes
+  a backup; the uninstall leaves `backups\` with the player's files.
+- **Console:** `qvr-setup update [--target|--sandbox] [--package|--feed] [--dry-run]` (the plan: each file's action, the
+  backups, the HD textures and relight decisions, the entry's version; from a feed the file plan needs the package, unless
+  it is in `--downloads` already), `qvr-setup reinstall --reset-settings --remove-saves [--dry-run]` (the files moved,
+  then install's flow and `--accept-statement`), `qvr-setup detect` prints the install found.
+- **Tested** (self-test, 36 cases): a fresh machine finds nothing (the normal flow); an older install's plan lists only
+  program files and the player's 13 files hash the same before and after (an unchanged file not even rewritten, the
+  changed shipped file and the player's file at a new shipped path in a checked backup); same version -> repair restores
+  a deleted and a changed file; an older package keeps the newer engine; each reinstall choice -> its files in a dated
+  backup with matching hashes, the others untouched, the emptied map folders gone; HD pack unchanged -> kept, not
+  rewritten; another pack -> installed and the relight asked again; a new light.exe -> relight asked again.
 
 ### Uninstall, integrity, offline, disk
 
@@ -380,7 +439,7 @@ installed, verified and uninstalled; the default run's `latest.json` and `gh` co
 | 1. Minimal installer | **done (2026-10-06, `Installer/`, section 13):** C# WPF wizard, per-user, layout B: Steam/GOG/Epic/manual detection with a status page (expansions by the engine's rules, OpenXR runtime, Virtual Desktop, SteamVR, VC++ runtime, music, an older zip install), payload copy checked against `manifest.json`, `install.json`, shortcuts (VR, flat, log, folder), update in place, uninstall keeping player data, downloads from `latest.json` with mirrors, resume and pinned hashes (tested on a local server only). **Left:** installing the VC++ runtime (only a link now), an Apps & Features entry and a Setup copy in the install folder (maintenance mode is "run the installer again"), a published single-file exe | replaces "unzip into the Quake folder" |
 | 2. Optional components | HQ textures (owned packs only, ticked: **done** from a local zip, the feed's `hdtextures`, or without one the installer's built-in pinned pack), bundled `light.exe` (**done**: in the package) + VisPatch (download), the in-game relight (**done**: the game's first start, however started, runs `vr_relight_batch everything` from the installer's marker), offline file pickers (package: done; textures: command line only), pinned hashes | |
 | 3. Defaults | promote the author's approved values (Appendix A) with a `defaultChanges` entry; first-run graphics preset and runtime suggestion in the game | needs his answers |
-| 4. Updates and repair | version check against `latest.json` at start, update in place keeping player files (**done**), adopt zip installs, verify (**done**: `qvr-setup verify`)/repair (re-run with the same package) | |
+| 4. Updates and repair | version check against `latest.json` at start, update in place keeping player files (**done**), adopt zip installs, verify (**done**: `qvr-setup verify`)/repair (**done**: the Update screen, [section 5](#update-mode-done-2026-10-08)) | |
 | 5. Integrations | Steam non-Steam shortcut (explained on the last page, with the launch options to copy: **done**), SteamVR manifest, bug-report collector, Xbox app detection | each optional |
 
 ## 11. Decisions (Vittorio, 2026-10-06)
@@ -429,7 +488,7 @@ Found by the research; the ones marked **fixed** were fixed on branch `agent/rel
 | VR and system | `SystemChecks.cs` | `HKLM\SOFTWARE\Khronos\OpenXR\1` `ActiveRuntime` and `AvailableRuntimes` (classified by file name: VDXR, SteamVR, Quest Link, WMR); Virtual Desktop (the Streamer's folder or its runtime); SteamVR (app 250820 or its runtime); VDXR suggested when Virtual Desktop is installed and not active (decision 10); the VC++ runtime (`...\VC\Runtimes\x64` >= 14.44, and `msvcp140.dll`, `vcruntime140.dll`, `vcruntime140_1.dll` in System32 present and >= 14.44: a key left by a broken uninstall does not count) |
 | Package | `PackageSource`, `PackageManifest` | A folder or zip (one top folder allowed) from `package-quakevr.ps1`, with its `manifest.json` (schema 1: version, path/size/SHA-256 per file). Paths are refused unless plainly relative inside the install folder |
 | Install | `InstallEngine` | Layout B (decision 2): refuses a folder inside (or around) the Quake folder, in Program Files, or not empty without an `install.json`; checks the free space; stages every file as `*.qvrnew` beside its destination while hashing it (a mismatch stops the install, naming the file), then moves them all into place: a failed or cancelled install changes nothing. HD textures (decision 4): `id1\textures` always, `hipnotic`/`rogue` only for owned packs, never over a file of the player's. Writes `install.json` (version, Quake dir, choices, every installed file with its hash and component, folders made, shortcuts, relight pending) |
-| Update | the same | Over an existing install: the new payload replaces the old; files the old version shipped and the new one does not are removed when unchanged (kept and reported when the player changed them); stale shortcuts removed; textures kept unless reinstalled; everything not in the record is the player's and is never touched |
+| Update | the same, `MaintenancePlanner` | The Update screen and `qvr-setup update` ([section 5, Update mode](#update-mode-done-2026-10-08)): only the program files that differ are copied, HD textures and the relight skipped when unchanged, Repair for the same or an older package, Install again from scratch with a backup. Over an existing install: the new payload replaces the old; files the old version shipped and the new one does not are removed when unchanged (kept and reported when the player changed them); stale shortcuts removed; textures kept unless reinstalled; everything not in the record is the player's and is never touched |
 | Uninstall | `Uninstaller` | Removes the recorded files that are unchanged, the recorded shortcuts whose target is inside the install, then the folders it made once empty; HD textures only when asked; reports the player's files left. `Verify` lists missing or changed files |
 | Shortcuts | `Shortcuts/` | `IShellLinkW` through COM. Named after the product, **Quake VR: Unleashed** (as a file name `Quake VR Unleashed`: Windows refuses `:`). Desktop: Quake VR Unleashed; Start menu `Quake VR Unleashed\`: Quake VR Unleashed, (flat screen) `+vr_enabled 0`, (log for bug reports) `-condebug`, Quake VR Unleashed files (the `quakevr` folder). An update removes the old names' shortcuts (recorded in `install.json`) and the emptied older `Quake VR` Start menu folder. All: `ironwail.exe -basedir "<Quake>" -basedir "<QVR>" -game quakevr`, started in `<QVR>`, paths without a trailing backslash |
 | Downloads | `Downloader`, `ReleaseFeed` | `latest.json` (schema 1: version, `package` and `components.hdtextures`, each with file, size, SHA-256 and mirror URLs) read from the first host that answers (GitHub's `releases/latest/download/latest.json`, then `vittorioromeo.com/quakevr/latest.json`: the final addresses; the first release and the site's file make them answer: "Publishing a release"); each file from its mirrors in order, resumed with HTTP Range, checked for size and SHA-256 before it gets its name, a mirror serving another file skipped. `GitHubReleases` reads the releases API (assets' `digest: sha256:...`) for a later fallback. The HD textures: the feed's `hdtextures` when it names them, else `BuiltInComponents.HdTextures` (pinned file, size, SHA-256, the two GitHub URLs; `InstallerSettings.Component`; installer-settings.json's `builtInComponents` replaces it for tests), checked the same way; the window warns only in offline mode, `qvr-setup install --hd [--no-feed] --dry-run` prints which one and from where. Tested only against local servers |
@@ -459,7 +518,7 @@ Next phases:
    Setup" Start menu shortcut to that copy (maintenance mode = the Welcome page's Update / Remove); publish `latest.json` with each release on both hosts.
 2. **Prerequisites:** done (VC++ runtime install, above).
 3. **Optional components:** sizes from the feed before downloading.
-4. **Updates:** check `latest.json` at start and on the Welcome page; adopt an older zip install (move its config, saves,
+4. **Updates:** the Update screen is done ([section 5](#update-mode-done-2026-10-08)); left: adopt an older zip install (move its config, saves,
    notes and `relit\` with the player's consent, never deleting the old ones).
 5. **Later:** the in-game first-run graphics preset; a "collect a bug report" button; SteamVR `.vrmanifest`; Xbox app
    detection; a code-signing certificate if SmartScreen becomes a problem.

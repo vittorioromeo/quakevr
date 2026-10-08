@@ -170,6 +170,40 @@ shows `vMAJOR.MINOR` while PATCH is 0 ("v0.9", "v1.0") and the whole version oth
 The first Ironwail-based release is **0.9.0** (2026-10-07): the old Quake VR's tags reached v0.8.2, and Unleashed
 continues from it below 1.0 until it is called finished.
 
+## What an update replaces
+
+Setup started over an install opens on the Update screen (`qvr-setup update` from the console; INSTALLER.md, section 5,
+"Update mode"): a newer release **updates** (1.0.0 to 1.0.1), the same or an older one **repairs** (never a downgrade).
+
+- **Program files are exactly `manifest.json`'s files** (plus the HD textures, the VisPatch data and Setup's copy, which
+  install.json records by component). An update hashes each one in the install and copies only those that differ from
+  the new package; files the old release shipped and the new one does not are removed when unchanged. Everything else
+  in the install folder is the player's and is never opened: configs, saves, screenshots, voice notes, Map Library maps,
+  relit maps, checklist ticks, caches.
+- **Marking a file as a program file** means shipping it: `Windows\package-quakevr.ps1`'s allowlist (git-tracked files
+  under `quakevr\`, less `$devOnly`, plus `$generated`; the engine's exe, DLLs, pak and pdb; `$toolFiles`; ericw-tools'
+  files) writes it into `manifest.json`. So:
+  - **never ship a file the game writes** (the paths in `quakevr\.gitignore`: `ironwail.cfg`, `*.sav`, `checklist_ticks.txt`,
+    `retro_overrides.txt`, `bodycal\`, `relit_custom\`, `cache\`...): it would become a program file, replaced by every
+    update. Settings the release changes go in the shipped defaults (`vr_defaults.cfg`, `quakevr.cfg`), which the player
+    is not meant to edit;
+  - a shipped file the player edited anyway, or the player's own file at a path a new release starts shipping, is copied
+    into `<QVR>\backups\<date> update\` (listed with its SHA-256 in `backup.json`) before it is replaced;
+  - a file dropped from the allowlist is removed from installs at their next update (kept when the player changed it).
+- **The relight's inputs** (`MaintenancePlanner.IsRelightInput`): `quakevr\tools\ericw-tools\*`,
+  `quakevr\tools\vispatch\*` and `quakevr\relight_textures.cfg`. A release that changes one of them (or a new HD pack)
+  makes the update ask the game for the first-start relight again (players who chose it at install); otherwise none. If a
+  release changes the relight in the engine itself (light's options, the settings hashed in `.relight` notes), the game's
+  batch notices per map when the player relights; add a file to the list above only if the installer must force it.
+- **HD textures:** install.json records the pack's SHA-256; an update downloads the pack only when the target's
+  (`latest.json`'s `hdtextures`, else the built-in pin) differs. Bumping the pinned pack (above, "Support files") is what
+  makes updates fetch it.
+- **Versions:** the order is MAJOR.MINOR.PATCH, then the prerelease (`1.0.0-rc.1` < `1.0.0`; `beta.9` < `beta.10`), then
+  the build's date: `manifest.json`'s version text must keep the `x.y.z (<date> <hash>)` form the script writes.
+- **Check before publishing:** install the previous release into a sandbox, then
+  `qvr-setup update --sandbox <dir> --package out\release\<v>\package\QuakeVR --no-feed --dry-run` lists every program
+  file the update adds, replaces or removes, what it backs up, and whether it asks for the relight.
+
 ## Safety
 
 - `-Local` builds a test release into `out\release\<version>-local` whose `latest.json` names 127.0.0.1: it never

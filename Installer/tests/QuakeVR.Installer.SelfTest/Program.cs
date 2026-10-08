@@ -1253,6 +1253,8 @@ var tests = new List<(string Name, Action Body)>
         Eq(VersionOrder.Other, ReleaseVersion.Compare("0.9.1-dev (2026-10-09 aaaaaaa1)", "0.9.1-dev (2026-10-09 bbbbbbb2)"), "another build of the same day");
         Eq(VersionOrder.Newer, ReleaseVersion.Compare("2026-10-06 c131f4bf", "0.9.0 (2026-10-01 aaaaaaa1)"), "numbered after the old stamps");
         Eq(VersionOrder.Newer, ReleaseVersion.Compare("2026-10-06 c131f4bf", "2026-10-07 d131f4bf"), "old stamps by date");
+        Eq(VersionOrder.Newer, ReleaseVersion.Compare("1.0.0-beta.9", "1.0.0-beta.10"), "pre-release parts by number");
+        Eq(VersionOrder.Newer, ReleaseVersion.Compare("1.0.0-beta.2", "1.0.0-rc.1"), "beta before rc");
         Eq("0.9.1-dev", ReleaseVersion.Parse("0.9.1-dev (2026-10-09 bbbbbbb2)").Short, "short form");
         Eq(InstallMode.Update, MaintenancePlanner.ModeFor("0.9.0", "0.9.1"), "newer: update");
         Eq(InstallMode.Update, MaintenancePlanner.ModeFor("0.9.1-dev (2026-10-09 aaaaaaa1)", "0.9.1-dev (2026-10-09 bbbbbbb2)"), "another build: update");
