@@ -31607,3 +31607,32 @@ the walk; no QuakeC changed (it stays the policy).
 - Left (PERF_DECISIONS.md, 12): the force grab's `findportalcone` (0.13 ms on secret2), `findradius`, the engine's
   traces and steps, and `VR_Prop_Flung`'s unprinted `dprint(sprintf())` (0.034 ms: a behaviour question).
 - Debug > Profiling and Memory: Edict Index, Verify Edict Index, Edict Index Stats.
+
+## Crouching: a smaller box (2026-10-08)
+
+Your note (vrslipgates_2026-10-08_14-46-51): crouching in real life should let you walk through a small teleporter
+and any low opening; the box stayed standing. Now crouched (your eyes under 36 units over your feet; half crouches 44
+and 52 too), your box is that tall against the map, bodies and shots, and you keep it until there is room to stand.
+Monsters' bullets aim lower at you crouched. The details: HULLS.md, "Crouching".
+
+- Engine: `Quake/vr/vr_hull.cpp` (the crouched heights, `updateCrouch`, `moveBox`/`entBox`/`touchBox`/`hitBox`/
+  `playerBoxFits`, the trees compiled at load, `vr_crouch_status`), `vr_server.cpp` (each move; `.vrbits0` bit 23),
+  `vr_cvars.inc` (`vr_crouch_hull` 1, `vr_crouch_height` 36, `vr_crouch_step` 8, `vr_crouch_test`), `vr_menu.cpp`
+  (Movement > Player Hitbox > Crouching; Debug > Tests > Crouch Shots, Crouch Status).
+- QuakeC: `vr_defs.qc` (`QVR_VRBITS0_CROUCHED`), `vr_crates.qc` (`VR_Crate_ShotAim`: no higher than 60% of
+  `vr_crouch_height`), `vr_crouch_test.qc` (`vr_crouch_test <n>`).
+- Map: vrslipgates' crouching room east of the hub (`make_vrslipgates_map.py`): a 40-high tunnel and a 48-high gap
+  through a wall, cover 32 and 48 high with a monster panel beyond, and a 48x48 teleporter pair (east wall <-> south
+  wall, either side of the tunnel). 0 holes.
+- Numbers (`crouch_test.sh`, mock headset 1.7 m standing, 1.3 m half, 1.0 m crouched): the tunnel stops you standing at
+  its mouth (x 552) and lets you through crouched (x 1014); with `vr_crouch_hull 0` crouched stops too. The 48 gap:
+  standing stops, half crouched (box 44) through. Standing up inside the tunnel keeps the 36 box (standfits 0), standing
+  once walked out. The small teleporter: standing stops at 1144, crouched carried (out of the south wall's). Halfway in,
+  standing up gives the 44 box. A grunt beyond the 32-high cover, 12 bullets: crouched behind it 0 damage (aim 21.6
+  units over your feet), standing 48 (aim 35.7), crouched in the open 36. A crouched 20 s random walk on e1m1: stuck 0,
+  embedded 0. Load: three more compiled trees (e2m2 25-31 ms each on the pool, 428 KB each).
+- To try in VR: the crouching room (signs from the hub's east door): crouch into the tunnel, stand up inside (you stay
+  low until out), the gap with half a crouch, the small teleporters, a grunt from the panel while you crouch behind the
+  low wall. Whether 36 for the lowest box (eyes about 1.1 m for a 1.7 m eye height) and the steps feel right.
+- Found on the way (not the crouch's): a player put straddling a teleporter's plane by `setpos` falls through it
+  uncarried when he walks on, standing too (vrslipgates' flush player gate).

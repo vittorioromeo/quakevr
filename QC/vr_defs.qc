@@ -323,6 +323,7 @@ float QVR_VRBITS0_OFFHAND_SECONDARY        = VRUTIL_POWER_OF_TWO(19); // set by 
 float QVR_VRBITS0_MAINHAND_SECONDARY       = VRUTIL_POWER_OF_TWO(20);
 float QVR_VRBITS0_OFFHAND_PRIMARY          = VRUTIL_POWER_OF_TWO(21); // set by the engine: the hand's A/X held (in the game): the grapple unreels (in the air)
 float QVR_VRBITS0_MAINHAND_PRIMARY         = VRUTIL_POWER_OF_TWO(22);
+float QVR_VRBITS0_CROUCHED                 = VRUTIL_POWER_OF_TWO(23); // set by the engine: the player has a crouched box (vr_crouch_hull: vr_hull.cpp)
 
 //
 //

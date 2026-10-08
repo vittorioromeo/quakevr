@@ -578,10 +578,12 @@ void(vector xA, vector xB) VR_Crate_MonsterShot =
 
 // A monster's bullets at a player in VR (EnemyFireBullets, vr_hull_hit_head): aimed no higher than 70% of his real
 // height (his head's), as Quake's aim at his box's middle is for a player standing: crouched, the shots come lower
-// (into the crate he crouches behind), not all over his head.
+// (into the crate he crouches behind), not all over his head. With a crouched box (vr_crouch_hull: the engine's
+// QVR_VRBITS0_CROUCHED), no higher than 60% of the lowest crouched box (vr_crouch_height) either.
 vector(vector xSrc, vector xDir, entity xEnemy) VR_Crate_ShotAim =
 {
-    if(!cvar_hget(cvarh_vr_hull_hit_head) || xEnemy.classname != "player" || xEnemy.headpos == '0 0 0')
+    float crouched = VRHasBit(xEnemy.vrbits0, QVR_VRBITS0_CROUCHED);
+    if((!cvar_hget(cvarh_vr_hull_hit_head) && !crouched) || xEnemy.classname != "player" || xEnemy.headpos == '0 0 0')
     {
         return xDir;
     }
@@ -595,7 +597,15 @@ vector(vector xSrc, vector xDir, entity xEnemy) VR_Crate_ShotAim =
     {
         return xDir;
     }
-    float most = xEnemy.absmin_z + 0.7 * (xEnemy.headpos_z + VR_SHOT_OVER_HEAD - xEnemy.absmin_z);
+    float most = xEnemy.absmax_z;
+    if(cvar_hget(cvarh_vr_hull_hit_head))
+    {
+        most = xEnemy.absmin_z + 0.7 * (xEnemy.headpos_z + VR_SHOT_OVER_HEAD - xEnemy.absmin_z);
+    }
+    if(crouched)
+    {
+        most = min(most, xEnemy.absmin_z + 0.6 * cvar_hget(cvarh_vr_crouch_height));
+    }
     float passes = xSrc_z + xDir_z * far / along; // the height it passes him at
     if(passes <= most)
     {

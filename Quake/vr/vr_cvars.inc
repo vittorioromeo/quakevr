@@ -17,7 +17,10 @@ QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players
 QVR_CVAR(vr_hull_boxes, "1", CVAR_ARCHIVE)             // ... between the player and other solid boxes (explosive boxes, solid items)
 QVR_CVAR(vr_hull_hit_width, "24", CVAR_ARCHIVE)        // the player's width that shots, missiles and splash traces hit (not bodies moving: vr_hull_ent_width) (8-32; 0: Quake's 32)
 QVR_CVAR(vr_hull_hit_head, "1", CVAR_ARCHIVE)          // ... and their box reaches only to the top of his head (the headset's, 5 units over it): crouched behind cover, shots over it miss; monsters' bullets aim no higher than 70% of it; 0: Quake's height, standing or not
-QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                  // Movement > Monster Hitbox: monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
+QVR_CVAR(vr_crouch_hull, "1", CVAR_ARCHIVE)            // Movement > Player Hitbox > Crouching: crouched (your eyes under vr_crouch_height over your feet) your box is that tall: under low ceilings and through small teleporters, behind cover from shots; kept until there's room to stand (vr_hull.cpp; HULLS.md "Crouching"); 0: always standing
+QVR_CVAR(vr_crouch_height, "36", CVAR_ARCHIVE)         // ... the lowest crouched box's height in units (24 to Quake's 56 less 4): your eyes under it, that box
+QVR_CVAR(vr_crouch_step, "8", CVAR_ARCHIVE)            // ... then a box every this many units taller up to 52 (36, 44, 52: your eyes under one, that one; over all, standing); 0: that one crouched height alone
+QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                // Movement > Monster Hitbox: monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
 QVR_CVAR(vr_mhull_ledges, "1", CVAR_ARCHIVE)            // ... and SV_CheckBottom's ledge test takes the narrow box's corners (0: Quake's box's)
 QVR_CVAR(vr_mhull_army, "-1", CVAR_ARCHIVE)            // a class's width against walls: -1 its own box's (QC setsize; the default), 0 Quake's hull, or 16 up
@@ -1458,6 +1461,7 @@ QVR_CVAR(vr_gore_stick_speed, "180", CVAR_ARCHIVE)         // units/s a gib must
 QVR_CVAR(vr_test_dispenser, "0", CVAR_NONE)                // the map's n-th monster dispenser (func_enemy_dispenser) used, as its button would (buttons.qc VR_TestDispenser_Frame: test dispenser: lines, the monster's yaw); back to 0 once done
 QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the cap on dropped enemy weapons: 1 grunts spawned and killed one by one (vr_dropcap_test_n, 0: 60) (vr_dropcap_test.qc; Debug > Tests)
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
+QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                   // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_marksman_test, "0", CVAR_NONE)                 // the QC probes the nearest marksman ogre: 1 what it is, 2 killed, 3 its body (vr_marksman_test.qc; Debug > Tests)
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
 QVR_CVAR(vr_smallgibs_trace, "0", CVAR_NONE)             // tests: 1 prints each small gib's first 2.5 s (sgibtrace: lines): where made, its speed, every jump in it, what hands, weapons and held things touch, nudge or strike it, how far it lay

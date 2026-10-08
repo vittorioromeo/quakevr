@@ -4,6 +4,7 @@
 #include "vr_axestick.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_hull.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_explosiondebris.hpp"
@@ -662,8 +663,11 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // Bits 21 and 22 (QVR_VRBITS0_OFFHAND_PRIMARY, _MAINHAND_PRIMARY): the hand's A/X held (the grapple's unreel).
     const int primary = ((move.buttons & QVR_BUTTON_OFFHANDPRIMARY) ? (1 << 21) : 0) |
                         ((move.buttons & QVR_BUTTON_MAINHANDPRIMARY) ? (1 << 22) : 0);
-    setFieldFloat(ent, f.vrbits0,
-        static_cast<float>(withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary));
+    // Bit 23 (QVR_VRBITS0_CROUCHED): the player has his crouched box (vr_crouch_hull: vr_hull.cpp).
+    hull::updateCrouch(ent, move.headPos);
+    const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
+    setFieldFloat(ent, f.vrbits0, static_cast<float>(
+        withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary | crouched));
     setFieldVec(ent, f.teleport_target, move.teleportTarget);
     setFieldFloat(ent, f.offhand_hotspot, move.hotspots[0]);
     setFieldFloat(ent, f.sawcord, move.sawCord);

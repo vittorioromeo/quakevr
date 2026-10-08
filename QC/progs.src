@@ -96,6 +96,7 @@ vr_cheats.qc
 vr_smallgibs_test.qc
 vr_marksman_test.qc
 vr_dropcap_test.qc
+vr_crouch_test.qc
 world.qc
 vr_dummy.qc
 vr_motion.qc

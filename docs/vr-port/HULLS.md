@@ -428,7 +428,8 @@ Quake's hull 1, 0.015 with B at 16 and 0.015 with A at 16 (29 traces and 66-73 h
 1. **Width.** 20 is my suggestion to try first (10 units from walls instead of 16: 0.38 m instead of 0.61 m). 16 fits
    through 16-unit gaps and puts you 0.3 m from walls. 8 and 12 are there to try; below 16 the box is narrower than
    many of Quake's gaps (bars, grates, windows) were made to stop.
-2. **Height.** Kept at hull 1's 56. The same machinery can make it follow the headset (crouching under things), but
+2. **Height.** Kept at hull 1's 56 standing; crouched, lower (2026-10-08: "Crouching" above). Before that: the same
+   machinery can make it follow the headset (crouching under things), but
    QuakeC and the maps assume 56 in places (doorways, vents); a separate decision.
 3. **The player's box against monsters and players** (round 2): narrowed by default, the same width both ways
    (Width Against Them, per category). Decided (round 21): shots and missiles hit a 24-wide box (Width Shots Hit);
@@ -440,6 +441,47 @@ Quake's hull 1, 0.015 with B at 16 and 0.015 with A at 16 (29 traces and 66-73 h
 7. **On by default?** Decided (round 21, NOTES.md e1m1_2026-09-30_02-19-27, e1m3_2026-09-30_02-34-01): 16 wide with
    the compiled hull is the default (config 51 moves a config's old 0 to 16). The load-time build (B's brushes and A's
    hull: 137 ms on average, 257 at most on id's maps) could move to a worker thread before it is on by default.
+
+## Crouching (`vr_crouch_hull`, 2026-10-08)
+
+Your note (vrslipgates_2026-10-08_14-46-51): crouching in real life should get you through a small teleporter and any
+low opening, but the box stayed standing. Now, crouched, the box is lower: the same compiled-hull machinery as the width
+(method A, or B's sweep), with boxes of a few fixed heights, each compiled at the map's load beside the standing one.
+
+- **When.** Each client move (`vr_server.cpp`) measures your eyes over your feet (the headset; standing, the mock's 1.7 m
+  is 55.5 units, 1.3 m 42.9, 1.0 m 33.5). Your eyes under one of the crouched heights (the lowest `vr_crouch_height`, 36;
+  then every `vr_crouch_step`, 8, up to 52: 36, 44, 52), your box is the lowest of them over your eyes; over all of
+  them, standing (56). A box only as tall as your eyes, not your head: in a 40-high tunnel your eyes are under its
+  ceiling, the top of your head at most 5 units into it.
+- **Standing up.** Lower boxes are taken at once (they fit wherever a taller one does). Rising (eyes 2 units past your
+  box's top), the standing box is tried where you are (`SV_Move`: the map and bodies), else the tallest crouched box
+  that fits; if none fits you keep yours: standing up under the tunnel you stay at 36 until you walk out. Halfway into
+  a 48-high teleporter, standing up gives the 44 box (the opening's room), not the standing one.
+- **What it changes.** Your box against the map and brush models (`moveBox`, Quake's 32 width with `vr_hull_width` 0),
+  against monsters, players and solid boxes both ways (`entBox`, `touchBox`), and what shots and missiles hit
+  (`hitBox`: no higher than the crouched box, besides your head, `vr_hull_hit_head`); the client's lean recentring
+  (`playerBoxFits`), and a teleporter's crossing (`vr_portals.cpp` takes your box from `moveBox`). Triggers and items
+  still touch Quake's box (`absmin`/`absmax`), and monsters' sight still looks at Quake's eye height (`view_ofs`).
+- **Monsters' aim.** QuakeC sees it as `.vrbits0` bit 23 (`QVR_VRBITS0_CROUCHED`). Their bullets (`VR_Crate_ShotAim`)
+  aim no higher than 60% of the lowest crouched height over your feet (21.6 units: Quake's aim at your origin passes
+  you at 35.7 from a grunt 250 units away): behind waist-high cover the bullets hit the cover. Missiles aim at your
+  origin as in Quake (24 over your feet: inside every crouched box).
+- **Cost.** Three more trees a map at load on the worker pool (e2m2: 25-31 ms each, 428 KB each), kept for reloads and
+  on disk like the monsters' (listed by `vr_hull_stats` among them: 16x36, 16x44, 16x52). A move's crouch check is a
+  comparison; an `SV_Move` only on the frames you rise.
+
+Settings (Movement > Player Hitbox > Crouching):
+
+| Setting | cvar | Default | What |
+|---|---|---|---|
+| Crouched Hitbox | `vr_crouch_hull` | 1 | 0: always standing |
+| Lowest Crouched Height | `vr_crouch_height` | 36 | 24-52 units |
+| Heights Above It | `vr_crouch_step` | 8 | 0 (that one only), 4, 8, 12 |
+| Crouch Status | `vr_crouch_status` | | your eyes' height, your box's (0 standing), whether you could stand |
+
+Tests: `Misc/quakevr/slipgates/crouch_test.sh <agent>` in vrslipgates' crouching room (east of the hub: a 40-high
+tunnel, a 48-high gap, cover 32 and 48 high, a 48x48 teleporter pair); `vr_crouch_test <n>` (Debug > Tests > Crouch
+Shots, `vr_crouch_test.qc`): a grunt ahead fires n bullets as it aims them.
 
 ## Monsters (round 3: their own widths against walls)
 

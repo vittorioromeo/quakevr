@@ -71,6 +71,13 @@ void afterLoad();
 // world: 1 if it gets there, 0 if not, -1 when narrowing is off (Quake's hull 1 is used).
 [[nodiscard]] int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end);
 
+// A client's move received (vr_server.cpp): his crouch (vr_crouch_hull) from his head's height over his feet: crouched
+// when his eyes are under the crouched box's top (vr_crouch_height); standing again once they are back over it and the
+// standing box fits where he is.
+void updateCrouch(edict_t* ent, const glm::vec3& head);
+// Whether a client has his crouched box (the box moveBox, entBox, touchBox and hitBox give him).
+[[nodiscard]] bool isCrouched(const edict_t* ent);
+
 // VR_ClientPreMove: vr_hull_walktest's random walk drives the first player (a test aid; nothing when not running).
 void walkTestFrame(edict_t* ent);
 

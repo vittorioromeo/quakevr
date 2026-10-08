@@ -163,7 +163,7 @@ about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 | **Climbing** | Climbing ledges and rungs hand over hand (on by default): ledges, grab leniency, mantling onto slopes, the grunt, climbing stamina, the hand's pose on a hold |
 | **Swimming** | The stick's speed in shallow water, wading and swimming; stroke strength, speed curve, palm, recovery; telling a stroke from the return of the arms; *Reset Swimming to Defaults* |
 | **Grappling Hook** | Dissolution of Eternity's hook: the rope (length, physics, thickness), reeling in and out, its buttons, swinging (air drag, top speed), pulling props |
-| **Player Hitbox**, **Monster Hitbox** (D) | The smaller player box and the monsters' boxes ([vr-port/HULLS.md](vr-port/HULLS.md)) |
+| **Player Hitbox**, **Monster Hitbox** (D) | The smaller player box (and its crouched heights) and the monsters' boxes ([vr-port/HULLS.md](vr-port/HULLS.md)) |
 
 **Carrying and Throwing**
 

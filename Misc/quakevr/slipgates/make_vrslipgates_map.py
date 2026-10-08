@@ -23,6 +23,8 @@
 #           wall (135 degrees).
 #   LV      heights and water: a gate at the floor comes out of a gate over a 128-high platform (stairs back down);
 #           two gates beside a sunken pool come out facing it (east wall <-> south wall, 90 degrees).
+#   CR      crouching (east of the hub; crouch_test.sh): a 40-high tunnel and a 48-high gap through a wall, cover 32 and
+#           48 high, a 48x48 teleporter pair (east wall <-> south wall) only a crouched player fits through.
 # Each room has a panel of buttons that spawn a monster (func_enemy_dispenser) by its far wall: grunt, dog, ogre,
 # shambler, scrag. Crates, ammo boxes and weapons lie by the gates; a ramp in FA rolls crates into the crate gate.
 import math, os, shutil, subprocess, sys
@@ -360,6 +362,35 @@ for i, (w, flags) in enumerate(((2, 0), (4, 0), (17, 0), (13, 0), (14, 0))):  # 
 ent("item_cells", origin="160 -200 0")
 ent("item_shells", origin="200 -200 0")
 ent("item_rockets", origin="-200 -200 0")
+
+# Crouching (ROUND21.md, "Crouching: a smaller box"): east of the hub, a room to try crouching in real life without
+# teleporting: a low tunnel (40 high) and a gap (48 high) through a wall, cover walls (32 high: waist-high; 48: chest-high)
+# with a panel spawning monsters beyond them, and a small teleporter pair (48x48) that only a crouched player fits
+# through.
+CR = Room("cr", 384, -384, 1152, 192, z1=192)
+c_hub_cr = Room("c_hub_cr", 272, -224, 368, -144, z1=160)
+hub.door("e", -224, -144); c_hub_cr.door("w", -224, -144); c_hub_cr.door("e", -224, -144); CR.door("w", -224, -144)
+# The wall across the south half (x 560..688, y -384..-64): the tunnel at y -352..-288, the gap at y -224..-160.
+for y0, y1, z0 in ((-384, -352, 0), (-352, -288, 40), (-288, -224, 0), (-224, -160, 48), (-160, -64, 0)):
+    WORLD.append(box(560, y0, z0, 688, y1, 192, T_WALL))
+ent("func_worldtext_banner", origin="556 -320 64", angle="180", worldtext_halign="1", worldtext_scale="0.3",
+    worldtext="LOW TUNNEL\n40 high: crouch")
+ent("func_worldtext_banner", origin="556 -192 72", angle="180", worldtext_halign="1", worldtext_scale="0.3",
+    worldtext="GAP 48 high\nhalf a crouch")
+# Cover: a wall 32 high (waist-high) and one 48 high (chest-high), monsters spawned by the east wall.
+WORLD.append(box(800, 0, 0, 816, 144, 32, T_WALL, T_FLOOR))
+WORLD.append(box(944, -48, 0, 960, 80, 48, T_WALL, T_FLOOR))
+CR.panel("n", 440, "cr", MONSTERS, lambda i: (1088, -32 + 48 * i, 96 if i == 4 else 32))
+ent("func_worldtext_banner", origin="780 72 56", angle="180", worldtext_halign="1", worldtext_scale="0.3",
+    worldtext="COVER 32 high:\ncrouch behind it")
+ent("func_worldtext_banner", origin="924 16 72", angle="180", worldtext_halign="1", worldtext_scale="0.3",
+    worldtext="COVER 48 high")
+# The small teleporters: the east wall's (east of the tunnel) comes out of the south wall's (west of it), and back.
+ce = Gate(CR, "e", -304, 48, 48, label="SMALL TELEPORTER 48x48\ncrouch through")
+cs = Gate(CR, "s", 448, 48, 48, label="SMALL TELEPORTER 48x48\ncrouch through")
+link(ce, cs)
+ent("func_worldtext_banner", origin="252 -184 148", angle="180", worldtext_halign="1", worldtext_scale="0.35",
+    worldtext="East: crouching\n(low tunnel, cover, small teleporters)")
 
 # The start, its signs and a tip.
 ent("info_player_start", origin="0 -160 24", angle="90")

@@ -5622,6 +5622,14 @@ za::Vector<Item> pageDebugTests()
                   "asleep); standing up, or holding the small crate up, it should (Crates Hide You)."),
         command("Can the Grunt See You?", "impulse 224")
             .help("impulse 224: whether Crate Cover's grunt sees you now, how high your head is, and whether it woke."),
+        command("Crouch Shots", "developer 1; vr_crouch_test 12")
+            .help("vr_crouch_test 12: a grunt put ahead of you fires 12 bullets at you as it aims them, then goes: whether "
+                  "you are crouched (Player Hitbox > Crouching), your eyes' height, the aim's height over your feet and "
+                  "the damage you took (crouchtest: line; God mode off). Try it crouched behind the 32-high cover in the "
+                  "teleporter test map's crouching room: no damage."),
+        command("Crouch Status", "vr_crouch_status")
+            .help("Prints your eyes' height over your feet, your crouched box's height (0 standing) and whether you could "
+                  "stand."),
         header("Parry"),
         command("Check the Parry Pose", "impulse 249")
             .help("Developer 1: whether each held weapon blocks a blow from ahead, and its angle and position."),
@@ -6307,6 +6315,20 @@ za::Vector<Item> pageHitbox()
             .help("Shots and missiles meet you only up to the top of your head: crouched behind a crate, those flying "
                   "over it miss you (Quake's box stands as tall), and monsters' bullets aim no higher than your body. "
                   "Off: Quake's height, crouched or not (vr_hull_hit_head)."),
+        header("Crouching"),
+        toggle("Crouched Hitbox", vr_crouch_hull)
+            .help("Crouch in real life and your box is lower: you walk under low ceilings and through small teleporters, "
+                  "and behind cover shots meet only what shows of you. Standing up somewhere too low, you keep the low box "
+                  "until there is room. Off: always Quake's standing height (vr_crouch_hull)."),
+        slider("Lowest Crouched Height", vr_crouch_height, 24.f, 52.f, 4.f, "%.0f units")
+            .help("Your box's height with your eyes under it (Quake's standing box: 56; the crouching room's tunnel in "
+                  "the teleporter test map: 40) (vr_crouch_height)."),
+        cycle("Heights Above It", vr_crouch_step, {{0.f, "None"}, {4.f, "Every 4 units"}, {8.f, "Every 8 units"},
+                  {12.f, "Every 12 units"}})
+            .help("Taller crouched boxes up to 52, so half a crouch gets you under a ceiling that is a little low: your "
+                  "eyes under one, that box (36, 44, 52 every 8). None: the lowest only (vr_crouch_step)."),
+        command("Crouch Status", "vr_crouch_status")
+            .help("Prints your eyes' height over your feet, your box's height (0 standing) and whether you could stand."),
         slider("Prop Push Radius", vr_box3d_player_radius, 5.f, 40.f, 1.f, "%.0f cm")
             .help("Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
                   "not by your box (vr_box3d_player_radius)."),

@@ -2602,6 +2602,104 @@ bool isPlayerBox(const edict_t* ent, const float* mins, const float* maxs)
     return num >= 1 && num <= svs.maxclients && maxs[0] - mins[0] == 32.f && maxs[1] - mins[1] == 32.f;
 }
 
+// Crouching (vr_crouch_hull; HULLS.md "Crouching"): a client whose eyes are low has a box only as tall from his feet as
+// the lowest of the crouched heights his eyes are under (vr_crouch_height, then every vr_crouch_step up to Quake's 56
+// less 4), against the map, bodies and shots; he keeps it, standing up, until a taller box fits where he is. Indexed by
+// client number (1..maxclients): the box's height, 0 standing; cleared at each map's load.
+constexpr int crouchSlots = MAX_SCOREBOARD + 1;
+constexpr int maxCrouchLevels = 8;
+constexpr float crouchStandMargin = 2.f; // units his eyes rise past a box's top before a taller one is tried
+float crouchBox[crouchSlots]{};
+
+bool crouchOn()
+{
+    return vr_crouch_hull.value != 0.f;
+}
+
+// The crouched heights, lowest first: vr_crouch_height (24 to hull 1's height less 4), then every vr_crouch_step (0:
+// that one alone). Returns how many (at least 1, at most maxCrouchLevels).
+int crouchLevels(const qmodel_t* world, float* out)
+{
+    const float most = hull1Height(world) - 4.f;
+    const float lowest = za::clamp(vr_crouch_height.value, 24.f, most);
+    const float step = vr_crouch_step.value >= 4.f ? vr_crouch_step.value : 0.f;
+    int n = 0;
+    out[n++] = lowest;
+    while(step > 0.f && n < maxCrouchLevels && out[n - 1] + step <= most)
+    {
+        out[n] = out[n - 1] + step;
+        ++n;
+    }
+    return n;
+}
+
+// The box's height for eyes this high over the feet: the lowest crouched height over them; 0 (standing) over all.
+float crouchLevelFor(const qmodel_t* world, float eye)
+{
+    float levels[maxCrouchLevels];
+    const int n = crouchLevels(world, levels);
+    for(int i = 0; i < n; ++i)
+    {
+        if(eye < levels[i])
+        {
+            return levels[i];
+        }
+    }
+    return 0.f;
+}
+
+float crouchTopNum(int num)
+{
+    return crouchOn() && num >= 1 && num < crouchSlots ? crouchBox[num] : 0.f;
+}
+
+// The client's crouched box's height (0: standing).
+float crouchTop(const edict_t* ent)
+{
+    return crouchTopNum(clientNum(ent));
+}
+
+// A crouched box's half extent against the map (the walls' width; Quake's 32 with vr_hull_width 0).
+glm::vec3 crouchExt(float height)
+{
+    const float half = (vr_hull_width.value > 0.f ? widthSetting() : 32.f) * 0.5f;
+    return glm::vec3{half, half, height * 0.5f};
+}
+
+// Whether a client's box of this height (0: standing) fits where he is (the map, bodies).
+bool boxFitsAt(edict_t* ent, int num, float height)
+{
+    const float was = crouchBox[num];
+    crouchBox[num] = height;
+    vec3_t at{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    const trace_t tr = SV_Move(at, ent->v.mins, ent->v.maxs, at, MOVE_NORMAL, ent);
+    crouchBox[num] = was;
+    return !tr.startsolid && !tr.allsolid;
+}
+
+// vr_crouch_status: the first player's eye height over his feet, his box's height (0: standing) and whether he could
+// stand.
+void crouchStatus_f()
+{
+    if(!sv.active || svs.maxclients < 1 || !sv.worldmodel)
+    {
+        Con_Printf("vr_crouch_status: no game\n");
+        return;
+    }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm); // a console command: no VM is current
+    edict_t* ent = EDICT_NUM(1);
+    const int headOfs = progs::fields().headpos;
+    const glm::vec3 head = headOfs >= 0 ? progs::fieldVec(ent, headOfs) : glm::vec3{0.f};
+    const float eye = head == glm::vec3{0.f} ? 0.f : head.z - (ent->v.origin[2] + ent->v.mins[2]);
+    const float top = crouchTopNum(1);
+    Con_Printf("crouch: on %d box %.0f eye %.1f lowest %.0f standfits %d origin %.1f %.1f %.1f\n", crouchOn() ? 1 : 0,
+        static_cast<double>(top), static_cast<double>(eye), static_cast<double>(crouchLevelFor(sv.worldmodel, 0.f)),
+        top > 0.f ? (boxFitsAt(ent, 1, 0.f) ? 1 : 0) : 1, static_cast<double>(ent->v.origin[0]),
+        static_cast<double>(ent->v.origin[1]), static_cast<double>(ent->v.origin[2]));
+    PR_PopQCVM(oldvm);
+}
+
 // The player's width against entities' boxes: 0 Quake's (off).
 float entWidthSetting()
 {
@@ -4677,7 +4775,8 @@ void walkTest_f()
 // first move: a hitch in play).
 bool wanted()
 {
-    return sv.worldmodel && vr_hull_method.value != 0.f && (vr_hull_width.value > 0.f || vr_mhull.value != 0.f);
+    return sv.worldmodel && vr_hull_method.value != 0.f &&
+           (vr_hull_width.value > 0.f || vr_mhull.value != 0.f || crouchOn());
 }
 
 glm::vec3 playerExt(const qmodel_t* world)
@@ -4694,6 +4793,15 @@ za::Vector<glm::vec3> wantedExts(bool loading)
     if(vr_hull_width.value > 0.f)
     {
         exts.pushBack(playerExt(sv.worldmodel));
+    }
+    if(crouchOn())
+    {
+        float levels[maxCrouchLevels];
+        const int n = crouchLevels(sv.worldmodel, levels);
+        for(int i = 0; i < n; ++i)
+        {
+            exts.pushBack(crouchExt(levels[i])); // the crouched player's (vr_crouch_hull)
+        }
     }
     if(vr_mhull.value != 0.f && (sv.active || loading))
     {
@@ -4894,6 +5002,10 @@ void init()
     Cvar_SetCallback(&vr_hull_method, onWidthChanged);
     Cvar_SetCallback(&vr_hull_brushmodels, onWidthChanged);
     Cvar_SetCallback(&vr_mhull, onWidthChanged);
+    Cvar_SetCallback(&vr_crouch_hull, onWidthChanged);
+    Cvar_SetCallback(&vr_crouch_height, onWidthChanged);
+    Cvar_SetCallback(&vr_crouch_step, onWidthChanged);
+    Cmd_AddCommand("vr_crouch_status", crouchStatus_f);
     Cvar_SetCallback(&vr_hull_keep, onKeepChanged);
     for(const MonsterClass& c : monsterClasses)
     {
@@ -4904,6 +5016,10 @@ void init()
 void beforeLoad()
 {
     settle();
+    for(float& c : crouchBox)
+    {
+        c = 0.f; // (each map starts standing)
+    }
     qmodel_t* world = sv.worldmodel;
     if(!wanted() || world->type != mod_brush || world->numnodes <= 0 || built.clipnodes == world->hulls[0].clipnodes)
     {
@@ -5027,27 +5143,34 @@ bool moveBox(const edict_t* passedict, const float* mins, const float* maxs, flo
         boxMaxs[2] = mins[2] + height; // Quake's hull's height, from the box's feet as Quake places it
         return true;
     }
-    if(vr_hull_width.value <= 0.f || !sv.active || !sv.worldmodel || !isPlayerBox(passedict, mins, maxs))
+    const float crouch = crouchTop(passedict);
+    if((vr_hull_width.value <= 0.f && crouch <= 0.f) || !sv.active || !sv.worldmodel || !isPlayerBox(passedict, mins, maxs))
     {
         return false;
     }
-    const float half = widthSetting() * 0.5f;
+    const float half = (vr_hull_width.value > 0.f ? widthSetting() : 32.f) * 0.5f;
     const float cx = (mins[0] + maxs[0]) * 0.5f, cy = (mins[1] + maxs[1]) * 0.5f;
     boxMins[0] = cx - half;
     boxMins[1] = cy - half;
     boxMins[2] = mins[2];
     boxMaxs[0] = cx + half;
     boxMaxs[1] = cy + half;
-    boxMaxs[2] = mins[2] + hull1Height(sv.worldmodel); // hull 1's height, from the box's feet as Quake places it
+    boxMaxs[2] = mins[2] + (crouch > 0.f ? crouch : hull1Height(sv.worldmodel)); // hull 1's height (or
+    // the crouched box's), from the box's feet as Quake places it
     return true;
 }
 
 bool entBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs)
 {
     float width = entWidthSetting();
-    if(width > 0.f && sv.active && isPlayerBox(passedict, mins, maxs))
+    const float crouch = crouchTop(passedict);
+    if(sv.active && isPlayerBox(passedict, mins, maxs) && (width > 0.f || crouch > 0.f))
     {
-        narrowBox(mins, maxs, width, boxMins, boxMaxs);
+        narrowBox(mins, maxs, width > 0.f ? width : 32.f, boxMins, boxMaxs);
+        if(crouch > 0.f)
+        {
+            boxMaxs[2] = za::min(boxMaxs[2], mins[2] + crouch); // crouched (vr_crouch_hull)
+        }
         return true;
     }
     if(vr_mhull_ents.value != 0.f && monsterNarrower(passedict, width) && ownBox(passedict, mins, maxs))
@@ -5067,6 +5190,14 @@ bool narrowsAgainst(const edict_t* mover, const edict_t* other)
 bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs)
 {
     float width = entWidthSetting();
+    const float crouch = crouchTop(touch);
+    if(sv.active && isPlayerBox(touch, touch->v.mins, touch->v.maxs) && crouch > 0.f)
+    {
+        // Crouched (vr_crouch_hull): a body meets his crouched box, narrowed as below if it would be.
+        narrowBox(touch->v.mins, touch->v.maxs, width > 0.f && categoryOn(mover) ? width : 32.f, boxMins, boxMaxs);
+        boxMaxs[2] = za::min(boxMaxs[2], touch->v.mins[2] + crouch);
+        return true;
+    }
     if(width > 0.f && sv.active && isPlayerBox(touch, touch->v.mins, touch->v.maxs) && categoryOn(mover))
     {
         narrowBox(touch->v.mins, touch->v.maxs, width, boxMins, boxMaxs);
@@ -5111,6 +5242,11 @@ bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs, bool projectil
         {
             top = za::clamp(head.z + headTop - touch->v.origin[2], touch->v.mins[2] + 24.f, touch->v.maxs[2]);
         }
+    }
+    const float crouch = crouchTop(touch);
+    if(projectile && crouch > 0.f)
+    {
+        top = za::min(top, touch->v.mins[2] + crouch); // no higher than his crouched box
     }
     if(width <= 0.f && top >= touch->v.maxs[2])
     {
@@ -5272,7 +5408,8 @@ bool clipPortal(const edict_t* ent, const float* start, const float* mins, const
 
 int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
 {
-    if(vr_hull_width.value <= 0.f || !world || world != sv.worldmodel || !sv.active)
+    const float crouch = crouchTopNum(1); // (the local player: the client's lean)
+    if((vr_hull_width.value <= 0.f && crouch <= 0.f) || !world || world != sv.worldmodel || !sv.active)
     {
         return -1;
     }
@@ -5281,8 +5418,8 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
     {
         return -1;
     }
-    const float half = widthSetting() * 0.5f;
-    const glm::vec3 lo{-half, -half, -24.f}, hi{half, half, -24.f + hull1Height(world)};
+    const float half = (vr_hull_width.value > 0.f ? widthSetting() : 32.f) * 0.5f;
+    const glm::vec3 lo{-half, -half, -24.f}, hi{half, half, -24.f + (crouch > 0.f ? crouch : hull1Height(world))};
     trace_t tr;
     if(vr_hull_method.value != 0.f)
     {
@@ -5295,6 +5432,53 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
         tr = boxTrace(*b, world->hulls[0], 0, start, lo, hi, end).trace;
     }
     return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;
+}
+
+void updateCrouch(edict_t* ent, const glm::vec3& head)
+{
+    const int num = clientNum(ent);
+    if(num < 1 || num >= crouchSlots)
+    {
+        return;
+    }
+    float& c = crouchBox[num];
+    if(!crouchOn() || !sv.active || !sv.worldmodel || ent->free || head == glm::vec3{0.f})
+    {
+        c = 0.f;
+        return;
+    }
+    const float eye = head.z - (ent->v.origin[2] + ent->v.mins[2]);
+    const float want = crouchLevelFor(sv.worldmodel, eye);
+    if(want > 0.f && (c <= 0.f || want <= c))
+    {
+        c = want; // lower: always (a smaller box fits wherever the taller one does)
+        return;
+    }
+    if(c <= 0.f || eye < c + crouchStandMargin)
+    {
+        return; // standing, or not risen clear of his box's top yet
+    }
+    // Taller: standing if his eyes ask for it and it fits, else the tallest crouched box that fits up to the one they ask
+    // for; else he keeps his box (under a low ceiling).
+    if(want <= 0.f && boxFitsAt(ent, num, 0.f))
+    {
+        c = 0.f;
+        return;
+    }
+    float levels[maxCrouchLevels];
+    for(int i = crouchLevels(sv.worldmodel, levels); i-- > 0;)
+    {
+        if(levels[i] > c && (want <= 0.f || levels[i] <= want) && boxFitsAt(ent, num, levels[i]))
+        {
+            c = levels[i];
+            return;
+        }
+    }
+}
+
+bool isCrouched(const edict_t* ent)
+{
+    return crouchTop(ent) > 0.f;
 }
 
 void walkTestFrame(edict_t* ent)
