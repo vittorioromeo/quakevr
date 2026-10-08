@@ -173,7 +173,7 @@ void(float pass) VR_Probe_Kinds =
     }
     for(e = nextent(world); e; e = nextent(e))
     {
-        if(pass == 2 && e.classname == "func_enemy_dispenser")
+        if(pass == 2 && (e.classname == "func_enemy_dispenser" || e.classname == "func_vr_spawner"))
         {
             VR_Probe_Make(VR_Probe_DispenserKind(e.weapon), e.origin);
         }

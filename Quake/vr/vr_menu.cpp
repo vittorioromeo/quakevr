@@ -735,7 +735,8 @@ char reviewListHeader[64];
 // The old Single Player and Bot Control menus' extras.
 void playCalibration() { Cbuf_AddText("vr_setup\n"); }
 void playHub() { Cbuf_AddText("vr_campaign_hub\n"); }
-void playTutorial() { Cbuf_AddText("map vrtutorial\n"); }
+// The tutorial (vrtutorial2: Misc/quakevr/maps/vrtutorial2_gen.py) on Easy; the old one (vrtutorial) still loads by name.
+void playTutorial() { Cbuf_AddText("skill 0; map vrtutorial2\n"); }
 void playFiringRange() { Cbuf_AddText("map vrfiringrange\n"); }
 // Official Campaigns > Dawn of the Machine: Bloody Nightmare: skill 3 and vr_mg3_bn_start (the start map's first frame
 // makes it a Bloody Nightmare game, QC vr_mg3_defs.qc MG3_Frame), then the campaign as its own row starts it. While

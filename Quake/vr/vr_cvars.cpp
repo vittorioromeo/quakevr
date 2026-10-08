@@ -486,7 +486,7 @@ const DefaultChange defaultChanges[] = {
     {102, &vr_melee_phase_speed, "2.25"}, // 4 (his 3.996: slider noise)
     {102, &vr_melee_phase_time, "0.15"}, // 0.35 (his 0.34965)
 };
-constexpr int configVersion = 102;
+constexpr int configVersion = 103;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -779,6 +779,11 @@ void migrateConfig()
         Con_DPrintf("VR: vr_hub_map: vrstart (was vrstart2: the island hub's old name)\n");
         Cvar_SetQuick(&vr_hub_map, "vrstart");
     }
+    // 103: a new install starts in the tutorial (vrtutorial2) once; a config from before has played: the hub, as before.
+    if(from < 103)
+    {
+        Cvar_SetValueQuick(&vr_tutorial_started, 1.f);
+    }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 
@@ -827,7 +832,7 @@ const CompiledDefault compiledDefaults[] = {
 // Per-player or bookkeeping settings, never shipped.
 [[nodiscard]] bool personal(const cvar_t* var)
 {
-    return var == &vr_cfg_version || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
+    return var == &vr_cfg_version || var == &vr_tutorial_started || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
         || var == &vr_props_version || var == &vr_tips_seen || var == &vr_menu_positions
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye
         || !ZA_STRNCMP(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)

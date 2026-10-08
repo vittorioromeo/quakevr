@@ -191,6 +191,10 @@ void() worldspawn =
     vr_save_packmask = 1 + VR_Pack_Hipnotic() + 2 * VR_Pack_Rogue();
     lastspawn = world;
     vr_fire_spots = 0; // QVR: the map's flames, as they spawn (vr_walltorch.qc)
+    if(mapname == "vrtutorial2")
+    {
+        cvar_set("vr_tutorial_started", "1"); // QVR: the tutorial started once: VR starts in the hub from now on
+    }
 
     // FRIKBOT
     BotInit();

@@ -100,7 +100,7 @@ float(entity e) VR_Crate_Wooden =
         return FALSE;
     }
     return e.vr_cratekind > 0 || e.vr_blocksight > 0 || e.classname == "vr_crate_broken" || e.classname == "vr_crate_piece" ||
-           e.classname == "vr_crate_piece_gone";
+           e.classname == "vr_crate_piece_gone" || e.classname == "func_vr_target"; // (a target board: vr_tutorial.qc)
 };
 
 // Hit material, separate from prop classification: secret doors rename themselves to door. Shootable triggers
@@ -867,6 +867,16 @@ void(entity crate, vector mid, vector dir) VR_Crate_Contents =
 {
     vector at = mid;
     at_z = crate.absmin_z + 1;
+    if(crate.contents != NULLSTR)
+    {
+        // a placed crate's own: what its "contents" names (none at random); "none": nothing
+        if(crate.contents != "none")
+        {
+            entity e = VR_Tut_Make(crate.contents, at, 0, NULLSTR, '0 0 0');
+            dprint(sprintf("crate: holds %s (its contents)%s\n", crate.contents, e == world ? ", not made" : ""));
+        }
+        return;
+    }
     entity player = find(world, classname, "player");
     if(player != world && random() < cvar("vr_crate_ammo"))
     {
@@ -936,6 +946,11 @@ void() VR_Crate_Break =
 
     VR_Crate_Pieces(crate, mid, dir);
     VR_Crate_Contents(crate, mid, dir);
+    if(crate.target != NULLSTR)
+    {
+        activator = damage_attacker;
+        SUB_UseTargets(); // (a placed crate's "target": fired as it breaks)
+    }
 
     crate.vr_cratekind = 0;
     crate.classname = "vr_crate_broken";
@@ -987,7 +1002,8 @@ Quake VR: a wooden crate, placed by hand: a heavy physics prop (pushed, tipped, 
 breaks into light pieces when shot, struck, blown up or hit hard, sometimes holding a small box of ammo or health
 (Crates' settings), and hides the player from monsters behind it. Small: 32 units a side; LARGE: 40 x 40 x 48. "angle":
 its yaw; "skin": 0 pine, 1 brown, 2 weathered. It rests on whatever is below its origin (within 128 units). Placed whatever
-Crates' options are.
+Crates' options are. "contents": what it holds instead of the random box (a classname, as func_vr_restock's: item_key1,
+item_health...; "none": nothing); "target": fired as it breaks (the activator: what broke it).
 */
 void() vr_crate =
 {
@@ -998,6 +1014,7 @@ void() vr_crate =
         remove(self);
         return;
     }
+    VR_Tut_Precache(self.contents, NULLSTR); // (what its "contents" names: vr_tutorial.qc)
     VR_Crate_Setup(self, kind);
 };
 

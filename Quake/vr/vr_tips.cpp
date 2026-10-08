@@ -423,6 +423,10 @@ struct Subject
 {
     if(MapTip* mt = mapTipOf(tip))
     {
+        if((mt->flags & Waiting) != 0)
+        {
+            return false; // a TRIGGERED tip not yet used
+        }
         if(mt->ent == goneEntity)
         {
             return false; // its entity is gone for good (the server said so)
@@ -982,9 +986,10 @@ void listTips()
                                                  : va("at %.0f %.0f %.0f", mt.pos.x, mt.pos.y, mt.pos.z);
         const char* shown = (mt.flags & Repeat) != 0 ? ", repeats" : seen(seenKeyOf(i)) ? ", seen" : "";
         const char* delay = mt.delay >= 0.f ? va(", delay %g s", static_cast<double>(mt.delay)) : ""; // (its tip_delay)
-        Con_Printf("  %s: %s, range %.0f%s%s%s%s\n", mt.name.empty() ? va("#%d", i - tipCount) : mt.name.cStr(), about,
-            rangeOf(mt.distance), delay, (mt.flags & Hologram) != 0 ? ", hologram" : "",
-            (mt.flags & AnyAngle) != 0 ? ", any angle" : "", shown);
+        Con_Printf("  %s: %s, range %.0f%s%s%s%s%s\n", mt.name.empty() ? va("#%d", i - tipCount) : mt.name.cStr(),
+            about, rangeOf(mt.distance), delay, (mt.flags & Hologram) != 0 ? ", hologram" : "",
+            (mt.flags & AnyAngle) != 0 ? ", any angle" : "", shown,
+            (mt.flags & Waiting) != 0 ? ", waiting for its trigger" : "");
     }
 }
 

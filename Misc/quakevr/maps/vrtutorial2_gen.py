@@ -423,6 +423,12 @@ def ent(cls, x, y, z, **keys):
     return k
 
 
+def item(cls, x, y, z, **keys):
+    """An item standing at (x, y, z): ammo and health boxes have their origin at a corner (id's 0 0 0 .. 32 32 56)."""
+    corner = cls in ("item_shells", "item_spikes", "item_rockets", "item_cells", "item_health")
+    return ent(cls, x - 16 if corner else x, y - 16 if corner else y, z, **keys)
+
+
 def bent(cls, brushes, **keys):
     k = {"classname": cls}
     k.update({a: str(b) for a, b in keys.items()})
@@ -670,7 +676,7 @@ def railing(out, p, q, z, h=40, every=64, post=3):
 # entities. Coordinates: rooms on the 16 grid, their sizes multiples of 128 (the panels), doorways 128 wide on the
 # panels' grid; upper floors at z 0 (rooms 1-3) and 240 (rooms 3's top, 4), the lower floor at z -144 (rooms 5-12).
 LOW = -144      # the lower floor
-UP = 240        # room 4's floor (room 3's top)
+UP = 256        # room 4's floor (room 3's top: the jump wall, 112 over the ladder block)
 
 
 def room(name, x0, y0, x1, y1, z, top, style, **kw):
@@ -884,8 +890,9 @@ def build_room4():
     WATER.append(((3872, py1, POOL_FLOOR), (3968, 1184, POOL_FLOOR + 96)))
     WATER.append(((3968, 1088, POOL_FLOOR), (POOL_B[0][0], 1184, POOL_FLOOR + 96)))
     # steps out of pool A (its south-west corner): 48 x 48 blocks
-    for i, z in enumerate((UP - 48, UP - 96, UP - 144)):
-        SOLIDS.append(((px0, py0, POOL_FLOOR), (px0 + 48 * (i + 1), py0 + 48, z)))
+    # steps out of the pools: 16 high (a step up), 24 deep, the top one 16 under the floor
+    for i in range(4):
+        SOLIDS.append(((px0, py0, POOL_FLOOR), (px0 + 24 * (i + 1), py0 + 64, UP - 16 * (i + 1))))
     railing(out, (px0 + 64, py0 - 8), (px1, py0 - 8), UP)
     railing(out, (px1 + 8, py0), (px1 + 8, py1), UP)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], UP + 256, 2, 2)
@@ -907,8 +914,8 @@ def build_room4():
     (qx0, qy0), (qx1, qy1) = POOL_B
     air("pool_b", (qx0, qy0, POOL_FLOOR), (qx1, qy1, UP), kind="pool")
     WATER.append(((qx0, qy0, POOL_FLOOR), (qx1, qy1, WATER_Z)))
-    for i, z in enumerate((UP - 32, UP - 80, UP - 128)):
-        SOLIDS.append(((qx1 - 48 * (i + 1), qy1 - 48, POOL_FLOOR), (qx1, qy1, z)))
+    for i in range(4):
+        SOLIDS.append(((qx1 - 24 * (i + 1), qy1 - 64, POOL_FLOOR), (qx1, qy1, UP - 16 * (i + 1))))
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], UP + 224, 3, 2)
     light((qx0 + qx1) / 2, (qy0 + qy1) / 2, POOL_FLOOR + 40, 200, "0.7 0.85 1")
     doorway("room4b_exit", r["x1"], 1136, r["x1"] + 16, 1264, UP, out)
@@ -947,13 +954,14 @@ def build_room5():
     checkpoint("cp5", 4688, 1200, LOW, 0, 128)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], 64, 2, 2)
     # the health kits: on a table (by hand), on the floor (walked over), out of reach on a shelf (force grab)
-    table(out, 4480, 1376, 4608, 1440, LOW)
+    # (tables 40 deep, things to take 16 in from the near edge: in reach of a player against it, leaning a little)
+    table(out, 4480, 1376, 4608, 1416, LOW)
     for x in (4512, 4576):
-        ent("item_health", x, 1392, LOW + 34, spawnflags=1)
-    ent("item_health", 4560, 1040, LOW + 2, spawnflags=1)
+        item("item_health", x, 1392, LOW + 34, spawnflags=1)
+    item("item_health", 4560, 1040, LOW + 2, spawnflags=1)
     dbox(out, (4860, 1360, LOW + 96), (r["x1"], 1440, LOW + 100), {"side": TX["lamp_frame"], "top": TX["floor2"]})
-    ent("item_health", 4880, 1384, LOW + 102, spawnflags=1)
-    restock("item_health", 4544, 1408, LOW + 34, contentsflags=1, distance=128, wait=6)
+    item("item_health", 4880, 1384, LOW + 102, spawnflags=1)
+    restock("item_health", 4544, 1392, LOW + 34, contentsflags=1, distance=128, wait=6)
     banner(N.join(["HEALING", "Health kits mend you. Grip one and hold it", "to your body, or put it in a holster:",
                    "at your hips, over your shoulders."]), 4544, r["y1"] - 4, LOW + 120, 270, "0.28")
     banner(N.join(["GRAB: close your hand round it.", "FORCE GRAB: point at something far", "and grip: it flies to your hand.",
@@ -1056,12 +1064,12 @@ def build_room8():
          {"top": TX["floor2"], "side": TX["hazard"]})
     CLIPS.append(((r["x0"], R8_COUNTER, LOW + 40), (r["x1"], R8_COUNTER + 16, LOW + 256)))
     # the bench: the shotgun and shells
-    table(out, 5040, 336, 5392, 384, LOW, 36)
-    ent("weapon_shotgun", 5120, 360, LOW + 40)
-    for x in (5232, 5296):
-        ent("item_shells", x, 352, LOW + 40)
-    restock("weapon_shotgun", 5120, 360, LOW + 40, distance=4000, wait=8)
-    restock("item_shells", 5264, 352, LOW + 40, count=2, distance=160, wait=6)
+    table(out, 4832, 352, 5088, 392, LOW, 36)
+    ent("weapon_shotgun", 4880, 368, LOW + 40)
+    for x in (4976, 5040):
+        item("item_shells", x, 368, LOW + 40)
+    restock("weapon_shotgun", 4880, 368, LOW + 40, distance=4000, wait=8)
+    restock("item_shells", 5008, 368, LOW + 40, count=2, distance=96, wait=6)
     # the targets: boards on posts (QC func_vr_target), each needing a hit
     for i, (x, y, z) in enumerate(R8_TARGETS):
         dbox(out, (x - 2, y - 2, LOW), (x + 2, y + 2, LOW + z - 16), TX["rail_post"])
@@ -1074,7 +1082,7 @@ def build_room8():
     # weapon settings on the north wall
     for (label, key), x in zip([("RELOADING", "reload"), ("WEAPON MODE", "holsters"),
                                 ("TWO-HANDED" + N + "AIM", "twohand"), ("WEAPON GRIP", "grip"),
-                                ("CROSSHAIR", "crosshair")], (4864, 4928, 4992, 5504, 5568)):
+                                ("CROSSHAIR", "crosshair")], (5376, 5440, 5504, 5568, 5632)):
         setting_button(label, key, x, r["y1"], LOW + 64, 90)
     banner(N.join(["WEAPONS", "Take the shotgun from the bench: grip it.", "Load shells: take one from the pouch at",
                    "your belly, push it into the gun's port.", "Destroy every target to go on."]),
@@ -1082,10 +1090,10 @@ def build_room8():
     banner(N.join(["HOLSTERS: let go of a gun at your hip", "or shoulder to put it away; grip there",
                    "to draw it again."]), 4928, r["y1"] - 4, LOW + 150, 270, "0.25")
     banner(N.join(["TWO HANDS: grip the gun's front with", "your other hand to steady it. Virtual",
-                   "stock: hold it to your shoulder."]), 5536, r["y1"] - 4, LOW + 150, 270, "0.25")
-    tip("t2_shotgun", "Grip the shotgun to take it.", 5120, 350, LOW + 70, 160)
+                   "stock: hold it to your shoulder."]), 5504, r["y1"] - 4, LOW + 150, 270, "0.25")
+    tip("t2_shotgun", "Grip the shotgun to take it.", 4880, 350, LOW + 70, 160)
     tip("t2_shells", "Shells: grip the box and hold it to" + N + "a holster (or your belly): they go" + N +
-        "to your ammo pouch.", 5264, 350, LOW + 70, 160)
+        "to your ammo pouch.", 5008, 350, LOW + 70, 160)
     tip("t2_reload", "To load: with your other hand grip at" + N + "your belly pouch for a shell, then push it" + N +
         "into the port under the gun.", 5216, 260, LOW + 60, 200)
     tip("t2_range", "Each target needs a good hit. The gun" + N + "holds 8 shells: reload when it clicks.",
@@ -1136,7 +1144,7 @@ def build_room9():
 
 # ---- Room 10: throwing (a courtyard). A button too high to reach; rocks and bricks to throw at it. Rockets, grenades.
 R10 = dict(x0=2560, y0=-352, x1=3440, y1=352)
-R10_BUTTON = (2560, 0, LOW + 232)
+R10_GRATE = (2880, 2976)      # the barred opening in the south wall (x), the button 48 behind it
 
 
 def build_room10():
@@ -1146,24 +1154,31 @@ def build_room10():
     checkpoint("cp10", 3380, 256, LOW, 180)
     wall_lamp(out, "-y", 3000, r["y0"], LOW + 120, 160)
     wall_lamp(out, "+y", 3000, r["y1"], LOW + 120, 160)
-    # the button, high on the west wall, a ring of hazard round it
-    bx, by, bz = R10_BUTTON
-    dbox(out, (bx, by - 32, bz - 32), (bx + 2, by + 32, bz + 32), TX["hazard"])
-    button("HIT ME", None, bx + 2, by, bz, 180, depth=8, size=32, target="r10_open", wait="-1", scale="0.3")
-    # the rocks and bricks on a table, more as they go
-    table(out, 2992, -64, 3056, 64, LOW, 32)
+    # the button, out of reach behind a grate in the south wall (an alcove 48 deep): a thrown rock goes through the bars
+    gx0, gx1 = R10_GRATE
+    door_frame(out, door_air("r10_grate", (gx0, r["y0"] - 16, LOW + 16), (gx1, r["y0"], LOW + 112)))
+    air("r10_alcove", (gx0, r["y0"] - 64, LOW), (gx1, r["y0"] - 16, LOW + 128), style=bands(TX["panel5"]))
+    for x in range(gx0 + 8, gx1, 16):
+        out.append(cylinder((x, r["y0"] - 8, LOW + 16), (x, r["y0"] - 8, LOW + 112), 2, 8, TX["rung"]))
+    bx = (gx0 + gx1) // 2
+    dbox(out, (bx - 28, r["y0"] - 64, LOW + 28), (bx + 28, r["y0"] - 62, LOW + 84), TX["hazard"])
+    button("HIT ME", None, bx, r["y0"] - 62, LOW + 56, 270, depth=8, size=32, target="r10_open", wait="-1",
+           scale="0.3")
+    wall_lamp(out, "-y", bx, r["y0"] - 64, LOW + 112, 120)
+    # the rocks and bricks on a table beside it, more as they go
+    table(out, 2752, -320, 2848, -280, LOW, 32)
     for i, mdl in enumerate(("vr_rock1", "vr_brick1", "vr_rock3", "vr_brick2", "vr_rock5")):
-        ent("vr_debris_piece", 3024, -48 + 24 * i, LOW + 40, model="progs/%s.mdl" % mdl, angle=RND.randrange(360))
-    restock("vr_debris_piece", 3024, -24, LOW + 40, count=3, distance=80, wait=3, model="progs/vr_rock3.mdl")
-    restock("vr_debris_piece", 3024, 24, LOW + 40, count=3, distance=80, wait=3, model="progs/vr_brick1.mdl")
-    banner(N.join(["THROWING", "The button is out of reach.", "Throw a rock or a brick at it:",
-                   "grip, swing, let go."]), 3080, r["y1"] - 4, LOW + 120, 270, "0.3")
+        ent("vr_debris_piece", 2768 + 16 * i, -296, LOW + 40, model="progs/%s.mdl" % mdl, angle=RND.randrange(360))
+    restock("vr_debris_piece", 2784, -296, LOW + 40, count=3, distance=64, wait=3, model="progs/vr_rock3.mdl")
+    restock("vr_debris_piece", 2816, -296, LOW + 40, count=3, distance=64, wait=3, model="progs/vr_brick1.mdl")
+    banner(N.join(["THROWING", "The button is out of reach behind the bars.", "Throw a rock or a brick at it:",
+                   "grip, swing, let go."]), 2928, r["y0"] + 4, LOW + 160, 90, "0.3")
     tip("t2_throw", "Grip a rock, swing your arm and let go" + N + "as it comes forward. Hit the button.",
-        3024, 0, LOW + 70, 200)
+        2800, -260, LOW + 70, 200)
     # rockets: the back pouch, grenades
-    table(out, 3200, -320, 3328, -272, LOW, 32)
+    table(out, 3200, -320, 3328, -280, LOW, 32)
     for x in (3232, 3296):
-        ent("item_rockets", x, -296, LOW + 36)
+        item("item_rockets", x, -296, LOW + 36)
     restock("item_rockets", 3264, -296, LOW + 36, distance=96, wait=8)
     banner(N.join(["GRENADES", "With rockets in your pack, reach over your", "shoulder to the back pouch: grip a grenade.",
                    "Trigger pulls the pin; throw it. Or set it", "down as a trap. No launcher needed."]),
@@ -1224,12 +1239,12 @@ def build_room11():
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 256, 2, 2, 220)
     for (side, x, y) in (("-x", r["x0"], -128), ("-x", r["x0"], 128)):
         wall_torch(out, side, x, y, LOW + 64)
-    table(out, 1760, 192, 1920, 256, LOW, 36)
-    ent("weapon_nailgun", 1792, 224, LOW + 40)
+    table(out, 1760, 192, 1920, 232, LOW, 36)
+    ent("weapon_nailgun", 1792, 208, LOW + 40)
     for x in (1856, 1888):
-        ent("item_spikes", x, 224, LOW + 40)
-    restock("item_spikes", 1872, 224, LOW + 40, count=2, distance=128, wait=6)
-    restock("weapon_nailgun", 1792, 224, LOW + 40, distance=4000, wait=8)
+        item("item_spikes", x, 208, LOW + 40)
+    restock("item_spikes", 1872, 208, LOW + 40, count=2, distance=128, wait=6)
+    restock("weapon_nailgun", 1792, 208, LOW + 40, distance=4000, wait=8)
     banner(N.join(["LAVA NAILS", "Fire nails through a torch's flame:", "they come out burning.",
                    "(Dissolution of Eternity's lava nails)"]), 1840, r["y1"] - 4, LOW + 120, 270, "0.28")
     tip("t2_lavanails", "Hold a torch in front of the nailgun" + N + "and fire through the flame.", 1840, 200,
@@ -1283,19 +1298,19 @@ def build_room12():
     for (x, y) in ((1300, -1450), (1330, -1430), (300, -650)):
         ent("vr_barrel", x, y, LOW + 18)
     # weapons and supplies by the entrance; health round the walls
-    table(out, 1280, -760, 1392, -680, LOW, 36)
-    ent("weapon_shotgun", 1300, -720, LOW + 40)
-    ent("weapon_nailgun", 1360, -720, LOW + 40)
-    table(out, 1280, -880, 1392, -800, LOW, 36)
-    for (cls, x) in (("item_shells", 1300), ("item_spikes", 1340), ("item_rockets", 1376)):
-        ent(cls, x, -840, LOW + 40)
-    restock("item_shells", 1300, -840, LOW + 40, distance=64, wait=10)
-    restock("item_spikes", 1340, -840, LOW + 40, distance=64, wait=10)
-    restock("weapon_shotgun", 1300, -720, LOW + 40, distance=6000, wait=10)
-    for (x, y) in ((300, -1500), (1370, -1500), (300, -450), (830, -1110)):
-        ent("item_health", x, y, LOW + 2)
+    table(out, 1352, -800, 1392, -672, LOW, 36)
+    ent("weapon_shotgun", 1368, -700, LOW + 40, angle=90)
+    ent("weapon_nailgun", 1368, -768, LOW + 40, angle=90)
+    table(out, 1352, -960, 1392, -832, LOW, 36)
+    for (cls, y) in (("item_shells", -856), ("item_spikes", -896), ("item_rockets", -936)):
+        item(cls, 1368, y, LOW + 40)
+    restock("item_shells", 1368, -856, LOW + 40, distance=32, wait=10)
+    restock("item_spikes", 1368, -896, LOW + 40, distance=32, wait=10)
+    restock("weapon_shotgun", 1368, -700, LOW + 40, distance=6000, wait=10)
+    for (x, y) in ((300, -1500), (1370, -1500), (448, -560), (830, -1110)):
+        item("item_health", x, y, LOW + 2)
     restock("item_health", 1370, -1500, LOW + 2, distance=96, wait=15)
-    ent("item_health", 330, -460, MEZZ_Z + 2, spawnflags=2)  # a megahealth on the mezzanine
+    item("item_health", 330, -460, MEZZ_Z + 2, spawnflags=2)  # a megahealth on the mezzanine
     for x in (512, 832, 1152):
         wall_lamp(out, "-y", x, r["y0"], LOW + 140, 180)
     # the fight: shut the door, count down, three waves (QC func_vr_spawner: each fires its target when its monsters

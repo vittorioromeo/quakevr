@@ -244,3 +244,13 @@
                          // capped while it lies about, whoever let go of it since (not a map's or a dispenser's)
 
 .float carry_portal; // room mapping of a held object, one-based gate
+
+// The tutorial's scripting (vr_tutorial.qc; vr_crates.qc's contents)
+.string contents;      // vr_crate: what it holds (a classname; "none": nothing); func_vr_restock: what it puts
+.float contentsflags;  // func_vr_restock: what it puts's spawnflags
+.entity vr_spawner;    // a monster a func_vr_spawner made: that spawner
+.float vr_cp_taken;    // info_vr_checkpoint: when it was taken (0: not yet)
+.float vr_spawn_left;  // func_vr_spawner: monsters still to make for its latest use
+.float vr_spawn_armed; // func_vr_spawner: its latest use's monsters not all dead yet (its target not fired)
+.entity vr_spawn_by;   // func_vr_spawner: who used it last (its target's activator)
+.float tip_on;         // func_vr_tip (TRIGGERED): used: shown from now on

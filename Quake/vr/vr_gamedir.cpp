@@ -1123,7 +1123,7 @@ int campaignForMap(const char* map, int current)
 extern "C" int VR_IsVrMap(const char* map)
 {
     return !strcmp(map, "vrstart") || !strcmp(map, "vrstart_old") || !strcmp(map, "vrstart2") || !strcmp(map, "vrtutorial") ||
-           !strcmp(map, "vrfiringrange");
+           !strcmp(map, "vrtutorial2") || !strcmp(map, "vrfiringrange");
 }
 
 // The hub: vrstart, or vrstart_old when vr_hub_map names it (vrstart2, the island's old name, is vrstart).

@@ -489,6 +489,12 @@ This is the destination marker for a teleporter. It should have a 'targetname' f
 [
 ]
 
+@PointClass color(76 255 76) size(-16 -16 -24, 16 16 32) =
+	info_vr_checkpoint : "Quake VR: where a player who dies comes back (single player), instead of the level restarting: taken when he comes within 'distance' (default 96) of it, or when it is used. He comes back at the latest one taken, facing its 'angle', with a new life (the level's starting items and health; the keys he holds kept), the level as he left it. No checkpoint taken: the level restarts, as Quake's."
+[
+	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+]
+
 //
 // Weapons
 //
@@ -2390,6 +2396,37 @@ Trains are moving platforms that players can ride. The targets origin specifies 
 	noise1(string) : "Sound 1" :  : "A sound, relative to sound/."
 ]
 
+@PointClass color(76 204 255) size(-8 -8 -8, 8 8 8) =
+	func_vr_restock : "Quake VR: keeps a supply going (single player). Every 'wait' seconds (default 5; -1: only when used), when fewer than
+'count' (default 1) of 'contents' lie within 'distance' (default 96) of it, it puts a new one here: item_shells, item_spikes, item_rockets, item_cells, item_health, item_key1, item_key2, weapon_shotgun, weapon_supershotgun, weapon_nailgun, weapon_supernailgun, vr_debris_piece (a rock or a brick: 'model', e.g. progs/vr_rock3.mdl) or vr_crate. 'contentsflags': its spawnflags (item_health 1: the small kit). Its origin is the middle of the new one's floor. Place one of them in the map as well (what it makes is precached by it)."
+[
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@PointClass color(255 102 51) size(-16 -16 -24, 16 16 40) =
+	func_vr_spawner : "Quake VR: makes monsters here when used, with a teleporter's flash: 'weapon' which kind (as func_enemy_dispenser's: 0 grunt, 1 ogre, 2 zombie, 7 dog, 8 enforcer...), 'count' how many a use makes (default 1), 'wait' the seconds between them (default 0.5; one waits while something stands on the spot), 'angle' the way they face. 'target' is fired (the user the activator) once every monster of its latest use is dead: chain waves with trigger_counter and trigger_relay.
+ONE_AT_A_TIME: a use while one of its monsters lives makes none ('message' centerprinted to the player who used it).
+ANGRY: they go for the player who used it at once."
+[
+	spawnflags(flags) =
+	[
+		1 : "ONE AT A TIME" : 0
+		2 : "ANGRY" : 0
+	]
+	weapon(integer) : "Weapon / kind" :  : "A number: see the help for this entity."
+	count(integer) : "Count" :  : "A count: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@SolidClass color(204 128 51) =
+	func_vr_target : "Quake VR: a target board (a brush) that breaks into splinters when it is shot, struck or blown up ('health', default
+10), firing its 'target' (the activator: what broke it). vrtutorial2's firing range: a trigger_counter opens the way on."
+[
+	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
+]
+
 @PointClass base(Appearflags, Target, Targetname) color(50 180 230) size(-8 -8 -8, 8 8 8) =
 	func_vr_tip : "Tip for new players (Quake VR)
 
@@ -2405,6 +2442,7 @@ this tip. Try one with vr_tips_test <tipname>."
 		1 : "Show every time" : 0 : "Not remembered: it shows again whenever he comes near. (The map's worldspawn Repeat map tips makes every tip in the map do this.)"
 		2 : "Wrist hologram" : 0 : "In the wrist gadget's hologram instead of the floating screen (the screen when there is no hologram)."
 		4 : "Ignore sight and view" : 0 : "Shown even out of the view angle or hidden behind the world."
+		8 : "TRIGGERED" : 0
 	]
 	message(string) : "Text" :  : "The tip's text. \n starts a new line."
 	distance(float) : "Range (units)" : 0 : "How near the player must come for it to show (0: his own setting)."
@@ -3174,6 +3212,11 @@ Variable sized single use trigger that requires a key to trigger targets. Must b
 	]
 ]
 
+@SolidClass color(128 128 128) =
+	trigger_vr_health_gate : "Quake VR: fires its 'target' once, when the player touches it at full health (his max_health, or 'health' if set: a door that opens only then, as vrtutorial2's). Below it, 'message' is centerprinted (every 2 seconds while he stays in it)."
+[
+]
+
 @SolidClass color(51 128 51) =
 	trigger_waterfall : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
@@ -3201,7 +3244,7 @@ Pushes the player in the direction specified by angles.
 
 @PointClass color(153 115 64) size(-16 -16 0, 16 16 32) =
 	vr_crate : "Quake VR: a wooden crate, placed by hand: a heavy physics prop (pushed, tipped, stacked, stood on, carried by hand) that breaks into light pieces when shot, struck, blown up or hit hard, sometimes holding a small box of ammo or health (Crates' settings), and hides the player from monsters behind it. Small: 32 units a side; LARGE: 40 x 40 x 48. 'angle':
-its yaw; 'skin': 0 pine, 1 brown, 2 weathered. It rests on whatever is below its origin (within 128 units). Placed whatever Crates' options are."
+its yaw; 'skin': 0 pine, 1 brown, 2 weathered. It rests on whatever is below its origin (within 128 units). Placed whatever Crates' options are. 'contents': what it holds instead of the random box (a classname, as func_vr_restock's: item_key1, item_health...; 'none': nothing); 'target': fired as it breaks (the activator: what broke it)."
 [
 	spawnflags(flags) =
 	[

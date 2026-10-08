@@ -184,6 +184,7 @@ void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
     WeaponInst_EnsureAll(); // (a save from before the weapons' records: their weapons get theirs, empty)
+    VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
 }
 
 void() SetNewParms =
@@ -207,7 +208,7 @@ void() SetNewParms =
 
     parm2 = VR_BaseHealth();
     parm3 = 0;
-    parm4 = 25;
+    parm4 = mapname == "vrtutorial2" ? 0 : 25; // (the tutorial: no shells until its range)
     parm5 = 0;
     parm6 = 0;
     parm7 = 0;
@@ -473,6 +474,12 @@ entity() FindIntermission =
 
 // testinfo_player_start is only found in regioned levels
     spot = find(world, classname, "testplayerstart");
+    if(spot)
+        return spot;
+
+    // VR: single player back at a checkpoint (vr_tutorial.qc; none taken: the start)
+    if(!coop && !deathmatch)
+        spot = VR_Checkpoint_Latest();
     if(spot)
         return spot;
 
@@ -750,6 +757,13 @@ void() changelevel_touch =
     }
 
     nextmap = self.map;
+    // VR: the first start's calibration room leads to the tutorial (on Easy) until it has been started once
+    // (vr_tutorial_started: vr_tutorial.qc; the engine's startGameCommands does the same at a start)
+    if(mapname == "vrcalibration" && nextmap == "vrstart" && !deathmatch && !coop && !cvar("vr_tutorial_started"))
+    {
+        nextmap = "vrtutorial2";
+        cvar_set("skill", "0");
+    }
     // Dawn of the Machine: the new game Bloody Nightmare starts leaves the hub for Shub (boss2), not secret2.
     if(MG3_Campaign() && mapname == "hub" && nextmap == "secret2"
         && (serverflags & MG3_SF_BN_NEWGAME) && (serverflags & MG3_SF_BN_ACTIVE))
@@ -806,6 +820,12 @@ void() set_suicide_frame;
 // called by ClientKill and DeadThink
 void() respawn =
 {
+    // VR: a map with checkpoints (vrtutorial2: info_vr_checkpoint) brings him back at the latest, the level as it was
+    if(VR_Checkpoint_Respawn())
+    {
+        return;
+    }
+
     if(coop)
     {
         // make a copy of the dead body for appearances sake
