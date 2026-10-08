@@ -614,6 +614,8 @@ float cvarh_vr_weapon_grip_mode;
 float cvarh_vr_headbutt;
 float cvarh_vr_headbutt_speed;
 float cvarh_vr_headbutt_damage;
+float cvarh_vr_water_jump;
+float cvarh_vr_climb;
 float cvarh_vr_damage_to_enemies;
 float cvarh_vr_damage_to_player;
 float cvarh_vr_damage_self;
@@ -1350,6 +1352,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_headbutt);
     VR_CVAR_HMAKE(vr_headbutt_speed);
     VR_CVAR_HMAKE(vr_headbutt_damage);
+    VR_CVAR_HMAKE(vr_water_jump);
+    VR_CVAR_HMAKE(vr_climb);
     VR_CVAR_HMAKE(vr_damage_to_enemies);
     VR_CVAR_HMAKE(vr_damage_to_player);
     VR_CVAR_HMAKE(vr_damage_self);

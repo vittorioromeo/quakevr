@@ -1597,22 +1597,20 @@ void() WaterMove =
         self.velocity = self.velocity - 0.8*self.waterlevel*frametime*self.velocity;
 };
 
-void() CheckWaterJump =
+// Quake's jump out of the water, along the level `xDir`: solid at the waist within 24 units ahead, open at eye
+// level: the player is lifted out (FL_WATERJUMP; SV_WaterJump carries him over the edge). TRUE if he was.
+float(vector xDir) WaterJumpTry =
 {
     vector start, end;
 
-// check for a jump-out-of-water
-    makevectors(self.angles);
     start = self.origin;
     start_z = start_z + 8;
-    v_forward_z = 0;
-    normalize(v_forward);
-    end = start + v_forward*24;
+    end = start + xDir*24;
     traceline(start, end, TRUE, self);
     if(trace_fraction < 1)
     {    // solid at waist
         start_z = start_z + self.maxs_z - 8;
-        end = start + v_forward*24;
+        end = start + xDir*24;
         self.movedir = trace_plane_normal * -50;
         traceline(start, end, TRUE, self);
         if(trace_fraction == 1)
@@ -1621,9 +1619,74 @@ void() CheckWaterJump =
             self.velocity_z = 225;
             self.flags = self.flags - (self.flags & FL_JUMPRELEASED);
             self.teleport_time = time + 2;    // safety net
-            return;
+            dprint(sprintf("waterjump: out of the water at %v\n", self.origin));
+            return TRUE;
         }
     }
+    return FALSE;
+};
+
+// Climbing out of the water by hand (vr_water_jump 0, vr_climb on): an empty hand gripping on the edge, the
+// ground right under it, pulled down (VR_WATERCLIMB_PULL m/s) lifts the player out as Quake's jump out would, over
+// the edge towards that hand. A bank no ledge of the ledge map is on (a slope, a step: vr_ledges.cpp) climbs so;
+// a ledge's hold takes the climbing's own way (vr_climb.cpp: hang, pull up, mantle).
+float VR_WATERCLIMB_PULL = 0.3;
+float(float xHand) VR_WaterClimb_HandPull =
+{
+    vector vel = VRGetEntHandVel(self, xHand);
+    if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand) || !VRIsHandEmpty(self, xHand) || vel_z > -VR_WATERCLIMB_PULL)
+    {
+        return FALSE;
+    }
+    vector p = VRGetEntHandPos(self, xHand);
+    vector d = p - self.origin;
+    d_z = 0;
+    if(vlen(d) < 8)
+    {
+        return FALSE; // a hand by the body
+    }
+    traceline(p + '0 0 4', p - '0 0 16', TRUE, self);
+    if(trace_fraction == 1 || trace_startsolid || trace_plane_normal_z < 0.7)
+    {
+        return FALSE; // no ground under the hand (a top that could be stood on) to push on
+    }
+    float top = trace_endpos_z;
+    d = normalize(d);
+    if(!WaterJumpTry(d))
+    {
+        return FALSE;
+    }
+    // Lifted high enough to clear the top under the hand (Quake's 225 units/s rise reaches about 31 units: a bank's
+    // top higher than the waist is not climbed so), and carried over the edge a little faster than Quake's.
+    float g = cvar("sv_gravity") * (self.gravity ? self.gravity : 1);
+    float rise = top - (self.origin_z + self.mins_z) + 6;
+    if(rise > 0 && g > 0)
+    {
+        self.velocity_z = max(225, sqrt(2 * g * rise));
+    }
+    self.movedir = self.movedir * 1.6; // (Quake's: away from the edge's face, 50 units/s)
+    dprint(sprintf("waterjump: climbed out by hand %g, the top %.1f above the feet, rising at %.0f\n", xHand, rise - 6,
+        self.velocity_z));
+    VRItemPickupHaptic(self);
+    return TRUE;
+};
+
+void() CheckWaterJump =
+{
+// check for a jump-out-of-water
+    makevectors(self.angles);
+    v_forward_z = 0;
+    // Off (vr_water_jump 0), a player climbs out with the hands: only while climbing is on (else there would be no
+    // way out of a pool whose sides are higher than a stroke lifts him).
+    if(self.ishuman && !cvar_hget(cvarh_vr_water_jump) && cvar_hget(cvarh_vr_climb))
+    {
+        if(!VR_WaterClimb_HandPull(cVR_MainHand))
+        {
+            VR_WaterClimb_HandPull(cVR_OffHand);
+        }
+        return;
+    }
+    WaterJumpTry(v_forward);
 };
 
 /*

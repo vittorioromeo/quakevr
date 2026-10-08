@@ -31778,3 +31778,20 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
 - **The flat screen's row of icons** (vr_menuui.cpp, ToolbarLayout::rowCorner) is now 4 true pixels below the canvas's
   top (was 1), as the status box and the version box are from their edges; it ends at 16, clear of the lists' titles at
   16:10 and 4:3 (Levels, Options checked). The headset's column was 4 from the top already.
+## Out of the water by hand; Dawn of the Machine's armour shards as armour; the author's settings (2026-10-08)
+
+- **Jump Out of Water** (map1_13-55-35; `vr_water_jump`, Swimming page, default 1: Quake's). Quake lifts a swimmer
+  at the surface out of the water when there is solid at his waist ahead and room at eye level (QC `CheckWaterJump`).
+  Off, it doesn't: the player climbs out with the hands. A lip of the ledge map is climbing's own (vr_climb.cpp: take
+  it, pull, mantle); a bank that is no ledge (a slope, a rock: the ledge map wants a 32-unit drop) climbs by
+  `VR_WaterClimb_HandPull`: an empty hand gripping with ground (normal z 0.7 or more) right under it, pulled down at
+  0.3 m/s or more, lifts the player as Quake's jump does, towards that hand and high enough to clear the top under it.
+  Only while climbing is on (`vr_climb`): with it off, Quake's jump out stays, or a pool with high sides would have no
+  way out. Bots keep Quake's. Kept on by default: off is a harder game (a bank the hands can't take means swimming to
+  another way out), and Quake's lift is what every map's pools were made for. `developer 1` prints `waterjump:` lines.
+  Tests (mock, `vr_campaign_native mg3`, map1's pool at `setpos 64 1000 -160 0 90 0`, stick forward, jump held to stay
+  at the surface; its north lip 24 units over the water): on, out onto the lip (origin z -104); off, held at the wall
+  in the water (y 1080, z -147); off with `vr_climb 0`, out (Quake's). Off, both hands taking the lip and pulling down
+  0.3 m or 0.8 m: climbing's mantle, onto the lip (60 1110 -104). map1's rock bank by `-280 2232 -214` (swim north): on,
+  out; off, stays; the hand pull fires there (`waterjump: climbed out by hand`) but the rock overhangs the water, and
+  only Quake's way along it (west, with the stick) gets over it.

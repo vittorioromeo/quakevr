@@ -208,7 +208,7 @@ void resetSwimming()
         "vr_swim_stick_speed", "vr_swim_stroke", "vr_swim_stroke_min", "vr_swim_palm", "vr_swim_stroke_assist",
         "vr_swim_max_speed", "vr_swim_look", "vr_swim_recovery", "vr_swim_glide", "vr_swim_power_threshold",
         "vr_swim_power_knee", "vr_swim_power_whole", "vr_swim_intent_memory", "vr_swim_reverse_damp", "vr_swim_reverse_speed",
-        "vr_swim_flat_exp", "vr_swim_speed_exp", "vr_swim_palm_dir", "vr_swim_against_palm", "vr_swim_stroke_pitch", "vr_air_supply"};
+        "vr_swim_flat_exp", "vr_swim_speed_exp", "vr_swim_palm_dir", "vr_swim_against_palm", "vr_swim_stroke_pitch", "vr_air_supply", "vr_water_jump"};
     for(const char* name : names)
     {
         if(cvar_t* var = Cvar_FindVar(name))
@@ -227,6 +227,8 @@ void resetSwimming()
         slider("Stick Swimming", "vr_swim_stick_speed", 0.f, 1.f, 0.05f, "%.2f").help("Under water or off the bottom: swim with your hands."),
         slider("Air Supply", "vr_air_supply", 1.f, 4.f, 0.25f, "%.2fx")
             .help("How long you can stay under water before you start drowning: times Quake's 12 seconds (1.5x: 18 s). Once drowning, the damage comes as ever. The Biosuit's air is unchanged."),
+        toggle("Jump Out of Water", "vr_water_jump")
+            .help("On (Quake's): swimming against an edge with room above it lifts you out. Off: you climb out with your hands, grabbing the edge (needs Climbing on; with Climbing off, Quake's jump out stays)."),
         header("Strokes"),
         slider("Stroke Strength", "vr_swim_stroke", 0.f, 30.f, 1.f, "%.0f").extend().help("How far a stroke of your hand moves you."),
         slider("Speed Curve", "vr_swim_speed_exp", 1.f, 3.f, 0.25f, "%.2f").extend()

@@ -1027,6 +1027,10 @@ stick) does not take you out of the pool's bottom: the player falls through it (
 `vr_swim_debug 1` prints each stroke. Mock hand poses: pitch -20 points the hand down (Gun Angle 70); yaw 90 (main)
 or -90 (off) turns the palm back towards the body. For the air, nothing prints a drowning hit: add a temporary
 `bprint` after `T_Damage` in `WaterMove` for the run (as for ROUND21.md's table).
+Out of the water by hand (ROUND21.md, "Out of the water by hand; ..."): `vr_campaign_native mg3; vr_climb 1; map map1`, `setpos 64
+1000 -160 0 90 0; noclip`, `+jump` (stays at the surface) and `vr_mock_stick off 0 1` for 120 frames: `vr_water_jump 1` lifts you
+onto the lip (z -104), 0 leaves you in the water at y 1080 (but with `vr_climb 0`: Quake's lift). `developer 1` prints
+`waterjump:` lines; a play gripping at hy 1.32, fwd -0.67 and pulling down mantles out.
 Climbing, hand placement and grab leniency (ROUND21.md, "Climbing: hand placement and grab leniency"):
 `vr_fixed_frames 1` makes every frame 1/72 s of game time with a server frame, so a scripted climb logs the same
 numbers every run (compare two settings' `climbtrace` lines with `diff`). `vr_climb_try <x> <y> <z> [off|main] [<vx>
