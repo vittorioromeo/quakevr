@@ -2291,6 +2291,8 @@ void PR_Init (void)
 	Cmd_AddCommand ("edicts", ED_PrintEdicts);
 	Cmd_AddCommand ("edictcount", ED_Count);
 	Cmd_AddCommand ("profile", PR_Profile_f);
+	Cmd_AddCommand ("profile_qc", PR_ProfileQC_f); // QVR: per-function time (vr_qcprofile)
+	Cvar_RegisterVariable (&vr_qcprofile);
 	Cvar_RegisterVariable (&nomonsters);
 	Cvar_SetCallback (&nomonsters, ED_Nomonsters_f);
 	Cvar_RegisterVariable (&gamecfg);

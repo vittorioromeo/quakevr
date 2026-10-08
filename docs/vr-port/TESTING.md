@@ -786,6 +786,16 @@ Options > Debug > Profiling and Memory.
   in `qconsole.log` too).
 - **Detail**: *Every Trace and Builtin* also times each collision trace and each QuakeC builtin call apart (dearer).
 
+**QuakeC's time by function** (Debug > Profiling and Memory > *Time QuakeC Functions*, *QuakeC Time Report*):
+`vr_qcprofile 1`, play, then `profile_qc [n]` (default 15; `profile_qc 0` only zeroes) prints, a frame (host frames
+since the last report): the server QuakeC's whole time; the n functions with the most time of their own (`self`: their
+statements and the builtins they call, their QuakeC callees out), with their time callees in (`incl`) and calls; the n
+builtins (`b`), and the n caller > builtin pairs (`p`: which function's calls of which builtin cost the most). TSC
+ticks round each call (one test a call while off); the totals include the timer's own cost, so compare runs with it
+on both sides. A scenario's split: insert `vr_qcprofile 1; profile_qc 0` before a scenario's `vr_bench_begin` and
+`profile_qc 40` after its `vr_bench_end` (`qvrbench.py script <name> --out x.cfg`). `profile [n]` (Quake's) still
+counts instructions.
+
 In the console: `vr_profile_overlay 1` / `2`, `vr_profile_csv 1` / `0` (or `vr_profile_csv_toggle`, to bind to a key),
 `vr_profile_hitch 1.5`, `vr_profile_detail 2`, `vr_profile_gpu 4` (the GPU's times on one frame in 4: each timer query
 stalls the GPU a little; 1 every frame, 0 none). All are off again after a restart.

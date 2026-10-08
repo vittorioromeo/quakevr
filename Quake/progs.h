@@ -332,6 +332,8 @@ void PR_ClearEngineString (int num);
 int PR_AllocString (int bufferlength, char **ptr);
 
 void PR_Profile_f (void);
+void PR_ProfileQC_f (void); // QVR: per-function QuakeC time
+extern cvar_t vr_qcprofile;
 
 edict_t *ED_Alloc (void);
 void ED_Free (edict_t *ed);
@@ -357,6 +359,7 @@ int NUM_FOR_EDICT(edict_t*);
 int SAVE_NUM_FOR_EDICT (savedata_t *save, edict_t *e);
 
 #define	NEXT_EDICT(e)		((edict_t *)( (byte *)e + qcvm->edict_size))
+
 
 #define	EDICT_TO_PROG(e)	(int)((byte *)e - (byte *)qcvm->edicts)
 #define PROG_TO_EDICT(e)	((edict_t *)((byte *)qcvm->edicts + e))

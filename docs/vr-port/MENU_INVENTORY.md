@@ -2791,6 +2791,8 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - [cmd] Print Report → `vr_profile_report`
         - [cmd] Dump Profile → `vr_profile_dump`
         - [cmd] QuakeC Instructions → `profile 30`
+        - Time QuakeC Functions → `vr_qcprofile`
+        - [cmd] QuakeC Time Report → `profile_qc 30`
         - — Threads —
         - Split Work Between Threads → `vr_jobs_parallel`
         - Worker Threads → `vr_jobs_threads`
