@@ -17,6 +17,7 @@ Super nailgun: receiver flush on its face; lava nail magazine smokes when empty;
 Held-prop knock-out: hold a head/crate beside the gun and move normally: the magazine must not pop out by accident; a deliberate fast hit does
 
 [Firing range: combat and dummies]
+Knockdowns: judo-throw a grunt/knight both ways and with a twist: it topples over its feet (Combat > Holding Enemies > Topple 120 deg/s, Feet Held, Twist Spin); a knocked-down grunt struggles (limbs kick, chest curls); axe a knocked-down grunt's neck with a killing blow: head off; slash a forearm: limb off
 Ragdoll skins with retro textures on: kill a grunt, ogre, knight: each corpse as detailed as alive (was 4x coarser on every ragdoll)
 Judo throw (Combat > Holding Enemies > Two-Hand Throw): both hands on a grunt, twist left/right or pull towards you: it falls that way; ogre: not at full health, yes after Debug > Tests > Holding Enemies > Hurt the Held to 30%; shambler never; practise on the dummy (shows thrown / not hurt enough; Log Holds prints your hardest twist: set Twist from it); one-hand hold: walk back, the grunt comes along (your cfg keeps drag 20/300 from testing: reset to try the new defaults); grabbing the dummy no longer crashes
 Slaps: forehand and backhand, swish even on a miss; shoves stay shoves
