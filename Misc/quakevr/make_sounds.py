@@ -47,6 +47,8 @@
 #                 stone and the bar ringing on); a little apart in pitch
 #   rock1..3.wav, brick1..3.wav  a rock's thud and a brick's clack (QC vr_debris.qc): landing, knocked, thrown into
 #                 something or struck with; three each, a little apart in pitch
+#   swim_soft1..3.wav, swim_hard1..3.wav  a hand's swimming stroke under water (vr_physics.cpp strokeFeedback): water
+#                 moved aside, muffled and churning, with a few bubbles; the brisk strokes' (_hard) quicker and brighter
 #   squish1..4.wav, squish_s1..4.wav  a gib landing or sticking (QC vr_carry.qc VR_Gib_Touch, vr_smallgibs.qc;
 #                 vr_physsound.cpp's flesh): a wet slap, a soft low thud and the squelch of bubbles popping in it; the
 #                 small gibs' (_s) higher, shorter and lighter
@@ -492,6 +494,43 @@ def slap_whoosh(pitch, seed):
         flutter = 1.0 + 0.18 * math.sin(2 * math.pi * 34 * pitch * t + rng.uniform(-0.3, 0.3))
         out.append(math.tanh(band * swell * flutter * 4.0))
     return finish(out, 0.55)
+
+
+def swim_stroke(pitch, seed, hard):
+    """A hand sweeping water aside as it swims (vr_physics.cpp strokeFeedback; vrfiringrange_2026-10-08_22-26-37:
+    "sounds like moving water with your hands"): no air's swish (a slap's) but water's, muffled and low: a band of
+    noise that swells as the hand drives and rolls off after it, churning (its loudness wobbling, a gurgle), with a
+    few bubbles shed from the fingers (decaying sines chirping up, as small bubbles ring). `hard`: a brisk stroke's,
+    quicker to swell, brighter and with more bubbles; else a gentle one's, slower, darker, longer."""
+    rng = random.Random(seed)
+    n = int(RATE * (0.5 if hard else 0.6))
+    peak = (0.05 if hard else 0.09) / pitch  # played as the hand passes its fastest: a short swell
+    tail = 0.11 if hard else 0.15
+    lo_c, hi_c = (380.0, 1300.0) if hard else (260.0, 760.0)
+    water_lo, water_lo2, water_hi = VarLowPass(), VarLowPass(), VarLowPass()
+    churn_rate = rng.uniform(9.0, 14.0)
+    churn_phase = rng.uniform(0.0, 2 * math.pi)
+    bubbles = []
+    for _ in range(7 if hard else 3):
+        at = peak * rng.uniform(0.4, 1.0) + rng.uniform(0.0, 0.22)
+        f0 = rng.uniform(600.0, 1500.0 if hard else 1100.0) * pitch
+        bubbles.append((at, f0, rng.uniform(0.010, 0.026), rng.uniform(0.25, 0.6), rng.uniform(4.0, 12.0)))
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        swell = (t / peak) ** 1.5 if t < peak else math.exp(-(t - peak) / tail)
+        centre = (lo_c + (hi_c - lo_c) * swell) * pitch
+        lo = water_lo2(water_lo(noise, centre), centre)
+        band = lo - water_hi(lo, centre * 0.25)
+        churn = 1.0 + 0.35 * math.sin(2 * math.pi * churn_rate * t + churn_phase)
+        bub = 0.0
+        for at, f0, decay, amp, rise in bubbles:
+            u = t - at
+            if 0.0 <= u < decay * 6:
+                bub += amp * math.sin(2 * math.pi * f0 * (u + rise * u * u)) * math.exp(-u / decay) * min(1.0, u / 0.001)
+        out.append(math.tanh(band * swell * churn * 6.0 + bub * 0.3))
+    return finish(out, 0.8 if hard else 0.7, 0.05)
 
 
 # ---- The crowbar (QC vr_crowbar.qc; docs/vr-port/ROUND21.md, "The crowbar"): a hexagonal steel bar 67 cm long rings
@@ -1256,6 +1295,12 @@ def main():
         name = "slap_whoosh%d.wav" % (k + 1)
         write_wav(os.path.join(out, name), slap_whoosh(pitch, 171 + k))
         print(name + " -> " + os.path.normpath(out))
+    # Swimming strokes under water (vr_physics.cpp strokeFeedback): three gentle, three brisk, a little apart in pitch.
+    for kind, hard, seed in (("swim_soft", False, 811), ("swim_hard", True, 821)):
+        for k, pitch in enumerate((1.0, 0.9, 1.1)):
+            name = "%s%d.wav" % (kind, k + 1)
+            write_wav(os.path.join(out, name), swim_stroke(pitch, seed + k, hard))
+            print(name + " -> " + os.path.normpath(out))
     # The crowbar (QC vr_crowbar.qc): three blows on a body, two on a wall, a little apart in pitch.
     for k, pitch in enumerate((1.0, 0.93, 1.07)):
         name = "crowbar_hit%d.wav" % (k + 1)

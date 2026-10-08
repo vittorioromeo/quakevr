@@ -253,6 +253,12 @@ void() worldspawn =
     precache_sound("vr/stroke2.wav");
     precache_sound("vr/stroke3.wav");
     precache_sound("vr/stroke4.wav");
+    precache_sound("vr/swim_soft1.wav"); // strokes under water (synthesised: make_sounds.py)
+    precache_sound("vr/swim_soft2.wav");
+    precache_sound("vr/swim_soft3.wav");
+    precache_sound("vr/swim_hard1.wav");
+    precache_sound("vr/swim_hard2.wav");
+    precache_sound("vr/swim_hard3.wav");
 
     // VR: a headshot's tick; the knights' swords, which a player can carry into any map, and their
     // sounds (also a carried box's grab).

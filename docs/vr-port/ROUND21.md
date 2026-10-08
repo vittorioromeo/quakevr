@@ -32411,3 +32411,27 @@ Vittorio's notes vrfiringrange_2026-10-08_22-35-47 .. 22-44-48.
   Person's place over `vr_death_view_menu_time` (0.3 s, smoothstep), its turn eased out too; past half way the hands,
   the gear and the body's head are drawn again; back in as it closes. Mock: inhead 1 -> 0.86 -> 0.30 -> 0 (camera 71
   units from the head's eyes), closed 0.12 -> 0.65 -> 1 (1 unit).
+
+## Swimming strokes sound as water, not as slaps (2026-10-08)
+
+His note (vrfiringrange_2026-10-08_22-26-37): swimming with the hands played the slap's sound and the swing's swish;
+he wanted a stroke to sound like water moved by the hands, the slaps silent under water, a real punch kept.
+
+- **No slaps under water** (QC vr_melee.qc `VR_Melee_HandUnderwater`: the grip in water, slime or lava):
+  `VR_Melee_Slaps` is false there, so an open hand under water neither slaps nor whooshes, and (as a slap's whoosh
+  did) no longer wakes monsters (`show_hostile`). A closed fist's punch still lands, with its sound and its wake.
+- **No whoosh under water**: `VR_Melee_Whoosh` plays nothing for a hand under water (a punch, a weapon: no air to
+  swish); the swing still counts (the motion event, `show_hostile`). `developer` prints `melee sound: none (...)`.
+- **Each hand's stroke heard** (vr_physics.cpp `strokeFeedback`): once a stroke past its power gate (as before), but
+  now as the hand passes its fastest (below 92% of its peak, or as the stroke ends), each hand on its own (0.25 s
+  apart; before, one sound for both hands, 0.3 s), as loud as the stroke was fast. Near the surface (within 10
+  units), the recorded strokes and a splash, as before; deeper, new synthesised sounds of water swept aside
+  (make_sounds.py `swim_stroke`: muffled churning noise and a few bubbles): `vr/swim_soft1..3` below 2.2 m/s,
+  `vr/swim_hard1..3` above. Volume: `vr_water_sounds`.
+- **Stealth**: swim strokes make no stealth noise (decision: quiet strokes, a swim past monsters stays possible; a
+  slap's or punch's whoosh woke them, an open hand under water now doesn't).
+- Water entry splashes of a hand slapping the surface stay (vrfiringrange's pool: the hands going in and out).
+
+Test: `Misc/quakevr/swim/swim_sound_test.sh <agent>` (10 checks: a dry slap whooshes and wakes; 6 s of strokes heard
+10 times, no whoosh, no wake; an open hand swept under water silent, no wake, its stroke heard (swim_hard, 0.9); a
+punch under water counts, without whoosh).

@@ -865,13 +865,23 @@ vector(float xHand, entity b, vector xFwd) VR_Melee_ArmOut =
     return normalize(b.mh_rgrip - (right * side - '0 0 1' * VR_SHOULDER_DOWN));
 };
 
+// Whether blow `b`'s grip is in a liquid (water, slime, lava): a hand under water swims (vr_physics.cpp
+// VR_AfterWaterMove, which gives the strokes their sound): an open hand there slaps nothing (VR_Melee_Slaps), and no
+// swing whooshes there (VR_Melee_Whoosh: no air to swish); a closed fist's punch still lands, with its sound
+// (vrfiringrange_2026-10-08_22-26-37).
+float(entity b) VR_Melee_HandUnderwater =
+{
+    float c = pointcontents(b.mh_grip);
+    return c == CONTENT_WATER || c == CONTENT_SLIME || c == CONTENT_LAVA;
+};
+
 // SLAPS (vr_melee_slap; ROUND21.md, "Slaps"): whether `xHand`'s open hand, swung as fast as a punch (VR_Melee_Decide),
 // slaps: an open hand (VR_Melee_OpenHand) not in a shove's push (mh_pushing: VR_Bash), going across the body (within
 // 60 degrees of sideways: VR_SLAP_ACROSS) and not out from its shoulder (VR_SLAP_RADIAL, below a shove's
 // VR_BASH_PALM_RADIAL: an open palm pushed out ahead, with one hand or both, is always a shove, never a slap).
 float(float xHand, entity b) VR_Melee_Slaps =
 {
-    if(!cvar_hget(cvarh_vr_melee_slap) || b.mh_pushing || !VR_Melee_OpenHand(xHand))
+    if(!cvar_hget(cvarh_vr_melee_slap) || b.mh_pushing || !VR_Melee_OpenHand(xHand) || VR_Melee_HandUnderwater(b))
     {
         return FALSE;
     }
@@ -1964,6 +1974,11 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     else if(b.mh_thing == VR_MTHING_FIST && VR_Melee_OpenHand(xHand))
     {
         return;
+    }
+    if(VR_Melee_HandUnderwater(b))
+    {
+        dprint(sprintf("melee sound: none (%s under water)\n", s));
+        return; // no air to swish: the swing (a punch, a weapon) still counts
     }
     VR_SoundVaried(self, chan, s, 1, ATTN_NORM); // (a little higher or lower each time)
 };

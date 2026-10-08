@@ -754,8 +754,9 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 //   in (client.qc's WaterMove, with Quake's own sound);
 // - hands and guns hitting the surface or pulled out of it fast (with a buzz in the hand), and
 //   wading: sloshes at a walking pace, ripples at the legs (waterFeedback, every frame);
-// - swimming strokes: a stroke's sound as its power gate opens (VR_AfterWaterMove), and a splash
-//   if it breaks the surface.
+// - swimming strokes: each hand's stroke past its power gate, as the hand passes its fastest
+//   (VR_AfterWaterMove, strokeFeedback): near the surface a recorded stroke and a splash, deeper
+//   the water swept aside (synthesised: make_sounds.py).
 
 namespace
 {
@@ -816,7 +817,9 @@ enum class WaterSound : int
     SplashOut, // a hand out (one recording)
     Plip,
     Slosh,
-    Stroke,
+    Stroke,    // a stroke near the surface (recordings)
+    SwimSoft,  // a gentle stroke under water (make_sounds.py)
+    SwimHard,  // a brisk one
     Count
 };
 
@@ -833,11 +836,13 @@ constexpr WaterSoundFiles waterSoundFiles[] = {
     {{"vr/plip1.wav", "vr/plip2.wav", "vr/plip3.wav", "vr/plip4.wav"}, 4},
     {{"vr/slosh1.wav", "vr/slosh2.wav", "vr/slosh3.wav", "vr/slosh4.wav"}, 4},
     {{"vr/stroke1.wav", "vr/stroke2.wav", "vr/stroke3.wav", "vr/stroke4.wav"}, 4},
+    {{"vr/swim_soft1.wav", "vr/swim_soft2.wav", "vr/swim_soft3.wav"}, 3},
+    {{"vr/swim_hard1.wav", "vr/swim_hard2.wav", "vr/swim_hard3.wav"}, 3},
 };
 static_assert(za::getArraySize(waterSoundFiles) == static_cast<za::SizeT>(WaterSound::Count));
 
 int waterSoundIndices[static_cast<int>(WaterSound::Count)][4]{}; // this server's precache indices (0: none)
-int lastVariant[static_cast<int>(WaterSound::Count)]{-1, -1, -1, -1, -1, -1};
+int lastVariant[static_cast<int>(WaterSound::Count)]{-1, -1, -1, -1, -1, -1, -1, -1};
 
 // One of a water sound's recordings, at random, never the one played last: its precache index (0: not precached).
 [[nodiscard]] int variant(WaterSound sound)
@@ -1004,7 +1009,7 @@ struct WaterFeel
     double time{-1.0};
     WaterProbe probes[4];                   // off hand, main hand, off gun's muzzle, main gun's
     double handSplash[2]{-10.0, -10.0};     // when each hand last splashed
-    double stroke{-10.0};                   // when the last stroke was heard
+    double stroke[2]{-10.0, -10.0};         // when each hand's last stroke was heard
     glm::vec3 origin{0.f};
     bool originValid{false};
     float wade{0.f};                        // the pace: a slosh at every whole one
@@ -1170,25 +1175,30 @@ void waterFeedback(edict_t* ent)
     wading(ent, w, dt);
 }
 
-// A swimming stroke's sound, as it passes its power gate (once a stroke), from the hand; a
-// splash if it breaks the surface.
+// A swimming stroke's sound, from the hand, once a stroke that passed its power gate, as the hand
+// passes its fastest (VR_AfterWaterMove): each hand its own (vrfiringrange_2026-10-08_22-26-37), as
+// loud as the stroke was fast. Near the surface, the recorded strokes (water thrown about) and a
+// splash; deeper, water swept aside (make_sounds.py's swim_soft, or swim_hard for a brisk stroke).
+// The open hands' slaps and whooshes are not heard under water (QC vr_melee.qc VR_Melee_Slaps).
 void strokeFeedback(edict_t* ent, int handIndex, const glm::vec3& hand, float peak)
 {
     WaterFeel* w = feelOf(ent);
-    // Both hands at once: one sound. A hand just gone in (a slap) has its splash instead.
+    // A hand just gone in (a slap at the surface) has its splash instead.
     const double wet = w ? w->wetSince[handIndex] : -1.0;
-    if(!w || qcvm->time - w->stroke < 0.3 || wet < 0.0 || qcvm->time - wet < 0.15)
+    if(!w || qcvm->time - w->stroke[handIndex] < 0.25 || wet < 0.0 || qcvm->time - wet < 0.15)
     {
         return;
     }
-    w->stroke = qcvm->time;
+    w->stroke[handIndex] = qcvm->time;
     const float hard = CLAMP(0.f, (peak - 1.f) / 2.5f, 1.f);
-    soundAt(hand, variant(WaterSound::Stroke), 0.3f + 0.55f * hard);
     glm::vec3 at;
     if(surfaceOver(hand, 10.f, at))
     {
+        soundAt(hand, variant(WaterSound::Stroke), 0.3f + 0.55f * hard);
         sendSplash(at, glm::vec3{0.f, 0.f, 1.f}, 3.f + 4.f * hard);
+        return;
     }
+    soundAt(hand, variant(peak >= 2.2f ? WaterSound::SwimHard : WaterSound::SwimSoft), 0.25f + 0.65f * hard);
 }
 
 // A thing's size for its splash: the half diagonal of its model (or its box).
@@ -1413,6 +1423,8 @@ constexpr float strokeSpeed = 1.2f;
 constexpr float strokeTurnCos = 0.26f;
 // How quickly (seconds) the stroke's way follows a curving hand.
 constexpr float strokeFollow = 0.08f;
+// A stroke is heard as its hand slows below this share of its peak speed (just past its fastest).
+constexpr float strokeHeardPast = 0.92f;
 // Against the remembered stroke, a stroke as fast (over its peak) as vr_swim_reverse_speed is not
 // damped at all, and one this much slower than that is damped fully: the relaxed return is slower;
 // a deliberate reverse stroke, not.
@@ -1439,7 +1451,9 @@ struct Stroke
     float lead{0.f};      // how much the palm led (1) or the back of the hand (-1), speed-weighted (vr_swim_debug)
     float counted{0.f};   // Stroke Against Palm's weight, speed-weighted: how much of the stroke counted
     float weight{0.f};
-    bool heard{false};    // its sound played (as the power gate opened)
+    bool gated{false};    // its power gate opened (half way): it is heard (strokeFeedback)
+    bool heard{false};    // its sound played (as the hand passed its fastest, past the gate)
+    glm::vec3 at{0.f};    // where the hand was last in the water
 };
 
 // One hand's last full stroke (vr_swim_intent_memory).
@@ -1479,12 +1493,17 @@ Swimmer swimmers[MAX_SCOREBOARD];
 // A stroke is over (the hand stopped, turned, or left the water): a full one -- it passed the power
 // threshold and was not damped as a return, nor led by the back of the hand (Stroke Against Palm) -- becomes
 // the hand's intent: a backhand that hardly pushed does not make the next real stroke, against it, a "return".
-void endStroke(SwimHand& h, int hand, double now)
+// A stroke past its gate not heard yet (it ended before slowing) is heard now, where the hand last was in the water.
+void endStroke(edict_t* ent, SwimHand& h, int hand, double now)
 {
     Stroke& s = h.stroke;
     if(!s.active)
     {
         return;
+    }
+    if(s.gated && !s.heard)
+    {
+        strokeFeedback(ent, hand, s.at, s.peak);
     }
     const float counted = s.weight > 0.f ? s.counted / s.weight : 1.f;
     if(vr_swim_debug.value && glm::length(s.raw) > 0.f)
@@ -1649,7 +1668,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         }
         if(SV_PointContents(p) > CONTENTS_WATER || !(speedMs > minSpeed)) // out of the water (or slime, lava); still
         {
-            endStroke(state, h, now);
+            endStroke(ent, state, h, now);
             continue;
         }
         const glm::vec3 dir = hand.vel / speedMs;
@@ -1657,7 +1676,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         // The stroke: it goes on while the hand keeps its way (curving), and ends where it turns.
         if(stroke.active && glm::dot(dir, stroke.way) < strokeTurnCos)
         {
-            endStroke(state, h, now);
+            endStroke(ent, state, h, now);
         }
         if(!stroke.active)
         {
@@ -1671,6 +1690,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         }
         stroke.moved += hand.vel * dt;
         stroke.peak = za::max(stroke.peak, speedMs);
+        stroke.at = hand.pos;
 
         // The palm (and the back of the hand) faces the hand's side: how flat the hand meets the
         // water. Edge first it slices through (the recovery) and hardly pushes.
@@ -1738,10 +1758,13 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         }
         give = pitchStroke(give, look, strokePitch);
         stroke.factor = whole ? za::max(stroke.factor, factor) : factor;
-        if(!stroke.heard && factor >= 0.5f)
+        // Its sound (and a splash at the surface), as loud as the stroke is fast: once past the gate, as the
+        // hand passes its fastest.
+        stroke.gated = stroke.gated || factor >= 0.5f;
+        if(stroke.gated && !stroke.heard && speedMs < strokeHeardPast * stroke.peak)
         {
             stroke.heard = true;
-            strokeFeedback(ent, h, hand.pos, stroke.peak); // its sound, a splash at the surface
+            strokeFeedback(ent, h, hand.pos, stroke.peak);
         }
         stroke.raw += raw;
         stroke.given += give;
