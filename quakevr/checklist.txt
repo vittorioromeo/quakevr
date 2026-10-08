@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [Firing range: reloading]
+Solid magazines (Reloading > All Guns > Solid Magazines): empty hand and a held prop stop at the NG/SNG/LG magazines; two guns crossed at a magazine; a dropped nailgun may rest on its magazine; magazine still gripped two-handed, pulled, ejected (B/Y), knocked out, loaded
 Super shotgun + handles: grab lying guns by the handle without force grab (Hands > Handle Grab Leniency 5 cm; too easy?); with pouch shells in the off hand: hit the shut SSG -> opens, fast hit under the open barrels -> shuts, shells at the chambers load; flick it shut right after loading, even while still bringing it up (Reloading > Flick Rest Speed 180, try 120 if too eager; Hit After Loading 0.13 s)
 Loose rounds slide in too: drop a shell onto a lying shotgun's port / throw one in; toss a pair into a lying open SSG; drop a grenade/rocket into a lying launcher: each slides in, never just vanishes
 Guns lying on a table: a shell dropped on the shotgun receiver goes in (nothing balances on air); load lying guns by hand and by tossing rounds; the lying shotgun's screen shows e.g. 1/8
