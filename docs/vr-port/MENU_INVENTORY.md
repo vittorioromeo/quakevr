@@ -3406,7 +3406,7 @@ see `Misc/quakevr/pvs/FINDINGS.md` for the corrected measurements.
 | `vr_crosshair_size` | `1` | yes | B | HUD | Body and Display; Crosshair | 1 | 0 |  | 417 |
 | `vr_crosshair_alpha` | `0.85` | yes | B | HUD | Crosshair | 1 | 0 |  | 418 |
 | `vr_crosshair_hue` | `-1` | yes | B | HUD | Colours; Crosshair | 1 | 0 |  | 419 |
-| `vr_deadzone` | `25` | yes | B | comfort,controls,gameplay | Locomotion; VR Settings | 1 | 0 |  | 420 |
+| `vr_deadzone` | `10` | yes | B | comfort,controls,gameplay | Locomotion; VR Settings | 1 | 0 |  | 420 |
 | `vr_controller_legacy_pose` | `1` | yes | C? | controls,gameplay | — | 6 | 0 |  | 424 |
 | `vr_gunangle` | `39.5` | yes | A | gameplay | Hand/Gun Calibration; VR Settings | 6 | 0 | vr_bindings.cfg,vr_defaults.cfg | 425 |
 | `vr_gunmodelpitch` | `7` | yes | C | gameplay | Hand/Gun Calibration | 4 | 0 |  | 426 |

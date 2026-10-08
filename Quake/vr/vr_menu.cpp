@@ -7344,7 +7344,7 @@ za::Vector<Item> pageMain()
             .help("Whether you run or walk; holding the speed button does the other."),
         slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%")
             .help("How far a stick must be pushed before it does anything. Raise it if you drift or turn without "
-                  "touching the stick."),
+                  "touching the stick: worn sticks often need 20-25%."),
         toggle("Swap Stick Functions", vr_stick_swap)
             .help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Swimming", vr_swim, {{1.f, "Immersive"}, {0.f, "Vanilla"}})

@@ -497,8 +497,10 @@ const DefaultChange defaultChanges[] = {
     {104, &vr_stealth_torch, "400"}, // 500
     {104, &vr_slipgate_surface_opacity, "0.3"}, // 0.5 (vr_defaults.cfg)
     {104, &vr_reload_port_shot_radius, "1.5"}, // 1.6
+    // 105: a smaller stick deadzone (the author, 2026-10-08; worn sticks that drift can raise it again).
+    {105, &vr_deadzone, "25"}, // 10
 };
-constexpr int configVersion = 104;
+constexpr int configVersion = 105;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

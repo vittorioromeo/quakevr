@@ -64,7 +64,7 @@ Useful settings:
 | `vr_world_scale` | 1.25 | |
 | `vr_height_calibration`, `vr_floor_offset` | 1.646, -21 | |
 | `vr_mirror` | 1 | desktop window: 0 off, 1 left eye, 2 both eyes |
-| `vr_deadzone` | 25 | stick deadzone, percent |
+| `vr_deadzone` | 10 | stick deadzone, percent |
 | `vr_weapon_grip_mode` | 0 | 1 = weapons stay in the hand without holding the grip (issue #31) |
 
 ## Throwing: what changed

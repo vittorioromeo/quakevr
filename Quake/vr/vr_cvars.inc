@@ -455,7 +455,7 @@ QVR_CVAR(vr_crosshair_depth, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_size, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_alpha, "0.85", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_hue, "-1", CVAR_ARCHIVE)        // its colour: hue (degrees; 0 red; -1 vr_player_hue)
-QVR_CVAR(vr_deadzone, "25", CVAR_ARCHIVE)
+QVR_CVAR(vr_deadzone, "10", CVAR_ARCHIVE)
 // Controller rotation offsets, the released values: tuned for OpenVR's raw controller pose, which
 // the OpenXR backend reproduces from the grip pose with vr_controller_legacy_pose 1 (Touch, Quest
 // and Index controllers), so that they and the weapon offsets line up as in the old engine.

@@ -350,7 +350,7 @@ built-in ones.
 | `vr_turn_speed` | 3.25 | smooth turning speed |
 | `vr_enable_joystick_turn` | 1 | 0 turns only in real life |
 | `vr_movement_mode` | 1 | 1 move towards the head, 0 towards the off hand |
-| `vr_deadzone` | 25 | stick deadzone, percent |
+| `vr_deadzone` | 10 | stick deadzone, percent |
 | `cl_alwaysrun`, `cl_forwardspeed`, `cl_movespeedkey` | | run by default, walk speed, run multiplier |
 | `vr_teleport_enabled`, `vr_teleport_range` | 0, 400 | teleport (bind `+teleport`) |
 | `vr_roomscale_move_mult` | 1 | room-scale movement ratio |

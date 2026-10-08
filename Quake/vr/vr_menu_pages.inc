@@ -133,7 +133,8 @@
             .help("Where the moving stick takes you: where you look (Head), or where a hand points. Moving stick's hand: the "
                   "left one, or the right with Swap Stick Functions."),
         slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%")
-            .help("How far a stick must be pushed before it does anything."),
+            .help("How far a stick must be pushed before it does anything. Raise it if you drift or turn without "
+                  "touching the stick: worn sticks often need 20-25%."),
         slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").extend().help("Walking speed (running is this times the running multiplier)."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").extend().help("How much faster running is than walking."),
