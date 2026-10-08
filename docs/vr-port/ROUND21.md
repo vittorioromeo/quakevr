@@ -30859,7 +30859,7 @@ as they now stand (its Status lists what remains).
   untested); demo playback (demo1-3, both game stacks: no server runs, so no stealth QC at all: 0 stealth log lines at
   `vr_stealth_debug 2`; the client sends no move then, its light measurement returns -1).
 - **Cost** (`vr_stealth_test 103`, a new "stealth" profiler scope round the QC's entry points, `stealthprofile`):
-  0.018 ms a server frame with 45 idle grunts watching you (worst 0.11); 0.062 ms with 60, ten dead and fifty
+  0.018 ms a server frame with 45 grunts watching you and hearing your steps (16 spotted you; worst 0.11); 0.062 ms with 60, ten dead and fifty
   investigating them (worst 0.51 ms, the frame a knock is heard by them all); under the 0.2 ms budget, so nothing was
   optimized beyond the players' list kept per frame (the beam check no longer searches the edicts by name per monster).
 - Tests: `bash Misc/quakevr/stealth_tests.sh <agent> all` (39 PASS, ~70 s), `bash

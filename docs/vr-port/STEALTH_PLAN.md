@@ -215,8 +215,8 @@ All phases below are in (the tests: ROUND21.md, "Stealth AI" and "Stealth AI: th
 - Quake's own relay stays: an idle monster that sees another turn Hostile (FoundTarget's `sight_entity`, a tenth of a
   second) turns Hostile at its enemy too, whatever the light on him (as `vr_stealth_share_*`, but with Quake's sight
   ranges).
-- Cost (`vr_stealth_test 103`, vr_profile's "stealth" scope under quakec, e1m1, Release): 45 idle grunts with you in
-  sight 0.018 ms a server frame (worst 0.11); 60 grunts, one in six dead (their bodies noticed: 50 investigating), a
+- Cost (`vr_stealth_test 103`, vr_profile's "stealth" scope under quakec, e1m1, Release): 45 grunts with you in sight
+  and your steps heard (16 spotted you) 0.018 ms a server frame (worst 0.11); 60 grunts, one in six dead (their bodies noticed: 50 investigating), a
   knock every 2 s: 0.062 ms (worst 0.51, the frame a knock is heard by them all); bodies off 0.042.
 
 ## Phases
