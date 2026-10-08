@@ -1065,6 +1065,52 @@ int TexMgr_PadConditional (int s)
 
 /*
 ================
+TexMgr_MipMapOdd -- QVR: halve an odd number of texels (width or height: n) to n >> 1, as GL's mip levels are sized,
+each new texel the exact average of the n / (n >> 1) old ones it covers (a box filter with fractional ends). The
+pair averaging below takes an odd width's rows as one stream of pairs, so each row of the next level starts half a
+texel further on: the image shears (a 321 wide image's left edge moves a fifth of its width from top to bottom, and
+what passes the right edge comes in on the left); an odd height's last row would just be dropped. In place: `count`
+lines of n texels, `step` bytes apart along a line (4: a row; a row's bytes: a column), lines `pitch` bytes apart and
+written `outpitch` apart; `lanes` byte lanes side by side per line (4: one texel; a row's bytes: a whole row's
+columns at once). Every line reads only texels at or past the ones it writes, so nothing is overwritten unread.
+================
+*/
+static void TexMgr_MipMapOdd (byte *data, int n, int count, int step, int pitch, int outpitch, int lanes)
+{
+	const int	m = n >> 1;
+	const float	scale = (float) m / (float) n; // one old texel's share of a new one
+	int		line, j, lane;
+
+	for (line = 0; line < count; line++)
+	{
+		const byte	*in = data + (size_t) line * pitch;
+		byte		*out = data + (size_t) line * outpitch;
+
+		for (j = 0; j < m; j++)
+		{
+			// new texel j covers old texels [j n / m, (j + 1) n / m): whole ones, and a part at either end
+			const float	a = (float) j * n / m;
+			const float	b = (float) (j + 1) * n / m;
+			const int	i0 = (int) a;
+			const int	i1 = q_min ((int) ceilf (b - 1e-4f), n); // past the last
+			for (lane = 0; lane < lanes; lane++)
+			{
+				float	sum = 0.f;
+				int		i;
+				for (i = i0; i < i1; i++)
+				{
+					const float	w = q_min (b, (float) (i + 1)) - q_max (a, (float) i);
+					sum += w * in[(size_t) i * step + lane];
+				}
+				sum = sum * scale + 0.5f;
+				out[(size_t) j * step + lane] = (byte) q_min (sum, 255.f);
+			}
+		}
+	}
+}
+
+/*
+================
 TexMgr_MipMapW
 ================
 */
@@ -1075,6 +1121,12 @@ static unsigned *TexMgr_MipMapW (unsigned *data, int width, int height, int dept
 
 	if (!data)
 		return NULL;
+
+	if (width & 1) // QVR: an odd width (an NPOT image file's): row by row, not as one stream of pairs (TexMgr_MipMapOdd)
+	{
+		TexMgr_MipMapOdd ((byte *) data, width, height * depth, 4, width * 4, (width >> 1) * 4, 4);
+		return data;
+	}
 
 	out = in = (byte *)data;
 	size = ((width*height)>>1)*depth;
@@ -1122,6 +1174,12 @@ static unsigned *TexMgr_MipMapH (unsigned *data, int width, int height, int dept
 
 	if (!data)
 		return NULL;
+
+	if (height & 1) // QVR: an odd height: the exact box (TexMgr_MipMapOdd), not its last row dropped; layer by layer
+	{
+		TexMgr_MipMapOdd ((byte *) data, height, depth, width * 4, width * height * 4, width * (height >> 1) * 4, width * 4);
+		return data;
+	}
 
 	out = in = (byte *)data;
 	height>>=1;

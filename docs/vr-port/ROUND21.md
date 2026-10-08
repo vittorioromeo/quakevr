@@ -31778,6 +31778,12 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
 - **The flat screen's row of icons** (vr_menuui.cpp, ToolbarLayout::rowCorner) is now 4 true pixels below the canvas's
   top (was 1), as the status box and the version box are from their edges; it ends at 16, clear of the lists' titles at
   16:10 and 4:3 (Levels, Options checked). The headset's column was 4 from the top already.
+- **The cup slanted and wrapped (fixed):** the engine's CPU mipmapper (gl_texmgr.c, TexMgr_MipMapW) averaged a level
+  as one stream of pixel pairs, so an odd width (the cup is 321 x 258) started each next-level row half a texel further
+  on: every mip level was sheared (the left edge moved ~65 of 321 texels top to bottom, the handle wrapping round to
+  the left), and at ~10 px the menus draw only those levels. Odd widths and heights now take an exact box filter row
+  by row (TexMgr_MipMapOdd); even sizes are untouched (bit for bit). The cup is the only shipped image with an odd
+  size; a mod's odd-sized external textures were sheared the same way and are fixed too.
 ## Out of the water by hand; Dawn of the Machine's armour shards as armour; the author's settings (2026-10-08)
 
 - **Jump Out of Water** (map1_13-55-35; `vr_water_jump`, Swimming page, default 1: Quake's). Quake lifts a swimmer
