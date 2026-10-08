@@ -1,5 +1,5 @@
 #!/bin/bash
-# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|seethrough|hunt|horde|all] -- the stealth AI's further scenes
+# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|seethrough|hunt|dogs|horde|all] -- the stealth AI's further scenes
 # (QC vr_stealth_test2.qc; docs/vr-port/STEALTH_PLAN.md, "Tests"), headless on e1m1 (kinds: id1's, hipnotic's and rogue's
 # monsters: the kit's games mount both). Prints the `stealthtest:` lines; exits 1 on a FAIL. Coop: Misc/quakevr/multiplayer/stealth_mp_test.sh.
 #   gun      each weapon's real shot (the trigger pulled): heard at 0.8 of its reach, not at 1.2, not behind a wall
@@ -17,6 +17,8 @@
 #            alpha 0.5 or its textures fences ('{'): both; vr_stealth_seethrough 0: neither
 #   hunt     a Hostile grunt loses you as you dart off: it follows your trail (your last spot, then ahead along your
 #            way), gives up at vr_stealth_lose_time (8 s here); with you far (vr_stealth_lose_far), after a quarter
+#   dogs     a dog chasing you as you run in circles, its drawn moves logged (vr_debug_drawn_moves): with
+#            vr_monster_lerp_continue 1 no jump between frames; 0 (Quake's drawing) for comparison
 AGENT=${1:?agent}; WHICH=${2:-all}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 W=C:/OHWorkspace/qvr-agents/$AGENT
 mkdir -p "$W/scratch"
@@ -24,7 +26,7 @@ fail=0
 PRE="vr_fixed_frames 1;vr_fixed_frames_rate 90;map e1m1;wait60;god;vr_weapon_grip_mode 1;impulse 9;wait5"
 run() { # <tag> <script> [extra run.sh args]
     local tag=$1 s=$2; shift 2
-    bash $KIT/run.sh $AGENT -Script "$s" -Filter "stealthtest:|rror|ENGINE|stealth:.*(hostile|alert)|vr_profile|stealth " -Timeout 600 "$@" > "$W/scratch/stealth_$tag.log" 2>&1
+    bash $KIT/run.sh $AGENT -Script "$s" -Filter "stealthtest:|rror|ENGINE|stealth:.*(hostile|alert)|vr_profile|stealth |drawnmove" -Timeout 600 "$@" > "$W/scratch/stealth_$tag.log" 2>&1
     grep -E "stealthtest:|ENGINE|rror" "$W/scratch/stealth_$tag.log"
     grep -qE "FAIL|ENGINE (ERROR|CRASH)|TIMEOUT" "$W/scratch/stealth_$tag.log" && fail=1
 }
@@ -61,6 +63,15 @@ fi
 if [ "$WHICH" = hunt ] || [ "$WHICH" = all ]; then
     run hunt "$PRE;vr_stealth_test 122;wait3000;toggleconsole;quit"
     grep -q "hunt done" "$W/scratch/stealth_hunt.log" || { echo "stealthtest: hunt FAIL (never finished)"; fail=1; }
+fi
+if [ "$WHICH" = dogs ] || [ "$WHICH" = all ]; then
+    for on in 0 1; do
+        run dogs$on "$PRE;vr_monster_lerp_continue $on;vr_debug_drawn_moves progs/dog;vr_stealth_test 123;wait3000;toggleconsole;quit"
+        J=$(grep -c "drawnmove: [0-9.]* ent" "$W/scratch/stealth_dogs$on.log")
+        echo "stealthtest: dog_steps vr_monster_lerp_continue $on: $J jumps between frames ($(grep -o '[0-9]* frames drawn.*' "$W/scratch/stealth_dogs$on.log" | tail -1))"
+        grep -q "dogs done" "$W/scratch/stealth_dogs$on.log" || { echo "stealthtest: dogs FAIL (never finished)"; fail=1; }
+        [ "$on" = 1 ] && [ "$J" != 0 ] && { echo "stealthtest: dog_steps FAIL (jumps with the fix on)"; fail=1; }
+    done
 fi
 if [ "$WHICH" = horde ]; then
     run horde "$PRE;vr_stealth_test 103;wait90;vr_profile 1;wait900;vr_profile_report 8;vr_profile 0;wait1000;toggleconsole;quit" -RealTime

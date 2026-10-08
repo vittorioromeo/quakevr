@@ -204,8 +204,10 @@ struct Lerped
         const glm::vec3 currentAngles{e.currentangles[0], e.currentangles[1], e.currentangles[2]};
         if(current != l.origin || currentAngles != l.angles)
         {
-            l.origin = current; // a move starting: at its start
-            l.angles = currentAngles;
+            vec3_t startOrigin, startAngles;
+            R_MoveLerpStart(&e, startOrigin, startAngles); // a move starting: at its start (where the last is drawn)
+            l.origin = glm::vec3{startOrigin[0], startOrigin[1], startOrigin[2]};
+            l.angles = glm::vec3{startAngles[0], startAngles[1], startAngles[2]};
         }
         else
         {

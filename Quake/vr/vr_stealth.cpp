@@ -16,7 +16,10 @@
 #include "vr_server.hpp"
 #include "vr_text3d.hpp"
 
+#include "Zancle/Container/Array.hpp"
+
 #include <glm/glm.hpp>
+#include <string.h>
 
 namespace qvr::stealth
 {
@@ -349,6 +352,153 @@ void PF_stealthprofile()
     s.depth--;
 }
 
+
+// ---- The drawn moves' log (vr_debug_drawn_moves): a monster drawn jumping between frames (the dogs' turns)
+
+namespace
+{
+
+struct DrawnTrack
+{
+    int num{-1};
+    double time{-1.0};    // the client time of the last frame it was drawn at
+    glm::vec3 drawn{0.f}; // and where
+    float usual{0.f};     // its usual step a frame (smoothed)
+    int restarts{0};      // move lerps begun since that frame: with a move, and with only a turn
+    int turnRestarts{0};
+    float blendAtRestart{0.f}; // how far along its move it was drawn when the last one began
+    float restartTurn{0.f};    // and its yaw's change then, its origin's, the old move's length (s) and age (s)
+    float restartMove{0.f};
+    float oldLength{0.f};
+    float oldAge{0.f};
+};
+
+struct DrawnLog
+{
+    za::Array<DrawnTrack, 16> tracks{};
+    int jumps{0};
+    int frames{0};
+    int snaps{0};          // new moves begun with over 4 units of the last one left to draw (Quake's rule snaps them)
+    float worstSnap{0.f};
+};
+DrawnLog drawnLog;
+
+[[nodiscard]] DrawnTrack* drawnTrack(const entity_t* e)
+{
+    const int num = static_cast<int>(e - cl_entities);
+    if(num <= 0 || num >= cl.num_entities || !e->model || !strstr(e->model->name, vr_debug_drawn_moves.string))
+    {
+        return nullptr;
+    }
+    DrawnTrack* free = nullptr;
+    for(DrawnTrack& t : drawnLog.tracks)
+    {
+        if(t.num == num)
+        {
+            return &t;
+        }
+        if(!free && (t.num < 0 || cl.time - t.time > 1.0))
+        {
+            free = &t;
+        }
+    }
+    if(free)
+    {
+        *free = DrawnTrack{};
+        free->num = num;
+    }
+    return free;
+}
+
+} // namespace
+
+} // namespace qvr::stealth
+
+int VR_MoveLerpContinuous()
+{
+    return qvr::vr_monster_lerp_continue.value != 0.f;
+}
+
+int VR_DebugDrawnOn()
+{
+    return qvr::vr_debug_drawn_moves.string[0] != 0;
+}
+
+void VR_DebugDrawnRestart(const entity_t* e, int moved)
+{
+    using namespace qvr::stealth;
+    DrawnTrack* t = drawnTrack(e);
+    if(!t)
+    {
+        return;
+    }
+    // (Quake's rule would have drawn it from its last move's end: the snap that was, whichever rule is on)
+    const float left = (1.f - R_MoveLerpBlend(e)) * glm::length(glm::vec3{e->currentorigin[0] - e->previousorigin[0],
+                                                         e->currentorigin[1] - e->previousorigin[1],
+                                                         e->currentorigin[2] - e->previousorigin[2]});
+    if(left > 4.f)
+    {
+        drawnLog.snaps++;
+        drawnLog.worstSnap = glm::max(drawnLog.worstSnap, left);
+    }
+    t->restarts++;
+    t->turnRestarts += moved ? 0 : 1;
+    t->blendAtRestart = R_MoveLerpBlend(e);
+    float turn = 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        float d = e->angles[i] - e->currentangles[i];
+        d = d > 180.f ? d - 360.f : d < -180.f ? d + 360.f : d;
+        turn += glm::abs(d) * (i == 1 ? 1.f : 1000.f); // (a pitch or roll change counted in thousands)
+    }
+    t->restartTurn = turn;
+    t->restartMove = glm::length(glm::vec3{e->origin[0] - e->currentorigin[0], e->origin[1] - e->currentorigin[1],
+        e->origin[2] - e->currentorigin[2]});
+    t->oldLength = e->movelerpfinish > e->movelerpstart ? static_cast<float>(e->movelerpfinish - e->movelerpstart) : 0.1f;
+    t->oldAge = static_cast<float>(cl.time - e->movelerpstart);
+}
+
+void VR_DebugDrawnMove(const entity_t* e, const float* drawn)
+{
+    using namespace qvr::stealth;
+    DrawnTrack* t = drawnTrack(e);
+    if(!t || t->time == cl.time)
+    {
+        return; // (drawn again this frame: the other eye, a shadow)
+    }
+    const glm::vec3 at{drawn[0], drawn[1], drawn[2]};
+    if(t->time >= 0.0 && cl.time - t->time < 0.1)
+    {
+        const float step = glm::length(at - t->drawn);
+        drawnLog.frames++;
+        // (a snap: a new move begun, and drawn farther in the frame than its own lerp goes: a fast step alone is not)
+        const glm::vec3 prev{e->previousorigin[0], e->previousorigin[1], e->previousorigin[2]};
+        const glm::vec3 cur{e->currentorigin[0], e->currentorigin[1], e->currentorigin[2]};
+        const double length = e->movelerpfinish > e->movelerpstart ? e->movelerpfinish - e->movelerpstart : 0.1;
+        const float own = glm::length(cur - prev) * static_cast<float>((cl.time - t->time) / length);
+        if(t->restarts > 0 && step > glm::max(6.f, 3.f * t->usual) && step > 1.5f * own + 2.f)
+        {
+            drawnLog.jumps++;
+            Con_Printf("drawnmove: %.3f ent %d (%s) jumped %.1f units in a frame (usual %.1f); lerps begun %d (%d by a turn "
+                       "alone), the last at %.2f of its move (%.3f s old of %.3f), turning %.1f, moving %.1f; frame %d\n",
+                cl.time, t->num, e->model->name, step, t->usual, t->restarts, t->turnRestarts, t->blendAtRestart, t->oldAge,
+                t->oldLength, t->restartTurn, t->restartMove, static_cast<int>(e->frame));
+        }
+        t->usual = t->usual * 0.9f + glm::min(step, 3.f * t->usual + 1.f) * 0.1f;
+        if(drawnLog.frames % 900 == 0)
+        {
+            Con_Printf("drawnmove: %d frames drawn, %d jumps; %d moves begun early (Quake's drawing snaps them; the worst %.1f "
+                       "units)\n", drawnLog.frames, drawnLog.jumps, drawnLog.snaps, drawnLog.worstSnap);
+        }
+    }
+    t->time = cl.time;
+    t->drawn = at;
+    t->restarts = 0;
+    t->turnRestarts = 0;
+}
+
+namespace qvr::stealth
+{
 
 // ---- Debug > Tests > Stealth AI > Meters Over Monsters (vr_stealth_debug_meters)
 

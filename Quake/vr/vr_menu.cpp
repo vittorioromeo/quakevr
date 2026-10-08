@@ -812,6 +812,10 @@ int campaignsBloodyShown = -1;
     return {
         header("Monsters"),
         toggle("Enemies Hurt by Liquids", vr_enemy_liquid_damage).help("Monsters burn in slime/lava and drown after 12 seconds with their heads underwater, including knocked-down ragdolls. Fish, bosses and lava dwellers are immune."),
+        toggle("Smooth Monster Steps", vr_monster_lerp_continue)
+            .help("A monster's next step is drawn on from where it is drawn, not from where its last step ends: no jump "
+                  "when it moves again before the last step is drawn out (a dog's quick turns looked like teleports). "
+                  "Off: Quake's drawing."),
         toggle("Ogres Aim Grenades Up and Down", vr_ogre_aim_height)
             .help("Ogres (and zombies throwing flesh) lob at your height, on a ledge above them or a floor below, on an arc at "
                   "their throw's own speed. Off: Quake's lob, which always flies as if you stood level with them."),

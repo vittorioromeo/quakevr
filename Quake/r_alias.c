@@ -285,6 +285,30 @@ float R_MoveLerpBlend (const entity_t *e)
 
 /*
 =================
+R_MoveLerpStart -- QVR: where a stepping entity's new move (begun this frame) starts from: where its last move is drawn
+now (vr_monster_lerp_continue 1), not that move's end. A move begun before the last one was drawn to its end (a monster
+moved again a frame or two after a step: a dog's 64-unit steps, then a nudge or a turn) snapped it to that end: the
+dogs seemed to teleport as they turned. With the last move drawn to its end (or the switch off): its end, as Quake's.
+=================
+*/
+void R_MoveLerpStart (const entity_t *e, vec3_t origin, vec3_t angles)
+{
+	float blend = 1.f;
+	int i;
+	if (e->movelerpstart > 0 && VR_MoveLerpContinuous ())
+		blend = R_MoveLerpBlend (e);
+	for (i = 0; i < 3; i++)
+	{
+		float d = e->currentangles[i] - e->previousangles[i];
+		if (d > 180) d -= 360;
+		if (d < -180) d += 360;
+		origin[i] = e->previousorigin[i] + (e->currentorigin[i] - e->previousorigin[i]) * blend;
+		angles[i] = e->previousangles[i] + d * blend;
+	}
+}
+
+/*
+=================
 R_SetupEntityTransform -- johnfitz -- set up transform part of lerpdata
 =================
 */
@@ -307,11 +331,15 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 	}
 	else if (!VectorCompare (e->origin, e->currentorigin) || !VectorCompare (e->angles, e->currentangles)) // origin/angles changed, start new lerp
 	{
+		if (VR_DebugDrawnOn ()) // QVR: the drawn moves' log: what started this lerp
+			VR_DebugDrawnRestart (e, !VectorCompare (e->origin, e->currentorigin));
+		vec3_t startorigin, startangles; // QVR: from where it is drawn (R_MoveLerpStart)
+		R_MoveLerpStart (e, startorigin, startangles);
 		e->movelerpstart = cl.time;
 		e->movelerpfinish = (e->lerpflags & LERP_FINISH) ? e->lerpfinish : 0.f; // QVR: this move's (R_MoveLerpBlend)
-		VectorCopy (e->currentorigin, e->previousorigin);
+		VectorCopy (startorigin, e->previousorigin);
 		VectorCopy (e->origin,  e->currentorigin);
-		VectorCopy (e->currentangles, e->previousangles);
+		VectorCopy (startangles, e->previousangles);
 		VectorCopy (e->angles,  e->currentangles);
 	}
 
@@ -346,6 +374,9 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 	// chasecam
 	if (chase_active.value && e == &cl_entities[cl.viewentity])
 		lerpdata->angles[PITCH] *= 0.3f;
+
+	if (VR_DebugDrawnOn ()) // QVR: a stepping monster's drawn place jumping between frames, logged
+		VR_DebugDrawnMove (e, lerpdata->origin);
 }
 
 /*

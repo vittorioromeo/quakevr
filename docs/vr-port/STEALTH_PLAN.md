@@ -308,6 +308,8 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   e1m1 door model put between: opaque, it neither sees him nor hears a knock where he stands (1.15 times its distance);
   alpha 0.5: both; `vr_stealth_seethrough 0`: neither; opaque but its textures taken for fences
   (`vr_stealth_test_fence`: the kit's maps have no solid `{` brush): both; not: neither.
+- 123 dogs' drawn steps (`stealth_tests.sh dogs`): a dog chasing him round a circle for 30 s, its drawn moves logged
+  (`vr_debug_drawn_moves`), with `vr_monster_lerp_continue` 0 and 1: no jump between frames with it on.
 - 122 the hunt (`stealth_tests.sh hunt`): a grunt Hostile at him sees him dart off at 300 u/s and loses him at once (he
   is put under the floor, out of everyone's sight), `vr_stealth_lose_time 8`: it comes to his last spot, guesses on
   along his way, gives up 8 s after it last saw him, Alert; then with him 885 units off and `vr_stealth_lose_far 600`,

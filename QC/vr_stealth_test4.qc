@@ -9,6 +9,9 @@
 //   122 the hunt: a grunt Hostile at him sees him dart sideways, then loses him (he is put out of sight under the floor):
 //       it follows his trail (to where it saw him last, then ahead along his way), gives up after vr_stealth_lose_time
 //       (8 s here) and searches (Alert); then with him far (vr_stealth_lose_far 600) it gives up after a quarter of it;
+//   123 a dog chasing him as he runs in circles for 30 s (it turns all the time): the script logs its drawn moves
+//       (vr_debug_drawn_moves progs/dog: "drawnmove:" lines, a jump between frames each) and compares
+//       vr_monster_lerp_continue 1 and 0 (stealth_tests.sh dogs);
 
 float stt4_alpha;     // the see-through wall's alpha this stage
 entity stt4_wall;
@@ -158,6 +161,54 @@ void() VR_STT4_Frame =
             return;
         }
         bprint("stealthtest: seethrough done\n");
+        VR_STT4_End();
+        return;
+    }
+
+    // 123: a dog chasing him as he runs in circles (the drawn moves are the engine's log).
+    if(stt2_step == 123)
+    {
+        if(stt2_stage == 0)
+        {
+            stt2_dir = VR_STT4_ClearAxis(p.origin, 320);
+            if(stt2_dir == '0 0 0')
+            {
+                VR_STT2_Report("dog_steps", FALSE, "no room");
+                VR_STT4_End();
+                return;
+            }
+            cvar_set("vr_stealth_light_force", "128");
+            stt2_m1 = VR_STT2_Spawn(p.origin + stt2_dir * 300 + '0 0 8', vectoyaw(-stt2_dir), 7);
+            if(!stt2_m1)
+            {
+                VR_STT2_Report("dog_steps", FALSE, "no dog");
+                VR_STT4_End();
+                return;
+            }
+            stt2_m1.health = 5000; // (his blows don't land: he only runs)
+            VR_Stealth_Spot(stt2_m1, p);
+            VR_STT2_Stage(1);
+            return;
+        }
+        if(stt2_stage == 1)
+        {
+            if(t < 30)
+            {
+                // round a circle 280 units across about his first spot (round once every 1.8 s), pulled back to it
+                float a = t * 200;
+                vector want = stt2_phome + '1 0 0' * (140 * cos(a * (3.14159 / 180))) + '0 1 0' * (140 * sin(a * (3.14159 / 180)));
+                vector v = '-1 0 0' * sin(a * (3.14159 / 180)) + '0 1 0' * cos(a * (3.14159 / 180));
+                v = v * 250 + (want - p.origin) * 4;
+                v_z = p.velocity_z;
+                p.velocity = v;
+                return;
+            }
+            bprint(sprintf("stealthtest: dog_steps the dog %s, %.0f units off\n", stt2_m1.health > 0 ? "alive" : "dead",
+                vlen(stt2_m1.origin - p.origin)));
+            bprint("stealthtest: dogs done\n");
+            VR_STT4_End();
+            return;
+        }
         VR_STT4_End();
         return;
     }

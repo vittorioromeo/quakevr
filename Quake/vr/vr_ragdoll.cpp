@@ -1584,9 +1584,11 @@ void animatedVertices(const entity_t* e, za::Vector<glm::vec3>& out, int& pose1,
         // (A monster's steps lerped as R_SetupEntityTransform does, without changing the entity.)
         const bool changed = !VectorCompare(e->origin, e->currentorigin) || !VectorCompare(e->angles, e->currentangles);
         const float t = changed ? 0.f : R_MoveLerpBlend(e);
-        const float* from = changed ? e->currentorigin : e->previousorigin;
+        vec3_t start, startA;
+        R_MoveLerpStart(e, start, startA); // (a move starting: where the last one is drawn)
+        const float* from = changed ? start : e->previousorigin;
         const float* to = e->currentorigin;
-        const float* fromA = changed ? e->currentangles : e->previousangles;
+        const float* fromA = changed ? startA : e->previousangles;
         const float* toA = e->currentangles;
         for(int i = 0; i < 3; i++)
         {

@@ -31945,3 +31945,15 @@ Tests > Stealth AI the scenes (`vr_stealth_test 120`-`129`, QC `vr_stealth_test4
   step and the seconds unseen. Test 122 (`stealth_tests.sh hunt`): its last spot reached (2 units), its guess 334 units
   on along his dart, gave up at 8.01 s (8), far: 2.00 s (2); 3 PASS. `vr_stealth_test 1`: 13 PASS (scene 13 now runs
   with the trail off and 6 s, the old rule).
+- **Dogs jumping as they turn.** Cause found in the drawing, not the AI: a stepping monster's move is drawn over the
+  0.1 s to its next think (R_SetupEntityTransform's move lerp), and a new move begun before the last one was drawn out
+  (the server moved it again a frame or two after a step: a dog's 64-unit run steps, then a nudge, a leap's fall, a
+  turn's settle) restarted the lerp from that move's end: the dog snapped forward the rest of its step at once. New
+  `R_MoveLerpStart` (r_alias.c): a new move starts from where the last one is drawn now (`vr_monster_lerp_continue 1`,
+  Gameplay > Monsters > Smooth Monster Steps; 0: Quake's drawing); the AO, model-hit and ragdoll mirrors of the lerp use
+  it too. The AI's own steps are untouched (the dogs' erratic 16-64 unit hops stay). New debug log
+  `vr_debug_drawn_moves progs/dog` ("drawnmove:" lines: a jump between frames, the move lerps begun early). Test 123
+  (`stealth_tests.sh dogs`, a dog chasing him round a circle for 30 s, fixed frames): Quake's drawing 11 moves begun
+  early (the worst snap 7.1 units), 1 jump between frames; with the fix 0 jumps. The headless scene snaps rarely; the
+  real-time one (250 fps) logged 10 in 70 s of 10 units each. Not reproduced here: a large snap ("as if teleporting");
+  A/B in VR with Smooth Monster Steps.

@@ -259,9 +259,8 @@ void lerpedTransform(const entity_t* e, vec3_t origin, vec3_t angles)
     bool starting = false;
     if(!VectorCompare(e->origin, e->currentorigin) || !VectorCompare(e->angles, e->currentangles))
     {
-        VectorCopy(e->currentorigin, from); // a move starting this frame
+        R_MoveLerpStart(e, from, afrom); // a move starting this frame (where the last one is drawn)
         VectorCopy(e->origin, to);
-        VectorCopy(e->currentangles, afrom);
         VectorCopy(e->angles, ato);
         starting = true;
     }
