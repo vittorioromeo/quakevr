@@ -586,6 +586,117 @@ void() VR_Reload_TestLooseReport =
         self.offloadportaxis, self.offloadportface));
 };
 
+// Test steps 20 to 24 (guns lying about load as held ones do: VR_Reload_PropsFrame): 20 the off hand's gun let go of
+// (it falls and lies as a prop, its rounds with it); 21 a loose round for the nearest such gun tossed into its opening
+// lying right (from 8 units out, at 200 units/s); 22 the main hand's round placed at its load point (the right way round:
+// it goes in the next frame); 23 the lying guns' report (each one's magazine and load point); 24 a loose round for it
+// lying sideways a unit out of its opening (it stays out).
+entity() VR_Reload_TestLyingGun =
+{
+    entity best = world;
+    float bestDist = 100000;
+    for(entity g = find(world, classname, "thrown_weapon"); g; g = find(g, classname, "thrown_weapon"))
+    {
+        float ssgOpen = g.weapon == WID_SUPER_SHOTGUN && (g.weaponflags & QVR_WPNFLAG_SSG_OPEN);
+        if(VR_Reload_PropAmmoFor(g) >= 0 && loadportof(g, ssgOpen ? cvar_hget(cvarh_vr_reload_ssg_open_angle) : 0) &&
+           vlen(g.origin - self.origin) < bestDist)
+        {
+            best = g;
+            bestDist = vlen(g.origin - self.origin);
+        }
+    }
+    return best;
+};
+
+void(float xStep) VR_Reload_TestLying =
+{
+    if(xStep == 20)
+    {
+        float ow = VRGetEntWeapon(self, cVR_OffHand);
+        DropWeaponInHand(self, cVR_OffHand, ow, VRGetEntWeaponFlags(self, cVR_OffHand));
+        bprint(sprintf("reload: the off hand's gun (%g) let go of\n", ow));
+        return;
+    }
+    entity g = VR_Reload_TestLyingGun();
+    if(!g)
+    {
+        bprint("reload: no gun lying about that loads by hand\n");
+        return;
+    }
+    if(xStep == 23)
+    {
+        for(entity e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+        {
+            bprint(sprintf("reload: lying %s (%g): clip %g mag %g open %g, ", e.netname, e.weapon, e.weaponinst.wi_clip,
+                !(e.weaponflags & QVR_WPNFLAG_NOMAG), (e.weaponflags & QVR_WPNFLAG_SSG_OPEN) != 0));
+            bprint(sprintf("load point %v (way in %v, opening %v)\n", e.loadportpos, e.loadportaxis, e.loadportface));
+        }
+        return;
+    }
+    if(xStep == 22)
+    {
+        entity h = VR_Carry_Held(self, cVR_MainHand);
+        if(!h && VRIsHandEmpty(self, cVR_MainHand))
+        {
+            VR_Reload_Take(cVR_MainHand); // (the pouch's last kind: run the step again to place it)
+            bprint("reload: the main hand took a round from the pouch\n");
+            return;
+        }
+        if(!h || !VR_Reload_IsRound(h))
+        {
+            bprint("reload: the main hand holds no round\n");
+            return;
+        }
+        vector hang = vectoangles(g.loadportaxis);
+        if(h.vr_ammo_wid)
+        {
+            hang_x = hang_x - 90; // (a magazine's feed end is its +z)
+        }
+        h.angles = hang;
+        setorigin(h, h.origin + (g.loadportpos - VR_Reload_RoundRef(h)));
+        bprint(sprintf("reload: %s held at the lying %s's load point\n", VR_Reload_Desc(h), g.netname));
+        VR_Reload_PropRound(g, h); // (this frame: the carry puts it back in the hand after)
+        return;
+    }
+    // 21, 24: a loose round for it, out of the reserve.
+    float w = g.weapon;
+    float aid = VR_Reload_PropAmmoFor(g);
+    float wid = VR_Reload_UsesMag(w) ? w : 0;
+    float n = w == WID_SUPER_SHOTGUN ? 2 : 1;
+    if(wid)
+    {
+        n = min(WeaponIdToBaseClipSize(w), VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid));
+    }
+    VR_AmmoUtil_AddAmmoCountByAmmoId(self, aid, -n);
+    VR_Reload_AmmoChanged(self);
+    vector axis = g.loadportaxis;
+    if(xStep == 24)
+    {
+        axis = VR_Reload_TestCross(axis, g.loadportface);
+        if(vlen(axis) < 0.2)
+        {
+            axis = VR_Reload_TestCross(g.loadportaxis, '0 0 1');
+        }
+        axis = normalize(axis);
+    }
+    vector ang = vectoangles(axis);
+    if(wid)
+    {
+        ang_x = ang_x - 90;
+    }
+    vector at = g.loadportpos + g.loadportface * (xStep == 24 ? 1 : 8);
+    vr_reload_make_front = VR_Reload_IsFront(w) ? w : 0;
+    entity r = VR_Reload_MakeRound(wid, aid, n, at, ang);
+    setorigin(r, r.origin + (at - VR_Reload_RoundRef(r)));
+    if(xStep == 21)
+    {
+        r.velocity = g.loadportface * -200;
+    }
+    r.flags = r.flags - (r.flags & FL_ONGROUND);
+    bprint(sprintf("reload: %s placed loose at the lying %s (%s)\n", VR_Reload_Desc(r), g.netname,
+        xStep == 21 ? "tossed in" : "sideways"));
+};
+
 // Test step 25 (a held prop hits with its shape, not its box: the author's note vrfiringrange_2026-10-08_10-42-18): the
 // main hand's prop against the off hand's gun: how far its shape's nearest point (the engine's shapenearest: its Box3D
 // body as held) and its box's (the old way: origin + mins .. maxs, square to the world) are from the gun's magazine
@@ -750,6 +861,10 @@ void() VR_Reload_Test =
     else if(step == 14)
     {
         VR_Reload_TestLooseReport();
+    }
+    else if(step >= 20 && step <= 24)
+    {
+        VR_Reload_TestLying(step);
     }
     else if(step == 25)
     {

@@ -7121,6 +7121,19 @@ void callShocks()
     return !(s.kind == Kind::Prop && (b3Shape_GetFilter(reach).categoryBits & catReachHand) && isGrenade(s.model));
 }
 
+// Whether `round` passes through the gun lying about as `gun` to its load point (QC .vr_ammo_passgun: vr_reload.qc
+// VR_Reload_PropsFrame), as a loose round passes through a held gun (reachSkips).
+[[nodiscard]] bool passesGun(int round, int gun)
+{
+    const FieldOffsets& f = fields();
+    if(f.vr_ammo_passgun < 0 || round <= svs.maxclients || gun <= svs.maxclients || round >= qcvm->num_edicts ||
+        gun >= qcvm->num_edicts)
+    {
+        return false;
+    }
+    return fieldInt(EDICT_NUM(round), f.vr_ammo_passgun) == EDICT_TO_PROG(EDICT_NUM(gun));
+}
+
 bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
 {
     if(((b3Shape_GetFilter(a).categoryBits & catHeld) && smallGibSpared(numOf(b))) ||
@@ -7256,7 +7269,7 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
     const b3ShapeId reach = aReach ? a : b, other = aReach ? b : a;
     if((b3Shape_GetFilter(reach).categoryBits & catReach) == 0)
     {
-        return true;
+        return !passesGun(numOf(a), numOf(b)) && !passesGun(numOf(b), numOf(a));
     }
     const World::HandBody* hb = reachOf(b3Shape_GetBody(reach), numOf(reach));
     if(hb && reachSkips(*hb, numOf(reach), numOf(other)))

@@ -579,6 +579,7 @@ void() StartFrame =
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     VR_Crates_Frame(); // VR: at a new map's first frame, its crates (vr_crates.qc; before the rocks and bricks: they keep clear)
     VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
+    VR_Reload_PropsFrame(); // VR: guns lying about load as held ones do (vr_reload.qc)
     VR_SmallGib_TestFrame(); // VR: the small gibs' tests (vr_smallgibs_test, vr_smallgibs_test.qc)
     VR_TestDispenser_Frame(); // VR: a map's monster dispenser used from the console (vr_test_dispenser <n>, buttons.qc)
     VR_DropCapTest_Frame(); // VR: the cap on dropped enemy weapons' test (vr_dropcap_test, vr_dropcap_test.qc)

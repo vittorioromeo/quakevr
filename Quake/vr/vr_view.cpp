@@ -1763,26 +1763,17 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         {
             if(info.is(port.model))
             {
-                const glm::vec3 moved{port.offset[0]->value, port.offset[1]->value, port.offset[2]->value};
-                const bool ssg = port.model == modelmeta::Id::VShot2;
-                const glm::vec3 at = port.point + moved;
-                s.loadPort[hand] = view::modelPoint(ve, ssg ? ssgTurn(at, ssgOpen) : at);
-                s.loadPortValid[hand] = true;
-                // The way a round lies going in: the tube's or the barrels' forward (+x), a well's seated magazine's
-                // feed end (its middle to its seat: magazineShape's first axis, whether one is in or not).
-                glm::vec3 axis{1.f, 0.f, 0.f};
-                if(const MagMount* mount = port.magazine ? magMountFor(model) : nullptr)
+                // (Its point and ways in the model's space: modelLoadPort, as the server's guns lying about.)
+                glm::vec3 at, axis, out;
+                if(!view::modelLoadPort(model, ssgOpen, at, axis, out))
                 {
-                    axis = glm::normalize(mount->seat - mount->centre);
+                    break;
                 }
-                const glm::vec3 tip = ssg ? ssgTurn(at + axis, ssgOpen) : at + axis;
-                const glm::vec3 way = view::modelPoint(ve, tip) - s.loadPort[hand];
+                s.loadPort[hand] = view::modelPoint(ve, at);
+                s.loadPortValid[hand] = true;
+                const glm::vec3 way = view::modelPoint(ve, at + axis) - s.loadPort[hand];
                 s.loadPortAxis[hand] = glm::length(way) > 1e-4f ? glm::normalize(way) : glm::vec3{0.f};
-                // Its opening's outward way: a well's and the breech's back along the axis, the shotgun's port down, a
-                // launcher's muzzle forward (a round goes in butt first: its nose along the axis).
-                const glm::vec3 out = port.front ? axis : port.magazine || ssg ? -axis : glm::vec3{0.f, 0.f, -1.f};
-                const glm::vec3 face =
-                    view::modelPoint(ve, ssg ? ssgTurn(at + out, ssgOpen) : at + out) - s.loadPort[hand];
+                const glm::vec3 face = view::modelPoint(ve, at + out) - s.loadPort[hand];
                 s.loadPortFace[hand] = glm::length(face) > 1e-4f ? glm::normalize(face) : glm::vec3{0.f};
                 if(vr_reload_show_ports.value && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3)
                 {
@@ -6582,6 +6573,39 @@ float ssgOpenAngle(int hand)
 glm::vec3 ssgTurned(const glm::vec3& p, float deg, bool point)
 {
     return ssgTurn(p, deg, point);
+}
+
+bool modelLoadPort(const qmodel_t* model, float ssgOpen, glm::vec3& at, glm::vec3& axis, glm::vec3& face)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto& info = modelmeta::get(model);
+    for(const LoadPort& port : loadPorts)
+    {
+        if(!info.is(port.model))
+        {
+            continue;
+        }
+        const bool ssg = port.model == modelmeta::Id::VShot2;
+        const glm::vec3 point = port.point + glm::vec3{port.offset[0]->value, port.offset[1]->value, port.offset[2]->value};
+        // The way a round lies going in: the tube's or the barrels' forward (+x), a well's seated magazine's feed end
+        // (its middle to its seat: magazineShape's first axis, whether one is in or not). Its opening's outward way: a
+        // well's and the breech's back along the axis, the shotgun's port down, a launcher's muzzle forward (a round
+        // goes in butt first: its nose along the axis).
+        glm::vec3 way{1.f, 0.f, 0.f};
+        if(const MagMount* mount = port.magazine ? magMountFor(model) : nullptr)
+        {
+            way = glm::normalize(mount->seat - mount->centre);
+        }
+        const glm::vec3 out = port.front ? way : port.magazine || ssg ? -way : glm::vec3{0.f, 0.f, -1.f};
+        at = ssg ? ssgTurn(point, ssgOpen) : point;
+        axis = ssg ? ssgTurn(way, ssgOpen, false) : way;
+        face = ssg ? ssgTurn(out, ssgOpen, false) : out;
+        return true;
+    }
+    return false;
 }
 
 bool weaponButtonHandTarget(int hand, float angle, float azimuth, float units, glm::vec3& out)

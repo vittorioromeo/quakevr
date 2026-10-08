@@ -31246,3 +31246,86 @@ The author's notes vrfiringrange_2026-10-08_10-33-00 .. 10-39-35.
   (`VR_HandGrenade_Make`: In the Palm keeps the turn it is taken at), so it comes out ready for the muzzle as the
   grenade does (front_test.sh's multi-grenade check failed without it: it lay across the barrel).
 - Test aids: test steps 17/18 (held at the load point) turn the multi-grenade by its z; the `drawn` log line above.
+## Guns in convex pieces; guns lying about load; held props hit with their shape (2026-10-08)
+
+The author's notes vrfiringrange_2026-10-08_10-28-15 (a shell resting above the shotgun beside its receiver, as if on
+air, unable to get into the port), 10-31-35 (no magazine or shell goes into a gun lying on a table or the floor: "the
+weapon prop state and the held weapon state should provide most of the same functionality") and 10-42-18 (a held prop
+popped a magazine off or opened the super shotgun by its box, not its shape).
+
+### The guns' collision in convex pieces (vr_convex.cpp)
+- **The cause**: each gun's Box3D body (held: its reach body; lying: its prop body) was one convex hull of the drawn
+  model, which spans the air between the parts: over the shotgun's receiver from the hammer and rear sight to the
+  barrel, across its port and the magazine wells. A round lying on it rested on that hull.
+- **Now** (`vr_box3d_gun_pieces`, 12; VR Settings, Weapons Push Things' page: "Guns' Shape", One Hull / 6 / 12 / 20
+  pieces): every gun (held, and lying as `thrown_weapon` / `weapon_*`) is a body of convex pieces that follow the drawn
+  gun. `convex::decompose`: the model's triangles voxelised (cell 0.12 units, at most 200 cells along the gun), the
+  outside flooded from the grid's border (the rest is the solid), each outside cell's distance from the solid (a two-pass
+  chamfer). A piece is a box of model space; its hull is that of the triangles clipped to the box and of the solid's
+  cells on its cut faces (the pieces meet across a cut). Its gap: the most its hull's surface (sampled a cell apart) lies
+  off the solid. The piece with the largest gap is cut in two (along the model's axes, on a cell border) where the two
+  halves' hulls hold the least volume: the three cuts each way whose halves' solid's boxes hold the least are shortlisted
+  from the voxels, then their hulls made; until every gap is within 0.3 units or the pieces run out. Hulls are kept
+  within Box3D's 128 edges (at most 44 vertices, fewer if it refuses: `convex::hull`).
+- Made once a session per gun model and frame (`gunShapes`, a `mem::Cache`: made again on a game dir change or a model
+  reload), the hulls once a map; the off hand's are the main hand's mirrored. A lying gun's pieces weigh what its one
+  hull did (their density scaled). The swept swing (`sweepReach`) sweeps the pieces' hull and asks each piece for the
+  nearest point; the arrays of a body's shapes are `maxBodyShapes` (32) long.
+- `vr_physics_shapes` prints each gun's pieces: how many, how long they took, the most their hulls (and one hull) lie off
+  the drawn gun, their volume; `thrown_weapon` added to Debug > Tests > Reloading's "Print the Collision Shapes".
+
+- **Measured** (vr_physics_shapes, each held gun; units, a unit 3.2 cm): the most a hull's surface lies off the drawn gun,
+  one hull -> 12 pieces: shotgun 2.25 -> 0.30, super shotgun 2.22 -> 0.36, nailgun 1.72 -> 0.57, super nailgun 1.16 ->
+  1.15 (the grooves between its four barrels; its well is open: its load point was 0.16 inside the hull, now outside it),
+  thunderbolt 2.11 -> 0.52. Volume (cubic units) one hull -> pieces (the voxelised gun): shotgun 159.6 -> 93.5 (94.0),
+  nailgun 271 -> 136 (129), thunderbolt 315 -> 144 (144). The load point inside the body: shotgun 1.24 -> 0.06,
+  thunderbolt 1.91 -> 0.04. Made in 35 to 56 ms a gun, once a session.
+- **The note's case**: the shotgun turned port up, a shell dropped from 8 units above its load point: with the pieces it
+  goes in with Loose Leniency 0 (it needed 3 cm with one hull: it rested on the hull over the port). The super shotgun
+  open, muzzle down, a pair dropped into its barrels: 5 cm (3 with one hull: its body is the shut gun's, the barrels
+  drawn turned down are not, and the pair now falls past where the hull was). The magazines dropped up into their wells:
+  in at Leniency 0 with either body (the gun's radius and the magazine's own reach the seat). Loose Leniency stays 6 cm.
+- **Performance** (gunshape_test.sh, exclusive: six guns lying in a heap, a held shotgun swept through them for 120
+  frames): Box3D's step 0.052 ms a frame on average (worst 0.42) against one hull's 0.013 (0.07); the hands' reach
+  sync 0.001 against 0.004.
+
+### Guns lying about load as held ones do (vr_reload.qc VR_Reload_PropsFrame)
+- Each frame (StartFrame) each round, loose or in a hand, against each gun lying about (`thrown_weapon`) that loads by
+  hand: its load point is the engine's (`loadportof(e, ssgOpen)`: view::modelLoadPort, the held guns' table, through the
+  prop's drawn transform, angles and origin; the super shotgun's turned down with its barrels when it lies open) into its
+  .loadportpos/.loadportaxis/.loadportface. A round held within the gun's radius (a magazine's added) goes in (the
+  wrong way round, full or shut: a dull tap, once); a loose one as by contact into a held gun (within the radius and the
+  Loose Leniency, from the opening's side, lying within Loose Angle; within the leniency more it passes through the gun's
+  body: `.vr_ammo_passgun`, the engine's preSolve). Shells into the shotgun and the open super shotgun, a magazine into
+  an empty well (it clears QVR_WPNFLAG_NOMAG: the client draws it seated), a launcher's round into its muzzle. The rounds
+  go into the weapon's record (`.weaponinst.wi_clip`): the hand that picks it up has them.
+- Held-only still: the magazine's pull and B/Y's eject (a gun must be held to pull against, or its button pressed), the
+  bump that knocks a magazine out and the hits that break the super shotgun open or shut (the other hand's blows at the
+  gun one hand holds: a lying gun has no hand to move against), the flick, the ammo button's press (the hand's own gun's).
+- Test steps (Debug > Tests > Reloading): `vr_reload_test 20` the off hand's gun let go of, 21 a round tossed into the
+  nearest lying gun, 22 the main hand's round at its load point (it takes one from the pouch first: run it twice, grip
+  held), 23 the lying guns' report, 24 a round lying sideways at it.
+
+### A held prop hits with its shape (shapenearest)
+- QC's `VR_Reload_BoxNearest` (the prop's box, square to the world) is gone: the magazine's bump (`VR_Reload_HitFrame`)
+  and the super shotgun's hits (`VR_Reload_SsgHit`) ask `shapenearest(e, a, b)`: the point of its Box3D body (hull or
+  pieces, by GJK against the segment) nearest the magazine's length or the barrels' front, a held one where the hand
+  holds it this frame (its body follows at the step: a fast blow's frame asked where it was). Without a body, its box.
+  Held magazines and rounds still count by their middle and top.
+- Test step `vr_reload_test 25` prints both for the main hand's prop: the guard's head brought 6 units off the nailgun's
+  magazine is 3.5 off it by its shape, 1.2 by its box (Hit Reach 2: the box's near miss, now no hit); brought 4 off, its
+  shape is 1.7 off and it knocks the magazine out.
+
+**Tested**: `Misc/quakevr/reload/gunshape_test.sh` (new, 14 checks, all pass: the pieces against one hull per gun; the
+note's shell at Leniency 0, in with the pieces and out with one hull; lying guns: a round tossed into the shotgun,
+nailgun, thunderbolt, open super shotgun and grenade launcher goes in, one held at the shotgun's, super nailgun's and
+rocket launcher's load point goes in, one lying sideways stays out, the shut super shotgun taps; the Box3D step's time);
+`contact_test.sh` 22 of 22, `front_test.sh` 32 of 32, `reload_test.sh` 93 of 93 (its held prop magazine check now brings
+the head to 4 units, and a new check: brought to 6, its box within Hit Reach and its shape not, the magazine stays in).
+QC 0 warnings; build, statics and FGD checks clean; menu path check 0 missing. eval.sh: no current melee takes.
+
+**For VR:** a shell dropped or set on the shotgun's receiver falls into the port; nothing balances on air over a gun;
+guns lying on a table: shells, magazines and launcher rounds by hand and tossed in; a held prop (a head) must now
+really touch a magazine or the super shotgun's barrels to pop or open it.
+**Open:** the super shotgun broken open keeps its shut body (its barrels drawn turned down have none of their own);
+its pair dropped in needs 5 cm of leniency (3 with one hull).

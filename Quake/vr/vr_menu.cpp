@@ -5676,6 +5676,18 @@ za::Vector<Item> pageDebugTests()
         command("Report the Loose Rounds", "vr_reload_test 14; impulse 125")
             .help("Each loose round's distance from the off hand's load point, how it lies against the way in, and "
                   "whether it passes through the gun; the load point's axis and the way its opening faces."),
+        command("Put the Off Hand's Gun Down", "vr_reload_test 20; impulse 125")
+            .help("The off hand's gun let go of: it lies as a prop, its rounds with it. Guns lying about load as held "
+                  "ones do, by hand and by contact."),
+        command("Toss a Round Into the Lying Gun", "vr_reload_test 21; impulse 125")
+            .help("A loose round for the nearest gun lying about, tossed into its opening lying right: it goes in."),
+        command("Toss One Sideways at the Lying Gun", "vr_reload_test 24; impulse 125")
+            .help("The same lying sideways a unit out of its opening: it stays out."),
+        command("Hold a Round at the Lying Gun", "vr_reload_test 22; impulse 125")
+            .help("The main hand takes a round from the pouch (hold the grip), then, again, it is put at the nearest lying "
+                  "gun's load point: it goes in."),
+        command("Report the Lying Guns", "vr_reload_test 23; impulse 125")
+            .help("Each gun lying about: its magazine, whether its magazine is in, whether it is open, its load point."),
         command("The Held Prop's Shape Against Its Box", "vr_reload_test 25; impulse 125")
             .help("The main hand's prop: how far its shape (as held) and its box are from the off hand's gun's magazine "
                   "and the front of its barrels. The magazine's bump and the super shotgun's hits count by its shape."),

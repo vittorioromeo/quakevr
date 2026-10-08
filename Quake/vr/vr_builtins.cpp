@@ -143,6 +143,43 @@ void PF_modelcentre()
     out[2] = c.z;
 }
 
+// float(entity e, float ssgOpen) loadportof: the loading port of the gun lying about as `e` (its model's:
+// view::modelLoadPort, the super shotgun's barrels turned down `ssgOpen` degrees), as it is drawn where it lies (its
+// drawn transform, angles and origin), into its .loadportpos, .loadportaxis, .loadportface; FALSE (and them zero) if its
+// model has none (vr_reload.qc VR_Reload_PropsFrame: a gun lying about loads as a held one).
+void PF_loadportof()
+{
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    const float open = G_FLOAT(OFS_PARM1);
+    const FieldOffsets& f = fields();
+    G_FLOAT(OFS_RETURN) = 0.f;
+    if(f.loadportpos < 0 || f.loadportaxis < 0 || f.loadportface < 0)
+    {
+        return;
+    }
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    glm::vec3 at{0.f}, axis{0.f}, face{0.f};
+    if(!view::modelLoadPort(model, open, at, axis, face))
+    {
+        setFieldVec(ent, f.loadportpos, glm::vec3{0.f});
+        setFieldVec(ent, f.loadportaxis, glm::vec3{0.f});
+        setFieldVec(ent, f.loadportface, glm::vec3{0.f});
+        return;
+    }
+    const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
+    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    const glm::vec3 p = held::drawnModelPoint(ent, at);
+    const auto way = [&](const glm::vec3& d) {
+        const glm::vec3 w = axes * (held::drawnModelPoint(ent, at + d) - p);
+        return glm::length(w) > 1e-4f ? glm::normalize(w) : glm::vec3{0.f};
+    };
+    setFieldVec(ent, f.loadportpos, origin + axes * p);
+    setFieldVec(ent, f.loadportaxis, way(axis));
+    setFieldVec(ent, f.loadportface, way(face));
+    G_FLOAT(OFS_RETURN) = 1.f;
+}
+
 // vector(entity e, vector a, vector b) shapenearest: the point of `e`'s shape (its Box3D body's, as it lies or a hand
 // holds it: its hull, a gun's convex pieces) nearest the segment `a`..`b`; without a body, its box's (origin + mins ..
 // maxs) nearest, tried at nine points along the segment (vr_reload.qc: a held prop hits a magazine or the super
@@ -1997,6 +2034,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
     {"shapenearest", PF_shapenearest},
+    {"loadportof", PF_loadportof},
     {"drawnbounds", PF_drawnbounds},
     {"modeloffsetto", PF_modeloffsetto},
     {"findcone", PF_findcone},

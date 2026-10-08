@@ -56,6 +56,12 @@ struct ViewEntity
 [[nodiscard]] float ssgOpenAngle(int hand);
 [[nodiscard]] glm::vec3 ssgTurned(const glm::vec3& p, float deg, bool point = true);
 
+// A gun model's loading port in its model space (frame 0; +x forward, +y left, +z up), moved by its Load Point offsets:
+// its point, the way a round goes in (a unit vector) and its opening's outward way (one), the super shotgun's turned down
+// with its barrels `ssgOpen` degrees. False if the model has none. Static data and settings only: the held guns' ports
+// (setupWeapon) and the guns lying about (QC loadportof, the server's).
+[[nodiscard]] bool modelLoadPort(const qmodel_t* model, float ssgOpen, glm::vec3& at, glm::vec3& axis, glm::vec3& face);
+
 // The gun drawn in `hand` this frame (its model's space: as its frames' vertices; none: false): a point of it in the world,
 // a world point in it, and its turn (forward, left, up: its angles', not mirrored). Immersive reloading's shells sliding
 // into it (vr_collectfx.cpp).
