@@ -50,6 +50,7 @@ typedef struct edict_s
 	qboolean	free;			/* don't modify directly, use ED_AddToFreeList/ED_RemoveFromFreeList */
 	link_t		freechain;
 	link_t		area;			/* linked to a division node or leaf */
+	int		areanode, areaslot;	/* QVR: and where in that node's array (world.c, SV_AreaEdictsUnordered) */
 
 	int		num_leafs;
 	int		leafnums[MAX_ENT_LEAFS];

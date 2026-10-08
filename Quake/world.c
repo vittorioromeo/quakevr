@@ -214,6 +214,45 @@ typedef struct areanode_s
 static	areanode_t	sv_areanodes[AREA_NODES];
 static	int			sv_numareanodes;
 
+// QVR: each node's linked edicts (both lists) in an array as well, in no order (the last one moved into a removed one's
+// place: edict_t's areanode, areaslot): SV_AreaEdictsUnordered reads their boxes without chasing the links one by one
+// (each link a load waiting on the last). The same edicts as the lists, so the same ones found; in another order.
+typedef struct
+{
+	edict_t	**ents;
+	int		count, space;
+} areaarray_t;
+static	areaarray_t	sv_areaarrays[AREA_NODES];
+
+static void SV_AreaArrayAdd (edict_t *ent, int node)
+{
+	areaarray_t *a = &sv_areaarrays[node];
+	if (a->count == a->space)
+	{
+		a->space = a->space ? a->space * 2 : 64;
+		a->ents = (edict_t **) VR_HeapRealloc (a->ents, a->space * sizeof (edict_t *));
+		if (!a->ents)
+			Sys_Error ("SV_AreaArrayAdd: out of memory");
+	}
+	ent->areanode = node;
+	ent->areaslot = a->count;
+	a->ents[a->count++] = ent;
+}
+
+static void SV_AreaArrayRemove (edict_t *ent)
+{
+	areaarray_t *a;
+	edict_t *last;
+	if (ent->areanode < 0 || ent->areanode >= AREA_NODES)
+		return;
+	a = &sv_areaarrays[ent->areanode];
+	if (ent->areaslot < 0 || ent->areaslot >= a->count || a->ents[ent->areaslot] != ent)
+		return; // (not in it: linked before the world was cleared)
+	last = a->ents[--a->count];
+	a->ents[ent->areaslot] = last;
+	last->areaslot = ent->areaslot;
+}
+
 /*
 ===============
 SV_CreateAreaNode
@@ -271,6 +310,8 @@ void SV_ClearWorld (void)
 
 	memset (sv_areanodes, 0, sizeof(sv_areanodes));
 	sv_numareanodes = 0;
+	for (int i = 0; i < AREA_NODES; i++) // QVR: (their memory kept)
+		sv_areaarrays[i].count = 0;
 	SV_CreateAreaNode (0, sv.worldmodel->mins, sv.worldmodel->maxs);
 }
 
@@ -287,6 +328,7 @@ void SV_UnlinkEdict (edict_t *ent)
 		return;		// not linked in anywhere
 	RemoveLink (&ent->area);
 	ent->area.prev = ent->area.next = NULL;
+	SV_AreaArrayRemove (ent); // QVR
 }
 
 
@@ -378,6 +420,44 @@ static void SV_AreaEdictsR (areanode_t *node, const float *mins, const float *ma
 void SV_AreaEdicts (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace)
 {
 	SV_AreaEdictsR (sv_areanodes, mins, maxs, list, listcount, listspace);
+}
+
+/*
+====================
+SV_AreaEdictsUnordered
+
+QVR: SV_AreaEdicts' edicts in no particular order (the nodes' arrays: sv_areaarrays), for VR_TouchLinks, which puts
+them in edict order.
+====================
+*/
+static void SV_AreaEdictsUnorderedR (areanode_t *node, const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace)
+{
+	const areaarray_t *a = &sv_areaarrays[node - sv_areanodes];
+	edict_t		*touch;
+	int			i;
+
+	for (i = 0; i < a->count; i++)
+	{
+		touch = a->ents[i];
+		if (mins[0] > touch->v.absmax[0] || mins[1] > touch->v.absmax[1] || mins[2] > touch->v.absmax[2]
+		|| maxs[0] < touch->v.absmin[0] || maxs[1] < touch->v.absmin[1] || maxs[2] < touch->v.absmin[2])
+			continue;
+		if (*listcount == listspace)
+			return;
+		list[(*listcount)++] = touch;
+	}
+
+	if (node->axis == -1)
+		return;
+	if (maxs[node->axis] >= node->dist - AREA_LOOSE)
+		SV_AreaEdictsUnorderedR (node->children[0], mins, maxs, list, listcount, listspace);
+	if (mins[node->axis] <= node->dist + AREA_LOOSE)
+		SV_AreaEdictsUnorderedR (node->children[1], mins, maxs, list, listcount, listspace);
+}
+
+void SV_AreaEdictsUnordered (const float *mins, const float *maxs, edict_t **list, int *listcount, int listspace)
+{
+	SV_AreaEdictsUnorderedR (sv_areanodes, mins, maxs, list, listcount, listspace);
 }
 
 /*
@@ -597,6 +677,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 		InsertLinkBefore (&ent->area, &node->trigger_edicts);
 	else
 		InsertLinkBefore (&ent->area, &node->solid_edicts);
+	SV_AreaArrayAdd (ent, (int) (node - sv_areanodes)); // QVR
 
 // if touch_triggers, touch all entities at this node and decend for more
 	if (touch_triggers)
