@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Installer update mode (desktop): run Setup over an existing install: opens on 'Quake VR: Unleashed X is installed' with one Update/Repair button; update goes straight to Updating and doesn't re-download HD textures; 'Install again from scratch' with both boxes -> backups\<date> reinstall\ holds them; 'Use another install' on a moved folder
 Installer HD textures: online with HD textures ticked: Options shows ~586 MB, no warning; the log says it used the installer's built-in pack (no latest.json yet), downloads ~0.6 GB and verifies it
 Cell cords (Weapons > Reloading > Cell Cords): laser cannon held: coiled cord from its underside to a battery in the pouch (cells shown 1 per 36, max 3); fire dry: plug falls loose, pick up cells: plugs back; two cannons: two cords; Mjolnir / Super Axe cords off by default: try them and say if they should be on; stretch at arm's length OK?
 Stealth/AI 3: seen and heard through grates/fences/alpha walls (and the flashlight beam through them); Debug > Tests > Stealth AI > meters over monsters (readable?); hostile monsters hunt you 20 s (5 s if you're far), round corners along your path; dogs with Gameplay > Monsters > Smooth Monster Steps on vs off (no teleporting jumps?); monsters walk round / push crates in their way
