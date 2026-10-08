@@ -371,6 +371,14 @@ const ModelMetadata& get(const qmodel_t* model)
     return model ? cached(model).info : empty;
 }
 
+bool isSubmodel(const qmodel_t* model)
+{
+    // (describePath's test for the trait's rule, Prefix "*", on the same name)
+    constexpr Rule rule = rules[static_cast<int>(Trait::Submodel)];
+    static_assert(rule.match == Match::Prefix && rule.text[0] == '*' && rule.text[1] == 0, "isSubmodel has the rule's test");
+    return model && startsWith(packPathOf(model->name), "*");
+}
+
 retro::Category category(const qmodel_t* model)
 {
     if(!model) { return Category::Other; }

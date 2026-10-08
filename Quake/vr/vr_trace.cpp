@@ -99,7 +99,7 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, 
         const glm::vec3 mins = origin + glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
         const glm::vec3 maxs = origin + glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
         if(glm::any(glm::lessThan(maxs, lo)) || glm::any(glm::greaterThan(mins, hi)) ||
-            (!qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel) && !ownFiles))
+            (!ownFiles && !qvr::modelmeta::isSubmodel(e.model)))
         {
             continue;
         }

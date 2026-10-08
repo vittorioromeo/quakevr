@@ -45,6 +45,9 @@ struct ModelMetadata
 [[nodiscard]] const ModelMetadata& get(const qmodel_s* model);
 [[nodiscard]] inline bool is(const qmodel_s* model, Id id) { return get(model).is(id); }
 [[nodiscard]] inline bool has(const qmodel_s* model, Trait trait) { return get(model).has(trait); }
+// has(model, Trait::Submodel) from the model's name alone (its rule: a map's brush submodel, "*N"), without the cache's
+// lookup: for loops over every entity many times a frame (worldtrace::world). Any thread.
+[[nodiscard]] bool isSubmodel(const qmodel_s* model);
 // Pre-load hooks and other string-only callers: no cache, engine access, or mutable state; worker-safe.
 [[nodiscard]] ModelMetadata describePath(const char* path);
 [[nodiscard]] Id identifyPath(const char* path);
