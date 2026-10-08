@@ -376,6 +376,39 @@ bool modelVertices(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& 
     return true;
 }
 
+bool modelTriangles(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || !hdr->indexes || !hdr->meshdesc ||
+        hdr->numframes <= 0 || hdr->numverts <= 0)
+    {
+        return false;
+    }
+    const DrawnTransform xf{model, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}};
+    const auto* base = reinterpret_cast<const byte*>(hdr);
+    const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + hdr->frames[0].firstpose * hdr->numverts;
+    const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+    const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+    out.reserve(static_cast<size_t>(hdr->numindexes));
+    for(int i = 0; i < hdr->numindexes; i++)
+    {
+        const trivertx_t& v = verts[mesh[indexes[i]].vertindex];
+        glm::vec3 p = xf.stored(glm::vec3{v.v[0], v.v[1], v.v[2]});
+        if(mirrored)
+        {
+            p.y = -p.y;
+        }
+        out.pushBack(p);
+    }
+    out.resize(out.size() - out.size() % 3);
+    return out.size() >= 3;
+}
+
 glm::vec3 drawnModelPoint(edict_t* ent, const glm::vec3& p)
 {
     using namespace progs;

@@ -119,6 +119,9 @@ void forgetDrawnCentres();
 // entity's axes; `mirrored` (the off hand's): its y negated. False if it has none (a held weapon's hull, vr_box3d.cpp).
 [[nodiscard]] bool modelVertices(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& out);
 
+// The same pose's triangles, three corners each (a held gun's convex pieces: vr_convex.hpp). False as modelVertices.
+[[nodiscard]] bool modelTriangles(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& out);
+
 // Grab reach from the fist (ROUND21.md, "Grab reach from the fist; two-handed detach; brushing fingers"): a hand takes
 // hold of a box, backpack, gib, head or armour only if its fist touches the thing's drawn surface: the empty hand
 // closed into a fist (the jointed hand's palm and curled fingers, as the grasp's spheres). Before, the hand's point (the

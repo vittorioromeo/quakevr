@@ -2967,6 +2967,10 @@ void hologramTestMessage()
         toggle("Weapons Push Things", vr_box3d_weapon_push)
             .help("The weapons you hold are solid to loose things as drawn: shove things with a gun, balance them on it, bat a "
                   "grenade away with the axe."),
+        cycle("Guns' Shape", vr_box3d_gun_pieces, {{1.f, "One Hull"}, {6.f, "6 Pieces"}, {12.f, "12 Pieces"}, {20.f, "20 Pieces"}})
+            .help("The guns' solid shape, held and lying about: in convex pieces that follow the drawn gun (a shell drops "
+                  "into the shotgun's port, a magazine into its well, nothing rests on the air between its parts), or one "
+                  "hull round each (which fills them). For guns made from then on (picked up, dropped)."),
         slider("Heaviest Thing Held Up", vr_box3d_hand_hold_mass, 0.f, 50.f, 1.f, "%.0f kg")
             .extend()
             .help("An open hand or a weapon holds up nothing heavier: a heavier thing slips through (it is still pushed). 0: no "
@@ -5672,9 +5676,10 @@ za::Vector<Item> pageDebugTests()
         command("Report the Loose Rounds", "vr_reload_test 14; impulse 125")
             .help("Each loose round's distance from the off hand's load point, how it lies against the way in, and "
                   "whether it passes through the gun; the load point's axis and the way its opening faces."),
-        command("Print the Collision Shapes", "vr_physics_shapes vr_ammo_shell vr_ammo_mag vr_ammo_front")
-            .help("Each loose round's body against its drawn size, each held gun's hull against the drawn gun, and how "
-                  "deep its load point lies inside the hull (the console)."),
+        command("Print the Collision Shapes", "vr_physics_shapes vr_ammo_shell vr_ammo_mag vr_ammo_front thrown_weapon")
+            .help("Each loose round's body against its drawn size, each held gun's body against the drawn gun, how deep "
+                  "its load point lies inside it, and its convex pieces (how many, how far their hulls lie off the gun; "
+                  "one hull's for comparison); the guns lying about too (the console)."),
         cycle("Reload Prints", "vr_reload_debug", {{0.f, "Off"}, {1.f, "Events"}, {2.f, "Every Frame"}, {3.f, "And Magazine Grips"}})
             .help("Events: each take, load, refund, loss, magazine out and hold. Every Frame: a held round's distance to the "
                   "port, a held magazine's pull, snap and apart, a hit's speed. And Magazine Grips: each empty hand's "
