@@ -5463,6 +5463,13 @@ za::Vector<Item> pageDebugTests()
             .help("vr_physics_steptime: Box3D's step time a frame since the last time (average, median, 95th and 99th "
                   "percentiles, worst, ms), the awake bodies and its threads. Run it, make a pile, play, run it again "
                   "(Profiling and Memory: Physics Threads, Physics Step Time by Awake Bodies)."),
+        command("Explosion Debris Ahead", "vr_explosion_debris_test")
+            .help("vr_explosion_debris_test: an explosion's look and its chunks (the server's Box3D props) 64 units ahead, "
+                  "no blast. Then Explosion Debris List."),
+        command("Explosion Debris List", "vr_explosion_debris_list")
+            .help("vr_explosion_debris_list: each chunk: its entity, place, speed, resting (asleep) or moving and on what "
+                  "(the world, a lift), age, time left, fade. vr_explosion_debris_stats the counts; "
+                  "vr_explosion_debris_launch <x y z> <vx vy vz> [size] [life] one chunk where you say."),
         header("Spatial Audio"),
         command("Spatial Audio Tests", "vr_snd_test all")
             .help("vr_snd_test: offline renders through the spatial audio (a sound circling the head, behind a wall, a door "
