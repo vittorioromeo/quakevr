@@ -36,7 +36,21 @@ The timeline, layout, camera and shake are all in `common.py`.
 - `encode.py`: ProRes 4444 with alpha (PyAV's `prores_ks`, `yuva444p10le`, Rec.709), the preview MP4 over a checker,
   the contact sheet, the alpha test (frames over white, a bright picture and black), and the 1080p copy (scaled with
   premultiplied alpha).
-- `render_all.sh`: everything, in order.
+- `sound.py`: the sound track (Quake's sounds and synthesis; SOUNDS.md).
+- `render_all.sh`: everything, in order (the full version).
+
+## The no-grunt version (to lay over a real in-game kill)
+
+The same intro without the idling grunt and the thrown axe: `composite.py --variant nogrunt` (Blender's
+`fg --nogrunt 1` layer: the gibs alone), and `sound.py --variant nogrunt` for its track.
+
+- **Impact (the burst) = frame 30** (0.500 s at 60 fps). Frames 0-29 are an empty, fully transparent lead-in for
+  lining up. Its frame g is the full version's frame g + 38. It is 682 frames long (11.367 s).
+- **Where:** the burst starts at **(960, 481) in 1920x1080** (horizontally centred, 44.5 % down from the top; (1920,
+  962) at 4K): where the grunt's chest was. Line that point up with the grunt in the footage, and frame 30 with the
+  frame his body bursts.
+- Its track: a 48 kHz, 24-bit WAV, exactly 682 frames long (545,600 samples), frame-synced (SOUNDS.md lists the
+  sources).
 
 ## Versions
 

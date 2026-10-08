@@ -62,6 +62,12 @@ MAT_END = 342
 FIRE_START = 352                  # everything bursts into flames
 FIRE_FULL = 372
 
+# The no-grunt version (to lay over a real in-game kill): it starts NOGRUNT_LEAD empty frames before the burst, so
+# its frame g is the full version's frame g + NOGRUNT_OFFSET and the impact (HIT) is its frame NOGRUNT_LEAD.
+NOGRUNT_LEAD = 30
+NOGRUNT_OFFSET = HIT - NOGRUNT_LEAD
+NOGRUNT_FRAMES = FRAMES - NOGRUNT_OFFSET
+
 # --- Layout on the wall (metres) ---
 GRUNT_Y = -1.0                    # the grunt stands a metre in front of the wall
 GRUNT_SCALE = 0.042               # Quake units to metres

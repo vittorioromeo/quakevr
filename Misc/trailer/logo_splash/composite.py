@@ -23,7 +23,7 @@ import fx  # noqa: E402
 G = {}
 
 
-def init(work, W, shake):
+def init(work, W, shake, variant="full"):
     H = W * 9 // 16
     S = W / 3840.0
     pre = dict(np.load(os.path.join(work, "pre", "fields.npz")))
@@ -35,7 +35,7 @@ def init(work, W, shake):
         a = fx.load_rgba(os.path.join(st, "rest_%d.png" % i), W)[..., 3]
         ys, xs = np.nonzero(a > 0.02)
         rests.append((a, (xs.min(), ys.min(), xs.max() + 1, ys.max() + 1)))
-    G.update(W=W, H=H, S=S, work=work, pre=pre, drips=meta["drips"], tip=meta["tip"], shake=shake,
+    G.update(variant=variant, W=W, H=H, S=S, work=work, pre=pre, drips=meta["drips"], tip=meta["tip"], shake=shake,
              rests=rests,
              letters_rest=fx.load_rgba(os.path.join(st, "letters_rest.png"), W),
              letters_fire=fx.load_rgba(os.path.join(st, "letters_rest_fire.png"), W),
@@ -205,7 +205,7 @@ def frame_rgba(f):
 
     # Blender's foreground: the grunt, the axe, the gibs.
     if f <= C.GIB_END:
-        p = os.path.join(G["work"], "fg", "fg_%04d.png" % f)
+        p = os.path.join(G["work"], "fg_nogrunt" if G["variant"] == "nogrunt" else "fg", "fg_%04d.png" % f)
         if os.path.exists(p):
             fx.over(out, fx.load_rgba(p, W))
 
@@ -285,7 +285,7 @@ def shift_rotate(img, dx, dy, rot):
     return out
 
 
-def to_straight_u8(prem, seed):
+def to_straight_u8(prem, seed, dither=True):
     """Premultiplied float RGBA -> straight 8-bit RGBA, dithered; colour bled into the transparent pixels."""
     H, W = prem.shape[:2]
     a = np.clip(prem[..., 3], 0, 1)
@@ -303,17 +303,19 @@ def to_straight_u8(prem, seed):
     w = np.clip(a / 0.02, 0, 1)[..., None]
     rgb = rgb * w + fill * (1 - w)
     out = np.concatenate([rgb, a[..., None]], -1)
-    rng = np.random.default_rng(seed)
-    out = out * 255 + rng.random(out.shape, np.float32) - 0.5
+    out = out * 255
+    if dither:      # against banding in the PNGs; off for the movies (the noise costs a codec bits, not quality)
+        out[..., :3] += np.random.default_rng(seed).random(out.shape[:2] + (3,), np.float32) - 0.5
     return np.clip(np.round(out), 0, 255).astype(np.uint8)
 
 
 def work_frame(args):
-    f, out_dir, layers = args
+    g, out_dir, dither = args
+    f = g + (C.NOGRUNT_OFFSET if G["variant"] == "nogrunt" else 0)
     t0 = time.time()
     prem = frame_rgba(f)
-    u8 = to_straight_u8(prem, f)
-    Image.fromarray(u8, "RGBA").save(os.path.join(out_dir, "logo_splash_%04d.png" % f), compress_level=2)
+    u8 = to_straight_u8(prem, f, dither)
+    Image.fromarray(u8, "RGBA").save(os.path.join(out_dir, "logo_splash_%04d.png" % g), compress_level=2)
     return f, time.time() - t0
 
 
@@ -326,21 +328,24 @@ def main():
     ap.add_argument("--step", type=int, default=1)
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--shake", type=float, default=1.0)
+    ap.add_argument("--variant", default="full", choices=("full", "nogrunt"),
+                    help="nogrunt: starts NOGRUNT_LEAD empty frames before the burst, no grunt, no axe (frames renumbered)")
+    ap.add_argument("--dither", type=int, default=1, help="0: no dither noise in the colour (for the movies)")
     a = ap.parse_args()
     out_dir = a.out or os.path.join(C.OUT_ROOT, "png_%d" % a.width)
     os.makedirs(out_dir, exist_ok=True)
-    lo, hi = (0, C.FRAMES - 1)
+    lo, hi = (0, (C.NOGRUNT_FRAMES if a.variant == "nogrunt" else C.FRAMES) - 1)
     if a.frames:
         x, _, y = a.frames.partition("-")
         lo, hi = int(x), int(y or x)
     frames = list(range(lo, hi + 1, a.step))
     t0 = time.time()
-    jobs = [(f, out_dir, False) for f in frames]
+    jobs = [(f, out_dir, a.dither > 0) for f in frames]
     if a.jobs <= 1:
-        init(a.work, a.width, a.shake)
+        init(a.work, a.width, a.shake, a.variant)
         res = [work_frame(j) for j in jobs]
     else:
-        with Pool(a.jobs, initializer=init, initargs=(a.work, a.width, a.shake)) as pool:
+        with Pool(a.jobs, initializer=init, initargs=(a.work, a.width, a.shake, a.variant)) as pool:
             res = []
             for r in pool.imap_unordered(work_frame, jobs):
                 res.append(r)
