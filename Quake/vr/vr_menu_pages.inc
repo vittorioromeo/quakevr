@@ -1008,8 +1008,18 @@ void resetHandMoves()
         slider("Round Angle", "vr_reload_front_angle", 5.f, 80.f, 5.f, "%.0f deg")
             .help("How far off the barrel a rocket or grenade may lie and still go in, butt first (its nose out of the "
                   "muzzle). The wrong way round never loads: a dull tap. A proximity grenade goes in any way round."),
+        slider("Round In Hand Pitch", "vr_reload_front_hold_pitch", -180.f, 180.f, 5.f, "%.0f deg")
+            .help("A rocket or grenade (any of them: multi, proximity) taken from the ammo pouch, the same way every time: its "
+                  "nose tipped up in your hand (negative: down), about its middle. 90: standing in the fist, nose up by the "
+                  "thumb, butt down by the little finger (thumb forward, it lies along the barrel, butt to the muzzle)."),
+        slider("Round In Hand Yaw", "vr_reload_front_hold_yaw", -180.f, 180.f, 5.f, "%.0f deg")
+            .help("A round taken from the ammo pouch: its nose turned left in your hand (negative: right), mirrored for the "
+                  "left hand."),
+        slider("Round In Hand Roll", "vr_reload_front_hold_roll", -180.f, 180.f, 5.f, "%.0f deg")
+            .help("A round taken from the ammo pouch: rolled right in your hand (negative: left), mirrored for the left hand."),
         open("Round Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
-            .help("How a rocket or grenade sits in the hand: take one from the pouch, then tune it there (its Grip)."),
+            .help("How a rocket or grenade sits in the hand when taken from where it lies (its Grip). From the ammo pouch, "
+                  "every round sits the same way, in the fist's grip channel, turned by Round In Hand above."),
         slider("Grenade Size", "vr_grenade_scale", 0.5f, 1.f, 0.01f, "%.2f").extend(0.25f, 2.f)
             .help("The grenades' size (Quake's grenade, the multi-grenade): the same in the hand, in the pouches, going "
                   "into a launcher and in flight, their hit boxes with them. 1: Quake's size."),

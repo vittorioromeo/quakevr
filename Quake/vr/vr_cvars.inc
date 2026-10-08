@@ -2719,6 +2719,15 @@ QVR_CVAR(vr_reload_contact_angle, "35", CVAR_ARCHIVE)
 // grenade goes in lying within vr_reload_front_angle degrees of the barrel, its nose out of the muzzle.
 QVR_CVAR(vr_reload_front, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_front_angle, "45", CVAR_ARCHIVE)
+// A launcher's round's turn in the hand as it is taken from the ammo pouch (the author's note vrfiringrange_2026-10-08_
+// 22-18-19: the same for every round, easy to load): every round, whatever its Held Object Offsets, its middle in the
+// fist's grip channel, its long axis along the hand's forward, its nose ahead (the multi-grenade's too), then turned about
+// its middle (pitch up, yaw left, roll right; mirrored for the left hand), as the grenade pouch's vr_grenade_pouch_hold_*. 90: standing in the fist, nose up
+// out of its thumb side, butt down out of its little finger's: the thumb turned forward, it lies along the barrel, butt to
+// the muzzle.
+QVR_CVAR(vr_reload_front_hold_pitch, "90", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_front_hold_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_front_hold_roll, "0", CVAR_ARCHIVE)
 // The grenades' size (the author's notes vrfiringrange_2026-10-08_10-34-52 .. 10-37-30: the original models, "around
 // 25% smaller", the same in the hand and in flight): progs/grenade.mdl, the multi-grenade's progs/mervup.mdl and the
 // proximity grenade's progs/proxbomb.mdl drawn at this size wherever they are (the launchers' shots, the pouches' grenades

@@ -32552,3 +32552,18 @@ the gun's box, vr_reload_collide_leniency 4 cm into it: so a round reaches a por
 Test: reload_test.sh section 7, the same glided swings (exact speed, the same tracked poses after the same visit to the
 pouch) empty and holding a pair: from below near the breech and at the front, from above, at 2.5, 3.8 and 7.6 m/s: the
 same outcome and speed.
+
+## The ammo pouch's launcher rounds held the same way every time (2026-10-08)
+
+His note vrfiringrange_2026-10-08_22-18-19: as the back pouch's grenades, the rounds taken from the ammo pouch for the
+launchers (a rocket, a grenade, a multi-grenade or multi-rocket, a proximity grenade) should come out held the same
+way, customizable, at an angle easy to load. Before, each was placed by its own Held Object Offsets grip (the grenades
+in the palm, the rocket along the handle at its own turn; the multi-grenade's model stands along its z): the mock
+measured the rocket's long axis about 60 degrees off the grenade's, pointing back. Now QC's carryfrontpouch (vr_grip.cpp serverFromPouch,
+the grenade pouch's carrypouch's twin): every round, whatever its grip, its middle in the fist's grip channel, its long
+axis along the hand's forward, nose ahead, then turned about its middle by vr_reload_front_hold_pitch / _yaw / _roll
+(Reloading > Launchers: Round In Hand Pitch, Yaw, Roll; mirrored for the left hand), placed again at once when they
+change, until a regrip (then its grip as before). Default pitch 90: standing in the fist, nose up out of its thumb
+side, butt down by the little finger, so with the thumb turned forward the round lies along the barrel, butt to the
+muzzle (the grenade pouch's 90, too). A round picked up where it lies keeps its Held Object Offsets grip. Test:
+front_test.sh section 5 (every kind, three hand turns: nose up in the hand, (0, 0, 1); pitch 0: along the forward).

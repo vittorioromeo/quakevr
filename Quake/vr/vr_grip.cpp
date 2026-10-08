@@ -309,16 +309,18 @@ struct Held
     Place now;
     glm::vec3 lastOffset{0.f}; // .carry_offset as last given to QC (forward, right, up)
     bool pouch{false};         // a hand grenade taken from the pouch (serverFromPouch): turned by vr_grenade_pouch_hold_*
+    bool frontPouch{false};    // (a launcher's round from the ammo pouch: by vr_reload_front_hold_*)
     glm::vec3 pouchTurn{0.f};  // the turn it was placed with (pitch, yaw, roll; mirrored for the left hand)
 };
 
 ankerl::unordered_dense::map<int, Held> heldProps;
 
 // The grenade pouch's turn in the hand (vr_grenade_pouch_hold_*: pitch up, yaw left, roll right, degrees), mirrored for
-// the left hand as the grip's offsets are.
-[[nodiscard]] glm::vec3 pouchTurnNow(bool left)
+// the left hand as the grip's offsets are; the ammo pouch's for a launcher's round (`front`: vr_reload_front_hold_*).
+[[nodiscard]] glm::vec3 pouchTurnNow(bool left, bool front)
 {
-    glm::vec3 t{vr_grenade_pouch_hold_pitch.value, vr_grenade_pouch_hold_yaw.value, vr_grenade_pouch_hold_roll.value};
+    glm::vec3 t = front ? glm::vec3{vr_reload_front_hold_pitch.value, vr_reload_front_hold_yaw.value, vr_reload_front_hold_roll.value}
+                        : glm::vec3{vr_grenade_pouch_hold_pitch.value, vr_grenade_pouch_hold_yaw.value, vr_grenade_pouch_hold_roll.value};
     if(left)
     {
         t.y = -t.y;
@@ -330,7 +332,7 @@ ankerl::unordered_dense::map<int, Held> heldProps;
 // Whether `h` is to be placed again: its prop's settings changed, or (from the pouch) the pouch's turn in the hand.
 [[nodiscard]] bool stale(const Held& h)
 {
-    return h.generation != props::settingsGeneration() || (h.pouch && h.pouchTurn != pouchTurnNow(h.left));
+    return h.generation != props::settingsGeneration() || (h.pouch && h.pouchTurn != pouchTurnNow(h.left, h.frontPouch));
 }
 
 [[nodiscard]] const qmodel_t* modelOf(edict_t* e)
@@ -365,14 +367,26 @@ void placeNow(Held& h)
         const glm::mat3 m = held::axesFromAngles(angles, true);
         h.now = {pivot + m * (pretend.pos - pivot) + s.move, orthonormal(m * pretend.rot)};
     }
+    else if(h.pouch && h.frontPouch)
+    {
+        // A launcher's round from the ammo pouch: the same in the hand whatever the round and its Held Object Offsets
+        // (the author's note vrfiringrange_2026-10-08_22-18-19): its middle in the fist's grip channel, its long axis
+        // along the hand's forward (as taken), turned about its middle by vr_reload_front_hold_*.
+        h.kept = false;
+        h.pouchTurn = pouchTurnNow(h.left, true);
+        const float angles[3]{-h.pouchTurn.x, h.pouchTurn.y, h.pouchTurn.z};
+        const glm::mat3 rot = orthonormal(held::axesFromAngles(angles, true) * h.taken.rot);
+        h.now = {h.frame.channelPoint - rot * middleOf(h.prop), rot};
+    }
     else
     {
         h.kept = false;
         h.now = place(h.prop, h.frame, h.left, h.taken);
         if(h.pouch)
         {
-            // From the pouch: turned on top of all that, about its middle (vr_grenade_pouch_hold_*).
-            h.pouchTurn = pouchTurnNow(h.left);
+            // From the pouch: turned on top of all that, about its middle (vr_grenade_pouch_hold_*; the ammo pouch's
+            // launcher rounds, vr_reload_front_hold_*).
+            h.pouchTurn = pouchTurnNow(h.left, h.frontPouch);
             const float angles[3]{-h.pouchTurn.x, h.pouchTurn.y, h.pouchTurn.z};
             const glm::mat3 m = held::axesFromAngles(angles, true);
             const glm::vec3 mid = h.now.pos + h.now.rot * (middleOf(h.prop) + settingsOf(h.prop.slot, h.left).com);
@@ -515,7 +529,7 @@ void serverKeep(edict_t* e, const float* handAngles, const glm::vec3& offset)
     logPlace("kept", num, h);
 }
 
-glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& offset)
+glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& offset, bool front)
 {
     const int num = NUM_FOR_EDICT(e);
     const auto it = heldProps.find(num);
@@ -525,6 +539,7 @@ glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& 
     }
     Held& h = it->second;
     h.pouch = true;
+    h.frontPouch = front;
     // Taken at the same place in the hand every time (NOTES.md vrfiringrange_2026-09-30_00-09-12): its origin at the
     // hand's, its axes the hand's (forward, left, up), whatever the hand's turn as it reached in. It was taken as it
     // spawned, at the hand's angles, which a model turns with the pitch the other way (held::axesFromAngles): the hand's
@@ -548,7 +563,7 @@ glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& 
     physics::setCarryTurn(e, handAngles, h.now.rot);
     h.turnStale = false;
     h.lastOffset = toFRU(h.now.pos);
-    logPlace("from the pouch", num, h);
+    logPlace(front ? "from the ammo pouch" : "from the pouch", num, h);
     return h.lastOffset;
 }
 

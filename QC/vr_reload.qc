@@ -1064,6 +1064,12 @@ void(float xHand) VR_Reload_Take =
     {
         VR_GrenShot_Update(r); // (in a hand: no shot meets it)
     }
+    if(front)
+    {
+        // A launcher's round: the same place in the hand every time, whatever the round (the author's note
+        // vrfiringrange_2026-10-08_22-18-19), turned by vr_reload_front_hold_* (vr_grip.cpp serverFromPouch).
+        r.carry_offset = carryfrontpouch(r, VRGetEntHandRot(self, xHand), r.carry_offset);
+    }
     VR_Reload_Sound(self, VRGetHandChannel(xHand), "vr/reload_pouch.wav", 0.9);
     VR_Reload_Haptic(self, xHand, 0.07, 120, 0.7);
     VR_Reload_Log(sprintf("%s taken from the pouch by hand %g: %g left", (w || front) ? VR_Reload_Desc(r) : (n >= 2 ?

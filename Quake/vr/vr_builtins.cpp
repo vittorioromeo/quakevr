@@ -1268,6 +1268,18 @@ void PF_carrypouch()
     out[2] = v.z;
 }
 
+// vector(entity e, vector handangles, vector offset) carryfrontpouch: `e`, a launcher's round just taken from the ammo pouch
+// (after carrygrip, `offset` its .carry_offset): as carrypouch, turned in the hand by vr_reload_front_hold_*.
+void PF_carryfrontpouch()
+{
+    const float* o = G_VECTOR(OFS_PARM2);
+    const glm::vec3 v = grip::serverFromPouch(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), glm::vec3{o[0], o[1], o[2]}, true);
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
 // vector(entity e, vector handangles, vector offset) carryplace: each frame `e` is held in one hand: its angles set
 // (turning with the hand) and its origin's place in the hand returned (.carry_offset, given as `offset`): placed again
 // at once when its Held Object Offsets changed (vr_grip.hpp).
@@ -2301,6 +2313,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carrygrip", PF_carrygrip},
     {"carryplace", PF_carryplace},
     {"carrypouch", PF_carrypouch},
+    {"carryfrontpouch", PF_carryfrontpouch},
     {"carryfit", PF_carryfit},
     {"carry2h", PF_carry2h},
     {"carryreach", PF_carryreach},
