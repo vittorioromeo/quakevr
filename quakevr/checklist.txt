@@ -71,11 +71,9 @@ Slipgates: each visible gate shows its own destination in both eyes, flat and sp
 start: the hidden staircase cover stays until all episodes are done
 
 [Graphics]
-Retro textures and lighting: crisp blocks with no crawl; per-category settings and Pick overrides work
 Quetoo maps: walls by a lamp and the flashlight; pick a specular level
 
 [Sound and recording]
-Sound: Full-Band Sound and HRTF Anti-Aliasing place sounds clearly, no hiss
 Recording: slow motion with game-time sound and highlight markers line up in Resolve
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
@@ -90,4 +88,3 @@ Weapon damage, grapple, stamina costs, roll weight and throw damage
 
 [Record]
 Record new melee takes: the melee test suite can't run without them
-vrstart is the island now: a fresh start, VR Hub and the tutorial/calibration slipgates land there; the old hub in Debug > Tests > Hubs (vrstart_old); the island lit and holeless after the 0.18.1 recompile (slipgate surface now shows its texture)
