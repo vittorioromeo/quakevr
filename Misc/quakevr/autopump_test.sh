@@ -10,6 +10,8 @@
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
+# (Times are printed to the millisecond: their differences are compared with half a millisecond to spare, awk's
+# 2.775 - 2.475 being 0.29999999999999982, not 0.3: the stroke home on its due time read as early.)
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 SETUP="map e1m1;wait60;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 154;wait3;vr_mock_hand main 0.15 1.2 -0.45 70 0 0;wait10"
 FIRE="vr_debug_weaponfx 1;+attack;wait3;-attack;wait90"
@@ -30,7 +32,7 @@ for rate in 72 120; do
     echo "  $rate Hz: shot $s, back $b (due $bd), shell $e, home $h (due $hd)"
     check $(awk -v e="$e" -v bd="$bd" 'BEGIN { print (e != "" && e >= bd && e - bd < 0.015) ? 1 : 0 }') "$rate Hz: the shell leaves as the fore-end reaches the back"
     check $(awk -v b="$b" -v e="$e" 'BEGIN { print (b != "" && b == e) ? 1 : 0 }') "$rate Hz: in the same frame"
-    check $(awk -v s="$s" -v h="$h" 'BEGIN { d = h - s; print (s != "" && d >= 0.3 && d < 0.32) ? 1 : 0 }') "$rate Hz: home 0.3 s after the shot, before the next is possible (0.5 s)"
+    check $(awk -v s="$s" -v h="$h" 'BEGIN { d = h - s; print (s != "" && d >= 0.2995 && d < 0.32) ? 1 : 0 }') "$rate Hz: home 0.3 s after the shot, before the next is possible (0.5 s)"
 done
 
 log=$(run "$SETUP;vr_bullettime_scale 0.25;vr_bullettime_duration 60;vr_bullettime;wait30;$FIRE")
@@ -44,7 +46,7 @@ f=$(echo "$log" | awk '/weaponfx fired/ { print $4; exit }')
 e=$(echo "$log" | awk '/shells eject/ { print $6; exit }')
 echo "  off: shot $f, shell $e"
 check $(echo "$log" | grep -q "^autopump hand" && echo 0 || echo 1) "Auto Pump off: no stroke"
-check $(awk -v f="$f" -v e="$e" 'BEGIN { d = e - f; print (f != "" && e != "" && d >= 0.22 && d < 0.24) ? 1 : 0 }') "Auto Pump off: the shell 0.22 s after the shot, as before"
+check $(awk -v f="$f" -v e="$e" 'BEGIN { d = e - f; print (f != "" && e != "" && d >= 0.2195 && d < 0.24) ? 1 : 0 }') "Auto Pump off: the shell 0.22 s after the shot, as before"
 
 log=$(run "$SETUP;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand off -0.15 1.2 -0.45 70 0 0;vr_mock_hand main 0.3 1.0 -0.2 0 0 0;wait10;vr_debug_weaponfx 1;+offhandattack;wait3;-offhandattack;wait90")
 read s sr b br bd h hr hd e <<< "$(stroke "$log")"

@@ -29424,6 +29424,9 @@ rail system on the shotgun that makes it believable the gun cycles itself (workt
   Print Weapon Effects (`vr_debug_weaponfx` 1: each stroke's start, back, home and the shell's eject; 2: the travel each
   frame).
 - Tests: `Misc/quakevr/autopump_test.sh` (TESTING.md).
+  - Its "home 0.3 s" and "the shell 0.22 s" checks failed about 1 run in 4: awk's difference of the printed
+    milliseconds (2.775 - 2.475 = 0.29999999999999982), not the timing (home on its due time in every run). They allow
+    half a millisecond now.
 - For the author in VR: the look of the rods and the stroke (Travel, Time), the clacks' volume against the shot, and
   whether the off hand on the fore-end (two-handed) should ride with it (it stays where the controller is now).
 ## Menu tweaks: VR Settings rows, section gaps, the flat banner, the main menu, Back where you came from, fine sliders
