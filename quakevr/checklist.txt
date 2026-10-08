@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Decisions batch: version reads 1.0.0-dev; stick deadzone 10 (drift?); MG3 ghosts see-through 0.4 (Debug > Tests > Dawn of the Machine > Ghosts' Opacity); Debug > Tests > Ahead of You: Facing = Away for trailer spawns; force grab feels the same (Debug > Profiling: Verify Force Grab Search, then Stats)
 Teleporters: in the loop, shoot your own back with each gun (Debug > Slipgates > Into the Loop, Lightning Gun; lightning reaches only from close); nails/rockets now come out of gates; push a crate into the flush gate and jiggle in and out fast: never stuck in the wall (Debug > Slipgates > Stuck in a Teleporter's Wall?)
 Update notice: Debug > Update Notice: Fake 9.9.9, then the main menu and a settings page show 'Update available' above the version box; point + trigger opens the releases page on the desktop; flat main menu: the two-row box clear of Advanced VR (Advanced VR > HUD and Menus > Menu > Check for Updates)
 Installer update mode (desktop): run Setup over an existing install: opens on 'Quake VR: Unleashed X is installed' with one Update/Repair button; update goes straight to Updating and doesn't re-download HD textures; 'Install again from scratch' with both boxes -> backups\<date> reinstall\ holds them; 'Use another install' on a moved folder
