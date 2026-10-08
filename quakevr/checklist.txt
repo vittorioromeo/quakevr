@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Wrist gadget: bullet time = a firm straight tap on the screen (hand or gun butt); melee swings/blocks/two-hand holds must never fire it (Combat > Bullet Time > Screen Tap); side button = gear lights toggle (click + tick; dims gadget/gun screen lights to 0.05, text to 0.35: right levels?), find/press it easily (Debug > Show Gadget Button); old bullet-time button cvars removed
 Real crouching (vrslipgates crouching room, east of the hub): crouch through the 40-high tunnel and stand up inside (stay low until out); half-crouch the 48 gap; the small 48x48 teleporters; crouch behind the low wall while the panel's grunt fires (no hits); is 36 the right lowest box (eyes ~1.1 m)? (Movement > Player Hitbox > Crouching)
 Bullet-time nudges: nudge things up 5-15 cm in bullet time (wrist straight or a small flick): same as full speed now (were 11-14x); slow lobs/overhands matched to the slowdown still full speed; Throwing > Slow Motion: Nudge Below 0.15 / Arm Throw From 0.2 m / Throws As In Real Time
 Explosion debris now real physics (server Box3D): rocket at a wall: chunks bounce, settle, glow, fade; ride a lift; a 2nd rocket scatters resting chunks; chunks hitting crates/explosive boxes make no sound and set nothing off. QC speedups (edict index): big fights (MG3 secret2) behave the same; Debug > Edict Index off/on changes nothing
