@@ -233,6 +233,17 @@ through it reaches it. Shots and bodies still stop at them (traceline). Off, or 
 A noise of the world's (a blast, a test's knock) is now traced ignoring the hearer: a trace ignoring world skipped every
 entity world owns (every brush entity and prop: a door between, a crate in the way).
 
+## Props in the way (`vr_ai_props 1`, `vr_ai_prop_push 1`; `vr_ai_props.qc`)
+
+Quake's movetogoal steps straight at its goal and, blocked, tries other ways at random: a crate or barrel (a solid
+prop: SOLID_BBOX, Box3D's) between a monster and the player kept it stepping about behind it. Before each step of
+ai_run's chase, ai_walk's path and the stealth AI's walks (`VR_AI_MoveToGoal`), a monster sweeps its box a step and a
+bit straight at its goal; a solid prop there: it pushes it (`physicspush` at the side it meets, at its step's speed, by
+its own weight: `VR_Grapple_MonsterMass`; Box3D moves a light prop, not a heavy one) and walks to a point beside it (the
+prop's half-diagonal plus its own width plus 12 units off its middle, on the side whose way there is clear and shorter
+to the goal), then on to the goal (given up when blocked, or after a second plus one per 50 units of it). Flyers and
+swimmers, and `vr_ai_enhanced 0`: Quake's movetogoal.
+
 ## Cvars (all CVAR_ARCHIVE, Combat > Stealth AI)
 
 `vr_ai_enhanced 1`, `vr_stealth_meter 1`, `vr_stealth_meter_time 1.5`, `vr_stealth_meter_decay 0.2`,
@@ -244,7 +255,8 @@ entity world owns (every brush entity and prop: a door between, a crate in the w
 `vr_stealth_sensitive 1.5`, `vr_stealth_sensitive_time 30`, `vr_stealth_share_near 256`, `vr_stealth_share_view 1000`,
 `vr_stealth_graze 64`, `vr_stealth_flashlight 1`, `vr_stealth_torch 400`, `vr_stealth_corpses 600`,
 `vr_stealth_sneak 1.25`, `vr_stealth_ambush_deaf 1`, `vr_stealth_senses 1`, `vr_stealth_lose 1`,
-`vr_stealth_lose_time 20`, `vr_stealth_lose_far 1500`, `vr_stealth_chase_trail 1`, `vr_stealth_chase_predict 1.5`, `vr_stealth_gem 1`,
+`vr_stealth_lose_time 20`, `vr_stealth_lose_far 1500`, `vr_stealth_chase_trail 1`, `vr_stealth_chase_predict 1.5`,
+`vr_ai_props 1`, `vr_ai_prop_push 1`, `vr_stealth_gem 1`,
 `vr_stealth_marks 0`, `vr_stealth_debug 0` (1: state changes, 2: each meter step and noise heard).
 
 ## Status (2026-10-08)
@@ -308,6 +320,8 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   e1m1 door model put between: opaque, it neither sees him nor hears a knock where he stands (1.15 times its distance);
   alpha 0.5: both; `vr_stealth_seethrough 0`: neither; opaque but its textures taken for fences
   (`vr_stealth_test_fence`: the kit's maps have no solid `{` brush): both; not: neither.
+- 124 props in the way (`stealth_tests.sh props`, vrslipgates room T): a row of five large crates between a knight
+  Hostile at him and him, 500 units apart: round them within 6 s (3.7 s); `vr_ai_props 0` for comparison (8.4 s).
 - 123 dogs' drawn steps (`stealth_tests.sh dogs`): a dog chasing him round a circle for 30 s, its drawn moves logged
   (`vr_debug_drawn_moves`), with `vr_monster_lerp_continue` 0 and 1: no jump between frames with it on.
 - 122 the hunt (`stealth_tests.sh hunt`): a grunt Hostile at him sees him dart off at 300 u/s and loses him at once (he

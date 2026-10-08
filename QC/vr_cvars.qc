@@ -81,6 +81,8 @@ float cvarh_vr_stealth_lose_time;
 float cvarh_vr_stealth_lose_far;
 float cvarh_vr_stealth_chase_trail;
 float cvarh_vr_stealth_chase_predict;
+float cvarh_vr_ai_props;
+float cvarh_vr_ai_prop_push;
 float cvarh_vr_stealth_noise_wall;
 float cvarh_vr_stealth_noise_solid;
 float cvarh_vr_stealth_noise_absorb;
@@ -833,6 +835,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_stealth_lose_far);
     VR_CVAR_HMAKE(vr_stealth_chase_trail);
     VR_CVAR_HMAKE(vr_stealth_chase_predict);
+    VR_CVAR_HMAKE(vr_ai_props);
+    VR_CVAR_HMAKE(vr_ai_prop_push);
     VR_CVAR_HMAKE(vr_stealth_noise_wall);
     VR_CVAR_HMAKE(vr_stealth_noise_solid);
     VR_CVAR_HMAKE(vr_stealth_noise_absorb);

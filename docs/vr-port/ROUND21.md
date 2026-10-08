@@ -31957,3 +31957,10 @@ Tests > Stealth AI the scenes (`vr_stealth_test 120`-`129`, QC `vr_stealth_test4
   early (the worst snap 7.1 units), 1 jump between frames; with the fix 0 jumps. The headless scene snaps rarely; the
   real-time one (250 fps) logged 10 in 70 s of 10 units each. Not reproduced here: a large snap ("as if teleporting");
   A/B in VR with Smooth Monster Steps.
+- **Props in the way** (his note: enemies stuck on crates and barrels). Box3D's solid props are SOLID_BBOX: Quake's
+  movetogoal meets them and only tries other ways at random. New `QC/vr_ai_props.qc` (`VR_AI_MoveToGoal`, in ai_run's
+  chase, ai_walk's path and the stealth walks): a solid prop swept straight ahead is pushed (`physicspush` by the
+  monster's weight; `vr_ai_prop_push 1`) and walked round (to the side nearer its goal with room; `vr_ai_props 1`;
+  Combat > Stealth AI > Getting Round). Test 124 (`stealth_tests.sh props`, vrslipgates room T, a knight 500 units off
+  behind a row of five large crates): round them in 3.7 s (Quake's way 8.4 s). Its first form waited for movetogoal
+  to fail: it never did (its random tries move the monster), so the prop is looked for before each step.

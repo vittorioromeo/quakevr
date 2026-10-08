@@ -98,6 +98,13 @@
                   "were going, then heads for you. Off: straight at you, as Quake's monsters (they know where you are)."),
         slider("Guesses Ahead", vr_stealth_chase_predict, 0.f, 5.f, 0.25f, "%.2f s")
             .help("How far along your way it guesses you went: this many seconds of your speed when it last saw you."),
+        header("Getting Round"),
+        toggle("Round Props", vr_ai_props)
+            .help("A monster whose way is blocked by a crate, a barrel or another solid prop walks round it (to its side "
+                  "nearer where it is going). Off: Quake's way, which only steps at random and can stay stuck behind it."),
+        toggle("Push Props", vr_ai_prop_push)
+            .help("And pushes the prop as it meets it, by its own weight against the prop's: a dog hardly moves a crate, "
+                  "an ogre shoves it."),
         header("Spreading the Alarm"),
         slider("Near Monsters Join", vr_stealth_share_near, 0.f, 1000.f, 16.f, "%.0f units")
             .help("A monster this near another that turns Alert or attacks (in line, not through a wall) does too. 0: off."),

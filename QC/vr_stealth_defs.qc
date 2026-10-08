@@ -103,6 +103,7 @@ void(entity mis) VR_Stealth_GrazeMissile;
 void() VR_Stealth_PlayerFrame;
 void() VR_Stealth_Frame;
 float(float xVis) VR_Stealth_Lose;
+void(float dist) VR_AI_MoveToGoal; // (vr_ai_props.qc: movetogoal, round the props in the way)
 float(entity client) VR_Stealth_See;
 float() VR_Stealth_Stand;
 float(float dist) VR_Stealth_Walk;

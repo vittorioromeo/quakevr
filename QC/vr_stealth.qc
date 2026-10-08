@@ -1049,7 +1049,7 @@ float(float dist) VR_Stealth_WalkNow =
     {
         self.goalentity = VR_Stealth_MarkerAt(self, goal);
     }
-    movetogoal(dist);
+    VR_AI_MoveToGoal(dist); // (round the props in its way: vr_ai_props.qc)
     return TRUE;
 };
 

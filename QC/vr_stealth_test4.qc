@@ -9,6 +9,9 @@
 //   122 the hunt: a grunt Hostile at him sees him dart sideways, then loses him (he is put out of sight under the floor):
 //       it follows his trail (to where it saw him last, then ahead along his way), gives up after vr_stealth_lose_time
 //       (8 s here) and searches (Alert); then with him far (vr_stealth_lose_far 600) it gives up after a quarter of it;
+//   124 props in the way (vrslipgates, room T): a row of five large crates between a knight Hostile at him and him
+//       (the knight 500 units off): with vr_ai_props 1 it gets round them to him (within 80 units) within 6 s; with 0 the
+//       time it took (or not, in 15 s) for comparison;
 //   123 a dog chasing him as he runs in circles for 30 s (it turns all the time): the script logs its drawn moves
 //       (vr_debug_drawn_moves progs/dog: "drawnmove:" lines, a jump between frames each) and compares
 //       vr_monster_lerp_continue 1 and 0 (stealth_tests.sh dogs);
@@ -37,6 +40,21 @@ vector(entity p, float xMin) VR_STT4_Hide =
         }
     }
     return '0 0 0';
+};
+
+// The props scene's crates taken away (those of the scene: within 250 units of the row's middle).
+void() VR_STT4_Crates =
+{
+    for(entity e = find(world, classname, "vr_crate"); e; e = find(e, classname, "vr_crate"))
+    {
+        if(vlen(e.origin - '-1290 530 40') < 250)
+        {
+            setorigin(e, e.origin - '0 0 4000'); // (out of the way at once: removed next frame)
+            e.solid = SOLID_NOT;
+            e.think = SUB_Remove;
+            e.nextthink = time;
+        }
+    }
 };
 
 void(entity p) VR_STT4_Unhide =
@@ -161,6 +179,80 @@ void() VR_STT4_Frame =
             return;
         }
         bprint("stealthtest: seethrough done\n");
+        VR_STT4_End();
+        return;
+    }
+
+    // 124: props in the way (vrslipgates, room T: the script loads it).
+    if(stt2_step == 124)
+    {
+        if(stt2_stage == 0 || stt2_stage == 2)
+        {
+            cvar_set("vr_stealth_light_force", "128");
+            cvar_set("vr_ai_props", stt2_stage == 0 ? "1" : "0");
+            VR_STT2_RemoveAll();
+            setorigin(p, '-1030 530 24');
+            p.velocity = '0 0 0';
+            stt2_phome = p.origin;
+            // (the row across the room's middle, 44 units apart: large crates; again for the second run, where they stood)
+            VR_STT4_Crates();
+            {
+                for(float k = -2; k <= 2; k++)
+                {
+                    entity os = self;
+                    entity c = spawn();
+                    c.origin = '-1290 530 40' + '0 44 0' * k;
+                    c.spawnflags = 1;
+                    c.classname = "stealthtest_crate";
+                    self = c;
+                    vr_crate();
+                    self = os;
+                }
+            }
+            stt2_m1 = VR_STT2_Spawn('-1540 530 32', 0, 5);
+            if(!stt2_m1)
+            {
+                VR_STT2_Report("props", FALSE, "no knight");
+                VR_STT4_End();
+                return;
+            }
+            stt2_m1.health = 5000;
+            stt2_v = 99999;
+            VR_STT2_Stage(stt2_stage + 1);
+            return;
+        }
+        if(stt2_stage == 1 || stt2_stage == 3)
+        {
+            if(t < 0.1)
+            {
+                VR_Stealth_Spot(m, p);
+                return;
+            }
+            stt2_v = min(stt2_v, vlen(m.origin - p.origin));
+            if(stt2_v > 80 && t < 15)
+            {
+                return;
+            }
+            if(stt2_stage == 1)
+            {
+                VR_STT2_Report("props_round", stt2_v <= 80 && t < 6, sprintf("vr_ai_props 1: the knight came within %.0f units in %.1f s",
+                    stt2_v, t));
+            }
+            else
+            {
+                bprint(sprintf("stealthtest: props_quake vr_ai_props 0: the knight came within %.0f units in %.1f s (for comparison)\n",
+                    stt2_v, t));
+            }
+            VR_STT2_Stage(stt2_stage + 1);
+            if(stt2_stage == 4)
+            {
+                bprint("stealthtest: props done\n");
+                cvar_set("vr_ai_props", "1");
+                VR_STT4_Crates();
+                VR_STT4_End();
+            }
+            return;
+        }
         VR_STT4_End();
         return;
     }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|seethrough|hunt|dogs|horde|all] -- the stealth AI's further scenes
+# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|seethrough|hunt|dogs|props|horde|all] -- the stealth AI's further scenes
 # (QC vr_stealth_test2.qc; docs/vr-port/STEALTH_PLAN.md, "Tests"), headless on e1m1 (kinds: id1's, hipnotic's and rogue's
 # monsters: the kit's games mount both). Prints the `stealthtest:` lines; exits 1 on a FAIL. Coop: Misc/quakevr/multiplayer/stealth_mp_test.sh.
 #   gun      each weapon's real shot (the trigger pulled): heard at 0.8 of its reach, not at 1.2, not behind a wall
@@ -19,6 +19,8 @@
 #            way), gives up at vr_stealth_lose_time (8 s here); with you far (vr_stealth_lose_far), after a quarter
 #   dogs     a dog chasing you as you run in circles, its drawn moves logged (vr_debug_drawn_moves): with
 #            vr_monster_lerp_continue 1 no jump between frames; 0 (Quake's drawing) for comparison
+#   props    a row of crates between a Hostile dog and you (vrslipgates, room T): it gets round them (vr_ai_props 1);
+#            with 0, Quake's way, its time for comparison
 AGENT=${1:?agent}; WHICH=${2:-all}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 W=C:/OHWorkspace/qvr-agents/$AGENT
 mkdir -p "$W/scratch"
@@ -72,6 +74,10 @@ if [ "$WHICH" = dogs ] || [ "$WHICH" = all ]; then
         grep -q "dogs done" "$W/scratch/stealth_dogs$on.log" || { echo "stealthtest: dogs FAIL (never finished)"; fail=1; }
         [ "$on" = 1 ] && [ "$J" != 0 ] && { echo "stealthtest: dog_steps FAIL (jumps with the fix on)"; fail=1; }
     done
+fi
+if [ "$WHICH" = props ] || [ "$WHICH" = all ]; then
+    run props "vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrslipgates;wait60;god;vr_stealth_test 124;wait3500;toggleconsole;quit"
+    grep -q "props done" "$W/scratch/stealth_props.log" || { echo "stealthtest: props FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = horde ]; then
     run horde "$PRE;vr_stealth_test 103;wait90;vr_profile 1;wait900;vr_profile_report 8;vr_profile 0;wait1000;toggleconsole;quit" -RealTime

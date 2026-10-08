@@ -835,7 +835,7 @@ void(float dist) ai_walk =
       self.nextthink = time + ((self.nextthink - time)/2);
       }
    else
-      movetogoal (dist);
+      VR_AI_MoveToGoal (dist); // QVR: round the props in its way (vr_ai_props.qc)
 };
 
 
@@ -1269,7 +1269,7 @@ void(float dist) ai_run =
       if(!axis)
          {
          self.endtime = time + 3;
-         movetogoal (dist);      // done in C code...
+         VR_AI_MoveToGoal (dist); // QVR: movetogoal, round the props in its way (vr_ai_props.qc)
          }
 //      else
 //         ChangeYaw();
@@ -1277,6 +1277,6 @@ void(float dist) ai_run =
    else
       {
       // head straight in
-      movetogoal (dist);      // done in C code...
+      VR_AI_MoveToGoal (dist); // QVR: movetogoal, round the props in its way (vr_ai_props.qc)
       }
 };
