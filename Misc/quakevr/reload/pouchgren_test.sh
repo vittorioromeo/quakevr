@@ -11,6 +11,8 @@
 #   4. a proximity grenade from the back pouch (the proximity launcher in the other hand) goes into the proximity
 #      launcher; one from the ammo pouch armed and let go of is a mine, which goes off as the player stands by it;
 #   5. a grenade lying about (unarmed), shot: it goes off.
+#   6. the proximity grenade's own size (vr_prox_scale 0.47; the author's note vrfiringrange_2026-10-08_14-30-12: 35-40%
+#      smaller): drawn 0.6 of its size at the other grenades' 0.78, its box with it; the grenade's own unchanged.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
@@ -79,4 +81,11 @@ check $(echo "$log" | grep -q "proximity grenade armed" && [ "$(clip "$log")" = 
 # 5. A grenade lying about, shot (test step 19): it goes off.
 log=$(bash $KIT/run.sh $AGENT -Script "$(OFFZ=-0.2 setup 158);vr_reload_test 12;impulse 125;wait60;vr_reload_test 19;impulse 125;wait30;$REP;toggleconsole;quit" -Filter "$F|set off" 2>&1)
 check $(echo "$log" | grep -q "^grenade: grenade goes off" && echo "$log" | grep -q "rockets [0-9]* .*, 0 rounds lying" && echo 1 || echo 0) "a grenade lying about, shot, goes off"
+
+# 6. The proximity grenade's size: the back pouch's, as drawn (VR_GrenShot_Make's print), at vr_prox_scale 0.47 and 0.78.
+size() { echo "$1" | grep -m1 "^grenade: .*($2) drawn" | sed -E "s/.* drawn ([-0-9.]+) .*/\1/"; }
+p47=$(size "$(bash $KIT/run.sh $AGENT -Script "$(setup 159);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/proxbomb.mdl)
+p78=$(size "$(bash $KIT/run.sh $AGENT -Script "vr_prox_scale 0.78;$(setup 159);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/proxbomb.mdl)
+g78=$(size "$(bash $KIT/run.sh $AGENT -Script "$(setup 158);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/grenade.mdl)
+check $(awk -v a="$p47" -v b="$p78" -v g="$g78" 'BEGIN { r = a / b; print (a > 0 && b > 0 && g > 0 && r > 0.58 && r < 0.63) ? 1 : 0 }') "the proximity grenade 40% smaller than at 0.78 (drawn $p47 against $p78 units across; the grenade $g78)"
 exit $fail

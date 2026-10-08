@@ -2653,6 +2653,10 @@ QVR_CVAR(vr_reload_front_angle, "35", CVAR_ARCHIVE)
 // boxes with them (vr_props.cpp drawnSize, times their Held Object Offsets Size). vr_rocket_scale: the rocket in flight
 // (progs/missile.mdl), nearer the size of the ammo pouch's rocket (10-39-35).
 QVR_CVAR(vr_grenade_scale, "0.78", CVAR_ARCHIVE)
+// vr_prox_scale: the proximity grenade's own (progs/proxbomb.mdl, everywhere vr_grenade_scale is the others': its mines
+// in flight and stuck, held, in the pouches, going into its launcher; their boxes with them): 0.47, 40% smaller than the
+// others' (the author's note vrfiringrange_2026-10-08_14-30-12: 35-40% smaller, the prop and the projectile).
+QVR_CVAR(vr_prox_scale, "0.47", CVAR_ARCHIVE)
 QVR_CVAR(vr_rocket_scale, "0.65", CVAR_ARCHIVE)
 // Their muzzles' load points moved (the gun's model units: +x forward, +y left, +z up) and their radius (world units: a
 // round's butt, a proximity grenade's middle, within it goes in). gl: the grenade launcher's (and the multi-grenade

@@ -715,15 +715,19 @@ float valueFor(const qmodel_t* model, Key key)
 namespace
 {
 
-// A model's own size, as a Size (times its slot's): Quake's grenades (vr_grenade_scale: the grenade, the multi-grenade,
-// the proximity grenade) and the rocket in flight (vr_rocket_scale), by its name.
+// A model's own size, as a Size (times its slot's): Quake's grenades (vr_grenade_scale: the grenade, the multi-grenade;
+// vr_prox_scale: the proximity grenade) and the rocket in flight (vr_rocket_scale), by its name.
 [[nodiscard]] float ownScale(const char* name)
 {
     if(!name)
     {
         return 1.f;
     }
-    if(!strcmp(name, "progs/grenade.mdl") || !strcmp(name, "progs/mervup.mdl") || !strcmp(name, "progs/proxbomb.mdl"))
+    if(!strcmp(name, "progs/proxbomb.mdl"))
+    {
+        return za::clamp(vr_prox_scale.value, 0.2f, 2.f);
+    }
+    if(!strcmp(name, "progs/grenade.mdl") || !strcmp(name, "progs/mervup.mdl"))
     {
         return za::clamp(vr_grenade_scale.value, 0.25f, 2.f);
     }

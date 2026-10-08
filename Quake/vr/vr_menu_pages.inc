@@ -1004,8 +1004,11 @@ void resetHandMoves()
         open("Round Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a rocket or grenade sits in the hand: take one from the pouch, then tune it there (its Grip)."),
         slider("Grenade Size", "vr_grenade_scale", 0.5f, 1.f, 0.01f, "%.2f").extend(0.25f, 2.f)
-            .help("The grenades' size (Quake's grenade, the multi-grenade, the proximity grenade): the same in the hand, "
-                  "in the pouches, going into a launcher and in flight, their hit boxes with them. 1: Quake's size."),
+            .help("The grenades' size (Quake's grenade, the multi-grenade): the same in the hand, in the pouches, going "
+                  "into a launcher and in flight, their hit boxes with them. 1: Quake's size."),
+        slider("Proximity Mine Size", "vr_prox_scale", 0.3f, 1.f, 0.01f, "%.2f").extend(0.2f, 2.f)
+            .help("The proximity grenade's own size, the same everywhere (in the hand, the pouches, its launcher, in flight "
+                  "and stuck), its hit boxes with it. 1: Quake's size; the other grenades' 0.78."),
         slider("Rocket Size in Flight", "vr_rocket_scale", 0.5f, 1.f, 0.01f, "%.2f").extend(0.25f, 2.f)
             .help("The rocket launcher's rocket in flight, nearer the size of the ammo pouch's rocket. 1: Quake's size."),
         toggle("Show Load Points", "vr_reload_show_ports")
