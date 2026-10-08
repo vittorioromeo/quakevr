@@ -149,11 +149,16 @@ def main():
     ap.add_argument("--sheet")
     ap.add_argument("--alphatest")
     ap.add_argument("--bg")
+    ap.add_argument("--range", help="only frames a-b")
     ap.add_argument("--downscale")
     ap.add_argument("--to", type=int, default=1920)
     ap.add_argument("--fps", type=int, default=C.FPS)
     a = ap.parse_args()
     files = frames_of(a.png)
+    if a.range:
+        lo, _, hi = a.range.partition("-")
+        num = lambda f: int(os.path.splitext(os.path.basename(f))[0].split("_")[-1])  # noqa: E731
+        files = [f for f in files if int(lo) <= num(f) <= int(hi or lo)]
     if a.downscale:
         downscale(files, a.downscale, a.to)
     if a.sheet:

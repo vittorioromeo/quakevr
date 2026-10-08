@@ -94,7 +94,7 @@ def main():
     yy, xx = np.mgrid[0:GH, 0:GW].astype(np.float32)
     cxp, cyp = fx.chest_px(W)
     d = np.hypot(xx * W / GW - cxp, yy * H / GH - cyp) / (W * 0.5)
-    ignite = C.FIRE_START + d * 9 + fx.noise(GH, GW, 30, 42, 3) * 5
+    ignite = C.FIRE_START + d * 9 + fx.noise(GH, GW, 14, 42, 3) * 11
     np.savez(os.path.join(out, "fire.npz"), fuel_edge=g_edge, fuel_area=g_area, ignite=ignite)
     np.save(os.path.join(out, "fuel.npy"), (fuel > 0.4).astype(np.uint8))
     print("fire fuel %.1f s" % (time.time() - t0), flush=True)

@@ -46,7 +46,7 @@ def init(work, W, shake):
              ramp=fx.fire_ramp(),
              burst=fx.burst_particles(),
              sprites=fx.puff_sprites())
-    G["imp_blood"], G["dust"], G["chips"] = fx.impact_particles([r[0] for r in rests], W)
+    G["imp_blood"], G["dust"], G["chips"], G["crown"] = fx.impact_particles([r[0] for r in rests], W)
     G["embers"] = fx.embers(G["fuel"], W, H)
     G["ripple"] = fx.noise(H, W, 22 * S, 55, 3) + 0.5 * fx.noise(H, W, 7 * S, 56, 2)
     # When each pixel of "Unleashed" materialises: left to right, rising from the bottom of each letter.
@@ -59,6 +59,21 @@ def init(work, W, shake):
     G["mat_t"] = (C.MAT_START + ((xx - x0) / max(1, x1 - x0)) * span * 0.55
                   + ((y1 - yy) / max(1, y1 - y0)) * span * 0.3 + jit * span * 0.15).astype(np.float32)
     G["unl_box"] = (x0, y0, x1, y1)
+
+
+LUMA = np.array([0.2126, 0.7152, 0.0722], np.float32)
+WARM = np.array([1.0, 0.86, 0.74], np.float32)
+
+
+def firelit(rest, lit, burn, f):
+    """The letters lit by the fire, keeping their own colour (steel, the red): the fire-lit render's extra light,
+    capped, as a nearly neutral lift with a hint of warmth that flickers (not the golden fire-lit render itself)."""
+    flick = 0.8 + 0.2 * math.sin(f * 0.9) * math.sin(f * 0.37 + 1)
+    lift = np.clip((lit[..., :3] - rest[..., :3]) @ LUMA, 0, 0.22) * (burn * flick)
+    out = rest.copy()
+    out[..., :3] += lift[..., None] * WARM
+    out[..., :3] = np.minimum(out[..., :3], out[..., 3:4])
+    return out
 
 
 def ramp01(x):
@@ -114,10 +129,10 @@ def shadows(f, blood_a):
         if h is None:
             continue
         he = max(0.0, h) + C.LETTER_DEPTH
-        dx, dy = he * 0.32 * ppm, he * 0.42 * ppm
-        sig = 2.5 * S + he * 0.05 * ppm
+        dx, dy = he * 0.2 * ppm, he * 0.3 * ppm
+        sig = 2.5 * S + he * 0.035 * ppm
         k = C.CAM_DIST / (C.CAM_DIST - max(h, 0))     # the shadow is the size of the letter on the wall
-        strength = 0.8 * math.exp(-max(h, 0) / 2.5)
+        strength = 0.9 * math.exp(-max(h, 0) / 5.0)
         if strength < 0.02:
             continue
         pad = int(3 * sig + 4)
@@ -131,7 +146,7 @@ def shadows(f, blood_a):
         reg[:src.shape[0], :src.shape[1]] = src
         acc[y0:y1, x0:x1] = np.maximum(acc[y0:y1, x0:x1], fx.blur(reg, sig) * strength)
         del k
-    a = acc * (0.35 + 0.65 * blood_a)
+    a = acc * (0.55 + 0.45 * blood_a)
     out = np.zeros((H, W, 4), np.float32)
     out[..., 3] = a
     return out
@@ -170,7 +185,7 @@ def frame_rgba(f):
 
     # "Unleashed" materialising in its wiped letters: a hot front rising through each, then the red, then a glint.
     if f >= C.MAT_START:
-        u = G["unl"] if burn <= 0 else G["unl"] * (1 - burn) + G["unl_fire"] * burn
+        u = G["unl"] if burn <= 0 else firelit(G["unl"], G["unl_fire"], burn, f)
         m = ramp01((f - G["mat_t"]) / 3.0)
         hot = np.exp(-np.maximum(f - G["mat_t"], 0) / 4.0) * (f >= G["mat_t"])
         lay = u * m[..., None]
@@ -200,9 +215,7 @@ def frame_rgba(f):
             p = os.path.join(G["work"], "letters", "letters_%04d.png" % f)
             lt = fx.load_rgba(p, W) if os.path.exists(p) else G["letters_rest"]
         elif burn > 0:
-            flick = 0.85 + 0.15 * math.sin(f * 0.9) * math.sin(f * 0.37 + 1)
-            k = burn * flick
-            lt = G["letters_rest"] * (1 - k) + G["letters_fire"] * k
+            lt = firelit(G["letters_rest"], G["letters_fire"], burn, f)
         else:
             lt = G["letters_rest"]
         fx.over(out, lt)
@@ -237,6 +250,9 @@ def frame_rgba(f):
         fx.draw_dust(out, G["dust"], G["sprites"], f, W)
         ib = G["imp_blood"]
         fx.draw_droplets(out, ib[:, 0:3], ib[:, 3:6], ib[:, 6], ib[:, 7], ib[:, 8], f, W)
+        cr = G["crown"]
+        fx.draw_droplets(out, cr[:, 0:3], cr[:, 3:6], cr[:, 6], cr[:, 7], cr[:, 8], f, W, color=(0.78, 0.05, 0.03),
+                         shutter=2.0)
         ch = G["chips"]
         fx.draw_droplets(out, ch[:, 0:3], ch[:, 3:6], ch[:, 6], ch[:, 7], ch[:, 8], f, W, color=(0.2, 0.19, 0.18),
                          spec=False)
@@ -246,7 +262,7 @@ def frame_rgba(f):
 
     # Camera shake (baked; --shake 0 for none).
     if G["shake"] > 0:
-        dx, dy, rot = C.shake(f, 14 * S * G["shake"])
+        dx, dy, rot = C.shake(f, 8 * S * G["shake"])
         rot *= G["shake"]
         if abs(dx) + abs(dy) > 0.05 or abs(rot) > 1e-5:
             out = shift_rotate(out, dx, dy, rot)

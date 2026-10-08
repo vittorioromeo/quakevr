@@ -9,7 +9,7 @@ import math
 import os
 
 FPS = 60
-FRAMES = 510                      # 8.5 s
+FRAMES = 720                      # 12 s: the last 3.5 s keep burning
 
 # Where the work and the outputs go (outside git).
 OUT_ROOT = os.environ.get("QVR_SPLASH_OUT", r"C:\OHWorkspace\qvr-trailer\logo_splash")
@@ -68,12 +68,11 @@ GRUNT_SCALE = 0.042               # Quake units to metres
 GRUNT_FEET_Z = -1.32
 CHEST = (0.0, GRUNT_Y, 0.2)      # where the axe hits and the burst starts
 
-TITLE_CAP = 0.62                  # cap height of "QUAKE VR"
-TITLE_Z = 0.36                    # its baseline
-TITLE_TRACK = 1.12                # letter spacing (the logo's wide tracking)
-SUB_CAP = 0.27                    # "UNLEASHED"
-SUB_Z = -0.42
-SUB_TRACK = 1.28
+# The lettering is the logo's own (trace_logo.py -> letters.json), laid out as in the logo: the title LOGO_WIDTH wide,
+# centred, the U's foot on TITLE_Z; "UNLEASHED" and the Q's nail where the logo has them.
+LETTERS_JSON = os.path.join(OUT_ROOT, "letters.json")
+LOGO_WIDTH = 5.0
+TITLE_Z = 0.36
 LETTER_DEPTH = 0.13               # extrusion
 
 # The letters start this far in front of the wall (close to the camera: they fill the frame, then slam in).
@@ -109,11 +108,13 @@ def letter_tilt(i, f):
 
 
 # Camera shake: (frame, strength): a damped wobble after each impact (applied in 2D by composite.py).
-SHAKES = [(HIT, 1.0)] + [(f, 0.55 if i < 5 else 0.8) for i, f in enumerate(LAND)] + [(FIRE_START, 0.7)]
+SHAKES = [(HIT, 1.0)] + [(f, 0.4 if i < 5 else 0.55) for i, f in enumerate(LAND)] + [(FIRE_START, 0.6)]
+KICKS = [(f, 1.0 if i < 5 else 1.3) for i, f in enumerate(LAND)]
 
 
 def shake(f, amount_px):
-    """The frame's offset (dx, dy) in pixels and its roll in radians, for a frame `amount_px` wide units."""
+    """The frame's offset (dx, dy) in pixels and its roll in radians: a subtle damped wobble after each impact, and a
+    short downward kick as each letter lands (weight). `amount_px` scales it (about 8 px at 4K)."""
     dx = dy = rot = 0.0
     for k, (f0, s) in enumerate(SHAKES):
         t = (f - f0) / FPS
@@ -122,7 +123,11 @@ def shake(f, amount_px):
         env = s * math.exp(-t * 9.0)
         dx += env * math.sin(t * 2 * math.pi * 17 + k * 1.3) * amount_px
         dy += env * math.sin(t * 2 * math.pi * 13 + k * 2.1 + 0.7) * amount_px * 1.25
-        rot += env * math.sin(t * 2 * math.pi * 9 + k) * 0.0035
+        rot += env * math.sin(t * 2 * math.pi * 9 + k) * 0.0025
+    for f0, s in KICKS:
+        t = (f - f0) / 1.6                       # in frames: down at once, back over a few frames
+        if 0 <= t < 8:
+            dy += s * amount_px * 1.6 * t * math.exp(1 - t)
     return dx, dy, rot
 
 

@@ -12,6 +12,7 @@ PY="${PYTHON:-C:/Python313/python.exe}"
 WORK="$OUT/work"
 [ "$WIDTH" = 3840 ] || WORK="$OUT/work$WIDTH"
 cd "$HERE"
+[ -f "$OUT/letters.json" ] || { echo "letters"; "$PY" trace_logo.py --out "$OUT/letters.json"; }
 t() { local s=$(date +%s); "$@"; echo "  ($(( $(date +%s) - s )) s)"; }
 for p in stills:128 letters:64 fg:64; do
   echo "blender ${p%%:*}"

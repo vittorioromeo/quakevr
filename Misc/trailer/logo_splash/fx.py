@@ -293,7 +293,7 @@ def impact_fields(W, H, rests, seed=11):
         A = f.A[sl]
         A[hit] = np.minimum(A[hit], land + 1)
         # Spikes and drops squirted out from the edges.
-        idx = rng.choice(len(edge), 26, replace=False)
+        idx = rng.choice(len(edge), 44, replace=False)
         for k in idx:
             ex, ey, nx, ny = edge[k]
             # Mostly sideways and down/up along the wall, away from the letter's centre.
@@ -302,8 +302,8 @@ def impact_fields(W, H, rests, seed=11):
             dx, dy = 0.5 * nx + 0.5 * ox / on, 0.5 * ny + 0.5 * oy / on
             dn = math.hypot(dx, dy) + 1e-6
             dx, dy = dx / dn, dy / dn
-            ln = rng.uniform(40, 260) * S
-            w0 = rng.uniform(4, 11) * S
+            ln = rng.uniform(70, 420) * S
+            w0 = rng.uniform(5, 14) * S
             p = (ex, ey)
             q = (ex + dx * ln, ey + dy * ln)
             f.capsule(p, q, w0, 1.0 * S, 0.8, land + 1, 220 * S)
@@ -670,7 +670,7 @@ def impact_particles(rests, W, seed=5):
     """Each landing's blood thrown off the wall, its dust and its chips (3D: starting on the wall)."""
     rng = np.random.default_rng(seed)
     ppm = C.px_per_m(W)
-    blood, dust, chips = [], [], []
+    blood, dust, chips, crown = [], [], [], []
     for i, alpha in enumerate(rests):
         land = C.LAND[i]
         box, edge = footprint_info(alpha)
@@ -682,6 +682,14 @@ def impact_particles(rests, W, seed=5):
             v = (nx * out + rng.normal(0, 0.6), -rng.uniform(0.3, 2.5), -ny * out + rng.uniform(0.5, 3.0))
             blood.append((wx, -0.03, wz, v[0], v[1], v[2], rng.uniform(0.008, 0.028) * (rng.random() ** 2 * 0.8 + 0.4), land + rng.uniform(0, 2),
                           rng.uniform(0.4, 1.0)))
+        # The crown: a ring of fast streaks squirted out round the letter as it hits (fresh, bright blood).
+        for _ in range(int(150 * heavy)):
+            ex, ey, nx, ny = edge[rng.integers(len(edge))]
+            wx, wz = (ex - W / 2) / ppm, (W * 9 / 32 - ey) / ppm
+            sp = rng.uniform(4.0, 11.0) * heavy
+            v = (nx * sp, -rng.uniform(0.5, 3.5), -ny * sp + rng.uniform(0.5, 2.5))
+            crown.append((wx, -0.03, wz, v[0], v[1], v[2], rng.uniform(0.01, 0.032), land + rng.uniform(0, 1.5),
+                          rng.uniform(0.15, 0.4)))
         # Dust: along the bottom and the sides of the letter, rolling outwards and up.
         x0, y0, x1, y1 = box
         for _ in range(int(20 * heavy)):
@@ -700,7 +708,8 @@ def impact_particles(rests, W, seed=5):
             wx, wz = (ex - W / 2) / ppm, (W * 9 / 32 - ey) / ppm
             v = (nx * rng.uniform(1, 4), -rng.uniform(1, 5), -ny * rng.uniform(1, 3) + rng.uniform(1, 3))
             chips.append((wx, -0.03, wz, v[0], v[1], v[2], rng.uniform(0.006, 0.02), land, rng.uniform(0.4, 0.9)))
-    return (np.array(blood, np.float64), np.array(dust, np.float64), np.array(chips, np.float64))
+    return (np.array(blood, np.float64), np.array(dust, np.float64), np.array(chips, np.float64),
+            np.array(crown, np.float64))
 
 
 def ballistic(p, v, t):

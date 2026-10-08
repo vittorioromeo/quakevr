@@ -1,16 +1,16 @@
 # Logo splash (trailer motion graphics)
 
-An 8.5 s, 60 fps logo sting on a transparent background, for the Quake VR: Unleashed trailer:
+A 12 s, 60 fps logo sting on a transparent background, for the Quake VR: Unleashed trailer:
 
 | Frames  | Time        | What happens |
 |---------|-------------|--------------|
 | 0-67    | 0.00-1.12 s | A grunt idles (id's `soldier.mdl`, stand1-8 lerped as Ironwail does). |
 | 50-68   | 0.83-1.13 s | Quake VR's axe flies in from the left, spinning, motion blurred. |
 | 68      | 1.13 s      | He bursts: a flash, a red mist, gibs (`gib1-3`, `h_guard`, Quake VR's brains) and a wide spiky splash of wet blood on the wall. Drips start to run. |
-| 96-188  | 1.6-3.13 s  | "QUAKE VR" slams in letter by letter from the camera (each lands at a `LAND` frame): shake, a ripple through the blood, thrown blood, dust, chips. |
+| 96-188  | 1.6-3.13 s  | The logo's "QUAKE VR" slams in letter by letter from the camera, its shadow closing in (each lands at a `LAND` frame): a kick, a crown of blood squirted out, a ripple through the blood, dust, chips. |
 | 214-296 | 3.57-4.93 s | "Unleashed" is wiped into the blood as negative space, stroke by stroke. |
 | 300-342 | 5.0-5.7 s   | The red "UNLEASHED" materialises in the wiped letters (a hot front rising through each), then a glint. |
-| 352-509 | 5.87-8.5 s  | Everything bursts into flames (the installer's fire colours and embers), then keeps burning. |
+| 352-719 | 5.87-12 s   | Everything bursts into flames (the installer's fire colours and embers), then keeps burning (the last 3.5 s steady). The letters keep their steel colour: the fire's light only lifts them a little, with a hint of warm flicker. |
 
 The timeline, layout, camera and shake are all in `common.py`.
 
@@ -18,11 +18,14 @@ The timeline, layout, camera and shake are all in `common.py`.
 
 - `common.py`: the timeline, the layout, the camera, the axe and gib trajectories, the shake (plain Python, shared by
   both Pythons).
+- `trace_logo.py`: the logo's own lettering ("QUAKE VR" with its Q and nail, the red "UNLEASHED") traced from
+  `docs/images/quakevr-unleashed-square.webp` into vector outlines (`letters.json` in the output folder), in the
+  logo's layout. Run it first.
 - `blender_scene.py`: the 3D layers, rendered with Cycles (OptiX) headless: the grunt, axe and gibs (`fg`), the falling
   letters (`letters`), and stills (the letters at rest, each alone, and fire-lit; "UNLEASHED" plain and fire-lit).
   It reads id1's `pak0.pak` in place (nothing extracted) and Quake VR's `quakevr/progs/v_axe.mdl` and
-  `gib_brain*.mdl`. The lettering is Book Antiqua Bold (`ANTQUAB.TTF`, the closest installed face to the logo's
-  capitals), extruded and chamfered; the Q is the O with the logo's nail through it.
+  `gib_brain*.mdl`. The lettering is the traced outlines, extruded and chamfered: steel for the title, glossy
+  red for "UNLEASHED"; the gibs are dark, glossy and smeared with blood.
 - `fx.py`: the 2D effects in numpy: the blood (thickness fields with an arrival frame per pixel, drips, the wet
   shading: Beer-Lambert colour, a darker rim, a sharp highlight), the finger writing (a skeleton of the letters walked
   stroke by stroke), particles, dust, the fire and its embers.
@@ -34,6 +37,14 @@ The timeline, layout, camera and shake are all in `common.py`.
   the contact sheet, the alpha test (frames over white, a bright picture and black), and the 1080p copy (scaled with
   premultiplied alpha).
 - `render_all.sh`: everything, in order.
+
+## Versions
+
+- v1 (2026-10-08, `logo_splash_3840_*`, `png_3840`, `png_1920`): Book Antiqua capitals, 8.5 s.
+- v2 (`logo_splash_v2_*`, preview only so far: 1080p MP4 over checker, contact sheet, shake/no-shake clips, a v1/v2
+  comparison of the letters in the fire): the logo's own lettering, stronger landings (crown, kick, shadows), darker
+  wet gibs, 12 s, steel letters in the fire. Its layers and frames are in `work_v2_1080`. Render the full v2 with
+  `render_all.sh` once approved.
 
 ## Render
 

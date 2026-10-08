@@ -13,6 +13,7 @@
 # The grunt, the gibs and the head come from the player's own id1/pak0.pak (read in place: nothing is extracted); the
 # axe and the brains are Quake VR's own models (quakevr/progs). Motion blur is Cycles' (half a frame shutter).
 
+import json
 import math
 import os
 import struct
@@ -29,7 +30,6 @@ sys.path.insert(0, os.path.join(REPO, "Misc", "quakevr", "blender", "addons", "q
 import common as C  # noqa: E402
 import mdl  # noqa: E402
 
-FONT = r"C:\Windows\Fonts\ANTQUAB.TTF"      # Book Antiqua Bold: the closest installed face to the logo's capitals
 
 
 def parse_args():
@@ -213,18 +213,37 @@ def quake_material(name, img, rough=0.6, wet=False):
     tex.interpolation = "Closest"        # Quake's texels
     nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = rough
-    if wet:  # gibs: wet flesh, a little darker
+    if wet:  # gibs: dark wet flesh, glossy, smeared with blood
         mul = nt.nodes.new("ShaderNodeMix")
         mul.data_type = "RGBA"
         mul.blend_type = "MULTIPLY"
         mul.inputs["Factor"].default_value = 1.0
-        mul.inputs["B"].default_value = (0.62, 0.5, 0.5, 1)
+        mul.inputs["B"].default_value = (0.5, 0.2, 0.2, 1)
         nt.links.new(tex.outputs["Color"], mul.inputs["A"])
-        nt.links.new(mul.outputs["Result"], bsdf.inputs["Base Color"])
-        bsdf.inputs["Roughness"].default_value = 0.6
+        tc = nt.nodes.new("ShaderNodeTexCoord")
+        nz = nt.nodes.new("ShaderNodeTexNoise")
+        nz.inputs["Scale"].default_value = 7.0
+        nz.inputs["Detail"].default_value = 6.0
+        nt.links.new(tc.outputs["Object"], nz.inputs["Vector"])
+        bm = nt.nodes.new("ShaderNodeMapRange")              # where the blood is
+        bm.inputs["From Min"].default_value = 0.42
+        bm.inputs["From Max"].default_value = 0.55
+        nt.links.new(nz.outputs["Fac"], bm.inputs["Value"])
+        bl = nt.nodes.new("ShaderNodeMix")
+        bl.data_type = "RGBA"
+        bl.inputs["B"].default_value = (0.09, 0.0, 0.0, 1)
+        nt.links.new(bm.outputs[0], bl.inputs["Factor"])
+        nt.links.new(mul.outputs["Result"], bl.inputs["A"])
+        nt.links.new(bl.outputs["Result"], bsdf.inputs["Base Color"])
+        rg = nt.nodes.new("ShaderNodeMapRange")
+        rg.inputs["To Min"].default_value = 0.3
+        rg.inputs["To Max"].default_value = 0.06
+        nt.links.new(bm.outputs[0], rg.inputs["Value"])
+        nt.links.new(rg.outputs[0], bsdf.inputs["Roughness"])
         try:
-            bsdf.inputs["Coat Weight"].default_value = 0.15
-            bsdf.inputs["Coat Roughness"].default_value = 0.2
+            bsdf.inputs["Coat Weight"].default_value = 0.8
+            bsdf.inputs["Coat Roughness"].default_value = 0.04
+            bsdf.inputs["Coat Tint"].default_value = (1.0, 0.75, 0.75, 1)
         except KeyError:
             pass
     return m
@@ -540,162 +559,84 @@ def red_material():
     return m
 
 
-def text_mesh(name, body, cap, track, depth, bevel):
-    """`body` in the logo's face as one mesh: extruded and chamfered, cap height `cap`, standing on z = 0 facing the
-    camera (-y), centred on x = 0."""
-    font = bpy.data.fonts.load(FONT)
-    cu = bpy.data.curves.new(name, "FONT")
-    cu.body = body
-    cu.font = font
-    cu.size = 1.0
-    cu.space_character = track
+def logo_layout():
+    """letters.json (trace_logo.py: the logo's own lettering) and the logo-pixel -> wall-metre mapping: the title's
+    width LOGO_WIDTH, centred, its baseline (the U's foot) on TITLE_Z."""
+    with open(C.LETTERS_JSON) as f:
+        L = json.load(f)
+    xs = [x for let in L["title"] for lp in let for x, _ in lp]
+    x0, x1 = min(xs), max(xs)
+    s = C.LOGO_WIDTH / (x1 - x0)
+    base = max(y for lp in L["title"][1] for _, y in lp)          # the U's foot
+    cx = (x0 + x1) / 2
+    return L, (lambda x, y: ((x - cx) * s, (base - y) * s + C.TITLE_Z)), s
+
+
+def outline_mesh(name, loops, to_wall, depth, bevel):
+    """A letter's traced loops as an extruded, chamfered mesh, standing on the wall plane facing the camera."""
+    cu = bpy.data.curves.new(name, "CURVE")
+    cu.dimensions = "2D"
+    cu.fill_mode = "BOTH"
     cu.extrude = depth * 0.5
     cu.bevel_depth = bevel
     cu.bevel_resolution = 1
-    cu.offset = -bevel * 0.35
-    cu.align_x = "CENTER"
+    cu.offset = -bevel * 0.6
+    for lp in loops:
+        sp = cu.splines.new("POLY")
+        sp.points.add(len(lp) - 1)
+        for k, (x, y) in enumerate(lp):
+            wx, wz = to_wall(x, y)
+            sp.points[k].co = (wx, wz, 0.0, 1.0)
+        sp.use_cyclic_u = True
     ob = bpy.data.objects.new(name, cu)
     bpy.context.scene.collection.objects.link(ob)
     dg = bpy.context.evaluated_depsgraph_get()
     me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
     bpy.data.objects.remove(ob)
-    # Text lies in XY with +z out of the face: stand it up (face to -y).
-    me.transform(Matrix.Rotation(math.pi / 2, 4, "X"))
-    zs = [v.co.z for v in me.vertices]
-    h = max(zs) - min(zs)
-    return me, h
-
-
-def split_islands(me):
-    """The mesh's connected parts as separate meshes, left to right."""
-    bm = bmesh.new()
-    bm.from_mesh(me)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)    # the caps and the sides share their rims
-    bm.to_mesh(me)
-    bm.verts.ensure_lookup_table()
-    seen = set()
-    parts = []
-    for v in bm.verts:
-        if v.index in seen:
-            continue
-        stack = [v]
-        comp = []
-        seen.add(v.index)
-        while stack:
-            u = stack.pop()
-            comp.append(u.index)
-            for e in u.link_edges:
-                w = e.other_vert(u)
-                if w.index not in seen:
-                    seen.add(w.index)
-                    stack.append(w)
-        parts.append(comp)
-    bm.free()
-    out = []
-    for comp in parts:
-        cs = set(comp)
-        bm = bmesh.new()
-        bm.from_mesh(me)
-        bm.verts.ensure_lookup_table()
-        bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.index not in cs], context="VERTS")
-        m2 = bpy.data.meshes.new(me.name + "_part")
-        bm.to_mesh(m2)
-        bm.free()
-        xs = [v.co.x for v in m2.vertices]
-        out.append(((min(xs) + max(xs)) * 0.5, m2))
-    out.sort(key=lambda t: t[0])
-    # Pieces inside others' bounds (none expected for these capitals) stay separate.
-    return [m for _, m in out]
-
-
-def spike_mesh(cx, cap, depth):
-    """The logo's Q: a chiselled nail through the ring's bottom, an arrowhead on top and a long tapering point."""
-    prof = [  # (z in caps, half width in caps)
-        (0.58, 0.0), (0.36, 0.14), (0.30, 0.06), (0.25, 0.075), (0.05, 0.1), (-0.03, 0.15), (-0.09, 0.085),
-        (-0.4, 0.06), (-0.85, 0.0)]
-    bm = bmesh.new()
-    rings = []
-    for z, hw in prof:
-        z *= cap
-        hw *= cap
-        hd = depth * 0.5 + hw * 0.25
-        if hw == 0:
-            rings.append([bm.verts.new((cx, -depth * 0.25, z))])
-        else:
-            rings.append([bm.verts.new((cx - hw, 0.0, z)), bm.verts.new((cx, -hd, z)), bm.verts.new((cx + hw, 0.0, z)),
-                          bm.verts.new((cx, hd * 0.6, z))])
-    for a, b in zip(rings, rings[1:]):
-        if len(a) == 1:
-            for k in range(4):
-                bm.faces.new((a[0], b[(k + 1) % 4], b[k]))
-        elif len(b) == 1:
-            for k in range(4):
-                bm.faces.new((a[k], a[(k + 1) % 4], b[0]))
-        else:
-            for k in range(4):
-                bm.faces.new((a[k], a[(k + 1) % 4], b[(k + 1) % 4], b[k]))
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    me = bpy.data.meshes.new("spike")
-    bm.to_mesh(me)
-    bm.free()
+    me.transform(Matrix.Rotation(math.pi / 2, 4, "X"))           # curve +y -> up, its front (+z) -> the camera
     return me
 
 
 def build_letters():
-    """The seven letters of "QUAKE VR", each an object resting on the wall (its back face on y = 0), origin at its
-    centre. Returns [(object, rest location)]."""
-    me, h = text_mesh("title", "OUAKE VR", 1.0, C.TITLE_TRACK, 0.0, 0.0)
-    # Measure the cap height on the flat glyphs, then build the real (extruded, chamfered) text at that scale.
-    zs = sorted(v.co.z for v in me.vertices)
-    cap_unit = zs[-1] - 0.0                          # O overshoots a little; good enough for scaling
-    s = C.TITLE_CAP / max(cap_unit, 1e-6)
-    bpy.data.meshes.remove(me)
-    me, _ = text_mesh("title", "OUAKE VR", 1.0, C.TITLE_TRACK, C.LETTER_DEPTH / s, 0.022 / s)
-    me.transform(Matrix.Scale(s, 4))
-    parts = split_islands(me)
-    if len(parts) != 7:
-        print("WARNING: %d letter parts (want 7)" % len(parts))
+    """The seven letters of "QUAKE VR" (the logo's, the Q with its nail), each an object resting on the wall (its back
+    face on y = 0), origin at its centre. Returns [(object, rest location)]."""
+    L, to_wall, s = logo_layout()
     mat = metal_material()
     out = []
-    for i, pm in enumerate(parts[:7]):
+    for i, loops in enumerate(L["title"][:7]):
+        pm = outline_mesh("letter%d" % i, loops, to_wall, C.LETTER_DEPTH, 0.018)
         xs = [v.co.x for v in pm.vertices]
         ys = [v.co.y for v in pm.vertices]
         zs = [v.co.z for v in pm.vertices]
-        cx = (min(xs) + max(xs)) * 0.5
-        if i == 0:  # the Q: the O and its nail
-            sp = spike_mesh(cx, C.TITLE_CAP, C.LETTER_DEPTH)
-            bm = bmesh.new()
-            bm.from_mesh(pm)
-            bm.from_mesh(sp)
-            bm.to_mesh(pm)
-            bm.free()
-            zs = [v.co.z for v in pm.vertices]
-        c = Vector((cx, max(ys), (min(zs) + max(zs)) * 0.5))      # back face on the wall
+        c = Vector(((min(xs) + max(xs)) * 0.5, max(ys), (min(zs) + max(zs)) * 0.5))   # back face on the wall
         pm.transform(Matrix.Translation(-c))
         for p in pm.polygons:
             p.use_smooth = False
         ob = bpy.data.objects.new("letter%d" % i, pm)
         bpy.context.scene.collection.objects.link(ob)
         pm.materials.append(mat)
-        rest = Vector((c.x, 0.0, C.TITLE_Z + c.z))
+        rest = Vector((c.x, 0.0, c.z))
         ob.location = rest
         out.append((ob, rest))
     return out
 
 
 def build_unleashed():
-    me, _ = text_mesh("sub", "UNLEASHED", 1.0, C.SUB_TRACK, 0.0, 0.0)
-    zs = [v.co.z for v in me.vertices]
-    s = C.SUB_CAP / (max(zs) - min(zs))
-    bpy.data.meshes.remove(me)
-    me, _ = text_mesh("sub", "UNLEASHED", 1.0, C.SUB_TRACK, 0.05 / s, 0.012 / s)
-    me.transform(Matrix.Scale(s, 4))
+    """The logo's red "UNLEASHED", in its place under the title, on the wall."""
+    L, to_wall, s = logo_layout()
+    bm = bmesh.new()
+    for i, loops in enumerate(L["sub"]):
+        m = outline_mesh("sub%d" % i, loops, to_wall, 0.05, 0.01)
+        bm.from_mesh(m)
+        bpy.data.meshes.remove(m)
+    me = bpy.data.meshes.new("unleashed")
+    bm.to_mesh(me)
+    bm.free()
     ys = [v.co.y for v in me.vertices]
     me.transform(Matrix.Translation((0.0, -max(ys), 0.0)))
     me.materials.append(red_material())
     ob = bpy.data.objects.new("unleashed", me)
     bpy.context.scene.collection.objects.link(ob)
-    ob.location = (0.0, 0.0, C.SUB_Z)
     return ob
 
 
