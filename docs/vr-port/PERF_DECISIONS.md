@@ -54,11 +54,16 @@ stops it again). Before this run's trace fix the debris' traces were 15% of `ai_
 (commit "worldtrace::world: the brush entities' box test before their metadata lookup ...") took view entities from
 0.50 to 0.35 ms a frame in `combat_48`; the traces themselves remain.
 
-- **Option**: a chunk at rest (on a floor, speed under a few units a second for a few frames) sleeps until its life
-  ends (no traces), as Box3D sleeps bodies.
-- **Win**: most of the debris' remaining traces in storms (not measured; bounded by view entities' 0.35 ms).
-- **Drawback**: a lift or door moving under a resting chunk leaves it floating (rare; chunks live 2-4 s).
-- **Recommendation**: do it, with the wake on a brush entity within its box.
+- **Done differently (2026-10-08, the author's decision):** the chunks are the server's Box3D props now (ROUND21.md,
+  "Explosion debris as Box3D bodies"): they sleep at rest, ride lifts and doors, later blasts throw them, and the
+  client's traces are gone. explosions_storm: view entities 0.34 -> 0.15 ms, the server 0.23 -> 0.40 ms (Box3D's step
+  0.017 -> 0.14 ms with 96 chunks in the air): about even in CPU; the cost moved to the server and the network (about
+  26 B a frame a chunk in sight; `vr_explosion_debris_mp_max` 24 in multiplayer).
+- **Future option:** a separate client-only Box3D world for purely visual physics (these chunks, shell casings, sparks,
+  small gore), built from `cl.worldmodel` (its mesh shared read-only with the server's in single player), with kinematic
+  proxies for the brush entities and the server's props near the view. No networking, no multiplayer cap, the same in
+  single player and multiplayer; the price is a second broadphase and step on the client, and one-way contact with the
+  real props.
 
 ### 4. The enhanced AI's frame (`vr_ai_enhanced`)
 

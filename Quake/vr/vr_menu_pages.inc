@@ -76,7 +76,7 @@
     Item i = slider("Most in Multiplayer", "vr_explosion_debris_mp_max", -1.f, 96.f, 1.f, "%.0f")
                  .extend(-1.f, 256.f)
                  .help("The most at once in a multiplayer game (yours as the host). They are the server's: each one in sight "
-                       "costs every player's network packets (about 18 bytes a frame while it moves). Single Player's: as "
+                       "costs every player's network packets (about 26 bytes a frame while it lives). Single Player's: as "
                        "many as Maximum Active Chunks. 0: none.");
     i.negativeLabel = "Single Player's";
     return i;

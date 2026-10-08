@@ -12,8 +12,8 @@
 // entity's scale (a byte on the wire, as the client's drawn scale was), its fade its alpha over its last half second;
 // then it goes (and SUB_Remove at its end, should the list here lose it: a saved game's). At most vr_explosion_debris_max
 // at once, the oldest retired first; in multiplayer at most vr_explosion_debris_mp_max (-1: as single player, 0: none),
-// as rubble's vr_debris_mp_max: each chunk in sight costs every remote client's 1400-byte datagram about 18 bytes a
-// frame while it moves (MULTIPLAYER.md, "Explosion debris"). Never when fewer than edictReserve entities would be left.
+// as rubble's vr_debris_mp_max: each chunk in sight costs every remote client's 1400-byte datagram about 26 bytes a
+// frame while it lives (MULTIPLAYER.md, "Explosion debris"). Never when fewer than edictReserve entities would be left.
 //
 // The client's: the chunks are entities, drawn and interpolated as any; their fire trail is drawn each frame from where
 // the chunk was drawn last to where it is drawn now (VR_ExplosionDebrisTrail from CL_RelinkEntities: its trailorg), the

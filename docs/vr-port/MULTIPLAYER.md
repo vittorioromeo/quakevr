@@ -171,7 +171,7 @@ entities**. Every spawner was audited; each was already on its side, so no spawn
 
 | What | Where it is made | Interaction | Side | Network cost |
 |---|---|---|---|---|
-| Explosion chunks (`vr_explosiondebris.cpp`; moved 2026-10-08, below) | Server C++, from each explosion temp entity QuakeC broadcasts | None: Box3D props of 20 g (ride lifts, blasts throw them, knock props barely), no damage, no sounds or touches | Server | About 18 B a frame for each chunk in sight while it lives (2-4 s, at rest too: no baseline); at most `vr_explosion_debris_mp_max` (24) in multiplayer |
+| Explosion chunks (`vr_explosiondebris.cpp`; moved 2026-10-08, below) | Server C++, from each explosion temp entity QuakeC broadcasts | None: Box3D props of 20 g (ride lifts, blasts throw them, knock props barely), no damage, no sounds or touches | Server | About 26 B a frame for each chunk in sight while it lives (2-4 s, at rest too: no baseline; measured 2026-10-08); at most `vr_explosion_debris_mp_max` (24) in multiplayer |
 | Spent casings (`vr_shells.cpp`) | Client, from `QVR_SVC_EJECT` sent to the firing player | None | Client | 7 B event. Only the shooter's client sees them; remote players' casings belong with the remote avatars. |
 | Splinters and wood dust (`VR_Crate_Splinters`, a piece bursting) | Client particles (`particle2` presets) | None | Client | Particle event |
 | Sparks, blood, dust, smoke, fire particles, shock arcs | Client particles, from events | None | Client | Events |
@@ -199,8 +199,8 @@ server entities, Box3D props, so that they ride lifts and doors and later blasts
 ROUND21.md, "Explosion debris as Box3D bodies"): `vr_explosion_debris_mp_max` (the Explosion Debris page's Most in
 Multiplayer, the host's value) caps the chunks at once in a multiplayer game, with `vr_debris_mp_max`'s
 semantics: -1 "Single Player's" (Maximum Active Chunks, `vr_explosion_debris_max` 96), 0 none, else the most; its
-default is 24 (two explosions' worth: about 430 B of a remote client's 1400 B datagram while they live, against 96's
-1.7 KB, which would overflow it and drop the farthest entities). An explosion launches `vr_explosion_debris_count` (12)
+default is 24 (two explosions' worth: about 630 B of a remote client's 1400 B datagram while they live, against 96's
+2.5 KB, which would overflow it and drop the farthest entities). An explosion launches `vr_explosion_debris_count` (12)
 but no more than the cap; the oldest go first. A remote client sees the same chunks as the host (one simulation). The
 measured rows below (2026-10-06) are the old client-side chunks'. A future option without any network cost (a
 client-only Box3D world for visual-only physics) is in ROUND21.md's section and PERF_DECISIONS.md item 3.

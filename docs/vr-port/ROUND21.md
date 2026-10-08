@@ -31494,9 +31494,20 @@ slept: PERF_DECISIONS.md item 3).
   dropped on vrtesthall's floor asleep within 2 s; 1900 units/s into the south and west panels and down onto the table,
   and into vrclimb's lift side-on (a kinematic body): each stays on its near side; one on vrclimb's lift rises with it
   (41 -> 121 in 10 s), one on its plat goes down 40 with it; a blast throws resting ones; chunks into a health box leave
-  it where it was. A real QuakeC explosion (an explosive box set off by `vr_physics_blast`) launches its chunks. Debug >
+  it where it was. A saved game keeps its chunks (found again at load, then they end). A real QuakeC explosion (an explosive box set off by `vr_physics_blast`) launches its chunks. Debug >
   Tests > Physics Stress: Explosion Debris Ahead, Explosion Debris List (`vr_explosion_debris_list`: each chunk's place,
   speed, resting or moving and on what); `vr_explosion_debris_launch <x y z> <vx vy vz> [size] [life]` for one chunk.
+- **Measured** (`bench.sh` explosions_storm, combat_48, ai_crowd_64, combined; the base build and this one interleaved,
+  3 rounds each, medians, ms a frame; two A/B sets, other agents building in between, so whole-frame times are noisy and
+  the phases are the numbers to read). explosions_storm (18 explosions a second, the pool full at 96): the server
+  0.23 -> 0.40 (SV_Physics 0.19 -> 0.34), the client's view entities 0.34 -> 0.15 (the traces gone), CPU busy p50 1.63
+  -> 1.64: about even; entities 256 -> 350, Box3D bodies awake 29 -> 123. Box3D's step alone (`vr_physics_steptime`, e1m1,
+  96 chunks in the air): 0.017 -> 0.14 ms (108 awake). combat_48: server +0.09..0.18, view entities -0.06..-0.10;
+  ai_crowd_64 (the ogres' grenades among 64 monsters): server +0.13..0.30; combined (no chunks: its `vr_physics_blast`s'
+  explosion messages are written by a console command and cleared before the frame sends them, so neither build made
+  chunks there): unchanged. Traces a frame in the storm: 65 -> 68 (91 before a launch in the open took one trace instead
+  of eight). The local client's datagram in the storm: 87 -> 2560 B a frame (96 chunks, about 26 B each while they live:
+  no baseline); a remote client's is capped by `vr_explosion_debris_mp_max` (24: about 630 B of its 1400).
 - **A future option (not done):** a separate client-only Box3D world for purely visual physics: these chunks, the spent
   shell casings, sparks, small gore. It would be built from `cl.worldmodel` (in single player its mesh shared read-only
   with the server world's, which builds the same one), with kinematic proxies for the brush entities (doors and lifts at
