@@ -3,8 +3,6 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [Firing range: reloading]
-Walking reloads: load shells/mags while walking, strafing, turning: the load point stays on the drawn gun
-Auto pump: a short pause after each shotgun shot (Weapon Effects > Auto Pump Delay)
 Guns lying on a table: a shell dropped on the shotgun receiver goes in (nothing balances on air); load lying guns by hand and by tossing rounds; the lying shotgun's screen shows e.g. 1/8
 Loose rounds: shells into an upside-down shotgun, pairs into the open SSG, magazines feed-end first into NG/SNG/LG wells; sideways rounds bounce off
 Launchers: front-load from the pouch, rockets/grenades butt first (grenade by its flat end), prox any way
@@ -24,11 +22,6 @@ Explosion debris: rocket at a wall: chunks bounce, settle, glow, fade; a 2nd roc
 Crates: two-hand barrel/crate throws hit hard; overhead slam breaks them; thrown props carry your running speed; range crate stacks spawn without overlap
 Death View: Debug > Cheats > Die Now / Die Now Blown Back, in Third Person and Immersive (VR Settings > Comfort)
 Trailer spawns: Debug > Tests > Ahead of You: Facing = Away
-
-[Firing range: menus]
-Update notice: Debug > Update Notice: Fake 9.9.9 shows the box above the version box; press opens the releases page
-Ko-fi box: cup upright, handle on the right; link opens ko-fi.com/vittorioromeovee once
-Version reads 1.0.0-dev; stick drift at the new deadzone 10
 
 [New this week]
 Teleporters (renamed from slipgates): Graphics > Teleporters labels; hub campaign board + lectern messages; vrtutorial2 arena exit board; `map vrslipgates` still loads vrteleporters; old vr_slipgate_* settings still work

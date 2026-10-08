@@ -284,7 +284,7 @@ VersionLabel versionLabel;
 
 // The update notice as last placed (vr_update.cpp says whether there is one): a link of its own.
 constexpr const char* noticePrefix = "Update available: ";
-constexpr const char* noticeName = "Quake VR: Unleashed ";
+constexpr const char* noticeName = "Quake VR: Unleashed v";
 constexpr float noticeGap = 3.f; // its box above the version box (true pixels)
 struct UpdateNotice
 {
