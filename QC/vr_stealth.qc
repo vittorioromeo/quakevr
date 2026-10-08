@@ -6,6 +6,11 @@
 // VR_Stealth_PropNoise (vr_physsound.cpp).
 
 float stl_was_on; // vr_ai_enhanced as last seen (StartFrame: switched off, every monster goes back to Quake's AI)
+entity stl_players; // the players, listed each frame by .stl_pnext (VR_Stealth_Frame)
+// Set while an Alert monster's stand or walk animation is started from its own stand or walk think: a kind whose walk is
+// its stand (Rogue's invisible swordsman) would come straight back in (VR_Stealth_Stand, VR_Stealth_Walk: nothing more
+// that frame).
+float stl_anim_guard;
 
 float() VR_Stealth_On =
 {
@@ -56,7 +61,9 @@ void(entity m) VR_Stealth_ClassOf =
 
 float(entity m) VR_Stealth_Applies =
 {
-    if(!VR_Stealth_On() || m.health <= 0 || m.charmed)
+    // (a dormant one, not yet in the game: a statue knight before its map wakes it, a monster waiting to be spawned in:
+    // no damage taken, or not solid; Quake's: only its map wakes it)
+    if(!VR_Stealth_On() || m.health <= 0 || m.charmed || m.takedamage == DAMAGE_NO || m.solid == SOLID_NOT)
     {
         return FALSE;
     }
@@ -87,7 +94,9 @@ float(entity m) VR_Stealth_Ambusher =
 void(entity m, float xWalking) VR_Stealth_Anim =
 {
     entity os = self;
+    float og = stl_anim_guard;
     self = m;
+    stl_anim_guard = TRUE;
     if(xWalking)
     {
         self.th_walk();
@@ -97,7 +106,19 @@ void(entity m, float xWalking) VR_Stealth_Anim =
         self.pausetime = 99999999;
         self.th_stand();
     }
+    stl_anim_guard = og;
     self = os;
+};
+
+// A marker whose monster is gone (removed without dying: a map's killtarget, a fade) goes too.
+void() VR_Stealth_MarkerThink =
+{
+    if(self.owner.stl_marker != self || self.owner.health <= 0)
+    {
+        remove(self);
+        return;
+    }
+    self.nextthink = time + 5;
 };
 
 entity(entity m, vector at) VR_Stealth_MarkerAt =
@@ -107,6 +128,8 @@ entity(entity m, vector at) VR_Stealth_MarkerAt =
         m.stl_marker = spawn();
         m.stl_marker.classname = "stl_marker";
         m.stl_marker.owner = m;
+        m.stl_marker.think = VR_Stealth_MarkerThink;
+        m.stl_marker.nextthink = time + 5;
     }
     setorigin(m.stl_marker, at);
     return m.stl_marker;
@@ -177,7 +200,7 @@ void(entity m) VR_Stealth_GoBack =
 {
     vector to = m.stl_post - m.origin;
     to_z = 0;
-    if(m.stl_post_walk || vlen(to) < 32 || (m.spawnflags & 1))
+    if(m.stl_post_walk || vlen(to) < 32 || (m.spawnflags & 1) || m.th_walk == m.th_stand)
     {
         VR_Stealth_Finish(m);
         return;
@@ -289,11 +312,18 @@ void(entity m, float xHostile) VR_Stealth_Share =
     }
 };
 
-void() VR_Stealth_ShareThink =
+void() VR_Stealth_ShareThinkNow =
 {
     entity ev = self;
     VR_Stealth_Share(ev.owner, ev.cnt);
     remove(ev);
+};
+
+void() VR_Stealth_ShareThink =
+{
+    stealthprofile(1);
+    VR_Stealth_ShareThinkNow();
+    stealthprofile(0);
 };
 
 // Something drew m's attention to `at` (STL_A_* or a noise's kind; `xPower` how strongly: a new disturbance as weak
@@ -395,7 +425,12 @@ float(entity p) VR_Stealth_LightOf =
     if(time >= p.stl_light_time || time < p.stl_light_time - 1)
     {
         p.stl_light_time = time + 0.1;
-        float l = stealthlight(p.origin);
+        // (as his own client measured it: his dynamic lights, a coop client's too; else the host's view of the place)
+        float l = clientlight(p);
+        if(l < 0)
+        {
+            l = stealthlight(p.origin);
+        }
         p.stl_light = l < 0 ? 128 : l;
     }
     return p.stl_light;
@@ -443,7 +478,7 @@ float(entity p) VR_Stealth_CrouchShare =
 
 // FindTarget's sighting of a player (self: the monster, Idle or Alert): the meter fills by the light on him, how near,
 // in front, moving, standing up; full: Hostile (FoundTarget, TRUE). Past the glimpse share: Alert, turning to look.
-float(entity client) VR_Stealth_See =
+float(entity client) VR_Stealth_SeeNow =
 {
     if(!visible(client))
     {
@@ -466,8 +501,25 @@ float(entity client) VR_Stealth_See =
         (time < self.stl_wary ? cvar_hget(cvarh_vr_stealth_sensitive) : 1) / max(0.05, cvar_hget(cvarh_vr_stealth_meter_time));
     if(rate <= 0)
     {
+        if(client == self.stl_suspect)
+        {
+            self.stl_rate = 0;
+        }
         return FALSE;
     }
+    // Coop: the meter is on the most suspicious player in sight. FindTarget's sightings take the players in turn (a tenth
+    // of a second each): another one's while its suspect, seen lately, fills it faster is passed over (its suspect's
+    // next sighting counts the time between); a faster one takes the meter over.
+    if(client != self.stl_suspect)
+    {
+        if(self.stl_suspect.classname == "player" && self.stl_suspect.health > 0 && time - self.stl_seen <= 0.25 &&
+           time >= self.stl_seen && rate <= self.stl_rate)
+        {
+            return FALSE;
+        }
+        self.stl_suspect = client;
+    }
+    self.stl_rate = rate;
     float dt = time - self.stl_seen;
     if(dt > 0.25 || dt < 0)
     {
@@ -492,6 +544,14 @@ float(entity client) VR_Stealth_See =
         VR_Stealth_Alert(self, client.origin, STL_A_GLIMPSE, 1, TRUE);
     }
     return FALSE;
+};
+
+float(entity client) VR_Stealth_See =
+{
+    stealthprofile(1);
+    float r = VR_Stealth_SeeNow(client);
+    stealthprofile(0);
+    return r;
 };
 
 // ----------------------------------------------------------------------------
@@ -594,7 +654,7 @@ void(entity m, vector eye) VR_Stealth_LookAbout =
 
 // At the start of FindTarget (self: an Idle or Alert monster): the meter drains while he isn't seen; a few times a
 // second it looks for beams, torches and bodies. With the rules off for it: back to Quake's AI.
-void() VR_Stealth_Tick =
+void() VR_Stealth_TickNow =
 {
     if(!VR_Stealth_Applies(self))
     {
@@ -618,7 +678,7 @@ void() VR_Stealth_Tick =
     vector eye = self.origin + self.view_ofs;
     if(cvar_hget(cvarh_vr_stealth_flashlight))
     {
-        for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+        for(entity p = stl_players; p; p = p.stl_pnext)
         {
             if(p.health > 0 && !(p.flags & FL_NOTARGET))
             {
@@ -635,6 +695,13 @@ void() VR_Stealth_Tick =
     VR_Stealth_LookAbout(self, eye);
 };
 
+void() VR_Stealth_Tick =
+{
+    stealthprofile(1);
+    VR_Stealth_TickNow();
+    stealthprofile(0);
+};
+
 // ----------------------------------------------------------------------------
 // The Alert monster's thinks (ai_stand, ai_walk; self)
 
@@ -647,8 +714,12 @@ void() VR_Stealth_Turn =
 };
 
 // In ai_stand after FindTarget: TRUE when the Alert state took the think (turning to look, searching).
-float() VR_Stealth_Stand =
+float() VR_Stealth_StandNow =
 {
+    if(stl_anim_guard && self.stl_state == STL_ALERT)
+    {
+        return TRUE; // (its animation being switched: VR_Stealth_Anim)
+    }
     if(self.stl_state != STL_ALERT)
     {
         if(self.stl_settle)
@@ -680,11 +751,12 @@ float() VR_Stealth_Stand =
         {
             vector to = self.stl_point - self.origin;
             to_z = 0;
-            if(vlen(to) > 64 && cvar_hget(cvarh_vr_stealth_investigate) && !(self.spawnflags & 1))
+            if(vlen(to) > 64 && cvar_hget(cvarh_vr_stealth_investigate) && !(self.spawnflags & 1) &&
+               self.th_walk != self.th_stand) // (a kind that doesn't walk searches where it stands)
             {
                 VR_Stealth_Phase(self, STL_WALK);
                 self.goalentity = VR_Stealth_MarkerAt(self, self.stl_point);
-                self.th_walk();
+                VR_Stealth_Anim(self, TRUE);
             }
             else
             {
@@ -707,13 +779,25 @@ float() VR_Stealth_Stand =
         }
         return TRUE;
     }
-    self.th_walk(); // (walking or going back, in a stand frame: walk on)
+    VR_Stealth_Anim(self, TRUE); // (walking or going back, in a stand frame: walk on)
     return TRUE;
 };
 
-// In ai_walk after FindTarget: TRUE when the Alert state took the think (walking to the point, or back to its post).
-float(float dist) VR_Stealth_Walk =
+float() VR_Stealth_Stand =
 {
+    stealthprofile(1);
+    float r = VR_Stealth_StandNow();
+    stealthprofile(0);
+    return r;
+};
+
+// In ai_walk after FindTarget: TRUE when the Alert state took the think (walking to the point, or back to its post).
+float(float dist) VR_Stealth_WalkNow =
+{
+    if(stl_anim_guard && self.stl_state == STL_ALERT)
+    {
+        return TRUE; // (its animation being switched: VR_Stealth_Anim)
+    }
     if(self.stl_state != STL_ALERT)
     {
         return FALSE;
@@ -725,8 +809,7 @@ float(float dist) VR_Stealth_Walk =
     }
     if(self.stl_phase != STL_WALK && self.stl_phase != STL_RETURN)
     {
-        self.pausetime = 99999999;
-        self.th_stand();
+        VR_Stealth_Anim(self, FALSE);
         return TRUE;
     }
     vector goal = self.stl_phase == STL_WALK ? self.stl_point : self.stl_post;
@@ -744,13 +827,23 @@ float(float dist) VR_Stealth_Walk =
             self.ideal_yaw = vectoyaw(goal - self.origin);
         }
     }
-    if(vlen(to) < (self.stl_phase == STL_WALK ? 64 : 24) || self.stl_stuck >= 3 || time > self.stl_look_time)
+    // (not into lava or slime: a pool level with the floor that Quake's step check lets it walk into; it ends the walk
+    // there, as stuck)
+    float molten = FALSE;
+    if(vlen(to) >= 1)
+    {
+        vector ahead = self.origin + normalize(to) * (self.maxs_x + 8 + dist);
+        ahead_z = self.absmin_z + 16;
+        traceline(ahead, ahead - '0 0 80', TRUE, self);
+        float c = pointcontents(trace_endpos + '0 0 1');
+        molten = (c == CONTENT_LAVA || c == CONTENT_SLIME);
+    }
+    if(vlen(to) < (self.stl_phase == STL_WALK ? 64 : 24) || self.stl_stuck >= 3 || time > self.stl_look_time || molten)
     {
         if(self.stl_phase == STL_WALK)
         {
             VR_Stealth_Phase(self, STL_SEARCH);
-            self.pausetime = 99999999;
-            self.th_stand();
+            VR_Stealth_Anim(self, FALSE);
         }
         else
         {
@@ -766,11 +859,19 @@ float(float dist) VR_Stealth_Walk =
     return TRUE;
 };
 
+float(float dist) VR_Stealth_Walk =
+{
+    stealthprofile(1);
+    float r = VR_Stealth_WalkNow(dist);
+    stealthprofile(0);
+    return r;
+};
+
 // In ai_run (self: Hostile), its enemy in sight or not: a player out of its sight for STL_LOSE_TIME: it gives up the
 // hunt and goes to where it saw him last, Alert (searches there, then goes back to Idle, wary). TRUE: it gave up.
 float STL_LOSE_TIME = 6;
 
-float(float xVis) VR_Stealth_Lose =
+float(float xVis) VR_Stealth_LoseNow =
 {
     if(self.enemy.classname != "player" || !cvar_hget(cvarh_vr_stealth_lose) || !VR_Stealth_Applies(self))
     {
@@ -792,6 +893,14 @@ float(float xVis) VR_Stealth_Lose =
     return TRUE;
 };
 
+float(float xVis) VR_Stealth_Lose =
+{
+    stealthprofile(1);
+    float r = VR_Stealth_LoseNow(xVis);
+    stealthprofile(0);
+    return r;
+};
+
 // ----------------------------------------------------------------------------
 // Noise
 
@@ -807,6 +916,10 @@ void(vector org, float range, entity src, float kind) VR_Stealth_Noise =
     }
     if(src.classname == "player")
     {
+        if(src.flags & FL_NOTARGET)
+        {
+            return; // (notarget: the monsters pay him no heed, Quake's cheat; his blasts are still heard)
+        }
         if(time - src.stl_loud_time > 0.5 || range > src.stl_loud)
         {
             src.stl_loud = range;
@@ -852,26 +965,37 @@ entity(vector org, float rad) VR_Stealth_Gather =
     return first;
 };
 
+float(vector v) VR_Stealth_InLiquid =
+{
+    float c = pointcontents(v);
+    return c == CONTENT_WATER || c == CONTENT_SLIME || c == CONTENT_LAVA;
+};
+
 // The way from the noise to a monster's ears: a clear line keeps its reach; walls (and doors) round a corner (the place
 // in the monster's potentially visible set) keep vr_stealth_noise_wall of it, solid walls vr_stealth_noise_solid; a prop
-// in the line vr_stealth_noise_absorb.
+// in the line vr_stealth_noise_absorb; a water surface between them (one under, the other not) as a wall.
 float(vector org, entity m, entity src) VR_Stealth_NoisePath =
 {
     vector ear = m.origin + m.view_ofs;
+    float f = 1;
+    if(VR_Stealth_InLiquid(org) != VR_Stealth_InLiquid(ear))
+    {
+        f = cvar_hget(cvarh_vr_stealth_noise_wall);
+    }
     traceline(org, ear, TRUE, src);
     if(trace_fraction < 1)
     {
-        return pvsvisible(ear, org) ? cvar_hget(cvarh_vr_stealth_noise_wall) : cvar_hget(cvarh_vr_stealth_noise_solid);
+        return f * (pvsvisible(ear, org) ? cvar_hget(cvarh_vr_stealth_noise_wall) : cvar_hget(cvarh_vr_stealth_noise_solid));
     }
     traceline(org, ear, FALSE, src);
     if(trace_fraction < 1 && trace_ent != m && trace_ent != world && !(trace_ent.flags & (FL_MONSTER | FL_CLIENT)))
     {
-        return cvar_hget(cvarh_vr_stealth_noise_absorb);
+        return f * cvar_hget(cvarh_vr_stealth_noise_absorb);
     }
-    return 1;
+    return f;
 };
 
-void() VR_Stealth_NoiseThink =
+void() VR_Stealth_NoiseThinkNow =
 {
     entity ev = self;
     vector org = ev.origin;
@@ -896,6 +1020,9 @@ void() VR_Stealth_NoiseThink =
         {
             continue;
         }
+        e.stl_heard = time;
+        e.stl_heard_kind = kind;
+        e.stl_heard_src = src;
         if(cvar_hget(cvarh_vr_stealth_debug) >= 2)
         {
             bprint(sprintf("stealth: %.2f %s hears noise %g (range %g) at %g units (reach %.0f)\n", time, e.classname, kind, range, d, reach));
@@ -919,6 +1046,13 @@ void() VR_Stealth_NoiseThink =
     remove(ev);
 };
 
+void() VR_Stealth_NoiseThink =
+{
+    stealthprofile(1);
+    VR_Stealth_NoiseThinkNow();
+    stealthprofile(0);
+};
+
 // A player's shot (W_AttackImpl, the enemy guns' rounds): heard by its weapon's loudness (a held trigger's stream:
 // once a fifth of a second).
 void(entity shooter, float xWeapon) VR_Stealth_Shot =
@@ -932,7 +1066,7 @@ void(entity shooter, float xWeapon) VR_Stealth_Shot =
     else if(xWeapon == WID_ROCKET_LAUNCHER || xWeapon == WID_LIGHTNING || xWeapon == WID_LASER_CANNON) { r = 900; }
     else if(xWeapon == WID_CHAINSAW) { r = 700; }
     else if(xWeapon == WID_GRAPPLE) { r = 250; }
-    if(time - shooter.stl_shot_time < 0.2)
+    if(time - shooter.stl_shot_time < 0.2 && time >= shooter.stl_shot_time)
     {
         return;
     }
@@ -950,10 +1084,17 @@ void(entity prop, float volume) VR_Stealth_PropNoise =
     VR_Stealth_Noise(prop.origin, cvar_hget(cvarh_vr_stealth_noise_props) * min(volume, 1.5), prop, STL_N_PROP);
 };
 
+// An explosion (T_RadiusDamage): heard by its size, 8 units a point of its damage (at least 800), times
+// vr_stealth_noise_blasts.
+void(vector org, float damage) VR_Stealth_Blast =
+{
+    VR_Stealth_Noise(org, max(800, damage * 8) * cvar_hget(cvarh_vr_stealth_noise_blasts), world, STL_N_BLAST);
+};
+
 // ----------------------------------------------------------------------------
 // Shots grazing: a player's shot from `from` to `to` (it hit `hit`) passing within vr_stealth_graze of a monster:
 // Alert, turning to where it came from, at any distance.
-void(vector from, vector to, entity shooter, entity hit) VR_Stealth_Graze =
+void(vector from, vector to, entity shooter, entity hit) VR_Stealth_GrazeNow =
 {
     float g = cvar_hget(cvarh_vr_stealth_graze);
     if(g <= 0 || shooter.classname != "player" || !VR_Stealth_On())
@@ -980,6 +1121,13 @@ void(vector from, vector to, entity shooter, entity hit) VR_Stealth_Graze =
         }
         VR_Stealth_Alert(e, from, STL_A_GRAZE, 2, TRUE);
     }
+};
+
+void(vector from, vector to, entity shooter, entity hit) VR_Stealth_Graze =
+{
+    stealthprofile(1);
+    VR_Stealth_GrazeNow(from, to, shooter, hit);
+    stealthprofile(0);
 };
 
 // A launched projectile's straight line to the first wall (nails, rockets; at launch).
@@ -1056,7 +1204,7 @@ void() VR_Stealth_Contact =
     }
 };
 
-void() VR_Stealth_PlayerFrame =
+void() VR_Stealth_PlayerFrameNow =
 {
     if(!VR_Stealth_On() || self.health <= 0)
     {
@@ -1090,10 +1238,18 @@ void() VR_Stealth_PlayerFrame =
     self.stl_hud = rint(self.stl_vis * 100) + 1000 * rint(loud * 100);
 };
 
+void() VR_Stealth_PlayerFrame =
+{
+    stealthprofile(1);
+    VR_Stealth_PlayerFrameNow();
+    stealthprofile(0);
+};
+
 // ----------------------------------------------------------------------------
 // StartFrame: the umbrella switched off: every monster back to Quake's AI at once.
 void() VR_Stealth_Frame =
 {
+    stealthprofile(-1);
     float on = VR_Stealth_On();
     if(!on && stl_was_on)
     {
@@ -1103,5 +1259,20 @@ void() VR_Stealth_Frame =
         }
     }
     stl_was_on = on;
+    entity last = world;
+    stl_players = world;
+    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    {
+        p.stl_pnext = world;
+        if(last)
+        {
+            last.stl_pnext = p;
+        }
+        else
+        {
+            stl_players = p;
+        }
+        last = p;
+    }
     VR_Stealth_TestFrame();
 };

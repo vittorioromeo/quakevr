@@ -33,6 +33,11 @@
 .float stl_lost_time;   // Hostile: when it last saw its enemy
 .vector stl_lost_at;    // and where
 .entity stl_next;       // a gathered list's next (VR_Stealth_Gather)
+.entity stl_suspect;    // the player its meter is on (coop: the most suspicious one in sight)
+.float stl_rate;        // and the meter's rate at that sighting
+.float stl_heard;       // the last noise it heard (time; its kind, what made it): tests, the debug log
+.float stl_heard_kind;
+.entity stl_heard_src;
 // On a body or a gib: what may be noticed (STL_NOTICE_BODY), and when a monster first noticed it.
 .float stl_notice;
 .float stl_found;
@@ -46,6 +51,7 @@
 .float stl_loud_time;
 .float stl_climb_time;  // when a hand last held a ledge (climbing is silent)
 .float stl_vis;         // how visible he is, 0..1 (the gem)
+.entity stl_pnext;      // the next player (stl_players, listed each frame)
 .float stl_hud;         // the gem's readings (STAT_QVR_STEALTH): visible 0..100 plus 1000 times loud 0..100; -1 off
 
 float STL_IDLE = 0;
@@ -90,5 +96,6 @@ float(float dist) VR_Stealth_Walk;
 void() VR_Stealth_Hostile;
 float(entity targ, entity attacker) VR_Stealth_SneakMult;
 void(vector org, float range, entity src, float kind) VR_Stealth_Noise;
+void(vector org, float damage) VR_Stealth_Blast;
 void(vector from, vector to, entity shooter, entity hit) VR_Stealth_Graze;
 void(entity shooter, float weapon) VR_Stealth_Shot;

@@ -2307,7 +2307,7 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
 {
     VR_ExplosionRumble(inflictor.origin, damage);
     physicsblast(inflictor.origin, damage);
-    VR_Stealth_Noise(inflictor.origin, max(800, damage * 8), world, STL_N_BLAST); // QVR: heard far (vr_stealth.qc)
+    VR_Stealth_Blast(inflictor.origin, damage); // QVR: heard far, by its size (vr_stealth.qc)
 
     float     points;
     entity    head;

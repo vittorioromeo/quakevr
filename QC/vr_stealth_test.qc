@@ -99,6 +99,16 @@ float() VR_STT_FindWalled =
 void() VR_Stealth_TestFrame =
 {
     float ask = cvar("vr_stealth_test");
+    if(ask >= 100)
+    {
+        cvar_set("vr_stealth_test", "0");
+        VR_STT2_Start(ask); // (the further scenes: vr_stealth_test2.qc)
+        ask = 0;
+    }
+    if(stt2_step)
+    {
+        VR_STT2_Frame();
+    }
     if(ask > 0)
     {
         cvar_set("vr_stealth_test", "0");
@@ -500,6 +510,10 @@ void() VR_Stealth_TestFrame =
     {
         if(stt_stage == 0)
         {
+            if(time < 4.5)
+            {
+                return; // (a new map's first seconds: props settling, their knocks unheard)
+            }
             VR_STT_Reset(FALSE);
             makevectors('0 1 0' * stt_yaw);
             traceline(m.origin, m.origin - v_forward * 200, TRUE, m);
@@ -511,10 +525,10 @@ void() VR_Stealth_TestFrame =
         }
         if(stt_stage == 1 && t > 1.5) { physicsblast((stt_gib.absmin + stt_gib.absmax) * 0.5 + '0 0 -6' + v_forward * 24, 300); VR_STT_Stage(2); return; }
         if(stt_stage >= 3) { stt_v = min(stt_v, vlen(m.origin - stt_at)); }
-        if(stt_stage == 2 && t > 1.5) { stt_n = m.stl_state; stt_at = m.stl_point; VR_STT_Stage(3); return; }
+        if(stt_stage == 2 && t > 1.5 && (m.stl_state == STL_ALERT || t > 5)) { stt_n = m.stl_state; stt_at = m.stl_point; VR_STT_Stage(3); return; } // (the crate may fly a while before it lands)
         if(stt_stage == 3 && (t > 45 || m.stl_phase == STL_SEARCH))
         {
-            VR_STT_Report("crate_drop", stt_n == STL_ALERT && stt_v < 100, sprintf("state after 1.5 s %g; came within %.0f of the knock it heard (the crate now %.0f from there)", stt_n, stt_v, vlen(stt_gib.origin - stt_at)));
+            VR_STT_Report("crate_drop", stt_n == STL_ALERT && stt_v < 100, sprintf("state after the knock %g; came within %.0f of the knock it heard (the crate now %.0f from there)", stt_n, stt_v, vlen(stt_gib.origin - stt_at)));
             stt_step = 0;
             cvar_set("vr_stealth_light_force", "-1");
         }

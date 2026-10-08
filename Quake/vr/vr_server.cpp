@@ -957,6 +957,7 @@ void rebaseHands(edict_t* player)
         hand.tracked += delta;
         hand.throwPos += delta;
     }
+    move.lampLens += delta; // (the stealth AI's view of his flashlight: vr_stealth.cpp)
     move.muzzlePos[0] += delta;
     move.muzzlePos[1] += delta;
     move.loadPort[0] += delta;

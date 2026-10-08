@@ -33,6 +33,7 @@
 #include "vr_autopump.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_shock.hpp"
+#include "vr_stealth.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_comfortfade.hpp"
 #include "vr_teleport.hpp"
@@ -227,6 +228,9 @@ VrMove unposed;
     move.vrYaw = hands::playSpaceYaw();
     move.origin = hs.playerOrigin;
     move.headPos = hs.head;
+    // The monsters' senses (QC vr_stealth.qc): his lamp as lit and the light on him, as this client sees them.
+    move.lampLit = flashlight::beamNow(move.lampLens, move.lampDir, move.lampRange, move.lampCos);
+    move.light = stealth::lightAt(move.origin);
 
     // The server walks the player by this over its frame (units per second).
     if(host_frametime > 0.0)

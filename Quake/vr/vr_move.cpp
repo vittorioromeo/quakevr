@@ -94,6 +94,15 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
             writeVec3(buf, v);
         }
     }
+    MSG_WriteByte(buf, move.lampLit ? 1 : 0);
+    if(move.lampLit)
+    {
+        writeVec3(buf, move.lampLens);
+        writeVec3(buf, move.lampDir);
+        MSG_WriteFloat(buf, move.lampRange);
+        MSG_WriteFloat(buf, move.lampCos);
+    }
+    MSG_WriteFloat(buf, move.light);
 }
 
 za::Optional<VrMove> readVrMove()
@@ -146,6 +155,15 @@ za::Optional<VrMove> readVrMove()
             v = in.vec3();
         }
     }
+    move.lampLit = MSG_ReadByte() == 1;
+    if(move.lampLit)
+    {
+        move.lampLens = in.vec3();
+        move.lampDir = in.vec3();
+        move.lampRange = in.real();
+        move.lampCos = in.real();
+    }
+    move.light = in.real();
 
     if(!in.finite)
     {

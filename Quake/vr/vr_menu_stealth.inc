@@ -55,6 +55,8 @@
             .help("Times each weapon's reach (a shotgun 1100 units, the super shotgun 1300, nailguns 800-900)."),
         slider("Blows Heard", vr_stealth_noise_melee, 0.f, 3.f, 0.05f, "x%.2f")
             .help("Times a landed blow's reach (200 units for a punch; stronger blows and heavier weapons louder)."),
+        slider("Explosions Heard", vr_stealth_noise_blasts, 0.f, 3.f, 0.05f, "x%.2f")
+            .help("Times an explosion's reach (8 units a point of its damage, at least 800: a rocket's or a grenade's 960)."),
         slider("Round a Corner", vr_stealth_noise_wall, 0.f, 1.f, 0.05f, "x%.2f")
             .help("A noise's reach kept with a wall or a door in the line but the place in the monster's sight (a doorway)."),
         slider("Through Solid Walls", vr_stealth_noise_solid, 0.f, 1.f, 0.05f, "x%.2f"),

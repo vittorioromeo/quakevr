@@ -2773,6 +2773,7 @@ QVR_CVAR(vr_stealth_noise_run, "400", CVAR_ARCHIVE)  // units your running is he
 QVR_CVAR(vr_stealth_noise_props, "1200", CVAR_ARCHIVE) // units a prop's loudest knock is heard at (a quieter one: by its volume)
 QVR_CVAR(vr_stealth_noise_guns, "1", CVAR_ARCHIVE)   // times each weapon's shot's reach (a shotgun 1100 units)
 QVR_CVAR(vr_stealth_noise_melee, "1", CVAR_ARCHIVE)  // times a blow's reach (by its strength and the weapon's weight)
+QVR_CVAR(vr_stealth_noise_blasts, "1", CVAR_ARCHIVE) // times an explosion's reach (8 units a point of its damage, at least 800)
 QVR_CVAR(vr_stealth_noise_wall, "0.5", CVAR_ARCHIVE) // a noise's reach kept round a corner (in sight of the place, not in line)
 QVR_CVAR(vr_stealth_noise_solid, "0.15", CVAR_ARCHIVE) // and through solid walls (out of sight of the place)
 QVR_CVAR(vr_stealth_noise_absorb, "0.6", CVAR_ARCHIVE) // and past a prop (a crate) in the way
@@ -2796,3 +2797,5 @@ QVR_CVAR(vr_stealth_marks, "0", CVAR_ARCHIVE)        // a "?" over a monster tur
 QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed; 2: each sighting's meter and each noise heard
 QVR_CVAR(vr_stealth_light_force, "-1", CVAR_NONE)    // tests: the players' light level as this (-1: measured)
 QVR_CVAR(vr_stealth_test, "0", CVAR_NONE)            // tests: vr_stealth.qc's numbered scenes (Debug > Tests > Stealth)
+QVR_CVAR(vr_stealth_test_count, "60", CVAR_NONE)     // tests: the horde scene's monsters (vr_stealth_test 103)
+QVR_CVAR(vr_stealth_test_kinds, "0", CVAR_NONE)      // tests: the kinds scene's one kind (vr_stealth_test 106; the dispenser's number; 0 all)
