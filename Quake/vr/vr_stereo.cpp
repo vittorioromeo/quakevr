@@ -587,7 +587,8 @@ void renderPortal(int width, int height, int depth)
     const bool same = sceneTargetsFit(target.scene, width, height, 0.f);
     ensureSceneTargets(target.scene, width, height, 0.f);
     GLuint& array = target.array[slot];
-    if(!same || target.layers[slot] != layers || !array)
+    const bool made = !same || target.layers[slot] != layers || !array;
+    if(made)
     {
         for(int d = 0; d < 4; d++) // (all of them: another size)
         {
@@ -617,7 +618,9 @@ void renderPortal(int width, int height, int depth)
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.scene.fb.composite.fbo);
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, target.fbo);
     GL_FramebufferTextureLayerFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, array, 0, layer);
-    if(GL_CheckFramebufferStatusFunc(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    // Checked when the array is made (its other layers are alike): the check makes the driver validate the target
+    // anew each view.
+    if(made && GL_CheckFramebufferStatusFunc(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
         Sys_Error("portal view array framebuffer is incomplete");
     }
