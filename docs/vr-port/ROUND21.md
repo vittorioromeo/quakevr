@@ -31336,3 +31336,47 @@ guns lying on a table: shells, magazines and launcher rounds by hand and tossed 
 really touch a magazine or the super shotgun's barrels to pop or open it.
 **Open:** the super shotgun broken open keeps its shut body (its barrels drawn turned down have none of their own);
 its pair dropped in needs 5 cm of leniency (3 with one hull).
+
+## Slipgates: the shimmer fades out up close; the step of light at a crossing (2026-10-08)
+
+The step of light left at a crossing ("A frame seen through after a slipgate": the room through the gate a little darker
+than the room itself). **The shimmer over the view through a gate now fades out over the eye's last 30 cm to the gate's
+plane** (`vr_slipgate_surface_fade` 0.3, metres; Graphics > Slipgates > Portal Stars > Fade Up Close; 0: it stays to the
+end): its share over the view (0.12 times `vr_slipgate_surface_opacity`) times the eye's distance in front of the plane
+over the fade's (LiquidShade, the eye's distance from LiquidPortal; `TeleportLook.z`, in units). Gone at the crossing.
+
+Measured with `teleport_frames_test.sh` (it now prints each frame's mean luminance), the frame before the crossing
+against the frame after:
+
+| Case | Opacity | Before | After |
+| --- | --- | --- | --- |
+| vrslipgates' flush gate, walked into, 120 Hz | 1.0 | 79.1 -> 84.2 (a 6% step) | 79.4, 81.0, 83.1, 84.9 -> 84.2 (a ramp over the last 3 frames) |
+| | 0.3 | 84.4 -> 84.2 | 84.5, 84.4, 84.9, 85.5, 86.0 -> 84.2 |
+| start's middle gate, jumped into, 72 Hz | 1.0 | 20.1 -> 21.2 | 20.3 -> 21.2 |
+| | 0.3 | 19.8 -> 21.2 | 19.8 -> 21.2 |
+
+- At start the whole-frame step is mostly not the view through: the frame before still shows start's own darker floor
+  below the gate's sill. The gate's part of the picture (its upper 60%) goes 27.5 -> 28.3, about the walk's own rise
+  from frame to frame (+0.5).
+- **What is left: the view through a gate is about 2.5% brighter than the room itself** (vrslipgates, the shimmer
+  faded: 86.3 against 84.2 a frame later; the 0.3 shimmer had hidden it by dimming it as much). Found by turning
+  things off one at a time (the step at the crossing, 2.1 with the defaults):
+
+| Off | Step |
+| --- | --- |
+| `vr_tonemap 0` | none (89.2 -> 89.4) |
+| `vr_light_contrast 1` | none (62.4 -> 62.6); 0.4 with `vr_specular 0.5` |
+| `vr_normalmaps 0; vr_bloom 0` | none (78.9 -> 78.7) |
+| `vr_normalmaps 0`, `vr_normalmap_baked 0` | 0.9 |
+| `vr_specular 0`, `vr_deluxemap 0` | 0.9 |
+| `vr_bloom 0` | 1.4 |
+| `vr_specular 0.5` | 2.7 |
+| `vid_fsaa 0` | 1.8 |
+| no change: `r_dynamic 0`, `vr_shadow_dlights 0; vr_shadow_maplights 0`, `vr_ao_dynamic 0; vr_ao_brush 0`, `fog 0`, `vr_parallax 0`, `vr_relight_glows 0`, `vr_specular_aa 0`, `vr_ambient_light 0` | 2.1 |
+
+  So the baked light through a gate comes out a little brighter where the contrast (`vr_light_contrast` 2) takes lamps
+  above Quake's full light, its sheen from the deluxemaps (`vr_specular`) stronger, and bloom and the float scene's tone
+  curve show it (with `vr_tonemap 0` it is clipped away). Mostly on the walls near the lamps (the picture's top: up to
+  +17 there, nothing on the floor). Not the shimmer, the torches' or other dynamic lights, shadows, AO or fog. Its cause
+  in the gate view's draw (both use the same world shader and frame constants) is not found yet: next, read the gate
+  view's and the eye's float scenes over the same pixels (`vr_portals_shot` against `vr_eyeshot 2`).
