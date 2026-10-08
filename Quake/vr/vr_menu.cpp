@@ -2547,7 +2547,8 @@ void hologramTestMessage()
         header("Wrist Gadget"),
         toggle("Level and Stats", vr_gadget_show_level),
         toggle("Hide Gear When Dead", vr_dead_hide_gear)
-            .help("While you are dead the holstered guns, the ammo pouch and the wrist gadget are hidden and the HUD is "
+            .help("While you are dead the holstered guns, the ammo pouch, the grenade pouch and the wrist gadget are hidden "
+                  "(the flashlight is, always) and the HUD is "
                   "Quake's status bar on a hand; all back when you respawn or load a save."),
         toggle("Stamina and Counters", vr_gadget_stamina)
             .help("The STAMINA row shows your stamina (parries, shoves and blows spend it) and COUNTER while a counter-attack's window is open."),
@@ -4679,7 +4680,7 @@ za::Vector<Item> pageDebugReports()
         command("Ledges Ahead", "vr_climb_probe").help("vr_climb_probe: the ledges 16 to 64 units ahead of you, and why each holds or not."),
         command("Rocks and Bricks", "vr_debris_list").help("vr_debris_list: the rocks and bricks placed in this map."),
         command("Crates", "vr_crates_list").help("vr_crates_list: the crates in this map (health, resting), how many pieces lie about, and any two placed into each other."),
-        command("Gear (Hidden When Dead)", "vr_gear_status").help("vr_gear_status: what of the gear is drawn (holstered guns, holster sleeves, ammo pouch, wrist gadget) and whether the HUD is the status bar on a hand: dead, with Hide Gear When Dead, only the status bar."),
+        command("Gear (Hidden When Dead)", "vr_gear_status").help("vr_gear_status: what of the gear is drawn (holstered guns and their parts, holster sleeves, ammo pouch, grenade pouch, flashlight and cord, wrist gadget, body) and whether the HUD is the status bar on a hand: dead, with Hide Gear When Dead, only the status bar."),
         command("Hit Detection", "vr_hitmodel_stats").help("vr_hitmodel_stats: precise hit detection's tests so far (hits, shots through a box beside the model) and their cost."),
         command("Wounds", "vr_wounds_info").help("vr_wounds_info: the wound masks in use."),
         command("Bloody Hands and Washing", "vr_gore_hands_info")

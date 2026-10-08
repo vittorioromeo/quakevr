@@ -30463,6 +30463,13 @@ The author's notes vrfiringrange_2026-10-08_00-02-05 and 00-02-55, vrstart_2026-
   (Debug > Cheats and Recording > Die Now: armour, god mode and the Pentagram set aside, not gibbed). Alive 2 guns, 4
   sleeves, pouch 1, gadget 1, status bar 0; dead all 0 and status bar 1; after `restart` and after `load` as alive;
   dead with the setting off as alive.
+  Follow-up (the author: the belt flashlight and the back grenade pouch hide too): the grenade pouch (`setupPouch`) now
+  hides with the rest. The flashlight already did, whatever the setting (`flashlight::setupView`: not alive, no model,
+  no cord, no lens nor beam, its lights killed), so the "Not hidden" above was wrong. Worn and checked: the holstered
+  guns' parts (magazines, wells, open super shotguns, buttons: they follow the gun), the ammo pouch's grenades (follow
+  the pouch), the gadget's straps (follow the gadget), the body and its pauldrons (hidden dead as ever). `vr_gear_status`
+  prints them all; `Misc/quakevr/dead_gear_test.sh` (9 checks: alive with the torch in a hand, dead, respawned, dead
+  again, loaded, the setting off).
 - **The main menu**: a gap above Quit, as between its other groups (`M_Main_GroupStart`; `M_Main_Layout` counts the
   gaps).
 - **Dimension of the Past's lectern** started the campaign at once because the campaign has its own game folder and

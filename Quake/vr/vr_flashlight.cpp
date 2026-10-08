@@ -2510,6 +2510,11 @@ void drawOpaque()
     gfx::drawTube(d.batch, d.sides, cord.albedo(), glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}), cord.rust(), cord.flat());
 }
 
+bool cordDrawn()
+{
+    return cord.visible() && enabled();
+}
+
 // The lens lit, in the beam's colour: a disc over it, bright in the middle, added onto the scene (the skin's own
 // fullbright lens was one colour).
 void drawLens()

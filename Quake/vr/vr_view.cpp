@@ -3025,19 +3025,39 @@ void updateGripFrame(const hands::State& s, int hand)
 }
 
 // vr_gear_status: what of the gear the view drew last (a test of vr_dead_hide_gear: dead, all hidden but the status bar;
-// Debug > Reports > Gear).
+// Debug > Reports > Gear). The worn gear: the holstered guns (with their magazines, wells, open super shotguns' parts and
+// buttons), the holster sleeves, the ammo pouch and its grenades, the grenade pouch at the back, the flashlight and its
+// cord, the wrist gadget and its straps, the body and its pauldrons.
 void gearStatus_f()
 {
-    int guns = 0, sleeves = 0;
+    int guns = 0, sleeves = 0, gunParts = 0;
     for(int h = 0; h < HolsterCount; h++)
     {
         guns += entities.holster[h].visible ? 1 : 0;
         sleeves += entities.holsterSlot[h].visible ? 1 : 0;
+        for(const view::ViewEntity* e : {&entities.holsterMag[h], &entities.holsterWell[h], &entities.holsterSsgFrame[h],
+                &entities.holsterSsgBarrels[h], &entities.holsterButton[h], &entities.holsterFrontButton[h]})
+        {
+            gunParts += e->visible ? 1 : 0;
+        }
     }
-    Con_Printf("gear: health %d, hidden for death %d; holstered guns %d, holster sleeves %d, ammo pouch %d, wrist gadget %d "
-               "(drawn %d), status bar on a hand %d\n",
-        cl.stats[STAT_HEALTH], body::gearHiddenForDeath() ? 1 : 0, guns, sleeves, entities.ammoPouch.visible ? 1 : 0,
-        gadget::active() ? 1 : 0, entities.gadget.visible ? 1 : 0, panel::statusBarOnHand() ? 1 : 0);
+    int pouchGrenades = 0, straps = 0, pauldrons = 0;
+    for(const view::ViewEntity& e : entities.ammoPouchGrenade)
+    {
+        pouchGrenades += e.visible ? 1 : 0;
+    }
+    for(int side = 0; side < 2; side++)
+    {
+        straps += entities.gadgetStrap[side].visible ? 1 : 0;
+        pauldrons += (entities.pauldron[side].visible ? 1 : 0) + (entities.pauldronArm[side].visible ? 1 : 0);
+    }
+    Con_Printf("gear: health %d, hidden for death %d; holstered guns %d (their parts %d), holster sleeves %d, ammo pouch %d "
+               "(grenades %d), grenade pouch %d, flashlight %d (cord %d), wrist gadget %d (drawn %d, straps %d), body %d "
+               "(pauldrons %d), status bar on a hand %d\n",
+        cl.stats[STAT_HEALTH], body::gearHiddenForDeath() ? 1 : 0, guns, gunParts, sleeves, entities.ammoPouch.visible ? 1 : 0,
+        pouchGrenades, entities.pouch.visible ? 1 : 0, entities.flashlight.visible ? 1 : 0, flashlight::cordDrawn() ? 1 : 0,
+        gadget::active() ? 1 : 0, entities.gadget.visible ? 1 : 0, straps, entities.body.visible ? 1 : 0, pauldrons,
+        panel::statusBarOnHand() ? 1 : 0);
 }
 
 // vr_grip_frame: the hands' grip frames (grip::HandFrame), for the default hand's (vr_grip.cpp defaultFrame).
@@ -5283,7 +5303,9 @@ void setupHolsters(const hands::State& s, bool queueTexts)
 void setupPouch(const hands::State& s)
 {
     view::ViewEntity& ve = entities.pouch;
-    qmodel_t* const model = body::pouchEnabled() ? viewModel("progs/vrpouch.mdl") : nullptr;
+    // Dead: not drawn, as the holsters and the ammo pouch (body::gearHiddenForDeath).
+    qmodel_t* const model =
+        body::pouchEnabled() && !body::gearHiddenForDeath() ? viewModel("progs/vrpouch.mdl") : nullptr;
     if(!model)
     {
         ve.visible = false;

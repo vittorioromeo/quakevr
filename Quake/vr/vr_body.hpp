@@ -74,7 +74,8 @@ using HolsterPlates = za::Array<HolsterPlate, HolsterCount>;
 [[nodiscard]] float ammoPouchReach(); // world units (vr_ammo_pouch_thresh)
 
 // The gear hidden while the player is dead (vr_dead_hide_gear, on; the author's note vrfiringrange_2026-10-08_00-02-05):
-// the holsters and their guns, the ammo pouch and the wrist gadget; the HUD is then the status bar on a hand, as with HUD:
+// the holsters and their guns, the ammo pouch, the grenade pouch and the wrist gadget (the flashlight and its cord hide
+// while dead whatever this is: vr_flashlight.cpp setupView); the HUD is then the status bar on a hand, as with HUD:
 // Status Bar. All back on respawning or loading a save (health over 0 again).
 [[nodiscard]] bool gearHiddenForDeath();
 

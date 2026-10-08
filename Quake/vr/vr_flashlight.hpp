@@ -45,6 +45,9 @@ void setupView(const hands::State& s, view::ViewEntity& ve);
 // The cord (vr_flashlight_cord), in each eye's opaque scene (VR_DrawSceneOpaque): lit, depth-tested.
 void drawOpaque();
 
+// Whether the cord was drawn in the last frame (vr_gear_status; vr_flashlight_cord_info).
+[[nodiscard]] bool cordDrawn();
+
 // The visible beam, in each eye's scene after the translucent pass (VR_DrawSceneTranslucent):
 // depth-tested, added onto the scene.
 void drawTranslucent();

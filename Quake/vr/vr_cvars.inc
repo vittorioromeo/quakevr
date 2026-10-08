@@ -472,7 +472,7 @@ QVR_CVAR(vr_gunyaw, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_gun_z_offset, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_mode, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_hud_mode, "1", CVAR_ARCHIVE)              // 0 the status bar on a hand (vr_sbar_mode), 1 the wrist gadget
-QVR_CVAR(vr_dead_hide_gear, "1", CVAR_ARCHIVE)        // dead: the holstered guns, the ammo pouch and the wrist gadget hidden, the HUD the status bar on a hand (as vr_hud_mode 0), till you respawn or load a save (body::gearHiddenForDeath)
+QVR_CVAR(vr_dead_hide_gear, "1", CVAR_ARCHIVE)        // dead: the holstered guns, the ammo pouch, the grenade pouch and the wrist gadget hidden (the flashlight always is), the HUD the status bar on a hand (as vr_hud_mode 0), till you respawn or load a save (body::gearHiddenForDeath)
 QVR_CVAR(vr_gadget_arm, "0", CVAR_ARCHIVE)            // the wrist gadget's arm: 0 the left, 1 the right (hands::gadgetHand)
 QVR_CVAR(vr_gadget_scale, "1", CVAR_ARCHIVE)          // its size
 QVR_CVAR(vr_gadget_x, "0", CVAR_ARCHIVE)              // cm it moves along the forearm (towards the fingers on the left arm),
