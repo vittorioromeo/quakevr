@@ -153,13 +153,28 @@ bodies); `find(p, classname, "player")` after the first player (`VR_EnemyShove_T
   secret2's server phase 4.44 -> 3.39 ms (medians of 4; the fight differs run to run, so this one is noisy: the walks
   also evicted ~230 KB of cache each).
 
-### 10. The kill frame's spawns (still open)
+### 10. The kill frame's spawns (decided 2026-10-08: optimise, identical output; done)
 
 A death costs 0.15-0.2 ms on these maps (BENCHMARKS.md); in map2's kill-all frame the small gibs' spawns 2.1 ms,
 `WeaponInst_Find` 1.4 ms (a weapon instance's id: every record walked, by `find`), the caps' walks (done: one walk
-each). `ED_Alloc` walks from the clients up for a free edict on every spawn. An index of weapon instances by id, and a
-lowest-free hint for `ED_Alloc`, would be exact but touch save/load and every free; worth it only if real fights show
-death-frame hitches (a rocket into 10 monsters: ~2 ms). Not done.
+each). Vittorio's decision: optimise, with the output identical (the same entities, in the same order, the same
+`random()` calls). **Done:**
+- **Weapon ids without the walks** (vr_weaponinst.qc): ids are written only by `WeaponInst_Make` (from
+  `WeaponInst_FreeUid`), so a bound above every record's id (`qvr_weaponinst_idtop`, `nosave`: worked out by one walk
+  after a load or a map, then raised as ids are given) answers "is this id taken?" without walking for any id at or
+  past it, which is every new weapon's. The same ids as before: a check run beside the old search (temporary, not
+  kept) agreed on all 128 weapons of `mg3_map2_kill` and in a save, load and level change with weapons carried, held
+  and holstered; no `random()` or entity change. `mg3_map2_kill`'s kill frame (`profile_qc`, its 9 frames):
+  `WeaponInst_Find` 0.69 ms -> gone; the frame's QuakeC 22.7 -> 20.7 ms (one run each; the rest is run-to-run spread).
+- **The small gibs' and limbs' `dprint(sprintf(...))`** with `developer 0` (item 12, done there): 1.2 ms of that frame
+  was formatting text nobody printed (`VR_SmallGib_MakeRoom` 0.67, `VR_SmallGib_Roll` 0.42, `VR_Limb_MakeRoom` 0.12).
+- **`ED_Alloc` needs no hint:** Ironwail takes a free edict from the head of its free list (`qcvm->free_edicts`), not
+  by a walk from the clients up as this item first said; nothing to do.
+- **`vr_bench_statehash` cannot judge a QuakeC change:** string fields hold offsets into the progs' strings, so a
+  progs with one string more hashes differently from its first frame; and the kill frame differs run to run on one
+  build (QuakeC's `random()` shares `rand()` with the client). Equality checks run beside the old code are the test.
+- Left: `SUB_UseTargets` > `find` 0.46 ms of that frame (MG3's monsters' targets: `find` on .targetname walks every
+  edict, ~6 us each; an index of .targetname would be the edict index's classname work again).
 
 ### 11. The force grab's search every frame
 

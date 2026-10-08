@@ -18,6 +18,13 @@
 
 float qvr_weaponinst_next; // The next id to try (saved with the game; carried to the next level: parm49).
 
+// Every record's id is below this; 0: not known yet (a load or a new map: the progs' globals start again), and the first
+// search walks the records once for it. Ids are written only by WeaponInst_Make (WeaponInst_FreeUid's), so it only
+// grows; a freed record leaves it as it was (still above every id). A search for an id at or past it finds nothing
+// without walking the records (PERF_DECISIONS.md, 10: each weapon made walked every record twice; a crowd's deaths
+// dropping their guns walked them ~200 times in one frame).
+nosave float qvr_weaponinst_idtop;
+
 // The record with id `xUid`, else world.
 entity(float xUid) WeaponInst_Find =
 {
@@ -33,18 +40,40 @@ entity(float xUid) WeaponInst_Find =
     return world;
 };
 
+// Above every record's id (qvr_weaponinst_idtop, worked out once a level or a load).
+float() WeaponInst_IdTop =
+{
+    if(qvr_weaponinst_idtop <= 0)
+    {
+        float top = 1;
+        for(entity e = find(world, classname, "weapon_inst"); e; e = find(e, classname, "weapon_inst"))
+        {
+            top = max(top, e.wi_uid + 1);
+        }
+        qvr_weaponinst_idtop = top;
+    }
+    return qvr_weaponinst_idtop;
+};
+
+// Whether a record has id `xUid` (WeaponInst_Find's answer, without its walk past every id).
+float(float xUid) WeaponInst_Taken =
+{
+    return xUid < WeaponInst_IdTop() && WeaponInst_Find(xUid) != world;
+};
+
 // An id no record has: `xWant` if free (a weapon carried from the last level keeps its own), else the next free one.
 float(float xWant) WeaponInst_FreeUid =
 {
-    if(xWant < 1 || WeaponInst_Find(xWant))
+    if(xWant < 1 || WeaponInst_Taken(xWant))
     {
         xWant = max(1, qvr_weaponinst_next);
-        while(WeaponInst_Find(xWant))
+        while(WeaponInst_Taken(xWant))
         {
             xWant = xWant + 1;
         }
     }
     qvr_weaponinst_next = max(qvr_weaponinst_next, xWant + 1);
+    qvr_weaponinst_idtop = max(WeaponInst_IdTop(), xWant + 1);
     return xWant;
 };
 
