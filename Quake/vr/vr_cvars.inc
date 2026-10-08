@@ -2874,6 +2874,7 @@ QVR_CVAR(vr_stealth_noise_wall, "0.5", CVAR_ARCHIVE) // a noise's reach kept rou
 QVR_CVAR(vr_stealth_noise_solid, "0.15", CVAR_ARCHIVE) // and through solid walls (out of sight of the place)
 QVR_CVAR(vr_stealth_noise_absorb, "0.6", CVAR_ARCHIVE) // and past a prop (a crate) in the way
 QVR_CVAR(vr_stealth_gates, "1", CVAR_ARCHIVE)        // through paired slipgates: every monster sees you, noises are heard, and Alert ones walk through to look
+QVR_CVAR(vr_stealth_seethrough, "1", CVAR_ARCHIVE)  // fences, grates and see-through walls ('{' textures, alpha) let sight, light and sound through
 QVR_CVAR(vr_stealth_investigate, "1", CVAR_ARCHIVE)  // an Alert monster walks to what it heard or saw (0: it only turns and looks)
 QVR_CVAR(vr_stealth_turn, "0.6", CVAR_ARCHIVE)       // an Alert monster's turn speed (times its own)
 QVR_CVAR(vr_stealth_search_time, "5", CVAR_ARCHIVE)  // s an Alert monster searches the spot before it goes back to its post
@@ -2895,5 +2896,6 @@ QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed
 QVR_CVAR(vr_stealth_light_force, "-1", CVAR_NONE)    // tests: the players' light level as this (-1: measured)
 QVR_CVAR(vr_stealth_test, "0", CVAR_NONE)            // tests: vr_stealth.qc's numbered scenes (Debug > Tests > Stealth)
 QVR_CVAR(vr_stealth_test_count, "60", CVAR_NONE)     // tests: the horde scene's monsters (vr_stealth_test 103)
+QVR_CVAR(vr_stealth_test_fence, "", CVAR_NONE)      // tests: textures whose names start with one of these (space-separated) count as fences ('{' ones) for sight and sound
 QVR_CVAR(vr_stealth_test_kinds, "0", CVAR_NONE)      // tests: the kinds scene's one kind (vr_stealth_test 106; the dispenser's number; 0 all)
 QVR_CVAR(vr_stealth_test_quitclient, "0", CVAR_NONE) // tests: the coop scene (vr_stealth_test 102) tells the other player's game to quit at its end (stealth_mp_test.sh)

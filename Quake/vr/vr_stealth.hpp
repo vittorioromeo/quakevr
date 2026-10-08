@@ -33,6 +33,12 @@ void PF_flashlightbeam();
 // round a corner or through a doorway, as against through solid walls.
 void PF_pvsvisible();
 
+// float(vector a, vector b, float nomonsters, entity ignore) traceseethrough: traceline (its trace_* globals), but on
+// through what can be seen through: a fence or grate (an alpha-tested '{' texture) and an entity drawn see-through (its
+// alpha under 1: a glass func_wall); at most 8 of them in a line. Returns how many it went through. Sight, light and
+// sound pass them (the stealth AI's); shots and bodies don't (traceline's).
+void PF_traceseethrough();
+
 // void(float what) stealthprofile: 1 begins, 0 ends the QC stealth AI's work as the profiler's "stealth" scope (nested
 // calls: the outermost pair); -1 at a server frame's start forgets an unbalanced one.
 void PF_stealthprofile();

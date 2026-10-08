@@ -17,6 +17,18 @@ float() VR_Stealth_On =
     return cvar_hget(cvarh_vr_ai_enhanced) && !deathmatch;
 };
 
+// Sight's, light's and sound's line (vr_stealth_seethrough): traceline, on through fences, grates and see-through walls
+// ('{' textures, alpha under 1: traceseethrough). Quake's AI (vr_ai_enhanced 0) and the switch off: traceline.
+void(vector a, vector b, float nomonsters, entity ig) VR_Stealth_Line =
+{
+    if(cvar_hget(cvarh_vr_stealth_seethrough) && VR_Stealth_On())
+    {
+        traceseethrough(a, b, nomonsters, ig);
+        return;
+    }
+    traceline(a, b, nomonsters, ig);
+};
+
 void(entity m, string s) VR_Stealth_Log =
 {
     if(cvar_hget(cvarh_vr_stealth_debug))
@@ -410,7 +422,7 @@ void(entity m, float xHostile) VR_Stealth_Share =
         {
             continue;
         }
-        traceline(eye, e.origin + e.view_ofs, TRUE, m);
+        VR_Stealth_Line(eye, e.origin + e.view_ofs, TRUE, m);
         if(trace_fraction < 1)
         {
             continue;
@@ -721,7 +733,7 @@ void(entity m, entity p, vector eye) VR_Stealth_Beam =
     float d = vlen(to);
     if(d < b_y && d > 1 && normalize(to) * dir > b_z)
     {
-        traceline(lens, mid, TRUE, p);
+        VR_Stealth_Line(lens, mid, TRUE, p);
         if(trace_fraction >= 1 || trace_ent == m)
         {
             m.stl_lit = time + 0.5;
@@ -730,7 +742,7 @@ void(entity m, entity p, vector eye) VR_Stealth_Beam =
             return;
         }
     }
-    traceline(lens, lens + dir * b_y, FALSE, p);
+    VR_Stealth_Line(lens, lens + dir * b_y, FALSE, p);
     if(trace_fraction >= 1 || trace_ent == m)
     {
         return;
@@ -740,7 +752,7 @@ void(entity m, entity p, vector eye) VR_Stealth_Beam =
     {
         return;
     }
-    traceline(eye, spot, TRUE, m);
+    VR_Stealth_Line(eye, spot, TRUE, m);
     if(trace_fraction < 1)
     {
         return;
@@ -793,7 +805,7 @@ void(entity m, vector eye) VR_Stealth_LookAbout =
                 continue;
             }
             at = (e.absmin + e.absmax) * 0.5;
-            traceline(eye, at, TRUE, m);
+            VR_Stealth_Line(eye, at, TRUE, m);
             if(trace_fraction >= 1)
             {
                 VR_Stealth_Alert(m, at, STL_A_TORCH, 0.8, TRUE);
@@ -811,7 +823,7 @@ void(entity m, vector eye) VR_Stealth_LookAbout =
                 continue;
             }
             at = (e.absmin + e.absmax) * 0.5;
-            traceline(eye, at, TRUE, m);
+            VR_Stealth_Line(eye, at, TRUE, m);
             if(trace_fraction >= 1)
             {
                 if(!e.stl_found)
@@ -1169,12 +1181,15 @@ float(vector org, vector ear, entity m, entity src) VR_Stealth_NoiseLine =
     {
         f = cvar_hget(cvarh_vr_stealth_noise_wall);
     }
-    traceline(org, ear, TRUE, src);
+    // (a noise of the world's (a blast, the tests' knocks) traced ignoring the hearer: a trace ignoring world skips every
+    // entity world owns, every wall and prop)
+    entity ig = src != world ? src : m;
+    VR_Stealth_Line(org, ear, TRUE, ig);
     if(trace_fraction < 1)
     {
         return f * (pvsvisible(ear, org) ? cvar_hget(cvarh_vr_stealth_noise_wall) : cvar_hget(cvarh_vr_stealth_noise_solid));
     }
-    traceline(org, ear, FALSE, src);
+    VR_Stealth_Line(org, ear, FALSE, ig);
     if(trace_fraction < 1 && trace_ent != m && trace_ent != world && !(trace_ent.flags & (FL_MONSTER | FL_CLIENT)))
     {
         return f * cvar_hget(cvarh_vr_stealth_noise_absorb);

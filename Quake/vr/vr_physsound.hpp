@@ -56,4 +56,8 @@ void frameEnd();
 // palm's slap with a tap of what the hold is made of (the texture under it: wood, metal, stone).
 void grab(edict_t* player, const glm::vec3& at, edict_t* holdEnt);
 
+// The first surface of brush model `m` the segment from `start` to `end` (the model's own space) crosses where its
+// texture's extents hold the crossing; nullptr: none (the grab's walk, shared: the stealth AI's see-through trace).
+[[nodiscard]] const msurface_t* surfaceOnSegment(const qmodel_t* m, const glm::vec3& start, const glm::vec3& end);
+
 } // namespace qvr::physsound

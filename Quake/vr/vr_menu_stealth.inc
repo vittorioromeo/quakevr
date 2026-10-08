@@ -66,6 +66,10 @@
                   "through them (not only ranged ones), noises carry through them as through an opening, and an Alert "
                   "monster walks through to look (Monsters Walk Through on). Off: sight through them is ranged "
                   "monsters' only, and noises stay in their room."),
+        toggle("See-Through Walls", vr_stealth_seethrough)
+            .help("Grates, fences, webs and glass (see-through textures and walls): monsters see you through them, your "
+                  "flashlight's beam reaches them through them, and noises carry through as in the open. Off: they block "
+                  "sight and muffle sound as solid walls."),
         toggle("Deaf Ambushers", vr_stealth_ambush_deaf)
             .help("Monsters a map placed in ambush don't hear noises or other monsters (Quake's meaning of the flag); "
                   "they still see you."),

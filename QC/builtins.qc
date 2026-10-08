@@ -424,6 +424,9 @@ vector(entity player, float what) flashlightbeam = #0; // QVR: the player's flas
 float(entity player) clientlight = #0; // QVR: the light on that player as his own client measured it (as stealthlight); -1 unknown (vr_stealth.cpp)
 void(float what) stealthprofile = #0; // QVR: 1 begins, 0 ends the stealth AI's work as the profiler's "stealth" scope (vr_profile); -1 at a frame's start (vr_stealth.cpp)
 float(vector a, vector b) pvsvisible = #0; // QVR: whether b is in a's potentially visible set (a noise round a corner, not through solid walls)
+// QVR: traceline (its trace_* globals) on through what can be seen through: fences and grates ('{' alpha-tested
+// textures) and entities drawn see-through (alpha under 1); how many it went through (vr_stealth.cpp)
+float(vector v1, vector v2, float nomonsters, entity forent) traceseethrough = #0;
 float(float v) anglemod = #0; // v wrapped into [0, 360) (vr_builtins.cpp)
 
 // The melee history of a hand's blow `b` (vr_melee.qc VR_Blow: the ring of its last poses, VR_Melee_Track), looked back

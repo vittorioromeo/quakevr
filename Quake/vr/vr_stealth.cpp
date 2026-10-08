@@ -5,9 +5,11 @@
 
 #include "vr_stealth.hpp"
 
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_move.hpp"
+#include "vr_physsound.hpp"
 #include "vr_profile.h"
 #include "vr_progs.hpp"
 #include "vr_server.hpp"
@@ -76,6 +78,92 @@ ProfileScope profileScope;
         return -1;
     }
     return client;
+}
+
+// ---- The see-through trace (traceseethrough)
+
+// vr_stealth_test_fence: a texture named with one of its (space-separated) prefixes counts as a fence (the tests: the
+// kit's maps have no solid '{' brush).
+[[nodiscard]] bool testFence(const char* texture)
+{
+    const char* list = vr_stealth_test_fence.string;
+    while(list && *list)
+    {
+        while(*list == ' ')
+        {
+            list++;
+        }
+        size_t n = 0;
+        while(list[n] && list[n] != ' ')
+        {
+            n++;
+        }
+        if(n > 0 && q_strncasecmp(texture, list, n) == 0)
+        {
+            return true;
+        }
+        list += n;
+    }
+    return false;
+}
+
+// Where a trace that hit `hit` at `at` (going `dir`) comes out of it, when what it hit is see-through: a fence (an
+// alpha-tested '{' texture: a grate, a fence, a web) on its brush model (the world's for world), or the whole entity
+// drawn see-through (its alpha under 1: a glass func_wall). False: opaque, or no way out within 64 units.
+[[nodiscard]] bool passThrough(edict_t* hit, const glm::vec3& at, const glm::vec3& dir, glm::vec3& out)
+{
+    if(!hit)
+    {
+        return false;
+    }
+    const bool world = hit == qcvm->edicts;
+    const float alpha = world ? 0.f : progs::fieldFloatOr(hit, progs::fields().alpha, 0.f);
+    const int index = world ? 1 : static_cast<int>(hit->v.modelindex);
+    const qmodel_t* m = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const bool brush = m && m->type == mod_brush && m->nodes && m->surfaces;
+    const glm::vec3 origin = world ? glm::vec3{0.f} : glm::vec3{hit->v.origin[0], hit->v.origin[1], hit->v.origin[2]};
+    const glm::vec3 local = at - origin;
+    bool see = alpha > 0.f && alpha < 1.f;
+    if(!see && brush)
+    {
+        const msurface_t* surf = physsound::surfaceOnSegment(m, local - dir, local + dir * 2.f);
+        see = surf && ((surf->flags & SURF_DRAWFENCE) || testFence(m->textures[surf->texinfo->texnum]->name));
+    }
+    if(!see)
+    {
+        return false;
+    }
+    if(brush)
+    {
+        hull_t* hull = const_cast<hull_t*>(&m->hulls[0]);
+        for(float step = 1.f; step <= 64.f; step += 1.f)
+        {
+            const glm::vec3 p = local + dir * step;
+            vec3_t v{p.x, p.y, p.z};
+            if(SV_HullPointContents(hull, hull->firstclipnode, v) != CONTENTS_SOLID)
+            {
+                out = at + dir * (step + 0.25f);
+                return true;
+            }
+        }
+        return false;
+    }
+    // (a see-through model's box: out of its far side)
+    float exitAt = 1e9f;
+    for(int i = 0; i < 3; i++)
+    {
+        if(glm::abs(dir[i]) > 1e-6f)
+        {
+            const float face = dir[i] > 0.f ? hit->v.absmax[i] : hit->v.absmin[i];
+            exitAt = glm::min(exitAt, (face - at[i]) / dir[i]);
+        }
+    }
+    if(exitAt > 256.f || exitAt < 0.f)
+    {
+        return false;
+    }
+    out = at + dir * (exitAt + 0.25f);
+    return true;
 }
 
 } // namespace
@@ -171,6 +259,62 @@ void PF_pvsvisible()
     }
     const byte* pvs = Mod_LeafPVS(la, sv.worldmodel);
     G_FLOAT(OFS_RETURN) = (pvs[l >> 3] & (1 << (l & 7))) ? 1.f : 0.f;
+}
+
+void PF_traceseethrough()
+{
+    const float* a = G_VECTOR(OFS_PARM0);
+    const float* b = G_VECTOR(OFS_PARM1);
+    const int type = static_cast<int>(G_FLOAT(OFS_PARM2)) & ~MOVE_PORTALS;
+    edict_t* ignore = G_EDICT(OFS_PARM3);
+    const glm::vec3 from{a[0], a[1], a[2]}, to{b[0], b[1], b[2]};
+    const float length = glm::length(to - from);
+    const glm::vec3 dir = length > 0.f ? (to - from) / length : glm::vec3{0.f, 0.f, 1.f};
+    vec3_t start{a[0], a[1], a[2]}, end{b[0], b[1], b[2]};
+    trace_t tr = SV_Move(start, vec3_origin, vec3_origin, end, type, ignore);
+    bool inOpen = tr.inopen, inWater = tr.inwater;
+    int passed = 0;
+    // (at most 8 see-through things in a line: each one stepped out of, the trace on from there)
+    while(tr.fraction < 1.f && !tr.allsolid && !tr.startsolid && passed < 8)
+    {
+        glm::vec3 out;
+        if(!passThrough(tr.ent, glm::vec3{tr.endpos[0], tr.endpos[1], tr.endpos[2]}, dir, out))
+        {
+            break;
+        }
+        passed++;
+        if(glm::dot(out - from, dir) >= length)
+        {
+            tr.fraction = 1.f;
+            tr.ent = nullptr;
+            VectorCopy(end, tr.endpos);
+            break;
+        }
+        vec3_t next{out.x, out.y, out.z};
+        tr = SV_Move(next, vec3_origin, vec3_origin, end, type, ignore);
+        inOpen = inOpen || tr.inopen;
+        inWater = inWater || tr.inwater;
+    }
+    if(passed > 0 && tr.fraction < 1.f)
+    {
+        const glm::vec3 e{tr.endpos[0], tr.endpos[1], tr.endpos[2]};
+        tr.fraction = length > 0.f ? glm::clamp(glm::length(e - from) / length, 0.f, 1.f) : 0.f;
+        if(tr.fraction >= 1.f)
+        {
+            tr.fraction = 0.9999f;
+        }
+    }
+    pr_global_struct->trace_allsolid = tr.allsolid;
+    pr_global_struct->trace_startsolid = tr.startsolid;
+    pr_global_struct->trace_fraction = tr.fraction;
+    pr_global_struct->trace_inwater = inWater;
+    pr_global_struct->trace_inopen = inOpen;
+    VectorCopy(tr.endpos, pr_global_struct->trace_endpos);
+    VectorCopy(tr.plane.normal, pr_global_struct->trace_plane_normal);
+    pr_global_struct->trace_plane_dist = tr.plane.dist;
+    edict_t* const hitEnt = tr.ent ? tr.ent : qcvm->edicts;
+    pr_global_struct->trace_ent = EDICT_TO_PROG(hitEnt);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(passed);
 }
 
 void PF_stealthprofile()

@@ -9,7 +9,7 @@ returns 1 if the entity is visible to self's origin, even if not infront ()
 float (vector spot1, vector spot2) point_visible =
 {
     // see through other monsters
-    traceline(spot1, spot2, TRUE, self);
+    VR_Stealth_Line(spot1, spot2, TRUE, self); // QVR: and grates, fences, glass under the stealth rules (vr_stealth.qc)
 
     if(trace_inopen && trace_inwater)
     {

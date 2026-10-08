@@ -418,6 +418,15 @@ const msurface_t* surfaceAlong(const qmodel_t* m, const mnode_t* node, const glm
 namespace qvr::physsound
 {
 
+const msurface_t* surfaceOnSegment(const qmodel_t* m, const glm::vec3& start, const glm::vec3& end)
+{
+    if(!m || m->type != mod_brush || !m->nodes || !m->surfaces)
+    {
+        return nullptr;
+    }
+    return surfaceAlong(m, m->nodes + m->hulls[0].firstclipnode, start, end, 0);
+}
+
 Material materialOf(edict_t* ent, const qmodel_t* model)
 {
     if(!model)

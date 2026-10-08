@@ -2232,6 +2232,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"stealthlight", stealth::PF_stealthlight},
     {"flashlightbeam", stealth::PF_flashlightbeam},
     {"pvsvisible", stealth::PF_pvsvisible},
+    {"traceseethrough", stealth::PF_traceseethrough},
     {"clientlight", stealth::PF_clientlight},
     {"stealthprofile", stealth::PF_stealthprofile},
     {"meleerun", PF_meleerun},

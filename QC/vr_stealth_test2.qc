@@ -9,7 +9,8 @@
 //   106 every kind of monster the game has (vr_stealth_test_kinds; id1's, the expansions' when installed);
 //   107 infighting: a monster hit by another fights it, then is Idle again (the meter, not Quake's instant sight);
 //   108 lava or slime ahead of an investigating monster's walk: it stops short;
-//   110-113 through seamless slipgates (vr_stealth_test3.qc).
+//   110-113 through seamless slipgates (vr_stealth_test3.qc);
+//   120-129 the notes of 2026-10-08: see-through walls, the hunt, props in the way (vr_stealth_test4.qc).
 
 float stt2_step;
 float stt2_stage;
@@ -271,12 +272,18 @@ void(float xAsk) VR_STT2_Start =
 };
 
 void() VR_STT3_Frame; // (vr_stealth_test3.qc: 110-113, through slipgates)
+void() VR_STT4_Frame; // (vr_stealth_test4.qc: 120-129, the notes of 2026-10-08)
 
 void() VR_STT2_Frame =
 {
     if(stt2_step >= 110 && stt2_step < 120)
     {
         VR_STT3_Frame();
+        return;
+    }
+    if(stt2_step >= 120 && stt2_step < 130)
+    {
+        VR_STT4_Frame();
         return;
     }
     entity p = stt2_p;

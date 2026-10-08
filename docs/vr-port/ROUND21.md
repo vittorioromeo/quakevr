@@ -31916,3 +31916,18 @@ units, 4 degrees a unit, fading with its arcs; drawn only, its Box3D body follow
 
 Tests: `reload_test.sh` 12, `autopump_test.sh` 5, `gunshape_test.sh` 5, `pouchgren_test.sh` 6, new
 `empty_melee_test.sh` and `spentshake_test.sh`.
+## Stealth AI: the author's notes of 2026-10-08 (see-through walls, the meters shown, the hunt, dogs, props)
+
+His notes (map1_14-09-24, 14-10-31, 14-10-59, 14-12-27, vrslipgates_14-42-42); STEALTH_PLAN.md has the rules, Debug >
+Tests > Stealth AI the scenes (`vr_stealth_test 120`-`129`, QC `vr_stealth_test4.qc`; `Misc/quakevr/stealth_tests.sh`).
+
+- **See-through walls** (`vr_stealth_seethrough 1`, Combat > Stealth AI > See-Through Walls): grates, fences, webs and
+  glass let sight, light and sound through. New builtin `traceseethrough` (vr_stealth.cpp): traceline on through a face
+  with a `{` texture (`SURF_DRAWFENCE`; the face found by the physics sounds' surface walk, now shared:
+  `physsound::surfaceOnSegment`) or an entity whose `alpha` is under 1, out of its far side (its hull 0; a model's box).
+  The stealth AI's sight (point_visible), noise, beam, torch, body and alarm lines use it. Found on the way: a noise of
+  the world's (blasts) was traced ignoring world, which skips every entity world owns (doors, func_walls, crates): it
+  now ignores the hearer. Test 120 (`stealth_tests.sh seethrough`): 5 PASS (opaque: meter 0, not heard; alpha 0.5:
+  meter 0.86, heard; switch off: 0, not; fence textures: 0.86, heard; not: 0, not). No map the kit has carries a solid
+  `{` brush (warden's webs are illusionary), so the fence path is tested on a door model with its textures taken for
+  fences (`vr_stealth_test_fence`); the world's own fences go through the same code.

@@ -209,6 +209,18 @@ Paired gates (a gate that comes out of another gate's face, `vr_slipgate_pair_ex
   to the gate, through, and on to the noise.
 - One hop: a point two gates away is walked to through the first gate only.
 
+## See-through walls (`vr_stealth_seethrough 1`)
+
+Grates, fences, webs and glass let sight, light and sound through: the stealth AI's lines (visible()'s sight line,
+point_visible; a noise's way, VR_Stealth_NoiseLine; the flashlight's beam on a monster and its spot; another monster, a
+torch or a body in sight) are `traceseethrough` (engine, vr_stealth.cpp): traceline, but a hit on a face with a `{`
+(alpha-tested) texture, the world's or a brush entity's, or on an entity drawn see-through (`alpha` under 1: a glass
+func_wall) goes on from the far side of it (at most 8 in a line; out within 64 units). So a monster sees you through a
+grate (its meter as in the open), hears a knock or a shot through it at full reach (not the wall's 0.5) and your beam
+through it reaches it. Shots and bodies still stop at them (traceline). Off, or `vr_ai_enhanced 0`: traceline (Quake's).
+A noise of the world's (a blast, a test's knock) is now traced ignoring the hearer: a trace ignoring world skipped every
+entity world owns (every brush entity and prop: a door between, a crate in the way).
+
 ## Cvars (all CVAR_ARCHIVE, Combat > Stealth AI)
 
 `vr_ai_enhanced 1`, `vr_stealth_meter 1`, `vr_stealth_meter_time 1.5`, `vr_stealth_meter_decay 0.2`,
@@ -216,7 +228,7 @@ Paired gates (a gate that comes out of another gate's face, `vr_slipgate_pair_ex
 `vr_stealth_still 0.5`, `vr_stealth_sight_range 1500`, `vr_stealth_peripheral 0.3`, `vr_stealth_contact 1`,
 `vr_stealth_noise 1`, `vr_stealth_run_speed 250`, `vr_stealth_noise_run 400`, `vr_stealth_noise_props 1200`,
 `vr_stealth_noise_guns 1`, `vr_stealth_noise_melee 1`, `vr_stealth_noise_blasts 1`, `vr_stealth_noise_wall 0.5`, `vr_stealth_noise_solid 0.15`,
-`vr_stealth_noise_absorb 0.6`, `vr_stealth_gates 1`, `vr_stealth_investigate 1`, `vr_stealth_turn 0.6`, `vr_stealth_search_time 5`,
+`vr_stealth_noise_absorb 0.6`, `vr_stealth_gates 1`, `vr_stealth_seethrough 1`, `vr_stealth_investigate 1`, `vr_stealth_turn 0.6`, `vr_stealth_search_time 5`,
 `vr_stealth_sensitive 1.5`, `vr_stealth_sensitive_time 30`, `vr_stealth_share_near 256`, `vr_stealth_share_view 1000`,
 `vr_stealth_graze 64`, `vr_stealth_flashlight 1`, `vr_stealth_torch 400`, `vr_stealth_corpses 600`,
 `vr_stealth_sneak 1.25`, `vr_stealth_ambush_deaf 1`, `vr_stealth_senses 1`, `vr_stealth_lose 1`, `vr_stealth_gem 1`,
@@ -280,3 +292,7 @@ Further scenes (`vr_stealth_test 100`-`108`, `vr_stealth_test2.qc`: their own gr
   and comes back through to its post (2 crossings); a knock in U heard only through the gate, the same walk (not heard
   with `vr_stealth_gates 0`, nor at 0.85 of the way's length); a dog sees him through the gate and comes through (not
   with `vr_stealth_gates 0`); `vr_ai_enhanced 0`: the dog doesn't see him through it, the grunt does.
+- 120 see-through walls (`vr_stealth_test4.qc`, e1m1: `stealth_tests.sh seethrough`): a lit grunt 300 units off and an
+  e1m1 door model put between: opaque, it neither sees him nor hears a knock where he stands (1.15 times its distance);
+  alpha 0.5: both; `vr_stealth_seethrough 0`: neither; opaque but its textures taken for fences
+  (`vr_stealth_test_fence`: the kit's maps have no solid `{` brush): both; not: neither.

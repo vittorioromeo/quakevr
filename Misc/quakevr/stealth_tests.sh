@@ -1,5 +1,5 @@
 #!/bin/bash
-# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|horde|all] -- the stealth AI's further scenes
+# stealth_tests.sh <agent> [gun|blast|kinds|infight|saveload|liquid|gates|seethrough|horde|all] -- the stealth AI's further scenes
 # (QC vr_stealth_test2.qc; docs/vr-port/STEALTH_PLAN.md, "Tests"), headless on e1m1 (kinds: id1's, hipnotic's and rogue's
 # monsters: the kit's games mount both). Prints the `stealthtest:` lines; exits 1 on a FAIL. Coop: Misc/quakevr/multiplayer/stealth_mp_test.sh.
 #   gun      each weapon's real shot (the trigger pulled): heard at 0.8 of its reach, not at 1.2, not behind a wall
@@ -13,6 +13,8 @@
 #            through to where you stood and back (two crossings); a knock heard through it, the same (and not with
 #            vr_stealth_gates 0); a dog sees you through it and comes through (not with vr_stealth_gates 0); Quake's AI
 #            (vr_ai_enhanced 0): only the grunt sees you through
+#   seethrough a wall between you and a grunt (QC vr_stealth_test4.qc): opaque, it neither sees you nor hears a knock;
+#            alpha 0.5 or its textures fences ('{'): both; vr_stealth_seethrough 0: neither
 AGENT=${1:?agent}; WHICH=${2:-all}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 W=C:/OHWorkspace/qvr-agents/$AGENT
 mkdir -p "$W/scratch"
@@ -49,6 +51,10 @@ fi
 if [ "$WHICH" = gates ] || [ "$WHICH" = all ]; then
     run gates "developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrslipgates;wait60;god;setpos -1100 1408 24 0 180 0;wait5;noclip 0;vr_stealth_test 110;wait16000;toggleconsole;quit"
     grep -q "gates done" "$W/scratch/stealth_gates.log" || { echo "stealthtest: gates FAIL (never finished)"; fail=1; }
+fi
+if [ "$WHICH" = seethrough ] || [ "$WHICH" = all ]; then
+    run seethrough "$PRE;vr_stealth_test 120;wait2000;toggleconsole;quit"
+    grep -q "seethrough done" "$W/scratch/stealth_seethrough.log" || { echo "stealthtest: seethrough FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = horde ]; then
     run horde "$PRE;vr_stealth_test 103;wait90;vr_profile 1;wait900;vr_profile_report 8;vr_profile 0;wait1000;toggleconsole;quit" -RealTime
