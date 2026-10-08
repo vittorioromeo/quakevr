@@ -5680,9 +5680,13 @@ za::Vector<Item> pageDebugTests()
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"},
              {110.f, "Rocks and Bricks"}, {111.f, "Barrel"}, {112.f, "Barrel Lying"}, {113.f, "Silver Key"}})
-            .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed; Dawn "
+            .help("What Put It There puts ahead of you, facing you (or as Facing says). The mission packs' monsters need their game installed; Dawn "
                   "of the Machine's (its infected, which burst into zombies and fiends; its own monsters, the orb, the sacrifice: MG3's data, read in place)."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
+        cycle("Facing", vr_test_spawn_facing, {{0.f, "As Each Spawner"}, {1.f, "Towards You"}, {2.f, "Away"}, {3.f, "Its Own Angle"}})
+            .help("Which way monsters put ahead of you face: Put It There, impulse 244 (a grunt ahead) and vr_physics_spawn "
+                  "(Spawn a Crowd). As Each Spawner: the first two face you, vr_physics_spawn keeps the map's angle. Away: "
+                  "they look where you look (trailer shots from behind them)."),
         toggle("Into the Main Hand", vr_test_spawn_hold)
             .help("A box or a crate (Health Box .. Explosive Box, the crates) put into your empty main hand, as if gripped: "
                   "to test held props (the blood on what you hold: vr_gore_spatter_test, vr_gore_hands_info)."),

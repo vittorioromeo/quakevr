@@ -9126,7 +9126,7 @@ void forcegrabCheck_f()
 
 // vr_physics_spawn <classname> [<distance> [<left>]]: a map entity made by its spawn function (a key, a weapon, the
 // biosuit, a powerup...) on the floor `distance` units (48) ahead of the first player and `left` units to the left, as
-// the map would place it there. For tests.
+// the map would place it there, turned as vr_test_spawn_facing says. For tests.
 void spawn_f()
 {
     if(!sv.active || Cmd_Argc() < 2 || svs.maxclients < 1)
@@ -9151,6 +9151,12 @@ void spawn_f()
     for(int i = 0; i < 3; i++)
     {
         e->v.origin[i] = player->v.origin[i] + forward[i] * distance - right[i] * left;
+    }
+    // vr_test_spawn_facing 1: facing the player, 2: facing away (where the player faces); else the spawn's own (0),
+    // as before. Set before its spawn function (a monster's ideal_yaw is taken from it).
+    if(vr_test_spawn_facing.value == 1.f || vr_test_spawn_facing.value == 2.f)
+    {
+        e->v.angles[1] = anglemod(player->v.angles[1] + (vr_test_spawn_facing.value == 1.f ? 180.f : 0.f));
     }
     char* name = nullptr;
     const int s = PR_AllocString(static_cast<int>(strlen(Cmd_Argv(1))) + 1, &name);

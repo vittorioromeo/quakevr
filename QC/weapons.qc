@@ -4491,6 +4491,23 @@ void() VR_Test_CrateCoverReport =
 void() VR_WeaponInst_Test; // (vr_weaponinst_test.qc)
 void() VR_Reload_Test;     // (vr_reload_test.qc)
 
+// The yaw a test spawner's monster is given ahead of player `p` (vr_test_spawn_facing; Debug > Tests > Ahead of You:
+// Facing): 1 facing `p`, 2 facing away (trailer shots: it looks where you look), else -1 (0: the spawner's own way, as
+// before; 3: the spawn's own angle).
+float(entity p) VR_TestSpawn_FacingYaw =
+{
+    float f = cvar("vr_test_spawn_facing");
+    if(f == 1)
+    {
+        return anglemod(p.v_viewangle_y + 180);
+    }
+    if(f == 2)
+    {
+        return anglemod(p.v_viewangle_y);
+    }
+    return -1;
+};
+
 void() ImpulseCommands =
 {
     if(self.impulse == 120 && !deathmatch && !coop) // QVR test: the weapons moved, and what has which (vr_weaponinst_test.qc)
@@ -4706,7 +4723,15 @@ void() ImpulseCommands =
         self = spawn();
         self.classname = "monster_army";
         setorigin(self, gruntAt);
-        self.angles_y = player.v_angle_y + 180;
+        float gruntFacing = cvar("vr_test_spawn_facing");
+        if(gruntFacing == 1 || gruntFacing == 2)
+        {
+            self.angles_y = VR_TestSpawn_FacingYaw(player);
+        }
+        else if(gruntFacing != 3)
+        {
+            self.angles_y = player.v_angle_y + 180;
+        }
         monster_army();
         self = player;
     }
@@ -4975,13 +5000,26 @@ void() ImpulseCommands =
             entity dispenser = spawn();
             dispenser.weapon = spawnKind;
             setorigin(dispenser, spawnAt);
+            float spawnFacing = cvar("vr_test_spawn_facing");
+            float spawnFaceYaw = VR_TestSpawn_FacingYaw(spawnPlayer);
+            if(spawnFaceYaw >= 0)
+            {
+                dispenser.angles_y = spawnFaceYaw; // (before its spawn function: its ideal_yaw too)
+            }
             self = dispenser;
             activator = spawnPlayer;
             func_enemy_dispenser_use();
             if(self != dispenser)
             {
                 spawned = self;
-                spawned.angles_y = spawnPlayer.v_viewangle_y + 180;
+                if(spawnFaceYaw >= 0)
+                {
+                    spawned.angles_y = spawnFaceYaw;
+                }
+                else if(spawnFacing != 3)
+                {
+                    spawned.angles_y = spawnPlayer.v_viewangle_y + 180;
+                }
             }
             remove(dispenser);
         }
