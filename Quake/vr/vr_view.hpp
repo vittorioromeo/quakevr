@@ -194,6 +194,11 @@ struct DrawnWeapon
 };
 [[nodiscard]] const DrawnWeapon& drawnWeapon(int hand);
 
+// The jointed hand's index fingertip as `hand` was drawn last (its pose then: pointing, curled, holding), from its
+// tracked place (hands::State::pos) along its tracked turn's forward, right and up (units): the gadget's side button
+// (vr_gearlights.cpp). False without the jointed hand drawn in the last two frames.
+[[nodiscard]] bool drawnIndexTip(int hand, glm::vec3& local);
+
 // The weapon in `hand` drawn pressed back by the other, free hand pushed into it (vr_hand_collide: each drawn moved back
 // by half how deep they meet, as a prop in that hand and the weapon do), last frame's: the model collision moves the
 // weapon hand by it (vr_modelcollide.cpp, with held::drawnPush).

@@ -2633,14 +2633,37 @@ void hologramTestMessage()
             .help("Moved along the screen's height (negative: further out past its lower edge)."),
         slider("Button Out", vr_gadget_button_z, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
             .help("Moved out of the screen's face (negative: down towards your arm)."),
+        slider("Button Tilt Out", vr_gadget_button_pitch, -90.f, 90.f, 5.f, "%.0f deg")
+            .help("The side the button is pressed from (the faint disc: no press from behind it) tilted out of the "
+                  "screen's face (negative: towards your arm)."),
+        slider("Button Tilt Across", vr_gadget_button_yaw, -90.f, 90.f, 5.f, "%.0f deg")
+            .help("... and along the screen's width (positive: to its right)."),
+        toggle("Drawn Fingertip", vr_gadget_fingertip_drawn)
+            .help("On: the fingertip that presses the button is your drawn hand's index fingertip, as the hand is posed "
+                  "(point with it). Off: Fingertip Reach ahead of your hand's point."),
         slider("Fingertip Reach", vr_gadget_button_reach, -5.f, 15.f, 0.5f, "%.1f cm").extend(-20.f, 30.f)
-            .help("Where your fingertip is taken to be, ahead of your hand's point."),
+            .help("With Drawn Fingertip off (or no jointed hand): where your fingertip is taken to be, ahead of your "
+                  "hand's point."),
+        slider("Fingertip Forward", vr_gadget_fingertip_x, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
+            .help("The fingertip moved along your hand's forward (negative: back). Show the Button shows it: the drawn "
+                  "fingertip white, joined to the one that presses."),
+        slider("Fingertip Outward", vr_gadget_fingertip_y, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
+            .help("... away from your other hand (the right hand's right; negative: towards it)."),
+        slider("Fingertip Up", vr_gadget_fingertip_z, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
+            .help("... and up from the back of your hand (negative: down)."),
+        slider("Fingertip Pitch", vr_gadget_fingertip_pitch, -45.f, 45.f, 1.f, "%.0f deg").extend(-180.f, 180.f)
+            .help("The fingertip turned round your hand's point: down (negative: up), before the moves above."),
+        slider("Fingertip Yaw", vr_gadget_fingertip_yaw, -45.f, 45.f, 1.f, "%.0f deg").extend(-180.f, 180.f)
+            .help("... inward, towards your other hand (negative: outward)."),
+        slider("Fingertip Roll", vr_gadget_fingertip_roll, -45.f, 45.f, 1.f, "%.0f deg").extend(-180.f, 180.f)
+            .help("... rolled about your hand's forward (positive: its top outward)."),
         slider("Button Cooldown", vr_gadget_button_cooldown, 0.f, 2.f, 0.1f, "%.1f s").extend(0.f, 5.f)
             .help("After a press counts, how long before the next one does (no double toggles from a bounce)."),
         cycle("Show the Button", vr_debug_gadget_button, {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}})
             .help("Draws the button's hit volume (green ready, yellow pressed, red cooling down; the faint disc: no "
-                  "press from behind it) and your fingertip; And the Screen Tap: also bullet time's tap zone over the "
-                  "screen. Presses are printed."),
+                  "press from behind it, the short line the side it is pressed from) and your fingertip (the drawn "
+                  "index fingertip white, joined to the tuned one that presses); And the Screen Tap: also bullet time's "
+                  "tap zone over the screen. Presses are printed."),
         slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("Scanlines, a slight flicker, faint static and now and then a glitch (0 off)."),
         slider("Screen Glow", vr_screen_glow, 0.f, 3.f, 0.1f, "%.1fx").extend()
@@ -4342,8 +4365,9 @@ za::Vector<Item> pageDebugViews()
             .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
         cycle("Show Gadget Button", vr_debug_gadget_button, {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}})
             .help("vr_debug_gadget_button: the wrist gadget's side button's hit volume (green ready, yellow pressed, red "
-                  "cooling down) and your fingertip, its presses printed; And the Screen Tap: also bullet time's tap "
-                  "zone over the screen."),
+                  "cooling down) and your fingertip (the drawn index fingertip white, joined to the tuned one that "
+                  "presses), its presses printed; And the Screen Tap: also bullet time's tap zone over the screen. The "
+                  "settings: HUD and Menus > Wrist Gadget."),
         command("Gear Lights Info", "vr_gear_lights_info")
             .help("vr_gear_lights_info: the gear lights' state, the side button's place and your fingertip's distance to "
                   "it, and the stealth AI's light on you now."),

@@ -10,6 +10,7 @@
 #include "vr_main.hpp"
 #include "vr_stealth.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -49,9 +50,37 @@ State state;
     return state.level < 0.f ? target() : state.level;
 }
 
-[[nodiscard]] glm::vec3 fingertip(const hands::State& s, int hand)
+// `v` (forward, outward, up) turned by vr_gadget_fingertip_pitch, _yaw and _roll: rolled (its top outward), pitched
+// (down), then yawed (inward).
+[[nodiscard]] glm::vec3 turnTip(glm::vec3 v)
 {
-    return s.pos[hand] + hands::forward(s.rot[hand]) * (vr_gadget_button_reach.value * 0.01f * units::metresToUnits());
+    const float r = glm::radians(vr_gadget_fingertip_roll.value), p = glm::radians(vr_gadget_fingertip_pitch.value),
+                y = glm::radians(vr_gadget_fingertip_yaw.value);
+    v = {v.x, v.y * za::cos(r) + v.z * za::sin(r), -v.y * za::sin(r) + v.z * za::cos(r)};
+    v = {v.x * za::cos(p) + v.z * za::sin(p), v.y, -v.x * za::sin(p) + v.z * za::cos(p)};
+    return {v.x * za::cos(y) + v.y * za::sin(y), -v.x * za::sin(y) + v.y * za::cos(y), v.z};
+}
+
+// The fingertip of `hand` that presses the button: the drawn hand's index fingertip (vr_gadget_fingertip_drawn; else
+// vr_gadget_button_reach ahead of the hand's place), turned round the hand's place and moved (vr_gadget_fingertip_*:
+// forward, outward, up; outward the right hand's right, the left hand's left). `drawn`: where it is before that tuning.
+[[nodiscard]] glm::vec3 fingertip(const hands::State& s, int hand, glm::vec3* drawn = nullptr)
+{
+    const float cm = 0.01f * units::metresToUnits();
+    const float out = hand == HAND_OFF ? -1.f : 1.f; // (the off hand is drawn mirrored: the left)
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.rot[hand], fwd, right, up);
+    glm::vec3 local{vr_gadget_button_reach.value * cm, 0.f, 0.f}; // forward, outward, up
+    if(glm::vec3 tip; vr_gadget_fingertip_drawn.value != 0.f && view::drawnIndexTip(hand, tip))
+    {
+        local = {tip.x, tip.y * out, tip.z};
+    }
+    const auto world = [&](const glm::vec3& v) { return s.pos[hand] + fwd * v.x + right * (v.y * out) + up * v.z; };
+    if(drawn)
+    {
+        *drawn = world(local);
+    }
+    return world(turnTip(local) + glm::vec3{vr_gadget_fingertip_x.value, vr_gadget_fingertip_y.value, vr_gadget_fingertip_z.value} * cm);
 }
 
 void buzz(int hand, float amplitude)
@@ -137,8 +166,16 @@ void info_f()
             radius / m2u * 100.f, state.pressing ? "pressed" : "up");
         if(s.valid)
         {
-            Con_Printf("gadget button: the other hand's fingertip %.1f cm from it\n",
-                glm::length(fingertip(s, 1 - hands::gadgetHand()) - at) / m2u * 100.f);
+            const int presser = 1 - hands::gadgetHand();
+            glm::vec3 local, fwd, right, up;
+            const bool drawn = vr_gadget_fingertip_drawn.value != 0.f && view::drawnIndexTip(presser, local);
+            const glm::vec3 tip = fingertip(s, presser);
+            hands::angleVectors(s.rot[presser], fwd, right, up);
+            const glm::vec3 d = (tip - s.pos[presser]) / m2u * 100.f;
+            Con_Printf("gadget button: the other hand's fingertip %.1f cm from it (%s; %.1f %.1f %.1f cm forward, right, "
+                       "up of the hand's point)\n",
+                glm::length(tip - at) / m2u * 100.f, drawn ? "the drawn index fingertip" : "the reach ahead",
+                glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up));
         }
     }
     if(s.valid)
@@ -230,7 +267,10 @@ bool button(glm::vec3& at, glm::vec3& out, float& radius)
     const float cm = 0.01f * units::metresToUnits();
     at = gp.origin + gp.axes * (buttonLocal * gp.scale) +
          gp.axes * glm::vec3{vr_gadget_button_x.value, vr_gadget_button_y.value, vr_gadget_button_z.value} * cm;
-    out = -gp.axes[1];
+    // Its face: down the screen's up, tilted out of the screen (vr_gadget_button_pitch) and along its width (_yaw).
+    const float p = glm::radians(vr_gadget_button_pitch.value), y = glm::radians(vr_gadget_button_yaw.value);
+    const glm::vec3 tilted = -gp.axes[1] * za::cos(p) + gp.axes[2] * za::sin(p);
+    out = glm::normalize(tilted * za::cos(y) + gp.axes[0] * za::sin(y));
     radius = za::max(0.3f, vr_gadget_button_size.value) * cm;
     return true;
 }
@@ -261,16 +301,33 @@ void debugDraw()
     const glm::vec4 colour = cooling ? glm::vec4{1.f, 0.2f, 0.15f, 0.9f}
                              : state.pressing ? glm::vec4{1.f, 0.9f, 0.1f, 0.9f}
                                               : glm::vec4{0.2f, 1.f, 0.3f, 0.9f};
-    const glm::vec3 x = gp.axes[0], y = gp.axes[1], z = gp.axes[2];
+    // The volume's frame: its face's way (out, tilted: vr_gadget_button_pitch, _yaw) and two square to it.
+    const glm::vec3 y = -out;
+    glm::vec3 x = gp.axes[0] - y * glm::dot(gp.axes[0], y);
+    x = glm::length(x) > 1e-4f ? glm::normalize(x) : gp.axes[2];
+    const glm::vec3 z = glm::cross(x, y);
     ring(at, x, y, radius, colour);
     ring(at, x, z, radius, colour);
     ring(at, y, z, radius, colour);
     // The cut: a fingertip behind this disc (towards the screen) doesn't press.
     const float back = cutBehind * radius;
     ring(at - out * back, x, z, za::sqrt(za::max(0.f, radius * radius - back * back)), colour * glm::vec4{1.f, 1.f, 1.f, 0.5f});
-    if(const hands::State& s = hands::current(); s.valid)
+    // The face's way: a short line out of the middle.
+    lines::line(at, at + out * radius * 1.5f, 0.05f, colour, colour * glm::vec4{1.f, 1.f, 1.f, 0.f});
+    const hands::State& s = hands::current();
+    const int presser = 1 - hands::gadgetHand();
+    if(s.valid)
     {
-        lines::point(fingertip(s, 1 - hands::gadgetHand()), 0.3f, colour);
+        // The fingertip that presses (the colour's), and the drawn index fingertip before its tuning (white) joined to it.
+        glm::vec3 drawn;
+        const glm::vec3 tip = fingertip(s, presser, &drawn);
+        const glm::vec4 white{1.f, 1.f, 1.f, 0.9f};
+        lines::point(tip, 0.35f, colour);
+        if(glm::distance(tip, drawn) > 0.05f)
+        {
+            lines::point(drawn, 0.2f, white);
+            lines::line(drawn, tip, 0.04f, white, colour);
+        }
     }
 
     // With 2, the screen tap's zone: its rectangle (with vr_bullettime_tap_margin) on the face and

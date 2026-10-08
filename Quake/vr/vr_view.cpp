@@ -3093,6 +3093,31 @@ void gripFrame_f()
 
 FILE* graspTrace = nullptr; // vr_debug_grasp_trace's file (setupRigHand)
 
+// Each drawn hand's index fingertip (view::drawnIndexTip: the gadget's side button), from its tracked place along its
+// tracked turn's forward, right and up (units), and the frame it was drawn (host_framecount; -1 never).
+struct IndexTip
+{
+    glm::vec3 local{0.f};
+    int frame{-1};
+};
+IndexTip indexTips[2];
+
+void noteIndexTip(int hand, const RigHand& rh)
+{
+    const hands::State& s = hands::current();
+    if(!rh.drawn || !s.valid)
+    {
+        return;
+    }
+    glm::vec3 p[4];
+    grasp::fingerPoints(rh.pose, handrig::Index, rh.pose.curl[handrig::Index], p);
+    const glm::vec3 tip{rh.rigToWorld * glm::vec4{drawnInRig(rh, p[3]), 1.f}};
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(s.rot[hand], fwd, right, up);
+    const glm::vec3 d = tip - s.pos[hand];
+    indexTips[hand] = {{glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)}, host_framecount};
+}
+
 bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
     const glm::mat4& motion)
 {
@@ -3402,6 +3427,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         entities.hand[hand][finger].visible = false;
     }
     rh.drawn = ve.visible;
+    noteIndexTip(hand, rh);
     return true;
 }
 
@@ -8403,6 +8429,21 @@ bool hotspotAt(int hand, const glm::vec3& p, glm::vec3& out)
 const DrawnWeapon& drawnWeapon(int hand)
 {
     return drawnWeapons[hand == 0 ? 0 : 1];
+}
+
+bool drawnIndexTip(int hand, glm::vec3& local)
+{
+    if(hand != 0 && hand != 1)
+    {
+        return false;
+    }
+    const IndexTip& t = indexTips[hand];
+    if(t.frame < 0 || host_framecount - t.frame > 2 || !rigHands[hand].drawn)
+    {
+        return false;
+    }
+    local = t.local;
+    return true;
 }
 
 glm::vec3 handPress(int hand)
