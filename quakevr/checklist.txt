@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Grenades back to Quake's models (grenade/multi/prox) for ammo AND projectile at 0.78 (Launchers > Grenade Size); grenade loads by its flat end, multi by its bottom, prox any way; check grips (the prox is big in the palm), the three pouch views; rocket in flight 0.65 (Rocket Size in Flight) - right size? (also scales ogre grenades/enemy rockets); SNG receiver turned 180, flush
 Bullet-time flicks: flick things up/forward in bullet time, gentle and hard, hand still or moving a little: each lands about where it does at full speed (the arm now tells the tempo; Throwing > Slow Motion: Wrist Flick Below 0.4); overhand throws/lobs as before. Slaps: light swish on every slap, hit or miss; slow waving silent
 MG3 route sweep passes headless (all 22 maps, every exit, both endings, Bloody Nightmare, save/load/death at each hop); both endings now show their texts (language gate fixed). MG3 stays gated until your VR QA (M3-30 list in MG3_PLAN.md)
 Backlog: kick/push a zombie or shambler corpse (or any corpse with ragdolls off) into a vrslipgates gate: it goes through; vrexample grunt dispenser spawns the grunt facing west
