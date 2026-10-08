@@ -31805,3 +31805,26 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
   of at the right hip holster, the ammo pouch and the chest: armour 5 each; let go of in front: dropped, armour 0;
   walked through (the row, stick forward): armour 0. `vr_mg3_test 9` (map1): 5 passed, among them "a shard is an armour
   object" (force-grabbable, wearable, the object's hand touch) and 27 shards adding 5 each.
+- **The author's tweaks are the defaults** (vrfiringrange_14-16-19, "I tweaked quite a few settings and hotspots"; his
+  config of 15:40 against a `resetall; writeconfig` dump of the shipped defaults). Config version 104
+  (`vr_cvars.cpp` defaultChanges: a config still holding the old default takes the new one):
+  `vr_enemygun_spent_crackle` 1 (was 2.5), `vr_enemygun_spent_volume` 0.5 (0.25), `vr_snd_pitch_jitter` 10 (4),
+  `vr_ssg_fire_anim_speed` 1.75 (1.4: the super shotgun's firing animation 0.34 s), `vr_stealth_corpses` 700 (600),
+  `vr_stealth_meter_time` 1 (1.5), `vr_stealth_run_speed` 280 (250), `vr_stealth_torch` 500 (400),
+  `vr_slipgate_surface_opacity` 0.5 (0.3, vr_defaults.cfg), `vr_reload_port_shot_radius` 1.6 (1.5). Weapon settings
+  version 38: the Super Axe (slot 24, `vr_wofs_*_25`; its glowing twin inherits it) Offset Z -3.92 (0.046) and its
+  first hotspot at 0.238 -1.952 -1.670, turned 4.40 / 3.50 / 2.74 (1.217 -2.025 1.354, 0 0 0). Held object settings
+  version 68: the grenade (slot 4, progs/grenade.mdl) Grip X -0.3, Grip Y -1.1 (0, 0), Overlap 0.2 cm (0.75). Each where
+  the config still holds the old value. Left as they are: bookkeeping (`vr_cfg_version`, `vr_wofs_version`,
+  `vr_props_version`, `vr_bindings_version`, `vr_xr_runtime`, `vr_tutorial_started`), his body (`vr_height_calibration`,
+  `vr_bodycal_*`, `vr_body_elbow_back/hand/lift`), the motion recorder's (`vr_motion_*`), the menus (`vr_menu_positions`,
+  `_level`, `_scale`, `_distance`), the desktop window and engine screen (`vr_window_view`, `vr_spectator_fov`,
+  `vr_mirror_hide_hud_text`, `fov`, `contrast`, `gamma`, `sensitivity`, `scr_*scale`, `scr_centerprintbg`,
+  `scr_menubgstyle`, `vid_*`), performance (`vr_foveated` 2), comfort (`vr_comfort_vignette_strength` 0.5), the stick's
+  dead zone (`vr_deadzone` 10: his controllers'; 25 is safer for worn sticks), Ironwail's `sv_gameplayfix_random` 0,
+  slider noise (`vr_ammo_pouch_scale` 0.999, `_x` 3.021975, `vr_melee_phase_speed` 3.996, `_time` 0.34965,
+  `vr_relight_strength` 1.1988), props slots 33 and 57-63 given ids (crowbar, sword, nailguns, shotgun, lightning gun,
+  axe) with every other key at its default (a slot taken when he held them: nothing to ship), and three settings this
+  build doesn't have (`vr_throw_slowmo_long_travel` 0.2, `_short_travel` 0.15, `_real_strength` 0: another branch's).
+  Tests: his config with these at their old defaults, and the kit's baseline (config 34), each come out at the new
+  values after a map loads (config 104, weapons 38, props 68); stealth_tests.sh all: 50 PASS, 0 FAIL.

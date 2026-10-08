@@ -485,8 +485,20 @@ const DefaultChange defaultChanges[] = {
     {102, &vr_melee_phase, "0"}, // 1
     {102, &vr_melee_phase_speed, "2.25"}, // 4 (his 3.996: slider noise)
     {102, &vr_melee_phase_time, "0.15"}, // 0.35 (his 0.34965)
+    // 104: the author's settings of 2026-10-08 (his note vrfiringrange_2026-10-08_14-16-19: "I tweaked quite a few
+    // settings and hotspots, please make them the new defaults"; ROUND21.md, "Out of the water by hand; ...").
+    {104, &vr_enemygun_spent_crackle, "2.5"}, // 1
+    {104, &vr_enemygun_spent_volume, "0.25"}, // 0.5
+    {104, &vr_snd_pitch_jitter, "4"}, // 10
+    {104, &vr_ssg_fire_anim_speed, "1.4"}, // 1.75
+    {104, &vr_stealth_corpses, "600"}, // 700
+    {104, &vr_stealth_meter_time, "1.5"}, // 1
+    {104, &vr_stealth_run_speed, "250"}, // 280
+    {104, &vr_stealth_torch, "400"}, // 500
+    {104, &vr_slipgate_surface_opacity, "0.3"}, // 0.5 (vr_defaults.cfg)
+    {104, &vr_reload_port_shot_radius, "1.5"}, // 1.6
 };
-constexpr int configVersion = 103;
+constexpr int configVersion = 104;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -306,7 +306,7 @@ QVR_CVAR(vr_snd_falloff, "0.75", CVAR_ARCHIVE)        // Quake's distance fallof
 QVR_CVAR(vr_snd_reverb, "0.5", CVAR_ARCHIVE)          // the room's reverb, simulated from the map where the head is: wet mix (0 off)
 QVR_CVAR(vr_snd_reverb_quality, "1", CVAR_ARCHIVE)    // 0 parametric (cheapest), 1 convolution (2 s of the simulated response), 2 convolution (3 s, more rays)
 QVR_CVAR(vr_snd_reverb_interval, "0.25", CVAR_ARCHIVE) // s between the room's simulations (a pool task)
-QVR_CVAR(vr_snd_pitch_jitter, "4", CVAR_ARCHIVE)     // percent: the most frequent sounds (blows, swings, squishes, knocks, casings, footsteps) each played up to this much higher or lower at random (0 off)
+QVR_CVAR(vr_snd_pitch_jitter, "10", CVAR_ARCHIVE)     // percent: the most frequent sounds (blows, swings, squishes, knocks, casings, footsteps) each played up to this much higher or lower at random (0 off)
 QVR_CVAR(vr_snd_hit_layer, "1", CVAR_ARCHIVE)        // the volume of a blunt blow's second layer, of what it hit (flesh, armour, wood, a wall; QC vr_crates.qc VR_Blunt_HitLayer; 0 none)
 QVR_CVAR(vr_snd_hands, "1", CVAR_ARCHIVE)             // your weapons' and hands' sounds (QC CHAN_HAND: a parry, a reload, a holster) from the hand, not the middle of the head
 QVR_CVAR(vr_snd_follow, "1", CVAR_ARCHIVE)            // sounds follow their thing as it moves (a rocket, a monster, a door)
@@ -1796,8 +1796,8 @@ QVR_CVAR(vr_enfrifle_damage, "15", CVAR_ARCHIVE)     // an enforcer's laser rifl
 QVR_CVAR(vr_enfrifle_speed, "1800", CVAR_ARCHIVE)    // an enforcer's dropped laser rifle: its lasers' speed, units a second (the enforcer's own: 600)
 QVR_CVAR(vr_enfrifle_ammo, "20", CVAR_ARCHIVE)       // the shots an enforcer's dropped rifle holds (its own: never refilled)
 QVR_CVAR(vr_enemygun_spent_smoke, "5", CVAR_ARCHIVE)     // seconds a grunt's burst rifle or an enforcer's laser rifle smokes once its last round is fired (held or dropped; 0: never; QC vr_enemyguns.qc)
-QVR_CVAR(vr_enemygun_spent_crackle, "2.5", CVAR_ARCHIVE) // seconds it crackles all over with lightning's lasting arcs then, as a struck corpse (0: never)
-QVR_CVAR(vr_enemygun_spent_volume, "0.25", CVAR_ARCHIVE) // the volume of the corpses' crackle (misc/power.wav) as it starts (0: silent)
+QVR_CVAR(vr_enemygun_spent_crackle, "1", CVAR_ARCHIVE) // seconds it crackles all over with lightning's lasting arcs then, as a struck corpse (0: never)
+QVR_CVAR(vr_enemygun_spent_volume, "0.5", CVAR_ARCHIVE) // the volume of the corpses' crackle (misc/power.wav) as it starts (0: silent)
 QVR_CVAR(vr_debug_chainsaw, "0", CVAR_NONE)           // 1: print the chainsaws' pulls, starts, stalls and cuts; 2: also draw the cord's reach
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
 QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0 let go of it at a holster, 1 the trigger, 2 either
@@ -2550,7 +2550,7 @@ QVR_CVAR(vr_reload_battery_smoke_alpha, "0.45", CVAR_ARCHIVE) // each wisp's opa
 QVR_CVAR(vr_reload_insert_time, "0.13", CVAR_ARCHIVE) // seconds a shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it (vr_collectfx.cpp; 0: gone at once). Loaded at once all the same
 QVR_CVAR(vr_reload_ssg_break, "1", CVAR_ARCHIVE)       // with Immersive: its spent shells stay in; broken open (the ways below) it throws them out and loads by hand (0: the flick reloads it as before)
 QVR_CVAR(vr_reload_ssg_open_angle, "45", CVAR_ARCHIVE) // degrees its barrels drop about the hinge, open (looks only; the load point goes with them)
-QVR_CVAR(vr_ssg_fire_anim_speed, "1.4", CVAR_ARCHIVE) // the super shotgun's firing animation speed (1: id's 0.6 s; 1.4: 0.43 s): it breaks open only once it is over (QC player.qc player_shot_pace)
+QVR_CVAR(vr_ssg_fire_anim_speed, "1.75", CVAR_ARCHIVE) // the super shotgun's firing animation speed (1: id's 0.6 s; 1.75: 0.34 s): it breaks open only once it is over (QC player.qc player_shot_pace)
 // How it opens (each its own switch; opening throws every shell out, spent and live) and closes.
 QVR_CVAR(vr_reload_ssg_open_flick, "0", CVAR_ARCHIVE)  // open by the flick (the old flick reload's gesture)
 QVR_CVAR(vr_reload_ssg_pry, "1", CVAR_ARCHIVE)         // open by the pry: both hands on it (the two-handed hold), the front one pushing the barrels down against the back one
@@ -2593,7 +2593,7 @@ QVR_CVAR(vr_reload_port_sshot_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_z, "0", CVAR_ARCHIVE)
 // Each gun's load point's radius (world units): a shell's middle, or a magazine's reference point within it plus the
 // magazine's own radius, goes in (the author: per gun, the wells small).
-QVR_CVAR(vr_reload_port_shot_radius, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_shot_radius, "1.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_nail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_snail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_radius, "1.5", CVAR_ARCHIVE)
@@ -2829,7 +2829,7 @@ QVR_CVAR(vr_shot_hide, "0", CVAR_NONE) // hidden for a clean shot (vr_view.cpp):
 // Combat > Stealth AI (QC vr_stealth.qc; docs/vr-port/STEALTH_PLAN.md): monsters Idle, Alert (investigating) or Hostile.
 QVR_CVAR(vr_ai_enhanced, "1", CVAR_ARCHIVE)          // every rule below at once (the umbrella: 0 is Quake's monster AI, at once, mid-map too)
 QVR_CVAR(vr_stealth_meter, "1", CVAR_ARCHIVE)        // sight is a suspicion meter (light, distance, facing, movement, crouching): 0 Quake's instant sight
-QVR_CVAR(vr_stealth_meter_time, "1.5", CVAR_ARCHIVE) // s the meter takes to fill: in full light, near, in front, walking
+QVR_CVAR(vr_stealth_meter_time, "1", CVAR_ARCHIVE) // s the meter takes to fill: in full light, near, in front, walking
 QVR_CVAR(vr_stealth_meter_decay, "0.2", CVAR_ARCHIVE) // share of the meter lost a second while not seen
 QVR_CVAR(vr_stealth_glimpse, "0.3", CVAR_ARCHIVE)    // the meter's share at which the monster turns to look (Alert)
 QVR_CVAR(vr_stealth_light_dark, "20", CVAR_ARCHIVE)  // light (128: Quake's full light) at or below which you are not seen
@@ -2840,7 +2840,7 @@ QVR_CVAR(vr_stealth_sight_range, "1500", CVAR_ARCHIVE) // units at which a monst
 QVR_CVAR(vr_stealth_peripheral, "0.3", CVAR_ARCHIVE) // the meter's rate out of a monster's front cone (behind it: none)
 QVR_CVAR(vr_stealth_contact, "1", CVAR_ARCHIVE)      // touching a monster (body, hands, a held prop) gives you away
 QVR_CVAR(vr_stealth_noise, "1", CVAR_ARCHIVE)        // monsters hear noises (running, props, blows, shots, blasts) through the level
-QVR_CVAR(vr_stealth_run_speed, "250", CVAR_ARCHIVE)  // units/s over which you run (and are heard)
+QVR_CVAR(vr_stealth_run_speed, "280", CVAR_ARCHIVE)  // units/s over which you run (and are heard)
 QVR_CVAR(vr_stealth_noise_run, "400", CVAR_ARCHIVE)  // units your running is heard at (in the open)
 QVR_CVAR(vr_stealth_noise_props, "1200", CVAR_ARCHIVE) // units a prop's loudest knock is heard at (a quieter one: by its volume)
 QVR_CVAR(vr_stealth_noise_guns, "1", CVAR_ARCHIVE)   // times each weapon's shot's reach (a shotgun 1100 units)
@@ -2859,8 +2859,8 @@ QVR_CVAR(vr_stealth_share_near, "256", CVAR_ARCHIVE) // units: a monster this ne
 QVR_CVAR(vr_stealth_share_view, "1000", CVAR_ARCHIVE) // units: one that sees it turn Hostile within this does too (Alert: half)
 QVR_CVAR(vr_stealth_graze, "64", CVAR_ARCHIVE)       // units: a shot passing this near a monster alerts it, from any distance (0: off)
 QVR_CVAR(vr_stealth_flashlight, "1", CVAR_ARCHIVE)   // the flashlight's beam alerts monsters it lights or that see it
-QVR_CVAR(vr_stealth_torch, "400", CVAR_ARCHIVE)      // units: a held or thrown torch alerts monsters that see it this near (0: off)
-QVR_CVAR(vr_stealth_corpses, "600", CVAR_ARCHIVE)    // units: corpses and gibs seen this near alert monsters (0: off)
+QVR_CVAR(vr_stealth_torch, "500", CVAR_ARCHIVE)      // units: a held or thrown torch alerts monsters that see it this near (0: off)
+QVR_CVAR(vr_stealth_corpses, "700", CVAR_ARCHIVE)    // units: corpses and gibs seen this near alert monsters (0: off)
 QVR_CVAR(vr_stealth_sneak, "1.25", CVAR_ARCHIVE)     // damage times this to a monster that hasn't noticed anything (1: none)
 QVR_CVAR(vr_stealth_ambush_deaf, "1", CVAR_ARCHIVE)  // monsters placed in ambush (spawnflag 1) don't hear noises or other monsters (Quake's meaning)
 QVR_CVAR(vr_stealth_senses, "1", CVAR_ARCHIVE)       // each kind its own senses (dogs hear better, zombies are near deaf)

@@ -56,8 +56,8 @@ constexpr const char* keyDefaults[numKeys] = {
 // 59: the monsters' heads weigh what a head cut off their ragdoll does (Mass -1); 60: immersive reloading's shells
 // (slots 49-50); 61: reloading's magazines; 62: vrstart's barrel (slot 61); 63: the magazines' sizes; 64: the live
 // shell's grip; 65: the author's gremlin head at Size 0.6; 66: the launchers' rounds (slots 54-56); 67: the proximity
-// grenade's (slot 56: Quake's progs/proxbomb.mdl, the pouches' again).
-constexpr int settingsVersion = 67;
+// grenade's (slot 56: Quake's progs/proxbomb.mdl, the pouches' again); 68: the author's grenade fit of 2026-10-08.
+constexpr int settingsVersion = 68;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -567,6 +567,25 @@ void migrate()
             Cvar_SetQuick(&id, id.default_string);
         }
         takeShippedSlot(55);
+    }
+    // 68: the author's grenade fit (slot 4, progs/grenade.mdl: note vrfiringrange_2026-10-08_14-16-19, "make them the new
+    // defaults"): a slot still its model's that holds the old value takes the new one.
+    if(from < 68 && !strcmp(cvarAt(3, Key::ID).string, cvarAt(3, Key::ID).default_string))
+    {
+        struct Change
+        {
+            Key key;
+            float before;
+        };
+        constexpr Change changes[] = {{Key::GripX, 0.f}, {Key::GripY, 0.f}, {Key::Overlap, 0.75f}};
+        for(const Change& c : changes)
+        {
+            cvar_t& var = cvarAt(3, c.key);
+            if(atof(var.string) == c.before)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+            }
+        }
     }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);
 }

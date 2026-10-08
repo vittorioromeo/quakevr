@@ -88,10 +88,13 @@ QVR_PROP_DEFAULT(3, Mass, "1.2")
 // since vr_props_version 56 (ROUND21.md, "Every prop in both hands": the other hand takes it to grip it again).
 QVR_PROP_DEFAULT(3, GripMode, "2")
 // The author's fit (NOTES.md vrfiringrange_2026-10-01_16-53-53, the thumb round it; vr_props_version 54): turned 10
-// degrees, 1 unit up, the fingers sunk 0.75 cm into it.
+// degrees, 1 unit up; and his of 2026-10-08 (vrfiringrange_2026-10-08_14-16-19; vr_props_version 68): 0.3 units back,
+// 1.1 right, the fingers sunk 0.2 cm into it (0.75 before).
 QVR_PROP_DEFAULT(3, GripRoll, "10")
+QVR_PROP_DEFAULT(3, GripX, "-0.3")
+QVR_PROP_DEFAULT(3, GripY, "-1.1")
 QVR_PROP_DEFAULT(3, GripZ, "1")
-QVR_PROP_DEFAULT(3, Overlap, "0.75")
+QVR_PROP_DEFAULT(3, Overlap, "0.2")
 QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
 QVR_PROP_DEFAULT(4, Mass, "1.2")
 // The multi-grenade held as the grenade is (round 21, "Multi-grenades from the pouch": one from the pouch with B/Y held,
