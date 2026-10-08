@@ -234,6 +234,10 @@ prints it.
     swordsman, the scorpion, the spawn's leap, the Guardian, the dragon up close and the marksman ogre. The Overlord's
     double smash, a fiend's two claws: the second blow is a quiet cooldown blow (no stamina, no new counter). Parry and
     Bash > **Parry Cooldown: Whole Attack** (on). Debug > Tests > Ahead of You: Guardian, Dragon, Marksman Ogre.
+  - **Parried monsters no longer drawn squashed** (ROUND21.md, "Parried monsters drawn squashed"): parry an ogre's
+    chainsaw (firing range, monster 1), a hell knight's, the Overlord's or a death knight's swing: it snaps into its
+    pain pose in a tenth of a second and holds it, never melting through a flattened in-between for half a second.
+    Debug > Logs > **Monster Poses** logs any monster still drawn squashed over 0.2 s.
   - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
     grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
     touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,

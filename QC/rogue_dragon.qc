@@ -149,8 +149,7 @@ void(float dist) dragon_move =
 
     if(self.vr_parry_stagger_until > time)
     {
-        self.think = VR_Parry_Recover;
-        self.nextthink = self.vr_parry_stagger_until;
+        VR_Parry_Hold(self);
         return;
     }
     if(self.health < 1)

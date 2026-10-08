@@ -32619,3 +32619,55 @@ change, until a regrip (then its grip as before). Default pitch 90: standing in 
 side, butt down by the little finger, so with the thumb turned forward the round lies along the barrel, butt to the
 muzzle (the grenade pouch's 90, too). A round picked up where it lies keeps its Held Object Offsets grip. Test:
 front_test.sh section 5 (every kind, three hand turns: nose up in the hand, (0, 0, 1); pitch 0: along the forward).
+
+## Parried monsters drawn squashed (2026-10-09)
+
+Your note: "Sometimes when I parry an enemy, its body becomes all distorted and flattened."
+
+### Cause
+
+A parry (`VR_Parry_Interrupt`, QC `combat.qc`) puts the monster in its first pain frame and holds it there for the
+stagger (`vr_parry_stagger`, 0.75 s) by setting its next think to the stagger's end. The engine draws a frame change
+over the time to the entity's next think (FitzQuake's lerpfinish: `sv_phys.c` sends it whenever that isn't 0.1 s;
+`R_SetupAliasFrame` blends over it). So the monster was drawn morphing from the attack frame it was parried in to the
+pain frame over the whole 0.75 s. An `.mdl` lerp is a straight line between two vertex sets, and between two unrelated
+poses (an ogre's overhead smash and its pain crouch) the way passes through shapes much smaller than either: half the
+size on an axis. Quake's own lerps pass through such shapes too, but in 0.1 s (a pain cutting into an attack). Here it
+was held at that size for half a second. Not a pose index, frame group or ragdoll problem: the poses were in range and
+the matrix was even every frame.
+
+### Fix
+
+`VR_Parry_Hold` (combat.qc): a staggered monster's think runs every 0.1 s until the stagger ends (`VR_Parry_Recover`
+checks the time and re-arms), never once at its end. Its frame lerp is Quake's 0.1 s again: it snaps into the pain pose
+and holds it. The three holds that set the think to the stagger's end use it: the interrupt itself, `ai_run`'s guard
+(pain during a stagger) and the dragon's `dragon_check_attack`. The stagger's length, its recovery and the cancelled
+hits are unchanged.
+
+### Debug: Monster Poses (`vr_debug_pose_check`, Debug > Logs)
+
+`vr_posecheck.cpp`, called by `R_DrawAliasModel` on each standard draw of a monster `.mdl` (20+ frames, not a player
+or a view model): the drawn blend's extents against the smaller of its two poses' and against the model's smallest over
+all its poses. A frame under 0.8 (or 0.85 of the model's) is squashed. 1 logs a squash held over 0.2 s ("posecheck: ...
+squashed between its poses too long", then "squashed N s in all (worst r)"), a pose out of the model's range, a blend not
+in 0..1, a matrix scaling it unevenly. 2: every frame of every monster (two lines a frame: both eyes). 3: as 1 with a
+screenshot at each. `vr_debug_pose_check_model progs/ogre` narrows it to one model.
+
+### Tests (`Misc/quakevr/parry_pose_test.sh <agent> [frames] [kinds]`)
+
+vrcalibration, `god`, the stealth meter off, the crowbar held across, each kind attacking for 2400 frames, every blow
+parried (`vr_parry_stamina 0`):
+
+| Kind | Parries | Held squashed before | After |
+|---|---|---|---|
+| Ogre (1) | 24 | 20, 0.37-0.59 s each, to 0.49 of its size | 0 |
+| Overlord (17) | 24 | 7, 0.47 s (0.72) | 0 |
+| Hell knight (6) | 18 | 4 | 0 |
+| Death knight (33) | 18 | 4 | 0 |
+| Knight (5) | 2 | 2 | 0 |
+| Dog (7), fiend (9), phantom swordsman (15) | 24, 25, 20 | 0 | 0 |
+
+The parry counts are the same before and after. An ogre parried mid-smash (frame 51 to its pain frame 67): before, the
+blend ran 0 to 1 over 3.12..3.78 s (squashed to half, 0.50, for 0.5 s); after, over 3.12..3.22 s. Pictures (the
+worktree's scratch): `before_ogre.png` (top left: the ogre 0.2 s into it, head sunk into its shoulders, its saw arm
+folded into its body), `after_ogre.png` (the same moment: the pain pose).

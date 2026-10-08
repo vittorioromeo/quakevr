@@ -1913,6 +1913,19 @@ float vr_parried;
 
 // A successful parry cuts off the attack, holding its first pain pose briefly before normal AI resumes.
 // Replacing think (rather than only attack_finished, which some melee checks ignore) cancels all its later hits.
+void() VR_Parry_Recover;
+
+// The stagger's hold: think again in a tenth of a second (until it ends), never once at its end. The engine draws a
+// new frame's lerp over the time to the next think (the lerpfinish it sends): a think a whole stagger away (0.75 s)
+// drew the monster morphing from the attack's pose into the pain pose over all of it, the way between two unrelated
+// poses: its body squashed to half its size for half a second (Vittorio: "all distorted and flattened"; an ogre
+// parried mid-smash). A tenth of a second is Quake's own lerp, the pain pose's, as any pain cutting into an attack.
+void(entity m) VR_Parry_Hold =
+{
+    m.think = VR_Parry_Recover;
+    m.nextthink = min(m.vr_parry_stagger_until, time + 0.1);
+};
+
 void() VR_Parry_Recover =
 {
     if(self.health <= 0 || self.vr_knockdown)
@@ -1921,8 +1934,7 @@ void() VR_Parry_Recover =
     }
     if(time < self.vr_parry_stagger_until)
     {
-        self.think = VR_Parry_Recover;
-        self.nextthink = self.vr_parry_stagger_until;
+        VR_Parry_Hold(self);
         return;
     }
     self.vr_parry_stagger_until = 0;
@@ -1968,8 +1980,7 @@ void(entity m, entity p) VR_Parry_Interrupt =
         m.pain_finished = 0;
         m.th_pain(p, 1000);
     }
-    m.think = VR_Parry_Recover;
-    m.nextthink = m.vr_parry_stagger_until;
+    VR_Parry_Hold(m);
     self = oldSelf;
     dprint(sprintf("parry interrupt: %s staggered %.2f s\n", m.classname, stagger));
 };
