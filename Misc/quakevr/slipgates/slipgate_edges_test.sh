@@ -1,5 +1,5 @@
 #!/bin/bash
-# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|all]: headless checks of the slipgate edge cases in
+# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|ragdoll|all]: headless checks of the slipgate edge cases in
 # vrslipgates (ROUND21.md, "Slipgates: exits on their gates, props through, held objects, the force grab's beam"), with
 # the agent kit (C:/OHWorkspace/qvr-kit). Each section prints one line or a few, with what it must say.
 #   clip   a crate resting where a gate's exit used to stand (48 out of the north gallery's wall), paired exits off and
@@ -178,5 +178,19 @@ a = Image.open(sys.argv[1] + '/slipgate_quakefx_1.png').convert('RGB'); b = Imag
 d = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 30 else 0)
 print(f"quake: Quake's particles and explosion sprite " + ("behind the gate" if sys.argv[2] == "1650" else "in front of it") + f" make {d.histogram()[255]} pixels" + (" (a few at most)" if sys.argv[2] == "1650" else " (a control: over 100)"))
 PYEOF
+    done
+fi
+
+# ragdoll: a dead grunt's ragdoll (vr_ragdoll 1) lying head first 60 units out of FA's player and large gates, blown
+# into them (vr_physics_blast behind it; no limb gore): carried whole as its pelvis goes in, ending in the north gallery
+# (pelvis y > 928); with vr_portals_walk 0 (a control) it stops against the wall behind the gate (8 deep, 48 the large)
+if want ragdoll; then
+    for x in -256 0; do
+        for w in 1 0; do
+            run -Script "$START;vr_ragdoll 1;vr_corpse_nogib 1;vr_limbs 0;vr_decap 0;vr_portals_walk $w;setpos $x 520 24 0 90 0;wait5;noclip 0;vr_test_spawn 0;vr_test_spawn_dist 60;vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0;wait120;vr_physics_blast $x 540 20 ${BLAST:-160};wait240;vr_ragdoll_list;toggleconsole;quit"
+            y=$(grep -E "^ragdoll [0-9]+ monster_army: .* pelvis" "$LOG" | tail -1 | sed -E 's/.* pelvis [-0-9.]+ ([-0-9.]+) .*/\1/')
+            echo "ragdoll: gate at x $x, walk $w: $(grep -c 'carried through a slipgate' "$LOG") crossing, its pelvis ends at y $y" \
+                "$( [ $w = 1 ] && echo '(1, > 928: through)' || echo '(0, against the wall behind the gate: under 648, 688 the large gate; a control)')"
+        done
     done
 fi

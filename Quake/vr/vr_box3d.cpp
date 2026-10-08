@@ -482,6 +482,9 @@ struct RagdollBodies
     za::Array<glm::quat, ragdoll::maxBones> struggleRest{};
     bool struggleReady{false};
     int shockJerk{-1}; // shocked (shockRagdoll): the jerk it last bucked or not at
+    // Its pelvis after the last step (carryRagdolls: the step it goes in through a slipgate carries it whole).
+    glm::vec3 lastPelvis{0.f};
+    bool pelvisKnown{false};
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -7015,6 +7018,9 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
 // The crossing half has a body in the other room. Both shapes are clipped
 // by their contact points, so the wall behind the aperture cannot catch it.
 // Dynamic copies return their contact impulses, rotated, to their owner.
+// A ragdoll's parts are copied together, through the gate its parts' box goes into (a corpse falling or thrown into a
+// gate: its limbs past the plane meet the far room, not the wall behind the gate), until its pelvis crosses and it is
+// carried whole (carryRagdolls).
 void syncPortalCopies(float dt)
 {
     for(const World::PortalCopy& c : world->portalCopies)
@@ -7022,18 +7028,16 @@ void syncPortalCopies(float dt)
         if(b3Body_IsValid(c.copy)) { b3DestroyBody(c.copy); }
     }
     world->portalCopies.clear();
-    const auto add = [&](b3BodyId body) {
-        if(B3_IS_NULL(body) || !b3Body_IsValid(body)) { return; }
-        // Its box over this step too (where its motion takes it: a thrown prop goes from short of the gate to the wall
-        // behind it in one step, and continuous collision met that wall before any copy was made: it bounced off), with
-        // a few units' slack for a tumbling box's corners round the aperture.
+    // Its box over this step too (where its motion takes it: a thrown prop goes from short of the gate to the wall
+    // behind it in one step, and continuous collision met that wall before any copy was made: it bounced off), with
+    // a few units' slack for a tumbling box's corners round the aperture.
+    const auto sweptBox = [dt](b3BodyId body, glm::vec3& lo, glm::vec3& hi) {
         const b3AABB box = b3Body_ComputeAABB(body);
         const glm::vec3 step = glmv(b3Body_GetLinearVelocity(body)) * (1.5f * dt);
-        const glm::vec3 lo = glm::min(glmv(box.lowerBound), glmv(box.lowerBound) + step);
-        const glm::vec3 hi = glm::max(glmv(box.upperBound), glmv(box.upperBound) + step);
-        portals::LightGate gate;
-        const glm::vec3 velocity = world->toU(b3Body_GetLinearVelocity(body));
-        if(!portals::splitBounds(world->toU(b3v(lo)), world->toU(b3v(hi)), gate, 4.f, &velocity)) { return; }
+        lo = glm::min(lo, glm::min(glmv(box.lowerBound), glmv(box.lowerBound) + step));
+        hi = glm::max(hi, glm::max(glmv(box.upperBound), glmv(box.upperBound) + step));
+    };
+    const auto addThrough = [&](b3BodyId body, const portals::LightGate& gate) {
         World::PortalCopy c;
         c.original = body;
         c.turn = gate.turn;
@@ -7074,13 +7078,119 @@ void syncPortalCopies(float dt)
         }
         world->portalCopies.pushBack(c);
     };
+    const auto add = [&](b3BodyId body) {
+        if(B3_IS_NULL(body) || !b3Body_IsValid(body)) { return; }
+        glm::vec3 lo{1e30f}, hi{-1e30f};
+        sweptBox(body, lo, hi);
+        portals::LightGate gate;
+        const glm::vec3 velocity = world->toU(b3Body_GetLinearVelocity(body));
+        if(!portals::splitBounds(world->toU(b3v(lo)), world->toU(b3v(hi)), gate, 4.f, &velocity)) { return; }
+        addThrough(body, gate);
+    };
     for(const Slot& slot : world->slots)
     {
-        if(slot.kind == Kind::Held || slot.kind == Kind::Prop) { add(slot.body); }
+        // (A dead monster's body (vr_corpse_collide) too; a ragdoll's parts below.)
+        if(slot.kind == Kind::Held || slot.kind == Kind::Prop || (slot.kind == Kind::Corpse && slot.ragdoll < 0))
+        {
+            add(slot.body);
+        }
+    }
+    // A ragdoll: the gate one of its parts goes into (its box across the plane, over the aperture), and a copy through it
+    // of each of its parts over that aperture, in front of the plane or past it (one against the frame beside it has
+    // none: the frame stops it, as it would a prop).
+    for(const RagdollBodies& r : world->ragdolls)
+    {
+        if(r.num == 0 || r.count == 0 || B3_IS_NULL(r.body[0]) || !b3Body_IsValid(r.body[0])) { continue; }
+        // A part's box over the step, in units, a few units in (lying on the floor its box reaches a little into it,
+        // under a gate's bottom edge).
+        const auto partBox = [&](int b, glm::vec3& ulo, glm::vec3& uhi) {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            if(partCut(r, b) || B3_IS_NULL(body) || !b3Body_IsValid(body)) { return false; }
+            glm::vec3 lo{1e30f}, hi{-1e30f};
+            sweptBox(body, lo, hi);
+            ulo = world->toU(b3v(lo));
+            uhi = world->toU(b3v(hi));
+            const glm::vec3 inset = glm::min(glm::vec3{4.f}, (uhi - ulo) * 0.25f);
+            ulo += inset;
+            uhi -= inset;
+            return true;
+        };
+        portals::LightGate gate;
+        const glm::vec3 velocity = world->toU(b3Body_GetLinearVelocity(r.body[0]));
+        bool found = false;
+        for(int b = 0; b < r.count && !found; b++)
+        {
+            glm::vec3 ulo, uhi;
+            found = partBox(b, ulo, uhi) && portals::splitBounds(ulo, uhi, gate, 4.f, &velocity);
+        }
+        if(!found) { continue; }
+        for(int b = 0; b < r.count; b++)
+        {
+            glm::vec3 ulo, uhi;
+            if(!partBox(b, ulo, uhi)) { continue; }
+            bool over = true;
+            for(int c = 0; c < 8 && over; c++)
+            {
+                const glm::vec3 p{(c & 1) ? uhi.x : ulo.x, (c & 2) ? uhi.y : ulo.y, (c & 4) ? uhi.z : ulo.z};
+                const glm::vec3 onPlane = p - gate.normal * (glm::dot(gate.normal, p) - gate.dist);
+                over = !glm::any(glm::lessThan(onPlane, gate.mins - 4.f)) && !glm::any(glm::greaterThan(onPlane, gate.maxs + 4.f));
+            }
+            if(over) { addThrough(r.body[static_cast<za::SizeT>(b)], gate); }
+        }
     }
     for(const auto& pair : world->hands)
     {
         for(const World::HandBody& hand : pair) { add(hand.body); add(hand.reach); }
+    }
+}
+
+// After the step: a ragdoll whose pelvis went in through a slipgate's aperture is carried whole, every part by the gate's
+// mapping (where, how turned, how it moves), as VR_PortalToss carries what flies: its joints stay as they were, and its
+// parts still behind the plane meet the room they are in through their portal copies (syncPortalCopies).
+void carryRagdolls()
+{
+    for(RagdollBodies& r : world->ragdolls)
+    {
+        if(r.num == 0 || r.count == 0 || B3_IS_NULL(r.body[0]) || !b3Body_IsValid(r.body[0]))
+        {
+            r.pelvisKnown = false;
+            continue;
+        }
+        glm::vec3 pelvis = world->toU(b3Body_GetTransform(r.body[0]).p);
+        portals::LightGate gate;
+        if(r.pelvisKnown && portals::crossedGate(r.lastPelvis, pelvis, gate))
+        {
+            const glm::vec3 shift = gate.to - gate.turn * gate.from;
+            const glm::quat q = glm::quat_cast(gate.turn);
+            for(int b = 0; b < r.count; b++)
+            {
+                const za::SizeT i = static_cast<za::SizeT>(b);
+                const b3BodyId body = r.body[i];
+                if(partCut(r, b) || B3_IS_NULL(body) || !b3Body_IsValid(body)) { continue; }
+                const b3WorldTransform pose = b3Body_GetTransform(body);
+                b3Body_SetTransform(body, world->toM(gate.turn * world->toU(pose.p) + shift), toB3(glm::normalize(q * fromB3(pose.q))));
+                b3Body_SetLinearVelocity(body, b3v(gate.turn * glmv(b3Body_GetLinearVelocity(body))));
+                b3Body_SetAngularVelocity(body, b3v(gate.turn * glmv(b3Body_GetAngularVelocity(body))));
+                r.ownLin[i] = gate.turn * r.ownLin[i];
+                r.ownAng[i] = gate.turn * r.ownAng[i];
+            }
+            r.turn = glm::normalize(q * r.turn);
+            r.headMid = gate.turn * r.headMid + shift;
+            r.headVel = gate.turn * r.headVel;
+            r.headSpin = gate.turn * r.headSpin;
+            r.headRot = glm::normalize(q * r.headRot);
+            edict_t* ent = r.num > 0 && r.num < qcvm->num_edicts ? EDICT_NUM(r.num) : nullptr;
+            if(ent && !ent->free)
+            {
+                ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + glm::degrees(std::atan2(gate.turn[0][1], gate.turn[0][0])));
+            }
+            const glm::vec3 to = gate.turn * pelvis + shift;
+            Con_DPrintf("ragdoll: %d carried through a slipgate: pelvis %.1f %.1f %.1f -> %.1f %.1f %.1f\n", r.num, pelvis.x,
+                pelvis.y, pelvis.z, to.x, to.y, to.z);
+            pelvis = to;
+        }
+        r.lastPelvis = pelvis;
+        r.pelvisKnown = true;
     }
 }
 
@@ -11576,6 +11686,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             traceGibContacts();
         }
     }
+    carryRagdolls(); // (through slipgates)
     const double t2 = Sys_DoubleTime();
     world->stepTime += t2 - t1;
     world->stepTimeMax = za::max(world->stepTimeMax, t2 - t1);

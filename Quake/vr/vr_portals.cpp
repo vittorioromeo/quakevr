@@ -2620,6 +2620,30 @@ bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, floa
     }
     return found;
 }
+
+bool crossedGate(const glm::vec3& from, const glm::vec3& to, LightGate& gate)
+{
+    if(!walkOn()) { return false; }
+    if(!current()) { build(); }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    struct PopVm
+    {
+        qcvm_t* old;
+        ~PopVm() { PR_PopQCVM(old); }
+    } popVm{oldVm};
+    for(const Side& sd : sides)
+    {
+        const float d0 = glm::dot(sd.normal, from) - sd.dist, d1 = glm::dot(sd.normal, to) - sd.dist;
+        if(d0 < 0.f || d1 >= 0.f) { continue; }
+        const glm::vec3 c = from + (to - from) * (d0 / (d0 - d1));
+        const edict_t* trig = EDICT_NUM(sd.trigger);
+        if(!onGate(sd, c, 2.f) || !triggerActive(trig) || (static_cast<int>(trig->v.spawnflags) & 1)) { continue; }
+        gate = {sd.from, sd.to, sd.normal, sd.mins, sd.maxs, sd.turn, sd.dist};
+        return true;
+    }
+    return false;
+}
 }
 
 namespace qvr::portals

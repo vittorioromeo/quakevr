@@ -154,6 +154,10 @@ int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacit
 // destination in the open: its aperture is only where things come out) splits only what moves out of it (`velocity`,
 // units a second; none: nothing): else a prop resting where a gate leads was cut there.
 bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, float margin = 0.f, const glm::vec3* velocity = nullptr);
+// A point gone from `from` to `to` (world units, a step) in through a gate: its plane crossed from the front over the
+// aperture, the gate active (as VR_PortalToss takes what flies). Its mapping in `gate`. (A ragdoll's pelvis: the whole
+// ragdoll is carried, box3d.)
+bool crossedGate(const glm::vec3& from, const glm::vec3& to, LightGate& gate);
 
 // An eye ahead of the body through a gate (the head leaning or walking in before the torso, which is what the gate
 // carries; or still behind once the body is through): the line from `body` (the body's axis at the eye's height) to
