@@ -46,6 +46,7 @@
 .float stl_loud_time;
 .float stl_climb_time;  // when a hand last held a ledge (climbing is silent)
 .float stl_vis;         // how visible he is, 0..1 (the gem)
+.float stl_hud;         // the gem's readings (STAT_QVR_STEALTH): visible 0..100 plus 1000 times loud 0..100; -1 off
 
 float STL_IDLE = 0;
 float STL_ALERT = 1;
@@ -82,6 +83,7 @@ void(entity m) VR_Stealth_Died;
 void(entity mis) VR_Stealth_GrazeMissile;
 void() VR_Stealth_PlayerFrame;
 void() VR_Stealth_Frame;
+float(float xVis) VR_Stealth_Lose;
 float(entity client) VR_Stealth_See;
 float() VR_Stealth_Stand;
 float(float dist) VR_Stealth_Walk;

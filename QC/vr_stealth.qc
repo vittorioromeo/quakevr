@@ -184,6 +184,7 @@ void(entity m) VR_Stealth_GoBack =
     }
     VR_Stealth_Phase(m, STL_RETURN);
     m.goalentity = VR_Stealth_MarkerAt(m, m.stl_post);
+    m.ideal_yaw = vectoyaw(m.stl_post - m.origin); // (movetogoal keeps stepping its way while it can)
     VR_Stealth_Anim(m, TRUE);
 };
 
@@ -736,6 +737,12 @@ float(float dist) VR_Stealth_Walk =
         self.stl_stuck = vlen(self.origin - self.stl_walk_from) < 16 ? self.stl_stuck + 1 : 0;
         self.stl_walk_from = self.origin;
         self.stl_walk_check = time + 1;
+        // Each second, headed for it again (movetogoal keeps stepping the way it goes while it can: round an
+        // obstacle it chose another).
+        if(!self.stl_stuck)
+        {
+            self.ideal_yaw = vectoyaw(goal - self.origin);
+        }
     }
     if(vlen(to) < (self.stl_phase == STL_WALK ? 64 : 24) || self.stl_stuck >= 3 || time > self.stl_look_time)
     {
@@ -756,6 +763,32 @@ float(float dist) VR_Stealth_Walk =
         self.goalentity = VR_Stealth_MarkerAt(self, goal);
     }
     movetogoal(dist);
+    return TRUE;
+};
+
+// In ai_run (self: Hostile), its enemy in sight or not: a player out of its sight for STL_LOSE_TIME: it gives up the
+// hunt and goes to where it saw him last, Alert (searches there, then goes back to Idle, wary). TRUE: it gave up.
+float STL_LOSE_TIME = 6;
+
+float(float xVis) VR_Stealth_Lose =
+{
+    if(self.enemy.classname != "player" || !cvar_hget(cvarh_vr_stealth_lose) || !VR_Stealth_Applies(self))
+    {
+        return FALSE;
+    }
+    if(xVis || !self.stl_lost_time)
+    {
+        self.stl_lost_time = time;
+        self.stl_lost_at = self.enemy.origin;
+        return FALSE;
+    }
+    if(time - self.stl_lost_time < STL_LOSE_TIME)
+    {
+        return FALSE;
+    }
+    VR_Stealth_Log(self, "lost him");
+    self.enemy = self.oldenemy = self.goalentity = self.movetarget = world;
+    VR_Stealth_Alert(self, self.stl_lost_at, STL_A_LOST, 3, FALSE);
     return TRUE;
 };
 
@@ -1023,6 +1056,7 @@ void() VR_Stealth_PlayerFrame =
 {
     if(!VR_Stealth_On() || self.health <= 0)
     {
+        self.stl_hud = -1;
         return;
     }
     if(self.headpos != '0 0 0')
@@ -1047,6 +1081,9 @@ void() VR_Stealth_PlayerFrame =
         VR_Stealth_Contact();
     }
     self.stl_vis = VR_Stealth_LightShare(VR_Stealth_LightOf(self)) * VR_Stealth_CrouchShare(self);
+    float ago = time - self.stl_loud_time;
+    float loud = (ago >= 0 && ago < 1.5) ? min(1, self.stl_loud / 1200) * (1 - ago / 1.5) : 0;
+    self.stl_hud = rint(self.stl_vis * 100) + 1000 * rint(loud * 100);
 };
 
 // ----------------------------------------------------------------------------

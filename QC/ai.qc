@@ -1186,6 +1186,8 @@ void(float dist) ai_run =
         self.attack_state = AS_STRAIGHT; // A pending remote attack lost its route before the animation began.
     if(enemy_vis)
         self.search_time = time + 5;
+    if(VR_Stealth_Lose(enemy_vis)) // QVR: lost him a while: Alert, to where it saw him last (vr_stealth.qc)
+        return;
 
 // look for other coop players
 //MED 10/17/96 added charmed stuff

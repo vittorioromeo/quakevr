@@ -119,6 +119,9 @@ enum Stat : int
     STAT_QVR_RELOADMODE,
     STAT_QVR_POUCHKIND,  // what the ammo pouch gives and shows (QC .vr_pouch_kind: 1 shells, 2 nailgun magazines, 3 super nailgun's, 4 cells)
     STAT_QVR_POUCHCOUNT, // and how many of its ammo are left (.vr_pouch_count): its contents as drawn, its counter
+    // The stealth AI's gem on the wrist gadget (QC .stl_hud, vr_stealth.qc): how visible you are (0..100) plus 1000 times
+    // how loud your last noise was (0..100); -1 with the stealth AI off.
+    STAT_QVR_STEALTH,
     STAT_QVR_END
 };
 

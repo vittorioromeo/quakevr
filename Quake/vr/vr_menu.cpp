@@ -475,6 +475,8 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugTools();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
 [[nodiscard]] za::Vector<Item> pageDebugCheats();
+[[nodiscard]] za::Vector<Item> pageStealth();
+[[nodiscard]] za::Vector<Item> pageStealthTests();
 [[nodiscard]] za::Vector<Item> pageSpawnWeapons();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
@@ -560,6 +562,7 @@ mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
 #include "vr_menu_pages.inc"
 #include "vr_menu_recording.inc"
 #include "vr_menu_cheats.inc"
+#include "vr_menu_stealth.inc"
 
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
@@ -5348,6 +5351,8 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive authored mge2m2 puzzle test. Reload afterward."),
         command("Machine: Equipment Carry Setup", "vr_mg_hub_test 20")
             .help("Destructive: seed independent hand/holster magazines for save/carry checks. Hold both grips and reload afterward."),
+        open("Stealth AI", pageIndex(pageStealthTests))
+            .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),
         open("Machine Horde Tests", pageIndex(pageMachineHordeTests))
             .help("Authored waves, currency, physical rewards, revival and saved equipment. Developer arena only."),
         open("Dawn of the Machine Bestiary", pageIndex(pageMg3BestiaryTests))
@@ -6519,6 +6524,8 @@ const Page pages[] = {
     {"Reloading - Super Nailgun", pageReloadSuperNailgun, pageReloading},
     {"Reloading - Thunderbolt", pageReloadThunderbolt, pageReloading},
     {"Reloading - Launchers", pageReloadLaunchers, pageReloading},
+    {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
+    {"Stealth AI Tests", pageStealthTests, pageDebugTests, LevelDeveloper},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -7308,6 +7315,9 @@ za::Vector<Item> pageCombat()
         open("Burning", pageIndex(pageBurning))
             .help("What lit torches and lava nails set on fire: the damage (it never stacks), how long, the flames, "
                   "corpses and crates, setting things on fire by touch, nails through a torch's flame."),
+        open("Stealth AI", pageIndex(pageStealth))
+            .help("Enhanced AI (on/off: Quake's monsters at once). Monsters idle, alert or hostile: seeing you by the light "
+                  "on you, hearing noises, investigating, spreading the alarm; sneak attacks."),
     };
 }
 

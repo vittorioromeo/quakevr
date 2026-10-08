@@ -363,6 +363,7 @@ struct Readout
     float relightProgress{0.f};
     const char* level{""};
     int kills{0}, totalKills{0}, secrets{0}, totalSecrets{0};
+    int stealth{-1}; // the stealth gem's (STAT_QVR_STEALTH): -1 none
 };
 
 // QC's ammo type (AID_*: vr_defs.qc) as the picture of its kind (-1 none); Rogue's lava nails, multi-rockets and plasma
@@ -397,6 +398,7 @@ struct Readout
     r.totalKills = cl.stats[STAT_TOTALMONSTERS];
     r.secrets = cl.stats[STAT_SECRETS];
     r.totalSecrets = cl.stats[STAT_TOTALSECRETS];
+    r.stealth = cl.stats[protocol::STAT_QVR_STEALTH];
 
     switch(static_cast<int>(vr_gadget_test_state.value))
     {
@@ -600,6 +602,34 @@ void staminaRow(const Readout& r, const Palette& pal)
     }
 }
 
+// The stealth AI's gem (vr_stealth_gem; QC vr_stealth.qc): a small diamond in the armour tile's top right corner, its
+// glow how visible you are (dark: unseen in the shadows; bright: in full light, standing), a frame round it lit by how
+// loud your last noise was (red when loud: running, a shot).
+void stealthGem(const Readout& r, const Palette& pal)
+{
+    if(r.stealth < 0 || !vr_stealth_gem.value)
+    {
+        return;
+    }
+    const float vis = za::clamp(static_cast<float>(r.stealth % 1000) / 100.f, 0.f, 1.f);
+    const float loud = za::clamp(static_cast<float>(r.stealth / 1000) / 100.f, 0.f, 1.f);
+    constexpr float size = 10.f;
+    const float x = tileX[1] + tileWidth - size - 2.f, y = tileY[0];
+    if(loud > 0.02f)
+    {
+        meterFrame(x - 2.f, y - 2.f, size + 4.f, size + 4.f, loud > 0.5f ? pal.warn * (0.4f + 0.6f * loud) : pal.value * loud);
+    }
+    const glm::vec3 glow = pal.dim * 0.35f + (pal.value - pal.dim * 0.35f) * vis;
+    for(int i = 0; i < static_cast<int>(size); i++)
+    {
+        const float w = 2.f * za::round(size * 0.5f - za::abs(static_cast<float>(i) + 0.5f - size * 0.5f));
+        if(w > 0.f)
+        {
+            fill(x + (size - w) * 0.5f, y + static_cast<float>(i), w, 1.f, glow);
+        }
+    }
+}
+
 // Bullet time's meter (vr_bullettime.cpp): "TIME" and a bar, lit for what's left. Running: the label white, the bar
 // drains and its frame blinks; cooling down: only its frame, dim; not enough to start: the bar dim.
 void timeRow(const Readout& r, const Palette& pal)
@@ -729,6 +759,7 @@ void layout()
     const int face = r.health >= 100 ? 4 : CLAMP(0, r.health / 20, 4);
     tile(0, 0, "HEALTH", PicFace + face, r.health, false, r.health < 25 ? blinking(pal.warn) : pal.value, pal);
     tile(1, 0, "ARMOR", r.armorType >= 0 ? PicArmor + r.armorType : -1, r.armor, false, r.armor > 0 ? pal.value : pal.dim, pal);
+    stealthGem(r, pal);
 
     // Each hand's weapon's ammo (red when empty; "--" for a weapon without).
     for(int h = 0; h < 2; h++)

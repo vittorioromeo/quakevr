@@ -15,6 +15,7 @@ float stt_n;       // a scene's number
 vector stt_at;     // a scene's point
 float stt_v;       // a scene's value
 float stt_fails;
+float stt_tick;    // a scene's next progress line
 entity stt_gib;    // the body scene's gib
 
 void(string xName, float xPass, string xInfo) VR_STT_Report =
@@ -370,6 +371,12 @@ void() VR_Stealth_TestFrame =
             else if(t > 20) { VR_STT_Report("investigate", FALSE, sprintf("stuck in phase %g, nearest %.0f of %.0f", m.stl_phase, stt_v, vlen(stt_home - stt_at))); VR_STT_Next(13); }
             return;
         }
+        if(stt_stage == 2 && time >= stt_tick && m.stl_state != STL_IDLE)
+        {
+            stt_tick = time + 2;
+            bprint(sprintf("stealthtest: returning t %.0f phase %g at %v, %.0f from its post, goal %s at %v\n", t, m.stl_phase,
+                m.origin, vlen(m.origin - stt_home), m.goalentity.classname, m.goalentity.origin));
+        }
         if(stt_stage == 2 && (m.stl_state == STL_IDLE || t > 40))
         {
             VR_STT_Report("investigate", stt_v < 90 && m.stl_state == STL_IDLE && vlen(m.origin - stt_home) < 40,
@@ -379,7 +386,46 @@ void() VR_Stealth_TestFrame =
         }
         return;
     }
+    // 13: Hostile, then he hides (behind a wall) for 7 s: it gives up the hunt, Alert, to where it saw him last.
     if(stt_step == 13)
+    {
+        if(stt_stage == 0)
+        {
+            VR_STT_Reset(FALSE);
+            self = m;
+            self.enemy = p;
+            FoundTarget();
+            self = os;
+            VR_STT_Stage(1);
+            return;
+        }
+        if(stt_stage == 1 && t > 0.5)
+        {
+            // (far off, out of its sight: a pickup 800 units or more away it can't see)
+            entity hide = world;
+            for(entity it = findflags(world, flags, FL_ITEM); it; it = findflags(it, flags, FL_ITEM))
+            {
+                traceline(m.origin + m.view_ofs, it.origin + '0 0 24', TRUE, m);
+                if(vlen(it.origin - m.origin) > 800 && trace_fraction < 1)
+                {
+                    hide = it;
+                    break;
+                }
+            }
+            if(!hide) { VR_STT_Report("lose_him", FALSE, "no hiding place found"); VR_STT_Next(14); return; }
+            setorigin(p, hide.origin + '0 0 24');
+            VR_STT_Stage(2);
+            return;
+        }
+        if(stt_stage == 2 && t > 7.5)
+        {
+            VR_STT_Report("lose_him", m.enemy == world && m.stl_state == STL_ALERT && vlen(m.stl_point - stt_phome) < 80,
+                sprintf("enemy %s, state %g, looking %.0f from where it saw him last", m.enemy.classname, m.stl_state, vlen(m.stl_point - stt_phome)));
+            VR_STT_Next(14);
+        }
+        return;
+    }
+    if(stt_step == 14)
     {
         VR_STT_Reset(FALSE);
         bprint(sprintf("stealthtest: done, %g failed\n", stt_fails));
@@ -396,8 +442,10 @@ void() VR_Stealth_TestFrame =
             stt_n = time + 0.5;
             vector hv = p.velocity;
             hv_z = 0;
-            bprint(sprintf("stealthtest: probe t %.1f speed %.0f light %.1f crouch %.2f eye %.1f stand %.1f vis %.2f move %.2f\n", t, vlen(hv),
-                VR_Stealth_LightOf(p), VR_Stealth_CrouchShare(p), p.headpos_z - p.absmin_z, p.stl_stand_eye, p.stl_vis, VR_Stealth_MoveShare(p)));
+            bprint(sprintf("stealthtest: probe t %.1f speed %.0f light %.1f crouch %.2f", t, vlen(hv), VR_Stealth_LightOf(p),
+                VR_Stealth_CrouchShare(p)));
+            bprint(sprintf(" eye %.1f stand %.1f vis %.2f move %.2f\n", p.headpos_z - p.absmin_z, p.stl_stand_eye, p.stl_vis,
+                VR_Stealth_MoveShare(p)));
         }
         if(t > 4) { stt_step = 0; }
         return;
