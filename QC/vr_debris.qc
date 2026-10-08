@@ -60,7 +60,7 @@ void(float xSpeed) VR_Debris_Impact =
         return;
     }
     self.vr_debris_sound = time;
-    dprint(sprintf("debris: %s knocks at %.1f m/s\n", self.classname, xSpeed));
+    if(cvar("developer")) dprint(sprintf("debris: %s knocks at %.1f m/s\n", self.classname, xSpeed));
 };
 
 // Touching what it hits: thrown hard, it hurts it as a thrown box does (forcegrabbable_touch; its base damage is set

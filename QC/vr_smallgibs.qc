@@ -270,7 +270,7 @@ float() VR_SmallGib_MakeRoom =
             vr_sgib_live = live;
             return -1;
         }
-        dprint(sprintf("smallgib: #%d removed (the most is %d)\n", vr_sgib_ringid[oldest], most));
+        if(cvar("developer")) dprint(sprintf("smallgib: #%d removed (the most is %d)\n", vr_sgib_ringid[oldest], most));
         VR_SmallGib_Remove(vr_sgib_ring[oldest]);
         vr_sgib_ringid[oldest] = 0;
         live--;
@@ -933,11 +933,11 @@ void(entity targ, entity inflictor, entity attacker, float xDamage, vector xAt) 
     float sit = VR_SmallGib_Situation(kind);
     float mult = VR_SmallGib_Mult(targ, FALSE); // its own vr_smallgibs_mult_<monster> (1: as every other monster)
     n = VR_SmallGib_Times(n, mult);
-    dprint(sprintf("smallgib: %s hit for %.1f (%s%s, %s): chance %.2f, %d\n", targ.classname, xDamage,
+    if(cvar("developer")) dprint(sprintf("smallgib: %s hit for %.1f (%s%s, %s): chance %.2f, %d\n", targ.classname, xDamage,
         VR_SmallGib_KindName(kind), quad ? ", quad" : "", VR_SmallGib_SitName(sit), chance, n));
     if(mult != 1)
     {
-        dprint(sprintf("smallgib: %s's small gibs x%.2f\n", targ.classname, mult));
+        if(cvar("developer")) dprint(sprintf("smallgib: %s's small gibs x%.2f\n", targ.classname, mult));
     }
     if(n > 0)
     {
@@ -1047,7 +1047,7 @@ void(float dm) VR_SmallGib_Gibbed =
     float mult = VR_SmallGib_Mult(self, FALSE); // its own vr_smallgibs_mult_<monster>
     n = VR_SmallGib_Times(n, mult);
     float sit = vr_sgib_corpsegib ? QVR_SGIB_SIT_CORPSE : QVR_SGIB_SIT_GIBBED;
-    dprint(sprintf("smallgib: %s gibbed: %d (%s)\n", self.classname, n, VR_SmallGib_SitName(sit)));
+    if(cvar("developer")) dprint(sprintf("smallgib: %s gibbed: %d (%s)\n", self.classname, n, VR_SmallGib_SitName(sit)));
     float m2u = VRMetersToUnits();
     float sm = VR_SmallGib_SitMult(sit, FALSE);
     float um = VR_SmallGib_SitMult(sit, TRUE);

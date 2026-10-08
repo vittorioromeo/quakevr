@@ -191,7 +191,7 @@ void(entity xNew) VR_EnemyWeapons_MakeRoom =
         {
             return; // (all the rest spared: over the cap a moment)
         }
-        dprint(sprintf("dropcap: the oldest %s (made at %.2f) fades away (%g lying about, the most %g)\n", oldest.netname,
+        if(cvar("developer")) dprint(sprintf("dropcap: the oldest %s (made at %.2f) fades away (%g lying about, the most %g)\n", oldest.netname,
             oldest.vr_drop_born, n, most));
         VR_EnemyWeapons_Fade(oldest);
         n = n - 1;

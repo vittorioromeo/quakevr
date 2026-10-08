@@ -182,7 +182,7 @@ each). Vittorio's decision: optimise, with the output identical (the same entiti
 model centre worked out before the portal broad phase). A box-based pre-test would need the centre's bound from the
 box (not exact for models whose centre lies outside their box). Small; not done.
 
-### 12. QuakeC left after the index (2026-10-08, `profile_qc` caller > builtin pairs, secret2 awake)
+### 12. QuakeC left after the index (2026-10-08, `profile_qc` caller > builtin pairs, secret2 awake; the dprints decided and done)
 
 One loop moved to a builtin: the stealth AI's look about tested each lit torch's and body's distance and cone in
 QuakeC (0.05 ms a frame on secret2 after the index); `findflagsinview` does it in the engine in QuakeC's own float
@@ -194,9 +194,13 @@ for, or behaviour-visible:
   entity in range, monsters or not; an index of solids would need the engine's `solid` writes (10 sites, some
   temporary inside SV_PushMove) and would hold nearly every edict anyway.
 - `sprintf` 0.034 ms, 21 calls a frame, in `VR_Prop_Flung`'s `dprint(sprintf(...))` for gibs touching monsters
-  while still harmless: formatted with `developer 0`. A `developer` test round it saves it, but changes the temp
-  strings' rotation (only code holding a temp string too long could see it). **Option**: guard the dprints (or a
-  `dprintf` builtin that formats only with developer on).
+  while still harmless: formatted with `developer 0`. **Decided and done (2026-10-08): guarded** (`if(cvar("developer"))
+  dprint(sprintf(...))`, the text the same with developer on). Guarded with it, the others `profile_qc` found formatting
+  every frame or in a burst of deaths: `VR_Prop_Flung` (5), `VR_SmallGib_Roll` (2), `VR_SmallGib_Gibbed`,
+  `VR_SmallGib_MakeRoom`, `VR_Limb_MakeRoom`, `VR_EnemyWeapons_MakeRoom`, `VR_Debris_Impact`. sprintf calls a frame
+  (`profile_qc`, 525 frames): `mg3_secret2_awake` 20.9 -> 0.05, `combat_48` 0.61 -> 0.16; `mg3_map2_kill`'s kill frame
+  204.9 -> 4.8 a frame of its 9 (its QuakeC 20.7 -> 19.2 ms). The other ~600 `dprint(sprintf())` run at a map's load,
+  on a use or in a test: left. The temp strings' rotation changes (nothing keeps one past its frame).
 - `traceline` (`point_visible`, `VR_Stealth_WalkNow`), `movetogoal` (`ai_run`, `VR_Stealth_WalkNow`): the engine's
   traces and steps.
 

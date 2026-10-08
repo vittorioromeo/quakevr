@@ -256,7 +256,7 @@ void() VR_Limb_MakeRoom =
         {
             return;
         }
-        dprint(sprintf("limbs: the oldest limb removed (the most is %g)\n", most));
+        if(cvar("developer")) dprint(sprintf("limbs: the oldest limb removed (the most is %g)\n", most));
         oldest.classname = "vr_limb_gone";
         oldest.nextthink2 = 0;
         remove(oldest);
