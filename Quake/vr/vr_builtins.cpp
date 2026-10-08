@@ -143,6 +143,38 @@ void PF_modelcentre()
     out[2] = c.z;
 }
 
+// vector(entity e, vector a, vector b) shapenearest: the point of `e`'s shape (its Box3D body's, as it lies or a hand
+// holds it: its hull, a gun's convex pieces) nearest the segment `a`..`b`; without a body, its box's (origin + mins ..
+// maxs) nearest, tried at nine points along the segment (vr_reload.qc: a held prop hits a magazine or the super
+// shotgun's barrels with its surface, not its box).
+void PF_shapenearest()
+{
+    edict_t* ent = G_EDICT(OFS_PARM0);
+    const glm::vec3 a{G_VECTOR(OFS_PARM1)[0], G_VECTOR(OFS_PARM1)[1], G_VECTOR(OFS_PARM1)[2]};
+    const glm::vec3 b{G_VECTOR(OFS_PARM2)[0], G_VECTOR(OFS_PARM2)[1], G_VECTOR(OFS_PARM2)[2]};
+    glm::vec3 best{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    if(!box3d::shapeNearest(NUM_FOR_EDICT(ent), a, b, best))
+    {
+        const glm::vec3 lo = best + glm::vec3{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
+        const glm::vec3 hi = best + glm::vec3{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+        float bestDist = 1e9f;
+        for(int i = 0; i <= 8; i++)
+        {
+            const glm::vec3 p = a + (b - a) * (static_cast<float>(i) / 8.f);
+            const glm::vec3 q = glm::clamp(p, lo, hi);
+            if(glm::distance(p, q) < bestDist)
+            {
+                bestDist = glm::distance(p, q);
+                best = q;
+            }
+        }
+    }
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = best.x;
+    out[1] = best.y;
+    out[2] = best.z;
+}
+
 // entity(vector org, float rad, vector dir, float mincos) findcone: findradius's chain (the same entities, in the same
 // order: the last first), less those that have no model or whose drawn middle (modelcentre) is out of the cone from
 // `org` along `dir` (a unit vector) whose cosine is `mincos`, or within a unit of `org`. A little wider than that cone:
@@ -1964,6 +1996,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weapondrawnpose", PF_weapondrawnpose},
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
+    {"shapenearest", PF_shapenearest},
     {"drawnbounds", PF_drawnbounds},
     {"modeloffsetto", PF_modeloffsetto},
     {"findcone", PF_findcone},

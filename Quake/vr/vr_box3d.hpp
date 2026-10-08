@@ -44,6 +44,11 @@ int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity
 // button it touches: QC heldbox, buttons.qc VR_Buttons_PropFrame.)
 [[nodiscard]] int heldBox(int num, const glm::vec3& lo, const glm::vec3& hi, float reach);
 
+// The point of edict `num`'s shape (its body's: its hull or a gun's convex pieces, as it lies or is held now) nearest the
+// segment `a`..`b` (world units), into `out`; false if it has no body (a prop's hit with its surface, not its box: QC
+// shapenearest, vr_reload.qc's magazine and super shotgun hits).
+[[nodiscard]] bool shapeNearest(int num, const glm::vec3& a, const glm::vec3& b, glm::vec3& out);
+
 // Whether edict `num` is one of Box3D's props (its shape is what sightRay meets).
 [[nodiscard]] bool isBox3DProp(int num);
 

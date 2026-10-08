@@ -5676,6 +5676,9 @@ za::Vector<Item> pageDebugTests()
         command("Report the Loose Rounds", "vr_reload_test 14; impulse 125")
             .help("Each loose round's distance from the off hand's load point, how it lies against the way in, and "
                   "whether it passes through the gun; the load point's axis and the way its opening faces."),
+        command("The Held Prop's Shape Against Its Box", "vr_reload_test 25; impulse 125")
+            .help("The main hand's prop: how far its shape (as held) and its box are from the off hand's gun's magazine "
+                  "and the front of its barrels. The magazine's bump and the super shotgun's hits count by its shape."),
         command("Print the Collision Shapes", "vr_physics_shapes vr_ammo_shell vr_ammo_mag vr_ammo_front thrown_weapon")
             .help("Each loose round's body against its drawn size, each held gun's body against the drawn gun, how deep "
                   "its load point lies inside it, and its convex pieces (how many, how far their hulls lie off the gun; "

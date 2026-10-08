@@ -1089,13 +1089,12 @@ float(float xHand, entity box) VR_Reload_PouchTakesBox =
 };
 
 // The magazine of the gun in `xGunHand` of self (held or carried) knocked out by a hit (VR_Reload_MagFrame): what the
-// other hand brings (the fist, a prop it holds: its box's point nearest the magazine, as on the super shotgun's barrels
-// (VR_Reload_BoxNearest), a magazine, the gun it holds: its line to the muzzle) within
+// other hand brings (the fist, a prop it holds: its shape's point nearest the magazine, as on the super shotgun's barrels
+// (the engine's shapenearest: its Box3D body as held, not its box), a magazine, the gun it holds: its line to the muzzle) within
 // vr_reload_hit_reach of the magazine anywhere on it (its box, as drawn: VR_Reload_MagDist) at vr_reload_bump_speed or
 // more (the hands' relative speed); not by that hand holding the magazine (the two-handed grip) or gripping it now (its
 // grip closing on it: HS_MAGAZINE), nor in the half second after one seated. Out it flies along the blow, with the gun's
 // own speed. A magazine that knocked it out must leave the well before it seats (the bump reload's second step).
-vector(entity e, vector xA, vector xB) VR_Reload_BoxNearest;
 void(float xGunHand) VR_Reload_HitFrame =
 {
     float other = VRGetOtherHand(xGunHand);
@@ -1123,8 +1122,9 @@ void(float xGunHand) VR_Reload_HitFrame =
     }
     else if(held != world)
     {
-        // A prop: its surface, not its middle (a held prop is kept off the gun by the hands' collisions): its box's
-        // point nearest the magazine's length (the well's top without a box).
+        // A prop: its surface, not its middle (a held prop is kept off the gun by the hands' collisions): its shape's
+        // point nearest the magazine's length (the well's top without a box): its Box3D body as the hand holds it, turned
+        // with it (the author's note 10-42-18: its box, square to the world, reached out of it by a head's width).
         vector m0 = xGunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
         vector m1 = m0;
         if(VR_Reload_HasMagBox(self, xGunHand))
@@ -1132,7 +1132,7 @@ void(float xGunHand) VR_Reload_HitFrame =
             m0 = VR_Reload_MagBoxPos(self, xGunHand) - VR_Reload_MagBoxUp(self, xGunHand);
             m1 = VR_Reload_MagBoxPos(self, xGunHand) + VR_Reload_MagBoxUp(self, xGunHand);
         }
-        d = min(d, VR_Reload_MagDist(self, xGunHand, VR_Reload_BoxNearest(held, m0, m1)));
+        d = min(d, VR_Reload_MagDist(self, xGunHand, shapenearest(held, m0, m1)));
     }
     if(VRGetEntWeapon(self, other) != WID_FIST)
     {
@@ -1411,34 +1411,9 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgClose =
 // self (its front 40%): `xSide` -1 from above (the gun's own down; it breaks open: vr_reload_ssg_hit_open_speed, _angle), 1 from below
 // (its own up; open, it snaps shut: vr_reload_ssg_hit_close_*), within vr_reload_ssg_hit_reach of them (open: as they
 // are turned down by vr_reload_ssg_open_angle from the breech), at the hands' relative speed: a fist, a held prop's
-// box (its nearest point: VR_Reload_BoxNearest), the other gun's line from its hand to its muzzle. Not while both hands hold it (the pry and the lift are
+// shape (its nearest point: the engine's shapenearest, its Box3D body as held), the other gun's line from its hand to its muzzle. Not while both hands hold it (the pry and the lift are
 // theirs), nor a round the hand holds (brought to the breech to load). What it was in vr_ssg_hitdesc.
 string vr_ssg_hitdesc;
-
-// The point of `e`'s box (its origin plus its size: a held prop's, moved with the hand) nearest the segment `xA`..`xB`
-// (nine points along it tried): a prop hits with its surface, not its middle (the author's note
-// grenedin_2026-10-08_00-05-36: a held prop is kept off the gun by the hands' collisions, its middle out of reach).
-vector(entity e, vector xA, vector xB) VR_Reload_BoxNearest =
-{
-    vector lo = e.origin + e.mins;
-    vector hi = e.origin + e.maxs;
-    vector best = e.origin;
-    float bestDist = 100000;
-    for(float i = 0; i <= 8; i++)
-    {
-        vector p = xA + (xB - xA) * (i / 8);
-        vector q = p;
-        q_x = max(lo_x, min(hi_x, p_x));
-        q_y = max(lo_y, min(hi_y, p_y));
-        q_z = max(lo_z, min(hi_z, p_z));
-        if(vlen(q - p) < bestDist)
-        {
-            bestDist = vlen(q - p);
-            best = q;
-        }
-    }
-    return best;
-};
 
 float(float xGunHand, float xSide) VR_Reload_SsgHit =
 {
@@ -1483,7 +1458,7 @@ float(float xGunHand, float xSide) VR_Reload_SsgHit =
     {
         if(k == 0)
         {
-            q = held != world ? VR_Reload_BoxNearest(held, p0, p1) : VRGetEntHandPos(self, other);
+            q = held != world ? shapenearest(held, p0, p1) : VRGetEntHandPos(self, other);
         }
         else if(VRGetEntWeapon(self, other) != WID_FIST)
         {

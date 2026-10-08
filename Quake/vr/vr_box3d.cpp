@@ -9908,6 +9908,77 @@ int heldBox(int num, const glm::vec3& lo, const glm::vec3& hi, float reach)
     return 0;
 }
 
+bool shapeNearest(int num, const glm::vec3& a, const glm::vec3& b, glm::vec3& out)
+{
+    if(!world || num <= 0 || num >= static_cast<int>(world->slots.size()))
+    {
+        return false;
+    }
+    const Slot& s = world->slots[num];
+    if((s.kind != Kind::Held && s.kind != Kind::Prop) || B3_IS_NULL(s.body) || !b3Body_IsValid(s.body))
+    {
+        return false;
+    }
+    // The segment in the body's frame (its shapes' own); the nearest of its shapes by GJK (b3ShapeDistance). A held one
+    // where the hand holds it now (its body follows it at the next step: a fast blow's frame would ask where it was).
+    b3WorldTransform xf = b3Body_GetTransform(s.body);
+    if(s.kind == Kind::Held)
+    {
+        edict_t* ent = EDICT_NUM(num);
+        xf.p = world->toM(vec(ent->v.origin));
+        xf.q = rotationOf(ent, s);
+    }
+    const glm::vec3 at = world->toU(xf.p);
+    const b3Vec3 segment[2]{b3InvRotateVector(xf.q, world->toM(a - at)), b3InvRotateVector(xf.q, world->toM(b - at))};
+    const b3ShapeProxy proxyB{segment, glm::distance(a, b) > 1e-4f ? 2 : 1, 0.f};
+    za::Array<b3ShapeId, maxBodyShapes> shapes;
+    const int n = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
+    float best = 1e9f;
+    b3Vec3 nearest{0.f, 0.f, 0.f};
+    for(int i = 0; i < n; i++)
+    {
+        b3ShapeProxy proxyA{nullptr, 0, 0.f};
+        b3Capsule capsule;
+        b3Sphere sphere;
+        switch(b3Shape_GetType(shapes[i]))
+        {
+            case b3_hullShape:
+            {
+                const b3HullData* hull = b3Shape_GetHull(shapes[i]);
+                proxyA = b3ShapeProxy{b3GetHullPoints(hull), za::min(hull->vertexCount, B3_MAX_SHAPE_CAST_POINTS), 0.f};
+                break;
+            }
+            case b3_capsuleShape:
+                capsule = b3Shape_GetCapsule(shapes[i]);
+                proxyA = b3ShapeProxy{&capsule.center1, 2, capsule.radius};
+                break;
+            case b3_sphereShape:
+                sphere = b3Shape_GetSphere(shapes[i]);
+                proxyA = b3ShapeProxy{&sphere.center, 1, sphere.radius};
+                break;
+            default: break;
+        }
+        if(proxyA.count == 0)
+        {
+            continue;
+        }
+        const b3DistanceInput input{proxyA, proxyB, b3Transform_identity, true};
+        b3SimplexCache cache{};
+        const b3DistanceOutput result = b3ShapeDistance(&input, &cache, nullptr, 0);
+        if(result.distance < best)
+        {
+            best = result.distance;
+            nearest = result.pointA;
+        }
+    }
+    if(best >= 1e9f)
+    {
+        return false;
+    }
+    out = at + world->toU(b3RotateVector(xf.q, nearest));
+    return true;
+}
+
 bool isBox3DProp(int num)
 {
     return world && num > 0 && num < static_cast<int>(world->slots.size()) && world->slots[num].kind == Kind::Prop;

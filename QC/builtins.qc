@@ -334,6 +334,7 @@ vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or max
 vector(entity e, float max) drawnbounds = #0;
 // The model_offset putting the middle of e's drawn box (its model_scale as now, its model_offset ignored) at `at`.
 vector(entity e, vector at) modeloffsetto = #0;
+vector(entity e, vector a, vector b) shapenearest = #0; // QVR: the point of e's shape (its Box3D body's, as it lies or is held: its hull, a gun's convex pieces) nearest the segment a..b; without a body its box's
 vector(entity e) modelcentre = #0; // the middle of the drawn model (turned with it, scaled and offset as drawn), in the world
 // findradius's chain (the same order) less what has no model or whose modelcentre is out of the cone from org along dir
 // (a unit vector) whose cosine is mincos (a little wider: test each again), or within a unit of org.

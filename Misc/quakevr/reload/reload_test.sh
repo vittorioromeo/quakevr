@@ -345,13 +345,16 @@ PROP="$GRIP;vr_test_held_hand 1;vr_test_held_pick 4;impulse 252;wait5"
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$PROP;$(PHIT 45 20);$REP;$(PHIT -45 -20);$REP;toggleconsole;quit" -Filter "$F7|^test:" 2>&1)
 log2=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$(PHIT 45 20);$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "^test: progs/h_guard.mdl in the main hand" && echo "$log" | grep -q "broken open by a hit from above" && echo "$log" | grep -q "closed by a hit from below" && [ "$(opens "$log")" = 10 ] && [ "$(opens "$log2")" = 0 ] && echo 1 || echo 0) "a prop held in the other hand hits the barrels open and shut by its surface (prop $(opens "$log"), want 10; the fist as far off: $(opens "$log2"), want 0)"
-# The same for the nailgun's magazine (VR_Reload_HitFrame: the prop's box, not its middle): the head brought fast from 30
-# units off the magazine's side to 6 off (the hand and the prop's middle 5.5 off it, past Hit Reach 4; its box 1.2 off)
-# knocks it out; the fist stopping as far off doesn't.
-MHIT="vr_mock_hand_to main mag 0 30;wait5;vr_mock_hand_to main mag 0 30;wait10;vr_mock_hand_to main mag 0 6;wait10"
-log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$PROP;$MHIT;$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand)|^test:" 2>&1)
-log2=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$GRIP;$MHIT;$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand)" 2>&1)
+# The same for the nailgun's magazine (VR_Reload_HitFrame: the prop's shape as held, not its middle nor its box: the
+# author's note 10-42-18): the head brought fast from 30 units off the magazine's side to 4 off (the hand and the prop's
+# middle 3.5 off it, past Hit Reach 2; its shape 1.7 off) knocks it out; the fist stopping as far off doesn't; the head
+# stopping 6 off (its shape 3.5 off, its box 1.2: the box's near miss) doesn't (vr_reload_test 25 prints both).
+MHIT() { echo "vr_mock_hand_to main mag 0 30;wait5;vr_mock_hand_to main mag 0 30;wait10;vr_mock_hand_to main mag 0 $1;wait10"; }
+log=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$PROP;$(MHIT 4);$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand)|^test:" 2>&1)
+log2=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$GRIP;$(MHIT 4);$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand)" 2>&1)
+log3=$(bash $KIT/run.sh $AGENT -Script "$MPRE;$PROP;$(MHIT 6);vr_reload_test 25;impulse 125;wait3;toggleconsole;quit" -Filter "^reload: (a mag|off hand|the held)" 2>&1)
 check $(echo "$log" | grep -q "^test: progs/h_guard.mdl in the main hand" && echo "$log" | grep -q "knocked out by a hit" && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "clip 0 mag 0" && ! echo "$log2" | grep -q "knocked out by a hit" && echo "$log2" | grep "^reload: off hand" | tail -1 | grep -q "clip 24 mag 1" && echo 1 || echo 0) "a prop held in the other hand knocks the nailgun's magazine out by its surface; the fist as far off doesn't ($(echo "$log" | grep -o "knocked out by a hit[^)]*" | head -1))"
+check $(echo "$log3" | grep "the held" | awk '{print ($9 + 0 > 2 && $11 + 0 <= 2) ? 1 : 0}' | grep -q 1 && ! echo "$log3" | grep -q "knocked out by a hit" && echo "$log3" | grep "^reload: off hand" | tail -1 | grep -q "clip 24 mag 1" && echo 1 || echo 0) "its box within Hit Reach but its shape not (a near miss): the magazine stays in ($(echo "$log3" | grep -o "from the magazine: shape [0-9.]* box [0-9.]*"))"
 # Spent lava nail magazines smoke as the spent cells do (00-00-42): the super nailgun and the nailgun on lava nails, fired
 # dry (vr_reload_test 16), their magazine out: smoking for Spent Cell Smoke (2 s here); a plain nail magazine emptied
 # (vr_reload_test 5) doesn't.

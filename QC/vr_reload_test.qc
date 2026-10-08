@@ -586,6 +586,64 @@ void() VR_Reload_TestLooseReport =
         self.offloadportaxis, self.offloadportface));
 };
 
+// Test step 25 (a held prop hits with its shape, not its box: the author's note vrfiringrange_2026-10-08_10-42-18): the
+// main hand's prop against the off hand's gun: how far its shape's nearest point (the engine's shapenearest: its Box3D
+// body as held) and its box's (the old way: origin + mins .. maxs, square to the world) are from the gun's magazine
+// (VR_Reload_MagDist) and from the front of the super shotgun's barrels (shut), in units.
+vector(entity e, vector xA, vector xB) VR_Reload_TestBoxNearest =
+{
+    vector lo = e.origin + e.mins;
+    vector hi = e.origin + e.maxs;
+    vector best = e.origin;
+    float bestDist = 100000;
+    for(float i = 0; i <= 8; i++)
+    {
+        vector p = xA + (xB - xA) * (i / 8);
+        vector q = p;
+        q_x = max(lo_x, min(hi_x, p_x));
+        q_y = max(lo_y, min(hi_y, p_y));
+        q_z = max(lo_z, min(hi_z, p_z));
+        if(vlen(q - p) < bestDist)
+        {
+            bestDist = vlen(q - p);
+            best = q;
+        }
+    }
+    return best;
+};
+
+float(vector xA, vector xB, vector xP) VR_Reload_TestSegDist =
+{
+    float t = max(0, min(1, ((xP - xA) * (xB - xA)) / max(0.001, (xB - xA) * (xB - xA))));
+    return vlen(xA + (xB - xA) * t - xP);
+};
+
+void() VR_Reload_TestHeldShape =
+{
+    entity held = VR_Carry_Held(self, cVR_MainHand);
+    if(!held)
+    {
+        bprint("reload: the main hand holds no prop\n");
+        return;
+    }
+    vector m0 = self.offloadportpos;
+    vector m1 = m0;
+    if(VR_Reload_HasMagBox(self, cVR_OffHand))
+    {
+        m0 = VR_Reload_MagBoxPos(self, cVR_OffHand) - VR_Reload_MagBoxUp(self, cVR_OffHand);
+        m1 = VR_Reload_MagBoxPos(self, cVR_OffHand) + VR_Reload_MagBoxUp(self, cVR_OffHand);
+    }
+    float magShape = VR_Reload_MagDist(self, cVR_OffHand, shapenearest(held, m0, m1));
+    float magBox = VR_Reload_MagDist(self, cVR_OffHand, VR_Reload_TestBoxNearest(held, m0, m1));
+    vector b = self.offloadportpos;
+    vector m = self.offmuzzlepos;
+    vector p0 = b + (m - b) * 0.6;
+    float barrelShape = VR_Reload_TestSegDist(p0, m, shapenearest(held, p0, m));
+    float barrelBox = VR_Reload_TestSegDist(p0, m, VR_Reload_TestBoxNearest(held, p0, m));
+    bprint(sprintf("reload: the held %s from the magazine: shape %.2f box %.2f; from the barrels' front: shape %.2f box "
+        "%.2f\n", held.model, magShape, magBox, barrelShape, barrelBox));
+};
+
 // Test step 19: a shot at each launcher's round lying about (it goes off).
 // Test steps 17 and 18 (a held round at the load point, VR_Reload_HeldFrame): the main hand's round placed with its
 // reference point (VR_Reload_RoundRef: a launcher's round's butt) at the off hand's gun's load point, lying the way it
@@ -692,6 +750,10 @@ void() VR_Reload_Test =
     else if(step == 14)
     {
         VR_Reload_TestLooseReport();
+    }
+    else if(step == 25)
+    {
+        VR_Reload_TestHeldShape();
     }
     else if(step == 16 && VR_Reload_IsFront(VRGetEntWeapon(self, cVR_OffHand)))
     {
