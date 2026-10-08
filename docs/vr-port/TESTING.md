@@ -814,7 +814,9 @@ shadows`) are drawn once, in the left eye's `setup view`. `self` columns leave o
 **Shadow maps, layered or a face at a time** (LIGHTING.md, "Layered shadow casters"): `vr_shadow_layered_check 20`
 (Debug > Profiling and Memory > Check Layered Shadows) draws the frame's shadow maps both ways 20 times (draw calls,
 faces, model draws, CPU and GPU ms each), then reads both atlases back and compares them texel by texel: `0 texels
-differ` in both is the pass. `vr_shadow_layered 0` draws a face at a time (the old way).
+differ` in both is the pass. `vr_shadow_layered 0` draws a face at a time (the old way). `vr_shadow_layered_check 20
+cache` (Debug > Profiling and Memory > Check Shadow Caster Set-up) compares the casters set up again for each light with
+the set-up kept for the pass (r_alias.c, R_AliasDepthCacheBegin): the set-ups made and reused, and `0 texels differ`.
 
 **Benchmark scenarios** ([BENCHMARKS.md](BENCHMARKS.md)): the kit's `bench.sh` runs a set of fixed scenarios (idle,
 slipgates, combat, physics, effects, lights, liquids, custom maps, flat) and compares a baseline with new results;

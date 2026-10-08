@@ -364,3 +364,33 @@ build). ms a frame.
   redundant binds more a frame cost nothing measurable (shadow maps 0.900 -> 0.896 ms): no change.
 - The fights (`combat_48`, `ai_crowd_64`) go differently run to run (3000-8700 particles): their CPU rows are not a
   measure; the phase rows are. `combined`'s p99 moves 1-4 ms between runs.
+
+#### Second follow-up: shadow casters, touch links, boards, gate exits (2026-10-08, later)
+
+The same set-up (his settings of 2026-10-06, paced 90 Hz, exclusive), 3 x 600 frames each, medians: before, b74f13a4
+(`kit/benchresults/perf3_final_A`); after, this follow-up's commits (`perf3_final_B4`). ms a frame. Each commit's own
+A/B is in its message (`perf3_cast_*`, `perf3_touch_*`, `perf3_text_*`, `perf3_exit_*`).
+
+| scenario | CPU avg before | after | CPU p50 before | after | CPU p99 before | after | shadow maps before | after | SV_Physics before | after | screen before | after |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `combined` | 4.28 | **3.98** | 4.41 | **4.18** | 7.09 | 5.65 | 0.877 | **0.689** | 1.598 | **1.550** | 2.52 | **2.16** |
+| `slipgate_loop_r2` | 2.03 | **1.55** | 2.04 | **1.57** | 2.68 | 2.21 | 0.266 | 0.260 | 0.182 | 0.172 | 1.67 | **1.21** |
+| `slipgate_loop_r0` | 1.19 | **0.93** | 1.21 | **0.95** | 1.79 | 1.42 | 0.147 | 0.141 | 0.181 | 0.171 | 0.85 | **0.59** |
+| `slipgate_start` | 1.17 | 1.14 | 1.19 | 1.16 | 1.75 | 1.64 | 0.222 | 0.222 | 0.160 | 0.151 | 0.84 | 0.82 |
+| `props_500_active` | 2.46 | **2.37** | 2.49 | 2.42 | 4.53 | 4.36 | 0.053 | 0.054 | 1.123 | **1.071** | 1.06 | 1.03 |
+| `combat_48` | 1.47 | 1.50 | 1.42 | 1.44 | 2.86 | 2.78 | 0.094 | 0.091 | 0.363 | 0.352 | 0.94 | 0.97 |
+| `idle_e1m1` | 0.65 | 0.64 | 0.69 | 0.67 | 1.18 | 1.20 | 0.038 | 0.034 | 0.173 | 0.172 | 0.34 | 0.32 |
+
+- **Shadow casters** set up once a pass over the lights (r_alias.c's depth draws: lerp, matrices, zero blend kept by
+  entity for the pass): `combined` 3228 -> 406 set-ups a pass, shadow maps 0.88 -> 0.69 ms;
+  `vr_shadow_layered_check 20 cache`: both atlases 0 texels differ.
+- **Touch links**: the area nodes' edicts also in arrays, walked by `SV_AreaEdictsUnordered` (VR_TouchLinks sorts
+  them into edict order as before): SV_Physics -0.05 ms in `combined` and `props_500_active`; both walks compared on
+  393,216 calls: the same edicts.
+- **CRT world text boards** laid out only in the views whose frustum they reach (each eye and each gate view laid out
+  every board of the map): vrslipgates' loop -0.26 ms (r0) and -0.33 ms (r2, in its own A/B); screenshots equal.
+- **Gate exits** (`reverseSide`) kept with the gates when they are built: 23,000 made a frame in the loop at recursion
+  2; alias -0.09 ms there; 20.9 million kept exits compared with ones made in full: equal.
+- `combat_48`'s +0.03 ms is the fight's run-to-run spread (its phases: shadow maps and SV_Physics down).
+- Left (PERF_DECISIONS.md, "Still open"): a compact copy of the touch walk's boxes (not exact: QC writes abs boxes
+  without a relink), the static dynamic lights' world casters (`collectWorld`, ~0.12 ms in `combined`).

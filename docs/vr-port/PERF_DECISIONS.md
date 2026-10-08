@@ -113,14 +113,19 @@ ms with 1024 large marks), worldtrace::world's brush entities listed once a mess
 - **weapons::modelTransform** (its map lookup shows under the shadow maps' alias draws in VTune): a last-model memo
   measured nothing (`combined` shadow maps 0.890 -> 0.893 ms, CPU p50 4.44 -> 4.44): not done.
 
-Not done (no trade-off; for a next run):
+Done in the second follow-up (BENCHMARKS.md, "Second follow-up"): the shadow casters set up once a pass over the
+lights, the touch links' walk from arrays, the CRT boards culled by view, the gates' exits kept.
 
-- **The props' touch links**: Box3D's writeProp relinks each awake prop with its touches (SV_LinkEdict(ent, true) ->
-  VR_TouchLinks -> SV_AreaEdicts): `SV_AreaEdictsR` 2% of `combined`'s samples (300 props awake in a small area:
-  each walk tests the others' boxes, an edict's cache line each). A compact box array per area node would cut the
-  misses, if kept exactly in step with absmin/absmax.
-- **Shadow casters set up per light**: in `combined` the shadow maps' alias draws are 0.6 ms of the main thread; each
-  caster's set-up (R_EntityMatrix's sines, the alias pre/post transforms, lerp) is made again for each of the 8
-  shadowed lights; once a frame per entity would keep most of it.
+Still open (no trade-off unless said):
+
+- **The props' touch links, further**: the walk now reads each node's edicts from an array (`SV_AreaEdictsUnordered`),
+  but still reads each one's live `absmin`/`absmax` (`SV_AreaEdictsUnorderedR` ~2% of `combined`'s samples). A
+  compact copy of the boxes made at link time would cut that, but is not exact: QC writes `absmin`/`absmax` without a
+  relink (hipnotic's `hip_expl.qc`, `hip_subs.qc`; the engine's shot shift in `VR_BeforePlayerPostThink`), and such an
+  edict would be found by its old box. A trade-off (touches by a stale box for one frame): not done.
+- **The dynamic lights' world casters**: each shadowed dlight walks the BSP for the world's triangles near it every
+  frame (`collectWorld`/`addSurface`, ~0.12 ms in `combined`, whose test lights stand still). Kept per light while its
+  place, radius and the world are the same it would be the same list; most lights in play move (the flashlight,
+  rockets, muzzle flashes), so the win is mostly the benchmark's. Not done.
 - **NVML's start**: the first VRAM read (`gpustats::requestVram`) initialises NVML on a worker (0.12 s, once); fine
   as it is, noted because it shows in every window's VTune profile.

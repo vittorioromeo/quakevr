@@ -4468,6 +4468,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Check Layered Shadows", "vr_shadow_layered_check 20")
             .help("vr_shadow_layered_check 20: this frame's shadow maps drawn both ways 20 times, timed (draw calls, CPU and "
                   "GPU ms), then read back and compared texel by texel, in the console. Stand where shadows are."),
+        command("Check Shadow Caster Set-up", "vr_shadow_layered_check 20 cache")
+            .help("vr_shadow_layered_check 20 cache: this frame's shadow maps drawn with each caster set up again for every "
+                  "light, then once a pass over the lights (as the game draws them), 20 times each, timed, then read back "
+                  "and compared texel by texel, in the console. Stand where shadows are."),
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),
