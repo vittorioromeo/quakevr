@@ -1,5 +1,5 @@
 #!/bin/bash
-# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|ragdoll|monster|all]: headless checks of the slipgate edge cases in
+# slipgate_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|ragdoll|corpse|monster|all]: headless checks of the slipgate edge cases in
 # vrslipgates (ROUND21.md, "Slipgates: exits on their gates, props through, held objects, the force grab's beam"), with
 # the agent kit (C:/OHWorkspace/qvr-kit). Each section prints one line or a few, with what it must say.
 #   clip   a crate resting where a gate's exit used to stand (48 out of the north gallery's wall), paired exits off and
@@ -194,6 +194,20 @@ if want ragdoll; then
             y=$(grep -E "^ragdoll [0-9]+ monster_army: .* pelvis" "$LOG" | tail -1 | sed -E 's/.* pelvis [-0-9.]+ ([-0-9.]+) .*/\1/')
             echo "ragdoll: gate at x $x, walk $w: $(grep -c 'carried through a slipgate' "$LOG") crossing, its pelvis ends at y $y" \
                 "$( [ $w = 1 ] && echo '(1, > 928: through)' || echo '(0, against the wall behind the gate: under 648, 688 the large gate; a control)')"
+        done
+    done
+fi
+
+# corpse: the same with ragdolls off (vr_ragdoll 0): the dead grunt's own body (vr_corpse_collide 4, pushable) flung into
+# FA's player and large gates (vr_physics_fling 300 north, 60 up: a blast doesn't move a heavy pushable corpse) is carried whole as its middle goes in (carryCorpses), ending in the north gallery
+# (y > 928); with vr_portals_walk 0 (a control) it stays short of the wall behind the gate.
+if want corpse; then
+    for x in -256 0; do
+        for w in 1 0; do
+            run -Script "$START;vr_ragdoll 0;vr_corpse_collide 4;vr_corpse_nogib 1;vr_limbs 0;vr_decap 0;vr_portals_walk $w;setpos $x 520 24 0 90 0;wait5;noclip 0;vr_test_spawn 0;vr_test_spawn_dist 60;vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0;wait120;vr_physics_fling monster_army ${FLING:-300} 90 60;wait240;vr_corpse_list;toggleconsole;quit"
+            y=$(grep -E "^  [0-9]+ monster_army: .* at " "$LOG" | tail -1 | sed -E 's/.* at [-0-9.]+ ([-0-9.]+) .*/\1/')
+            echo "corpse: gate at x $x, walk $w: $(grep -c 'corpse: [0-9]* carried through a slipgate' "$LOG") crossing, it ends at y $y" \
+                "$( [ $w = 1 ] && echo '(1, > 928: through)' || echo '(0, short of the wall behind the gate; a control)')"
         done
     done
 fi

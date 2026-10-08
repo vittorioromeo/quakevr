@@ -442,6 +442,10 @@ struct Slot // what one edict is in the world (by its number)
     bool corpseFitted{false};
     float corpseFriction{0.f};
     int ragdoll{-1}; // a ragdoll (vr_ragdoll): its parts in World::ragdolls (body: its pelvis); -1 none
+    // A pushable corpse's middle after the last step (carryCorpses: through a slipgate; its body made again as its
+    // frame changes is the same corpse).
+    glm::vec3 lastMid{0.f};
+    bool midKnown{false};
 
     // Props, held and fixtures: the settings (shapeGeneration) and the entity's box its drawn box and Mass were last
     // found the same at (stale): looked at again only when one of them changes.
@@ -7194,6 +7198,48 @@ void carryRagdolls()
     }
 }
 
+// After the step: a dead monster's own body (vr_corpse_collide's pushable kinds, not a ragdoll) whose middle went in
+// through a slipgate's aperture is carried whole by the gate's mapping, as carryRagdolls carries a ragdoll; until then
+// its portal copy kept the wall behind the gate from stopping it (syncPortalCopies). writeCorpse then moves its entity.
+void carryCorpses()
+{
+    for(za::SizeT num = 0; num < world->slots.size(); num++)
+    {
+        Slot& s = world->slots[num];
+        if(s.kind != Kind::Corpse || s.ragdoll >= 0 || !s.corpseDynamic || B3_IS_NULL(s.body) || !b3Body_IsValid(s.body))
+        {
+            s.midKnown = false;
+            continue;
+        }
+        glm::vec3 mid = world->toU(b3Body_GetWorldCenter(s.body));
+        portals::LightGate gate;
+        if(s.midKnown && portals::crossedGate(s.lastMid, mid, gate))
+        {
+            const glm::vec3 shift = gate.to - gate.turn * gate.from;
+            const glm::quat q = glm::quat_cast(gate.turn);
+            const b3WorldTransform pose = b3Body_GetTransform(s.body);
+            // (A box, not fitted to its pose, stays square to the world: rotationOf; its yaw turns below.)
+            const glm::quat turned = s.corpseFitted ? glm::normalize(q * fromB3(pose.q)) : fromB3(pose.q);
+            b3Body_SetTransform(s.body, world->toM(gate.turn * world->toU(pose.p) + shift), toB3(turned));
+            b3Body_SetLinearVelocity(s.body, b3v(gate.turn * glmv(b3Body_GetLinearVelocity(s.body))));
+            b3Body_SetAngularVelocity(s.body, b3v(gate.turn * glmv(b3Body_GetAngularVelocity(s.body))));
+            b3Body_SetAwake(s.body, true);
+            edict_t* ent = static_cast<int>(num) < qcvm->num_edicts ? EDICT_NUM(static_cast<int>(num)) : nullptr;
+            if(ent && !ent->free && !s.corpseFitted)
+            {
+                ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + glm::degrees(std::atan2(gate.turn[0][1], gate.turn[0][0])));
+            }
+            s.asleep = false; // (written this frame: writeCorpse)
+            const glm::vec3 to = gate.turn * mid + shift;
+            Con_DPrintf("corpse: %d carried through a slipgate: middle %.1f %.1f %.1f -> %.1f %.1f %.1f\n", static_cast<int>(num),
+                mid.x, mid.y, mid.z, to.x, to.y, to.z);
+            mid = to;
+        }
+        s.lastMid = mid;
+        s.midKnown = true;
+    }
+}
+
 void feedPortalCopies()
 {
     for(World::PortalCopy& c : world->portalCopies)
@@ -8799,6 +8845,16 @@ void fling_f()
     {
         store(glm::vec3{za::cos(yaw) * speed, za::sin(yaw) * speed, up}, e->v.velocity);
         setFlag(e, FL_ONGROUND, false);
+        // A pushable corpse (not a ragdoll): its body moves it, not its entity's velocity.
+        const int n = NUM_FOR_EDICT(e);
+        if(world && n < static_cast<int>(world->slots.size()) && world->slots[n].kind == Kind::Corpse &&
+            world->slots[n].ragdoll < 0 && world->slots[n].corpseDynamic && B3_IS_NON_NULL(world->slots[n].body) &&
+            b3Body_IsValid(world->slots[n].body))
+        {
+            b3Body_SetLinearVelocity(world->slots[n].body, world->toM(vec(e->v.velocity)));
+            b3Body_SetAwake(world->slots[n].body, true);
+            world->slots[n].asleep = false;
+        }
         Con_Printf("vr_physics_fling: %d %s at %.0f %.0f %.0f u/s\n", NUM_FOR_EDICT(e), PR_GetString(e->v.classname),
             e->v.velocity[0], e->v.velocity[1], e->v.velocity[2]);
     }
@@ -11687,6 +11743,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
     }
     carryRagdolls(); // (through slipgates)
+    carryCorpses();
     const double t2 = Sys_DoubleTime();
     world->stepTime += t2 - t1;
     world->stepTimeMax = za::max(world->stepTimeMax, t2 - t1);

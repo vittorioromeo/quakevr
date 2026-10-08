@@ -30947,3 +30947,13 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   fetches); every Download() sets `CURLOPT_QUICK_EXIT` (libcurl 8.10: a cancelled transfer lets a pending lookup's
   thread go instead of joining it). Players' launches unchanged apart from QUICK_EXIT. Tested: mapless
   `wait5;toggleconsole;quit` exit=0 in 2 s with both lines in the log; `maps_fetch` reads/fetches as before.
+- **Corpses through gates** (vr_box3d.cpp carryCorpses, after carryRagdolls): a dead monster's own body that is not a
+  ragdoll (vr_corpse_collide 2/4, pushable: Box3D moves it) is carried whole when its middle goes in through a paired
+  gate's aperture: its body moved and turned by the gate's mapping, its speed and spin turned, its entity written there
+  (writeCorpse; a box's yaw turned). Its portal copy already let it past the wall behind the gate, so before it went into
+  that wall's far side and stayed there. `vr_physics_fling` now moves a pushable corpse (its body's velocity; a blast
+  does not move a 150 kg corpse). Test: `slipgate_edges_test.sh <agent> corpse` (vr_ragdoll 0, a dead grunt flung 300
+  north into FA's player and large gates): 1 crossing each, ending at y 983..1194 (> 928, two runs); `vr_portals_walk 0`
+  control 606..650; with the carry off it ended at 884 and 660 (inside the wall's far side, 0 crossings). The ragdoll
+  section as before (1097, 1169; controls 616, 674). Not done: corpses of the fixed kinds (vr_corpse_collide 0/1/3:
+  Quake moves them, and a corpse there never flies).
