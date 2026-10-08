@@ -22,7 +22,7 @@ namespace
 constexpr float backPart = 0.35f; // of the stroke: going back,
 constexpr float holdPart = 0.10f; // held at the back; the rest coming forward
 constexpr float maxTravel = 3.2f; // model units (the fore-end's back then meets the actuator housings)
-constexpr double shotWindow = 0.1; // a shell's eject message within this of the stroke's start is that shot's
+constexpr double shotWindow = 0.1; // a shell's eject message within this of the stroke's shot is that shot's
 
 constexpr const char* backSoundName = "vr/autopump_back.wav";
 constexpr const char* homeSoundName = "vr/autopump_home.wav";
@@ -30,7 +30,8 @@ constexpr float homeSoundLead = 0.053f; // seconds from the home clack's start t
 
 struct Stroke
 {
-    double start{-1.0}; // game time it started (-1: none)
+    double shot{-1.0};  // game time of the shot (-1: none)
+    double start{-1.0}; // game time it starts, vr_autopump_delay after the shot (-1: none)
     float time{0.3f};   // its length, as vr_autopump_time was then
     float travel{2.5f}; // and its travel
     bool backSounded{false};
@@ -51,6 +52,13 @@ sfx_t* homeSound = nullptr;
 [[nodiscard]] float strokeTime()
 {
     return za::clamp(vr_autopump_time.value, 0.1f, 0.48f); // (the shotgun refires after 0.5 s)
+}
+
+// The shot, a moment, then the stroke (the author's note, 2026-10-08 13:58: it started with the shot): cut short so that
+// the stroke is home before the shotgun can fire again.
+[[nodiscard]] float strokeDelay(float time)
+{
+    return za::clamp(vr_autopump_delay.value, 0.f, za::max(0.f, 0.48f - time));
 }
 
 [[nodiscard]] float strokeTravel()
@@ -115,13 +123,14 @@ void fired(int hand)
     {
         return;
     }
-    s.start = cl.time;
+    s.shot = cl.time;
     s.time = strokeTime();
+    s.start = cl.time + strokeDelay(s.time);
     s.travel = strokeTravel();
     if(vr_debug_weaponfx.value)
     {
-        Con_Printf("autopump hand %d start t %.3f (real %.3f): back at %.3f, home at %.3f, %.2f units\n", hand,
-            cl.time, realtime, cl.time + s.time * backPart, cl.time + s.time, s.travel);
+        Con_Printf("autopump hand %d start t %.3f (real %.3f): back at %.3f, home at %.3f, %.2f units, shot at %.3f\n",
+            hand, s.start, realtime, s.start + s.time * backPart, s.start + s.time, s.travel, s.shot);
     }
 }
 
@@ -146,7 +155,7 @@ bool rearTime(int hand, double shot, double& rear, float& backSpeed)
         return false;
     }
     const Stroke& s = strokes[hand];
-    if(s.start < 0.0 || s.start < shot - shotWindow || s.start > shot + shotWindow)
+    if(s.start < 0.0 || s.shot < shot - shotWindow || s.shot > shot + shotWindow)
     {
         return false;
     }
@@ -164,10 +173,14 @@ void frame(const bool (&isShotgun)[2], const float (&where)[2][3])
         {
             continue;
         }
-        if(!on() || cl.time < s.start || cl.time > s.start + s.time + 1.0)
+        if(!on() || cl.time < s.shot || cl.time > s.start + s.time + 1.0)
         {
             s = Stroke{}; // (a time going back: a new map, a demo)
             continue;
+        }
+        if(cl.time < s.start)
+        {
+            continue; // (the delay after the shot: vr_autopump_delay)
         }
         const float u = progress(s);
         if(!s.backSounded)

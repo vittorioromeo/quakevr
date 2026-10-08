@@ -1138,6 +1138,7 @@ QVR_CVAR(vr_shells_sound, "1", CVAR_ARCHIVE)          // volume of their tink as
 // along its guide rods and forward again, and the spent shell leaves as it reaches the back.
 QVR_CVAR(vr_autopump, "1", CVAR_ARCHIVE)              // 0: the fore-end stays; the shell leaves 0.22 s after the shot, as before
 QVR_CVAR(vr_autopump_time, "0.3", CVAR_ARCHIVE)       // seconds of game time the stroke takes, back and forward (0.1-0.48: done before the shotgun can fire again)
+QVR_CVAR(vr_autopump_delay, "0.15", CVAR_ARCHIVE)     // seconds of game time from the shot to the stroke's start (0-0.38: delay and stroke done before the shotgun can fire again)
 QVR_CVAR(vr_autopump_travel, "2.5", CVAR_ARCHIVE)     // how far back the fore-end goes, in the gun model's units (0-3.2; about 3.8 cm each, drawn)
 QVR_CVAR(vr_autopump_sound, "0.5", CVAR_ARCHIVE)      // volume of its two clacks, the slide going back and slamming home (0 off)
 QVR_CVAR(vr_autopump_haptics, "1", CVAR_ARCHIVE)      // strength of the light ticks in the hand at the back and home (0 off)

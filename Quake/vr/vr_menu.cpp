@@ -7646,6 +7646,9 @@ za::Vector<Item> pageWeaponEffects()
                   "stays and the shell leaves as before. Looks only: the fire rate is the same."),
         slider("Auto Pump Time", vr_autopump_time, 0.15f, 0.45f, 0.01f, "%.2f s").extend(0.1f, 0.48f)
             .help("How long the stroke takes, back and home (the shotgun fires again after 0.5 s)."),
+        slider("Auto Pump Delay", vr_autopump_delay, 0.f, 0.3f, 0.01f, "%.2f s").extend(0.f, 0.38f)
+            .help("How long after the shot the stroke starts: the shot, a moment, then the cycle (0: at once). Cut short so "
+                  "that the stroke is home before the shotgun can fire again (0.5 s)."),
         slider("Auto Pump Travel", vr_autopump_travel, 0.5f, 3.2f, 0.1f, "%.1f units").extend(0.f, 3.2f)
             .help("How far back the fore-end goes, in the gun model's units (about 3.8 cm each, as drawn)."),
         slider("Auto Pump Sound", vr_autopump_sound, 0.f, 1.f, 0.1f, "%.1f").help("Volume of its two clacks (0: off)."),
