@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Performance: slipgate views 31-41% cheaper on CPU (a driver re-validation every view), fights/explosions 15-19% cheaper; nothing should look or behave different: look through vrslipgates loop gate, big fights, explosions
 Stealth fixes: your shots alert by weapon loudness (walls halve it), explosions by size (Stealth AI > Explosions Heard); coop: a friend's flashlight alerts monsters; investigating monsters stop at lava/slime edges (e1m7); Rogue statues / waiting monsters wake only on their trigger; notarget is silent
 Magazine knock-out by a held prop now measures the prop's box (like the SSG barrels): hold a head/crate beside the gun and move normally: the magazine must NOT pop out by accident; a deliberate fast hit does
 Grenades unified: front pouch shows rockets/grenades/prox matching your ammo (look down); a grenade from EITHER pouch: pull the pin to arm (red/amber glow, smoke trail) and throw, or load it unarmed butt first into the launcher; armed prox thrown sticks as a mine; back-pouch grenade now looks like the 40 mm round and weighs 0.5 kg (was grenade.mdl 1.2 kg): hand fit and throw feel OK?
@@ -55,6 +56,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
+Performance decisions (docs/vr-port/PERF_DECISIONS.md): slipgate recursion default 2 (worst case now CPU 2.0 ms, GPU 3.7 ms; recommend keep); second shadow atlas for gate views (-0.15 ms CPU/-0.3 ms GPU, more memory); debris sleep state; reduced-resolution soft particles (big GPU win, visual call)
 Stealth defaults the worker chose: bosses/flyers/swimmers keep Quake AI; ambush monsters deaf to noise; sneak bonus only on Idle (not Alert); idle grunts/enforcers no longer shove you; hostile loses you after 6 s -> Alert at last sighting
 MG3 monsters: ghosts drawn solid (no transparency upstream)? lava man 0.8 damage by what hit it? super shambler/rocket ogre/ranged knight share stock ragdoll settings? demo dog ragdolls (not gibs) when beheaded/limb cut on the killing blow?
 MG3 (defaults used until you answer): axe buttons only axe/Super Axe? Super Axe burst on a 2nd hit? base health 50 + caps 50/100/20/100? bloody shotguns faster refire? new hi-poly monsters with copied/box rigs?
