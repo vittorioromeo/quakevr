@@ -30930,3 +30930,8 @@ Through Slipgates; off: sight through gates is ranged monsters' only and noises 
   at Map Start) drops each model's data from the cache once the next is loaded. Test: `developer 1;
   vr_zone_threadcheck 1; vr_hitmodel_cachestress 0|1; map e1m1; map e1m2`: the same hashes either way (e1m1 3f87ac75,
   e1m2 c457bcba), no thread catch.
+- **Monster dispensers face their "angle"** (buttons.qc func_enemy_dispenser_use): the monster made takes the
+  dispenser's yaw before its spawn function (walkmonster_start's ideal_yaw comes from it); before, always 0 (east).
+  vrfiringrange's and vrslipgates' dispensers are at 0 (no change); vrexample's grunt at 180 now faces west. Test aid
+  `vr_test_dispenser <n>` (console; default 0): the map's n-th dispenser used as its button would, `test dispenser:`
+  line. Test: `developer 1; map vrexample; vr_test_dispenser 1`: `spawn_grunt (yaw 180) made monster_army yaw 180`.

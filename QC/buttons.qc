@@ -879,6 +879,7 @@ void(float choice) VR_EnemyDispenser_Spawn =
 void() func_enemy_dispenser_use =
 {
     vector org = self.origin;
+    float yaw = self.angles_y; // (its "angle": the monster faces it, as a map's monster does)
     float choice = self.weapon;
 
     // Not installed: say what it needs instead.
@@ -922,6 +923,7 @@ void() func_enemy_dispenser_use =
     {
         self.targetname = "vr_test_statue"; // (a statue wakes when used: woken below, as its map's trigger would)
     }
+    self.angles = '0 1 0' * yaw; // (before its spawn function: walkmonster_start's ideal_yaw is taken from it)
 
     VR_EnemyDispenser_Spawn(choice);
 
@@ -931,6 +933,51 @@ void() func_enemy_dispenser_use =
         self.use(); // (Rogue's statue knight or hell knight: stone come alive)
     }
 }
+
+// Test aid `vr_test_dispenser <n>` (console): the map's n-th monster dispenser (1: the first in the map) used, as its
+// button would (the activator: the player). Prints `test dispenser:` with its targetname, its yaw ("angle") and the
+// monster's classname, yaw and ideal_yaw (it faces the dispenser's angle).
+void() VR_TestDispenser_Frame =
+{
+    float want = cvar("vr_test_dispenser");
+    if(want < 1)
+    {
+        return;
+    }
+    cvar_set("vr_test_dispenser", "0");
+    float n = 0;
+    entity e = find(world, classname, "func_enemy_dispenser");
+    while(e)
+    {
+        n = n + 1;
+        if(n == want)
+        {
+            break;
+        }
+        e = find(e, classname, "func_enemy_dispenser");
+    }
+    if(!e)
+    {
+        dprint(sprintf("test dispenser: the map has %g, not %g\n", n, want));
+        return;
+    }
+    entity oldself = self;
+    entity oldactivator = activator;
+    self = e;
+    activator = find(world, classname, "player");
+    func_enemy_dispenser_use();
+    if(self != e)
+    {
+        dprint(sprintf("test dispenser: %s (yaw %g) made %s yaw %g ideal_yaw %g\n", e.targetname, e.angles_y,
+            self.classname, self.angles_y, self.ideal_yaw));
+    }
+    else
+    {
+        dprint(sprintf("test dispenser: %s made nothing\n", e.targetname));
+    }
+    self = oldself;
+    activator = oldactivator;
+};
 
 void() func_enemy_dispenser =
 {
