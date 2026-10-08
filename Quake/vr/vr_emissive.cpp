@@ -302,6 +302,12 @@ constexpr int torchDynamicId = 0x1000;
 constexpr int maxTorchLights = 16;
 constexpr float torchLightDistance = 1200.f; // none farther (fading out over the last quarter)
 constexpr float torchFadeTime = 0.3f;        // seconds a torch's light fades in or out over
+// vr_torch_light_shadows: the lit torches whose light looks the largest (its reach over its distance), the ones shadowed
+// kept at least torchShadowHold seconds and until another is torchShadowHysteresis times as large (their shadows fade
+// in and out: vr_lighting.cpp's selectDlights).
+constexpr float torchShadowHold = 1.f;
+constexpr float torchShadowHysteresis = 1.3f;
+constexpr float torchShadowHoldBonus = 2.f; // (on top, within torchShadowHold)
 constexpr float torchStandoff = 18.f;        // the light kept this far off walls near the flame
 
 // A torch seen: its light's place (off the wall behind it), how lit it is (fading), its seed.
@@ -317,6 +323,8 @@ struct TorchState
     float distance = 0.f; // distance in the view which selected it, including a portal view
     bool taken = false; // a taken wall torch: its light follows its flame
     bool chosen = false;
+    bool shadowed = false; // one of the vr_torch_light_shadows casting shadows
+    float shadowHeld = 0.f; // seconds since it was (torchShadowHold)
     bool lit = false;
     unsigned seed = 0;
 };
@@ -404,7 +412,8 @@ struct EmissiveScratch
         int id;
     };
     za::Vector<Fading> fading; // those going out
-    auto members() { return qvr::mem::list(candidates, fading); }
+    za::Vector<TorchCandidate> shadowCandidates; // the chosen, by importance (vr_torch_light_shadows)
+    auto members() { return qvr::mem::list(candidates, fading, shadowCandidates); }
 };
 mem::Scratch<EmissiveScratch> scratch{"emissive"};
 
@@ -515,8 +524,8 @@ extern "C" void VR_BeamLights(int index, qmodel_t* model, const float* start, co
 // Each client frame, after the entities: torches and flames (Quake's wall torches and flame balls,
 // Rogue's candles and lanterns; static entities, or entities with those models) flicker a small
 // warm light onto the room. The nearest vr_torch_lights in the source/destination PVS within
-// torchLightDistance, each fading in and out as it is chosen or dropped (the nearest
-// vr_torch_light_shadows of them may cast shadows); brightness vr_torch_light_scale.
+// torchLightDistance, each fading in and out as it is chosen or dropped (vr_torch_light_shadows of
+// them cast shadows: the most important, held a while); brightness vr_torch_light_scale.
 extern "C" void VR_TorchLights(void)
 {
     QVR_PROFILE("torch lights");
@@ -661,6 +670,39 @@ extern "C" void VR_TorchLights(void)
         st.rank = static_cast<int>(c);
     }
 
+    // The shadowed ones among those chosen: by importance, not by distance alone (a step closer to one torch or
+    // back from another must not swap their shadows), held a while once chosen.
+    const int shadowed = za::clamp(static_cast<int>(vr_torch_light_shadows.value), 0, cap);
+    za::Vector<TorchCandidate>& shadowCandidates = scratch.shadowCandidates;
+    shadowCandidates.clear();
+    for(size_t c = 0; c < chosenCount; c++)
+    {
+        const TorchState& st = torches[candidates[c].id];
+        const float radius = st.kind ? st.kind->radius * st.scale : 1.f;
+        float score = radius / za::max(st.distance, 0.5f * radius);
+        if(st.shadowed)
+        {
+            score *= torchShadowHysteresis;
+            if(st.shadowHeld < torchShadowHold)
+            {
+                score *= torchShadowHoldBonus; // (unless far outdone)
+            }
+        }
+        shadowCandidates.pushBack({candidates[c].id, score});
+    }
+    za::quickSort(shadowCandidates.begin(), shadowCandidates.end(),
+        [](const TorchCandidate& a, const TorchCandidate& b) { return a.score > b.score; });
+    for(auto& [id, st] : torches)
+    {
+        const bool was = st.shadowed;
+        st.shadowed = false;
+        for(size_t c = 0; c < shadowCandidates.size() && static_cast<int>(c) < shadowed; c++)
+        {
+            st.shadowed = st.shadowed || shadowCandidates[c].id == id;
+        }
+        st.shadowHeld = st.shadowed && was ? st.shadowHeld + dt : 0.f;
+    }
+
     // Each fades towards its target: lit if chosen (less towards torchLightDistance), out if not.
     // Of those fading out, the brightest few keep their light until they are out, the rest go out
     // now.
@@ -688,7 +730,6 @@ extern "C" void VR_TorchLights(void)
 
     // Light them.
     const float scale = za::max(0.f, vr_torch_light_scale.value);
-    const int shadowed = za::clamp(static_cast<int>(vr_torch_light_shadows.value), 0, cap);
     const bool darkplaces = vr_dlight_falloff.value != 0.f;
     const double t = cl.time;
     for(auto& [id, st] : torches)
@@ -719,12 +760,12 @@ extern "C" void VR_TorchLights(void)
             radius *= za::sqrt(za::clamp(scale * k * st.weight * st.level, 0.f, 2.f));
         }
         const bool takenShadow = st.taken && vr_walltorch_shadows.value != 0.f; // (vr_walltorch_shadows: whatever its rank)
-        setGlow(dl, color, radius, 0.f, (st.chosen && st.rank < shadowed) || takenShadow);
+        setGlow(dl, color, radius, 0.f, st.shadowed || takenShadow);
         if(vr_debug_torch_lights.value != 0.f)
         {
             Con_Printf("torch light %d%s: at %.1f %.1f %.1f, radius %.1f, colour %.3f %.3f %.3f (fade %.2f, fire %.2f)%s\n", id,
                 st.taken ? " (taken)" : "", p.x, p.y, p.z, dl->radius, dl->color[0], dl->color[1], dl->color[2], st.weight,
-                st.level, (st.chosen && st.rank < shadowed) || takenShadow ? ", shadows" : "");
+                st.level, st.shadowed || takenShadow ? ", shadows" : "");
         }
         st.lit = true;
     }

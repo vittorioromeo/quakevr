@@ -928,11 +928,38 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
 
 struct DlightSlot
 {
-    bool selected = false;
-    bool spot = false; // one tile round its cone instead of six faces
+    bool selected = false; // has a tile in the atlas this frame (wanted, or fading out)
+    bool wanted = false;   // among the vr_shadow_dlights most important this frame
+    bool spot = false;     // one tile round its cone instead of six faces
+    bool seen = false;     // the same light (key) was alive at the last selection
+    bool fresh = false;    // ... and was not: it has just appeared
+    int key = 0;
+    float held = 0.f;      // seconds it has been wanted (shadowHoldTime)
+    float strength = 0.f;  // its shadow's fade, 0..1 (shadowFadeTime)
+    float distFade = 1.f;  // less over the last shadowDistanceFade of vr_shadow_distance
     float size = 0.f;
     glm::vec2 origin{0.f};
 };
+
+// Shadows never switch on or off at once (a light chosen or dropped, a step closer or back): they
+// fade over shadowFadeTime; the lights chosen keep their shadows shadowHoldTime (unless far outdone:
+// shadowHoldBonus), and lose them only to lights clearly more important (shadowHysteresis); and
+// they fade out over the last
+// shadowDistanceFade of vr_shadow_distance. A light fading out keeps its tile until faded, past
+// the budget by at most shadowFadeExtra lights.
+constexpr float shadowFadeTime = 0.4f;
+constexpr float shadowHoldTime = 1.f;
+constexpr float shadowHysteresis = 1.3f;
+constexpr float shadowHoldBonus = 2.f; // (on top of the hysteresis, within shadowHoldTime: a far brighter light still wins)
+constexpr float shadowDistanceFade = 0.15f;
+constexpr int shadowFadeExtra = 2;
+
+[[nodiscard]] float distanceFade(float beyond)
+{
+    // beyond: how far the light's reach is from the viewer (its distance less its radius).
+    const float d = za::max(vr_shadow_distance.value, 1.f);
+    return za::clamp((d - beyond) / (shadowDistanceFade * d), 0.f, 1.f);
+}
 za::Array<DlightSlot, MAX_DLIGHTS> dlightSlots;
 
 // Spot lights (lighting::dlightSpot): valid while the slot holds the same light (its key and
@@ -977,6 +1004,8 @@ struct MapSlot
 {
     int light = -1;       // index in modellight::mapLights()
     float fade = 0.f;     // 0..1
+    float distFade = 1.f; // less over the last shadowDistanceFade of vr_shadow_distance
+    float held = 0.f;     // seconds since it was chosen (shadowHoldTime)
     bool wanted = false;
     bool cached = false;  // world depth rendered in staticAtlas
     bool hasCasters = false;
@@ -1009,9 +1038,10 @@ struct Request
 struct ShadowScratch
 {
     za::Vector<Candidate> dlightCandidates; // (selectDlights)
+    za::Vector<Candidate> dlightFading;     // (selectDlights: their strength as the score)
     za::Vector<Candidate> mapCandidates;    // the map lights near the viewer
     za::Vector<Request> requests;           // the faces packed into the atlas
-    auto members() { return qvr::mem::list(dlightCandidates, mapCandidates, requests); }
+    auto members() { return qvr::mem::list(dlightCandidates, dlightFading, mapCandidates, requests); }
 };
 mem::Scratch<ShadowScratch> shadowScratch{"shadow lights"};
 
@@ -1046,62 +1076,110 @@ bool lightVisible(const glm::vec3& p, const byte* vis)
     return (vis[index >> 3] & (1 << (index & 7))) != 0;
 }
 
-void selectDlights(const glm::vec3& eye)
+void selectDlights(const glm::vec3& eye, float dt)
 {
     const int maxShadowed = static_cast<int>(vr_shadow_dlights.value);
     const float maxSize = pow2Floor(za::clamp(vr_shadow_dlight_size.value, 64.f, 2048.f));
     za::Vector<Candidate>& candidates = shadowScratch.dlightCandidates;
+    za::Vector<Candidate>& fading = shadowScratch.dlightFading;
     candidates.clear();
+    fading.clear();
     for(int i = 0; i < MAX_DLIGHTS; i++)
     {
         const dlight_t& l = cl_dlights[i];
         DlightSlot& slot = dlightSlots[i];
         const bool alive = l.die >= cl.time && l.radius > 0.f && l.spawn <= cl.time;
-        if(!alive || maxShadowed <= 0 || (noShadows[i].key == l.key && noShadows[i].die == l.die))
+        if(!alive || maxShadowed <= 0 || (slot.seen && slot.key != l.key))
         {
-            slot.selected = false;
-            continue;
+            // Gone (or another light in its place): its shadow goes with it.
+            slot = DlightSlot{};
+            if(!alive || maxShadowed <= 0)
+            {
+                continue;
+            }
         }
+        slot.fresh = !slot.seen;
+        slot.seen = true;
+        slot.key = l.key;
         const glm::vec3 p{l.origin[0], l.origin[1], l.origin[2]};
         const float dist = glm::distance(p, eye);
-        if(dist - l.radius > vr_shadow_distance.value)
-        {
-            slot.selected = false;
-            continue;
-        }
+        slot.distFade = distanceFade(dist - l.radius);
         // Muzzle flashes are brief and right by the viewer's gun: last, if at all.
         const bool muzzle = l.key == cl.viewentity && l.die - cl.time <= 0.11;
-        if(muzzle && !vr_shadow_muzzleflash.value)
+        const bool eligible = !(noShadows[i].key == l.key && noShadows[i].die == l.die) && slot.distFade > 0.f &&
+                              !(muzzle && !vr_shadow_muzzleflash.value);
+        if(!eligible)
         {
-            slot.selected = false;
+            slot.wanted = false;
+            slot.held = 0.f;
+            if(slot.selected && slot.strength > 0.f)
+            {
+                fading.pushBack({i, slot.strength});
+            }
+            else
+            {
+                slot.selected = false;
+                slot.strength = 0.f;
+            }
             continue;
         }
+        // Importance: the angular size of its light's reach (what it lights, as the viewer sees
+        // it), not the distance alone.
         float score = l.radius / za::max(dist, l.radius * 0.25f);
         if(muzzle)
         {
             score *= 0.25f;
         }
-        if(slot.selected)
+        if(slot.wanted)
         {
-            score *= 1.25f; // hysteresis
+            score *= shadowHysteresis;
+            if(slot.held < shadowHoldTime)
+            {
+                score *= shadowHoldBonus; // kept a while once chosen (unless far outdone)
+            }
         }
         candidates.pushBack({i, score});
     }
     za::quickSort(candidates.begin(), candidates.end(), [](auto& a, auto& b) { return a.score > b.score; });
 
-    za::Array<bool, MAX_DLIGHTS> chosen{};
-    for(size_t c = 0; c < candidates.size() && static_cast<int>(c) < maxShadowed; c++)
+    // The rest fade out, the brightest few keeping their tiles until faded.
+    for(size_t c = static_cast<size_t>(za::max(maxShadowed, 0)); c < candidates.size(); c++)
     {
-        chosen[candidates[c].index] = true;
-    }
-    for(int i = 0; i < MAX_DLIGHTS; i++)
-    {
-        DlightSlot& slot = dlightSlots[i];
-        if(!chosen[i])
+        DlightSlot& slot = dlightSlots[candidates[c].index];
+        slot.wanted = false;
+        slot.held = 0.f;
+        if(slot.selected && slot.strength > 0.f)
+        {
+            fading.pushBack({candidates[c].index, slot.strength});
+        }
+        else
         {
             slot.selected = false;
-            continue;
+            slot.strength = 0.f;
         }
+    }
+    if(candidates.size() > static_cast<size_t>(za::max(maxShadowed, 0)))
+    {
+        candidates.resize(static_cast<size_t>(za::max(maxShadowed, 0)));
+    }
+    za::quickSort(fading.begin(), fading.end(), [](auto& a, auto& b) { return a.score > b.score; });
+    const float step = dt / shadowFadeTime;
+    for(size_t f = 0; f < fading.size(); f++)
+    {
+        DlightSlot& slot = dlightSlots[fading[f].index];
+        slot.strength = f < static_cast<size_t>(shadowFadeExtra) ? za::max(0.f, slot.strength - step) : 0.f;
+        slot.selected = slot.strength > 0.f;
+    }
+
+    for(const Candidate& c : candidates)
+    {
+        const int i = c.index;
+        DlightSlot& slot = dlightSlots[i];
+        // A light that has just appeared (an explosion, a muzzle flash) has its shadow at once; one
+        // that was there unshadowed fades its in.
+        slot.strength = slot.fresh ? 1.f : za::min(1.f, slot.strength + step);
+        slot.held = slot.wanted ? slot.held + dt : 0.f;
+        slot.wanted = true;
         // DarkPlaces' level of detail: about a texel per unit of radius close by, less farther. A
         // spot light's one tile gets twice a face's size (still a third of a cube's texels, over
         // its narrow cone).
@@ -1163,12 +1241,18 @@ void selectMapLights(const glm::vec3& eye, float dt)
         {
             continue;
         }
-        float score = l.value + 128.f - dist * l.scale;
+        // Its light at the viewer (and a little round): positive, so that the hysteresis's factor
+        // favours the ones shown.
+        float score = za::max(1.f, l.value + 128.f - dist * l.scale);
         for(const MapSlot& s : mapSlots)
         {
             if(s.light == i && s.wanted)
             {
-                score *= 1.3f;
+                score *= shadowHysteresis;
+                if(s.held < shadowHoldTime)
+                {
+                    score *= shadowHoldBonus; // kept a while once chosen (unless far outdone)
+                }
             }
         }
         candidates.pushBack({i, score});
@@ -1197,18 +1281,28 @@ void selectMapLights(const glm::vec3& eye, float dt)
                 s.wanted = true;
                 s.cached = false;
                 s.fade = 0.f;
+                s.held = 0.f;
                 break;
             }
         }
     }
-    // Fade in and out over a quarter of a second; a slot is freed once faded out.
+    // Fade in and out (shadowFadeTime); a slot is freed once faded out (a light chosen meanwhile
+    // waits for it).
     for(MapSlot& s : mapSlots)
     {
         if(s.light < 0)
         {
             continue;
         }
-        s.fade = za::clamp(s.fade + (s.wanted ? dt : -dt) * 4.f, 0.f, 1.f);
+        if(s.light >= static_cast<int>(lights.size()))
+        {
+            s.light = -1;
+            continue;
+        }
+        const auto& l = lights[s.light];
+        s.distFade = distanceFade(glm::distance(l.pos, eye) - l.value / l.scale);
+        s.held = s.wanted ? s.held + dt : 0.f;
+        s.fade = za::clamp(s.fade + (s.wanted ? dt : -dt) / shadowFadeTime, 0.f, 1.f);
         if(!s.wanted && s.fade <= 0.f)
         {
             s.light = -1;
@@ -1572,7 +1666,7 @@ extern "C" void VR_RenderShadowMaps(void)
     }
 
     profile::begin("shadow select", false);
-    selectDlights(eye);
+    selectDlights(eye, dt);
     selectMapLights(eye, dt);
 
     // Moving casters of the map lights: none near means nothing to draw (and no light entry). Kept
@@ -1634,6 +1728,28 @@ extern "C" void VR_RenderShadowMaps(void)
         s.hasCasters = s.hasCasters && packScale == 1.f;
     }
     profile::end();
+    if(vr_shadow_stats.value >= 2.f)
+    {
+        // vr_shadow_stats 2: each frame, the shadowed lights and their shadows' strength (+ chosen, - fading out).
+        Con_Printf("shadowsel %.3f at %.0f %.0f %.0f: dlights", vr_gametime, eye.x, eye.y, eye.z);
+        for(int i = 0; i < MAX_DLIGHTS; i++)
+        {
+            const DlightSlot& s = dlightSlots[i];
+            if(s.selected)
+            {
+                Con_Printf(" %d%c%.2f", s.key, s.wanted ? '+' : '-', s.strength * s.distFade);
+            }
+        }
+        Con_Printf("; map lights");
+        for(const MapSlot& s : mapSlots)
+        {
+            if(s.light >= 0)
+            {
+                Con_Printf(" %d%c%.2f%s", s.light, s.wanted ? '+' : '-', s.fade * s.distFade, s.hasCasters ? "" : "(no casters)");
+            }
+        }
+        Con_Printf("\n");
+    }
 
     if(!ensure(atlas, atlasSize, atlasSize, "shadow atlas"))
     {
@@ -1918,6 +2034,8 @@ extern "C" void VR_DlightShadow(int index, gpulight_t* out)
         {
             out->shadow2[0] = spotSpread(*spot); // one tile round its cone
         }
+        // The share its shadow lets through (fading in or out; 0 full shadow).
+        out->shadow2[1] = 1.f - za::clamp(dlightSlots[index].strength * dlightSlots[index].distFade, 0.f, 1.f);
     }
     if(vr_dlight_falloff.value != 0.f && index >= 0 && index < MAX_DLIGHTS)
     {
@@ -2126,7 +2244,7 @@ extern "C" void VR_PushMapLights(void)
     const float strength = za::clamp(vr_shadow_maplight_strength.value, 0.f, 1.f);
     for(const MapSlot& s : mapSlots)
     {
-        if(s.light < 0 || !s.hasCasters || !s.faceMask || s.fade <= 0.f || s.light >= static_cast<int>(lights.size()) ||
+        if(s.light < 0 || !s.hasCasters || !s.faceMask || s.fade * s.distFade <= 0.f || s.light >= static_cast<int>(lights.size()) ||
             r_framedata.numlights >= MAX_DLIGHTS)
         {
             continue;
@@ -2152,7 +2270,7 @@ extern "C" void VR_PushMapLights(void)
         out->pos[1] = l.pos.y;
         out->pos[2] = l.pos.z;
         out->radius = reach;
-        out->color[0] = strength * s.fade;
+        out->color[0] = strength * s.fade * s.distFade;
         out->color[1] = 0.f;
         out->color[2] = 0.f;
         out->minlight = 0.f;

@@ -1210,7 +1210,8 @@ void resetHandMoves()
             .help("Room for all shadows at once: smaller fits fewer or coarser ones (64 MB at 4096)."),
         slider("Shadow Bias", "vr_shadow_bias", 0.f, 4.f, 0.25f, "%.2f").extend()
             .help("Higher: fewer speckles on lit surfaces; lower: shadows start closer to what casts them."),
-        toggle("Shadow Statistics", "vr_shadow_stats").help("Print what is shadowed and its GPU time, once a second, to the console."),
+        cycle("Shadow Statistics", "vr_shadow_stats", {{0.f, "Off"}, {1.f, "Each Second"}, {2.f, "Each Frame, Per Light"}})
+            .help("Print what is shadowed and its GPU time, once a second, to the console. Each frame: also every shadowed light and its shadow's strength (+ chosen, - fading out), to check shadows fade rather than pop."),
         header("Ambient Occlusion"),
         slider("Contact Shadows", "vr_ao_dynamic", 0.f, 2.f, 0.1f, "%.1f").extend()
             .help("Monsters, items, gibs and your body darken the floor and walls close to them, and each other: soft shadows where things touch (0 off)."),

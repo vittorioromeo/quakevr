@@ -31146,3 +31146,47 @@ grip go first (a new press is what takes), and the walk out of the arena goes ro
 
 **For VR:** the settings row's height; the corner shelf's sight line; the new wrist tip's wording; the jump wall (needs a
 jump, not too hard now?); the dark course's new walls under the flashlight.
+## Shadows fade, never pop: the vrstart brazier (2026-10-08)
+
+**Report:** in vrstart, by the campaign terrace's west brazier (beside the Quake lectern), the brazier's shadow on the
+floor (its bowl's octagon) popped in a few steps forward and out a few steps back.
+
+**Cause (confirmed with `vr_debug_torch_lights`, setpos -1360 y 136 facing 78 degrees):** not the map lights. The
+shadow is the brazier flame's own flickering light (`VR_TorchLights`, a dynamic light), and `vr_torch_light_shadows 4`
+let the 4 *nearest* of the `vr_torch_lights 8` cast shadows, ranked by raw distance with no hysteresis among the chosen.
+At y -360 the brazier (torch 4) was the 4th nearest; at y -400 the staircase's top torch (4110, 265 units away against
+its 320) took its place, and the shadow switched off in one frame (the light itself kept lighting). Dynamic-light
+shadows (`selectDlights`) had no fade at all: chosen or not, at once.
+
+**Fix (vr_lighting.cpp, vr_emissive.cpp, vr_glsl.h):**
+- Torch shadows by importance: the lit torch's reach over its distance (how large what it lights looks), the shadowed
+  ones kept at least a second (x2) and until another is 30% more important.
+- Every dynamic light's shadow has a strength (`DlightSlot::strength`, to the shaders as `gpulight_t.shadow2.y`, the
+  share it lets through; both dlight shadow lookups `mix` towards 1): chosen or dropped, it fades over 0.4 s, keeping
+  its atlas tile until faded (at most 2 lights past `vr_shadow_dlights`). A light that has just appeared (explosion,
+  muzzle flash, a key new in its slot) has its shadow at once. The `vr_shadow_dlights` choice got the same hold (1 s,
+  x2) and a 30% hysteresis (was 25%).
+- Distance: every shadow fades out over the last 15% of `vr_shadow_distance` (dynamic and map lights).
+- Map lights: fade 0.4 s (was 0.25 s), held 1 s, the score kept positive so the 1.3 factor favours the shown ones (a
+  near-zero or negative light-at-viewer score made the factor useless).
+- `vr_shadow_stats 2` (Graphics > Shadows > Shadow Statistics: "Each Frame, Per Light"): each frame, every shadowed
+  light, + chosen / - fading, and its shadow's strength.
+
+**Verified:** `Misc/quakevr/shadow_pop_test.py` (walks back and forth by the brazier, checks no strength changes faster
+than a 0.4 s fade): short walk (y -280..-458, 3 times) PASS, 0 pops; long walk (to y -1002) 0 pops, the brazier's shadow
+cross-fading with the stair torch's (5 tiles during the fade). Frame strip, static positions y -200..-400, before | after:
+the brazier's shadow at y -400 is kept (floor under it 45.7 -> 41.6 mean). `vr_light_test` x32 in the range: 8 shadows,
+steady at 1.0. Bench validate: lights_32, lights_32_noshadows, flashlight_e1m1, torches_32, explosions_storm, 0 failing.
+e1m1 smoke clean.
+
+**Map lights' cost** (new bench scenarios `maplights_vrstart` and `maplights_e2m1`, with `--settings` files; exclusive,
+90 Hz paced, 2016 px eyes, 3 x 600 frames; GPU 3D ms):
+
+| scene | 0 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| vrstart terrace | 2.056 | 2.106 | 2.148 | 2.159 |
+| e2m1 start | 1.532 | 1.618 | 1.618 | 1.618 |
+| e1m1 start (idle_e1m1) | 1.757 | 1.812 | 1.841 | 1.842 |
+
+2 -> 4 costs 0.05 ms at most (shadow maps 0.057 -> 0.063 ms, the rest the world shader's extra lights). The shipped
+default is already 4 (`vr_defaults.cfg`; the compiled-in 2 and LIGHTING.md's table predate it): kept.

@@ -1293,7 +1293,7 @@ QVR_CVAR(vr_shadow_filter, "1", CVAR_ARCHIVE)          // shadow edge softening:
 QVR_CVAR(vr_shadow_bias, "1", CVAR_ARCHIVE)            // shadow acne vs. light leaking under objects
 QVR_CVAR(vr_shadow_distance, "1536", CVAR_ARCHIVE)     // lights farther than this from you cast no shadows
 QVR_CVAR(vr_shadow_atlas, "4096", CVAR_ARCHIVE)        // shadow map atlas size (2048, 4096, 8192)
-QVR_CVAR(vr_shadow_stats, "0", CVAR_NONE)              // print what is shadowed and the GPU time, once a second
+QVR_CVAR(vr_shadow_stats, "0", CVAR_NONE)              // print what is shadowed and the GPU time, once a second; 2: also each frame, every shadowed light and its shadow's strength
 QVR_CVAR(vr_shadow_layered, "1", CVAR_NONE)            // shadow casters drawn once per light into all the faces they reach (needs GL_ARB_shader_viewport_layer_array or the AMD/NV one, else 0), 0 once per face (Debug > Profiling; vr_shadow_layered_check)
 // Retro lighting (vr_retrolight.cpp, vr_retrolight.h; Graphics > Retro Lighting; ROUND21.md "Retro lighting"): Quake's coarse light, fixed to the surfaces (no swimming in VR)
 QVR_CVAR(vr_retrolight, "0", CVAR_ARCHIVE)                  // the switch for all of it
@@ -1507,7 +1507,7 @@ QVR_CVAR(vr_shock_self_arcs, "1", CVAR_ARCHIVE)      // how many arcs, x
 QVR_CVAR(vr_shock_self_light, "0.6", CVAR_ARCHIVE)   // the flicker of blue light round you while they crackle (0 none .. 1)
 QVR_CVAR(vr_torch_lights, "8", CVAR_ARCHIVE)         // torches and flames flicker a small warm light onto the room: how many at once, the nearest in view (0 off)
 QVR_CVAR(vr_torch_light_scale, "1", CVAR_ARCHIVE)    // their brightness (on top of the baked light)
-QVR_CVAR(vr_torch_light_shadows, "0", CVAR_ARCHIVE)  // how many of them (the nearest) may cast shadows, taking vr_shadow_dlights' slots (0 none)
+QVR_CVAR(vr_torch_light_shadows, "0", CVAR_ARCHIVE)  // how many of them (the most important: reach over distance, held a while) may cast shadows, taking vr_shadow_dlights' slots (0 none)
 QVR_CVAR(vr_weapon_screen_light, "1", CVAR_ARCHIVE)    // the weapons' ammo screens cast a small light in their colour the way they face: strength (0 off)
 QVR_CVAR(vr_screen_glow, "1", CVAR_ARCHIVE)            // the wrist gadget's and the weapons' screens glow softly round their edges: strength (0 off)
 QVR_CVAR(vr_screen_text_glow, "1", CVAR_ARCHIVE)       // the text, numbers and icons on those screens glow: whitish cores, a soft halo in the screen's colour (strength, 0 off, up to 3)

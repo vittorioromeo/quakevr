@@ -316,6 +316,12 @@ def scenarios():
     add("flashlight_e1m1", ["lights", "features"], "the flashlight on, casting shadows, over monsters", "e1m1",
         "E1M1's start with the flashlight in the off hand, on and pointed ahead (its spot light's shadow tile: shadow_dlights 1).",
         setup=["vr_flashlight 1", "vr_flashlight_shadows 1", "vr_flashlight_give left", "wait", "vr_flashlight_toggle", "vr_mock_hand off -0.2 1.3 -0.35 0 0 0"])
+    # (vr_shadow_maplights' cost: run these with --settings files setting it to 0, 2, 3, 4)
+    add("maplights_vrstart", ["lights", "maplights"], "vrstart's campaign terrace: braziers, torches, the slipgate", "vrstart",
+        "By the terrace's west brazier facing the Quake lectern (setpos -1360 -330 136): flames' shadowed lights, map lights.",
+        pos="-1360 -330 136 0 78 0")
+    add("maplights_e2m1", ["lights", "maplights"], "E2M1's start: a dense id map's lights", "e2m1",
+        "E2M1's start, nothing moving (notarget): the map lights near (vr_shadow_maplights) shadowing the player's body.")
     # ---- liquids and surfaces
     add("water_range_surface", ["liquids"], "a large water surface from above (refraction, warp)", RANGE,
         "Standing at the firing range's pool, looking down at the water.", pos="612 474 2 30 0 0")

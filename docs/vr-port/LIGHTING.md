@@ -57,9 +57,15 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
   size); the world and model shaders read it in the clustered light loop they already have. Everything is once
   per frame, shared by both eyes (`VR_RenderShadowMaps`, in `R_SetupView` guarded by the host frame).
 - **Shadowed dynamic lights** (`vr_shadow_dlights`, 4):
-  - The chosen lights are those with the largest `radius / distance`, with a 25% bonus for lights chosen the
-    frame before (hysteresis).
+  - The chosen lights are those with the largest `radius / distance` (how large what they light looks), with a 30%
+    bonus for lights already chosen (hysteresis), which also keep their shadow at least a second.
+  - Shadows never switch on or off at once (round 21, the vrstart brazier): a light chosen or dropped fades its shadow
+    in or out over 0.4 s (`gpulight_t.shadow2.y`, the share the shadow lets through), keeping its tile until faded
+    (at most 2 lights past the budget). A light that has just appeared (an explosion, a muzzle flash) has its shadow
+    at once. Shadows also fade out over the last 15% of `vr_shadow_distance`.
   - Your own muzzle flashes are excluded (`vr_shadow_muzzleflash`), as is anything beyond `vr_shadow_distance`.
+  - Torches' and flames' lights (`vr_torch_light_shadows` of the `vr_torch_lights`): the same importance, not the
+    nearest; a shadowed one keeps its shadow at least a second and until another is 30% more important.
   - Face size uses DarkPlaces' formula, rounded down to a power of two between 64 and `vr_shadow_dlight_size`.
     The previous size is kept unless the new one is far off.
   - Casters are:
@@ -80,7 +86,9 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
   The world shader removes the light's share of the baked light only where a moving thing blocks the light and the
   world does not. The share is estimated as `(light − distance × wait) × (0.5 + 0.5 × N·L)`, the same formula the
   map compiler uses. Without the second map, shadows behind walls would darken light the lightmap never had.
-  Shadows fade in and out over a quarter of a second. `vr_shadow_maplight_strength` sets how dark they get.
+  Shadows fade in and out over 0.4 s (a slot is freed once faded); the lights chosen keep their slot at least a second
+  and until beaten by 30% (their light at the viewer, kept positive so the factor helps), and fade out over the last
+  15% of `vr_shadow_distance`. `vr_shadow_maplight_strength` sets how dark they get.
 - **Dynamic lights on models per pixel** (`vr_dlight_models`):
   - The alias shader walks the same clusters, with world normals and an angle term, and shadows the light.
   - `R_SetupAliasLighting`'s flat brightening is skipped.
@@ -115,7 +123,7 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
 | `vr_dlight_models` | 1 | dynamic lights on models per pixel |
 | `vr_dlight_angle` | 1 | angle falloff of dynamic lights (0: Quake's) |
 | `vr_dlight_uncapped` | 1 | dynamic lights add fully to bright walls |
-| `vr_shadow_stats` | 0 | prints lights, faces, model draws, GPU and CPU time each second |
+| `vr_shadow_stats` | 0 | prints lights, faces, model draws, GPU and CPU time each second; 2: also each frame every shadowed light and its shadow's strength |
 | `vr_shadow_layered` | 1 | casters drawn once per light into all the faces they reach (see "Layered shadow casters"); 0 a face at a time (also without the extension) |
 | `vr_shadow_layered_check [n]` | command | this frame's shadow maps both ways `n` times (draw calls, CPU and GPU ms), then both atlases compared texel by texel |
 | `vr_light_test [radius] [seconds] [distance]` | command | a dynamic light in front of you |

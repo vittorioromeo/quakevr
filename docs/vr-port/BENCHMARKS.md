@@ -136,6 +136,8 @@ monsters and torches ahead of the player.
 | `lights_32` | lights/core | vrfiringrange | vr_light_test x32 ahead: dynamic lights, their shadow maps (vr_shadow_dlights' slots), lit models. |
 | `lights_32_noshadows` | lights/control | vrfiringrange | lights_32 with vr_shadow_dlights 0 and vr_shadow_maplights 0: the shadows' share. |
 | `flashlight_e1m1` | lights/features | e1m1 | E1M1's start with the flashlight in the off hand, on and pointed ahead (its spot light's shadow tile: shadow_dlights 1). |
+| `maplights_vrstart` | lights/maplights | vrstart | By the terrace's west brazier facing the Quake lectern: the flames' shadowed lights, map lights. With `--settings` files setting `vr_shadow_maplights` (0, 2, 3, 4): their cost. |
+| `maplights_e2m1` | lights/maplights | e2m1 | E2M1's start, nothing moving: a dense id map's map lights shadowing the player's body. |
 | `water_range_surface` | liquids | vrfiringrange | Standing at the firing range's pool, looking down at the water. |
 | `water_range_under` | liquids | vrfiringrange | Under the firing range's pool (setpos 600 450 -150). |
 | `slime_e1m1` | liquids | e1m1 | At round 21's slime test spot (setpos 200 2820 -60: the pool and two grunts in view; not under the surface). |

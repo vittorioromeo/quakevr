@@ -302,15 +302,16 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "    return ShadowLookup(ShadowAtlas, l.gateshadow.xyz, sourceEntry - sourceLight);\n"\
 "}\n"\
 "\n"\
-"// A dynamic light's shadow at pos (normal n), times its cone there (SpotCone: 1 for a point light).\n"\
+"// A dynamic light's shadow at pos (normal n), times its cone there (SpotCone: 1 for a point light). l.shadow2.y: the share\n"\
+"// its shadow lets through (fading in or out: vr_lighting.cpp's selectDlights; 0 a full shadow).\n"\
 "float LightShadow(Light l, vec3 pos, vec3 n, float cone)\n"\
 "{\n"\
 "	cone *= PortalLightPath(l, pos);\n"\
 "	if (l.shadow.z <= 0. || cone <= 0.)\n"\
 "		return cone;\n"\
 "	if (l.shadow2.x > 0.)\n"\
-"		return cone * RetroShadowQuant(SpotShadow(l, pos, n)); // QVR: in retro lighting's levels\n"\
-"	return cone * RetroShadowQuant(ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(pos - l.origin, n, l.shadow.z)));\n"\
+"		return cone * mix(RetroShadowQuant(SpotShadow(l, pos, n)), 1.0, l.shadow2.y); // QVR: in retro lighting's levels\n"\
+"	return cone * mix(RetroShadowQuant(ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(pos - l.origin, n, l.shadow.z))), 1.0, l.shadow2.y);\n"\
 "}\n"\
 "\n"\
 "// Quake's dynamic lights ignore the angle they reach a surface at: DlightAngle blends in Lambert's (ndl: the normal\n"\
@@ -2040,7 +2041,7 @@ SPECULAR_AA_FUNCTIONS
 "			vec3 dir = tl * inv;\n" \
 "			float lit = (darkplaces ? DarkPlacesAtten(d, l.radius) : (l.radius - d) * unit) * (1.0 - smoothstep(0.0, 1.0, l.spot.w + dot(l.spot.xyz, dir))); // SpotCone\n" \
 "			if (lit > 0. && l.shadow.z > 0.)\n" \
-"				lit *= RetroShadowQuant(l.shadow2.x > 0. ? SpotShadow(l, spos, n) : ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(spos - l.origin, n, l.shadow.z)));\n" \
+"				lit *= mix(RetroShadowQuant(l.shadow2.x > 0. ? SpotShadow(l, spos, n) : ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(spos - l.origin, n, l.shadow.z))), 1.0, l.shadow2.y);\n" \
 "			if (lit <= 0.)\n" \
 "				continue;\n" \
 "			float ndl = dot(bumped, dir);\n" \
