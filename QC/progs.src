@@ -126,6 +126,8 @@ orig_mon_oldone.qc
 orig_mon_shalrath.qc
 orig_mon_shambler.qc
 orig_mon_soldier.qc
+// The trailer scene (maps/vrtrailer): after the grunt's file (it spawns one again).
+vr_trailer.qc
 orig_mon_tarbaby.qc
 orig_mon_wizard.qc
 orig_mon_zombie.qc

@@ -6051,7 +6051,9 @@ void(float xHand, entity ent, entity entPlayer,
     // Gripped nearer one of its grip or blade hotspots than its handle (vr_weapon_grab_hotspots, the engine's view finds
     // it): carried by that hotspot, as the hand-off leaves a weapon (QVR_WPNFLAG_FOREGRIP_CARRIED: drawn hanging from
     // the hand, unusable until a hand takes its handle). A force grab's catch takes the handle, to use it.
-    float spot = forcegrabCatching ? 0 : weapongrabspot(entPlayer, xHand, ent);
+    // (BY_HANDLE, func_weapon_grabbable's spawnflag 2: always its handle, ready to use: the trailer scene's Super Axe, so
+    // that the cut that beheads is never a carried weapon's, VR_Decap_Slash)
+    float spot = (forcegrabCatching || ent.vr_grab_by_handle) ? 0 : weapongrabspot(entPlayer, xHand, ent);
 
     if(cvar("developer"))
     {

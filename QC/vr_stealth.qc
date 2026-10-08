@@ -75,7 +75,8 @@ float(entity m) VR_Stealth_Applies =
 {
     // (a dormant one, not yet in the game: a statue knight before its map wakes it, a monster waiting to be spawned in:
     // no damage taken, or not solid; Quake's: only its map wakes it)
-    if(!VR_Stealth_On() || m.health <= 0 || m.charmed || m.takedamage == DAMAGE_NO || m.solid == SOLID_NOT)
+    // (oblivious until hurt, vr_oblivious: no meter, noise, touch, body or beam reaches it)
+    if(!VR_Stealth_On() || m.health <= 0 || m.charmed || m.takedamage == DAMAGE_NO || m.solid == SOLID_NOT || m.vr_oblivious)
     {
         return FALSE;
     }

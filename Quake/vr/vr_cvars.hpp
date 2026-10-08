@@ -17,6 +17,13 @@ namespace qvr
 
 extern cvar_t vr_backend;
 
+// Recording mode (vr_recording_clean, the player's; vr_recording_clean_map, the map's: the trailer scene): no tips, no
+// messages on the wrist gadget and no head-locked text, in the headset too.
+[[nodiscard]] inline bool recordingClean()
+{
+    return vr_recording_clean.value != 0.f || vr_recording_clean_map.value != 0.f;
+}
+
 void registerCvars();
 
 // The game folder's config written now if an archived setting changed since it was last read or written (not in a copy

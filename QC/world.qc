@@ -191,6 +191,7 @@ void() worldspawn =
     vr_save_packmask = 1 + VR_Pack_Hipnotic() + 2 * VR_Pack_Rogue();
     lastspawn = world;
     vr_fire_spots = 0; // QVR: the map's flames, as they spawn (vr_walltorch.qc)
+    cvar_set("vr_recording_clean_map", "0"); // QVR: recording mode is the map's own (info_vr_trailer sets it: vr_trailer.qc)
     if(mapname == "vrtutorial2")
     {
         cvar_set("vr_tutorial_started", "1"); // QVR: the tutorial started once: VR starts in the hub from now on
@@ -560,6 +561,7 @@ void() StartFrame =
     VR_CVars_Frame();
     VR_Stealth_Frame(); // QVR: the stealth AI switched off: the monsters back to Quake's AI (vr_stealth.qc)
     VR_Tutorial_Frame(); // QVR: Debug's Go to a Lesson (vrtutorial2 only: vr_tutorial.qc)
+    VR_Trailer_Frame(); // QVR: the trailer scene's reset and log (vrtrailer only: vr_trailer.qc)
     MG_WorldFrame();
     MG_TestFrame();
     MG_TriggerTestFrame();

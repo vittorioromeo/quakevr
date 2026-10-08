@@ -87,6 +87,11 @@
 		131072 : "Sees by its box" : 0 : "It sees the player by its whole box, not only its eyes (for monsters behind low walls)."
 	]
 	cnt(integer) : "Copies (Spawns several)" :  : "With Spawns several: how many it makes, one per trigger (0 or -1: no limit)."
+	vr_oblivious(choices) : "Oblivious until hurt" : 0 : "1: nothing wakes it (sight, sounds, footsteps, the stealth AI, standing next to it) until it is hurt; a beheading cut always kills it (the trailer scene's grunt: QC vr_trailer.qc)." =
+	[
+		0 : "No"
+		1 : "Yes"
+	]
 ]
 
 @BaseClass color(255 255 40) =
@@ -493,6 +498,15 @@ This is the destination marker for a teleporter. It should have a 'targetname' f
 	info_vr_checkpoint : "Quake VR: where a player who dies comes back (single player), instead of the level restarting: taken when he comes within 'distance' (default 96) of it, or when it is used. He comes back at the latest one taken, facing its 'angle', with a new life (the level's starting items and health; the keys he holds kept), the level as he left it. No checkpoint taken: the level restarts, as Quake's."
 [
 	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+]
+
+@PointClass color(0 204 204) size(-16 -16 -24, 16 16 32) =
+	info_vr_trailer : "The trailer scene (Quake VR; maps/vrtrailer, QC vr_trailer.qc): its origin and angle are where vr_trailer_reset puts the player. It finds the map's oblivious monster ('vr_oblivious' '1') and its AS_PLACED func_weapon_grabbable, and puts them back as they were for each retake. Recording mode on (no map tips, no wrist messages) unless NO_RECORDING."
+[
+	spawnflags(flags) =
+	[
+		1 : "NO RECORDING" : 0
+	]
 ]
 
 //
@@ -2543,6 +2557,12 @@ a hand (it becomes that hand's weapon), holsters it, throws it, or pulls it with
 pickups it gives no ammunition, and it can be any Quake VR weapon: the grappling hook, the axe, a knight's sword.
 A point entity, despite its name."
 [
+	spawnflags(flags) =
+	[
+		1 : "Lies as placed" : 0 : "It lies as its angles turn it (pitch yaw roll), not any way (the trailer scene's Super Axe on its pedestal)."
+		2 : "Taken by its handle" : 0 : "A hand closing anywhere on it takes it by its handle, ready to use, never carried by one of its hotspots."
+	]
+	angles(string) : "Pitch yaw roll" :  : "With Lies as placed: how it lies before it falls."
 ]
 
 @PointClass base(Appearflags, Angle, VRWorldText) color(255 200 40) size(-8 -8 -8, 8 8 8) =

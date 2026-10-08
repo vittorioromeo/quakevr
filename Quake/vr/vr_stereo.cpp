@@ -761,7 +761,7 @@ void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
     V_RenderView();
     bloom::apply(framebufs.composite.color_tex, width, height);
     spectatorPace.look = sceneLook();
-    drawUi(camera.origin, framebufs.composite.fbo, width, height, vr_spectator_hide_hud_text.value == 0.f);
+    drawUi(camera.origin, framebufs.composite.fbo, width, height, vr_spectator_hide_hud_text.value == 0.f && !recordingClean());
     spectatorView = false;
     renderingEye = false;
     previewState.images++;
@@ -928,7 +928,7 @@ extern "C" int VR_RenderView()
         // The UI over the eye's final image, at its full size: after the post-processing, it is not warped or blurred
         // under water (vr_water.cpp), the glow is not added over it, nor the eye's gamma. The wrist gadget and all
         // else in the world are in the scene. Over the scene's colours too, for the mirror.
-        stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, imageWidth, imageHeight);
+        stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, imageWidth, imageHeight, !recordingClean()); // (recording mode: no head text)
         if(shotUi)
         {
             tonemap::eyeshot(eye, stereo::targetFbo, framebufs.composite.fbo, imageWidth, imageHeight);
@@ -936,7 +936,7 @@ extern "C" int VR_RenderView()
         if(stereo::mirrored(eye))
         {
             stereo::drawUi(hands::current().eyeOrigin[eye], framebufs.composite.fbo, width, height,
-                vr_mirror_hide_hud_text.value == 0.f);
+                vr_mirror_hide_hud_text.value == 0.f && !recordingClean());
         }
 
         stereo::renderingEye = false;

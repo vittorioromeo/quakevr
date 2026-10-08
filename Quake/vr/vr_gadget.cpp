@@ -885,7 +885,7 @@ void wrap(za::StringView text, Lines& out, int columns = logColumns)
 // Whether the log is where the notify lines go (and the gadget is there to show it).
 [[nodiscard]] bool logShown()
 {
-    return vr_notify_wrist.value != 0.f && active() && current.valid;
+    return vr_notify_wrist.value != 0.f && active() && current.valid && !recordingClean(); // (recording mode: none)
 }
 
 // make_gadget.py's units (Quake units at vr_world_scale 1.25) in cm, for the offsets in cm.
@@ -1078,7 +1078,7 @@ float logLift = -1.f; // the log's lift, following the hologram's top smoothly (
 
 [[nodiscard]] bool hologramOn()
 {
-    return vr_messages_hologram.value != 0.f && active();
+    return vr_messages_hologram.value != 0.f && active() && !recordingClean(); // (recording mode: none)
 }
 
 [[nodiscard]] float hologramLife()

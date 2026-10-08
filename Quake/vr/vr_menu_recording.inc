@@ -29,6 +29,10 @@
             .help("Hides the text that floats in front of your head (pickup messages, centre prints, notify lines) in the "
                   "Spectator Camera (on by default: clean footage for trailers). The headset still shows it; menus "
                   "and the wrist gadget stay."),
+        toggle("Recording Mode (No Tips or Messages)", "vr_recording_clean")
+            .help("No tips, no messages on the wrist gadget and no text in front of your head (pickups, centre prints, "
+                  "notify lines), in the headset too: clean takes. The trailer scene (vrtrailer) turns it on by "
+                  "itself while it is loaded; menus and the wrist gadget's own display stay."),
         header("Steadying"),
         slider("Smoothing", "vr_window_smooth", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("How much the head's shake is smoothed out: the view's lag behind your head. 0.1-0.2 s takes out the "

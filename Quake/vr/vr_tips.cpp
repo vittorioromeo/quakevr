@@ -864,7 +864,7 @@ void clientParse(int subcmd)
 
 void frame()
 {
-    if(vr_tips.value == 0.f || !connected())
+    if(vr_tips.value == 0.f || !connected() || recordingClean()) // (recording mode: no tips)
     {
         showing.tip = -1;
         candidate.tip = -1;

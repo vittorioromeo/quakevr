@@ -107,6 +107,8 @@ float cvarh_vr_stealth_marks;
 float cvarh_vr_stealth_debug;
 float cvarh_vr_stealth_light_force;
 float cvarh_vr_stealth_test;
+float cvarh_vr_trailer_reset; // the trailer scene (vr_trailer.qc)
+float cvarh_vr_trailer_log;
 float cvarh_vr_grapple_stamina;
 float cvarh_vr_grapple_unreel_speed;
 float cvarh_vr_grapple_unreel_airborne;
@@ -864,6 +866,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_stealth_debug);
     VR_CVAR_HMAKE(vr_stealth_light_force);
     VR_CVAR_HMAKE(vr_stealth_test);
+    VR_CVAR_HMAKE(vr_trailer_reset);
+    VR_CVAR_HMAKE(vr_trailer_log);
     VR_CVAR_HMAKE(vr_grapple_stamina);
     VR_CVAR_HMAKE(vr_grapple_unreel_speed);
     VR_CVAR_HMAKE(vr_grapple_unreel_airborne);

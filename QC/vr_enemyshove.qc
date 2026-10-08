@@ -62,9 +62,9 @@ entity(entity m) VR_EnemyShove_Target =
 // In the AI's stand, walk and run thinks (self: the monster): TRUE when it starts its shove (the think is its own).
 float() VR_EnemyShove_Check =
 {
-    if(!self.th_vrshove)
+    if(!self.th_vrshove || self.vr_oblivious)
     {
-        return FALSE;
+        return FALSE; // (oblivious until hurt: it never shoves, however near you stand)
     }
     if(self.enemy == world && VR_Stealth_MeterOn())
     {

@@ -98,6 +98,7 @@
 		131072 : "Sees by its box" : 0 : "It sees the player by its whole box, not only its eyes (for monsters behind low walls)."
 	]
 	cnt(integer) : "Copies (Spawns several)" : : "With Spawns several: how many it makes, one per trigger (0 or -1: no limit)."
+	vr_oblivious(choices) : "Oblivious until hurt" : 0 : "1: nothing wakes it (sight, sounds, footsteps, the stealth AI, standing next to it) until it is hurt; a beheading cut always kills it (the trailer scene's grunt: QC vr_trailer.qc)." = [ 0 : "No" 1 : "Yes" ]
 ]
 
 @BaseClass = VRWeaponId
@@ -589,7 +590,14 @@ A weapon as a physics object: it drops from its origin, tumbles and settles on i
 a hand (it becomes that hand's weapon), holsters it, throws it, or pulls it with a force grab. Unlike the weapon_*
 pickups it gives no ammunition, and it can be any Quake VR weapon: the grappling hook, the axe, a knight's sword.
 A point entity, despite its name."
-[]
+[
+	spawnflags(flags) =
+	[
+		1 : "Lies as placed" : 0 : "It lies as its angles turn it (pitch yaw roll), not any way (the trailer scene's Super Axe on its pedestal)."
+		2 : "Taken by its handle" : 0 : "A hand closing anywhere on it takes it by its handle, ready to use, never carried by one of its hotspots."
+	]
+	angles(string) : "Pitch yaw roll" : : "With Lies as placed: how it lies before it falls."
+]
 
 @PointClass base(Appearflags) size(-16 -16 0, 16 16 32) color(0 128 204) model({ "path": "progs/v_crowbar.mdl" }) = weapon_crowbar : "Crowbar (Quake VR)
 

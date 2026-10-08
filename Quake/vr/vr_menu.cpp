@@ -5923,6 +5923,19 @@ za::Vector<Item> pageDebugTests()
              {11.f, "11 Fire"}, {12.f, "12 The Arena"}})
             .help("In vrtutorial2: puts you at that lesson's start (its checkpoint, taken: you come back there). Doors "
                   "on the way stay as they are."),
+        header("Trailer Scene (vrtrailer)"),
+        command("The Trailer Scene", "map vrtrailer")
+            .help("map vrtrailer: a bridge across a lake at night, the Super Axe on a pedestal half way (Dawn of the "
+                  "Machine's data needed), a grunt on the far islet looking at the water, oblivious until hurt "
+                  "(Misc/quakevr/maps/vrtrailer_gen.py). You start empty-handed; recording mode is on there: no tips, no "
+                  "wrist messages, no head text."),
+        command("Reset Trailer Scene", "vr_trailer_reset 1")
+            .help("vr_trailer_reset 1: for a retake: the grunt back where he stood (his body, head, gibs, gun and backpack "
+                  "gone), the Super Axe back on its pedestal (out of your hands and holsters), you at the start facing "
+                  "along the bridge."),
+        toggle("Trailer Scene Log", "vr_trailer_log")
+            .help("vr_trailer_log 1: the grunt's state (enemy, frame, think, stealth state, oblivious), the axe's place "
+                  "and yours, four times a second (the console). Off for takes: the lines would show."),
         header("Climbing"),
         command("Climbing Test Map", "map vrclimb").help("map vrclimb: rungs, ledges, a jump wall, moving and floating ledges."),
         command("To the Jump Wall", "setpos -40 -310 24 0 0 0; noclip")

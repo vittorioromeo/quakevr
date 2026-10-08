@@ -599,6 +599,11 @@ float() FindTarget =
     entity client;
     float  r;
 
+    if(self.vr_oblivious)
+    {
+        return FALSE; // QVR: oblivious until hurt (vr_oblivious: vrtrailer's grunt): it notices no one
+    }
+
     VR_Stealth_Tick(); // QVR: the stealth AI's meter drains, beams, torches and bodies seen (vr_stealth.qc)
 
 // if the first spawnflag bit is set, the monster will only wake up on

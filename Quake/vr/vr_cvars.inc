@@ -397,6 +397,11 @@ QVR_CVAR(vr_window_hud_spectator, "0", CVAR_ARCHIVE)
 // headset still shows it. The spectator camera's (on: trailers) and the mirror's (Left Eye, Smoothed Mirror; off).
 QVR_CVAR(vr_spectator_hide_hud_text, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_mirror_hide_hud_text, "0", CVAR_ARCHIVE)
+// Recording mode: no tips (vr_tips.cpp), no messages on the wrist gadget (its log and hologram: vr_gadget.cpp) and no
+// head-locked text (centre prints, notify lines: vr_stereo.cpp), in the headset too: clean takes. The player's switch (Graphics > Recording), and the map's (QC sets it at every map
+// load: 1 in the trailer scene, info_vr_trailer; 0 elsewhere). Either one turns it on: qvr::recordingClean().
+QVR_CVAR(vr_recording_clean, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_recording_clean_map, "0", CVAR_NONE)
 QVR_CVAR(vr_window_log, "0", CVAR_NONE)               // 1: print the head's and the window camera's angles every frame (tests)
 // Highlight markers for trailers (vr_highlights.cpp; docs/vr-port/TRAILER.md): the game's cool moments logged in real
 // time from a sync mark to <game dir>/highlights/ (CSV as they happen; JSON and Resolve's marker EDL as the log stops).
@@ -593,6 +598,9 @@ QVR_CVAR(vr_menu_remember, "1", CVAR_ARCHIVE)          // opening the menu after
 QVR_CVAR(vr_menu_dropdown, "4", CVAR_ARCHIVE)          // a VR page's choice row with this many choices or more opens a list of them on a click or Enter / A (vr_menu.cpp; left and right still step; 0: never, a click steps)
 QVR_CVAR(vr_menu_help_wpm, "200", CVAR_ARCHIVE)        // the VR pages' help under the list: a help longer than its box shows a part at a time, each kept as long as reading its words takes at this many words a minute (vr_menu.cpp drawHelp; 60 to 600)
 QVR_CVAR(vr_tutorial_started, "0", CVAR_ARCHIVE)      // 1: the tutorial (vrtutorial2) has been started once (its worldspawn sets it, QC vr_tutorial.qc): VR starts in the hub; 0 (a new install): vr_startgame and the first calibration's way out go to the tutorial (vr_main.cpp startGameCommands, QC changelevel_touch); configs from before vr_cfg_version 103 have it 1
+// The trailer scene (maps/vrtrailer; QC vr_trailer.qc): Debug > Tests > Trailer Scene.
+QVR_CVAR(vr_trailer_reset, "0", CVAR_NONE)            // 1: the scene as at its start (the grunt, the Super Axe on its pedestal, the player at the start); QC sets it back to 0
+QVR_CVAR(vr_trailer_log, "0", CVAR_NONE)              // 1: the grunt's state (enemy, frame, think, stealth, oblivious), the axe's and the player's places, four times a second
 QVR_CVAR(vr_tutorial_goto, "0", CVAR_NONE)            // Debug > Tests > Tutorial > Go to a Lesson: in vrtutorial2, a change to N (1..12) puts you at lesson N's checkpoint (QC vr_tutorial.qc VR_Tutorial_Frame)
 QVR_CVAR(vr_setup_pending, "0", CVAR_ARCHIVE)         // 1: VR Calibration starts the next time the headset is on and no game runs (set at a first start, no saved config: vr_migrate_config new; cleared as it starts; vr_setup.cpp)
 QVR_CVAR(vr_comfort_preset, "0", CVAR_NONE)          // Locomotion's Comfort (vr_menu.cpp presets; not saved: the settings it sets are): 1 Comfortable, 2 Moderate, 3 Full Freedom; 0 Custom (shown when the settings match none)

@@ -11,6 +11,7 @@
 .float vr_flashlight_state; // packed client lamp state, saved and carried by parm50
 .float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)
 .entity vr_wpn_from; // a weapon lying about or flying: the player whose hand it left (DropWeaponInHandScaled), else world
+.float vr_grab_by_handle; // a weapon lying about: a hand closing anywhere on it takes it by its handle, never carries it by a hotspot (func_weapon_grabbable BY_HANDLE)
 .float vr_born; // when it was made (set by the engine, ED_Alloc: vr_cheats.cpp; VR_Scene_IsRuntimeProp)
 .float vr_gate_crossed; // when a missile was last carried through a slipgate (set by the engine: VR_PortalToss); then it meets its owner (VR_OwnerSpared)
 .float vr_sgib; // a small gib (vr_smallgibs.qc): when it was made
@@ -171,6 +172,14 @@
 //
 //
 //
+// ----------------------------------------------------------------------------
+// A monster oblivious until hurt (the map's "vr_oblivious" "1": vrtrailer's grunt; vr_trailer.qc): nothing wakes it --
+// no sight, sound, footsteps, shove or stealth AI (FindTarget, VR_EnemyShove_Check, VR_Stealth_Applies) -- until it
+// takes damage (T_Damage clears it); a beheading cut on it always kills (VR_Trailer_Take).
+// ----------------------------------------------------------------------------
+
+.float vr_oblivious;
+
 // ----------------------------------------------------------------------------
 // Map tips (func_vr_tip: QC/vr_tips.qc)
 // ----------------------------------------------------------------------------

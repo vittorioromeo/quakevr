@@ -250,6 +250,10 @@ void(entity targ, entity attacker) Killed =
 .float vr_headless;
 .float vr_limbcut; // its ragdoll's bones cut off (bits; the engine sets it, vr_box3d.cpp cutLimb): a saved game's made so again (vr_limbs.qc)
 void(entity e) VR_Decap_Killed;
+// The trailer scene (vr_trailer.qc, after the monsters' files): T_Damage's, DecodeLevelParms's and StartFrame's.
+float(entity targ, entity attacker, float take) VR_Trailer_Take;
+void() VR_Trailer_StripParms;
+void() VR_Trailer_Frame;
 // Limb gore (vr_limbs.qc).
 float vr_decap_limb;
 vector vr_limb_blast_at;
@@ -1516,6 +1520,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     if(targ.health_target != string_null)
         MG3_HealthTarget(targ, attacker);
 
+    take = VR_Trailer_Take(targ, attacker, take); // QVR: an oblivious one's beheading cut kills it (vr_trailer.qc)
+
     // do the damage
     targ.health = targ.health - take;
     if(isVRMelee && vr_melee_slap && (targ.flags & FL_MONSTER) && targ.health < -1)
@@ -1568,6 +1574,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     //MED 10/17/96 added charmed stuff
     if((self.flags & FL_MONSTER) && attacker != world)
     {
+        self.vr_oblivious = 0; // QVR: oblivious until hurt (vr_oblivious): it notices you now
         // get mad unless of the same class (except for soldiers)
         if(self != attacker && attacker != self.enemy && (self.charmer != attacker))
         {

@@ -760,22 +760,41 @@ void() func_weapon_dispenser =
 // A weapon lying ready to be picked up: "weapon" its id (WID_*), "weaponflags" its flags (a knight's
 // sword, WID_SWORD 13, with 1 is the hell knight's; an ogre's chainsaw, WID_CHAINSAW 14, full of fuel; a grunt's
 // shotgun, WID_GRUNTGUN 15, and an enforcer's laser rifle, WID_ENFRIFLE 16, full: Enemy Weapons' Shells, Shots; the
-// crowbar, WID_CROWBAR 17: vr_crowbar.qc, whose weapon_crowbar is the same).
+// crowbar, WID_CROWBAR 17: vr_crowbar.qc, whose weapon_crowbar is the same). Spawnflag 1 (AS_PLACED): it lies as its
+// "angles" (pitch yaw roll) turn it, not any way (vrtrailer's Super Axe on its pedestal). Spawnflag 2 (BY_HANDLE): a hand
+// closing anywhere on it takes it by its handle, ready to use, never carried by a hotspot (vr_grab_by_handle).
+float WEAPON_GRABBABLE_AS_PLACED = 1;
+float WEAPON_GRABBABLE_BY_HANDLE = 2;
+
+// The weapon spawner `xSpawner` lays (its origin, its turn), the weapon lying about; world without the weapon's data.
+// vrtrailer's reset lays it again (vr_trailer.qc).
+entity(entity xSpawner) VR_WeaponGrabbable_Make =
+{
+    // Turned any way, still: it falls and settles on its drawn shape (a rigid body, MakeThrown).
+    vector rot = (xSpawner.spawnflags & WEAPON_GRABBABLE_AS_PLACED) ? xSpawner.angles : randomVec(180);
+    entity w = CreateThrownWeapon(xSpawner, xSpawner.weapon, xSpawner.weaponflags,
+        WeaponInst_New(WeaponIdToBaseClipSize(xSpawner.weapon)) /* a new one, loaded */,
+        xSpawner.origin, rot,
+        '0 0 0', '0 0 0',
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(xSpawner.weapon)
+    );
+    w.vr_grab_by_handle = (xSpawner.spawnflags & WEAPON_GRABBABLE_BY_HANDLE) ? 1 : 0;
+    return w;
+};
+
+/*QUAKED func_weapon_grabbable (0 .5 .8) (-8 -8 -8) (8 8 8) AS_PLACED BY_HANDLE
+A weapon lying about (Quake VR): "weapon" its id, "weaponflags" its flags. It falls from its origin and settles on its
+shape. AS_PLACED: it lies as "angles" turn it (none: any way). BY_HANDLE: a hand closing anywhere on it takes it by its
+handle, ready to use (never carried by one of its hotspots).
+*/
 void() func_weapon_grabbable =
 {
     self.movetype = MOVETYPE_NONE;
     self.solid = SOLID_NOT;
     setmodel(self, self.model);
-
-    // Turned any way, still: it falls and settles on its drawn shape (a rigid body, MakeThrown).
-    CreateThrownWeapon(self, self.weapon, self.weaponflags,
-        WeaponInst_New(WeaponIdToBaseClipSize(self.weapon)) /* a new one, loaded */,
-        self.origin, randomVec(180),
-        '0 0 0', '0 0 0',
-        FALSE /* disappear on hit */,
-        FALSE /* deal damage */,
-        WeaponIdToThrowDamage(self.weapon)
-    );
+    VR_WeaponGrabbable_Make(self);
 }
 
 // A monster dispenser (vrfiringrange's monster buttons): when used, spawns the monster "weapon" at its

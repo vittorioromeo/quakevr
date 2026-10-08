@@ -62,6 +62,7 @@ browser with help, key types, choices and a model preview.
 | `quakevr/maps/vrclimb.map` (`.bsp`, `.lit`, `.lux`) | the climbing test map (`Misc/quakevr/climb/make_vrclimb_map.py`) |
 | `quakevr/maps/vrslipgates.map` (`.bsp`, `.lit`, `.lux`) | the slipgate test map, id's textures (`Misc/quakevr/slipgates/make_vrslipgates_map.py`; ROUND21.md, "Slipgate test map") |
 | `quakevr/maps/vrstart.map` (`.bsp`, `.lit`, `.lux`) | the island hub at night (`Misc/quakevr/maps/vrstart_gen.py`, its geometry library `mapgeom.py`; the sky box `make_vs2_sky.py`, `quakevr/gfx/env/vs2night*.png`): below |
+| `quakevr/maps/vrtrailer.map` (`.bsp`, `.lit`, `.lux`) | the trailer's opening scene: a bridge across a night lake, the Super Axe on a pedestal, a grunt on the far islet (`Misc/quakevr/maps/vrtrailer_gen.py`, vrstart's parts; QC `vr_trailer.qc`): below |
 | `Misc/trenchbroom/make_id_wad.py` | writes `quakevr/wads/id_textures.wad` (git-ignored) from your paks: above |
 
 ## The entities
@@ -302,6 +303,84 @@ with no face there is a hole.
   still load it, `VR_MapAlias`). The old hub is `vrstart_old` (`vrstart_old.bsp`, `vrstart_old@3e00.ent`: our `.ent` files are pinned to their `.bsp`, `Misc/quakevr/entfile.py`): Debug > Tests > Hubs, or
   `vr_hub_map vrstart_old` to make it the hub again.
 - **Checks**: `vr_menu_path_check maps/vrstart.map` (the boards' `{menu:...}` names: 4 found, 0 missing).
+
+## vrtrailer: the trailer's opening scene (a generated map)
+
+`quakevr/maps/vrtrailer.map` is written by `Misc/quakevr/maps/vrtrailer_gen.py` (**edit the script, not the .map**). It
+is a much smaller vrstart made of vrstart_gen.py's parts (imported: its planks, logs, railings, ropes, boulders, pines,
+torches, braziers, lanterns, materials, water, sky box, moonlight and fog; its cliff ring and mountains at 1/1.75 scale)
+and compiled as vrstart is (qbsp 0.18.1, vis and light 2.0, `--preset fast|final`, `--check RAYS`; worldspawn
+`_qvr_prelit 1`). For recording the trailer's first shot in VR: the player looks round, walks across the bridge, takes
+the Super Axe from its pedestal, creeps up behind the grunt and beheads him with a two-handed swing.
+
+```
+python Misc/quakevr/maps/vrtrailer_gen.py                              # the .map (about 6 s)
+python Misc/quakevr/maps/vrtrailer_gen.py --compile --preset fast      # iterating (~45 s)
+python Misc/quakevr/maps/vrtrailer_gen.py --compile --check 1000000    # the shipped build (final) and the hole test
+bash Misc/quakevr/vrtrailer_test.sh <agent> ["vr_ai_enhanced 0"]       # the headless take (below)
+```
+
+- **Layout** (x east, y north, the water at z 0, 32.8 units a metre; the box 5120 across, sky to 1600): a lake ringed
+  by cliffs (1700-2100 out) and mountains; a south islet and a north islet, their shores crossing the bridge's line at
+  y -440 and 440; the bridge along x = 0 from y -470 to 470, deck at z 40 (1.2 m over the water), 96 wide, railings
+  38 high, widening half way to a landing (208 x 144) with the pedestal in its middle. **Player start** (0, -444, 66),
+  facing north (yaw 90), at the bridge's south end. **Pedestal**: top at z 73 (33 units, 1.0 m over the deck), the Super
+  Axe across it (func_weapon_grabbable weapon 18, spawnflags 3: lies as placed, "angles" `0 90 90`, its handle along x;
+  taken by its handle wherever the hand closes on it). **Grunt** (monster_army, `vr_oblivious 1`) at (0, 760, 64)
+  facing north (yaw 90), the water ~110 units ahead of him, his back to the bridge. Nothing else: no tips, no boards, no
+  ambient sounds, no other monsters or items.
+- **The scene** (`info_vr_trailer`, QC `vr_trailer.qc`): recording mode on while the map is loaded
+  (`vr_recording_clean_map 1`, set at every map load: 0 elsewhere): no tips, no wrist-gadget messages (log and
+  hologram), no head-locked text, in the headset too (Graphics > Recording > Recording Mode is the player's own switch,
+  `vr_recording_clean`). The player starts empty-handed (no weapons in hands, holsters or inventory). `vr_trailer_reset 1`
+  (Debug > Tests > Trailer Scene > Reset Trailer Scene) puts it back for a retake: the grunt again where he stood (his
+  body, head, gibs, gun and backpack taken away), the Super Axe on its pedestal (out of your hands and holsters), you at
+  the start facing along the bridge, health 100. `vr_trailer_log 1` prints the grunt's state and the axe's and your
+  places four times a second.
+- **The grunt is oblivious until hurt** (`vr_oblivious`, any monster): FindTarget never sees anyone, no shove, and the
+  stealth AI leaves him out (`VR_Stealth_Applies`: no meter, noise, footsteps, touch, bodies, beams); the first damage
+  clears it (T_Damage). A beheading cut on him always kills (`VR_Trailer_Take`: the blow's damage raised to his health
+  when it is armed to behead), so the cut that beheads never leaves him alive. What beheads is decapitation's own rule
+  (vr_decap.qc): the Super Axe's head (not its handle) swung across his head's sphere (3 forward, 23 up of his origin,
+  7.2 + 3.5 round: z 77-98 here) at `vr_decap_speed` or more, held by its handle (a weapon carried by a hotspot never
+  beheads: hence spawnflag 2). A swing at his shoulders (lower) kills him without beheading.
+- **The headless take** (`Misc/quakevr/vrtrailer_test.sh`; the swing `Misc/quakevr/vrtrailer_swing.py` ->
+  `vrtrailer_swing.mock`): walk (the stick) to the pedestal, the main fist onto the axe, grip: taken by its handle; walk
+  on to 30 units behind the grunt (he stays idle, oblivious, stealth state 0 at every log line); the off hand onto the
+  handle, grip (two hands); the swing right to left at his head (hands 0.40 m under the eye, 0.62 m out half way):
+  "monster_army beheaded by player (a slash at ~20 m/s)", dead; then the reset: a living oblivious grunt, the axe on its
+  pedestal, the player at the start. 9/9 checks, 3 runs out of 3, and with `vr_ai_enhanced 0`.
+
+**Lighting** (for anything lit to match, e.g. the trailer's flying head; directions with x east, y north, z up):
+
+| Light | Where | Value |
+|---|---|---|
+| Moon (sun 1) | `_sunlight_mangle 240 -30 0`: the light travels towards yaw 240, 30 degrees down; **the moon is at yaw 60 (north-north-east), 30 degrees up**: unit vector to it (0.433, 0.750, 0.500). Seen from the bridge (facing north) 30 degrees right of ahead and 30 up (the sky box `vs2night` has its disc there) | `_sunlight 230`, colour `0.62 0.72 1.0` (cold blue-white) |
+| Sky fill (sun 2) | the dome | `_sunlight2 75`, colour `0.30 0.38 0.62` |
+| Ambient (minlight) | everywhere | `light 14`, `_minlight_color 0.55 0.62 1` (dim blue) |
+| Torch pillars' flames, 6 | `light_flame_large_yellow` at (+-168, -300 / 0 / 300, 146): 106 over the deck, 168 either side of the bridge's middle | `light 300`, `_color 1 0.55 0.25` (orange), `wait 0.9` |
+| Bridge-end torches, 4 | `light_torch_small_walltorch` at (+-50, -450, 96) and (+-50, 450, 96) | `light 230`, `_color 1 0.6 0.28`, `wait 1.1` |
+| Grunt's torch post | (-111, 695, 94): behind him on his left, 135 units off, facing him (yaw 30) | `light 230`, `_color 1 0.6 0.28`, `wait 1.1` |
+| Start's torch post | (101, -555, 94), behind the start | `light 230`, `_color 1 0.6 0.28`, `wait 1.1` |
+| Pedestal's lanterns, 2 | `light` at (+-68, 62, 82), under lanterns on posts at the landing's far corners | `light 170`, `_color 1 0.75 0.45`, `wait 0.8` |
+
+Every fire and lamp has `_dirt -1` (no ambient occlusion). The final build adds `-bounce` (`_bounce 1`) and `-dirt
+-dirtscale 1.5 -dirtdepth 96` (vrstart's). **Fog** `0.035 0.045 0.055 0.08`: density 0.035, colour (0.045, 0.055, 0.08)
+(near-black blue). **So at the grunt**: lit from behind-left by warm orange (his torch post, and the bridge-end
+torches 300 units back), his front and right side rimmed by the cold blue moon from ahead-right and above; the water
+and mountains behind him near black. Reference shots (the mock headset; `-Out` composes them):
+
+```
+bash <kit>/run.sh <agent> -Out vrtrailer_sheet.png -Script "map vrtrailer;wait90;setpos 0 -444 64 0 78 0;vr_mock_look -14 0;wait10;screenshot;setpos 0 -110 64 0 90 0;vr_mock_look 12 0;wait10;screenshot;noclip;setpos 0 -42 82 0 90 0;vr_mock_look 42 0;wait10;screenshot;noclip;setpos 0 260 64 0 85 0;vr_mock_look -4 0;wait10;screenshot;setpos 0 690 64 0 90 0;vr_mock_look 4 0;wait10;screenshot;setpos 0 640 64 0 72 0;vr_mock_look -16 0;wait10;screenshot;toggleconsole;quit"
+```
+
+(the start, looking north-north-east up to the moon; the landing and the pedestal; the Super Axe on it from above; the
+bridge's north end and the grunt; behind the grunt, 70 units back; behind him looking up to the moon.)
+
+**Checks** (2026-10-08, the final build): `--check 1000000`: 0 holes; qbsp, vis and light without warnings (the
+terrain's lattice seed, `TERRAIN_SEED` 6: seeds 5 and 7 gave a clip hull's fill warning, 8 six portal ones); 6552
+brushes, the .bsp 7.2 MB (vrstart's 17.7). Map load (`vr_startup_times`, `--exclusive`): 1016 ms as the first map of a
+start, 180 ms again, 313 ms after vrstart (vrstart's 989).
 
 ## vrtutorial2: the tutorial (a generated map)
 

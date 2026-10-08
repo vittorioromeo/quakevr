@@ -362,6 +362,7 @@ void() DecodeLevelParms =
     // Dawn of the Machine: boss2 on skill 3 is Bloody Nightmare, whose levels start with the axe and shotgun only.
     MG3_BloodyNightmareLevel();
     MG3_BloodyNightmareStrip();
+    VR_Trailer_StripParms(); // QVR: the trailer scene starts empty-handed (vr_trailer.qc)
 
     self.items = parm1;
     self.health = parm2;

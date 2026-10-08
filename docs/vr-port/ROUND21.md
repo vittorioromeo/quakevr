@@ -32143,3 +32143,37 @@ Windows' command line, and the run waits out its timeout; 80 trials take about 8
   player climbs the step. Spawned beside the player on his step (24 units ahead in vrfiringrange) it stands level.
 - **The force grab's search** (PERF_DECISIONS.md 11): through the area grid, the same chain; `vr_forcegrab_grid`,
   `_verify`, `_stats`.
+## The trailer scene: vrtrailer (2026-10-08)
+
+A small map for recording the trailer's opening shot in VR (MAPPING.md, "vrtrailer", has the layout, the lighting
+numbers and the shot commands): a wooden bridge across a night lake, torch pillars in pairs out of the water, a stone
+pedestal half way with Dawn of the Machine's Super Axe lying on it, a grunt on the far islet looking out over the water.
+`Misc/quakevr/maps/vrtrailer_gen.py` imports vrstart_gen.py's parts (planks, logs, railings, pines, boulders, torches,
+lanterns, materials, sky, moonlight, fog; its cliffs at 1/1.75 scale) and compiles as vrstart does.
+
+- **Oblivious until hurt** (`vr_oblivious 1` on any monster; QC vr_fields.qc): FindTarget returns at once, no enemy
+  shove, `VR_Stealth_Applies` false (no meter, noise, touch, body, beam); T_Damage clears it. `VR_Trailer_Take`
+  (vr_trailer.qc, from T_Damage): a player's blow armed to behead an oblivious monster deals at least its health, so the
+  cut that beheads always kills (decapitation itself is unchanged: the head's sphere, the blade, the speed).
+- **func_weapon_grabbable** spawnflags: 1 AS_PLACED (lies as its "angles" turn it, not any way), 2 BY_HANDLE (a hand
+  closing anywhere on it takes it by its handle, `vr_grab_by_handle`: a weapon carried by a hotspot is "held off its
+  handle" and never beheads, VR_Decap_Slash's `mh_free`). `VR_WeaponGrabbable_Make` lays it again.
+- **info_vr_trailer** (vr_trailer.qc): finds the scene's grunt and axe a second in; `vr_trailer_reset 1` (Debug > Tests
+  > Trailer Scene) for retakes; `vr_trailer_log 1`; the player starts empty-handed in this map (DecodeLevelParms:
+  `VR_Trailer_StripParms`); recording mode on there.
+- **Recording mode** (`vr_recording_clean`, archived, 0: Graphics > Recording > Recording Mode; `vr_recording_clean_map`,
+  set by QC at every map load, 1 in vrtrailer): no tips (vr_tips.cpp frame), no wrist-gadget log or hologram
+  (vr_gadget.cpp logShown, hologramOn), no head-locked text in the eyes, mirror or spectator camera (vr_stereo.cpp);
+  `qvr::recordingClean()`.
+- **Tested**: `Misc/quakevr/vrtrailer_test.sh <agent>` (headless, stealth AI on): walked to the pedestal, the main
+  fist on the axe: taken by its handle; walked to 30 units behind the grunt with the axe (23 log lines, all "enemy
+  worldspawn, think stand, stl 0, oblivious 1"); the off hand on the handle (two hands: "2h grip: off hand took it");
+  the swing (`vrtrailer_swing.mock`, `vrtrailer_swing.py`: hands 0.40 m under the eye, 0.62 m out): "monster_army
+  beheaded by player (a slash at ~20 m/s)", health -1; reset: grunt alive and oblivious, axe at z 74.2, player at the
+  start. 9/9, four runs; also with `vr_ai_enhanced 0`. Sweeps of the synthetic swing (a grunt 30 units ahead): reach
+  0.6-0.65 m with the hands 0.34-0.42 m under the eye behead him; lower strikes his shoulders (killed, not beheaded);
+  a shorter reach misses; a longer one strikes his head with the handle ("the hilt or handle", not beheaded). e1m1
+  smoke; QC 0 warnings; FGD check; `vr_menu_path_check maps/vrcalibration.map` 0 missing.
+- **For the take (the author)**: grab the axe anywhere (it comes by its handle); come up close behind him; swing so the
+  axe's head (not its handle) crosses his head or upper neck, not his shoulders (his idle pose holds the rifle up: a
+  low swing hits his arm). `vr_trailer_reset 1` between takes (or Debug > Tests > Trailer Scene > Reset Trailer Scene).
