@@ -4530,6 +4530,10 @@ za::Vector<Item> pageDebugLogging()
                   "its speed, stepped on), and where the hand was: how far from the button and from you (a far one is a "
                   "stray press). And Weapon Lines: every frame, each held weapon's line that presses buttons "
                   "(from its pommel or butt to its tip or muzzle). Needs Developer Messages."),
+        cycle("Monster Poses", vr_debug_pose_check, {{0.f, "Off"}, {1.f, "Squashed Bodies"}, {3.f, "And a Screenshot"}, {2.f, "Every Frame"}})
+            .help("vr_debug_pose_check: a monster drawn squashed between two poses for over 0.2 s (\"posecheck:\"; a "
+                  "parried ogre was, for half a second), drawn with a pose out of its model's range or a broken blend; "
+                  "And a Screenshot: a picture at each; Every Frame: each monster's drawn poses and how flat (a lot)."),
         toggle("Shots and Damage", vr_debug_shots)
             .help("Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
                   "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages."),

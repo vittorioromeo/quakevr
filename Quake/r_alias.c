@@ -981,6 +981,8 @@ cull:
 		cached->gen = aliasdepthgen;
 	}
 	VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr); // QVR
+	if (mode == ALIAS_STANDARD)
+		VR_DebugAliasPose (e, paliashdr, lerpdata.pose1, lerpdata.pose2, lerpdata.blend, model_matrix); // QVR: vr_debug_pose_check
 	if (portal_split)
 	{
 		aliasinstance_t* copy = &ibuf.inst[ibuf.count++];

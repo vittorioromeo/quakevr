@@ -88,6 +88,7 @@ void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// afte
 void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush entities: the networked scale and offset
 float VR_EntityScale (const struct entity_s *e);	// ENTSCALE_DECODE(e->scale) times a prop's Size (Held Object Offsets): its bounds as drawn
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
+void VR_DebugAliasPose (const struct entity_s *e, const void *aliashdr, int pose1, int pose2, float blend, const float matrix[16]); // vr_debug_pose_check (vr_posecheck.cpp)
 // The alias instance's Quake VR data, after Ironwail's (r_alias.c's aliasinstance_t; the shaders' InstanceData).
 typedef struct vraliasinstance_s
 {

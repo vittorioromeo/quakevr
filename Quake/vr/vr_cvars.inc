@@ -2991,6 +2991,8 @@ QVR_CVAR(vr_stealth_marks, "0", CVAR_ARCHIVE)        // a "?" over a monster tur
 QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed; 2: each sighting's meter and each noise heard
 QVR_CVAR(vr_monster_lerp_continue, "1", CVAR_ARCHIVE) // a monster's next step drawn on from where it is drawn, not from its last step's end (no snap: the dogs' turns)
 QVR_CVAR(vr_debug_drawn_moves, "", CVAR_NONE)       // a part of model names (progs/dog): those monsters drawn jumping between frames logged ("drawnmove:")
+QVR_CVAR(vr_debug_pose_check, "0", CVAR_NONE)        // 1: monsters drawn collapsed logged ("posecheck:": held squashed between two poses over 0.2 s, a pose out of range, a blend not in 0..1, an uneven scale; vr_posecheck.cpp); 2: every frame of theirs; 3: as 1, and a screenshot at each long squash
+QVR_CVAR(vr_debug_pose_check_model, "", CVAR_NONE)  // ... only models whose names contain this (progs/knight)
 QVR_CVAR(vr_stealth_debug_meters, "0", CVAR_NONE)    // each monster's state and suspicion meter drawn over it (Debug > Tests > Stealth AI)
 QVR_CVAR(vr_stealth_debug_meters_range, "2000", CVAR_NONE) // units from your head within which they are drawn
 QVR_CVAR(vr_stealth_light_force, "-1", CVAR_NONE)    // tests: the players' light level as this (-1: measured)
