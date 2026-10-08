@@ -31446,7 +31446,8 @@ No overshoot any more: the frames before rise to the room's level as the shimmer
 and the last step is the fade's own (at opacity 1.0 its 12% still over the last frame, 1.2).
 
 Also: `slipgate_edges_test.sh`'s eye images (head, recursion) are read from the kit's base for the agent (the game's
-`eyeshots/`), not the worktree's `quakevr/`, which does not exist ("No such file").
+`eyeshots/`), not the worktree's `quakevr/`, which does not exist ("No such file"); now all its sections pass (recursion
+2 counted a 2-pixel speck as a fourth sign: `slipgate_signs.py` ignores runs a row tall).
 
 - [ ] Walk into a slipgate whose room is lit by lamps (vrslipgates' flush gate, the start map's): no flash of brighter
   walls at the crossing; the walls through the gate look as they do once through.
