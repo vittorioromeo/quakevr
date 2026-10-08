@@ -273,26 +273,69 @@ constexpr float sinkDensity = 0.5f;
     return gib && !wood ? sinkDensity : floatDensity; // (a taken wall torch, a crate's piece are wood: they float)
 }
 
-[[nodiscard]] bool wetAt(float x, float y, float z)
+// The deepest node of the world's hull 0 above every point (x, y, z), z from `zlo` to `zhi`: SV_HullPointContents
+// from it gives what it gives from the root, for any point of that column. Each plane's distance is the expression
+// SV_HullPointContents works out, a monotone function of z (x and y fixed), so the ends on one side put the whole
+// column there. (A leaf's contents, below 0, when the column is in one leaf.)
+[[nodiscard]] int columnNode(float x, float y, float zlo, float zhi)
+{
+    hull_t* hull = &sv.worldmodel->hulls[0];
+    vec3_t a{x, y, zlo}, b{x, y, zhi};
+    int num = 0;
+    while(num >= 0)
+    {
+        const mclipnode_t* node = hull->clipnodes + num;
+        const mplane_t* plane = hull->planes + node->planenum;
+        float da, db;
+        if(plane->type < 3)
+        {
+            da = a[plane->type] - plane->dist;
+            db = b[plane->type] - plane->dist;
+        }
+        else
+        {
+            da = DoublePrecisionDotProduct(plane->normal, a) - plane->dist;
+            db = DoublePrecisionDotProduct(plane->normal, b) - plane->dist;
+        }
+        if((da < 0) != (db < 0))
+        {
+            break;
+        }
+        num = node->children[da < 0 ? 1 : 0];
+    }
+    return num;
+}
+
+// Whether (x, y, z) is in water, slime or lava (SV_PointContents' answer), the hull walked from `node`
+// (columnNode's, for a point of its column).
+[[nodiscard]] bool wetFrom(int node, float x, float y, float z)
 {
     vec3_t p{x, y, z};
-    const int contents = SV_PointContents(p);
+    int contents = SV_HullPointContents(&sv.worldmodel->hulls[0], node, p); // (SV_PointContents' steps)
+    if(contents <= CONTENTS_CURRENT_0 && contents >= CONTENTS_CURRENT_DOWN)
+    {
+        contents = CONTENTS_WATER;
+    }
+    contents = VR_LiquidContents(sv.worldmodel, p, contents);
     return contents <= CONTENTS_WATER && contents >= CONTENTS_LAVA;
 }
 
-// The part of the column from `lo` to `hi` (z) at `c` under water (0 to 1), by the BSP's liquid leaves.
+// The part of the column from `lo` to `hi` (z) at `c` under water (0 to 1), by the BSP's liquid leaves. Every point
+// it tries is on one column: the hull's walk down to that column's node is done once (MG3_PLAN.md M3-28: a body's
+// 2 to 15 point tests each step, 0.26 ms a frame of secret2's fight).
 [[nodiscard]] float submerged(const glm::vec3& c, float lo, float hi)
 {
+    const int node = columnNode(c.x, c.y, za::min(lo, c.z), za::max(hi, c.z));
     float under = lo;
-    if(!wetAt(c.x, c.y, lo))
+    if(!wetFrom(node, c.x, c.y, lo))
     {
-        if(!wetAt(c.x, c.y, c.z))
+        if(!wetFrom(node, c.x, c.y, c.z))
         {
             return 0.f;
         }
         under = c.z; // the bottom in a floor
     }
-    if(wetAt(c.x, c.y, hi))
+    if(wetFrom(node, c.x, c.y, hi))
     {
         return 1.f;
     }
@@ -300,7 +343,7 @@ constexpr float sinkDensity = 0.5f;
     for(int i = 0; i < 12; i++)
     {
         const float mid = (under + above) * 0.5f;
-        (wetAt(c.x, c.y, mid) ? under : above) = mid;
+        (wetFrom(node, c.x, c.y, mid) ? under : above) = mid;
     }
     return CLAMP(0.f, ((under + above) * 0.5f - lo) / za::max(hi - lo, 0.01f), 1.f);
 }
