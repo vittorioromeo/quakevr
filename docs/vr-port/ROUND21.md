@@ -31636,3 +31636,48 @@ Monsters' bullets aim lower at you crouched. The details: HULLS.md, "Crouching".
   low wall. Whether 36 for the lowest box (eyes about 1.1 m for a 1.7 m eye height) and the steps feel right.
 - Found on the way (not the crouch's): a player put straddling a teleporter's plane by `setpos` falls through it
   uncarried when he walks on, standing too (vrslipgates' flush player gate).
+## The gadget's side button: gear lights; bullet time from a screen tap (2026-10-08)
+
+Vittorio (map1_2026-10-08_14-07-47, vrfiringrange_2026-10-08_14-40-16): bullet time fired by accident (melee, incidental
+contact with the wrist); the side button should be a light switch for stealth instead.
+
+- **Bullet time: only a hard tap on the gadget's screen** (vr_bullettime.cpp, `tapScreen`). The striking point is the
+  other hand's middle (`hands::palmPoint`) or, holding a gun, its butt (`view::heldWeaponButt`: the middle of the drawn
+  points within a unit of its rearmost end along the muzzle-handle line; `vr_bullettime_tap_butt 1`). It must be over
+  the screen (`vr_bullettime_tap_margin` 2 cm past its edges), come straight into it (`vr_bullettime_tap_angle` 40
+  degrees off its normal at most) at `vr_bullettime_tap_speed` 1.2 m/s or more (into the screen, against the screen's
+  own point under it: the gadget arm's velocity and turn subtracted), then stop on it (within `vr_bullettime_tap_depth`
+  6 cm of its face, its speed into it down to `vr_bullettime_tap_stop` of the peak within `vr_bullettime_tap_window`).
+  Velocities are taken in real time (`timescale::handScale`), so a tap stops bullet time at the same force it starts
+  it. The wrist tap (`vr_bullettime_tap_radius`) and the button's bullet time (`vr_bullettime_button*`) are gone.
+- **Gear lights** (vr_gearlights.cpp): the same button (the inner one on the lower edge) pressed by the other hand's
+  fingertip (`vr_gadget_button_reach` 4 cm ahead of the hand) toggles `vr_gear_lights` (archived) with a click
+  (`vr/gadget_click_on.wav`, `_off.wav`, from `make_gadget_sounds.py`: make_flashlight.py's click, higher and lighter)
+  and a tick in both hands; bindable `vr_gear_lights_toggle`. Off, over 0.15 s: the gadget's two lights and the ammo
+  screens' spot lights and the screens' glows at `vr_gear_lights_dim` (0.05), the screens' faces (the gadget's palette,
+  the ammo screens' text and ink, the hologram) at `vr_gear_lights_screen_dim` (0.35). The flashlight keeps its switch;
+  the lava nailguns' glow is lava, not gear, and is left. The stealth AI's light on the player (`stealth::lightAt`)
+  counts every dynamic light but the flashlight's, so the dim reaches it with no change there.
+- **The button's hit volume**: a sphere of `vr_gadget_button_size` (3 cm) round the button's middle, moved by
+  `vr_gadget_button_x/y/z` (cm along the screen's right, up, out), cut by a plane half a radius behind its middle (a
+  fingertip over the screen never presses it), and no press while a screen tap is under way or half a second after one
+  (`bullettime::tapping`). A press is the fingertip's arrival; it re-arms 1.5 radii out; `vr_gadget_button_cooldown`
+  (0.6 s) ignores a press after one. `vr_debug_gadget_button` (Debug > Show Gadget Button, and on the Screens page): 1
+  draws it (green ready, yellow pressed, red cooling down) and the fingertip, prints presses; 2 also the screen tap's
+  zone. `vr_gear_lights_info` (Debug > Gear Lights Info): the state, the button, the stealth light on you and the
+  lights within reach of you.
+- Menu: HUD and Menus > Screens > Gear Lights: the Gadget's Side Button (every setting above); Combat > Bullet Time >
+  Screen Tap; the Activation row's choices lose "tap only"/"button only".
+- Mock: `vr_mock_hand_to <hand> screen|screenbutt <cm over> [<cm across>]`; `vr_mock_hand_glide <s>` glides a
+  `vr_mock_hand_to` move over that long and reports its exact velocity (stepped moves report the fast-mode frames'
+  velocities, and the body's settling moves the gadget a few cm after a step).
+- **Tests** (`Misc/quakevr/gadget_tap_test.sh <agent>`): a hard straight tap by the hand (3.2 m/s) and by the gun's butt
+  (3.2 m/s) and a 31-degree strike (2.3 m/s) start or stop it; a soft touch (0.23 m/s), a firm one under the threshold
+  (0.93 m/s), a swing across 3 cm over the screen (10 m/s), one stopping on it (8 m/s) and a 50-degree strike (3.1 m/s)
+  don't. The button: pressed (off), pressed again at once (ignored, cooling down), after the cooldown (on). The stealth
+  light with the gadget raised to be read: 103.71 (its dynamic share 0.71) on, 103.04 (0.04) off: the gear's lights
+  are a small share of what the stealth AI sees (128 is full light; you are unseen at or below 20). The gadget's
+  screen texture: mean 44.6 -> 21.9, brightest 255 -> 109.
+- To try in VR: is a deliberate tap easy (Tap Force 1.2 m/s, Straightness 40 degrees), and do melee swings, blocks and
+  two-handed holds never start it? Is the button easy to find and press without the screen tap pressing it? Is the dim
+  right (Lights When Dimmed 0.05, Screens When Dimmed 0.35)?
