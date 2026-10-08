@@ -804,6 +804,7 @@ int campaignsBloodyShown = -1;
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons();
 [[nodiscard]] za::Vector<Item> pageEnemyShoves();
 [[nodiscard]] za::Vector<Item> pageKnockdowns();
+[[nodiscard]] za::Vector<Item> pageHoldingEnemies();
 [[nodiscard]] za::Vector<Item> pageSound();
 
 [[nodiscard]] za::Vector<Item> pageGameplay()
@@ -854,6 +855,52 @@ int campaignsBloodyShown = -1;
             .help("An enforcer's shove's damage, times Damage."),
         slider("Enforcer Push", vr_enemy_shove_enforcer_distance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How far an enforcer's shove pushes you, times Push Distance."),
+    };
+}
+
+// Holding enemies (vr_foegrab.cpp, QC vr_foegrab.qc; ROUND21.md, "Holding enemies"): an empty hand holds on to a living
+// monster, slows it and drags it a little.
+[[nodiscard]] za::Vector<Item> pageHoldingEnemies()
+{
+    return {
+        toggle("Holding Enemies", vr_foegrab)
+            .help("Experimental. Grip with an empty hand touching a living enemy to hold on to that spot of it: the hand "
+                  "stays on it as it moves, and the enemy is slowed and can be pulled a little. Small ones are held well, "
+                  "big ones (fiends, ogres) a little, huge ones (shamblers, vores) hardly. Let go of the grip, or pull too "
+                  "far, and the hand lets go. Grabbing a sleeping or idle enemy wakes it. Needs Precise Hit Detection."),
+        slider("Touch Leniency", vr_foegrab_leniency, 0.f, 5.f, 0.25f, "%.2f cm").extend(0.f, 20.f)
+            .help("How far off the enemy's model your fist may be and still take hold."),
+        slider("Let Go Beyond", vr_foegrab_break, 10.f, 80.f, 1.f, "%.0f cm").extend(5.f, 200.f)
+            .help("Your hand this far from the spot it holds (the enemy ran, or you moved away) lets go: after a quarter "
+                  "of a second there, or at once at twice this."),
+        header("Hold"),
+        cycle("Hold By", "vr_foegrab_by_mass", {{0.f, "Size Class"}, {1.f, "Mass"}})
+            .help("Size Class: the three holds below, by kind of enemy. Mass: from the enemy's mass, full at Light and "
+                  "none at Heavy."),
+        slider("Small Enemies", vr_foegrab_strength_small, 0.f, 1.f, 0.05f, "%.2f")
+            .help("One hand's hold on a grunt, an enforcer, a zombie, a knight, a mummy, a dog. Two hands together: "
+                  "1 - (1 - a)(1 - b) (0.85 each: 0.98)."),
+        slider("Big Enemies", vr_foegrab_strength_medium, 0.f, 1.f, 0.05f, "%.2f")
+            .help("One hand's hold on a fiend, an ogre, a death knight's bigger kin."),
+        slider("Huge Enemies", vr_foegrab_strength_large, 0.f, 1.f, 0.01f, "%.2f")
+            .help("One hand's hold on a shambler, a vore and anything bigger."),
+        slider("Light (Mass)", vr_foegrab_mass_light, 10.f, 400.f, 10.f, "%.0f kg").extend(1.f, 5000.f)
+            .help("Hold By Mass: enemies this light or lighter are held fully (a grunt 80 kg, an enforcer 100)."),
+        slider("Heavy (Mass)", vr_foegrab_mass_heavy, 100.f, 2000.f, 25.f, "%.0f kg").extend(10.f, 20000.f)
+            .help("Hold By Mass: enemies this heavy or heavier are not held at all (a fiend or an ogre 250, a shambler 600)."),
+        header("Effect"),
+        slider("Slow Down", vr_foegrab_slow, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Share of a fully held enemy's own movement (and turning) taken off, times its hold."),
+        slider("Pull", vr_foegrab_drag, 0.f, 20.f, 0.5f, "%.1f /s")
+            .help("How quickly your hand pulls the spot it holds towards it, times the hold (0: not at all)."),
+        slider("Pull Speed", vr_foegrab_drag_speed, 0.f, 300.f, 5.f, "%.0f units/s")
+            .help("The pull's top speed (32 units are about a metre)."),
+        header("Their Shoves"),
+        cycle("Held Enemy's Shove", "vr_foegrab_shove", {{0.f, "Resisted"}, {1.f, "Breaks Free"}})
+            .help("Resisted: a grunt or enforcer you hold barely pushes you (by Shove Resistance and its hold), and comes "
+                  "along with you. Breaks Free: its shove pushes you fully, as ever, and tears it from your hands."),
+        slider("Shove Resistance", vr_foegrab_shove_resist, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Resisted: share of a held enemy's shove taken off, times its hold."),
     };
 }
 
@@ -5689,6 +5736,16 @@ za::Vector<Item> pageDebugTests()
             .help("Developer 1: a knight deals three 10-damage blows in one callback and checks the restored self and vectors. Grants 500 health. A successful parry should cancel the last two."),
         command("A Melee Blow Now", "impulse 242")
             .help("The nearest melee monster within 150 units strikes for 10 damage through the actual parry test. With notarget, it attacks only when asked. Parry Stops Attacks also cancels blows asked for during its stagger."),
+        header("Holding Enemies"),
+        command("Who Is Held?", "vr_foegrab_status")
+            .help("vr_foegrab_status: each hand holding an enemy, its hold, how firmly the enemy is held in all, how far "
+                  "the hand is from the spot it holds (Combat > Holding Enemies)."),
+        command("Walk the Nearest Away", "vr_foegrab_walk_test 110 1")
+            .help("vr_foegrab_walk_test 110 1: the live monster nearest you walks straight away from you at 110 units/s "
+                  "for a second; how far it got is printed. Held, it should hardly move (A Grunt Ahead first)."),
+        cycle("Log Holds", "vr_foegrab_debug", {{0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "Every Frame"}})
+            .help("vr_foegrab_debug: the console logs each hold taken and let go and why (and a grip that found none); "
+                  "Every Frame: each held enemy's movement and each hand's stretch."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
@@ -6730,6 +6787,7 @@ const Page pages[] = {
     {"Reloading - Launchers", pageReloadLaunchers, pageReloading},
     {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
     {"Stealth AI Tests", pageStealthTests, pageDebugTests, LevelDeveloper},
+    {"Holding Enemies", pageHoldingEnemies, pageCombat},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -7523,6 +7581,8 @@ za::Vector<Item> pageCombat()
             .help("Grunts and enforcers shove you away when you stand too close: how close, how soon, how hard."),
         open("Knockdowns", pageIndex(pageKnockdowns))
             .help("Your shoves can knock monsters down as ragdolls, alive: the chances, how long they stay down, getting up."),
+        open("Holding Enemies", pageIndex(pageHoldingEnemies))
+            .help("Experimental: grip a living enemy with an empty hand to hold on to it, slow it and pull it a little."),
         open("Bullet Time", pageIndex(pageBulletTime))
             .help("The wrist gadget's button slows the world for as long as its meter lasts; Sandevistan; its look."),
         open("Burning", pageIndex(pageBurning))

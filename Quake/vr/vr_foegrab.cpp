@@ -23,6 +23,7 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
 #include "vr_zancle.hpp"
 
 using namespace qvr;
@@ -36,12 +37,16 @@ constexpr int prevGrabBit[2] = {1 << 2, 1 << 4}; // QVR_VRBITS0_*HAND_PREVGRABBI
 constexpr int climbingBit[2] = {1 << 15, 1 << 16}; // QVR_VRBITS0_*HAND_CLIMBING (vr_climb.cpp, this frame)
 constexpr float statScale = 8.f;      // the spots in the stats: eighths of a unit
 constexpr double lateGrab = 0.2;      // s: a grip pressed this long before the fist touches the enemy still takes hold
-constexpr float palmRadiusCm = 3.5f;  // the palm's sphere where the fist isn't known (another player's, a dedicated server)
+constexpr float palmRadiusCm = 3.5f;  // the palm's sphere (alone where the fist isn't known: another player's, a dedicated server)
 constexpr float maxInsideCm = 25.f;   // a fist's sphere at most this deep in the model holds (at the surface nearest it)
 constexpr float searchReach = 96.f;   // units a model is found out of its box (hitmodel's VR_HITMODEL_REACH)
 constexpr float teleportStep = 64.f;  // units: a held enemy moved further in a frame (teleported) is let go
 constexpr float pinInTime = 0.05f;    // s: the drawn hand settles on the spot
 constexpr float pinOutTime = 0.12f;   // and goes back to the tracked hand after letting go
+constexpr double breakGrace = 0.25;  // s: a hand pulled past vr_foegrab_break lets go after this long past it,
+constexpr float breakFar = 2.f;       // or at once this many times as far
+constexpr float animTime = 0.12f;     // s: the held spot eases to where the model's animation has it
+constexpr float animMaxCm = 20.f;     // and is at most this far from where the body alone (origin, yaw) carries it
 
 // Why a hand let go (QC VR_FoeGrab_Released's xWhy).
 enum class Why : int
@@ -59,11 +64,14 @@ struct Hold
     int modelindex{0};     // and its model (another: let go)
     int tri{-1};           // the spot: the triangle of its model and where on it (hitmodel::anchorFrame)
     float u{0.f}, v{0.f};
-    glm::vec3 offset{0.f}; // the palm from the spot when it took hold, in the spot's frame
+    glm::vec3 local{0.f};   // the spot when it took hold, in the body's frame (its drawn origin, turned with its yaw)
+    glm::vec3 palmOff{0.f}; // the palm from the spot then, in the body's frame
+    glm::vec3 anim{0.f};    // the model's animation's move of the spot since (world), eased (animTime) and capped (animMax)
     glm::vec3 palmAt{0.f}; // where the palm is held now (world)
     float strength{0.f};   // this hand's hold on it (QC VR_FoeGrab_Strength)
     float stretch{0.f};    // units from the tracked palm to palmAt (last frame)
     double since{0.0};
+    double overSince{-1.0}; // the stretch past vr_foegrab_break since (-1: not)
 };
 
 struct Holder
@@ -74,6 +82,8 @@ struct Holder
     bool owned[2]{false, false};     // the grip is the hold's (hidden from the QC) until it is released
     bool ownedLast[2]{false, false};
     double lastTime{-1.0};
+    glm::vec3 lastOrigin{0.f}; // the player's at the end of the last frame (serverFrame: a shove's slide carries the held)
+    bool originKnown{false};
 };
 
 Holder holders[MAX_SCOREBOARD];
@@ -83,6 +93,7 @@ struct Foe
 {
     int ent{0};
     glm::vec3 last{0.f};
+    float lastYaw{0.f};
     bool fresh{true}; // taken this frame: no movement of its own yet
 };
 constexpr int maxFoes = 2 * MAX_SCOREBOARD;
@@ -107,6 +118,14 @@ struct FoeGrabScratch
     auto members() { return qvr::mem::list(fist); }
 };
 mem::Scratch<FoeGrabScratch> scratch{"foegrab"};
+
+// The server's QuakeC VM for a console command's while (its edicts).
+struct VmScope
+{
+    qcvm_t* old{nullptr};
+    VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
+    ~VmScope() { PR_PopQCVM(old); }
+};
 
 // Client: the drawn hands' pins.
 struct Pin
@@ -152,6 +171,16 @@ void setVec(float* out, const glm::vec3& v)
 [[nodiscard]] bool debug(int level = 1)
 {
     return vr_foegrab_debug.value >= static_cast<float>(level);
+}
+
+// `m`'s body: its origin and its axes turned with its yaw (the server's: what the model as drawn eases to, the client's
+// lerp of a walking monster's steps lagging a step at most; the animation's ease takes up the difference).
+bool bodyFrame(edict_t* m, glm::vec3& origin, glm::mat3& axes)
+{
+    origin = vec(m->v.origin);
+    const float yaw[3]{0.f, m->v.angles[1], 0.f};
+    axes = held::axesFromAngles(yaw, false);
+    return true;
 }
 
 // The palm's middle of `ent`'s hand `h` (the move's place and turn, the hand's measured frame: grip::handFrame).
@@ -222,7 +251,7 @@ void addFoe(edict_t* m)
     {
         return;
     }
-    foes[numFoes++] = Foe{num, vec(m->v.origin), true};
+    foes[numFoes++] = Foe{num, vec(m->v.origin), m->v.angles[1], true};
 }
 
 void release(edict_t* player, int h, Why why, const char* text)
@@ -256,10 +285,7 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     {
         held::fistInWorld(h, move.hands[h].pos, move.hands[h].rot, fist);
     }
-    if(fist.empty())
-    {
-        fist.pushBack(glm::vec4{palm, palmRadiusCm * cm()});
-    }
+    fist.pushBack(glm::vec4{palm, palmRadiusCm * cm()}); // (the palm's middle too: the fist's spheres are its outside)
     glm::vec3 lo{1e30f}, hi{-1e30f};
     for(const glm::vec4& s : fist)
     {
@@ -272,6 +298,7 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     edict_t* best = nullptr;
     hitmodel::Hit bestHit;
     float bestGap = 1e30f;
+    float nearestGap = 1e30f; // (the debug's: the nearest model's gap, taken or not)
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* m = EDICT_NUM(num);
@@ -303,6 +330,7 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
                 continue;
             }
             const float gap = (inside ? -dist : dist) - s.w;
+            nearestGap = za::min(nearestGap, gap);
             if(gap <= lenient && gap < bestGap)
             {
                 bestGap = gap;
@@ -313,11 +341,16 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     }
     if(!best)
     {
+        if(debug(fabs(qcvm->time - hd.pressedAt[h]) < 1e-6 ? 1 : 3))
+        {
+            Con_Printf("foegrab: %s hand grips at (%.1f %.1f %.1f): no living enemy within %.1f cm of its fist (%d spheres; the nearest %.1f cm)\n",
+                handName(h), palm.x, palm.y, palm.z, lenient / cm(), static_cast<int>(fist.size()), nearestGap / cm());
+        }
         return false;
     }
-    glm::vec3 point{0.f};
-    glm::mat3 axes{1.f};
-    if(!hitmodel::anchorFrame(best, bestHit.tri, bestHit.u, bestHit.v, point, axes))
+    glm::vec3 point{0.f}, origin{0.f};
+    glm::mat3 axes{1.f}, body{1.f};
+    if(!hitmodel::anchorFrame(best, bestHit.tri, bestHit.u, bestHit.v, point, axes) || !bodyFrame(best, origin, body))
     {
         return false; // (its triangle squashed flat in this pose: the next frame's press may take it)
     }
@@ -329,7 +362,8 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     g.tri = bestHit.tri;
     g.u = bestHit.u;
     g.v = bestHit.v;
-    g.offset = glm::transpose(axes) * (palm - point);
+    g.local = glm::transpose(body) * (point - origin);
+    g.palmOff = glm::transpose(body) * (palm - point);
     g.palmAt = palm;
     g.since = qcvm->time;
     g.strength = za::clamp(callQc("VR_FoeGrab_Strength", player, best, static_cast<float>(h), 0.f, 0.5f), 0.f, 1.f);
@@ -344,18 +378,55 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     return true;
 }
 
-// The spot hold `g` holds and its frame now (false: its monster's model can't place it).
-bool spotNow(const Hold& g, glm::vec3& palmAt)
+// Where the palm held by `g` is now: on its spot as the body carries it (its drawn origin and yaw), moved by the
+// animation's eased move of it (g.anim). With `dt` > 0 the ease steps on towards where the model as drawn has the spot
+// now: a limb's swing is followed, a jump of a pose (or a triangle thrown about) glides, at most animMax from the body's.
+bool spotNow(Hold& g, float dt, glm::vec3& palmAt)
 {
     edict_t* m = EDICT_NUM(g.ent);
-    glm::vec3 point{0.f};
-    glm::mat3 axes{1.f};
-    if(!hitmodel::anchorFrame(m, g.tri, g.u, g.v, point, axes))
+    glm::vec3 origin{0.f};
+    glm::mat3 body{1.f};
+    if(!bodyFrame(m, origin, body))
     {
         return false;
     }
-    palmAt = point + axes * g.offset;
+    const glm::vec3 rigid = origin + body * g.local;
+    glm::vec3 point{0.f};
+    glm::mat3 axes{1.f};
+    if(dt > 0.f && hitmodel::anchorFrame(m, g.tri, g.u, g.v, point, axes))
+    {
+        g.anim += (point - rigid - g.anim) * (1.f - za::exp(-dt / animTime));
+        const float most = animMaxCm * cm();
+        if(glm::length(g.anim) > most)
+        {
+            g.anim *= most / glm::length(g.anim);
+        }
+    }
+    palmAt = rigid + g.anim + body * g.palmOff;
     return true;
+}
+
+// `m` moved flat towards `to` as a monster steps (the engine's SV_movestep: up a step, down onto the floor, not off a
+// ledge), linked; blocked, half the way. False: it couldn't move at all.
+bool moveFlat(edict_t* m, const glm::vec3& to)
+{
+    glm::vec3 d = to - vec(m->v.origin);
+    d.z = 0.f;
+    for(int tries = 0; tries < 2; tries++, d *= 0.5f)
+    {
+        vec3_t move;
+        setVec(move, d);
+        if(SV_movestep(m, move, true))
+        {
+            return true;
+        }
+    }
+    if(debug(3))
+    {
+        Con_Printf("foegrab: %s (%d) can't move %.2f units\n", PR_GetString(m->v.classname), NUM_FOR_EDICT(m),
+            2.f * glm::length(d));
+    }
+    return false;
 }
 
 [[nodiscard]] bool enabledFor(edict_t* ent, const VrMove* move)
@@ -396,15 +467,7 @@ void walkTestStep(double dt)
     }
     const glm::vec3 from = vec(m->v.origin);
     const glm::vec3 to = from + glm::normalize(away) * (w.speed * static_cast<float>(dt));
-    vec3_t s, e;
-    setVec(s, from);
-    setVec(e, to);
-    const trace_t tr = SV_Move(s, m->v.mins, m->v.maxs, e, MOVE_NORMAL, m);
-    if(!tr.allsolid && !tr.startsolid)
-    {
-        VectorCopy(tr.endpos, m->v.origin);
-        SV_LinkEdict(m, false);
-    }
+    (void)moveFlat(m, to);
 }
 
 // vr_foegrab_walk_test <speed> <seconds>: the live monster nearest the first player walks straight away from him at
@@ -417,6 +480,7 @@ void walkTest_f()
         Con_Printf("usage: vr_foegrab_walk_test <speed units/s> <seconds>\n");
         return;
     }
+    const VmScope vm;
     edict_t* player = EDICT_NUM(1);
     edict_t* best = nullptr;
     float bestDist = 1e30f;
@@ -454,6 +518,7 @@ void status_f()
         Con_Printf("vr_foegrab_status: no server\n");
         return;
     }
+    const VmScope vm;
     int count = 0;
     for(int c = 0; c < za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)); c++)
     {
@@ -474,6 +539,15 @@ void status_f()
     if(count == 0)
     {
         Con_Printf("foegrab status: no hand holds an enemy\n");
+    }
+    // The client's drawn hands (the stats as the view last put them on their spots).
+    for(int h = 0; h < 2; h++)
+    {
+        if(pins[h].weight > 0.f)
+        {
+            Con_Printf("foegrab status: drawn %s hand %.2f on its spot (%.1f %.1f %.1f)\n", handName(h), pins[h].weight,
+                pins[h].at.x, pins[h].at.y, pins[h].at.z);
+        }
     }
 }
 
@@ -527,6 +601,13 @@ void qvr::foegrab::preThink(edict_t* ent)
         if(pressed && !hd.pressedLast[h])
         {
             hd.pressedAt[h] = time;
+            if(debug() && (!enabled || !climb::handFree(ent, h)))
+            {
+                Con_Printf("foegrab: %s hand grips: %s\n", handName(h),
+                    vr_foegrab.value == 0.f ? "off" : !hitmodel::enabled() ? "precise hits off (vr_hit_precise)" :
+                    !(move->buttons & protocol::QVR_BUTTON_HANDSTRACKED) ? "hands not tracked" :
+                    !enabled ? "the player can't (dead, noclip, other progs)" : "the hand isn't free");
+            }
         }
         if(!pressed)
         {
@@ -551,7 +632,7 @@ void qvr::foegrab::preThink(edict_t* ent)
             {
                 release(ent, h, Why::Lost, "off (or the player can't)");
             }
-            else if(climbing || !climb::handFree(ent, h))
+            else if(climbing || !climb::handFree(ent, h, false))
             {
                 release(ent, h, Why::Lost, "the hand holds something else");
             }
@@ -663,6 +744,7 @@ void qvr::foegrab::serverFrame()
 
         const glm::vec3 cur = vec(m->v.origin);
         const glm::vec3 last = foe.fresh ? cur : foe.last;
+        const float lastYaw = foe.fresh ? m->v.angles[1] : foe.lastYaw;
         foe.fresh = false;
         const glm::vec3 moved = cur - last;
         if(glm::length(glm::vec2{moved}) > teleportStep)
@@ -684,6 +766,32 @@ void qvr::foegrab::serverFrame()
         // Its own movement since the last frame, flat, cut by its hold.
         const float keep = 1.f - za::clamp(vr_foegrab_slow.value, 0.f, 1.f) * hold;
         glm::vec3 target = last + glm::vec3{moved.x * keep, moved.y * keep, moved.z};
+        // A player sliding from an enemy's shove (QC .vr_eshove_speed, a resisted one: vr_foegrab_shove 0) carries what he
+        // holds along by the hold (the shove drags it with him rather than tearing it from his hand).
+        glm::vec3 carry{0.f};
+        int carriers = 0;
+        for(int c = 0; c < players; c++)
+        {
+            edict_t* p = EDICT_NUM(c + 1);
+            if(!holders[c].originKnown || fieldFloatOr(p, fields().vr_eshove_speed, 0.f) <= 0.f)
+            {
+                continue;
+            }
+            for(int h = 0; h < 2; h++)
+            {
+                if(holders[c].holds[h].active && holders[c].holds[h].ent == foe.ent)
+                {
+                    carry += vec(p->v.origin) - holders[c].lastOrigin;
+                    carriers++;
+                    break;
+                }
+            }
+        }
+        if(carriers > 0)
+        {
+            carry.z = 0.f;
+            target += carry / static_cast<float>(carriers) * hold;
+        }
         // The hands pull their spots to them (flat): the mean of their stretches, eased by the hold.
         glm::vec3 pull{0.f};
         int pulling = 0;
@@ -694,7 +802,7 @@ void qvr::foegrab::serverFrame()
             {
                 const Hold& g = holders[c].holds[h];
                 glm::vec3 at{0.f};
-                if(!g.active || g.ent != foe.ent || !spotNow(g, at))
+                if(!g.active || g.ent != foe.ent || !spotNow(holders[c].holds[h], 0.f, at))
                 {
                     continue;
                 }
@@ -715,22 +823,9 @@ void qvr::foegrab::serverFrame()
             }
             target += step;
         }
-        if(glm::length(target - cur) > 0.01f)
+        if(glm::length(glm::vec2{target - cur}) > 0.01f)
         {
-            vec3_t s, e;
-            setVec(s, cur);
-            setVec(e, target);
-            const trace_t tr = SV_Move(s, m->v.mins, m->v.maxs, e, MOVE_NORMAL, m);
-            if(!tr.allsolid && !tr.startsolid)
-            {
-                VectorCopy(tr.endpos, m->v.origin);
-                SV_LinkEdict(m, false);
-                const int flags = static_cast<int>(m->v.flags);
-                if((flags & FL_ONGROUND) && !(flags & (FL_FLY | FL_SWIM)) && !SV_CheckBottom(m))
-                {
-                    m->v.flags = static_cast<float>(flags & ~FL_ONGROUND); // (dragged off a ledge: it falls)
-                }
-            }
+            (void)moveFlat(m, target);
         }
         if(debug(2))
         {
@@ -738,8 +833,21 @@ void qvr::foegrab::serverFrame()
                 PR_GetString(m->v.classname), foe.ent, hold, glm::length(glm::vec2{moved}),
                 glm::length(glm::vec2{vec(m->v.origin) - last}), glm::length(pull));
         }
+        // Its turning, cut as its movement (held, it can't turn round easily: the spot held stays nearer the hand).
+        float turned = m->v.angles[1] - lastYaw;
+        turned -= 360.f * za::round(turned / 360.f);
+        if(za::abs(turned) < 90.f) // (more in a frame: set, not turned)
+        {
+            m->v.angles[1] = lastYaw + turned * keep;
+        }
         foe.last = vec(m->v.origin);
+        foe.lastYaw = m->v.angles[1];
         i++;
+    }
+    for(int c = 0; c < players; c++)
+    {
+        holders[c].lastOrigin = vec(EDICT_NUM(c + 1)->v.origin);
+        holders[c].originKnown = true;
     }
     VR_ProfileEnd();
 }
@@ -750,6 +858,7 @@ void qvr::foegrab::afterPoses()
     {
         return;
     }
+    const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
     const float breakAt = za::max(0.f, vr_foegrab_break.value) * cm();
     const int players = za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD));
     for(int c = 0; c < players; c++)
@@ -764,12 +873,23 @@ void qvr::foegrab::afterPoses()
                 continue;
             }
             glm::vec3 at{0.f};
-            if(spotNow(g, at))
+            if(spotNow(g, dt, at))
             {
                 g.palmAt = at;
             }
             g.stretch = glm::distance(palmOf(player, *move, h), g.palmAt);
-            if(g.stretch > breakAt)
+            if(debug(2))
+            {
+                edict_t* m = EDICT_NUM(g.ent);
+                const glm::vec3 p = palmOf(player, *move, h);
+                Con_Printf("foegrab: %s hand on %s: stretch %.1f cm, its yaw %.0f, frame %.0f, origin (%.1f %.1f %.1f), "
+                           "spot (%.1f %.1f %.1f), palm (%.1f %.1f %.1f)\n",
+                    handName(h), PR_GetString(m->v.classname), g.stretch / cm(), m->v.angles[1], m->v.frame,
+                    m->v.origin[0], m->v.origin[1], m->v.origin[2], g.palmAt.x, g.palmAt.y, g.palmAt.z, p.x, p.y, p.z);
+            }
+            // Past the break for a moment (a step up a stair, a lurch: the drag may bring it back), or far past it.
+            g.overSince = g.stretch <= breakAt ? -1.0 : g.overSince < 0.0 ? qcvm->time : g.overSince;
+            if(g.overSince >= 0.0 && (qcvm->time - g.overSince >= breakGrace || g.stretch > breakAt * breakFar))
             {
                 release(player, h, Why::Pulled, "pulled too far from the spot");
             }
