@@ -11,6 +11,7 @@
 #include "vr_color.hpp"
 #include "vr_anchor.hpp"
 #include "vr_autopump.hpp"
+#include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_climb.hpp"
@@ -5962,6 +5963,13 @@ void setupAmmoPouch(const hands::State& s)
     setupAmmoPouchGrenades(ve);
 }
 
+// The cells standing in the ammo pouch (make_ammo_pouch.py MAGS[4]: the lightning gun's, feed end up along its width,
+// their copper contacts on top at MAG_TOP; in its model units, +x out of the body, +y left, +z up): as many as its frame
+// shows (ammoPouchFrame: one a 36 cells, up to 3), the first on its right.
+constexpr float pouchCellX = 1.8f;                            // make_pouch.py BACK_X + full DEPTH / 2
+constexpr float pouchCellTop = 2.9f;                          // MAG_TOP
+constexpr float pouchCellY[3] = {-2.6f, 0.f, 2.6f};           // MAGS[4]'s
+
 // The chainsaw's cord's handle in a fist (or flying back to its seat): the chainsaw's model, its frame of the handle
 // alone, placed by vr_chainsaw.cpp, mirrored, scaled and lit as the chainsaw.
 void setupSawHandle()
@@ -6903,6 +6911,30 @@ bool weaponMount(int hand, WeaponMount& out)
     return true;
 }
 
+int ammoPouchCells()
+{
+    const int left = cl.stats[protocol::STAT_QVR_POUCHCOUNT];
+    if(!entities.ammoPouch.visible || (cl.stats[protocol::STAT_QVR_POUCHKIND] & 7) != 4 || left <= 0)
+    {
+        return 0;
+    }
+    return za::min(3, (left + 35) / 36);
+}
+
+bool ammoPouchCell(int index, glm::vec3& at, glm::vec3& up)
+{
+    const ViewEntity& pouch = entities.ammoPouch;
+    if(!pouch.visible || !pouch.ent.model || index < 0 || index > 2)
+    {
+        return false;
+    }
+    const glm::vec3 top{pouchCellX, pouchCellY[index], pouchCellTop};
+    at = modelPoint(pouch, top);
+    const glm::vec3 d = modelPoint(pouch, top + glm::vec3{0.f, 0.f, 1.f}) - at;
+    up = glm::length(d) > 1e-6f ? glm::normalize(d) : glm::vec3{0.f, 0.f, 1.f};
+    return true;
+}
+
 const ViewEntity* heldWeapon(int hand)
 {
     if(hand < 0 || hand > 1)
@@ -7650,6 +7682,7 @@ extern "C" void VR_SetupViewEntities()
         // stand, far from the body).
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
     }
+    cellcord::setupView(s); // the cell cords, from the laser cannon and the hammers to the pouch (vr_cellcord.cpp)
     if(!posingNow)
     {
         selfcollide::endView(s, selfCollideDrawn(s));

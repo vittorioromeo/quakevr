@@ -1849,11 +1849,7 @@ void updateCord(const Pose& mount, const Pose& lamp)
     coil::Style style;
     if(vr_flashlight_cord.value == 2.f)
     {
-        // Coiled: 64 turns of 3.8 mm dark wire, 1.3 cm across relaxed (its relaxed length the turns touching, 0.243 m).
-        style.turns = 64;
-        style.coilRadius = 0.0065f;
-        style.wireRadius = 0.0019f;
-        style.albedo = glm::vec3{0.14f, 0.14f, 0.135f};
+        style = coil::coiled(); // (64 turns of 3.8 mm dark wire, 1.3 cm across relaxed: 0.243 m)
     }
     else
     {

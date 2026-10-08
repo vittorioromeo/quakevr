@@ -267,13 +267,20 @@ void Cord::reset(const glm::vec3& a, const glm::vec3& b)
 
 void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b, const glm::vec3& bDir, const Style& style)
 {
+    update(a, aDir, b, bDir, style, a, false);
+}
+
+void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b, const glm::vec3& bDir, const Style& style,
+    const glm::vec3& body, bool aLoose)
+{
     style_ = style;
     const float m2u = units::metresToUnits();
     const float dt = static_cast<float>(vr_gametime - time_);
     // Afresh: first drawn, a long pause, or an end jumping away from the other (a teleport of one, a respawn).
-    if(!valid_ || dt > 0.25f || glm::distance(b - lastB_, a - lastA_) > 1.f * m2u || !ZA_ISFINITE(pos_[segments / 2].x))
+    if(!valid_ || dt > 0.25f || glm::distance(b - lastB_, body - lastA_) > 1.f * m2u || !ZA_ISFINITE(pos_[segments / 2].x))
     {
         reset(a, b);
+        lastA_ = body;
         return;
     }
     if(dt <= 0.f)
@@ -283,14 +290,14 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
 
     // The body's movement (walking, turning, riding a lift) carries the cord along: only the free end's own
     // movement relative to it swings it.
-    const glm::vec3 carry = a - lastA_;
+    const glm::vec3 carry = body - lastA_;
     for(glm::vec3& p : pos_)
     {
         p += carry;
     }
     const glm::vec3 fromB = lastB_ + carry;
     const glm::vec3 vb = (b - fromB) / za::max(dt, 1e-4f); // the free end's velocity relative to the body
-    lastA_ = a;
+    lastA_ = body;
     lastB_ = b;
     time_ = vr_gametime;
 
@@ -304,11 +311,22 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
     {
         // The pinned ends (the free one moved on in a straight line through the frame) and their stubs.
         const glm::vec3 endB = glm::mix(fromB, b, static_cast<float>(step) / steps);
-        pos_[0] = a;
-        pos_[1] = a + aDir * (stub * m2u);
+        if(aLoose)
+        {
+            // Hanging: its first stub a free mass (the springs' first), the end itself straight on past it.
+            const glm::vec3 d = pos_[1] - pos_[2];
+            const float len = glm::length(d);
+            pos_[0] = pos_[1] + (len > 1e-5f ? d / len : glm::vec3{0.f, 0.f, -1.f}) * (stub * m2u);
+            vel_[0] = vel_[1];
+        }
+        else
+        {
+            pos_[0] = a;
+            pos_[1] = a + aDir * (stub * m2u);
+            vel_[0] = vel_[1] = glm::vec3{0.f};
+        }
         pos_[segments] = endB;
         pos_[segments - 1] = endB + bDir * (stub * m2u);
-        vel_[0] = vel_[1] = glm::vec3{0.f};
         vel_[segments] = vel_[segments - 1] = vb;
 
         glm::vec3 force[segments + 1];
@@ -330,7 +348,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
             force[i] += f * dir;
             force[i + 1] -= f * dir;
         }
-        for(int i = 2; i <= segments - 2; i++)
+        for(int i = aLoose ? 1 : 2; i <= segments - 2; i++)
         {
             // Air against its swing, relative to the ends (at the carry's frame, the free end's share along it).
             const float t = static_cast<float>(i) / segments;

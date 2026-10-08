@@ -4397,6 +4397,9 @@ za::Vector<Item> pageDebugViews()
         command("Flashlight Cord Info", "vr_flashlight_cord_info")
             .help("vr_flashlight_cord_info: in the console, the cord's last frame (Body > Flashlight > Cord): its "
                   "length, its rings and triangles, a chain's links."),
+        command("Cell Cord Info", "vr_cellcord_info")
+            .help("vr_cellcord_info: in the console, the cell cords (Weapons > Reloading > Cell Cords): each one's weapon, "
+                  "its ends (the weapon's bottom, the pouch's cell), loose or plugged in, its length and rings."),
         command("Probe Flashlight", "vr_flashlight_probe menu")
             .help("vr_flashlight_probe: in the console, where the torch is, whether each hand is at it (lit, as the game "
                   "reads the hand, still), whether B/Y would clip it on the head or a gun, and the player's speed and turn."),
@@ -6793,6 +6796,7 @@ const Page pages[] = {
     {"Reloading - Super Nailgun", pageReloadSuperNailgun, pageReloading},
     {"Reloading - Thunderbolt", pageReloadThunderbolt, pageReloading},
     {"Reloading - Launchers", pageReloadLaunchers, pageReloading},
+    {"Reloading - Cell Cords", pageReloadCellCords, pageReloading},
     {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
     {"Stealth AI Tests", pageStealthTests, pageDebugTests, LevelDeveloper},
     {"Holding Enemies", pageHoldingEnemies, pageCombat},

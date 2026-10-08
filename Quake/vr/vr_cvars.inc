@@ -2551,6 +2551,21 @@ QVR_CVAR(vr_ammo_pouch_counter_scale, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_leg_follow, "0.5", CVAR_ARCHIVE) // it rides both thighs' animation (full body: walking), as the hip holsters do (vr_holster_leg_follow): 0 fixed on the belt, 1 all the way
 // Immersive reloading's rules (QC vr_reload.qc; Weapons > Reloading).
 QVR_CVAR(vr_reload_shell_pairs, "0", CVAR_ARCHIVE)     // 1: the pouch gives two shells taped together (both go in at once; one if one fits)
+// The cell cords (vr_cellcord.cpp; QC vr_reload.qc VR_Reload_Corded; Weapons > Reloading > Cell Cords): a weapon that
+// draws cells held, a coiled cord (the flashlight's Coiled) from its bottom into a cell standing in the ammo pouch (the
+// pouch then gives and shows cells); no cells left, it falls loose off the gun, and plugs back in when there are some.
+QVR_CVAR(vr_cellcord_laser, "1", CVAR_ARCHIVE)         // the laser cannon's (Hipnotic)
+QVR_CVAR(vr_cellcord_hammer, "0", CVAR_ARCHIVE)        // Mjolnir's (Hipnotic)
+QVR_CVAR(vr_cellcord_superaxe, "0", CVAR_ARCHIVE)      // the Super Axe's (MG3)
+QVR_CVAR(vr_cellcord_laser_x, "0", CVAR_ARCHIVE)       // the cord's place on the laser cannon off its bottom, the model's units: forward
+QVR_CVAR(vr_cellcord_laser_y, "0", CVAR_ARCHIVE)       // left
+QVR_CVAR(vr_cellcord_laser_z, "0", CVAR_ARCHIVE)       // up
+QVR_CVAR(vr_cellcord_hammer_x, "0", CVAR_ARCHIVE)      // the same on Mjolnir (off the end of its handle)
+QVR_CVAR(vr_cellcord_hammer_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_cellcord_hammer_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_cellcord_superaxe_x, "0", CVAR_ARCHIVE)    // the same on the Super Axe (off the end of its handle)
+QVR_CVAR(vr_cellcord_superaxe_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_cellcord_superaxe_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_haptics, "1", CVAR_ARCHIVE)         // times the reload's vibrations (taking, putting back, loading, the empty pouch); 0 none
 QVR_CVAR(vr_reload_volume, "1", CVAR_ARCHIVE)          // times the reload's sounds; 0 none
 QVR_CVAR(vr_reload_loose_max, "24", CVAR_ARCHIVE)      // rounds lying about at most (dropped, thrown): the oldest not in a hand goes for a new one

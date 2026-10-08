@@ -31964,3 +31964,48 @@ Tests > Stealth AI the scenes (`vr_stealth_test 120`-`129`, QC `vr_stealth_test4
   Combat > Stealth AI > Getting Round). Test 124 (`stealth_tests.sh props`, vrslipgates room T, a knight 500 units off
   behind a row of five large crates): round them in 3.7 s (Quake's way 8.4 s). Its first form waited for movetogoal
   to fail: it never did (its random tries move the monster), so the prop is looked for before each step.
+
+## Cell cords: the laser cannon, Mjolnir and the Super Axe on a coiled cord to the pouch (2026-10-08)
+
+The author (vrfiringrange_2026-10-08_14-33-07, 14-33-36, 14-34-47): the laser cannon (no magazine) held gets the
+flashlight's coiled cord from its bottom to the ammo pouch, as if it drained the pouch's cells; the pouch shows the
+cells, faithful to the count; no cells, the cord falls loose and plugs back in on a pickup; two cannons, two cords;
+optionally the same for Mjolnir and the Super Axe (both draw cells); each an option on the Reloading page. Branch
+`agent/coils`.
+
+- **Settings** (Weapons > Reloading > Cell Cords): Laser Cannon Cord `vr_cellcord_laser` 1, Mjolnir Cord
+  `vr_cellcord_hammer` 0, Super Axe Cord `vr_cellcord_superaxe` 0 (the melee weapons' off: a swung hammer on a cord
+  is the author's call; on, they work the same, from the end of the handle). Cord Points (a page): each weapon's
+  `vr_cellcord_<laser|hammer|superaxe>_x/y/z` (model units off its end) and Cell Cord Info (`vr_cellcord_info`, also
+  on the Debug page beside Flashlight Cord Info).
+- **The pouch** (QC `VR_Reload_Corded`, `VR_Reload_PlayerFrame`): a corded weapon held in either hand (its cord on,
+  Immersive reloading) makes the pouch's kind cells with the lightning gun's magazine (`vr_pouch_wid` WID_LIGHTNING):
+  it shows the lightning gun's cells standing in it (frames 11-13: one a 36 cells, up to 3, the empty pouch at 0)
+  and an empty hand takes one of those. It wins over a gun in the other hand (else the cord would have no cell).
+- **The cord** (`vr_cellcord.cpp`): `coil::coiled()` (the flashlight's Coiled, now shared), from the middle of the
+  weapon model's lowest vertices (frame 0, within a unit of the lowest: the laser cannon's underside at model
+  (52.6, -0.1, -24.1), Mjolnir's and the Super Axe's handle ends at (1.4, 1.0, -3.7) and (0.5, 0.1, -4.6)), leaving
+  it downwards, to the copper contact on a cell's top (`view::ammoPouchCell`: make_ammo_pouch.py MAGS[4], model
+  (1.8, -2.6/0/2.6, 2.9)), with a small rubber boot over the plug. One cord: the first cell (the body's right);
+  two: the main hand's the first, the off hand's the last shown (one cell: both on it).
+- **Loose** (`coil::Cord::update` with `aLoose`: the first end's stub a free mass, the end itself straight past it;
+  the body's movement still carries the line, as for the flashlight's): no cells shown, the plug comes off and the
+  cord hangs and swings off the weapon. Cells again (or another cell, the count changing which one), the plug flies
+  back onto its contact in 0.3 s (smoothstep, from where it hung). No pouch drawn (reloading not Immersive, Show
+  off, dead): no cord.
+- **Checked** (mock): `Misc/quakevr/cellcord_test.sh` 10 checks (held: the pouch shows 3 cells, plugged into cell 0,
+  the line's ends 0.00 units off the weapon's end and the contact; no cells: loose, the plug 10.8 units under the
+  weapon's end after 2 s; cells again: plugging in from 24.7 units, then plugged; two cannons: cells 0 and 2; the
+  option off: none; Mjolnir and the Super Axe on: plugged). Screenshots (start, looking down): held, two cannons, no
+  cells (both loose, the pouch empty), one cell (both on it); Mjolnir and the Super Axe from their handles' ends.
+  `vr_profile` (exclusive, beside the flashlight's Coiled in the other hand): "cell cords build" 0.03 ms a cord
+  (max 0.10), the flashlight's "flashlight cord" 0.03 ms (max 0.18); two cords 0.06 ms. 513 rings x 6 sides near
+  (6.1k triangles) a cord, as the flashlight's.
+
+Checklist:
+
+- [ ] Weapons > Reloading > Cell Cords: the laser cannon held, a coiled cord from its underside into a cell in the
+  pouch (the pouch shows cells while it is held: one a 36, up to 3); fire it dry: the plug comes off and the cord
+  hangs off the gun; pick up cells: it plugs back in. Two laser cannons: two cords (two cells or more: one each).
+- [ ] Mjolnir Cord, Super Axe Cord (off by default): the same from the end of the handle; worth keeping on?
+- [ ] Cord Points: where each cord leaves its weapon, if the underside spot is wrong.

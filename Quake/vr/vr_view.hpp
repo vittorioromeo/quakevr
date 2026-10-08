@@ -126,6 +126,12 @@ struct WeaponFrame
 // which hand an entity belongs to (-1 none): its weapon (or the model a gun morphs out of; `weapon` true) or a part of
 // the hand itself.
 [[nodiscard]] const ViewEntity* heldWeapon(int hand);
+
+// The cells the ammo pouch shows this frame (the lightning gun's, standing in it: 0 when it gives none, or none are left;
+// up to 3), and cell `index`'s copper contact on its top (world) and its up (the cell cords, vr_cellcord.cpp). False: no
+// pouch drawn.
+[[nodiscard]] int ammoPouchCells();
+[[nodiscard]] bool ammoPouchCell(int index, glm::vec3& at, glm::vec3& up);
 [[nodiscard]] int handOf(const entity_t* e, bool& weapon);
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).

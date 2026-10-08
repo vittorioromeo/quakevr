@@ -1039,6 +1039,32 @@ void resetHandMoves()
     };
 }
 
+// Weapons > Reloading > Cord Points: where the cell cords leave their weapons (vr_cellcord.cpp).
+[[nodiscard]] za::Vector<Item> pageReloadCellCords()
+{
+    return {
+        command("Cell Cord Info", "vr_cellcord_info")
+            .help("vr_cellcord_info: in the console, each cord's weapon, its ends (the weapon's, the cell's), loose or "
+                  "plugged in, its length and rings."),
+        header("Laser Cannon"),
+        slider("Forward", "vr_cellcord_laser_x", -40.f, 40.f, 0.5f, "%.1f").extend()
+            .help("Moves where the cord leaves the laser cannon forward (the gun's model units; negative: back). 0: the "
+                  "middle of its lowest points."),
+        slider("Left", "vr_cellcord_laser_y", -20.f, 20.f, 0.5f, "%.1f").extend(),
+        slider("Up", "vr_cellcord_laser_z", -20.f, 20.f, 0.5f, "%.1f").extend(),
+        header("Mjolnir"),
+        slider("Forward", "vr_cellcord_hammer_x", -40.f, 40.f, 0.5f, "%.1f").extend()
+            .help("Moves where the cord leaves Mjolnir (0: the end of its handle)."),
+        slider("Left", "vr_cellcord_hammer_y", -20.f, 20.f, 0.5f, "%.1f").extend(),
+        slider("Up", "vr_cellcord_hammer_z", -20.f, 20.f, 0.5f, "%.1f").extend(),
+        header("Super Axe"),
+        slider("Forward", "vr_cellcord_superaxe_x", -40.f, 40.f, 0.5f, "%.1f").extend()
+            .help("Moves where the cord leaves the Super Axe (0: the end of its handle)."),
+        slider("Left", "vr_cellcord_superaxe_y", -20.f, 20.f, 0.5f, "%.1f").extend(),
+        slider("Up", "vr_cellcord_superaxe_z", -20.f, 20.f, 0.5f, "%.1f").extend(),
+    };
+}
+
 // Weapons > Reloading (General): the mode, a page per gun, the ammo pouch, what is the same for every gun
 // (docs/vr-port/RELOAD_PLAN.md; QC vr_reload.qc).
 [[nodiscard]] za::Vector<Item> pageReloading()
@@ -1058,6 +1084,18 @@ void resetHandMoves()
         open("Super Nailgun", pageIndex(pageReloadSuperNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Thunderbolt", pageIndex(pageReloadThunderbolt)).help("Its well, its cell's top, its receiver, the hand holding the cell, pulling it out."),
         open("Launchers", pageIndex(pageReloadLaunchers)).help("The grenade, proximity and rocket launchers loaded at the muzzle: on or off, the round's angle, each muzzle's load point."),
+        header("Cell Cords"),
+        toggle("Laser Cannon Cord", "vr_cellcord_laser")
+            .help("The laser cannon held, a coiled cord (the flashlight's Coiled) from its bottom into a cell in the ammo "
+                  "pouch, as if it drew on the pouch's cells (the pouch gives and shows cells while it is held). No cells "
+                  "left: the cord comes off and hangs loose off the gun; pick up cells and it plugs back in. A laser "
+                  "cannon in each hand: two cords. Needs Reloading Immersive (the pouch)."),
+        toggle("Mjolnir Cord", "vr_cellcord_hammer")
+            .help("The same cord on Mjolnir (Hipnotic's hammer), from the end of its handle: it draws cells too."),
+        toggle("Super Axe Cord", "vr_cellcord_superaxe")
+            .help("The same cord on the Super Axe (MG3), from the end of its handle: it draws cells too."),
+        open("Cord Points", pageIndex(pageReloadCellCords))
+            .help("Where each cord leaves its weapon (off its lowest point), to tune."),
         header("All Guns"),
         slider("Shell Slide In", "vr_reload_insert_time", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("A shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it for this "

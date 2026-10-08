@@ -40,6 +40,7 @@ QVR_MODEL_ID(VShot2, "progs/v_shot2.mdl")
 QVR_MODEL_ID(VKsword, "progs/v_ksword.mdl")
 QVR_MODEL_ID(VHksword, "progs/v_hksword.mdl")
 QVR_MODEL_ID(VHammer, "progs/v_hammer.mdl")
+QVR_MODEL_ID(VLaserg, "progs/v_laserg.mdl")
 QVR_MODEL_ID(VCrowbar, "progs/v_crowbar.mdl")
 // Dawn of the Machine's Super Axe, read from the owned MG3 pack in place (vr_gamedir.cpp VR_OwnedFile; vr_mg3models.cpp
 // takes its arm away and lays it as Quake VR's axe): its own weapon (QC WID_SUPERAXE), apart from Hipnotic's Mjolnir.

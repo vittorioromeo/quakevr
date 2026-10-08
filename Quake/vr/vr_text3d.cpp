@@ -7,6 +7,7 @@
 #include "vr_shadows.hpp"
 #include "vr_decals.hpp"
 #include "vr_cvars.hpp"
+#include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_hue.hpp"
 #include "vr_worldtext.hpp"
@@ -1215,6 +1216,7 @@ extern "C" void VR_DrawSceneOpaque()
     gadget::drawScreen(); // the wrist gadget's screen (vr_gadget.cpp)
     flashlight::drawOpaque(); // the flashlight's cord (vr_flashlight.cpp)
     chainsaw::drawOpaque();   // the chainsaw's starter cord and its handle in the hand (vr_chainsaw.cpp)
+    cellcord::drawOpaque();   // the cell cords (vr_cellcord.cpp)
     rope::drawOpaque(); // the grappling hook's ropes (vr_rope.cpp)
 
     if(!(cl.protocolflags & PRFL_QUAKEVR))

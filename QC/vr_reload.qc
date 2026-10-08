@@ -928,11 +928,42 @@ float(float xWeapon, float xFlags) VR_Reload_KindOf =
     return -1;
 };
 
+// Whether `xWeapon` held draws on the pouch's cells by a coiled cord (the engine draws it: vr_cellcord.cpp): the laser
+// cannon (vr_cellcord_laser), Mjolnir (vr_cellcord_hammer), the Super Axe (vr_cellcord_superaxe).
+float(float xWeapon) VR_Reload_Corded =
+{
+    if(xWeapon == WID_LASER_CANNON)
+    {
+        return cvar_hget(cvarh_vr_cellcord_laser);
+    }
+    if(xWeapon == WID_MJOLNIR)
+    {
+        return cvar_hget(cvarh_vr_cellcord_hammer);
+    }
+    if(xWeapon == WID_SUPERAXE)
+    {
+        return cvar_hget(cvarh_vr_cellcord_superaxe);
+    }
+    return FALSE;
+};
+
 // Once a player frame (W_Frame, before the hands'): the pouch's last kind from the guns held (the main hand's first),
-// and what the clients draw.
+// and what the clients draw. A weapon held on its cell cord (VR_Reload_Corded) first: the pouch gives and shows cells
+// (the lightning gun's), the cord plugged into one.
 void() VR_Reload_PlayerFrame =
 {
-    for(float h = 0; h < 2; h++)
+    float corded = FALSE;
+    if(self.ishuman && VR_Reload_Immersive())
+    {
+        corded = (VR_Reload_Corded(VRGetEntWeapon(self, cVR_MainHand)) || VR_Reload_Corded(VRGetEntWeapon(self, cVR_OffHand)));
+    }
+    if(corded)
+    {
+        self.vr_pouch_aid = AID_CELLS;
+        self.vr_pouch_wid = WID_LIGHTNING;
+        self.vr_pouch_front = 0;
+    }
+    for(float h = 0; h < 2 && !corded; h++)
     {
         float hand = h ? cVR_OffHand : cVR_MainHand;
         float aid = VR_Reload_KindOf(VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand));

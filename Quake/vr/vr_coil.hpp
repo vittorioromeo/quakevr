@@ -40,12 +40,39 @@ struct Style
     glm::vec3 rust{0.3f, 0.14f, 0.06f};
 };
 
+// The coiled cord as an old telephone's (the flashlight's Coiled, vr_flashlight_cord 2; the cell cords'): 64 turns of
+// 3.8 mm dark wire, 1.3 cm across relaxed (its relaxed length the turns touching, 0.243 m).
+[[nodiscard]] inline Style coiled()
+{
+    Style style;
+    style.turns = 64;
+    style.coilRadius = 0.0065f;
+    style.wireRadius = 0.0019f;
+    style.albedo = glm::vec3{0.14f, 0.14f, 0.135f};
+    return style;
+}
+
 class Cord
 {
 public:
     // Once a frame: the ends and the directions the cord leaves them (world), and the style. The body's movement (the
     // first end's) carries the cord along; the other end's moves swing it.
     void update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b, const glm::vec3& bDir, const Style& style);
+
+    // The same with the first end's ways (the cell cords, vr_cellcord.cpp): `body` the point whose movement carries the
+    // cord along (the first end's, but for a plug flying back to it: a); `aLoose` the first end not held at all, hanging
+    // off the second (a pulled out, a dangling plug): `a` then only where a new cord starts.
+    void update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b, const glm::vec3& bDir, const Style& style,
+        const glm::vec3& body, bool aLoose);
+
+    // The ends as last simulated (a loose first one's, where it hangs), and the way the line leaves the first.
+    [[nodiscard]] glm::vec3 firstEnd() const { return pos_.empty() ? glm::vec3{0.f} : pos_[0]; }
+    [[nodiscard]] glm::vec3 secondEnd() const { return pos_.empty() ? glm::vec3{0.f} : pos_.back(); }
+    [[nodiscard]] glm::vec3 firstDir() const
+    {
+        const glm::vec3 d = pos_.size() < 2 ? glm::vec3{0.f} : pos_[1] - pos_[0];
+        return glm::length(d) > 1e-6f ? glm::normalize(d) : glm::vec3{0.f, 0.f, 1.f};
+    }
 
     // Not drawn this frame: starts afresh when drawn again.
     void hide() { valid_ = false; }
