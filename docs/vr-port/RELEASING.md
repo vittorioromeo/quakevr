@@ -102,14 +102,8 @@ release's tag, its URL template and each file's size and SHA-256 (as GitHub repo
    `gh release edit v1.0.0 --repo vittorioromeo/quakevr --draft=false --latest`). `-NoDraft` (or `-Draft:$false` from PowerShell itself) skips the draft.
    The installer's first feed, `https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json`, serves
    the new release only once it is published and not a prerelease.
-8. **Upload `latest.json` to your site**: `out\release\1.0.0\assets\latest.json` to
-   `https://vittorioromeo.com/quakevr/latest.json` (the installer's second feed; the `/quakevr/` folder must exist).
-   It is the same file as the release's asset; its download addresses are the GitHub release's own files. For a mirror
-   on the site too, upload the other assets (e.g. to `/quakevr/releases/v1.0.0/`) and build with
-   `-UrlBase "https://github.com/vittorioromeo/quakevr/releases/download/{tag}/{file}","https://vittorioromeo.com/quakevr/releases/{tag}/{file}"`
-   before publishing, so latest.json lists both.
-9. **Check online**: `dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url <feed>` for both feeds
-   prints the version and the package's size; then run the released `QuakeVR-Setup.exe` with no local package.
+8. **Check online**: `dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json`
+   (the installer's only feed: the vittorioromeo.com one was dropped on 2026-10-08) prints the version and the package's size; then run the released `QuakeVR-Setup.exe` with no local package.
 
 For the first release: the tags `v0.8.0` to `v0.8.2` exist only in your local repository, so the generated notes
 would list the ~1900 commits since `v0.8.2` (cut at 150): write those notes yourself and pass them with `-Notes`.

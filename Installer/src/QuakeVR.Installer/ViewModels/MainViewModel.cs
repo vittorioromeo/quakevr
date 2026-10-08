@@ -1049,7 +1049,7 @@ public sealed class MainViewModel : ObservableObject
 
     public string PackageSourceText =>
         _options.Package is { } p ? $"{Path.GetFileName(p.TrimEnd('\\', '/'))}{(_packageVersion is { } v ? $" · version {v}" : "")}{(_coreSize is { } cs ? $" · {PathUtil.FormatSize(cs)}" : "")} · no internet needed. {p}" :
-        FeedAvailable && _feed is { } feed ? $"{ProductName} {feed.Version}{(feed.Package is { } fp ? $", {PathUtil.FormatSize(fp.Size)}" : "")}, from GitHub (mirror: vittorioromeo.com), checked against its published SHA-256." :
+        FeedAvailable && _feed is { } feed ? $"{ProductName} {feed.Version}{(feed.Package is { } fp ? $", {PathUtil.FormatSize(fp.Size)}" : "")}, from GitHub, checked against its published SHA-256." :
         FeedUnavailable ? "No release could be found online: none may be published yet, or this PC is offline. If you have a " +
                           $"{ProductName} package (QuakeVR.zip, or its unzipped folder with manifest.json), pick it and the installer uses it without any internet." :
         "One moment…";
@@ -1616,7 +1616,7 @@ public sealed class MainViewModel : ObservableObject
         GoTo(Page.Install);
         Installing = false;
         Log.Clear();
-        AddLog(LogLevel.Info, "Could not read the release list (github.com: 404; vittorioromeo.com: 404).");
+        AddLog(LogLevel.Info, "Could not read the release list (github.com: 404).");
         InstallError = message;
         AddLog(LogLevel.Error, message);
         Raise(nameof(ShowNext));

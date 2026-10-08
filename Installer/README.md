@@ -56,7 +56,7 @@ about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and Smart
 | `--textures <zip>` | The HD texture pack, already downloaded |
 | `--target <dir>` | The install folder (default `%LOCALAPPDATA%\Programs\QuakeVR`) |
 | `--shortcuts-dir <dir>` | Shortcuts go to `<dir>\Desktop` and `<dir>\Programs` instead of the real desktop and Start menu (tests) |
-| `--feed <url>` | Where `latest.json` is read (repeatable; default: GitHub, then vittorioromeo.com). Also `installer-settings.json` beside the exe |
+| `--feed <url>` | Where `latest.json` is read (repeatable; default: the GitHub release's, the only feed). Also `installer-settings.json` beside the exe |
 | `--downloads <dir>` | Where downloads go (default `%LOCALAPPDATA%\QuakeVR-Installer\downloads`) |
 | `--screenshots <dir>` | Render every page to PNG and exit, no window (the Statement page unanswered, mixed and all YES; exit 1 unless its Continue is enabled exactly with YES to all four, or unless both Play buttons mute the installer: a 0.3 s fade, then silence, with the game's start recorded instead of run); `fit.txt` (also printed) says which page would scroll, and by how much, at the default size, on 1366x768 at 100% and on 1080p at 150%; `7-*-150pct*.png` are renders at 150% (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
 | `--offline` | Never ask the network: the online release counts as unavailable (the "Use a local package" path) |
@@ -123,6 +123,6 @@ files do not match (`--unverified` on the console accepts one without a manifest
 
 `python Misc/quakevr/make_release.py --package dist/QuakeVR --setup <QuakeVR-Setup.exe> [--textures <zip>] [--asset <file>]`
 makes a release from a package: the zip, the assets, `latest.json` in the format `ReleaseFeed` reads, and `PUBLISH.txt`
-with the `gh release create` command and the upload to vittorioromeo.com (it publishes nothing). The steps are in
+with the `gh release create` command (it publishes nothing). The steps are in
 docs/vr-port/INSTALLER.md, "Publishing a release". `Misc\release\make_release.ps1` runs it as part of a whole release
 (docs/vr-port/RELEASING.md), and checks its `latest.json` with `qvr-setup feed --file latest.json --assets <folder>`.

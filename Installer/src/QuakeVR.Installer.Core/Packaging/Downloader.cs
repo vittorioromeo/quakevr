@@ -7,7 +7,7 @@ namespace QuakeVR.Installer.Core.Packaging;
 public sealed record DownloadProgress(long Received, long? Total, string Source);
 
 /// <summary>
-/// Downloads one file from a list of mirrors (GitHub first, then vittorioromeo.com: decision 6), resuming a partial
+/// Downloads one file from a list of mirrors (the GitHub release's file first, then any other the feed lists), resuming a partial
 /// download (<c>&lt;file&gt;.part</c>, HTTP Range) and checking the pinned size and SHA-256 before the file gets its
 /// final name. A mirror that serves something else is skipped for the next one.
 /// </summary>

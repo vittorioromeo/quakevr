@@ -558,7 +558,6 @@ if ($Publish) {
 
 # ------------------------------------------------------------------------------------------------------------------
 $quoted = ($ghArgs | ForEach-Object { if ($_ -match '[\s"]') { '"' + $_ + '"' } else { $_ } }) -join " "
-$siteFeed = "https://vittorioromeo.com/quakevr/latest.json"
 $lines = @(
     "Quake VR: Unleashed $Version ($tag, commit $short): $(if ($Publish) { if ($Draft) { 'DRAFT release created' } else { 'release published' } } else { 'built, nothing published' })",
     "",
@@ -591,8 +590,7 @@ if (-not $Local -and (-not $Publish -or $Draft)) {
     $lines += "  $((++$n)). Check the draft on https://github.com/$Repo/releases, then publish it (button, or: gh release edit $tag --repo $Repo --draft=false$(if (-not $prerelease) { ' --latest' })). Until it is published (and not a prerelease) https://github.com/$Repo/releases/latest/download/latest.json still serves the previous release."
 }
 if (-not $Local) { $lines += @(
-    "  $((++$n)). Upload $assetsDir\latest.json to $siteFeed (the installer's second feed; same file as the release's asset).",
-    "  $((++$n)). Check: qvr-setup feed --url https://github.com/$Repo/releases/latest/download/latest.json   and   --url $siteFeed",
+    "  $((++$n)). Check: qvr-setup feed --url https://github.com/$Repo/releases/latest/download/latest.json   (the installer's only feed)",
     "             (dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url <...>: the version and the package's size)."
 ) }
 if ($warnings.Count) { $lines += @("", "Warnings:") + @($warnings | ForEach-Object { "  - $_" }) }

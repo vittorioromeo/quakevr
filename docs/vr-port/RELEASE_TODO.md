@@ -6,7 +6,7 @@ Short list. The full procedure is in [RELEASING.md](RELEASING.md).
 
 - [ ] **Version:** `VERSION` says `0.9.0`. Keep it, or bump to `1.0.0`.
 - [ ] **Release branch:** make `vr-ironwail` the main branch now or later. The script follows whatever branch you're on.
-- [ ] **Second feed:** keep `vittorioromeo.com/quakevr/latest.json` as a fallback, or drop it from the installer. GitHub alone is enough.
+- [x] **Second feed:** dropped (Vittorio, 2026-10-08): the installer reads only GitHub's `latest.json`.
 - [ ] **HD texture pack:** offered by default from the hosted `assets-2026-10-08` release (no upload); `-NoTextures` to leave it out.
 - [ ] **Debug symbols:** `ironwail.pdb` is inside the game zip. Keep it there, or move it to a separate symbols zip.
 - [ ] **Discord icon:** the installer's icon is hand-drawn. Keep it, or swap in Discord's official asset.
@@ -17,7 +17,7 @@ Short list. The full procedure is in [RELEASING.md](RELEASING.md).
 - **ericw-tools source zip** (GPL; required because `light.exe` ships): nothing to prepare, it is hosted on the `assets-2026-10-08` release; the release notes link it (RELEASING.md, "Support files"). Nothing to set.
 - [ ] **Smoke-test Quake folder:** set `QVR_QUAKE_DIR` to your Quake folder (the one with `id1\pak0.pak`).
 - [ ] **GitHub CLI:** check `gh auth status` shows you logged in.
-- [ ] **Your site** (only if you keep the second feed): create the `/quakevr/` folder.
+- [x] **Your site:** nothing needed (the second feed was dropped 2026-10-08).
 
 ## Check in VR before tagging
 
@@ -35,7 +35,7 @@ Short list. The full procedure is in [RELEASING.md](RELEASING.md).
 4. [ ] Write `out\release\<v>\release-notes.md` by hand. Your `v0.8.x` tags exist only locally, so generated notes would cover about 1,900 commits.
 5. [ ] Publish as a draft: `Misc\release\make_release.ps1 -Publish -Notes out\release\<v>\release-notes.md`. This pushes only the tag.
 6. [ ] Review the draft on GitHub, then publish it.
-7. [ ] Optional: upload `out\release\<v>\assets\latest.json` to `vittorioromeo.com/quakevr/latest.json`.
+7. [x] (No site upload: the vittorioromeo.com feed was dropped on 2026-10-08.)
 8. [ ] Check the feed: `dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json`.
 
 ## Known and accepted for this release
