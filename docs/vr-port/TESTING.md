@@ -273,6 +273,12 @@ prints it.
     screens dim (their cast light and glow nearly gone, the text dimmer); press again to bring them back. Easy to find
     and press, never pressed by a screen tap? HUD and Menus > Screens > Gear Lights: Button Size, Across/Up/Out, Show the
     Button (its hit volume drawn). Headless: `Misc/quakevr/gadget_tap_test.sh <agent>`.
+  - **Gadget fingertip, tap zone, trails in VR, Death View menus** (ROUND21.md, same title): the side button is pressed
+    by your drawn index fingertip now (Show the Button: the dot on your fingertip?); HUD and Menus > Wrist Gadget:
+    Fingertip Forward/Outward/Up/Pitch/Yaw/Roll, Button Tilt. Combat > Bullet Time > Screen Tap: Tap Zone Width/Height/
+    Across/Up/Out (Show Gadget Button: And the Screen Tap). In bullet time, fire the nailgun and the shotguns from the
+    hip and aimed: a wake behind each nail and pellet now, in both eyes? Die with Immersive (now the default) and open
+    the menu: the view glides out to Third Person, back in as it closes (Advanced > Body, Death View).
 
   - **Bullet time and Sandevistan** (ROUND21.md, "Slow motion: bullet time and Sandevistan"): press the inner button
     on your wrist gadget's lower edge with your other hand's fingertip: the world slows for as long as the TIME meter on

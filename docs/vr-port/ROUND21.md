@@ -32300,3 +32300,36 @@ retried in 6 s), the right one identified; the password never in the output. Fra
 frames each): period p99 4.21 ms off, 4.05 trying a port nothing listens on, 4.03 connected and recording; the main
 thread's worst CPU work 0.47 / 0.30 / 0.29 ms. `obs_test.py --shot`: the eyes with the row (vr_eyeshot 3).
 In VR (his part): OBS's WebSocket server on, the row's text and its press, a recording started and stopped.
+## Gadget fingertip, tap zone, trails in VR, Death View menus (2026-10-08)
+
+Vittorio's notes vrfiringrange_2026-10-08_22-35-47 .. 22-44-48.
+
+- **The side button's fingertip** (vr_gearlights.cpp): it was the hand's tracked point plus `vr_gadget_button_reach`
+  (4 cm) forward, far off the drawn index finger (his screenshot). Now the jointed hand's index fingertip as drawn
+  (`view::drawnIndexTip`: `grasp::fingerPoints`' tip through the rig's placement and the palm's fit, noted at the end of
+  `setupRigHand` in the hand's tracked frame, used the next frame), `vr_gadget_fingertip_drawn` 1 (0, or no jointed
+  hand: the old reach). Tuning: `vr_gadget_fingertip_x/y/z` (cm forward, outward, up; outward mirrored on the off
+  hand), `_pitch/_yaw/_roll` (turned round the hand's point first); the button's face tilt `vr_gadget_button_pitch`
+  (out of the screen) and `_yaw` (along its width): the cut plane and the press side turn with it. Show the Button draws
+  the drawn fingertip (white) joined to the tuned one, and a short line the way the face points. HUD and Menus > Wrist
+  Gadget. Mock (open hand): the fingertip 5.0 cm forward, 1.9 right, 3.6 below the hand's point (the reach: 4, 0, 0).
+- **The screen tap's zone** (vr_bullettime.cpp `tapZone`): the screen moved (`vr_bullettime_tap_x/y/z`, cm) and sized
+  (`vr_bullettime_tap_width/_height`, shares of the screen's, 1), the margin and depth as before; Show Gadget Button:
+  And the Screen Tap draws it and the striking points (blue). `vr_gear_lights_info` prints the zone. A tap 3 cm right
+  of the middle counts with the shipped zone, not with a tenth of it; gadget_tap_test.sh unchanged. The Screen Tap rows
+  are together again (Distortion Trails had been put among them).
+- **Distortion trails in VR**: the end-on fade (sine of the angle the trail is seen at, 0.1 .. 0.35) faded your own
+  shots: in VR they leave the gun a hand's width or two off the eyes and run away from them, so past about 2.5 m the
+  sine is under 0.1, and the near-eye fade (to 40 units) took the rest: a faint hint by the muzzle, nothing behind the
+  pellets. The headless checks fired across the view. Now a trail fades only where its line runs through the eye
+  (within half of its half width: its facing is undefined there) and near the eye within 32 units. Reproduced with the
+  mock hand at the hip firing the nailgun and the shotgun in bullet time, paused (`vr_bullettime_trails_list` now prints
+  the places strong enough to see): nail 3 of 13 -> 12 of 14 (strongest 0.48 -> 0.90), pellets 27 of 80 -> 58 of 72;
+  per eye (vr_eyeshot) trails on vs bend 0: nail 0.44% / 0.31% of the pixels, pellets 0.92% / 0.84%. Test shots across
+  the view unchanged (12 of 18).
+- **Death View**: VR Settings keeps only the switch; Turn With the Body, Turn Speed, Smoothing, Fade, the new Out for
+  Menus and Your Body: Killing Blow's Push are on Advanced > Body, Death View. Immersive is the default (config version
+  106: a config still at 1 takes 2). A menu or the console open while dead in Immersive moves the view out to Third
+  Person's place over `vr_death_view_menu_time` (0.3 s, smoothstep), its turn eased out too; past half way the hands,
+  the gear and the body's head are drawn again; back in as it closes. Mock: inhead 1 -> 0.86 -> 0.30 -> 0 (camera 71
+  units from the head's eyes), closed 0.12 -> 0.65 -> 1 (1 unit).
