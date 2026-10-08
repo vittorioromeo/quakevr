@@ -31795,3 +31795,13 @@ other projectiles, a refraction ribbon fading along its length; on by default, t
   0.3 m or 0.8 m: climbing's mantle, onto the lip (60 1110 -104). map1's rock bank by `-280 2232 -214` (swim north): on,
   out; off, stays; the hand pull fires there (`waterjump: climbed out by hand`) but the rock overhangs the water, and
   only Quake's way along it (west, with the stick) gets over it.
+- **Armour shards as armour** (map1_14-01-08). Dawn of the Machine's `item_armor_shard` is an armour object now
+  (`VR_PickupObj_Mark(QVR_PICKUPOBJ_ARMOUR)`, with `vr_armor_wear`): it floats until a hand takes or knocks it or a force
+  grab pulls it, then it is a physics object; walking over it no longer takes it. Let go of over the torso (as armour),
+  or at a holster or a pouch (`VR_Armor_AtTorso`: a shard also at `VR_Carry_AtHolster`), it is taken: its own pickup,
+  5 armour up to 200 (green when none is worn). At 200 it is not taken ("Your armor is full"; `VR_Armor_IsBetter`: short
+  of 200). Drawn at the pickups' size (`vr_pickup_scale`), not the armour's half size: its box is 2 x 7 x 10 units.
+  Tests (mock, `vr_campaign_native mg3`, map1, `setpos -224 -30 56 0 90 0`, `vr_mock_hand_to main nearest item_armor_shard 4`, grip): taken by the main hand and let go
+  of at the right hip holster, the ammo pouch and the chest: armour 5 each; let go of in front: dropped, armour 0;
+  walked through (the row, stick forward): armour 0. `vr_mg3_test 9` (map1): 5 passed, among them "a shard is an armour
+  object" (force-grabbable, wearable, the object's hand touch) and 27 shards adding 5 each.

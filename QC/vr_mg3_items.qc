@@ -20,8 +20,9 @@
 // (docs/vr-port/OFFICIAL_QC_SOURCE.md): armour shards, the draughts (rings that move you up or down), the lava suit
 // and the hell knight's head (Bloody Nightmare's discovery). Each works in any map when its model is on the search
 // path (the agglomeration principle; the lava suit and the head fall back to the biosuit's and the hell knight's head
-// gib model), else it is skipped. VR: picked up as the other items are (itemTouch: a hand or the body touching it);
-// the lava suit and the head are objects taken at a holster, like the biosuit and the keys.
+// gib model), else it is skipped. VR: the shards are objects as armour is (vr_armor_wear: touched or force-grabbed
+// they are loose; worn at the torso, or put in a holster or a pouch); the draughts work by touch; the lava suit and
+// the head are objects taken at a holster, like the biosuit and the keys.
 
 // ----------------------------------------------------------------------------
 // Armour shards: +5 armour (green, 0.3, when none is worn) up to 200.
@@ -50,6 +51,7 @@ void() item_armor_shard = {
     self.handtouch = MG3_armor_shard_touch;
     setsize(self, '-16 -16 0', '16 16 56');
     StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_ARMOUR); // VR: an object as armour is: worn at the torso, or put in a holster or a pouch (items.qc)
 };
 
 // ----------------------------------------------------------------------------

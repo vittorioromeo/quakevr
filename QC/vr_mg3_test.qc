@@ -356,6 +356,9 @@ void() MG3_T_Items = {
     if(e) {
         VR_ItemUtil_EntDelItem(p, IID_ARMOR1); VR_ItemUtil_EntDelItem(p, IID_ARMOR2); VR_ItemUtil_EntDelItem(p, IID_ARMOR3);
         p.armortype = 0; p.armorvalue = 0;
+        if(VR_PickupObj_Enabled(e))
+            MG3_Check(e.vr_pickup_obj == QVR_PICKUPOBJ_ARMOUR && e.vr_wearable && (e.flags & FL_FORCEGRABBABLE) && e.handtouch == VR_PickupObj_Handtouch,
+                "a shard is an armour object (force-grabbable, worn or put in a holster or pouch)");
         MG3_T_Take(e); n++;
         MG3_Check(p.armorvalue == 5 && p.armortype == 0.3 && VR_ItemUtil_EntHasItem(p, IID_ARMOR1) && e.model == string_null, "a shard: 5 green armour");
         e = find(e, classname, "item_armor_shard");

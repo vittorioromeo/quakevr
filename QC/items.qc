@@ -594,9 +594,20 @@ float(entity xArmor) VR_Armor_Protection =
     return 0.8 * 200;
 };
 
-// Whether `xPlayer` would put it on (armor_touch: only a better one).
+// Dawn of the Machine's armour shards (vr_mg3_items.qc): objects as armour is, worn at the torso or put in a holster or
+// a pouch (small as they are); each adds 5 up to 200.
+float(entity xArmor) VR_Armor_IsShard =
+{
+    return xArmor.classname == "item_armor_shard";
+};
+
+// Whether `xPlayer` would put it on (armor_touch: only a better one; a shard: short of 200).
 float(entity xPlayer, entity xArmor) VR_Armor_IsBetter =
 {
+    if(VR_Armor_IsShard(xArmor))
+    {
+        return xPlayer.armorvalue < 200;
+    }
     return xPlayer.armortype * xPlayer.armorvalue < VR_Armor_Protection(xArmor);
 };
 
@@ -614,9 +625,14 @@ float(entity xPlayer, vector xPos) VR_Armor_PointAtTorso =
     return drop >= 0.1 * m2u && drop <= 0.7 * m2u && vlen(d) <= 0.3 * m2u && d * v_forward >= -0.15 * m2u;
 };
 
-// Whether the hand carrying it, or the armour itself (its box's middle), is at the torso.
+// Whether the hand carrying it, or the armour itself (its box's middle), is at the torso. A shard also at a holster
+// or a pouch (VR_Carry_AtHolster, of self: the player).
 float(entity xPlayer, float xHand, entity xArmor) VR_Armor_AtTorso =
 {
+    if(VR_Armor_IsShard(xArmor) && xPlayer == self && VR_Carry_AtHolster(xHand))
+    {
+        return TRUE;
+    }
     return VR_Armor_PointAtTorso(xPlayer, VRGetEntHandPos(xPlayer, xHand)) ||
            VR_Armor_PointAtTorso(xPlayer, (xArmor.absmin + xArmor.absmax) * 0.5);
 };
@@ -691,7 +707,7 @@ float(float xHand, entity xArmor) VR_Armor_LetGo =
     }
 
     dprint("armour: not worn, yours is as good\n");
-    sprint(self, "Your armor is better\n");
+    sprint(self, VR_Armor_IsShard(xArmor) ? "Your armor is full\n" : "Your armor is better\n");
     sound(self, CHAN_ITEM, "player/land.wav", 0.6, ATTN_NORM);
     if(self.ishuman)
     {
@@ -874,7 +890,9 @@ void() VR_PickupObj_Place =
         return;
     }
 
-    float s = cvar_hget(self.vr_pickup_obj == QVR_PICKUPOBJ_ARMOUR ? cvarh_vr_armor_scale : cvarh_vr_pickup_scale);
+    // (A shard, small as it is, at the pickups' size, not the armour's.)
+    float s = cvar_hget((self.vr_pickup_obj == QVR_PICKUPOBJ_ARMOUR && !VR_Armor_IsShard(self)) ? cvarh_vr_armor_scale
+                                                                                                    : cvarh_vr_pickup_scale);
     if(s <= 0 || self.vr_pickup_spin) // (a weapon drawn as its prop: at its size, as the weapon dropped is)
     {
         s = 1;
