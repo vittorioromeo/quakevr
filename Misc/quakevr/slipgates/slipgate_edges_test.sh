@@ -28,22 +28,29 @@ run() { bash $KIT/run.sh $AGENT "$@" > /dev/null; }
 START="developer 1;map vrslipgates;wait60;god;notarget"
 want() { [ "$WHAT" = "$1" ] || [ "$WHAT" = all ]; }
 
-# The last place of entity 221 (the first thing spawned) in vr_portals_debug_split's lines: its middle's y.
-lastY() { grep -E "^portal split: frame [0-9]+ ent 221 " "$LOG" | tail -1 | awk '{for (i = 1; i < NF; i++) if ($i == "middle") print $(i+2)}'; }
+# The first entity a test spawns (221 before vrslipgates' crouching room, 243 with it): a crate put straddling the
+# flush player gate, the one thing drawn cut there (vr_portals_debug_split).
+run -Script "$START;setpos -256 600 24 0 90 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 40;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
+E=$(grep -E "^portal split: frame [0-9]+ ent [0-9]+ .*cut by the plane" "$LOG" | head -1 | awk '{print $6}')
+E=${E:-221}
+echo "(the first entity spawned: $E)"
+
+# The last place of entity $E (the first thing spawned) in vr_portals_debug_split's lines: its middle's y.
+lastY() { grep -E "^portal split: frame [0-9]+ ent $E " "$LOG" | tail -1 | awk '{for (i = 1; i < NF; i++) if ($i == "middle") print $(i+2)}'; }
 
 if want clip; then
     for pe in 0 1; do
         run -Script "$START;vr_slipgate_pair_exits $pe;setpos 352 1032 24 0 270 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 56;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
-        echo "clip: pair exits $pe: a crate resting 48 out of a gate drawn cut in $(grep -c 'ent 221 .*cut by the plane' "$LOG") frames (0)"
+        echo "clip: pair exits $pe: a crate resting 48 out of a gate drawn cut in $(grep -c "ent $E .*cut by the plane" "$LOG") frames (0)"
     done
     run -Script "$START;setpos -256 600 24 0 90 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 40;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
-    echo "clip: a crate straddling the flush player gate drawn cut in $(grep -c 'ent 221 .*cut by the plane' "$LOG") frames (every frame: over 0)"
+    echo "clip: a crate straddling the flush player gate drawn cut in $(grep -c "ent $E .*cut by the plane" "$LOG") frames (every frame: over 0)"
 fi
 
 if want push; then
     slide() { # slide <spawn> <x> <speed> <flings>: from 64 units in front of FA's gate at x, kept at speed
-        local S="$START;setpos $2 536 24 0 90 0;wait5;noclip 0;vr_test_spawn $1;vr_test_spawn_dist 40;impulse 241;wait30;setpos $2 336 24 0 90 0;wait5;vr_portals_debug_split 221"
-        for i in $(seq 1 $4); do S="$S;vr_physics_fling 221 $3 90;wait3"; done
+        local S="$START;setpos $2 536 24 0 90 0;wait5;noclip 0;vr_test_spawn $1;vr_test_spawn_dist 40;impulse 241;wait30;setpos $2 336 24 0 90 0;wait5;vr_portals_debug_split $E"
+        for i in $(seq 1 $4); do S="$S;vr_physics_fling $E $3 90;wait3"; done
         run -Script "$S;wait60;toggleconsole;quit"
         echo "push: $( [ $1 = 107 ] && echo small || echo big ) crate at $3 u/s ($4 pushes) into the gate at x $2: ends at y $(lastY) (> 928: through)"
     }
@@ -54,11 +61,11 @@ if want held; then
     S="$START;setpos -256 560 24 0 90 0;wait5;noclip 0;vr_mock_hand main 0.15 1.25 -0.40 0 0 0;wait20;+grabright;vr_mock_button main grip 1;wait5;vr_test_spawn 101;vr_test_spawn_hold 1;impulse 241;wait30;vr_portals_debug_split -1;vr_mock_stick off 0 0.5"
     for i in $(seq 1 50); do S="$S;wait2"; done
     run -Script "$S;toggleconsole;quit"
-    "$PY" - "$LOG" <<'PYEOF'
+    "$PY" - "$LOG" "$E" <<'PYEOF'
 import re, sys
 pts = []
 for l in open(sys.argv[1], errors='replace'):
-    m = re.match(r'portal split: frame (\d+) ent 221 \S* ?at (\S+) (\S+) (\S+) (.*) middle (\S+) (\S+) (\S+)', l)
+    m = re.match(r'portal split: frame (\d+) ent ' + sys.argv[2] + r' \S* ?at (\S+) (\S+) (\S+) (.*) middle (\S+) (\S+) (\S+)', l)
     if m: pts.append((int(m.group(1)), [float(v) for v in m.group(2, 3, 4)], m.group(5).startswith('whole'), [float(v) for v in m.group(6, 7, 8)]))
 d = lambda a, b: sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
 # each step: the smaller of the drawn place's (jumps when the player is carried) and the middle's in its room (jumps
