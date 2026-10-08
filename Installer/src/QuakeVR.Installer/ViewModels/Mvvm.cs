@@ -59,7 +59,7 @@ public enum CheckStatus
     Info,
     /// <summary>Not there, and that is fine (an expansion the player does not own).</summary>
     Absent,
-    /// <summary>There, but the game cannot use it yet (native support in progress: mg3).</summary>
+    /// <summary>There, but the game cannot use it yet (native support in progress; none since mg3 on 2026-10-08).</summary>
     NotYet,
     Busy,
 }

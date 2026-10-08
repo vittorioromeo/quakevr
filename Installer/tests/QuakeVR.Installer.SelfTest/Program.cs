@@ -249,7 +249,7 @@ var tests = new List<(string Name, Action Body)>
             Eq(!c.NativeReady ? "detected, not yet supported" : c.SoloOnly ? "ready (single player)" : "ready", e.Detail, $"{e.Folder} label");
         }
     }),
-    ("expansions: base dirs for hipnotic/rogue, owned roots for dopa/mg1/mg3, mg3 not yet supported", () =>
+    ("expansions: base dirs for hipnotic/rogue, owned roots for dopa/mg1/mg3, all three ready (single player)", () =>
     {
         var quake = Dir("exp-quake");
         Fixtures.MakeOriginal(quake);
@@ -270,7 +270,8 @@ var tests = new List<(string Name, Action Body)>
         Eq(rerelease, byName["dopa"].Root, "dopa from <base>\\rerelease");
         Eq(ExpansionState.Ready, byName["mg1"].State, "mg1");
         Eq("ready (single player)", byName["mg1"].Detail, "mg1 label");
-        Eq(ExpansionState.DetectedNotSupported, byName["mg3"].State, "mg3");
+        Eq(ExpansionState.Ready, byName["mg3"].State, "mg3");
+        Eq("ready (single player)", byName["mg3"].Detail, "mg3 label");
     }),
     ("vr: active runtime, VD suggestion, VC++ runtime", () =>
     {

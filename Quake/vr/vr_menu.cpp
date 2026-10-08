@@ -5106,13 +5106,13 @@ za::Vector<Item> pageMachineHordeTests()
     };
 }
 
-// Dawn of the Machine (MG3) acceptance aids: developer campaign only (`vr_campaign_native mg3`), "mg3test:" lines
+// Dawn of the Machine (MG3) acceptance aids: its campaign only (Official Campaigns, or `vr_campaign_native mg3`), "mg3test:" lines
 // with developer 1 (QC/vr_mg3_test.qc).
 za::Vector<Item> pageMg3Tests()
 {
     return {
         header("Dawn of the Machine Tests"),
-        header("Developer campaign only: vr_campaign_native mg3"),
+        header("Dawn of the Machine campaign only (Official Campaigns)"),
         command("State Report", "vr_mg3_test 1")
             .help("Print the map, skill, serverflags and the player's health, caps, ammunition and weapons (developer 1)."),
         command("Seed Saved Upgrades", "vr_mg3_test 2")
@@ -5400,7 +5400,7 @@ za::Vector<Item> pageDebugTests()
         open("Dawn of the Machine Monsters", pageIndex(pageMg3MonsterTests))
             .help("The infected (any campaign) and Dawn of the Machine's own monsters (with its data): spawns and checks."),
         open("Dawn of the Machine Tests", pageIndex(pageMg3Tests))
-            .help("MG3 native port: state, saved upgrades and capacities. Developer campaign only."),
+            .help("MG3 native port: state, saved upgrades and capacities. Dawn of the Machine campaign only."),
         command("Machine: Progression Report", "vr_mg_hub_test 3")
             .help("Report runes, return position, final gate and VR equipment."),
         command("Machine: Walk Into the Next Exit", "vr_mg_hub_test 30")

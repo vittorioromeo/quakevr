@@ -1056,3 +1056,13 @@ credits in a sweep (MG1's checked only its own echo): it now queues after the cr
 is: secret4/dm1 `func_bob` `dest "16-32 0"` reads as `16 0 0` (as id's parser does), map7/secret1 lack a few textures
 in the BSP. Not covered: skills 0, 2, 3 of the normal game (one argument away: `SKILL` in the script), co-op, and
 everything that needs a headset (MG3_PLAN.md M3-30).
+
+**Readiness (M3-30, 2026-10-08):** MG3 `nativeReady` is true (vr_gamedir.cpp, its own commit; revert it to undo):
+ordinary selection (Official Campaigns, `vr_campaign_select mg3`, a save of it) starts it, and the Bloody Nightmare row
+is no longer dimmed. Like Dopa and MG1 it is single player only (`soloOnly` 3, 4 and 5: coop, deathmatch or
+maxplayers > 1 refused with the same message; decision 6), its co-op and `dm1` on the developer path
+(`vr_campaign_native mg3`). The installer's `ExpansionDetector` table says the same ("ready (single player)"; its
+self-test compares the two). Checked: `vr_campaign_status` "mg3: ready", language 0 missing; `coop 1` refused;
+`coop 0` starts `start`, `changelevel map1` arrives with `vr_campaign` 5; the main route sweep 93/0; installer self-test
+29/29. **Still needs a human** (M3-30): the Super Axe's contacts and lightning burst, axe buttons by hand, lore
+readability, teleports and low ceilings for comfort, the new monsters' hit zones, gore and ragdolls in the headset.

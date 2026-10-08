@@ -341,7 +341,9 @@ Melee-touching tasks also run `eval.sh` (archived settings; no melee tuning).
   "Dawn of the Machine route sweep"; two bugs fixed: the language gate's missing ending identifiers, the sweep presser).
 - **M3-30 Readiness flip and docs.** `nativeReady` true for single-player (Q6), solo guard as Dopa, INSTALL/README/
   CREDITS/EXPANSIONS, Debug menu tests, human VR QA checklist (Super Axe contacts, axe buttons, lore readability,
-  teleports/ceilings comfort, new monsters' hit zones).
+  teleports/ceilings comfort, new monsters' hit zones). **Done 2026-10-08** (Vittorio: "unlock MG3 both in-game and in
+  the installer"): `nativeReady` true, `soloOnly` 5, the installer's table, the docs, in one revertable commit
+  (EXPANSIONS.md, "Readiness"); the human VR QA is his, while playing.
 
 Order: A (01-04) -> B (05-10, 05-07 can run in parallel) -> C (11-14, parallel to D) -> D (15-23 parallel by archetype,
 24-27 after 10) -> E. About 30 worker runs.

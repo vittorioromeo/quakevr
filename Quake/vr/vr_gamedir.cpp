@@ -376,7 +376,7 @@ Campaign campaigns[] = {
     {"rogue", "Dissolution of Eternity", "start", 2, true, nullptr, 0, 0, {}},
     {"dopa", "Dimension of the Past", "e5start", 3, true, dopaResources, countof(dopaResources), 0, {}},
     {"mg1", "Dimension of the Machine", "start", 4, true, mg1Resources, countof(mg1Resources), 0, {}},
-    {"mg3", "Dawn of the Machine", "start", 5, false, mg3Resources, countof(mg3Resources), 0, {}},
+    {"mg3", "Dawn of the Machine", "start", 5, true, mg3Resources, countof(mg3Resources), 0, {}},
 };
 int activeCampaign = 0;
 bool discoveredCampaigns = false;
@@ -536,12 +536,13 @@ bool campaignMultiplayerRequested()
     return Cvar_VariableValue("coop") || Cvar_VariableValue("deathmatch") || svs.maxclients > 1;
 }
 
-// The ready native campaigns accepted for single player only: Dimension of the Past and Dimension of the Machine
-// (its Horde coop passed two-process tests, not yet a session with two headsets). Their multiplayer stays on the
-// developer path (vr_campaign_native).
+// The ready native campaigns accepted for single player only: Dimension of the Past, Dimension of the Machine
+// (its Horde coop passed two-process tests, not yet a session with two headsets) and Dawn of the Machine (MG3_PLAN.md
+// decision 6: single player first; its co-op and dm1 later). Their multiplayer stays on the developer path
+// (vr_campaign_native).
 [[nodiscard]] bool soloOnly(int index)
 {
-    return index == 3 || index == 4;
+    return index == 3 || index == 4 || index == 5;
 }
 
 int missingLanguage(int index, const char** first = nullptr)

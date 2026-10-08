@@ -96,8 +96,8 @@ are.
 ### Maps, campaigns and play
 
 - **Quake and both mission packs** in one game, from a VR hub with a tutorial and a firing range. The re-release's
-  **Dimension of the Past** and **Dimension of the Machine** play natively (single player); Dawn of the Machine is
-  being ported.
+  **Dimension of the Past**, **Dimension of the Machine** and **Dawn of the Machine** play natively (single
+  player).
 - **Map Library:** browse [Quaddicted](https://www.quaddicted.com/)'s custom maps and download, install, uninstall and
   play them in the game. **Other mods** run in a compatibility mode.
 - **Multiplayer and bots** (FrikBot), with a fixed 72 Hz server tick; flat-screen play (`vr_enabled 0`).

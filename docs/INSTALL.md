@@ -178,10 +178,13 @@ its native gameplay readiness. **Dimension of the Past is ready for native singl
 normal/secret routes, deferred monsters, fog/exploding geometry, VR inventory carry/save/reset and readable
 completion text/menu. **Dimension of the Machine is ready for native single-player VR** too: its hub and five
 episodes through the rune gates to the final gate, mgend and the credits, the electrode puzzle, the seven Horde arenas,
-and VR inventory carry/save/reset. Coop context/join/respawn behavior of either is not accepted yet (MG1's Horde coop
-is tested between two local processes only); ordinary launch requires `coop 0`, `deathmatch 0`, and `maxplayers 1`.
-**Dawn of the Machine remains in progress**; ordinary selection refuses it until its gameplay and progression are
-ready. Installed maps alone do not establish support.
+and VR inventory carry/save/reset. **Dawn of the Machine is ready for native single-player VR** as well: its hub,
+chapters and secret levels through the four runes to Chthon and the credits, the health and ammunition upgrades, the
+Super Axe, axe buttons, bloody shotguns and new monsters, and the hidden Bloody Nightmare difficulty (once found, also
+offered in Official Campaigns) with its own ending. Coop context/join/respawn behavior of these three is not accepted
+yet (MG1's Horde coop is tested between two local processes only; MG3's co-op and `dm1` come later); ordinary launch
+requires `coop 0`, `deathmatch 0`, and `maxplayers 1`. Installed maps alone do not establish support: each campaign
+was made ready on its own.
 
 For an owned Steam installation, Quake VR checks the original Quake folder and its `rerelease` folders. It also
 checks explicit `-basedir` roots and the existing Steam/GOG discovery paths. No expansion download or separate
