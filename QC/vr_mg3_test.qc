@@ -1,5 +1,5 @@
-// Dawn of the Machine acceptance aids (Debug > Tests > Dawn of the Machine Tests, `vr_mg3_test`). Developer campaign
-// only (`vr_campaign_native mg3`); results print with developer 1 as "mg3test:" lines.
+// Dawn of the Machine acceptance aids (Debug > Tests > Dawn of the Machine Tests, `vr_mg3_test`). Its campaign
+// only (Official Campaigns, or `vr_campaign_native mg3`); results print with developer 1 as "mg3test:" lines.
 float MG3_test_pass, MG3_test_fail;
 void(float ok, string label) MG3_Check = {
     if(ok) MG3_test_pass++; else MG3_test_fail++;
@@ -659,7 +659,7 @@ void() MG3_TestFrame = {
         if(request == 4) MG3_T_Caps(); else if(request == 6) MG3_T_Triggers(); else MG3_T_Repeaters();
         self = os; other = oo; activator = oa; return;
     }
-    if(!MG3_Campaign()) { dprint("mg3test: Dawn of the Machine developer campaign required (vr_campaign_native mg3)\n"); return; }
+    if(!MG3_Campaign()) { dprint("mg3test: Dawn of the Machine campaign required (Official Campaigns, or vr_campaign_native mg3)\n"); return; }
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_T_Report();
     else if(request == 2) { // seed every slot with a distinct mask (map1, map3, map2b, secret6 bits...)
