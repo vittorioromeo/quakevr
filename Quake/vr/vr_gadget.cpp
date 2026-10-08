@@ -2339,9 +2339,9 @@ bool log(Log& out)
         {
             break; // older lines are older still
         }
-        if(hologram && line.game)
+        if((hologram && line.game) || (!line.game && vr_hud_console_log.value == 0.f))
         {
-            continue;
+            continue; // the hologram's; or the console's alone (vr_hud_console_log 0)
         }
         const za::SizeT first = wrapped.size();
         wrap(line.text, wrapped);
@@ -2526,14 +2526,15 @@ extern "C" int VR_CenterPrintOnWrist()
 
 // Con_DrawNotify, a server's line (`text`, `length` characters) about to be drawn in view (vr_notify_wrist 0 or 2):
 // nonzero to leave it out, a game message with vr_messages_hologram_only (it waits in the hologram).
-extern "C" int VR_GameLineOnWrist(const char* text, int length)
+namespace qvr::gadget
 {
-    using namespace qvr::gadget;
-    if(!hologramOnly() || !text)
-    {
-        return 0;
-    }
-    za::String& plain = scratch.plain; // (Con_DrawNotify's, one line at a time)
+namespace
+{
+// Con_DrawNotify's line (`length` characters), plain (the coloured characters' high bit off, trailing spaces trimmed),
+// in the scratch (one line at a time).
+[[nodiscard]] const za::String& plainLine(const char* text, int length)
+{
+    za::String& plain = scratch.plain;
     plain.assign(text, static_cast<za::SizeT>(za::max(length, 0)));
     for(char& c : plain)
     {
@@ -2543,7 +2544,53 @@ extern "C" int VR_GameLineOnWrist(const char* text, int length)
     {
         plain.popBack();
     }
+    return plain;
+}
+} // namespace
+} // namespace qvr::gadget
+
+extern "C" int VR_GameLineOnWrist(const char* text, int length)
+{
+    using namespace qvr::gadget;
+    if(!hologramOnly() || !text)
+    {
+        return 0;
+    }
+    const za::String& plain = plainLine(text, length);
     return !plain.empty() && !engineLine(plain);
+}
+
+// Con_DrawNotify, a line about to be drawn in view (or on the flat screen): nonzero to leave it to the console, with
+// vr_hud_console_log 0 when it is not a game message (not a server's print, or the engine's own reply in one: the
+// same split as the gadget's log, NotifyLine::game).
+extern "C" int VR_ConsoleLogLine(const char* text, int length, int server)
+{
+    using namespace qvr;
+    using namespace qvr::gadget;
+    if(vr_hud_console_log.value != 0.f || !text)
+    {
+        return 0;
+    }
+    if(!server)
+    {
+        return 1;
+    }
+    const za::String& plain = plainLine(text, length);
+    return !plain.empty() && engineLine(plain);
+}
+
+// vr_notify_info (console.c): the wrist gadget's log lines now, printed to the console alone.
+extern "C" void VR_NotifyLogInfo()
+{
+    using namespace qvr::gadget;
+    Log out;
+    const bool shown = log(out);
+    Con_Printf("[skipnotify]vr_notify_info: wrist log %d line(s)%s\n", shown ? static_cast<int>(out.lines.size()) : 0,
+        logShown() ? "" : " (no log: the gadget not drawn, or vr_notify_wrist 0)");
+    for(const za::StringView l : out.lines)
+    {
+        Con_Printf("[skipnotify]  wrist: %.*s\n", static_cast<int>(l.size()), l.data());
+    }
 }
 
 // CL_ParseStartSoundPacket: a sound the server started. Quake's message sounds, misc/talk.wav (a trigger's text, on

@@ -2568,6 +2568,8 @@ void hologramTestMessage()
             .help("One of the game's messages in the hologram, as they come: raise the gadget to see it while you change these settings. Press again for another: they stack."),
         toggle("Messages Only on the Gadget", vr_messages_hologram_only)
             .help("The game's messages never show in front of you: they wait in the hologram until you look at the gadget. A new one (a key needed, a secret, the map's text; not pickups) chimes from the gadget on your wrist and buzzes it."),
+        toggle("Console Log on the HUD", vr_hud_console_log)
+            .help("The console's log (the engine's own lines: warnings, settings changed, command output) shows with the game's messages, over the gadget or in view (and at the top of the flat screen). Off: only the game's messages (pickups, deaths, chat); the console (~) keeps everything."),
         cycle("Console Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
             .help("The console's other messages (the engine's: settings changed, cheats, errors) float in a small log over the gadget, or at the top of the view."),
         slider("Console Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s").extend()
@@ -4782,6 +4784,8 @@ za::Vector<Item> pageDebugTools()
         command("Soak Your Arms", "vr_wounds_test self 9 0 0 52").help("vr_wounds_test self 9 0 0 52: wet as from water up to your chest; dries in about 25 seconds."),
         command("Test Light", "vr_light_test").help("vr_light_test: a white light 48 units ahead for 5 seconds."),
         command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
+        command("Test Console Line", "vr_message_test console Test console log line").help("vr_message_test console <text>: an engine log line, as a warning: in the notify lines only with HUD and Menus > Screens > Console Log on the HUD (vr_hud_console_log 1)."),
+        command("Notify Lines Info", "vr_notify_info").help("vr_notify_info: prints the notify lines shown now, in view and in the gadget's log (which of the game's messages and the console's log pass vr_hud_console_log)."),
         cycle("Gadget Screen Readings", "vr_gadget_test_state",
             {{0.f, "Real"}, {1.f, "Low"}, {2.f, "Exhausted, Counter"}, {3.f, "Hanging, Bullet Time"}, {4.f, "Relighting"}, {5.f, "Every Item"}})
             .help("vr_gadget_test_state: the wrist gadget's screen shows made-up readings, to see each state of its layout: low health, ammo and "

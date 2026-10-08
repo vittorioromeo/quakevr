@@ -30636,3 +30636,18 @@ installer".
   second) and fails otherwise; the self-test checks the 0.3 s fade (heard half-way, silent at the end, no step).
 - **Open:** `vrstart`'s in-game relight takes half an hour here (0 lights from its textures, 66 suns, a 17 MB map); the
   Play page's "about a minute" for a first relight is far off while it does.
+
+## The notify lines: the game's messages only, the console's log stays in the console (2026-10-08)
+
+- The author: console log messages showed on the wrist HUD, not only the game's; they should be in the console alone
+  by default. The lines were already tagged at their source (console.c: `Con_ServerPrint` marks svc_print's lines,
+  `NotifyLine::game` = a server's line that is not the engine's own reply, `engineLine`).
+- `vr_hud_console_log` (default 0; HUD and Menus > Screens > "Console Log on the HUD"): 0 shows only the game's
+  messages (the server's prints: pickups, deaths, chat, coop/deathmatch prints) in the gadget's log, in view
+  (`vr_notify_wrist` 0/2) and at the top of the flat screen (`Con_DrawNotify`, the same filter: `VR_ConsoleLogLine`);
+  1 also the engine's own lines (warnings, settings changed, command output: as before). The console keeps everything.
+  Centre prints are unchanged (hologram / centre of view).
+- `vr_notify_info` (Debug menu "Notify Lines Info"; also "Test Console Line"): prints the notify lines shown now, in
+  view and in the gadget's log. Headless e1m1 (`say`, `vr_message_test print/console`, `exec` of a missing file):
+  0: view and wrist "You got the shells", "player: hello there" only; 1: also "couldn't exec ...", the test console
+  line and the startup "VR: foveated rendering ... available". Coop 1 / maxplayers 4: the server's `say` still shows.

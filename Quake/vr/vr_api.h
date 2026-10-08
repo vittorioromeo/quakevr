@@ -342,6 +342,8 @@ void VR_OnDamage (int armor, int blood, const float *from);	// V_ParseDamage: a 
 // Console (console.c).
 int VR_NotifyOnWrist (void);							// Con_DrawNotify: nonzero to leave the notify lines to the wrist gadget's log
 int VR_GameLineOnWrist (const char *text, int length);	// Con_DrawNotify: a server's line: nonzero to leave it to the hologram (vr_messages_hologram_only)
+int VR_ConsoleLogLine (const char *text, int length, int server);	// Con_DrawNotify: nonzero to leave a line to the console (vr_hud_console_log 0: not a game message)
+void VR_NotifyLogInfo (void);						// vr_notify_info: prints the wrist gadget's log lines
 
 // Screen (gl_screen.c).
 void VR_GameCenterPrint (const char *str);				// SCR_CenterPrint: a centre print, for the wrist gadget's hologram (vr_gadget.cpp)

@@ -132,6 +132,7 @@ static double	vr_con_times[VR_CON_TIMES];
 // server's, -1 a centre print's echo (not for the log: the hologram shows the centre print), 0 else.
 static unsigned char	vr_con_server[VR_CON_TIMES];
 static int	vr_con_kind;
+static void Con_NotifyInfo_f (void); // QVR: vr_notify_info
 
 int			con_vislines;
 
@@ -1134,6 +1135,8 @@ void Con_Init (void)
 	Cvar_RegisterVariable (&con_notifyfadetime);
 	Cvar_RegisterVariable (&con_logcenterprint); //johnfitz
 	Cvar_RegisterVariable (&con_maxcols);
+
+	Cmd_AddCommand ("vr_notify_info", Con_NotifyInfo_f); // QVR
 
 	Cmd_AddCommand ("toggleconsole", Con_ToggleConsole_f);
 	Cmd_AddCommand ("messagemode", Con_MessageMode_f);
@@ -2193,6 +2196,59 @@ Con_DrawNotify
 Draws the last few lines of output transparently over the game top
 ================
 */
+// QVR: console line i's text when it is a notify line drawn in view (its alpha), else NULL: not the hologram's
+// alone (vr_messages_hologram_only), nor the console's alone (vr_hud_console_log 0: not a game message).
+static const char *Con_NotifyViewLine (int i, float *alpha)
+{
+	const char	*text;
+	int		server;
+
+	if (i < 0)
+		return NULL;
+	*alpha = Con_NotifyAlpha (con_times[i % NUM_CON_TIMES]);
+	if (*alpha <= 0.f)
+		return NULL;
+	text = con_text + (i % con_totallines)*con_linewidth;
+	server = vr_con_server[i % VR_CON_TIMES];
+	if (server && VR_GameLineOnWrist (text, con_linewidth)) // the hologram's alone
+		return NULL;
+	if (VR_ConsoleLogLine (text, con_linewidth, server)) // the console's alone
+		return NULL;
+	return text;
+}
+
+/*
+================
+Con_NotifyInfo_f
+
+QVR: vr_notify_info (tests, Debug menu): the notify lines shown now, in view (or the flat screen's top) and in the
+wrist gadget's log, printed to the console alone ([skipnotify]).
+================
+*/
+static void Con_NotifyInfo_f (void)
+{
+	char	lines[NUM_CON_TIMES][256];
+	int		i, len, count = 0;
+	float	alpha;
+	const char	*text;
+
+	for (i = con_current-NUM_CON_TIMES+1; i <= con_current; i++)
+	{
+		if (!(text = Con_NotifyViewLine (i, &alpha)))
+			continue;
+		len = q_min (con_linewidth, (int) sizeof (lines[0]) - 1);
+		memcpy (lines[count], text, len);
+		while (len > 0 && (lines[count][len - 1] & 127) == ' ')
+			len--;
+		lines[count][len] = 0;
+		count++;
+	}
+	Con_Printf ("[skipnotify]vr_notify_info: view %d line(s)%s\n", count, VR_NotifyOnWrist () ? " (not drawn: on the wrist)" : "");
+	for (i = 0; i < count; i++)
+		Con_Printf ("[skipnotify]  view: %s\n", lines[i]);
+	VR_NotifyLogInfo ();
+}
+
 void Con_DrawNotify (void)
 {
 	int	i, x, v;
@@ -2205,13 +2261,9 @@ void Con_DrawNotify (void)
 
 	for (i = con_current-NUM_CON_TIMES+1; i <= con_current; i++)
 	{
-		if (i < 0 || onwrist) // QVR: or on the wrist
+		if (onwrist) // QVR: on the wrist
 			continue;
-		alpha = Con_NotifyAlpha (con_times[i % NUM_CON_TIMES]);
-		if (alpha <= 0.f)
-			continue;
-		text = con_text + (i % con_totallines)*con_linewidth;
-		if (vr_con_server[i % VR_CON_TIMES] && VR_GameLineOnWrist (text, con_linewidth)) // QVR: the hologram's alone
+		if (!(text = Con_NotifyViewLine (i, &alpha))) // QVR: (the hologram's or the console's alone)
 			continue;
 
 		clearnotify = 0;

@@ -498,6 +498,7 @@ QVR_CVAR(vr_notify_wrist, "1", CVAR_ARCHIVE)          // the console's messages 
 QVR_CVAR(vr_notify_wrist_time, "8", CVAR_ARCHIVE)     // seconds a message stays in that log (0: con_notifytime's)
 QVR_CVAR(vr_notify_wrist_height, "5", CVAR_ARCHIVE)   // cm the log's bottom floats over the gadget as seen (and always over the hologram)
 QVR_CVAR(vr_notify_wrist_alpha, "0.7", CVAR_ARCHIVE)  // how bright the log is (its lines are the engine's: dimmer than the game's messages)
+QVR_CVAR(vr_hud_console_log, "0", CVAR_ARCHIVE)       // QVR round 21: the notify lines (the gadget's log, in view, the flat screen's top) also show the console's log (the engine's own lines: warnings, settings changed, command output): 0 only the game's messages (the server's prints: pickups, deaths, chat; the console itself keeps everything), 1 both
 QVR_CVAR(vr_messages_hologram, "1", CVAR_ARCHIVE)     // the game's messages (centre prints: a key needed, a secret found, the map's text; the server's prints: pickups, deaths, chat) as a hologram the wrist gadget projects over its screen while it faces you (else the centre prints show in view as before); the engine's lines stay in the log
 QVR_CVAR(vr_messages_hologram_time, "5", CVAR_ARCHIVE) // seconds a message stays in it
 QVR_CVAR(vr_messages_hologram_size, "1", CVAR_ARCHIVE) // its text's size (1: about 8 mm characters)
