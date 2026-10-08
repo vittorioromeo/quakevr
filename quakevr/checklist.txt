@@ -26,6 +26,7 @@ Death View: Debug > Cheats > Die Now / Die Now Blown Back, in Third Person and I
 Trailer spawns: Debug > Tests > Ahead of You: Facing = Away
 
 [New this week]
+Gadget/trails/death: point at the gadget button: the dot is on your index fingertip (HUD and Menus > Wrist Gadget: fingertip/button offsets; Show Gadget Button); screen-tap zone size/offset (Combat > Bullet Time > Screen Tap); bullet-time trails now follow nails and pellets fired from the hip or aimed, same in both eyes; Death View: only the switch in VR Settings (tuning in Advanced > Body), Immersive is default; open the menu while dead in Immersive: smooth glide out to third person and back
 Anisotropic Filtering row (Graphics > Image): Off/2x/4x/8x/16x; floors sharp at glancing angles
 OBS: in OBS Tools > WebSocket Server Settings enable the server (port 4455; password via vr_obs_password or auth off); the menu shows 'OBS: Not recording' above Spectator camera; trigger starts/stops recording (red light + time); Graphics > Recording > OBS
 Teleporters (renamed from slipgates): Graphics > Teleporters labels; hub campaign board + lectern messages; vrtutorial2 arena exit board; `map vrslipgates` still loads vrteleporters; old vr_slipgate_* settings still work
