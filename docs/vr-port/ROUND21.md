@@ -31108,3 +31108,41 @@ Checked (motion_synth.py takes, vr_motion_eval with developer 1): slap_forehand 
 then slap; slap_forehand with the dummy 3 m off (no contact) whooshes; no_hit_slow_slap, no_hit_wave, no_hit_slow_punch
 nothing; palm_shove_1h a shove, punch_straight a punch, neither a slap's whoosh. In VR: slap at the dummy and at the air
 (a light swish each time, a blade's swish for a punch as before); wave and pat slowly: silent.
+## vrtutorial2: the author's first VR play, fixed (2026-10-08)
+
+His voice notes (11), each fixed in `Misc/quakevr/maps/vrtutorial2_gen.py`:
+1. **Turned floor arrows** showed the next copy of the arrow in their corners (an axis-aligned square round a turned
+   texture): a turned arrow is now a sheet turned with it (`mapgeom.hull`), half a unit inside its one copy.
+2. **The locomotion settings** are one row of 8 at chest height (46; the upper of two rows took a jump), the board over
+   them at 116.
+3. **Lamps over windows:** room 3's upper wall lamps moved between the windows (x 3352). `check_fixtures()` now fails the
+   build on any fitting, button, lamp or text board within 4 units of a courtyard window, or a board over a doorway (it
+   also found room 7's lesson board hanging in its doorway from room 6: moved beside it).
+4. **Wall lamps' sides** showed slices of the lamp texture: only the front is `tlight01` (fitted), the sides plain metal.
+5. The turned arrow over pool B's edge removed: the swim's arrows start at the steps, pointing at the door.
+6. **Wrist tip** `t2_wrist` where the fall lands in room 5: look at your wrist, the gadget shows your health.
+7. Room 5's GRAB/FORCE GRAB board moved right of the exit door (it covered it).
+8. **The force-grab shelf** is in the north-east corner, round its column, 64 up (was 100, 32 off the wall), a wall lamp
+   and a fill light over it (the corner was dark).
+9. **The darkness tips showed through closed doors** (a tip's sight test ignores doors): `t2_torch` waits for a trigger
+   in the lit hall (`r9v_in`), `t2_flip` for one inside the course (`r9_in`). `vr_tips_test list`: from room 8
+   "waiting for its trigger"; in the hall the torch tip live, the flip tip waiting; in the course both live.
+10. **The dark course** (still pitch black): skirting, steel plate `metal4_4` to 80 (the blocks' sides), a rail, riveted
+    panels `tech10_2` over it (was `twall2_1`, computers).
+11. **The jump wall** 12 lower: the ladder block's top 144 -> 156, the ledge 100 over it (was 112). At a jump's top the
+    hand at its natural 1.9 m pose is now 3 units over the lip (before, 9 under it).
+
+New entities are written last (`with late():`) so the others keep their edict numbers.
+
+**Tested:** `--preset final`, 0 holes in 1,000,064 rays, no qbsp warnings but the deathmatch one; the playthrough 38 of 38
+(`--god`); `--from jump --ledge` (new): a jump alone stays on the block, a grip at a 2.2 m reach (72 over the block,
+at the wall's face) holds nothing, the jump-and-catch climbs; softlock checks 9 of 9; e1m1 smoke; menu path checks
+0 missing. Before/after views of each note: `scratch/vrtutorial2_fixes_sheet.png` (worktree vrtut2).
+
+**The playtest's robustness** (any change to the map re-rolls its physics: the crate's card, the fights): a lying
+weapon is taken at its origin (`take_lying_weapon`: its box is a 3-unit cube there; a point along its length,
+"weapon 0.53", missed it), the rifle approached from the west of the fight, the arena's knocked-gun retake lets the
+grip go first (a new press is what takes), and the walk out of the arena goes round the pit (it walked down its stairs).
+
+**For VR:** the settings row's height; the corner shelf's sight line; the new wrist tip's wording; the jump wall (needs a
+jump, not too hard now?); the dark course's new walls under the flashlight.

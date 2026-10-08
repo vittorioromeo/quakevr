@@ -159,7 +159,7 @@ TX = {
     "pool": "sfloor4_5", "water": "*04water1", "sky": "sky1",
     "lamp": "light3_3", "lampwall": "tlight01", "lamp_frame": "metal1_1", "pipe": "metal5_1", "vent": "comp1_4",
     "door": "tech06_2", "door_frame": "tech04_3", "hazard": "qvr_hazard", "arrow": "{qvr_arrow", "skip": "skip",
-    "rung": "metal1_1", "rail_post": "metal1_1", "crate": "crate0_side", "dark": "twall2_1", "dark2": "metal2_4",
+    "rung": "metal1_1", "rail_post": "metal1_1", "crate": "crate0_side", "dark": "metal4_4", "dark2": "metal2_4", "dark_upper": "tech10_2",
     "button": "+0basebtn", "shoot": "+0shoot", "trigger": "trigger", "clip": "clip", "black": "black",
     "target": "qvr_target", "wood": "wood1_1", "window": "sfloor4_4", "teleport": "*teleport", "court": "city4_2", "court_floor": "afloor1_8",
 }
@@ -407,6 +407,9 @@ ENTS = []        # (keys, brushes)
 DETAIL = []      # func_detail brushes (one TrenchBroom group per room: DETAIL_GROUPS)
 DETAIL_GROUPS = []
 ILLUSION = []    # func_detail_illusionary: painted arrows, signs
+WALL_LAMPS = []  # (lo, hi): the wall lamps (check_fixtures)
+WINDOWS = []     # (lo, hi): the courtyards' windows' frames (room_trims; check_fixtures)
+WINDOW_PARTS = []  # their frames' and panes' boxes
 RND = random.Random(2026)
 
 
@@ -416,10 +419,26 @@ def group(name):
     return g[1]
 
 
+LATE = []        # entities written after all the others (late())
+_late = [False]
+
+
+class late:
+    """Entities made inside `with late():` are written after every other: added to a room after the playthrough's
+    takes were recorded, they leave the others' edict numbers (and the free slots the game's own spawns take, its
+    physics' order) as they were (vrtutorial2_playtest.py's gates are sensitive to them)."""
+
+    def __enter__(self):
+        _late[0] = True
+
+    def __exit__(self, *a):
+        _late[0] = False
+
+
 def ent(cls, x, y, z, **keys):
     k = {"classname": cls, "origin": "%g %g %g" % (x, y, z)}
     k.update({a: str(b) for a, b in keys.items()})
-    ENTS.append((k, []))
+    (LATE if _late[0] else ENTS).append((k, []))
     return k
 
 
@@ -432,7 +451,7 @@ def item(cls, x, y, z, **keys):
 def bent(cls, brushes, **keys):
     k = {"classname": cls}
     k.update({a: str(b) for a, b in keys.items()})
-    ENTS.append((k, brushes))
+    (LATE if _late[0] else ENTS).append((k, brushes))
     return k
 
 
@@ -594,10 +613,14 @@ def wall_lamp(out, side, x, y, z, value=150, color=WHITE):
     n = wall_axes(side)
     if n[0]:
         dbox(out, (x if n[0] > 0 else x - 4, y - 8, z - 8), (x + 4 if n[0] > 0 else x, y + 8, z + 8),
-             {"side": TX["lampwall"], "top": TX["lamp_frame"], "bottom": TX["lamp_frame"]}, fit=("+x", "-x"))
+             {"+x": TX["lampwall"], "-x": TX["lampwall"], "side": TX["lamp_frame"], "top": TX["lamp_frame"],
+              "bottom": TX["lamp_frame"]}, fit=("+x", "-x"))
     else:
         dbox(out, (x - 8, y if n[1] > 0 else y - 4, z - 8), (x + 8, y + 4 if n[1] > 0 else y, z + 8),
-             {"side": TX["lampwall"], "top": TX["lamp_frame"], "bottom": TX["lamp_frame"]}, fit=("+y", "-y"))
+             {"+y": TX["lampwall"], "-y": TX["lampwall"], "side": TX["lamp_frame"], "top": TX["lamp_frame"],
+              "bottom": TX["lamp_frame"]}, fit=("+y", "-y"))
+    WALL_LAMPS.append(((x - 8 if not n[0] else x - 4, y - 8 if n[0] else y - 4, z - 8),
+                       (x + 8 if not n[0] else x + 4, y + 8 if n[0] else y + 4, z + 8)))
     light(x + n[0] * 16, y + n[1] * 16, z, value, color, wait="0.8")
 
 
@@ -622,7 +645,14 @@ def floor_arrow(x, y, z, yaw, size=48):
         if n[2] > 0.5:
             return spec(name, u, v, org, size / w)
         return mapgeom.Tex(TX["skip"]).spec(n, c)
-    ILLUSION.append(mapgeom.box(x - h, y - h, z, x + h, y + h, z + 1, fn))
+    if abs(ux) < 1e-6 or abs(uy) < 1e-6:
+        ILLUSION.append(mapgeom.box(x - h, y - h, z, x + h, y + h, z + 1, fn))
+        return
+    # turned: the sheet turned with the arrow (an axis-aligned square round a turned arrow showed the copies next to it
+    # in its corners), half a unit inside the texture's copy (its corners on the 1/8 grid)
+    k = h - 0.5
+    corners = [(x + su * k * u[0] + sv * k * v[0], y + su * k * u[1] + sv * k * v[1]) for su in (-1, 1) for sv in (-1, 1)]
+    ILLUSION.append(mapgeom.hull([(cx, cy, zz) for cx, cy in corners for zz in (z, z + 1)], fn))
 
 
 def wall_arrow(side, x, y, z, yaw_dir, size=48):
@@ -811,9 +841,11 @@ def room_trims():
                     if not clear(probe[0], probe[1], a) or any(overlaps((lo, hi), s_) for s_ in SOLIDS):
                         continue
                     dbox(out, lo, hi, TX["lamp_frame"])
+                    WINDOWS.append((lo, hi))
                     face = {"+x": TX["window"], "-x": TX["window"], "+y": TX["window"], "-y": TX["window"],
                             "top": TX["lamp_frame"], "bottom": TX["lamp_frame"]}
                     dbox(out, glass_lo, glass_hi, face, fit=("+x", "-x", "+y", "-y"))
+                    WINDOW_PARTS.extend([(lo, hi), (glass_lo, glass_hi)])
 
 
 def doorway(name, x0, y0, x1, y1, z, out, h=128, frames=True):
@@ -913,19 +945,19 @@ def build_room2():
     skylight(1712, 640, 1840, 768, 256)
     doorway("room2b_exit", 2096, 640, 2112, 768, 0, out)
     lamp_grid(out, 1456, 384, 2096, 1024, 256, 3, 3)
-    rows = [[("TURNING", "turning"), ("TURN SPEED", "turnspeed"), ("MOVE" + N + "TOWARDS", "movedir"),
-             ("SWAP STICKS", "sticks")],
-            [("RUN OR WALK", "run"), ("TELEPORT", "teleport"), ("STANDING" + N + "OR SEATED", "position"),
-             ("WORLD SCALE", "scale")]]
-    for row, entries in enumerate(rows):
-        for (label, key), x in zip(entries, (1648, 1712, 1840, 1904)):
-            setting_button(label, key, x, 1024, 44 + 52 * (1 - row), 90)
+    # one row at chest height (the author, 2026-10-08: the upper of two rows took a jump to reach), each button's
+    # value screen and label above it, the board over them all
+    row = [("TURNING", "turning"), ("TURN SPEED", "turnspeed"), ("MOVE" + N + "TOWARDS", "movedir"),
+           ("SWAP STICKS", "sticks"), ("RUN OR WALK", "run"), ("TELEPORT", "teleport"),
+           ("STANDING" + N + "OR SEATED", "position"), ("WORLD SCALE", "scale")]
+    for i, (label, key) in enumerate(row):
+        setting_button(label, key, 1552 + 64 * i, 1024, 46, 90)
     banner(N.join(["MOVING AND TURNING", "Each button steps a setting and saves it.", "More: {menu:Locomotion}"]),
-           1776, 1020, 180, 270, "0.3")
+           1776, 1020, 116, 270, "0.3")
     tip("t2_settings", "Optional: these change how you move" + N + "and turn. Try Snap turning if smooth" + N +
-        "turning makes you queasy.", 1776, 980, 76, 260)
+        "turning makes you queasy.", 1776, 990, 60, 260)
     tip("t2_teleport", "Teleport: aim and release the stick" + N + "to jump to a spot (if you turn it on).",
-        1712, 990, 40, 120)
+        1872, 1000, 46, 120)
     arrows([(1520, 704), (1648, 704), (1776, 704), (1904, 704), (2032, 704), (2104, 704)], 0)
 
 
@@ -934,7 +966,7 @@ def build_room2():
 R3 = dict(x0=2256, y0=448, x1=3408, y1=960)
 R3_B1, R3_B2 = 2576, 2768     # the barriers' west faces
 R3_PLAT, R3_WALL = 2960, 3168  # the ladder block's west face, the jump wall's
-R3_PLAT_Z = 144                # its top
+R3_PLAT_Z = 156                # its top (the author, 2026-10-08: the jump wall over it 12 lower, 100 high)
 COURT = Style(TX["court_floor"], None, [(0, 16, TX["skirting"]), (16, 144, TX["panel4"]), (144, 160, TX["rail"]),
                                          (160, None, TX["court"])], sky=True)
 
@@ -967,8 +999,8 @@ def build_room3():
     for x in (2448, 2688, 2880):
         wall_lamp(out, "-y", x, r["y0"], 120, 160)
         wall_lamp(out, "+y", x, r["y1"], 120, 160)
-    wall_lamp(out, "-y", 3300, r["y0"], UP + 100, 160)
-    wall_lamp(out, "+y", 3300, r["y1"], UP + 100, 160)
+    wall_lamp(out, "-y", 3352, r["y0"], UP + 100, 160)    # (between the windows: check_fixtures)
+    wall_lamp(out, "+y", 3352, r["y1"], UP + 100, 160)
     arrows([(2336, 704), (2448, 704), (2528, 704)], 0)
     arrows([(2656, 704), (2720, 704)], 0)
     arrows([(2864, 704), (2928, 704)], 0)
@@ -1052,7 +1084,7 @@ def build_room4():
     air("hall4bc", (4352, 1136, UP), (R4C["x0"] - 16, 1264, UP + 160), style=bands(TX["panel3"]))
     doorway("room4c_in", R4C["x0"] - 16, 1136, R4C["x0"], 1264, UP, out)
     tip("t2_out", "Climb out: grip the edge and pull," + N + "or swim to the steps.", qx0 + 96, qy0 + 96, UP + 30, 200)
-    arrows([(4200, 1312), (4300, 1200), (4344, 1200)], UP)
+    arrows([(4280, 1200), (4344, 1200)], UP)    # (from the steps to the door: no turned one over the pool's edge)
     # ---- room 4c: the hole
     r = R4C
     room("room4c", r["x0"], r["y0"], r["x1"], r["y1"], UP, UP + 224, bands(TX["panel2"]))
@@ -1089,18 +1121,33 @@ def build_room5():
     for x in (4512, 4576):
         item("item_health", x, 1392, LOW + 34, spawnflags=1)
     item("item_health", 4560, 1040, LOW + 2, spawnflags=1)
-    dbox(out, (4860, 1360, LOW + 96), (r["x1"], 1440, LOW + 100), {"side": TX["lamp_frame"], "top": TX["floor2"]})
-    item("item_health", 4880, 1384, LOW + 102, spawnflags=1)
+    # the shelf: in the north-east corner, round its column, just over head height (seen from across the room)
+    sz = LOW + 64
+    shelf = {"side": TX["lamp_frame"], "top": TX["floor2"], "bottom": TX["lamp_frame"]}
+    dbox(out, (4864, 1408, sz - 4), (4928, r["y1"], sz), shelf)
+    dbox(out, (4928, 1408, sz - 4), (r["x1"], r["y1"] - 16, sz), shelf)
+    for lo, hi in (((4872, r["y1"] - 4, sz - 24), (4876, r["y1"], sz - 4)), ((r["x1"] - 4, 1416, sz - 24),
+                                                                             (r["x1"], 1420, sz - 4))):
+        dbox(out, lo, hi, TX["lamp_frame"])
+    item("item_health", 4896, 1440, sz + 2, spawnflags=1)
+    with late():
+        wall_lamp(out, "+y", 4896, r["y1"], sz + 44, 200)    # (the corner was in the dark)
+        light(4872, 1400, sz - 24, 160)
     restock("item_health", 4544, 1392, LOW + 34, contentsflags=1, distance=128, wait=6)
     banner(N.join(["LESSON 5: HEALING", "Health kits mend you. Grip one and hold it", "to your body, or put it in a holster:",
                    "at your hips, over your shoulders."]), 4544, r["y1"] - 4, LOW + 120, 270, "0.28")
+    # (right of the exit door, seen from the room: it covered the door)
     banner(N.join(["GRAB: close your hand round it.", "FORCE GRAB: point at something far", "and grip: it flies to your hand.",
                    "COLLECT: put it in a holster, your pouch,", "or over your shoulder into your pack."]),
-           r["x1"] - 4, 1260, LOW + 104, 180, "0.28")
+           r["x1"] - 4, 1064, LOW + 80, 180, "0.28")
     tip("t2_health", "You are hurt. Take a health kit:" + N + "grip it, then hold it to your belly" + N +
         "or a holster.", 4544, 1380, LOW + 70, 200)
-    tip("t2_forcegrab", "Point at the kit on the shelf" + N + "and grip: it flies to your hand.", 4840, 1384,
-        LOW + 110, 220)
+    tip("t2_forcegrab", "Point at the kit on the shelf" + N + "and grip: it flies to your hand.", 4880, 1400,
+        LOW + 76, 220)
+    # where the fall lands: the wrist gadget
+    with late():
+        tip("t2_wrist", "The fall hurt. Look at your wrist:" + N + "raise your forearm as if reading a watch." + N +
+            "The gadget there shows your health.", 4688, 1112, LOW + 60, 120)
     # the door: opens only at full health (QC trigger_vr_health_gate, in front of it)
     d = doorway("room5_exit", r["x1"], 1152, r["x1"] + 16, 1280, LOW, out)
     sliding_door(d, "r5_door")
@@ -1150,7 +1197,7 @@ def build_room7():
     checkpoint("cp7", 5216, 880, LOW, 270)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 288, 3, 2, 220)
     banner(N.join(["LESSON 7: A FIGHT", "WARNING: AN ENEMY IS COMING", "Fight it with your fists:", "block its blows, then strike."]),
-           5216, 1068, LOW + 104, 270, "0.3")
+           5040, r["y1"] - 4, LOW + 100, 270, "0.3")   # (beside the way in: it hung in the doorway)
     # the alcove the grunts come from (a spawner in it); the button for another
     air("r7_alcove", (r["x1"], 608, LOW), (r["x1"] + 64, 736, LOW + 128), style=bands(TX["panel5"]))
     door_frame(out, door_air("r7_alcove_mouth", (r["x1"], 608, LOW), (r["x1"] + 1, 736, LOW + 128)))
@@ -1238,7 +1285,10 @@ def build_room8():
 # ---- Room 9: darkness. A lit hall (the flashlight's tips), then a dark course: a serpentine with blocks to climb.
 R9V = dict(x0=4528, y0=160, x1=4752, y1=352)
 R9 = dict(x0=3456, y0=-352, x1=4512, y1=352)
-DARK = Style(TX["dark2"], TX["dark2"], [(0, 16, TX["dark"]), (16, None, TX["dark"])])
+# (the author, 2026-10-08: the computer walls did not fit; it stays pitch black) steel plate to 80 (the blocks' sides),
+# a rail, riveted panels over it
+DARK = Style(TX["dark2"], TX["dark2"], [(0, 16, TX["skirting"]), (16, 80, TX["dark"]), (80, 96, TX["rail"]),
+                                         (96, None, TX["dark_upper"])])
 R9_WALLS = [(4256, -224, 352), (4000, -352, 224), (3744, -224, 352)]     # (x, y0, y1): 16 thick
 R9_BLOCKS = [((4272, -32), (4512, 16), 40), ((4016, -128), (4256, 96), 40), ((3760, 32), (4000, 80), 48),
              ((3456, -160), (3744, -112), 40), ((3456, -112), (3744, 64), 80)]
@@ -1252,8 +1302,11 @@ def build_room9():
     checkpoint("cp9", 4704, 288, LOW, 180)
     banner(N.join(["LESSON 9: DARKNESS", "Your flashlight hangs at your hip:", "grip it; pull the trigger to switch",
                    "it on or off."]), 4640, r["y0"] + 4, LOW + 120, 90, "0.28")
+    # (a tip shows through a closed door: each in this room and the course waits till the player is in it)
+    with late():
+        trigger("r9v_in", (4544, 176, LOW), (4736, 336, LOW + 96), target="r9v_in")
     tip("t2_torch", "Take your flashlight: grip at your hip" + N + "(the side set by TORCH SIDE), trigger" + N +
-        "to switch it on.", 4640, 200, LOW + 60, 200)
+        "to switch it on.", 4640, 200, LOW + 60, 200, trig="r9v_in")
     setting_button("TORCH SIDE", "torch", 4592, r["y0"], LOW + 52, 270)
     d = doorway("room9_in", R9["x1"], 192, R9["x1"] + 16, 320, LOW, out)
     sliding_door(d, None)
@@ -1264,8 +1317,10 @@ def build_room9():
         SOLIDS.append(((x, y0, LOW), (x + 16, y1, LOW + 192)))
     for (lo, hi, h) in R9_BLOCKS:
         SOLIDS.append(((lo[0], lo[1], LOW), (hi[0], hi[1], LOW + h)))
+    with late():
+        trigger("r9_in", (4288, 176, LOW), (4480, 336, LOW + 96), target="r9_in")
     tip("t2_flip", "Press B or Y with the flashlight in hand" + N + "to flip it round in your fist.", 4400, 200,
-        LOW + 60, 160)
+        LOW + 60, 160, trig="r9_in")
     tip("t2_clipgun", "Hold the flashlight to a gun in your other" + N + "hand and press B or Y: it clips on.",
         4136, -260, LOW + 60, 160)
     tip("t2_cliphead", "Hold it to your temple and press B or Y:" + N + "a head torch, both hands free.",
@@ -1528,12 +1583,68 @@ def check_layout():
         sys.exit("layout: %d overlaps" % bad)
 
 
+def brush_bounds(b):
+    pts = [p for f in b.faces for p in f[:3]]
+    return tuple(min(p[i] for p in pts) for i in range(3)), tuple(max(p[i] for p in pts) for i in range(3))
+
+
+def banner_bounds(k):
+    """A func_worldtext_banner's board as a flat box (vr_text3d.cpp's boards: 8 units a character at scale 1, 1.2
+    characters of margin and bezel round the text; its longest page)."""
+    sc = float(k.get("worldtext_scale", "1"))
+    pages = [pg.split(N) for pg in k["worldtext"].split("$")]
+    cols = max(len(line) for pg in pages for line in pg)
+    rows = max(len(pg) for pg in pages)
+    hw, hh = 8 * sc * (cols / 2 + 1.2), 8 * sc * (rows / 2 + 1.2)
+    x, y, z = (float(v) for v in k["origin"].split())
+    across = 0 if int(k["angle"]) % 180 == 0 else 1
+    lo, hi = [x, y, z - hh], [x, y, z + hh]
+    lo[1 - across], hi[1 - across] = (x, y)[1 - across] - hw, (x, y)[1 - across] + hw
+    lo[across], hi[across] = (x, y)[across] - 2, (x, y)[across] + 2
+    return tuple(lo), tuple(hi)
+
+
+def check_fixtures():
+    """Nothing on a wall over a window: no fitting (detail brush), button, lamp or text board within 4 units of a
+    window's frame; no text board over a doorway or its frame."""
+    def grow(b, g):
+        return tuple(v - g for v in b[0]), tuple(v + g for v in b[1])
+
+    parts = {(tuple(map(float, lo)), tuple(map(float, hi))) for lo, hi in WINDOW_PARTS}
+    bad = []
+    things = [("%s brush" % name, brush_bounds(b)) for name, bs in DETAIL_GROUPS for b in bs]
+    things += [("%s" % k["classname"], brush_bounds(b)) for k, bs in ENTS + LATE for b in bs]
+    things += [("banner '%s'" % k["worldtext"][:24], banner_bounds(k)) for k, _ in ENTS + LATE
+               if k["classname"] == "func_worldtext_banner"]
+    for w in WINDOWS:
+        wg = grow(w, 4)
+        for what, b in things:
+            if overlaps(b, wg) and (tuple(map(float, b[0])), tuple(map(float, b[1]))) not in parts:
+                bad.append("%s at %s overlaps the window at %s" % (what, b[0], w[0]))
+    doors = [a for a in AIRS if a.kind == "door"]
+    for what, b in things:
+        if not what.startswith("banner"):
+            continue
+        for d in doors:
+            thin = 0 if d.hi[0] - d.lo[0] < d.hi[1] - d.lo[1] else 1
+            lo, hi = list(d.lo), list(d.hi)
+            lo[thin], hi[thin] = lo[thin] - 24, hi[thin] + 24
+            lo[1 - thin], hi[1 - thin], hi[2] = lo[1 - thin] - 16, hi[1 - thin] + 16, hi[2] + 16
+            if overlaps(b, (tuple(lo), tuple(hi))):
+                bad.append("%s at %s overlaps the doorway %s" % (what, b[0], d.name))
+    for line in bad:
+        print("fixtures: " + line)
+    if bad:
+        sys.exit("fixtures: %d over windows or doorways" % len(bad))
+
+
 def write_map():
     t0 = time.time()
     for build in ROOMS:
         build()
     room_trims()
     check_layout()
+    check_fixtures()
     mw = MapWriter()
     for lo, hi in carve():
         mw.world.append(mapgeom.box(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], world_tex))
@@ -1547,7 +1658,7 @@ def write_map():
             mw.detail(name).extend(brushes)
     if ILLUSION:
         mw.detail("painted", classname="func_detail_illusionary").extend(ILLUSION)
-    for keys, brushes in ENTS:
+    for keys, brushes in ENTS + LATE:
         mw.add(keys, brushes)
     header = "// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/maps/vrtutorial2_gen.py: edit that, not this.\n"
     mw.write(OUT, WORLD_KEYS, header)

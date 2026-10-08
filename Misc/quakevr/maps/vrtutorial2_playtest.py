@@ -2,7 +2,7 @@
 # it teaches, and checks each gate's outcome. The walks use the mock autopilot (vr_mock_walk_to: the head faces the next
 # point, the stick pushes forward); hands press, grip, punch, throw, load and aim with the vr_mock_* commands.
 #
-#   python Misc/quakevr/maps/vrtutorial2_playtest.py script [--god] [--from GATE]   # writes quakevr/vrtut2play.cfg
+#   python Misc/quakevr/maps/vrtutorial2_playtest.py script [--god] [--from GATE] [--ledge]   # writes quakevr/vrtut2play.cfg
 #   bash <kit>/run.sh <agent> -Timeout 900 -Script "exec vrtut2play.cfg" -Filter "^PT|vr_mock_walk_to|Player pos|^health|ENGINE|TIMEOUT" > out.txt
 #   python Misc/quakevr/maps/vrtutorial2_playtest.py check < out.txt                 # the gate table
 #
@@ -17,6 +17,7 @@ import sys
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 LOW = -144
 UP = 256
+R3_PLAT_Z = 156     # room 3's ladder block (vrtutorial2_gen.py)
 
 OUT = []
 
@@ -92,6 +93,20 @@ def jump_to(x, y, after=8, frames=150):
     w(4)
     c("-jump")
     w(frames)
+
+
+def take_lying_weapon(hand, after=20):
+    """The weapon lying nearest taken by its handle. On its origin, its handle: a lying weapon's box is a 3-unit cube
+    there, which the hand has to touch (a point along its drawn length, "weapon 0.53", is up to 8 units off it); the
+    grip pressed and the hand kept on it frame by frame within the press's window (a hand touching it pushes it).
+    Nothing lying: nothing done."""
+    for up in (6, 2):
+        c("vr_mock_hand_to %s nearest thrown_weapon %d" % (hand, up))
+        w(4)
+    c("+grab%s" % hand, "vr_mock_button %s grip 1" % hand)
+    for _ in range(8):
+        c("vr_mock_hand_to %s nearest thrown_weapon 0" % hand, "wait")
+    w(after)
 
 
 def grab(hand, x, y, z):
@@ -187,6 +202,34 @@ def take_spinning(hand, cls, holster, onto=7, rounds=3):
         w(30)
 
 
+LEDGE_CHECKS = False   # --ledge: also the high ledge's negatives (its own run: the extra time shifts the later gates')
+LEDGE_GATES = ("nojump", "noreach")
+
+
+def ledge_checks():
+    """Room 3's high ledge (100 over the ladder block) is neither jumped onto nor reached without a jump."""
+    # not without the hands: a jump at it lands back on the block
+    jump_to(3200, 704, 2, 80)
+    pos("nojump")
+    # nor without a jump: a hand up at an adult's full reach (2.2 m over the block: 72 units) gripping at the wall's
+    # face finds nothing to hold
+    walk(3140, 704, 4, 60)
+    c("vr_mock_turn_to 0")
+    w(30)
+    c("vr_mock_hand_to main 3166 704 %d" % (R3_PLAT_Z + 72), "wait", "wait",
+      "vr_mock_hand_to main 3166 704 %d" % (R3_PLAT_Z + 72), "+grabmain", "vr_mock_button main grip 1")
+    w(8)
+    pull("main", 60, 25)
+    w(20)
+    let_go("main")
+    c("vr_mock_hand main")
+    w(30)
+    pos("noreach")
+    walk(3140, 704, 4, 60)
+    c("vr_mock_turn_to 0")
+    w(30)
+
+
 def g3_jump_climb():
     mark("jump", "start")
     walk(2490, 704, 12, 150)
@@ -194,7 +237,7 @@ def g3_jump_climb():
     pos("barrier1")
     jump_to(2900, 704, 8)           # the 40 barrier at 2768
     pos("barrier2")
-    # the ladder (rungs every 20 from 16 at x 2953): hand over hand, then the block's lip at 144
+    # the ladder (rungs every 20 from 16 at x 2953): hand over hand, then the block's lip at 156
     walk(2918, 704, 4, 100)
     c("vr_mock_turn_to 0")
     w(60)
@@ -206,7 +249,7 @@ def g3_jump_climb():
             let_go(other)
         pull(h, 24)
         w(20)   # (the body catches up with the pull)
-    grab("off" if hands[0] != h else "main", 2962, 704, 142)
+    grab("off" if hands[0] != h else "main", 2962, 704, R3_PLAT_Z - 2)
     let_go(h)
     pull("off" if hands[0] != h else "main", 50, 25)
     w(40)
@@ -219,6 +262,8 @@ def g3_jump_climb():
     walk(3140, 704, 4, 100)
     c("vr_mock_turn_to 0")
     w(40)
+    if LEDGE_CHECKS:
+        ledge_checks()
     c("vr_mock_hand main 0.15 1.9 -0.45 0 0 0", "wait", "+jump")
     w(20)
     c("-jump", "vr_mock_hand_to main 3166 704 %d" % (UP + 2), "+grabmain", "vr_mock_button main grip 1")
@@ -365,20 +410,18 @@ def g8_fight():
     w(30)
     health("fight")
     # its rifle: walked to, gripped; the three targets on the west wall shot
+    # (from the west, the targets' side: the fight's corpse lies where it fell, east, often by the gun, and a hand
+    # coming over it grips the corpse)
+    walk(5250, 690, 16, 150)
     c("vr_mock_walk_to nearest thrown_weapon 28")
     w(200)
     # gripped at its handle (0.53 of its drawn length: held, ready to fire; elsewhere it is only carried), the hand
     # turned level (a grip's angle; the punches left it pitched)
     c("vr_mock_hand main 0.2 1.0 -0.3 0 0 0")
     w(5)
-    for _ in range(2):
-        c("vr_mock_hand_to main weapon 0.53 8")
-        w(4)
-    c("+grabmain", "vr_mock_button main grip 1", "wait")
-    for _ in range(2):
-        c("vr_mock_hand_to main weapon 0.53 0")
-        w(4)
-    w(20)
+    # three tries (the dropped gun may lie against the body or the corpse; a try after a good one only drops and
+    # takes it again: its hand_to finds it lying at the hand)
+    take_lying_weapon("main")
     c("vr_status")
     walk(5100, 672, 8, 200)
     c("vr_mock_turn_to 180", "vr_debug_wallbuttons 1")
@@ -594,20 +637,20 @@ def g13_arena():
         # a gun knocked out of the hand is taken again (nothing lying: nothing done)
         c("vr_mock_walk_to nearest thrown_weapon 26")
         w(100)
+        # (the grip let go first: a knocked-out gun leaves it pressed, and only a new press takes; a gun still held
+        # drops at the hand and is taken again by its handle)
+        let_go("main")
         c("vr_mock_hand main 0.2 1.0 -0.3 0 0 0")
-        for _ in range(2):
-            c("vr_mock_hand_to main weapon 0.5 8")
-            w(4)
-        c("+grabmain", "vr_mock_button main grip 1", "wait")
-        for _ in range(2):
-            c("vr_mock_hand_to main weapon 0.5 0")
-            w(4)
-        w(10)
+        w(2)
+        take_lying_weapon("main", 10)
         if k % 3 == 2:
             walk(1337, -856, 3, 250)   # more shells (a box every 10 s there)
             take_to_holster("off", "item_shells", 2)
     health("arena")
     c("vr_mock_hand_aim main off", "vr_mock_turn_to off")
+    # (round the pit's east side, not down its stairs: x 640..1024, y -1152..-768, the stairs on its north side)
+    walk(1060, -700, 8, 300)
+    walk(1060, -1250, 8, 300)
     walk(832, -1300, 8, 400)
     walk(832, -1500, 8, 300)
     walk(832, -1700, 8, 300)
@@ -759,8 +802,9 @@ def script(args):
     c('alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "developer 1", "vr_tips 0", "vr_fixed_frames 1", "vr_climb_debug 1", "vr_debug_wallbuttons 1",
       "skill 0", "map vrtutorial2")
     w(80)
-    global GOD
+    global GOD, LEDGE_CHECKS
     GOD = args.god
+    LEDGE_CHECKS = args.ledge
     global PUNCH
     plays = os.path.join(ROOT, "scratch", "vrtut2_plays").replace("\\", "/")
     os.makedirs(plays, exist_ok=True)
@@ -851,6 +895,8 @@ CHECKS = [
     ("barrier1", "jumped the 32 barrier", lambda p: p[0] > 2600),
     ("barrier2", "jumped the 40 barrier", lambda p: p[0] > 2810),
     ("ladder", "climbed the ladder onto the block", lambda p: p[2] > 150),
+    ("nojump", "the high ledge: a jump alone stays on the block", lambda p: p[2] < UP),
+    ("noreach", "the high ledge: a reach to 2.2 m without a jump holds nothing", lambda p: p[2] < UP),
     ("ledge", "caught the high ledge at a jump's top, pulled up", lambda p: p[2] > UP + 10),
     ("room4", "on to room 4", lambda p: p[0] > 3550 and p[2] > UP),
     ("swim_passage", "swam down and through the passage", lambda p: p[0] > 4060 and p[2] < UP),
@@ -883,8 +929,12 @@ def check(softlock=False):
     rows = parse(lines)
     stuck = [l for l in lines if "stuck" in l]
     fails = 0
+    n = 0
     for gate, what, ok in CHECKS:
         vals = [v for g, k, v in rows if g == gate]
+        if gate in LEDGE_GATES and not vals:
+            continue   # (--ledge's: not in this run)
+        n += 1
         res = "PASS" if vals and ok(vals[-1]) else "FAIL"
         fails += res == "FAIL"
         print("%-14s %s  %s  (%s)" % (gate, res, what, vals[-1] if vals else "no state"))
@@ -894,7 +944,7 @@ def check(softlock=False):
         print("%-14s %s  %s" % (gate, res, what))
     for l in stuck[:10]:
         print("  " + l.strip())
-    n = len(CHECKS) + len(SOFTLOCK_LINES if softlock else LINE_CHECKS)
+    n += len(SOFTLOCK_LINES if softlock else LINE_CHECKS)
     print("%d of %d gates passed" % (n - fails, n))
     return 1 if fails else 0
 
@@ -906,6 +956,8 @@ def main():
                     "wasted rifle, restocks); with check: their table")
     ap.add_argument("--god", action="store_true", help="god mode from the fist fight on (the fights can't kill him)")
     ap.add_argument("--from", dest="start", help="start at this gate (setpos there first)")
+    ap.add_argument("--ledge", action="store_true", help="also room 3's high ledge's negatives (a jump alone, a reach "
+                    "without a jump: neither gets up; run with --from jump, as they shift the later gates' timing)")
     args = ap.parse_args()
     if args.mode == "script":
         script(args)
