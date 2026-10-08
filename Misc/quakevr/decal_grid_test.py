@@ -9,8 +9,17 @@ from pathlib import Path
 import subprocess
 
 
+# The optimized builder keeps each mark's buckets in the mark (Decal::buckets, for the grid of bucketsMask): its marks
+# here, one per WorldDecal, in the same order (decals[k] is worldDecals[k], as in buildWorld).
+MARKS = """struct Decal { za::Vector<za::U32> buckets; za::U32 bucketsMask = 0; };
+std::vector<Decal> decals;
+"""
+
+
 def builder(source, namespace):
     structure = source[source.index("struct WorldDecal\n"):source.index("static_assert(sizeof(WorldDecal)")]
+    if "Decal::buckets" in source:
+        structure += MARKS
     constants = source[source.index("constexpr float worldCell"):source.index("gfx::StorageBuffer worldDecalBuffer")]
     buckets = source[source.index("void worldBuckets("):source.index("// The marks and their grid made again")]
     grid = source[source.index("    // Buckets: twice"):source.index('    QVR_PROFILE("decal buffers upload")')]
@@ -27,6 +36,7 @@ HARNESS = r'''
 #include <cstdio>
 #include <cstdlib>
 #include <random>
+#include <vector>
 #define QVR_PROFILE(x) ((void)0)
 @BUILDERS@
 int cases = 0;
@@ -38,14 +48,12 @@ void check() {
         std::fprintf(stderr, "Grid differs in case %d\n", cases);
         std::exit(1);
     }
-    // Also require identical first-cell membership order, even for capped buckets.
+    // Also require identical first-cell membership order, even for capped buckets (each mark's kept buckets).
     for(size_t k = 0; k < reference::worldDecals.size(); ++k) {
         reference::worldBuckets(reference::worldDecals[k], reference::worldGrid[0]);
-        auto begin = optimized::worldMembershipOffsets[k];
-        auto end = optimized::worldMembershipOffsets[k + 1];
-        if(end - begin != reference::worldMarkBuckets.size() ||
-           !std::equal(reference::worldMarkBuckets.begin(), reference::worldMarkBuckets.end(),
-                       optimized::worldMemberships.begin() + begin)) {
+        const auto& kept = optimized::decals[k].buckets;
+        if(optimized::decals[k].bucketsMask != optimized::worldGrid[0] || kept.size() != reference::worldMarkBuckets.size() ||
+           !std::equal(reference::worldMarkBuckets.begin(), reference::worldMarkBuckets.end(), kept.begin())) {
             std::fprintf(stderr, "Membership order differs in case %d, mark %zu\n", cases, k);
             std::exit(1);
         }
@@ -58,8 +66,16 @@ void add(glm::vec3 c, glm::vec3 u, glm::vec3 v, glm::vec3 n, float size, float d
     optimized::WorldDecal b{a.centre, a.u, a.v, a.n, a.time};
     reference::worldDecals.pushBack(a);
     optimized::worldDecals.pushBack(b);
+    optimized::decals.emplace_back();
 }
-void clear() { reference::worldDecals.clear(); optimized::worldDecals.clear(); }
+void clear() { reference::worldDecals.clear(); optimized::worldDecals.clear(); optimized::decals.clear(); }
+// The oldest mark gone (the ring's popFront): the others keep their buckets.
+void popOldest() {
+    za::Vector<reference::WorldDecal> a; za::Vector<optimized::WorldDecal> b;
+    for(size_t k = 1; k < reference::worldDecals.size(); ++k) { a.pushBack(reference::worldDecals[k]); b.pushBack(optimized::worldDecals[k]); }
+    reference::worldDecals = a; optimized::worldDecals = b;
+    optimized::decals.erase(optimized::decals.begin());
+}
 int main() {
     std::mt19937 rng(20261005);
     std::uniform_real_distribution<float> pos(-4096, 4096), dir(-1, 1), size(.001f, 256);
@@ -81,22 +97,32 @@ int main() {
         add({float((k % 64) * 6 - 192), float((k / 64) * 6 - 192), -32},
             {1,0,0}, {0,1,0}, {0,0,1}, 128, 12);
     check();
-    std::printf("Dense-case scratch capacity: stamps %zu bytes, memberships %zu bytes, offsets %zu bytes\n",
+    std::printf("Dense-case scratch capacity: stamps %zu bytes, kept buckets %zu bytes, marks %zu bytes\n",
         optimized::worldBucketStamp.capacity() * sizeof(za::U32),
-        optimized::worldMemberships.capacity() * sizeof(za::U32),
-        optimized::worldMembershipOffsets.capacity() * sizeof(za::SizeT));
+        [] { size_t n = 0; for(const auto& d : optimized::decals) n += d.buckets.capacity() * sizeof(za::U32); return n; }(),
+        optimized::decals.capacity() * sizeof(optimized::Decal));
     // Force stamp rollover without resizing, with both old generation 1 stamps
     // and a freshly stamped UINT32_MAX mark present.
     std::fill(optimized::worldBucketStamp.begin(), optimized::worldBucketStamp.end(), 1u);
     optimized::worldStamp = UINT32_MAX - 1;
+    for(auto& d : optimized::decals) d.bucketsMask = 0; // (hashed again: through the rollover)
     check();
+    // A stream: marks come one at a time and the oldest go (kept buckets reused; the grid's size changing on the way).
+    clear();
+    for(int k = 0; k < 600; ++k) {
+        glm::vec3 n = glm::normalize(glm::vec3(dir(rng), dir(rng), dir(rng)));
+        glm::vec3 u = glm::normalize(glm::cross(n, glm::vec3(0, 1, 0)));
+        add({pos(rng) * 0.05f, pos(rng) * 0.05f, pos(rng) * 0.05f}, u, glm::cross(n, u), n, size(rng) * 0.25f, 1 + rng() % 12);
+        if(k >= 300) popOldest();
+        check();
+    }
     clear(); // table shrinks back to minimum
     add({-32,-64,32}, {1,0,0}, {0,1,0}, {0,0,1}, .001f, 1);
     check();
     check(); // unchanged membership with reused scratch
     clear();
     check();
-    std::printf("PASS: %d exact grid and membership comparisons (random rotated marks, collisions, newest-64, resize, empty, rollover)\n", cases);
+    std::printf("PASS: %d exact grid and membership comparisons (random rotated marks, collisions, newest-64, resize, empty, rollover, a stream)\n", cases);
 }
 '''
 
@@ -120,7 +146,7 @@ call "{Path(args.vcvars).resolve()}" >nul
 if errorlevel 1 exit /b 1
 cl /nologo /std:c++latest /EHsc /O2 /DZA_STATIC /DNDEBUG /I"{root / 'Quake/vr/external'}" /I"{root / 'Quake/vr/external/zancle/include'}" grid_test.cpp /Fe:grid_test.exe
 if errorlevel 1 exit /b 1
-grid_test.exe
+"%~dp0grid_test.exe"
 '''
     (out / "run.bat").write_text(batch)
     subprocess.run(["cmd.exe", "/c", str(out / "run.bat")], cwd=out, check=True)
