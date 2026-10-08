@@ -6,6 +6,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
+#include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_move.hpp"
 #include "vr_motion.hpp"
@@ -279,6 +280,49 @@ BroadcastRoom broadcastRoom{};
     }
 }
 
+// A whole temp entity QuakeC wrote at `at`: an explosion's (TE_EXPLOSION, TE_EXPLOSION2, TE_TAREXPLOSION) launches its
+// chunks at the frame's end (vr_explosiondebris.cpp), where the client draws it.
+void noteExplosion(int at)
+{
+    const byte type = sv.datagram.data[at + 1];
+    if(type != TE_EXPLOSION && type != TE_EXPLOSION2 && type != TE_TAREXPLOSION)
+    {
+        return;
+    }
+    const byte* p = sv.datagram.data + at + 2;
+    const auto i16 = [](const byte* q) { return static_cast<int16_t>(q[0] | (q[1] << 8)); };
+    const auto i32 = [](const byte* q) { return static_cast<int32_t>(static_cast<uint32_t>(q[0]) | (static_cast<uint32_t>(q[1]) << 8) | (static_cast<uint32_t>(q[2]) << 16) | (static_cast<uint32_t>(q[3]) << 24)); };
+    glm::vec3 org{0.f};
+    for(int k = 0; k < 3; k++)
+    {
+        // As MSG_ReadCoord reads it (common.c), in the server's protocol.
+        if(sv.protocolflags & PRFL_FLOATCOORD)
+        {
+            const int32_t bits = i32(p);
+            float f;
+            memcpy(&f, &bits, sizeof(f));
+            org[k] = f;
+            p += 4;
+        }
+        else if(sv.protocolflags & PRFL_INT32COORD)
+        {
+            org[k] = static_cast<float>(i32(p)) * (1.f / 16.f);
+            p += 4;
+        }
+        else if(sv.protocolflags & PRFL_24BITCOORD)
+        {
+            org[k] = static_cast<float>(i16(p)) + static_cast<float>(p[2]) * (1.f / 255.f);
+            p += 3;
+        }
+        else
+        {
+            org[k] = static_cast<float>(i16(p)) * (1.f / 8.f);
+            p += 2;
+        }
+    }
+    qvr::explosiondebris::noteBroadcast(org);
+}
+
 void broadcastMark(int at)
 {
     BroadcastRoom& b = broadcastRoom;
@@ -390,6 +434,7 @@ extern "C" void VR_BroadcastWritten(sizebuf_t* dest)
         const int len = tempEntityLength(b.msgAt);
         if(len > 0 && b.qcEnd - b.msgAt == len)
         {
+            noteExplosion(b.msgAt); // (an explosion's chunks: vr_explosiondebris.cpp)
             broadcastMark(b.qcEnd); // a whole temp entity: the next message begins here
         }
         else if((len > 0 && b.qcEnd - b.msgAt > len) || (len == 0 && b.qcEnd - b.msgAt >= 2))
@@ -859,6 +904,7 @@ extern "C" void VR_ServerFrameEnd()
 
     qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
     qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)
+    qvr::explosiondebris::serverFrame(); // the explosions' chunks: new ones launched, the ended gone, the fades
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
 
     if(!vrProtocol())

@@ -107,6 +107,7 @@ void clientParts(int bits, bool clear)
         particles::clear();
         R_ClearParticles();
         explosiondebris::clear();
+        explosiondebris::serverClear(); // (the server's chunks: a listen server's)
         shells::clear();
         autopump::clear();
         smoulder::clear();

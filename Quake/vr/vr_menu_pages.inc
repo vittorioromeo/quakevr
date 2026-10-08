@@ -70,11 +70,23 @@
     };
 }
 
+// Explosion chunks in multiplayer (vr_explosion_debris_mp_max), its leftmost step -1: as many as in single player.
+[[nodiscard]] Item explosionDebrisMultiplayerSlider()
+{
+    Item i = slider("Most in Multiplayer", "vr_explosion_debris_mp_max", -1.f, 96.f, 1.f, "%.0f")
+                 .extend(-1.f, 256.f)
+                 .help("The most at once in a multiplayer game (yours as the host). They are the server's: each one in sight "
+                       "costs every player's network packets (about 18 bytes a frame while it moves). Single Player's: as "
+                       "many as Maximum Active Chunks. 0: none.");
+    i.negativeLabel = "Single Player's";
+    return i;
+}
+
 // A separate tuning page for the physical blast fragments and their trails/glows.
 [[nodiscard]] za::Vector<Item> pageExplosionDebris()
 {
     return {
-        toggle("Physical Explosion Debris", "vr_explosion_debris").help("Small incandescent model objects from every ordinary, coloured or tarbaby explosion. They collide with the level and moving doors/platforms, pass through characters, and never cause damage."),
+        toggle("Physical Explosion Debris", "vr_explosion_debris").help("Small incandescent chunks from every ordinary, coloured or tarbaby explosion: physics objects of the game (the host's) that bounce off the level, doors, lifts, monsters and props, ride lifts, are thrown by later blasts, pass through your hands, and never cause damage."),
         slider("Chunks per Explosion", "vr_explosion_debris_count", 0.f, 32.f, 1.f, "%.0f").extend(0.f, 64.f),
         slider("Minimum Speed", "vr_explosion_debris_speed_min", 0.f, 20.f, 0.25f, "%.2f m/s").extend(0.f, 40.f),
         slider("Maximum Speed", "vr_explosion_debris_speed_max", 0.f, 20.f, 0.25f, "%.2f m/s").extend(0.f, 40.f).help("Speed chosen between Minimum and Maximum; swapped endpoints are accepted."),
@@ -85,6 +97,7 @@
         slider("Maximum Lifetime", "vr_explosion_debris_life_max", 0.1f, 10.f, 0.1f, "%.1f s").extend(0.1f, 30.f).help("Lifetime chosen independently for each chunk; fades out at the end, even when resting."),
         slider("Bounciness", "vr_explosion_debris_bounce", 0.f, 1.f, 0.05f, "%.2f").help("Share of speed retained away from the surface. 0: no rebound, 1: full rebound. Surface friction also slows sliding."),
         slider("Maximum Active Chunks", "vr_explosion_debris_max", 0.f, 128.f, 1.f, "%.0f").extend(0.f, 256.f).help("Oldest chunks go first when a blast needs room. Reducing this or disabling the effect removes the excess immediately."),
+        explosionDebrisMultiplayerSlider(),
         slider("Fire and Smoke Trail", "vr_explosion_debris_trail", 0.f, 3.f, 0.1f, "%.1fx").help("Trail density (0: off). Needs Quake VR Particles. Physical chunks and their lights work with particles off."),
         slider("Maximum Glowing Lights", "vr_explosion_debris_lights", 0.f, 16.f, 1.f, "%.0f").help("Only the nearest chunks emit dynamic light, to keep many blasts inexpensive. Their model skins remain incandescent. These lights do not cast shadows."),
         slider("Glow Light Radius", "vr_explosion_debris_light_radius", 0.f, 120.f, 4.f, "%.0f units").extend(0.f, 200.f),

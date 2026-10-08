@@ -1230,7 +1230,8 @@ QVR_CVAR(vr_fire_particles_size, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_alpha, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_range, "1200", CVAR_ARCHIVE)
 
-// Physical explosion chunks (client model objects; harmless, bounded, swept world/brush collisions).
+// Explosion chunks (vr_explosiondebris.cpp): the server's Box3D props (count, speeds, sizes, lives, bounce, max: the
+// server's settings), their trail and glow the client's; harmless, bounded.
 QVR_CVAR(vr_explosion_particles, "1", CVAR_ARCHIVE) // large fireball sprites per blast, exact count (0..16)
 QVR_CVAR(vr_explosion_debris, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_explosion_debris_count, "12", CVAR_ARCHIVE)
@@ -1243,6 +1244,7 @@ QVR_CVAR(vr_explosion_debris_life_min, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_explosion_debris_life_max, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_explosion_debris_bounce, "0.45", CVAR_ARCHIVE) // normal speed retained on bounce, 0..1
 QVR_CVAR(vr_explosion_debris_max, "96", CVAR_ARCHIVE) // oldest retired first, hard cap 256
+QVR_CVAR(vr_explosion_debris_mp_max, "24", CVAR_ARCHIVE) // most at once in multiplayer (server entities: each in sight costs every remote client's datagram about 18 bytes a frame while it moves); -1: as in single player (vr_explosion_debris_max), 0: none
 QVR_CVAR(vr_explosion_debris_trail, "1", CVAR_ARCHIVE) // trail density, 0 off
 QVR_CVAR(vr_explosion_debris_lights, "8", CVAR_ARCHIVE) // nearest glowing chunks, cap 16 of the shared dlights
 QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1

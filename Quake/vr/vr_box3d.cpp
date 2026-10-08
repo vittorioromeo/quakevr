@@ -147,6 +147,11 @@ constexpr uint64_t catReachWeapon = 1024; // a held weapon's body (vr_box3d_weap
 constexpr uint64_t catReach = catReachHand | catReachWeapon;
 constexpr uint64_t catCorpse = 2048; // a corpse's body (vr_corpse_collide): what meets it is its own mask's (corpseMask)
 constexpr uint64_t propMask = catWorld | catMover | catActor | catPlayer | catProp | catHeld | catFixture | catCorpse;
+// An explosion's chunk (vr_explosiondebris.cpp; isChunk), as well as catProp: it meets the level, doors and lifts,
+// monsters, players, props and corpses (its few grams knock them, barely), never the hands or what they hold; a contact
+// with one makes no sound, touch or impact (chunkPair).
+constexpr uint64_t catChunk = 4096;
+constexpr uint64_t chunkMask = catWorld | catMover | catActor | catPlayer | catProp | catFixture | catCorpse;
 
 enum class Kind : uint8_t
 {
@@ -469,6 +474,7 @@ struct Slot // what one edict is in the world (by its number)
     bool sleepless{false}; // Box3D's sleep off: floating (it bobs), or sinking through the water (beforeStep)
     float lift{0.f};       // N up: its lift in water this frame (beforeStep), given again in each piece of the step
     bool bullet{false};   // fast: continuous collision against other props too
+    bool chunk{false};    // an explosion's chunk (isChunk)
     bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
     bool spins{false};    // a fixture drawn spinning (an EF_ROTATE model: the map's pickups): its shape turns with it
@@ -1850,9 +1856,45 @@ template <typename Corners>
     return def;
 }
 
+// An explosion's chunk (vr_explosiondebris.cpp: progs/vr_explosion_debris.mdl, its size its box).
+[[nodiscard]] bool isChunk(const qmodel_t* model)
+{
+    return model && modelmeta::is(model, modelmeta::Id::VrExplosionDebris);
+}
+
+// Whether a contact's shapes are a chunk's: its sounds, touches and impacts are left out (a chunk at 9 m/s would
+// knock a crate's sound, touch a door, set off an explosive box's hard hit).
+[[nodiscard]] bool chunkPair(b3ShapeId a, b3ShapeId b)
+{
+    return ((b3Shape_GetFilter(a).categoryBits | b3Shape_GetFilter(b).categoryBits) & catChunk) != 0;
+}
+
+// A chunk's shape: a sphere as wide as its box (its entity's size), its own mass (.vr_prop_mass), bouncing as
+// vr_explosion_debris_bounce, no events or filtering of its own (made inside a monster, Box3D pushes it out).
+void addChunkShape(edict_t* ent, int num, b3BodyId body)
+{
+    b3ShapeDef def = shapeDef(num, catProp | catChunk, chunkMask);
+    const float radius = za::max(ent->v.maxs[0], 0.25f) / world->m2u;
+    const float volume = 4.18879f * radius * radius * radius;
+    def.density = za::max(massSetting(ent, nullptr), 1e-4f) / za::max(volume, 1e-9f);
+    def.baseMaterial.restitution = CLAMP(0.f, vr_explosion_debris_bounce.value, 1.f);
+    def.baseMaterial.rollingResistance = 0.2f; // (a sphere: it settles instead of rolling across the floor)
+    def.enableContactEvents = false;
+    def.enableHitEvents = false;
+    def.enablePreSolveEvents = false;
+    def.enableCustomFiltering = false;
+    const b3Sphere sphere{b3Vec3{0.f, 0.f, 0.f}, radius};
+    b3CreateSphereShape(body, &def, &sphere);
+}
+
 // The prop's shapes on `body`: its hull or its box.
 void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, const glm::vec3& hi, b3BodyId body, bool held)
 {
+    if(!held && isChunk(model))
+    {
+        addChunkShape(ent, num, body);
+        return;
+    }
     b3ShapeDef def = shapeDef(num, held ? catHeld : catProp, held ? catProp | catCorpse : propMask);
     if(!held && isSolidProp(ent))
     {
@@ -4665,6 +4707,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.massSetting = massSetting(ent, model);
     s.massScale = props::massScale(model);
     s.soft = model && isSoft(ent, model);
+    s.chunk = isChunk(model);
     s.sound = physsound::materialOf(ent, model);
     s.origin = vec(ent->v.origin);
     s.angles = vec(ent->v.angles);
@@ -6510,7 +6553,10 @@ void beforeStep(float dt)
                 destroyBody(s);
                 continue;
             }
-            touchNearby(ent, com, com + vel * dt);
+            if(!s.chunk) // (a chunk touches nothing: its box along its flight is only a cost)
+            {
+                touchNearby(ent, com, com + vel * dt);
+            }
             if(ent->free || kindOf(ent, num, {}) != Kind::Prop)
             {
                 destroyBody(s); // gone, or no longer a prop (the next frame sees what it is)
@@ -6885,7 +6931,7 @@ void soundHits(const b3ContactEvents& events)
     for(int i = 0; i < events.hitCount; i++)
     {
         const b3ContactHitEvent& e = events.hitEvents[i];
-        if(e.approachSpeed < least || !b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB))
+        if(e.approachSpeed < least || !b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB) || chunkPair(e.shapeIdA, e.shapeIdB))
         {
             continue;
         }
@@ -6935,7 +6981,7 @@ void touches(za::Vector<za::Pair<int, int>>& out)
     for(int i = 0; i < events.beginCount; i++)
     {
         const b3ContactBeginTouchEvent& e = events.beginEvents[i];
-        if(!b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB))
+        if(!b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB) || chunkPair(e.shapeIdA, e.shapeIdB))
         {
             continue;
         }
@@ -6953,7 +6999,8 @@ void touches(za::Vector<za::Pair<int, int>>& out)
     for(int i = 0; i < events.hitCount; i++)
     {
         const b3ContactHitEvent& e = events.hitEvents[i];
-        if(!b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB) || e.approachSpeed * world->m2u < 60.f)
+        if(!b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB) || e.approachSpeed * world->m2u < 60.f ||
+            chunkPair(e.shapeIdA, e.shapeIdB))
         {
             continue;
         }
@@ -7003,7 +7050,7 @@ void touches(za::Vector<za::Pair<int, int>>& out)
     for(int i = 0; i < events.hitCount; i++)
     {
         const b3ContactHitEvent& e = events.hitEvents[i];
-        if(!b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB) || e.approachSpeed < 2.f)
+        if(!b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB) || e.approachSpeed < 2.f || chunkPair(e.shapeIdA, e.shapeIdB))
         {
             continue;
         }

@@ -445,6 +445,10 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
     {
         return Material::None; // (QC vr_reload.qc's tink: the spent shells' vr/shell_tink*.wav)
     }
+    if(info.is(modelmeta::Id::VrExplosionDebris))
+    {
+        return Material::None; // an explosion's chunks land silently (vr_explosiondebris.cpp)
+    }
     if(info.has(modelmeta::Trait::Magazine) || info.has(modelmeta::Trait::LiveRound))
     {
         return Material::Metal; // a magazine: a steel box (a cell: a steel can)

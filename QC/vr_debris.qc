@@ -24,6 +24,7 @@ void() VR_Debris_Precache =
     precache_model("progs/vr_brick2.mdl");
     precache_model("progs/vr_brick3.mdl");
     precache_model("progs/vr_brick4.mdl");
+    precache_model("progs/vr_explosion_debris.mdl"); // an explosion's chunks (the engine's: vr_explosiondebris.cpp)
     precache_sound("vr/rock1.wav"); // a stone's thud (Misc/quakevr/make_sounds.py)
     precache_sound("vr/rock2.wav");
     precache_sound("vr/rock3.wav");

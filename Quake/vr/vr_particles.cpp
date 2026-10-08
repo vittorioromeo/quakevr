@@ -5,7 +5,6 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_particles.hpp"
-#include "vr_explosiondebris.hpp"
 #include "vr_units.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -1662,7 +1661,6 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
 
 bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 {
-    if(preset == Preset::Explosion) { explosiondebris::spawn(org); }
     QVR_PROFILE("particle spawn");
     // The splash's ripples on the liquid (vr_water_ripples, vr_water.cpp), with Quake VR's particles or without.
     glm::vec3 surface{0.f};
@@ -3268,7 +3266,6 @@ extern "C" int VR_ParticleExplosion(const float* org)
 
 extern "C" int VR_ParticleExplosion2(const float* org, int colorStart, int colorLength)
 {
-    qvr::explosiondebris::spawn({org[0], org[1], org[2]});
     using namespace qvr;
     using namespace qvr::particles;
     if(!(cl.protocolflags & PRFL_QUAKEVR) || !vr_particles.value || !ensureAtlas())
@@ -3303,7 +3300,6 @@ extern "C" int VR_EntityTrail(int ent, int type)
 
 extern "C" int VR_BlobExplosion(const float* org)
 {
-    qvr::explosiondebris::spawn({org[0], org[1], org[2]});
     using namespace qvr::particles;
     if(!enabled())
     {

@@ -202,6 +202,10 @@
 .float alpha;            // how opaque it is drawn (0: wholly; a piece fading away). (Here, not in honey_defs.qc: the
                          // crates' pieces, compiled before it, use it.)
 
+// Explosion chunks (vr_explosiondebris.cpp): the engine makes them (an explosion's temp entity), Box3D moves them, a
+// fade and SUB_Remove end them; nothing here touches them.
+.float vr_xdebris;      // a chunk: when it was made (0: not one)
+
 //
 //
 //

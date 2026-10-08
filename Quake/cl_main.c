@@ -738,7 +738,10 @@ void CL_RelinkEntities (void)
 		else if (ent->model->flags & EF_TRACER3)
 			CL_RocketTrail (ent, 6);
 		else
+		{
+			VR_ExplosionDebrisTrail (i); // QVR: an explosion's chunk: its fire trail from where it was drawn last
 			CL_ResetTrail (ent);
+		}
 		VR_ProjectileLight (i); // QVR: hell knight flames, scrag spit, vore balls and lasers light up the room
 
 		ent->forcelink = false;
