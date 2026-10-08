@@ -2971,7 +2971,7 @@ int halfResFrame = -1;
     if(halfResFrame != host_framecount)
     {
         halfResFrame = host_framecount;
-        const float cover = largeCover(split, viewport);
+        const float cover = vr_particle_halfres_force.value != 0.f ? 2.f : largeCover(split, viewport);
         halfRes = cover >= (halfRes ? 1.f : 1.5f);
     }
     return halfRes;
@@ -3089,7 +3089,12 @@ extern "C" void VR_DrawSceneTranslucent()
         retroSet > 0 ? za::max(0.f, vr_particle_retro_halfres_pixels.value) :
                        za::max(0.f, vr_particle_halfres_pixels.value)};
     const bool allowHalf = retroSet > 0 ? vr_particle_retro_halfres.value != 0.f : vr_particle_halfres.value != 0.f;
-    const bool half = inView && allowHalf &&
+    // Retro: not in the frames composited in reverse order (vr_particle_saturate: the densest, from 10 views of
+    // particles), where skipping what is hidden costs less than all of them at half size (particles_dense: 8 against
+    // 25 ms of GPU a frame, BENCHMARKS.md "Half-resolution retro particles").
+    const bool saturated = retroSet > 0 && inView && vr_particle_halfres_force.value == 0.f &&
+                           reverseOrderThisFrame(split.pixelScale, viewport);
+    const bool half = inView && allowHalf && !saturated &&
                       (GL_NeedsSceneEffects() || GL_NeedsPostprocess()) && halfResThisFrame(split, viewport);
 
     // The opaque scene's distances, for the soft ones (the liquids' when they made them this view): only when a soft

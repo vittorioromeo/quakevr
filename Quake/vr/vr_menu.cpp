@@ -4521,6 +4521,16 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Freeze Particles", vr_particle_freeze)
             .help("vr_particle_freeze: the particles stop where they are (still drawn), to compare settings on the same "
                   "frame."),
+        toggle("Half-Res Particles Always", vr_particle_halfres_force)
+            .help("vr_particle_halfres_force: the particles drawn at half resolution in every frame with some in view "
+                  "(when Half-Res Heavy Particles or Half-Res Retro Particles allow it), not only in dense effects: to "
+                  "compare with Freeze Particles."),
+        cycle("Half-Res Blend", vr_particle_halfres_upsample,
+            {{0.f, "Filtered (before)"}, {1.f, "By Depth"}, {2.f, "By Depth, Edges Shown"}})
+            .help("vr_particle_halfres_upsample: how half-resolution particles are blended into the view. By Depth: each "
+                  "pixel takes the half-size texels at its own distance (no smoke bled onto a crate's edge in front of "
+                  "it). Edges Shown: the pixels that took texels by distance in green. Filtered: the four blended, as "
+                  "before."),
         header("Server Tick"),
         toggle("Fixed 72 Hz Server Tick", host_fixedtick)
             .help("host_fixedtick: the server (monsters, physics, your hands' blows) runs in steady 1/72 s ticks at any "

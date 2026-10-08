@@ -454,3 +454,47 @@ other workers built and ran on the machine**, so the paired medians, not the abs
 Left (PERF_DECISIONS.md, "Dawn of the Machine"): the per-monster entity walks of the stealth AI and the enemy shove,
 the force grab's search, the kill frame's spawns. Not covered: map loads (secret2's 35 MB BSP: `load_*` has no MG3
 scenario), skills 0, 1 and 3, co-op.
+
+### Half-resolution retro particles (PERF_DECISIONS.md item 5, 2026-10-08)
+
+The author's call: retro particles at half resolution if the change is not very noticeable. Done: the half-size
+particles are blended in by depth (`vr_particle_halfres_upsample 1`, new, on: a bilateral blend, each pixel the
+half-size texels at its own distance, the scene's full-size depth read), retro frames composited in reverse order
+(`vr_particle_saturate`, the densest) keep full resolution, and `vr_particle_halfres_force` (tests, Debug > Particles'
+Fill) draws every frame at half size for same-frame comparisons. **`vr_particle_retro_halfres` stays 0**: the change
+is visible and the GPU win small.
+
+Images (his settings of 2026-10-06, frozen frame, `vr_eyeshot 1` left eye 1536 square; `vr_particle_freeze 1` and
+`pause`, the half path forced; mean and max abs difference against full resolution in 0-255, share of pixels off by
+more than 8 and 32 levels; noise: the same frame shot twice at full resolution):
+
+| scenario | noise mean | half mean | max | > 8 | > 32 | before (filtered blend) > 8 | > 32 |
+|---|---|---|---|---|---|---|---|
+| `combined` | 0.07 | 0.85 | 147 | 0.48% | 0.03% | 0.50% | 0.03% |
+| `particles_dense` | 0.01 | 0.70 | 149 | 0.24% | 0.01% | 0.24% | 0.01% |
+| `explosions_storm` | 0.02 | 2.31 | 184 | **7.0%** | 0.63% | 7.0% | 0.61% |
+
+The same without foveation, bloom and dither (the half path's own change): `combined` 1.20 mean, 1.05% over 8;
+`particles_dense` 1.06, 0.59%; `explosions_storm` 3.79, **12.1%** over 8, 1.16% over 32. In the fire and debris of
+`explosions_storm` the retro blocks of the chunks and the square sparks go soft (scratch images `cmp_*.png` of agent
+`perf`: full, half, difference x4). The depth-aware blend against the filtered one: the same away from edges; at
+depth edges (2-4% of the pixels) no fire bled onto a crate's edge in front of it (`cmp_halo.png`), though against the
+full-resolution image the edge pixels' error is about the same (full resolution has its own dark rim there). A
+16-pixel split (small particles at full size over the large) is worse: 0.48% of `combined` off by more than 32 (drawn
+out of order).
+
+GPU (paced, exclusive, `--settings` his cfg + the variant, 600 frames; **the machine shared with the author's game in
+the headset and other workers**: rounds 2-3 doubled to tripled, so the quiet first round is the measure; ms a frame,
+"vr particles" GPU / GPU 3D; B-D measured before the reverse-order frames were kept at full resolution, which only
+changes those frames):
+
+| scenario | full (A) | half, depth-aware (B) | half, filtered (C) | half, 16 px split (D) |
+|---|---|---|---|---|
+| `combined` | 4.13 / 7.20 | 4.12 / 7.13 | 4.42 / 7.48 | 5.22 / 8.89 |
+| `particles_dense` | 4.50 / 5.46 | 4.38 / 5.33 | 4.37 / 5.31 | 4.92 / 5.91 |
+| `explosions_storm` | 1.08 / 2.10 | **0.58 / 1.59** | 0.57 / 1.57 | |
+
+`vr_profile` over the last 5 s of `particles_dense` (the densest, unpaced): particles 8.2 ms GPU at full resolution
+(reverse order, the hidden ones skipped) against **25.5 ms at half size** (all of them drawn: the half pass cannot
+skip): hence retro frames composited in reverse order stay at full resolution (after: 10.1-10.5 against 9.3-10.2 ms,
+two interleaved pairs on the busy machine). The half programs compile at their first use (a 56 ms frame, as before).

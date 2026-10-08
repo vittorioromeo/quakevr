@@ -68,7 +68,18 @@ going differently (more blood particles and debris: vr particles 0.41 against 0.
 0.42). The stealth scopes themselves are small (STEALTH_PLAN.md: 0.02-0.06 ms a server frame). Not a decision: the
 feature's cost, measured; nothing in it stood out in VTune (no stealth function in the top 30).
 
-### 5. Retro particles' fill (still open: PROFILING_2026-10.md item 4)
+### 5. Retro particles' fill (decided 2026-10-08: tried, left off)
+
+**Decided** (the author: "try it; if the visual change is not very noticeable, then yes"): tried, and
+`vr_particle_retro_halfres` stays 0 (BENCHMARKS.md, "Half-resolution retro particles"). The half path now blends its
+particles in by depth (`vr_particle_halfres_upsample 1`: no fire bled onto an edge in front of it; also for the
+non-retro half path, on by default) and leaves retro frames composited in reverse order at full resolution (in the
+densest, half size cost 25 against 8 ms of GPU). The change is visible where it would pay: `explosions_storm` 7-12% of
+the pixels off by more than 8 levels (the chunks' retro blocks and the square sparks go soft) for 0.5 ms of GPU; in
+`combined` and `particles_dense` 0.2-1% of the pixels and no GPU saved. On in the menu (Half-Res Retro Particles) for
+whoever prefers the frames.
+
+Before:
 
 `particles_dense`: GPU 5.7 ms, the VR particles 4.8 of it; `combined` GPU 7.4, particles 4.3. Nsight Systems on
 `combined`: glDrawArrays (particles and full-screen passes) 62% of the GPU's busy time, the world's

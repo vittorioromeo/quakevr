@@ -607,6 +607,13 @@ HalfTarget halfTargets[2];
 int halfTargetNext = 0;
 GLuint halfCompositeProgram = 0;
 bool halfCompositeFailed = false;
+GLuint halfDepthCompositeProgram = 0; // vr_particle_halfres_upsample's (halfDepthCompositeFs)
+bool halfDepthCompositeFailed = false;
+// Its framebuffer: the scene's colour alone (its depth is read), attached at each use (GL reuses a deleted texture's
+// name: the scene's targets made again at another size can come back under the same one).
+GLuint halfCompositeFbo = 0;
+GLuint halfCompositeColor = 0; // the colour texture last found complete with it (checked once a texture)
+constexpr float halfDepthTolerance = 0.1f; // a texel is at a pixel's distance within this much of it (and 8 units) of the nearest
 
 // drawReverseOrder's (vr_particle_saturate): the particles composited in reverse order ("under": the last drawn,
 // on top, first) into a target of their own, the scene's depth and stencil attached, and blended over the scene once.
@@ -670,6 +677,53 @@ out vec4 result;
 void main()
 {
     result = texture(Half, gl_FragCoord.xy * Scale);
+    if(result == vec4(0.0))
+        discard;
+}
+)";
+// vr_particle_halfres_upsample: the same, depth-aware (a bilateral blend): a half-size texel holds the particles in
+// front of the nearest of its four pixels (their distances, SceneDistances); a pixel blends the four texels round it
+// by their bilinear weights, each only if its distance is the pixel's own (the scene's full-size depth), within 10% and
+// 8 units of the nearest one's. On one surface: all four, as before. Where a crate's edge crosses a texel, the pixels of
+// the wall behind take the wall's texels beside them (not the crate's, whose particles stop at the crate), and the
+// crate's pixels the crate's (no smoke or fire in front of the wall bled onto the crate's edge: no halo). Drawn into
+// the scene's colour alone (halfCompositeFbo): its depth is read.
+constexpr const char* halfDepthCompositeFs = R"(#version 430
+layout(binding = 0) uniform sampler2D Half;
+layout(binding = 1) uniform sampler2D Distances; // half the size: the nearest of each texel's four pixels
+layout(binding = 2) uniform sampler2D Depth;     // the scene's, full size
+layout(location = 1) uniform vec4 Proj; // clip z = x * w + y; z 1: depth is clip z (reversed Z), 0: (clip z + 1) / 2; w: tolerance
+layout(location = 2) uniform int Show;   // vr_particle_halfres_upsample 2: the pixels taking a texel by its distance in green
+out vec4 result;
+void main()
+{
+    vec2 t = gl_FragCoord.xy * 0.5 - 0.5; // in the half texels' centres
+    ivec2 b = ivec2(floor(t));
+    vec2 f = t - vec2(b);
+    ivec2 last = textureSize(Half, 0) - 1;
+    ivec2 q0 = clamp(b, ivec2(0), last), q1 = clamp(b + ivec2(1, 0), ivec2(0), last);
+    ivec2 q2 = clamp(b + ivec2(0, 1), ivec2(0), last), q3 = clamp(b + ivec2(1, 1), ivec2(0), last);
+    vec4 c0 = texelFetch(Half, q0, 0), c1 = texelFetch(Half, q1, 0), c2 = texelFetch(Half, q2, 0), c3 = texelFetch(Half, q3, 0);
+    if(c0 + c1 + c2 + c3 == vec4(0.0))
+        discard; // (no particles here: the depth not read)
+    float z = texelFetch(Depth, ivec2(gl_FragCoord.xy), 0).r;
+    float d = Proj.y / ((Proj.z > 0.5 ? z : z * 2.0 - 1.0) - Proj.x);
+    vec4 e = abs(vec4(texelFetch(Distances, q0, 0).r, texelFetch(Distances, q1, 0).r, texelFetch(Distances, q2, 0).r,
+                      texelFetch(Distances, q3, 0).r) - d);
+    // The texels at the pixel's distance (within the tolerance of the nearest one), blended by their bilinear weights:
+    // all four where the scene is one surface; across an edge, the side the pixel is on.
+    float m = min(min(e.x, e.y), min(e.z, e.w));
+    vec4 bilinear = vec4((1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y);
+    vec4 w = bilinear * vec4(lessThanEqual(e, vec4(m + Proj.w * d + 8.0)));
+    float total = w.x + w.y + w.z + w.w;
+    if(!(total > 0.0)) // (no distance to compare: the sky's, infinitely far)
+    {
+        w = bilinear;
+        total = 1.0;
+    }
+    result = (c0 * w.x + c1 * w.y + c2 * w.z + c3 * w.w) / total;
+    if(Show != 0 && min(min(w.x, w.y), min(w.z, w.w)) == 0.0)
+        result = vec4(0.0, 1.0, 0.0, 1.0);
     if(result == vec4(0.0))
         discard;
 }
@@ -1414,6 +1468,49 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
 }
 
+// drawParticlesHalf's depth-aware blend (halfDepthCompositeFs) set up: its program in use, its depth on unit 2, the
+// scene's colour alone bound to draw into (`sceneFbo`: the framebuffer to bind again after). False, with nothing
+// changed, when the scene's depth cannot be read so (multisampled, or not a texture).
+[[nodiscard]] bool halfDepthComposite(GLuint& sceneFbo)
+{
+    unsigned color = 0, depth = 0;
+    int samples = 0, viewport[4];
+    sceneFbo = VR_SceneTarget(&color, &depth, &samples, viewport);
+    if(sceneFbo == 0 || samples > 1 || color == 0 || depth == 0 || halfDepthCompositeFailed)
+    {
+        return false;
+    }
+    if(!halfDepthCompositeProgram)
+    {
+        halfDepthCompositeProgram = glProgram(halfCompositeVs, halfDepthCompositeFs, "vr particles (half size, depth-aware)");
+        halfDepthCompositeFailed = !halfDepthCompositeProgram;
+        if(halfDepthCompositeFailed)
+        {
+            return false;
+        }
+        GL_GenFramebuffersFunc(1, &halfCompositeFbo);
+    }
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, halfCompositeFbo);
+    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+    if(color != halfCompositeColor)
+    {
+        // (A glCheckFramebufferStatus waits for the driver's thread: once a colour texture.)
+        if(GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        {
+            Con_DPrintf("VR: half-size particles: the scene's colour alone is incomplete, blended as before\n");
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
+            return false;
+        }
+        halfCompositeColor = color;
+    }
+    foveated::shadeBoundAsScene(true); // its pixels are the scene's: shaded at its rates (vr_foveated), as before
+    GL_UseProgram(halfDepthCompositeProgram);
+    GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, depth);
+    GL_Uniform4fFunc(1, r_matproj[0 * 4 + 2], r_matproj[3 * 4 + 2], gl_clipcontrol_able ? 1.f : 0.f, halfDepthTolerance);
+    GL_Uniform1iFunc(2, vr_particle_halfres_upsample.value >= 2.f ? 1 : 0);
+    return true;
+}
+
 } // namespace
 
 void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture, ParticlePass pass,
@@ -1505,16 +1602,33 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     drawParticlesWith(program, batch, pull, false, retro, texture, ParticlePass::Large, split, distances, soft, true);
     restore();
 
-    // Blended into the scene.
-    GL_UseProgram(halfCompositeProgram);
+    // Blended into the scene: depth-aware (vr_particle_halfres_upsample) into its colour alone, when its depth is a
+    // single-sampled texture; else filtered (bilinear) into its framebuffer as bound.
+    GLuint sceneFbo = 0;
+    const bool depthAware = vr_particle_halfres_upsample.value != 0.f && halfDepthComposite(sceneFbo);
+    if(!depthAware)
+    {
+        GL_UseProgram(halfCompositeProgram);
+    }
     GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_SAMPLE_SHADING);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->texture);
-    GL_Uniform2fFunc(0, 0.5f / static_cast<float>(width), 0.5f / static_cast<float>(height));
+    if(depthAware)
+    {
+        GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, distances);
+    }
+    else
+    {
+        GL_Uniform2fFunc(0, 0.5f / static_cast<float>(width), 0.5f / static_cast<float>(height));
+    }
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glEnable(GL_SAMPLE_SHADING);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    if(depthAware)
+    {
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
+    }
     return true;
 }
 
