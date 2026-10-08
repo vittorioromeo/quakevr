@@ -574,7 +574,7 @@ QVR_CVAR(vr_menu_link_dryrun, "0", CVAR_NONE)       // the menus' links (the ver
 // answer in <base>/cache/update_check.txt otherwise), and "Update available: Quake VR: Unleashed X.Y.Z" over the
 // version box when it names a newer version than the game's. vr_update_status says what it found.
 QVR_CVAR(vr_update_check, "1", CVAR_ARCHIVE)           // the start-up check for a newer release (0: never asked for, and no notice). Never in the kit's test runs (QVR_TEST_BACKGROUND): vr_update_check_now asks
-QVR_CVAR(vr_update_url, "", CVAR_NONE)                 // test aid: the feed(s) read instead of the release hosts' latest.json (one URL, or several separated by ';' or spaces, in order: qvr-setup serve's http://127.0.0.1:<port>/latest.json)
+QVR_CVAR(vr_update_url, "", CVAR_NONE)                 // test aid: the feed(s) read instead of GitHub's latest release's latest.json (one URL, or several separated by ';' or spaces, in order: qvr-setup serve's http://127.0.0.1:<port>/latest.json)
 QVR_CVAR(vr_update_test_version, "", CVAR_NONE)        // test aid: this version stands in for the feed's ("9.9.9": the notice shows; "0.0.1": it does not), checked or not
 QVR_CVAR(vr_menu_vr_style, "1", CVAR_ARCHIVE)          // menus made for the headset (vr_menuui.cpp): filling the panel, rows spaced out, modern sliders and switches, a laser pointer
 QVR_CVAR(vr_menu_main_mods, "0", CVAR_ARCHIVE)        // the main menu's Mods row (Options > Mods has it anyway; Ironwail's own rule still hides it for a mod with its own menu)

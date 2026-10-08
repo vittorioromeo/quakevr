@@ -1,7 +1,7 @@
 // vr_update.cpp -- the in-game update notice's check: is there a newer Quake VR than this one?
 //
 // The source is the installer's own release feed (Installer: ReleaseFeed.cs; Misc/quakevr/make_release.py writes it):
-// latest.json, from the first of its hosts that answers (GitHub's latest release, then vittorioromeo.com). Its
+// latest.json, from GitHub's latest release only (no mirror: the author's decision, 2026-10-08). Its
 // "version" is the release's version text ("0.9.1 (2026-10-08 abcdef12)"), compared with the game's VERSION file
 // (VR_Version) as semantic versions; its optional "page" is the release's page, opened by the notice (else GitHub's
 // latest release page). docs/vr-port/RELEASING.md: game releases are marked Latest on GitHub, asset releases never.
@@ -49,8 +49,7 @@ constexpr za::I64 cacheSeconds = 60 * 60;          // an answer younger than thi
 constexpr za::SizeT maxFeedBytes = 256 * 1024;     // latest.json is under 2 KB: anything this big is not it
 constexpr char cacheMagic[] = "#quakevr-update-1";
 constexpr const char* defaultFeeds[] = {
-    "https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json",
-    "https://vittorioromeo.com/quakevr/latest.json",
+    "https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json", // (the Latest release's asset)
 };
 constexpr const char* defaultPage = "https://github.com/vittorioromeo/quakevr/releases/latest";
 const char* acceptHeader = "Accept: application/json"; // (file scope: download_t.headers wants a const char**)
@@ -92,7 +91,7 @@ bool hasNotice = false;
     return za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/update_check.txt";
 }
 
-// vr_update_url's feeds (separated by ';' or spaces), else the release hosts'.
+// vr_update_url's feeds (separated by ';' or spaces), else GitHub's.
 void feedsNow(za::Vector<za::String>& out)
 {
     out.clear();
@@ -691,7 +690,11 @@ void start()
 {
     if(running.loadSeqCst() || checked)
     {
-        return; // (vr_update_check_now came first: the config's or a test script's)
+        if(startNote == "not checked yet")
+        {
+            startNote = "not run (vr_update_check_now came first)"; // (the config's or a test script's)
+        }
+        return;
     }
     if(!vr_update_check.value)
     {

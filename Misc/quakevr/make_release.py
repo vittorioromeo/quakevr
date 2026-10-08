@@ -181,6 +181,10 @@ def main():
         assets.append(dest)
     if a.notes:
         feed["notes"] = a.notes
+    if not any(LOOPBACK.match(b) for b in bases):
+        # The release's page: the game's update notice opens it (Quake/vr/vr_update.cpp; a feed without one opens
+        # releases/latest). The installer ignores it. A local test release has none (its tag is not on GitHub).
+        feed["page"] = f"https://github.com/{REPO}/releases/tag/{tag}"
     latest = os.path.join(out, "latest.json")
     with open(latest, "w", encoding="utf-8", newline="\n") as f:
         json.dump(feed, f, indent=2)

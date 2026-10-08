@@ -289,6 +289,7 @@ constexpr float noticeGap = 3.f; // its box above the version box (true pixels)
 struct UpdateNotice
 {
     char version[28]{};                             // the version shown (the feed's, cut to fit)
+    int lines{1};                                   // its rows: 1, or 2 where the menu reaches under one
     float x0{0.f}, x1{-1.f}, y0{0.f}, y1{-1.f};     // the box (menu x and y): the link takes all of it
     float lxc{0.f}, lyc{0.f};                       // its middle (vr_mock_laser update)
     float contentRight{0.f};                        // what the menu draws right to beside it
@@ -399,25 +400,36 @@ struct VersionBox
     return b;
 }
 
-// The update notice's box: one row, versionPad inside it, noticeGap above the version box, right-aligned with it and
-// as wide as its text needs (as wide as its feedback's at least, so that a press does not change it), no narrower
-// than the version box.
+// The update notice's box: versionPad inside it, noticeGap above the version box, right-aligned with it and as wide as
+// its text needs (as wide as its feedback's at least, so that a press does not change it), no narrower than the version
+// box. One row ("Update available: Quake VR: Unleashed X.Y.Z"), or where the menu reaches under that, two ("Update
+// available:" over the release's name), as narrow as the version box.
 struct NoticeBox
 {
+    int lines;
     float x0, x1, y0, y1, yc;
     float textRight;
+    float rowY[2]; // the rows' middles
+    float half;    // the highlight's half height (true pixels)
 };
-[[nodiscard]] NoticeBox noticeBox(const VersionBox& b, const char* version)
+[[nodiscard]] NoticeBox noticeBox(const VersionBox& b, const char* version, int lines)
 {
-    const float chars = static_cast<float>(strlen(noticePrefix) + strlen(noticeName) + strlen(version));
-    const float width = b.size * za::fmax(chars, static_cast<float>(strlen("Opened on your desktop")));
+    const size_t name = strlen(noticeName) + strlen(version);
+    const size_t prefix = strlen(noticePrefix);
+    const size_t chars = lines == 1 ? prefix + name : (prefix - 1 > name ? prefix - 1 : name);
+    const float width = b.size * za::fmax(static_cast<float>(chars), static_cast<float>(strlen("Opened on your desktop")));
     NoticeBox n;
+    n.lines = lines;
     n.x1 = b.x1;
     n.textRight = b.textRight;
     n.x0 = za::fmin(b.x0, n.textRight - width - versionPad);
     n.y1 = b.y0 - noticeGap / b.k;
-    n.y0 = n.y1 - (versionPad + b.size + versionPad) / b.k;
+    const float rows = lines == 1 ? b.size : b.step + b.size;
+    n.y0 = n.y1 - (versionPad + rows + versionPad) / b.k;
     n.yc = (n.y0 + n.y1) * 0.5f;
+    n.rowY[0] = n.y0 + (versionPad + b.size * 0.5f) / b.k;
+    n.rowY[1] = n.rowY[0] + b.step / b.k;
+    n.half = b.linkHalf + (lines == 1 ? 0.f : b.step * 0.5f);
     return n;
 }
 
@@ -480,8 +492,9 @@ bool qvr::menuui::versionLabelClearance(float& x, float& y)
     y = b.y0 - versionGapAbove / b.k;
     if(char version[sizeof(UpdateNotice::version)]; noticeVersion(version, sizeof(version)))
     {
-        // The update notice above it: the menus keep clear of both.
-        const NoticeBox n = noticeBox(b, version);
+        // The update notice above it: the menus keep clear of both (of its narrower two rows: where a page then ends
+        // above them, its one row fits too).
+        const NoticeBox n = noticeBox(b, version, 2);
         x = za::fmin(x, n.x0 - versionGap);
         y = n.y0 - versionGapAbove / b.k;
     }
@@ -547,13 +560,20 @@ void drawUpdateNotice(const VersionBox& b)
         n.leftOut = "no newer version known";
         return;
     }
-    const NoticeBox nb = noticeBox(b, n.version);
     const float k = b.k, size = b.size;
+    // One row, or where the menu reaches under that, two.
+    NoticeBox nb = noticeBox(b, n.version, 1);
+    n.contentRight = qvr::menu::contentRightBelow(nb.y0 - versionGapAbove / k);
+    if(nb.x0 < n.contentRight + versionGap)
+    {
+        nb = noticeBox(b, n.version, 2);
+        n.contentRight = qvr::menu::contentRightBelow(nb.y0 - versionGapAbove / k);
+    }
+    n.lines = nb.lines;
     n.x0 = nb.x0;
     n.x1 = nb.x1;
     n.y0 = nb.y0;
     n.y1 = nb.y1;
-    n.contentRight = qvr::menu::contentRightBelow(nb.y0 - versionGapAbove / k);
     if(n.x0 < n.contentRight + versionGap)
     {
         n.leftOut = "the menu reaches under it";
@@ -571,7 +591,7 @@ void drawUpdateNotice(const VersionBox& b)
     n.lyc = nb.yc;
     n.hot = noticeAt(m_mousex, m_mousey) && qvr::menuui::pointerOn(true);
 
-    // A box like the version box's; its row lit as the Ko-fi link under the laser or the mouse.
+    // A box like the version box's; lit as the Ko-fi link under the laser or the mouse (all of it: it is one link).
     const qvr::menupaint::Painter p;
     namespace colors = qvr::menupaint::colors;
     const float half = (nb.y1 - nb.y0) * k * 0.5f;
@@ -579,8 +599,8 @@ void drawUpdateNotice(const VersionBox& b)
     p.rounded(nb.x0 + 1.f, nb.x1 - 1.f, nb.yc, half - 1.f, 2.f, colors::boxFill);
     if(n.hot)
     {
-        p.rounded(nb.x0 + 2.f, nb.x1 - 2.f, nb.yc, b.linkHalf, 2.f, colors::highlightEdge);
-        p.rounded(nb.x0 + 3.f, nb.x1 - 3.f, nb.yc, b.linkHalf - 1.f, 1.5f, colors::buttonHover);
+        p.rounded(nb.x0 + 2.f, nb.x1 - 2.f, nb.yc, nb.half, 2.f, colors::highlightEdge);
+        p.rounded(nb.x0 + 3.f, nb.x1 - 3.f, nb.yc, nb.half - 1.f, 1.5f, colors::buttonHover);
     }
     // "Update available:" white, the release's name in the menus' tan (white too while lit); for a while after a
     // press, where the page opened.
@@ -593,8 +613,17 @@ void drawUpdateNotice(const VersionBox& b)
     char name[64];
     q_snprintf(name, sizeof(name), "%s%s", noticeName, n.version);
     const float nameX = nb.textRight - size * static_cast<float>(strlen(name));
-    drawSmall(nameX - size * static_cast<float>(strlen(noticePrefix)), nb.yc, size, noticePrefix, true);
-    drawSmall(nameX, nb.yc, size, name, n.hot);
+    if(nb.lines == 1)
+    {
+        drawSmall(nameX - size * static_cast<float>(strlen(noticePrefix)), nb.yc, size, noticePrefix, true);
+        drawSmall(nameX, nb.yc, size, name, n.hot);
+        return;
+    }
+    char prefix[24];
+    q_strlcpy(prefix, noticePrefix, sizeof(prefix));
+    prefix[strlen(prefix) - 1] = '\0'; // (its trailing space)
+    drawSmall(nb.textRight - size * static_cast<float>(strlen(prefix)), nb.rowY[0], size, prefix, true);
+    drawSmall(nameX, nb.rowY[1], size, name, n.hot);
 }
 
 } // namespace
@@ -706,8 +735,8 @@ void qvr::menuui::printVersionLabel()
         Con_Printf("menu_vr pos: update notice not drawn (%s), opened %d\n", n.leftOut, n.opened);
         return;
     }
-    Con_Printf("menu_vr pos: update notice \"%s%s%s\" at %.1f %.1f, x %.0f..%.0f, y %.1f..%.1f (menu to x %.0f)%s, opened %d\n",
-        noticePrefix, noticeName, n.version, n.lxc, n.lyc, n.x0, n.x1, n.y0, n.y1, n.contentRight, n.hot ? " (lit)" : "",
+    Con_Printf("menu_vr pos: update notice \"%s%s%s\" in %d row(s) at %.1f %.1f, x %.0f..%.0f, y %.1f..%.1f (menu to x %.0f)%s, opened %d\n",
+        noticePrefix, noticeName, n.version, n.lines, n.lxc, n.lyc, n.x0, n.x1, n.y0, n.y1, n.contentRight, n.hot ? " (lit)" : "",
         n.opened);
 }
 

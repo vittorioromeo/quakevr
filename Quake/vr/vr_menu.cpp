@@ -80,7 +80,7 @@ extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
 extern int m_singleplayer_cursor; // menu.c: Single Player's (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
-void M_ContentExtent(float* right, float* bottom); // menu.c: how far right and down its menu shown draws
+float M_ContentRightBelow(float y); // menu.c: how far right its menu shown draws below y (the main menu's rows as drawn)
 int M_TextLeft(void); // menu.c: its leftmost text (Ironwail's lists; 320 for Quake's menus)
 void M_Main_Layout(int* step, int* gap); // menu.c: the main menu's rows' spacing and its groups' gaps
 }
@@ -11594,9 +11594,7 @@ float qvr::menu::contentRightBelow(float y)
 {
     if(m_state != m_vr)
     {
-        float right, bottom;
-        M_ContentExtent(&right, &bottom);
-        return y < bottom ? right : -1e9f;
+        return M_ContentRightBelow(y);
     }
     const auto build = pages[page].build;
     const Layout l = layout();

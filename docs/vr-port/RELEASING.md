@@ -77,6 +77,23 @@ release's tag, its URL template and each file's size and SHA-256 (as GitHub repo
   prints the pack and URLs a build would download. Installers already released keep their old pin: never remove
   a file from a support release.
 
+## Which release is Latest
+
+**Rule: a game release (`v<version>`) is always marked Latest on GitHub; an asset or texture release
+(`assets-*`, `textures-*`) never is.** `https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json`
+is the installer's first feed and the game's update check's only one (Quake/vr/vr_update.cpp): it serves the Latest
+release's `latest.json`. A support release marked Latest has no `latest.json`, so both get a 404 there: the game shows
+no update notice, and the installer's HD textures broke this way once. When you create a support release, untick "Set as the
+latest release" (`gh release create ... --latest=false`); if one was marked by mistake,
+`gh release edit v<version> --repo vittorioromeo/quakevr --latest` puts the game release back.
+
+The game's update notice reads `version` (compared with its `VERSION` as semantic versions: a prerelease is older
+than its release) and `page` (the release's page, which make_release.py writes; the notice opens
+`releases/latest` without one). Test it against a local release: `qvr-setup serve` (or `test_local_release.ps1`'s
+server), then in the game `vr_update_url http://127.0.0.1:<port>/latest.json; vr_update_check_now; vr_update_status`
+(an older local build: `vr_update_test_version 9.9.9` shows the notice without a feed).
+`Misc\quakevr\update_notice_test.py` checks it with its own server.
+
 ## Step by step
 
 1. **Commit and push** the branch you release from (`vr-ironwail` today, `master` later: the script reads the
@@ -104,6 +121,16 @@ release's tag, its URL template and each file's size and SHA-256 (as GitHub repo
    the new release only once it is published and not a prerelease.
 8. **Check online**: `dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json`
    (the installer's only feed: the vittorioromeo.com one was dropped on 2026-10-08) prints the version and the package's size; then run the released `QuakeVR-Setup.exe` with no local package.
+   the new release only once it is published, not a prerelease, and marked Latest (always mark a game release Latest:
+   "Which release is Latest" above). The games already installed then show their update notice within the hour.
+8. **Upload `latest.json` to your site**: `out\release\1.0.0\assets\latest.json` to
+   `https://vittorioromeo.com/quakevr/latest.json` (the installer's second feed; the `/quakevr/` folder must exist).
+   It is the same file as the release's asset; its download addresses are the GitHub release's own files. For a mirror
+   on the site too, upload the other assets (e.g. to `/quakevr/releases/v1.0.0/`) and build with
+   `-UrlBase "https://github.com/vittorioromeo/quakevr/releases/download/{tag}/{file}","https://vittorioromeo.com/quakevr/releases/{tag}/{file}"`
+   before publishing, so latest.json lists both.
+9. **Check online**: `dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url <feed>` for both feeds
+   prints the version and the package's size; then run the released `QuakeVR-Setup.exe` with no local package.
 
 For the first release: the tags `v0.8.0` to `v0.8.2` exist only in your local repository, so the generated notes
 would list the ~1900 commits since `v0.8.2` (cut at 150): write those notes yourself and pass them with `-Notes`.

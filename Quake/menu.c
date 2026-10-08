@@ -1255,6 +1255,10 @@ void M_Main_Layout (int *step, int *gap)
 	*gap = CLAMP (0, (avail - (rows - 1) * *step) / groups, 10);
 }
 
+// QVR: each row's right end and bottom (menu x and y) as last drawn: M_ContentRightBelow (the corner's version box and
+// update notice keep clear of them: vr_menubrand.cpp). A row not shown: nothing.
+static float m_main_row_right[MAIN_ITEMS], m_main_row_bottom[MAIN_ITEMS];
+
 // QVR: a row's top (menu y): Quake's 32 for the first, a step for each row shown above it, a gap for each group.
 static int M_Main_RowY (int item, int step, int gap)
 {
@@ -1287,11 +1291,16 @@ void M_Main_Draw (void)
 			text = false;
 
 	M_Main_Layout (&step, &gap);
+	for (i = 0; i < MAIN_ITEMS; i++)
+	{
+		m_main_row_right[i] = -1e9f;
+		m_main_row_bottom[i] = M_Main_Shown (i) ? (float)(M_Main_RowY (i, step, gap) + 20) : -1e9f;
+	}
 	if (text)
 	{
 		for (i = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text
 			if (M_Main_Shown (i))
-				VR_BigFont_Draw (73, M_Main_RowY (i, step, gap), m_main_labels[i]);
+				m_main_row_right[i] = (float)(73 + VR_BigFont_Draw (73, M_Main_RowY (i, step, gap), m_main_labels[i]));
 	}
 	else
 	{ // QVR: the picture's rows (its Help row left out), the others in the mods' row's letters
@@ -1301,6 +1310,7 @@ void M_Main_Draw (void)
 			int row = M_Main_RowY (i, step, gap);
 			if (!M_Main_Shown (i))
 				continue;
+			m_main_row_right[i] = (float)(72 + q_max (p->width, 16 * (int) strlen (m_main_labels[i]) + 2));
 			switch (i)
 			{
 			case MAIN_SINGLEPLAYER: M_DrawSubpic (72, row, p, 0, 0, p->width, 20); break;
@@ -7498,6 +7508,25 @@ void M_ContentExtent (float *right, float *bottom)
 	default:
 		break;
 	}
+}
+
+// QVR: how far right the menu shown draws below y (menu y), -1e9 where nothing it draws reaches below y: the main
+// menu's rows as last drawn (they reach the canvas's bottom on a flat screen), the others as M_ContentExtent says.
+float M_ContentRightBelow (float y)
+{
+	float right, bottom;
+	int i;
+
+	if (m_state == m_main)
+	{
+		right = -1e9f;
+		for (i = 0; i < MAIN_ITEMS; i++)
+			if (m_main_row_bottom[i] > y && m_main_row_right[i] > right)
+				right = m_main_row_right[i];
+		return right;
+	}
+	M_ContentExtent (&right, &bottom);
+	return y < bottom ? right : -1e9f;
 }
 
 // QVR: where the menu shown draws its leftmost text, for the flat screen's banner (vr_menubrand.cpp): the lists' left
