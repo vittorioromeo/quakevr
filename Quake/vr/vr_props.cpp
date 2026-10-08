@@ -697,7 +697,7 @@ namespace
 {
 
 // A model's own size, as a Size (times its slot's): Quake's grenades (vr_grenade_scale: the grenade, the multi-grenade,
-// the proximity grenade), by its name.
+// the proximity grenade) and the rocket in flight (vr_rocket_scale), by its name.
 [[nodiscard]] float ownScale(const char* name)
 {
     if(!name)
@@ -707,6 +707,10 @@ namespace
     if(!strcmp(name, "progs/grenade.mdl") || !strcmp(name, "progs/mervup.mdl") || !strcmp(name, "progs/proxbomb.mdl"))
     {
         return za::clamp(vr_grenade_scale.value, 0.25f, 2.f);
+    }
+    if(!strcmp(name, "progs/missile.mdl"))
+    {
+        return za::clamp(vr_rocket_scale.value, 0.25f, 2.f);
     }
     return 1.f;
 }
@@ -726,7 +730,7 @@ float drawnSize(const qmodel_t* model)
     {
         return 1.f;
     }
-    // Quake's grenades at their own size too (ownScale: in size() for a model with a slot):
+    // Quake's grenades and the rocket in flight at their own sizes too (ownScale: in size() for a model with a slot):
     // everything drawn or made from their drawn shape takes it, as a Size.
     const int slot = slotForModel(model);
     return slot >= 0 ? size(slot) : size(slot) * ownScale(model->name);

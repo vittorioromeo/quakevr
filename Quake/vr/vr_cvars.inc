@@ -2579,8 +2579,10 @@ QVR_CVAR(vr_reload_front_angle, "35", CVAR_ARCHIVE)
 // 25% smaller", the same in the hand and in flight): progs/grenade.mdl, the multi-grenade's progs/mervup.mdl and the
 // proximity grenade's progs/proxbomb.mdl drawn at this size wherever they are (the launchers' shots, the pouches' grenades
 // held, lying about and going into a launcher, the ogres' grenades, the ammo pouch's), their Box3D bodies, hit boxes and
-// boxes with them (vr_props.cpp drawnSize, times their Held Object Offsets Size).
+// boxes with them (vr_props.cpp drawnSize, times their Held Object Offsets Size). vr_rocket_scale: the rocket in flight
+// (progs/missile.mdl), nearer the size of the ammo pouch's rocket (10-39-35).
 QVR_CVAR(vr_grenade_scale, "0.78", CVAR_ARCHIVE)
+QVR_CVAR(vr_rocket_scale, "0.65", CVAR_ARCHIVE)
 // Their muzzles' load points moved (the gun's model units: +x forward, +y left, +z up) and their radius (world units: a
 // round's butt, a proximity grenade's middle, within it goes in). gl: the grenade launcher's (and the multi-grenade
 // one's); prox: the proximity launcher's; rl: the rocket launcher's (and the multi-rocket one's).

@@ -31217,6 +31217,10 @@ The author's notes vrfiringrange_2026-10-08_10-33-00 .. 10-39-35.
   radius, `VR_Reload_RoundRef`'s butt). Measured (`developer 1` logs "grenade: <class> (<model>) drawn <size>" as each
   becomes shootable): the ammo pouch's grenade and the launcher's shot both 6.28 x 2.33 x 2.21 units (Quake's 8.05 x
   2.98 x 2.83 at 0.78); the multi-grenade 2.65 x 2.75 x 6.09; the proximity grenade 7.39 x 7.53 x 8.46.
+- **The rocket in flight smaller: `vr_rocket_scale` 0.65** ("Rocket Size in Flight"; 10-39-35: "a little bit smaller
+  so that it more closely matches the ammunition"): progs/missile.mdl (22.5 units long with its flame, its body 3
+  across) drawn at 0.65: its body 1.95 across, the ammo pouch's rocket's 1.55. Every missile.mdl (the ogres' and the
+  other monsters' rockets too); the multi-rockets (rockup.mdl, already small) unchanged.
 - **Butt first** (the author's decision stands): the grenade's butt is its flat end (-x; its nose the tapered end, +x,
   out of the muzzle), the multi-grenade's its bottom (-z: mervup.mdl stands along its z, both ends alike; QC
   `VR_Reload_RoundAxis` takes its +z, `VR_Reload_RoundRef` its lowest z; the engine's `heldRoundRef` the same). The dull

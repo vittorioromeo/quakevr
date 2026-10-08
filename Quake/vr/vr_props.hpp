@@ -49,7 +49,7 @@ void resetModelCache();
 
 // A prop's Size (round 21, "Prop size"): its model drawn, its Box3D body and its drawn box scaled about its origin by
 // this, and its lengths (lengthKey) with it. size: the slot's (1 for none), within 0.05..10, times its model's own
-// (Quake's grenades: vr_grenade_scale; also without a slot). drawnSize: the model's, as
+// (Quake's grenades: vr_grenade_scale; the rocket in flight: vr_rocket_scale; also without a slot). drawnSize: the model's, as
 // everything drawn or made from its drawn shape takes it (vr_render.cpp, vr_held.cpp's DrawnTransform, vr_box3d.cpp):
 // 1 unless on Quake VR's protocol (as weapons::modelTransform), or not a brush or alias model.
 [[nodiscard]] float size(int slot);
