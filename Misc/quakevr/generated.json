@@ -167,6 +167,11 @@
   "by": "make_grenade_skins.py",
   "part": "mdl skins after 0"
  },
+ "quakevr/progs/proxbomb.mdl": {
+  "sha256": "2c2355e9e9c66df95b326c720b61e1ca277b194afe73c78ae7f2bcb4271a2333",
+  "by": "make_grenade_skins.py",
+  "part": "mdl skins after 0"
+ },
  "quakevr/progs/soldier.mdl": {
   "sha256": "36cc9c8ba2b919d993f1a1206772075b457dda42933895be701cee2e0e6ce92a",
   "by": "make_enemyshove.py"
@@ -1172,11 +1177,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrpouch_ammo.mdl": {
-  "sha256": "991070ac25fe3074c91e97f86dcdc470e8c6b34d113cc780fc3c0cff7dfce2d7",
+  "sha256": "59877132173c92c9c9df35ebf51277472828feabfd8f5c1ae9cd5c9c675686b0",
   "by": "make_ammo_pouch.py"
  },
  "quakevr/progs/vrpouch_ammo.mdl_0_norm.png": {
-  "sha256": "9ffa2bd1f54f8bee502a20500328f9c6105f6bd52e95b93733a12fc7234cb800",
+  "sha256": "77d62a2f1fd854a77593de5bead8950e82bfe2c122b145cfde9615ce0fd7e608",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrtorch.mdl": {

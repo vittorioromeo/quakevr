@@ -601,9 +601,9 @@ void(float xRight) VR_Reload_TestHeldAt =
     }
     vector axis = self.offloadportaxis * (xRight ? 1 : -1);
     vector ang = vectoangles(axis);
-    if(r.vr_ammo_wid)
+    if(r.vr_ammo_wid || r.model == VR_RELOAD_MULTI)
     {
-        ang_x = ang_x - 90; // (a magazine's feed end is its +z)
+        ang_x = ang_x - 90; // (a magazine's feed end is its +z; the multi-grenade's nose, progs/mervup.mdl's top)
     }
     r.angles = ang;
     setorigin(r, r.origin + (self.offloadportpos - VR_Reload_RoundRef(r)));

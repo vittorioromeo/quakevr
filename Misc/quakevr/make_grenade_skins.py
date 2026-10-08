@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-# make_grenade_skins.py -- adds skin 1 to quakevr/progs/grenade.mdl and progs/mervup.mdl (the mission pack's
-# multi-grenade): the hand grenade with its pin still in (vr_grenade.qc VR_HGREN_SKIN_UNARMED; docs/vr-port/ROUND21.md,
+# make_grenade_skins.py -- adds skin 1 to quakevr/progs/grenade.mdl, progs/mervup.mdl (the mission pack's
+# multi-grenade) and progs/proxbomb.mdl (the other mission pack's proximity grenade; since 2026-10-08, ROUND21.md,
+# "Grenades back to the original models": the pouches' grenades are these again): the hand grenade with its pin still in (vr_grenade.qc VR_HGREN_SKIN_UNARMED; docs/vr-port/ROUND21.md,
 # "Hand grenades: unarmed look", "Multi-grenades from the pouch"). Skin 0, the live grenade's (dark brown iron, a glowing
 # red band; the multi-grenade's brown shell and glowing amber caps), is kept; skin 1 is it muted: the iron its grey (the
 # palette's grey ramp: a nearest colour over the whole palette turned the dark browns teal), the band a dull, unlit brick
@@ -54,8 +55,8 @@ def muted_index(index, saturation, band_light, gain, lift):
 
 
 # Each model and its iron's grey (gain, lift): the multi-grenade's shell is a pale lavender, grey a little darker than
-# it (lighter, it read brighter than the live one).
-MODELS = (("grenade.mdl", GREY_GAIN, GREY_LIFT), ("mervup.mdl", 0.75, 0))
+# it (lighter, it read brighter than the live one); the proximity grenade's dark brown iron as the grenade's.
+MODELS = (("grenade.mdl", GREY_GAIN, GREY_LIFT), ("mervup.mdl", 0.75, 0), ("proxbomb.mdl", GREY_GAIN, GREY_LIFT))
 
 
 def mute(path, saturation, band_light, gain, lift):

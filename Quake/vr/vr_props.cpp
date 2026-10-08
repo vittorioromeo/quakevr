@@ -55,8 +55,9 @@ constexpr const char* keyDefaults[numKeys] = {
 // prop in both hands; 57: the gibs' and heads' sizes; 58: the author's lighter gibs and heads (and the gremlin's head);
 // 59: the monsters' heads weigh what a head cut off their ragdoll does (Mass -1); 60: immersive reloading's shells
 // (slots 49-50); 61: reloading's magazines; 62: vrstart's barrel (slot 61); 63: the magazines' sizes; 64: the live
-// shell's grip; 65: the author's gremlin head at Size 0.6; 66: the launchers' rounds (slots 54-56).
-constexpr int settingsVersion = 66;
+// shell's grip; 65: the author's gremlin head at Size 0.6; 66: the launchers' rounds (slots 54-56); 67: the proximity
+// grenade's (slot 56: Quake's progs/proxbomb.mdl, the pouches' again).
+constexpr int settingsVersion = 67;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -557,6 +558,16 @@ void migrate()
             takeShippedSlot(slot);
         }
     }
+    // 67: the proximity grenade (slot 56: progs/proxbomb.mdl, in the palm; it held make_rounds.py's vr_round_prox.mdl,
+    // no longer drawn: its settings go, not to a free slot).
+    if(from < 67)
+    {
+        if(cvar_t& id = cvarAt(55, Key::ID); !strcmp(id.string, "progs/vr_round_prox.mdl"))
+        {
+            Cvar_SetQuick(&id, id.default_string);
+        }
+        takeShippedSlot(55);
+    }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);
 }
 
@@ -682,9 +693,30 @@ float valueFor(const qmodel_t* model, Key key)
     return value(slotForModel(model), key);
 }
 
+namespace
+{
+
+// A model's own size, as a Size (times its slot's): Quake's grenades (vr_grenade_scale: the grenade, the multi-grenade,
+// the proximity grenade), by its name.
+[[nodiscard]] float ownScale(const char* name)
+{
+    if(!name)
+    {
+        return 1.f;
+    }
+    if(!strcmp(name, "progs/grenade.mdl") || !strcmp(name, "progs/mervup.mdl") || !strcmp(name, "progs/proxbomb.mdl"))
+    {
+        return za::clamp(vr_grenade_scale.value, 0.25f, 2.f);
+    }
+    return 1.f;
+}
+
+} // namespace
+
 float size(int slot)
 {
-    return za::clamp(value(slot, Key::Size), 0.05f, 10.f);
+    const float own = slot >= 0 && slot < numSlots ? ownScale(cvarAt(slot, Key::ID).string) : 1.f;
+    return za::clamp(value(slot, Key::Size), 0.05f, 10.f) * own;
 }
 
 float drawnSize(const qmodel_t* model)
@@ -694,7 +726,10 @@ float drawnSize(const qmodel_t* model)
     {
         return 1.f;
     }
-    return size(slotForModel(model));
+    // Quake's grenades at their own size too (ownScale: in size() for a model with a slot):
+    // everything drawn or made from their drawn shape takes it, as a Size.
+    const int slot = slotForModel(model);
+    return slot >= 0 ? size(slot) : size(slot) * ownScale(model->name);
 }
 
 bool lengthKey(Key key)

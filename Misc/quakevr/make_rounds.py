@@ -11,6 +11,11 @@
 #                                       round the body glowing, red (the grenade's, as Quake's grenade's band) or amber.
 #   quakevr/progs/vr_round_prox.mdl     the proximity launcher's grenade: a dark steel ball with six short spikes and a
 #                                       red lens band; 8 cm across (any way round goes in). Skin 1: armed, the lenses lit.
+# Since 2026-10-08 only the rocket is used: the grenades are Quake's own models again (the author: "I want it to look
+# exactly the same"; QC vr_grenade.qc VR_RELOAD_GRENADE, _MULTI, _PROX; ROUND21.md, "Grenades back to the original
+# models"). vr_round_grenade.mdl and vr_round_prox.mdl stay in the repo, made here, to switch back: point those QC
+# strings at them (VR_HandGrenade_Look then wants their skins: 1 multi, +2 armed; the prox 1 armed), make the ammo
+# pouch with make_ammo_pouch.py --generated-rounds and empty vr_view.cpp's pouchGrenades.
 #
 # Usage: python Misc/quakevr/make_rounds.py [output game folder]
 #

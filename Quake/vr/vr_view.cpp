@@ -558,6 +558,7 @@ struct Entities
     view::ViewEntity flashlight; // vr_flashlight.cpp
     view::ViewEntity pouch;      // the grenade pouch at the small of the back (vr_handgrenade)
     view::ViewEntity ammoPouch;  // the ammo pouch on the front of the belt (vr_reload_mode 3)
+    view::ViewEntity ammoPouchGrenade[3]; // and the grenades standing in it (setupAmmoPouchGrenades)
     view::ViewEntity mag[2];                       // the magazines in the guns in the hands (setupMagazines),
     view::ViewEntity holsterMag[HolsterCount];     // in the holstered ones,
     view::ViewEntity worldMag[maxWorldWeapons];    // and in the ones lying nearest (setupWorldWeapons' nearest)
@@ -615,7 +616,8 @@ int pouchCounterFrame = -1; // the ammo pouch's counter queued in this frame (se
     }
     return (hide & 4) && (&ve == &entities.body || among(entities.pauldron) || among(entities.pauldronArm) ||
                              among(entities.holster) || among(entities.holsterSlot) || among(entities.holsterButton) ||
-                             &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.holsterMag) || among(entities.holsterWell) ||
+                             &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.ammoPouchGrenade) ||
+                             among(entities.holsterMag) || among(entities.holsterWell) ||
                              among(entities.holsterSsgFrame) || among(entities.holsterSsgBarrels));
 }
 
@@ -657,6 +659,10 @@ void forEachEntity(F&& f)
     f(entities.flashlight);
     f(entities.pouch);
     f(entities.ammoPouch);
+    for(view::ViewEntity& ve : entities.ammoPouchGrenade)
+    {
+        f(ve);
+    }
     for(view::ViewEntity& ve : entities.mag)
     {
         f(ve);
@@ -5752,6 +5758,64 @@ void setupPumps()
     return k.first + za::min(k.most, (left + k.each - 1) / k.each) - 1;
 }
 
+// The grenades standing in the ammo pouch (STAT_QVR_POUCHKIND 6, grenades, and 7, proximity grenades): Quake's own
+// models (progs/grenade.mdl, the multi-grenade's progs/mervup.mdl with the kind's 8, progs/proxbomb.mdl), drawn here as
+// the hands take them (QC vr_grenade.qc VR_HandGrenade_Make) rather than baked into the pouch's frames (make_ammo_pouch.py
+// draws its full front for them, no rounds: the models are the user's game's): muted (skin 1, unarmed, as one comes
+// out), nose up (the grenade's +x, the multi-grenade's +z), sunk in it with their tops out of its rim, as many as the
+// reserve has up to 3, spaced evenly about its middle. Near their own size with the pouch's (vr_grenade_scale: as in the
+// hand and in flight; a little smaller, the grenade 0.9 and the multi-grenade 0.8 of it, to stay inside the pouch's
+// leather), but the proximity grenades a third of it: Quake's is near the pouch's width. In the pouch's model units
+// (make_ammo_pouch.py: +x out of the body, +y left, +z up; its rim at 1.5).
+struct PouchGrenades
+{
+    const char* model;
+    float size; // times the pouch's scale (vr_grenade_scale on top: vr_props.cpp drawnSize)
+    float top;  // its top's height
+    float gap;  // between their middles
+};
+constexpr PouchGrenades pouchGrenades[] = {
+    {"progs/grenade.mdl", 0.9f, 3.4f, 2.45f}, {"progs/mervup.mdl", 0.8f, 3.3f, 2.4f}, {"progs/proxbomb.mdl", 0.36f, 3.1f, 2.6f}};
+constexpr float pouchGrenadeX = 1.35f; // their middles out of the body: the pouch's middle (make_pouch.py BACK_X + full DEPTH / 2)
+
+void setupAmmoPouchGrenades(const view::ViewEntity& pouch)
+{
+    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND];
+    const int left = cl.stats[protocol::STAT_QVR_POUCHCOUNT];
+    const PouchGrenades* g = !pouch.visible || left <= 0 ? nullptr
+                             : (kind & 7) == 6           ? &pouchGrenades[(kind & 8) ? 1 : 0]
+                             : (kind & 7) == 7           ? &pouchGrenades[2]
+                                                         : nullptr;
+    qmodel_t* const model = g ? viewModel(g->model) : nullptr;
+    const int n = model ? za::min(left, 3) : 0;
+    for(int j = 0; j < 3; j++)
+    {
+        view::ViewEntity& ve = entities.ammoPouchGrenade[j];
+        if(j >= n)
+        {
+            ve.visible = false;
+            continue;
+        }
+        // The pouch's axes and scale where it stands (its model space to the world).
+        const glm::vec3 at{pouchGrenadeX, (static_cast<float>(j) - static_cast<float>(n - 1) * 0.5f) * g->gap, g->top};
+        const glm::vec3 o = modelPoint(pouch, at);
+        const glm::vec3 ax = modelPoint(pouch, at + glm::vec3{1.f, 0.f, 0.f}) - o;
+        const glm::vec3 az = modelPoint(pouch, at + glm::vec3{0.f, 0.f, 1.f}) - o;
+        const float k = glm::length(az); // world units a pouch unit
+        const glm::vec3 out = glm::normalize(ax), up = glm::normalize(az);
+        const bool alongZ = modelmeta::is(model, modelmeta::Id::Mervup);
+        // Nose up: the grenade's +x up (its +z out), the multi-grenade's (and the ball's) +z up (its +x out).
+        const glm::vec3 angles = alongZ || modelmeta::is(model, modelmeta::Id::Proxbomb) ? aliasAngles(out, up) : aliasAngles(up, out);
+        const float size = k * g->size * props::drawnSize(model); // world units a model unit
+        const float nose = alongZ || modelmeta::is(model, modelmeta::Id::Proxbomb) ? model->maxs[2] : model->maxs[0];
+        place(ve, model, o - up * (nose * size), angles, 0, false);
+        ve.ent.skinnum = 1; // (muted: unarmed; make_grenade_skins.py)
+        ve.scale = glm::vec3{k * g->size};
+        ve.lightMultiply = pouch.lightMultiply;
+        ve.lightMod = pouch.lightMod;
+    }
+}
+
 void setupAmmoPouch(const hands::State& s)
 {
     view::ViewEntity& ve = entities.ammoPouch;
@@ -5761,6 +5825,7 @@ void setupAmmoPouch(const hands::State& s)
     if(!model)
     {
         ve.visible = false;
+        setupAmmoPouchGrenades(ve);
         return;
     }
     body::HolsterPlate plate;
@@ -5809,6 +5874,7 @@ void setupAmmoPouch(const hands::State& s)
             vr_weapon_screen.value != 0.f);
     }
     highlight(ve, s.hotspot[HAND_OFF] == body::HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == body::HS_AMMO_POUCH);
+    setupAmmoPouchGrenades(ve);
 }
 
 // The chainsaw's cord's handle in a fist (or flying back to its seat): the chainsaw's model, its frame of the handle
@@ -6583,13 +6649,16 @@ bool heldRoundRef(int hand, glm::vec3& out, float* radius)
             }
         }
     }
-    if(modelmeta::has(e.model, modelmeta::Trait::LiveRound) && !strstr(e.model->name, "prox"))
+    if((modelmeta::has(e.model, modelmeta::Trait::LiveRound) || modelmeta::isQuakeGrenade(e.model)) &&
+       !strstr(e.model->name, "prox"))
     {
-        // A launcher's rocket or grenade (QC VR_Reload_RoundRef): its butt, its model's back end along its axis.
+        // A launcher's rocket or grenade (QC VR_Reload_RoundRef): its butt, its model's back end along its axis (its +x;
+        // the multi-grenade's progs/mervup.mdl stands along its z: its bottom).
         ViewEntity tmp;
         tmp.ent = e;
         tmp.visible = true;
-        out = modelPoint(tmp, glm::vec3{e.model->mins[0], 0.f, 0.f});
+        out = modelPoint(tmp, modelmeta::is(e.model, modelmeta::Id::Mervup) ? glm::vec3{0.f, 0.f, e.model->mins[2]}
+                                                                             : glm::vec3{e.model->mins[0], 0.f, 0.f});
     }
     return true;
 }

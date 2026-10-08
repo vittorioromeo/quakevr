@@ -3189,9 +3189,10 @@ extern "C" int VR_RoundTrail(int ent)
     return 0;
 }
 
-// A grenade's smoke trail: not a hand grenade with its pin in (vr_grenade.qc: skin 1 of progs/grenade.mdl or of the
-// multi-grenade's progs/mervup.mdl, muted by make_grenade_skins.py until its fuse is lit; the pouches' grenades, the
-// launchers' rounds, smoke only armed: progs/vr_round_grenade.mdl's skins 2 and 3, progs/vr_round_prox.mdl's 1).
+// A grenade's smoke trail: not a hand grenade with its pin in (vr_grenade.qc: skin 1 of progs/grenade.mdl, of the
+// multi-grenade's progs/mervup.mdl or of the proximity grenade's progs/proxbomb.mdl, muted by make_grenade_skins.py until
+// it is armed; make_rounds.py's rounds, unused since 2026-10-08, smoke only armed: progs/vr_round_grenade.mdl's skins 2
+// and 3, progs/vr_round_prox.mdl's 1).
 extern "C" int VR_GrenadeTrail(int ent)
 {
     if(ent <= 0 || ent >= cl.num_entities)
@@ -3200,8 +3201,7 @@ extern "C" int VR_GrenadeTrail(int ent)
     }
     const entity_t& e = cl_entities[ent];
     constexpr int unarmedSkin = 1;
-    bool smokes = !(e.model && e.skinnum == unarmedSkin &&
-                    (qvr::modelmeta::is(e.model, qvr::modelmeta::Id::Grenade) || qvr::modelmeta::is(e.model, qvr::modelmeta::Id::Mervup)));
+    bool smokes = !(e.model && e.skinnum == unarmedSkin && qvr::modelmeta::isQuakeGrenade(e.model));
     if(e.model && (qvr::modelmeta::is(e.model, qvr::modelmeta::Id::RoundGrenade) || qvr::modelmeta::is(e.model, qvr::modelmeta::Id::RoundProx)))
     {
         smokes = VR_RoundTrail(ent) != 0;

@@ -379,8 +379,11 @@ QVR_PROP_DEFAULT(54, ID, "progs/vr_round_grenade.mdl")
 QVR_PROP_DEFAULT(54, Mass, "0.5")
 QVR_PROP_DEFAULT(54, TwoHands, "0")
 QVR_PROP_DEFAULT(54, GripMode, "2")
-QVR_PROP_DEFAULT(55, ID, "progs/vr_round_prox.mdl")
-QVR_PROP_DEFAULT(55, Mass, "0.5")
+// The proximity grenade (the pouches' since 2026-10-08: Quake's progs/proxbomb.mdl again, at vr_grenade_scale; it was
+// make_rounds.py's vr_round_prox.mdl, whose slot this was): in the palm, as the grenades (slots 4 and 5), weighing what
+// they do. vr_props_version 67 gives it to configs saved before.
+QVR_PROP_DEFAULT(55, ID, "progs/proxbomb.mdl")
+QVR_PROP_DEFAULT(55, Mass, "1.2")
 QVR_PROP_DEFAULT(55, TwoHands, "0")
 QVR_PROP_DEFAULT(55, GripMode, "2")
 #endif

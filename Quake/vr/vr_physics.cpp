@@ -197,7 +197,7 @@ constexpr float weaponDrawnReach = 48.f;
         const qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
         const float slack = model && (modelmeta::has(model, modelmeta::Trait::LiveShell) ||
                                       modelmeta::has(model, modelmeta::Trait::Magazine) ||
-                                      modelmeta::has(model, modelmeta::Trait::LiveRound))
+                                      modelmeta::has(model, modelmeta::Trait::LiveRound) || modelmeta::isQuakeGrenade(model))
                                 ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * units::metresToUnits()
                                 : 0.f;
         return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1, slack);

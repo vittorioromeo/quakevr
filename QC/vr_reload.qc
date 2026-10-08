@@ -103,6 +103,7 @@ void() VR_Reload_Precache =
     precache_model("progs/vr_mag_light.mdl");
     precache_model(VR_RELOAD_ROCKET); // the launchers' rounds (make_rounds.py)
     precache_model(VR_RELOAD_GRENADE);
+    precache_model(VR_RELOAD_MULTI);
     precache_model(VR_RELOAD_PROX);
     precache_sound("vr/reload_mag_in.wav");  // a magazine seated
     precache_sound("vr/reload_mag_out.wav"); // and released
@@ -387,8 +388,8 @@ void(entity r) VR_Reload_SetModel =
     if(r.vr_ammo_front)
     {
         setmodel(r, r.vr_ammo_front == WID_ROCKET_LAUNCHER ? VR_RELOAD_ROCKET :
-            (r.vr_ammo_front == WID_GRENADE_LAUNCHER ? VR_RELOAD_GRENADE : VR_RELOAD_PROX));
-        setsize(r, modelbounds(r, 0), modelbounds(r, 1));
+            VR_HandGrenade_Model(r.vr_ammo_front == WID_PROXIMITY_GUN, r.vr_ammo_aid == AID_MULTI_ROCKETS));
+        setsize(r, drawnbounds(r, 0), drawnbounds(r, 1));
         return;
     }
     if(r.vr_ammo_wid)
@@ -658,7 +659,7 @@ entity(float xWid, float xAid, float xCount, vector xOrg, vector xAngles) VR_Rel
     r.skin = (xWid && (xAid == AID_LAVA_NAILS || xAid == AID_PLASMA)) ? 1 : 0; // (the lava nails' and plasma's look)
     if(front && xAid == AID_MULTI_ROCKETS)
     {
-        r.skin = 1; // (the multi-rocket's, the multi-grenade's)
+        r.skin = 1; // (the multi-rocket's: the grenades are VR_HandGrenade_Make's)
     }
     setorigin(r, xOrg);
     r.angles = xAngles;
@@ -1683,8 +1684,8 @@ vector(entity r) VR_Reload_RoundRef =
     }
     if(r.vr_ammo_front && r.vr_ammo_front != WID_PROXIMITY_GUN)
     {
-        vector lo = modelbounds(r, 0);
-        return r.origin + VR_Reload_RoundAxis(r) * lo_x;
+        vector lo = drawnbounds(r, 0); // (as drawn: a grenade at vr_grenade_scale)
+        return r.origin + VR_Reload_RoundAxis(r) * (r.model == VR_RELOAD_MULTI ? lo_z : lo_x);
     }
     return r.origin;
 };
@@ -1883,11 +1884,12 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
 // 1.2 units in, the thunderbolt's 1.9: vr_physics_shapes): a round that fits passes through it near the load point (the
 // engine's reachSkips, by .vr_ammo_pass), so that it reaches it.
 
-// The way the round `r` lies: a shell's axis (its open end: +x), a magazine's (its feed end: +z).
+// The way the round `r` lies: a shell's axis (its open end: +x), a magazine's (its feed end: +z), a launcher's rocket or
+// grenade's (its nose: +x; the multi-grenade's progs/mervup.mdl stands along its +z).
 vector(entity r) VR_Reload_RoundAxis =
 {
     makevectors('-1 0 0' * r.angles_x + '0 1 0' * r.angles_y + '0 0 1' * r.angles_z); // (a model's pitch is the other way)
-    return r.vr_ammo_wid ? v_up : v_forward;
+    return (r.vr_ammo_wid || r.model == VR_RELOAD_MULTI) ? v_up : v_forward;
 };
 
 // Whether the gun in `xGunHand` of self takes the loose round `r` now: it fits (its ammo; a magazine its gun's), there is

@@ -7,11 +7,15 @@
 # standing in it brass up in a loose row, their heads and a hand's width of red hull out of the rim, so that it reads as
 # the shotgun's ammo when you look down. Two frames: 0 full (you have ammo for the gun in your other hand), 1 empty (the
 # shells gone down out of sight, the front fallen in flat); the engine picks the frame. Since: frames by ammo and count
-# (vr_view.cpp ammoPouchFrame): shells, magazines, cells, and the launchers' rounds (make_rounds.py's: rockets, grenades,
-# proximity grenades, standing nose up, as many as the reserve has up to a few, spaced evenly about the middle; skin 1
-# the multi-rockets and multi-grenades).
+# (vr_view.cpp ammoPouchFrame): shells, magazines, cells, and the launchers' rounds (make_rounds.py's rockets, standing
+# nose up, as many as the reserve has up to 3, spaced evenly about the middle; skin 1 the multi-rockets). The grenades'
+# and proximity grenades' frames (17-24) are the full pouch with none in it: the engine draws Quake's own grenades
+# standing in it (vr_view.cpp setupAmmoPouchGrenades: progs/grenade.mdl, mervup.mdl, proxbomb.mdl, the user's game's
+# models, at vr_grenade_scale; ROUND21.md, "Grenades back to the original models"). --generated-rounds: make_rounds.py's
+# grenades in those frames instead, as before 2026-10-08 (to switch back; the engine's then drawn too: its
+# pouchGrenades table).
 #
-# Usage: python Misc/quakevr/make_ammo_pouch.py [output progs folder]
+# Usage: python Misc/quakevr/make_ammo_pouch.py [output progs folder] [--generated-rounds]
 #
 # Model space as make_pouch.py's: +x out of the body (the back against it at x 0), +y to its left, +z up, world units at
 # scale 1 (vr_ammo_pouch_scale scales it as drawn). The skin is make_pouch.py's (its leather, iron and stitching), its
@@ -93,6 +97,9 @@ MAG_SKIN_T = 128    # the row the magazines' skins start at (each 64 wide: nail,
 # each): kind: (name, scale, its top, the gap between their middles, its skin's column).
 ROUNDS = {5: ("rocket", 0.55, 3.5, 2.2, 0), 6: ("grenade", 0.75, 3.0, 1.95, 64), 7: ("prox", 0.7, 2.85, 2.0, 128)}
 ROUND_SKIN_T = 192  # the row their skins start at
+GENERATED_ROUNDS = "--generated-rounds" in sys.argv  # make_rounds.py's grenades baked in (as before 2026-10-08)
+if GENERATED_ROUNDS:
+    sys.argv.remove("--generated-rounds")
 
 
 def round_meshes():
@@ -156,6 +163,8 @@ def build(frame):
     # The launchers' rounds: nose up (their +x up), as many as this frame shows spaced evenly about the middle.
     meshes = round_meshes()
     for rk, (name, scale, top, gap, s_off) in ROUNDS.items():
+        if rk != 5 and not GENERATED_ROUNDS:
+            continue  # (the grenades: Quake's own, drawn by the engine)
         part = meshes[name]
         hi = max(p[0] for p, _, _ in part.verts)
         rot = ((0.0, 0.0, scale), (0.0, scale, 0.0), (-scale, 0.0, 0.0))

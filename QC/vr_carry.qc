@@ -147,7 +147,8 @@ float(entity xPlayer, float xHand, entity xBox) VR_Carry_BodyPushes =
     }
     if(VRIsHandWeaponless(xPlayer, xHand))
     {
-        return cvar("vr_box3d_hand_props") && xBox.model != "progs/grenade.mdl" && xBox.model != "progs/mervup.mdl";
+        return cvar("vr_box3d_hand_props") && xBox.model != "progs/grenade.mdl" && xBox.model != "progs/mervup.mdl" &&
+               xBox.model != "progs/proxbomb.mdl";
     }
     return cvar("vr_box3d_weapon_push") != 0;
 };

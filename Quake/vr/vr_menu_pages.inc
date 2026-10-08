@@ -988,6 +988,9 @@ void resetHandMoves()
                   "muzzle). The wrong way round never loads: a dull tap. A proximity grenade goes in any way round."),
         open("Round Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a rocket or grenade sits in the hand: take one from the pouch, then tune it there (its Grip)."),
+        slider("Grenade Size", "vr_grenade_scale", 0.5f, 1.f, 0.01f, "%.2f").extend(0.25f, 2.f)
+            .help("The grenades' size (Quake's grenade, the multi-grenade, the proximity grenade): the same in the hand, "
+                  "in the pouches, going into a launcher and in flight, their hit boxes with them. 1: Quake's size."),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), to tune the offsets live."),
         header("Grenade Launcher"),

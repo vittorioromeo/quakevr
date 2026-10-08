@@ -2575,6 +2575,12 @@ QVR_CVAR(vr_reload_contact_angle, "35", CVAR_ARCHIVE)
 // grenade goes in lying within vr_reload_front_angle degrees of the barrel, its nose out of the muzzle.
 QVR_CVAR(vr_reload_front, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_front_angle, "35", CVAR_ARCHIVE)
+// The grenades' size (the author's notes vrfiringrange_2026-10-08_10-34-52 .. 10-37-30: the original models, "around
+// 25% smaller", the same in the hand and in flight): progs/grenade.mdl, the multi-grenade's progs/mervup.mdl and the
+// proximity grenade's progs/proxbomb.mdl drawn at this size wherever they are (the launchers' shots, the pouches' grenades
+// held, lying about and going into a launcher, the ogres' grenades, the ammo pouch's), their Box3D bodies, hit boxes and
+// boxes with them (vr_props.cpp drawnSize, times their Held Object Offsets Size).
+QVR_CVAR(vr_grenade_scale, "0.78", CVAR_ARCHIVE)
 // Their muzzles' load points moved (the gun's model units: +x forward, +y left, +z up) and their radius (world units: a
 // round's butt, a proximity grenade's middle, within it goes in). gl: the grenade launcher's (and the multi-grenade
 // one's); prox: the proximity launcher's; rl: the rocket launcher's (and the multi-rocket one's).

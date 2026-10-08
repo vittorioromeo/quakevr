@@ -31202,3 +31202,43 @@ The author's notes vrfiringrange_2026-10-08_10-33-00 .. 10-39-35.
   `ssg_checks.py snailwell` prints how far it goes into the body too: proud 1.01, over -0.16, into 0.12 (v_nail2;
   v_lava2 0.99, -0.16, 0.14); reload_test.sh section 11 checks proud 0.5..1.2, over <= 0, into > 0. Unchanged:
   `vr_reload_well_snail_*` (0: the author's are 0 too).
+- **The grenades are Quake's own models again** (10-34-52 .. 10-37-30: "I want it to look exactly the same", the
+  ammunition the same as what the launcher shoots). The pouches' grenade (either pouch: QC vr_grenade.qc
+  `VR_HandGrenade_Make`) is `progs/grenade.mdl`, the multi-grenade `progs/mervup.mdl` (Dissolution of Eternity's, as the
+  multi-grenade launcher shoots), the proximity grenade `progs/proxbomb.mdl` (Scourge of Armagon's), held, lying about,
+  going into a launcher and in the ammo pouch, as in flight. Muted with the pin in (skin 1, make_grenade_skins.py:
+  proxbomb.mdl has one now too, its red bands unlit), skin 0 once armed (the band lit, the smoke trail:
+  `VR_GrenadeTrail` gives skin 1 of any of the three none). The rocket stays make_rounds.py's (10-39-35).
+- **Their size: `vr_grenade_scale` 0.78** (Weapons > Reloading > Launchers, "Grenade Size"; 10-37-30: "around 25%
+  smaller ... both in the ammunition and in the projectile form"). The three models are drawn at it wherever they are:
+  the launchers' shots, the ogres' grenades, the pouches' grenades, the ammo pouch's (vr_props.cpp `size`/`drawnSize`:
+  a model's own scale times its Held Object Offsets Size, so their Box3D bodies, hit models, held boxes and grip
+  offsets follow; QC takes their boxes from `drawnbounds`: `VR_Grenade_Setup`'s touch box, `VR_GrenShot_Make`'s shot
+  radius, `VR_Reload_RoundRef`'s butt). Measured (`developer 1` logs "grenade: <class> (<model>) drawn <size>" as each
+  becomes shootable): the ammo pouch's grenade and the launcher's shot both 6.28 x 2.33 x 2.21 units (Quake's 8.05 x
+  2.98 x 2.83 at 0.78); the multi-grenade 2.65 x 2.75 x 6.09; the proximity grenade 7.39 x 7.53 x 8.46.
+- **Butt first** (the author's decision stands): the grenade's butt is its flat end (-x; its nose the tapered end, +x,
+  out of the muzzle), the multi-grenade's its bottom (-z: mervup.mdl stands along its z, both ends alike; QC
+  `VR_Reload_RoundAxis` takes its +z, `VR_Reload_RoundRef` its lowest z; the engine's `heldRoundRef` the same). The dull
+  tap the wrong way round as before; the proximity grenade any way round.
+- **The ammo pouch** (make_ammo_pouch.py, vr_view.cpp `setupAmmoPouchGrenades`): Quake's models are the user's game's,
+  not ours to bake into the pouch's frames, so its frames 17-24 are now its full front with no grenades (the file
+  0.62 MB, was 0.97) and the engine draws up to 3 grenades standing in it, nose up, muted, spaced evenly about its
+  middle: the grenade at 0.9 and the multi-grenade at 0.8 of their size in the hand (whole, they went through its
+  leather), the proximity grenades at 0.36 (Quake's ball is near the pouch's width). Frames, skins and counts as before
+  (pouchgren_test.sh section 1 unchanged). Rockets as before.
+- **Held**: the grenade and multi-grenade by their prop slots (4 and 5: the author's In the Palm fits, his grip offsets
+  now scaled with the grenade), the proximity grenade by slot 56, now `progs/proxbomb.mdl` In the Palm, 1.2 kg as the
+  others (it held vr_round_prox.mdl; vr_props_version 67). Quake's grenades are no LiveRound models: they get its
+  leniencies as rounds (Held Things Collide, the grab slack, the self-collision exception: `modelmeta::isQuakeGrenade`),
+  the grenade's Box3D rules (`isGrenade`: hard, Quake's bounce, the proximity grenade too), Quake's bounce sound (QC
+  plays weapons/bounce.wav for them again; the engine's metal knock only for make_rounds.py's models), and are not
+  pushed by an empty hand's body (vr_carry.qc, the proximity grenade too).
+- **Kept to switch back**: make_rounds.py still makes `vr_round_grenade.mdl` (skin 1 the multi-grenade, 2 and 3
+  armed) and `vr_round_prox.mdl` (skin 1 armed), in the repo; `make_ammo_pouch.py --generated-rounds` bakes them into
+  the pouch's frames as before. To switch: point QC's `VR_RELOAD_GRENADE`, `_MULTI`, `_PROX` at them (and
+  `VR_HandGrenade_Look` at their skins), empty vr_view.cpp's `pouchGrenades`, set `vr_grenade_scale` 1.
+- **The multi-grenade from the ammo pouch** is made turned so that its z lies where the grenade's x would
+  (`VR_HandGrenade_Make`: In the Palm keeps the turn it is taken at), so it comes out ready for the muzzle as the
+  grenade does (front_test.sh's multi-grenade check failed without it: it lay across the barrel).
+- Test aids: test steps 17/18 (held at the load point) turn the multi-grenade by its z; the `drawn` log line above.

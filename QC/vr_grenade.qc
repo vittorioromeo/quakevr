@@ -35,8 +35,9 @@
 //   ammo, progs/mervup.mdl, MultiGrenadeExplode's cluster on its fuse, MultiGrenadeTouch's rule on a hit), else the
 //   grenade: held, armed, thrown and caught as the grenade is (.vr_hgren_multi; muted until armed as well).
 // - One grenade from either pouch (ROUND21.md, "One grenade from either pouch"): the back pouch's grenade and the ammo
-//   pouch's launcher round are the same thing (VR_HandGrenade_Make): the launcher's round's model (make_rounds.py:
-//   progs/vr_round_grenade.mdl, skin 1 the multi-grenade; progs/vr_round_prox.mdl), armed by its pin as above, or, while
+//   pouch's launcher round are the same thing (VR_HandGrenade_Make): Quake's own models (progs/grenade.mdl, the
+//   multi-grenade's progs/mervup.mdl, progs/proxbomb.mdl; at vr_grenade_scale, as in flight: ROUND21.md, "Grenades back
+//   to the original models"), armed by its pin as above, or, while
 //   unarmed, a launcher's round (classname vr_ammo_front, vr_reload.qc) that goes butt first into the grenade launcher
 //   (a proximity grenade into the proximity launcher). Armed, it is a live grenade (its Quake classname) and no longer
 //   loads. A proximity grenade armed has no fuse: let go of, it is the proximity launcher's mine (VR_HandGrenade_Mine).
@@ -137,12 +138,13 @@ void(entity g) VR_GrenShot_Update =
 // Makes the grenade `g` (its model set, just thrown) one that shots and blasts set off.
 void(entity g) VR_GrenShot_Make =
 {
-    vector lo = modelbounds(g, 0);
-    vector hi = modelbounds(g, 1);
+    vector lo = drawnbounds(g, 0); // (as drawn: vr_grenade_scale)
+    vector hi = drawnbounds(g, 1);
     g.vr_shootnade = TRUE;
     g.vr_shot_off = FALSE;
     g.vr_shot_half = max(hi_x - lo_x, max(hi_y - lo_y, hi_z - lo_z)) * 0.5;
     g.vr_shot_ownfrom = time + VR_GRENSHOT_OWN_GRACE;
+    dprint(sprintf("grenade: %s (%s) drawn %v\n", g.classname, g.model, hi - lo)); // (its size as drawn: vr_grenade_scale)
     VR_GrenShot_Update(g);
 };
 
@@ -352,8 +354,8 @@ void(entity g, void() xBoom, float xFuse) VR_Grenade_Setup =
     g.vr_gren_made = time;
     g.vr_gren_thrower = g.owner;
 
-    // The model's own box (Quake gave it none): what a hand touches and grips.
-    setsize(g, modelbounds(g, 0), modelbounds(g, 1));
+    // The model's own box as drawn (Quake gave it none; vr_grenade_scale): what a hand touches and grips.
+    setsize(g, drawnbounds(g, 0), drawnbounds(g, 1));
     g.solid = SOLID_NOT_BUT_TOUCHABLE;
     g.vr_gren_touch = g.touch;
     g.touch = VR_Grenade_Touch;
@@ -883,9 +885,10 @@ void() VR_Grenade_Think =
     {
         vector dv = self.velocity - self.vr_gren_lastvel;
         dv_z = dv_z + VR_Deflect_Gravity(self) * frametime;
-        if(vlen(dv) > VR_GREN_BOUNCE && dv * self.vr_gren_lastvel < 0 && !self.vr_ammo_front)
+        if(vlen(dv) > VR_GREN_BOUNCE && dv * self.vr_gren_lastvel < 0 && substring(self.model, 0, 15) != "progs/vr_round_")
         {
-            // (A pouch grenade, a launcher's round: the engine's metal knock instead, vr_physsound.cpp.)
+            // (make_rounds.py's rounds: the engine's metal knock instead, vr_physsound.cpp; Quake's grenade models have
+            // none there.)
             VR_Grenade_BounceSound(vlen(dv));
         }
     }
@@ -896,13 +899,19 @@ void() VR_Grenade_Think =
 // ----------------------------------------------------------------------------
 // Hand grenades from the back pouch (vr_handgrenade; ROUND21.md, "Hand grenades from the back pouch")
 
-// The pouches' grenades are the launchers' rounds (make_rounds.py), which immersive reloading loads (vr_reload.qc):
+// The pouches' grenades are the launchers' rounds, which immersive reloading loads (vr_reload.qc): Quake's own models
+// again (the author's notes vrfiringrange_2026-10-08_10-34-52 .. 10-37-30: "I want it to look exactly the same", the same
+// in the hand as in flight), at vr_grenade_scale (0.78) wherever they are (the engine's drawnSize: their boxes too). The
+// rocket stays make_rounds.py's. make_rounds.py's grenade and proximity grenade (progs/vr_round_grenade.mdl: skin 1 the
+// multi-grenade, 2 and 3 armed; progs/vr_round_prox.mdl: skin 1 armed) are kept to switch back (ROUND21.md, "Grenades
+// back to the original models").
 string VR_RELOAD_FRONTCLASS = "vr_ammo_front";           // a launcher's round (and an unarmed pouch grenade)
 string VR_RELOAD_ROCKET = "progs/vr_round_rocket.mdl";   // (skin 1 the multi-rocket)
-string VR_RELOAD_GRENADE = "progs/vr_round_grenade.mdl"; // (skin 1 the multi-grenade; 2 and 3 the two armed: their band lit)
-string VR_RELOAD_PROX = "progs/vr_round_prox.mdl";       // (skin 1 armed: its lens lit)
-float VR_HGREN_SKIN_ARMED = 2;    // added to vr_round_grenade.mdl's skin once armed (1 on vr_round_prox.mdl); unarmed, the
-                                  // engine gives it no smoke trail (VR_GrenadeTrail)
+string VR_RELOAD_GRENADE = "progs/grenade.mdl";          // (along its +x: its butt the flat end, -x; its nose tapered)
+string VR_RELOAD_MULTI = "progs/mervup.mdl";             // the multi-grenade (along its +z: its butt the bottom, -z)
+string VR_RELOAD_PROX = "progs/proxbomb.mdl";            // (a ball: any way round)
+float VR_HGREN_SKIN_UNARMED = 1;  // each one's skin with the pin in: muted, its band (lenses) unlit (make_grenade_skins.py);
+                                  // armed, skin 0, the live one. The engine gives skin 1 no smoke trail (VR_GrenadeTrail).
 
 // The ammo the hand grenade `g` came out of: its multi-rockets (a multi-grenade) or its rockets, of the player `p`.
 float(entity p, entity g) VR_HandGrenade_Ammo =
@@ -979,15 +988,19 @@ void(entity p) VR_HandGrenade_AmmoChanged =
     self = oldSelf;
 };
 
-// The look of the pouch grenade `g`: the launcher's round's skin, its band (a proximity grenade's lens) lit once armed.
+vector(vector fw, vector up) VR_AxeStick_Angles; // (vr_axestick.qc)
+
+// The model of a pouch grenade: a proximity grenade (`xProx`), a multi-grenade (`xMulti`), or a grenade.
+string(float xProx, float xMulti) VR_HandGrenade_Model =
+{
+    return xProx ? VR_RELOAD_PROX : (xMulti ? VR_RELOAD_MULTI : VR_RELOAD_GRENADE);
+};
+
+// The look of the pouch grenade `g`: muted with its pin in, the live one's (its band, a proximity grenade's lenses, lit)
+// once armed.
 void(entity g) VR_HandGrenade_Look =
 {
-    if(g.vr_hgren_prox)
-    {
-        g.skin = g.vr_hgren_armed ? 1 : 0;
-        return;
-    }
-    g.skin = (g.vr_hgren_multi ? 1 : 0) + (g.vr_hgren_armed ? VR_HGREN_SKIN_ARMED : 0);
+    g.skin = g.vr_hgren_armed ? 0 : VR_HGREN_SKIN_UNARMED;
 };
 
 // The pouch grenade `g` armed (its pin pulled, or set off as a dud): a live grenade, no longer a launcher's round (its
@@ -1049,10 +1062,18 @@ entity(entity p, float xFront, float xAid, vector xOrg, vector xAngles) VR_HandG
     g.owner = p;
     g.movetype = MOVETYPE_BOUNCE;
     g.solid = SOLID_BBOX;
-    setmodel(g, prox ? VR_RELOAD_PROX : VR_RELOAD_GRENADE);
+    setmodel(g, VR_HandGrenade_Model(prox, multi));
     setsize(g, '0 0 0', '0 0 0');
     setorigin(g, xOrg);
     g.angles = xAngles;
+    if(multi)
+    {
+        // progs/mervup.mdl stands along its z: turned so that its z lies where the grenade's x would (its nose along
+        // `xAngles`' forward, as the grenade's: ready for the muzzle from the ammo pouch's grip), its x down.
+        makevectors('-1 0 0' * xAngles_x + '0 1 0' * xAngles_y + '0 0 1' * xAngles_z); // (a model's pitch is the other way)
+        vector a = VR_AxeStick_Angles(v_up * -1, v_forward);
+        g.angles = '-1 0 0' * a_x + '0 1 0' * a_y + '0 0 1' * a_z;
+    }
     g.vr_hgren_multi = multi;
     g.vr_hgren_prox = prox;
     if(multi)

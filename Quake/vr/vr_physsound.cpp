@@ -437,7 +437,7 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
         }
         return Material::Wood;
     }
-    if(info.is(modelmeta::Id::Grenade) || info.is(modelmeta::Id::Mervup))
+    if(info.is(modelmeta::Id::Grenade) || info.is(modelmeta::Id::Mervup) || info.is(modelmeta::Id::Proxbomb))
     {
         return Material::None; // (QC vr_grenade.qc's bounce: weapons/bounce.wav)
     }

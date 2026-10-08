@@ -356,11 +356,12 @@ constexpr float sinkDensity = 0.5f;
 }
 
 // A live grenade that can be caught (QC vr_grenade.qc: an ogre's, a multi-grenade ogre's, or the player's with
-// vr_grenade_catch 2) as a rigid body: Quake's grenade models. Hard and heavy, it bounces as Quake's grenades did, and
-// never meets its thrower's own body (Quake's rule for a missile and its owner: it leaves the ogre it is thrown from).
+// vr_grenade_catch 2) as a rigid body, or a pouch grenade (the proximity grenade too): Quake's grenade models. Hard and
+// heavy, it bounces as Quake's grenades did, and never meets its thrower's own body (Quake's rule for a missile and its
+// owner: it leaves the ogre it is thrown from).
 [[nodiscard]] bool isGrenade(const qmodel_t* model)
 {
-    return model->type == mod_alias && (modelmeta::is(model, modelmeta::Id::Grenade) || modelmeta::is(model, modelmeta::Id::Mervup));
+    return model->type == mod_alias && modelmeta::isQuakeGrenade(model);
 }
 
 constexpr float smallPropSleepThreshold = 0.15f; // m/s: a prop with its own mass (a small gib) sleeps under it (Box3D's: 0.05)

@@ -45,6 +45,14 @@ struct ModelMetadata
 [[nodiscard]] const ModelMetadata& get(const qmodel_s* model);
 [[nodiscard]] inline bool is(const qmodel_s* model, Id id) { return get(model).is(id); }
 [[nodiscard]] inline bool has(const qmodel_s* model, Trait trait) { return get(model).has(trait); }
+// Quake's grenade models: progs/grenade.mdl, the mission packs' multi-grenade (progs/mervup.mdl) and proximity grenade
+// (progs/proxbomb.mdl). The launchers' shots, the ogres', and the pouches' grenades (QC vr_grenade.qc VR_HandGrenade_Make:
+// held, lying about, a launcher's round going in); drawn at vr_grenade_scale (vr_props.cpp drawnSize).
+[[nodiscard]] inline bool isQuakeGrenade(const qmodel_s* model)
+{
+    const ModelMetadata& m = get(model);
+    return m.is(Id::Grenade) || m.is(Id::Mervup) || m.is(Id::Proxbomb);
+}
 // has(model, Trait::Submodel) from the model's name alone (its rule: a map's brush submodel, "*N"), without the cache's
 // lookup: for loops over every entity many times a frame (worldtrace::world). Any thread.
 [[nodiscard]] bool isSubmodel(const qmodel_s* model);
