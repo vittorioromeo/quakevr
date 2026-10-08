@@ -144,6 +144,15 @@ bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm:
 [[nodiscard]] bool canRagdoll(edict_t* ent);
 bool ragdollKnockdown(edict_t* ent);
 int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range);
+// The two-hand throw's topple (vr_foegrab_throw_topple; ROUND21.md, "Holding enemies"): `ent`'s ragdoll (just made by
+// ragdollKnockdown) turned over about its feet towards level `dir`, a sweep: its parts' shared launch (the throw's push and
+// lift) shared out by height (the feet none, the top all), `topple` rad/s about the level axis through its feet across
+// `dir`, `spin` rad/s about the vertical through its middle; its lowest parts held on the floor (level motion none) for
+// `hold` s. False: no ragdoll.
+bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float hold);
+// Tests (the throw's trace): `num`'s ragdoll's pelvis, head (its rig's head, else its highest part) and feet (the middle of
+// the parts ragdollTopple held, else of those in its lowest quarter at the first call), units. False: no ragdoll.
+bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet);
 // Whether hand point `at` (units) is within vr_ragdoll_grab_reach of a limb of edict `num`'s ragdoll (a hand touching it).
 [[nodiscard]] bool ragdollReach(int num, const glm::vec3& at);
 // The hands and the limbs (QC's builtins: ragdollgrab, ragdollpull, ragdollrelease, ragdollheld, ragdollreach). `hand`:

@@ -542,6 +542,9 @@ struct RagdollBodies
     // Its pelvis after the last step (carryRagdolls: the step it goes in through a teleporter carries it whole).
     glm::vec3 lastPelvis{0.f};
     bool pelvisKnown{false};
+    // The two-hand throw's topple (ragdollTopple): these parts (bits, its feet) kept from sliding until pinUntil.
+    uint32_t pinned{0}, feet{0}; // (feet: the parts it toppled over, for the tests' ragdollStance)
+    double pinUntil{0.0};
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -3332,6 +3335,22 @@ void feedRagdoll(edict_t* ent, Slot& s)
             Con_Printf("ragdoll: %d knocked by QC: %.0f u/s\n", NUM_FOR_EDICT(ent), glm::length(v));
         }
         ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0.f;
+    }
+    if(r.pinned != 0u)
+    {
+        // (Thrown: its feet held where they stand, the pivot it topples over; they may still rise and fall.)
+        const bool hold = qcvm->time < r.pinUntil;
+        for(int b = 0; b < r.count && hold; b++)
+        {
+            if((r.pinned & (1u << b)) == 0u || partCut(r, b))
+            {
+                continue;
+            }
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            const b3Vec3 lin = b3Body_GetLinearVelocity(body);
+            b3Body_SetLinearVelocity(body, b3Vec3{0.f, 0.f, lin.z});
+        }
+        r.pinned = hold ? r.pinned : 0u;
     }
     if(r.settle != 1.f)
     {
@@ -12541,6 +12560,141 @@ bool ragdollKnockdown(edict_t* ent)
     {
         Con_Printf("knockdown: %d %s down as a ragdoll (%d ragdolls)\n", num, PR_GetString(ent->v.classname), ragdollCount());
     }
+    return true;
+}
+
+bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float hold)
+{
+    RagdollBodies* rp = ent ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp)
+    {
+        return false;
+    }
+    RagdollBodies& r = *rp;
+    // Its parts' middles and masses (metres), their shared motion (the throw's push and lift: createRagdoll's entVel), how
+    // high it stands.
+    float lowest = 1e30f, highest = -1e30f, mass = 0.f;
+    glm::vec3 shared{0.f}, middle{0.f};
+    za::Array<glm::vec3, ragdoll::maxBones> at{};
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        at[static_cast<za::SizeT>(b)] = glmv(b3Body_GetWorldCenter(body));
+        if(r.rig->bones[b].joint == ragdoll::Joint::Loose)
+        {
+            continue; // (his gun, welded in his hand: moved as the hand is, not counted)
+        }
+        const float m = b3Body_GetMass(body);
+        mass += m;
+        shared += glmv(b3Body_GetLinearVelocity(body)) * m;
+        middle += at[static_cast<za::SizeT>(b)] * m;
+        lowest = za::min(lowest, at[static_cast<za::SizeT>(b)].z);
+        highest = za::max(highest, at[static_cast<za::SizeT>(b)].z);
+    }
+    if(mass <= 0.f)
+    {
+        return false;
+    }
+    shared /= mass;
+    middle /= mass;
+    // Its feet: the parts in the lowest quarter of its height (their middles), standing on the floor (its box's bottom).
+    const float floor = za::min(glmv(world->toM(vec(ent->v.absmin))).z, lowest);
+    const float height = za::max(highest - floor, 0.05f);
+    glm::vec3 pivot{0.f};
+    int feet = 0;
+    r.pinned = 0u;
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b) || r.rig->bones[b].joint == ragdoll::Joint::Loose ||
+            at[static_cast<za::SizeT>(b)].z > lowest + 0.25f * (highest - lowest))
+        {
+            continue;
+        }
+        pivot += at[static_cast<za::SizeT>(b)];
+        feet++;
+        r.pinned |= 1u << b;
+    }
+    pivot = feet > 0 ? pivot / static_cast<float>(feet) : middle;
+    pivot.z = floor;
+    r.feet = r.pinned;
+    r.pinUntil = qcvm->time + static_cast<double>(za::max(hold, 0.f));
+    r.pinned = hold > 0.f ? r.pinned : 0u;
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    const glm::vec3 over = glm::cross(up, dir) * topple; // (the top goes along dir)
+    const glm::vec3 turn = up * spin;
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        const glm::vec3 p = at[static_cast<za::SizeT>(b)];
+        const float share = za::clamp((p.z - floor) / height, 0.f, 1.f);
+        glm::vec3 offset = p - middle;
+        offset.z = 0.f;
+        const glm::vec3 lin = glmv(b3Body_GetLinearVelocity(body));
+        b3Body_SetLinearVelocity(body, b3v(lin - shared * (1.f - share) + glm::cross(over, p - pivot) + glm::cross(turn, offset)));
+        b3Body_SetAngularVelocity(body, b3v(glmv(b3Body_GetAngularVelocity(body)) + over + turn));
+        b3Body_SetAwake(body, true);
+    }
+    if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d thrown over its feet: %.0f deg/s towards %.2f %.2f, spin %.0f deg/s, %d feet held %.2f s, "
+                   "%.0f units tall, its launch %.0f u/s shared by height\n",
+            NUM_FOR_EDICT(ent), glm::degrees(topple), dir.x, dir.y, glm::degrees(spin), feet, hold, height * world->m2u,
+            glm::length(shared) * world->m2u);
+    }
+    return true;
+}
+
+bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
+{
+    RagdollBodies* r = ragdollOf(num);
+    if(!r || r->count < 1)
+    {
+        return false;
+    }
+    const auto centre = [&](int b) { return world->toU(b3Body_GetWorldCenter(r->body[static_cast<za::SizeT>(b)])); };
+    const auto counted = [&](int b) { return !partCut(*r, b) && r->rig->bones[b].joint != ragdoll::Joint::Loose; };
+    if(r->feet == 0u)
+    {
+        // (Not toppled: its feet the parts in its lowest quarter now, as ragdollTopple's, kept for the next calls.)
+        float lowest = 1e30f, highest = -1e30f;
+        for(int b = 0; b < r->count; b++)
+        {
+            lowest = counted(b) ? za::min(lowest, centre(b).z) : lowest;
+            highest = counted(b) ? za::max(highest, centre(b).z) : highest;
+        }
+        for(int b = 0; b < r->count; b++)
+        {
+            r->feet |= counted(b) && centre(b).z <= lowest + 0.25f * (highest - lowest) ? 1u << b : 0u;
+        }
+    }
+    pelvis = centre(0);
+    int top = r->rig->head >= 0 && r->rig->head < r->count && !partCut(*r, r->rig->head) ? r->rig->head : -1;
+    glm::vec3 sum{0.f};
+    int held = 0;
+    for(int b = 0; b < r->count; b++)
+    {
+        if(!counted(b))
+        {
+            continue;
+        }
+        const glm::vec3 c = centre(b);
+        if((r->feet & (1u << b)) != 0u)
+        {
+            sum += c;
+            held++;
+        }
+        top = r->rig->head < 0 && (top < 0 || c.z > centre(top).z) ? b : top;
+    }
+    head = top >= 0 ? centre(top) : pelvis;
+    feet = held > 0 ? sum / static_cast<float>(held) : pelvis;
     return true;
 }
 

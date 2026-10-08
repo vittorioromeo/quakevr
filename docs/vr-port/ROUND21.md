@@ -31958,6 +31958,30 @@ worktree):
 | ogre at 30% (`vr_foegrab_hurt 0.3`) | 511 deg/s | thrown to your left |
 | shambler at 10% (hands on its arms; leniency 50 cm to reach) | 200 deg/s | never thrown (its kind) |
 | training dummy as a grunt | 841 deg/s | "thrown" shown, hands let go, it stands |
+
+**The throw topples it over its feet** (his note, 2026-10-09: "pushed towards the throw direction but stays upright. It
+should spin towards the throw direction with the feet as a pivot, like a sweep"). Thrown (not a shove: its knockdown is
+unchanged), the ragdoll just made is turned over about its feet (engine `box3d::ragdollTopple`, called by vr_foegrab.cpp
+`throwDown`): its feet are the parts in the lowest quarter of its height, the pivot their middle on the floor; every part
+gets `vr_foegrab_throw_topple` (120 deg/s) about the level axis through the pivot across the throw (w x r: the head along
+the throw, the feet nothing), and the throw's launch (push and lift) shared out by height (the feet none, the top all:
+the push itself becomes a turn about the feet). The feet are held (level motion zeroed each frame) for
+`vr_foegrab_throw_topple_hold` (0.3 s). The hands' twist about the vertical spins it on its middle, times
+`vr_foegrab_throw_spin` (0.5; at most 720 deg/s). Topple 0: pushed whole as before. Combat > Holding Enemies > Topple,
+Feet Held, Twist Spin. Test: `vr_foegrab_throw_test [way 0 left, 1 right, 2 towards you, 3 away] [twist deg/s]` throws
+the nearest monster as the hands would and traces its fall (torso lean pelvis-to-head from upright, feet moved, head
+along the throw; also after a real throw with `vr_foegrab_debug 1`); Debug > Tests > Holding Enemies > Throw the
+Nearest Left / Right / at You.
+
+| (firing range, 60 units ahead) | lean at 0.1 s | at 0.5 s | feet moved (most) | lies |
+| --- | --- | --- | --- | --- |
+| grunt, before (topple 0) | 28 deg (its pose's; slid 24 units upright) | 98 | 90 units | towards the throw |
+| grunt, topple 120 | 57 | 87 (110 at 0.2 s) | 7.5 | towards the throw, head 29 units past the feet |
+| knight, before / after | 9 / 36 | 60 / 88 | 93 / 8 | towards the throw |
+| ogre at 30%, before / after | 26 / 55 | 96 / 117 | 93 / 11 | towards the throw |
+| grunt, 400 deg/s twist | | 87 | 7.9 | spun 200 deg/s as it fell |
+
+(topple 240: 72 deg at 0.1 s, 133 at 0.2: rather a slam.)
 | training dummy as an ogre (full health) | 842 deg/s | not hurt enough |
 
 Seen: the knight thrown to the left ended 26 units towards the player and 7 to the right, lying (its ragdoll; the

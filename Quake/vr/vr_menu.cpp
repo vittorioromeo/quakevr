@@ -940,6 +940,13 @@ int campaignsBloodyShown = -1;
             .help("How hard the thrown enemy is sent along the throw (times Knockdowns' Push)."),
         slider("Throw Lift", vr_foegrab_throw_lift, 0.f, 400.f, 10.f, "%.0f units/s")
             .help("And up."),
+        slider("Topple", vr_foegrab_throw_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
+            .help("The thrown enemy loses its footing: it is turned over about its feet towards the throw this fast, a "
+                  "sweep, and the push and lift go to its top, not its feet. Off: pushed whole, as a shove's knockdown."),
+        slider("Feet Held", vr_foegrab_throw_topple_hold, 0.f, 1.f, 0.05f, "%.2f s")
+            .help("How long its feet stay where they stood (no sliding) as it topples over them."),
+        slider("Twist Spin", vr_foegrab_throw_spin, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Share of your hands' twist of it about the vertical it spins on with as it falls (at most 720 deg/s)."),
     };
 }
 
@@ -5881,6 +5888,14 @@ za::Vector<Item> pageDebugTests()
                   "a death knight, an ogre or a fiend can then be thrown (Combat > Holding Enemies, Hurt Below)."),
         command("Heal the Held", "vr_foegrab_hurt 1")
             .help("vr_foegrab_hurt 1: the enemy you hold (else the one nearest you) at its full health again."),
+        command("Throw the Nearest Left", "vr_foegrab_throw_test 0")
+            .help("vr_foegrab_throw_test 0: the monster nearest you thrown to your left as both hands' turn would (its kind "
+                  "and health decide; no hands needed). The console traces its fall: its torso's lean, its feet, its head "
+                  "(Combat > Holding Enemies > Topple)."),
+        command("Throw the Nearest Right", "vr_foegrab_throw_test 1")
+            .help("vr_foegrab_throw_test 1: the same, to your right."),
+        command("Throw the Nearest at You", "vr_foegrab_throw_test 2")
+            .help("vr_foegrab_throw_test 2: the same, towards you."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
