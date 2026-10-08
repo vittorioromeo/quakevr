@@ -80,7 +80,7 @@ extern cvar_t vr_zone_threadcheck; // zone.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
 extern int m_singleplayer_cursor; // menu.c: Single Player's (menu_vr pos)
 int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
-void M_ContentExtent(float* right, float* bottom); // menu.c: how far right and down its menu shown draws
+float M_ContentRightBelow(float y); // menu.c: how far right its menu shown draws below y (the main menu's rows as drawn)
 int M_TextLeft(void); // menu.c: its leftmost text (Ironwail's lists; 320 for Quake's menus)
 void M_Main_Layout(int* step, int* gap); // menu.c: the main menu's rows' spacing and its groups' gaps
 }
@@ -4884,6 +4884,18 @@ za::Vector<Item> pageDebugReports()
         toggle("Menu Links: Print, Do Not Open", vr_menu_link_dryrun)
             .help("vr_menu_link_dryrun: the version box's Support on Ko-fi link (bottom right of the menus) prints its address "
                   "in the console instead of opening the desktop's browser (tests)."),
+        command("Check for Updates Now", "vr_update_check_now")
+            .help("vr_update_check_now: the release feed (latest.json) read now, whatever the hour's cache and Check for "
+                  "Updates say, and what it found in the console; the notice above the version box follows. "
+                  "vr_update_url points it at a test server, vr_update_test_version fakes the feed's version."),
+        command("Update Check: Status", "vr_update_status")
+            .help("vr_update_status: this game's version, the latest the feed gave (where from, how long ago, cached or "
+                  "asked), the feeds, the cache file's age, and the notice shown."),
+        command("Update Notice: Fake 9.9.9", "vr_update_test_version 9.9.9")
+            .help("vr_update_test_version 9.9.9: the update notice shows as for a newer release, without asking anyone "
+                  "(its page: the feed's, else the releases' latest). Update Notice: Real Version undoes it."),
+        command("Update Notice: Real Version", "vr_update_test_version \"\"")
+            .help("vr_update_test_version \"\": the feed's own version again (no notice unless it is newer)."),
         command("Menu Help Fit", "menu_vr helpcheck").help("menu_vr helpcheck [columns]: every VR page's help wrapped as drawn: the pages whose box grew, the help shown in parts, the longest (HELPSUM)."),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
@@ -11582,9 +11594,7 @@ float qvr::menu::contentRightBelow(float y)
 {
     if(m_state != m_vr)
     {
-        float right, bottom;
-        M_ContentExtent(&right, &bottom);
-        return y < bottom ? right : -1e9f;
+        return M_ContentRightBelow(y);
     }
     const auto build = pages[page].build;
     const Layout l = layout();

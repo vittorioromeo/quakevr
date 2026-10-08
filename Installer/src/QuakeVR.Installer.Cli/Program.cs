@@ -8,7 +8,8 @@ using QuakeVR.Installer.Core.Shortcuts;
 
 // qvr-setup <command> [options]. Never writes the real desktop or Start menu: shortcuts go only into --shortcuts-dir.
 const string Usage = """
-    qvr-setup detect [--qvr <dir>] [--epic-manifests <dir>]
+    qvr-setup detect [--qvr <dir>] [--epic-manifests <dir>] [--registry-file <json> | --sandbox <dir>]
+                      (also the Quake VR: Unleashed install: --qvr, the Apps & Features entry (read only), the default folder)
     qvr-setup manifest <package folder> --version <text>
     qvr-setup install (--package <zip|folder> | --feed <latest.json url>) [--downloads <dir>]
                       (--target <dir> [--shortcuts-dir <dir>] | --sandbox <dir>) [--quake <dir>]
@@ -19,6 +20,19 @@ const string Usage = """
                        HD textures, the feed's hdtextures, else the installer's built-in pack (also with --package: the feed
                        is asked, and not needed; --no-feed never asks it). --dry-run: prints what would be downloaded and
                        from where, then stops. --sandbox: <dir>\QuakeVR, shortcuts in <dir>\_shortcuts, downloads in <dir>\_downloads)
+    qvr-setup update [--target <dir> | --sandbox <dir>] [--package <zip|folder> | --feed <url>] [--no-feed] [--dry-run]
+                      [--downloads <dir>] [--quake <dir>] [--shortcuts-dir <dir>] [--setup-from <QuakeVR-Setup.exe>]
+                      [--registry-file <json> | --register]
+                      (the install found as detect prints it; a newer package (or another build) updates, the same or an
+                       older one repairs (never a downgrade). Only program files that differ are copied; your files are
+                       kept; files you changed are backed up first; HD textures only when the pack changed; the relight
+                       only when its inputs changed. --dry-run prints the plan (from --feed: the file plan needs the
+                       package, unless it is in --downloads already). Shortcuts are kept unless --shortcuts-dir)
+    qvr-setup reinstall [--target <dir> | --sandbox <dir>] [--reset-settings] [--remove-saves] [--dry-run]
+                      (install's options) --accept-statement
+                      (install again from scratch: the chosen files (settings: configs, retro overrides, body calibration;
+                       saves and the Map Library's installed maps) are moved into <install>\backups\<date> reinstall,
+                       checked, then the full install runs; --dry-run lists them)
     qvr-setup statement                              (prints the author's statement on AI usage; install needs --accept-statement)
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
@@ -90,6 +104,279 @@ var log = new SyncProgress<InstallProgress>(p =>
     }
 });
 
+// The default install folder (the window's), and the existing install: the folder given, the Apps & Features entry (read
+// only: the test root of --registry-file, none for a sandbox, else the real HKCU), the default folder.
+InstallDetection FindInstall(Sandbox? sandbox, string? chosen) => InstallDetection.Find(
+    Opt("registry-file") is { } rf ? new JsonFileRegistry(rf) : sandbox is null ? new WindowsRegistryWriter() : null,
+    chosen ?? sandbox?.Target, Environment.ProcessPath,
+    sandbox is null ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "QuakeVR") : null);
+
+string DownloadsDir(Sandbox? sandbox) => Opt("downloads") ?? sandbox?.Downloads
+    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QuakeVR-Installer", "downloads");
+
+// The window's download path: the file the feed (or the built-in HD textures) names, with Range resume, size, SHA-256.
+async Task<string> Fetch(HttpClient http, string downloads, string what, FeedFile file)
+{
+    var dest = Path.Combine(downloads, Path.GetFileName(file.File));
+    Console.WriteLine($"downloading {what} ({PathUtil.FormatSize(file.Size)}) from {file.Urls[0]}");
+    await new Downloader(http).DownloadAsync(file.Mirrors, dest, file.Size, file.Sha256,
+        new SyncProgress<DownloadProgress>(p => Console.Write($"\r  {p.Source}: {PathUtil.FormatSize(p.Received)} / {PathUtil.FormatSize(p.Total ?? file.Size)}   ")),
+        CancellationToken.None);
+    Console.WriteLine($"\r  {dest}: downloaded and checked (SHA-256)          ");
+    return dest;
+}
+
+// A file the feed names, already downloaded and whole (a dry run plans from it instead of downloading), or null.
+string? AlreadyDownloaded(string downloads, FeedFile file)
+{
+    var path = Path.Combine(downloads, Path.GetFileName(file.File));
+    return File.Exists(path) && new FileInfo(path).Length == file.Size &&
+           string.Equals(PackageManifest.HashFile(path), file.Sha256, StringComparison.OrdinalIgnoreCase) ? path : null;
+}
+
+ShortcutOptions ShortcutsFor(string? shortcutsDir, InstallChoices? choices) => shortcutsDir is null
+    ? new ShortcutOptions { Desktop = false, StartMenu = false }
+    : new ShortcutOptions
+    {
+        Desktop = choices?.DesktopShortcut ?? true, StartMenu = choices?.StartMenuShortcuts ?? true,
+        Flat = choices?.FlatShortcut ?? true, Log = choices?.LogShortcut ?? true,
+        DesktopDir = Path.Combine(shortcutsDir, "Desktop"), StartMenuDir = Path.Combine(shortcutsDir, "Programs"),
+    };
+
+// install, and reinstall's second half (reinstall: the found install, and the files to set aside first).
+async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? reinstall)
+{
+    // What would be downloaded, and from where: the package (feed or --package) and the HD textures (the feed's
+    // hdtextures, else the installer's built-in pack). The feed is read only when something needs it; for the
+    // HD textures alone it is optional (--no-feed: never asked).
+    var package = Opt("package");
+    var textures = Opt("textures");
+    var dryRun = Flag("dry-run");
+    if (package is null && (Flag("no-feed") || (!options.ContainsKey("feed") && InstallerSettings.FeedsFromEnvironment().Count == 0)))
+    {
+        throw new ArgumentException("--package or --feed is required");
+    }
+    using var http = Downloader.CreateClient();
+    ReleaseFeed? feed = null;
+    var wantHd = Flag("hd") && textures is null;
+    if ((package is null || wantHd) && !Flag("no-feed"))
+    {
+        try
+        {
+            feed = await ReleaseFeed.FetchAsync(http, Feeds("feed"), CancellationToken.None);
+        }
+        catch (InstallException e) when (package is not null)
+        {
+            Console.WriteLine($"no release list: {e.Message}");
+        }
+    }
+    var hd = wantHd ? new InstallerSettings().Component(feed, Components.HdTextures) : null;
+    if (wantHd && hd is null)
+    {
+        Console.WriteLine("warning: no hdtextures component, in the feed or built in: no HD textures");
+    }
+    var packageFile = package is null ? feed?.Package ?? throw new InstallException("the feed names no package") : null;
+    if (dryRun)
+    {
+        Console.WriteLine(packageFile is null ? $"package: {package} (local)"
+            : $"package: {packageFile.File} {feed!.Version} ({PathUtil.FormatSize(packageFile.Size)}, sha256 {packageFile.Sha256}) from {string.Join(" then ", packageFile.Urls)}");
+        Console.WriteLine(textures is not null ? $"hdtextures: {textures} (local)"
+            : hd is null ? "hdtextures: none"
+            : $"hdtextures: {hd.File.File} {hd.SourceText} ({PathUtil.FormatSize(hd.File.Size)}, {hd.File.Size} bytes, sha256 {hd.File.Sha256}) from {string.Join(" then ", hd.File.Urls)}");
+        Console.WriteLine("dry run: nothing downloaded or installed");
+        return 0;
+    }
+    // The wizard's Statement page: the console installs only with YES to all four, given as --accept-statement.
+    if (!Flag("accept-statement"))
+    {
+        Console.Write(AiStatement.Format());
+        Console.WriteLine();
+        Console.WriteLine("To install, pass --accept-statement: it answers YES to all four statements above.");
+        return 3;
+    }
+    var probe = new WindowsSystemProbe();
+    var quake = Opt("quake") ?? (reinstallOf is { } ri && Directory.Exists(Path.Combine(ri.Record.QuakeDir, "id1")) ? ri.Record.QuakeDir : null)
+        ?? DetectionReport.Run(probe).DefaultQuake?.BaseDir
+        ?? throw new InstallException("No Quake found: pass --quake <folder with id1>.");
+    var sandbox = Opt("sandbox") is { } sb ? new Sandbox(sb) : null;
+    if (sandbox is not null && Flag("register"))
+    {
+        throw new ArgumentException("--sandbox never writes the Apps & Features entry: no --register");
+    }
+    if (sandbox is not null)
+    {
+        Console.WriteLine($"SANDBOX: {sandbox.Root}");
+    }
+    var target = reinstallOf?.Dir ?? Opt("target") ?? sandbox?.Target ?? throw new ArgumentException("--target (or --sandbox) is required");
+    if (InstallEngine.ValidateTarget(target, quake, probe) is { } why)
+    {
+        throw new InstallException(why);
+    }
+    var shortcutsDir = Opt("shortcuts-dir") ?? sandbox?.ShortcutsDir;
+    var downloads = DownloadsDir(sandbox);
+    if (packageFile is not null)
+    {
+        package = await Fetch(http, downloads, $"Quake VR {feed!.Version}", packageFile);
+    }
+    if (hd is not null)
+    {
+        textures = await Fetch(http, downloads, $"HD textures, {hd.SourceText},", hd.File);
+    }
+    var owned = ExpansionDetector.Detect([quake, target], [])
+        .Where(e => e.Folder is "hipnotic" or "rogue" && e.State == ExpansionState.Ready).Select(e => e.Folder).ToList();
+    // Install again from scratch: the chosen files of the player's go into a checked backup first, then the full install.
+    var backup = reinstall is null ? null : Reinstaller.Prepare(target, reinstall, DateTimeOffset.Now, log);
+    var plan = new InstallPlan
+    {
+        PackagePath = package!,
+        TargetDir = target,
+        QuakeDir = quake,
+        QuakeStore = reinstallOf?.Record.QuakeStore ?? "manual",
+        AllowUnverified = Flag("unverified"),
+        RelightOnFirstRun = Flag("relight"),
+        HdTexturesZip = textures,
+        HdTexturesSha256 = hd?.File.Sha256,
+        VisPatchArchives = options.TryGetValue("vispatch", out var vis) ? vis : [],
+        OwnedPacks = owned,
+        SetupFiles = Opt("setup-from") is { } setupExe ? SetupCopy.FilesOf(setupExe, SetupCopy.IsSingleFile(setupExe)) : [],
+        Registry = Registry(),
+        Shortcuts = ShortcutsFor(shortcutsDir, null),
+        Backup = backup,
+    };
+    var engine = new InstallEngine();
+    var record = engine.Install(plan, log, CancellationToken.None);
+    Console.WriteLine($"installed {record.Files.Count} files, {record.Shortcuts.Count} shortcuts{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
+    return 0;
+}
+
+// qvr-setup reinstall: the found install, the files the choice sets aside (dry run: listed), then InstallCommand.
+async Task<int> ReinstallCommand()
+{
+    var sandbox = Opt("sandbox") is { } sb ? new Sandbox(sb) : null;
+    var found = FindInstall(sandbox, Opt("target"));
+    Console.Write(found.Format());
+    if (found.Picked is not { } install)
+    {
+        Console.WriteLine("nothing to install again: use qvr-setup install");
+        return 1;
+    }
+    var choice = new ReinstallOptions { ResetSettings = Flag("reset-settings"), RemoveSaves = Flag("remove-saves") };
+    Console.Write(Reinstaller.Format(Reinstaller.Plan(install.Dir, choice), choice));
+    return await InstallCommand(install, choice);
+}
+
+// qvr-setup update: the found install against the package (--package, else the feed): newer (or another build) updates,
+// the same or older repairs. The HD textures are downloaded only when the pack changed (a repair: or a file is damaged).
+async Task<int> UpdateCommand()
+{
+    var sandbox = Opt("sandbox") is { } sb ? new Sandbox(sb) : null;
+    if (sandbox is not null && Flag("register"))
+    {
+        throw new ArgumentException("--sandbox never writes the Apps & Features entry: no --register");
+    }
+    var found = FindInstall(sandbox, Opt("target"));
+    Console.Write(found.Format());
+    if (found.Picked is not { } install)
+    {
+        Console.WriteLine("no install to update: use qvr-setup install");
+        return 1;
+    }
+    var dryRun = Flag("dry-run");
+    var package = Opt("package");
+    var downloads = DownloadsDir(sandbox);
+    using var http = Downloader.CreateClient();
+    ReleaseFeed? feed = null;
+    var hasHd = install.Record.Files.Any(f => f.Component == Components.HdTextures);
+    if (!Flag("no-feed") && (package is null || hasHd))
+    {
+        try
+        {
+            feed = await ReleaseFeed.FetchAsync(http, Feeds("feed"), CancellationToken.None);
+        }
+        catch (InstallException e) when (package is not null)
+        {
+            Console.WriteLine($"no release list: {e.Message}");
+        }
+    }
+    string packageVersion;
+    if (package is not null)
+    {
+        packageVersion = LocalPackages.Inspect(package).Manifest?.Version ?? throw new InstallException($"{package} is not a package (no manifest.json)");
+    }
+    else
+    {
+        var file = feed?.Package ?? throw new InstallException("--package or --feed is required (the feed names no package)");
+        packageVersion = feed.Version;
+        Console.WriteLine($"package: {file.File} {feed.Version} ({PathUtil.FormatSize(file.Size)}, sha256 {file.Sha256}) from {string.Join(" then ", file.Urls)}");
+        package = AlreadyDownloaded(downloads, file);
+        if (package is null && !dryRun)
+        {
+            package = await Fetch(http, downloads, $"Quake VR {feed.Version}", file);
+        }
+    }
+    var order = ReleaseVersion.Compare(install.Record.Version, packageVersion);
+    var mode = MaintenancePlanner.ModeFor(install.Record.Version, packageVersion);
+    Console.WriteLine($"installed {install.Record.Version}, package {packageVersion}: {order.ToString().ToLowerInvariant()} -> {mode.ToString().ToLowerInvariant()}");
+    var hdTarget = new InstallerSettings().Component(feed, Components.HdTextures);
+    var (hdAction, hdText) = MaintenancePlanner.HdTextures(install.Dir, install.Record, hdTarget?.File, verify: mode == InstallMode.Repair);
+    Console.WriteLine(hdText);
+    var getHd = hdAction is HdTexturesAction.Replace or HdTexturesAction.Restore && hdTarget is not null;
+    if (package is null)
+    {
+        // A dry run from the feed: the package is not downloaded, so the file plan cannot be made.
+        Console.WriteLine("program files: planned from the package once it is downloaded (pass --package for the file plan)");
+        Console.WriteLine("dry run: nothing downloaded or changed");
+        return 0;
+    }
+    using (var source = PackageSource.FromPath(package))
+    {
+        var manifest = source.ReadManifest() ?? throw new InstallException($"{package} has no manifest.json");
+        var plan = MaintenancePlanner.Plan(install.Dir, install.Record, manifest, mode);
+        Console.Write(plan.Format());
+        var relight = FirstStartRelight.Pending(install.Dir) ||
+                      (mode == InstallMode.Update && install.Record.Choices.RelightOnFirstRun && (plan.RelightInputsChanged.Count > 0 || getHd));
+        Console.WriteLine($"first-start relight: {(relight ? "yes" : "no")}{(install.Record.Choices.RelightOnFirstRun ? "" : " (not chosen at install)")}");
+        var hasSetup = Opt("setup-from") is not null || install.Record.Files.Any(f => f.Component == Components.Setup);
+        Console.WriteLine($"Apps & Features entry: {(Registry() is null ? "not written (pass --register or --registry-file)" : !hasSetup ? "not written (no copy of Setup in the install: pass --setup-from)" : $"version -> {(plan.KeepsInstalledVersion ? install.Record.Version : packageVersion)}")}");
+    }
+    if (dryRun)
+    {
+        if (getHd)
+        {
+            Console.WriteLine($"hdtextures: {hdTarget!.File.File} {hdTarget.SourceText} would be downloaded from {string.Join(" then ", hdTarget.File.Urls)}");
+        }
+        Console.WriteLine("dry run: nothing downloaded or changed");
+        return 0;
+    }
+    var quake = Opt("quake") ?? install.Record.QuakeDir;
+    if (!File.Exists(Path.Combine(quake, "id1", "pak0.pak")))
+    {
+        throw new InstallException($"The Quake folder this install uses ({quake}) has no id1\\pak0.pak any more: pass --quake <folder with id1>.");
+    }
+    var textures = getHd ? await Fetch(http, downloads, $"HD textures, {hdTarget!.SourceText},", hdTarget.File) : null;
+    var owned = ExpansionDetector.Detect([quake, install.Dir], [])
+        .Where(e => e.Folder is "hipnotic" or "rogue" && e.State == ExpansionState.Ready).Select(e => e.Folder).ToList();
+    var engine = new InstallEngine();
+    var record = engine.Install(new InstallPlan
+    {
+        Mode = mode,
+        PackagePath = package,
+        TargetDir = install.Dir,
+        QuakeDir = quake,
+        QuakeStore = install.Record.QuakeStore,
+        RelightOnFirstRun = install.Record.Choices.RelightOnFirstRun,
+        HdTexturesZip = textures,
+        HdTexturesSha256 = textures is null ? null : hdTarget!.File.Sha256,
+        OwnedPacks = owned,
+        SetupFiles = Opt("setup-from") is { } setupExe ? SetupCopy.FilesOf(setupExe, SetupCopy.IsSingleFile(setupExe)) : [],
+        Registry = Registry(),
+        Shortcuts = ShortcutsFor(Opt("shortcuts-dir") ?? sandbox?.ShortcutsDir, install.Record.Choices),
+    }, log, CancellationToken.None);
+    Console.WriteLine($"{mode.ToString().ToLowerInvariant()}: {record.Version}, {engine.LastPlan?.ToCopy.Count() ?? 0} files copied, {record.Files.Count} recorded" +
+                      $"{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
+    return 0;
+}
+
 try
 {
     switch (args[0])
@@ -98,6 +385,8 @@ try
         {
             var report = DetectionReport.Run(new WindowsSystemProbe(), Opt("epic-manifests"));
             Console.Write(report.Format(Opt("qvr")));
+            // The existing Quake VR: Unleashed install (what the window's Update screen and qvr-setup update use).
+            Console.Write(FindInstall(Opt("sandbox") is { } dsb ? new Sandbox(dsb) : null, Opt("qvr") ?? Opt("target")).Format());
             return 0;
         }
         case "manifest":
@@ -114,117 +403,11 @@ try
             return 0;
         }
         case "install":
-        {
-            // What would be downloaded, and from where: the package (feed or --package) and the HD textures (the feed's
-            // hdtextures, else the installer's built-in pack). The feed is read only when something needs it; for the
-            // HD textures alone it is optional (--no-feed: never asked).
-            var package = Opt("package");
-            var textures = Opt("textures");
-            var dryRun = Flag("dry-run");
-            if (package is null && (Flag("no-feed") || (!options.ContainsKey("feed") && InstallerSettings.FeedsFromEnvironment().Count == 0)))
-            {
-                throw new ArgumentException("--package or --feed is required");
-            }
-            using var http = Downloader.CreateClient();
-            ReleaseFeed? feed = null;
-            var wantHd = Flag("hd") && textures is null;
-            if ((package is null || wantHd) && !Flag("no-feed"))
-            {
-                try
-                {
-                    feed = await ReleaseFeed.FetchAsync(http, Feeds("feed"), CancellationToken.None);
-                }
-                catch (InstallException e) when (package is not null)
-                {
-                    Console.WriteLine($"no release list: {e.Message}");
-                }
-            }
-            var hd = wantHd ? new InstallerSettings().Component(feed, Components.HdTextures) : null;
-            if (wantHd && hd is null)
-            {
-                Console.WriteLine("warning: no hdtextures component, in the feed or built in: no HD textures");
-            }
-            var packageFile = package is null ? feed?.Package ?? throw new InstallException("the feed names no package") : null;
-            if (dryRun)
-            {
-                Console.WriteLine(packageFile is null ? $"package: {package} (local)"
-                    : $"package: {packageFile.File} {feed!.Version} ({PathUtil.FormatSize(packageFile.Size)}, sha256 {packageFile.Sha256}) from {string.Join(" then ", packageFile.Urls)}");
-                Console.WriteLine(textures is not null ? $"hdtextures: {textures} (local)"
-                    : hd is null ? "hdtextures: none"
-                    : $"hdtextures: {hd.File.File} {hd.SourceText} ({PathUtil.FormatSize(hd.File.Size)}, {hd.File.Size} bytes, sha256 {hd.File.Sha256}) from {string.Join(" then ", hd.File.Urls)}");
-                Console.WriteLine("dry run: nothing downloaded or installed");
-                return 0;
-            }
-            // The wizard's Statement page: the console installs only with YES to all four, given as --accept-statement.
-            if (!Flag("accept-statement"))
-            {
-                Console.Write(AiStatement.Format());
-                Console.WriteLine();
-                Console.WriteLine("To install, pass --accept-statement: it answers YES to all four statements above.");
-                return 3;
-            }
-            var probe = new WindowsSystemProbe();
-            var quake = Opt("quake") ?? DetectionReport.Run(probe).DefaultQuake?.BaseDir
-                ?? throw new InstallException("No Quake found: pass --quake <folder with id1>.");
-            var sandbox = Opt("sandbox") is { } sb ? new Sandbox(sb) : null;
-            if (sandbox is not null && Flag("register"))
-            {
-                throw new ArgumentException("--sandbox never writes the Apps & Features entry: no --register");
-            }
-            if (sandbox is not null)
-            {
-                Console.WriteLine($"SANDBOX: {sandbox.Root}");
-            }
-            var target = Opt("target") ?? sandbox?.Target ?? throw new ArgumentException("--target (or --sandbox) is required");
-            if (InstallEngine.ValidateTarget(target, quake, probe) is { } why)
-            {
-                throw new InstallException(why);
-            }
-            var shortcutsDir = Opt("shortcuts-dir") ?? sandbox?.ShortcutsDir;
-            // The window's path: the files the feed (or the built-in HD textures) names, with Range resume, size, SHA-256.
-            var downloads = Opt("downloads") ?? sandbox?.Downloads
-                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QuakeVR-Installer", "downloads");
-            async Task<string> Fetch(string what, FeedFile file)
-            {
-                var dest = Path.Combine(downloads, Path.GetFileName(file.File));
-                Console.WriteLine($"downloading {what} ({PathUtil.FormatSize(file.Size)}) from {file.Urls[0]}");
-                await new Downloader(http).DownloadAsync(file.Mirrors, dest, file.Size, file.Sha256,
-                    new SyncProgress<DownloadProgress>(p => Console.Write($"\r  {p.Source}: {PathUtil.FormatSize(p.Received)} / {PathUtil.FormatSize(p.Total ?? file.Size)}   ")),
-                    CancellationToken.None);
-                Console.WriteLine($"\r  {dest}: downloaded and checked (SHA-256)          ");
-                return dest;
-            }
-            if (packageFile is not null)
-            {
-                package = await Fetch($"Quake VR {feed!.Version}", packageFile);
-            }
-            if (hd is not null)
-            {
-                textures = await Fetch($"HD textures, {hd.SourceText},", hd.File);
-            }
-            var owned = ExpansionDetector.Detect([quake, target], [])
-                .Where(e => e.Folder is "hipnotic" or "rogue" && e.State == ExpansionState.Ready).Select(e => e.Folder).ToList();
-            var plan = new InstallPlan
-            {
-                PackagePath = package!,
-                TargetDir = target,
-                QuakeDir = quake,
-                QuakeStore = "manual",
-                AllowUnverified = Flag("unverified"),
-                RelightOnFirstRun = Flag("relight"),
-                HdTexturesZip = textures,
-                VisPatchArchives = options.TryGetValue("vispatch", out var vis) ? vis : [],
-                OwnedPacks = owned,
-                SetupFiles = Opt("setup-from") is { } setupExe ? SetupCopy.FilesOf(setupExe, SetupCopy.IsSingleFile(setupExe)) : [],
-                Registry = Registry(),
-                Shortcuts = shortcutsDir is null
-                    ? new ShortcutOptions { Desktop = false, StartMenu = false }
-                    : new ShortcutOptions { DesktopDir = Path.Combine(shortcutsDir, "Desktop"), StartMenuDir = Path.Combine(shortcutsDir, "Programs") },
-            };
-            var record = new InstallEngine().Install(plan, log, CancellationToken.None);
-            Console.WriteLine($"installed {record.Files.Count} files, {record.Shortcuts.Count} shortcuts");
-            return 0;
-        }
+            return await InstallCommand(null, null);
+        case "reinstall":
+            return await ReinstallCommand();
+        case "update":
+            return await UpdateCommand();
         case "uninstall":
         {
             var r = Uninstaller.Uninstall(Opt("target") ?? throw new ArgumentException("--target is required"),

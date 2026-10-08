@@ -150,7 +150,13 @@ static class ScreenshotHarness
         if (vm.Record is not null)
         {
             var again = new MainViewModel(new WindowsSystemProbe(), options);
-            await Save(new ShellView { DataContext = again }, Path.Combine(dir, "1b-welcome-installed.png"));
+            var againView = new ShellView { DataContext = again };
+            await Save(againView, Path.Combine(dir, "1b-welcome-installed.png"));
+            // The Update screen's secondary choice opened: Install again from scratch, its two choices ticked.
+            again.ToggleReinstallCommand.Execute(null);
+            again.ResetSettings = again.RemoveSaves = true;
+            await Save(againView, Path.Combine(dir, "1f-welcome-install-again.png"));
+            report.AppendLine($"update screen: {again.ExistingTitle} / {again.ExistingText} / button {again.NextText}");
         }
 
         // High scaling: the Welcome page at 150% (the sidebar's logos, crisp), and the Statement page in the window a

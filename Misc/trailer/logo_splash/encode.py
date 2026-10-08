@@ -22,6 +22,9 @@ import common as C  # noqa: E402
 from composite import to_straight_u8  # noqa: E402
 
 
+BITS_PER_MB = 900
+
+
 def frames_of(d):
     fs = sorted(glob.glob(os.path.join(d, "*.png")))
     if not fs:
@@ -51,7 +54,9 @@ def prores(files, out, fps):
         s = c.add_stream("prores_ks", rate=fps)
         s.width, s.height = w, h
         s.pix_fmt = "yuva444p10le"
-        s.options = {"profile": "4444", "vendor": "apl0", "alpha_bits": "16"}
+        # A normal ProRes 4444 rate (about 600-800 Mbit/s at 1080p60; left to itself prores_ks spends about 2 Gbit/s
+        # on these frames, more than players keep up with).
+        s.options = {"profile": "4444", "vendor": "apl0", "alpha_bits": "16", "bits_per_mb": str(BITS_PER_MB)}
         s.codec_context.color_primaries = 1
         s.codec_context.color_trc = 1
         s.codec_context.colorspace = 1
@@ -66,7 +71,22 @@ def prores(files, out, fps):
     print("%s: %d frames, %.0f MB, %.0f s" % (out, len(files), os.path.getsize(out) / 1e6, time.time() - t0))
 
 
-def preview(files, out, fps, width=1920):
+def read_wav(path):
+    """A 16- or 24-bit PCM WAV as float32 (channels, samples) and its rate."""
+    import wave
+    with wave.open(path) as w:
+        n, ch, sw, rate = w.getnframes(), w.getnchannels(), w.getsampwidth(), w.getframerate()
+        raw = w.readframes(n)
+    if sw == 3:
+        b = np.frombuffer(raw, np.uint8).reshape(-1, 3).astype(np.int32)
+        i = b[:, 0] | (b[:, 1] << 8) | (b[:, 2] << 16)
+        x = (np.where(i >= 1 << 23, i - (1 << 24), i) / 8388608.0).astype(np.float32)
+    else:
+        x = np.frombuffer(raw, "<i2").astype(np.float32) / 32768
+    return x.reshape(-1, ch).T.copy(), rate
+
+
+def preview(files, out, fps, width=1920, audio=None):
     t0 = time.time()
     h = width * 9 // 16
     bg = checker(width, h, 32)
@@ -75,6 +95,11 @@ def preview(files, out, fps, width=1920):
         s.width, s.height = width, h
         s.pix_fmt = "yuv420p"
         s.options = {"crf": "17", "preset": "medium"}
+        if audio:
+            pcm, rate = read_wav(audio)
+            sa = c.add_stream("aac", rate=rate)
+            sa.layout = "stereo"
+            sa.bit_rate = 256000
         for f in files:
             im = Image.open(f).convert("RGBA")
             if im.width != width:
@@ -84,6 +109,15 @@ def preview(files, out, fps, width=1920):
                 c.mux(p)
         for p in s.encode():
             c.mux(p)
+        if audio:
+            for i in range(0, pcm.shape[1], 1024):
+                af = av.AudioFrame.from_ndarray(np.ascontiguousarray(pcm[:, i:i + 1024]), format="fltp", layout="stereo")
+                af.sample_rate = rate
+                af.pts = i
+                for p in sa.encode(af):
+                    c.mux(p)
+            for p in sa.encode():
+                c.mux(p)
     print("%s: %.0f MB, %.0f s" % (out, os.path.getsize(out) / 1e6, time.time() - t0))
 
 
@@ -150,6 +184,7 @@ def main():
     ap.add_argument("--alphatest")
     ap.add_argument("--bg")
     ap.add_argument("--range", help="only frames a-b")
+    ap.add_argument("--audio", help="a WAV muxed into the preview (AAC)")
     ap.add_argument("--downscale")
     ap.add_argument("--to", type=int, default=1920)
     ap.add_argument("--fps", type=int, default=C.FPS)
@@ -166,7 +201,7 @@ def main():
     if a.alphatest:
         alphatest(files, a.alphatest, a.bg)
     if a.preview:
-        preview(files, a.preview, a.fps)
+        preview(files, a.preview, a.fps, audio=a.audio)
     if a.prores:
         prores(files, a.prores, a.fps)
 

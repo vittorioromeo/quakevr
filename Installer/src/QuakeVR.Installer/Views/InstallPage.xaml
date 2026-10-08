@@ -4,7 +4,7 @@
              xmlns:skin="clr-namespace:QuakeVR.Installer.Skin">
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Installing Quake VR: Unleashed" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="{Binding InstallTitle}" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}" Text="Every file is checked against the release's SHA-256 as it is copied." />
             <DockPanel Margin="0,30,0,10">
                 <!-- The percentage in Quake's status-bar digits once Quake is found. -->

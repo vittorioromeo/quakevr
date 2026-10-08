@@ -32015,3 +32015,42 @@ Checklist:
   hangs off the gun; pick up cells: it plugs back in. Two laser cannons: two cords (two cells or more: one each).
 - [ ] Mjolnir Cord, Super Axe Cord (off by default): the same from the end of the handle; worth keeping on?
 - [ ] Cord Points: where each cord leaves its weapon, if the underside spot is wrong.
+
+## The in-game update notice (2026-10-08)
+
+The author's design: the game tells you when a newer release is out, from the installer's own feed.
+
+- **The check** (`Quake/vr/vr_update.cpp`): GitHub's `releases/latest/download/latest.json` only (the author's
+  decision: no vittorioromeo.com mirror for the game), read at start-up on a thread of its own (the engine's
+  `Download`, as the map index), at most once an hour: a younger answer is read back from
+  `<base>/cache/update_check.txt` (keyed by the feeds asked; a failed check writes nothing, and an older cached
+  answer of the same feeds stands in). Its `version` ("0.9.1 (2026-10-08 abcdef12)") is compared with `VERSION`
+  as semver (a "v" and the " (date hash)" ignored, prereleases older than their release, numeric identifiers
+  numerically; a feed version that is not MAJOR.MINOR.PATCH gives no notice). Never at start-up in the kit's test
+  runs (`QVR_TEST_BACKGROUND`). Failures are silent but with `developer`.
+- **The notice** (`vr_menubrand.cpp`): "Update available: Quake VR: Unleashed X.Y.Z" in a box like the version box,
+  3 px above it, right-aligned; where the menu reaches under one row (the flat main menu's Advanced VR), two rows
+  ("Update available:" over the name) as narrow as the version box; VR pages keep clear of it as of the version box
+  (`versionLabelClearance`, the two-row box). One link: lit under the laser or mouse, a press opens the feed's `page`
+  (make_release.py now writes `https://github.com/<repo>/releases/tag/<tag>`; none for a local release) or
+  `releases/latest`, with the Ko-fi link's 1.5 s repeat guard, "Opened on your desktop" and dry run. Drawn only with
+  the version box. `menu.c` gained `M_ContentRightBelow`: the main menu's rows as drawn (they reach the canvas's
+  bottom on a flat screen; `M_ContentExtent` said 200).
+- **Settings**: `vr_update_check 1` (Advanced VR > HUD and Menus > Menu > Check for Updates; 0: no check, no notice),
+  `vr_update_url` (test feeds, ';' or space separated), `vr_update_test_version` (stands in for the feed's).
+  Commands: `vr_update_status`, `vr_update_check_now [startup]` (startup: as at start-up, the cache honoured),
+  `vr_update_compare a b`; `vr_mock_laser update`, `vr_mock_mouse update [click]`. Debug > (with Menu Links) Check
+  for Updates Now, Update Check: Status, Update Notice: Fake 9.9.9 / Real Version. README: "Network and privacy".
+  RELEASING.md: "Which release is Latest" (game releases always Latest; asset releases never).
+- **Checked**: `Misc/quakevr/update_notice_test.py` 18 checks against a local server (newer: notice drawn, a double
+  press opens the page once; same and older: no notice; 404: silent, status says why, the next feed answers; the
+  cache: one request for two start-up checks and after a restart, asked again past an hour; `vr_update_check 0`: no
+  request, no notice; test runs: no start-up check). `vr_update_compare` on 1.0.0-beta.1 < 1.0.0,
+  1.0.0-alpha.beta > 1.0.0-alpha.1, beta.11 > beta.2, v0.10.0 > 0.9.9, "2026-10-06" unreadable. The real feed
+  today: HTTP 404 (no game release marked Latest yet): no notice.
+
+Checklist:
+
+- [ ] Debug > Update Notice: Fake 9.9.9: the box above the version box in the headset (one row) and on the desktop
+  main menu (two rows, clear of Advanced VR); point and pull the trigger: the releases page opens on the desktop.
+- [ ] After the next game release (marked Latest), an older build shows the notice within the hour.

@@ -861,7 +861,7 @@ void update(const hands::State& s)
     }
     toolbar.bannerHovered = bannerHovered;
 
-    // And the version box's Ko-fi link.
+    // And the version box's Ko-fi link (or the update notice above it).
     const bool linkHovered = on && hits[pointingHand].valid && versionLinkAt(m_mousex, m_mousey);
     if(linkHovered && !toolbar.linkHovered)
     {
@@ -896,6 +896,16 @@ void mockLaser_f()
         pointingHand = HAND_MAIN;
         return;
     }
+    if(float x, y; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "update"))
+    {
+        if(!updateLinkSpot(x, y))
+        {
+            Con_Printf("vr_mock_laser update: the update notice is not shown\n");
+        }
+        mockLaser = {true, {x, y}};
+        pointingHand = HAND_MAIN;
+        return;
+    }
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "spectator"))
     {
         const BannerLayout b = bannerLayout(toolbarLayout());
@@ -923,7 +933,7 @@ void mockLaser_f()
         return;
     }
     Con_Printf("vr_mock_laser <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
-               "checklist | spectator | kofi | off: the main hand's laser on that spot of the menu\n");
+               "checklist | spectator | kofi | update | off: the main hand's laser on that spot of the menu\n");
 }
 
 void mockMouse_f()
@@ -943,6 +953,14 @@ void mockMouse_f()
         }
         next = 2;
     }
+    else if(Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "update"))
+    {
+        if(!updateLinkSpot(spot.x, spot.y))
+        {
+            Con_Printf("vr_mock_mouse update: the update notice is not shown\n");
+        }
+        next = 2;
+    }
     else if(Cmd_Argc() >= 2)
     {
         const ToolbarLayout l = toolbarLayout();
@@ -958,7 +976,7 @@ void mockMouse_f()
     if(next == 0)
     {
         Con_Printf("vr_mock_mouse <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
-                   "checklist | kofi [click]: the desktop mouse on that spot of the menu, clicked with click\n");
+                   "checklist | kofi | update [click]: the desktop mouse on that spot of the menu, clicked with click\n");
         return;
     }
 

@@ -15,6 +15,10 @@
 //   (qvr::menu::contentRightBelow) nor the status box comes down to it. The link lights up under the laser or the
 //   desktop mouse; a press (trigger, click) opens https://ko-fi.com/vittorioromeovee in the desktop's browser
 //   (SDL_OpenURL) once, and the link says so for a few seconds (vr_menu_link_dryrun: only printed).
+// - The update notice (vr_update.cpp: the release feed names a newer version; vr_update_check): "Update available:
+//   Quake VR: Unleashed X.Y.Z" in a box of its own just above the version box (right-aligned with it), a link like
+//   Ko-fi's (lit under the laser or the mouse; a press opens the release's page once, the same feedback, repeat guard
+//   and dry run). Drawn with the version box only, and only where the menu leaves room for it there too.
 // - The colours (vr_menu_recolor): while the menus draw, the gui shader turns their browns, tans, oranges and
 //   yellows towards a blood red (gl_shaders.h, MenuRecolor; gl_draw.c, Draw_SetMenuRecolor), a true hue change in
 //   Oklab: the lightness kept, the chroma kept but for vr_menu_recolor_saturation, greys, blues and greens left
@@ -29,6 +33,7 @@
 #include "vr_menu.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_menuui.hpp"
+#include "vr_update.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -277,6 +282,26 @@ struct VersionLabel
 };
 VersionLabel versionLabel;
 
+// The update notice as last placed (vr_update.cpp says whether there is one): a link of its own.
+constexpr const char* noticePrefix = "Update available: ";
+constexpr const char* noticeName = "Quake VR: Unleashed ";
+constexpr float noticeGap = 3.f; // its box above the version box (true pixels)
+struct UpdateNotice
+{
+    char version[28]{};                             // the version shown (the feed's, cut to fit)
+    int lines{1};                                   // its rows: 1, or 2 where the menu reaches under one
+    float x0{0.f}, x1{-1.f}, y0{0.f}, y1{-1.f};     // the box (menu x and y): the link takes all of it
+    float lxc{0.f}, lyc{0.f};                       // its middle (vr_mock_laser update)
+    float contentRight{0.f};                        // what the menu draws right to beside it
+    const char* leftOut{"no menu drawn yet"};       // why it was not drawn (nullptr: drawn)
+    int menu{m_none};
+    int frame{-10};
+    bool hot{false};
+    double pressed{-100.0};
+    int opened{0};
+};
+UpdateNotice updateNotice;
+
 // "v" and the version: MAJOR.MINOR while PATCH is 0 ("v0.9"), else the whole ("v0.9.1", "v1.0.0-beta.1").
 void versionShown(char* out, size_t size)
 {
@@ -375,6 +400,51 @@ struct VersionBox
     return b;
 }
 
+// The update notice's box: versionPad inside it, noticeGap above the version box, right-aligned with it and as wide as
+// its text needs (as wide as its feedback's at least, so that a press does not change it), no narrower than the version
+// box. One row ("Update available: Quake VR: Unleashed X.Y.Z"), or where the menu reaches under that, two ("Update
+// available:" over the release's name), as narrow as the version box.
+struct NoticeBox
+{
+    int lines;
+    float x0, x1, y0, y1, yc;
+    float textRight;
+    float rowY[2]; // the rows' middles
+    float half;    // the highlight's half height (true pixels)
+};
+[[nodiscard]] NoticeBox noticeBox(const VersionBox& b, const char* version, int lines)
+{
+    const size_t name = strlen(noticeName) + strlen(version);
+    const size_t prefix = strlen(noticePrefix);
+    const size_t chars = lines == 1 ? prefix + name : (prefix - 1 > name ? prefix - 1 : name);
+    const float width = b.size * za::fmax(static_cast<float>(chars), static_cast<float>(strlen("Opened on your desktop")));
+    NoticeBox n;
+    n.lines = lines;
+    n.x1 = b.x1;
+    n.textRight = b.textRight;
+    n.x0 = za::fmin(b.x0, n.textRight - width - versionPad);
+    n.y1 = b.y0 - noticeGap / b.k;
+    const float rows = lines == 1 ? b.size : b.step + b.size;
+    n.y0 = n.y1 - (versionPad + rows + versionPad) / b.k;
+    n.yc = (n.y0 + n.y1) * 0.5f;
+    n.rowY[0] = n.y0 + (versionPad + b.size * 0.5f) / b.k;
+    n.rowY[1] = n.rowY[0] + b.step / b.k;
+    n.half = b.linkHalf + (lines == 1 ? 0.f : b.step * 0.5f);
+    return n;
+}
+
+// The notice's version, cut to fit its buffer (false: no notice).
+[[nodiscard]] bool noticeVersion(char* out, size_t size)
+{
+    const qvr::update::Notice* n = qvr::update::notice();
+    if(!n)
+    {
+        return false;
+    }
+    q_strlcpy(out, n->version.cStr(), size);
+    return true;
+}
+
 // Whether the label is over this menu now (drawn this frame or the last).
 [[nodiscard]] bool labelShown()
 {
@@ -382,14 +452,26 @@ struct VersionBox
     return !v.leftOut && v.menu == m_state && key_dest == key_menu && host_framecount - v.frame <= 2;
 }
 
+// Whether the update notice is over this menu now (drawn this frame or the last).
+[[nodiscard]] bool noticeShown()
+{
+    const UpdateNotice& n = updateNotice;
+    return !n.leftOut && n.menu == m_state && key_dest == key_menu && host_framecount - n.frame <= 2;
+}
+
+[[nodiscard]] bool noticeAt(float x, float y)
+{
+    const UpdateNotice& n = updateNotice;
+    return noticeShown() && x >= n.x0 && x <= n.x1 && y >= n.y0 && y <= n.y1;
+}
+
 // The page in the desktop's browser (SDL_OpenURL), or only its address printed: vr_menu_link_dryrun, and the kit's test
 // runs (QVR_TEST_HIDDEN), never open a browser.
-void openLink(const char* url)
+void openLink(const char* url, int& opened)
 {
-    VersionLabel& v = versionLabel;
-    v.opened++;
+    opened++;
     const bool dry = qvr::vr_menu_link_dryrun.value || getenv("QVR_TEST_HIDDEN");
-    Con_Printf("menu link: opening %s (%d)%s\n", url, v.opened, dry ? " (dry run: no browser)" : "");
+    Con_Printf("menu link: opening %s (%d)%s\n", url, opened, dry ? " (dry run: no browser)" : "");
     if(!dry && SDL_OpenURL(url) != 0)
     {
         Con_Printf("menu link: the browser could not be opened (%s)\n", SDL_GetError());
@@ -408,13 +490,28 @@ bool qvr::menuui::versionLabelClearance(float& x, float& y)
     const VersionBox b = versionBox(title, sizeof(title));
     x = b.x0 - versionGap;
     y = b.y0 - versionGapAbove / b.k;
+    if(char version[sizeof(UpdateNotice::version)]; noticeVersion(version, sizeof(version)))
+    {
+        // The update notice above it: the menus keep clear of both (of its narrower two rows: where a page then ends
+        // above them, its one row fits too).
+        const NoticeBox n = noticeBox(b, version, 2);
+        x = za::fmin(x, n.x0 - versionGap);
+        y = n.y0 - versionGapAbove / b.k;
+    }
     return true;
 }
 
 bool qvr::menuui::versionLinkAt(float x, float y)
 {
     const VersionLabel& v = versionLabel;
-    return labelShown() && x >= v.lx0 && x <= v.lx1 && y >= v.ly0 && y <= v.ly1;
+    return (labelShown() && x >= v.lx0 && x <= v.lx1 && y >= v.ly0 && y <= v.ly1) || noticeAt(x, y);
+}
+
+bool qvr::menuui::updateLinkSpot(float& x, float& y)
+{
+    x = updateNotice.lxc;
+    y = updateNotice.lyc;
+    return noticeShown();
 }
 
 bool qvr::menuui::versionLinkSpot(float& x, float& y)
@@ -426,26 +523,118 @@ bool qvr::menuui::versionLinkSpot(float& x, float& y)
 
 bool qvr::menuui::versionLinkPress()
 {
-    VersionLabel& v = versionLabel;
     if(!versionLinkAt(m_mousex, m_mousey) || !pointerOn(false))
     {
         return false;
     }
-    if(realtime - v.pressed < linkRepeat)
+    // The update notice's link, or Ko-fi's.
+    const qvr::update::Notice* notice = qvr::update::notice();
+    const bool update = notice && noticeAt(m_mousex, m_mousey);
+    double& pressed = update ? updateNotice.pressed : versionLabel.pressed;
+    if(realtime - pressed < linkRepeat)
     {
         return true; // (taken: the page is opening already)
     }
-    v.pressed = realtime;
+    pressed = realtime;
     S_LocalSound("misc/menu2.wav");
-    openLink(linkUrl);
+    if(update)
+    {
+        openLink(notice->page.cStr(), updateNotice.opened);
+    }
+    else
+    {
+        openLink(linkUrl, versionLabel.opened);
+    }
     return true;
 }
+
+namespace
+{
+
+// The update notice above the version box `b` (drawn), when vr_update.cpp has one and the menu leaves room for it.
+void drawUpdateNotice(const VersionBox& b)
+{
+    UpdateNotice& n = updateNotice;
+    if(!noticeVersion(n.version, sizeof(n.version)))
+    {
+        n.leftOut = "no newer version known";
+        return;
+    }
+    const float k = b.k, size = b.size;
+    // One row, or where the menu reaches under that, two.
+    NoticeBox nb = noticeBox(b, n.version, 1);
+    n.contentRight = qvr::menu::contentRightBelow(nb.y0 - versionGapAbove / k);
+    if(nb.x0 < n.contentRight + versionGap)
+    {
+        nb = noticeBox(b, n.version, 2);
+        n.contentRight = qvr::menu::contentRightBelow(nb.y0 - versionGapAbove / k);
+    }
+    n.lines = nb.lines;
+    n.x0 = nb.x0;
+    n.x1 = nb.x1;
+    n.y0 = nb.y0;
+    n.y1 = nb.y1;
+    if(n.x0 < n.contentRight + versionGap)
+    {
+        n.leftOut = "the menu reaches under it";
+        return;
+    }
+    if(n.y0 < versionLabel.statusBottom + versionGap / k)
+    {
+        n.leftOut = "the status box reaches down to it";
+        return;
+    }
+    n.leftOut = nullptr;
+    n.menu = m_state;
+    n.frame = host_framecount;
+    n.lxc = (nb.x0 + nb.x1) * 0.5f;
+    n.lyc = nb.yc;
+    n.hot = noticeAt(m_mousex, m_mousey) && qvr::menuui::pointerOn(true);
+
+    // A box like the version box's; lit as the Ko-fi link under the laser or the mouse (all of it: it is one link).
+    const qvr::menupaint::Painter p;
+    namespace colors = qvr::menupaint::colors;
+    const float half = (nb.y1 - nb.y0) * k * 0.5f;
+    p.rounded(nb.x0, nb.x1, nb.yc, half, 3.f, colors::boxBorder);
+    p.rounded(nb.x0 + 1.f, nb.x1 - 1.f, nb.yc, half - 1.f, 2.f, colors::boxFill);
+    if(n.hot)
+    {
+        p.rounded(nb.x0 + 2.f, nb.x1 - 2.f, nb.yc, nb.half, 2.f, colors::highlightEdge);
+        p.rounded(nb.x0 + 3.f, nb.x1 - 3.f, nb.yc, nb.half - 1.f, 1.5f, colors::buttonHover);
+    }
+    // "Update available:" white, the release's name in the menus' tan (white too while lit); for a while after a
+    // press, where the page opened.
+    if(realtime - n.pressed < linkFeedback)
+    {
+        const char* text = qvr::vrActive() ? "Opened on your desktop" : "Opened in your browser";
+        drawSmall(nb.textRight - size * static_cast<float>(strlen(text)), nb.yc, size, text, true);
+        return;
+    }
+    char name[64];
+    q_snprintf(name, sizeof(name), "%s%s", noticeName, n.version);
+    const float nameX = nb.textRight - size * static_cast<float>(strlen(name));
+    if(nb.lines == 1)
+    {
+        drawSmall(nameX - size * static_cast<float>(strlen(noticePrefix)), nb.yc, size, noticePrefix, true);
+        drawSmall(nameX, nb.yc, size, name, n.hot);
+        return;
+    }
+    char prefix[24];
+    q_strlcpy(prefix, noticePrefix, sizeof(prefix));
+    prefix[strlen(prefix) - 1] = '\0'; // (its trailing space)
+    drawSmall(nb.textRight - size * static_cast<float>(strlen(prefix)), nb.rowY[0], size, prefix, true);
+    drawSmall(nameX, nb.rowY[1], size, name, n.hot);
+}
+
+} // namespace
 
 extern "C" void VR_MenuDrawVersion()
 {
     VersionLabel& v = versionLabel;
     v.x1 = v.x0 - 1.f;
     v.hot = false;
+    updateNotice.hot = false;
+    updateNotice.leftOut = "the version box is not drawn";
     if(!qvr::vr_menu_version.value)
     {
         v.leftOut = "vr_menu_version 0";
@@ -523,6 +712,8 @@ extern "C" void VR_MenuDrawVersion()
         const float width = height * imageAspect(kofiLogo);
         drawImage(kofiLogo, pic, textX - size * 0.5f - width, b.linkY - height * 0.5f / k, width, height);
     }
+
+    drawUpdateNotice(b);
 }
 
 void qvr::menuui::printVersionLabel()
@@ -538,6 +729,15 @@ void qvr::menuui::printVersionLabel()
         v.text, VR_VersionIsDev() ? versionDevMark : "", v.x0, v.x1, v.y0, v.y1, v.contentRight, v.statusBottom, VR_BuildVersion());
     Con_Printf("menu_vr pos: version link \"%s\" at %.1f %.1f, takes x %.0f..%.0f, y %.1f..%.1f%s, opened %d\n", linkShown(),
         v.lxc, v.lyc, v.lx0, v.lx1, v.ly0, v.ly1, v.hot ? " (lit)" : "", v.opened);
+    const UpdateNotice& n = updateNotice;
+    if(n.leftOut)
+    {
+        Con_Printf("menu_vr pos: update notice not drawn (%s), opened %d\n", n.leftOut, n.opened);
+        return;
+    }
+    Con_Printf("menu_vr pos: update notice \"%s%s%s\" in %d row(s) at %.1f %.1f, x %.0f..%.0f, y %.1f..%.1f (menu to x %.0f)%s, opened %d\n",
+        noticePrefix, noticeName, n.version, n.lines, n.lxc, n.lyc, n.x0, n.x1, n.y0, n.y1, n.contentRight, n.hot ? " (lit)" : "",
+        n.opened);
 }
 
 extern "C" void VR_MenuRecolor(float* params)

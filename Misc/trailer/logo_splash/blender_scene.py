@@ -53,6 +53,8 @@ def parse_args():
             a["pak"] = v
         elif k == "--axe":                       # id (id1's v_axe.mdl) or qvr (Quake VR's)
             a["axe"] = v
+        elif k == "--nogrunt":                   # fg: the burst alone (no grunt, no axe) -> <out>/fg_nogrunt
+            a["noaxe"] = v == "1"
         elif k == "--nomb":                      # test: no motion blur
             a["nomb"] = v == "1"
         elif k == "--out":
@@ -706,7 +708,13 @@ def main():
 
     if pas in ("fg", "test"):
         grunt = build_grunt(pak, pal)
-        axe = build_axe(pak, pal, a["axe"])
+        axe = None if a.get("noaxe") else build_axe(pak, pal, a["axe"])
+        if a.get("noaxe"):
+            grunt.hide_render = True          # the no-grunt version: only the burst (his own footage has the kill)
+            for fc in fcurves_of(grunt.animation_data.action):
+                if fc.data_path == "hide_render":
+                    for kp in fc.keyframe_points:
+                        kp.co[1] = 1.0
         gibs = build_gibs(pak, pal)
     if pas in ("letters", "stills", "test"):
         letters = build_letters()
@@ -718,7 +726,9 @@ def main():
 
     if pas == "fg":
         lo, hi = a["frames"] or (0, C.GIB_END)
-        render_frames(sc, os.path.join(out, "fg"), "fg", lo, hi)
+        if a.get("noaxe"):
+            lo = max(lo, C.HIT)
+        render_frames(sc, os.path.join(out, "fg_nogrunt" if a.get("noaxe") else "fg"), "fg", lo, hi)
     elif pas == "letters":
         lo, hi = a["frames"] or (C.LAND[0] - C.FALL, C.LETTERS_END)
         render_frames(sc, os.path.join(out, "letters"), "letters", lo, hi)

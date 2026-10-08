@@ -9,7 +9,7 @@ public sealed class FeedFile
     public string File { get; set; } = "";
     public long Size { get; set; }
     public string Sha256 { get; set; } = "";
-    /// <summary>Mirrors in order (GitHub first, then vittorioromeo.com).</summary>
+    /// <summary>Mirrors in order (the GitHub release's own file first; a release may list others after it).</summary>
     public List<string> Urls { get; set; } = [];
 
     [JsonIgnore]
@@ -17,11 +17,11 @@ public sealed class FeedFile
 }
 
 /// <summary>
-/// <c>latest.json</c>, published on both hosts beside each release (section 5, "Updates"): the newest version, the
-/// package, and the optional components. The installer reads the first host that answers.
+/// <c>latest.json</c>, an asset of each GitHub release (section 5, "Updates"): the newest version, the package, and the
+/// optional components. The installer reads it from the latest release only (decision 2026-10-08: GitHub is the one feed).
 /// <code>
 /// { "schema": 1, "version": "2026-10-06 c131f4bf",
-///   "package":    { "file": "QuakeVR.zip", "size": ..., "sha256": "...", "urls": ["https://github.com/...", "https://vittorioromeo.com/..."] },
+///   "package":    { "file": "QuakeVR.zip", "size": ..., "sha256": "...", "urls": ["https://github.com/..."] },
 ///   "components": { "hdtextures": { "file": "quakevr-hq-textures-png-2026-10-03.zip", ... } } }
 /// </code>
 /// </summary>
@@ -142,7 +142,6 @@ public sealed class InstallerSettings
     public List<string> FeedUrls { get; set; } =
     [
         "https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json",
-        "https://vittorioromeo.com/quakevr/latest.json",
     ];
 
     public string GitHubApi { get; set; } = "https://api.github.com/repos/vittorioromeo/quakevr/releases/latest";

@@ -28,8 +28,7 @@ the files are uploaded there too (for the hosted HD textures: .../releases/<supp
 or localhost (make_release.ps1 -Local) are not used for the hosted textures: a local server does not have them. The
 installer reads latest.json from
 https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json (this release's latest.json asset, once it
-is the newest non-prerelease release), then https://vittorioromeo.com/quakevr/latest.json (docs/vr-port/INSTALLER.md,
-"Publishing a release").
+is the newest non-prerelease release), its only feed (docs/vr-port/INSTALLER.md, "Publishing a release").
 """
 
 import argparse
@@ -43,7 +42,6 @@ import zipfile
 
 GITHUB = "https://github.com/vittorioromeo/quakevr/releases/download/{tag}/{file}"
 REPO = "vittorioromeo/quakevr"
-SITE_FEED = "https://vittorioromeo.com/quakevr/latest.json"
 SUPPORT_ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "release", "support_assets.json")
 LOOPBACK = re.compile(r"^https?://(127\.0\.0\.1|localhost|\[::1\])([:/]|$)", re.I)
 
@@ -183,6 +181,10 @@ def main():
         assets.append(dest)
     if a.notes:
         feed["notes"] = a.notes
+    if not any(LOOPBACK.match(b) for b in bases):
+        # The release's page: the game's update notice opens it (Quake/vr/vr_update.cpp; a feed without one opens
+        # releases/latest). The installer ignores it. A local test release has none (its tag is not on GitHub).
+        feed["page"] = f"https://github.com/{REPO}/releases/tag/{tag}"
     latest = os.path.join(out, "latest.json")
     with open(latest, "w", encoding="utf-8", newline="\n") as f:
         json.dump(feed, f, indent=2)
@@ -201,13 +203,8 @@ def main():
    The notes link ericw-tools' GPL source (the package ships light.exe): Source of ericw-tools' light.exe:
    {support_url(sa, "ericw_source")}
 
-2. vittorioromeo.com: upload latest.json to {SITE_FEED} (the installer's second feed; the folder
-   /quakevr/ must exist). Optional: also upload the other files to the address of a second --url-base and run this script
-   again with it, so the downloads have a mirror.
-
-3. Check: qvr-setup feed --url https://github.com/{REPO}/releases/latest/download/latest.json
-          qvr-setup feed --url {SITE_FEED}
-   (each prints the version and the package's size), then the installer's Install with no local package.
+2. Check: qvr-setup feed --url https://github.com/{REPO}/releases/latest/download/latest.json (the installer's only
+   feed; it prints the version and the package's size), then the installer's Install with no local package.
 """
     with open(os.path.join(out, "PUBLISH.txt"), "w", encoding="utf-8", newline="\n") as f:
         f.write(publish)
