@@ -62,8 +62,9 @@ public:
     // next: the loader unloads a runtime with its last instance and reads XR_RUNTIME_JSON again at the next.
     [[nodiscard]] bool start() override
     {
+        xrruntime::beginLog();
         const xrruntime::Plan plan = xrruntime::plan();
-        Con_Printf("OpenXR runtime choice: %s\n", plan.summary.cStr());
+        xrruntime::note("OpenXR runtime choice: %s\n", plan.summary.cStr());
         for(size_t i = 0; i < plan.attempts.size(); i++)
         {
             const xrruntime::Attempt& attempt = plan.attempts[i];
@@ -74,16 +75,17 @@ public:
             xrruntime::use(plan, attempt);
             if(xrruntime::simulatedFailure(attempt))
             {
-                Con_Warning("OpenXR: %s failed (simulated: vr_xr_test_fail, or no manifest in the test environment)\n",
+                xrruntime::warn("OpenXR: %s failed (simulated: vr_xr_test_fail, or no manifest in the test environment)\n",
                     attempt.label.cStr());
                 continue;
             }
+            currentAttempt = attempt;
             if(startRuntime())
             {
                 xrruntime::setOutcome(plan, static_cast<int>(i));
                 return true;
             }
-            Con_Warning("OpenXR: %s failed to start\n", attempt.label.cStr());
+            xrruntime::warn("OpenXR: %s failed to start\n", attempt.label.cStr());
             stop(); // (all of it: the next runtime starts from nothing)
             resetRuntimeState();
         }
@@ -107,6 +109,11 @@ public:
 
     void stop() override
     {
+        if(instance != XR_NULL_HANDLE)
+        {
+            xrruntime::keepGraphicsModules();
+            xrruntime::logLine(va("stopping %s\n", runtime[0] ? runtime : "the runtime"));
+        }
         if(frameBegun)
         {
             endFrame(false);
@@ -476,6 +483,7 @@ private:
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
     bool vdxr{false};                             // Virtual Desktop's own runtime (VDXR)
+    xrruntime::Attempt currentAttempt;            // the runtime being started (start())
     float debugButtonsWas{0.f};                   // vr_debug_buttons last frame
     PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
     HiddenArea hidden[2];
@@ -542,7 +550,7 @@ private:
         {
             xrResultToString(instance, result, text);
         }
-        Con_Warning("OpenXR: %s failed: %s (%d)\n", what, text, static_cast<int>(result));
+        xrruntime::warn("OpenXR: %s failed: %s (%d)\n", what, text, static_cast<int>(result));
         return false;
     }
 
@@ -787,6 +795,7 @@ private:
             vdxr = !strncmp(props.runtimeName, "VirtualDesktopXR", 16);
             Con_Printf("OpenXR runtime: %s\n", runtime);
         }
+        xrruntime::loaded(currentAttempt, runtime[0] ? runtime : "a runtime without a name");
 
         return true;
     }
@@ -795,7 +804,26 @@ private:
     {
         XrSystemGetInfo info{XR_TYPE_SYSTEM_GET_INFO};
         info.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
-        if(!check(xrGetSystem(instance, &info, &systemId), "xrGetSystem (is the headset connected?)"))
+        XrResult result = xrGetSystem(instance, &info, &systemId);
+        // SteamVR just started (by this instance, or a moment before) says there is no headset until its driver
+        // (Virtual Desktop's, the Link's) finds it: asked again for a while (vr_xr_steamvr_wait).
+        const bool steamVR = xrruntime::isSteamVR(currentAttempt) || strstr(runtime, "SteamVR");
+        if(result == XR_ERROR_FORM_FACTOR_UNAVAILABLE && steamVR && vr_xr_steamvr_wait.value > 0.f)
+        {
+            xrruntime::note("OpenXR: SteamVR has no headset yet: asking again for up to %g s (vr_xr_steamvr_wait)\n",
+                vr_xr_steamvr_wait.value);
+            const double begin = Sys_DoubleTime();
+            int tries = 1;
+            while(result == XR_ERROR_FORM_FACTOR_UNAVAILABLE && Sys_DoubleTime() - begin < vr_xr_steamvr_wait.value)
+            {
+                Sleep(250);
+                result = xrGetSystem(instance, &info, &systemId);
+                tries++;
+            }
+            xrruntime::note("OpenXR: SteamVR %s after %.1f s (%d tries)\n",
+                XR_SUCCEEDED(result) ? "found the headset" : "still has no headset", Sys_DoubleTime() - begin, tries);
+        }
+        if(!check(result, "xrGetSystem (is the headset connected?)"))
         {
             return false;
         }

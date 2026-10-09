@@ -12,9 +12,11 @@
 #endif
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 namespace qvr::xrruntime
 {
@@ -531,12 +533,15 @@ void autoOrder(const Environment& env, const za::Vector<Installed>& installed, P
     }
 }
 
-// XR_RUNTIME_JSON as the game was started with it (an outside one wins over vr_xr_runtime).
+// XR_RUNTIME_JSON as the game was started with it (an outside one wins over vr_xr_runtime); the start's log
+// (qvr_openxr.txt in the game folder: logPath()).
 struct State
 {
     bool outsideChecked = false;
     za::String outside;
-    za::String status; // statusLine()
+    za::String status;    // statusLine()
+    bool logging = false; // since the backend's first start: lines go to the log too
+    bool logStarted = false;
 };
 State state;
 
@@ -548,6 +553,36 @@ void checkOutside()
         const char* env = getenv("XR_RUNTIME_JSON");
         state.outside = env ? env : "";
     }
+}
+
+// A line for the log (opened and closed for each: a crash right after loses nothing).
+// always: also between starts (the stops), once a start began; else only during a start (not every frame's failure).
+void logText(const char* text, bool always = false)
+{
+    if(!state.logging && !(always && state.logStarted))
+    {
+        return;
+    }
+    FILE* f = fopen(logPath(), "a");
+    if(f)
+    {
+        fputs(text, f);
+        fclose(f);
+    }
+}
+
+// +vr_xr_runtime on the command line (the shortcut's or the debugger's arguments): its value, or null.
+[[nodiscard]] const char* commandLineChoice()
+{
+    const int i = COM_CheckParm("+vr_xr_runtime");
+    return i && i + 1 < com_argc ? com_argv[i + 1] : nullptr;
+}
+
+// vr_xr_runtime is still the command line's (set again at every start, over the menu's choice).
+[[nodiscard]] bool fromCommandLine()
+{
+    const char* value = commandLineChoice();
+    return value && static_cast<int>(Q_atof(value)) == static_cast<int>(vr_xr_runtime.value);
 }
 
 [[nodiscard]] const char* modeName(int mode)
@@ -595,7 +630,8 @@ void checkOutside()
         {
             systemDefault("no runtime installed");
         }
-        q_snprintf(line, sizeof(line), "Auto: %s - %s", plan.attempts[0].label.cStr(), plan.attempts[0].reason.cStr());
+        q_snprintf(line, sizeof(line), "Auto: %s - %s%s", plan.attempts[0].label.cStr(), plan.attempts[0].reason.cStr(),
+            fromCommandLine() ? " (from the command line)" : "");
         plan.summary = line;
         return plan;
     }
@@ -626,7 +662,8 @@ void checkOutside()
     {
         if(!manifest.empty() && fileExists(manifest.cStr()))
         {
-            plan.attempts.pushBack(Attempt{manifest, labelOf(manifest.cStr()), za::String{"chosen in the menu"}});
+            plan.attempts.pushBack(Attempt{manifest, labelOf(manifest.cStr()),
+                za::String{fromCommandLine() ? "chosen on the command line" : "chosen in the menu"}});
         }
         else
         {
@@ -644,26 +681,54 @@ void checkOutside()
     return plan;
 }
 
-void explain_f()
+// The graphics DLLs a runtime loads that the GPU driver keeps pointers into, kept loaded for good once a runtime
+// loaded them (keepGraphicsModules()). VDXR loads d3d11.dll (it renders with D3D11 and shares the game's OpenGL images
+// through NVIDIA's GL/D3D interop) and unloads it with itself; NVIDIA's OpenGL driver thread then reads d3d11.dll's
+// memory and the game crashes (the author's crashes of 2026-10-09 switching from VDXR: an access violation in
+// nvapi64_impl.dll called from nvoglv64.dll's thread, reading the unloaded d3d11.dll's memory).
+constexpr const char* graphicsModules[] = {"d3d11.dll", "dxgi.dll", "d3d12.dll", "vulkan-1.dll"};
+constexpr size_t graphicsModuleCount = sizeof(graphicsModules) / sizeof(graphicsModules[0]);
+bool graphicsModuleKept[graphicsModuleCount] = {};
+
+// What Auto sees and the order it would try the runtimes in (vr_xr_runtime_explain; the log of each start).
+void describe()
 {
     const Environment env = environment();
     const za::Vector<Installed> installed = installedRuntimes(env);
     const Plan p = makePlan(env, installed);
 
-    Con_Printf("vr_xr_runtime %d (%s)%s\n", static_cast<int>(vr_xr_runtime.value), modeName(static_cast<int>(vr_xr_runtime.value)),
+    note("vr_xr_runtime %d (%s)%s\n", static_cast<int>(vr_xr_runtime.value), modeName(static_cast<int>(vr_xr_runtime.value)),
         env.test ? "; test environment (vr_xr_test 1)" : "");
+    if(const char* cl = commandLineChoice())
+    {
+        note(fromCommandLine() ? "  set on the command line (+vr_xr_runtime %s): set again at every start, over the menu's choice\n"
+                              : "  the command line's +vr_xr_runtime %s is set again at the next start, over the menu's choice\n",
+            cl);
+    }
+    checkOutside();
+    note("  XR_RUNTIME_JSON when the game started: %s\n", state.outside.empty() ? "not set" : state.outside.cStr());
+#ifdef _WIN32
+    za::String modules;
+    for(size_t i = 0; i < graphicsModuleCount; i++)
+    {
+        modules += i ? ", " : "";
+        modules += graphicsModules[i];
+        modules += graphicsModuleKept[i] ? " kept" : GetModuleHandleA(graphicsModules[i]) ? " loaded" : " not loaded";
+    }
+    note("  graphics DLLs: %s\n", modules.cStr());
+#endif
     for(const Known& k : known)
     {
         const char* running = runningProcess(env, k.kind);
-        Con_Printf("  %s: %s\n", k.label, running ? va("%s running", running) : "not running");
+        note("  %s: %s\n", k.label, running ? va("%s running", running) : "not running");
     }
     const bool streamer = runningProcess(env, Kind::VirtualDesktop) != nullptr;
     const char* effect = env.vd.choice == VdChoice::Unknown ? ": Auto as without it"
                          : !streamer                         ? " (ignored: the Streamer isn't running)"
                          : env.vd.choice == VdChoice::SteamVR ? ": SteamVR first"
                                                               : ": VDXR first";
-    Con_Printf("  Virtual Desktop's OpenXR runtime setting: %s%s\n", vdChoiceName(env.vd.choice), effect);
-    Con_Printf("     %s\n", env.vd.source.cStr());
+    note("  Virtual Desktop's OpenXR runtime setting: %s%s\n", vdChoiceName(env.vd.choice), effect);
+    note("     %s\n", env.vd.source.cStr());
     for(const Installed& i : installed)
     {
         bool planned = false;
@@ -673,26 +738,26 @@ void explain_f()
         }
         const bool idleSteamVR = vr_xr_runtime.value == 4.f && i.exists && i.kind == Kind::SteamVR && !i.running &&
                                  !i.active && !planned;
-        Con_Printf("  installed: %s%s%s%s\n", labelOf(i.manifest.cStr()).cStr(), i.active ? ", the system's active" : "",
+        note("  installed: %s%s%s%s\n", labelOf(i.manifest.cStr()).cStr(), i.active ? ", the system's active" : "",
             i.exists ? "" : ", NOT FOUND (left out)",
             idleSteamVR ? ", not running: left out (it would start SteamVR; vr_xr_runtime_fallback 2 tries it)" : "");
-        Con_Printf("     %s\n", i.manifest.cStr());
+        note("     %s\n", i.manifest.cStr());
     }
     if(installed.empty())
     {
-        Con_Printf("  installed: none\n");
+        note("  installed: none\n");
     }
-    Con_Printf("choice: %s\n", p.summary.cStr());
+    note("choice: %s\n", p.summary.cStr());
     for(size_t i = 0; i < p.attempts.size(); i++)
     {
         const Attempt& a = p.attempts[i];
-        Con_Printf("  %d. %s (%s)%s\n", static_cast<int>(i + 1), a.label.cStr(), a.reason.cStr(),
+        note("  %d. %s (%s)%s\n", static_cast<int>(i + 1), a.label.cStr(), a.reason.cStr(),
             simulatedFailure(a) ? " [fails: simulated]" : "");
-        Con_Printf("     %s\n", a.manifest.empty() ? "(the loader's choice: the system's active runtime)" : a.manifest.cStr());
+        note("     %s\n", a.manifest.empty() ? "(the loader's choice: the system's active runtime)" : a.manifest.cStr());
     }
     if(p.attempts.size() > 1)
     {
-        Con_Printf("fallback: %s\n", p.fallback ? "on to the next while one fails, then flat" : "off (vr_xr_runtime_fallback 0)");
+        note("fallback: %s\n", p.fallback ? "on to the next while one fails, then flat" : "off (vr_xr_runtime_fallback 0)");
     }
     // Where the tries would end if each simulated failure fails and every other attempt starts.
     int first = -1;
@@ -703,11 +768,186 @@ void explain_f()
             first = static_cast<int>(i);
         }
     }
-    Con_Printf("last start: %s\n", state.status.empty() ? "none yet (the OpenXR backend hasn't started)" : state.status.cStr());
-    Con_Printf("outcome: %s\n", first < 0 ? "flat (every runtime fails)" : va("%d. %s", first + 1, p.attempts[first].label.cStr()));
+    note("last start: %s\n", state.status.empty() ? "none yet (the OpenXR backend hasn't started)" : state.status.cStr());
+    note("outcome: %s\n", first < 0 ? "flat (every runtime fails)" : va("%d. %s", first + 1, p.attempts[first].label.cStr()));
+}
+
+void explain_f()
+{
+    describe();
+    note("log of the last start: %s\n", logPath());
+}
+
+// A runtime manifest's library: its "library_path", next to the manifest when relative ("" when unreadable).
+[[nodiscard]] za::String libraryOf(const char* manifest)
+{
+    za::String library;
+    FILE* f = fopen(manifest, "rb");
+    if(!f)
+    {
+        return library;
+    }
+    char text[8192];
+    const size_t n = fread(text, 1, sizeof(text) - 1, f);
+    fclose(f);
+    text[n] = 0;
+    const char* p = strstr(text, "\"library_path\"");
+    if(!p)
+    {
+        return library;
+    }
+    p += strlen("\"library_path\"");
+    while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n' || *p == ':')
+    {
+        p++;
+    }
+    if(*p != '"')
+    {
+        return library;
+    }
+    za::String path;
+    for(p++; *p && *p != '"'; p++)
+    {
+        if(*p == '\\' && p[1])
+        {
+            p++; // (JSON's escapes: \\ and \/)
+        }
+        path += *p;
+    }
+    const bool absolute = (path.size() > 1 && path.cStr()[1] == ':') || path.cStr()[0] == '\\' || path.cStr()[0] == '/';
+    if(!absolute)
+    {
+        const char* name = fileName(manifest);
+        for(const char* c = manifest; c < name; c++)
+        {
+            library += *c;
+        }
+    }
+    library += path.cStr();
+#ifdef _WIN32
+    char full[1024];
+    if(GetFullPathNameA(library.cStr(), sizeof(full), full, nullptr) > 0)
+    {
+        library = full;
+    }
+#endif
+    return library;
 }
 
 } // namespace
+
+const char* logPath()
+{
+    return va("%s/qvr_openxr.txt", com_gamedir);
+}
+
+void beginLog()
+{
+    // The first start of the game rewrites the log; restarts (vr_restart, another runtime chosen) add to it.
+    if(!state.logStarted)
+    {
+        state.logStarted = true;
+        if(FILE* f = fopen(logPath(), "w"))
+        {
+            fclose(f);
+        }
+    }
+    state.logging = true;
+    char when[64] = "";
+    const time_t now = time(nullptr);
+    if(const tm* t = localtime(&now))
+    {
+        strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", t);
+    }
+    logText(va("\n=== OpenXR start, %s; Quake VR %s\n", when, VR_BuildVersion()));
+    za::String args;
+    for(int i = 0; i < com_argc; i++)
+    {
+        args += i ? " " : "";
+        args += com_argv[i];
+    }
+    logText(va("command line: %s\n", args.cStr()));
+    const char* env = getenv("XR_RUNTIME_JSON");
+    logText(va("XR_RUNTIME_JSON now (the game's last attempt's, or the starting one): %s\n", env && env[0] ? env : "not set"));
+    describe();
+}
+
+void note(const char* format, ...)
+{
+    char text[2048];
+    va_list args;
+    va_start(args, format);
+    q_vsnprintf(text, sizeof(text), format, args);
+    va_end(args);
+    Con_Printf("%s", text);
+    logText(text);
+}
+
+void warn(const char* format, ...)
+{
+    char text[2048];
+    va_list args;
+    va_start(args, format);
+    q_vsnprintf(text, sizeof(text), format, args);
+    va_end(args);
+    Con_Warning("%s", text);
+    logText(va("WARNING: %s", text));
+}
+
+void loaded(const Attempt& attempt, const char* runtimeName)
+{
+    const char* env = getenv("XR_RUNTIME_JSON");
+    note("OpenXR: the loader loaded %s (XR_RUNTIME_JSON %s)\n", runtimeName, env && env[0] ? env : "not set: the system's active runtime");
+    if(attempt.manifest.empty())
+    {
+        return;
+    }
+    const za::String library = libraryOf(attempt.manifest.cStr());
+    if(library.empty())
+    {
+        note("OpenXR: %s's library unknown (%s unreadable)\n", attempt.label.cStr(), attempt.manifest.cStr());
+        return;
+    }
+#ifdef _WIN32
+    if(GetModuleHandleA(library.cStr()))
+    {
+        note("OpenXR: %s's library is the one loaded: %s\n", attempt.label.cStr(), library.cStr());
+    }
+    else
+    {
+        warn("OpenXR: %s's library isn't loaded (%s): the loader loaded another runtime, %s\n", attempt.label.cStr(),
+            library.cStr(), runtimeName);
+    }
+#endif
+}
+
+void logLine(const char* text)
+{
+    logText(text, true);
+}
+
+void keepGraphicsModules()
+{
+#ifdef _WIN32
+    for(size_t i = 0; i < graphicsModuleCount && vr_xr_keep_graphics_dlls.value != 0.f; i++)
+    {
+        HMODULE module = nullptr;
+        if(!graphicsModuleKept[i] && GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_PIN, graphicsModules[i], &module))
+        {
+            graphicsModuleKept[i] = true;
+            const char* text =
+                va("OpenXR: keeping %s loaded for good (the GPU driver may use it after the runtime unloads)\n", graphicsModules[i]);
+            Con_Printf("%s", text);
+            logText(text, true);
+        }
+    }
+#endif
+}
+
+bool isSteamVR(const Attempt& attempt)
+{
+    return !attempt.manifest.empty() && kindOf(attempt.manifest.cStr()) == Kind::SteamVR;
+}
 
 void registerCommands()
 {
@@ -725,7 +965,7 @@ void use(const Plan& plan, const Attempt& attempt)
 {
     if(plan.keepEnvironment)
     {
-        Con_Printf("OpenXR: XR_RUNTIME_JSON is set outside the game (%s): vr_xr_runtime is ignored\n", attempt.manifest.cStr());
+        note("OpenXR: XR_RUNTIME_JSON is set outside the game (%s): vr_xr_runtime is ignored\n", attempt.manifest.cStr());
         return;
     }
     const char* value = attempt.manifest.empty() ? nullptr : attempt.manifest.cStr();
@@ -733,7 +973,7 @@ void use(const Plan& plan, const Attempt& attempt)
     SetEnvironmentVariableA("XR_RUNTIME_JSON", value); // (the loader's getenv reads the process environment)
     _putenv_s("XR_RUNTIME_JSON", value ? value : "");
 #endif
-    Con_Printf("OpenXR: trying %s (%s): %s\n", attempt.label.cStr(), attempt.reason.cStr(),
+    note("OpenXR: trying %s (%s): %s\n", attempt.label.cStr(), attempt.reason.cStr(),
         value ? value : "the system's active runtime");
 }
 
@@ -774,12 +1014,13 @@ void setOutcome(const Plan& plan, int started)
     state.status = line;
     if(started < 0)
     {
-        Con_Warning("OpenXR: no runtime started (%d tried): VR is off\n", static_cast<int>(plan.attempts.size()));
+        warn("OpenXR: no runtime started (%d tried): VR is off\n", static_cast<int>(plan.attempts.size()));
     }
     else
     {
-        Con_Printf("OpenXR runtime in use: %s\n", line);
+        note("OpenXR runtime in use: %s\n", line);
     }
+    state.logging = false; // (the stops still logged: logLine)
 }
 
 const char* statusLine()

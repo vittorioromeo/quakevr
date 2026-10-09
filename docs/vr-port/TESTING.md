@@ -2025,4 +2025,7 @@ unloads, `FAKEXR_FAIL_INSTANCE=fakexr_steam` fails one's `xrCreateInstance`. `ba
 <agent>` runs it all (39 checks, ~1 min): Auto's order case by case, Virtual Desktop's own runtime setting
 (`vr_xr_test_vd_runtime`: VD's number, -1 unknown, 0 Automatic, 1 SteamVR, 2 VDXR, or a StreamerSettings.json to read), the manual choices, the config migration, the
 fallback through the real loader (each fake runtime loaded, failing and unloaded in turn in one process) and an
-outside `XR_RUNTIME_JSON` winning.
+outside `XR_RUNTIME_JSON` winning. Also (49 checks): `FAKEXR_D3D11=fakexr_vd` makes VDXR's fake load and free d3d11.dll as VDXR does,
+and the game keeps it loaded (`graphics DLLs: d3d11.dll kept` in the report; not with `vr_xr_keep_graphics_dlls 0`);
+each VR start's log `quakevr/qvr_openxr.txt`; SteamVR asked again for the headset (`vr_xr_steamvr_wait`); a
+`+vr_xr_runtime` on the command line reported; a relative `library_path` resolved.

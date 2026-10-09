@@ -4988,7 +4988,7 @@ za::Vector<Item> pageDebugReports()
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
         command("OpenXR Runtime Choice", "vr_xr_runtime_explain")
-            .help("vr_xr_runtime_explain: what VR Settings > Headset > OpenXR Runtime chooses now and why: the runtimes installed and running, the order they are tried in."),
+            .help("vr_xr_runtime_explain: what VR Settings > Headset > OpenXR Runtime chooses now and why: the runtimes installed and running, the order they are tried in. Each VR start is logged in qvr_openxr.txt in the game folder (quakevr): what was tried, what the loader loaded, what failed."),
         command("Player", "vr_dumpplayer").help("vr_dumpplayer [client]: a player's VR fields in the game (hands, weapons, hotspots)."),
         command("Models Check", "vr_model_check 1")
             .help("vr_model_check 1: every entity's model index against its model's name, and your models against the "
@@ -7823,6 +7823,8 @@ za::Vector<Item> pageMain()
         info(xrRuntimeLine),
         cycle("Try Other Runtimes", vr_xr_runtime_fallback, {{0.f, "Off"}, {1.f, "On"}, {2.f, "On, SteamVR too"}}).advanced()
             .help("Auto: when the chosen runtime fails to start (no headset), try the other installed ones before playing flat. An idle SteamVR (not the system's runtime) only with 'SteamVR too': trying it starts SteamVR."),
+        slider("SteamVR Wait", vr_xr_steamvr_wait, 0.f, 20.f, 1.f, "%.0f s").advanced()
+            .help("How long SteamVR, just started, is given to find the headset (through Virtual Desktop or the Link) before it counts as failed and Auto tries the next runtime."),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
             .help("Eye rendering resolution, times the headset's (SteamVR's resolution included); resampled to it."), // + the size (renderScaleHelp)
         cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})

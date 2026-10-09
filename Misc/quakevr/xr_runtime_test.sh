@@ -115,9 +115,10 @@ check $L "migration: 1 kept" "MIGRATED1" "\"vr_xr_runtime\" is \"1\""
 # 2. The fallback for real, through the loader: the fake runtimes, VD's and Meta's without a headset (xrGetSystem fails),
 # SteamVR's xrCreateInstance failing, the other one simulated. Each loaded and unloaded in turn in one process.
 LOG="$OUT/fakexr.log"; : > "$LOG"
-export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_FAIL_INSTANCE=fakexr_steam
+export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_FAIL_INSTANCE=fakexr_steam FAKEXR_D3D11=fakexr_vd
+XRLOG="$TREE/quakevr/qvr_openxr.txt"
 S="vr_xr_test 1;vr_xr_runtime 4;vr_xr_test_runtimes \"$ALL\";vr_xr_test_active \"$ST\";vr_xr_test_processes \"VirtualDesktop.Streamer.exe,vrserver.exe\";vr_xr_test_fail other;vr_backend openxr;wait20;echo MENULINE;vr_xr_runtime_explain;wait5;toggleconsole;quit"
-bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "OpenXR|VR:|last start" > "$OUT/fallback.log"
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "OpenXR|VR:|last start|MENULINE|graphics DLLs" > "$OUT/fallback.log"
 L="$OUT/fallback.log"
 check $L "fallback order through the loader" "OpenXR runtime choice: Auto: Virtual Desktop \(VDXR\) - Streamer running" \
     "trying Virtual Desktop" "OpenXR runtime: FakeXR fakexr_vd" "xrGetSystem" "Virtual Desktop \(VDXR\) failed to start" \
@@ -128,14 +129,49 @@ check $L "fallback order through the loader" "OpenXR runtime choice: Auto: Virtu
 check "$LOG" "the loader loads and unloads each runtime in turn" "fakexr_vd loaded" "fakexr_vd xrCreateInstance" \
     "fakexr_vd xrGetSystem" "fakexr_vd xrDestroyInstance" "fakexr_vd unloaded" "fakexr_steam loaded" "fakexr_steam xrCreateInstance failed" \
     "fakexr_steam unloaded" "fakexr_meta loaded" "fakexr_meta xrDestroyInstance" "fakexr_meta unloaded"
-unset FAKEXR_FAIL_INSTANCE
+unset FAKEXR_FAIL_INSTANCE FAKEXR_D3D11
+check "$LOG" "d3d11.dll kept loaded after VDXR's unload (the NVIDIA crash)" "fakexr_vd d3d11.dll loaded"     "fakexr_vd xrDestroyInstance" "fakexr_vd d3d11.dll freed: still loaded" "fakexr_vd unloaded"
+check "$OUT/fallback.log" "the game says it keeps d3d11.dll" "keeping d3d11.dll loaded for good" "MENULINE" "graphics DLLs: d3d11\.dll kept"
+check "$XRLOG" "qvr_openxr.txt: the start's log" "=== OpenXR start" "command line: .*ironwail" "XR_RUNTIME_JSON when the game started: not set" \
+    "choice: Auto: Virtual Desktop" "trying Virtual Desktop" "the loader loaded FakeXR fakexr_vd" \
+    "Virtual Desktop \(VDXR\)'s library is the one loaded: .*fakexr_vd\.dll" "WARNING: OpenXR: xrGetSystem.*failed" "keeping d3d11.dll" \
+    "stopping FakeXR fakexr_vd" "trying SteamVR" "WARNING: OpenXR: xrCreateInstance" "trying Meta" "WARNING: OpenXR: no runtime started"
+# The same without keeping them (vr_xr_keep_graphics_dlls 0, the old way): d3d11.dll gone once the runtimes unloaded.
+export FAKEXR_D3D11=fakexr_vd
+S="vr_xr_test 1;vr_xr_runtime 4;vr_xr_keep_graphics_dlls 0;vr_xr_test_runtimes \"$VD\";vr_xr_test_active \"$VD\";vr_xr_test_processes VirtualDesktop.Streamer.exe;vr_backend openxr;wait20;echo MENULINE;vr_xr_runtime_explain;wait5;toggleconsole;quit"
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "OpenXR|MENULINE|graphics DLLs" > "$OUT/nokeep.log"
+unset FAKEXR_D3D11
+check "$OUT/nokeep.log" "without vr_xr_keep_graphics_dlls, d3d11.dll unloads with the runtime" "trying Virtual Desktop" "MENULINE" "graphics DLLs: d3d11\.dll not loaded"
+if grep -q "keeping d3d11" "$OUT/nokeep.log"; then echo "FAIL: kept with vr_xr_keep_graphics_dlls 0"; fails=$((fails + 1)); else echo "PASS: nothing kept with vr_xr_keep_graphics_dlls 0"; fi
 
 # 2b. Virtual Desktop set to SteamVR, through the loader: SteamVR's fake first (no headset), then VDXR's.
 : > "$LOG"
-S="vr_xr_test 1;vr_xr_runtime 4;vr_xr_test_runtimes \"$ALL\";vr_xr_test_active \"$VD\";vr_xr_test_processes VirtualDesktop.Streamer.exe;vr_xr_test_vd_runtime 1;vr_xr_test_fail other;vr_backend openxr;wait20;toggleconsole;quit"
+S="vr_xr_test 1;vr_xr_runtime 4;vr_xr_test_runtimes \"$ALL\";vr_xr_test_active \"$VD\";vr_xr_test_processes VirtualDesktop.Streamer.exe;vr_xr_test_vd_runtime 1;vr_xr_test_fail other;vr_xr_steamvr_wait 1;vr_backend openxr;wait20;toggleconsole;quit"
 bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "OpenXR|VR:" > "$OUT/vdsteam.log"
 check "$OUT/vdsteam.log" "VD set to SteamVR through the loader" "OpenXR runtime choice: Auto: SteamVR - Virtual Desktop set to SteamVR"     "trying SteamVR \(Virtual Desktop set to SteamVR\)" "OpenXR runtime: FakeXR fakexr_steam" "SteamVR failed to start"     "trying Virtual Desktop \(VDXR\) \(Streamer running, set to SteamVR\)" "OpenXR runtime: FakeXR fakexr_vd"
 check "$LOG" "SteamVR's runtime loaded before VDXR's" "fakexr_steam loaded" "fakexr_steam unloaded" "fakexr_vd loaded"
+check "$OUT/vdsteam.log" "SteamVR asked again for the headset (vr_xr_steamvr_wait 1)" "SteamVR has no headset yet: asking again for up to 1 s"     "SteamVR still has no headset after 1\.[0-9] s \([4-6] tries\)" "SteamVR failed to start"
+n=$(grep -c "fakexr_steam xrGetSystem" "$LOG"); if [ "$n" -ge 4 ]; then echo "PASS: SteamVR's xrGetSystem asked $n times"; else echo "FAIL: SteamVR's xrGetSystem asked $n times"; fails=$((fails + 1)); fi
+n=$(grep -c "fakexr_vd xrGetSystem" "$LOG"); if [ "$n" -eq 1 ]; then echo "PASS: VDXR's asked once (no wait)"; else echo "FAIL: VDXR's xrGetSystem asked $n times"; fails=$((fails + 1)); fi
+
+# 2c. vr_xr_runtime on the command line (the author's debugger arguments had +vr_xr_runtime 1): said so; a manifest
+# with a relative library_path (the real ones' way) resolved.
+mkdir -p "$F/rel"
+cat > "$F/rel/other_openxr.json" <<'JSON'
+{
+  "file_format_version": "1.0.0",
+  "runtime": {
+    "library_path": "./../fakexr_other.dll",
+    "name": "FakeXR rel"
+  }
+}
+JSON
+S="vr_xr_test 1;vr_xr_test_runtimes \"$ALL\";vr_xr_test_active \"$ST\";vr_xr_test_processes VirtualDesktop.Streamer.exe;echo CMDLINE1;vr_xr_runtime_explain;vr_xr_runtime 4;echo CMDLINE4;vr_xr_runtime_explain"
+S="$S;vr_xr_runtime 3;vr_xr_runtime_json \"$F/rel/other_openxr.json\";vr_backend openxr;wait20;toggleconsole;quit"
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -ExtraArgs "+vr_xr_runtime 1" -Filter "CMDLINE|choice:|command line|OpenXR|^  [0-9]\." > "$OUT/cmdline.log"
+L="$OUT/cmdline.log"
+check $L "+vr_xr_runtime 1 on the command line: said so" "CMDLINE1" "set on the command line \(\+vr_xr_runtime 1\): set again at every start"     "choice: Virtual Desktop \(VDXR\): Virtual Desktop \(VDXR\) - chosen on the command line$"     "CMDLINE4" "the command line's \+vr_xr_runtime 1 is set again at the next start" "choice: Auto: Virtual Desktop \(VDXR\) - Streamer running$"
+check $L "a relative library_path resolved" "trying other_openxr.json" "the loader loaded FakeXR fakexr_other"     "other_openxr.json's library is the one loaded: .*scratch.fakexr.fakexr_other\.dll"
 
 # 3. An XR_RUNTIME_JSON the game was started with wins (and is left as it is).
 export XR_RUNTIME_JSON="$(cygpath -w "$ME")"

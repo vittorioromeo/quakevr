@@ -32834,6 +32834,44 @@ To try: in the Streamer's Options pick SteamVR as the OpenXR runtime, connect, s
 and runs the game (console: `Auto: SteamVR - Virtual Desktop set to SteamVR`); pick VDXR again: VDXR, no SteamVR.
 Worth a note: what Automatic does on VD's side, and whether `ActiveRuntime` changes when you switch (Debug > Reports >
 OpenXR Runtime Choice shows the system's active runtime).
+
+### "It always loads VDXR; forcing SteamVR crashes" (2026-10-09)
+
+Your report: VD switched to SteamVR, SteamVR started, the game still loads VDXR; Auto again picks VDXR; forcing SteamVR
+(`vr_xr_runtime 2`) crashes. Found from your four crash dumps of 16:45-16:48 (`%LOCALAPPDATA%\CrashDumps`) and the
+`qvr_crash.txt` in the Steam Quake folder (your build of 16:41, `45b660ad-dirty`: it has the VD setting reader).
+
+- **VDXR at every start: your Visual Studio debugger arguments.** `Windows/VisualStudio/ironwail.vcxproj.user`
+  (every configuration) has `-basedir "...\Steam\steamapps\common\Quake" -game quakevr +vr_xr_runtime 1`. `+` commands
+  run after the config, so each launch forces VDXR over the menu's Auto (your config holds `vr_xr_runtime "4"`).
+  Remove `+vr_xr_runtime 1` from Project Properties > Debugging > Command Arguments. The game now says so:
+  `vr_xr_runtime_explain` and the log print `set on the command line (+vr_xr_runtime 1): set again at every start, over
+  the menu's choice`, the menu line reads `chosen on the command line`.
+- **The crash: VDXR's d3d11.dll unloaded under NVIDIA's OpenGL driver.** All four dumps: an access violation in
+  `nvapi64_impl.dll`, called from a `nvoglv64.dll` thread (no game code on the stack), reading `0x7ff91f799148`, inside
+  the unloaded `d3d11.dll` (`0x7ff91f5c0000-0x7ff91f81f000`; the unloaded list: `virtualdesktop-openxr.dll`,
+  `VirtualDesktop.LibOVRRT64_1.dll`, `XR_APILAYER_NOVENDOR_OBSMirror`, `d3d11.dll`, `D3DCOMPILER_47.dll`). VDXR renders
+  with D3D11 and shares the game's OpenGL images through NVIDIA's GL/D3D interop; leaving (any VR restart away from
+  VDXR: SteamVR chosen, Auto chosen, Auto's fallback past VDXR) frees d3d11.dll and the driver's thread reads it later.
+  Fix: before a runtime is unloaded the game keeps `d3d11.dll`, `dxgi.dll`, `d3d12.dll`, `vulkan-1.dll` loaded for
+  good if loaded (`GetModuleHandleEx` pin; `vr_xr_keep_graphics_dlls 1`, 0 the old way, for tests). Not reproducible
+  headless (no NVIDIA interop in the fake runtime); the fake runtime loading and freeing d3d11.dll shows it unloads
+  without the pin and stays with it.
+- **Auto picking VDXR after you chose it in game:** Auto put SteamVR first (headless with your real files, Streamer
+  running: `Auto: SteamVR - Virtual Desktop set to SteamVR`, then VDXR, then Meta), so SteamVR failed or the switch
+  crashed. One likely failure: SteamVR just started says there is no headset (`XR_ERROR_FORM_FACTOR_UNAVAILABLE`) until
+  VD's driver finds it, and Auto went on to VDXR at once. Now SteamVR is asked again for `vr_xr_steamvr_wait` s (5;
+  Advanced > Headset > SteamVR Wait) while it says so.
+- **A log of every VR start:** `quakevr/qvr_openxr.txt` (rewritten at the game's first VR start, added to at each
+  restart, each line written at once): the command line, `XR_RUNTIME_JSON` as the game started and as it is now, the
+  graphics DLLs loaded, `vr_xr_runtime_explain`'s report, each attempt (`XR_RUNTIME_JSON` set, the runtime the loader
+  loaded by name, whether that is the manifest's library, else a warning), every failed call with its code, the DLLs
+  kept, the stops. Debug > Reports > OpenXR Runtime Choice says where it is.
+
+VD sets no `XR_RUNTIME_JSON` (none at the game's start in your dumps' command line or now); `ActiveRuntime` is now
+SteamVR's (VD's service switched it); SteamVR isn't listed under `AvailableRuntimes` (found by its active entry and
+its usual place). `xr_runtime_test.sh`: 49 checks, 0 failed (new: d3d11.dll kept and not, the log, SteamVR asked again
+4-6 times in 1 s and VDXR once, the command-line notice, a relative `library_path`).
 ## The gadget's screen tap and side button in sync with the drawn gadget (2026-10-09)
 
 His notes vrfiringrange_2026-10-09_11-01-21, 11-05-38: moving or turning with the stick, the side button and the

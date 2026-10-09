@@ -454,6 +454,14 @@ QVR_CVAR(vr_xr_runtime_json, "", CVAR_ARCHIVE)        // with vr_xr_runtime 3: t
 // playing flat (1; an idle SteamVR, not the system's active runtime, only with 2: loading it starts SteamVR), or play
 // flat at once (0).
 QVR_CVAR(vr_xr_runtime_fallback, "1", CVAR_ARCHIVE)
+// Seconds SteamVR is asked again for the headset while it says there is none yet (xrGetSystem's
+// XR_ERROR_FORM_FACTOR_UNAVAILABLE: SteamVR just started, by the game or a moment before, hasn't found it through
+// Virtual Desktop's or the Link's driver yet) before it counts as failed (and Auto tries the next runtime); 0 at once.
+QVR_CVAR(vr_xr_steamvr_wait, "5", CVAR_ARCHIVE)
+// 1: the graphics DLLs a runtime loaded (d3d11.dll...) stay loaded when it unloads (vr_xr_runtime.hpp,
+// keepGraphicsModules: NVIDIA's OpenGL driver crashed the game reading VDXR's d3d11.dll once unloaded); 0 they go
+// with it (the old way, for the tests).
+QVR_CVAR(vr_xr_keep_graphics_dlls, "1", CVAR_NONE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
 // the installed runtimes (manifests, comma-separated), the active one and the running processes from these instead of
 // the registry and the system (and never loads the real active runtime). vr_xr_test_fail: runtimes (parts of their

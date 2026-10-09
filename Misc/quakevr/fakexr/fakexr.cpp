@@ -5,6 +5,8 @@
 //
 //   FAKEXR_LOG            a file each copy appends to: loaded, instance made, instance destroyed, unloaded
 //   FAKEXR_FAIL_INSTANCE  copies (file names without .dll, comma-separated) whose xrCreateInstance fails
+//   FAKEXR_D3D11          copies that load d3d11.dll at xrCreateInstance and free it at xrDestroyInstance (as VDXR
+//                         does), logging whether it is still loaded after (the game keeps it: vr_backend_openxr.cpp)
 //
 // Built by Misc/quakevr/fakexr/build.sh into <worktree>/scratch/fakexr (docs/vr-port/TESTING.md, "OpenXR runtime
 // choice").
@@ -55,6 +57,8 @@ bool listed(const char* variable)
     return false;
 }
 
+HMODULE d3d11 = nullptr; // FAKEXR_D3D11
+
 const XrInstance fakeInstance = reinterpret_cast<XrInstance>(static_cast<uintptr_t>(0x5eed));
 
 XRAPI_ATTR XrResult XRAPI_CALL enumerateInstanceExtensionProperties(
@@ -82,6 +86,11 @@ XRAPI_ATTR XrResult XRAPI_CALL createInstance(const XrInstanceCreateInfo* /* inf
         return XR_ERROR_RUNTIME_UNAVAILABLE;
     }
     log("xrCreateInstance");
+    if(listed("FAKEXR_D3D11"))
+    {
+        d3d11 = LoadLibraryA("d3d11.dll");
+        log(d3d11 ? "d3d11.dll loaded" : "d3d11.dll not loaded");
+    }
     *instance = fakeInstance;
     return XR_SUCCESS;
 }
@@ -89,6 +98,12 @@ XRAPI_ATTR XrResult XRAPI_CALL createInstance(const XrInstanceCreateInfo* /* inf
 XRAPI_ATTR XrResult XRAPI_CALL destroyInstance(XrInstance /* instance */)
 {
     log("xrDestroyInstance");
+    if(d3d11)
+    {
+        FreeLibrary(d3d11);
+        d3d11 = nullptr;
+        log(GetModuleHandleA("d3d11.dll") ? "d3d11.dll freed: still loaded" : "d3d11.dll freed: unloaded");
+    }
     return XR_SUCCESS;
 }
 

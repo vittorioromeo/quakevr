@@ -55,4 +55,32 @@ void setOutcome(const Plan& plan, int started);
 // That line ("" before the backend first started).
 [[nodiscard]] const char* statusLine();
 
+// The log of the backend's starts, <game folder>/qvr_openxr.txt (rewritten at the game's first start, added to at each
+// restart; each line written at once, so a crash loses none): the command line, XR_RUNTIME_JSON as the game started,
+// vr_xr_runtime_explain's report, each attempt (XR_RUNTIME_JSON set, the runtime the loader loaded, the call that
+// failed), the outcome, the stops.
+[[nodiscard]] const char* logPath();
+
+// A start begins: the log's header and vr_xr_runtime_explain's report.
+void beginLog();
+
+// To the console and the log (once a start began).
+void note(const char* format, ...);
+void warn(const char* format, ...);
+
+// To the log only.
+void logLine(const char* text);
+
+// After xrCreateInstance: the runtime the loader loaded (xrGetInstanceProperties' name), and whether it is the
+// attempt's (its manifest's library loaded), else a warning.
+void loaded(const Attempt& attempt, const char* runtimeName);
+
+// Before a runtime is unloaded (the backend's stop): the graphics DLLs it may have loaded (d3d11.dll, dxgi.dll,
+// d3d12.dll, vulkan-1.dll) kept loaded for good, as the GPU driver may still use them (VDXR's d3d11.dll: NVIDIA's
+// OpenGL driver crashed the game reading it once unloaded).
+void keepGraphicsModules();
+
+// The attempt is SteamVR's (its manifest steamxr_win64.json).
+[[nodiscard]] bool isSteamVR(const Attempt& attempt);
+
 } // namespace qvr::xrruntime
