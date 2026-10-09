@@ -8,6 +8,7 @@
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
 #include "vr_box3d.hpp"
+#include "vr_toolgun.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
@@ -2474,6 +2475,7 @@ void onEdictFree(edict_t* ed)
         physics::forgetEntity(num);
         ropesim::forget(num);
         box3d::toolForget(num); // (the toolgun's pins and joints on it)
+        toolgun::forget(num);   // (and what its tools hold)
     }
     if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<za::SizeT>(num)])
     {

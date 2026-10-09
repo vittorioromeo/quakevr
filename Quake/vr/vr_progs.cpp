@@ -6,6 +6,7 @@
 #include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
 #include "vr_box3d.hpp"
+#include "vr_toolgun.hpp"
 #include "vr_climb.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_ropesim.hpp"
@@ -249,6 +250,7 @@ void resetServerWorld()
     qvr::server::resetClients();
     qvr::physics::resetRigidBodies(); // (with the two-handed holds)
     qvr::box3d::reset();
+    qvr::toolgun::reset(); // (what its tools hold, by entity number)
     qvr::ropesim::reset();
     qvr::climb::reset();
     qvr::foegrab::reset();

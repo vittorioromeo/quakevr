@@ -978,6 +978,32 @@ void drawLook(const hands::State& s)
 namespace qvr::toolgun
 {
 
+void reset()
+{
+    tg.drag = {};
+    tg.gizmo = {};
+    tg.jointFirst = 0;
+    tg.glowNum = tg.glow2 = 0;
+    tg.ghost = false;
+    tg.aim = {};
+}
+
+void forget(int num)
+{
+    if(tg.drag.num == num)
+    {
+        tg.drag = {};
+    }
+    if(tg.gizmo.num == num)
+    {
+        tg.gizmo = {};
+    }
+    if(tg.jointFirst == num)
+    {
+        tg.jointFirst = 0;
+    }
+}
+
 int heldHand()
 {
     if(!singlePlayer() || cl.stats[STAT_HEALTH] <= 0)

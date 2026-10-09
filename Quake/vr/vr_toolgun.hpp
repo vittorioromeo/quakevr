@@ -30,6 +30,11 @@ enum class Tool : int
 
 void registerCommands();
 
+// A new world (vr_progs.cpp resetServerWorld): what the tools hold by entity number forgotten.
+void reset();
+// An entity removed (vr_builtins.cpp onEdictFree): the tools let go of it.
+void forget(int num);
+
 // The hand holding the toolgun (HAND_MAIN first), -1 none (or dead, or no local server).
 [[nodiscard]] int heldHand();
 
