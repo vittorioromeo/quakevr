@@ -9,6 +9,7 @@ latest.json, and (with -Publish) tags the commit and creates the GitHub release.
   Misc\release\make_release.ps1 -Publish                   # ... then tag v<VERSION>, push the tag, create a DRAFT GitHub release
   Misc\release\make_release.ps1 -Publish -NoDraft          # ... a public release straight away
   Misc\release\make_release.ps1 -Version 1.0.0 -BumpVersion   # first commit VERSION = 1.0.0 ("Version 1.0.0"), then as above
+  Misc\release\make_release.ps1 -Bump patch                # the same with the next version computed from VERSION (patch|minor|major)
   Misc\release\make_release.ps1 -Local -RunInstaller      # a LOCAL TEST release: the same build and checks into
                                                            # out\release\<VERSION>-local, latest.json pointing at a server on
                                                            # 127.0.0.1; then that server and the built QuakeVR-Setup.exe in a
@@ -40,6 +41,11 @@ param(
     [string]$Version = "",
     # With a -Version other than VERSION's: commit VERSION = -Version ("Version x.y.z") before building.
     [switch]$BumpVersion,
+    # The next version computed from VERSION (patch: 1.0.0 -> 1.0.1, minor: -> 1.1.0, major: -> 2.0.0; from a
+    # prerelease 1.1.0-rc.1, the release it leads to: 1.1.0 for patch and minor, 2.0.0 for major unless it is x.0.0-...),
+    # then as -Version <it> -BumpVersion. Not with -Version.
+    [ValidateSet("", "patch", "minor", "major")]
+    [string]$Bump = "",
     # Release notes (Markdown). Default: the commit subjects since the previous v* tag. The files' SHA-256 table is added.
     [string]$Notes = "",
     # With -Publish: create the release as a draft (the default). -Draft:$false publishes it at once.
@@ -95,6 +101,23 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $versionFile = Join-Path $root "VERSION"
 $fileVersion = if (Test-Path -LiteralPath $versionFile -PathType Leaf) { "$(Get-Content -LiteralPath $versionFile -TotalCount 1)".Trim() } else { "" }
 if (-not $fileVersion) { throw "no version in $versionFile (one line: MAJOR.MINOR.PATCH; RELEASING.md, 'Versions')" }
+# The version after $from by semantic versioning: a prerelease's patch (and its minor/major when those are already the
+# ones it numbers) is the release it leads to (1.1.0-rc.1: patch and minor 1.1.0, major 2.0.0; 2.0.0-beta.1: 2.0.0).
+function Get-NextVersion([string]$from, [string]$part) {
+    if ($from -notmatch '^(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z][0-9A-Za-z.]*)?$') { throw "-Bump: VERSION must hold x.y.z or x.y.z-suffix (got '$from')" }
+    $ma = [int]$Matches[1]; $mi = [int]$Matches[2]; $pa = [int]$Matches[3]; $pre = [bool]$Matches[4]
+    switch ($part) {
+        "patch" { if ($pre) { "$ma.$mi.$pa" } else { "$ma.$mi.$($pa + 1)" } }
+        "minor" { if ($pre -and $pa -eq 0) { "$ma.$mi.0" } else { "$ma.$($mi + 1).0" } }
+        "major" { if ($pre -and $pa -eq 0 -and $mi -eq 0) { "$ma.0.0" } else { "$($ma + 1).0.0" } }
+    }
+}
+if ($Bump) {
+    if ($Version) { throw "-Bump and -Version together: pick one (-Bump computes the version from VERSION's $fileVersion)" }
+    $Version = Get-NextVersion $fileVersion $Bump
+    $BumpVersion = [switch]$true
+    Write-Host "-Bump ${Bump}: VERSION $fileVersion -> $Version"
+}
 if (-not $Version) { $Version = $fileVersion }
 $tag = "v$Version"
 if ($NoDraft) { $Draft = $false }
