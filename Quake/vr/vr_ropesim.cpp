@@ -66,10 +66,6 @@ int countedFrame = -1;
 int countRopes = 0;
 int countPoints = 0;
 
-// vr_grapple_rope_netstats: the rope messages' bytes (tests; "the rope's bandwidth").
-long long netBytes = 0;
-int netFrames = 0, netMax = 0, netFrame = -1, netThisFrame = 0;
-
 [[nodiscard]] float radius()
 {
     return za::clamp(vr_grapple_rope_radius.value, 0.1f, 8.f);
@@ -289,32 +285,6 @@ void count(int points)
     countPoints += points;
 }
 
-void netCount(int bytes)
-{
-    const int frame = static_cast<int>(za::lround(sv.qcvm.time * 1000.0));
-    if(frame != netFrame)
-    {
-        netFrame = frame;
-        netFrames++;
-        netThisFrame = 0;
-    }
-    netThisFrame += bytes;
-    netBytes += bytes;
-    netMax = za::max(netMax, netThisFrame);
-}
-
-// vr_grapple_rope_netstats [reset]: the rope messages' bytes so far, and the server frames they went in.
-void netstats_f()
-{
-    Con_Printf("rope net: %lld bytes in %d server frames with rope messages (%.1f a frame, at most %d)\n", netBytes, netFrames,
-        netFrames ? static_cast<double>(netBytes) / netFrames : 0.0, netMax);
-    if(Cmd_Argc() > 1)
-    {
-        netBytes = 0;
-        netFrames = netMax = 0;
-    }
-}
-
 // vr_grapple_rope_dump: each rope's corners and taut path (tests).
 void dump_f()
 {
@@ -413,7 +383,6 @@ void registerCommands()
         Cmd_AddCommand("vr_grapple_test_aim", testAim_f);
         Cmd_AddCommand("vr_grapple_rope_dump", dump_f);
         Cmd_AddCommand("vr_grapple_rope_cast", cast_f);
-        Cmd_AddCommand("vr_grapple_rope_netstats", netstats_f);
     }
 }
 
@@ -524,7 +493,6 @@ void send(edict_t* hook, edict_t* owner, int beamId)
     {
         return;
     }
-    const int before = sv.datagram.cursize;
     MSG_WriteByte(&sv.datagram, protocol::svc_quakevr);
     MSG_WriteByte(&sv.datagram, protocol::QVR_SVC_ROPE);
     MSG_WriteShort(&sv.datagram, NUM_FOR_EDICT(owner));
@@ -558,7 +526,6 @@ void send(edict_t* hook, edict_t* owner, int beamId)
     r.sentAt = sv.qcvm.time;
     r.sentOwner = ownerNum;
     r.sentBeam = beamId;
-    netCount(sv.datagram.cursize - before);
     VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
 }
 

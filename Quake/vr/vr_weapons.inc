@@ -2266,7 +2266,7 @@ QVR_WEAPON_DEFAULT(10, FingersX, "0")
 QVR_WEAPON_DEFAULT(11, FingersX, "0")
 QVR_WEAPON_DEFAULT(13, FingersX, "0")
 QVR_WEAPON_DEFAULT(14, FingersX, "0")
-// Round 21: the two-handed grips as hotspots, worked out from the round-20 keys' defaults (vr_hotspots_legacy).
+// Round 21: the two-handed grips as hotspots, worked out from the round-20 keys' defaults.
 QVR_WEAPON_DEFAULT(1, Hotspot1Type, "1")
 QVR_WEAPON_DEFAULT(1, Hotspot1X, "9.6656")
 QVR_WEAPON_DEFAULT(1, Hotspot1Y, "-0.7315")

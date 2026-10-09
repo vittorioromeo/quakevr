@@ -128,8 +128,6 @@ bool cancel();
 [[nodiscard]] bool installed(const za::String& sha);
 // What is installed, one entry per package.
 [[nodiscard]] const za::Vector<Installed>& installedList();
-// Its files' bytes on disk (0: not installed).
-[[nodiscard]] za::U64 installedBytes(const za::String& sha);
 // Remove an installed package's files (the ones no other package wrote too), and the record.
 bool uninstall(const za::String& sha);
 // The package's start map (startMap), or `map` when given, started now: the page's Play action, and maps_play. Never

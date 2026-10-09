@@ -69,7 +69,6 @@ void seedNextMap(za::U64 seed)
     nextMapSeed = seed;
 }
 
-za::U64 mapSeed() { return currentSeed; }
 
 za::U64 derivedSeed(za::U64 salt)
 {

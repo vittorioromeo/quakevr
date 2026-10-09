@@ -1862,18 +1862,6 @@ const za::Vector<Installed>& installedList()
     return registry.packages;
 }
 
-za::U64 installedBytes(const za::String& sha)
-{
-    for(const Installed& p : installedList())
-    {
-        if(p.sha == sha)
-        {
-            return p.bytes;
-        }
-    }
-    return 0;
-}
-
 bool uninstall(const za::String& sha)
 {
     if(!installed(sha))

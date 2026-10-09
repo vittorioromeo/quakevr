@@ -678,7 +678,6 @@ void serverClear()
     server.evicted += removeIf([](const Live&) { return true; }, true);
 }
 
-int serverCount() { return server.count; }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The client's

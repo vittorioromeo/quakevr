@@ -360,16 +360,6 @@ void Mixer::set(int index, const VoiceInput& in)
     voices[index].in = in;
 }
 
-int Mixer::activeCount() const
-{
-    int n = 0;
-    for(const Voice& v : voices)
-    {
-        n += v.active ? 1 : 0;
-    }
-    return n;
-}
-
 void Mixer::prepare(Voice& v, const Listener& l, const Features& f) const
 {
     const glm::vec3 d = v.in.pos - l.pos;
@@ -2248,26 +2238,6 @@ void bench_f()
     Con_Printf("vr_snd_bench %s: %.1f s\n", b.label.cStr(), seconds);
 }
 
-// A point in a liquid (the first water, slime or lava leaf's middle): for the underwater tests.
-void liquid_f()
-{
-    if(!cl.worldmodel)
-    {
-        return;
-    }
-    for(int i = 1; i <= cl.worldmodel->numleafs; i++)
-    {
-        const mleaf_t* leaf = cl.worldmodel->leafs + i;
-        if(leaf->contents == CONTENTS_WATER || leaf->contents == CONTENTS_SLIME)
-        {
-            Con_Printf("liquid point: %.0f %.0f %.0f (contents %d)\n", (leaf->minmaxs[0] + leaf->minmaxs[3]) * 0.5f,
-                (leaf->minmaxs[1] + leaf->minmaxs[4]) * 0.5f, (leaf->minmaxs[2] + leaf->minmaxs[5]) * 0.5f, leaf->contents);
-            return;
-        }
-    }
-    Con_Printf("liquid point: none\n");
-}
-
 } // namespace
 
 void init()
@@ -2281,7 +2251,6 @@ void init()
     Cmd_AddCommand("vr_snd_capture_game", captureGame_f);
     Cmd_AddCommand("vr_snd_bench_spawn", benchSpawn_f);
     Cmd_AddCommand("vr_snd_scene_obj", sceneObj_f);
-    Cmd_AddCommand("vr_snd_liquid", liquid_f);
     Cmd_AddCommand("vr_snd_play", play_f);
     Cmd_AddCommand("vr_snd_burst", burst_f);
     Cmd_AddCommand("vr_snd_play_dir", playDir_f);

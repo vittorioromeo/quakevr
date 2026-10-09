@@ -135,7 +135,6 @@ public:
         return voices[v].dir;
     }
     void set(int v, const VoiceInput& in);
-    [[nodiscard]] int activeCount() const;
 
     // `blocks` frames of every active voice, added to outL/outR (blocks x frameSize samples, paint buffer units).
     // `reverb`: the room's (null: no reverb, its tail ringing out), added to roomL/R when given, else to outL/R.

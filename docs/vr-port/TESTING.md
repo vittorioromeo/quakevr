@@ -806,8 +806,7 @@ and its velocity and spin change by the grace's end.
 
 Fitted hands (round 21): `impulse 252` puts a gib or a head (nine kinds in turn) in the empty off hand; `impulse 253`
 prints the held weapons' hotspots through the QC query; `vr_show_weapon_hotspots 1` marks them; `vr_hotspots_check`
-compares every slot's hotspots, muzzle and hand with round 20's placement; `vr_hotspots_legacy` prints the slots'
-round-20 two-handed grips as hotspot defaults.
+compares every slot's hotspots, muzzle and hand with round 20's placement.
 
 Fitted hands, second pass: `vr_grasp_bench [n]` times each hand's grasp solve on what it holds (the first solve, and
 again n times: min, median, max in microseconds; the first is a real one, not a remembered one: afresh solves with the

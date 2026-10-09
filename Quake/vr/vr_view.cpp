@@ -1492,7 +1492,7 @@ int chosenGripSlot[2]{-1, -1}; // the weapon (slot) it is of: another weapon cho
 int magSpot[2]{-1, -1}; // per holding hand: the hotspot index its gun's attached magazine takes (setupWeapon), or -1
 constexpr float magHandMargin = 1.5f; // units the helping hand's grip channel stays in from a held magazine's ends
 
-// Round 21's migration (weapons::takeHotspotMigration, vr_hotspots_legacy): a slot's two-handed grip keys (the
+// Round 21's migration (weapons::takeHotspotMigration): a slot's two-handed grip keys (the
 // foregrip, the sword's blade grip) as hotspots, exactly where they were drawn. The old foregrip was placed as
 // its anchor vertex and offset (TwoHHandAnchorVertex, TwoHFixedOffset) in the weapon's frame mirrored as the
 // helping hand is (not as the weapon is drawn); it is worked out for the weapon drawn in the main hand, at the
@@ -8828,10 +8828,6 @@ WeaponHotspot weaponHotspot(int hand, int index)
     return {static_cast<int>(w.type), pos, w.bias, w.share};
 }
 
-// vr_hotspots_check: for every slot, the weapon drawn in either hand at a few poses: where its old two-handed grip
-// (the retired foregrip keys, mirrored as the old code did) and its grip hotspot are (they should match), and how far
-// the drawn hand moved (it was at the weapon's hand anchor, round 20; now where the controller is: the weapon's
-// origin).
 void hotspotFit_f()
 {
     const hands::State& s = hands::current();
@@ -8908,6 +8904,10 @@ void hotspotHere_f()
         type, p.x, p.y, p.z);
 }
 
+// vr_hotspots_check: for every slot, the weapon drawn in either hand at a few poses: where its old two-handed grip
+// (the retired foregrip keys, mirrored as the old code did) and its grip hotspot are (they should match), and how far
+// the drawn hand moved (it was at the weapon's hand anchor, round 20; now where the controller is: the weapon's
+// origin).
 void hotspotsCheck_f()
 {
     float worstGrip = 0.f, worstHand = 0.f, worstMuzzle = 0.f;
@@ -8975,26 +8975,6 @@ void hotspotsCheck_f()
     }
     Con_Printf("vr_hotspots_check: the most a foregrip moved %.4f units, a muzzle %.4f, the hand %.2f units\n", worstGrip,
         worstMuzzle, worstHand);
-}
-
-void hotspotsLegacy_f()
-{
-    for(int slot = 0; slot < weapons::numSlots; slot++)
-    {
-        weapons::Hotspot h[2];
-        int count = 0;
-        if(!legacyHotspots(slot, true, h, count))
-        {
-            continue;
-        }
-        for(int i = 0; i < count; i++)
-        {
-            Con_Printf("QVR_WEAPON_DEFAULT(%d, Hotspot%dType, \"%d\")\n", slot, i + 1, static_cast<int>(h[i].type));
-            Con_Printf("QVR_WEAPON_DEFAULT(%d, Hotspot%dX, \"%.4f\")\n", slot, i + 1, h[i].pos.x);
-            Con_Printf("QVR_WEAPON_DEFAULT(%d, Hotspot%dY, \"%.4f\")\n", slot, i + 1, h[i].pos.y);
-            Con_Printf("QVR_WEAPON_DEFAULT(%d, Hotspot%dZ, \"%.4f\")\n", slot, i + 1, h[i].pos.z);
-        }
-    }
 }
 
 // vr_dumpview: lists the VR view entities.

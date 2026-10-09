@@ -789,11 +789,6 @@ cvar_t* cvar(int slot, Key key)
     return slot >= 0 && slot < numSlots ? &cvarAt(slot, key) : nullptr;
 }
 
-const char* keyName(Key key)
-{
-    return static_cast<int>(key) < numKeys ? keyNames[static_cast<int>(key)] : "";
-}
-
 // keyByName's last few names (QC's propvalue: the same literals every frame), by their text.
 struct RecentName
 {

@@ -10,7 +10,6 @@ void noteBroadcast(const glm::vec3& origin); // an explosion's temp entity broad
 void serverFrame();                          // VR_ServerFrameEnd: the new chunks, the ended, the cap, the fades
 void serverReset();                          // a new map, a loaded game (resetServerWorld)
 void serverClear();                          // every chunk removed now (Debug > Cheats' cleanups; vr_explosion_debris_test clear)
-int serverCount();
 
 // The client's.
 void frame(); // each frame, after the entities: the nearest chunks' glow

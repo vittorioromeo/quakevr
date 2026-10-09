@@ -57,7 +57,6 @@ void resetModelCache();
 // Centre of Mass, Tip, Butt, Handle From and To: lengths in its model's axes, which grow with its Size (scaledValue).
 [[nodiscard]] bool lengthKey(Key key);
 [[nodiscard]] float scaledValue(int slot, Key key); // value(), times size(slot) for a lengthKey
-[[nodiscard]] const char* keyName(Key key); // as in its cvar and propvalue's argument ("mass")
 [[nodiscard]] Key keyByName(const char* name); // Key::Count if none
 
 // The model's slot, a free one given to it if it has none (-1: the table is full). The menu edits a prop through it.

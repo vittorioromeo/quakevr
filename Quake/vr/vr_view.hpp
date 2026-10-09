@@ -244,9 +244,6 @@ struct DrawnWeapon
 // weapon hand by it (vr_modelcollide.cpp, with held::drawnPush).
 [[nodiscard]] glm::vec3 handPress(int hand);
 
-// vr_hotspots_legacy [print]: the slots' hotspots worked out from their round-20 two-handed grip keys (their defaults),
-// printed as vr_weapons.inc lines (round 21's migration of the shipped defaults).
-void hotspotsLegacy_f();
 
 // vr_hotspots_check: the migrated hotspots against the old two-handed grips, every slot, either hand.
 void hotspotsCheck_f();

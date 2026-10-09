@@ -1752,7 +1752,6 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_model_check", progs::modelCheck_f);
     Cmd_AddCommand("vr_test_dialog", testDialog_f);
     Cmd_AddCommand("vr_test_confirm", testConfirm_f);
-    Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
     Cmd_AddCommand("vr_hotspot_fit", view::hotspotFit_f);
