@@ -6,16 +6,19 @@
 // - always: the kinds in vr_foegrab_throw_always (a grunt, an enforcer, a zombie, a knight, a rottweiler, a mummy, the
 //   infected);
 // - only when hurt, below vr_foegrab_throw_hurt of its full health (and never above): vr_foegrab_throw_when_hurt (a death
-//   knight, the ogres, a fiend, a spawn, a scorpion, a ranged knight);
-// - never: any other (a shambler, a vore, the bosses), and anything flying or swimming;
+//   knight, the ogres, a fiend, a ranged knight);
+// - never: any other (a shambler, a vore, the bosses; a spawn, Dawn of the Machine's slime and Rogue's centroid, the
+//   scorpion: they have no knockdown get-up), and anything flying or swimming;
 // or by its mass (vr_foegrab_throw_by_mass: light up to _mass_always, hurt up to _mass_hurt). The engine reads the class
 // lists (they are strings) and passes the kind; the rest is here. One hand never throws.
 
-// By its mass: 0 always, 1 only when hurt, 2 never (a vore and an overlord: rooted, as VR_FoeGrab_Size has them).
+// By its mass: 0 always, 1 only when hurt, 2 never (a vore and an overlord: rooted, as VR_FoeGrab_Size has them; a
+// spawn, a slime and a centroid: no knockdown get-up).
 float(entity m) VR_FoeGrab_ThrowMassTier =
 {
     string c = m.classname;
-    if(c == "monster_shalrath" || c == "monster_super_wrath")
+    if(c == "monster_shalrath" || c == "monster_super_wrath" || c == "monster_tarbaby" || c == "monster_slime" ||
+       c == "monster_scourge")
     {
         return 2;
     }

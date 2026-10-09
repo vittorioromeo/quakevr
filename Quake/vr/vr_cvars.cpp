@@ -633,8 +633,13 @@ const DefaultChange defaultChanges[] = {
     {112, &vr_bash_push, "1"},                       // 0.9 (the distance goes as its square: 0.81)
     // ... and a parry pushes the attacker back about half as far (a counter can reach it).
     {112, &vr_parry_push_enemy, "0.8"},              // 0.55 (vr_defaults.cfg; a weapon parry's distance 0.47x)
+    // 114: spawns, slimes and centroids (scorpions) never thrown (no knockdown get-up), out of the when-hurt list
+    // (2026-10-09, his call): a config still holding the list before it takes the new one.
+    {114, &vr_foegrab_throw_when_hurt,
+        "monster_hell_knight monster_ogre monster_ogre_marksman monster_ogre_rocket monster_demon1 monster_tarbaby monster_slime "
+        "monster_scourge monster_ranged_knight"},
 };
-constexpr int configVersion = 113;
+constexpr int configVersion = 114;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

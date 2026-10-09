@@ -31924,10 +31924,12 @@ knockdown (`VR_Knockdown_Start`: it falls as a ragdoll, lies, gets up), for sure
   degrees) is a shove's and does nothing, unless `vr_foegrab_throw_away 1`. A turn that didn't throw waits 0.5 s.
 - **Who** (his tiers): `vr_foegrab_throw_always` (grunt, enforcer, zombie, knight, rottweiler, mummy, and the word
   `infected`: Dawn of the Machine's infected, `.vr_mg3_infected`); `vr_foegrab_throw_when_hurt` (death knight, the
-  ogres: `monster_ogre`, `_marksman`, `_rocket`; fiend, spawn, slime, scorpion, ranged knight): only below
-  `vr_foegrab_throw_hurt` (0.4) of its full health, never above; any other kind never (shambler, vore, bosses...),
-  nor anything flying or swimming. The lists are classnames (console). Or by mass (`vr_foegrab_throw_by_mass 1`:
-  always up to `_mass_always` 140 kg, when hurt up to `_mass_hurt` 300, never heavier; vores and overlords never).
+  ogres: `monster_ogre`, `_marksman`, `_rocket`; fiend, ranged knight): only below
+  `vr_foegrab_throw_hurt` (0.4) of its full health, never above; any other kind never (shambler, vore, bosses...;
+  spawn, slime and scorpion too since 2026-10-09, his call: they have no knockdown get-up; vr_cfg_version 114 moves a
+  config still holding the old list), nor anything flying or swimming. The lists are classnames (console). Or by mass
+  (`vr_foegrab_throw_by_mass 1`: always up to `_mass_always` 140 kg, when hurt up to `_mass_hurt` 300, never heavier;
+  vores, overlords, spawns, slimes and centroids never).
   Thrown along the turn at `vr_foegrab_throw_push` (220 units/s, times `vr_knockdown_push`) and `_lift` (100) up. A
   kind with no knockdown set up (its get-up: `.vr_kd_chance_h`), no ragdoll or no room can't be thrown now (a short
   low buzz in both hands, as for one too strong).

@@ -2479,7 +2479,7 @@ QVR_CVAR(vr_foegrab_throw_away, "0", CVAR_ARCHIVE)        // 1: a throw straight
 QVR_CVAR(vr_foegrab_throw_hurt, "0.4", CVAR_ARCHIVE)      // the "when hurt" enemies are thrown below this share of their full health, never above
 QVR_CVAR(vr_foegrab_throw_by_mass, "0", CVAR_ARCHIVE)     // 0: the kinds below (class lists); 1: by mass (_mass_always, _mass_hurt)
 QVR_CVAR(vr_foegrab_throw_always, "monster_army monster_enforcer monster_zombie monster_knight monster_dog monster_mummy infected", CVAR_ARCHIVE) // classnames always thrown ("infected": Dawn of the Machine's infected)
-QVR_CVAR(vr_foegrab_throw_when_hurt, "monster_hell_knight monster_ogre monster_ogre_marksman monster_ogre_rocket monster_demon1 monster_tarbaby monster_slime monster_scourge monster_ranged_knight", CVAR_ARCHIVE) // only when hurt; any other never
+QVR_CVAR(vr_foegrab_throw_when_hurt, "monster_hell_knight monster_ogre monster_ogre_marksman monster_ogre_rocket monster_demon1 monster_ranged_knight", CVAR_ARCHIVE) // only when hurt; any other never (a spawn, a slime, a centroid: no knockdown get-up)
 QVR_CVAR(vr_foegrab_throw_mass_always, "140", CVAR_ARCHIVE) // kg, by mass: this light or lighter always (a mummy 140)
 QVR_CVAR(vr_foegrab_throw_mass_hurt, "300", CVAR_ARCHIVE)   // kg: this light or lighter only when hurt; heavier never (a vore, an overlord never)
 QVR_CVAR(vr_foegrab_throw_push, "190", CVAR_ARCHIVE)      // units/s: the thrown enemy's launch along the throw (times vr_knockdown_push)
