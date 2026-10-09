@@ -2,18 +2,86 @@
 
 One script builds, checks, packages and publishes a release of Quake VR: Unleashed:
 `Misc\release\make_release.ps1` (PowerShell, Windows). It uses the branch that is checked out (no branch name is
-written in it), pushes only the release's tag, and creates the GitHub release as a **draft** unless told otherwise.
-Everything it writes goes under `out\release\<version>\` (git-ignored).
+written in it). Everything it writes goes under `out\release\<version>\` (git-ignored). From Git Bash,
+`bash Misc/release/make_release.sh ...` runs the same script. The version released is the repository's `VERSION` file
+("Versions" below).
+
+## One command
 
 ```
-powershell -ExecutionPolicy Bypass -File Misc\release\make_release.ps1 -DryRun     # checks and plan only
-powershell -ExecutionPolicy Bypass -File Misc\release\make_release.ps1             # build + check + package, nothing online
-powershell -ExecutionPolicy Bypass -File Misc\release\make_release.ps1 -Publish    # ... + tag v<VERSION> + draft GitHub release
-powershell -ExecutionPolicy Bypass -File Misc\release\make_release.ps1 -Version 1.0.0 -BumpVersion -DryRun   # a new version
+make_release.ps1 -DraftNotes -Bump patch                       # 1. the notes: out\release\<v>\release-notes.md, to edit
+make_release.ps1 -Bump patch -Publish -Final -RunTests -DryRun  # 2. the plan: every command below, in order (nothing runs)
+make_release.ps1 -Bump patch -Publish -Final -RunTests          # 3. the release, end to end
 ```
 
-The version released is the repository's `VERSION` file ("Versions" below). From Git Bash,
-`bash Misc/release/make_release.sh ...` runs the same script.
+(`powershell -ExecutionPolicy Bypass -File Misc\release\make_release.ps1 ...`; `-Bump minor`/`major`, or
+`-Version x.y.z -BumpVersion`, or neither to release `VERSION` as it is.) Step 3 runs, stopping at the first failure:
+
+1. **Checks** (nothing changed yet): the tree is clean, HEAD is on its upstream or ahead of it (not diverged), the tag
+   and the GitHub release don't exist yet, `gh auth status`, the tools, the notes are edited (no DRAFT line), the test
+   worktree holds this commit's files, the Quake for the smoke launch (below).
+2. **Tests** (`-RunTests`, "Tests before publishing"): the headless suite, one test at a time; a failure stops here.
+3. **VERSION** (with `-Bump`/`-BumpVersion`): `VERSION` = the new version, committed alone ("Version x.y.z"), locally.
+4. **Build and check** ("What the script does"): engine, QuakeC, package, installer, their self-tests, the zip against
+   the allowlist, latest.json, the packaged installer's install, the smoke launch.
+5. **Push the branch** to its upstream when HEAD is ahead of it (the version commit): a fast-forward, never forced.
+   Nothing leaves the PC before the build and its checks passed.
+6. **Tag** `v<version>` (annotated) and push the tag alone.
+7. **Publish**: `gh release create` with the assets and the notes, public and marked **Latest** (`-Final`; without it a
+   draft).
+8. **Latest guard** ("Which release is Latest"): `gh release list`: the new release must be the only Latest and no
+   `assets-*`/`textures-*` release is; otherwise `gh release edit v<version> --latest`, listed again, reported.
+9. **Online check**: `qvr-setup feed --url https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json
+   --assets out\release\<v>\assets` (the installer's own reader: the version, each file's size and SHA-256 against
+   this release's; retried 20 s apart while GitHub's "latest" lags, `-OnlineTries`), the served latest.json byte for
+   byte, then a sandboxed install through that feed (`qvr-setup install --feed ... --sandbox
+   out\release\<v>\checks\online-<time>\sandbox`, then `qvr-setup verify`; `-OnlineHd` adds the 0.6 GB HD textures,
+   `-SkipOnlineInstall` leaves the install out). Nothing is written outside the sandbox.
+
+`out\release\<v>\PUBLISH.txt` sums it up. `-DryRun` with the same options runs the read-only checks (including
+`gh auth status`, `gh release view`, `gh release list`) and prints the numbered list of commands the real run would
+run.
+
+### The release notes
+
+`-DraftNotes` (with the same `-Bump`/`-Version`) writes `out\release\<v>\release-notes.md`
+(`Misc\release\draft_release_notes.py`): the commits since the last `v*` tag, filed by their words and files under
+Weapons and reloading, AI and stealth, Teleporters, Menus and interface, Physics/props/ragdolls, Rendering and
+performance, Installer and releases, Expansions and maps, Fixes, Other; each subject cut to a short bullet (its lead
+clause), 30 per area (the rest counted with their hashes). Commits that only change tests, docs or the checklist, and
+version bumps, are counted but not listed. Its first line is a `<!-- DRAFT ... -->` comment: edit the bullets, then
+delete that line. `-Publish` reads that file (or `-Notes <file>`) and **refuses notes that still have the DRAFT line**
+(`-AutoNotes` publishes the draft as it is). A run without `-Publish` drafts it too when it is missing. The body
+uploaded is `release-body.md`: the notes plus the files' sizes and SHA-256.
+
+### Tests before publishing
+
+`-RunTests` runs `Misc\release\run_test_suite.py` before anything is built: the Misc\quakevr test scripts that give a
+verdict (39: reloading, melee, carry and grabs, parry, throws, teleporter chase, stealth, the update notice, the OpenXR
+runtime choice...; `python Misc\release\run_test_suite.py --list`), one at a time through the kit's headless mock
+headset, on a **kit worktree** holding this commit's files: `-TestAgent <name>` (or `QVR_TEST_AGENT`; default this
+checkout's name when it is one: `C:\OHWorkspace\qvr-agents\<name>`, made by the kit's `new_agent.sh <name> <commit>`).
+The worktree is built first (kit `build.sh`). A test fails on a non-zero exit, a `FAIL` / `FAILURES n` / `n failed`
+line, or its timeout; each test's output is in `out\release\<v>\tests\<name>.log`, the summary in `summary.txt`. Any
+failure stops the release (nothing committed, built or pushed). `-AllowFlaky` lets the known-flaky ones (marked in the
+runner's list: the teleporter chase, Quake's random AI) only warn, `-FlakyTests a,b` adds more; `-TestOnly <regex>`
+runs a part. The whole suite takes over an hour. Alone: `python Misc\release\run_test_suite.py <agent> --build`.
+
+### If it stops
+
+Every failure prints `STOPPED (<stage>)` and what to run next. Nothing is ever deleted or forced.
+
+| Stopped at | State | Go on with |
+|---|---|---|
+| checks, tests | nothing changed | fix it, the same command again |
+| build | with a bump: the "Version x.y.z" commit, local only | fix it, then `-Version x.y.z` instead of `-Bump` (same other options); or drop the commit: `git reset --keep HEAD~1` |
+| push | built and checked; the branch not pushed (upstream moved?) | pull/rebase, then `-Version x.y.z ...` (builds again) |
+| tag | the branch pushed | `-Version x.y.z ...` (a tag already on HEAD is reused) |
+| release | tag pushed; `gh release create` failed | a partial release on GitHub: delete it, or `gh release upload` the missing assets and `gh release edit v<x.y.z> --draft=false --latest`; then `-Version x.y.z -CheckOnline` |
+| online | the release is published | `make_release.ps1 -Version x.y.z -CheckOnline` (the Latest guard and the online check only) |
+
+`-CheckOnline` checks `out\release\<version>\assets` (`-ReleaseDir` for another folder) against the feed
+(`-FeedUrl`; with `-Local`, the local server's, no Latest guard).
 
 ## Test a release locally
 
@@ -87,6 +155,11 @@ no update notice, and the installer's HD textures broke this way once. When you 
 latest release" (`gh release create ... --latest=false`); if one was marked by mistake,
 `gh release edit v<version> --repo vittorioromeo/quakevr --latest` puts the game release back.
 
+**The Latest guard** does it after every `-Publish -Final` (and `-CheckOnline`): it lists the releases
+(`gh release list --json tagName,isLatest`), and when the new game release is not the only Latest (an `assets-*` or
+`textures-*` one, or an older game release, still is) it runs `gh release edit v<version> --latest`, lists them again
+and reports it (the console and PUBLISH.txt). `-DryRun` shows what is Latest now and warns when it is a support release.
+
 The game's update notice reads `version` (compared with its `VERSION` as semantic versions: a prerelease is older
 than its release) and `page` (the release's page, which make_release.py writes; the notice opens
 `releases/latest` without one). Test it against a local release: `qvr-setup serve` (or `test_local_release.ps1`'s
@@ -96,58 +169,51 @@ server), then in the game `vr_update_url http://127.0.0.1:<port>/latest.json; vr
 
 ## Step by step
 
-1. **Commit and push** the branch you release from (`vr-ironwail` today, `master` later: the script reads the
-   current branch and its upstream). The tree must be clean (tracked files): the build names its commit.
-2. **Have the extra files at hand** (once):
-   - Nothing for the HD textures or ericw-tools' source: they are hosted ("Support files" above).
-   - A Quake folder (with `id1\pak0.pak`) for the smoke launch: `-QuakeDir <folder>`, or set `QVR_QUAKE_DIR`. Without
-     one the launch is skipped with a warning. The paks are linked (or copied) into `out\release\<version>\checks\smoke`,
-     never uploaded, and nothing is written into the Quake folder.
-3. **Pick the version** ("Versions" below): `make_release.ps1 -Version 1.0.0 -BumpVersion` commits `VERSION` = 1.0.0
-   (alone, as "Version 1.0.0"; the tree must be otherwise clean) and goes on; push that commit with the branch before
-   `-Publish` (the script checks HEAD is on the upstream). Or edit `VERSION`, commit and push it yourself. A `-Version`
-   other than `VERSION`'s without `-BumpVersion` stops the script; without `-Version` it releases `VERSION`'s.
-4. **Dry run**: `make_release.ps1 -DryRun` checks everything below and prints the plan, without
-   building or calling `gh`. Fix any `PROBLEM` line.
-5. **Build and check** without publishing: `make_release.ps1 -QuakeDir <Quake>`. It
-   takes a few minutes; read the summary (also in `out\release\1.0.0\PUBLISH.txt`) and, if you like, edit
-   `out\release\1.0.0\release-notes.md`, then pass it back with `-Notes` in the next step.
-6. **Publish (draft)**: the same command with `-Publish` (and `-Notes out\release\1.0.0\release-notes.md` if you edited
-   them). It builds again from scratch into a fresh folder (the previous one is moved aside to `1.0.0.old-<time>`),
-   tags `v1.0.0`, pushes **only the tag**, and creates a draft release with the assets.
-7. **Check the draft** on https://github.com/vittorioromeo/quakevr/releases and publish it there (or
-   `gh release edit v1.0.0 --repo vittorioromeo/quakevr --draft=false --latest`). `-NoDraft` (or `-Draft:$false` from PowerShell itself) skips the draft.
-   The installer's first feed, `https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json`, serves
-   the new release only once it is published and not a prerelease.
-8. **Check online**: `dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json`
-   (the installer's only feed: the vittorioromeo.com one was dropped on 2026-10-08) prints the version and the package's size; then run the released `QuakeVR-Setup.exe` with no local package.
-   the new release only once it is published, not a prerelease, and marked Latest (always mark a game release Latest:
-   "Which release is Latest" above). The games already installed then show their update notice within the hour.
-8. **Upload `latest.json` to your site**: `out\release\1.0.0\assets\latest.json` to
-   `https://vittorioromeo.com/quakevr/latest.json` (the installer's second feed; the `/quakevr/` folder must exist).
-   It is the same file as the release's asset; its download addresses are the GitHub release's own files. For a mirror
-   on the site too, upload the other assets (e.g. to `/quakevr/releases/v1.0.0/`) and build with
-   `-UrlBase "https://github.com/vittorioromeo/quakevr/releases/download/{tag}/{file}","https://vittorioromeo.com/quakevr/releases/{tag}/{file}"`
-   before publishing, so latest.json lists both.
-9. **Check online**: `dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url <feed>` for both feeds
-   prints the version and the package's size; then run the released `QuakeVR-Setup.exe` with no local package.
+1. **Once:** `gh auth login` (`gh auth status` shows it; `-DryRun` checks it). The smoke launch's Quake is found by
+   itself (the installer's Steam/GOG/Epic detection: `qvr-setup detect`, the folder it picks), or `-QuakeDir <folder>`
+   / `QVR_QUAKE_DIR`; without one the launch is skipped with a warning. Its paks are linked (or copied) into
+   `out\release\<version>\checks\smoke`, never uploaded; nothing is written into the Quake folder. For `-RunTests`, a
+   kit worktree at the commit to release (`-TestAgent`, "Tests before publishing").
+2. **Commit and push** the branch you release from (`vr-ironwail` today, `master` later: the script reads the current
+   branch and its upstream). The tree must be clean (tracked files): the build names its commit. Commits not pushed
+   yet are pushed by `-Publish` (a fast-forward, after the checks).
+3. **Pick the version** ("Versions" below): `-Bump patch|minor|major` computes it from `VERSION` (a prerelease bumps to
+   the release it leads to: `1.1.0-rc.1` patch or minor is `1.1.0`); `-Version x.y.z -BumpVersion` names it. Either
+   commits `VERSION` alone ("Version x.y.z"; the tree must be otherwise clean) after the tests, before the build.
+   Without them the script releases `VERSION` as it is; a `-Version` other than `VERSION`'s without `-BumpVersion`
+   stops it.
+4. **Draft the notes**: `make_release.ps1 -DraftNotes -Bump patch`, edit `out\release\<v>\release-notes.md`, delete its
+   DRAFT line ("The release notes"). For the first release (the ~1900 commits since the local-only `v0.8.2` tag)
+   rewrite it rather than trim it.
+5. **Dry run**: `make_release.ps1 -Bump patch -Publish -Final -RunTests -DryRun`: the read-only checks and the
+   numbered list of commands. Fix every `PROBLEM` line (warnings in a dry run).
+6. **Release**: the same without `-DryRun` ("One command"). It takes the tests' hour plus a few minutes; read
+   `out\release\<v>\PUBLISH.txt` at the end. If it stops: "If it stops".
+7. **Afterwards**: the games already installed show their update notice within the hour (they read the same
+   latest.json). Run the released `QuakeVR-Setup.exe` once by hand with no local package if you like.
 
-For the first release: the tags `v0.8.0` to `v0.8.2` exist only in your local repository, so the generated notes
-would list the ~1900 commits since `v0.8.2` (cut at 150): write those notes yourself and pass them with `-Notes`.
+**Without `-Final`** (the older route, a draft first): `make_release.ps1 -Publish` creates a **draft**; check it on
+https://github.com/vittorioromeo/quakevr/releases and publish it there (or `gh release edit v1.0.0 --repo
+vittorioromeo/quakevr --draft=false --latest`), then `make_release.ps1 -Version 1.0.0 -CheckOnline` (the Latest guard
+and the online check). `-NoDraft` publishes at once without the checks after it. The installer's only feed,
+`https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json`, serves a release only once it is
+published, not a prerelease, and marked Latest. Without `-Publish` nothing leaves the PC (build and check only).
 
 ## What the script does
 
 | Step | What |
 |---|---|
-| Preconditions | the version (`-Version`, default `VERSION`'s) is `x.y.z` or `x.y.z-suffix` (a prerelease) and `VERSION`'s (else `-BumpVersion` commits it, refusing an older one); the tree is clean; HEAD is on the current branch's upstream (fetched first); the tag `v<version>` is not on another commit, here or on the remote; the remote is `-Repo` (default `vittorioromeo/quakevr`, the installer's feeds); `gh` is installed and logged in, and has no release of that tag; MSBuild with the ClangCL toolset (vswhere), the .NET SDK of `Installer\global.json`, Python, fteqcc (`-Fteqcc`, `FTEQCC`, `QC\fteqcc64.exe`, the author's copy, `PATH`). Without `-Publish`/`-PushTag` the ones only publishing needs (upstream, gh, ericw source) are warnings; `-DryRun` turns every problem into a warning |
+| Preconditions | the version (`-Version`, default `VERSION`'s) is `x.y.z` or `x.y.z-suffix` (a prerelease) and `VERSION`'s (else `-BumpVersion`/`-Bump` commits it after the tests, refusing an older one); the tree is clean; HEAD is on the current branch's upstream or ahead of it (fetched first; ahead: pushed by `-Publish`/`-PushTag`, diverged: a problem); the tag `v<version>` is not on another commit, here or on the remote; the remote is `-Repo` (default `vittorioromeo/quakevr`, the installer's feeds); `gh` is installed and logged in (`gh auth status`, `-DryRun` too), and has no release of that tag (and, `-DryRun`/`-Final`, what is Latest now); the notes are not a DRAFT (`-Publish`); the test worktree (`-RunTests`); the Quake for the smoke launch (`-QuakeDir`, `QVR_QUAKE_DIR`, else `qvr-setup detect`); MSBuild with the ClangCL toolset (vswhere), the .NET SDK of `Installer\global.json`, Python, fteqcc (`-Fteqcc`, `FTEQCC`, `QC\fteqcc64.exe`, the author's copy, `PATH`). Without `-Publish`/`-PushTag` the ones only publishing needs (upstream, gh, ericw source) are warnings; `-DryRun` turns every problem into a warning |
+| Tests | `-RunTests`: `run_test_suite.py <agent> --build` ("Tests before publishing"); then the version commit (`-Bump`/`-BumpVersion`) |
 | Source checks | `check_statics.py`, `check_qc_precedence.py`, `fgdgen.py --check` (as `build.sh`) |
 | Engine + QuakeC | `MSBuild ironwail.sln` Release x64 (incremental; `-Rebuild` for a full one) with `/p:QvrReleaseVersion=<version>` and the fteqcc found (the build compiles `QC\progs.src`) |
 | Package | `Windows\package-quakevr.ps1 -Dist out\release\<v>\package\QuakeVR -NoZip -Version "<v> (<date> <hash>)"`: the allowlist (tracked files under `quakevr\`, less development data, plus progs.dat), the engine files, the relighting tools, ericw-tools' light.exe, `manifest.json` |
 | Installer | `dotnet publish` of `QuakeVR.Installer`, Release, win-x64, self-contained, single file (native libraries inside, compressed), `/p:Version=<version>`; fails if anything but `QuakeVR-Setup.exe` (and its .pdb) is left beside it; then the installer's self-tests (`tests\QuakeVR.Installer.SelfTest`) |
 | Assets | `Misc\quakevr\make_release.py`: `QuakeVR.zip` (zipped from the package after checking every file against the manifest), `QuakeVR-Setup.exe`, `-Textures` / `-EricwSource` copies and `-Assets` if given, and `latest.json` (schema 1, the installer's `ReleaseFeed`; `hdtextures` the hosted pack of `support_assets.json` by default) |
 | Checks | the zip holds exactly `package-quakevr.ps1 -DryRun`'s list (and none of id's files: no `id1/`, `hipnotic/`, `rogue/`, `pak*.pak`, `gfx.wad`); `qvr-setup feed --file latest.json --assets <folder>` parses it as the installer does and checks each file's size and SHA-256; the packaged `QuakeVR-Setup.exe` installs the zip offline with its off-screen harness into `checks\setup` (no registry, no real shortcuts) and `qvr-setup verify` checks the install; the packaged `ironwail.exe`, unpacked from the zip, loads `start` with the mock headset (hidden window, `vr_mock_fast`), quits cleanly and names the build in its console |
-| Notes | `-Notes <file>`, or the commit subjects since the previous `v*` tag (the last 60 commits for the first release), plus a table of the files with their sizes and SHA-256 and the SmartScreen note; `SHA256SUMS.txt` is an asset too |
-| Publish | `-PushTag` or `-Publish`: an annotated tag `v<version>` on HEAD (reused when it is already there), pushed alone (`git push <remote> refs/tags/v<version>`); `-Publish`: `gh release create v<version> <assets> --verify-tag --draft` (`--prerelease` for `x.y.z-suffix`; `--latest` with `-NoDraft`) |
+| Notes | `-Notes <file>`, else `out\release\<v>\release-notes.md` (`-DraftNotes`, edited), else a draft made now (`draft_release_notes.py`, "The release notes"); `release-body.md` = the notes without the DRAFT line plus a table of the files with their sizes and SHA-256 and the SmartScreen note; `SHA256SUMS.txt` is an asset too |
+| Publish | `-PushTag` or `-Publish`: the branch pushed to its upstream when HEAD is ahead (fast-forward); an annotated tag `v<version>` on HEAD (reused when it is already there), pushed alone (`git push <remote> refs/tags/v<version>`); `-Publish`: `gh release create v<version> <assets> --verify-tag --draft` (`--prerelease` for `x.y.z-suffix`; `--latest` instead of `--draft` with `-Final` or `-NoDraft`) |
+| After publishing | `-Final` (or `-CheckOnline` alone): the Latest guard (`gh release list`, `gh release edit --latest` when needed), then the online check ("One command", step 9) |
 
 `out\release\<version>\` then holds: `assets\` (exactly what is uploaded), `release-notes.md`, `PUBLISH.txt` (the
 summary and what is left to do), `logs\` (each tool's output), `package\QuakeVR\` and `installer\` (the build outputs)
@@ -177,7 +243,7 @@ tag `v1.0.0` records it. Between releases `VERSION` names the last release (or t
 **The corner label** (`vr_menu_version`, VR Settings > Advanced VR Options > HUD and Menus > Menu: "Version Label")
 shows `vMAJOR.MINOR` while PATCH is 0 ("v1.0", "v1.1") and the whole version otherwise ("v1.0.1", "v1.1.0-beta.1").
 
-**When to bump** (in the release's own commit, `-BumpVersion`):
+**When to bump** (in the release's own commit: `-Bump patch|minor|major`, or `-Version x.y.z -BumpVersion`):
 
 - **PATCH** (1.0.0 to 1.0.1): fixes only: crashes, bugs, balance tweaks, docs; nothing a player must relearn and no
   setting renamed; saves and configs keep working.
@@ -229,12 +295,15 @@ Setup started over an install opens on the Update screen (`qvr-setup update` fro
 
 - `-Local` builds a test release into `out\release\<version>-local` whose `latest.json` names 127.0.0.1: it never
   fetches, calls `gh` or tags, and is refused with `-Publish`/`-PushTag`.
-
-- `-DryRun` builds, tags and calls `gh` for nothing. Without `-Publish` or `-PushTag` nothing leaves the PC.
-- Only the tag is ever pushed, never a branch. A re-run with the same version reuses a tag already on HEAD and stops
-  if the tag is on another commit or the GitHub release exists (delete or edit it on GitHub first).
+- `-DryRun` builds, commits, pushes and tags nothing; its only `gh` calls read (`auth status`, `release view`,
+  `release list`). Without `-Publish` or `-PushTag` nothing leaves the PC.
+- Pushes are the tag and, when HEAD is ahead of its upstream, the branch as a fast-forward (never forced; after the
+  build and its checks). A re-run with the same version reuses a tag already on HEAD and stops if the tag is on another
+  commit or the GitHub release exists (finish that one with `-CheckOnline`, or delete it on GitHub first).
+- The online check installs into `out\release\<v>\checks\online-<time>\sandbox` only (no registry, shortcuts in the
+  sandbox, Quake only read).
 - Nothing is deleted: an earlier `out\release\<version>\` is moved aside to `<version>.old-<time>` (delete those
-  yourself when done).
+  yourself when done); so is an earlier `release-notes.md` on `-DraftNotes` (`release-notes.md.old-<time>`).
 - `-AllowDirty` builds from uncommitted changes, for testing the script only (refused with `-Publish`/`-PushTag`).
 - `ironwail.pdb` ships in the package on purpose (crash reports name the functions with it beside the exe:
   `package-quakevr.ps1`); the installer's .pdb is not uploaded.

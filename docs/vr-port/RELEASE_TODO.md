@@ -15,8 +15,9 @@ Short list. The full procedure is in [RELEASING.md](RELEASING.md).
 ## Prepare once
 
 - **ericw-tools source zip** (GPL; required because `light.exe` ships): nothing to prepare, it is hosted on the `assets-2026-10-08` release; the release notes link it (RELEASING.md, "Support files"). Nothing to set.
-- [ ] **Smoke-test Quake folder:** set `QVR_QUAKE_DIR` to your Quake folder (the one with `id1\pak0.pak`).
-- [ ] **GitHub CLI:** check `gh auth status` shows you logged in.
+- [ ] **Smoke-test Quake folder:** nothing to set: the script finds it as the installer does (Steam/GOG/Epic); `QVR_QUAKE_DIR` or `-QuakeDir` only for another one.
+- [ ] **GitHub CLI:** `gh auth status` shows you logged in (the dry run checks it).
+- [ ] **Test worktree:** for `-RunTests`, a kit worktree at the commit you release (`bash <kit>/new_agent.sh release <commit>`), passed as `-TestAgent release`.
 - [x] **Your site:** nothing needed (the second feed was dropped 2026-10-08).
 
 ## Check in VR before tagging
@@ -29,14 +30,12 @@ Short list. The full procedure is in [RELEASING.md](RELEASING.md).
 
 ## Release
 
+The one command and what it does: [RELEASING.md](RELEASING.md), "One command".
+
 1. [ ] Commit and push. The working tree must be clean.
-2. [ ] Dry run: `Misc\release\make_release.ps1 -DryRun`. Fix every `PROBLEM` line.
-3. [ ] Build and check: `Misc\release\make_release.ps1`. Read `out\release\<v>\PUBLISH.txt`.
-4. [ ] Write `out\release\<v>\release-notes.md` by hand. Your `v0.8.x` tags exist only locally, so generated notes would cover about 1,900 commits.
-5. [ ] Publish as a draft: `Misc\release\make_release.ps1 -Publish -Notes out\release\<v>\release-notes.md`. This pushes only the tag.
-6. [ ] Review the draft on GitHub, then publish it.
-7. [x] (No site upload: the vittorioromeo.com feed was dropped on 2026-10-08.)
-8. [ ] Check the feed: `dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url https://github.com/vittorioromeo/quakevr/releases/latest/download/latest.json`.
+2. [ ] Notes: `Misc\release\make_release.ps1 -DraftNotes` drafts `out\release\<v>\release-notes.md` by area. Your `v0.8.x` tags exist only locally, so the draft covers about 1,900 commits: rewrite it, then delete its first (DRAFT) line.
+3. [ ] Plan: `Misc\release\make_release.ps1 -Publish -Final -RunTests -TestAgent <name> -DryRun` (later releases: add `-Bump patch|minor|major`). Fix every `PROBLEM` line.
+4. [ ] Release: the same without `-DryRun`. Tests, build and checks, the tag, the release published and marked Latest, the Latest guard, the online check (GitHub's latest.json read by the installer and a sandboxed install through it). If it stops, it prints how to go on.
 
 ## Known and accepted for this release
 
