@@ -48,6 +48,14 @@ void init(); // registers vr_foegrab_status, vr_foegrab_walk_test
 // Server: every hold forgotten (a map loaded, a saved game loaded: their entities are another world's).
 void reset();
 
+// Server: a shove's knockdown (QC VR_Knockdown_Try: ragdollshovetopple), `m` just made a ragdoll: turned over about its
+// feet along the level `dir` as the throw's (box3d::ragdollTopple) at vr_knockdown_shove_topple times `strength` (the
+// shove's push: two hands 1, one 0.7, a counter more, tired less), no spin, its top keeping vr_knockdown_shove_topple_push
+// of the shove's launch (the throw 1), its feet held vr_knockdown_shove_feet_hold s (or swept back,
+// vr_knockdown_shove_feet_speed). With vr_knockdown_debug or vr_foegrab_debug its fall is printed as the
+// throw's ("shove trace:"). False: not toppled (topple 0, no ragdoll).
+bool shoveTopple(edict_t* m, const glm::vec3& dir, float strength);
+
 void preThink(edict_t* ent);
 void serverFrame(); // VR_ServerFrameEnd, before hitmodel::serverFrame
 void afterPoses();  // VR_ServerFrameEnd, after it

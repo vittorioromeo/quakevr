@@ -12184,7 +12184,8 @@ void shockCheck_f()
 
 // vr_knockdown_test <mode>: QC's VR_Knockdown_Test, as the first player: 0 knocks the nearest monster down (whatever the
 // chance), 1 gets the knocked-down ones up now, 2 hits the nearest knocked-down one, 3 kills it, 4 gibs it, 5 lists the
-// monsters. For tests.
+// monsters, 21 and 22 shove the nearest with one hand and two (its chance: vr_knockdown_chance 100 for sure; its topple,
+// foegrab::shoveTopple). For tests.
 void knockdownTest_f()
 {
     if(!sv.active || svs.maxclients < 1)
@@ -12605,11 +12606,8 @@ bool ragdollKnockdown(edict_t* ent)
     return true;
 }
 
-// The feet of a ragdoll toppled with no sweep held still this long (s; vr_foegrab_throw_feet_speed 0: the author's Feet
-// Held, 0.5 s, before the sweep replaced it).
-constexpr float toppleHold = 0.5f;
-
-bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float feetSpeed)
+bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float feetSpeed, float toppleHold,
+    float launch)
 {
     RagdollBodies* rp = ent ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
     if(!rp)
@@ -12690,7 +12688,7 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
         glm::vec3 offset = p - middle;
         offset.z = 0.f;
         const glm::vec3 lin = glmv(b3Body_GetLinearVelocity(body));
-        b3Body_SetLinearVelocity(body, b3v(lin - shared * (1.f - share) + glm::cross(over, p - pivot) + glm::cross(turn, offset)));
+        b3Body_SetLinearVelocity(body, b3v(lin - shared * (1.f - share * launch) + glm::cross(over, p - pivot) + glm::cross(turn, offset)));
         b3Body_SetAngularVelocity(body, b3v(glmv(b3Body_GetAngularVelocity(body)) + over + turn));
         b3Body_SetAwake(body, true);
     }

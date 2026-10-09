@@ -283,7 +283,7 @@ void(entity targ) VR_Decap_After;
 .void() vr_kd_next;          // its own get-up: the frame function due next (VR_Knockdown_Step)
 void(float xChanceH, float xFrame, void() xGetup) VR_Knockdown_SetupOwn;
 void(float xChanceH, float xLastA, float xFirstA, float xLastB, float xFirstB) VR_Knockdown_SetupReverse;
-float(entity e, vector xForward, float xKind, float xHand) VR_Knockdown_Try;
+float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try;
 void() VR_Knockdown_FastForwardDeath;
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;

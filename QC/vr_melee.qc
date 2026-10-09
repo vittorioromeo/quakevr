@@ -2570,7 +2570,7 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
         self = oldSelf;
     }
     // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll.
-    VR_Knockdown_Try(e, xForward, xKind, xHand);
+    VR_Knockdown_Try(e, xForward, xKind, xHand, push);
     VR_HitBloodSplash(e, e.origin + '0 0 16', 4);
 };
 

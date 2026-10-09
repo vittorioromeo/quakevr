@@ -149,9 +149,14 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
 // lift) shared out by height (the feet none, the top all), `topple` rad/s about the level axis through its feet across
 // `dir` (its top's speed), `spin` rad/s about the vertical through its middle. Its feet (its lowest parts) are swept
 // back against `dir` at `feet` units/s, the turn about a pivot raised to match (the top as fast as before, the whole
-// turning faster: it spins in place); `feet` 0: held on the floor (level motion none) for a moment (toppleHold).
-// False: no ragdoll.
-bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float feet);
+// turning faster: it spins in place); `feet` 0: held on the floor (level motion none) for `hold` s (swept: at most that
+// long, until it has turned a quarter). Shared by the throw (vr_foegrab_throw_topple) and a shove's knockdown
+// (vr_knockdown_shove_topple: foegrab::shoveTopple). False: no ragdoll.
+// `launch`: the share of that launch its top keeps (its parts by height: the feet none), 1 the throw's; less, it topples
+// over slower from the launch (a shove's, vr_knockdown_shove_topple_push). (`hold` 0.5 s: the throw's, the author's Feet
+// Held before the sweep replaced it.)
+bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float feet, float hold = 0.5f,
+    float launch = 1.f);
 // Tests (the throw's trace): `num`'s ragdoll's pelvis, head (its rig's head, else its highest part) and feet (the middle of
 // the parts ragdollTopple held, else of those in its lowest quarter at the first call), units. False: no ragdoll.
 bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet);

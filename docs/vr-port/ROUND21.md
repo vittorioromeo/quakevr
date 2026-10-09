@@ -33041,3 +33041,40 @@ so little here.
   gaps should stay whole lines instead of dashes. Then 0 to compare.
 - If it still shimmers: in Virtual Desktop, Sharpening at 0 and a higher bitrate; the menu's status box (Menu Settings >
   Status Box) shows whether frames are being missed.
+
+## A shove's knockdown topples over the feet, as the judo throw (2026-10-09)
+
+His ask: a ragdoll knocked down by a shove (one or two open palms) falls head and chest first along the shove as a
+thrown one does, turning a bit less than the throw, its feet staying where they stood rather than sliding.
+
+- **Shared code:** `box3d::ragdollTopple` (the throw's) does it; two new parameters, both defaulting to the throw's
+  values so the throw is unchanged: `hold` (s its feet are held with no sweep; the throw 0.5) and `launch` (the share of
+  the knockdown's launch its top keeps, its parts by height, the feet none; the throw 1). `foegrab::shoveTopple` reads the
+  shove's cvars and reuses the throw's trace (`shove trace:` lines, `vr_knockdown_debug 1`). QC: `VR_Knockdown_Try` gets
+  the shove's push (two hands 1, one `VR_BASH_ONE_PUSH` 0.7, a counter more, tired less) and calls the new builtin
+  `ragdollshovetopple(e, dir, strength)` after `VR_Knockdown_Start`. Shoved over a ledge (`vr_knockdown_ledge`) it is
+  pushed whole as before, so it still tumbles off.
+- **Cvars (Combat > Knockdowns, under Launch):** `vr_knockdown_shove_topple` 180 deg/s (60% of the throw's 300, times
+  the strength; 0 off: pushed whole as before), `vr_knockdown_shove_topple_push` 0.5 (Topple Push: with 1 the shove's
+  push alone, all at the top, turned a grunt over as fast as the throw does: 74/128 deg at 0.1/0.2 s even at 1 deg/s),
+  `vr_knockdown_shove_feet_speed` 0 (as the throw's Feet Speed), `vr_knockdown_shove_feet_hold` 0.3 s.
+- **Numbers** (vrtesthall, 64 units ahead, `vr_knockdown_test 21`/`22`, torso tilt from upright at 0.1/0.2/0.3 s, the
+  most; feet and pelvis travel along the shove after 1.5 s, units):
+
+  | | off (before) | topple 180, push 0.5 |
+  |---|---|---|
+  | grunt 1 hand | 10/12/10, most 96; feet 108, pelvis 115 | 28/81/86, most 95; feet 4, pelvis 14 |
+  | grunt 2 hands | 17/17/19, most 133; feet 210, pelvis 196 | 71/110/85, most 116; feet -2, pelvis 6 |
+  | knight 1 hand | 8/10/29, most 91; feet 94, pelvis 110 | 37/79/88, most 95; feet 5, pelvis 24 |
+  | knight 2 hands | 8/9/14, most 127; feet 230, pelvis 214 | 50/120/95, most 120; feet 7, pelvis 27 |
+  | enforcer 1 hand | 23/33/54, most 107; feet 106, pelvis 110 | 39/73/87, most 89; feet 22, pelvis 29 |
+  | enforcer 2 hands | 11/11/21, most 168; feet 253, pelvis 238 | 51/101/89, most 101; feet 14, pelvis 21 |
+  | judo throw, grunt | 71/126/145, most 147; feet -28 (swept back) | (unchanged) |
+
+  So a shoved-down enemy no longer slides 100-250 units along the floor: it falls over where it stood, its head about
+  30 units further on. Topple Push brings back more travel (and a faster turn).
+- **Tests:** Debug > Tests, "Shove the Nearest Down, One Hand" / "Two Hands" (`vr_knockdown_chance 100;
+  vr_knockdown_test 21` / `22`: a real `VR_Bash_Hit` shove of the nearest monster).
+- **To try in VR:** shove grunts, knights and enforcers down with one hand and with two (Knockdowns' Chance 100): head
+  and chest go first along the shove, the feet stay put, a two-handed shove turns them faster; a shove off a ledge still
+  sends them over.

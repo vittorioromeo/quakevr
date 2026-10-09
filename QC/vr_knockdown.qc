@@ -371,8 +371,10 @@ float(entity e) VR_Knockdown_Ledge =
 };
 
 // A shove (or a bash) by self (a player) that landed on `e` (VR_Bash_Hit): by chance it knocks it down. xKind: the hit's
-// (QVR_HITKIND_SHOVE or _BASH); xHand -1: both hands.
-float(entity e, vector xForward, float xKind, float xHand) VR_Knockdown_Try =
+// (QVR_HITKIND_SHOVE or _BASH); xHand -1: both hands; xPush: its push (two hands 1, one VR_BASH_ONE_PUSH, a counter more,
+// tired less): down, its ragdoll topples over its feet along xForward that hard (ragdollshovetopple:
+// vr_knockdown_shove_topple, as the judo throw's).
+float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try =
 {
     if(!cvar_hget(cvarh_vr_knockdown) || !(self.flags & FL_CLIENT) || e.health <= 0 || e.vr_knockdown || !e.vr_kd_chance_h ||
        (e.flags & (FL_FLY | FL_SWIM)) || !(e.flags & FL_MONSTER) || !canragdoll(e))
@@ -417,13 +419,21 @@ float(entity e, vector xForward, float xKind, float xHand) VR_Knockdown_Try =
     {
         return FALSE;
     }
-    return VR_Knockdown_Start(e);
+    if(!VR_Knockdown_Start(e))
+    {
+        return FALSE;
+    }
+    // (Over a ledge: pushed whole as ever, so it tumbles off; a topple would keep its feet on this side.)
+    ragdollshovetopple(e, xForward, ledge ? 0 : xPush);
+    return TRUE;
 };
 
 // For tests (the engine's vr_knockdown_test <mode>), self the player: 0 knocks the nearest monster that can be down
 // (regardless of the chance; pushed away from you), 1 gets every knocked-down one up now (their next try), 2 hits the
 // nearest knocked-down one for 5 (its pain), 3 kills it (a hit for its health), 4 gibs it, 5 lists them, 20 removes every
-// monster, standing, knocked down or dead (the ledge tests' clean slate between trials).
+// monster, standing, knocked down or dead (the ledge tests' clean slate between trials), 21 and 22 shove the nearest with
+// one hand and with two (its chance as a real shove's: vr_knockdown_chance 100 for sure; its topple traced with
+// vr_knockdown_debug).
 void(float xMode) VR_Knockdown_Test =
 {
     if(xMode == 20)
@@ -510,7 +520,8 @@ void(float xMode) VR_Knockdown_Test =
                     x.vr_kd_until = time;
                 }
             }
-            else if(d < bestDist && (xMode == 0 ? (!x.vr_knockdown && x.vr_kd_chance_h) : x.vr_knockdown == 1))
+            else if(d < bestDist && ((xMode == 0 || xMode == 21 || xMode == 22) ? (!x.vr_knockdown && x.vr_kd_chance_h) :
+                                               x.vr_knockdown == 1))
             {
                 best = x;
                 bestDist = d;
@@ -525,6 +536,20 @@ void(float xMode) VR_Knockdown_Test =
     if(best == world)
     {
         dprint("knockdown test: no monster\n");
+        return;
+    }
+    if(xMode == 21 || xMode == 22)
+    {
+        // 21, 22: a one- or two-handed open-palm shove of the nearest (VR_Bash_Hit, as a real one: its push, its stagger,
+        // its chance; vr_knockdown_chance 100 for a sure knockdown), fresh (not tired).
+        vector away = best.origin - self.origin;
+        away_z = 0;
+        vr_bash_exhaust_dmg = 0;
+        vr_bash_exhaust_push = 0;
+        float two = xMode == 22;
+        dprint(sprintf("knockdown test: %s shove of %s\n", two ? "two-handed" : "one-handed", best.classname));
+        VR_Bash_Hit(best, best.origin, normalize(away), QVR_HITKIND_SHOVE, two ? -1 : cVR_MainHand,
+            two ? 1 : VR_BASH_ONE_DAMAGE, two ? 1 : VR_BASH_ONE_PUSH);
         return;
     }
     if(xMode == 0)

@@ -11,6 +11,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
+#include "vr_foegrab.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_highlights.hpp"
@@ -1531,6 +1532,14 @@ void PF_ragdollknockdown()
     G_FLOAT(OFS_RETURN) = box3d::ragdollKnockdown(G_EDICT(OFS_PARM0)) ? 1.f : 0.f;
 }
 
+// float ragdollshovetopple(entity e, vector dir, float strength): e, just knocked down by a shove along dir, turned over
+// about its feet that way (foegrab::shoveTopple: vr_knockdown_shove_topple times strength). 0: not toppled.
+void PF_ragdollshovetopple()
+{
+    const glm::vec3 dir{G_VECTOR(OFS_PARM1)[0], G_VECTOR(OFS_PARM1)[1], G_VECTOR(OFS_PARM1)[2]};
+    G_FLOAT(OFS_RETURN) = foegrab::shoveTopple(G_EDICT(OFS_PARM0), dir, G_FLOAT(OFS_PARM2)) ? 1.f : 0.f;
+}
+
 // float ragdollgetup(entity e, float frameA, float frameB, vector mins, vector maxs, float range): e gets up from its
 // ragdoll, starting from frameA or frameB (whichever fits how it lies; -1 none): 0 no room within range (it stays down),
 // else 1 or 2 (the frame chosen), e at the place found, turned to it (.vr_knockdown 2).
@@ -2265,6 +2274,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollgrab", PF_ragdollgrab},
     {"canragdoll", PF_canragdoll},
     {"ragdollknockdown", PF_ragdollknockdown},
+    {"ragdollshovetopple", PF_ragdollshovetopple},
     {"ragdollgetup", PF_ragdollgetup},
     {"ragdollpull", PF_ragdollpull},
     {"ragdollrelease", PF_ragdollrelease},
