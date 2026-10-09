@@ -27,6 +27,10 @@
 
 #include <string.h>
 
+#ifndef GL_TEXTURE_LOD_BIAS
+#define GL_TEXTURE_LOD_BIAS 0x8501
+#endif
+
 namespace qvr::gfx
 {
 namespace
@@ -908,6 +912,7 @@ struct Saved2D
     GLuint mipmapped{0}; // the target's texture, if its mipmaps are to be rebuilt
 };
 Saved2D saved2D;
+GLuint canvasMipmapped = 0; // the panel canvas's texture between beginCanvas and endCanvas, when it has mipmaps
 
 // Where the engine draws its 2D pass: the post-processing composite, or the window. Set rather than
 // read back: glGet* makes the CPU wait for the driver (about half a millisecond a call with a
@@ -1800,7 +1805,7 @@ void releaseTarget(Target& target)
     GLuint texture = target.texture;
     if(texture)
     {
-        glDeleteTextures(1, &texture);
+        GL_DeleteNativeTexture(texture); // (and out of the engine's bound-texture cache)
     }
     GLuint fbo = target.framebuffer;
     if(fbo)
@@ -1836,7 +1841,10 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps, const cha
     GLuint texture = target.texture;
     if(texture)
     {
-        glDeleteTextures(1, &texture);
+        // Out of the engine's bound-texture cache too: glGenTextures hands the same name back, and GL_BindNative,
+        // believing it still bound, would skip the bind (TexStorage on the default texture, an incomplete target
+        // drawing nothing: a remade canvas was blank).
+        GL_DeleteNativeTexture(texture);
     }
     GLuint fbo = target.framebuffer;
     if(!fbo)
@@ -1933,12 +1941,27 @@ void text(float x, float y, float size, const char* str)
 
 } // namespace draw2D
 
-void beginCanvas(Target& canvas, int width, int height)
+void beginCanvas(Target& canvas, int width, int height, bool mipmaps, float lodBias)
 {
-    ensureTarget(canvas, width, height, false, "panel canvas");
+    ensureTarget(canvas, width, height, mipmaps, "panel canvas");
+    canvasMipmapped = canvas.levels > 1 ? canvas.texture : 0;
+    if(canvasMipmapped)
+    {
+        // Seen smaller than its pixels in the headset (vr_menu_resolution): trilinear, anisotropic where the panel is
+        // seen at an angle, sharpened by a negative bias (vr_menu_sharpen).
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvas.texture);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, lodBias);
+        if(gl_max_anisotropy > 1.f) // else not supported
+        {
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, za::min(8.f, gl_max_anisotropy));
+        }
+    }
     GL_ResetState(); // re-applies the blend, now with applyCanvasBlend() (VR_CanvasBlend)
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, canvas.framebuffer);
     glViewport(0, 0, width, height);
+    // A clip rectangle left on (Draw_SetClipRect) is in the window's pixels: on a canvas of its own size
+    // (vr_menu_resolution) it would cut the clear and the 2D pass to the window's corner.
+    glDisable(GL_SCISSOR_TEST);
     glClearColor(0.f, 0.f, 0.f, 0.f);
     glClear(GL_COLOR_BUFFER_BIT);
 }
@@ -1947,6 +1970,12 @@ void endCanvas()
 {
     GL_ResetState(); // back to Ironwail's usual blend
     bindWindow();
+    if(canvasMipmapped)
+    {
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, canvasMipmapped);
+        GL_GenerateMipmapFunc(GL_TEXTURE_2D);
+        canvasMipmapped = 0;
+    }
 }
 
 bool applyCanvasBlend()
@@ -2017,7 +2046,7 @@ Texture createTexture(int width, int height, const void* rgba, bool mipmaps)
 void destroyTexture(Texture texture)
 {
     GLuint tex = texture;
-    glDeleteTextures(1, &tex);
+    GL_DeleteNativeTexture(tex);
     GL_ClearBindings();
 }
 

@@ -30,7 +30,12 @@
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Fmin.hpp"
+#include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/Remainder.hpp"
 #include "vr_zancle.hpp"
 
@@ -47,6 +52,10 @@ constexpr glm::vec4 noMask{0.f, 0.f, 0.f, 0.f};
 
 gfx::Target canvas;
 bool drawingToCanvas = false;
+
+// The headset's eye images: their pixels per unit of tangent up the view (their projection's), from the last eye
+// rendered; 0 before one was. What the canvas is sized for (vr_menu_resolution).
+float eyePixelsPerTan = 0.f;
 
 // The canvas's quads, each draw (the main thread).
 struct PanelScratch
@@ -280,6 +289,31 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
     drawFacing(s, {hudAngles.x, hudAngles.y, 0.f}, 200.f * vr_menu_scale.value, mask);
 }
 
+// The canvas's size in pixels. In the eyes with vr_menu_resolution, that many of its pixels to each of the eye image's
+// across the panel seen head-on (the menu panel's height or the HUD panel's, the larger: one size for both, made once),
+// mipmapped (trilinear, anisotropic): drawn smaller than it is, the text keeps whole edges instead of being stretched
+// and smoothed over the eye's pixels (NOTES.md vrstart_2026-10-09_10-42-28: the menu looked blurry). Its shape is the
+// window's: the 2D pass lays out on the window's virtual screen (vid.guiwidth x vid.guiheight). Else (0, or the
+// runtime's own panel before a map) the window's size, as before.
+[[nodiscard]] glm::ivec2 canvasPixels()
+{
+    const glm::ivec2 window{vid.width, vid.height};
+    const float resolution = CLAMP(0.f, vr_menu_resolution.value, 3.f);
+    if(resolution <= 0.f || !stereoThisFrame || eyePixelsPerTan <= 0.f || window.x <= 0 || window.y <= 0)
+    {
+        return window;
+    }
+    const float height = za::fmax(menuui::styledPanelHeight(), 200.f * vr_menu_scale.value);
+    const float pixels = resolution * eyePixelsPerTan * height / za::fmax(1.f, vr_menu_distance.value);
+
+    // Whole steps of 64 rows (a slider dragged doesn't make it again each frame), at most 4096 across (about 50 MB with its mipmaps).
+    constexpr float maxSide = 4096.f;
+    const float aspect = static_cast<float>(window.x) / static_cast<float>(window.y);
+    float h = za::fmin(za::ceil(za::fmax(pixels, 64.f) / 64.f) * 64.f, maxSide);
+    h = za::fmin(h, za::floor(maxSide / aspect));
+    return {static_cast<int>(za::lround(h * aspect)), static_cast<int>(h)};
+}
+
 // The canvas into the backend's panel image, when it has one.
 void copyToRuntimePanel()
 {
@@ -301,6 +335,11 @@ namespace qvr::panel
 void setStereoThisFrame(bool stereo)
 {
     stereoThisFrame = stereo;
+}
+
+void noteEyeImage(float pixelsPerTan)
+{
+    eyePixelsPerTan = pixelsPerTan;
 }
 
 void drawInEye(const hands::State& s, bool headText)
@@ -381,7 +420,20 @@ extern "C" void VR_Begin2D()
     savedCrosshair = crosshair.value;
     crosshair.value = 0.f;
 
-    gfx::beginCanvas(canvas, vid.width, vid.height);
+    const glm::ivec2 size = canvasPixels();
+    const bool own = size.x != vid.width || size.y != vid.height;
+    gfx::beginCanvas(canvas, size.x, size.y, own, -CLAMP(0.f, vr_menu_sharpen.value, 1.f));
+}
+
+extern "C" int VR_CanvasPixels(int* width, int* height)
+{
+    if(!drawingToCanvas || !canvas.texture)
+    {
+        return 0;
+    }
+    *width = canvas.width;
+    *height = canvas.height;
+    return 1;
 }
 
 extern "C" int VR_SbarInCanvas()

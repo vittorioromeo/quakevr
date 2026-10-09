@@ -76,6 +76,7 @@ void VR_Begin2D (void);									// SCR_UpdateScreen, before GL_Set2D
 void VR_End2D (void (*windowHud) (void));				// SCR_UpdateScreen, after Draw_Flush: windowHud draws the HUD on the window, under the canvas
 int VR_SbarInCanvas (void);								// SCR_DrawSbar: 1 to draw the HUD as usual, 0 to leave it to VR_End2D's windowHud, 2 both (the canvas's a classic status bar, for a hand)
 int VR_CanvasBlend (void);								// GL_SetStateEx, alpha blending: nonzero if it set the blend
+int VR_CanvasPixels (int *width, int *height);			// GL_Set2D, Draw_SetClipRect: nonzero while the 2D pass draws into the headset's canvas, its size in pixels (vr_menu_resolution: not the window's)
 int VR_MenuCanvas (float *scalex, float *scaley);		// Draw_GetCanvasTransform, CANVAS_MENU: nonzero to use these scales (the VR menu style: y scaled more to space the rows out, characters and pictures keeping their size)
 
 // Entities (gl_rmain.c, r_alias.c, r_world.c).

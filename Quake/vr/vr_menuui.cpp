@@ -855,6 +855,12 @@ float panelHeight()
     return active() ? vid.guiheight / canvasScale() * vr_menu_scale.value : 0.f;
 }
 
+float styledPanelHeight()
+{
+    // (canvasScale with the spacing setting: the most a menu's rows are spaced, the panel's height for every menu)
+    return vr_menu_vr_style.value && vid.guiheight > 0 ? vid.guiheight / canvasScale() * vr_menu_scale.value : 0.f;
+}
+
 int menuHeight()
 {
     return active() ? heightSetting() : 320; // (flat: the menu canvas fits 420 x 320, gl_draw.c CANVAS_MENU)

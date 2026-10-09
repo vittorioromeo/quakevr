@@ -38,6 +38,10 @@ void openMenu(int state);
 // (a character is 8) is vr_menu_scale units, as in the old engine, whatever the canvas's size.
 [[nodiscard]] float panelHeight();
 
+// That height whether or not a menu is open (0 without vr_menu_vr_style): what the canvas is sized for in the headset
+// (vr_panel.cpp, vr_menu_resolution), so that opening a menu does not make it again.
+[[nodiscard]] float styledPanelHeight();
+
 // The menus' height in menu pixels: Quake's 200, or with the style active, 200 times
 // vr_menu_height (whole rows), the 320 x 200 of Quake's layout in its middle. The VR pages lay
 // out their list and help in it.

@@ -1315,10 +1315,13 @@ void Draw_SetClipRect (float x, float y, float width, float height)
 	y  = CLAMP (0.f, y  * 0.5f + 0.5f, 1.f);
 	y2 = CLAMP (0.f, y2 * 0.5f + 0.5f, 1.f);
 	// 0..1 to screen
-	x  = floor (glx + x  * glwidth  + 0.5f);
-	x2 = floor (glx + x2 * glwidth  + 0.5f);
-	y  = floor (gly + y  * glheight + 0.5f);
-	y2 = floor (gly + y2 * glheight + 0.5f);
+	int px = glx, py = gly, pw = glwidth, ph = glheight;
+	if (VR_CanvasPixels (&pw, &ph)) // QVR: the headset's canvas, its own size (vr_menu_resolution)
+		px = py = 0;
+	x  = floor (px + x  * pw + 0.5f);
+	x2 = floor (px + x2 * pw + 0.5f);
+	y  = floor (py + y  * ph + 0.5f);
+	y2 = floor (py + y2 * ph + 0.5f);
 
 	Draw_Flush ();
 	glEnable (GL_SCISSOR_TEST);
@@ -1358,8 +1361,10 @@ static void Draw_Transform2 (float width, float height, float scalex, float scal
 	out->offset[1] = (scrheight - height*scaley) * aligny / scrheight * -2.f + 1.f;
 
 	// shift projection by a fraction of a pixel to avoid interpolation artifacts at certain scales
-	out->offset[0] += 0.61803399f / 2.f / glwidth;
-	out->offset[1] += 0.61803399f / 2.f / glheight;
+	int pixw = glwidth, pixh = glheight;
+	VR_CanvasPixels (&pixw, &pixh); // QVR: the headset's canvas has pixels of its own (vr_menu_resolution)
+	out->offset[0] += 0.61803399f / 2.f / pixw;
+	out->offset[1] += 0.61803399f / 2.f / pixh;
 }
 
 /*
@@ -1495,7 +1500,11 @@ void GL_Set2D (void)
 	glcanvas.blendmode = GLS_BLEND_ALPHA;
 	glcanvas.colorstacktop = 0;
 	Draw_SetMenuRecolor (false); // QVR
-	glViewport (glx, gly, glwidth, glheight);
+	int canvasw, canvash;
+	if (VR_CanvasPixels (&canvasw, &canvash)) // QVR: the headset's canvas, its own size (vr_menu_resolution)
+		glViewport (0, 0, canvasw, canvash);
+	else
+		glViewport (glx, gly, glwidth, glheight);
 	GL_SetCanvas (CANVAS_DEFAULT);
 	GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 }

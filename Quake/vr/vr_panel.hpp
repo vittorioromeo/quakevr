@@ -10,6 +10,10 @@ namespace qvr::panel
 // The eyes were rendered this frame: the 2D pass goes to the canvas.
 void setStereoThisFrame(bool stereo);
 
+// The headset's eye image being rendered: its pixels per unit of tangent up the view (its projection's [1][1] times half
+// its height). The canvas is sized for it (vr_menu_resolution).
+void noteEyeImage(float pixelsPerTan);
+
 // Draws the (previous frame's) 2D canvas in the eye being rendered: the menu's panel while one is open; in game, the
 // hand's status bar and, with `headText`, the head-locked text (centre prints, notify lines: off for the spectator
 // camera's and the mirror's UI with vr_spectator_hide_hud_text, vr_mirror_hide_hud_text).

@@ -32922,3 +32922,61 @@ across nothing; with a gun (knuckles and butt) and holding a health pack, on. Th
 
 **To try in the headset.** Gesture: Double Tap; double tap with the palm, the knuckles, the gun's butt, a held box; a
 single tap and a slow pair should do nothing; melee swings across the gadget should never count.
+## The menu sharp in the headset (2026-10-09)
+
+His note (vrstart_2026-10-09_10-42-28): in VR the menu looks blurry, as if smoothed.
+
+**How it was drawn:** the 2D pass (menus, console, head-locked text) went into an offscreen canvas the size of the
+desktop window (`vid.width` x `vid.height`, vr_panel.cpp), sampled bilinearly, no mipmaps, onto the panel quad in each
+eye image (after the post-processing, at the image's full size: no MSAA, foveation or upscale on it), and the runtime
+resamples the eye image once more for the lenses. So the menu's sharpness depended on the window: a 1920x1080 window
+gives the shipped panel (115 x 205 units at 100: about 60 degrees tall) about as many pixels as a native Quest 3 eye
+image, but fewer than Virtual Desktop's higher resolutions (magnified 1.3-1.5x: smoothed), and the test runs' 960x540
+window drops glyph pixels outright (a menu pixel 0.84 canvas pixels: "Dack Iolsters"). The menu's 8-pixel letters are
+also nearest-scaled by a non-whole factor (1.69 canvas pixels a menu pixel at 1080), so their strokes alternate 1 and
+2 pixels before the smoothing.
+
+**Now** (`vr_menu_resolution`, 1.5; `vr_menu_sharpen`, 0.5; VR Settings > Advanced > Menu Settings: Menu Resolution,
+Menu Sharpening): in the eyes the canvas is sized from the eye images' own pixel density (their fov's tangents and
+height, noted each eye: `panel::noteEyeImage`): `vr_menu_resolution` canvas pixels to each eye pixel across the panel
+seen head-on (the menu panel's height or the in-game text panel's, the larger, so that opening a menu doesn't remake
+it), in steps of 64 rows, at most 4096 across (its shape the window's: the 2D pass lays out on the window's virtual
+screen). It has mipmaps, rebuilt each frame, sampled trilinearly with 8x anisotropy and a mipmap bias of
+`-vr_menu_sharpen`. 0 keeps the old window-sized canvas. The engine's 2D pass takes the canvas's pixels for its
+viewport, clip rectangles and its sub-pixel shift (`VR_CanvasPixels`: GL_Set2D, Draw_SetClipRect, Draw_Transform2);
+the runtime's own panel before a map keeps the window's size.
+
+**Measured** (mock eyes 2048 at the mock's 92-degree fov, his menu settings, eye images with the UI, a 640x420 block of
+menu text; edge steepness = the mean of the steepest 1% of luminance steps, higher sharper; spread = how much it changes
+over four 0.26-pixel head turns, the shimmer):
+
+| canvas | edge steepness | spread |
+|---|---|---|
+| window 960x540 (test runs' window) | 63.7 | 0.3% |
+| 0.7 eye pixels (his 1080 window at a Virtual Desktop-like eye) | 76.3 | 0.1% |
+| 1.06 (his window at a native Quest 3 eye) | 87.8 | 0.7% |
+| 2, no sharpening | 69.2 | 0.7% |
+| **1.5, sharpen 0.5 (new default)** | **94.2** | **0.4%** |
+| 2, sharpen 1 | 100.7 | 1.0% |
+| 3, sharpen 1 | 87.4 | 0.3% |
+
+Supersampled with plain trilinear (2, no sharpening) is softer than 1:1: its mip level 1 is bilinearly magnified again.
+GPU: the 2D pass and the panel's draw cost the same within noise at 0, 1.5 and 2 (`vr_profile`, menu open: 2D 1.64,
+1.77, 1.37 ms GPU, noise; hud panel 0.05 ms).
+
+**Fixed on the way:** `gfx::ensureTarget` (and releaseTarget, destroyTexture) deleted textures with glDeleteTextures,
+leaving the engine's bound-texture cache holding the name; glGenTextures handed the same name back, GL_BindNative
+skipped the bind, TexStorage went to the default texture and the remade target was incomplete (drew nothing: the canvas
+went black after its first resize). Now GL_DeleteNativeTexture. A clip rectangle left on by the window's 2D pass is
+turned off at the canvas's start.
+
+**Not done (the next step if still soft):** the runtime resamples the eye image for the lenses (a second smoothing no
+eye-image setting avoids). A quad composition layer for the menu (the runtime samples the canvas itself, once, at the
+display's pixels; Meta's advice for text) would remove it, but the laser and its dot, drawn in the eyes, would then be
+under the panel: they would have to move into the canvas.
+
+### To try in the headset
+
+- Open the menu: letters crisper than before, strokes even. Menu Resolution 0 vs 1.5 to compare; Menu Sharpening 0 / 0.5
+  / 1 (1: crispest, may shimmer slightly on the small text as the head moves).
+- The console and centre prints in game (same canvas): crisp too.

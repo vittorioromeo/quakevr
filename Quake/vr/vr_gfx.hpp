@@ -294,8 +294,9 @@ void text(float x, float y, float size, const char* text);  // the console font
 } // namespace draw2D
 
 // The engine's 2D pass (menus, console, HUD) redirected into `canvas`, cleared to transparent
-// black; endCanvas() points the 2D pass back where the engine draws it (the window).
-void beginCanvas(Target& canvas, int width, int height);
+// black; endCanvas() points the 2D pass back where the engine draws it (the window). With `mipmaps` the canvas has a
+// mipmap chain, rebuilt by endCanvas(), sampled trilinearly with anisotropy and `lodBias` (negative: sharper).
+void beginCanvas(Target& canvas, int width, int height, bool mipmaps = false, float lodBias = 0.f);
 void endCanvas();
 
 // Alpha blending for the 2D pass while it draws into the canvas: colours as usual, alpha built

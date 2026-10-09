@@ -928,6 +928,8 @@ extern "C" int VR_RenderView()
         // The UI over the eye's final image, at its full size: after the post-processing, it is not warped or blurred
         // under water (vr_water.cpp), the glow is not added over it, nor the eye's gamma. The wrist gadget and all
         // else in the world are in the scene. Over the scene's colours too, for the mirror.
+        const Fov& eyeFov = frame.eyes[eye].fov; // (the canvas's size: vr_menu_resolution)
+        panel::noteEyeImage(static_cast<float>(imageHeight) / za::max(1e-3f, za::tan(eyeFov.up) - za::tan(eyeFov.down)));
         stereo::drawUi(hands::current().eyeOrigin[eye], stereo::targetFbo, imageWidth, imageHeight, !recordingClean()); // (recording mode: no head text)
         if(shotUi)
         {
