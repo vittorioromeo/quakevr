@@ -2,10 +2,17 @@
 # (empty or water) to the first change of contents in the world's hull 0; the point where a ray meets that change must
 # lie on one of the world's faces on that plane. A point on none is a hole (a face qbsp lost: ericw-tools' "sides not
 # found", a sliver of sky or void seen through the ground). Pure Python (no numpy), spread over the CPU's cores.
+# A face that is there but in no leaf's list of faces (marksurfaces) is never drawn either (the renderer draws the
+# faces its visible leaves list): a hole the ray test above can't see (vrstart 2026-10-09, a terrain triangle by the
+# trees on the hill; qbsp 0.18.1 put it on its nearly coplanar neighbour's plane and listed only the neighbour). So
+# every world face is checked against the leaves' lists ("unlisted faces", exact, over the whole map), and each ray's
+# hit as the renderer would draw it ("undrawn hits": no face holding the point is listed by a leaf the ray's start
+# leaf can see, by vis's PVS; a face listed only by a neighbouring leaf is common and fine, both are seen).
 #
 #   python Misc/quakevr/maps/bsp_holes.py quakevr/maps/vrstart.bsp [--rays 120000] [--seed 1] [--focus x0,y0,z0,x1,y1,z1]
 #
-# Prints the hits (a hole's point, the plane, the two contents) clustered by 64-unit cell, and "holes: N".
+# Prints the hits (a hole's point, the plane, the two contents) clustered by 64-unit cell, the unlisted faces, and
+# "holes: N" (missing-face hits, undrawn hits and unlisted faces together).
 import argparse
 import math
 import multiprocessing
@@ -48,6 +55,20 @@ class Bsp:
         lf = lump(10)
         sz = 44 if self.bsp2 else 28
         self.leafc = [struct.unpack_from("<i", lf, i * sz)[0] for i in range(len(lf) // sz)]
+        ms = lump(11)
+        msz = 4 if self.bsp2 else 2
+        marks = struct.unpack_from("<%d%s" % (len(ms) // msz, "I" if self.bsp2 else "H"), ms, 0)
+        # each leaf's listed faces (marksurfaces; world face numbers)
+        self.leafmarks = []
+        for i in range(len(lf) // sz):
+            fm, nm = struct.unpack_from("<II" if self.bsp2 else "<HH", lf, i * sz + (32 if self.bsp2 else 20))
+            self.leafmarks.append(frozenset(marks[fm:fm + nm]))
+        self.listers = {}  # world face number -> the leaves listing it
+        for L, m in enumerate(self.leafmarks):
+            for f in m:
+                self.listers.setdefault(f, []).append(L)
+        self.visofs = [struct.unpack_from("<i", lf, i * sz + 4)[0] for i in range(len(lf) // sz)]
+        self.vis = lump(4)
         fc = lump(7)
         ed = lump(12)
         se = lump(13)
@@ -59,7 +80,9 @@ class Bsp:
         md = lump(14)
         mins = struct.unpack_from("<3f", md, 0)
         self.head = struct.unpack_from("<i", md, 36)[0]
+        self.visleafs = struct.unpack_from("<i", md, 52)[0]
         firstface, numfaces = struct.unpack_from("<ii", md, 56)
+        self.firstface = firstface
         fsz = 28 if self.bsp2 else 20
         self.faces = []
         for i in range(firstface, firstface + numfaces):
@@ -98,13 +121,27 @@ class Bsp:
         ys = [q[1] for q in p2]
         return (self.planes[pn], u, v, p2, min(xs), min(ys), max(xs), max(ys))
 
-    def contents(self, p):
+    def leaf(self, p):
         n = self.head
         while n >= 0:
             pn, c0, c1 = self.nodes[n]
             a, b, c, dd = self.planes[pn]
             n = c0 if a * p[0] + b * p[1] + c * p[2] - dd >= 0 else c1
-        return self.leafc[-n - 1]
+        return -n - 1
+
+    def contents(self, p):
+        return self.leafc[self.leaf(p)]
+
+    def unlisted_faces(self):
+        """The world faces no leaf lists (never drawn): [(face index, its centre)]."""
+        listed = set()
+        for m in self.leafmarks:
+            listed.update(m)
+        out = []
+        for fi, (pn, poly) in enumerate(self.faces):
+            if fi + self.firstface not in listed:
+                out.append((fi, tuple(sum(q[i] for q in poly) / len(poly) for i in range(3))))
+        return out
 
     def trace(self, a, b, c0):
         """The first point of a..b whose contents are not c0: (t, planenum, contents) or None."""
@@ -134,7 +171,41 @@ class Bsp:
                 return (tp, pin, c, p)
         return None
 
+    def sees(self, a, b):
+        """Whether leaf a's PVS has leaf b (no vis data, or a leaf without: everything)."""
+        o = self.visofs[a]
+        if o < 0 or not self.vis or b == 0:
+            return True
+        want = (b - 1) >> 3
+        vis = self.vis
+        i = 0
+        while i <= want:
+            if vis[o]:
+                if i == want:
+                    return bool(vis[o] & (1 << ((b - 1) & 7)))
+                i += 1
+                o += 1
+            else:
+                i += vis[o + 1]
+                o += 2
+        return False
+
+    def drawn_from(self, pn, p, start):
+        """Whether a face holding p (on plane pn) is listed by a leaf that leaf `start` sees: the renderer draws it."""
+        for fi in self.faces_at(pn, p):
+            for L in self.listers.get(fi + self.firstface, ()):
+                if L == start or self.sees(start, L):
+                    return True
+        return False
+
     def on_face(self, pn, p, eps=0.25):
+        """Whether a world face on plane pn holds p."""
+        for _ in self.faces_at(pn, p, eps):
+            return True
+        return False
+
+    def faces_at(self, pn, p, eps=0.25):
+        """The world faces (indices into self.faces) on plane pn that hold p."""
         hn = self.planes[pn]
         C = self.CELL
         for fi in self.grid.get((int(p[0] // C), int(p[1] // C), int(p[2] // C)), ()):
@@ -151,8 +222,8 @@ class Bsp:
             ax_, ay_ = p2[0]
             for i in range(1, len(p2) - 1):
                 if _in_tri(x, y, ax_, ay_, p2[i][0], p2[i][1], p2[i + 1][0], p2[i + 1][1], eps):
-                    return True
-        return False
+                    yield fi
+                    break
 
 
 def _in_tri(x, y, ax, ay, bx, by, cx, cy, eps):
@@ -202,7 +273,11 @@ def _work(job):
         if pn < 0:
             continue
         if not b.on_face(pn, hp):
-            hits.append((hp, pn, c0, c))
+            hits.append((hp, pn, c0, c, "missing"))
+            continue
+        # drawn: a face holding the point listed by a leaf the start's leaf sees
+        if not b.drawn_from(pn, hp, b.leaf(p)):
+            hits.append((hp, pn, c0, c, "undrawn"))
     return hits
 
 
@@ -222,22 +297,29 @@ def main():
         f = [float(x) for x in args.focus.split(",")]
         focus = (tuple(f[:3]), tuple(f[3:]))
     jobs = max(1, (os.cpu_count() or 4))
-    per = args.rays // (jobs * 4) + 1
+    per = args.rays // (jobs * 4) + 1 if args.rays > 0 else 0
     work = [(args.seed * 100003 + i, per, box, focus) for i in range(jobs * 4)]
-    with multiprocessing.Pool(jobs, _init, (args.bsp,)) as pool:
-        res = pool.map(_work, work)
+    res = []
+    if per:  # (--rays 0: the unlisted faces alone)
+        with multiprocessing.Pool(jobs, _init, (args.bsp,)) as pool:
+            res = pool.map(_work, work)
     hits = [h for r in res for h in r]
     cells = {}
-    for hp, pn, c0, c in hits:
-        k = (int(hp[0] // 64), int(hp[1] // 64), int(hp[2] // 64))
+    for hp, pn, c0, c, kind in hits:
+        k = (kind, int(hp[0] // 64), int(hp[1] // 64), int(hp[2] // 64))
         cells.setdefault(k, []).append((hp, pn, c0, c))
     print("%s: %d rays, %d world faces, %d leaves" % (args.bsp, per * len(work), len(b.faces), len(b.leafc)))
     for k, hs in sorted(cells.items(), key=lambda kv: -len(kv[1]))[:args.show]:
         hp, pn, c0, c = hs[0]
         pl = b.planes[pn]
-        print("  %4d hits at (%.0f %.0f %.0f) plane (%.3f %.3f %.3f) %.1f  %s -> %s" % (
-            len(hs), hp[0], hp[1], hp[2], pl[0], pl[1], pl[2], pl[3], CONTENTS.get(c0, c0), CONTENTS.get(c, c)))
-    print("holes: %d (%d places)" % (len(hits), len(cells)))
+        print("  %4d %s hits at (%.0f %.0f %.0f) plane (%.3f %.3f %.3f) %.1f  %s -> %s" % (
+            len(hs), k[0], hp[0], hp[1], hp[2], pl[0], pl[1], pl[2], pl[3], CONTENTS.get(c0, c0), CONTENTS.get(c, c)))
+    unl = b.unlisted_faces()
+    for fi, cen in unl[:args.show]:
+        print("  unlisted face %d at (%.0f %.0f %.0f), %d corners" % (fi, cen[0], cen[1], cen[2], len(b.faces[fi][1])))
+    nmiss = sum(1 for h in hits if h[4] == "missing")
+    print("missing-face hits: %d, undrawn hits: %d, unlisted faces: %d" % (nmiss, len(hits) - nmiss, len(unl)))
+    print("holes: %d (%d places)" % (len(hits) + len(unl), len(cells) + len(unl)))
 
 
 if __name__ == "__main__":

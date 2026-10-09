@@ -273,8 +273,14 @@ slope); `unbend` (the terrain's points moved off nearly straight lines of edges)
 degrees of each other merged, faces within 1.5 degrees of an axis turned to it, corners within 1.5 units of the ground
 or the water's surface moved clear of it); pines' cones end inside the cone above (they shared a tip); boulders' flat
 undersides buried 4 units; ropes in two pieces. Exactly coplanar terrain triangles of one texture are merged into convex
-prisms. Check a build with `--check` (or `bsp_holes.py`): rays from random open points; a hit where the contents change
-with no face there is a hole.
+prisms. Neighbouring tops under 0.1 units apart are made exactly coplanar even at the walkable ground's pinned corners
+(`terrain_mesh`'s `tiny`): 0.18.1's qbsp puts one of such a pair on the other's plane and lists only the other in its
+leaves, so the first is never drawn (2026-10-09: a terrain triangle by the pines on the hill above the firing range,
+0.004 units off its neighbour's plane). Check a build with `--check` (or `bsp_holes.py`; a compile always runs its
+face list check): rays from random open points; a hit where the contents change with no face there is a hole, and so
+is one whose face no leaf the ray's start can see (by vis) lists; and every world face must be listed by a leaf
+("unlisted faces": exact, the whole map, a second). A compile stops when qbsp finds a texture missing (no
+`id_textures.wad`: `make_id_wad.py`; the faces would be checkerboards).
 
 - **Layout** (x east, y north, the water's surface at z 0): a lake 8000 units across ringed by cliffs and mountains,
   the island in its middle (about 3100 x 2200), and the path from the south-west: the pier (the player's start) ->

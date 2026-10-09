@@ -573,19 +573,25 @@ def simplify_points(P, H, tol, keep):
 
 
 def terrain_mesh(P, tris, H, key, pinned=(), near_dev=1.0, near_angle=1.5, max_drift=3.0, rounds=60, levels=(),
-                 clear=2.0, near_flat=0.6):
+                 clear=2.0, near_flat=0.6, tiny=0.1):
     """P: the points (x, y) (integers), tris: their triangles (counter-clockwise), H: their heights, key(ti): what a
     triangle must share to be merged with a neighbour (its texture). A neighbouring pair is nearly coplanar when its
     planes are apart by under `near_dev` units at the far corners or `near_angle` degrees (and not EXACTly coplanar):
     a corner of such a pair is moved onto the other's plane (the move that leaves fewest nearly coplanar pairs round
     it; never a `pinned` point, never more than `max_drift` from where it was), until none are left.
     A top within `near_flat` degrees of level (not exactly) is made level first.
+    A pair left under `tiny` units apart (across the planes) is made exactly coplanar even at a pinned corner (a move of
+    under `tiny` units, onto no level, leaving no top nearly level): ericw-tools 0.18.1's qbsp puts one of such a
+    pair on the other's plane and lists only the other in its leaves, so the first is never drawn (vrstart
+    2026-10-09: two terrain triangles 0.004 units off their neighbours' planes, both hairline pairs on the map;
+    bsp_holes.py's "unlisted faces"). Pairs further apart are left: qbsp 0.18.1 keeps their planes apart.
     `levels`: heights (the water's surface) no corner may be near: one within `clear` of a level is put on it (and
     pinned), and no move ends within `clear` of one (a corner a fraction of a unit through the water's surface is a
     sliver too). key is called with (triangle, heights) once they are final.
     Returns (heights, polygons, stats): polygons as (corner indices counter-clockwise, triangle indices)."""
     H = [float(h) for h in H]
     pinned = set(pinned)
+    on_level = set()
     H0 = H[:]
     nt = len(tris)
     edge = {}
@@ -619,6 +625,7 @@ def terrain_mesh(P, tris, H, key, pinned=(), near_dev=1.0, near_angle=1.5, max_d
             if abs(h - lv) < vclear[i]:
                 H[i] = float(lv)
                 pinned.add(i)
+                on_level.add(i)
     H0 = H[:]
     pl = [_plane3(P, H, t) for t in tris]
     ang = math.radians(near_angle)
@@ -696,6 +703,47 @@ def terrain_mesh(P, tris, H, key, pinned=(), near_dev=1.0, near_angle=1.5, max_d
                 for t in vtris[v]:
                     pl[t] = _plane3(P, H, tris[t])
                 moves += 1
+    # hairline pairs (under `tiny` units apart) made exactly coplanar, pinned corners too (not one on a level)
+    def apart(pi):
+        ti, tj = pairs[pi][0], pairs[pi][1]
+        a, b, _ = pl[ti] if abs(pl[ti][0]) + abs(pl[ti][1]) > abs(pl[tj][0]) + abs(pl[tj][1]) else pl[tj]
+        return dev(pi) / math.sqrt(1 + a * a + b * b)
+
+    def hairline(pi):
+        return EXACT <= dev(pi) and apart(pi) < tiny
+
+    hair_moves = 0
+    for _ in range(8 if tiny > 0 else 0):
+        todo = [pi for pi in range(len(pairs)) if hairline(pi)]
+        if not todo:
+            break
+        for pi in todo:
+            if not hairline(pi):
+                continue
+            ti, tj, c, d = pairs[pi]
+            best = None
+            for v, z in ((d, zat(pl[ti], d)), (c, zat(pl[tj], c))):
+                if v in on_level or abs(z - H[v]) > tiny * 4 or any(abs(z - lv) < vclear[v] for lv in levels):
+                    continue
+                old = H[v]
+                around = local(v)
+                before = (sum(1 for q in around if hairline(q)), sum(1 for t in vtris[v] if tilted(t)))
+                H[v] = z
+                for t in vtris[v]:
+                    pl[t] = _plane3(P, H, tris[t])
+                after = (sum(1 for q in around if hairline(q)), sum(1 for t in vtris[v] if tilted(t)))
+                H[v] = old
+                for t in vtris[v]:
+                    pl[t] = _plane3(P, H, tris[t])
+                if after[0] < before[0] and after[1] <= before[1] and (best is None or (after, abs(z - old)) < best[0]):
+                    best = ((after, abs(z - old)), v, z)
+            if best:
+                _, v, z = best
+                H[v] = z
+                for t in vtris[v]:
+                    pl[t] = _plane3(P, H, tris[t])
+                hair_moves += 1
+    hair_left = sum(1 for pi in range(len(pairs)) if hairline(pi))
     left = sum(1 for pi in range(len(pairs)) if near(pi))
     left_tilted = sum(1 for t in range(nt) if tilted(t))
     drift = max(abs(H[i] - H0[i]) for i in range(len(P))) if P else 0.0
@@ -719,7 +767,8 @@ def terrain_mesh(P, tris, H, key, pinned=(), near_dev=1.0, near_angle=1.5, max_d
     polys = []
     for members in groups.values():
         polys += _merge_convex(P, tris, members, edge)
-    stats = dict(moves=moves, moved=moved, drift=drift, left=left, tilted=left_tilted, tris=nt, polys=len(polys))
+    stats = dict(moves=moves, moved=moved, drift=drift, left=left, tilted=left_tilted, tris=nt, polys=len(polys),
+                 hair_moves=hair_moves, hair_left=hair_left)
     return H, polys, stats
 
 

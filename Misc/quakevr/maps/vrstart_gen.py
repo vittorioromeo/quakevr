@@ -565,8 +565,10 @@ def build_terrain(mw):
     # what keeps the player from snagging on it; height())
     walk = [i for i, p in enumerate(pts) if coast_distance(p[0], p[1]) > -100 and H[i] % GROUND_STEP == 0 and H[i] >= 8]
     H, polys, st = terrain_mesh(pts, tris, H, tri_tex, pinned=walk, levels=(WATER_Z,))
-    print("terrain: %d corners moved (at most %.2f units, %d moves): %d nearly coplanar pairs and %d nearly level tops left; "
-          "%d triangles -> %d prisms" % (st["moved"], st["drift"], st["moves"], st["left"], st["tilted"], st["tris"], st["polys"]))
+    print("terrain: %d corners moved (at most %.2f units, %d moves): %d nearly coplanar pairs and %d nearly level tops "
+          "left, %d hairline pairs made coplanar (%d left, pinned in); %d triangles -> %d prisms"
+          % (st["moved"], st["drift"], st["moves"], st["left"], st["tilted"], st["hair_moves"], st["hair_left"], st["tris"],
+             st["polys"]))
     # detail: the structural world is only the sealing box (an open lake: vis has nothing to cull, and a structural
     # height field of ten thousand prisms makes qbsp's tree enormous)
     groups = {"terrain island": mw.detail("terrain: island"), "terrain lake": mw.detail("terrain: lake floor"),
@@ -1706,8 +1708,8 @@ PRESETS = {
 
 def compile_map(tools, work, preset, check=0, qbsp=DEFAULT_QBSP):
     """qbsp (0.18.1's), vis and light (ericw-tools 2.0 in `tools`) in `work`, the .bsp, .lit and .lux copied next to
-    the .map. Prints each stage's time and its warnings; `check`: rays of the hole test (bsp_holes.py) over the
-    result."""
+    the .map. Prints each stage's time and its warnings, then the hole test (bsp_holes.py) over the result: the faces no
+    leaf lists always, `check` rays too."""
     os.makedirs(work, exist_ok=True)
     src = os.path.join(work, MAPNAME + ".map")
     bsp = os.path.join(work, MAPNAME + ".bsp")
@@ -1730,12 +1732,17 @@ def compile_map(tools, work, preset, check=0, qbsp=DEFAULT_QBSP):
             f.write("\n".join(lines))
         if result.returncode:
             sys.exit(1)
+        # a texture qbsp didn't find is drawn as a checkerboard (no id_textures.wad: make_id_wad.py)
+        missing = [l for l in lines if "Texture" in l and "not found" in l]
+        if name == "qbsp" and missing:
+            sys.exit("qbsp: %d textures not found (%s): python Misc/trenchbroom/make_id_wad.py first" % (
+                len(missing), missing[0].strip()))
     print("compiled (%s) in %.0f s" % (preset, time.time() - total))
     for ext in (".bsp", ".lit", ".lux"):
         if os.path.exists(os.path.join(work, MAPNAME + ext)):
             shutil.copyfile(os.path.join(work, MAPNAME + ext), os.path.join(os.path.dirname(OUT), MAPNAME + ext))
-    if check:
-        subprocess.run([sys.executable, os.path.join(HERE, "bsp_holes.py"), bsp, "--rays", str(check), "--show", "10"])
+    # the unlisted faces always (a second), the rays with --check
+    subprocess.run([sys.executable, os.path.join(HERE, "bsp_holes.py"), bsp, "--rays", str(check), "--show", "10"])
 
 
 def main():

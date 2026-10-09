@@ -33890,3 +33890,26 @@ settings (Apply, Undo, and the new Revert) puts the settings it replaced in a li
   most): 6 of 6 runs pass (each with three late catches).
 - `box3dmt/physbench.sh <agent> [count]` passed the agent and the count on to run.sh (`shift 3` with fewer arguments
   shifts nothing): `set -- "${@:4}"`.
+
+## vrstart: a terrain triangle never drawn (2026-10-09)
+
+Note vrstart_2026-10-09_18-36-42: a black triangle in the grass by the pines on the hill above the firing range
+(from 341 -594 125). The face was in the BSP (the ray test, 0 holes in a million rays, looks for missing faces), but
+no leaf listed it in its marksurfaces, so the renderer never drew it. Cause: the terrain triangle (205 -574 112,
+199 -524 112, 260 -576 104) and its neighbour were 0.004 units apart across their planes (0.007 degrees): both
+apexes on the walkable ground's pinned 8-unit steps, so `terrain_mesh` couldn't move either, and qbsp 0.18.1 put the
+triangle on the neighbour's plane and listed only the neighbour. The two hairline pairs on the map (the other at
+1216 492: a second unlisted face, unseen yet) were the two unlisted faces; the next closest pair, 0.006 units, was
+fine.
+
+- **Fix** (`mapgeom.terrain_mesh`, `tiny` 0.1): a pair left under 0.1 units apart is made exactly coplanar even at a
+  pinned corner (a move under 0.1 units, onto no level, leaving no top nearly level and no more hairline pairs): 17
+  pairs made coplanar, 7 left (0.019 units apart at the closest, 5x the failing one). vrstart rebuilt (final).
+- **bsp_holes.py**: every world face must be listed by a leaf ("unlisted faces": exact, the whole map, a second), and
+  each ray's hit must be on a face listed by a leaf the ray's start leaf sees by vis's PVS ("undrawn hits"; a face
+  listed only by a neighbouring leaf is common, ~450 in 300,000 rays, and fine). Before: 2 unlisted faces, 2 undrawn
+  hits in 300,000 rays (both places); after: 0, 0 and 0 missing in 1,000,000. `--rays 0` runs the face check alone;
+  a compile always runs it. A compile now stops when qbsp finds textures missing (no `id_textures.wad`: every face
+  a checkerboard, which the hole test doesn't see).
+- vrtrailer.bsp has one unlisted face (17 909 -7, just under the water); its generator gets the fix on its next
+  rebuild (10 hairline pairs moved there); vrtrailer2 and vrtutorial2: 0.
