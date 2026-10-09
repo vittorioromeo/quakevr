@@ -1202,12 +1202,17 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
     if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
     constexpr const char* key = "\"vr_save_packmask\"";
     const char* marker = strstr(text, key);
-    int saved = 4; // Legacy merged VR progs precached both packs on every map.
-    if(marker)
+    const char* context = strstr(text, "\"vr_save_campaign\"");
+    if(!marker || !context)
     {
-        COM_Parse(marker + strlen(key));
-        saved = Q_atoi(com_token);
+        // (world.qc has written both since 2026-10-05: an older save's or another game's.)
+        Con_Printf("VR: this save lacks the mission-pack and campaign keys every Quake VR save has had since 2026-10-05 "
+                   "(vr_save_packmask, vr_save_campaign): an older build's or another game's save, not loaded.\n");
+        SCR_CenterPrint("Saved game from an older build\nor another game: not loaded\n(see the console)");
+        return 0;
     }
+    COM_Parse(marker + strlen(key));
+    const int saved = Q_atoi(com_token);
     const int installed = 1 + (packStatus[0] == 1) + 2 * (packStatus[1] == 1);
     if(saved != installed)
     {
@@ -1215,7 +1220,6 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
             "Restore the same owned packs before loading; start a new game to use this installation.\n", saved, installed);
         return 0;
     }
-    if(const char* context = strstr(text, "\"vr_save_campaign\""))
     {
         COM_Parse(context + strlen("\"vr_save_campaign\""));
         const int savedCampaign = Q_atoi(com_token);

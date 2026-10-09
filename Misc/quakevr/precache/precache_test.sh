@@ -7,8 +7,8 @@
 #   death    a limb cut off (its model precached late) and the dummy a vore, an autosave; killed, the autosave
 #            loaded, as dying does (Host_AutoLoad: its own `load` would run after the rest of a test script)
 #   restart  the same late precaches, then `restart` without a save to load, and `map` of the same map
-#   legacy   the dummy save with its `// qvr_` lines taken out (a save of an older build): its models found by name,
-#            the console's warning
+#   legacy   the dummy save with its `// qvr_` lines taken out (a save of an older build), and with its
+#            vr_save_packmask/vr_save_campaign keys taken out: both refused ("not loaded"), the game running on
 #   build    the save said to be another build's (a warning, the centre print), and of a newer format (refused)
 #   hitch    a sword's killing slash at a grunt's limb, twice: no `late precache` of its limb model at the first
 #            (vr_limbs_prebuild 1: made as the map loaded; with 0, the line and its time in ms), then with 0
@@ -35,7 +35,8 @@ for c in $CASES; do
     legacy)
         run "$PRE;save pctest_a;wait10;vr_dummy_type 8;wait60;save pctest_b;wait10;toggleconsole;quit" "^xx" >/dev/null
         grep -v "^// qvr_" $TREE/quakevr/pctest_a.sav > $TREE/quakevr/pctest_legacy.sav
-        chk "map vrfiringrange;wait10;vr_dummy_type 8;load pctest_legacy;$CHK;vr_dummy_type 0;toggleconsole;quit" ;;
+        grep -v '^"vr_save_\(packmask\|campaign\)"' $TREE/quakevr/pctest_a.sav > $TREE/quakevr/pctest_nokeys.sav
+        run "map vrfiringrange;wait10;load pctest_legacy;wait10;load pctest_nokeys;wait10;toggleconsole;quit" "$FILTER|lacks|Saved game" ;;
     build)
         sed -E 's|^// qvr_save ([0-9]+) progs ([0-9a-f]+) build .*|// qvr_save \1 progs \2 build 2000-01-01 00000000|' $TREE/quakevr/pctest_b.sav > $TREE/quakevr/pctest_other.sav
         sed -E 's|^// qvr_save [0-9]+ |// qvr_save 99 |' $TREE/quakevr/pctest_b.sav > $TREE/quakevr/pctest_newer.sav

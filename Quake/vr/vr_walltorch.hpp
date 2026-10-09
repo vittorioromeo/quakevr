@@ -42,8 +42,8 @@ void prepare();
 // Diagnostic of the actual flame transform at 0, 90 and 180 degrees.
 void tiltTest();
 
-// Server, after a saved game is loaded (VR_OnLoadGame): the map's wall torches that the save doesn't have (a save made
-// while they were static entities, before this change, or with vr_walltorch 0) are spawned again.
+// Server, after a saved game is loaded (VR_OnLoadGame): the map's wall torches that the save doesn't have (one made with
+// vr_walltorch 0, loaded with it on) are spawned again.
 void restoreAfterLoad();
 
 } // namespace qvr::walltorch

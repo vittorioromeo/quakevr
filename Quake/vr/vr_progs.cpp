@@ -51,8 +51,7 @@ bool loadingSaveGame = false;
 // by VR_OnLoadGame). Load state of the main thread, emptied when used.
 struct SaveInfo
 {
-    bool hasTable = false;          // the save has its model list (`// qvr_model` lines: VR_SAVE_FORMAT 1 on)
-    za::Vector<za::String> models;  // [the saved .modelindex] its model's name ("": none)
+    za::Vector<za::String> models;  // [the saved .modelindex] its model's name ("": none; `// qvr_model` lines)
     za::String notice;              // a centre print for the player once in the loaded game (another build's save)
 };
 SaveInfo saveInfo;
@@ -514,23 +513,20 @@ extern "C" void VR_OnBeginLoadGame()
 
 // The save's build: another build's is loaded (the models found again through the save's list, the fields by name),
 // with a warning in the console and a centre print in the game; a save of a newer format than this build reads is
-// refused (0). A save made before builds were written in it is loaded the old way (its models found by name), and said.
+// refused (0), and so is one without the `// qvr_save` line (every Quake VR save since 2026-10-06 has it): an older
+// build's, another engine's or progs', the re-release's; its model indices can't be trusted.
 extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
 {
     using qvr::progs::saveInfo;
-    saveInfo.hasTable = false;
     saveInfo.models.clear();
     saveInfo.notice.clear();
-    if(Q_atoi(text) == SAVEGAME_VERSION_KEX)
-    {
-        return 1; // (the re-release's)
-    }
     const char* line = strstr(text, "\n// qvr_save ");
     if(!line)
     {
-        Con_Warning("%s was saved by an older build (it names none): its models are found again by name\n", relname);
-        saveInfo.notice = "Saved game from an older build\n(see the console)";
-        return 1;
+        Con_Printf("ERROR: %s has no \"// qvr_save\" line: a save of a Quake VR build before 2026-10-06, of another "
+                   "engine or of the re-release, which this build can't load: not loaded\n", relname);
+        SCR_CenterPrint("Saved game from an older build\nor another game: not loaded\n(see the console)");
+        return 0;
     }
     line++;
     int format = 0;
@@ -566,7 +562,6 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
         }
         saveInfo.models[static_cast<za::SizeT>(i)] = za::String{end + 1, strcspn(end + 1, "\r\n")};
     }
-    saveInfo.hasTable = true;
     return 1;
 }
 
@@ -699,33 +694,9 @@ void remapModelValue(float& value, const char* what, int num)
 // enemy), which the loaded map lacks or has elsewhere. Each value is turned into today's index for the model the save's
 // list had there (precached now if need be: the client, connecting after the load, gets the whole list): every entity's
 // .modelindex (the ring of shadows' eyes on the player's model too), and the globals and fields that keep one.
-// A save made before the list was saved (no `// qvr_model` lines): the entity's .model names its model (the saved index
-// is trusted only when it names that model), and the other values go by the list the entities' pairs make.
+// (A save without the list, made before it was saved, is refused: VR_ReadSaveInfo.)
 void rebindLoadedModels()
 {
-    if(!saveInfo.hasTable)
-    {
-        // (the saved index -> the .model of the entities that had it, the first one's: a legacy list)
-        for(int num = 1; num < qcvm->num_edicts; num++)
-        {
-            edict_t* ent = EDICT_NUM(num);
-            const int saved = static_cast<int>(ent->v.modelindex);
-            const char* name = ent->free || !ent->v.model ? "" : PR_GetString(ent->v.model);
-            if(saved <= 0 || saved >= MAX_MODELS || !name[0])
-            {
-                continue;
-            }
-            if(static_cast<int>(saveInfo.models.size()) <= saved)
-            {
-                saveInfo.models.resize(static_cast<za::SizeT>(saved + 1));
-            }
-            if(saveInfo.models[saved].empty())
-            {
-                saveInfo.models[saved] = name;
-            }
-        }
-    }
-
     for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
@@ -742,16 +713,6 @@ void rebindLoadedModels()
                 remapModelValue(reinterpret_cast<float*>(&ent->v)[d.ofs], "entity", num);
             }
         }
-        // (a legacy save: the entity's own model's name wins over the list's guess)
-        const char* name = ent->v.model ? PR_GetString(ent->v.model) : "";
-        const int now = static_cast<int>(ent->v.modelindex);
-        if(!saveInfo.hasTable && name[0] && now != 0 &&
-            (now >= MAX_MODELS || !sv.model_precache[now] || strcmp(sv.model_precache[now], name)))
-        {
-            const int index = modelPrecacheIndex(name);
-            ent->v.modelindex = static_cast<float>(za::max(index >= 0 ? index : VR_LatePrecacheModel(name), 0));
-            Con_DPrintf("load: entity %d's model %s: index %d -> %d\n", num, name, saved, static_cast<int>(ent->v.modelindex));
-        }
         if(static_cast<int>(ent->v.modelindex) != saved)
         {
             SV_LinkEdict(ent, false);
@@ -765,7 +726,6 @@ void rebindLoadedModels()
             remapModelValue(qcvm->globals[d.ofs], "global", i);
         }
     }
-    saveInfo.hasTable = false;
     saveInfo.models.clear();
     // Everything precached while loading is in the serverinfo that clients receive (none is connected yet).
     qvr::server::onSpawnServerAfterLoad();
@@ -791,7 +751,7 @@ extern "C" void VR_OnLoadGame()
 
     rebindLoadedModels();
 
-    qvr::walltorch::restoreAfterLoad(); // the map's wall torches a save made before they were entities lacks
+    qvr::walltorch::restoreAfterLoad(); // the map's wall torches the save lacks (made with vr_walltorch 0, now on)
     qvr::climb::reset();                // (holds on the loaded game's entities: none)
     qvr::foegrab::reset();
 
