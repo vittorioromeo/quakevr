@@ -32062,6 +32062,34 @@ for both pickers). Combat > Holding Enemies > Throw Grunt, Throw Grunt Sound, He
 vr/derived/plyrjmp8_low.wav 0.60", with sound 4 "player/pain2.wav", with volume 0 none; the mantle's grunt and its
 test command unchanged (the same code).
 
+**The author's settings of the morning of 2026-10-09 are the defaults** (his note vrfiringrange_2026-10-09_10-56: "I've
+tweaked values for the judo throws and the struggling effect; they feel much better"). His config of 11:10 against
+the shipped defaults (vr_cvars.inc with vr_defaults.cfg over it); a value not in the evening's lists (above, "The
+author's settings of the evening of 2026-10-08") is one he changed since. Config version 109 (`vr_cvars.cpp`
+defaultChanges: a config still holding the old default takes the new one):
+
+- The two-hand throw: `vr_foegrab_throw_lift` 170 (was 100), `_push` 190 (220), `_speed` 2.5 (1: the hands' mean
+  speed to throw), `_spin` 0.55 (0.5), `_topple` 300 (120), `_twist` 140 (150). His Feet Held 0.5 (0.3) is the still
+  feet's hold (Feet Speed 0), above.
+- The knocked-down struggle: `vr_knockdown_wiggle` 1.5 (1), `_frequency` 1.5 (2.2 Hz), `_pause` 0.5 (0: bursts);
+  the time down `vr_knockdown_time_min` 1.75 (1.25, vr_defaults.cfg), `_time_max` 3.5 (2.5, vr_defaults.cfg).
+- Bullet time's screen tap: `vr_bullettime_tap_angle` 10 (40 degrees), `_depth` 6.5 (6), `_height` 0.75 (1), `_margin`
+  1 (2), `_speed` 0.5 (1.2 m/s), `_stop` 1 (0.5: the impact on arrival), `_window` 0.5 (0.25), `_z` -3.5 (0); its
+  trails: `vr_bullettime_trails_fade` 1 (0.6), `_length` 15 (4 m), `_life` 2 (0.7 s), `_width` 8 (20 cm).
+- Barrels: `vr_crates_barrels` 0.15 (0.3), `vr_crates_barrel_lying` 0.15 (0.3).
+- The gadget's side button: `vr_gadget_button_cooldown` 0.2 (0.6), `_size` 1.25 (3 cm), `_y` 0.5 (0).
+- Front reloading: `vr_reload_front_angle` 40.5 (45), `vr_reload_front_hold_pitch` 45 (90: the round tipped 45
+  degrees in the fist, not upright).
+
+Left as they are: `vr_death_view` 1 (third person; Immersive, 2, has been the default since config 106: a mode, not a
+tuning), `vr_xr_runtime` 1 (his runtime; Auto is the new default), the foe grab's `vr_foegrab_break` 20, `_drag` 20,
+`_drag_speed` 300, `_leniency` 1 (left out last evening as settings turned up while testing it broken, and not the
+throw's), and the evening's lists (bookkeeping, body, motion recorder, menus, desktop window, `vr_foveated`,
+`vr_comfort_vignette_strength`, slider noise, props slots). Weapon and held object settings not compared this time.
+Tests that measure against the old thresholds set them: `gadget_tap_test.sh` (the tap's eight; with his values the 0.93
+m/s touch taps and the 31-degree diagonal doesn't), `reload/front_test.sh` (angle 45, hold pitch 90). The bench's
+trails case (`qvrbench.py`, 8 shots every 10 frames) now draws 15 m trails living 2 s.
+
 ## Reloading on the move, the auto pump's delay, guns lying about, spent rifles, the Super Axe, smaller mines (2026-10-08)
 
 The author's notes of 2026-10-08 afternoon (map1 13-56 to 14-00, vrfiringrange 14-14 to 14-35).

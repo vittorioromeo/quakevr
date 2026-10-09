@@ -528,8 +528,42 @@ const DefaultChange defaultChanges[] = {
     // 108: the OpenXR runtime chosen automatically, Auto (4), by default (the author, 2026-10-09: ROUND21.md, "OpenXR
     // runtime: Auto"): a config still at the old default, the system's active runtime (0), takes Auto.
     {108, &vr_xr_runtime, "0"}, // 4
+    // 109: the author's settings of the morning of 2026-10-09 (vrfiringrange_2026-10-09_10-56: "I've tweaked values
+    // for the judo throws and the struggling effect; they feel much better"; ROUND21.md, "The author's settings of the
+    // morning of 2026-10-09 are the defaults"): the two-hand throw, the knocked-down struggle and time down, and what he
+    // tuned since config 107 (bullet time's screen tap and trails, barrels, the gadget's side button, the front reload).
+{109, &vr_bullettime_tap_angle, "40"}, // 10
+    {109, &vr_bullettime_tap_depth, "6"}, // 6.5
+    {109, &vr_bullettime_tap_height, "1"}, // 0.75
+    {109, &vr_bullettime_tap_margin, "2"}, // 1
+    {109, &vr_bullettime_tap_speed, "1.2"}, // 0.5
+    {109, &vr_bullettime_tap_stop, "0.5"}, // 1
+    {109, &vr_bullettime_tap_window, "0.25"}, // 0.5
+    {109, &vr_bullettime_tap_z, "0"}, // -3.5
+    {109, &vr_bullettime_trails_fade, "0.6"}, // 1
+    {109, &vr_bullettime_trails_length, "4"}, // 15
+    {109, &vr_bullettime_trails_life, "0.7"}, // 2
+    {109, &vr_bullettime_trails_width, "20"}, // 8
+    {109, &vr_crates_barrel_lying, "0.3"}, // 0.15
+    {109, &vr_crates_barrels, "0.3"}, // 0.15
+    {109, &vr_foegrab_throw_lift, "100"}, // 170
+    {109, &vr_foegrab_throw_push, "220"}, // 190
+    {109, &vr_foegrab_throw_speed, "1"}, // 2.5
+    {109, &vr_foegrab_throw_spin, "0.5"}, // 0.55
+    {109, &vr_foegrab_throw_topple, "120"}, // 300
+    {109, &vr_foegrab_throw_twist, "150"}, // 140
+    {109, &vr_gadget_button_cooldown, "0.6"}, // 0.2
+    {109, &vr_gadget_button_size, "3"}, // 1.25
+    {109, &vr_gadget_button_y, "0"}, // 0.5
+    {109, &vr_knockdown_time_max, "2.5"}, // 3.5 (vr_defaults.cfg)
+    {109, &vr_knockdown_time_min, "1.25"}, // 1.75 (vr_defaults.cfg)
+    {109, &vr_knockdown_wiggle, "1"}, // 1.5
+    {109, &vr_knockdown_wiggle_frequency, "2.2"}, // 1.5
+    {109, &vr_knockdown_wiggle_pause, "0"}, // 0.5
+    {109, &vr_reload_front_angle, "45"}, // 40.5
+    {109, &vr_reload_front_hold_pitch, "90"}, // 45
 };
-constexpr int configVersion = 108;
+constexpr int configVersion = 109;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

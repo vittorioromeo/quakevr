@@ -367,18 +367,18 @@ QVR_CVAR(vr_bullettime_trigger, "0", CVAR_ARCHIVE)    // what starts and stops i
 // The screen tap: a hard, deliberate strike on the gadget's screen by the other hand (its own middle) or the butt of the
 // gun it holds, straight into the screen, that stops there. A swing across it, a soft touch or a hand passing by don't.
 QVR_CVAR(vr_bullettime_tap, "1", CVAR_ARCHIVE)        // 1: a hard tap on the gadget's screen starts and stops it; 0: not
-QVR_CVAR(vr_bullettime_tap_speed, "1.2", CVAR_ARCHIVE) // m/s: the least speed into the screen (the hands' speed towards each other along its normal: both may move)
-QVR_CVAR(vr_bullettime_tap_angle, "40", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)
-QVR_CVAR(vr_bullettime_tap_margin, "2", CVAR_ARCHIVE) // cm round the screen's edges where the strike may land too
-QVR_CVAR(vr_bullettime_tap_depth, "6", CVAR_ARCHIVE)  // cm over the screen's face at which the striking point is on it (the hand's middle is inside the hand: its palm is a few cm out)
+QVR_CVAR(vr_bullettime_tap_speed, "0.5", CVAR_ARCHIVE) // m/s: the least speed into the screen (the hands' speed towards each other along its normal: both may move)
+QVR_CVAR(vr_bullettime_tap_angle, "10", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)
+QVR_CVAR(vr_bullettime_tap_margin, "1", CVAR_ARCHIVE) // cm round the screen's edges where the strike may land too
+QVR_CVAR(vr_bullettime_tap_depth, "6.5", CVAR_ARCHIVE)  // cm over the screen's face at which the striking point is on it (the hand's middle is inside the hand: its palm is a few cm out)
 QVR_CVAR(vr_bullettime_tap_width, "1", CVAR_ARCHIVE) // the tap zone's width as a share of the screen's (before vr_bullettime_tap_margin) ...
-QVR_CVAR(vr_bullettime_tap_height, "1", CVAR_ARCHIVE) // ... and its height
+QVR_CVAR(vr_bullettime_tap_height, "0.75", CVAR_ARCHIVE) // ... and its height
 QVR_CVAR(vr_bullettime_tap_x, "0", CVAR_ARCHIVE)     // cm: the tap zone moved along the screen's right ...
 QVR_CVAR(vr_bullettime_tap_y, "0", CVAR_ARCHIVE)     // ... its up ...
-QVR_CVAR(vr_bullettime_tap_z, "0", CVAR_ARCHIVE)     // ... and out of it (its face: vr_bullettime_tap_depth is measured from there)
+QVR_CVAR(vr_bullettime_tap_z, "-3.5", CVAR_ARCHIVE)     // ... and out of it (its face: vr_bullettime_tap_depth is measured from there)
 QVR_CVAR(vr_bullettime_tap_butt, "1", CVAR_ARCHIVE)   // 1: the butt of the gun the other hand holds taps too (its rearmost end); 0: only the hand
-QVR_CVAR(vr_bullettime_tap_stop, "0.5", CVAR_ARCHIVE) // the impact: the speed into the screen must fall to this much of its peak on the screen (a hand passing by doesn't tap); 1: on arrival
-QVR_CVAR(vr_bullettime_tap_window, "0.25", CVAR_ARCHIVE) // seconds after the peak speed the impact may come
+QVR_CVAR(vr_bullettime_tap_stop, "1", CVAR_ARCHIVE) // the impact: the speed into the screen must fall to this much of its peak on the screen (a hand passing by doesn't tap); 1: on arrival
+QVR_CVAR(vr_bullettime_tap_window, "0.5", CVAR_ARCHIVE) // seconds after the peak speed the impact may come
 QVR_CVAR(vr_bullettime_tap_holding, "1", CVAR_ARCHIVE) // 1: the tapping hand may hold something (the hand or the gun's butt taps); 0: only an empty hand
 QVR_CVAR(vr_bullettime_tap_twohanded, "0", CVAR_ARCHIVE) // 1: taps count while both hands hold one weapon; 0: ignored then (the off hand on a foregrip)
 QVR_CVAR(vr_bullettime_trigger_cooldown, "0.5", CVAR_ARCHIVE) // real seconds after a tap or stick press before the next counts (no double triggers)
@@ -391,10 +391,10 @@ QVR_CVAR(vr_bullettime_sound_denied, "misc/menu2.wav", CVAR_ARCHIVE) // pressed 
 // behind bullets and projectiles, the view behind it bent as through a glass rod, fading along its length.
 QVR_CVAR(vr_bullettime_trails, "1", CVAR_ARCHIVE)          // 1: in bullet time (and fading out over vr_bullettime_trails_fade after); 2: always (to look at them); 0: off
 QVR_CVAR(vr_bullettime_trails_strength, "1.25", CVAR_ARCHIVE) // how far they bend the view (0 .. 3; 1: up to about the trail's half width)
-QVR_CVAR(vr_bullettime_trails_life, "0.7", CVAR_ARCHIVE)   // real seconds a trail's every point lasts, fading
-QVR_CVAR(vr_bullettime_trails_length, "4", CVAR_ARCHIVE)   // metres: the longest a trail is behind its projectile
-QVR_CVAR(vr_bullettime_trails_width, "20", CVAR_ARCHIVE)   // cm wide (a bullet's and a nail's; rockets and grenades twice, enemies' balls 1.5 times)
-QVR_CVAR(vr_bullettime_trails_fade, "0.6", CVAR_ARCHIVE)   // real seconds they fade out over after bullet time ends
+QVR_CVAR(vr_bullettime_trails_life, "2", CVAR_ARCHIVE)   // real seconds a trail's every point lasts, fading
+QVR_CVAR(vr_bullettime_trails_length, "15", CVAR_ARCHIVE)   // metres: the longest a trail is behind its projectile
+QVR_CVAR(vr_bullettime_trails_width, "8", CVAR_ARCHIVE)   // cm wide (a bullet's and a nail's; rockets and grenades twice, enemies' balls 1.5 times)
+QVR_CVAR(vr_bullettime_trails_fade, "1", CVAR_ARCHIVE)   // real seconds they fade out over after bullet time ends
 QVR_CVAR(vr_bullettime_trails_hitscan, "1", CVAR_ARCHIVE)  // 1: behind your hitscan shots (the shotguns' pellets, the rifles' bullets; tracer drawn or not)
 QVR_CVAR(vr_bullettime_trails_nails, "1", CVAR_ARCHIVE)    // 1: behind nails (yours, traps')
 QVR_CVAR(vr_bullettime_trails_explosives, "1", CVAR_ARCHIVE) // 1: behind rockets and flying grenades (an ogre's too)
@@ -565,9 +565,9 @@ QVR_CVAR(vr_gear_lights_screen_dim, "0.35", CVAR_ARCHIVE) // dimmed: the screens
 QVR_CVAR(vr_gear_lights_sound_on, "vr/gadget_click_on.wav", CVAR_ARCHIVE) // the button's clicks (empty: none)
 QVR_CVAR(vr_gear_lights_sound_off, "vr/gadget_click_off.wav", CVAR_ARCHIVE)
 QVR_CVAR(vr_gadget_button, "1", CVAR_ARCHIVE)         // 1: the gadget's side button toggles the gear lights (vr_gear_lights); 0: not
-QVR_CVAR(vr_gadget_button_size, "3", CVAR_ARCHIVE)    // cm: the button's hit volume's radius (round its middle; only from its side of the screen's edge)
+QVR_CVAR(vr_gadget_button_size, "1.25", CVAR_ARCHIVE)    // cm: the button's hit volume's radius (round its middle; only from its side of the screen's edge)
 QVR_CVAR(vr_gadget_button_x, "0", CVAR_ARCHIVE)       // cm: the hit volume moved along the screen's right ...
-QVR_CVAR(vr_gadget_button_y, "0", CVAR_ARCHIVE)       // ... its up (negative: further out past its lower edge) ...
+QVR_CVAR(vr_gadget_button_y, "0.5", CVAR_ARCHIVE)       // ... its up (negative: further out past its lower edge) ...
 QVR_CVAR(vr_gadget_button_z, "0", CVAR_ARCHIVE)       // ... and out of it
 QVR_CVAR(vr_gadget_button_pitch, "0", CVAR_ARCHIVE)   // degrees: the button's face (the side it is pressed from) tilted out of the screen (negative: towards your arm) ...
 QVR_CVAR(vr_gadget_button_yaw, "0", CVAR_ARCHIVE)     // ... and along the screen's width (positive: to its right)
@@ -579,7 +579,7 @@ QVR_CVAR(vr_gadget_fingertip_z, "0", CVAR_ARCHIVE)    // ... and up
 QVR_CVAR(vr_gadget_fingertip_pitch, "0", CVAR_ARCHIVE) // degrees: the fingertip turned round the hand's place (before the move above): down (negative: up) ...
 QVR_CVAR(vr_gadget_fingertip_yaw, "0", CVAR_ARCHIVE)  // ... inward (towards the other hand; negative: outward) ...
 QVR_CVAR(vr_gadget_fingertip_roll, "0", CVAR_ARCHIVE) // ... and rolled about the hand's forward (positive: its top outward)
-QVR_CVAR(vr_gadget_button_cooldown, "0.6", CVAR_ARCHIVE) // real seconds after a press before the next counts (no double toggles)
+QVR_CVAR(vr_gadget_button_cooldown, "0.2", CVAR_ARCHIVE) // real seconds after a press before the next counts (no double toggles)
 QVR_CVAR(vr_debug_gadget_button, "0", CVAR_NONE)      // Debug > Show Gadget Button: 1 its hit volume drawn (green ready, yellow pressed, red cooling down), the fingertip (the drawn index fingertip white, joined to the tuned one) and its presses printed; 2 also the screen tap's zone and the tapping hand's striking points
 QVR_CVAR(vr_gadget_crt, "1", CVAR_ARCHIVE)            // the screen looks like a small CRT (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
 QVR_CVAR(vr_player_hue, "128", CVAR_ARCHIVE)          // the player's colour (vr_hue.hpp): the hue (degrees; 128 green, 40 amber, 200 blue) of the gadget's and weapons' screens, the sights, the force grab, the teleport arc, the crosshair, the menu laser (each: -1 follows it),
@@ -845,8 +845,8 @@ QVR_CVAR(vr_crates_max, "24", CVAR_ARCHIVE)              // most crates in a map
 QVR_CVAR(vr_crates_spacing, "224", CVAR_ARCHIVE)         // units between crate spots
 QVR_CVAR(vr_crates_stack, "0.25", CVAR_ARCHIVE)          // the chance a crate has another on top (turned and off centre a little)
 QVR_CVAR(vr_crates_large, "0.4", CVAR_ARCHIVE)           // the share of large crates (the rest small)
-QVR_CVAR(vr_crates_barrels, "0.3", CVAR_ARCHIVE)        // the share of barrels (upright; a stack's top too, on a crate or a barrel: crates and barrels mixed; the NOTES.md note 2026-10-07 23:01:54)
-QVR_CVAR(vr_crates_barrel_lying, "0.3", CVAR_ARCHIVE)   // the share of barrels standing alone that lie on their side along the wall
+QVR_CVAR(vr_crates_barrels, "0.15", CVAR_ARCHIVE)        // the share of barrels (upright; a stack's top too, on a crate or a barrel: crates and barrels mixed; the NOTES.md note 2026-10-07 23:01:54)
+QVR_CVAR(vr_crates_barrel_lying, "0.15", CVAR_ARCHIVE)   // the share of barrels standing alone that lie on their side along the wall
 QVR_CVAR(vr_crates_clearance, "72", CVAR_ARCHIVE)        // units of open floor kept in front of a crate (a passage stays passable)
 QVR_CVAR(vr_crates_margin, "56", CVAR_ARCHIVE)           // units from any other entity (doors, lifts and teleporters more, the start most)
 QVR_CVAR(vr_crates_seed, "0", CVAR_ARCHIVE)              // mixed with the map's name: another layout (the same each load)
@@ -2428,8 +2428,8 @@ QVR_CVAR(vr_foegrab_shove_resist, "0.9", CVAR_ARCHIVE)   // share of the shove's
 // The two-hand throw (vr_foegrab.cpp throwCheck, QC vr_foegrab_throw.qc): both hands holding one enemy, turned over hard
 // (the hands' turn about it, level axis, and their speed) knock it down that way, for sure, by its kind and health.
 QVR_CVAR(vr_foegrab_throw, "1", CVAR_ARCHIVE)             // 1: the two-hand throw on
-QVR_CVAR(vr_foegrab_throw_twist, "150", CVAR_ARCHIVE)     // degrees/s: the hands' turn of the enemy (over, about a level axis through its middle) that throws
-QVR_CVAR(vr_foegrab_throw_speed, "1", CVAR_ARCHIVE)       // m/s: and the hands' mean speed then, at least
+QVR_CVAR(vr_foegrab_throw_twist, "140", CVAR_ARCHIVE)     // degrees/s: the hands' turn of the enemy (over, about a level axis through its middle) that throws
+QVR_CVAR(vr_foegrab_throw_speed, "2.5", CVAR_ARCHIVE)       // m/s: and the hands' mean speed then, at least
 QVR_CVAR(vr_foegrab_throw_away, "0", CVAR_ARCHIVE)        // 1: a throw straight away from you (within 45 degrees) counts too (0: that's a shove's)
 QVR_CVAR(vr_foegrab_throw_hurt, "0.4", CVAR_ARCHIVE)      // the "when hurt" enemies are thrown below this share of their full health, never above
 QVR_CVAR(vr_foegrab_throw_by_mass, "0", CVAR_ARCHIVE)     // 0: the kinds below (class lists); 1: by mass (_mass_always, _mass_hurt)
@@ -2437,21 +2437,21 @@ QVR_CVAR(vr_foegrab_throw_always, "monster_army monster_enforcer monster_zombie 
 QVR_CVAR(vr_foegrab_throw_when_hurt, "monster_hell_knight monster_ogre monster_ogre_marksman monster_ogre_rocket monster_demon1 monster_tarbaby monster_slime monster_scourge monster_ranged_knight", CVAR_ARCHIVE) // only when hurt; any other never
 QVR_CVAR(vr_foegrab_throw_mass_always, "140", CVAR_ARCHIVE) // kg, by mass: this light or lighter always (a mummy 140)
 QVR_CVAR(vr_foegrab_throw_mass_hurt, "300", CVAR_ARCHIVE)   // kg: this light or lighter only when hurt; heavier never (a vore, an overlord never)
-QVR_CVAR(vr_foegrab_throw_push, "220", CVAR_ARCHIVE)      // units/s: the thrown enemy's launch along the throw (times vr_knockdown_push)
-QVR_CVAR(vr_foegrab_throw_lift, "100", CVAR_ARCHIVE)      // units/s: and up
-QVR_CVAR(vr_foegrab_throw_topple, "120", CVAR_ARCHIVE)    // degrees/s: the thrown ragdoll turned over about its feet towards the throw, a sweep (push and lift shared by height); 0: pushed whole, as a shove's
+QVR_CVAR(vr_foegrab_throw_push, "190", CVAR_ARCHIVE)      // units/s: the thrown enemy's launch along the throw (times vr_knockdown_push)
+QVR_CVAR(vr_foegrab_throw_lift, "170", CVAR_ARCHIVE)      // units/s: and up
+QVR_CVAR(vr_foegrab_throw_topple, "300", CVAR_ARCHIVE)    // degrees/s: the thrown ragdoll turned over about its feet towards the throw, a sweep (push and lift shared by height); 0: pushed whole, as a shove's
 QVR_CVAR(vr_foegrab_throw_grunt, "0.6", CVAR_ARCHIVE)       // volume (0..1) of the player's grunt as his two-hand throw throws an enemy down (which: _grunt_sound); 0 off
 QVR_CVAR(vr_foegrab_throw_grunt_sound, "2", CVAR_ARCHIVE)  // which grunt (the mantle's list, vr_climb.cpp mantleGrunts): 0 the jump's, 1 a hard landing's, 2 the jump's deeper, 3 a hard landing's deeper, 4 a short pain grunt
 QVR_CVAR(vr_foegrab_throw_feet_speed, "60", CVAR_ARCHIVE) // units/s: its feet swept back against the throw as it topples (the turn faster, about a pivot raised to match: it spins in place); 0: its feet held still 0.5 s
-QVR_CVAR(vr_foegrab_throw_spin, "0.5", CVAR_ARCHIVE)      // share of the hands' twist of it about the vertical it spins on with (at most 720 degrees/s)
+QVR_CVAR(vr_foegrab_throw_spin, "0.55", CVAR_ARCHIVE)      // share of the hands' twist of it about the vertical it spins on with (at most 720 degrees/s)
 QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds taken and let go (and why); 2: and each held frame
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters
 QVR_CVAR(vr_kill_push, "1", CVAR_ARCHIVE)                // killing blows throw the bodies
 QVR_CVAR(vr_enemy_liquid_damage, "1", CVAR_ARCHIVE)      // monsters burn in slime/lava and drown underwater (QC vr_liquids.qc)
-QVR_CVAR(vr_knockdown_wiggle, "1", CVAR_ARCHIVE) // physical struggling of living knockdowns; 0 disables (0.7 before config 89)
-QVR_CVAR(vr_knockdown_wiggle_frequency, "2.2", CVAR_ARCHIVE) // struggling frequency, Hz (1.2 before config 89)
-QVR_CVAR(vr_knockdown_wiggle_pause, "0", CVAR_ARCHIVE) // pause between bursts, seconds; 0 continuous (the default since config 89; 1 before)
+QVR_CVAR(vr_knockdown_wiggle, "1.5", CVAR_ARCHIVE) // physical struggling of living knockdowns; 0 disables (0.7 before config 89)
+QVR_CVAR(vr_knockdown_wiggle_frequency, "1.5", CVAR_ARCHIVE) // struggling frequency, Hz (1.2 before config 89)
+QVR_CVAR(vr_knockdown_wiggle_pause, "0.5", CVAR_ARCHIVE) // pause between bursts, seconds; 0 continuous (the default since config 89; 1 before)
 QVR_CVAR(vr_explosion_rumble, "1", CVAR_ARCHIVE)         // explosions near you rumble in your hands
 QVR_CVAR(vr_heartbeat, "1", CVAR_ARCHIVE)                // a heartbeat in your hands when your health is low
 QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat monsters' projectiles back
@@ -2744,14 +2744,14 @@ QVR_CVAR(vr_reload_contact_angle, "35", CVAR_ARCHIVE)
 // lying about), a round at a time up to their magazine; 0: they reload at the hip holsters as before. A rocket or a
 // grenade goes in lying within vr_reload_front_angle degrees of the barrel, its nose out of the muzzle.
 QVR_CVAR(vr_reload_front, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_reload_front_angle, "45", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_front_angle, "40.5", CVAR_ARCHIVE)
 // A launcher's round's turn in the hand as it is taken from the ammo pouch (the author's note vrfiringrange_2026-10-08_
 // 22-18-19: the same for every round, easy to load): every round, whatever its Held Object Offsets, its middle in the
 // fist's grip channel, its long axis along the hand's forward, its nose ahead (the multi-grenade's too), then turned about
 // its middle (pitch up, yaw left, roll right; mirrored for the left hand), as the grenade pouch's vr_grenade_pouch_hold_*. 90: standing in the fist, nose up
 // out of its thumb side, butt down out of its little finger's: the thumb turned forward, it lies along the barrel, butt to
 // the muzzle.
-QVR_CVAR(vr_reload_front_hold_pitch, "90", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_front_hold_pitch, "45", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_front_hold_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_front_hold_roll, "0", CVAR_ARCHIVE)
 // The grenades' size (the author's notes vrfiringrange_2026-10-08_10-34-52 .. 10-37-30: the original models, "around

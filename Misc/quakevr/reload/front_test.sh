@@ -26,10 +26,12 @@ GRIP="+grabmain;vr_mock_button main grip 1;wait10"
 TIP="vr_mock_hand main 0.25 1.1 -0.3 50 0 0;wait5"
 LPORT="vr_mock_hand_to main lport 6;wait5;vr_mock_hand_to main lport 6;wait10;vr_mock_hand_to main lport;wait5;vr_mock_hand_to main lport;wait20"
 
+# (The round's hold and the muzzle's angle the checks were made with, not the author's shipped since config 109: 40.5
+# degrees, the round tipped 45: ROUND21.md. HP: another Round In Hand Pitch.)
 # The off hand holding the launcher (impulse $1) at pose $2 (pitch yaw roll; 140 0 0: its muzzle up 70 degrees ahead),
 # emptied into the reserve, the main hand empty.
 setup() {
-    echo "map e1m1;wait60;developer 1;vr_reload_debug 1;vr_debug_collect_fx 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse $1;wait3;vr_test_weaponinst 7;impulse 120;wait3;give r 30;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 ${OFFZ:--0.40} $2;wait10;vr_reload_test 5;impulse 125;wait2"
+    echo "map e1m1;wait60;vr_reload_front_angle 45;vr_reload_front_hold_pitch ${HP:-90};developer 1;vr_reload_debug 1;vr_debug_collect_fx 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse $1;wait3;vr_test_weaponinst 7;impulse 120;wait3;give r 30;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 ${OFFZ:--0.40} $2;wait10;vr_reload_test 5;impulse 125;wait2"
 }
 # The launcher brought to a round lying on the floor (as on a table) under its muzzle: the off hand at pose $1 (45 0 0: the
 # muzzle 25 degrees down) from 0.2 m ahead drawn back 0.25 m and down to the floor, then pushed forward 0.5 m along it
@@ -114,6 +116,6 @@ for row in "158 0 grenade" "158 1 multi-grenade" "159 0 proximity" "160 0 rocket
     done
 done
 check $ok "every launcher round from the ammo pouch sits nose up in the hand, whatever the hand's turn ($axes)"
-log=$(bash $KIT/run.sh $AGENT -Script "vr_reload_front_hold_pitch 0;$(setup 160 "140 0 0");vr_mock_hand main 0.25 1.1 -0.3 30 40 -20;wait5;$POUCH;$GRIP;$REP;vr_reload_front_hold_pitch 90;toggleconsole;quit" -Filter "^grip: from the ammo pouch" 2>&1)
+log=$(bash $KIT/run.sh $AGENT -Script "$(HP=0 setup 160 "140 0 0");vr_mock_hand main 0.25 1.1 -0.3 30 40 -20;wait5;$POUCH;$GRIP;$REP;vr_reload_front_hold_pitch 90;toggleconsole;quit" -Filter "^grip: from the ammo pouch" 2>&1)
 check $(hold "$log" | awk '{ print (NF == 6 && $1 > 0.99) ? 1 : 0 }') "Round In Hand Pitch 0: the rocket along the hand's forward ($(hold "$log"))"
 exit $fail
