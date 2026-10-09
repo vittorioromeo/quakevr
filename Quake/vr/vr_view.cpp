@@ -4067,6 +4067,31 @@ bool view::heldWeaponButtRegion(int hand, float depth, za::Vector<glm::vec3>& ou
     return !out.empty();
 }
 
+bool view::heldPropSurface(int hand, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    const int num = hand == 0 || hand == 1 ? held::heldEntity(hand) : 0;
+    if(num <= 0 || num >= cl_max_edicts)
+    {
+        return false;
+    }
+    const entity_t& e = cl_entities[num];
+    const grasp::Shape* shape = grasp::shapeOf(e, -1);
+    if(!shape)
+    {
+        return false;
+    }
+    const glm::mat4 m = grasp::shapeToWorld(e, false);
+    for(const grasp::Triangle& t : shape->tris)
+    {
+        for(const glm::vec3& p : t.p)
+        {
+            out.pushBack(glm::vec3{m * glm::vec4{p, 1.f}});
+        }
+    }
+    return !out.empty();
+}
+
 bool view::heldWeaponButt(int hand, glm::vec3& out)
 {
     // The middle of its points within a unit of its rearmost end.

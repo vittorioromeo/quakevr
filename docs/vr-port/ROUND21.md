@@ -32873,8 +32873,8 @@ the hand), plus, holding a gun with `vr_bullettime_tap_butt`, every drawn point 
 `vr_bullettime_tap_butt_depth` (4 cm) of its rearmost end (`view::heldWeaponButtRegion`). Each point has its own
 velocity (the hand's, its turn included) and a radius (0 for a vertex). The rules are the same, per point: over the zone,
 straight in (`vr_bullettime_tap_angle`), fast enough (`vr_bullettime_tap_speed`), the peak taken over all points; the
-impact: any point on the face (within `vr_bullettime_tap_depth`, now measured from the surface: default 3 cm, was 6 from
-the palm's middle) while the fastest point slowed (`vr_bullettime_tap_stop`). The message names what struck, by the
+impact: any point on the face (within `vr_bullettime_tap_depth`, now measured from the surface; his 6.5 cm stays the
+default, config 109) while the fastest point slowed (`vr_bullettime_tap_stop`). The message names what struck, by the
 part its vertex follows most (the rig's joints; the palm's vertices by side: the palm or the back of the hand):
 "screen tapped by the knuckles (and the fingers)". Each point's part: `view::HandPart`.
 
@@ -32889,10 +32889,36 @@ a flat palm slap (the fingers' pads land first), the back of the hand, the finge
 the gun's butt leading all tap, each named; swings across 3 cm over with the back of the hand or the knuckles, and the
 fingertips 50 degrees off straight, don't. The old cases (A..G) unchanged.
 
-**His settings.** His config has `vr_bullettime_tap_depth 6.5` and `vr_bullettime_tap_z -3.5`, tuned for the palm's
-middle: measured from the surface they are more forgiving (the face's zone 3.5 cm into his arm, the hand within 6.5 cm
-over it); not changed. He may want the depth near 3 now.
+**His settings** (the defaults since config 109): `vr_bullettime_tap_depth 6.5` and `vr_bullettime_tap_z -3.5`, tuned
+for the palm's middle: measured from the surface they are more forgiving (the zone 3.5 cm into his arm, the hand's
+surface within 6.5 cm over it, so about 3 cm over the face). Kept; he may want the depth nearer 3 now.
 
 **To try in the headset.** Tap the screen with the palm, the fingertips, the knuckles, the back of the hand, the gun's
 butt; swing across the screen with each (no tap). With And the Screen Tap on, the blue points should sit on the drawn
 hand.
+
+## The screen tap: a double tap (2026-10-09)
+
+His request: a Double Tap gesture for bullet time, two taps on the gadget's screen in quick succession, with an empty
+hand, a gun (the hand and its butt) or a prop (the prop and the hand).
+
+**Settings.** `vr_bullettime_tap_gesture` 0 Single Tap (default, as before) / 1 Double Tap;
+`vr_bullettime_tap_double_window` 0.4 s (the second tap within it of the first); `vr_bullettime_tap_double_speed`
+0.4 m/s (each tap's least speed into the screen, instead of `vr_bullettime_tap_speed`, his 0.5). Menu: Combat > Bullet Time >
+Screen Tap: Gesture, Double Tap Window, Double Tap Force. Single stays the default: a double tap is slower to start bullet
+time in a fight, and the single tap's rules already keep accidents out; the author can switch.
+
+**How.** Each tap follows the single tap's rules (straightness, stop, window, the zone and depth) at the double tap's
+speed. The first starts the window (a faint tick in the tapping hand; `bullet time: first tap (...)`), the second
+toggles bullet time (`double tap: screen tapped by ...`); none in time: `no second tap within 0.40 s`. Between taps the
+volume must lift: off the face, or drawn back out of it at 0.3 m/s or more (in both gestures now: a bounce, or a hand left
+resting on the screen, is never a second tap). A held prop's shape (`view::heldPropSurface`: its grasp shape as drawn)
+is now part of the striking volume, with the hand ("the held prop").
+
+**Tests.** `Misc/quakevr/gadget_doubletap_test.sh <agent>` (the old thresholds pinned, as gadget_tap_test.sh's, and a
+double tap's 0.8 m/s): two quick taps (1.7 m/s, 0.2 s apart) turn it on and again
+off; two lighter taps (1.0 m/s, under the single tap's 1.2) on; one tap and two taps 0.8 s apart do nothing; two swings
+across nothing; with a gun (knuckles and butt) and holding a health pack, on. The single-tap test is unchanged.
+
+**To try in the headset.** Gesture: Double Tap; double tap with the palm, the knuckles, the gun's butt, a held box; a
+single tap and a slow pair should do nothing; melee swings across the gadget should never count.

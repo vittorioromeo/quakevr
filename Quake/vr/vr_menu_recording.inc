@@ -194,9 +194,16 @@
             .help("Strike the gadget's screen hard and straight with your other hand, or with the butt of the gun it "
                   "holds. It must come straight into the screen fast enough and stop on it: a swing across it, a "
                   "soft touch or a hand brushing past does nothing."),
+        cycle("Gesture", "vr_bullettime_tap_gesture", {{0.f, "Single Tap"}, {1.f, "Double Tap"}})
+            .help("Single Tap: one hard tap starts or stops it. Double Tap: two taps in quick succession (each may be "
+                  "lighter: Double Tap Force), lifting off the screen between them; a single tap does nothing."),
+        slider("Double Tap Window", "vr_bullettime_tap_double_window", 0.2f, 1.f, 0.05f, "%.2f s").extend(0.1f, 2.f)
+            .help("Double Tap: how soon after the first tap the second must come."),
+        slider("Double Tap Force", "vr_bullettime_tap_double_speed", 0.3f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
+            .help("Double Tap: how fast each tap must come into the screen (Tap Force is the single tap's)."),
         slider("Tap Force", "vr_bullettime_tap_speed", 0.5f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
-            .help("How fast your hand (or the gun's butt) must come into the screen (either arm may move). Higher: "
-                  "harder taps only."),
+            .help("How fast your hand (or the gun's butt, or what it holds) must come into the screen (either arm may "
+                  "move). Higher: harder taps only. Single Tap's (Double Tap Force: the double tap's)."),
         slider("Tap Straightness", "vr_bullettime_tap_angle", 10.f, 80.f, 5.f, "%.0f deg").extend(1.f, 89.f)
             .help("How far off straight into the screen the strike may come. Lower: only straight strikes (a melee "
                   "swing across the screen comes from the side)."),

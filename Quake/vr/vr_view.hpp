@@ -190,6 +190,9 @@ struct WeaponHotspot
 // Its butt as a region: its drawn points within `depth` units of that rearmost end along the same line (world; a point
 // may come more than once: the shape's triangles share them). The screen tap's striking volume. False as above.
 [[nodiscard]] bool heldWeaponButtRegion(int hand, float depth, za::Vector<glm::vec3>& out);
+// The prop `hand` holds (held::heldEntity: a box, a gib, a health pack) as drawn: its shape's points (world; a point may
+// come more than once). The screen tap's striking volume. False if it holds none (or it has no shape).
+[[nodiscard]] bool heldPropSurface(int hand, za::Vector<glm::vec3>& out);
 
 // The parts of a drawn hand (drawnHandSurface): what struck the gadget's screen, in the tap's messages.
 enum class HandPart : unsigned char

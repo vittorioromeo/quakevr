@@ -37,6 +37,8 @@ struct State
     double tapPeakAt = -1.0;   // ... and when
     int tapStriker = 0;        // ... and which striking point (its index in the striking volume: strikers)
     double tappedAt = -1.0;    // realtime of the last tap that counted (tapping())
+    double firstTapAt = -1.0;  // vr_bullettime_tap_gesture 1: realtime of a double tap's first tap (-1: none waiting)
+    bool tapLifted = true;     // the striking volume off the screen since the last tap counted (none counts before)
     bool stickTaken[HAND_COUNT] = {}; // the stick press taken at its press (vr_bullettime_trigger): its release is too
     glm::vec3 viewPos[HAND_COUNT]{};   // the hands' places (hands::State::pos) as the view tested the tap (movedSinceView)
     bool viewValid = false;
@@ -205,9 +207,9 @@ void trigger(int hand, const char* what)
 
 // The tapping hand's striking volume: the hand as drawn (its mesh's vertices: the palm, the back of the hand, the
 // knuckles, the fingers and their tips alike; the old models' three spheres along it) and, holding a gun
-// (vr_bullettime_tap_butt), its butt (the gun's drawn points within vr_bullettime_tap_butt_depth of its rearmost end);
-// each point with its velocity (m/s, the hand's turn included), its radius (units: the old models' spheres; 0 a
-// vertex) and its part (view::HandPart, or buttPart).
+// (vr_bullettime_tap_butt), its butt (the gun's drawn points within vr_bullettime_tap_butt_depth of its rearmost end),
+// holding a prop (a box, a gib, a health pack), its shape; each point with its velocity (m/s, the hand's turn included),
+// its radius (units: the old models' spheres; 0 a vertex) and its part (view::HandPart, buttPart or propPart).
 struct Striker
 {
     glm::vec3 at{0.f};
@@ -216,10 +218,13 @@ struct Striker
     unsigned char part{0};
 };
 constexpr unsigned char buttPart = 255;
+constexpr unsigned char propPart = 254;
 
 [[nodiscard]] const char* partName(unsigned char part)
 {
-    return part == buttPart ? "gun's butt" : view::handPartName(static_cast<view::HandPart>(part));
+    return part == buttPart   ? "gun's butt"
+           : part == propPart ? "held prop"
+                              : view::handPartName(static_cast<view::HandPart>(part));
 }
 
 // The tap's buffers (the main thread: the view).
@@ -229,7 +234,8 @@ struct TapScratch
     za::Vector<glm::vec4> surface;    // the drawn hand's points (strikers)
     za::Vector<view::HandPart> parts; // and their parts
     za::Vector<glm::vec3> butt;       // the held gun's butt's points
-    auto members() { return mem::list(strikers, surface, parts, butt); }
+    za::Vector<glm::vec3> prop;       // the held prop's points
+    auto members() { return mem::list(strikers, surface, parts, butt, prop); }
 };
 mem::Scratch<TapScratch> scratch{"bullet time"};
 
@@ -258,6 +264,13 @@ void strikers(const hands::State& s, int hand, za::Vector<Striker>& out)
         for(const glm::vec3& p : sc.butt)
         {
             add(p, 0.f, buttPart);
+        }
+    }
+    if(view::heldPropSurface(hand, sc.prop))
+    {
+        for(const glm::vec3& p : sc.prop)
+        {
+            add(p, 0.f, propPart);
         }
     }
 }
@@ -294,7 +307,10 @@ struct Against
 // vr_bullettime_tap_depth of its face, the fastest point's speed into it down to vr_bullettime_tap_stop of the peak
 // within vr_bullettime_tap_window seconds: an impact; a hand passing by keeps its speed). A swing across the screen (the
 // melee) comes from the side; resting, brushing or soft touches are too slow; hands moving together (a two-handed hold)
-// have no speed towards each other, and are ignored anyway unless vr_bullettime_tap_twohanded.
+// have no speed towards each other, and are ignored anyway unless vr_bullettime_tap_twohanded. After a tap counts, the
+// volume must lift off the face before the next can (a bounce, or a hand left resting, is never a second tap). With
+// vr_bullettime_tap_gesture 1 (Double Tap) it takes two taps, each at vr_bullettime_tap_double_speed or more, the second
+// within vr_bullettime_tap_double_window of the first; one alone does nothing.
 void tapScreen(const hands::State& s, int hand, const Screen& z)
 {
     const bool allowed = (vr_bullettime_tap_holding.value != 0.f || held::handEmpty(hand)) &&
@@ -311,7 +327,16 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
     const float cm = 0.01f * units::metresToUnits();
     const float margin = za::max(0.f, vr_bullettime_tap_margin.value) * cm;
     const float depth = za::max(0.5f, vr_bullettime_tap_depth.value) * cm;
-    const float least = za::max(0.05f, vr_bullettime_tap_speed.value);
+    const bool twice = vr_bullettime_tap_gesture.value >= 1.f;
+    const float least = za::max(0.05f, twice ? vr_bullettime_tap_double_speed.value : vr_bullettime_tap_speed.value);
+    if(state.firstTapAt >= 0.0 && (!twice || realtime - state.firstTapAt > za::max(0.05f, vr_bullettime_tap_double_window.value)))
+    {
+        if(twice && vr_debug_bullettime.value)
+        {
+            Con_Printf("bullet time: no second tap within %.2f s\n", vr_bullettime_tap_double_window.value);
+        }
+        state.firstTapAt = -1.0;
+    }
     const float cosMost = za::cos(glm::radians(za::clamp(vr_bullettime_tap_angle.value, 1.f, 89.f)));
     const auto over = [&](const Against& a) {
         return za::fabs(a.u) <= z.halfSize.x + margin && za::fabs(a.w) <= z.halfSize.y + margin;
@@ -351,12 +376,18 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
         // Coming at it: from a little above it to just through it, straight and fast enough.
         const float speed = glm::length(a.v);
         const bool coming = a.h <= depth + 12.f * cm && a.h >= -2.f * depth;
-        if(coming && a.into >= least && a.into >= cosMost * speed && a.into >= state.tapPeak)
+        if(coming && state.tapLifted && a.into >= least && a.into >= cosMost * speed && a.into >= state.tapPeak)
         {
             state.tapPeak = a.into;
             state.tapPeakAt = realtime;
             state.tapStriker = i;
         }
+    }
+    // Lifted: off the face, or drawn back from it (0.3 m/s or more out of it: a hand tapping twice quickly needn't clear
+    // the whole depth; the fingers may hang past the screen's face while the palm taps).
+    if(!state.tapLifted && (touching < 0 || touchingAt.into <= -0.3f))
+    {
+        state.tapLifted = true; // (the next tap may come)
     }
     if(vr_debug_bullettime.value >= 2.f && nearest >= 0 && nearestAt.h < depth + 20.f * cm && nearestAt.h > -2.f * depth)
     {
@@ -406,11 +437,25 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
             }
         }
         char what[160];
-        q_snprintf(what, sizeof(what), "screen tapped by the %s%s%s%s%s%s at %.2f m/s", partName(struck[0]),
-            parts > 1 ? " (and the " : "", parts > 1 ? partName(struck[1]) : "", parts > 2 ? ", the " : "",
-            parts > 2 ? partName(struck[2]) : "", parts > 1 ? ")" : "", state.tapPeak);
+        const bool second = twice && state.firstTapAt >= 0.0;
+        q_snprintf(what, sizeof(what), "%sscreen tapped by the %s%s%s%s%s%s at %.2f m/s", second ? "double tap: " : "",
+            partName(struck[0]), parts > 1 ? " (and the " : "", parts > 1 ? partName(struck[1]) : "",
+            parts > 2 ? ", the " : "", parts > 2 ? partName(struck[2]) : "", parts > 1 ? ")" : "", state.tapPeak);
         state.tapPeak = 0.f;
         state.tappedAt = realtime;
+        state.tapLifted = false;
+        if(twice && !second)
+        {
+            // A double tap's first: a faint tick in the tapping hand, then the second must come in time.
+            state.firstTapAt = realtime;
+            buzz(hand, 0.02f, za::min(1.f, 0.2f * za::clamp(vr_bullettime_haptic.value, 0.f, 2.f)));
+            if(vr_debug_bullettime.value)
+            {
+                Con_Printf("bullet time: first tap (%s); the second within %.2f s\n", what, vr_bullettime_tap_double_window.value);
+            }
+            return;
+        }
+        state.firstTapAt = -1.0;
         trigger(hand, what);
     }
 }
