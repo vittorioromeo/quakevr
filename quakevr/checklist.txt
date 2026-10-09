@@ -11,6 +11,7 @@ Defaults 10-09 afternoon: melee (speed 3.2, damage 1.1, stamina), enemy weapons,
 Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
 
 [New this week]
+Dialogs: a confirmation over the hub (e.g. VR Calibration) no longer glitches the world (particles drew from a stale buffer); in VR the dialog has two buttons (Start/Cancel, Quit/Cancel...) you point and click; main menu: VR Calibration, VR Tutorial, VR Hub, VR Settings (Tutorial/Hub ask first)
 West stairs / lava / water: MG1 start's west-facing stairs with your head naturally low, walking slowly and jumping (a short catch at the very top crest may remain); step into lava and out: you keep burning 3 s (Burning > You Burn After Lava); shove a grunt off vrstart's island near the shore (gets up on the slope) and far out (gives up after ~3 s and sinks)
 Tutorial (now just vrtutorial; old tutorial and old hub gone): every tutorial start shows all tips again, once each per playthrough (a save load keeps progress); FLASHLIGHT SIDE button (hub too), flashlight 'on your torso'; lesson 3 board: jump for real; grenade board: 'pouch on your lower back', 'a trap you can shoot'; World Scale button: 1.20 is normal
 Setting buttons (tutorial, hub pavilion): press one, the value screen above it stays still (no sliding into the wall)
