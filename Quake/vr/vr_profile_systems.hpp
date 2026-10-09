@@ -1,5 +1,5 @@
-// vr_profile_systems.hpp -- the profiler's per-system breakdown (docs/vr-port/TESTING.md, "Profiling"; ROUND21.md,
-// "Profiling: where the time goes").
+// vr_profile_systems.hpp -- the profiler's per-system breakdown (docs/vr-port/BENCHMARKS.md, "Profiling in the game";
+// ROUND21.md, "Profiling: where the time goes").
 //
 // vr_profile.cpp times scopes as a call tree; this sorts that time into the game's systems (Box3D, QuakeC, the world's
 // drawing, the shadow maps, waiting for the headset...), each scope's own time (less its child scopes') going to the

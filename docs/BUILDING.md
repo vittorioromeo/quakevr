@@ -153,7 +153,7 @@ beyond 256 characters. Use an `autoexec.cfg` for long test setups.
 - `vr_mock_swing <period>` swings the main hand, for throwing tests;
 - `vr_mock_play <file>` plays a scripted motion (see the comment in `Quake/vr/vr_backend_mock.cpp`).
 
-[vr-port/TESTING.md](vr-port/TESTING.md) has more, including profiling.
+[vr-port/TESTING.md](vr-port/TESTING.md) has more; profiling is in [vr-port/BENCHMARKS.md](vr-port/BENCHMARKS.md).
 
 ## Tool scripts (`Misc/quakevr/`)
 

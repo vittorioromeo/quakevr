@@ -275,7 +275,7 @@ spawn 1.0-1.6 s).
   reprojection, no transport (Virtual Desktop, Link). Real-headset pacing needs a run in the headset
   (Benchmark Capture in the Debug menu writes the same JSON there).
 - **Sound** is off (`-nosound`, as every kit run): the spatial audio has its own benchmark (`vr_snd_bench`,
-  TESTING.md "Profiling").
+  "Profiling in the game" below).
 - **Recorded melee takes**: `melee_punch_8` uses a scripted jab (`vr_mock_play`), not the author's takes, which are not
   in `quakevr/motions/` now (eval.sh fails the same way). Replaying takes (`vr_motion_play`) inside a bench window is the
   natural next scenario once they are back.
@@ -512,3 +512,105 @@ fights are not identical run to run): `ai_crowd_64` 498 -> 456 (-8%), `gore_slas
 `decals_1024_stream` 150 -> 150 (a shot between frames). A build is 0.03-0.14 ms (1024 large marks: 0.14), so the
 saving is at most a few hundredths of a millisecond a frame in fights; the point is the eyes agreeing
 (`vr_decal_eyes_test 90`: 0 of 90 frames different). `Misc/quakevr/decal_grid_test.py`: 766 exact comparisons, pass.
+
+## Profiling in the game
+
+The in-game profiling tools (moved from TESTING.md on 2026-10-09).
+
+**Where the time goes, while you play** (ROUND21.md, "Profiling: where the time goes"): VR Settings > Advanced VR
+Options > Debug > Profiling and Memory.
+
+- **Profiler Panel**: *In Front* floats a table a metre ahead (it turns after you when you look 30 degrees away);
+  *Over the Wrist* puts it above the wrist gadget's hand. Each line is one of the game's systems (Box3D, QuakeC, the
+  world's drawing, the shadow maps, waiting for the headset...): its milliseconds a frame over the last second, its
+  worst frame, and a bar against the frame's budget (the whole bar: one refresh, 11.1 ms at 90 Hz). Blue: the CPU's
+  work; grey: waiting (not work); gold: the GPU's; red: one system over the whole budget by itself. The top lines:
+  the frame rate, the CPU's work ("busy": without the waits), the GPU's, and each group's total.
+- **CSV Capture**: turn it on, play what feels slow, turn it off. Each second is a row of
+  `quakevr/profile/systems_<date>_<time>.csv` (a column per system, its average and worst frame, the GPU's, the
+  counts), for a spreadsheet. Send me that file.
+- **Hitch Log** (Over 1.5 Frames by default): while the panel or a capture is on, every frame that takes longer goes
+  to the console and `quakevr/profile/hitches_<date>_<time>.csv`, with what took the time: the systems, and the
+  three costliest scopes by name (e.g. `screen/3D/eye L/scene/vr opaque (text3d)/decals 423.3` for the first decal).
+- **Print Report**: the last 5 seconds' table in the console (`vr_profile_report [seconds]`; with `-condebug` it is
+  in `qconsole.log` too).
+- **Detail**: *Every Trace and Builtin* also times each collision trace and each QuakeC builtin call apart (dearer).
+
+**QuakeC's time by function** (Debug > Profiling and Memory > *Time QuakeC Functions*, *QuakeC Time Report*):
+`vr_qcprofile 1`, play, then `profile_qc [n]` (default 15; `profile_qc 0` only zeroes) prints, a frame (host frames
+since the last report): the server QuakeC's whole time; the n functions with the most time of their own (`self`: their
+statements and the builtins they call, their QuakeC callees out), with their time callees in (`incl`) and calls; the n
+builtins (`b`), and the n caller > builtin pairs (`p`: which function's calls of which builtin cost the most). TSC
+ticks round each call (one test a call while off); the totals include the timer's own cost, so compare runs with it
+on both sides. A scenario's split: insert `vr_qcprofile 1; profile_qc 0` before a scenario's `vr_bench_begin` and
+`profile_qc 40` after its `vr_bench_end` (`qvrbench.py script <name> --out x.cfg`). `profile [n]` (Quake's) still
+counts instructions.
+
+**The edict index** (`vr_edictindex`, on; vr_edictindex.cpp, ROUND21.md "QuakeC's scans through an index"): `find()`
+by classname and `findflags()` on .flags (QuakeC's bits: monsters, clients, items), lit wall torches, noticeable bodies
+and three more QuakeC fields step through an index instead of every edict. `vr_edictindex_verify 1` walks as well on
+every search and prints `vr_edictindex ERROR: ...` for any difference (the walk's answer is used); `vr_edictindex_stats`
+prints the searches, rebuilds, edicts read again and differences since the last. A feature test run with
+`vr_edictindex_verify 1` that prints no ERROR line found the index exact for everything it did.
+
+In the console: `vr_profile_overlay 1` / `2`, `vr_profile_csv 1` / `0` (or `vr_profile_csv_toggle`, to bind to a key),
+`vr_profile_hitch 1.5`, `vr_profile_detail 2`, `vr_profile_gpu 4` (the GPU's times on one frame in 4: each timer query
+stalls the GPU a little; 1 every frame, 0 none). All are off again after a restart.
+
+**The call tree:** `vr_profile 1` (in the console) times each part of every frame, on the CPU and on the GPU (OpenGL
+timer queries, read a few frames later, on one frame in `vr_profile_gpu`), per eye. Every
+`vr_profile_interval` seconds (5; 0: only on demand) and on `vr_profile_dump` it writes the averages and the
+worst frame of each part to `quakevr/profile/profile_<map>_<date>_<time>.csv` (one file per map, one block of rows
+per interval; the header lines give the map, the eye resolution, the graphics preset and the graphics settings)
+and prints a one-line summary with the costliest parts. `vr_profile_dump` also prints the whole tree.
+`vr_profile 2` also shows the profiler's panel over the wrist gadget. `vr_profile 0` (the default) stops it.
+
+To send me a profile: play a while with `vr_profile 1` in the same spot and settings (the start of E1M1, a big
+fight, ...), then `vr_profile_dump`, and send the `.csv` (and `qconsole.log` with `-condebug`). Comparing the
+presets (`vr_graphics_preset 1` .. `4`, a profile each) shows what each effect costs.
+
+Reading it: `frame` is the engine's frame on the CPU (`xr wait`, the headset's pacing, and `swap` are waiting, not
+work: "CPU busy" leaves them out). Its GPU time spans the frame on the GPU's clock, including time the GPU sits idle
+while the CPU waits in the runtime (`xr submit`: xrEndFrame paces the frame), so the eyes' own GPU time (the
+summary's "eyes") is the real load; `frame period` is the time
+between frames. Under `screen/3D`, `eye L` and `eye R` hold each eye's `scene` (`world+brush`, `alias` models,
+`particles`, `sky`, `water`, `translucent`, Quake VR's `decals`, `blob shadows` and `vr particles`), `bloom`,
+`postprocess`, the `hud panel` and the `mirror` to the window; the shadow maps (`dlight shadows`, `map light
+shadows`) are drawn once, in the left eye's `setup view`. `self` columns leave out the parts inside a part.
+
+**Shadow maps, layered or a face at a time** (LIGHTING.md, "Layered shadow casters"): `vr_shadow_layered_check 20`
+(Debug > Profiling and Memory > Check Layered Shadows) draws the frame's shadow maps both ways 20 times (draw calls,
+faces, model draws, CPU and GPU ms each), then reads both atlases back and compares them texel by texel: `0 texels
+differ` in both is the pass. `vr_shadow_layered 0` draws a face at a time (the old way). `vr_shadow_layered_check 20
+cache` (Debug > Profiling and Memory > Check Shadow Caster Set-up) compares the casters set up again for each light with
+the set-up kept for the pass (r_alias.c, R_AliasDepthCacheBegin): the set-ups made and reused, and `0 texels differ`.
+
+**Benchmark scenarios** ([BENCHMARKS.md](BENCHMARKS.md)): the kit's `bench.sh` runs a set of fixed scenarios (idle,
+teleporters, combat, physics, effects, lights, liquids, custom maps, flat) and compares a baseline with new results;
+each run's numbers come from `vr_bench_begin <name> [frames | <seconds>s]` (frame, CPU and GPU percentiles, each GPU
+pass, heap events, what there is) into `quakevr/profile/bench/<name>.json`. In the headset: Debug > Profiling and
+Memory > *Benchmark Capture (10 s)* (`manual.json`).
+
+**Spatial audio:** Debug > Tests > Spatial Audio > *Spatial Audio Benchmark* (`vr_snd_bench <seconds> [label] [sounds a
+second] [orbit units/s]`) plays monsters', weapons' and explosions' sounds round you while the listener circles, then
+prints each stage of the mix (the voices, the reverb's convolution and decode, Quake's channels, the limiter, the
+game-time render...) a frame: median, 95th and 99th percentiles, worst, ms per second of sound; the simulations' runs;
+the sounds' memory. Rows also go to `quakevr/sound_tests/bench.csv`. `vr_snd_test golden` checks a change leaves the
+mix's sound as it was (ROUND21.md, "Spatial audio: optimised").
+
+**If it gets slower the longer you play:** `vr_memstats` (in the console) prints the GPU's memory (NVIDIA: used by
+all programs, and how often the driver had to move things out of it: "evictions"), the game's RAM, its textures and
+every live OpenGL object, and the average frame time since the last `vr_memstats`. Type it at the start, again after
+each map load, and send the lines (with `-condebug`, they are in `qconsole.log`): if the game's counts stay the same
+while the frame rate drops, the game is not leaking, and the slowdown is in SteamVR / Virtual Desktop (the profile's
+`xr submit` and `xr acquire` growing while the eyes do not says the same). To tell for sure once it has slowed
+down: quit and restart only Quake VR (same map): if the frame rate is back, it is the game; if it is not until
+SteamVR (or Virtual Desktop) is restarted too, it is them. The Memory Log (`vr_memstats_log`, on by default: a row a
+minute in `quakevr/profile/memstats_<date>.csv`) also times each frame whatever `vr_profile` is: our CPU work
+(`busy_ms`) and the eyes' GPU time (`gpu_eyes_ms`) next to the runtime's waits (`xr_waitframe_ms`, `xr_submit_ms`,
+`gpu_submit_ms`) and missed refreshes (`slow_frames`), with counts of what there is to draw (corpses, thrown weapons,
+decals, lights, particles). Note the time when it feels slower and send that file (ROUND16.md, "Slowdown"; removed 2026-10-06; git history). Its GPU
+columns (clocks, slowdowns, each program's use of the GPU: `gpu_*`, `gpu3d_*`, `gpu_programs`) come from a sampling
+thread that runs only while profiling (`vr_profile`, the Profiler Panel or its CSV Capture) or with
+`vr_memstats_log_gpu 1` (Debug > Profiling and Memory > Memory Log: GPU); otherwise they are empty. With `developer 1` the console says when
+that thread starts and stops (`gpustats: sampling thread started`).

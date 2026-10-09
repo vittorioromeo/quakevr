@@ -496,6 +496,6 @@ changed yourself is left alone.
 | `developer 1` | More messages: force grab pulls and catches, throws, compatibility mode |
 
 For the rest, the developer notes in [vr-port/](vr-port/) describe each system and its variables:
-[TESTING.md](vr-port/TESTING.md) (the playtest guide), [LIGHTING.md](vr-port/LIGHTING.md),
+[PLAYTEST.md](vr-port/PLAYTEST.md) (the playtest guide), [LIGHTING.md](vr-port/LIGHTING.md),
 [GRAPHICS.md](vr-port/GRAPHICS.md), [THROWING.md](vr-port/THROWING.md), [IK.md](vr-port/IK.md), and the
 `ROUND*.md` notes.

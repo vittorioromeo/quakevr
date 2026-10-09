@@ -1,4 +1,4 @@
-// vr_profile.hpp -- a small scope profiler (docs/vr-port/TESTING.md, "Profiling").
+// vr_profile.hpp -- a small scope profiler (docs/vr-port/BENCHMARKS.md, "Profiling in the game").
 //
 // vr_profile 1 times the named scopes of every frame, on the CPU (steady_clock) and, for GPU
 // scopes, on the GPU (OpenGL timestamp queries, read back a few frames later so the CPU never

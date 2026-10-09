@@ -267,9 +267,10 @@ For developers:
 
 - [docs/BUILDING.md](docs/BUILDING.md): building the engine, the QuakeC and the release package, and the tool
   scripts.
-- [docs/vr-port/](docs/vr-port/): the port's design notes. [TESTING.md](docs/vr-port/TESTING.md) is the playtest
-  guide, [ROUND21.md](docs/vr-port/ROUND21.md) the log of the current feedback round (the earlier ones are in git
-  history), and there are deep dives into graphics, lighting, throwing, hitboxes and body IK.
+- [docs/vr-port/](docs/vr-port/): the port's design notes. [PLAYTEST.md](docs/vr-port/PLAYTEST.md) is the playtest
+  guide, [TESTING.md](docs/vr-port/TESTING.md) the testing tools, [ROUND21.md](docs/vr-port/ROUND21.md) the log of
+  the current feedback round (its older sections in `archive/`, the earlier rounds in git history), and there are
+  deep dives into graphics, lighting, throwing, hitboxes and body IK.
 
 ## Building from source
 

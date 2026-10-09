@@ -27,8 +27,9 @@ happens; the durable parts belong in a guide or topic note.
 | [BUILDING.md](BUILDING.md) | Building the engine, the QuakeC and the release package; the tool scripts in `Misc/quakevr/` |
 | [../Installer/README.md](../Installer/README.md) | The Windows installer (C#, WPF): layout, build, `qvr-setup`, tests, package manifests |
 | [vr-port/CODE_STYLE.md](vr-port/CODE_STYLE.md) | Conventions of the VR module: state, Zancle instead of the standard library, scratch buffers and caches |
-| [vr-port/TESTING.md](vr-port/TESTING.md) | The playtest guide and the testing tools: the mock headset, scripted motions, tests and checks |
-| [vr-port/BENCHMARKS.md](vr-port/BENCHMARKS.md) | The benchmark scenario suite: running it, what a run records, the scenarios |
+| [vr-port/PLAYTEST.md](vr-port/PLAYTEST.md) | The playtest guide: build and install, controls, voice notes, what to try now, troubleshooting |
+| [vr-port/TESTING.md](vr-port/TESTING.md) | The testing tools: the mock headset, scripted motions, test scripts and checks, fixtures |
+| [vr-port/BENCHMARKS.md](vr-port/BENCHMARKS.md) | The benchmark scenario suite (running it, what a run records, the scenarios) and the in-game profiling tools |
 | [vr-port/MOTIONS.md](vr-port/MOTIONS.md) | The motion recorder: melee takes, playing them back, the melee evaluation |
 | [vr-port/IRONWAIL_DIFF.md](vr-port/IRONWAIL_DIFF.md) | What the port changes in Ironwail's own files, and how to merge a new Ironwail |
 | [vr-port/MAPPING.md](vr-port/MAPPING.md) | Making maps for Quake VR in TrenchBroom: the game configuration and the entities |

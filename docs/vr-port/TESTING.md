@@ -1,587 +1,13 @@
-# Testing in the headset
+# Testing without a headset
 
-The playtest guide, and the reference for the testing tools (the mock headset, scripted motions, the tests and
-checks). It began with the first headset build; the headset feedback rounds since are in the `ROUND*.md` files.
+The reference for the testing tools: the mock headset, scripted motions, the test scripts and checks, and the
+fixtures. Playtesting in the headset (build, controls, voice notes, what to try) is in [PLAYTEST.md](PLAYTEST.md).
 "The kit" below is the author's agent toolkit outside the repository (`C:/OHWorkspace/qvr-kit`: `build.sh`,
-`run.sh`, `eval.sh`, `bench.sh`), which wraps these same commands for headless runs.
+`run.sh`, `eval.sh`, `bench.sh`), which wraps these same commands for headless runs. The release's test suite,
+`Misc/release/run_test_suite.py`, runs the scripts that give a verdict ([RELEASING.md](RELEASING.md), "Tests
+before publishing").
 
-## Build and install
-
-The quickest way: `Windows\package-quakevr.ps1 -Build -Fteqcc <path to fteqcc64.exe>` builds everything into
-`dist\QuakeVR` (and `dist\QuakeVR.zip`); copy its contents into your Quake folder and run `QuakeVR.bat`.
-By hand:
-
-1. Build `Windows/VisualStudio/ironwail.sln`, **Release | x64**. The output is
-   `Windows/VisualStudio/Build-ironwail/bin/x64/Release/ironwail.exe`, with `openxr_loader.dll` copied next to it.
-2. The progs: step 1's build already compiles them into `quakevr/progs.dat` (with FTEQCC at `QvrQcCompiler`:
-   [BUILDING.md](../BUILDING.md#building-the-quakec)); `QC/build.bat` (set `FTEQCC` to `fteqcc64.exe`) builds only
-   them, with the checks.
-3. Put the repository's `quakevr` folder in your Quake directory, next to `id1` (a directory junction works:
-   `mklink /J <Quake>\quakevr C:\OHWorkspace\quakevr-iw\quakevr`). `hipnotic` and `rogue` are picked up
-   automatically if they are installed.
-4. Start the OpenXR runtime you want to use (Virtual Desktop, SteamVR or Oculus) and make it the active runtime.
-5. Run:
-
-   ```
-   ironwail.exe -basedir <Quake> -game quakevr
-   ```
-
-`quakevr/quakevr.cfg` turns VR on (`vr_enabled 1`). The console reports `VR: started openxr backend` or the reason
-it could not start; `vr_status` prints the tracking state and `vr_restart` restarts the session (after putting the
-headset on, or switching runtimes). `vr_enabled 0` is flat-screen play.
-
-## Controls
-
-Controller buttons are Quake keys (issue #12), so everything can be rebound from the console or Ironwail's
-bindings menu (press the controller button when asked for a key), aliases included. They reuse the gamepad key
-names **by controller**: the main hand (the right controller) is the gamepad's right half, the off hand (the left) its
-left half. `vr_stick_swap 1` swaps only what the sticks do (the right one moves).
-
-| Control | Main hand key | Off hand key | Default binding (main / off) |
-|---|---|---|---|
-| Trigger | `RTRIGGER` | `LTRIGGER` | `+attack` / `+offhandattack` |
-| Grip | `RSHOULDER` | `LSHOULDER` | `+grabmain` / `+graboff` |
-| A / X (primary) | `ABUTTON` | `XBUTTON` | `+jump` / `+reloadoff`; held in the air with the grappling hook in: its unreel (the key still pressed) |
-| B / Y (secondary) | `BBUTTON` | `YBUTTON` | `impulse 10` / `impulse 12` (next weapon); held with the grappling hook out: its reel, whatever it is bound to |
-| Stick click | `RTHUMB` | `LTHUMB` | `+reloadmain` / `+speed` |
-| Stick | turn; up/down are `DPAD_UP`/`DPAD_DOWN` (`+moveup`/`+movedown`: swim) | move | |
-| Menu button | Escape (not rebindable) | | |
-
-Controllers without some of these: Index has no menu button, so its left B opens the menu. Vive wands use the
-trackpads as sticks and their clicks as A/X, and the right menu button as B. WMR uses the trackpad clicks as A/X
-and the right menu button as B. In menus both sticks navigate, A selects and B goes back.
-
-The defaults live in `quakevr/vr_bindings.cfg`. They are applied once (`vr_bindings_version`) on top of whatever
-config was saved before, including one inherited from `id1`; "Reset to defaults" applies them again.
-
-Useful settings:
-
-| Cvar | Default | |
-|---|---|---|
-| `vr_snap_turn` | 0 | degrees per snap; 0 = smooth turning at `vr_turn_speed` |
-| `vr_controller_legacy_pose` | 1 | the hands follow the controller pose the old engine used (SteamVR's raw pose, rebuilt from OpenXR's grip pose for Touch/Quest and Index controllers), so the old tuned offsets line up; 0 uses the grip pose as is |
-| `vr_gunangle`, `vr_offhandpitch` | 70, 40.25 | weapon pitch relative to the controller (70: `vr_defaults.cfg`'s shipped value): Advanced VR > Weapons > Hand/Gun Calibration (both hands at once: VR Settings > Hand Pitch) |
-| `vr_world_scale` | 1.2 | |
-| `vr_height_calibration`, `vr_floor_offset` | 1.646, -22 | |
-| `vr_mirror` | 1 | desktop window: 0 off, 1 on (`vr_window_view`: 0 left eye, 1 left smoothed, 2 spectator, 3 both eyes, 4 right eye, 5 right smoothed) |
-| `vr_deadzone` | 10 | stick deadzone, percent |
-| `vr_weapon_grip_mode` | 0 | 1 = weapons stay in the hand without holding the grip (issue #31) |
-
-## Throwing
-
-How throws are measured, how strong they come out and how they fly: `docs/vr-port/THROWING.md` (its
-section 3.4 lists the settings). `vr_debug_throw 1` prints every throw's estimate; `2` also prints how long
-after the peak the release came. `developer 1` prints the spawned velocity, gravity, spin and age.
-
-## GitHub issues
-
-| Issue | State in this port |
-|---|---|
-| #31 weapons should stick to hands | `vr_weapon_grip_mode 1`: grip, let go and the weapon stays; grip again and open the hand to throw it (or holster it) |
-| #53 stuck on steps | not reproduced in a quick test (walking off and back up the steps behind the start.bsp spawn, flat and mock VR): please try the E1M1 spot from the issue |
-| #37 force-grabbed BSP items become solid | the QC never makes items solid, and the new engine never blocks on `SOLID_NOT_BUT_TOUCHABLE`: please confirm in the headset |
-| #34 weapon knockback too strong | the rendered hand follows the weapon's firing animation: please check how it feels |
-| #67 / #40 hands shaking (frame cap, after a break) | OpenVR pose-timing problems; OpenXR predicts poses for the displayed frame: please confirm |
-| #64, #70, #19, #49, #52 | old engine/renderer (SteamVR keyboard, lighting, animated textures, mission-pack launch, black screen): gone with Ironwail |
-| #12 missing bindings | done: the controller buttons are Quake keys (see Controls) |
-| #20, #14 status bar on the hands | done: on the off hand by default (see HUD below) |
-
-## Voice notes while playing
-
-Raise your off hand to your mouth, like a radio, and hold **Y** to talk; let go to save. "REC" and the
-note's length show low in your view, and the hand buzzes as a note starts and ends. Away from your mouth
-(more than about 30 cm) Y does what it always did; a note shorter than 0.8 s is taken for an accidental press
-and dropped. Each note is saved in `quakevr/notes/` with a screenshot and where you were (map,
-position, view, health, what each hand held). The microphone is Virtual Desktop's
-(`vr_note_device "Virtual Desktop"`; `vr_note_devices` lists them); Gameplay > Voice Notes turns it off.
-`+vr_note` records from a bound key too.
-
-To turn the notes into text (Whisper, on your PC; the model is already downloaded):
-
-    python Misc/quakevr/transcribe_notes.py
-
-It transcribes the new notes and writes `quakevr/notes/NOTES.md`, every note with its transcript,
-context and screenshot, ready to paste or to point me at.
-
-## What to try
-
-The round logs before round 21 (`ROUND6.md` to `ROUND20.md`) were removed on 2026-10-06; to read one,
-`git log --diff-filter=D -- docs/vr-port/ROUND20.md` gives the commit that removed it and `git show <commit>^:docs/vr-port/ROUND20.md`
-prints it.
-
-- **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
-  - **Swing Through Enemies** (ROUND21.md, "Melee phasing"; on by default): Combat > Melee > Swing Through Enemies.
-    While your hand swings fast, the fist and what it holds pass through enemies instead of being drawn stopped at their
-    bodies (the blow was always tested where your real hand goes: this shows it there). **Tell me if melee feels better
-    or worse with it on**, and try Swing Through Speed and Follow-Through.
-  - **The crowbar** (ROUND21.md, same title): one lies in the firing range's prop area, north of the chainsaw. Hold it
-    as a sword: by its black tape, one hand or two (the other hand below the first, or on the bar above the hands,
-    sliding along it short of the hook). Its blows are blunt, the hook's hardest; its chisel end jabs as a pommel does;
-    it parries. Combat > Weapon Damage > Crowbar; Debug > Tests > Crowbar.
-  - **The ogres' chainsaw** (ROUND21.md, same title): every ogre drops its chainsaw. Hold it by its rear handle, the
-    other hand on its front handle (heavy, two-handed). Start it: grab the T-handle on its top with the empty hand and
-    yank the cord up and away (a slow pull never starts it; a good one starts it half the time). The trigger runs the
-    chain: it cuts what its bar is in (sinking in a little) and burns its own fuel (the counter on it; each chainsaw
-    keeps its own, dropped or holstered); empty, it stalls. Combat > Enemy Weapons; Debug > Tests > Chainsaw.
-  - **Enemy guns** (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser rifles"): every grunt
-    drops its shotgun, every enforcer its laser rifle (no gun left in the corpse). Pick one up: the pistol grip in the
-    fist, the other hand on the band round the barrel. It fires from its own ammo only (10 shells, 20 shots; the counter
-    on it): shell boxes and cells never refill it; empty, it clicks (a club, or drop it). Combat > Enemy Weapons (fuel
-    and ammo of the swords, chainsaws and these; their damage: Combat > Weapon Damage); Debug > Tests > Enemy Guns. The chainsaw has a starter housing under
-    its cord's handle now (it floated).
-  - **Punches land at once; the empty hammer is quiet** (ROUND21.md, same title): punch damage used to come 0.1-0.45 s
-    after the hit (a bug: every punch waited as a pommel strike does); now in the frame of contact. Pommel and butt
-    strikes wait 0.05 s for the blade (Melee Settings > Pommel Strike Wait; 0.1 before). Mjolnir with no cells no
-    longer clicks when you squeeze the trigger.
-  - **Precise hit detection (models, not boxes)** (ROUND21.md, same title): shots, nails, rockets, grenades, the
-    grappling hook, melee blows and thrown things hit a monster (or a corpse, or the dummy) where its model is drawn,
-    grown by a few units, not anywhere in Quake's big box round it: shots past a grunt's head or through a shambler's
-    box corners fly on to the wall; the hook takes hold only on the body. Headshots and arm shots come from where the
-    model was hit. Combat > Damage and Knockback > Hit Detection: Precise Hit Detection (off: the boxes, as before) and
-    each class's tolerance (guns 4, hook 2, melee 6, thrown 2 units). Debug > Views > Show Hits draws each hit on the
-    model (and the misses through a box: Hits and Misses).
-  - **Hand grenades from the back pouch** (ROUND21.md, same title): with rockets, reach behind the small of your back
-    with an empty hand (either) and grip: a grenade from the pouch on your belt there (a tap as the hand arrives; the
-    pouch lights up), in your palm. Pull the trigger to pull its pin (a ping, the fizz, sparks, ticks faster and
-    faster): 2.5 s, then it goes off as the grenade launcher's (120 damage over 160 units, yours, with Quad), or on a
-    monster it hits. Throw it as anything you carry. Changed your mind? Let go of it at the pouch before pulling the
-    pin: it goes back in, and the rocket with it (a rocket leaves your ammo while a grenade is in your hand). Let go
-    of elsewhere unarmed, it is a dud at your feet: take it again to arm it or put it back. No rockets: a dull knock.
-    Batting and Catching > **Hand Grenades** (on/off, **Arm Hand Grenades**: the trigger, or when let go of; **Hand
-    Grenade Fuse**); the pouch's place under it (**Grenade Pouch**), and its turn on Hip Holsters > **Grenade Pouch**.
-    Under it too, **Grenade In Hand Pitch/Yaw/Roll**: how a grenade from the pouch is turned in your palm (a held one
-    turns as you drag them). A health box, ammo box or power-up you carry, let go of at the pouch, is taken as at a
-    holster. Hold that hand's **B/Y** as you grip there: the mission pack's **multi-grenade** (Dissolution of
-    Eternity's, from your multi-rockets; a grenade if you have none), muted until armed, held, armed and thrown as the
-    grenade is; on its fuse it bursts into five mini-grenades.
-    **One grenade from either pouch** (ROUND21.md, same title): the back pouch's grenade is now the grenade
-    launcher's round (a 40 mm grenade: brass case, olive body, a yellow stripe that glows red once armed; the
-    multi-grenade red, its stripe amber). With the grenade launcher in the other hand (Immersive reloading), turn it
-    butt first to the muzzle: it loads. With the proximity launcher in the other hand the back pouch gives a
-    proximity grenade (B/Y with no multi-rockets too, if you have that launcher): load it, or pull its pin (its lenses
-    light) and let go of it: it is a mine (sticks where it lands, watches after 2 s). The ammo pouch's grenades and
-    proximity grenades arm by the trigger the same way; armed, neither loads. Either pouch's goes back into either
-    pouch unarmed. The ammo pouch shows the launcher's rounds standing in it, as many as you have (up to 3 rockets,
-    4 grenades, 4 proximity grenades; multi-rounds in their colours).
-    holster.
-  - **Shooting grenades** (ROUND21.md, same title): shoot a grenade and it goes off where it is: an ogre's while it
-    flies at you, your own (launcher or hand grenade) in the air or lying on the ground, or a hand grenade's dud you
-    left as a trap, shot from afar. Shotguns, nails, rockets, the lightning, a grunt's or an enforcer's shot, a thrown
-    thing, another blast (a chain: each a moment after the last) all set it off; a melee blow too when it lies or
-    rolls (one in flight is still batted by a weapon and caught by an empty hand). Whoever set it off gets the kills.
-    Not one in your hand. Batting and Catching > Grenades > **Shoot Grenades**, **Grenade Shot Size** (how far beyond
-    the model a shot still hits it: 2 units), **Blows Set Grenades Off**. Debug > Tests > At You: **Drop a Dud Ahead**,
-    **Shoot the Nearest Grenade** (with Fire at Me's Ogre's Grenade for one in flight). **Tell me if grenades are
-    too hard (or too easy) to hit.**
-  - **Blows bat grenades; parry sounds once a burst; your own throws hurt you** (ROUND21.md, "Combat 4: grenade blows,
-    parry bursts, your own throws"): punch or swing at an enemy's grenade lying or rolling: it flies off the way the
-    blow went; only a full-speed blow (or a running chainsaw's bar) sets it off. Batting and Catching > Grenades >
-    **Blow Speed to Set Off** (20 m/s: punches, guns, pommels), **Weapon Blow Speed to Set Off** (34: blades and heads),
-    **Blow Damage to Set Off** (10). Parry an ogre's chainsaw: one parry sound for its swing's several hits (Parry and
-    Bash > **Parry Sound Once Per Burst**, 0.3 s). Throw a backpack high and stand under it: it hurts you when it falls
-    back (Carrying and Throwing > Throwing and Physics > **Your Throws Spare You For**, 0.35 s). Debug > Tests: Flung
-    Props > **Throw the Nearest Prop Up**; At You > **Dud Height**, **Dud Is Yours** off, **Drop a Dud Ahead**.
-    **Tell me if the set-off speeds feel right for your hardest punches and swings.**
-  - **Parry cooldown; a gentle release never hurts you** (ROUND21.md, "Combat 5: parry cooldown, gentle releases"):
-    parry an ogre's chainsaw or a knight's swing: the first blow of the attack is the parry (its ring, sparks, the
-    counter's shing and glow); its next quick hits are still parried (damage cut, the knock, the push) but silent, and
-    they neither restart the counter window nor spend parry stamina. Parry and Bash > **Parry Cooldown** (per monster,
-    0.4 s from its last parried blow; replaces Parry Sound Once Per Burst). Let go of the chainsaw or the laser cannon
-    at your body (not thrown): it never hurts you; throw a backpack up hard and it still can. Debug > Tests > Flung
-    Props: **Throw Up Speed** 0 and **Throw Up From Your Body**, then **Throw the Nearest Prop Up**.
-  - **Every melee monster parries; one attack, one parry** (ROUND21.md, "Combat 6: every melee monster parries; one
-    attack, one parry"): parry the Overlord's smash (firing range, monster 17): it parries now, as do the phantom
-    swordsman, the scorpion, the spawn's leap, the Guardian, the dragon up close and the marksman ogre. The Overlord's
-    double smash, a fiend's two claws: the second blow is a quiet cooldown blow (no stamina, no new counter). Parry and
-    Bash > **Parry Cooldown: Whole Attack** (on). Debug > Tests > Ahead of You: Guardian, Dragon, Marksman Ogre.
-  - **Parried monsters no longer drawn squashed** (ROUND21.md, "Parried monsters drawn squashed"): parry an ogre's
-    chainsaw (firing range, monster 1), a hell knight's, the Overlord's or a death knight's swing: it snaps into its
-    pain pose in a tenth of a second and holds it, never melting through a flattened in-between for half a second.
-    Debug > Logs > **Monster Poses** logs any monster still drawn squashed over 0.2 s.
-  - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
-    grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
-    touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,
-    chipped, broken) can be held in both hands. What you carry comes through teleporters. Hanging from a hold tires
-    you (Climbing page > Climbing Stamina; also on the Stamina page): 5 a second from one hand, 2 from both, nothing
-    with your feet on something; at none your hands let go (or, with Exhausted: Slip Time, slip off after sinking);
-    the gadget reads HANGING while it drains. `vr_debug_hands 1` (Debug > Logging > Hands) prints each hand's state when it changes.
-  - **Performance fixes (review, 2026-09-28)** (ROUND21.md, same title): the spectator camera has a **Frame Rate**
-    (60 fps by default: as often as a 60 fps recording takes), a **Resolution Scale** of 0.75 by default and an
-    **Anti-Aliasing** choice (Recording page); climbing's mantle and lenient grab, the props' settings and two caches
-    are cheaper or fixed with the same results; no GPU-sampling thread runs unless you profile (Debug > Profiling and
-    Memory > Memory Log: GPU keeps it on for the Memory Log).
-  - **Profiling: where the time goes** (ROUND21.md, same title): Advanced VR > Debug >
-    Profiling and Memory. Profiler Panel (In Front) shows each system's milliseconds a frame with a bar against the budget; CSV
-    Capture writes a row a second while on; the Hitch Log names what took a slow frame's time. See "Profiling" below.
-    Also found with it: the foveated rendering's setup waited for the driver each eye (0.2-0.4 ms of the CPU a frame,
-    fixed; the pictures are the same).
-  - **Recording: smoothed mirror and spectator camera** (ROUND21.md, same title): VR Settings > Body and Display >
-    Recording (Window View). **Smoothed Mirror** steadies the window's left-eye view (free); **Spectator Camera**
-    draws the game a third time for the window, from your head, steadied, 90 degrees wide (about one more eye's cost at
-    1080p). Record the window with OBS (Window Capture, "Windows 10 (1903 and up)", the window sized to the video,
-    1920 x 1080); the OBSMirror layer can't capture this OpenGL game. Try Smoothing, Level Horizon, and the spectator's
-    Resolution Scale while watching the headset's frame rate.
-  - **Slow motion for recording** (ROUND21.md, "Slow motion"): Graphics > Recording > Slow Motion, or bind a key to
-    `vr_slowmo` (toggles 0.25x). Everything slows (monsters, missiles, physics, effects, sounds lower) but your view;
-    your hands follow your controllers as fast as the slowed world allows. Try moving at a quarter speed while
-    recording, then speed the footage up 4x: does it look and sound natural? Try a real-speed swing in slow motion
-    (Hand Speed Limit), Slow Sounds off, Ease In and Out.
-  - **Gear lights: the gadget's side button** (ROUND21.md, "The gadget's side button: gear lights"): press the inner
-    button on the gadget's lower edge with your other hand's fingertip: a click, and the gadget's and your guns'
-    screens dim (their cast light and glow nearly gone, the text dimmer); press again to bring them back. Easy to find
-    and press, never pressed by a screen tap? HUD and Menus > Screens > Gear Lights: Button Size, Across/Up/Out, Show the
-    Button (its hit volume drawn).
-  - **Gadget fingertip, tap zone, trails in VR, Death View menus** (ROUND21.md, same title): the side button is pressed
-    by your drawn index fingertip now (Show the Button: the dot on your fingertip?); HUD and Menus > Wrist Gadget:
-    Fingertip Forward/Outward/Up/Pitch/Yaw/Roll, Button Tilt. Combat > Bullet Time > Screen Tap: Tap Zone Width/Height/
-    Across/Up/Out (Show Gadget Button: And the Screen Tap). In bullet time, fire the nailgun and the shotguns from the
-    hip and aimed: a wake behind each nail and pellet now, in both eyes? Die with Immersive (now the default) and open
-    the menu: the view glides out to Third Person, back in as it closes (Advanced > Body, Death View).
-
-  - **Bullet time and Sandevistan** (ROUND21.md, "Slow motion: bullet time and Sandevistan"): press the inner button
-    on your wrist gadget's lower edge with your other hand's fingertip: the world slows for as long as the TIME meter on
-    the gadget's screen lasts (6 s), the view drained and darkened at its edges; press again to stop. Combat > Bullet
-    Time: try **Sandevistan: You at Full Speed** (you move, turn, swing, shoot at full speed in the slowed world). Is
-    the button easy to find and press (Button Size, Fingertip Reach)? Is the look too strong? Graphics > Recording:
-    **Turn in Real Time**, **Move in Real Time**.
-  - **Bullet time's distortion trails** (ROUND21.md, same title): in bullet time, shoot the shotgun, the nailgun and
-    the rocket launcher, and let monsters shoot at you: a rippling glass-rod wake behind each bullet, nail, rocket and
-    monster's shot, fading along its length, gone soon after bullet time ends. Same in both eyes? Strong enough, too
-    strong? Combat > Bullet Time > Distortion Trails: Bend, Trail Life, Longest Trail, Trail Width, which projectiles;
-    Always shows them in normal time. Debug > Distortion Trails Test fires test shots across the view.
-  - **Grappling hook: rope, reel on demand, props and monsters** (ROUND21.md, same title): the hook bites and the rope
-    just holds you at its length (swing on it, walk closer; nothing pulls). Hold that hand's **B** (right) or **Y**
-    (left) with the trigger to reel in; let go and the rope keeps its length. Walls and ceilings, heavy props (100 kg
-    and more) and huge monsters (shamblers, bosses) pull you to them; props come to the gun (light ones fast, heavy
-    ones slowly: the explosive box at a fifth) and hang there for the other hand to take; power-ups fly in and are
-    yours; small monsters (dogs, grunts, knights, zombies, scrags) come fast and staggered, medium ones (ogres, hell
-    knights, fiends, vores) slowly and not. A slack rope hangs. Letting go of the trigger drops it, in flight too.
-    Advanced VR Options > Game > **Grappling Hook** (speeds, the classes' masses, stagger, stamina, haptics; Rope: Pulls
-    at once for the mission pack's old pull). Test it: `impulse 9` gives it (`impulse 151`/`171` put it in the main /
-    off hand).
-  - **Grapple: unreel; rope drawn in one piece** (ROUND21.md, same title): in the air, hold the grapple hand's **A**
-    (right) or **X** (left) to let the rope out (Unreel Speed, 300 u/s). Hanging, you are let down; a monster can walk
-    away; a prop hanging at the gun is lowered. On the ground A just jumps (Unreel Button Only When Airborne); a press
-    that jumped doesn't unreel until you press again. A short sagging rope is now one smooth chain, with no gaps
-    between straight links.
-  - **Menu: scroll memory and shortcuts** (ROUND21.md, same title): every VR Settings page reopens where you left it
-    (the selected row and the scroll), after Back to Game, after going back and coming again, and after a restart.
-    Weapon Offsets keeps the same row for another weapon. Under Back to Game, top left on every menu: **Advanced VR**
-    (the Advanced VR Options) and **Levels** (the level list). Point and pull the trigger; or click a stick (or go up
-    from a page's first setting), then up and down, A to press, B to go back to the page. B after a jump walks up
-    the menus as always (Advanced VR Options, then VR Settings, then Options; Levels, then Single Player).
-  - **Wall torches you can take** (ROUND21.md, same title): grip a wall torch and pull it out (or force grab it); it
-    is a burning club that lights the room round you as the wall torch did (same colour and brightness, and it casts
-    shadows). Its blows burn monsters; after 5 blows, or dropped, its fire dies in 6 s; held, it burns for ever; a dead
-    one lights again in another torch's flame. Carrying and Gibs > **Wall Torches**; its grip and fingers on **Held
-    Object Offsets** (hold it, open the page).
-  - **Rocks and bricks** (ROUND21.md, same title): loose rocks on natural ground (grass, dirt, rock) and at the foot of
-    rock and stone walls, bricks at the foot of brick walls, placed at map load where the textures say, more in
-    corners, the same places every load (e1m2, e2m2, e4m2, e1m1's outdoor ground). Pick one up, punch with it (a rock
-    or a brick hits harder the heavier it is: Held Object Weights' Melee Damage and the weight's curve), throw it (it hurts what it hits), force grab
-    it (a whole brick is a club, held by its end); they knock and clack as they land. Carrying and Gibs > Rocks and Bricks: on/off, Rocks, Bricks, Chance, In
-    Corners, In the Dark, Most Together, Most in a Map, Most in an Area, Spacing, Size Variation, Layout. Single player.
-    Also fixed: a punch holding a box hit 2.25x, not Box Punch Damage's 1.5x.
-  - **Deflection by blows and bashes; catching grenades; ogre aim** (ROUND21.md, same title): a swing or a blow bats
-    a monster's spike, laser, spit, ball, grenade or flesh off the weapon's face as a bat hits a ball (across: off to
-    the side; the face driven at the thrower: back at him, faster the harder); a bash or an armed shove sends it the
-    way you push. Parry, Bash and Headbutt > Batting Projectiles: **Batting Bounce** (0.6), **Batting Aim Assist**
-    (0.5). Ogres' grenades bounce and roll as physics; catch them (grip, or force grab even in flight), they fizz and
-    tick (**Held Grenade Fuse** 2.5 s, **Fuse Resets Every Catch** off; Carrying page, Grenades; **Catch Grenades**
-    also takes your launcher's with "Ogres' and yours"), throw them back at the ogre; held too long, they go off in
-    your hand. Ogres (and zombies) now lob at your height (Gameplay > Monsters, **Ogres Aim Grenades Up and Down**).
-  - **Swimming: air supply; strokes against the palm** (Swimming page; ROUND21.md, same title): a backhand (palm
-    facing you, the hand pushed away) or a hand swept back-first to reposition now pushes a quarter as much as a real
-    stroke (**Stroke Against Palm**, 0.25; 1 is the old swimming); palm strokes are unchanged. `vr_swim_debug 1` shows
-    each stroke's `palm lead` (+1 palm first, -1 back first). **Air Supply** (1.5): 18 s under water before drowning
-    starts instead of 12.
-  - **Stamina on the gadget; the glow** (ROUND21.md, "Stamina on the gadget; the glow"): with Parry Stamina on, the
-    bar over the weapon is gone; the wrist gadget's top row shows STAMINA and ten cells instead. In the firing range,
-    turn on DUMMY ATTACKS and parry: each one-handed parry takes three cells; the cells blink when one more would
-    knock the sword away; EXHAUSTED (and the screen's frame) blinks when none is left; a sweep runs along the empty
-    cells while it comes back. Each parry turns the label into COUNTER over a bar that runs out with the window.
-    Gameplay > Parry, Bash and Headbutt > Stamina on the Gadget turns it off (also HUD and Menus > Screens > Stamina and
-    Counters). **Counter Window Glow** (Counter-Attacks; now off as shipped, and your saved "on" is turned off once):
-    turn it on to try it: the weapon glows gold at its edges and sheds embers until the window closes.
-  - **Dynamic wounds, burns and wetness** (Gore page > Wounds on Models; ROUND21.md "Dynamic wounds, burns and
-    wetness"): shoot a grunt a few times, blow up an ogre, shove a monster into lava or slime, let a grunt shoot you,
-    wade in water: blood where each blow landed, scorches, char with embers, wet and drying; a health pack washes
-    your blood off. Your body and hands no longer use the wound skins (Dynamic Wounds off: as before).
-  - **Enemies Hurt by Liquids** (Gameplay > Damage, on; ROUND21.md, "Enemies hurt by liquids; holster orientation"):
-    shove a monster into slime or lava: it burns as you would (lava fast, with smoke; slime slowly). Fish, bosses and
-    Hephaestus are immune; zombies burn up in lava.
-  - **Holster orientation** (Hotspots: Shoulder / Hip / Upper Pitch, Yaw, Roll): turn each pair of holsters and the
-    guns in them; the left mirrors the right. Draw and holster as before.
-  - **Holster draw blend** (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept"):
-    - A gun drawn from a holster turns smoothly into your hand, the shortest way, over Draw Blend Time. A gun you
-      holster settles into the holster over Holster Blend Time. Both are on Weapons > Immersion: 0.3 s each, 0 for at
-      once. The gun can fire at once.
-    - Your holstered poses are now everyone's defaults.
-    - Your settings are saved when the menu closes and when you Apply a body calibration. Before, a game stopped from
-      the debugger kept none of them.
-  - **Per-weapon holstered pose** (Weapon Offsets > Holstered; ROUND21.md, "Per-weapon holstered pose"): hold a
-    weapon, open its page, pick Hip, Upper (Chest) or Shoulder (Back) and move and turn it with the six sliders: while a
-    Holstered setting is chosen, the weapon you hold is drawn in both holsters of that kind, so look down (or at the body
-    preview) as you tune. Each kind of holster has its own pose; the left mirrors the right. Draw and holster as before.
-  - **Items as physics pickups** (ROUND21.md, "Items as physics pickups; sinking; spinning shapes"): grip a hanging
-    weapon (it is yours at once) or knock it with an open hand (it falls); grip or force-grab a key, the biosuit or a
-    rune and let go of it at a hip or shoulder holster to take it (a key you have knocks and drops); powerups as
-    before. Carrying and Gibs > Armour and Pickups > Weapons and Keys turns it off. In the firing range the weapons on
-    the tables should lie on them, none cut by the table top; Show Physics Shapes: hanging items' outlines turn with them.
-  - **The training dummy bleeds as a grunt** (ROUND21.md, that title): hit it with the sword, a punch, the shotgun,
-    the chainsaw: blood sprays and mist, wounds on its model, small gibs torn out, blood on your hands, arms and what you
-    hold, as on a grunt; it still reports every hit and never dies. Gore > Training Dummy: Dummy Bleeds off makes it
-    clean as before; Dummy Dies on kills it as a grunt once a run of hits takes a grunt's 30 health: a slash at its head
-    beheads it, a shotgun headshot may pop its head (Head pop chance, as a grunt's), an overkill below -35 gibs it,
-    otherwise it falls and lies as a grunt's ragdoll; it stands again 2 s on (no backpack). The decapitation tests
-    (`vr_decap_test`, Debug > Gore Tests) work on it too.
-  - **The training dummy's enemy and health** (ROUND21.md, "Training dummy: any enemy, its health over its head"):
-    Gore > Training Dummy > Dummy Enemy picks what it stands as (grunt, enforcer, knight, death knight, ogre, fiend,
-    shambler, zombie, vore, scrag, rottweiler, spawn, rotfish; with the mission packs gremlin, centroid, mummy, wrath,
-    overlord, electric eel): its model, size, hit zones (a headshot's yellow number only where that monster has a head
-    zone: none on the fiend), the head it loses, its blood and its death are that monster's; it still stands still and
-    reports. Its board over its head shows its name, a bar and its health (in both eyes and the spectator view, turned
-    to face you); hits take it down, and 3 s after the last it fills up again (Dummy Health Refills). Dummy Health sets
-    it (Its Own: the monster's, a grunt's 30, an ogre's 200). Dummy Dies (on as shipped) kills it as that monster when
-    its health runs out: try a slash at a knight's head (beheaded), a shotgun at an ogre's head (popped), a zombie
-    (any head slash beheads it, as a zombie). It stands again 2 s on, as whatever enemy is chosen then. Off: it stays at
-    0 ("would kill" in its line). Debug > Gore Tests > Training Dummy Tests (`vr_dummy_test 1..4`) prints what it is,
-    hits it and prints its health.
-  - **Blunt melee head pops by chance** (ROUND21.md, that title): punch, pistol-whip and crowbar grunts dead in the
-    head: heads almost never pop; Mjolnir nearly always on a solid blow; a club now and then. Gore > Decapitation >
-    Head Pop Chance (Fist .. Mjolnir, Hit Speed and Damage); Debug > Gore Tests 49-55.
-  - **Blunt melee head pops by chance; Quad always pops** (ROUND21.md, that title): punch, pistol-whip and crowbar
-    grunts dead in the head: heads almost never pop; Mjolnir nearly always on a solid blow; a club now and then. With
-    Quad Damage every headshot kill pops (any gun at any range, nails, rockets, grenades, blows, throws); a slash still
-    cuts. Gore > Decapitation > Head Pop Chance (Fist .. Mjolnir, Hit Speed and Damage, Quad Damage: Always Pop);
-    Debug > Gore Tests 49-58.
-  - **Dummy attacks, for parry practice** (ROUND21.md, "Dummy attacks (firing range)"): in the firing range, press
-    DUMMY ATTACKS (the panel south of the training dummy). Stand in front of it: every 2.5 s or so it winds up (a
-    sound, a glow, the rifle raised) and strikes you as a knight would. Parry it: the parry, parry stamina and
-    counters work as in a fight, and your counter's readout shows on the dummy. Off at every map load. Settings:
-    Gameplay > Parry, Bash and Headbutt > Training Dummy Attacks (time between blows, randomness, wind-up, reach,
-    damage). Your motion takes are unaffected: replays turn it off. A take recorded with it on says so, and its
-    replays have the dummy strike at the same moments.
-  - **After the posing test** (ROUND21.md, "After the posing test"): hold a gun into a monster's head and fire (a
-    headshot now); while posing, the hand passes through the weapon (the solved grip shows for 1.5 s after A/X);
-    Weapon Offsets > Hand and Grip > Tuning Aids: Show Controller is drawn in your palm as a Quest 3 controller, **Controller Preview**
-    sliders line it up with your real one; **Shot Pitch / Shot Yaw** (under Muzzle and Posing Mode) turn where shots go
-    without moving the gun: with Show Controller Laser, put the red line through the sights.
-  - **Physics: Box3D only** (ROUND21.md, "Simplification: Box3D only, knights always drop swords"): the Physics
-    Engine option is gone (Throwing and Physics > Physics starts at Bounciness). Thrown and dropped things collide with each other: stack boxes,
-    build a pyramid, throw a box into a stack, sweep one off with a held box; throws at monsters, weapons landing on
-    their sides, backpacks and armour on slopes, boxes on lifts, things floating, gibs.
-  - **Knights always drop their sword** (the Knights Drop Swords slider is gone; Advanced VR Options > Gameplay > Knights' Swords keeps
-    Sword Damage): every knight and hell knight you kill drops it, gibbed or not; a statue knight has none.
-  - **Melee, redesigned:** swings in any direction (backswings too), stabs with the tip, pommel/butt strikes with
-    the near end, parry bash = hold the stance ~0.5 s then push; palm shoves (both palms harder). Melee Speed was
-    reset once to 4 m/s. Tell which of your motions still misread, and record more takes of them.
-  - **Melee fixes** (ROUND21.md, "Melee fixes: flashlight, axe on walls, gibs"): punch with the torch in your fist
-    (both grips: as hard as a gripped fist); shove with the free palm while the torch hand pushes along (a two-handed
-    shove); the torch hand pushed alone, palm first, does nothing. Chop a wall with the axe, Mjolnir, a sword or a
-    gun, sideways, diagonally and from overhead: the wall's thunk and buzz. Punch or chop a gib lying on the floor:
-    it bursts.
-  - **Stamina for shoves and strikes; thrown damage on gibs** (ROUND21.md, that section): in the firing range, shove
-    and strike the dummy without pausing (DUMMY ATTACKS on to parry too) and watch the gadget's top row drain: a
-    two-handed shove takes 20 of 100, a one-handed one 15, a weapon's blow 8 (two-handed 6), a punch 4, a parry 30
-    as before. With nothing left, the dummy's readout says "exhausted" and the damage (and a shove's push) is half.
-    Stop for 2 s: it comes back. Gameplay > Parry, Bash and Headbutt > Shove and Strike Stamina has the switches and
-    costs. Throw the axe, a sword, a box or a gib at a gib lying on the floor: it bursts.
-  - **Motion recorder:** Advanced VR Options > Motion Recorder; keep adding takes, especially of what misreads.
-  - **Review Takes** (under Motion Recorder): the takes that fail the evaluation or are suspect (To Review). In the
-    firing range, pick one: Play Ghost replays it in front of the dummy (translucent weapons, their lines, the tip's
-    trail, the events), then Keep, Discard (into `motions/discarded/`) or Relabel it; Undo Last takes any of them
-    back. Re-evaluate This Take / Re-evaluate Shown run the evaluation in a second copy of the game in the background
-    (a small window appears; your headset view is untouched). Tell whether the ghost reads well in the headset, and
-    whether a re-evaluation drops frames.
-  - **Weapons stop at monsters and things:** a gun, a sword or a fist pushed into a monster, a corpse or a box on the
-    ground stops at the model as drawn (not its box), the hand and arm with it; past 20 cm it gives way (Hand/Gun
-    Calibration > Against Monsters and Things). Hits are unchanged: they come from your hand.
-  - **Fitted hands:** fingers wrap guns, blades and objects; recoil moves the hand; two-handed grips steady (no
-    jitter); the trigger finger pulls; hotspots (Weapon Offsets) incl. the Cup pistol grip; Inherit From for the
-    alternate models. Check the thumb on pistol grips and objects held from far away (no more floating).
-  - **Hand tuning (Weapon Offsets):** Tuning Aids (Show Controller, Show Controller Laser), Hand and Weapon Together
-    (moves the aim too), Hand Only (the bent wrist), per hotspot Held Hand, Overlap per weapon and per hotspot,
-    Fingers: Manual per weapon and per hotspot. A cup hotspot is now where your palm goes (yours was moved once).
-    Take the super nailgun a few times: the same grip each time.
-  - **Flashlight:** hanging from the belt (off-hand side; reach for it, it taps and brightens), B/Y away from a gun
-    flips the grip (a quick spin now), B/Y at the head wears it; it should never be grabbed by a guard or a punch.
-    After your test: the overhead grip sits in the fist (it went through the hand); each grip has its own sliders
-    (Flashlight page, In the Hand: Low Grip / Overhead Grip); the beam is white by default (Beam Hue, Beam
-    Saturation); wider offset sliders; Cord off hides the cord.
-  - **Wrist gadget:** Screens > Messages (test button, messages only on the gadget), Graphics > Performance > FPS
-    Counter on the Gadget (Off / Basic / Detailed: now, average, min/max, late frames, graphs).
-  - **Gadget on the forearm:** bending the wrist no longer turns it (body off: at all; body on: only as far as the
-    drawn forearm turns, which Body > Wrist Limits sets); rolling the hand turns it with the forearm.
-  - **Torch from the belt:** always in the overhead grip; off the head or a gun, the grip nearer its beam.
-  - **Gadget model:** olive straps all round the forearm, fitted to the bracer of your build; a seamed casing with
-    screws, buttons, an antenna and the hologram's emitter.
-  - **Casings** splash in water; **beam quality** (Flashlight section).
-  - **Two-handed props:** grip what one hand carries with the other to hold it in both: it moves and turns with both
-    hands, and letting go of both together throws it (tumbling as your hands turned it). Let go of one and the other
-    keeps it: that's how to pass it between hands. Only a one-handed carry goes into the pack at a holster.
-    Carrying and Gibs: Two-Handed Carrying, Two-Handed Hand Drift.
-
-- **Earlier rounds:** their "what to try" lists went with the round logs (`ROUND6.md` to `ROUND20.md`, git history: above).
-- **Body** (new): the old floating torso is replaced by a body whose arms reach your hands and which crouches and
-  leans with your head (Options > VR Settings > Body: Off / Torso / Torso and arms / Full body). To see the whole
-  pose, `vr_body_debug 2` (facing you) or `3` (from the side) shows a copy in front of you. Things to tell me:
-  - where the elbows go when you aim, reload or reach behind you;
-  - whether looking down at your chest feels right (`vr_body_torso_back`, metres the torso sits behind your neck);
-  - whether crouching looks right (`vr_body_crouch_tilt`, degrees the back tilts forward in a full crouch).
-
-  The tuning cvars are listed in `docs/vr-port/IK.md`. Holsters and the virtual stock now follow the body when you
-  crouch or lean; `vr_body_anchors 0` restores the old placement for comparison.
-
-- **Walking around the room** moves you in the game (with collision), as in the old engine
-  (`vr_roomscale_move_mult`).
-- **Holsters:** bring a hand to a hip, the chest or a shoulder. The holster lights up while hovered; let go of a
-  weapon there to holster it, grip there to draw. Bringing both hands together passes a weapon between them.
-- **Body collisions** (VR menu > Body > Body Collisions; ROUND21.md, "Body collisions"): push a hand into your other
-  forearm, your chest, the wrist gadget or the other hand, and sweep a held gun through your other arm. It should stop
-  at the surface and your arm follow it; push on (about 70% of the way through) and it slides through, and stays
-  through until it is clear. Try the two-handed grips, a prop in both hands and the holsters: none should be blocked.
-- **Two-handed aiming:** with a gun in one hand, grip its foregrip with the other (empty) hand: the hand snaps
-  onto the gun. Weapons trail the hand a little depending on their weight (Weapon Weights: the
-  Spring, `vr_weight_spring_*`); hands and barrels stop at walls. With a hand
-  near the shoulder, the virtual stock steadies the aim (`vr_2h_mode`, `vr_virtual_stock_thresh`).
-- **Flick reload:** with the super shotgun, flick the wrist to snap it open (`vr_spinreload_x_angular_threshold`).
-- **Teleport:** `vr_teleport_enabled 1` and bind a button, e.g. `bind LTHUMB +teleport`. Aim with the off hand,
-  release on a blue spot.
-- **Fingers** curl with the trigger (index), the grip (middle to pinky) and the thumb resting on a button or stick.
-- **Movement:** `vr_movement_mode 0` moves where the off hand points instead of the head; in both modes, pointing
-  the off hand up or down while pushing forward swims up or down.
-
-- **HUD:** the status bar is on the off hand (Options > VR Settings > Status Bar for the main hand); centre
-  prints and messages float in front of you. Each weapon shows its ammo (and clip) on the weapon itself.
-- **Crosshair:** Options > VR Settings > Crosshair: a dot, a laser or a soft laser from each muzzle.
-- **VR Settings:** Options > VR Settings (or `menu_vr`) has the tuning pages (Weapon Offsets and Weights, Held
-  Object Offsets and Weights, Hand/Gun and Body Calibration), the comfort and weapon settings, and Body and Display
-  and Headset pages;
-  the sticks move and change, A selects, B goes back. "Set Height Now" calibrates the height while standing.
-  The buttons at the top left of every menu: Back to game, Advanced VR, Levels (the laser; or a stick's click).
-
-`vr_status` shows tracking, hand angles, hotspots and grab and two-handed state; `vr_dumpview` shows the drawn
-hands, weapons and finger curls.
-
-## Profiling (CPU and GPU time per effect)
-
-**Where the time goes, while you play** (ROUND21.md, "Profiling: where the time goes"): VR Settings > Advanced VR
-Options > Debug > Profiling and Memory.
-
-- **Profiler Panel**: *In Front* floats a table a metre ahead (it turns after you when you look 30 degrees away);
-  *Over the Wrist* puts it above the wrist gadget's hand. Each line is one of the game's systems (Box3D, QuakeC, the
-  world's drawing, the shadow maps, waiting for the headset...): its milliseconds a frame over the last second, its
-  worst frame, and a bar against the frame's budget (the whole bar: one refresh, 11.1 ms at 90 Hz). Blue: the CPU's
-  work; grey: waiting (not work); gold: the GPU's; red: one system over the whole budget by itself. The top lines:
-  the frame rate, the CPU's work ("busy": without the waits), the GPU's, and each group's total.
-- **CSV Capture**: turn it on, play what feels slow, turn it off. Each second is a row of
-  `quakevr/profile/systems_<date>_<time>.csv` (a column per system, its average and worst frame, the GPU's, the
-  counts), for a spreadsheet. Send me that file.
-- **Hitch Log** (Over 1.5 Frames by default): while the panel or a capture is on, every frame that takes longer goes
-  to the console and `quakevr/profile/hitches_<date>_<time>.csv`, with what took the time: the systems, and the
-  three costliest scopes by name (e.g. `screen/3D/eye L/scene/vr opaque (text3d)/decals 423.3` for the first decal).
-- **Print Report**: the last 5 seconds' table in the console (`vr_profile_report [seconds]`; with `-condebug` it is
-  in `qconsole.log` too).
-- **Detail**: *Every Trace and Builtin* also times each collision trace and each QuakeC builtin call apart (dearer).
-
-**QuakeC's time by function** (Debug > Profiling and Memory > *Time QuakeC Functions*, *QuakeC Time Report*):
-`vr_qcprofile 1`, play, then `profile_qc [n]` (default 15; `profile_qc 0` only zeroes) prints, a frame (host frames
-since the last report): the server QuakeC's whole time; the n functions with the most time of their own (`self`: their
-statements and the builtins they call, their QuakeC callees out), with their time callees in (`incl`) and calls; the n
-builtins (`b`), and the n caller > builtin pairs (`p`: which function's calls of which builtin cost the most). TSC
-ticks round each call (one test a call while off); the totals include the timer's own cost, so compare runs with it
-on both sides. A scenario's split: insert `vr_qcprofile 1; profile_qc 0` before a scenario's `vr_bench_begin` and
-`profile_qc 40` after its `vr_bench_end` (`qvrbench.py script <name> --out x.cfg`). `profile [n]` (Quake's) still
-counts instructions.
-
-**The edict index** (`vr_edictindex`, on; vr_edictindex.cpp, ROUND21.md "QuakeC's scans through an index"): `find()`
-by classname and `findflags()` on .flags (QuakeC's bits: monsters, clients, items), lit wall torches, noticeable bodies
-and three more QuakeC fields step through an index instead of every edict. `vr_edictindex_verify 1` walks as well on
-every search and prints `vr_edictindex ERROR: ...` for any difference (the walk's answer is used); `vr_edictindex_stats`
-prints the searches, rebuilds, edicts read again and differences since the last. A feature test run with
-`vr_edictindex_verify 1` that prints no ERROR line found the index exact for everything it did.
-
-In the console: `vr_profile_overlay 1` / `2`, `vr_profile_csv 1` / `0` (or `vr_profile_csv_toggle`, to bind to a key),
-`vr_profile_hitch 1.5`, `vr_profile_detail 2`, `vr_profile_gpu 4` (the GPU's times on one frame in 4: each timer query
-stalls the GPU a little; 1 every frame, 0 none). All are off again after a restart.
-
-**The call tree:** `vr_profile 1` (in the console) times each part of every frame, on the CPU and on the GPU (OpenGL
-timer queries, read a few frames later, on one frame in `vr_profile_gpu`), per eye. Every
-`vr_profile_interval` seconds (5; 0: only on demand) and on `vr_profile_dump` it writes the averages and the
-worst frame of each part to `quakevr/profile/profile_<map>_<date>_<time>.csv` (one file per map, one block of rows
-per interval; the header lines give the map, the eye resolution, the graphics preset and the graphics settings)
-and prints a one-line summary with the costliest parts. `vr_profile_dump` also prints the whole tree.
-`vr_profile 2` also shows the profiler's panel over the wrist gadget. `vr_profile 0` (the default) stops it.
-
-To send me a profile: play a while with `vr_profile 1` in the same spot and settings (the start of E1M1, a big
-fight, ...), then `vr_profile_dump`, and send the `.csv` (and `qconsole.log` with `-condebug`). Comparing the
-presets (`vr_graphics_preset 1` .. `4`, a profile each) shows what each effect costs.
-
-Reading it: `frame` is the engine's frame on the CPU (`xr wait`, the headset's pacing, and `swap` are waiting, not
-work: "CPU busy" leaves them out). Its GPU time spans the frame on the GPU's clock, including time the GPU sits idle
-while the CPU waits in the runtime (`xr submit`: xrEndFrame paces the frame), so the eyes' own GPU time (the
-summary's "eyes") is the real load; `frame period` is the time
-between frames. Under `screen/3D`, `eye L` and `eye R` hold each eye's `scene` (`world+brush`, `alias` models,
-`particles`, `sky`, `water`, `translucent`, Quake VR's `decals`, `blob shadows` and `vr particles`), `bloom`,
-`postprocess`, the `hud panel` and the `mirror` to the window; the shadow maps (`dlight shadows`, `map light
-shadows`) are drawn once, in the left eye's `setup view`. `self` columns leave out the parts inside a part.
-
-**Shadow maps, layered or a face at a time** (LIGHTING.md, "Layered shadow casters"): `vr_shadow_layered_check 20`
-(Debug > Profiling and Memory > Check Layered Shadows) draws the frame's shadow maps both ways 20 times (draw calls,
-faces, model draws, CPU and GPU ms each), then reads both atlases back and compares them texel by texel: `0 texels
-differ` in both is the pass. `vr_shadow_layered 0` draws a face at a time (the old way). `vr_shadow_layered_check 20
-cache` (Debug > Profiling and Memory > Check Shadow Caster Set-up) compares the casters set up again for each light with
-the set-up kept for the pass (r_alias.c, R_AliasDepthCacheBegin): the set-ups made and reused, and `0 texels differ`.
-
-**Benchmark scenarios** ([BENCHMARKS.md](BENCHMARKS.md)): the kit's `bench.sh` runs a set of fixed scenarios (idle,
-teleporters, combat, physics, effects, lights, liquids, custom maps, flat) and compares a baseline with new results;
-each run's numbers come from `vr_bench_begin <name> [frames | <seconds>s]` (frame, CPU and GPU percentiles, each GPU
-pass, heap events, what there is) into `quakevr/profile/bench/<name>.json`. In the headset: Debug > Profiling and
-Memory > *Benchmark Capture (10 s)* (`manual.json`).
-
-**Spatial audio:** Debug > Tests > Spatial Audio > *Spatial Audio Benchmark* (`vr_snd_bench <seconds> [label] [sounds a
-second] [orbit units/s]`) plays monsters', weapons' and explosions' sounds round you while the listener circles, then
-prints each stage of the mix (the voices, the reverb's convolution and decode, Quake's channels, the limiter, the
-game-time render...) a frame: median, 95th and 99th percentiles, worst, ms per second of sound; the simulations' runs;
-the sounds' memory. Rows also go to `quakevr/sound_tests/bench.csv`. `vr_snd_test golden` checks a change leaves the
-mix's sound as it was (ROUND21.md, "Spatial audio: optimised").
-
-**If it gets slower the longer you play:** `vr_memstats` (in the console) prints the GPU's memory (NVIDIA: used by
-all programs, and how often the driver had to move things out of it: "evictions"), the game's RAM, its textures and
-every live OpenGL object, and the average frame time since the last `vr_memstats`. Type it at the start, again after
-each map load, and send the lines (with `-condebug`, they are in `qconsole.log`): if the game's counts stay the same
-while the frame rate drops, the game is not leaking, and the slowdown is in SteamVR / Virtual Desktop (the profile's
-`xr submit` and `xr acquire` growing while the eyes do not says the same). To tell for sure once it has slowed
-down: quit and restart only Quake VR (same map): if the frame rate is back, it is the game; if it is not until
-SteamVR (or Virtual Desktop) is restarted too, it is them. The Memory Log (`vr_memstats_log`, on by default: a row a
-minute in `quakevr/profile/memstats_<date>.csv`) also times each frame whatever `vr_profile` is: our CPU work
-(`busy_ms`) and the eyes' GPU time (`gpu_eyes_ms`) next to the runtime's waits (`xr_waitframe_ms`, `xr_submit_ms`,
-`gpu_submit_ms`) and missed refreshes (`slow_frames`), with counts of what there is to draw (corpses, thrown weapons,
-decals, lights, particles). Note the time when it feels slower and send that file (ROUND16.md, "Slowdown"; removed 2026-10-06; git history). Its GPU
-columns (clocks, slowdowns, each program's use of the GPU: `gpu_*`, `gpu3d_*`, `gpu_programs`) come from a sampling
-thread that runs only while profiling (`vr_profile`, the Profiler Panel or its CSV Capture) or with
-`vr_memstats_log_gpu 1` (Debug > Profiling and Memory > Memory Log: GPU); otherwise they are empty. With `developer 1` the console says when
-that thread starts and stops (`gpustats: sampling thread started`).
-
-## If something goes wrong
-
-Add `-condebug` to the command line (or `QuakeVR.bat -condebug`): the console goes to `qconsole.log` in the Quake folder, which
-is the most useful thing to send me along with a description. In particular:
-
-- **Nothing in the headset:** look for the `VR:` lines. They say which OpenXR call failed, with its result code.
-  `vr_restart` retries after the headset is on or the runtime is running.
-- **The picture is wrong** (double vision, wrong scale, swimming): `vr_status` output while it happens, and a
-  screenshot of the desktop mirror (`vr_window_view 3` shows both eyes).
-- **Hands or weapons are in the wrong place or at the wrong angle:** `vr_status` and `vr_dumpview` while holding the
-  pose. Hand Pitch on VR Settings (Hand Calibration) is the first thing to adjust.
-- **Fingers wrong on something held** (through it, or stuck open): `vr_debug_grasp 1` prints each grasp solve;
-  `vr_grasp_dump main hand.obj` writes the drawn hand and the held model as an .obj to send me. Hand/Gun
-  Calibration > Fit Fingers to What You Hold off shows the controller's curls alone, Jointed Hand off the old
-  hands.
-- **A crash:** the log up to the crash, and what you were doing.
-
-## Testing without a headset
+## The mock headset
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
 `vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it (`vr_mock_hand_to <main|off> <x> <y> <z>` puts a hand at a world point, `vr_mock_hand_to main weapon <fraction> [<cm>]` over the nearest weapon lying about, that far along it: ROUND21.md, "Crowbar follow-ups"; `vr_mock_hand_to main spot <index> [<cm>]` over its hotspot `index`, `vr_mock_hand_to off carried` at the handle of the weapon the other hand carries: ROUND21.md, "Weapons taken by their hotspots"; `vr_mock_hand_to off held <fraction> [<cm>]` in the weapon the other hand holds or carries, that far from its handle to its tip: ROUND21.md, "Weapons held anywhere") (grip state across weapon changes: `Misc/quakevr/twohand/grip_state_test.py <agent>`, ROUND21.md, "Grips reset with the weapon"); `vr_mock_swing <period>`
@@ -637,8 +63,8 @@ The two headset images must match while the spectator colour changes. Check the 
 The spectator camera's own settings: `vr_spectator_rate` (1 every frame, 2 or 3 every 2nd or 3rd, more than 3 at most
 that many images a second; the window pass shows the last image between: `window view` outside `spectator` in the
 profile) and `vr_spectator_aa` (1 the window's MSAA, `vid_fsaa`; 0 none). Its timings need a real window size: the
-kit's run.sh opens 960 x 540 (`vid_width` and `vid_restart` don't change it); the scratchpad's `spectator/runwh.sh
--W 1920 -H 1080` does. Timings need
+kit's run.sh opens 960 x 540 (`vid_width` and `vid_restart` don't change it); a one-off wrapper did (`spectator/runwh.sh
+-W 1920 -H 1080`, not kept). Timings need
 `run.sh --exclusive`; the mock's frame cap (`host_maxfps` 250) sleeps in 15.6 ms steps in an exclusive run (Windows'
 timer), which the report shows as "frame cap" (idle), not work.
 
@@ -861,7 +287,7 @@ regions; `developer 2` adds each head ray's distance from the head sphere; remov
 `234` fire one nail / rocket / hook-class nail through the next corner column (then the middle; the target takes no
 damage), `impulse 235` says what it touched. `vr_hitmodel_bench [rays] [tolerance] [newest]` fires random rays at each
 monster's box: the share that meets the model, each test's cost, how far the model reaches out of its box;
-`vr_hitmodel_stats [reset]` the tests so far. The archived melee takes: the scratchpad's `hitbox/melee_replay.sh`.
+`vr_hitmodel_stats [reset]` the tests so far. The archived melee takes: the kit's `eval.sh`.
 Held weapons against models (round 21): `vr_debug_model_collide 1` prints each hand's push, `2` draws the rays;
 `vr_model_collide_bench [n] [list]` times the test, `vr_model_collide_bench probe` lists the model triangles a ray along
 the view goes in and out by. Shots pushing props (ROUND21.md, "Shots push props"): `bash Misc/quakevr/shotpush/shotpush_test.sh <worktree> [sg ssg ng sng lg]` prints how far each weapon moves a health box and an explosive box; `vr_debug_shots 1` with `developer 1` prints each push. The player's hitbox (HULLS.md; ROUND21.md, "Player hitbox defaults"): `vr_hull_hittest [distance] [spread]` counts grunt-like shots hitting you at Width Shots Hit (`vr_hull_hit_width`); `Misc/quakevr/hullhit/`'s `hit_test.sh <worktree> [frames] ["kind:dist ..."] ["widths"]` (monsters left to attack you on e1m1, the health lost), `ogre_test.sh` and `splash_test.sh` (an ogre's grenades, direct and passing beside you), `walk_test.sh` (random walks with the defaults). `vr_test_remove <n>` removes entity n as QC's `remove()` would (a slot to reuse; ROUND21.md, "Performance fixes
@@ -950,15 +376,14 @@ your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:
 up ahead, 160: straight up), `+attack` fires and holds, `vr_mock_button main secondary 1` / `0` reels; with
 `developer 1; vr_grapple_debug 1` (2: the rope's state too) the log has what it bit, its mass and class, and each
-reel's distance, rope and closing speed. The scratchpad's `grapple/run_all.sh` has the round's checks.
+reel's distance, rope and closing speed.
 Unreel: `vr_mock_button main primary 1` / `0` (A). In a script, add `+jump` / `-jump` with it for A's jump: a mock
 button's key binding runs only after the script's remaining commands. The log has `unreel on`, `unreels:` (rope,
 distance, paying out u/s, on ground), `unreel off (braked)` and `unreel button on the ground`.
 `vr_grapple_unreel_airborne 0` unreels standing. With `vr_grapple_debug 2` each rope drawn prints its chord, length,
 sag, samples, links and build time twice a second. The profiler's **grapple rope** system is its cost. For rope
 close-ups, bigger eye images: `vr_mock_eye_size 1440; vr_restart` before the map, `vr_eyeshot 1` before each
-`screenshot`. The scratchpad's `grapple2/` has `unreel.sh`, `unreel_prop.sh`, `ropeshots.sh`, `slackshots.sh`,
-`measure.sh` and `measure_long.sh`.
+`screenshot`.
 Grapple persistence (ROUND21.md, "Grappling hook: one persistent system"): `impulse 239` prints every hook (its state,
 what it is in, where its gun is, the rope) and your hands' places; `impulse 233` takes what the hooks are in (a
 pickup's take; a thrown weapon into an empty hand). The off trigger in a script is `+offhandattack` / `-offhandattack`
@@ -984,7 +409,7 @@ position and its distance from the button and from the player; `developer 1` a h
 weapon (refused).
 Body calibration (ROUND21.md, "Body calibration"): `vr_bodycal standing` runs it in the mock too. A synthetic person
 doing its poses is a take of raw tracking played alongside: `vr_motion_play <take> watch noplace`, then
-`vr_bodycal standing` in the same frame (the scratchpad's `bodycal/gentake.py` makes them); `vr_bodycal_print`
+`vr_bodycal standing` in the same frame (a one-off script made them, not kept); `vr_bodycal_print`
 prints the result. `vr_bodycal_refit <file>` fits a saved session (`quakevr/bodycal/`) again; `vr_bodycal_debug`
 prints the empty hands' wrists.
 VR Calibration (ROUND21.md, "VR Calibration"): the main menu opens on Select Campaign; `vr_mock_key uparrow` four times
@@ -1021,9 +446,9 @@ go, clear: `body collide: t ... main weapon/other forearm: block -> pass (throug
 `body_collide_trace.txt` (the game directory): a line a frame while any is on, each hand's tracked place, its drawn
 offset and target (cm) and each contact's state, weight, share through, push and way out; `2` also draws the proxies
 (torso and head blue, arms green, gadget yellow, hands white, weapons red, stocks dark red) and each push (yellow).
-`vr_body_collide_bench [n] [list]` times the solve as it is now (and lists the capsules). The scratchpad's
-`handcoll/scen.py` runs a scenario with and without it and composes the shots (`s1.py` .. `s10.py`); `trace.py`
-prints a trace in the mock's tracking-space metres (e1m1's start). Poses that meet: the main forearm raised across
+`vr_body_collide_bench [n] [list]` times the solve as it is now (and lists the capsules).
+The round's scenario scripts (`handcoll/`, not kept) ran each case with and without it in the mock's tracking-space
+metres (e1m1's start). Poses that meet: the main forearm raised across
 (`vr_mock_hand main -0.10 1.45 -0.45 0 80 0`) with the off hand under it at `0.157 1.26 -0.426` going up; the chest
 from `vr_mock_hand main 0.06 1.33 -0.14 0 90 90` going back (+z); the gadget (off forearm `0.10 1.45 -0.45 0 -80 0`)
 from `vr_mock_hand main -0.15 1.66 -0.50` going down.
@@ -1178,7 +603,7 @@ Draw and holster blend (ROUND21.md, "Holster draw blend; holster defaults; body 
   <roll>; wait30; +grabright; vr_mock_button main grip 1`. A roll near 180 gives a start near 180 degrees.
 - **Holstering:** put it back at the same place with `-grabright; vr_mock_button main grip 0`.
 - **Pictures:** use a slow blend (`vr_weapon_draw_blend 3`) and `vr_mock_camera 0.75 1.35 -0.55 25 140`.
-- **The config across a killed session** (scripts in the scratchpad's `notes4/`):
+- **The config across a killed session**:
   1. Run `vr_bodycal_refit bodycal/<session>.txt; vr_bodycal_apply` with no `quit`. The run times out and is killed.
   2. While it runs, have a watcher copy `quakevr/ironwail.cfg`: the kit restores the baseline config after the run.
   3. Start a second run from that copy.
@@ -1215,7 +640,7 @@ reads (`presslit` / `pressgame`: lit, the game's grip winning, at the hand's las
 puts the torch home with `vr_flashlight_home` (turning the flashlight off and on keeps where it is, as it is saved).
 
 Wrist gadget: `vr_gadget_info` prints its screen's centre and axes (right = along the forearm, up, out). To bend the
-wrist in the mock without moving it, turn the controller about the wrist: the scratchpad's `gadget2/mkposes.py` makes
+wrist in the mock without moving it, turn the controller about the wrist: a one-off script (not kept) made
 such `vr_mock_hand` poses (flexion, deviation, twist about the forearm's own axes, from a straight wrist found by
 `straight.py`). `vr_gadget_fps 2` with `host_maxfps 45` or a `timerefresh` checks the Detailed counter's LATE and spikes
 (the mock doesn't tell a refresh: 90 Hz is assumed, and it paces at about 64 Hz, so every frame is late there).
@@ -1249,11 +674,11 @@ it). `developer 1` prints `deflect: <what> by a swing|bash, in <v>, out <v>`, th
 arc|the higher arc|out of reach, <deg>, <s>; <u/s> <v> (Quake's <v>)`, `grenade: caught in hand <h>, the fuse <s> ->
 <s>`, `grenade: let go of at ...`, `grenade: <what> hits <whom>`, `went off in player's hand`, `first bounces at`.
 Drive batting and bashes with `vr_mock_play` in real time (`host_maxfps 90`, not `vr_fixed_frames 1`, which runs the
-game's clock apart from the play's): the scratchpad's `projectiles/gen.py B|P|W|A` (swings, one-handed bashes,
+game's clock apart from the play's): one-off generators, not kept: `projectiles/gen.py B|P|W|A` (swings, one-handed bashes,
 two-handed parry bashes, the aim assist; round 20's poses, so it sets and prints the old hand settings),
 `gren.py fly|place|force|hold|regrab|show`, and `ledge.sh above|below <aim 0|1>` (vrclimb's platform and trench).
 Catching versus deflecting, returned grenades, bash direction (ROUND21.md, "Catching versus deflecting; returned
-grenades; sword bash direction"): the scratchpad's `projfix/t.py C|W|D` prints the console script and writes the play.
+grenades; sword bash direction"): a one-off `projfix/t.py C|W|D` (not kept) printed the console script and wrote the play.
 - `C`: an empty main hand (`vr_weapon_grip_mode 1; impulse 150`) meets `impulse 246` grenades (`vr_test_projectile
   4`, aimed 16 units ahead of the face and 10 down; the hand at `0.02 1.33 -0.66`): held out still, reaching, open or
   closing, punching, shoving; the open palm is `160 -90 0` (Gun Angle 70).
@@ -1287,9 +712,9 @@ and prints lag, overshoot, settling, sag, jitter and the snap (`csv`: every fram
 `vr_debug_weight 1` writes each holding hand's target and drawn pose, a line a frame, to `weight_trace.txt` (2:
 printed too); `vr_debug_weight_stamina <0..1>` sets the stamina the weight sees (-1: the game's). A swing:
 `vr_fixed_frames 1`, `impulse 160` with `vr_weapon_grip_mode 1; impulse 9`, a `vr_mock_play` of the main hand (and the
-off hand on the foregrip at `0.09 1.37 -0.83 70 0 0` with `+graboff; vr_mock_button off grip 1` for two hands); the
-scratchpad's `weight/trace_stats.py` and `plot_swings.py` read the trace. The canary takes with the old hand settings:
-`weight/oldeval.sh <label> "<cvars>"`. Explosive boxes in the firing range: `vr_physics_spawn misc_explobox`, then
+off hand on the foregrip at `0.09 1.37 -0.83 70 0 0` with `+graboff; vr_mock_button off grip 1` for two hands); one-off
+scripts (not kept) read the trace. The canary takes with the old hand settings: the kit's `eval.sh` (with
+`vr_gunangle 39.5; vr_gunyaw 4`, every `vr_handcal_*` 0). Explosive boxes in the firing range: `vr_physics_spawn misc_explobox`, then
 `vr_rigid_place misc_explobox 240 -456 17.5` with the player at `setpos 300 -440 45 0 180 0; noclip` (clear of the
 dummy); a push: the main hand from `0 1.7 -0.3 70 0 0` to `0 1.7 -1.9` in 1 s; shoot with `+attack` (the mock's
 trigger button didn't fire here after `setpos`). `vr_physics_list` with `vr_debug_box3d 1` prints each prop's mass
@@ -1320,8 +745,7 @@ for the old thresholds. A slow throw of the explosive box: `vr_physics_spawn mis
 misc_explobox main 0 3 0; +grabright; vr_mock_button main grip 1`, a grunt at `vr_test_spawn_dist 70`, and the hand from
 `0.15 1.25 -0.25` to `0.15 1.45 -0.75` in 0.12 s, then `button main grip 0` and `-grabright`; `developer 1;
 vr_debug_shots 1; vr_debug_box3d 1` print `box3d: ... misc_explobox hit ... monster_army at <m/s>`, `explobox: thrown
-into monster_army at <u/s>: <damage>` and the damage. The scratchpad's `weights2/plays.py` writes the plays,
-`mkswing.sh` / `mkbox.sh` the scripts, `go.sh` runs one; `oldeval.sh` replays the canary takes with the old hand settings.
+into monster_army at <u/s>: <damage>` and the damage. The round's play and script generators were one-offs, not kept.
 Wall torches by hand from every side and press time: `bash Misc/quakevr/walltorch_grab_test.sh <agent>` (ROUND21.md,
 "Wall torches: a grip on the way takes it"; vrfiringrange's torch at -590 -760 75, `vr_mock_hand_to` reaches; prints
 taken of 120). Wall torches (ROUND21.md, "Wall torches you can take"): e1m2's torches are edicts 52 (1706 -206 316: pull it by hand
@@ -1333,8 +757,7 @@ grip; the mock's trigger button doesn't lock on here, `+attack` does) and 156 (2
 blow n of 5, dying at t, out at t, taken again, lit again) and `wall torch: its wall's crackle ... silenced` (with
 `-Sound`); `vr_debug_shots 1` the blows and `by vr_burn` (its fire: Burning below); `vr_debug_torch_lights 1` every torch light (radius,
 colour, taken, shadowed). A monster to strike: `vr_test_spawn 0; vr_test_spawn_dist 34; impulse 241`; `god; notarget`
-and `gl_cshiftpercent 0` keep the screenshots clear of its shots. The scratchpad's `torches/go.sh <script> <out.png>`
-runs a multi-line script file. Two torches in hand: `vr_walltorch_pull 0` (the grip alone takes one), 52 by the main
+and `gl_cshiftpercent 0` keep the screenshots clear of its shots. Two torches in hand: `vr_walltorch_pull 0` (the grip alone takes one), 52 by the main
 hand as above, then `vr_rigid_place 53 off 0 0 0; +graboff; vr_mock_button off grip 1` (taken from its wall at the off
 hand); let go of with `vr_walltorch_die_time 0.3` it goes out; taken again the same way and held at `0.2 1.3 -0.4 70 0 0`
 (the main at `0.2 1.2 -0.4`), `developer 1` prints `walltorch: lit again from a burning torch` (the kit's
@@ -1391,9 +814,8 @@ every rock and brick on a table, three wall torches and both explosive boxes: `m
 stands at the table (`vr_debris_list` lists the pieces on it).
 Rocks and bricks (ROUND21.md): `vr_debug_debris 1` prints a line per map (pieces, spots, rejections by reason, the
 time, the layout's hash, the server's spawn time), `2` each piece (model, skin, place, turn, size, the way out of its
-wall); `vr_debris_list [lit]` lists the pieces in the map with the light where each lies. The scratchpad's
-`debris/view.py <log> <map> <pieces> [dist] [pitch]` turns a `vr_debug_debris 2` log into `setpos` commands looking at
-pieces (`shoot.sh`, `evidence.sh` take screenshots; `perf.sh` the exclusive timings). Hold one: `vr_rigid_place vr_rock
+wall); `vr_debris_list [lit]` lists the pieces in the map with the light where each lies. A `vr_debug_debris 2` log gives
+each piece's place for `setpos` commands looking at it (the round's view and timing scripts were one-offs, not kept). Hold one: `vr_rigid_place vr_rock
 main 0 0 0; +grabright; vr_mock_button main grip 1` (bricks: `vr_brick`, in a map that has them), with the off hand
 out of the way; punches and throws: `debris/motions/punch2.mock`, `throw.mock` (`vr_mock_play`, the old hand settings
 set as `motions/hc.txt`), a grunt from `vr_test_spawn 0; vr_test_spawn_dist 36; impulse 241` on flat ground
@@ -1417,8 +839,8 @@ Flung props (ROUND21.md, "Hand grenades: unarmed look; flung props hit as thrown
 a grunt at `vr_test_spawn 0; vr_test_spawn_dist 200; impulse 241`, `vr_physics_spawn item_health 40 40`, then
 `vr_rigid_place item_health 220 -440 50 0 0 0 -600 0 0` flings it at the grunt; `developer 1` prints `prop: flung ...`.
 An unarmed hand grenade's trail: `developer 1` prints `grenade <n> (progs/grenade.mdl, skin <s>): smoke trail on|off`.
-Hand grenades from the back pouch (ROUND21.md, same title): the scratchpad's `handgren/` has the scripts and logs.
-`gen.py` writes the `vr_mock_play` files (from `throw_plays.py`'s `throws.txt`: `python Misc/quakevr/throw_plays.py
+Hand grenades from the back pouch (ROUND21.md, same title): the round's scripts were one-offs, not kept;
+their `gen.py` wrote the `vr_mock_play` files (from `throw_plays.py`'s `throws.txt`: `python Misc/quakevr/throw_plays.py
 --gunangle 70 --out throws.txt` first): a hand to the pouch at `vr_mock_hand main|off 0 1.0 0.2 0 0 0` (Gun Angle 70;
 `vr_dumpview` prints `grenade pouch at ..., main hand <d> units off (hotspot 11)`), `+grabmain`/`+graboff` there takes
 one, `+attack`/`+offhandattack` pulls the pin, the throw lets go with `-grabmain`/`-graboff`. `run1.sh <play> <png>
@@ -1444,8 +866,8 @@ prints `grenade: <class> set off by <who> (<how>) ... (<fuse left or a dud>, <sp
 three cases: `vr_test_projectile 4;impulse 246;wait12;impulse 210` (an ogre's in flight); the launcher
 (`vr_weapon_grip_mode 1;impulse 9;impulse 158;wait60;vr_mock_hand main 0.10 1.40 -0.32 70 0 0;wait30;+attack;wait3;
 -attack;wait110;impulse 210`); `vr_test_grenade_dist 600;impulse 211;wait300;impulse 210` (a dud from 600 units).
-Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21.md, same title): the scratchpad's
-`misc23/` has the scripts and logs.
+Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21.md, same title): the round's scripts
+were one-offs, not kept.
 - `t.py N|W|Q` prints the console script and writes the play (it uses `projfix/t.py`'s poses and `r20/gen.py`):
   `N` empty hands (punch, two-palm shove, still fist, reach) and the shotgun (thrust, an off-hand shove beside it)
   against `impulse 246` spikes and ogre grenades; `W` projfix's bashes with a sword (old hand settings, set and printed;
@@ -1462,8 +884,7 @@ Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21
 - Menu buttons in a script: `menu_vr <page> <label prefix>` selects the row, then `vr_mock_button main primary 1`, a
   few frames, `0`. A button's command goes ahead of the script's waits (`Cbuf_InsertText`), so its output follows
   the click. The Debug pages are 64 and 66-71.
-Hands, teleporters and climbing stamina (ROUND21.md, "Hands: both work; props through teleporters; climbing stamina";
-the scratchpad's `climbhands/`): `vr_debug_hands 1` (2: every frame) prints each hand's state as `hands <time> <hand>:
+Hands, teleporters and climbing stamina (ROUND21.md, "Hands: both work; props through teleporters; climbing stamina"): `vr_debug_hands 1` (2: every frame) prints each hand's state as `hands <time> <hand>:
 ...` lines, ending with what climbing makes of a grip; `vr_climb_debug 1` says why a grip is refused. The hand-state
 matrix is `hands/gen.py` (writes the plays: an action, then both hands on vrclimb's ledge, a health box in each hand,
 then in both) and `hands/mrun.sh <suffix> <action...>` (actions `base fgoff fgmain wpnmain wpnoff wpnkeep save climb`;
@@ -1515,7 +936,6 @@ A clean run has no `GL api error` or `GL api undefined` line (ROUND21.md, "GL er
 `GL api (error|undefined)|GL error caller|exit=` to check. Each error or undefined-behaviour message is followed, once
 per distinct stack, by `GL error caller: fn (file.c:12) < caller (file.c:34) < ...` (the debug output is synchronous,
 so the GL call that failed is on that stack; frames in the driver show as addresses).
-
 
 ## Teleporter and melee regression fixtures (2026-10-04)
 
@@ -1571,7 +991,6 @@ Change `vr_portals_maxviews` live to 1, 4 and 8: one gate at 1, all three at
 4/8, with the correct distinct rooms and destination entities. Graphics >
 Teleporters > Visible Gates exposes this 1..8 limit (default 4). Views do not
 recurse, and additional passes increase rendering/shadow cost.
-
 
 ### Parry interrupts (2026-10-05)
 
