@@ -1186,6 +1186,24 @@ void particleSupportBounds(za::Span<const glm::vec4> bounds, int width, int heig
     for(za::SizeT i = 0; i < bounds.size() && i < 16; i++) particleSupport[i] = bounds[i];
 }
 
+namespace
+{
+// vr_debug_glstate: a batch drawn from an upload of an earlier frame (GL_Upload's space is the frame's own: two frames
+// later its buffer holds other data, drawn as garbage; a once-a-frame cache keyed by host_framecount, drawn again by
+// a frame of SCR_ModalMessage's, did). Printed once a frame.
+unsigned staleUploadPrinted = 0;
+
+void checkUploadFrame(const char* what, unsigned serial)
+{
+    if(vr_debug_glstate.value != 0.f && serial != gl_frameres_serial && staleUploadPrinted != gl_frameres_serial)
+    {
+        staleUploadPrinted = gl_frameres_serial;
+        Con_Printf("glstate: %s drawn from an earlier frame's upload (frame %u, now %u)\n", what, serial, gl_frameres_serial);
+    }
+}
+
+} // namespace
+
 ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles, bool trim)
 {
     if(particles.empty())
@@ -1195,7 +1213,7 @@ ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles, bool t
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
     GL_Upload(GL_SHADER_STORAGE_BUFFER, particles.data(), particles.sizeBytes(), &buf, &ofs);
-    return {buf, reinterpret_cast<za::SizeT>(ofs), particles.size(), trim};
+    return {buf, reinterpret_cast<za::SizeT>(ofs), particles.size(), trim, gl_frameres_serial};
 }
 
 namespace
@@ -1398,6 +1416,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     Texture texture, ParticlePass pass, const ParticleSplit& split, Texture distances, bool soft, bool half = false,
     bool reverse = false)
 {
+    checkUploadFrame("particles", batch.serial);
     GL_UseProgram(program);
     const unsigned stateMask = GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE;
     GL_SetState(stateMask);
@@ -1646,7 +1665,7 @@ TubeBatch uploadTube(za::Span<const TubeRing> rings)
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
     GL_Upload(GL_SHADER_STORAGE_BUFFER, rings.data(), rings.sizeBytes(), &buf, &ofs);
-    return {buf, reinterpret_cast<za::SizeT>(ofs), rings.size()};
+    return {buf, reinterpret_cast<za::SizeT>(ofs), rings.size(), gl_frameres_serial};
 }
 
 void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust, bool flat)
@@ -1655,6 +1674,7 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     {
         return;
     }
+    checkUploadFrame("tube", batch.serial);
     if(!tubeProgram && !tubeProgramFailed)
     {
         const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
@@ -1702,7 +1722,7 @@ BentBatch uploadBent(za::Span<const glm::vec4> data)
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
     GL_Upload(GL_SHADER_STORAGE_BUFFER, data.data(), data.sizeBytes(), &buf, &ofs);
-    return {buf, reinterpret_cast<za::SizeT>(ofs), data.size()};
+    return {buf, reinterpret_cast<za::SizeT>(ofs), data.size(), gl_frameres_serial};
 }
 
 void drawBent(const BentBatch& batch, const BentDraw& d)
@@ -1711,6 +1731,7 @@ void drawBent(const BentBatch& batch, const BentDraw& d)
     {
         return;
     }
+    checkUploadFrame("bent mesh", batch.serial);
     if(!bentProgram && !bentProgramFailed)
     {
         bentProgram = glProgram(bentVertexShader, bentFragmentShader, "vr bent mesh");

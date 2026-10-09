@@ -141,6 +141,7 @@ struct ParticleBatch
     za::SizeT offset{0};
     za::SizeT count{0};
     bool trim{false}; // at least one sprite has useful transparent margins
+    unsigned serial{0}; // the frame it was uploaded in (gl_frameres_serial): drawn in another, vr_debug_glstate says so
 };
 // Base-level nonzero RGBA bounds, including a 16-texel atlas guard; in atlas UVs.
 void particleSupportBounds(za::Span<const glm::vec4> bounds, int width, int height);
@@ -192,6 +193,7 @@ struct TubeBatch
     unsigned buffer{0};
     za::SizeT offset{0};
     za::SizeT count{0}; // rings
+    unsigned serial{0}; // (as ParticleBatch's)
 };
 // Into the frame's upload buffer, valid until the frame ends (drawn from it in both eyes).
 [[nodiscard]] TubeBatch uploadTube(za::Span<const TubeRing> rings);
@@ -226,6 +228,7 @@ struct BentBatch
     unsigned buffer{0};
     za::SizeT offset{0};
     za::SizeT count{0}; // vec4s
+    unsigned serial{0}; // (as ParticleBatch's)
 };
 [[nodiscard]] BentBatch uploadBent(za::Span<const glm::vec4> data);
 struct BentDraw

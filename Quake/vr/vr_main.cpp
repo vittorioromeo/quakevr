@@ -1731,6 +1731,12 @@ extern "C" int VR_ModalMessageFrame()
     // a frame for the profiler too: else its GPU timer queries piled up (64 more at a time) for as
     // long as the dialog was up.
     VR_ProfileFrame();
+    // And a frame of its own (host_framecount): what is made once a frame and kept for it (the particles' records, ropes'
+    // and bent meshes' rings, uploaded into the frame's own GL_Upload space; the shadow maps, the AO's occluders) is made
+    // again for it. Counted as the host frame's, every one of the dialog's frames drew the records uploaded before it
+    // opened, from a buffer two frames later refilled with other data: garbage, in odd colours, flickering (NOTES.md
+    // vrstart_2026-10-09_18-21-02; vr_debug_glstate prints such draws). SCR_ModalMessage counts one more after the last.
+    ++host_framecount;
     // vr_test_modal_answer: the dialog answered by itself once it has shown for half a second (tests).
     if(vr_test_modal_answer.value >= 0.f)
     {

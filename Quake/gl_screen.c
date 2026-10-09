@@ -2047,6 +2047,7 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 {
 	double time1, time2; //johnfitz -- timeout
 	int lastkey, lastchar;
+	qboolean vrframes = false; // QVR: a headset's frames drawn meanwhile
 
 	if (cls.state == ca_dedicated)
 		return true;
@@ -2069,6 +2070,8 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 		Sys_SendKeyEvents ();
 		if (!VR_ModalMessageFrame ()) // QVR: a headset's frames go on, showing the dialog
 			Sys_Sleep (16);
+		else
+			vrframes = true;
 		Key_GetGrabbedInput (&lastkey, &lastchar);
 		// QVR: Sys_Sleep (16) above, unless a headset's frame was drawn
 		if (timeout) time2 = Sys_DoubleTime (); //johnfitz -- zero timeout means wait forever.
@@ -2081,6 +2084,8 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 		 lastkey != K_MOUSE4 &&
 		 time2 <= time1);
 	Key_EndInputGrab ();
+	if (vrframes) // QVR: the host frame goes on as a frame of its own, not the dialog's last (VR_ModalMessageFrame)
+		host_framecount++;
 
 //	SCR_UpdateScreen (); //johnfitz -- commented out
 

@@ -288,7 +288,7 @@ QVR_CVAR(vr_physsound_scrape, "0.8", CVAR_ARCHIVE)    // props sliding with fric
 QVR_CVAR(vr_physsound_scrape_min, "0.3", CVAR_ARCHIVE) // m/s, the slowest slide that scrapes
 QVR_CVAR(vr_physsound_scrape_full, "3", CVAR_ARCHIVE) // m/s, a slide this fast or faster at full volume
 QVR_CVAR(vr_physsound_grab, "0.7", CVAR_ARCHIVE)      // a climbing hand taking a hold (by the hold's texture: wood, metal, stone): volume (0 off)
-QVR_CVAR(vr_debug_glstate, "0", CVAR_NONE)            // Debug > Logging > Graphics State: 1 each texture bind the engine's cache skipped while GL had another texture there ("texcache: stale bind", gl_texmgr.c: a texture deleted around GL_DeleteNativeTexture), and a clip rectangle left on at a frame's end ("glstate:")
+QVR_CVAR(vr_debug_glstate, "0", CVAR_NONE)            // Debug > Logging > Graphics State: 1 each texture bind the engine's cache skipped while GL had another texture there ("texcache: stale bind", gl_texmgr.c: a texture deleted around GL_DeleteNativeTexture), a clip rectangle left on at a frame's end ("glstate:"), and particles, tubes or bent meshes drawn from an earlier frame's upload (GL_Upload's space reused: garbage; "glstate: ... earlier frame's upload")
 QVR_CVAR(vr_debug_net, "0", CVAR_NONE)                // 1:each frame the unreliable broadcast (sv.datagram) was full: what QuakeC lost, what a client was not sent; 2: also each second the most sent (vr_server.cpp, VR_BroadcastDest)
 QVR_CVAR(vr_debug_physsound, "0", CVAR_NONE)          // 1: each impact, scrape and grab played; 2: also the hits skipped and each scrape grain
 // Spatial audio (vr_audio.cpp, Steam Audio; ROUND21.md, "Spatial audio (Steam Audio)"). Without phonon.dll: Quake's panning.

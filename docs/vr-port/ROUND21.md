@@ -34005,3 +34005,15 @@ water, and drowned 5 s later (its breath had run since it went in face down).
   (948 -1160): up after 3.1 s, 64 units off on the slope, feet in the water; far out (948 -2580): 543 places all too
   deep, up where it floated after 6.6 s, sank to -270; vrtesthall's pool (time 8 s): up on the edge, 16 units off,
   out of the water (before: on the bottom, drowned); slime and lava as before (killed; burnt through and gibbed).
+## Confirmation dialogs: the headset's frames, buttons, the main menu's VR rows (2026-10-09)
+
+- **The game drawn in odd colours, flickering, while a confirmation was up** (NOTES.md vrstart_2026-10-09_18-21-02;
+  VR Calibration's): SCR_ModalMessage's loop draws the headset's frames itself (VR_ModalMessageFrame), with no host
+  frame, so `host_framecount` stood still. What is made once a frame and kept for it was not made again: the
+  particles' records (and ropes' and bent meshes' rings) are uploaded into the frame's own GL_Upload space, and every
+  dialog frame drew the records uploaded before the dialog opened, from a buffer that two frames later held other
+  data (garbage positions, sizes and colours). Each dialog frame is now a frame of its own (`host_framecount` counted,
+  one more after the last). `vr_debug_glstate 1` prints such draws (`glstate: particles drawn from an earlier frame's
+  upload`; `gl_frameres_serial`, the frames drawn, in gl_rmisc.c): a 1 s dialog over smoke and an explosion printed it
+  every frame (200 of 205) before, never after. The mock's eye images showed no garbage either way (what lay there
+  happened to draw much the same); to check in the headset.

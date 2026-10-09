@@ -708,6 +708,7 @@ void GL_Upload (GLenum target, const void *data, size_t numbytes, GLuint *outbuf
 void GL_ReserveDeviceMemory (GLenum target, size_t numbytes, GLuint *outbuf, size_t *outofs);
 void GL_AcquireFrameResources (void);
 void GL_ReleaseFrameResources (void);
+extern unsigned int gl_frameres_serial; // QVR: the frames drawn; an upload (GL_Upload) is valid in the frame it was made in only
 void GL_AddGarbageBuffer (GLuint handle);
 
 qboolean GL_NeedsSceneEffects (void);

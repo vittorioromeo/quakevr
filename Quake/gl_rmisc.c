@@ -875,6 +875,7 @@ static size_t		frameres_host_offset = 0;
 static size_t		frameres_device_offset = 0;
 static size_t		frameres_host_buffer_size = 1 * 1024 * 1024;
 static size_t		frameres_device_buffer_size = 1 * 1024 * 1024;
+unsigned int		gl_frameres_serial = 0; // QVR: the frames drawn (GL_ReleaseFrameResources): what GL_Upload gave is valid in its own only
 
 /*
 ====================
@@ -1057,6 +1058,7 @@ void GL_ReleaseFrameResources (void)
 	dev_stats.gpu_upload = frameres_host_offset;
 	dev_peakstats.gpu_upload = q_max (dev_peakstats.gpu_upload, dev_stats.gpu_upload);
 
+	gl_frameres_serial++; // QVR
 	if (++frameres_idx == countof (frameres))
 		frameres_idx = 0;
 
