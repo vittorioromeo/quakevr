@@ -709,6 +709,45 @@ void(entity r, entity p) VR_Reload_MarkFresh =
     r.vr_ammo_fresh_from = p;
 };
 
+// The angles of the magazine seated in the gun in `xHand` of `p` as drawn (the engine's .magbox*: its first half-axis up
+// to its feed end, the round's +z; across it the round's x, along the gun: make_mags.py's mounts, the super nailgun's
+// across the other way), for the round that comes out of it (the author's note vrfiringrange_2026-10-09_12-34-55: the
+// super nailgun's fell out flat, not as it sat); without its box, the hand's.
+vector(entity p, float xHand) VR_Reload_SeatedMagAngles =
+{
+    if(!VR_Reload_HasMagBox(p, xHand))
+    {
+        return VRGetEntHandRot(p, xHand);
+    }
+    vector up = normalize(VR_Reload_MagBoxUp(p, xHand));
+    vector fwd = xHand == cVR_MainHand ? p.magboxy : p.offmagboxy;
+    if(VRGetEntWeapon(p, xHand) != WID_SUPER_NAILGUN)
+    {
+        fwd = -fwd;
+    }
+    fwd = normalize(fwd - up * (fwd * up));
+    if(fwd == '0 0 0' || up == '0 0 0')
+    {
+        return VRGetEntHandRot(p, xHand);
+    }
+    vector a = vectoangles(fwd); // (a model's pitch: up positive)
+    makevectors('-1 0 0' * a_x + '0 1 0' * a_y);
+    a_z = atan2(up * v_right, up * v_up) * 57.29578;
+    return a;
+};
+
+// The way out of the well of the gun in `xHand` of `p` (from the magazine's feed end to its foot, as drawn); without its
+// box, down from the hand.
+vector(entity p, float xHand) VR_Reload_MagOutWay =
+{
+    if(VR_Reload_HasMagBox(p, xHand))
+    {
+        return -normalize(VR_Reload_MagBoxUp(p, xHand));
+    }
+    makevectors(VRGetEntHandRot(p, xHand));
+    return -v_up;
+};
+
 // The gun in `xHand` of `p` (a magazine gun, one in) lets its magazine go: a round of what it held, where its well is
 // (the gun's angles), flying at `xVel` (units/s); the gun empty, no magazine (QVR_WPNFLAG_NOMAG). `xInto`: a hand of `p`
 // that takes it at once (the pull), -1 none. The magazine.
@@ -726,7 +765,8 @@ entity(entity p, float xHand, vector xVel, float xInto, string xHow) VR_Reload_E
     {
         well = VRGetEntHandPos(p, xHand); // (no port reported: a bot's, a test's)
     }
-    entity r = VR_Reload_MakeRound(w, WeaponIdToAmmoId(w, f), n, well, VRGetEntHandRot(p, xHand));
+    vector seatedAs = VR_Reload_SeatedMagAngles(p, xHand);
+    entity r = VR_Reload_MakeRound(w, WeaponIdToAmmoId(w, f), n, well, seatedAs);
     VRSetEntWeaponClip(p, xHand, 0);
     VRSetEntWeaponFlags(p, xHand, f | QVR_WPNFLAG_NOMAG);
     VR_Reload_AmmoChanged(p);
@@ -747,7 +787,28 @@ entity(entity p, float xHand, vector xVel, float xInto, string xHow) VR_Reload_E
         r.avelocity = '0 0 1' * (crandom() * 200) + '1 0 0' * (crandom() * 300);
         r.flags = r.flags - (r.flags & FL_ONGROUND);
     }
-    VR_Reload_Log(sprintf("%s out of the gun (hand %g, %s)", VR_Reload_Desc(r), xHand, xHow));
+    string how = "";
+    if(VR_Reload_HasMagBox(p, xHand) && cvar_hget(cvarh_vr_reload_debug) >= 1)
+    {
+        // (Its feed end along the seated one's, and the hand's way's: 1 the same.)
+        vector seatedUp = normalize(VR_Reload_MagBoxUp(p, xHand));
+        float asSeated = VR_Reload_RoundAxis(r) * seatedUp;
+        r.angles = VRGetEntHandRot(p, xHand);
+        float asHand = VR_Reload_RoundAxis(r) * seatedUp;
+        r.angles = seatedAs;
+        if(cvar_hget(cvarh_vr_reload_debug) >= 2)
+        {
+            makevectors(VRGetEntHandRot(p, xHand));
+            vector aim = v_forward;
+            makevectors('-1 0 0' * seatedAs_x + '0 1 0' * seatedAs_y + '0 0 1' * seatedAs_z);
+            dprint(sprintf("reload: seated %v, the hand %v: its front along the hand's aim %.2f\n", seatedAs,
+                VRGetEntHandRot(p, xHand), v_forward * aim));
+        }
+        how = sprintf(": its feed end along the seated one's %.2f (the hand's way %.2f), out at %.0f u/s (%.0f up), %.2f "
+            "along the way out of the well", asSeated, asHand, vlen(xVel), xVel_z, normalize(xVel) *
+            VR_Reload_MagOutWay(p, xHand));
+    }
+    VR_Reload_Log(sprintf("%s out of the gun (hand %g, %s)%s", VR_Reload_Desc(r), xHand, xHow, how));
     VR_Reload_CellSparks(p, xHand, r, "taken out");
     VR_Reload_CellSpent(r);
     return r;
@@ -1312,9 +1373,12 @@ void(float xHand) VR_Reload_MagFrame =
     }
     if(sec && !secWas && cvar_hget(cvarh_vr_reload_eject_button) && VR_Reload_MagIn(self, xHand))
     {
-        // Out under the gun, falling with the hand's own speed and a little push down.
-        makevectors(VRGetEntHandRot(self, xHand));
-        VR_Reload_Eject(self, xHand, VRGetEntHandVel(self, xHand) * VRMetersToUnits() - v_up * 40, -1, "the button");
+        // Out of its well, falling with the hand's own speed and a little push the way the well faces (the nailgun's and
+        // the thunderbolt's down under the gun, the super nailgun's out of its side and a little down; never up).
+        vector out = VR_Reload_MagOutWay(self, xHand);
+        out_z = min(-0.35, out_z);
+        VR_Reload_Eject(self, xHand, VRGetEntHandVel(self, xHand) * VRMetersToUnits() + normalize(out) * 40, -1,
+            "the button");
     }
     VR_Reload_HitFrame(xHand);
 

@@ -33223,3 +33223,20 @@ page, "Ejected Stays Out") has passed; a round from another player's gun keeps t
 takes none in that cooldown either (ejecting over a gun on a table). `VR_Reload_MarkFresh` stamps every way out (B/Y,
 the pull into the hand, the knock-out, the bump, the super shotgun's live shells). Brought back to a well after that, it
 seats as before (contact_test.sh, reload_test.sh unchanged).
+
+## An ejected magazine leaves as it sat (2026-10-09)
+
+The author's note vrfiringrange_2026-10-09_12-34-55: the super nailgun's magazine fell out flat, not as it sat in the
+gun's side. The round was made at the hand's angles (`VRGetEntHandRot`), which are view angles (pitch down positive)
+given to a model (pitch up positive), and say nothing of how the magazine sits: right for the nailgun's and the cell's
+(under the gun) only with the gun level, its pitch mirrored otherwise (headless, the hand pitched 49 degrees: the
+nailgun's feed end 86 degrees off the seated one's), and the super nailgun's (in the side, 21 degrees up) always wrong.
+Now `VR_Reload_SeatedMagAngles` builds them from the seated magazine's drawn box (the engine's `.magbox*`: its feed end
+the round's +z, across it the round's x, the super nailgun's the other way round: make_mags.py's mounts), and B/Y pushes
+it 40 u/s out of the well (`VR_Reload_MagOutWay`, never up: the super nailgun's out of its side and a little down; the
+nailgun's and the cell's down as before). With the gun level the nailgun's comes out as it did. `vr_reload_debug 1` adds
+to the "out of the gun" line its feed end along the seated one's (1 the same) and the push.
+
+eject_test.sh: the pairs (above), and each gun in each hand at two pitches: the feed end along the seated one's 1.00 in
+all 12 (the hand's angles, as before, at one pose: -0.12 to 0.28); the push 1.00 along the well's way out for the
+nailgun and the cell, 0.70 to 0.82 for the super nailgun (its well tilts up), 14 to 34 u/s down, never up.
