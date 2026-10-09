@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [Firing range: reloading]
+Magazine eject: SNG right + NG left, eject each hand (and other pairs): the magazine stays out (still seats when put back by hand; Reloading > Ejected Stays Out 0.35 s); SNG magazine leaves its side as it sat, with a small push; lying guns' magazines and screens visible from the range's far end (HUD and Menus > Screens)
 
 [Firing range: combat and dummies]
 Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
