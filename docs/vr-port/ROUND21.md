@@ -26415,7 +26415,7 @@ retried every 0.15 s as before. Menu: Climbing > **Mantle onto Slopes**, **Steep
 
 Test map `vrslopes` (`Misc/quakevr/climb/make_vrslopes_map.py --compile`; lips at y 0, z 48, as vrclimb's long ledge;
 `setpos <x> -18 24 0 90 0`): level, rising 10/20/30/45 degrees, falling 20, sloping across 15, rising 20 under a slab.
-`Misc/quakevr/climb/slopes_test.sh "<cvars>"` runs the mantle play on each (`climb_plays.py`'s mantle with the hands
+`Misc/quakevr/climb/slopes_test.sh <agent> ["<cvars>"]` runs the mantle play on each (PASS/FAIL against the table below with no cvars) (`climb_plays.py`'s mantle with the hands
 at 1.49 m: its default 1.638 no longer reaches vrclimb's lip with the current default body, "no hold").
 
 | top | lenient (default) | `vr_climb_mantle_lenient 0` |
@@ -33652,3 +33652,20 @@ dragon's poses never collapse (its smallest extent stays 0.90 of its two poses' 
 logged before or after; the time drawn between them is the fix. Also: `parryinterrupt/test.py`'s animation cases were
 flaky (a still player under the stealth meter: the knight noticed him within 150 frames or not); it runs with
 `vr_stealth_meter 0` now (6 of 6 runs pass), and writes its logs to the worktree's scratch, not its root.
+
+## Test suite pass (2026-10-09): teleporter chase verdicts, argument fixes
+
+- `teleporters_test.sh chase`: **the grunt never reaching the north room is by design** (PORTAL_AI.md: a ranged monster
+  that sees you through a gate shoots through it and stays; only melee monsters run through, `VR_Stealth_ChaseGate`);
+  checked: 18 of 32 snapshots in its shooting frames (81-89), at its post 150 units short of the gate. The chase now
+  prints PASS/FAIL a case and exits 1 on a FAIL: the grunt passes when it stays and shoots; each dog and fiend gets up to
+  `TRIES` (3) runs and passes when one gets through within the 480 frames. They are random: the same run repeated
+  diverges from the first snapshot (the fiend's leaps), 3 of 18 single runs didn't get through (a fiend once went the
+  other way, south to y -614). Quake's `random()` shares the C library's `rand()` with the client's effects, and fast
+  mode draws frames by the wall clock, so its draws differ from run to run. Not changed: a server-only random stream
+  (seeded at map load) would make these tests deterministic; that is the author's call.
+- `teleport_frames_test.sh <agent>` alone ran the agent's name as a case (`shift 3` with one argument shifts nothing);
+  `parry_pose_test.sh <agent>` the same as a kind (`shift 2`). Both take `set -- "${@:N}"` now.
+- `climb/slopes_test.sh` ran in another agent's kit folder (`movetweaks`) with a play from its scratch: it takes the
+  agent now, writes the mantle play (hands at 1.49 m) to its own scratch, and checks ROUND21's table with no cvars
+  (8 of 8: mantled level, up 10/20/30, down 20, across 15; no room up 45 and under the slab).

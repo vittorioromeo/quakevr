@@ -11,7 +11,7 @@
 #   start    start's middle skill gate (Normal), jumped into; the pentagram's floor (a func_bossgate) beyond it
 #   e1m1     e1m1's teleporter trigger_teleport (t6), jumped into
 #   flush    vrteleporters' flush player gate, walked into
-AGENT=${1:?agent}; RATE=${2:-72}; FADE=${3:-0}; shift 3 2>/dev/null
+AGENT=${1:?agent}; RATE=${2:-72}; FADE=${3:-0}; set -- "${@:4}" # (shift 3 with fewer arguments shifted nothing: the agent was taken for a case)
 CASES=${*:-start e1m1 flush}
 KIT=C:/OHWorkspace/qvr-kit
 HERE=$(cd "$(dirname "$0")" && pwd)
