@@ -7654,6 +7654,9 @@ za::Vector<Item> pageMain()
             .help("Quake's coarse, banded light and blocky shadows, fixed to the walls. Goes with Retro Textures."),
         cycle("Antialiasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}})
             .help("Smoother edges, at some cost in speed."),
+        cycle("Anisotropic Filtering", "gl_texture_anisotropy", {{1.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}, {16.f, "16x"}})
+            .help("Keeps floors and walls seen at a glancing angle sharp instead of blurry (smooth-filtered textures). "
+                  "Little GPU time; 16x is the sharpest. Capped at what the graphics card supports."),
         slider("Bloom", "vr_bloom", 0.f, 1.5f, 0.02f, "%.2f").extend()
             .help("A glow around lamps, glowing panels, flashes and explosions (0: off)."),
         toggle("Tone Mapping", "vr_tonemap")
