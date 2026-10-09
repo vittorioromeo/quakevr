@@ -10,6 +10,7 @@
 //                         xrDestroySession the log gets the frames' layers (projection ones without an image released
 //                         since the last frame: a frame shown again)
 //   FAKEXR_EYE            WxH, the eyes' recommended size (400x440)
+//   FAKEXR_SYSTEM         the headset's name (systemName: "FakeXR headset"), e.g. "Meta Quest 3" (its panel known)
 //   FAKEXR_UNFOCUS        a-b: the session VISIBLE (not focused: as with SteamVR's dashboard) from xrWaitFrame a to b
 //   FAKEXR_D3D11          copies that load d3d11.dll at xrCreateInstance and free it at xrDestroyInstance (as VDXR
 //                         does), logging whether it is still loaded after (the game keeps it: vr_backend_openxr.cpp)
@@ -211,7 +212,8 @@ XRAPI_ATTR XrResult XRAPI_CALL getSystemProperties(XrInstance, XrSystemId, XrSys
 {
     properties->systemId = 1;
     properties->vendorId = 0xfa4e;
-    strcpy(properties->systemName, "FakeXR headset");
+    char name[XR_MAX_SYSTEM_NAME_SIZE];
+    strcpy(properties->systemName, GetEnvironmentVariableA("FAKEXR_SYSTEM", name, sizeof(name)) ? name : "FakeXR headset");
     properties->graphicsProperties.maxLayerCount = 16;
     properties->graphicsProperties.maxSwapchainImageWidth = 8192;
     properties->graphicsProperties.maxSwapchainImageHeight = 8192;

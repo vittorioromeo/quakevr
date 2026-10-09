@@ -484,6 +484,14 @@ QVR_CVAR(vr_debug_runtime_menu, "0", CVAR_NONE)
 // of the panel's area on Auto), at the next VR start: smaller images cost less to render, copy (SteamVR's OpenGL path
 // copies each into its own textures) and keep in video memory. 0.5 .. 1.
 QVR_CVAR(vr_xr_eye_scale, "1", CVAR_ARCHIVE)
+// The headset panel's pixels per eye, "WxH", for the menu's status box (the runtime's resolution and the eyes' as a
+// share of it, and its warning); "" looked up by the headset's name (Quest 2, 3, 3S, Pro, Index, Vive, Reverb G2,
+// Pico 4...: SteamVR names none, Virtual Desktop and Meta do).
+QVR_CVAR(vr_xr_panel, "", CVAR_ARCHIVE)
+// The status box warns that the eyes are rendered too large (and says what lowers them) over this many times the
+// panel's pixels (vr_xr_panel; 0 never) or, the panel unknown, over vr_xr_res_warn_mpx million pixels an eye (0 never).
+QVR_CVAR(vr_xr_res_warn, "1.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_res_warn_mpx, "6", CVAR_ARCHIVE)
 // 1: each eye's image acquired from the runtime only once its scene is drawn (before the post-processing writes it):
 // the runtime's wait for the image (SteamVR's OpenGL path: its copy out of it) overlaps the scene's drawing; 0 before
 // the scene (the old order, for comparison).

@@ -295,6 +295,15 @@ void VR_Status_f()
                "%dx%d, largest %dx%d)\n",
         renderWidth, renderHeight, vr_render_scale.value, imagePixels > 0.0 ? 100.0 * pixels / imagePixels : 0.0,
         sizes.width, sizes.height, sizes.recommendedWidth, sizes.recommendedHeight, sizes.maxWidth, sizes.maxHeight);
+    // The menu's status box's eye lines: the panel and the runtime's share of it, a warning if too large.
+    {
+        za::Vector<za::String> lines;
+        qvr::eyeSizeLines(*state->backend, lines);
+        for(const za::String& line : lines)
+        {
+            Con_Printf("  status: %s\n", line.cStr());
+        }
+    }
 
     // The lenses' hidden area (vr_visibility_mask): its share of the image, and its bounds in the
     // eye's tangent space against the eye's field of view (they should lie within it).
@@ -1224,6 +1233,122 @@ bool frameRate(FrameRate& out)
     return valid;
 }
 
+// A headset's panel (pixels per eye), by a part of the name the runtime gives it (OpenXR's systemName, its letters and
+// digits in lower case: "Meta Quest 3" -> "metaquest3"); the more particular names first. SteamVR names none of them
+// ("SteamVR/OpenXR : oculus"): vr_xr_panel.
+struct KnownPanel
+{
+    const char* name;
+    int width, height;
+};
+constexpr KnownPanel knownPanels[] = {
+    {"quest3s", 1832, 1920}, {"quest3", 2064, 2208}, {"questpro", 1800, 1920}, {"quest2", 1832, 1920},
+    {"quest", 1440, 1600}, {"rifts", 1280, 1440}, {"rift", 1080, 1200}, {"index", 1440, 1600},
+    {"vivepro2", 2448, 2448}, {"vivepro", 1440, 1600}, {"vive", 1080, 1200}, {"reverbg2", 2160, 2160},
+    {"pico4", 2160, 2160}, {"beyond", 2560, 2560}, {"crystal", 2880, 2880},
+};
+
+// The panel's pixels per eye: vr_xr_panel ("WxH"), else looked up by the headset's name; false if unknown.
+[[nodiscard]] bool panelSize(const Backend& b, int& width, int& height)
+{
+    width = height = 0;
+    if(vr_xr_panel.string[0])
+    {
+        return sscanf(vr_xr_panel.string, "%dx%d", &width, &height) == 2 && width > 0 && height > 0;
+    }
+    char key[64];
+    int n = 0;
+    for(const char* c = b.systemName(); *c && n < static_cast<int>(sizeof(key)) - 1; c++)
+    {
+        const char lower = *c >= 'A' && *c <= 'Z' ? static_cast<char>(*c - 'A' + 'a') : *c;
+        if((lower >= 'a' && lower <= 'z') || (lower >= '0' && lower <= '9'))
+        {
+            key[n++] = lower;
+        }
+    }
+    key[n] = '\0';
+    for(const KnownPanel& p : knownPanels)
+    {
+        if(strstr(key, p.name))
+        {
+            width = p.width;
+            height = p.height;
+            return true;
+        }
+    }
+    return false;
+}
+
+// The status box's eye lines: the size the eyes are rendered at (and its pixels), as the runtime's recommended size
+// times Eye Image Size (vr_xr_eye_scale: the images') times Render Scale (vr_render_scale: the eyes' in them); the
+// panel's size, if known, with the runtime's size (its own supersampling: SteamVR's Render Resolution, Virtual
+// Desktop's quality) and the eyes' as a share of its pixels; and a warning (its lines begin with '!', drawn white on red: see
+// VR_MenuDrawStatus) over vr_xr_res_warn times the panel's pixels (vr_xr_res_warn_mpx million, the panel unknown), with
+// what lowers them.
+void eyeSizeLines(const Backend& b, za::Vector<za::String>& out)
+{
+    char line[160];
+    const EyeSizes s = b.eyeSizes();
+    const int w = scaledEyeSize(s.width, s.maxWidth), h = scaledEyeSize(s.height, s.maxHeight);
+    const double eyePixels = static_cast<double>(w) * h;
+    q_snprintf(line, sizeof(line), "Eyes %dx%d (%.1f Mpx)", w, h, eyePixels * 1e-6);
+    out.pushBack(za::String{line});
+    const double imageScale = s.recommendedWidth > 0 ? static_cast<double>(s.width) / s.recommendedWidth : 1.0;
+    const double renderScale = s.width > 0 ? static_cast<double>(w) / s.width : 1.0;
+    q_snprintf(line, sizeof(line), "= runtime's %dx%d x%.2f x%.2f", s.recommendedWidth, s.recommendedHeight, imageScale,
+        renderScale);
+    out.pushBack(za::String{line});
+
+    int pw = 0, ph = 0;
+    const bool panel = panelSize(b, pw, ph);
+    const double panelPixels = static_cast<double>(pw) * ph;
+    double over = 0.0; // the eyes' pixels over the warning's threshold (a ratio; 0 under it)
+    if(panel)
+    {
+        const double runtimeShare = static_cast<double>(s.recommendedWidth) * s.recommendedHeight / panelPixels;
+        q_snprintf(line, sizeof(line), "Panel %dx%d: runtime %.0f%%, eyes %.0f%%", pw, ph, runtimeShare * 100.0,
+            eyePixels / panelPixels * 100.0);
+        out.pushBack(za::String{line});
+        if(vr_xr_res_warn.value > 0.f && eyePixels > panelPixels * vr_xr_res_warn.value)
+        {
+            over = eyePixels / panelPixels;
+        }
+    }
+    else if(vr_xr_res_warn_mpx.value > 0.f && eyePixels > vr_xr_res_warn_mpx.value * 1e6)
+    {
+        over = eyePixels * 1e-6;
+    }
+    if(over <= 0.0)
+    {
+        return;
+    }
+    if(panel)
+    {
+        q_snprintf(line, sizeof(line), "! Eyes %.1fx the panel's pixels: lower", over);
+    }
+    else
+    {
+        q_snprintf(line, sizeof(line), "! Eyes %.1f Mpx, over %g: lower", over, static_cast<double>(vr_xr_res_warn_mpx.value));
+    }
+    out.pushBack(za::String{line});
+    // What made them large: Render Scale over 1, Eye Image Size, the runtime's own setting (by its name).
+    const char* rt = b.runtimeName();
+    const char* setting = strstr(rt, "SteamVR")                                           ? "SteamVR's Render Resolution"
+                          : (strstr(rt, "VirtualDesktop") || strstr(rt, "VDXR"))          ? "VD's quality (Streaming tab)"
+                          : strstr(rt, "Oculus") || strstr(rt, "Meta")                    ? "Meta's Render Resolution"
+                                                                                          : "the runtime's resolution";
+    if(renderScale > 1.001)
+    {
+        out.pushBack(za::String{"! Render Scale, Eye Image Size"});
+    }
+    else
+    {
+        out.pushBack(za::String{"! Eye Image Size (Advanced: Headset)"});
+    }
+    q_snprintf(line, sizeof(line), "! or %s", setting);
+    out.pushBack(za::String{line});
+}
+
 // The menu's status box (vr_menu_status, vr_menuui.cpp): the mode, the runtime, the resolution rendered, the target
 // rate, and the frames' cost and the memory held. The memory is sampled once a second (its GL queries are not free).
 void statusLines(za::Vector<za::String>& out)
@@ -1251,11 +1376,7 @@ void statusLines(za::Vector<za::String>& out)
     double targetHz = 0.0;
     if(vr)
     {
-        const EyeSizes s = b->eyeSizes();
-        const int w = scaledEyeSize(s.width, s.maxWidth), h = scaledEyeSize(s.height, s.maxHeight);
-        q_snprintf(line, sizeof(line), "Eyes %dx%d (runtime %dx%d x%.2f)", w, h, s.width, s.height,
-            static_cast<double>(CLAMP(0.25f, vr_render_scale.value, 2.f)));
-        out.pushBack(za::String{line});
+        eyeSizeLines(*b, out);
         targetHz = periodMs > 0.0 ? 1000.0 / periodMs : 0.0;
         if(targetHz > 0.0)
         {

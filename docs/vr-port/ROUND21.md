@@ -34100,3 +34100,24 @@ the time and Windows' Application log entry tell it apart from an engine crash (
   later at 8.089 (the time ran on in between); `vr_xr_unfocused_pause 0`: "the game runs on", never paused. Part 4's
   check split: the second's timing line with the frames shown again may come after the focus is back (it did, with
   the paused game's quicker frames).
+
+## The eyes' size against the headset's panel, in the status box (2026-10-09)
+
+- Eye Image Size stays one global setting. The menus' status box (top right; `vr_menu_status`) now says, in VR:
+  "Eyes WxH (n Mpx)" (the size rendered), "= runtime's WxH xA xB" (the runtime's recommended size times Eye Image
+  Size, as the images came out, times Render Scale), and with the panel known "Panel WxH: runtime P%, eyes Q%" (the
+  runtime's own supersampling, SteamVR's Render Resolution or Virtual Desktop's quality, and the eyes' rendered pixels,
+  as shares of the panel's).
+- Over `vr_xr_res_warn` (1.3) times the panel's pixels (the panel unknown: over `vr_xr_res_warn_mpx`, 6 million an
+  eye) a warning, white on a red band (a hue alone is lost under the menus' tint): "! Eyes 2.2x the panel's pixels:
+  lower" / "! Eye Image Size (Advanced: Headset)" (or "Render Scale, Eye Image Size" when that is over 1) / "! or
+  SteamVR's Render Resolution" (Virtual Desktop's quality, Meta's, by the runtime's name).
+- The panel: `vr_xr_panel` "WxH" (archived; "" by the headset's name), else looked up by OpenXR's systemName (its
+  letters and digits: Quest 3S, 3, Pro, 2, 1; Rift S, Rift; Index; Vive Pro 2, Pro, Vive; Reverb G2; Pico 4; Bigscreen
+  Beyond; Pimax Crystal). SteamVR names the driver, not the headset ("SteamVR/OpenXR : oculus"): there it takes
+  `vr_xr_panel` (a Quest 3: `vr_xr_panel 2064x2208`), else the 6 Mpx budget. Virtual Desktop's and Meta's
+  names are expected to carry the model (not checked on them: worth a look at qvr_openxr.txt's "system" line).
+- `vr_status` prints the same lines ("status: ..."). The fake runtime takes a name (`FAKEXR_SYSTEM`);
+  `xr_runtime_test.sh` part 6: a Quest 3 at 3096x3312 (150% each side): "runtime 225%, eyes 225%", the warning;
+  `vr_xr_eye_scale 0.66`: "eyes 98%", none. By hand: an unknown name, no panel line; `vr_xr_panel 500x500` with Render
+  Scale 1.2: "runtime 154%, eyes 221%", the Render Scale hint; "Quest 2 (VDXR)" found (1832x1920).

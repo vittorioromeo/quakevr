@@ -8041,7 +8041,7 @@ za::Vector<Item> pageMain()
         slider("SteamVR Wait", vr_xr_steamvr_wait, 0.f, 20.f, 1.f, "%.0f s").advanced()
             .help("How long SteamVR, just started, is given to find the headset (through Virtual Desktop or the Link) before it counts as failed and Auto tries the next runtime."),
         slider("Eye Image Size", vr_xr_eye_scale, 0.5f, 1.f, 0.05f, "%.2f").advanced()
-            .help("The headset images' size, times the runtime's recommended (each side), at the next VR start. SteamVR's recommended is 1.5 times the panel's pixels by default (its own Render Resolution): 0.82 matches the panel. Smaller images cost less to draw, to copy (SteamVR copies an OpenGL game's every image) and in video memory."),
+            .help("The headset images' size, times the runtime's recommended (each side), at the next VR start. SteamVR's recommended is 1.5 times the panel's pixels by default (its own Render Resolution): 0.82 matches the panel. Smaller images cost less to draw, to copy (SteamVR copies an OpenGL game's every image) and in video memory. The menus' status box shows the eyes' size, the headset panel's if known (vr_xr_panel WxH sets it) and warns over 1.3 times its pixels."),
         cycle("Runtime Menu Open", vr_xr_unfocused, {{1.f, "Freeze the Game's View"}, {0.f, "Keep Rendering"}}).advanced()
             .help("While the runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's menu) has the controllers: the game's last frame stays in view, not rendered again, which leaves the graphics card to the menu; or the game keeps rendering as usual."),
         cycle("Runtime Menu Pauses", vr_xr_unfocused_pause, {{1.f, "Pause the Game"}, {0.f, "Keep Running"}}).advanced()

@@ -1773,10 +1773,17 @@ extern "C" void VR_MenuDrawStatus()
         // A row's middle (menu y), where its characters are centred at their own size.
         const float ym = y0 + (pad + step * static_cast<float>(i) + size * 0.5f) / p.k;
         float x = x0 + pad;
+        // A warning (the eyes too large: statusLines), from its '!': white on a red band (a hue alone is lost under
+        // the menus' tint).
+        const bool warning = lines[i].cStr()[0] == '!';
+        if(warning)
+        {
+            p.rounded(x0 + 2.f, x1 - 2.f, ym, step * 0.5f, 1.5f, colors::recording);
+        }
         for(const char* c = lines[i].cStr(); *c; c++, x += size)
         {
             // The first line (the mode) white, the rest in the menus' tan.
-            Draw_CharacterEx(x, ym - size * 0.5f, size, size, i == 0 ? *c : (*c | 128));
+            Draw_CharacterEx(x, ym - size * 0.5f, size, size, i == 0 || warning ? *c : (*c | 128));
         }
     }
 }

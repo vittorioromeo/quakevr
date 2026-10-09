@@ -41,6 +41,10 @@ struct FrameRate
 // The menu's status box's lines (vr_menu_status): VR, mock VR or flat; the runtime; the resolution rendered; the target
 // rate; the frames a second and the CPU's and GPU's work; the RAM and VRAM held. Once a frame while it is shown.
 void statusLines(za::Vector<za::String>& out);
+// Its eye lines (vr_status prints them too): the size rendered, as the runtime's times Eye Image Size times Render
+// Scale; the panel (vr_xr_panel, or by the headset's name) and the runtime's and the eyes' shares of its pixels; a
+// warning over vr_xr_res_warn (lines beginning with '!').
+void eyeSizeLines(const Backend& b, za::Vector<za::String>& out);
 
 // The runtime's own menu has the focus (or vr_debug_runtime_menu), and a single player game is paused for it
 // (vr_xr_unfocused_pause): as of this frame's VR_BeginFrame.
