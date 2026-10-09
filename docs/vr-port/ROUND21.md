@@ -34046,3 +34046,35 @@ water, and drowned 5 s later (its breath had run since it went in face down).
   the headset's Menu Height 1, which give 16) the rows go to 13 apart with no gaps, their letters drawn smaller
   (`VR_BigFont_DrawScaled`). Checked headless: both rows' dialogs (Cancel by the laser, VR Hub's Go by the laser, VR
   Tutorial's Start by `vr_test_modal_answer 1`: "Quake VR: Tutorial" loads), `vr_menu_path_check` 0 missing.
+
+## Toolgun: the joint choice crash (2026-10-09)
+
+The author, 18:53, his Release build of e1b7d17f0: "the game crashes as I was selecting a joint type in the physgun".
+No qvr_crash.txt: the crash was not the engine's. Windows' Application log at 18:53:37: ironwail.exe faulting in
+**nvoglv64.dll** (NVIDIA's OpenGL driver), exception 0xc0000409, with the driver's own event "Unable to recover from a
+kernel exception. The application must close. Error code: 3 (subcode 7)" and the System log's nvlddmkm event 153
+("Error occurred on GPUID: 100", the same as 2026-09-30 12:45): the GPU faulted (a TDR or a page fault) and the driver
+ended the process with a fast-fail, which no unhandled-exception filter sees. qvr_openxr.txt's last two seconds show the
+frame getting heavier first (xrEndFrame 0.4 → 1.3 → 3.9 ms on average, the wait for the next frame 5.4 → 1.8 ms).
+
+The toolgun's side, checked headless with the mock laser on the gun's menu, Release and Debug (Zancle asserts, the
+debug CRT heap), his own config exec'd too: every joint choice from every other through the Joint row's list (a
+drop-down: 7 choices), with the physgun holding a crate (and the gun swung meanwhile), with a joint half made, the Tool
+list switched to Joint and back mid-drag, every kind made then unjoined, the gun in either hand; also six joints of
+every kind on one pair dragged and swung hard (no runaway: the crates came to rest), a frozen jointed crate removed,
+and 800-step random sessions of buttons, laser clicks, sticks and tools. No assert, no fault, every pick set
+`vr_toolgun_joint` to the choice clicked. Nothing in the joint choice reaches the GPU but the gun's screen text (not
+drawn while the menu is open) and the menu's own drop-down (older, used on many pages).
+
+Regression test: `Misc/quakevr/toolgun_joint_menu_test.sh <agent> [--debug]` (both hands: 70 picks, 0 wrong, tool
+list 4/2, 6 of 6 kinds joined, 6 removed; PASS on Release and Debug).
+
+A lead, not fixed: the ammo screens' images (vr_text3d.cpp renderScreens) are kept by their place in the frame's queue,
+so a screen text coming or going (the toolgun's screen as its menu opens or closes, the guns nearest you changing)
+moves every later screen to another image and remakes its texture (ensureTarget, with mipmaps). His memstats of that
+session (profile/memstats_2026-10-09_18-42-43.csv): render targets remade 180 → 1695 in ten minutes in the firing range
+(each of 14+ "ammo screen" images 40 to 130 times), against about 2 a minute in the tutorial; VRAM 19-20 GB of 24.5.
+Whether that churn upset the driver is not known.
+
+In the headset: the toolgun menu's joint list again (Physgun active, a crate held); if the driver error comes back,
+the time and Windows' Application log entry tell it apart from an engine crash (which writes qvr_crash.txt).

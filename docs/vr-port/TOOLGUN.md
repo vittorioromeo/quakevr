@@ -94,6 +94,10 @@ Toolgun).
 rows` gives the rows' tops: click 4 below), `vr_mock_button main trigger 1/0` (the tool), `vr_mock_button main primary
 1` with `vr_mock_stick main|off <x> <y>` (the offsets), `vr_toolgun_status`. ROUND21.md, "The toolgun", has the runs.
 
+`Misc/quakevr/toolgun_joint_menu_test.sh <agent> [--debug]`: the Joint row's list walked with the laser (every choice
+from every other, 70 picks) with the physgun holding a crate and with a joint half made, each kind then made and
+unjoined, the gun in either hand (ROUND21.md, "Toolgun: the joint choice crash").
+
 ## Known limits
 
 - With the gun in the right hand, A (jump) is the tool's while you hold it.
