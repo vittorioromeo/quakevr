@@ -309,6 +309,8 @@ float cvarh_vr_throw_heavy_exp;
 float cvarh_vr_throw_heavy_max;
 float cvarh_vr_carry_slam;
 float cvarh_vr_burn_lava;
+float cvarh_vr_burn_lava_bodies;
+float cvarh_vr_burn_lava_gib;
 float cvarh_vr_carry_throw_inherit;
 float cvarh_vr_carry_slam_height;
 float cvarh_vr_carry_slam_speed;
@@ -1078,6 +1080,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_throw_heavy_max);
     VR_CVAR_HMAKE(vr_carry_slam);
     VR_CVAR_HMAKE(vr_burn_lava);
+    VR_CVAR_HMAKE(vr_burn_lava_bodies);
+    VR_CVAR_HMAKE(vr_burn_lava_gib);
     VR_CVAR_HMAKE(vr_carry_throw_inherit);
     VR_CVAR_HMAKE(vr_carry_slam_height);
     VR_CVAR_HMAKE(vr_carry_slam_speed);

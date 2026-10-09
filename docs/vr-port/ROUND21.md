@@ -33389,3 +33389,20 @@ Measured (Misc/quakevr/ragdoll/liquid_test.sh; dead grunts dropped from about 20
 - a live grunt knocked down over the pool, and one falling in standing: health 30, no fall (before: 65 and 63 damage,
   gibbed and dead). Knocked down into slime: no fall; the slime burns it (vr_enemy_liquid_damage) and it floats dead.
 - Cost: the water-and-hits phase with 8 ragdolls lying on e1m1's floor 0.034 ms a frame, 0.033 with it all off.
+
+## Bodies burn in lava (2026-10-09)
+
+The same notes: a ragdoll or a knocked-down monster thrown or falling into lava should catch fire and in the end be
+destroyed. `VR_Burn_LavaBodies` (vr_burning.qc, from VR_Burn_LavaFrame every 0.2 s; `vr_burn_lava_bodies` 1, Combat >
+Burning > Bodies Burn in Lava): a monster's ragdoll (dead or knocked down) or corpse whose middle's bottom, origin or
+(ragdoll) head is in lava catches fire there (`VR_Burn_Ignite`, VR_BURN_LAVA), lit again while it burns less than a
+second on, so it burns as long as it lies in it; VR_Burn_Think no longer puts out a fire in lava (only wood's was kept
+burning there). After `vr_burn_lava_gib` s in it (4; Burnt Through in Lava, 0 never) it bursts in embers and smoke: a
+knocked-down one still alive is killed by it (health + 100: its death code's gibs), a corpse gibbed as a corpse
+(`VR_Corpse_Gib`; one VR_Corpse_Parts doesn't know is removed in the puff; vr_corpse_nogib keeps it). A monster
+standing in lava is still VR_Liquids_Frame's (burnt by its damage, not set on fire). With the engine's lava float
+(vr_ragdoll_float_lava 1.4) the body burns on the surface, in sight.
+
+Measured (liquid_test.sh lava, kdlava; e1m7): a dead grunt in at 342 u/s, floats, lit at once, more flames as it burns,
+gibbed 4 s after it went in; a live grunt knocked down into it dies of the lava within 0.2 s, burns, gibbed 4 s on.
+liquid_test.sh runs all the cases (water, knight, kd, fall, slime, kdslime, lava, kdlava; OLD=1 as before).

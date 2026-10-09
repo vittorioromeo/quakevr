@@ -634,8 +634,8 @@ void() VR_Burn_Think =
         VR_Burn_Out(self, "gone or gibbed");
         return;
     }
-    // (In a liquid: out, but wood in lava, which lit it: VR_Burn_LavaFrame.)
-    if(VR_Wound_Level(v) >= 2 && !(vr_wound_liquid == CONTENT_LAVA && VR_Burn_Wood(v)))
+    // (In a liquid: out, but not in lava, which lights wood and bodies: VR_Burn_LavaFrame.)
+    if(VR_Wound_Level(v) >= 2 && vr_wound_liquid != CONTENT_LAVA)
     {
         particle2((v.absmin + v.absmax) * 0.5, '0 0 30', QVR_PARTICLE_PRESET_BIGSMOKE, 6);
         if(self.burn_smoke_out)
@@ -1312,15 +1312,108 @@ void(string xClass) VR_Burn_LavaWood =
         }
     }
 };
+// Bodies in lava (NOTES.md start_2026-10-09_15-27-59; vr_burn_lava_bodies): a monster's ragdoll, dead or knocked down,
+// or its corpse, in lava catches fire there (lit again each look while it is in it: it burns on, VR_Burn_Think puts a fire
+// out in water and slime, not lava; the engine floats it on the lava, vr_ragdoll_float_lava). After vr_burn_lava_gib s in
+// it, burnt through, it bursts: a knocked-down one alive is killed by it (its death code's gibs), a corpse gibbed as a
+// corpse (VR_Corpse_Gib; one that can't be goes in a puff of embers). A monster standing in lava is VR_Liquids_Frame's.
+.float vr_lava_since; // when it was first found in lava (0: not in it at the last look)
+void(entity e) VR_Knockdown_RemoveBody; // (vr_knockdown.qc)
+
+// Whether body `e` is in lava: its middle's bottom, its origin or (a ragdoll) its head.
+float(entity e) VR_Burn_BodyInLava =
+{
+    vector at = (e.absmin + e.absmax) * 0.5;
+    at_z = e.absmin_z + 2;
+    return pointcontents(at) == CONTENT_LAVA || pointcontents(e.origin) == CONTENT_LAVA ||
+           (isragdoll(e) && pointcontents(ragdollcut(e, 6)) == CONTENT_LAVA);
+};
+
+void(entity e) VR_Burn_LavaBurst =
+{
+    vector mid = (e.absmin + e.absmax) * 0.5;
+    particle2(mid, '0 0 60', QVR_PARTICLE_PRESET_LAVASPIKE, 24);
+    particle2(mid, '0 0 30', QVR_PARTICLE_PRESET_BIGSMOKE, 8);
+    if(e.burn_fire != world)
+    {
+        VR_Burn_Out(e.burn_fire, "burnt through in lava");
+    }
+    if(e.health > 0)
+    {
+        dprint(sprintf("burning: %s burnt through in lava (knocked down, health %g): killed\n", e.classname, e.health));
+        T_Damage(e, world, world, e.health + 100); // (its death code's gibs: under its gib health)
+        return;
+    }
+    if(VR_Corpse_NoGib(1))
+    {
+        return; // (never gibbed: vr_corpse_nogib, testing)
+    }
+    if(VR_Corpse_Parts(e))
+    {
+        dprint(sprintf("burning: %s burnt through in lava: gibbed\n", e.classname));
+        VR_Corpse_Gib(e, world, world, 100);
+        return;
+    }
+    dprint(sprintf("burning: %s burnt away in lava\n", e.classname));
+    sound(e, CHAN_BODY, "player/inlava.wav", 1, ATTN_NORM);
+    VR_Knockdown_RemoveBody(e);
+};
+
+void() VR_Burn_LavaBodies =
+{
+    float gibAfter = cvar_hget(cvarh_vr_burn_lava_gib);
+    entity e = findflags(world, flags, FL_MONSTER);
+    while(e)
+    {
+        entity next = findflags(e, flags, FL_MONSTER);
+        float body = isragdoll(e) || e.vr_corpse || e.vr_corpse_dying || (e.health <= 0 && e.solid != SOLID_BBOX && e.solid != SOLID_SLIDEBOX);
+        if(!body || e.vr_gib || !e.modelindex || VR_Burn_Fireproof(e) || e.vr_deathdoll != world)
+        {
+            e.vr_lava_since = 0;
+        }
+        else if(!VR_Burn_BodyInLava(e))
+        {
+            e.vr_lava_since = 0;
+        }
+        else
+        {
+            if(!e.vr_lava_since)
+            {
+                e.vr_lava_since = time;
+                dprint(sprintf("burning: %s in lava (%s)\n", e.classname,
+                    e.health > 0 ? "knocked down" : (isragdoll(e) ? "a ragdoll" : "a corpse")));
+            }
+            if(e.burn_fire == world || e.burn_fire.burn_end < time + 1)
+            {
+                vector at = (e.absmin + e.absmax) * 0.5;
+                at_z = e.absmin_z + 2;
+                VR_Burn_Ignite(e, world, at, '0 0 1', VR_BURN_LAVA); // (lit, or kept burning)
+            }
+            if(gibAfter > 0 && time >= e.vr_lava_since + gibAfter)
+            {
+                VR_Burn_LavaBurst(e);
+            }
+        }
+        e = next;
+    }
+};
+
 void() VR_Burn_LavaFrame =
 {
-    if(time < vr_burn_lava_next || !cvar_hget(cvarh_vr_burn_lava))
+    if(time < vr_burn_lava_next)
     {
         return;
     }
     vr_burn_lava_next = time + VR_BURN_LAVA_LOOK;
-    VR_Burn_LavaWood("vr_crate");
-    VR_Burn_LavaWood("vr_crate_piece");
+    if(cvar_hget(cvarh_vr_burn_lava))
+    {
+        VR_Burn_LavaWood("vr_crate");
+        VR_Burn_LavaWood("vr_crate_piece");
+    }
+    if(cvar_hget(cvarh_vr_burn_lava_bodies))
+    {
+        VR_Burn_LavaBodies();
+    }
 };
 
 // Every server frame (StartFrame): the nails in flight that pass a lit torch's flame this frame (from where they were
