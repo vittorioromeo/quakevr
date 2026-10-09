@@ -368,6 +368,10 @@
   "sha256": "aae9981a3f4ede79c2d5e18f0ca2e2522d0b7d3adb5c046794ef918c31e7c7e4",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/v_toolgun.mdl": {
+  "sha256": "d7c5694ebe44e8158e7eb7c09b39609dc3ae98c68533fb922ac9f8eb248979d6",
+  "by": "make_toolgun.py"
+ },
  "quakevr/progs/vr_barrel.mdl": {
   "sha256": "e8fd9dadb3eca3a91f6c0d3070d14f0505df4e986a8cc5b414a6e4a30ebd40e7",
   "by": "make_crates.py"

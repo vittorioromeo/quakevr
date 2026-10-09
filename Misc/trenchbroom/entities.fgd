@@ -122,6 +122,7 @@
 		15 : "Shotgun (a grunt's; its own shells)"
 		16 : "Laser rifle (an enforcer's; its own shots)"
 		17 : "Crowbar"
+		19 : "Toolgun (debug and sandbox)"
 	]
 	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
 	[
@@ -599,6 +600,15 @@ A point entity, despite its name."
 	angles(string) : "Pitch yaw roll" : : "With Lies as placed: how it lies before it falls."
 ]
 
+@PointClass base(Appearflags) size(-16 -16 0, 16 16 32) color(0 128 204) model({ "path": "progs/v_toolgun.mdl" }) = weapon_toolgun : "Toolgun (Quake VR)
+
+A debug and sandbox tool held as a pistol, as Garry's Mod's (docs/vr-port/TOOLGUN.md): it spawns, removes, moves,
+freezes, scales and joins things, and its menu (B or Y) has the cheats. It drops from its origin and settles on the
+floor, a physics object as func_weapon_grabbable's weapons (the same as one with weapon 19). It uses no ammunition."
+[
+	angles(string) : "Pitch yaw roll" : : "How it lies before it falls (none: any way)."
+]
+
 @PointClass base(Appearflags) size(-16 -16 0, 16 16 32) color(0 128 204) model({ "path": "progs/v_crowbar.mdl" }) = weapon_crowbar : "Crowbar (Quake VR)
 
 A steel crowbar lying ready to be picked up: a melee weapon, held in one hand or two (the other hand below the first on
@@ -650,6 +660,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		15 : "Shotgun (a grunt's; its own shells)"
 		16 : "Laser rifle (an enforcer's; its own shots)"
 		17 : "Crowbar"
+		19 : "Toolgun (debug and sandbox)"
 	]
 ]
 

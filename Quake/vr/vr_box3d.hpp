@@ -67,8 +67,40 @@ bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin,
 void beforeLoad();
 void finishLoads();
 
-// Forgets the world and everything made for it (a new server: its bodies are rebuilt from the entities).
+// Forgets the world and everything made for it (a new server: its bodies are rebuilt from the entities), the toolgun's
+// pins and joints too.
 void reset();
+
+// A map entity made by its spawn function (`classname`) at `origin`, turned `angles` (set before it: a monster's
+// ideal_yaw is taken from them), its "model" `model` and the float field `key` set to `value` first when given (a rock's
+// model, func_weapon_grabbable's weapon). Null if there is no such spawn function, or it removed itself. vr_physics_spawn's
+// and the toolgun's.
+edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model = nullptr,
+    const char* key = nullptr, float value = 0.f);
+
+// The toolgun's (vr_toolgun.cpp). A prop pinned is a kinematic body where its entity is (as a pickup hanging), until
+// unpinned: frozen, or moved by the physgun's beam (its entity moved, its body follows and pushes the others). Edict
+// numbers; forgotten when the entity goes (toolForget) or the server is new (reset).
+void setPinned(int num, bool pinned);
+[[nodiscard]] bool isPinned(int num);
+int unpinAll(); // how many there were
+// Joints between two props' bodies (loose or pinned), kept across their bodies being made again: a weld, a ball and a
+// hinge (turning about `axis`) and a slider (along `axis`) at `atB`; a rope (no longer than now) and a spring (that long
+// at rest) from `atA` on `a` to `atB` on `b`. World units. False if either has no body (not a prop) or a == b.
+enum class ToolJoint : int
+{
+    Weld,
+    Ball,
+    Hinge,
+    Slider,
+    Rope,
+    Spring,
+    Count
+};
+bool addToolJoint(int a, int b, ToolJoint kind, const glm::vec3& atA, const glm::vec3& atB, const glm::vec3& axis);
+int removeToolJoints(int num); // `num`'s (0: all); how many
+[[nodiscard]] int toolJointCount(int num); // made now (0: all)
+void toolForget(int num);
 
 // An explosion of `damage` at `at` (T_RadiusDamage's, through the physicsblast builtin): the props within its reach
 // that it sees are thrown.

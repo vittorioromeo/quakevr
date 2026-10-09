@@ -36,6 +36,11 @@ void handCalMatch_f();
 // The page shown (while m_state is m_vr), and the VR Settings reopened at one (its selection,
 // scroll and way back as they were left).
 [[nodiscard]] int currentPage();
+// The toolgun's menu (vr_menu_toolgun.inc; vr_toolgun.cpp): one of its pages shown (drawn on the gun while it is held),
+// opened (from the game) and closed (back to the game).
+[[nodiscard]] bool toolgunPageShown();
+void openToolgun();
+void closeToolgun();
 void reopen(int page);
 
 // "Advanced VR" (the corner's button, the main menu's row): the Advanced VR Options from any menu, their selection and

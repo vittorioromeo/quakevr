@@ -77,6 +77,10 @@
         command("Put a Monster or Prop Ahead", "impulse 241")
             .help("impulse 241: the Thing chosen on Debug > Tests (Ahead of You: Thing, Distance, As a Corpse) put ahead of you."),
         open("Choose the Thing: Tests", pageIndex(pageDebugTests)).help("Debug > Tests > Ahead of You."),
+        command("A Toolgun in Your Hand", "impulse 169")
+            .help("impulse 169: the toolgun in the main hand (impulse 189: the off hand). Its trigger uses its tool (spawn, "
+                  "remove, physgun, scale, joint); B or Y opens its menu on the gun; X or A held, the sticks move what it "
+                  "places or holds (docs/vr-port/TOOLGUN.md)."),
         open("Spawn Pickup Weapons", pageIndex(pageSpawnWeapons)),
         header("Time"),
         command("Normal Speed", "vr_slowmo 1").help("vr_slowmo 1: the game at its own speed."),

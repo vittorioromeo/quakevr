@@ -307,6 +307,7 @@ void() worldspawn =
     precache_model("progs/v_hksword.mdl");
     VR_Chainsaw_Precache(); // VR: the ogres' chainsaw (vr_chainsaw.qc)
     VR_Crowbar_Precache(); // VR: the crowbar (vr_crowbar.qc)
+    VR_Toolgun_Precache(); // VR: the toolgun (vr_toolgun.qc)
     VR_MG3_Weapons_Precache(); // VR: Dawn of the Machine's weapons, when its data is there (vr_mg3_weapons.qc)
     VR_EnemyGuns_Precache(); // VR: the grunts' shotguns and the enforcers' laser rifles (vr_enemyguns.qc)
     VR_Debris_Precache(); // VR: rocks and bricks lying about (vr_debris.qc)

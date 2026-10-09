@@ -25,6 +25,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_timescale.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_toolgun.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Swap.hpp"
@@ -345,6 +346,13 @@ void update(const InputState& tracked)
                     logButton(h, b, now, b.key[h], "the weapon posing mode");
                     continue;
                 }
+                // The toolgun's hand: its trigger, B/Y (its menu) and X/A (the sticks); the other trigger while its physgun
+                // holds something (vr_toolgun.cpp).
+                if(toolgun::button(h, posingButton(b.button), now))
+                {
+                    logButton(h, b, now, b.key[h], "the toolgun");
+                    continue;
+                }
                 // The off hand's upper button at the mouth records a voice note instead (not while that hand holds
                 // the flashlight or is at it on the head: its Y turns it round in the fist, clips it on the head or
                 // takes it off; a note's release always ends it).
@@ -454,6 +462,16 @@ void update(const InputState& tracked)
         stickKey(stickKeys[2], -stick.x, true);
         stickKey(stickKeys[3], stick.x, true);
         moveAxes = glm::vec2{0.f};
+    }
+    else if(toolgun::sticksTaken())
+    {
+        // The toolgun's X/A held: the sticks move and turn what it places or holds (no walking, no turning).
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        toolgun::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
     }
     else if(posing::active())
     {

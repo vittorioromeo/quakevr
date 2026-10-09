@@ -1,4 +1,5 @@
 #include "vr_cheats.hpp"
+#include "vr_toolgun.hpp"
 #include "vr_alloccount.h"
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
 // pages: scrolling lists of labelled settings, changed with left/right (the sticks in VR), with
@@ -571,6 +572,7 @@ mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
 #include "vr_menu_pages.inc"
 #include "vr_menu_recording.inc"
 #include "vr_menu_cheats.inc"
+#include "vr_menu_toolgun.inc"
 #include "vr_menu_stealth.inc"
 
 // ----------------------------------------------------------------------------
@@ -5460,6 +5462,8 @@ za::Vector<Item> pageSpawnWeapons()
         command("Mjolnir", "vr_physics_spawn weapon_mjolnir 64"),
         command("Laser Gun", "vr_physics_spawn weapon_laser_gun 64"),
         command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun 64"),
+        command("Toolgun", "vr_physics_spawn weapon_toolgun 64")
+            .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its menu."),
     };
 }
 
@@ -7127,6 +7131,10 @@ const Page pages[] = {
     {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
     {"Stealth AI Tests", pageStealthTests, pageDebugTests, LevelDeveloper},
     {"Holding Enemies", pageHoldingEnemies, pageCombat},
+    // The toolgun's menu (vr_menu_toolgun.inc): shown on the gun (B/Y), linked from nowhere else; Back from it closes it.
+    {"Toolgun", pageToolgun, pageDebugTools, LevelStandard},
+    {"Toolgun - Spawn", pageToolgunSpawn, pageToolgun, LevelStandard},
+    {"Toolgun - Cheats and Utilities", pageToolgunCheats, pageToolgun, LevelStandard},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -10098,6 +10106,11 @@ void goBack()
         M_Menu_Options_f(); // (its sound as it is drawn)
         return;
     }
+    if(pages[page].build == pageToolgun)
+    {
+        qvr::menu::closeToolgun(); // (the toolgun's menu: back to the game)
+        return;
+    }
     const int dest = homeOf(page);
     navPush(dest);
     showPage(dest);
@@ -11788,6 +11801,33 @@ bool qvr::menu::flashlightMountPreview(int& hand)
 int qvr::menu::currentPage()
 {
     return page;
+}
+
+bool qvr::menu::toolgunPageShown()
+{
+    if(key_dest != key_menu || m_state != m_vr || page < 0 || page >= pageCount)
+    {
+        return false;
+    }
+    const PageBuilder b = pages[page].build;
+    return b == pageToolgun || b == pageToolgunSpawn || b == pageToolgunCheats;
+}
+
+void qvr::menu::openToolgun()
+{
+    openFromAnywhere(pageIndex(pageToolgun));
+}
+
+void qvr::menu::closeToolgun()
+{
+    if(key_dest != key_menu)
+    {
+        return;
+    }
+    // As Back to Game (vr_menuui.cpp backToGame), not remembered: the menu button opens the VR Settings as ever.
+    IN_Activate();
+    key_dest = key_game;
+    m_state = m_none;
 }
 
 const cvar_t* qvr::menu::selectedSetting()

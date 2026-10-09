@@ -5,7 +5,8 @@
 # (NOTES.md vrfiringrange_2026-09-30_10-57-41), and a crowbar beside it (a weapon_crowbar: QC vr_crowbar.qc); and, last,
 # Dawn of the Machine's Super Axe on the floor between the axe's and Mjolnir's weapon pads (ROUND21.md, "The Super Axe
 # in the firing range"): a func_weapon_grabbable with weapon 18 (WID_SUPERAXE), which makes nothing without the owned
-# MG3 data (CreateThrownWeapon: VR_Pack_WeaponAvailable), as no weapon pad is labelled.
+# MG3 data (CreateThrownWeapon: VR_Pack_WeaponAvailable), as no weapon pad is labelled; and the toolgun north of the crowbar
+# (weapon_toolgun, labelled; docs/vr-port/TOOLGUN.md).
 #
 # vrfiringrange.bsp has no source that matches it any more (its entities are quakevr/maps/vrfiringrange@<crc>.ent, which the
 # engine loads in place of the .bsp's), so, as make_spawn_buttons.py does for the second row of monster buttons, the
@@ -94,6 +95,7 @@ WALL = (-600, -760)   # its front face's middle (against the west railing, whose
 CHAINSAW = (-176, -836, FLOOR + 12)  # east of the explosive boxes (x -240..-208)
 CROWBAR = (-176, -784, FLOOR + 8)    # north of the chainsaw
 SUPERAXE = (-456, -872, FLOOR + 16)  # between the axe's pad (x -488) and Mjolnir's (x -424), on the aisle's floor north of them
+TOOLGUN = (-176, -740, FLOOR + 8)    # north of the crowbar
 
 ROCKS = ["progs/vr_rock%d.mdl" % i for i in range(1, 6)]
 BRICKS = ["progs/vr_brick%d.mdl" % i for i in range(1, 5)]
@@ -143,6 +145,11 @@ def entities():
     # entity before it is renumbered (the long explosive box is the map's 207: boxtopple_repro.py). It drops and settles,
     # as the swords north of the last pads do.
     out.append([("classname", "func_weapon_grabbable"), ("origin", "%g %g %g" % SUPERAXE), ("weapon", "18")])
+    # The toolgun (WID_TOOLGUN 19: weapon_toolgun; docs/vr-port/TOOLGUN.md), north of the crowbar, labelled; last again.
+    out.append([("classname", "weapon_toolgun"), ("origin", "%g %g %g" % TOOLGUN), ("angles", "0 90 0")])
+    out.append([("classname", "func_worldtext_banner"),
+                ("origin", "%g %g %g" % (TOOLGUN[0], TOOLGUN[1] + 24, FLOOR + 28)),
+                ("angle", "90"), ("worldtext", "toolgun"), ("worldtext_halign", "1"), ("worldtext_scale", "0.25")])
     return out
 
 

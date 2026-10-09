@@ -3313,6 +3313,11 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     {
         return;
     }
+    // The toolgun's trigger is the engine's (vr_toolgun.cpp: its tools act on what it points at): nothing here.
+    if(xWeapon == WID_TOOLGUN)
+    {
+        return;
+    }
 
     // A grunt's shotgun or an enforcer's rifle: from its own ammo, its clip (vr_enemyguns.qc).
     if(VR_IsEnemyGun(xWeapon))

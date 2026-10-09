@@ -3094,3 +3094,16 @@ QVR_CVAR(vr_stealth_test_count, "60", CVAR_NONE)     // tests: the horde scene's
 QVR_CVAR(vr_stealth_test_fence, "", CVAR_NONE)      // tests: textures whose names start with one of these (space-separated) count as fences ('{' ones) for sight and sound
 QVR_CVAR(vr_stealth_test_kinds, "0", CVAR_NONE)      // tests: the kinds scene's one kind (vr_stealth_test 106; the dispenser's number; 0 all)
 QVR_CVAR(vr_stealth_test_quitclient, "0", CVAR_NONE) // tests: the coop scene (vr_stealth_test 102) tells the other player's game to quit at its end (stealth_mp_test.sh)
+
+// The toolgun (vr_toolgun.cpp, QC vr_toolgun.qc; docs/vr-port/TOOLGUN.md): its menu's settings and its tools'.
+QVR_CVAR(vr_toolgun_tool, "0", CVAR_ARCHIVE)          // the tool the trigger uses: 0 spawn, 1 remove, 2 physgun, 3 scale, 4 joint
+QVR_CVAR(vr_toolgun_joint, "0", CVAR_ARCHIVE)         // the joint tool's: 0 weld, 1 ball, 2 hinge, 3 slider, 4 rope, 5 spring, 6 unjoin (removes a prop's joints)
+QVR_CVAR(vr_toolgun_scale_uniform, "1", CVAR_ARCHIVE) // the scale tool's face handles scale the whole prop (1) or along their axis alone (0); corners always the whole
+QVR_CVAR(vr_toolgun_turn_axis, "1", CVAR_ARCHIVE)     // X/A held, the gun's stick left and right turns the ghost or the held thing about: 0 its pitch, 1 its yaw, 2 its roll
+QVR_CVAR(vr_toolgun_move_speed, "64", CVAR_ARCHIVE)   // ... and moves it at most this many units a second (the sticks pushed all the way)
+QVR_CVAR(vr_toolgun_turn_speed, "90", CVAR_ARCHIVE)   // ... and turns it at most this many degrees a second
+QVR_CVAR(vr_toolgun_range, "2048", CVAR_ARCHIVE)      // how far the toolgun reaches (units)
+QVR_CVAR(vr_toolgun_menu_height, "8", CVAR_ARCHIVE)   // the menu on the gun: its height (units; its width the menus' shape)
+QVR_CVAR(vr_toolgun_menu_up, "4", CVAR_ARCHIVE)       // ... its bottom edge this many units over the controller
+QVR_CVAR(vr_toolgun_menu_forward, "2", CVAR_ARCHIVE)  // ... and this many ahead of it along the gun
+QVR_CVAR(vr_toolgun_menu_tilt, "20", CVAR_ARCHIVE)    // ... leaning back from upright by this many degrees

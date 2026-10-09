@@ -107,6 +107,7 @@ float IID_GRUNTGUN           = 45; // VR: a grunt's shotgun.
 float IID_ENFRIFLE           = 46; // VR: an enforcer's laser rifle.
 float IID_CROWBAR            = 47; // VR: the crowbar.
 float IID_SUPERAXE           = 48; // MG3: Dawn of the Machine's Super Axe (vr_mg3_weapons.qc).
+float IID_TOOLGUN            = 49; // VR: the toolgun (vr_toolgun.qc; a debug and sandbox tool).
 
 //
 //
@@ -134,7 +135,8 @@ float WID_GRUNTGUN         = 15; // VR: a grunt's shotgun (vr_enemyguns.qc; its 
 float WID_ENFRIFLE         = 16; // VR: an enforcer's laser rifle (vr_enemyguns.qc; its clip is its only ammo)
 float WID_CROWBAR          = 17; // VR: the crowbar (vr_crowbar.qc; a melee weapon, one hand or two, as the swords)
 float WID_SUPERAXE         = 18; // MG3: Dawn of the Machine's Super Axe (vr_mg3_weapons.qc; MG3's model read in place, any campaign)
-float WID_LAST             = 18; // the last weapon id
+float WID_TOOLGUN          = 19; // VR: the toolgun (vr_toolgun.qc, the engine's vr_toolgun.cpp: no ammo, its tools the engine's)
+float WID_LAST             = 19; // the last weapon id
 float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a shotgun fires (yours, Weapon Damage; a grunt's, vr_enemyguns.qc; 0: id's 4)
 // FireBulletsImpl's tracers (the tracer builtin): the hand that fires (-1 a monster's gun) and where they start (its muzzle).
 float vr_tracer_hand;

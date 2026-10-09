@@ -38,6 +38,7 @@
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/Remainder.hpp"
 #include "vr_zancle.hpp"
+#include "vr_toolgun.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -171,6 +172,23 @@ void facingQuad(const hands::State& s, const glm::vec3& angles, float height, gl
     corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
     xAxis = right * width;
     yAxis = up * height;
+}
+
+// The toolgun's menu on the gun (vr_toolgun.cpp menuFrame): its centre and axes there, vr_toolgun_menu_height high, as
+// wide as the canvas's shape.
+[[nodiscard]] bool toolgunQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::vec3& yAxis)
+{
+    glm::vec3 centre, right, up;
+    if(!canvas.texture || !toolgun::menuFrame(s, centre, right, up))
+    {
+        return false;
+    }
+    const float height = za::fmax(vr_toolgun_menu_height.value, 2.f);
+    const float width = height * static_cast<float>(canvas.width) / za::fmax(static_cast<float>(canvas.height), 1.f);
+    corner = centre - right * (width * 0.5f) - up * (height * 0.5f);
+    xAxis = right * width;
+    yAxis = up * height;
+    return true;
 }
 
 // The canvas on that panel (`mask` as drawCanvas's): the menus' and the in-game HUD's.
@@ -375,7 +393,15 @@ void drawInEye(const hands::State& s, bool headText)
     }
     hudAnglesValid = false;
 
-    drawFacing(s, menuAngles(), panelHeight());
+    glm::vec3 gunCorner, gunX, gunY;
+    if(toolgunQuad(s, gunCorner, gunX, gunY))
+    {
+        drawCanvas(gfx::sceneViewProjection() * quad(gunCorner, gunX, gunY)); // (the toolgun's menu, on the gun)
+    }
+    else
+    {
+        drawFacing(s, menuAngles(), panelHeight());
+    }
     panelInEyesTime = realtime;
     menuui::drawInEye(s); // the laser pointer, over the panel
 }
@@ -387,7 +413,10 @@ bool menuQuad(const hands::State& s, glm::vec3& corner, glm::vec3& xAxis, glm::v
     {
         return false;
     }
-    facingQuad(s, menuAngles(), panelHeight(), corner, xAxis, yAxis);
+    if(!toolgunQuad(s, corner, xAxis, yAxis))
+    {
+        facingQuad(s, menuAngles(), panelHeight(), corner, xAxis, yAxis);
+    }
     return true;
 }
 

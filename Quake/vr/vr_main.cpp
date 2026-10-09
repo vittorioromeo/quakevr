@@ -93,6 +93,7 @@
 #include "vr_water.hpp"
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
+#include "vr_toolgun.hpp"
 
 #include "Zancle/Base/Abort.hpp"
 #include "Zancle/Base/Assert.hpp"
@@ -1434,6 +1435,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_screenshot_frames", screenshotFrames_f);
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
+    toolgun::registerCommands();
     Cmd_AddCommand("vr_menu_search", menu::search_f);
     Cmd_AddCommand("vr_menu_slider_step", menu::sliderStep_f);
     Cmd_AddCommand("maps_page_stats", menu::mapsPageStats_f); // (the map browser page: vr_menu_maps.inc)
@@ -1642,6 +1644,7 @@ extern "C" void VR_BeginFrame()
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
     input::roomscaleJump(hands::current());
+    toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
 }
 
 extern "C" int VR_IsActive()

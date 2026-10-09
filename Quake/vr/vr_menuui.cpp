@@ -49,6 +49,7 @@
 #include "vr_stereo.hpp"
 #include "vr_units.hpp"
 #include "vr_window.hpp"
+#include "vr_toolgun.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -201,6 +202,13 @@ struct MockLaser
 };
 MockLaser mockLaser;
 
+// The hand the mock laser is: the main one, or the off hand while the toolgun's menu is on the gun in the main hand (its
+// laser is the other hand's: vr_toolgun.cpp).
+[[nodiscard]] int mockLaserHand()
+{
+    return toolgun::menuOnGun() && toolgun::heldHand() == HAND_MAIN ? HAND_OFF : HAND_MAIN;
+}
+
 // The mock laser's spot on the canvas (v up).
 [[nodiscard]] glm::vec2 mockLaserUv()
 {
@@ -224,7 +232,7 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
     {
         return hit;
     }
-    if(mockLaser.on && hand == HAND_MAIN)
+    if(mockLaser.on && hand == mockLaserHand())
     {
         return {true, glm::vec3{0.f}, mockLaserUv(), true};
     }
@@ -264,7 +272,7 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
     {
         return intersectRuntimePanel(hand); // (the menu is not in the eyes)
     }
-    if(mockLaser.on && hand == HAND_MAIN)
+    if(mockLaser.on && hand == mockLaserHand())
     {
         const glm::vec2 uv = mockLaserUv();
         return {true, corner + xAxis * uv.x + yAxis * uv.y, uv};
@@ -954,7 +962,7 @@ void mockLaser_f()
             Con_Printf("vr_mock_laser kofi: the version box is not shown\n");
         }
         mockLaser = {true, {x, y}};
-        pointingHand = HAND_MAIN;
+        pointingHand = mockLaserHand();
         return;
     }
     if(float x, y; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "update"))
@@ -964,7 +972,7 @@ void mockLaser_f()
             Con_Printf("vr_mock_laser update: the update notice is not shown\n");
         }
         mockLaser = {true, {x, y}};
-        pointingHand = HAND_MAIN;
+        pointingHand = mockLaserHand();
         return;
     }
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "obs"))
@@ -976,14 +984,14 @@ void mockLaser_f()
         }
         const BannerLayout b = obsBannerLayout(toolbarLayout(), o);
         mockLaser = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
-        pointingHand = HAND_MAIN;
+        pointingHand = mockLaserHand();
         return;
     }
     if(Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "spectator"))
     {
         const BannerLayout b = bannerLayout(toolbarLayout());
         mockLaser = {true, {(b.x0 + b.x1) * 0.5f, b.yc}};
-        pointingHand = HAND_MAIN;
+        pointingHand = mockLaserHand();
         return;
     }
     if(Cmd_Argc() == 2)
@@ -994,7 +1002,7 @@ void mockLaser_f()
             {
                 const ToolbarLayout l = toolbarLayout();
                 mockLaser = {true, {(l.bx0(t) + l.bx1(t)) * 0.5f, l.yc(t)}};
-                pointingHand = HAND_MAIN;
+                pointingHand = mockLaserHand();
                 return;
             }
         }
@@ -1002,7 +1010,7 @@ void mockLaser_f()
     if(Cmd_Argc() == 3)
     {
         mockLaser = {true, {Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2))}};
-        pointingHand = HAND_MAIN;
+        pointingHand = mockLaserHand();
         return;
     }
     Con_Printf("vr_mock_laser <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
@@ -2114,6 +2122,11 @@ namespace
 
 extern "C" int VR_MenuRunsGame()
 {
+    // The toolgun's menu on the gun: the game goes on (a monster after you too), as the gun's tools do.
+    if(key_dest == key_menu && sv.active && svs.maxclients == 1 && !cl.intermission && qvr::toolgun::menuOnGun())
+    {
+        return 1;
+    }
     if(!ui_live_preview.value || !vrActive() || key_dest != key_menu || !sv.active || svs.maxclients != 1 ||
         cl.intermission)
     {

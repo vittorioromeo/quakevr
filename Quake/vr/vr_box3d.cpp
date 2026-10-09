@@ -922,6 +922,30 @@ struct World
 };
 
 za::UniquePtr<World> world;
+
+// The toolgun's (vr_toolgun.cpp; docs/vr-port/TOOLGUN.md): the props it pinned (frozen, or held by the physgun) and the
+// joints it made, by edict number. Outside the world: a world made again (a setting changed) keeps them, its joints made
+// again from them (syncToolJoints); a new server or the entity's removal forgets them (reset, toolForget). The main thread.
+struct ToolJointRecord
+{
+    int a{0}, b{0};
+    box3d::ToolJoint kind{box3d::ToolJoint::Weld};
+    b3Transform frameA{}, frameB{}; // in each body's frame (metres), as Box3D's joint definitions take them
+    float length{0.f};              // rope and spring: the rest length (metres)
+    b3JointId id{b3_nullJointId};   // the joint now (null: made at the next frame both bodies are there)
+};
+struct ToolRecords
+{
+    za::Vector<int> pinned;
+    za::Vector<ToolJointRecord> joints;
+};
+ToolRecords toolRecords;
+
+[[nodiscard]] bool toolPinned(int num)
+{
+    return za::find(toolRecords.pinned.begin(), toolRecords.pinned.end(), num) != toolRecords.pinned.end();
+}
+
 constexpr za::SizeT stepSamplesMax = 1u << 16; // vr_physics_steptime's frames kept (15 minutes at 72 Hz)
 double serverPhysicsStart = 0.0; // SV_Physics's world's turn this frame (Sys_DoubleTime; noteServerPhysicsStart)
 bool frameTiming = false;        // vr_physics_frametime asked for once: its samples kept from then on
@@ -2111,6 +2135,11 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
         return Kind::Held;
     }
     const bool rigid = isRigid(ent);
+    // Pinned by the toolgun (frozen, or in the physgun's beam): a kinematic body where its entity is, as a pickup hanging.
+    if(rigid && !toolRecords.pinned.empty() && toolPinned(num))
+    {
+        return model->type == mod_alias || model->type == mod_brush ? Kind::Fixture : Kind::None;
+    }
     if(rigid && (movetype == MOVETYPE_TOSS || movetype == MOVETYPE_BOUNCE))
     {
         return model->type == mod_alias || model->type == mod_brush ? Kind::Prop : Kind::None;
@@ -8361,6 +8390,10 @@ void destroyWorld()
     {
         return;
     }
+    for(ToolJointRecord& j : toolRecords.joints)
+    {
+        j.id = b3_nullJointId; // (gone with the world: made again in the next one, syncToolJoints)
+    }
     ragdoll::unpublishAll();
     if(b3World_IsValid(world->id))
     {
@@ -9649,40 +9682,26 @@ void spawn_f()
         return;
     }
     const VmScope vm;
-    const func_t fn = qvr::progs::findFunction(Cmd_Argv(1));
-    if(!fn)
-    {
-        Con_Printf("vr_physics_spawn: no spawn function %s\n", Cmd_Argv(1));
-        return;
-    }
     edict_t* player = EDICT_NUM(1);
     vec3_t yaw{0.f, player->v.angles[1], 0.f};
     vec3_t forward, right, up;
     AngleVectors(yaw, forward, right, up);
     const float distance = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 48.f;
     const float left = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 0.f;
-    edict_t* e = ED_Alloc();
+    glm::vec3 origin{0.f}, angles{0.f};
     for(int i = 0; i < 3; i++)
     {
-        e->v.origin[i] = player->v.origin[i] + forward[i] * distance - right[i] * left;
+        origin[i] = player->v.origin[i] + forward[i] * distance - right[i] * left;
     }
     // vr_test_spawn_facing 1: facing the player, 2: facing away (where the player faces); else the spawn's own (0),
     // as before. Set before its spawn function (a monster's ideal_yaw is taken from it).
     if(vr_test_spawn_facing.value == 1.f || vr_test_spawn_facing.value == 2.f)
     {
-        e->v.angles[1] = anglemod(player->v.angles[1] + (vr_test_spawn_facing.value == 1.f ? 180.f : 0.f));
+        angles.y = anglemod(player->v.angles[1] + (vr_test_spawn_facing.value == 1.f ? 180.f : 0.f));
     }
-    char* name = nullptr;
-    const int s = PR_AllocString(static_cast<int>(strlen(Cmd_Argv(1))) + 1, &name);
-    strcpy(name, Cmd_Argv(1));
-    e->v.classname = s;
-    VR_EdictIndex_Touch(e); // (the edict index: a classname set in C)
-    pr_global_struct->time = qcvm->time;
-    pr_global_struct->self = EDICT_TO_PROG(e);
-    PR_ExecuteProgram(fn);
-    if(!e->free)
+    edict_t* e = box3d::spawnClass(Cmd_Argv(1), origin, angles);
+    if(e)
     {
-        SV_LinkEdict(e, false);
         Con_Printf("vr_physics_spawn: %d %s at %.0f %.0f %.0f\n", NUM_FOR_EDICT(e), Cmd_Argv(1), e->v.origin[0], e->v.origin[1], e->v.origin[2]);
     }
 }
@@ -9989,6 +10008,100 @@ void registerCommands()
     return fields().vr_rigid >= 0 && sv.worldmodel; // (a mod without .vr_rigid has no rigid bodies)
 }
 
+// A toolgun joint's body: a prop's (loose or pinned), null if it has none now.
+[[nodiscard]] b3BodyId toolJointBody(int num)
+{
+    if(num <= 0 || num >= qcvm->num_edicts || num >= static_cast<int>(world->slots.size()) || EDICT_NUM(num)->free)
+    {
+        return b3_nullBodyId;
+    }
+    const Slot& s = world->slots[num];
+    return s.kind == Kind::Prop || s.kind == Kind::Fixture || s.kind == Kind::Held ? s.body : b3_nullBodyId;
+}
+
+// Each toolgun joint made where it is missing (its bodies made again: a prop frozen or let go of, scaled, a new world),
+// once both bodies are there and one of them moves (Box3D joins nothing to nothing that moves).
+void syncToolJoints()
+{
+    for(ToolJointRecord& j : toolRecords.joints)
+    {
+        if(B3_IS_NON_NULL(j.id) && b3Joint_IsValid(j.id))
+        {
+            continue;
+        }
+        j.id = b3_nullJointId;
+        const b3BodyId a = toolJointBody(j.a), b = toolJointBody(j.b);
+        if(B3_IS_NULL(a) || B3_IS_NULL(b) ||
+            (b3Body_GetType(a) != b3_dynamicBody && b3Body_GetType(b) != b3_dynamicBody))
+        {
+            continue;
+        }
+        const auto setBase = [&](b3JointDef& base) {
+            base.bodyIdA = a;
+            base.bodyIdB = b;
+            base.localFrameA = j.frameA;
+            base.localFrameB = j.frameB;
+            base.collideConnected = j.kind == box3d::ToolJoint::Rope || j.kind == box3d::ToolJoint::Spring;
+        };
+        switch(j.kind)
+        {
+        case box3d::ToolJoint::Weld:
+        {
+            b3WeldJointDef jd = b3DefaultWeldJointDef();
+            setBase(jd.base);
+            j.id = b3CreateWeldJoint(world->id, &jd);
+            break;
+        }
+        case box3d::ToolJoint::Ball:
+        {
+            b3SphericalJointDef jd = b3DefaultSphericalJointDef();
+            setBase(jd.base);
+            j.id = b3CreateSphericalJoint(world->id, &jd);
+            break;
+        }
+        case box3d::ToolJoint::Hinge:
+        {
+            b3RevoluteJointDef jd = b3DefaultRevoluteJointDef();
+            setBase(jd.base);
+            j.id = b3CreateRevoluteJoint(world->id, &jd);
+            break;
+        }
+        case box3d::ToolJoint::Slider:
+        {
+            b3PrismaticJointDef jd = b3DefaultPrismaticJointDef();
+            setBase(jd.base);
+            j.id = b3CreatePrismaticJoint(world->id, &jd);
+            break;
+        }
+        case box3d::ToolJoint::Rope:
+        case box3d::ToolJoint::Spring:
+        {
+            b3DistanceJointDef jd = b3DefaultDistanceJointDef();
+            setBase(jd.base);
+            jd.length = j.length;
+            jd.enableSpring = true; // (a rope: no stiffness, held within its length by the limit)
+            if(j.kind == box3d::ToolJoint::Rope)
+            {
+                jd.hertz = 0.f;
+                jd.enableLimit = true;
+                jd.minLength = 0.f;
+                jd.maxLength = j.length;
+            }
+            else
+            {
+                jd.hertz = 2.f;
+                jd.dampingRatio = 0.2f;
+            }
+            j.id = b3CreateDistanceJoint(world->id, &jd);
+            break;
+        }
+        default: break;
+        }
+        b3Body_SetAwake(a, true);
+        b3Body_SetAwake(b, true);
+    }
+}
+
 } // namespace
 
 namespace qvr::box3d
@@ -10041,6 +10154,173 @@ void reset()
 {
     registerCommands();
     destroyWorld();
+    toolRecords.pinned.clear();
+    toolRecords.joints.clear();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The toolgun's pins and joints (vr_toolgun.cpp).
+
+edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model,
+    const char* key, float value)
+{
+    if(!sv.active)
+    {
+        return nullptr;
+    }
+    const VmScope vm;
+    const func_t fn = qvr::progs::findFunction(classname);
+    if(!fn)
+    {
+        Con_Printf("no spawn function %s\n", classname);
+        return nullptr;
+    }
+    const auto engineString = [](const char* text) {
+        char* copy = nullptr;
+        const int str = PR_AllocString(static_cast<int>(strlen(text)) + 1, &copy);
+        strcpy(copy, text);
+        return str;
+    };
+    edict_t* e = ED_Alloc();
+    store(origin, e->v.origin);
+    store(angles, e->v.angles);
+    e->v.classname = engineString(classname);
+    if(model && model[0])
+    {
+        e->v.model = engineString(model); // (a rock's or a brick's: its spawn function sets the model it is given)
+    }
+    if(key && key[0])
+    {
+        const int ofs = ED_FindFieldOffset(key);
+        if(ofs >= 0)
+        {
+            fieldFloat(e, ofs) = value; // (func_weapon_grabbable's weapon, spawnflags)
+        }
+    }
+    VR_EdictIndex_Touch(e); // (the edict index: a classname set in C)
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(e);
+    PR_ExecuteProgram(fn);
+    if(e->free)
+    {
+        return nullptr;
+    }
+    SV_LinkEdict(e, false);
+    return e;
+}
+
+
+void setPinned(int num, bool pinned)
+{
+    za::Vector<int>& list = toolRecords.pinned;
+    const bool was = toolPinned(num);
+    if(pinned && !was)
+    {
+        list.pushBack(num);
+    }
+    else if(!pinned && was)
+    {
+        za::vectorEraseIf(list, [num](int n) { return n == num; });
+    }
+}
+
+bool isPinned(int num)
+{
+    return toolPinned(num);
+}
+
+int unpinAll()
+{
+    const int n = static_cast<int>(toolRecords.pinned.size());
+    toolRecords.pinned.clear();
+    return n;
+}
+
+bool addToolJoint(int a, int b, ToolJoint kind, const glm::vec3& atA, const glm::vec3& atB, const glm::vec3& axis)
+{
+    if(!world || a == b)
+    {
+        return false;
+    }
+    const b3BodyId ba = toolJointBody(a), bb = toolJointBody(b);
+    if(B3_IS_NULL(ba) || B3_IS_NULL(bb))
+    {
+        return false;
+    }
+    const b3WorldTransform xa = b3Body_GetTransform(ba), xb = b3Body_GetTransform(bb);
+    const glm::quat qa = fromB3(xa.q), qb = fromB3(xb.q);
+    const glm::vec3 pa = glmv(xa.p), pb = glmv(xb.p);
+    const glm::vec3 ma = glmv(world->toM(atA));
+    const glm::vec3 mb = glmv(world->toM(atB));
+    // The joint's frame in the world: a weld's and a ball's anything (the world's axes), a hinge's z along `axis` (it
+    // turns about it), a slider's x along it (it slides along it).
+    const glm::vec3 dir = glm::length(axis) > 1e-4f ? glm::normalize(axis) : glm::vec3{0.f, 0.f, 1.f};
+    glm::quat frame{1.f, 0.f, 0.f, 0.f};
+    if(kind == ToolJoint::Hinge)
+    {
+        frame = zTo(dir);
+    }
+    else if(kind == ToolJoint::Slider)
+    {
+        frame = zTo(dir) * glm::angleAxis(glm::radians(-90.f), glm::vec3{0.f, 1.f, 0.f}); // (x onto z, then z onto dir)
+    }
+    // Where the joint holds each body: a weld, a ball, a hinge and a slider at the second point (both frames there); a
+    // rope and a spring from the first point on the first to the second on the second.
+    const bool span = kind == ToolJoint::Rope || kind == ToolJoint::Spring;
+    const glm::vec3 onA = span ? ma : mb;
+    ToolJointRecord j;
+    j.a = a;
+    j.b = b;
+    j.kind = kind;
+    j.frameA = b3Transform{b3v(glm::inverse(qa) * (onA - pa)), toB3(glm::normalize(glm::inverse(qa) * frame))};
+    j.frameB = b3Transform{b3v(glm::inverse(qb) * (mb - pb)), toB3(glm::normalize(glm::inverse(qb) * frame))};
+    j.length = za::max(glm::distance(ma, mb), 0.05f);
+    toolRecords.joints.pushBack(j);
+    syncToolJoints();
+    return true;
+}
+
+int removeToolJoints(int num)
+{
+    int removed = 0;
+    za::vectorEraseIf(toolRecords.joints, [num, &removed](const ToolJointRecord& j) {
+        if(num != 0 && j.a != num && j.b != num)
+        {
+            return false;
+        }
+        if(world && B3_IS_NON_NULL(j.id) && b3Joint_IsValid(j.id))
+        {
+            b3DestroyJoint(j.id, true);
+        }
+        removed++;
+        return true;
+    });
+    return removed;
+}
+
+int toolJointCount(int num)
+{
+    int n = 0;
+    for(const ToolJointRecord& j : toolRecords.joints)
+    {
+        if(num == 0 || j.a == num || j.b == num)
+        {
+            n += world && B3_IS_NON_NULL(j.id) && b3Joint_IsValid(j.id) ? 1 : 0;
+        }
+    }
+    return n;
+}
+
+void toolForget(int num)
+{
+    if(toolPinned(num))
+    {
+        setPinned(num, false);
+    }
+    if(!toolRecords.joints.empty())
+    {
+        (void)removeToolJoints(num);
+    }
 }
 
 void blast(const glm::vec3& at, float damage)
@@ -12671,6 +12951,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         noteThrows();
         syncReach(dt);
         syncPortalCopies(dt);
+        syncToolJoints();
     }
     const double tSync = Sys_DoubleTime();
     {

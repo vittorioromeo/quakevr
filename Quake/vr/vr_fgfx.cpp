@@ -12,6 +12,7 @@
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
 #include "vr_weapons.hpp"
+#include "vr_toolgun.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -274,7 +275,13 @@ glm::vec3 glowColor()
 
 extern "C" float VR_EntityGlow(const entity_t* e)
 {
-    // The force grab's (in the player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp).
+    // The toolgun's target (vr_toolgun.cpp: its hue's, or 2..3 red: the remover's), else the force grab's (in the
+    // player's hue, +), else the counter glow (gold, -: vr_meleehud.cpp).
+    const float t = qvr::toolgun::entityGlow(e);
+    if(t != 0.f)
+    {
+        return t;
+    }
     const float g = qvr::fgfx::entityGlow(e);
     return g > 0.f ? g : -qvr::meleehud::entityGlow(e);
 }

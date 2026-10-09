@@ -2473,6 +2473,7 @@ void onEdictFree(edict_t* ed)
     {
         physics::forgetEntity(num);
         ropesim::forget(num);
+        box3d::toolForget(num); // (the toolgun's pins and joints on it)
     }
     if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<za::SizeT>(num)])
     {
