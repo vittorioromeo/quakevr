@@ -957,6 +957,7 @@ QVR_CVAR(vr_burn_crates, "1", CVAR_ARCHIVE)              // 1: wooden crates cat
 QVR_CVAR(vr_burn_lava, "1", CVAR_ARCHIVE)                // 1: wooden crates, barrels and their pieces catch fire in lava (and burn on in it); 0: not
 QVR_CVAR(vr_burn_lava_bodies, "1", CVAR_ARCHIVE)         // 1: ragdolls, knocked-down monsters and corpses in lava catch fire (and burn on in it); 0: not
 QVR_CVAR(vr_burn_lava_gib, "4", CVAR_ARCHIVE)            // s: a ragdoll, knocked-down monster or corpse this long in lava is burnt through: it bursts into gibs (0: never)
+QVR_CVAR(vr_burn_lava_player, "3", CVAR_ARCHIVE)         // s: lava sets you on fire, and you burn on this long after getting out (in it only its own damage; not with the pentagram or the biosuit); 0: not
 QVR_CVAR(vr_burn_crate_time, "10", CVAR_ARCHIVE)         // s a crate burns before it breaks (vr_burn_crate_break) or goes out
 QVR_CVAR(vr_burn_crate_break, "1", CVAR_ARCHIVE)         // 1: a crate breaks when it has burnt its time (0: its fire goes out)
 QVR_CVAR(vr_burn_crate_spread, "3", CVAR_ARCHIVE)        // s a burning crate takes to set the crates touching it on fire (0: fire doesn't spread)

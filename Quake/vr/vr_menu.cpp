@@ -3552,6 +3552,9 @@ void hologramTestMessage()
             .help("Ragdolls, knocked-down monsters and corpses in lava catch fire there, and burn on in it."),
         slider("Burnt Through in Lava", vr_burn_lava_gib, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
             .help("A body this long in lava bursts into gibs (a knocked-down one is killed). 0: never."),
+        slider("You Burn After Lava", vr_burn_lava_player, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 30.f)
+            .help("Lava sets you on fire: out of it you burn on this long (Burn Damage a second; in it, only the lava's "
+                  "own damage). Water puts it out. Not with the Pentagram or the Biosuit. 0: off."),
         slider("Smoke After Flames", vr_smoulder_burn_time, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
             .help("A burning monster or corpse smokes while it burns, and this long after its flames go out, thinning out "
                   "(how much: Gore > Lightning Shock > Smouldering Smoke)."),

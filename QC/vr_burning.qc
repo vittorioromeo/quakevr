@@ -761,6 +761,10 @@ void() VR_Burn_Think =
     {
         dmg = 0; // (it burns through: it breaks or burns away at its time's end)
     }
+    if((v.flags & FL_CLIENT) && v.waterlevel > 0 && v.watertype == CONTENT_LAVA)
+    {
+        dmg = 0; // (a player in lava: the lava's own damage alone, client.qc's WaterMove; it burns on once out)
+    }
     fl = self.burn_flames;
     while(fl != world)
     {
@@ -786,6 +790,8 @@ void() VR_Burn_Think =
 
 // Sets `xVictim` on fire (or keeps it burning: its time from now again, a flame more), lit by `xAttacker` at `xAt`
 // going `xDir`, by xHow (VR_BURN_BLOW, VR_BURN_TOUCH, VR_BURN_NAIL). Its damage is one fire's however often it is lit.
+// vr_burn_len, when over 0: its time instead of the settings' (a player out of lava: vr_burn_lava_player).
+float vr_burn_len;
 void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_Burn_Ignite =
 {
     if(!VR_Burn_Can(xVictim) || xVictim == xAttacker)
@@ -799,6 +805,10 @@ void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_B
     if(wood)
     {
         len = cvar_hget(crate ? cvarh_vr_burn_crate_time : cvarh_vr_burn_piece_time);
+    }
+    if(vr_burn_len > 0)
+    {
+        len = vr_burn_len;
     }
     if(len <= 0 || (!dead && !wood && cvar_hget(cvarh_vr_burn_damage) <= 0))
     {
@@ -1398,6 +1408,45 @@ void() VR_Burn_LavaBodies =
     }
 };
 
+// You in lava (NOTES.md start_2026-10-09_17-59-40; vr_burn_lava_player): set on fire there, lit again each look while
+// in it, so out of it you burn on that long (Burn Damage a second; in it only the lava's own damage: VR_Burn_Think).
+// Water puts it out as ever. Not with the pentagram (no lava damage either) or the biosuit (id's cut lava's to a hit a
+// second; it keeps the fire off).
+void() VR_Burn_LavaPlayers =
+{
+    float len = cvar_hget(cvarh_vr_burn_lava_player);
+    if(len <= 0)
+    {
+        return;
+    }
+    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    {
+        if(p.health <= 0 || !p.takedamage || p.waterlevel <= 0 || p.watertype != CONTENT_LAVA ||
+           p.invincible_finished > time || p.radsuit_finished > time)
+        {
+            continue;
+        }
+        // A flame where the lava reaches (the legs; the waist and up deeper in), round the body.
+        float a = random() * 360;
+        vector out = '0 0 0';
+        out_x = cos(a * (3.14159265 / 180));
+        out_y = sin(a * (3.14159265 / 180));
+        vector at = p.origin + out * 6;
+        at_z = p.origin_z + (p.waterlevel >= 2 ? -4 : -16) + random() * 8;
+        if(p.burn_fire == world)
+        {
+            dprint(sprintf("burning: you in lava (level %g): you catch fire, burning %g s after it\n", p.waterlevel, len));
+        }
+        vr_burn_part = 0;
+        vr_burn_out = out;
+        vr_burn_len = len;
+        VR_Burn_Ignite(p, world, at, out * -1, VR_BURN_LAVA);
+        vr_burn_len = 0;
+        vr_burn_part = 0;
+        vr_burn_out = '0 0 0';
+    }
+};
+
 void() VR_Burn_LavaFrame =
 {
     if(time < vr_burn_lava_next)
@@ -1414,6 +1463,7 @@ void() VR_Burn_LavaFrame =
     {
         VR_Burn_LavaBodies();
     }
+    VR_Burn_LavaPlayers();
 };
 
 // Every server frame (StartFrame): the nails in flight that pass a lit torch's flame this frame (from where they were

@@ -33958,3 +33958,19 @@ the ramp and stopped at -248 -11 -8, his spot (`vr_crouch_status`: box 52, stand
 - Checked (0.3 stick from 181 units out, every 5 frames; boxes standing, 52 and 36; all four sets): all up to the
   landing (z 24), no stall on the ramp; the jump at the west foot lands on top at every height. `vr_hull_walktest 60 7`
   with the box 44 crouched on e1m1, e1m3, e2m2 and MG1's start: stuck 0, embedded 0, outside 0.
+- Not fixed (narrow box, any height): at the west ramp's top the box meets the landing's edge 0.7 units over the ramp's
+  end, while airborne over the crest (Quake steps up only from the ground): its speed along drops to 0 and builds up
+  again (a moment's stop at a slow walk; sometimes a 6-unit dip into the notch first). The east, north and south ramps
+  end over their landings. The same width version of the fix (faces against solid pushed by Quake's box's width less
+  the box's, capped at the piece's top) took the hitch away, but made 2 to 16 stuck frames in e2m2's clip brushes in
+  `vr_hull_walktest 60 7` crouched (0 without): left out.
+
+## You burn after lava (2026-10-09)
+
+**Note start_2026-10-09_17-59-40** (monsters already burn on after lava: 18-01-31). `vr_burn_lava_player` (3 s;
+Burning > You Burn After Lava, 0 off; `VR_Burn_LavaPlayers`, vr_burning.qc, from `VR_Burn_LavaFrame` every 0.2 s): a
+live player in lava is set on fire (the torch-touch path: flames on the body at the lava's height, round it) and lit
+again each look while in it, so out of it he burns on for that long (Burn Damage, 4 a second, in 0.5 s ticks). In lava
+the fire does no damage of its own (`VR_Burn_Think`: a client with watertype lava), so lava's damage is id's as before.
+Water puts it out as any fire. Not lit with the pentagram or the biosuit. Checked on e1m7 (`setpos 710 160 40`, 0.4 s
+in, then to the start): in lava only lava's 10-point hits; out, 2 a tick at 80, 78 .. 72, out after 3 s.
