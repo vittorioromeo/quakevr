@@ -1250,7 +1250,11 @@ int campaignsBloodyShown = -1;
         slider("All Throws", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2fx").extend()
             .help("Every throw's damage times this: thrown weapons (from 20 for a gun to 60 for a sword at full speed, "
                   "more the faster it flies), rocks, boxes and gibs. 0.4 (the default; 0.5 from 2026-10-02, "
-                  "0.35 from 2026-10-07): 1 is what throws did before 2026-10-02. Each weapon's own: Weapon Weights' Throw Damage."),
+                  "0.35 from 2026-10-07): 1 is what throws did before 2026-10-02. Each weapon's own: Weapon Weights' "
+                  "Throw Damage."),
+        slider("Two-Hand Throws", vr_throw_2h_damage, 0.5f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("A weapon or prop thrown with both hands: its hits' damage times this (one hand: 1x), on top of All "
+                  "Throws. 1.25 as shipped."),
         header("More"),
         open("Damage and Knockback", pageIndex(pageDamage))
             .help("Damage to Enemies (all of these at once), Damage to You, headshots, knockback."),
@@ -2852,6 +2856,8 @@ void hologramTestMessage()
         cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}})
             .help("How thrown things fall: Real, as on Earth; Quake, as Quake's own gravity."),
         slider("Two-Hand Throw Speed", vr_2h_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
+        slider("Two-Hand Throw Damage", vr_throw_2h_damage, 0.5f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("A weapon or prop thrown with both hands: its hits' damage times this (one hand: 1x). 1.25 as shipped."),
         slider("Velocity Window", vr_throw_window, 0.04f, 0.3f, 0.01f, "%.2f s").extend()
             .help("Around the release, where the hand's fastest moment sets the throw."),
         slider("Direction Lookback", vr_throw_dir_lookback, 0.f, 0.1f, 0.005f, "%.3f s").extend()

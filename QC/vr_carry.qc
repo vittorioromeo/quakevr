@@ -53,6 +53,7 @@ void(entity xBox, float xHands) VR_Crate_SlamReleased;
 .float vr_2h_letgo_time;
 .entity vr_2h_thrower;   // the player who threw it with both hands, and when: his hands can't strike it for a moment
 .float vr_2h_thrown;     // (VR_Throw_SparedBlows)
+.float vr_throw_2h;      // on a thing thrown: 1 its last throw was with both hands (vr_throw_2h_damage: VR_Thrown_Damage)
 
 entity(entity xPlayer, float xHand) VR_Carry_Held =
 {
@@ -438,8 +439,15 @@ float(entity e, float xMass) VR_Thrown_HeavyMult =
 // Its damage hitting something at `xSpeed` units/s (0: too slow): its base (GetThrownWeaponBaseDamage) times its speed
 // over the throw's full-damage speed (.throwdmgspeed; that times VR_Thrown_Lenient for a heavy thing, as its thresholds
 // are; eased in just over its hit speed: throwdamage), its own Throw Damage x and Throw Damage Curve, the weight's curve
-// (weightdamage), a heavy prop's own (VR_Thrown_HeavyMult) and vr_weapon_throw_damage_mult (every throw's, not only a
-// weapon's: 0.5 since 2026-10-02).
+// (weightdamage), a heavy prop's own (VR_Thrown_HeavyMult), vr_weapon_throw_damage_mult (every throw's, not only a
+// weapon's: 0.5 since 2026-10-02) and, thrown with both hands (.vr_throw_2h), vr_throw_2h_damage.
+// A thing thrown with both hands hurts more (NOTES.md vrfiringrange_2026-10-09_15-44-39: two-handed throws hurt no more
+// than one-handed ones): vr_throw_2h_damage; 1 for one hand.
+float(entity e) VR_Thrown_2hMult =
+{
+    return e.vr_throw_2h ? max(0, cvar_hget(cvarh_vr_throw_2h_damage)) : 1;
+};
+
 float(entity e, float xSpeed) VR_Thrown_Damage =
 {
     float dmgSpeed = e.throwdmgspeed;
@@ -450,7 +458,7 @@ float(entity e, float xSpeed) VR_Thrown_Damage =
     float curve = weightdamage(mass);
     float bySpeed = throwweight(2, mass, VR_Thrown_Own(e, "w_throwmin"), VR_Thrown_Own(e, "w_throwcurve"), xSpeed, dmgSpeed);
     return bySpeed * GetThrownWeaponBaseDamage(e) * own * curve * VR_Thrown_HeavyMult(e, mass) *
-           cvar_hget(cvarh_vr_weapon_throw_damage_mult);
+           cvar_hget(cvarh_vr_weapon_throw_damage_mult) * VR_Thrown_2hMult(e);
 };
 
 float VR_THROW_MISSILE_SPEED = 250; // u/s (times VR_Thrown_Lenient): a thing let go of this fast is thrown, a missile
@@ -806,6 +814,7 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
 void(entity xBox, vector v) VR_Carry_Throw =
 {
     xBox.velocity = v;
+    xBox.vr_throw_2h = 0; // (VR_Carry_Release: 1 thrown with both hands)
     dprint("carry: thrown at "); dprint(vtos(v)); dprint(" ("); dprint(ftos(vlen(v))); dprint(" u/s), spin ");
     dprint(vtos(xBox.vr_spin)); dprint("\n");
     float m2u = VRMetersToUnits();
@@ -864,6 +873,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
     VR_Carry_Loose(xBox);
     xBox.vr_spin = VR_Throw_Spin(VRThrowSpinCapped(VRGetHandAVel(xHand)), propvalue(xBox, "mass"), hands);
     VR_Carry_Throw(xBox, v);
+    xBox.vr_throw_2h = hands == 2; // (its hits hurt vr_throw_2h_damage times more)
     // It goes on with the player's own motion, as a thrown weapon does (MakeThrown; NOTES.md
     // vrfiringrange_2026-10-07_23-51-46: a brick thrown running forward fell short), vr_carry_throw_inherit of it. (Its
     // throw, a missile or not, is judged on the hand's speed alone: VR_Carry_Throw.)

@@ -350,8 +350,8 @@ void(float xSpeed) VR_SolidProp_Impact =
         {
             self.throwhit = QVR_THROWHIT_HIT;
             float dmg = VR_Thrown_Damage(self, speed);
-            dprint(sprintf("%s: thrown into %s at %.1f u/s (%.1f m/s against it): %.1f\n", self.classname, other.classname,
-                speed, xSpeed, dmg));
+            dprint(sprintf("%s: thrown into %s at %.1f u/s (%.1f m/s against it): %.1f (hands %g: x%.2f)\n", self.classname,
+                other.classname, speed, xSpeed, dmg, self.vr_throw_2h ? 2 : 1, VR_Thrown_2hMult(self)));
             // (An explosive box thrown, or one struck: a metal knock.)
             float metal = VR_Prop_Metal(self) || VR_Prop_Metal(other);
             VR_SoundVaried(self, CHAN_AUTO, metal ? VR_Metal_Sound(VR_METAL_BLUNT) : "fisthit.wav", 1, ATTN_NORM);

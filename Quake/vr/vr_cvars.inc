@@ -128,6 +128,7 @@ QVR_CVAR(vr_throw_mass_light, "1.5", CVAR_ARCHIVE)      // kg: up to this heavy,
 QVR_CVAR(vr_throw_mass_exp, "0.9", CVAR_ARCHIVE)     // how fast the limit falls with mass beyond it (the author's 0.9, 2026-10-02)
 QVR_CVAR(vr_throw_mass_knee, "0.7", CVAR_ARCHIVE)     // 0..1: below this share of the limit a throw is untouched
 QVR_CVAR(vr_throw_2h_strength, "2", CVAR_ARCHIVE)     // two hands: as if the thing weighed 1 / this (1: no help)
+QVR_CVAR(vr_throw_2h_damage, "1.25", CVAR_ARCHIVE)    // a weapon or prop thrown with both hands: its hit damage times this (QC VR_Thrown_Damage; NOTES.md vrfiringrange_2026-10-09_15-44-39: they hurt no more than one-handed ones)
 QVR_CVAR(vr_throw_flick_mass, "2.5", CVAR_ARCHIVE)    // kg: up to this heavy, a wrist flick's whole speed
 QVR_CVAR(vr_throw_wrist_dist, "0.07", CVAR_ARCHIVE)   // metres from the wrist to the controller's point (the flick's lever)
 // The spin a throw gives (the hand's turn; a prop held in both, its own), limited by mass as its speed is (weight::throwSpin):

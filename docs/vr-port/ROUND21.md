@@ -33291,3 +33291,18 @@ other value of theirs the defaults): nothing to promote, no settings version cha
 
 Test `config111_test.sh`: a config of 110 at the old defaults takes every new one; vr_melee_speed 2.5 and
 vr_menu_scale 0.3 kept.
+## Two-handed throws hurt more (2026-10-09)
+
+His note vrfiringrange_2026-10-09_15-44-39: a weapon or prop thrown with both hands hurt no more than one thrown with
+one (both hands only add speed for heavy things: vr_throw_2h_strength, vr_2h_throw_velocity_mult). `vr_throw_2h_damage`
+1.25: a thing thrown with both hands has its hits' damage times this (QC `VR_Thrown_2hMult` in `VR_Thrown_Damage`, so
+thrown weapons, props, boxes, gibs and crates alike). A thrown thing's `.vr_throw_2h` says its last throw was two-handed:
+set on the thrown weapon where DropWeaponInHandScaled calls VR_Throw_TwoHanded (two hands, a real throw), and on a prop by
+VR_Carry_Release (hands 2); every prop throw (VR_Carry_Throw) clears it first. Menus: Carrying and Throwing > Throwing and
+Physics > Two-Hand Throw Damage (next to Two-Hand Throw Speed), and Combat > Weapon Damage > Thrown > Two-Hand Throws.
+The throw hit's debug lines (developer 1) end with `hands N: xM`.
+
+Test `throw_2h_damage_test.sh` (mock hands, an ogre 120 units ahead, the same push at 6 m/s with one hand and with
+both; vr_throw_2h_strength 1 and vr_2h_throw_velocity_mult 1 so both hit at the same speed): a box of shells 287 u/s,
+4.9 then 6.1 before where (x1.25); the shotgun (the off hand on its foregrip) 273 and 272 u/s, 13.6 then 17.0 (x1.25).
+With vr_throw_2h_damage 1: 13.6 both.

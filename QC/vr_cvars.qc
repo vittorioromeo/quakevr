@@ -320,6 +320,7 @@ float cvarh_vr_prop_drop_grace;
 float cvarh_vr_prop_drop_falls_only;
 float cvarh_vr_throw_self_grace;
 float cvarh_vr_throw_2h_nomelee;
+float cvarh_vr_throw_2h_damage;
 float cvarh_vr_throw_2h_melee_immune;
 float cvarh_vr_gib_letgo_spare;
 float cvarh_vr_gib_burst_on_thrower;
@@ -1088,6 +1089,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_prop_drop_falls_only);
     VR_CVAR_HMAKE(vr_throw_self_grace);
     VR_CVAR_HMAKE(vr_throw_2h_nomelee);
+    VR_CVAR_HMAKE(vr_throw_2h_damage);
     VR_CVAR_HMAKE(vr_throw_2h_melee_immune);
     VR_CVAR_HMAKE(vr_gib_letgo_spare);
     VR_CVAR_HMAKE(vr_gib_burst_on_thrower);
