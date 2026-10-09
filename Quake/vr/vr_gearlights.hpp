@@ -11,13 +11,22 @@
 
 #include <glm/glm.hpp>
 
+namespace qvr::hands
+{
+struct State;
+}
+
 namespace qvr::gearlights
 {
 
 void init(); // vr_gear_lights_toggle, vr_gear_lights_info
 
-// VR_BeginFrame, after the input: the button pressed by the other hand's fingertip; the lights' level eased.
+// VR_BeginFrame: the lights' level eased.
 void frame();
+
+// The view (VR_SetupViewEntities), once a frame, right after the gadget is placed: the button pressed by the other
+// hand's fingertip, both as drawn this frame (`s`: the hands as the view draws them; after the move and the turn).
+void viewFrame(const hands::State& s);
 
 // The share of their light the gear's screens cast and glow with now (1 on .. vr_gear_lights_dim off, eased): their
 // dynamic lights and their glows.
@@ -37,7 +46,8 @@ void toggle(int hand);
 // (vr_mock_hand_to ... button [<units>]).
 [[nodiscard]] bool buttonHandTarget(int hand, float units, glm::vec3& out);
 
-// vr_debug_gadget_button: the button's hit volume (and with 2 the screen tap's zone) drawn this frame.
-void debugDraw();
+// vr_debug_gadget_button: the button's hit volume (and with 2 the screen tap's zone) drawn this frame, as the view tests
+// them (after the gadget is placed: `s` the hands as drawn).
+void debugDraw(const hands::State& s);
 
 } // namespace qvr::gearlights

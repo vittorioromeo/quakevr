@@ -2736,7 +2736,8 @@ void hologramTestMessage()
             .help("... rolled about your hand's forward (positive: its top outward)."),
         slider("Button Cooldown", vr_gadget_button_cooldown, 0.f, 2.f, 0.1f, "%.1f s").extend(0.f, 5.f)
             .help("After a press counts, how long before the next one does (no double toggles from a bounce)."),
-        cycle("Show the Button", vr_debug_gadget_button, {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}})
+        cycle("Show the Button", vr_debug_gadget_button,
+            {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}, {3.f, "And Print Sync"}})
             .help("Draws the button's hit volume (green ready, yellow pressed, red cooling down; the faint disc: no "
                   "press from behind it, the short line the side it is pressed from) and your fingertip (the drawn "
                   "index fingertip white, joined to the tuned one that presses); And the Screen Tap: also bullet time's "
@@ -4437,7 +4438,8 @@ za::Vector<Item> pageDebugViews()
                   "test maps the point struck to the standing pose, so these zones move with the model."),
         toggle("Hit Zones Through Walls", vr_debug_hitzones_xray)
             .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
-        cycle("Show Gadget Button", vr_debug_gadget_button, {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}})
+        cycle("Show Gadget Button", vr_debug_gadget_button,
+            {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}, {3.f, "And Print Sync"}})
             .help("vr_debug_gadget_button: the wrist gadget's side button's hit volume (green ready, yellow pressed, red "
                   "cooling down) and your fingertip (the drawn index fingertip white, joined to the tuned one that "
                   "presses), its presses printed; And the Screen Tap: also bullet time's tap zone over the screen. The "

@@ -226,8 +226,10 @@ void frame()
         state.level = state.level < goal ? za::min(goal, state.level + most) : za::max(goal, state.level - most);
     }
     state.easedAt = realtime;
+}
 
-    const hands::State& s = hands::current();
+void viewFrame(const hands::State& s)
+{
     if(vr_gadget_button.value == 0.f || key_dest != key_game || !s.valid || cls.state != ca_connected ||
         cls.signon != SIGNONS)
     {
@@ -291,11 +293,12 @@ bool buttonHandTarget(int hand, float units, glm::vec3& out)
     {
         return false;
     }
-    out = at + face * units - (fingertip(s, hand) - s.pos[hand]);
+    // (The button as drawn last: the fingertip from where it was then; the hand moved on since with the player.)
+    out = at + face * units - (fingertip(s, hand) - bullettime::movedSinceView(s, hand) - s.pos[hand]);
     return true;
 }
 
-void debugDraw()
+void debugDraw(const hands::State& s)
 {
     glm::vec3 at, out;
     float radius = 0.f;
@@ -321,7 +324,6 @@ void debugDraw()
     ring(at - out * back, x, z, za::sqrt(za::max(0.f, radius * radius - back * back)), colour * glm::vec4{1.f, 1.f, 1.f, 0.5f});
     // The face's way: a short line out of the middle.
     lines::line(at, at + out * radius * 1.5f, 0.05f, colour, colour * glm::vec4{1.f, 1.f, 1.f, 0.f});
-    const hands::State& s = hands::current();
     const int presser = 1 - hands::gadgetHand();
     if(s.valid)
     {

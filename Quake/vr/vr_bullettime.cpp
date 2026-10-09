@@ -37,6 +37,10 @@ struct State
     int tapStriker = 0;        // ... and which striking point (0 the hand's middle, 1 its gun's butt)
     double tappedAt = -1.0;    // realtime of the last tap that counted (tapping())
     bool stickTaken[HAND_COUNT] = {}; // the stick press taken at its press (vr_bullettime_trigger): its release is too
+    glm::vec3 viewPos[HAND_COUNT]{};   // the hands' places (hands::State::pos) as the view tested the tap (movedSinceView)
+    bool viewValid = false;
+    glm::vec3 startOffset{0.f};        // vr_debug_gadget_button 3: the screen's middle from the tapping hand at the frame's
+    bool startValid = false;           // start (frameStartOffset)
 };
 State state;
 
@@ -441,7 +445,24 @@ void advance(double dt)
 
 void frame()
 {
+    // vr_debug_gadget_button 3: where the tapping hand was from the gadget's screen at the frame's start, as the tap was
+    // tested before it moved to the view (the gadget a frame old there): the view prints how far that was off.
     const hands::State& s = hands::current();
+    Screen z;
+    state.startValid = vr_debug_gadget_button.value >= 3.f && s.valid && screen(z);
+    if(state.startValid)
+    {
+        state.startOffset = z.centre - s.pos[1 - hands::gadgetHand()];
+    }
+}
+
+void viewFrame(const hands::State& s)
+{
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        state.viewPos[h] = s.pos[h];
+    }
+    state.viewValid = s.valid;
     Screen z;
     // A stick press starts it instead (vr_bullettime_trigger): the screen tap does nothing.
     if(!inGame() || key_dest != key_game || !s.valid || stickHand() >= 0 || vr_bullettime_tap.value == 0.f || !tapZone(z))
@@ -450,6 +471,17 @@ void frame()
         return;
     }
     tapScreen(s, 1 - hands::gadgetHand(), z);
+}
+
+bool frameStartOffset(glm::vec3& out)
+{
+    out = state.startOffset;
+    return state.startValid;
+}
+
+glm::vec3 movedSinceView(const hands::State& s, int hand)
+{
+    return state.viewValid && (hand == 0 || hand == 1) ? s.pos[hand] - state.viewPos[hand] : glm::vec3{0.f};
 }
 
 bool tapZone(Screen& out)
@@ -511,7 +543,8 @@ bool tapHandTarget(int hand, float cm, float sideCm, bool butt, glm::vec3& out)
     }
     if(!butt)
     {
-        from = hands::palmPoint(s, hand);
+        // (The gadget and the palm as the view drew them last: the hand moved on since with the player.)
+        from = hands::palmPoint(s, hand) - movedSinceView(s, hand);
     }
     const float u = 0.01f * units::metresToUnits();
     out = z.centre + z.normal * (cm * u) + z.right * (sideCm * u) - (from - s.pos[hand]);

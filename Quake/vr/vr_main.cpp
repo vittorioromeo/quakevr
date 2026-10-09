@@ -1636,8 +1636,8 @@ extern "C" void VR_BeginFrame()
     profile::overlay();  // the profiler's panel (vr_profile_overlay)
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
-    bullettime::frame(); // the gadget's screen tap for bullet time (the hands as last placed)
-    gearlights::frame(); // the gadget's side button: the gear lights (likewise)
+    bullettime::frame(); // (vr_debug_gadget_button 3: the tap's frame-start check; the tap itself: the view's)
+    gearlights::frame(); // the gear lights eased (the side button: the view's, as the gadget is drawn)
     flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).

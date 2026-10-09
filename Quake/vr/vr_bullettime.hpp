@@ -23,9 +23,21 @@ void init(); // vr_bullettime
 // VR_AdvanceTime (real seconds): the meter drains while on, the cooldown runs, the meter fills; the look eases.
 void advance(double dt);
 
-// VR_BeginFrame, after the input: the gadget's screen tapped hard by the other hand or its gun's butt
-// (vr_bullettime_tap).
+// VR_BeginFrame (vr_debug_gadget_button 3: where the tapping hand is from the screen at the frame's start, for the view's
+// check: frameStartOffset).
 void frame();
+
+// The view (VR_SetupViewEntities), once a frame, right after the gadget is placed: the gadget's screen tapped hard by the
+// other hand or its gun's butt (vr_bullettime_tap), tested against the gadget and the hands as drawn this frame (`s`: the
+// hands as the view draws them; after the move and the turn, on lifts alike), never a frame behind or ahead.
+void viewFrame(const hands::State& s);
+
+// vr_debug_gadget_button 3: the screen's middle from the tapping hand's place at the frame's start (frame); false: none.
+[[nodiscard]] bool frameStartOffset(glm::vec3& out);
+
+// How far `hand` (hands::State::pos) moved since the view tested the tap (the player moving and turning): the mock's
+// targets (tapHandTarget, gearlights::buttonHandTarget) are taken from the gadget as drawn then.
+[[nodiscard]] glm::vec3 movedSinceView(const hands::State& s, int hand);
 
 // The time scale bullet time asks for: vr_bullettime_scale while on, else 1.
 [[nodiscard]] float scale();

@@ -32834,3 +32834,29 @@ To try: in the Streamer's Options pick SteamVR as the OpenXR runtime, connect, s
 and runs the game (console: `Auto: SteamVR - Virtual Desktop set to SteamVR`); pick VDXR again: VDXR, no SteamVR.
 Worth a note: what Automatic does on VD's side, and whether `ActiveRuntime` changes when you switch (Debug > Reports >
 OpenXR Runtime Choice shows the system's active runtime).
+## The gadget's screen tap and side button in sync with the drawn gadget (2026-10-09)
+
+His notes vrfiringrange_2026-10-09_11-01-21, 11-05-38: moving or turning with the stick, the side button and the
+bullet-time tap zone lag behind or run ahead of the drawn gadget, so presses don't match what he sees.
+
+**Why.** Both were tested in `VR_BeginFrame` against `gadget::pose()`, which the view sets while it draws: the gadget of
+the frame before, against the hands of this one. Running at full speed that put the tapping hand about 4 to 9 cm off
+the drawn screen on average (15 cm at most), smooth turning up to 31 cm, a snap turn up to 37 to 50 cm (the whole arc of
+the turn for one frame). The debug drawing had the same lag (drawn before the gadget was placed).
+
+**Now.** `gadgetTouches` (vr_view.cpp) runs once a frame right after `setupGadget`, in `VR_SetupViewEntities`: the
+screen tap (`bullettime::viewFrame`) and the side button (`gearlights::viewFrame`) are tested against the gadget placed
+this frame and the hands as the view draws them (after the move and the turn, knocks, body collisions; the index
+fingertip as drawn this frame). Not while posing. The debug drawing follows, as tested. `VR_BeginFrame` keeps only the
+lights' easing. The mock's targets (`vr_mock_hand_to ... screen|button`) are taken from the gadget as last drawn: the
+hand's move since then (`bullettime::movedSinceView`) is allowed for, so a target set while running lands where asked.
+
+**Debug.** `vr_debug_gadget_button 3` (Show Gadget Button: And Print Sync) prints each frame how far the zone is from
+the screen on the drawn gadget entity (its origin, angles and scale) and how far off the old frame-start test would have
+been. `Misc/quakevr/gadget_sync_test.sh <agent>` (summed up by `gadget_sync_summary.py`): standing, running,
+strafing while smooth turning, snap turning, jumping while running: the zone is 0.0000 cm off the drawn screen in every
+frame (the old test: the numbers above); then taps while running, running and turning, strafing and turning, and a
+button press while running and turning, all counted.
+
+**To try in the headset.** Run, strafe and turn (smooth and snap; a lift) while tapping the screen and pressing the side
+button: both should land exactly where the drawn gadget is.

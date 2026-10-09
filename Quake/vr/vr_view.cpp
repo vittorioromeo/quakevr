@@ -17,6 +17,7 @@
 #include "vr_climb.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_avatar.hpp"
+#include "vr_bullettime.hpp"
 #include "vr_gadget.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_panel.hpp"
@@ -1084,6 +1085,7 @@ struct OncePerFrame
     int weaponText[2]{-1, -1}; // queueWeaponText, per hand
     int quadArcs = -1;         // quadArcs
     int idleTexts = -1;        // VR_SetupViewEntities: the guns not in a hand show their screens
+    int gadgetTouches = -1;    // gadgetTouches
 };
 OncePerFrame oncePerFrame;
 glm::vec3 carriedTip[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // a carried weapon's tip as drawn (setupWeapon)
@@ -6365,6 +6367,44 @@ void setupGadget(const hands::State& s)
     }
 }
 
+// The wrist gadget's screen tap (bullet time) and side button (the gear lights), once a frame, tested right after the
+// gadget is placed: against the gadget and the hands as drawn this frame (the player's move and turn applied, on lifts
+// alike), never a frame behind or ahead of what is seen (NOTES.md vrfiringrange_2026-10-09_11-01-21). Not while posing
+// (the hands are moved for the view only). Then the debug drawing (vr_debug_gadget_button), as tested; with 3, each
+// frame, how far the zone is from the drawn gadget's screen and how far off the tap's old test at the frame's start was.
+void gadgetTouches(const hands::State& s, bool posingNow)
+{
+    if(oncePerFrame.gadgetTouches != host_framecount && !posingNow)
+    {
+        oncePerFrame.gadgetTouches = host_framecount;
+        bullettime::viewFrame(s);
+        gearlights::viewFrame(s);
+        bullettime::Screen sc;
+        const view::ViewEntity& ve = entities.gadget;
+        if(vr_debug_gadget_button.value >= 3.f && s.valid && ve.visible && bullettime::screen(sc))
+        {
+            // The screen's middle on the drawn model (its entity: origin, angles, scale), against the zone's.
+            glm::vec3 fwd, right, up, corner;
+            glm::vec2 size;
+            hands::angleVectors(glm::vec3{-ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]}, fwd, right, up);
+            gadget::screenRect(corner, size);
+            const glm::vec3 mid = glm::vec3{corner.x + size.x * 0.5f, corner.y + size.y * 0.5f, corner.z} * ve.scale;
+            const glm::vec3 drawn = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]} + fwd * mid.x -
+                                    right * mid.y + up * mid.z;
+            const int tapper = 1 - hands::gadgetHand();
+            const float cm = 0.01f * units::metresToUnits();
+            glm::vec3 start;
+            const bool hadStart = bullettime::frameStartOffset(start);
+            Con_Printf("gadget sync: %d yaw %.1f zone %.4f cm, start %.2f cm; at "
+                       "%.0f %.0f %.0f\n",
+                host_framecount, cl.viewangles[YAW], glm::distance(drawn, sc.centre) / cm,
+                hadStart ? glm::distance(start, sc.centre - s.pos[tapper]) / cm : -1.f, s.playerOrigin.x,
+                s.playerOrigin.y, s.playerOrigin.z);
+        }
+    }
+    gearlights::debugDraw(s);
+}
+
 // Quad damage: electric arcs crawling over the hands and forearms, reshaped every frame (the same
 // in both eyes); now and then a longer one jumps between the fingers and the elbow (vr_shock.cpp).
 void quadArcs(const hands::State& s)
@@ -7829,7 +7869,6 @@ extern "C" void VR_SetupViewEntities()
     ledges::debugDraw(); // vr_debug_ledges
     hitmodel::debugDraw(); // vr_debug_hits
     hitmodel::zonesDraw(); // vr_debug_hitzones
-    gearlights::debugDraw(); // vr_debug_gadget_button
     rope::debugDraw();     // vr_debug_rope
     if(vr_debug_hand_bones.value)
     {
@@ -7844,6 +7883,7 @@ extern "C" void VR_SetupViewEntities()
     setupBody(s);
     setupPauldrons();
     setupGadget(s);
+    gadgetTouches(s, posingNow); // the screen tap and the side button, against the gadget and hands just drawn
     flashlight::setupView(s, entities.flashlight);
     chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
     setupSawHandle();
