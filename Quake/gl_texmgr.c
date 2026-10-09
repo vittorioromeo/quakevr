@@ -2307,6 +2307,81 @@ void GL_BindTextures (GLuint first, GLsizei count, gltexture_t **textures)
 GL_BindNative
 ================
 */
+/*
+================
+GL_CheckSkippedBind
+
+Quake VR, vr_debug_texcache 1: a bind skipped because the cache above holds the same name, checked against GL's own
+binding. A texture deleted with a raw glDeleteTextures stays in the cache; glGenTextures hands its name back for the
+next texture made, and binding that one is skipped while GL has 0 there (a target made blank, a pass sampling black).
+================
+*/
+static int gl_staleskips;
+
+static const GLenum gl_cachedtypes[4] = {GL_TEXTURE_2D, GL_TEXTURE_3D, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_CUBE_MAP};
+static const GLenum gl_cachedbindings[4] = {
+	0x8069, // GL_TEXTURE_BINDING_2D
+	0x806A, // GL_TEXTURE_BINDING_3D
+	0x8C1D, // GL_TEXTURE_BINDING_2D_ARRAY
+	0x8514, // GL_TEXTURE_BINDING_CUBE_MAP
+};
+static int gl_stalelatent;
+
+static void GL_CheckSkippedBind (GLenum texunit, GLenum type, GLuint handle)
+{
+	GLint bound = 0;
+	int i;
+
+	for (i = 0; i < countof (gl_cachedtypes) && gl_cachedtypes[i] != type; i++)
+		;
+	if (i == countof (gl_cachedtypes))
+		return;
+	GL_SelectTexture (texunit);
+	glGetIntegerv (gl_cachedbindings[i], &bound);
+	if ((GLuint) bound == handle)
+		return;
+	gl_staleskips++;
+	if (gl_staleskips <= 20 || gl_staleskips % 100 == 0)
+		Con_Printf ("texcache: stale bind #%d skipped: unit %d, texture %u (GL has %d)\n",
+			gl_staleskips, (int) (texunit - GL_TEXTURE0), handle, bound);
+}
+
+/*
+================
+GL_CheckBindCache
+
+Quake VR, vr_debug_texcache 1, once a frame (SCR_UpdateScreen): each unit whose cached texture GL no longer has bound
+there (deleted around GL_DeleteNativeTexture: harmless until its name comes back and is bound on that unit).
+================
+*/
+void GL_CheckBindCache (void)
+{
+	GLuint unit;
+	int i;
+	GLenum saved = currenttexunit;
+
+	for (unit = 0; unit < countof (currenttexture); unit++)
+	{
+		GLint bound = 0;
+		if (!currenttexture[unit])
+			continue;
+		GL_SelectTexture (GL_TEXTURE0 + unit);
+		for (i = 0; i < countof (gl_cachedbindings); i++)
+		{
+			glGetIntegerv (gl_cachedbindings[i], &bound);
+			if ((GLuint) bound == currenttexture[unit])
+				break;
+		}
+		if (i < countof (gl_cachedbindings))
+			continue;
+		gl_stalelatent++;
+		if (gl_stalelatent <= 20 || gl_stalelatent % 100 == 0)
+			Con_Printf ("texcache: stale entry #%d: unit %u holds texture %u, which GL has not bound there\n", gl_stalelatent, unit,
+				currenttexture[unit]);
+	}
+	GL_SelectTexture (saved);
+}
+
 qboolean GL_BindNative (GLenum texunit, GLenum type, GLuint handle)
 {
 	GLuint index = texunit - GL_TEXTURE0;
@@ -2315,7 +2390,11 @@ qboolean GL_BindNative (GLenum texunit, GLenum type, GLuint handle)
 	if (index < countof (currenttexture))
 	{
 		if (currenttexture[index] == handle)
+		{
+			if (handle && VR_DebugTexCache ())
+				GL_CheckSkippedBind (texunit, type, handle);
 			return false;
+		}
 		currenttexture[index] = handle;
 	}
 

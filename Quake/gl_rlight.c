@@ -122,7 +122,7 @@ GLLight_DeleteResources
 */
 void GLLight_DeleteResources (void)
 {
-	glDeleteTextures (1, &gl_lightclustertexture);
+	GL_DeleteNativeTexture (gl_lightclustertexture); // QVR: out of the bound-texture cache too (its name comes back)
 	gl_lightclustertexture = 0;
 }
 

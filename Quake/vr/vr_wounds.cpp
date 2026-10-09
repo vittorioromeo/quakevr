@@ -344,27 +344,28 @@ void attachBlood(GLenum target, int in)
     GL_FramebufferTextureLayerFunc(target, GL_COLOR_ATTACHMENT0, bloodArray, 0, bloodLayerOf(in));
 }
 
+// (GL_DeleteNativeTexture: out of the engine's bound-texture cache too, as the names come back at once in ensureTexture.)
 void releaseTexture()
 {
     if(array)
     {
-        glDeleteTextures(1, &array);
+        GL_DeleteNativeTexture(array);
         array = 0;
     }
     if(fineArray)
     {
-        glDeleteTextures(1, &fineArray);
+        GL_DeleteNativeTexture(fineArray);
         fineArray = 0;
     }
     if(bloodArray)
     {
-        glDeleteTextures(1, &bloodArray);
+        GL_DeleteNativeTexture(bloodArray);
         bloodArray = 0;
     }
     fineSize = 0;
     if(washStencil)
     {
-        glDeleteTextures(1, &washStencil);
+        GL_DeleteNativeTexture(washStencil);
         washStencil = 0;
         washStencilSize = 0;
     }
@@ -1491,7 +1492,7 @@ bool ensureWashStencil()
     }
     if(washStencil)
     {
-        glDeleteTextures(1, &washStencil);
+        GL_DeleteNativeTexture(washStencil);
     }
     glGenTextures(1, &washStencil);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, washStencil);

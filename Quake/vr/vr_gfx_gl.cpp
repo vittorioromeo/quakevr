@@ -2067,6 +2067,11 @@ OpaqueSceneResolve opaqueSceneResolve;
 // The opaque scene's colours, which translucent liquids read to bend what is behind them (vr_water.cpp): only while
 // they draw into the OIT buffers (the scene's colours are not a target then). With multisampling, the resolved scene's
 // texture: VR_BindOpaqueScene resolves the scene into it before they read it.
+extern "C" int VR_DebugTexCache(void)
+{
+    return qvr::vr_debug_texcache.value != 0.f;
+}
+
 extern "C" unsigned VR_OpaqueSceneTexture(void)
 {
     if(R_GetEffectiveAlphaMode() != ALPHAMODE_OIT)

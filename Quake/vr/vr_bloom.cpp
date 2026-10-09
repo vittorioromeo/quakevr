@@ -185,7 +185,7 @@ void destroy(Target& t)
     }
     if(t.tex)
     {
-        glDeleteTextures(1, &t.tex);
+        GL_DeleteNativeTexture(t.tex); // (and out of the engine's bound-texture cache: its name comes back at once)
     }
     t = Target{};
 }

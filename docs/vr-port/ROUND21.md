@@ -33078,3 +33078,18 @@ thrown one does, turning a bit less than the throw, its feet staying where they 
 - **To try in VR:** shove grunts, knights and enforcers down with one hand and with two (Knockdowns' Chance 100): head
   and chest go first along the shove, the feet stay put, a two-handed shove turns them faster; a shove off a ledge still
   sends them over.
+## Texture deletes and the engine's bound-texture cache (2026-10-09)
+
+Follow-up to "The menu sharp in the headset": bloom (`vr_bloom.cpp` destroy), the shadow atlases (`vr_lighting.cpp`
+destroy), the wound masks (`vr_wounds.cpp` releaseTexture, ensureWashStencil) and Ironwail's light clusters
+(`gl_rlight.c`) deleted textures with a raw glDeleteTextures. GL_BindNative caches the texture on units 0-3; a deleted
+name left there and handed back by glGenTextures (the driver gives the same names back at once: bloom's 861..867 again
+after a resize) makes the next bind of it on that unit a no-op while GL has 0 there. All now GL_DeleteNativeTexture.
+
+**Debug > Logging > Texture Binds** (`vr_debug_texcache 1`): each skipped bind is checked against GL's binding
+("texcache: stale bind #n skipped"), and once a frame each unit's cached texture is checked against GL ("texcache: stale
+entry"). Headless, with the cache made to hold a bloom target as it is remade (a temporary bind, not committed) and
+vr_render_scale 1 -> 0.7: before, "stale bind #1 skipped: unit 0, texture 861 (GL has 0)" and "VR bloom: framebuffer
+incomplete" (bloom off until restart); after, none. The real flows (render scale 1/0.7/1, vr_shadow_atlas 2048/4096,
+vr_wounds_own_res 512/0, vid_restart) print nothing either way: in them something else had bound those units first, so
+the fix closes a latent case.

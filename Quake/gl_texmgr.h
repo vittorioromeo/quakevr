@@ -167,6 +167,7 @@ qboolean GL_Bind (GLenum texunit, gltexture_t *texture);
 qboolean GL_BindNative (GLenum texunit, GLenum type, GLuint handle);
 void GL_BindTextures (GLuint first, GLsizei count, gltexture_t **textures);
 void GL_DeleteNativeTexture (GLuint texnum);
+void GL_CheckBindCache (void); // QVR: vr_debug_texcache
 void GL_ClearBindings (void);
 
 #endif	/* _GL_TEXMAN_H */

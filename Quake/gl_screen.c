@@ -2291,6 +2291,9 @@ void SCR_UpdateScreen (void)
 
 	GL_EndGroup ();
 
+	if (VR_DebugTexCache ()) // QVR: the texture bind cache checked against GL
+		GL_CheckBindCache ();
+
 	VR_ProfileBegin ("swap"); // QVR: profile
 	GL_EndRendering ();
 	VR_ProfileEnd (); // QVR
