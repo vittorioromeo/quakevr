@@ -227,8 +227,17 @@ struct Body
     float floorZ{0.f};
     glm::vec3 fwd{FWD};
     glm::vec3 left{0.f, 1.f, 0.f};
+    float crouchPose{0.f}; // the crouched pose's share (crouchPoseWeight; solveArm's shoulders and elbows)
     za::Array<Bone, JointCount> bones{};
 };
+
+// A turn in the body's frame: `pitch` degrees tips its up towards its forward (about its left), `yaw` turns its forward
+// towards its left (about the vertical), `roll` tips its up towards its right (about its forward).
+[[nodiscard]] glm::mat3 bodyTurn(const Body& b, float pitch, float yaw, float roll)
+{
+    return glm::mat3_cast(glm::angleAxis(glm::radians(yaw), UP) * glm::angleAxis(glm::radians(pitch), b.left) *
+                          glm::angleAxis(glm::radians(roll), b.fwd));
+}
 
 // World position of `joint` from its posed parent.
 [[nodiscard]] glm::vec3 childPos(const Body& b, int joint)
@@ -247,7 +256,11 @@ struct Body
 // vr_lean_detect): the back tilts towards the lean about the hips, which stay over the feet, as far as
 // the head has gone down for it (a tilt swings the head down on an arc); the hips shift the rest of the
 // way (a lean with the head kept high: the legs slant).
-void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
+//
+// The crouched pose (vr_body_crouch_*, `crouchPose`; off for the reference poses): as deep as the body crouches
+// (crouchPoseWeight), the neck sits further from the eyes, the trunk (pelvis, spine, chest) moves and the spine and chest
+// turn about the spine's base, the pelvis moves and tips on top; the shoulders and the elbows in solveArm.
+void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPose = true)
 {
     const Bind& bd = bind();
     b.m2w = units::metresToUnits() * (scale > 0.f ? scale : units::bodyScale());
@@ -259,10 +272,9 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
 
     glm::vec3 hf, hr, hu;
     hands::angleVectors(s.headAngles, hf, hr, hu);
-    const glm::vec3 top = s.head - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w;
+    const glm::vec3 standingTop = s.head - (hf * vr_body_eye_forward.value + hu * vr_body_eye_up.value) * b.m2w;
 
     const float torsoLen = glm::distance(bd.pos[Pelvis], bd.pos[Head]) * b.m2w;
-    const float headDrop = za::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - top.z);
 
     // The lean's tilt: how far out it swings the top of the neck (at most as far as the head has gone down allows, and
     // a fifth of the lean always in the hips), and how much of the drop below the calibrated height that takes; the
@@ -282,13 +294,23 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
         tiltReach = sure * za::min(leanLen * 0.8f, allowed, 0.7f * torsoLen);
     }
     const float tiltDrop = torsoLen - za::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
-    const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
 
     // How deep the crouch is: 0 standing, 1 with the pelvis at squatting height.
     const float standZ = b.floorZ + bd.pos[Pelvis].z * b.m2w;
     const float squatZ = b.floorZ + 0.3f * b.m2w;
-    const float drop = za::max(0.f, headDrop - tiltDrop);
-    const float crouch = standZ > squatZ ? za::min(1.f, drop / (standZ - squatZ)) : 0.f;
+    const auto depthUnder = [&](const glm::vec3& neck) {
+        const float headDrop = za::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - neck.z);
+        const float drop = za::max(0.f, headDrop - tiltDrop);
+        return standZ > squatZ ? za::min(1.f, drop / (standZ - squatZ)) : 0.f;
+    };
+
+    // The crouched pose's share, from the crouch under the standing neck (the neck's own crouched offset then lowers it
+    // a little more, which the pose below follows).
+    b.crouchPose = crouchPose ? crouchPoseWeight(depthUnder(standingTop)) : 0.f;
+    const float w = b.crouchPose;
+    const glm::vec3 top = standingTop - (hf * vr_body_crouch_eye_forward.value + hu * vr_body_crouch_eye_up.value) * (w * b.m2w);
+    const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
+    const float crouch = depthUnder(top);
     const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch;
     float pelvisZ = za::max(top0.z - torsoLen * za::cos(tilt), squatZ);
     pelvisZ = za::min(pelvisZ, top0.z - 0.3f * torsoLen); // lying down: keep the back from folding over
@@ -326,6 +348,26 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
     c = Bone{};
     c.pos = childPos(b, Chest);
     c.rot = turn * basis(axis, b.fwd);
+
+    // The crouched pose: the trunk moves (the legs follow the pelvis), the spine and chest turn about the spine's base,
+    // the pelvis moves and tips on top (in the body's facing; Body Calibration's upright chest never has it).
+    if(w != 0.f)
+    {
+        const glm::vec3 bodyRight = -b.left;
+        const glm::vec3 trunk = (-b.fwd * vr_body_crouch_torso_back.value + UP * vr_body_crouch_torso_up.value +
+                                    bodyRight * vr_body_crouch_torso_right.value) *
+                                (w * b.m2w);
+        const glm::vec3 hips = (-b.fwd * vr_body_crouch_pelvis_back.value + UP * vr_body_crouch_pelvis_up.value) * (w * b.m2w);
+        const glm::mat3 torsoTurn = bodyTurn(b, vr_body_crouch_torso_pitch.value * w, vr_body_crouch_torso_yaw.value * w,
+            vr_body_crouch_torso_roll.value * w);
+        const glm::vec3 chestFromSpine = c.pos - sp.pos;
+        p.pos += trunk + hips;
+        p.rot = bodyTurn(b, vr_body_crouch_pelvis_pitch.value * w, 0.f, 0.f) * p.rot;
+        sp.pos += trunk;
+        sp.rot = torsoTurn * sp.rot;
+        c.pos = sp.pos + torsoTurn * chestFromSpine;
+        c.rot = torsoTurn * c.rot;
+    }
 
     // The neck spans the rest of the way to the top of the neck; the head sits there. Neither is
     // drawn: the eyes are inside them.
@@ -687,12 +729,25 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // forward (the clavicle turns about the base of the neck).
     Bone& c = b.bones[clav];
     c = Bone{};
-    const glm::mat3 rest = chest.rot * glm::transpose(bd.rot[Chest]) * bd.rot[clav];
+    glm::mat3 rest = chest.rot * glm::transpose(bd.rot[Chest]) * bd.rot[clav];
     const glm::vec3 lateral = rest[0];
     // The shoulders' own offset from the chest (bodycal::shoulderOffset: measured, or the default body's, and the
     // tweaks): back, up, and outwards along the clavicle, in metres.
-    const glm::vec3 so = bodycal::shoulderOffset();
+    // Crouched (vr_body_crouch_shoulders_*): further back, up and out, and the collarbone swung back and up about the
+    // base of the neck, as deep as the crouch (Body::crouchPose).
+    const float crouched = b.crouchPose;
+    const glm::vec3 so = bodycal::shoulderOffset() + glm::vec3{vr_body_crouch_shoulders_back.value,
+                                                         vr_body_crouch_shoulders_up.value, vr_body_crouch_shoulders_out.value} *
+                                                         crouched;
     c.pos = childPos(b, clav) + (-cFwd * so.x + cUp * so.y + lateral * so.z) * b.m2w;
+    if(crouched != 0.f && (vr_body_crouch_shoulders_swing.value != 0.f || vr_body_crouch_shoulders_shrug.value != 0.f))
+    {
+        const glm::vec3 swingAxis = safeNormalize(glm::cross(lateral, -cFwd), cUp);
+        const glm::vec3 shrugAxis = safeNormalize(glm::cross(lateral, cUp), cFwd);
+        rest = glm::mat3_cast(glm::angleAxis(glm::radians(vr_body_crouch_shoulders_shrug.value * crouched), shrugAxis) *
+                              glm::angleAxis(glm::radians(vr_body_crouch_shoulders_swing.value * crouched), swingAxis)) *
+               rest;
+    }
 
     const ArmLengths lengths = armLengths(b.m2w);
     const float armLen =
@@ -739,7 +794,9 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // The hand turns the elbow by its roll about the forearm only (vr_body_elbow_hand): the side of the thumb across
     // the forearm that the rest of the pole gives. Bending the wrist (the hand tilted along the forearm: deviation, or
     // Hand Calibration's pitch) doesn't move the elbow; a real one stays put.
-    const glm::vec3 bodyPole = -cUp + lateral * vr_body_elbow_out.value - cFwd * vr_body_elbow_back.value;
+    // (Crouched, vr_body_crouch_elbow_out and _back more, as deep as the crouch.)
+    const glm::vec3 bodyPole = -cUp + lateral * (vr_body_elbow_out.value + vr_body_crouch_elbow_out.value * crouched) -
+                               cFwd * (vr_body_elbow_back.value + vr_body_crouch_elbow_back.value * crouched);
     glm::vec3 bend;
     const glm::vec3 foreGuess = safeNormalize(wrist - twoBone(u.pos, wrist, a, l, bodyPole, lateral, bend), cFwd);
     const glm::vec3 thumbAcross = safeNormalize(handUp - foreGuess * glm::dot(handUp, foreGuess), handUp);
@@ -1522,11 +1579,31 @@ void queueDebug(const Body& b)
 
 } // namespace
 
-Torso torso(const hands::State& s)
+Torso torso(const hands::State& s, bool crouchPose)
 {
     Body b;
-    solveTorso(s, b);
-    return {{b.bones[Pelvis].pos, b.bones[Pelvis].rot}, {b.bones[Chest].pos, b.bones[Chest].rot}};
+    solveTorso(s, b, 0.f, crouchPose);
+    return {{b.bones[Pelvis].pos, b.bones[Pelvis].rot}, {b.bones[Chest].pos, b.bones[Chest].rot}, b.crouchPose};
+}
+
+float crouchPoseWeight(float depth)
+{
+    if(vr_body_crouch_preview.value >= 0.f)
+    {
+        depth = vr_body_crouch_preview.value;
+    }
+    depth = CLAMP(0.f, depth, 1.f);
+    const float strength = za::max(0.f, vr_body_crouch_pose_strength.value);
+    if(strength <= 0.f || depth <= 0.f)
+    {
+        return 0.f;
+    }
+    return strength * glm::pow(depth, CLAMP(0.1f, vr_body_crouch_pose_curve.value, 10.f));
+}
+
+float crouchPoseShare(const hands::State& s)
+{
+    return torso(s).crouchPose;
 }
 
 hands::State standing(const hands::State& s)
@@ -1561,7 +1638,7 @@ Frame uprightChest(const hands::State& s, float yaw, float eyeHeight)
     u.playerOrigin += glm::vec3{s.lean.x, s.lean.y, 0.f};
     u.lean = glm::vec3{0.f};
     Body b;
-    solveTorso(u, b, eyeHeight / units::modelEyeHeight);
+    solveTorso(u, b, eyeHeight / units::modelEyeHeight, false);
     return {b.bones[Chest].pos - glm::vec3{0.f, 0.f, rise}, b.bones[Chest].rot};
 }
 
@@ -1582,7 +1659,7 @@ glm::vec3 shoulderInChest(int side, const glm::vec3& wrist, const ShoulderModel&
     return pivot + turn * toShoulder;
 }
 
-Follower::Follower(const hands::State& s) : now(torso(s)), ref(torso(standing(s)))
+Follower::Follower(const hands::State& s) : now(torso(s)), ref(torso(standing(s), false))
 {
 }
 

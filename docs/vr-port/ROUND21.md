@@ -33817,3 +33817,32 @@ nearest entity box before the world (not you, nor what your hands hold).
 - Tests: `teleporters_test.sh chase` runs fixed frames with `sv_random_seed` SEED+try-1 (the same verdicts every run:
   all six PASS on the first try, output identical twice); `stealth_tests.sh` sets `sv_random_seed ${SEED:-1}`.
 - Debug > Profiling and Memory: Server Random Seed (`sv_random_info`) next to Game State Hash.
+
+
+## Crouched pose (2026-10-09)
+
+The author (vrfiringrange_2026-10-09_17-51-39, 17-52-32, vrteleporters_18-03-53): crouched, the torso hid the ammo pouch
+and the holsters and didn't look like his body: his torso is further back, his shoulders back. The body now takes a
+crouched pose on top of the standing one, all of it set for a full crouch and blended by how deep the body crouches (the
+skeleton's own depth: 0 standing, 1 the pelvis at squatting height; solveTorso).
+
+- **Share** (avatar::crouchPoseWeight): `vr_body_crouch_pose_strength` (1) times the depth to the power
+  `vr_body_crouch_pose_curve` (1: half a crouch, half). `vr_body_crouch_preview` (-1 off; 0..1, not saved) sets the depth
+  the blend takes, standing or not, so it can be tuned looking down or with the body in front (Debug: Show Body Skeleton).
+- **Body** (vr_avatar.cpp): `vr_body_crouch_torso_back` (0.05 m) / `_up` / `_right` move the trunk (pelvis, spine, chest;
+  the legs follow the pelvis); `_torso_pitch` / `_yaw` / `_roll` turn the spine and chest about the spine's base;
+  `_pelvis_back` / `_up` / `_pitch` the hips on top; `_shoulders_back` (0.03 m) / `_up` / `_out` and `_shoulders_swing` /
+  `_shrug` (degrees, the collarbone about the base of the neck); `_elbow_out` / `_back` add to the elbow's pole
+  (vr_body_elbow_out/back); `_eye_forward` / `_eye_up` add to the neck's place under the eyes.
+- **Holsters and the ammo pouch** (vr_body.cpp crouchShift, vr_view.cpp holsterTurn): they ride the trunk and the pelvis
+  as before (the Follower carries them: its standing reference never has the crouched pose), and each pair
+  (`vr_hip_holster_crouch_*`, `vr_upper_holster_crouch_*`, `vr_shoulder_holster_crouch_*`) and the pouch
+  (`vr_ammo_pouch_crouch_*`) has its own x/y/z (units forward, outwards (the pouch: right), up, in the body's facing) and
+  pitch/yaw/roll (as the Hotspots turns), blended the same; the hotspots move with them.
+- Body Calibration's upright chest and the Follower's standing reference are solved without it.
+- Menu: Body > Crouched Pose (Strength, Curve, Preview Crouch) and its page Crouched Pose Offsets (every offset);
+  Debug > Views: Preview Crouch and Print Crouched Pose (`vr_body_crouch_report`: the share, pelvis, chest, shoulders,
+  elbows, holsters and pouch, units from the eyes forward/right/up).
+- Test: `vr_body_crouch_preview 0 / 0.5 / 1` standing: share 0 / 0.5 / 1, the pelvis -4.44 / -5.18 / -5.92 units
+  forward of the eyes (0.05 m back at full), the hip holsters and the pouch 0.74 units back per half; head at 1.0 m
+  (`vr_mock_hand head 0 1.0 0`): share 0.90; strength 0 is the old pose exactly (share 0).

@@ -12,6 +12,7 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Round.hpp"
@@ -37,6 +38,39 @@ namespace
 {
     const float heightRatio = CLAMP(0.f, s.crouchRatio - 0.2f, 0.6f);
     return hands::forward({0.f, s.bodyYaw, 0.f}) * (heightRatio * mult);
+}
+
+// The crouched pose's adjustment of a holster (vr_*_holster_crouch_x/y/z) or the ammo pouch (vr_ammo_pouch_crouch_*,
+// `holster` -1), at the share `w` of it (avatar::crouchPoseWeight): units forward, outwards (the left ones mirrored;
+// the pouch: to the right) and up, in the body's facing.
+[[nodiscard]] glm::vec3 crouchShift(const hands::State& s, int holster, float w)
+{
+    if(w == 0.f)
+    {
+        return glm::vec3{0.f};
+    }
+    glm::vec3 v;
+    switch(holster)
+    {
+        case LeftHip:
+        case RightHip: v = {vr_hip_holster_crouch_x.value, vr_hip_holster_crouch_y.value, vr_hip_holster_crouch_z.value}; break;
+        case LeftUpper:
+        case RightUpper:
+            v = {vr_upper_holster_crouch_x.value, vr_upper_holster_crouch_y.value, vr_upper_holster_crouch_z.value};
+            break;
+        case LeftShoulder:
+        case RightShoulder:
+            v = {vr_shoulder_holster_crouch_x.value, vr_shoulder_holster_crouch_y.value, vr_shoulder_holster_crouch_z.value};
+            break;
+        default: v = {vr_ammo_pouch_crouch_x.value, vr_ammo_pouch_crouch_y.value, vr_ammo_pouch_crouch_z.value}; break;
+    }
+    if(holster == LeftHip || holster == LeftUpper || holster == LeftShoulder)
+    {
+        v.y = -v.y;
+    }
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
+    return (fwd * v.x + right * v.y + up * v.z) * w;
 }
 
 [[nodiscard]] float threshold(Holster holster)
@@ -389,10 +423,11 @@ glm::vec3 holsterPosition(const hands::State& s, Holster holster)
 {
     if(!vr_body_anchors.value)
     {
-        return legacyHolsterPosition(s, holster);
+        return legacyHolsterPosition(s, holster) + crouchShift(s, holster, avatar::crouchPoseShare(s));
     }
 
-    return followingHolsterPosition(avatar::Follower{s}, avatar::standing(s), holster);
+    const avatar::Follower follow{s};
+    return followingHolsterPosition(follow, avatar::standing(s), holster) + crouchShift(s, holster, follow.crouchPose());
 }
 
 HolsterPositions holsterPositions(const hands::State& s, HolsterPlates* plates)
@@ -404,9 +439,10 @@ HolsterPositions holsterPositions(const hands::State& s, HolsterPlates* plates)
     }
     if(!vr_body_anchors.value)
     {
+        const float w = avatar::crouchPoseShare(s);
         for(int h = 0; h < HolsterCount; h++)
         {
-            out[h] = legacyHolsterPosition(s, static_cast<Holster>(h));
+            out[h] = legacyHolsterPosition(s, static_cast<Holster>(h)) + crouchShift(s, h, w);
         }
         return out;
     }
@@ -415,7 +451,8 @@ HolsterPositions holsterPositions(const hands::State& s, HolsterPlates* plates)
     const hands::State standing = avatar::standing(s);
     for(int h = 0; h < HolsterCount; h++)
     {
-        out[h] = followingHolsterPosition(follow, standing, static_cast<Holster>(h), plates ? &(*plates)[h] : nullptr);
+        out[h] = followingHolsterPosition(follow, standing, static_cast<Holster>(h), plates ? &(*plates)[h] : nullptr) +
+                 crouchShift(s, h, follow.crouchPose());
     }
     return out;
 }
@@ -486,14 +523,15 @@ glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate)
     }
     if(!vr_body_anchors.value)
     {
-        return legacyAmmoPouchPosition(s);
+        return legacyAmmoPouchPosition(s) + crouchShift(s, -1, avatar::crouchPoseShare(s));
     }
     const avatar::Follower follow{s};
+    const glm::vec3 crouched = crouchShift(s, -1, follow.crouchPose());
     const hands::State standing = avatar::standing(s);
     glm::vec3 pos = legacyAmmoPouchPosition(standing);
     if(vr_body_mode.value < 1.f)
     {
-        return follow(avatar::Part::Pelvis, pos);
+        return follow(avatar::Part::Pelvis, pos) + crouched;
     }
     pos = ammoPouchOnTheBody(standing, pos);
     glm::vec3 now = follow(avatar::Part::Pelvis, pos);
@@ -505,7 +543,7 @@ glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate)
         plate->clearance = p.clearance;
     }
     onBothThighs(follow, now);
-    return now;
+    return now + crouched;
 }
 
 glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets)
@@ -613,6 +651,47 @@ void queueDebug(const hands::State& s)
             shoulder.y = -shoulder.y;
         }
     }
+}
+
+void crouchReport_f()
+{
+    const hands::State& s = hands::current();
+    if(!s.valid)
+    {
+        Con_Printf("vr_body_crouch_report: no hands yet\n");
+        return;
+    }
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
+    // Units from the eyes in the body's facing: forward, right, up.
+    const auto rel = [&](const glm::vec3& p) {
+        const glm::vec3 d = p - s.head;
+        return glm::vec3{glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)};
+    };
+    const avatar::Torso t = avatar::torso(s);
+    const glm::vec3 pelvis = rel(t.pelvis.pos), chest = rel(t.chest.pos);
+    const glm::vec3 spine = t.chest.rot[0];
+    Con_Printf("crouch pose: share %.3f (crouchRatio %.2f, head %.3f m; preview %g strength %g curve %g)\n",
+        t.crouchPose, s.crouchRatio, s.headHeight, vr_body_crouch_preview.value, vr_body_crouch_pose_strength.value,
+        vr_body_crouch_pose_curve.value);
+    Con_Printf("crouch torso: pelvis %.2f %.2f %.2f chest %.2f %.2f %.2f chest lean %.1f deg\n", pelvis.x, pelvis.y,
+        pelvis.z, chest.x, chest.y, chest.z, glm::degrees(za::atan2(glm::dot(spine, fwd), glm::dot(spine, up))));
+    if(avatar::Skeleton sk; avatar::skeleton(sk))
+    {
+        const glm::vec3 l = rel(sk.shoulder[HAND_OFF]), r = rel(sk.shoulder[HAND_MAIN]);
+        const glm::vec3 le = rel(sk.elbow[HAND_OFF]), re = rel(sk.elbow[HAND_MAIN]);
+        Con_Printf("crouch arms: shoulders %.2f %.2f %.2f / %.2f %.2f %.2f elbows %.2f %.2f %.2f / %.2f %.2f %.2f\n", l.x,
+            l.y, l.z, r.x, r.y, r.z, le.x, le.y, le.z, re.x, re.y, re.z);
+    }
+    const HolsterPositions h = holsterPositions(s);
+    static constexpr const char* names[HolsterCount] = {"lshoulder", "rshoulder", "lhip", "rhip", "lupper", "rupper"};
+    for(int i = 0; i < HolsterCount; i++)
+    {
+        const glm::vec3 v = rel(h[i]);
+        Con_Printf("crouch holster %s %.2f %.2f %.2f\n", names[i], v.x, v.y, v.z);
+    }
+    const glm::vec3 a = rel(ammoPouchPosition(s));
+    Con_Printf("crouch holster pouch %.2f %.2f %.2f\n", a.x, a.y, a.z);
 }
 
 void updateHotspots(hands::State& s)

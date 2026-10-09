@@ -28,10 +28,18 @@ struct Torso
 {
     Frame pelvis;
     Frame chest;
+    float crouchPose{0.f}; // the crouched pose's share (crouchPoseWeight)
 };
 
-// The spine's pose from the head alone (usable before the hands are placed).
-[[nodiscard]] Torso torso(const hands::State& s);
+// The spine's pose from the head alone (usable before the hands are placed). `crouchPose`: with the crouched pose's
+// offsets (vr_body_crouch_*) as deep as the body crouches; off for a reference pose (standing(), the calibration's).
+[[nodiscard]] Torso torso(const hands::State& s, bool crouchPose = true);
+
+// The crouched pose's share (vr_body_crouch_*; ROUND21.md, "Crouched pose"): vr_body_crouch_pose_strength times the
+// crouch's depth (0 standing, 1 the pelvis at squatting height; vr_body_crouch_preview, 0..1, instead) to the power
+// vr_body_crouch_pose_curve. crouchPoseShare(s) solves the torso for it.
+[[nodiscard]] float crouchPoseWeight(float depth);
+[[nodiscard]] float crouchPoseShare(const hands::State& s);
 
 // `s` standing upright under the same head position, looking straight ahead at the body's yaw.
 [[nodiscard]] hands::State standing(const hands::State& s);
@@ -86,6 +94,12 @@ public:
     // The thigh of `side` (0 the body's left, 1 its right) as the legs were last posed (the full
     // body, vr_body_mode 3), carried by the pelvis as it is now. False without posed legs.
     [[nodiscard]] bool thigh(int side, ThighMotion& out) const;
+
+    // The crouched pose's share as the body is now (crouchPoseWeight).
+    [[nodiscard]] float crouchPose() const
+    {
+        return now.crouchPose;
+    }
 
 private:
     Torso now;

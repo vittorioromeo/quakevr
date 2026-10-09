@@ -461,6 +461,7 @@ using PageBuilder = za::Vector<Item> (*)();
 // Pages linked before they are defined.
 [[nodiscard]] za::Vector<Item> pageBodyArms();
 [[nodiscard]] za::Vector<Item> pageBodyCalibration();
+[[nodiscard]] za::Vector<Item> pageBodyCrouch();
 [[nodiscard]] za::Vector<Item> pageWeightDamage();
 [[nodiscard]] za::Vector<Item> pageAimingSettings();
 [[nodiscard]] za::Vector<Item> pageWeaponDamage();
@@ -1714,6 +1715,22 @@ int campaignsBloodyShown = -1;
         slider("Eyes Up", vr_body_eye_up, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f).help("From the top of the neck to the eyes, up."),
         slider("Crouch Tilt", vr_body_crouch_tilt, 0.f, 80.f, 5.f, "%.0f deg").extend()
             .help("How far the back tilts forward in a full crouch (the hips stay under you)."),
+        header("Crouched Pose"),
+        open("Crouched Pose Offsets", pageIndex(pageBodyCrouch))
+            .help("Where the torso, pelvis, shoulders, elbows and neck sit crouched, and the holsters and the ammo pouch: "
+                  "offsets at a full crouch, blended in as you crouch."),
+        slider("Crouched Pose Strength", vr_body_crouch_pose_strength, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("Times the crouched pose's offsets (0: none, the body crouches as before; 1: as set)."),
+        slider("Crouched Pose Curve", vr_body_crouch_pose_curve, 0.25f, 3.f, 0.05f, "%.2f").extend(0.1f, 10.f)
+            .help("How the offsets come in as you crouch: 1 evenly (half a crouch, half of them); over 1 little until you "
+                  "are deep; under 1 most of them early.")
+            .advanced(),
+        cycle("Preview Crouch", vr_body_crouch_preview,
+            {{-1.f, "Off"}, {0.f, "Standing"}, {0.25f, "Quarter"}, {0.5f, "Half"}, {0.75f, "Three Quarters"}, {1.f, "Full"}})
+            .help("The crouched pose blended as if you crouched this deep, standing or not (the crouch itself as you are): "
+                  "to tune it with the body in front of you (Debug: Show Body Skeleton) or looking down. Off: as deep as "
+                  "you crouch. Not saved.")
+            .advanced(),
         header("Death View"),
         cycle("Death View", vr_death_view, {{0.f, "Off"}, {1.f, "Third Person"}, {2.f, "Immersive"}})
             .help("When you die (not gibbed) your body falls as a ragdoll (also on VR Settings, Comfort). Off: no body. "
@@ -1739,6 +1756,114 @@ int campaignsBloodyShown = -1;
 }
 
 [[nodiscard]] za::Vector<Item> pageBodyCalibration();
+
+// Body > Crouched Pose Offsets (vr_body_crouch_*, vr_*_holster_crouch_*, vr_ammo_pouch_crouch_*; ROUND21.md, "Crouched
+// pose"): everything at a full crouch, blended by the crouch's depth (Strength and Curve, also on the Body page).
+[[nodiscard]] Item crouchMetres(const char* label, cvar_t& c, const char* help)
+{
+    return slider(label, c, -0.2f, 0.2f, 0.005f, "%+.3f m").extend(-0.6f, 0.6f).help(help);
+}
+
+[[nodiscard]] Item crouchDegrees(const char* label, cvar_t& c, const char* help)
+{
+    return slider(label, c, -45.f, 45.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(help);
+}
+
+[[nodiscard]] Item crouchUnits(const char* label, cvar_t& c, const char* help)
+{
+    return slider(label, c, -10.f, 10.f, 0.25f, "%+.2f").extend(-30.f, 30.f).help(help);
+}
+
+[[nodiscard]] za::Vector<Item> pageBodyCrouch()
+{
+    return {
+        cycle("Preview Crouch", vr_body_crouch_preview,
+            {{-1.f, "Off"}, {0.f, "Standing"}, {0.25f, "Quarter"}, {0.5f, "Half"}, {0.75f, "Three Quarters"}, {1.f, "Full"}})
+            .help("The offsets below blended as if you crouched this deep, standing or not (the crouch itself as you are), "
+                  "to tune them looking down or with the body in front of you (Debug: Show Body Skeleton). Off: as deep "
+                  "as you crouch. Not saved."),
+        slider("Strength", vr_body_crouch_pose_strength, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("Times all of these (0: none, the body crouches as before)."),
+        slider("Curve", vr_body_crouch_pose_curve, 0.25f, 3.f, 0.05f, "%.2f").extend(0.1f, 10.f)
+            .help("How they come in as you crouch: 1 evenly (half a crouch, half); over 1 little until deep; under 1 most "
+                  "early."),
+        header("Torso (pelvis, spine and chest)"),
+        crouchMetres("Torso Back", vr_body_crouch_torso_back, "Crouched, the whole trunk further back (negative: "
+            "forward); the holsters and the ammo pouch on it go with it."),
+        crouchMetres("Torso Up", vr_body_crouch_torso_up, "Crouched, the whole trunk higher (negative: lower)."),
+        crouchMetres("Torso Right", vr_body_crouch_torso_right, "Crouched, the whole trunk to the right (negative: left)."),
+        crouchDegrees("Torso Pitch", vr_body_crouch_torso_pitch, "Crouched, the spine and chest lean further forward "
+            "(negative: back), about the base of the spine (on top of Crouch Tilt)."),
+        crouchDegrees("Torso Yaw", vr_body_crouch_torso_yaw, "Crouched, the spine and chest turn to the left (negative: "
+            "right)."),
+        crouchDegrees("Torso Roll", vr_body_crouch_torso_roll, "Crouched, the spine and chest tip their top to the right "
+            "(negative: left)."),
+        header("Pelvis"),
+        crouchMetres("Pelvis Back", vr_body_crouch_pelvis_back, "Crouched, the hips further back (negative: forward), "
+            "on top of the torso's; the hip holsters and the ammo pouch go with them."),
+        crouchMetres("Pelvis Up", vr_body_crouch_pelvis_up, "Crouched, the hips higher (negative: lower)."),
+        crouchDegrees("Pelvis Pitch", vr_body_crouch_pelvis_pitch, "Crouched, the hips tip forward (negative: back)."),
+        header("Shoulders"),
+        crouchMetres("Shoulders Back", vr_body_crouch_shoulders_back, "Crouched, the shoulder joints further back "
+            "(negative: forward)."),
+        crouchMetres("Shoulders Up", vr_body_crouch_shoulders_up, "Crouched, the shoulder joints higher (negative: "
+            "lower)."),
+        crouchMetres("Shoulders Out", vr_body_crouch_shoulders_out, "Crouched, each shoulder joint further out "
+            "(negative: in)."),
+        crouchDegrees("Shoulders Swing Back", vr_body_crouch_shoulders_swing, "Crouched, the collarbones swing back "
+            "(negative: forward) about the base of the neck."),
+        crouchDegrees("Shoulders Shrug", vr_body_crouch_shoulders_shrug, "Crouched, the collarbones swing up (negative: "
+            "down) about the base of the neck."),
+        header("Elbows"),
+        slider("Elbows Out", vr_body_crouch_elbow_out, -1.f, 1.f, 0.05f, "%+.2f").extend(-3.f, 3.f)
+            .help("Crouched, the elbows point further out (negative: in): added to Arms and Pauldrons' Elbow Out."),
+        slider("Elbows Back", vr_body_crouch_elbow_back, -1.f, 1.f, 0.05f, "%+.2f").extend(-3.f, 3.f)
+            .help("Crouched, the elbows point further back (negative: forward): added to Elbow Back."),
+        header("Neck"),
+        crouchMetres("Eyes Forward", vr_body_crouch_eye_forward, "Crouched, the eyes further in front of the top of the "
+            "neck (the neck further back; negative: forward): added to Eyes Forward."),
+        crouchMetres("Eyes Up", vr_body_crouch_eye_up, "Crouched, the eyes further over the top of the neck (the neck "
+            "lower; negative: higher): added to Eyes Up."),
+        header("Hip Holsters (crouched)"),
+        crouchUnits("Hips Forward", vr_hip_holster_crouch_x, "Crouched, both hip holsters further forward (negative: "
+            "back), units, in the way the body faces."),
+        crouchUnits("Hips Out", vr_hip_holster_crouch_y, "Crouched, each hip holster further out (negative: in), units."),
+        crouchUnits("Hips Up", vr_hip_holster_crouch_z, "Crouched, the hip holsters higher (negative: lower), units."),
+        crouchDegrees("Hips Pitch", vr_hip_holster_crouch_pitch, "Crouched, the hip holsters' top tips further from the "
+            "body (as the Hotspots' Hip Pitch)."),
+        crouchDegrees("Hips Yaw", vr_hip_holster_crouch_yaw, "Crouched, their face turns further outwards."),
+        crouchDegrees("Hips Roll", vr_hip_holster_crouch_roll, "Crouched, their top tips further outwards."),
+        header("Chest Holsters (crouched)"),
+        crouchUnits("Chest Forward", vr_upper_holster_crouch_x, "Crouched, both chest holsters further forward "
+            "(negative: back), units."),
+        crouchUnits("Chest Out", vr_upper_holster_crouch_y, "Crouched, each chest holster further out (negative: in), "
+            "units."),
+        crouchUnits("Chest Up", vr_upper_holster_crouch_z, "Crouched, the chest holsters higher (negative: lower), "
+            "units."),
+        crouchDegrees("Chest Pitch", vr_upper_holster_crouch_pitch, "Crouched, their top tips further from the body."),
+        crouchDegrees("Chest Yaw", vr_upper_holster_crouch_yaw, "Crouched, their face turns further outwards."),
+        crouchDegrees("Chest Roll", vr_upper_holster_crouch_roll, "Crouched, their top tips further outwards."),
+        header("Shoulder Holsters (crouched)"),
+        crouchUnits("Back Forward", vr_shoulder_holster_crouch_x, "Crouched, both shoulder (back) holsters further "
+            "forward (negative: back), units."),
+        crouchUnits("Back Out", vr_shoulder_holster_crouch_y, "Crouched, each shoulder holster further out (negative: "
+            "in), units."),
+        crouchUnits("Back Up", vr_shoulder_holster_crouch_z, "Crouched, the shoulder holsters higher (negative: lower), "
+            "units."),
+        crouchDegrees("Back Pitch", vr_shoulder_holster_crouch_pitch, "Crouched, the guns on the back tip further."),
+        crouchDegrees("Back Yaw", vr_shoulder_holster_crouch_yaw, "Crouched, they turn further outwards."),
+        crouchDegrees("Back Roll", vr_shoulder_holster_crouch_roll, "Crouched, their top tips further outwards."),
+        header("Ammo Pouch (crouched)"),
+        crouchUnits("Pouch Forward", vr_ammo_pouch_crouch_x, "Crouched, the ammo pouch further forward (negative: "
+            "back), units."),
+        crouchUnits("Pouch Right", vr_ammo_pouch_crouch_y, "Crouched, the ammo pouch further right (negative: left), "
+            "units."),
+        crouchUnits("Pouch Up", vr_ammo_pouch_crouch_z, "Crouched, the ammo pouch higher (negative: lower), units."),
+        crouchDegrees("Pouch Pitch", vr_ammo_pouch_crouch_pitch, "Crouched, its top tips further from the body."),
+        crouchDegrees("Pouch Yaw", vr_ammo_pouch_crouch_yaw, "Crouched, it turns further."),
+        crouchDegrees("Pouch Roll", vr_ammo_pouch_crouch_roll, "Crouched, its top tips further sideways."),
+    };
+}
 
 // Split from Body: the arms' reach and bend, the shoulders, and the pauldrons over them. Body Calibration measures the
 // arms' lengths and the shoulders (vr_bodycal_*); the sliders here are tweaks on top (vr_body_tweak_*, 0: as measured;
@@ -4544,6 +4669,15 @@ za::Vector<Item> pageDebugViews()
         cycle("Show Body Skeleton", vr_body_debug, {{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
             .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
                   "its pose and calibration without a mirror)."),
+        cycle("Preview Crouch", vr_body_crouch_preview,
+            {{-1.f, "Off"}, {0.f, "Standing"}, {0.25f, "Quarter"}, {0.5f, "Half"}, {0.75f, "Three Quarters"}, {1.f, "Full"}})
+            .help("vr_body_crouch_preview: the Crouched Pose (Body) blended as if you crouched this deep, standing or not: "
+                  "its offsets on the body, the holsters and the ammo pouch (the crouch itself as you are). Off: as deep "
+                  "as you crouch. Not saved."),
+        command("Print Crouched Pose", "vr_body_crouch_report")
+            .help("vr_body_crouch_report: how much of the crouched pose (Body > Crouched Pose Offsets) the body takes now, "
+                  "the pelvis, chest, shoulders and elbows, the holsters and the ammo pouch: units from your eyes, forward, "
+                  "right, up."),
         command("Print Torso Direction", "vr_torso_report")
             .help("vr_torso_report: the head's yaw, the old and the new torso guesses, the hands' pull and weights."),
         toggle("Log Body Drift", vr_debug_body_error)
@@ -7147,6 +7281,7 @@ const Page pages[] = {
     {"Toolgun", pageToolgun, pageDebugTools, LevelStandard},
     {"Toolgun - Spawn", pageToolgunSpawn, pageToolgun, LevelStandard},
     {"Toolgun - Cheats and Utilities", pageToolgunCheats, pageToolgun, LevelStandard},
+    {"Body - Crouched Pose", pageBodyCrouch, pageBody},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

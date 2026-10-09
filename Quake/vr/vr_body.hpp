@@ -101,4 +101,8 @@ void migrateHolsters();
 // is there, and at the virtual stock's shoulders (vr_show_virtual_stock). Once per frame.
 void queueDebug(const hands::State& s);
 
+// vr_body_crouch_report: the crouched pose's share (vr_body_crouch_*), the torso, the arms as last posed, the holsters
+// and the ammo pouch, units from the eyes in the body's facing (forward, right, up).
+void crouchReport_f();
+
 } // namespace qvr::body

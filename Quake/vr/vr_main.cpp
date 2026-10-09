@@ -25,6 +25,7 @@
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
 #include "vr_client.hpp"
+#include "vr_body.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
 #include "vr_highlights.hpp"
@@ -1517,6 +1518,7 @@ extern "C" void VR_Init()
     anchor::registerCommands();
     portals::registerCommands(); // vr_portals_info
     Cmd_AddCommand("vr_torso_report", torso::report_f);
+    Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_stress", decals::stress_f);
     Cmd_AddCommand("vr_limits", limits::command_f);
