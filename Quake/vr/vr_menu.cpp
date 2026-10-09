@@ -821,6 +821,9 @@ int campaignsBloodyShown = -1;
     return {
         header("Monsters"),
         toggle("Enemies Hurt by Liquids", vr_enemy_liquid_damage).help("Monsters burn in slime/lava and drown after 12 seconds with their heads underwater, including knocked-down ragdolls. Fish, bosses and lava dwellers are immune."),
+        slider("Liquid Breaks Falls", vr_liquid_fall_cushion, 0.f, 128.f, 8.f, "%.0f units").extend(0.f, 512.f)
+            .help("A monster landing in water, slime or lava under this much of it (standing or knocked down) takes no fall "
+                  "damage; shallower takes some. 0: liquid breaks no fall (vr_liquid_fall_cushion)."),
         toggle("Smooth Monster Steps", vr_monster_lerp_continue)
             .help("A monster's next step is drawn on from where it is drawn, not from where its last step ends: no jump "
                   "when it moves again before the last step is drawn out (a dog's quick turns looked like teleports). "
@@ -3776,6 +3779,21 @@ void hologramTestMessage()
             .help("How far explosions throw a ragdoll, times what they give a prop of its weight (vr_ragdoll_blast)."),
         slider("Death Motion Kept", vr_ragdoll_inherit, 0.f, 2.f, 0.1f, "%.1fx")
             .help("How much of his death animation's motion the parts keep as he goes limp (vr_ragdoll_inherit)."),
+        header("In Water, Slime and Lava"),
+        slider("Float in Water", vr_ragdoll_float_water, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("A body's lift under water, times its weight: above 1 it floats (face down: the torso floats more than "
+                  "the limbs), below it sinks; armoured knights a little less. 0: none (vr_ragdoll_float_water)."),
+        slider("Float in Slime", vr_ragdoll_float_slime, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("The same in slime (vr_ragdoll_float_slime)."),
+        slider("Float in Lava", vr_ragdoll_float_lava, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("The same in lava, where it burns (Combat > Burning, Bodies Burn in Lava) (vr_ragdoll_float_lava)."),
+        slider("Water Drag", vr_ragdoll_drag_water, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
+            .help("How fast water slows a body and its spin, more the faster it goes: a fall into it is braked as it goes "
+                  "in, a sink is slow. 0: none (vr_ragdoll_drag_water)."),
+        slider("Slime Drag", vr_ragdoll_drag_slime, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
+            .help("The same in slime, thicker (vr_ragdoll_drag_slime)."),
+        slider("Lava Drag", vr_ragdoll_drag_lava, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
+            .help("The same in lava, thickest (vr_ragdoll_drag_lava)."),
         header("Each Monster's Own"),
         open("Grunt", pageIndex(pageRagdollGrunt)),
         open("Knight", pageIndex(pageRagdollKnight)),

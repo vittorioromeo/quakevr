@@ -33359,3 +33359,33 @@ old way's for every beginning of "vr_s", "sv_g", "map e1", "bind m", "a" and "vr
 What is left a key is the scan itself (each name searched for the text, about 0.35 ms). Tab with thousands of matches
 still prints them all to the console (as before). `vr_mock_key text <letters>` types letters as a keyboard's text input
 does (Char_Event: the console's line, Search's box), for tests.
+
+## Ragdolls in liquids (2026-10-09)
+
+The author's notes start_2026-10-09_15-27-59 and vrtesthall_2026-10-09_15-29-13: ragdolls (dead) and knocked-down
+monsters fell into water, slime and lava at full gravity, as if there were none, and took the whole fall on the bottom
+(a knocked-down grunt thrown into vrtesthall's pool from 200 units over it: "landed at 708 u/s, 65 damage", gibbed).
+
+- Each ragdoll part (and a pushable corpse's one body, ragdolls off) in a liquid is lifted by how deep it is in it
+  (`submerged`, the floating props' column test), its weight times the liquid's Float at full depth
+  (`vr_ragdoll_float_water` 1.05, `_slime` 1.15, `_lava` 1.4): above 1 it floats, below it sinks. The torso (the pelvis,
+  the chest, a spine) floats 1.15 times that, the head and limbs 0.9: a body floats face down. Armour sinks: the knights
+  and death knights 0.85, the enforcer 0.92 (`ownFloat`). Given again for the step's later pieces (`liftAgain`).
+- Drag (`vr_ragdoll_drag_water` 1.5, `_slime` 3, `_lava` 5, 1/s): each part's motion damped by how deep it is, times
+  1 + its speed / 60 u/s (the quadratic part is the splash: a fall into it is braked as it goes in), its spin twice as
+  fast. Asleep parts are left alone (a body floating still sleeps). All six at 0: as before.
+- Fall damage through liquid (`vr_liquid_fall_cushion` 48 units, Gameplay > Liquid Breaks Falls): a monster landing
+  under that much water, slime or lava takes no fall damage, under less the speed times the share of it that is dry
+  (`liquidFallShare`): a knocked-down monster's ragdoll at the landing's point (callFalls), a standing one at its feet
+  (`VR_MonsterFell`, SV_Physics_Step: it fell through water at full speed, Quake has no drag for monsters).
+- Rows: VR Settings > Gibs and Corpses > Ragdolls, "In Water, Slime and Lava". `vr_debug_ragdoll 2` prints each frame
+  a ragdoll's pelvis is in a liquid ("in liquid <contents>: pelvis z, speed up, across").
+
+Measured (Misc/quakevr/ragdoll/liquid_test.sh; dead grunts dropped from about 200 units over the surface):
+- water (vrtesthall, 120 deep): goes in at 535 u/s, at 160 u/s 50 units down, stops 75 to 85 units down (never touches
+  the bottom), then rises at 15 to 20 u/s and floats, its back 2 units out (before: on the bottom at -123). A knight
+  sinks at 40 u/s and lies on the bottom.
+- slime (e3m1): 452 u/s in, stops 35 units down, floats. Lava (e1m7): 342 u/s in, floats.
+- a live grunt knocked down over the pool, and one falling in standing: health 30, no fall (before: 65 and 63 damage,
+  gibbed and dead). Knocked down into slime: no fall; the slime burns it (vr_enemy_liquid_damage) and it floats dead.
+- Cost: the water-and-hits phase with 8 ragdolls lying on e1m1's floor 0.034 ms a frame, 0.033 with it all off.

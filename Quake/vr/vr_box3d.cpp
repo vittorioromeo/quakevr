@@ -547,6 +547,8 @@ struct RagdollBodies
     uint32_t pinned{0}, feet{0}; // (feet: the parts it toppled over, for the tests' ragdollStance)
     double pinUntil{0.0};
     glm::vec2 pinVel{0.f};
+    // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
+    za::Array<float, ragdoll::maxBones> lift{};
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -6826,11 +6828,157 @@ void liftAgain()
     for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         const Slot& s = world->slots[num];
-        if(s.lift != 0.f && s.kind == Kind::Prop && B3_IS_NON_NULL(s.body))
+        if(s.lift != 0.f && (s.kind == Kind::Prop || s.kind == Kind::Corpse) && B3_IS_NON_NULL(s.body) && b3Body_IsValid(s.body))
         {
             b3Body_ApplyForceToCenter(s.body, b3Vec3{0.f, 0.f, s.lift}, false);
         }
     }
+    for(const RagdollBodies& r : world->ragdolls) // (ragdollsInLiquids')
+    {
+        for(int b = 0; r.num > 0 && b < r.count; b++)
+        {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            if(r.lift[static_cast<za::SizeT>(b)] != 0.f && !partCut(r, b) && b3Body_IsValid(body))
+            {
+                b3Body_ApplyForceToCenter(body, b3Vec3{0.f, 0.f, r.lift[static_cast<za::SizeT>(b)]}, false);
+            }
+        }
+    }
+}
+
+// Ragdolls and corpses in water, slime and lava (NOTES.md start_2026-10-09_15-27-59; before, they fell through a pool at
+// full gravity and landed on its floor at full speed): each part lifted by how deep it is in it, its weight times the
+// liquid's Float (vr_ragdoll_float_water, _slime, _lava) at full depth (above 1 it floats, below it sinks; the torso
+// floats more than the head and limbs, so a body floats face down, and an armoured knight less: it sinks), and dragged:
+// its motion and spin damped at the liquid's Drag (vr_ragdoll_drag_*, 1/s) by how deep it is, more the faster it goes
+// (twice at 60 units/s), so a fall into it is braked as it goes in (the splash) and a sink is slow. A knocked-down
+// monster's landing under it is cushioned too (liquidFallShare).
+// What liquid is at `p` (CONTENTS_WATER, _SLIME, _LAVA; else what is there), as wetFrom tells it.
+[[nodiscard]] int liquidAt(const glm::vec3& p)
+{
+    vec3_t v{p.x, p.y, p.z};
+    return VR_LiquidContents(sv.worldmodel, v, SV_PointContents(v)); // (SV_PointContents: a current is water)
+}
+
+// The liquid's Float and Drag (false: not a liquid).
+[[nodiscard]] bool liquidFeel(int contents, float& lift, float& drag)
+{
+    switch(contents)
+    {
+        case CONTENTS_WATER: lift = vr_ragdoll_float_water.value, drag = vr_ragdoll_drag_water.value; return true;
+        case CONTENTS_SLIME: lift = vr_ragdoll_float_slime.value, drag = vr_ragdoll_drag_slime.value; return true;
+        case CONTENTS_LAVA: lift = vr_ragdoll_float_lava.value, drag = vr_ragdoll_drag_lava.value; return true;
+        default: return false;
+    }
+}
+
+// A body's own Float, times the liquid's: armour sinks (the knights, the death knights, the enforcers).
+[[nodiscard]] float ownFloat(const edict_t* ent)
+{
+    const char* name = PR_GetString(ent->v.classname);
+    if(!strcmp(name, "monster_knight") || !strcmp(name, "monster_hell_knight") || !strcmp(name, "monster_ranged_knight"))
+    {
+        return 0.85f;
+    }
+    return !strcmp(name, "monster_enforcer") ? 0.92f : 1.f;
+}
+
+// A ragdoll's torso (its pelvis, its chest or spine): it floats more (the lungs) than its head and limbs.
+[[nodiscard]] bool torsoPart(const ragdoll::Rig& rig, int b)
+{
+    const char* name = rig.bones[b].name;
+    return b == 0 || !strncmp(name, "chest", 5) || !strncmp(name, "spine", 5) || !strncmp(name, "torso", 5) ||
+           !strncmp(name, "belly", 5);
+}
+
+// One awake body in a liquid: its lift for this step (applied; returned for liftAgain: N up) and its drag. 0 out of any.
+[[nodiscard]] float bodyInLiquid(b3BodyId body, float own, float g, float dt)
+{
+    const b3AABB box = b3Body_ComputeAABB(body);
+    const float lo = box.lowerBound.z * world->m2u, hi = box.upperBound.z * world->m2u;
+    const glm::vec3 com = world->toU(b3Body_GetWorldCenter(body));
+    const float part = submerged(com, lo, hi);
+    if(part <= 0.f)
+    {
+        return 0.f;
+    }
+    float lift = 0.f, drag = 0.f;
+    if(!liquidFeel(liquidAt(glm::vec3{com.x, com.y, lo + 1.f}), lift, drag) && !liquidFeel(liquidAt(com), lift, drag))
+    {
+        return 0.f;
+    }
+    const float force = b3Body_GetMass(body) * g * za::max(lift, 0.f) * own * part / world->m2u;
+    if(force > 0.f)
+    {
+        b3Body_ApplyForceToCenter(body, b3Vec3{0.f, 0.f, force}, false);
+    }
+    if(drag > 0.f)
+    {
+        const glm::vec3 vel = world->toU(b3Body_GetLinearVelocity(body));
+        const float k = drag * part * (1.f + glm::length(vel) / 60.f);
+        b3Body_SetLinearVelocity(body, world->toM(vel * za::exp(-k * dt)));
+        b3Body_SetAngularVelocity(body, b3v(glmv(b3Body_GetAngularVelocity(body)) * za::exp(-2.f * k * dt)));
+    }
+    return force;
+}
+
+void ragdollsInLiquids(float dt)
+{
+    const float g = sv_gravity.value;
+    if(vr_ragdoll_float_water.value <= 0.f && vr_ragdoll_float_slime.value <= 0.f && vr_ragdoll_float_lava.value <= 0.f &&
+       vr_ragdoll_drag_water.value <= 0.f && vr_ragdoll_drag_slime.value <= 0.f && vr_ragdoll_drag_lava.value <= 0.f)
+    {
+        for(RagdollBodies& r : world->ragdolls)
+        {
+            r.lift = {};
+        }
+        return; // (all off: as before)
+    }
+    for(RagdollBodies& r : world->ragdolls)
+    {
+        r.lift = {};
+        if(r.num <= 0 || r.num >= qcvm->num_edicts || !r.rig || g <= 0.f)
+        {
+            continue;
+        }
+        const float own = ownFloat(EDICT_NUM(r.num));
+        for(int b = 0; b < r.count; b++)
+        {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            if(!partCut(r, b) && b3Body_IsValid(body) && b3Body_IsAwake(body))
+            {
+                r.lift[static_cast<za::SizeT>(b)] = bodyInLiquid(body, own * (torsoPart(*r.rig, b) ? 1.15f : 0.9f), g, dt);
+            }
+        }
+        if(vr_debug_ragdoll.value >= 2.f && r.lift[0] != 0.f) // (its pelvis in a liquid: the sink speed tests')
+        {
+            const glm::vec3 p = world->toU(b3Body_GetWorldCenter(r.body[0])), v = world->toU(b3Body_GetLinearVelocity(r.body[0]));
+            Con_Printf("ragdoll %d in liquid %d: pelvis z %.1f, %.1f u/s up, %.1f across\n", r.num, liquidAt(p), p.z, v.z,
+                glm::length(glm::vec2{v.x, v.y}));
+        }
+    }
+    // (A corpse's one body: Corpse Collision's pushable corpses, ragdolls off.)
+    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts && g > 0.f; num++)
+    {
+        Slot& s = world->slots[num];
+        if(s.kind == Kind::Corpse && s.corpseDynamic && s.ragdoll < 0 && b3Body_IsValid(s.body) && b3Body_IsAwake(s.body))
+        {
+            s.lift = bodyInLiquid(s.body, ownFloat(EDICT_NUM(num)), g, dt);
+        }
+    }
+}
+
+// The share of a monster's landing speed at `p` (on what it lands) its fall damage is measured at: liquid over it
+// cushions it, none under vr_liquid_fall_cushion units of it, all with none (NOTES.md start_2026-10-09_15-27-59: thrown
+// into a pool, a knocked-down grunt took the whole fall, or gibbed).
+[[nodiscard]] float liquidFallShare(const glm::vec3& p)
+{
+    const float cushion = vr_liquid_fall_cushion.value;
+    if(cushion <= 0.f || !sv.worldmodel)
+    {
+        return 1.f;
+    }
+    return 1.f - submerged(p, p.z, p.z + cushion);
 }
 
 // What a prop that falls asleep rests on (its groundentity): the body under it (a contact whose normal points up
@@ -7185,7 +7333,9 @@ void touches(za::Vector<za::Pair<int, int>>& out)
             {
                 continue;
             }
-            const float speed = e.approachSpeed * za::fabs(e.normal.z) * world->m2u;
+            // (Landing under water, slime or lava: cushioned by it, liquidFallShare.)
+            const float speed = e.approachSpeed * za::fabs(e.normal.z) * world->m2u *
+                                liquidFallShare(world->toU(e.point) + glm::vec3{0.f, 0.f, 1.f});
             auto it = za::findIf(world->falls.begin(), world->falls.end(), [a](const Shock& s) { return s.num == a; });
             if(it == world->falls.end())
             {
@@ -12318,6 +12468,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     {
         QVR_PROFILE("box3d water and hits");
         beforeStep(dt);
+        ragdollsInLiquids(dt);
         beforeStanding();
         shoveBumped(dt);
         nudgeWalkedRagdolls(dt);
@@ -13499,6 +13650,7 @@ extern "C" void VR_MonsterFell(edict_t* ent, float speed)
 {
     if(ent)
     {
-        monsterFell(ent, speed);
+        // A standing monster landing (SV_Physics_Step): its feet's liquid cushions it (liquidFallShare).
+        monsterFell(ent, speed * liquidFallShare(glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2] + ent->v.mins[2] + 1.f}));
     }
 }
