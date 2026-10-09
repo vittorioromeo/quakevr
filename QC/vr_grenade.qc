@@ -902,9 +902,7 @@ void() VR_Grenade_Think =
 // The pouches' grenades are the launchers' rounds, which immersive reloading loads (vr_reload.qc): Quake's own models
 // again (the author's notes vrfiringrange_2026-10-08_10-34-52 .. 10-37-30: "I want it to look exactly the same", the same
 // in the hand as in flight), at vr_grenade_scale (0.78) wherever they are (the engine's drawnSize: their boxes too). The
-// rocket stays make_rounds.py's. make_rounds.py's grenade and proximity grenade (progs/vr_round_grenade.mdl: skin 1 the
-// multi-grenade, 2 and 3 armed; progs/vr_round_prox.mdl: skin 1 armed) are kept to switch back (ROUND21.md, "Grenades
-// back to the original models").
+// rocket stays make_rounds.py's.
 string VR_RELOAD_FRONTCLASS = "vr_ammo_front";           // a launcher's round (and an unarmed pouch grenade)
 string VR_RELOAD_ROCKET = "progs/vr_round_rocket.mdl";   // (skin 1 the multi-rocket)
 string VR_RELOAD_GRENADE = "progs/grenade.mdl";          // (along its +x: its butt the flat end, -x; its nose tapered)

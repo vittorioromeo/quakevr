@@ -3166,36 +3166,9 @@ GrenadeTrailLog grenadeTrails;
 
 } // namespace
 
-// Whether a launcher's grenade round (the pouches' grenades: QC vr_grenade.qc VR_HandGrenade_Make) smokes as a grenade
-// (its models have no trail flag of their own: a round lying about never smokes): armed, progs/vr_round_grenade.mdl's
-// skins 2 and 3 (QC VR_HGREN_SKIN_ARMED), progs/vr_round_prox.mdl's 1.
-extern "C" int VR_RoundTrail(int ent)
-{
-    if(ent <= 0 || ent >= cl.num_entities)
-    {
-        return 0;
-    }
-    const entity_t& e = cl_entities[ent];
-    if(!e.model)
-    {
-        return 0;
-    }
-    if(qvr::modelmeta::is(e.model, qvr::modelmeta::Id::RoundGrenade))
-    {
-        constexpr int armedSkin = 2;
-        return e.skinnum >= armedSkin;
-    }
-    if(qvr::modelmeta::is(e.model, qvr::modelmeta::Id::RoundProx))
-    {
-        return e.skinnum >= 1;
-    }
-    return 0;
-}
-
 // A grenade's smoke trail: not a hand grenade with its pin in (vr_grenade.qc: skin 1 of progs/grenade.mdl, of the
 // multi-grenade's progs/mervup.mdl or of the proximity grenade's progs/proxbomb.mdl, muted by make_grenade_skins.py until
-// it is armed; make_rounds.py's rounds, unused since 2026-10-08, smoke only armed: progs/vr_round_grenade.mdl's skins 2
-// and 3, progs/vr_round_prox.mdl's 1).
+// it is armed).
 extern "C" int VR_GrenadeTrail(int ent)
 {
     if(ent <= 0 || ent >= cl.num_entities)
@@ -3204,11 +3177,7 @@ extern "C" int VR_GrenadeTrail(int ent)
     }
     const entity_t& e = cl_entities[ent];
     constexpr int unarmedSkin = 1;
-    bool smokes = !(e.model && e.skinnum == unarmedSkin && qvr::modelmeta::isQuakeGrenade(e.model));
-    if(e.model && (qvr::modelmeta::is(e.model, qvr::modelmeta::Id::RoundGrenade) || qvr::modelmeta::is(e.model, qvr::modelmeta::Id::RoundProx)))
-    {
-        smokes = VR_RoundTrail(ent) != 0;
-    }
+    const bool smokes = !(e.model && e.skinnum == unarmedSkin && qvr::modelmeta::isQuakeGrenade(e.model));
     // developer 1: each grenade's trail as it starts or stops.
     const auto n = static_cast<size_t>(ent);
     if(developer.value && (!grenadeTrails.seen[n] || grenadeTrails.smoking[n] != smokes))
