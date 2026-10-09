@@ -33146,3 +33146,42 @@ the shove trace's torso tilt / feet travel along the shove, feet height, every 0
 
 It goes over as far as before (further: the turn's push at its top) and turns over steadily as it falls, landing on
 its back or front rather than tipping only when it hits the floor.
+## The author's settings of the afternoon of 2026-10-09 are the defaults (2026-10-09)
+
+His notes vrfiringrange_2026-10-09_12-29-53, 12-40-36, 12-42-10 ("all bullet time values"). His config of 13:06
+against the shipped defaults (vr_cvars.inc with vr_defaults.cfg over it, the engine's own for the rest). Config version
+110 (`vr_cvars.cpp` defaultChanges: a config still holding the old default takes the new one; one the player changed
+keeps it):
+
+- Bullet time's screen tap: `vr_bullettime_tap_gesture` 1 (Double Tap; was Single), `_angle` 80 (10 degrees),
+  `_butt_depth` 6 (4 cm), `_depth` 5 (6.5 cm), `_double_speed` 0.2 (0.4 m/s), `_double_window` 0.8 (0.4 s), `_height`
+  0.85 (0.75), `_margin` 0.5 (1 cm), `_width` 0.95 (1). Combat > Bullet Time's Double Tap Force bar starts at 0.1 m/s now.
+- The stealth AI: `vr_stealth_graze` 72 (64), `_light_dark` 16 (20), `_light_bright` 64 (80), `_lose_time` 14 (20 s),
+  `_meter_time` 0.5 (1 s), `_meter_decay` 0.15 (0.2), `_noise_blasts` 1.75 (1), `_noise_guns` 1.5 (1), `_noise_props`
+  1500 (1200), `_noise_wall` 0.6 (0.5).
+- Holding enemies: `vr_foegrab_drag` 20 (10), `_drag_speed` 300 (200), `_break` 20 (35 cm), `_leniency` 1 (1.5 cm).
+- The engine: `gl_texture_anisotropy` 16 (Ironwail's 8), as `vr_default` in vr_defaults.cfg's engine section with a
+  110 change for configs at 8 (the driver's most caps it: gl_texmgr.c).
+
+Already shipped, nothing to change: `vr_messages_hologram_only` 1 and `_height` 10 (vr_defaults.cfg since 2026-09-28),
+`r_wateralpha` 0.3, `r_lavaalpha` 0.9, `r_slimealpha` 0.6, `r_telealpha` 0.9 (vr_defaults.cfg, config 45/60),
+`host_maxfps` 250 (Ironwail's own default). host_maxfps and VR: with a headset the runtime paces the frames
+(Host_GetFrameInterval); 250 only caps a frame's interval at 4 ms, never reached at 72-144 Hz, and over 72 the server runs
+its fixed tick (host_netinterval), as before. r_telealpha and `vr_teleporter_surface_opacity`: multiplied
+(GL_WaterAlphaForEntityTextureType): with seamless teleporters on, the shimmer's share is 0.9 x 0.3 = 0.27 over the view
+through the gate; with them off, the shimmer at 0.9 over Quake's own surface.
+
+Left as they are (machine, session, desktop or slider noise): `contrast` 1.2, `gamma` 0.95 (his display), `fov`,
+`sensitivity`, `volume`, `vid_*` (his monitor), `scr_*scale` 3, `scr_menubgstyle`, `scr_centerprintbg`,
+`ui_live_preview` (the desktop window's menus), `gl_texturemode` GL_NEAREST_MIPMAP_LINEAR (a look: Retro is its own
+setting), `vr_body_elbow_back`/`_hand`/`_lift` (his arms: personal), `vr_menu_level`, `vr_menu_scale`,
+`vr_menu_distance`, `vr_menu_positions`, `vr_mirror_hide_hud_text`, `vr_spectator_fov`, `vr_spectator_scale`,
+`vr_window_view` (the desktop window), `vr_foveated`, `vr_xr_runtime`, `vr_comfort_vignette_strength` (0.4995),
+`vr_ammo_pouch_scale` (0.999), `vr_ammo_pouch_x` (3.021975), `vr_melee_phase_speed` (3.996), `vr_melee_phase_time`
+(0.34965), `vr_relight_strength` (1.1988): slider noise. Weapon and held object settings not compared.
+
+Tests: `config110_test.sh` (a config of 109 at the old defaults takes every new one; vr_stealth_graze 50 and anisotropy
+4 kept). `gadget_tap_test.sh` (also the single tap, width 1, butt depth 4), `gadget_doubletap_test.sh` (width 1, butt
+depth 4) and `gadget_sync_test.sh` (single tap) pin what they measure against; all pass. The double tap cases with the
+new defaults unpinned: J1, J4 (0.92 m/s), K, L on; J2, J3 (0.8 s apart: the window's edge), J5 nothing. stealth_tests.sh
+gun, blast, hunt: PASS.

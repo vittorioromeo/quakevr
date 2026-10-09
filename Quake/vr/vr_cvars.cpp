@@ -15,6 +15,8 @@
 #include "Zancle/String/StringView.hpp"
 #include "vr_zancle.hpp"
 
+extern "C" cvar_t gl_texture_anisotropy; // gl_texmgr.c
+
 namespace qvr
 {
 
@@ -562,8 +564,36 @@ const DefaultChange defaultChanges[] = {
     {109, &vr_knockdown_wiggle_pause, "0"}, // 0.5
     {109, &vr_reload_front_angle, "45"}, // 40.5
     {109, &vr_reload_front_hold_pitch, "90"}, // 45
+    // 110: the author's settings of the afternoon of 2026-10-09 (vrfiringrange_2026-10-09_12-29-53, 12-40-36, 12-42-10:
+    // "all bullet time values"; ROUND21.md, "The author's settings of the afternoon of 2026-10-09 are the defaults"):
+    // bullet time's screen tap (the double tap by default), the stealth AI's senses and noises, holding enemies, and
+    // 16x anisotropic filtering (vr_defaults.cfg).
+    {110, &vr_bullettime_tap_gesture, "0"},       // 1: the double tap
+    {110, &vr_bullettime_tap_angle, "10"},        // 80
+    {110, &vr_bullettime_tap_butt_depth, "4"},    // 6
+    {110, &vr_bullettime_tap_depth, "6.5"},       // 5
+    {110, &vr_bullettime_tap_double_speed, "0.4"}, // 0.2
+    {110, &vr_bullettime_tap_double_window, "0.4"}, // 0.8
+    {110, &vr_bullettime_tap_height, "0.75"},     // 0.85
+    {110, &vr_bullettime_tap_margin, "1"},        // 0.5
+    {110, &vr_bullettime_tap_width, "1"},         // 0.95
+    {110, &vr_foegrab_break, "35"},               // 20
+    {110, &vr_foegrab_drag, "10"},                // 20
+    {110, &vr_foegrab_drag_speed, "200"},         // 300
+    {110, &vr_foegrab_leniency, "1.5"},           // 1
+    {110, &vr_stealth_graze, "64"},               // 72
+    {110, &vr_stealth_light_bright, "80"},        // 64
+    {110, &vr_stealth_light_dark, "20"},          // 16
+    {110, &vr_stealth_lose_time, "20"},           // 14
+    {110, &vr_stealth_meter_decay, "0.2"},        // 0.15
+    {110, &vr_stealth_meter_time, "1"},           // 0.5
+    {110, &vr_stealth_noise_blasts, "1"},         // 1.75
+    {110, &vr_stealth_noise_guns, "1"},           // 1.5
+    {110, &vr_stealth_noise_props, "1200"},       // 1500
+    {110, &vr_stealth_noise_wall, "0.5"},         // 0.6
+    {110, &gl_texture_anisotropy, "8"},           // 16 (vr_defaults.cfg)
 };
-constexpr int configVersion = 109;
+constexpr int configVersion = 110;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -12,6 +12,8 @@ S="map e1m1;wait60;vr_debug_bullettime ${DBG:-1};vr_debug_gadget_button 1;vr_bul
 # shipped since config 109 (0.5 m/s, 10 degrees, the zone 0.75 high and 3.5 cm in: ROUND21.md).
 S="$S;vr_bullettime_tap_speed 1.2;vr_bullettime_tap_angle 40;vr_bullettime_tap_margin 2;vr_bullettime_tap_depth 6"
 S="$S;vr_bullettime_tap_height 1;vr_bullettime_tap_z 0;vr_bullettime_tap_stop 0.5;vr_bullettime_tap_window 0.25"
+# The single tap (the double tap is the default since config 110) and the zone and butt of before it.
+S="$S;vr_bullettime_tap_gesture 0;vr_bullettime_tap_width 1;vr_bullettime_tap_butt_depth 4"
 # case <label> <screen|screenbutt> <start cm over> <start cm across> <end cm over> <end cm across> <seconds>
 case_() {
     S="$S;echo === $1;vr_mock_hand_glide 1;vr_mock_hand_to main $2 $3 $4;wait120;vr_mock_hand_to main $2 $3 $4;wait120"

@@ -11,6 +11,7 @@ S="map e1m1;wait60;vr_debug_bullettime 1;vr_bullettime_cooldown 0;vr_bullettime_
 S="$S;vr_bullettime_tap_speed 1.2;vr_bullettime_tap_angle 40;vr_bullettime_tap_margin 2;vr_bullettime_tap_depth 6"
 S="$S;vr_bullettime_tap_height 1;vr_bullettime_tap_z 0;vr_bullettime_tap_stop 0.5;vr_bullettime_tap_window 0.25"
 S="$S;vr_bullettime_trigger_cooldown 0.5;vr_bullettime_tap_gesture 1;vr_bullettime_tap_double_window 0.4;vr_bullettime_tap_double_speed 0.8;vr_gadget_button 0"
+S="$S;vr_bullettime_tap_width 1;vr_bullettime_tap_butt_depth 4" # the zone and butt of before config 110
 settle() { # <point>: the hand settled 10 cm over the screen's middle (a slow glide)
     S="$S;vr_mock_hand_glide 1;vr_mock_hand_to main $1 10 0;wait120;vr_mock_hand_to main $1 10 0;wait100"
 }

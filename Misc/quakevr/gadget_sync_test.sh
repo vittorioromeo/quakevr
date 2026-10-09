@@ -9,6 +9,7 @@
 AGENT=${1:-gadget}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 S="map e1m1;wait60;vr_bullettime_cooldown 0;vr_bullettime_duration 600;vr_bullettime_scale 1;vr_debug_bullettime 1"
+S="$S;vr_bullettime_tap_gesture 0" # each tap counts alone (the double tap is the default since config 110)
 S="$S;vr_debug_gadget_button 3;echo === STILL;wait30"
 S="$S;echo === RUN;vr_mock_stick off 0 1;wait90"
 S="$S;echo === STRAFE AND SMOOTH TURN;vr_mock_stick off 1 0;vr_mock_stick main 1 0;wait90;vr_mock_stick main 0 0"

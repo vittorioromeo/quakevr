@@ -199,7 +199,7 @@
                   "lighter: Double Tap Force), lifting off the screen between them; a single tap does nothing."),
         slider("Double Tap Window", "vr_bullettime_tap_double_window", 0.2f, 1.f, 0.05f, "%.2f s").extend(0.1f, 2.f)
             .help("Double Tap: how soon after the first tap the second must come."),
-        slider("Double Tap Force", "vr_bullettime_tap_double_speed", 0.3f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
+        slider("Double Tap Force", "vr_bullettime_tap_double_speed", 0.1f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
             .help("Double Tap: how fast each tap must come into the screen (Tap Force is the single tap's)."),
         slider("Tap Force", "vr_bullettime_tap_speed", 0.5f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
             .help("How fast your hand (or the gun's butt, or what it holds) must come into the screen (either arm may "

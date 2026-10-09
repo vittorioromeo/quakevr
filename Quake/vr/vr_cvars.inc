@@ -368,20 +368,20 @@ QVR_CVAR(vr_bullettime_trigger, "0", CVAR_ARCHIVE)    // what starts and stops i
 // The screen tap: a hard, deliberate strike on the gadget's screen by the other hand (its own middle) or the butt of the
 // gun it holds, straight into the screen, that stops there. A swing across it, a soft touch or a hand passing by don't.
 QVR_CVAR(vr_bullettime_tap, "1", CVAR_ARCHIVE)        // 1: a hard tap on the gadget's screen starts and stops it; 0: not
-QVR_CVAR(vr_bullettime_tap_gesture, "0", CVAR_ARCHIVE) // the screen tap's gesture: 0 a single tap; 1 a double tap (two taps within vr_bullettime_tap_double_window, each at vr_bullettime_tap_double_speed or more)
-QVR_CVAR(vr_bullettime_tap_double_window, "0.4", CVAR_ARCHIVE) // seconds: a double tap's second tap must come this soon after its first (the volume lifted off the screen between them)
-QVR_CVAR(vr_bullettime_tap_double_speed, "0.4", CVAR_ARCHIVE) // m/s: a double tap's least speed into the screen, per tap (instead of vr_bullettime_tap_speed)
+QVR_CVAR(vr_bullettime_tap_gesture, "1", CVAR_ARCHIVE) // the screen tap's gesture: 0 a single tap; 1 a double tap (two taps within vr_bullettime_tap_double_window, each at vr_bullettime_tap_double_speed or more)
+QVR_CVAR(vr_bullettime_tap_double_window, "0.8", CVAR_ARCHIVE) // seconds: a double tap's second tap must come this soon after its first (the volume lifted off the screen between them)
+QVR_CVAR(vr_bullettime_tap_double_speed, "0.2", CVAR_ARCHIVE) // m/s: a double tap's least speed into the screen, per tap (instead of vr_bullettime_tap_speed)
 QVR_CVAR(vr_bullettime_tap_speed, "0.5", CVAR_ARCHIVE) // m/s: the least speed into the screen (the hands' speed towards each other along its normal: both may move)
-QVR_CVAR(vr_bullettime_tap_angle, "10", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)
-QVR_CVAR(vr_bullettime_tap_margin, "1", CVAR_ARCHIVE) // cm round the screen's edges where the strike may land too
-QVR_CVAR(vr_bullettime_tap_depth, "6.5", CVAR_ARCHIVE)  // cm over the screen's face at which the striking volume (the drawn hand's surface, the gun's butt) is on it
-QVR_CVAR(vr_bullettime_tap_width, "1", CVAR_ARCHIVE) // the tap zone's width as a share of the screen's (before vr_bullettime_tap_margin) ...
-QVR_CVAR(vr_bullettime_tap_height, "0.75", CVAR_ARCHIVE) // ... and its height
+QVR_CVAR(vr_bullettime_tap_angle, "80", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)
+QVR_CVAR(vr_bullettime_tap_margin, "0.5", CVAR_ARCHIVE) // cm round the screen's edges where the strike may land too
+QVR_CVAR(vr_bullettime_tap_depth, "5", CVAR_ARCHIVE)  // cm over the screen's face at which the striking volume (the drawn hand's surface, the gun's butt) is on it
+QVR_CVAR(vr_bullettime_tap_width, "0.95", CVAR_ARCHIVE) // the tap zone's width as a share of the screen's (before vr_bullettime_tap_margin) ...
+QVR_CVAR(vr_bullettime_tap_height, "0.85", CVAR_ARCHIVE) // ... and its height
 QVR_CVAR(vr_bullettime_tap_x, "0", CVAR_ARCHIVE)     // cm: the tap zone moved along the screen's right ...
 QVR_CVAR(vr_bullettime_tap_y, "0", CVAR_ARCHIVE)     // ... its up ...
 QVR_CVAR(vr_bullettime_tap_z, "-3.5", CVAR_ARCHIVE)     // ... and out of it (its face: vr_bullettime_tap_depth is measured from there)
 QVR_CVAR(vr_bullettime_tap_butt, "1", CVAR_ARCHIVE)   // 1: the butt of the gun the other hand holds taps too (its rearmost end); 0: only the hand
-QVR_CVAR(vr_bullettime_tap_butt_depth, "4", CVAR_ARCHIVE) // cm: how far from the gun's rearmost end its butt reaches (the drawn points within it strike)
+QVR_CVAR(vr_bullettime_tap_butt_depth, "6", CVAR_ARCHIVE) // cm: how far from the gun's rearmost end its butt reaches (the drawn points within it strike)
 QVR_CVAR(vr_bullettime_tap_stop, "1", CVAR_ARCHIVE) // the impact: the speed into the screen must fall to this much of its peak on the screen (a hand passing by doesn't tap); 1: on arrival
 QVR_CVAR(vr_bullettime_tap_window, "0.5", CVAR_ARCHIVE) // seconds after the peak speed the impact may come
 QVR_CVAR(vr_bullettime_tap_holding, "1", CVAR_ARCHIVE) // 1: the tapping hand may hold something (the hand or the gun's butt taps); 0: only an empty hand
@@ -2425,12 +2425,12 @@ QVR_CVAR(vr_enemy_shove_enforcer_distance, "1.5", CVAR_ARCHIVE) // an enforcer's
 // Holding enemies (vr_foegrab.cpp, QC vr_foegrab.qc; Combat > Holding Enemies): an empty hand that grips on a living
 // monster's model holds on to that spot, slows it and drags it, until let go or pulled too far.
 QVR_CVAR(vr_foegrab, "1", CVAR_ARCHIVE)                  // experimental: an empty hand can hold on to a living enemy
-QVR_CVAR(vr_foegrab_leniency, "1.5", CVAR_ARCHIVE)       // cm: how far off its model the hand's skin may be and still take hold
-QVR_CVAR(vr_foegrab_break, "35", CVAR_ARCHIVE)           // cm: the hand (tracked) this far from the spot it holds lets go
+QVR_CVAR(vr_foegrab_leniency, "1", CVAR_ARCHIVE)       // cm: how far off its model the hand's skin may be and still take hold
+QVR_CVAR(vr_foegrab_break, "20", CVAR_ARCHIVE)           // cm: the hand (tracked) this far from the spot it holds lets go
 QVR_CVAR(vr_foegrab_slow, "0.8", CVAR_ARCHIVE)           // share of a fully held enemy's own movement taken off (times its hold)
 QVR_CVAR(vr_foegrab_follow, "1", CVAR_ARCHIVE)           // share of the holding hands' own move (flat) the enemy follows, times its hold (a grunt comes along)
-QVR_CVAR(vr_foegrab_drag, "10", CVAR_ARCHIVE)            // 1/s: how fast the hand pulls the spot it holds to it (times the hold)
-QVR_CVAR(vr_foegrab_drag_speed, "200", CVAR_ARCHIVE)     // units/s: at most this fast
+QVR_CVAR(vr_foegrab_drag, "20", CVAR_ARCHIVE)            // 1/s: how fast the hand pulls the spot it holds to it (times the hold)
+QVR_CVAR(vr_foegrab_drag_speed, "300", CVAR_ARCHIVE)     // units/s: at most this fast
 QVR_CVAR(vr_foegrab_strength_small, "0.85", CVAR_ARCHIVE)  // one hand's hold on a small enemy (grunt, enforcer, zombie, knight, mummy...)
 QVR_CVAR(vr_foegrab_strength_medium, "0.25", CVAR_ARCHIVE) // on a big one (fiend, ogre)
 QVR_CVAR(vr_foegrab_strength_large, "0.04", CVAR_ARCHIVE)  // on a huge one (shambler, vore and bigger)
@@ -2980,11 +2980,11 @@ QVR_CVAR(vr_shot_hide, "0", CVAR_NONE) // hidden for a clean shot (vr_view.cpp):
 // Combat > Stealth AI (QC vr_stealth.qc; docs/vr-port/STEALTH_PLAN.md): monsters Idle, Alert (investigating) or Hostile.
 QVR_CVAR(vr_ai_enhanced, "1", CVAR_ARCHIVE)          // every rule below at once (the umbrella: 0 is Quake's monster AI, at once, mid-map too)
 QVR_CVAR(vr_stealth_meter, "1", CVAR_ARCHIVE)        // sight is a suspicion meter (light, distance, facing, movement, crouching): 0 Quake's instant sight
-QVR_CVAR(vr_stealth_meter_time, "1", CVAR_ARCHIVE) // s the meter takes to fill: in full light, near, in front, walking
-QVR_CVAR(vr_stealth_meter_decay, "0.2", CVAR_ARCHIVE) // share of the meter lost a second while not seen
+QVR_CVAR(vr_stealth_meter_time, "0.5", CVAR_ARCHIVE) // s the meter takes to fill: in full light, near, in front, walking
+QVR_CVAR(vr_stealth_meter_decay, "0.15", CVAR_ARCHIVE) // share of the meter lost a second while not seen
 QVR_CVAR(vr_stealth_glimpse, "0.3", CVAR_ARCHIVE)    // the meter's share at which the monster turns to look (Alert)
-QVR_CVAR(vr_stealth_light_dark, "20", CVAR_ARCHIVE)  // light (128: Quake's full light) at or below which you are not seen
-QVR_CVAR(vr_stealth_light_bright, "80", CVAR_ARCHIVE) // light at or over which you are seen as fast as can be
+QVR_CVAR(vr_stealth_light_dark, "16", CVAR_ARCHIVE)  // light (128: Quake's full light) at or below which you are not seen
+QVR_CVAR(vr_stealth_light_bright, "64", CVAR_ARCHIVE) // light at or over which you are seen as fast as can be
 QVR_CVAR(vr_stealth_crouch, "0.4", CVAR_ARCHIVE)     // the meter's rate in a full crouch (a share)
 QVR_CVAR(vr_stealth_still, "0.5", CVAR_ARCHIVE)      // the meter's rate while you stand still (walking 1, running 2)
 QVR_CVAR(vr_stealth_sight_range, "1500", CVAR_ARCHIVE) // units at which a monster no longer makes you out (full rate within 128)
@@ -2993,11 +2993,11 @@ QVR_CVAR(vr_stealth_contact, "1", CVAR_ARCHIVE)      // touching a monster (body
 QVR_CVAR(vr_stealth_noise, "1", CVAR_ARCHIVE)        // monsters hear noises (running, props, blows, shots, blasts) through the level
 QVR_CVAR(vr_stealth_run_speed, "280", CVAR_ARCHIVE)  // units/s over which you run (and are heard)
 QVR_CVAR(vr_stealth_noise_run, "400", CVAR_ARCHIVE)  // units your running is heard at (in the open)
-QVR_CVAR(vr_stealth_noise_props, "1200", CVAR_ARCHIVE) // units a prop's loudest knock is heard at (a quieter one: by its volume)
-QVR_CVAR(vr_stealth_noise_guns, "1", CVAR_ARCHIVE)   // times each weapon's shot's reach (a shotgun 1100 units)
+QVR_CVAR(vr_stealth_noise_props, "1500", CVAR_ARCHIVE) // units a prop's loudest knock is heard at (a quieter one: by its volume)
+QVR_CVAR(vr_stealth_noise_guns, "1.5", CVAR_ARCHIVE)   // times each weapon's shot's reach (a shotgun 1100 units)
 QVR_CVAR(vr_stealth_noise_melee, "1", CVAR_ARCHIVE)  // times a blow's reach (by its strength and the weapon's weight)
-QVR_CVAR(vr_stealth_noise_blasts, "1", CVAR_ARCHIVE) // times an explosion's reach (8 units a point of its damage, at least 800)
-QVR_CVAR(vr_stealth_noise_wall, "0.5", CVAR_ARCHIVE) // a noise's reach kept round a corner (in sight of the place, not in line)
+QVR_CVAR(vr_stealth_noise_blasts, "1.75", CVAR_ARCHIVE) // times an explosion's reach (8 units a point of its damage, at least 800)
+QVR_CVAR(vr_stealth_noise_wall, "0.6", CVAR_ARCHIVE) // a noise's reach kept round a corner (in sight of the place, not in line)
 QVR_CVAR(vr_stealth_noise_solid, "0.15", CVAR_ARCHIVE) // and through solid walls (out of sight of the place)
 QVR_CVAR(vr_stealth_noise_absorb, "0.6", CVAR_ARCHIVE) // and past a prop (a crate) in the way
 QVR_CVAR(vr_stealth_gates, "1", CVAR_ARCHIVE)        // through paired teleporters: every monster sees you, noises are heard, and Alert ones walk through to look
@@ -3009,7 +3009,7 @@ QVR_CVAR(vr_stealth_sensitive, "1.5", CVAR_ARCHIVE)  // its meter's rate for a w
 QVR_CVAR(vr_stealth_sensitive_time, "30", CVAR_ARCHIVE) // s it stays that wary
 QVR_CVAR(vr_stealth_share_near, "256", CVAR_ARCHIVE) // units: a monster this near another that turns Alert or Hostile does too (0: none)
 QVR_CVAR(vr_stealth_share_view, "1000", CVAR_ARCHIVE) // units: one that sees it turn Hostile within this does too (Alert: half)
-QVR_CVAR(vr_stealth_graze, "64", CVAR_ARCHIVE)       // units: a shot passing this near a monster alerts it, from any distance (0: off)
+QVR_CVAR(vr_stealth_graze, "72", CVAR_ARCHIVE)       // units: a shot passing this near a monster alerts it, from any distance (0: off)
 QVR_CVAR(vr_stealth_flashlight, "1", CVAR_ARCHIVE)   // the flashlight's beam alerts monsters it lights or that see it
 QVR_CVAR(vr_stealth_torch, "500", CVAR_ARCHIVE)      // units: a held or thrown torch alerts monsters that see it this near (0: off)
 QVR_CVAR(vr_stealth_corpses, "700", CVAR_ARCHIVE)    // units: corpses and gibs seen this near alert monsters (0: off)
@@ -3017,7 +3017,7 @@ QVR_CVAR(vr_stealth_sneak, "1.25", CVAR_ARCHIVE)     // damage times this to a m
 QVR_CVAR(vr_stealth_ambush_deaf, "1", CVAR_ARCHIVE)  // monsters placed in ambush (spawnflag 1) don't hear noises or other monsters (Quake's meaning)
 QVR_CVAR(vr_stealth_senses, "1", CVAR_ARCHIVE)       // each kind its own senses (dogs hear better, zombies are near deaf)
 QVR_CVAR(vr_stealth_lose, "1", CVAR_ARCHIVE)         // a Hostile monster that lost you hunts for you a while (your trail), then gives up and searches (Alert)
-QVR_CVAR(vr_stealth_lose_time, "20", CVAR_ARCHIVE)   // s without seeing you before it gives up
+QVR_CVAR(vr_stealth_lose_time, "14", CVAR_ARCHIVE)   // s without seeing you before it gives up
 QVR_CVAR(vr_stealth_lose_far, "1500", CVAR_ARCHIVE)  // units: with you farther than this it gives up after a quarter of that (0: never sooner)
 QVR_CVAR(vr_stealth_chase_trail, "1", CVAR_ARCHIVE)  // out of sight it follows your trail: where it saw you last, then the way you were going (0: straight at you, Quake's)
 QVR_CVAR(vr_stealth_chase_predict, "1.5", CVAR_ARCHIVE) // s of your speed it guesses ahead along your way
