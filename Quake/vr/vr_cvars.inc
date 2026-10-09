@@ -2035,8 +2035,8 @@ QVR_CVAR(vr_knockdown_shove_topple_angle, "90", CVAR_ARCHIVE) // degrees it turn
 QVR_CVAR(vr_knockdown_shove_topple_time, "0.6", CVAR_ARCHIVE) // s it takes to turn that far (slow to start, fastest past halfway, landing)
 QVR_CVAR(vr_knockdown_shove_feet_lag, "0.3", CVAR_ARCHIVE) // share of the travel its feet lag behind as it turns (its top as far ahead); 0: all of it goes alike
 QVR_CVAR(vr_knockdown_shove_max_spin, "300", CVAR_ARCHIVE) // deg/s: it never turns faster than this while the shove drives it (no cartwheels)
-QVR_CVAR(vr_knockdown_shove_ledge_topple, "150", CVAR_ARCHIVE) // deg/s (times the shove's strength): shoved over a ledge, pushed whole (it goes over) and turned over its feet as it falls this fast, up to vr_knockdown_shove_topple_angle (never faster than vr_knockdown_shove_max_spin); 0: it goes over upright
-QVR_CVAR(vr_knockdown_shove_ledge_push, "1", CVAR_ARCHIVE) // shoved over a ledge, its launch along the shove times this (kept up until it is past the edge: it always goes over); 1: the whole shove's
+QVR_CVAR(vr_knockdown_shove_ledge_topple, "100", CVAR_ARCHIVE) // deg/s (times the shove's strength): shoved over a ledge, pushed whole (it goes over) and turned over its feet as it falls this fast, up to vr_knockdown_shove_topple_angle (never faster than vr_knockdown_shove_max_spin); 0: it goes over upright
+QVR_CVAR(vr_knockdown_shove_ledge_push, "0.7", CVAR_ARCHIVE) // shoved over a ledge, its launch along the shove times this (kept up until it is past the edge: it always goes over); 1: the whole shove's
 QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
 QVR_CVAR(vr_knockdown_ledge_drop, "16", CVAR_ARCHIVE)     // how high (units) a drop must be to count as a ledge (stairs and steps do not)
 QVR_CVAR(vr_knockdown_ledge_reach, "1.25", CVAR_ARCHIVE)    // how far ahead a ledge is looked for: times the shove's reckoned travel (the hop and the slide; 1: as far as it goes)

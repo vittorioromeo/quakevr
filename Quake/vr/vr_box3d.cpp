@@ -569,6 +569,7 @@ struct RagdollBodies
         float lag{0.f};         // share of the travel its feet lack as it turns (its top as much ahead), its middle none
         float maxSpin{0.f};     // rad/s: its turn never faster
         float rate{0.f};        // rad/s: over a ledge, its turn's (until it has turned `angle`)
+        float floor{0.f};       // over a ledge: the floor it stood on (metres up): its middle below it, it went over
         float meanShare{0.5f};  // its parts' mean height share (mass-weighted)
         za::Array<float, ragdoll::maxBones> share{}; // each part's height share at the start (its feet 0, its top 1)
     } shove;
@@ -3348,7 +3349,7 @@ void driveShove(RagdollBodies& r, float dt)
         // Until it lands below (or 2.5 s): kept going until past the edge, and its turn about the level axis across
         // the shove (its parts' turn about its middle, as one) never faster than maxSpin (tipping over the lip flips it).
         const float gone = glm::dot(com - d.from, d.dir);
-        const bool dropped = com.z < d.from.z - 0.5f;
+        const bool dropped = com.z < d.floor - 0.25f;
         if(t > 2.5f || (dropped && za::abs(vcom.z) < 0.3f))
         {
             d.on = false;
@@ -13105,6 +13106,7 @@ bool ragdollShove(edict_t* ent, const glm::vec3& dir, const RagdollShove& p)
         d.speed = za::max(speed / mass * p.keep, p.minSpeed / world->m2u);
         d.reach = p.reach / world->m2u;
         d.from = com / mass;
+        d.floor = glmv(world->toM(vec(ent->v.absmin))).z;
         if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
         {
             Con_Printf("ragdoll: %d shoved over a ledge: kept at %.0f u/s along the shove until %.0f units on, turning %.0f "

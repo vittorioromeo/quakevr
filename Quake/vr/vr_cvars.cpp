@@ -626,8 +626,11 @@ const DefaultChange defaultChanges[] = {
     {111, &vr_weapon_throw_damage_mult, "0.35"},   // 0.4
     {111, &vr_weight_damage_exp, "0.4"},           // 0.375
     {111, &vr_weight_lenient, "0.5"},              // 0.515
+    // 112: shoves (his notes vrfiringrange_2026-10-09_15-11-36, 15-47-01, 15-48-52, vrstart 15-16-00; ROUND21.md, "A
+    // shove's knockdown: travel and a quarter turn"): a shove over a ledge turns less as it falls.
+    {112, &vr_knockdown_shove_ledge_topple, "150"}, // 100
 };
-constexpr int configVersion = 111;
+constexpr int configVersion = 112;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

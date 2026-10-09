@@ -33453,3 +33453,29 @@ several times in the air. Wanted: a two-handed shove that knocks one down carrie
   shove; the whole turn includes the pose's settling and the landing (the tilt from upright is the turn proper). Its
   feet end 10-20 units behind its pelvis (the lag and the quarter turn about them). Pictures: the worktree's
   `scratch/seq_grunt2.png` (a grunt shoved with two hands, seen from the side, about 0.15 s apart; `scratch/seq_enforcer1.png` an enforcer, one hand).
+
+## A shove over a ledge: less far, less turn (2026-10-09)
+
+His note (same session): the ledge shove is mostly fine but flies off too far; a little less turn.
+
+- **Ledge Push** (`vr_knockdown_shove_ledge_push`, new, 0.7; Combat > Knockdowns after Topple Over a Ledge): its
+  launch along the shove times this. So that it still always goes over, the drive (`driveShove`, ledge mode) keeps its
+  middle going at that speed (at least 80 u/s) until it is past the edge (QC `VR_Knockdown_Ledge` now keeps the edge's
+  distance plus its half width, `vr_kd_ledge_past`, passed as the builtin's reach) or its middle is below the floor it
+  stood on.
+- **Its turn**: Topple Over a Ledge (`vr_knockdown_shove_ledge_topple`) 150 -> 100 deg/s (his own value; config 112 moves
+  a config still at 150). Until it lands, its turn (its parts' about its middle, as one) is eased towards that rate
+  until its torso leans Topple Angle (90), then held there, never past Max Spin: before, tipping over the lip flipped
+  it (a one-handed shove's torso reached 178 degrees, upside down).
+- **Numbers** (vrclimb, `setpos -150 80 24 0 90 0`, a grunt ahead, the trench's edge 128 units on, a 192 drop; the
+  shove trace's feet along the shove, units):
+
+  | | lands at | feet at the end | past the edge | tilt most |
+  |---|---|---|---|---|
+  | two hands, before (push 1, 150 deg/s) | 0.92 s | 414 | 286 | 107 |
+  | two hands, now (0.7, 100) | 1.22 s | 313 | 185 (-35%) | 108 |
+  | one hand, before | 1.30 s | 248 | 120 | 178 |
+  | one hand, now | 1.50 s | 240 | 112 (-7%) | 97 |
+
+  A one-handed shove barely made it over before (its launch half spent on the floor), so it goes about as far; it now
+  lies flat before the edge and is slid off it (kept at 0.7 of its launch, 180 u/s). Both land on their back or front.
