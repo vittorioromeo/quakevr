@@ -111,6 +111,8 @@ float(entity targ, entity inflictor) CanDamage =
 Killed
 ============
 */
+void(entity m) VR_Parry_Unsway;
+
 void(entity targ, entity attacker) Killed =
 {
     entity oself;
@@ -126,6 +128,7 @@ void(entity targ, entity attacker) Killed =
         return;
     }
     targ.vr_ai_gate = 0; // (a dead monster's, its head's or its gibs': no gate route left for portal tosses)
+    VR_Parry_Unsway(targ); // (killed staggered: it dies upright)
 
     if(self.health < -99)
     {
@@ -1920,10 +1923,48 @@ void() VR_Parry_Recover;
 // drew the monster morphing from the attack's pose into the pain pose over all of it, the way between two unrelated
 // poses: its body squashed to half its size for half a second (Vittorio: "all distorted and flattened"; an ogre
 // parried mid-smash). A tenth of a second is Quake's own lerp, the pain pose's, as any pain cutting into an attack.
+// Alive, not frozen (Vittorio: the held pain pose "looks like a freeze frame"): the stagger steps through the first
+// vr_parry_stagger_frames frames of the pain animation its th_pain started (consecutive frames, a tenth of a second each:
+// never a long lerp between unrelated poses), then rocks back and forth over its last two (VR_PARRY_ROCK s a frame), and
+// its body sways by up to vr_parry_stagger_sway degrees (roll and pitch: angles, lerped by the engine as its moves).
+// Every melee monster's pain animation is 3 frames or more (the knight's shortest), so 3 stays within it.
+float VR_PARRY_ROCK = 0.15;
+
 void(entity m) VR_Parry_Hold =
 {
     m.think = VR_Parry_Recover;
-    m.nextthink = min(m.vr_parry_stagger_until, time + 0.1);
+    float rocking = m.vr_parry_frames >= 2 && m.vr_parry_step >= m.vr_parry_frames - 1;
+    m.nextthink = min(m.vr_parry_stagger_until, time + (rocking ? VR_PARRY_ROCK : 0.1));
+};
+
+// Its sway set back (the stagger over: VR_Parry_Recover; killed: Killed; running again: ai_run).
+void(entity m) VR_Parry_Unsway =
+{
+    if(m.vr_parry_sway)
+    {
+        m.angles_x = 0;
+        m.angles_z = 0;
+        m.vr_parry_sway = 0;
+    }
+};
+
+// The stagger's next step (VR_Parry_Recover): its next pain frame (stepping, then rocking: n frames give 0, 1, .., n-1,
+// n-2, n-1, n-2, ..), its sway (two slow sines, not in step: a daze, not a metronome).
+void(entity m) VR_Parry_Pose =
+{
+    float n = m.vr_parry_frames;
+    if(n >= 2)
+    {
+        float s = m.vr_parry_step + 1;
+        m.vr_parry_step = s;
+        m.frame = m.vr_parry_frame0 + (s < n ? s : n - 2 + ((s - n) & 1));
+    }
+    if(m.vr_parry_sway)
+    {
+        float t = time - m.vr_parry_stagger_start;
+        m.angles_z = m.vr_parry_sway * sin(t * 6.9);
+        m.angles_x = m.vr_parry_sway * 0.6 * sin(t * 4.4 + 1.3);
+    }
 };
 
 void() VR_Parry_Recover =
@@ -1934,9 +1975,11 @@ void() VR_Parry_Recover =
     }
     if(time < self.vr_parry_stagger_until)
     {
+        VR_Parry_Pose(self);
         VR_Parry_Hold(self);
         return;
     }
+    VR_Parry_Unsway(self);
     self.vr_parry_stagger_until = 0;
     self.vr_melee_begun = 0;
     self.attack_state = AS_STRAIGHT;
@@ -1971,6 +2014,11 @@ void(entity m, entity p) VR_Parry_Interrupt =
     // A high pain amount bypasses random flinch thresholds without dealing damage. The spawn's pain can
     // split it (mitosis), and the Guardian's can teleport it: leave their poses alone. An attack still stops
     // when a monster refuses a pain pose.
+    // The pain animation its th_pain starts (its frame changed): stepped through (VR_Parry_Pose); else held as it is.
+    m.vr_parry_frames = 0;
+    m.vr_parry_step = 0;
+    m.vr_parry_stagger_start = time;
+    float frameBefore = m.frame;
     if(m.classname == "monster_dragon")
     {
         VR_Dragon_ParryInterrupt();
@@ -1979,10 +2027,22 @@ void(entity m, entity p) VR_Parry_Interrupt =
     {
         m.pain_finished = 0;
         m.th_pain(p, 1000);
+        if(m.frame != frameBefore)
+        {
+            m.vr_parry_frame0 = m.frame;
+            m.vr_parry_frames = floor(min(4, max(1, cvar_hget(cvarh_vr_parry_stagger_frames))));
+        }
+    }
+    // (Not the dragon's: it banks as it flies, its own angles.)
+    VR_Parry_Unsway(m);
+    if(m.classname != "monster_dragon")
+    {
+        m.vr_parry_sway = min(15, max(0, cvar_hget(cvarh_vr_parry_stagger_sway)));
     }
     VR_Parry_Hold(m);
     self = oldSelf;
-    dprint(sprintf("parry interrupt: %s staggered %.2f s\n", m.classname, stagger));
+    dprint(sprintf("parry interrupt: %s staggered %.2f s (pain frames %g from %g, was %g; sway %g deg)\n", m.classname,
+        stagger, m.vr_parry_frames, m.vr_parry_frames ? m.vr_parry_frame0 : m.frame, frameBefore, m.vr_parry_sway));
 };
 
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =

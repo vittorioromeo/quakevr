@@ -33103,3 +33103,23 @@ mod's QC calling drawsetcliparea without drawresetcliparea would leave it on, an
 frame's end". Headless, e1m1 with the console down and a clip rectangle injected at the 2D pass's end (temporary, not
 committed): before, 85 "left on" lines and the console gone from the window (8.1% of the shot differing, its top half);
 after, none, and the shot identical to one without the injection (0 pixels).
+
+## A parried monster staggers alive, not frozen (2026-10-09)
+
+Your note (vrfiringrange_2026-10-09_12-45-15): the squash fix (above, "Parried monsters drawn squashed") made the
+staggered enemy look like a freeze frame: it snapped into its first pain frame and held it for the whole stagger.
+
+Now (`VR_Parry_Pose`, combat.qc) the stagger steps through the first `vr_parry_stagger_frames` (3) frames of the pain
+animation its th_pain started, a tenth of a second each (consecutive frames only: no long lerp between unrelated poses,
+so no squash), then rocks back and forth over the last two, 0.15 s a frame, until it recovers. Its body also sways,
+dazed: roll up to `vr_parry_stagger_sway` (3) degrees and pitch 0.6 of it, two slow sines out of step (the angles,
+lerped by the engine as its moves are), set back when it recovers, dies or runs again. A th_pain that doesn't change its
+frame (the spawn, the Guardian, a refused pain), and the dragon, keep the old hold; the dragon never sways (it banks).
+Every melee monster's pain animation is 3 frames or more (the knight's shortest), so 3 stays inside it. Menu: Combat,
+under Parry Stagger: Stagger Frames (1 is the old hold), Stagger Sway.
+
+Tests: `parry_pose_test.sh` (2400 frames each, every blow parried): ogre 24 parries, overlord 24, hell knight 18, kind 33
+18, knight 2: 0 held squashed, 0 broken poses for all. The ogre's frames (vr_debug_pose_check 2): parried in its smash
+(51) to pain 67, then 68, 69, 68, 69, 68 at 0.10/0.10/0.15/0.15/0.15 s, recovered to its run; its painb (72-74), painc
+(75-77), paind (81-83) the same; the flattest drawn blend 0.81 (the smash-to-pain step, 0.1 s, as before). Pictures:
+the worktree's `scratch/parry_after_lit.png` (fullbright, 0.1 s apart).

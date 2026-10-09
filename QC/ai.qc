@@ -1142,6 +1142,7 @@ The monster has an enemy it is trying to kill
 */
 float RUN_STRAIGHT;
 void(entity m) VR_Parry_Hold;
+void(entity m) VR_Parry_Unsway;
 
 void(float dist) ai_run =
 {
@@ -1153,6 +1154,7 @@ void(float dist) ai_run =
     }
     float    axis;
 
+    VR_Parry_Unsway(self); // (its stagger cut short: a knockdown, a grab)
     movedist = dist;
     self.vr_melee_begun = 0; // VR: running again, its melee attack (if any) is over (combat.qc VR_Parry)
 // see if the enemy is dead
