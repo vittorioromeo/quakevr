@@ -44,6 +44,8 @@ QVR_CVAR(vr_pickup_prop_models, "1", CVAR_ARCHIVE)   // the map's weapons drawn 
 QVR_CVAR(vr_item_float_height, "26", CVAR_ARCHIVE)    // units above the floor the map's weapons, armour, powerups and keys float at (0: on the floor); next map
 QVR_CVAR(vr_unstick, "0", CVAR_ARCHIVE)             // Debug > Tests > Unstick: a player found inside the map or a door, button or lift is moved to the nearest free spot (vr_unstick.cpp); 0: Quake's small nudge only
 QVR_CVAR(vr_slope_walk, "1", CVAR_ARCHIVE)          // Movement > Walk Up Slopes Slowly: standing on a walkable slope, gravity only presses you into it (none of it pulls you downhill): with the stick pushed a little you walk up slopes and stairs' ramps from a standstill (Quake: under about a quarter stick you never got going); flat floors unchanged; 0: Quake's
+QVR_CVAR(vr_unstick_monsters, "1", CVAR_ARCHIVE)     // Debug > Tests > Unstick Monsters: a monster (any live walking body) inside the map or a door, lift or wall, not moving, for vr_unstick_monsters_time is moved to the nearest free spot (vr_unstick.cpp; developer 1 prints each); 0: it stays stuck
+QVR_CVAR(vr_unstick_monsters_time, "1", CVAR_ARCHIVE) // ... seconds inside before it is moved
 QVR_CVAR(vr_debug_walkmove, "0", CVAR_NONE)       // Debug > Tests > Print Walk Moves: each of the first player's walk moves printed (SV_WalkMove: its slide, the step up's, the planes met, the velocity), for a "can't walk up there" report
 
 // Precise hit detection (vr_hitmodel.cpp; ROUND21 "Precise hit detection (models, not boxes)"): shots, missiles, the

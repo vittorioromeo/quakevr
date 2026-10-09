@@ -1008,6 +1008,12 @@ Stuck (ROUND21.md, "Never stuck"): `vr_stuck_info` prints the player's server po
 in, the movers near it and how often `vr_unstick` freed it; `vr_stuck_test <x> <y> <z>` puts the player there as if it
 had walked there (so Quake's return to the last free spot can't free it). `setpos` with angles turns noclip on: follow
 it with `noclip`. The kit's `scratch/unstick/` has the checks (`button_ab.txt`, `door.txt`, `net_u0.txt`/`net_u1.txt`).
+Stuck monsters and stairs (ROUND21.md, "Stuck on stairs, a fiend stuck on a bridge"): `vr_stuck_sink [edict] [depth]` sinks
+the nearest live monster 24 units into the floor (`vr_unstick_monsters` frees it within `vr_unstick_monsters_time`;
+`developer 1` prints it, `vr_stuck_info` counts it); `vr_stuck_trace <dx> <dy> <dz> [edict]` prints where the box stops,
+the plane met and Quake's hull's answer; `vr_debug_walkmove 1` prints each walk move. Headless walking: `vr_mock_look 0 0;
+wait5; setpos <x> <y> <z> 0 <yaw> 0; noclip; wait10; vr_mock_stick off 0 0.3` (the look first: set after setpos, the
+heading came out either way). Expansion maps: `-ExtraArgs "-nomapindex -noaddons"` and `vr_campaign_native dopa|mg1`.
 Climbing (ROUND21.md, "Climbing with both hands"): the mock's grip button does not press the grab. Script
 `+graboff`/`-graboff` and `+grabmain`/`-grabmain` (in a `vr_mock_play` file: `<t> cmd +graboff`). Map `vrclimb` has a rung
 wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) and a long ledge over a trench

@@ -6361,7 +6361,15 @@ za::Vector<Item> pageDebugTests()
                   "Off: only Quake's small nudge up."),
         command("Stuck Info", "vr_stuck_info")
             .help("Prints where you are, what you're inside of, the doors, buttons and lifts near you, and how often "
-                  "you were freed."),
+                  "you and monsters were freed."),
+        toggle("Unstick Monsters", vr_unstick_monsters)
+            .help("A monster found inside a wall, the floor, a door or a lift, not moving, for the time below is moved to "
+                  "the nearest free spot (vr_unstick_monsters; Developer Messages prints each). Off: it stays stuck."),
+        slider("Unstick Monsters After", vr_unstick_monsters_time, 0.2f, 5.f, 0.2f, "%.1f s")
+            .help("How long a monster stays stuck inside something before it is moved out (vr_unstick_monsters_time)."),
+        command("Sink the Nearest Monster", "vr_stuck_sink")
+            .help("Puts the live monster nearest you 24 units down into the floor (vr_stuck_sink [edict] [depth]): with "
+                  "Unstick Monsters on it should climb out within a second; Stuck Info counts it."),
         command("Trace Ahead", "vr_stuck_trace 32 0 0")
             .help("Prints where your box stops moving 32 units along the world's x axis and the plane it meets, and "
                   "Quake's own hull's answer (vr_stuck_trace <dx> <dy> <dz> [edict])."),

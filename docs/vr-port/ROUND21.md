@@ -33575,6 +33575,27 @@ the right eye differ (raw 2.75, smoothed 2.63 mean abs per channel: the eyes' pa
 
 ## Stuck on stairs, a fiend stuck on a bridge (2026-10-09)
 
+**The fiend (note e5m4_2026-10-09_15-34-31).** Dimension of the Past's e5m4: the fiend patrolling the bridge
+(`monster_demon1` at 0 400 -8, path corners dem1p1/dem1p2) stood at the bridge's foot for good. Its box was 20 units
+into the ground (origin z -36; Quake's hull 1 is free from -16 up there). Cause: `vr_gameplayfix_droptofloor` (on in
+quakevr.cfg) dropped every entity by point traces from its box's centre and corners and rested the box's feet on the
+first floor found under its centre: on rough ground and by the bridge's ramp (inside the box's footprint) that put the
+box deep into what it moves against, every move from there started in solid, and it never moved. Fixes:
+
+- `VR_DropToFloor` (vr_gameplay.cpp): a solid body (SOLID_SLIDEBOX, SOLID_BBOX: monsters, solid boxes) is swept with its
+  box first, as Quake does (through `SV_Move`: its narrow box or its hull); the points only when that sweep starts in
+  something, and for items and triggers as before. The fiend now drops to z -16 and patrols the bridge (y 412 to 892,
+  z up to 40, within 8 s).
+- **Unstick Monsters** (`vr_unstick_monsters` 1, `vr_unstick_monsters_time` 1 s; Debug > Tests > Stuck in Walls): a live
+  walking body (SOLID_SLIDEBOX, MOVETYPE_STEP, health > 0; not a player: `vr_unstick` does those) found inside the map
+  or a brush model as its own moves meet them, and not moving (2 units) for that long, is moved to the nearest free spot
+  (the players' search: 26 directions, out to 48 units; free of monsters first, else of the map) and falls from there.
+  One box test per monster every 0.2 s (`VR_UnstickMonster`, from `SV_Physics_Step`). `developer 1` prints each;
+  `vr_stuck_info` counts them. `vr_stuck_sink [edict] [depth]` (Sink the Nearest Monster) puts a monster 24 units into
+  the floor: e5m4's fiend sunk 30 was freed after 1.1 s (moved 0 0 30) and went on patrolling; e1m1's nearest grunt sunk
+  24 freed after 1.0 s; with the setting off both stay. First 6 s of e1m1-e1m3, e2m1, e3m1, e4m1, Dopa's e5m1-e5m7 and
+  MG1's mge1m1-mge5m1: nothing to free except one lying zombie on e5m3, 0.12 units into the floor.
+
 **The stairs (notes start_2026-10-09_15-30-46, 15-31-16).** MG1's start map, the steps at -260 7 -24: 8-unit steps
 with a clip brush laid over them as a 26.6-degree ramp (hull 1 is a smooth slope there; hull 0 has the steps). Walking
 up them slowly (a third of the stick) the player stopped two thirds of the way up the first step and crawled at

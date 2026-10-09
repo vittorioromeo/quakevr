@@ -76,6 +76,11 @@ extern "C" int VR_TossKeepsGround(edict_t* ent)
 // droptofloor: instead of sweeping the whole bounding box (which fails when an item's box
 // starts slightly inside a wall), trace down from the centre of the box's bottom face and
 // then from its four corners, and rest on the first floor found.
+// A solid body (a monster, an explosive box: SOLID_SLIDEBOX, SOLID_BBOX) is swept first, as Quake does: it moves with its
+// box (or its hull), so it must rest where that box rests. The points alone put its feet on the floor under its centre
+// whatever was under the rest of it: on rough ground or by a ramp (Dimension of the Past's e5m4, the fiend at the
+// bridge's foot) its box sank 20 units into the ground, every move from there started in solid, and it never moved
+// again. The points remain for a box that starts in something (and for items, triggers, as before).
 extern "C" int VR_DropToFloor()
 {
     if(!vr_gameplayfix_droptofloor.value)
@@ -86,6 +91,23 @@ extern "C" int VR_DropToFloor()
     edict_t* ent = PROG_TO_EDICT(pr_global_struct->self);
 
     trace_t trace;
+    const int solid = static_cast<int>(ent->v.solid);
+    if(solid == SOLID_SLIDEBOX || solid == SOLID_BBOX)
+    {
+        vec3_t end;
+        VectorCopy(ent->v.origin, end);
+        end[2] -= 256.f;
+        trace = SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
+        if(trace.fraction < 1.f && !trace.allsolid && !trace.startsolid)
+        {
+            VectorCopy(trace.endpos, ent->v.origin);
+            SV_LinkEdict(ent, false);
+            ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
+            ent->v.groundentity = EDICT_TO_PROG(trace.ent);
+            G_FLOAT(OFS_RETURN) = 1.f;
+            return 1;
+        }
+    }
     for(const glm::vec2& offset : bottomPoints(ent))
     {
         if(traceFloorBelow(ent, offset.x, offset.y, trace))

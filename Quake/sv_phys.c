@@ -1287,6 +1287,8 @@ void SV_Physics_Step (edict_t *ent)
 
 	if (!ent->free)
 		VR_PortalMonsterCross (ent); // QVR: walked (or leapt) through a paired teleporter (vr/vr_portals.cpp)
+	if (!ent->free)
+		VR_UnstickMonster (ent); // QVR: inside the map and not moving for a while: to the nearest free spot (vr_unstick_monsters)
 
 	SV_CheckWaterTransition (ent);
 }
