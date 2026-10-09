@@ -149,6 +149,20 @@ void drawOptionScreens()
         constexpr float screenHalf = 2.4f * 0.5f + 2.4f * 0.375f + 2.4f * 0.3f;
         return v ? za::max(least, v->_float + 2.f + screenHalf) : least;
     };
+    // A button's box where it rests (the author, 2026-10-09: the screens rode the press into the wall): its box now,
+    // less how far it has moved from its rest place (QC's pos1, where func_button starts: its origin then).
+    const int pos1Field = ED_FindFieldOffset("pos1");
+    const auto restBox = [&](edict_t* e, glm::vec3& lo, glm::vec3& hi) {
+        glm::vec3 moved{0.f};
+        const eval_t* const p = pos1Field >= 0 ? GetEdictFieldValue(e, pos1Field) : nullptr;
+        if(p && !strcmp(PR_GetString(e->v.classname), "func_button"))
+        {
+            moved = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]} -
+                    glm::vec3{p->vector[0], p->vector[1], p->vector[2]};
+        }
+        lo = glm::vec3{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]} - moved;
+        hi = glm::vec3{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]} - moved;
+    };
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
@@ -165,8 +179,8 @@ void drawOptionScreens()
         {
             if(Q_atoi(target + campaignLength) == static_cast<int>(qvr::vr_activestartpaknameidx.value))
             {
-                const glm::vec3 lo{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]};
-                const glm::vec3 hi{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]};
+                glm::vec3 lo, hi;
+                restBox(e, lo, hi);
                 const glm::vec3 dir{e->v.movedir[0], e->v.movedir[1], e->v.movedir[2]};
                 // (in front of the button: a lectern's cap may overhang it)
                 const glm::vec3 at3 = 0.5f * (lo + hi) + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + overTop(e, 14.f)} - dir * 8.f;
@@ -190,9 +204,10 @@ void drawOptionScreens()
         }
         const int at = currentPreset(*o, *var);
         const char* text = at >= 0 ? o->presets[at].name : va("custom: %s", var->string);
-        // Above the button, just off the panel it is set in (it is pushed along movedir, into the panel).
-        const glm::vec3 lo{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]};
-        const glm::vec3 hi{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]};
+        // Above the button at rest, just off the panel it is set in (it is pushed along movedir, into the panel): still
+        // while it is pressed.
+        glm::vec3 lo, hi;
+        restBox(e, lo, hi);
         const glm::vec3 dir{e->v.movedir[0], e->v.movedir[1], e->v.movedir[2]};
         const glm::vec3 centre = 0.5f * (lo + hi);
         const glm::vec3 at3 = centre + glm::vec3{0.f, 0.f, 0.5f * (hi.z - lo.z) + overTop(e, 9.f)} + dir * 2.f;
