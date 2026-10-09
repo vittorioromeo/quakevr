@@ -9,7 +9,7 @@ NAME="$1"
 P="vr_heat_haze 1;wait2;vr_eyeshot 1;wait1;vr_heat_haze 0;wait2;vr_eyeshot 1;wait1;vr_heat_haze 1"
 SHOTS="$KIT/bases/$NAME/qbase/quakevr/eyeshots"
 bash "$KIT/run.sh" "$NAME" -Clean -Script "map vrfiringrange;wait60;god;notarget;developer 1;vr_particle_seed 7;$2;vr_test_spawn 0;vr_test_spawn_dist 60;vr_test_spawn_dead 1;setpos -92 -455 41 0 57 0;wait5;impulse 241;wait60;vr_burn_test 1;wait30;setpos -59 -405 41 0 57 0;vr_mock_look 60 0;wait40;$P;wait7;vr_mock_look 30 40;$P;wait7;vr_mock_look 10 -40;$P;wait7;vr_mock_look 75 0;$P;vr_mock_hand head 0 0.5 0 0 0 0;vr_mock_look 30 0;wait20;$P;wait7;vr_mock_look 0 90;$P;vr_mock_hand head 0 1.0 0 0 0 0;vr_mock_look 20 180;wait7;$P;wait5;vr_mock_look 45 -90;$P;toggleconsole;quit" -Filter "rror" 2>&1 | grep -v vr_ao | tail -5
-python - "$SHOTS" <<'EOF'
+${PY:-py -3.13} - "$SHOTS" <<'EOF' # (numpy: the default python has none)
 import glob, os, sys
 import numpy as np
 from PIL import Image

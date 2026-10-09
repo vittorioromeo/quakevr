@@ -25,7 +25,15 @@ import time
 KIT = "C:/OHWorkspace/qvr-kit"
 PORT = 8767
 BASH = "C:/Program Files/Git/bin/bash.exe" if os.path.isfile("C:/Program Files/Git/bin/bash.exe") else "bash"
-PAGE = "https://github.com/vittorioromeo/quakevr/releases/tag/v0.9.1"
+# The feeds' versions, from the repository's VERSION (MAJOR.MINOR.PATCH): newer (PATCH + 1), the same, older, and the
+# cached one (PATCH + 2). (Literal 0.9.x until 2026-10-09: VERSION became 1.0.0 and the "newer" feeds were older.)
+_V = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "VERSION")).read().strip().split("-")[0]
+_MA, _MI, _PA = (int(x) for x in _V.split("."))
+V_NEWER = f"{_MA}.{_MI}.{_PA + 1}"
+V_SAME = _V
+V_OLDER = f"{_MA - 1}.9.9" if _MA > 0 else f"0.{_MI - 1}.9"
+V_CACHED = f"{_MA}.{_MI}.{_PA + 2}"
+PAGE = f"https://github.com/vittorioromeo/quakevr/releases/tag/v{V_NEWER}"
 
 hits = {}
 hits_lock = threading.Lock()
@@ -71,8 +79,8 @@ def main():
     tree = f"C:/OHWorkspace/qvr-agents/{name}"
     serve = os.path.join(tree, "scratch", "updfeed")
     os.makedirs(serve, exist_ok=True)
-    for file, f in {"newer.json": feed("0.9.1 (2026-10-08 abcdef12)", PAGE), "same.json": feed("0.9.0 (2026-10-01 12345678)"),
-                    "older.json": feed("0.8.2 (2026-09-01 12345678)"), "cached.json": feed("0.9.2 (2026-10-09 0badf00d)")}.items():
+    for file, f in {"newer.json": feed(f"{V_NEWER} (2026-10-08 abcdef12)", PAGE), "same.json": feed(f"{V_SAME} (2026-10-01 12345678)"),
+                    "older.json": feed(f"{V_OLDER} (2026-09-01 12345678)"), "cached.json": feed(f"{V_CACHED} (2026-10-09 0badf00d)")}.items():
         with open(os.path.join(serve, file), "w", newline="\n") as fh:
             json.dump(f, fh)
 
@@ -101,9 +109,9 @@ def main():
                          "menu_vr pos", "toggleconsole", "quit"])
         print("--- newer:", out.strip()[:1500])
         check("test run: no start-up check", "the start-up check: not run (a test run" in out)
-        check("newer: answered", "update check: latest 0.9.1 (2026-10-08 abcdef12) from " + base + "/newer.json (asked): newer" in out)
-        check("newer: notice with the feed's page", f'notice "Update available: Quake VR: Unleashed 0.9.1" -> {PAGE}' in out)
-        check("newer: notice drawn", 'update notice "Update available: Quake VR: Unleashed 0.9.1"' in out)
+        check("newer: answered", f"update check: latest {V_NEWER} (2026-10-08 abcdef12) from " + base + "/newer.json (asked): newer" in out)
+        check("newer: notice with the feed's page", f'notice "Update available: Quake VR: Unleashed {V_NEWER}" -> {PAGE}' in out)
+        check("newer: notice drawn", f'update notice "Update available: Quake VR: Unleashed {V_NEWER}"' in out)
         check("newer: a press opens the page once", out.count("menu link: opening") == 1 and f"menu link: opening {PAGE} (1) (dry run" in out)
         check("newer: one request", hit("/newer.json") == 1)
 
@@ -117,8 +125,8 @@ def main():
                          "toggleconsole", "quit"])
         print("--- same/older/404:", out.strip()[:2500])
         parts = out.split("vr_update_404_done")
-        check("same: not newer, no notice", re.search(r"latest 0\.9\.0 \(2026-10-01 12345678\) from \S+same\.json \(asked\): not newer .*?update check: no notice", out))
-        check("older: not newer, no notice", re.search(r"latest 0\.8\.2 \(2026-09-01 12345678\) from \S+older\.json \(asked\): not newer .*?update check: no notice", out))
+        check("same: not newer, no notice", re.search(r"latest " + re.escape(V_SAME) + r" \(2026-10-01 12345678\) from \S+same\.json \(asked\): not newer .*?update check: no notice", out))
+        check("older: not newer, no notice", re.search(r"latest " + re.escape(V_OLDER) + r" \(2026-09-01 12345678\) from \S+older\.json \(asked\): not newer .*?update check: no notice", out))
         check("older: no notice drawn", "update notice not drawn (no newer version known)" in out)
         between = parts[0].split("missing.json (a fresh cached answer is taken)")[-1] if len(parts) > 1 else "?"
         check("404: silent (nothing printed without developer)", len(parts) > 1 and "update check:" not in between)

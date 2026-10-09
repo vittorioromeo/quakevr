@@ -1,23 +1,23 @@
 #!/bin/bash
 # mapflameburn_test.sh <agent> [case regex]: real e1m2 flame contacts and portable torch controls.
-# Logs stay in the agent worktree; no saves or id assets are written by this check.
+# Logs stay in the agent worktree's scratch/mapflameburn-results (git-ignored); no saves or id assets are written by this check.
 set -e
 export PATH="/c/Program Files/Git/usr/bin:$PATH"
 name=${1:-mapflameburn}
 case_filter=${2:-.*}
 cd "C:/OHWorkspace/qvr-agents/$name"
-mkdir -p mapflameburn-results
+mkdir -p scratch/mapflameburn-results
 run_case() {
  label="$1"; before="$2"; body="$3"
  [[ "$label" =~ $case_filter ]] || return 0
  prefix='vr_fixed_frames 1; developer 1; vr_debug_shots 1; vr_weapon_grip_mode 1; vr_body_collide 0; vr_burn_self 1; vr_burn_self_time 0.6; vr_burn_touch 1; vr_burn_drop 1; vr_walltorch 1; vr_mock_hand main 0.1 1.2 -0.35 70 0 0; vr_mock_hand off -0.1 1.2 -0.35 70 0 0'
  script="$prefix; $before; map e1m2; wait60; notarget; impulse 150; wait5; echo CASE_$label; $body; toggleconsole; quit"
- bash C:/OHWorkspace/qvr-kit/run.sh "$name" -Script "$script" -Filter 'CASE_|CHECK_|burning: map|burning: your torch|burning: player burns|walltorch grip result|taken immediately|burning: test 7|health |ENGINE|[Ee]rror' -Timeout 120 -ExtraArgs '-nomapindex -noaddons' > "mapflameburn-results/$label.stdout"
- cp C:/OHWorkspace/qvr-kit/bases/mapflameburn/qbase/qconsole.log "mapflameburn-results/$label.log"
+ bash C:/OHWorkspace/qvr-kit/run.sh "$name" -Script "$script" -Filter 'CASE_|CHECK_|burning: map|burning: your torch|burning: player burns|walltorch grip result|taken immediately|burning: test 7|health |ENGINE|[Ee]rror' -Timeout 120 -ExtraArgs '-nomapindex -noaddons' > "scratch/mapflameburn-results/$label.stdout"
+ cp C:/OHWorkspace/qvr-kit/bases/$name/qbase/qconsole.log "scratch/mapflameburn-results/$label.log"
  python - "$label" <<'PY'
 from pathlib import Path
 import sys,re
-s=Path('mapflameburn-results/'+sys.argv[1]+'.log').read_text(errors='replace');s=s.split('CASE_'+sys.argv[1],1)[-1]
+s=Path('scratch/mapflameburn-results/'+sys.argv[1]+'.log').read_text(errors='replace');s=s.split('CASE_'+sys.argv[1],1)[-1]
 label=sys.argv[1]
 w=re.findall(r"burning: (?:map flame|your torch's flame).*warning ([\d.]+)",s)
 fires=re.findall(r"burning: (?:map flame|your torch's flame).*for ([\d.]+) s: you catch fire",s)

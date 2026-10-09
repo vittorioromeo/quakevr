@@ -5,5 +5,9 @@
 # Usage: bash crowbar_test.sh <worktree name> ["<cvar> <value>;..."]   e.g. "vr_crowbar_damage 40"
 kit=C:/OHWorkspace/qvr-kit
 name=${1:?worktree name}
+# (the take is git-ignored, quakevr/motions/*: made here when the worktree has none)
+tree=C:/OHWorkspace/qvr-agents/$name
+[ -f "$tree/quakevr/motions/synth/wd_crowbar.txt" ] || ls "$tree/quakevr/motions/synth/" 2>/dev/null | grep -q "^wd_crowbar" ||
+    python "$tree/Misc/quakevr/motion_synth.py" slash_horizontal_rtl --weapon crowbar --distance 0.85 --name wd_crowbar --out "$tree/quakevr/motions/synth" > /dev/null
 s="map vrfiringrange;wait60;developer 1;${2:-};vr_motion_play synth/wd_crowbar;wait300;toggleconsole;quit"
 bash $kit/run.sh "$name" -Script "$s" -Filter "^Dummy: |rror" 2>&1 | grep -v slots

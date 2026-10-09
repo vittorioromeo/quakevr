@@ -7,8 +7,8 @@
 # in mp_client_<tag>.png. The host moves off the start spot first (the client would spawn there and telefrag it).
 # The explosion step is flaky in multiplayer: impulse 232 flings the nearest rigid body, which can be a player's
 # (80.5 kg), and the box may then blow up out of the way (no chunks anywhere). A run where it hits: both clients
-# report 16 chunks of their own (2026-10-06). vr_physics_blast's own effect is lost (it runs between frames, and the
-# server frame clears the datagram first), so it is used only to break the crate.
+# report 16 chunks of their own (2026-10-06). vr_physics_blast's own effect was lost until 2026-10-09 (it ran between frames, and the
+# server frame cleared the datagram first; now queued for the next frame: its explosion and chunks reach every client).
 NAME=${1:?agent}; TAG=${2:-a}; MPMAX=${3:-64}
 KIT="C:/OHWorkspace/qvr-kit"; W="C:/OHWorkspace/qvr-agents/$NAME/scratch"; mkdir -p "$W"
 source "$KIT/slots.sh" "$NAME" mp

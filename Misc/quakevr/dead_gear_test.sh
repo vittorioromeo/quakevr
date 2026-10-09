@@ -7,7 +7,8 @@
 #   2. dead: none of them drawn (the guns' parts, the pouch's grenades neither); the status bar on a hand
 #   3. respawned (restart), 4. dead again, 5. loaded: all back
 #   6. vr_dead_hide_gear 0, dead: the holsters, the ammo pouch and the grenade pouch drawn (the flashlight hides anyway
-#      with the body: it lies on the floor)
+#      with the body: it lies on the floor). With vr_death_view 0 (the classic death: the view stays on your body): the
+#      immersive death view (2, the default) puts the view in the ragdoll's head, the worn gear not drawn whatever this
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
@@ -15,7 +16,7 @@ check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; f
 S="vr_reload_mode 3;vr_handgrenade 1;vr_flashlight 1;vr_flashlight_cord 1;vr_dead_hide_gear 1;map e1m1;wait60;impulse 9;wait10"
 S="$S;save qvr_deadgear;vr_flashlight_give left;wait20;echo STEP alive;vr_gear_status;impulse 195;wait60;echo STEP dead;vr_gear_status"
 S="$S;wait150;restart;wait90;echo STEP respawned;vr_gear_status;impulse 195;wait60;echo STEP dead2;vr_gear_status"
-S="$S;load qvr_deadgear;wait60;echo STEP loaded;vr_gear_status;vr_dead_hide_gear 0;impulse 195;wait60;echo STEP dead_settingoff"
+S="$S;load qvr_deadgear;wait60;echo STEP loaded;vr_gear_status;vr_dead_hide_gear 0;vr_death_view 0;impulse 195;wait60;echo STEP dead_settingoff"
 S="$S;vr_gear_status;vr_dead_hide_gear 1;toggleconsole;quit"
 log=$(bash $KIT/run.sh $AGENT -Script "$S" -Filter "STEP|gear:|rror" 2>&1 | tr -d '\r' | tr '\n' ' ' | sed 's/STEP/\nSTEP/g')
 step() { echo "$log" | grep "^STEP $1 " | head -1 | tr -s ' '; }

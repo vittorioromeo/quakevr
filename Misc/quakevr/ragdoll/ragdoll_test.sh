@@ -69,7 +69,7 @@ for c in $CASES; do
             S="map vrfiringrange;$PRE;vr_bullettime_fx 0;vr_test_spawn_dist 100;vr_timescale 0.1;wait5;$DEAD;wait130"
             for i in $(seq 30); do S="$S;wait2;screenshot"; done
             bash $KIT/run.sh $AGENT -Clean -Script "$S;toggleconsole;quit" -Filter "first drawn" -Timeout 300 2>&1 | tr -d '\n' | grep -o "poses.*"; echo
-            python - "$KIT/bases/$AGENT/qbase/quakevr/screenshots" "$KIT/scratch/ragdoll_slowmo.png" <<'PY'
+            ${PY:-py -3.13} - "$KIT/bases/$AGENT/qbase/quakevr/screenshots" "$KIT/scratch/ragdoll_slowmo.png" <<'PY'
 import glob, os, sys
 from PIL import Image, ImageChops, ImageStat
 files = sorted(glob.glob(sys.argv[1] + '/*.png'), key=os.path.getmtime)

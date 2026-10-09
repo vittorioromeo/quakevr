@@ -8,7 +8,8 @@
 #   3. Auto Pump off: no stroke, the shell 0.22 s after the shot as before;
 #   4. the off hand's shotgun (mirrored): the same;
 #   5. the delay (vr_autopump_delay 0.15; the author's note, 2026-10-08 13:58): the stroke starts 0.15 s after the shot,
-#      home by 0.45 s; Delay 0 starts it with the shot; a long stroke (0.45 s) cuts the delay to 0.03 s (home by 0.48).
+#      home by 0.45 s; Delay 0 starts it with the shot; a long stroke (0.45 s) cuts the delay to 0.03 s (home by 0.48);
+#      the shipped delay (0.25, config 107) is cut to 0.18 (home by 0.48).
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
@@ -29,7 +30,7 @@ stroke() {
 }
 
 for rate in 72 120; do
-    log=$(run "vr_fixed_frames_rate $rate;$SETUP;$FIRE")
+    log=$(run "vr_fixed_frames_rate $rate;vr_autopump_delay 0.15;$SETUP;$FIRE") # (the delay the checks are about: the shipped one is 0.25, below)
     read s sr b br bd h hr hd e shot <<< "$(stroke "$log")"
     echo "  $rate Hz: shot $s, back $b (due $bd), shell $e, home $h (due $hd)"
     check $(awk -v e="$e" -v bd="$bd" 'BEGIN { print (e != "" && e >= bd && e - bd < 0.015) ? 1 : 0 }') "$rate Hz: the shell leaves as the fore-end reaches the back"
@@ -37,6 +38,12 @@ for rate in 72 120; do
     check $(awk -v s="$s" -v h="$h" 'BEGIN { d = h - s; print (s != "" && d >= 0.2995 && d < 0.32) ? 1 : 0 }') "$rate Hz: home 0.3 s after the stroke's start"
     check $(awk -v s="$s" -v t="$shot" -v h="$h" 'BEGIN { d = s - t; print (t != "" && d >= 0.1495 && d < 0.1505 && h - t < 0.48) ? 1 : 0 }') "$rate Hz: the stroke 0.15 s after the shot ($shot -> $s), home before the next is possible (0.5 s)"
 done
+
+# The shipped delay (0.25 since config 107, the author's): longer than the 0.18 the stroke (0.3 s) leaves before the next
+# shot (0.5 s), so cut to 0.18: home by 0.48.
+log=$(run "$SETUP;$FIRE")
+read s sr b br bd h hr hd e shot <<< "$(stroke "$log")"
+check $(awk -v s="$s" -v t="$shot" -v h="$h" 'BEGIN { d = s - t; print (t != "" && d >= 0.1795 && d < 0.1805 && h - t < 0.4805) ? 1 : 0 }') "the shipped delay 0.25 cut to 0.18 ($shot -> $s), home by 0.48 ($h)"
 
 log=$(run "$SETUP;vr_bullettime_scale 0.25;vr_bullettime_duration 60;vr_bullettime;wait30;$FIRE;wait120")
 read s sr b br bd h hr hd e shot <<< "$(stroke "$log")"
