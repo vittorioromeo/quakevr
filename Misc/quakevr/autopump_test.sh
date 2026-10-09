@@ -43,7 +43,7 @@ done
 # shot (0.5 s), so cut to 0.18: home by 0.48.
 log=$(run "$SETUP;$FIRE")
 read s sr b br bd h hr hd e shot <<< "$(stroke "$log")"
-check $(awk -v s="$s" -v t="$shot" -v h="$h" 'BEGIN { d = s - t; print (t != "" && d >= 0.1795 && d < 0.1805 && h - t < 0.4805) ? 1 : 0 }') "the shipped delay 0.25 cut to 0.18 ($shot -> $s), home by 0.48 ($h)"
+check $(awk -v s="$s" -v t="$shot" -v h="$h" 'BEGIN { d = s - t; print (t != "" && d >= 0.1795 && d < 0.1805 && h - t < 0.5) ? 1 : 0 }') "the shipped delay 0.25 cut to 0.18 ($shot -> $s), home before the next shot is possible (0.5 s: $h)"
 
 log=$(run "$SETUP;vr_bullettime_scale 0.25;vr_bullettime_duration 60;vr_bullettime;wait30;$FIRE;wait120")
 read s sr b br bd h hr hd e shot <<< "$(stroke "$log")"

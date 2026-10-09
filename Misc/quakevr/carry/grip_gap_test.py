@@ -165,8 +165,11 @@ def main():
         if "rror" in out and "ENGINE ERROR" in out:
             print(out[-2000:])
         steps, fails = verdict(out)
-        print("%s: %d checks, %d failed%s\n" % (name, steps, len(fails), "" if steps else " (no checks: did it run?)"))
-        total_fails += len(fails) + (0 if steps else 1)
+        # (Each force grab is a check: one that caught nothing printed none, and passed unseen until 2026-10-09.)
+        missing = max(0, count - steps) if name == "gripgap_forcegrab" else 0
+        print("%s: %d checks, %d failed%s%s\n" % (name, steps, len(fails), "" if steps else " (no checks: did it run?)",
+                                                 ", %d force grabs caught nothing (FAIL)" % missing if missing else ""))
+        total_fails += len(fails) + (0 if steps else 1) + missing
     sys.exit(1 if total_fails else 0)
 
 

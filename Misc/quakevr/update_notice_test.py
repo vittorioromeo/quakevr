@@ -111,7 +111,7 @@ def main():
         check("test run: no start-up check", "the start-up check: not run (a test run" in out)
         check("newer: answered", f"update check: latest {V_NEWER} (2026-10-08 abcdef12) from " + base + "/newer.json (asked): newer" in out)
         check("newer: notice with the feed's page", f'notice "Update available: Quake VR: Unleashed {V_NEWER}" -> {PAGE}' in out)
-        check("newer: notice drawn", f'update notice "Update available: Quake VR: Unleashed {V_NEWER}"' in out)
+        check("newer: notice drawn", re.search(r'update notice "Update available: Quake VR: Unleashed v?' + re.escape(V_NEWER) + '"', out))
         check("newer: a press opens the page once", out.count("menu link: opening") == 1 and f"menu link: opening {PAGE} (1) (dry run" in out)
         check("newer: one request", hit("/newer.json") == 1)
 
@@ -132,7 +132,7 @@ def main():
         check("404: silent (nothing printed without developer)", len(parts) > 1 and "update check:" not in between)
         check("404: status says why", re.search(r"failed \(\S+missing\.json: HTTP 404\).*?no notice", parts[-1]))
         check("404 then the next feed answers", hit("/missing.json") == 2
-              and re.search(r"latest 0\.9\.1 \(2026-10-08 abcdef12\) from \S+newer\.json \(asked\): newer", parts[-1]))
+              and re.search(r"latest " + re.escape(V_NEWER) + r" \(2026-10-08 abcdef12\) from \S+newer\.json \(asked\): newer", parts[-1]))
 
         # 4. The cache: the start-up check asks once, then takes the cached answer (and again after a restart); an
         # answer over an hour old is asked for again. 5. vr_update_check 0: nothing asked for, no notice.
