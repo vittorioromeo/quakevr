@@ -33318,3 +33318,20 @@ board and the calibration boards' `{menu:Official Campaigns}` unchanged); the cr
 the main menu's (vr_bigfont: every one there already), "SELECT CAMPAIGN" in the small capitals where a mod's pictures
 leave the main menu as pictures. Test: `menu_vr pos` on the main menu, down once ("Select Campaign"), Enter (page 143
 "Official Campaigns", back to menu 1), Escape (main, row "Select Campaign").
+
+## The menus' corner buttons and keys larger for the laser (2026-10-09)
+
+The author's note vrstart_2026-10-09_14-58: the corner's buttons were hard to hit and easy to misclick. In the headset
+(ToolbarLayout, vr_menuui.cpp): the top left column's buttons 20 true pixels tall (were 14), 4 apart (were 2), their icon
+and label 6 from the button's ends (were 4 and 5; the label 5 from the icon); the bottom left rows (OBS's, the spectator
+camera's switch) the same height, gap and padding. Each still takes the clicks halfway to the next (no dead spots), and
+4 from the panel's edges as the status and version boxes. The flat screen's row of icons is as it was. Search's and the
+console's keys (and Search's text box, the console's line) 17 tall (were 14). The Map Library's page 490 across (was
+460) and its keyboard 0.53 of it (was 0.5): the keys 13% wider, the list's column as wide as before; their height as
+before (as large as fit, 18 at most).
+
+On a VR page the column's bottom is now y 36 (was 5): beside the page, the page's rows do not move (their top is the
+page's own); the banner under the column a little shorter. Where the column is over the menu (a narrow panel) the rows
+start below it, 62 true pixels lower than before. Screens: the kit's scratch before_N/after_N (main menu, a VR page,
+Search, the console, the Map Library), obs_after_0 (OBS's row, a mock OBS recording). obs_test.py: 14 of 15 (the frame
+stall check while trying a dead port, timing only, failed under a loaded machine; every row and press check passed).

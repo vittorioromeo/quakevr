@@ -665,7 +665,7 @@ char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, f
 
 // `keyHalf`: half a key's height (true pixels); `keyGap`: the room between keys, across (menu units) and down (true
 // pixels). The Map Library's keys are larger, easier to hit with the laser.
-[[nodiscard]] SearchLayout searchLayout(float maxWidth = 440.f, float splitFraction = 0.7f, float keyHalf = 7.f,
+[[nodiscard]] SearchLayout searchLayout(float maxWidth = 440.f, float splitFraction = 0.7f, float keyHalf = 8.5f,
     float keyGap = 1.f)
 {
     const Layout l = layout();

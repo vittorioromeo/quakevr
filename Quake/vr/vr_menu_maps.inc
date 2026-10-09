@@ -15,8 +15,9 @@
 constexpr int mapsMaxQuery = 48;                 // (the longest titles and authors are shorter)
 constexpr float mapsRowHeight = 18.f;            // a package's two lines (menu y), as Search's results
 constexpr int mapsDetailChars = 640;             // a description's length shown
-constexpr float mapsPageWidth = 460.f;           // the page across, as Search caps its own
-constexpr float mapsKeySplit = 0.5f;             // the keyboard's share (the list gets the rest)
+constexpr float mapsPageWidth = 490.f;           // the page across (Search caps its own at 440)
+constexpr float mapsKeySplit = 0.53f;            // the keyboard's share (the list gets the rest: as wide as at 460 and 0.5,
+                                                 // the keys 13% wider than there, easier to hit with the laser)
 constexpr double mapsConfirmSeconds = 5.0;       // Uninstall / Reinstall: the second press's time to confirm
 
 // The bottom bar's buttons, in order.

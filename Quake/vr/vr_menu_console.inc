@@ -57,7 +57,7 @@ void consoleEdges(float& left, float& right)
     Draw_GetTransformBounds(&t, &cl, &ct, &cr, &cb);
     ConsoleLayout c;
     c.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth));
-    c.half = 7.f;
+    c.half = 8.5f; // (a little taller than the 7 they were: easier to hit with the laser)
     consoleEdges(c.left, c.right);
     const float rowStep = (2.f * c.half + 3.f) / c.k;
 
