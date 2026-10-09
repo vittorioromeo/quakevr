@@ -3382,7 +3382,7 @@ see `Misc/quakevr/pvs/FINDINGS.md` for the corrected measurements.
 | `vr_nearclip` | `0.1` | yes | B | graphics | Headset | 1 | 0 |  | 371 |
 | `vr_nearclip_held` | `2` | yes | B | graphics | Headset | 1 | 0 |  | 375 |
 | `vr_depth_float` | `1` | yes | B | graphics | Headset | 1 | 0 |  | 378 |
-| `vr_xr_runtime` | `0` | yes | A | gameplay | Headset | 3 | 0 |  | 382 |
+| `vr_xr_runtime` | `4` | yes | A | gameplay | Headset | 3 | 0 |  | 382 |
 | `vr_xr_runtime_json` | `` | yes | C? | gameplay | — | 2 | 0 |  | 383 |
 | `vr_render_scale` | `1` | yes | A | graphics | Headset | 4 | 0 |  | 384 |
 | `vr_visibility_mask` | `1` | yes | B | graphics | Headset | 4 | 0 |  | 387 |

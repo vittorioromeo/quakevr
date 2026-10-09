@@ -32671,3 +32671,61 @@ The parry counts are the same before and after. An ogre parried mid-smash (frame
 blend ran 0 to 1 over 3.12..3.78 s (squashed to half, 0.50, for 0.5 s); after, over 3.12..3.22 s. Pictures (the
 worktree's scratch): `before_ogre.png` (top left: the ogre 0.2 s into it, head sunk into its shoulders, its saw arm
 folded into its body), `after_ogre.png` (the same moment: the pain pose).
+
+## OpenXR runtime: Auto (2026-10-09)
+
+Your request: choose the OpenXR runtime automatically, the one whose app is running, and try the others when it fails.
+
+### What it does
+
+VR Settings > Headset > OpenXR Runtime has a new choice, **Auto** (`vr_xr_runtime 4`), now the default; System default
+(0), Virtual Desktop (VDXR) (1), SteamVR (2) and a manifest (3, console) stay, and each of those loads that runtime only.
+Config version 108 moves a config still at the old default (0) to Auto; one at 1, 2 or 3 keeps it.
+
+Auto (`Quake/vr/vr_xr_runtime.cpp`) reads the installed runtimes (HKLM `...\OpenXR\1\AvailableRuntimes`, enabled ones;
+Virtual Desktop's, SteamVR's and Meta's usual places when not listed), the system's active one (`ActiveRuntime`) and the
+running processes, and orders the runtimes whose manifests exist:
+
+1. Virtual Desktop (VDXR) while `VirtualDesktop.Streamer.exe` runs. Whether a headset is connected through the Streamer
+   isn't visible from outside without loading VDXR, so VDXR's own `xrGetSystem` is that check: with no headset it fails
+   and the next is tried (the Streamer often runs in the tray of a PC whose headset is on SteamVR).
+2. The system's active runtime, when its app runs (the tie between SteamVR and Meta both running).
+3. Meta's (`OVRServer_x64.exe`), then SteamVR's (`vrserver.exe` or `vrmonitor.exe`), when running.
+4. The system's active runtime (with nothing running, it is first: "nothing running: the system's active runtime").
+5. The others installed: VDXR, Meta, unknown runtimes; SteamVR's only with `vr_xr_runtime_fallback 2` (trying an idle
+   SteamVR starts SteamVR and its windows, only to find no headset).
+
+The backend (`OpenXrBackend::start`) tries them in turn: any failure (`xrCreateInstance`, `xrGetSystem`, the session,
+the swapchains) stops and destroys everything and goes on to the next; after the last, VR is off (flat), as before.
+`vr_xr_runtime_fallback 0` plays flat after the first. An `XR_RUNTIME_JSON` the game was started with still wins (that
+runtime only). The console says the choice and why (`OpenXR runtime choice: Auto: Virtual Desktop (VDXR) - Streamer
+running`), each attempt (`OpenXR: trying SteamVR (running): <manifest>`) and its failure; the menu shows the outcome
+under the row (`Auto: SteamVR - running (Virtual Desktop (VDXR) failed)`, or `Auto: none started (flat)`). Restart VR
+chooses again (after starting or closing a VR app).
+
+### The loader and more than one runtime in a process
+
+The OpenXR loader (1.1.63, vendored) loads the runtime at the first call that needs it and unloads it when its last
+instance is destroyed (or `xrCreateInstance` fails); it reads `XR_RUNTIME_JSON` again at the next load. Verified with a
+fake runtime DLL (`Misc/quakevr/fakexr`): in one process the game loaded VDXR's fake, failed its `xrGetSystem`,
+destroyed it (the DLL unloaded), loaded SteamVR's (its `xrCreateInstance` failing), then Meta's, each DLL loaded and
+unloaded in turn. Real runtimes may keep threads or services of their own past `FreeLibrary`; Restart VR has always
+done the same unload and reload, so this is no new path.
+
+### Debug and tests
+
+`vr_xr_runtime_explain` (Debug > Reports > OpenXR Runtime Choice): what Auto sees and the order, without loading
+anything. `vr_xr_test*` fake the system and fail attempts (`vr_xr_test_fail`, also with real runtimes);
+`Misc/quakevr/xr_runtime_test.sh <agent>`: 25 headless checks (TESTING.md, "OpenXR runtime choice"). The installer's
+Virtual Desktop note now says the game picks VDXR by itself while the Streamer runs.
+
+### To try in the headset
+
+- Virtual Desktop connected, Streamer running, SteamVR closed: the game starts on VDXR (console: `Auto: Virtual Desktop
+  (VDXR) - Streamer running`; the menu line under OpenXR Runtime says the same).
+- Virtual Desktop connected and SteamVR running (started from VD): still VDXR.
+- The Streamer running without the headset connected, SteamVR running with another headset (or Link with the Meta app):
+  VDXR fails (`xrGetSystem`), then SteamVR (or Meta) starts. How long VDXR takes to say no is worth a note.
+- Quest Link only (Meta app running, VD closed): Meta's runtime.
+- `vr_xr_test_fail virtualdesktop; vr_restart` with VD connected and SteamVR running: SteamVR takes over in the same
+  session (the loader's reload with real runtimes); `vr_xr_test_fail ""; vr_restart` goes back to VDXR.

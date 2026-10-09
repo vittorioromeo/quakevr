@@ -2003,3 +2003,20 @@ s) and the coop one `bash Misc/quakevr/multiplayer/stealth_mp_test.sh <agent>` (
 ROUND21.md, "Stealth AI: the gaps closed". A real shot headless: `vr_weapon_grip_mode 1; impulse 9; impulse 154` (150 +
 the weapon id: into the main hand), then `+attack; vr_mock_button main trigger 1; wait3; -attack; vr_mock_button main
 trigger 0`.
+
+## OpenXR runtime choice (2026-10-09)
+
+`vr_xr_runtime 4` (Auto, the default; ROUND21.md, "OpenXR runtime: Auto") picks the runtime whose app runs and, when it
+fails, tries the others (`vr_xr_runtime_fallback`). `vr_xr_runtime_explain` (Debug > Reports > OpenXR Runtime Choice)
+prints what it sees (the apps running, the installed runtimes, the system's active one), the order it would try them
+in, and the last start's outcome; it loads nothing. Without the real runtimes: `vr_xr_test 1` takes the installed
+runtimes (`vr_xr_test_runtimes`, manifests, comma-separated), the active one (`vr_xr_test_active`) and the running
+processes (`vr_xr_test_processes`, e.g. `VirtualDesktop.Streamer.exe,vrserver.exe`) from those cvars, never the
+registry, and never loads the real system runtime. `vr_xr_test_fail <parts of manifests or labels, or *>` fails those
+attempts at once (also with real runtimes: `vr_xr_test_fail virtualdesktop` shows the fallback past VDXR).
+`bash Misc/quakevr/fakexr/build.sh <worktree>` builds a fake runtime DLL (no headset: `xrGetSystem` fails) into
+`scratch/fakexr`, one copy per runtime with a manifest named as the real one's; `FAKEXR_LOG` logs each copy's loads and
+unloads, `FAKEXR_FAIL_INSTANCE=fakexr_steam` fails one's `xrCreateInstance`. `bash Misc/quakevr/xr_runtime_test.sh
+<agent>` runs it all (25 checks, ~1 min): Auto's order case by case, the manual choices, the config migration, the
+fallback through the real loader (each fake runtime loaded, failing and unloaded in turn in one process) and an
+outside `XR_RUNTIME_JSON` winning.

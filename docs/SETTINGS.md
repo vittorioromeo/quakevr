@@ -438,7 +438,8 @@ built-in ones.
 | Variable | Default | |
 |---|---|---|
 | `vr_enabled` | 1 (from `quakevr.cfg`) | VR on or off |
-| `vr_xr_runtime` | 0 | 0 system default, 1 Virtual Desktop (VDXR), 2 SteamVR, 3 the manifest in `vr_xr_runtime_json` |
+| `vr_xr_runtime` | 4 | 4 Auto (the runtime whose app is running: Virtual Desktop's Streamer, SteamVR, Meta's OVRServer; else the system's active one), 0 system default, 1 Virtual Desktop (VDXR), 2 SteamVR, 3 the manifest in `vr_xr_runtime_json`; `vr_xr_runtime_explain` prints Auto's choice |
+| `vr_xr_runtime_fallback` | 1 | Auto: when the chosen runtime fails to start, 1 try the other installed ones before playing flat, 2 an idle SteamVR too (trying it starts SteamVR), 0 flat at once |
 | `vr_render_scale` | 1 | eye resolution multiplier |
 | `vr_upscale` | 1 | below render scale 1: 0 bilinear, 1 FSR 1, 2 NIS |
 | `vr_upscale_sharpness` | 0.5 | the upscaler's sharpening, 0 to 1 |

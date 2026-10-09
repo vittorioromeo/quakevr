@@ -563,7 +563,7 @@ history since 2026-07-01 (none do).
 
 | Setting | His | Fresh | Note |
 |---|---|---|---|
-| `vr_xr_runtime` | 1 (VDXR) | 0 (system) | offer VDXR when present (question 10) |
+| `vr_xr_runtime` | 1 (VDXR) | 4 (Auto) | Auto picks VDXR while the Streamer runs (2026-10-09; ROUND21.md, "OpenXR runtime: Auto"); the installer's note says so |
 | `vid_width` x `vid_height`, `vid_borderless`, `vid_fsaa` | 1920x1080, 1, 0 | (machine) | desktop window only |
 
 ### Desktop mirror and flat screen: promote?
