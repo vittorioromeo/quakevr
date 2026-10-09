@@ -905,6 +905,22 @@ void sticksFrame(float dt)
 // ---------------------------------------------------------------------------------------------------------------------
 // The look: the beam, the target's glow, the gun's screen.
 
+// The gun's screen's text: one short line.
+[[nodiscard]] const char* screenLine()
+{
+    char(&text)[96] = readouts.screen;
+    switch(currentTool())
+    {
+    case Tool::Spawn: q_snprintf(text, sizeof(text), "%s", tg.picking ? "PICK" : tg.sel.valid ? tg.sel.label : "SPAWN"); break;
+    case Tool::Remove: q_snprintf(text, sizeof(text), "REMOVE"); break;
+    case Tool::Physgun: q_snprintf(text, sizeof(text), "PHYSGUN"); break;
+    case Tool::Scale: q_snprintf(text, sizeof(text), "SCALE"); break;
+    case Tool::Joint: q_snprintf(text, sizeof(text), "%s%s", jointNames[jointKind()], tg.jointFirst ? " 1/2" : ""); break;
+    default: text[0] = '\0'; break;
+    }
+    return text;
+}
+
 [[nodiscard]] glm::vec4 toolColor()
 {
     switch(currentTool())
@@ -946,11 +962,15 @@ void drawLook(const hands::State& s)
         drawGizmo(tg.gizmo);
     }
 
-    // The gun's screen: the tool and what it does, over the back of the gun, facing you.
-    glm::vec3 fwd, right, up;
-    hands::angleVectors(s.rot[tg.hand], fwd, right, up);
-    const glm::vec3 at = s.pos[tg.hand] + up * 4.2f - fwd * 1.5f;
-    text3d::queue(qvr::toolgun::stateLine(), at, hands::anglesFromVectors(-fwd, up), text3d::Align::Centre, 0.05f, true);
+    // The gun's screen: the tool (and the spawn tool's choice, the joint tool's joint) over the back of the gun, a small
+    // screen as the ammo counters' (vr_toolgun_screen_scale: its letters' size), facing you.
+    if(vr_toolgun_screen_scale.value > 0.f)
+    {
+        glm::vec3 fwd, right, up;
+        hands::angleVectors(s.rot[tg.hand], fwd, right, up);
+        const glm::vec3 at = s.pos[tg.hand] + up * vr_toolgun_screen_up.value - fwd * 1.f;
+        text3d::queue(screenLine(), at, hands::anglesFromVectors(fwd, up), text3d::Align::Centre, vr_toolgun_screen_scale.value, true);
+    }
 }
 
 } // namespace

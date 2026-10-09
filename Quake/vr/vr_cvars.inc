@@ -3107,3 +3107,5 @@ QVR_CVAR(vr_toolgun_menu_height, "8", CVAR_ARCHIVE)   // the menu on the gun: it
 QVR_CVAR(vr_toolgun_menu_up, "4", CVAR_ARCHIVE)       // ... its bottom edge this many units over the controller
 QVR_CVAR(vr_toolgun_menu_forward, "2", CVAR_ARCHIVE)  // ... and this many ahead of it along the gun
 QVR_CVAR(vr_toolgun_menu_tilt, "20", CVAR_ARCHIVE)    // ... leaning back from upright by this many degrees
+QVR_CVAR(vr_toolgun_screen_scale, "0.02", CVAR_ARCHIVE) // the gun's screen (the tool's name): its letters' size (a character 8 times this, units); 0: none
+QVR_CVAR(vr_toolgun_screen_up, "3.2", CVAR_ARCHIVE)     // ... how far over the hand (units)
