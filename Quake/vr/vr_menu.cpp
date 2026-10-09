@@ -2020,6 +2020,11 @@ const char* bodycalLine(int i)
     return line ? line : "";
 }
 
+void bodycalRevert(int i)
+{
+    bodycal::revert(i);
+}
+
 void bodycalRedo(int step)
 {
     bodycal::redo(step, qvr::menu::currentPage());
@@ -2076,6 +2081,15 @@ const char* bodycalIntro(int i)
     for(int i = 0; bodycal::statusLine(i); i++)
     {
         list.pushBack(infoLine(bodycalLine, i));
+    }
+    // Previous Calibrations (bodycal_history.txt): the settings each Apply, Undo or Revert replaced, newest first.
+    if(bodycal::historyCount() > 0)
+    {
+        list.pushBack(header("Previous Calibrations"));
+        for(int i = 0; i < bodycal::historyCount(); i++)
+        {
+            list.pushBack(row(bodycal::historyRow, bodycal::historyHelp, bodycalRevert, i, -1));
+        }
     }
     if(bodycal::phase() == bodycal::Phase::Result || bodycal::partial())
     {

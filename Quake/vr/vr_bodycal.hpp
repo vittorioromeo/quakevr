@@ -57,6 +57,13 @@ void stop();
 [[nodiscard]] bool trusted();
 [[nodiscard]] bool canUndo();
 void undo();
+// Previous Calibrations (bodycal_history.txt next to the config, kept across restarts): the settings each Apply, Undo or
+// Revert replaced, the last four, newest first (0..historyCount()-1): the page's row (its date, the arms, the eyes) and
+// help; revert(i) sets them again (the settings it replaces go into the list, Undo takes it back).
+[[nodiscard]] int historyCount();
+[[nodiscard]] const char* historyRow(int i);
+[[nodiscard]] const char* historyHelp(int i);
+void revert(int i);
 // Whether some poses are taken but not all (a stopped session: Continue).
 [[nodiscard]] bool partial();
 // Result: whether the body shown in front shows the new measurements (else the current settings); switch() flips it.

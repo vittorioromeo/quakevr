@@ -1353,6 +1353,223 @@ void saveUndo(const za::Vector<Setting>& before)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Previous Calibrations (bodycal_history.txt in the game folder, next to the config; ROUND21.md, "Body calibration
+// history"): the settings each Apply, Undo or Revert replaced, the last HISTORY_MAX of them, each with when it was
+// applied (if known) and when it was replaced. Reverting to one makes it the settings again and puts the replaced ones in
+// the list in its place, so that any change here can be taken back.
+
+constexpr int HISTORY_MAX = 4;
+
+// What a calibration is: the height (standing), the measurements and the tweaks on top.
+cvar_t* const historyCvars[] = {&vr_height_calibration, &vr_bodycal_upper_arm, &vr_bodycal_forearm,
+    &vr_bodycal_shoulders_back, &vr_bodycal_shoulders_up, &vr_bodycal_shoulders_out, &vr_bodycal_shoulder_rise,
+    &vr_bodycal_shoulder_swing, &vr_body_tweak_upper_arm, &vr_body_tweak_forearm, &vr_body_tweak_shoulders_back,
+    &vr_body_tweak_shoulders_up, &vr_body_tweak_shoulders_out, &vr_body_tweak_shoulder_rise,
+    &vr_body_tweak_shoulder_swing};
+
+struct HistoryEntry
+{
+    za::String made;     // when it was applied (saveSession's stamp; "-": not known, the settings before any)
+    za::String replaced; // when other settings took its place
+    za::String settings; // "name=value;..." (historyText)
+};
+
+struct History
+{
+    bool loaded{false};
+    za::String gamedir;               // the folder it was read from
+    za::String currentMade{"-"};      // the settings now: when they were applied,
+    za::String currentSettings;       // and what they were (historyText; empty: not known)
+    za::Vector<HistoryEntry> entries; // oldest first
+};
+History history;
+
+[[nodiscard]] za::String historyText()
+{
+    za::String s;
+    for(const cvar_t* c : historyCvars)
+    {
+        s += za::String(c->name) + "=" + c->string + ";";
+    }
+    return s;
+}
+
+[[nodiscard]] za::String historyPath()
+{
+    return za::String(com_gamedir) + "/bodycal_history.txt";
+}
+
+[[nodiscard]] za::String stampNow()
+{
+    char stamp[32];
+    const time_t t = time(nullptr);
+    strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&t));
+    return stamp;
+}
+
+[[nodiscard]] bool sameText(const za::String& a, const za::String& b)
+{
+    return !strcmp(a.cStr(), b.cStr());
+}
+
+void loadHistory()
+{
+    if(history.loaded && sameText(history.gamedir, za::String(com_gamedir)))
+    {
+        return;
+    }
+    history = History{};
+    history.loaded = true;
+    history.gamedir = com_gamedir;
+    za::String text;
+    if(!files::readText(historyPath().cStr(), text))
+    {
+        return;
+    }
+    files::forLines(text, [](za::StringView line) {
+        files::Words w{line};
+        za::String kind;
+        if(!(w >> kind))
+        {
+            return;
+        }
+        if(sameText(kind, "current"))
+        {
+            za::String made, settings;
+            if(w >> made)
+            {
+                history.currentMade = made;
+            }
+            if(w >> settings)
+            {
+                history.currentSettings = settings;
+            }
+        }
+        else if(sameText(kind, "entry"))
+        {
+            HistoryEntry e;
+            if(w >> e.made >> e.replaced >> e.settings)
+            {
+                history.entries.pushBack(static_cast<HistoryEntry&&>(e));
+            }
+        }
+    });
+    while(static_cast<int>(history.entries.size()) > HISTORY_MAX)
+    {
+        history.entries.erase(history.entries.begin());
+    }
+}
+
+void saveHistory()
+{
+    za::String text = "# Quake VR: Body Calibration's previous calibrations (VR Settings > Body > Body Calibration: "
+                      "Previous Calibrations), oldest first\n";
+    text += "current " + history.currentMade + " " + history.currentSettings + "\n";
+    for(const HistoryEntry& e : history.entries)
+    {
+        text += "entry " + e.made + " " + e.replaced + " " + e.settings + "\n";
+    }
+    if(!files::writeText(historyPath().cStr(), text))
+    {
+        Con_Printf("Body Calibration: can't write %s\n", historyPath().cStr());
+    }
+}
+
+// The settings changed (Apply, Undo, Revert) from `before` (historyText) to the ones now: those before go in the list
+// (unless nothing changed), and the ones now come out of it if they were in it (keeping when they were applied). The
+// settings the list last had as the current ones go in too when they were changed otherwise since (the console, an old
+// config put back), so that no calibration is lost.
+void recordChange(const za::String& before)
+{
+    loadHistory();
+    const za::String now = stampNow();
+    const za::String after = historyText();
+    const auto listed = [](const za::String& settings) {
+        for(const HistoryEntry& e : history.entries)
+        {
+            if(sameText(e.settings, settings))
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+    za::String beforeMade = history.currentMade;
+    if(!history.currentSettings.empty() && !sameText(history.currentSettings, before))
+    {
+        if(!sameText(history.currentSettings, after) && !listed(history.currentSettings))
+        {
+            history.entries.pushBack(HistoryEntry{history.currentMade, now, history.currentSettings});
+        }
+        beforeMade = "-";
+    }
+    za::String made = now;
+    for(za::SizeT i = 0; i < history.entries.size(); i++)
+    {
+        if(sameText(history.entries[i].settings, after))
+        {
+            made = history.entries[i].made;
+            history.entries.erase(history.entries.begin() + i);
+            break;
+        }
+    }
+    if(!sameText(before, after) && !listed(before))
+    {
+        history.entries.pushBack(HistoryEntry{beforeMade, now, before});
+    }
+    while(static_cast<int>(history.entries.size()) > HISTORY_MAX)
+    {
+        history.entries.erase(history.entries.begin());
+    }
+    history.currentMade = made;
+    history.currentSettings = after;
+    saveHistory();
+}
+
+// A setting's value in an entry's settings (NaN: not there).
+[[nodiscard]] float historyValue(const za::String& settings, const char* name)
+{
+    float out = ZA_FLOAT_NAN;
+    files::forPieces(settings, ';', [&](za::StringView item) {
+        const char* at = item.data();
+        const za::SizeT n = ZA_STRLEN(name);
+        if(item.size() > n && !strncmp(at, name, n) && at[n] == '=')
+        {
+            out = static_cast<float>(atof(za::String(item.substrByPosLen(n + 1, item.size() - n - 1)).cStr()));
+        }
+    });
+    return out;
+}
+
+// "2026-10-09_17-51-39" as "2026-10-09 17:51".
+[[nodiscard]] za::String stampShown(const za::String& stamp)
+{
+    const char* c = stamp.cStr();
+    if(ZA_STRLEN(c) < 16)
+    {
+        return stamp;
+    }
+    return za::String(c, 10) + " " + za::String(c + 11, 2) + ":" + za::String(c + 14, 2);
+}
+
+// The settings written (an entry's), as Undo writes its own.
+void writeHistorySettings(const za::String& settings)
+{
+    files::forPieces(settings, ';', [](za::StringView item) {
+        for(za::SizeT i = 0; i < item.size(); i++)
+        {
+            if(item.data()[i] == '=')
+            {
+                const za::String name(item.substrByPosLen(0, i));
+                const za::String value(item.substrByPosLen(i + 1, item.size() - i - 1));
+                Cvar_Set(name.cStr(), value.cStr());
+                return;
+            }
+        }
+    });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // The session's file (bodycal/<date>.txt): the settings, each step's frames, the result.
 
 void saveSession()
@@ -2051,12 +2268,36 @@ void debug_f()
     debugNext = true;
 }
 
+// vr_bodycal_history: Previous Calibrations, newest first (1..); vr_bodycal_revert <n>: back to the n-th.
+void history_f()
+{
+    const int n = historyCount();
+    Con_Printf("Body Calibration: now applied %s; %d previous\n", history.currentMade.cStr(), n);
+    for(int i = 0; i < n; i++)
+    {
+        const HistoryEntry& e = history.entries[history.entries.size() - 1 - static_cast<za::SizeT>(i)];
+        Con_Printf("%d: %s (replaced %s): %s\n", i + 1, historyRow(i), e.replaced.cStr(), e.settings.cStr());
+    }
+}
+
+void revert_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("usage: vr_bodycal_revert <n> (vr_bodycal_history lists them, 1 the newest)\n");
+        return;
+    }
+    revert(Q_atoi(Cmd_Argv(1)) - 1);
+}
+
 // The menu's texts, valid until the same function's next call (the menu draws them at once).
 struct BodycalReadouts
 {
     za::String stepHelp;
     za::String measured[4]; // measuredLine's
-    auto members() { return qvr::mem::list(stepHelp, measured); }
+    za::String historyRows[HISTORY_MAX];
+    za::String historyHelp;
+    auto members() { return qvr::mem::list(stepHelp, measured, historyRows, historyHelp); }
 };
 mem::Scratch<BodycalReadouts> readouts{"bodycal readouts"};
 
@@ -2074,6 +2315,8 @@ void init()
     Cmd_AddCommand("vr_bodycal_cancel", cancel_f);
     Cmd_AddCommand("vr_bodycal_undo", undo_f);
     Cmd_AddCommand("vr_bodycal_debug", debug_f);
+    Cmd_AddCommand("vr_bodycal_history", history_f);
+    Cmd_AddCommand("vr_bodycal_revert", revert_f);
 }
 
 Phase phase()
@@ -2143,8 +2386,10 @@ void apply()
     }
     setPreview(false);
     const za::Vector<Setting> list = candidate();
+    const za::String before = historyText();
     saveUndo(snapshot(list));
     write(list);
+    recordChange(before); // (Previous Calibrations)
     applied = true;
     ses.phase = Phase::Idle;
     S_LocalSound("misc/menu2.wav");
@@ -2197,6 +2442,7 @@ void undo()
         return;
     }
     setPreview(false);
+    const za::String before = historyText();
     files::forPieces(vr_bodycal_undo.string, ';', [](za::StringView item) {
         files::Words w{item};
         za::String name, value;
@@ -2206,8 +2452,77 @@ void undo()
         }
     });
     Cvar_SetQuick(&vr_bodycal_undo, "");
+    recordChange(before); // (Previous Calibrations: the undone ones go in the list)
     applied = false;
     Con_Printf("Body Calibration: the settings from before it are back\n");
+    bump();
+    saveConfigNow();
+}
+
+int historyCount()
+{
+    loadHistory();
+    return static_cast<int>(history.entries.size());
+}
+
+const char* historyRow(int i)
+{
+    if(i < 0 || i >= historyCount() || i >= HISTORY_MAX)
+    {
+        return "";
+    }
+    const HistoryEntry& e = history.entries[history.entries.size() - 1 - static_cast<za::SizeT>(i)];
+    const float upper = historyValue(e.settings, "vr_bodycal_upper_arm");
+    const float fore = historyValue(e.settings, "vr_bodycal_forearm");
+    const float eyes = historyValue(e.settings, "vr_height_calibration");
+    const za::String when = sameText(e.made, "-") ? "before " + stampShown(e.replaced) : stampShown(e.made);
+    const za::String arms = upper > 0.f && fore > 0.f ? za::String(va("arms %.1f + %.1f cm", upper, fore))
+                                                       : za::String("default arms");
+    za::String& out = readouts.historyRows[i];
+    out = "Revert: " + when + ", " + arms + za::String(va(", eyes %.2f m", eyes));
+    return out.cStr();
+}
+
+const char* historyHelp(int i)
+{
+    if(i < 0 || i >= historyCount())
+    {
+        return "";
+    }
+    const HistoryEntry& e = history.entries[history.entries.size() - 1 - static_cast<za::SizeT>(i)];
+    const auto v = [&](const char* name) { return historyValue(e.settings, name); };
+    za::String& out = readouts.historyHelp;
+    out = za::String(va("Applied %s, replaced %s. Upper arm %.1f cm, forearm %.1f cm, shoulders back %.3f up %.3f out "
+                        "%.3f m, rise %.0f swing %.0f deg; tweaks %+.1f %+.1f cm. Revert sets them again (the settings "
+                        "now go into this list; Undo takes it back).",
+        sameText(e.made, "-") ? "(not known)" : stampShown(e.made).cStr(), stampShown(e.replaced).cStr(),
+        v("vr_bodycal_upper_arm"), v("vr_bodycal_forearm"), v("vr_bodycal_shoulders_back"), v("vr_bodycal_shoulders_up"),
+        v("vr_bodycal_shoulders_out"), v("vr_bodycal_shoulder_rise"), v("vr_bodycal_shoulder_swing"),
+        v("vr_body_tweak_upper_arm"), v("vr_body_tweak_forearm")));
+    return out.cStr();
+}
+
+void revert(int i)
+{
+    if(ses.phase == Phase::Capturing || i < 0 || i >= historyCount())
+    {
+        return;
+    }
+    setPreview(false);
+    const za::String target = history.entries[history.entries.size() - 1 - static_cast<za::SizeT>(i)].settings;
+    const za::String before = historyText();
+    za::Vector<Setting> was;
+    for(cvar_t* c : historyCvars)
+    {
+        was.pushBack({c, c->string});
+    }
+    saveUndo(was); // Undo: back to the settings before the revert
+    writeHistorySettings(target);
+    recordChange(before);
+    applied = false;
+    S_LocalSound("misc/menu2.wav");
+    Con_Printf("Body Calibration: reverted to %s (upper arm %s cm, forearm %s cm)\n", history.currentMade.cStr(),
+        vr_bodycal_upper_arm.string, vr_bodycal_forearm.string);
     bump();
     saveConfigNow();
 }

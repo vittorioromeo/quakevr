@@ -33846,3 +33846,22 @@ skeleton's own depth: 0 standing, 1 the pelvis at squatting height; solveTorso).
 - Test: `vr_body_crouch_preview 0 / 0.5 / 1` standing: share 0 / 0.5 / 1, the pelvis -4.44 / -5.18 / -5.92 units
   forward of the eyes (0.05 m back at full), the hip holsters and the pouch 0.74 units back per half; head at 1.0 m
   (`vr_mock_hand head 0 1.0 0`): share 0.90; strength 0 is the old pose exactly (share 0).
+
+## Body calibration history (2026-10-09)
+
+The author (same notes): keep the previous calibrations and let him go back to any. Every change of the calibration's
+settings (Apply, Undo, and the new Revert) puts the settings it replaced in a list, the last four, kept in
+`bodycal_history.txt` in the game folder next to the config (across restarts; git-ignored). A calibration is the height
+(standing), the measurements (`vr_bodycal_*`) and the tweaks (`vr_body_tweak_*`). Each entry has when it was applied
+(`-`: not known, the settings before any calibration the list saw) and when it was replaced.
+
+- Menu: Body Calibration > Previous Calibrations, newest first: "Revert: <date>, arms <upper> + <forearm> cm, eyes
+  <height> m" (the help: every value). Reverting makes it the settings again; the ones it replaces go in the list in its
+  place, and Undo takes the revert back (vr_bodycal_undo). The config is saved at once, as Apply does.
+- Console: `vr_bodycal_history` lists them (1 the newest) with their settings, `vr_bodycal_revert <n>` reverts.
+- The file also keeps the settings the list last had as the current ones: changed otherwise since (the console, an old
+  config put back, as the kit does after each run), they go in the list too, so none is lost.
+- Test (the author's sessions refitted: `vr_bodycal_refit bodycal/2026-09-29_00-41-19.txt; vr_bodycal_apply`, then
+  `..._01-52-37.txt`): applied 28.4/23.8 cm then 26.2/24.8; `vr_bodycal_revert 1` put back 28.4/23.8, shoulders back
+  -0.043, rise 14.9, height 1.5430; the next run (the config back to the kit's baseline) listed both and reverted to the
+  first entry's settings, the list then 28.4 and 26.2. Undo after an Apply lists the undone one.
