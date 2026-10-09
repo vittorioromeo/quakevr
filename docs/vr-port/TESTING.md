@@ -1806,6 +1806,11 @@ big.cfg; vr_limits time`), `vr_limits cvarlen <name>` gives a value's length (a 
 is no `set` command: a config line sets only an existing cvar. `vr_physics_spawn item_shells <dist> <left>` 320 times
 in e1m1 moves 320 props (the datagram peaked at 16.5 KB of 64 KB).
 The HUD in the headset (ROUND21.md, "No flat HUD in the headset; the map's flames light torches; the pouch's turn"):
+Shimmer (edge crawl, texture sparkle; ROUND21.md, "Shimmer at the pier and the bridge"): `python Misc/quakevr/shimmer_test.py <agent> [--exec cfg] [--region "x y w h"] name="commands" ...` loads the map (vrstart's pier by
+default), pauses, takes the left eye at six half-pixel head turns and prints, per config, the share of pixels popping
+by more than 16 and 32 levels between turns (the shimmer); e.g. `base="echo base" msaa4="vid_fsaa 4"`. The menu's
+sharpness (ROUND21.md, "The menu sharp in the headset"): `vr_mock_eye_size 2048; vr_restart`, `menu_vr`, then
+`vr_menu_resolution 0` / `1.5` and `vr_eyeshot 3` each; `developer 1` prints the canvas's size when it is made.
 `vr_eyeshot 3` saves both eyes with the UI (the HUD panel, the menu) as the headset shows them (Debug > Tools > Eye
 Images); `hudstyle 0..3` each, then `vr_eyeshot 3; wait5; screenshot`: no HUD in the eyes, the style's HUD in the window
 (the mirror and the spectator view, `vr_window_view 2`). The map's flames lighting a torch again: e1m2, torch 53 taken

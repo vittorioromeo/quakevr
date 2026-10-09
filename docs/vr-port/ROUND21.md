@@ -32980,3 +32980,64 @@ under the panel: they would have to move into the canvas.
 - Open the menu: letters crisper than before, strokes even. Menu Resolution 0 vs 1.5 to compare; Menu Sharpening 0 / 0.5
   / 1 (1: crispest, may shimmer slightly on the small text as the head moves).
 - The console and centre prints in game (same canvas): crisp too.
+
+## Shimmer at the pier and the bridge (2026-10-09)
+
+His note (vrstart_2026-10-09_10-43-52): edges shimmer a lot in VR, on the bridge's planks a bit further out; MSAA 8x,
+Retro Textures off, Retro Lighting off and more anisotropy don't fix it. A limitation of the resolution?
+
+**Measured** with `Misc/quakevr/shimmer_test.py` (new; TESTING.md): mock eyes 2048 (about a native Quest 3's pixels per
+degree), his graphics settings (every r_/gl_/vid_fsaa/vr_ graphics cvar of his ironwail.cfg), at his spot on the pier
+(-1201 -1195 48, along the pier, 8 degrees down), paused, the left eye at six head turns 0.03 degrees (half a pixel)
+apart; screen dithering off. "Pops": the share of pixels changing by more than 16 (32) of 255 between turns, pixels
+switching on and off rather than sliding: the shimmer. Region: the planks 200 to 600 units off (`--region`).
+
+| setting (over his) | pops>16 | pops>32 |
+|---|---|---|
+| his (MSAA off) | 0.28% | 0.13% |
+| Antialiasing 4x | 0.38% | **0.01%** |
+| Antialiasing 8x | 0.19% | 0.02% |
+| Render Scale 1.5 / 2 | 0.28% / 0.40% | 0.11% / 0.11% |
+| Retro Textures off (his GL_NEAREST_MIPMAP_LINEAR) | 0.73% | 0.19% |
+| Smooth Textures: All | 1.41% | 0.74% |
+| Smooth All, Retro off, Parallax off | 0.14% | 0.12% |
+| Bump Mapping off / specular 0 / bumps smooth (vr_retro_world_bump 0) | 0.26% / 0.28% / 0.22% | 0.13% |
+| Parallax off, Retro Lighting off, Foveated off or Aggressive, retro soft 2, fade 4 | 0.25-0.28% | 0.13-0.14% |
+
+**The cause:** the planks are separate brushes, 11 units wide with 1-unit gaps (vrstart_gen.py `deck`), over
+darkness: from about 200 units the gaps are thinner than a pixel, so each is drawn as broken dashes that jump along
+it as the head moves (the pops over 32). That is geometry, not textures: MSAA removes it (4x: 0.13% to 0.01%; 8x is
+no better), supersampling barely (4 samples in a grid miss a line a quarter of a pixel thick). The textures add the
+smaller pops (16-32): Retro Textures already halve them (off, with his nearest filtering: 2.6 times more); Smooth
+Textures: All makes it worse (parallax mapping shows on the planks, wavy). Bumps, specular, parallax, retro lighting
+and foveation change little.
+
+**GPU** (`vr_profile`, the pier, 2048 eyes, the scene's "3D"): MSAA off 2.05 ms, 4x 2.96, 8x 5.47 (both eyes).
+
+**His session's frame pacing** (his memstats_2026-10-09_10-42-04.csv, during these notes, 120 Hz): 116.8 frames a
+second, 543 and 763 frames a minute late (8-11%), while the game used 1.8 ms of CPU and 3.8 ms of GPU a frame: the
+misses are the runtime's or the stream's (Virtual Desktop), not the game's. A missed refresh is reprojected; thin
+high-contrast lines are where that shows as edges wobbling, whatever the anti-aliasing. 8x's extra GPU time would make
+misses more likely.
+
+**Answer:** mostly the resolution (1-unit gaps at mid range are under a pixel) and fixable in the game with MSAA: his
+config has it off (`vid_fsaa 0`); 4x, as shipped, removes almost all the gaps' crawl in these images. If it still
+shimmers with 4x in the headset, the rest comes after the game: Virtual Desktop's sharpening (it sharpens the very
+edges that crawl), its video encoding, and the reprojected frames above.
+
+**Changed:** the Antialiasing rows' help says what it fixes and that 4x does most of it (VR Settings, Graphics >
+Image). No engine change for this one: nothing in the game's shading measured as a cause worth a default.
+
+**Not done (options, his call):** a subfloor under the decks (vrstart_gen.py `deck`: dark wood 1-2 units under the
+plank tops instead of the void) would cut the gaps' contrast, and so their crawl at any MSAA, and what the stream's
+encoder has to carry (needs the map rebuilt and relit). A temporal anti-aliasing pass is not warranted by these numbers
+(after MSAA the pops left are small) against its ghosting under head motion. A tonemap-weighted MSAA resolve would help
+edges against bright highlights; the pier's surfaces are mostly below 1 (luminance median 0.52, 90th percentile 0.81),
+so little here.
+
+### To try in the headset
+
+- Antialiasing 4x (VR Settings, Anti-aliasing): look along the pier and at the bridge, move the head slowly: the plank
+  gaps should stay whole lines instead of dashes. Then 0 to compare.
+- If it still shimmers: in Virtual Desktop, Sharpening at 0 and a higher bitrate; the menu's status box (Menu Settings >
+  Status Box) shows whether frames are being missed.

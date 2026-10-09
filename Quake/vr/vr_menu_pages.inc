@@ -1207,7 +1207,7 @@ void resetHandMoves()
         cycle("Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
             .help("Sets the settings on all the Graphics pages: lights, shadows, surfaces, liquids, post-processing, models and effects. Change them after to taste."),
         header("Image"),
-        cycle("Anti-aliasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}}).help("Multisampling: smoother edges, some GPU time."),
+        cycle("Anti-aliasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}}).help("Multisampling: smoother edges; thin lines such as the gaps between planks stop crawling as your head moves. 4x (as shipped) does most of it; 8x takes nearly twice 4x's GPU time for little more."),
         cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})
             .help("Smooth filtering for high-resolution replacement textures, or for all textures."),
         cycle("Anisotropic Filtering", "gl_texture_anisotropy", {{1.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}, {16.f, "16x"}})
