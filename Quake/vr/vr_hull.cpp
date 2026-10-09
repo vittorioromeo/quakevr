@@ -56,12 +56,14 @@ constexpr float headTop = 5.f; // units: the top of a player's head over the hea
 // A brush's face, outward: inside is dot(normal, p) < dist.
 // A brush's face, outward: inside is dot(normal, p) < dist + grows * the box's reach along normal. A face of hull 0's
 // brushes grows with the box (grows 1); a recovered clip brush's face (see recoverClips) is already grown by Quake's
-// 32 box and shrinks back with a narrower one if it faces the open (grows 1, dist less Quake's box), else stays.
+// 32 box and shrinks back with a narrower one if it faces the open (grows 1, dist less Quake's box), else stays but for
+// its height (growsZ -1, dist plus Quake's box's: a shorter box's floor under it rises toward it as much; recoverClips).
 struct Plane
 {
     glm::vec3 normal;
     float dist;
     float grows;
+    float growsZ = 0.f; // ... plus growsZ * the box's reach along normal's z alone
 };
 
 struct Brush
@@ -773,7 +775,8 @@ double halfDistance(const Sweep& s, const Plane& p, const glm::dvec3& centre)
 
 double support(const Plane& p, const glm::dvec3& ext)
 {
-    return p.grows * (za::abs(p.normal.x * ext.x) + za::abs(p.normal.y * ext.y) + za::abs(p.normal.z * ext.z));
+    return p.grows * (za::abs(p.normal.x * ext.x) + za::abs(p.normal.y * ext.y) + za::abs(p.normal.z * ext.z)) +
+           p.growsZ * za::abs(p.normal.z * ext.z);
 }
 
 void clipToBrush(Sweep& s, const Brush& br)
@@ -1156,19 +1159,64 @@ void recoverClips(Brushes& b, qmodel_t* world)
         {
             return;
         }
-        // Kept in the box centre's space; the open faces shrink back with a narrower box.
+        // Kept in the box centre's space; the open faces shrink back with a narrower box. The others lie against more
+        // of hull 1's solid (a floor's, a ceiling's, a wall's, grown by Quake's box): a shorter box (crouched) meets that
+        // floor's or ceiling's face nearer its own, so those faces move with its height as the floor's does (their
+        // height's part of Quake's box out, the box's in). Kept where they were, a crouched box's centre went under a
+        // clip brush lying on a floor (MG1's start: the clip ramp over the west stairs, walked under to the first step's
+        // riser; a jump there hit the ramp's underside: NOTES.md start_2026-10-09_17-58-56). Width stays as it was.
+        // Only where hull 1 stays solid twice the most it moves (16) past the face: a floor's or ceiling's grown slab.
+        // A cut inside a slab near its other side (the stairs' clip brush under their landing) stays: moved, it rose out
+        // of the landing's floor, and a crouched box stood 4 units over it.
         const za::SizeT first = out.planes.size();
+        bool heightMoves = false;
+        auto solidPast = [&h1, head](const Face& f)
+        {
+            glm::dvec3 fc{0.0};
+            for(const glm::dvec3& v : f.w)
+            {
+                fc += v;
+            }
+            fc /= static_cast<double>(f.w.size());
+            auto solidAt = [&](const glm::dvec3& p)
+            {
+                const glm::dvec3 q = p + f.normal * 32.0;
+                vec3_t qf{static_cast<float>(q.x), static_cast<float>(q.y), static_cast<float>(q.z)};
+                return SV_HullPointContents(&h1, head, qf) == CONTENTS_SOLID;
+            };
+            bool solid = solidAt(fc);
+            for(za::SizeT i = 0; i < f.w.size() && solid; ++i)
+            {
+                solid = solidAt(fc + (f.w[i] - fc) * 0.85);
+            }
+            return solid;
+        };
         for(za::SizeT fi = 0; fi < piece.size(); ++fi)
         {
             const Face& f = piece[fi];
             const double dist = f.dist + glm::dot(f.normal, lift);
             const double reach =
                 za::abs(f.normal.x) * e32.x + za::abs(f.normal.y) * e32.y + za::abs(f.normal.z) * e32.z;
-            out.planes.pushBack(
-                Plane{glm::vec3{f.normal}, static_cast<float>(open[fi] ? dist - reach : dist), open[fi] ? 1.f : 0.f});
+            if(open[fi])
+            {
+                out.planes.pushBack(Plane{glm::vec3{f.normal}, static_cast<float>(dist - reach), 1.f});
+                continue;
+            }
+            const double reachZ = za::abs(f.normal.z) * e32.z;
+            if(reachZ <= 0.01 || f.w.empty() || !solidPast(f))
+            {
+                out.planes.pushBack(Plane{glm::vec3{f.normal}, static_cast<float>(dist), 0.f});
+                continue;
+            }
+            heightMoves = true;
+            out.planes.pushBack(Plane{glm::vec3{f.normal}, static_cast<float>(dist + reachZ), 0.f, -1.f});
         }
+        // (Its bounds then hold a shorter box's centres too: the lowest crouched box is 24 tall, 16 under Quake's half
+        // height; a face moved that much down or up takes its corners along the faces beside it, twice as far for a
+        // 26-degree ramp.)
+        const glm::dvec3 grow = heightMoves ? glm::dvec3{32.0, 32.0, 16.0} : glm::dvec3{0.0};
         out.brushes.pushBack(Brush{static_cast<za::U32>(first), static_cast<za::U32>(out.planes.size() - first),
-            glm::vec3{lo + lift}, glm::vec3{hi + lift}, true});
+            glm::vec3{lo + lift - grow}, glm::vec3{hi + lift + grow}, true});
     };
     const glm::dvec3 margin{96.0};
     za::Vector<WalkItem> items;
@@ -3590,6 +3638,7 @@ za::U32 hashOf(const Brushes& b)
         h.add(q.normal);
         h.add(q.dist);
         h.add(q.grows);
+        h.add(q.growsZ);
     }
     for(const Brush& br : b.brushes)
     {

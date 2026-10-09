@@ -33937,3 +33937,24 @@ His notes vrtutorial2_2026-10-09_18-22-02 .. 18-32-29 and vrstart_18-36-01.
   vr_cfg_version 99 `vr_hub_map` migration and `vr_hub_map` itself (retired: the hub is vrstart). Saves made in
   vrtutorial2, vrstart2, vrslipgates or the old vrtutorial no longer load (dev saves). `relight_quakevr_maps.py` no
   longer relights the old tutorial; `stray_press_test.sh` loads vrtutorial in place of vrstart_old.
+
+## The west stairs crouched (2026-10-09)
+
+**Notes start_2026-10-09_17-58-56, 17-59-28.** MG1's start: after the ledge test fix the north, east and south steps
+walked, the west ones (foot at -232 -11 -8, up westward) still not: he stood at -247 -11 -8, at the first step's riser
+under the clip ramp, and a jump there hit an invisible wall. Headless with the standing box they walked; with the head
+lowered 15 cm (`vr_mock_hand head 0 1.45 0`: eyes 47.7 units over the feet, Crouching's 52-unit box) the box went under
+the ramp and stopped at -248 -11 -8, his spot (`vr_crouch_status`: box 52, standfits 0).
+
+- Cause: a recovered clip brush's faces that don't face the open (`recoverClips`, vr_hull.cpp) were kept where hull 1
+  has them, grown by Quake's 56-tall box. The ramp's lowest piece is a wedge on the floor: its bottom face is the
+  floor's top grown by Quake's box (centre 28 over it). A crouched box's centre on that floor is lower (26 over it for
+  52, 18 for 36), so it passed under the wedge (2 to 10 units of room) to the first real step.
+- Fix: those faces move with the box's height as the floor or ceiling past them does (`Plane::growsZ`: their height's
+  part of Quake's box out, the box's in; Quake's and the standing narrow box's height unchanged), only where hull 1 stays
+  solid 32 units past the face (a floor's or ceiling's grown slab). Without that test the stairs' clip piece under the
+  landing (its top a cut inside the landing's slab) rose out of the floor: the 36 box stood 4 units over the landing.
+  Such pieces' bounds take 32 32 16 more.
+- Checked (0.3 stick from 181 units out, every 5 frames; boxes standing, 52 and 36; all four sets): all up to the
+  landing (z 24), no stall on the ramp; the jump at the west foot lands on top at every height. `vr_hull_walktest 60 7`
+  with the box 44 crouched on e1m1, e1m3, e2m2 and MG1's start: stuck 0, embedded 0, outside 0.
