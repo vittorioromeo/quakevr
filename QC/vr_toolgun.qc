@@ -30,3 +30,16 @@ void() weapon_toolgun =
         WeaponIdToThrowDamage(WID_TOOLGUN));
     remove(self);
 };
+
+void(entity e) VR_Scene_Remove; // (vr_cheats.qc)
+
+// The toolgun's remover (vr_toolgun.cpp, its trigger on what glows red): `e` gone as the scene's cleanup removes its kind
+// (a fire put out, a head's flies silenced, a player's old body emptied). Never the world nor a player.
+void(entity e) VR_Toolgun_Remove =
+{
+    if(e == world || (e.flags & FL_CLIENT))
+    {
+        return;
+    }
+    VR_Scene_Remove(e);
+};

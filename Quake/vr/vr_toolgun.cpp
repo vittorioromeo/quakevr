@@ -203,6 +203,7 @@ struct ToolgunState
     int glowNum{0};
     float glow{0.f};
     int glow2{0};
+    const entity_t* ghostEnt{nullptr}; // the ghost's temp entity this frame (glowing as a hologram)
 };
 ToolgunState tg;
 
@@ -1219,6 +1220,7 @@ void frame(const hands::State& s)
 
 void tempEntities()
 {
+    tg.ghostEnt = nullptr;
     if(!tg.ghost || !tg.sel.valid || !tg.sel.model[0])
     {
         return;
@@ -1257,10 +1259,15 @@ void tempEntities()
     ent->skinnum = tg.sel.skin;
     ent->frame = model->numframes > 0 ? za::clamp(tg.sel.frame, 0, model->numframes - 1) : 0;
     ent->alpha = static_cast<byte>(ENTALPHA_ENCODE(0.45f));
+    tg.ghostEnt = ent;
 }
 
 float entityGlow(const entity_t* e)
 {
+    if(e && e == tg.ghostEnt)
+    {
+        return 0.7f; // (the ghost: a hologram in the tool's hue)
+    }
     if(!e || (!tg.glowNum && !tg.glow2) || e < cl_entities || e >= cl_entities + cl.num_entities)
     {
         return 0.f;

@@ -1640,10 +1640,11 @@ QVR_DECAL_FUNCTIONS \
 
 // force grab's glow; the liquid's look
 #define QVR_WORLD_FS_GLOW_LIQUID \
-"	if (in_glow > 0.) // QVR: force grab's glow (vr/vr_fgfx.cpp)\n" \
+"	if (in_glow > 0.) // QVR: force grab's glow (vr/vr_fgfx.cpp); 2..3 the toolgun remover's red (vr/vr_toolgun.cpp)\n" \
 "	{\n" \
 "		float rim = 1.0 - abs(dot(facing, normalize(EyePos - in_pos)));\n" \
-"		result.rgb += SceneTone.yzw * in_glow * (pow(rim, 2.0) * 1.1 + 0.12); // QVR: the player's hue\n" \
+"		vec3 glowColor = in_glow > 1.5 ? vec3(1.0, 0.12, 0.06) : SceneTone.yzw; // QVR: the player's hue\n" \
+"		result.rgb += glowColor * (in_glow > 1.5 ? in_glow - 2.0 : in_glow) * (pow(rim, 2.0) * 1.1 + 0.12);\n" \
 "	}\n" \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	float liquid_alpha = in_alpha; // QVR: the liquid's look (vr_water_*)\n" \
@@ -2409,8 +2410,9 @@ SPECULAR_AA_FUNCTIONS
 "	if (in_glow != 0.) // QVR: force grab's glow round the edges (vr/vr_fgfx.cpp); negative, the counter's (vr/vr_meleehud.cpp)\n" \
 "	{\n" \
 "		float rim = 1.0 - abs(dot(normalize(in_nor), normalize(-in_pos)));\n" \
-"		vec3 glowColor = in_glow > 0. ? SceneTone.yzw : vec3(1.0, 0.66, 0.2); // QVR: the player's hue; the counter's gold\n" \
-"		result.rgb += glowColor * abs(in_glow) * (pow(rim, 2.0) * 1.1 + (in_glow > 0. ? 0.08 : 0.12));\n" \
+"		vec3 glowColor = in_glow > 1.5 ? vec3(1.0, 0.12, 0.06) : in_glow > 0. ? SceneTone.yzw : vec3(1.0, 0.66, 0.2); // QVR: the player's hue; the counter's gold; the toolgun remover's red (2..3: vr/vr_toolgun.cpp)\n" \
+"		float glowStrength = in_glow > 1.5 ? in_glow - 2.0 : abs(in_glow);\n" \
+"		result.rgb += glowColor * glowStrength * (pow(rim, 2.0) * 1.1 + (in_glow > 0. ? 0.08 : 0.12));\n" \
 "	}\n" \
 "	result.rgb += morphSeam; // QVR: a morph's glowing seam\n" \
 "	if (!morphShown) // QVR: this model is not there yet (or any more) in a morph\n" \
