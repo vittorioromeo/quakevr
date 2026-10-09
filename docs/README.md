@@ -128,5 +128,5 @@ correct). To read one: `git log --diff-filter=D --oneline -- <path>` gives the c
 - [quakevr/textures_quetoo/README.md](../quakevr/textures_quetoo/README.md): the Quetoo material maps and their
   authors.
 - `Quake/vr/external/*/README.md`: each vendored library's version and licence (Box3D, Steam Audio, Zancle).
-- [LICENSE.txt](../LICENSE.txt): the GNU GPL v2. `Quakespasm.txt` and `Quakespasm-Music.txt` are QuakeSpasm's own
-  readmes, inherited through Ironwail.
+- [LICENSE.txt](../LICENSE.txt): the GNU GPL v2. QuakeSpasm's own readmes were removed on 2026-10-10 (in git history; credits in
+  [CREDITS.md](vr-port/CREDITS.md)).

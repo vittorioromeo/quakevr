@@ -1,7 +1,7 @@
 #include <winresrc.h>
 #include "../Quake/quakedef.h"
 
-// QVR: the Quake VR: Unleashed logo (Misc/quakevr/make_exe_icon.py); Ironwail's icon stays as QuakeSpasm.ico
+// QVR: the Quake VR: Unleashed logo (Misc/quakevr/make_exe_icon.py)
 icon ICON "QuakeVR.ico"
 
 ////////////////////////////////////////////////////////////////

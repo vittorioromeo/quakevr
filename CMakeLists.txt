@@ -51,7 +51,7 @@ elseif (WIN32)
     list(REMOVE_ITEM IWAIL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/Quake/net_udp.c)
     list(REMOVE_ITEM IWAIL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/Quake/net_udp.h)
     list(REMOVE_ITEM IWAIL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/Quake/sys_sdl_unix.c)
-    list(APPEND IWAIL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/Windows/QuakeSpasm.rc)
+    list(APPEND IWAIL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/Windows/QuakeVR.rc)
 endif()
 
 if (PC_MPG123_FOUND)

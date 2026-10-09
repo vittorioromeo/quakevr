@@ -305,7 +305,7 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\zone.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\QuakeSpasm.rc" />
+    <ResourceCompile Include="..\QuakeVR.rc" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="ironwail.natvis" />

@@ -48,7 +48,6 @@ Status: **current** (checked, nothing wrong), **fixed** (outdated, corrected in 
 | `docs/SETTINGS.md` | fixed | The Advanced VR Options tables regrouped as the menu groups them (Play and World, Combat, Movement, Carrying and Throwing, Gore, Body and Flashlight, Weapons, HUD and Menus, Graphics, Sound, Tips, Debug), with 30 pages added, Developer-only pages marked; shipped defaults corrected (world scale 1.2, menu height 1.6, menu distance 100 and scale 0.18, spacing 2, hue 100, bloom 0.08, contrast 2.5, climb 1, throw assist 1); *Reset All*. Every `vr_*` default in its tables now matches the code (checked by script). Still a hand-kept list: see "A settings reference generated from the code". |
 | `docs/BUILDING.md` | fixed | The QuakeC section: the VS build compiles it (`QvrCompileQC`, `-p:QvrQcCompiler=`; the default path is the author's), `build.bat` adds the precedence and FGD checks. Tool table: the check scripts, `qvrbench.py`, `menu_coverage.py`, `make_vrcalibration_map.py`; not all scripts are Python. |
 | `LICENSE.txt` | current | GPL v2. |
-| `Quakespasm.txt`, `Quakespasm-Music.txt` | current | QuakeSpasm's readmes, inherited through Ironwail; leave them (upstream files). |
 | `Misc/quakevr/particles/README.md` | current | The explosion particle texture's source. |
 | `Misc/quakevr/pvs/FINDINGS.md` | snapshot | The 2026-10-04 start-map visibility investigation; correct. Archive with its probe scripts when convenient. |
 | `quakevr/textures_quetoo/README.md` | current | Counts and cvars match. |
