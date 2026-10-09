@@ -4947,6 +4947,9 @@ za::Vector<Item> pageDebugReports()
                   "server's; each mismatch listed (a saved game loaded wrong: buttons drawn as gibs). 0 wrong is right."),
         command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
         command("Bullet Time Now", "vr_bullettime").help("vr_bullettime: starts or stops bullet time, as the gadget's button."),
+        command("Screen Tap Feedback", "vr_bullettime_tap_feedback_test 1")
+            .help("vr_bullettime_tap_feedback_test [1]: the gadget's click and screen glitch of a tap (1: the activation's; "
+                  "none: a double tap's first), without tapping."),
         command("Distortion Trails Test", "vr_bullettime_trails_test 5")
             .help("vr_bullettime_trails_test [count] [m/s] [distance]: shots across your view (a test's distortion "
                   "trails, whatever kinds are on): start bullet time first (or Distortion Trails: Always)."),

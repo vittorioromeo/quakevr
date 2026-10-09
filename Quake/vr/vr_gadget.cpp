@@ -1176,6 +1176,31 @@ void makeMessage(za::StringView text, HoloMessage& m)
 // screen on an entity number of its own and kept there as the arm moves (setPose): heard from the wrist.
 constexpr int chimeEntity = -0x5C12;
 double lastChime = -100.0;
+
+// A screen tap's feedback (tapFeedback): its click from the screen, on an entity number of its own (kept at the gadget
+// as the chime is), and the screen's glitch.
+constexpr int tapEntity = -0x5C13;
+struct TapFeedback
+{
+    double soundAt = -100.0; // realtime the click started
+    double glitchAt = -100.0; // realtime the glitch started
+    float glitchStrength = 0.f;
+    float glitchLength = 0.f; // real seconds
+    int glitchFrames = 0;     // vr_debug_bullettime: frames drawn glitching (printed as it ends)
+};
+TapFeedback tapFx;
+
+// The tap's glitch now (0..2): rising at once, holding, falling over its last third.
+[[nodiscard]] float tapGlitch()
+{
+    const double t = realtime - tapFx.glitchAt;
+    if(tapFx.glitchLength <= 0.f || t < 0.0 || t >= tapFx.glitchLength)
+    {
+        return 0.f;
+    }
+    const float x = static_cast<float>(t) / tapFx.glitchLength;
+    return tapFx.glitchStrength * za::min(1.f, 3.f * (1.f - x));
+}
 double buzzAgain = -1.0; // realtime the buzz's second pulse is due (<0: none)
 
 [[nodiscard]] int gadgetHand()
@@ -2108,6 +2133,37 @@ float glitch(double time)
     return static_cast<float>(za::sin(x * 3.14159265)) * (0.6f + 0.4f * hash(n + 2u));
 }
 
+void tapFeedback(bool activation)
+{
+    const float volume = za::clamp(vr_bullettime_tap_sound.value, 0.f, 1.f);
+    const char* played = "none";
+    if(volume > 0.f && current.valid)
+    {
+        if(sfx_t* sfx = S_PrecacheSound(activation ? "vr/gadget_tap_on.wav" : "vr/gadget_tap.wav"))
+        {
+            const glm::vec3 c = screenCentre();
+            vec3_t org{c.x, c.y, c.z};
+            S_StartSound(tapEntity, 1, sfx, org, volume, 1.f); // (channel 1: a click cuts the one before)
+            tapFx.soundAt = realtime;
+            played = sfx->name;
+        }
+    }
+    const float strength = za::clamp(vr_bullettime_tap_glitch.value, 0.f, 2.f) * (activation ? 1.f : 0.7f);
+    const float length = za::max(0.f, vr_bullettime_tap_glitch_time.value) * (activation ? 1.25f : 1.f);
+    if(strength > 0.f && length > 0.f)
+    {
+        tapFx.glitchAt = realtime;
+        tapFx.glitchStrength = strength;
+        tapFx.glitchLength = length;
+        tapFx.glitchFrames = 0;
+    }
+    if(vr_debug_bullettime.value)
+    {
+        Con_Printf("gadget: tap feedback (%s): click %s at %.2f, glitch %.2f for %.2f s\n",
+            activation ? "activation" : "first tap", played, volume, strength, strength > 0.f ? length : 0.f);
+    }
+}
+
 bool active()
 {
     return vr_hud_mode.value == 1.f && vrActive() && cls.state == ca_connected && cls.signon == SIGNONS &&
@@ -2119,14 +2175,14 @@ void setPose(const Pose& pose)
     current = pose;
     glow(pose);
 
-    // The chime stays at the gadget as the arm moves; the buzz's second pulse.
-    if(realtime - lastChime < 3.0 && pose.valid)
+    // The chime and a tap's click stay at the gadget as the arm moves; the buzz's second pulse.
+    if((realtime - lastChime < 3.0 || realtime - tapFx.soundAt < 1.0) && pose.valid)
     {
         const glm::vec3 c = screenCentre();
         for(int i = NUM_AMBIENTS; i < total_channels && i < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; i++)
         {
             channel_t& ch = snd_channels[i];
-            if(ch.sfx && ch.entnum == chimeEntity)
+            if(ch.sfx && (ch.entnum == chimeEntity || ch.entnum == tapEntity))
             {
                 ch.origin[0] = c.x;
                 ch.origin[1] = c.y;
@@ -2281,9 +2337,24 @@ void drawScreen()
 
     const float time = static_cast<float>(za::fmod(realtime, 1000.0));
     const float k = crtStrength();
+    // A screen tap's glitch over the CRT's own (whether the CRT look is on or not).
+    const float tap = tapGlitch();
+    if(tap > 0.f)
+    {
+        tapFx.glitchFrames++;
+    }
+    else if(tapFx.glitchFrames > 0)
+    {
+        if(vr_debug_bullettime.value)
+        {
+            Con_Printf("gadget: tap glitch drawn in %d frames (both eyes)\n", tapFx.glitchFrames);
+        }
+        tapFx.glitchFrames = 0;
+    }
+    const float g = za::max(k > 0.f ? glitch(realtime) * za::min(k, 1.f) : 0.f, tap);
     gfx::draw(quad, gfx::sceneViewProjection(),
         {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
-            .params = {time, k, k > 0.f ? glitch(realtime) * za::min(k, 1.f) : 0.f, textGlow()},
+            .params = {time, k, g, textGlow()},
             .screen = {width, height, 0.5f}, .trueColor = true},
         target.texture);
 }

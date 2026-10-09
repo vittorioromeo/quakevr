@@ -449,6 +449,7 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
             // A double tap's first: a faint tick in the tapping hand, then the second must come in time.
             state.firstTapAt = realtime;
             buzz(hand, 0.02f, za::min(1.f, 0.2f * za::clamp(vr_bullettime_haptic.value, 0.f, 2.f)));
+            gadget::tapFeedback(false); // a click and a glitch of the screen
             if(vr_debug_bullettime.value)
             {
                 Con_Printf("bullet time: first tap (%s); the second within %.2f s\n", what, vr_bullettime_tap_double_window.value);
@@ -456,6 +457,7 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
             return;
         }
         state.firstTapAt = -1.0;
+        gadget::tapFeedback(true); // the activation's click and glitch (as the tap registers, whether it then starts)
         trigger(hand, what);
     }
 }
@@ -478,11 +480,19 @@ void bullettime_f()
     toggle();
 }
 
+// vr_bullettime_tap_feedback_test [1]: a screen tap's click and glitch, as a double tap's first (or with 1, the tap that
+// starts or stops it), without tapping.
+void tapFeedbackTest_f()
+{
+    gadget::tapFeedback(Cmd_Argc() > 1 && atoi(Cmd_Argv(1)) != 0);
+}
+
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_bullettime", bullettime_f);
+    Cmd_AddCommand("vr_bullettime_tap_feedback_test", tapFeedbackTest_f);
 }
 
 bool stickPress(int hand, bool now)

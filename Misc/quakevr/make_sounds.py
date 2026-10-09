@@ -31,6 +31,9 @@
 #   nail_sizzle1..2.wav  a nail turning into a lava nail in a torch's flame (QC vr_burning.qc, vr_burn_nail_sound): a
 #                 very short fizz (a bright hiss snapping on and falling in pitch as it dies, a pop or two); two, apart
 #   sync_beep.wav  the highlight log's sync mark (vr_highlights.cpp): a 1 kHz tone, 0.25 s
+#   gadget_tap.wav, gadget_tap_on.wav  the wrist gadget's screen tap registering (vr_gadget.cpp tapFeedback,
+#                 vr_bullettime_tap_sound): a double tap's first (a short, dry electronic tick, 40 ms) and the tap that
+#                 starts or stops bullet time (two quick rising blips, brighter, 0.11 s)
 #   grapple_reel.wav, grapple_taut.wav, grapple_unreel.wav  the grappling hook (QC vr_grapple.qc): the reel winding in
 #                 (a ratchet's clicks over a whirr, played back to back while it reels), the rope snapping taut (a low
 #                 twang, a chink) and the unreel paying it out (the ratchet backwards: reversed clicks, lighter, quicker)
@@ -1232,6 +1235,40 @@ def sync_beep():
     return [0.8 * math.sin(2 * math.pi * 1000.0 * i / RATE) * min(1.0, i / ramp, (n - 1 - i) / ramp) for i in range(n)]
 
 
+# ---- The wrist gadget's screen tap (vr_gadget.cpp tapFeedback) ----------------------------------------------
+# Electronic, not mechanical: the gadget answering the tap. The first of a double tap: a short tick (a 2.6 kHz blip
+# with a click of noise at its start, dying in a few milliseconds). The activation: two blips rising a fifth apart
+# (1.8 then 2.7 kHz, a little square: a third harmonic), the second longer, so that the two are told apart at once.
+
+
+def blip(f, length, tau, square=0.0):
+    n = int(RATE * length)
+    ramp = int(RATE * 0.002)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        w = 2 * math.pi * f * t
+        s = math.sin(w) + square * math.sin(3 * w) / 3
+        out.append(s * math.exp(-t / tau) * min(1.0, i / ramp if ramp else 1.0, (n - 1 - i) / ramp))
+    return out
+
+
+def gadget_tap():
+    rng = random.Random(911)
+    out = blip(2600.0, 0.04, 0.012, 0.2)
+    hp = OnePole(3000)
+    for i in range(int(RATE * 0.003)):
+        x = rng.uniform(-1, 1)
+        out[i] += 0.5 * (x - hp(x)) * (1 - i / (RATE * 0.003))
+    return finish(out, 0.7, 0.005)
+
+
+def gadget_tap_on():
+    gap = [0.0] * int(RATE * 0.012)
+    out = blip(1800.0, 0.035, 0.03, 0.35) + gap + blip(2700.0, 0.06, 0.04, 0.35)
+    return finish(out, 0.8, 0.01)
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "sound", "vr")
@@ -1264,6 +1301,8 @@ def main():
         "grapple_taut.wav": grapple_taut,
         "grapple_unreel.wav": grapple_unreel,
         "sync_beep.wav": sync_beep,
+        "gadget_tap.wav": gadget_tap,
+        "gadget_tap_on.wav": gadget_tap_on,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

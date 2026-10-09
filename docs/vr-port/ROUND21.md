@@ -33189,3 +33189,19 @@ gun, blast, hunt: PASS.
 **VR Settings > Bullet Time: Screen Tap** (his note): the Single Tap / Double Tap choice (`vr_bullettime_tap_gesture`)
 under Activation on the basic page too (also Combat > Bullet Time > Screen Tap > Gesture). `vr_menu_search screen tap`
 finds it on VR Settings; `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
+
+**The screen tap's click and glitch** (his note): as a tap registers on the gadget's screen (a double tap's first, and
+the tap that starts or stops bullet time, whether it then starts or is refused), the gadget clicks from its screen and
+its screen glitches for a moment (vr_gadget.cpp `tapFeedback`, called from vr_bullettime.cpp `tapScreen`). The clicks
+are synthesised (`make_sounds.py`: `vr/gadget_tap.wav`, a dry 2.6 kHz tick of 40 ms for the first tap;
+`vr/gadget_tap_on.wav`, two blips rising 1.8 then 2.7 kHz, 0.11 s, for the activation), played on an entity number
+of their own at the screen and kept there as the arm moves (as the message chime). The glitch is the CRT shader's own
+(bands torn sideways, the colours split, the picture dimmed; drawn whether the CRT look is on or not), held then falling
+over its last third: `vr_bullettime_tap_glitch` 1 (0 off .. 2; a first tap 0.7 of it), `vr_bullettime_tap_glitch_time`
+0.12 s (the activation a quarter longer), `vr_bullettime_tap_sound` 0.6 (volume, 0 off). Combat > Bullet Time > Screen
+Tap: Tap Click Volume, Tap Glitch, Tap Glitch Time, Try: First Tap, Try: Activation Tap; Debug's Screen Tap Feedback
+(`vr_bullettime_tap_feedback_test [1]`). `vr_debug_bullettime 1` prints each feedback and the frames its glitch was
+drawn in. Test `gadget_tap_feedback_test.sh` (with `-Sound` the clicks load and play): a double tap gives the first
+tap's (glitch 0.70 for 0.12 s, 60 draws) then the activation's (1.00 for 0.15 s, 76 draws); Single Tap the activation's
+only; both off: no click, no glitch drawn; the test command both. A headless shot before, during and after: the screen
+torn only during.

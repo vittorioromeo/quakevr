@@ -241,6 +241,17 @@
             .help("After a tap counts, how long before the next one does (a bounce is one)."),
         slider("Haptic Tick", "vr_bullettime_haptic", 0.f, 2.f, 0.25f, "%.2f")
             .help("The tick in both hands when a tap counts (0: none)."),
+        slider("Tap Click Volume", "vr_bullettime_tap_sound", 0.f, 1.f, 0.05f, "%.2f")
+            .help("The gadget clicks from its screen as a tap registers: a short tick for a double tap's first, two "
+                  "rising blips for the tap that starts or stops bullet time (0: silent)."),
+        slider("Tap Glitch", "vr_bullettime_tap_glitch", 0.f, 2.f, 0.1f, "%.1f")
+            .help("... and its screen glitches for a moment: bands torn sideways, the colours split (0: none)."),
+        slider("Tap Glitch Time", "vr_bullettime_tap_glitch_time", 0.05f, 0.5f, 0.01f, "%.2f s")
+            .help("How long the glitch lasts (the tap that starts or stops it a quarter longer)."),
+        command("Try: First Tap", "vr_bullettime_tap_feedback_test")
+            .help("vr_bullettime_tap_feedback_test: a double tap's first tap's click and glitch, without tapping."),
+        command("Try: Activation Tap", "vr_bullettime_tap_feedback_test 1")
+            .help("vr_bullettime_tap_feedback_test 1: the click and glitch of the tap that starts or stops it."),
         open("Gadget Side Button: Gear Lights", pageIndex(pageScreens))
             .help("The button on the gadget's lower edge now dims your gear's lights (HUD and Menus > Screens)."),
         header("Distortion Trails"),

@@ -48,6 +48,11 @@ void renderScreen();
 // The ammo screens' offset their time, so that they glitch at other moments.
 [[nodiscard]] float glitch(double time);
 
+// A screen tap registered (vr_bullettime.cpp tapScreen): the click from the screen (vr_bullettime_tap_sound; a double
+// tap's first, or the tap that starts or stops bullet time: `activation`) and the screen glitching for a moment
+// (vr_bullettime_tap_glitch, _glitch_time).
+void tapFeedback(bool activation);
+
 // How much the text, numbers and icons on the CRT screens (the gadget's and the ammo screens') glow
 // (vr_screen_text_glow, 0..3; Shade::Screen's glow).
 [[nodiscard]] float textGlow();
