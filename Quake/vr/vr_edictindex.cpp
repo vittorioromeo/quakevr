@@ -15,7 +15,8 @@
 //   listed under its text; any other (a temp string, a zoned one, an engine pointer) can change under the same
 //   string_t without a write, so its edict is "volatile": its text is compared at the query, as find() did.
 // - A load, a map, the progs: everything is read again at the next query (VR_EdictIndex_Reset).
-// vr_edictindex_verify 1 walks as well on every query and counts any difference (vr_edictindex_stats).
+// Checked against the walk (vr_edictindex_verify, removed 2026-10-09): 0 differences in 839,217 searches
+// (PERF_DECISIONS.md 9).
 
 #include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
@@ -108,7 +109,7 @@ struct Watch
     int numFloats{0};                     // watchedFloats the progs have (as floats)
     int floatField[maxFloats]{};          // [numFloats] the field's offset
     int floatMask[maxFloats]{};           // [numFloats] its bits indexed
-    int64_t queries{0}, walks{0}, rebuilds{0}, touches{0}, mismatches{0};
+    int64_t queries{0}, rebuilds{0}, touches{0};
 };
 Watch watch;
 
@@ -286,13 +287,13 @@ void flushPending(EdictIndex& ix)
     ix.pending.clear();
 }
 
-// The index, up to date, for a query on the server VM; nullptr when the index is off (the caller walks).
+// The index, up to date, for a query on the server VM; nullptr when there is none (the caller walks).
 [[nodiscard]] EdictIndex* ready()
 {
     EdictIndex& ix = edictIndex;
-    if(!vr_edictindex.value || qcvm != &sv.qcvm || !sv.qcvm.edicts || watch.fieldwatch.empty())
+    if(qcvm != &sv.qcvm || !sv.qcvm.edicts || watch.fieldwatch.empty())
     {
-        ix.valid = false; // (off: changes aren't followed; on again, it starts afresh)
+        ix.valid = false; // (changes aren't followed: it starts afresh)
         return nullptr;
     }
     watch.queries++;
@@ -325,51 +326,6 @@ void markPending(int e, unsigned char mask)
 [[nodiscard]] int edictOfOffset(int ofs)
 {
     return ofs / sv.qcvm.edict_size;
-}
-
-// find()'s walk (PF_Find), from start on: the next edict in use whose field's text is s.
-[[nodiscard]] int walkFind(int start, int field, const char* s)
-{
-    for(int e = start + 1; e < sv.qcvm.num_edicts; e++)
-    {
-        const edict_t* ed = edictAt(e);
-        if(ed->free)
-        {
-            continue;
-        }
-        const char* t = PR_GetString(fieldInt(ed, field));
-        if(t && !strcmp(t, s))
-        {
-            return e;
-        }
-    }
-    return 0;
-}
-
-// findflags()'s walk (PF_findflags).
-[[nodiscard]] int walkFindFlags(int start, int field, int flags)
-{
-    for(int e = start + 1; e < sv.qcvm.num_edicts; e++)
-    {
-        const edict_t* ed = edictAt(e);
-        if(!ed->free && (static_cast<int>(fieldFloat(ed, field)) & flags))
-        {
-            return e;
-        }
-    }
-    return 0;
-}
-
-void checkResult(const char* what, int start, int found, int walked)
-{
-    if(found != walked)
-    {
-        watch.mismatches++;
-        if(watch.mismatches <= 20)
-        {
-            Con_Printf("vr_edictindex ERROR: %s from %d: index %d, walk %d\n", what, start, found, walked);
-        }
-    }
 }
 
 } // namespace
@@ -519,13 +475,6 @@ extern "C" int VR_EdictIndex_Find(int start, int field, const char* s)
         found = b < end ? b : 0;
         break;
     }
-    if(vr_edictindex_verify.value)
-    {
-        watch.walks++;
-        const int walked = walkFind(start, field, s);
-        checkResult(va("find \"%s\"", s), start, found, walked);
-        return walked;
-    }
     return found;
 }
 
@@ -552,15 +501,7 @@ extern "C" int VR_EdictIndex_FindFlags(int start, int field, int flags)
         const int bit = __builtin_ctz(static_cast<unsigned>(bits));
         best = nextBit(ix->floatBits.data() + (static_cast<za::SizeT>(i) * numBits + bit) * ix->words, start + 1, best);
     }
-    const int found = best < end ? best : 0;
-    if(vr_edictindex_verify.value)
-    {
-        watch.walks++;
-        const int walked = walkFindFlags(start, field, flags);
-        checkResult(va("findflags %d %d", field, flags), start, found, walked);
-        return walked;
-    }
-    return found;
+    return best < end ? best : 0;
 }
 
 namespace qvr::edictindex
@@ -572,10 +513,9 @@ namespace
 // vr_edictindex_stats: the index's counts since the last (and resets them).
 void stats_f()
 {
-    Con_Printf("vr_edictindex: %s, %lld queries, %lld rebuilds, %lld edicts read again, %lld verified, %lld mismatches\n",
-        vr_edictindex.value ? "on" : "off", static_cast<long long>(watch.queries), static_cast<long long>(watch.rebuilds),
-        static_cast<long long>(watch.touches), static_cast<long long>(watch.walks), static_cast<long long>(watch.mismatches));
-    watch.queries = watch.rebuilds = watch.touches = watch.walks = watch.mismatches = 0;
+    Con_Printf("vr_edictindex: %lld queries, %lld rebuilds, %lld edicts read again\n",
+        static_cast<long long>(watch.queries), static_cast<long long>(watch.rebuilds), static_cast<long long>(watch.touches));
+    watch.queries = watch.rebuilds = watch.touches = 0;
 }
 
 } // namespace

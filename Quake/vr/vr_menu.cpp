@@ -4932,25 +4932,13 @@ za::Vector<Item> pageDebugProfiling()
             .help("profile_qc 30: the 30 QuakeC functions and builtins that took the most time a frame since the last "
                   "report (Time QuakeC Functions on), in the console; then all are zeroed. Press it, do the thing, press "
                   "it again."),
-        toggle("Edict Index", vr_edictindex)
-            .help("vr_edictindex: find() by classname and findflags() on monsters, clients, items, lit torches and "
-                  "bodies step straight to the next match instead of walking every entity (the same results). Off: "
-                  "they walk, as Quake did."),
-        toggle("Verify Edict Index", vr_edictindex_verify)
-            .help("vr_edictindex_verify: every indexed search walks as well and any difference is counted and printed "
-                  "(the walk's answer is used). Edict Index Stats prints the counts."),
         command("Edict Index Stats", "vr_edictindex_stats")
-            .help("vr_edictindex_stats: the index's searches, rebuilds, edicts read again, searches verified and "
-                  "differences since the last time."),
-        toggle("Force Grab Search by Grid", vr_forcegrab_grid)
-            .help("vr_forcegrab_grid: the force grab's target search (each hand, every frame) tests only the entities "
-                  "linked near the hand and its images through teleporters (the same results). Off: it walks every entity."),
-        toggle("Verify Force Grab Search", vr_forcegrab_grid_verify)
-            .help("vr_forcegrab_grid_verify: every search walks as well; a difference is counted and printed, and the "
-                  "walk's answer used. Force Grab Search Stats prints the counts."),
+            .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
+                  "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
+                  "read again since the last time."),
         command("Force Grab Search Stats", "vr_forcegrab_grid_stats")
-            .help("vr_forcegrab_grid_stats: the searches, the entities each tested, searches verified and differences "
-                  "since the last time."),
+            .help("vr_forcegrab_grid_stats: the force grab's target search (each hand, every frame, through the area "
+                  "grid): the searches and the entities each tested since the last time."),
         command("Game State Hash", "vr_bench_statehash")
             .help("vr_bench_statehash: one hash of every entity's QuakeC fields (and which are in use), printed with the "
                   "server's time: the same script on two builds gives the same hash when a change left the game the same."),
@@ -5260,7 +5248,6 @@ za::Vector<Item> pageDebugReports()
         command("Relighting: Status", "vr_relight_status").help("vr_relight_status: the relighting's state (a batch's maps done, each light running: its stage and process id; the progress and time left), how the map in play is lit, the light.exe found."),
         command("Relighting: Tool Lookup", "vr_relight_get_tool status").help("vr_relight_get_tool status: the light.exe found (or not), the folder Download ericw-tools writes, the pinned file (version, size, sha256), its URL and the last download's result. vr_relight_tool_dir points both lookup and download at a test folder; vr_relight_tool_url at a test server."),
         command("Relighting: Batch's Maps", "vr_relight_batch -list").help("vr_relight_batch -list: the maps Graphics > Relighting's Relight These Maps would take (Maps, Episode, Game), with their files and sizes, without relighting them."),
-        command("Console Completion Timing", "vr_console_complete_bench vr_s").help("vr_console_complete_bench <text> [runs]: the console's completion hint timed as each of the text's beginnings is typed (v, vr, vr_, vr_s), the way it is done now and the old way (each match sorted in as found: about half a second a key for v), and whether both give the same hint and the same list Tab shows."),
         command("Menu Rows", "menu_vr rows").help("menu_vr rows: this page's rows as drawn (MROW: row, top, label), the scroll, the section gap, and whether the laser and mouse find each row where it is drawn."),
         toggle("Menu Links: Print, Do Not Open", vr_menu_link_dryrun)
             .help("vr_menu_link_dryrun: the version box's Support on Ko-fi link (bottom right of the menus) prints its address "

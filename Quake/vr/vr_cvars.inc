@@ -3049,18 +3049,6 @@ QVR_CVAR(vr_finger_base_z, "0.0", CVAR_ARCHIVE)
 
 // Exact uncached-reference checks for prop optimization regression runs; never archived.
 QVR_CVAR(vr_prop_query_verify, "0", CVAR_NONE)
-// The force grab's target search (findportalcone, every frame for each hand): 1 the edicts linked near the hand (and
-// near its images through teleporters) from the area grid, 0 a walk of every edict, as before. _verify 1: the walk as
-// well, its chain compared (the same edicts in the same order), differences counted and the first few printed
-// (vr_forcegrab_grid_stats). PERF_DECISIONS.md 11.
-QVR_CVAR(vr_forcegrab_grid, "1", CVAR_NONE)
-QVR_CVAR(vr_forcegrab_grid_verify, "0", CVAR_NONE)
-
-// The edict index (vr_edictindex.cpp): find() on .classname and findflags() on .flags (QuakeC's bits) and a few QuakeC
-// fields step to the next match instead of walking every edict. 0: they walk, as Quake did. _verify 1: they walk as
-// well and count any difference (vr_edictindex_stats). Never archived.
-QVR_CVAR(vr_edictindex, "1", CVAR_NONE)
-QVR_CVAR(vr_edictindex_verify, "0", CVAR_NONE)
 
 // The external map index (Quake/vr/vr_mapindex.cpp): Quaddicted's package index, fetched at start-up on a thread of
 // its own and cached in the game dir (quakevr/cache/maps_index.txt). No UI page yet: maps_list / maps_info /

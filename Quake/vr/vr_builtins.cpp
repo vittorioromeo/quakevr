@@ -276,16 +276,16 @@ void PF_findcone()
 struct PullSearchScratch
 {
     za::Vector<glm::vec3> origins;
-    za::Vector<edict_t*> found; // the area grid's edicts near the origins (vr_forcegrab_grid)
+    za::Vector<edict_t*> found; // the area grid's edicts near the origins
     auto members() { return mem::list(origins, found); }
 };
 mem::Scratch<PullSearchScratch> pullSearch{"force-grab search"};
 
-// vr_forcegrab_grid's counts (vr_forcegrab_grid_stats): searches, edicts tested, and with _verify the walks compared
-// and the differences.
+// The force grab search's counts (vr_forcegrab_grid_stats): searches and edicts tested (by the grid; by the walk for a
+// range the grid can't take).
 struct ForcegrabGridStats
 {
-    long long searches = 0, tested = 0, walked = 0, compared = 0, differences = 0;
+    long long searches = 0, tested = 0, walked = 0;
 };
 ForcegrabGridStats forcegrabGridStats;
 
@@ -323,7 +323,7 @@ constexpr float forcegrabGridSlack = 128.f;
     return !(distance < 0.999f || distance > range || glm::dot(to, aim) < minCos * distance);
 }
 
-// vr_forcegrab_grid: the edicts the area grid links near the search's origins (every edict that can pass is linked:
+// The edicts the area grid links near the search's origins (every edict that can pass is linked:
 // only SOLID_NOT isn't, as VR_TouchLinks takes it), each once, in edict order (the walk's order, so the same chain).
 // A box round each origin: the range, nearPullSearch's margin and forcegrabGridSlack.
 void gatherPortalConeCandidates(float range)
@@ -358,7 +358,9 @@ void PF_findportalcone()
     portals::pullSearchOrigins(from, pullSearch.origins, range);
     edict_t* chain = qcvm->edicts;
     // (A range that isn't a number or is below 0: nearPullSearch lets everything through; the walk, as before.)
-    const bool grid = vr_forcegrab_grid.value != 0.f && range >= 0.f && range < 1e6f;
+    // The grid's chain was checked against the walk's (vr_forcegrab_grid_verify, removed 2026-10-09): 0 differences
+    // in 14,186 searches (PERF_DECISIONS.md 11); vr_prop_query_verify still compares it with the full scan.
+    const bool grid = range >= 0.f && range < 1e6f;
     forcegrabGridStats.searches++;
     if(grid)
     {
@@ -380,43 +382,6 @@ void PF_findportalcone()
             if(!inPortalCone(ent, from, range, aim, minCos)) { continue; }
             ent->v.chain = EDICT_TO_PROG(chain);
             chain = ent;
-        }
-    }
-    if(grid && vr_forcegrab_grid_verify.value)
-    {
-        // The walk as well: the same edicts, in the same order (its chain read back without writing .chain).
-        forcegrabGridStats.compared++;
-        edict_t* expected = qcvm->edicts;
-        edict_t* ent = NEXT_EDICT(qcvm->edicts);
-        bool same = true;
-        int first = 0;
-        for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
-        {
-            if(!inPortalCone(ent, from, range, aim, minCos)) { continue; }
-            if(same && ent->v.chain != EDICT_TO_PROG(expected)) { same = false; first = i; }
-            expected = ent;
-        }
-        if(same && chain != expected) { same = false; first = NUM_FOR_EDICT(expected); }
-        if(!same)
-        {
-            if(forcegrabGridStats.differences++ < 10)
-            {
-                edict_t* e = EDICT_NUM(first);
-                const glm::vec3 c = physics::modelCentre(e);
-                Con_Printf("vr_forcegrab_grid ERROR: the walk finds %d %s (%s) the grid doesn't: its middle %.0f %.0f %.0f, "
-                           "its box %.0f %.0f %.0f .. %.0f %.0f %.0f, linked %d\n",
-                    first, PR_GetString(e->v.classname), PR_GetString(e->v.model), c.x, c.y, c.z, e->v.absmin[0],
-                    e->v.absmin[1], e->v.absmin[2], e->v.absmax[0], e->v.absmax[1], e->v.absmax[2], e->area.prev ? 1 : 0);
-            }
-            // The walk's answer is the one used (QuakeC sees what it always did).
-            chain = qcvm->edicts;
-            ent = NEXT_EDICT(qcvm->edicts);
-            for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
-            {
-                if(!inPortalCone(ent, from, range, aim, minCos)) { continue; }
-                ent->v.chain = EDICT_TO_PROG(chain);
-                chain = ent;
-            }
         }
     }
     if(vr_prop_query_verify.value)
@@ -2400,11 +2365,9 @@ static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200
 void forcegrabGridStats_f()
 {
     ForcegrabGridStats& s = forcegrabGridStats;
-    Con_Printf("vr_forcegrab_grid: %s, %lld searches, %.1f edicts tested a search by the grid, %.1f by the walk, %lld "
-               "verified, %lld differences\n",
-        vr_forcegrab_grid.value ? "on" : "off", s.searches,
-        s.searches ? static_cast<double>(s.tested) / static_cast<double>(s.searches) : 0.0,
-        s.searches ? static_cast<double>(s.walked) / static_cast<double>(s.searches) : 0.0, s.compared, s.differences);
+    Con_Printf("vr_forcegrab_grid: %lld searches, %.1f edicts tested a search by the grid, %.1f by the walk\n",
+        s.searches, s.searches ? static_cast<double>(s.tested) / static_cast<double>(s.searches) : 0.0,
+        s.searches ? static_cast<double>(s.walked) / static_cast<double>(s.searches) : 0.0);
     s = ForcegrabGridStats{};
 }
 

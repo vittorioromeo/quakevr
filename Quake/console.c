@@ -1101,7 +1101,6 @@ void Con_Scroll (int lines)
 Con_Init
 ================
 */
-static void Con_CompleteBench_f (void); // QVR (below, with the tab completion)
 
 void Con_Init (void)
 {
@@ -1139,7 +1138,6 @@ void Con_Init (void)
 	Cvar_RegisterVariable (&con_maxcols);
 
 	Cmd_AddCommand ("vr_notify_info", Con_NotifyInfo_f); // QVR
-	Cmd_AddCommand ("vr_console_complete_bench", Con_CompleteBench_f); // QVR
 
 	Cmd_AddCommand ("toggleconsole", Con_ToggleConsole_f);
 	Cmd_AddCommand ("messagemode", Con_MessageMode_f);
@@ -1632,11 +1630,10 @@ typedef struct tab_s
 tab_t	*tablist;
 
 // QVR: the matches as found (Con_AddToTabList), sorted into tablist only when it is wanted (Con_FinishTabList: not for
-// the hint typing updates, key by key); con_tab_legacy (vr_console_complete_bench's) sorts each in as it comes, as before.
+// the hint typing updates, key by key).
 static tab_t	**con_tab_found;
 static tab_t	**con_tab_sortbuf;
 static qboolean	con_tab_listed;
-static qboolean	con_tab_legacy;
 
 //defs from elsewhere
 extern	cmd_function_t	*cmd_functions;
@@ -1664,10 +1661,10 @@ static qboolean	bash_singlematch;
 
 void Con_AddToTabList (const char *name, const char *partial, const char *type)
 {
-	tab_t	*t,*insert;
+	tab_t	*t;
 	char	*i_bash, *i_bash2;
 	const char *i_name, *i_name2;
-	int		namelen, typelen, mark;
+	int		namelen, typelen;
 
 	if (!Con_Match (name, partial))
 		return;
@@ -1706,7 +1703,6 @@ void Con_AddToTabList (const char *name, const char *partial, const char *type)
 		}
 	}
 
-	mark = Hunk_LowMark ();
 	namelen = (int) strlen (name) + 1;
 	typelen = type ? (int) strlen (type) + 1 : 0;
 	t = (tab_t *) Hunk_AllocName (sizeof (tab_t) + namelen + typelen, "tablist");
@@ -1719,48 +1715,7 @@ void Con_AddToTabList (const char *name, const char *partial, const char *type)
 	}
 	t->count = 1;
 
-	if (!con_tab_legacy) // QVR: kept in the order found, sorted only when the list is wanted (Con_FinishTabList)
-	{
-		VEC_PUSH (con_tab_found, t);
-		return;
-	}
-
-	if (!tablist) //create list
-	{
-		tablist = t;
-		t->next = t;
-		t->prev = t;
-	}
-	else if (q_strnaturalcmp (name, tablist->name) < 0) //insert at front
-	{
-		t->next = tablist;
-		t->prev = tablist->prev;
-		t->next->prev = t;
-		t->prev->next = t;
-		tablist = t;
-	}
-	else //insert later
-	{
-		insert = tablist;
-		do
-		{
-			int cmp = q_strnaturalcmp (name, insert->name);
-			if (!cmp && !strcmp (name, insert->name)) // avoid duplicates
-			{
-				Hunk_FreeToLowMark (mark);
-				insert->count++;
-				return;
-			}
-			if (cmp < 0)
-				break;
-			insert = insert->next;
-		} while (insert != tablist);
-
-		t->next = insert;
-		t->prev = insert->prev;
-		t->next->prev = t;
-		t->prev->next = t;
-	}
+	VEC_PUSH (con_tab_found, t); // QVR: kept in the order found, sorted only when the list is wanted (Con_FinishTabList)
 }
 
 /*
@@ -1768,8 +1723,8 @@ void Con_AddToTabList (const char *name, const char *partial, const char *type)
 Con_FinishTabList -- QVR
 
 The matches found (con_tab_found, in the order Con_AddToTabList was given them) as tablist: sorted by
-q_strnaturalcmp, those equal in it in the order found, a name found again counted on its first (its type kept), as the
-insertion above made it, match by match (each a walk along the list: thousands of matches, "v" in the console, took
+q_strnaturalcmp, those equal in it in the order found, a name found again counted on its first (its type kept), as Ironwail's
+insertion made it, match by match (each a walk along the list: thousands of matches, "v" in the console, took
 a quarter of a second a key). A merge sort: stable, n log n.
 ============
 */
@@ -1778,7 +1733,7 @@ static void Con_FinishTabList (void)
 	size_t	n, i, j, width, lo, mid, hi, a, b, k, first, kept;
 	tab_t	**src, **dst, **swap;
 
-	if (con_tab_legacy || con_tab_listed)
+	if (con_tab_listed)
 		return;
 	con_tab_listed = true;
 	tablist = NULL;
@@ -2186,7 +2141,7 @@ void Con_TabComplete (tabcomplete_t mode)
 		BuildTabList (key_tabpartial);
 
 		// QVR: the hint wants only the match when it is the only one (else bash_partial): no list sorted for it
-		if (mode == TABCOMPLETE_AUTOHINT && !con_tab_legacy)
+		if (mode == TABCOMPLETE_AUTOHINT)
 		{
 			if (!VEC_SIZE (con_tab_found))
 				return;
@@ -2268,105 +2223,6 @@ void Con_TabComplete (tabcomplete_t mode)
 
 		Con_TabComplete (TABCOMPLETE_AUTOHINT);
 	}
-}
-
-/*
-============
-Con_CompleteBench_f -- QVR
-
-vr_console_complete_bench <text> [runs]: each of the text's beginnings typed into the console's line in turn ("v",
-"vr", "vr_"...), the hint's work timed (Con_TabComplete's TABCOMPLETE_AUTOHINT: what each key typed does), the new
-way and the old (each match sorted into the list as found), and whether the two agree: the hint, and the whole list
-Tab shows (its names, types, counts and order, hashed). The line typed is put back after.
-============
-*/
-static unsigned Con_TabListHash (int *entries)
-{
-	unsigned	h = 2166136261u;
-	const tab_t	*t = tablist;
-	const char	*c;
-
-	*entries = 0;
-	if (!t)
-		return h;
-	do
-	{
-		for (c = t->name; *c; c++)
-			h = (h ^ (unsigned char) *c) * 16777619u;
-		h = (h ^ 0xffu) * 16777619u;
-		for (c = t->type ? t->type : ""; *c; c++)
-			h = (h ^ (unsigned char) *c) * 16777619u;
-		h = (h ^ (unsigned) t->count) * 16777619u;
-		++*entries;
-		t = t->next;
-	} while (t != tablist);
-	return h;
-}
-
-static void Con_CompleteBench_f (void)
-{
-	char		text[MAXCMDLINE - 2], saved_line[MAXCMDLINE], saved_hint[MAXCMDLINE], saved_partial[MAXCMDLINE];
-	char		hint[2][MAXCMDLINE], partial[MAXCMDLINE];
-	int			saved_pos, runs, len, n, mode, r, mark, word, entries[2];
-	unsigned	hash[2];
-	double		ms[2], listms[2], t0;
-
-	if (Cmd_Argc () < 2)
-	{
-		Con_Printf ("vr_console_complete_bench <text> [runs]: the console's completion hint timed as each of the text's "
-			"beginnings is typed, the new way and the old, and whether they agree\n");
-		return;
-	}
-	q_strlcpy (text, Cmd_Argv (1), sizeof (text)); // (the completion tokenizes the line: the arguments go)
-	runs = Cmd_Argc () > 2 ? q_max (1, atoi (Cmd_Argv (2))) : 20;
-	len = (int) strlen (text);
-
-	memcpy (saved_line, key_lines[edit_line], MAXCMDLINE);
-	q_strlcpy (saved_hint, key_tabhint, sizeof (saved_hint));
-	q_strlcpy (saved_partial, key_tabpartial, sizeof (saved_partial));
-	saved_pos = key_linepos;
-
-	for (n = 1; n <= len; n++)
-	{
-		// the word completed: after the last space, quote or semicolon (as Con_TabComplete finds it)
-		for (word = n; word > 0 && text[word - 1] != ' ' && text[word - 1] != '\"' && text[word - 1] != ';'; word--)
-			;
-		memcpy (partial, text + word, n - word);
-		partial[n - word] = '\0';
-		for (mode = 0; mode < 2; mode++)
-		{
-			con_tab_legacy = mode == 1;
-			key_lines[edit_line][0] = ']';
-			memcpy (key_lines[edit_line] + 1, text, n);
-			key_lines[edit_line][n + 1] = '\0';
-			key_linepos = n + 1;
-			t0 = Sys_DoubleTime ();
-			for (r = 0; r < runs; r++)
-				Con_TabComplete (TABCOMPLETE_AUTOHINT);
-			ms[mode] = (Sys_DoubleTime () - t0) * 1000.0 / runs;
-			q_strlcpy (hint[mode], key_tabhint, sizeof (hint[mode]));
-
-			mark = Hunk_LowMark ();
-			t0 = Sys_DoubleTime ();
-			BuildTabList (partial);
-			Con_FinishTabList ();
-			listms[mode] = (Sys_DoubleTime () - t0) * 1000.0;
-			hash[mode] = Con_TabListHash (&entries[mode]);
-			tablist = NULL;
-			Hunk_FreeToLowMark (mark);
-		}
-		con_tab_legacy = false;
-		Con_Printf ("complete bench: \"%s\" (%d runs) %d matches: %.3f ms a key (the old way %.3f), hint \"%s\" %s, "
-			"list %08x %s (Tab's: %.3f ms, the old way %.3f)\n", key_lines[edit_line] + 1, runs, entries[0], ms[0], ms[1],
-			hint[0], strcmp (hint[0], hint[1]) ? "DIFFERS" : "same",
-			hash[0], hash[0] != hash[1] || entries[0] != entries[1] ? "DIFFERS" : "same", listms[0], listms[1]);
-	}
-
-	memcpy (key_lines[edit_line], saved_line, MAXCMDLINE);
-	q_strlcpy (key_tabhint, saved_hint, sizeof (key_tabhint));
-	q_strlcpy (key_tabpartial, saved_partial, sizeof (key_tabpartial));
-	key_linepos = saved_pos;
-	VEC_CLEAR (con_tab_found);
 }
 
 /*
