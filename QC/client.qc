@@ -183,7 +183,6 @@ void() OnSpawnServerAfterLoad =
 void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
-    WeaponInst_EnsureAll(); // (a save from before the weapons' records: their weapons get theirs, empty)
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
 }
 

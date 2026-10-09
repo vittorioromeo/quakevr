@@ -31,8 +31,6 @@
 
 .float vr_saw_loop;       // the main hand's chainsaw's sound playing (VR_SAW_LOOP_*)
 .float vr_saw_loop2;      // the off hand's
-.float vr_saw_loop_next;  // (unused since the sounds loop by themselves: kept for the saves' fields)
-.float vr_saw_loop_next2;
 // A loaded game's (or a new map's) sounds are gone, whatever the players' vr_saw_loop say: not saved, these play the loops
 // again a moment in (VR_Saw_SoundsLive).
 nosave float vr_saw_sounds_live;
@@ -93,17 +91,15 @@ void() VR_Chainsaw_Precache =
 
 float(float xHand) VR_Saw_Loop = { return xHand == cVR_OffHand ? self.vr_saw_loop2 : self.vr_saw_loop; };
 
-void(float xHand, float xLoop, float xNext) VR_Saw_SetLoop =
+void(float xHand, float xLoop) VR_Saw_SetLoop =
 {
     if(xHand == cVR_OffHand)
     {
         self.vr_saw_loop2 = xLoop;
-        self.vr_saw_loop_next2 = xNext;
     }
     else
     {
         self.vr_saw_loop = xLoop;
-        self.vr_saw_loop_next = xNext;
     }
 };
 
@@ -138,7 +134,7 @@ void(float xHand) VR_Saw_Silence =
     if(VR_Saw_Loop(xHand) != VR_SAW_LOOP_NONE)
     {
         sound(self, VRGetGunChannel(xHand), "misc/null.wav", 1, ATTN_NORM);
-        VR_Saw_SetLoop(xHand, VR_SAW_LOOP_NONE, 0);
+        VR_Saw_SetLoop(xHand, VR_SAW_LOOP_NONE);
     }
 };
 
@@ -538,7 +534,7 @@ void(float xHand) VR_Chainsaw_Frame =
             if(xHand == cVR_OffHand) self.vr_saw_pulls2 = 0;
             else                     self.vr_saw_pulls = 0;
             sound(self, chan, "vr/saw_start.wav", 1, ATTN_NORM);
-            VR_Saw_SetLoop(xHand, VR_SAW_LOOP_START, 0);
+            VR_Saw_SetLoop(xHand, VR_SAW_LOOP_START);
             loop = VR_SAW_LOOP_START;
             VRGunHaptic(xHand, 0.3, 60, 0.8);
             VR_Saw_Debug(sprintf("chainsaw: %s hand's cord pulled: started, fuel %g\n", VR_Saw_HandName(xHand), fuel));
@@ -565,7 +561,7 @@ void(float xHand) VR_Chainsaw_Frame =
             running = FALSE;
             chain = FALSE;
             sound(self, chan, "vr/saw_stall.wav", 1, ATTN_NORM);
-            VR_Saw_SetLoop(xHand, VR_SAW_LOOP_NONE, 0);
+            VR_Saw_SetLoop(xHand, VR_SAW_LOOP_NONE);
             loop = VR_SAW_LOOP_NONE;
             VRGunHaptic(xHand, 0.2, 30, 0.5);
             // (the trigger held on: its first dry click after the stall's sound)
@@ -626,7 +622,7 @@ void(float xHand) VR_Chainsaw_Frame =
             {
                 sound(self, chan, "vr/saw_idle.wav", 1, ATTN_NORM);
             }
-            VR_Saw_SetLoop(xHand, want, 0);
+            VR_Saw_SetLoop(xHand, want);
         }
 
         // It shakes in the hand: harder with the chain running, hardest cutting.
@@ -712,7 +708,7 @@ void() VR_Chainsaw_StartAll =
         {
             VRSetWeaponFlags(hand, flags | QVR_WPNFLAG_SAW_RUNNING);
             sound(self, VRGetGunChannel(hand), "vr/saw_start.wav", 1, ATTN_NORM);
-            VR_Saw_SetLoop(hand, VR_SAW_LOOP_START, 0);
+            VR_Saw_SetLoop(hand, VR_SAW_LOOP_START);
         }
         bprint(sprintf("chainsaw: %s hand's started (test), fuel %g\n", VR_Saw_HandName(hand), VRGetWeaponClip(hand)));
     }

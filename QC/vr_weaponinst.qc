@@ -129,7 +129,7 @@ float(entity e, float xHand) VRGetEntWeaponClip =
     else                     return e.weaponinst.wi_clip;
 };
 
-// The hand's magazine set. A hand holding a weapon with no record yet (a save from before records) gets one.
+// The hand's magazine set. A hand holding a weapon with no record yet gets one.
 void(entity e, float xHand, float xClip) VRSetEntWeaponClip =
 {
     entity r = VRGetEntWeaponInst(e, xHand);
@@ -201,7 +201,7 @@ void(entity e, float xHolster, entity xInst) VRSetEntHolsterWeaponInst =
     bprint(sprintf("`VRSetEntHolsterWeaponInst`: invalid holster ID: %g\n", xHolster));
 };
 
-// A record for a weapon `xWid` that has none (a save from before records): magazine `xClip`.
+// A record for a weapon `xWid` that has none: magazine `xClip`.
 entity(entity xInst, float xWid, float xClip) WeaponInst_Ensure =
 {
     if(xInst || xWid == WID_FIST)
@@ -215,32 +215,6 @@ entity(entity xInst, float xWid, float xClip) WeaponInst_Ensure =
 entity(float xWid, float xClip, float xUid) WeaponInst_Carried =
 {
     return xWid == WID_FIST ? world : WeaponInst_Make(xClip, xUid);
-};
-
-// After a load: every weapon a player holds or keeps, and every weapon prop, has its record (a save from before
-// records: their magazines empty, reloaded as ever).
-void() WeaponInst_EnsureAll =
-{
-    entity e = nextent(world);
-    while(e)
-    {
-        if(e.classname == "player")
-        {
-            e.weaponinst = WeaponInst_Ensure(e.weaponinst, e.weapon, 0);
-            e.weaponinst2 = WeaponInst_Ensure(e.weaponinst2, e.weapon2, 0);
-            e.holsterweaponinst0 = WeaponInst_Ensure(e.holsterweaponinst0, e.holsterweapon0, 0);
-            e.holsterweaponinst1 = WeaponInst_Ensure(e.holsterweaponinst1, e.holsterweapon1, 0);
-            e.holsterweaponinst2 = WeaponInst_Ensure(e.holsterweaponinst2, e.holsterweapon2, 0);
-            e.holsterweaponinst3 = WeaponInst_Ensure(e.holsterweaponinst3, e.holsterweapon3, 0);
-            e.holsterweaponinst4 = WeaponInst_Ensure(e.holsterweaponinst4, e.holsterweapon4, 0);
-            e.holsterweaponinst5 = WeaponInst_Ensure(e.holsterweaponinst5, e.holsterweapon5, 0);
-        }
-        else if(e.classname == "thrown_weapon" && !e.weaponinst)
-        {
-            e.weaponinst = WeaponInst_New(0);
-        }
-        e = nextent(e);
-    }
 };
 
 // For debug lines: what a hand holds ("weapon 3 #12 clip 8": its id, its record's id, its magazine).

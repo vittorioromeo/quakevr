@@ -208,8 +208,8 @@ void() button_wpntouch =
     button_touch();
 };
 
-// The wall buttons a held weapon presses (a chain through .vr_button_next), listed once a map (0: a new map, or a save
-// from before them: listed again).
+// The wall buttons a held weapon presses (a chain through .vr_button_next), listed once a map (0: a new map: listed
+// again).
 .entity vr_button_next;
 entity vr_buttons;
 float vr_buttons_listed;
@@ -223,12 +223,6 @@ void() VR_Buttons_List =
     while(b != world)
     {
         if(b.classname != "func_button" && !(MG1_Campaign() && b.classname == "mge2m2_electrode_button")) { b = nextent(b); continue; }
-        if(b.vr_wpntouch == button_touch) // a save from before: its touches as func_button sets them now
-        {
-            b.touch = button_touch_any;
-            b.handtouch = button_handtouch;
-            b.vr_wpntouch = button_wpntouch;
-        }
         if(b.vr_wpntouch == button_wpntouch)
         {
             b.vr_button_next = vr_buttons;
