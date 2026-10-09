@@ -1854,7 +1854,7 @@ void retroAllUncheckCategories()
         header("Grenade Pouch"),
         toggle("Show Grenade Pouch", "vr_show_grenade_pouch").help("A marker at the pouch the size of its reach, green while a hand is there. Hand grenades, and these sliders too, are on Batting and Catching."),
         slider("Pouch X", "vr_grenade_pouch_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("Forward (negative: back), units. With the body drawn, the default (-7) is on the belt at the small of your back; forward, it goes round your hips."),
+            .help("Forward (negative: back), units. With the body drawn, the default (-7) is on the belt on your lower back; forward, it goes round your hips."),
         slider("Pouch Y", "vr_grenade_pouch_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f).help("To your right (negative: left), units."),
         slider("Pouch Z", "vr_grenade_pouch_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f).help("Up (negative: down), units: 0 is the hip holsters' height."),
         slider("Pouch Threshold", "vr_grenade_pouch_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f).help("How near the pouch a hand must be to take a grenade from it (or put one back)."),

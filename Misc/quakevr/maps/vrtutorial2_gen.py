@@ -1369,10 +1369,10 @@ def build_room10():
     for x in (3232, 3296):
         item("item_rockets", x, -296, LOW + 36)
     restock("item_rockets", 3264, -296, LOW + 36, distance=96, wait=8)
-    banner(N.join(["GRENADES", "With rockets in your pack, reach behind you:", "the pouch at the small of your back gives a grenade.",
+    banner(N.join(["GRENADES", "With rockets in your pack, reach behind you:", "the pouch on your lower back gives a grenade.",
                    "Trigger pulls the pin; throw it. Or drop it", "where they will come: a trap. No launcher needed."]),
            3264, r["y0"] + 4, LOW + 120, 90, "0.26")
-    tip("t2_grenade", "Take the rockets (hold the box to a holster)." + N + "Then reach to the small of your back" + N + "for a grenade.",
+    tip("t2_grenade", "Take the rockets (hold the box to a holster)." + N + "Then reach for the pouch on your lower" + N + "back: a grenade.",
         3264, -296, LOW + 64, 180)
     d = doorway("room10_exit", r["x0"] - 16, -256, r["x0"], -128, LOW, out)
     sliding_door(d, "r10_open")

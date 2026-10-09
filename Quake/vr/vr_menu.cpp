@@ -1621,7 +1621,7 @@ int campaignsBloodyShown = -1;
                   "speed alone."),
         header("Hand Grenades"),
         toggle("Hand Grenades", vr_handgrenade)
-            .help("Reach behind the small of your back with an empty hand and grip: a grenade from your pouch, while you have "
+            .help("Reach for the pouch on your lower back with an empty hand and grip: a grenade from it, while you have "
                   "rockets (the grenade launcher's ammo; one leaves your ammo with each grenade). Throw it as anything you "
                   "carry: it goes off as the launcher's grenade. Where the pouch is: below."),
         cycle("Arm Hand Grenades", vr_handgrenade_arm, {{0.f, "Trigger pulls the pin"}, {1.f, "When let go of"}})
