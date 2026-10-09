@@ -95,7 +95,7 @@ float VR_BASH_REACH = 0.75;       // m ahead of the stance a bash reaches
 float VR_BASH_PAIR = 0.6;         // the second hand pushes at this share of vr_bash_speed
 float VR_BASH_PAIR_NEAR = 0.2;    // m: an open palm this near a one-handed weapon's line pushes it with the weapon's hand
 float VR_BASH_ONE_DAMAGE = 0.6;   // one hand: this share of the damage,
-float VR_BASH_ONE_PUSH = 0.7;     // and of the knockback
+float VR_BASH_ONE_PUSH = 0.7;     // and of a batted projectile's speed (the knockback: vr_shove_push_onehand)
 float VR_BASH_PALM = 0.6;         // cosine: an open palm facing ahead (within 53 degrees)
 float VR_BASH_PALM_ALONG = 0.7;   // cosine: moving the way it faces (within 45 degrees)
 float VR_BASH_PALM_RADIAL = 0.82; // cosine: a shove extends the arm: the palm moving out from its shoulder (his shoves:
@@ -2537,6 +2537,12 @@ float(float xHand, entity b, vector xForward) VR_Bash_Find =
     return hits;
 };
 
+// A shove's or a bash's push by its hands (vr_shove_push_onehand, _twohand; times vr_bash_push in VR_Bash_Hit).
+float(float xBoth) VR_Shove_HandsPush =
+{
+    return max(0, cvar_hget(xBoth ? cvarh_vr_shove_push_twohand : cvarh_vr_shove_push_onehand));
+};
+
 // Knocks `e` back along `xForward`: `xScale` of vr_bash_damage and `xPush` of vr_bash_push, and a stagger (its pain,
 // forced).
 void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xScale, float xPush) VR_Bash_Hit =
@@ -2968,7 +2974,7 @@ void() VR_Bash =
         counter = VR_Counter_Use(armed ? "bash" : "shove", vr_bash_victims);
     }
     float scale = both ? 1 : VR_BASH_ONE_DAMAGE;
-    float push = both ? 1 : VR_BASH_ONE_PUSH;
+    float push = VR_Shove_HandsPush(both);
     if(counter)
     {
         scale = scale * counter;

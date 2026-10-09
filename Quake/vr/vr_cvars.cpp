@@ -629,6 +629,8 @@ const DefaultChange defaultChanges[] = {
     // 112: shoves (his notes vrfiringrange_2026-10-09_15-11-36, 15-47-01, 15-48-52, vrstart 15-16-00; ROUND21.md, "A
     // shove's knockdown: travel and a quarter turn"): a shove over a ledge turns less as it falls.
     {112, &vr_knockdown_shove_ledge_topple, "150"}, // 100
+    // ... a shove (or a bash) goes 20% less far (its hands: vr_shove_push_onehand, _twohand, new).
+    {112, &vr_bash_push, "1"},                       // 0.9 (the distance goes as its square: 0.81)
 };
 constexpr int configVersion = 112;
 

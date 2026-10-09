@@ -385,7 +385,7 @@ float(entity e) VR_Knockdown_Ledge =
 };
 
 // A shove (or a bash) by self (a player) that landed on `e` (VR_Bash_Hit): by chance it knocks it down. xKind: the hit's
-// (QVR_HITKIND_SHOVE or _BASH); xHand -1: both hands; xPush: its push (two hands 1, one VR_BASH_ONE_PUSH, a counter more,
+// (QVR_HITKIND_SHOVE or _BASH); xHand -1: both hands; xPush: its push (VR_Shove_HandsPush: two hands 1, one 0.7, a counter more,
 // tired less): down, its ragdoll is carried on along xForward and topples over its feet (ragdollshovetopple:
 // vr_knockdown_shove_*).
 float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try =
@@ -566,7 +566,7 @@ void(float xMode) VR_Knockdown_Test =
         float two = xMode == 22;
         dprint(sprintf("knockdown test: %s shove of %s\n", two ? "two-handed" : "one-handed", best.classname));
         VR_Bash_Hit(best, best.origin, normalize(away), QVR_HITKIND_SHOVE, two ? -1 : cVR_MainHand,
-            two ? 1 : VR_BASH_ONE_DAMAGE, two ? 1 : VR_BASH_ONE_PUSH);
+            two ? 1 : VR_BASH_ONE_DAMAGE, VR_Shove_HandsPush(two));
         return;
     }
     if(xMode == 0)

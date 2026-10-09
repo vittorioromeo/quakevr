@@ -33479,3 +33479,19 @@ His note (same session): the ledge shove is mostly fine but flies off too far; a
 
   A one-handed shove barely made it over before (its launch half spent on the floor), so it goes about as far; it now
   lies flat before the edge and is slid off it (kept at 0.7 of its launch, 180 u/s). Both land on their back or front.
+
+## Shove distance: a base and each hand's (2026-10-09)
+
+His ask (same notes): how far his shoves push enemies back, knocked down or not, adjustable as a base and a one- and a
+two-hand multiplier, and 20% less far by default.
+
+- The base is **Shove and Bash Push** (`vr_bash_push`, was Bash Push; Combat > Parry, Bash and Shove), 1 -> 0.9: the
+  push (520 u/s and a 140 hop, times Knockback, divided by the monster's size) sets both the hop and the slide, so the
+  distance goes as its square (0.81). Config 112 moves a config still at 1.
+- New **One-Hand Push** (`vr_shove_push_onehand`, 0.7, was the constant `VR_BASH_ONE_PUSH` for the knockback; it still
+  scales a one-handed bat of a projectile) and **Two-Hand Push** (`vr_shove_push_twohand`, 1). QC `VR_Shove_HandsPush`.
+  A counter's push and a tired shove's cut multiply on top as before. A knocked-down body goes Knockdowns' Travel of
+  the same shove's distance, so it follows.
+- **Numbers** (vrtesthall, `vr_knockdown_chance 0; vr_knockdown_test 21/22`, `shove slide: ... went N units standing`):
+  grunt 104 -> 84 (one hand), 219 -> 167 (two hands); knight 106 -> 86, 224 -> 180; enforcer 90 -> 73, 193 -> 154
+  (19-24% less).

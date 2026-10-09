@@ -1462,7 +1462,14 @@ int campaignsBloodyShown = -1;
         slider("Bash Speed", vr_bash_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend().help("How fast the stance (a weapon level across, held half a second) must be pushed forward, both its ends going ahead. A swing passing through the stance doesn't bash."),
         slider("Shove Speed", vr_shove_speed, 0.8f, 5.f, 0.1f, "%.1f m/s").extend().help("How fast open palms (facing ahead, not holding anything) must be pushed out, the arm extending, to shove. Hands waved or patted at a monster don't shove."),
         slider("Bash Damage", vr_bash_damage, 0.f, 40.f, 1.f, "%.0f").extend(),
-        slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far a bash or shove throws what it hits (times Knockback)."),
+        slider("Shove and Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").extend()
+            .help("How far a shove or a bash throws what it hits (times Knockback), then times the hands' push below. "
+                  "Knocked down by it, it goes Knockdowns' Travel of that."),
+        slider("One-Hand Push", vr_shove_push_onehand, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("A one-handed shove's or bash's push, times Shove and Bash Push."),
+        slider("Two-Hand Push", vr_shove_push_twohand, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("A two-handed shove's or bash's push (both palms, or a weapon held in two hands), times Shove and "
+                  "Bash Push."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
         header("Counter-Attacks"),
