@@ -276,10 +276,11 @@ float(entity e, entity player, float hand) ragdollgrab = #0;
 // mins..maxs looked for within range: 0 none (it stays down), else 1 or 2 (the frame chosen), e moved there and turned.
 float(entity e) canragdoll = #0;
 float(entity e) ragdollknockdown = #0;
-// e, just knocked down by a shove along dir, turned over about its feet that way (vr_knockdown_shove_topple times
-// strength: the shove's push, two hands 1); ledge: shoved over a ledge, pushed whole so it goes over, turned as it falls
-// (vr_knockdown_shove_ledge_topple): 0 not toppled.
-float(entity e, vector dir, float strength, float ledge) ragdollshovetopple = #0;
+// e, just knocked down by a shove along dir, carried on and turned over about its feet that way (vr_knockdown_shove_*:
+// reach, the units the shove carries a standing one, times vr_knockdown_shove_travel); ledge: shoved over a ledge,
+// pushed whole so it goes over (reach: the units to past its edge), turned as it falls (vr_knockdown_shove_ledge_topple
+// times strength: the shove's push, two hands 1): 0 no ragdoll.
+float(entity e, vector dir, float strength, float ledge, float reach) ragdollshovetopple = #0;
 float(entity e, float frameA, float frameB, vector mins, vector maxs, float range) ragdollgetup = #0;
 float(entity e, entity player, float hand, float flight) ragdollpull = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;

@@ -1021,25 +1021,29 @@ int campaignsBloodyShown = -1;
         slider("Hit Keeps It Down", vr_knockdown_hit_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
             .help("Each hit while it lies there keeps it down this much longer (never past Time Down, Most from the hit)."),
         slider("Launch", vr_knockdown_push, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("How hard the shove throws the body, times the shove's own push. 0: it drops where it stood."),
-        slider("Topple", vr_knockdown_shove_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
-            .help("A shoved-down enemy loses its footing as a thrown one does (Holding Enemies' Topple): turned over about "
-                  "its feet along the shove this fast, head and chest first, the shove's push going to its top. A "
-                  "one-handed shove turns it 0.7 as fast. Shoved over a ledge: Topple Over a Ledge. Off: "
-                  "pushed whole, as before."),
-        slider("Topple Push", vr_knockdown_shove_topple_push, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much of the shove's push the toppling body keeps, its head and chest the most, its feet none. "
-                  "More: it goes over faster and lands further (1: as hard as a judo throw's); less: it tips over more "
-                  "gently."),
-        slider("Topple Feet Speed", vr_knockdown_shove_feet_speed, 0.f, 300.f, 10.f, "%.0f units/s").extend(0.f, 1000.f)
-            .help("Its feet swept back against the shove as it topples, as a thrown enemy's (Feet Speed there). 0: they "
-                  "stay where they stood for Topple Feet Held."),
-        slider("Topple Feet Held", vr_knockdown_shove_feet_hold, 0.f, 1.f, 0.05f, "%.2f s")
-            .help("How long its feet stay where they stood as it topples (Topple Feet Speed 0); then they go as they "
-                  "would."),
+            .help("How hard the shove throws the body, times the shove's own push: the fastest its travel starts (Travel "
+                  "sets how far). 0: it drops where it stood."),
+        slider("Travel", vr_knockdown_shove_travel, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("How far a shoved-down enemy goes, times how far the same shove pushes one that stays standing (where "
+                  "its hips lie once it is down; one- or two-handed alike). 0: it falls where it stood."),
+        slider("Topple Angle", vr_knockdown_shove_topple_angle, 0.f, 150.f, 5.f, "%.0f deg").extend(0.f, 180.f)
+            .help("How far it turns over about its feet along the shove, head and chest first: 90 from standing to flat "
+                  "on its back or front. 0: no turn, it falls as it will."),
+        slider("Topple Time", vr_knockdown_shove_topple_time, 0.2f, 1.5f, 0.05f, "%.2f s").extend(0.05f, 3.f)
+            .help("How long it takes to turn that far: slow to start, fastest past halfway, landing. Less: knocked flat "
+                  "hard; more: it keels over."),
+        slider("Feet Lag", vr_knockdown_shove_feet_lag, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How far its feet lag behind as it goes over (its head and chest as far ahead), a share of the "
+                  "travel's speed. 0: the whole body goes alike."),
+        slider("Max Spin", vr_knockdown_shove_max_spin, 60.f, 720.f, 10.f, "%.0f deg/s").extend(10.f, 2000.f)
+            .help("The fastest it ever turns while the shove carries it (over a ledge too, as it tips over the edge and "
+                  "falls): no cartwheels, however hard the shove."),
         slider("Topple Over a Ledge", vr_knockdown_shove_ledge_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
             .help("Shoved over a ledge, it is pushed whole so it goes over the edge, and turns over its feet as it falls "
-                  "this fast (a one-handed shove 0.7 as fast). Off: it goes over upright, as before."),
+                  "this fast (a one-handed shove less fast) until it has turned Topple Angle. Off: it goes over upright."),
+        slider("Ledge Push", vr_knockdown_shove_ledge_push, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("How hard a shove over a ledge throws it off, times the shove's own push (it is always kept going "
+                  "until it is past the edge). Less: it drops closer to the ledge's foot."),
         toggle("Weapon Stays in Hand", vr_knockdown_weld)
             .help("Its weapon stays in its hand while it is down (killed there, it drops it as usual). Off: it flops "
                   "loose as a dead one's."),
@@ -5999,10 +6003,17 @@ za::Vector<Item> pageDebugTests()
                   "its chance (A Grunt Ahead first: Debug > Tests)."),
         command("Shove the Nearest Down, One Hand", "vr_knockdown_chance 100; vr_knockdown_test 21")
             .help("Sets Knockdowns' Chance to 100 (every shove; set it back after), then vr_knockdown_test 21: the nearest "
-                  "monster shoved as your one-handed open-palm shove does, knocked down and toppled over its feet "
-                  "(Knockdowns' Topple). Print Rolls on: its fall printed every 0.1 s (\"shove trace\")."),
+                  "monster shoved as your one-handed open-palm shove does, knocked down, carried on and toppled over its "
+                  "feet (Knockdowns' Travel, Topple Angle and Time, Feet Lag, Max Spin). Print Rolls on: its fall "
+                  "printed every 0.1 s (\"shove trace\": its lean, its whole turn, how far its feet and pelvis went)."),
         command("Shove the Nearest Down, Two Hands", "vr_knockdown_chance 100; vr_knockdown_test 22")
-            .help("The same with a two-handed shove (vr_knockdown_test 22): it topples faster."),
+            .help("The same with a two-handed shove (vr_knockdown_test 22): it goes further."),
+        command("Shove the Nearest, Standing, One Hand", "vr_knockdown_chance 0; vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
+            .help("Knockdowns' Chance 0 (set it back after) and Print Rolls on, then vr_knockdown_test 21: the nearest "
+                  "monster shoved with one hand and staying up; the console prints how far it went (\"shove slide\"), "
+                  "what Knockdowns' Travel is a share of."),
+        command("Shove the Nearest, Standing, Two Hands", "vr_knockdown_chance 0; vr_knockdown_debug 1; developer 1; vr_knockdown_test 22")
+            .help("The same with a two-handed shove (vr_knockdown_test 22)."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),

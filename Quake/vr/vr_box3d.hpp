@@ -150,15 +150,38 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
 // `dir` (its top's speed), `spin` rad/s about the vertical through its middle. Its feet (its lowest parts) are swept
 // back against `dir` at `feet` units/s, the turn about a pivot raised to match (the top as fast as before, the whole
 // turning faster: it spins in place); `feet` 0: held on the floor (level motion none) for `hold` s (swept: at most that
-// long, until it has turned a quarter). Shared by the throw (vr_foegrab_throw_topple) and a shove's knockdown
-// (vr_knockdown_shove_topple: foegrab::shoveTopple). False: no ragdoll.
+// long, until it has turned a quarter). The throw's (vr_foegrab_throw_topple), and a shove's over a ledge (ragdollShove).
+// False: no ragdoll.
 // `launch`: the share of that launch its top keeps (its parts by height: the feet none), 1 the throw's; less, it topples
-// over slower from the launch (a shove's, vr_knockdown_shove_topple_push). (`hold` 0.5 s: the throw's, the author's Feet
-// Held before the sweep replaced it.) `whole`: every part keeps all its launch and none is held (`feet`, `hold` and
-// `launch` unused), the turn about the floor under its feet added: it goes on over a ledge, turning over as it falls
-// (a shove's over a ledge, vr_knockdown_shove_ledge_topple).
+// over slower from the launch. (`hold` 0.5 s: the throw's, the author's Feet Held before the sweep replaced it.)
+// `whole`: every part keeps its launch, its level part times `launch`, and none is held (`feet` and `hold` unused), the
+// turn about the floor under its feet added: it goes on over a ledge, turning over as it falls (a shove's over a ledge:
+// ragdollShove).
 bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float feet, float hold = 0.5f,
     float launch = 1.f, bool whole = false);
+// A shove's knockdown (vr_knockdown_shove_*; ROUND21.md, "A shove's knockdown: travel and a quarter turn"): `ent`'s
+// ragdoll (just made by ragdollKnockdown) driven for the shove's length (box3d's driveShove), its travel apart from its
+// turn: its middle carried `travel` units along level `dir` (the turn about its feet's own share of that included),
+// slowing evenly from at most the launch's speed; turned `angle` rad about its feet towards `dir` over `time` s (a
+// gravity-like curve, landing flat at a quarter), never faster than `maxSpin` rad/s, its feet `lag` of the travel behind.
+// `ledge`: shoved over one: pushed whole (its level launch times `keep`, at least `minSpeed` u/s) and turned `topple`
+// rad/s about the floor under its feet (ragdollTopple's whole), kept going so until it has gone `reach` units (past the
+// edge) or dropped, its turn kept at `topple` until it leans `angle`, never faster than `maxSpin`, until it lands.
+// False: no ragdoll.
+struct RagdollShove
+{
+    float travel{0.f};
+    float angle{1.5707963f};
+    float time{0.6f};
+    float lag{0.3f};
+    float maxSpin{5.2f};
+    bool ledge{false};
+    float keep{1.f};
+    float minSpeed{80.f};
+    float reach{0.f};
+    float topple{0.f};
+};
+bool ragdollShove(edict_t* ent, const glm::vec3& dir, const RagdollShove& p);
 // Tests (the throw's trace): `num`'s ragdoll's pelvis, head (its rig's head, else its highest part) and feet (the middle of
 // the parts ragdollTopple held, else of those in its lowest quarter at the first call), units. False: no ragdoll.
 bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet);

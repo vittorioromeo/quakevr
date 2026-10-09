@@ -287,6 +287,24 @@ float(entity e) VR_Knockdown_Start =
 };
 
 float VR_KD_LEDGE_STEP = 8;    // units between the points along its way where the ground under it is looked for
+float vr_kd_ledge_past;        // VR_Knockdown_Ledge's last edge found: units along the shove to past it (its half width on)
+
+// How far the shove that just landed on `e` (its velocity VR_Push's: along the shove, and the hop) carries it standing:
+// the hop (2 x up / gravity in the air, at its speed), then the slide (speed^2 / 2 VR_SHOVE_FRICTION; none under
+// VR_SHOVE_MINSPEED, as VR_Push), units.
+float(entity e) VR_Shove_Reach =
+{
+    vector dir = e.velocity;
+    dir_z = 0;
+    float speed = vlen(dir);
+    float g = max(1, cvar_hget(cvarh_sv_gravity) * (e.gravity ? e.gravity : 1));
+    float travel = speed * 2 * max(0, e.velocity_z) / g;
+    if(speed >= VR_SHOVE_MINSPEED)
+    {
+        travel = travel + speed * speed / (2 * VR_SHOVE_FRICTION);
+    }
+    return travel;
+};
 
 // Ledges (vr_knockdown_ledge; Combat > Knockdowns, "Over a Ledge"): whether the shove that just landed on `e` (its
 // velocity VR_Push's: along the shove, and the hop) carries it over the edge of a drop of vr_knockdown_ledge_drop or more.
@@ -310,12 +328,7 @@ float(entity e) VR_Knockdown_Ledge =
         return FALSE;
     }
     dir = dir * (1 / speed);
-    float g = max(1, cvar_hget(cvarh_sv_gravity) * (e.gravity ? e.gravity : 1));
-    float travel = speed * 2 * max(0, e.velocity_z) / g;
-    if(speed >= VR_SHOVE_MINSPEED)
-    {
-        travel = travel + speed * speed / (2 * VR_SHOVE_FRICTION);
-    }
+    float travel = VR_Shove_Reach(e);
     float reach = travel * max(0, cvar_hget(cvarh_vr_knockdown_ledge_reach)) + max(0, cvar_hget(cvarh_vr_knockdown_ledge_margin));
     if(reach < 1)
     {
@@ -355,6 +368,7 @@ float(entity e) VR_Knockdown_Ledge =
         tracebox(q, e.mins, e.maxs, q - '0 0 1' * (q_z + e.mins_z - (ground - height)), TRUE, e);
         if(!trace_startsolid && trace_fraction == 1)
         {
+            vr_kd_ledge_past = d + half;
             if(cvar_hget(cvarh_vr_knockdown_debug))
             {
                 dprint(sprintf("knockdown ledge: %s: an edge %.0f units ahead (reach %.0f, clear %.0f), a drop of %g or more\n",
@@ -372,8 +386,8 @@ float(entity e) VR_Knockdown_Ledge =
 
 // A shove (or a bash) by self (a player) that landed on `e` (VR_Bash_Hit): by chance it knocks it down. xKind: the hit's
 // (QVR_HITKIND_SHOVE or _BASH); xHand -1: both hands; xPush: its push (two hands 1, one VR_BASH_ONE_PUSH, a counter more,
-// tired less): down, its ragdoll topples over its feet along xForward that hard (ragdollshovetopple:
-// vr_knockdown_shove_topple, as the judo throw's).
+// tired less): down, its ragdoll is carried on along xForward and topples over its feet (ragdollshovetopple:
+// vr_knockdown_shove_*).
 float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try =
 {
     if(!cvar_hget(cvarh_vr_knockdown) || !(self.flags & FL_CLIENT) || e.health <= 0 || e.vr_knockdown || !e.vr_kd_chance_h ||
@@ -419,13 +433,15 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
     {
         return FALSE;
     }
+    float reach = ledge ? vr_kd_ledge_past : VR_Shove_Reach(e); // (before its launch is cut: the shove's own)
     if(!VR_Knockdown_Start(e))
     {
         return FALSE;
     }
-    // (Over a ledge: pushed whole as ever, so it goes off, turned over as it falls: vr_knockdown_shove_ledge_topple; the
-    // plain topple would keep its feet on this side.)
-    ragdollshovetopple(e, xForward, xPush, ledge);
+    // Carried on as far as the shove would carry it standing (times vr_knockdown_shove_travel) and turned over about its
+    // feet a quarter turn (vr_knockdown_shove_topple_*); over a ledge, pushed whole so it goes off, turned as it falls
+    // (vr_knockdown_shove_ledge_*).
+    ragdollshovetopple(e, xForward, xPush, ledge, reach);
     return TRUE;
 };
 

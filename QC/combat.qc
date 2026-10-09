@@ -988,6 +988,7 @@ void(entity e, vector xDir, float xSpeed) VR_Shove_Start =
         s.classname = "vr_shove";
         s.owner = e;
         s.pos1 = e.origin; // the highest it has been since it was last on the ground
+        s.oldorigin = e.origin; // where it was shoved from (vr_knockdown_debug: how far it went, VR_Shove_End)
         e.vr_shove = s;
     }
     s.movedir = xDir;
@@ -1025,6 +1026,12 @@ void(entity m, float xDrop) VR_Shove_Landed =
 
 void() VR_Shove_End =
 {
+    if(cvar_hget(cvarh_vr_knockdown_debug) && self.owner.vr_shove == self && !self.owner.vr_knockdown)
+    {
+        vector went = self.owner.origin - self.oldorigin;
+        went_z = 0;
+        dprint(sprintf("shove slide: %s went %.1f units standing\n", self.owner.classname, vlen(went)));
+    }
     if(self.owner.vr_shove == self)
     {
         self.owner.vr_shove = world;

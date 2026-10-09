@@ -2030,11 +2030,13 @@ QVR_CVAR(vr_knockdown_search, "48", CVAR_ARCHIVE)         // how far (units) fro
 QVR_CVAR(vr_knockdown_blend, "0.35", CVAR_ARCHIVE)        // seconds the body blends from the ragdoll into the get-up
 QVR_CVAR(vr_knockdown_getup_speed, "1", CVAR_ARCHIVE)     // the get-up's frames' speed (1: Quake's 10 a second)
 QVR_CVAR(vr_knockdown_push, "1", CVAR_ARCHIVE)            // the knocked body's launch, times the shove's push
-QVR_CVAR(vr_knockdown_shove_topple, "180", CVAR_ARCHIVE)  // degrees/s: the shoved-down ragdoll turned over about its feet along the shove (the judo throw's topple; times the shove's strength, a two-handed one 1, a one-handed 0.7); 0: pushed whole, as before
-QVR_CVAR(vr_knockdown_shove_topple_push, "0.5", CVAR_ARCHIVE) // share of the shove's launch the toppling body keeps, by height (its top this, its feet none: the throw's 1); less, it topples slower and goes less far
-QVR_CVAR(vr_knockdown_shove_feet_speed, "0", CVAR_ARCHIVE) // units/s: its feet swept back against the shove as it topples (as vr_foegrab_throw_feet_speed); 0: held still vr_knockdown_shove_feet_hold s
-QVR_CVAR(vr_knockdown_shove_feet_hold, "0.3", CVAR_ARCHIVE) // s: how long its feet stay where they stood as it topples (Feet Speed 0)
-QVR_CVAR(vr_knockdown_shove_ledge_topple, "150", CVAR_ARCHIVE) // deg/s (times the shove's strength): shoved over a ledge, pushed whole (it goes over) and turned over its feet as it falls this fast; 0: pushed whole, no turn (as before)
+QVR_CVAR(vr_knockdown_shove_travel, "0.8", CVAR_ARCHIVE)  // how far the shoved-down body goes, times how far the same shove carries a standing one (its pelvis, as it lies; box3d ragdollShove); 0: it falls where it stood
+QVR_CVAR(vr_knockdown_shove_topple_angle, "90", CVAR_ARCHIVE) // degrees it turns over about its feet along the shove (90: from standing to flat), head and chest first; 0: no turn (it falls as it will)
+QVR_CVAR(vr_knockdown_shove_topple_time, "0.6", CVAR_ARCHIVE) // s it takes to turn that far (slow to start, fastest past halfway, landing)
+QVR_CVAR(vr_knockdown_shove_feet_lag, "0.3", CVAR_ARCHIVE) // share of the travel its feet lag behind as it turns (its top as far ahead); 0: all of it goes alike
+QVR_CVAR(vr_knockdown_shove_max_spin, "300", CVAR_ARCHIVE) // deg/s: it never turns faster than this while the shove drives it (no cartwheels)
+QVR_CVAR(vr_knockdown_shove_ledge_topple, "150", CVAR_ARCHIVE) // deg/s (times the shove's strength): shoved over a ledge, pushed whole (it goes over) and turned over its feet as it falls this fast, up to vr_knockdown_shove_topple_angle (never faster than vr_knockdown_shove_max_spin); 0: it goes over upright
+QVR_CVAR(vr_knockdown_shove_ledge_push, "1", CVAR_ARCHIVE) // shoved over a ledge, its launch along the shove times this (kept up until it is past the edge: it always goes over); 1: the whole shove's
 QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
 QVR_CVAR(vr_knockdown_ledge_drop, "16", CVAR_ARCHIVE)     // how high (units) a drop must be to count as a ledge (stairs and steps do not)
 QVR_CVAR(vr_knockdown_ledge_reach, "1.25", CVAR_ARCHIVE)    // how far ahead a ledge is looked for: times the shove's reckoned travel (the hop and the slide; 1: as far as it goes)

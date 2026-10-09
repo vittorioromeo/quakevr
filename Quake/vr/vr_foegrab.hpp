@@ -48,15 +48,15 @@ void init(); // registers vr_foegrab_status, vr_foegrab_walk_test
 // Server: every hold forgotten (a map loaded, a saved game loaded: their entities are another world's).
 void reset();
 
-// Server: a shove's knockdown (QC VR_Knockdown_Try: ragdollshovetopple), `m` just made a ragdoll: turned over about its
-// feet along the level `dir` as the throw's (box3d::ragdollTopple) at vr_knockdown_shove_topple times `strength` (the
-// shove's push: two hands 1, one 0.7, a counter more, tired less), no spin, its top keeping vr_knockdown_shove_topple_push
-// of the shove's launch (the throw 1), its feet held vr_knockdown_shove_feet_hold s (or swept back,
-// vr_knockdown_shove_feet_speed). With vr_knockdown_debug or vr_foegrab_debug its fall is printed as the
-// throw's ("shove trace:"). False: not toppled (topple 0, no ragdoll). `ledge`: shoved over a ledge (QC
-// VR_Knockdown_Ledge): pushed whole as ever, so it goes over, turned over its feet as it goes at
-// vr_knockdown_shove_ledge_topple times `strength` (box3d::ragdollTopple's `whole`).
-bool shoveTopple(edict_t* m, const glm::vec3& dir, float strength, bool ledge = false);
+// Server: a shove's knockdown (QC VR_Knockdown_Try: ragdollshovetopple), `m` just made a ragdoll, driven along the level
+// `dir` (box3d::ragdollShove): carried vr_knockdown_shove_travel times `reach` (units: how far the same shove carries a
+// standing one) and turned vr_knockdown_shove_topple_angle about its feet over vr_knockdown_shove_topple_time, its feet
+// vr_knockdown_shove_feet_lag behind, never faster than vr_knockdown_shove_max_spin. `ledge`: shoved over a ledge (QC
+// VR_Knockdown_Ledge; `reach` the units to past its edge): pushed whole, its launch times vr_knockdown_shove_ledge_push
+// (kept up until past the edge), turned over its feet as it goes at vr_knockdown_shove_ledge_topple times `strength`
+// (the shove's push: two hands 1, one less, a counter more, tired less). With vr_knockdown_debug or vr_foegrab_debug its
+// fall is printed as the throw's ("shove trace:"). False: no ragdoll.
+bool shoveTopple(edict_t* m, const glm::vec3& dir, float strength, bool ledge = false, float reach = 0.f);
 
 void preThink(edict_t* ent);
 void serverFrame(); // VR_ServerFrameEnd, before hitmodel::serverFrame

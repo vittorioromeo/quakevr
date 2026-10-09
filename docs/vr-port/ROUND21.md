@@ -33406,3 +33406,50 @@ standing in lava is still VR_Liquids_Frame's (burnt by its damage, not set on fi
 Measured (liquid_test.sh lava, kdlava; e1m7): a dead grunt in at 342 u/s, floats, lit at once, more flames as it burns,
 gibbed 4 s after it went in; a live grunt knocked down into it dies of the lava within 0.2 s, burns, gibbed 4 s on.
 liquid_test.sh runs all the cases (water, knight, kd, fall, slime, kdslime, lava, kdlava; OLD=1 as before).
+
+## A shove's knockdown: travel and a quarter turn (2026-10-09)
+
+His notes (vrfiringrange_2026-10-09_15-11-36, 15-47-01, 15-48-52, vrstart 15-16-00): with the topple sliders (above, "A
+shove's knockdown topples over the feet") a shoved-down enemy fell on the spot, and more push made it travel but spin
+several times in the air. Wanted: a two-handed shove that knocks one down carries it nearly as far as one that doesn't
+(somewhat less), clearly away from him, head and chest first with the feet lagging a little, turning only a quarter
+(standing to flat) over the shove and landing flat.
+
+- **The drive** (`box3d::ragdollShove`, then `driveShove` each frame; QC `ragdollshovetopple(e, dir, strength, ledge,
+  reach)`, `reach` the units this shove would carry it standing: `VR_Shove_Reach`, the hop and the slide, before
+  Launch cuts its velocity). Its travel and its turn are apart:
+  - travel: its pelvis is to end Travel x reach on. The turn about its feet carries the pelvis its own height on; the
+    drive moves it the rest, starting at most at the shove's own speed and slowing evenly to none over at least the
+    turn's time. Its middle's level motion is eased to that (sideways to none), plus a pull towards where its pelvis
+    should be by then (floor friction otherwise left it 15% short), every part alike.
+  - turn: until Topple Time and 0.25 s more, every part eased towards turning about its feet (their middle now) at the
+    rate of the curve 2u^2 - u^3 of Topple Angle (u the share of the time gone: slow to start, fastest past halfway,
+    still turning as it lands), corrected by how far its torso (pelvis to head) leans off the curve (8/s), never past
+    Max Spin; their own spin eased to the same (no turn about the vertical). Its feet Feet Lag of the travel's speed
+    behind its middle, its top as far ahead, fading out as it lands.
+  - Each part is eased a share 1 - e^(-dt / 0.06 s) of the way each frame (its joints still give); the knocked-down
+    struggle starts once the drive is done.
+- **Cvars** (Combat > Knockdowns, after Launch): `vr_knockdown_shove_travel` 0.8 (Travel), `_topple_angle` 90 (Topple
+  Angle), `_topple_time` 0.6 s (Topple Time), `_feet_lag` 0.3 (Feet Lag), `_max_spin` 300 deg/s (Max Spin). Retired:
+  `vr_knockdown_shove_topple`, `_topple_push`, `_feet_speed`, `_feet_hold` (a config's lines are dropped quietly). Launch
+  (`vr_knockdown_push`) is now the fastest its travel starts. The judo throw is unchanged (ragdollTopple).
+- **Debug > Tests > Enemy Shoves**: "Shove the Nearest, Standing, One Hand / Two Hands" (`vr_knockdown_chance 0`; the
+  console's `shove slide: ... went N units standing`, what Travel is a share of). The shove trace (`vr_knockdown_debug
+  1`) now prints its whole turn (summed every 0.1 s: two turns over would be 720 where the tilt is at most 180), its
+  pelvis's travel, when its head first dropped below its pelvis's start height and when its feet first moved 8 units.
+- **Numbers** (vrtesthall, 64 units ahead, `vr_knockdown_test 21`/`22`, the trace after 1.5 s; standing: the same
+  shove at chance 0):
+
+  | | standing went | down: pelvis went | share | tilt most | whole turn | head below the pelvis's start |
+  |---|---|---|---|---|---|---|
+  | grunt 1 hand | 104 | 82 | 0.79 | 92 | 99 | 0.38 s |
+  | grunt 2 hands | 219 | 178 | 0.81 | 98 | 124 | 0.41 s |
+  | knight 1 hand | 106 | 85 | 0.80 | 90 | 87 | 0.38 s |
+  | knight 2 hands | 224 | 182 | 0.81 | 91 | 89 | 0.39 s |
+  | enforcer 1 hand | 90 | 75 | 0.83 | 94 | 83 | 0.41 s |
+  | enforcer 2 hands | 193 | 159 | 0.82 | 105 | 112 | 0.44 s |
+
+  Before (the old sliders' defaults): the pelvis went 6-29 units, the tilt most 89-120. Every one lies head along the
+  shove; the whole turn includes the pose's settling and the landing (the tilt from upright is the turn proper). Its
+  feet end 10-20 units behind its pelvis (the lag and the quarter turn about them). Pictures: the worktree's
+  `scratch/seq_grunt2.png` (a grunt shoved with two hands, seen from the side, about 0.15 s apart; `scratch/seq_enforcer1.png` an enforcer, one hand).

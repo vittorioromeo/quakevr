@@ -549,6 +549,29 @@ struct RagdollBodies
     glm::vec2 pinVel{0.f};
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
+    // A shove's knockdown (ragdollShove; ROUND21.md, "A shove's knockdown: travel and a quarter turn"): driven each frame
+    // (driveShove) while `on`, its travel apart from its turn.
+    struct ShoveDrive
+    {
+        bool on{false};
+        bool ledge{false};      // over a ledge: only kept going at `speed` until it has gone `reach` (past the edge)
+        double start{0.0};
+        glm::vec3 dir{0.f};     // level, along the shove
+        float speed{0.f};       // m/s: its travel's speed at the start, slowing evenly (decel) to none
+        float decel{0.f};       // m/s/s
+        float duration{0.f};    // s it travels
+        glm::vec3 pelvis0{0.f}; // its pelvis at the start, and how high above its feet's floor (metres)
+        float pelvisUp{0.f};
+        float reach{0.f};       // metres (over a ledge)
+        glm::vec3 from{0.f};    // its middle (centre of mass) at the start, metres
+        float angle{0.f};       // rad: the turn about its feet, reached at `time` s
+        float time{0.f};
+        float lag{0.f};         // share of the travel its feet lack as it turns (its top as much ahead), its middle none
+        float maxSpin{0.f};     // rad/s: its turn never faster
+        float rate{0.f};        // rad/s: over a ledge, its turn's (until it has turned `angle`)
+        float meanShare{0.5f};  // its parts' mean height share (mass-weighted)
+        za::Array<float, ragdoll::maxBones> share{}; // each part's height share at the start (its feet 0, its top 1)
+    } shove;
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -3254,6 +3277,184 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
 
 // A QC's knock (.velocity set: T_Damage, a blast's push) goes to all the parts; a QC's move far away (a teleport) takes
 // them along.
+// A shove's knockdown, each frame (RagdollBodies::ShoveDrive, set by ragdollShove): its travel and its turn apart.
+// - Travel: its middle's level motion along the shove eased to the drive's (speed slowing evenly to none), across it to
+//   none (it goes straight away from the shover), every part alike.
+// - Turn (until it has turned `angle`, at `time`, and a quarter second more to settle): its parts eased towards turning
+//   about its feet (their middle as they are now) at the rate that follows 2u^2 - u^3 of `angle` (u the share of `time`
+//   gone: slow to start, fastest past halfway, still turning as it lands), corrected towards that curve by how far its
+//   torso (pelvis to head) leans now, never faster than maxSpin; its feet `lag` of the travel behind its middle, its top
+//   as far ahead. Their own turning eased to that too (no spin about the vertical, no cartwheels).
+// - Over a ledge (until it lands below): its middle kept going along the shove at `speed` (never slower) until it has
+//   gone `reach` or dropped below where it stood, and its turn (its parts' about its middle, as one) eased towards
+//   `rate` until its torso leans `angle`, then held there, never faster than maxSpin (tipping over the lip flipped it).
+// Each part eased a share 1 - e^(-dt / 0.06 s) of the way a frame: driven, not set (its joints still give).
+void driveShove(RagdollBodies& r, float dt)
+{
+    RagdollBodies::ShoveDrive& d = r.shove;
+    if(!d.on || dt <= 0.f)
+    {
+        return;
+    }
+    const float t = static_cast<float>(qcvm->time - d.start);
+    const auto counted = [&](int b) { return !partCut(r, b) && r.rig->bones[b].joint != ragdoll::Joint::Loose; };
+    // Its head (its rig's, else its highest part), for its torso's lean (pelvis to head).
+    const auto leanHead = [&]() {
+        if(r.rig->head >= 0 && r.rig->head < r.count && !partCut(r, r.rig->head))
+        {
+            return glmv(b3Body_GetWorldCenter(r.body[static_cast<za::SizeT>(r.rig->head)]));
+        }
+        glm::vec3 top = glmv(b3Body_GetWorldCenter(r.body[0]));
+        for(int b = 0; b < r.count; b++)
+        {
+            const glm::vec3 p = glmv(b3Body_GetWorldCenter(r.body[static_cast<za::SizeT>(b)]));
+            top = counted(b) && p.z > top.z ? p : top;
+        }
+        return top;
+    };
+    float mass = 0.f;
+    glm::vec3 com{0.f}, vcom{0.f}, feet{0.f}, feetVel{0.f};
+    int nFeet = 0;
+    for(int b = 0; b < r.count; b++)
+    {
+        if(!counted(b))
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        const float m = b3Body_GetMass(body);
+        const glm::vec3 p = glmv(b3Body_GetWorldCenter(body));
+        mass += m;
+        com += p * m;
+        vcom += glmv(b3Body_GetLinearVelocity(body)) * m;
+        if((r.feet & (1u << b)) != 0u)
+        {
+            feet += p;
+            feetVel += glmv(b3Body_GetLinearVelocity(body));
+            nFeet++;
+        }
+    }
+    if(mass <= 0.f)
+    {
+        d.on = false;
+        return;
+    }
+    com /= mass;
+    vcom /= mass;
+    const float g = 1.f - za::exp(-dt / 0.06f);
+    const glm::vec3 level{vcom.x, vcom.y, 0.f};
+    if(d.ledge)
+    {
+        // Until it lands below (or 2.5 s): kept going until past the edge, and its turn about the level axis across
+        // the shove (its parts' turn about its middle, as one) never faster than maxSpin (tipping over the lip flips it).
+        const float gone = glm::dot(com - d.from, d.dir);
+        const bool dropped = com.z < d.from.z - 0.5f;
+        if(t > 2.5f || (dropped && za::abs(vcom.z) < 0.3f))
+        {
+            d.on = false;
+            return;
+        }
+        const float along = glm::dot(level, d.dir);
+        const glm::vec3 add = gone < d.reach && !dropped && along < d.speed ? d.dir * ((d.speed - along) * g) : glm::vec3{0.f};
+        const glm::vec3 axis = glm::normalize(glm::cross(glm::vec3{0.f, 0.f, 1.f}, d.dir));
+        float spinNum = 0.f, spinDen = 0.f;
+        for(int b = 0; b < r.count; b++)
+        {
+            if(!counted(b))
+            {
+                continue;
+            }
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            glm::vec3 rel = glmv(b3Body_GetWorldCenter(body)) - com;
+            rel -= axis * glm::dot(rel, axis);
+            const float m = b3Body_GetMass(body);
+            spinNum += m * glm::dot(glm::cross(rel, glmv(b3Body_GetLinearVelocity(body)) - vcom), axis);
+            spinDen += m * glm::dot(rel, rel);
+        }
+        const float spin = spinDen > 1e-6f ? spinNum / spinDen : 0.f;
+        // Its torso's lean along the shove turned towards `rate` until it reaches `angle` (then held there), and no
+        // faster than maxSpin: eased a share g of the way a frame.
+        const glm::vec3 torso = leanHead() - glmv(b3Body_GetWorldCenter(r.body[0]));
+        const float lean = za::atan2(glm::dot(torso, d.dir), torso.z);
+        const float want = za::min(d.rate * t, d.angle);
+        const float wantRate = want < d.angle ? d.rate : 0.f;
+        const float cut = (za::clamp(wantRate + 8.f * (want - lean), -d.maxSpin, d.maxSpin) - spin) * g;
+        for(int b = 0; b < r.count; b++)
+        {
+            if(partCut(r, b) || (cut == 0.f && add == glm::vec3{0.f}))
+            {
+                continue;
+            }
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            const glm::vec3 p = glmv(b3Body_GetWorldCenter(body));
+            b3Body_SetLinearVelocity(body, b3v(glmv(b3Body_GetLinearVelocity(body)) + add + glm::cross(axis * cut, p - com)));
+            b3Body_SetAngularVelocity(body, b3v(glmv(b3Body_GetAngularVelocity(body)) + axis * cut));
+            b3Body_SetAwake(body, true);
+        }
+        return;
+    }
+    // How far its torso leans along dir now (rad: 0 upright, a quarter flat, head ahead).
+    const glm::vec3 head = leanHead();
+    const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(r.body[0]));
+    const glm::vec3 torso = head - pelvis;
+    const float lean = za::atan2(glm::dot(torso, d.dir), torso.z);
+    // The travel: the drive's (`speed` slowing evenly over `duration`), plus a pull towards where its pelvis should be by
+    // now (the drive's way so far and what its lean has carried it about its feet; friction otherwise keeps it short).
+    const float settle = 0.25f;
+    const float tt = za::min(t, d.duration);
+    const float planned = d.speed * tt - 0.5f * d.decel * tt * tt + d.pelvisUp * za::sin(za::clamp(lean, 0.f, 1.5707963f));
+    const float off = planned - glm::dot(pelvis - d.pelvis0, d.dir);
+    const float travel = za::clamp(za::max(d.speed - d.decel * t, 0.f) + 4.f * off, 0.f, za::max(d.speed, 1.f) * 1.5f);
+    const bool turning = d.time > 0.f && t < d.time + settle;
+    if(!turning && ((t > d.duration && za::abs(off) < 0.05f) || t > d.duration + 1.f))
+    {
+        d.on = false;
+        return;
+    }
+    if(!turning)
+    {
+        // (Lying: its middle's level motion eased to `travel` along dir, every part alike.)
+        const glm::vec3 shift = d.dir * travel - level;
+        for(int b = 0; b < r.count; b++)
+        {
+            if(!partCut(r, b))
+            {
+                const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+                b3Body_SetLinearVelocity(body, b3v(glmv(b3Body_GetLinearVelocity(body)) + shift * g));
+                b3Body_SetAwake(body, true);
+            }
+        }
+        return;
+    }
+    // The turn: the curve's lean and rate now.
+    const float u = za::clamp(t / d.time, 0.f, 1.f);
+    const float want = d.angle * u * u * (2.f - u);
+    const float rate = t < d.time ? d.angle * (4.f * u - 3.f * u * u) / d.time : 0.f;
+    const float gain = 8.f; // 1/s: how hard a lean off the curve is pulled back to it
+    const float spin = za::clamp(rate + gain * (want - lean), -d.maxSpin, d.maxSpin);
+    const glm::vec3 axis = glm::normalize(glm::cross(glm::vec3{0.f, 0.f, 1.f}, d.dir)); // (spin > 0: its top along dir)
+    const glm::vec3 pivot = nFeet > 0 ? feet / static_cast<float>(nFeet) : com;
+    const float pivotUp = nFeet > 0 ? feetVel.z / static_cast<float>(nFeet) : 0.f;
+    const float lagNow = d.lag * (1.f - u);
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        const glm::vec3 p = glmv(b3Body_GetWorldCenter(body));
+        const float share = d.share[static_cast<za::SizeT>(b)];
+        const glm::vec3 target = d.dir * (travel * (1.f + lagNow * (share - d.meanShare) * 2.f)) +
+                                 glm::vec3{0.f, 0.f, pivotUp} + glm::cross(axis * spin, p - pivot);
+        const glm::vec3 lin = glmv(b3Body_GetLinearVelocity(body));
+        const glm::vec3 ang = glmv(b3Body_GetAngularVelocity(body));
+        b3Body_SetLinearVelocity(body, b3v(lin + (target - lin) * g));
+        b3Body_SetAngularVelocity(body, b3v(ang + (axis * spin - ang) * g));
+        b3Body_SetAwake(body, true);
+    }
+}
+
 void feedRagdoll(edict_t* ent, Slot& s)
 {
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
@@ -3263,7 +3464,8 @@ void feedRagdoll(edict_t* ent, Slot& s)
     // floor against gravity and the joints' friction (a torque of its inertia times a stiff spring, at most its weight's
     // lever a few times over); the parent takes the opposite (the body jerks with the kicks). A pose far off its rest (a
     // throw, a hand) is its new rest.
-    if(knockedDown(ent) && ent->v.health > 0.f && vr_knockdown_wiggle.value > 0.f && qcvm->time > r.born + 0.6)
+    if(knockedDown(ent) && ent->v.health > 0.f && vr_knockdown_wiggle.value > 0.f && qcvm->time > r.born + 0.6 &&
+       !r.shove.on)
     {
         const float t = static_cast<float>(qcvm->time - r.born);
         const float frequency = za::clamp(vr_knockdown_wiggle_frequency.value, 0.1f, 5.f);
@@ -6459,6 +6661,7 @@ void syncEntities(float dt)
             if(s.ragdoll >= 0)
             {
                 feedRagdoll(ent, s);
+                driveShove(world->ragdolls[static_cast<za::SizeT>(s.ragdoll)], dt);
                 shockRagdoll(ent, s, dt);
             }
             else if(s.corpseDynamic)
@@ -12842,7 +13045,8 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
         glm::vec3 offset = p - middle;
         offset.z = 0.f;
         const glm::vec3 lin = glmv(b3Body_GetLinearVelocity(body));
-        const glm::vec3 kept = whole ? lin : lin - shared * (1.f - share * launch);
+        const glm::vec3 kept =
+            whole ? lin - glm::vec3{shared.x, shared.y, 0.f} * (1.f - launch) : lin - shared * (1.f - share * launch);
         b3Body_SetLinearVelocity(body, b3v(kept + glm::cross(over, p - pivot) + glm::cross(turn, offset)));
         b3Body_SetAngularVelocity(body, b3v(glmv(b3Body_GetAngularVelocity(body)) + over + turn));
         b3Body_SetAwake(body, true);
@@ -12855,6 +13059,151 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
             NUM_FOR_EDICT(ent), glm::degrees(turnRate), glm::degrees(topple), sweep * world->m2u,
             (pivot.z - floor) * world->m2u, dir.x, dir.y, glm::degrees(spin), whole ? 0 : feet, hold, height * world->m2u,
             glm::length(shared) * world->m2u, whole ? "kept whole (over a ledge)" : "shared by height");
+    }
+    return true;
+}
+
+bool ragdollShove(edict_t* ent, const glm::vec3& dir, const RagdollShove& p)
+{
+    RagdollBodies* rp = ent ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp)
+    {
+        return false;
+    }
+    RagdollBodies& r = *rp;
+    RagdollBodies::ShoveDrive& d = r.shove;
+    if(p.ledge)
+    {
+        // (Pushed whole and turned as it goes over, its launch cut to `keep`: ragdollTopple's whole; then kept going.)
+        float speed = 0.f;
+        glm::vec3 com{0.f};
+        float mass = 0.f;
+        for(int b = 0; b < r.count; b++)
+        {
+            if(partCut(r, b) || r.rig->bones[b].joint == ragdoll::Joint::Loose)
+            {
+                continue;
+            }
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            const float m = b3Body_GetMass(body);
+            mass += m;
+            com += glmv(b3Body_GetWorldCenter(body)) * m;
+            speed += glm::dot(glmv(b3Body_GetLinearVelocity(body)), dir) * m;
+        }
+        if(mass <= 0.f || !ragdollTopple(ent, dir, p.topple, 0.f, 0.f, 0.f, p.keep, true))
+        {
+            return false;
+        }
+        d = RagdollBodies::ShoveDrive{};
+        d.on = true;
+        d.ledge = true;
+        d.maxSpin = za::max(p.maxSpin, 0.1f);
+        d.rate = za::max(p.topple, 0.f);
+        d.angle = za::max(p.angle, 0.f);
+        d.start = qcvm->time;
+        d.dir = dir;
+        d.speed = za::max(speed / mass * p.keep, p.minSpeed / world->m2u);
+        d.reach = p.reach / world->m2u;
+        d.from = com / mass;
+        if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+        {
+            Con_Printf("ragdoll: %d shoved over a ledge: kept at %.0f u/s along the shove until %.0f units on, turning %.0f "
+                       "deg/s\n",
+                NUM_FOR_EDICT(ent), d.speed * world->m2u, p.reach, glm::degrees(p.topple));
+        }
+        return true;
+    }
+    // Its parts' middles, masses and launch (metres), how high it stands, its feet (the lowest quarter).
+    float lowest = 1e30f, highest = -1e30f, mass = 0.f;
+    glm::vec3 com{0.f}, shared{0.f};
+    za::Array<glm::vec3, ragdoll::maxBones> at{};
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        at[static_cast<za::SizeT>(b)] = glmv(b3Body_GetWorldCenter(body));
+        if(r.rig->bones[b].joint == ragdoll::Joint::Loose)
+        {
+            continue;
+        }
+        const float m = b3Body_GetMass(body);
+        mass += m;
+        com += at[static_cast<za::SizeT>(b)] * m;
+        shared += glmv(b3Body_GetLinearVelocity(body)) * m;
+        lowest = za::min(lowest, at[static_cast<za::SizeT>(b)].z);
+        highest = za::max(highest, at[static_cast<za::SizeT>(b)].z);
+    }
+    if(mass <= 0.f)
+    {
+        return false;
+    }
+    com /= mass;
+    shared /= mass;
+    const float floor = za::min(glmv(world->toM(vec(ent->v.absmin))).z, lowest);
+    const float height = za::max(highest - floor, 0.05f);
+    d = RagdollBodies::ShoveDrive{};
+    r.pinned = 0u;
+    r.feet = 0u;
+    float meanShare = 0.f;
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        const float share = za::clamp((at[static_cast<za::SizeT>(b)].z - floor) / height, 0.f, 1.f);
+        d.share[static_cast<za::SizeT>(b)] = share;
+        if(r.rig->bones[b].joint == ragdoll::Joint::Loose)
+        {
+            continue;
+        }
+        meanShare += share * b3Body_GetMass(r.body[static_cast<za::SizeT>(b)]);
+        r.feet |= at[static_cast<za::SizeT>(b)].z <= lowest + 0.25f * (highest - lowest) ? 1u << b : 0u;
+    }
+    // Its travel: its pelvis `travel` units on when it lies (what is seen of where it went; the turn about its feet carries
+    // it its own height on, the drive the rest), at most the shove's own speed, over at least the turn's time.
+    const float launch = za::max(glm::dot(shared, dir), 0.f);
+    const float pelvisUp = (partCut(r, 0) ? com.z : at[0].z) - floor;
+    const float turned = pelvisUp * za::sin(za::clamp(p.angle, 0.f, 3.14159265f * 0.5f));
+    const float drive = launch > 0.f ? za::max(p.travel / world->m2u - turned, 0.f) : 0.f;
+    const float duration = za::max(za::max(p.time, 0.05f), launch > 0.f ? 2.f * drive / launch : 0.f);
+    d.on = true;
+    d.start = qcvm->time;
+    d.dir = dir;
+    d.speed = 2.f * drive / duration;
+    d.decel = d.speed / duration;
+    d.duration = duration;
+    d.pelvis0 = partCut(r, 0) ? com : at[0];
+    d.pelvisUp = pelvisUp;
+    d.from = com;
+    d.angle = za::max(p.angle, 0.f);
+    d.time = d.angle > 0.f ? za::max(p.time, 0.05f) : 0.f;
+    d.lag = za::clamp(p.lag, 0.f, 1.f);
+    d.maxSpin = za::max(p.maxSpin, 0.1f);
+    d.meanShare = meanShare / mass;
+    // Its start: the shove's launch along it replaced by the travel's (its hop kept), no turn yet.
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        const glm::vec3 lin = glmv(b3Body_GetLinearVelocity(body));
+        b3Body_SetLinearVelocity(body, b3v(glm::vec3{d.dir.x * d.speed, d.dir.y * d.speed, lin.z}));
+        b3Body_SetAngularVelocity(body, b3Vec3{0.f, 0.f, 0.f});
+        b3Body_SetAwake(body, true);
+    }
+    if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d shoved down: %.0f units on (%.0f of it its turn about its feet), %.0f u/s slowing to none "
+                   "over %.2f s (its launch %.0f u/s); turned %.0f deg over %.2f s, its feet %.2f behind, at most %.0f "
+                   "deg/s; %.0f units tall\n",
+            NUM_FOR_EDICT(ent), p.travel, turned * world->m2u, d.speed * world->m2u, duration, launch * world->m2u,
+            glm::degrees(d.angle), d.time, d.lag, glm::degrees(d.maxSpin), height * world->m2u);
     }
     return true;
 }
