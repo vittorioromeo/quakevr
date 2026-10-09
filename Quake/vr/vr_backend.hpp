@@ -244,6 +244,20 @@ public:
     virtual void haptic(int /* hand */, float /* seconds */, float /* frequency */, float /* amplitude */)
     {
     }
+
+    // The runtime's own menu has the focus (OpenXR: the session VISIBLE, not FOCUSED: SteamVR's dashboard, Virtual
+    // Desktop's or Meta's menu): vr_xr_unfocused_pause pauses a single player game.
+    [[nodiscard]] virtual bool runtimeMenuOpen() const
+    {
+        return false;
+    }
+
+    // The headset's name as the runtime gives it (OpenXR's systemName; "" if none): its panel looked up by it for the
+    // menu's status box (vr_main.cpp, panelSize).
+    [[nodiscard]] virtual const char* systemName() const
+    {
+        return "";
+    }
 };
 
 [[nodiscard]] za::UniquePtr<Backend> makeMockBackend();

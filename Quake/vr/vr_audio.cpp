@@ -1372,6 +1372,15 @@ struct Live
 
 Live* live{nullptr};
 
+// The whole mix's volume while the runtime's menu pauses the game (vr_xr_unfocused_volume; setDuck), on its way to the
+// target a tenth of a second at a time (no click), in VR_SndLimit (with or without the spatial audio).
+struct Duck
+{
+    float target{1.f};
+    float gain{1.f};
+};
+Duck duck;
+
 bool wanted()
 {
     if(!live || !shm || shm->channels != 2 || cls.state == ca_dedicated || vr_snd_spatial.value <= 0.f)
@@ -2295,6 +2304,16 @@ void shutdown()
     steamaudio::shutdown();
 }
 
+void setDuck(float volume)
+{
+    duck.target = za::clamp(volume, 0.f, 1.f);
+}
+
+float duckGain()
+{
+    return duck.gain;
+}
+
 } // namespace qvr::audio
 
 using namespace qvr;
@@ -3205,6 +3224,18 @@ extern "C" void VR_SndBypass(portable_samplepair_t* buffer, int count)
 
 extern "C" void VR_SndLimit(portable_samplepair_t* buffer, int count)
 {
+    // The runtime's menu pausing the game (setDuck): the whole mix faded, the music too.
+    if(shm && (duck.gain != duck.target || duck.gain != 1.f))
+    {
+        const float step = 10.f / static_cast<float>(za::max(shm->speed, 1));
+        for(int i = 0; i < count; i++)
+        {
+            duck.gain = duck.gain < duck.target ? za::min(duck.target, duck.gain + step)
+                                                : za::max(duck.target, duck.gain - step);
+            buffer[i].left = static_cast<int>(static_cast<float>(buffer[i].left) * duck.gain);
+            buffer[i].right = static_cast<int>(static_cast<float>(buffer[i].right) * duck.gain);
+        }
+    }
     if(!live || !shm)
     {
         return;

@@ -653,7 +653,7 @@ void SV_RunClients (void)
 		}
 
 // always pause in single player if in console or menus
-		if (!sv.paused && (svs.maxclients > 1 || key_dest == key_game) )
+		if (!sv.paused && !VR_RuntimeMenuPause () && (svs.maxclients > 1 || key_dest == key_game) ) // QVR: the runtime's menu pauses
 			SV_ClientThink ();
 	}
 }

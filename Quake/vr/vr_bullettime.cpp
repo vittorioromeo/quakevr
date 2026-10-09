@@ -561,7 +561,7 @@ void advance(double dt)
         stop(true);
     }
     const float step = static_cast<float>(dt);
-    const bool running = key_dest == key_game; // a menu open: the meter waits
+    const bool running = key_dest == key_game && !runtimeMenuPaused(); // a menu open (the runtime's too): the meter waits
     if(running && state.active)
     {
         state.level -= step / za::max(0.1f, vr_bullettime_duration.value);

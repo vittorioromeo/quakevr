@@ -42,4 +42,9 @@ struct FrameRate
 // rate; the frames a second and the CPU's and GPU's work; the RAM and VRAM held. Once a frame while it is shown.
 void statusLines(za::Vector<za::String>& out);
 
+// The runtime's own menu has the focus (or vr_debug_runtime_menu), and a single player game is paused for it
+// (vr_xr_unfocused_pause): as of this frame's VR_BeginFrame.
+[[nodiscard]] bool runtimeMenuOpen();
+[[nodiscard]] bool runtimeMenuPaused();
+
 } // namespace qvr

@@ -34078,3 +34078,25 @@ Whether that churn upset the driver is not known.
 
 In the headset: the toolgun menu's joint list again (Physgun active, a crate held); if the driver error comes back,
 the time and Windows' Application log entry tell it apart from an engine crash (which writes qvr_crash.txt).
+## The runtime's menu pauses the game (2026-10-09)
+
+- **Pause** (`vr_xr_unfocused_pause` 1; Advanced > Headset > Runtime Menu Pauses: Pause the Game / Keep Running):
+  while the runtime's own menu has the focus (the session VISIBLE, not FOCUSED: SteamVR's dashboard, Virtual
+  Desktop's or Meta's menu; `Backend::runtimeMenuOpen`) a single player game pauses as the game's own menu pauses it:
+  `Host_ServerFrame` skips `SV_Physics` and `SV_RunClients` the player's think (`VR_RuntimeMenuPause`), so the game's
+  time stands still; the slow motion meter waits too. It resumes as the focus comes back. Multiplayer runs on (the
+  server isn't one player's to pause): only the held frame (`vr_xr_unfocused`). Decided each host frame in
+  `VR_BeginFrame` after the runtime's events (`runtimeMenuFrame`, vr_main.cpp), before the server's frame.
+- **Sounds**: the whole mix faded to `vr_xr_unfocused_volume` (0: silent; Runtime Menu Volume) over a tenth of a
+  second (`audio::setDuck`, applied first in `VR_SndLimit`, with or without the spatial audio; no click), back as it
+  resumes; the music paused (`BGM_Pause`; resumed unless the game was paused with `pause` meanwhile).
+- The console says each change: "VR: the runtime's menu has the focus" (with why the game runs on, if it does),
+  "VR: the game paused at <time>", "VR: the game resumed after <s>, <n> frames: game time <a> -> <b>; the sounds
+  down to <gain>".
+- Debug: `vr_debug_runtime_menu 1` (Debug > Profiling: Act as if the Runtime's Menu Were Open) acts as if the
+  runtime's menu had the focus, on any backend (the mock's too), for the pause and the fade (not the held frame).
+- Test: `xr_runtime_test.sh` part 5, on the fake runtime (FAKEXR_UNFOCUS=200-300, with sound): paused at 2.412 s,
+  resumed after 0.40 s and 100 frames with the game's time still 2.412, the sounds down to 0.00; the debug pause
+  later at 8.089 (the time ran on in between); `vr_xr_unfocused_pause 0`: "the game runs on", never paused. Part 4's
+  check split: the second's timing line with the frames shown again may come after the focus is back (it did, with
+  the paused game's quicker frames).

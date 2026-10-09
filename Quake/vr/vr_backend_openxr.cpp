@@ -328,6 +328,16 @@ public:
         return getVisibilityMask ? &hidden[eye] : nullptr;
     }
 
+    [[nodiscard]] bool runtimeMenuOpen() const override
+    {
+        return sessionRunning && sessionState == XR_SESSION_STATE_VISIBLE;
+    }
+
+    [[nodiscard]] const char* systemName() const override
+    {
+        return system;
+    }
+
     [[nodiscard]] unsigned acquireEyeImage(int eye) override
     {
         return acquireImage(swapchains[eye]);
@@ -526,6 +536,7 @@ private:
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
+    char system[XR_MAX_SYSTEM_NAME_SIZE]{};        // the headset's name (systemName)
     bool vdxr{false};                             // Virtual Desktop's own runtime (VDXR)
     xrruntime::Attempt currentAttempt;            // the runtime being started (start())
     float debugButtonsWas{0.f};                   // vr_debug_buttons last frame
@@ -1044,6 +1055,7 @@ private:
         XrSystemProperties system{XR_TYPE_SYSTEM_PROPERTIES};
         if(XR_SUCCEEDED(xrGetSystemProperties(instance, systemId, &system)))
         {
+            q_strlcpy(this->system, system.systemName, sizeof(this->system));
             xrruntime::logLine(va("OpenXR: system \"%s\" (vendor 0x%x): at most %u layers, swapchain images up to %ux%u\n",
                 system.systemName, system.vendorId, system.graphicsProperties.maxLayerCount,
                 system.graphicsProperties.maxSwapchainImageWidth, system.graphicsProperties.maxSwapchainImageHeight));

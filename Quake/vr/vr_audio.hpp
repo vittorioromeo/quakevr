@@ -303,4 +303,9 @@ void shutdown();
 void startGameWav(const char* path);
 void stopGameWav();
 
+// The whole mix's volume (0 .. 1; 1 unchanged), faded to over a tenth of a second: the runtime's menu pausing the
+// game (vr_xr_unfocused_volume, vr_main.cpp). duckGain: where the fade is.
+void setDuck(float volume);
+[[nodiscard]] float duckGain();
+
 } // namespace qvr::audio

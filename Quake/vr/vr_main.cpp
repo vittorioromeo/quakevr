@@ -1109,6 +1109,79 @@ Backend* backend()
     return state ? state->backend.get() : nullptr;
 }
 
+// The runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's menu: the session VISIBLE, not FOCUSED)
+// pausing a single player game as the game's menu does (vr_xr_unfocused_pause): no physics, no player moves (host.c,
+// sv_user.c: VR_RuntimeMenuPause), the game's time still; the sounds faded (vr_xr_unfocused_volume), the music paused.
+// Multiplayer runs on (the server isn't one player's to pause): only the frame held (vr_xr_unfocused).
+struct RuntimeMenuState
+{
+    bool open{false};      // the runtime's menu has the focus (or vr_debug_runtime_menu)
+    bool paused{false};    // the game paused for it
+    bool music{false};     // the music paused by it, resumed with the game
+    double since{0.0};     // realtime it paused
+    double gameTime{0.0};  // sv.qcvm.time then
+    int frames{0};         // host frames while paused
+    float quietest{1.f};   // the sounds' lowest volume then (audio::duckGain)
+};
+RuntimeMenuState runtimeMenu;
+
+bool runtimeMenuOpen()
+{
+    return runtimeMenu.open;
+}
+
+bool runtimeMenuPaused()
+{
+    return runtimeMenu.paused;
+}
+
+// Once a host frame, after the runtime's events (VR_BeginFrame): before the server's frame reads it.
+void runtimeMenuFrame()
+{
+    RuntimeMenuState& m = runtimeMenu;
+    const Backend* b = backend();
+    const bool open = (b && b->runtimeMenuOpen()) || vr_debug_runtime_menu.value != 0.f;
+    const bool single = sv.active && svs.maxclients == 1 && !cls.demoplayback;
+    const bool pause = open && single && vr_xr_unfocused_pause.value != 0.f;
+    if(open != m.open)
+    {
+        Con_Printf("VR: the runtime's menu %s%s\n", open ? "has the focus" : "gave the focus back",
+            !open || pause ? "" : !single ? " (not a single player game: it runs on)" : " (vr_xr_unfocused_pause 0: the game runs on)");
+    }
+    if(pause && !m.paused)
+    {
+        m.since = realtime;
+        m.gameTime = sv.qcvm.time;
+        m.frames = 0;
+        m.quietest = 1.f;
+        Con_Printf("VR: the game paused at %.3f s (vr_xr_unfocused_pause; volume %g)\n", sv.qcvm.time,
+            static_cast<double>(CLAMP(0.f, vr_xr_unfocused_volume.value, 1.f)));
+        m.music = !cl.paused;
+        if(m.music)
+        {
+            BGM_Pause();
+        }
+    }
+    else if(!pause && m.paused)
+    {
+        Con_Printf("VR: the game resumed after %.2f s, %d frames: game time %.3f -> %.3f; the sounds down to %.2f\n",
+            realtime - m.since, m.frames, m.gameTime, sv.qcvm.time, static_cast<double>(m.quietest));
+        if(m.music && !cl.paused)
+        {
+            BGM_Resume();
+        }
+        m.music = false;
+    }
+    if(pause)
+    {
+        m.frames++;
+        m.quietest = za::min(m.quietest, audio::duckGain());
+    }
+    m.open = open;
+    m.paused = pause;
+    audio::setDuck(pause ? vr_xr_unfocused_volume.value : 1.f);
+}
+
 bool backendRestartPending()
 {
     return state && state->restartRequested;
@@ -1634,6 +1707,7 @@ extern "C" void VR_BeginFrame()
         angvel::fix(state->tracking, motion::playing() ? motion::playSource() : state->backend->runtimeName());
         timescale::filterHands(state->tracking); // slow motion: the hands slowed with the world (not the head)
     }
+    runtimeMenuFrame(); // the runtime's menu pausing the game (before the server's frame)
 
     sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
@@ -1660,6 +1734,11 @@ extern "C" void VR_BeginFrame()
     // Update the hands now, before the move is built (it carries the aim in the view angles).
     input::roomscaleJump(hands::current());
     toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
+}
+
+extern "C" int VR_RuntimeMenuPause()
+{
+    return runtimeMenuPaused() ? 1 : 0;
 }
 
 extern "C" int VR_IsActive()

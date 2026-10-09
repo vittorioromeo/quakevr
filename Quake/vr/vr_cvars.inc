@@ -471,6 +471,15 @@ QVR_CVAR(vr_xr_keep_graphics_dlls, "1", CVAR_NONE)
 // or Meta's menu): 1 the eyes are not rendered, the last frame is shown again (world-locked: the runtime reprojects
 // it; the GPU left to the runtime's menu); 0 they are rendered as usual.
 QVR_CVAR(vr_xr_unfocused, "1", CVAR_ARCHIVE)
+// While the runtime's own menu has the focus (as vr_xr_unfocused): 1 a single player game paused as the game's own
+// menu pauses it (the world and its time stand still; the sounds faded to vr_xr_unfocused_volume, the music paused),
+// resumed as the focus comes back; 0 it runs on (multiplayer always does: the server isn't paused for one player).
+QVR_CVAR(vr_xr_unfocused_pause, "1", CVAR_ARCHIVE)
+// The game's volume while vr_xr_unfocused_pause holds it (0 silent .. 1 unchanged), faded over a tenth of a second.
+QVR_CVAR(vr_xr_unfocused_volume, "0", CVAR_ARCHIVE)
+// Debug: 1 the game acts as if the runtime's menu had the focus (vr_xr_unfocused_pause's pause, on any backend: the
+// mock's too); 0 only the runtime says.
+QVR_CVAR(vr_debug_runtime_menu, "0", CVAR_NONE)
 // The eye images' size, times the runtime's recommended (each side; SteamVR's includes its own resolution setting, 150%
 // of the panel's area on Auto), at the next VR start: smaller images cost less to render, copy (SteamVR's OpenGL path
 // copies each into its own textures) and keep in video memory. 0.5 .. 1.

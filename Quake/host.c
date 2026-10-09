@@ -1154,7 +1154,7 @@ void Host_ServerFrame (void)
 // move things around and think
 // always pause in single player if in console or menus
 	VR_ProfileBegin ("SV_Physics"); // QVR: profile
-	if (!sv.paused && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR
+	if (!sv.paused && !VR_RuntimeMenuPause () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses
 		SV_Physics ();
 	VR_ProfileEnd (); // QVR
 

@@ -4906,6 +4906,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered or shown again, display periods "
                   "missed, each OpenXR call's time (xrWaitFrame, xrEndFrame, the images' acquire and release) and the "
                   "session's state (VISIBLE: the runtime's menu has the controllers)."),
+        toggle("Act as if the Runtime's Menu Were Open", vr_debug_runtime_menu)
+            .help("vr_debug_runtime_menu 1: the game acts as if SteamVR's dashboard (or Virtual Desktop's, Meta's menu) had "
+                  "the focus, on any backend, the mock's too: a single player game pauses and its sounds fade "
+                  "(Runtime Menu Pauses); the console says when it paused and resumed, and the game's time."),
         cycle("Detail", vr_profile_detail, {{1.f, "Systems"}, {2.f, "Every Trace and Builtin"}})
             .help("Every Trace and Builtin also times each collision trace and each QuakeC builtin call apart: dearer, to "
                   "split QuakeC's time."),
@@ -8040,6 +8044,10 @@ za::Vector<Item> pageMain()
             .help("The headset images' size, times the runtime's recommended (each side), at the next VR start. SteamVR's recommended is 1.5 times the panel's pixels by default (its own Render Resolution): 0.82 matches the panel. Smaller images cost less to draw, to copy (SteamVR copies an OpenGL game's every image) and in video memory."),
         cycle("Runtime Menu Open", vr_xr_unfocused, {{1.f, "Freeze the Game's View"}, {0.f, "Keep Rendering"}}).advanced()
             .help("While the runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's menu) has the controllers: the game's last frame stays in view, not rendered again, which leaves the graphics card to the menu; or the game keeps rendering as usual."),
+        cycle("Runtime Menu Pauses", vr_xr_unfocused_pause, {{1.f, "Pause the Game"}, {0.f, "Keep Running"}}).advanced()
+            .help("While the runtime's own menu has the controllers, a single player game pauses as the game's own menu pauses it (the monsters wait, the game's time stands still) and resumes as you come back; or it keeps running. Multiplayer always runs on."),
+        slider("Runtime Menu Volume", vr_xr_unfocused_volume, 0.f, 1.f, 0.1f, "%.1f").advanced()
+            .help("The game's sounds while the runtime's menu pauses it: 0 silent, 1 unchanged. The music pauses."),
         toggle("Late Image Acquire", vr_xr_late_acquire).advanced()
             .help("Each eye's headset image is taken from the runtime only once its scene is drawn, so the runtime's wait for it (SteamVR copying the last one out) overlaps the drawing. Off: before the scene, the old way, to compare."),
         toggle("OpenXR Timing Log", vr_xr_log_timing).advanced()
