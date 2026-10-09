@@ -616,6 +616,20 @@ void(float xHand) VR_Forcegrab_HandFrame =
         VR_Forcegrab_Set(xHand, world, FALSE);
         return;
     }
+    // A hand holding an enemy (vr_foegrab.qc) force grabs nothing (his note, vrfiringrange_2026-10-09_10-55: a judo
+    // throw's hands locked on to things and pulled them): not while it holds, not for a moment after it lets go (the
+    // throw's follow-through), and not until its trigger, if held, is let go.
+    if(VR_FoeGrab_HandHolds(self, xHand))
+    {
+        if(xHand == cVR_OffHand) { self.offhand_fgheldfoe = time; self.offhand_fgrearm = TRUE; }
+        else                     { self.mainhand_fgheldfoe = time; self.mainhand_fgrearm = TRUE; }
+    }
+    if(time < (xHand == cVR_OffHand ? self.offhand_fgheldfoe : self.mainhand_fgheldfoe) + cVR_Forcegrab_AfterFoe)
+    {
+        VR_Forcegrab_Set(xHand, world, FALSE);
+        VR_Forcegrab_WaitsForRelease(xHand, VRGetFireButtonPressed(xHand)); // (the trigger let go meanwhile counts)
+        return;
+    }
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0 ||
        !VRIsHandEmpty(self, xHand) ||
        VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY))

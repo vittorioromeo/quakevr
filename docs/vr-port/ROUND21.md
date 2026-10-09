@@ -32018,6 +32018,17 @@ grunt's went 87 units left): worth a look in VR whether a knight falls the way i
 Seen while testing (not changed): a monster spawned by `vr_physics_spawn` (or `impulse 244`) stands 15-16 units lower
 than the floor its first step (SV_movestep) puts it on, in e1m1 and vrfiringrange alike.
 
+**A hand holding an enemy force grabs nothing** (his note vrfiringrange_2026-10-09_10-55: the judo throw's actions
+overlap the force grab's, he pulled things by accident). The QC never sees a holding hand's grip (masked, so it picks
+nothing else up), so to the force grab it was an open hand: its trigger locked on to whatever it pointed at and the
+throw's swing was a flick. Now (`VR_Forcegrab_HandFrame`, vr_wpnforcegrab.qc) a hand holding an enemy
+(`.vr_foegrab_hands`) has no force grab target: not while it holds, not for 0.5 s after it lets go (the throw's
+follow-through; `cVR_Forcegrab_AfterFoe`), and not until its trigger, if held, is let go (the pull's rearm). Test
+(`scratch/fg1.sh`: vrfiringrange, a health box 200 units ahead and a grunt 44, the main hand aimed at the box and
+gripping the grunt, `+attack`, `vr_debug_hands 1`): holding with the trigger held, target none; let go with it still
+held, none for the second after; pressed again, target the box, locked. With `vr_foegrab 0` (the grip takes nothing):
+let go of the grip with the trigger held, locked on the box at once (14 ms).
+
 ## Reloading on the move, the auto pump's delay, guns lying about, spent rifles, the Super Axe, smaller mines (2026-10-08)
 
 The author's notes of 2026-10-08 afternoon (map1 13-56 to 14-00, vrfiringrange 14-14 to 14-35).
