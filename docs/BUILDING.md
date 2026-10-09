@@ -129,7 +129,8 @@ powershell -ExecutionPolicy Bypass -File Windows\package-quakevr.ps1 [-Build] [-
   `quakevr\tools\ericw-tools\` for the in-game relighting (a warning otherwise).
 - **The installer** (`Installer/`, C# and WPF on .NET 9) installs such a package: see
   [Installer/README.md](../Installer/README.md) and [vr-port/INSTALLER.md](vr-port/INSTALLER.md).
-- The release is too large for a GitHub release, so it is published on [vittorioromeo.com](https://vittorioromeo.com).
+- Releases are published on [GitHub Releases](https://github.com/vittorioromeo/quakevr/releases): `QuakeVR-Setup.exe`,
+  `QuakeVR.zip` and `latest.json` (the installer's and the game's update feed).
 
 ## Running from the repository
 

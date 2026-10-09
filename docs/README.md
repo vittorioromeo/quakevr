@@ -13,7 +13,7 @@ happens; the durable parts belong in a guide or topic note.
 
 | Document | What it is |
 |---|---|
-| [INSTALL.md](INSTALL.md) | Installation in detail: OpenXR runtimes, the mission packs and official campaigns, custom maps and mods, HD textures, relit maps, performance, troubleshooting |
+| [INSTALL.md](INSTALL.md) | Installation in detail: the installer or the zip, OpenXR runtimes, the mission packs and official campaigns, custom maps and mods, HD textures, relit maps, performance, troubleshooting |
 | [RELIGHTING.md](RELIGHTING.md) | Relit maps and see-through water: the relight script, and relighting in the game (one map or many, ericw-tools downloaded by the game) |
 | [FEATURES.md](FEATURES.md) | Every feature and how to use it |
 | [SETTINGS.md](SETTINGS.md) | The menu pages, console variables and config files |

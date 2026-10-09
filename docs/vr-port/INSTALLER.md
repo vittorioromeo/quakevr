@@ -55,7 +55,7 @@ packager's folder (custom maps, mod folders, saves, configs, screenshots, notes,
 | Symbols | `ironwail.pdb` (34 MB, full: clang-cl `/Z7` objects linked by lld-link `/DEBUG`) | | shipped beside the exe: `qvr_crash.txt` names the functions on the stack (DbgHelp looks in the exe's folder, then the working directory), and `qvr_crash.dmp` opens in a debugger with it |
 | Build version | baked into the exe (`quakevr.props`, `QvrBuildVersion`: the last commit's date and short hash, `-dirty` with uncommitted changes) | | printed at start and by `version`, on the last line of VR Settings, and in `qvr_crash.txt`'s second line |
 
-About 195 MB unpacked; the zip is "too large for a GitHub release" (`docs/INSTALL.md`).
+About 195 MB unpacked; the zip is a GitHub release asset (with `QuakeVR-Setup.exe` and `latest.json`).
 
 ### Run-time requirements
 
@@ -239,7 +239,8 @@ Setup started again finds the install and opens on the **Update screen** instead
     and installed (the old pack's files it does not have are removed). Installed by an older Setup (no recorded hash):
     kept. Not installed: an update never adds them (Install again does).
   - **First-start relight:** asked for again only when its inputs changed (`MaintenancePlanner.IsRelightInput`:
-    `quakevr	ools\ericw-tools\*`, `quakevr	oolsispatch\*`, `quakevrelight_textures.cfg`, a new HD pack, VisPatch
+    `quakevr	ools\ericw-tools\*`, `quakevr	oolsispatch\*`, `quakevr
+elight_textures.cfg`, a new HD pack, VisPatch
     newly added) and the player chose the relight at install; a relight still pending stays. The game's batch skips maps
     relit with the same settings anyway (vr_relight.cpp `relitAlready`).
   - Shortcuts: made again as chosen at install (a deleted one comes back); the console keeps them unless `--shortcuts-dir`.
