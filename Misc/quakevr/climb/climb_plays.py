@@ -257,7 +257,7 @@ def shimmy(close, drift=0.0, wobble=0.0, n=4, hy=1.638, fwd=-0.69, right_first=F
     return L, t[0]
 
 def floatpush(dist, below, sink=0.0):
-    # ROUND21.md, "Climbing: floating platforms": vrclimb's floating platforms (nothing under them), from a start
+    # ROUND21.md, "Climbing: the hands in sync": vrclimb's floating platforms (nothing under them), from a start
     # placed in noclip (setpos ... 0 90 0, with no `noclip` after it: this play turns it off as the hands take hold)
     # with the lip `dist` units ahead of the body (negative: the body that far under the platform) and the feet `below`
     # units under its top: both hands take the lip, are raised `sink` metres and drawn in to the chest (the body drops

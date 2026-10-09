@@ -39,7 +39,7 @@ from mapgeom import MapWriter, hull, cylinder, beam, norm, cross, dot, sub, add,
 ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # vis, light
 # qbsp: ericw-tools 0.18.1's, as vrstart's (the author's decision, 2026-10-07: 2.0-alpha11's lost faces at slivers;
-# 0.18.1's makes faces by CSG). ROUND21.md, "vrstart on ericw-tools 2.0 again".
+# 0.18.1's makes faces by CSG). ROUND21.md, "vrstart2 on ericw-tools 2.0 again".
 DEFAULT_QBSP = "C:/OHWorkspace/ericw-tools-v0.18.1-32-g6660c5f-win64/bin/qbsp.exe"
 MAPNAME = "vrtutorial"
 OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")

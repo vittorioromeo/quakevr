@@ -112,7 +112,7 @@ upstream).
     frame-critical caller can pick up a long, unrelated task, such as a model's occlusion bake (tens of ms), and
     miss the frame.
   - The caller also waits for every helper, even after all chunks are taken.
-- **Where found:** ROUND21, "Zancle proposals (for upstream)" #5 (thread-pool round).
+- **Where found:** ROUND21, "Zancle proposals (for upstream; you own it)" #5 (thread-pool round).
 - **Proposed fix:**
   - Helpers hold a small refcounted, poolable control block instead of the caller's frame.
   - When the chunks run out, the caller closes a gate: an atomic holding the count of helpers inside plus a closed
@@ -135,7 +135,7 @@ upstream).
   - Thrown on the calling thread, it unwinds the frame the helpers still read (`nextChunk`, `helpersRemaining`,
     `f`).
   - Thrown on a worker, it calls `std::terminate`, because the worker loop calls `task()` bare.
-- **Where found:** ROUND21, "Zancle proposals (for upstream)" #6.
+- **Where found:** ROUND21, "Zancle proposals (for upstream; you own it)" #6.
 - **Proposed fix:**
   - Catch per chunk, keep the lowest chunk's exception (deterministic), and rethrow after the join.
   - Document that `post`ed tasks must not throw, or catch and report in the worker loop.
@@ -146,14 +146,14 @@ upstream).
 **B6. `MaxAlignT.hpp`'s `__float128` member breaks 32-bit clang-cl** (Base)
 - **What:** the member is used on 32-bit x86 without checking that the target has the type. Ironwail's Win32
   configurations stopped there, with MSVC too.
-- **Where found:** ROUND21, "clang-cl: the whole engine, C++23 (trial)"; `external/zancle/README.md`.
+- **Where found:** ROUND21, "clang-cl: the whole engine, C++23 (trial, 2026-09-30)"; `external/zancle/README.md`.
 - **Proposed fix:** guard the member with `__SIZEOF_FLOAT128__`, as the local change does.
 - **Status:** **fixed upstream** (`fad225a4`); QVR's local change dropped. (Not rebuilt for Win32 here: x64 only.)
 
 **B7. `Config.hpp`'s C++23 check rejects clang-cl**
 - **What:** clang-cl sets `_MSVC_LANG` = 202004 in C++23 mode (with `__cplusplus` = 202400), so `_MSVC_LANG <
   202302L` fires.
-- **Where found:** ROUND21, "Zancle proposals (for upstream)" #1; confirmed in MSVC audit, "Build and CI changes".
+- **Where found:** ROUND21, "Zancle proposals (for upstream; you own it)" #1; confirmed in MSVC audit, "Build and CI changes".
 - **Fix:** read `__cplusplus` whenever `__clang__` is defined.
 - **Status:** fixed upstream (taken by 4ed9c3cc; QVR's local change dropped).
 

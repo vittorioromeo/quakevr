@@ -388,7 +388,7 @@ void(float xSpeed) VR_SolidProp_Impact =
 };
 
 // ----------------------------------------------------------------------------
-// Overhead slams (NOTES.md vrfiringrange_2026-10-07_23-08-07; ROUND21.md, "Heavy props thrown and slammed"): a crate or
+// Overhead slams (NOTES.md vrfiringrange_2026-10-07_23-08-07; ROUND21.md, "Props batch"): a crate or
 // a barrel held in both hands over the head (the hands' middle vr_carry_slam_height cm over the eyes or more), then
 // within vr_carry_slam_window s swung down (the hands at vr_carry_slam_speed m/s or more, mostly downwards) onto
 // something (a monster, a prop, a wall, the floor: its box swept a frame and a little ahead) breaks at once, what it met

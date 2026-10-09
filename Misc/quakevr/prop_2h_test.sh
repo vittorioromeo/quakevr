@@ -1,6 +1,6 @@
 #!/bin/bash
 # prop_2h_test.sh <agent> [out dir] [extra console commands] -- a barrel or a crate held in both hands (mock hands), thrown
-# or swung (ROUND21.md, "Heavy props thrown and slammed"; NOTES.md vrfiringrange_2026-10-07_23-00-55 and 23-08-07).
+# or swung (ROUND21.md, "Props batch"; NOTES.md vrfiringrange_2026-10-07_23-00-55 and 23-08-07).
 # In the firing range (god, notarget): an ogre TARGET units ahead (0: none), the prop (vr_test_spawn 111 a barrel, 107 a
 # small crate, 108 a large one: KINDS="111 107") put in the main hand, the off hand taking it too, then one motion:
 #   push     from the chest straight ahead, 5 degrees up, PEAK m/s (6) at the peak, let go at it: at the ogre

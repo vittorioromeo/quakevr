@@ -41,7 +41,7 @@ DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # vis, light
 # fills through them; on this map, even with the slivers it loses faces at taken out (terrain_mesh, unbend, hull...),
 # a few portals still failed: missing faces and air made solid (0-9 holes in 600,000 rays per build, chaotic: any edit
 # moved them), and its fix (an unfilled hull 0 spliced with filled clipping hulls) made loads slower. 0.18.1's makes
-# faces by CSG: 0 holes in a million rays (bsp_holes.py). ROUND21.md, "vrstart on ericw-tools 2.0 again".
+# faces by CSG: 0 holes in a million rays (bsp_holes.py). ROUND21.md, "vrstart2 on ericw-tools 2.0 again".
 DEFAULT_QBSP = "C:/OHWorkspace/ericw-tools-v0.18.1-32-g6660c5f-win64/bin/qbsp.exe"
 MAPNAME = "vrstart"
 OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")

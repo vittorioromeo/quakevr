@@ -198,8 +198,8 @@ void(entity g, entity xBy, float xDelay, string xHow) VR_GrenShot_SetOff =
     g.nextthink = time + xDelay;
 };
 
-// Melee blows on grenades (vrfiringrange_2026-10-01_16-55-46, _17-14-36; ROUND21.md, "Grenades: blows bat, strong
-// ones set off"): a blow bats a grenade; only a very strong one sets it off: the blow's speed (VR_Blow's mh_speed, the
+// Melee blows on grenades (vrfiringrange_2026-10-01_16-55-46, _17-14-36; ROUND21.md, "Combat 4: grenade
+// blows"): a blow bats a grenade; only a very strong one sets it off: the blow's speed (VR_Blow's mh_speed, the
 // arm's; a pommel's its own) at least vr_grenade_melee_speed (a punch, a gun's swing, a pommel, a butt) or
 // vr_grenade_melee_speed_weapon (a blade's or a head's: a sword, the axe, the crowbar, a club, a stopped chainsaw: they
 // go round faster), and its damage at least vr_grenade_melee_damage. A running chainsaw always does (vr_grenshot_saw:

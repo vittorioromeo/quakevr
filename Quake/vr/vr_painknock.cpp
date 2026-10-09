@@ -45,7 +45,7 @@ double printedAt = -1.0;
 
 // 0..1..0 over the knock: a quick push out, held a moment, then an ease back ending at `duration` (smooth both ends:
 // half of it still there halfway back; the old quadratic ease lost half in the return's first 30%, the knock barely
-// showed: ROUND21.md, "Pain feedback, second pass").
+// showed: ROUND21.md, "Misc: mid-air leniency").
 [[nodiscard]] float envelope(float t, float duration)
 {
     if(t < 0.f || t >= duration || duration <= 0.f)
@@ -207,7 +207,7 @@ namespace
 // The way a knock moves hand `hand` this frame, a unit of its size: with vr_pain_knock_seen, turned across the line from
 // the eyes to the hand, so all of its size shows as a move (a hit from ahead pushed the hands away and up: for hands held
 // ahead of and below the eyes, that is nearly straight towards the eyes, and a hand coming 15 cm nearer barely shows; the
-// hit's throw of the whole player the same way hid it further: ROUND21.md, "Pain feedback, third pass"). From ahead or
+// hit's throw of the whole player the same way hid it further: ROUND21.md, "Misc: mid-air leniency"). From ahead or
 // behind the hands rise, from the side they go sideways (and up a little); its move towards or away from the eyes is kept
 // on top.
 struct Sight

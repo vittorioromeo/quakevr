@@ -1,4 +1,4 @@
-// vr_ropesim.hpp -- the grappling hook's rope as the game has it (docs/vr-port/ROUND21.md, "Grapple: the rope wraps"):
+// vr_ropesim.hpp -- the grappling hook's rope as the game has it (docs/vr-port/ROUND21.md, "Grapple round 2"):
 // straight pieces between the gun and the hook, bent at the corners it wraps round (a pillar's edge, a doorway's jamb, a
 // box's top), never through the world, doors and lifts or the props (Box3D's shapes, vr_box3d.cpp); the taut rope's
 // path along them, which the QC's rope pulls along. The server's; the corners are sent to the clients, which draw the

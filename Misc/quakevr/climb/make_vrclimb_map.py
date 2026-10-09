@@ -50,7 +50,7 @@ B.append(box(-200, -330, 0, -196, -230, 48, "qvr_wall", "qvr_floor"))
 B.append(box(-120, -330, 0, -60, -230, 48, "qvr_wall", "qvr_floor"))
 B.append(box(-120, -330, 88, -60, -230, 104, "qvr_wall", "qvr_floor"))
 
-# ROUND21.md, "Climbing: floating platforms": two platforms floating over the trench, nothing under them (the trench
+# ROUND21.md, "Climbing: the hands in sync": two platforms floating over the trench, nothing under them (the trench
 # floor 256 below), tops at 48: a thin slab (8 thick, x -300..-172) and a thicker one (16 thick, x -120..8), both
 # y 400..496. Hang from their south lips facing +y (`setpos -236 382 24 0 90 0; noclip`, the slab's lip 18 ahead)
 B.append(box(-300, 400, 40, -172, 496, 48, "qvr_trim", "qvr_floor"))

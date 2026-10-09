@@ -17,8 +17,8 @@
 //   | GS_LOOSE | a physics prop on the end of the rope (it can be carried) | reeled in to the gun (B/Y): back in the gun; the reel-in button: GS_RETRACT |
 //   | GS_RETRACT | flying straight back to the gun (the reel-in button on the gun, over vr_grapple_quick_time; a reel that can't bring it) | at the gun: back in the gun |
 //
-// The trigger fires a ready gun, and nothing else: let go, the hook stays in (docs/vr-port/ROUND21.md, "Grapple: the
-// hook stays in"). The gun's two buttons (the other hand's fingertip): the back one (over the grip) detaches the hook
+// The trigger fires a ready gun, and nothing else: let go, the hook stays in (docs/vr-port/ROUND21.md, "Grappling hook:
+// rope"). The gun's two buttons (the other hand's fingertip): the back one (over the grip) detaches the hook
 // (it comes loose, the rope a little slack: vr_grapple_loose_slack), the front one (near the muzzle) reels it in at
 // once (it flies straight back, through anything). A hook in the world or a door can be shot off (any weapon:
 // vr_grapple_shootable). vr_grapple_trigger_release 1 or 2: the trigger let go takes it off after vr_grapple_drop_grace

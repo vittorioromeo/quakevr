@@ -525,7 +525,7 @@ float(entity e, entity p) VR_Throw_SparedBlows =
 };
 
 // ----------------------------------------------------------------------------
-// Your own throws (NOTES.md vrfiringrange_2026-10-01_16-41-40, _16-42-00; ROUND21.md, "Your own throws hurt you")
+// Your own throws (NOTES.md vrfiringrange_2026-10-01_16-41-40, _16-42-00; ROUND21.md, "Combat 4")
 //
 // A thing thrown hard is its thrower's (.owner: VR_Carry_Release, MakeThrown): Quake's owner rule lets it through him
 // and its touch spares him (forcegrabbable_touch), so a backpack thrown high fell back through him. For
