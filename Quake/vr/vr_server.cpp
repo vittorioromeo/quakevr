@@ -843,6 +843,23 @@ constexpr int weaponFlagNoMag = 16;
 // QC's QVR_WPNFLAG_SSG_OPEN (vr_defs.qc): a super shotgun broken open (vr_reload.qc).
 constexpr int weaponFlagSsgOpen = 32;
 
+// A stepping monster in the air (a dog's leap, a fall off a ledge, a knock: not on the ground, not a flyer or a
+// swimmer; SV_Physics_Step's free fall) moves every server frame, not at its thinks: its move is drawn over the frame
+// (the U_LERPFINISH byte, in 255ths of a second), not to its next think. (Drawn to the think, each frame's move began
+// before the last was drawn: with vr_monster_lerp_continue 1 the drawn dog fell behind, ~26 units by the leap's end,
+// and caught up in a frame or two as its think came: a 9.7-unit snap on landing; Quake's drawing snapped each frame.)
+// -1: Quake's rule (the next think), and always with vr_monster_lerp_continue 0.
+extern "C" int VR_StepLerpInterval(edict_t* ent)
+{
+    if(static_cast<int>(ent->v.movetype) != MOVETYPE_STEP || vr_monster_lerp_continue.value == 0.f ||
+       (static_cast<int>(ent->v.flags) & (FL_ONGROUND | FL_FLY | FL_SWIM)) != 0)
+    {
+        return -1;
+    }
+    const int interval = static_cast<int>(host_frametime * 255.0 + 0.5);
+    return interval < 1 ? 1 : interval > 25 ? 25 : interval;
+}
+
 extern "C" int VR_EntityUpdateBits(edict_t* ent)
 {
     if(!vrProtocol())

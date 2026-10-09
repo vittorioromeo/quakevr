@@ -33865,3 +33865,28 @@ settings (Apply, Undo, and the new Revert) puts the settings it replaced in a li
   `..._01-52-37.txt`): applied 28.4/23.8 cm then 26.2/24.8; `vr_bodycal_revert 1` put back 28.4/23.8, shoulders back
   -0.043, rise 14.9, height 1.5430; the next run (the config back to the kit's baseline) listed both and reverted to the
   first entry's settings, the list then 28.4 and 26.2. Undo after an Apply lists the undone one.
+## A dog's leap drawn smoothly; flaky checks (2026-10-09)
+
+- **The snap after a dog's leap** (stealth_tests.sh dogs, frame 48: 9.7 units in a frame with
+  `vr_monster_lerp_continue 1`). A dog is MOVETYPE_STEP in the air too: SV_Physics_Step moves it every server frame
+  (free fall), but its moves were drawn to its next think (0.1 s, Quake's U_STEP lerp). Each frame's move began
+  before the last was drawn: with the drawing continued from where it is drawn, the dog fell behind (about 26 units by
+  the leap's end) and caught up in a frame or two as its think came. Quake's drawing (0) snapped a little every
+  frame instead. Now a stepping monster in the air (not on the ground, not a flyer or a swimmer) is sent its move's
+  time as one server frame (U_LERPFINISH, `VR_StepLerpInterval`, vr_server.cpp; only with `vr_monster_lerp_continue`
+  1, so 0 stays Quake's): drawn one server frame behind, as Quake draws missiles. Landing, the next step starts from
+  where it is drawn. Same scene, A/B (the server half off): leap frames' farthest drawn step 6.8 -> 3.7 units, the
+  landing 9.7 -> 3.6 (the run's usual 1.3 a frame); moves begun early 62 -> 6 (worst 20.8 -> 5.2 units); dogs: 0
+  jumps, barrels not pinned. `vr_debug_drawn_moves`' summary adds the farthest drawn in a frame (and its model frame).
+- **obs_test.py's no-stall check** (an absolute 11 ms for the worst CPU work, failed under load with no OBS): relative
+  to the same session's `vr_obs 0` run (p99 within 30% + 1.5 ms, worst within 3x or +25 ms; a refused connection on
+  the main thread would be ~2 s), measured again once on a stall. Here the off run's own worst was 25 ms; 15 of 15.
+- **grip_gap forcegrab's sixth catch** (nothing caught, 2 of 4 runs): the test, not the force grab. On the wall clock
+  a loaded machine's frame over 0.1 s (Host_FilterTime's clamp) left the server behind the take for good (a failing
+  run: the third pull arrived after its step's check, the next three never flew, the frames ran out before the
+  take's end); and the sixth grip came 0.13 s after the box arrived, on `vr_forcegrab_catch_late`'s 0.15 s edge (the
+  flick fires as the hand starts up: it arrives ~0.09 s earlier than the take's keys suggest). Now on a fixed clock
+  (`vr_fixed_frames 1` at 250 Hz: the server's 72 Hz ticks under it) and the grips 0.04 s apart (0.08 s late at
+  most): 6 of 6 runs pass (each with three late catches).
+- `box3dmt/physbench.sh <agent> [count]` passed the agent and the count on to run.sh (`shift 3` with fewer arguments
+  shifts nothing): `set -- "${@:4}"`.

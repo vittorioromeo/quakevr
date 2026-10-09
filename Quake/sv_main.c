@@ -946,7 +946,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 			if (ent->baseline.scale != ent->scale) bits |= U_SCALE;
 			if (bits & U_FRAME && (int)ent->v.frame & 0xFF00) bits |= U_FRAME2;
 			if (bits & U_MODEL && (int)ent->v.modelindex & 0xFF00) bits |= U_MODEL2;
-			if (ent->sendinterval) bits |= U_LERPFINISH;
+			if (ent->sendinterval || VR_StepLerpInterval (ent) >= 0) bits |= U_LERPFINISH; // QVR: (in the air: a server frame)
 			bits |= VR_EntityUpdateBits (ent); // QVR
 			if (bits >= 65536) bits |= U_EXTEND1;
 			if (bits >= 16777216) bits |= U_EXTEND2;
@@ -1012,7 +1012,10 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 		if (bits & U_MODEL2)
 			MSG_WriteByte(msg, (int)ent->v.modelindex >> 8);
 		if (bits & U_LERPFINISH)
-			MSG_WriteByte(msg, (byte)(Q_rint((ent->v.nextthink-qcvm->time)*255)));
+		{
+			int steplerp = VR_StepLerpInterval (ent); // QVR: a stepping monster in the air moves every server frame
+			MSG_WriteByte(msg, steplerp >= 0 ? (byte)steplerp : (byte)(Q_rint((ent->v.nextthink-qcvm->time)*255)));
+		}
 		//johnfitz
 		VR_WriteEntityUpdate (msg, ent, bits); // QVR
 	}

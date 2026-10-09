@@ -380,6 +380,8 @@ struct DrawnLog
     int frames{0};
     int snaps{0};          // new moves begun with over 4 units of the last one left to draw (Quake's rule snaps them)
     float worstSnap{0.f};
+    float worstStep{0.f}; // the farthest it was drawn to move in a frame (a leap's flight: ~5 units at 90 fps)
+    int worstStepFrame{0}; // its model frame then
 };
 DrawnLog drawnLog;
 
@@ -484,11 +486,17 @@ void VR_DebugDrawnMove(const entity_t* e, const float* drawn)
                 cl.time, t->num, e->model->name, step, t->usual, t->restarts, t->turnRestarts, t->blendAtRestart, t->oldAge,
                 t->oldLength, t->restartTurn, t->restartMove, static_cast<int>(e->frame));
         }
+        if(step > drawnLog.worstStep)
+        {
+            drawnLog.worstStep = step;
+            drawnLog.worstStepFrame = static_cast<int>(e->frame);
+        }
         t->usual = t->usual * 0.9f + glm::min(step, 3.f * t->usual + 1.f) * 0.1f;
         if(drawnLog.frames % 900 == 0)
         {
             Con_Printf("drawnmove: %d frames drawn, %d jumps; %d moves begun early (Quake's drawing snaps them; the worst %.1f "
-                       "units)\n", drawnLog.frames, drawnLog.jumps, drawnLog.snaps, drawnLog.worstSnap);
+                       "units); the farthest drawn in a frame %.1f units (frame %d)\n", drawnLog.frames, drawnLog.jumps,
+                drawnLog.snaps, drawnLog.worstSnap, drawnLog.worstStep, drawnLog.worstStepFrame);
         }
     }
     t->time = cl.time;
