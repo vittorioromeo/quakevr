@@ -27,6 +27,7 @@ TOL_TURN = 2.0  # degrees
 TOL_GAP = 1.0  # cm
 
 OFF_AWAY = "vr_mock_hand off -0.35 1.1 -0.2 70 0 0"
+FG_RATE = 250  # forcegrab: frames a second of its fixed clock
 EXTRA = os.environ.get("GRIPGAP_EXTRA", "")  # console commands before each test
 NO_SHAKE = ["vr_fatigue_shake 0", "vr_fatigue_shake_angle 0"]  # (tired arms shake the drawn hand and what it holds)
 
@@ -88,7 +89,8 @@ def cycle_cfg(cycles):
 def forcegrab_play(tries):
     """A vr_mock_play take (it gives the hands their velocities, which the force grab's flick needs; bare vr_mock_hand
     steps have none). Each try: a floating health box ahead of the main hand, pointed at and flicked; the player then
-    walks and the hand swings side to side at 2 m/s through the catch (the grip pressed a little later each try)."""
+    walks and the hand swings side to side at 2 m/s through the catch (the grip pressed a little later each try,
+    the last ones after it arrives: a late catch)."""
     p = ["0.000 off -0.350 1.100 -0.200 70 0 0"]
     for i in range(tries):
         t0 = 4.0 * i + 0.5
@@ -102,7 +104,10 @@ def forcegrab_play(tries):
             t += 0.05
             x = 0.2 if abs(x - 0.1) < 1e-6 else 0.1
             p.append("%.3f main %.3f 1.600 -0.450 70 %d 0" % (t, x, 5 * (i % 3)))
-        g = t0 + 1.5 + 0.05 * i
+        # The grip from 0.1 s before it arrives to 0.08 s after (the flick fires as the hand starts up, ~t0 + 1.21, and
+        # it flies 0.41 s): late catches inside vr_forcegrab_catch_late (0.15 s), not on its edge (0.05 a try put the
+        # sixth 0.13 s late: caught or not by a frame).
+        g = t0 + 1.5 + 0.04 * (i % 6)
         p += ["%.3f cmd +grabright" % g, "%.3f cmd vr_mock_button main grip 1" % g,
               "%.3f cmd %s" % (t0 + 2.6, side.replace("+", "-")), "%.3f cmd -attack" % (t0 + 2.6),
               "%.3f main 0.100 1.600 -0.450 70 0 0" % (t0 + 2.65), "%.3f cmd echo STEP fg %d" % (t0 + 2.95, i + 1),
@@ -116,9 +121,14 @@ def forcegrab_cfg(tries, agent):
     path = os.path.join(KIT, "bases", agent, "qbase", "id1", "gripgap_forcegrab.txt")
     with open(path, "w", newline="\n") as f:
         f.write("\n".join(forcegrab_play(tries)) + "\n")
-    frames = int((4.0 * tries + 1.0) * 250)  # (the take runs one server frame a frame: more than enough)
-    return ["developer 1", *NO_SHAKE, EXTRA, OFF_AWAY, hand("main", 0.10), *waits(20),
-            "vr_mock_play " + path.replace("\\", "/"), *waits(frames)]
+    # On a fixed clock (vr_fixed_frames, 4 ms a frame; the server's 72 Hz ticks under it, the hands drawn between them):
+    # the take's clock is the frames', so the take and the server stay in step. On the wall clock a loaded machine's
+    # frame over 0.1 s (Host_FilterTime's clamp) put the server behind the take for good: a grip pressed for a catch
+    # reached the server late (a late catch missed), the next pulls not at all, and the frames ran out
+    # before the take's end. (The force grab itself catches each in step; fast mode runs the frames uncapped.)
+    frames = int((4.0 * tries + 1.5) * FG_RATE)
+    return ["developer 1", "vr_fixed_frames 1", "vr_fixed_frames_rate %d" % FG_RATE, *NO_SHAKE, EXTRA, OFF_AWAY,
+            hand("main", 0.10), *waits(20), "vr_mock_play " + path.replace("\\", "/"), *waits(frames)]
 
 
 def run(agent, name, cfg):
