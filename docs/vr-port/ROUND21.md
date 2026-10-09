@@ -33829,7 +33829,7 @@ skeleton's own depth: 0 standing, 1 the pelvis at squatting height; solveTorso).
 - **Share** (avatar::crouchPoseWeight): `vr_body_crouch_pose_strength` (1) times the depth to the power
   `vr_body_crouch_pose_curve` (1: half a crouch, half). `vr_body_crouch_preview` (-1 off; 0..1, not saved) sets the depth
   the blend takes, standing or not, so it can be tuned looking down or with the body in front (Debug: Show Body Skeleton).
-- **Body** (vr_avatar.cpp): `vr_body_crouch_torso_back` (0.05 m) / `_up` / `_right` move the trunk (pelvis, spine, chest;
+- **Body** (vr_avatar.cpp): `vr_body_crouch_torso_back` (0.2 m; was 0.05) / `_up` / `_right` move the trunk (pelvis, spine, chest;
   the legs follow the pelvis); `_torso_pitch` / `_yaw` / `_roll` turn the spine and chest about the spine's base;
   `_pelvis_back` / `_up` / `_pitch` the hips on top; `_shoulders_back` (0.03 m) / `_up` / `_out` and `_shoulders_swing` /
   `_shrug` (degrees, the collarbone about the base of the neck); `_elbow_out` / `_back` add to the elbow's pole
@@ -33846,6 +33846,11 @@ skeleton's own depth: 0 standing, 1 the pelvis at squatting height; solveTorso).
 - Test: `vr_body_crouch_preview 0 / 0.5 / 1` standing: share 0 / 0.5 / 1, the pelvis -4.44 / -5.18 / -5.92 units
   forward of the eyes (0.05 m back at full), the hip holsters and the pouch 0.74 units back per half; head at 1.0 m
   (`vr_mock_hand head 0 1.0 0`): share 0.90; strength 0 is the old pose exactly (share 0).
+- **His values are the defaults** (his note vrfiringrange_2026-10-09_18-52-47, config version 115, `vr_cvars.cpp`
+  defaultChanges: a config still at the old defaults takes them): `vr_body_crouch_torso_back` 0.05 → 0.2,
+  `vr_body_crouch_shoulders_out` 0 → 0.02, `vr_hip_holster_crouch_x` / `_y` / `_roll` 0 → 6 / 3 / 40,
+  `vr_ammo_pouch_crouch_x` / `_z` / `_pitch` 0 → 2 / 7 / 29 (`vr_body_crouch_tilt` was 20 already, vr_defaults.cfg; the
+  strength and curve, the upper and shoulder holsters unchanged). Test: `Misc/quakevr/config115_test.sh` (PASS).
 
 ## Body calibration history (2026-10-09)
 

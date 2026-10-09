@@ -641,8 +641,19 @@ const DefaultChange defaultChanges[] = {
     // 115: world scale 1.2 is normal (vr_defaults.cfg's since 2026-10-04; the author, 2026-10-09): the compiled default
     // and the tutorial's and the hub's World Scale buttons' "normal" were still 1.25, so a config at 1.25 takes 1.2.
     {115, &vr_world_scale, "1.25"},
+    // 116: the crouched pose as the author tuned it (his note vrfiringrange_2026-10-09_18-52-47: "make those the
+    // defaults"): the trunk further back, the shoulders out, the hip holsters forward, out and rolled, the pouch forward,
+    // up and pitched (vr_body_crouch_tilt was 20 already, vr_defaults.cfg).
+    {116, &vr_body_crouch_torso_back, "0.05"},  // 0.2
+    {116, &vr_body_crouch_shoulders_out, "0"},  // 0.02
+    {116, &vr_hip_holster_crouch_x, "0"},       // 6
+    {116, &vr_hip_holster_crouch_y, "0"},       // 3
+    {116, &vr_hip_holster_crouch_roll, "0"},    // 40
+    {116, &vr_ammo_pouch_crouch_x, "0"},        // 2
+    {116, &vr_ammo_pouch_crouch_z, "0"},        // 7
+    {116, &vr_ammo_pouch_crouch_pitch, "0"},    // 29
 };
-constexpr int configVersion = 115;
+constexpr int configVersion = 116;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

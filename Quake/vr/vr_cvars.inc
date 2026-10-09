@@ -1111,7 +1111,7 @@ QVR_CVAR(vr_body_crouch_tilt, "25", CVAR_ARCHIVE)    // degrees the back tilts f
 QVR_CVAR(vr_body_crouch_pose_strength, "1", CVAR_ARCHIVE) // times the crouched pose's offsets (0: none, 1: as set)
 QVR_CVAR(vr_body_crouch_pose_curve, "1", CVAR_ARCHIVE)    // the depth's power (1 linear: half a crouch, half)
 QVR_CVAR(vr_body_crouch_preview, "-1", CVAR_NONE)         // Debug: 0..1 the crouch depth the blend takes, standing or not (the pose itself as it is); -1 off
-QVR_CVAR(vr_body_crouch_torso_back, "0.05", CVAR_ARCHIVE) // metres the trunk (pelvis, spine, chest: the holsters on it) sits further back (negative: forward),
+QVR_CVAR(vr_body_crouch_torso_back, "0.2", CVAR_ARCHIVE) // metres the trunk (pelvis, spine, chest: the holsters on it) sits further back (negative: forward),
 QVR_CVAR(vr_body_crouch_torso_up, "0", CVAR_ARCHIVE)      // up,
 QVR_CVAR(vr_body_crouch_torso_right, "0", CVAR_ARCHIVE)   // and to the right
 QVR_CVAR(vr_body_crouch_torso_pitch, "0", CVAR_ARCHIVE)   // degrees the spine and chest lean further forward (negative: back), about the base of the spine,
@@ -1122,7 +1122,7 @@ QVR_CVAR(vr_body_crouch_pelvis_up, "0", CVAR_ARCHIVE)     // up,
 QVR_CVAR(vr_body_crouch_pelvis_pitch, "0", CVAR_ARCHIVE)  // and degrees it tips forward (negative: back)
 QVR_CVAR(vr_body_crouch_shoulders_back, "0.03", CVAR_ARCHIVE) // metres the shoulder joints sit further back (negative: forward),
 QVR_CVAR(vr_body_crouch_shoulders_up, "0", CVAR_ARCHIVE)  // up,
-QVR_CVAR(vr_body_crouch_shoulders_out, "0", CVAR_ARCHIVE) // and out,
+QVR_CVAR(vr_body_crouch_shoulders_out, "0.02", CVAR_ARCHIVE) // and out,
 QVR_CVAR(vr_body_crouch_shoulders_swing, "0", CVAR_ARCHIVE) // and degrees the collarbones swing back (negative: forward) about the base of the neck,
 QVR_CVAR(vr_body_crouch_shoulders_shrug, "0", CVAR_ARCHIVE) // and up (negative: down)
 QVR_CVAR(vr_body_crouch_elbow_out, "0", CVAR_ARCHIVE)     // more where the elbows point out (vr_body_elbow_out's units),
@@ -1132,12 +1132,12 @@ QVR_CVAR(vr_body_crouch_eye_up, "0", CVAR_ARCHIVE)        // and up (vr_body_eye
 // Each pair of holsters (and the ammo pouch) crouched: units forward, outwards (the pouch: to the right) and up, in the
 // body's facing, and degrees as their Hotspots turn (vr_*_holster_pitch/yaw/roll), all at a full crouch, blended as the
 // crouched pose is (vr_body_crouch_pose_*), on top of where the body carries them.
-QVR_CVAR(vr_hip_holster_crouch_x, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_hip_holster_crouch_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_crouch_x, "6", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_crouch_y, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_holster_crouch_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_holster_crouch_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_holster_crouch_yaw, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_hip_holster_crouch_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_crouch_roll, "40", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_crouch_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_crouch_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_crouch_z, "0", CVAR_ARCHIVE)
@@ -1150,10 +1150,10 @@ QVR_CVAR(vr_shoulder_holster_crouch_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_crouch_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_crouch_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_crouch_roll, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_crouch_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_crouch_x, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_crouch_y, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_crouch_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_crouch_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_crouch_z, "7", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_crouch_pitch, "29", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_crouch_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_crouch_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_torso_back, "0", CVAR_ARCHIVE)       // metres the torso sits further behind the neck (negative: in front)
