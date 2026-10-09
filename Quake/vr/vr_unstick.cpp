@@ -27,9 +27,6 @@ struct Stats
 Stats stats;
 za::Array<double, MAX_SCOREBOARD + 1> nextTry{}; // per client: no search before this server time (after a failed one)
 
-// The spots tried, nearest first: 26 directions (sideways, then up, then down: a player is not sunk into the floor
-// while a spot as near is free elsewhere) at growing distances, finely at first (a mover's few units).
-// Built before main (no first-call guard): read by any thread.
 const za::Vector<glm::vec3> spotOffsets = [] {
     za::Vector<glm::vec3> dirs;
     const auto add = [&](float x, float y, float z) { dirs.pushBack(glm::normalize(glm::vec3{x, y, z})); };
@@ -172,15 +169,71 @@ void test_f()
     PR_PopQCVM(oldvm);
 }
 
+void printTrace(const char* what, const trace_t& t)
+{
+    Con_Printf("  %s: fraction %.4f, end %.2f %.2f %.2f, normal %.3f %.3f %.3f (dist %.2f)%s%s, %s\n", what, t.fraction,
+        t.endpos[0], t.endpos[1], t.endpos[2], t.plane.normal[0], t.plane.normal[1], t.plane.normal[2], t.plane.dist,
+        t.startsolid ? ", start solid" : "", t.allsolid ? ", all solid" : "", t.ent ? nameOf(t.ent) : "nothing");
+}
+
+// vr_stuck_trace <dx> <dy> <dz> [edict]: the first player's (or that entity's) box moved by that much from where it is,
+// as its moves meet things (SV_Move: the narrow box and the compiled hull), then against the world in Quake's own hull
+// (hull 1 or 2 by its width): where each stops and the plane it meets. For a "can't walk up there" report.
+void trace_f()
+{
+    if(!sv.active || svs.maxclients < 1 || Cmd_Argc() < 4)
+    {
+        Con_Printf("vr_stuck_trace <dx> <dy> <dz> [edict]: the player's box moved by that much: where it stops, the plane "
+                   "it meets\n");
+        return;
+    }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    const int num = Cmd_Argc() > 4 ? Q_atoi(Cmd_Argv(4)) : 1;
+    if(num >= 1 && num < qcvm->num_edicts)
+    {
+        edict_t* ent = EDICT_NUM(num);
+        vec3_t start, end;
+        VectorCopy(ent->v.origin, start);
+        for(int i = 0; i < 3; ++i)
+        {
+            end[i] = start[i] + Q_atof(Cmd_Argv(1 + i));
+        }
+        Con_Printf("vr_stuck_trace %s #%d from %.2f %.2f %.2f:\n", nameOf(ent), num, start[0], start[1], start[2]);
+        printTrace("its move", SV_Move(start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent));
+        printTrace("Quake's hull", SV_ClipMoveToEntity(qcvm->edicts, start, ent->v.mins, ent->v.maxs, end));
+    }
+    PR_PopQCVM(oldvm);
+}
+
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_stuck_info", info_f);
     Cmd_AddCommand("vr_stuck_test", test_f);
+    Cmd_AddCommand("vr_stuck_trace", trace_f);
 }
 
 } // namespace qvr::unstick
+
+extern "C" void VR_WalkMoveDebug(edict_t* ent, const char* what, const trace_t* trace)
+{
+    using namespace qvr;
+    if(!vr_debug_walkmove.value || NUM_FOR_EDICT(ent) != 1)
+    {
+        return;
+    }
+    Con_Printf("walkmove %.3f %s: at %.2f %.2f %.2f, velocity %.1f %.1f %.1f, flags %d", qcvm->time, what,
+        ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], ent->v.velocity[0], ent->v.velocity[1],
+        ent->v.velocity[2], static_cast<int>(ent->v.flags) & (FL_ONGROUND | FL_WATERJUMP));
+    if(trace)
+    {
+        Con_Printf("; trace %.3f, normal %.3f %.3f %.3f%s", trace->fraction, trace->plane.normal[0],
+            trace->plane.normal[1], trace->plane.normal[2], trace->startsolid ? ", start solid" : "");
+    }
+    Con_Printf("\n");
+}
 
 extern "C" int VR_Unstick(edict_t* ent)
 {

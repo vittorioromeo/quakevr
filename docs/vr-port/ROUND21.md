@@ -33572,3 +33572,33 @@ Config version 112: a config with vr_mirror 2 (or more) takes vr_mirror 1, and w
 teleporter tests' `vr_mirror 2;vr_window_view 0` are `vr_mirror 1;vr_window_view 3`; INSTALL.md and TESTING.md say
 `vr_window_view 3` for both eyes. Checked (e1m1, mock headset): the same view twice is identical (diff 0), the left and
 the right eye differ (raw 2.75, smoothed 2.63 mean abs per channel: the eyes' parallax).
+
+## Stuck on stairs, a fiend stuck on a bridge (2026-10-09)
+
+**The stairs (notes start_2026-10-09_15-30-46, 15-31-16).** MG1's start map, the steps at -260 7 -24: 8-unit steps
+with a clip brush laid over them as a 26.6-degree ramp (hull 1 is a smooth slope there; hull 0 has the steps). Walking
+up them slowly (a third of the stick) the player stopped two thirds of the way up the first step and crawled at
+5 units a second; a jump there went 20 units and stopped again. With Quake's box (`vr_hull_width 0`) he walked up.
+
+- Cause: Quake's friction doubles (`sv_edgefriction`) when a point 16 units ahead at the feet has no floor within 34
+  units under it. The narrow box (16 wide) stands 4 units lower on a slope than Quake's 32 box (its uphill bottom edge
+  is nearer its centre), so on the clip ramp its feet are under the steps' noses and that point was inside the next step:
+  a trace starting in solid "finds no floor", double friction every frame (11 units a second a frame), more than a
+  slow stick adds (12, less what the slope takes). `vr_hull_edge_probe` (1; Movement > Player Hitbox > Ledge Test Fix,
+  `VR_HullOverDropoff`): the point is half the narrow box's width ahead (its leading edge, where Quake's geometry puts it
+  for its own box), and a point inside solid has floor under it.
+- Even with Quake's box, landing from that jump on the ramp at a third of the stick he crawled again: on a walkable
+  slope Quake's gravity leaves about 5 units a second downhill each frame, which friction then takes with the walk's
+  own speed; from a standstill under about 75 units a second of wish speed (a quarter stick) you never get going up a
+  26-degree slope. `vr_slope_walk` (1; Movement > Locomotion > Walk Up Slopes Slowly; `VR_GroundGravity`): on walkable
+  ground (the last floor plane met, normal z 0.7-0.9999, within 0.1 s) only gravity's part into the slope is kept. Flat
+  floors are Quake's exactly; walking down slopes is a little slower than Quake's (it added that drift).
+- Numbers (headless, 0.3 stick from -181 7 -8, prints every 5 frames): before, stopped at x -246 (z -1) and 0.37 units
+  per 5 frames after; now up and on the landing (z 24) at x -299 in 85 frames, also at y -40 and 40; the jump at the
+  foot lands at the top; at 0.5 stick both ways fine. `vr_hull_walktest 60 7` on e1m1, e1m3, e2m2 with and without the
+  two settings: stuck 0, embedded 0, outside 0 either way.
+- Debug: `vr_stuck_trace <dx> <dy> <dz> [edict]` (Trace Ahead) prints where the box stops and the plane met, and
+  Quake's hull's answer; `vr_debug_walkmove 1` (Print Walk Moves) prints each walk move, its bumps, the step up and
+  the ledge test.
+- Not fixed: with Method Brush Sweep (`vr_hull_method 0`, not the default) the player walks under the recovered clip
+  ramp's low end and stops against the first step's riser (moving up from there meets the ramp's underside).

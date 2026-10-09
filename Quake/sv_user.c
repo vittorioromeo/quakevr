@@ -122,9 +122,7 @@ void SV_UserFriction (void)
 {
 	float	*vel;
 	float	speed, newspeed, control;
-	vec3_t	start, stop;
 	float	friction;
-	trace_t	trace;
 
 	vel = velocity;
 
@@ -133,14 +131,7 @@ void SV_UserFriction (void)
 		return;
 
 // if the leading edge is over a dropoff, increase friction
-	start[0] = stop[0] = origin[0] + vel[0]/speed*16;
-	start[1] = stop[1] = origin[1] + vel[1]/speed*16;
-	start[2] = origin[2] + sv_player->v.mins[2];
-	stop[2] = start[2] - 34;
-
-	trace = SV_Move (start, vec3_origin, vec3_origin, stop, true, sv_player);
-
-	if (trace.fraction == 1.0)
+	if (VR_HullOverDropoff (sv_player, origin, vel, speed)) // QVR: from the narrow box's edge, floor under a point in solid (vr_hull_edge_probe)
 		friction = sv_friction.value*sv_edgefriction.value;
 	else
 		friction = sv_friction.value;

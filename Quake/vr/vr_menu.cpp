@@ -6362,6 +6362,12 @@ za::Vector<Item> pageDebugTests()
         command("Stuck Info", "vr_stuck_info")
             .help("Prints where you are, what you're inside of, the doors, buttons and lifts near you, and how often "
                   "you were freed."),
+        command("Trace Ahead", "vr_stuck_trace 32 0 0")
+            .help("Prints where your box stops moving 32 units along the world's x axis and the plane it meets, and "
+                  "Quake's own hull's answer (vr_stuck_trace <dx> <dy> <dz> [edict])."),
+        toggle("Print Walk Moves", vr_debug_walkmove)
+            .help("Prints each of your walk moves: the slide, the step up, the planes met, the ledge test "
+                  "(vr_debug_walkmove). For a report of stairs or slopes you can't walk up."),
         header("Player Hitbox (Prototype)"),
         open("Player Hitbox Settings", pageIndex(pageHitbox)).help("Movement > Player Hitbox: the widths and their toggles."),
         open("Monster Hitbox Settings", pageIndex(pageMonsterHitbox)).help("Movement > Monster Hitbox: monsters' widths by class, and their walk tests."),
@@ -6709,6 +6715,11 @@ za::Vector<Item> pageHitbox()
             .help("Brush Sweep: your box swept against the map's brushes (Quake 2's way). Compiled Hull: a clipping "
                   "hull built for your width when the map loads (qbsp's way), traced like Quake's own. They should "
                   "feel the same; this is for comparing them."),
+        toggle("Ledge Test Fix", vr_hull_edge_probe)
+            .help("Quake slows you more when the floor ahead of you drops away (an edge). On: that test looks down from "
+                  "your box's front edge (half your width ahead), and a point inside a step counts as floor. Off: "
+                  "Quake's, 16 units ahead whatever your width; stairs with a smooth ramp over them (MG1's start) then "
+                  "slowed you to a crawl, and a jump against them went nowhere (vr_hull_edge_probe)."),
         toggle("Doors, Lifts and Walls Too", vr_hull_brushmodels)
             .help("The width above against brush models as well (doors, lifts, trains, func_walls, the firing range's "
                   "panels and tables). Off: only the world's walls; brush models meet Quake's box."),

@@ -29,6 +29,7 @@
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -1880,6 +1881,59 @@ extern "C" void VR_AfterPlayerPostThink(edict_t* ent)
 extern "C" float VR_StepSize(float fallback)
 {
     return active() ? vr_player_stepsize.value : fallback;
+}
+
+namespace
+{
+
+// The walkable floor each player last stood on (SV_FlyMove, SV_WalkMove's step down): its normal, and when.
+struct GroundPlane
+{
+    glm::vec3 normal{0.f, 0.f, 1.f};
+    double time = -1.0;
+};
+
+za::Array<GroundPlane, MAX_SCOREBOARD + 1> groundPlanes{};
+
+} // namespace
+
+extern "C" void VR_GroundPlaneMet(edict_t* ent, const float* normal)
+{
+    const int num = NUM_FOR_EDICT(ent);
+    if(num >= 1 && num <= svs.maxclients && num < static_cast<int>(groundPlanes.size()))
+    {
+        groundPlanes[num] = {{normal[0], normal[1], normal[2]}, qcvm->time};
+    }
+}
+
+// SV_Physics_Client, gravity just added (before: the velocity without it). On a walkable slope (vr_slope_walk) only the
+// part of it into the slope is kept: the floor takes it all, and none of it is left along the slope, downhill. Quake
+// keeps that part: about 5 units a second downhill every frame, which its friction takes away at once (that is why you
+// don't slide where you stand); walking uphill from a standstill, it took most of what a slow stick adds a frame
+// (10 x the wish speed a second): under about 75 units a second (a quarter stick) you never got going up a slope or a
+// stairs' ramp, and once stopped there (a jump landing on it, the edge friction of MG1's start stairs) you crawled.
+// Flat floors are Quake's exactly.
+extern "C" void VR_GroundGravity(edict_t* ent, const float* before)
+{
+    const int num = NUM_FOR_EDICT(ent);
+    if(!vr_slope_walk.value || num < 1 || num > svs.maxclients || num >= static_cast<int>(groundPlanes.size()) ||
+        !(static_cast<int>(ent->v.flags) & FL_ONGROUND))
+    {
+        return;
+    }
+    const GroundPlane& g = groundPlanes[num];
+    const double age = qcvm->time - g.time;
+    if(g.time < 0.0 || age < 0.0 || age > 0.1 || g.normal.z <= 0.7f || g.normal.z >= 0.9999f)
+    {
+        return;
+    }
+    const glm::vec3 was{before[0], before[1], before[2]};
+    const glm::vec3 added = glm::vec3{ent->v.velocity[0], ent->v.velocity[1], ent->v.velocity[2]} - was;
+    const glm::vec3 now = was + g.normal * glm::dot(added, g.normal);
+    for(int i = 0; i < 3; ++i)
+    {
+        ent->v.velocity[i] = now[i];
+    }
 }
 
 extern "C" void VR_OnWaterLevelChange(edict_t* ent, float oldWaterLevel)

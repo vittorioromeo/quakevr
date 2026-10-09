@@ -306,6 +306,7 @@ int VR_ClimbCarryBlocked (struct edict_s *check, struct edict_s *pusher, const f
 void VR_ClimbCarried (struct edict_s *pusher, const float *move);	// SV_PushMove, moved: the holds on it moved with it
 void VR_ClientRoomscaleMove (struct edict_s *ent);		// SV_Physics_Client, after the move
 int VR_Unstick (struct edict_s *ent);				// SV_CheckStuck, found in solid: nonzero if moved to the nearest free spot (vr_unstick; vr_unstick.cpp)
+void VR_WalkMoveDebug (struct edict_s *ent, const char *what, const trace_t *trace); // SV_WalkMove, SV_FlyMove: the first player's move printed (vr_debug_walkmove; vr_unstick.cpp)
 void VR_BeforePlayerPostThink (struct edict_s *ent);	// SV_Physics_Client, before PlayerPostThink
 void VR_AfterPlayerPostThink (struct edict_s *ent);	// and after it
 float *VR_MoveAngles (struct edict_s *ent, float *fallback); // angles steering walk/swim moves
@@ -313,6 +314,8 @@ int VR_NoclipAngles (struct edict_s *ent, float *out); // SV_NoclipMove: a heads
 float VR_WaterStickScale (struct edict_s *ent, int swimming); // SV_ClientThink, before SV_WaterMove / SV_AirMove: the stick's speed in water
 float VR_StaminaSpeedScale (struct edict_s *ent);	// SV_AirMove: tired, times the most walking speed (sv_maxspeed; vr_stamina_speed)
 void VR_AfterWaterMove (struct edict_s *ent, float forwardmove, float sidemove, float upmove); // after SV_WaterMove: swimming strokes (the stick steering them)
+void VR_GroundPlaneMet (struct edict_s *ent, const float *normal); // SV_FlyMove, SV_WalkMove: a player met walkable floor (vr_slope_walk)
+void VR_GroundGravity (struct edict_s *ent, const float *before); // SV_Physics_Client, gravity added: on a walkable slope, only its part into the slope (vr_slope_walk)
 float VR_StepSize (float fallback);					// SV_WalkMove step height
 void VR_OnWaterLevelChange (struct edict_s *ent, float oldwaterlevel); // end of SV_CheckWater
 int VR_AllowWaterSplash (struct edict_s *ent);			// SV_CheckWaterTransition splash sounds
@@ -326,6 +329,7 @@ int VR_HullClipPortal(struct edict_s* ent, const float* start, const float* mins
     const float* end, const float* plane, trace_t* trace);
 // A player narrower than hull 1 against BSP models (vr_hull_width; vr_hull.cpp, docs/vr-port/HULLS.md).
 int VR_HullMoveBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if its BSP clips use this box
+int VR_HullOverDropoff (struct edict_s *ent, const float *origin, const float *vel, float speed); // SV_UserFriction's ledge test: nonzero if the floor drops away ahead (vr_hull_edge_probe: from the narrow box's leading edge; a point in solid has floor)
 int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmins, const float *boxmaxs, const float *end,
 	trace_t *trace);								// SV_ClipMoveToEntity for SOLID_BSP: nonzero if it traced (else the hull)
 int VR_HullEntBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if the player's box meets other entities' boxes narrowed (vr_hull_ent_width)

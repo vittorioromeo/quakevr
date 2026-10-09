@@ -5598,6 +5598,38 @@ extern "C" int VR_HullMoveBox(edict_t* passedict, const float* mins, const float
     return qvr::hull::moveBox(passedict, mins, maxs, boxmins, boxmaxs);
 }
 
+// SV_UserFriction's ledge test (double friction when the floor drops away ahead): Quake looks down 34 units from a point
+// 16 ahead of the box's centre at its feet (the leading edge of its 32 box). With vr_hull_edge_probe (on), from the
+// narrow box's own leading edge (half its width ahead), and a point that starts inside solid has floor under it (Quake
+// called it a drop: a trace starting in solid goes nowhere). Stairs with a clip brush ramp laid over them (MG1's
+// start): the feet ride the ramp at the steps' noses (Quake's box exactly on them, a narrower box, standing lower on a
+// slope, under them), so that point was inside the next step: double friction every frame, walking up slowed to a crawl,
+// and a jump against the steps went nowhere (ROUND21.md, "Stuck on stairs, a fiend stuck on a bridge").
+extern "C" int VR_HullOverDropoff(edict_t* ent, const float* origin, const float* vel, float speed)
+{
+    const bool fix = qvr::vr_hull_edge_probe.value != 0.f;
+    float edge = 16.f;
+    float lo[3], hi[3];
+    if(fix && qvr::hull::moveBox(ent, ent->v.mins, ent->v.maxs, lo, hi))
+    {
+        edge = za::min(16.f, (hi[0] - lo[0]) * 0.5f);
+    }
+    vec3_t start, stop;
+    start[0] = stop[0] = origin[0] + vel[0] / speed * edge;
+    start[1] = stop[1] = origin[1] + vel[1] / speed * edge;
+    start[2] = origin[2] + ent->v.mins[2];
+    stop[2] = start[2] - 34.f;
+    const trace_t trace = SV_Move(start, vec3_origin, vec3_origin, stop, MOVE_NOMONSTERS, ent);
+    const bool drop = trace.fraction == 1.f && !(fix && trace.startsolid);
+    if(qvr::vr_debug_walkmove.value && NUM_FOR_EDICT(ent) == 1)
+    {
+        Con_Printf("walkmove ledge test %.1f ahead from %.2f %.2f %.2f: %.3f%s%s: %s\n", edge, start[0], start[1],
+            start[2], trace.fraction, trace.startsolid ? ", start solid" : "", trace.allsolid ? ", all solid" : "",
+            drop ? "a drop (double friction)" : "floor");
+    }
+    return drop;
+}
+
 extern "C" int VR_HullClipBSP(edict_t* ent, const float* start, const float* boxmins, const float* boxmaxs,
     const float* end, trace_t* trace)
 {

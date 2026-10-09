@@ -263,6 +263,7 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 			end[i] = ent->v.origin[i] + time_left * ent->v.velocity[i];
 
 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
+		VR_WalkMoveDebug (ent, "  bump", &trace); // QVR: vr_debug_walkmove
 
 		if (trace.allsolid)
 		{	// entity is trapped in another solid
@@ -290,6 +291,7 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 			{
 				ent->v.flags =	(int)ent->v.flags | FL_ONGROUND;
 				ent->v.groundentity = EDICT_TO_PROG(trace.ent);
+				VR_GroundPlaneMet (ent, trace.plane.normal); // QVR: vr_slope_walk
 			}
 		}
 		else
@@ -898,7 +900,9 @@ void SV_WalkMove (edict_t *ent)
 	VectorCopy (ent->v.origin, oldorg);
 	VectorCopy (ent->v.velocity, oldvel);
 
+	VR_WalkMoveDebug (ent, "walk", NULL); // QVR: vr_debug_walkmove
 	clip = SV_FlyMove (ent, host_frametime, &steptrace);
+	VR_WalkMoveDebug (ent, clip & 2 ? "slid, blocked by a step" : "slid", NULL); // QVR
 
 	if ( !(clip & 2) )
 		return;		// move didn't block on a step
@@ -953,7 +957,9 @@ void SV_WalkMove (edict_t *ent)
 		SV_WallFriction (ent, &steptrace);
 
 // move down
+	VR_WalkMoveDebug (ent, "stepped up and on", NULL); // QVR: vr_debug_walkmove
 	downtrace = SV_PushEntity (ent, downmove);	// FIXME: don't link?
+	VR_WalkMoveDebug (ent, downtrace.plane.normal[2] > 0.7 ? "stepped down: kept" : "stepped down: not ground, the slide kept", &downtrace); // QVR
 
 	if (downtrace.plane.normal[2] > 0.7)
 	{
@@ -962,6 +968,7 @@ void SV_WalkMove (edict_t *ent)
 			ent->v.flags =	(int)ent->v.flags | FL_ONGROUND;
 			ent->v.groundentity = EDICT_TO_PROG(downtrace.ent);
 		}
+		VR_GroundPlaneMet (ent, downtrace.plane.normal); // QVR: vr_slope_walk
 	}
 	else
 	{
@@ -1025,7 +1032,12 @@ void SV_Physics_Client (edict_t	*ent, int num)
 		if (!SV_RunThink (ent))
 			return;
 		if (!SV_CheckWater (ent) && ! ((int)ent->v.flags & FL_WATERJUMP) )
+		{
+			vec3_t nogravity; // QVR
+			VectorCopy (ent->v.velocity, nogravity); // QVR
 			SV_AddGravity (ent);
+			VR_GroundGravity (ent, nogravity); // QVR: on a walkable slope, only its part into it (vr_slope_walk)
+		}
 		SV_CheckStuck (ent);
 		SV_WalkMove (ent);
 		break;
