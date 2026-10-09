@@ -5,9 +5,10 @@
 // (HKLM\SOFTWARE\Khronos\OpenXR\1\ActiveRuntime); the installed ones are listed under ...\AvailableRuntimes. Auto
 // (vr_xr_runtime 4, the default) picks the one whose app is running: Virtual Desktop's Streamer -> VDXR, SteamVR's
 // vrserver/vrmonitor -> SteamVR, Meta's OVRServer_x64 -> Meta's runtime; then the system's active runtime, then the
-// other installed ones. The loader unloads a runtime when its last instance is destroyed and reads XR_RUNTIME_JSON again
-// at the next xrCreateInstance, so the backend tries them in turn in one process (verified with the fake runtime,
-// Misc/quakevr/fakexr; docs/vr-port/TESTING.md, "OpenXR runtime choice").
+// other installed ones. While the Streamer runs, Virtual Desktop's own OpenXR runtime setting (its StreamerSettings.json)
+// set to SteamVR puts SteamVR first, VDXR next. The loader unloads a runtime when its last instance is destroyed and
+// reads XR_RUNTIME_JSON again at the next xrCreateInstance, so the backend tries them in turn in one process (verified
+// with the fake runtime, Misc/quakevr/fakexr; docs/vr-port/TESTING.md, "OpenXR runtime choice").
 
 #pragma once
 

@@ -12,6 +12,7 @@
 #endif
 
 #include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -149,14 +150,141 @@ constexpr Known known[] = {
     return items;
 }
 
-// What the system has: the installed runtimes (enabled ones), the active one, the running processes (lower case). The
-// real ones, or vr_xr_test_*'s (vr_xr_test 1: nothing real is read, nor loaded; no usual places).
+// Virtual Desktop's own OpenXR runtime setting (the Streamer's Options: Automatic, SteamVR or VDXR): "OpenXRRuntime" in
+// %ProgramData%\Virtual Desktop\StreamerSettings.json, the Streamer's enum VirtualDesktop.Interfaces.OpenXRRuntime
+// (0 Automatic, 1 SteamVR, 2 VDXR; read from the Streamer 1.34's .NET metadata). The Streamer hands it to Virtual
+// Desktop's service (SetOpenXRRuntime), which likely sets the system's ActiveRuntime to match (VDXR's there with VDXR
+// chosen); that isn't verified for SteamVR, and the file says it directly anyway.
+enum class VdChoice
+{
+    Unknown,
+    Automatic,
+    SteamVR,
+    VDXR,
+};
+
+struct VdSetting
+{
+    VdChoice choice = VdChoice::Unknown;
+    za::String source; // where it was read, or why it wasn't
+};
+
+[[nodiscard]] const char* vdChoiceName(VdChoice choice)
+{
+    switch(choice)
+    {
+        case VdChoice::Automatic: return "Automatic";
+        case VdChoice::SteamVR: return "SteamVR";
+        case VdChoice::VDXR: return "VDXR";
+        default: return "unknown";
+    }
+}
+
+[[nodiscard]] VdChoice vdChoiceOf(long value)
+{
+    switch(value)
+    {
+        case 0: return VdChoice::Automatic;
+        case 1: return VdChoice::SteamVR;
+        case 2: return VdChoice::VDXR;
+        default: return VdChoice::Unknown;
+    }
+}
+
+// "OpenXRRuntime" in a StreamerSettings.json: a number (the enum), or its name (should a later Streamer write names).
+[[nodiscard]] VdSetting readVdSettings(const char* path)
+{
+    VdSetting vd;
+    FILE* f = fopen(path, "rb");
+    if(!f)
+    {
+        vd.source = va("%s: not found", path);
+        return vd;
+    }
+    za::String text;
+    char buffer[4096];
+    for(size_t n; (n = fread(buffer, 1, sizeof(buffer), f)) > 0 && text.size() < 1024 * 1024;)
+    {
+        for(size_t i = 0; i < n; i++)
+        {
+            text += buffer[i];
+        }
+    }
+    fclose(f);
+    const char* key = q_strcasestr(text.cStr(), "\"OpenXRRuntime\"");
+    if(!key)
+    {
+        vd.source = va("%s: no OpenXRRuntime in it", path);
+        return vd;
+    }
+    const char* p = key + strlen("\"OpenXRRuntime\"");
+    while(*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n' || *p == ':')
+    {
+        p++;
+    }
+    if(*p == '"')
+    {
+        constexpr VdChoice named[] = {VdChoice::Automatic, VdChoice::SteamVR, VdChoice::VDXR};
+        for(VdChoice c : named)
+        {
+            const char* name = vdChoiceName(c);
+            if(!q_strncasecmp(p + 1, name, strlen(name)) && p[1 + strlen(name)] == '"')
+            {
+                vd.choice = c;
+            }
+        }
+    }
+    else if(isdigit(static_cast<unsigned char>(*p)) || *p == '-')
+    {
+        vd.choice = vdChoiceOf(strtol(p, nullptr, 10));
+    }
+    char value[32];
+    size_t n = 0;
+    for(; p[n] && p[n] != ',' && p[n] != '\r' && p[n] != '\n' && p[n] != '}' && n + 1 < sizeof(value); n++)
+    {
+        value[n] = p[n];
+    }
+    value[n] = 0;
+    vd.source = va("OpenXRRuntime %s in %s", value, path);
+    return vd;
+}
+
+// Virtual Desktop's setting: vr_xr_test_vd_runtime's override (a number: -1 unknown, 0 Automatic, 1 SteamVR, 2 VDXR; or
+// a StreamerSettings.json to read), else the Streamer's file (none in the test environment).
+[[nodiscard]] VdSetting vdSetting(bool test)
+{
+    const char* o = vr_xr_test_vd_runtime.string;
+    if(o[0] && (isdigit(static_cast<unsigned char>(o[0])) || o[0] == '-'))
+    {
+        return VdSetting{vdChoiceOf(strtol(o, nullptr, 10)), za::String{va("vr_xr_test_vd_runtime %s", o)}};
+    }
+    if(o[0])
+    {
+        return readVdSettings(o);
+    }
+    if(test)
+    {
+        return VdSetting{VdChoice::Unknown, za::String{"not read (test environment; vr_xr_test_vd_runtime)"}};
+    }
+#ifdef _WIN32
+    const char* programData = getenv("ProgramData");
+    return readVdSettings(
+        va("%s\\Virtual Desktop\\StreamerSettings.json", programData && programData[0] ? programData : "C:\\ProgramData"));
+#else
+    return VdSetting{VdChoice::Unknown, za::String{"not read (Windows only)"}};
+#endif
+}
+
+// What the system has: the installed runtimes (enabled ones), the active one, the running processes (lower case),
+// Virtual Desktop's runtime setting. The real ones, or vr_xr_test_*'s (vr_xr_test 1: nothing real is read, nor loaded;
+// no usual places).
 struct Environment
 {
     bool test = false;
     za::Vector<za::String> available;
     za::String active;
     za::Vector<za::String> processes;
+    VdSetting vd;
 };
 
 [[nodiscard]] za::String lower(const char* s)
@@ -181,8 +309,10 @@ struct Environment
         {
             env.processes.pushBack(lower(p.cStr()));
         }
+        env.vd = vdSetting(true);
         return env;
     }
+    env.vd = vdSetting(false);
 #ifdef _WIN32
     HKEY key = nullptr;
     if(RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Khronos\\OpenXR\\1\\AvailableRuntimes", 0, KEY_READ, &key) == ERROR_SUCCESS)
@@ -316,8 +446,10 @@ struct Installed
 // xrGetSystem works, else it fails and the next is tried; then the system's active runtime when its app runs, then
 // Meta's, SteamVR's); then the system's active runtime; then the other installed ones, but SteamVR's only with
 // vr_xr_runtime_fallback 2 (loading it starts SteamVR, its windows and all, to find no headset: last). Manifests that
-// don't exist are left out.
-void autoOrder(const za::Vector<Installed>& installed, Plan& plan)
+// don't exist are left out. While the Streamer runs, Virtual Desktop's own runtime setting decides between its two:
+// SteamVR -> SteamVR's first (running or not: loading it starts SteamVR, which reaches the headset through VD's
+// driver), then VDXR; VDXR, Automatic or unreadable -> VDXR first, as before.
+void autoOrder(const Environment& env, const za::Vector<Installed>& installed, Plan& plan)
 {
     za::Vector<bool> taken(installed.size(), false);
     auto take = [&](size_t i, const char* reason) {
@@ -336,7 +468,37 @@ void autoOrder(const za::Vector<Installed>& installed, Plan& plan)
         }
     };
 
-    takeKind(Kind::VirtualDesktop, true);
+    const VdChoice vd = env.vd.choice;
+    const bool streamer = runningProcess(env, Kind::VirtualDesktop) != nullptr;
+    bool steamFirst = false;
+    if(streamer && vd == VdChoice::SteamVR)
+    {
+        for(size_t i = 0; i < installed.size(); i++)
+        {
+            if(!taken[i] && installed[i].exists && installed[i].kind == Kind::SteamVR)
+            {
+                take(i, installed[i].running ? "Virtual Desktop set to SteamVR, running" : "Virtual Desktop set to SteamVR");
+                steamFirst = true;
+            }
+        }
+    }
+    for(size_t i = 0; i < installed.size(); i++)
+    {
+        if(!taken[i] && installed[i].exists && installed[i].kind == Kind::VirtualDesktop && installed[i].running)
+        {
+            const char* reason = "Streamer running";
+            switch(vd)
+            {
+                case VdChoice::SteamVR:
+                    reason = steamFirst ? "Streamer running, set to SteamVR" : "Streamer running, set to SteamVR (not installed)";
+                    break;
+                case VdChoice::VDXR: reason = "Streamer running, set to VDXR"; break;
+                case VdChoice::Automatic: reason = "Streamer running, set to Automatic"; break;
+                default: break;
+            }
+            take(i, reason);
+        }
+    }
     for(size_t i = 0; i < installed.size(); i++)
     {
         if(!taken[i] && installed[i].exists && installed[i].active && installed[i].running)
@@ -427,7 +589,7 @@ void checkOutside()
 
     if(mode == 4)
     {
-        autoOrder(installed, plan);
+        autoOrder(env, installed, plan);
         plan.fallback = vr_xr_runtime_fallback.value != 0.f;
         if(plan.attempts.empty())
         {
@@ -495,10 +657,22 @@ void explain_f()
         const char* running = runningProcess(env, k.kind);
         Con_Printf("  %s: %s\n", k.label, running ? va("%s running", running) : "not running");
     }
+    const bool streamer = runningProcess(env, Kind::VirtualDesktop) != nullptr;
+    const char* effect = env.vd.choice == VdChoice::Unknown ? ": Auto as without it"
+                         : !streamer                         ? " (ignored: the Streamer isn't running)"
+                         : env.vd.choice == VdChoice::SteamVR ? ": SteamVR first"
+                                                              : ": VDXR first";
+    Con_Printf("  Virtual Desktop's OpenXR runtime setting: %s%s\n", vdChoiceName(env.vd.choice), effect);
+    Con_Printf("     %s\n", env.vd.source.cStr());
     for(const Installed& i : installed)
     {
+        bool planned = false;
+        for(const Attempt& a : p.attempts)
+        {
+            planned = planned || sameFile(a.manifest.cStr(), i.manifest.cStr());
+        }
         const bool idleSteamVR = vr_xr_runtime.value == 4.f && i.exists && i.kind == Kind::SteamVR && !i.running &&
-                                 !i.active && vr_xr_runtime_fallback.value < 2.f;
+                                 !i.active && !planned;
         Con_Printf("  installed: %s%s%s%s\n", labelOf(i.manifest.cStr()).cStr(), i.active ? ", the system's active" : "",
             i.exists ? "" : ", NOT FOUND (left out)",
             idleSteamVR ? ", not running: left out (it would start SteamVR; vr_xr_runtime_fallback 2 tries it)" : "");

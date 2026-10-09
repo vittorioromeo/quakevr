@@ -436,7 +436,7 @@ QVR_CVAR(vr_nearclip_held, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_depth_float, "1", CVAR_ARCHIVE)
 
 // The OpenXR runtime (vr_xr_runtime.hpp; an XR_RUNTIME_JSON the game was started with wins): 4 Auto, the one whose app is
-// running (Virtual Desktop's Streamer: VDXR; SteamVR; Meta's OVRServer), else the system's active one; 0 the system's
+// running (Virtual Desktop's Streamer: VDXR, or SteamVR when VD's own setting says so; SteamVR; Meta's OVRServer), else the system's active one; 0 the system's
 // active one; 1 Virtual Desktop (VDXR); 2 SteamVR; 3 the manifest in vr_xr_runtime_json.
 QVR_CVAR(vr_xr_runtime, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_xr_runtime_json, "", CVAR_ARCHIVE)        // with vr_xr_runtime 3: the runtime's manifest (.json)
@@ -454,6 +454,10 @@ QVR_CVAR(vr_xr_test_runtimes, "", CVAR_NONE)
 QVR_CVAR(vr_xr_test_active, "", CVAR_NONE)
 QVR_CVAR(vr_xr_test_processes, "", CVAR_NONE)
 QVR_CVAR(vr_xr_test_fail, "", CVAR_NONE)
+// Virtual Desktop's own OpenXR runtime setting as Auto reads it (with or without vr_xr_test): "" the Streamer's
+// %ProgramData%\Virtual Desktop\StreamerSettings.json (none with vr_xr_test 1); a number, VD's: -1 unknown, 0 Automatic,
+// 1 SteamVR, 2 VDXR; or another StreamerSettings.json to read.
+QVR_CVAR(vr_xr_test_vd_runtime, "", CVAR_NONE)
 // Eye image size: the runtime's recommended size (SteamVR's supersampling included) times this,
 // per side (0.5 .. 1.5; pixels go with its square), within the runtime's largest.
 QVR_CVAR(vr_render_scale, "1", CVAR_ARCHIVE)

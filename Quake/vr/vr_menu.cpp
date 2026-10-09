@@ -7698,7 +7698,7 @@ za::Vector<Item> pageMain()
         toggle("VR", vr_enabled),
         action("Restart VR", restartVr),
         cycle("OpenXR Runtime", vr_xr_runtime, {{4.f, "Auto"}, {0.f, "System default"}, {1.f, "Virtual Desktop (VDXR)"}, {2.f, "SteamVR"}})
-            .help("Which OpenXR runtime runs the headset; VR restarts. Auto: the one whose app is running (Virtual Desktop: VDXR, which skips SteamVR), else the system's. Keep Virtual Desktop's 'Emulate Index controllers' off."),
+            .help("Which OpenXR runtime runs the headset; VR restarts. Auto: the one whose app is running (Virtual Desktop: the runtime picked in its Streamer's OpenXR Runtime option; VDXR, which skips SteamVR, unless SteamVR is picked there), else the system's. Keep Virtual Desktop's 'Emulate Index controllers' off."),
         info(xrRuntimeLine),
         cycle("Try Other Runtimes", vr_xr_runtime_fallback, {{0.f, "Off"}, {1.f, "On"}, {2.f, "On, SteamVR too"}}).advanced()
             .help("Auto: when the chosen runtime fails to start (no headset), try the other installed ones before playing flat. An idle SteamVR (not the system's runtime) only with 'SteamVR too': trying it starts SteamVR."),
