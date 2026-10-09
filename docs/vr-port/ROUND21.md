@@ -33205,3 +33205,21 @@ drawn in. Test `gadget_tap_feedback_test.sh` (with `-Sound` the clicks load and 
 tap's (glitch 0.70 for 0.12 s, 60 draws) then the activation's (1.00 for 0.15 s, 76 draws); Single Tap the activation's
 only; both off: no click, no glitch drawn; the test command both. A headless shot before, during and after: the screen
 torn only during.
+## An ejected magazine stays out, whatever the other hand holds (2026-10-09)
+
+The author's note vrfiringrange_2026-10-09_12-33-54: the super nailgun in the main hand, the nailgun in the off hand,
+B/Y on the off hand: the magazine popped out and straight back in. The cause: a magazine just out of its gun is
+`.vr_ammo_fresh` (not back in by contact until it has left the well), and VR_Reload_LooseFrame cleared that per hand,
+from the hand's own gun's load point: the main hand's gun, far from the falling magazine, called it gone, and the next
+frame the off hand's gun took it back. Any gun that loads by hand in the other hand did it, the same gun in both hands
+too (and the super shotgun's live shells thrown out on breaking it open could go back the same way); with the other hand
+empty it didn't (its frame does nothing). Headless, 17 pairs (each of the nailgun, super nailgun and thunderbolt in the
+off hand with each in the main, either hand's B/Y, the other hand empty): before, 7 went straight back in (every
+nailgun's eject with a gun in the other hand); after, none.
+
+Now `VR_Reload_FreshLeft`: fresh only clears once the round is away from the load points of both of the player's guns
+(their radius, the magazine's, twice Loose Leniency and 4 units) and `vr_reload_eject_cooldown` (0.35 s; the Reloading
+page, "Ejected Stays Out") has passed; a round from another player's gun keeps the cooldown alone. A gun lying about
+takes none in that cooldown either (ejecting over a gun on a table). `VR_Reload_MarkFresh` stamps every way out (B/Y,
+the pull into the hand, the knock-out, the bump, the super shotgun's live shells). Brought back to a well after that, it
+seats as before (contact_test.sh, reload_test.sh unchanged).

@@ -1140,6 +1140,9 @@ void resetHandMoves()
         slider("Loose Angle", "vr_reload_contact_angle", 5.f, 80.f, 5.f, "%.0f deg")
             .help("How far off the way it goes in a loose round may lie and still load (a shell's open end along the "
                   "tube or the barrels, a magazine's feed end up the well). Sideways never loads."),
+        slider("Ejected Stays Out", "vr_reload_eject_cooldown", 0.f, 2.f, 0.05f, "%.2f s")
+            .help("A magazine just ejected (or the super shotgun's live shells thrown out) goes back in by contact only "
+                  "once it has left both guns' wells and this long has passed."),
         toggle("Eject Button", "vr_reload_eject_button")
             .help("The B/Y button of the controller holding a nailgun, super nailgun or thunderbolt drops its magazine."),
         header("Ammo Pouch"),

@@ -721,6 +721,7 @@ float cvarh_vr_reload_mag_light_radius;
 float cvarh_vr_reload_contact;
 float cvarh_vr_reload_contact_leniency;
 float cvarh_vr_reload_contact_angle;
+float cvarh_vr_reload_eject_cooldown;
 float cvarh_vr_reload_front;
 float cvarh_vr_reload_front_angle;
 float cvarh_vr_reload_port_gl_radius;
@@ -1488,6 +1489,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_reload_contact);
     VR_CVAR_HMAKE(vr_reload_contact_leniency);
     VR_CVAR_HMAKE(vr_reload_contact_angle);
+    VR_CVAR_HMAKE(vr_reload_eject_cooldown);
     VR_CVAR_HMAKE(vr_reload_front);
     VR_CVAR_HMAKE(vr_reload_front_angle);
     VR_CVAR_HMAKE(vr_reload_port_gl_radius);

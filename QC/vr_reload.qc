@@ -52,6 +52,8 @@
 .float vr_ammo_wid;      // a magazine: the gun it fits (WID_*; 0 a shell)
 .float vr_ammo_fresh;    // a magazine just pulled out of its gun (or dropped, knocked out; the super shotgun's live shells
                          // thrown out): it goes in again only once it has left the well
+.float vr_ammo_fresh_at;   // and when it came out (vr_reload_eject_cooldown),
+.entity vr_ammo_fresh_from; // and whose gun it came out of (only that player's own load points keep it fresh)
 .float vr_ammo_pass;     // a loose round passing through the guns of a player to their load points (VR_Reload_LooseFrame;
                          // the engine's vr_box3d.cpp reachSkips): the hands (1 off, 2 main) of
 .entity vr_ammo_passer;  // that player
@@ -698,6 +700,15 @@ entity(float xFront, float xAid, vector xOrg, vector xAngles) VR_Reload_MakeFron
 // ----------------------------------------------------------------------------
 // Magazines in and out
 
+// The round `r` just out of the gun of `p` (ejected, pulled, knocked out, thrown out of the breech): not back in by
+// contact until it has left (VR_Reload_FreshLeft).
+void(entity r, entity p) VR_Reload_MarkFresh =
+{
+    r.vr_ammo_fresh = TRUE;
+    r.vr_ammo_fresh_at = time;
+    r.vr_ammo_fresh_from = p;
+};
+
 // The gun in `xHand` of `p` (a magazine gun, one in) lets its magazine go: a round of what it held, where its well is
 // (the gun's angles), flying at `xVel` (units/s); the gun empty, no magazine (QVR_WPNFLAG_NOMAG). `xInto`: a hand of `p`
 // that takes it at once (the pull), -1 none. The magazine.
@@ -726,13 +737,13 @@ entity(entity p, float xHand, vector xVel, float xInto, string xHow) VR_Reload_E
         vr_carry_quiet = TRUE;
         VR_Carry_Start(p, xInto, r);
         vr_carry_quiet = FALSE;
-        r.vr_ammo_fresh = TRUE;
+        VR_Reload_MarkFresh(r, p);
         VR_Reload_Haptic(p, xInto, 0.1, 90, 0.8);
     }
     else
     {
         r.velocity = xVel;
-        r.vr_ammo_fresh = TRUE; // (not back in by contact until it has left the well: VR_Reload_LooseFrame)
+        VR_Reload_MarkFresh(r, p); // (not back in by contact until it has left the wells: VR_Reload_LooseFrame)
         r.avelocity = '0 0 1' * (crandom() * 200) + '1 0 0' * (crandom() * 300);
         r.flags = r.flags - (r.flags & FL_ONGROUND);
     }
@@ -1195,7 +1206,7 @@ void(float xGunHand) VR_Reload_HitFrame =
         vlen(rel), d, vlen(at - (xGunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos))));
     if(held != world && held.vr_ammo_wid)
     {
-        held.vr_ammo_fresh = TRUE; // (the bump: it seats once brought back to the well)
+        VR_Reload_MarkFresh(held, self); // (the bump: it seats once brought back to the well)
     }
     VR_Reload_Haptic(self, other, 0.06, 90, 0.8);
 };
@@ -1418,7 +1429,7 @@ void(entity p, float xHand, string xHow) VR_Reload_SsgBreak =
     {
         float side = i ? -1 : 1;
         entity r = VR_Reload_MakeRound(0, AID_SHELLS, 1, at + v_right * side * 1.2, VRGetEntHandRot(p, xHand));
-        r.vr_ammo_fresh = TRUE; // (not back in by contact until it has left the breech)
+        VR_Reload_MarkFresh(r, p); // (not back in by contact until it has left the breech)
         r.velocity = VRGetEntHandVel(p, xHand) * VRMetersToUnits() - v_forward * 70 + v_up * 90 + v_right * side * 25;
         r.avelocity = '0 1 0' * (crandom() * 400) + '1 0 0' * (crandom() * 300);
         r.flags = r.flags - (r.flags & FL_ONGROUND);
@@ -1968,12 +1979,42 @@ float(entity r, vector xPort) VR_Reload_LooseDist =
     return vlen(a + ab * t - xPort);
 };
 
+// Whether the round `r` just out of a gun (.vr_ammo_fresh) has left, for self: vr_reload_eject_cooldown seconds gone and,
+// if it came out of one of self's guns, away from the load points of both of self's guns that take rounds (the author's
+// note vrfiringrange_2026-10-09_12-33-54: one hand's gun calling it gone from its own well let the other hand's gun it had
+// just dropped out of take it straight back; any pair of guns, the same gun in both hands).
+float(entity r) VR_Reload_FreshLeft =
+{
+    if(time < r.vr_ammo_fresh_at + max(0, cvar_hget(cvarh_vr_reload_eject_cooldown)))
+    {
+        return FALSE;
+    }
+    if(r.vr_ammo_fresh_from != self)
+    {
+        return TRUE; // (another player's: the cooldown alone)
+    }
+    float lenient = max(0, cvar_hget(cvarh_vr_reload_contact_leniency)) * VRMetersToUnits() / 100;
+    for(float h = 0; h < 2; h++)
+    {
+        if(VR_Reload_AmmoFor(self, h) >= 0)
+        {
+            vector port = h == cVR_MainHand ? self.loadportpos : self.offloadportpos;
+            float margin = VR_Reload_PortRadius(VRGetEntWeapon(self, h)) + VR_Reload_MagRadius(r.vr_ammo_wid) + 2 * lenient + 4;
+            if(vlen(VR_Reload_RoundRef(r) - port) <= margin)
+            {
+                return FALSE;
+            }
+        }
+    }
+    return TRUE;
+};
+
 // Each player frame, for each hand (VR_Reload_HandFrame): the loose rounds at the load point of the hand's gun go in,
 // if they fit and lie right (VR_Reload_LooseFits): within its radius (a magazine's own radius added) and
 // vr_reload_contact_leniency cm more, on the side its opening faces (the engine's .loadportface); within that leniency
 // more again they pass through the gun's collision (.vr_ammo_pass), which covers the port, so that they reach it. One
 // just out of a gun (a magazine dropped or knocked out, the super shotgun's live shells thrown out: .vr_ammo_fresh)
-// only once it has left.
+// only once it has left both hands' guns' load points (VR_Reload_FreshLeft).
 void(float xHand) VR_Reload_LooseFrame =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
@@ -2000,7 +2041,7 @@ void(float xHand) VR_Reload_LooseFrame =
             float d = VR_Reload_LooseDist(r, port);
             // (From the opening's side only, at most half the radius past it: not through the gun from its other side.)
             float side = (VR_Reload_RoundRef(r) - port) * face;
-            if(d > within + lenient + 4)
+            if(r.vr_ammo_fresh && VR_Reload_FreshLeft(r))
             {
                 r.vr_ammo_fresh = FALSE;
             }
@@ -2239,9 +2280,10 @@ void(entity g, entity r) VR_Reload_PropRound =
         VR_Reload_IntoProp(g, r, p, hand);
         return;
     }
-    if(!cvar_hget(cvarh_vr_reload_contact) || r.fg_state == 1)
+    if(!cvar_hget(cvarh_vr_reload_contact) || r.fg_state == 1 ||
+       time < r.vr_ammo_fresh_at + max(0, cvar_hget(cvarh_vr_reload_eject_cooldown)))
     {
-        return;
+        return; // (just out of a held gun: not into one lying under it at once)
     }
     float lenient = max(0, cvar_hget(cvarh_vr_reload_contact_leniency)) * VRMetersToUnits() / 100;
     d = VR_Reload_LooseDist(r, port);

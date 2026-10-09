@@ -2754,6 +2754,11 @@ QVR_CVAR(vr_reload_mag_light_radius, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_contact, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_contact_leniency, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_contact_angle, "35", CVAR_ARCHIVE)
+// A magazine just out of its gun (B/Y, knocked out; the super shotgun's live shells thrown out) goes back in by contact
+// only once it has left the load points of both hands' guns and this many seconds have passed (the author's note
+// vrfiringrange_2026-10-09_12-33-54: one ejected from the off hand's nailgun went straight back in, the main hand's gun
+// having called it gone).
+QVR_CVAR(vr_reload_eject_cooldown, "0.35", CVAR_ARCHIVE)
 // The launchers loaded at the muzzle (QC vr_reload.qc, "Front-loaded launchers"; the author's note
 // vrfiringrange_2026-10-07_22-18-57): with Immersive, the grenade, proximity and rocket launchers take a round from the
 // ammo pouch (a rocket, a grenade, a proximity grenade; the multi-rocket or multi-grenade in their other ammo mode) put
