@@ -1519,7 +1519,7 @@ so the GL call that failed is on that stack; frames in the driver show as addres
 
 ## Teleporter and melee regression fixtures (2026-10-04)
 
-`python Misc/quakevr/scratch/prepare_review_regressions.py build-cmake/review-probe`
+`python Misc/quakevr/review/prepare_review_regressions.py build-cmake/review-probe`
 creates an isolated copy of QC plus `review_regressions.qc` and the required
 shared melee header. Compile its QC directory with the normal shipping flags,
 then use its quakevr/progs.dat only in an isolated test game with legally
@@ -1560,7 +1560,7 @@ Flat banner fixture: `map vrfiringrange; wait120; setpos -480 -672 24 0 180 0;
 wait20`, then compare `vr_worldtext_crt 1` and 0. Both must render readable labels.
 
 For simultaneous gates, generate the isolated fixture with:
-`python Misc/quakevr/scratch/make_portal_views.py build-cmake/teleporter-review/quakevr/maps/portalviews.map --wad C:/TrenchBroom/QUAKE101.WAD`.
+`python Misc/quakevr/review/make_portal_views.py build-cmake/teleporter-review/quakevr/maps/portalviews.map --wad C:/TrenchBroom/QUAKE101.WAD`.
 Use your own legally installed texture WAD path. Compile with qbsp, vis and
 light; generated map/BSP assets are not committed. `map portalviews; wait120;
 setpos 384 48 24 0 90 0; wait20; vr_teleporter_surface_opacity 0` shows three gates

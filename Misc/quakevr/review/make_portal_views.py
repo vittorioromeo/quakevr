@@ -2,7 +2,7 @@
 
 Requires the author's local Quake texture WAD; the generated map/BSP are test
 assets, not redistributed. Example:
-  python Misc/quakevr/scratch/make_portal_views.py build-cmake/teleporter-review/quakevr/maps/portalviews.map --wad C:/TrenchBroom/QUAKE101.WAD
+  python Misc/quakevr/review/make_portal_views.py build-cmake/teleporter-review/quakevr/maps/portalviews.map --wad C:/TrenchBroom/QUAKE101.WAD
 Compile with qbsp, vis and light. See TESTING.md for camera and live-limit checks.
 """
 import argparse

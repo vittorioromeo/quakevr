@@ -1,6 +1,6 @@
 """Buildable, isolated QC fixtures for the 2026-10-04 regression checks.
 
-Run: python Misc/quakevr/scratch/prepare_review_regressions.py build-cmake/review-probe
+Run: python Misc/quakevr/review/prepare_review_regressions.py build-cmake/review-probe
 Compile the resulting QC/progs.src with the shipping flags, then copy its
 quakevr/progs.dat into an isolated test game (never the author's live game).
 See docs/vr-port/TESTING.md for fixture commands and expected results.
