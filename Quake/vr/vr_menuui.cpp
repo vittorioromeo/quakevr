@@ -64,6 +64,7 @@ extern "C" {
 extern float m_mousex, m_mousey; // menu.c: the menus' mouse, in menu coordinates
 extern cvar_t ui_mouse;           // menu.c: the desktop mouse in the menus
 int Key_StringToKeynum(const char* str); // keys.c: a key's number from its name (vr_mock_key)
+void Char_Event(int key);                // keys.c: a letter typed (vr_mock_key text)
 extern m_state_e m_skill_prevmenu, m_quit_prevstate; // menu.c: where the skill and quit menus came from
 
 // menu.c: its menus' openers, and its lists for the VR controllers (M_ScrollList: // QVR).
@@ -1070,10 +1071,22 @@ void mockMouse_f()
 
 void mockKey_f()
 {
+    if(Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(1), "text"))
+    {
+        // Letters typed, as a keyboard's text input gives them (Char_Event: the console's line, Search's box).
+        char text[128];
+        q_strlcpy(text, Cmd_Argv(2), sizeof(text));
+        for(const char* c = text; *c; c++)
+        {
+            Char_Event(static_cast<unsigned char>(*c));
+        }
+        Con_Printf("vr_mock_key: typed \"%s\"\n", text);
+        return;
+    }
     const int key = Cmd_Argc() == 2 || Cmd_Argc() == 3 ? Key_StringToKeynum(Cmd_Argv(1)) : -1;
     if(key < 0)
     {
-        Con_Printf("vr_mock_key <key> [down|up]: that key pressed and released, or only pressed (held) or released (a "
+        Con_Printf("vr_mock_key <key> [down|up] | text <letters>: that key pressed and released, or only pressed (held) or released (a "
                    "key's name as bind takes it: uparrow, enter, shift...)\n");
         return;
     }

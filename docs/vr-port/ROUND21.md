@@ -33321,7 +33321,7 @@ leave the main menu as pictures. Test: `menu_vr pos` on the main menu, down once
 
 ## The menus' corner buttons and keys larger for the laser (2026-10-09)
 
-The author's note vrstart_2026-10-09_14-58: the corner's buttons were hard to hit and easy to misclick. In the headset
+The author's notes vrstart_2026-10-09_14-57-46 .. 14-59-52: the corner's buttons were hard to hit and easy to misclick. In the headset
 (ToolbarLayout, vr_menuui.cpp): the top left column's buttons 20 true pixels tall (were 14), 4 apart (were 2), their icon
 and label 6 from the button's ends (were 4 and 5; the label 5 from the icon); the bottom left rows (OBS's, the spectator
 camera's switch) the same height, gap and padding. Each still takes the clicks halfway to the next (no dead spots), and
@@ -33332,6 +33332,30 @@ before (as large as fit, 18 at most).
 
 On a VR page the column's bottom is now y 36 (was 5): beside the page, the page's rows do not move (their top is the
 page's own); the banner under the column a little shorter. Where the column is over the menu (a narrow panel) the rows
-start below it, 62 true pixels lower than before. Screens: the kit's scratch before_N/after_N (main menu, a VR page,
+start below it, 62 true pixels lower than before. Screens: the worktree's scratch/before_N, after_N (main menu, a VR page,
 Search, the console, the Map Library), obs_after_0 (OBS's row, a mock OBS recording). obs_test.py: 14 of 15 (the frame
 stall check while trying a dead port, timing only, failed under a loaded machine; every row and press check passed).
+
+## Typing in the console no longer stalls (2026-10-09)
+
+The author's note r1m2_2026-10-09_15-33-55: typing in the console, "v" first, lagged badly. Each key typed updates the
+completion hint (Con_TabComplete, TABCOMPLETE_AUTOHINT), which built the whole list of matches (every cvar, command
+and alias containing the text) sorted as it went: each match walked along the list to its place (q_strnaturalcmp), so
+n matches cost n squared / 2 comparisons. "v" matches 14523 names (the vr_ cvars): 555 ms a key. Now the matches are
+kept as found and sorted only when the list is wanted (Tab: Con_FinishTabList, a stable merge sort, a name found again
+counted on its first as before); the hint needs none of it (the match when it is the only one, else the common part,
+bash_partial, as before). Behaviour the same: the hint and Tab's list (names, types, counts, order) hashed against the
+old way's for every beginning of "vr_s", "sv_g", "map e1", "bind m", "a" and "vr_console_complete_b": all the same.
+
+`vr_console_complete_bench <text> [runs]` (Debug > Tools > Console Completion Timing) times both ways (exclusive):
+
+| typed | matches | a key, now | the old way | Tab's list, now | the old way |
+|---|---|---|---|---|---|
+| v | 14523 | 0.48 ms | 569 ms | 2.4 ms | 601 ms |
+| vr_ | 14413 | 0.55 ms | 570 ms | 2.3 ms | 594 ms |
+| vr_s | 366 | 0.43 ms | 0.96 ms | 0.76 ms | 0.76 ms |
+| a | 6000 | 0.70 ms | 83 ms | 1.4 ms | 81 ms |
+
+What is left a key is the scan itself (each name searched for the text, about 0.35 ms). Tab with thousands of matches
+still prints them all to the console (as before). `vr_mock_key text <letters>` types letters as a keyboard's text input
+does (Char_Event: the console's line, Search's box), for tests.
