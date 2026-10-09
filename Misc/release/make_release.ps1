@@ -69,6 +69,10 @@ param(
     [switch]$Publish,
     # Create and push the tag only (no GitHub release).
     [switch]$PushTag,
+    # A prerelease only (x.y.z-suffix), with -Publish/-PushTag: never push the branch; the tag, pushed alone, carries its
+    # commit to GitHub. For a rehearsal of the release path or a test build from a local branch (no upstream needed: the
+    # remote is the one whose URL is -Repo). The version commit stays local.
+    [switch]$NoBranchPush,
     # With -Publish: the release published at once and marked Latest (no draft), then the online check: GitHub's
     # latest.json read by the installer's own code (qvr-setup feed: the version, each file's size and SHA-256 against
     # this release's), the file itself byte for byte, and a sandboxed install through it (qvr-setup install --feed).
@@ -162,6 +166,17 @@ function Invoke-LatestGuard([string]$want) {
     if ($after.Count -ne 1 -or $after[0].tagName -ne $want) { throw "Latest guard: after gh release edit --latest, Latest is $(($after | ForEach-Object { $_.tagName }) -join ', '), not $want" }
     Say "Latest fixed: $want (was $names)"
     "Latest fixed: $want (was $names; gh release edit --latest)"
+}
+# The prerelease's side of the guard: $want is on GitHub as a published prerelease and is not Latest (so neither the
+# installer's feed nor the game's update check, both releases/latest, ever sees it). Nothing is edited.
+function Assert-PrereleaseNotLatest([string]$want) {
+    $all = Get-Releases
+    $me = @($all | Where-Object { $_.tagName -eq $want }) | Select-Object -First 1
+    if (-not $me) { throw "no GitHub release $want in $Repo" }
+    if ($me.isDraft -or -not $me.isPrerelease -or $me.isLatest) { throw "$want is draft=$($me.isDraft), prerelease=$($me.isPrerelease), latest=$($me.isLatest): expected a published prerelease that is not Latest" }
+    $names = (@($all | Where-Object { $_.isLatest } | ForEach-Object { $_.tagName })) -join ", "
+    Say "$want is a published prerelease, not Latest (Latest is still $(if ($names) { $names } else { 'none' }): releases/latest does not serve $want)"
+    "prerelease $want not Latest (Latest: $(if ($names) { $names } else { 'none' }))"
 }
 
 # Where a failure leaves things, and how to go on (RELEASING.md, "If it stops"): printed by the trap below.
@@ -361,7 +376,11 @@ if ($Version -ne $fileVersion) {
     }
 }
 $prerelease = $Version.Contains("-")
-if ($Final -and $prerelease) { throw "-Final marks the release Latest, which a prerelease ($Version) never is: publish it with -Publish -NoDraft" }
+if ($Final -and $prerelease) { throw "-Final marks the release Latest, which a prerelease ($Version) never is: publish it with -Publish -NoDraft (then checked against its own latest.json)" }
+if ($NoBranchPush -and -not $prerelease) { throw "-NoBranchPush tags a commit that no branch on GitHub holds: prereleases only (x.y.z-suffix), never $Version" }
+# A prerelease is never GitHub's Latest, so releases/latest/download/latest.json never serves it: its own feed is the
+# latest.json asset of its tag.
+$tagFeed = "https://github.com/$Repo/releases/download/$tag/latest.json"
 if ($AllowDirty -and $online) { throw "-AllowDirty is for testing the script: never with -Publish or -PushTag" }
 if ($Notes -and -not (Test-Path -LiteralPath $Notes -PathType Leaf)) { throw "-Notes: no file $Notes" }
 $outBase = Join-Path $root "out\release"
@@ -387,11 +406,11 @@ if ($DraftNotes) {
 if ($CheckOnline) {
     $script:stage = "online"
     if (-not $ReleaseDir) { $ReleaseDir = $outDir }
-    if (-not $FeedUrl) { $FeedUrl = if ($Local) { "http://127.0.0.1:$LocalPort/latest.json" } else { "https://github.com/$Repo/releases/latest/download/latest.json" } }
+    if (-not $FeedUrl) { $FeedUrl = if ($Local) { "http://127.0.0.1:$LocalPort/latest.json" } elseif ($prerelease) { $tagFeed } else { "https://github.com/$Repo/releases/latest/download/latest.json" } }
     if (-not $QuakeDir -and -not $SkipOnlineInstall -and (Find-QvrSetup)) { $QuakeDir = Find-QuakeDir (Find-QvrSetup) }
     if (-not $Local) {
         Step "Latest guard ($Repo)"
-        Invoke-LatestGuard $tag | Out-Null
+        if ($prerelease) { Assert-PrereleaseNotLatest $tag | Out-Null } else { Invoke-LatestGuard $tag | Out-Null }
     }
     Step "Online check of $tag ($ReleaseDir)"
     Invoke-OnlineCheck $ReleaseDir $FeedUrl $QuakeDir
@@ -433,7 +452,17 @@ $remote = ""; $upstreamRef = ""; $pushBranch = $false
 if ($branch -eq "HEAD") { Problem "detached HEAD: check out the branch to release" -OnlineOnly }
 else {
     $upstream = (GitRun @("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"))
-    if ($upstream.Code -ne 0 -or -not $upstream.Text) { Problem "branch $branch has no upstream (git push -u <remote> $branch)" -OnlineOnly }
+    if ($NoBranchPush) {
+        # (The tag alone goes to the remote that is -Repo; the branch, its upstream and the version commit stay as they are.)
+        $repoUrl = [regex]::Escape($Repo) + '(\.git)?/?$'
+        $remote = "$(@((GitRun @("remote")).Out | Where-Object { "$_" -and (GitRun @("remote", "get-url", "$_")).Text -match $repoUrl }) | Select-Object -First 1)"
+        if (-not $remote) { Problem "-NoBranchPush: no git remote points at $Repo" -OnlineOnly }
+        else {
+            if (-not $Local -and (GitRun @("fetch", "--quiet", $remote)).Code -ne 0) { Warn "git fetch $remote failed: the tag check uses the last fetched state" }
+            Say "-NoBranchPush: $branch is not pushed$(if ($upstream.Code -eq 0 -and $upstream.Text) { " (upstream $($upstream.Text))" }); the tag $tag alone goes to $remote, with its commit$(if ($bumpPending) { ' (the version commit, local otherwise)' })"
+        }
+    }
+    elseif ($upstream.Code -ne 0 -or -not $upstream.Text) { Problem "branch $branch has no upstream (git push -u <remote> $branch)" -OnlineOnly }
     else {
         $remote = (GitRun @("config", "branch.$branch.remote")).Text
         if ($Local) { Say "-Local: no git fetch (the pushed check uses the last fetched state)" }
@@ -607,7 +636,7 @@ if ($DryRun) {
     $list = & (Join-Path $root "Windows\package-quakevr.ps1") -DryRun
     Say "package        $(@($list).Count) files (Windows\package-quakevr.ps1 -DryRun lists them)"
     # Every command of the real run, in order (what -DryRun leaves out of this mode is marked).
-    $feedPlan = if ($FeedUrl) { $FeedUrl } else { "https://github.com/$Repo/releases/latest/download/latest.json" }
+    $feedPlan = if ($FeedUrl) { $FeedUrl } elseif ($prerelease) { $tagFeed } else { "https://github.com/$Repo/releases/latest/download/latest.json" }
     $title = "Quake VR: Unleashed $Version"
     $commitPlan = if ($bumpPending) { "<the version commit>" } else { $short }
     $seq = New-Object System.Collections.Generic.List[string]
@@ -618,13 +647,16 @@ if ($DryRun) {
     $seq.Add("notes: $(if ($notesSource) { $notesSource } else { "draft_release_notes.py -> $notesDraftPath" }) -> $outDir\release-body.md (+ the files' table, SHA256SUMS.txt)")
     if ($online) {
         if ($pushBranch) { $seq.Add("git push $remote HEAD:$upstreamRef   (fast-forward; never forced)") }
+        if ($NoBranchPush) { $seq.Add("(-NoBranchPush: $branch is not pushed; the tag below carries $commitPlan to $remote)") }
         $seq.Add("git tag -a $tag -m ""$title (<date> <hash>)"" $commitPlan; git push $remote refs/tags/$tag")
     }
     if ($Publish) {
         $seq.Add("gh release create $tag <the files of $outDir\assets> --repo $Repo --verify-tag --title ""$title"" --notes-file $outDir\release-body.md$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' } elseif (-not $Draft) { ' --latest' })")
     }
-    if ($Final) {
-        $seq.Add("Latest guard: gh release list --repo $Repo --json tagName,isLatest,isDraft,isPrerelease; $tag must be the only Latest (no assets-*/textures-*): else gh release edit $tag --repo $Repo --latest, listed again")
+    $checkPublished = $Final -or ($Publish -and $prerelease -and -not $Draft)
+    if ($checkPublished -and $prerelease) { $seq.Add("Latest: gh release list --repo $Repo --json tagName,isLatest,isDraft,isPrerelease; $tag must be a published prerelease, not Latest (nothing edited)") }
+    if ($checkPublished) {
+        if (-not $prerelease) { $seq.Add("Latest guard: gh release list --repo $Repo --json tagName,isLatest,isDraft,isPrerelease; $tag must be the only Latest (no assets-*/textures-*): else gh release edit $tag --repo $Repo --latest, listed again") }
         $seq.Add("online check: qvr-setup feed --url $feedPlan --assets $outDir\assets$(if ($hostedTextures) { ' --hosted hdtextures' })   (until it names $Version, up to $OnlineTries tries 20 s apart; each file's size and SHA-256)")
         $seq.Add("online check: GET $feedPlan = assets\latest.json byte for byte")
         if (-not $SkipOnlineInstall) { $seq.Add("online check: qvr-setup install --feed $feedPlan --sandbox $outDir\checks\online-<time>\sandbox --quake $(if ($QuakeDir) { $QuakeDir } else { '<none found: skipped>' }) --accept-statement --setup-from assets\QuakeVR-Setup.exe$(if ($OnlineHd) { ' --hd' }); qvr-setup verify --target <sandbox>\QuakeVR") }
@@ -910,7 +942,7 @@ if ($online) {
 }
 if ($Publish) {
     $script:stage = "release"
-    Step "GitHub release ($(if ($Draft) { 'draft' } else { 'public, marked Latest' }))"
+    Step "GitHub release ($(if ($Draft) { 'draft' } elseif ($prerelease) { 'public prerelease, never Latest' } else { 'public, marked Latest' }))"
     $r = Run "gh" $ghArgs
     if ($r.Code -ne 0) { throw "gh release create failed" }
     Say $r.Text
@@ -921,6 +953,16 @@ if ($Final) {
     Step "Latest guard ($Repo)"
     $latestResult = Invoke-LatestGuard $tag
     if (-not $FeedUrl) { $FeedUrl = "https://github.com/$Repo/releases/latest/download/latest.json" }
+    Step "Online check ($FeedUrl)"
+    Invoke-OnlineCheck $outDir $FeedUrl $QuakeDir
+    $onlineResult = "online check passed: $FeedUrl serves $versionText (sizes and SHA-256 of every file, latest.json byte for byte$(if (-not $SkipOnlineInstall -and $QuakeDir) { ', a sandboxed install through it' }))"
+}
+elseif ($Publish -and $prerelease -and -not $Draft) {
+    # A published prerelease: never Latest (checked, nothing edited), then the same online check against its own feed.
+    $script:stage = "online"
+    Step "Latest ($Repo): $tag must not be it"
+    $latestResult = Assert-PrereleaseNotLatest $tag
+    if (-not $FeedUrl) { $FeedUrl = $tagFeed }
     Step "Online check ($FeedUrl)"
     Invoke-OnlineCheck $outDir $FeedUrl $QuakeDir
     $onlineResult = "online check passed: $FeedUrl serves $versionText (sizes and SHA-256 of every file, latest.json byte for byte$(if (-not $SkipOnlineInstall -and $QuakeDir) { ', a sandboxed install through it' }))"
@@ -962,7 +1004,7 @@ if (-not $Local -and (-not $Publish -or $Draft)) {
     $lines += "  $((++$n)). Check the draft on https://github.com/$Repo/releases, then publish it (button, or: gh release edit $tag --repo $Repo --draft=false$(if (-not $prerelease) { ' --latest' })). Until it is published (and not a prerelease) https://github.com/$Repo/releases/latest/download/latest.json still serves the previous release."
 }
 if (-not $Local -and -not $onlineResult) { $lines += @(
-    "  $((++$n)). Check: make_release.ps1 -Version $Version -CheckOnline once it is published (or by hand: qvr-setup feed --url https://github.com/$Repo/releases/latest/download/latest.json   (the installer's only feed)",
+    "  $((++$n)). Check: make_release.ps1 -Version $Version -CheckOnline once it is published (or by hand: qvr-setup feed --url $(if ($prerelease) { "$tagFeed   (a prerelease's own feed: releases/latest never serves it)" } else { "https://github.com/$Repo/releases/latest/download/latest.json   (the installer's only feed)" })",
     "             (dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url <...>: the version and the package's size)."
 ) }
 if ($warnings.Count) { $lines += @("", "Warnings:") + @($warnings | ForEach-Object { "  - $_" }) }
