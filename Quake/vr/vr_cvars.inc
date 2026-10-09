@@ -435,10 +435,27 @@ QVR_CVAR(vr_nearclip_held, "2", CVAR_ARCHIVE)
 // fixed point as the window's. Applies when the eyes' framebuffers are next made (vr_restart).
 QVR_CVAR(vr_depth_float, "1", CVAR_ARCHIVE)
 
+// The OpenXR runtime (vr_xr_runtime.hpp; an XR_RUNTIME_JSON the game was started with wins): 4 Auto, the one whose app is
+// running (Virtual Desktop's Streamer: VDXR; SteamVR; Meta's OVRServer), else the system's active one; 0 the system's
+// active one; 1 Virtual Desktop (VDXR); 2 SteamVR; 3 the manifest in vr_xr_runtime_json.
+QVR_CVAR(vr_xr_runtime, "4", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_runtime_json, "", CVAR_ARCHIVE)        // with vr_xr_runtime 3: the runtime's manifest (.json)
+// Auto: when the chosen runtime fails to start (no headset, not running), try the other installed ones in turn before
+// playing flat (1; an idle SteamVR, not the system's active runtime, only with 2: loading it starts SteamVR), or play
+// flat at once (0).
+QVR_CVAR(vr_xr_runtime_fallback, "1", CVAR_ARCHIVE)
+// Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
+// the installed runtimes (manifests, comma-separated), the active one and the running processes from these instead of
+// the registry and the system (and never loads the real active runtime). vr_xr_test_fail: runtimes (parts of their
+// manifests' paths or labels, comma-separated; * all) that fail at once, as if they had no headset (also without
+// vr_xr_test: a real runtime's failure, to see the fallback).
+QVR_CVAR(vr_xr_test, "0", CVAR_NONE)
+QVR_CVAR(vr_xr_test_runtimes, "", CVAR_NONE)
+QVR_CVAR(vr_xr_test_active, "", CVAR_NONE)
+QVR_CVAR(vr_xr_test_processes, "", CVAR_NONE)
+QVR_CVAR(vr_xr_test_fail, "", CVAR_NONE)
 // Eye image size: the runtime's recommended size (SteamVR's supersampling included) times this,
 // per side (0.5 .. 1.5; pixels go with its square), within the runtime's largest.
-QVR_CVAR(vr_xr_runtime, "0", CVAR_ARCHIVE)             // OpenXR runtime: 0 the system's (or XR_RUNTIME_JSON), 1 Virtual Desktop (VDXR), 2 SteamVR, 3 vr_xr_runtime_json
-QVR_CVAR(vr_xr_runtime_json, "", CVAR_ARCHIVE)        // with vr_xr_runtime 3: the runtime's manifest (.json)
 QVR_CVAR(vr_render_scale, "1", CVAR_ARCHIVE)
 // Leave out the pixels the lenses never show (the runtime's hidden area, XR_KHR_visibility_mask):
 // filled black and at the near plane before the scene, so the scene's shaders skip them.

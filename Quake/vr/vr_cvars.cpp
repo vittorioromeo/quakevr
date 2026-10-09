@@ -525,8 +525,11 @@ const DefaultChange defaultChanges[] = {
     {107, &vr_swim_stroke_pitch, "-8"}, // -10
     {107, &vr_water_jump, "1"}, // 0
     {107, &vr_weapon_grab_slack, "5"}, // 0
+    // 108: the OpenXR runtime chosen automatically, Auto (4), by default (the author, 2026-10-09: ROUND21.md, "OpenXR
+    // runtime: Auto"): a config still at the old default, the system's active runtime (0), takes Auto.
+    {108, &vr_xr_runtime, "0"}, // 4
 };
-constexpr int configVersion = 107;
+constexpr int configVersion = 108;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

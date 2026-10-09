@@ -80,6 +80,7 @@
 #include "vr_props.hpp"
 #include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
+#include "vr_xr_runtime.hpp"
 #include "vr_weight.hpp"
 #include "vr_weapons.hpp"
 #include "vr_painknock.hpp"
@@ -1422,6 +1423,7 @@ extern "C" void VR_Init()
     weight::registerCommands();
     fatigue::registerCommands();
     painknock::registerCommands();
+    xrruntime::registerCommands(); // (before the backend first starts: XR_RUNTIME_JSON as the game was started with it)
     Cvar_SetCallback(&vr_enabled, onBackendSettingChanged);
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
     Cvar_SetCallback(&vr_xr_runtime, onBackendSettingChanged);

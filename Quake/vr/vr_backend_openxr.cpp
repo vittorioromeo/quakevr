@@ -13,6 +13,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_profile.hpp"
+#include "vr_xr_runtime.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -39,99 +40,6 @@ namespace qvr
 namespace
 {
 
-// The OpenXR runtime to load (vr_xr_runtime), through the loader's XR_RUNTIME_JSON, set before it
-// first runs. The installed runtimes are the manifests listed under
-// HKLM\SOFTWARE\Khronos\OpenXR\1\AvailableRuntimes; Virtual Desktop's and SteamVR's are found by
-// their file names there, or in their usual places. With vr_xr_runtime 0 the system's active runtime
-// is used (or an XR_RUNTIME_JSON the game was started with).
-[[nodiscard]] za::String installedRuntime(const char* fileName)
-{
-    HKEY key = nullptr;
-    za::String found;
-    if(RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Khronos\\OpenXR\\1\\AvailableRuntimes", 0, KEY_READ, &key) == ERROR_SUCCESS)
-    {
-        char name[1024];
-        for(DWORD i = 0;; i++)
-        {
-            DWORD length = sizeof(name);
-            if(RegEnumValueA(key, i, name, &length, nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS)
-            {
-                break;
-            }
-            if(q_strcasestr(name, fileName))
-            {
-                found = name;
-                break;
-            }
-        }
-        RegCloseKey(key);
-    }
-    return found;
-}
-
-// Whether XR_RUNTIME_JSON is ours to change (not one the game was started with): checked once, before the first
-// change (chooseRuntime, the main thread).
-struct RuntimeChoice
-{
-    bool ours = false;
-    bool checked = false;
-};
-RuntimeChoice runtimeChoice;
-
-void chooseRuntime()
-{
-    bool& ours = runtimeChoice.ours;
-    bool& checked = runtimeChoice.checked;
-    if(!checked)
-    {
-        checked = true;
-        ours = !getenv("XR_RUNTIME_JSON");
-    }
-    if(!ours)
-    {
-        Con_Printf("OpenXR: XR_RUNTIME_JSON is set outside the game (%s): vr_xr_runtime is ignored\n", getenv("XR_RUNTIME_JSON"));
-        return;
-    }
-
-    za::String manifest;
-    switch(static_cast<int>(vr_xr_runtime.value))
-    {
-        case 1:
-            manifest = installedRuntime("virtualdesktop-openxr.json");
-            if(manifest.empty())
-            {
-                manifest = "C:\\Program Files\\Virtual Desktop Streamer\\OpenXR\\virtualdesktop-openxr.json";
-            }
-            break;
-        case 2:
-            manifest = installedRuntime("steamxr_win64.json");
-            if(manifest.empty())
-            {
-                manifest = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\SteamVR\\steamxr_win64.json";
-            }
-            break;
-        case 3: manifest = vr_xr_runtime_json.string; break;
-        default: break;
-    }
-
-    if(manifest.empty())
-    {
-        SetEnvironmentVariableA("XR_RUNTIME_JSON", nullptr);
-        _putenv_s("XR_RUNTIME_JSON", "");
-        return;
-    }
-    if(GetFileAttributesA(manifest.cStr()) == INVALID_FILE_ATTRIBUTES)
-    {
-        Con_Warning("OpenXR: runtime manifest %s not found: using the system's runtime\n", manifest.cStr());
-        SetEnvironmentVariableA("XR_RUNTIME_JSON", nullptr);
-        _putenv_s("XR_RUNTIME_JSON", "");
-        return;
-    }
-    Con_Printf("OpenXR: runtime %s\n", manifest.cStr());
-    SetEnvironmentVariableA("XR_RUNTIME_JSON", manifest.cStr());
-    _putenv_s("XR_RUNTIME_JSON", manifest.cStr());
-}
-
 class OpenXrBackend final : public Backend
 {
 public:
@@ -150,7 +58,40 @@ public:
         return runtime[0] ? runtime : "openxr";
     }
 
+    // The runtime vr_xr_runtime chooses (vr_xr_runtime.hpp); with Auto, while one fails (no headset, not running), the
+    // next: the loader unloads a runtime with its last instance and reads XR_RUNTIME_JSON again at the next.
     [[nodiscard]] bool start() override
+    {
+        const xrruntime::Plan plan = xrruntime::plan();
+        Con_Printf("OpenXR runtime choice: %s\n", plan.summary.cStr());
+        for(size_t i = 0; i < plan.attempts.size(); i++)
+        {
+            const xrruntime::Attempt& attempt = plan.attempts[i];
+            if(i > 0 && !plan.fallback)
+            {
+                break;
+            }
+            xrruntime::use(plan, attempt);
+            if(xrruntime::simulatedFailure(attempt))
+            {
+                Con_Warning("OpenXR: %s failed (simulated: vr_xr_test_fail, or no manifest in the test environment)\n",
+                    attempt.label.cStr());
+                continue;
+            }
+            if(startRuntime())
+            {
+                xrruntime::setOutcome(plan, static_cast<int>(i));
+                return true;
+            }
+            Con_Warning("OpenXR: %s failed to start\n", attempt.label.cStr());
+            stop(); // (all of it: the next runtime starts from nothing)
+            resetRuntimeState();
+        }
+        xrruntime::setOutcome(plan, -1);
+        return false;
+    }
+
+    [[nodiscard]] bool startRuntime()
     {
         if(!(createInstance() && createSystem() && createSession() && createSpaces() &&
                createActions() && createSwapchains()))
@@ -792,10 +733,18 @@ private:
         return pose;
     }
 
+    // What a runtime that failed to start leaves behind (stop() destroys its handles).
+    void resetRuntimeState()
+    {
+        systemId = XR_NULL_SYSTEM_ID;
+        sessionState = XR_SESSION_STATE_UNKNOWN;
+        visibilityMaskExtension = false;
+        runtime[0] = '\0';
+        vdxr = false;
+    }
+
     bool createInstance()
     {
-        chooseRuntime(); // before the loader first runs
-
         // Quest 3 controllers get their own profile with this extension (Touch otherwise).
         za::Vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
         uint32_t available = 0;

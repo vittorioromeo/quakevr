@@ -69,6 +69,7 @@
 #include "Zancle/String/ToString.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
+#include "vr_xr_runtime.hpp"
 
 #include <stdlib.h>
 #include <string.h>
@@ -4891,6 +4892,8 @@ za::Vector<Item> pageDebugReports()
         command("Mission Pack Status", "vr_pack_status")
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
+        command("OpenXR Runtime Choice", "vr_xr_runtime_explain")
+            .help("vr_xr_runtime_explain: what VR Settings > Headset > OpenXR Runtime chooses now and why: the runtimes installed and running, the order they are tried in."),
         command("Player", "vr_dumpplayer").help("vr_dumpplayer [client]: a player's VR fields in the game (hands, weapons, hotspots)."),
         command("Models Check", "vr_model_check 1")
             .help("vr_model_check 1: every entity's model index against its model's name, and your models against the "
@@ -7680,6 +7683,13 @@ za::Vector<Item> pageMain()
     };
 }
 
+// Under OpenXR Runtime: the runtime the backend chose and why (vr_xr_runtime.hpp).
+[[nodiscard]] const char* xrRuntimeLine()
+{
+    const char* line = xrruntime::statusLine();
+    return line[0] ? line : "Chosen when VR starts";
+}
+
 // Split from VR Settings: the headset.
 [[nodiscard]] za::Vector<Item> pageHeadset()
 {
@@ -7687,8 +7697,11 @@ za::Vector<Item> pageMain()
         header("Headset"),
         toggle("VR", vr_enabled),
         action("Restart VR", restartVr),
-        cycle("OpenXR Runtime", vr_xr_runtime, {{0.f, "System default"}, {1.f, "Virtual Desktop (VDXR)"}, {2.f, "SteamVR"}})
-            .help("Which OpenXR runtime runs the headset; VR restarts. VDXR skips SteamVR (keep Virtual Desktop's 'Emulate Index controllers' off)."),
+        cycle("OpenXR Runtime", vr_xr_runtime, {{4.f, "Auto"}, {0.f, "System default"}, {1.f, "Virtual Desktop (VDXR)"}, {2.f, "SteamVR"}})
+            .help("Which OpenXR runtime runs the headset; VR restarts. Auto: the one whose app is running (Virtual Desktop: VDXR, which skips SteamVR), else the system's. Keep Virtual Desktop's 'Emulate Index controllers' off."),
+        info(xrRuntimeLine),
+        cycle("Try Other Runtimes", vr_xr_runtime_fallback, {{0.f, "Off"}, {1.f, "On"}, {2.f, "On, SteamVR too"}}).advanced()
+            .help("Auto: when the chosen runtime fails to start (no headset), try the other installed ones before playing flat. An idle SteamVR (not the system's runtime) only with 'SteamVR too': trying it starts SteamVR."),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
             .help("Eye rendering resolution, times the headset's (SteamVR's resolution included); resampled to it."), // + the size (renderScaleHelp)
         cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})
