@@ -17,6 +17,7 @@ Super nailgun: receiver flush on its face; lava nail magazine smokes when empty;
 Held-prop knock-out: hold a head/crate beside the gun and move normally: the magazine must not pop out by accident; a deliberate fast hit does
 
 [Firing range: combat and dummies]
+Judo polish: throw with the trigger squeezed: nothing gets force-grabbed; Feet Speed sweep (60; try 0 and 120): feet slide opposite the throw; throw grunt (Combat > Holding Enemies > Throw Grunt / Sound / Hear); your throw + struggle values are now defaults
 Parries: parry an ogre's chainsaw, a hell knight's swing, the Overlord's smash: each snaps into its pain pose and holds it, no half-second melt through a flattened shape (Debug > Logs > Monster Poses logs any squash)
 Knockdowns: judo-throw a grunt/knight both ways and with a twist: it topples over its feet (Combat > Holding Enemies > Topple 120 deg/s, Feet Held, Twist Spin); a knocked-down grunt struggles (limbs kick, chest curls); axe a knocked-down grunt's neck with a killing blow: head off; slash a forearm: limb off
 Ragdoll skins with retro textures on: kill a grunt, ogre, knight: each corpse as detailed as alive (was 4x coarser on every ragdoll)
