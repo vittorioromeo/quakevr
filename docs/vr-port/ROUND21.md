@@ -10320,3 +10320,20 @@ His "19-20 GB of VRAM used" is the whole GPU's: the game holds ~1.3 GB at his ey
 To check in VR: the ammo screens on the firing range's guns as you walk past and pick them up (each showing its own
 count, no wrong text for a frame more than before); `vr_vram_report` in his session: the "programs on the GPU" line.
 
+
+## Technical debt: the code items (2026-10-09)
+
+TECHDEBT_2026-10-09.md items 2-7 and 10's code parts, as recommended (each item's status line says what was done).
+What changes in play:
+- **Old saves are refused**: one without the `// qvr_save` line (made before 2026-10-06, by another engine, or the
+  re-release's) or without `vr_save_packmask`/`vr_save_campaign` (before 2026-10-05) is not loaded: a console line and
+  a centre print say why (`precache_test.sh legacy`).
+- **Rockets from a DoE rocket trap (r2m6) and the Rogue ending's actor** fly from the shooter (`VR_LaunchRocket`), not
+  through a player's hand (whose muzzle smoke, ammo and kick they took).
+- **A thrown weapon with a NaN angle** is set straight (a developer line) instead of a bprint to every player.
+- The edict index and the force grab's area grid are always on (their verify runs found 0 differences).
+Gone from the Debug menu: Edict Index and Force Grab Search by Grid (and their Verify rows), Console Completion Timing,
+Box Sizes, Decals in Both Eyes, Spin in the Air, Holster Draw Blend, Torch Lights, Heavy Weapon Wrenched Out, Log Weapon
+Wall Collisions, Print Run Speed, the four A/B rows (External Maps, Retro Textures, Retro Lighting, Ambient Light) and
+the Marksman Ogre rows. New: `Misc/quakevr/selfchecks_test.sh` (the hull cache and Box3D worker determinism, PASS/FAIL;
+in the release suite).
