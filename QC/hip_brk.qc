@@ -97,7 +97,6 @@ void() func_breakawaywall =
 };
 
 
-// TODO VR: (P1) organize
 void() breakablewallwithrubble_killed =
 {
     activator = damage_attacker;

@@ -1922,7 +1922,6 @@ void() CheckPowerups =
         self.frame = 0;
         self.modelindex = modelindex_eyes;
     }
-// TODO VR: (P2) maybe check for mission pack 1 support here
 //MED 12/04/96 added mjolnir stuff
     else if(self.weapon == WID_MJOLNIR)
         self.modelindex = modelindex_hammer;   // don't use eyes
@@ -2636,8 +2635,6 @@ void(entity targ, entity attacker) ClientObituary =
             bprint("\n");
             return;
             }
-
-            // TODO VR: (P2) elses...
 
             if(attacker.flags & FL_MONSTER)
             {

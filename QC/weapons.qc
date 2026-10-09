@@ -1252,7 +1252,7 @@ void(float xHand) W_FireAxe =
     // HONEY
     entity zombie;
     float  zombie_dist;
-    float  bleed; // TODO VR: (P2) apply bleed mechanic to other attacks
+    float  bleed;
     bleed = FALSE;
 
     xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
@@ -2269,6 +2269,26 @@ void() T_MissileTouch =
 W_FireRocket
 ================
 */
+// A rocket fired by something that isn't a player (a rocket trap's, the Rogue ending's actor's): from `org` along `dir`,
+// none of a player's hand, muzzle, ammo or kick.
+entity(entity shooter, vector org, vector dir) VR_LaunchRocket =
+{
+    entity missile = spawn();
+    missile.owner = shooter;
+    missile.movetype = MOVETYPE_FLYMISSILE;
+    missile.solid = SOLID_BBOX;
+    missile.classname = "missile";
+    missile.velocity = normalize(dir) * 1000;
+    missile.angles = vectoangles(missile.velocity);
+    missile.touch = T_MissileTouch;
+    missile.nextthink = time + 5;
+    missile.think = SUB_Remove;
+    setmodel(missile, "progs/missile.mdl");
+    setsize(missile, '0 0 0', '0 0 0');
+    setorigin(missile, org);
+    return missile;
+};
+
 entity(float xHand) W_FireRocket =
 {
     entity missile;
@@ -3534,7 +3554,6 @@ W_ChangeWeapon
 ============
 */
 //MED 10/18/96 added hipweapons
-// TODO VR: (P1) rewrite to use new item system or remove, check if bots use this
 void() W_ChangeWeapon =
 {
     float am = 0;
@@ -3697,7 +3716,6 @@ float(entity xPlayer, float xDir, float xWeapon,
     // Just for safety.
     float maxIterations = maxWeapon + 1;
 
-    // TODO VR: (P1) set this via cvar depending on weapon mode?
     float skipEmptyWeapons = FALSE;
 
     // Used to avoid infinite loops.
@@ -4658,7 +4676,6 @@ void() ImpulseCommands =
         }
     }
 
-    // TODO VR: (P2) rogue teamplay impulses
     /*
     // ROGUE
     //ZOID--
@@ -5577,10 +5594,11 @@ void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
     }
     else
     {
-        // TODO VR: (P1) still triggers sometimes
-        bprint("`wpnthrow_impl_stabilize`: Uncovered angle case: '");
-        bprint(ftos(angle));
-        bprint("'\n");
+        // (Only a NaN angle comes here: every number was brought into [-360, 0] above. It is set straight, and the
+        // weapon's spin with it.)
+        dprint(sprintf("wpnthrow_impl_stabilize: angle %g set to %g\n", angle, xOffset));
+        *xOutAngle = xOffset;
+        self.avelocity = '0 0 0';
     }
 
     if(self.throwstabilize > 0)
@@ -6341,7 +6359,6 @@ void MakeThrown(entity newmis,
     newmis.weaponflags = xWeaponFlags;
     newmis.weaponinst = xInst ? xInst : WeaponInst_New(0); // its record: its magazine, its id
 
-    // TODO VR: (P1) fix laser cannon bounds
     float tmp = WeaponIdToThrowBounds(xWeapon);
 
     vector tmp_bounds;
@@ -6460,7 +6477,6 @@ void(entity thrower, float xWeapon, vector xOrigin) CreateWeaponDrop =
     );
 }
 
-// TODO VR: (P2) improve?
 void(entity thrower, float xWeapon, vector xOrigin) CreateAmmoBoxWeaponDrop =
 {
     vector throwVel;

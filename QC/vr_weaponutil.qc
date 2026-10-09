@@ -87,7 +87,7 @@ float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyD
         return FALSE;
     }
 
-    // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
+    // (| of two truth values, 0 or 1.)
     float eligible = (VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_ALWAYS) |
                      (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
@@ -102,7 +102,6 @@ float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyD
     return FALSE;
 }
 
-// TODO VR: (P2) code repetition, but create ammo box uses player ent
 float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmoBoxDrop =
 {
     if(!VR_Pack_WeaponAvailable(xWeapon)) { return FALSE; }
@@ -112,7 +111,7 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
         return FALSE;
     }
 
-    // TODO VR: (P2) bitwise or is the only one that works here, || does not work. Why?
+    // (| of two truth values, 0 or 1.)
     float eligible = (VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_ALWAYS) |
                      (VR_WeaponUtil_EntIsEligibleForWeapon(entPlayer, xWeapon));
 
@@ -249,8 +248,7 @@ float(entity xPlayer, float wid, float xWeaponFlags) PlayerHasAmmoForWeapon =
 
 float(float wid) WeaponIdToThrowMult =
 {
-    // TODO VR: (P2) used for velocity, but weight is used on the calculations
-    // on the C++ side of things
+    // (Used for the throw's velocity; the engine's weight has its own numbers.)
 
     if(wid == WID_FIST)             { return 1; }
     if(wid == WID_GRAPPLE)          { return 0.9; }
@@ -406,7 +404,6 @@ float(float wid) WeaponIdToInitialAmmoCount =
     return -1;
 }
 
-// TODO VR: (P2) use for DropBackpack, GremlinDropBackpack, netname, etc
 string(float wid) WeaponIdToWeaponName =
 {
     if(wid == WID_FIST)             { return "Fist"; }

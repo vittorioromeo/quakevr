@@ -1,5 +1,5 @@
-// TODO VR: (P1) most of the item management and weapon management here needs to
-// be rewritten for VR
+// Its item and weapon management is commented out: Rogue's teamplay variants don't work in VR yet (BACKLOG.md,
+// "Old QuakeC notes").
 
 // Rogue Teamplay Variants
 // Jan'97 by ZOID <zoid@threewave.com>
@@ -566,7 +566,6 @@ void() TossBackpack =
 
     item = spawn();
 
-    // TODO VR: (P2) rewrite for VR
     /*
 
     // See if you have the Shotgun or Super Shotgun on
@@ -745,7 +744,6 @@ void() TossBackpack =
 
 void() Team_weapon_touch =
 {
-    // TODO VR: (P2) rewrite for VR
     /*
 
     float    hadammo, best, new, old;
@@ -810,7 +808,6 @@ void() Team_weapon_touch =
 
 void() TossWeapon =
 {
-    // TODO VR: (P2) rewrite for VR
 
     /*
 

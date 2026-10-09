@@ -102,3 +102,18 @@ MG3 ships single-player first (`soloOnly` 5, as Dopa); its co-op and its deathma
 The body carried through a gate is checked at the destination with an axis-aligned bound (`vr_portals.cpp`, the
 destination body bound), so a gate turned by a non-cardinal angle can block a narrow exit that the body would fit
 through. A bound turned with the gate (or a box test in the gate's frame) would fix it.
+
+### Old QuakeC notes (the old engine's "TODO VR" markers, triaged 2026-10-09: TECHDEBT_2026-10-09.md 10)
+
+The notes about organizing, hitboxes and ideas were dropped; these name real, small issues:
+- **Rogue's teamplay variants** (`rogue_teamplay.qc`): their item and weapon management is commented out (never
+  rewritten for hands and holsters), so `teamplay 3`-style Rogue modes don't work in VR; their impulses
+  (`weapons.qc`) are off too.
+- **Rogue's lava nails against players** (`rogue_lava_wpn.qc`): Rogue's ignored armor; here armor counts (the save
+  and restore of the armor around `T_Damage` is commented out). Deathmatch only.
+- **`readytime`** (`vr_defs.qc`): one for every client (no shooting or taking weapons just after a load or a
+  spawn); in co-op one player's spawn holds the others for that moment.
+- **`.damage_weapon` of missiles** (`orig_mon_soldier.qc`, Honey's `FL_SPECIFICDAMAGE`): set for the grunt's shot;
+  the plasma and other missile functions may credit the wrong weapon against targets that take only some.
+- **A thrown laser cannon's Quake box** (`weapons.qc`, `WeaponIdToThrowBounds`): the old note said its bounds were
+  wrong; unchecked since Box3D took thrown weapons' collision.

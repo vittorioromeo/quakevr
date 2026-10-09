@@ -631,7 +631,6 @@ void() monster_ogre_real =
 
     if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
     {
-        // TODO VR: (P2) rogue skins
         // self.skin = 1;
     }
 

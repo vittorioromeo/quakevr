@@ -47,7 +47,6 @@ float(entity ent) IsAmmoBox =
            ent.classname == ITEM_NAME_CELLS;
 }
 
-// TODO VR: (P1) move
 float(float xFactor, float xMult) ShouldDropImpl =
 {
     float chance;
@@ -1052,9 +1051,7 @@ void() weapon_touch =
         !VRIsHandEmpty(other, cVR_MainHand) &&
         !VRIsHandEmpty(other, cVR_OffHand))
     {
-        // TODO VR: (P1) revisit this behavior, maybe put in holder or drop?
-        // or cvar?
-        return;
+        return; // (a hand must be free: what the body touches isn't put in a holster or dropped for it)
     }
 
     // If `other` is a bot, they will always drop their main hand weapon.

@@ -655,6 +655,6 @@ void(entity ent) CopyToBodyQue =
     bodyque_head = bodyque_head.owner;
 };
 
-// TODO VR: (P2) ideas:
+// Ideas:
 // * monster variants
 // * chance to spawn hipnotic/rogue monsters in normal quake

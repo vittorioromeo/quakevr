@@ -234,7 +234,6 @@ void() army_fire =
 
     sound(self, CHAN_WEAPON, "soldier/sattck1.wav", 1, ATTN_NORM);
 
-    // TODO VR: (P2) opportunity for extra difficulty
     // fire somewhat behind the player, so a dodging player is harder to hit
     en = self.enemy;
 
@@ -244,8 +243,8 @@ void() army_fire =
     EnemyFireBullets(4, dir, '0.1 0.1 0');
 
     // HONEY
-    // TODO VR: (P1) check how this works, also might be wrong in plasma and
-    // other missile fns
+    // (The weapon credited for the damage: FL_SPECIFICDAMAGE targets take only some; BACKLOG.md, "Old QuakeC
+    // notes".)
     self.damage_weapon = IT_SHOTGUN;
 };
 

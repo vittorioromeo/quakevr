@@ -212,7 +212,10 @@ void() actor_fire1 =[$rockatt1, actor_fire2 ]
         self.v_angle = self.angles;
         self.v_angle_x = 0 - self.angles_x;
         self.effects = EF_MUZZLEFLASH;
-        W_FireRocket(cVR_MainHand); // TODO VR: (P2) wrong, this shouldn't be from player..?
+        // (VR: not W_FireRocket, a player's hand's: Rogue's own, from his body towards the machine.)
+        sound(self, CHAN_WEAPON, "weapons/sgun1.wav", 1, ATTN_NORM);
+        makevectors(self.v_angle);
+        VR_LaunchRocket(self, self.origin + v_forward * 8 + '0 0 16', v_forward);
 
         // start the end text
         WriteByte(MSG_ALL, SVC_FINALE);

@@ -28,8 +28,6 @@ float() VR_GameUtil_InHoneyMap =
 float() VR_GameUtil_EnableHoneyExtensions =
 {
     if(MG_WorldCampaign()) return FALSE;
-    // TODO VR: (P2) also add cvar override
-
     if((VR_GameUtil_InStartMap() && cvar("vr_honey_context")) || VR_GameUtil_InHoneyMap())
     {
         return TRUE;

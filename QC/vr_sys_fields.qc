@@ -103,8 +103,7 @@
 // Holster weapon model fields
 // ----------------------------------------------------------------------------
 
-// TODO VR: (P2) these are needed because they are read in C++ as 'STAT_XXX'
-// variables to determine the weapon. This should be changed to use WIDs.
+// These are needed because they are read in C++ as 'STAT_XXX' variables to determine the weapon.
 .string holsterweaponmodel0;
 .string holsterweaponmodel1;
 .string holsterweaponmodel2;

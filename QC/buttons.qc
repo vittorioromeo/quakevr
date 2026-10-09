@@ -588,7 +588,6 @@ void() func_button =
     }
 };
 
-// TODO VR: (P2) move
 void() func_particle_emitter_think =
 {
     particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_BIGSMOKE, 1);

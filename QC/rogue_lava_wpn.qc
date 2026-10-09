@@ -137,7 +137,7 @@ void() lavaspike_touch =
             // other.armortype = 0;
             // other.armorvalue = 0;
 
-            // TODO VR: (P1) pass a flag to `T_Damage` to ignore armor
+            // (Rogue's lava nails ignored armor; here armor counts: BACKLOG.md, "Old QuakeC notes".)
             T_Damage(other, self, self.owner, 9 * VR_WpnDmgScale(self.owner, cvarh_vr_dmg_lava_nail, 15)); // (Weapon Damage)
 
             // other.armortype = old_armortype;

@@ -55,6 +55,5 @@ void() monster_spikemine =
 
    setmodel(self, "progs/demon.mdl");
 
-   // TODO VR: (P2) tweak hitbox
    setsize(self, VEC_HULL2_MIN, VEC_HULL2_MAX);
 };

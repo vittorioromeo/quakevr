@@ -452,10 +452,7 @@ void() spikeshooter_use =
     {
         if(!(self.spawnflags & SPAWNFLAG_SILENT))
             sound(self, CHAN_VOICE, "weapons/sgun1.wav", 1, ATTN_NORM);
-        newmis = W_FireRocket(cVR_MainHand); // TODO VR: (P2) this will spawn particles at the gun position
-        newmis.velocity = self.movedir*1000;
-        newmis.angles = vectoangles(newmis.velocity);
-        setorigin(newmis, self.origin + self.movedir*8);
+        newmis = VR_LaunchRocket(self, self.origin + self.movedir*8, self.movedir);
     }
     else if(kind == 5)
     {
