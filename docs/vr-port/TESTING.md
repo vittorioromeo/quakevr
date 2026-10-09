@@ -1913,8 +1913,8 @@ and Guardian skip forced pain callbacks (mitosis/teleport side effects) but thei
 `python Misc/quakevr/parryinterrupt/test.py <worktree>` runs real guard tests, lowered-guard follow-up hits,
 option-off and failed-guard controls, actual knight animations, a 0.8 s stagger, e1m1 smoke and calibration
 menu paths, a real dragon tail sequence with route recovery, and knight same-callback damage/global checks.
-Optional trailing sections: `forced animations timing smoke dragon callback`. Logs stay in the worktree root;
-the script overwrites `quakevr/test_parryinterrupt.cfg`. Debug > Tests also exposes **Dragon Parry Sequence**
+Optional trailing sections: `forced animations timing smoke dragon callback`. Logs go to the worktree's scratch;
+the script overwrites `quakevr/test_parryinterrupt.cfg`. Debug > Tests also exposes **Dragon Parry Sequence** (hold a guard: a melee weapon level across, not upright; **Dragon Parry (Mock Crowbar)** sets the mock hands so: `vr_mock_hand main 0.15 1.25 -0.4 0 90 0` with the grip held; the guns' `GUARD` pose `70 90 0` holds a crowbar upright, no guard), **Dragon Tail Swing (Pose Check)** (the dragon's own slash drawn, then parried, under `vr_debug_pose_check 1`; `parry_pose_test.sh <agent> 2400 dragon`)
 and **Same-Frame Parry Hits** (both grant 500 health; the dragon requires Rogue assets), plus **Check the Parry Pose**
 (impulse 249) and **A Melee Blow Now** (impulse 242). With `notarget`, the latter is a controlled blow through
 the actual parry path. In VR, check a knight/ogre's multi-hit attack, crossed arms, counter timing, and turn

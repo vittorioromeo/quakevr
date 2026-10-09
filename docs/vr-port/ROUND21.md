@@ -33634,3 +33634,21 @@ Now it queues the message (`server::queueBroadcast`, vr_server.cpp: up to 16 who
 frame's broadcast opens with it, right after the clear, with its boundary marked and, as for QuakeC's own
 explosions, its chunks launched (`noteExplosion`). Checked: e1m1, `vr_physics_blast 500 -255 50 1`: 12 chunks live and
 drawn, the client's fireball (before: 0 and none); `explosion_debris_test.sh` check 7.
+
+## The dragon's parry test with the mock hands (2026-10-09)
+
+Debug > Tests > **Dragon Parry Sequence** never parried with the mock hands: the guns' guard pose (`vr_mock_hand main
+0.15 1.25 -0.4 70 90 0`, the parry tests' `GUARD`) holds a crowbar upright (its blade is some 70 degrees off the hand's
+forward: 83 degrees off level, `impulse 249`), and under the default grip mode (Hold) the mock hand let go of it unless
+its grip was held. Nothing was wrong with the dragon's parry: the crowbar held level across (`0 90 0`, grip held)
+parries the tail (492/492, interrupted, route recovered). New: **Dragon Parry (Mock Crowbar)** (that pose and grip,
+then the sequence) and **Dragon Tail Swing (Pose Check)** (QC `VR_Parry_DragonSwing`: the dragon's own slash,
+`dragon_melee1..10`, drawn before its tail lands and is parried; `VR_Parry_DragonTest` strikes the frame it spawns, so
+no attack pose was ever drawn). `parryinterrupt/test.py` gained `dragon_crowbar`; `parry_pose_test.sh` the `dragon` kind.
+
+The squash fix (d92812c0e, `VR_Parry_Hold`) on the dragon, `vr_debug_pose_check 2` on the swing: the slash's last
+frame (28) to the pain pose (62) drawn over 0.748 s with the old single think at the stagger's end, 0.094 s now. The
+dragon's poses never collapse (its smallest extent stays 0.90 of its two poses' either way), so no "held squashed" was
+logged before or after; the time drawn between them is the fix. Also: `parryinterrupt/test.py`'s animation cases were
+flaky (a still player under the stealth meter: the knight noticed him within 150 frames or not); it runs with
+`vr_stealth_meter 0` now (6 of 6 runs pass), and writes its logs to the worktree's scratch, not its root.

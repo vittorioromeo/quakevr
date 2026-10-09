@@ -47,6 +47,35 @@ void() VR_Parry_DragonTest =
         self.think == VR_Parry_Recover));
 };
 
+// The dragon's own tail swing, parried as it lands: its slash frames drawn (dragon_melee1..10, the tail's blow at the tenth,
+// 0.9 s on), then the parry's stagger (VR_Dragon_ParryInterrupt's pain pose): for vr_debug_pose_check, the attack pose
+// to the pain pose drawn as any parried monster's (VR_Parry_Hold; ROUND21.md, "Parried monsters drawn squashed").
+// VR_Parry_DragonTest strikes at once, the frame it is spawned: no attack pose is ever drawn there.
+void() VR_Parry_DragonSwing =
+{
+    entity p = find(world, classname, "player");
+    if(!p || !fileexists("progs/dragon.mdl"))
+    {
+        dprint("dragon parry swing: needs the player and Dissolution of Eternity\n");
+        return;
+    }
+    makevectors('0 1 0' * p.v_viewangle_y);
+    setorigin(self, p.origin + v_forward * 120);
+    self.classname = "monster_dragon";
+    monster_dragon();
+    self.flags = self.flags | FL_MONSTER | FL_FLY;
+    self.takedamage = DAMAGE_AIM;
+    self.solid = SOLID_NOT; // (placed close to the player, as VR_Parry_DragonTest)
+    self.angles_y = p.v_viewangle_y + 180;
+    self.enemy = p;
+    self.dragonAttacking = TRUE;
+    self.movetarget = self.goalentity = world;
+    self.think = dragon_melee1;
+    self.nextthink = time + 0.1;
+    p.health = 500;
+    dprint("dragon parry swing: the tail lands in 1 s\n");
+};
+
 void() VR_Parry_SameCallbackTest =
 {
     entity p = find(world, classname, "player");

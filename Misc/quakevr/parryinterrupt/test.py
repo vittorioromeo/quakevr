@@ -16,6 +16,7 @@ CFG = TREE / "quakevr/test_parryinterrupt.cfg"
 LOG = KIT / "bases" / NAME / "qbase/qconsole.log"
 GUARD = "vr_mock_hand main 0.15 1.25 -0.4 70 90 0"
 LOWER = "vr_mock_hand main 0.15 0.2 0.1 70 0 0"
+CROWBAR_GUARD = "vr_mock_hand main 0.15 1.25 -0.4 0 90 0"  # a melee weapon level across (the gun's GUARD holds it upright)
 
 
 def wait(n):
@@ -29,13 +30,14 @@ def run(label, commands):
                              "-Timeout", "90"], capture_output=True, text=True)
     log = LOG.read_text(errors="replace")
     assert result.returncode == 0 and "ENGINE ERROR" not in log and "ENGINE CRASH" not in log, result.stdout
-    (TREE / ("parryinterrupt_" + label + ".log")).write_text(log)
+    (TREE / "scratch").mkdir(exist_ok=True)
+    (TREE / "scratch" / ("parryinterrupt_" + label + ".log")).write_text(log)  # (scratch: git-ignored)
     return log
 
 
 def setup(enabled, guard=True, stationary=True):
     return ["map vrtesthall", wait(60), "setpos 0 0 24 0 0 0", "developer 1",
-            "vr_enemy_shove 0", "vr_parry 1", "vr_parry_stamina 0", "vr_parry_drop_chance 0",
+            "vr_enemy_shove 0", "vr_stealth_meter 0", "vr_parry 1", "vr_parry_stamina 0", "vr_parry_drop_chance 0",
             "vr_parry_push_enemy 0", "vr_parry_push_player 0", "vr_parry_reduction 0.75",
             "vr_parry_interrupt " + str(enabled), "vr_parry_stagger 0.35", "vr_weapon_grip_mode 1",
             "impulse 154", wait(5), GUARD if guard else LOWER, wait(20)] + (
@@ -106,6 +108,13 @@ if selected("dragon"):
             assert first == 470 and after < first and not interrupted and not recovering, match.groups()
         print(label + ": PASS first/after health %s/%s, interruption %s, safe route recovery %s" %
               (first, after, interrupted, bool(enabled and guarded)))
+    # The crowbar (impulse 167) held level across (its blade some 70 degrees off the hand's forward: the gun's GUARD
+    # holds it upright, no guard), as the Debug menu's "Dragon Parry (Mock Crowbar)" does.
+    commands = [CROWBAR_GUARD if c == GUARD else "impulse 167" if c == "impulse 154" else c for c in setup(1, True)[:-5]]
+    log = run("dragon_crowbar", commands + ["vr_physics_spawn VR_Parry_DragonTest 120", wait(65)])
+    match = re.search(r"dragon parry test: first health (\d+), after follow-ups (\d+), interrupted (\d+)", log)
+    assert match and tuple(map(int, match.groups())) == (492, 492, 1), (match and match.groups(), log[-2000:])
+    print("dragon_crowbar: PASS the crowbar held level across parries the tail (492/492, interrupted)")
 
 if selected("callback"):
     for enabled in [1, 0]:

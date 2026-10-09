@@ -5977,7 +5977,17 @@ za::Vector<Item> pageDebugTests()
         command("Check the Parry Pose", "impulse 249")
             .help("Developer 1: whether each held weapon blocks a blow from ahead, and its angle and position."),
         command("Dragon Parry Sequence", "vr_physics_spawn VR_Parry_DragonTest 120")
-            .help("Developer 1: a real dragon tail hit and two same-frame follow-ups, then its route recovery. Needs Dissolution of Eternity; grants 500 health. Hold a guard to test the parry."),
+            .help("Developer 1: a real dragon tail hit and two same-frame follow-ups, then its route recovery. Needs Dissolution of Eternity; grants 500 health. Hold a guard to test the parry: a melee weapon level across in front (a crowbar or sword held up like a gun is no guard), its grip held."),
+        command("Dragon Parry (Mock Crowbar)",
+            "vr_mock_hand main 0.15 1.25 -0.4 0 90 0;+grabright;vr_mock_button main grip 1;wait;impulse 167;"
+            "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait;vr_physics_spawn VR_Parry_DragonTest 120;wait;wait;"
+            "-grabright;vr_mock_button main grip 0")
+            .help("The mock hands only (no headset): the Dragon Parry Sequence with the main hand gripping a crowbar level "
+                  "across in front (vr_mock_hand main 0.15 1.25 -0.4 0 90 0), then letting go. Developer 1 prints "
+                  "\"parry: monster_dragon with hand 1\" and \"interrupted 1\"."),
+        command("Dragon Tail Swing (Pose Check)", "vr_debug_pose_check 1;vr_physics_spawn VR_Parry_DragonSwing 120")
+            .help("Developer 1: a dragon's own tail swing, its slash drawn, landing 1 s on; hold a guard to parry it. "
+                  "Monster Poses logging on: a body drawn squashed between the attack and the pain pose is logged."),
         command("Same-Frame Parry Hits", "vr_physics_spawn VR_Parry_SameCallbackTest 48")
             .help("Developer 1: a knight deals three 10-damage blows in one callback and checks the restored self and vectors. Grants 500 health. A successful parry should cancel the last two."),
         command("A Melee Blow Now", "impulse 242")
