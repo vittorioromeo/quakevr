@@ -289,9 +289,10 @@ if ($remote -and -not $Local) {
 
 # Tools.
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { Problem "gh (GitHub CLI) not found" -OnlineOnly }
-elseif ($DryRun -or $Local) { Say "gh found (not called: $(if ($Local) { '-Local' } else { '-DryRun' }))" }
+elseif ($Local) { Say "gh found (not called: -Local)" }
 else {
-    if ((Run "gh" @("auth", "status")).Code -ne 0) { Problem "gh is not logged in (gh auth login)" -OnlineOnly }
+    # (Read-only calls, -DryRun's too: whether gh is logged in and the release is still to be made.)
+    if ((Run "gh" @("auth", "status")).Code -ne 0) { Problem "gh is not logged in (gh auth login; gh auth status says why)" -OnlineOnly }
     elseif ((Run "gh" @("release", "view", $tag, "--repo", $Repo, "--json", "tagName")).Code -eq 0) { Problem "GitHub release $tag already exists in $Repo (edit or delete it on GitHub)" -OnlineOnly }
     else { Say "gh is logged in; no release $tag in $Repo yet" }
 }
@@ -304,6 +305,20 @@ if (-not $MSBuild -and (Test-Path $vswhere)) {
 if (-not $MSBuild -or -not (Test-Path -LiteralPath $MSBuild)) { Problem "MSBuild with the ClangCL toolset not found (Visual Studio 2022 with C++ and 'C++ Clang tools for Windows'; or -MSBuild)" } else { Say "MSBuild: $MSBuild" }
 $dotnet = Run "dotnet" @("--version")   # (in the repository root; the installer's global.json is checked below)
 $installerDir = Join-Path $root "Installer"
+# The installer's console tool already built (Release, else Debug), for qvr-setup detect.
+function Find-QvrSetup() {
+    foreach ($c in "Release", "Debug") {
+        $p = Join-Path $installerDir "src\QuakeVR.Installer.Cli\bin\$c\net9.0-windows\qvr-setup.exe"
+        if (Test-Path -LiteralPath $p) { return $p }
+    }
+    $null
+}
+# The Quake the installer would pick (DetectionReport.DefaultQuake: its "Expansions (for <name>, base <dir>):" line).
+function Find-QuakeDir([string]$exe) {
+    $r = Run $exe @("detect")
+    foreach ($l in $r.Out) { if ("$l" -match '^Expansions \(for (.+), base (.+)\):\s*$') { return $Matches[2].Trim() } }
+    $null
+}
 Push-Location $installerDir; try { $dotnetSdk = Run "dotnet" @("--version") } finally { Pop-Location }
 if ($dotnet.Code -ne 0 -and $dotnetSdk.Code -ne 0) { Problem ".NET SDK not found (dotnet)" }
 elseif ($dotnetSdk.Code -ne 0) { Problem "no .NET SDK matching Installer\global.json (9.0.305 or a newer 9.0 band)" }
@@ -352,9 +367,21 @@ if ($hostedKeys.Count -and -not $DryRun -and -not $Local) {
         }
     } catch { Problem "could not read the support release $($support.tag) from GitHub's API ($($_.Exception.Message))" -OnlineOnly }
 }
+# The Quake for the smoke launch: -QuakeDir, QVR_QUAKE_DIR, else the one the installer picks by itself (its Steam, GOG
+# and Epic detection: qvr-setup detect, the folder it names for its expansions). Only read: the paks are linked.
+$quakeFrom = if (-not $QuakeDir) { "" } elseif ($PSBoundParameters.ContainsKey("QuakeDir")) { "-QuakeDir" } else { "QVR_QUAKE_DIR" }
+$detectAfterBuild = $false
+if (-not $QuakeDir -and -not $SkipSmoke) {
+    $qvrSetupExe = Find-QvrSetup
+    if ($qvrSetupExe) { $QuakeDir = Find-QuakeDir $qvrSetupExe; if ($QuakeDir) { $quakeFrom = "detected by $qvrSetupExe detect" } }
+    elseif (-not $DryRun) { $detectAfterBuild = $true }
+}
 $quakeOk = $QuakeDir -and (Test-Path (Join-Path $QuakeDir "id1\pak0.pak"))
 if ($SkipSmoke) { Warn "-SkipSmoke: no launch of the packaged game" }
-elseif (-not $quakeOk) { Warn "no Quake folder with id1\pak0.pak (-QuakeDir or QVR_QUAKE_DIR): the packaged game's smoke launch is skipped" }
+elseif ($quakeOk) { Say "Quake for the smoke launch: $QuakeDir ($quakeFrom)" }
+elseif ($detectAfterBuild) { Say "Quake for the smoke launch: detected after the installer's build (qvr-setup detect; -QuakeDir or QVR_QUAKE_DIR to name it)" }
+elseif ($QuakeDir) { Warn "$QuakeDir ($quakeFrom) has no id1\pak0.pak: the packaged game's smoke launch is skipped" }
+else { Warn "no Quake folder: none given (-QuakeDir, QVR_QUAKE_DIR) and $(if (Find-QvrSetup) { 'qvr-setup detect found none' } else { 'no qvr-setup built to detect one (it is after the build)' }): the packaged game's smoke launch is skipped" }
 
 if ($problems.Count) { throw "$($problems.Count) problem(s) above: nothing was built or published" }
 
@@ -447,6 +474,12 @@ if ($Local) {
     New-Item -ItemType Directory -Force $tools | Out-Null
     Copy-Item (Join-Path $cliBin "*") $tools -Recurse -Force
     Say "qvr-setup (the local server): $tools"
+}
+if ($detectAfterBuild) {
+    $QuakeDir = Find-QuakeDir (Find-QvrSetup)
+    $quakeOk = $QuakeDir -and (Test-Path (Join-Path $QuakeDir "id1\pak0.pak"))
+    if ($quakeOk) { Say "Quake for the smoke launch: $QuakeDir (detected by qvr-setup detect)" }
+    else { Warn "no Quake folder: none given (-QuakeDir, QVR_QUAKE_DIR) and qvr-setup detect found none: the packaged game's smoke launch is skipped" }
 }
 
 if ($SkipInstallerTests) { Warn "-SkipInstallerTests: the installer's self-tests were not run" }
