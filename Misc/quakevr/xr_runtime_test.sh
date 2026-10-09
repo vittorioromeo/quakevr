@@ -181,4 +181,23 @@ unset XR_RUNTIME_JSON
 L="$OUT/outside.log"
 check $L "outside XR_RUNTIME_JSON wins" "choice: Meta \(Oculus\) - XR_RUNTIME_JSON set outside the game" "1\. Meta \(Oculus\) \(XR_RUNTIME_JSON set outside" \
     "is set outside the game" "OpenXR runtime: FakeXR fakexr_meta"
+
+# 4. A session on the fake headset (FAKEXR_HEADSET): the log's formats, layers, sizes, the session's states and a timing
+# line a second; the focus lost for frames 150-250 (FAKEXR_UNFOCUS, as SteamVR's dashboard does): the last frame shown
+# again, no projection layer without a released image (the runtime's XR_ERROR_LAYER_INVALID); vr_xr_eye_scale 0.8.
+LOG="$OUT/headset.log"; : > "$LOG"
+export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_steam FAKEXR_EYE=600x640 FAKEXR_UNFOCUS=150-250
+unset FAKEXR_FAIL_INSTANCE FAKEXR_D3D11
+S="vr_xr_test 1;vr_xr_runtime 0;vr_xr_runtime_fallback 0;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_xr_eye_scale 0.8;vr_backend openxr;map start;wait400;toggleconsole;quit"
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "OpenXR|VR:" > "$OUT/headset_game.log"
+unset FAKEXR_HEADSET FAKEXR_EYE FAKEXR_UNFOCUS
+cp -f "$XRLOG" "$OUT/headset_openxr.txt"
+L="$OUT/headset_openxr.txt"
+check $L "the fake headset's session logged" "extensions enabled: XR_KHR_opengl_enable" "system \"FakeXR headset\"" \
+    "layers: a projection layer in stage space" "eyes: recommended 600x640" "formats offered .*: GL_RGBA8 GL_SRGB8_ALPHA8" \
+    "format chosen: GL_SRGB8_ALPHA8" "xrCreateSwapchain: 480x512 GL_SRGB8_ALPHA8, 3 images" "eye images 480x512 .*vr_xr_eye_scale 0.8" \
+    "session FOCUSED" "xr 1\.[0-9]s: [0-9]+ frames \([0-9]+ rendered" "session VISIBLE \(no input focus" "[1-9][0-9]* last again" "session FOCUSED"
+check "$LOG" "unfocused: the last frame shown again, valid layers" "the focus lost" "the focus back" \
+    "xrDestroySession: [0-9]+ frames: [0-9]+ projection layers \((9[0-9]|10[0-9]) without an image released"
+if grep -q "LAYER_INVALID" "$LOG"; then echo "FAIL: a layer without a released image"; fails=$((fails + 1)); else echo "PASS: no invalid layer"; fi
 echo "xr_runtime_test: $fails failed"

@@ -33669,3 +33669,49 @@ flaky (a still player under the stealth meter: the knight noticed him within 150
 - `climb/slopes_test.sh` ran in another agent's kit folder (`movetweaks`) with a play from its scratch: it takes the
   agent now, writes the mantle play (hands at 1.49 m) to its own scratch, and checks ROUND21's table with no cvars
   (8 of 8: mantled level, up 10/20/30, down 20, across 15; no room up 45 and under the slab).
+
+## SteamVR slower than VDXR: where the time goes, the dashboard (2026-10-09)
+
+- His two captures (Quest 3 over Virtual Desktop, RTX 4090, 120 Hz, vrstart then start): `systems_2026-10-09_17-40-27`
+  VDXR, `systems_2026-10-09_17-42-22` SteamVR (`qvr_openxr.txt`: the 17:42:09 start loaded SteamVR/OpenXR 2.17.10).
+  | | VDXR | SteamVR |
+  |---|---|---|
+  | fps (mean / median) | 119.4 / 120 | 89.2 / 98.8 (28 for 9 s; 0 for 5 s) |
+  | GPU, eyes (memstats `gpu_eyes_ms`, vrstart / start) | 3.2 / 3.7 ms | 6.8 / 5.3 ms |
+  | GPU in the runtime's calls (acquire + submit) | 0.05-0.3 ms | 1.8-2.1 ms |
+  | CPU busy | 2.1 ms | 2.9 ms |
+  | xrWaitFrame | 4.7 ms (the pacing) | 0.1 ms |
+  | xr acquire + release (CPU) | 0.01 ms | 1.3-1.6 ms |
+  | xrEndFrame | 0.9 ms | 6.9 ms mean, 25 ms in the bad seconds, one of 3.1 s |
+  | video memory free | 4.9 GB | 1.0-1.1 GB, 600 MB evicted during the run |
+- Causes. (1) SteamVR's eye images are 3292x3524 (`vrserver.txt`: the driver's 2688x2880, "Clamping render target
+  scale to 1.5x total area": SteamVR's Render Resolution on Auto), 1.5 times the pixels: the eyes' GPU time doubles
+  (Quake's share of the GPU 37% at 120 fps on VDXR, 50% at ~108 on SteamVR). (2) SteamVR's OpenGL path copies every
+  released image into its own textures (the GPU time in the acquire and submit scopes, the CPU in release) and paces
+  in xrEndFrame, not xrWaitFrame. (3) The 28-fps seconds and the 3-second stall: `vrcompositor.txt` says
+  "WaitForAcquire timed out ... before the driver took the sync texture" (Virtual Desktop's SteamVR driver late taking
+  the compositor's frame) at exactly those times, with 1 GB of video memory free (SteamVR, its dashboard, fpsVR's
+  overlays and Virtual Desktop's driver on top of the game). The compositor's own summary: 2706 of 10711 frames
+  reprojected. (4) With the dashboard open the game rendered as usual (no focus handling).
+- Done: `vr_xr_unfocused` (1; Advanced > Headset > Runtime Menu Open): while the session is VISIBLE, not FOCUSED
+  (SteamVR's dashboard, Virtual Desktop's or Meta's menu), the eyes aren't rendered: the projection layer shows the
+  swapchains' last released images with the poses they were rendered for (the spec: a layer shows its swapchain's last
+  released image), world-locked; the window keeps its last image. Fake headset: 4.9 ms a frame held vs ~22 ms rendered
+  on the shared test machine. `vr_xr_late_acquire` (1; Late Image Acquire): each eye's image acquired only after its
+  scene and glow are drawn (they go to the eye's own targets), before the post-processing writes it: SteamVR's wait for
+  the image (its copy out of the last one) overlaps the scene's drawing instead of stalling before it. Eye images
+  pixel-identical to the old order (mock, `vr_eyeshot 3`: 1 channel of 3 M off by 3, the dither). `vr_xr_eye_scale` (1;
+  Eye Image Size, next VR start): the swapchains at that fraction of the runtime's recommended size each side (0.82:
+  SteamVR's 150% back to the panel's pixels), which also shrinks SteamVR's copies and its video memory.
+- The log (`quakevr/qvr_openxr.txt`): the extensions offered and enabled, the system's properties, the eyes'
+  recommended and largest sizes, the swapchain formats offered (in the runtime's order) and the one chosen, each
+  swapchain made (size, format, image count, usage), the layers, the eye size and the settings; each session state
+  change with the time (VISIBLE = the runtime's menu); and with `vr_xr_log_timing` (1; also Debug > Profiling) a line a
+  second: frames rendered / shown again / with the panel / empty, shouldRender off, display periods missed
+  (predictedDisplayTime), the frame period, and each call's ms a frame and worst (poll, wait, begin, sync, acquire,
+  waitimage, release, end).
+- Tests: the fake runtime has a headset now (`FAKEXR_HEADSET=fakexr_steam`, `FAKEXR_EYE`, `FAKEXR_UNFOCUS=a-b` frames
+  VISIBLE; OpenGL swapchains in the game's context; at the session's end the log counts the layers, and an invalid
+  projection layer, without a released image, fails the frame); `xr_runtime_test.sh` part 4 (3 checks).
+- Not ours, for him: SteamVR's per-app Render Resolution (100% = 2688x2880) or Eye Image Size 0.82; fpsVR and other
+  overlays off; VDXR remains the cheaper path (no compositor copy, no driver hand-off).

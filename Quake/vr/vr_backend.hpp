@@ -138,7 +138,10 @@ struct EyeView
 struct FrameState
 {
     bool shouldRender{false}; // the runtime wants this frame's eyes rendered
-    EyeView eyes[2];          // [0] left, [1] right
+    // The runtime's own menu has the focus (vr_xr_unfocused): the eyes are not rendered, endFrame(true) shows the last
+    // rendered frame again.
+    bool hold{false};
+    EyeView eyes[2]; // [0] left, [1] right
 };
 
 // The part of an eye's image the lenses never show (XR_KHR_visibility_mask's hidden triangle
@@ -215,7 +218,8 @@ public:
     [[nodiscard]] virtual unsigned acquireEyeImage(int eye) = 0;
     virtual void releaseEyeImage(int eye) = 0;
 
-    // Finishes the frame begun by beginFrame; `rendered` if the eye images were rendered.
+    // Finishes the frame begun by beginFrame; `rendered` if the eye images were rendered (or, FrameState::hold, the last
+    // rendered ones are to be shown again).
     virtual void endFrame(bool rendered) = 0;
 
     // A flat panel the runtime shows in front of the player while the world is not rendered

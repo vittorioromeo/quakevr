@@ -467,6 +467,21 @@ QVR_CVAR(vr_xr_steamvr_wait, "5", CVAR_ARCHIVE)
 // keepGraphicsModules: NVIDIA's OpenGL driver crashed the game reading VDXR's d3d11.dll once unloaded); 0 they go
 // with it (the old way, for the tests).
 QVR_CVAR(vr_xr_keep_graphics_dlls, "1", CVAR_NONE)
+// While the runtime's own menu has the focus (the session VISIBLE, not FOCUSED: SteamVR's dashboard, Virtual Desktop's
+// or Meta's menu): 1 the eyes are not rendered, the last frame is shown again (world-locked: the runtime reprojects
+// it; the GPU left to the runtime's menu); 0 they are rendered as usual.
+QVR_CVAR(vr_xr_unfocused, "1", CVAR_ARCHIVE)
+// The eye images' size, times the runtime's recommended (each side; SteamVR's includes its own resolution setting, 150%
+// of the panel's area on Auto), at the next VR start: smaller images cost less to render, copy (SteamVR's OpenGL path
+// copies each into its own textures) and keep in video memory. 0.5 .. 1.
+QVR_CVAR(vr_xr_eye_scale, "1", CVAR_ARCHIVE)
+// 1: each eye's image acquired from the runtime only once its scene is drawn (before the post-processing writes it):
+// the runtime's wait for the image (SteamVR's OpenGL path: its copy out of it) overlaps the scene's drawing; 0 before
+// the scene (the old order, for comparison).
+QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
+// 1: a line a second in qvr_openxr.txt while VR runs: the frames (rendered, the last one shown again, without layers),
+// the display periods missed, and each OpenXR call's time (average and worst), the session's state; 0 none.
+QVR_CVAR(vr_xr_log_timing, "1", CVAR_ARCHIVE)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
 // the installed runtimes (manifests, comma-separated), the active one and the running processes from these instead of
 // the registry and the system (and never loads the real active runtime). vr_xr_test_fail: runtimes (parts of their

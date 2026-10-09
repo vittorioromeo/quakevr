@@ -18,6 +18,7 @@
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
@@ -128,6 +129,8 @@ public:
             }
         }
         panelPending = panelShown = false;
+        haveLastViews = holding = false;
+        timing = Timing{};
         for(int eye = 0; eye < 2; eye++)
         {
             hidden[eye] = HiddenArea{};
@@ -170,13 +173,17 @@ public:
     [[nodiscard]] bool beginFrame(TrackingState& tracking, FrameState& frame) override
     {
         frame.shouldRender = false;
+        frame.hold = false;
 
         if(frameBegun)
         {
             endFrame(false); // the previous frame was not rendered (e.g. while loading)
         }
 
-        if(!pollEvents())
+        double t0 = Sys_DoubleTime();
+        const bool polled = pollEvents();
+        timeCall(CallPoll, t0);
+        if(!polled)
         {
             return false;
         }
@@ -201,17 +208,22 @@ public:
         XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
         frameState = XrFrameState{XR_TYPE_FRAME_STATE};
         profile::begin("xrWaitFrame", false); // the runtime's pacing alone (vr_memstats_log)
+        t0 = Sys_DoubleTime();
         const XrResult waited = xrWaitFrame(session, &waitInfo, &frameState);
+        timeCall(CallWait, t0);
         profile::end();
         if(!check(waited, "xrWaitFrame"))
         {
             return true;
         }
         profile::noteDisplayPeriod(static_cast<double>(frameState.predictedDisplayPeriod) * 1e-6);
+        noteWaited();
 
         XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
         profile::begin("xrBeginFrame", false);
+        t0 = Sys_DoubleTime();
         const XrResult begun = xrBeginFrame(session, &beginInfo);
+        timeCall(CallBegin, t0);
         profile::end();
         if(!check(begun, "xrBeginFrame"))
         {
@@ -220,11 +232,13 @@ public:
         frameBegun = true;
         QVR_PROFILE("tracking"); // the actions' sync, the views, the controllers
 
+        t0 = Sys_DoubleTime();
         const XrActiveActionSet active{actionSet, XR_NULL_PATH};
         XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
         syncInfo.countActiveActionSets = 1;
         syncInfo.activeActionSets = &active;
         xrSyncActions(session, &syncInfo);
+        timeCall(CallSync, t0);
 
         const XrTime time = frameState.predictedDisplayTime;
         tracking.time = static_cast<double>(time) * 1e-9;
@@ -275,6 +289,14 @@ public:
         }
 
         frame.shouldRender = viewsOk && frameState.shouldRender;
+        // The runtime's menu has the focus (SteamVR's dashboard...): its last frame again, nothing rendered.
+        holding = frameState.shouldRender && haveLastViews && sessionState == XR_SESSION_STATE_VISIBLE &&
+                  vr_xr_unfocused.value != 0.f;
+        frame.hold = holding;
+        if(!frameState.shouldRender)
+        {
+            timing.noRender++;
+        }
         return true;
     }
 
@@ -313,7 +335,9 @@ public:
 
     void releaseEyeImage(int eye) override
     {
+        const double t0 = Sys_DoubleTime();
         releaseImage(swapchains[eye]);
+        timeCall(CallRelease, t0);
     }
 
     void endFrame(bool rendered) override
@@ -334,21 +358,37 @@ public:
         const XrCompositionLayerBaseHeader* submitted[2];
         uint32_t count = 0;
 
+        const bool held = rendered && holding && haveLastViews;
+        holding = false;
         if(rendered && frameState.shouldRender)
         {
             for(int eye = 0; eye < 2; eye++)
             {
+                if(held)
+                {
+                    // The swapchains' last released images, with the poses they were rendered for (the spec: a
+                    // layer shows its swapchain's last released image).
+                    projViews[eye] = lastViews[eye];
+                    continue;
+                }
                 projViews[eye] = XrCompositionLayerProjectionView{XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW};
                 projViews[eye].pose = views[eye].pose;
                 projViews[eye].fov = views[eye].fov;
                 projViews[eye].subImage.swapchain = swapchains[eye].handle;
                 projViews[eye].subImage.imageRect.extent = {swapchains[eye].width, swapchains[eye].height};
+                lastViews[eye] = projViews[eye];
             }
+            haveLastViews = true;
 
             layer.space = worldSpace;
             layer.viewCount = 2;
             layer.views = projViews;
             submitted[count++] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&layer);
+            (held ? timing.held : timing.rendered)++;
+        }
+        else
+        {
+            timing.empty += panelPending ? 0 : 1;
         }
 
         XrCompositionLayerQuad quad{XR_TYPE_COMPOSITION_LAYER_QUAD};
@@ -370,13 +410,17 @@ public:
             quad.pose = panelPose;
             quad.size = {panelSize().x, panelSize().y};
             submitted[count++] = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&quad);
+            timing.panels++;
         }
         panelShown = panelPending && frameState.shouldRender;
         panelPending = false;
 
         endInfo.layerCount = count;
         endInfo.layers = count ? submitted : nullptr;
+        const double t0 = Sys_DoubleTime();
         check(xrEndFrame(session, &endInfo), "xrEndFrame");
+        timeCall(CallEnd, t0);
+        timing.frames++;
     }
 
     [[nodiscard]] unsigned acquirePanelImage(int width, int height) override
@@ -488,6 +532,131 @@ private:
     PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
     HiddenArea hidden[2];
     bool hiddenStale[2]{true, true}; // to fetch (again) before the next frame
+    XrCompositionLayerProjectionView lastViews[2]{}; // the last rendered frame's views (vr_xr_unfocused)
+    bool haveLastViews{false};
+    bool holding{false}; // this frame shows them again (FrameState::hold)
+
+    // vr_xr_log_timing: each second's OpenXR calls (CPU ms), frames and display periods, a line in qvr_openxr.txt.
+    enum Call
+    {
+        CallPoll,
+        CallWait,
+        CallBegin,
+        CallSync,
+        CallAcquire,
+        CallWaitImage,
+        CallRelease,
+        CallEnd,
+        CallCount
+    };
+    struct CallTime
+    {
+        double sum{0.0};
+        double max{0.0};
+        int count{0};
+    };
+    struct Timing
+    {
+        CallTime calls[CallCount];
+        CallTime period;          // between xrWaitFrame's returns
+        double since{-1.0};       // the second's start (Sys_DoubleTime)
+        double lastWaited{-1.0};  // the last xrWaitFrame's return
+        XrTime lastDisplay{0};    // its predictedDisplayTime
+        int frames{0};            // xrEndFrame calls
+        int rendered{0};          // with the eyes rendered
+        int held{0};              // with the last ones again (vr_xr_unfocused)
+        int empty{0};             // without a layer
+        int panels{0};            // with the runtime's panel (a quad layer)
+        int noRender{0};          // shouldRender false
+        int missed{0};            // display periods skipped (predictedDisplayTime moved on by more than one)
+        int periodNs{0};          // predictedDisplayPeriod
+    };
+    Timing timing;
+
+    void timeCall(Call call, double since)
+    {
+        CallTime& c = timing.calls[call];
+        const double ms = (Sys_DoubleTime() - since) * 1000.0;
+        c.sum += ms;
+        c.max = za::max(c.max, ms);
+        c.count++;
+    }
+
+    // After xrWaitFrame: the frame period, the display periods missed, and once a second the log's line.
+    void noteWaited()
+    {
+        const double now = Sys_DoubleTime();
+        if(timing.lastWaited >= 0.0)
+        {
+            const double ms = (now - timing.lastWaited) * 1000.0;
+            timing.period.sum += ms;
+            timing.period.max = za::max(timing.period.max, ms);
+            timing.period.count++;
+        }
+        timing.lastWaited = now;
+        const XrDuration period = frameState.predictedDisplayPeriod;
+        timing.periodNs = static_cast<int>(period);
+        if(timing.lastDisplay != 0 && period > 0)
+        {
+            const XrTime steps = (frameState.predictedDisplayTime - timing.lastDisplay + period / 2) / period;
+            timing.missed += steps > 1 ? static_cast<int>(steps - 1) : 0;
+        }
+        timing.lastDisplay = frameState.predictedDisplayTime;
+
+        if(timing.since < 0.0)
+        {
+            timing.since = now;
+        }
+        if(now - timing.since < 1.0)
+        {
+            return;
+        }
+        if(vr_xr_log_timing.value != 0.f)
+        {
+            za::String line = va("%s xr %.1fs: %d frames (%d rendered, %d last again, %d panel, %d empty; shouldRender off %d), "
+                                 "%d display periods missed (%.2f ms), period %.2f/%.2f ms; ms avg/max:",
+                wallClock(), now - timing.since, timing.frames, timing.rendered, timing.held, timing.panels, timing.empty,
+                timing.noRender, timing.missed, timing.periodNs * 1e-6,
+                timing.period.count ? timing.period.sum / timing.period.count : 0.0, timing.period.max);
+            static constexpr const char* names[CallCount] = {
+                "poll", "wait", "begin", "sync", "acquire", "waitimage", "release", "end"};
+            for(int i = 0; i < CallCount; i++)
+            {
+                const CallTime& c = timing.calls[i];
+                line += va(" %s %.2f/%.2f", names[i], c.sum / za::max(timing.frames, 1), c.max);
+            }
+            line += va("; %s\n", stateName(sessionState));
+            xrruntime::logLine(line.cStr());
+        }
+        const XrTime lastDisplay = timing.lastDisplay;
+        timing = Timing{};
+        timing.since = timing.lastWaited = now;
+        timing.lastDisplay = lastDisplay;
+    }
+
+    // The local time, for the log (hh:mm:ss.mmm).
+    [[nodiscard]] static const char* wallClock()
+    {
+        SYSTEMTIME t;
+        GetLocalTime(&t);
+        return va("%02d:%02d:%02d.%03d", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
+    }
+
+    [[nodiscard]] static const char* stateName(XrSessionState state)
+    {
+        switch(state)
+        {
+            case XR_SESSION_STATE_IDLE: return "IDLE";
+            case XR_SESSION_STATE_READY: return "READY";
+            case XR_SESSION_STATE_SYNCHRONIZED: return "SYNCHRONIZED";
+            case XR_SESSION_STATE_VISIBLE: return "VISIBLE";
+            case XR_SESSION_STATE_FOCUSED: return "FOCUSED";
+            case XR_SESSION_STATE_STOPPING: return "STOPPING";
+            case XR_SESSION_STATE_LOSS_PENDING: return "LOSS_PENDING";
+            case XR_SESSION_STATE_EXITING: return "EXITING";
+            default: return "UNKNOWN";
+        }
+    }
 
     // Reads an eye's hidden area (the triangles the lenses never show).
     void fetchHiddenArea(int eye)
@@ -584,22 +753,51 @@ private:
         sc.images.resize(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
         xrEnumerateSwapchainImages(sc.handle, imageCount, &imageCount,
             reinterpret_cast<XrSwapchainImageBaseHeader*>(sc.images.data()));
+        xrruntime::logLine(va("%s OpenXR: %s: %dx%d %s, %u images, %u sample, usage 0x%llx\n", wallClock(), what, width, height,
+            glFormatName(colorFormat), imageCount, info.sampleCount, static_cast<unsigned long long>(usage)));
         return true;
     }
 
+    [[nodiscard]] static const char* glFormatName(int64_t format)
+    {
+        switch(format)
+        {
+            case GL_SRGB8_ALPHA8: return "GL_SRGB8_ALPHA8";
+            case GL_RGBA8: return "GL_RGBA8";
+            case 0x8C41: return "GL_SRGB8";
+            case 0x8051: return "GL_RGB8";
+            case 0x881A: return "GL_RGBA16F";
+            case 0x881B: return "GL_RGB16F";
+            case 0x8059: return "GL_RGB10_A2";
+            case 0x8C3A: return "GL_R11F_G11F_B10F";
+            case 0x81A5: return "GL_DEPTH_COMPONENT16";
+            case 0x81A6: return "GL_DEPTH_COMPONENT24";
+            case 0x8CAC: return "GL_DEPTH_COMPONENT32F";
+            case 0x88F0: return "GL_DEPTH24_STENCIL8";
+            case 0x8CAD: return "GL_DEPTH32F_STENCIL8";
+            default: return va("0x%llx", static_cast<unsigned long long>(format));
+        }
+    }
+
     // The GL texture of the swapchain's next image, acquired and waited for; 0 on failure.
-    [[nodiscard]] unsigned acquireImage(const Swapchain& sc) const
+    [[nodiscard]] unsigned acquireImage(const Swapchain& sc)
     {
         XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
         uint32_t index = 0;
-        if(!check(xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index), "xrAcquireSwapchainImage"))
+        double t0 = Sys_DoubleTime();
+        const XrResult acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index);
+        timeCall(CallAcquire, t0);
+        if(!check(acquired, "xrAcquireSwapchainImage"))
         {
             return 0;
         }
 
         XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         waitInfo.timeout = XR_INFINITE_DURATION;
-        if(!check(xrWaitSwapchainImage(sc.handle, &waitInfo), "xrWaitSwapchainImage"))
+        t0 = Sys_DoubleTime();
+        const XrResult waited = xrWaitSwapchainImage(sc.handle, &waitInfo);
+        timeCall(CallWaitImage, t0);
+        if(!check(waited, "xrWaitSwapchainImage"))
         {
             XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
             xrReleaseSwapchainImage(sc.handle, &releaseInfo);
@@ -759,6 +957,15 @@ private:
         xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
         za::Vector<XrExtensionProperties> extensionList(available, XrExtensionProperties{XR_TYPE_EXTENSION_PROPERTIES});
         xrEnumerateInstanceExtensionProperties(nullptr, available, &available, extensionList.data());
+        za::String offered;
+        for(const XrExtensionProperties& p : extensionList)
+        {
+            offered += offered.empty() ? "" : " ";
+            offered += p.extensionName;
+        }
+        xrruntime::logLine(va("OpenXR: %u extensions offered: ", available));
+        xrruntime::logLine(offered.cStr()); // (longer than va's buffer)
+        xrruntime::logLine("\n");
         for(const XrExtensionProperties& p : extensionList)
         {
             if(!strcmp(p.extensionName, "XR_META_touch_controller_plus"))
@@ -781,6 +988,13 @@ private:
         info.applicationInfo.apiVersion = XR_API_VERSION_1_0;
         info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         info.enabledExtensionNames = extensions.data();
+        za::String enabled;
+        for(const char* e : extensions)
+        {
+            enabled += enabled.empty() ? "" : " ";
+            enabled += e;
+        }
+        xrruntime::logLine(va("OpenXR: extensions enabled: %s\n", enabled.cStr()));
 
         if(!check(xrCreateInstance(&info, &instance), "xrCreateInstance"))
         {
@@ -826,6 +1040,13 @@ private:
         if(!check(result, "xrGetSystem (is the headset connected?)"))
         {
             return false;
+        }
+        XrSystemProperties system{XR_TYPE_SYSTEM_PROPERTIES};
+        if(XR_SUCCEEDED(xrGetSystemProperties(instance, systemId, &system)))
+        {
+            xrruntime::logLine(va("OpenXR: system \"%s\" (vendor 0x%x): at most %u layers, swapchain images up to %ux%u\n",
+                system.systemName, system.vendorId, system.graphicsProperties.maxLayerCount,
+                system.graphicsProperties.maxSwapchainImageWidth, system.graphicsProperties.maxSwapchainImageHeight));
         }
 
         // Required before creating an OpenGL session.
@@ -890,6 +1111,9 @@ private:
         {
             return false;
         }
+        xrruntime::logLine(va("OpenXR: layers: a projection layer in %s space (2 views, a swapchain an eye, no depth layer), "
+                              "and a quad layer for the panel while the world isn't drawn (menus, loading)\n",
+            info.referenceSpaceType == XR_REFERENCE_SPACE_TYPE_STAGE ? "stage" : "local"));
 
         XrReferenceSpaceCreateInfo viewInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
         viewInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
@@ -1161,6 +1385,10 @@ private:
             XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 2, &viewCount, configViews);
         Con_Printf("OpenXR: recommended %ux%u per eye, largest %ux%u\n", configViews[0].recommendedImageRectWidth,
             configViews[0].recommendedImageRectHeight, configViews[0].maxImageRectWidth, configViews[0].maxImageRectHeight);
+        xrruntime::logLine(va("OpenXR: eyes: recommended %ux%u (%.1f Mpx), largest %ux%u, %u samples recommended\n",
+            configViews[0].recommendedImageRectWidth, configViews[0].recommendedImageRectHeight,
+            configViews[0].recommendedImageRectWidth * configViews[0].recommendedImageRectHeight * 1e-6,
+            configViews[0].maxImageRectWidth, configViews[0].maxImageRectHeight, configViews[0].recommendedSwapchainSampleCount));
 
         // Quake renders gamma-encoded colours: an sRGB swapchain written without sRGB
         // conversion hands them to the compositor unchanged.
@@ -1170,6 +1398,12 @@ private:
         xrEnumerateSwapchainFormats(session, formatCount, &formatCount, formats.data());
 
         int64_t format = formats.empty() ? GL_RGBA8 : formats[0];
+        za::String offered;
+        for(int64_t f : formats)
+        {
+            offered += va("%s%s", offered.empty() ? "" : " ", glFormatName(f));
+        }
+        xrruntime::logLine(va("OpenXR: swapchain formats offered (the runtime's order of preference): %s\n", offered.cStr()));
         for(int64_t f : formats)
         {
             if(f == GL_SRGB8_ALPHA8)
@@ -1186,12 +1420,10 @@ private:
         colorFormat = format;
         // Once: what the eyes are written into. Anything but sRGB makes the compositor take the colours for
         // linear ones, and the image looks brighter and washed out.
-        const char* formatName = format == GL_SRGB8_ALPHA8 ? "GL_SRGB8_ALPHA8"
-            : format == GL_RGBA8                           ? "GL_RGBA8"
-            : format == 0x8C41                             ? "GL_SRGB8"
-            : format == 0x881A                             ? "GL_RGBA16F"
-            : format == 0x8059                             ? "GL_RGB10_A2"
-                                                           : "?";
+        const char* formatName = glFormatName(format);
+        xrruntime::logLine(va("OpenXR: swapchain format chosen: %s (the game's colours are gamma-encoded: sRGB, which the "
+                              "compositor reads without a conversion of the game's own)\n",
+            formatName));
         if(!formatLogged)
         {
             formatLogged = true;
@@ -1209,10 +1441,23 @@ private:
     // another size: SteamVR's OpenGL path keeps copying into textures of the first eye images'
     // size, so larger new images were shown cropped (a corner, magnified: a stretched, wrong
     // projection) and smaller ones not at all (a GL_INVALID_VALUE copy).
+    // vr_xr_eye_scale: smaller than recommended (each side; within 64 and the largest), at the start only.
     bool createEyeSwapchains()
     {
-        const int32_t w = static_cast<int32_t>(configViews[0].recommendedImageRectWidth);
-        const int32_t h = static_cast<int32_t>(configViews[0].recommendedImageRectHeight);
+        const float scale = CLAMP(0.5f, vr_xr_eye_scale.value, 1.f);
+        const auto scaled = [scale](uint32_t recommended, uint32_t largest)
+        {
+            const int32_t size = static_cast<int32_t>(static_cast<float>(recommended) * scale + 0.5f);
+            return za::min(za::max(size, int32_t{64}), static_cast<int32_t>(za::max(largest, recommended)));
+        };
+        const int32_t w = scaled(configViews[0].recommendedImageRectWidth, configViews[0].maxImageRectWidth);
+        const int32_t h = scaled(configViews[0].recommendedImageRectHeight, configViews[0].maxImageRectHeight);
+        haveLastViews = holding = false;
+        if(scale != 1.f)
+        {
+            xrruntime::note("OpenXR: eye images %dx%d: %.2f of the runtime's recommended %ux%u (vr_xr_eye_scale)\n", w, h,
+                scale, configViews[0].recommendedImageRectWidth, configViews[0].recommendedImageRectHeight);
+        }
         for(Swapchain& sc : swapchains)
         {
             if(sc.handle != XR_NULL_HANDLE)
@@ -1226,6 +1471,9 @@ private:
             }
         }
         Con_Printf("OpenXR: %dx%d per eye\n", w, h);
+        xrruntime::logLine(va("OpenXR: eye images %dx%d (%.1f Mpx; vr_xr_eye_scale %g), rendered at vr_render_scale %g, "
+                              "vr_xr_late_acquire %g, vr_xr_unfocused %g\n",
+            w, h, w * h * 1e-6, scale, vr_render_scale.value, vr_xr_late_acquire.value, vr_xr_unfocused.value));
         return true;
     }
 
@@ -1268,6 +1516,13 @@ private:
                 {
                     const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);
                     sessionState = changed.state;
+                    xrruntime::logLine(va("%s session %s%s\n", wallClock(), stateName(sessionState),
+                        sessionState == XR_SESSION_STATE_VISIBLE
+                            ? (vr_xr_unfocused.value != 0.f ? " (no input focus, e.g. the runtime's menu: the last frame "
+                                                              "shown again, not rendered; vr_xr_unfocused 1)"
+                                                            : " (no input focus, e.g. the runtime's menu; vr_xr_unfocused 0: "
+                                                              "rendered)")
+                            : ""));
                     if(sessionState == XR_SESSION_STATE_READY)
                     {
                         beginSession();

@@ -4743,6 +4743,10 @@ za::Vector<Item> pageDebugProfiling()
         cycle("Hitch Log", vr_profile_hitch, {{0.f, "Off"}, {1.5f, "Over 1.5 Frames"}, {2.f, "Over 2 Frames"}, {3.f, "Over 3 Frames"}})
             .help("While the profiler runs (the panel, a capture), frames that take this long go to the console and "
                   "quakevr/profile/hitches_<date>_<time>.csv, with what took their time."),
+        toggle("OpenXR Timing Log", vr_xr_log_timing)
+            .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered or shown again, display periods "
+                  "missed, each OpenXR call's time (xrWaitFrame, xrEndFrame, the images' acquire and release) and the "
+                  "session's state (VISIBLE: the runtime's menu has the controllers)."),
         cycle("Detail", vr_profile_detail, {{1.f, "Systems"}, {2.f, "Every Trace and Builtin"}})
             .help("Every Trace and Builtin also times each collision trace and each QuakeC builtin call apart: dearer, to "
                   "split QuakeC's time."),
@@ -7854,6 +7858,14 @@ za::Vector<Item> pageMain()
             .help("Auto: when the chosen runtime fails to start (no headset), try the other installed ones before playing flat. An idle SteamVR (not the system's runtime) only with 'SteamVR too': trying it starts SteamVR."),
         slider("SteamVR Wait", vr_xr_steamvr_wait, 0.f, 20.f, 1.f, "%.0f s").advanced()
             .help("How long SteamVR, just started, is given to find the headset (through Virtual Desktop or the Link) before it counts as failed and Auto tries the next runtime."),
+        slider("Eye Image Size", vr_xr_eye_scale, 0.5f, 1.f, 0.05f, "%.2f").advanced()
+            .help("The headset images' size, times the runtime's recommended (each side), at the next VR start. SteamVR's recommended is 1.5 times the panel's pixels by default (its own Render Resolution): 0.82 matches the panel. Smaller images cost less to draw, to copy (SteamVR copies an OpenGL game's every image) and in video memory."),
+        cycle("Runtime Menu Open", vr_xr_unfocused, {{1.f, "Freeze the Game's View"}, {0.f, "Keep Rendering"}}).advanced()
+            .help("While the runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's menu) has the controllers: the game's last frame stays in view, not rendered again, which leaves the graphics card to the menu; or the game keeps rendering as usual."),
+        toggle("Late Image Acquire", vr_xr_late_acquire).advanced()
+            .help("Each eye's headset image is taken from the runtime only once its scene is drawn, so the runtime's wait for it (SteamVR copying the last one out) overlaps the drawing. Off: before the scene, the old way, to compare."),
+        toggle("OpenXR Timing Log", vr_xr_log_timing).advanced()
+            .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state."),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
             .help("Eye rendering resolution, times the headset's (SteamVR's resolution included); resampled to it."), // + the size (renderScaleHelp)
         cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})

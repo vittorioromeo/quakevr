@@ -825,6 +825,16 @@ extern "C" int VR_RenderView()
         return 0; // the backend ends the frame without layers
     }
 
+    // The runtime's menu has the focus (vr_xr_unfocused): its last frame shown again, the GPU left to the menu. The
+    // window keeps its last image.
+    if(frame.hold)
+    {
+        profile::begin("xr submit", true); // xrEndFrame
+        be->endFrame(true);
+        profile::end();
+        return 1;
+    }
+
     // The eye images' size (the runtime's, fixed for the session), and the size the eyes are
     // rendered at (vr_render_scale times it), resampled into the images when it differs.
     int imageWidth = 0, imageHeight = 0;
@@ -858,21 +868,41 @@ extern "C" int VR_RenderView()
     body::queueDebug(hands::current());
     envmap::update(); // the weapons' reflections: a face of the cube, once for both eyes (vr_envmap.cpp)
 
-    int eyesRendered = 0;
-    for(int eye = 0; eye < 2; eye++)
+    // The eye's image from the runtime, attached to the target framebuffer (the post-processing's, the UI's). The
+    // runtime's calls are GPU scopes too: the GPU time between the eyes' own scopes (the runtime's work on this context,
+    // and the GPU idle while the CPU waits in them).
+    const auto acquire = [be](int eye, bool keepBinding)
     {
-        // The runtime's calls are GPU scopes too: the GPU time between the eyes' own scopes
-        // (the runtime's work on this context, and the GPU idle while the CPU waits in them).
         profile::begin("xr acquire", true); // xrWaitSwapchainImage
         const unsigned image = be->acquireEyeImage(eye);
         profile::end();
-        if(!image)
+        if(image)
+        {
+            GLint bound = 0;
+            if(keepBinding)
+            {
+                glGetIntegerv(GL_FRAMEBUFFER_BINDING, &bound);
+            }
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::targetFbo);
+            GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
+            if(keepBinding)
+            {
+                GL_BindFramebufferFunc(GL_FRAMEBUFFER, static_cast<GLuint>(bound));
+            }
+        }
+        return image;
+    };
+    // vr_xr_late_acquire: only once the scene is drawn (it writes into the eye's own targets), so the runtime's wait
+    // for the image overlaps the scene's drawing.
+    const bool lateAcquire = vr_xr_late_acquire.value != 0.f;
+
+    int eyesRendered = 0;
+    for(int eye = 0; eye < 2; eye++)
+    {
+        if(!lateAcquire && !acquire(eye, false))
         {
             continue;
         }
-
-        GL_BindFramebufferFunc(GL_FRAMEBUFFER, stereo::targetFbo);
-        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, image, 0);
 
         framebufs = stereo::eyeTargets.fb;
         vid.width = width;
@@ -892,6 +922,11 @@ extern "C" int VR_RenderView()
         V_RenderView();
         foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
         bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
+        if(lateAcquire && !acquire(eye, true))
+        {
+            stereo::renderingEye = false;
+            continue;
+        }
 
         // vr_eyeshot 1 takes the eye's final image (after the resample and vr_foveated_debug, before the UI); 2 the
         // rendered one (before the resample) with its float scene; 3 the final image with the UI (the HUD panel, the
