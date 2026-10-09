@@ -98,7 +98,20 @@ param(
     # sandbox folder under %TEMP% (test_local_release.ps1).
     [switch]$RunInstaller,
     [switch]$SkipSmoke,
-    [switch]$SkipInstallerTests
+    [switch]$SkipInstallerTests,
+    # Before building: the headless test suite (Misc\release\run_test_suite.py: the Misc\quakevr test scripts that give a
+    # verdict, one at a time) on a kit worktree holding this commit's files; a failure stops the release (nothing built,
+    # tagged or published).
+    [switch]$RunTests,
+    # The kit worktree the tests run on (C:\OHWorkspace\qvr-agents\<name>; the kit's new_agent.sh <name> <commit>).
+    # Default: QVR_TEST_AGENT, else this checkout's own name when it is one.
+    [string]$TestAgent = $env:QVR_TEST_AGENT,
+    # With -RunTests: the known-flaky tests (run_test_suite.py's list) and -FlakyTests only warn when they fail.
+    [switch]$AllowFlaky,
+    # With -RunTests -AllowFlaky: more tests (names from run_test_suite.py --list) that only warn.
+    [string[]]$FlakyTests = @(),
+    # With -RunTests: only the tests whose name matches this regex.
+    [string]$TestOnly = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -332,6 +345,31 @@ if (-not $Fteqcc) {
 }
 if (-not $Fteqcc -or -not (Test-Path -LiteralPath $Fteqcc)) { Problem "fteqcc64.exe not found (-Fteqcc, FTEQCC, QC\fteqcc64.exe or PATH)" } else { $Fteqcc = (Resolve-Path $Fteqcc).Path; Say "fteqcc: $Fteqcc" }
 
+# The test suite's worktree: a kit worktree whose tracked files are this commit's (VERSION aside: -BumpVersion's commit
+# comes after the tests).
+$testRunner = Join-Path $PSScriptRoot "run_test_suite.py"
+$testArgs = @()
+if ($RunTests) {
+    if (-not $TestAgent -and $root -match '\\qvr-agents\\([^\\]+)$') { $TestAgent = $Matches[1] }
+    if ($TestOnly) { $testArgs += @("--only", $TestOnly) }
+    if ($AllowFlaky) { $testArgs += "--allow-flaky" }
+    if ($FlakyTests) { $testArgs += @("--flaky", ($FlakyTests -join ",")) }
+    $testList = Run $python (@($testRunner, "--list") + $testArgs)
+    if ($testList.Code -ne 0) { Problem "-RunTests: $($testList.Text)" }
+    $testCount = "$(@($testList.Out | Where-Object { "$_" -match ' tests$' }) | Select-Object -Last 1)"
+    $testTree = if ($TestAgent -eq "cleanup") { "C:\OHWorkspace\quakevr-iw-cleanup" } elseif ($TestAgent) { "C:\OHWorkspace\qvr-agents\$TestAgent" } else { "" }
+    if (-not $TestAgent) { Problem "-RunTests: which kit worktree? -TestAgent <name> or QVR_TEST_AGENT (the kit's new_agent.sh <name> $short makes one at this commit)" }
+    elseif (-not (Test-Path -LiteralPath $testTree)) { Problem "-RunTests: no kit worktree $testTree (the kit's new_agent.sh $TestAgent $short)" }
+    else {
+        $testHead = (Run "git" @("-C", $testTree, "rev-parse", "HEAD")).Text
+        $testDirty = (Run "git" @("-C", $testTree, "--no-optional-locks", "status", "--porcelain", "--untracked-files=no")).Text
+        $testSame = $testHead -and (GitRun @("diff", "--quiet", $testHead, "HEAD", "--", ".", ":(exclude)VERSION")).Code -eq 0
+        if ($testDirty) { Problem "-RunTests: $testTree has uncommitted changes (the tests must run this commit's files)" }
+        elseif (-not $testSame) { Problem "-RunTests: $testTree ($(if ($testHead) { $testHead.Substring(0, 8) } else { 'no HEAD' })) has other files than ${short}: git -C $testTree checkout --detach $short" }
+        else { Say "tests: $testCount on $testTree ($TestAgent, $($testHead.Substring(0, 8)): this commit's files), built first (kit build.sh)" }
+    }
+}
+
 # Optional inputs.
 if ($Textures -and -not (Test-Path -LiteralPath $Textures -PathType Leaf)) { Problem "-Textures: no file $Textures" }
 if ($hostedTextures) { Say "HD textures: hosted $((SupportFile 'hdtextures').file) ($(Size (SupportFile 'hdtextures').size), $($support.tag)): latest.json points at it, nothing uploaded" }
@@ -397,6 +435,7 @@ if ($DryRun) {
     if ($shipsEricw) { Say "ericw source   $(if ($EricwSource) { 'uploaded with this release (-EricwSource)' } else { "linked from the notes: $(SupportUrl 'ericw_source')" })" }
     Say "tag            $tag on $short$(if ($online) { ", pushed to $remote" } else { ' (only with -Publish or -PushTag)' })"
     if ($Local) { Say "local test     latest.json -> $($UrlBase -join ', ')$(if ($RunInstaller) { '; then the server and QuakeVR-Setup.exe in a sandbox' })" }
+    Say "tests          $(if ($RunTests) { "$testCount on $TestAgent, one at a time, before building (run_test_suite.py $($testArgs -join ' ')); a failure stops everything$(if ($AllowFlaky) { ' (known-flaky ones warn)' })" } else { 'not run (-RunTests runs the headless suite first)' })"
     Say "release        $(if ($Publish) { "gh release create $tag --repo $Repo$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' })" } else { 'none (-Publish creates it)' })"
     Say "notes          $(if ($notesSource) { "$notesSource$(if ($notesText.Contains($draftMarker)) { ' (still the DRAFT)' })" } else { "drafted while building into $notesDraftPath (-DraftNotes drafts it now)" })"
     $list = & (Join-Path $root "Windows\package-quakevr.ps1") -DryRun
@@ -419,6 +458,15 @@ $packageDir = Join-Path $outDir "package\QuakeVR"
 $installerOut = Join-Path $outDir "installer"
 New-Item -ItemType Directory -Force $logs, $checks, $installerOut, (Split-Path $packageDir) | Out-Null
 Say $outDir
+
+if ($RunTests) {
+    Step "Tests: run_test_suite.py on $TestAgent ($testCount, one at a time; before anything is built)"
+    $testLogs = Join-Path $outDir "tests"
+    & $python (@($testRunner, $TestAgent, "--build", "--log-dir", $testLogs) + $testArgs) | ForEach-Object { Say "  $_" }
+    $testCode = $LASTEXITCODE
+    if ($testCode -ne 0) { throw "the test suite failed (exit $testCode; $testLogs\summary.txt): nothing was built, tagged or published" }
+    foreach ($l in @(Get-Content (Join-Path $testLogs "summary.txt") | Where-Object { $_ -match '^\s+FLAKY ' })) { Warn "a known-flaky test failed (-AllowFlaky): $($l.Trim())" }
+}
 
 # ------------------------------------------------------------------------------------------------------------------
 Step "Source checks (statics, QC precedence, FGD)"
