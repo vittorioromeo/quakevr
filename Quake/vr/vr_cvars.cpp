@@ -652,8 +652,11 @@ const DefaultChange defaultChanges[] = {
     {116, &vr_ammo_pouch_crouch_x, "0"},        // 2
     {116, &vr_ammo_pouch_crouch_z, "0"},        // 7
     {116, &vr_ammo_pouch_crouch_pitch, "0"},    // 29
+    // 117: an 8192 shadow atlas (the author, 2026-10-09: eight lights' shadows at full size; with 4096 a retro hard
+    // shadow showed halving): compiled in now (vr_defaults.cfg had it), and a config at the old 4096 takes it.
+    {117, &vr_shadow_atlas, "4096"},
 };
-constexpr int configVersion = 116;
+constexpr int configVersion = 117;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

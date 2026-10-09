@@ -277,10 +277,14 @@ The first round's +93 MB are targets made once and kept (the stereo layered scen
 upscaled eye, a tip screen). Churn fixed: the ammo screens' images (keyed by their text now; ROUND21, "Video
 memory"): 450 targets made in a 54-step walk along vrfiringrange's racks -> 0.
 
+Decided (the author, 2026-10-09): **`vr_shadow_atlas` stays 8192, the default** (compiled in now; vr_defaults.cfg
+already shipped it; a config at the old compiled 4096 takes 8192, config version 117; the High and Ultra presets set
+it, Off to Medium 4096). 8192 keeps full-size (1024) shadow tiles for up to 8 lights; 4096 would save 192 MB (shadow
+atlases 352 -> 160 MB) but holds only 8 lights' 512 faces (2 x 4 of the packer's 3x2-face blocks), so more lights, or
+bigger faces, halve every tile (visible on the retro one-tap shadows).
+
 Options (trade-offs, not done):
 
-- **`vr_shadow_atlas` 8192 -> 4096** (the shipped default is 4096; his cfg has 8192): shadow atlases 352 -> 160 MB
-  (-192 MB); the dynamic lights' shadows at half the texels.
 - **MSAA** (`vid_fsaa 4`, off in his cfg): eye scene targets 286 -> 859 MB (+573 MB at his eyes): a cost to know
   before turning it on.
 - **Composite and scene targets both full size**: Ironwail keeps a scene framebuffer (effects) and a composite one

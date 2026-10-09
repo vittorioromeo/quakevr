@@ -1293,7 +1293,7 @@ void resetHandMoves()
         slider("Shadow Distance", "vr_shadow_distance", 256.f, 4096.f, 128.f, "%.0f").extend()
             .help("Lights farther than this from you cast no shadows."),
         cycle("Shadow Atlas", "vr_shadow_atlas", {{2048.f, "2048"}, {4096.f, "4096"}, {8192.f, "8192"}})
-            .help("Room for all shadows at once: smaller fits fewer or coarser ones (64 MB at 4096)."),
+            .help("Room for all shadows at once: 8192 holds eight lights' shadows at full size (256 MB); smaller fits fewer or halves them (64 MB at 4096)."),
         slider("Shadow Bias", "vr_shadow_bias", 0.f, 4.f, 0.25f, "%.2f").extend()
             .help("Higher: fewer speckles on lit surfaces; lower: shadows start closer to what casts them."),
         cycle("Shadow Statistics", "vr_shadow_stats", {{0.f, "Off"}, {1.f, "Each Second"}, {2.f, "Each Frame, Per Light"}})

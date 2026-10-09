@@ -51,7 +51,7 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
 
 ## Design
 
-- **One shadow atlas** (`vr_shadow_atlas`, 4096²; D32F, reversed depth `1 / distance`, hardware compare). A shadowed
+- **One shadow atlas** (`vr_shadow_atlas`, 8192² by default; D32F, reversed depth `1 / distance`, hardware compare). A shadowed
   light takes six square faces in a 3×2 block (a spot light, such as the flashlight, one tile round its cone), each
   with a 4-texel border (the face projection is widened to match), so filtering never reads the next face. The block goes in its light's `gpulight_t.shadow` (origin and
   size); the world and model shaders read it in the clustered light loop they already have. Everything is once
@@ -119,7 +119,7 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
 | `vr_shadow_filter` | 1 | 0 hard … 3 softest |
 | `vr_shadow_bias` | 1 | acne vs. peter-panning |
 | `vr_shadow_distance` | 1536 | lights farther away cast none |
-| `vr_shadow_atlas` | 4096 | 2048 / 4096 / 8192 (16 / 64 / 256 MB) |
+| `vr_shadow_atlas` | 8192 | 2048 / 4096 / 8192 (16 / 64 / 256 MB); 8192: 8 lights' 1024 faces, 4096: 8 lights' 512 faces |
 | `vr_dlight_models` | 1 | dynamic lights on models per pixel |
 | `vr_dlight_angle` | 1 | angle falloff of dynamic lights (0: Quake's) |
 | `vr_dlight_uncapped` | 1 | dynamic lights add fully to bright walls |
@@ -133,10 +133,12 @@ renderer notes; Unity HDRP/URP docs; Ironwail issue #329; Hexenwail issues #78 a
 | Off (Quake) | 0 | – | 0 | – | – | – | – | off |
 | Low | 2 | 256 | 0 | – | 4 taps | 4096 | 1024 | on |
 | Medium | 4 | 512 | 2 | 512 | 4 taps | 4096 | 1536 | on |
-| High | 6 | 512 | 4 | 512 | 9 taps | 4096 | 2048 | on |
+| High | 6 | 512 | 4 | 512 | 9 taps | 8192 | 2048 | on |
 | Ultra | 8 | 1024 | 4 | 1024 | 16 taps | 8192 | 3072 | on |
 
-The defaults are Medium.
+The compiled defaults are Medium's with an 8192 atlas (the author, 2026-10-09: 4096 fits only 8 of the packer's
+3x2-face blocks at 512, so High's 10 lights halved every tile); the shipped ones (`quakevr/vr_defaults.cfg`) are
+Ultra's shadows.
 
 ## Cost
 

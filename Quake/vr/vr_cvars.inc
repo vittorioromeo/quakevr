@@ -1508,7 +1508,7 @@ QVR_CVAR(vr_shadow_head, "1", CVAR_ARCHIVE)            // your shadow (vr_shadow
 QVR_CVAR(vr_shadow_filter, "1", CVAR_ARCHIVE)          // shadow edge softening: 0 hard (1 tap), 1 (4 taps), 2 (9), 3 (16)
 QVR_CVAR(vr_shadow_bias, "1", CVAR_ARCHIVE)            // shadow acne vs. light leaking under objects
 QVR_CVAR(vr_shadow_distance, "1536", CVAR_ARCHIVE)     // lights farther than this from you cast no shadows
-QVR_CVAR(vr_shadow_atlas, "4096", CVAR_ARCHIVE)        // shadow map atlas size (2048, 4096, 8192)
+QVR_CVAR(vr_shadow_atlas, "8192", CVAR_ARCHIVE)        // shadow map atlas size (2048, 4096, 8192): 8192 holds 8 lights' full-size (1024) tiles
 QVR_CVAR(vr_shadow_stats, "0", CVAR_NONE)              // print what is shadowed and the GPU time, once a second; 2: also each frame, every shadowed light and its shadow's strength
 QVR_CVAR(vr_shadow_layered, "1", CVAR_NONE)            // shadow casters drawn once per light into all the faces they reach (needs GL_ARB_shader_viewport_layer_array or the AMD/NV one, else 0), 0 once per face (Debug > Profiling; vr_shadow_layered_check)
 // Retro lighting (vr_retrolight.cpp, vr_retrolight.h; Graphics > Retro Lighting; ROUND21.md "Retro lighting"): Quake's coarse light, fixed to the surfaces (no swimming in VR)
