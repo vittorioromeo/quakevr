@@ -141,6 +141,29 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version 2
+# The GitHub releases (gh release list): tag, isLatest, isDraft, isPrerelease.
+function Get-Releases() {
+    $r = Run "gh" @("release", "list", "--repo", $Repo, "--json", "tagName,isLatest,isDraft,isPrerelease", "--limit", "200")
+    if ($r.Code -ne 0) { throw "gh release list --repo $Repo failed" }
+    $list = @()
+    foreach ($x in ($r.Text | ConvertFrom-Json)) { $list += $x }   # (PowerShell 5.1 hands a JSON array over whole)
+    , $list
+}
+# The Latest guard (RELEASING.md, "Which release is Latest"): the game release $want is GitHub's Latest, so
+# releases/latest/download/latest.json serves it, and no asset or texture release (assets-*, textures-*) is. Fixed with
+# gh release edit <want> --latest when not; the result as a line for the report.
+function Invoke-LatestGuard([string]$want) {
+    $latest = @((Get-Releases) | Where-Object { $_.isLatest })
+    $names = if ($latest.Count) { ($latest | ForEach-Object { $_.tagName }) -join ", " } else { "none" }
+    if ($latest.Count -eq 1 -and $latest[0].tagName -eq $want) { Say "Latest: $want (no assets-*/textures-* release marked Latest)"; return "Latest is $want" }
+    Warn "GitHub's Latest is $names, not ${want}$(if (@($latest | Where-Object { $_.tagName -match '^(assets|textures)-' }).Count) { ' (an asset/texture release: the installer and the update check would get a 404)' }): gh release edit $want --repo $Repo --latest"
+    if ((Run "gh" @("release", "edit", $want, "--repo", $Repo, "--latest")).Code -ne 0) { throw "Latest guard: gh release edit $want --repo $Repo --latest failed" }
+    $after = @((Get-Releases) | Where-Object { $_.isLatest })
+    if ($after.Count -ne 1 -or $after[0].tagName -ne $want) { throw "Latest guard: after gh release edit --latest, Latest is $(($after | ForEach-Object { $_.tagName }) -join ', '), not $want" }
+    Say "Latest fixed: $want (was $names)"
+    "Latest fixed: $want (was $names; gh release edit --latest)"
+}
+
 # Where a failure leaves things, and how to go on (RELEASING.md, "If it stops"): printed by the trap below.
 $script:stage = "checks"
 function Get-ResumeHint() {
@@ -364,6 +387,10 @@ if ($CheckOnline) {
     if (-not $ReleaseDir) { $ReleaseDir = $outDir }
     if (-not $FeedUrl) { $FeedUrl = if ($Local) { "http://127.0.0.1:$LocalPort/latest.json" } else { "https://github.com/$Repo/releases/latest/download/latest.json" } }
     if (-not $QuakeDir -and -not $SkipOnlineInstall -and (Find-QvrSetup)) { $QuakeDir = Find-QuakeDir (Find-QvrSetup) }
+    if (-not $Local) {
+        Step "Latest guard ($Repo)"
+        Invoke-LatestGuard $tag | Out-Null
+    }
     Step "Online check of $tag ($ReleaseDir)"
     Invoke-OnlineCheck $ReleaseDir $FeedUrl $QuakeDir
     if ($warnings.Count) { Say ""; Say "$($warnings.Count) warning(s) above." }
@@ -447,10 +474,19 @@ if ($remote -and -not $Local) {
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { Problem "gh (GitHub CLI) not found" -OnlineOnly }
 elseif ($Local) { Say "gh found (not called: -Local)" }
 else {
-    # (Read-only calls, -DryRun's too: whether gh is logged in and the release is still to be made.)
+    # (Read-only calls, -DryRun's too: whether gh is logged in, the release is still to be made, what is Latest now.)
     if ((Run "gh" @("auth", "status")).Code -ne 0) { Problem "gh is not logged in (gh auth login; gh auth status says why)" -OnlineOnly }
     elseif ((Run "gh" @("release", "view", $tag, "--repo", $Repo, "--json", "tagName")).Code -eq 0) { Problem "GitHub release $tag already exists in $Repo (edit or delete it on GitHub)" -OnlineOnly }
-    else { Say "gh is logged in; no release $tag in $Repo yet" }
+    else {
+        Say "gh is logged in; no release $tag in $Repo yet"
+        if ($Final -or $DryRun) {
+            try {
+                $nowLatest = @((Get-Releases) | Where-Object { $_.isLatest } | ForEach-Object { $_.tagName })
+                if (@($nowLatest | Where-Object { $_ -match '^(assets|textures)-' }).Count) { Warn "GitHub's Latest is now $($nowLatest -join ', '), an asset/texture release (the installer's feed 404s until a game release is Latest)$(if ($Final) { ': -Final marks ' + $tag + ' Latest' })" }
+                else { Say "GitHub's Latest now: $(if ($nowLatest) { $nowLatest -join ', ' } else { 'none' })" }
+            } catch { Warn "could not list the releases (gh release list): $($_.Exception.Message)" }
+        }
+    }
 }
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 # The Visual Studio that has the engine's toolset (ClangCL: "C++ Clang tools for Windows"; quakevr.toolset.props).
@@ -586,6 +622,7 @@ if ($DryRun) {
         $seq.Add("gh release create $tag <the files of $outDir\assets> --repo $Repo --verify-tag --title ""$title"" --notes-file $outDir\release-body.md$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' } elseif (-not $Draft) { ' --latest' })")
     }
     if ($Final) {
+        $seq.Add("Latest guard: gh release list --repo $Repo --json tagName,isLatest,isDraft,isPrerelease; $tag must be the only Latest (no assets-*/textures-*): else gh release edit $tag --repo $Repo --latest, listed again")
         $seq.Add("online check: qvr-setup feed --url $feedPlan --assets $outDir\assets$(if ($hostedTextures) { ' --hosted hdtextures' })   (until it names $Version, up to $OnlineTries tries 20 s apart; each file's size and SHA-256)")
         $seq.Add("online check: GET $feedPlan = assets\latest.json byte for byte")
         if (-not $SkipOnlineInstall) { $seq.Add("online check: qvr-setup install --feed $feedPlan --sandbox $outDir\checks\online-<time>\sandbox --quake $(if ($QuakeDir) { $QuakeDir } else { '<none found: skipped>' }) --accept-statement --setup-from assets\QuakeVR-Setup.exe$(if ($OnlineHd) { ' --hd' }); qvr-setup verify --target <sandbox>\QuakeVR") }
@@ -876,9 +913,11 @@ if ($Publish) {
     if ($r.Code -ne 0) { throw "gh release create failed" }
     Say $r.Text
 }
-$onlineResult = ""
+$onlineResult = ""; $latestResult = ""
 if ($Final) {
     $script:stage = "online"
+    Step "Latest guard ($Repo)"
+    $latestResult = Invoke-LatestGuard $tag
     if (-not $FeedUrl) { $FeedUrl = "https://github.com/$Repo/releases/latest/download/latest.json" }
     Step "Online check ($FeedUrl)"
     Invoke-OnlineCheck $outDir $FeedUrl $QuakeDir
@@ -916,7 +955,7 @@ elseif (-not $Publish) {
         "       $($quoted -replace '^', 'gh ')"
     )
 }
-if ($onlineResult) { $lines += "  $((++$n)). Nothing: published as Latest and checked online ($onlineResult)." }
+if ($onlineResult) { $lines += "  $((++$n)). Nothing: published and checked. $latestResult; $onlineResult." }
 if (-not $Local -and (-not $Publish -or $Draft)) {
     $lines += "  $((++$n)). Check the draft on https://github.com/$Repo/releases, then publish it (button, or: gh release edit $tag --repo $Repo --draft=false$(if (-not $prerelease) { ' --latest' })). Until it is published (and not a prerelease) https://github.com/$Repo/releases/latest/download/latest.json still serves the previous release."
 }
