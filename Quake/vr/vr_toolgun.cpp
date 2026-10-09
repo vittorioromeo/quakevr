@@ -1421,6 +1421,12 @@ void status_f()
             a.from.z, a.dir.x, a.dir.y, a.dir.z, a.worldDistance, a.target,
             a.target ? PR_GetString(EDICT_NUM(a.target)->v.classname) : "-", a.targetDistance);
     }
+    if(a.valid && a.target)
+    {
+        edict_t* e = EDICT_NUM(a.target);
+        Con_Printf("toolgun: target %d at %.1f %.1f %.1f, %s, %d joints\n", a.target, e->v.origin[0], e->v.origin[1], e->v.origin[2],
+            box3d::isPinned(a.target) ? "pinned" : "loose", box3d::toolJointCount(a.target));
+    }
     Con_Printf("toolgun: selection %s, ghost %s at %.0f %.0f %.0f yaw %.0f\n", tg.sel.valid ? tg.sel.label : "none",
         tg.ghost ? "shown" : "none", tg.ghostOrigin.x, tg.ghostOrigin.y, tg.ghostOrigin.z, tg.ghostAngles.y);
     if(tg.drag.num)
