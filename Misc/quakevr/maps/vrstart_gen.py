@@ -1544,7 +1544,7 @@ SETTINGS_NORTH = [[("TURNING", "turning"), ("TURN SPEED", "turnspeed"), ("MOVE" 
                    ("STANDING" + N + "OR SEATED", "position"), ("TIPS", "tips")]]
 SETTINGS_SOUTH = [[("BODY", "body"), ("HUD", "hud"), ("CROSSHAIR", "crosshair"), ("WEAPON GRIP", "grip"),
                    ("GADGET ARM", "gadget")],
-                  [("TORCH SIDE", "torch"), ("WEAPON MODE", "holsters"), ("RELOADING", "reload"),
+                  [("FLASHLIGHT" + N + "SIDE", "torch"), ("WEAPON MODE", "holsters"), ("RELOADING", "reload"),
                    ("TWO-HANDED" + N + "AIM", "twohand"), ("SWIMMING", "swim")]]
 
 

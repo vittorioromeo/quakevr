@@ -1301,14 +1301,14 @@ def build_room9():
     room("room9v", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 192, bands(TX["panel2"]))
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 192, 1, 1, 260)
     checkpoint("cp9", 4704, 288, LOW, 180)
-    banner(N.join(["LESSON 9: DARKNESS", "Your flashlight hangs at your hip:", "grip it; pull the trigger to switch",
+    banner(N.join(["LESSON 9: DARKNESS", "Your flashlight hangs on your torso:", "grip it; pull the trigger to switch",
                    "it on or off."]), 4640, r["y0"] + 4, LOW + 120, 90, "0.28")
     # (a tip shows through a closed door: each in this room and the course waits till the player is in it)
     with late():
         trigger("r9v_in", (4544, 176, LOW), (4736, 336, LOW + 96), target="r9v_in")
-    tip("t2_torch", "Take your flashlight: grip at your hip" + N + "(the side set by TORCH SIDE), trigger" + N +
-        "to switch it on.", 4640, 200, LOW + 60, 200, trig="r9v_in")
-    setting_button("TORCH SIDE", "torch", 4592, r["y0"], LOW + 52, 270)
+    tip("t2_torch", "Take your flashlight: grip it on your torso" + N + "(the side set by FLASHLIGHT SIDE), trigger" +
+        N + "to switch it on.", 4640, 200, LOW + 60, 200, trig="r9v_in")
+    setting_button("FLASHLIGHT" + N + "SIDE", "torch", 4592, r["y0"], LOW + 52, 270)
     d = doorway("room9_in", R9["x1"], 192, R9["x1"] + 16, 320, LOW, out)
     sliding_door(d, None)
     # the course: no lamps; dark metal
