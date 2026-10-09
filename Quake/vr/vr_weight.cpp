@@ -111,8 +111,6 @@ struct Wrench
     int count{0}, newest{-1};
     double clock{0.0};
     double until{-1.0};   // vr_gametime: the move says "wrenched out" until then (the server reads it once a frame)
-    double printAt{-1.0}; // vr_debug_weight_drop: the next print
-    float peak{0.f}, peakLimit{0.f};
 };
 Wrench wrenches[2];
 constexpr double wrenchLatch = 0.15; // seconds (as the chainsaw's pull)
@@ -1018,31 +1016,12 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
         return;
     }
     const float speed = glm::degrees(glm::length(rotationVector(q * glm::conjugate(w.q[from])))) / static_cast<float>(span);
-    if(w.peakLimit <= 0.f || speed / limit > w.peak / w.peakLimit)
-    {
-        w.peak = speed;
-        w.peakLimit = limit;
-    }
-    if(vr_debug_weight_drop.value && vr_gametime >= w.printAt)
-    {
-        if(w.peak > 0.5f * w.peakLimit)
-        {
-            Con_Printf("weight drop: %s %s %.0f deg/s, limit %.0f (%.1f kg, two hands %.2f)\n", h == HAND_MAIN ? "main" : "off",
-                l.model, w.peak, w.peakLimit, l.mass, l.twoHanded);
-        }
-        w.peak = w.peakLimit = 0.f;
-        w.printAt = vr_gametime + 0.5;
-    }
     if(speed > limit)
     {
         w.until = vr_gametime + wrenchLatch;
         w.count = 0;
         Con_DPrintf("weight drop: %s %s wrenched out: %.0f deg/s over %.3f s, limit %.0f (%.1f kg, two hands %.2f)\n",
             h == HAND_MAIN ? "main" : "off", l.model, speed, span, limit, l.mass, l.twoHanded);
-        if(vr_debug_weight_drop.value)
-        {
-            Con_Printf("weight drop: %s wrenched out (%.0f deg/s, limit %.0f)\n", h == HAND_MAIN ? "main" : "off", speed, limit);
-        }
     }
 }
 

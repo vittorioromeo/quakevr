@@ -383,10 +383,10 @@ void() VR_AxeStick_TestThrow =
     }
     a_x = a_x * -1; // (MakeThrown turns a view's pitch into a model's)
     // A hand's throw (4 overhand, 5 sidearm, 6 sloppy, 8 upright, 9 knife-style, 10 spear-like, 11 flat, 12 handle
-    // first: at random; 7 as set): from blade first (8-12: from their own hold), turned (vr_test_axe_roll
-    // about the way it goes, _pitch about your left, its head forward, _yaw about the upright) and spun (rad/s about
-    // the way it goes, your left: end over end, its top going ahead, the upright). vr_test_axe_loft: aimed up to meet
-    // what is ahead level with your eyes.
+    // first: at random): from blade first (8-12: from their own hold), turned (roll about the way it goes, pitch about
+    // your left, its head forward, yaw about the upright) and spun (rad/s about the way it goes, your left: end over
+    // end, its top going ahead, the upright). vr_test_axe_loft: aimed up to meet what is ahead level with your eyes.
+    // (7, every turn and spin set by cvars, was removed 2026-10-09: the spin investigation it served is done.)
     vector spin = '0 0 0';
     if(mode >= 4)
     {
@@ -452,15 +452,6 @@ void() VR_AxeStick_TestThrow =
             hp = F * -1;
             t = randomVec(1) * 15;
             w = randomVec(1) * 1.5;
-        }
-        else
-        {
-            t_x = cvar("vr_test_axe_roll");
-            t_y = cvar("vr_test_axe_pitch");
-            t_z = cvar("vr_test_axe_yaw");
-            w_x = cvar("vr_test_axe_spin_f");
-            w_y = cvar("vr_test_axe_spin_l");
-            w_z = cvar("vr_test_axe_spin_u");
         }
         vector fw = bf * 0.9398 + hp * 0.3417;
         vector up = hp * 0.9398 - bf * 0.3417;

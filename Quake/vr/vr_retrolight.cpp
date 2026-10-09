@@ -65,7 +65,7 @@ float ditherCell(const cvar_t& c)
 
 bool on()
 {
-    return vr_retrolight.value != 0.f && vr_retrolight_ab.value == 0.f;
+    return vr_retrolight.value != 0.f;
 }
 
 } // namespace qvr::retrolight

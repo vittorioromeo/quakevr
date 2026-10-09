@@ -34,7 +34,6 @@ constexpr float growth = 1.5f;   // the shake's curve from the threshold to none
 float level = 0.f;
 double levelAt = -1.0;
 double printedAt = -1.0;
-double speedPrintedAt = -1.0; // vr_debug_stamina_speed
 float heldAt = -1.f; // vr_debug_stamina_hold: the share the game's stamina is kept at (-1: not yet taken)
 
 [[nodiscard]] bool climbing()
@@ -117,10 +116,6 @@ void set_f()
 
 float staminaLeft()
 {
-    if(vr_debug_weight_stamina.value >= 0.f)
-    {
-        return za::min(vr_debug_weight_stamina.value, 1.f);
-    }
     const meleehud::State st = meleehud::state();
     return st.stamina ? st.left : 1.f;
 }
@@ -235,11 +230,5 @@ extern "C" float VR_StaminaSpeedScale(edict_t* ent)
     const float most = za::max(1.f, vr_parry_stamina_max.value);
     const float left = on ? za::clamp(1.f - fieldFloatOr(ent, f.vr_stamina_used, 0.f) / most, 0.f, 1.f) : 1.f;
     const float scale = fatigue::speedScaleFor(left);
-    if(vr_debug_stamina_speed.value && (vr_gametime - fatigue::speedPrintedAt >= 0.5 || vr_gametime < fatigue::speedPrintedAt))
-    {
-        fatigue::speedPrintedAt = vr_gametime;
-        Con_Printf("stamina speed: stamina %.2f cap %.0f (x%.3f) ground speed %.1f\n", left, sv_maxspeed.value * scale, scale,
-            za::hypot(ent->v.velocity[0], ent->v.velocity[1]));
-    }
     return scale;
 }

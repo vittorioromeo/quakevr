@@ -941,7 +941,7 @@ extern "C" void VR_AnimSurfaces(qmodel_t* mod)
 
 // R_AddBModelCall: a texture's maps as drawn: the pack's normal map instead of the made one (vr_extmaps_normals), its
 // specular map (vr_extmaps_spec: `spec`, `extmat` y its brightness, z its hardness, CF_SPECMAP returned), its glow
-// hidden if off (vr_extmaps_luma); all of them as without the pack while vr_extmaps_ab is on. An animation's frame
+// hidden if off (vr_extmaps_luma). An animation's frame
 // takes its lead frame's normal map (made or the pack's), specular map and numbers (surface, vr_anim_surface); its
 // glow stays its own.
 extern "C" unsigned VR_ExtMapsCall(const texture_t* t, gltexture_t** normalmap, gltexture_t** spec, gltexture_t** fullbright,
@@ -958,14 +958,9 @@ extern "C" unsigned VR_ExtMapsCall(const texture_t* t, gltexture_t** normalmap, 
     {
         *normalmap = TexMgr_NormalMap(s->gltexture);
     }
-    const bool show = vr_extmaps_ab.value == 0.f;
-    if(t->extluma && (!show || vr_extmaps_luma.value == 0.f) && *fullbright == t->fullbright)
+    if(t->extluma && vr_extmaps_luma.value == 0.f && *fullbright == t->fullbright)
     {
         *fullbright = nullptr;
-    }
-    if(!show)
-    {
-        return 0u;
     }
     if(s->extnormal && vr_extmaps_normals.value != 0.f)
     {

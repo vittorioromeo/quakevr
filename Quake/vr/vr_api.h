@@ -259,7 +259,6 @@ void VR_HazeExplosion (const float *pos, float size);	// cl_tent.c: an explosion
 int VR_ModelSpins (int ent);							// CL_RelinkEntities: nonzero to spin a model as EF_ROTATE (a weapon pickup drawn as its prop)
 int VR_SuppressModelRotate (int ent);					// CL_RelinkEntities: nonzero to keep an EF_ROTATE model's angles (rigid bodies)
 void VR_RelinkHeld (void);								// end of CL_RelinkEntities: the local player's held objects drawn in the hands (vr_held.cpp)
-void VR_DebugDrawnBoxes (void);							// end of CL_RelinkEntities: vr_debug_item_sizes (vr_client.cpp)
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)
 int VR_BeamGone (int ent);								// CL_UpdateTEnts: nonzero if a hand's lightning outlived its gun there (thrown, dropped, holstered): ended at once

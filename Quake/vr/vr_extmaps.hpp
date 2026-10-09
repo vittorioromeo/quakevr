@@ -10,8 +10,8 @@
 // button+0). Its maps are used only where its own picture matches the texture drawn (vr_extmaps_match: the correlation
 // of their detail at 64 x 64; a repainted picture's bumps don't fit the art on the wall), on regular textures (not
 // liquids, not the sky). The normal map is kept beside the one made from the shading, the specular map and the .mat's
-// numbers per texture (texture_t), so vr_extmaps_normals, vr_extmaps_spec, vr_extmaps_luma and the Debug menu's A/B
-// (vr_extmaps_ab) change at once; vr_extmaps itself takes effect on the next map.
+// numbers per texture (texture_t), so vr_extmaps_normals, vr_extmaps_spec and vr_extmaps_luma change at once; vr_extmaps
+// itself takes effect on the next map.
 
 #pragma once
 

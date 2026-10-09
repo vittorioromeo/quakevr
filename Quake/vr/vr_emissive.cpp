@@ -762,12 +762,6 @@ extern "C" void VR_TorchLights(void)
         }
         const bool takenShadow = st.taken && vr_walltorch_shadows.value != 0.f; // (vr_walltorch_shadows: whatever its rank)
         setGlow(dl, color, radius, 0.f, st.shadowed || takenShadow);
-        if(vr_debug_torch_lights.value != 0.f)
-        {
-            Con_Printf("torch light %d%s: at %.1f %.1f %.1f, radius %.1f, colour %.3f %.3f %.3f (fade %.2f, fire %.2f)%s\n", id,
-                st.taken ? " (taken)" : "", p.x, p.y, p.z, dl->radius, dl->color[0], dl->color[1], dl->color[2], st.weight,
-                st.level, st.shadowed || takenShadow ? ", shadows" : "");
-        }
         st.lit = true;
     }
 }

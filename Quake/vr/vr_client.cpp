@@ -447,16 +447,6 @@ VrMove unposed;
 
 za::Vector<client::EntityVr> entityData;
 
-// vr_debug_item_sizes: each ammo or health box (a "maps/b_" brush model) as it is first drawn, and each change of its
-// drawn scale after, per entity: the frame it was last drawn on, its model and scale then.
-struct DrawnBox
-{
-    int frame{-1};
-    const qmodel_t* model{nullptr};
-    glm::vec3 scale{0.f};
-};
-za::Vector<DrawnBox> drawnBoxes;
-
 [[nodiscard]] bool vrProtocol()
 {
     return (cl.protocolflags & PRFL_QUAKEVR) != 0;
@@ -763,7 +753,6 @@ extern "C" void VR_WriteDemoState(sizebuf_t* msg)
 extern "C" void VR_OnClientClearState()
 {
     entityData.clear();
-    drawnBoxes.clear();
     particles::clear();
     decals::clear();
     worldtext::clientReset();
@@ -828,38 +817,6 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     data.noMag = (bits & U_QVR_NOMAG) != 0;
     data.ssgOpen = (bits & U_QVR_SSGOPEN) != 0;
     data.ssgLoaded = data.ssgOpen ? MSG_ReadByte() : 0;
-}
-
-extern "C" void VR_DebugDrawnBoxes(void)
-{
-    if(!vr_debug_item_sizes.value)
-    {
-        return;
-    }
-    for(int i = 0; i < cl_numvisedicts; i++)
-    {
-        const entity_t* ent = cl_visedicts[i];
-        const int num = static_cast<int>(ent - cl_entities);
-        if(num <= 0 || num >= cl.num_entities || !ent->model || !modelmeta::has(ent->model, modelmeta::Trait::AmmoBox))
-        {
-            continue;
-        }
-        if(num >= static_cast<int>(drawnBoxes.size()))
-        {
-            drawnBoxes.resize(num + 1);
-        }
-        const glm::vec3 scale = glm::vec3{1.f} + (num < static_cast<int>(entityData.size()) ? entityData[num].scale : glm::vec3{0.f});
-        DrawnBox& box = drawnBoxes[num];
-        const bool first = box.frame != host_framecount - 1 || box.model != ent->model;
-        if(first || scale != box.scale)
-        {
-            Con_Printf("item size: %d %s %s at scale %.2f (frame %d, time %.3f)\n", num, ent->model->name,
-                first ? "first drawn" : "rescaled", scale.x, host_framecount, cl.time);
-        }
-        box.frame = host_framecount;
-        box.model = ent->model;
-        box.scale = scale;
-    }
 }
 
 extern "C" int VR_SuppressModelRotate(int num)

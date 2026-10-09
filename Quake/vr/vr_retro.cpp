@@ -152,7 +152,7 @@ Block block;
 
 [[nodiscard]] bool on()
 {
-    return vr_retro.value != 0.f && vr_retro_ab.value == 0.f;
+    return vr_retro.value != 0.f;
 }
 
 [[nodiscard]] int setOf(Category c)

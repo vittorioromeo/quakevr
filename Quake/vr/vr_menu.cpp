@@ -4433,7 +4433,7 @@ void hologramTestMessage()
 // - Tools: a command rebuilding, reloading, writing a file or showing a test effect;
 // - Tests: what tests are done with in the headset (a monster ahead, a projectile at you, cheats).
 // Mock-headset commands (vr_mock_*) and the automated tests' settings (vr_fixed_frames, vr_particle_seed,
-// sv_random_seed, vr_debug_weight_stamina, vr_window_log...) stay in the console: they mean nothing in the headset.
+// sv_random_seed...) stay in the console: they mean nothing in the headset.
 // Checklist (vr_checklist.hpp; the corner's "Checklist" button, Debug > Checklist): what to test in the headset or give
 // feedback on, from quakevr/checklist.txt, each item ticked by picking it; its long texts on the lines under it.
 int checklistGeneration = -1; // the list's generation the page was built for
@@ -4623,21 +4623,9 @@ za::Vector<Item> pageDebugViews()
             .help("On: an animated texture's frames (the wall buttons' lit and dim frames) share one surface: the same "
                   "bumps, parallax depth, sheen and detail, only their colours and glow change. Off: each frame its own "
                   "(the relief and sheen pulsed with the frames). At once."),
-        toggle("External Maps A/B", vr_extmaps_ab)
-            .help("Hides the external pack's normal, specular and glow maps (Graphics: External Maps) at once, to compare "
-                  "with the made bumps and Quake's glow; off again shows them. Without a reload."),
-        toggle("Retro Textures A/B", vr_retro_ab)
-            .help("Hides the retro textures (Graphics > Retro Textures) at once, to compare with the textures as they "
-                  "were; off again shows them."),
         command("Retro Textures: List", "vr_retro_list")
             .help("vr_retro_list: prints each model drawn now with its retro textures kind (Graphics > Retro Textures), its "
                   "set and its skin's size, to the console."),
-        toggle("Retro Lighting A/B", vr_retrolight_ab)
-            .help("Hides retro lighting (Graphics > Retro Lighting) at once, to compare with the smooth light; off again "
-                  "shows it."),
-        toggle("Ambient Light A/B", vr_ambient_light_ab)
-            .help("Takes the room's own fill light (Graphics > Lights: Ambient Light) off at once, to compare the map as "
-                  "its own lamps light it; off again shows it. Without a reload."),
         command("Light Probe", "vr_light_probe")
             .help("vr_light_probe: the baked light at six points round you, as the map has it and as it is drawn with the "
                   "current Ambient Light and Light Contrast (128 is Quake's full light). The same numbers light a model "
@@ -4716,9 +4704,6 @@ za::Vector<Item> pageDebugViews()
         cycle("Log Hand Offsets", vr_debug_hand_offset, {{0.f, "Off"}, {1.f, "When Moved"}, {2.f, "Every Frame"}})
             .help("Each hand drawn away from where it is tracked, and by what (walls, the weight's spring, models, the body, "
                   "a held thing against a wall, the other hand's weapon or held thing), in the console."),
-        toggle("Log Weapon Wall Collisions", vr_debug_gun_wall)
-            .help("Each frame a held weapon is held out of the level: how far the hand is moved (up, across), the depth left "
-                  "and the muzzle's height over the surface below it, in the console."),
         open("Flashlight Zones: Flashlight - On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Showing the flashlight zones is on Flashlight > On a Gun or Head."),
         command("Flashlight to Left Hand", "vr_flashlight_give left")
             .help("vr_flashlight_give left: the chest flashlight into the left controller's hand, as if gripped there (that "
@@ -4802,10 +4787,6 @@ za::Vector<Item> pageDebugLogging()
         toggle("Axe Sticks", vr_debug_axestick)
             .help("Each thrown axe's blade striking something: stuck (how fast, how deep, at what angles) or why it bounced; "
                   "its bleeding, its fall, its pull. Needs Developer Messages for the last."),
-        cycle("Spin in the Air", vr_debug_spin_align, {{0.f, "Off"}, {1.f, "Each Throw"}, {2.f, "Every Step"}})
-            .help("Each throw's spin as it leaves the hand (its inertia, how long and flat it is, how fast its spin "
-                  "settles: Spin Alignment) and how far off end over end it is when its flight ends; every step: each "
-                  "step of its flight."),
         cycle("Climbing", vr_climb_debug, {{0.f, "Off"}, {1.f, "Holds"}, {2.f, "Every Frame"}, {3.f, "And Shoulders"}})
             .help("Holds taken, released, mantles; every frame: the body, the hands, the pull, the holds' reach (a lot)."),
         cycle("Hands", vr_debug_hands, {{0.f, "Off"}, {1.f, "When They Change"}, {2.f, "Every Frame"}})
@@ -4824,8 +4805,6 @@ za::Vector<Item> pageDebugLogging()
         toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
         cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),
-        toggle("Holster Draw Blend", vr_debug_draw_blend)
-            .help("Each frame of a gun easing between a holster and a hand: the turn and the distance left."),
         cycle("Put-Away Transition", vr_debug_collect_fx, {{0.f, "Off"}, {1.f, "Each Thing"}, {2.f, "Each Frame"}})
             .help("Each thing put away at a holster or pouch (its model, from where, the holster) and when it has gone "
                   "in; or also each frame's size and distance left."),
@@ -4854,17 +4833,9 @@ za::Vector<Item> pageDebugLogging()
         cycle("Crates Placement", vr_debug_crates, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Crate"}, {3.f, "Each Spot Rejected"}})
             .help("vr_debug_crates: where the crates went (and why not), each crate's clearance in front of it. Also Developer "
                   "Messages print each crate's damage and breaking, the pieces and what it held."),
-        toggle("Box Sizes", vr_debug_item_sizes)
-            .help("vr_debug_item_sizes: each ammo or health box's scale as it is first drawn (after a map loads, out of a "
-                  "crate), and each change of it after: they should be drawn at their final size from the first frame."),
-        toggle("Torch Lights", vr_debug_torch_lights)
-            .help("Every torch light lit, every frame: which (a wall torch, a taken one), where, its radius and colour, shadowed."),
         cycle("Arm IK", vr_debug_arm, {{0.f, "Off"}, {1.f, "Print Once"}, {2.f, "Trace File"}})
             .help("Each drawn arm's joints once (shoulder, elbow, wrist in the body's axes, the elbow's swing, the wrist's bend "
                   "and twist, and the swing's cost every 15 degrees: armcost); or arm_trace.txt every frame."),
-        toggle("Heavy Weapon Wrenched Out", vr_debug_weight_drop)
-            .help("Twice a second, each hand's fastest turn against its heavy weapon's limit (above half of it), and each "
-                  "weapon wrenched out (Weapon Weights: Wrenched Out)."),
         cycle("Two-Handed Grip", vr_debug_2h_grip, {{0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "And Where"}})
             .help("Each grip the helping hand takes (a sword's or the crowbar's: below the hand or along the blade) and why "
                   "it let go of a weapon (the check, its number and limit), the stickiness then (Aiming: 2H Grip "
@@ -5198,9 +5169,6 @@ za::Vector<Item> pageDebugReports()
         command("Bloody Hands and Washing", "vr_gore_hands_info")
             .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening, and the blood on your weapons and props."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
-        command("Decals in Both Eyes", "vr_decal_eyes_test 90")
-            .help("vr_decal_eyes_test 90: for 90 frames a blood mark is made between the eyes' views; then whether both "
-                  "eyes drew the same marks each frame (console: 0 frames different)."),
         command("Particle Lighting", "vr_particle_light_report").help("vr_particle_light_report: the last frame's lit particles (Lit Particles), their mean light and colour against unlit, and the lightmap traces it took."),
         command("Model Lighting", "vr_model_ambient_show").help("vr_model_ambient_show: the six nearest entities' ambient light."),
         command("Ambient Occlusion", "vr_ao_show").help("vr_ao_show: the ambient occlusion's occluders and bake."),
@@ -6532,7 +6500,6 @@ za::Vector<Item> pageDebugTests()
         command("Quarter Stamina", "vr_stamina_set 0.25").help("vr_stamina_set 0.25: a quarter of your stamina left (the run a little slower: Slower When Tired)."),
         command("Restore Stamina", "vr_stamina_set 1").help("vr_stamina_set 1: rested."),
         toggle("Hold Stamina", vr_debug_stamina_hold).help("Keeps your stamina where it is, or where the buttons above put it: nothing spends it and it doesn't come back (vr_debug_stamina_hold)."),
-        toggle("Print Run Speed", vr_debug_stamina_speed).help("Prints your stamina, the most speed it lets you run at and your speed on the ground, twice a second (vr_debug_stamina_speed)."),
         header("Stuck in Walls"),
         toggle("Unstick", vr_unstick)
             .help("Found inside a wall, a door, a button or a lift, you're moved to the nearest free spot (vr_unstick). "

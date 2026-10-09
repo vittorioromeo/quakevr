@@ -68,26 +68,13 @@ void setPose(entity_t& e, const Pose& p)
     }
 }
 
-// The angle (degrees) between two turns, the short way (from the relative turn's axis part: precise near 0, where an
-// acos of the dot product is not).
-[[nodiscard]] float angleBetween(const glm::quat& a, const glm::quat& b)
-{
-    const glm::quat d = glm::conjugate(a) * b;
-    return glm::degrees(2.f * za::atan2(glm::length(glm::vec3{d.x, d.y, d.z}), za::fabs(d.w)));
-}
-
 struct Blend
 {
     bool on{false};
     double start{0.0};
     float time{0.f};
-    Pose offset;          // where it started, in the frame of where it is going
-    float startAngle{0.f}; // degrees, the short way (for the log)
-    float rawAngle{0.f};   // the turn a sign-blind slerp would have taken (over 180: the short way was chosen)
-    int from{-1};          // the holster (a draw), the hand (holstering) or fromCatch, for the log
+    Pose offset; // where it started, in the frame of where it is going
 };
-
-constexpr int fromCatch = -2; // a force grab's catch
 
 // A force grab's catch (QVR_SVC_CATCHBLEND), until the hand shows the gun (at most `pairing` apart).
 struct Catch
@@ -99,22 +86,18 @@ struct Catch
 Catch catches[2];
 
 // Starts `b`: from `from` (a world pose) to `to` (this frame's), over `time` seconds.
-void start(Blend& b, const Pose& from, const Pose& to, float time, int source)
+void start(Blend& b, const Pose& from, const Pose& to, float time)
 {
     const glm::quat inv = glm::inverse(to.rot);
     b.offset.pos = inv * (from.pos - to.pos);
     b.offset.rot = glm::normalize(inv * from.rot);
-    const float raw = glm::degrees(2.f * za::acos(za::clamp(b.offset.rot.w, -1.f, 1.f)));
     if(b.offset.rot.w < 0.f)
     {
         b.offset.rot = -b.offset.rot; // the same turn, the short way round
     }
-    b.startAngle = glm::degrees(2.f * za::acos(za::min(b.offset.rot.w, 1.f)));
-    b.rawAngle = raw;
     b.on = true;
     b.start = vr_gametime;
     b.time = time;
-    b.from = source;
 }
 
 // The share of the offset left (1 at the start, 0 at the end: an ease-out cubic, quick at first, settling in); turns
@@ -140,18 +123,6 @@ void start(Blend& b, const Pose& from, const Pose& to, float time, int source)
 {
     const glm::quat identity{1.f, 0.f, 0.f, 0.f};
     return {to.pos + to.rot * (b.offset.pos * k), glm::normalize(to.rot * glm::slerp(identity, b.offset.rot, k))};
-}
-
-// vr_debug_draw_blend: each frame of a blend.
-void logFrame(const char* what, const qmodel_t* model, const Blend& b, float k, const Pose& drawn, const Pose& to)
-{
-    if(vr_debug_draw_blend.value)
-    {
-        Con_Printf("draw blend: %s, %s: %.3f s, left %.3f; turn to go %.1f deg (from %.1f; unflipped %.1f), "
-                   "%.2f units to go (from %.2f)\n",
-            what, model ? model->name : "-", vr_gametime - b.start, k, angleBetween(drawn.rot, to.rot), b.startAngle,
-            b.rawAngle, glm::distance(drawn.pos, to.pos), glm::length(b.offset.pos));
-    }
 }
 
 struct HandState
@@ -233,7 +204,7 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
             const HolsterState& from = holsterStates[recent];
             if(sameGun(from.model, model) && vr_gametime - from.shownAt <= pairing)
             {
-                start(st.blend, from.drawn, poseOf(e), time, recent);
+                start(st.blend, from.drawn, poseOf(e), time);
             }
         }
     }
@@ -250,7 +221,7 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
     {
         if(const float time = vr_forcegrab_catch_blend.value; time > 0.f)
         {
-            start(st.blend, c.from, poseOf(e), time, fromCatch);
+            start(st.blend, c.from, poseOf(e), time);
         }
         c.on = false;
     }
@@ -260,16 +231,6 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
         const Pose to = poseOf(e);
         const Pose drawn = blended(to, st.blend, k);
         setPose(e, drawn);
-        char what[64];
-        if(st.blend.from == fromCatch)
-        {
-            q_snprintf(what, sizeof(what), "%s hand from force grab", hand == HAND_MAIN ? "main" : "off");
-        }
-        else
-        {
-            q_snprintf(what, sizeof(what), "%s hand from holster %d", hand == HAND_MAIN ? "main" : "off", st.blend.from);
-        }
-        logFrame(what, model, st.blend, k, drawn, to);
     }
     if(model)
     {
@@ -298,7 +259,7 @@ void holster(const hands::State& s, int holster, entity_t* e, bool live)
         if(h.lostHolster == holster && sameGun(h.lost, model) && vr_gametime - h.lostAt <= pairing &&
             (quickSlots || vr_gametime - st.changedAt <= pairing))
         {
-            start(st.blend, h.lostPose, poseOf(*e), time, hand);
+            start(st.blend, h.lostPose, poseOf(*e), time);
             h.lost = nullptr; // once
         }
     }
@@ -309,9 +270,6 @@ void holster(const hands::State& s, int holster, entity_t* e, bool live)
         const Pose to = poseOf(*e);
         const Pose drawn = blended(to, st.blend, k);
         setPose(*e, drawn);
-        char what[64];
-        q_snprintf(what, sizeof(what), "holster %d from %s hand", holster, st.blend.from == HAND_MAIN ? "main" : "off");
-        logFrame(what, model, st.blend, k, drawn, to);
     }
     if(model)
     {
@@ -347,11 +305,6 @@ void parseCatch()
     c.from = drawn ? poseOf(cl_entities[ent]) : poseOf(origin, angles);
     c.at = vr_gametime;
     c.on = true;
-    if(vr_debug_draw_blend.value)
-    {
-        Con_Printf("draw blend: %s hand caught entity %d (%s pose)\n", hand == HAND_MAIN ? "main" : "off", ent,
-            drawn ? "drawn" : "server");
-    }
 }
 
 void reset()

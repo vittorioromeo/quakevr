@@ -19,7 +19,7 @@
 namespace qvr::fatigue
 {
 
-// The stamina left as the client sees it, 0..1 (vr_debug_weight_stamina when set; 1 without stamina).
+// The stamina left as the client sees it, 0..1 (1 without stamina).
 [[nodiscard]] float staminaLeft();
 
 // The shake's strength now, 0..1 (0: none), eased in and out.

@@ -294,26 +294,6 @@ bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const za::Vector<glm::vec3>& p
     return glm::length(off) > 0.01f;
 }
 
-// vr_debug_gun_wall: the hand where it is tracked and drawn, the weapon's depth in what it meets, and its lowest point
-// over the surface under it (below it: into it), and the test's time.
-void debugPrint(int h, const glm::vec3& tracked, const glm::vec3& drawn, const za::Vector<glm::vec3>& pts, double us)
-{
-    const glm::vec3 d = drawn - tracked;
-    float lowest = 1e9f;
-    for(const glm::vec3& o : pts)
-    {
-        const glm::vec3 at = drawn + o;
-        if(const auto tr = lineTrace(at + glm::vec3{0.f, 0.f, 32.f}, at - glm::vec3{0.f, 0.f, 64.f}); tr && tr->fraction < 1.f)
-        {
-            lowest = za::min(lowest, at.z - tr->endpos[2]);
-        }
-    }
-    Con_Printf("gunwall: %s hand moved %.2f (up %.2f, across %.2f) units; depth %.2f; lowest point %.2f over the surface "
-               "below; %d points, %.0f us (hand %.1f %.1f %.1f)\n",
-        h == HAND_MAIN ? "main" : "off", glm::length(d), d.z, za::sqrt(d.x * d.x + d.y * d.y),
-        gunPlanes(drawn, pts, glm::vec3{0.f}, nullptr), lowest, static_cast<int>(pts.size()), us, drawn.x, drawn.y, drawn.z);
-}
-
 } // namespace
 
 void resolvePositions(hands::State& s, float /* turnYaw */)
@@ -356,25 +336,13 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
                 // Where the muzzle was from the hand last frame, turned as the hand is now.
                 const glm::vec3 local{glm::dot(last, m.lastFwd), glm::dot(last, m.lastRight), glm::dot(last, m.lastUp)};
                 const glm::vec3 muzzleOffset = hands::redirect(local, s.rot[h]);
-                const glm::vec3 tracked = pos;
-                const auto t0 = za::Clock::nowNanoseconds();
                 makeShape(h, s.rot[h], muzzleOffset);
                 colliding[h] = gunOutOfWalls(m, pos, shape[h]);
-                if(vr_debug_gun_wall.value >= 2.f || (vr_debug_gun_wall.value && m.slid))
-                {
-                    debugPrint(h, tracked, pos, shape[h], za::nanosecondsToMicroseconds(za::Clock::nowNanoseconds() - t0));
-                }
             }
             else
             {
                 m.gunValid = m.slid = false;
-                const glm::vec3 tracked = pos;
                 colliding[h] = stopAtWall(pos, pos, pos + last, last);
-                if(vr_debug_gun_wall.value >= 2.f || (vr_debug_gun_wall.value && colliding[h]))
-                {
-                    makeShape(h, s.rot[h], last);
-                    debugPrint(h, tracked, pos, shape[h], 0.0);
-                }
             }
         }
         else

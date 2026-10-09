@@ -485,8 +485,6 @@ struct Slot // what one edict is in the world (by its number)
     double born{0.0};     // the server's time its body was made (a prop: thrown, let go of, launched)
     int pushedStep{-100}; // props: the last step a hand's body pushed it (limitPushes: a hit, then a shove)
     bool flight{false};   // props: thrown by a hand and not yet touched anything (noteThrows; spinAlign)
-    bool flightLogged{false}; // (vr_debug_spin_align: its first step printed; the last step's spin and how far off)
-    float flightOff{0.f}, flightRate{0.f};
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
     // Corpses (vr_corpse_collide): the setting and the mask (corpseMask) its body was made with, and whether it is
     // dynamic (Pushable) and fitted to its pose (its hulls: corpseHulls) or a box.
@@ -5048,7 +5046,6 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.size = props::drawnSize(model);
     s.kind = kind;
     s.flight = false;
-    s.flightLogged = false;
     s.model = model;
     s.hull = kind == Kind::Actor && model && model->type == mod_alias ? actorHull(ent, model) : nullptr;
     s.frame = static_cast<int>(ent->v.frame);
@@ -6834,13 +6831,11 @@ void eigenSymmetric(const glm::mat3& m, glm::vec3& values, glm::mat3& vectors)
 // real throw loses a little to the air and to flexing and so settles on the first; here the spin about the other two
 // dies away at vr_throw_spin_align a second times how long it is ((1 - least / most inertia)^2: a box or a ball keeps
 // its tumble), and ten times faster for a flat one, whose steadiest axis stands out (a blade: an axe, a sword; a rod
-// or a gib, round, a tenth: any turn across its length will do, and the middle one's is kept). `end`: the flight is
-// over (the debug's last word).
-void spinAlign(edict_t* ent, Slot& s, float dt, bool end)
+// or a gib, round, a tenth: any turn across its length will do, and the middle one's is kept).
+void spinAlign(Slot& s, float dt)
 {
-    const int debug = static_cast<int>(vr_debug_spin_align.value);
     const float strength = za::max(vr_throw_spin_align.value, 0.f) * spinAlignOf(s.model);
-    if((strength <= 0.f && !debug) || dt <= 0.f)
+    if(strength <= 0.f || dt <= 0.f)
     {
         return;
     }
@@ -6863,28 +6858,7 @@ void spinAlign(edict_t* ent, Slot& s, float dt, bool end)
     const float rate = glm::length(w);
     const glm::vec3 local = glm::transpose(r) * w;
     glm::vec3 c{glm::dot(local, axes[0]), glm::dot(local, axes[1]), glm::dot(local, axes[2])};
-    if(debug)
-    {
-        const float t = static_cast<float>(qcvm->time - s.born);
-        const float off = rate > 1e-4f ? glm::degrees(za::acos(za::clamp(za::abs(c.z) / rate, 0.f, 1.f))) : 0.f;
-        if(end)
-        {
-            // (Its spin now is the touch's: the flight's last step's.)
-            Con_Printf("spinalign: %d %s flight over at %.3f s: spin %.2f rad/s, %.1f deg off its steadiest axis\n",
-                NUM_FOR_EDICT(ent), PR_GetString(ent->v.classname), t, s.flightRate, s.flightOff);
-        }
-        else if(debug >= 2 || !s.flightLogged)
-        {
-            Con_Printf("spinalign: %d %s %.3f s: spin %.2f rad/s, %.1f deg off its steadiest axis (about it %.2f, the "
-                       "middle %.2f, the least %.2f); inertia %.3g %.3g %.3g, long %.2f, distinct %.2f, rates %.2f %.2f/s\n",
-                NUM_FOR_EDICT(ent), PR_GetString(ent->v.classname), t, rate, off, c.z, c.y, c.x, moments.x, moments.y,
-                moments.z, elong, distinct, k, middle);
-            s.flightLogged = true;
-        }
-        s.flightOff = off;
-        s.flightRate = rate;
-    }
-    if(end || k <= 0.f || rate < 1e-3f)
+    if(k <= 0.f || rate < 1e-3f)
     {
         return;
     }
@@ -6978,7 +6952,10 @@ void beforeStep(float dt)
         if(s.flight)
         {
             s.flight = !touching && !s.wet;
-            spinAlign(ent, s, dt, !s.flight);
+            if(s.flight)
+            {
+                spinAlign(s, dt);
+            }
         }
 
         const b3AABB box = b3Body_ComputeAABB(s.body);

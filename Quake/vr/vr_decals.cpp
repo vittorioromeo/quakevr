@@ -1575,7 +1575,7 @@ void draw()
     }
 }
 
-// `count` splatter marks on the floor ahead of the player, `size` units across (vr_decal_stress, vr_decal_eyes_test):
+// `count` splatter marks on the floor ahead of the player, `size` units across (vr_decal_stress):
 // how many were made.
 int stressMarks(int count, float size)
 {
@@ -1612,60 +1612,6 @@ void stress_f()
     const float size = Cmd_Argc() > 2 ? za::clamp(Q_atof(Cmd_Argv(2)), 1.f, 256.f) : 64.f;
     const int made = stressMarks(count, size);
     Con_DPrintf("vr_decal_stress: %d of %d marks, size %.0f\n", made, count, size);
-}
-
-// vr_decal_eyes_test N: for N frames a mark is made between the eyes (as the right eye's view begins, after the left
-// eye drew), and each frame's eyes compared: the marks on the world each drew with and the grid's builds (both or
-// neither must have the new one). Printed at the end, then the cvar back to 0.
-struct EyesTest
-{
-    int frames = 0, made = 0, disagreed = 0;
-    int leftFrame = -1;
-    za::SizeT leftMarks = 0;
-    long long leftBuilds = 0;
-};
-EyesTest eyesTest;
-
-void eyesTestBegin()
-{
-    if(vr_decal_eyes_test.value <= 0.f || !stereo::isRenderingEye() || stereo::eye() != 1 || cl.viewentity <= 0 ||
-        cl.viewentity >= cl.num_entities)
-    {
-        return;
-    }
-    eyesTest.made += stressMarks(1, 24.f);
-}
-
-void eyesTestEnd()
-{
-    if(vr_decal_eyes_test.value <= 0.f || !stereo::isRenderingEye())
-    {
-        return;
-    }
-    if(stereo::eye() == 0)
-    {
-        eyesTest.leftFrame = host_framecount;
-        eyesTest.leftMarks = worldDecals.size();
-        eyesTest.leftBuilds = worldBuilds;
-        return;
-    }
-    if(eyesTest.leftFrame != host_framecount)
-    {
-        return;
-    }
-    eyesTest.frames++;
-    if(eyesTest.leftMarks != worldDecals.size() || eyesTest.leftBuilds != worldBuilds)
-    {
-        eyesTest.disagreed++;
-    }
-    if(eyesTest.frames >= static_cast<int>(vr_decal_eyes_test.value))
-    {
-        Con_Printf("vr_decal_eyes_test: %d frames, %d marks made between the eyes, %d frames the eyes drew different marks "
-                   "(0: each new mark in both or neither)\n",
-            eyesTest.frames, eyesTest.made, eyesTest.disagreed);
-        eyesTest = {};
-        Cvar_SetQuick(&vr_decal_eyes_test, "0");
-    }
 }
 
 void count_f()
@@ -2014,7 +1960,6 @@ extern "C" void VR_DecalsFrame(float clock[4])
     // next frame (made again in the right eye, they showed there a frame before the left).
     const bool firstView = worldFrame != host_framecount;
     worldFrame = host_framecount;
-    eyesTestBegin();
     const double life = expire();
     if(qvr::decals::decals.empty())
     {
@@ -2029,7 +1974,6 @@ extern "C" void VR_DecalsFrame(float clock[4])
         worldDirty = false;
         buildWorld();
     }
-    eyesTestEnd();
     if(!atlas || worldDecals.empty())
     {
         return;

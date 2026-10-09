@@ -54,7 +54,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QVR_RETRO_GLSL(lut) \
 "layout(std140, binding=3) uniform RetroUBO\n" \
 "{\n" \
-"	vec4	RetroInfo; // x 1: on (vr_retro, not vr_retro_ab); y 1: the palette's table is there\n" \
+"	vec4	RetroInfo; // x 1: on (vr_retro); y 1: the palette's table is there\n" \
 "	uvec4	RetroPal[64]; // Quake's palette, RGB8 packed, four to a uvec4\n" \
 "	vec4	RetroSets[192]; // QVR_RETRO_MAX_SETS sets of 3 (vr_retro.h)\n" \
 "};\n" \

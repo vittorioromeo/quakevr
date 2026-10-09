@@ -104,17 +104,6 @@ Camera camera;
     return tau > 0.f ? 1.f - za::exp(-dt / tau) : 1.f;
 }
 
-void log(const char* what, const glm::vec3& view, float t)
-{
-    if(vr_window_log.value == 0.f)
-    {
-        return;
-    }
-    const glm::vec3& h = filter.headAngles;
-    Con_Printf("window %s: frame %d time %.4f head %.3f %.3f %.3f view %.3f %.3f %.3f kept %.2f\n", what, host_framecount,
-        filter.time, h.x, h.y, h.z, view.x, view.y, view.z, t);
-}
-
 // Whether the crop `tx` by `ty` (tangents) turned by `m` (the eye's axes to the view's) lies within the eye's image.
 [[nodiscard]] glm::mat3 mapFor(const glm::mat3& m, const Fov& fov, float tx, float ty)
 {
@@ -327,7 +316,6 @@ glm::mat3 mirrorMap(const Fov& fov, float aspect, const HiddenArea* hidden)
         filter.q1 = glm::slerp(filter.head, filter.q1, kept);
         filter.q2 = glm::slerp(filter.head, filter.q2, kept);
     }
-    log("mirror", anglesOf(filter.worldTurn * glm::mat3_cast(glm::slerp(filter.head, target, kept))), kept);
     return map;
 }
 
@@ -343,7 +331,6 @@ const Camera& spectator(float aspect)
     camera.origin = filter.worldHead + filter.worldTurn * quakeFromTracking(filter.p2 - filter.position) * units::metresToUnits();
     camera.tanX = za::tan(glm::radians(0.5f * za::clamp(vr_spectator_fov.value, 40.f, 160.f)));
     camera.tanY = camera.tanX / za::max(aspect, 0.1f);
-    log("spectator", camera.angles, 1.f);
     return camera;
 }
 
