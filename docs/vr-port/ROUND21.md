@@ -33494,7 +33494,8 @@ two-hand multiplier, and 20% less far by default.
   the same shove's distance, so it follows.
 - **Numbers** (vrtesthall, `vr_knockdown_chance 0; vr_knockdown_test 21/22`, `shove slide: ... went N units standing`):
   grunt 104 -> 84 (one hand), 219 -> 167 (two hands); knight 106 -> 86, 224 -> 180; enforcer 90 -> 73, 193 -> 154
-  (19-24% less).
+  (19-24% less). Knocked down by the same shoves (Travel 0.8), the pelvis went 65/141 (grunt), 67/146 (knight), 60/127
+  (enforcer): 0.77-0.85 of the standing distance, the tilt at most 91-102.
 
 ## Parry pushback about half as far (2026-10-09)
 
