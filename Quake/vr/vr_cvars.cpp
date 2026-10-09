@@ -634,7 +634,7 @@ const DefaultChange defaultChanges[] = {
     // ... and a parry pushes the attacker back about half as far (a counter can reach it).
     {112, &vr_parry_push_enemy, "0.8"},              // 0.55 (vr_defaults.cfg; a weapon parry's distance 0.47x)
 };
-constexpr int configVersion = 112;
+constexpr int configVersion = 113;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -932,10 +932,10 @@ void migrateConfig()
     {
         Cvar_SetValueQuick(&vr_tutorial_started, 1.f);
     }
-    // 112: the window's view is vr_window_view's alone (both eyes, the left or the right, raw or smoothed, the spectator
+    // 113: the window's view is vr_window_view's alone (both eyes, the left or the right, raw or smoothed, the spectator
     // camera); vr_mirror only turns the mirror on or off. Its "Left Eye (raw)" with vr_mirror 2 showed both eyes: now
     // Both Eyes (raw), 3. vr_mirror 2 is 1.
-    if(from < 112 && vr_mirror.value >= 2.f)
+    if(from < 113 && vr_mirror.value >= 2.f)
     {
         if(static_cast<int>(vr_window_view.value) == 0)
         {
