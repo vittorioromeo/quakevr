@@ -24045,7 +24045,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "2380 956 120"
-"worldtext" "LESSON 3: JUMPING AND CLIMBING\n\nJUMP: press A (the right controller).\nJump the low barriers."
+"worldtext" "LESSON 3: JUMPING AND CLIMBING\n\nJUMP: press A (the right controller).\nOr jump for real: you jump in the game.\nJump the low barriers."
 "worldtext_halign" "1"
 "worldtext_scale" "0.32"
 "angle" "270"
@@ -24073,7 +24073,7 @@
 "classname" "func_vr_tip"
 "origin" "2500 704 56"
 "tipname" "t2_jump"
-"message" "Press A to jump.\nJump over the yellow barriers."
+"message" "Press A, or jump for real, to jump.\nJump over the yellow barriers."
 "distance" "220"
 }
 // entity 98

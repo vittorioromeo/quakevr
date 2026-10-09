@@ -1008,12 +1008,13 @@ def build_room3():
     arrows([(3248, 704), (3328, 704), (3400, 704)], UP)
     wall_arrow("-x", R3_PLAT, 768, 96, "up", 40)
     banner(N.join(["LESSON 3: JUMPING AND CLIMBING", "", "JUMP: press A (the right controller).",
-                   "Jump the low barriers."]), 2380, r["y1"] - 4, 120, 270, "0.32")
+                   "Or jump for real: you jump in the game.", "Jump the low barriers."]),
+           2380, r["y1"] - 4, 120, 270, "0.32")   # (jumping in the room: vr_roomscale_jump, on as shipped)
     banner(N.join(["CLIMB: grip a rung or a ledge with an empty hand", "and pull yourself up, hand over hand.",
                    "Pull up at the top to climb onto it."]), R3_PLAT - 4, 840, 112, 180, "0.28")
     banner(N.join(["TOO HIGH TO REACH?", "Jump, and grab the edge", "at the top of the jump."]),
            R3_WALL - 4, 600, R3_PLAT_Z + 120, 180, "0.3")
-    tip("t2_jump", "Press A to jump." + N + "Jump over the yellow barriers.", 2500, 704, 56, 220)
+    tip("t2_jump", "Press A, or jump for real, to jump." + N + "Jump over the yellow barriers.", 2500, 704, 56, 220)
     tip("t2_climb", "Grip a rung with an empty hand, pull" + N + "down; grip the next one with the other.",
         R3_PLAT - 16, 704, 70, 150)
     tip("t2_climb_off", "Can't take hold? Climbing may be off:" + N + "press CLIMBING to turn it on.",
