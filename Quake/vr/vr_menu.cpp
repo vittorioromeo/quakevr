@@ -5433,6 +5433,13 @@ za::Vector<Item> pageDebugTools()
         command("Skip the Calibration Step", "vr_setup_skip").help("vr_setup_skip: its next step at once (not Body Calibration's poses)."),
         command("Check the Boards' Menu Paths", "vr_menu_path_check")
             .help("vr_menu_path_check: every menu page this map's boards name, with its path; a missing one prints MENU PATH MISSING."),
+        header("Toolgun"),
+        command("A Toolgun in Your Hand", "impulse 169").help("impulse 169: the toolgun in the main hand (189: the off hand)."),
+        command("Toolgun Status", "vr_toolgun_status")
+            .help("vr_toolgun_status: its hand and tool, where it aims and what it meets (its place, pinned or loose, its joints), "
+                  "the spawn choice and ghost, what the physgun holds, the scale gizmo, the joints (console)."),
+        command("Unfreeze Everything", "vr_toolgun_unfreeze_all").help("vr_toolgun_unfreeze_all: every prop the physgun froze falls again."),
+        command("Remove Every Joint", "vr_toolgun_unjoin_all").help("vr_toolgun_unjoin_all: the toolgun's joints, all of them."),
     };
 }
 

@@ -33715,3 +33715,75 @@ flaky (a still player under the stealth meter: the knight noticed him within 150
   projection layer, without a released image, fails the frame); `xr_runtime_test.sh` part 4 (3 checks).
 - Not ours, for him: SteamVR's per-app Render Resolution (100% = 2688x2880) or Eye Image Size 0.82; fpsVR and other
   overlays off; VDXR remains the cheaper path (no compositor copy, no driver hand-off).
+## The toolgun (2026-10-09)
+
+"Implement a Garry's Mod-like toolgun for debugging and sandbox gameplay purposes [...] spawnable in the debug menu and
+available in vrfiringrange [...] clicking the magazine eject button for that hand (Y/B) would display a special in-game
+menu UI attached to the toolgun [...] Entity/prop/weapon spawning [...] remover [...] move/rotate [...] Prop
+transformation tool [...] Prop joint tool [...] Quick cheats/utilities menu" (`kit/briefs/toolgun_request.md`).
+Controls, settings and the code's map: **docs/vr-port/TOOLGUN.md**.
+
+**The weapon.** `WID_TOOLGUN` 19 (ammoless, `weapon_toolgun`, `func_weapon_grabbable` weapon 19, impulse 169/189),
+its model `progs/v_toolgun.mdl` from `Misc/quakevr/make_toolgun.py` (808 vertices: a dark iron body over a leather
+grip, brass bands round a short emitter, a cyan crystal in brass prongs on top, cyan rune lines, a crystal lens at the
+muzzle: Quake's fullbright 244..246), weapon settings slot 26 (the grunts' gun's, the Offset moved by the bounds'
+corner: 0.348 0.924 -0.135; muzzle anchor 614; no hotspots; `vr_wofs_version` 40). In vrfiringrange north of the
+crowbar (`make_prop_area.py --ent-only`, labelled); Debug > Cheats > A Toolgun in Your Hand, Debug > Tests > Spawn
+Pickup Weapons > Toolgun, Debug > Tools > Toolgun.
+
+**Its buttons** (`vr_input.cpp` → `toolgun::button`, before the voice notes and the flashlight): its hand's trigger, B/Y
+and X/A are the tool's (taken, no key); with X/A held the sticks are its offsets (`toolgun::sticksTaken`: no walking, no
+turning). The other hand's trigger freezes what the physgun holds; its Y goes back a page in the menu (the gun in the
+right hand).
+
+**Its menu** is the VR Settings: pages 167 Toolgun, 168 Toolgun - Spawn, 169 Toolgun - Cheats and Utilities
+(`vr_menu_toolgun.inc`), opened from the game by B/Y; while one shows and the toolgun is held, the panel is drawn over the
+gun (`vr_panel.cpp` toolgunQuad: the tracked controller's frame, `vr_toolgun_menu_height` 8 units high, its bottom 4
+over the controller, leaning back 20 degrees) and the laser's hit-test uses it; the game runs under it
+(`VR_MenuRunsGame`). Back from its first page closes it. The cheats page is Debug > Cheats and Recording's own rows,
+filtered by label (their commands and help as there).
+
+**The tools** (`vr_toolgun.cpp`): the aim is the drawn hand's (the barrel's way) from the muzzle; what it meets is the
+nearest entity box before the world (not you, nor what your hands hold).
+- Spawn: a list of 46 (12 monsters, 7 props, 14 weapons, 13 items) or the picker; the ghost a translucent temp entity
+  glowing in the hue (`entityGlow` on the ghost's entity), lifted onto the floor by the entry's height, facing you;
+  made by `box3d::spawnClass` (vr_physics_spawn's spawn, factored out: the classname, a model, a float key).
+- Remove: the target glows red (the shaders' glow: 2..3 is red, `vr_glsl.h` alias and world); QC `VR_Toolgun_Remove`
+  → `VR_Scene_Remove`.
+- Physgun: a prop is pinned (`box3d::setPinned`: `kindOf` makes it a Fixture, a kinematic body following its entity:
+  it shoves the others) and its entity moved along the beam each frame; a monster or a pickup is moved (held up); let go,
+  unpinned with the beam's eased velocity; the other trigger keeps it pinned (frozen).
+- Scale: the prop's model box scaled by `model_scale` about `model_scale_origin` (set to the model's middle at its first
+  scaling), turned with it; 6 face and 8 corner handles; a held handle's drag is the beam's point at the handle's
+  distance along the handle's line from the box's middle as taken (stable: the box moving under it doesn't feed back);
+  its Quake box grown with it; FL_ONGROUND cleared so the remade body settles.
+- Joint: records in box3d (`ToolJointRecord`: the bodies' frames, kept outside the world), made again by
+  `syncToolJoints` whenever a body is made again (frozen, let go of, scaled, a new world) and both bodies exist, one of
+  them dynamic; dropped with either entity (`onEdictFree` → `box3d::toolForget`). Weld, ball (spherical), hinge
+  (revolute about the second face's normal), slider (prismatic along it), rope (distance joint, spring on with 0 Hz,
+  limit to its length), spring (2 Hz). Ropes and springs drawn (`forEachToolJoint`).
+
+**Tests** (mock headset, vrfiringrange, `vr_weapon_grip_mode 1`; scripts in the agent's scratch):
+- Menu: B → page 167 on the gun (`menu_vr pos`), the off hand's mock laser clicks "Choose What to Spawn" → page 168, a
+  row → "toolgun: spawn Enforcer"; Cheats and Utilities → God Mode → "godmode ON"; off Y → back to 167; again → closed.
+- Spawn: a grunt at the ghost (146 -553 42), X/A and the sticks 40 frames → the ghost moved 36 units on, 91 aside, turned
+  35 degrees, the player not moved; a crate there; the picker on the grunt → "picked monster_army"; health, a rock.
+- Remove: the grunt glowing red, removed; the crate removed.
+- Physgun: a crate taken at 149 units, lifted to z 91, pushed to 176 units (X/A, the stick), frozen (still at z 90.9 60
+  frames later, pinned); a grunt carried to z 88 and dropped (z 41).
+- Scale: the stick to 1.75x (lifted out of the floor); the side face handle dragged 6 degrees: 2.10x (expected 2.1);
+  Proportional off: 1.00 1.58 1.00; reset: back to 1 and settled on the floor.
+- Joint: weld, then the first crate dragged up 31 units: the second came with it (33 → 64), stayed hanging when the first
+  was frozen, fell when unjoined; rope: the second hung 44 units up below the first; ball, hinge, slider, spring: made
+  (1 joint each). (Crates break when yanked: `vr_crate_health 0` in the rope test.)
+- Buttons (`vr_debug_buttons 1`): the shotgun's trigger reaches the game; with the toolgun its trigger and A are "taken
+  by the toolgun", the off hand's X not.
+- QC 0 warnings, statics and FGD checks pass. The melee eval: no current takes (skipped).
+
+**In the headset.**
+- [ ] Take the toolgun in the firing range; B/Y: the menu over the gun, readable, the other hand's laser clicks; tune
+  Menu Size, `vr_toolgun_menu_up` / `_tilt` if it sits wrong.
+- [ ] The gun in the hand: the grip in the fist (the Offset is computed, not fitted: Weapon Offsets slot 27 if off).
+- [ ] Spawn a monster and a crate; move and turn the ghost with X/A and the sticks.
+- [ ] Physgun a crate around, freeze it in the air with the other trigger, stack another on it.
+- [ ] Scale a crate by a face and a corner; weld two crates and carry one; rope one under a frozen one.
