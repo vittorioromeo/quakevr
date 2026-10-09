@@ -57,9 +57,9 @@ if '--check' not in sys.argv:
         print(result.stderr)
         raise SystemExit(result.returncode)
     log = Path(f"{kit}/bases/{name}/qbase/qconsole.log").read_text(errors="replace")
-    (tree / "secretfx-test.log").write_text(log)
+    (tree / "scratch").mkdir(exist_ok=True); (tree / "scratch" / "secretfx-test.log").write_text(log)  # (scratch: git-ignored)
 else:
-    log = (tree / 'secretfx-test.log').read_text()
+    log = (tree / 'scratch' / 'secretfx-test.log').read_text()
 assert "SECRET_HITS_DONE" in log, "test did not finish"
 
 def snapshot(case, stage):

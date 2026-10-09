@@ -18,7 +18,9 @@ M0=$(grep -m1 " main " $MOCK | cut -d' ' -f3-)
 O0=$(grep -m1 " off " $MOCK | cut -d' ' -f3-)
 S="developer 1;vr_ai_enhanced 1;map vrtrailer;wait60;$EXTRA;vr_trailer_log 1"
 S="$S;vr_mock_stick off 0 1;wait70;vr_mock_stick off 0 0;wait30;setpos 0 -34 64 0 90 0;wait10"
-S="$S;echo STEP pickup;vr_box3d_hand_props 0;vr_mock_hand_to main weapon 0.3 2;wait6;+grabmain;vr_mock_button main grip 1;wait30"
+# (the fist onto the axe, 3 cm down: the catch needs the fist touching it, vr_weapon_grab_slack 0 since 2026-10-08; 2 cm over
+# it was 3 cm off)
+S="$S;echo STEP pickup;vr_box3d_hand_props 0;vr_mock_hand_to main weapon 0.3 -3;wait6;+grabmain;vr_mock_button main grip 1;wait30"
 S="$S;echo STEP walk;vr_mock_hand main $M0;vr_mock_hand off $O0;wait20;vr_mock_stick off 0 1;wait140;vr_mock_stick off 0 0;wait40;setpos 0 730 64 0 90 0;wait30"
 S="$S;echo STEP twohand;vr_mock_hand_to off held 0.6;wait6;+graboff;vr_mock_button off grip 1;wait30"
 S="$S;echo STEP swing;vr_mock_play $MOCK;wait150;echo STEP after;wait60"

@@ -4,6 +4,10 @@ compared with the exact ray / turned-box crossing.
 
 python Misc/quakevr/shot_shape_test.py <worktree name> [yaw,tilt ...] [--off] [--more]
 (--off: vr_box3d_shot_shape 0, the old box; --more: a super nail and an enforcer's laser instead)
+The box must stay put through all the shots (sv_gravity 0): no damage from any (the nails and pellets broke it), Quake's
+grenade missiles (vr_grenade_catch 0: the shipped 2 makes yours Box3D bodies, which meet the box by their own shapes,
+bounce off it and print no missile hit), no explosion chunks (floating at zero gravity, they nudged the box off the
+corners the later shots aimed at). 2026-10-09.
 """
 import math, re, subprocess, sys
 
@@ -42,7 +46,7 @@ def slab(o, d, centre, axes, half):
 
 def run(name, body, shape):
     s = ("developer 1;vr_debug_missiles 1;map vrfiringrange;wait60;god;notarget;sv_gravity 0;vr_shot_push 0;"
-         f"vr_dmg_rocket 0;vr_dmg_grenade 0;vr_box3d_shot_shape {shape};vr_test_spawn 104;vr_test_spawn_dist 160;"
+         f"vr_dmg_rocket 0;vr_dmg_grenade 0;vr_dmg_nail 0;vr_dmg_shotgun 0;vr_dmg_laser 0;vr_grenade_catch 0;vr_explosion_debris 0;vr_box3d_shot_shape {shape};vr_test_spawn 104;vr_test_spawn_dist 160;"
          + body + "toggleconsole;quit")
     return subprocess.run([BASH, KIT, name, "-Filter", "missile hit|vr_physics_fire|test fire", "-Script", s],
                           capture_output=True, text=True, errors="replace").stdout
