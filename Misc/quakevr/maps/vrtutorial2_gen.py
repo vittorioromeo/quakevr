@@ -1566,6 +1566,7 @@ WORLD_KEYS = {
     "sky": "qvrday", "light": "0", "_sunlight": "260", "_sunlight_mangle": "225 -55 0",
     "_sunlight_color": "1 0.96 0.88", "_sunlight2": "420", "_sunlight2_color": "0.6 0.72 1.0", "_bounce": "1",
     "_vr_debris": "0", "_vr_crates": "0", "_qvr_prelit": "1",
+    "_vr_tips_repeat": "1",  # every tip shows again each time he comes near (a tutorial: the author, 2026-10-09)
 }
 
 
