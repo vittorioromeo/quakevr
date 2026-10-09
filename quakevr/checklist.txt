@@ -5,6 +5,7 @@
 [Firing range: reloading]
 
 [Firing range: combat and dummies]
+Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
 Parry stagger alive: parry an ogre, death knight, knight: it steps through its pain frames and rocks with a ~3 deg sway, no squash (Combat > Parry Stagger > Stagger Frames 3 / Stagger Sway 3); shove a grunt off a ledge: it turns as it falls (Knockdowns > Topple Over a Ledge 150)
 Shove topple (Combat > Knockdowns, Chance 100): shove grunts/knights/enforcers one- and two-handed: head first, feet stay, two hands faster; they no longer slide 100-250 units (raise Shove Topple Push for some travel: OK?); shove one off a ledge: still goes over
 
