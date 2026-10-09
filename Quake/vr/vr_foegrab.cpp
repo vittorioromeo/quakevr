@@ -473,6 +473,13 @@ float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, 
 {
     const float yaw = glm::degrees(za::atan2(dir.y, dir.x));
     const float result = callQc("VR_FoeGrab_Throw", player, m, yaw, throwTier(m), 0.f);
+    // His grunt as he throws it (his note vrfiringrange_2026-10-09_10-56; the training dummy's "would be thrown" too).
+    const bool grunted = result >= 1.f && climb::grunt(player, vr_foegrab_throw_grunt_sound.value, vr_foegrab_throw_grunt.value);
+    if(grunted && debug())
+    {
+        Con_Printf("foegrab: throw grunt %s %.2f\n", climb::gruntSample(vr_foegrab_throw_grunt_sound.value),
+            za::clamp(vr_foegrab_throw_grunt.value, 0.f, 1.f));
+    }
     if(result != 1.f)
     {
         return result;
@@ -909,6 +916,8 @@ void qvr::foegrab::init()
     Cmd_AddCommand("vr_foegrab_walk_test", walkTest_f);
     Cmd_AddCommand("vr_foegrab_hurt", hurt_f);
     Cmd_AddCommand("vr_foegrab_throw_test", throwTest_f);
+    // vr_foegrab_throw_grunt_test: the throw's grunt as set, heard here (the menu's Hear Throw Grunt).
+    Cmd_AddCommand("vr_foegrab_throw_grunt_test", [] { S_LocalSound(climb::gruntSample(vr_foegrab_throw_grunt_sound.value)); });
 }
 
 void qvr::foegrab::reset()

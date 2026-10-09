@@ -560,6 +560,13 @@ struct PageTexts
 };
 mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
 
+// The player's grunts (vr_climb.cpp mantleGrunts, climb::grunt: the same order): the mantle's and the judo throw's Grunt
+// Sound.
+[[nodiscard]] za::Vector<Choice> gruntChoices()
+{
+    return {{0.f, "Jump grunt"}, {1.f, "Hard landing"}, {2.f, "Jump, deeper"}, {3.f, "Landing, deeper"}, {4.f, "Pain grunt"}};
+}
+
 #include "vr_menu_props.inc"
 #include "vr_menu_pages.inc"
 #include "vr_menu_recording.inc"
@@ -949,6 +956,12 @@ int campaignsBloodyShown = -1;
                   "the air rather than falling over its feet: this fast. 0: its feet stay where they stood a moment."),
         slider("Twist Spin", vr_foegrab_throw_spin, 0.f, 2.f, 0.05f, "%.2f")
             .help("Share of your hands' twist of it about the vertical it spins on with as it falls (at most 720 deg/s)."),
+        slider("Throw Grunt", vr_foegrab_throw_grunt, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Your grunt as you throw an enemy down, this loud (0 off)."),
+        cycle("Throw Grunt Sound", vr_foegrab_throw_grunt_sound, gruntChoices())
+            .help("Which grunt the throw makes: the same choices as climbing's Mantle Grunt Sound. The deeper ones are "
+                  "Quake's played slower. Hear it with Hear Throw Grunt."),
+        command("Hear Throw Grunt", "vr_foegrab_throw_grunt_test").help("Plays the throw's grunt as set, at full volume."),
     };
 }
 

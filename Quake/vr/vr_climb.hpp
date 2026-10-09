@@ -18,8 +18,16 @@ namespace qvr::climb
 
 void init(); // registers vr_climb_probe, vr_climb_mantle_grunt_test
 
-// Server, a new map loading (VR_OnSpawnServerBeforeLoad): the mantle's grunts precached (vr_climb_mantle_grunt_sound).
+// Server, a new map loading (VR_OnSpawnServerBeforeLoad): the player's grunts precached (vr_climb_mantle_grunt_sound,
+// vr_foegrab_throw_grunt_sound).
 void precache();
+
+// The player's grunts (the mantle's, the judo throw's: one list, chosen by a setting's number; the menus' Grunt Sound
+// choices): `choice`'s sample (clamped into the list).
+[[nodiscard]] const char* gruntSample(float choice);
+
+// Server: `ent` grunts `choice` (gruntSample) at `volume` (0..1; 0 none), on its voice channel, if precached. True: heard.
+bool grunt(edict_t* ent, float choice, float volume);
 
 // Client: whether `hand` holds a ledge now (the server's holds, STAT_QVR_CLIMB): it is not free to take anything else
 // (a weapon's second grip, a hotspot).

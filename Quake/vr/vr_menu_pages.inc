@@ -185,7 +185,7 @@
         slider("Steepest Slope", "vr_climb_mantle_slope", 10.f, 60.f, 5.f, "%.0f deg")
             .help("The steepest top a mantle stands you on with Mantle onto Slopes (Quake walks up to about 45)."),
         slider("Mantle Grunt", "vr_climb_mantle_grunt", 0.f, 1.f, 0.1f, "%.1f").help("A small grunt as you pull yourself up onto a ledge (0 off)."),
-        cycle("Mantle Grunt Sound", "vr_climb_mantle_grunt_sound", {{0.f, "Jump grunt"}, {1.f, "Hard landing"}, {2.f, "Jump, deeper"}, {3.f, "Landing, deeper"}, {4.f, "Pain grunt"}}).help("Which grunt the mantle makes. Hard landing (the default): the strained \"oof\" of landing from a height, so it doesn't sound like a jump. The deeper ones are Quake's played slower. Hear it with Hear Mantle Grunt."),
+        cycle("Mantle Grunt Sound", "vr_climb_mantle_grunt_sound", gruntChoices()).help("Which grunt the mantle makes. Hard landing (the default): the strained \"oof\" of landing from a height, so it doesn't sound like a jump. The deeper ones are Quake's played slower. Hear it with Hear Mantle Grunt."),
         command("Hear Mantle Grunt", "vr_climb_mantle_grunt_test").help("Plays the mantle's grunt as set, at full volume."),
         header("Climbing Stamina"),
         open("Climbing Stamina: Stamina", pageIndex(pageStamina)).help("What hanging from a hold costs is on Combat > Stamina."),

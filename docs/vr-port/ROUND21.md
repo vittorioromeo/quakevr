@@ -32053,6 +32053,15 @@ ogre at 30%, feet 0 / 60: lean 70 / 71 at 0.1 s; feet +10.3 / -3.1 at 0.2 s, +13
 whatever the turn, the feet kept going back after it had turned over: 80 units/s took them 30 units back by 0.5 s and
 lay it head 18 units past them; held to the quarter turn, 21 units.)
 
+**The judo throw's grunt** (his note vrfiringrange_2026-10-09_10-56). A throw that knocks the enemy down (or the
+training dummy's "would be thrown") plays the player's grunt on his voice channel: `vr_foegrab_throw_grunt` (volume,
+0.6; 0 off), `vr_foegrab_throw_grunt_sound` (2, the jump's grunt deeper: an effort, told apart from the mantle's pain
+grunt) from the mantle's list (vr_climb.cpp `climb::grunt`, `climb::gruntSample`; the menus' `gruntChoices`, one list
+for both pickers). Combat > Holding Enemies > Throw Grunt, Throw Grunt Sound, Hear Throw Grunt
+(`vr_foegrab_throw_grunt_test`). Test (`vr_foegrab_debug 1`, `vr_foegrab_throw_test`): "throw grunt
+vr/derived/plyrjmp8_low.wav 0.60", with sound 4 "player/pain2.wav", with volume 0 none; the mantle's grunt and its
+test command unchanged (the same code).
+
 ## Reloading on the move, the auto pump's delay, guns lying about, spent rifles, the Super Axe, smaller mines (2026-10-08)
 
 The author's notes of 2026-10-08 afternoon (map1 13-56 to 14-00, vrfiringrange 14-14 to 14-35).
