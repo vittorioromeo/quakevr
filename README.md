@@ -157,7 +157,7 @@ owned data enables their campaigns and resources. Empty or corrupt pack folders 
 You start in the **VR hub**. Pick Quake or an available mission pack there and step into the portal. The hub also
 leads to the tutorial and the firing range.
 
-**Single Player > Official Campaigns** shows detected owned campaigns and native gameplay readiness. Dimension
+The main menu's **Select Campaign** (the Official Campaigns page) shows detected owned campaigns and native gameplay readiness. Dimension
 of the Past supports native single-player VR when its complete owned data and current language tables are available.
 Dimension of the Machine (its story campaign and Horde mode) plays natively in single player the same way. Dawn of the
 Machine is detected; its native VR gameplay port is still in progress. See the [campaign setup guide](docs/INSTALL.md#official-campaigns).

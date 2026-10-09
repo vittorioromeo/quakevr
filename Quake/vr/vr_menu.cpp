@@ -8947,7 +8947,7 @@ int page = PageMain;
 
 // Back (ROUND21.md, "Back where you came from"): the way the player came to the page shown, as a stack of places, the page
 // shown on top: VR pages (their numbers) and, below them, the menus outside the VR pages that they were entered from
-// (outsidePlace: the main menu's VR Settings or Advanced VR rows, Single Player > Official Campaigns, Options > VR
+// (outsidePlace: the main menu's VR Settings, Advanced VR or Select Campaign rows, Options > VR
 // Settings, a corner button over any menu), and Ironwail's Levels entered from a VR page (the corner's Levels). Back pops
 // the page shown and goes to the place under it, the cursor where it was left (each page's and menu's own). A place
 // already on the stack is gone back to rather than added again (no loops). Nothing under the page: up the menus' tree
@@ -11441,10 +11441,10 @@ extern "C" void VR_Menu_OpenFromMain(int advanced)
     }
 }
 
-// Single Player > Map Library (menu.c): the map browser page, from Quake's own menu.
+// The main menu's Select Campaign row (menu.c), the credits and vr_campaign_menu: the official campaigns' page.
 extern "C" void VR_OpenCampaignSelector()
 {
-    openFromAnywhere(pageIndex(pageCampaigns)); // (Back: Single Player, or up the tree from the hub's board)
+    openFromAnywhere(pageIndex(pageCampaigns)); // (Back: the main menu, or up the tree from the hub's board)
 }
 
 // Ironwail's Levels opened by a jump (the main menu's Play Custom Map, the corner's Levels): Back from them returns

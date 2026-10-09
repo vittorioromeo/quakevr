@@ -218,7 +218,7 @@ def main():
         print('wrote', os.path.normpath(out))
     if a.preview:
         preview(pics, a.texts or ['VR Calibration', 'Single Player', 'Multiplayer', 'Options', 'Mods', 'Help/Ordering', 'Quit',
-                                         'Official Campaigns', 'VR Settings', 'Advanced VR'], a.preview)
+                                         'Select Campaign', 'VR Settings', 'Advanced VR'], a.preview)
 
 
 if __name__ == '__main__':

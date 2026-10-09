@@ -1175,6 +1175,7 @@ enum
 	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp), the first row
 	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), right after VR Calibration; Back from them to this menu
 	MAIN_SINGLEPLAYER,
+	MAIN_CAMPAIGNS, // QVR: Select Campaign, the official campaigns' page (was Single Player > Official Campaigns)
 	MAIN_MULTIPLAYER,
 	MAIN_MAPLIBRARY, // QVR: Download Maps, the map browser (vr_menu_maps.inc)
 	MAIN_PLAYCUSTOM, // QVR: Play Custom Map, Ironwail's Levels (the maps installed)
@@ -1190,7 +1191,7 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"VR Calibration", "VR Settings", "Single Player", "Multiplayer", "Download Maps", "Play Custom Map", "Options",
+	"VR Calibration", "VR Settings", "Single Player", "Select Campaign", "Multiplayer", "Download Maps", "Play Custom Map", "Options",
 	"Advanced VR", "Mods", "Quit",
 };
 
@@ -1206,7 +1207,8 @@ static qboolean M_Main_Shown (int item)
 	return item != MAIN_MODS || (m_main_mods && VR_MenuMainShowsMods ());
 }
 
-// QVR: the rows in groups, a gap above each but the first: the VR rows, playing (Single Player, Multiplayer), the maps
+// QVR: the rows in groups, a gap above each but the first: the VR rows, playing (Single Player, Select Campaign,
+// Multiplayer), the maps
 // (Download Maps, Play Custom Map), the settings (Options, Advanced VR, Mods), Quit apart (the author's note
 // vrfiringrange_2026-10-08_00-02-55).
 static qboolean M_Main_GroupStart (int item)
@@ -1324,6 +1326,7 @@ void M_Main_Draw (void)
 					M_PrintEx (74, row + 1, 16, "MODS");
 				break;
 			case MAIN_VRCALIBRATION: M_PrintEx (74, row + 1, 16, "VR CALIBRATION"); break;
+			case MAIN_CAMPAIGNS: M_PrintEx (74, row + 1, 16, "SELECT CAMPAIGN"); break;
 			case MAIN_MAPLIBRARY: M_PrintEx (74, row + 1, 16, "DOWNLOAD MAPS"); break;
 			case MAIN_PLAYCUSTOM: M_PrintEx (74, row + 1, 16, "PLAY CUSTOM MAP"); break;
 			case MAIN_VRSETTINGS: M_PrintEx (74, row + 1, 16, "VR SETTINGS"); break;
@@ -1394,6 +1397,10 @@ void M_Main_Key (int key)
 			M_Menu_SinglePlayer_f ();
 			break;
 
+		case MAIN_CAMPAIGNS: // QVR: the official campaigns' page; Back from it to this menu
+			VR_OpenCampaignSelector ();
+			break;
+
 		case MAIN_MULTIPLAYER:
 			M_Menu_MultiPlayer_f ();
 			break;
@@ -1454,9 +1461,8 @@ void M_Main_Mousemove (float cx, float cy)
 
 qboolean m_singleplayer_showlevels;
 int	m_singleplayer_cursor;
-// QVR: append campaigns after Quake's rows; Map Library stays on the main menu.
-#define	SINGLEPLAYER_ITEMS	(4 + m_singleplayer_showlevels)
-#define SINGLEPLAYER_CAMPAIGNS (3 + m_singleplayer_showlevels)
+// QVR: Quake's rows only: the official campaigns are the main menu's Select Campaign row.
+#define	SINGLEPLAYER_ITEMS	(3 + m_singleplayer_showlevels)
 
 void M_Menu_SinglePlayer_f (void)
 {
@@ -1480,14 +1486,6 @@ void M_SinglePlayer_Draw (void)
 	if (m_singleplayer_showlevels)
 		M_DrawTransPic (72, 92, Draw_CachePic ("gfx/sp_maps.lmp") );
 
-	if (VR_BigFont_CanDraw ("Official Campaigns"))
-	{
-		VR_BigFont_Draw (73, 32 + SINGLEPLAYER_CAMPAIGNS * 20, "Official Campaigns");
-	}
-	else
-	{
-		M_PrintEx (74, 32 + SINGLEPLAYER_CAMPAIGNS * 20 + 1, 16, "OFFICIAL CAMPAIGNS");
-	}
 	M_DrawQuakeCursor (54, 32 + m_singleplayer_cursor * 20);
 }
 
@@ -1521,8 +1519,6 @@ void M_SinglePlayer_Key (int key)
 	case K_MOUSE1:
 		m_entersound = true;
 
-        if (m_singleplayer_cursor == SINGLEPLAYER_CAMPAIGNS)
-        { VR_OpenCampaignSelector(); break; }
 		switch (m_singleplayer_cursor)
 		{
 		case 0:

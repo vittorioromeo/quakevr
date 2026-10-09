@@ -33306,3 +33306,15 @@ Test `throw_2h_damage_test.sh` (mock hands, an ogre 120 units ahead, the same pu
 both; vr_throw_2h_strength 1 and vr_2h_throw_velocity_mult 1 so both hit at the same speed): a box of shells 287 u/s,
 4.9 then 6.1 before where (x1.25); the shotgun (the off hand on its foregrip) 273 and 272 u/s, 13.6 then 17.0 (x1.25).
 With vr_throw_2h_damage 1: 13.6 both.
+
+## Select Campaign on the main menu (2026-10-09)
+
+The author's note vrstart_2026-10-09_14-57-46: Single Player's "Official Campaigns" row is now the main menu's "Select
+Campaign", right under Single Player (Single Player, Select Campaign, Multiplayer, in the playing group): it opens the
+Official Campaigns page (`VR_OpenCampaignSelector`, as before), whose Back goes to the main menu with the cursor on the
+row (NavStack: the outside menu it was entered from). Single Player has Quake's rows only again (New Game, Load, Save,
+and Levels where Ironwail shows it). The page keeps its title (VR Settings' Play > Official Campaigns, Search, the hub's
+board and the calibration boards' `{menu:Official Campaigns}` unchanged); the credits' row too. The row's letters are
+the main menu's (vr_bigfont: every one there already), "SELECT CAMPAIGN" in the small capitals where a mod's pictures
+leave the main menu as pictures. Test: `menu_vr pos` on the main menu, down once ("Select Campaign"), Enter (page 143
+"Official Campaigns", back to menu 1), Escape (main, row "Select Campaign").

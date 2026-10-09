@@ -358,7 +358,7 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
 - **Mission packs:** Hipnotic and Rogue are independent optional packs. Validated installed data is used
   automatically, with its weapons, monsters and maps. Quake, the hub, tutorial and firing range work without
   either pack; unavailable campaign buttons are labelled in the hub. Quake VR's QuakeC contains all three campaigns.
-- **Official campaigns** (Single Player > *Official Campaigns*, or Play): the re-release's Dimension of the
+- **Official campaigns** (the main menu's *Select Campaign*, or Play > Official Campaigns): the re-release's Dimension of the
   Past, Dimension of the Machine (with its Horde mode) and Dawn of the Machine (with its Bloody Nightmare difficulty)
   play natively in VR, in single player, when you own them. See [INSTALL.md](INSTALL.md#official-campaigns).
 - **Map Library** (the main menu, or the corner's *Map Library*): browse [Quaddicted](https://www.quaddicted.com/)'s

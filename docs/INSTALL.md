@@ -177,7 +177,7 @@ QuakeC contains Quake, Scourge of Armagon and Dissolution of Eternity; selecting
 
 ## Official campaigns
 
-Open **Single Player > Official Campaigns**, **VR Settings > Official Campaigns**, or the hub's campaign board link.
+Open the main menu's **Select Campaign**, **VR Settings > Official Campaigns**, or the hub's campaign board link.
 The selector shows Quake, the two mission packs, Dimension of the Past (`dopa`), Dimension of the Machine (`mg1`)
 and Dawn of the Machine (`mg3`). Each entry reports missing data, incomplete/corrupt data, or installed data with
 its native gameplay readiness. **Dimension of the Past is ready for native single-player VR**, including authored
