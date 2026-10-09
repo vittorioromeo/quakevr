@@ -17,6 +17,7 @@ Super nailgun: receiver flush on its face; lava nail magazine smokes when empty;
 Held-prop knock-out: hold a head/crate beside the gun and move normally: the magazine must not pop out by accident; a deliberate fast hit does
 
 [Firing range: combat and dummies]
+Gadget taps: run, strafe, smooth/snap turn while tapping/pressing the button: zones stay on the drawn gadget; tap with palm, fingertips, knuckles, back of hand, gun butt, a held box: all count, melee swings across never; try Combat > Bullet Time > Screen Tap > Gesture: Double Tap; depth 6.5 may now be generous (try ~3)
 Judo polish: throw with the trigger squeezed: nothing gets force-grabbed; Feet Speed sweep (60; try 0 and 120): feet slide opposite the throw; throw grunt (Combat > Holding Enemies > Throw Grunt / Sound / Hear); your throw + struggle values are now defaults
 Parries: parry an ogre's chainsaw, a hell knight's swing, the Overlord's smash: each snaps into its pain pose and holds it, no half-second melt through a flattened shape (Debug > Logs > Monster Poses logs any squash)
 Knockdowns: judo-throw a grunt/knight both ways and with a twist: it topples over its feet (Combat > Holding Enemies > Topple 120 deg/s, Feet Held, Twist Spin); a knocked-down grunt struggles (limbs kick, chest curls); axe a knocked-down grunt's neck with a killing blow: head off; slash a forearm: limb off
