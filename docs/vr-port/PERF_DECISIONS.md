@@ -246,3 +246,46 @@ Still open (no trade-off unless said):
   rockets, muzzle flashes), so the win is mostly the benchmark's. Not done.
 - **NVML's start**: the first VRAM read (`gpustats::requestVram`) initialises NVML on a worker (0.12 s, once); fine
   as it is, noted because it shows in every window's VTune profile.
+
+## Video memory (2026-10-09)
+
+The author's session memstats (`memstats_2026-10-09_17-50` .. `18-42`: 19-20 GB of the 4090's 24.5 GB "used", 1 GB
+free under SteamVR earlier) were the whole GPU's (NVML): every program's. `vr_vram_report` (Debug > Memory > Video
+Memory Report) now sizes every GL object of the game and reads Windows' per-process counters. His logs show the jump:
+10-12 GB used on 2026-10-08/09 night, 19-22 GB from 10:42 on 2026-10-09 with the game's own textures unchanged
+(texture_mb 420-640 throughout). On this machine now: Resolve.exe 14.1 GB, a system process 2.6 GB, OBS 1.3 GB,
+Chrome 0.4 GB, the game ~1.0-1.3 GB. The new log columns (`vram_quake_mb`, `vram_programs`) will say whose it is
+in his next session.
+
+The game at his settings (mock eyes 2782 square ~ his 2688x2880, vid_fsaa 0, vr_shadow_atlas 8192, vrfiringrange):
+**1277 MB** for the process (Windows), 1138 MB of it in GL objects:
+
+| category | MB |
+|---|---|
+| shadow atlases (8192 dynamic 256, 6144x4096 static 96) | 352 |
+| eye scene targets (scene + composite colour RGBA16F, depth, oit accum/revealage, distances; one eye's size, shared) | 286 |
+| model skins (mdl, HD replacements, limbs) | 162 |
+| authored normal maps (`*_norm_vrnorm`: vrbody, hands, crates at 1024) | 142 |
+| text screens, panel canvas (3868x2176 with mips, 43), world text boards, gadgets | 60 |
+| swapchain images (mock: 2; a real runtime's 3 an eye + the panel's: ~210) | 59 |
+| wounds (256x256x129 RGBA8), decals/particle atlases, effects, post, world, lightmaps, buffers | ~77 |
+| driver's own, not in GL objects | 139 |
+
+Leaks: none found. Three rounds of vrstart -> vrfiringrange -> e1m1 -> menu -> render scale 0.7/1 ->
+vrteleporters -> vrstart: the second and third reports identical (1151 MB in GL objects, 936 textures, 392 buffers).
+The first round's +93 MB are targets made once and kept (the stereo layered scene 32 MB, the menu banner, the
+upscaled eye, a tip screen). Churn fixed: the ammo screens' images (keyed by their text now; ROUND21, "Video
+memory"): 450 targets made in a 54-step walk along vrfiringrange's racks -> 0.
+
+Options (trade-offs, not done):
+
+- **`vr_shadow_atlas` 8192 -> 4096** (the shipped default is 4096; his cfg has 8192): shadow atlases 352 -> 160 MB
+  (-192 MB); the dynamic lights' shadows at half the texels.
+- **MSAA** (`vid_fsaa 4`, off in his cfg): eye scene targets 286 -> 859 MB (+573 MB at his eyes): a cost to know
+  before turning it on.
+- **Composite and scene targets both full size**: Ironwail keeps a scene framebuffer (effects) and a composite one
+  (post-process) at the eye's size, ~96 MB of each other's at his eyes (RGBA16F + D32F_S8). Making one lazy is an
+  engine change to the frame's framebuffer flow: not done.
+- **Eye size** (`vr_xr_eye_scale`, the runtime's supersampling): the eye targets scale with the pixels (0.8 a side:
+  -36%).
+

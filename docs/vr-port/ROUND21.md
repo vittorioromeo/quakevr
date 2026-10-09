@@ -34121,3 +34121,22 @@ the time and Windows' Application log entry tell it apart from an engine crash (
   `xr_runtime_test.sh` part 6: a Quest 3 at 3096x3312 (150% each side): "runtime 225%, eyes 225%", the warning;
   `vr_xr_eye_scale 0.66`: "eyes 98%", none. By hand: an unknown name, no panel line; `vr_xr_panel 500x500` with Render
   Scale 1.2: "runtime 154%, eyes 221%", the Render Scale hint; "Quest 2 (VDXR)" found (1832x1920).
+
+## Video memory (2026-10-09)
+
+His "19-20 GB of VRAM used" is the whole GPU's: the game holds ~1.3 GB at his eyes, the rest is other programs
+(Resolve.exe 14 GB on this machine now). PERF_DECISIONS.md, "Video memory", has the breakdown and the options.
+
+- `vr_vram_report [diff] [csv] [all]` (Debug > Memory > Video Memory Report): every GL texture, renderbuffer and
+  buffer sized from GL's own description, by category and group (GL labels; the VR module's textures labelled now),
+  the largest, and Windows' count for the process and each other program. `diff`: made/freed since the last report.
+- The memory log: `vram_quake_mb` (ours), `vram_programs` (the others holding the most), `screen_draws`; vr_memstats
+  prints ours and the others'; the status box: "VRAM used/total GB (game X.X)".
+- Ammo screens: their images found by their text, not the screens' order (the world's guns are nearest first: a step
+  reordered them, each slot drawn again and remade when its size changed: ~1700 targets in his 10 minutes). Walk test
+  (54 steps along vrfiringrange's racks): targets made +450 -> +0, images drawn +450 -> +0; screens with the same
+  text share an image (20 screens, 2 images).
+
+To check in VR: the ammo screens on the firing range's guns as you walk past and pick them up (each showing its own
+count, no wrong text for a frame more than before); `vr_vram_report` in his session: the "programs on the GPU" line.
+
