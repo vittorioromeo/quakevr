@@ -37,19 +37,6 @@ za::U64 nextMapSeed = 0u;
 // The seed sv_random_seed names (its string: a 64-bit seed exactly, beyond a float's 24 bits), 0 when it is 0 or unset.
 [[nodiscard]] za::U64 cvarSeed() { return static_cast<za::U64>(strtoull(sv_random_seed.string, nullptr, 0)); }
 
-// vr_test_crand <n>: n numbers drawn from the C library's rand() now, as the client's effects draw them (tests: the
-// server's stream must not move).
-void testCrand_f()
-{
-    const int n = Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 1000;
-    unsigned sum = 0;
-    for(int i = 0; i < n; i++)
-    {
-        sum += static_cast<unsigned>(rand());
-    }
-    Con_Printf("vr_test_crand: %d drawn (sum %u)\n", n, sum);
-}
-
 void info_f()
 {
     Con_Printf("server random: seed %llu (sv_random_seed %s%s)\n", static_cast<unsigned long long>(currentSeed),
@@ -81,7 +68,6 @@ za::U64 derivedSeed(za::U64 salt)
 
 void registerCommands()
 {
-    Cmd_AddCommand("vr_test_crand", testCrand_f);
     Cmd_AddCommand("sv_random_info", info_f);
 }
 } // namespace qvr::srvrandom

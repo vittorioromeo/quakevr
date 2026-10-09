@@ -66,6 +66,7 @@ SUITE = [
     ("turned_box", "grapple/turned_box_test.py", [], 1200, False),
     ("shot_shape", "shot_shape_test.py", [], 1200, False),
     ("parry_pose", "parry_pose_test.sh", [], 3600, False),
+    ("selfchecks", "selfchecks_test.sh", [], 1200, False),
     # Quake's AI is random (ROUND21.md, "Test suite pass (2026-10-09)"): a dog or fiend may miss the gate in 3 runs.
     ("teleporters_chase", "teleporters/teleporters_test.sh", ["chase"], 2400, True),
     ("stealth", "stealth_tests.sh", [], 5400, False),
