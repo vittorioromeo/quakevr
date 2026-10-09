@@ -467,7 +467,7 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
 
 // `player`'s two-hand throw of `m` towards level `dir` (the QC's VR_FoeGrab_Throw: its result), the hands turning it about
 // the vertical at `twist` rad/s. Knocked down (1), its ragdoll is turned over about its feet towards `dir`, a sweep
-// (box3d::ragdollTopple: vr_foegrab_throw_topple, _topple_hold), spun with the hands' twist (vr_foegrab_throw_spin);
+// (box3d::ragdollTopple: vr_foegrab_throw_topple), its feet swept back (_feet_speed), spun with the hands' twist (vr_foegrab_throw_spin);
 // `trace`: its fall printed (ThrowTrace).
 float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, bool trace)
 {
@@ -481,7 +481,7 @@ float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, 
     const float spin = za::clamp(twist * za::max(vr_foegrab_throw_spin.value, 0.f), -maxSpin, maxSpin);
     const float topple = glm::radians(za::clamp(vr_foegrab_throw_topple.value, 0.f, 2000.f));
     const bool toppled = topple > 0.f &&
-                         box3d::ragdollTopple(m, dir, topple, spin, za::clamp(vr_foegrab_throw_topple_hold.value, 0.f, 2.f));
+                         box3d::ragdollTopple(m, dir, topple, spin, za::clamp(vr_foegrab_throw_feet_speed.value, 0.f, 1000.f));
     glm::vec3 pelvis, head, feet;
     if(trace && box3d::ragdollStance(NUM_FOR_EDICT(m), pelvis, head, feet))
     {
@@ -524,9 +524,10 @@ void throwTraceStep()
     }
     t.printed++;
     const glm::vec3 side = glm::cross(glm::vec3{0.f, 0.f, 1.f}, t.dir);
-    Con_Printf("throw trace: %.2f s tilt %.0f deg, feet moved %.1f, head %.1f along the throw from the feet (%.1f aside), "
-               "%.1f up; pelvis %.1f up\n",
-        age, tilt, feetMoved, glm::dot(head - feet, t.dir), glm::dot(head - feet, side), head.z - feet.z, pelvis.z - feet.z);
+    Con_Printf("throw trace: %.2f s tilt %.0f deg, feet moved %.1f (%.1f along the throw, %.1f up), head %.1f along the "
+               "throw from the feet (%.1f aside), %.1f up; pelvis %.1f up\n",
+        age, tilt, feetMoved, glm::dot(feet - t.feet0, t.dir), feet.z - t.feet0.z, glm::dot(head - feet, t.dir),
+        glm::dot(head - feet, side), head.z - feet.z, pelvis.z - feet.z);
     if(t.printed >= 15)
     {
         Con_Printf("throw trace done: tilt at 0.5 s %.0f deg, most %.0f; feet moved %.1f at most; lies %s (head %.1f along "

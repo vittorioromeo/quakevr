@@ -32029,6 +32029,30 @@ gripping the grunt, `+attack`, `vr_debug_hands 1`): holding with the trigger hel
 held, none for the second after; pressed again, target the box, locked. With `vr_foegrab 0` (the grip takes nothing):
 let go of the grip with the trigger held, locked on the box at once (14 ms).
 
+**The judo throw sweeps the feet** (his note vrfiringrange_2026-10-09_10-56: in place of "feet stay put", a slider for
+the feet's speed, opposite the topple: thrown left, the feet go a little right, so it spins in place in the air).
+`vr_foegrab_throw_topple_hold` is gone (a retired name: an old config's line is dropped quietly); in its place
+`vr_foegrab_throw_feet_speed` (60 units/s; Combat > Holding Enemies > Feet Speed, 0-300, to 1000). `box3d::ragdollTopple`:
+the feet (the lowest quarter's parts) are held at that speed back against the throw (level; they may rise) until the
+body has turned a quarter (at most 0.5 s), then fly on; the whole turns at topple + feet speed / height about a pivot
+raised above the feet to match (feet speed / turn, at most half its height), so its top goes as fast as before and the
+turn is faster. 0: the feet held still 0.5 s (his Feet Held), the turn about the floor under them, as before.
+Measured (`scratch/topple_sweep.sh`: vrfiringrange, a grunt 60 units ahead, `vr_foegrab_throw_test 0`, his topple 300,
+lift 170, push 190; the trace now prints the feet's move along the throw and up):
+
+| feet speed | turn set | lean at 0.1 / 0.2 / 0.3 / 0.5 s | feet along the throw at 0.2 / 0.5 s (up at 0.2) | feet moved, most |
+| --- | --- | --- | --- | --- |
+| 0 | 300 deg/s | 72 / 138 / 171 / 131 | +9.2 / +9.0 (25.6) | (held, then dragged) |
+| 40 | 348 | 70 / 128 / 162 / 95 | -0.3 / -6.9 (24.4) | 19.3 |
+| 60 (default) | 373 | 72 / 131 / 165 / 100 | -4.1 / -13.9 (24.7) | 30.7 |
+| 80 | 396 | 75 / 135 / 167 / 105 | -7.9 / -21.4 (25.2) | 41.7 |
+| 120 | 444 | 82 / 145 / 166 / 102 | -15.1 / -35.4 (26.2) | 60.3 |
+
+At topple 120 (the old default), feet 0 / 80: lean 47 / 59 at 0.1 s, 94 / 117 at 0.2 s; feet +5.0 / -9.6 at 0.2 s. An
+ogre at 30%, feet 0 / 60: lean 70 / 71 at 0.1 s; feet +10.3 / -3.1 at 0.2 s, +13.9 / -5.6 at 0.5 s. (Held for 0.5 s
+whatever the turn, the feet kept going back after it had turned over: 80 units/s took them 30 units back by 0.5 s and
+lay it head 18 units past them; held to the quarter turn, 21 units.)
+
 ## Reloading on the move, the auto pump's delay, guns lying about, spent rifles, the Super Axe, smaller mines (2026-10-08)
 
 The author's notes of 2026-10-08 afternoon (map1 13-56 to 14-00, vrfiringrange 14-14 to 14-35).

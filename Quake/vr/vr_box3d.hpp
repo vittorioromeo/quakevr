@@ -147,9 +147,11 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
 // The two-hand throw's topple (vr_foegrab_throw_topple; ROUND21.md, "Holding enemies"): `ent`'s ragdoll (just made by
 // ragdollKnockdown) turned over about its feet towards level `dir`, a sweep: its parts' shared launch (the throw's push and
 // lift) shared out by height (the feet none, the top all), `topple` rad/s about the level axis through its feet across
-// `dir`, `spin` rad/s about the vertical through its middle; its lowest parts held on the floor (level motion none) for
-// `hold` s. False: no ragdoll.
-bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float hold);
+// `dir` (its top's speed), `spin` rad/s about the vertical through its middle. Its feet (its lowest parts) are swept
+// back against `dir` at `feet` units/s, the turn about a pivot raised to match (the top as fast as before, the whole
+// turning faster: it spins in place); `feet` 0: held on the floor (level motion none) for a moment (toppleHold).
+// False: no ragdoll.
+bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float feet);
 // Tests (the throw's trace): `num`'s ragdoll's pelvis, head (its rig's head, else its highest part) and feet (the middle of
 // the parts ragdollTopple held, else of those in its lowest quarter at the first call), units. False: no ragdoll.
 bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet);

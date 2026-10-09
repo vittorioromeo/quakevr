@@ -2440,7 +2440,7 @@ QVR_CVAR(vr_foegrab_throw_mass_hurt, "300", CVAR_ARCHIVE)   // kg: this light or
 QVR_CVAR(vr_foegrab_throw_push, "220", CVAR_ARCHIVE)      // units/s: the thrown enemy's launch along the throw (times vr_knockdown_push)
 QVR_CVAR(vr_foegrab_throw_lift, "100", CVAR_ARCHIVE)      // units/s: and up
 QVR_CVAR(vr_foegrab_throw_topple, "120", CVAR_ARCHIVE)    // degrees/s: the thrown ragdoll turned over about its feet towards the throw, a sweep (push and lift shared by height); 0: pushed whole, as a shove's
-QVR_CVAR(vr_foegrab_throw_topple_hold, "0.3", CVAR_ARCHIVE) // s: its feet held on the floor (no sliding) as it topples over them
+QVR_CVAR(vr_foegrab_throw_feet_speed, "60", CVAR_ARCHIVE) // units/s: its feet swept back against the throw as it topples (the turn faster, about a pivot raised to match: it spins in place); 0: its feet held still 0.5 s
 QVR_CVAR(vr_foegrab_throw_spin, "0.5", CVAR_ARCHIVE)      // share of the hands' twist of it about the vertical it spins on with (at most 720 degrees/s)
 QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds taken and let go (and why); 2: and each held frame
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)

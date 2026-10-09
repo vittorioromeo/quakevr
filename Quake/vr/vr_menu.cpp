@@ -944,8 +944,9 @@ int campaignsBloodyShown = -1;
         slider("Topple", vr_foegrab_throw_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
             .help("The thrown enemy loses its footing: it is turned over about its feet towards the throw this fast, a "
                   "sweep, and the push and lift go to its top, not its feet. Off: pushed whole, as a shove's knockdown."),
-        slider("Feet Held", vr_foegrab_throw_topple_hold, 0.f, 1.f, 0.05f, "%.2f s")
-            .help("How long its feet stay where they stood (no sliding) as it topples over them."),
+        slider("Feet Speed", vr_foegrab_throw_feet_speed, 0.f, 300.f, 10.f, "%.0f units/s").extend(0.f, 1000.f)
+            .help("Its feet are swept the other way as it topples (thrown left, they go right), so it spins in place in "
+                  "the air rather than falling over its feet: this fast. 0: its feet stay where they stood a moment."),
         slider("Twist Spin", vr_foegrab_throw_spin, 0.f, 2.f, 0.05f, "%.2f")
             .help("Share of your hands' twist of it about the vertical it spins on with as it falls (at most 720 deg/s)."),
     };

@@ -542,9 +542,11 @@ struct RagdollBodies
     // Its pelvis after the last step (carryRagdolls: the step it goes in through a teleporter carries it whole).
     glm::vec3 lastPelvis{0.f};
     bool pelvisKnown{false};
-    // The two-hand throw's topple (ragdollTopple): these parts (bits, its feet) kept from sliding until pinUntil.
+    // The two-hand throw's topple (ragdollTopple): these parts (bits, its feet) kept at pinVel (level, m/s: swept back
+    // against the throw, or still) until pinUntil.
     uint32_t pinned{0}, feet{0}; // (feet: the parts it toppled over, for the tests' ragdollStance)
     double pinUntil{0.0};
+    glm::vec2 pinVel{0.f};
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -3350,7 +3352,8 @@ void feedRagdoll(edict_t* ent, Slot& s)
     }
     if(r.pinned != 0u)
     {
-        // (Thrown: its feet held where they stand, the pivot it topples over; they may still rise and fall.)
+        // (Thrown: its feet held where they stand, or swept back, the pivot it topples over; they may still rise and
+        // fall.)
         const bool hold = qcvm->time < r.pinUntil;
         for(int b = 0; b < r.count && hold; b++)
         {
@@ -3360,7 +3363,7 @@ void feedRagdoll(edict_t* ent, Slot& s)
             }
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
             const b3Vec3 lin = b3Body_GetLinearVelocity(body);
-            b3Body_SetLinearVelocity(body, b3Vec3{0.f, 0.f, lin.z});
+            b3Body_SetLinearVelocity(body, b3Vec3{r.pinVel.x, r.pinVel.y, lin.z});
         }
         r.pinned = hold ? r.pinned : 0u;
     }
@@ -12602,7 +12605,11 @@ bool ragdollKnockdown(edict_t* ent)
     return true;
 }
 
-bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float hold)
+// The feet of a ragdoll toppled with no sweep held still this long (s; vr_foegrab_throw_feet_speed 0: the author's Feet
+// Held, 0.5 s, before the sweep replaced it).
+constexpr float toppleHold = 0.5f;
+
+bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float feetSpeed)
 {
     RagdollBodies* rp = ent ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
     if(!rp)
@@ -12658,12 +12665,18 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
         r.pinned |= 1u << b;
     }
     pivot = feet > 0 ? pivot / static_cast<float>(feet) : middle;
-    pivot.z = floor;
+    // The sweep: the feet go back at `sweep` m/s (held so until it has turned a quarter, at most toppleHold: then they fly
+    // on as they go) while the top keeps topple * height: the whole turns at topple + sweep / height about a pivot sweep /
+    // turn above the feet (at most its middle height: in place); no sweep, about the floor under them, held toppleHold.
+    const float sweep = za::max(feetSpeed, 0.f) / world->m2u;
+    const float turnRate = topple + sweep / height;
+    pivot.z = sweep > 0.f && turnRate > 0.f ? za::min(pivot.z + sweep / turnRate, floor + 0.5f * height) : floor;
     r.feet = r.pinned;
-    r.pinUntil = qcvm->time + static_cast<double>(za::max(hold, 0.f));
-    r.pinned = hold > 0.f ? r.pinned : 0u;
+    const float hold = sweep > 0.f && turnRate > 0.f ? za::min(toppleHold, 0.5f * 3.14159265f / turnRate) : toppleHold;
+    r.pinUntil = qcvm->time + static_cast<double>(hold);
+    r.pinVel = -glm::vec2{dir.x, dir.y} * sweep;
     const glm::vec3 up{0.f, 0.f, 1.f};
-    const glm::vec3 over = glm::cross(up, dir) * topple; // (the top goes along dir)
+    const glm::vec3 over = glm::cross(up, dir) * turnRate; // (the top goes along dir)
     const glm::vec3 turn = up * spin;
     for(int b = 0; b < r.count; b++)
     {
@@ -12683,9 +12696,11 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
     }
     if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
     {
-        Con_Printf("ragdoll: %d thrown over its feet: %.0f deg/s towards %.2f %.2f, spin %.0f deg/s, %d feet held %.2f s, "
-                   "%.0f units tall, its launch %.0f u/s shared by height\n",
-            NUM_FOR_EDICT(ent), glm::degrees(topple), dir.x, dir.y, glm::degrees(spin), feet, hold, height * world->m2u,
+        Con_Printf("ragdoll: %d thrown over its feet: %.0f deg/s (topple %.0f, its feet swept back at %.0f u/s, the pivot "
+                   "%.1f units up) towards %.2f %.2f, spin %.0f deg/s, %d feet held %.2f s, %.0f units tall, its launch "
+                   "%.0f u/s shared by height\n",
+            NUM_FOR_EDICT(ent), glm::degrees(turnRate), glm::degrees(topple), sweep * world->m2u,
+            (pivot.z - floor) * world->m2u, dir.x, dir.y, glm::degrees(spin), feet, hold, height * world->m2u,
             glm::length(shared) * world->m2u);
     }
     return true;

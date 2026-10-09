@@ -41,6 +41,7 @@ has been tuned in the headset, so most per-class and A/B knobs have never been m
 |---|---|---|
 | `vr_throw_lookahead` (archived, 0.01) | "unused since 2026-10-06" in vr_cvars.inc; no read anywhere | vr_cvars.inc, vr_throw.cpp comment, THROWING.md, TESTING.md, MENU_INVENTORY.md (ROUND21.md's history left as written) |
 | `vr_throw_slowmo_flick_spin` (archived, 40) | 2026-10-08: replaced by `vr_throw_slowmo_flick_arm` (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo") | vr_cvars.inc, vr_throw.cpp, vr_menu.cpp |
+| `vr_foegrab_throw_topple_hold` (archived, 0.3) | 2026-10-09: replaced by `vr_foegrab_throw_feet_speed` (ROUND21.md, "The judo throw sweeps the feet"); 0 there holds them 0.5 s | vr_cvars.inc, vr_foegrab.cpp, vr_box3d.cpp, vr_menu.cpp |
 | QC handle `cvarh_vr_throw_hit_min_speed` | made (`VR_CVAR_HMAKE`) and never read: the C++ side reads the cvar (vr_weight.cpp) | QC/vr_cvars.qc (the cvar stays) |
 
 Old configs stay quiet: `vr_cvars.cpp retiredCvars[]` lists removed names and cmd.c's unknown-command branch asks
