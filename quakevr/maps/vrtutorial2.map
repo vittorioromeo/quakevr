@@ -25746,7 +25746,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "3264 -348 -24"
-"worldtext" "GRENADES\nWith rockets in your pack, reach behind you:\nthe pouch on your lower back gives a grenade.\nTrigger pulls the pin; throw it. Or drop it\nwhere they will come: a trap. No launcher needed."
+"worldtext" "GRENADES\nWith rockets in your pack, reach behind you:\nthe pouch on your lower back gives a grenade.\nTrigger pulls the pin; throw it.\nOr drop one, pin in, where they will come:\na trap you can shoot to set off. No launcher needed."
 "worldtext_halign" "1"
 "worldtext_scale" "0.26"
 "angle" "90"
