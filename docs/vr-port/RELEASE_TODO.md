@@ -4,13 +4,13 @@ Short list. The full procedure is in [RELEASING.md](RELEASING.md).
 
 ## Decide
 
-- [x] **Version:** `VERSION` says `1.0.0` (decided 2026-10-08: the first release is 1.0.0).
+- [x] **Version:** `VERSION` says `1.0.0` (decided 2026-10-08: the first release is 1.0.0). The menus' corner label reads "v1.0" (the `v` prefix is his commit; RELEASING.md, "The corner label").
 - [ ] **Release branch:** make `vr-ironwail` the main branch now or later. The script follows whatever branch you're on.
 - [x] **Second feed:** dropped (Vittorio, 2026-10-08): the installer reads only GitHub's `latest.json`.
 - [ ] **HD texture pack:** offered by default from the hosted `assets-2026-10-08` release (no upload); `-NoTextures` to leave it out.
 - [ ] **Debug symbols:** `ironwail.pdb` is inside the game zip. Keep it there, or move it to a separate symbols zip.
-- [ ] **Discord icon:** the installer's icon is hand-drawn. Keep it, or swap in Discord's official asset.
-- [ ] **Dawn of the Machine (MG3):** still shows "detected, not yet supported". Ship as is, or wait for its last steps (performance pass, route sweep, readiness flip).
+- [x] **Discord icon:** keep the hand-drawn one (decided 2026-10-09).
+- [x] **Dawn of the Machine (MG3):** unlocked and ready, single player only like Dopa and MG1 (commit 405e4213; revert it to undo).
 
 ## Prepare once
 
