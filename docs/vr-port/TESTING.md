@@ -60,58 +60,18 @@ Useful settings:
 |---|---|---|
 | `vr_snap_turn` | 0 | degrees per snap; 0 = smooth turning at `vr_turn_speed` |
 | `vr_controller_legacy_pose` | 1 | the hands follow the controller pose the old engine used (SteamVR's raw pose, rebuilt from OpenXR's grip pose for Touch/Quest and Index controllers), so the old tuned offsets line up; 0 uses the grip pose as is |
-| `vr_gunangle`, `vr_offhandpitch` | 39.5, 40.25 | weapon pitch relative to the controller (the shipped values, tuned for that raw pose): Advanced VR > Weapons > Hand/Gun Calibration (both hands at once: VR Settings > Hand Pitch) |
-| `vr_world_scale` | 1.25 | |
-| `vr_height_calibration`, `vr_floor_offset` | 1.646, -21 | |
+| `vr_gunangle`, `vr_offhandpitch` | 70, 40.25 | weapon pitch relative to the controller (70: `vr_defaults.cfg`'s shipped value): Advanced VR > Weapons > Hand/Gun Calibration (both hands at once: VR Settings > Hand Pitch) |
+| `vr_world_scale` | 1.2 | |
+| `vr_height_calibration`, `vr_floor_offset` | 1.646, -22 | |
 | `vr_mirror` | 1 | desktop window: 0 off, 1 on (`vr_window_view`: 0 left eye, 1 left smoothed, 2 spectator, 3 both eyes, 4 right eye, 5 right smoothed) |
 | `vr_deadzone` | 10 | stick deadzone, percent |
 | `vr_weapon_grip_mode` | 0 | 1 = weapons stay in the hand without holding the grip (issue #31) |
 
-## Throwing: what changed
+## Throwing
 
-Reworked after the research in `docs/vr-port/THROWING.md`: how the throw is measured, how strong it comes out,
-where the weapon starts, and how it flies. Most values are starting points: please tell me how they feel.
-
-**Measuring the throw** (as Half-Life: Alyx):
-- **Release point:** the release velocity is the controller's own velocity (from the runtime) where it was
-  fastest, in the window before the moment you let go (`vr_throw_window` 0.12 s), smoothed over
-  `vr_throw_peak_span` (17 ms) either side; the samples taken as a signal in time, so the same at any frame rate
-  (ROUND21.md, "Throws at any frame rate"; `vr_throw_lookahead` is removed).
-- **Frozen at release:** it is taken once, when you let go, on the headset's clock, so the network rate can no
-  longer slide the window past the peak.
-- **Wrist flicks:** a clear flick (spin above `vr_throw_ang_threshold`, 6 rad/s) adds 70% of the spin's
-  velocity at the weapon's centre.
-
-**Letting go** (`vr_throw_release 1`): the runtime's grip button lets go late. During a throw (hand faster than
-`vr_throw_release_speed`, 1.5 m/s) the weapon now leaves the hand as soon as the grip eases 30% below its
-firmest (`vr_throw_release_drop`), and it always does below 35% (`vr_throw_release_floor`). Grabbing needs 70%
-(`vr_throw_grab_press`). **Tell me if weapons ever drop while you swing them without meaning to throw.**
-
-**Strength:**
-- **Gain:** slow movements (drops, passing a weapon between hands) are 1:1. Real throws get up to 1.5×
-  (`vr_throw_gain_max`), rising smoothly from 1.5 to 6 m/s.
-- **Weight:** heavy weapons are only slightly slower now (`vr_throw_weight_influence` 0.25; before, they were
-  thrown at 40–60% of the hand's speed).
-- **Two-handed:** two-handed throws are no longer 40% stronger (`vr_2h_throw_velocity_mult` 1).
-- **Tuning:** if throws are still short, raise `vr_throw_gain_max` or lower `vr_throw_gravity`.
-
-**Start position:** the weapon starts where it would be had it left the hand at the release point, not where the
-hand followed through to.
-
-**Flight** (the engine: Box3D, `vr_box3d.cpp`, since round 21 the only rigid-body physics):
-- **Spin:** the hand's real spin, capped at `vr_throw_spin_max` (20 rad/s). It used to be applied as rates on
-  each angle, which tumbled wildly.
-- **Gravity:** the same true-scale gravity for the whole flight. It used to jump to Quake's 2.5 g after the first
-  touch.
-- **Bounces:** with `vr_throw_restitution` (0.25) and friction (`vr_throw_friction` 0.5).
-- **Resting:** the weapon comes to rest on a side (its drawn shape) and stays still. No more wiggling.
-- **Hit box:** a 6-unit hit box (`vr_throw_hitbox`) against monsters, so throws that look like hits are hits.
-
-**Aim assist** (`vr_throw_assist 1`, off by default): bends a throw by up to 80% onto the best monster or
-breakable within 12° of it, on the arc that reaches it. With `developer 1` it marks the target it picked.
-
-**Debugging:** `vr_debug_throw 1` prints every throw's estimate; `2` also prints how long after the peak the release
-came. `developer 1` prints the spawned velocity, gravity, spin and age.
+How throws are measured, how strong they come out and how they fly: `docs/vr-port/THROWING.md` (its
+section 3.4 lists the settings). `vr_debug_throw 1` prints every throw's estimate; `2` also prints how long
+after the peak the release came. `developer 1` prints the spawned velocity, gravity, spin and age.
 
 ## GitHub issues
 
@@ -150,7 +110,7 @@ The round logs before round 21 (`ROUND6.md` to `ROUND20.md`) were removed on 202
 prints it.
 
 - **New in this round** (details in `docs/vr-port/ROUND21.md`; each section ends with an "In the headset" list):
-  - **Swing Through Enemies** (ROUND21.md, "Melee phasing"; off by default): Combat > Melee > Swing Through Enemies.
+  - **Swing Through Enemies** (ROUND21.md, "Melee phasing"; on by default): Combat > Melee > Swing Through Enemies.
     While your hand swings fast, the fist and what it holds pass through enemies instead of being drawn stopped at their
     bodies (the blow was always tested where your real hand goes: this shows it there). **Tell me if melee feels better
     or worse with it on**, and try Swing Through Speed and Follow-Through.
@@ -266,12 +226,6 @@ prints it.
     your hands follow your controllers as fast as the slowed world allows. Try moving at a quarter speed while
     recording, then speed the footage up 4x: does it look and sound natural? Try a real-speed swing in slow motion
     (Hand Speed Limit), Slow Sounds off, Ease In and Out.
-  - **Bullet time and Sandevistan** (ROUND21.md, "Slow motion: bullet time and Sandevistan"): tap your wrist gadget's
-    screen hard and straight with your other hand (or the butt of the gun it holds): the world slows for as long as the
-    TIME meter on the gadget's screen lasts (6 s), the view drained and darkened at its edges; tap again to stop. Melee
-    swings across the gadget, soft touches and resting hands must never start it (Combat > Bullet Time > Screen Tap:
-    Tap Force, Tap Straightness). Try **Sandevistan: You at Full Speed** (you move, turn, swing, shoot at full speed in
-    the slowed world). Is the look too strong? Graphics > Recording: **Turn in Real Time**, **Move in Real Time**.
   - **Gear lights: the gadget's side button** (ROUND21.md, "The gadget's side button: gear lights"): press the inner
     button on the gadget's lower edge with your other hand's fingertip: a click, and the gadget's and your guns'
     screens dim (their cast light and glow nearly gone, the text dimmer); press again to bring them back. Easy to find
@@ -468,289 +422,7 @@ prints it.
     keeps it: that's how to pass it between hands. Only a one-handed carry goes into the pack at a holster.
     Carrying and Gibs: Two-Handed Carrying, Two-Handed Hand Drift.
 
-- **Previous round** (details in `docs/vr-port/ROUND20.md`, your seventh batch of notes; `ROUND19.md`, the
-  performance review):
-  - **Your settings are the defaults** (graphics too), and your weapon placements (applied once to slots 1, 2, 5,
-    6, 7, 9, 10, 17 and the alternates 13 to 15: check they are where you left them).
-  - **Menus:** the right stick only scrolls; no Quake plaque on the tall panel; Force Grab Saturation. (Round 20's
-    Weapon Only X/Y/Z and per-weapon finger openness were replaced in round 21 by fitted hands: `ROUND21.md`.)
-  - **Hologram messages:** "You need the gold keycard" and the like over the wrist gadget (e4m1's keys, secrets).
-  - **Armour:** grip a pickup, let go over your torso to wear it; a worse one drops with a knock and a double buzz.
-  - **Flashlight on a gun:** take it from the chest to the gun in the other hand, press B or Y; off on `map`, still on
-    across level changes.
-  - **Melee:** diagonal two-handed cuts, slow cuts and stabs should now be blade hits, not bashes or shoves; a shove
-    needs open palms pushed hard; a bash or shove with a gun bats projectiles back (firing range grunts, ogres).
-  - **Physics:** a fist moved onto a gib no longer grabs it; a backpack in a corner or at water's edge rests; a held
-    health box sits against the hand.
-  - **Firing range:** 13 more monster buttons on the other side of the range.
-  - **Guns:** the nailgun's grip; no see-through faces (super nailgun, lava ones, launchers, rocket launcher); lava
-    nailguns glow; the normal/lava morph; ammo screens only on the gun in hand; the flash stays big in two hands;
-    lightning gun sights in your hue; holstered guns never invisible.
-  - **Water:** bigger ripples in the waves (Graphics - Liquids sliders), recorded splash sounds.
-  - **Lava** lights the walls once you rerun the relight; barrels explode with a light.
-  - **Body:** hip holsters follow the thighs; kicking legs when wading and swimming.
-  - **Graphics, Headset page:** *Upscaling* FSR or NIS (try Render Scale 0.8 with FSR), *Foveated Rendering*
-    (Balanced: look for shimmer at the edges of the view). *Ambient Occlusion* (Graphics - Shadows): dark contact
-    under monsters and round lifts.
-  - **Performance** (round 19): the world pass 40–62% cheaper indoors, the CPU frame ~25% lower; the memory log has
-    GPU columns (clocks, use, the encoder, each program's share) for the slowdown.
-
-- **Previous round** (details in `docs/vr-port/ROUND17.md` and `ROUND18.md`):
-  - **Graphics** (Graphics page, each with a switch): real light directions, detail textures up close, directional
-    ambient and a rim light on models, sheen anti-aliasing, fence coverage, tone mapping and dither and colour grades,
-    soft particles, shoreline foam and heat haze, reflections on your weapons, flickering torch lights.
-  - **Gore** (Advanced > Gore): sprays on walls, gibs stuck to ceilings dripping, pools under corpses, your wounds
-    marking the floor.
-  - **Water:** big modern splashes and ripples that move the water.
-  - **Weapons:** a sword blade grip (off hand near the tip), bash from a level weapon, new bash/parry/shove sounds;
-    the carried gun's button; shotgun port, pump grooves and flames; dark super shotgun; the alternate models match.
-  - **Colours:** Wrist Gadget > Colours > Player Effects Hue drives every effect of yours (force grab too).
-  - **Performance:** your last log shows the slowdown in SteamVR's submit, not the game: try the VDXR runtime.
-
-- **Previous round** (details in `docs/vr-port/ROUND16.md`, your sixth batch of notes):
-  - **Hand-off:** let go of a two-handed sword and the other hand keeps it; let go of a gun's grip and it hangs from
-    the foregrip hand (grip its handle again to take it back). VR Settings > Weapons > Two-Handed Hand-Off.
-  - **Parry:** any weapon held level across in front of you (Gameplay > Parry and Bash: Parry Angle, Parry Reach).
-  - **Weapon models:** every gun has a real grip now: a proper sawn-off; pistol grips on the shotgun, rocket,
-    grenade, proximity and multi-grenade launchers and the lightning gun; a spade grip on the laser cannon; trigger
-    guards; the super nailgun's grooves. Their hand placements reset once.
-  - **Lights:** lava nails glow and light the room; the lightning beam lights its whole length.
-  - **Iron sight hue** (Wrist Gadget > Colours, or Graphics); flick-reload shells fall in front; bigger waves.
-  - **Corpses** tougher (big monsters more); the laser cannon stops when empty.
-  - **Memory Log** now also times our CPU and GPU work and the runtime's waits: note the time when it feels slower.
-
-- **Previous round** (details in `docs/vr-port/ROUND15.md`, your fifth batch of notes):
-  - **Swords:** hits along the whole blade (the dummy names the point), two-handed grip below the main hand, both
-    swords in vrfiringrange.
-  - **Batting projectiles:** a brisk, slightly early swing; Gameplay > Feel has Batting Reach, Swing Speed, Timing.
-  - **Corpses** gib from shots, nails and blows. **Shell casings** from the shotgun and the double shotgun's reload.
-  - **Water:** splashes and sounds (shots, throws, jumps, hands, wading, strokes); real waves on liquids.
-  - **Holsters** on the front of the body; a longer holster buzz; a buzz when catching a force-grabbed thing.
-  - **Lights:** fixtures light their rooms (relit maps); map boards are CRT screens; no lines on bumpy walls up close.
-  - **Memory Log** (Graphics > Performance): `quakevr/profile/memstats_<date>.csv`, for the slowdown.
-  - **Your tuned settings** ship as defaults (`quakevr/vr_defaults.cfg`); `vr_savedefaults` rewrites it.
-
-- **Previous round** (details in `docs/vr-port/ROUND14.md`, your fourth batch of notes):
-  - **Melee from scratch:** strong swings and straight punches rewarded (the dummy shows speed, acceleration and
-    strength); a bash needs a still, level guard first; waving does nothing.
-  - **Render Scale fixed** (SteamVR's OpenGL path ignores swapchain resizes: the eyes are now rendered at the
-    scale and resampled into fixed-size images).
-  - **Menus:** Back to game (top-left, or the menu button; B/Y go back a page), reopen where you left, right stick scrolls;
-    live preview keeps the game running on settings pages.
-  - **Water:** the HUD, menu and wrist log no longer wobble underwater; no halos round things over water.
-  - **Swimming:** strokes judged whole, an intent threshold and stroke memory; a new Swimming page of knobs;
-    `vr_swim_debug 1` shows each stroke.
-  - **Models:** bumps under their own light; model parallax off by default. **Screens:** glowing text.
-
-- **Previous round** (`docs/vr-port/ROUND13.md`, your third batch of notes):
-  - **VR Settings > Headset:** OpenXR Runtime (try Virtual Desktop's VDXR), Render Scale, Hide Lens Corners.
-  - **Menus:** bigger, spaced, modern widgets; point with the laser, trigger to click and drag.
-  - **Flashlight:** a real spotlight: lights models, casts shadows, no flicker.
-  - **Liquids:** waves, glints, refraction, caustics; fog, tint and a gentle wobble under water.
-  - **Parallax:** items and models with their own depths; no black boxes.
-  - **Ammo screens:** light only in front; CRT look.
-  - **Melee:** no whips or backward pulls; hit a gib held in the other hand; shove monsters off ledges.
-  - **Swimming:** the reverse stroke swims backwards; floating objects settle.
-  - **Ledge grab (experimental):** Locomotion > Ledge Grab.
-  - **Tutorial map** relit.
-
-- **Previous round** (`docs/vr-port/ROUND12.md`, your second batch of notes):
-  - **Melee:** real blows only (no flicks or wiggles), punches/slaps/overheads balanced, one-hand palm shove.
-  - **Parallax:** walls with depth (Graphics: Parallax, Depth, Distance).
-  - **External maps** (on by default, Quetoo's shipped in `quakevr/textures_quetoo`; ROUND21.md, "External material
-    maps", "Quetoo's maps shipped"): `-Base qrp` for the most matches (id's textures match fewer);
-    `vr_extmaps_stats [all]` prints what each texture got; `vr_extmaps_ab 1` (Debug > Views) shows the made maps at
-    once. A/B eyeshots: `vr_mock_look 20 90; vr_light_test 350 60 72; wait40` (the light's shadow takes frames to
-    settle: shoot after it), then `vr_extmaps_ab 1; vr_eyeshot 1; vr_extmaps_ab 0; vr_eyeshot 1`.
-  - **Flashlight:** held right, shadows on, a soft beam of light.
-  - **Effects:** Quake VR particles for lava balls, rockets, grenades and projectiles; dented bullet holes;
-    gibs burst in a mist of blood when shot or thrown hard.
-  - **Gadget:** a CRT screen in one colour, a directed light, a soft glow; ammo screens tighter and glowing.
-  - **Firing range** relit; the shotgun's sights like the double shotgun's.
-  - **Graphics > Performance Profile** to record a profile.
-
-- **Previous round** (`docs/vr-port/ROUND11.md`, from your voice notes):
-  - **Carrying:** held things stay in the hand when you move or turn; backpacks go to a holster; the force grab
-    beam hits the middle of things; gibs stay on the floor.
-  - **Chest flashlight:** trigger near your chest toggles it, grip takes it, let go and it springs back.
-  - **Lights:** monster projectiles, ammo screens and the wrist gadget give light; the shotgun's sights glow;
-    bumps show in the map's own light; glowing buttons tint their rooms.
-  - **Melee and swimming:** a shove is one shove; swim where you look, recovery strokes don't pull you back.
-  - **Body:** slower legs that step round when you turn; new sword hilts.
-  - **Wrist log:** messages above the gadget; damage numbers readable against the sky.
-  - **Profiling:** `vr_profile 1` (see Profiling below).
-
-- **Previous round** (`docs/vr-port/ROUND10.md`):
-  - **The DarkPlaces look:** darker shade, flat model lighting, strong coloured flashes and explosions, a sheen
-    and bumps under dynamic lights, smooth QRP textures, bloom stronger on coloured lights and weaker on white
-    (and on brightly lit maps). Every part has a switch on the Graphics page.
-  - **See-through water** in the relit maps.
-  - **Legs** (Body: Full body): they step at a natural rate now, not spinning at full speed (Advanced > Body >
-    Step Rate, 2.2 steps a second running); turning on the spot (stick or for real), the feet stay planted until
-    you have turned about 40 degrees (Turn Before Stepping), then take a step or two round. The legs and boots
-    are a little sturdier.
-  - **Leaning:** walk or lean up to a wall or railing: your head gets close and over it before the body follows
-    (Locomotion: Lean, Lean Recentre).
-  - **Training dummy** in vrfiringrange: every hit's damage, kind and body part in the console and as a floating
-    number.
-  - **Held boxes** keep up when you move; **knockback** has a base and a setting per source; **thrown boxes and
-    gibs** hurt less (and only when fast); gibs by hand only; **heads** can be picked up; gibs bleed and splat;
-    wounded arms drip; a meatier **headshot** sound.
-
-- **Previous round** (`docs/vr-port/ROUND9.md`):
-  - **Boxes:** a held box turns with your hand about where you hold it; it is grabbed only when your hand is
-    on it; bounces turn the right way; it comes to rest flat on the floor.
-  - **Swords:** the grip is centred on the blade, thicker and square in section.
-  - **Bloom** is subtler by default, with fine slider steps; **headbutts** are easier to land.
-  - **Shotgun held by the middle:** not reproduced; please describe when it happens.
-
-- **Previous round** (`docs/vr-port/ROUND8.md`):
-  - **Unarmed parry:** cross your arms in an X in front of you as a blow lands.
-  - **Bash:** in a guard (a weapon held across in front, or both hands together, crossed or not), drive forward
-    hard: little damage, the monster is thrown back and staggers. Also a two-handed shove with empty hands.
-  - **Force grab:** what you point at glows softly; a faint beam when aiming, a crackling energy tendril when
-    locked on and while it flies to you, with a sparkle trail. (Force Grab: Outline, Effects.)
-  - **Decals:** blood pools and spatter, gib blood trails, scorch marks, bullet chips (Graphics: Decals).
-  - **Gibs and heads:** pick them up, throw them (they hurt), force-grab them.
-  - **Pickup sparkles** are faint and slow.
-
-- **Previous round** (`docs/vr-port/ROUND7.md`):
-  - **The look:** darker rooms lit by their lamps; your shots light the room up (coloured by the weapon);
-    lamps, buttons and panels glow (bloom), and glowing textures light the walls round them (your relit maps
-    were re-made). Graphics: Light Contrast, Bloom, Muzzle Flash Light, Explosion Light, Coloured Lights;
-    "Off (Quake)" restores Quake's look.
-  - **Gameplay page** (Advanced VR Options > Gameplay): damage multipliers (to enemies, to you, self),
-    headshot/arm/leg multipliers, the headshot sound (now a clear crack), push-back, feel options, headbutt,
-    knights' swords.
-  - **Push-back:** your melee blows and headbutts push monsters (bodies too), their blows push you, parries
-    push both apart; heavy shots shove monsters and killing blows throw the bodies.
-  - **Headbutt:** lunge your head at a monster (towards where you look).
-  - **Bat back projectiles:** swing a weapon or fist through a spike, laser, spit or grenade. Please try.
-  - **Haptics:** hits felt on the side they come from, explosions rumble, a heartbeat at low health.
-  - **Knights' swords:** a grip and pommel, the knight's own look, held like the axe.
-  - **Boxes:** grabbed only when your hand touches them; put in your pack by letting go at a holster (hip or
-    shoulder); the trigger is an option (Throwing and Physics > Take a Box). Their shadows are their size.
-  - **Swimming:** the stick is 20% under water; strokes push more where the stick points.
-  - **Blob shadows** are named so, and Auto (off where real shadows fall) by default.
-
-- **Previous round** (`docs/vr-port/ROUND6.md`):
-  - **Carrying boxes:** grip an ammo or health box to hold it, pull the trigger to take it, let go to throw it
-    (thrown hard it hurts). A hand or gun touching a box without gripping nudges it. While a hand holds a box it
-    cannot take a weapon; punching with a box in hand hits harder. Advanced > Throwing and Physics.
-  - **Knights drop their swords** (knights and hell knights, gibbed or not): pick one up for a melee weapon with
-    more reach and damage than the axe; dead knights no longer hold theirs. Advanced > Melee.
-  - **Parrying:** hold a weapon sideways in front of you to block a monster's melee blow: less damage, a clang,
-    sparks, your arm is knocked; one-handed, it may be knocked out of your hand. Advanced > Melee.
-  - **Swimming:** wading is a little slower; under water or off the bottom the stick barely moves you, and
-    swimming strokes (palm first) do. Advanced > Locomotion.
-  - **Pauldrons** on your shoulders and the **ranger's clothes** on the body (olive vest, belt, camouflage
-    trousers with thigh plates, tall boots). Pauldron style, size, position and how much they follow the arm:
-    Advanced > Body.
-  - **Headshots** measured properly whatever way the monster faces, with a quiet tick
-    (Advanced > Gameplay, Headshot Sound). The tick never played before (its sound was not loaded).
-  - **Ammo screen** behind each weapon's ammo counter (Advanced > HUD).
-  - **Weapons, keys, armour and powerups** float at torso height.
-  - **Swing sounds** are back, except when the hand moves down (reaching for a holster).
-  - **Shoulder position** (Body: Shoulders Back/Up/Width); the **body is hidden while dead**; the **green armour**
-    on the body matches the pickup's colour; **ammo and health boxes** have shadows; floating items **splash**
-    only when they hit the water fast; a force-grabbed box missed near a wall no longer falls out of the level.
-
-- **Previous round:**
-  - **Real-time shadows and dynamic lights** (`docs/vr-port/LIGHTING.md`; Advanced > Graphical Settings > Lights
-    and Shadows, with a Preset from Off to Ultra; defaults are Medium):
-    - explosions and rockets cast shadows (and stop lighting through walls);
-    - the map lights near you cast the shadows of monsters and of you (body and hands) onto the floor and walls;
-    - dynamic lights light models per pixel, by angle, shadowed.
-    - `vr_light_test` puts a light in front of you; `vr_shadow_stats 1` prints the cost each second. Please tell me
-      the frame timing on your headset at Medium and Ultra, and any shadow speckles or light leaks you see.
-  - **Graphics** (`docs/vr-port/GRAPHICS.md`, "Done"; Advanced > Graphical Settings):
-    - **Re-lit maps:** softer shadows, ambient occlusion in corners, some bounced light, coloured light. Made on
-      your machine by `Misc/quakevr/relight_maps.py` (already run for you); Relit Maps off compares.
-    - **Model lighting:** monsters, items, weapons, hands and body are shaded from the map's lights.
-    - **Shadows under monsters and items**, away from their light.
-    - **The muzzle flash lights up your gun**, not a point in front of your chest.
-    - **Anti-aliasing** setting (4x for new configs; yours is off, `vid_fsaa 4` to try).
-  - **Crouching** keeps the hips under you and tilts the back forward (Advanced > Body: Crouch Tilt), instead of
-    pulling the torso back.
-  - **Bloody hands:** the hands and fingers get bloodier with the arms.
-  - **Quad damage arcs** reshape every frame, with more of them and now and then a longer one.
-  - **Grappling hook rope and lightning beam** start at the gun as drawn, every frame (they trailed behind it at
-    the server's rate); the rope no longer twists randomly.
-  - **Reloading:** a gun's swing makes no whoosh unless it hits something (the whoosh was what you heard when
-    reaching down to reload), and a downward swing now ignores walls and floors from a shallower angle.
-  - **Other mods in VR:** `-game quakevr -game <mod>` runs another mod's progs in VR (compatibility mode): you
-    aim with your hand, its weapons fire from your gun, you move by your head, walk the room and teleport. No
-    off-hand weapons, holsters or hand pickups there yet. See `docs/vr-port/MODS.md`; please try a mod you like.
-  - **Particles:** your old textured particle system is back (smoke, sparks, blood, explosions, force grab and
-    pickup sparkles), for Quake's own impacts and explosions too. Advanced > Particles: Quake VR Particles,
-    Particle Multiplier. `vr_particle_test <0..11>` spawns one in front of you.
-  - **Body state:** your torso shows the armour you wear (green, yellow, red plates) and your arms get bloodier as
-    you are hurt; quad damage sparks around your hands and forearms, the pentagram makes you glow red, the ring
-    fades you. Advanced > Body: Show Armour and Wounds, Show Powerups.
-  - **Wrist gadget options:** Advanced > Wrist Gadget: arm, size, position and rotation, casing tint, screen colour.
-  - **Default Speed: Run/Walk** in VR Settings (the speed button switches to the other). The stick now runs at the
-    old speed (it walked at half of it) and moves as fast in every direction.
-  - **Force grab:** one object at a time per hand (let go of the trigger before pulling another).
-  - **Backpacks** no longer spin (their model's rotate flag).
-  - **Reloading** (reaching down to a hip holster) no longer hits the floor or a wall as a melee swing.
-  - **Old port features back:** VR actions in Options > Key Setup; the status bar shows the ammo count; grenade
-    trails; roomscale jump (`vr_roomscale_jump`); a click in the controller for menu presses; Advanced > Play (hub,
-    tutorial, firing range, bots); desktop keys for the VR actions after "Reset to defaults".
-  - **Settings cleanup:** 15 settings that did nothing, the old floating torso (Body "Torso" is now the body with
-    arms) and the old throw algorithms are gone. Fixed: the bloodlust toggle was inverted, drop chances were
-    applied twice, the hub's Torso/HUD/Shadows buttons.
-
-- **Previous round:**
-  - **Force grab** (rewritten, like Half-Life: Alyx): point an empty, open hand at a weapon, backpack, ammo or
-    health box (or, in single player, a weapon lying in the level). It sparkles. Pull the trigger to lock on,
-    then flick your hand back or up. It flies to your hand in an arc and arrives in about half a second. Close
-    your hand (grip) as it arrives to catch it; too early or too late and it drops at your feet. It flies through
-    walls, so it cannot get stuck. Tuning: Advanced VR > Force Grab. `developer 1` prints
-    each pull, catch and miss.
-  - **Melee:** any swing faster than `vr_melee_speed` (3 m/s) hits once, whatever its direction; damage grows
-    with speed, and punches (knuckles first) do 25% more (`vr_melee_punch_mult`). Tell me if weak swings still
-    hit, or real punches don't.
-  - **Advanced VR Options** (bottom of VR Settings): every settings page, in groups: Game (Play, Combat, Movement,
-    Carrying and Throwing, World, Gore), Body and Weapons (Body, Flashlight, Weapons), Display (HUD and Menus,
-    Graphics), Playtesting (Motion Recorder, Review Takes, Debug); a group of many pages is a page of links. At most
-    three levels below VR Settings (ROUND21.md, "Menus reorganized"). `menu_vr <n>` opens a page directly (through
-    the pages above it, so Back goes up the tree); `menu_vr list` prints the numbers and where each page is.
-  - **Debug menu; quad sound; grenade catch default; no empty-hand deflection** (ROUND21.md, same title):
-    - Advanced VR Options > **Debug** has Voice Notes and six pages: Views (Show Ledges, physics shapes, hand bones, grab
-      test, skeleton, collisions, foveation, entity boxes), Logging (Developer Messages first: some logs need it),
-      Profiling and Memory, Reports (buttons printing `vr_status`, the weights, the ledges ahead... to the console and
-      the wrist log), Tools (rebuild the ledge map, reload models; debug images; test effects) and Tests (a monster or
-      box ahead, a projectile at you, an ogre's throw; god mode, Quad, all weapons). Every debug setting of the console
-      is there but the automated tests' (`vr_mock_*`, `vr_fixed_frames`, `vr_window_log`...).
-    - Quad Damage's sound plays when you hurt something (a blow landing, a bash) or fire a gun, not when you squeeze
-      the trigger holding a sword, a fist or a prop.
-    - Catch Grenades is "Ogres' and yours" by default (your config's "Ogres'" moves to it once). Two copies of the game
-      open at once (one from TrenchBroom) no longer undo each other's settings when they quit.
-    - Only a weapon in your hand bats projectiles back (a gun, a melee weapon, or a club: a wall torch, a brick, a
-      rock): swing or bash. Empty hands never do; a grenade meeting an empty hand is caught (grip closed or closing) or
-      flies on.
-  - **Posture:** VR Settings > Torso Offset and Legs Offset move the torso and the feet back (or forward)
-    separately.
-  - **Wrist gadget:** now over the back of the forearm, and it reads like a watch: raise your forearm across your
-    chest, and the text runs towards your fingers.
-  - **Ammo and health boxes** are small (`vr_forcegrabbable_box_scale` 0.25), their touch box is the box you see,
-    and they can be force-grabbed.
-  - **Backpacks** now come to rest instead of spinning on the ground. `impulse 243` (single player) drops a
-    backpack of your ammo in front of you to try it.
-  - **Hands:** the wrist end of the hand model is tapered, so it stays inside the bracer.
-
-- **Previous round:**
-  - **Wrist gadget:** the HUD is now a device strapped over the back of your off-hand forearm. Raise your forearm
-    across your chest, like reading a watch. VR Settings > HUD switches back to the status bar.
-  - **Body:** VR Settings > Build picks the body: Lean, Athletic or Brawny. Full body (VR Settings > Body) walks
-    as you move (`vr_body_walk`).
-  - **Pickups:** weapons, armour, powerups and keys are smaller and lie on the floor (`vr_pickup_scale` 0.6 in
-    `quakevr.cfg`), so you crouch to take them.
-  - **Physics:** thrown weapons and backpacks are real rigid bodies. `vr_physics_list` prints their state.
-  - **Near clipping:** things close to your face are no longer cut away (`vr_nearclip` 0.1 units, 3 mm, with the eyes'
-    float depth `vr_depth_float`; held weapons and hands never cut, and their inside drawn with an eye in them:
-    `vr_nearclip_held`; ROUND21.md, "Near clip: a gun at the eye").
-
+- **Earlier rounds:** their "what to try" lists went with the round logs (`ROUND6.md` to `ROUND20.md`, git history: above).
 - **Body** (new): the old floating torso is replaced by a body whose arms reach your hands and which crouches and
   leans with your head (Options > VR Settings > Body: Off / Torso / Torso and arms / Full body). To see the whole
   pose, `vr_body_debug 2` (facing you) or `3` (from the side) shows a copy in front of you. Things to tell me:

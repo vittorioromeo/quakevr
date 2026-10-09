@@ -129,11 +129,10 @@ Load adds to these [code]:
 
 ## Settings and menus
 
-- **Counts** [code]: vr_cvars.inc has 1062 cvars. 250 are read by QC (`cvar()`/`cvar_hget`), 134 by server C++,
+- **Counts** [code, 2026-09-30; about 2,670 now]: vr_cvars.inc had 1062 cvars. 250 are read by QC (`cvar()`/`cvar_hget`), 134 by server C++,
   368 in total server-side. About 694 are client-only.
 - **Per-player preferences the server reads: the host's value applies to everyone** [code]:
   - Server C++:
-    - `vr_lefthanded` (vr_climb.cpp:961, vr_physics.cpp:1389)
     - body calibration and `vr_height_calibration` (climb)
     - `vr_world_scale` (`units::metresToUnits` everywhere)
     - `vr_climb_leniency`, `vr_swim_look`, `vr_swim_stroke_assist`
@@ -141,7 +140,6 @@ Load adds to these [code]:
     - `vr_carry_grab_drawn` and `vr_box3d_hand_push_fist` (edict 1 only)
     - `vr_gunmodelscale`, `vr_gunmodely`, `vr_leg_holster_model_*`
   - QC:
-    - `vr_lefthanded` (combat.qc:1349, vr_carry.qc:227, vr_grenade.qc:338, vr_melee.qc:2091)
     - `vr_gunangle`, `vr_gunyaw`, `vr_offhandpitch/yaw`, `vr_handcal_off_mirror`
     - modes: `vr_reload_mode`, `vr_holster_mode`, `vr_weapon_grip_mode`, `vr_weapon_cycle_mode`,
       `vr_weapon_throw_mode`, `vr_2h_handoff`, `vr_forcegrab_mode`, `vr_grapple_trigger_release`, `vr_carry_take`
@@ -255,7 +253,7 @@ The server reads the local client's state:
 | vr_box3d.cpp:1929 | `i == 1 && cls.state == ca_connected`: `view::drawnWeapon` |
 | vr_box3d.cpp:1218-1219 | `cl.protocolflags` and the client's weapon cvars in the hull scale |
 | vr_builtins.cpp:751 | `weaponhotspot*`: `cls.state == ca_connected && NUM_FOR_EDICT(player) == 1` → `view::weaponHotspot` |
-| vr_climb.cpp:945-962 | `bodycal::`, `units::bodyScale`, `vr_lefthanded` (host body) |
+| vr_climb.cpp:945-962 | `bodycal::`, `units::bodyScale` (host body) |
 | vr_hitmodel.cpp:373, 377 | the host's `r_lerpmodels`, `r_lerpmove` |
 | vr_motion.cpp:1501-1557 | recorder: `svs.clients[0]` plus `hands::current()` (dev tool) |
 | QC (see Settings) | host personal cvars |

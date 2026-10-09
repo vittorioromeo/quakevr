@@ -3,7 +3,7 @@
 Status: plan (2026-10-06); phase A (M3-01..04) built the same day (EXPANSIONS.md); phase B (M3-05..10) on 2026-10-07 (ROUND21.md). Vittorio's decisions
 (the last section) override section 4's defaults and the tasks that assumed them (M3-11, M3-12). Target: **full native Quake VR gameplay** (VR hands, weapons, melee, holsters, magazines,
 transition/save state), not compatibility mode. Campaign id **5** (`vr_campaign`/`vr_campaign_schema`), `nativeReady`
-false at `Quake/vr/vr_gamedir.cpp:375` until the acceptance in section 5 passes.
+in `Quake/vr/vr_gamedir.cpp`'s campaign table (true since the acceptance in section 5).
 
 Sources (read-only): official `quakec_mg3` (65 `.qc`, snapshot `634eefa`, SHA256 in EXPANSIONS.md) and the owned
 Steam `rerelease/mg3/pak0.pak` (entity lumps scanned read-only; no asset copied). Licence/header rules:

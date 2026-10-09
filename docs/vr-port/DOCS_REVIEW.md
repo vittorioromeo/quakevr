@@ -118,7 +118,7 @@ Status: **current** (checked, nothing wrong), **fixed** (outdated, corrected in 
 
 ## Needs the author
 
-1. **Menu Detail on first start:** `vr_defaults.cfg:41` ships `vr_menu_level "2"` (Developer). The cvar defaults to 0
+1. **Menu Detail on first start** (resolved: `vr_defaults.cfg` ships `vr_menu_level "0"`): `vr_defaults.cfg:41` shipped `vr_menu_level "2"` (Developer). The cvar defaults to 0
    and every player doc says Standard. If it was saved from your machine by `vr_savedefaults`, it should go back to
    0 (or the line removed) before a release. Not changed here (cvarclean and the defaults are code).
 2. **RELIGHTING.md line 75 vs INSTALL.md:** settled 2026-10-06. The script relights the maps of the folder `--quake`
