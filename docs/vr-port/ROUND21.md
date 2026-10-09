@@ -2813,7 +2813,7 @@ same throw should go the same way and as far. Two-handed throws and throws in bu
 ## Profiling: CPU and GPU, loading and gameplay apart (2026-10-06)
 
 The whole suite with the author's settings (one run each), VTune on the loads alone and on gameplay windows alone,
-the engine's GPU scopes and Nsight Systems: [PROFILING_2026-10.md](PROFILING_2026-10.md) (the tables, the hotspots,
+the engine's GPU scopes and Nsight Systems: PROFILING_2026-10.md (the tables, the hotspots,
 a decision list of twelve larger items). Fixed: the hull build's allocations (warden's warm load -15%, ad_grendel's
 -16 to -20%, the same trees), the particles' retro light levels (0.2 to 0.1 ms a frame), the suite's gameplay windows
 no longer overlapping the load's AO bakes (`vr_ao_finish`). New: `vr_bench_profiler` / `vr_profiler_collect` (VTune
@@ -2832,7 +2832,7 @@ load: 38 M allocations to 4.3 M; warden warm load -39%, ad_grendel -35%; same tr
 (default 1): brushes and trees kept at a map change under the world's content hash, taken back by the next load of
 the same content: warden's `restart` 2134 to 378 ms, ad_grendel's 1283 to 326. `vr_hull_keeptest` checks kept against
 fresh; Debug > Keep Hitboxes for Reloads, Hitbox Keep Test. New bench scenario `load_reloads`. Details, tables and
-the wider `za::Vector` audit (recommendations only): [PROFILING_2026-10.md](PROFILING_2026-10.md), "Hull build,
+the wider `za::Vector` audit (recommendations only): PROFILING_2026-10.md, "Hull build,
 follow-up". For VR: die on warden (or `restart`) and check the reload is quick and walls/doors still block you.
 
 ## Server tick rate (2026-10-06)

@@ -170,7 +170,7 @@ the light counts with your headset's frame timing.
 
 A point light's six faces are six tiles of the atlas. Drawn a face at a time, every caster near a light was set up
 (lerp, matrices, bones) and drawn once per face it reached: with 8 shadowed lights, 48 passes, and in the `combined`
-benchmark about 7700 draw calls a frame for the shadows alone (PROFILING_2026-10.md, decision 3).
+benchmark about 7700 draw calls a frame for the shadows alone (the removed PROFILING_2026-10.md, decision 3).
 
 `vr_shadow_layered 1` (the default) draws each caster once per light: each face is a viewport (`glViewportIndexedf`,
 its tile) and the vertex shader picks it (`gl_ViewportIndex`: `GL_ARB_shader_viewport_layer_array`, else

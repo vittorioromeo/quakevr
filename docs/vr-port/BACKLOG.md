@@ -45,12 +45,12 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   lighting for players who don't want the moody atmosphere and prefer higher visibility (e.g. one "Brightness" or
   "Visibility" preset/slider on the main VR page that raises ambient/minimum light, exposure and tone mapping
   together, rather than many separate graphics settings).
-- **Menus and settings for players, not only for tuning** (the author, 2026-10-03): `docs/vr-port/MENU_REVIEW.md` (its data,
-  `MENU_INVENTORY.md`, was removed 2026-10-06: git history). Built on branch `vr-ironwail-menus` (MENU_REVIEW.md, "Status"): Menu Detail levels, VR Settings
+- **Menus and settings for players, not only for tuning** (the author, 2026-10-03): `docs/vr-port/archive/MENU_REVIEW.md` (its data,
+  `MENU_INVENTORY.md`, was removed 2026-10-06: git history). Built on branch `vr-ironwail-menus` (archive/MENU_REVIEW.md, "Status"): Menu Detail levels, VR Settings
   for every player with Comfort and Handedness presets and volume, VR Calibration at a first start, one home per
   setting, changed settings marked with Reset This Page and Changed Settings, the `wait5` fix. To test in the headset
   and merge. Left: gameplay-feel presets, a comfort vignette, per-slot cvars to data files (the questions at the end
-  of MENU_REVIEW.md).
+  of archive/MENU_REVIEW.md).
 - **Performance leads left open by the 2026-10-03/05 reports** (the reports were removed 2026-10-06; git history has
   them: `PHYSICS_PERFORMANCE_RESULTS_2026-10-03.md`, "Not done", and `PERFORMANCE_BENCHMARK_20261005.md`, items 4-5):
   - *Hit-box traces:* skip `touchNearby` for props too slow to hurt, after checking the monsters' QC touch functions
@@ -96,3 +96,9 @@ into the guns (vr_collectfx.cpp's "into the gun" variant, its path the well's ax
 ### Dawn of the Machine: co-op and dm1 (MG3.md, decision 6, 2026-10-06)
 
 MG3 ships single-player first (`soloOnly` 5, as Dopa); its co-op and its deathmatch map (dm1) are for later.
+
+### A turned teleporter's exit bound (HITZONES_AND_PORTAL_REVIEW_2026-10-04, open P3; the review removed 2026-10-09)
+
+The body carried through a gate is checked at the destination with an axis-aligned bound (`vr_portals.cpp`, the
+destination body bound), so a gate turned by a non-cardinal angle can block a narrow exit that the body would fit
+through. A bound turned with the gate (or a box test in the gate's frame) would fix it.

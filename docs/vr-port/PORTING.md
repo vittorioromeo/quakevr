@@ -27,7 +27,7 @@ the files, what each change is for, and what stays inline).
 The shared model metadata service (`vr_modelmetadata.hpp`, C access in `vr_modelmetadata.h`) caches
 copied model facts. Call `VR_ModelMetadataChanged(model)` immediately before every actual model load,
 including alias-cache eviction and synthetic model loading. Map/game-directory/model-reload events
-also release the cache. See [Shared model metadata](MODEL_METADATA_20261005.md) for its API and lifetime rules.
+also release the cache. See [Shared model metadata](MODEL_METADATA.md) for its API and lifetime rules.
 
 `vr_api.h` groups them by engine subsystem, each with the call site it expects (function and position). They are
 thin calls: the engine code stays upstream's, with at most an `if (VR_...()) return;`. The hooks that follow

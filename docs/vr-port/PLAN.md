@@ -1,50 +1,17 @@
 # Quake VR → Ironwail port plan
 
 Branch `vr-ironwail` starts at Ironwail **v0.8.2** (`1eabd0df`). The old engine (branch `develop`) is Quakespasm-Spiked
-`36b2046f57` converted to C++; the per-subsystem inventories of its *functional* changes are in [`inventory/`](inventory/):
+`36b2046f57` converted to C++. This file keeps the port's principles and the decisions they led to; what the game
+does now is in [FEATURES.md](../FEATURES.md).
 
-| # | Inventory | Size of real change |
-|---|---|---|
-| 01 | [Server & physics](inventory/01-server-physics.md) | VR usercmd → entvars, hand/weapon touch, teleport & room-scale moves, pusher/toss/touch rewrites |
-| 02 | [QC VM & builtins](inventory/02-qcvm-builtins.md) | 32 builtins #79–110 (8 collide with IW), custom progdefs ABI (CRC 52440), 40 spawn parms, 3 QC entry points |
-| 03 | [Client, net, protocol](inventory/03-client-net-protocol.md) | `PROTOCOL_QUAKEVR` 8682: 131-byte `clc_move`, VR clientdata, vec3 scale/offset, particle2, world text |
-| 04 | [Rendering](inventory/04-rendering.md) | per-eye FBOs, ~30 view entities, alias scale/offset/mirror/zeroBlend, particles rewrite, world text |
-| 05 | [View, HUD, menus, input](inventory/05-view-hud-menu-input.md) | VR `V_CalcRefdef`, 2D as world quad, hand-attached sbar, ~30 VR menu pages, virtual keyboard |
-| 06 | [VR core](inventory/06-vr-core.md) | `vr.cpp` architecture, ~60 engine call sites, OpenVR→OpenXR mapping, all `vr_*` cvars |
-| 07 | [Misc & build](inventory/07-misc-build.md) | pak loading with gaps, start.bsp selector, autosave, cvar handles, build/release layout |
-
-## Status
-
-*A snapshot of 2026-09-25, before the headset rounds: everything below has been played on a headset since
-(round 14 onwards), the menu laser, an on-screen keyboard (Search, Console) and real-time model shadows exist, and
-the VR code is C++23 on Zancle. What the game does now is in [FEATURES.md](../FEATURES.md).*
-
-| Phase | State | Notes |
-|---|---|---|
-| P0 Scaffolding | ✅ done | `Quake/vr/`, mock backend, build integration (MSBuild + CMake) |
-| P1 QC & game data | ✅ done | CRC-5927 progs, by-name VR builtins, entry points, spawn parms 17–40, `quakevr` game folder layering hipnotic/rogue, opt-in droptofloor. Flat-mode check: e1m1/e1m2/hip1m1/r1m1/start/vrstart load, changelevel and save/load work. |
-| P2 Protocol & server | ✅ done | `PRFL_QUAKEVR` RMQ extension (VR move, stats 64+, entity scale/offset, `svc_quakevr`, beam ids, late model/sound precaches); hand/weapon touch on networked hand data, teleport, room-scale pass, head-relative movement, step size, `think2`, `lastwatertime`, touch rules. Flat-mode check: hand grab picks up a weapon on vrfiringrange; demos record/play; save/load/changelevel across all campaigns. |
-| P3 View & entities | ✅ done (core) | Weapons in both hands, hands + fingers (anchored to weapon vertices via the rebuilt BuildTris order), holsters, holster slots, torso, weapon buttons; mirroring, per-model weapon scaling, zero blend (shader), light modifier; muzzles from anchor vertices; 32×66 `vr_wofs_*` table and 78 cvar defaults from the shipped config. Flat mode uses the old "fake VR" hand placement. |
-| P4 Stereo + OpenXR | ✅ done (untested on HMD) | OpenXR backend (instance/session/stage space/grip poses/swapchains/frame loop); per-eye rendering through Ironwail's pipeline with eye-sized framebuffers, asymmetric projection and post-process into the swapchain; desktop mirror (`vr_mirror`); 2D canvas composited on the mirror and shown as a panel in the headset while menus are open; play-space yaw re-based on `svc_setangle`. Verified with the mock backend (both eyes, parallax, menu panel); OpenXR verified up to "no headset" against Virtual Desktop. |
-| P5 Input & haptics | ✅ done (untested on HMD) | Controller buttons as bindable Quake keys by role (issue #12; `quakevr/vr_bindings.cfg`, `vr_checkbindings`); stick locomotion (head- or hand-directed, swim by pointing), snap/smooth turning, menu navigation; networked `haptic`. Runtime hand/head velocities; throw estimator and true-scale throws; sticky grip option (issue #31). Room-scale walking, hotspots (holsters, 2H grab, hand switch) with hover highlights, body yaw from the hands, two-handed aiming with virtual stock, flick reload, teleport, finger curls from trigger/grip/thumb sensors. Mock controller commands for desktop testing. Two-handed "fixed" display mode (foregrip), hand/barrel collision, weapon weight, weapon buttons. |
-| P6 Menus & HUD | ✅ done (untested on HMD) | HUD in the headset: the classic status bar cut from the 2D canvas and attached to a hand (old `VR_DrawSbar` placement), centre prints and notify lines on a panel following the head, no screen-space crosshair; menus on a world panel. VR Settings page (Options > VR Settings, `menu_vr`) on hooks in menu.c. The virtual keyboard is not ported (controller keys + a desktop keyboard). |
-| P7 Effects & polish | ✅ done (untested on HMD) | vr_lines (soft lines/points as quads): crosshair dot/laser, teleport aim. vr_text3d: world texts (scene-pass hook) and floating ammo counters on the weapons. Particle presets mapped to Quake effects. vrstart.ent updates the tutorial signs. Thinner beams, blob shadows (`vr_player_shadows`), holster/virtual-stock markers (`vr_show_*`). |
-| IK body | ✅ steps 1–4 (untested on HMD) | Skinned `progs/vrbody` (generated by `Misc/quakevr/make_vrbody.py`) drawn through Ironwail's MD5 path with per-entity bone matrices; upper-body IK from head and hands, crouch, optional standing legs; holsters, virtual stock and hand collisions follow it. See [IK.md](IK.md). |
-| P8 Release | 🟡 started | `Windows/package-quakevr.ps1`: engine + DLLs (OpenXR loader) + `quakevr` folder with fresh progs, `QuakeVR.bat`, readme, zip. Repository README. The Makefile builds (Linux, macOS, MinGW CI) compile the VR module, mock backend only. Left: CI release artifacts with the `quakevr` folder, OpenXR outside Windows x64. |
+The plan's status table (a snapshot of 2026-09-25), its known gaps (all closed since) and its phases P0-P8 were
+removed on 2026-10-09, together with `inventory/`, the old engine's functional changes per subsystem (2026-09-24,
+seven files: server and physics, QC VM and builtins, client/net/protocol, rendering, view/HUD/menus/input, VR core,
+misc and build). Both are in git history: `git show 079f50de8:docs/vr-port/PLAN.md` and
+`git show 079f50de8:docs/vr-port/inventory/<file>`.
 
 See also [PORTING.md](PORTING.md) (moving the module to another engine) and [MODS.md](MODS.md) (other mods'
 progs in VR).
-
-Known gaps carried forward:
-- Nothing has been tried on a headset yet: OpenXR is verified only up to "no headset" (Virtual Desktop), and all
-  feel-dependent defaults (gun angles, throw scale, 2H thresholds, HUD/panel placement) are first guesses.
-- Not ported: the virtual keyboard and menu laser pointer (no text entry in the headset); the old in-VR
-  "developer" tuning menus for weapon offsets and their on-screen anchor markers (cvars only); per-finger tracking
-  (Index); real model shadows (blob shadows only); menu anchoring modes; the old status bar's off-hand ammo and
-  clip counters (the weapons show them); Dissolution of Eternity's projectile effects (lava/mini-rocket trails,
-  their bits are stripped); `centerview` recentring the play space; the tutorial map's signs still describe the
-  old force grab and SteamVR bindings.
-- Deferred old-engine physics rewrites, to evaluate in VR first: `SV_PushMove` (Ironwail's `sv_gameplayfix_elevators` may suffice), `SV_PushEntity` tracing from origin−push. (The toss ground pre-check is `vr_gameplayfix_tossfall`.)
 
 ## Principles
 
@@ -54,7 +21,7 @@ Known gaps carried forward:
 2. **VR logic lives in `Quake/vr/`.** Modern C++ (C++20, glm) is fine there; the engine sees only
    `Quake/vr/vr_api.h`, a plain-C header of `extern "C"` functions and POD structs.
 3. **No wire/ABI compatibility with the old engine.** We own the QC, so we fix things the clean way (see
-   *Decisions*) instead of reproducing old numbering clashes and latent bugs flagged in the inventories.
+   *Decisions*) instead of reproducing old numbering clashes and latent bugs the old engine's inventories flagged.
 4. **Gameplay rule changes are opt-in** (cvars, defaulted on by the VR mod's config) so vanilla Quake still plays
    like vanilla Ironwail with `vr_enabled 0`.
 5. **Every milestone builds and runs**, and each commit is one coherent step, so upstream Ironwail updates can be
@@ -77,58 +44,3 @@ gameplay rule changes opt-in via cvars. The remaining rows follow from those.
 | 2D in VR | Render IW's GUI to an offscreen texture once per frame, draw it as a quad per eye (menus) / attach to hand (sbar) | Fits IW's NDC-space GUI batching. |
 | Menus | Table-driven `vr_menu.c` on IW's list-menu helpers; drop "Change Map" (IW has a Maps menu) | Small hook in `M_Draw/M_Keydown/M_Mousemove`. |
 | Old-QVR bugs | Do **not** port: `cl.items` clobber, baseline scale/model bits, broken extended-save parser, mirror blit rect | Flagged in inventories 03/06/07. |
-
-Open questions that can wait until their phase are listed at the end of each inventory.
-
-## Phases
-
-Each phase ends with a build + run check. "Flat" = desktop with the mock backend; "HMD" = needs the author with a
-headset.
-
-### P0 — Scaffolding
-- `Quake/vr/` with `vr_api.h` (C API), `vr_main.cpp` (init/shutdown/frame), `vr_backend.h` + `vr_backend_mock.cpp`.
-- Build integration: VS project (C++20 for `vr/*.cpp`), CMake (`project(... C CXX)`), glm as a vendored header-only dep.
-- Core cvars (`vr_enabled`, `vr_backend`, `vr_world_scale`), `Host_Init`/`Host_Shutdown`/`Host_Frame` hooks.
-- ✅ Check: vanilla behaviour unchanged with `vr_enabled 0`; flat run with the mock backend.
-
-### P1 — QC & game data (Quake VR mod runs in flat mode, no VR yet)
-- `defs.qc`/`builtins.qc` updates per the ABI decision; VR field lookup by name; builtins module `vr/vr_builtins.c`.
-- 40 spawn parms, QC entry points (`OnSpawnServerBeforeLoad/AfterLoad`, `OnLoadGame`), `setmodel` auto-precache,
-  `droptofloor` variant, cvar handles.
-- Game data layout: a proper `quakevr` game folder on top of id1 (no pak-gap hack); decide how mission-pack maps are
-  reached (loader hook vs documented setup).
-- ✅ Check (flat): `vrstart` and e1m1 load with `vrprogs.dat`, monsters/items/weapons behave, save/load works.
-
-### P2 — Protocol & server gameplay
-- VR usercmd (client → server), VR stats, scale/offset entity bits, `particle2`, world-text messages.
-- Server: VR usercmd → entvars, `handtouch`/`vr_wpntouch`, teleport, room-scale move, step size, `think2`,
-  pusher/toss/touch changes behind cvars. Weapon-touch uses the *networked* hand state (fixes the listen-server-only
-  design).
-- ✅ Check (flat + mock hands): demos record/play, a second client connects, hands can touch/grab items.
-
-### P3 — View & entities
-- VR `V_CalcRefdef` path; view-entity construction (weapons, hands/fingers, holsters, torso, buttons) in the VR module.
-- IW alias renderer: per-instance scale, offset, mirror, light override, zeroBlend; anchor-vertex remap table.
-- ✅ Check (flat): third-person-ish debug camera shows hands/weapons tracking mock poses.
-
-### P4 — Stereo rendering + OpenXR
-- OpenXR instance/session/swapchains (`XR_KHR_opengl_enable`), per-eye asymmetric projection in `R_SetFrustum`,
-  per-eye setup→draw ordering, reversed-Z near plane, desktop mirror, gamma handling.
-- 2D → offscreen texture → world quad; hand-attached sbar.
-- ✅ Check: flat (mock stereo to window) + **HMD**.
-
-### P5 — Input & haptics
-- OpenXR action sets/bindings (Index, Touch, Vive, WMR, generic) replacing `actions.json`; locomotion, snap/smooth
-  turn, teleport, 2H aiming, weapon buttons, flick reload; haptics (networked message for remote clients);
-  finger curls via `XR_EXT_hand_tracking` / trigger-grip fallback.
-- ✅ Check: **HMD**.
-
-### P6 — Menus & HUD
-- `vr_menu.c` pages, virtual keyboard, sbar off-hand ammo/clip, ammo-type semantics across IW's HUD styles.
-
-### P7 — Effects & polish
-- Particle presets/atlas on IW's particle path, world text rendering, laser/dot crosshair, debug helpers (`vr_showfn`)
-  on a small core-profile line/point batcher, optional player/hand shadows.
-
-### P8 — Release
-- Packaging (exe + OpenXR loader + paks + default config), README/install docs, CI build.

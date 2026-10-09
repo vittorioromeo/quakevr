@@ -151,7 +151,7 @@ about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 | **Weapon Damage** | Each weapon's damage, the enemies' weapons and throws |
 | **Enemy Weapons** | Ogres' chainsaws (fuel, the engine, the cord), grunts' burst rifles, enforcers' laser rifles |
 | **Enemy Shoves** | Enemies shoving you when you are too close: delay, cooldown, damage, push |
-| **Knockdowns** | Shove knockdowns: the chance (per monster, damage, one or two hands, stamina, over a ledge), time down, struggling, getting up ([vr-port/KNOCKDOWNS_2026-10-04.md](vr-port/KNOCKDOWNS_2026-10-04.md)) |
+| **Knockdowns** | Shove knockdowns: the chance (per monster, damage, one or two hands, stamina, over a ledge), time down, struggling, getting up ([vr-port/KNOCKDOWNS.md](vr-port/KNOCKDOWNS.md)) |
 | **Bullet Time** | Slow motion on demand: trigger (a stick press, a wrist tap, the gadget's button), time scale, duration, recharge, the Sandevistan mode and the look |
 | **Burning** | Burn damage and time, flames spreading to monsters, corpses and crates, lava nails, torches, the flames' look |
 

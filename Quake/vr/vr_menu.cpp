@@ -971,7 +971,7 @@ int campaignsBloodyShown = -1;
     };
 }
 
-// Knockdowns (QC vr_knockdown.qc; vr_box3d.cpp, "Knockdowns"; docs/vr-port/KNOCKDOWNS_2026-10-04.md): a shove can
+// Knockdowns (QC vr_knockdown.qc; vr_box3d.cpp, "Knockdowns"; docs/vr-port/KNOCKDOWNS.md): a shove can
 // knock a monster down as a ragdoll, alive; it gets up after a while.
 [[nodiscard]] za::Vector<Item> pageKnockdowns()
 {
@@ -7098,7 +7098,7 @@ enum PageId
 };
 
 // Who a page is for (vr_menu_level, Menu Detail at the bottom of every page): links to a page above the level are left
-// out, and so are the rows marked advanced() or developer() (MENU_REVIEW.md). menu_vr <n> opens any page.
+// out, and so are the rows marked advanced() or developer() (archive/MENU_REVIEW.md). menu_vr <n> opens any page.
 enum MenuLevel
 {
     LevelStandard,  // what every player sets: comfort, height, the HUD, the headset, volume
@@ -7274,7 +7274,7 @@ const Page pages[] = {
     {"Ragdolls - Shambler", pageRagdollShambler, pageRagdolls, LevelDeveloper},                   // 129
     {"Ragdolls - Gremlin", pageRagdollGremlin, pageRagdolls, LevelDeveloper},                     // 130
     {"Ragdolls - Mummy", pageRagdollMummy, pageRagdolls, LevelDeveloper},                         // 131
-    {"Changed Settings", pageChanged, pageAdvanced, LevelStandard},                                    // 132 (MENU_REVIEW.md)
+    {"Changed Settings", pageChanged, pageAdvanced, LevelStandard},                                    // 132 (archive/MENU_REVIEW.md)
     {"Search", pageSearch, pageMain, LevelStandard},                                               // 133 (the corner's Search; vr_menu_search.inc)
     {"Console", pageConsole, pageMain, LevelStandard},                                             // 134 (the corner's Console; vr_menu_console.inc)
     {"Tips", pageTips, pageAdvanced, LevelStandard},                                                   // 135 (vr_tips.cpp)

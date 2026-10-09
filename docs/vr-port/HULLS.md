@@ -243,7 +243,7 @@ a death's reload (`restart`, the autosave's `load`), a changelevel back, the sam
 `restart` 2.1 s to 0.4 s, ad_grendel's 1.3 s to 0.3 s). `vr_hull_keep` (default 1, Debug > Keep Hitboxes for Reloads) is how many maps are
 kept; 0 is off. A width changed in between is compiled again; external `.bsp` models' brushes and trees are made
 again. `vr_hull_keeptest` rebuilds everything from scratch and checks the hashes match. Details and numbers:
-[PROFILING_2026-10.md](PROFILING_2026-10.md), "Hull build, follow-up".
+the removed PROFILING_2026-10.md (git history), "Hull build, follow-up".
 
 ### Kept on disk (`vr_hull_cache`, 2026-10-07)
 

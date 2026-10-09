@@ -2,7 +2,7 @@
 
 The overnight profiling run's open questions: optimizations with a trade-off (a visual, behaviour, memory or default
 change) and leads not done, each with what was measured. The uncontroversial fixes are committed (BENCHMARKS.md,
-"Profiling run (2026-10-08)"). Earlier list: PROFILING_2026-10.md, "Decision list".
+"Profiling run (2026-10-08)"). Earlier list: the removed PROFILING_2026-10.md, "Decision list".
 
 Setup: i9-13900K, RTX 4090, the author's settings of 2026-10-06 (`his_cfg_20261006_1237.cfg`, through
 `bench.sh --settings`), mock eyes 2048 square, paced at 90 Hz, exclusive; CPU = `cpu_busy_ms` (the frame's work less
