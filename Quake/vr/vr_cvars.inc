@@ -370,13 +370,14 @@ QVR_CVAR(vr_bullettime_tap, "1", CVAR_ARCHIVE)        // 1: a hard tap on the ga
 QVR_CVAR(vr_bullettime_tap_speed, "0.5", CVAR_ARCHIVE) // m/s: the least speed into the screen (the hands' speed towards each other along its normal: both may move)
 QVR_CVAR(vr_bullettime_tap_angle, "10", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)
 QVR_CVAR(vr_bullettime_tap_margin, "1", CVAR_ARCHIVE) // cm round the screen's edges where the strike may land too
-QVR_CVAR(vr_bullettime_tap_depth, "6.5", CVAR_ARCHIVE)  // cm over the screen's face at which the striking point is on it (the hand's middle is inside the hand: its palm is a few cm out)
+QVR_CVAR(vr_bullettime_tap_depth, "6.5", CVAR_ARCHIVE)  // cm over the screen's face at which the striking volume (the drawn hand's surface, the gun's butt) is on it
 QVR_CVAR(vr_bullettime_tap_width, "1", CVAR_ARCHIVE) // the tap zone's width as a share of the screen's (before vr_bullettime_tap_margin) ...
 QVR_CVAR(vr_bullettime_tap_height, "0.75", CVAR_ARCHIVE) // ... and its height
 QVR_CVAR(vr_bullettime_tap_x, "0", CVAR_ARCHIVE)     // cm: the tap zone moved along the screen's right ...
 QVR_CVAR(vr_bullettime_tap_y, "0", CVAR_ARCHIVE)     // ... its up ...
 QVR_CVAR(vr_bullettime_tap_z, "-3.5", CVAR_ARCHIVE)     // ... and out of it (its face: vr_bullettime_tap_depth is measured from there)
 QVR_CVAR(vr_bullettime_tap_butt, "1", CVAR_ARCHIVE)   // 1: the butt of the gun the other hand holds taps too (its rearmost end); 0: only the hand
+QVR_CVAR(vr_bullettime_tap_butt_depth, "4", CVAR_ARCHIVE) // cm: how far from the gun's rearmost end its butt reaches (the drawn points within it strike)
 QVR_CVAR(vr_bullettime_tap_stop, "1", CVAR_ARCHIVE) // the impact: the speed into the screen must fall to this much of its peak on the screen (a hand passing by doesn't tap); 1: on arrival
 QVR_CVAR(vr_bullettime_tap_window, "0.5", CVAR_ARCHIVE) // seconds after the peak speed the impact may come
 QVR_CVAR(vr_bullettime_tap_holding, "1", CVAR_ARCHIVE) // 1: the tapping hand may hold something (the hand or the gun's butt taps); 0: only an empty hand
@@ -580,7 +581,7 @@ QVR_CVAR(vr_gadget_fingertip_pitch, "0", CVAR_ARCHIVE) // degrees: the fingertip
 QVR_CVAR(vr_gadget_fingertip_yaw, "0", CVAR_ARCHIVE)  // ... inward (towards the other hand; negative: outward) ...
 QVR_CVAR(vr_gadget_fingertip_roll, "0", CVAR_ARCHIVE) // ... and rolled about the hand's forward (positive: its top outward)
 QVR_CVAR(vr_gadget_button_cooldown, "0.2", CVAR_ARCHIVE) // real seconds after a press before the next counts (no double toggles)
-QVR_CVAR(vr_debug_gadget_button, "0", CVAR_NONE)      // Debug > Show Gadget Button: 1 its hit volume drawn (green ready, yellow pressed, red cooling down), the fingertip (the drawn index fingertip white, joined to the tuned one) and its presses printed; 2 also the screen tap's zone and the tapping hand's striking points; 3 also prints each frame how far the zone is from the drawn gadget (and how far off the old frame-start test was)
+QVR_CVAR(vr_debug_gadget_button, "0", CVAR_NONE)      // Debug > Show Gadget Button: 1 its hit volume drawn (green ready, yellow pressed, red cooling down), the fingertip (the drawn index fingertip white, joined to the tuned one) and its presses printed; 2 also the screen tap's zone and the tapping hand's striking volume (the drawn hand's surface, the gun's butt; white: on the zone); 3 also prints each frame how far the zone is from the drawn gadget (and how far off the old frame-start test was)
 QVR_CVAR(vr_gadget_crt, "1", CVAR_ARCHIVE)            // the screen looks like a small CRT (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
 QVR_CVAR(vr_player_hue, "128", CVAR_ARCHIVE)          // the player's colour (vr_hue.hpp): the hue (degrees; 128 green, 40 amber, 200 blue) of the gadget's and weapons' screens, the sights, the force grab, the teleport arc, the crosshair, the menu laser (each: -1 follows it),
 QVR_CVAR(vr_player_saturation, "1", CVAR_ARCHIVE)     // and how saturated they are (1 as made, 0 white, up to 2)

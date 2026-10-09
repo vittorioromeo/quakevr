@@ -8,12 +8,14 @@
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_stealth.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
@@ -39,6 +41,15 @@ struct State
     double easedAt = -1.0;     // realtime it was eased last
 };
 State state;
+
+// The debug drawing's buffers (the main thread: the view).
+struct DrawScratch
+{
+    za::Vector<glm::vec4> volume;     // the tapping hand's striking volume (debugDraw)
+    za::Vector<unsigned char> parts;  // and its points' parts
+    auto members() { return mem::list(volume, parts); }
+};
+mem::Scratch<DrawScratch> scratch{"gear lights"};
 
 [[nodiscard]] float target()
 {
@@ -184,6 +195,18 @@ void info_f()
         Con_Printf("screen tap zone: %.1f x %.1f cm (the screen %.1f x %.1f), moved %.1f %.1f %.1f cm (right, up, out)\n",
             zone.halfSize.x * 2.f / m2u * 100.f, zone.halfSize.y * 2.f / m2u * 100.f, sc.halfSize.x * 2.f / m2u * 100.f,
             sc.halfSize.y * 2.f / m2u * 100.f, glm::dot(d, sc.right), glm::dot(d, sc.up), glm::dot(d, sc.normal));
+        if(s.valid)
+        {
+            // The way into the screen in the tapping hand's frame (its forward, right, up), and its striking volume.
+            glm::vec3 fwd, right, up;
+            const int tapper = 1 - hands::gadgetHand();
+            hands::angleVectors(s.rot[tapper], fwd, right, up);
+            za::Vector<glm::vec4>& pts = scratch.volume;
+            bullettime::strikingVolume(s, tapper, pts, nullptr);
+            Con_Printf("screen tap: into the screen is %.2f %.2f %.2f of the tapping hand's forward, right, up; its "
+                       "striking volume %d points\n",
+                -glm::dot(sc.normal, fwd), -glm::dot(sc.normal, right), -glm::dot(sc.normal, up), static_cast<int>(pts.size()));
+        }
     }
     if(s.valid)
     {
@@ -341,24 +364,37 @@ void debugDraw(const hands::State& s)
 
     // With 2, the screen tap's zone: its rectangle (with vr_bullettime_tap_margin, moved and sized:
     // vr_bullettime_tap_x/y/z, _width, _height) on the face and vr_bullettime_tap_depth over it; and the tapping hand's
-    // striking points (its palm's middle, the butt of the gun it holds).
+    // striking volume (the drawn hand's surface, light blue; the butt of the gun it holds, orange; a sphere's radius as
+    // a ring square to the screen). A point within the depth over the zone is drawn white.
     bullettime::Screen sc;
     if(vr_debug_gadget_button.value < 2.f || !bullettime::tapZone(sc))
     {
         return;
     }
+    const float cm = 0.01f * units::metresToUnits();
+    const float depth = za::max(0.5f, vr_bullettime_tap_depth.value) * cm;
+    const glm::vec2 half = sc.halfSize + glm::vec2{za::max(0.f, vr_bullettime_tap_margin.value) * cm};
     if(s.valid)
     {
-        glm::vec3 p[2];
-        const int n = bullettime::strikingPoints(s, presser, p);
-        for(int i = 0; i < n; i++)
+        za::Vector<glm::vec4>& pts = scratch.volume;
+        za::Vector<unsigned char>& parts = scratch.parts;
+        bullettime::strikingVolume(s, presser, pts, &parts);
+        for(size_t i = 0; i < pts.size(); i++)
         {
-            lines::point(p[i], 0.4f, glm::vec4{0.3f, 0.7f, 1.f, 0.9f});
+            const glm::vec3 p{pts[i]};
+            const glm::vec3 rel = p - sc.centre;
+            const bool on = za::fabs(glm::dot(rel, sc.right)) <= half.x && za::fabs(glm::dot(rel, sc.up)) <= half.y &&
+                            glm::dot(rel, sc.normal) - pts[i].w <= depth && glm::dot(rel, sc.normal) - pts[i].w >= -2.f * depth;
+            const glm::vec4 c = on ? glm::vec4{1.f, 1.f, 1.f, 1.f}
+                                : parts[i] == 255 ? glm::vec4{1.f, 0.55f, 0.1f, 0.9f}
+                                                  : glm::vec4{0.3f, 0.7f, 1.f, 0.9f};
+            lines::point(p, 0.15f, c);
+            if(pts[i].w > 0.f)
+            {
+                ring(p, sc.right, sc.up, pts[i].w, c);
+            }
         }
     }
-    const float cm = 0.01f * units::metresToUnits();
-    const glm::vec2 half = sc.halfSize + glm::vec2{za::max(0.f, vr_bullettime_tap_margin.value) * cm};
-    const float depth = za::max(0.5f, vr_bullettime_tap_depth.value) * cm;
     const glm::vec4 zone{0.3f, 0.7f, 1.f, 0.8f};
     glm::vec3 c[8];
     for(int i = 0; i < 8; i++)

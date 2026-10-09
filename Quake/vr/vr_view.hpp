@@ -8,6 +8,8 @@
 #include "vr_hands.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Container/Vector.hpp"
+
 namespace qvr::view
 {
 
@@ -185,6 +187,27 @@ struct WeaponHotspot
 // along its line from the muzzle to the handle (a stock's heel, a pistol grip's base). The wrist gadget's screen tap
 // (vr_bullettime_tap_butt). False if it holds none (or a fist).
 [[nodiscard]] bool heldWeaponButt(int hand, glm::vec3& out);
+// Its butt as a region: its drawn points within `depth` units of that rearmost end along the same line (world; a point
+// may come more than once: the shape's triangles share them). The screen tap's striking volume. False as above.
+[[nodiscard]] bool heldWeaponButtRegion(int hand, float depth, za::Vector<glm::vec3>& out);
+
+// The parts of a drawn hand (drawnHandSurface): what struck the gadget's screen, in the tap's messages.
+enum class HandPart : unsigned char
+{
+    Hand,       // the old models' hand (three spheres along it)
+    Palm,
+    Back,       // the back of the hand
+    Knuckles,
+    Fingers,
+    Fingertips,
+    Thumb
+};
+[[nodiscard]] const char* handPartName(HandPart part);
+
+// The hand `hand` as drawn this frame, as its surface (world; w a radius): the jointed hand's mesh vertices, posed as
+// drawn (w 0), or the old models' three spheres along the hand; with each point's part (`parts`, if given). The wrist
+// gadget's screen tap (its striking volume). False when it isn't drawn.
+[[nodiscard]] bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>* parts);
 
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,

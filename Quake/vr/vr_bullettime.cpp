@@ -8,6 +8,7 @@
 #include "vr_held.hpp"
 #include "vr_highlights.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_twohand.hpp"
 #include "vr_timescale.hpp"
 #include "vr_units.hpp"
@@ -34,7 +35,7 @@ struct State
     double triggeredAt = -1.0; // realtime of the last tap or stick press that counted (vr_bullettime_trigger_cooldown)
     float tapPeak = 0.f;       // the screen tap: the peak speed (m/s) into the screen, over it; 0: none
     double tapPeakAt = -1.0;   // ... and when
-    int tapStriker = 0;        // ... and which striking point (0 the hand's middle, 1 its gun's butt)
+    int tapStriker = 0;        // ... and which striking point (its index in the striking volume: strikers)
     double tappedAt = -1.0;    // realtime of the last tap that counted (tapping())
     bool stickTaken[HAND_COUNT] = {}; // the stick press taken at its press (vr_bullettime_trigger): its release is too
     glm::vec3 viewPos[HAND_COUNT]{};   // the hands' places (hands::State::pos) as the view tested the tap (movedSinceView)
@@ -202,33 +203,67 @@ void trigger(int hand, const char* what)
     return false;
 }
 
-// The tapping hand's striking points: its middle (its palm: never what it holds) and, holding a gun
-// (vr_bullettime_tap_butt), that gun's butt; with their velocities (m/s, the hand's turn included).
+// The tapping hand's striking volume: the hand as drawn (its mesh's vertices: the palm, the back of the hand, the
+// knuckles, the fingers and their tips alike; the old models' three spheres along it) and, holding a gun
+// (vr_bullettime_tap_butt), its butt (the gun's drawn points within vr_bullettime_tap_butt_depth of its rearmost end);
+// each point with its velocity (m/s, the hand's turn included), its radius (units: the old models' spheres; 0 a
+// vertex) and its part (view::HandPart, or buttPart).
 struct Striker
 {
     glm::vec3 at{0.f};
     glm::vec3 vel{0.f};
+    float r{0.f};
+    unsigned char part{0};
 };
-constexpr const char* strikerNames[2] = {"hand", "gun's butt"};
+constexpr unsigned char buttPart = 255;
 
-[[nodiscard]] int strikers(const hands::State& s, int hand, Striker (&out)[2])
+[[nodiscard]] const char* partName(unsigned char part)
 {
-    const float m2u = units::metresToUnits();
-    const auto at = [&](const glm::vec3& p) {
-        return Striker{p, s.vel[hand] + glm::cross(s.angVel[hand], (p - s.pos[hand]) / m2u)};
-    };
-    out[0] = at(hands::palmPoint(s, hand));
-    glm::vec3 butt;
-    if(vr_bullettime_tap_butt.value != 0.f && view::heldWeaponButt(hand, butt))
-    {
-        out[1] = at(butt);
-        return 2;
-    }
-    return 1;
+    return part == buttPart ? "gun's butt" : view::handPartName(static_cast<view::HandPart>(part));
 }
 
-// Where a striking point is against the screen: across it (u: its right, w: its up), over it (h: out of it; units), and
-// its velocity against the screen's point under it (the gadget's arm may move and turn too).
+// The tap's buffers (the main thread: the view).
+struct TapScratch
+{
+    za::Vector<Striker> strikers;     // (tapScreen)
+    za::Vector<glm::vec4> surface;    // the drawn hand's points (strikers)
+    za::Vector<view::HandPart> parts; // and their parts
+    za::Vector<glm::vec3> butt;       // the held gun's butt's points
+    auto members() { return mem::list(strikers, surface, parts, butt); }
+};
+mem::Scratch<TapScratch> scratch{"bullet time"};
+
+void strikers(const hands::State& s, int hand, za::Vector<Striker>& out)
+{
+    out.clear();
+    const float m2u = units::metresToUnits();
+    const auto add = [&](const glm::vec3& p, float r, unsigned char part) {
+        out.pushBack(Striker{p, s.vel[hand] + glm::cross(s.angVel[hand], (p - s.pos[hand]) / m2u), r, part});
+    };
+    TapScratch& sc = scratch;
+    if(view::drawnHandSurface(hand, sc.surface, &sc.parts))
+    {
+        for(size_t i = 0; i < sc.surface.size(); i++)
+        {
+            add(glm::vec3{sc.surface[i]}, sc.surface[i].w, static_cast<unsigned char>(sc.parts[i]));
+        }
+    }
+    else
+    {
+        add(hands::palmPoint(s, hand), 0.02f * m2u, static_cast<unsigned char>(view::HandPart::Palm)); // (no hand drawn)
+    }
+    const float depth = za::max(0.f, vr_bullettime_tap_butt_depth.value) * 0.01f * m2u;
+    if(vr_bullettime_tap_butt.value != 0.f && view::heldWeaponButtRegion(hand, depth, sc.butt))
+    {
+        for(const glm::vec3& p : sc.butt)
+        {
+            add(p, 0.f, buttPart);
+        }
+    }
+}
+
+// Where a striking point is against the screen: across it (u: its right, w: its up), over it (h: its surface's nearest
+// out of it; units), and its velocity against the screen's point under it (the gadget's arm may move and turn too).
 struct Against
 {
     float u{0.f}, w{0.f}, h{0.f};
@@ -243,8 +278,9 @@ struct Against
     Against a;
     a.u = glm::dot(rel, z.right);
     a.w = glm::dot(rel, z.up);
-    a.h = glm::dot(rel, z.normal);
-    const glm::vec3 under = k.at - z.normal * a.h;
+    const float centre = glm::dot(rel, z.normal);
+    a.h = centre - k.r;
+    const glm::vec3 under = k.at - z.normal * centre;
     // (In the player's real time: in slow motion the hands' velocities are the game's, sped up as the world is slowed.)
     const glm::vec3 screenVel = s.vel[g] + glm::cross(s.angVel[g], (under - s.pos[g]) / units::metresToUnits());
     a.v = (k.vel - screenVel) * timescale::handScale();
@@ -252,13 +288,13 @@ struct Against
     return a;
 }
 
-// The screen tap: a striking point of the other hand (strikers) over the gadget's screen (within vr_bullettime_tap_margin
-// of its edges), having come straight into it (within vr_bullettime_tap_angle of its normal) at vr_bullettime_tap_speed
-// or more (against the screen's own motion: both may move), then stopped on it (within vr_bullettime_tap_depth of its
-// face, its speed into it down to vr_bullettime_tap_stop of the peak within vr_bullettime_tap_window seconds: an impact;
-// a hand passing by keeps its speed). A swing across the screen (the melee) comes from the side; resting, brushing or
-// soft touches are too slow; hands moving together (a two-handed hold) have no speed towards each other, and are ignored
-// anyway unless vr_bullettime_tap_twohanded.
+// The screen tap: the other hand's striking volume (strikers) over the gadget's screen (a point within
+// vr_bullettime_tap_margin of its edges), having come straight into it (within vr_bullettime_tap_angle of its normal) at
+// vr_bullettime_tap_speed or more (against the screen's own motion: both may move), then stopped on it (a point within
+// vr_bullettime_tap_depth of its face, the fastest point's speed into it down to vr_bullettime_tap_stop of the peak
+// within vr_bullettime_tap_window seconds: an impact; a hand passing by keeps its speed). A swing across the screen (the
+// melee) comes from the side; resting, brushing or soft touches are too slow; hands moving together (a two-handed hold)
+// have no speed towards each other, and are ignored anyway unless vr_bullettime_tap_twohanded.
 void tapScreen(const hands::State& s, int hand, const Screen& z)
 {
     const bool allowed = (vr_bullettime_tap_holding.value != 0.f || held::handEmpty(hand)) &&
@@ -280,29 +316,59 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
     const auto over = [&](const Against& a) {
         return za::fabs(a.u) <= z.halfSize.x + margin && za::fabs(a.w) <= z.halfSize.y + margin;
     };
-    Striker strike[2];
-    const int count = strikers(s, hand, strike);
+    za::Vector<Striker>& strike = scratch.strikers;
+    strikers(s, hand, strike);
+    const int count = static_cast<int>(strike.size());
     if(state.tapPeak > 0.f && state.tapStriker >= count)
     {
         state.tapPeak = 0.f; // (the gun let go of)
     }
+    int nearest = -1;  // the point over the screen nearest its face (or furthest through it)
+    int touching = -1; // and the nearest on it: within the depth over it, or a little through it
+    Against nearestAt, touchingAt;
+    float buttH = 1e30f; // (vr_debug_bullettime 2: the gun's butt's nearest)
     for(int i = 0; i < count; ++i)
     {
         const Against a = against(s, z, strike[i]);
-        const float speed = glm::length(a.v);
-        if(vr_debug_bullettime.value >= 2.f && over(a) && a.h < depth + 20.f * cm && a.h > -2.f * depth)
+        if(!over(a))
         {
-            Con_Printf("bullet time: tap %s %.1f cm over the screen (%.1f, %.1f), into it %.2f m/s of %.2f, peak %.2f\n",
-                strikerNames[i], a.h / cm, a.u / cm, a.w / cm, a.into, speed, state.tapPeak);
+            continue;
         }
-        // Coming at it: over the screen, from a little above it to just through it, straight and fast enough.
-        const bool coming = over(a) && a.h <= depth + 12.f * cm && a.h >= -2.f * depth;
+        if(nearest < 0 || a.h < nearestAt.h)
+        {
+            nearest = i;
+            nearestAt = a;
+        }
+        if(strike[i].part == buttPart)
+        {
+            buttH = za::min(buttH, a.h);
+        }
+        if(a.h <= depth && a.h >= -2.f * depth && (touching < 0 || a.h < touchingAt.h))
+        {
+            touching = i;
+            touchingAt = a;
+        }
+        // Coming at it: from a little above it to just through it, straight and fast enough.
+        const float speed = glm::length(a.v);
+        const bool coming = a.h <= depth + 12.f * cm && a.h >= -2.f * depth;
         if(coming && a.into >= least && a.into >= cosMost * speed && a.into >= state.tapPeak)
         {
             state.tapPeak = a.into;
             state.tapPeakAt = realtime;
             state.tapStriker = i;
         }
+    }
+    if(vr_debug_bullettime.value >= 2.f && nearest >= 0 && nearestAt.h < depth + 20.f * cm && nearestAt.h > -2.f * depth)
+    {
+        char butt[48] = "";
+        if(buttH < 1e29f)
+        {
+            q_snprintf(butt, sizeof(butt), "; the gun's butt %.1f cm", buttH / cm);
+        }
+        Con_Printf("bullet time: tap %s %.1f cm over the screen (%.1f, %.1f), into it %.2f m/s of %.2f, peak %.2f (%d "
+                   "points%s)\n",
+            partName(strike[nearest].part), nearestAt.h / cm, nearestAt.u / cm, nearestAt.w / cm, nearestAt.into,
+            glm::length(nearestAt.v), state.tapPeak, count, butt);
     }
     if(state.tapPeak <= 0.f)
     {
@@ -317,12 +383,32 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
         state.tapPeak = 0.f; // came at it, but never stopped there
         return;
     }
+    // The impact: the volume on the face (a point within the depth over it, or a little through it), the fastest point
+    // slowed.
     const Against a = against(s, z, strike[state.tapStriker]);
-    if(over(a) && a.h <= depth && a.h >= -2.f * depth &&
-        a.into <= state.tapPeak * za::clamp(vr_bullettime_tap_stop.value, 0.f, 1.f))
+    if(touching >= 0 && a.into <= state.tapPeak * za::clamp(vr_bullettime_tap_stop.value, 0.f, 1.f))
     {
-        char what[80];
-        q_snprintf(what, sizeof(what), "screen tapped by the %s at %.2f m/s", strikerNames[state.tapStriker], state.tapPeak);
+        // What struck: the part furthest in, and the others within a centimetre of it (a flat slap lands the palm and the
+        // fingers together).
+        unsigned char struck[3] = {strike[touching].part, 0, 0};
+        int parts = 1;
+        for(int i = 0; i < count && parts < 3; ++i)
+        {
+            const Against b = against(s, z, strike[i]);
+            bool known = false;
+            for(int j = 0; j < parts; j++)
+            {
+                known = known || struck[j] == strike[i].part;
+            }
+            if(!known && over(b) && b.h <= touchingAt.h + cm && b.h >= -2.f * depth)
+            {
+                struck[parts++] = strike[i].part;
+            }
+        }
+        char what[160];
+        q_snprintf(what, sizeof(what), "screen tapped by the %s%s%s%s%s%s at %.2f m/s", partName(struck[0]),
+            parts > 1 ? " (and the " : "", parts > 1 ? partName(struck[1]) : "", parts > 2 ? ", the " : "",
+            parts > 2 ? partName(struck[2]) : "", parts > 1 ? ")" : "", state.tapPeak);
         state.tapPeak = 0.f;
         state.tappedAt = realtime;
         trigger(hand, what);
@@ -497,15 +583,23 @@ bool tapZone(Screen& out)
     return true;
 }
 
-int strikingPoints(const hands::State& s, int hand, glm::vec3 (&out)[2])
+void strikingVolume(const hands::State& s, int hand, za::Vector<glm::vec4>& out, za::Vector<unsigned char>* parts)
 {
-    Striker k[2];
-    const int n = strikers(s, hand, k);
-    for(int i = 0; i < n; i++)
+    za::Vector<Striker>& k = scratch.strikers;
+    strikers(s, hand, k);
+    out.clear();
+    if(parts)
     {
-        out[i] = k[i].at;
+        parts->clear();
     }
-    return n;
+    for(const Striker& p : k)
+    {
+        out.pushBack(glm::vec4{p.at, p.r});
+        if(parts)
+        {
+            parts->pushBack(p.part);
+        }
+    }
 }
 
 bool screen(Screen& out)
@@ -532,22 +626,68 @@ bool tapping()
     return state.tapPeak > 0.f || (state.tappedAt >= 0.0 && realtime - state.tappedAt < 0.5);
 }
 
-bool tapHandTarget(int hand, float cm, float sideCm, bool butt, glm::vec3& out)
+bool tapHandTarget(int hand, float cm, float sideCm, const char* part, glm::vec3& out)
 {
     Screen z;
     const hands::State& s = hands::current();
-    glm::vec3 from{0.f};
-    if(!s.valid || !tapZone(z) || (butt ? !view::heldWeaponButt(hand, from) : false))
+    if(!s.valid || !tapZone(z) || (hand != 0 && hand != 1))
     {
         return false;
     }
-    if(!butt)
+    const float u = 0.01f * units::metresToUnits();
+    const glm::vec3 to = z.centre + z.normal * (cm * u) + z.right * (sideCm * u);
+    // The gadget and the striking point as the view drew them last (the hand moved on since with the player: the move
+    // asked of it is from there).
+    glm::vec3 from{0.f};
+    if(!part || !q_strcasecmp(part, "palm"))
     {
-        // (The gadget and the palm as the view drew them last: the hand moved on since with the player.)
         from = hands::palmPoint(s, hand) - movedSinceView(s, hand);
     }
-    const float u = 0.01f * units::metresToUnits();
-    out = z.centre + z.normal * (cm * u) + z.right * (sideCm * u) - (from - s.pos[hand]);
+    else if(!q_strcasecmp(part, "butt"))
+    {
+        if(!view::heldWeaponButt(hand, from))
+        {
+            return false;
+        }
+    }
+    else
+    {
+        // The point of that part of the drawn hand furthest towards the screen (the one that strikes first).
+        struct Key
+        {
+            const char* name;
+            view::HandPart part;
+        };
+        constexpr Key keys[] = {{"palmskin", view::HandPart::Palm}, {"back", view::HandPart::Back},
+            {"knuckles", view::HandPart::Knuckles}, {"fingers", view::HandPart::Fingers},
+            {"tips", view::HandPart::Fingertips}, {"thumb", view::HandPart::Thumb}};
+        const Key* key = nullptr;
+        for(const Key& k : keys)
+        {
+            key = !q_strcasecmp(k.name, part) ? &k : key;
+        }
+        za::Vector<glm::vec4>& pts = scratch.surface;
+        za::Vector<view::HandPart>& parts = scratch.parts;
+        if(!key || !view::drawnHandSurface(hand, pts, &parts))
+        {
+            return false;
+        }
+        float best = 1e30f;
+        for(size_t i = 0; i < pts.size(); i++)
+        {
+            const float h = glm::dot(glm::vec3{pts[i]}, z.normal) - pts[i].w;
+            if(parts[i] == key->part && h < best)
+            {
+                best = h;
+                from = glm::vec3{pts[i]} - z.normal * pts[i].w;
+            }
+        }
+        if(best > 1e29f)
+        {
+            return false;
+        }
+    }
+    out = s.pos[hand] + (to - from);
     return true;
 }
 

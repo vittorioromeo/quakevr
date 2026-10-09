@@ -46,8 +46,8 @@ void toggle(int hand);
 // (vr_mock_hand_to ... button [<units>]).
 [[nodiscard]] bool buttonHandTarget(int hand, float units, glm::vec3& out);
 
-// vr_debug_gadget_button: the button's hit volume (and with 2 the screen tap's zone) drawn this frame, as the view tests
-// them (after the gadget is placed: `s` the hands as drawn).
+// vr_debug_gadget_button: the button's hit volume (and with 2 the screen tap's zone and the tapping hand's striking
+// volume) drawn this frame, as the view tests them (after the gadget is placed: `s` the hands as drawn).
 void debugDraw(const hands::State& s);
 
 } // namespace qvr::gearlights

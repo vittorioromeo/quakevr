@@ -2741,7 +2741,8 @@ void hologramTestMessage()
             .help("Draws the button's hit volume (green ready, yellow pressed, red cooling down; the faint disc: no "
                   "press from behind it, the short line the side it is pressed from) and your fingertip (the drawn "
                   "index fingertip white, joined to the tuned one that presses); And the Screen Tap: also bullet time's "
-                  "tap zone over the screen. Presses are printed."),
+                  "tap zone over the screen and what strikes it (your hand's surface, the gun's butt). Presses are "
+                  "printed; And Print Sync also prints, each frame, how far the zone is from the drawn gadget."),
         slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("Scanlines, a slight flicker, faint static and now and then a glitch (0 off)."),
         slider("Screen Glow", vr_screen_glow, 0.f, 3.f, 0.1f, "%.1fx").extend()
@@ -4442,8 +4443,10 @@ za::Vector<Item> pageDebugViews()
             {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}, {3.f, "And Print Sync"}})
             .help("vr_debug_gadget_button: the wrist gadget's side button's hit volume (green ready, yellow pressed, red "
                   "cooling down) and your fingertip (the drawn index fingertip white, joined to the tuned one that "
-                  "presses), its presses printed; And the Screen Tap: also bullet time's tap zone over the screen. The "
-                  "settings: HUD and Menus > Wrist Gadget."),
+                  "presses), its presses printed; And the Screen Tap: also bullet time's tap zone over the screen and the "
+                  "striking volume (your hand's surface blue, the gun's butt orange, white on the zone); And Print "
+                  "Sync: also prints each frame how far the zone is from the drawn gadget. The settings: HUD and Menus "
+                  "> Wrist Gadget."),
         command("Gear Lights Info", "vr_gear_lights_info")
             .help("vr_gear_lights_info: the gear lights' state, the side button's place and your fingertip's distance to "
                   "it, and the stealth AI's light on you now."),

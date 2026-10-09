@@ -884,10 +884,13 @@ struct ViewScratch
     za::Vector<glm::vec3> magRest;                 // an attached magazine's vertices (magazineShape)
     za::Vector<glm::vec3> magNow;
     za::Vector<glm::vec4> anywhereFist;            // an empty hand's fist in the world (fistSurfaceGap)
+    za::Vector<glm::vec3> buttMiddle;              // a held gun's butt's points (heldWeaponButt)
+    za::Vector<glm::vec3> surfaceVerts;            // a drawn hand's vertices, posed (drawnHandSurface)
     auto members()
     {
         return qvr::mem::list(restVerts, nowVerts, weight, otherHand, otherHandTris, otherHandVerts, handSpheres, fistSpheres,
-            openSpheres, boneSpheres, collideSpheres, collideRig, limbPoints, limbTris, magRest, magNow, anywhereFist);
+            openSpheres, boneSpheres, collideSpheres, collideRig, limbPoints, limbTris, magRest, magNow, anywhereFist,
+            buttMiddle, surfaceVerts);
     }
 };
 mem::Scratch<ViewScratch> scratch{"view hands"};
@@ -4018,8 +4021,9 @@ bool view::heldWeaponPoint(int hand, float fraction, float cm, glm::vec3& out)
     return true;
 }
 
-bool view::heldWeaponButt(int hand, glm::vec3& out)
+bool view::heldWeaponButtRegion(int hand, float depth, za::Vector<glm::vec3>& out)
 {
+    out.clear();
     if(hand < 0 || hand > 1)
     {
         return false;
@@ -4039,7 +4043,7 @@ bool view::heldWeaponButt(int hand, glm::vec3& out)
     {
         return false;
     }
-    // Its rearmost drawn point along the line, then the middle of those within a unit of it.
+    // Its rearmost drawn point along the line, then those within `depth` of it.
     const glm::mat4 m = grasp::shapeToWorld(w.ent, w.mirrored);
     float rear = 1e30f;
     for(const grasp::Triangle& t : shape->tris)
@@ -4049,25 +4053,34 @@ bool view::heldWeaponButt(int hand, glm::vec3& out)
             rear = za::min(rear, glm::dot(glm::vec3{m * glm::vec4{p, 1.f}} - handle, axis));
         }
     }
-    glm::vec3 mid{0.f};
-    int n = 0;
     for(const grasp::Triangle& t : shape->tris)
     {
         for(const glm::vec3& p : t.p)
         {
             const glm::vec3 v{m * glm::vec4{p, 1.f}};
-            if(glm::dot(v - handle, axis) <= rear + 1.f)
+            if(glm::dot(v - handle, axis) <= rear + depth)
             {
-                mid += v;
-                n++;
+                out.pushBack(v);
             }
         }
     }
-    if(!n)
+    return !out.empty();
+}
+
+bool view::heldWeaponButt(int hand, glm::vec3& out)
+{
+    // The middle of its points within a unit of its rearmost end.
+    za::Vector<glm::vec3>& region = scratch.buttMiddle;
+    if(!heldWeaponButtRegion(hand, 1.f, region))
     {
         return false;
     }
-    out = mid / static_cast<float>(n);
+    glm::vec3 mid{0.f};
+    for(const glm::vec3& v : region)
+    {
+        mid += v;
+    }
+    out = mid / static_cast<float>(region.size());
     return true;
 }
 
@@ -8638,6 +8651,118 @@ bool drawnIndexTip(int hand, glm::vec3& local)
         return false;
     }
     local = t.local;
+    return true;
+}
+
+const char* handPartName(HandPart part)
+{
+    constexpr const char* names[] = {"hand", "palm", "back of the hand", "knuckles", "fingers", "fingertips", "thumb"};
+    const int i = static_cast<int>(part);
+    return i >= 0 && i < static_cast<int>(sizeof(names) / sizeof(names[0])) ? names[i] : "hand";
+}
+
+namespace
+{
+
+// A rest vertex's part of the jointed hand: by the joint it follows most (the thumb's, a finger's knuckle ring, its last
+// segment: the fingertips, the rest of a finger) or, on the palm, by its side (the palm's spheres' side: the palm; the
+// other: the back of the hand). `palmMid`, `palmWay`: the palm's vertices' middle and the way to its palm side.
+[[nodiscard]] int mainJoint(const handrig::Vertex& v)
+{
+    int best = 0;
+    for(int i = 1; i < v.count && i < 4; i++)
+    {
+        best = v.weight[i] > v.weight[best] ? i : best;
+    }
+    return v.joint[best];
+}
+
+[[nodiscard]] HandPart restPart(const handrig::Vertex& v, const glm::vec3& palmMid, const glm::vec3& palmWay)
+{
+    const int j = mainJoint(v);
+    if(j > 0 && j < handrig::data::numJoints)
+    {
+        const handrig::data::Joint& joint = handrig::data::joints[j];
+        if(joint.finger == 0)
+        {
+            return HandPart::Thumb;
+        }
+        if(joint.kind == handrig::data::PartJoint && joint.index == 0)
+        {
+            return HandPart::Knuckles;
+        }
+        return joint.kind == handrig::data::SegmentJoint && joint.index == 3 ? HandPart::Fingertips : HandPart::Fingers;
+    }
+    return glm::dot(v.pos - palmMid, palmWay) >= 0.f ? HandPart::Palm : HandPart::Back;
+}
+
+} // namespace
+
+bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>* parts)
+{
+    out.clear();
+    if(parts)
+    {
+        parts->clear();
+    }
+    if(hand != 0 && hand != 1)
+    {
+        return false;
+    }
+    const RigHand& rh = rigHands[hand];
+    if(rh.drawn)
+    {
+        // The mesh's vertices as drawn (as the index fingertip: view::drawnIndexTip).
+        za::Vector<glm::vec3>& posed = scratch.surfaceVerts;
+        handrig::vertices(rh.posed, posed);
+        for(const glm::vec3& p : posed)
+        {
+            out.pushBack(glm::vec4{glm::vec3{rh.rigToWorld * glm::vec4{drawnInRig(rh, p), 1.f}}, 0.f});
+        }
+        if(parts)
+        {
+            const handrig::Rig& rig = handrig::rig();
+            glm::vec3 palmMid{0.f}, sphereMid{0.f};
+            int n = 0;
+            for(const handrig::Vertex& v : rig.vertices)
+            {
+                if(mainJoint(v) == 0)
+                {
+                    palmMid += v.pos;
+                    n++;
+                }
+            }
+            palmMid /= static_cast<float>(za::max(n, 1));
+            for(const handrig::Sphere& sp : rig.palmSpheres)
+            {
+                sphereMid += sp.c;
+            }
+            sphereMid /= static_cast<float>(za::max(static_cast<int>(rig.palmSpheres.size()), 1));
+            const glm::vec3 palmWay = sphereMid - palmMid;
+            for(size_t i = 0; i < posed.size(); i++)
+            {
+                parts->pushBack(i < rig.vertices.size() ? restPart(rig.vertices[i], palmMid, palmWay) : HandPart::Hand);
+            }
+        }
+        return !out.empty();
+    }
+    const view::ViewEntity& he = entities.hand[hand][FingerBase];
+    const hands::State& s = hands::current();
+    if(!he.visible || !he.ent.model || !s.valid)
+    {
+        return false;
+    }
+    // The old models: three spheres along the hand (as vr_body_collide's: selfCollideDrawn).
+    const avatar::HandPose hp = drawnHand(s, hand);
+    const float k = units::metresToUnits() * units::bodyScale();
+    for(const float along : {0.035f, 0.065f, 0.095f})
+    {
+        out.pushBack(glm::vec4{hp.wrist + hp.forward * (along * k), 0.032f * k});
+        if(parts)
+        {
+            parts->pushBack(HandPart::Hand);
+        }
+    }
     return true;
 }
 

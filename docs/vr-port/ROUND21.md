@@ -32860,3 +32860,39 @@ button press while running and turning, all counted.
 
 **To try in the headset.** Run, strafe and turn (smooth and snap; a lift) while tapping the screen and pressing the side
 button: both should land exactly where the drawn gadget is.
+
+## The screen tap: the whole hand and the gun's butt strike (2026-10-09)
+
+His note: with an empty hand the whole hand (palm, fingers, knuckles, back of the hand) should tap; with a gun, its
+butt and the hand. It was two points: the palm's middle (`hands::palmPoint`, inside the hand: hence the old 6 cm depth)
+and the middle of the gun's rearmost unit (`view::heldWeaponButt`).
+
+**Now** (vr_bullettime.cpp `strikers`): the striking volume is the hand as drawn this frame, its mesh's vertices
+(`view::drawnHandSurface`: the jointed hand posed as drawn, 455 points; the old six models: three 3.2 cm spheres along
+the hand), plus, holding a gun with `vr_bullettime_tap_butt`, every drawn point of the gun within
+`vr_bullettime_tap_butt_depth` (4 cm) of its rearmost end (`view::heldWeaponButtRegion`). Each point has its own
+velocity (the hand's, its turn included) and a radius (0 for a vertex). The rules are the same, per point: over the zone,
+straight in (`vr_bullettime_tap_angle`), fast enough (`vr_bullettime_tap_speed`), the peak taken over all points; the
+impact: any point on the face (within `vr_bullettime_tap_depth`, now measured from the surface: default 3 cm, was 6 from
+the palm's middle) while the fastest point slowed (`vr_bullettime_tap_stop`). The message names what struck, by the
+part its vertex follows most (the rig's joints; the palm's vertices by side: the palm or the back of the hand):
+"screen tapped by the knuckles (and the fingers)". Each point's part: `view::HandPart`.
+
+**Debug.** Show Gadget Button: And the Screen Tap draws the striking volume (the hand's surface light blue, the gun's
+butt orange, any point on the zone white; a sphere's radius as a ring). `vr_gear_lights_info` prints the way into the
+screen in the tapping hand's frame and the volume's size; `vr_debug_bullettime 2` the nearest point's part and the
+butt's distance. The mock: `vr_mock_hand_to <hand> screen <cm> [<side>] [<part>]` places that part's point nearest the
+screen (palmskin, back, knuckles, fingers, tips, thumb, butt).
+
+**Tests** (`Misc/quakevr/gadget_tap_test.sh`, cases H, I, E2): the hand turned so one part leads, then a 3.3 m/s strike:
+a flat palm slap (the fingers' pads land first), the back of the hand, the fingertips, the thumb, the knuckles of a fist,
+the gun's butt leading all tap, each named; swings across 3 cm over with the back of the hand or the knuckles, and the
+fingertips 50 degrees off straight, don't. The old cases (A..G) unchanged.
+
+**His settings.** His config has `vr_bullettime_tap_depth 6.5` and `vr_bullettime_tap_z -3.5`, tuned for the palm's
+middle: measured from the surface they are more forgiving (the face's zone 3.5 cm into his arm, the hand within 6.5 cm
+over it); not changed. He may want the depth near 3 now.
+
+**To try in the headset.** Tap the screen with the palm, the fingertips, the knuckles, the back of the hand, the gun's
+butt; swing across the screen with each (no tap). With And the Screen Tap on, the blue points should sit on the drawn
+hand.

@@ -202,12 +202,12 @@
                   "swing across the screen comes from the side)."),
         slider("Tap Zone Margin", "vr_bullettime_tap_margin", 0.f, 8.f, 0.5f, "%.1f cm").extend(0.f, 20.f)
             .help("How far past the screen's edges the strike may land too."),
-        slider("Tap Zone Depth", "vr_bullettime_tap_depth", 2.f, 15.f, 0.5f, "%.1f cm").extend(0.5f, 30.f)
-            .help("How close over the screen your hand's middle (or the gun's butt) must stop: your palm is a few cm "
-                  "out from it. Debug > Show Gadget Button: And the Screen Tap shows this zone."),
+        slider("Tap Zone Depth", "vr_bullettime_tap_depth", 0.5f, 15.f, 0.5f, "%.1f cm").extend(0.5f, 30.f)
+            .help("How close over the screen your hand (any of it: palm, fingers, knuckles, its back) or the gun's "
+                  "butt must stop. Debug > Show Gadget Button: And the Screen Tap shows this zone."),
         slider("Tap Zone Width", "vr_bullettime_tap_width", 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 5.f)
             .help("The zone's width as a share of the screen's (before the margin). Debug > Show Gadget Button: And the "
-                  "Screen Tap shows the zone and your striking points (blue)."),
+                  "Screen Tap shows the zone and what strikes (your hand's surface blue, the gun's butt orange, white on the zone)."),
         slider("Tap Zone Height", "vr_bullettime_tap_height", 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 5.f)
             .help("... and its height."),
         slider("Tap Zone Across", "vr_bullettime_tap_x", -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
@@ -218,6 +218,8 @@
             .help("... and out of its face (negative: into your arm): Tap Zone Depth is measured from there."),
         toggle("The Gun's Butt Taps Too", "vr_bullettime_tap_butt")
             .help("On: the butt of the gun in your other hand taps the screen as your hand does. Off: only your hand."),
+        slider("Gun Butt Reach", "vr_bullettime_tap_butt_depth", 1.f, 10.f, 0.5f, "%.1f cm").extend(0.f, 30.f)
+            .help("How far from the gun's rearmost end its butt reaches: all of it within that strikes."),
         slider("Tap Must Stop", "vr_bullettime_tap_stop", 0.1f, 1.f, 0.05f, "%.2f")
             .help("The impact: the speed into the screen must drop to this much of its peak on it (a hand passing by "
                   "keeps its speed). 1: counts as it arrives, stopped or not."),
