@@ -590,6 +590,7 @@ float cvarh_vr_knockdown_time_max;
 float cvarh_vr_knockdown_hit_time;
 float cvarh_vr_knockdown_retry;
 float cvarh_vr_knockdown_search;
+float cvarh_vr_knockdown_water_giveup;
 float cvarh_vr_knockdown_getup_speed;
 float cvarh_vr_knockdown_push;
 float cvarh_vr_knockdown_ledge;
@@ -1364,6 +1365,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_knockdown_hit_time);
     VR_CVAR_HMAKE(vr_knockdown_retry);
     VR_CVAR_HMAKE(vr_knockdown_search);
+    VR_CVAR_HMAKE(vr_knockdown_water_giveup);
     VR_CVAR_HMAKE(vr_knockdown_getup_speed);
     VR_CVAR_HMAKE(vr_knockdown_push);
     VR_CVAR_HMAKE(vr_knockdown_ledge);

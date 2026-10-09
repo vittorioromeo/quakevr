@@ -2112,6 +2112,8 @@ QVR_CVAR(vr_knockdown_time_max, "4.5", CVAR_ARCHIVE)      // and at most (at ran
 QVR_CVAR(vr_knockdown_hit_time, "0.5", CVAR_ARCHIVE)      // seconds each hit while down adds (not past Time Max from the hit)
 QVR_CVAR(vr_knockdown_retry, "0.5", CVAR_ARCHIVE)         // seconds between tries to get up where there is no room
 QVR_CVAR(vr_knockdown_search, "48", CVAR_ARCHIVE)         // how far (units) from the body it looks for room to stand
+QVR_CVAR(vr_knockdown_water_search, "256", CVAR_ARCHIVE) // ... lying in water, slime or lava: how far it looks for a floor where its head is out (shallows, the bank: box3d standSpot)
+QVR_CVAR(vr_knockdown_water_giveup, "3", CVAR_ARCHIVE)   // ... none found for this long (s) after its time to get up: it gets up where it floats, a walking monster again (and sinks); 0: never
 QVR_CVAR(vr_knockdown_blend, "0.35", CVAR_ARCHIVE)        // seconds the body blends from the ragdoll into the get-up
 QVR_CVAR(vr_knockdown_getup_speed, "1", CVAR_ARCHIVE)     // the get-up's frames' speed (1: Quake's 10 a second)
 QVR_CVAR(vr_knockdown_push, "1", CVAR_ARCHIVE)            // the knocked body's launch, times the shove's push

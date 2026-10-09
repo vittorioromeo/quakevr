@@ -4041,14 +4041,121 @@ void updateRecoveries()
 // `at`, else around it, out to `range` units in rings; each place reached from `from` without crossing a wall, on a
 // floor within a step of the one under the body (never one above or below it), its box clear (of the world, monsters
 // and players). False if none.
+// Lying in water, slime or lava (NOTES.md vrstart_2026-10-09_17-55-49: a knockdown floating in deep water never got up;
+// one over the bottom stood on it, under water, and drowned): a floor anywhere under the place, with its eyes out of
+// the liquid there, reached over the body (from up to 96 units over it: out over a pool's edge or onto a quay), out to
+// vr_knockdown_water_search: shallow water's bottom or the bank. `anywhere` (QC: no such place for a while): the box
+// clear at the body or around it, floor or none (it stands up in the liquid, a walking monster again, and sinks).
 [[nodiscard]] bool standSpot(edict_t* ent, const glm::vec3& from, const glm::vec3& at, const glm::vec3& mins,
-    const glm::vec3& maxs, float range, glm::vec3& out)
+    const glm::vec3& maxs, float range, glm::vec3& out, bool anywhere = false)
 {
     const auto point = [](const glm::vec3& a, const glm::vec3& b, edict_t* pass) {
         vec3_t va{a.x, a.y, a.z}, vb{b.x, b.y, b.z};
         return SV_Move(va, vec3_origin, vec3_origin, vb, MOVE_NOMONSTERS, pass);
     };
+    const auto wetAt = [](const glm::vec3& p) {
+        vec3_t v{p.x, p.y, p.z};
+        const int c = VR_LiquidContents(sv.worldmodel, v, SV_PointContents(v));
+        return c <= CONTENTS_WATER && c >= CONTENTS_LAVA;
+    };
+    const auto boxClear = [&](const glm::vec3& c) {
+        vec3_t o{c.x, c.y, c.z};
+        vec3_t lo{mins.x, mins.y, mins.z}, hi{maxs.x, maxs.y, maxs.z};
+        const trace_t box = SV_Move(o, lo, hi, o, MOVE_NORMAL, ent);
+        return !box.startsolid && !box.allsolid;
+    };
     const glm::vec3 eye = from + glm::vec3{0.f, 0.f, 2.f};
+    constexpr float step = 8.f;
+    if(anywhere)
+    {
+        const glm::vec3 base{at.x, at.y, from.z - (mins.z + maxs.z) * 0.5f};
+        for(float radius = 0.f; radius <= za::max(range, 0.f) + 0.01f; radius += step)
+        {
+            const int dirs = radius > 0.f ? za::clamp(static_cast<int>(glm::two_pi<float>() * radius / step), 8, 32) : 1;
+            for(int d = 0; d < dirs; d++)
+            {
+                const float a = glm::two_pi<float>() * static_cast<float>(d) / static_cast<float>(dirs);
+                const glm::vec3 c = base + glm::vec3{za::cos(a), za::sin(a), 0.f} * radius;
+                if(point(eye, glm::vec3{c.x, c.y, eye.z}, ent).fraction >= 1.f && boxClear(c))
+                {
+                    out = c;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    if(wetAt(eye) || wetAt(from))
+    {
+        // Over the body: up to 96 units (vrstart's island stands 56 over its sea), under the ceiling.
+        const trace_t up = point(eye, eye + glm::vec3{0.f, 0.f, 96.f}, ent);
+        const glm::vec3 top{eye.x, eye.y, up.endpos[2] - 1.f};
+        const trace_t down = point(eye, eye - glm::vec3{0.f, 0.f, 1024.f}, ent);
+        const float bottom = down.fraction < 1.f ? down.endpos[2] : eye.z - 1024.f;
+        const float eyes = (maxs.z - mins.z) * 0.8f; // (over its feet: a monster's eyes, about)
+        int walls = 0, noFloor = 0, deep = 0, noRoom = 0; // (vr_knockdown_debug 2: why each place wasn't)
+        const auto tryWet = [&](const glm::vec3& c) {
+            const glm::vec3 over{c.x, c.y, top.z};
+            if(point(top, over, ent).fraction < 1.f)
+            {
+                ++walls;
+                return false; // (a wall between, over the body)
+            }
+            const trace_t tr = point(over, glm::vec3{c.x, c.y, bottom - 32.f}, ent);
+            if(tr.fraction >= 1.f || tr.plane.normal[2] < 0.7f)
+            {
+                ++noFloor;
+                return false;
+            }
+            const glm::vec3 floor{tr.endpos[0], tr.endpos[1], tr.endpos[2]};
+            if(wetAt(floor + glm::vec3{0.f, 0.f, eyes}))
+            {
+                ++deep;
+                return false; // (its head under: deep here)
+            }
+            // (On a slope, the box over the point meets the slope: up to a step higher, it falls onto it.)
+            for(const float lift : {0.25f, 6.f, 12.f, 18.f})
+            {
+                const glm::vec3 o{c.x, c.y, floor.z - mins.z + lift};
+                if(boxClear(o))
+                {
+                    out = o;
+                    return true;
+                }
+            }
+            ++noRoom;
+            return false;
+        };
+        const auto report = [&](bool found) {
+            if(vr_knockdown_debug.value >= 2.f)
+            {
+                Con_Printf("knockdown: %d in a liquid at %.0f %.0f %.0f (over it to %.0f, its bottom %.0f): %s; places with a "
+                           "wall between %d, no floor %d, too deep %d, no room %d\n",
+                    NUM_FOR_EDICT(ent), from.x, from.y, from.z, top.z, bottom, found ? "a floor found" : "none", walls,
+                    noFloor, deep, noRoom);
+            }
+            return found;
+        };
+        if(tryWet(at))
+        {
+            return report(true);
+        }
+        const float wetRange = za::max(za::max(range, 0.f), vr_knockdown_water_search.value);
+        for(float radius = step; radius <= wetRange + 0.01f; radius += radius < 48.f ? step : 2.f * step)
+        {
+            const int dirs = za::clamp(static_cast<int>(glm::two_pi<float>() * radius / step), 8, 32);
+            for(int d = 0; d < dirs; d++)
+            {
+                const float a = glm::two_pi<float>() * (static_cast<float>(d) + (static_cast<int>(radius / step) % 2 ? 0.5f : 0.f)) /
+                                static_cast<float>(dirs);
+                if(tryWet(at + glm::vec3{za::cos(a), za::sin(a), 0.f} * radius))
+                {
+                    return report(true);
+                }
+            }
+        }
+        return report(false);
+    }
     // The floor under the body.
     trace_t down = point(eye, eye - glm::vec3{0.f, 0.f, 128.f}, ent);
     const float floorZ = down.fraction < 1.f ? down.endpos[2] : from.z - 24.f;
@@ -4078,7 +4185,6 @@ void updateRecoveries()
     {
         return true;
     }
-    constexpr float step = 8.f;
     for(float radius = step; radius <= za::max(range, 0.f) + 0.01f; radius += step)
     {
         const int dirs = za::clamp(static_cast<int>(glm::two_pi<float>() * radius / step), 8, 32);
@@ -13564,7 +13670,7 @@ bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
     return true;
 }
 
-int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range)
+int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range, bool anywhere)
 {
     if(!world || !ent || ent->free)
     {
@@ -13591,11 +13697,12 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
     const b3WorldTransform pelvis = b3Body_GetTransform(r->body[0]);
     const glm::vec3 from = fromB3(pelvis.q) * (rig.bones[0].pivot * r->scale) + world->toU(pelvis.p);
     glm::vec3 spot;
-    if(!standSpot(ent, from, at, mins, maxs, range, spot))
+    if(!standSpot(ent, from, at, mins, maxs, range, spot, anywhere))
     {
         if(vr_knockdown_debug.value)
         {
-            Con_Printf("knockdown: %d no room to get up within %.0f units: stays down\n", num, range);
+            Con_Printf("knockdown: %d no room to get up within %.0f units%s: stays down\n", num, range,
+                anywhere ? " (anywhere)" : "");
         }
         return 0;
     }

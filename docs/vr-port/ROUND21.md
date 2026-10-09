@@ -33974,3 +33974,26 @@ again each look while in it, so out of it he burns on for that long (Burn Damage
 the fire does no damage of its own (`VR_Burn_Think`: a client with watertype lava), so lava's damage is id's as before.
 Water puts it out as any fire. Not lit with the pentagram or the biosuit. Checked on e1m7 (`setpos 710 160 40`, 0.4 s
 in, then to the start): in lava only lava's 10-point hits; out, 2 a tick at 80, 78 .. 72, out after 3 s.
+
+## Knocked down into water: getting up (2026-10-09)
+
+**Note vrstart_2026-10-09_17-55-49.** A knockdown floating in water never got up: the get-up's place (`standSpot`,
+vr_box3d.cpp) wants a floor within 128 units under the body and within 24 of it at each place tried; vrstart's sea
+is 136 to 1024 deep, so none, every 0.5 s for good. In vrtesthall's pool (120 deep) it stood up on the bottom, under
+water, and drowned 5 s later (its breath had run since it went in face down).
+
+- Lying in water, slime or lava (its pelvis or just over it in one), `standSpot` looks for a floor anywhere under each
+  place with the monster's eyes (0.8 of its height over its feet) out of the liquid: the shallows' bottom or the bank,
+  reached from up to 96 units over the body (vrstart's island stands 56 over its sea; never through a wall or ceiling),
+  out to `vr_knockdown_water_search` (256; Knockdowns > Search in Water); the box tried up to 18 units over a slope.
+  `vr_knockdown_debug 2` prints each try's counts (a wall between, no floor, too deep, no room).
+- None for `vr_knockdown_water_giveup` s (3; Give Up in Water; 0 never) after its time to get up: it gets up where it
+  floats (`ragdollgetup(..., anywhere)`: its box clear there or around it, floor or none), a walking monster again,
+  not on the ground: it sinks, walks the bottom and can drown (vr_liquids.qc, 12 s of breath from when its head went
+  under). Never a floating ragdoll for good.
+- Breath: a knockdown face down in water has its head under (`VR_Liquid_Level`: the ragdoll's head), so its 12 s run
+  as for a standing one under water; it is up (2.5-4.5 s) long before, and out on a bank it breathes again.
+- Checked (`liquid_test.sh <agent> kd kdslime kdlava kdsea kddeep`): vrstart, knocked off the island's south shore
+  (948 -1160): up after 3.1 s, 64 units off on the slope, feet in the water; far out (948 -2580): 543 places all too
+  deep, up where it floated after 6.6 s, sank to -270; vrtesthall's pool (time 8 s): up on the edge, 16 units off,
+  out of the water (before: on the bottom, drowned); slime and lava as before (killed; burnt through and gibbed).

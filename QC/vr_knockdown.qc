@@ -219,6 +219,10 @@ void(float xWhich) VR_Knockdown_Stand =
 };
 
 // Down (self): waits, then tries to get up (room for it: VR_Knockdown_Stand; none: tries again a little later).
+// In water, slime or lava (NOTES.md vrstart_2026-10-09_17-55-49): the engine looks for a floor where its head is out
+// (the shallows' bottom, the bank: vr_knockdown_water_search); none for vr_knockdown_water_giveup s, it gets up where it
+// floats, a walking monster again (it sinks; under water it can drown, vr_liquids.qc), never a ragdoll for good.
+.float vr_kd_wet_since; // when its tries in a liquid began failing (0: not)
 void() VR_Knockdown_Think =
 {
     if(self.health <= 0 || self.vr_knockdown != 1)
@@ -245,14 +249,46 @@ void() VR_Knockdown_Think =
         VR_Knockdown_Stand(0);
         return;
     }
-    float which = ragdollgetup(self, self.vr_kd_frame, self.vr_kd_frame2, self.vr_kd_mins, self.vr_kd_maxs,
-        max(0, cvar_hget(cvarh_vr_knockdown_search)));
+    float search = max(0, cvar_hget(cvarh_vr_knockdown_search));
+    float which = ragdollgetup(self, self.vr_kd_frame, self.vr_kd_frame2, self.vr_kd_mins, self.vr_kd_maxs, search);
+    float floating = FALSE;
     if(!which)
     {
-        self.vr_kd_until = time + max(0.1, cvar_hget(cvarh_vr_knockdown_retry));
-        return;
+        float giveup = cvar_hget(cvarh_vr_knockdown_water_giveup);
+        if(giveup > 0 && VR_Liquid_Level(self) > 0)
+        {
+            if(!self.vr_kd_wet_since)
+            {
+                self.vr_kd_wet_since = time;
+            }
+            if(time >= self.vr_kd_wet_since + giveup)
+            {
+                which = ragdollgetup(self, self.vr_kd_frame, self.vr_kd_frame2, self.vr_kd_mins, self.vr_kd_maxs,
+                    max(48, search), TRUE);
+                floating = which != 0;
+            }
+        }
+        else
+        {
+            self.vr_kd_wet_since = 0;
+        }
+        if(!which)
+        {
+            self.vr_kd_until = time + max(0.1, cvar_hget(cvarh_vr_knockdown_retry));
+            return;
+        }
     }
+    self.vr_kd_wet_since = 0;
     VR_Knockdown_Stand(which);
+    if(floating)
+    {
+        self.flags = self.flags - (self.flags & FL_ONGROUND); // (nothing under it: it sinks)
+        if(cvar_hget(cvarh_vr_knockdown_debug))
+        {
+            dprint(sprintf("knockdown: %s found no floor out of the liquid: up where it floats, at %v\n", self.classname,
+                self.origin));
+        }
+    }
 };
 
 // Knocks `e` down now (its ragdoll made, it lies there): FALSE if it could not be.

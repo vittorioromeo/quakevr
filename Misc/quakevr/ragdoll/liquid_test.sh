@@ -11,16 +11,20 @@
 #   kdslime  e3m1: a live grunt knocked down into the slime: no fall damage (the slime burns it: vr_enemy_liquid_damage)
 #   lava     e1m7's lava: a dead grunt floats, burns, bursts into gibs after vr_burn_lava_gib s
 #   kdlava   e1m7: a live grunt knocked down into the lava: dies burning, then gibbed
+#   kdsea    vrstart: a live grunt knocked off the island into the sea (its usual 2.5-4.5 s down): gets up on the slope
+#            out of the water ("in a liquid ... a floor found", vr_knockdown_debug 2), not drowning
+#   kddeep   vrstart, far out at sea: no floor out of it within vr_knockdown_water_search, so after
+#            vr_knockdown_water_giveup s it gets up where it floats ("up where it floats") and sinks, a walking grunt
 # OLD=1 runs them as before (liquids' lift, drag, cushion and lava bodies off).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
-CASES=${*:-water knight kd fall slime kdslime lava kdlava}
+CASES=${*:-water knight kd fall slime kdslime lava kdlava kdsea kddeep}
 X=""
 [ -n "$OLD" ] && X="vr_liquid_fall_cushion 0;vr_burn_lava_bodies 0;vr_ragdoll_float_water 0;vr_ragdoll_float_slime 0;vr_ragdoll_float_lava 0;vr_ragdoll_drag_water 0;vr_ragdoll_drag_slime 0;vr_ragdoll_drag_lava 0"
-FILTER="in liquid|gibbed|fall:|knockdown test: .* down|^ragdoll [0-9]+ monster|rror|burnt|in lava \(|liquid: .*health|bodycheck: .*(ragdoll=1|knocked=1|water=[1-3])"
+FILTER="in liquid|gibbed|fall:|knockdown test: .* down|^ragdoll [0-9]+ monster|rror|burnt|in lava \(|liquid: .*health|in a liquid at|where it floats|gets up after|bodycheck: .*(ragdoll=1|knocked=1|water=[1-3])"
 # drop <map> <x y z of the player> <monster> <dead 1/0> <after: knock down or nothing>
 drop() {
-    local S="map $1;wait30;god;notarget;developer 1;vr_debug_shots 1;vr_ragdoll 1;vr_debug_ragdoll 2;vr_knockdown_time_min 20;vr_knockdown_time_max 20;$X;noclip;setpos $2 0 0 0;wait5;vr_test_spawn $3;vr_test_spawn_dist ${D:-150};vr_test_spawn_dead $4;impulse 241;wait2;vr_test_spawn_dead 0;$5;wait500;vr_ragdoll_list;vr_knockdown_test 6"
+    local S="map $1;wait30;god;notarget;developer 1;vr_debug_shots 1;vr_ragdoll 1;vr_debug_ragdoll 2;vr_knockdown_time_min ${KDT:-20};vr_knockdown_time_max ${KDT:-20};vr_knockdown_debug 2;$X;noclip;setpos $2 0 ${YAW:-0} 0;wait5;vr_test_spawn $3;vr_test_spawn_dist ${D:-150};vr_test_spawn_dead $4;impulse 241;wait2;vr_test_spawn_dead 0;$5;wait500;vr_ragdoll_list;vr_knockdown_test 6"
     bash $KIT/run.sh $AGENT -Script "$S;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | grep -v "^$" | tr -d '\r' |
         awk '/in liquid/ { n++; if (n % 40 != 1) next } { print substr($0, 1, 150) }'
 }
@@ -35,5 +39,7 @@ for c in $CASES; do
     kdslime) D=100 drop e3m1 "960 16 0" 0 0 "vr_knockdown_test 0" ;;
     lava)    drop e1m7 "710 160 150" 0 1 ;;
     kdlava)  D=100 drop e1m7 "300 160 150" 0 0 "vr_knockdown_test 0" ;;
+    kdsea)   D=200 YAW=270 KDT=3 drop vrstart "948 -900 80" 0 0 "vr_knockdown_test 0" ;;
+    kddeep)  D=200 YAW=270 KDT=3 drop vrstart "948 -2200 80" 0 0 "vr_knockdown_test 0" ;;
     esac
 done

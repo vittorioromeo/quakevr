@@ -179,7 +179,8 @@ bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm:
 // chosen), its origin and yaw set there.
 [[nodiscard]] bool canRagdoll(edict_t* ent);
 bool ragdollKnockdown(edict_t* ent);
-int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range);
+int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range,
+    bool anywhere = false);
 // The two-hand throw's topple (vr_foegrab_throw_topple; ROUND21.md, "Holding enemies"): `ent`'s ragdoll (just made by
 // ragdollKnockdown) turned over about its feet towards level `dir`, a sweep: its parts' shared launch (the throw's push and
 // lift) shared out by height (the feet none, the top all), `topple` rad/s about the level axis through its feet across

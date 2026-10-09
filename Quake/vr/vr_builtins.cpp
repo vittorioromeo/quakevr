@@ -1545,15 +1545,17 @@ void PF_ragdollshovetopple()
     G_FLOAT(OFS_RETURN) = foegrab::shoveTopple(G_EDICT(OFS_PARM0), dir, G_FLOAT(OFS_PARM2), ledge, reach) ? 1.f : 0.f;
 }
 
-// float ragdollgetup(entity e, float frameA, float frameB, vector mins, vector maxs, float range): e gets up from its
-// ragdoll, starting from frameA or frameB (whichever fits how it lies; -1 none): 0 no room within range (it stays down),
-// else 1 or 2 (the frame chosen), e at the place found, turned to it (.vr_knockdown 2).
+// float ragdollgetup(entity e, float frameA, float frameB, vector mins, vector maxs, float range, optional float anywhere):
+// e gets up from its ragdoll, starting from frameA or frameB (whichever fits how it lies; -1 none): 0 no room within
+// range (it stays down), else 1 or 2 (the frame chosen), e at the place found, turned to it (.vr_knockdown 2). In a
+// liquid: where it can stand with its head out (box3d standSpot); anywhere: its box free, floor or none.
 void PF_ragdollgetup()
 {
     const float* lo = G_VECTOR(OFS_PARM3);
     const float* hi = G_VECTOR(OFS_PARM4);
     G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollGetUp(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)),
-        static_cast<int>(G_FLOAT(OFS_PARM2)), glm::vec3{lo[0], lo[1], lo[2]}, glm::vec3{hi[0], hi[1], hi[2]}, G_FLOAT(OFS_PARM5)));
+        static_cast<int>(G_FLOAT(OFS_PARM2)), glm::vec3{lo[0], lo[1], lo[2]}, glm::vec3{hi[0], hi[1], hi[2]}, G_FLOAT(OFS_PARM5),
+        qcvm->argc > 6 && G_FLOAT(OFS_PARM6) != 0.f));
 }
 
 // float ragdollgrab(entity e, entity player, float hand): the hand takes the limb of e's ragdoll it is on (or catches
