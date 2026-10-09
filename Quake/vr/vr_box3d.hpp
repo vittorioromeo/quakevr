@@ -224,14 +224,12 @@ bool ragdollShove(edict_t* ent, const glm::vec3& dir, const RagdollShove& p);
 bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet);
 // Whether hand point `at` (units) is within vr_ragdoll_grab_reach of a limb of edict `num`'s ragdoll (a hand touching it).
 [[nodiscard]] bool ragdollReach(int num, const glm::vec3& at);
-// The hands and the limbs (QC's builtins: ragdollgrab, ragdollpull, ragdollrelease, ragdollheld, ragdollreach). `hand`:
-// QC's (0 the off hand, 1 the main). grab: take the limb of `corpse` the hand is on, or catch the one it pulls; pull: a
-// force grab of the limb nearest its aim, due in `flight` s; release: let go (a held limb keeps `velocity`, units/s).
+// The hands and the limbs (QC's builtins: ragdollgrab, ragdollrelease, ragdollheld, ragdollreach). `hand`: QC's (0 the
+// off hand, 1 the main). grab: take the limb of `corpse` the hand is on; release: let go (the limb keeps `velocity`,
+// units/s).
 bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
-bool ragdollPull(edict_t* corpse, edict_t* player, int hand, float flight);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
-// 0 nothing, 1 holding a limb, 2 pulling one (force grab); the distance (units) from the hand to the limb's held or pulled
-// point (-1: none).
+// 0 nothing, 1 holding a limb; the distance (units) from the hand to the limb's held point (-1: none).
 [[nodiscard]] int ragdollHeld(edict_t* player, int hand);
 [[nodiscard]] float ragdollHandReach(edict_t* player, int hand);
 // A hand's hold on a limb (not a pull), for the hand drawn on it and its fingers closed round it (vr_view.cpp; a listen

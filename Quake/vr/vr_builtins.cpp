@@ -1523,21 +1523,11 @@ void PF_ragdollgetup()
         qcvm->argc > 6 && G_FLOAT(OFS_PARM6) != 0.f));
 }
 
-// float ragdollgrab(entity e, entity player, float hand): the hand takes the limb of e's ragdoll it is on (or catches
-// the one it pulls).
+// float ragdollgrab(entity e, entity player, float hand): the hand takes the limb of e's ragdoll it is on.
 void PF_ragdollgrab()
 {
     G_FLOAT(OFS_RETURN) =
         box3d::ragdollGrab(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2))) ? 1.f : 0.f;
-}
-
-// float ragdollpull(entity e, entity player, float hand, float flight): a force grab of e's limb nearest the hand's aim.
-void PF_ragdollpull()
-{
-    G_FLOAT(OFS_RETURN) = box3d::ragdollPull(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)),
-                              G_FLOAT(OFS_PARM3))
-                              ? 1.f
-                              : 0.f;
 }
 
 // void ragdollrelease(entity player, float hand, vector velocity): the hand lets go (a held limb keeps the velocity).
@@ -1547,13 +1537,13 @@ void PF_ragdollrelease()
     box3d::ragdollRelease(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), glm::vec3{v[0], v[1], v[2]});
 }
 
-// float ragdollheld(entity player, float hand): 0 nothing, 1 holding a ragdoll's limb, 2 pulling one.
+// float ragdollheld(entity player, float hand): 0 nothing, 1 holding a ragdoll's limb.
 void PF_ragdollheld()
 {
     G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollHeld(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
 }
 
-// float ragdollreach(entity player, float hand): how far (units) the held or pulled limb's point is from the hand; -1 none.
+// float ragdollreach(entity player, float hand): how far (units) the held limb's point is from the hand; -1 none.
 void PF_ragdollreach()
 {
     G_FLOAT(OFS_RETURN) = box3d::ragdollHandReach(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)));
@@ -2248,7 +2238,6 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollknockdown", PF_ragdollknockdown},
     {"ragdollshovetopple", PF_ragdollshovetopple},
     {"ragdollgetup", PF_ragdollgetup},
-    {"ragdollpull", PF_ragdollpull},
     {"ragdollrelease", PF_ragdollrelease},
     {"ragdollheld", PF_ragdollheld},
     {"ragdollreach", PF_ragdollreach},

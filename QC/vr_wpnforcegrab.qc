@@ -559,63 +559,12 @@ void(vector at) VR_Forcegrab_PortalTest =
     bprint(sprintf("portalpulltest: gate=%g flight=%g\n", g.fg_portal, g.fg_arrive - time));
 };
 
-// A ragdoll force grabbed: no longer reached in play (ragdolls are taken by hand only: vr_ragdoll_grab 1, the legacy 2
-// too; force grab's targets leave them out); kept for a target that is a ragdoll all the same. The limb nearest the hand's aim flies to the hand (the engine's pull:
-// ragdollpull, in the time a prop would take), the body dragged after it; the grip held as it comes within
-// vr_forcegrab_catch_radius catches it: the hand holds that limb (VR_Ragdoll_HandFrame).
-void(entity e, float xHand) VR_Ragdoll_Pull =
-{
-    vector handPos = VRGetHandPos(xHand);
-    float dist = vlen(handPos - VR_Forcegrab_Centre(e));
-    float flight = cvar_hget(cvarh_vr_forcegrab_time) + dist / max(1, cvar_hget(cvarh_vr_forcegrab_speed));
-    if(!ragdollpull(e, self, xHand, flight))
-    {
-        return;
-    }
-    sound(e, CHAN_AUTO, "forcegrab.wav", 0.65, ATTN_NORM);
-    haptic(xHand, 0.0, 0.12, 50, 0.6);
-    dprint("force grab: a ragdoll's limb flies ");
-    dprint(ftos(dist));
-    dprint(" units in ");
-    dprint(ftos(flight));
-    dprint(" s\n");
-}
-
-// While a ragdoll's limb flies to the hand: caught when the grip is held as it comes near.
-void(float xHand) VR_Ragdoll_PullFrame =
-{
-    entity e = self.mainhand_fgpulled;
-    if(xHand == cVR_OffHand)
-    {
-        e = self.offhand_fgpulled;
-    }
-    float reach = ragdollreach(self, xHand);
-    if(e == world || reach < 0 || reach > cvar_hget(cvarh_vr_forcegrab_catch_radius) * 1.5 || !VRIsHandEmpty(self, xHand) ||
-       !VR_HandGrabUtil_IsHandGrabbing(self, xHand))
-    {
-        return;
-    }
-    if(ragdollgrab(e, self, xHand))
-    {
-        VR_Carry_SetHeld(self, xHand, e);
-        haptic(xHand, 0.0, 0.07, 90, 0.85);
-        haptic(xHand, 0.06, 0.08, 70, 0.4);
-        dprint("force grab: caught a ragdoll's limb\n");
-    }
-}
-
 // ----------------------------------------------------------------------------
 // Player frame
 // ----------------------------------------------------------------------------
 
 void(float xHand) VR_Forcegrab_HandFrame =
 {
-    if(ragdollheld(self, xHand) == 2) // (a ragdoll's limb flying to the hand)
-    {
-        VR_Ragdoll_PullFrame(xHand);
-        VR_Forcegrab_Set(xHand, world, FALSE);
-        return;
-    }
     // A hand holding an enemy (vr_foegrab.qc) force grabs nothing (his note, vrfiringrange_2026-10-09_10-55: a judo
     // throw's hands locked on to things and pulled them): not while it holds, not for a moment after it lets go (the
     // throw's follow-through), and not until its trigger, if held, is let go.
@@ -668,14 +617,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
                 VR_Forcegrab_Set(xHand, world, FALSE);
                 return;
             }
-            if(isragdoll(target))
-            {
-                VR_Ragdoll_Pull(target, xHand); // (by a limb: the engine flies it)
-            }
-            else
-            {
-                VR_Forcegrab_Launch(target, xHand);
-            }
+            VR_Forcegrab_Launch(target, xHand);
             VR_Forcegrab_Set(xHand, world, FALSE);
             VR_Forcegrab_SetPulled(xHand, target);
             return;

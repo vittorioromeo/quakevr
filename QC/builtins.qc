@@ -282,7 +282,6 @@ float(entity e) ragdollknockdown = #0;
 // times strength: the shove's push, two hands 1): 0 no ragdoll.
 float(entity e, vector dir, float strength, float ledge, float reach) ragdollshovetopple = #0;
 float(entity e, float frameA, float frameB, vector mins, vector maxs, float range, optional float anywhere) ragdollgetup = #0;
-float(entity e, entity player, float hand, float flight) ragdollpull = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;

@@ -15,8 +15,8 @@
 #   grab     e1m1: the off hand grips the limb nearest it (vr_mock_hand_to ... ragdoll near), lifts it 30 units, flings
 #            it and lets go: taken, held (how far from the hand), let go of at the throw's speed, where it came to rest
 #   twohand  both hands grip, lift 25 units together and let go
-#   pull     a force grab from 140 units (a vr_mock_play take: the main hand points, the trigger locks, a flick up pulls,
-#            the grip catches): pulled, caught, held, let go
+#   pull     a force grab from 140 units (a vr_mock_play take: the main hand points, the trigger locks, a flick up would
+#            pull, the grip would catch): never pulled (force grab leaves ragdolls out; its ragdoll pull was removed)
 #   pile     four grunts killed on one spot, ragdolls meeting each other (vr_ragdoll_collide_each 1) and not (0)
 #   burn     a ragdoll set on fire (vr_burn_test 1), then lifted and flung by hand: its flames' distance to its limbs
 #   wounds   a ragdoll shot twice: the wound masks (vr_wounds_info: painted on progs/soldier.mdl#rag)

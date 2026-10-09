@@ -2166,7 +2166,7 @@ QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made
 QVR_CVAR(vr_ragdoll_joint_stiffness, "0", CVAR_ARCHIVE) // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
 QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
-QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand; legacy 2 also only by hand
+QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (an old config's 2: the same)
 QVR_CVAR(vr_ragdoll_grab_force, "3000", CVAR_ARCHIVE) // N: the most a hand pulls a held limb with (3000: a grunt lifted by his chest sags a unit; 1500: about 18)
 QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
 QVR_CVAR(vr_ragdoll_grab_fit, "1", CVAR_ARCHIVE)      // a taken limb's surface brought onto the palm (as a carried prop's: vr_held_surface_fit); 0: held where the hand's middle was
