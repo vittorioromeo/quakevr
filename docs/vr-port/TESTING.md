@@ -2017,6 +2017,7 @@ attempts at once (also with real runtimes: `vr_xr_test_fail virtualdesktop` show
 `bash Misc/quakevr/fakexr/build.sh <worktree>` builds a fake runtime DLL (no headset: `xrGetSystem` fails) into
 `scratch/fakexr`, one copy per runtime with a manifest named as the real one's; `FAKEXR_LOG` logs each copy's loads and
 unloads, `FAKEXR_FAIL_INSTANCE=fakexr_steam` fails one's `xrCreateInstance`. `bash Misc/quakevr/xr_runtime_test.sh
-<agent>` runs it all (25 checks, ~1 min): Auto's order case by case, the manual choices, the config migration, the
+<agent>` runs it all (39 checks, ~1 min): Auto's order case by case, Virtual Desktop's own runtime setting
+(`vr_xr_test_vd_runtime`: VD's number, -1 unknown, 0 Automatic, 1 SteamVR, 2 VDXR, or a StreamerSettings.json to read), the manual choices, the config migration, the
 fallback through the real loader (each fake runtime loaded, failing and unloaded in turn in one process) and an
 outside `XR_RUNTIME_JSON` winning.

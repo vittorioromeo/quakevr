@@ -32729,3 +32729,36 @@ Virtual Desktop note now says the game picks VDXR by itself while the Streamer r
 - Quest Link only (Meta app running, VD closed): Meta's runtime.
 - `vr_xr_test_fail virtualdesktop; vr_restart` with VD connected and SteamVR running: SteamVR takes over in the same
   session (the loader's reload with real runtimes); `vr_xr_test_fail ""; vr_restart` goes back to VDXR.
+
+### Virtual Desktop's own runtime setting (2026-10-09)
+
+Your question: the Streamer lets you choose VDXR or SteamVR as the OpenXR runtime; does Auto see it? It does now.
+
+Where VD keeps it: `"OpenXRRuntime"` in `%ProgramData%\Virtual Desktop\StreamerSettings.json`, a number of the
+Streamer's enum `VirtualDesktop.Interfaces.OpenXRRuntime`: 0 Automatic, 1 SteamVR, 2 VDXR (read from the .NET metadata
+of `VirtualDesktop.Streamer.exe` 1.34.23; yours is 2, VDXR). Nothing in the registry under `Virtual Desktop, Inc.`
+holds it. The Streamer hands the choice to VD's service (`SetOpenXRRuntime`, in `VirtualDesktop.Service.exe`), which
+very likely sets the system's `ActiveRuntime` to match (yours is VDXR's), but its strings are obfuscated, so whether it
+switches `ActiveRuntime` to SteamVR's (and what Automatic does exactly) wasn't verified; the file says the choice
+directly anyway. VD sets no `XR_RUNTIME_JSON` that the game could see (none in the Streamer's strings).
+
+What Auto does with it, only while the Streamer runs (`Quake/vr/vr_xr_runtime.cpp`, `autoOrder`):
+
+- SteamVR: SteamVR's runtime first, running or not (loading it starts SteamVR, which reaches the headset through VD's
+  driver), then VDXR (`Auto: SteamVR - Virtual Desktop set to SteamVR`). SteamVR not installed: VDXR (`Streamer
+  running, set to SteamVR (not installed)`).
+- VDXR or Automatic: VDXR first, as before (`Streamer running, set to VDXR`).
+- File missing, no key, an unknown value: as before (`Streamer running`).
+
+`vr_xr_runtime_explain` prints the setting and where it came from (`Virtual Desktop's OpenXR runtime setting: VDXR:
+VDXR first` / `OpenXRRuntime 2 in C:\ProgramData\Virtual Desktop\StreamerSettings.json`); the menu line under OpenXR
+Runtime carries the reason (`Auto: SteamVR - Virtual Desktop set to SteamVR`). `vr_xr_test_vd_runtime` overrides it
+(also without `vr_xr_test`): a number (-1 unknown, 0 Automatic, 1 SteamVR, 2 VDXR) or another StreamerSettings.json to
+read; with `vr_xr_test 1` and the cvar empty, no file is read. `xr_runtime_test.sh`: 14 new checks (39 in all, 0
+failed), the parser on fake files (a number, a name with CRLF, no key, no file) and SteamVR's fake loaded before
+VDXR's through the real loader. On this PC (headless, real system): `OpenXRRuntime 2` read, VDXR first.
+
+To try: in the Streamer's Options pick SteamVR as the OpenXR runtime, connect, start the game (Auto): SteamVR starts
+and runs the game (console: `Auto: SteamVR - Virtual Desktop set to SteamVR`); pick VDXR again: VDXR, no SteamVR.
+Worth a note: what Automatic does on VD's side, and whether `ActiveRuntime` changes when you switch (Debug > Reports >
+OpenXR Runtime Choice shows the system's active runtime).

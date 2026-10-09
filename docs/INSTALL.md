@@ -137,8 +137,8 @@ Quake VR uses whichever OpenXR runtime you pick in **VR Settings > Headset > Ope
 without restarting the game. The line under it says which runtime is in use and why.
 
 - **Auto** (the default): the runtime whose app is running. Virtual Desktop's Streamer means Virtual Desktop's own
-  runtime (VDXR), SteamVR means SteamVR's, the Meta app's server means Meta's. With none running, it's the system's
-  active runtime. If that runtime can't start (no headset connected through it, for example), the game tries the other
+  runtime (VDXR), or SteamVR's when SteamVR is the OpenXR runtime chosen in the Streamer's options; SteamVR means
+  SteamVR's, the Meta app's server means Meta's. With none running, it's the system's active runtime. If that runtime can't start (no headset connected through it, for example), the game tries the other
   installed ones before playing flat (*Try Other Runtimes*, an advanced row: an idle SteamVR is tried only with *On,
   SteamVR too*, as trying it starts SteamVR). The console command `vr_xr_runtime_explain` prints what Auto sees and the
   order it tries runtimes in. After starting or closing a VR app, *Restart VR* chooses again.
