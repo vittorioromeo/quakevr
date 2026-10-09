@@ -1167,7 +1167,7 @@ static enum m_state_e M_GetBaseState (enum m_state_e state)
 //=============================================================================
 /* MAIN MENU */
 
-int	m_main_cursor = 2; // QVR: MAIN_SINGLEPLAYER (below): Single Player first, as before the VR Calibration and VR Settings rows
+int	m_main_cursor = 2; // QVR: MAIN_CAMPAIGNS (below): the playing group's first row (Select Campaign), below the VR rows
 int m_main_mods;
 
 enum
@@ -1207,13 +1207,13 @@ static qboolean M_Main_Shown (int item)
 	return item != MAIN_MODS || (m_main_mods && VR_MenuMainShowsMods ());
 }
 
-// QVR: the rows in groups, a gap above each but the first: the VR rows, playing (Single Player, Select Campaign,
-// Multiplayer), the maps
+// QVR: the rows in groups, a gap above each but the first: the VR rows (VR Calibration, VR Settings), playing (Select
+// Campaign, Single Player, Multiplayer), the maps
 // (Download Maps, Play Custom Map), the settings (Options, Advanced VR, Mods), Quit apart (the author's note
 // vrfiringrange_2026-10-08_00-02-55).
 static qboolean M_Main_GroupStart (int item)
 {
-	return item == MAIN_SINGLEPLAYER || item == MAIN_MAPLIBRARY || item == MAIN_OPTIONS || item == MAIN_QUIT;
+	return item == MAIN_CAMPAIGNS || item == MAIN_MAPLIBRARY || item == MAIN_OPTIONS || item == MAIN_QUIT;
 }
 
 void M_Menu_Main_f (void)
