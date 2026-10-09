@@ -198,6 +198,9 @@ void VR_SaveFlashlightState (void); // before a save snapshot or changelevel par
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
 void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a client_t into globals
+int VR_ServerRandom (void);			// the server's own rand() (vr_srvrandom.cpp): 0..0x7fff, apart from the client's effects' C library rand()
+void VR_ServerRandomMapLoad (void);	// SV_SpawnServer: the server's stream seeded (sv_random_seed; 0: the clock)
+extern cvar_t sv_random_seed;			// pr_cmds.c: the server's random numbers' seed at each map load (tests; 0: the clock's)
 int VR_ProbeRandom (void);			// QC's random() while the kinds that can appear are made as a map loads (vr_progs.cpp): its own numbers, 0..0x7fff; -1 otherwise
 int VR_AllowLatePrecache (void);		// nonzero if precaches are allowed after map load
 int VR_LatePrecacheModel (const char *name); // precache index for setmodel, or -1 if not allowed

@@ -48,6 +48,7 @@
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
+#include "vr_srvrandom.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1295,7 +1296,8 @@ void stopPlayback(const char* why)
     delta = 0.f;
     targetEnt = 0;
     replayRows.clear();
-    srand(1); // (QC's random() and the engine's rand(): the same draws every time)
+    srand(1); // (the engine's rand() and QC's random(): the same draws every time)
+    qvr::srvrandom::seedNow(1u);
     return true;
 }
 
@@ -2272,6 +2274,7 @@ void evalFrame()
             quietLoad(true);
             fixedLoading = true;
             srand(1);
+            qvr::srvrandom::seedNextMap(1u); // (the map's QC random(): its spawns' draws)
             Cbuf_AddText(va("map %s\n", evalMap.cStr()));
             evalWait = 0;
             return;

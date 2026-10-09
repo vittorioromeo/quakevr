@@ -550,13 +550,14 @@ random()
 =================
 */
 cvar_t sv_gameplayfix_random = {"sv_gameplayfix_random", "1", CVAR_ARCHIVE};
+cvar_t sv_random_seed = {"sv_random_seed", "0", CVAR_NONE}; // QVR: the server's random numbers' seed at each map load (tests: the same AI every run; 0: the clock's; vr_srvrandom.cpp)
 static void PF_random (void)
 {
 	float		num;
-	int		r = VR_ProbeRandom (); // QVR: the probes' own numbers (the C library's left as they were)
+	int		r = VR_ProbeRandom (); // QVR: the probes' own numbers (the server's stream left as it was)
 
 	if (r < 0)
-		r = rand ();
+		r = VR_ServerRandom (); // QVR: the server's own stream, not the C library's rand() the client's effects share
 	if (sv_gameplayfix_random.value)
 		num = ((r & 0x7fff) + 0.5f) * (1.f / 0x8000);
 	else

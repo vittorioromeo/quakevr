@@ -32,6 +32,7 @@
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include "vr_srvrandom.hpp"
 
 #include <atomic>
 #include <string.h>
@@ -4378,7 +4379,7 @@ void monsterWalk_f()
         w.then += i > 4 ? " " : "";
         w.then += Cmd_Argv(i);
     }
-    srand(w.seed); // movetogoal's turns
+    qvr::srvrandom::seedNow(w.seed); // movetogoal's turns (the server's stream)
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
     w.goal = ED_Alloc();

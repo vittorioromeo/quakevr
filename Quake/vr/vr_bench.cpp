@@ -9,6 +9,7 @@
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
 #include "vr_particles.hpp"
+#include "vr_srvrandom.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -626,7 +627,9 @@ void mark_f()
 void seed_f()
 {
     const unsigned seed = Cmd_Argc() > 1 ? static_cast<unsigned>(atoi(Cmd_Argv(1))) : 1u;
-    srand(seed); // (QuakeC's random() and the engine's rand())
+    srand(seed); // (the engine's rand(): the client's effects)
+    qvr::srvrandom::seedNow(seed); // QuakeC's random(), now
+    qvr::srvrandom::seedNextMap(seed); // and from the next map load (a "vr_bench_seed; map")
     Con_Printf("vr_bench_seed %u\n", seed);
 }
 

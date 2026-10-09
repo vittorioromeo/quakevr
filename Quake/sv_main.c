@@ -174,6 +174,7 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&pr_checkextension);
 	Cvar_RegisterVariable (&sv_altnoclip); //johnfitz
 	Cvar_RegisterVariable (&sv_gameplayfix_random);
+	Cvar_RegisterVariable (&sv_random_seed); // QVR
 	Cvar_RegisterVariable (&sv_gameplayfix_elevators);
 	Cvar_RegisterVariable (&sv_netsort);
 	Cvar_RegisterVariable (&sv_autoload);
@@ -2034,6 +2035,7 @@ static void SV_SpawnServerRun (const char *server)
 	//memset (&sv, 0, sizeof(sv));
 	Host_ClearMemory ();
 	VR_TimeMark ("server: clear memory"); // QVR
+	VR_ServerRandomMapLoad (); // QVR: the server's random numbers seeded (sv_random_seed), before anything spawns
 
 	q_strlcpy (sv.name, server, sizeof(sv.name));
 	if (developer.value || map_checks.value)

@@ -49,6 +49,7 @@
 #include "vr_weight.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_wounds.hpp"
+#include "vr_srvrandom.hpp"
 #include "vr_toolgun.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -674,6 +675,7 @@ void init()
     Cmd_AddCommand("vr_particle_test", particleTest_f);
     shells::registerCommands();
     explosiondebris::registerCommands();
+    srvrandom::registerCommands();
     serverrules::registerCommands();
     fireparticles::registerCommands();
     Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);

@@ -319,7 +319,7 @@ void SV_NewChaseDir (edict_t *actor, edict_t *enemy, float dist)
 	}
 
 // try other directions
-	if ( ((rand()&3) & 1) ||  abs((int)deltay)>abs((int)deltax)) // ericw -- explicit int cast to suppress clang suggestion to use fabsf
+	if ( ((VR_ServerRandom()&3) & 1) ||  abs((int)deltay)>abs((int)deltax)) // ericw -- explicit int cast to suppress clang suggestion to use fabsf; QVR: the server's random stream (vr_srvrandom.cpp)
 	{
 		tdir=d[1];
 		d[1]=d[2];
@@ -339,7 +339,7 @@ void SV_NewChaseDir (edict_t *actor, edict_t *enemy, float dist)
 	if (olddir!=DI_NODIR && SV_StepDirection(actor, olddir, dist))
 			return;
 
-	if (rand()&1) 	/*randomly determine direction of search*/
+	if (VR_ServerRandom()&1) 	/*randomly determine direction of search*/ // QVR: the server's stream
 	{
 		for (tdir=0 ; tdir<=315 ; tdir += 45)
 			if (tdir!=turnaround && SV_StepDirection(actor, tdir, dist) )
@@ -411,7 +411,7 @@ void SV_MoveToGoal (void)
 		return;
 
 // bump around...
-	if ( (rand()&3)==1 ||
+	if ( (VR_ServerRandom()&3)==1 ||
 	!SV_StepDirection (ent, ent->v.ideal_yaw, dist))
 	{
 		SV_NewChaseDir (ent, goal, dist);

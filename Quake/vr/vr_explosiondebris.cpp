@@ -36,10 +36,10 @@
 #include "vr_particles.hpp"
 #include "vr_progs.hpp"
 #include "vr_units.hpp"
+#include "vr_srvrandom.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
-#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -665,7 +665,7 @@ void serverReset()
     s.minSpeed = s.minLife = 1e30f;
     s.maxSpeed = s.maxLife = 0.f;
     s.rng = za::FastNonCryptoRng{vr_particle_seed.value > 0.f ? static_cast<za::U64>(vr_particle_seed.value)
-                                                             : static_cast<za::U64>(za::Clock::nowNanoseconds())};
+                                                             : srvrandom::derivedSeed(0xE7037ED1A0B428DBull)}; // (the server's seed: fixed with sv_random_seed)
 }
 
 void serverClear()
