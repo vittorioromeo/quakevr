@@ -1095,6 +1095,25 @@ void sticks(const glm::vec2& off, const glm::vec2& main)
 void frame(const hands::State& s)
 {
     tg.hand = heldHand();
+    // The joints: a rope and a spring drawn always (a rope's brown, a spring's steel), the others' points while the joint
+    // tool is in hand.
+    const bool jointTool = tg.hand >= 0 && currentTool() == Tool::Joint && key_dest == key_game;
+    if(sv.active)
+    {
+        const ServerVm jointVm;
+        box3d::forEachToolJoint([jointTool](const glm::vec3& atA, const glm::vec3& atB, box3d::ToolJoint kind) {
+            if(kind == box3d::ToolJoint::Rope || kind == box3d::ToolJoint::Spring)
+            {
+                const glm::vec4 c = kind == box3d::ToolJoint::Rope ? glm::vec4{0.45f, 0.32f, 0.18f, 1.f} : glm::vec4{0.6f, 0.62f, 0.66f, 1.f};
+                lines::sceneLine(atA, atB, 0.8f, c, c);
+            }
+            if(jointTool)
+            {
+                lines::glowPoint(atA, 1.2f, glm::vec4{0.4f, 1.f, 0.4f, 1.f});
+                lines::glowPoint(atB, 1.2f, glm::vec4{0.4f, 1.f, 0.4f, 1.f});
+            }
+        });
+    }
     tg.glowNum = 0;
     tg.glow2 = 0;
     tg.ghost = false;

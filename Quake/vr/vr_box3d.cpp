@@ -10311,6 +10311,29 @@ int toolJointCount(int num)
     return n;
 }
 
+void forEachToolJoint(za::FunctionRef<void(const glm::vec3& atA, const glm::vec3& atB, ToolJoint kind)> fn)
+{
+    if(!world)
+    {
+        return;
+    }
+    for(const ToolJointRecord& j : toolRecords.joints)
+    {
+        if(B3_IS_NULL(j.id) || !b3Joint_IsValid(j.id))
+        {
+            continue;
+        }
+        const b3BodyId a = toolJointBody(j.a), b = toolJointBody(j.b);
+        if(B3_IS_NULL(a) || B3_IS_NULL(b))
+        {
+            continue;
+        }
+        const b3WorldTransform xa = b3Body_GetTransform(a), xb = b3Body_GetTransform(b);
+        const glm::vec3 pa = glmv(xa.p) + fromB3(xa.q) * glmv(j.frameA.p), pb = glmv(xb.p) + fromB3(xb.q) * glmv(j.frameB.p);
+        fn(pa * world->m2u, pb * world->m2u, j.kind);
+    }
+}
+
 void toolForget(int num)
 {
     if(toolPinned(num))

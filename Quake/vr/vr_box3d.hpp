@@ -6,6 +6,8 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Vocabulary/FunctionRef.hpp"
+
 namespace qvr::box3d
 {
 
@@ -100,6 +102,8 @@ enum class ToolJoint : int
 bool addToolJoint(int a, int b, ToolJoint kind, const glm::vec3& atA, const glm::vec3& atB, const glm::vec3& axis);
 int removeToolJoints(int num); // `num`'s (0: all); how many
 [[nodiscard]] int toolJointCount(int num); // made now (0: all)
+// Each joint made now: where it holds each body (world units), and its kind (the toolgun draws them: a rope as a rope).
+void forEachToolJoint(za::FunctionRef<void(const glm::vec3& atA, const glm::vec3& atB, ToolJoint kind)> fn);
 void toolForget(int num);
 
 // An explosion of `damage` at `at` (T_RadiusDamage's, through the physicsblast builtin): the props within its reach
