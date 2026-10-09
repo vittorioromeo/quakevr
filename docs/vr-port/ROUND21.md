@@ -33254,3 +33254,40 @@ Cost (exclusive, vrfiringrange's spawn, 600 frames, twice): the frame's CPU 0.74
 0.807/0.849 with all 32 (3D: 0.443/0.448 -> 0.519/0.542); the GPU 0.861-0.889 ms all three, within its noise.
 worldparts_test.sh: from the spawn and from 1500 units over the tables, all 32 screens and the 6 magazines (the farthest
 955 and 1608 units off); at the old 320 and 6, none from either; the range at 1000 or 400 cuts them there.
+## The author's melee, throwing and menu settings of 2026-10-09 are the defaults (2026-10-09)
+
+His notes vrfiringrange_2026-10-09_15-02-52 (the screen tap's sounds), 15-45-02 ("melee and throwing ... more viable and
+impactful"), e5m4 15-35-30 (throwing in bullet time), vrstart 15-18-36 (the menus' sharpness). His config of 15:50
+against the shipped defaults (a `resetcfg; writeconfig` dump of this build: vr_cvars.inc with vr_defaults.cfg over it,
+the engine's own for the rest). Config version 111 (`vr_cvars.cpp` defaultChanges: a config still holding the old
+default takes the new one; one the player changed keeps it):
+
+- Melee: `vr_melee_speed` 3.2 (3 m/s), `vr_melee_dmg_multiplier` 1.1 (1), `vr_melee_bloodlust_mult` 0.35 (0.5),
+  `vr_quad_melee_damage` 1.1 (1), `vr_bash_damage` 10 (8), `vr_counter_damage` 1.75 (1.5; it also scales a bash's
+  knockback), `vr_headbutt_damage` 24 (32), `vr_parry_stagger` 0.8 (0.75 s), `vr_parry_stamina_cost` 20 (30),
+  `vr_parry_unarmed_reduction` 0.45 (0.5), `vr_strike_stamina_punch` 6 (4), `vr_strike_stamina_cost_2h` 12 (6).
+- Enemy weapons in the player's hands: `vr_sword_damage_mult` 1.1 (1, vr_defaults.cfg), `vr_chainsaw_damage` 100 (80),
+  `vr_dmg_chainsaw_swing` 22 (20), `vr_dmg_laser` 20 (18), `vr_enfrifle_damage` 16 (15), `vr_gruntgun_damage` 6 (5).
+- Throwing: `vr_2h_throw_velocity_mult` 1.3 (1), `vr_weapon_throw_damage_mult` 0.4 (0.35), `vr_weight_damage_exp`
+  0.375 (0.4), `vr_weight_lenient` 0.515 (0.5: an odd step, kept as he set it), `vr_gib_spawn_harmless` 0.5 (0.3 s),
+  `vr_prop_drop_grace` 0.75 (0.5 s).
+- Throwing in bullet time: `vr_throw_slowmo_flick` 0.9 (1), `vr_throw_slowmo_short_travel` 0.25 (0.15 m),
+  `vr_throw_slowmo_long_travel` 0.5 (0.2 m).
+- The screen tap's click: `vr_bullettime_tap_sound` 0.4 (0.6).
+- The menus: `vr_menu_sharpen` 1 (0.5), `vr_menu_scale` 0.25 (0.18) and `vr_menu_distance` 150 (100) (vr_defaults.cfg;
+  about the same angular size, further off: listed as his own last time, promoted now with his "tweaked the menu
+  settings").
+
+Not promoted: the shove, knockdown and parry push distances (redesigned in parallel): his `vr_knockdown_push` 1.3,
+`vr_knockdown_shove_feet_hold` 0.05, `vr_knockdown_shove_ledge_topple` 100, `vr_knockdown_shove_topple` 0.01,
+`vr_knockdown_shove_topple_push` 1. Personal, machine or slider noise: `contrast`, `gamma`, `fov`, `sensitivity`,
+`volume`, `vid_*`, `scr_*`, `ui_live_preview`, `vr_menu_level` 2 (Developer), `vr_menu_positions`,
+`vr_mirror_hide_hud_text`, `vr_spectator_*`, `vr_window_view`, `vr_foveated`, `vr_xr_runtime`, `vr_body_elbow_*`,
+`vr_bodycal_*`, `vr_height_calibration`, `vr_tutorial_started`, `vr_motion_*` (Review Takes), `vr_ammo_pouch_*`,
+`vr_comfort_vignette_strength`, `vr_melee_phase_*`, `vr_relight_strength` (x0.999 slider noise). Weapon and held
+object settings compared too: the nailgun's hotspot 3 offsets (`vr_wofs_hs3_*_04`: its type is 0, none: inert) and
+eight slots named for view models (`vr_prop_id_33`, `_57`..`_64` but `_61`: v_shot2, v_ksword, v_nail, ...; every
+other value of theirs the defaults): nothing to promote, no settings version changed.
+
+Test `config111_test.sh`: a config of 110 at the old defaults takes every new one; vr_melee_speed 2.5 and
+vr_menu_scale 0.3 kept.

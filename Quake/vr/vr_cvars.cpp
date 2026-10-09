@@ -592,8 +592,42 @@ const DefaultChange defaultChanges[] = {
     {110, &vr_stealth_noise_props, "1200"},       // 1500
     {110, &vr_stealth_noise_wall, "0.5"},         // 0.6
     {110, &gl_texture_anisotropy, "8"},           // 16 (vr_defaults.cfg)
+    // 111: the author's settings of 2026-10-09 15:00-15:50 (vrfiringrange_2026-10-09_15-02-52, 15-45-02, vrstart 15-18-36,
+    // e5m4 15-35-30; ROUND21.md, "The author's melee, throwing and menu settings of 2026-10-09 are the defaults"):
+    // melee and throwing "more viable and impactful", bullet time's throws, the screen tap's click, the menus' sharpness.
+    {111, &vr_2h_throw_velocity_mult, "1.0"},      // 1.3
+    {111, &vr_bash_damage, "8"},                   // 10
+    {111, &vr_bullettime_tap_sound, "0.6"},        // 0.4
+    {111, &vr_chainsaw_damage, "80"},              // 100
+    {111, &vr_counter_damage, "1.5"},              // 1.75
+    {111, &vr_dmg_chainsaw_swing, "20"},           // 22
+    {111, &vr_dmg_laser, "18"},                    // 20
+    {111, &vr_enfrifle_damage, "15"},              // 16
+    {111, &vr_gib_spawn_harmless, "0.3"},          // 0.5
+    {111, &vr_gruntgun_damage, "5"},               // 6
+    {111, &vr_headbutt_damage, "32"},              // 24
+    {111, &vr_melee_bloodlust_mult, "0.5"},        // 0.35
+    {111, &vr_melee_dmg_multiplier, "1.0"},        // 1.1
+    {111, &vr_melee_speed, "3"},                   // 3.2
+    {111, &vr_menu_distance, "100"},               // 150 (vr_defaults.cfg)
+    {111, &vr_menu_scale, "0.18"},                 // 0.25 (vr_defaults.cfg)
+    {111, &vr_menu_sharpen, "0.5"},                // 1
+    {111, &vr_parry_stagger, "0.75"},              // 0.8
+    {111, &vr_parry_stamina_cost, "30"},           // 20
+    {111, &vr_parry_unarmed_reduction, "0.5"},     // 0.45
+    {111, &vr_prop_drop_grace, "0.5"},             // 0.75
+    {111, &vr_quad_melee_damage, "1"},             // 1.1
+    {111, &vr_strike_stamina_cost_2h, "6"},        // 12
+    {111, &vr_strike_stamina_punch, "4"},          // 6
+    {111, &vr_sword_damage_mult, "1"},             // 1.1 (vr_defaults.cfg)
+    {111, &vr_throw_slowmo_flick, "1"},            // 0.9
+    {111, &vr_throw_slowmo_long_travel, "0.2"},    // 0.5
+    {111, &vr_throw_slowmo_short_travel, "0.15"},  // 0.25
+    {111, &vr_weapon_throw_damage_mult, "0.35"},   // 0.4
+    {111, &vr_weight_damage_exp, "0.4"},           // 0.375
+    {111, &vr_weight_lenient, "0.5"},              // 0.515
 };
-constexpr int configVersion = 110;
+constexpr int configVersion = 111;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

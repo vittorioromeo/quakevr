@@ -1249,8 +1249,8 @@ int campaignsBloodyShown = -1;
         header("Thrown"),
         slider("All Throws", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2fx").extend()
             .help("Every throw's damage times this: thrown weapons (from 20 for a gun to 60 for a sword at full speed, "
-                  "more the faster it flies), rocks, boxes and gibs. 0.5 (the default): half of what throws did before "
-                  "2026-10-02. Each weapon's own: Weapon Weights' Throw Damage."),
+                  "more the faster it flies), rocks, boxes and gibs. 0.4 (the default; 0.5 from 2026-10-02, "
+                  "0.35 from 2026-10-07): 1 is what throws did before 2026-10-02. Each weapon's own: Weapon Weights' Throw Damage."),
         header("More"),
         open("Damage and Knockback", pageIndex(pageDamage))
             .help("Damage to Enemies (all of these at once), Damage to You, headshots, knockback."),
