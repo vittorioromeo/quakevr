@@ -62,10 +62,14 @@ happens; the durable parts belong in a guide or topic note.
 | [vr-port/EXPANSIONS.md](vr-port/EXPANSIONS.md) | The official expansions (Dimension of the Past, Dimension of the Machine, Dawn of the Machine): audit and port status |
 | [vr-port/MG3_PLAN.md](vr-port/MG3_PLAN.md) | Dawn of the Machine (MG3): the native port plan and the author's decisions |
 | [vr-port/OFFICIAL_QC_SOURCE.md](vr-port/OFFICIAL_QC_SOURCE.md) | Where the official expansions' QuakeC comes from |
+| [vr-port/RELEASE_TODO.md](vr-port/RELEASE_TODO.md) | Before the first release: the author's short to-do list |
 | [vr-port/RELEASING.md](vr-port/RELEASING.md) | Making and publishing a release: `Misc/release/make_release.ps1`, step by step, and the `latest.json` upload |
 | [vr-port/INSTALLER.md](vr-port/INSTALLER.md) | Installer design, research and the author's decisions; section 13 is the app's phase 1 |
 | [vr-port/MENU_REVIEW.md](vr-port/MENU_REVIEW.md) | The menu and settings review and proposal (2026-10-03) |
 | [vr-port/TEMPORAL.md](vr-port/TEMPORAL.md) | Temporal anti-aliasing and upscaling (TAA, DLSS, FSR): scope and design |
+| [vr-port/RELOAD_PLAN.md](vr-port/RELOAD_PLAN.md) | Immersive manual reloading: the plan (phases done 2026-10-07/08) |
+| [vr-port/STEALTH_PLAN.md](vr-port/STEALTH_PLAN.md) | Stealth AI (idle, alert, hostile): the plan and its limits |
+| [vr-port/PERF_DECISIONS.md](vr-port/PERF_DECISIONS.md) | Performance decisions from the 2026-10-08 profiling run: trade-offs for the author |
 | [vr-port/PICKUP_THINKS.md](vr-port/PICKUP_THINKS.md) | Making idle pickups cheaper (research) |
 | [vr-port/PORTING.md](vr-port/PORTING.md) | Porting the VR module to another engine (vkQuake) |
 | [vr-port/ZANCLE_REPORT.md](vr-port/ZANCLE_REPORT.md) | Zancle issues and proposals found in the migration, for Zancle's author |
@@ -79,6 +83,11 @@ happens; the durable parts belong in a guide or topic note.
 - [vr-port/HITZONES_AND_PORTAL_REVIEW_2026-10-04.md](vr-port/HITZONES_AND_PORTAL_REVIEW_2026-10-04.md) and
   [vr-port/ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md](vr-port/ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md): code reviews,
   each with a status table of its findings (checked 2026-10-06).
+- [vr-port/AUDIO_REVIEW.md](vr-port/AUDIO_REVIEW.md): the VR interactions' sound feedback (2026-10-07).
+- [vr-port/CVAR_AUDIT.md](vr-port/CVAR_AUDIT.md): every setting checked for being read, ranked for removal (2026-10-06).
+- [vr-port/REPO_CLEANUP.md](vr-port/REPO_CLEANUP.md): the tracked files reviewed for unused material (2026-10-06).
+- [vr-port/TECHDEBT_2026-10-09.md](vr-port/TECHDEBT_2026-10-09.md): technical debt removed, and what needs the
+  author's decision (2026-10-09).
 
 ## Round log
 
@@ -94,7 +103,7 @@ Removed on 2026-10-06 once their knowledge was acted on or moved (open performan
 `PERFORMANCE_BENCHMARK`, `PERFORMANCE_AUDIT`, `DECAL_`, `PARTICLE_` and `PROP_OPTIMIZATION`, `OVERDRAW_PROP_TAILS`,
 `ALLOCATION_AUDIT`, `COMBAT_ALLOCATION_BURSTS`, `HULL_PRELOAD`) with their data in `vr-port/benchmarks/`;
 `TELEPORTER_TORCH_REVIEW` and `TORCH_TWOHAND_CRASH` (all fixed); the voice-note batches `NOTES_FEEDBACK_*` (done);
-`MENU_INVENTORY.md` (the 2026-10-03 menu inventory; `menu_vr dump`, `Misc/quakevr/menu_coverage.py` and
+`MENU_INVENTORY.md` (the 2026-10-03 menu inventory; a merge brought it back on 2026-10-07, removed again 2026-10-09; `menu_vr dump`, `Misc/quakevr/menu_coverage.py` and
 `cvar_inventory.py` give the current data); `CHECKLIST_ARCHIVE_20261005.txt`; `inventory/_agent_brief.md`; and
 `Misc/quakevr/pvs/` (the 2026-10-04 start-map visibility findings and probe scripts: both start maps' PVS is
 correct). To read one: `git log --diff-filter=D --oneline -- <path>` gives the commit that removed it, and
