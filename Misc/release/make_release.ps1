@@ -602,7 +602,7 @@ if ($DryRun) {
     Say "tag            $tag on $short$(if ($online) { ", pushed to $remote" } else { ' (only with -Publish or -PushTag)' })"
     if ($Local) { Say "local test     latest.json -> $($UrlBase -join ', ')$(if ($RunInstaller) { '; then the server and QuakeVR-Setup.exe in a sandbox' })" }
     Say "tests          $(if ($RunTests) { "$testCount on $TestAgent, one at a time, before building (run_test_suite.py $($testArgs -join ' ')); a failure stops everything$(if ($AllowFlaky) { ' (known-flaky ones warn)' })" } else { 'not run (-RunTests runs the headless suite first)' })"
-    Say "release        $(if ($Publish) { "gh release create $tag --repo $Repo$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' })" } else { 'none (-Publish creates it)' })"
+    Say "release        $(if ($Publish) { "gh release create $tag --repo $Repo$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' } elseif (-not $Draft) { ' --latest' })$(if ($Final) { ', then the Latest guard and the online check' })" } else { 'none (-Publish creates it)' })"
     Say "notes          $(if ($notesSource) { "$notesSource$(if ($notesText.Contains($draftMarker)) { ' (still the DRAFT)' })" } else { "drafted while building into $notesDraftPath (-DraftNotes drafts it now)" })"
     $list = & (Join-Path $root "Windows\package-quakevr.ps1") -DryRun
     Say "package        $(@($list).Count) files (Windows\package-quakevr.ps1 -DryRun lists them)"
