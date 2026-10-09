@@ -33850,7 +33850,7 @@ skeleton's own depth: 0 standing, 1 the pelvis at squatting height; solveTorso).
   defaultChanges: a config still at the old defaults takes them): `vr_body_crouch_torso_back` 0.05 → 0.2,
   `vr_body_crouch_shoulders_out` 0 → 0.02, `vr_hip_holster_crouch_x` / `_y` / `_roll` 0 → 6 / 3 / 40,
   `vr_ammo_pouch_crouch_x` / `_z` / `_pitch` 0 → 2 / 7 / 29 (`vr_body_crouch_tilt` was 20 already, vr_defaults.cfg; the
-  strength and curve, the upper and shoulder holsters unchanged). Test: `Misc/quakevr/config115_test.sh` (PASS).
+  strength and curve, the upper and shoulder holsters unchanged). Test: `Misc/quakevr/config116_test.sh` (PASS).
 
 ## Body calibration history (2026-10-09)
 
