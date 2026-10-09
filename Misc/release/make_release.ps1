@@ -46,8 +46,14 @@ param(
     # then as -Version <it> -BumpVersion. Not with -Version.
     [ValidateSet("", "patch", "minor", "major")]
     [string]$Bump = "",
-    # Release notes (Markdown). Default: the commit subjects since the previous v* tag. The files' SHA-256 table is added.
+    # Release notes (Markdown). Default: out\release\<version>\release-notes.md when it is there (-DraftNotes wrote it, he
+    # edited it), else a draft made while building (draft_release_notes.py). The files' SHA-256 table is added.
     [string]$Notes = "",
+    # Only draft the release notes: the commits since the last v* tag grouped by area, into
+    # out\release\<version>\release-notes.md (an earlier one moved aside), to edit before -Publish. Nothing else.
+    [switch]$DraftNotes,
+    # Publish notes that still have the draft's DRAFT line (it is dropped): -Publish refuses them otherwise.
+    [switch]$AutoNotes,
     # With -Publish: create the release as a draft (the default). -Draft:$false publishes it at once.
     [switch]$Draft = $true,
     # The same as -Draft:$false (which "powershell -File" and make_release.sh cannot pass).
@@ -185,7 +191,8 @@ if ($Version -ne $fileVersion) {
     }
     $numeric = { param($v) [version]($v -replace '-.*$', '') }
     if ((& $numeric $Version) -lt (& $numeric $fileVersion)) { throw "-BumpVersion: $Version is older than VERSION's $fileVersion" }
-    if ($DryRun) { Warn "-BumpVersion: would commit VERSION = $Version (now $fileVersion) before building; the checks below are of the tree as it is" }
+    if ($DraftNotes) { Say "-DraftNotes: the notes for $Version (VERSION is not committed)" }
+    elseif ($DryRun) { Warn "-BumpVersion: would commit VERSION = $Version (now $fileVersion) before building; the checks below are of the tree as it is" }
     elseif ((GitRun @("--no-optional-locks", "status", "--porcelain", "--untracked-files=no")).Text) {
         throw "-BumpVersion: commit or stash your other changes first (the version commit holds VERSION alone)"
     }
@@ -196,9 +203,43 @@ if ($Version -ne $fileVersion) {
     }
 }
 $prerelease = $Version.Contains("-")
-if ($Publish -and $DryRun) { throw "-Publish and -DryRun together: pick one" }
 if ($AllowDirty -and $online) { throw "-AllowDirty is for testing the script: never with -Publish or -PushTag" }
 if ($Notes -and -not (Test-Path -LiteralPath $Notes -PathType Leaf)) { throw "-Notes: no file $Notes" }
+$outBase = Join-Path $root "out\release"
+$outDir = Join-Path $outBase "$Version$(if ($Local) { '-local' })"
+$notesDraftPath = Join-Path $outDir "release-notes.md"
+$draftMarker = "<!-- DRAFT"
+$notesDrafter = Join-Path $PSScriptRoot "draft_release_notes.py"
+
+if ($DraftNotes) {
+    Step "Release notes draft ($notesDraftPath)"
+    if (Test-Path -LiteralPath $notesDraftPath) {
+        $aside = "$notesDraftPath.old-$(Get-Date -Format yyyyMMdd-HHmmss)"
+        Move-Item -LiteralPath $notesDraftPath $aside
+        Say "the earlier notes moved aside: $aside"
+    }
+    & python $notesDrafter --root $root --version $Version --out $notesDraftPath
+    if ($LASTEXITCODE -ne 0) { throw "draft_release_notes.py failed" }
+    Say "Edit $notesDraftPath (one bullet per change a player notices), delete its first line (DRAFT), then publish:"
+    Say "  make_release.ps1 $(if ($Bump) { "-Bump $Bump " } elseif ($Version -ne $fileVersion) { "-Version $Version -BumpVersion " })-Publish ...   (it reads that file; -Notes <file> for another)"
+    return
+}
+
+# The notes, read now: the build moves an earlier out\release\<version> aside (and -Notes may be in it).
+$notesText = ""; $notesSource = ""
+if ($Notes) { $notesSource = (Resolve-Path -LiteralPath $Notes).Path }
+elseif (Test-Path -LiteralPath $notesDraftPath -PathType Leaf) { $notesSource = $notesDraftPath }
+if ($notesSource) { $notesText = [System.IO.File]::ReadAllText($notesSource) }
+if ($notesText.Contains($draftMarker)) {
+    if ($AutoNotes) { Warn "-AutoNotes: $notesSource is still the draft: published as it is (its DRAFT line dropped)" }
+    elseif ($Publish) { Problem "$notesSource is still the draft (its first line, DRAFT): edit it and delete that line, or pass -AutoNotes" }
+    else { Say "notes: $notesSource (still the draft: edit it and delete its DRAFT line before -Publish)" }
+}
+elseif ($notesSource) { Say "notes: $notesSource" }
+elseif ($Publish -and -not $AutoNotes) {
+    Problem "no release notes: -DraftNotes drafts $notesDraftPath (the commits since the last v* tag by area): edit it, delete its DRAFT line, then -Publish (or -Notes <file>, or -AutoNotes to publish the draft as made)"
+}
+else { Say "notes: drafted while building into $notesDraftPath (edit it before -Publish)" }
 
 $branch = (GitRun @("rev-parse", "--abbrev-ref", "HEAD")).Text
 $commit = (GitRun @("rev-parse", "HEAD")).Text
@@ -315,9 +356,6 @@ $quakeOk = $QuakeDir -and (Test-Path (Join-Path $QuakeDir "id1\pak0.pak"))
 if ($SkipSmoke) { Warn "-SkipSmoke: no launch of the packaged game" }
 elseif (-not $quakeOk) { Warn "no Quake folder with id1\pak0.pak (-QuakeDir or QVR_QUAKE_DIR): the packaged game's smoke launch is skipped" }
 
-$outBase = Join-Path $root "out\release"
-$outDir = Join-Path $outBase "$Version$(if ($Local) { '-local' })"
-
 if ($problems.Count) { throw "$($problems.Count) problem(s) above: nothing was built or published" }
 
 if ($DryRun) {
@@ -333,6 +371,7 @@ if ($DryRun) {
     Say "tag            $tag on $short$(if ($online) { ", pushed to $remote" } else { ' (only with -Publish or -PushTag)' })"
     if ($Local) { Say "local test     latest.json -> $($UrlBase -join ', ')$(if ($RunInstaller) { '; then the server and QuakeVR-Setup.exe in a sandbox' })" }
     Say "release        $(if ($Publish) { "gh release create $tag --repo $Repo$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' })" } else { 'none (-Publish creates it)' })"
+    Say "notes          $(if ($notesSource) { "$notesSource$(if ($notesText.Contains($draftMarker)) { ' (still the DRAFT)' })" } else { "drafted while building into $notesDraftPath (-DraftNotes drafts it now)" })"
     $list = & (Join-Path $root "Windows\package-quakevr.ps1") -DryRun
     Say "package        $(@($list).Count) files (Windows\package-quakevr.ps1 -DryRun lists them)"
     if ($warnings.Count) { Say ""; Say "$($warnings.Count) warning(s) above." }
@@ -532,30 +571,29 @@ $sumsPath = Join-Path $assetsDir "SHA256SUMS.txt"
 [System.IO.File]::WriteAllText($sumsPath, (($sums -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding $false))
 $files = @(Get-ChildItem $assetsDir -File | Sort-Object Name)
 
-$notesPath = Join-Path $outDir "release-notes.md"
-if ($Notes) { $body = Get-Content -Raw $Notes }
+# The notes: -Notes, his edited out\release\<version>\release-notes.md (read before the folder was moved aside: written
+# back), else a draft made now (draft_release_notes.py) to edit before -Publish. The body uploaded is release-body.md:
+# the notes without the DRAFT line, plus the files' table.
+$notesPath = $notesDraftPath
+if ($notesText) { [System.IO.File]::WriteAllText($notesPath, $notesText, (New-Object System.Text.UTF8Encoding $false)) }
 else {
-    $prev = GitRun @("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "HEAD")
-    $logArgs = @("log", "--no-merges", "--format=%s")
-    if ($prev.Code -eq 0 -and $prev.Text -and $prev.Text -ne $tag) { $logArgs += "$($prev.Text)..HEAD"; $since = "since $($prev.Text)" }
-    else { $logArgs += @("-n", "60"); $since = "(the last 60 commits; no earlier v* tag)" }
-    $subjects = @((GitRun $logArgs).Out | ForEach-Object { if ($_.Length -gt 280) { $_.Substring(0, 277) + "..." } else { $_ } })
-    $shown = @($subjects | Select-Object -First 150)
-    $body = "## Changes $since`n`n" + (($shown | ForEach-Object { "- $_" }) -join "`n")
-    if ($subjects.Count -gt $shown.Count) { $body += "`n- ...and $($subjects.Count - $shown.Count) more" }
+    Invoke-Logged $python @($notesDrafter, "--root", $root, "--version", $Version, "--out", $notesPath) (Join-Path $logs "draft_release_notes.log") | Out-Null
+    $notesText = [System.IO.File]::ReadAllText($notesPath)
 }
+$body = (($notesText -split "\r?\n") | Where-Object { -not $_.StartsWith($draftMarker) }) -join "`n"
 $table = "## Files`n`nBuild: Quake VR $versionText, commit $commit.`n`n| File | Size | SHA-256 |`n|---|---|---|`n" +
     (($files | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object { "| ``$($_.Name)`` | $(Size $_.Length) | ``$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())`` |" }) -join "`n") +
     "`n`n" + $(if ($hostedTextures) { "HD texture pack (the installer's optional HD textures; not attached here): [``$((SupportFile 'hdtextures').file)``]($(SupportUrl 'hdtextures')), $(Size (SupportFile 'hdtextures').size), SHA-256 ``$((SupportFile 'hdtextures').sha256)``.`n`n" } else { "" }) +
     $(if ($shipsEricw) { "Source of ericw-tools' light.exe (GPL-3; QuakeVR.zip ships light.exe): $(if ($EricwSource) { "https://github.com/$Repo/releases/download/$tag/$(Split-Path -Leaf $EricwSource)" } else { SupportUrl 'ericw_source' })`n`n" } else { "" }) +
     "The installer and the game are not code-signed: Windows SmartScreen may say ""Windows protected your PC"" (More info > Run anyway). Check a download with ``Get-FileHash <file>`` against the table."
-[System.IO.File]::WriteAllText($notesPath, ($body.TrimEnd() + "`n`n" + $table + "`n"), (New-Object System.Text.UTF8Encoding $false))
-Say $notesPath
+$bodyPath = Join-Path $outDir "release-body.md"
+[System.IO.File]::WriteAllText($bodyPath, ($body.Trim() + "`n`n" + $table + "`n"), (New-Object System.Text.UTF8Encoding $false))
+Say "notes $notesPath$(if ($notesText.Contains($draftMarker)) { ' (the draft: edit it, delete its DRAFT line)' }); the release's body: $bodyPath"
 
 # ------------------------------------------------------------------------------------------------------------------
 $assetArgs = @($files | ForEach-Object { $_.FullName })
 $title = "Quake VR: Unleashed $Version"
-$ghArgs = @("release", "create", $tag) + $assetArgs + @("--repo", $Repo, "--verify-tag", "--title", $title, "--notes-file", $notesPath)
+$ghArgs = @("release", "create", $tag) + $assetArgs + @("--repo", $Repo, "--verify-tag", "--title", $title, "--notes-file", $bodyPath)
 if ($Draft) { $ghArgs += "--draft" }
 if ($prerelease) { $ghArgs += "--prerelease" } elseif (-not $Draft) { $ghArgs += "--latest" }
 
@@ -587,7 +625,7 @@ $lines = @(
     "Assets ($assetsDir):"
 ) + @($files | ForEach-Object { "  {0,-45} {1,10}  {2}" -f $_.Name, (Size $_.Length), (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }) + @(
     "",
-    "Release notes: $notesPath (edit before publishing if you like)",
+    "Release notes: $notesPath$(if ($notesText.Contains($draftMarker)) { ' (a DRAFT: edit it and delete its first line before -Publish, or -AutoNotes)' }); the body uploaded: $bodyPath",
     "",
     "What to do:"
 )
