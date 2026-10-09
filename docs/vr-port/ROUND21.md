@@ -33663,7 +33663,8 @@ flaky (a still player under the stealth meter: the knight noticed him within 150
   diverges from the first snapshot (the fiend's leaps), 3 of 18 single runs didn't get through (a fiend once went the
   other way, south to y -614). Quake's `random()` shares the C library's `rand()` with the client's effects, and fast
   mode draws frames by the wall clock, so its draws differ from run to run. Not changed: a server-only random stream
-  (seeded at map load) would make these tests deterministic; that is the author's call.
+  (seeded at map load) would make these tests deterministic; that is the author's call. (Done, approved: "Server
+  random numbers: their own stream", below.)
 - `teleport_frames_test.sh <agent>` alone ran the agent's name as a case (`shift 3` with one argument shifts nothing);
   `parry_pose_test.sh <agent>` the same as a kind (`shift 2`). Both take `set -- "${@:N}"` now.
 - `climb/slopes_test.sh` ran in another agent's kit folder (`movetweaks`) with a play from its scratch: it takes the
@@ -33787,3 +33788,32 @@ nearest entity box before the world (not you, nor what your hands hold).
 - [ ] Spawn a monster and a crate; move and turn the ghost with X/A and the sticks.
 - [ ] Physgun a crate around, freeze it in the air with the other trigger, stack another on it.
 - [ ] Scale a crate by a face and a corner; weld two crates and carry one; rope one under a frozen one.
+
+## Server random numbers: their own stream (2026-10-09)
+
+- Why: QuakeC's `random()` (`PF_random`) and the monsters' movetogoal turns (`sv_move.c`) drew from the C library's
+  `rand()`, which the client's effects share (Quake's particles, dynamic lights' flicker, decals, a beam's `srand` each
+  frame) and `Host_Frame` stirs once a frame. Any difference in what the client drew moved the AI: the infight scene
+  (`vr_stealth_test 107`, fixed frames, the same script) gave other state hashes with `vr_decals 0`
+  (a61c.../a6ee.../caf9... against 79ae.../350c.../95ae...), and the teleporter chase needed three tries.
+- Now (`Quake/vr/vr_srvrandom.cpp`): the server has its own stream, Zancle's `FastNonCryptoRng` (Xoroshiro128++).
+  `VR_ServerRandom()` gives `rand()`'s range (0..0x7fff) and `PF_random` makes its float as before
+  (`sv_gameplayfix_random 1`: never exactly 0 or 1), so the game plays the same; only which numbers come out differs.
+  The client keeps `rand()`. The probes' own numbers while a map loads (`VR_ProbeRandom`) are unchanged.
+- Seeding: at every map load (`SV_SpawnServer`, before anything spawns: a new map, a changelevel, a loaded game), from
+  `sv_random_seed` (not archived; tests) when it isn't 0, else from the clock (normal play: a new sequence each load;
+  `developer 1` prints the seed, `sv_random_info` too, and `sv_random_seed <it>` replays it). `vr_bench_seed`, a motion
+  take's start and `vr_motion_eval`'s map loads seed it as they did `srand` (and arm the next map load once);
+  `vr_hull`'s chase test seeds it for movetogoal's turns. Explosion debris (server Box3D props) take a seed derived
+  from it (was the clock's) unless `vr_particle_seed` is set.
+- Saves: the stream's state isn't stored; a loaded game is a map load and is reseeded as above (a fixed seed: every load
+  of a save plays on the same; 0: differently each time, as before). Saves keep the format other engines read.
+- Kept on `rand()`: purely visual or audible picks (particles, decals, water sounds' and knocks' variants), `randmap`.
+- Checked (infight scene, `sv_random_seed 5`, hashes at 6.27/10.44/14.60 s): the same three hashes plain, with
+  `vr_test_crand 777` (C library draws) between them, and with `vr_decals 0`; the dogs scene (123, seed 7) the same
+  plain and with decals off plus 5000 draws; at 144 Hz client frames against 90 every QuakeC field hashes the same but
+  the hands' per-frame motion history (`mh_*`, `handthrowpos`: input, not randomness); `sv_random_seed 0` twice: other
+  hashes each run; a save loaded twice (999 C draws between): the same hash 300 frames on.
+- Tests: `teleporters_test.sh chase` runs fixed frames with `sv_random_seed` SEED+try-1 (the same verdicts every run:
+  all six PASS on the first try, output identical twice); `stealth_tests.sh` sets `sv_random_seed ${SEED:-1}`.
+- Debug > Profiling and Memory: Server Random Seed (`sv_random_info`) next to Game State Hash.

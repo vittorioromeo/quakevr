@@ -23,9 +23,10 @@
 #            with 0, Quake's way, its time for comparison
 AGENT=${1:?agent}; WHICH=${2:-all}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 W=C:/OHWorkspace/qvr-agents/$AGENT
+# The server's random numbers seeded (sv_random_seed: SEED, 1): with fixed frames, each scene plays the same every run.
 mkdir -p "$W/scratch"
 fail=0
-PRE="vr_fixed_frames 1;vr_fixed_frames_rate 90;map e1m1;wait60;god;vr_weapon_grip_mode 1;impulse 9;wait5"
+PRE="vr_fixed_frames 1;vr_fixed_frames_rate 90;sv_random_seed ${SEED:-1};map e1m1;wait60;god;vr_weapon_grip_mode 1;impulse 9;wait5"
 run() { # <tag> <script> [extra run.sh args]
     local tag=$1 s=$2; shift 2
     bash $KIT/run.sh $AGENT -Script "$s" -Filter "stealthtest:|rror|ENGINE|stealth:.*(hostile|alert)|vr_profile|stealth |drawnmove" -Timeout 600 "$@" > "$W/scratch/stealth_$tag.log" 2>&1

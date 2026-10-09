@@ -4285,7 +4285,7 @@ void hologramTestMessage()
 // - Tools: a command rebuilding, reloading, writing a file or showing a test effect;
 // - Tests: what tests are done with in the headset (a monster ahead, a projectile at you, cheats).
 // Mock-headset commands (vr_mock_*) and the automated tests' settings (vr_fixed_frames, vr_particle_seed,
-// vr_debug_weight_stamina, vr_window_log...) stay in the console: they mean nothing in the headset.
+// sv_random_seed, vr_debug_weight_stamina, vr_window_log...) stay in the console: they mean nothing in the headset.
 // Checklist (vr_checklist.hpp; the corner's "Checklist" button, Debug > Checklist): what to test in the headset or give
 // feedback on, from quakevr/checklist.txt, each item ticked by picking it; its long texts on the lines under it.
 int checklistGeneration = -1; // the list's generation the page was built for
@@ -4793,6 +4793,11 @@ za::Vector<Item> pageDebugProfiling()
         command("Game State Hash", "vr_bench_statehash")
             .help("vr_bench_statehash: one hash of every entity's QuakeC fields (and which are in use), printed with the "
                   "server's time: the same script on two builds gives the same hash when a change left the game the same."),
+        command("Server Random Seed", "sv_random_info")
+            .help("sv_random_info: the seed the server's random numbers (QuakeC's random(), the monsters' turns) "
+                  "started from at this map's load. sv_random_seed <that number> in the console before a map plays "
+                  "its AI the same again (0, the default: the clock's, a new one each load); the client's effects "
+                  "never move them."),
         command("Benchmark Capture (10 s)", "vr_bench_begin manual 10s")
             .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
                   "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "

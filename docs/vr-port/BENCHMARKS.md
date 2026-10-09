@@ -89,8 +89,8 @@ shows in the numbers (its timer queries every `vr_profile_gpu` frames).
 
 The game's clock is fixed (`vr_fixed_frames 1`, `vr_fixed_frames_rate` = `--hz`): every frame advances the same game
 time, so a scenario's simulation is the same however fast the frames come (paced, unpaced, a slower machine).
-`vr_bench_seed 7` restarts the C library's random numbers (QuakeC's `random()`) before the map and again before the
-set-up; `vr_particle_seed 7` the particles'. The set-ups use the test commands' fixed positions (relative to the
+`vr_bench_seed 7` restarts the server's random numbers (QuakeC's `random()`: their own stream, `sv_random_seed`) and the
+C library's (the client's effects) before the map and again before the set-up; `vr_particle_seed 7` the particles'. The set-ups use the test commands' fixed positions (relative to the
 player's spawn or a `setpos`), and the effects' random positions come from Python's `random.Random(7)`/`(11)`
 when the script is written. `qvrbench.py validate` checks that every repeat started its window with the same edicts,
 monsters alive and Box3D bodies, and decals within 5% (a fight's blood and bullet marks during the set-up land a few
