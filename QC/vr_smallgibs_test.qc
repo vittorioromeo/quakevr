@@ -160,13 +160,6 @@ void(entity m, entity inflictor, float xKind, float xWeapon, float xBlunt, float
     VR_SmallGib_TestGorePrint(xName);
 };
 
-float(entity g) VR_SmallGib_TestInBox =
-{
-    entity m = vr_sgib_test_m;
-    vector o = (g.absmin + g.absmax) * 0.5;
-    return o_x > m.absmin_x && o_x < m.absmax_x && o_y > m.absmin_y && o_y < m.absmax_y && o_z > m.absmin_z && o_z < m.absmax_z;
-};
-
 // Test 13: what step `xStep` (1..9) tears out (QVR_SGIB_SIT_*).
 float(entity m, float xStep) VR_SmallGib_TestSpeedSit =
 {

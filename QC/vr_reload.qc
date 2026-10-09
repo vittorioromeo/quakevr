@@ -690,13 +690,6 @@ entity(float xWid, float xAid, float xCount, vector xOrg, vector xAngles) VR_Rel
     return r;
 };
 
-// A new launcher's round for `xFront` (WID_*) of ammo `xAid` (VR_Reload_MakeRound).
-entity(float xFront, float xAid, vector xOrg, vector xAngles) VR_Reload_MakeFront =
-{
-    vr_reload_make_front = xFront;
-    return VR_Reload_MakeRound(0, xAid, 1, xOrg, xAngles);
-};
-
 // ----------------------------------------------------------------------------
 // Magazines in and out
 

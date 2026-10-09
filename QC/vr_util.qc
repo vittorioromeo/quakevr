@@ -289,11 +289,6 @@ void(entity e, float xHand, float v) VRSetEntWeaponFlags =
     else                     e.weaponflags = v;
 }
 
-void(float xHand, float v) VRSetWeapon =
-{
-    VRSetEntWeapon(self, xHand, v);
-}
-
 inline float(entity e, float xHand) VRGetEntWeapon =
 {
     return VR_IMPL_SELECT(xHand, e.weapon2, e.weapon);
