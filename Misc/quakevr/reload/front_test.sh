@@ -43,11 +43,13 @@ clip() { last "$1" | sed -E 's/^reload: off hand weapon [0-9]+ clip ([0-9]+) .*/
 for row in "158 grenade_launcher grenade" "159 proximity_launcher proximity" "160 rocket_launcher rocket"; do
     set -- $row; gun=$1; name=${2//_/ }; round=$3
     S="$(setup $gun "140 0 0")"
-    # 1. The pouch to the muzzle, right way up; then upside down.
+    # 1. The pouch to the muzzle, right way up; then upside down: the hand pitched over (-130: TIP turned 180 degrees, the
+    # round's nose to the muzzle; "50 0 180", a roll, left it 40 degrees off the right way with the hand's grip angle,
+    # inside vr_reload_front_angle: taken, until 2026-10-09).
     log=$(bash $KIT/run.sh $AGENT -Script "$S;$REP;$POUCH;$GRIP;$TIP;$REP;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     check $(echo "$log" | grep -q "^reload: rockets 33 " && echo "$log" | grep -q "taken from the pouch" && echo 1 || echo 0) "$name: the pouch gives a $round, the reserve one less"
     check $([ "$(clip "$log")" = 1 ] && echo "$log" | grep -q "into hotspot 240" && echo 1 || echo 0) "$name: its butt to the muzzle: in, sliding in ($(last "$log" | cut -c9-40))"
-    log=$(bash $KIT/run.sh $AGENT -Script "$S;$POUCH;$GRIP;vr_mock_hand main 0.25 1.1 -0.3 50 0 180;wait5;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
+    log=$(bash $KIT/run.sh $AGENT -Script "$S;$POUCH;$GRIP;vr_mock_hand main 0.25 1.1 -0.3 -130 0 0;wait5;$LPORT;$REP;toggleconsole;quit" -Filter "$F" 2>&1)
     if [ $round = proximity ]; then
         check $([ "$(clip "$log")" = 1 ] && echo 1 || echo 0) "$name: held upside down it goes in all the same (a ball)"
     else
