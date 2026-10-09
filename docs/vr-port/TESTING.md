@@ -1316,8 +1316,9 @@ doing its poses is a take of raw tracking played alongside: `vr_motion_play <tak
 `vr_bodycal standing` in the same frame (the scratchpad's `bodycal/gentake.py` makes them); `vr_bodycal_print`
 prints the result. `vr_bodycal_refit <file>` fits a saved session (`quakevr/bodycal/`) again; `vr_bodycal_debug`
 prints the empty hands' wrists.
-VR Calibration (ROUND21.md, "VR Calibration"): from the main menu, `togglemenu; wait30; vr_mock_stick main 0 1; wait10;
-vr_mock_stick main 0 0` puts the cursor on VR CALIBRATION, `vr_test_modal_answer 1` answers the next confirmation dialog
+VR Calibration (ROUND21.md, "VR Calibration"): the main menu opens on Select Campaign; `vr_mock_key uparrow` four times
+puts the cursor on VR CALIBRATION (three: VR Tutorial, two: VR Hub, one: VR Settings; `togglemenu; wait30;
+vr_mock_stick main 0 1; wait10; vr_mock_stick main 0 0` moves it one up too), `vr_test_modal_answer 1` answers the next confirmation dialog
 by itself (0: no), then `vr_mock_button main primary 1` / `0`. The menus' confirmation dialogs (M_Confirm: VR Calibration,
 VR Tutorial, VR Hub, New Game, Reset All, Quit in the headset) have two buttons: `vr_mock_laser yes` / `no` points the
 laser at one, `vr_mock_button main trigger 1` then `0` takes it (`vr_mock_mouse yes|no click` on a flat screen; `menu_vr

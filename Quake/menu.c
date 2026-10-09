@@ -1418,13 +1418,15 @@ static void M_Confirm_Mousemove (float x, float y)
 //=============================================================================
 /* MAIN MENU */
 
-int	m_main_cursor = 2; // QVR: MAIN_CAMPAIGNS (below): the playing group's first row (Select Campaign), below the VR rows
+int	m_main_cursor = 4; // QVR: MAIN_CAMPAIGNS (below): the playing group's first row (Select Campaign), below the VR rows
 int m_main_mods;
 
 enum
 {
 	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp), the first row
-	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), right after VR Calibration; Back from them to this menu
+	MAIN_VRTUTORIAL, // QVR: the tutorial (as the Play page's Tutorial), confirmed
+	MAIN_VRHUB, // QVR: the VR hub (vr_hub_map, as the Play page's VR Hub), confirmed
+	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), after the VR places; Back from them to this menu
 	MAIN_CAMPAIGNS, // QVR: Select Campaign, the official campaigns' page (was Single Player > Official Campaigns)
 	MAIN_SINGLEPLAYER,
 	MAIN_MULTIPLAYER,
@@ -1442,8 +1444,8 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"VR Calibration", "VR Settings", "Select Campaign", "Single Player", "Multiplayer", "Download Maps", "Play Custom Map", "Options",
-	"Advanced VR", "Mods", "Quit",
+	"VR Calibration", "VR Tutorial", "VR Hub", "VR Settings", "Select Campaign", "Single Player", "Multiplayer", "Download Maps",
+	"Play Custom Map", "Options", "Advanced VR", "Mods", "Quit",
 };
 
 const char *M_Main_RowLabel (void) // QVR: menu_vr pos
@@ -1458,7 +1460,8 @@ static qboolean M_Main_Shown (int item)
 	return item != MAIN_MODS || (m_main_mods && VR_MenuMainShowsMods ());
 }
 
-// QVR: the rows in groups, a gap above each but the first: the VR rows (VR Calibration, VR Settings), playing (Select
+// QVR: the rows in groups, a gap above each but the first: the VR rows (VR Calibration, VR Tutorial, VR Hub, VR Settings:
+// the author's note vrstart_2026-10-09_18-37-10), playing (Select
 // Campaign, Single Player, Multiplayer), the maps
 // (Download Maps, Play Custom Map), the settings (Options, Advanced VR, Mods), Quit apart (the author's note
 // vrfiringrange_2026-10-08_00-02-55).
@@ -1489,7 +1492,8 @@ void M_Menu_Main_f (void)
 
 // QVR: the rows' spacing and the groups' gaps: Quake's 20 and 10, closer where the canvas is too short for them all (a
 // flat screen's 200 rows, the headset's panel at Menu Height 1): the gaps a little first, then the rows (to 15), then the
-// gaps the rest of the way; the last row's letters, 20 tall, kept inside it.
+// gaps the rest of the way; then, still too short, the rows to 13 with no gaps, their letters drawn smaller (to fit 15
+// apart); the last row's letters, 20 tall, kept inside it.
 void M_Main_Layout (int *step, int *gap)
 {
 	drawtransform_t transform;
@@ -1505,6 +1509,8 @@ void M_Main_Layout (int *step, int *gap)
 	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
 	avail = (int)(bottom - 2 - 32 - 20);
 	*step = CLAMP (15, (avail - groups * 6) / (rows - 1), 20);
+	if ((rows - 1) * *step > avail) // more rows than fit 15 apart (a flat screen's 200 rows): closer, to 13, their letters
+		*step = q_max (13, avail / (rows - 1)); // smaller (M_Main_Draw), no gaps
 	*gap = CLAMP (0, (avail - (rows - 1) * *step) / groups, 10);
 }
 
@@ -1551,9 +1557,10 @@ void M_Main_Draw (void)
 	}
 	if (text)
 	{
+		const float scale = step < 15 ? step / 15.f : 1.f; // (rows closer than 15: smaller letters)
 		for (i = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text
 			if (M_Main_Shown (i))
-				m_main_row_right[i] = (float)(73 + VR_BigFont_Draw (73, M_Main_RowY (i, step, gap), m_main_labels[i]));
+				m_main_row_right[i] = 73.f + VR_BigFont_DrawScaled (73, M_Main_RowY (i, step, gap), scale, m_main_labels[i]);
 	}
 	else
 	{ // QVR: the picture's rows (its Help row left out), the others in the mods' row's letters
@@ -1577,6 +1584,8 @@ void M_Main_Draw (void)
 					M_PrintEx (74, row + 1, 16, "MODS");
 				break;
 			case MAIN_VRCALIBRATION: M_PrintEx (74, row + 1, 16, "VR CALIBRATION"); break;
+			case MAIN_VRTUTORIAL: M_PrintEx (74, row + 1, 16, "VR TUTORIAL"); break;
+			case MAIN_VRHUB: M_PrintEx (74, row + 1, 16, "VR HUB"); break;
 			case MAIN_CAMPAIGNS: M_PrintEx (74, row + 1, 16, "SELECT CAMPAIGN"); break;
 			case MAIN_MAPLIBRARY: M_PrintEx (74, row + 1, 16, "DOWNLOAD MAPS"); break;
 			case MAIN_PLAYCUSTOM: M_PrintEx (74, row + 1, 16, "PLAY CUSTOM MAP"); break;
@@ -1609,6 +1618,23 @@ static void M_Main_StartCalibration (void)
 	key_dest = key_game;
 	m_state = m_none;
 	Cbuf_InsertText ("vr_setup\n"); // before anything queued (a test script's next commands)
+}
+
+// QVR: VR Tutorial's and VR Hub's confirmed: the menu closed, the map started (its command queued: vr_menu.cpp).
+static void M_Main_StartTutorial (void)
+{
+	IN_Activate ();
+	key_dest = key_game;
+	m_state = m_none;
+	VR_StartTutorial ();
+}
+
+static void M_Main_StartHub (void)
+{
+	IN_Activate ();
+	key_dest = key_game;
+	m_state = m_none;
+	VR_StartHub ();
 }
 
 void M_Main_Key (int key)
@@ -1647,6 +1673,20 @@ void M_Main_Key (int key)
 				? "Start VR Calibration?\n\nThe game in progress ends: you go\nto the calibration room, and the\ncalibration starts by itself."
 				: "Start VR Calibration?\n\nYou go to the calibration room, and\nthe calibration starts by itself:\nyour height, then your body.",
 				"Start", "Cancel", 0.f, M_Main_StartCalibration);
+			break;
+
+		case MAIN_VRTUTORIAL: // QVR: the tutorial, as the Play page's Tutorial (VR_StartTutorial)
+			M_Confirm (sv.active
+				? "Start the VR Tutorial?\n\nThe game in progress ends: you go\nto the tutorial's first lesson."
+				: "Start the VR Tutorial?\n\nLessons on playing Quake in VR,\none after another.",
+				"Start", "Cancel", 0.f, M_Main_StartTutorial);
+			break;
+
+		case MAIN_VRHUB: // QVR: the hub, as the Play page's VR Hub (VR_StartHub)
+			M_Confirm (sv.active
+				? "Go to the VR Hub?\n\nThe game in progress ends: you go\nto the hub, where Quake VR starts."
+				: "Go to the VR Hub?\n\nWhere Quake VR starts.",
+				"Go", "Cancel", 0.f, M_Main_StartHub);
 			break;
 
 		case MAIN_SINGLEPLAYER:

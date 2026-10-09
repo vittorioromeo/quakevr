@@ -11783,6 +11783,19 @@ extern "C" void VR_OpenMapLibrary()
     qvr::menu::openMaps();
 }
 
+// The main menu's VR Tutorial and VR Hub rows, confirmed (menu.c): as the Play page's Tutorial and VR Hub.
+extern "C" void VR_StartTutorial()
+{
+    Con_Printf("VR Tutorial: starting\n");
+    playTutorial();
+}
+
+extern "C" void VR_StartHub()
+{
+    Con_Printf("VR Hub: going there\n");
+    playHub();
+}
+
 // menu_vr [page [row]]: the VR Settings, or one of its pages (1: Advanced VR Options), opened through the pages
 // above it in the tree; menu_vr list: the pages' numbers and places; menu_vr dump: every page's rows.
 void qvr::menu::handCalMatch_f()

@@ -34031,3 +34031,13 @@ water, and drowned 5 s later (its breath had run since it went in face down).
   Checked headless: Cancel and Start by the laser (main menu, VR Calibration starts), Quit cancelled and taken (the
   game quits), New Game cancelled by the laser and taken by `vr_test_modal_answer 1`, Reset All cancelled by the laser
   and by its 15 s, a flat screen's mouse click, `n` typed, one opened in game (closed back to the game).
+- **The main menu's VR rows** (notes vrstart_2026-10-09_18-20-50, 18-37-10): VR Calibration, **VR Tutorial**, **VR
+  Hub**, VR Settings, together in the first group (VR Settings kept with them, last: the places first). Each of the
+  three asks first (M_Confirm, the game in progress ending said when one runs): Start / Go and Cancel. VR Tutorial
+  runs the Play page's Tutorial (`playTutorial`, vr_menu.cpp, its map named there only), VR Hub its VR Hub
+  (`vr_campaign_hub`: `vr_hub_map`). The cursor still opens on Select Campaign. The lettering's capital T (none in
+  id's pictures) is t, Multiplayer's small capital, its bar 2 rows higher (make_bigfont.py). Two rows more: where the
+  menu's canvas is too short for them 15 apart (a flat screen's 200 rows; not reached at the test windows' sizes nor
+  the headset's Menu Height 1, which give 16) the rows go to 13 apart with no gaps, their letters drawn smaller
+  (`VR_BigFont_DrawScaled`). Checked headless: both rows' dialogs (Cancel by the laser, VR Hub's Go by the laser, VR
+  Tutorial's Start by `vr_test_modal_answer 1`: "Quake VR: Tutorial" loads), `vr_menu_path_check` 0 missing.

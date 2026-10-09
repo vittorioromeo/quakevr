@@ -298,32 +298,37 @@ extern "C" int VR_BigFont_CanDraw(const char* text)
     return 1;
 }
 
-extern "C" int VR_BigFont_Draw(int x, int y, const char* text)
+extern "C" float VR_BigFont_DrawScaled(int x, int y, float scale, const char* text)
 {
     ensureBuilt();
     if(font.pic.empty())
     {
-        return 0;
+        return 0.f;
     }
     qpic_t* const pic = reinterpret_cast<qpic_t*>(font.pic.data());
     const float w = static_cast<float>(font.atlasWidth);
-    const int x0 = x;
+    float at = static_cast<float>(x);
     za::StringView s{text};
     while(!s.empty())
     {
         int length = 1;
         if(s[0] == ' ')
         {
-            x += spaceWidth;
+            at += spaceWidth * scale;
         }
         else if(const int g = glyphAt(s, length); g >= 0)
         {
             const GlyphDef& d = glyphDefs[g];
-            Draw_SubPic(static_cast<float>(x), static_cast<float>(y), static_cast<float>(d.width), static_cast<float>(cellRows), pic,
-                static_cast<float>(font.column[g]) / w, 0.f, static_cast<float>(d.width) / w, 1.f, nullptr, 1.f);
-            x += d.advance;
+            Draw_SubPic(at, static_cast<float>(y), d.width * scale, cellRows * scale, pic, static_cast<float>(font.column[g]) / w,
+                0.f, static_cast<float>(d.width) / w, 1.f, nullptr, 1.f);
+            at += d.advance * scale;
         }
         s.removePrefix(length);
     }
-    return x - x0;
+    return at - static_cast<float>(x);
+}
+
+extern "C" int VR_BigFont_Draw(int x, int y, const char* text)
+{
+    return static_cast<int>(VR_BigFont_DrawScaled(x, y, 1.f, text));
 }

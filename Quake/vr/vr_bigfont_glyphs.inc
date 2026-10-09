@@ -100,6 +100,8 @@ constexpr Op ops[]{
     {Op::Clear, 0, 11, 19, 0, 24, 0, 0, false, 0u},
     {Op::Copy, 7, 40, 51, 0, 20, 10, 0, false, 0x56eec607u},
     {Op::Copy, 7, 40, 51, 0, 20, 18, 0, false, 0x56eec607u},
+    {Op::Copy, 9, 40, 58, 0, 8, 0, -2, false, 0x7bc9fa55u},
+    {Op::Copy, 9, 46, 52, 6, 20, 6, 0, false, 0x8a1b332cu},
 };
 
 constexpr GlyphDef glyphDefs[]{
@@ -137,6 +139,7 @@ constexpr GlyphDef glyphDefs[]{
     {"A", 19, 19, 67, 3},
     {"D", 19, 19, 70, 3},
     {"w", 29, 29, 73, 11},
+    {"T", 18, 18, 84, 2},
 };
 
 constexpr int cellRows = 24;
