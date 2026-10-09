@@ -607,7 +607,7 @@ $detectAfterBuild = $false
 if (-not $QuakeDir -and -not $SkipSmoke) {
     $qvrSetupExe = Find-QvrSetup
     if ($qvrSetupExe) { $QuakeDir = Find-QuakeDir $qvrSetupExe; if ($QuakeDir) { $quakeFrom = "detected by $qvrSetupExe detect" } }
-    elseif (-not $DryRun) { $detectAfterBuild = $true }
+    else { $detectAfterBuild = $true }   # (-DryRun: said so; the real run detects it after building qvr-setup)
 }
 $quakeOk = $QuakeDir -and (Test-Path (Join-Path $QuakeDir "id1\pak0.pak"))
 if ($SkipSmoke) { Warn "-SkipSmoke: no launch of the packaged game" }
@@ -624,7 +624,7 @@ if ($DryRun) {
     Say "output         $outDir$(if (Test-Path $outDir) { ' (exists: it would be moved aside)' })"
     Say "engine         MSBuild ironwail.sln Release|x64 $(if ($Rebuild) { '(rebuild) ' })/p:QvrReleaseVersion=$Version"
     Say "installer      dotnet publish QuakeVR.Installer -c Release -r win-x64 single-file, /p:Version=$Version"
-    Say "checks         statics, QC precedence, FGD, installer self-tests, latest.json, packaged installer (install harness), smoke launch$(if (-not $quakeOk -or $SkipSmoke) { ' (skipped)' })"
+    Say "checks         statics, QC precedence, FGD, installer self-tests, latest.json, packaged installer (install harness), smoke launch$(if ((-not $quakeOk -and -not $detectAfterBuild) -or $SkipSmoke) { ' (skipped)' })"
     Say "assets         QuakeVR.zip, QuakeVR-Setup.exe, latest.json, SHA256SUMS.txt$(if ($Textures) { ', ' + (Split-Path -Leaf $Textures) })$(if ($EricwSource) { ', ' + (Split-Path -Leaf $EricwSource) })$(foreach ($a in $Assets) { ', ' + (Split-Path -Leaf $a) })"
     Say "hdtextures     $(if ($hostedTextures) { "hosted: $(SupportUrl 'hdtextures') (not uploaded; checked online when building, not with -DryRun)" } elseif ($Textures) { 'uploaded with this release (-Textures)' } else { 'none (-NoTextures)' })"
     if ($shipsEricw) { Say "ericw source   $(if ($EricwSource) { 'uploaded with this release (-EricwSource)' } else { "linked from the notes: $(SupportUrl 'ericw_source')" })" }
@@ -643,7 +643,7 @@ if ($DryRun) {
     if ($RunTests) { $seq.Add("tests: python Misc\release\run_test_suite.py $TestAgent --build --log-dir $outDir\tests $($testArgs -join ' ')   (kit build.sh $TestAgent, then $testCount one at a time; a failure stops here)") }
     if ($bumpPending) { $seq.Add("write VERSION = $Version; git commit -m ""Version $Version"" -- VERSION   (local)") }
     $seq.Add("build: out\release\$Version moved aside if there; check_statics.py, check_qc_precedence.py, fgdgen.py --check; MSBuild ironwail.sln Release|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1; dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
-    $seq.Add("assets: make_release.py (QuakeVR.zip, QuakeVR-Setup.exe, latest.json); checks: the zip = the allowlist, qvr-setup feed --file latest.json --assets, QuakeVR-Setup.exe's install harness + qvr-setup verify$(if ($quakeOk -and -not $SkipSmoke) { ", the smoke launch with $QuakeDir" } else { ' (no smoke launch)' })")
+    $seq.Add("assets: make_release.py (QuakeVR.zip, QuakeVR-Setup.exe, latest.json); checks: the zip = the allowlist, qvr-setup feed --file latest.json --assets, QuakeVR-Setup.exe's install harness + qvr-setup verify$(if ($quakeOk -and -not $SkipSmoke) { ", the smoke launch with $QuakeDir" } elseif ($detectAfterBuild) { ', the smoke launch with the Quake qvr-setup detect finds after the build' } else { ' (no smoke launch)' })")
     $seq.Add("notes: $(if ($notesSource) { $notesSource } else { "draft_release_notes.py -> $notesDraftPath" }) -> $outDir\release-body.md (+ the files' table, SHA256SUMS.txt)")
     if ($online) {
         if ($pushBranch) { $seq.Add("git push $remote HEAD:$upstreamRef   (fast-forward; never forced)") }
@@ -659,7 +659,7 @@ if ($DryRun) {
         if (-not $prerelease) { $seq.Add("Latest guard: gh release list --repo $Repo --json tagName,isLatest,isDraft,isPrerelease; $tag must be the only Latest (no assets-*/textures-*): else gh release edit $tag --repo $Repo --latest, listed again") }
         $seq.Add("online check: qvr-setup feed --url $feedPlan --assets $outDir\assets$(if ($hostedTextures) { ' --hosted hdtextures' })   (until it names $Version, up to $OnlineTries tries 20 s apart; each file's size and SHA-256)")
         $seq.Add("online check: GET $feedPlan = assets\latest.json byte for byte")
-        if (-not $SkipOnlineInstall) { $seq.Add("online check: qvr-setup install --feed $feedPlan --sandbox $outDir\checks\online-<time>\sandbox --quake $(if ($QuakeDir) { $QuakeDir } else { '<none found: skipped>' }) --accept-statement --setup-from assets\QuakeVR-Setup.exe$(if ($OnlineHd) { ' --hd' }); qvr-setup verify --target <sandbox>\QuakeVR") }
+        if (-not $SkipOnlineInstall) { $seq.Add("online check: qvr-setup install --feed $feedPlan --sandbox $outDir\checks\online-<time>\sandbox --quake $(if ($QuakeDir) { $QuakeDir } elseif ($detectAfterBuild) { '<qvr-setup detect, after the build>' } else { '<none found: skipped>' }) --accept-statement --setup-from assets\QuakeVR-Setup.exe$(if ($OnlineHd) { ' --hd' }); qvr-setup verify --target <sandbox>\QuakeVR") }
     }
     Say ""
     Say "The run, in order (none of it with -DryRun):"

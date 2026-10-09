@@ -10337,3 +10337,26 @@ Box Sizes, Decals in Both Eyes, Spin in the Air, Holster Draw Blend, Torch Light
 Wall Collisions, Print Run Speed, the four A/B rows (External Maps, Retro Textures, Retro Lighting, Ambient Light) and
 the Marksman Ogre rows. New: `Misc/quakevr/selfchecks_test.sh` (the hull cache and Box3D worker determinism, PASS/FAIL;
 in the release suite).
+
+## Release rehearsal on GitHub (2026-10-10)
+
+The whole release path, published for real and then removed: `make_release.ps1 -Version 1.0.0-rehearsal.1 -BumpVersion
+-Publish -NoDraft -NoBranchPush -Notes <"not a release"> -RunTests -TestOnly '^update_notice$'` from the kit branch
+`agent/relrehearse` (RELEASING.md, "Prereleases and rehearsals"). Times: tests (kit build + update_notice) 1.6 min,
+source checks 18 s, engine (incremental Release) 16 s, package 28 s, installer publish 28 s, self-tests 8 s, assets and
+latest.json 15 s, install harness 13 s, smoke launch 36 s, tag push 2 s, `gh release create` (4 assets, 240 MB) 16 s,
+the online check (feed, latest.json byte for byte, sandboxed install through the feed) 18 s: 5 min end to end. Every
+asset downloaded back matched its local size and SHA-256 (and GitHub's digest). Then `gh release delete --cleanup-tag`:
+the release list and the remote tags were identical to before.
+
+- **Found:** the installer self-test pinned the AI statement at 3 paragraphs; the author's 2026-10-09 edit made it 5, so
+  every release build stopped at "Installer self-tests". The test now expects 5.
+- **Fixed in the script:** `-CheckOnline` on a prerelease ran the Latest guard (`gh release edit --latest` on the
+  prerelease) and read `releases/latest`, which never serves a prerelease; a prerelease published with `-NoDraft` had no
+  check at all. Now: checked "published prerelease, not Latest" (nothing edited), then the online check against
+  `releases/download/v<version>/latest.json`. New `-NoBranchPush` (prereleases only). The dry run no longer says the
+  smoke launch is skipped when qvr-setup is simply not built yet (the real run detects Quake after building it).
+- **Still open:** GitHub's Latest is `textures-2026-10-03` (a support release), so
+  `releases/latest/download/latest.json` answers 404 today; the first `-Final` release's Latest guard fixes it.
+- GitHub notifies watchers of a published prerelease (the repository has 17 watchers; not checked who watches releases);
+  its body said "Rehearsal ... not a release".
