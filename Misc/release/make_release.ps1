@@ -466,7 +466,7 @@ if ($remote -and -not $Local) {
     $ls = GitRun @("ls-remote", "--tags", $remote, "refs/tags/$tag", "refs/tags/$tag^{}")
     if ($ls.Code -eq 0 -and $ls.Text) {
         $tagRemote = @(@($ls.Out | Where-Object { $_ -match '\^\{\}$' }) + @($ls.Out))[0] -replace '\s.*$', ''   # (the peeled commit first)
-        if ($tagRemote -ne $commit) { Problem "tag $tag already exists on $remote on another commit" } else { Warn "tag $tag is already on $remote (this commit)" }
+        if ($tagRemote -ne $commit -or $bumpPending) { Problem "tag $tag already exists on $remote on another commit" } else { Warn "tag $tag is already on $remote (this commit)" }
     }
 }
 
