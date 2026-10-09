@@ -486,7 +486,6 @@ void() PlasmaTouch =
     float plasmaScale = VR_WpnDmgScale(self.owner, cvarh_vr_dmg_plasma, 80); // (Weapon Damage)
     damg = (80 + random()*20) * plasmaScale;
 
-    // TODO VR: (P2) rogue (commented to avoid warnings)
     sound(self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
 
     if(other.health)
@@ -550,12 +549,10 @@ entity(vector org, vector dir) launch_plasma =
     missile.angles = vectoangles(missile.velocity);
     missile.touch = PlasmaTouch;
 
-    // TODO VR: (P2) rogue (commented to avoid warnings)
     setmodel(missile, "progs/plasma.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, org);
 
-    // TODO VR: (P2) rogue (commented to avoid warnings)
     sound(missile, CHAN_WEAPON, "plasma/flight.wav", 1, ATTN_NORM);
 
     missile.effects = EF_BRIGHTLIGHT;
