@@ -142,7 +142,7 @@ constexpr int libraryRank = 1000;
 
 // Quake VR's own maps, lit already as they are meant to be: the worldspawn key above, or, for those compiled before it
 // (and any made by hand), a map of the quakevr folder's own maps/ named vr* (vrstart, vrtutorial, vrfiringrange,
-// vrcalibration, vrtesthall, vrteleporters, vrslopes, vrclimb, vrexample, vrstart_old: every map we ship is named so).
+// vrcalibration, vrtesthall, vrteleporters, vrslopes, vrclimb, vrexample: every map we ship is named so).
 [[nodiscard]] bool ownMap(const Source& s, const char* entities)
 {
     return prelitKey(entities) || (!s.inPak && !q_strcasecmp(s.game.cStr(), "quakevr") && s.map.size() > 2 &&

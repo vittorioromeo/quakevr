@@ -33913,3 +33913,27 @@ fine.
   a checkerboard, which the hole test doesn't see).
 - vrtrailer.bsp has one unlisted face (17 909 -7, just under the water); its generator gets the fix on its next
   rebuild (10 hairline pairs moved there); vrtrailer2 and vrtutorial2: 0.
+
+## The tutorial finalized: vrtutorial, no map aliases (2026-10-09)
+
+His notes vrtutorial2_2026-10-09_18-22-02 .. 18-32-29 and vrstart_18-36-01.
+
+- **Tips always shown in the tutorial**: its worldspawn `_vr_tips_repeat` 1 (the engine's `mapFlags`): every tip shows
+  again each time he comes near it (gone 1.25x its range away first), seen before or not.
+- **World scale 1.2 is normal**: `vr_defaults.cfg` had 1.2 since 2026-10-04, but the compiled default and the World
+  Scale wall buttons' "normal" (tutorial, hub: `vr_setup.cpp`) were 1.25. Now 1.00 / 1.20 normal / 1.50; vr_cfg_version
+  115 moves a config at 1.25 to 1.2.
+- **Value screens still while pressed**: the screen over a setting button (and SELECTED over a campaign lectern) was
+  placed from the button's box as it moved, so it rode the press into the wall; it is placed from the box at rest now
+  (less the move from QC's `pos1`). The buttons' own labels (QC's worldtext boards) never moved.
+- **Texts**: lesson 3 says you can also jump for real (`vr_roomscale_jump`); FLASHLIGHT SIDE (was TORCH SIDE, tutorial
+  and hub), the flashlight "on your torso" (was "at your hip"); the grenade pouch "on your lower back" (was "the small
+  of your back": also the menu's help); the trap: a grenade dropped with its pin in is "a trap you can shoot to set
+  off". All entity text: the BSPs' entity lumps edited in place (`bsp_set_entities.py`, geometry and light kept) and
+  checked against the generated `.map` (every entity's keys the same).
+- **Final names**: vrtutorial2 is `vrtutorial` (its .map, .bsp, .lit, .lux, `vrtutorial_gen.py`,
+  `vrtutorial_playtest.py`); the old tutorial's files and the old hub (`vrstart_old.bsp`, `vrstart_old@3e00.ent`) are
+  removed, as are `VR_MapAlias` (vrstart2, vrslipgates loaded under their new names), the tips' renamed-map keys, the
+  vr_cfg_version 99 `vr_hub_map` migration and `vr_hub_map` itself (retired: the hub is vrstart). Saves made in
+  vrtutorial2, vrstart2, vrslipgates or the old vrtutorial no longer load (dev saves). `relight_quakevr_maps.py` no
+  longer relights the old tutorial; `stray_press_test.sh` loads vrtutorial in place of vrstart_old.

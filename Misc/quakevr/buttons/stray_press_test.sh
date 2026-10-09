@@ -1,6 +1,6 @@
 #!/bin/bash
 # stray_press_test.sh <agent> [run.sh options] -- no wall button pressed by a map load, a game load or a hand at rest
-# (ROUND21.md, "A far button pressed at a map load"). Loads vrstart (the island) and vrstart_old 5 times each with the mock hands at
+# (ROUND21.md, "A far button pressed at a map load"). Loads vrstart (the island) and vrtutorial 5 times each with the mock hands at
 # rest, then a save made on vrstart's pavilion with the off hand held up beside the Turning button 20 times (before the
 # fix each of those loads pressed it: the engine's line from the hand to its muzzle, left at the world's origin, crossed
 # it), and finally presses Turning with the off hand right after a load (a real press must still work).
@@ -16,7 +16,7 @@ import sys
 out = ['alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', 'developer 1', 'vr_debug_wallbuttons 1']
 def w(n): return ['w10'] * (n // 10) + ['wait'] * (n % 10)
 for i in range(5):
-    out += ['echo LOAD map vrstart %d' % i, 'map vrstart'] + w(60) + ['echo LOAD map vrstart_old %d' % i, 'map vrstart_old'] + w(60)
+    out += ['echo LOAD map vrstart %d' % i, 'map vrstart'] + w(60) + ['echo LOAD map vrtutorial %d' % i, 'map vrtutorial'] + w(60)
 out += ['map vrstart'] + w(100) + ['setpos -272 -30 160 0 90 0'] + w(20) + ['vr_mock_hand_to off -272 10 197'] + w(30)
 out += ['save straytest'] + w(5)
 for i in range(20):

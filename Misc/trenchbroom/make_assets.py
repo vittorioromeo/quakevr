@@ -262,7 +262,7 @@ def tex_lantern(w, h, seed=9):
 def tex_arrow(w, h, seed=21):
     """A painted floor or wall arrow ('{': the background transparent, palette index 255): a worn yellow arrow with a
     dark rim, pointing to the texture's top (minus V). Laid on a func_detail_illusionary sheet over a floor or a wall
-    (vrtutorial2_gen.py)."""
+    (vrtutorial_gen.py)."""
     n = noise_field(w, h, seed, 0.18)
     rnd = random.Random(seed)
     wear = [[rnd.random() for _ in range(w)] for _ in range(h)]
@@ -327,7 +327,7 @@ TEXTURES = [
     ("qvr_target", lambda: tex_target(64, 64)),
     # vrstart's lanterns (Misc/quakevr/maps/vrstart_gen.py)
     ("qvr_lantern", lambda: tex_lantern(32, 32)),
-    # vrtutorial2's painted arrows and hazard stripes (Misc/quakevr/maps/vrtutorial2_gen.py)
+    # vrtutorial's painted arrows and hazard stripes (Misc/quakevr/maps/vrtutorial_gen.py)
     ("{qvr_arrow", lambda: tex_arrow(64, 64)),
     ("qvr_hazard", lambda: tex_hazard(64, 64)),
 ]

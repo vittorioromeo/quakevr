@@ -1,6 +1,6 @@
-# make_day_sky.py -- draws vrtutorial2's day sky: a sky box (quakevr/gfx/env/qvrday{rt,bk,lf,ft,up,dn}.png), our own
+# make_day_sky.py -- draws vrtutorial's day sky: a sky box (quakevr/gfx/env/qvrday{rt,bk,lf,ft,up,dn}.png), our own
 # pictures (no game's data): a clear blue gradient, pale at the horizon, fair-weather clouds lit from the sun's side,
-# and the sun with its glow where the map's sunlight comes from (vrtutorial2_gen.py's _sunlight_mangle).
+# and the sun with its glow where the map's sunlight comes from (vrtutorial_gen.py's _sunlight_mangle).
 #
 #   python Misc/quakevr/maps/make_day_sky.py [--size 512]
 #
@@ -18,7 +18,7 @@ from make_vs2_sky import SKYTEXORDER, SUFFIX, Noise3, dir_to_face, face_dir, png
 ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
 OUTDIR = os.path.join(ROOT, "quakevr", "gfx", "env")
 NAME = "qvrday"
-# the sunlight's direction (vrtutorial2_gen.py's _sunlight_mangle, yaw and pitch: where the light travels): the sun is
+# the sunlight's direction (vrtutorial_gen.py's _sunlight_mangle, yaw and pitch: where the light travels): the sun is
 # opposite it
 SUN_MANGLE = (225, -55)
 

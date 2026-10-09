@@ -12,7 +12,7 @@ phases, the author testing after each.
   `isReloadHolsterHotspot`, QC/weapons.qc) and by the client for the ammo screens (`clip/size` over the reserve:
   vr_view.cpp `queueWeaponText`, `idleWeaponText`). Reloading also needs the immersive weapon mode
   (`vr_holster_mode 0`) and a human player (`.ishuman`: bots never reload). Also on the setup boards
-  (vr_setup.cpp `"reload"`) and the old hub (vrstart_old.ent: raw-cvar buttons 0 and 1, left alone).
+  (vr_setup.cpp `"reload"`) and the old hub (vrstart_old.ent: raw-cvar buttons 0 and 1, left alone; removed 2026-10-09).
 - **Magazines.** Every weapon is a record (QC/vr_weaponinst.qc: `weapon_inst`, `.wi_clip`) that the hand, the holster
   or the prop it lies as refers to: its magazine and its blood go with it through holstering, throwing, hand-offs and
   level changes. Map pickups come loaded (`weapon_touch`, items.qc: the base clip from the reserve), drops full.

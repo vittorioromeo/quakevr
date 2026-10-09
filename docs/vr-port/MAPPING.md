@@ -85,7 +85,7 @@ spawn functions but are not entities (`//! internal` in `entities.fgd`, with the
 | `vr_dummy` | a training dummy (a grunt) that cannot be hurt and shows every hit's damage | `angle` |
 | `weapon_shotgun` | the shotgun as a pickup (id's Quake has none) | |
 | `weapon_crowbar` | a crowbar lying ready to be picked up (a melee weapon, one hand or two): `func_weapon_grabbable` with weapon 17; QC places one with `VR_Crowbar_Spawn` | `angles` (how it lies before it falls; none: any way) |
-| `trigger_vr_health_gate` | a trigger (brush) firing its `target` once the player touches it at full health (his max_health, or `health`); below it `message` is centerprinted every 2 s (vrtutorial2's door that opens only at full health) | `target`, `message`, `health` |
+| `trigger_vr_health_gate` | a trigger (brush) firing its `target` once the player touches it at full health (his max_health, or `health`); below it `message` is centerprinted every 2 s (vrtutorial's door that opens only at full health) | `target`, `message`, `health` |
 | `func_vr_spawner` | makes monsters when used, with teleport fog; fires `target` once every monster of its latest use is dead (waves: chain them with `trigger_counter` and `trigger_relay`). Spawnflags 1 ONE_AT_A_TIME (a use while one lives makes none: `message`), 2 ANGRY (they come for the user at once) | `weapon` (as `func_enemy_dispenser`: 0 grunt, 7 dog, 8 enforcer...), `count`, `wait`, `angle`, `target`, `message` |
 | `func_vr_target` | a target board (brush) that breaks into splinters when shot, struck or blown up, firing its `target` | `health` (10), `target` |
 | `func_vr_restock` | keeps a supply going: every `wait` s, when fewer than `count` of `contents` lie within `distance` of it, a new one here (single player) | `contents` (item_shells, item_spikes, item_rockets, item_cells, item_health, item_key1/2, weapon_shotgun, weapon_supershotgun, weapon_nailgun, weapon_supernailgun, vr_debris_piece, vr_crate), `contentsflags` (its spawnflags), `model` (a rock's or brick's), `count` (1), `distance` (96), `wait` (5; -1: only when used) |
@@ -117,7 +117,7 @@ engine finds them when the map loads, `vr_debug_ledges 1` shows them):
 **What Quake VR changed in id's entities** (all in their help):
 - `func_button`: pressed by a hand or a weapon (vertical ones also by stepping on them); a label (`worldtext`,
   `worldtext_halign`, `worldtext_scale`, drawn on its face); `buttonEffect` 3 runs its `targetname` as a console
-  command (vrstart_old's hub buttons; end it with `\n`); Honey's "Starts disabled" flag and `items`.
+  command (the hubs' setting and campaign buttons; end it with `\n`); Honey's "Starts disabled" flag and `items`.
 - Weapons, armour, keys, powerups: they float at torso height (`vr_item_float_height`, 26 units) and are taken by hand:
   a weapon by a grip, armour by letting go of it over the torso, keys and runes at a holster. Place them on the floor.
 - Ammo and health boxes: physics objects (carried, thrown, nudged, force-grabbed), taken at a holster or by walking
@@ -305,10 +305,9 @@ is one whose face no leaf the ray's start can see (by vis) lists; and every worl
   QC buttons.qc `button_campaign_unavailable` adds "(unavailable)" without the campaign's data). 3, 4 and 5 have game
   folders of their own: at a hub the teleporter's changelevel runs `vr_campaign_select dopa`, `mg1` or `mg3` instead
   (`VR_CanChangeCampaignMap`), which starts e5start or the campaign's start; one left over anywhere else is ignored.
-- **The hub**: it is `vrstart`, the hub VR starts in and the menus' VR Hub returns to (it was `vrstart` until
-  2026-10-07: `map vrstart`, a config's `vr_hub_map vrstart` (vr_cfg_version 99 moves it) and old saves made there
-  still load it, `VR_MapAlias`). The old hub is `vrstart_old` (`vrstart_old.bsp`, `vrstart_old@3e00.ent`: our `.ent` files are pinned to their `.bsp`, `Misc/quakevr/entfile.py`): Debug > Tests > Hubs, or
-  `vr_hub_map vrstart_old` to make it the hub again.
+- **The hub**: it is `vrstart`, the hub VR starts in and the menus' VR Hub returns to (`VR_HubMap`). The maps have
+  their final names: no aliases (2026-10-09: the old hub `vrstart_old`, the setting `vr_hub_map` and `VR_MapAlias`,
+  which loaded `vrstart2` and `vrslipgates` under their new names, removed; old saves on those names don't load).
 - **Checks**: `vr_menu_path_check maps/vrstart.map` (the boards' `{menu:...}` names: 4 found, 0 missing).
 
 ## vrtrailer: the trailer's opening scene (a generated map)
@@ -393,19 +392,20 @@ terrain's lattice seed, `TERRAIN_SEED` 6: seeds 5 and 7 gave a clip hull's fill 
 brushes, the .bsp 7.2 MB (vrstart's 17.7). Map load (`vr_startup_times`, `--exclusive`): 1016 ms as the first map of a
 start, 180 ms again, 313 ms after vrstart (vrstart's 989).
 
-## vrtutorial2: the tutorial (a generated map)
+## vrtutorial: the tutorial (a generated map)
 
-`quakevr/maps/vrtutorial2.map` is written by `Misc/quakevr/maps/vrtutorial2_gen.py` (**edit the script, not the .map**;
+`quakevr/maps/vrtutorial.map` is written by `Misc/quakevr/maps/vrtutorial_gen.py` (**edit the script, not the .map**;
 its geometry helpers are `mapgeom.py`'s). A military base by day: 12 lessons and an arena, then a teleporter to the hub.
-It is the tutorial (the main menu's and the hub's VR TUTORIAL, and a new install's first start: below); the old one,
-`vrtutorial`, still loads by name (Debug > Tests > Tutorial).
+It is the tutorial (the main menu's and the hub's VR TUTORIAL, and a new install's first start: below). It was `vrtutorial2` until
+2026-10-09, when it replaced the old tutorial (removed) under its name. Its worldspawn's `_vr_tips_repeat` 1 shows every
+tip again each time the player comes near it, seen before or not.
 
 ```
 python Misc/trenchbroom/make_id_wad.py                    # once: id's textures (git-ignored WAD)
 python Misc/quakevr/maps/make_day_sky.py                   # the day sky box (quakevr/gfx/env/qvrday*.png, committed)
-python Misc/quakevr/maps/vrtutorial2_gen.py                # the .map (under a second)
-python Misc/quakevr/maps/vrtutorial2_gen.py --compile --preset fast          # iterating
-python Misc/quakevr/maps/vrtutorial2_gen.py --compile --check 1000000        # the shipped build (final), the hole test
+python Misc/quakevr/maps/vrtutorial_gen.py                # the .map (under a second)
+python Misc/quakevr/maps/vrtutorial_gen.py --compile --preset fast          # iterating
+python Misc/quakevr/maps/vrtutorial_gen.py --compile --check 1000000        # the shipped build (final), the hole test
 ```
 
 **How it is built.** The rooms, halls, doorways, pools and shafts are boxes of air (`Air`); the structural world is
@@ -444,11 +444,11 @@ kept. He starts with no weapon, armour or shells and 100 health (client.qc's tut
 
 **The start flow**: `vr_tutorial_started` (archived; 0 in a new install's config, 1 in any config from before
 vr_cfg_version 103) sends `vr_startgame` (and the first calibration's way out: QC changelevel_touch) to `skill 0; map
-vrtutorial2`; the map sets it to 1 as it loads, so the hub is where VR starts from then on. The hub's and the main
-menu's VR TUTORIAL run `skill 0; map vrtutorial2` too (vrstart.bsp's entity lump edited in place with
+vrtutorial`; the map sets it to 1 as it loads, so the hub is where VR starts from then on. The hub's and the main
+menu's VR TUTORIAL run `skill 0; map vrtutorial` too (vrstart.bsp's entity lump edited in place with
 `bsp_set_entities.py`; `vrstart_gen.py` says the same).
 
-**Tests**: `python Misc/quakevr/maps/vrtutorial2_playtest.py script [--god]` writes the headless playthrough
+**Tests**: `python Misc/quakevr/maps/vrtutorial_playtest.py script [--god]` writes the headless playthrough
 (`quakevr/vrtut2play.cfg`: the mock autopilot `vr_mock_walk_to`, `vr_mock_turn_to`, `vr_mock_hand_aim`; punches,
 climbs, throws and loads with the mock hands), `bash <kit>/run.sh <agent> -Timeout 3600 -Script "exec vrtut2play.cfg"
 -Full > out.txt`, then `... check < out.txt` prints the gate table. `--softlock`: the death, save and load, wasted

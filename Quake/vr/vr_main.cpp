@@ -232,8 +232,8 @@ void startGameCommands()
         {
             // The game started for the first time (the calibration room's way out leads here too: QC changelevel_touch):
             // the tutorial, on Easy (the map sets vr_tutorial_started as it loads: then the hub is where VR starts).
-            Con_Printf("VR: the first start: the tutorial (vrtutorial2)\n");
-            Cbuf_InsertText("maxplayers 1; deathmatch 0; coop 0; skill 0; map vrtutorial2\n");
+            Con_Printf("VR: the first start: the tutorial (vrtutorial)\n");
+            Cbuf_InsertText("maxplayers 1; deathmatch 0; coop 0; skill 0; map vrtutorial\n");
             return;
         }
         Cbuf_InsertText(va("maxplayers 1; deathmatch 0; coop 0; map %s\n", VR_HubMap()));

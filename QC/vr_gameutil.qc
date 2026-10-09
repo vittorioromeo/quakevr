@@ -7,7 +7,7 @@
 
 float() VR_GameUtil_InTutorialMap =
 {
-    return (mapname == "vrtutorial" || mapname == "vrtutorial2");
+    return mapname == "vrtutorial";
 }
 
 float() VR_GameUtil_InStartMap =

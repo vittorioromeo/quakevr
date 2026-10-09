@@ -747,8 +747,8 @@ char reviewListHeader[64];
 // The old Single Player and Bot Control menus' extras.
 void playCalibration() { Cbuf_AddText("vr_setup\n"); }
 void playHub() { Cbuf_AddText("vr_campaign_hub\n"); }
-// The tutorial (vrtutorial2: Misc/quakevr/maps/vrtutorial2_gen.py) on Easy; the old one (vrtutorial) still loads by name.
-void playTutorial() { Cbuf_AddText("skill 0; map vrtutorial2\n"); }
+// The tutorial (vrtutorial: Misc/quakevr/maps/vrtutorial_gen.py) on Easy.
+void playTutorial() { Cbuf_AddText("skill 0; map vrtutorial\n"); }
 void playFiringRange() { Cbuf_AddText("map vrfiringrange\n"); }
 // Official Campaigns > Dawn of the Machine: Bloody Nightmare: skill 3 and vr_mg3_bn_start (the start map's first frame
 // makes it a Bloody Nightmare game, QC vr_mg3_defs.qc MG3_Frame), then the campaign as its own row starts it. While
@@ -6325,15 +6325,10 @@ za::Vector<Item> pageDebugTests()
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Each held gun's load point and radius, a held magazine's top, an attached magazine's box (blue)."),
         toggle("Show the Pouches' Reach", "vr_show_grenade_pouch").help("Spheres where the grenade pouch and the ammo pouch are reached."),
-        header("Hubs"),
-        command("The Old Hub (vrstart_old)", "vr_campaign_hub vrstart_old")
-            .help("vr_campaign_hub vrstart_old: the hub before the island (vrstart until 2026-10-07). Nothing goes there by "
-                  "default; vr_hub_map vrstart_old makes it the hub again."),
-        header("Tutorial (vrtutorial2)"),
-        command("The Tutorial", "skill 0; map vrtutorial2")
-            .help("skill 0; map vrtutorial2: the tutorial (a military base by day, 12 lessons and an arena; "
-                  "Misc/quakevr/maps/vrtutorial2_gen.py), on Easy as the start flow and the hub's button start it."),
-        command("The Old Tutorial (vrtutorial)", "map vrtutorial").help("map vrtutorial: the tutorial before 2026-10-08."),
+        header("Tutorial (vrtutorial)"),
+        command("The Tutorial", "skill 0; map vrtutorial")
+            .help("skill 0; map vrtutorial: the tutorial (a military base by day, 12 lessons and an arena; "
+                  "Misc/quakevr/maps/vrtutorial_gen.py), on Easy as the start flow and the hub's button start it."),
         command("First Start Again", "vr_tutorial_started 0")
             .help("vr_tutorial_started 0: the next start of the game goes to the tutorial, as a new install's first start "
                   "does (the tutorial sets it back to 1 as it loads)."),
@@ -6341,7 +6336,7 @@ za::Vector<Item> pageDebugTests()
             {{0.f, "-"}, {1.f, "1 Moving"}, {2.f, "2 Buttons"}, {3.f, "3 Jumping"}, {4.f, "4 Swimming"}, {5.f, "5 Healing"},
              {6.f, "6 Melee"}, {7.f, "7 A Fight"}, {8.f, "8 Weapons"}, {9.f, "9 Darkness"}, {10.f, "10 Throwing"},
              {11.f, "11 Fire"}, {12.f, "12 The Arena"}})
-            .help("In vrtutorial2: puts you at that lesson's start (its checkpoint, taken: you come back there). Doors "
+            .help("In vrtutorial: puts you at that lesson's start (its checkpoint, taken: you come back there). Doors "
                   "on the way stay as they are."),
         header("Trailer Scene (vrtrailer)"),
         command("The Trailer Scene", "map vrtrailer")

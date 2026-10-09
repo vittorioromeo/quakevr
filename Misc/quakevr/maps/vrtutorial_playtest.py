@@ -1,10 +1,10 @@
-# vrtutorial2_playtest.py -- plays the tutorial through headless (the mock headset): every gate passed by the mechanic
+# vrtutorial_playtest.py -- plays the tutorial through headless (the mock headset): every gate passed by the mechanic
 # it teaches, and checks each gate's outcome. The walks use the mock autopilot (vr_mock_walk_to: the head faces the next
 # point, the stick pushes forward); hands press, grip, punch, throw, load and aim with the vr_mock_* commands.
 #
-#   python Misc/quakevr/maps/vrtutorial2_playtest.py script [--god] [--from GATE] [--ledge]   # writes quakevr/vrtut2play.cfg
+#   python Misc/quakevr/maps/vrtutorial_playtest.py script [--god] [--from GATE] [--ledge]   # writes quakevr/vrtut2play.cfg
 #   bash <kit>/run.sh <agent> -Timeout 900 -Script "exec vrtut2play.cfg" -Filter "^PT|vr_mock_walk_to|Player pos|^health|ENGINE|TIMEOUT" > out.txt
-#   python Misc/quakevr/maps/vrtutorial2_playtest.py check < out.txt                 # the gate table
+#   python Misc/quakevr/maps/vrtutorial_playtest.py check < out.txt                 # the gate table
 #
 # The cfg's lines "echo PT <gate> <what>" mark each step; "viewpos" and "edict 1" (its health line) after them give the
 # state the checks read. (One cfg exec'd, the waits as aliases: the kit's -Script expands waitN into lines.)
@@ -17,7 +17,7 @@ import sys
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 LOW = -144
 UP = 256
-R3_PLAT_Z = 156     # room 3's ladder block (vrtutorial2_gen.py)
+R3_PLAT_Z = 156     # room 3's ladder block (vrtutorial_gen.py)
 
 OUT = []
 
@@ -800,7 +800,7 @@ def write_throw(path, elevation=5, gunangle=70.0):
 
 def script(args):
     c('alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "developer 1", "vr_tips 0", "vr_fixed_frames 1", "vr_climb_debug 1", "vr_debug_wallbuttons 1",
-      "skill 0", "map vrtutorial2")
+      "skill 0", "map vrtutorial")
     w(80)
     global GOD, LEDGE_CHECKS
     GOD = args.god

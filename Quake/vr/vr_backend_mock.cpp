@@ -910,7 +910,7 @@ void mockHandTo_f()
 
 // vr_mock_hand_aim <main|off> <x> <y> <z> | monster | off: keeps the hand turned (every frame, until "off") so that
 // what it holds aims (hands::State::aimRot, from its muzzle) at that world point, or at the middle of the live monster
-// nearest the player: scripted shooting (vrtutorial2's playthrough, Misc/quakevr/maps/vrtutorial2_playtest.py).
+// nearest the player: scripted shooting (vrtutorial's playthrough, Misc/quakevr/maps/vrtutorial_playtest.py).
 struct MockAim
 {
     bool on{false};
@@ -1006,7 +1006,7 @@ void aimFrame()
     }
 }
 
-// vr_mock_walk_to <x> <y> [<radius>] | off: an autopilot for scripted walks (vrtutorial2_playtest.py): every frame the
+// vr_mock_walk_to <x> <y> [<radius>] | off: an autopilot for scripted walks (vrtutorial_playtest.py): every frame the
 // head turns to face the point (vr_movement_mode 1: the stick moves you where the head looks) and the moving stick is
 // pushed forward, until the player's origin is within `radius` (16) of it ("vr_mock_walk_to: arrived at x y z") or has
 // come no nearer for 2 seconds ("vr_mock_walk_to: stuck at x y z"); then the stick lets go. The head keeps its pitch.

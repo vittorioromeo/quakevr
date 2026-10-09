@@ -1,5 +1,5 @@
-# vrstart_gen.py -- writes quakevr/maps/vrstart.map, the VR hub (an island at night; vrstart until 2026-10-07, the old hub
-# is vrstart_old), and with --compile builds
+# vrstart_gen.py -- writes quakevr/maps/vrstart.map, the VR hub (an island at night),
+# and with --compile builds
 # it (qbsp 0.18.1, ericw-tools 2.0's vis and light; presets "fast" and "final": compile_map, PRESETS, MAPPING.md).
 #
 #   python Misc/quakevr/maps/vrstart_gen.py [--compile [--preset fast|final] [--check RAYS]] [--tools DIR] [--qbsp EXE]
@@ -1560,7 +1560,7 @@ def build_entities(mw):
     qx, qy = QUICK
     banner(mw, N.join(["NEW TO VR?", "The tutorial teaches the basics;", "calibration fits the game to your body."]),
            qx, qy - 6, 14 + 96, 270, "0.3")
-    button(mw, "VR" + N + "TUTORIAL", "skill 0; map vrtutorial2", qx - 19, qy - 4, 14 + 40, 90)  # (on Easy: the start flow's)
+    button(mw, "VR" + N + "TUTORIAL", "skill 0; map vrtutorial", qx - 19, qy - 4, 14 + 40, 90)  # (on Easy: the start flow's)
     button(mw, "VR" + N + "CALIBRATION", "map vrcalibration", qx + 19, qy - 4, 14 + 40, 90)
     tip(mw, "vs2_welcome", "Welcome! Walk with the stick and follow" + N + "the torches up to the campaigns.",
         p["x"], p["y1"] + 160, p["z"] + 40, 260)

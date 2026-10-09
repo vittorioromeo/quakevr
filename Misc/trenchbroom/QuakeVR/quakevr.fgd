@@ -2447,7 +2447,7 @@ ANGRY: they go for the player who used it at once."
 
 @SolidClass color(204 128 51) =
 	func_vr_target : "Quake VR: a target board (a brush) that breaks into splinters when it is shot, struck or blown up ('health', default
-10), firing its 'target' (the activator: what broke it). vrtutorial2's firing range: a trigger_counter opens the way on."
+10), firing its 'target' (the activator: what broke it). vrtutorial's firing range: a trigger_counter opens the way on."
 [
 	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
 ]
@@ -3245,7 +3245,7 @@ Variable sized single use trigger that requires a key to trigger targets. Must b
 ]
 
 @SolidClass color(128 128 128) =
-	trigger_vr_health_gate : "Quake VR: fires its 'target' once, when the player touches it at full health (his max_health, or 'health' if set: a door that opens only then, as vrtutorial2's). Below it, 'message' is centerprinted (every 2 seconds while he stays in it)."
+	trigger_vr_health_gate : "Quake VR: fires its 'target' once, when the player touches it at full health (his max_health, or 'health' if set: a door that opens only then, as vrtutorial's). Below it, 'message' is centerprinted (every 2 seconds while he stays in it)."
 [
 ]
 

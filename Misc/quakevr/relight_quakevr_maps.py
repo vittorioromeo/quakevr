@@ -10,16 +10,6 @@
 # the shade, ambient occlusion in corners (-dirt), no bounced light and no point lights (so models are
 # shaded from Quake's fixed direction: vr_model_lighting has no map lights there). White light: no .lit.
 #
-# vrtutorial: was never lit at all (an empty lightmap lump), so the engine drew every surface at full
-# brightness, whatever its 79 light entities said. It is now lit by its own lamps, given a longer reach
-# (tutorial_lamp): the strip lights over the tutorial boards, the lamp posts and the ceiling lamps, plus
-# the glowing textures (the strip lights, the lamp posts, buttons and the teleporter;
-# relight_maps.glow_lights, coloured, .lit), strong ambient occlusion and no bounced light, so that the
-# lamps make pools of light and the corners and the space between them stay dark. The sixteen "light"
-# 1200 lamps floating 300 units up, over the whole map (a flat fill), are dropped; a faint night sky and
-# moon keep the open courtyard readable. The glowing textures' lights are only given to `light` (as in
-# relight_maps.py): the map keeps its own entities.
-#
 # The worldspawn keys go into, and the dropped light entities out of, both the map's entity file
 # (<map>@<crc>.ent, pinned to the .bsp by entfile.py, which the engine loads in place of the .bsp's entities, if the map has one) and the .bsp's
 # own entity lump, so both describe the lighting the lightmap was made with; every other entity is kept
@@ -29,7 +19,7 @@
 #
 # Usage:
 #   python Misc/quakevr/relight_quakevr_maps.py [--light path/to/light.exe] [--maps quakevr/maps]
-#       [--quake <Quake folder>] [--only vrtutorial ...] [--out <folder>]
+#       [--quake <Quake folder>] [--only vrfiringrange ...] [--out <folder>]
 # --quake (or the QUAKE_DIR environment variable) is the folder containing id1, for id1's palette
 # (gfx/palette.lmp): the glowing textures' light colours need it. --out writes the results elsewhere
 # (for trying settings); the default is in place.
@@ -55,23 +45,6 @@ from relight_maps import (OUTPUT_ARGS, entities_text, find_light, glow_lights, i
 LIGHTGRID_ARGS = ["-lightgrid_dist", "64", "64", "64"]
 
 
-def tutorial_lamp(keys):
-    """vrtutorial's lamps ("light" 200 or 250, linear falloff: `light` - distance * `wait`)."""
-    x, y, z = (float(v) for v in keys["origin"].split())
-    if z < 60:
-        # The four around each lamp post (one fixture): dimmer, a little further, so that the post
-        # makes one pool of light instead of a blown-out wall beside it.
-        return [("light", "60"), ("wait", "0.5")]
-    if x < -270:
-        # The strip lights over the boards in the open courtyard: two thirds further, to light
-        # the courtyard's floor between them.
-        return [("wait", "0.6")]
-    # The strip lights over the boards indoors: a third further (the corridors between the boards
-    # are not black); the ceiling lamps ("light" 250) as they were (every lamp's keys are set, also
-    # to Quake's default, so that a change here replaces what an earlier run of this script set).
-    return [("wait", "1")] if keys.get("light") == "250" else [("wait", "0.75")]
-
-
 MAPS = {
     "vrfiringrange": {
         # Smooth shadows, gentle ambient occlusion (an open space: corners only), no bounce.
@@ -95,36 +68,6 @@ MAPS = {
         "lamp_keys": lambda keys: [],
         "glow": False,
         "lit": False,
-    },
-    "vrtutorial": {
-        # Smooth shadows, strong ambient occlusion (the corridors' corners and the space under the boards
-        # go dark), no bounced light (it would fill the shade), coloured light.
-        "args": ["-extra4", "-dirt", "-dirtscale", "1.5", "-dirtdepth", "96", "-lit"],
-        "worldspawn": [
-            # A faint, cool night sky and moon over the open courtyard (indoors, under the roof, they do
-            # not reach): about 20..45 of 255 there away from the lamps, which the lightmap contrast
-            # (vr_light_contrast 2) shows as dim; the moon from the north-east gives the railings,
-            # crates and walls a lit and an unlit side and shadows on the floor.
-            ("_sunlight2", "80"),
-            ("_sunlight2_color", "150 170 255"),
-            ("_sunlight2_dirt", "1"),
-            ("_sunlight", "50"),
-            ("_sun_mangle", "210 -55 0"),
-            ("_sunlight_color", "170 190 255"),
-            ("_sunlight_penumbra", "3"),
-            ("_sunlight_dirt", "-1"),
-        ],
-        # Keys set on the lamps kept (chosen by where they are, so that running it again sets the same).
-        "lamp_keys": tutorial_lamp,
-        # The sixteen "light" 1200 lamps 300 units up over the whole map: a flat fill, no lamp there.
-        "drop": lambda keys: float(keys.get("light", "300") or 300) >= 1000,
-        "glow": True,
-        "lit": True,
-        # Its light from ericw-tools v0.18.1 (--legacy-light), the directions and the light grid from 2.0: the map is
-        # made of thin trims, and 2.0 samples a strip thinner than a luxel (the 4 to 8 units of wall between each
-        # board and the strip light over it) at its edges, where the brush beside it shades them: those strips came
-        # out half as bright or black, 0.6% of the map's luxels (0.02% of id's maps'). 0.18 kept them lit.
-        "legacy": True,
     },
 }
 

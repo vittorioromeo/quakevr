@@ -352,7 +352,7 @@ Most of these have switches on the *Graphics* pages, and the *Preset* there sets
   campaign lecterns and their teleporter, a settings pavilion, a firing range and a lookout tower. Pick Quake, Scourge of
   Armagon, Dissolution of Eternity, Dimension of the Past, Dimension of the Machine or Dawn of the Machine and step
   into the teleporter. Its boards and tips explain the
-  basics. (The old hub is `vrstart_old`, in the Debug menu.) From *Advanced VR Options > Play* you can go back to the
+  basics. From *Advanced VR Options > Play* you can go back to the
   hub, the **tutorial** or the **firing range** (weapons to try, both swords, the crowbar, props, and the training
   dummy).
 - **Mission packs:** Hipnotic and Rogue are independent optional packs. Validated installed data is used

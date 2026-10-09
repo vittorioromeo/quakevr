@@ -1,4 +1,4 @@
-// vr_tutorial.qc -- the scripting entities of the tutorial (vrtutorial2; Misc/quakevr/maps/vrtutorial2_gen.py), for
+// vr_tutorial.qc -- the scripting entities of the tutorial (vrtutorial; Misc/quakevr/maps/vrtutorial_gen.py), for
 // any map: a door that waits for full health (trigger_vr_health_gate), monsters made on demand that report when they
 // are dead (func_vr_spawner), target boards that break (func_vr_target), supplies that come back (func_vr_restock), and
 // checkpoints a dead player comes back to instead of the level restarting (info_vr_checkpoint). vr_crate's
@@ -124,7 +124,7 @@ void() trigger_vr_health_gate_touch =
 
 /*QUAKED trigger_vr_health_gate (.5 .5 .5) ?
 Quake VR: fires its "target" once, when the player touches it at full health (his max_health, or "health" if set: a
-door that opens only then, as vrtutorial2's). Below it, "message" is centerprinted (every 2 seconds while he stays in it).
+door that opens only then, as vrtutorial's). Below it, "message" is centerprinted (every 2 seconds while he stays in it).
 */
 void() trigger_vr_health_gate =
 {
@@ -319,7 +319,7 @@ void() func_vr_target_die =
 
 /*QUAKED func_vr_target (0.8 0.5 0.2) ?
 Quake VR: a target board (a brush) that breaks into splinters when it is shot, struck or blown up ("health", default
-10), firing its "target" (the activator: what broke it). vrtutorial2's firing range: a trigger_counter opens the way on.
+10), firing its "target" (the activator: what broke it). vrtutorial's firing range: a trigger_counter opens the way on.
 */
 void() func_vr_target =
 {
@@ -516,7 +516,7 @@ float() VR_Checkpoint_Respawn =
 };
 
 // ----------------------------------------------------------------------------
-// Debug > Tests > Tutorial > Go to a Lesson (vr_tutorial_goto): in vrtutorial2, the player put at lesson N's
+// Debug > Tests > Tutorial > Go to a Lesson (vr_tutorial_goto): in vrtutorial, the player put at lesson N's
 // checkpoint ("cp<N>", taken), when the cvar changes to N (1..12). Checked every frame (StartFrame).
 
 nosave float vr_tut_goto_seen; // the value acted on (a map's start takes the cvar as it is: no jump)
@@ -524,7 +524,7 @@ nosave float vr_tut_goto_ready;
 
 void() VR_Tutorial_Frame =
 {
-    if(mapname != "vrtutorial2")
+    if(mapname != "vrtutorial")
     {
         return;
     }

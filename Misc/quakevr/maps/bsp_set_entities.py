@@ -2,10 +2,11 @@
 # lump replaced by a file), the lumps after it moved along, BSPX lumps (the light grid) included. Every other byte is
 # kept: the geometry, the lightmaps, the .lit and .lux beside it stay valid.
 #
-#   python Misc/quakevr/maps/bsp_set_entities.py quakevr/maps/vrstart.bsp --replace "map vrtutorial\n" "skill 0; map vrtutorial2\n"
+#   python Misc/quakevr/maps/bsp_set_entities.py quakevr/maps/vrstart.bsp --replace "\"worldtext\" \"TORCH SIDE\"" "\"worldtext\" \"FLASHLIGHT\nSIDE\""
 #   python Misc/quakevr/maps/bsp_set_entities.py <bsp> --from-file <entities.txt>
 #
-# (vrstart's tutorial button pointed at vrtutorial2 so, 2026-10-08: its generator says the same, vrstart_gen.py.)
+# (vrstart's and the tutorial's text changed so, 2026-10-09, their generators saying the same: vrstart_gen.py,
+# vrtutorial_gen.py. Check a lump against its .map: every entity's keys the same.)
 import argparse
 import struct
 import sys

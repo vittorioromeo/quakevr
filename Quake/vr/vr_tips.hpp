@@ -34,7 +34,7 @@ enum Flags : int
     Repeat = 1 << 0,   // shown every time you come near, not remembered
     Hologram = 1 << 1, // in the wrist gadget's hologram, not the floating screen
     AnyAngle = 1 << 2, // shown even out of vr_tips_view_angle or hidden by the world
-    Waiting = 1 << 3   // not shown yet: a TRIGGERED tip not used (QC VR_Tip_Use clears it; vrtutorial2's)
+    Waiting = 1 << 3   // not shown yet: a TRIGGERED tip not used (QC VR_Tip_Use clears it; vrtutorial's)
 };
 
 // MapTip::ent for a tip whose entity is gone (freed, or its slot taken by another): it never shows again.

@@ -929,13 +929,7 @@ void migrateConfig()
         Con_DPrintf("VR: vr_flashlight_cord: 1, the low-poly chain (was %s)\n", vr_flashlight_cord.string);
         Cvar_SetQuick(&vr_flashlight_cord, "1");
     }
-    // 99: the island hub vrstart2 is vrstart now (the old vrstart is vrstart_old): a config naming vrstart2 names vrstart.
-    if(from < 99 && !strcmp(vr_hub_map.string, "vrstart2"))
-    {
-        Con_DPrintf("VR: vr_hub_map: vrstart (was vrstart2: the island hub's old name)\n");
-        Cvar_SetQuick(&vr_hub_map, "vrstart");
-    }
-    // 103: a new install starts in the tutorial (vrtutorial2) once; a config from before has played: the hub, as before.
+    // 103: a new install starts in the tutorial (vrtutorial) once; a config from before has played: the hub, as before.
     if(from < 103)
     {
         Cvar_SetValueQuick(&vr_tutorial_started, 1.f);
@@ -1087,6 +1081,7 @@ constexpr const char* retiredCvars[] = {
     "vr_knockdown_shove_topple_push",
     "vr_knockdown_shove_feet_speed",
     "vr_knockdown_shove_feet_hold",
+    "vr_hub_map", // 2026-10-09: the hub is vrstart, the only one (the old hub, vrstart_old, removed)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

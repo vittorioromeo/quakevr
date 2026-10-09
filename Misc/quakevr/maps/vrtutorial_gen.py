@@ -1,12 +1,12 @@
-# vrtutorial2_gen.py -- writes quakevr/maps/vrtutorial2.map, Quake VR's tutorial (a military base by day), and with
+# vrtutorial_gen.py -- writes quakevr/maps/vrtutorial.map, Quake VR's tutorial (a military base by day), and with
 # --compile builds it (qbsp 0.18.1, ericw-tools 2.0's vis and light; presets "fast" and "final", as vrstart_gen.py).
 #
-#   python Misc/quakevr/maps/vrtutorial2_gen.py [--compile [--preset fast|final] [--check RAYS]] [--tools DIR] [--qbsp EXE]
+#   python Misc/quakevr/maps/vrtutorial_gen.py [--compile [--preset fast|final] [--check RAYS]] [--tools DIR] [--qbsp EXE]
 #   (first: python Misc/trenchbroom/make_id_wad.py, the id textures' WAD; the sky: make_day_sky.py)
 #
 # Everything in the map is made here (reproducible; the .map opens in TrenchBroom): edit this script, not the .map.
 #
-# How it is built (MAPPING.md, "vrtutorial2"):
+# How it is built (MAPPING.md, "vrtutorial"):
 #   - the rooms, halls, doorways and pools are boxes of AIR (Air); the structural world is their shells (each box grown
 #     by the walls' thickness T on every side) minus every air box, cut into disjoint boxes (carve()) and at the walls'
 #     bands' heights. Each face's texture is the style of the air it faces (Air.face_spec): floors, ceilings, the wall's
@@ -41,7 +41,7 @@ DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # vis, light
 # qbsp: ericw-tools 0.18.1's, as vrstart's (the author's decision, 2026-10-07: 2.0-alpha11's lost faces at slivers;
 # 0.18.1's makes faces by CSG). ROUND21.md, "vrstart on ericw-tools 2.0 again".
 DEFAULT_QBSP = "C:/OHWorkspace/ericw-tools-v0.18.1-32-g6660c5f-win64/bin/qbsp.exe"
-MAPNAME = "vrtutorial2"
+MAPNAME = "vrtutorial"
 OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")
 WADS = ["quakevr/wads/id_textures.wad", "quakevr/wads/quakevr_dev.wad"]
 
@@ -426,7 +426,7 @@ _late = [False]
 class late:
     """Entities made inside `with late():` are written after every other: added to a room after the playthrough's
     takes were recorded, they leave the others' edict numbers (and the free slots the game's own spawns take, its
-    physics' order) as they were (vrtutorial2_playtest.py's gates are sensitive to them)."""
+    physics' order) as they were (vrtutorial_playtest.py's gates are sensitive to them)."""
 
     def __enter__(self):
         _late[0] = True
@@ -1663,7 +1663,7 @@ def write_map():
         mw.detail("painted", classname="func_detail_illusionary").extend(ILLUSION)
     for keys, brushes in ENTS + LATE:
         mw.add(keys, brushes)
-    header = "// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/maps/vrtutorial2_gen.py: edit that, not this.\n"
+    header = "// Game: Quake VR\n// Format: Valve\n// Written by Misc/quakevr/maps/vrtutorial_gen.py: edit that, not this.\n"
     mw.write(OUT, WORLD_KEYS, header)
     nb = len(mw.world) + sum(len(b) for _, b in mw.groups) + sum(len(b) for _, b in mw.entities)
     print("wrote %s: %d brushes (%d structural), %d entities (%.1f s)" % (OUT, nb, len(mw.world), len(mw.entities),
@@ -1714,7 +1714,7 @@ def compile_map(tools, work, preset, check=0, qbsp=DEFAULT_QBSP):
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Writes quakevr/maps/vrtutorial2.map; with --compile also its .bsp, .lit and .lux (qbsp 0.18.1, "
+        description="Writes quakevr/maps/vrtutorial.map; with --compile also its .bsp, .lit and .lux (qbsp 0.18.1, "
                     "2.0's vis and light).",
         epilog="Presets (--preset): fast = vis -fast, light -lit -lux and a 128-unit light grid; final = full vis, "
                "light %s: the shipped build. Check a build for holes: --check 1000000 (bsp_holes.py)."

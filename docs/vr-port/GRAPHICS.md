@@ -112,16 +112,16 @@ models) and keeps the classic pixel look; none of it needs new art.
   because id1, hipnotic and rogue all have a `start.bsp`; a mod's own maps are left alone. `vr_relit_maps 0` plays
   the original lighting (next map). The relit files are generated locally and not committed (`.gitignore`).
   The mod's own maps are relit in place instead (committed), each with its own settings, by
-  `Misc/quakevr/relight_quakevr_maps.py [--quake <Quake folder>] [--only vrtutorial]` (the palette of id1 is for the
+  `Misc/quakevr/relight_quakevr_maps.py [--quake <Quake folder>] [--only vrfiringrange]` (the palette of id1 is for the
   glowing textures' colours). `vrfiringrange`: its seventeen "light" 1200 lamps (a lightmap at 255 nearly everywhere:
   glaring, oversaturated yellow) become a sun from the east-north-east (`_sunlight` 150, `_sun_mangle` "200 -40 0"),
   a sky dome (`_sunlight2` 280) and `-dirt`, in the `.bsp` and its `.ent`; about 150 on the sunlit floor and 90 in
-  shade, so models lit on a par with it do not glare. `vrtutorial` had never been lit (an empty lightmap: the engine
+  shade, so models lit on a par with it do not glare. The old tutorial (`vrtutorial` until 2026-10-09, removed: the generated one has its name now) had never been lit (an empty lightmap: the engine
   draws that fullbright): now its own lamps light it, the strip lights over the boards with a longer reach (`wait`
   0.6 in the courtyard, 0.75 indoors) and the lamp posts' four lights at 60, plus the glowing textures' lights
   (`glow_lights`, coloured `.lit`), `-dirt -dirtscale 1.5`, no bounce, and a faint cool sky and moon over the open
   courtyard (`_sunlight2` 80, `_sunlight` 50); its sixteen "light" 1200 fill lamps 300 units up are dropped. Pools
-  of light at the boards and lamps, dark corners and corridors between them. `vrstart_old` (the old hub) is left fullbright (no
+  of light at the boards and lamps, dark corners and corridors between them. The old hub (`vrstart_old`, removed 2026-10-09) was left fullbright (no
   lightmap and no lights; its worldspawn `"light" "300"` is a minimum light for a menu-like hub).
 - **Light fixtures** (round 15, `glow_lights` in `relight_maps.py`, `quakevr/relight_textures.cfg`). Lamps,
   light panels and strip lights (textures named `*light*`/`*lamp*` and those the file names: `tlight*`, `light1_*`,

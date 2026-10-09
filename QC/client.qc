@@ -208,7 +208,7 @@ void() SetNewParms =
 
     parm2 = VR_BaseHealth();
     parm3 = 0;
-    parm4 = mapname == "vrtutorial2" ? 0 : 25; // (the tutorial: no shells until its range)
+    parm4 = mapname == "vrtutorial" ? 0 : 25; // (the tutorial: no shells until its range)
     parm5 = 0;
     parm6 = 0;
     parm7 = 0;
@@ -756,7 +756,7 @@ void() changelevel_touch =
     // (vr_tutorial_started: vr_tutorial.qc; the engine's startGameCommands does the same at a start)
     if(mapname == "vrcalibration" && nextmap == "vrstart" && !deathmatch && !coop && !cvar("vr_tutorial_started"))
     {
-        nextmap = "vrtutorial2";
+        nextmap = "vrtutorial";
         cvar_set("skill", "0");
     }
     // Dawn of the Machine: the new game Bloody Nightmare starts leaves the hub for Shub (boss2), not secret2.
@@ -815,7 +815,7 @@ void() set_suicide_frame;
 // called by ClientKill and DeadThink
 void() respawn =
 {
-    // VR: a map with checkpoints (vrtutorial2: info_vr_checkpoint) brings him back at the latest, the level as it was
+    // VR: a map with checkpoints (vrtutorial: info_vr_checkpoint) brings him back at the latest, the level as it was
     if(VR_Checkpoint_Respawn())
     {
         return;

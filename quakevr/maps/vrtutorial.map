@@ -1,6 +1,6 @@
 // Game: Quake VR
 // Format: Valve
-// Written by Misc/quakevr/maps/vrtutorial2_gen.py: edit that, not this.
+// Written by Misc/quakevr/maps/vrtutorial_gen.py: edit that, not this.
 // entity 0
 {
 "classname" "worldspawn"
