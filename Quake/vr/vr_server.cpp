@@ -241,6 +241,13 @@ struct BroadcastRoom
     // ... and the most in the second
     double since;
     int peakSize, peakReliable, peakEntities;
+
+    // Whole messages the engine's console commands broadcast (vr_physics_blast's explosion: server::queueBroadcast). A
+    // command runs before the server frame, whose SV_ClearDatagram would drop what it wrote; they open the next frame's.
+    static constexpr int maxQueued = 16;
+    byte queued[512];
+    int queuedEnds[maxQueued]; // each message's end in queued
+    int numQueued;
 };
 
 BroadcastRoom broadcastRoom{};
@@ -375,6 +382,35 @@ extern "C" void VR_BroadcastClear()
     b.msgAt = 0;
     b.qcDropped = b.qcDrops = b.unsent = b.entities = 0;
     SZ_Clear(&sv.datagram);
+
+    // The messages queued since the last frame (server::queueBroadcast) open this one, each whole (an explosion's
+    // launches its chunks, as QuakeC's does).
+    int from = 0;
+    for(int i = 0; i < b.numQueued; i++)
+    {
+        const int at = sv.datagram.cursize;
+        const int len = b.queuedEnds[i] - from;
+        SZ_Write(&sv.datagram, b.queued + from, len);
+        if(tempEntityLength(at) == len)
+        {
+            noteExplosion(at);
+        }
+        broadcastMark(sv.datagram.cursize);
+        from = b.queuedEnds[i];
+    }
+    b.numQueued = 0;
+}
+
+void qvr::server::queueBroadcast(const byte* data, int len)
+{
+    BroadcastRoom& b = broadcastRoom;
+    const int used = b.numQueued > 0 ? b.queuedEnds[b.numQueued - 1] : 0;
+    if(len <= 0 || b.numQueued >= BroadcastRoom::maxQueued || used + len > static_cast<int>(sizeof(b.queued)))
+    {
+        return; // (unreliable, as the datagram is: none when full)
+    }
+    memcpy(b.queued + used, data, static_cast<size_t>(len));
+    b.queuedEnds[b.numQueued++] = used + len;
 }
 
 // PR_ExecuteProgram, a run of the server's QuakeC from the engine (not nested in a builtin): QuakeC is between messages.

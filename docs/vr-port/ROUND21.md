@@ -33625,3 +33625,12 @@ up them slowly (a third of the stick) the player stopped two thirds of the way u
   the ledge test.
 - Not fixed: with Method Brush Sweep (`vr_hull_method 0`, not the default) the player walks under the recovered clip
   ramp's low end and stops against the first step's riser (moving up from there meets the ramp's underside).
+## vr_physics_blast's explosion sent (2026-10-09)
+
+`vr_physics_blast <x> <y> <z> [damage]` (the tests' explosion: QC's T_RadiusDamage at a point, used by about 15 test
+scripts and menus) showed no explosion and made no explosion chunks: a console command runs before the server frame,
+and the frame's `SV_ClearDatagram` emptied the temp entity it had written into `sv.datagram` before anything was sent.
+Now it queues the message (`server::queueBroadcast`, vr_server.cpp: up to 16 whole messages, 512 bytes): the next
+frame's broadcast opens with it, right after the clear, with its boundary marked and, as for QuakeC's own
+explosions, its chunks launched (`noteExplosion`). Checked: e1m1, `vr_physics_blast 500 -255 50 1`: 12 chunks live and
+drawn, the client's fireball (before: 0 and none); `explosion_debris_test.sh` check 7.

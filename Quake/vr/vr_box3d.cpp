@@ -71,6 +71,7 @@
 #include "vr_props.hpp"
 #include "vr_limbmodel.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_server.hpp"
 #include "vr_weapons.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -8887,16 +8888,19 @@ void blast_f()
     G_INT(OFS_PARM3) = EDICT_TO_PROG(qcvm->edicts);
     PR_ExecuteProgram(static_cast<func_t>(fn - qcvm->functions));
     ED_Free(e);
-    if(sv.datagram.cursize <= MAX_DATAGRAM - 16) // (an unreliable message: none when full)
+    // Its effect, and so its chunks (vr_explosiondebris.cpp): the next server frame's broadcast (this command runs before
+    // the frame, whose SV_ClearDatagram would drop it written to sv.datagram now).
+    byte bytes[32];
+    sizebuf_t msg{};
+    msg.data = bytes;
+    msg.maxsize = sizeof(bytes);
+    MSG_WriteByte(&msg, svc_temp_entity);
+    MSG_WriteByte(&msg, TE_EXPLOSION);
+    for(const float c : at)
     {
-        MSG_WriteByte(&sv.datagram, svc_temp_entity);
-        MSG_WriteByte(&sv.datagram, TE_EXPLOSION);
-        for(const float c : at)
-        {
-            MSG_WriteCoord(&sv.datagram, c, sv.protocolflags);
-        }
-        VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
+        MSG_WriteCoord(&msg, c, sv.protocolflags);
     }
+    qvr::server::queueBroadcast(msg.data, msg.cursize);
     Con_Printf("vr_physics_blast: %.0f at %.0f %.0f %.0f\n", damage, at[0], at[1], at[2]);
 }
 

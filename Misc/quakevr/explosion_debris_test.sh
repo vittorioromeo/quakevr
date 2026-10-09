@@ -8,7 +8,9 @@
 #   4. no tunnelling: at 1900 units/s into vrtesthall's south panel and west panel and down onto the table, and into
 #      vrclimb's lift (a kinematic body) side-on, each stays on its near side;
 #   5. riding: one on vrclimb's lift rises with it (8 units/s), one on its plat goes down with it (40 units);
-#   6. a blast throws resting chunks; chunks thrown into a health box leave it where it was (20 g against 6 kg).
+#   6. a blast throws resting chunks; chunks thrown into a health box leave it where it was (20 g against 6 kg);
+#   7. vr_physics_blast (the tests' explosion, a console command): its explosion is sent and makes its 12 chunks (until
+#      2026-10-09 written to the datagram before the frame cleared it: no explosion, no chunks).
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
@@ -28,6 +30,10 @@ log=$(run "$SET;map e1m1;wait30;$T;$T;$T;$T;$T;$T;$T;$T;$T;$T;vr_explosion_debri
 echo "  single player: live $(stat "$log" 1 live), evicted $(stat "$log" 1 evicted); 5.5 s later live $(stat "$log" 2 live)"
 check "$([ "$(stat "$log" 1 live)" = 40 ] && [ "$(stat "$log" 1 evicted)" = 80 ] && echo 1)" "Maximum Active Chunks: 40 left of 120, the oldest 80 retired"
 check "$([ "$(stat "$log" 2 live)" = 0 ] && echo 1)" "their lives over (2-4 s): none left 5.5 s later"
+
+# 7. vr_physics_blast's explosion (sent from a console command: the next frame's broadcast).
+log=$(run "$SET;map e1m1;wait30;vr_physics_blast 500 -255 50 1;wait3;vr_explosion_debris_stats")
+check "$([ "$(stat "$log" 1 live)" = 12 ] && echo 1)" "vr_physics_blast: its explosion makes its chunks ($(stat "$log" 1 live) of 12)"
 
 # 2. Multiplayer's cap.
 log=$(run "$SET;disconnect;maxplayers 4;map e1m1;wait30;vr_explosion_debris_mp_max 10;$T;$T;$T;vr_explosion_debris_stats;vr_explosion_debris_mp_max -1;$T;$T;$T;$T;vr_explosion_debris_stats;vr_explosion_debris_mp_max 0;wait2;vr_explosion_debris_stats")

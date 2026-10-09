@@ -66,4 +66,9 @@ void sendCollectSeen(struct edict_s* seen, int hand, int hotspot, int ent, int m
 void sendFired(struct edict_s* shooter, int hand);
 void sendTracer(struct edict_s* shooter, int hand, const float from[3], const float to[3]);
 
+// A whole message for every client's datagram from an engine console command (vr_physics_blast's explosion), which runs
+// before the server frame: written at the next frame's start, after SV_ClearDatagram (sv.datagram itself would be
+// cleared before it was sent). An explosion's temp entity launches its chunks (vr_explosiondebris.cpp) as QuakeC's does.
+void queueBroadcast(const unsigned char* data, int len);
+
 } // namespace qvr::server
