@@ -36,12 +36,15 @@ static class ScreenshotHarness
 
     // The fit check (fit.txt): each page laid out in the client area the window gets on these screens (the window is
     // never taller than the work area, in DIPs: the screen less a 48 px taskbar at 100%, scaled), and whatever would
-    // need scrolling there. Widths: the default fits all three.
-    static readonly (string Screen, int Height)[] FitScreens =
+    // need scrolling there. Widths: the default fits the first three; the last is the window at its minimum size.
+    const int MinWidth = (int)(MainWindow.MinimumWidth - MainWindow.FrameWidth);
+    const int MinHeight = (int)(MainWindow.MinimumHeight - MainWindow.FrameHeight);
+    static readonly (string Screen, int Width, int Height)[] FitScreens =
     [
-        ("default", Height),
-        ("1366x768 at 100%", Math.Min(Height, 768 - 48 - (int)MainWindow.FrameHeight)),
-        ("1920x1080 at 150%", Math.Min(Height, (1080 - 72) * 2 / 3 - (int)MainWindow.FrameHeight)),
+        ("default", Width, Height),
+        ("1366x768 at 100%", Width, Math.Min(Height, 768 - 48 - (int)MainWindow.FrameHeight)),
+        ("1920x1080 at 150%", Width, Math.Min(Height, (1080 - 72) * 2 / 3 - (int)MainWindow.FrameHeight)),
+        ("minimum window", MinWidth, MinHeight),
     ];
     static readonly StringBuilder FitReport = new();
 
@@ -165,6 +168,8 @@ static class ScreenshotHarness
         await Save(view, Path.Combine(dir, "7-welcome-150pct.png"), scale: 1.5);
         vm.GoTo(Page.Statement);
         await Save(view, Path.Combine(dir, "7b-statement-150pct-1080p.png"), scale: 1.5, height: FitScreens[2].Height);
+        // The Statement page in the window at its minimum size (the paragraphs wrap beside the photo, narrower).
+        await Save(view, Path.Combine(dir, "7c-statement-minimum.png"), width: MinWidth, height: MinHeight);
         await File.WriteAllTextAsync(Path.Combine(dir, "fit.txt"), FitReport.ToString());
         Console.WriteLine(FitReport.ToString().TrimEnd());
 
@@ -472,15 +477,15 @@ static class ScreenshotHarness
         encoder.Save(file);
     }
 
-    static async Task Save(FrameworkElement view, string path, double scale = 1, int height = Height)
+    static async Task Save(FrameworkElement view, string path, double scale = 1, int height = Height, int width = Width)
     {
         // Let bindings and item containers settle, then lay out and render at the window's size.
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-        if (scale == 1 && height == Height)
+        if (scale == 1 && height == Height && width == Width)
         {
             await FitCheck(view, Path.GetFileNameWithoutExtension(path));
         }
-        Layout(view, Width, height);
+        Layout(view, width, height);
         await Task.Delay(350); // The controls' short animations (a check mark popping in) end.
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
         view.UpdateLayout();
@@ -492,7 +497,7 @@ static class ScreenshotHarness
             page.RenderTransform = Transform.Identity;
         }
         view.UpdateLayout();
-        SavePng(view, Width, height, path, scale);
+        SavePng(view, width, height, path, scale);
     }
 
     /// <summary>The page laid out on each of <see cref="FitScreens"/>: what would scroll there, and by how much (the
@@ -500,9 +505,9 @@ static class ScreenshotHarness
     static async Task FitCheck(FrameworkElement view, string name)
     {
         var line = new StringBuilder($"{name}:");
-        foreach (var (screen, height) in FitScreens)
+        foreach (var (screen, width, height) in FitScreens)
         {
-            Layout(view, Width, height);
+            Layout(view, width, height);
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             view.UpdateLayout();
             var over = FindAll<System.Windows.Controls.ScrollViewer>(view)
@@ -510,7 +515,7 @@ static class ScreenshotHarness
                 .Select(sv => string.Create(CultureInfo.InvariantCulture,
                     $"{(sv.Name is { Length: > 0 } n ? n : Owner(sv)?.GetType().Name ?? "?")} +{sv.ExtentHeight - sv.ViewportHeight:0}px"))
                 .ToList();
-            line.Append($" {screen} ({Width}x{height}): {(over.Count == 0 ? "fits" : "scrolls " + string.Join(", ", over))};");
+            line.Append($" {screen} ({width}x{height}): {(over.Count == 0 ? "fits" : "scrolls " + string.Join(", ", over))};");
         }
         FitReport.AppendLine(line.ToString());
     }

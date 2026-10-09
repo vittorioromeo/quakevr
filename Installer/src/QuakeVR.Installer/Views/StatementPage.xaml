@@ -48,14 +48,38 @@
             <TextBlock Text="{Binding StatementTitle}" Style="{StaticResource PageTitle}" />
             <TextBlock Text="{Binding StatementSubtitle}" Style="{StaticResource PageSubtitle}" />
 
-            <ItemsControl ItemsSource="{Binding StatementParagraphs}" Margin="0,14,0,0" Focusable="False">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding}" Style="{StaticResource Body}" FontSize="15" LineHeight="21.5" Margin="0,0,0,10" MaxWidth="700"
-                                   HorizontalAlignment="Left" />
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <!-- The paragraphs, and the author's photo to their right, top-aligned. Docked first, the photo keeps its
+                 size and the text wraps in what is left (at most 700 wide). The column is at most the text's 700 and
+                 the photo's 174: the photo's edge lines up with the claims' below at the default size, and stays
+                 beside the text in a wide window instead of drifting to the far edge. -->
+            <Grid Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MaxWidth="874" />
+                </Grid.ColumnDefinitions>
+                <DockPanel>
+                    <Border DockPanel.Dock="Right" Width="150" Height="188" VerticalAlignment="Top" Margin="24,3,0,10" CornerRadius="3"
+                            BorderBrush="{StaticResource CardEdge}" BorderThickness="1" Background="{StaticResource Card}"
+                            AutomationProperties.Name="Photo of Vittorio Romeo">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Black" ShadowDepth="2" BlurRadius="10" Opacity="0.6" />
+                        </Border.Effect>
+                        <Border CornerRadius="2">
+                            <Border.Background>
+                                <ImageBrush ImageSource="/QuakeVR-Setup;component/Assets/author.jpg" Stretch="UniformToFill"
+                                            RenderOptions.BitmapScalingMode="HighQuality" />
+                            </Border.Background>
+                        </Border>
+                    </Border>
+                    <ItemsControl ItemsSource="{Binding StatementParagraphs}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Style="{StaticResource Body}" FontSize="15" LineHeight="21.5" Margin="0,0,0,10" MaxWidth="700"
+                                           HorizontalAlignment="Left" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Grid>
 
             <ItemsControl ItemsSource="{Binding StatementChoices}" Margin="0,6,0,0" Focusable="False">
                 <ItemsControl.ItemTemplate>
