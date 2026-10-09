@@ -2,14 +2,9 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Round.hpp"
 
-// vr_menu_pages.inc -- the old Quake VR settings pages (Quake VR's menu.cpp, "Quake VR -
-// Settings"), under VR Settings > Advanced VR Options: every setting that still exists in the
-// port, with its old range and help. Included by vr_menu.cpp. Settings that do nothing any more
-// (the menu's anchoring, MSAA, the old force grab's range and power, the old floating torso,
-// voice chat) are left out. The long ones are split into pages of a screenful or so (Graphics in
-// seven; Immersion's screens and force grab moved to the Screens and Force Grab pages).
+// vr_menu_pages.inc -- VR Settings pages, included by vr_menu.cpp. The long ones are split into pages of a screenful
+// or so (Graphics in seven).
 
-// Old Quake VR settings: "Menu Settings".
 [[nodiscard]] za::Vector<Item> pageMenuSettings()
 {
     return {
@@ -41,7 +36,6 @@
     };
 }
 
-// Old Quake VR settings: "Crosshair Settings".
 [[nodiscard]] za::Vector<Item> pageCrosshairSettings()
 {
     return {
@@ -108,7 +102,6 @@
     };
 }
 
-// Old Quake VR settings: "Particle Settings".
 [[nodiscard]] za::Vector<Item> pageParticleSettings()
 {
     return {
@@ -123,7 +116,7 @@
     };
 }
 
-// Old Quake VR settings: "Locomotion Settings" (climbing on its own page; the swimming toggle on Swimming).
+// (Climbing has its own page; the swimming toggle is on Swimming.)
 [[nodiscard]] za::Vector<Item> pageLocomotionSettings()
 {
     return {
@@ -330,7 +323,7 @@ void resetHandMoves()
     }
 }
 
-// Old Quake VR settings: "Hand/Gun Calibration", with the hand calibration first.
+// The hand calibration first.
 [[nodiscard]] za::Vector<Item> pageHandGunCalibration()
 {
     const char* moveHelp = "Moves the whole hand, and what it holds (its aim, muzzle and melee with it), along the controller's "
@@ -456,7 +449,6 @@ void resetHandMoves()
     };
 }
 
-// Old Quake VR settings: "Player Calibration".
 [[nodiscard]] za::Vector<Item> pagePlayerCalibration()
 {
     return {
@@ -464,7 +456,7 @@ void resetHandMoves()
     };
 }
 
-// Old Quake VR settings: "Melee Settings" (its parry settings are on Parry and Bash); and the headbutt.
+// (The parry settings are on Parry and Bash.) And the headbutt.
 [[nodiscard]] za::Vector<Item> pageMeleeSettings()
 {
     return {
@@ -494,7 +486,7 @@ void resetHandMoves()
     };
 }
 
-// Old Quake VR settings: "Aiming Settings"; and how weight feels (its damage on Weight and Damage).
+// And how weight feels (its damage on Weight and Damage).
 [[nodiscard]] za::Vector<Item> pageAimingSettings()
 {
     return {
@@ -600,8 +592,8 @@ void resetHandMoves()
     };
 }
 
-// Old Quake VR settings: "Immersion Settings" (its weapons' ammo screens and map boards are on the
-// Screens page now, its force grab settings on Force Grab, its weapon drops on World).
+// (The weapons' ammo screens and map boards are on the Screens page, force grab on Force Grab, weapon drops on
+// World.)
 [[nodiscard]] za::Vector<Item> pageImmersionSettings()
 {
     return {
@@ -1207,8 +1199,7 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageTransparencyOptions();
 [[nodiscard]] za::Vector<Item> pageRecording(); // vr_menu_recording.inc
 
-// Old Quake VR settings: "Graphical Settings", in pages: this one, the preset and the image, and links
-// to the others (Memory Log is on Debug).
+// Graphics, in pages: this one, the preset and the image, and links to the others (Memory Log is on Debug).
 [[nodiscard]] za::Vector<Item> pageGraphics()
 {
     return {
@@ -1785,7 +1776,6 @@ void retroAllUncheckCategories()
     };
 }
 
-// Old Quake VR settings: "Hud Configuration".
 [[nodiscard]] za::Vector<Item> pageHudConfiguration()
 {
     return {
@@ -1800,7 +1790,7 @@ void retroAllUncheckCategories()
     };
 }
 
-// Old Quake VR settings: "Hotspot Settings" (the hip holsters on Hip Holsters).
+// (The hip holsters are on Hip Holsters.)
 [[nodiscard]] za::Vector<Item> pageHotspotSettings()
 {
     return {
@@ -1867,7 +1857,6 @@ void retroAllUncheckCategories()
     };
 }
 
-// Old Quake VR settings: "Transparency Options".
 [[nodiscard]] za::Vector<Item> pageTransparencyOptions()
 {
     return {
