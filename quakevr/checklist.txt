@@ -6,6 +6,7 @@
 Magazine eject: SNG right + NG left, eject each hand (and other pairs): the magazine stays out (still seats when put back by hand; Reloading > Ejected Stays Out 0.35 s); SNG magazine leaves its side as it sat, with a small push; lying guns' magazines and screens visible from the range's far end (HUD and Menus > Screens)
 
 [Firing range: combat and dummies]
+Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
 Defaults 10-09 afternoon: melee (speed 3.2, damage 1.1, stamina), enemy weapons, throwing (2-hand velocity 1.3), BT throw travel, tap click 0.4, menu sharpen 1 / scale 0.25 / distance 150; two-hand throws deal 1.25x (Throwing > Two-Hand Throw Damage)
 Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
 
