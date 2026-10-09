@@ -65,6 +65,8 @@ int VR_SkipSwap (void);		// GL_EndRendering: nonzero to leave this frame unprese
 void VR_FrameDrawn (void);	// GL_EndRendering, before the present: vr_screenshot_frames's screenshot of it
 int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a frame showing the
 							// dialog (the runtime paces it); zero without one (the loop sleeps)
+int VR_TestModalAnswer (void);	// SCR_ModalMessage, M_Confirm: vr_test_modal_answer's answer once the dialog has shown half a
+							// second (1 yes, 0 no; tests), else -1
 double VR_HostFrameTime (double time);	// start of _Host_Frame: the frame's time (a motion take's own while
 							// it plays back, vr_motion_play: the same frames at any speed)
 int VR_Box3DSteps (void);		// host_tickstats: Box3D's world steps so far (0 without a world)
@@ -397,6 +399,7 @@ int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc
 int VR_MenuDrawCheckbox (int x, int y, int on);			// M_DrawCheckbox: a switch
 int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a panel
 int VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight; nonzero: no cursor (the corner's buttons have the selection)
+int VR_MenuDrawButton (int x0, int x1, int y, int selected);	// M_Confirm's buttons (x0..x1 across, the label's row y): the VR menu style's; nonzero if drawn
 // The corner's buttons (vr_menuui.cpp): "Back to game" closing the menu from any page, which reopens
 // there; "Advanced VR" and "Levels" jumping to those from any page.
 void VR_MenuDrawStatus (void);							// M_Draw, last: the status box (vr_menu_status) in the top right corner

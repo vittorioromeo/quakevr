@@ -51,11 +51,18 @@ enum m_state_e {
 	m_search,
 	m_slist,
 	m_vr, // QVR: vr/vr_menu.cpp
-	m_credits // QVR: native official campaign ending
+	m_credits, // QVR: native official campaign ending
+	m_confirm // QVR: a question over the menu it came from, with two buttons (M_Confirm)
 };
 
 extern enum m_state_e m_state;
 extern enum m_state_e m_return_state;
+
+// QVR: asks `text` over the current menu (or the game), with a button for the action (`yes`: it calls `action`) and one
+// against (`no`); answered no by itself after `timeout` seconds (0: never). menu.c, the confirmation dialog.
+void M_Confirm (const char *text, const char *yes, const char *no, float timeout, void (*action) (void));
+int M_Confirm_PrevState (void); // the menu under it
+qboolean M_Confirm_ButtonSpot (int which, float *x, float *y); // a button's middle (0 the action's, 1 Cancel), while it is up
 
 extern qboolean m_entersound;
 

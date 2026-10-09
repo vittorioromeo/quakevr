@@ -34017,3 +34017,17 @@ water, and drowned 5 s later (its breath had run since it went in face down).
   upload`; `gl_frameres_serial`, the frames drawn, in gl_rmisc.c): a 1 s dialog over smoke and an explosion printed it
   every frame (200 of 205) before, never after. The mock's eye images showed no garbage either way (what lay there
   happened to draw much the same); to check in the headset.
+- **Buttons on the menus' questions** (the same note): the menus' confirmations (VR Calibration, New Game over a game,
+  Options > Reset All, Quit in the headset) are now a menu of their own over the one they came from (`m_confirm`,
+  menu.c `M_Confirm`), not SCR_ModalMessage's loop: the game's frames go on under them, and they have two buttons, the
+  action's (Start, New Game, Reset, Quit) and Cancel, pointed at with the laser and taken with the trigger (the
+  mouse on a flat screen); y, n, Escape, B and the arrows with Enter or A still answer. The action's button is
+  selected first (A or Enter takes it, as A answered yes before). The corner's buttons don't take the laser or keys
+  while one is up. Reset All still cancels itself after 15 s. Quit's message (`cl_confirmquit 2`'s jokes too) without
+  its "Yes No" line. Flat screens too (their keys as before, and the mouse clicks the buttons). Left on
+  SCR_ModalMessage (fixed above): the video mode's "keep it?" (flat only), "Load last save?" (sv_autoload 1; 2 by
+  default asks nothing) and `vr_test_dialog`. Tests: `vr_mock_laser yes|no` (and `vr_mock_mouse yes|no click`),
+  `vr_test_modal_answer` answers these too, `vr_test_confirm` (Debug's Dialogs: Confirmation Buttons) opens a test one.
+  Checked headless: Cancel and Start by the laser (main menu, VR Calibration starts), Quit cancelled and taken (the
+  game quits), New Game cancelled by the laser and taken by `vr_test_modal_answer 1`, Reset All cancelled by the laser
+  and by its 15 s, a flat screen's mouse click, `n` typed, one opened in game (closed back to the game).

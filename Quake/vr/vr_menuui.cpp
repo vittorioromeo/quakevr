@@ -108,7 +108,8 @@ namespace
 // picture's rows (spacing would move the cursor off them).
 [[nodiscard]] float rowSpacing()
 {
-    switch(m_state)
+    // A confirmation dialog: as the menu under it (drawn under it, not laid out again).
+    switch(m_state == m_confirm ? M_Confirm_PrevState() : m_state)
     {
         case m_main:
         case m_singleplayer:
@@ -594,6 +595,10 @@ Remembered remembered;
     {
         state = m_quit_prevstate;
     }
+    else if(state == m_confirm)
+    {
+        state = M_Confirm_PrevState();
+    }
 
     switch(state)
     {
@@ -605,7 +610,8 @@ Remembered remembered;
         case m_slist: return m_multiplayer;
         case m_main:
         case m_skill:
-        case m_quit: return m_none;
+        case m_quit:
+        case m_confirm: return m_none;
         default: return state;
     }
 }
@@ -955,6 +961,17 @@ void mockLaser_f()
         mockLaser.on = false;
         return;
     }
+    if(float x, y; Cmd_Argc() == 2 && (!q_strcasecmp(Cmd_Argv(1), "yes") || !q_strcasecmp(Cmd_Argv(1), "no")))
+    {
+        if(!M_Confirm_ButtonSpot(q_strcasecmp(Cmd_Argv(1), "yes") ? 1 : 0, &x, &y))
+        {
+            Con_Printf("vr_mock_laser %s: no confirmation dialog is up\n", Cmd_Argv(1));
+            return;
+        }
+        mockLaser = {true, {x, y}};
+        pointingHand = mockLaserHand();
+        return;
+    }
     if(float x, y; Cmd_Argc() == 2 && !q_strcasecmp(Cmd_Argv(1), "kofi"))
     {
         if(!versionLinkSpot(x, y))
@@ -1014,7 +1031,8 @@ void mockLaser_f()
         return;
     }
     Con_Printf("vr_mock_laser <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
-               "checklist | spectator | obs | kofi | update | off: the main hand's laser on that spot of the menu\n");
+               "checklist | spectator | obs | kofi | update | yes | no | off: the main hand's laser on that spot of the menu "
+               "(yes, no: a confirmation dialog's buttons)\n");
 }
 
 void mockMouse_f()
@@ -1042,6 +1060,14 @@ void mockMouse_f()
         }
         next = 2;
     }
+    else if(Cmd_Argc() >= 2 && (!q_strcasecmp(Cmd_Argv(1), "yes") || !q_strcasecmp(Cmd_Argv(1), "no")))
+    {
+        if(!M_Confirm_ButtonSpot(q_strcasecmp(Cmd_Argv(1), "yes") ? 1 : 0, &spot.x, &spot.y))
+        {
+            Con_Printf("vr_mock_mouse %s: no confirmation dialog is up\n", Cmd_Argv(1));
+        }
+        next = 2;
+    }
     else if(Cmd_Argc() >= 2)
     {
         const ToolbarLayout l = toolbarLayout();
@@ -1057,7 +1083,8 @@ void mockMouse_f()
     if(next == 0)
     {
         Con_Printf("vr_mock_mouse <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
-                   "checklist | kofi | update [click]: the desktop mouse on that spot of the menu, clicked with click\n");
+                   "checklist | kofi | update | yes | no [click]: the desktop mouse on that spot of the menu (yes, no: a "
+                   "confirmation dialog's buttons), clicked with click\n");
         return;
     }
 
@@ -1545,6 +1572,21 @@ extern "C" int VR_MenuDrawHighlight(int cx, int cy)
     p.rounded(left, right, yc, 5.5f, 2.f, colors::highlight);
     p.rect(left, left + 1.5f, yc, 4.5f, colors::highlightEdge);
     return 0;
+}
+
+// A confirmation dialog's button (M_Confirm): x0..x1 across, round its label's row y; the selected one (the laser's, the
+// keys') lit.
+extern "C" int VR_MenuDrawButton(int x0, int x1, int y, int selected)
+{
+    if(!styled())
+    {
+        return 0;
+    }
+    const Painter p;
+    const float yc = y + 4.f;
+    p.rounded(static_cast<float>(x0), static_cast<float>(x1), yc, 8.f, 3.f, selected ? colors::highlightEdge : colors::boxBorder);
+    p.rounded(x0 + 1.f, x1 - 1.f, yc, 7.f, 2.f, selected ? colors::buttonHover : colors::track);
+    return 1;
 }
 
 void qvr::menuui::drawListHighlight(float x0, float x1, int y)

@@ -1357,8 +1357,9 @@ QVR_CVAR(vr_bodycal_undo, "", CVAR_ARCHIVE)
 // VR Calibration (vr_setup.hpp), tests: a motion take of raw tracking played (vr_motion_play ... watch noplace) from the
 // body step's first frame, the synthetic person doing the poses (TESTING.md, "Body calibration"). Not saved.
 QVR_CVAR(vr_setup_test_take, "", CVAR_NONE)
-// Tests: the next confirmation dialog (SCR_ModalMessage: New Game, VR Calibration) answered by itself half a second after
-// it shows: 1 yes (A), 0 no (B); -1 not (the player answers). Set back to -1 once used.
+// Tests: the next confirmation dialog (the menus' M_Confirm: VR Calibration, VR Tutorial, VR Hub, New Game, Reset, Quit
+// in the headset; SCR_ModalMessage's) answered by itself half a second after it shows: 1 yes (the action's button, A),
+// 0 no (Cancel, B); -1 not (the player answers). Set back to -1 once used (VR_TestModalAnswer).
 QVR_CVAR(vr_test_modal_answer, "-1", CVAR_NONE)
 QVR_CVAR(vr_body_shoulder_reach, "0.08", CVAR_ARCHIVE) // metres the shoulders may reach out towards a hand past the arm
 QVR_CVAR(vr_body_forearm_twist, "0.5", CVAR_ARCHIVE)  // share of the wrist's roll the middle of the forearm follows (none at the elbow, all at the wrist)

@@ -1318,7 +1318,10 @@ prints the result. `vr_bodycal_refit <file>` fits a saved session (`quakevr/body
 prints the empty hands' wrists.
 VR Calibration (ROUND21.md, "VR Calibration"): from the main menu, `togglemenu; wait30; vr_mock_stick main 0 1; wait10;
 vr_mock_stick main 0 0` puts the cursor on VR CALIBRATION, `vr_test_modal_answer 1` answers the next confirmation dialog
-by itself (0: no), then `vr_mock_button main primary 1` / `0`. `vr_setup_test_take <take>` plays a synthetic person's
+by itself (0: no), then `vr_mock_button main primary 1` / `0`. The menus' confirmation dialogs (M_Confirm: VR Calibration,
+VR Tutorial, VR Hub, New Game, Reset All, Quit in the headset) have two buttons: `vr_mock_laser yes` / `no` points the
+laser at one, `vr_mock_button main trigger 1` then `0` takes it (`vr_mock_mouse yes|no click` on a flat screen; `menu_vr
+pos` says menu 28 while one is up); `vr_test_confirm` opens a test one (it prints `test confirm: answered OK`). `vr_setup_test_take <take>` plays a synthetic person's
 take (as above, a Windows path: `cygpath -m`) from the body step's first frame and stops it after. `vr_setup here` runs
 it in any map, `vr_setup_skip` goes on to the next step (Body Calibration stopped). In the room `togglemenu` pauses it
 ("paused on Body Calibration's page", `menu_vr pos` on page "Body Calibration" row "Position"); two more `togglemenu`s

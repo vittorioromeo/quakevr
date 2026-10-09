@@ -6693,7 +6693,12 @@ za::Vector<Item> pageDebugTests()
         header("Dialogs"),
         command("New Game Confirmation (3 s)", "vr_test_dialog 3 0")
             .help("Shows the New Game confirmation for 3 seconds (it closes by itself): the game must stay in the world "
-                  "while it's up, turn your head to see (vr_test_dialog [seconds] [mock head turn] [eyeshot])."),
+                  "while it's up, turn your head to see (vr_test_dialog [seconds] [mock head turn] [eyeshot]). The old "
+                  "kind of dialog (SCR_ModalMessage): the menus' own questions have buttons now (Confirmation Buttons)."),
+        command("Confirmation Buttons", "vr_test_confirm")
+            .help("vr_test_confirm: a question over this menu with two buttons, as VR Calibration's, Quit's and the other "
+                  "menus' questions: point the laser at one and pull the trigger (or y, n, Escape, the arrows and Enter). "
+                  "The console says which was taken; the game goes on under it."),
         header("Cheats"),
         command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
         command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),
@@ -9276,6 +9281,7 @@ void navPush(int place)
         case m_vr:
         case m_credits:
         case m_quit:
+        case m_confirm:
         case m_help: return m_none;
         default: return m_state;
     }

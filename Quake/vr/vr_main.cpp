@@ -1360,6 +1360,18 @@ static void testDialog_f()
     Cmd_ExecuteString("vr_mock_look 0 0", src_command);
 }
 
+// vr_test_confirm: a confirmation dialog with two buttons (M_Confirm, menu.c) over the menu (or the game): the answer
+// printed (the Debug pages' Dialogs: Confirmation Buttons).
+static void testConfirmYes()
+{
+    Con_Printf("test confirm: answered OK\n");
+}
+
+static void testConfirm_f()
+{
+    M_Confirm("A test question: point the laser at\na button and pull the trigger.", "OK", "Cancel", 0.f, testConfirmYes);
+}
+
 extern "C" void VR_NewMap()
 {
     ++qvr::worldGen;
@@ -1511,6 +1523,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
     Cmd_AddCommand("vr_model_check", progs::modelCheck_f);
     Cmd_AddCommand("vr_test_dialog", testDialog_f);
+    Cmd_AddCommand("vr_test_confirm", testConfirm_f);
     Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
@@ -1720,6 +1733,30 @@ static void applyUnpacedSwap()
     }
 }
 
+// vr_test_modal_answer 1 or 0: the next confirmation dialog (SCR_ModalMessage's, M_Confirm's) answered yes or no once it
+// has shown for half a second (tests); asked each of its frames.
+extern "C" int VR_TestModalAnswer()
+{
+    if(vr_test_modal_answer.value < 0.f)
+    {
+        modalAnswerSince = 0.0;
+        return -1;
+    }
+    if(modalAnswerSince <= 0.0)
+    {
+        modalAnswerSince = Sys_DoubleTime();
+        return -1;
+    }
+    if(Sys_DoubleTime() - modalAnswerSince < 0.5)
+    {
+        return -1;
+    }
+    const int answer = vr_test_modal_answer.value != 0.f ? 1 : 0;
+    Cvar_SetValueQuick(&vr_test_modal_answer, -1.f);
+    modalAnswerSince = 0.0;
+    return answer;
+}
+
 extern "C" int VR_ModalMessageFrame()
 {
     if(!VR_IsActive())
@@ -1738,20 +1775,11 @@ extern "C" int VR_ModalMessageFrame()
     // vrstart_2026-10-09_18-21-02; vr_debug_glstate prints such draws). SCR_ModalMessage counts one more after the last.
     ++host_framecount;
     // vr_test_modal_answer: the dialog answered by itself once it has shown for half a second (tests).
-    if(vr_test_modal_answer.value >= 0.f)
+    if(const int answer = VR_TestModalAnswer(); answer >= 0)
     {
-        if(modalAnswerSince <= 0.0)
-        {
-            modalAnswerSince = Sys_DoubleTime();
-        }
-        else if(Sys_DoubleTime() - modalAnswerSince >= 0.5)
-        {
-            const int key = vr_test_modal_answer.value != 0.f ? K_ABUTTON : K_BBUTTON;
-            Cvar_SetValueQuick(&vr_test_modal_answer, -1.f);
-            modalAnswerSince = 0.0;
-            Key_Event(key, true);
-            Key_Event(key, false);
-        }
+        const int key = answer ? K_ABUTTON : K_BBUTTON;
+        Key_Event(key, true);
+        Key_Event(key, false);
     }
     int shot = -1; // vr_test_dialog: this frame's eye images (0 the first, 1 the last)
     if(dialogTest.on)
