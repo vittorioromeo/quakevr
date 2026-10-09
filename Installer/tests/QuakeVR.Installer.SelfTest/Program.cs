@@ -53,7 +53,7 @@ var tests = new List<(string Name, Action Body)>
     ("statement: four claims, unanswered at first, Continue only with YES to all four", () =>
     {
         Eq(4, AiStatement.Claims.Count, "claims");
-        Eq(3, AiStatement.Paragraphs.Count, "paragraphs");
+        Eq(5, AiStatement.Paragraphs.Count, "paragraphs");
         True(AiStatement.Paragraphs[1].Contains("renaissance") && !AiStatement.Paragraphs[1].Contains("reinassance"), "spelling fixed");
         var s = new AiStatement();
         var changes = 0;
