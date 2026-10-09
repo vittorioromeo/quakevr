@@ -705,12 +705,10 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
     setFieldFloat(ent, f.vrbits0, static_cast<float>(
         withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary | crouched));
-    setFieldVec(ent, f.teleport_target, move.teleportTarget);
     setFieldFloat(ent, f.offhand_hotspot, move.hotspots[0]);
     setFieldFloat(ent, f.sawcord, move.sawCord);
     setFieldFloat(ent, f.handdrop, move.handDrop);
     setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
-    setFieldVec(ent, f.roomscalemove, move.roomscaleMove);
     setFieldFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);
 }
 

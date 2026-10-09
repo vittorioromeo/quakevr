@@ -50,12 +50,10 @@ QVR_FIELD(offmagboxz)
 QVR_FIELD(shotrot)
 QVR_FIELD(offshotrot)
 QVR_FIELD(vrbits0)
-QVR_FIELD(teleport_target)
 QVR_FIELD(offhand_hotspot)
 QVR_FIELD(sawcord)
 QVR_FIELD(handdrop)
 QVR_FIELD(mainhand_hotspot)
-QVR_FIELD(roomscalemove)
 QVR_FIELD(button3)
 
 // Hand and weapon touching.
