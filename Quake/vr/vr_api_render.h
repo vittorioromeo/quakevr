@@ -41,7 +41,7 @@ int VR_PortalHideTeleport (void); // in a view through a teleporter, its telepor
 void VR_RenderPortalForView (void); // V_RenderView: this camera and its entities are ready
 int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the eyes
 int VR_RenderingEye (void);							// forces the post-process path while rendering an eye
-int VR_DebugTexCache (void);							// GL_BindNative: nonzero to check each skipped bind against GL (vr_debug_texcache)
+int VR_DebugGLState (void);							// GL_BindNative, SCR_UpdateScreen: nonzero to check the bind cache and clip rectangle against GL (vr_debug_glstate)
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
 void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
 void VR_DrawHiddenArea (void);							// R_RenderScene, after R_Clear: the lenses' hidden area at the near plane (vr_visibility_mask)

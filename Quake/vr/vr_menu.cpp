@@ -4657,10 +4657,11 @@ za::Vector<Item> pageDebugLogging()
                   "from it, how far along a blade it holds it, and where an empty hand is on a weapon held, carried or "
                   "lying about (its surface, handle and nearest hotspot: Weapons Anywhere)."),
         toggle("Bot Chatter", vr_verbosebots).help("The bots' thoughts, with bots in the game."),
-        toggle("Texture Binds", vr_debug_texcache)
+        toggle("Graphics State", vr_debug_glstate)
             .help("Each texture bind the engine skipped, believing the texture already bound, while the graphics card had "
                   "another there (\"texcache: stale bind\"): a texture deleted without telling the engine's cache, its "
-                  "name given to a new one. Shows as a blank or black image after a size change (vr_debug_texcache)."),
+                  "name given to a new one; shows as a blank or black image after a size change. And a clip rectangle "
+                  "left on at a frame's end (\"glstate:\"): the menus and console cut off in the window (vr_debug_glstate)."),
         header("Trace Files (game folder)"),
         cycle("Grasp Trace", vr_debug_grasp_trace, {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}})
             .help("grasp_trace.txt: the drawn hand's joints every frame."),

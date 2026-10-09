@@ -1500,6 +1500,7 @@ void GL_Set2D (void)
 	glcanvas.blendmode = GLS_BLEND_ALPHA;
 	glcanvas.colorstacktop = 0;
 	Draw_SetMenuRecolor (false); // QVR
+	glDisable (GL_SCISSOR_TEST); // QVR: each 2D pass starts unclipped (Draw_SetClipRect left on by the one before)
 	int canvasw, canvash;
 	if (VR_CanvasPixels (&canvasw, &canvash)) // QVR: the headset's canvas, its own size (vr_menu_resolution)
 		glViewport (0, 0, canvasw, canvash);

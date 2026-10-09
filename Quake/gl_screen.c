@@ -2285,14 +2285,18 @@ void SCR_UpdateScreen (void)
 		SCR_DrawRelight (); // QVR
 	}
 
-	Draw_Flush ();
+	Draw_ResetClipping (); // QVR: (and flushed) a clip rectangle left on (a mod's QC without drawresetcliparea) would cut the canvas's draw into the window and the next frame's clears
 	VR_End2D (SCR_DrawWindowHud); // QVR
 	VR_ProfileEnd (); // QVR
 
 	GL_EndGroup ();
 
-	if (VR_DebugTexCache ()) // QVR: the texture bind cache checked against GL
+	if (VR_DebugGLState ()) // QVR: the texture bind cache checked against GL, and the clip rectangle off
+	{
 		GL_CheckBindCache ();
+		if (glIsEnabled (GL_SCISSOR_TEST))
+			Con_Printf ("glstate: clip rectangle left on at the frame's end\n");
+	}
 
 	VR_ProfileBegin ("swap"); // QVR: profile
 	GL_EndRendering ();

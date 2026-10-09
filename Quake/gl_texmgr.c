@@ -2311,7 +2311,7 @@ GL_BindNative
 ================
 GL_CheckSkippedBind
 
-Quake VR, vr_debug_texcache 1: a bind skipped because the cache above holds the same name, checked against GL's own
+Quake VR, vr_debug_glstate 1: a bind skipped because the cache above holds the same name, checked against GL's own
 binding. A texture deleted with a raw glDeleteTextures stays in the cache; glGenTextures hands its name back for the
 next texture made, and binding that one is skipped while GL has 0 there (a target made blank, a pass sampling black).
 ================
@@ -2350,7 +2350,7 @@ static void GL_CheckSkippedBind (GLenum texunit, GLenum type, GLuint handle)
 ================
 GL_CheckBindCache
 
-Quake VR, vr_debug_texcache 1, once a frame (SCR_UpdateScreen): each unit whose cached texture GL no longer has bound
+Quake VR, vr_debug_glstate 1, once a frame (SCR_UpdateScreen): each unit whose cached texture GL no longer has bound
 there (deleted around GL_DeleteNativeTexture: harmless until its name comes back and is bound on that unit).
 ================
 */
@@ -2391,7 +2391,7 @@ qboolean GL_BindNative (GLenum texunit, GLenum type, GLuint handle)
 	{
 		if (currenttexture[index] == handle)
 		{
-			if (handle && VR_DebugTexCache ())
+			if (handle && VR_DebugGLState ())
 				GL_CheckSkippedBind (texunit, type, handle);
 			return false;
 		}

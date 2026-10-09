@@ -33086,10 +33086,20 @@ destroy), the wound masks (`vr_wounds.cpp` releaseTexture, ensureWashStencil) an
 name left there and handed back by glGenTextures (the driver gives the same names back at once: bloom's 861..867 again
 after a resize) makes the next bind of it on that unit a no-op while GL has 0 there. All now GL_DeleteNativeTexture.
 
-**Debug > Logging > Texture Binds** (`vr_debug_texcache 1`): each skipped bind is checked against GL's binding
+**Debug > Logging > Graphics State** (`vr_debug_glstate 1`): each skipped bind is checked against GL's binding
 ("texcache: stale bind #n skipped"), and once a frame each unit's cached texture is checked against GL ("texcache: stale
 entry"). Headless, with the cache made to hold a bloom target as it is remade (a temporary bind, not committed) and
 vr_render_scale 1 -> 0.7: before, "stale bind #1 skipped: unit 0, texture 861 (GL has 0)" and "VR bloom: framebuffer
 incomplete" (bloom off until restart); after, none. The real flows (render scale 1/0.7/1, vr_shadow_atlas 2048/4096,
 vr_wounds_own_res 512/0, vid_restart) print nothing either way: in them something else had bound those units first, so
 the fix closes a latent case.
+
+**The clip rectangle.** No path in the engine or our QC leaves it on today: Draw_SetClipRect's users (the scoreboard's
+scrolling level name, CSQC's drawsetcliparea) pair it with Draw_ResetClipping, and the VR passes (shadow atlas, haze,
+trails, upscale) turn theirs off; the shadow pass's own glDisable each frame would also hide a leak from the eyes. A
+mod's QC calling drawsetcliparea without drawresetcliparea would leave it on, and then the canvas's draw into the window
+(menus, console) is cut to it. Now each 2D pass starts unclipped (GL_Set2D) and the pass ends with Draw_ResetClipping
+(SCR_UpdateScreen), besides beginCanvas's own. `vr_debug_glstate 1` prints "glstate: clip rectangle left on at the
+frame's end". Headless, e1m1 with the console down and a clip rectangle injected at the 2D pass's end (temporary, not
+committed): before, 85 "left on" lines and the console gone from the window (8.1% of the shot differing, its top half);
+after, none, and the shot identical to one without the injection (0 pixels).
