@@ -11,7 +11,7 @@ with your arms.
 
 This version runs on the [Ironwail](https://github.com/andrei-drexler/ironwail) engine (0.8.2) and talks to your
 headset through [OpenXR](https://www.khronos.org/openxr/). It is a new version of the
-[original Quake VR](https://github.com/vittorioromeo/quakevr/tree/master), which ran on QuakeSpasm-Spiked and
+[original Quake VR](https://github.com/vittorioromeo/quakevr/tree/quakevr-old), which ran on QuakeSpasm-Spiked and
 SteamVR's OpenVR (see [Compared with the original Quake VR](#compared-with-the-original-quake-vr)).
 
 > **Status:** in active development. It is playtested mostly on a Meta Quest 3 through Virtual Desktop. Other
@@ -106,7 +106,7 @@ are.
 
 ## Compared with the original Quake VR
 
-The [original Quake VR](https://github.com/vittorioromeo/quakevr/tree/master) (the `master` branch, up to v0.0.7 beta)
+The [original Quake VR](https://github.com/vittorioromeo/quakevr/tree/quakevr-old) (the `quakevr-old` branch, up to v0.0.7 beta)
 was built on QuakeSpasm-Spiked and OpenVR. This version keeps its gameplay and QuakeC and rebuilds the rest.
 
 | | Original (QSS + OpenVR) | This version (Ironwail + OpenXR) |
