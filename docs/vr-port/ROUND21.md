@@ -33185,3 +33185,7 @@ Tests: `config110_test.sh` (a config of 109 at the old defaults takes every new 
 depth 4) and `gadget_sync_test.sh` (single tap) pin what they measure against; all pass. The double tap cases with the
 new defaults unpinned: J1, J4 (0.92 m/s), K, L on; J2, J3 (0.8 s apart: the window's edge), J5 nothing. stealth_tests.sh
 gun, blast, hunt: PASS.
+
+**VR Settings > Bullet Time: Screen Tap** (his note): the Single Tap / Double Tap choice (`vr_bullettime_tap_gesture`)
+under Activation on the basic page too (also Combat > Bullet Time > Screen Tap > Gesture). `vr_menu_search screen tap`
+finds it on VR Settings; `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
