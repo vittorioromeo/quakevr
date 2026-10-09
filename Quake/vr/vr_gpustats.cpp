@@ -151,12 +151,10 @@ HANDLE wake = nullptr; // an event: the worker's sleep between samples, cut shor
 
 ankerl::unordered_dense::map<DWORD, za::String> processNames; // worker thread only
 
-[[nodiscard]] const za::String& processName(DWORD pid)
+// A process's executable's name, its commas, spaces and colons made underscores (the log is comma separated; the lists
+// use spaces and colons).
+[[nodiscard]] za::String lookUpName(DWORD pid)
 {
-    if(const auto it = processNames.find(pid); it != processNames.end())
-    {
-        return it->second;
-    }
     za::String name = "pid" + za::toString(pid);
     if(HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid))
     {
@@ -173,10 +171,19 @@ ankerl::unordered_dense::map<DWORD, za::String> processNames; // worker thread o
     {
         if(ch == ',' || ch == ' ' || ch == ';' || ch == ':')
         {
-            ch = '_'; // the log is comma separated; the list below uses spaces and colons
+            ch = '_';
         }
     }
-    return processNames.emplace(pid, ZA_MOVE(name)).first->second;
+    return name;
+}
+
+[[nodiscard]] const za::String& processName(DWORD pid)
+{
+    if(const auto it = processNames.find(pid); it != processNames.end())
+    {
+        return it->second;
+    }
+    return processNames.emplace(pid, lookUpName(pid)).first->second;
 }
 
 // "pid_1234_luid_0x00000000_0x0000D1B0_phys_0_eng_0_engtype_3D": the process and the engine's type.
@@ -349,11 +356,81 @@ void run()
     nvml.close();
 }
 
+// The "GPU Process Memory" counters, every process's dedicated and shared usage.
+[[nodiscard]] bool openProgramCounters(PDH_HQUERY query, PDH_HCOUNTER& dedicated, PDH_HCOUNTER& shared)
+{
+    return PdhAddEnglishCounterW(query, L"\\GPU Process Memory(*)\\Dedicated Usage", 0, &dedicated) == ERROR_SUCCESS
+        && PdhAddEnglishCounterW(query, L"\\GPU Process Memory(*)\\Shared Usage", 0, &shared) == ERROR_SUCCESS;
+}
+
+// "pid_1234_luid_0x00000000_0x0000D1B0_phys_0": the process. The counters' array, as numbers (bytes).
+[[nodiscard]] bool counterArray(PDH_HCOUNTER counter, za::Vector<unsigned char>& buffer, PDH_FMT_COUNTERVALUE_ITEM_W*& items,
+    DWORD& count)
+{
+    DWORD bytes = 0;
+    count = 0;
+    if(PdhGetFormattedCounterArrayW(counter, PDH_FMT_LARGE, &bytes, &count, nullptr) != PDH_MORE_DATA)
+    {
+        return false;
+    }
+    buffer.resize(bytes);
+    items = reinterpret_cast<PDH_FMT_COUNTERVALUE_ITEM_W*>(buffer.data());
+    return PdhGetFormattedCounterArrayW(counter, PDH_FMT_LARGE, &bytes, &count, items) == ERROR_SUCCESS;
+}
+
+// One collection of them, summed by process (every adapter), the most first.
+[[nodiscard]] za::Vector<ProgramVram> readPrograms(PDH_HQUERY query, PDH_HCOUNTER dedicated, PDH_HCOUNTER shared)
+{
+    za::Vector<ProgramVram> out;
+    if(PdhCollectQueryData(query) != ERROR_SUCCESS)
+    {
+        return out;
+    }
+    ankerl::unordered_dense::map<DWORD, ProgramVram> byPid;
+    const auto sum = [&](PDH_HCOUNTER counter, bool isDedicated) {
+        za::Vector<unsigned char> buffer;
+        PDH_FMT_COUNTERVALUE_ITEM_W* items = nullptr;
+        DWORD count = 0;
+        if(!counterArray(counter, buffer, items, count))
+        {
+            return;
+        }
+        for(DWORD i = 0; i < count; i++)
+        {
+            if(items[i].FmtValue.CStatus != ERROR_SUCCESS || wcsncmp(items[i].szName, L"pid_", 4) != 0)
+            {
+                continue;
+            }
+            const DWORD pid = static_cast<DWORD>(wcstoul(items[i].szName + 4, nullptr, 10));
+            ProgramVram& p = byPid[pid];
+            (isDedicated ? p.dedicatedMb : p.sharedMb) += static_cast<double>(items[i].FmtValue.largeValue) / 1048576.0;
+        }
+    };
+    sum(dedicated, true);
+    sum(shared, false);
+    const DWORD self = GetCurrentProcessId();
+    for(auto& [pid, p] : byPid)
+    {
+        if(p.dedicatedMb + p.sharedMb < 1.0 && pid != self)
+        {
+            continue;
+        }
+        p.pid = pid;
+        p.self = pid == self;
+        p.name = lookUpName(pid);
+        out.pushBack(ZA_MOVE(p));
+    }
+    za::quickSort(out.begin(), out.end(), [](const ProgramVram& a, const ProgramVram& b) { return a.dedicatedMb > b.dedicatedMb; });
+    return out;
+}
+
 // The VRAM reads (requestVram): a pool task's, one at a time. Its NVML is its own (opened by the first read, on the
 // worker; NVML counts its users), closed at finishVram.
 struct VramReader
 {
     Nvml nvml;
+    PDH_HQUERY query{nullptr}; // the "GPU Process Memory" counters (opened by the first read, kept)
+    PDH_HCOUNTER dedicated{nullptr}, shared{nullptr};
     bool tried{false}; // (the task's: one at a time)
     za::AtomicMutex lock;
     Vram latest; // (under lock)
@@ -368,6 +445,11 @@ void readVram() noexcept
     {
         r.tried = true;
         r.nvml.open();
+        if(PdhOpenQueryW(nullptr, 0, &r.query) == ERROR_SUCCESS && !openProgramCounters(r.query, r.dedicated, r.shared))
+        {
+            PdhCloseQuery(r.query);
+            r.query = nullptr;
+        }
     }
     Vram v;
     NvmlMemory mem{};
@@ -379,6 +461,25 @@ void readVram() noexcept
     else
     {
         v.readable = false;
+    }
+    // Ours and the others' (vr_memstats_log's vram_quake_mb, vram_programs).
+    za::Vector<ProgramVram> programs;
+    if(r.query)
+    {
+        programs = readPrograms(r.query, r.dedicated, r.shared);
+    }
+    int listed = 0;
+    for(const ProgramVram& p : programs)
+    {
+        if(p.self)
+        {
+            v.selfMb = static_cast<int>(p.dedicatedMb + 0.5);
+        }
+        else if(listed < 6 && p.dedicatedMb >= 50.0)
+        {
+            listed++;
+            v.programs += (v.programs.empty() ? "" : " ") + p.name + ":" + za::toString(static_cast<int>(p.dedicatedMb + 0.5));
+        }
     }
     za::LockGuard g{r.lock};
     v.reads = r.latest.reads + 1;
@@ -454,6 +555,25 @@ Vram latestVram()
 #endif
 }
 
+za::Vector<ProgramVram> programVram()
+{
+    za::Vector<ProgramVram> out;
+#ifdef _WIN32
+    PDH_HQUERY query = nullptr;
+    PDH_HCOUNTER dedicated = nullptr, shared = nullptr;
+    if(PdhOpenQueryW(nullptr, 0, &query) != ERROR_SUCCESS)
+    {
+        return out;
+    }
+    if(openProgramCounters(query, dedicated, shared))
+    {
+        out = readPrograms(query, dedicated, shared);
+    }
+    PdhCloseQuery(query);
+#endif
+    return out;
+}
+
 void finishVram()
 {
 #ifdef _WIN32
@@ -464,6 +584,11 @@ void finishVram()
     }
     r.read = {};
     r.nvml.close();
+    if(r.query)
+    {
+        PdhCloseQuery(r.query);
+        r.query = nullptr;
+    }
     r.tried = false;
 #endif
 }

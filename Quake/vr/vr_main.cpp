@@ -76,6 +76,7 @@
 #include "vr_modelcollide.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_gpustats.hpp"
+#include "vr_vram.hpp"
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
 #include "vr_props.hpp"
@@ -405,6 +406,7 @@ int countGlObjects(GlIsFn isObject, GLuint& highest)
 struct MemSample
 {
     int vramTotal{-1}, vramFree{-1}, evictions{-1}, evictedMb{-1}; // MB; -1: not reported
+    int vramSelf{-1}; // MB, this process's alone (Windows' count, gpustats::latestVram); -1: not known
     double workingSet{0.0}, peakWorkingSet{0.0}, privateBytes{0.0}; // MB
     double hunk{0.0};                                               // MB
     int textures{0}, normalmaps{0};
@@ -786,6 +788,17 @@ void VR_MemStats_f()
     {
         Con_Printf("  VRAM  %d MB used of %d (all processes), %d MB free; %d evictions (%d MB) so far\n",
             m.vramTotal - m.vramFree, m.vramTotal, m.vramFree, m.evictions, m.evictedMb);
+        // Ours alone (Windows' count): the rest is other programs' (vr_vram_report names them).
+        double self = -1.0;
+        for(const gpustats::ProgramVram& p : gpustats::programVram())
+        {
+            self = p.self ? p.dedicatedMb : self;
+        }
+        if(self >= 0.0)
+        {
+            Con_Printf("  VRAM  this process %.0f MB, other programs %.0f MB (vr_vram_report: by category, and who)\n", self,
+                (m.vramTotal - m.vramFree) - self);
+        }
     }
     else if(m.vramFree > 0)
     {
@@ -948,6 +961,7 @@ void writeMemLogRow(const char* reason)
     column(c, "vram_used_mb", "%d", m.vramTotal > 0 ? m.vramTotal - m.vramFree : -1);
     column(c, "vram_total_mb", "%d", m.vramTotal);
     column(c, "vram_free_mb", "%d", m.vramFree);
+    column(c, "vram_quake_mb", "%d", vram.selfMb); // ours alone (Windows' count; the columns above: every program's)
     column(c, "evictions", "%d", m.evictions);
     column(c, "evicted_mb", "%d", m.evictedMb);
     column(c, "working_set_mb", "%.1f", m.workingSet);
@@ -968,6 +982,7 @@ void writeMemLogRow(const char* reason)
     timingColumns(c, logReader);
     logReader = Readers{};
     gpustats::columns(c); // the GPU as the whole system uses it: clocks, slowdowns, programs
+    column(c, "vram_programs", "%s", vram.programs.cStr()); // the other programs holding the most of its memory (MB)
     const double made = Sys_DoubleTime();
 
     // The file's part on a worker (its opening, appending and closing: ~1 ms, more when a scanner looks at it).
@@ -1474,6 +1489,7 @@ void statusLines(za::Vector<za::String>& out)
             mem.vramTotal = vram.totalMb > 0 ? vram.totalMb : vramTotal;
             mem.vramFree = vram.totalMb > 0 ? vram.freeMb : vramFree;
         }
+        mem.vramSelf = vram.selfMb;
         gpustats::requestVram();
 #ifndef _WIN32
         if(FILE* f = fopen("/proc/self/statm", "r"))
@@ -1491,7 +1507,15 @@ void statusLines(za::Vector<za::String>& out)
     char vram[64];
     if(mem.vramTotal > 0 && mem.vramFree >= 0)
     {
-        q_snprintf(vram, sizeof(vram), "VRAM %.1f/%.1f GB", (mem.vramTotal - mem.vramFree) / 1024.0, mem.vramTotal / 1024.0);
+        if(mem.vramSelf >= 0)
+        {
+            q_snprintf(vram, sizeof(vram), "VRAM %.1f/%.1f GB (game %.1f)", (mem.vramTotal - mem.vramFree) / 1024.0,
+                mem.vramTotal / 1024.0, mem.vramSelf / 1024.0);
+        }
+        else
+        {
+            q_snprintf(vram, sizeof(vram), "VRAM %.1f/%.1f GB", (mem.vramTotal - mem.vramFree) / 1024.0, mem.vramTotal / 1024.0);
+        }
     }
     else if(mem.vramFree >= 0)
     {
@@ -1733,6 +1757,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
+    Cmd_AddCommand("vr_vram_report", vram::report_f);
     allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_debug_crash", VR_DebugCrash_f);
     lighting::init();

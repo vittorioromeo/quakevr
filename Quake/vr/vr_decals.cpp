@@ -707,7 +707,7 @@ void makeAtlas()
         Con_DPrintf("VR decals: the atlas %s (%.1f ms waited; texels %08x)\n", ahead ? "made ahead" : "made now",
             (Sys_DoubleTime() - t0) * 1e3, hash);
     }
-    atlas = gfx::createTexture(atlasWidth, atlasHeight, rgba.data(), true);
+    atlas = gfx::createTexture(atlasWidth, atlasHeight, rgba.data(), true, "decal atlas");
 }
 
 // ---- Placing ----------------------------------------------------------------------------------

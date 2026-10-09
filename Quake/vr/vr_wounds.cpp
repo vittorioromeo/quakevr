@@ -393,6 +393,7 @@ bool ensureTexture()
     glGenTextures(1, &array);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, array);
     GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, layerSize, layerSize, want);
+    GL_ObjectLabelFunc(GL_TEXTURE, array, -1, "wound slots"); // (vr_vram_report)
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -403,6 +404,7 @@ bool ensureTexture()
         glGenTextures(1, &fineArray);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, fineArray);
         GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, wantFine, wantFine, ownSlots);
+        GL_ObjectLabelFunc(GL_TEXTURE, fineArray, -1, "wound fine slots"); // (vr_vram_report)
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -414,6 +416,7 @@ bool ensureTexture()
     glGenTextures(1, &bloodArray);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, bloodArray);
     GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, GL_R8, otherSide, otherSide, ownSlots);
+    GL_ObjectLabelFunc(GL_TEXTURE, bloodArray, -1, "wound blood slots"); // (vr_vram_report)
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, wantFine > 0 ? GL_LINEAR : GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, wantFine > 0 ? GL_LINEAR : GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1497,6 +1500,7 @@ bool ensureWashStencil()
     glGenTextures(1, &washStencil);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, washStencil);
     GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_DEPTH24_STENCIL8, size, size);
+    GL_ObjectLabelFunc(GL_TEXTURE, washStencil, -1, "gore wash stencil"); // (vr_vram_report)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);

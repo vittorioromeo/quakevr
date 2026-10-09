@@ -913,7 +913,7 @@ bool ensureAtlas()
         cellTrim[cell] = size.x * size.y < 0.9f * (uv.z - uv.x) * (uv.w - uv.y);
     }
     gfx::particleSupportBounds({support, CellCount}, width, height);
-    atlas = gfx::createTexture(width, height, pixels.data(), true);
+    atlas = gfx::createTexture(width, height, pixels.data(), true, "particle atlas");
     atlasFailed = atlas == 0;
     return atlas != 0;
 }

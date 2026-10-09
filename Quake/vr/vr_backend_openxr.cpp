@@ -764,6 +764,14 @@ private:
         sc.images.resize(imageCount, XrSwapchainImageOpenGLKHR{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
         xrEnumerateSwapchainImages(sc.handle, imageCount, &imageCount,
             reinterpret_cast<XrSwapchainImageBaseHeader*>(sc.images.data()));
+        // Named for vr_vram_report (the runtime's textures, in our context; a name that is not ours: a GL error, cleared).
+        for(const XrSwapchainImageOpenGLKHR& image : sc.images)
+        {
+            GL_ObjectLabelFunc(GL_TEXTURE, image.image, -1, va("xr swapchain %s", what));
+        }
+        for(int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++)
+        {
+        }
         xrruntime::logLine(va("%s OpenXR: %s: %dx%d %s, %u images, %u sample, usage 0x%llx\n", wallClock(), what, width, height,
             glFormatName(colorFormat), imageCount, info.sampleCount, static_cast<unsigned long long>(usage)));
         return true;

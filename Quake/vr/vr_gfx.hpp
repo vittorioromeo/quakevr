@@ -313,7 +313,8 @@ void copy(const Target& target, Texture image);
 // RGBA8 colour textures: the mock backend's eye images (no data), or images such as the particle
 // atlas (`rgba`, rows top first; linear filtering, clamped). `mipmaps`: with a full mipmap chain
 // built from `rgba`, filtered trilinearly and anisotropically (the decals' atlas).
-[[nodiscard]] Texture createTexture(int width, int height, const void* rgba = nullptr, bool mipmaps = false);
+[[nodiscard]] Texture createTexture(int width, int height, const void* rgba = nullptr, bool mipmaps = false,
+    const char* label = nullptr); // label: its GL label (vr_vram_report)
 void destroyTexture(Texture texture);
 
 // OpenGL only, for the module's own GL passes (vr_bloom.cpp, vr_lighting.cpp): a program from GLSL

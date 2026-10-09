@@ -365,6 +365,7 @@ void buildArray()
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     GL_TexImage3DFunc(GL_TEXTURE_2D_ARRAY, 0, GL_R8, size, size, static_cast<GLsizei>(kinds.size()), 0, GL_RED,
         GL_UNSIGNED_BYTE, pixels.data());
+    GL_ObjectLabelFunc(GL_TEXTURE, array, -1, "detail textures"); // (vr_vram_report)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     GL_GenerateMipmapFunc(GL_TEXTURE_2D_ARRAY);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);

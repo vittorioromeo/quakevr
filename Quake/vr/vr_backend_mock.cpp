@@ -1614,7 +1614,7 @@ private:
             : imageWidth;
         for(gfx::Texture& tex : textures)
         {
-            tex = gfx::createTexture(size, size);
+            tex = gfx::createTexture(size, size, nullptr, false, "xr swapchain image (mock)");
         }
         width_ = size;
         height_ = size;

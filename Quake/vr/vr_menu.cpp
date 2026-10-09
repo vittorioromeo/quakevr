@@ -5113,6 +5113,11 @@ za::Vector<Item> pageDebugProfiling()
                   "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture)."),
         command("Print Memory Now", "vr_memstats")
             .help("vr_memstats: video and system memory, the textures and models loaded, the frame times since the last one."),
+        command("Video Memory Report", "vr_vram_report diff")
+            .help("vr_vram_report [diff] [csv] [all]: the game's GPU memory by category (eye targets, post effects, world, "
+                  "lightmaps, model skins, text screens, wounds, buffers...) from every GL object's own size, against "
+                  "Windows' count for the process and the other programs (SteamVR, Virtual Desktop). diff: what was made "
+                  "and freed since the last report (a leak: a group that keeps growing). csv: every object to quakevr/profile."),
         command("Allocation Sites", "vr_alloc_sites 300")
             .help("vr_alloc_sites [frames] [lines] [peak]: the main thread's C++ and C heap events over the next 300 frames by where they "
                   "were asked for (the commonest first: a frame's, the place, its caller) in the console. To find the buffers "

@@ -407,6 +407,7 @@ void buildWorld()
     glGenTextures(1, &cube);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, cube);
     GL_TexStorage2DFunc(GL_TEXTURE_CUBE_MAP, levels, GL_R11F_G11F_B10F, size, size);
+    GL_ObjectLabelFunc(GL_TEXTURE, cube, -1, "envmap cube"); // (vr_vram_report)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -422,12 +423,14 @@ void buildWorld()
         for(int f = 0; f < 6; f++)
         {
             textureView(faceViews[f], GL_TEXTURE_2D, cube, GL_R11F_G11F_B10F, 0, levels, static_cast<GLuint>(f), 1);
+            GL_ObjectLabelFunc(GL_TEXTURE, faceViews[f], -1, "envmap face view"); // (vr_vram_report: no storage of its own)
         }
     }
 
     glGenTextures(1, &depth);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, depth);
     GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, size, size);
+    GL_ObjectLabelFunc(GL_TEXTURE, depth, -1, "envmap depth"); // (vr_vram_report)
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
 
     GL_GenFramebuffersFunc(1, &fbo);
@@ -587,6 +590,7 @@ int sinceRound = 0;
         glGenTextures(1, &c.tex);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, c.tex);
         GL_TexStorage2DFunc(GL_TEXTURE_CUBE_MAP, levels, GL_RGBA16F, size, size);
+        GL_ObjectLabelFunc(GL_TEXTURE, c.tex, -1, "envmap probe cube"); // (vr_vram_report)
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -600,6 +604,7 @@ int sinceRound = 0;
     glGenTextures(1, &depth);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, depth);
     GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, size, size);
+    GL_ObjectLabelFunc(GL_TEXTURE, depth, -1, "envmap probe depth"); // (vr_vram_report)
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
 
     GL_GenFramebuffersFunc(1, &fbo);

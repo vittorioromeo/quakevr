@@ -1301,6 +1301,7 @@ namespace
         glGenTextures(1, &target->texture);
         GL_BindNative(underTextureUnit, GL_TEXTURE_2D, target->texture);
         GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
+        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "particle under target"); // (vr_vram_report)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
@@ -1603,6 +1604,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
         glGenTextures(1, &target->texture);
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->texture);
         GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
+        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "particle half-res target"); // (vr_vram_report)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1876,6 +1878,7 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps, const cha
     glGenTextures(1, &texture);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
     GL_TexStorage2DFunc(GL_TEXTURE_2D, levels, GL_RGBA8, width, height);
+    GL_ObjectLabelFunc(GL_TEXTURE, texture, -1, name); // (vr_vram_report)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, levels > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -2030,7 +2033,7 @@ void copy(const Target& target, Texture image)
     bindWindow(); // it is called with the window's 2D pass bound
 }
 
-Texture createTexture(int width, int height, const void* rgba, bool mipmaps)
+Texture createTexture(int width, int height, const void* rgba, bool mipmaps, const char* label)
 {
     mipmaps = mipmaps && rgba;
     int levels = 1;
@@ -2043,6 +2046,10 @@ Texture createTexture(int width, int height, const void* rgba, bool mipmaps)
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     GL_TexStorage2DFunc(GL_TEXTURE_2D, levels, GL_RGBA8, width, height);
+    if(label)
+    {
+        GL_ObjectLabelFunc(GL_TEXTURE, tex, -1, label); // (vr_vram_report)
+    }
     if(rgba)
     {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);

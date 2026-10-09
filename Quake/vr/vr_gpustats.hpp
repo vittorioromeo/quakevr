@@ -35,9 +35,24 @@ struct Vram
     int freeMb{-1};
     bool readable{true};
     int reads{0}; // reads finished
+    int selfMb{-1};      // this process's dedicated GPU memory (Windows' "GPU Process Memory" counters; -1: not known)
+    za::String programs; // the other programs holding the most, "vrcompositor.exe:2100 chrome.exe:900" (MB)
 };
 void requestVram();
 [[nodiscard]] Vram latestVram();
 void finishVram(); // VR_Shutdown, before the pool's: a read under way finished, NVML closed
+
+// Each program's GPU memory as Windows counts it (the "GPU Process Memory" performance counters, its dedicated and
+// shared usage, every adapter summed), the most first; `self` this process. Empty where there are none (not Windows,
+// the counters off). Synchronous: a PDH query (some 10-50 ms); vr_vram_report's and the VRAM read's.
+struct ProgramVram
+{
+    za::String name;
+    unsigned pid{0};
+    double dedicatedMb{0.0};
+    double sharedMb{0.0};
+    bool self{false};
+};
+[[nodiscard]] za::Vector<ProgramVram> programVram();
 
 } // namespace qvr::gpustats

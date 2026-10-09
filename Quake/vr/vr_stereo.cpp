@@ -105,6 +105,7 @@ void ensureResampleTarget(int width, int height)
     glGenTextures(1, &resampleTex);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, resampleTex);
     GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+    GL_ObjectLabelFunc(GL_TEXTURE, resampleTex, -1, "stereo resample target"); // (vr_vram_report)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
@@ -599,6 +600,7 @@ void renderPortal(int width, int height, int depth)
         glGenTextures(1, &array);
         GL_BindNative(GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, array);
         GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, target.scene.format, width, height, layers);
+        GL_ObjectLabelFunc(GL_TEXTURE, array, -1, "stereo layered scene target"); // (vr_vram_report)
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
