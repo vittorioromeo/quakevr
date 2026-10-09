@@ -12,7 +12,7 @@ Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap);
 
 [New this week]
 West stairs / lava / water: MG1 start's west-facing stairs with your head naturally low, walking slowly and jumping (a short catch at the very top crest may remain); step into lava and out: you keep burning 3 s (Burning > You Burn After Lava); shove a grunt off vrstart's island near the shore (gets up on the slope) and far out (gives up after ~3 s and sinks)
-Tutorial (now just vrtutorial; old tutorial and old hub gone): tips show again every time you come near; FLASHLIGHT SIDE button (hub too), flashlight 'on your torso'; lesson 3 board: jump for real; grenade board: 'pouch on your lower back', 'a trap you can shoot'; World Scale button: 1.20 is normal
+Tutorial (now just vrtutorial; old tutorial and old hub gone): every tutorial start shows all tips again, once each per playthrough (a save load keeps progress); FLASHLIGHT SIDE button (hub too), flashlight 'on your torso'; lesson 3 board: jump for real; grenade board: 'pouch on your lower back', 'a trap you can shoot'; World Scale button: 1.20 is normal
 Setting buttons (tutorial, hub pavilion): press one, the value screen above it stays still (no sliding into the wall)
 vrstart holes: the hill by the pines near the firing range (341 -594 125) and around 1192 511 78: solid ground now (a second hole you hadn't found was also fixed)
 Crouched pose: crouch: torso and shoulders sit further back (defaults 5 cm / 3 cm, subtle), pouch and holsters visible? tune with Body > Crouched Pose > Preview Crouch and the Crouched Pose Offsets page (torso, pelvis, shoulders, elbows, neck, each holster pair, pouch); Body Calibration > Previous Calibrations: revert to an older calibration (last 4 kept)
