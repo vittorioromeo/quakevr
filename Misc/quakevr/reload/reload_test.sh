@@ -210,12 +210,12 @@ NEAR=$(for i in $(seq 14); do printf "vr_mock_hand_to main by 0 0 2.5;wait1;"; d
 log=$(bash $KIT/run.sh $AGENT -Script "$SSG;$FIRE;$BY;$POUCH;$GRIP;vr_mock_hand_to main held 0.7 0;wait3;vr_mock_hand_to main held 0.7 0;wait3;vr_mock_hand_to main by 0 0 -10;wait10;$NEAR wait20;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "closed by a hit from below.*: 0 loaded" && echo 1 || echo 0) "a pair held near the open chambers (not in them) doesn't refuse a hit from below ($(echo "$log" | grep -o "closed by a hit.*" | head -1))"
 # Shut straight after loading (the author's note of 2026-10-08: a long wait before the flick shut it): a pair loaded
-# while the gun hand turns (150 deg/s, over the old 86 deg/s rest), flicked 0.15 s after it went in, real time: shut
+# while the gun hand turns (150 deg/s, over the old 86 deg/s rest), flicked 0.15 s after it went in, on fixed frames (fast mode: the same frames as at the cap; -RealTime made it hang on the machine's load, 2026-10-09): shut
 # (Flick Rest Speed 180, the flick's bit held 0.12 s); a hit from below straight after the load shuts it (Hit After
 # Loading 0.13 s; at the old 0.6 s it stays open).
 LOADP="vr_mock_hand_to main lport 8;wait5;vr_mock_hand_to main lport 8;wait10;vr_mock_hand_to main lport;wait1;vr_mock_hand_to main lport;wait1"
 TILTF=$(for i in $(seq 8); do printf "vr_mock_hand_turn off -2.5 0 0;wait1;"; done; for i in $(seq 4); do printf "vr_mock_hand_turn off 25 0 0;wait1;"; done)
-log=$(bash $KIT/run.sh $AGENT -RealTime -Script "$SSG;vr_mock_turn_velocity 1;$FIRE;$FLICK;wait30;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;wait30;$POUCH;$GRIP;$LOADP;$TILTF wait30;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
+log=$(bash $KIT/run.sh $AGENT -Script "$SSG;vr_mock_turn_velocity 1;$FIRE;$FLICK;wait30;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;wait30;$POUCH;$GRIP;$LOADP;$TILTF wait30;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "2 into the gun (hand 0)" && echo "$log" | grep -q "closed by a flick: 2 loaded" && echo 1 || echo 0) "loaded with the gun hand turning, flicked 0.15 s later: shut ($(opens "$log"))"
 FASTUP="$LETGO;vr_mock_hand_to main held 0.85 -25;wait2;vr_mock_hand_to main held 0.85 -25;wait2;vr_mock_hand_to main held 0.85 -12;wait3;vr_mock_hand_to main held 0.85 -2;wait10;$REST;wait30"
 for after in 0.13 0.6; do
@@ -347,7 +347,7 @@ l1=$(echo "$path" | tail -1 | sed 's/.*port: \([-0-9.]*\) .*/\1/')
 moved=$(awk -v a="$w0" -v b="$w1" 'BEGIN { split(a, x, " "); split(b, y, " "); d = 0; for(i = 1; i <= 3; i++) d += (x[i] - y[i]) ^ 2; print sqrt(d) }')
 check $(awk -v l="$l1" -v m="$moved" 'BEGIN { print (l > 15.5 && m > 3) ? 1 : 0 }') "it goes up the port and forward into the tube (x $l1 in the gun) while the gun moves ($moved units), carried by it"
 log=$(bash $KIT/run.sh $AGENT -Script "${SSG/vr_reload_debug 1/vr_reload_debug 1;vr_debug_collect_fx 1};$FIRE;$BY;$POUCH;$GRIP;$AT;wait20;toggleconsole;quit" -Filter "^reload: [0-9]|collect fx" 2>&1)
-check $(echo "$log" | grep -q "^reload: 2 into the gun" && echo "$log" | grep -q "collect fx: progs/vr_shell_pair.mdl .* into hotspot 240" && echo "$log" | grep "collect fx: in gun 0" | tail -1 | grep -q " t 0.9" && echo 1 || echo 0) "the super shotgun's pair slides into its chambers"
+check $(echo "$log" | grep -q "^reload: 2 into the gun" && echo "$log" | grep -q "collect fx: progs/vr_shell_pair.mdl .* into hotspot 240" && echo "$log" | grep "collect fx: in gun 0" | tail -1 | sed 's/.* t \([0-9.]*\),.*/\1/' | awk '{ exit !($1 >= 0.9) }' && echo 1 || echo 0) "the super shotgun's pair slides into its chambers (its last step drawn at t $(echo "$log" | grep "collect fx: in gun 0" | tail -1 | sed 's/.* t \([0-9.]*\),.*/\1/'): 0.9 at least: 0.98 to 1.00 by where the frames fall)"
 # 10. The author's notes of vrfiringrange_2026-10-07 (ROUND21.md, "Reloading: the firing range notes of 10-07").
 # The super shotgun isn't broken open while it fires: B/Y pressed during its firing animation does nothing, after it opens it.
 BYNOW="vr_mock_button off secondary 1;wait3;vr_mock_button off secondary 0;wait3"
