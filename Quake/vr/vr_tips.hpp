@@ -59,6 +59,10 @@ struct MapTip
 
 // Server side (the vr_tip_* builtins, while the map spawns; QC/vr_tips.qc func_vr_tip).
 void serverReset();
+// A map spawned (SV_SpawnServer, after its entities): a worldspawn "_vr_tips_reset_on_start" 1 forgets the map's
+// tips shown (tips_seen.txt's <mapname>:... and <mapname>#...), so each play of it from its start (map, changelevel,
+// restart, a new game into it) shows them all again; not for a saved game of it (fromSave), which keeps its play's.
+void serverMapStarted(bool fromSave);
 [[nodiscard]] int serverMake();
 void serverSetName(int handle, const char* name);
 void serverSetText(int handle, const char* text);

@@ -80,7 +80,7 @@ void() VR_Tips_Reapply =
 /*QUAKED func_vr_tip (0.2 0.7 0.9) (-8 -8 -8) (8 8 8) REPEAT HOLOGRAM ANYANGLE TRIGGERED
 Quake VR: a tip for new players, placed by hand. A small CRT screen floating near the player, with a cable to what it
 is about, shown when he comes within `distance` of it: the first time only, unless REPEAT or the map's worldspawn
-_vr_tips_repeat. "message": its text (\n starts a new line). "distance": how near in units (0: the player's own
+_vr_tips_repeat (the worldspawn's _vr_tips_reset_on_start: once in each play of the map from its start). "message": its text (\n starts a new line). "distance": how near in units (0: the player's own
 setting). "target": another entity's targetname — the tip follows that entity, live, instead of staying at its own
 origin. "targetname": only the tip's own name (when it has no tipname): nothing finds the tip by it, and it is not what
 the tip follows (a map made when it was gets a developer warning). "tipname": names this tip (its name in

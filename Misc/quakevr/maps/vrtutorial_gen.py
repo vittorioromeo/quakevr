@@ -1568,7 +1568,9 @@ WORLD_KEYS = {
     "sky": "qvrday", "light": "0", "_sunlight": "260", "_sunlight_mangle": "225 -55 0",
     "_sunlight_color": "1 0.96 0.88", "_sunlight2": "420", "_sunlight2_color": "0.6 0.72 1.0", "_bounce": "1",
     "_vr_debris": "0", "_vr_crates": "0", "_qvr_prelit": "1",
-    "_vr_tips_repeat": "1",  # every tip shows again each time he comes near (a tutorial: the author, 2026-10-09)
+    # each start of the tutorial (map, the hub's button, the menu, a new game) shows every tip again, each once in that
+    # play; a saved game of it keeps the tips its play has shown (the author, 2026-10-09: not every time he comes near)
+    "_vr_tips_reset_on_start": "1",
 }
 
 

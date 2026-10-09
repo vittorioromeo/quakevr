@@ -21,7 +21,7 @@
 "_vr_debris" "0"
 "_vr_crates" "0"
 "_qvr_prelit" "1"
-"_vr_tips_repeat" "1"
+"_vr_tips_reset_on_start" "1"
 // brush 0
 {
 ( -16 528 -16 ) ( -16 -16 0 ) ( -16 -16 -16 ) black [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1

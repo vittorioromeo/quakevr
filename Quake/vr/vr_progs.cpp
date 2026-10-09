@@ -23,6 +23,7 @@
 #include "vr_walltorch.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_props.hpp"
+#include "vr_tips.hpp"
 #include "vr_melee_shared.h"
 
 #include "Zancle/Algorithm/Find.hpp"
@@ -499,6 +500,7 @@ extern "C" void VR_OnSpawnServerAfterLoad()
     timed("VR after load: hulls");
     qvr::climb::reset();
     qvr::foegrab::reset();
+    qvr::tips::serverMapStarted(loadingSaveGame); // (a tutorial's tips forgotten at its start: _vr_tips_reset_on_start)
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerAfterLoad);
     timed("VR after load: QuakeC");
     loadingSaveGame = false;

@@ -14,6 +14,7 @@
 #include "vr_walltorch.hpp"
 
 #include "Zancle/Algorithm/LowerBound.hpp"
+#include "Zancle/Base/Macros.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -675,6 +676,39 @@ void writeAll(sizebuf_t* msg, const za::Vector<MapTip>& list, unsigned int proto
 void serverReset()
 {
     serverTips.clear();
+}
+
+void serverMapStarted(bool fromSave)
+{
+    // The worldspawn's "_vr_tips_reset_on_start" 1 (vrtutorial): a play of the map from its start shows every tip of
+    // it again (each once in that play); a saved game of it keeps the tips its play has shown. Read here, as QC never
+    // sees a key that starts with '_'.
+    if(fromSave || !sv.name[0] || debris::worldspawnValue("_vr_tips_reset_on_start", 0.f) <= 0.f)
+    {
+        return;
+    }
+    loadSeen();
+    const za::String prefix = za::String{sv.name}; // (the key's map is cl.mapname, the same name: seenKeyOf)
+    const za::SizeT before = seenList.keys.size();
+    za::Vector<za::String> kept;
+    for(const za::String& key : seenList.keys)
+    {
+        const za::StringView k{key.cStr()};
+        const bool ofMap = k.size() > prefix.size() && k.substrByPosLen(0, prefix.size()) == za::StringView{prefix.cStr()}
+                           && (k[prefix.size()] == ':' || k[prefix.size()] == '#');
+        if(!ofMap)
+        {
+            kept.emplaceBack(key);
+        }
+    }
+    if(kept.size() == before)
+    {
+        return;
+    }
+    seenList.keys = ZA_MOVE(kept);
+    saveSeen();
+    Con_DPrintf("VR: %s's tips will show again (%d forgotten: _vr_tips_reset_on_start)\n", sv.name,
+        static_cast<int>(before - seenList.keys.size()));
 }
 
 int serverMake()

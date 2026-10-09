@@ -33920,6 +33920,14 @@ His notes vrtutorial2_2026-10-09_18-22-02 .. 18-32-29 and vrstart_18-36-01.
 
 - **Tips always shown in the tutorial**: its worldspawn `_vr_tips_repeat` 1 (the engine's `mapFlags`): every tip shows
   again each time he comes near it (gone 1.25x its range away first), seen before or not.
+  **Replaced (his correction)**: not every time he comes near, but every time the tutorial is *started*. Its worldspawn
+  now has `_vr_tips_reset_on_start` 1 (any map can): at each spawn of the map not from a saved game (`map`, changelevel,
+  `restart`, the hub's and the menu's VR TUTORIAL, a new game into it) the engine (`tips::serverMapStarted`, from
+  `VR_OnSpawnServerAfterLoad`) forgets the map's keys in `tips_seen.txt` (`vrtutorial:...`, `vrtutorial#n`); within the
+  play each tip shows once; loading a save keeps what that play has shown. vrtutorial.bsp's entity lump edited in place
+  (`bsp_set_entities.py`), the .map and `vrtutorial_gen.py` the same; FGD worldspawn key, MAPPING. Test (one run): play,
+  `t2_move` shown and seen; save; `map vrtutorial` -> "1 forgotten", not seen, shown again once; `load` -> still seen;
+  `changelevel vrtutorial` -> forgotten again.
 - **World scale 1.2 is normal**: `vr_defaults.cfg` had 1.2 since 2026-10-04, but the compiled default and the World
   Scale wall buttons' "normal" (tutorial, hub: `vr_setup.cpp`) were 1.25. Now 1.00 / 1.20 normal / 1.50; vr_cfg_version
   115 moves a config at 1.25 to 1.2.

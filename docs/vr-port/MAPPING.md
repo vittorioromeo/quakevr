@@ -397,8 +397,11 @@ start, 180 ms again, 313 ms after vrstart (vrstart's 989).
 `quakevr/maps/vrtutorial.map` is written by `Misc/quakevr/maps/vrtutorial_gen.py` (**edit the script, not the .map**;
 its geometry helpers are `mapgeom.py`'s). A military base by day: 12 lessons and an arena, then a teleporter to the hub.
 It is the tutorial (the main menu's and the hub's VR TUTORIAL, and a new install's first start: below). It was `vrtutorial2` until
-2026-10-09, when it replaced the old tutorial (removed) under its name. Its worldspawn's `_vr_tips_repeat` 1 shows every
-tip again each time the player comes near it, seen before or not.
+2026-10-09, when it replaced the old tutorial (removed) under its name. Its worldspawn's `_vr_tips_reset_on_start` 1 shows
+every tip again in each play of it: every start of the map (`map vrtutorial`, the hub's and the menu's VR TUTORIAL, a new
+game into it, `restart`, a changelevel into it) forgets its tips in `tips_seen.txt` (`vrtutorial:...`), and within the
+play each shows once; loading a saved game of it keeps the tips that play has shown. (Any map can set it; the engine
+reads it, as QC never sees `_` keys. `_vr_tips_repeat` 1 instead shows every tip each time the player comes near it.)
 
 ```
 python Misc/trenchbroom/make_id_wad.py                    # once: id's textures (git-ignored WAD)
