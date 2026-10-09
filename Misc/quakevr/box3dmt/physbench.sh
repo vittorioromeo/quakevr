@@ -6,7 +6,7 @@
 #   e.g. physbench.sh box3dmt 100 "vr_box3d_threads 0"     (the main thread alone)
 #        physbench.sh box3dmt 100 "vr_box3d_workers 0"     (every worker of the pool)
 #   PB_CRATES=0: explosive boxes only (crates draw random numbers: no two runs alike)
-name=${1:?agent name}; count=${2:-100}; cvars=${3:-}; shift 3
+name=${1:?agent name}; count=${2:-100}; cvars=${3:-}; set -- "${@:4}" # (shift 3 with fewer than 3 arguments shifts nothing)
 q="C:/OHWorkspace/qvr-agents/$name/quakevr"
 {
   echo 'alias w5 "wait;wait;wait;wait;wait"'
