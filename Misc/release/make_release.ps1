@@ -297,7 +297,9 @@ function Invoke-OnlineCheck([string]$relDir, [string]$feed, [string]$quake) {
     if ($hd -and -not (Test-Path -LiteralPath (Join-Path $assetsHere $hd.Value.file))) { $feedArgs += @("--hosted", "hdtextures") }
     for ($try = 1; ; $try++) {
         $r = Run $qvrSetup $feedArgs
-        $first = if ($r.Out.Count) { "$($r.Out[0])" } else { "(no answer)" }
+        # (Its "version ..." line: a feed other than the built-in one is announced first, "TEST FEED: <url>".)
+        $first = "$(@($r.Out | Where-Object { "$_".StartsWith('version ') }) | Select-Object -First 1)"
+        if (-not $first) { $first = if ($r.Out.Count) { "$($r.Out[-1])" } else { "(no answer)" } }
         if ($r.Code -eq 0 -and $first.StartsWith("version $expect;")) { break }
         if ($try -ge $OnlineTries) {
             $r.Out | ForEach-Object { Say "    $_" }
