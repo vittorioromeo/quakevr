@@ -12607,7 +12607,7 @@ bool ragdollKnockdown(edict_t* ent)
 }
 
 bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float feetSpeed, float toppleHold,
-    float launch)
+    float launch, bool whole)
 {
     RagdollBodies* rp = ent ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
     if(!rp)
@@ -12666,11 +12666,14 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
     // The sweep: the feet go back at `sweep` m/s (held so until it has turned a quarter, at most toppleHold: then they fly
     // on as they go) while the top keeps topple * height: the whole turns at topple + sweep / height about a pivot sweep /
     // turn above the feet (at most its middle height: in place); no sweep, about the floor under them, held toppleHold.
-    const float sweep = za::max(feetSpeed, 0.f) / world->m2u;
+    const float sweep = whole ? 0.f : za::max(feetSpeed, 0.f) / world->m2u;
     const float turnRate = topple + sweep / height;
     pivot.z = sweep > 0.f && turnRate > 0.f ? za::min(pivot.z + sweep / turnRate, floor + 0.5f * height) : floor;
     r.feet = r.pinned;
-    const float hold = sweep > 0.f && turnRate > 0.f ? za::min(toppleHold, 0.5f * 3.14159265f / turnRate) : toppleHold;
+    r.pinned = whole ? 0u : r.pinned; // (whole: nothing held, its feet go on over the edge with the rest)
+    const float hold = whole                               ? 0.f
+                       : sweep > 0.f && turnRate > 0.f ? za::min(toppleHold, 0.5f * 3.14159265f / turnRate)
+                                                       : toppleHold;
     r.pinUntil = qcvm->time + static_cast<double>(hold);
     r.pinVel = -glm::vec2{dir.x, dir.y} * sweep;
     const glm::vec3 up{0.f, 0.f, 1.f};
@@ -12688,7 +12691,8 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
         glm::vec3 offset = p - middle;
         offset.z = 0.f;
         const glm::vec3 lin = glmv(b3Body_GetLinearVelocity(body));
-        b3Body_SetLinearVelocity(body, b3v(lin - shared * (1.f - share * launch) + glm::cross(over, p - pivot) + glm::cross(turn, offset)));
+        const glm::vec3 kept = whole ? lin : lin - shared * (1.f - share * launch);
+        b3Body_SetLinearVelocity(body, b3v(kept + glm::cross(over, p - pivot) + glm::cross(turn, offset)));
         b3Body_SetAngularVelocity(body, b3v(glmv(b3Body_GetAngularVelocity(body)) + over + turn));
         b3Body_SetAwake(body, true);
     }
@@ -12696,10 +12700,10 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
     {
         Con_Printf("ragdoll: %d thrown over its feet: %.0f deg/s (topple %.0f, its feet swept back at %.0f u/s, the pivot "
                    "%.1f units up) towards %.2f %.2f, spin %.0f deg/s, %d feet held %.2f s, %.0f units tall, its launch "
-                   "%.0f u/s shared by height\n",
+                   "%.0f u/s %s\n",
             NUM_FOR_EDICT(ent), glm::degrees(turnRate), glm::degrees(topple), sweep * world->m2u,
-            (pivot.z - floor) * world->m2u, dir.x, dir.y, glm::degrees(spin), feet, hold, height * world->m2u,
-            glm::length(shared) * world->m2u);
+            (pivot.z - floor) * world->m2u, dir.x, dir.y, glm::degrees(spin), whole ? 0 : feet, hold, height * world->m2u,
+            glm::length(shared) * world->m2u, whole ? "kept whole (over a ledge)" : "shared by height");
     }
     return true;
 }

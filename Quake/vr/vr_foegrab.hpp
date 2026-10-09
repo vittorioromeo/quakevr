@@ -53,8 +53,10 @@ void reset();
 // shove's push: two hands 1, one 0.7, a counter more, tired less), no spin, its top keeping vr_knockdown_shove_topple_push
 // of the shove's launch (the throw 1), its feet held vr_knockdown_shove_feet_hold s (or swept back,
 // vr_knockdown_shove_feet_speed). With vr_knockdown_debug or vr_foegrab_debug its fall is printed as the
-// throw's ("shove trace:"). False: not toppled (topple 0, no ragdoll).
-bool shoveTopple(edict_t* m, const glm::vec3& dir, float strength);
+// throw's ("shove trace:"). False: not toppled (topple 0, no ragdoll). `ledge`: shoved over a ledge (QC
+// VR_Knockdown_Ledge): pushed whole as ever, so it goes over, turned over its feet as it goes at
+// vr_knockdown_shove_ledge_topple times `strength` (box3d::ragdollTopple's `whole`).
+bool shoveTopple(edict_t* m, const glm::vec3& dir, float strength, bool ledge = false);
 
 void preThink(edict_t* ent);
 void serverFrame(); // VR_ServerFrameEnd, before hitmodel::serverFrame

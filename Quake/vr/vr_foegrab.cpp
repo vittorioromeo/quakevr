@@ -919,7 +919,7 @@ void status_f()
 
 } // namespace
 
-bool qvr::foegrab::shoveTopple(edict_t* m, const glm::vec3& dir, float strength)
+bool qvr::foegrab::shoveTopple(edict_t* m, const glm::vec3& dir, float strength, bool ledge)
 {
     glm::vec3 level{dir.x, dir.y, 0.f};
     if(!m || glm::length(level) < 1e-3f)
@@ -928,15 +928,16 @@ bool qvr::foegrab::shoveTopple(edict_t* m, const glm::vec3& dir, float strength)
     }
     level = glm::normalize(level);
     const float k = za::clamp(strength, 0.f, 3.f);
-    const float topple = glm::radians(za::clamp(vr_knockdown_shove_topple.value, 0.f, 2000.f)) * k;
+    const float rate = ledge ? vr_knockdown_shove_ledge_topple.value : vr_knockdown_shove_topple.value;
+    const float topple = glm::radians(za::clamp(rate, 0.f, 2000.f)) * k;
     const bool toppled = topple > 0.f && box3d::ragdollTopple(m, level, topple, 0.f,
                                              za::clamp(vr_knockdown_shove_feet_speed.value, 0.f, 1000.f),
                                              za::clamp(vr_knockdown_shove_feet_hold.value, 0.f, 2.f),
-                                             za::clamp(vr_knockdown_shove_topple_push.value, 0.f, 1.f));
+                                             za::clamp(vr_knockdown_shove_topple_push.value, 0.f, 1.f), ledge);
     if((vr_knockdown_debug.value != 0.f || debug()) && startTrace(m, level, "shove"))
     {
-        Con_Printf("shove trace: %s (%d) %s towards yaw %.0f, strength %.2f (%.0f deg/s)\n", PR_GetString(m->v.classname),
-            throwTrace.ent, toppled ? "toppled over its feet" : "pushed whole (no topple)",
+        Con_Printf("shove trace: %s (%d) %s%s towards yaw %.0f, strength %.2f (%.0f deg/s)\n", PR_GetString(m->v.classname),
+            throwTrace.ent, toppled ? "toppled over its feet" : "pushed whole (no topple)", ledge ? " over a ledge" : "",
             glm::degrees(za::atan2(level.y, level.x)), k, glm::degrees(topple));
     }
     return toppled;

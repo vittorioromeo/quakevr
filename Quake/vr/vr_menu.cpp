@@ -1022,7 +1022,7 @@ int campaignsBloodyShown = -1;
         slider("Topple", vr_knockdown_shove_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
             .help("A shoved-down enemy loses its footing as a thrown one does (Holding Enemies' Topple): turned over about "
                   "its feet along the shove this fast, head and chest first, the shove's push going to its top. A "
-                  "one-handed shove turns it 0.7 as fast. Shoved over a ledge it is pushed whole, to tumble off. Off: "
+                  "one-handed shove turns it 0.7 as fast. Shoved over a ledge: Topple Over a Ledge. Off: "
                   "pushed whole, as before."),
         slider("Topple Push", vr_knockdown_shove_topple_push, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much of the shove's push the toppling body keeps, its head and chest the most, its feet none. "
@@ -1034,6 +1034,9 @@ int campaignsBloodyShown = -1;
         slider("Topple Feet Held", vr_knockdown_shove_feet_hold, 0.f, 1.f, 0.05f, "%.2f s")
             .help("How long its feet stay where they stood as it topples (Topple Feet Speed 0); then they go as they "
                   "would."),
+        slider("Topple Over a Ledge", vr_knockdown_shove_ledge_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
+            .help("Shoved over a ledge, it is pushed whole so it goes over the edge, and turns over its feet as it falls "
+                  "this fast (a one-handed shove 0.7 as fast). Off: it goes over upright, as before."),
         toggle("Weapon Stays in Hand", vr_knockdown_weld)
             .help("Its weapon stays in its hand while it is down (killed there, it drops it as usual). Off: it flops "
                   "loose as a dead one's."),

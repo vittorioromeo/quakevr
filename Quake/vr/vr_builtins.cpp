@@ -1532,12 +1532,14 @@ void PF_ragdollknockdown()
     G_FLOAT(OFS_RETURN) = box3d::ragdollKnockdown(G_EDICT(OFS_PARM0)) ? 1.f : 0.f;
 }
 
-// float ragdollshovetopple(entity e, vector dir, float strength): e, just knocked down by a shove along dir, turned over
-// about its feet that way (foegrab::shoveTopple: vr_knockdown_shove_topple times strength). 0: not toppled.
+// float ragdollshovetopple(entity e, vector dir, float strength, float ledge): e, just knocked down by a shove along dir,
+// turned over about its feet that way (foegrab::shoveTopple: vr_knockdown_shove_topple times strength; ledge nonzero:
+// shoved over a ledge, pushed whole and turned as it goes, vr_knockdown_shove_ledge_topple). 0: not toppled.
 void PF_ragdollshovetopple()
 {
     const glm::vec3 dir{G_VECTOR(OFS_PARM1)[0], G_VECTOR(OFS_PARM1)[1], G_VECTOR(OFS_PARM1)[2]};
-    G_FLOAT(OFS_RETURN) = foegrab::shoveTopple(G_EDICT(OFS_PARM0), dir, G_FLOAT(OFS_PARM2)) ? 1.f : 0.f;
+    const bool ledge = qcvm->argc > 3 && G_FLOAT(OFS_PARM3) != 0.f;
+    G_FLOAT(OFS_RETURN) = foegrab::shoveTopple(G_EDICT(OFS_PARM0), dir, G_FLOAT(OFS_PARM2), ledge) ? 1.f : 0.f;
 }
 
 // float ragdollgetup(entity e, float frameA, float frameB, vector mins, vector maxs, float range): e gets up from its

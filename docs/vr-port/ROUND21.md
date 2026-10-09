@@ -33123,3 +33123,26 @@ Tests: `parry_pose_test.sh` (2400 frames each, every blow parried): ogre 24 parr
 (51) to pain 67, then 68, 69, 68, 69, 68 at 0.10/0.10/0.15/0.15/0.15 s, recovered to its run; its painb (72-74), painc
 (75-77), paind (81-83) the same; the flattest drawn blend 0.81 (the smash-to-pain step, 0.1 s, as before). Pictures:
 the worktree's `scratch/parry_after_lit.png` (fullbright, 0.1 s apart).
+
+## A shove over a ledge turns the body as it falls (2026-10-09)
+
+His note: a shove that knocks an enemy over a ledge skipped the topple (above, "A shove's knockdown topples over the
+feet"), so its ragdoll went over stiffly upright, not turning at all.
+
+Now `ragdollshovetopple(e, dir, strength, ledge)` gets the ledge (QC `VR_Knockdown_Try`), and `foegrab::shoveTopple`
+calls `box3d::ragdollTopple` with a new `whole` mode: every part keeps all of the shove's launch and none is held (so
+its feet go over the edge with the rest), and the turn about the floor under its feet is added on top, at
+`vr_knockdown_shove_ledge_topple` (150 deg/s, times the shove's strength as the plain topple; 0: as before, no turn).
+Menu: Combat > Knockdowns, **Topple Over a Ledge**, after Topple Feet Held. The plain topple is unchanged.
+
+Numbers (vrclimb, a grunt 48 units from the trench's edge, `vr_knockdown_test 22`/`21` with `vr_knockdown_debug 1`,
+the shove trace's torso tilt / feet travel along the shove, feet height, every 0.1 s):
+
+| | 0.1 s | 0.3 s | 0.5 s | 0.7 s | 0.8 s | lands |
+|---|---|---|---|---|---|---|
+| before (0), two hands | 17 / 40, +5 | 17 / 111, -8 | 17 / 182, -52 | 17 / 252, -126 | 17 / 291, -183 | tilt 130 after the landing, feet 403 on |
+| 150, two hands | 9 / 45, +6 | 31 / 126, -6 | 70 / 208, -47 | 101 / 298, -124 | 110 / 341, -172 | 98, feet 415 on, in the trench (-214) |
+| 150, one hand | 6 / 31, +2 | 17 / 83, -12 | 41 / 136, -57 | 66 / 192, -130 | 79 / 224, -185 | 89, feet 268 on, in the trench |
+
+It goes over as far as before (further: the turn's push at its top) and turns over steadily as it falls, landing on
+its back or front rather than tipping only when it hits the floor.

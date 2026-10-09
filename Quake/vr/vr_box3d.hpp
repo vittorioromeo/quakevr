@@ -154,9 +154,11 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
 // (vr_knockdown_shove_topple: foegrab::shoveTopple). False: no ragdoll.
 // `launch`: the share of that launch its top keeps (its parts by height: the feet none), 1 the throw's; less, it topples
 // over slower from the launch (a shove's, vr_knockdown_shove_topple_push). (`hold` 0.5 s: the throw's, the author's Feet
-// Held before the sweep replaced it.)
+// Held before the sweep replaced it.) `whole`: every part keeps all its launch and none is held (`feet`, `hold` and
+// `launch` unused), the turn about the floor under its feet added: it goes on over a ledge, turning over as it falls
+// (a shove's over a ledge, vr_knockdown_shove_ledge_topple).
 bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin, float feet, float hold = 0.5f,
-    float launch = 1.f);
+    float launch = 1.f, bool whole = false);
 // Tests (the throw's trace): `num`'s ragdoll's pelvis, head (its rig's head, else its highest part) and feet (the middle of
 // the parts ragdollTopple held, else of those in its lowest quarter at the first call), units. False: no ragdoll.
 bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet);

@@ -423,8 +423,9 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
     {
         return FALSE;
     }
-    // (Over a ledge: pushed whole as ever, so it tumbles off; a topple would keep its feet on this side.)
-    ragdollshovetopple(e, xForward, ledge ? 0 : xPush);
+    // (Over a ledge: pushed whole as ever, so it goes off, turned over as it falls: vr_knockdown_shove_ledge_topple; the
+    // plain topple would keep its feet on this side.)
+    ragdollshovetopple(e, xForward, xPush, ledge);
     return TRUE;
 };
 
