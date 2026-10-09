@@ -33509,3 +33509,11 @@ as far by default (it makes room, but a counter-attack can't reach it).
   arms' 29 -> 7 (its push now under the slide's 100 u/s: the hop alone). Its push of you (`vr_parry_push_player`) is
   unchanged. Not measured in a real parry (the mock can't hold a guard in time); the migration and the defaults were
   checked in game (`vr_cfg_version 111` with the old values, `vr_migrate_config`: 0.55, 0.9, 100).
+
+## Main menu groups: Select Campaign heads the playing group (2026-10-09)
+
+The author moved Select Campaign above Single Player (his commit); the gap stayed above Single Player, so Select
+Campaign sat with the VR rows. `M_Main_GroupStart` now starts the playing group at `MAIN_CAMPAIGNS`: [VR Calibration,
+VR Settings], gap, [Select Campaign, Single Player, Multiplayer], gap, the maps... One layout serves the headset's panel
+and the flat screen (text or picture rows). The cursor still starts on row 2, now Select Campaign (the playing group's
+first row; the author's order).
