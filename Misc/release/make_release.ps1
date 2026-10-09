@@ -6,8 +6,8 @@ latest.json, and (with -Publish) tags the commit and creates the GitHub release.
 .DESCRIPTION
   Misc\release\make_release.ps1 -Bump patch -Publish -Final -RunTests   # THE ONE COMMAND: the tests, VERSION bumped and
                                                            # committed, build and checks, the branch pushed, tag, the
-                                                           # release published as Latest, the Latest guard, the online
-                                                           # check (RELEASING.md, "One command")
+                                                           # release published as Latest, master fast-forwarded to it,
+                                                           # the Latest guard, the online check (RELEASING.md, "One command")
   Misc\release\make_release.ps1 -Bump patch -Publish -Final -DryRun     # ... its plan: every command, in order
   Misc\release\make_release.ps1 -Version 1.0.1 -CheckOnline # only the steps after publishing (resuming)
   Misc\release\make_release.ps1 -DryRun                    # the checks and the plan; builds and writes nothing
@@ -31,7 +31,9 @@ VERSION's, or with -BumpVersion the script first commits VERSION = -Version (tha
 changes; not pushed: it goes with the branch); with -DryRun it only says it would.
 
 Works on whatever branch is checked out (its upstream is where the tag goes); with -Publish or -PushTag it pushes the
-branch to its upstream first when HEAD is ahead of it (a fast-forward, never forced; the version commit). Everything it
+branch to its upstream first when HEAD is ahead of it (a fast-forward, never forced; the version commit). A -Final
+release then fast-forwards the release branch (-ReleaseBranch, default master; RELEASING.md, "Branches") to the tag,
+never forced: it stops before building when that branch is not an ancestor of HEAD. Everything it
 writes is under out\release\<version>\ (git-ignored); a folder left by an earlier run is moved aside to
 out\release\<version>.old-<time>, never deleted.
 
@@ -77,6 +79,12 @@ param(
     # latest.json read by the installer's own code (qvr-setup feed: the version, each file's size and SHA-256 against
     # this release's), the file itself byte for byte, and a sandboxed install through it (qvr-setup install --feed).
     [switch]$Final,
+    # The release branch (RELEASING.md, "Branches"): with -Final, after the release is created, it is moved on the remote
+    # to the released commit as a fast-forward (git push <remote> v<version>^{commit}:refs/heads/<it>; never forced: when
+    # it is not an ancestor of the release the script stops and says what to run). Prereleases and drafts never move it.
+    [string]$ReleaseBranch = "master",
+    # With -Final: leave the release branch where it is (move it by hand later).
+    [switch]$NoReleaseBranch,
     # Only the steps after publishing, for a release already on GitHub (resuming after a failure there): the online
     # check of out\release\<version> (-ReleaseDir) against the feed. No build, no tag, no gh release create.
     [switch]$CheckOnline,
@@ -178,6 +186,55 @@ function Assert-PrereleaseNotLatest([string]$want) {
     Say "$want is a published prerelease, not Latest (Latest is still $(if ($names) { $names } else { 'none' }): releases/latest does not serve $want)"
     "prerelease $want not Latest (Latest: $(if ($names) { $names } else { 'none' }))"
 }
+# The release branch (RELEASING.md, "Branches"; $ReleaseBranch, default master) on $remote: the commit it is at there
+# ("" when it does not exist) and whether that commit is an ancestor of $target (Ancestor: 0 yes, 1 no, else unknown).
+function Get-ReleaseBranchState([string]$target) {
+    $ref = "refs/heads/$ReleaseBranch"
+    $ls = GitRun @("ls-remote", $remote, $ref)
+    if ($ls.Code -ne 0) { throw "git ls-remote $remote $ref failed" }
+    $line = @($ls.Out | Where-Object { "$_" -match ('\s' + [regex]::Escape($ref) + '$') }) | Select-Object -First 1
+    $sha = if ($line) { "$line" -replace '\s.*$', '' } else { "" }
+    $anc = 0
+    if ($sha) {
+        # (Normally fetched already; a commit pushed there since is fetched now, into FETCH_HEAD only.)
+        if ((GitRun @("cat-file", "-e", "$sha^{commit}")).Code -ne 0) { GitRun @("fetch", "--quiet", $remote, $ref) | Out-Null }
+        $anc = (GitRun @("merge-base", "--is-ancestor", $sha, $target)).Code
+    }
+    [pscustomobject]@{ Sha = $sha; Ancestor = $anc }
+}
+# The fast-forward command, quoted for PowerShell and bash alike.
+function Get-ReleaseBranchPush() { "git push $(if ($remote) { $remote } else { 'origin' }) ""$tag^{commit}:refs/heads/$ReleaseBranch""" }
+# Why the release branch cannot be fast-forwarded to $what, and what to run (never a force).
+function Get-ReleaseBranchDiverged([string]$sha, [string]$what, [switch]$Released) {
+    $from = Get-Variable branch -ValueOnly -ErrorAction SilentlyContinue   # (-CheckOnline has none)
+    $from = if ($from -and $from -ne 'HEAD') { $from } else { 'the branch you release from' }
+    $head = "$remote $ReleaseBranch ($($sha.Substring(0, 8))) is not an ancestor of $what`: it has commits the release does not " +
+        "(git fetch $remote; git log --oneline $what..$sha), and it is never forced. "
+    if ($Released) {
+        $head + "The release is out; bring $ReleaseBranch to it with a merge (not a fast-forward, still not forced): git switch $ReleaseBranch; " +
+            "git pull --ff-only; git merge $tag; git push $remote $ReleaseBranch (and merge $ReleaseBranch into $from so the next release fast-forwards it)"
+    }
+    else {
+        $head + "Merge it into $from first (git merge $remote/$ReleaseBranch; push), then release; or -NoReleaseBranch to release " +
+            "without moving it (by hand afterwards)"
+    }
+}
+# -Final, after the release is created: $ReleaseBranch on $remote fast-forwarded to the tag's commit; a line for the report.
+function Invoke-ReleaseBranchFastForward() {
+    $s = Get-ReleaseBranchState $tag
+    if ($s.Sha -eq $commit) { Say "$remote $ReleaseBranch is already $short ($tag)"; return "$ReleaseBranch already at $tag" }
+    if ($s.Sha -and $s.Ancestor -ne 0) {
+        if ($s.Ancestor -eq 1) { throw (Get-ReleaseBranchDiverged $s.Sha $tag -Released) }
+        throw "could not tell whether $remote $ReleaseBranch ($($s.Sha.Substring(0, 8))) is an ancestor of $tag (git fetch $remote, then: $(Get-ReleaseBranchPush))"
+    }
+    $r = GitRun @("push", $remote, "$tag^{commit}:refs/heads/$ReleaseBranch")   # (git refuses anything but a fast-forward)
+    if ($r.Code -ne 0) { throw "$(Get-ReleaseBranchPush) failed (refused: $remote $ReleaseBranch moved meanwhile? never forced; git fetch $remote and look)" }
+    $after = Get-ReleaseBranchState $tag
+    if ($after.Sha -ne $commit) { throw "after the push, $remote $ReleaseBranch is $(if ($after.Sha) { $after.Sha.Substring(0, 8) } else { 'missing' }), not $short ($tag)" }
+    $was = if ($s.Sha) { "was $($s.Sha.Substring(0, 8))" } else { "created" }
+    Say "$remote $ReleaseBranch fast-forwarded to $short ($tag; $was)"
+    "$ReleaseBranch fast-forwarded to $tag ($was)"
+}
 
 # Where a failure leaves things, and how to go on (RELEASING.md, "If it stops"): printed by the trap below.
 $script:stage = "checks"
@@ -189,9 +246,14 @@ function Get-ResumeHint() {
         "build" { if ($bumpPending -or $script:bumped) { @("VERSION = $Version is committed here (HEAD, not pushed). Fix the cause, then: $again", "(or drop that commit: git reset --keep HEAD~1)") } else { @("Nothing was pushed or tagged: fix the cause and run the same command again.") } }
         "push" { @("The build passed; pushing the branch failed (nothing tagged). Fix it (git pull --rebase? then the build is redone), then: $again") }
         "tag" { @("The branch is pushed$(if ($script:bumped) { " (VERSION = $Version)" }); the tag failed. Then: $again (a tag $tag already on HEAD is reused)") }
-        "release" { @("The tag $tag is pushed; gh release create failed. If GitHub shows a partial release $tag, delete it there (or finish it:",
+        "release" { $h = @("The tag $tag is pushed; gh release create failed. If GitHub shows a partial release $tag, delete it there (or finish it:",
                       "gh release upload $tag <the missing files of out\release\$Version\assets> --repo $Repo; gh release edit $tag --repo $Repo --draft=false --latest)",
-                      "and run make_release.ps1 -Version $Version -CheckOnline; else: $again") }
+                      "and run make_release.ps1 -Version $Version -CheckOnline; else: $again")
+                    if ($Final -and -not $NoReleaseBranch) { $h += "(Finishing it by hand: then move $ReleaseBranch too, a fast-forward: $(Get-ReleaseBranchPush))" }
+                    $h }
+        "master" { @("The release $tag is published; $remote $ReleaseBranch was not moved (the reason above). Move it, never forced:",
+                     "diverged: the merge above; otherwise (a refused or failed push) the fast-forward: $(Get-ReleaseBranchPush)",
+                     "Then finish the checks: make_release.ps1 -Version $Version -CheckOnline (the Latest guard and the online check)") }
         "online" { @("The release $tag is published. Finish the checks with: make_release.ps1 -Version $Version -CheckOnline") }
         default { @("Run the same command again.") }
     }
@@ -411,6 +473,21 @@ if ($CheckOnline) {
     if (-not $Local) {
         Step "Latest guard ($Repo)"
         if ($prerelease) { Assert-PrereleaseNotLatest $tag | Out-Null } else { Invoke-LatestGuard $tag | Out-Null }
+        if (-not $prerelease -and -not $NoReleaseBranch) {
+            # (Read only: whether the release branch holds the release; a resume after STOPPED (master) is told the push.)
+            Step "Release branch ($ReleaseBranch)"
+            $repoUrl = [regex]::Escape($Repo) + '(\.git)?/?$'
+            $remote = "$(@((GitRun @("remote")).Out | Where-Object { "$_" -and (GitRun @("remote", "get-url", "$_")).Text -match $repoUrl }) | Select-Object -First 1)"
+            $commit = (GitRun @("rev-parse", "-q", "--verify", "refs/tags/$tag^{commit}")).Text
+            if (-not $remote -or -not $commit) { Warn "release branch not checked: $(if (-not $remote) { "no git remote points at $Repo" } else { "no tag $tag here (git fetch --tags)" })" }
+            else {
+                $s = Get-ReleaseBranchState $tag
+                if ($s.Sha -eq $commit) { Say "$remote $ReleaseBranch is $tag's commit" }
+                elseif ($s.Sha -and (GitRun @("merge-base", "--is-ancestor", $commit, $s.Sha)).Code -eq 0) { Say "$remote $ReleaseBranch ($($s.Sha.Substring(0, 8))) holds $tag (and later commits)" }
+                elseif (-not $s.Sha -or $s.Ancestor -eq 0) { Warn "$remote $ReleaseBranch $(if ($s.Sha) { "($($s.Sha.Substring(0, 8))) is behind $tag" } else { 'does not exist' }): move it (fast-forward): $(Get-ReleaseBranchPush)" }
+                else { Warn (Get-ReleaseBranchDiverged $s.Sha $tag -Released) }
+            }
+        }
     }
     Step "Online check of $tag ($ReleaseDir)"
     Invoke-OnlineCheck $ReleaseDir $FeedUrl $QuakeDir
@@ -499,6 +576,17 @@ if ($remote -and -not $Local) {
         $tagRemote = @(@($ls.Out | Where-Object { $_ -match '\^\{\}$' }) + @($ls.Out))[0] -replace '\s.*$', ''   # (the peeled commit first)
         if ($tagRemote -ne $commit -or $bumpPending) { Problem "tag $tag already exists on $remote on another commit" } else { Warn "tag $tag is already on $remote (this commit)" }
     }
+}
+# The release branch (-Final): fast-forwarded to the release after it is created, so it must be an ancestor of HEAD now
+# (the version commit is HEAD's child): stopping here is better than after publishing.
+$moveReleaseBranch = $Final -and -not $NoReleaseBranch
+if ($Final -and $NoReleaseBranch) { Warn "-NoReleaseBranch: $ReleaseBranch is not moved to $tag (by hand: $(Get-ReleaseBranchPush))" }
+elseif ($moveReleaseBranch -and $remote) {
+    $rb = Get-ReleaseBranchState $commit
+    if (-not $rb.Sha) { Say "$remote $ReleaseBranch does not exist: created at $tag after the release" }
+    elseif ($rb.Ancestor -eq 0) { Say "$remote $ReleaseBranch ($($rb.Sha.Substring(0, 8))) is an ancestor of HEAD: fast-forwarded to $tag after the release" }
+    elseif ($rb.Ancestor -eq 1) { Problem (Get-ReleaseBranchDiverged $rb.Sha $short) -OnlineOnly }
+    else { Warn "could not tell whether $remote $ReleaseBranch ($($rb.Sha.Substring(0, 8))) is an ancestor of HEAD: checked again after the release" }
 }
 
 # Tools.
@@ -631,7 +719,8 @@ if ($DryRun) {
     Say "tag            $tag on $short$(if ($online) { ", pushed to $remote" } else { ' (only with -Publish or -PushTag)' })"
     if ($Local) { Say "local test     latest.json -> $($UrlBase -join ', ')$(if ($RunInstaller) { '; then the server and QuakeVR-Setup.exe in a sandbox' })" }
     Say "tests          $(if ($RunTests) { "$testCount on $TestAgent, one at a time, before building (run_test_suite.py $($testArgs -join ' ')); a failure stops everything$(if ($AllowFlaky) { ' (known-flaky ones warn)' })" } else { 'not run (-RunTests runs the headless suite first)' })"
-    Say "release        $(if ($Publish) { "gh release create $tag --repo $Repo$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' } elseif (-not $Draft) { ' --latest' })$(if ($Final) { ', then the Latest guard and the online check' })" } else { 'none (-Publish creates it)' })"
+    Say "release        $(if ($Publish) { "gh release create $tag --repo $Repo$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' } elseif (-not $Draft) { ' --latest' })$(if ($Final) { "$(if ($moveReleaseBranch) { ", then $ReleaseBranch fast-forwarded to it" }), then the Latest guard and the online check" })" } else { 'none (-Publish creates it)' })"
+    Say "$("{0,-15}" -f $ReleaseBranch)$(if ($moveReleaseBranch) { "fast-forwarded on $(if ($remote) { $remote } else { '<the remote>' }) to $tag after the release (never forced)" } elseif ($Final) { 'not moved (-NoReleaseBranch)' } else { "not moved (only a -Final release moves it)" })"
     Say "notes          $(if ($notesSource) { "$notesSource$(if ($notesText.Contains($draftMarker)) { ' (still the DRAFT)' })" } else { "drafted while building into $notesDraftPath (-DraftNotes drafts it now)" })"
     $list = & (Join-Path $root "Windows\package-quakevr.ps1") -DryRun
     Say "package        $(@($list).Count) files (Windows\package-quakevr.ps1 -DryRun lists them)"
@@ -652,6 +741,10 @@ if ($DryRun) {
     }
     if ($Publish) {
         $seq.Add("gh release create $tag <the files of $outDir\assets> --repo $Repo --verify-tag --title ""$title"" --notes-file $outDir\release-body.md$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' } elseif (-not $Draft) { ' --latest' })")
+    }
+    if ($Final) {
+        if ($moveReleaseBranch) { $seq.Add("release branch: $(Get-ReleaseBranchPush)   (fast-forward only, never forced; stops if $(if ($remote) { $remote } else { '<the remote>' }) $ReleaseBranch is not an ancestor of $tag)") }
+        else { $seq.Add("(-NoReleaseBranch: $ReleaseBranch is not moved)") }
     }
     $checkPublished = $Final -or ($Publish -and $prerelease -and -not $Draft)
     if ($checkPublished -and $prerelease) { $seq.Add("Latest: gh release list --repo $Repo --json tagName,isLatest,isDraft,isPrerelease; $tag must be a published prerelease, not Latest (nothing edited)") }
@@ -947,7 +1040,13 @@ if ($Publish) {
     if ($r.Code -ne 0) { throw "gh release create failed" }
     Say $r.Text
 }
-$onlineResult = ""; $latestResult = ""
+$onlineResult = ""; $latestResult = ""; $masterResult = ""
+if ($Final -and $moveReleaseBranch) {
+    # The release branch follows final releases only (RELEASING.md, "Branches"): a fast-forward to the tag's commit.
+    $script:stage = "master"
+    Step "Release branch: $remote $ReleaseBranch -> $tag (fast-forward)"
+    $masterResult = Invoke-ReleaseBranchFastForward
+}
 if ($Final) {
     $script:stage = "online"
     Step "Latest guard ($Repo)"
@@ -999,7 +1098,9 @@ elseif (-not $Publish) {
         "       $($quoted -replace '^', 'gh ')"
     )
 }
-if ($onlineResult) { $lines += "  $((++$n)). Nothing: published and checked. $latestResult; $onlineResult." }
+if ($onlineResult) { $lines += "  $((++$n)). Nothing: published and checked. $(if ($masterResult) { "$masterResult; " })$latestResult; $onlineResult." }
+if ($Final -and -not $moveReleaseBranch) { $lines += "  $((++$n)). -NoReleaseBranch: move $ReleaseBranch to the release when ready (fast-forward, never forced): $(Get-ReleaseBranchPush)" }
+elseif ($Publish -and -not $Final -and -not $prerelease) { $lines += "  $((++$n)). Once it is published as Latest: move $ReleaseBranch to it (fast-forward, never forced; -Final does it): $(Get-ReleaseBranchPush)" }
 if (-not $Local -and (-not $Publish -or $Draft)) {
     $lines += "  $((++$n)). Check the draft on https://github.com/$Repo/releases, then publish it (button, or: gh release edit $tag --repo $Repo --draft=false$(if (-not $prerelease) { ' --latest' })). Until it is published (and not a prerelease) https://github.com/$Repo/releases/latest/download/latest.json still serves the previous release."
 }
