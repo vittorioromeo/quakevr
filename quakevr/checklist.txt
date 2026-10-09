@@ -11,6 +11,8 @@ Defaults 10-09 afternoon: melee (speed 3.2, damage 1.1, stamina), enemy weapons,
 Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
 
 [New this week]
+Tutorial (now just vrtutorial; old tutorial and old hub gone): tips show again every time you come near; FLASHLIGHT SIDE button (hub too), flashlight 'on your torso'; lesson 3 board: jump for real; grenade board: 'pouch on your lower back', 'a trap you can shoot'; World Scale button: 1.20 is normal
+Setting buttons (tutorial, hub pavilion): press one, the value screen above it stays still (no sliding into the wall)
 vrstart holes: the hill by the pines near the firing range (341 -594 125) and around 1192 511 78: solid ground now (a second hole you hadn't found was also fixed)
 Crouched pose: crouch: torso and shoulders sit further back (defaults 5 cm / 3 cm, subtle), pouch and holsters visible? tune with Body > Crouched Pose > Preview Crouch and the Crouched Pose Offsets page (torso, pelvis, shoulders, elbows, neck, each holster pair, pouch); Body Calibration > Previous Calibrations: revert to an older calibration (last 4 kept)
 SteamVR perf: set SteamVR per-app Render Resolution 100% (it was Auto = 150%) or Advanced > Headset > Eye Image Size 0.82 (restart VR); fpsVR off; repeat the SteamVR capture incl. a few seconds with the dashboard open (game now holds its last frame: Runtime Menu Open) and send quakevr/qvr_openxr.txt + profile files; A/B Late Image Acquire
@@ -33,8 +35,8 @@ Relighting without ericw-tools: the page offers Download ericw-tools (27.5 MB) w
 VR Settings: last line shows the build (date + commit); Map Library installs still work (downloads now checked by sha256)
 MG3 Shub (boss2, or Debug spawner Thing 60): pillars sinking under you are comfortable; her zombies rise and ragdoll; sweeping beam and blasts readable; lights go out at her death and the credits follow
 MG3 Chthon (boss map, or Debug spawner Thing 50): comfort fade at both arena moves (Locomotion > Comfort > Fade on Scripted Teleports: 0.6 vs 1.2 s); head zone; bat his spheres back; fight length fair with arm hits at 0.35x; finale gibs then credits
-vrtutorial2 (Debug > Tests > Tutorial, or the hub's VR TUTORIAL): play all 12 lessons and the arena; courtyard/ladder/jump-wall ledge scale; floating keycard grab; throw at the barred button; arena pace on Easy; daylight brightness; dark course with flashlight only OK?
-First start of a fresh config: calibration, then vrtutorial2 on Easy; after that vrstart is the default
+vrtutorial (Debug > Tests > Tutorial, or the hub's VR TUTORIAL): play all 12 lessons and the arena; courtyard/ladder/jump-wall ledge scale; floating keycard grab; throw at the barred button; arena pace on Easy; daylight brightness; dark course with flashlight only OK?
+First start of a fresh config: calibration, then vrtutorial on Easy; after that vrstart is the default
 
 [Menus and maps]
 Map Library: open it both ways, search, filter, sort, install with progress, Play, uninstall; unsupported packages refused clearly
