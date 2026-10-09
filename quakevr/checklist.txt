@@ -52,6 +52,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Tune]
+Shove slide: you want a little slide after a shove knockdown: raise Combat > Knockdowns > Shove Topple Push (0.5) until it slides a bit, then tell me the value
 Weapon damage, grapple, stamina costs, roll weight and throw damage
 
 [Record]
