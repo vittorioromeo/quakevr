@@ -33495,3 +33495,16 @@ two-hand multiplier, and 20% less far by default.
 - **Numbers** (vrtesthall, `vr_knockdown_chance 0; vr_knockdown_test 21/22`, `shove slide: ... went N units standing`):
   grunt 104 -> 84 (one hand), 219 -> 167 (two hands); knight 106 -> 86, 224 -> 180; enforcer 90 -> 73, 193 -> 154
   (19-24% less).
+
+## Parry pushback about half as far (2026-10-09)
+
+His ask (same notes): how far a successful parry pushes the enemy back, adjustable apart from the shoves, about half
+as far by default (it makes room, but a counter-attack can't reach it).
+
+- **Parry Pushback** (Combat > Parry, Bash and Shove, Parry: `vr_parry_push_enemy`, also Knockback's Parry Pushes
+  Enemy) 0.8 -> 0.55 (vr_defaults.cfg; config 112 moves a config still at 0.8). The push (a weapon's 320 u/s and a 120
+  hop, crossed arms' 260 and 90, times Knockback 0.6) sets both the hop and the slide, so the distance goes about as the
+  square: a weapon parry's reckoned travel (the hop and the slide, as `VR_Shove_Reach`) 45 -> 21 units (0.47x); crossed
+  arms' 29 -> 7 (its push now under the slide's 100 u/s: the hop alone). Its push of you (`vr_parry_push_player`) is
+  unchanged. Not measured in a real parry (the mock can't hold a guard in time); the migration and the defaults were
+  checked in game (`vr_cfg_version 111` with the old values, `vr_migrate_config`: 0.55, 0.9, 100).

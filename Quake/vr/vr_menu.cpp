@@ -1396,7 +1396,8 @@ int campaignsBloodyShown = -1;
         slider("Your Melee Hits", vr_melee_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far your melee blows (and headbutts) push what they hit."),
         slider("Weapon Hits", vr_hit_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far heavy weapon hits shove monsters."),
         slider("Killing Blows", vr_kill_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far killing blows and explosions throw the bodies."),
-        slider("Parry Pushes Enemy", vr_parry_push_enemy, 0.f, 3.f, 0.05f, "%.2fx").extend(),
+        slider("Parry Pushes Enemy", vr_parry_push_enemy, 0.f, 3.f, 0.05f, "%.2fx").extend()
+            .help("How far a parry pushes the attacker back (Parry's Parry Pushback, the same setting)."),
         slider("Parry Pushes You", vr_parry_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
         slider("Monsters' Blows Push You", vr_melee_push_player, 0.f, 3.f, 0.05f, "%.2fx").extend(),
         header("When You're Hit"),
@@ -1442,6 +1443,10 @@ int campaignsBloodyShown = -1;
                   "then rocks back and forth over the last two until it recovers. 1: it holds its first pain pose."),
         slider("Stagger Sway", vr_parry_stagger_sway, 0.f, 10.f, 0.5f, "%.1f deg").extend(0.f, 15.f)
             .help("How far a parried monster's body sways, dazed, while it is staggered. 0: none."),
+        slider("Parry Pushback", vr_parry_push_enemy, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("How far a parry pushes the attacker back (times Knockback; the distance goes about as its square: "
+                  "0.55 about half as far as 0.8). More makes room; less keeps it within reach of a counter-attack. "
+                  "Separate from shoves (Shove and Bash Push below)."),
         slider("Parry Damage Reduction", "vr_parry_reduction", 0.f, 1.f, 0.05f, "%.2f").help("Share of a parried blow's damage taken away."),
         slider("Parry Drop Chance", "vr_parry_drop_chance", 0.f, 1.f, 0.05f, "%.2f").help("Chance a one-handed parry knocks the weapon out of your hand (two hands: never). Not used with Parry Stamina on (Parry, Bash and Headbutt), which replaces it."),
         slider("Parry Arm Knock", "vr_parry_wobble", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much a parried blow knocks your hand and arm."),

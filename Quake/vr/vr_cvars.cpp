@@ -631,6 +631,8 @@ const DefaultChange defaultChanges[] = {
     {112, &vr_knockdown_shove_ledge_topple, "150"}, // 100
     // ... a shove (or a bash) goes 20% less far (its hands: vr_shove_push_onehand, _twohand, new).
     {112, &vr_bash_push, "1"},                       // 0.9 (the distance goes as its square: 0.81)
+    // ... and a parry pushes the attacker back about half as far (a counter can reach it).
+    {112, &vr_parry_push_enemy, "0.8"},              // 0.55 (vr_defaults.cfg; a weapon parry's distance 0.47x)
 };
 constexpr int configVersion = 112;
 

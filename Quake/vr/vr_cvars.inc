@@ -2428,7 +2428,7 @@ QVR_CVAR(vr_limbshot_mult, "0.35", CVAR_ARCHIVE)         // arms (far from the b
 QVR_CVAR(vr_legshot_mult, "0.6", CVAR_ARCHIVE)           // and legs
 QVR_CVAR(vr_melee_push, "0.5", CVAR_ARCHIVE)               // how far your melee blows push what they hit
 QVR_CVAR(vr_melee_push_player, "0.6", CVAR_ARCHIVE)        // how far monsters' melee blows push you
-QVR_CVAR(vr_parry_push_enemy, "1", CVAR_ARCHIVE)         // how far a parry pushes the attacker back
+QVR_CVAR(vr_parry_push_enemy, "1", CVAR_ARCHIVE)         // how far a parry pushes the attacker back (vr_defaults.cfg: 0.55)
 QVR_CVAR(vr_parry_push_player, "1", CVAR_ARCHIVE)        // and you
 QVR_CVAR(vr_enemy_shove, "1", CVAR_ARCHIVE)              // grunts and enforcers shove you away when you stand too close (QC vr_enemyshove.qc)
 QVR_CVAR(vr_enemy_shove_range, "50", CVAR_ARCHIVE)       // how close (units between your middles, flat; touching is 32)
