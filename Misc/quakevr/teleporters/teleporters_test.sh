@@ -74,7 +74,7 @@ if [ "$WHAT" = chase ] || [ "$WHAT" = all ]; then
 fi
 
 if [ "$WHAT" = views ] || [ "$WHAT" = all ]; then
-    S="map vrteleporters;wait60;vr_mirror 2;vr_window_view 0"
+    S="map vrteleporters;wait60;vr_mirror 1;vr_window_view 3"
     for n in flush_crate flush_player flush_large flush_wide framed_player framed_wide loop turn90 turn45 heights; do
         p=$(pos $n 2); set -- $p
         # 96 units further back than the walk's place, along the way he faces

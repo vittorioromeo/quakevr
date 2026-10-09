@@ -372,7 +372,7 @@ Paths under *Advanced VR Options* need *Menu Detail: Advanced* (the last row of 
 |---|---|
 | Nothing in the headset | Look for the `VR:` lines in the console: they name the OpenXR call that failed. Check that the runtime is running, then `vr_restart`. Try another runtime in VR Settings > Headset. |
 | Guns point the wrong way, hands misplaced | Adjust *Gun Angle* and *Off Hand Angle* in VR Settings. *Weapon Offsets (Held Weapon)* moves a single weapon in the hand. |
-| Double vision, wrong scale | Send the output of `vr_status`, and a screenshot of the desktop mirror with `vr_mirror 2` (both eyes). |
+| Double vision, wrong scale | Send the output of `vr_status`, and a screenshot of the desktop mirror with `vr_window_view 3` (both eyes; Graphics > Recording > Window View > Both Eyes (raw)). |
 | Too tall, too short, floor in the wrong place | *Set Height Now* while standing straight, *World Scale*, *Floor Offset*. |
 | Water isn't see-through | Needs maps relit with the VisPatch files (by the script, or in the game with *See-Through Liquids*), and *Transparency > Water Alpha* below 1 (0.3 by default). See [RELIGHTING.md](RELIGHTING.md#troubleshooting). |
 | No sound | Check the Windows output device (your headset's audio) and Ironwail's volume options. |

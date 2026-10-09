@@ -63,7 +63,7 @@ Useful settings:
 | `vr_gunangle`, `vr_offhandpitch` | 39.5, 40.25 | weapon pitch relative to the controller (the shipped values, tuned for that raw pose): Advanced VR > Weapons > Hand/Gun Calibration (both hands at once: VR Settings > Hand Pitch) |
 | `vr_world_scale` | 1.25 | |
 | `vr_height_calibration`, `vr_floor_offset` | 1.646, -21 | |
-| `vr_mirror` | 1 | desktop window: 0 off, 1 left eye, 2 both eyes |
+| `vr_mirror` | 1 | desktop window: 0 off, 1 on (`vr_window_view`: 0 left eye, 1 left smoothed, 2 spectator, 3 both eyes, 4 right eye, 5 right smoothed) |
 | `vr_deadzone` | 10 | stick deadzone, percent |
 | `vr_weapon_grip_mode` | 0 | 1 = weapons stay in the hand without holding the grip (issue #31) |
 
@@ -900,7 +900,7 @@ is the most useful thing to send me along with a description. In particular:
 - **Nothing in the headset:** look for the `VR:` lines. They say which OpenXR call failed, with its result code.
   `vr_restart` retries after the headset is on or the runtime is running.
 - **The picture is wrong** (double vision, wrong scale, swimming): `vr_status` output while it happens, and a
-  screenshot of the desktop mirror (`vr_mirror 2` shows both eyes).
+  screenshot of the desktop mirror (`vr_window_view 3` shows both eyes).
 - **Hands or weapons are in the wrong place or at the wrong angle:** `vr_status` and `vr_dumpview` while holding the
   pose. Hand Pitch on VR Settings (Hand Calibration) is the first thing to adjust.
 - **Fingers wrong on something held** (through it, or stuck open): `vr_debug_grasp 1` prints each grasp solve;

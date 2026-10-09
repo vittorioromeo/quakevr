@@ -932,6 +932,19 @@ void migrateConfig()
     {
         Cvar_SetValueQuick(&vr_tutorial_started, 1.f);
     }
+    // 112: the window's view is vr_window_view's alone (both eyes, the left or the right, raw or smoothed, the spectator
+    // camera); vr_mirror only turns the mirror on or off. Its "Left Eye (raw)" with vr_mirror 2 showed both eyes: now
+    // Both Eyes (raw), 3. vr_mirror 2 is 1.
+    if(from < 112 && vr_mirror.value >= 2.f)
+    {
+        if(static_cast<int>(vr_window_view.value) == 0)
+        {
+            Con_DPrintf("VR: vr_window_view: 3, both eyes (was 0 with vr_mirror 2)\n");
+            Cvar_SetQuick(&vr_window_view, "3");
+        }
+        Con_DPrintf("VR: vr_mirror: 1 (was %s; vr_window_view says what it shows)\n", vr_mirror.string);
+        Cvar_SetQuick(&vr_mirror, "1");
+    }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 

@@ -9,22 +9,25 @@
 [[nodiscard]] za::Vector<Item> pageRecording()
 {
     return {
-        cycle("Window View", "vr_window_view", {{0.f, "Left Eye (raw)"}, {1.f, "Smoothed Mirror"}, {2.f, "Spectator Camera"}})
-            .help("What the desktop window shows, to record it (OBS: a Window Capture of it). Left Eye: the eye's image as it "
-                  "is, shaking with your head. Smoothed Mirror: the same image, turned to follow a steadied head and cropped "
-                  "to the window: free. Spectator Camera (Recording Mode): the game drawn a third time for the window, from "
-                  "your head, steadied, with its own field of view: sharpest and widest, and it costs about one more eye's "
-                  "rendering. The headset's view is the same in all three."),
+        cycle("Window View", "vr_window_view",
+            {{3.f, "Both Eyes (raw)"}, {0.f, "Left Eye (raw)"}, {1.f, "Left Eye (smoothed)"}, {4.f, "Right Eye (raw)"},
+                {5.f, "Right Eye (smoothed)"}, {2.f, "Spectator Camera"}})
+            .help("What the desktop window shows, to record it (OBS: a Window Capture of it). Both Eyes: the two lenses' "
+                  "images side by side, as they are. Left or Right Eye (raw): that eye's image as it is, shaking with your "
+                  "head. Smoothed: the same image, turned to follow a steadied head and cropped to the window: free. "
+                  "Spectator Camera (Recording Mode): the game drawn a third time for the window, from your head, "
+                  "steadied, with its own field of view: sharpest and widest, and it costs about one more eye's "
+                  "rendering. The headset's view is the same in all of them."),
         open("Desktop Mirror: Body and Display", pageIndex(pageBodyDisplay)).help("The desktop mirror is on Body and Display."),
         toggle("Flat HUD on the Mirror", "vr_window_hud_mirror")
-            .help("The flat status bar over the window's Left Eye and Smoothed Mirror views (on by default)."),
+            .help("The flat status bar over the window's raw and smoothed eye views (on by default)."),
         toggle("Flat HUD on the Spectator Camera", "vr_window_hud_spectator")
             .help("The flat status bar over the Spectator Camera (off by default: the recording shows the game as the "
                   "headset does, with the wrist gadget as its HUD)."),
         toggle("Hide Head Text on the Mirror", "vr_mirror_hide_hud_text")
             .help("Hides the text that floats in front of your head (pickup messages, centre prints, notify lines) in the "
-                  "window's Left Eye and Smoothed Mirror views (off by default; in the Left Eye view also the window's own "
-                  "copy of that text, at its top). The headset still shows it."),
+                  "window's raw and smoothed eye views (off by default; in the raw views also the window's own copy of "
+                  "that text, at its top). The headset still shows it."),
         toggle("Hide Head Text on the Spectator Camera", "vr_spectator_hide_hud_text")
             .help("Hides the text that floats in front of your head (pickup messages, centre prints, notify lines) in the "
                   "Spectator Camera (on by default: clean footage for trailers). The headset still shows it; menus "

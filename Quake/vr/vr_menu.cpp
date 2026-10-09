@@ -7796,7 +7796,9 @@ za::Vector<Item> pageMain()
 
         header("Display"),
         cycle("Status Bar", vr_sbar_mode, {{1.f, "Off hand"}, {0.f, "Main hand"}}).help("The hand Quake's status bar is on (HUD: Status bar)."),
-        cycle("Desktop Mirror", vr_mirror, {{0.f, "Off"}, {1.f, "Left eye"}, {2.f, "Both eyes"}}),
+        toggle("Desktop Mirror", vr_mirror)
+            .help("The headset's view in the desktop window. Which eye, both, smoothed or a spectator camera: Recording "
+                  "(Window View)."),
         open("Recording (Window View)", pageIndex(pageRecording))
             .help("What the desktop window shows for recording: a steadied mirror or a spectator camera."),
     };

@@ -6,8 +6,8 @@
 // writes into the backend's eye image instead of the window (at a vr_render_scale other than 1,
 // into a texture of the scaled size, resampled into the image: bilinear, FSR 1 or NIS, vr_upscale.cpp).
 // The scene is shaded coarser away from the lens centre with vr_foveated (vr_foveated.cpp). The eye's
-// UI is drawn over the final image at its full size. The left eye is then mirrored to the window, where
-// the 2D layer is drawn as usual.
+// UI is drawn over the final image at its full size. The eye the window shows (or both: vr_window_view) is then
+// mirrored to it, where the 2D layer is drawn as usual.
 
 #include "vr_bench.hpp"
 #include "vr_fgfx.hpp"
@@ -185,7 +185,7 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
 // post-processing does them (vr_bloom.cpp, vr_tonemap.cpp), so the window shows what the headset does (the window's
 // own post-processing then applies the desktop's gamma and contrast). Each window pixel reads the scene through Map:
 // the window's rectangle (-1..1) to the scene's uv, homogeneous (a crop, or the smoothed mirror's turn, a
-// homography). The left eye as it is (Params.x 0) reads the nearest texel as it always has; the smoothed mirror and
+// homography). An eye as it is (Params.x 0) reads the nearest texel as it always has; the smoothed mirror and
 // the spectator camera read it filtered (Catmull-Rom: sharp at any sub-pixel offset, so a slowly turning view does not
 // pulse between sharp and soft as a bilinear read would; bilinear from a spectator camera larger than the window),
 // black outside the scene, with the eyes' underwater wobble and blur (gl_shaders.h's post-process).
@@ -208,7 +208,7 @@ layout(binding = 3) uniform sampler3D GradeLUT;
 layout(location = 1) uniform vec4 Dest;   // the window's rectangle: x0, y0, 1 / width, 1 / height
 layout(location = 2) uniform float BloomStrength;
 layout(location = 3) uniform vec4 Tone;   // as the post-process's (vr_tonemap.hpp: tonemap::bind)
-layout(location = 4) uniform vec4 Params; // x: 0 nearest (the left eye as it is), 1 Catmull-Rom, 2 bilinear
+layout(location = 4) uniform vec4 Params; // x: 0 nearest (an eye as it is), 1 Catmull-Rom, 2 bilinear
 layout(location = 5) uniform vec4 WaterParams; // the post-process's: time, wobble, blur (both 0: not under water)
 layout(location = 6) uniform vec4 WaterProj;   // ndc x = x + y * left / forward, ndc y = z + w * up / forward
 layout(location = 7) uniform vec3 WaterFwd;    // the scene's view axes in the world
@@ -312,7 +312,7 @@ void main()
 
 enum class Sampling
 {
-    Nearest,    // the left eye as it is
+    Nearest,    // an eye as it is
     CatmullRom, // the smoothed mirror, the spectator camera at the window's size or below
     Bilinear,   // the spectator camera above the window's size
 };
@@ -418,39 +418,39 @@ void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::
         glm::vec3{x0 + 0.5f * w, y0 + 0.5f * h, 1.f}};
 }
 
-// The window's view of the eye just rendered: the left eye (or each, vr_mirror 2) cropped to the window's aspect
-// ratio, or the smoothed mirror of the left eye.
+// The window's view of the eye just rendered: the shown eye (or each, side by side: vr_window_view) cropped to the
+// window's aspect ratio, or the smoothed mirror of the shown eye.
 void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHeight)
 {
     const window::View view = window::view();
+    const int shown = window::eye();
     if(view == window::View::Smoothed)
     {
-        if(eye != 0)
+        if(eye != shown)
         {
             return;
         }
         QVR_GPU_PROFILE("mirror");
         Backend* be = backend();
-        const HiddenArea* hidden = be && vr_visibility_mask.value != 0.f ? be->hiddenArea(0) : nullptr;
+        const HiddenArea* hidden = be && vr_visibility_mask.value != 0.f ? be->hiddenArea(eye) : nullptr;
         if(hidden && hidden->indices.empty())
         {
             hidden = nullptr;
         }
-        const glm::mat3 map = window::mirrorMap(frameState().eyes[0].fov,
+        const glm::mat3 map = window::mirrorMap(frameState().eyes[eye].fov,
             static_cast<float>(windowWidth) / static_cast<float>(windowHeight), hidden);
         drawToWindow(eyeTargets, sceneLook(), map, Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
         return;
     }
 
-    const int mode = static_cast<int>(vr_mirror.value);
-    if(view != window::View::Raw || mode <= 0 || (mode == 1 && eye != 0))
+    if(view != window::View::Raw || (shown >= 0 && eye != shown))
     {
         return;
     }
     QVR_GPU_PROFILE("mirror");
 
     int dx0 = 0, dx1 = windowWidth;
-    if(mode >= 2)
+    if(shown < 0)
     {
         dx0 = eye * windowWidth / 2;
         dx1 = dx0 + windowWidth / 2;
@@ -498,12 +498,9 @@ void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool
     switch(window::view())
     {
     case window::View::Raw:
-    {
-        const int mode = static_cast<int>(vr_mirror.value);
-        return mode >= 2 || (mode == 1 && eye == 0);
-    }
+        return window::eye() < 0 || window::eye() == eye;
     case window::View::Smoothed:
-        return eye == 0;
+        return window::eye() == eye;
     default:
         return false;
     }

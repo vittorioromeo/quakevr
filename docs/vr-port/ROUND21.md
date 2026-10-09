@@ -33517,3 +33517,20 @@ Campaign sat with the VR rows. `M_Main_GroupStart` now starts the playing group 
 VR Settings], gap, [Select Campaign, Single Player, Multiplayer], gap, the maps... One layout serves the headset's panel
 and the flat screen (text or picture rows). The cursor still starts on row 2, now Select Campaign (the playing group's
 first row; the author's order).
+
+## Window View: both eyes, either eye raw or smoothed (2026-10-09)
+
+Graphics > Recording > Window View said "Left Eye (raw)" while the window showed both eyes: vr_window_view 0 drew
+whatever vr_mirror chose (the shipped vr_mirror 2: both). The window's view is now vr_window_view's alone, and
+vr_mirror only turns the mirror on or off (Body and Display > Desktop Mirror: a toggle; 2 counts as on).
+vr_window_view (window::ViewSetting): 0 Left Eye (raw), 1 Left Eye (smoothed), 2 Spectator Camera (as before), 3 Both
+Eyes (raw), 4 Right Eye (raw), 5 Right Eye (smoothed). The menu lists them in the order Both, Left raw, Left smoothed,
+Right raw, Right smoothed, Spectator. The smoothed right eye is the smoothed mirror of the right eye's image: its
+steadied head follows that eye's own orientation (canted lenses), its crop that eye's field of view and hidden area;
+the filter starts afresh when the eye changes. The spectator camera still follows the left eye's orientation, as before.
+
+Config version 112: a config with vr_mirror 2 (or more) takes vr_mirror 1, and with it vr_window_view 0 becomes 3
+(Both Eyes: what it showed); 1 and 2 keep their meaning; vr_mirror 0 is untouched. vr_defaults.cfg: vr_mirror 1. The
+teleporter tests' `vr_mirror 2;vr_window_view 0` are `vr_mirror 1;vr_window_view 3`; INSTALL.md and TESTING.md say
+`vr_window_view 3` for both eyes. Checked (e1m1, mock headset): the same view twice is identical (diff 0), the left and
+the right eye differ (raw 2.75, smoothed 2.63 mean abs per channel: the eyes' parallax).

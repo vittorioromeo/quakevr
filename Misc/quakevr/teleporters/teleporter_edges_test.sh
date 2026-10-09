@@ -103,7 +103,7 @@ fi
 if want cull; then
     for sp in 1 0; do
         SPAWN="vr_test_spawn 101;vr_test_spawn_dist 76;impulse 241"; [ $sp = 0 ] && SPAWN="wait1"
-        bash $KIT/run.sh $AGENT -Clean -Out "teleporter_cull_$sp.png" -Script "vr_forcegrabbable_box_scale 1;map vrteleporters;wait60;god;notarget;setpos -1280 690 24 0 90 0;wait5;noclip 0;$SPAWN;wait60;setpos -1040 1408 24 0 0 0;wait5;noclip 0;vr_mirror 2;vr_window_view 0;vr_mock_look 10 0;wait20;screenshot;wait5;toggleconsole;quit" > /dev/null
+        bash $KIT/run.sh $AGENT -Clean -Out "teleporter_cull_$sp.png" -Script "vr_forcegrabbable_box_scale 1;map vrteleporters;wait60;god;notarget;setpos -1280 690 24 0 90 0;wait5;noclip 0;$SPAWN;wait60;setpos -1040 1408 24 0 0 0;wait5;noclip 0;vr_mirror 1;vr_window_view 3;vr_mock_look 10 0;wait20;screenshot;wait5;toggleconsole;quit" > /dev/null
     done
     "$PY" - "$TREE/scratch" <<'PYEOF'
 import sys
@@ -125,7 +125,7 @@ if want particles; then
         set -- $c
         for sp in 1 0; do
             P="vr_particle_test 2 400"; [ $sp = 0 ] && P="wait1"
-            bash $KIT/run.sh $AGENT -Clean -Out "teleporter_particles_$sp.png" -Script "map start;wait90;god;notarget;noclip;vr_portals $1;vr_teleporter_surface_opacity $2;setpos 1040 1700 -330 0 270 0;wait5;$P;setpos 1040 1830 -330 0 270 0;vr_mock_look 0 270;vr_mirror 2;vr_window_view 0;wait3;screenshot;wait5;toggleconsole;quit" > /dev/null
+            bash $KIT/run.sh $AGENT -Clean -Out "teleporter_particles_$sp.png" -Script "map start;wait90;god;notarget;noclip;vr_portals $1;vr_teleporter_surface_opacity $2;setpos 1040 1700 -330 0 270 0;wait5;$P;setpos 1040 1830 -330 0 270 0;vr_mock_look 0 270;vr_mirror 1;vr_window_view 3;wait3;screenshot;wait5;toggleconsole;quit" > /dev/null
         done
         "$PY" - "$TREE/scratch" "$1" <<'PYEOF'
 import sys
@@ -182,7 +182,7 @@ if want quake; then
     for at in 1650 1830; do
         for sp in 1 0; do
             P="vr_particle_test quake"; [ $sp = 0 ] && P="wait1"
-            bash $KIT/run.sh $AGENT -Clean -Out "teleporter_quakefx_$sp.png" -Script "map start;wait90;god;notarget;noclip;vr_particles 0;vr_teleporter_surface_opacity 0.3;setpos 1040 $at -330 0 270 0;wait5;$P;setpos 1040 1830 -330 0 270 0;vr_mock_look 0 270;vr_mirror 2;vr_window_view 0;wait3;screenshot;wait5;toggleconsole;quit" > /dev/null
+            bash $KIT/run.sh $AGENT -Clean -Out "teleporter_quakefx_$sp.png" -Script "map start;wait90;god;notarget;noclip;vr_particles 0;vr_teleporter_surface_opacity 0.3;setpos 1040 $at -330 0 270 0;wait5;$P;setpos 1040 1830 -330 0 270 0;vr_mock_look 0 270;vr_mirror 1;vr_window_view 3;wait3;screenshot;wait5;toggleconsole;quit" > /dev/null
         done
         "$PY" - "$TREE/scratch" "$at" <<'PYEOF'
 import sys

@@ -473,7 +473,7 @@ extern "C" void VR_End2D(void (*windowHud)())
     // Not over the smoothed mirror or the spectator camera (vr_window.cpp), for recording: the window shows the HUD and
     // the menus as the headset does, in the world; the console still, while it is down.
     const bool recording = stereoThisFrame && (view == window::View::Smoothed || view == window::View::Spectator);
-    // Nor, in game, over the Left Eye view with vr_mirror_hide_hud_text: in game the canvas holds only the head-locked
+    // Nor, in game, over an eye's raw view with vr_mirror_hide_hud_text: in game the canvas holds only the head-locked
     // text (centre prints, notify lines), which the mirrored eye leaves out too (vr_stereo.cpp).
     const bool headTextHidden = stereoThisFrame && view == window::View::Raw && vr_mirror_hide_hud_text.value != 0.f &&
                                 !panelVisible();

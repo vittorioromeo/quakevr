@@ -8,7 +8,8 @@
 // smooth turn, a teleport or the body's walk carry it exactly with the eyes: only the head's own motion is steadied.
 // A jump of the tracking (a recentre) starts them afresh. vr_window_level takes out that much of the roll.
 //
-// The smoothed mirror turns the left eye's image, which is a pinhole view, to the steadied orientation: a pure turn is
+// The smoothed mirror turns the shown eye's image (the left or the right), which is a pinhole view, to the steadied
+// orientation: a pure turn is
 // a homography, so the window's pixels map exactly into the eye's image (vr_stereo.cpp's window shader). The window
 // shows a crop of the window's aspect ratio centred on the eye's forward axis, vr_window_zoom times narrower than the
 // widest that fits, and the steadied view is kept within the image: when it would show past the edges (or into the
@@ -39,6 +40,7 @@ namespace
 {
 
 View currentView = View::Raw;
+int currentEye = 0; // the eye shown (eye()): 0, 1, -1 both
 
 // OpenXR tracking space (+x right, +y up, -z forward) to Quake axes (+x forward, +y left, +z up).
 [[nodiscard]] glm::vec3 quakeFromTracking(const glm::vec3& v)
@@ -92,6 +94,7 @@ struct Filter
     glm::mat3 worldTurn{1.f}; // tracking space's Quake axes to the world's (the eyes' turn: a yaw)
     glm::vec3 worldHead{0.f};
     glm::vec3 headAngles{0.f}; // the eye's world angles
+    int eye = 0;               // the eye it follows (the smoothed mirror's; the spectator camera's the left)
 };
 Filter filter;
 Camera camera;
@@ -185,6 +188,11 @@ View view()
     return currentView;
 }
 
+int eye()
+{
+    return currentEye;
+}
+
 float spectatorScale()
 {
     return za::clamp(vr_spectator_scale.value, 0.25f, 2.f);
@@ -198,18 +206,31 @@ void update(const FrameState& frame, const hands::State& s)
     }
     else
     {
-        const int mode = static_cast<int>(vr_window_view.value);
-        currentView = mode == 1 ? View::Smoothed : mode == 2 ? View::Spectator : View::Raw;
+        switch(static_cast<ViewSetting>(static_cast<int>(vr_window_view.value)))
+        {
+        case ViewSetting::LeftSmoothed: currentView = View::Smoothed; currentEye = 0; break;
+        case ViewSetting::RightSmoothed: currentView = View::Smoothed; currentEye = 1; break;
+        case ViewSetting::Spectator: currentView = View::Spectator; currentEye = 0; break;
+        case ViewSetting::BothRaw: currentView = View::Raw; currentEye = -1; break;
+        case ViewSetting::RightRaw: currentView = View::Raw; currentEye = 1; break;
+        default: currentView = View::Raw; currentEye = 0; break; // LeftRaw (and any other value)
+        }
     }
 
-    const glm::quat head = quakeTurn(frame.eyes[0].pose.orientation);
+    // The steadied head follows the shown eye (its own orientation: canted lenses turn the eyes apart).
+    const int e = currentView == View::Smoothed ? currentEye : 0;
+    const glm::quat head = quakeTurn(frame.eyes[e].pose.orientation);
     const glm::vec3 position = 0.5f * (frame.eyes[0].pose.position + frame.eyes[1].pose.position);
-    filter.headAngles = s.eyeAngles[0];
-    filter.worldTurn = basisOf(s.eyeAngles[0]) * glm::transpose(glm::mat3_cast(head));
+    filter.headAngles = s.eyeAngles[e];
+    filter.worldTurn = basisOf(s.eyeAngles[e]) * glm::transpose(glm::mat3_cast(head));
     filter.worldHead = 0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]);
+    if((currentView != View::Smoothed && currentView != View::Spectator) || filter.eye != e)
+    {
+        filter.valid = false; // (afresh on another eye)
+        filter.eye = e;
+    }
     if(currentView != View::Smoothed && currentView != View::Spectator)
     {
-        filter.valid = false;
         return;
     }
 
