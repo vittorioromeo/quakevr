@@ -100,7 +100,6 @@ vr_shock.qc
 // Debug > Cheats and Recording: the powerups, infinite ammunition, the scene's cleanups (after what they remove).
 vr_cheats.qc
 vr_smallgibs_test.qc
-vr_marksman_test.qc
 vr_dropcap_test.qc
 vr_crouch_test.qc
 world.qc
@@ -195,7 +194,6 @@ honey_client.qc
 honey_defs.qc
 honey_endcam.qc
 honey_fight.qc
-honey_fog_debug.qc
 honey_fog.qc
 honey_items.qc
 honey_misc.qc
@@ -214,7 +212,6 @@ honey_mon_tarbaby.qc
 honey_mon_wizard.qc
 honey_mon_zombie.qc
 honey_monsters.qc
-honey_sknight_debug.qc
 honey_sknight_tbl.qc
 honey_sknight.qc
 honey_subs.qc

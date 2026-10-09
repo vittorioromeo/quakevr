@@ -2,7 +2,7 @@
 
 
 //This is a terrible hack
-//See sknight_debug.qc: D_SK_printspears();
+//Made by Honey's sknight_debug.qc (D_SK_printspears), not ported (Quake VR: TECHDEBT_2026-10-09 item 7).
 
 void() sknight_spearpos_init =
 {

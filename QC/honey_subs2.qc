@@ -1,6 +1,5 @@
 
 
-void(entity t) D_SK_debugSpline;
 
 //Does a shitty modulo operation.
 float(float v, float m) mod =
@@ -668,12 +667,6 @@ void(vector tdest, vector tangle, float ttime, float cpOffset, void() func) SUB_
     SUB_CalcMoveSplineTick_norotate();
 }
 
-//USE CAREFULLY, SPAWNS LOTS OF ENTITIES!
-void(vector tdest, vector tangle, float ttime, float cpOffset, vector aOffset, void() func) SUB_CalcMoveSplineDEBUG =
-{
-    SUB_CalcMoveSpline(tdest,tangle,ttime,cpOffset,aOffset,func);
-    D_SK_debugSpline(self);
-}
 
 vector() InterpolatePoint;
 vector() InterpolateAngle;
