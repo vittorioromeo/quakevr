@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's sacrifices (MG3_PLAN.md M3-20), adapted from quakec_mg3/monsters/mg3_sacrifice.qc and
+// Dawn of the Machine's sacrifices (MG3.md M3-20), adapted from quakec_mg3/monsters/mg3_sacrifice.qc and
 // mg3_sacrifice_triggers.qc: misc_sacrifice (a hanging victim, gibbed when used or killed: its targets fired) and the
 // trigger_sacrifice_counter its relays count (map8: 8 victims fire the rune's trigger), with trigger_check_sacrifices
 // (says how many are left when touched). Their models are read in place from the owned pack (owned/mg3/), any campaign.

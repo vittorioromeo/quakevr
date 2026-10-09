@@ -1,5 +1,5 @@
 #!/bin/bash
-# reload_test.sh <agent> -- immersive reloading, phases 1, 2 and 2b (docs/vr-port/RELOAD_PLAN.md; QC vr_reload.qc), headless:
+# reload_test.sh <agent> -- immersive reloading, phases 1, 2 and 2b (docs/vr-port/RELOAD.md; QC vr_reload.qc), headless:
 #   1. the QC self-test (vr_reload_test 9; impulse 125): takes, loads until full, the full gun refusing, put back,
 #      dropped (lying about, force grabbable), taken again, the taped pair (two in, one in with one place left), the empty
 #      pouch, nothing for a gun that doesn't load by hand, the magazines (out, taken, seated, part-used refunded, a short

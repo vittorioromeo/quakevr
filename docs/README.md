@@ -61,15 +61,15 @@ happens; the durable parts belong in a guide or topic note.
 |---|---|
 | [vr-port/PLAN.md](vr-port/PLAN.md) | The original port plan from Quake VR (QuakeSpasm-Spiked) to Ironwail: principles, decisions, phases. Its [inventory/](vr-port/inventory/) lists the old engine's changes per subsystem |
 | [vr-port/EXPANSIONS.md](vr-port/EXPANSIONS.md) | The official expansions (Dimension of the Past, Dimension of the Machine, Dawn of the Machine): audit and port status |
-| [vr-port/MG3_PLAN.md](vr-port/MG3_PLAN.md) | Dawn of the Machine (MG3): the native port plan and the author's decisions |
+| [vr-port/MG3.md](vr-port/MG3.md) | Dawn of the Machine (MG3): the native port plan and the author's decisions |
 | [vr-port/OFFICIAL_QC_SOURCE.md](vr-port/OFFICIAL_QC_SOURCE.md) | Where the official expansions' QuakeC comes from |
 | [vr-port/RELEASE_TODO.md](vr-port/RELEASE_TODO.md) | Before the first release: the author's short to-do list |
 | [vr-port/RELEASING.md](vr-port/RELEASING.md) | Making and publishing a release: `Misc/release/make_release.ps1`, step by step, and the `latest.json` upload |
 | [vr-port/INSTALLER.md](vr-port/INSTALLER.md) | Installer design, research and the author's decisions; section 13 is the app's phase 1 |
 | [vr-port/MENU_REVIEW.md](vr-port/MENU_REVIEW.md) | The menu and settings review and proposal (2026-10-03) |
 | [vr-port/TEMPORAL.md](vr-port/TEMPORAL.md) | Temporal anti-aliasing and upscaling (TAA, DLSS, FSR): scope and design |
-| [vr-port/RELOAD_PLAN.md](vr-port/RELOAD_PLAN.md) | Immersive manual reloading: the plan (phases done 2026-10-07/08) |
-| [vr-port/STEALTH_PLAN.md](vr-port/STEALTH_PLAN.md) | Stealth AI (idle, alert, hostile): the plan and its limits |
+| [vr-port/RELOAD.md](vr-port/RELOAD.md) | Immersive manual reloading: the plan (phases done 2026-10-07/08) |
+| [vr-port/STEALTH.md](vr-port/STEALTH.md) | Stealth AI (idle, alert, hostile): the plan and its limits |
 | [vr-port/PERF_DECISIONS.md](vr-port/PERF_DECISIONS.md) | Performance decisions from the 2026-10-08 profiling run: trade-offs for the author |
 | [vr-port/PICKUP_THINKS.md](vr-port/PICKUP_THINKS.md) | Making idle pickups cheaper (research) |
 | [vr-port/PORTING.md](vr-port/PORTING.md) | Porting the VR module to another engine (vkQuake) |

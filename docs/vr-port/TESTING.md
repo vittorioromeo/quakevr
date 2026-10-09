@@ -1016,7 +1016,7 @@ Parry Stops Attacks off to compare. Do not tune or replay archived melee takes f
 
 ## Immersive reloading (2026-10-07)
 
-`bash Misc/quakevr/reload/reload_test.sh <agent>` (RELOAD_PLAN.md; ROUND21.md, "Immersive manual reloading"): the QC
+`bash Misc/quakevr/reload/reload_test.sh <agent>` (RELOAD.md; ROUND21.md, "Immersive manual reloading"): the QC
 self-test (`vr_reload_test 9; impulse 125`: `reload: PASS|FAIL ...`, `reload: N passed, M failed`), then by the mock
 hands: `impulse 154; vr_test_weaponinst 7; impulse 120` (the shotgun into the off hand), `vr_mock_hand_to main
 ammopouch` (the ammo pouch's reach point; `vr_dumpview` prints `ammo pouch at ...`), `+grabmain; vr_mock_button main
@@ -1096,7 +1096,7 @@ then `-15`: from below), B/Y (`vr_mock_button off secondary 1`), the flick's spe
 recoloured hue against the painted orange-red; the shotgun's pump parts held back by `vr_autopump_hold 0.4`). Section 8:
 `vr_debug_collect_fx 1` prints a shell's slide into the gun (`collect fx: in gun N t ..., off its port: <model space>,
 world <world>`).
-Stealth AI (ROUND21.md, "Stealth AI"; docs/vr-port/STEALTH_PLAN.md): `map e1m1; god; vr_test_spawn 0; vr_test_spawn_dist 150;
+Stealth AI (ROUND21.md, "Stealth AI"; docs/vr-port/STEALTH.md): `map e1m1; god; vr_test_spawn 0; vr_test_spawn_dist 150;
 impulse 241; wait20; vr_stealth_test 1` runs 14 scenes on the grunt (`stealthtest: <name> PASS|FAIL` lines, about 90 s
 of game time); `vr_stealth_test 2` a crate knocked behind it, `32` the flashlight (`vr_flashlight_clip_head right;
 vr_flashlight_toggle; vr_mock_look 12 0` first), `22` your speed, light and crouch, `26` the map's light histogram.

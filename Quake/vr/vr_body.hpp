@@ -67,7 +67,7 @@ using HolsterPlates = za::Array<HolsterPlate, HolsterCount>;
 [[nodiscard]] float pouchReach(); // world units (vr_grenade_pouch_thresh)
 
 // The ammo pouch (immersive reloading, vr_reload_mode 3 with Weapon Mode Immersive; vr_ammo_pouch_*;
-// docs/vr-port/RELOAD_PLAN.md): on the front of the belt between the hip holsters, placed as they are (carried by the
+// docs/vr-port/RELOAD.md): on the front of the belt between the hip holsters, placed as they are (carried by the
 // pelvis, on the belly's ring with the body drawn), where a hand reaches for it, and (`plate`) the body's surface there.
 [[nodiscard]] bool ammoPouchEnabled();
 [[nodiscard]] glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate = nullptr);

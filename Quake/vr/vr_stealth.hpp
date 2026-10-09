@@ -1,5 +1,5 @@
 #pragma once
-// vr_stealth.hpp -- the monsters' senses' engine side (QC vr_stealth.qc; docs/vr-port/STEALTH_PLAN.md): the light at a
+// vr_stealth.hpp -- the monsters' senses' engine side (QC vr_stealth.qc; docs/vr-port/STEALTH.md): the light at a
 // point and on each player, each player's flashlight beam, as QC builtins; the client's own measurement for its move.
 
 #include <glm/vec3.hpp>

@@ -17,7 +17,7 @@
     See file, 'COPYING', for details.
 */
 
-// Dawn of the Machine's capacity upgrades (MG3_PLAN.md, M3-04), adapted from the snapshot's mg3_upgrades.qc
+// Dawn of the Machine's capacity upgrades (MG3.md, M3-04), adapted from the snapshot's mg3_upgrades.qc
 // (docs/vr-port/OFFICIAL_QC_SOURCE.md). One per kind per map: taking one the first time sets the map's bit in that
 // kind's mask (vr_mg3_defs.qc: kept through changelevel, saves and deaths), raises the capacity by 10 and fills it;
 // taking it again on a later visit only says so. Physical: a hand takes it to a holster, like a key or a rune

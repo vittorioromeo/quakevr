@@ -949,7 +949,7 @@ positions seen; the Machine ending/credits menu read in the headset.
 
 ## Dawn of the Machine foundation (mg3a, 2026-10-06)
 
-Phase A of [MG3_PLAN.md](MG3_PLAN.md) (M3-01..04); MG3 stays gated (`nativeReady` false), tests use
+Phase A of [MG3.md](MG3.md) (M3-01..04); MG3 stays gated (`nativeReady` false), tests use
 `vr_campaign_native mg3` with `-nomapindex`. `Misc/quakevr/check_mg3_entities.py` reports the owned MG3 PAK's
 missing classnames/keys read-only (after M3-04: 42 classes, 1,328 placements; 10 unknown keys). Upstream's
 parm10..15 (upgrade masks, bloody weapons) live in the new extended parms 51..56 (engine slots 17..56), never in VR's
@@ -960,11 +960,11 @@ and fills, a revisit's says so only (faded). Tests: Debug > Tests > Dawn of the 
 report, 2 seed masks, 3 add a bit, 4 capacity check in any campaign, 5 take this map's upgrades). Measurements:
 ROUND21.md, "Dawn of the Machine (MG3): foundation". The six MG3 decisions (plan section 4) were unanswered when these
 tasks were built, so they use the defaults (official base health 50 and caps); Vittorio has since answered them
-(MG3_PLAN.md, "Decisions (Vittorio, 2026-10-06)").
+(MG3.md, "Decisions (Vittorio, 2026-10-06)").
 
 ## Dawn of the Machine world and progression (mg3b, 2026-10-07)
 
-Phase B of [MG3_PLAN.md](MG3_PLAN.md) (M3-05..10). Measurements: ROUND21.md, "Dawn of the Machine (MG3): world and
+Phase B of [MG3.md](MG3.md) (M3-05..10). Measurements: ROUND21.md, "Dawn of the Machine (MG3): world and
 progression". Map triggers (`QC/vr_mg3_triggers.qc`): `trigger_always`, `trigger_door_relay`,
 `trigger_teleport_silent` (VR: carried things come along), `trigger_multitouch`, `trigger_explosion_repeater`,
 `trigger_music`, `trigger_heal`, and upstream's unplaced `trigger_doorgroup_relay`, `trigger_quad`,
@@ -989,7 +989,7 @@ Endings: `MG3_BossEnding` (Chthon: finale then credits, or Bloody Nightmare's ne
 ("Dawn of the Machine") cover campaign 5. Tests 21-22.
 ## Dawn of the Machine weapons (mg3c, 2026-10-07)
 
-Phase C of [MG3_PLAN.md](MG3_PLAN.md). **Owned files read in place:** `owned/<folder>/<path>` names a file of a
+Phase C of [MG3.md](MG3.md). **Owned files read in place:** `owned/<folder>/<path>` names a file of a
 discovered Dopa/MG1/MG3 folder (loose, else its highest pak), whatever campaign is active, without mounting it
 (`vr_gamedir.cpp` `VR_OwnedFile`, first in `COM_FindFile`; nothing copied or written). It is how an expansion's own
 assets reach other campaigns (the agglomeration principle) and how a pack file shadowed by Quake VR's own is still
@@ -1007,7 +1007,7 @@ of the Machine (MG3): weapons".
 
 ## Dawn of the Machine monsters (mg3d, 2026-10-07)
 
-Phase D of [MG3_PLAN.md](MG3_PLAN.md), decision 5: its monsters wherever its data is (Debug > Tests > Ahead of You,
+Phase D of [MG3.md](MG3.md), decision 5: its monsters wherever its data is (Debug > Tests > Ahead of You,
 Thing 30..), with Quake VR's treatment. **Infected** (M3-15: `monster_army/knight/enforcer/hell_knight_infected`,
 stock models, any campaign): killed once, they burst and get up as a zombie or a fiend (a real model change: the new
 body's rig, hit zones, gore and knockdown), counted once; death knights placed as corpses lie until woken, then rise.
@@ -1032,7 +1032,7 @@ Measurements: ROUND21.md, "Dawn of the Machine (MG3): the Shub finale".
 
 ## Dawn of the Machine route sweep (M3-29, 2026-10-08)
 
-Phase E of [MG3_PLAN.md](MG3_PLAN.md). `bash Misc/quakevr/mg3_route_test.sh <agent> [main] [bn] [exits]` reproduces
+Phase E of [MG3.md](MG3.md). `bash Misc/quakevr/mg3_route_test.sh <agent> [main] [bn] [exits]` reproduces
 the whole campaign headless on the owned rerelease data (`vr_campaign_native mg3`, `-nomapindex -noaddons`, skill 1;
 steps and checks in `mg3_route_test.py`, the game side in `QC/vr_mg3_test.qc` requests 31..38 and 100+ and the shared
 route driver of `QC/vr_mg_hub_test.qc`). As in MG1's sweep, each exit is the map's real `trigger_changelevel`: the
@@ -1055,7 +1055,7 @@ text appeared, and that script's waits held the next press in the command buffer
 credits in a sweep (MG1's checked only its own echo): it now queues after the credits' commands. Upstream data left as
 is: secret4/dm1 `func_bob` `dest "16-32 0"` reads as `16 0 0` (as id's parser does), map7/secret1 lack a few textures
 in the BSP. Not covered: skills 0, 2, 3 of the normal game (one argument away: `SKILL` in the script), co-op, and
-everything that needs a headset (MG3_PLAN.md M3-30).
+everything that needs a headset (MG3.md M3-30).
 
 **Readiness (M3-30, 2026-10-08):** MG3 `nativeReady` is true (vr_gamedir.cpp, its own commit; revert it to undo):
 ordinary selection (Official Campaigns, `vr_campaign_select mg3`, a save of it) starts it, and the Bloody Nightmare row

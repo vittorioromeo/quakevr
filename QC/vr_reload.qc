@@ -2,7 +2,7 @@
 //
 //
 // ----------------------------------------------------------------------------
-// Immersive reloading (vr_reload_mode 3; docs/vr-port/RELOAD_PLAN.md)
+// Immersive reloading (vr_reload_mode 3; docs/vr-port/RELOAD.md)
 // ----------------------------------------------------------------------------
 //
 // The guns that load by hand (VR_Reload_ManualFor: the shotgun so far) take their rounds from the ammo pouch on the front

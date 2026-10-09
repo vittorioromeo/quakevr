@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's lava man (MG3_PLAN.md M3-21), adapted from quakec_mg3/monsters/mg3_lavaman.qc ("pulled directly
+// Dawn of the Machine's lava man (MG3.md M3-21), adapted from quakec_mg3/monsters/mg3_lavaman.qc ("pulled directly
 // from rogue, and then a few tweaks") and its combat.qc rule: Rogue's lava man (rogue_lavaman.qc) with .mg3_lavaman's
 // branches. It stays at the lava's surface (it flies: no drop to the floor), rises with a splash in the lava below it when
 // its trigger fires (a map's one with a targetname; else at once), stands as it throws its two lava balls (from lower

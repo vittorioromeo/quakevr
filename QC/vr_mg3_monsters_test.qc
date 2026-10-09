@@ -1,5 +1,5 @@
 // Dawn of the Machine monsters' tests (vr_mg3_mtest N, developer 1; Debug > Tests > Dawn of the Machine Monsters):
-// docs/vr-port/MG3_PLAN.md M3-15..18, docs/vr-port/TESTING.md. Prints "mg3mtest: PASS/FAIL <what>" and a total.
+// docs/vr-port/MG3.md M3-15..18, docs/vr-port/TESTING.md. Prints "mg3mtest: PASS/FAIL <what>" and a total.
 //   1 report: the data, the map's Dawn of the Machine monsters by kind, the kills
 //   2 the infected (any campaign): a grunt, a knight, an enforcer and a death knight ahead, each killed: burst into a
 //     zombie or a fiend (its model, class, health, box), not counted; then each killed again (gibbed): counted once

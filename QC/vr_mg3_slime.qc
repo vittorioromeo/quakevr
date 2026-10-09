@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's slime (monster_slime; MG3_PLAN.md M3-20), adapted from quakec_mg3/monsters/tarbaby.qc: a spawn
+// Dawn of the Machine's slime (monster_slime; MG3.md M3-20), adapted from quakec_mg3/monsters/tarbaby.qc: a spawn
 // (classname monster_tarbaby, Quake's model and skin 0, no mitosis) that, blowing up, throws two or three blobs (the
 // vore's ball model) that become spawns where they land, which do the same once more: two generations of children (up
 // to 3 + 9). A blob that lands on something alive blows up there instead (120, radius); a child that starts in a wall

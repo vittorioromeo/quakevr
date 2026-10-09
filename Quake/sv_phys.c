@@ -510,7 +510,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 	// if the entity is standing on the pusher, it will definately be moved
 		// QVR: or a player hanging from it (vr_climb: only a client hangs; VR_ClimbHangsFrom is 0 for the rest). Its
 		// box tested before Box3D's skip (both only read): most of a big map's entities are nowhere near the pusher
-		// (MG3_PLAN.md M3-28: secret2's movers walk 1800 entities each), the same ones moved or skipped as before.
+		// (MG3.md M3-28: secret2's movers walk 1800 entities each), the same ones moved or skipped as before.
 		hanging = e <= svs.maxclients ? VR_ClimbHangsFrom (check, pusher) : 0;
 		riding = (((int)check->v.flags & FL_ONGROUND) && PROG_TO_EDICT(check->v.groundentity) == pusher) || hanging;
 		if (!riding)

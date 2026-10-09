@@ -1,4 +1,4 @@
-// vr_ai_props.qc -- monsters round the physics props in their way (vr_ai_props; docs/vr-port/STEALTH_PLAN.md, "Props
+// vr_ai_props.qc -- monsters round the physics props in their way (vr_ai_props; docs/vr-port/STEALTH.md, "Props
 // in the way"). Quake's movetogoal steps straight at its goal and, blocked, tries a few other ways at random: a crate or
 // a barrel (a solid prop: SOLID_BBOX, Box3D's) between a monster and the player held it there, stepping in place. Now a
 // monster whose step is blocked by a solid prop pushes it (by its own weight against the prop's: Box3D moves a light

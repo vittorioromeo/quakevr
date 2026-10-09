@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's map triggers (MG3_PLAN.md, M3-05/M3-06), adapted from the snapshot's mg3_triggers.qc and
+// Dawn of the Machine's map triggers (MG3.md, M3-05/M3-06), adapted from the snapshot's mg3_triggers.qc and
 // triggers.qc (docs/vr-port/OFFICIAL_QC_SOURCE.md). Classnames and mapper keys keep their authored names; helpers
 // are MG3_-prefixed. None needs MG3's data, so every map may use them (the agglomeration principle: an official
 // expansion's entities work in any campaign); only the spawnflags 32768 (coop only) and 131072 (not in coop) are
@@ -457,7 +457,7 @@ void() trigger_bloodynightmare_relay = {
 };
 
 // ----------------------------------------------------------------------------
-// Endings (MG3_PLAN.md M3-10; upstream boss_final.qc boss_end, mg3_oldone_new.qc oldnew_credits). The finales'
+// Endings (MG3.md M3-10; upstream boss_final.qc boss_end, mg3_oldone_new.qc oldnew_credits). The finales'
 // monsters (monster_boss_final, monster_oldone_new: M3-24..27) call these when beaten.
 // Chthon beaten (8 s after his death): the finale text, then the credits (next map "start"); in a Bloody Nightmare
 // game its new game instead: map1 with runes cleared, ACTIVE|DISCOVERED|NEWGAME, the capacity upgrades gone and the

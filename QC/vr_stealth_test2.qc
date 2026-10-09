@@ -1,5 +1,5 @@
 // vr_stealth_test2.qc -- the stealth AI's further scenes (`vr_stealth_test <n>` for n 100 and up; vr_stealth_test.qc
-// starts them; docs/vr-port/STEALTH_PLAN.md, "Tests"; Misc/quakevr/stealth_tests.sh runs them). They put their own
+// starts them; docs/vr-port/STEALTH.md, "Tests"; Misc/quakevr/stealth_tests.sh runs them). They put their own
 // monsters down (the firing range dispenser's) and take them away after, each printing `stealthtest: <name> PASS|FAIL`.
 //   100 a real shot (the script pulls the trigger): each weapon heard by its loudness, walls absorbing it;
 //   101 explosions by their size, walls absorbing them;

@@ -1,5 +1,5 @@
 // vr_stealth_test4.qc -- the stealth AI's round of the author's notes of 2026-10-08 (`vr_stealth_test 120`-`129`;
-// Misc/quakevr/stealth_tests.sh seethrough|fence|chase|props; docs/vr-port/STEALTH_PLAN.md, "Tests"). Each scene prints
+// Misc/quakevr/stealth_tests.sh seethrough|fence|chase|props; docs/vr-port/STEALTH.md, "Tests"). Each scene prints
 // `stealthtest: <name> PASS|FAIL`:
 //   120 a see-through wall (e1m1's door *10 or *29 put between a lit player and a grunt 300 units away): opaque, the grunt
 //       doesn't see him nor hear a knock at his feet; with alpha 0.5 it sees him (its meter fills) and hears the knock;

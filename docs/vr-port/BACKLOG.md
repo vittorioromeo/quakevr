@@ -71,7 +71,28 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   carried, the spin left to the engine), and where thinking resolution would be lost (engine-side knocks, unless the
   engine wakes the pickup). Small absolute gain (QuakeC is ~0.07 ms a frame): review, then decide.
 
-
 ### To sort (the author's notes)
 
 - KoFi links in installer, see CircuitLord's TF2 as an example
+
+## Left open by finished plans (2026-10-09)
+
+### Stealth AI: limits (STEALTH.md; open since it was built, 2026-10-08)
+
+- The meter is one per monster, on the most suspicious player in its sight (not a meter per player: the dark player's
+  own suspicion isn't kept while the lit one holds it).
+- A client's light and lamp are his own client's word (sent in his VR move): a modified client could send "dark".
+- Alert monsters walk with Quake's movetogoal (no path finding): a point across a gap or up a ledge ends their walk when
+  stuck (3 s without headway), then they search where they are.
+- Quake's own relay stays: an idle monster that sees another turn Hostile (FoundTarget's `sight_entity`, a tenth of a
+  second) turns Hostile at its enemy too, whatever the light on him (as `vr_stealth_share_*`, but with Quake's sight
+  ranges).
+
+### Magazines sliding home (RELOAD.md; noted, not done, 2026-10-08)
+
+A magazine seated at its well drawn sliding the last bit home: a short seat slide, as the shells' slide
+into the guns (vr_collectfx.cpp's "into the gun" variant, its path the well's axis).
+
+### Dawn of the Machine: co-op and dm1 (MG3.md, decision 6, 2026-10-06)
+
+MG3 ships single-player first (`soloOnly` 5, as Dopa); its co-op and its deathmatch map (dm1) are for later.

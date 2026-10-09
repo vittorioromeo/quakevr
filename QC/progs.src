@@ -228,7 +228,7 @@ vr_mg3_demodog.qc
 vr_mg3_rknight.qc
 vr_mg3_monsters_test.qc
 
-// Dawn of the Machine's monsters (MG3_PLAN.md M3-19..23; read in place from the owned pack, in any campaign).
+// Dawn of the Machine's monsters (MG3.md M3-19..23; read in place from the owned pack, in any campaign).
 vr_mg3_orb.qc
 vr_mg3_ghost.qc
 vr_mg3_sacrifice.qc

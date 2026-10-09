@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's infected (MG3_PLAN.md, M3-15), adapted from the snapshot's monsters/mg3_infected_generic.qc,
+// Dawn of the Machine's infected (MG3.md, M3-15), adapted from the snapshot's monsters/mg3_infected_generic.qc,
 // mg3_soldier_infected.qc, mg3_knight_infected.qc, mg3_enforcer_infected.qc, mg3_hknight_infected.qc and combat.qc
 // (docs/vr-port/OFFICIAL_QC_SOURCE.md). Stock models only, so they are there in any campaign (the agglomeration
 // principle: Debug > Tests > Ahead of You, 30..33).

@@ -791,7 +791,7 @@ def grenade_pin():
     return finish(out, 0.8)
 
 
-# ---- Immersive reloading (QC vr_reload.qc; docs/vr-port/RELOAD_PLAN.md) --------------------------------------------
+# ---- Immersive reloading (QC vr_reload.qc; docs/vr-port/RELOAD.md) --------------------------------------------
 
 
 def reload_pouch():

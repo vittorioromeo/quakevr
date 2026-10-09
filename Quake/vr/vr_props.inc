@@ -297,7 +297,7 @@ QVR_PROP_DEFAULT(30, Mass, "0.15")
 QVR_PROP_DEFAULT(31, ID, "progs/vr_plank4.mdl")
 QVR_PROP_DEFAULT(31, GripMode, "2")
 QVR_PROP_DEFAULT(31, Mass, "3")
-// Immersive reloading's rounds (QC vr_reload.qc; docs/vr-port/RELOAD_PLAN.md): a shotgun shell from the ammo pouch, and
+// Immersive reloading's rounds (QC vr_reload.qc; docs/vr-port/RELOAD.md): a shotgun shell from the ammo pouch, and
 // the taped pair (vr_reload_shell_pairs). Drawn at the spent shells' 1.25 (vr_shells.cpp, the guns' own oversize), light,
 // in one hand. Held fixed at the fingertips as for loading (Grip Mode 1: along the index finger, its brass end in the
 // fingers, its crimp forward), pinched by the thumb, the index and the middle finger, the ring finger and the pinky

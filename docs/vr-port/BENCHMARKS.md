@@ -407,7 +407,7 @@ A/B is in its message (`perf3_cast_*`, `perf3_touch_*`, `perf3_text_*`, `perf3_e
 
 ### Dawn of the Machine (MG3 M3-28, 2026-10-08)
 
-MG3_PLAN.md M3-28: the three heaviest Dawn of the Machine maps (BSP 12.8, 14.8 and 35.1 MB) with their full monster
+MG3.md M3-28: the three heaviest Dawn of the Machine maps (BSP 12.8, 14.8 and 35.1 MB) with their full monster
 counts (skill 2, the deferred monsters brought in: map1 93 + 14 = 107, map2 120 + 98 = 218, secret2 102 + 64 = 166;
 1070-1800 entities) and the ragdoll cap, group `mg3` (scenarios above; test aid `vr_test_monsters`, Debug > Tests >
 Whole-Map Monsters). The author's settings of 2026-10-06, paced 90 Hz, mock eyes 2048, exclusive, 3 x 900 frames,

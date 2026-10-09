@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's Shub finale II (MG3_PLAN.md M3-27): her shub zombies, adapted from
+// Dawn of the Machine's Shub finale II (MG3.md M3-27): her shub zombies, adapted from
 // quakec_mg3/monsters/mg3_shub_zombie.qc, and boss2's sinking pillars (func_breakable, from mg3_oldone_new.qc).
 //
 // Shub zombies: Shub raises one twice a loop (vr_mg3_shub.qc) at one of the map's info_szombie_spawn (36 on boss2), at

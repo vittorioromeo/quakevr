@@ -17,13 +17,13 @@
     See file, 'COPYING', for details.
 */
 // Dawn of the Machine (MG3, campaign 5): the native port's shared definitions. Helpers are MG3_-prefixed; mapper keys
-// and classnames keep their authored names. Plan and task list: docs/vr-port/MG3_PLAN.md. Source snapshot and
+// and classnames keep their authored names. Plan and task list: docs/vr-port/MG3.md. Source snapshot and
 // license: docs/vr-port/OFFICIAL_QC_SOURCE.md, QC/COPYING-rerelease.txt (quakec_mg3).
 // Gated: vr_gamedir.cpp keeps MG3 nativeReady false (developer path: `vr_campaign_native mg3`).
 float() MG3_Campaign = { return cvar("vr_campaign") == 5; };
 
 // ----------------------------------------------------------------------------
-// Persistent state (MG3_PLAN.md 2.1). Upstream keeps its capacity upgrades (one bit per map) in parm10..14 and its
+// Persistent state (MG3.md 2.1). Upstream keeps its capacity upgrades (one bit per map) in parm10..14 and its
 // bloody weapons in parm15, used live through the level; VR's hands and holsters own those slots, so here the live
 // values are these globals (saved with the game) and the level-start values parm51..56 (defs.qc), which the engine
 // carries through changelevel, keeps for a death's restart and stores in saves like parm17..50. Upstream's
@@ -64,7 +64,7 @@ void() MG3_DecodeParms = {
 };
 
 // ----------------------------------------------------------------------------
-// Capacities (MG3_PLAN.md 2.2; upstream defs.qc BASE_*, GetUpgradeAmount, GetCurrentUpgradedMaxValue). Single player:
+// Capacities (MG3.md 2.2; upstream defs.qc BASE_*, GetUpgradeAmount, GetCurrentUpgradedMaxValue). Single player:
 // these bases and 10 more per map whose upgrade was collected; deathmatch: id1's. VR_MaxAmmo/VR_MaxHealth
 // (vr_ammoutil.qc) ask here for campaign 5 only.
 float MG3_BASE_HEALTH = 50;
@@ -137,7 +137,7 @@ float() MG3_RuneRemoved = {
 };
 
 // ----------------------------------------------------------------------------
-// Bloody Nightmare (MG3_PLAN.md M3-09; upstream client.qc DecodeLevelParms, combat.qc T_Damage, triggers.qc
+// Bloody Nightmare (MG3.md M3-09; upstream client.qc DecodeLevelParms, combat.qc T_Damage, triggers.qc
 // setskill_use). Campaign 5 only: skill 3 with serverflags MG3_SF_BN_ACTIVE.
 float() MG3_BloodyNightmare = { return MG3_Campaign() && (serverflags & MG3_SF_BN_ACTIVE); };
 

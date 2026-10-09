@@ -269,7 +269,7 @@ enum Holster : int
 constexpr int maxWorldWeapons = 48; // (vr_weapon_world_attach_max of them; their range vr_weapon_world_attach_range)
 constexpr int maxWorldSsgs = 4; // super shotguns lying about broken open, drawn open (setupWorldSsgs)
 
-// The guns' loading ports (immersive reloading; docs/vr-port/RELOAD_PLAN.md): where a round held in the other hand goes
+// The guns' loading ports (immersive reloading; docs/vr-port/RELOAD.md): where a round held in the other hand goes
 // in, in the model's space (+x forward, +y left, +z up, frame 0; mirrored with the model in the off hand): the shotgun's
 // under its receiver (polish_weapons.py loading_port: the opening's middle, a little below its frame). Sent to the server
 // with each move (VrMove::loadPort -> .loadportpos, .offloadportpos), which loads a round held within the gun's radius
@@ -5973,7 +5973,7 @@ void setupPumps()
     return false;
 }
 
-// The ammo pouch (immersive reloading, vr_reload_mode 3; docs/vr-port/RELOAD_PLAN.md): vrpouch_ammo.mdl (make_ammo_pouch.py:
+// The ammo pouch (immersive reloading, vr_reload_mode 3; docs/vr-port/RELOAD.md): vrpouch_ammo.mdl (make_ammo_pouch.py:
 // as vrpouch.mdl, +x out of the body, its back at the origin) on the front of the belt between the hip holsters, facing
 // the belly's surface there (straight forward without the body), turned by vr_ammo_pouch_pitch/yaw/roll about where the
 // hand reaches for it, scaled by vr_ammo_pouch_scale about its back. Its frame shows what it gives and how much is

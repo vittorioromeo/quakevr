@@ -1,7 +1,7 @@
 // vr_comfortfade.hpp -- the comfort fade: when the game moves the player somewhere else at once (a scripted teleport, not
 // one he walks into), the view goes black and fades back in over vr_comfort_teleport_fade seconds, so the jump is not seen
 // as a cut. The server's QC stuffs `vr_comfort_fade` to his client (QC VR_ComfortFade: Dawn of the Machine's boss
-// teleports, MG3_PLAN.md M3-25). Drawn as the bonus colour shift (the eyes' blend, as vr_shock.cpp's flash), black.
+// teleports, MG3.md M3-25). Drawn as the bonus colour shift (the eyes' blend, as vr_shock.cpp's flash), black.
 #pragma once
 
 namespace qvr::comfortfade

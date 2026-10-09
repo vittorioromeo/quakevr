@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # make_rounds.py -- generates the launchers' rounds for immersive reloading (QC vr_reload.qc, "Front-loaded launchers";
-# docs/vr-port/RELOAD_PLAN.md phases 3 and 4): taken from the ammo pouch, put butt first into the muzzle.
+# docs/vr-port/RELOAD.md phases 3 and 4): taken from the ammo pouch, put butt first into the muzzle.
 #   quakevr/progs/vr_round_rocket.mdl   the rocket launcher's rocket: a nozzle and four fins at its butt, an olive body
 #                                       with a yellow band, a red nose cone. 30 cm long, 6 cm across the body (fits the
 #                                       launcher's 8 cm tube). Skin 1: the multi-rocket (a dark body, red bands).

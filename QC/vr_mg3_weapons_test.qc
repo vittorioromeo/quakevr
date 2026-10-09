@@ -1,5 +1,5 @@
 // Dawn of the Machine weapons' tests (vr_mg3_wtest N, developer 1; Debug > Tests > Dawn of the Machine Weapons):
-// docs/vr-port/MG3_PLAN.md M3-11..14, docs/vr-port/TESTING.md. Prints "mg3wtest: PASS/FAIL <what>" and a total.
+// docs/vr-port/MG3.md M3-11..14, docs/vr-port/TESTING.md. Prints "mg3wtest: PASS/FAIL <what>" and a total.
 //   1 report: the data, the hands and holsters, cells, the Super Axe's chain
 //   2 the Super Axe's blows and burst (a few seconds: monsters spawned ahead, struck by MG3_SuperAxe_Strike)
 //   3 its pickup: taken into the empty main hand, its target fired, spawnflag 128's silent drop (by 16 units here)

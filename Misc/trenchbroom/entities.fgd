@@ -361,7 +361,7 @@ buttons) kills it. It rises when its targetname is triggered." []
 @PointClass = monster_shalrath : "Vore (shalrath)
 
 400 health; throws homing spikes." []
-// Dawn of the Machine's monsters (QC/vr_mg3_*.qc; MG3_PLAN.md M3-15..18). The infected are stock monsters.
+// Dawn of the Machine's monsters (QC/vr_mg3_*.qc; MG3.md M3-15..18). The infected are stock monsters.
 @PointClass base(Monster) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/soldier.mdl" }) = monster_army_infected : "Infected grunt (Dawn of the Machine)
 
 30 health, a grunt's shotgun. Killed, he bursts and gets up as a zombie (counted once, as the zombie). Any campaign." []

@@ -2918,7 +2918,7 @@ server frames when played at their own rate (they were recorded at the old caden
 - [ ] A friend on a dedicated server: hands, melee and climbing respond as on a listen server.
 ## Dawn of the Machine (MG3): foundation (2026-10-06)
 
-Phase A of [MG3_PLAN.md](MG3_PLAN.md) (the plan is now in the repo). MG3 stays gated (`nativeReady` false); every
+Phase A of [MG3.md](MG3.md) (the plan is now in the repo). MG3 stays gated (`nativeReady` false); every
 test uses the developer path (`vr_campaign_native mg3`, `-nomapindex`).
 
 - **M3-01 scaffold and entity checker.** `QC/vr_mg3_defs.qc` (`MG3_Campaign()`), `QC/vr_mg3_test.qc` (`vr_mg3_test`,
@@ -3993,7 +3993,7 @@ at L/R 255 for 1.0 s, then 253 down to 1 over 0.25 s, then gone (`cut 0.25 s aft
 
 ## Dawn of the Machine (MG3): world and progression (2026-10-07)
 
-Phase B of [MG3_PLAN.md](MG3_PLAN.md) (M3-05..10), following Vittorio's decisions and the agglomeration principle (an
+Phase B of [MG3.md](MG3.md) (M3-05..10), following Vittorio's decisions and the agglomeration principle (an
 official expansion's entities work in any map when their data is there). MG3 stays gated (`nativeReady` false); MG3
 tests use `vr_campaign_native mg3`, `-nomapindex -noaddons`, developer 1.
 
@@ -4217,7 +4217,7 @@ board's top in `vr_button_label_top`; vr_setup.cpp puts the value screen (and a 
 that, never lower than before. Taller buttons (the test hall's, every other map's) are as they were.
 ## Dawn of the Machine (MG3): weapons (2026-10-07)
 
-Phase C of [MG3_PLAN.md](MG3_PLAN.md) (M3-11..14), by Vittorio's decisions of 2026-10-06 and the agglomeration
+Phase C of [MG3.md](MG3.md) (M3-11..14), by Vittorio's decisions of 2026-10-06 and the agglomeration
 principle (an expansion's weapons usable in any campaign when its data is there). MG3 stays gated (`nativeReady` false).
 
 ### M3-11 The Super Axe
@@ -4578,7 +4578,7 @@ Test-driver lessons (for whoever writes the next route test):
 
 ## Dawn of the Machine (MG3): monsters (2026-10-07)
 
-Phase D of [MG3_PLAN.md](MG3_PLAN.md) (M3-15..18; mg3d). Decision 5: Dawn of the Machine's monsters are there wherever
+Phase D of [MG3.md](MG3.md) (M3-15..18; mg3d). Decision 5: Dawn of the Machine's monsters are there wherever
 its data is (Debug > Tests > Ahead of You > Thing 30.., the training dummy's types), each with Quake VR's treatment.
 MG3's sounds and models are read in place from the owned pack (`owned/mg3/...`, M3-11's `VR_OwnedFile`); a sound
 precached as `owned/mg3/<path>` is now found too (`VR_OwnedFile` takes `sound/owned/<folder>/<path>`, the name
@@ -4737,7 +4737,7 @@ dog, 36 ranged knight), training dummy types 19-21 (`VR_DUMMY_TYPES` 22), `.vr_m
 `vr_mg3_ogre.qc`).
 ## Dawn of the Machine (MG3): monsters II, the orb to Bloody Nightmare (2026-10-07)
 
-Phase D of [MG3_PLAN.md](MG3_PLAN.md), M3-19..23 (M3-15..18 are another worker's), by Vittorio's decision 5: MG3's
+Phase D of [MG3.md](MG3.md), M3-19..23 (M3-15..18 are another worker's), by Vittorio's decision 5: MG3's
 monsters spawn wherever its data is (any campaign: the Debug spawner, the training dummy), read in place from the owned
 pack (`owned/mg3/...`). Numbers kept apart from the other worker's: the spawner's (`vr_test_spawn`, `func_enemy_dispenser`
 `weapon`) from **40**, the training dummy's (`vr_dummy_type`) from **30** (19..29 left to theirs; the dummy's tried/available
@@ -4939,7 +4939,7 @@ build, QC 0 warnings (the 3 of `vr_mg3_test.qc`'s 10-argument sprintf fixed in M
 
 ## Dawn of the Machine (MG3): the Shub finale (2026-10-07)
 
-Phase D of [MG3_PLAN.md](MG3_PLAN.md), M3-26/27 (M3-24/25, Chthon, are another worker's). Numbers kept apart from
+Phase D of [MG3.md](MG3.md), M3-26/27 (M3-24/25, Chthon, are another worker's). Numbers kept apart from
 theirs: the Debug spawner's from **60**, the training dummy's from **50** (the dummy's tried/available bits: a third pair
 of floats for 48 on). Tests: `vr_mg3_shubtest N` (`QC/vr_mg3_shub_test.qc`, developer 1; Debug > Tests > Dawn of the
 Machine: Shub): 1 report, 2 phases and children, 3 zombies and pillars, 4 death and the credits, 5 the training dummy.
@@ -5171,7 +5171,7 @@ Map-side: nothing changed in vrstart2 (the fixes are the engine's; the look and 
 ## Immersive manual reloading, phase 1: the ammo pouch and the shotgun (2026-10-07)
 
 The author's request: a third reloading mode, loading by hand from a pouch on the belt (design, accounting rules,
-models, menu, tests and phases 2-4: RELOAD_PLAN.md). Phase 1:
+models, menu, tests and phases 2-4: RELOAD.md). Phase 1:
 
 - **The mode.** `vr_reload_mode` 3 "Immersive" (0 Off, 1 All Holsters, 2 Hip Holsters as before), the shipped default;
   `vr_cfg_version` 97 moves a config still at the old default (2) to it (Off and All Holsters stay). Immersion's row,
@@ -5302,7 +5302,7 @@ wall pull it, `stopAtWall`), with or without a lean, in either mode: not the tur
 
 ## Immersive manual reloading, phase 2: magazines (2026-10-07)
 
-RELOAD_PLAN.md's phase 2: the nailgun, the super nailgun and the thunderbolt take magazines (immersive mode; the lava
+RELOAD.md's phase 2: the nailgun, the super nailgun and the thunderbolt take magazines (immersive mode; the lava
 nailguns and the plasma gun too, with their ammo).
 
 - **Models** (make_mags.py; normal maps baked): the nailgun's a box magazine under the receiver ahead of the trigger
@@ -5715,7 +5715,7 @@ release is the HQ texture pack (`textures-2026-10-03`); a game release published
 
 ## Immersive reloading: the super shotgun broken open (2026-10-07)
 
-Phase 2b of RELOAD_PLAN.md (worktree `reload`), with immersive reloading on and Weapons > Reloading > Super Shotgun >
+Phase 2b of RELOAD.md (worktree `reload`), with immersive reloading on and Weapons > Reloading > Super Shotgun >
 Break Open (`vr_reload_ssg_break`, 1):
 
 - **Fired, its shells stay in** (QC `QVR_WPNFLAG_SSG_SPENT`: 0-2 spent shells, in the weapon's flags; travels with the
@@ -6214,7 +6214,7 @@ e1m1's smoke test.
   collect message's hotspot 240): the round is loaded at the contact as before (the count, the sound, the haptics) and
   the hand lets go; its copy slides to the load point and on (up the shotgun's well into its tube; into the super
   shotgun's chambers), at its size, carried by the gun in its model space (it follows the gun as it moves), then is gone
-  inside it. A magazine's seat slide is noted for later (RELOAD_PLAN.md).
+  inside it. A magazine's seat slide is noted for later (RELOAD.md).
 - Mock: `vr_mock_turn_velocity 1` (the hands' angular velocity from their turns). Tests: reload_test.sh sections 7 and 8
   (75 checks in all), the self-test 67 of 67.
 ## Flashlight cord: the coiled cord back, as a choice (2026-10-07)
@@ -6694,7 +6694,7 @@ The author's note vrfiringrange_2026-10-07_22-18-57: the rocket, grenade and pro
 grenade or proximity grenade from the ammo pouch (the special ammo too, in the launcher's other ammo mode) put towards
 the front of the muzzle, sliding in as the shotgun shells do; thrown there, or lying on a table the right way and the
 launcher brought to it, too. Only the orientation precise: rockets and grenades butt first, a proximity grenade any way.
-This does RELOAD_PLAN.md's phases 3 and 4 (at the muzzle, not a port under the launchers or the rocket launcher's back
+This does RELOAD.md's phases 3 and 4 (at the muzzle, not a port under the launchers or the rocket launcher's back
 end as planned).
 
 - **The rule** (QC vr_reload.qc, "Front-loaded launchers"; `vr_reload_front` 1, Immersive only: Simple and the others
@@ -6878,7 +6878,7 @@ only costs time.
 ## Stealth AI: Idle, Alert, Hostile (2026-10-08)
 
 The author's request (stealth mechanics in the shared monster AI, all optional, on by default): the design, the rules,
-every cvar and the exclusions are in `docs/vr-port/STEALTH_PLAN.md`. Combat > Stealth AI (its first row **Enhanced AI**,
+every cvar and the exclusions are in `docs/vr-port/STEALTH.md`. Combat > Stealth AI (its first row **Enhanced AI**,
 `vr_ai_enhanced`, switches all of it: off is Quake's AI at once, mid-map too); Debug > Tests > Stealth AI.
 
 - QC `vr_stealth.qc` (+ `vr_stealth_defs.qc`, `vr_stealth_test.qc`): hooks in ai.qc (FindTarget's sighting of a player
@@ -7002,7 +7002,7 @@ different default grip". Tests: `Misc/quakevr/reload/pouchgren_test.sh` (14 chec
 
 ## Stealth AI: the gaps closed (2026-10-08)
 
-The coordinator's follow-up to "Stealth AI" (above): real shots, coop, a review, the cost. STEALTH_PLAN.md has the rules
+The coordinator's follow-up to "Stealth AI" (above): real shots, coop, a review, the cost. STEALTH.md has the rules
 as they now stand (its Status lists what remains).
 
 - **Real shots heard** (`vr_stealth_test 100`, `stealth_tests.sh gun`): the earlier runs fired nothing because no weapon
@@ -7079,7 +7079,7 @@ as they now stand (its Status lists what remains).
 
 ## Stealth AI through teleporters (2026-10-08)
 
-The three gaps above, closed (STEALTH_PLAN.md "Teleporters" has the rules; new `vr_stealth_gates 1`, Combat > Stealth AI >
+The three gaps above, closed (STEALTH.md "Teleporters" has the rules; new `vr_stealth_gates 1`, Combat > Stealth AI >
 Through Teleporters; off: sight through gates is ranged monsters' only and noises stay in their room, as before).
 - **Seen through a gate**: the Alert point (a glimpse; a Hostile one's last sighting, `stl_lost_at`) is the player's
   image in the gate, with the gate (`stl_via`: the face it walks into, an exit's pair face; minus the gate when it can't
@@ -7157,7 +7157,7 @@ Through Teleporters; off: sight through gates is ranged monsters' only and noise
   FB lead to each other), so no torch there is lit only two gates deep; a map chaining three rooms would show it.
 ## Dawn of the Machine (MG3): the full-campaign route sweep (2026-10-08)
 
-M3-29 of [MG3_PLAN.md](MG3_PLAN.md); the results table is in EXPANSIONS.md, "Dawn of the Machine route sweep".
+M3-29 of [MG3.md](MG3.md); the results table is in EXPANSIONS.md, "Dawn of the Machine route sweep".
 `bash Misc/quakevr/mg3_route_test.sh <agent> [main] [bn] [exits]` (about 9 min): the entity checker (22 BSPs, 0
 missing), the language gate (static and the owned table), then three headless legs on the owned data:
 - **main** (skill 1, 93/0): start's skill brush, every chapter and secret map in order through their real exits, the
@@ -8308,7 +8308,7 @@ Tests: `reload_test.sh` 12, `autopump_test.sh` 5, `gunshape_test.sh` 5, `pouchgr
 `empty_melee_test.sh` and `spentshake_test.sh`.
 ## Stealth AI: the author's notes of 2026-10-08 (see-through walls, the meters shown, the hunt, dogs, props)
 
-His notes (map1_14-09-24, 14-10-31, 14-10-59, 14-12-27, vrteleporters_14-42-42); STEALTH_PLAN.md has the rules, Debug >
+His notes (map1_14-09-24, 14-10-31, 14-10-59, 14-12-27, vrteleporters_14-42-42); STEALTH.md has the rules, Debug >
 Tests > Stealth AI the scenes (`vr_stealth_test 120`-`129`, QC `vr_stealth_test4.qc`; `Misc/quakevr/stealth_tests.sh`).
 
 - **See-through walls** (`vr_stealth_seethrough 1`, Combat > Stealth AI > See-Through Walls): grates, fences, webs and

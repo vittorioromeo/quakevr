@@ -14,7 +14,7 @@ classnames with their placements and its unknown keys, then the totals:
 
   mg3entities: maps 22 classes 156 missing 47 placements 1397 fields 10 field_uses 33
 
-Exit 0, or 1 when an --expect-* total differs, 2 when the PAK is not found. MG3_PLAN.md (docs/vr-port) lists what
+Exit 0, or 1 when an --expect-* total differs, 2 when the PAK is not found. MG3.md (docs/vr-port) lists what
 each missing name is and which task resolves it.
 """
 import argparse

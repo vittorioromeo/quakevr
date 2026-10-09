@@ -159,7 +159,7 @@ void(entity xNew) VR_EnemyWeapons_MakeRoom =
     }
     float n = 0;
     entity e;
-    // The count and the first oldest in one walk (nothing changes between them: the tests only read; MG3_PLAN.md
+    // The count and the first oldest in one walk (nothing changes between them: the tests only read; MG3.md
     // M3-28); after a fade, walked again as before.
     entity oldest = world;
     for(e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))

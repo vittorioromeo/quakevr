@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's ghosts (monster_ghost; MG3_PLAN.md M3-20), adapted from quakec_mg3/monsters/mg3_player_ghost.qc:
+// Dawn of the Machine's ghosts (monster_ghost; MG3.md M3-20), adapted from quakec_mg3/monsters/mg3_player_ghost.qc:
 // a player's ghost (progs/player.mdl) that drifts about its home (a few stand loops, then a run to a point 'wait' units
 // away, 128 by default, and back the next time), 10 health, not a monster (not counted). It dies at the touch of a living
 // player, whose hand too in Quake VR (handtouch), or by any damage: one of the player's deaths, then it fades away in a

@@ -4,7 +4,7 @@
 #                                opened by the shot, dark inside) on a brass head with a rim and a
 #                                primer. 7 cm long, 2 cm across, 8-sided.
 #   quakevr/progs/vr_shell_live.mdl  an unfired shell, as taken from the front ammo pouch (immersive reloading, QC
-#                                vr_reload.qc; docs/vr-port/RELOAD_PLAN.md): the same head and hull, its end closed
+#                                vr_reload.qc; docs/vr-port/RELOAD.md): the same head and hull, its end closed
 #                                by a six-fold star crimp, sunk a little.
 #   quakevr/progs/vr_shell_pair.mdl  two unfired shells side by side (along y), taped together round the middle with
 #                                a band of grey cloth tape (the pouch's Shell Pairs: both go in at once).

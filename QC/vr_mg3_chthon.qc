@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's Chthon (monster_boss_final; MG3_PLAN.md M3-24/25), adapted from quakec_mg3/monsters/boss_final.qc:
+// Dawn of the Machine's Chthon (monster_boss_final; MG3.md M3-24/25), adapted from quakec_mg3/monsters/boss_final.qc:
 // id's Chthon (progs/boss.mdl) woken by his map's trigger, 12000 health, killable (spawnflag 2). He throws fans of MG3's
 // spheres (lava balls without spawnflag 2) and, after his first fits, volleys of spheres at you; six fits as he is hurt
 // (first blood, then 83%, 66%, 50%, 33%, 16% of his health), each with lightning and immune while it plays. After a fit

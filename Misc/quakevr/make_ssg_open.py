@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# make_ssg_open.py -- the super shotgun broken open (immersive reloading, phase 2b: docs/vr-port/RELOAD_PLAN.md; QC
+# make_ssg_open.py -- the super shotgun broken open (immersive reloading, phase 2b: docs/vr-port/RELOAD.md; QC
 # vr_reload.qc; the engine's vr_view.cpp ssgParts): v_shot2.mdl cut in two at its hinge, written as
 #
 #   quakevr/progs/vr_ssg_frame_on_v_shot2.mdl    the frame: the grip, the trigger guard, the receiver; its front (the

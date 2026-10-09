@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's items (MG3_PLAN.md, M3-07), adapted from the snapshot's mg3_items.qc and items.qc
+// Dawn of the Machine's items (MG3.md, M3-07), adapted from the snapshot's mg3_items.qc and items.qc
 // (docs/vr-port/OFFICIAL_QC_SOURCE.md): armour shards, the draughts (rings that move you up or down), the lava suit
 // and the hell knight's head (Bloody Nightmare's discovery). Each works in any map when its model is on the search
 // path (the agglomeration principle; the lava suit and the head fall back to the biosuit's and the hell knight's head

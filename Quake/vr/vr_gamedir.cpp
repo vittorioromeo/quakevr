@@ -537,7 +537,7 @@ bool campaignMultiplayerRequested()
 }
 
 // The ready native campaigns accepted for single player only: Dimension of the Past, Dimension of the Machine
-// (its Horde coop passed two-process tests, not yet a session with two headsets) and Dawn of the Machine (MG3_PLAN.md
+// (its Horde coop passed two-process tests, not yet a session with two headsets) and Dawn of the Machine (MG3.md
 // decision 6: single player first; its co-op and dm1 later). Their multiplayer stays on the developer path
 // (vr_campaign_native).
 [[nodiscard]] bool soloOnly(int index)
@@ -1313,7 +1313,7 @@ extern "C" int VR_CampaignDataAvailable(const char* dir)
     return i >= 3 && campaigns[i].status == 1;
 }
 
-// A file of an owned pack read in place without mounting it (MG3_PLAN.md, "Decisions": an expansion's weapons usable
+// A file of an owned pack read in place without mounting it (MG3.md, "Decisions": an expansion's weapons usable
 // in any campaign when its data is there): "owned/<folder>/<path>" names <path> in that discovered Dopa/MG1/MG3 folder
 // (its loose file, else its highest pak that has it), whichever campaign is active; the pack's own files never shadow
 // Quake VR's (its progs/v_hammer.mdl is the Super Axe, Quake VR's the Hipnotic Mjolnir). Nothing is copied or written.

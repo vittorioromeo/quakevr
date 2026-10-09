@@ -251,7 +251,7 @@ def split_auto_pump(p, path):
 SPLIT_OUTPUTS = {"v_shot.mdl": ["vr_pump_on_v_shot.mdl", "vr_pumpbody_on_v_shot.mdl"]}
 
 
-# The shotgun's loading port (docs/vr-port/RELOAD_PLAN.md: immersive reloading, shells pushed in from below): an opening
+# The shotgun's loading port (docs/vr-port/RELOAD.md: immersive reloading, shells pushed in from below): an opening
 # under the receiver ahead of the trigger guard and behind the pump, as a pump gun's. Parts can only be added, never cut
 # (the old triangles stay, and with them the anchors' strip order): the opening is a well under the receiver's keel, a
 # steel housing round it whose inner walls, lined from a dull steel at its mouth to black up at the keel, go up to a black

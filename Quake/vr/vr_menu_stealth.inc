@@ -1,4 +1,4 @@
-// vr_menu_stealth.inc -- Combat > Stealth AI (QC vr_stealth.qc; docs/vr-port/STEALTH_PLAN.md): monsters Idle, Alert
+// vr_menu_stealth.inc -- Combat > Stealth AI (QC vr_stealth.qc; docs/vr-port/STEALTH.md): monsters Idle, Alert
 // (investigating what they noticed) or Hostile; and Debug > Tests > Stealth AI. Included by vr_menu.cpp (inside its
 // namespace).
 

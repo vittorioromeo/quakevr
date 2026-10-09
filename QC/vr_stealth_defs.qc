@@ -1,4 +1,4 @@
-// vr_stealth_defs.qc -- the stealth AI's fields and entry points (vr_stealth.qc; docs/vr-port/STEALTH_PLAN.md), ahead
+// vr_stealth_defs.qc -- the stealth AI's fields and entry points (vr_stealth.qc; docs/vr-port/STEALTH.md), ahead
 // of ai.qc and combat.qc, which call them.
 
 // On a monster:

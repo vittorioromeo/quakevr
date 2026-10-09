@@ -1,5 +1,5 @@
 #!/bin/bash
-# stealth_mp_test.sh <agent> [tag] -- the stealth AI in coop (QC vr_stealth_test2.qc scene 102; docs/vr-port/STEALTH_PLAN.md):
+# stealth_mp_test.sh <agent> [tag] -- the stealth AI in coop (QC vr_stealth_test2.qc scene 102; docs/vr-port/STEALTH.md):
 # a listen server (instance 1, the host) and a remote client (instance 2) over UDP on this machine (both bind 127.0.0.1:
 # -ip, as mp_test.sh). The client turns its flashlight on (clipped to its head); the server then checks each client's
 # light and lamp reach it, that a grunt facing both players spots the lit one as fast as one player alone (the meter on

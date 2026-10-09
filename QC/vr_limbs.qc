@@ -226,7 +226,7 @@ void() VR_Limb_MakeRoom =
     float most = max(1, cvar_hget(cvarh_vr_limbs_max));
     float n = 0;
     entity e;
-    // The count and the first oldest in one walk (nothing changes between them; MG3_PLAN.md M3-28: a crowd's deaths
+    // The count and the first oldest in one walk (nothing changes between them; MG3.md M3-28: a crowd's deaths
     // made a limb each, two walks of every entity apiece at the cap); after a removal, walked again as before.
     entity oldest = world;
     for(e = find(world, classname, "vr_limb"); e; e = find(e, classname, "vr_limb"))

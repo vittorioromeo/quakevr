@@ -1,5 +1,5 @@
 // Dawn of the Machine's Chthon tests, M3-24/25 (vr_mg3_ctest N, developer 1; Debug > Tests > Dawn of the Machine: Chthon):
-// docs/vr-port/MG3_PLAN.md, docs/vr-port/TESTING.md. Prints "mg3ctest: PASS/FAIL <what>" and a total.
+// docs/vr-port/MG3.md, docs/vr-port/TESTING.md. Prints "mg3ctest: PASS/FAIL <what>" and a total.
 //   1 report: the data, this map's Chthon (his phase, health, fits), the second arena's points, the boss teleport,
 //     lava suits, music
 //   2 a Chthon of the Debug spawner's ahead (any map; god mode meanwhile): spawned and woken, immune as he rises, his

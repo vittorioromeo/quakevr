@@ -1,6 +1,6 @@
 // vr_stealth_test.qc -- `vr_stealth_test 1`: the stealth AI's scenes on the monster nearest the player (a grunt put
 // ahead of him: `god; vr_test_spawn 0; vr_test_spawn_dist 150; impulse 241`), one after the other, each printing
-// `stealthtest: <name> PASS|FAIL <numbers>` (docs/vr-port/STEALTH_PLAN.md, "Tests"). Debug > Tests > Stealth AI.
+// `stealthtest: <name> PASS|FAIL <numbers>` (docs/vr-port/STEALTH.md, "Tests"). Debug > Tests > Stealth AI.
 // `vr_stealth_test 2`: only the crate drop (a real prop's knock through the physics sounds).
 
 entity stt_m;      // the monster

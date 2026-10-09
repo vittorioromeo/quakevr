@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's super shambler, the blood shambler (monster_super_shambler; MG3_PLAN.md M3-22), adapted from
+// Dawn of the Machine's super shambler, the blood shambler (monster_super_shambler; MG3.md M3-22), adapted from
 // quakec_mg3/monsters/mg3_super_shambler.qc: the shambler's frames on MG3's own model (owned/mg3/progs/shambler_blood.mdl:
 // 1076 vertices, 96 frames, the shambler's 94 first), 2000 health. Up close it smashes or claws, each blow with a spray of
 // plasma (11 in a fan on the smash, 9 in a block on a claw) and after three to four blows (Bloody Nightmare: one fewer)

@@ -1,5 +1,5 @@
 // vr_stealth_test3.qc -- the stealth AI through seamless teleporters (`vr_stealth_test 110` on vrteleporters, the player
-// standing in room U at -1100 1408: Misc/quakevr/stealth_tests.sh gates; docs/vr-port/STEALTH_PLAN.md, "Teleporters").
+// standing in room U at -1100 1408: Misc/quakevr/stealth_tests.sh gates; docs/vr-port/STEALTH.md, "Teleporters").
 // Room T's north gate comes out of U's east wall (a 90-degree turn): a monster in T sees and hears U through it. The
 // scenes run one after the other, each printing `stealthtest: <name> PASS|FAIL`:
 //   110 a grunt sees him through the gate: Alert at his image (not at him, behind T's wall), walks into the gate and

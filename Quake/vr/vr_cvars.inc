@@ -2732,7 +2732,7 @@ QVR_CVAR(vr_debug_grasp_trace, "0", CVAR_NONE)         // write the drawn hand's
 QVR_CVAR(vr_jobs_threads, "0", CVAR_NONE)             // the game's thread pool (vr_jobs.hpp): its workers (0: the hardware's threads less one, at most 31); changed, the pool is made again
 QVR_CVAR(vr_jobs_parallel, "1", CVAR_NONE)            // parallelFor (the grasp solve, the liquids' volume, the occlusion bakes) split between the pool's threads; 0: the calling thread runs every chunk (the single-threaded reference: the same results)
 QVR_CVAR(vr_hand_rig, "1", CVAR_ARCHIVE)               // round 21: the jointed hand (progs/hand_rig.md5mesh: three joints a finger, an opposable thumb, continuous curls; vr_handrig.cpp). 0: the palm and five finger models as before
-// Reloading (docs/vr-port/RELOAD_PLAN.md): 0 off (the guns fire from the reserve); 1 a gun held at any holster reloads, 2 at
+// Reloading (docs/vr-port/RELOAD.md): 0 off (the guns fire from the reserve); 1 a gun held at any holster reloads, 2 at
 // the hip holsters (manual-simple); 3 manual-immersive (shipped; vr_cfg_version 97 gives it to configs with the old default
 // 2): the guns that load by hand (the shotgun so far) take rounds from the ammo pouch on the front of the belt, held in the
 // other hand and pushed into the gun's loading port; the others reload at the hip holsters, as 2. Needs Weapon Mode
@@ -3108,7 +3108,7 @@ QVR_CVAR(vr_mg3_bn_start, "0", CVAR_NONE) // Official Campaigns > Bloody Nightma
 QVR_CVAR(vr_cheat_ammo, "0", CVAR_NONE) // infinite ammunition: your shells, nails, rockets and cells (the mission packs' too) kept full, and the magazines in your hands
 QVR_CVAR(vr_freeze_monsters, "0", CVAR_NONE) // the living monsters stand frozen where they are (their thinking and moving skipped; a blow still kills)
 QVR_CVAR(vr_shot_hide, "0", CVAR_NONE) // hidden for a clean shot (vr_view.cpp): 1 the wrist gadget (its screen, its messages), 2 your hands and what they hold, 4 your body and holsters (added up: 7 all)
-// Combat > Stealth AI (QC vr_stealth.qc; docs/vr-port/STEALTH_PLAN.md): monsters Idle, Alert (investigating) or Hostile.
+// Combat > Stealth AI (QC vr_stealth.qc; docs/vr-port/STEALTH.md): monsters Idle, Alert (investigating) or Hostile.
 QVR_CVAR(vr_ai_enhanced, "1", CVAR_ARCHIVE)          // every rule below at once (the umbrella: 0 is Quake's monster AI, at once, mid-map too)
 QVR_CVAR(vr_stealth_meter, "1", CVAR_ARCHIVE)        // sight is a suspicion meter (light, distance, facing, movement, crouching): 0 Quake's instant sight
 QVR_CVAR(vr_stealth_meter_time, "0.5", CVAR_ARCHIVE) // s the meter takes to fill: in full light, near, in front, walking

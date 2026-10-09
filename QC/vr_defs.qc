@@ -239,7 +239,7 @@ float QVR_WEAPONMODE_CYCLEQUICKSLOT = 1;
 float QVR_RELOADMODE_NONE        = 0;
 float QVR_RELOADMODE_ALLHOLSTERS = 1;
 float QVR_RELOADMODE_HIPHOLSTERS = 2;
-// Manual-immersive (docs/vr-port/RELOAD_PLAN.md): the guns that load by hand (VR_Reload_ManualFor, vr_reload.qc) take
+// Manual-immersive (docs/vr-port/RELOAD.md): the guns that load by hand (VR_Reload_ManualFor, vr_reload.qc) take
 // their ammo from the front pouch, one round or magazine at a time; the others reload at the hip holsters, as 2.
 float QVR_RELOADMODE_IMMERSIVE   = 3;
 

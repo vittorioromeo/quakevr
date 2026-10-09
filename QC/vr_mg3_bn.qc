@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's changes to Quake's monsters, and their Bloody Nightmare (MG3_PLAN.md M3-23), adapted from
+// Dawn of the Machine's changes to Quake's monsters, and their Bloody Nightmare (MG3.md M3-23), adapted from
 // quakec_mg3/monsters/{soldier,enforcer,hknight,wizard,shambler,shalrath,ogre,zombie}.qc, combat.qc and items.qc's
 // DropBackpack callers. Campaign 5 only (MG3_Campaign; Bloody Nightmare: MG3_BloodyNightmare): every other campaign's
 // monsters are as they were. The hooks are one call each in the monsters' own files (orig_mon_*.qc), combat.qc and

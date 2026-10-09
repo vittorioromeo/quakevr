@@ -5736,7 +5736,7 @@ za::Vector<Item> pageMg3Tests()
     };
 }
 
-// Dawn of the Machine's weapons (MG3_PLAN.md M3-11..14): "mg3wtest:" lines with developer 1 (QC/vr_mg3_weapons_test.qc).
+// Dawn of the Machine's weapons (MG3.md M3-11..14): "mg3wtest:" lines with developer 1 (QC/vr_mg3_weapons_test.qc).
 // The Super Axe works in any campaign when the Dawn of the Machine data is there (its models are read from it in place).
 za::Vector<Item> pageMg3WeaponTests()
 {
@@ -5783,7 +5783,7 @@ za::Vector<Item> pageMg3WeaponTests()
     };
 }
 
-// Dawn of the Machine's monsters (MG3_PLAN.md M3-15..18): "mg3mtest:" lines with developer 1 (QC/vr_mg3_monsters_test.qc).
+// Dawn of the Machine's monsters (MG3.md M3-15..18): "mg3mtest:" lines with developer 1 (QC/vr_mg3_monsters_test.qc).
 // The infected are stock monsters (any campaign); MG3's own monsters need its data (their models read from it in place).
 za::Vector<Item> pageMg3MonsterTests()
 {
@@ -5825,7 +5825,7 @@ za::Vector<Item> pageMg3MonsterTests()
     };
 }
 
-// Dawn of the Machine's monsters, M3-19..23 (MG3_PLAN.md): "mg3btest:" lines with developer 1 (QC/vr_mg3_bestiary_test.qc).
+// Dawn of the Machine's monsters, M3-19..23 (MG3.md): "mg3btest:" lines with developer 1 (QC/vr_mg3_bestiary_test.qc).
 // They spawn in any campaign when the Dawn of the Machine data is there (read from it in place).
 za::Vector<Item> pageMg3BestiaryTests()
 {
@@ -5907,7 +5907,7 @@ za::Vector<Item> pageMg3ShubTests()
     };
 }
 
-// Dawn of the Machine's Chthon, M3-24/25 (MG3_PLAN.md): "mg3ctest:" lines with developer 1 (QC/vr_mg3_chthon_test.qc).
+// Dawn of the Machine's Chthon, M3-24/25 (MG3.md): "mg3ctest:" lines with developer 1 (QC/vr_mg3_chthon_test.qc).
 za::Vector<Item> pageMg3ChthonTests()
 {
     return {

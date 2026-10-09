@@ -1,5 +1,5 @@
 // Dawn of the Machine monsters' tests, M3-19..23 (vr_mg3_btest N, developer 1; Debug > Tests > Dawn of the Machine
-// Bestiary): docs/vr-port/MG3_PLAN.md, docs/vr-port/TESTING.md. Prints "mg3btest: PASS/FAIL <what>" and a total.
+// Bestiary): docs/vr-port/MG3.md, docs/vr-port/TESTING.md. Prints "mg3btest: PASS/FAIL <what>" and a total.
 //   1 report: the data each monster needs, and how many of each this map has (alive, dead)
 //   2 the orb (a few seconds): one spawned ahead, its eye behind, its bursts of spheres at you (god mode), its pain,
 //     killed: flung, blown up where it lands, counted once; the dummy type, the spawner, the grapple's mass

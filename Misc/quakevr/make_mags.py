@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# make_mags.py -- the magazines of immersive reloading's phase 2 (QC vr_reload.qc; docs/vr-port/RELOAD_PLAN.md):
+# make_mags.py -- the magazines of immersive reloading's phase 2 (QC vr_reload.qc; docs/vr-port/RELOAD.md):
 #   quakevr/progs/vr_mag_nail.mdl     the nailgun's: a box magazine as the old nailgun pickup's (g_nail.mdl) leg under
 #                                     the receiver: a brown body with stamped ribs, a steel base plate, its feed lips
 #                                     with the nails' heads in them; 3.4 x 1.7 x 5.8 units.

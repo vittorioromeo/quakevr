@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's Shub-Niggurath (monster_oldone_new, boss2; MG3_PLAN.md M3-26), adapted from
+// Dawn of the Machine's Shub-Niggurath (monster_oldone_new, boss2; MG3.md M3-26), adapted from
 // quakec_mg3/monsters/mg3_oldone_new.qc. id's Shub model (progs/oldone.mdl) with 12000 health that can be killed:
 // she faces you, her 46-frame loop spitting volleys of diamonds (sphere chunks) and, every third volley, a child of her
 // phase, two autoguns at her sides (skill 1 and up: more of them each phase) and two shub zombies a loop
@@ -31,7 +31,7 @@
 // touch 500). Killed, she clears her children and her zombies, dims the lights, bursts into gibs and ends the game:
 // MG3_ShubEnding (vr_mg3_triggers.qc: the final text, then the credits). A dead single player completes nothing.
 //
-// Available wherever Dawn of the Machine's data is (MG3_PLAN.md, "Decisions" 5): its eye, sphere, plasma, diamond and
+// Available wherever Dawn of the Machine's data is (MG3.md, "Decisions" 5): its eye, sphere, plasma, diamond and
 // splash models and the orb's pain sound are read in place from the owned pack (owned/mg3/...: vr_gamedir.cpp
 // VR_OwnedFile), Shub's model is the registered game's. One from the Debug spawner (Thing 60) is free: killed, she
 // bursts but ends nothing (.mg3_shub_free). Rigid models: no ragdoll, no head (her children as the orb). Quake VR: no

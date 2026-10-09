@@ -104,7 +104,7 @@ void(entity xEnt, float xAid, float xValue) VR_AmmoUtil_DelAmmoCountByAmmoId =
 }
 
 // ----------------------------------------------------------------------------
-// Capacities: how much of each ammunition and health a player can carry (MG3_PLAN.md 2.2). Every cap goes through
+// Capacities: how much of each ammunition and health a player can carry (MG3.md 2.2). Every cap goes through
 // these: Quake's own numbers everywhere but Dawn of the Machine, whose bases are lower and grow with its upgrades
 // (vr_mg3_defs.qc). The player is the argument for when a campaign's capacities are each player's own.
 // ----------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 #include "vr_alloccount.h"
 // vr_stealth.cpp -- the monsters' senses' engine side: the light at a point and on each player, each player's flashlight
-// beam (QC vr_stealth.qc; docs/vr-port/STEALTH_PLAN.md). Each client measures the light on its own player and sends it
+// beam (QC vr_stealth.qc; docs/vr-port/STEALTH.md). Each client measures the light on its own player and sends it
 // with its lamp's beam in its VR move (vr_move.hpp): a coop client's lamp and the light he stands in are his own.
 
 #include "vr_stealth.hpp"

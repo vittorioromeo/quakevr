@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # make_ammo_pouch.py -- generates quakevr/progs/vrpouch_ammo.mdl, the ammo pouch on the front of the belt (immersive
-# reloading, vr_reload_mode 3: vr_view.cpp setupAmmoPouch, QC vr_reload.qc; docs/vr-port/RELOAD_PLAN.md).
+# reloading, vr_reload_mode 3: vr_view.cpp setupAmmoPouch, QC vr_reload.qc; docs/vr-port/RELOAD.md).
 #
 # make_pouch.py's leather pouch (the grenade pouch at the small of the back), made wider and shallower for the front of
 # the belt, with no strap over its open top (a hand dips in and out of it all through a fight), and shotgun shells

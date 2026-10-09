@@ -16,13 +16,13 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's orb (monster_orb; MG3_PLAN.md M3-19), adapted from quakec_mg3/monsters/mg3_orb.qc (and its
+// Dawn of the Machine's orb (monster_orb; MG3.md M3-19), adapted from quakec_mg3/monsters/mg3_orb.qc (and its
 // ai.qc branches: a second eye at its back, the strafe that gives up, the sight sound). A flying eye of 300 health
 // (progs/teleporter_eye_blink.mdl: three frames, hover and two blinks) that blinks and bursts 4-6 spheres at you (18
 // each), throws lightning about when hurt, and dies flung, falling until it touches something: there it blows up (100,
 // radius). No ragdoll (a rigid eye, no rig), no head.
 //
-// Available wherever Dawn of the Machine's data is (MG3_PLAN.md, "Decisions" 5): its model and sounds are read in place
+// Available wherever Dawn of the Machine's data is (MG3.md, "Decisions" 5): its model and sounds are read in place
 // from the owned pack (owned/mg3/...: vr_gamedir.cpp VR_OwnedFile), in any campaign; without it the orb is not spawned.
 //
 // Upstream's bug kept out: its OrbCheckAttack, at RANGE_FAR, called wiz_run1 (the scrag's run, left from the scrag it

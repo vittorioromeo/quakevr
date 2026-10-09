@@ -1090,7 +1090,7 @@ void resetHandMoves()
 }
 
 // Weapons > Reloading (General): the mode, a page per gun, the ammo pouch, what is the same for every gun
-// (docs/vr-port/RELOAD_PLAN.md; QC vr_reload.qc).
+// (docs/vr-port/RELOAD.md; QC vr_reload.qc).
 [[nodiscard]] za::Vector<Item> pageReloading()
 {
     return {

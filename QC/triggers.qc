@@ -569,7 +569,7 @@ void() trigger_teleport =
     self.use = teleport_use;
 
     // Dawn of the Machine (upstream, 2026): spawnflag 8 with a targetname: off until its first use, which switches it on
-    // (the boss map's arena teleports, MG3_PLAN.md M3-24).
+    // (the boss map's arena teleports, MG3.md M3-24).
     if(MG3_Campaign() && (self.spawnflags & 8) && self.targetname != NULLSTR)
     {
         self.use = MG3_teleport_activate;

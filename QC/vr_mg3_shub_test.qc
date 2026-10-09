@@ -1,5 +1,5 @@
 // Dawn of the Machine's Shub-Niggurath tests, M3-26/27 (vr_mg3_shubtest N, developer 1; Debug > Tests > Dawn of the
-// Machine: Shub): docs/vr-port/MG3_PLAN.md, docs/vr-port/TESTING.md. Prints "mg3shubtest: PASS/FAIL <what>" and a total.
+// Machine: Shub): docs/vr-port/MG3.md, docs/vr-port/TESTING.md. Prints "mg3shubtest: PASS/FAIL <what>" and a total.
 // On boss2 the map's Shub (the player taken to the arena's arrival point, tele1); elsewhere a free one spawned 450
 // units ahead (the Debug spawner's: killed, she ends nothing).
 //   1 report: her data, the map's Shub (phase, health), its shub zombie spawns, pillars, zombies and children alive

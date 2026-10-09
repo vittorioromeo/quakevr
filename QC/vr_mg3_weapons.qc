@@ -17,7 +17,7 @@
     See file, 'COPYING', for details.
 */
 // Dawn of the Machine (MG3) weapons, adapted from the official quakec_mg3 (mg3_weapons.qc HIP_FireMjolnir, mg3_items.qc
-// weapon_mjolnir; docs/vr-port/OFFICIAL_QC_SOURCE.md) for Quake VR's hands. Plan: docs/vr-port/MG3_PLAN.md, M3-11..14.
+// weapon_mjolnir; docs/vr-port/OFFICIAL_QC_SOURCE.md) for Quake VR's hands. Plan: docs/vr-port/MG3.md, M3-11..14.
 //
 // The Super Axe (WID_SUPERAXE): MG3's `weapon_mjolnir` is not Hipnotic's hammer but a great axe of its own. Here it is a
 // weapon of its own beside Mjolnir (Vittorio's decision 2): `weapon_superaxe`; an MG3 map's `weapon_mjolnir` becomes one

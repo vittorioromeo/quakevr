@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's demo dog (MG3_PLAN.md, M3-17), adapted from the snapshot's monsters/mg3_demodog.qc
+// Dawn of the Machine's demo dog (MG3.md, M3-17), adapted from the snapshot's monsters/mg3_demodog.qc
 // (monster_demodog, DemoDog_JumpTouch, demodog_spawn_grenade, demodog_die; client.qc's obituary;
 // docs/vr-port/OFFICIAL_QC_SOURCE.md).
 //

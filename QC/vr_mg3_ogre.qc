@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's rocket ogre (MG3_PLAN.md, M3-16), adapted from the snapshot's monsters/ogre.qc
+// Dawn of the Machine's rocket ogre (MG3.md, M3-16), adapted from the snapshot's monsters/ogre.qc
 // (monster_ogre_rocket, OgreFireRocket, T_OgreMissileTouch, its .aflag branches; ai.qc's sight sound; client.qc's
 // obituary; docs/vr-port/OFFICIAL_QC_SOURCE.md).
 //

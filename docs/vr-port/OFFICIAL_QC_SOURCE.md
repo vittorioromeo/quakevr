@@ -42,4 +42,4 @@ QC/vr_mg3_chthon.qc adapts quakec_mg3/monsters/boss_final.qc (monster_boss_final
 trigger_boss_teleport), mg3_oldone_new.qc's get_org directions and ThrowGibVec for the finale's gibs, combat.qc's
 killable-Chthon rule and weapons.qc's GrenadeTouch branch; QC/triggers.qc adapts triggers.qc's trigger_teleport
 spawnflag 8 (teleport_activate) and QC/vr_liquids.qc ai.qc's SPAWNFLAG_NO_CONTENTS_DAMAGE (same header).
-Plan and task list: [MG3_PLAN.md](MG3_PLAN.md).
+Plan and task list: [MG3.md](MG3.md).

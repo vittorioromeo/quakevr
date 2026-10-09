@@ -329,7 +329,7 @@ constexpr float sinkDensity = 0.5f;
 }
 
 // The part of the column from `lo` to `hi` (z) at `c` under water (0 to 1), by the BSP's liquid leaves. Every point
-// it tries is on one column: the hull's walk down to that column's node is done once (MG3_PLAN.md M3-28: a body's
+// it tries is on one column: the hull's walk down to that column's node is done once (MG3.md M3-28: a body's
 // 2 to 15 point tests each step, 0.26 ms a frame of secret2's fight).
 [[nodiscard]] float submerged(const glm::vec3& c, float lo, float hi)
 {

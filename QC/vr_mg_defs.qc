@@ -33,7 +33,7 @@ void(entity ent) MG_RegisterFrameTickEntity = { ent.MG_registered = TRUE; };
 void(entity ent) MG_RemoveFrameTickEntity = { ent.MG_registered = FALSE; };
 // Scan registered entities: ordinary QC remove/killtarget cannot leave a dangling linked-list node.
 // QVR: the unregistered ones are skipped in the engine (findflags), the next entity still taken before each tick and
-// tested after it, as the plain nextent walk did: the same ticks in the same order (MG3_PLAN.md M3-28: 1800 entities a
+// tested after it, as the plain nextent walk did: the same ticks in the same order (MG3.md M3-28: 1800 entities a
 // frame walked in QuakeC on secret2).
 void() MG_WorldFrame = {
     if(!MG_WorldCampaign()) return;

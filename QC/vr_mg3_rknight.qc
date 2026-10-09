@@ -16,7 +16,7 @@
 
     See file, 'COPYING', for details.
 */
-// Dawn of the Machine's ranged knight (MG3_PLAN.md, M3-18), adapted from the snapshot's monsters/mg3_rknight.qc
+// Dawn of the Machine's ranged knight (MG3.md, M3-18), adapted from the snapshot's monsters/mg3_rknight.qc
 // (monster_ranged_knight, rknight_shot, its frame functions; ai.qc's sight sounds; client.qc's obituary;
 // docs/vr-port/OFFICIAL_QC_SOURCE.md).
 //

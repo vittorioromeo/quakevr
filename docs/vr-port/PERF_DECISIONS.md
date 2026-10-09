@@ -70,7 +70,7 @@ stops it again). Before this run's trace fix the debris' traces were 15% of `ai_
 `ai_crowd_64` (64 monsters awake, entities not drawn) against `ai_crowd_64_quakeai` (the same with Quake's AI):
 CPU 2.57 against 1.76 ms before this run's fixes; the server's share 0.85 against 0.56 ms, the rest is the fight
 going differently (more blood particles and debris: vr particles 0.41 against 0.25 ms, view entities 0.67 against
-0.42). The stealth scopes themselves are small (STEALTH_PLAN.md: 0.02-0.06 ms a server frame). Not a decision: the
+0.42). The stealth scopes themselves are small (STEALTH.md: 0.02-0.06 ms a server frame). Not a decision: the
 feature's cost, measured; nothing in it stood out in VTune (no stealth function in the top 30).
 
 ### 5. Retro particles' fill (decided 2026-10-08: tried, left off)
