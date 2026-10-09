@@ -93,6 +93,18 @@ struct ScreenImage
     bool trueColor{false}; // drawn in its own colours (its text whitened: vr_ammo_screen_text_white)
 };
 za::Array<ScreenImage, maxScreenImages> screenImages;
+// The images are found by what they show, not by the screens' order: the world's guns are queued nearest first, so a
+// step (a gun nearer than another, one coming into range) reordered them, and each screen whose slot had shown another
+// text was drawn again, its target made again when the size differed (the author's firing range session: ~1700 targets
+// made in 10 minutes). Now a screen whose text is in an image uses it (screens with the same text share one), and a new
+// text takes the image unused the longest, one of its size first (drawn again, not made again).
+struct ScreenSlots
+{
+    za::Array<int, maxScreenImages> byOrder{}; // renderScreens' last frame: its n-th screen's image (-1: none)
+    int draws{0};                              // images drawn so far (vr_memstats)
+    int shared{0};                             // screens shown through another's image so far
+};
+ScreenSlots screenSlots;
 
 // An ammo screen's quad this frame, with its own glitch.
 struct ScreenQuad
@@ -530,6 +542,35 @@ void layoutOverlay(const Queued& q)
     }
 }
 
+// A screen image's colours as the settings have them now (vr_ammo_screen_text_white: its own, whitened).
+struct ScreenLook
+{
+    glm::vec3 face;
+    glm::vec3 text;
+    bool trueColor;
+};
+
+[[nodiscard]] ScreenLook screenLook()
+{
+    const bool trueColor = screenWhiteness() > 0.f;
+    return {trueColor ? screenFaceLit() : screenFace(), trueColor ? screenInk() : screenText(), trueColor};
+}
+
+// The image that shows `text` so (whenever it was drawn: what it shows still holds), or -1.
+[[nodiscard]] int findScreenImage(za::StringView text, int align, const ScreenLook& look)
+{
+    for(int i = 0; i < maxScreenImages; i++)
+    {
+        const ScreenImage& image = screenImages[static_cast<size_t>(i)];
+        if(image.width > 0 && image.target.texture && image.drawnAlign == align &&
+            image.drawnFace == look.face && image.drawnText == look.text && image.drawn == text)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false)
 {
@@ -596,9 +637,17 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         const glm::vec3 tl = c - right * (halfW + pad) + up * (halfH + pad);
 
         const float crt = screenCrt();
-        const ScreenImage* image = index < maxScreenImages ? &screenImages[static_cast<size_t>(index)] : nullptr;
-        imaged = crt > 0.f && image && image->width > 0 && image->target.texture &&
-                 image->frame >= host_framecount - 2; // not left over from before a pause of the 2D pass
+        int slot = findScreenImage(text, static_cast<int>(align), screenLook());
+        if(slot < 0 && index < maxScreenImages)
+        {
+            slot = screenSlots.byOrder[static_cast<size_t>(index)]; // (its text changed: last frame's, stretched)
+            if(slot >= 0 && screenImages[static_cast<size_t>(slot)].frame < host_framecount - 2)
+            {
+                slot = -1; // not left over from before a pause of the 2D pass
+            }
+        }
+        const ScreenImage* image = slot >= 0 ? &screenImages[static_cast<size_t>(slot)] : nullptr;
+        imaged = crt > 0.f && image && image->width > 0 && image->target.texture;
         if(imaged)
         {
             // The image is last frame's (the 2D pass comes after the eyes), stretched over this one's
@@ -1136,6 +1185,43 @@ void renderScreens()
         return;
     }
 
+    // First the screens whose text an image shows (kept, shared), then the others into the images left.
+    const ScreenLook look = screenLook();
+    const int pad = screenPad();
+    za::Array<int, maxScreenImages>& byOrder = screenSlots.byOrder;
+    int count = 0;
+    for(const Queued& q : queuedTexts())
+    {
+        if(!q.screen)
+        {
+            continue;
+        }
+        if(count >= maxScreenImages)
+        {
+            break;
+        }
+        const int at = count++;
+        byOrder[static_cast<size_t>(at)] = -1;
+        if(splitLines(q.text) == 0)
+        {
+            continue;
+        }
+        const int slot = findScreenImage(q.text, static_cast<int>(q.align), look);
+        if(slot >= 0)
+        {
+            if(screenImages[static_cast<size_t>(slot)].frame == host_framecount)
+            {
+                screenSlots.shared++;
+            }
+            screenImages[static_cast<size_t>(slot)].frame = host_framecount;
+            byOrder[static_cast<size_t>(at)] = slot;
+        }
+    }
+    for(int i = count; i < maxScreenImages; i++)
+    {
+        byOrder[static_cast<size_t>(i)] = -1;
+    }
+
     int index = 0;
     for(const Queued& q : queuedTexts())
     {
@@ -1143,40 +1229,70 @@ void renderScreens()
         {
             continue;
         }
-        if(index >= maxScreenImages)
+        if(index >= count)
         {
             break;
         }
-        ScreenImage& image = screenImages[static_cast<size_t>(index++)];
+        const int at = index++;
+        if(byOrder[static_cast<size_t>(at)] >= 0)
+        {
+            continue; // (shown already)
+        }
         const size_t longest = splitLines(q.text);
         if(longest == 0)
         {
-            image.width = 0;
             continue;
         }
-
-        // Its face and its text, in the screen's colours, on a virtual screen of font pixels (the
-        // CRT shader makes it one phosphor colour again).
-        const int pad = screenPad();
-        image.width = static_cast<int>(longest) * 8 + pad * 2;
-        image.height = static_cast<int>(textLines.size()) * 8 + pad * 2;
-        image.frame = host_framecount;
-        // Drawn again only when something in it changed (it holds until then; the counters change
-        // with a shot, not every frame). Its text whitened (vr_ammo_screen_text_white): in its own colours, the
-        // text in the brightened font, the face as the shader would have lit it (screenFaceLit).
-        const bool trueColor = screenWhiteness() > 0.f;
-        const glm::vec3 face = trueColor ? screenFaceLit() : screenFace(), text = trueColor ? screenInk() : screenText();
-        image.trueColor = trueColor;
-        if(image.target.texture && image.target.width == image.width * screenScale &&
-            image.target.height == image.height * screenScale && image.drawn == q.text &&
-            image.drawnAlign == static_cast<int>(q.align) && image.drawnFace == face && image.drawnText == text)
+        // Its virtual screen of font pixels.
+        const int width = static_cast<int>(longest) * 8 + pad * 2;
+        const int height = static_cast<int>(textLines.size()) * 8 + pad * 2;
+        // Shown since an earlier screen of this frame drew it (two screens with one new text)?
+        int slot = findScreenImage(q.text, static_cast<int>(q.align), look);
+        if(slot >= 0)
+        {
+            screenSlots.shared++;
+            byOrder[static_cast<size_t>(at)] = slot;
+            continue;
+        }
+        // The image unused the longest: one of this size first (drawn again, not made again), else any.
+        int sameSize = -1, oldest = -1;
+        for(int i = 0; i < maxScreenImages; i++)
+        {
+            const ScreenImage& image = screenImages[static_cast<size_t>(i)];
+            if(image.frame == host_framecount)
+            {
+                continue;
+            }
+            if(image.target.texture && image.target.width == width * screenScale && image.target.height == height * screenScale &&
+                (sameSize < 0 || image.frame < screenImages[static_cast<size_t>(sameSize)].frame))
+            {
+                sameSize = i;
+            }
+            if(oldest < 0 || image.frame < screenImages[static_cast<size_t>(oldest)].frame)
+            {
+                oldest = i;
+            }
+        }
+        slot = sameSize >= 0 ? sameSize : oldest;
+        if(slot < 0)
         {
             continue;
         }
+        byOrder[static_cast<size_t>(at)] = slot;
+        ScreenImage& image = screenImages[static_cast<size_t>(slot)];
+        image.width = width;
+        image.height = height;
+        image.frame = host_framecount;
+
+        // Its face and its text, in the screen's colours (the CRT shader makes it one phosphor colour again). Its text
+        // whitened (vr_ammo_screen_text_white): in its own colours, the text in the brightened font, the face as the
+        // shader would have lit it (screenFaceLit).
+        image.trueColor = look.trueColor;
         image.drawn = q.text;
         image.drawnAlign = static_cast<int>(q.align);
-        image.drawnFace = face;
-        image.drawnText = text;
+        image.drawnFace = look.face;
+        image.drawnText = look.text;
+        screenSlots.draws++;
         static constexpr const char* names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3",
             "ammo screen 4", "ammo screen 5", "ammo screen 6", "ammo screen 7", "ammo screen 8", "ammo screen 9",
             "ammo screen 10", "ammo screen 11", "ammo screen 12", "ammo screen 13", "ammo screen 14", "ammo screen 15",
@@ -1190,11 +1306,11 @@ void renderScreens()
             "ammo screen 58", "ammo screen 59", "ammo screen 60", "ammo screen 61", "ammo screen 62", "ammo screen 63",
             "ammo screen 64"};
         gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale, true,
-            names[index - 1]); // mipmaps: the glow
+            names[slot]); // mipmaps: the glow
         gfx::begin2D(image.target, image.width, image.height);
-        gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), face);
-        gfx::draw2D::color(glm::vec4{text, 1.f});
-        gadget::useBrightFont(trueColor);
+        gfx::draw2D::fill(0.f, 0.f, static_cast<float>(image.width), static_cast<float>(image.height), look.face);
+        gfx::draw2D::color(glm::vec4{look.text, 1.f});
+        gadget::useBrightFont(look.trueColor);
         for(size_t i = 0; i < textLines.size(); i++)
         {
             const za::String line{textLines[i]};
@@ -1205,6 +1321,12 @@ void renderScreens()
         gfx::draw2D::color(glm::vec4{1.f});
         gfx::end2D();
     }
+}
+
+void screenStats(int& draws, int& shared)
+{
+    draws = screenSlots.draws;
+    shared = screenSlots.shared;
 }
 
 // Texts queued this frame and map text boards held (vr_memstats).

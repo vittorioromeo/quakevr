@@ -816,6 +816,11 @@ void VR_MemStats_f()
     Con_Printf("  GL    %d textures (%d not managed), %d buffers, %d framebuffers, %d queries, %d programs (%.1f ms to count)\n",
         m.glTextures, m.glTextures - m.textures, m.buffers, m.framebuffers, m.queries, m.programs, m.scanMs);
     Con_Printf("  VR    render targets (re)made %d times so far (%s); ", gfx::targetsMade, gfx::targetsMadeByName().cStr());
+    {
+        int draws = 0, shared = 0;
+        text3d::screenStats(draws, shared);
+        Con_Printf("ammo screen images drawn %d times so far (%d screens shown through another's image); ", draws, shared);
+    }
     decals::count_f();
     const mem::Totals held = mem::totals();
     Con_Printf("  VR    scratch buffers %.1f KiB (%d sets), caches %.1f KiB (%d sets); the largest:\n",
@@ -983,6 +988,11 @@ void writeMemLogRow(const char* reason)
     logReader = Readers{};
     gpustats::columns(c); // the GPU as the whole system uses it: clocks, slowdowns, programs
     column(c, "vram_programs", "%s", vram.programs.cStr()); // the other programs holding the most of its memory (MB)
+    {
+        int draws = 0, shared = 0;
+        text3d::screenStats(draws, shared);
+        column(c, "screen_draws", "%d", draws); // the ammo screens' images drawn so far
+    }
     const double made = Sys_DoubleTime();
 
     // The file's part on a worker (its opening, appending and closing: ~1 ms, more when a scanner looks at it).

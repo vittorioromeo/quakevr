@@ -78,4 +78,7 @@ void drawOverlay();
 // Texts queued this frame and map text boards held (vr_memstats).
 void counts(int& queuedTexts, int& boardCount);
 
+// The ammo screens' images drawn so far, and the screens shown through another's image (the same text) so far.
+void screenStats(int& draws, int& shared);
+
 } // namespace qvr::text3d
