@@ -30,7 +30,7 @@ def waits(n):
     return ["wait"] * int(n)
 
 
-# The firing range: the spawn looks down the range (-x); the perf suite's fixtures (perf_suite.py) are round it.
+# The firing range: the spawn looks down the range (-x); the old perf suite's fixtures (perf_suite.py, git history) are round it.
 RANGE = "vrfiringrange"
 MIXED = ("monster_army", "monster_ogre", "monster_knight", "monster_wizard")
 

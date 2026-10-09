@@ -230,7 +230,7 @@ prints it.
     button on the gadget's lower edge with your other hand's fingertip: a click, and the gadget's and your guns'
     screens dim (their cast light and glow nearly gone, the text dimmer); press again to bring them back. Easy to find
     and press, never pressed by a screen tap? HUD and Menus > Screens > Gear Lights: Button Size, Across/Up/Out, Show the
-    Button (its hit volume drawn). Headless: `Misc/quakevr/gadget_tap_test.sh <agent>`.
+    Button (its hit volume drawn).
   - **Gadget fingertip, tap zone, trails in VR, Death View menus** (ROUND21.md, same title): the side button is pressed
     by your drawn index fingertip now (Show the Button: the dot on your fingertip?); HUD and Menus > Wrist Gadget:
     Fingertip Forward/Outward/Up/Pitch/Yaw/Roll, Button Tilt. Combat > Bullet Time > Screen Tap: Tap Zone Width/Height/

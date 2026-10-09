@@ -74,7 +74,7 @@ and output. Concurrent allocator edits in the shared checkout were excluded from
 from this task's commit. The clean executable SHA-256 is recorded in the validation artifacts.
 
 - Release x64 build passed with warnings treated as errors.
-- `modelmetadata_test.py`: five fixtures, 17 sweeps, 1,002,084 metadata checks, 27,291 prop transform
+- `modelmetadata_test.py` (removed 2026-10-09 with the perf_suite scripts it built on; git history): five fixtures, 17 sweeps, 1,002,084 metadata checks, 27,291 prop transform
   cases and 1,632 exact ordered force-grab comparisons. Fixtures cover mixed props, portals,
   hand transfers, active ragdolls, vanilla models, map transitions and explicit model reload.
 - The engine's new `vr_modelmetadata_test` also checks null/unknown paths, custom prefixes,

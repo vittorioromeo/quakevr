@@ -16,13 +16,5 @@ Release x64 build, QuakeC build (0 warnings), static-state check and diff whites
 
 `vr_hitzones_check` compares the last view's surface triangle centroids with the actual gameplay `PositionalPointRegion` QC function. It reports colored piece counts, samples, mismatches, sphere-boundary approximations, a hash of animated vertices and fallback models. The tested grunt produced 1,804 checked surface pieces with zero classification mismatches outside the documented sphere approximation; a live grunt plus corpse produced 3,118. The animation and pain hashes differed.
 
-To repeat, use a disposable game base containing id1/hipnotic/rogue and this branch's quakevr assets and compiled progs.dat:
-
-```powershell
-Misc/quakevr/hitzones_review.ps1 -Base <isolated-base> -Exe <engine-executable>
-python Misc/quakevr/check_hitzones_review.py <isolated-base>/hitzones.log
-```
-
-The review replaces the disposable base's quakevr/autoexec.cfg and writes screenshots and logs; config writes are disabled. Physical headset testing remains separate from the mock review.
-
-The development game's executable was running during this change, so the validated build was written to `build-cmake/hitzones-bin/ironwail.exe`. A normal Release rebuild after closing that game updates the usual executable.
+The mock review that rendered and checked these views from a disposable game base (`hitzones_review.ps1` and
+`check_hitzones_review.py`) was removed on 2026-10-09; it is in git history. `vr_hitzones_check` remains.

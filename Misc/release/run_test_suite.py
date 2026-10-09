@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The headless test suite before a release (docs/vr-port/RELEASING.md, "Tests before publishing"): the Misc/quakevr
-test scripts that give a verdict, one at a time, through the kit (run.sh with the mock headset) on a kit worktree.
+test scripts (.sh, .py, .ps1) that give a verdict, one at a time, through the kit (run.sh with the mock headset) on a kit worktree.
 
     python Misc/release/run_test_suite.py <agent> [--build] [--only REGEX] [--skip REGEX] [--log-dir DIR]
                                                    [--allow-flaky] [--flaky NAME,...] [--list]
@@ -54,6 +54,8 @@ SUITE = [
     ("reload_pouchgren", "reload/pouchgren_test.sh", [], 1200, False),
     ("reload_worldparts", "reload/worldparts_test.sh", [], 1200, False),
     ("reload", "reload/reload_test.sh", [], 3600, False),
+    ("mapgun_pickup", "loadedmapguns/pickup_test.ps1", [], 1800, False),
+    ("mapgun_transfer", "loadedmapguns/transfer_test.ps1", [], 1200, False),
     ("xr_runtime", "xr_runtime_test.sh", [], 1800, False),
     ("grip_gap", "carry/grip_gap_test.py", [], 1800, False),
     ("flash_grab", "flashgrab/flash_grab_test.py", [], 3600, False),
@@ -175,7 +177,13 @@ def main():
     total_start = time.time()
     for i, (name, script, args, timeout, _) in enumerate(tests, 1):
         path = f"{tree}/Misc/quakevr/{script}"
-        argv = ([sys.executable, path] if script.endswith(".py") else [bash, path]) + [a.agent] + args
+        if script.endswith(".py"):
+            argv = [sys.executable, path]
+        elif script.endswith(".ps1"):
+            argv = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path]
+        else:
+            argv = [bash, path]
+        argv += [a.agent] + args
         print(f"[{i:2}/{len(tests)}] {name:20} ", end="", flush=True)
         log_path = os.path.join(log_dir, f"{name}.log")
         if not os.path.isfile(path):

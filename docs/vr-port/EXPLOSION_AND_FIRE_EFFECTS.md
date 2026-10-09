@@ -39,6 +39,5 @@ Runtime diagnostics:
 - `vr_fire_particles_stats`: static/dynamic/torch sources and emitted count.
 - `vr_walltorch_tilt_test`: actual flame transforms at 0°, 90°, 180°.
 
-`effects_review.ps1 -Mode debris|fire|sources -Base <isolated game base> -Exe <branch engine>` uses the mock backend and a hidden rendered window. The base needs id1, hipnotic and rogue game data, and a quakevr directory with this branch's progs.dat, models, textures, maps and config. It replaces quakevr/autoexec.cfg and writes screenshots/logs to that base and disables config writes. `sources` exercises a held torch on e1m2 and a newly spawned burning monster. Run `python check_effects_review.py <debris.log> <fire.log> [sources.log]` to assert the outcomes.
-
-A fresh Windows build also exposed pre-existing tips-module issues: local identifiers collided with Windows' `near` macro, and a function-local static failed the repository check. Those are fixed without changing tip behavior.
+The mock review that rendered these effects from a disposable game base (`particles/effects_review.ps1` and
+`check_effects_review.py`) was removed on 2026-10-09; it is in git history.

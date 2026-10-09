@@ -628,6 +628,6 @@ Sizes that first appear later (a monster spawned after load) still build on dema
 demand-filled.
 
 Checks: `vr_hull_preloadtest` compares traces against freshly built trees without filling the cache;
-`vr_hull_audit 1` prints the preparation's counts, bytes and time; `vr_startup_times` includes the phase;
-`Misc/quakevr/hull_preload_test.py` runs both over `vrfiringrange,e1m1,e2m2,start` (`--traverse` for a scripted
-walk). The full report, `HULL_PRELOAD_20261005.md`, was removed 2026-10-06 and is in git history.
+`vr_hull_audit 1` prints the preparation's counts, bytes and time; `vr_startup_times` includes the phase.
+(`Misc/quakevr/hull_preload_test.py`, which ran both over several maps, was removed 2026-10-09 with the perf_suite
+scripts it built on; git history.) The full report, `HULL_PRELOAD_20261005.md`, was removed 2026-10-06 and is in git history.

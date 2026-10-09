@@ -57,7 +57,7 @@ uploaded is `release-body.md`: the notes plus the files' sizes and SHA-256.
 ### Tests before publishing
 
 `-RunTests` runs `Misc\release\run_test_suite.py` before anything is built: the Misc\quakevr test scripts that give a
-verdict (39: reloading, melee, carry and grabs, parry, throws, teleporter chase, stealth, the update notice, the OpenXR
+verdict (41: reloading, melee, carry and grabs, parry, throws, teleporter chase, stealth, the update notice, the OpenXR
 runtime choice...; `python Misc\release\run_test_suite.py --list`), one at a time through the kit's headless mock
 headset, on a **kit worktree** holding this commit's files: `-TestAgent <name>` (or `QVR_TEST_AGENT`; default this
 checkout's name when it is one: `C:\OHWorkspace\qvr-agents\<name>`, made by the kit's `new_agent.sh <name> <commit>`).

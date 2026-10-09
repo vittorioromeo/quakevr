@@ -12,10 +12,9 @@ them, summarises, and compares a baseline with new results.
   scenario's commands are this tree's).
 - Runner: the kit's `bench.sh` (`C:/OHWorkspace/qvr-kit/bench.sh`, with `bench_maps.ps1` and `bench_sheet.ps1`).
 
-The older one-off suite (`Misc/quakevr/perf_suite.py`, `PERFORMANCE_BENCHMARK_20261005.md`, removed 2026-10-06; git history)
-is the origin of the firing-range fixtures here; it needs a disposable base and parses the call tree's CSV. This suite
-runs in the kit's game folders and records whole-frame percentiles itself. (Some of perf_suite's switches are stale:
-`vr_retro_particles` no longer exists.)
+The older one-off suite (`PERFORMANCE_BENCHMARK_20261005.md`, removed 2026-10-06, and `Misc/quakevr/perf_suite.py` with
+its helper scripts, removed 2026-10-09; git history) is the origin of the firing-range fixtures here. This suite runs in
+the kit's game folders and records whole-frame percentiles itself.
 
 ## Running it
 
@@ -33,7 +32,7 @@ bash kit/bench.sh list [<group>]
   of them. Default `core` (13 scenarios, the round's quick picture).
 - Timing runs (the default) are **exclusive** (`run.sh --exclusive`: nothing else runs on the machine) and **paced**
   like a 90 Hz headset (`-RealTime`, `host_maxfps` = `--hz`). `--fast` runs the frames unpaced (throughput, the way
-  perf_suite measured), `--shared` drops the exclusivity (then the numbers mean nothing: for trying a scenario).
+  the old perf_suite measured), `--shared` drops the exclusivity (then the numbers mean nothing: for trying a scenario).
 - `--eye`: the mock headset's eye size (2048 square by default; a Quest 3 at 1.0 is about 2064 x 2208).
 - `--settings <cfg>`: a graphics profile exec'd before the map (copied into the game folder as
   `qvrbench_settings.cfg`), e.g. the author's own settings or a `vr_graphics_preset`. Without it the agent's baseline

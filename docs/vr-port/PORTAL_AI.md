@@ -12,12 +12,8 @@ Under the stealth AI (`vr_stealth_gates`, STEALTH_PLAN.md "Teleporters") every m
 
 ## Validation
 
-Build the Release engine and compile `QC/progs.src`. With a disposable base containing the normal game assets, run sequentially:
+The mock reviews that checked this from a disposable game base (`portal_ai_review.ps1`,
+`portal_ai_reverse_review.ps1` and `check_portal_ai.py`) were removed on 2026-10-09; they are in git history.
+`Misc/quakevr/teleporters/teleporters_test.sh` (its `chase` case, in the release suite `Misc/release/run_test_suite.py`) covers monsters following through gates.
 
-```powershell
-Misc/quakevr/portal_ai_review.ps1 -Base build-cmake/explosion-branch-review/base -Exe Windows/VisualStudio/Build-ironwail/bin/x64/Release/ironwail.exe
-Misc/quakevr/portal_ai_reverse_review.ps1 -Base build-cmake/explosion-branch-review/base -Exe Windows/VisualStudio/Build-ironwail/bin/x64/Release/ironwail.exe
-python Misc/quakevr/check_portal_ai.py build-cmake/explosion-branch-review/base/portal_ai.log build-cmake/explosion-branch-review/base/portal_ai_reverse.log
-```
-
-The fixtures check acquisition outside the ordinary PVS, folded range/facing, a muzzle outside the aperture, solid blockers in each room, actual hitscan/laser/lightning/wizard damage, delayed cancellation, feature disabling, native grunt attack callbacks without locomotion, and a 90-degree destination rotation. They use `vr_portals_ai_test` and `vr_portals_rebuild` only in the disposable game directory and never write the user's configuration. Mission-pack paths compile but are not each individually exercised by these fixtures. Headset visual testing remains useful for beam/tracer presentation.
+Those fixtures checked acquisition outside the ordinary PVS, folded range/facing, a muzzle outside the aperture, solid blockers in each room, actual hitscan/laser/lightning/wizard damage, delayed cancellation, feature disabling, native grunt attack callbacks without locomotion, and a 90-degree destination rotation. They use `vr_portals_ai_test` and `vr_portals_rebuild` only in the disposable game directory and never write the user's configuration. Mission-pack paths compile but are not each individually exercised by these fixtures. Headset visual testing remains useful for beam/tracer presentation.

@@ -178,4 +178,4 @@ fteqcc's operator priorities are QC's, not C's: parenthesise every `&&`/`||` on 
 `x = (a && b);`, since `x = a && b` (also `+=` and `self.f = a && b`) is `(x = a) && b`. Also `a && b ? c : d` is
 `a && (b ? c : d)`, `a || b && c` is `(a || b) && c`, `!a == b` is `!(a == b)` and `a & b == c` is `(a & b) == c`.
 `Misc/quakevr/check_qc_precedence.py` (run by `QC/build.sh`, `QC/build.bat` and the kit's `build.sh`) fails on any
-expression that compiles differently under C's priorities; `Misc/quakevr/qcrepro/repro.qc` shows each case.
+expression that compiles differently under C's priorities; the repro that showed each case, `Misc/quakevr/qcrepro/repro.qc`, is in git history (commit `2f6ffb4ba`).

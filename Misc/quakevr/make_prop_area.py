@@ -142,7 +142,7 @@ def entities():
                 ("angle", "90"), ("worldtext", "props: tune them in Held Object Offsets"), ("worldtext_halign", "1"),
                 ("worldtext_scale", "0.3")])
     # Dawn of the Machine's Super Axe (WID_SUPERAXE 18; MG3's model read in place: none without its data), last so that no
-    # entity before it is renumbered (the long explosive box is the map's 207: boxtopple_repro.py). It drops and settles,
+    # entity before it is renumbered (the long explosive box is the map's 207: the box-topple repro, in git history). It drops and settles,
     # as the swords north of the last pads do.
     out.append([("classname", "func_weapon_grabbable"), ("origin", "%g %g %g" % SUPERAXE), ("weapon", "18")])
     # The toolgun (WID_TOOLGUN 19: weapon_toolgun; docs/vr-port/TOOLGUN.md), north of the crowbar, labelled; last again.
