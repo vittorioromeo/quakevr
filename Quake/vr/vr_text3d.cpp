@@ -80,7 +80,8 @@ za::Vector<gfx::Vertex> glows;    // the screens' soft glows (added)
 // text, in the order they were queued), drawn at the end of the 2D pass (renderScreens) and shown
 // in the eyes the next frame through Shade::Screen, like the wrist gadget's.
 constexpr int screenScale = 8;   // texels a pixel of the virtual screen (a font pixel)
-constexpr int maxScreenImages = 16; // the hands', the holsters' and the nearest guns lying round (vr_weapon_screen_idle)
+constexpr int maxScreenImages = 64; // the hands', the holsters' and the nearest guns lying round (vr_weapon_screen_idle,
+                                    // vr_weapon_world_attach_max: up to 48; made only once wanted)
 struct ScreenImage
 {
     gfx::Target target;
@@ -1179,7 +1180,15 @@ void renderScreens()
         static constexpr const char* names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3",
             "ammo screen 4", "ammo screen 5", "ammo screen 6", "ammo screen 7", "ammo screen 8", "ammo screen 9",
             "ammo screen 10", "ammo screen 11", "ammo screen 12", "ammo screen 13", "ammo screen 14", "ammo screen 15",
-            "ammo screen 16"};
+            "ammo screen 16", "ammo screen 17", "ammo screen 18", "ammo screen 19", "ammo screen 20", "ammo screen 21",
+            "ammo screen 22", "ammo screen 23", "ammo screen 24", "ammo screen 25", "ammo screen 26", "ammo screen 27",
+            "ammo screen 28", "ammo screen 29", "ammo screen 30", "ammo screen 31", "ammo screen 32", "ammo screen 33",
+            "ammo screen 34", "ammo screen 35", "ammo screen 36", "ammo screen 37", "ammo screen 38", "ammo screen 39",
+            "ammo screen 40", "ammo screen 41", "ammo screen 42", "ammo screen 43", "ammo screen 44", "ammo screen 45",
+            "ammo screen 46", "ammo screen 47", "ammo screen 48", "ammo screen 49", "ammo screen 50", "ammo screen 51",
+            "ammo screen 52", "ammo screen 53", "ammo screen 54", "ammo screen 55", "ammo screen 56", "ammo screen 57",
+            "ammo screen 58", "ammo screen 59", "ammo screen 60", "ammo screen 61", "ammo screen 62", "ammo screen 63",
+            "ammo screen 64"};
         gfx::ensureTarget(image.target, image.width * screenScale, image.height * screenScale, true,
             names[index - 1]); // mipmaps: the glow
         gfx::begin2D(image.target, image.width, image.height);

@@ -266,7 +266,7 @@ enum Holster : int
 };
 
 // Weapons lying in the world near the player that show their ammo screen and button (the nearest).
-constexpr int maxWorldWeapons = 6;
+constexpr int maxWorldWeapons = 48; // (vr_weapon_world_attach_max of them; their range vr_weapon_world_attach_range)
 constexpr int maxWorldSsgs = 4; // super shotguns lying about broken open, drawn open (setupWorldSsgs)
 
 // The guns' loading ports (immersive reloading; docs/vr-port/RELOAD_PLAN.md): where a round held in the other hand goes
@@ -6137,10 +6137,13 @@ void setupSawHandle()
 
 // The weapons lying in the world (map pickups are the guns themselves in Quake VR: thrown weapons,
 // func_weapon_grabbable) near the player carry their ammo screen and button too (vr_weapon_screen_idle): the nearest
-// maxWorldWeapons within reach; a lava gun among them glows (dimmer, vr_lavagun_light_idle).
+// vr_weapon_world_attach_max (up to maxWorldWeapons) within vr_weapon_world_attach_range (the author's note
+// vrfiringrange_2026-10-09_12-35-45: the magazines and screens popped in and out a few metres off, at 320 units and 6 guns);
+// a lava gun among them glows (dimmer, vr_lavagun_light_idle).
 void setupWorldWeapons(const hands::State& s, bool queueTexts)
 {
-    constexpr float reach = 320.f;
+    const float reach = za::max(vr_weapon_world_attach_range.value, 0.f);
+    const int most = CLAMP(0, static_cast<int>(vr_weapon_world_attach_max.value), maxWorldWeapons);
     struct Near
     {
         const entity_t* e;
@@ -6157,12 +6160,12 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
             continue;
         }
         const float d = glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, s.head);
-        if(d > reach || (count == maxWorldWeapons && d >= nearest[maxWorldWeapons - 1].dist))
+        if(most == 0 || d > reach || (count == most && d >= nearest[most - 1].dist))
         {
             continue;
         }
         // Kept sorted, nearest first.
-        int at = count < maxWorldWeapons ? count++ : maxWorldWeapons - 1;
+        int at = count < most ? count++ : most - 1;
         while(at > 0 && nearest[at - 1].dist > d)
         {
             nearest[at] = nearest[at - 1];
@@ -6202,7 +6205,8 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
             {
                 c = c == '\n' ? '|' : c;
             }
-            Con_Printf("world gun %d (%s): its screen \"%s\"\n", static_cast<int>(&e - cl_entities), e.model->name, text.data());
+            Con_Printf("world gun %d (%s): its screen \"%s\", %.0f units off\n", static_cast<int>(&e - cl_entities),
+                e.model->name, text.data(), static_cast<double>(nearest[i].dist));
         }
         if(emissive::isLavaGun(e.model) && 2 + HolsterCount + lights < emissive::lavaGunLights)
         {

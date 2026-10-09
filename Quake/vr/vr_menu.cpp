@@ -2801,6 +2801,10 @@ void hologramTestMessage()
         slider("Ammo Screen CRT Look", "vr_weapon_screen_crt", 0.f, 2.f, 0.1f, "%.1fx").extend().help("Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off)."),
         toggle("White Ammo Screen Text", "vr_ammo_screen_text_white").help("The numbers on the ammo screens (and the ammo pouch's counter) near-white, as the wrist gadget's, for readability; their frame and glow keep the screen's colour. Off: in the screen's colour."),
         toggle("Screens on Weapons at Rest", "vr_weapon_screen_idle").help("Weapons in your holsters and lying in the world show their ammo screen and button too, not only the ones in your hands."),
+        slider("Lying Weapons' Parts Range", "vr_weapon_world_attach_range", 250.f, 5000.f, 250.f, "%.0f units").extend(0.f, 20000.f)
+            .help("How far off a weapon lying in the world still shows its magazine, ammo screen and button (Quake units: 32 is about a metre)."),
+        slider("Lying Weapons With Parts", "vr_weapon_world_attach_max", 0.f, 48.f, 1.f, "%.0f")
+            .help("How many of the weapons lying nearest show their magazine, ammo screen and button."),
         header("Map Boards"),
         toggle("Map Boards as CRTs", "vr_worldtext_crt").help("The text boards in maps (the tutorial's, the start map's) are CRT screens with glowing text, as the wrist gadget's. Off: plain text."),
         slider("Map Board Hue", "vr_worldtext_hue", 0.f, 355.f, 5.f, "%.0f").help("Their colour: 40 amber, 128 green, 200 blue, 0 red."),

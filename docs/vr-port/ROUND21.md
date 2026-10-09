@@ -33240,3 +33240,17 @@ to the "out of the gun" line its feed end along the seated one's (1 the same) an
 eject_test.sh: the pairs (above), and each gun in each hand at two pitches: the feed end along the seated one's 1.00 in
 all 12 (the hand's angles, as before, at one pose: -0.12 to 0.28); the push 1.00 along the well's way out for the
 nailgun and the cell, 0.70 to 0.82 for the super nailgun (its well tilts up), 14 to 34 u/s down, never up.
+
+## The lying guns' parts seen from far (2026-10-09)
+
+The author's note vrfiringrange_2026-10-09_12-35-45: the magazines and ammo screens of the guns on the range's tables
+popped in and out a short way off. setupWorldWeapons gave them (the magazine and its well, the ammo screen, the button)
+to the 6 guns nearest the head within 320 units, a constant; vrfiringrange has 32 guns lying about, 380 to 960 units
+from the spawn: none showed any. Now `vr_weapon_world_attach_range` (2500 units) and `vr_weapon_world_attach_max` (48,
+the pool's size; HUD and Menus > Screens, under Weapons' Ammo Screens: "Lying Weapons' Parts Range", "Lying Weapons With
+Parts"); the ammo screens' image pool 64 (made only when wanted).
+
+Cost (exclusive, vrfiringrange's spawn, 600 frames, twice): the frame's CPU 0.745/0.774 ms with none, 0.795/0.779 at 16,
+0.807/0.849 with all 32 (3D: 0.443/0.448 -> 0.519/0.542); the GPU 0.861-0.889 ms all three, within its noise.
+worldparts_test.sh: from the spawn and from 1500 units over the tables, all 32 screens and the 6 magazines (the farthest
+955 and 1608 units off); at the old 320 and 6, none from either; the range at 1000 or 400 cuts them there.
