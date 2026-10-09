@@ -1174,8 +1174,8 @@ enum
 {
 	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp), the first row
 	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), right after VR Calibration; Back from them to this menu
-	MAIN_SINGLEPLAYER,
 	MAIN_CAMPAIGNS, // QVR: Select Campaign, the official campaigns' page (was Single Player > Official Campaigns)
+	MAIN_SINGLEPLAYER,
 	MAIN_MULTIPLAYER,
 	MAIN_MAPLIBRARY, // QVR: Download Maps, the map browser (vr_menu_maps.inc)
 	MAIN_PLAYCUSTOM, // QVR: Play Custom Map, Ironwail's Levels (the maps installed)
@@ -1191,7 +1191,7 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"VR Calibration", "VR Settings", "Single Player", "Select Campaign", "Multiplayer", "Download Maps", "Play Custom Map", "Options",
+	"VR Calibration", "VR Settings", "Select Campaign", "Single Player", "Multiplayer", "Download Maps", "Play Custom Map", "Options",
 	"Advanced VR", "Mods", "Quit",
 };
 
@@ -2054,7 +2054,7 @@ void M_Maps_Draw (void)
 
 				M_PrintScroll (x + namecols*8, y + i*8, desccols*8, buf,
 					selected ? mapsmenu.ticker.scroll_time : 0.0, true);
-				
+
 				if (!message)
 					GL_SetCanvasColor (1, 1, 1, 1);
 			}
@@ -3390,7 +3390,7 @@ void M_Menu_Gamepad_f (void)
 
 #define PP_IGNORE_ARGS(...)
 
-enum 
+enum
 {
 	// Add option id's and BEGIN values
 	#define BEGIN_MENU_OPT(prefix, state, desc)		prefix##_BEGIN, _##prefix##_REWIND = prefix##_BEGIN - 1,
@@ -3871,9 +3871,9 @@ void M_AdjustSliders (int dir)
 			curr_alwaysrun = ALWAYSRUN_VANILLA;
 		else
 			curr_alwaysrun = ALWAYSRUN_OFF;
-			
+
 		target_alwaysrun = (ALWAYSRUN_ITEMS + curr_alwaysrun + dir) % ALWAYSRUN_ITEMS;
-			
+
 		if (target_alwaysrun == ALWAYSRUN_VANILLA)
 		{
 			Cvar_SetValue ("cl_alwaysrun", 0);
@@ -4477,7 +4477,7 @@ static void M_Options_DrawItem (int y, int item)
 		r = vid_contrast.value - 1.0;
 		M_DrawSlider (x, y, r, va ("%.0f", 10.f * r));
 		break;
-	
+
 	case OPT_MOUSESPEED:
 		r = (sensitivity.value - 1)/10;
 		M_DrawSlider (x, y, r, va ("%.1f", sensitivity.value));
@@ -4858,7 +4858,7 @@ void M_Options_Draw (void)
 
 	M_Options_UpdateLayout ();
 	M_List_Update (&optionsmenu.list);
-	
+
 	if (*optionsmenu.last_cursor != optionsmenu.list.cursor)
 	{
 		*optionsmenu.last_cursor = optionsmenu.list.cursor;
@@ -5668,14 +5668,14 @@ int		msgNumber;
 enum m_state_e	m_quit_prevstate;
 qboolean	wasInMenus;
 
-const char*const quitMessage [] = 
+const char*const quitMessage [] =
 {
 /* .........1.........2.... */
   "  Are you gonna quit    ",
   "  this game just like   ",
   "   everything else?     ",
   "                        ",
- 
+
   " Milord, methinks that  ",
   "   thou art a lowly     ",
   " quitter. Is this true? ",
@@ -5690,22 +5690,22 @@ const char*const quitMessage [] =
   "   for trying to quit!  ",
   "     Press Y to get     ",
   "      smacked out.      ",
- 
+
   " Press Y to quit like a ",
   "   big loser in life.   ",
   "  Press N to stay proud ",
   "    and successful!     ",
- 
+
   "   If you press Y to    ",
   "  quit, I will summon   ",
   "  Satan all over your   ",
   "      hard drive!       ",
- 
+
   "  Um, Asmodeus dislikes ",
   " his children trying to ",
   " quit. Press Y to return",
   "   to your Tinkertoys.  ",
- 
+
   "  If you quit now, I'll ",
   "  throw a blanket-party ",
   "   for you next time!   ",
@@ -7166,7 +7166,7 @@ static void M_ModInfo_UpdateLayout (void)
 	int			width = strlen (modinfomenu.title) * 12 + 16;
 	int			height = 0;
 	const char	*str;
-	
+
 	str = modinfomenu.author;
 	while (*str && height < MODINFO_MAXAUTHORLINES)
 	{
@@ -8139,4 +8139,3 @@ void M_CheckMods (void)
 	m_skill_usecustomtitle = M_CheckCustomGfx ("gfx/p_skill.lmp",
 		"gfx/ttl_sgl.lmp", 6728, sgl_hashes, countof (sgl_hashes));
 }
-
