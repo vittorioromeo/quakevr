@@ -638,8 +638,11 @@ const DefaultChange defaultChanges[] = {
     {114, &vr_foegrab_throw_when_hurt,
         "monster_hell_knight monster_ogre monster_ogre_marksman monster_ogre_rocket monster_demon1 monster_tarbaby monster_slime "
         "monster_scourge monster_ranged_knight"},
+    // 115: world scale 1.2 is normal (vr_defaults.cfg's since 2026-10-04; the author, 2026-10-09): the compiled default
+    // and the tutorial's and the hub's World Scale buttons' "normal" were still 1.25, so a config at 1.25 takes 1.2.
+    {115, &vr_world_scale, "1.25"},
 };
-constexpr int configVersion = 114;
+constexpr int configVersion = 115;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
