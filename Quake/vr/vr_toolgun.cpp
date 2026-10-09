@@ -175,7 +175,12 @@ struct Gizmo
     int hover{-1};       // the handle aimed at: 0..5 faces (axis * 2 + side), 6..13 corners; -1 none
     int held{-1};        // the handle the trigger holds
     glm::vec3 scale0{1.f}; // the prop's scale as the handle was taken (1 + model_scale)
-    float along0{0.f};     // the handle's distance from the centre along its way then
+    // The drag: the box's middle and the handle's way from it as it was taken, the handle's distance from the centre along
+    // it then, and its distance from the gun (the aim's point that far along the beam is dragged: its way along the
+    // handle's line scales the prop, whatever the box does meanwhile).
+    glm::vec3 centre0{0.f}, way0{0.f};
+    float along0{0.f};
+    float reach0{0.f};
 };
 
 struct ToolgunState
@@ -698,20 +703,6 @@ void dragFrame(float dt)
     return best;
 }
 
-// How far along the line from the centre through handle `h` the aim's line passes nearest it.
-[[nodiscard]] float aimAlong(const Gizmo& g, int h)
-{
-    const glm::vec3 d = glm::normalize(g.axes * (handleLocal(h) * g.half));
-    const glm::vec3 w = g.centre - tg.aim.from;
-    const float b = glm::dot(d, tg.aim.dir), dd = glm::dot(d, w), de = glm::dot(tg.aim.dir, w);
-    const float den = 1.f - b * b;
-    if(den < 1e-4f)
-    {
-        return glm::dot(handlePoint(g, h) - g.centre, d);
-    }
-    return (b * de - dd) / den;
-}
-
 void setScale(int num, const glm::vec3& k)
 {
     edict_t* e = EDICT_NUM(num);
@@ -726,6 +717,7 @@ void setScale(int num, const glm::vec3& k)
             (glm::vec3{m->mins[0], m->mins[1], m->mins[2]} + glm::vec3{m->maxs[0], m->maxs[1], m->maxs[2]}) * 0.5f);
     }
     setFieldVec(e, fields().model_scale, clamped - glm::vec3{1.f});
+    e->v.flags = static_cast<float>(static_cast<int>(e->v.flags) & ~FL_ONGROUND); // (awake: it settles at its new size)
     // Its Quake box grown with it (its touches, the toolgun's aim), about its origin (its body is made again from the
     // drawn box: box3d's stale).
     Gizmo g;
@@ -767,7 +759,7 @@ void scaleFrame()
     g = now;
     if(g.held >= 0)
     {
-        const float along = aimAlong(g, g.held);
+        const float along = glm::dot(tg.aim.from + tg.aim.dir * g.reach0 - g.centre0, g.way0);
         if(za::fabs(g.along0) > 0.5f)
         {
             const float r = za::clamp(along / g.along0, 0.05f, 20.f);
@@ -791,7 +783,11 @@ void scaleGrab()
     }
     g.held = g.hover;
     g.scale0 = scaleOf(EDICT_NUM(g.num));
-    g.along0 = aimAlong(g, g.held);
+    const glm::vec3 handle = handlePoint(g, g.held);
+    g.centre0 = g.centre;
+    g.way0 = glm::length(handle - g.centre) > 1e-3f ? glm::normalize(handle - g.centre) : glm::vec3{0.f, 0.f, 1.f};
+    g.along0 = glm::dot(handle - g.centre, g.way0);
+    g.reach0 = glm::length(handle - tg.aim.from);
 }
 
 void drawGizmo(const Gizmo& g)
@@ -800,7 +796,9 @@ void drawGizmo(const Gizmo& g)
     {
         return;
     }
-    const glm::vec4 edge{1.f, 0.85f, 0.2f, 0.8f};
+    // Its edges orange, its handles squares: the faces' cyan, the corners' white, the one aimed at (or held) large and
+    // orange, glowing.
+    const glm::vec4 edge{1.f, 0.55f, 0.1f, 1.f};
     for(int a = 0; a < 8; a++)
     {
         for(int bit = 1; bit < 8; bit <<= 1)
@@ -808,15 +806,20 @@ void drawGizmo(const Gizmo& g)
             const int b = a | bit;
             if(b != a)
             {
-                lines::line(handlePoint(g, 6 + a), handlePoint(g, 6 + b), 0.12f, edge, edge);
+                lines::line(handlePoint(g, 6 + a), handlePoint(g, 6 + b), 0.3f, edge, edge);
             }
         }
     }
     for(int h = 0; h < 14; h++)
     {
-        const bool on = h == g.hover;
-        const glm::vec4 c = h < 6 ? glm::vec4{0.3f, 0.9f, 1.f, 1.f} : glm::vec4{1.f, 1.f, 1.f, 1.f};
-        lines::glowPoint(handlePoint(g, h), on ? 2.4f : 1.2f, on ? glm::vec4{1.f, 0.4f, 0.1f, 1.f} : c);
+        const glm::vec3 p = handlePoint(g, h);
+        if(h == g.hover)
+        {
+            lines::point(p, 3.f, glm::vec4{1.f, 0.4f, 0.1f, 1.f});
+            lines::glowPoint(p, 5.f, glm::vec4{1.f, 0.5f, 0.1f, 0.8f});
+            continue;
+        }
+        lines::point(p, 1.6f, h < 6 ? glm::vec4{0.3f, 0.9f, 1.f, 1.f} : glm::vec4{1.f, 1.f, 1.f, 1.f});
     }
 }
 
@@ -1438,8 +1441,9 @@ void status_f()
     if(tg.gizmo.num)
     {
         const glm::vec3 k = scaleOf(EDICT_NUM(tg.gizmo.num));
-        Con_Printf("toolgun: gizmo on %d, scale %.2f %.2f %.2f, handle %d (held %d)\n", tg.gizmo.num, k.x, k.y, k.z, tg.gizmo.hover,
-            tg.gizmo.held);
+        Con_Printf("toolgun: gizmo on %d, scale %.2f %.2f %.2f, handle %d (held %d), centre %.1f %.1f %.1f, half %.1f %.1f %.1f\n",
+            tg.gizmo.num, k.x, k.y, k.z, tg.gizmo.hover, tg.gizmo.held, tg.gizmo.centre.x, tg.gizmo.centre.y, tg.gizmo.centre.z,
+            tg.gizmo.half.x, tg.gizmo.half.y, tg.gizmo.half.z);
     }
     Con_Printf("toolgun: joints %d\n", box3d::toolJointCount(0));
 }
