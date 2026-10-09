@@ -4,6 +4,12 @@ Makes a Quake VR: Unleashed release: builds the game and the installer (Release)
 latest.json, and (with -Publish) tags the commit and creates the GitHub release. docs/vr-port/RELEASING.md has the steps.
 
 .DESCRIPTION
+  Misc\release\make_release.ps1 -Bump patch -Publish -Final -RunTests   # THE ONE COMMAND: the tests, VERSION bumped and
+                                                           # committed, build and checks, the branch pushed, tag, the
+                                                           # release published as Latest, the Latest guard, the online
+                                                           # check (RELEASING.md, "One command")
+  Misc\release\make_release.ps1 -Bump patch -Publish -Final -DryRun     # ... its plan: every command, in order
+  Misc\release\make_release.ps1 -Version 1.0.1 -CheckOnline # only the steps after publishing (resuming)
   Misc\release\make_release.ps1 -DryRun                    # the checks and the plan; builds and writes nothing
   Misc\release\make_release.ps1                            # build, check, package into out\release\<VERSION> (no tag, nothing online)
   Misc\release\make_release.ps1 -Publish                   # ... then tag v<VERSION>, push the tag, create a DRAFT GitHub release
@@ -24,7 +30,8 @@ The version is the repository's VERSION file (docs/vr-port/RELEASING.md, "Versio
 VERSION's, or with -BumpVersion the script first commits VERSION = -Version (that file alone, on a tree without other
 changes; not pushed: it goes with the branch); with -DryRun it only says it would.
 
-Works on whatever branch is checked out (its upstream is where the tag goes); never pushes a branch. Everything it
+Works on whatever branch is checked out (its upstream is where the tag goes); with -Publish or -PushTag it pushes the
+branch to its upstream first when HEAD is ahead of it (a fast-forward, never forced; the version commit). Everything it
 writes is under out\release\<version>\ (git-ignored); a folder left by an earlier run is moved aside to
 out\release\<version>.old-<time>, never deleted.
 
@@ -62,6 +69,24 @@ param(
     [switch]$Publish,
     # Create and push the tag only (no GitHub release).
     [switch]$PushTag,
+    # With -Publish: the release published at once and marked Latest (no draft), then the online check: GitHub's
+    # latest.json read by the installer's own code (qvr-setup feed: the version, each file's size and SHA-256 against
+    # this release's), the file itself byte for byte, and a sandboxed install through it (qvr-setup install --feed).
+    [switch]$Final,
+    # Only the steps after publishing, for a release already on GitHub (resuming after a failure there): the online
+    # check of out\release\<version> (-ReleaseDir) against the feed. No build, no tag, no gh release create.
+    [switch]$CheckOnline,
+    # The feed the online check reads. Default https://github.com/<Repo>/releases/latest/download/latest.json (-Local:
+    # http://127.0.0.1:<LocalPort>/latest.json, the local server's).
+    [string]$FeedUrl = "",
+    # The release folder -CheckOnline checks (default out\release\<version>, with -Local out\release\<version>-local).
+    [string]$ReleaseDir = "",
+    # The online check's sandboxed install takes the HD textures too (a 0.6 GB download).
+    [switch]$OnlineHd,
+    # The online check without its sandboxed install (the feed only).
+    [switch]$SkipOnlineInstall,
+    # How many times the online check reads the feed before giving up (20 s apart: GitHub's latest can lag).
+    [int]$OnlineTries = 10,
     # Only the precondition checks and the plan (and the package's file list): no build, no tag, no gh call.
     [switch]$DryRun,
     # A full rebuild of the engine instead of an incremental build.
@@ -116,6 +141,30 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version 2
+# Where a failure leaves things, and how to go on (RELEASING.md, "If it stops"): printed by the trap below.
+$script:stage = "checks"
+function Get-ResumeHint() {
+    $again = "make_release.ps1 -Version $Version <the same options, without -Bump/-BumpVersion>"
+    switch ($script:stage) {
+        "checks" { @("Nothing was changed (no commit, nothing pushed): fix the cause and run the same command again.") }
+        "tests" { @("Nothing was changed (no commit, nothing pushed): fix the failing test (its log is in the tests folder),", "or -AllowFlaky for a known-flaky one, and run the same command again.") }
+        "build" { if ($bumpPending -or $script:bumped) { @("VERSION = $Version is committed here (HEAD, not pushed). Fix the cause, then: $again", "(or drop that commit: git reset --keep HEAD~1)") } else { @("Nothing was pushed or tagged: fix the cause and run the same command again.") } }
+        "push" { @("The build passed; pushing the branch failed (nothing tagged). Fix it (git pull --rebase? then the build is redone), then: $again") }
+        "tag" { @("The branch is pushed$(if ($script:bumped) { " (VERSION = $Version)" }); the tag failed. Then: $again (a tag $tag already on HEAD is reused)") }
+        "release" { @("The tag $tag is pushed; gh release create failed. If GitHub shows a partial release $tag, delete it there (or finish it:",
+                      "gh release upload $tag <the missing files of out\release\$Version\assets> --repo $Repo; gh release edit $tag --repo $Repo --draft=false --latest)",
+                      "and run make_release.ps1 -Version $Version -CheckOnline; else: $again") }
+        "online" { @("The release $tag is published. Finish the checks with: make_release.ps1 -Version $Version -CheckOnline") }
+        default { @("Run the same command again.") }
+    }
+}
+trap {
+    Write-Host ""
+    Write-Host "STOPPED ($($script:stage)): $($_.Exception.Message)" -ForegroundColor Red
+    Get-ResumeHint | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
+    break
+}
+
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $versionFile = Join-Path $root "VERSION"
 $fileVersion = if (Test-Path -LiteralPath $versionFile -PathType Leaf) { "$(Get-Content -LiteralPath $versionFile -TotalCount 1)".Trim() } else { "" }
@@ -140,9 +189,15 @@ if ($Bump) {
 if (-not $Version) { $Version = $fileVersion }
 $tag = "v$Version"
 if ($NoDraft) { $Draft = $false }
+if ($Final) {
+    if (-not $Publish -and -not $CheckOnline) { throw "-Final goes with -Publish: the release published as Latest, then checked online" }
+    $Draft = $false
+}
+if ($CheckOnline -and ($Publish -or $PushTag -or $DryRun -or $DraftNotes -or $BumpVersion)) { throw "-CheckOnline only checks a published release: not with -Publish, -PushTag, -DryRun, -DraftNotes or a version bump (give -Version)" }
 if ($RunInstaller) { $Local = $true }
 if ($Local -and ($Publish -or $PushTag)) { throw "-Local is a local test release: never with -Publish or -PushTag" }
 if ($Local -and -not $UrlBase) { $UrlBase = @("http://127.0.0.1:$LocalPort/{file}") }
+$bumpPending = $false   # (-BumpVersion: VERSION committed after the tests)
 $problems = New-Object System.Collections.Generic.List[string]   # fatal for this mode
 $warnings = New-Object System.Collections.Generic.List[string]
 $online = $Publish -or $PushTag
@@ -184,6 +239,71 @@ function Invoke-Logged([string]$exe, [string[]]$arguments, [string]$log, [string
     $p.ExitCode
 }
 
+$installerDir = Join-Path $root "Installer"
+# The installer's console tool already built (Release, else Debug), for qvr-setup detect and the online check.
+function Find-QvrSetup() {
+    foreach ($c in "Release", "Debug") {
+        $p = Join-Path $installerDir "src\QuakeVR.Installer.Cli\bin\$c\net9.0-windows\qvr-setup.exe"
+        if (Test-Path -LiteralPath $p) { return $p }
+    }
+    $null
+}
+# The Quake the installer would pick (DetectionReport.DefaultQuake: its "Expansions (for <name>, base <dir>):" line).
+function Find-QuakeDir([string]$exe) {
+    $r = Run $exe @("detect")
+    foreach ($l in $r.Out) { if ("$l" -match '^Expansions \(for (.+), base (.+)\):\s*$') { return $Matches[2].Trim() } }
+    $null
+}
+
+# The online check of a published release (-Final, -CheckOnline): the feed through the installer's own reader until it
+# names this release (qvr-setup feed --url: the version; each file's size and SHA-256 against the release's assets\),
+# the served latest.json byte for byte, then a sandboxed install through the feed (qvr-setup install --feed --sandbox:
+# the real download path; nothing outside the sandbox) and qvr-setup verify. Throws on any difference.
+function Invoke-OnlineCheck([string]$relDir, [string]$feed, [string]$quake) {
+    $assetsHere = Join-Path $relDir "assets"
+    $localFeed = Join-Path $assetsHere "latest.json"
+    if (-not (Test-Path -LiteralPath $localFeed)) { throw "online check: no $localFeed (the release folder of the published release: -ReleaseDir)" }
+    $expect = (Get-Content -Raw -LiteralPath $localFeed | ConvertFrom-Json).version
+    $qvrSetup = Find-QvrSetup
+    if (-not $qvrSetup) { throw "online check: no qvr-setup.exe built (dotnet build Installer\QuakeVR.Installer.sln -c Release)" }
+    $checkDir = Join-Path $relDir "checks\online-$(Get-Date -Format yyyyMMdd-HHmmss)"
+    New-Item -ItemType Directory -Force $checkDir | Out-Null
+    Say "feed $feed; expecting version $expect; this release's files: $assetsHere"
+    $feedArgs = @("feed", "--url", $feed, "--assets", $assetsHere)
+    $hd = (Get-Content -Raw -LiteralPath $localFeed | ConvertFrom-Json).components.PSObject.Properties["hdtextures"]
+    if ($hd -and -not (Test-Path -LiteralPath (Join-Path $assetsHere $hd.Value.file))) { $feedArgs += @("--hosted", "hdtextures") }
+    for ($try = 1; ; $try++) {
+        $r = Run $qvrSetup $feedArgs
+        $first = if ($r.Out.Count) { "$($r.Out[0])" } else { "(no answer)" }
+        if ($r.Code -eq 0 -and $first.StartsWith("version $expect;")) { break }
+        if ($try -ge $OnlineTries) {
+            $r.Out | ForEach-Object { Say "    $_" }
+            throw "online check: $feed does not serve this release after $try tries (last: $first)"
+        }
+        Say "  try ${try}: $first$(if ($r.Code -ne 0 -and $first.StartsWith("version $expect;")) { ' (a file differs)' }): again in 20 s"
+        Start-Sleep -Seconds 20
+    }
+    $r.Out | ForEach-Object { Say "  $_" }
+    $served = Join-Path $checkDir "latest.json"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri $feed -OutFile $served
+    $hServed = (Get-FileHash -LiteralPath $served -Algorithm SHA256).Hash; $hLocal = (Get-FileHash -LiteralPath $localFeed -Algorithm SHA256).Hash
+    if ($hServed -ne $hLocal) { throw "online check: the served latest.json ($served) is not this release's ($localFeed)" }
+    Say "  latest.json served = this release's (sha256 $($hLocal.ToLowerInvariant().Substring(0, 16))...)"
+    if ($SkipOnlineInstall) { Warn "-SkipOnlineInstall: no sandboxed install through the feed"; return }
+    if (-not $quake) { Warn "online check: no Quake folder (-QuakeDir, QVR_QUAKE_DIR, qvr-setup detect): no sandboxed install through the feed"; return }
+    $sandbox = Join-Path $checkDir "sandbox"
+    $iArgs = @("install", "--feed", $feed, "--sandbox", $sandbox, "--quake", $quake, "--accept-statement", "--setup-from", (Join-Path $assetsHere "QuakeVR-Setup.exe"))
+    if ($OnlineHd) { $iArgs += "--hd" }
+    Say "  installing through the feed into $sandbox (the real download; nothing outside the sandbox)"
+    Invoke-Logged $qvrSetup $iArgs (Join-Path $checkDir "install.log") | Out-Null
+    Invoke-Logged $qvrSetup @("verify", "--target", (Join-Path $sandbox "QuakeVR")) (Join-Path $checkDir "verify.log") | Out-Null
+    $rec = Get-Content -Raw -LiteralPath (Join-Path $sandbox "QuakeVR\install.json") | ConvertFrom-Json
+    if ($rec.version -ne $expect) { throw "online check: the sandbox installed '$($rec.version)', expected '$expect'" }
+    Say "  installed $($rec.version) through the feed; verify: $((Get-Content (Join-Path $checkDir 'verify.log') | Select-Object -Last 1))"
+    Say "online check passed ($checkDir)"
+}
+
 function Size([long]$bytes) {
     $c = [System.Globalization.CultureInfo]::InvariantCulture
     if ($bytes -ge 1MB) { [string]::Format($c, "{0:N1} MB", $bytes / 1MB) }
@@ -205,17 +325,18 @@ if ($Version -ne $fileVersion) {
     $numeric = { param($v) [version]($v -replace '-.*$', '') }
     if ((& $numeric $Version) -lt (& $numeric $fileVersion)) { throw "-BumpVersion: $Version is older than VERSION's $fileVersion" }
     if ($DraftNotes) { Say "-DraftNotes: the notes for $Version (VERSION is not committed)" }
-    elseif ($DryRun) { Warn "-BumpVersion: would commit VERSION = $Version (now $fileVersion) before building; the checks below are of the tree as it is" }
-    elseif ((GitRun @("--no-optional-locks", "status", "--porcelain", "--untracked-files=no")).Text) {
+    elseif ((GitRun @("--no-optional-locks", "status", "--porcelain", "--untracked-files=no")).Text -and -not $DryRun) {
         throw "-BumpVersion: commit or stash your other changes first (the version commit holds VERSION alone)"
     }
     else {
-        [System.IO.File]::WriteAllText($versionFile, "$Version`n", (New-Object System.Text.UTF8Encoding($false)))
-        if ((GitRun @("commit", "-q", "-m", "Version $Version", "--", "VERSION")).Code -ne 0) { throw "-BumpVersion: git commit of VERSION failed" }
-        Say "committed VERSION = $Version ($((GitRun @("rev-parse", "--short=8", "HEAD")).Text); not pushed)"
+        # Committed after the tests, before the build (which bakes VERSION in); the checks below are of HEAD before it.
+        $bumpPending = $true
+        if ($DryRun) { Warn "-BumpVersion: would commit VERSION = $Version (now $fileVersion) after the tests, before building; the checks below are of the tree as it is" }
+        else { Say "VERSION = $Version is committed after the tests (if any), before the build" }
     }
 }
 $prerelease = $Version.Contains("-")
+if ($Final -and $prerelease) { throw "-Final marks the release Latest, which a prerelease ($Version) never is: publish it with -Publish -NoDraft" }
 if ($AllowDirty -and $online) { throw "-AllowDirty is for testing the script: never with -Publish or -PushTag" }
 if ($Notes -and -not (Test-Path -LiteralPath $Notes -PathType Leaf)) { throw "-Notes: no file $Notes" }
 $outBase = Join-Path $root "out\release"
@@ -235,6 +356,17 @@ if ($DraftNotes) {
     if ($LASTEXITCODE -ne 0) { throw "draft_release_notes.py failed" }
     Say "Edit $notesDraftPath (one bullet per change a player notices), delete its first line (DRAFT), then publish:"
     Say "  make_release.ps1 $(if ($Bump) { "-Bump $Bump " } elseif ($Version -ne $fileVersion) { "-Version $Version -BumpVersion " })-Publish ...   (it reads that file; -Notes <file> for another)"
+    return
+}
+
+if ($CheckOnline) {
+    $script:stage = "online"
+    if (-not $ReleaseDir) { $ReleaseDir = $outDir }
+    if (-not $FeedUrl) { $FeedUrl = if ($Local) { "http://127.0.0.1:$LocalPort/latest.json" } else { "https://github.com/$Repo/releases/latest/download/latest.json" } }
+    if (-not $QuakeDir -and -not $SkipOnlineInstall -and (Find-QvrSetup)) { $QuakeDir = Find-QuakeDir (Find-QvrSetup) }
+    Step "Online check of $tag ($ReleaseDir)"
+    Invoke-OnlineCheck $ReleaseDir $FeedUrl $QuakeDir
+    if ($warnings.Count) { Say ""; Say "$($warnings.Count) warning(s) above." }
     return
 }
 
@@ -267,8 +399,8 @@ if ($dirty) {
 }
 $versionText = "$Version ($buildStamp$(if ($dirty) { '-dirty' }))"
 
-# The current branch's upstream (whatever the branch is called): the tag goes to its remote.
-$remote = ""
+# The current branch's upstream (whatever the branch is called): the tag goes to its remote, HEAD to it first.
+$remote = ""; $upstreamRef = ""; $pushBranch = $false
 if ($branch -eq "HEAD") { Problem "detached HEAD: check out the branch to release" -OnlineOnly }
 else {
     $upstream = (GitRun @("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"))
@@ -277,8 +409,18 @@ else {
         $remote = (GitRun @("config", "branch.$branch.remote")).Text
         if ($Local) { Say "-Local: no git fetch (the pushed check uses the last fetched state)" }
         elseif ((GitRun @("fetch", "--quiet", $remote)).Code -ne 0) { Warn "git fetch $remote failed: the pushed check uses the last fetched state" }
-        if ((GitRun @("merge-base", "--is-ancestor", "HEAD", $upstream.Text)).Code -ne 0) { Problem "HEAD ($short) is not on $($upstream.Text): push $branch first" -OnlineOnly }
-        else { Say "HEAD is on $($upstream.Text)" }
+        $upstreamRef = (GitRun @("config", "branch.$branch.merge")).Text   # (refs/heads/<the upstream branch>)
+        if ((GitRun @("merge-base", "--is-ancestor", "HEAD", $upstream.Text)).Code -eq 0) {
+            Say "HEAD is on $($upstream.Text)$(if ($bumpPending) { ': the version commit is pushed to it before tagging' })"
+            $pushBranch = $bumpPending
+        }
+        elseif ((GitRun @("merge-base", "--is-ancestor", $upstream.Text, "HEAD")).Code -eq 0) {
+            $ahead = (GitRun @("rev-list", "--count", "$($upstream.Text)..HEAD")).Text
+            $pushBranch = $true
+            if ($online) { Say "HEAD is $ahead commit(s) ahead of $($upstream.Text): pushed to it (fast-forward) after the checks, before tagging" }
+            else { Warn "HEAD is $ahead commit(s) ahead of $($upstream.Text) (-Publish pushes them)" }
+        }
+        else { Problem "HEAD ($short) and $($upstream.Text) have diverged: merge or rebase, then run again" -OnlineOnly }
         $remoteUrl = (GitRun @("remote", "get-url", $remote)).Text
         if ($remoteUrl -notmatch [regex]::Escape($Repo) + '(\.git)?/?$') { Problem "remote $remote is $remoteUrl, not $Repo (-Repo): the tag and the release would be in different places" -OnlineOnly }
     }
@@ -287,7 +429,8 @@ else {
 # The tag: new, or (a re-run after a failed publish) already on this very commit.
 $tagLocal = GitRun @("rev-parse", "-q", "--verify", "refs/tags/$tag^{commit}")
 $reuseTag = $false
-if ($tagLocal.Code -eq 0) {
+if ($tagLocal.Code -eq 0 -and $bumpPending) { Problem "tag $tag already exists ($($tagLocal.Text.Substring(0, 8))) and -BumpVersion would make a new commit for it" }
+elseif ($tagLocal.Code -eq 0) {
     if ($tagLocal.Text -eq $commit) { $reuseTag = $true; Warn "tag $tag already exists here on ${short}: it is reused" }
     else { Problem "tag $tag already exists on another commit ($($tagLocal.Text.Substring(0, 8)))" }
 }
@@ -317,21 +460,6 @@ if (-not $MSBuild -and (Test-Path $vswhere)) {
 }
 if (-not $MSBuild -or -not (Test-Path -LiteralPath $MSBuild)) { Problem "MSBuild with the ClangCL toolset not found (Visual Studio 2022 with C++ and 'C++ Clang tools for Windows'; or -MSBuild)" } else { Say "MSBuild: $MSBuild" }
 $dotnet = Run "dotnet" @("--version")   # (in the repository root; the installer's global.json is checked below)
-$installerDir = Join-Path $root "Installer"
-# The installer's console tool already built (Release, else Debug), for qvr-setup detect.
-function Find-QvrSetup() {
-    foreach ($c in "Release", "Debug") {
-        $p = Join-Path $installerDir "src\QuakeVR.Installer.Cli\bin\$c\net9.0-windows\qvr-setup.exe"
-        if (Test-Path -LiteralPath $p) { return $p }
-    }
-    $null
-}
-# The Quake the installer would pick (DetectionReport.DefaultQuake: its "Expansions (for <name>, base <dir>):" line).
-function Find-QuakeDir([string]$exe) {
-    $r = Run $exe @("detect")
-    foreach ($l in $r.Out) { if ("$l" -match '^Expansions \(for (.+), base (.+)\):\s*$') { return $Matches[2].Trim() } }
-    $null
-}
 Push-Location $installerDir; try { $dotnetSdk = Run "dotnet" @("--version") } finally { Pop-Location }
 if ($dotnet.Code -ne 0 -and $dotnetSdk.Code -ne 0) { Problem ".NET SDK not found (dotnet)" }
 elseif ($dotnetSdk.Code -ne 0) { Problem "no .NET SDK matching Installer\global.json (9.0.305 or a newer 9.0 band)" }
@@ -440,6 +568,32 @@ if ($DryRun) {
     Say "notes          $(if ($notesSource) { "$notesSource$(if ($notesText.Contains($draftMarker)) { ' (still the DRAFT)' })" } else { "drafted while building into $notesDraftPath (-DraftNotes drafts it now)" })"
     $list = & (Join-Path $root "Windows\package-quakevr.ps1") -DryRun
     Say "package        $(@($list).Count) files (Windows\package-quakevr.ps1 -DryRun lists them)"
+    # Every command of the real run, in order (what -DryRun leaves out of this mode is marked).
+    $feedPlan = if ($FeedUrl) { $FeedUrl } else { "https://github.com/$Repo/releases/latest/download/latest.json" }
+    $title = "Quake VR: Unleashed $Version"
+    $commitPlan = if ($bumpPending) { "<the version commit>" } else { $short }
+    $seq = New-Object System.Collections.Generic.List[string]
+    if ($RunTests) { $seq.Add("tests: python Misc\release\run_test_suite.py $TestAgent --build --log-dir $outDir\tests $($testArgs -join ' ')   (kit build.sh $TestAgent, then $testCount one at a time; a failure stops here)") }
+    if ($bumpPending) { $seq.Add("write VERSION = $Version; git commit -m ""Version $Version"" -- VERSION   (local)") }
+    $seq.Add("build: out\release\$Version moved aside if there; check_statics.py, check_qc_precedence.py, fgdgen.py --check; MSBuild ironwail.sln Release|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1; dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
+    $seq.Add("assets: make_release.py (QuakeVR.zip, QuakeVR-Setup.exe, latest.json); checks: the zip = the allowlist, qvr-setup feed --file latest.json --assets, QuakeVR-Setup.exe's install harness + qvr-setup verify$(if ($quakeOk -and -not $SkipSmoke) { ", the smoke launch with $QuakeDir" } else { ' (no smoke launch)' })")
+    $seq.Add("notes: $(if ($notesSource) { $notesSource } else { "draft_release_notes.py -> $notesDraftPath" }) -> $outDir\release-body.md (+ the files' table, SHA256SUMS.txt)")
+    if ($online) {
+        if ($pushBranch) { $seq.Add("git push $remote HEAD:$upstreamRef   (fast-forward; never forced)") }
+        $seq.Add("git tag -a $tag -m ""$title (<date> <hash>)"" $commitPlan; git push $remote refs/tags/$tag")
+    }
+    if ($Publish) {
+        $seq.Add("gh release create $tag <the files of $outDir\assets> --repo $Repo --verify-tag --title ""$title"" --notes-file $outDir\release-body.md$(if ($Draft) { ' --draft' })$(if ($prerelease) { ' --prerelease' } elseif (-not $Draft) { ' --latest' })")
+    }
+    if ($Final) {
+        $seq.Add("online check: qvr-setup feed --url $feedPlan --assets $outDir\assets$(if ($hostedTextures) { ' --hosted hdtextures' })   (until it names $Version, up to $OnlineTries tries 20 s apart; each file's size and SHA-256)")
+        $seq.Add("online check: GET $feedPlan = assets\latest.json byte for byte")
+        if (-not $SkipOnlineInstall) { $seq.Add("online check: qvr-setup install --feed $feedPlan --sandbox $outDir\checks\online-<time>\sandbox --quake $(if ($QuakeDir) { $QuakeDir } else { '<none found: skipped>' }) --accept-statement --setup-from assets\QuakeVR-Setup.exe$(if ($OnlineHd) { ' --hd' }); qvr-setup verify --target <sandbox>\QuakeVR") }
+    }
+    Say ""
+    Say "The run, in order (none of it with -DryRun):"
+    $i = 0
+    foreach ($l in $seq) { Say ("  {0,2}. {1}" -f (++$i), $l) }
     if ($warnings.Count) { Say ""; Say "$($warnings.Count) warning(s) above." }
     return
 }
@@ -459,6 +613,7 @@ $installerOut = Join-Path $outDir "installer"
 New-Item -ItemType Directory -Force $logs, $checks, $installerOut, (Split-Path $packageDir) | Out-Null
 Say $outDir
 
+$script:stage = "tests"
 if ($RunTests) {
     Step "Tests: run_test_suite.py on $TestAgent ($testCount, one at a time; before anything is built)"
     $testLogs = Join-Path $outDir "tests"
@@ -466,6 +621,21 @@ if ($RunTests) {
     $testCode = $LASTEXITCODE
     if ($testCode -ne 0) { throw "the test suite failed (exit $testCode; $testLogs\summary.txt): nothing was built, tagged or published" }
     foreach ($l in @(Get-Content (Join-Path $testLogs "summary.txt") | Where-Object { $_ -match '^\s+FLAKY ' })) { Warn "a known-flaky test failed (-AllowFlaky): $($l.Trim())" }
+}
+
+$script:stage = "build"
+$script:bumped = $false
+if ($bumpPending) {
+    Step "VERSION = $Version (its own commit)"
+    if ((GitRun @("--no-optional-locks", "status", "--porcelain", "--untracked-files=no")).Text) { throw "-BumpVersion: the tree changed during the tests: commit or stash those changes, then run again" }
+    [System.IO.File]::WriteAllText($versionFile, "$Version`n", (New-Object System.Text.UTF8Encoding($false)))
+    if ((GitRun @("commit", "-q", "-m", "Version $Version", "--", "VERSION")).Code -ne 0) { throw "-BumpVersion: git commit of VERSION failed" }
+    $script:bumped = $true; $bumpPending = $false; $fileVersion = $Version
+    $commit = (GitRun @("rev-parse", "HEAD")).Text
+    $short = (GitRun @("rev-parse", "--short=8", "HEAD")).Text
+    $buildStamp = (GitRun @("log", "-1", "--date=format:%Y-%m-%d", "--format=%cd %h", "--abbrev=8")).Text
+    $versionText = "$Version ($buildStamp)"
+    Say "committed VERSION = $Version ($short; not pushed yet)"
 }
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -678,7 +848,15 @@ $ghArgs = @("release", "create", $tag) + $assetArgs + @("--repo", $Repo, "--veri
 if ($Draft) { $ghArgs += "--draft" }
 if ($prerelease) { $ghArgs += "--prerelease" } elseif (-not $Draft) { $ghArgs += "--latest" }
 
+if ($online -and $pushBranch) {
+    $script:stage = "push"
+    Step "Push $branch to $remote ($upstreamRef)"
+    $r = GitRun @("push", $remote, "HEAD:$upstreamRef")   # a fast-forward: git refuses anything else (never forced)
+    if ($r.Code -ne 0) { throw "git push $remote HEAD:$upstreamRef failed" }
+    Say "pushed $short to $remote $upstreamRef"
+}
 if ($online) {
+    $script:stage = "tag"
     Step "Tag $tag"
     if (-not $reuseTag) {
         $r = GitRun @("tag", "-a", $tag, "-m", "$title ($buildStamp)", $commit)
@@ -692,11 +870,21 @@ if ($online) {
     }
 }
 if ($Publish) {
-    Step "GitHub release ($(if ($Draft) { 'draft' } else { 'public' }))"
+    $script:stage = "release"
+    Step "GitHub release ($(if ($Draft) { 'draft' } else { 'public, marked Latest' }))"
     $r = Run "gh" $ghArgs
-    if ($r.Code -ne 0) { throw "gh release create failed (the tag is pushed: fix the cause and re-run with the same -Version)" }
+    if ($r.Code -ne 0) { throw "gh release create failed" }
     Say $r.Text
 }
+$onlineResult = ""
+if ($Final) {
+    $script:stage = "online"
+    if (-not $FeedUrl) { $FeedUrl = "https://github.com/$Repo/releases/latest/download/latest.json" }
+    Step "Online check ($FeedUrl)"
+    Invoke-OnlineCheck $outDir $FeedUrl $QuakeDir
+    $onlineResult = "online check passed: $FeedUrl serves $versionText (sizes and SHA-256 of every file, latest.json byte for byte$(if (-not $SkipOnlineInstall -and $QuakeDir) { ', a sandboxed install through it' }))"
+}
+$script:stage = "done"
 
 # ------------------------------------------------------------------------------------------------------------------
 $quoted = ($ghArgs | ForEach-Object { if ($_ -match '[\s"]') { '"' + $_ + '"' } else { $_ } }) -join " "
@@ -728,11 +916,12 @@ elseif (-not $Publish) {
         "       $($quoted -replace '^', 'gh ')"
     )
 }
+if ($onlineResult) { $lines += "  $((++$n)). Nothing: published as Latest and checked online ($onlineResult)." }
 if (-not $Local -and (-not $Publish -or $Draft)) {
     $lines += "  $((++$n)). Check the draft on https://github.com/$Repo/releases, then publish it (button, or: gh release edit $tag --repo $Repo --draft=false$(if (-not $prerelease) { ' --latest' })). Until it is published (and not a prerelease) https://github.com/$Repo/releases/latest/download/latest.json still serves the previous release."
 }
-if (-not $Local) { $lines += @(
-    "  $((++$n)). Check: qvr-setup feed --url https://github.com/$Repo/releases/latest/download/latest.json   (the installer's only feed)",
+if (-not $Local -and -not $onlineResult) { $lines += @(
+    "  $((++$n)). Check: make_release.ps1 -Version $Version -CheckOnline once it is published (or by hand: qvr-setup feed --url https://github.com/$Repo/releases/latest/download/latest.json   (the installer's only feed)",
     "             (dotnet run --project Installer\src\QuakeVR.Installer.Cli -- feed --url <...>: the version and the package's size)."
 ) }
 if ($warnings.Count) { $lines += @("", "Warnings:") + @($warnings | ForEach-Object { "  - $_" }) }
