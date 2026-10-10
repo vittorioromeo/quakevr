@@ -35,6 +35,9 @@ void init(); // the cvars' commands
 void frame();
 // From the view, once the hands are set up this frame: the samples.
 void viewFrame(const hands::State& s);
+// The first pose's ghost (standing tall, arms down) facing the player from where `yaw` looks, this frame: VR
+// Calibration's height step shows it before Body Calibration starts (vr_setup.cpp).
+void drawStandingGhost(float yaw);
 
 enum class Phase
 {

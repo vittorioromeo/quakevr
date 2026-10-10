@@ -251,6 +251,7 @@ struct Flow
     Step step{Step::Idle};
     double start{0.0}; // the step's, realtime
     bool pending{false}; // vr_setup: starts when the room has loaded
+    int roomWorld{-1};   // the room's load the setup last started on by itself (flowFrame: any way into the room)
     int world{0};
     bool got{false};    // the step's measurement taken ("got it" shown)
     double gotAt{0.0};
@@ -259,6 +260,7 @@ struct Flow
     glm::vec3 anchor{0.f}; // the head's place since it last moved (tracking metres)
     double anchorAt{0.0};
     const char* body{""}; // the summary's line: how the body step ended
+    float ghostYaw{0.f};  // where the head looked as the step began: the height step's ghost stands there
 };
 Flow flow;
 
@@ -292,6 +294,8 @@ void enter(Step step)
     flow.counted = false;
     flow.anchorAt = realtime;
     flow.anchor = tracking().head.position;
+    const hands::State& s = hands::current();
+    flow.ghostYaw = s.valid ? s.headAngles.y : 0.f;
 }
 
 // The calibration room is loaded (a local game in it).
@@ -468,6 +472,15 @@ void flowFrame()
         !q_strcasecmp(sv.name, roomMap))
     {
         flow.pending = false;
+        flow.roomWorld = worldGeneration();
+        begin();
+    }
+    // The room entered any other way (the hub's VR Calibration button is "map vrcalibration", a changelevel, the
+    // console): the room is for calibrating only, so the setup starts there too, once per load of it.
+    if(flow.step == Step::Idle && inRoom() && cls.state == ca_connected && cls.signon == SIGNONS && cl.worldmodel &&
+        vrActive() && flow.roomWorld != worldGeneration())
+    {
+        flow.roomWorld = worldGeneration();
         begin();
     }
     if(flow.step == Step::Idle)
@@ -545,7 +558,15 @@ void flowFrame()
             }
             break;
         }
-        case Step::Height: heightFrame(now, text); break;
+        case Step::Height:
+            // Body Calibration's first pose, standing tall, shown from the height step on (the author, 2026-10-10: the
+            // ghost appeared only with Body Calibration); seated, no standing figure.
+            if(!seated())
+            {
+                bodycal::drawStandingGhost(flow.ghostYaw);
+            }
+            heightFrame(now, text);
+            break;
         case Step::Done:
         {
             appendGold(text, "DONE");

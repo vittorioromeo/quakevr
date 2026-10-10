@@ -2058,11 +2058,12 @@ void ghostArm(int step, int side, float t, glm::vec3& upper, glm::vec3& fore, gl
     }
 }
 
-void drawGhost(const hands::State& s, int step, float t)
+// The ghost facing the player 1.7 m ahead of where `yaw` looks.
+void drawGhost(const hands::State& s, int step, float t, float yaw)
 {
     const float m2u = units::metresToUnits();
     const float k = units::eyeHeight() / units::modelEyeHeight;
-    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, ses.yaw, 0.f});
+    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, yaw, 0.f});
     const glm::vec3 left{-fwd.y, fwd.x, 0.f};
     const glm::vec3 floor{s.head.x, s.head.y, s.head.z - s.headHeight * m2u};
     const glm::vec3 centre = floor + fwd * (1.7f * m2u);
@@ -2661,6 +2662,15 @@ const char* stepHelp(int i)
     return buf.cStr();
 }
 
+void drawStandingGhost(float yaw)
+{
+    const hands::State& s = hands::current();
+    if(s.valid)
+    {
+        drawGhost(s, Stand, 0.f, yaw);
+    }
+}
+
 void frame()
 {
     migrate(); // round 21's arm settings typed in the console (a config's were moved after it ran)
@@ -2720,7 +2730,7 @@ void frame()
         return;
     }
     drawText(s, step, now);
-    drawGhost(s, step, static_cast<float>(now - ses.subStart));
+    drawGhost(s, step, static_cast<float>(now - ses.subStart), ses.yaw);
 }
 
 void viewFrame(const hands::State& s)

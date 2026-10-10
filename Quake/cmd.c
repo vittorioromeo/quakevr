@@ -374,6 +374,7 @@ void Cmd_Exec_f (void)
 	const char *path;
 	const char	*f;
 	int			mark;
+	qboolean	new_config = false; // QVR
 
 	if (Cmd_Argc () < 2)
 	{
@@ -394,7 +395,13 @@ void Cmd_Exec_f (void)
 	// "exec config.cfg pls" will execute config.cfg
 	if (Cmd_Argc () == 2 && !strcmp (path, "config.cfg"))
 	{
-		f = (const char *)COM_LoadHunkFile (CONFIG_NAME, NULL);
+		// QVR: the saved config is the game folder's own (com_gamedir's, where it is written), not one found elsewhere on
+		// the search path: Ironwail's in id1, or another base dir's quakevr (an older install, a link to a checkout) made
+		// a new install start with that config's settings and without its first start (VR Calibration, the tutorial).
+		if (Sys_FileType (va ("%s/%s", com_gamedir, CONFIG_NAME)) == FS_ENT_FILE)
+			f = (const char *)COM_LoadHunkFile (CONFIG_NAME, NULL);
+		else
+			f = NULL, new_config = true;
 		if (f)
 		{
 			path = CONFIG_NAME;
@@ -435,6 +442,8 @@ exec:
 		}
 		Cbuf_InsertText ("\nvr_migrate_config\n"); // QVR: after the saved config, changed defaults reach it
 	}
+	else if (new_config)
+		Cbuf_InsertText ("\nvr_migrate_config new\n"); // QVR: Quake's own config.cfg (its binds) at a first start
 	Cbuf_InsertText (f);
 	if (f != default_cfg) {
 		Hunk_FreeToLowMark (mark);

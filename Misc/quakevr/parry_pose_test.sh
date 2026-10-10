@@ -13,7 +13,7 @@ W=C:/OHWorkspace/qvr-agents/$AGENT
 mkdir -p "$W/scratch"
 fail=0
 for k in $KINDS; do
-    S="developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrcalibration;wait60;god;vr_parry_stamina 0;vr_stealth_meter 0"
+    S="developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrcalibration;wait60;vr_setup_stop;god;vr_parry_stamina 0;vr_stealth_meter 0"
     S="$S;vr_weapon_grip_mode 1;impulse 167;wait10;vr_mock_hand main 0.15 1.35 -0.35 0 90 0;vr_debug_pose_check 1"
     if [ "$k" = dragon ]; then # (Dissolution of Eternity's dragon: its own tail swing, parried as it lands; QC vr_parry_test.qc)
         S="$S;vr_physics_spawn VR_Parry_DragonSwing 120;wait300;toggleconsole;quit"

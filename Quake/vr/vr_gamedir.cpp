@@ -746,6 +746,19 @@ extern "C" const char* VR_GameDirectoryRoot(const char* dir, int index)
     const int i = campaignIndex(dir);
     if(i >= 3 && (nativeCampaignPaths || rebuildingCampaign) && discoveredCampaigns && campaigns[i].root[0])
     { return index == 0 ? campaigns[i].root : nullptr; }
+    // quakevr from one base dir only: the last one that has it (the install's own; the installer's shortcuts pass
+    // "-basedir <Quake> -basedir <Quake VR>"). A quakevr folder in the Quake folder too (an old zip install, or the
+    // author's link to his checkout) was searched under it: with no saved config of its own, a new install ran that
+    // folder's ironwail.cfg (its Menu Detail, voice notes, no first start), and listed its saves and maps.
+    if(!q_strcasecmp(dir, vrGameDir) && com_numbasedirs > 1)
+    {
+        int only = com_numbasedirs - 1;
+        while(only > 0 && Sys_FileType(va("%s/%s", com_basedirs[only], dir)) != FS_ENT_DIRECTORY)
+        {
+            --only;
+        }
+        return index == 0 ? com_basedirs[only] : nullptr;
+    }
     return index < com_numbasedirs ? com_basedirs[index] : nullptr;
 }
 
