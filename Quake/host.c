@@ -1052,6 +1052,10 @@ static void Host_CheckAutosave (void)
 		return;
 	if (!VR_AutosaveAllowed (sv.name)) // QVR: none on Quake VR's own maps (the hub, the tutorial...: vr_continue.cpp)
 		return;
+	// QVR: none in Setup's preparation (-prepare, vr_prepare.cpp): it loads the newer campaigns' start maps, and their
+	// level-start autosaves made Continue offer a game the player never played.
+	if (COM_CheckParm ("-prepare"))
+		return;
 
 	if (cls.signon == SIGNONS)
 	{
