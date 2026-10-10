@@ -1380,3 +1380,4 @@ bindings, which is what the symptoms say; it is the thing to try only if `bind L
 touch_controller` (with VD's "Emulate Index controllers": valve/index_controller), `the controller keys:` with the VR
 bindings; triggers, grips, A/B/X/Y as before. Then in the console `bind LSHOULDER "impulse 12"; bind RSHOULDER
 "impulse 10"; bind LTRIGGER +jump`, quit and start again: the console says the bindings were set again, the grips grab.
+Doom opens from the wrist gadget's side button too: 6 presses within 0.4 s each (`vr_doom_light_presses`, `vr_doom_light_gap`), counted before the button's cooldown, the light put back as it was; one press then closes Doom without toggling the light; `vr_gadget_button_press` (Debug > Tests); DOOM.md.

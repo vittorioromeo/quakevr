@@ -1687,6 +1687,16 @@ bool onGadget()
     return session.running && session.open && vr_doom_panel.value == 0.f;
 }
 
+void openFromButton()
+{
+    setOpen(true);
+}
+
+void closeFromButton()
+{
+    setOpen(false);
+}
+
 gfx::Texture gadgetTexture()
 {
     return session.running && session.open ? screen.texture : 0;

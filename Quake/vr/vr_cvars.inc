@@ -708,6 +708,8 @@ QVR_CVAR(vr_doom_always_run, "1", CVAR_ARCHIVE)        // Doom's always run (the
 QVR_CVAR(vr_doom_volume, "0.5", CVAR_ARCHIVE)          // Doom's sounds (from the gadget) against the game's
 QVR_CVAR(vr_doom_attenuation, "2", CVAR_ARCHIVE)       // how fast they fade with distance (Quake's: 1 normal, 3 a small source; 0 everywhere)
 QVR_CVAR(vr_doom_focus_look, "0.5", CVAR_ARCHIVE)      // s the screen must be looked at (raised, facing you, within vr_doom_focus_angle) for Doom to take the controls (0: only a touch gives it)
+QVR_CVAR(vr_doom_light_presses, "6", CVAR_ARCHIVE)   // presses of the gadget's side button (the gear lights) that open Doom on the gadget, each within vr_doom_light_gap of the last (0: off); one press then closes it
+QVR_CVAR(vr_doom_light_gap, "0.4", CVAR_ARCHIVE)      // s the longest gap between those presses
 QVR_CVAR(vr_doom_focus_angle, "25", CVAR_ARCHIVE)      // degrees off the view's middle the screen may be and count as looked at
 QVR_CVAR(vr_doom_focus_grace, "0.5", CVAR_ARCHIVE)     // s out of view before the controls go back to Quake
 QVR_CVAR(vr_doom_pause_unfocused, "0", CVAR_ARCHIVE)   // 1: Doom pauses whenever it hasn't the focus; 0: it keeps running (Quake's pause pauses it always)

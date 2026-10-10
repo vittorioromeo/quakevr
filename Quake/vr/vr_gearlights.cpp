@@ -3,6 +3,7 @@
 #include "vr_gearlights.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
+#include "vr_doom.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
@@ -39,6 +40,9 @@ struct State
     double pressedAt = -1.0;   // realtime of the last press that counted (vr_gadget_button_cooldown)
     float level = -1.f;        // the lights' eased level, 0 (dimmed) .. 1 (on); -1: not yet (starts where the cvar is)
     double easedAt = -1.0;     // realtime it was eased last
+    int quick = 0;             // presses in a row, each within vr_doom_light_gap of the last (opening Doom)
+    double quickAt = -1.0;     // realtime of the last of them
+    float lightBefore = 1.f;   // vr_gear_lights before the first of them
 };
 State state;
 
@@ -102,6 +106,84 @@ void buzz(int hand, float amplitude)
     }
 }
 
+// A press of the button (the fingertip's arrival, or vr_gadget_button_press). While Doom is on the gadget one press
+// closes it and toggles nothing. Else vr_doom_light_presses presses, each within vr_doom_light_gap of the last, open
+// Doom (counted before the cooldown: the cooldown may swallow some toggles, so the light is put back as it was before
+// the first); the others toggle the lights, unless one counted less than vr_gadget_button_cooldown ago or a screen tap
+// is under way.
+void press(int hand)
+{
+    const bool tap = bullettime::tapping();
+    if(tap)
+    {
+        if(vr_debug_gadget_button.value)
+        {
+            Con_Printf("gadget button: press ignored (a screen tap)\n");
+        }
+        return;
+    }
+    if(doom::onGadget())
+    {
+        state.pressedAt = realtime;
+        state.quick = 0;
+        doom::closeFromButton();
+        buzz(hand, 0.5f);
+        buzz(hands::gadgetHand(), 0.3f);
+        if(vr_debug_gadget_button.value)
+        {
+            Con_Printf("gadget button: Doom closed\n");
+        }
+        return;
+    }
+    const int need = static_cast<int>(vr_doom_light_presses.value);
+    if(need > 0)
+    {
+        if(state.quick > 0 && realtime - state.quickAt > za::max(0.f, vr_doom_light_gap.value))
+        {
+            state.quick = 0;
+        }
+        if(state.quick == 0)
+        {
+            state.lightBefore = vr_gear_lights.value;
+        }
+        state.quick++;
+        state.quickAt = realtime;
+        if(state.quick >= need)
+        {
+            state.quick = 0;
+            state.pressedAt = realtime;
+            Cvar_SetValueQuick(&vr_gear_lights, state.lightBefore);
+            doom::openFromButton();
+            buzz(hand, 1.f);
+            buzz(hands::gadgetHand(), 0.7f);
+            if(vr_debug_gadget_button.value)
+            {
+                Con_Printf("gadget button: Doom opened\n");
+            }
+            return;
+        }
+    }
+    else
+    {
+        state.quick = 0;
+    }
+    const double since = realtime - state.pressedAt;
+    if(state.pressedAt >= 0.0 && since < za::max(0.f, vr_gadget_button_cooldown.value))
+    {
+        if(vr_debug_gadget_button.value)
+        {
+            Con_Printf("gadget button: press ignored (cooling down)\n");
+        }
+        return;
+    }
+    state.pressedAt = realtime;
+    if(vr_debug_gadget_button.value)
+    {
+        Con_Printf("gadget button: pressed\n");
+    }
+    toggle(hand);
+}
+
 // The fingertip's arrival in the hit volume presses the button, unless one counted less than vr_gadget_button_cooldown
 // ago or a screen tap is under way; it re-arms 1.5 radii out (or back behind the cut).
 void pressButton(const hands::State& s, int hand)
@@ -126,22 +208,7 @@ void pressButton(const hands::State& s, int hand)
         return;
     }
     state.pressing = true;
-    const double since = realtime - state.pressedAt;
-    const bool tap = bullettime::tapping();
-    if((state.pressedAt >= 0.0 && since < za::max(0.f, vr_gadget_button_cooldown.value)) || tap)
-    {
-        if(vr_debug_gadget_button.value)
-        {
-            Con_Printf("gadget button: press ignored (%s)\n", tap ? "a screen tap" : "cooling down");
-        }
-        return;
-    }
-    state.pressedAt = realtime;
-    if(vr_debug_gadget_button.value)
-    {
-        Con_Printf("gadget button: pressed (fingertip %.1f cm from its middle)\n", d / units::metresToUnits() * 100.f);
-    }
-    toggle(hand);
+    press(hand);
 }
 
 // A ring of the hit volume's sphere: round `c` in the plane of `a` and `b` (unit, square to each other).
@@ -161,6 +228,12 @@ void ring(const glm::vec3& c, const glm::vec3& a, const glm::vec3& b, float r, c
 void toggle_f()
 {
     toggle(-1);
+}
+
+// A press of the button without a fingertip (tests; Debug > Tests).
+void press_f()
+{
+    press(-1);
 }
 
 void info_f()
@@ -232,6 +305,7 @@ void info_f()
 void init()
 {
     Cmd_AddCommand("vr_gear_lights_toggle", toggle_f);
+    Cmd_AddCommand("vr_gadget_button_press", press_f);
     Cmd_AddCommand("vr_gear_lights_info", info_f);
 }
 

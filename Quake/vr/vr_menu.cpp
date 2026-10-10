@@ -2901,6 +2901,12 @@ void hologramTestMessage()
             .help("How long you look at the raised gadget before its stick and buttons go to Doom (0: only a touch)."),
         slider("Out of View to Unfocus", vr_doom_focus_grace, 0.1f, 3.f, 0.1f, "%.1f s")
             .help("How long the gadget may be out of view (lowered, looked away from) before they come back to Quake."),
+        slider("Light Button Presses", vr_doom_light_presses, 0.f, 10.f, 1.f, "%.0f")
+            .help("Press the gadget's side button (the light on/off one) this many times in quick succession to open "
+                  "Doom on the gadget; one press of it then closes Doom again, without toggling the light (0: off). "
+                  "The light itself keeps toggling with each press and is put back as it was."),
+        slider("Light Press Gap", vr_doom_light_gap, 0.1f, 1.f, 0.05f, "%.2f s")
+            .help("The longest time between two of those presses."),
         toggle("Pause When Not Focused", vr_doom_pause_unfocused)
             .help("Off: Doom keeps running while you play Quake. On: it pauses until you look at it or touch it."),
         header("Picture and Sound"),
@@ -4750,6 +4756,9 @@ za::Vector<Item> pageDebugViews()
                   "striking volume (your hand's surface blue, the gun's butt orange, white on the zone); And Print "
                   "Sync: also prints each frame how far the zone is from the drawn gadget. The settings: HUD and Menus "
                   "> Wrist Gadget."),
+        command("Press the Gadget Button", "vr_gadget_button_press")
+            .help("vr_gadget_button_press: a press of the wrist gadget's side button without a fingertip (the light; "
+                  "six quick ones open Doom, one closes it)."),
         command("Gear Lights Info", "vr_gear_lights_info")
             .help("vr_gear_lights_info: the gear lights' state, the side button's place and your fingertip's distance to "
                   "it, and the stealth AI's light on you now."),
