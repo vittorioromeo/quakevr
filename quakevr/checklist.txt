@@ -6,6 +6,7 @@
 Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
 
 [New this week]
+Bindings guard: with VDXR and SteamVR, qvr_openxr.txt shows 'bindings suggested' with nothing turned down + both hands' profile + controller keys; console `bind LSHOULDER "impulse 12"; bind LTRIGGER +jump`, quit, restart: the console says bindings were set again and grips grab
 Saves: play a Map Library map right after a Dimension of the Machine level, quit, restart, Continue lands back in it; Load/Save menus label each slot with campaign/package - map title; loading a Dissolution of Eternity save from Quake switches campaign
 Doom on the wrist gadget (VR Settings > Doom on the Wrist Gadget): open it, raise the wrist (focus comes/goes quickly?), touch distances and button sizes on the 11x7 cm screen, hard-press fire, CRT readability, sound level vs Quake, Quake keeps running, your own DOOM.WAD in quakevr/doom/wads (no music yet)
 1.0.1 installer (from a local test package): Statement page shows the two new claims, Continue needs both YES; Update screen over your 1.0.0 install
