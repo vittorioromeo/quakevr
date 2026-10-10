@@ -37,6 +37,7 @@
 # Saves anywhere in the game folder (tests write them under maps/ too) and the config's copies (the kit's
 # ironwail.cfg.baseline, ironwail.cfg.from-tests, dated backups)
 *.sav
+*.sav.addon
 /ironwail.cfg.*
 # What the engine writes for debugging and tests (vr_highlights, vr_portals_shot, vr_wounds, the traces' cvars,
 # vr_decal_atlas, the grasp dump, -condebug)

@@ -1414,3 +1414,4 @@ toggled on, loaded: off; changelevel e1m2: kept; `map e1m2` (fresh): on. Back to
 **In the headset:** Chest Flashlight > Always on Head: the torch at your left temple, lit; open hand at it, trigger:
 off and on; grip and Y there do nothing to it; nothing on the belt; Flashlight Side Right moves it to the right
 temple. Back to Immersive: the belt torch is back.
+Targeted 1.0.1 check of saves and controller bindings (worktree `svctest`, headless): autosave names, Continue across campaigns and packages, missing package, 1.0.0 saves, migration, no autosave on vr*/multiplayer/-prepare, Doom's saves unseen, xr_runtime_test 103/0, guard, menu modes, Doom's off-hand routing all pass; fixed Continue naming a package "map package <sha>" when first worked out before the map index arrived; the guard leaves `bind LSHOULDER "impulse 12"; bind LTRIGGER +jump` alone (RSHOULDER still grabs: by design).
