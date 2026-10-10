@@ -91,9 +91,13 @@ qvr::mem::Scratch<PackScratch> packScratch{"mission packs"};
 bool validResource(FILE* file, long offset, long length, const char* name)
 {
     if(length < 12 || fseek(file, offset, SEEK_SET)) { return false; }
+    const char* ext = COM_FileGetExtension(name);
+    // A map's checks read only its header (124 bytes; its lumps against `length`): not the whole BSP (the packs' maps,
+    // tens of MB at every start). Models, sprites and sounds are walked through, so read whole.
+    const bool walked = !q_strcasecmp(ext, "mdl") || !q_strcasecmp(ext, "spr") || !q_strcasecmp(ext, "wav");
     za::Vector<unsigned char>& bytes = packScratch.resourceBytes;
     bytes.clear();
-    bytes.resize(static_cast<za::SizeT>(length));
+    bytes.resize(static_cast<za::SizeT>(walked ? length : (length < 124 ? length : 124l)));
     if(fread(bytes.data(), 1, bytes.size(), file) != bytes.size()) { return false; }
     const auto integer = [&](size_t pos) -> int32_t
     {
@@ -108,7 +112,6 @@ bool validResource(FILE* file, long offset, long length, const char* name)
         cursor += static_cast<size_t>(count);
         return true;
     };
-    const char* ext = COM_FileGetExtension(name);
     if(!q_strcasecmp(ext, "mdl"))
     {
         if(length < 84 || memcmp(bytes.data(), "IDPO", 4) || integer(4) != 6) { return false; }
