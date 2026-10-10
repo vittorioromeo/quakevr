@@ -848,7 +848,7 @@
 // entity 7
 {
 "classname" "func_worldtext_banner"
-"worldtext" "VR HUB\nWalk through when you are done."
+"worldtext" "{calibration exit}\nWalk through when you are done."
 "worldtext_halign" "1"
 "worldtext_scale" "0.33"
 "angle" "90"

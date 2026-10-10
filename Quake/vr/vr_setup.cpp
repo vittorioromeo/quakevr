@@ -230,6 +230,7 @@ void drawOptionScreens()
 enum class Step
 {
     Idle,
+    Welcome,    // the welcome, before the steps (a start: not a restart after the menu)
     Intro,      // a few seconds to stand in place (or set Position to Seated)
     Height,     // standing tall and still
     Body,       // Body Calibration running
@@ -238,6 +239,7 @@ enum class Step
     Done,       // the summary
 };
 
+constexpr double welcomeSeconds = 7.0;
 constexpr double introSeconds = 8.0;
 constexpr double readSeconds = 3.0;       // a step's instructions before its countdown
 constexpr double stillSeconds = 1.0;      // the head held this still...
@@ -261,6 +263,11 @@ struct Flow
     double anchorAt{0.0};
     const char* body{""}; // the summary's line: how the body step ended
     float ghostYaw{0.f};  // where the head looked as the step began: the height step's ghost stands there
+    // vr_setup_debug: the ghost (stickman) from its first frame shown in this run to the summary
+    bool ghostSeen{false};
+    int ghostShown{0};
+    int ghostHidden{0}; // frames it wasn't drawn in (but those with the menu open)
+    Step traced{Step::Idle};
 };
 Flow flow;
 
@@ -284,6 +291,29 @@ void appendGold(za::String& out, const char* s)
 [[nodiscard]] bool seated()
 {
     return vr_bodycal_seated.value != 0.f;
+}
+
+[[nodiscard]] const char* stepName(Step step)
+{
+    switch(step)
+    {
+        case Step::Idle: return "idle";
+        case Step::Welcome: return "welcome";
+        case Step::Intro: return "intro";
+        case Step::Height: return "height";
+        case Step::Body: return "body";
+        case Step::BodyReview: return "body review";
+        case Step::Paused: return "paused";
+        case Step::Done: return "done";
+    }
+    return "?";
+}
+
+// Where the room's doorway leads (QC changelevel_touch): the tutorial until it has been started once (a first start's
+// way), else the hub.
+[[nodiscard]] bool exitToTutorial()
+{
+    return vr_tutorial_started.value == 0.f;
 }
 
 void enter(Step step)
@@ -334,11 +364,18 @@ void menuOpened()
                "menu closes\n");
 }
 
-void begin()
+// `welcome`: a start (the room loaded, vr_setup here): the welcome first; a restart (the menu closed): the steps.
+void begin(bool welcome)
 {
     flow.world = worldGeneration();
     flow.body = "Body: skipped";
-    enter(Step::Intro);
+    if(welcome)
+    {
+        flow.ghostSeen = false;
+        flow.ghostShown = 0;
+        flow.ghostHidden = 0;
+    }
+    enter(welcome ? Step::Welcome : Step::Intro);
     Con_Printf(inRoom() ? "VR Calibration: starting (height, body); the menu button pauses it\n"
                         : "VR Calibration: starting (height, body); the menu button stops it\n");
 }
@@ -347,12 +384,20 @@ void finish()
 {
     enter(Step::Done);
     S_LocalSound("misc/talk.wav");
-    Con_Printf(inRoom() ? "VR Calibration: done. The glowing doorway behind you leads to the hub.\n" : "VR Calibration: done.\n");
+    Con_Printf(!inRoom()          ? "VR Calibration: done.\n"
+               : exitToTutorial() ? "VR Calibration: done. The glowing doorway behind you leads to the tutorial.\n"
+                                  : "VR Calibration: done. The glowing doorway behind you leads to the VR hub.\n");
+    if(vr_setup_debug.value != 0.f)
+    {
+        Con_Printf("vr_setup_debug: the stickman %s: shown %d frames, hidden %d since it first showed (menu frames not "
+                   "counted)\n", flow.ghostSeen ? "shown" : "never shown", flow.ghostShown, flow.ghostHidden);
+    }
     saveConfigNow();
 }
 
 void startBody()
 {
+    const float ghostYaw = flow.ghostYaw; // the height step's ghost's: the body step's stands there too
     enter(Step::Body);
     // Tests: a take of raw tracking played alongside, from the calibration's first frame (TESTING.md, "Body calibration").
     if(vr_setup_test_take.string[0])
@@ -363,7 +408,9 @@ void startBody()
     {
         Con_Printf("VR Calibration: Body Calibration couldn't start: skipped\n");
         finish();
+        return;
     }
+    bodycal::setGhostYaw(ghostYaw);
 }
 
 void afterBody()
@@ -391,8 +438,8 @@ void afterBody()
     finish();
 }
 
-// The step's text, floating ahead of the eyes (as Body Calibration's).
-void drawText(za::StringView text)
+// The step's text, floating ahead of the eyes (as Body Calibration's), `drop` metres below them.
+void drawText(za::StringView text, float drop = 0.18f)
 {
     const hands::State& s = hands::current();
     if(!s.valid)
@@ -401,7 +448,7 @@ void drawText(za::StringView text)
     }
     const float m2u = units::metresToUnits();
     const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
-    const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, 0.18f * m2u};
+    const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, drop * m2u};
     text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.045f);
 }
 
@@ -473,7 +520,7 @@ void flowFrame()
     {
         flow.pending = false;
         flow.roomWorld = worldGeneration();
-        begin();
+        begin(true);
     }
     // The room entered any other way (the hub's VR Calibration button is "map vrcalibration", a changelevel, the
     // console): the room is for calibrating only, so the setup starts there too, once per load of it.
@@ -481,7 +528,7 @@ void flowFrame()
         vrActive() && flow.roomWorld != worldGeneration())
     {
         flow.roomWorld = worldGeneration();
-        begin();
+        begin(true);
     }
     if(flow.step == Step::Idle)
     {
@@ -501,11 +548,11 @@ void flowFrame()
     const double now = realtime;
     if(flow.step == Step::Paused)
     {
-        if(key_dest != key_menu)
+        if(key_dest == key_menu)
         {
-            begin();
+            return;
         }
-        return;
+        begin(false); // and its first frame now (the stickman with it: no frame without it)
     }
     if(flow.step == Step::BodyReview)
     {
@@ -541,12 +588,32 @@ void flowFrame()
 
     za::String& text = scratch.text;
     text.clear();
+    if(flow.step == Step::Welcome && now - flow.start >= welcomeSeconds)
+    {
+        enter(Step::Intro);
+    }
+    if(flow.step == Step::Welcome)
+    {
+        // The author, 2026-10-10: the calibration started too abruptly. In the middle of the view, a few seconds.
+        appendGold(text, "WELCOME TO QUAKE VR: UNLEASHED!");
+        text += "\n\nWe will shortly begin the calibration.\nYou will be asked to pose and make\ncertain movements to "
+                "calibrate your body.";
+        drawText(text, 0.f);
+        return;
+    }
     appendGold(text, "VR CALIBRATION");
     text += "\n";
     switch(flow.step)
     {
         case Step::Intro:
         {
+            // Body Calibration's first pose from here on, facing you (the author, 2026-10-10: the stickman, once shown,
+            // stays until the end; the menu's restart comes back here): seated, none.
+            const hands::State& hs = hands::current();
+            if(!seated() && hs.valid)
+            {
+                bodycal::drawStandingGhost(hs.headAngles.y);
+            }
             const int left = static_cast<int>(za::ceil(introSeconds - (now - flow.start)));
             text += "Your height, then your body.\n\n";
             text += seated() ? "Seated: sit where you will play.\n" : "Stand in the middle of your play space.\n";
@@ -574,7 +641,9 @@ void flowFrame()
             text += va("\nHeight: eyes at %.2f m\n%s\n\n", vr_height_calibration.value, flow.body);
             if(inRoom())
             {
-                text += "The glowing doorway behind you\nleads to the hub.";
+                // Where its doorway leads: the tutorial at a first start (QC changelevel_touch), else the hub.
+                text += exitToTutorial() ? "The glowing doorway behind you\nleads to the tutorial."
+                                         : "The glowing doorway behind you\nleads to the VR hub.";
             }
             if(now - flow.start >= doneSeconds || key_dest == key_menu)
             {
@@ -588,6 +657,39 @@ void flowFrame()
     {
         text += flow.step == Step::Done ? "" : inRoom() ? "\n\nmenu button: pause" : "\n\nmenu button: stop";
         drawText(text);
+    }
+}
+
+// vr_setup_debug: each step's start, and the stickman's frames from its first shown in a run to the summary (printed
+// there); 2: every frame (shown or hidden, the step). After flowFrame: bodycal::frame (vr_main.cpp) drew its ghost first.
+void traceFrame()
+{
+    if(flow.step == Step::Idle || flow.step == Step::Done)
+    {
+        flow.traced = flow.step;
+        return;
+    }
+    const bool shown = bodycal::ghostFrame() == host_framecount;
+    const bool menu = key_dest == key_menu;
+    flow.ghostSeen = flow.ghostSeen || shown;
+    if(flow.ghostSeen && !menu)
+    {
+        (shown ? flow.ghostShown : flow.ghostHidden)++;
+    }
+    if(vr_setup_debug.value == 0.f)
+    {
+        flow.traced = flow.step;
+        return;
+    }
+    if(flow.traced != flow.step)
+    {
+        Con_Printf("vr_setup_debug: %.2f %s (stickman %s)\n", realtime, stepName(flow.step), shown ? "shown" : "hidden");
+        flow.traced = flow.step;
+    }
+    if(vr_setup_debug.value >= 2.f || (flow.ghostSeen && !shown && !menu))
+    {
+        Con_Printf("vr_setup_debug: frame %d %s stickman %s%s\n", host_framecount, stepName(flow.step),
+            shown ? "shown" : "HIDDEN", menu ? " (menu)" : "");
     }
 }
 
@@ -605,7 +707,7 @@ void setup_f()
         {
             return;
         }
-        begin();
+        begin(true);
         return;
     }
     stop(nullptr);
@@ -618,6 +720,7 @@ void skip_f()
 {
     switch(flow.step)
     {
+        case Step::Welcome: enter(Step::Intro); break;
         case Step::Intro: enter(Step::Height); break;
         case Step::Height: startBody(); break;
         case Step::Body:
@@ -625,7 +728,7 @@ void skip_f()
             finish();
             break;
         case Step::BodyReview: finish(); break;
-        case Step::Paused: begin(); break;
+        case Step::Paused: begin(false); break;
         case Step::Done: flow.step = Step::Idle; break;
         default: Con_Printf("vr_setup_skip: the setup isn't running\n"); break;
     }
@@ -660,12 +763,18 @@ void frame()
         Cbuf_AddText("vr_setup\n");
     }
     flowFrame();
+    traceFrame();
     drawOptionScreens();
 }
 
 bool running()
 {
     return flow.step != Step::Idle;
+}
+
+const char* exitBoardName()
+{
+    return exitToTutorial() ? "VR TUTORIAL" : "VR HUB";
 }
 
 } // namespace qvr::setup

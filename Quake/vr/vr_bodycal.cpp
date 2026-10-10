@@ -230,6 +230,7 @@ struct Session
     float eyeHeight{0.f}; // the height the chest frames are for (the Stand capture's, or the setting)
 };
 Session ses;
+int ghostDrawnFrame = -1; // the host frame a ghost was last drawn in (VR Calibration's trace: vr_setup_debug)
 Result result;
 bool applied = false;
 int versionCounter = 0;
@@ -1903,6 +1904,14 @@ bool begin(za::Vector<int> todo, int returnPage)
     ses.todo = ZA_MOVE(todo);
     ses.message.clear();
     ses.lastFrame = -1;
+    // The ghost faces where the head looks now until the first pose's countdown ends (it took the last session's yaw,
+    // world yaw 0 at the first: off to a side, or behind, for the first pose's reading and countdown; the author,
+    // 2026-10-10: "it disappears for the first step"). VR Calibration then sets its height step's (setGhostYaw).
+    const hands::State& hs = hands::current();
+    if(hs.valid)
+    {
+        ses.yaw = hs.headAngles.y;
+    }
     beginStep(realtime);
     bump();
     const int step = currentStep();
@@ -2067,6 +2076,7 @@ void drawGhost(const hands::State& s, int step, float t, float yaw)
     const glm::vec3 left{-fwd.y, fwd.x, 0.f};
     const glm::vec3 floor{s.head.x, s.head.y, s.head.z - s.headHeight * m2u};
     const glm::vec3 centre = floor + fwd * (1.7f * m2u);
+    ghostDrawnFrame = host_framecount;
     // A point of the player's own body (forward, left, up; metres of the model) as the ghost facing them shows it: a
     // mirror's image.
     const auto at = [&](const glm::vec3& p) { return centre + (-fwd * p.x + left * p.y + glm::vec3{0.f, 0.f, p.z}) * (k * m2u); };
@@ -2662,6 +2672,19 @@ const char* stepHelp(int i)
     return buf.cStr();
 }
 
+void setGhostYaw(float yaw)
+{
+    if(ses.phase == Phase::Capturing && ses.sub != Sub::Wait && ses.sub != Sub::Record)
+    {
+        ses.yaw = yaw;
+    }
+}
+
+int ghostFrame()
+{
+    return ghostDrawnFrame;
+}
+
 void drawStandingGhost(float yaw)
 {
     const hands::State& s = hands::current();
@@ -2692,7 +2715,7 @@ void frame()
         return;
     }
     const hands::State& s = hands::current();
-    const int step = currentStep();
+    int step = currentStep();
     if(!s.valid || step < 0)
     {
         return;
@@ -2727,7 +2750,13 @@ void frame()
         S_LocalSound("misc/menu3.wav");
         Con_Printf("Body Calibration: %s not taken (%s)\n", steps[step].title, ses.hint.cStr());
         nextStep(now);
-        return;
+        // The next pose's text and ghost this frame too (the ghost skipped a frame: VR Calibration's stickman, the
+        // author, 2026-10-10: never gone from its first showing to the end).
+        step = currentStep();
+        if(ses.phase != Phase::Capturing || step < 0)
+        {
+            return;
+        }
     }
     drawText(s, step, now);
     drawGhost(s, step, static_cast<float>(now - ses.subStart), ses.yaw);

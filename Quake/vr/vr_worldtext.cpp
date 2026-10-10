@@ -4,6 +4,7 @@
 #include "vr_engine.hpp"
 #include "vr_menu.hpp"
 #include "vr_protocol.hpp"
+#include "vr_setup.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -145,6 +146,18 @@ int serverMake()
 void serverSetText(int handle, const char* text)
 {
     WorldText& wt = serverText(handle);
+    // The calibration room's doorway board names where it leads ({calibration exit}: the tutorial at a first start,
+    // else the hub; vr_setup.hpp), as the room loads.
+    constexpr const char* exitToken = "{calibration exit}";
+    if(const char* at = ZA_STRSTR(text, exitToken))
+    {
+        za::String expanded;
+        expanded.append(text, static_cast<za::SizeT>(at - text));
+        expanded.append(setup::exitBoardName());
+        expanded.append(at + strlen(exitToken));
+        serverSetText(handle, expanded.cStr());
+        return;
+    }
     // A board may name a VR Settings page ({menu:Locomotion}): its path from the main menu, as the menus are now (the
     // calibration room's boards, vr_setup.hpp).
     wt.text = ZA_STRSTR(text, "{menu:") ? menu::expandPaths(text, 34, nullptr) : za::String{text};

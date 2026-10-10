@@ -5558,6 +5558,9 @@ za::Vector<Item> pageDebugTools()
         command("Run the Calibration Here", "vr_setup here")
             .help("vr_setup here: VR Calibration's steps (height, body, main hand) in this map, now."),
         command("Skip the Calibration Step", "vr_setup_skip").help("vr_setup_skip: its next step at once (not Body Calibration's poses)."),
+        cycle("Calibration Trace", "vr_setup_debug", {{0.f, "Off"}, {1.f, "Steps"}, {2.f, "Every Frame"}})
+            .help("vr_setup_debug: each step as it starts and, at the summary, how many frames the stickman showed and "
+                  "was hidden since it first showed (a hidden frame printed as it happens). Every Frame: one line a frame."),
         command("Check the Boards' Menu Paths", "vr_menu_path_check")
             .help("vr_menu_path_check: every menu page this map's boards name, with its path; a missing one prints MENU PATH MISSING."),
         header("Toolgun"),

@@ -38,6 +38,11 @@ void viewFrame(const hands::State& s);
 // The first pose's ghost (standing tall, arms down) facing the player from where `yaw` looks, this frame: VR
 // Calibration's height step shows it before Body Calibration starts (vr_setup.cpp).
 void drawStandingGhost(float yaw);
+// The ghost's yaw until the current pose's countdown ends (then the head's): VR Calibration's body step goes on from its
+// height step's ghost, where it stood.
+void setGhostYaw(float yaw);
+// The host frame (host_framecount) a ghost was last drawn in: VR Calibration's trace (vr_setup_debug).
+[[nodiscard]] int ghostFrame();
 
 enum class Phase
 {

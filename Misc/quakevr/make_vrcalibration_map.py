@@ -6,7 +6,8 @@
 #
 # Calibration only: an octagonal chamber (9.75 m across, 5.4 m to the ceiling), the player on the calibration spot in its
 # middle facing a board (north) that says what happens and where each calibration is in the menus, and a doorway (south,
-# behind the player) whose teleporter glow takes him to the vrstart hub (trigger_changelevel). No buttons, items or
+# behind the player) whose teleporter glow takes him to the vrstart hub, or the tutorial at a first start
+# (trigger_changelevel; QC changelevel_touch). No buttons, items or
 # props: the old room's setting buttons, pool, climbing and pickups are the test hall's (make_vrtesthall_map.py).
 #
 # Looks: id's base textures (the author's decision: the committed .bsp embeds them; the WAD is made from the player's
@@ -364,7 +365,9 @@ board(N.join(["Again later, from the menus:", "Height: {menu:VR Settings>Set Hei
               "Body: {menu:Body Calibration}"]), 0, TEXT_Y, 100, 270, "0.28")
 board(N.join(["Hands: {menu:Hand/Gun Calibration}", "Seated? {menu:Body Calibration>Position}"]),
       0, TEXT_Y, 78, 270, "0.28")
-board(N.join(["VR HUB", "Walk through when you are done."]), 0, -H + 7, DOOR_Z + CASE + 20, 90, "0.33")
+# over the doorway, where it leads: "{calibration exit}" is VR TUTORIAL at a first start (QC changelevel_touch sends it
+# there until the tutorial has been started once), else VR HUB (the engine, as the room loads: vr_worldtext.cpp)
+board(N.join(["{calibration exit}", "Walk through when you are done."]), 0, -H + 7, DOOR_Z + CASE + 20, 90, "0.33")
 
 # ---- the player, the lights
 E.append(entity({"classname": "info_player_start", "origin": "0 0 26", "angle": "90"}))
