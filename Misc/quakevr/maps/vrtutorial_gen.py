@@ -1592,9 +1592,16 @@ def build_extras():
         ent("target_vr_music", 1300, -600, LOW + 96, targetname="r12_go", sounds=MUSIC_ARENA,
             music_folder=MUSIC_ARENA_FOLDER)
         ent("target_vr_music", 830, -900, LOW + 96, targetname="r12_won", sounds=0)
-        # the welcome in the middle of the view as soon as he is in (before any tip: a tip waits 0.5 s), for 8 s (no tip
-        # meanwhile: vr_tips.cpp)
+        # the welcome in the middle of the view as soon as he is in (before any tip: a tip waits 0.35 s), for 8 s (no
+        # tip meanwhile: vr_tips.cpp)
         ent("target_vr_message", 96, 256, 64, message=N.join(WELCOME), wait=8, delay=0.1)
+        # bullet time, before the arena (the author, 2026-10-10): on hall_12b's south wall, ahead of him as he comes
+        # down hall_12a. The gadget's gesture as vr_bullettime_tap_gesture 1 has it (shipped): a double tap on its
+        # screen, by the other hand (or the butt of the gun in it); the meter (vr_bullettime_duration,
+        # vr_bullettime_recharge) runs down and fills again.
+        banner(N.join(["BULLET TIME", "", "Double-tap your wrist gadget's screen", "with your other hand: time slows down.",
+                       "Double-tap again to stop it.", "It runs down, then recharges."]), 1856, -652, LOW + 96, 90,
+               "0.28")
 
 
 ROOMS = [build_room1, build_bend, build_room2, build_room3, build_room4, build_room5, build_room6, build_room7,
