@@ -48,6 +48,12 @@
 
 #include "i_system.h"
 
+#ifdef QVR_DOOM
+/* QVR: qvr_doom_dll.c: back to the engine (longjmp) instead of exit(). */
+void QVR_DoomQuit(void);
+void QVR_DoomFatal(const char *message);
+#endif
+
 #include "w_wad.h"
 #include "z_zone.h"
 
@@ -262,6 +268,9 @@ void I_Quit (void)
 
     exit(0);
 #endif
+#ifdef QVR_DOOM
+    QVR_DoomQuit(); /* QVR: back to the engine (qvr_doom_dll.c), never exit() */
+#endif
 }
 
 #if !defined(_WIN32) && !defined(__MACOSX__) && !defined(__DJGPP__)
@@ -366,6 +375,9 @@ void I_Error (char *error, ...)
     if (already_quitting)
     {
         fprintf(stderr, "Warning: recursive call to I_Error detected.\n");
+#ifdef QVR_DOOM
+        QVR_DoomFatal("I_Error: recursive call"); /* QVR: back to the engine */
+#endif
 #if ORIGCODE
         exit(-1);
 #endif
@@ -403,6 +415,9 @@ void I_Error (char *error, ...)
         entry = entry->next;
     }
 
+#ifdef QVR_DOOM
+    QVR_DoomFatal(msgbuf); /* QVR: back to the engine (qvr_doom_dll.c): no message box, never exit() */
+#endif
     exit_gui_popup = !M_ParmExists("-nogui");
 
     // Pop up a GUI dialog box to show the error message, if the

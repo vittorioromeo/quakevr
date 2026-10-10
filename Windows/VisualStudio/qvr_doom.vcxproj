@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- qvr_doom.dll: Doom on the wrist gadget (docs/vr-port/DOOM.md), built from the vendored doomgeneric
+     (Quake/vr/external/doomgeneric, GPL-2; its QVR_DOOM patches: README.QVR.md there) and its glue
+     (Quake/vr/doom/qvr_doom_dll.c). A DLL of its own, loaded by vr_doom.cpp on first use: Doom's globals (Z_Malloc,
+     I_Error, M_Init, ...) never meet Quake's. Output beside ironwail.exe. C, clang-cl as the engine; the static C runtime
+     (its files closed with _fcloseall at shutdown without touching the engine's), Doom's own warnings off (upstream's code). -->
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}</ProjectGuid>
+    <RootNamespace>qvr_doom</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>ClangCL</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)Build-ironwail\bin\$(PlatformShortName)\$(Configuration)\</OutDir>
+    <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</IntDir>
+    <TargetName>qvr_doom</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <ExceptionHandling>false</ExceptionHandling>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <CompileAs>CompileAsC</CompileAs>
+      <AdditionalIncludeDirectories>..\..\Quake\vr\external\doomgeneric;..\..\Quake\vr\doom;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ForcedIncludeFiles>qvr_doom_force.h</ForcedIncludeFiles>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;QVR_DOOM;QVR_DOOM_BUILD;FEATURE_SOUND;DOOMGENERIC_RESX=320;DOOMGENERIC_RESY=200;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>-w %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\am_map.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\doomdef.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\doomgeneric.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\doomstat.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\dstrings.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\dummy.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\d_event.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\d_items.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\d_iwad.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\d_loop.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\d_main.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\d_mode.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\d_net.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\f_finale.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\f_wipe.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\gusconf.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\g_game.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\hu_lib.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\hu_stuff.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\icon.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\info.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\i_cdmus.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\i_endoom.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\i_input.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\i_joystick.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\i_scale.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\i_sound.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\i_system.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\i_timer.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\i_video.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\memio.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\m_argv.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\m_bbox.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\m_cheat.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\m_config.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\m_controls.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\m_fixed.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\m_menu.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\m_misc.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\m_random.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_ceilng.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_doors.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_enemy.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_floor.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_inter.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_lights.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_map.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_maputl.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_mobj.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_plats.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_pspr.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_saveg.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_setup.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_sight.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_spec.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_switch.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_telept.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_tick.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\p_user.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\r_bsp.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\r_data.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\r_draw.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\r_main.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\r_plane.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\r_segs.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\r_sky.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\r_things.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\sha1.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\sounds.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\statdump.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\st_lib.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\st_stuff.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\s_sound.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\tables.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\v_video.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\wi_stuff.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\w_checksum.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\w_file.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\w_file_stdc.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\w_main.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\w_wad.c" />
+    <ClCompile Include="..\..\Quake\vr\external\doomgeneric\z_zone.c" />
+    <ClCompile Include="..\..\Quake\vr\doom\qvr_doom_dll.c">
+      <PreprocessorDefinitions>QVR_DOOM_GLUE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <AdditionalOptions>-Wno-unused-parameter %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\Quake\vr\doom\qvr_doom_api.h" />
+    <ClInclude Include="..\..\Quake\vr\doom\qvr_doom_force.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

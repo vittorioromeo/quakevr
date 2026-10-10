@@ -641,6 +641,16 @@ void M_SaveSelect(int choice)
     M_StringCopy(saveOldString,savegamestrings[choice], SAVESTRINGSIZE);
     if (!strcmp(savegamestrings[choice], EMPTYSTRING))
 	savegamestrings[choice][0] = 0;
+#ifdef QVR_DOOM
+    // QVR: no keyboard in the headset: an empty slot's name is the level's (Enter saves at once; it can be typed over)
+    if (savegamestrings[choice][0] == 0)
+    {
+        if (gamemode == commercial)
+            M_snprintf(savegamestrings[choice], SAVESTRINGSIZE, "MAP%02d", gamemap);
+        else
+            M_snprintf(savegamestrings[choice], SAVESTRINGSIZE, "E%dM%d", gameepisode, gamemap);
+    }
+#endif
     saveCharIndex = strlen(savegamestrings[choice]);
 }
 
@@ -2123,3 +2133,41 @@ void M_Init (void)
     //opldev = M_CheckParm("-opldev") > 0;
 }
 
+
+#ifdef QVR_DOOM
+//
+// QVR: a tap on the screen (320 x 200) while the menu is up (qvr_doom_dll.c, the wrist gadget's touchscreen): the
+// skull moved to the item tapped; the key that then does what a tap means (Enter on an item, the arrows on a slider's
+// row by the half tapped; any key ends a message that asks nothing), or 0 (nothing there: a question's yes and no are
+// the engine's own buttons).
+//
+int M_QvrMenuTap(int x, int y)
+{
+    int i;
+
+    if (!menuactive)
+        return 0;
+    if (messageToPrint)
+        return messageNeedsInput ? 0 : KEY_ESCAPE;
+    if (saveStringEnter || y < currentMenu->y)
+        return 0;
+    i = (y - currentMenu->y) / LINEHEIGHT;
+    if (i >= currentMenu->numitems)
+        return 0;
+    // A slider's bar is drawn on the row under its name (an item with no cursor): it is the slider's.
+    if (currentMenu->menuitems[i].status == -1 && i > 0 && currentMenu->menuitems[i - 1].status == 2)
+        i--;
+    if (currentMenu->menuitems[i].status <= 0)
+        return 0;
+    itemOn = i;
+    if (currentMenu->menuitems[i].status == 2)
+        return x < SCREENWIDTH / 2 ? KEY_LEFTARROW : KEY_RIGHTARROW;
+    return KEY_ENTER;
+}
+
+// QVR: whether the menu asks for a save's name (saving: Enter saves it).
+int M_QvrSaveStringEnter(void)
+{
+    return saveStringEnter;
+}
+#endif
