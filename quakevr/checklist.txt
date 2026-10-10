@@ -6,6 +6,7 @@
 Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
 
 [New this week]
+Setup on a fresh install: preparation ~3.5 s longer; then first session: first grunt/knight/ogre deaths don't hitch, first visits to e1m1/e1m2 and hub returns feel quicker, nothing looks different
 Nailgun + thunderbolt: look under them with the magazine in and out (inset pocket with a steel lip, like the SNG); thunderbolt both sides up close: symmetric, slots recessed, repainted lower faces
 Tutorial (relit): arena north railing sits on the ledge; lesson 7 pillar with the FIGHT banner faces you on entry (160 units in: close enough?); halls 12a/12b now have lamps (too bright?); the mezzanine ladder still tops out under the railing (climb over): fix?
 West stairs / lava / water: MG1 start's west-facing stairs with your head naturally low, walking slowly and jumping (a short catch at the very top crest may remain); step into lava and out: you keep burning 3 s (Burning > You Burn After Lava); shove a grunt off vrstart's island near the shore (gets up on the slope) and far out (gives up after ~3 s and sinks)
