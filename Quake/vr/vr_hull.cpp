@@ -2232,8 +2232,20 @@ private:
                 ++cands_[static_cast<za::SizeT>(slots_[i])].facing;
             }
         }
-        za::stablePartition(cands_.begin(), cands_.end(),
-            [this](const Cand& c) { return planeAt(c.tag).type < 3; });
+        // The axial planes first, each group in the order met (a stable partition, in two passes over a copy: in place
+        // it rotated blocks, N log N moves for every node of the tree)
+        sorted_.clear();
+        for(int axial = 1; axial >= 0; --axial)
+        {
+            for(const Cand& c : cands_)
+            {
+                if((planeAt(c.tag).type < 3) == (axial != 0))
+                {
+                    sorted_.pushBack(c);
+                }
+            }
+        }
+        cands_.swap(sorted_);
         const za::SizeT step = za::max<za::SizeT>(1, cands_.size() * frags.size() / chooseBudget);
         // The pieces' bounds, their centres and half sizes, an array per axis (the planes are weighed against them in
         // turn: read in a row, not out of the pieces themselves; the same numbers as from the pieces).
@@ -2319,6 +2331,7 @@ private:
     };
     za::Vector<int> slots_; // (choose) its table: an index in cands_, or -1
     za::Vector<Cand> cands_;
+    za::Vector<Cand> sorted_; // (choose) cands_ with the axial planes first
     za::Vector<double> bounds_; // (choose) the pieces' bounds by axis: lo, hi, centre, half size
 };
 
