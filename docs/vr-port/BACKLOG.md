@@ -152,3 +152,12 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
   the plasma and other missile functions may credit the wrong weapon against targets that take only some.
 - **A thrown laser cannon's Quake box** (`weapons.qc`, `WeaponIdToThrowBounds`): the old note said its bounds were
   wrong; unchecked since Box3D took thrown weapons' collision.
+
+## Deferred from his release-day notes (2026-10-10)
+
+- Nailgun and Thunderbolt magazine receivers: inset the bottom face with a silvery border where the magazine goes in,
+  like the super nailgun (both look flat now).
+- Thunderbolt: the right side's texture stretched and not symmetrical with the left; make it mirror the left. Many
+  grooves painted on the texture should be inset in the geometry.
+- Tutorial lesson 7: a pillar or wall right after the door so the player faces the fight banner on entering (needs
+  geometry + relight).
