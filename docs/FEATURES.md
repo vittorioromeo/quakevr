@@ -257,7 +257,8 @@ you like). Throws stay true in it. Combat > *Bullet Time*.
 - **Status bar:** the classic Quake status bar on a hand (VR Settings > *HUD: Status bar*).
 - **Menus** float in front of you, with modern sliders, switches and drop-down lists. Point with the laser from your
   hand, pull the trigger to click, and drag sliders. The sticks work too. *Back to Game* is at the top left, or you
-  can hold the menu button. Settings pages show their changes live, and in single player the game keeps running
+  can hold the menu button. Any controller opens the menu by clicking both sticks together (*Menu Button*: or
+  hold Y or B). Settings pages show their changes live, and in single player the game keeps running
   underneath. The main menu has *VR Calibration*, *Map Library*, *VR Settings* and *Advanced VR* rows.
 - **Corner buttons** on every menu: Back to Game, Search, Console, VR Settings, Advanced VR, Levels, Map Library,
   Relighting and Checklist (on a flat screen too: HUD and Menus > Menu > *Corner Buttons on a Flat Screen*).

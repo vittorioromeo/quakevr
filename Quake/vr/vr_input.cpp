@@ -138,19 +138,136 @@ void escape()
     Key_Event(K_ESCAPE, false);
 }
 
-void menuButton(int hand, bool now, bool before)
+InputState previous; // last frame's input
+
+void menuButton(int hand, bool now, bool before, const char* source)
 {
     if(!now || before)
     {
         return;
     }
-    if(key_dest == key_menu && m_state != m_none && !M_WaitingForKeyBinding())
+    const bool closes = key_dest == key_menu && m_state != m_none && !M_WaitingForKeyBinding();
+    if(vr_debug_buttons.value)
+    {
+        Con_Printf("VR buttons: %s hand's %s: %s\n", hand == HAND_MAIN ? "main" : "off", source,
+            closes ? "closes the menu" : key_dest == key_game ? "opens the menu" : "Escape");
+    }
+    if(closes)
     {
         menuui::backToGame(hand);
     }
     else
     {
         escape();
+    }
+}
+
+// vr_menu_button: the menu without the controller's menu button, which some controllers and runtimes never pass on (a
+// player's Pico Neo 3 under SteamVR). Each way is a press of the menu button (menuButton, and the posing mode's): it
+// opens the menu, or closes it from any page.
+// - 1 and up: both stick clicks together, the second within chordWindow of the first (or in the same frame). That second
+//   click (press and release) is the menu's: the game never gets it. The first went to the game as ever (+speed or
+//   +reloadmain, or bullet time's stick).
+// - 2: or Y (the off hand's upper button) held holdSeconds in the game; 3: B (the main hand's) so. The press reached the
+//   game first (a weapon switch), as a tap must not wait.
+// - 4: or Y pressed: Y is taken whole (press and release), before the posing mode, the toolgun or a voice note.
+// Never while a take plays back (vr_motion_play: its sticks are the take's).
+constexpr double chordWindow = 0.3;
+constexpr double holdSeconds = 0.8;
+
+struct MenuGestures
+{
+    double stickDown[HAND_COUNT]{};  // when each stick click went down (realtime)
+    bool stickTaken[HAND_COUNT]{};   // that stick click is the chord's (its release goes nowhere either)
+    bool yTaken{false};              // vr_menu_button 4: Y held as the menu
+    double holdSince{-1.0};          // vr_menu_button 2, 3: the held button's press in the game (-1: none)
+    bool holdDone{false};            // this hold has opened the menu, or began outside the game
+    bool press[HAND_COUNT]{};        // this frame: a gesture pressed the menu with this hand
+    const char* source[HAND_COUNT]{}; // ... which (vr_debug_buttons)
+    bool menuWas[HAND_COUNT]{};      // last frame's menu press, the button's or a gesture's
+};
+MenuGestures menuGestures;
+
+[[nodiscard]] int menuButtonMode()
+{
+    return motion::playing() ? 0 : CLAMP(0, static_cast<int>(vr_menu_button.value), 4);
+}
+
+// A button of hand `h` changed (`now`): true when a menu gesture takes it (the game never gets it).
+[[nodiscard]] bool menuGestureButton(const InputState& in, int h, bool HandInput::*button, bool now)
+{
+    MenuGestures& g = menuGestures;
+    const int mode = menuButtonMode();
+    if(button == &HandInput::stickClick)
+    {
+        const int o = 1 - h;
+        if(!now)
+        {
+            const bool taken = g.stickTaken[h];
+            g.stickTaken[h] = false;
+            return taken;
+        }
+        g.stickDown[h] = realtime;
+        if(g.stickTaken[h])
+        {
+            return true; // (the chord's other click, in the same frame)
+        }
+        const bool otherHeld = in.hands[o].stickClick && !g.stickTaken[o];
+        const bool otherJust = otherHeld && (!previous.hands[o].stickClick || realtime - g.stickDown[o] <= chordWindow);
+        if(mode < 1 || !otherJust)
+        {
+            return false;
+        }
+        g.stickTaken[h] = true;
+        if(!previous.hands[o].stickClick)
+        {
+            g.stickTaken[o] = true; // (both in this frame: the other's press, still to come, is the chord's too)
+        }
+        g.press[h] = true;
+        g.source[h] = "both sticks clicked";
+        return true;
+    }
+    if(button == &HandInput::secondary && h == HAND_OFF)
+    {
+        if(now && mode == 4)
+        {
+            g.yTaken = true;
+            g.press[h] = true;
+            g.source[h] = "Y (vr_menu_button 4)";
+            return true;
+        }
+        if(!now && g.yTaken)
+        {
+            g.yTaken = false;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Once a frame, before the buttons: vr_menu_button 2 and 3, Y or B held in the game (as the game got it: not a voice
+// note's, the flashlight's, the posing mode's...).
+void menuHold(const bool secondaryDown[HAND_COUNT])
+{
+    MenuGestures& g = menuGestures;
+    const int mode = menuButtonMode();
+    const int h = mode == 2 ? HAND_OFF : HAND_MAIN;
+    if((mode != 2 && mode != 3) || !secondaryDown[h])
+    {
+        g.holdSince = -1.0;
+        g.holdDone = false;
+        return;
+    }
+    if(g.holdSince < 0.0)
+    {
+        g.holdSince = realtime;
+        g.holdDone = key_dest != key_game; // (a hold that began in a menu: B and Y go back a page there)
+    }
+    if(!g.holdDone && key_dest == key_game && realtime - g.holdSince >= holdSeconds)
+    {
+        g.holdDone = true;
+        g.press[h] = true;
+        g.source[h] = h == HAND_OFF ? "Y held" : "B held";
     }
 }
 
@@ -164,7 +281,6 @@ bool secondaryDown[HAND_COUNT] = {};
 // And the lower one (A/X): the hook unreels while it is (primaryHeld).
 bool primaryDown[HAND_COUNT] = {};
 
-InputState previous;
 glm::vec2 moveAxes{0.f};
 bool snapTurnArmed = true;
 
@@ -320,6 +436,11 @@ namespace
 const InputState released; // (update: without VR, everything is released)
 } // namespace
 
+const char* menuButtonName()
+{
+    return vr_menu_button.value >= 1.f ? "menu button or both sticks" : "menu button";
+}
+
 void update(const InputState& tracked)
 {
     // Without VR, everything is released (keys held when the session ends must come up).
@@ -333,6 +454,13 @@ void update(const InputState& tracked)
     // Where the hands point at the menu, before the trigger clicks there.
     menuui::update(hands::current());
 
+    // vr_menu_button's ways to the menu: Y or B held (the stick chord and Y pressed: with the buttons, below).
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        menuGestures.press[h] = false;
+    }
+    menuHold(secondaryDown);
+
     for(int h = 0; h < HAND_COUNT; h++)
     {
         for(const ButtonKeys& b : buttonKeys)
@@ -340,6 +468,12 @@ void update(const InputState& tracked)
             const bool now = in.hands[h].*b.button;
             if(now != previous.hands[h].*b.button)
             {
+                // A menu gesture's button is the menu's alone (vr_menu_button: both stick clicks, Y).
+                if(menuGestureButton(in, h, b.button, now))
+                {
+                    logButton(h, b, now, b.key[h], "the menu gesture (vr_menu_button)");
+                    continue;
+                }
                 // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
                 if(posing::button(h, posingButton(b.button), now))
                 {
@@ -420,9 +554,13 @@ void update(const InputState& tracked)
             }
         }
 
-        if(in.hands[h].menu == previous.hands[h].menu || !posing::button(h, posing::Button::Menu, in.hands[h].menu))
+        // The menu button, or a gesture standing for it (a press for one frame).
+        const bool menuNow = in.hands[h].menu || menuGestures.press[h];
+        const bool menuBefore = menuGestures.menuWas[h];
+        menuGestures.menuWas[h] = menuNow;
+        if(menuNow == menuBefore || !posing::button(h, posing::Button::Menu, menuNow))
         {
-            menuButton(h, in.hands[h].menu, previous.hands[h].menu);
+            menuButton(h, menuNow, menuBefore, menuGestures.press[h] ? menuGestures.source[h] : "menu button");
         }
     }
 

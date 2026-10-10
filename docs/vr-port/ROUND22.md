@@ -798,3 +798,88 @@ the campaigns the rest.
   engine's format strings.
 - The relight that follows (`-preparerelight`) was not run here, because the shared relit maps are read-only. It
   starts the same way as before (`disconnect`, then the batch) with Quake's campaign active.
+
+## Menu on any controller (1.0.1, 2026-10-10, worktree `menubind`)
+
+A player's report: a Pico Neo 3 Link over DisplayPort (SteamVR) plays, but no controller button opens the menu (only
+Escape on the keyboard). The menu is the OpenXR `menu` action; its suggested bindings are the left `menu/click` on
+Touch, Vive wands and WMR, both on `khr/simple_controller`, the left B on Index. A runtime picks one of the suggested
+profiles for the controller in hand. SteamVR keeps the Touch menu button for its dashboard and gives Quest controllers
+the Index profile (SETTINGS.md), and it most likely does the same, or something like it, to a Pico. Which one it was
+we can't know without the player's `vr_debug_buttons 1` line (below). Two fixes, the second for any controller:
+
+**Vendor profiles** (`vr_xr_vendor_profiles 1`, the default, read at the VR start; `vr_backend_openxr.cpp`
+`suggestBindings`). When the runtime offers their extension, the game enables it and suggests bindings for Pico Neo 3
+and Pico 4 (`XR_BD_controller_interaction`), Vive Cosmos and Focus 3 (`XR_HTC_*_controller_interaction`), HP Reverb
+G2 (`XR_EXT_hp_mixed_reality_controller`) and Samsung Odyssey (`XR_EXT_samsung_odyssey_controller`). Each gets its left
+menu button as the menu; the G2 gets both. The G2 also gets its A/B/X/Y: under the WMR profile it has none (trackpad
+clicks). If a runtime turns a path down, the whole profile is lost. So the game then tries the profile's basic
+bindings: no menu button, no finger sensors (`qvr_openxr.txt`: `... turned down its bindings; its basic ones:
+taken`). Pico, Cosmos and Focus 3 get Touch's legacy grip (`vr_controller_legacy_pose`), the nearest shape the shipped
+offsets know; HP and Odyssey stay raw, as WMR does. The component paths come from the extension specs as I remember
+them. Only the fake runtime has checked them, not a real Pico, HTC or HP runtime.
+
+**Menu gestures** (`vr_menu_button`, VR Settings > Controls > *Menu Button*, also HUD and Menus > Menu; `vr_input.cpp`).
+Each one acts as a press of the menu button: it opens the menu, and closes it from any page (`backToGame`). It goes
+through the same path as the button, posing mode included, so VR Calibration's pause and `waitsOnMenu` behave as they
+do for the button. The modes:
+- 0 *Menu Button Only*: the gestures are off.
+- 1 *Or Both Sticks* (the default): click both sticks within 0.3 s of each other, or in the same frame. The second
+  click is the menu's, press and release. The first click reaches the game as usual (+speed, or +reloadmain, or bullet
+  time's stick). Two clicks 0.3 s or more apart are two game clicks, so holding run and clicking reload stays safe.
+- 2 *Hold Y*, or 3 *Hold B*: hold it for 0.8 s in the game. The press reaches the game first (a weapon switch), so a tap
+  is never delayed. Holding it in a menu does nothing, because there it goes back a page.
+- 4 *Y*: Y is the menu button. It is taken whole, before the posing mode, the toolgun and voice notes.
+
+Every mode except 0 keeps the stick chord, so choosing another mode never leaves a player without a way to the menu.
+The gestures are off while a take plays back. `vr_debug_buttons 1` now prints every menu press:
+`VR buttons: main hand's both sticks clicked: opens the menu`. The calibration boards, the body calibration's board
+and the sight alignment's board say `menu button or both sticks: stop` (`input::menuButtonName`). The tutorial has a
+new tip, `t1_menu` in lesson 1's hall: "The menu: the menu button, or click both sticks together.". It went in through
+an entity-lump edit (`bsp_set_entities.py --from-file`), with no recompile. The lump matches `vrtutorial.map`, which
+was regenerated: only the new entity and the comments' numbering changed. The docs are updated: SETTINGS.md (the
+controls table and a *Menu Button* paragraph), FEATURES.md, PLAYTEST.md and TESTING.md.
+
+**Tests.** The mock run (`vr_debug_buttons 1`) checks each path:
+- Both sticks 2 frames apart opens the menu; both in the same frame closes it.
+- Clicks 90 frames apart are two game clicks.
+- Mode 0: no menu.
+- The menu button opens and closes.
+- Mode 2: Y held 150 frames opens the menu; a Y tap does not.
+- Mode 3: B held opens the menu.
+- Mode 4: Y opens and closes the menu.
+
+`xr_runtime_test.sh` part 9, run against the fake runtime with the new `FAKEXR_EXTENSIONS` and `FAKEXR_REJECT_PATH`,
+passes 6/6: the extensions enabled, every profile suggested with the expected binding counts, none with
+`vr_xr_vendor_profiles 0`, and the basic fallback. One older check fails in this worktree, part 2c's "a relative
+library_path resolved" (the console wraps its long path). It is not touched here. `vr_menu_path_check`:
+vrcalibration 4 found and vrtutorial 1 found, 0 missing in each.
+
+**In the headset** (the author):
+- Quest under SteamVR: `vr_debug_buttons 1` should still name the Index profile. A vendor profile picked instead would
+  move the hands.
+- Click both sticks in game and in a menu.
+- VR Calibration: the chord pauses it.
+- Try the other *Menu Button* modes.
+- The tutorial's new tip, before LESSON 1's board.
+
+**Reply to the player, for 1.0.0:**
+> Thanks for the report! Under SteamVR the Pico's menu button is kept by SteamVR itself. Two things that work in
+> 1.0.0:
+> 1. Try the **left Y** button. SteamVR often hands controllers to the game as Valve Index controllers, and then the
+>    left upper button opens the menu.
+> 2. If Y doesn't do it, open the console with the **~** key on the keyboard and type `bind YBUTTON togglemenu`, then
+>    Enter. Y then opens the menu in the game. It no longer switches to the previous weapon; B still cycles weapons.
+>    In the menu, Y still goes back a page, and *Back to Game* is at the menu's top left. To undo it:
+>    `bind YBUTTON "impulse 12"`. (`bind LTHUMB togglemenu` puts it on the left stick click instead, losing run/walk.)
+>
+> It would help a lot if you typed `vr_debug_buttons 1` in the console and then pressed the Pico's menu button and
+> Y. The console prints which controller type SteamVR gave the game. Please send me those lines and
+> `quakevr/qvr_openxr.txt` (it lists what SteamVR offers).
+
+**Reply for 1.0.1:**
+> 1.0.1 fixes it for every controller: **click both sticks together** to open the menu, and again to close it. VR
+> Settings > Controls > *Menu Button* has other choices: hold Y, hold B, or make Y the menu button. If SteamVR
+> offers Pico's own controller profile, the game now uses it, with its menu button. If your aim feels different
+> after the update, redo the pitch/yaw alignment, or type `vr_xr_vendor_profiles 0` to go back to how it was. If you
+> bound Y to the menu in 1.0.0, you can give it back its weapon switch with `bind YBUTTON "impulse 12"`.

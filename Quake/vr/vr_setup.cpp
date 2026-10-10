@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_input.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
@@ -648,7 +649,7 @@ void flowFrame()
     }
     if(flow.step != Step::Idle && flow.step != Step::Body)
     {
-        text += flow.step == Step::Done ? "" : inRoom() ? "\n\nmenu button: pause" : "\n\nmenu button: stop";
+        text += flow.step == Step::Done ? "" : va("\n\n%s: %s", input::menuButtonName(), inRoom() ? "pause" : "stop");
         drawText(text);
     }
 }

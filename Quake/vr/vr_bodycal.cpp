@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
 #include "vr_hands.hpp"
+#include "vr_input.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
@@ -2166,7 +2167,7 @@ void drawText(const hands::State& s, int step, double now)
             text += "\n" + ses.hint;
         }
     }
-    text += "\nmenu button: stop";
+    text += va("\n%s: stop", input::menuButtonName());
     const float m2u = units::metresToUnits();
     const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
     const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, 0.18f * m2u};

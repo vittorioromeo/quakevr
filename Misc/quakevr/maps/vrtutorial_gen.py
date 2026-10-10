@@ -911,6 +911,8 @@ def build_room1():
                    "To run, hold the left thumbstick down."]), 634, 416, 100, 180, "0.32")
     arrows([(176, 256), (272, 256), (368, 256), (464, 256), (560, 256), (650, 256)], 0)
     tip("t2_move", "Push the left stick to walk." + N + "Push the right stick sideways to turn.", 220, 256, 60, 220)
+    # (1.0.1: a player's Pico under SteamVR had no menu button reaching the game; vr_menu_button's stick chord does.)
+    tip("t1_menu", "The menu: the menu button," + N + "or click both sticks together.", 520, 256, 60, 160)
     return d
 
 

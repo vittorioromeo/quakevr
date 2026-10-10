@@ -571,6 +571,19 @@ mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
     return {{0.f, "Jump grunt"}, {1.f, "Hard landing"}, {2.f, "Jump, deeper"}, {3.f, "Landing, deeper"}, {4.f, "Pain grunt"}};
 }
 
+// vr_menu_button's choices (VR Settings > Controls, HUD and Menus > Menu): what opens the menu besides the menu button.
+[[nodiscard]] za::Vector<Choice> menuButtonChoices()
+{
+    return {{0.f, "Menu Button Only"}, {1.f, "Or Both Sticks"}, {2.f, "Or Both Sticks, Hold Y"}, {3.f, "Or Both Sticks, Hold B"},
+        {4.f, "Or Both Sticks, Y"}};
+}
+
+const char* const menuButtonHelp =
+    "What opens the menu (and closes it from any page) besides the controller's menu button, which some controllers and "
+    "runtimes keep for themselves (Pico under SteamVR). Both Sticks: click both sticks together. Hold Y or B: hold it "
+    "for a moment in the game (its own action happens first). Y: Y is the menu button, no longer previous weapon. "
+    "Escape on the keyboard always works.";
+
 #include "vr_menu_props.inc"
 #include "vr_menu_pages.inc"
 #include "vr_menu_recording.inc"
@@ -7882,6 +7895,9 @@ za::Vector<Item> pageMain()
         toggle("Ammo Counter", vr_ammo_pouch_counter)
             .help("A small screen on the ammo pouch: how many of what it gives (shells, nails, cells) you have left."),
 
+        header("Controls"),
+        cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp),
+
         header("Locomotion"),
         cycle("Move Towards", vr_menu_move_towards, {{1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}})
             .help("Where pushing the stick forward takes you: where you look (Head), or where that hand points, so you "
@@ -8117,6 +8133,10 @@ za::Vector<Item> pageMain()
             .help("The game's sounds while the runtime's menu pauses it: 0 silent, 1 unchanged. The music pauses."),
         toggle("Late Image Acquire", vr_xr_late_acquire).advanced()
             .help("Each eye's headset image is taken from the runtime only once its scene is drawn, so the runtime's wait for it (SteamVR copying the last one out) overlaps the drawing. Off: before the scene, the old way, to compare."),
+        toggle("Vendor Controller Profiles", vr_xr_vendor_profiles).advanced()
+            .help("Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2 and Samsung Odyssey controllers get their own buttons, "
+                  "menu button included, when the runtime offers them. Off: they go as the runtime emulates them (the "
+                  "1.0.0 way, if your hands' angle changed). From the next VR start."),
         toggle("OpenXR Timing Log", vr_xr_log_timing).advanced()
             .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state."),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)

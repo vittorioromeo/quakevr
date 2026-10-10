@@ -659,6 +659,21 @@ private:
     XrView views[2]{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}};
     XrViewConfigurationView configViews[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW}, {XR_TYPE_VIEW_CONFIGURATION_VIEW}};
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
+    // The vendors' controller profiles (vr_xr_vendor_profiles), each enabled when the runtime offers its extension:
+    // suggestBindings gives each its buttons, the menu button among them.
+    enum VendorProfile
+    {
+        VendorPico,    // XR_BD_controller_interaction: Pico Neo 3, Pico 4
+        VendorCosmos,  // HTC Vive Cosmos
+        VendorFocus3,  // HTC Vive Focus 3 (and XR Elite)
+        VendorHp,      // HP Reverb G2
+        VendorOdyssey, // Samsung Odyssey (a WMR controller)
+        VendorCount
+    };
+    static constexpr const char* vendorExtensions[VendorCount] = {"XR_BD_controller_interaction",
+        "XR_HTC_vive_cosmos_controller_interaction", "XR_HTC_vive_focus3_controller_interaction",
+        "XR_EXT_hp_mixed_reality_controller", "XR_EXT_samsung_odyssey_controller"};
+    bool vendorProfile[VendorCount]{};
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
     char system[XR_MAX_SYSTEM_NAME_SIZE]{};        // the headset's name (systemName)
     bool vdxr{false};                             // Virtual Desktop's own runtime (VDXR)
@@ -1136,6 +1151,15 @@ private:
             {
                 controller[side] = Controller::Touch;
             }
+            else if(state.interactionProfile == path("/interaction_profiles/bytedance/pico_neo3_controller") ||
+                    state.interactionProfile == path("/interaction_profiles/bytedance/pico4_controller") ||
+                    state.interactionProfile == path("/interaction_profiles/htc/vive_cosmos_controller") ||
+                    state.interactionProfile == path("/interaction_profiles/htc/vive_focus3_controller"))
+            {
+                // Shaped as Touch controllers (a handle, a stick and two face buttons): Touch's legacy grip is the nearest
+                // the released offsets have (ROUND22.md, "Menu on any controller").
+                controller[side] = Controller::Touch;
+            }
             else if(state.interactionProfile == path("/interaction_profiles/valve/index_controller"))
             {
                 // Virtual Desktop's "Emulate Index controllers" reports Index controllers for what
@@ -1203,6 +1227,10 @@ private:
         systemId = XR_NULL_SYSTEM_ID;
         sessionState = XR_SESSION_STATE_UNKNOWN;
         visibilityMaskExtension = false;
+        for(bool& v : vendorProfile)
+        {
+            v = false;
+        }
         runtime[0] = '\0';
         vdxr = false;
         runtimeFaulted = false;
@@ -1234,6 +1262,15 @@ private:
             if(!strcmp(p.extensionName, "XR_META_touch_controller_plus"))
             {
                 extensions.pushBack("XR_META_touch_controller_plus");
+            }
+            for(int v = 0; v < VendorCount; v++)
+            {
+                if(vr_xr_vendor_profiles.value != 0.f && !strcmp(p.extensionName, vendorExtensions[v]))
+                {
+                    extensions.pushBack(vendorExtensions[v]);
+                    vendorProfile[v] = true;
+                    xrruntime::logLine(va("OpenXR: the %s controller profile enabled (vr_xr_vendor_profiles)\n", vendorExtensions[v]));
+                }
             }
             // The lenses' hidden area (vr_visibility_mask).
             if(!strcmp(p.extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
@@ -1596,7 +1633,7 @@ private:
         const char* path;
     };
 
-    void suggest(const char* profile, za::InitializerList<Binding> bindings)
+    bool suggest(const char* profile, za::InitializerList<Binding> bindings)
     {
         za::Vector<XrActionSuggestedBinding> suggested;
         for(const Binding& b : bindings)
@@ -1608,10 +1645,26 @@ private:
         info.interactionProfile = path(profile);
         info.suggestedBindings = suggested.data();
         info.countSuggestedBindings = static_cast<uint32_t>(suggested.size());
-        if(!XR_SUCCEEDED(xrSuggestInteractionProfileBindings(instance, &info)))
+        const XrResult r = xrSuggestInteractionProfileBindings(instance, &info);
+        if(!XR_SUCCEEDED(r))
         {
-            Con_DPrintf("OpenXR: no bindings for %s\n", profile);
+            Con_DPrintf("OpenXR: no bindings for %s (%d)\n", profile, static_cast<int>(r));
+            return false;
         }
+        return true;
+    }
+
+    // A vendor's profile (vr_xr_vendor_profiles): all its buttons, or, should the runtime turn one of their paths down
+    // (the whole profile goes then), its basic ones (no menu button: vr_menu_button's gestures; no finger sensors).
+    void suggestVendor(const char* profile, za::InitializerList<Binding> full, za::InitializerList<Binding> basic)
+    {
+        if(suggest(profile, full))
+        {
+            xrruntime::logLine(va("OpenXR: bindings suggested for %s\n", profile));
+            return;
+        }
+        const bool took = suggest(profile, basic);
+        xrruntime::logLine(va("OpenXR: %s turned down its bindings; its basic ones: %s\n", profile, took ? "taken" : "turned down too"));
     }
 
     // The actions are the controllers' physical controls; the game assigns them through key
@@ -1678,6 +1731,110 @@ private:
                 QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
                 QVR_BOTH(gripValueAction, "input/squeeze/click"),
                 QVR_BOTH(thumbTouchAction, "input/trackpad/touch")});
+
+        // The vendors' profiles, when the runtime offers them (vr_xr_vendor_profiles). Each has a menu button for the
+        // menu: the left one (the right is the runtime's own system button on most).
+        if(vendorProfile[VendorPico])
+        {
+            for(const char* pico : {"/interaction_profiles/bytedance/pico_neo3_controller",
+                    "/interaction_profiles/bytedance/pico4_controller"})
+            {
+                suggestVendor(pico,
+                    {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                        QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                        QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                        {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                        {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                        {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic"),
+                        QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                        QVR_BOTH(gripValueAction, "input/squeeze/value"),
+                        QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"),
+                        {&thumbTouchAction, QVR_L("input/x/touch")}, {&thumbTouchAction, QVR_L("input/y/touch")},
+                        {&thumbTouchAction, QVR_R("input/a/touch")}, {&thumbTouchAction, QVR_R("input/b/touch")},
+                        QVR_BOTH(triggerTouchAction, "input/trigger/touch")},
+                    {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                        QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                        QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                        {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                        {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                        QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                        QVR_BOTH(gripValueAction, "input/squeeze/value")});
+            }
+        }
+        // The HTC ones' grips as clicks (the Focus 3's value came in a later revision: not asked).
+        if(vendorProfile[VendorCosmos])
+        {
+            suggestVendor("/interaction_profiles/htc/vive_cosmos_controller",
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                    {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic"),
+                    QVR_BOTH(triggerValueAction, "input/trigger/value"), QVR_BOTH(gripValueAction, "input/squeeze/click"),
+                    QVR_BOTH(thumbTouchAction, "input/thumbstick/touch")},
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                    QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value")});
+        }
+        if(vendorProfile[VendorFocus3])
+        {
+            suggestVendor("/interaction_profiles/htc/vive_focus3_controller",
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                    {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic"),
+                    QVR_BOTH(triggerValueAction, "input/trigger/value"), QVR_BOTH(gripValueAction, "input/squeeze/click"),
+                    QVR_BOTH(thumbTouchAction, "input/thumbstick/touch"), QVR_BOTH(thumbTouchAction, "input/thumbrest/touch"),
+                    QVR_BOTH(triggerTouchAction, "input/trigger/touch")},
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                    QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value")});
+        }
+        // The Reverb G2: A/B and X/Y as on Touch (the WMR profile has none), a menu button on each hand.
+        if(vendorProfile[VendorHp])
+        {
+            suggestVendor("/interaction_profiles/hp/mixed_reality_controller",
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                    QVR_BOTH(menuAction, "input/menu/click"), QVR_BOTH(hapticAction, "output/haptic"),
+                    QVR_BOTH(triggerValueAction, "input/trigger/value"), QVR_BOTH(gripValueAction, "input/squeeze/value")},
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/value"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    {&primaryAction, QVR_L("input/x/click")}, {&primaryAction, QVR_R("input/a/click")},
+                    {&secondaryAction, QVR_L("input/y/click")}, {&secondaryAction, QVR_R("input/b/click")},
+                    QVR_BOTH(hapticAction, "output/haptic")});
+        }
+        // As the WMR controllers (the same controls).
+        if(vendorProfile[VendorOdyssey])
+        {
+            suggestVendor("/interaction_profiles/samsung/odyssey_controller",
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    QVR_BOTH(primaryAction, "input/trackpad/click"),
+                    {&secondaryAction, QVR_R("input/menu/click")}, {&menuAction, QVR_L("input/menu/click")},
+                    QVR_BOTH(hapticAction, "output/haptic"), QVR_BOTH(triggerValueAction, "input/trigger/value"),
+                    QVR_BOTH(gripValueAction, "input/squeeze/click"),
+                    QVR_BOTH(thumbTouchAction, "input/trackpad/touch")},
+                {QVR_BOTH(gripPose, "input/grip/pose"), QVR_BOTH(triggerAction, "input/trigger/value"),
+                    QVR_BOTH(gripAction, "input/squeeze/click"), QVR_BOTH(stickAction, "input/thumbstick"),
+                    QVR_BOTH(stickClickAction, "input/thumbstick/click"),
+                    QVR_BOTH(primaryAction, "input/trackpad/click"), {&secondaryAction, QVR_R("input/menu/click")},
+                    {&menuAction, QVR_L("input/menu/click")}, QVR_BOTH(hapticAction, "output/haptic")});
+        }
 
 #undef QVR_BOTH
 #undef QVR_L

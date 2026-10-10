@@ -580,6 +580,16 @@ QVR_CVAR(vr_crosshair_size, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_alpha, "0.85", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_hue, "-1", CVAR_ARCHIVE)        // its colour: hue (degrees; 0 red; -1 vr_player_hue)
 QVR_CVAR(vr_deadzone, "10", CVAR_ARCHIVE)
+// Ways to the menu besides the controller's menu button, which some controllers and runtimes never pass to the game
+// (Pico controllers under SteamVR: player report, ROUND22.md "Menu on any controller"). Each is a press of the menu
+// button (vr_input.cpp: it opens the menu, and closes it from any page). 0: the menu button only; 1: also both stick
+// clicks together; 2: those, or Y (the off hand's upper button) held 0.8 s; 3: those, or B (the main hand's) held 0.8 s;
+// 4: those, or Y pressed (Y then never reaches the game: no previous weapon, voice notes or hook reel on it).
+QVR_CVAR(vr_menu_button, "1", CVAR_ARCHIVE)
+// 1: the vendors' controller profiles (Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2, Samsung Odyssey) asked of the
+// runtime when it offers their extensions, each with its menu button; 0: only the core profiles (Touch, Index, Vive
+// wands, WMR, simple). Read when the VR session starts.
+QVR_CVAR(vr_xr_vendor_profiles, "1", CVAR_ARCHIVE)
 // Controller rotation offsets, the released values: tuned for OpenVR's raw controller pose, which
 // the OpenXR backend reproduces from the grip pose with vr_controller_legacy_pose 1 (Touch, Quest
 // and Index controllers), so that they and the weapon offsets line up as in the old engine.

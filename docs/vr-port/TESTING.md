@@ -1162,3 +1162,14 @@ layer is ON in `openxr_debug.log`, `openxr_validation.log` has "Core Validation 
 report's module list has `XrApiLayer_core_validation.dll`. A normal run that starts VR and crashes has no such module.
 
 A run without `-diagnostics` makes no folder.
+
+Part 9 (81 checks in all): the vendors' controller profiles (`vr_xr_vendor_profiles`). `FAKEXR_EXTENSIONS` makes every
+fake offer more extensions (Pico's, HTC's, HP's, Samsung's), and the fake logs each `xrSuggestInteractionProfileBindings`
+(its profile and binding count). Each extension enabled, each profile's bindings suggested with its menu button;
+`vr_xr_vendor_profiles 0` asks none; `FAKEXR_REJECT_PATH=left/input/menu/click` turns the Pico's down, and its basic
+bindings (no menu button, no finger sensors) are taken.
+
+Menu gestures (`vr_menu_button`, round 22 "Menu on any controller"), with `vr_debug_buttons 1` (each prints `VR
+buttons: <hand>'s <gesture>: opens the menu` / `closes the menu`): `vr_mock_button off stickclick 1;wait2;vr_mock_button
+main stickclick 1` (both sticks, the second click taken), `vr_mock_button off secondary 1;wait150` with
+`vr_menu_button 2` (Y held), `main secondary` with 3 (B held), a Y press with 4, and `vr_mock_button off menu 1`.

@@ -48,7 +48,8 @@ left half. `vr_stick_swap 1` swaps only what the sticks do (the right one moves)
 
 Controllers without some of these: Index has no menu button, so its left B opens the menu. Vive wands use the
 trackpads as sticks and their clicks as A/X, and the right menu button as B. WMR uses the trackpad clicks as A/X
-and the right menu button as B. In menus both sticks navigate, A selects and B goes back.
+and the right menu button as B. In menus both sticks navigate, A selects and B goes back. Both sticks clicked
+together open and close the menu on any controller (VR Settings > *Menu Button*, `vr_menu_button`).
 
 The defaults live in `quakevr/vr_bindings.cfg`. They are applied once (`vr_bindings_version`) on top of whatever
 config was saved before, including one inherited from `id1`; "Reset to defaults" applies them again.

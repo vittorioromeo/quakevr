@@ -15,6 +15,11 @@
 //   FAKEXR_FAULT_IMAGES   copies whose xrEnumerateSwapchainImages crashes filling the images (a null read, as VDXR
 //                         1.1.0's did: the game's vr_xr_guard catches it); FAKEXR_FAULT_SRGB: only sRGB swapchains'
 //   FAKEXR_DEBUG_UTILS    copies that offer XR_EXT_debug_utils: a messenger that sends 3 messages once made
+//   FAKEXR_EXTENSIONS     more extensions every copy offers (comma-separated names, e.g. XR_BD_controller_interaction:
+//                         the game's vendor controller profiles); each xrSuggestInteractionProfileBindings is logged
+//                         (its profile and binding count)
+//   FAKEXR_REJECT_PATH    a binding path's text: a suggestion holding a path that contains it is turned down
+//                         (XR_ERROR_PATH_UNSUPPORTED), as a runtime turns down a path its profile lacks
 //   FAKEXR_D3D11          copies that load d3d11.dll at xrCreateInstance and free it at xrDestroyInstance (as VDXR
 //                         does), logging whether it is still loaded after (the game keeps it: vr_backend_openxr.cpp)
 //
@@ -85,17 +90,28 @@ XRAPI_ATTR XrResult XRAPI_CALL enumerateInstanceExtensionProperties(
         return XR_ERROR_API_LAYER_NOT_PRESENT;
     }
     const bool debugUtils = listed("FAKEXR_DEBUG_UTILS");
-    *count = debugUtils ? 2 : 1;
+    char extra[1024] = "";
+    GetEnvironmentVariableA("FAKEXR_EXTENSIONS", extra, sizeof(extra));
+    const char* names[16];
+    uint32_t n = 0;
+    names[n++] = "XR_KHR_opengl_enable"; // (the game's graphics binding)
+    if(debugUtils)
+    {
+        names[n++] = "XR_EXT_debug_utils";
+    }
+    for(char* token = strtok(extra, ","); token && n < 16; token = strtok(nullptr, ","))
+    {
+        names[n++] = token;
+    }
+    *count = n;
     if(capacity == 0)
     {
         return XR_SUCCESS;
     }
-    strcpy(properties[0].extensionName, "XR_KHR_opengl_enable"); // (the game's graphics binding)
-    properties[0].extensionVersion = 10;
-    if(debugUtils && capacity > 1)
+    for(uint32_t i = 0; i < n && i < capacity; i++)
     {
-        strcpy(properties[1].extensionName, "XR_EXT_debug_utils");
-        properties[1].extensionVersion = 5;
+        strncpy_s(properties[i].extensionName, names[i], _TRUNCATE);
+        properties[i].extensionVersion = 1;
     }
     return XR_SUCCESS;
 }
@@ -632,6 +648,33 @@ XRAPI_ATTR XrResult XRAPI_CALL pathToString(XrInstance, XrPath path, uint32_t ca
     return XR_SUCCESS;
 }
 
+// Logged with its profile and binding count; FAKEXR_REJECT_PATH turns down one holding that path.
+XRAPI_ATTR XrResult XRAPI_CALL suggestBindings(XrInstance instance, const XrInteractionProfileSuggestedBinding* info)
+{
+    char profile[256] = "?";
+    uint32_t len = 0;
+    pathToString(instance, info->interactionProfile, sizeof(profile), &len, profile);
+    char reject[256] = "";
+    const bool rejecting = GetEnvironmentVariableA("FAKEXR_REJECT_PATH", reject, sizeof(reject)) != 0 && reject[0];
+    for(uint32_t i = 0; rejecting && i < info->countSuggestedBindings; i++)
+    {
+        char binding[256] = "";
+        pathToString(instance, info->suggestedBindings[i].binding, sizeof(binding), &len, binding);
+        if(strstr(binding, reject))
+        {
+            char text[600];
+            _snprintf_s(text, sizeof(text), _TRUNCATE, "xrSuggestInteractionProfileBindings %s: %s turned down", profile, binding);
+            log(text);
+            return XR_ERROR_PATH_UNSUPPORTED;
+        }
+    }
+    char text[400];
+    _snprintf_s(text, sizeof(text), _TRUNCATE, "xrSuggestInteractionProfileBindings %s: %u bindings", profile,
+        info->countSuggestedBindings);
+    log(text);
+    return XR_SUCCESS;
+}
+
 XRAPI_ATTR XrResult XRAPI_CALL createActionSet(XrInstance, const XrActionSetCreateInfo*, XrActionSet* set)
 {
     *set = newHandle<XrActionSet>();
@@ -740,7 +783,7 @@ const Entry headsetEntries[] = {
     {"xrDestroyActionSet", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
     {"xrCreateAction", reinterpret_cast<PFN_xrVoidFunction>(createAction)},
     {"xrDestroyAction", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
-    {"xrSuggestInteractionProfileBindings", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
+    {"xrSuggestInteractionProfileBindings", reinterpret_cast<PFN_xrVoidFunction>(suggestBindings)},
     {"xrAttachSessionActionSets", reinterpret_cast<PFN_xrVoidFunction>(succeed)},
     {"xrSyncActions", reinterpret_cast<PFN_xrVoidFunction>(syncActions)},
     {"xrGetActionStateBoolean", reinterpret_cast<PFN_xrVoidFunction>(getActionStateBoolean)},

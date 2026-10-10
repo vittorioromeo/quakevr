@@ -15,7 +15,8 @@ the first things to set. This page goes further: every menu page, the controls, 
 
 ## The VR Settings menu
 
-Open the menu with the controller's menu button (on Index controllers, the left B button) and pick **VR Settings**
+Open the menu with the controller's menu button (on Index controllers, the left B button), or click both sticks
+together (any controller: *Menu Button*, below), and pick **VR Settings**
 (also Options > VR Settings) or **Advanced VR** (the corner's *Advanced VR* button too). `menu_vr` in the console opens it directly, and `menu_vr <n>` opens page *n* (0 is VR Settings, 1 is
 Advanced VR Options, then the pages in the order listed below; `menu_vr list` prints the numbers).
 
@@ -317,13 +318,21 @@ Handed* on, nothing needs rebinding.
 | Stick click | `RTHUMB` | `LTHUMB` | `+reloadmain` / `+speed` (run/walk) |
 | Stick | turns; up/down are `DPAD_UP` / `DPAD_DOWN` (`+moveup` / `+movedown`: swim up and down) | moves | |
 | Menu button | Escape (not rebindable) | | |
+| Both sticks clicked together | the menu, as the menu button (VR Settings > *Menu Button*) | | |
 
 - **Index controllers** have no menu button, so their left B opens the menu. **Quest (Touch) controllers under
   SteamVR** reach the game as Index controllers (SteamVR keeps the Touch menu button for its dashboard), so there
   the left Y opens the menu; under Virtual Desktop's VDXR they are Touch controllers and the left menu button opens
   it. **Vive wands** use the trackpads as
   sticks and their clicks as A/X, and the right menu button as B. **Windows Mixed Reality** controllers use the
-  trackpad clicks as A/X and the right menu button as B.
+  trackpad clicks as A/X and the right menu button as B. **Pico, Vive Cosmos and Focus 3, HP Reverb G2 and Samsung
+  Odyssey** controllers get their own bindings when the runtime offers their profile (`vr_xr_vendor_profiles 1`,
+  the default), each with its left menu button as the menu.
+- **Menu Button** (VR Settings > Controls, and HUD and Menus > Menu; `vr_menu_button`): for a controller whose menu
+  button never reaches the game (a Pico under SteamVR, which keeps it for its own menu). *Or Both Sticks* (the
+  default): click both sticks together, within a third of a second. *Hold Y* / *Hold B*: hold it for a moment in
+  the game (its own action happens first). *Y*: Y is the menu button (no previous weapon, voice notes or reel on
+  it). Each opens the menu, and closes it from any page; *Menu Button Only* turns them off.
 - **Useful extra commands to bind:** `+teleport` (with *Teleport* on), `vr_flashlight_toggle`, `+vr_note` (record a
   voice note from any key).
 - **Desktop keys** (flat-screen play and testing): `k`/`l` grab with the left/right hand, `n`/`m` reload, `o`/`i`

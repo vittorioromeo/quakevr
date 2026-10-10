@@ -332,4 +332,37 @@ bash "$KIT/run.sh" "$NAME" -Script "wait5;toggleconsole;quit" -Filter "iagnostic
 after=$(ls "$DIAGS" | wc -l)
 if [ "$mid" -eq $((before + 1)) ] && [ "$after" -eq "$mid" ]; then echo "PASS: diagnostics: one folder for -diagnostics, none without"
 else echo "FAIL: diagnostics folders: $before -> $mid -> $after"; fails=$((fails + 1)); fi
+# 9. The vendors' controller profiles (vr_xr_vendor_profiles, ROUND22.md "Menu on any controller"): offered, each
+# extension enabled and its profile's bindings suggested (with its menu button); vr_xr_vendor_profiles 0: none asked;
+# a runtime turning a path down (FAKEXR_REJECT_PATH): the profile's basic bindings, without the menu button.
+VEXT="XR_BD_controller_interaction,XR_HTC_vive_cosmos_controller_interaction,XR_HTC_vive_focus3_controller_interaction"
+VEXT="$VEXT,XR_EXT_hp_mixed_reality_controller,XR_EXT_samsung_odyssey_controller"
+LOG="$OUT/vendor_fake.log"; : > "$LOG"
+export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_steam FAKEXR_EXTENSIONS="$VEXT"
+S="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe"
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/vendor.log"
+cp -f "$XRLOG" "$OUT/vendor_openxr.txt"
+check "$OUT/vendor_openxr.txt" "vendor profiles: each extension enabled" "XR_BD_controller_interaction controller profile enabled" \
+    "XR_HTC_vive_cosmos_controller_interaction controller profile enabled" "XR_HTC_vive_focus3_controller_interaction controller profile enabled" \
+    "XR_EXT_hp_mixed_reality_controller controller profile enabled" "XR_EXT_samsung_odyssey_controller controller profile enabled"
+check "$OUT/vendor_openxr.txt" "vendor profiles: each one's bindings suggested" "bindings suggested for /interaction_profiles/bytedance/pico_neo3_controller" \
+    "bindings suggested for /interaction_profiles/bytedance/pico4_controller" "bindings suggested for /interaction_profiles/htc/vive_cosmos_controller" \
+    "bindings suggested for /interaction_profiles/htc/vive_focus3_controller" "bindings suggested for /interaction_profiles/hp/mixed_reality_controller" \
+    "bindings suggested for /interaction_profiles/samsung/odyssey_controller" "OpenXR: started"
+check "$LOG" "vendor profiles: the runtime got them" "pico_neo3_controller: 29 bindings" "pico4_controller: 29 bindings" \
+    "vive_cosmos_controller: 23 bindings" "vive_focus3_controller: 27 bindings" "hp/mixed_reality_controller: 22 bindings" \
+    "samsung/odyssey_controller: 22 bindings"
+: > "$LOG"
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_xr_vendor_profiles 0;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/vendor0.log"
+if grep -q "bytedance\|vive_cosmos\|vive_focus3\|hp/mixed\|samsung" "$LOG"; then echo "FAIL: vr_xr_vendor_profiles 0 still asked for a vendor profile"; fails=$((fails + 1))
+else echo "PASS: vr_xr_vendor_profiles 0: no vendor profile asked"; fi
+: > "$LOG"
+export FAKEXR_EXTENSIONS=XR_BD_controller_interaction FAKEXR_REJECT_PATH=left/input/menu/click
+bash "$KIT/run.sh" "$NAME" -Script "$S;vr_backend openxr;wait30;toggleconsole;quit" -Full -Filter "OpenXR: started" > "$OUT/vendorreject.log"
+cp -f "$XRLOG" "$OUT/vendorreject_openxr.txt"
+check "$OUT/vendorreject_openxr.txt" "vendor profiles: a path turned down, the basic bindings taken" \
+    "pico_neo3_controller turned down its bindings; its basic ones: taken" "OpenXR: started"
+check "$LOG" "vendor profiles: the basic bindings, no menu button" "pico_neo3_controller: /user/hand/left/input/menu/click turned down" \
+    "pico_neo3_controller: 20 bindings"
+unset FAKEXR_HEADSET FAKEXR_EXTENSIONS FAKEXR_REJECT_PATH
 echo "xr_runtime_test: $fails failed"
