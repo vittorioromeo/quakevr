@@ -38,6 +38,9 @@ void frame();
 
 // Whether the setup is running (a step or its summary shown).
 [[nodiscard]] bool running();
+// Whether it waits on Body Calibration's page for the menu to close (paused, or the body's result not trusted): Back
+// from that page and `togglemenu` then close the menu at once, as the menu button does (one press goes on).
+[[nodiscard]] bool waitsOnMenu();
 
 // The calibration room's doorway, on the board over it ("{calibration exit}" in a board's text, vr_worldtext.cpp): "VR
 // TUTORIAL" at a first start (vr_tutorial_started 0: QC changelevel_touch sends it there), else "VR HUB".

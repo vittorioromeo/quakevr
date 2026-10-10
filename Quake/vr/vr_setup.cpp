@@ -773,6 +773,11 @@ bool running()
     return flow.step != Step::Idle;
 }
 
+bool waitsOnMenu()
+{
+    return flow.step == Step::BodyReview || flow.step == Step::Paused;
+}
+
 const char* exitBoardName()
 {
     return exitToTutorial() ? "VR TUTORIAL" : "VR HUB";

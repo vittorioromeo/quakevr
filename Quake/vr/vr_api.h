@@ -423,6 +423,7 @@ void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_RetiredCvar (const char *name);					// Cmd_ExecuteString, an unknown name: nonzero if it is a removed Quake VR setting (a config's stale line, ignored quietly)
 const char *VR_CvarAlias (const char *name);			// Cvar_FindVar, a name not found: a renamed setting's new name (vr_slipgates: vr_teleporters), or NULL
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
+int VR_MenuToggleCloses (void);							// M_ToggleMenu_f, in a menu: nonzero if it closes from this page at once (VR Calibration waiting on Body Calibration's page), not to the main menu first
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 int VR_RuntimeMenuPause (void);							// Host_ServerFrame, SV_RunClients: nonzero while the runtime's menu pauses a single player game (vr_xr_unfocused_pause)
 // The main menu's lettering as a font (vr_bigfont.cpp): its letters cut from id's menu pictures in the pak, rows of text

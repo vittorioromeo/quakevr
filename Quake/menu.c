@@ -1123,7 +1123,7 @@ void M_ToggleMenu_f (void)
 
 	if (key_dest == key_menu)
 	{
-		if (m_state != m_main)
+		if (m_state != m_main && !VR_MenuToggleCloses ()) // QVR: VR Calibration's page closes at once
 		{
 			M_Menu_Main_f ();
 			return;

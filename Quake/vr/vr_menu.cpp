@@ -36,6 +36,7 @@
 #include "vr_hands.hpp"
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
+#include "vr_setup.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_checklist.hpp"
 #include "vr_view.hpp"
@@ -10274,6 +10275,15 @@ void goBack()
         M_Menu_Options_f(); // (its sound as it is drawn)
         return;
     }
+    if(pages[page].build == pageBodyCalibration && qvr::setup::waitsOnMenu())
+    {
+        // VR Calibration waits on this page (paused, or the body's result not trusted): Back closes the menu, as the
+        // menu button does, and the calibration goes on (not up the tree, the menu still open and it still waiting)
+        navPush(page);
+        menuui::backToGame(HAND_MAIN);
+        S_LocalSound("misc/menu2.wav");
+        return;
+    }
     if(pages[page].build == pageToolgun)
     {
         qvr::menu::closeToolgun(); // (the toolgun's menu: back to the game)
@@ -11723,6 +11733,14 @@ int qvr::menu::bodyCalibrationPage()
 int qvr::menu::retroOverridePage()
 {
     return pageIndex(pageRetroOverride);
+}
+
+// `togglemenu` in a menu: VR Calibration waiting on Body Calibration's page (paused, or the body's result not trusted)
+// closes it at once, as the menu button does; elsewhere Quake's way (to the main menu first).
+extern "C" int VR_MenuToggleCloses()
+{
+    return m_state == m_vr && key_dest == key_menu && pages[page].build == pageBodyCalibration &&
+           qvr::setup::waitsOnMenu();
 }
 
 // Options > VR Settings (and menu_vr): the VR Settings; Back returns to the menu they were opened from (NavStack).
