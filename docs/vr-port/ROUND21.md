@@ -11133,3 +11133,28 @@ e1m2 with sound and the notice: put off, spawned, exit 0.
 **In the headset:** Loading Notice is on again (the Debug page's row says Headset). From vrstart, the Dimension of the
 Past teleporter: "Loading...", then e5start, no error. In Scourge of Armagon, main menu > VR Hub: "Loading...", then
 vrstart. Any other campaign's teleporter and the way back to the hub the same.
+## Patch 1.0.1: the tutorial's arena railing, lesson 7's pillar, the arena halls' lamps (2026-10-10, worktree `tutmap101`)
+
+The author's tutorial notes; `vrtutorial_gen.py`, recompiled and relit with its `final` preset (the shipped build:
+qbsp 0.18.1, 2.0's vis and light `-extra4 -dirt -bounce -lit -lux -lightgrid 64`; `_qvr_prelit 1` kept, so the
+in-game relight passes it over).
+- **The arena's railing** on the north mezzanine (on his right as he comes in) stood at y -520, 8 units out from the
+  ledge's edge (-512), in the air: now at -510, its posts 0.5 in from the edge, on the ledge.
+- **Lesson 7's board on a pillar** just inside the door (`R7_PILLAR`: x 5152-5280, y 736-768, floor to ceiling,
+  structural, the room's wall bands on it; 160 in from the door, the ceiling lamps' row at y 800 clear of it), the board
+  on its face to the door at eye height (LOW + 104; it was over the exit door at LOW + 176): he faces it as he steps in.
+  256 clear on each side; the alcove's grunt comes at him north of it; the targets (west wall) are in sight from the
+  door. The tips stay where they were.
+- **Halls 12a and 12b** (the way to the arena) had no light at all (only the arena door's bounce: black): three ceiling
+  lamps (200, as the rooms'), written last (`late()`, after the bullet time board): the other entities keep their numbers.
+- The lump: the .bsp's entities == the generator's .map's (keys and order); against the 1.0.0 lump only lesson 7's
+  board's origin and the three lights appended. bsp_holes 300k rays: 0 holes.
+- `vrtutorial_playtest.py`: the fight's walk to the rifle goes round the pillar's east side; `--god` with `--from` past
+  the fight now turns god on (it never did: "--from arena --god" ran mortal).
+- Checked headless: loads clean; before/after shots (the railing's posts now on the ledge; the pillar's board filling
+  the view from the door; halls 12a/12b lit). `--from fight --seed 1`: fight survived (74), the rifle shot the three
+  targets, the door opened (the run then stops at room 8's hand loading, as before). `--from arena`, mortal (as every
+  earlier "--god" arena run really was): seeds 1-6 cleared 4 (health 100, 100, 102, 55; seeds 2 and 3 died in wave 3);
+  the 1.0.0 map the same way: 5 (85, 40, 66, 25 as the notes above, seed 2 stuck alive in the pit; seed 4 cleared, its
+  walk out stopped at the pit's rail). With god really on, seeds 2 and 3 end in the pit on both maps (the mock's straight
+  walks after a monster): the arena's outcome per seed moves with any edict change (the three lights), not the geometry.
