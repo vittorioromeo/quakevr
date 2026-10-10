@@ -56,7 +56,29 @@ public sealed class AiStatement
 
     public int Unanswered => _answers.Count(a => a is null);
 
-    /// <summary>The statement as plain text (the console prints it).</summary>
+    /// <summary>
+    /// Splits a claim around its one emphasized span, written <c>*like this*</c>: the wizard sets the middle part in
+    /// italics. A text without a closed pair comes back whole as <paramref name="text"/>'s first part.
+    /// </summary>
+    public static (string Before, string Emphasis, string After) SplitEmphasis(string text)
+    {
+        var open = text.IndexOf('*');
+        var close = open < 0 ? -1 : text.IndexOf('*', open + 1);
+        if (close < 0)
+        {
+            return (text, "", "");
+        }
+        return (text[..open], text[(open + 1)..close], text[(close + 1)..]);
+    }
+
+    /// <summary>A claim without its emphasis marks (screen readers get this).</summary>
+    public static string Plain(string text)
+    {
+        var (before, emphasis, after) = SplitEmphasis(text);
+        return before + emphasis + after;
+    }
+
+    /// <summary>The statement as plain text (the console prints it; the claims keep their <c>*emphasis*</c> marks).</summary>
     public static string Format()
     {
         var sb = new StringBuilder();

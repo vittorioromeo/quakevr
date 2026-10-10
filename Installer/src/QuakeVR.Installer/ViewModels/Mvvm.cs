@@ -144,7 +144,12 @@ public sealed class StepItem(int number, string title) : ObservableObject
 public sealed class StatementChoice(Core.AiStatement statement, int index) : ObservableObject
 {
     public int Number => index + 1;
-    public string Text => Core.AiStatement.Claims[index];
+    /// <summary>The claim without its emphasis marks (the switches' help text).</summary>
+    public string Text => Core.AiStatement.Plain(Core.AiStatement.Claims[index]);
+    // The claim in three parts, the middle one set in italics.
+    public string TextBefore => Core.AiStatement.SplitEmphasis(Core.AiStatement.Claims[index]).Before;
+    public string TextEmphasis => Core.AiStatement.SplitEmphasis(Core.AiStatement.Claims[index]).Emphasis;
+    public string TextAfter => Core.AiStatement.SplitEmphasis(Core.AiStatement.Claims[index]).After;
 
     public bool IsYes
     {

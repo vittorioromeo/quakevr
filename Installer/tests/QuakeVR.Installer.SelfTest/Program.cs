@@ -95,6 +95,16 @@ var tests = new List<(string Name, Action Body)>
         }
         var text = AiStatement.Format();
         True(text.Contains(AiStatement.Subtitle) && AiStatement.Claims.All(text.Contains) && AiStatement.Paragraphs.All(text.Contains), "the console's text");
+        // The wizard sets each claim's *not* in italics: split around it, and no asterisk left on screen.
+        foreach (var claim in AiStatement.Claims)
+        {
+            var (before, emphasis, after) = AiStatement.SplitEmphasis(claim);
+            Eq("not", emphasis, $"emphasis of '{claim}'");
+            True(!(before + after).Contains('*') && !AiStatement.Plain(claim).Contains('*'), "no asterisk left");
+            Eq(claim.Replace("*", ""), AiStatement.Plain(claim), "plain text");
+        }
+        Eq(("no marks", "", ""), AiStatement.SplitEmphasis("no marks"), "a text without marks stays whole");
+        Eq(("a *b", "", ""), AiStatement.SplitEmphasis("a *b"), "an unclosed mark stays whole");
     }),
     ("vdf: libraryfolders, both formats, escapes, comments", () =>
     {

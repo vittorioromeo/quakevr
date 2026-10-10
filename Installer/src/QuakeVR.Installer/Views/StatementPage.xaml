@@ -107,7 +107,7 @@
                                     <TextBlock x:Name="Mark" Text="{Binding Number}" FontFamily="{StaticResource CondensedFont}" FontSize="12.5"
                                                FontWeight="Bold" Foreground="{StaticResource Faint}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Grid>
-                                <TextBlock Text="{Binding Text}" Style="{StaticResource Body}" VerticalAlignment="Center" />
+                                <TextBlock Style="{StaticResource Body}" VerticalAlignment="Center"><Run Text="{Binding TextBefore, Mode=OneWay}" /><Run Text="{Binding TextEmphasis, Mode=OneWay}" FontStyle="Italic" /><Run Text="{Binding TextAfter, Mode=OneWay}" /></TextBlock>
                             </DockPanel>
                         </Border>
                         <DataTemplate.Triggers>
