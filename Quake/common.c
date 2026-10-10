@@ -2956,6 +2956,49 @@ static void COM_AddBaseDir (const char *path)
 
 /*
 =================
+COM_AddExeBaseDir
+
+QVR: started without -basedir (QuakeVR.bat, ironwail.exe itself, a launcher's or Steam's entry for it: not the
+installer's shortcuts, which pass "-basedir <Quake> -basedir <Quake VR>"), Quake is found as Ironwail finds it (the
+current folder, Steam, GOG, Epic) and the exe's own folder, an install's, was no base dir: the quakevr searched was
+another one (VR_GameDirectoryRoot: the last base dir that has one), a leftover in the Quake folder (a source build's link
+or copy, an old zip install: its progs.dat ran with this engine) or in Ironwail's Saved Games folder (no progs.dat: id's
+ran, Quake VR's gameplay off, guns only props). The exe's folder, when its quakevr has the game code, is added as the
+last base dir: its quakevr is the one searched, and its config the one saved.
+=================
+*/
+static qboolean COM_SamePath (const char *a, const char *b)
+{
+	for (;; ++a, ++b)
+	{
+		while (Sys_IsPathSep (a[0]) && (Sys_IsPathSep (a[1]) || !a[1]))
+			++a; // (repeated and trailing separators)
+		while (Sys_IsPathSep (b[0]) && (Sys_IsPathSep (b[1]) || !b[1]))
+			++b;
+		if (!*a || !*b)
+			return !*a && !*b;
+		if (Sys_IsPathSep (*a) ? !Sys_IsPathSep (*b) : q_tolower (*a) != q_tolower (*b))
+			return false;
+	}
+}
+
+static void COM_AddExeBaseDir (void)
+{
+	int i;
+	const char *dir = host_parms->exedir;
+	if (COM_CheckParm ("-basedir") || !dir || !*dir)
+		return;
+	if (Sys_FileType (va ("%s/quakevr/progs.dat", dir)) != FS_ENT_FILE)
+		return;
+	for (i = 0; i < com_numbasedirs; i++)
+		if (COM_SamePath (com_basedirs[i], dir))
+			return;
+	COM_AddBaseDir (dir);
+	Con_Printf ("VR: no -basedir: the exe's own folder added as the last base dir (its quakevr): %s\n", dir);
+}
+
+/*
+=================
 COM_MigrateNightdiveUserFiles
 
 Checks the Nightdive dir for subdirs containing
@@ -3510,6 +3553,7 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 
 	if (host_parms->userdir != host_parms->basedir)
 		COM_AddBaseDir (host_parms->userdir);
+	COM_AddExeBaseDir (); // QVR
 
 	if (startarg)
 		COM_PatchCmdLine (startarg);

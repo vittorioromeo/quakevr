@@ -151,6 +151,9 @@ Set-Content -Encoding ascii (Join-Path $dist "QuakeVR.bat") "@echo off`r`nstart 
 Set-Content -Encoding ascii (Join-Path $dist "README-QuakeVR.txt") @"
 Quake VR (Ironwail + OpenXR)
 
+Installed with QuakeVR-Setup.exe? Start Quake VR from the shortcut it made (Start menu or desktop):
+it tells the game where Quake is. The steps below are for the zip.
+
 1. Copy everything here into your Quake folder (the one containing id1). Scourge of Armagon
    (hipnotic) and Dissolution of Eternity (rogue) are used automatically if installed.
 2. Start your OpenXR runtime (SteamVR, Oculus, Virtual Desktop...) and put the headset on.

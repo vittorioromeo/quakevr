@@ -5167,6 +5167,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Retry the Full Renderer", "vr_glsafe_retry")
             .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
         header("Diagnostics"),
+        command("Game Code and Folders", "vr_gamecode")
+            .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
+                  "game code (progs.dat) comes from: this build's, an older build's quakevr folder or not Quake VR's "
+                  "(then weapons are only props). Said at each start too; a player's console dump has it."),
         toggle("Diagnostics Mode", vr_diagnostics)
             .help("vr_diagnostics, from the next start (as -diagnostics or the Diagnostics shortcut): a debug GL context and "
                   "its messages, the OpenXR debug messenger, what is said to a debugger, the console, the crash report and "

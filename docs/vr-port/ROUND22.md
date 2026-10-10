@@ -884,3 +884,74 @@ vrcalibration 4 found and vrtutorial 1 found, 0 missing in each.
 > offers Pico's own controller profile, the game now uses it, with its menu button. If your aim feels different
 > after the update, redo the pitch/yaw alignment, or type `vr_xr_vendor_profiles 0` to go back to how it was. If you
 > bound Y to the menu in 1.0.0, you can give it back its weapon switch with `bind YBUTTON "impulse 12"`.
+
+## "Guns only grab as props": wrong game code, the folders searched (1.0.1, 2026-10-11, worktree `gungrab`)
+
+A player who had built a pre-release from source installed 1.0.0 (installer, fresh folder): every gun taken off the
+floor was held like a prop, even gripped at the handle. Later he cleaned his Quake folder down to id1, rogue and
+hipnotic and used the zip: the same.
+
+**What a lying gun's grab depends on.** The client's updateGroundSpots (vr_view.cpp): the hand's point within
+`vr_weapon_grab_anywhere_min` (12 cm) of the gun's origin (its handle) takes it by the handle; farther, the fist on its
+drawn shape takes it "anywhere" (held as a prop: no firing). The QC takes it (weapongrabspot). Without Quake VR's QC
+(id's progs.dat, "compatibility mode") no gun is ever a weapon in the hand.
+
+**Ranked causes, with evidence (headless, scratch folders, the release package made by package-quakevr.ps1):**
+
+1. *Another quakevr's game code, or none.* Nothing checked that progs.dat belongs to the engine (no handshake: the VR
+   fields and functions are bound by name, missing ones silently off).
+   - Launched without the shortcut's `-basedir`s (QuakeVR.bat or ironwail.exe from the installer's folder, a launcher's
+     entry): Ironwail finds Quake itself (the current folder, Steam, GOG, Epic) and the install's folder is no base dir,
+     so the quakevr searched is the Quake folder's (a source build's link or copy). Reproduced: the fake Quake folder
+     with 2026-10-01's quakevr (git archive + fteqcc), the 1.0.x exe started as QuakeVR.bat does: `path` lists only
+     that old quakevr. Its progs.dat lacks 51 of the engine's 169 VR fields.
+   - A quakevr folder with a config but no progs.dat in a later base dir (Ironwail's Saved Games user dir, added last
+     by the store branch; a pre-release before 800023659 saved its config and saves there when launched without
+     `-basedir`): "the last base dir that has quakevr" was that one, so progs.dat came from rogue/hipnotic/id1 (id's):
+     `VR: progs without Quake VR's gameplay: compatibility mode`. Reproduced with `-basedir <pkg> -basedir <userdir with
+     quakevr/ironwail.cfg only>`.
+   - The installer's shortcut (`-basedir <Quake> -basedir <install>`): the install's quakevr only (reproduced with an
+     old quakevr in the Quake folder). The player's case is not this one unless he starts it another way.
+2. *Files in the Quake folder's id1, which every launch still reads:* `id1/autoexec.cfg` runs at every start (the kit's
+   own tests rely on it); `id1/config.cfg` runs at a first start; an `id1/pak2.pak`+ (a model pack) replaces
+   `progs/v_*.mdl` (quakevr ships no id weapon models). He kept id1: worth asking what is in it.
+3. *Hardware / runtime.* Hand poses are moved to the old raw pose only for Touch and Index profiles
+   (vr_backend_openxr.cpp toLegacyPose); every other profile (Vive wands, WMR/Reverb, Pico, Cosmos...) uses the grip
+   pose as is (~10-13 cm and 15-20 degrees off what the weapon offsets were tuned on). That shifts hand and guns
+   together, so it should not by itself turn handle grabs into "anywhere" ones, but it is the one per-controller path.
+   The profile is printed with `vr_debug_buttons 1`.
+4. *Data missing from the package: ruled out.* The package is every tracked quakevr file plus progs.dat; weapon
+   offsets, hotspots and props are compiled in (vr_defaults.cfg ships). A zip-style install (package in a scratch Quake
+   folder with only id1/rogue/hipnotic, started as QuakeVR.bat does) with the tests' config takes the lying shotgun by
+   its handle (6.0 units off). No grab code changed since v1.0.0 (git log). A fresh config's state after its
+   migration differs from the tests' baseline in 20 cvars, none a grab or weapon setting (`writeconfig` dumps diffed).
+   (The mock grab test from a fresh config misses only because the mock's walk ends elsewhere and its standing,
+   uncalibrated player cannot reach the floor there: with `cl_alwaysrun 1` and the baseline's height, or its arm
+   calibration, it takes the gun by the handle. A harness limit, not the player's.)
+
+**Fix (1.0.1):**
+- `COM_AddExeBaseDir` (common.c): without `-basedir`, the exe's own folder, when its quakevr has progs.dat and it is no
+  base dir yet, is added as the last base dir: QuakeVR.bat or ironwail.exe from the install use its quakevr and save
+  there. Reproduced fixed: the same fake Quake folder with the old quakevr, `VR: no -basedir: the exe's own folder
+  added...`, the game code this build's.
+- VR_GameDirectoryRoot: quakevr from the last base dir whose quakevr has the game code (progs.dat or pak0.pak), else the
+  last that has the folder (a config-only quakevr in the user dir no longer hides it).
+- Game code check (vr_progs.cpp checkGameCode, each progs load, said once per source): the console says
+  `VR: game code <path>: Quake VR's, this build's` (or older, or not Quake VR's); a warning and a centre print when it is
+  not Quake VR's while quakevr is the game, or is missing any of the engine's VR fields (another build's).
+- `vr_gamecode` (Debug > Diagnostics, "Game Code and Folders"): the base dirs (which one's quakevr is searched), the game
+  dirs, the check again, and `path`.
+- README-QuakeVR.txt: installer users start from the shortcut; the steps are for the zip.
+
+**What to ask the player** (console: `~` or the menu's console): `version`, then `path`, `vr_cfg_version`,
+`vr_wofs_version`, `vr_weapon_grab_anywhere`, `vr_weapon_grab_anywhere_min`, `vr_weapon_grab_hotspots`,
+`vr_weapon_grab_handle_leniency`, `vr_gunangle`, `vr_handcal_x`, `vr_handcal_y`, `vr_handcal_z`,
+`vr_controller_legacy_pose`, `vr_body_mode`, `vr_height_calibration`; then `developer 1; vr_debug_buttons 1;
+vr_debug_carry 2; vr_debug_2h_grip 2`, grab a lying gun at its handle twice, and `condump`
+(quakevr/condump.txt: it has the game code line, the interaction profile, and each grab's "anywhere: ... from its
+handle" and "weapon: ... taken" lines). Also: headset, controllers, the OpenXR runtime (SteamVR, Oculus/Meta,
+Virtual Desktop/VDXR, WMR, Pico), how he starts the game (QuakeVR.bat double-clicked, a shortcut, a launcher), and the
+list of files in `id1` (any .cfg, any pak beyond pak1.pak) and whether `%USERPROFILE%\Saved Games\Ironwail` or
+`Saved Games\Nightdive Studios\Quake` has a quakevr folder. Workaround meanwhile: start with
+`ironwail.exe -basedir "<Quake folder>" -game quakevr` from the folder Quake VR is in, move `id1\autoexec.cfg` aside,
+and move any quakevr folder out of those Saved Games folders.

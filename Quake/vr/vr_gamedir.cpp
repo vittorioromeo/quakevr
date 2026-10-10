@@ -753,13 +753,28 @@ extern "C" const char* VR_GameDirectoryRoot(const char* dir, int index)
     // "-basedir <Quake> -basedir <Quake VR>"). A quakevr folder in the Quake folder too (an old zip install, or the
     // author's link to his checkout) was searched under it: with no saved config of its own, a new install ran that
     // folder's ironwail.cfg (its Menu Detail, voice notes, no first start), and listed its saves and maps.
+    // 1.0.1: the last that has the game code (progs.dat, or a pak0.pak), else the last that has the folder. A quakevr
+    // folder with a config and saves but no game code, in a later base dir (Ironwail's Saved Games user dir, where a
+    // pre-release launched without -basedir saved them: COM_InitBaseDir's store branch adds it last), made every
+    // progs.dat searched id's: Quake VR's gameplay off, weapons only props (VR_OnProgsLoaded's game code check).
     if(!q_strcasecmp(dir, vrGameDir) && com_numbasedirs > 1)
     {
-        int only = com_numbasedirs - 1;
-        while(only > 0 && Sys_FileType(va("%s/%s", com_basedirs[only], dir)) != FS_ENT_DIRECTORY)
+        int only = -1;
+        int folder = -1;
+        for(int i = com_numbasedirs - 1; i >= 0 && only < 0; --i)
         {
-            --only;
+            if(Sys_FileType(va("%s/%s", com_basedirs[i], dir)) != FS_ENT_DIRECTORY)
+            {
+                continue;
+            }
+            folder = folder < 0 ? i : folder;
+            if(Sys_FileType(va("%s/%s/progs.dat", com_basedirs[i], dir)) == FS_ENT_FILE ||
+                Sys_FileType(va("%s/%s/pak0.pak", com_basedirs[i], dir)) == FS_ENT_FILE)
+            {
+                only = i;
+            }
         }
+        only = only >= 0 ? only : folder >= 0 ? folder : 0;
         return index == 0 ? com_basedirs[only] : nullptr;
     }
     return index < com_numbasedirs ? com_basedirs[index] : nullptr;

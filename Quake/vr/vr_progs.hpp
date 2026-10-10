@@ -161,8 +161,12 @@ void testRemove_f();
 // vr_model_check [1]: every entity's .modelindex against its .model, and the client's models against the server's
 // (saved games and late precaches: Misc/quakevr/precache/precache_test.sh).
 void modelCheck_f();
-// The server's frame: a loaded save's warning (another build's: VR_ReadSaveInfo) centre printed once the player is in.
+// The server's frame: a loaded save's warning (another build's: VR_ReadSaveInfo) centre printed once the player is in;
+// or the game code's (progs.dat not this build's: the check at each progs load).
 void loadNoticeFrame();
+// vr_gamecode: where the game code (progs.dat) comes from and whether it is this build's (said again), the base dirs and
+// the search path (Debug > Diagnostics; a player's "guns only props" report).
+void gameCode_f();
 
 } // namespace qvr::progs
 

@@ -165,6 +165,83 @@ func_t findFunction(const char* name)
 
 using namespace qvr::progs;
 
+namespace
+{
+
+// The game code's check (checkGameCode): what was said last (its source, kind and missing fields), said again only when
+// that changes (the progs load at every map); and its centre print for the player, once in the game (loadNoticeFrame).
+za::String gameCodeChecked;
+za::String gameCodeNotice;
+
+// Whether the progs.dat loaded is this build's (the 1.0.0 report "guns can only be grabbed as props", a player who had
+// built a pre-release: another folder's progs.dat, or id's, ran with this engine). Said in the console (a condump has
+// it) and, when it is not, centre-printed once: a progs.dat that is not Quake VR's (id's, from id1 or a mission pack:
+// Quake VR's gameplay off, weapons only props) while quakevr is the game; or Quake VR's but older than this engine (some
+// of the VR fields it binds by name missing: another build's quakevr folder).
+void checkGameCode(const Bindings& b)
+{
+    if(!COM_FileExists("progs.dat", nullptr))
+    {
+        return;
+    }
+    char source[MAX_OSPATH];
+    if(Sys_FileType(com_filesource) == FS_ENT_DIRECTORY)
+    {
+        q_snprintf(source, sizeof(source), "%s/progs.dat", com_filesource);
+    }
+    else
+    {
+        q_strlcpy(source, com_filesource, sizeof(source));
+    }
+    int total = 0;
+    int missing = 0;
+    const char* firstMissing = "";
+    if(b.isVrProgs)
+    {
+#define QVR_FIELD(name)                                                                                                \
+    ++total;                                                                                                           \
+    if(b.fields.name < 0 && !missing++)                                                                                \
+    {                                                                                                                  \
+        firstMissing = #name;                                                                                          \
+    }
+#include "vr_fields.inc"
+#undef QVR_FIELD
+    }
+    const char* key = va("%s|%d|%d", source, b.isVrProgs ? 1 : 0, missing);
+    if(gameCodeChecked == key)
+    {
+        return;
+    }
+    gameCodeChecked = za::String{key};
+    // (quakevr the game: the last of the game dirs. A mod over it, "-game quakevr -game <mod>", brings its own progs.)
+    const char* games = com_gamenames;
+    const char* last = strrchr(games, ';');
+    const bool vrGame = !q_strcasecmp(last ? last + 1 : games, "quakevr");
+    Con_Printf("[skipnotify]VR: game code %s: %s\n", source,
+        !b.isVrProgs ? "not Quake VR's" : missing ? "Quake VR's, older than this engine" : "Quake VR's, this build's");
+    if(!b.isVrProgs && vrGame)
+    {
+        Con_Warning("VR: this progs.dat is not Quake VR's game code (%s): Quake VR's gameplay is off, weapons are only "
+                    "props. The quakevr folder searched has none: start Quake VR with the shortcut its installer made, "
+                    "or from the folder it is installed in; \"path\" lists the folders searched.\n",
+            source);
+        gameCodeNotice = za::String{"Quake VR's game code was not found\nWeapons are only props: start Quake VR\n"
+                                    "with its installer's shortcut (console: path)"};
+    }
+    else if(missing)
+    {
+        Con_Warning("VR: this progs.dat is older than this engine (%s: %d of the %d VR fields missing, %s the first): "
+                    "another build's quakevr folder, not this one's; weapons and more misbehave. Start Quake VR with "
+                    "the shortcut its installer made, or update or remove that folder; \"path\" lists the folders "
+                    "searched.\n",
+            source, missing, total, firstMissing);
+        gameCodeNotice = za::String{"Quake VR's game code is from another build\nWeapons may misbehave: start Quake VR\n"
+                                    "with its installer's shortcut (console: path)"};
+    }
+}
+
+} // namespace
+
 extern "C" void VR_OnProgsLoaded()
 {
     if(qcvm != &sv.qcvm)
@@ -236,6 +313,7 @@ extern "C" void VR_OnProgsLoaded()
         Con_DPrintf("VR: progs without Quake VR's gameplay: compatibility mode\n");
     }
 
+    checkGameCode(b);
     sv_bindings = b;
 }
 
@@ -577,16 +655,43 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     return 1;
 }
 
+void qvr::progs::gameCode_f()
+{
+    const char* vrRoot = VR_GameDirectoryRoot("quakevr", 0);
+    for(int i = 0; i < com_numbasedirs; i++)
+    {
+        Con_Printf("base dir %d: %s%s\n", i + 1, com_basedirs[i],
+            vrRoot == com_basedirs[i] ? " (its quakevr is the one searched)" : "");
+    }
+    Con_Printf("game dirs: %s\n", com_gamenames);
+    if(!sv.active)
+    {
+        Con_Printf("game code: checked when a map loads (no game running)\n");
+    }
+    else
+    {
+        const bool noticed = gameCodeNotice.empty(); // (its centre print not again)
+        gameCodeChecked.clear();                     // (said again)
+        checkGameCode(sv_bindings);
+        if(noticed)
+        {
+            gameCodeNotice.clear();
+        }
+    }
+    Cbuf_InsertText("path\n");
+}
+
 void qvr::progs::loadNoticeFrame()
 {
-    // (the loaded game's player in it: the save's warning where it is seen)
-    if(saveInfo.notice.empty() || svs.maxclients < 1 || !svs.clients[0].spawned)
+    // (the loaded game's player in it: the save's warning where it is seen; or the game code's, checkGameCode)
+    za::String& notice = !saveInfo.notice.empty() ? saveInfo.notice : gameCodeNotice;
+    if(notice.empty() || svs.maxclients < 1 || !svs.clients[0].spawned)
     {
         return;
     }
     MSG_WriteByte(&svs.clients[0].message, svc_centerprint);
-    MSG_WriteString(&svs.clients[0].message, saveInfo.notice.cStr());
-    saveInfo.notice.clear();
+    MSG_WriteString(&svs.clients[0].message, notice.cStr());
+    notice.clear();
 }
 
 namespace
