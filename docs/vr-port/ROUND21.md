@@ -11056,3 +11056,80 @@ collapsed), `error` (#00 `Sys_ReportError`, #01 the caller), `threaderror` (on t
 **In the headset:** Debug > Profiling and Memory > Crashes > Crash: Access Violation: the dialog names
 `quakevr\crash\<date>_<time>.txt` and the `.dmp`, and the .txt's stack names `VR_CrashTest_f`; Crash: Fatal Error: the
 "Quake VR: Unleashed - Error" dialog has the same lines under the message.
+
+## The Loading... crash, root cause (1.0.1, 2026-10-10)
+
+1.0.0 shipped with `vr_loading_notice 0` because a campaign switch with the notice on ended in "Mod_PointInLeaf: bad
+model" (his headset: Dimension of the Past's teleporter in vrstart; VR Hub from the main menu while in Scourge of
+Armagon). e844de35 cleared `cl.worldmodel` after a switch and stopped putting the next load off, but the caller was
+never found: headless runs didn't crash. With the crash report (above) it was found in one run.
+
+**The exact caller.** Reproduced headless with e844de35's guard taken out, `vr_loading_notice 2` and **`-Sound`**
+(`map vrstart; vr_campaign_select hipnotic`). The report's stack:
+
+```
+What: Sys_Error: Mod_PointInLeaf: bad model
+  #00 Sys_ReportError+0xd5 (Quake\sys_sdl_win.c:1076) [ironwail.exe+0x1397b5]
+  #01 Mod_PointInLeaf (Quake\gl_model.c:152) [inlined]
+  #02 qvr::audio::outOfSolid::<lambda_0>::operator() (Quake\vr\vr_audio.cpp:1538) [inlined]
+  #03 qvr::audio::outOfSolid+0x27e (Quake\vr\vr_audio.cpp:1541) [ironwail.exe+0x16881e]
+  #04 VR_SndListener+0x1bd2 (Quake\vr\vr_audio.cpp:2437) [ironwail.exe+0x16e992]
+  #05 S_Update+0x13e (Quake\snd_dma.c:871) [ironwail.exe+0x11df1e]
+  #06 _Host_Frame+0x1894 (Quake\host.c:1564) [ironwail.exe+0x64c34]
+```
+
+**The sequence**, all in the switch's own frame:
+1. `vr_campaign_select <c>` (the hub's teleporter inserts it from `changelevel start`, VR_CanChangeCampaignMap; the main
+   menu's VR Hub runs `vr_campaign_hub`) -> `selectCampaign` -> `COM_ReloadVRGame` -> `COM_SwitchGameInternal`:
+   `CL_Disconnect` (`S_StopAllSounds` clears every sound channel), `Host_ShutdownServer`, then `Mod_ResetAll` memsets every
+   model slot. `cl` is not cleared by a disconnect: `cl.worldmodel` still points at slot 0, now empty (no nodes);
+   `sv.worldmodel` too.
+2. `selectCampaign` inserts `map <start>`; `Host_Map_f` -> `VR_LoadingDefer` puts it off (`vr_loading_wait`).
+3. Later in the same `_Host_Frame`: `S_Update` -> `VR_SndListener` (spatial audio, Steam Audio, on by default in VR). Its
+   voices still held the channels they played at the last mix (`L.channelOf`; released only in the next `VR_SndPaint`,
+   which `S_Update` runs after the listener's update). For each, the sound's place (the cleared channel's: 0 0 0) goes
+   through `outOfSolid`, which checks only `cl.worldmodel != NULL` -> `Mod_PointInLeaf(p, cl.worldmodel)` on the empty
+   slot -> Sys_Error.
+
+Without the notice the `map` ran in the same command-buffer pass: by `S_Update` a new world was in (CL_ParseServerInfo),
+so no frame saw the empty slot. Headless never crashed because run.sh starts the game with `-nosound` (`S_Update`
+returns at once) and the mock only defers with `vr_loading_notice 2`; his headset had both. Any campaign switch with a
+sound playing (a level's static sounds: torches, hums; the teleporter's) did it.
+
+**The audit.** Every `Mod_PointInLeaf` caller (44 sites) and every per-frame user of `cl.worldmodel`'s fields was traced
+to its per-frame entry and its guard. World drawing (`VR_RenderView`, `VR_HeadlessView`, `V_RenderView` via
+`con_forcedup`) needs `ca_connected`, `SIGNONS` and a world; the server's need `sv.active`; the client's parsing needs
+`ca_connected`. The only per-frame users reached while disconnected are spatial audio's: `outOfSolid` from
+`VR_SndListener` and from `VR_SndPaint`'s occlusion guess (with a hull trace on `cl.worldmodel->hulls` too), both
+guarded only by `cl.worldmodel != NULL`. A sound on a channel (the wrist gadget's chime and taps, channel 1) started in
+the frames before the next map would reach them even with every voice released: the real headset's way in that the
+mock has no hands for. A handful of console commands also check only `cl.worldmodel` (`vr_snd_info`, the portal views'
+dumps, `vr_rope` dump).
+
+**The fix, at the source.**
+- `CL_ForgetModels` (cl_main.c), from `COM_SwitchGameInternal` right after `Mod_ResetAll`: the client's state as at
+  start-up, before any map: what a map's load does first (`CL_ClearState`) without freeing the hunk: `cl` wiped
+  (`CL_FreeState`: the world model, the model precaches, the static entities, the view model, the stats), the lights,
+  light styles, temp entities and beams cleared, every `cl_entities[].model` cleared. The server's world and models
+  too (`sv.worldmodel`, `sv.models`). So after a switch `cl.worldmodel` is NULL, never a cleared slot, and every user's
+  `cl.worldmodel` check means what it says. Frames before the next map are the start-up frames every player runs in
+  the main menu.
+- `VR_SndStopAll` (vr_audio.cpp) from `S_StopAllSounds`: the voices let go of the channels when they are cleared, not
+  at the next mix (no voice ever on a cleared channel: the listener's update and the mix see the same channels).
+- `VR_LoadingGameChanged` and its "no notice until a new world" are gone: a switch's map, the longest load, gets the
+  notice again (`Loading...: "map e5start" put off ...` with `developer 1`).
+- Each layer alone stops the headless crash (checked: either one switched off, the test passes; both off, it fails at
+  the first switch with the stack above).
+
+**`vr_loading_notice` 1 again** (config 123): only a 1.0.0 config (122) at 1.0.0's 0 takes it; an older config at 0
+had it turned off by hand and keeps it (`Misc/quakevr/config123_test.sh`: PASS).
+
+Tests: `Misc/quakevr/loading_switch_test.sh` (sound on, notice 2 held 0.5 s, rockets fired before each switch):
+select (hipnotic, rogue, dopa, mg1, mg3, id1, hipnotic by `vr_campaign_select`, then `vr_campaign_hub`): 8/8 put off
+and spawned; portals (the hub's teleporter to each of the six campaigns, `vr_activestartpaknameidx` 3, 4, 5, 1, 2, 0 and
+`changelevel start`, and back by `changelevel vrstart`): 12/12; PASS. Before the fix: FAIL at the first switch. e1m1 ->
+e1m2 with sound and the notice: put off, spawned, exit 0.
+
+**In the headset:** Loading Notice is on again (the Debug page's row says Headset). From vrstart, the Dimension of the
+Past teleporter: "Loading...", then e5start, no error. In Scourge of Armagon, main menu > VR Hub: "Loading...", then
+vrstart. Any other campaign's teleporter and the way back to the hub the same.

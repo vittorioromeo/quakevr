@@ -122,7 +122,6 @@ void VR_TimeLoadBegin (const char *what);	// SV_SpawnServer, CL_ParseServerInfo:
 void VR_TimeLoadCommand (const char *what);	// map, changelevel, restart, load: the load's timing starts at the command (its spawn continues it)
 // "Loading..." in the headset before a level change (vr_loading.cpp, vr_loading_notice).
 int VR_LoadingDefer (void);	// map, changelevel, restart, load: nonzero when the command is put off until the headset showed the notice (it runs again then)
-void VR_LoadingGameChanged (void);	// COM_SwitchGameInternal, its models reset: no dangling world model, no level change put off until a new world is in
 int VR_LoadingPlaque (void);	// SCR_UpdateScreen: nonzero to draw Quake's loading plaque while a command waits and no world is drawn
 // Screenshots saved on the game's thread pool (vr/vr_voicenotes.cpp): SCR_ScreenShot_f hands a PNG's RGB rows (bottom
 // up, malloc'd: the job frees them) to be written as <game dir>/<name> (1: taken); a name being written is pending
@@ -461,6 +460,7 @@ void VR_SndListener (float *origin, float *forward, float *right, float *up);	//
 int VR_SndSpatialize (channel_t *ch);				// start of SND_Spatialize: nonzero if it set the volumes (a hand's sound); moves a sound following its entity
 int VR_SndHandOf (const channel_t *ch, float *hand);	// snd_show 2: the hand (0 main, 1 off; -1 not a hand's) a channel plays from, `hand` its place
 void VR_SndStarted (channel_t *ch);					// end of S_StartSound: a new sound on the channel
+void VR_SndStopAll (void);							// S_StopAllSounds, the channels cleared: every voice let go (none left on a cleared channel)
 int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
 int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices
 void VR_SndPaint (portable_samplepair_t *buffer, int start, int end);	// S_PaintChannels, each chunk: the voices' mix added

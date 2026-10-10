@@ -81,7 +81,14 @@ it waits 60 s at most). A player's run shows a dialog naming the files; a test r
 kit sets) shows none and also writes `qvr_crash.txt` in the game folder, which run.sh prints as `ENGINE CRASH`; the
 report's head goes to stderr and `qconsole.log` too. A `Host_Error` (not fatal) prints its caller's stack under it.
 `vr_crash_test [av | thread | stack | error | threaderror | assert | zassert | abort | purecall | hosterror]` causes each
-on purpose (Debug > Profiling and Memory > Crashes). A crash in a map's own data (a garbage node,
+on purpose (Debug > Profiling and Memory > Crashes).
+
+Sound is off in test runs (run.sh passes `-nosound` unless `-Sound`): `S_Update` then returns at once, and everything
+behind it (spatial audio's per-frame listener update and mix, `VR_SndListener` and `VR_SndPaint`, which place sounds in
+the world) never runs. A bug there does not show headless without `-Sound`: the "Loading..." crash of 1.0.0 was one
+(ROUND21.md, "The Loading... crash, root cause"). `Misc/quakevr/loading_switch_test.sh <agent>` (needs the expansions'
+and the rerelease's data, so not in run_test_suite.py) puts the notice (`vr_loading_notice 2`) across every campaign
+switch, by the menus' commands and by the hub's teleporters, with sound on and rockets' effects live. A crash in a map's own data (a garbage node,
 plane or marksurface) is often the hunk, cache or zone touched from a pool thread: `vr_zone_threadcheck 1` first in
 the script crashes at the culprit instead (ROUND21.md, "Map load crash: the cache's LRU list from the pool").
 

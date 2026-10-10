@@ -18,6 +18,8 @@ MG3 Chthon (boss map, or Debug spawner Thing 50): comfort fade at both arena mov
 MG1 developer tests: rune returns, electrode buttons, Horde, revival; quake vibration is comfortable
 MG1 Horde (horde1, horde5 bosses): die holding fire, nothing; let go and press: the arena restarts; coop: a dead teammate comes back at wave end
 
+1.0.1 Loading notice back on: vrstart > Dimension of the Past teleporter shows "Loading...", then e5start, no error; in Scourge of Armagon, main menu > VR Hub: "Loading...", then vrstart
+1.0.1 crash reports: Debug > Profiling and Memory > Crashes > Crash: Access Violation: the dialog names quakevr\crash\<date>_<time>.txt and .dmp (the .txt names VR_CrashTest_f); Crash: Fatal Error: the Error dialog lists them too
 [Tune]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
 

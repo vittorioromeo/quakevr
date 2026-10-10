@@ -2617,6 +2617,18 @@ extern "C" void VR_SndStarted(channel_t* ch)
     f.time = realtime;
 }
 
+// The channels were all cleared (a disconnect, a map change, a game switch): the voices let go of them now, not at the
+// next mix. Until then a voice kept a cleared channel (its place 0 0 0) that the listener's update (VR_SndListener, which
+// runs first) placed in the world: after a game switch, on a world model already reset (ROUND21.md, "The Loading...
+// crash, root cause").
+extern "C" void VR_SndStopAll(void)
+{
+    if(live && live->ok)
+    {
+        releaseAll();
+    }
+}
+
 extern "C" int VR_SndKeepStatics(void)
 {
     return running() ? 1 : 0;

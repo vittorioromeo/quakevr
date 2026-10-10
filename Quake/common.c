@@ -2808,7 +2808,11 @@ static void COM_SwitchGameInternal (const char *paths, qboolean vrCampaign)
 	//clear out and reload appropriate data
 	Cache_FlushExcept (VR_ModelCacheKept); // QVR: Cache_Flush but the kept models'
 	Mod_ResetAll();
-	VR_LoadingGameChanged (); // QVR: the client's world model was among them (vr_loading.cpp)
+	// QVR: nothing points at the reset models: the client's state as at start-up (CL_ForgetModels), the server's world
+	// (shut down above) gone too. Frames before the next map (the Loading... notice's) see no world, not a cleared one.
+	CL_ForgetModels ();
+	sv.worldmodel = NULL;
+	memset (sv.models, 0, sizeof (sv.models));
 	Sky_ClearAll();
 	if (!isDedicated)
 	{

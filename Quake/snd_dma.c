@@ -596,6 +596,7 @@ void S_StopAllSounds (qboolean clear)
 	}
 
 	memset(snd_channels, 0, MAX_CHANNELS * sizeof(channel_t));
+	VR_SndStopAll (); // QVR: spatial audio's voices let go of the channels (vr_audio.cpp)
 
 	if (clear)
 		S_ClearBuffer ();

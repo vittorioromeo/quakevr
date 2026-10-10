@@ -674,9 +674,10 @@ const DefaultChange defaultChanges[] = {
     {121, &vr_climb_leniency_air, "4"},
     {121, &vr_climb_air_grab_time, "0.3"},
     // 122: the "Loading..." notice off (1.0.0 release blocker: deferring a level change crashed a campaign switch).
+    // (A config older than 122 at its 1 keeps 1: the default is 1 again since 123.)
     {122, &vr_loading_notice, "1"},
 };
-constexpr int configVersion = 122;
+constexpr int configVersion = 123;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -811,6 +812,14 @@ void migrateConfig()
             Con_DPrintf("VR: %s: new default %s (was %s)\n", c.var->name, c.var->default_string, c.before);
             Cvar_SetQuick(c.var, c.var->default_string);
         }
+    }
+    // 123: the "Loading..." notice back on (1.0.1: its campaign-switch crash found and fixed, ROUND21.md, "The
+    // Loading... crash, root cause"). Only a 1.0.0 config (122) at 1.0.0's 0 takes it: an older one at 0 had it turned
+    // off by hand.
+    if(from == 122 && !strcmp(vr_loading_notice.string, "0"))
+    {
+        Con_DPrintf("VR: vr_loading_notice: 1 (1.0.0 had it off while its crash was fixed)\n");
+        Cvar_SetQuick(&vr_loading_notice, "1");
     }
     // 64: bilinear HRTF smoothing crackled (two voices interpolating one HRTF at once on the pool made not-numbers;
     // each pool lane has its own HRTF now): a config that went to nearest to get away from it goes back to bilinear.

@@ -120,6 +120,41 @@ void CL_ClearState (void)
 
 /*
 =====================
+CL_ForgetModels
+
+QVR: the models were reset (a game or campaign switch: COM_SwitchGameInternal, after Mod_ResetAll, the client
+disconnected): nothing of the client's points at them any more. Its state as at start-up, before any map: what a map's
+load does first (CL_ClearState), without freeing the memory (the hunk is the next map's to free). Frames run before the
+next map (the "Loading..." notice's, vr_loading.cpp; the menus) then see no world, as at start-up, not a world model
+whose slot was cleared (no nodes: "Mod_PointInLeaf: bad model"; ROUND21.md, "The Loading... crash, root cause").
+=====================
+*/
+void CL_ForgetModels (void)
+{
+	int i;
+
+	if (cl.qcvm.extfuncs.CSQC_Shutdown)
+	{
+		PR_SwitchQCVM(&cl.qcvm);
+		PR_ExecuteProgram(qcvm->extfuncs.CSQC_Shutdown);
+		qcvm->extfuncs.CSQC_Shutdown = 0;
+		PR_SwitchQCVM(NULL);
+	}
+
+	CL_FreeState (); // cl.worldmodel, the model precaches, the static entities, the view model, the stats
+
+	memset (cl_dlights, 0, sizeof(cl_dlights));
+	memset (cl_lightstyle, 0, sizeof(cl_lightstyle));
+	memset (cl_temp_entities, 0, sizeof(cl_temp_entities));
+	memset (cl_beams, 0, sizeof(cl_beams));
+	if (cl_entities)
+		for (i = 0; i < cl_max_edicts; i++)
+			cl_entities[i].model = NULL;
+	cl_numvisedicts = 0;
+}
+
+/*
+=====================
 CL_Disconnect
 
 Sends a disconnect message to the server
