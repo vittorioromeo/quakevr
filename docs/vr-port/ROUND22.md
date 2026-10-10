@@ -548,11 +548,7 @@ printed at the start and opened in Explorer at a quit (`Quake/vr/vr_diagnostics.
 **Off** (the default): no folder is made and nothing runs. The only cost is one branch in the GL debug callback,
 which is installed only with `-gldebug`. Checked: a run without the flag adds no folder.
 
-**Khronos' core validation layer** is not on this machine and is not shipped. Diagnostics mode enables
-`XR_APILAYER_LUNARG_core_validation` when the loader lists it, either installed or in an `openxr_layers\` folder
-beside the exe (diagnostics sets `XR_API_LAYER_PATH` to that folder). Shipping it would take
-`XrApiLayer_core_validation.dll` and its `.json` manifest, built from OpenXR-SDK-Source (Apache-2.0: ship the license
-text and a NOTICE). It is a few MB, and it should be built at the loader's version (1.1.63).
+**Khronos' core validation layer** now ships (below, "OpenXR core validation layer").
 
 **Tests**: `xr_runtime_test.sh` part 8 (75 checks in all, all pass). The fake runtime offers `XR_EXT_debug_utils` with
 `FAKEXR_DEBUG_UTILS`; its messenger sends 3 messages. The installer's self-tests pass 37/37: the shortcut's arguments
@@ -657,3 +653,68 @@ emptied, a multi-rocket from the pouch loaded at the muzzle (1 of 4), dropped an
 
 **In the headset:** both guns up close (the lava gun's barrels and body, the multi launcher's front): the paint as
 before, finer, no streaks; reload the lava super nailgun (magazine anchor) and holster both.
+## OpenXR core validation layer in diagnostics mode (1.0.1, 2026-10-10, worktree `xrval`)
+
+Diagnostics mode now loads Khronos' core validation API layer (`XR_APILAYER_LUNARG_core_validation`). The layer checks
+every OpenXR call the game makes against the specification: handles, structure types, `next` chains, enum values,
+and call order. It writes what it finds to `openxr_validation.log` in the diagnostics folder.
+
+**The files** are in `quakevr/xr_layers/`: `XrApiLayer_core_validation.dll`, its manifest `XrApiLayer_core_validation.json`,
+`LICENSE.txt` (Apache-2.0) and `NOTICE.txt` (where the source came from, the build options and the copyright lines).
+Git tracks them, so `package-quakevr.ps1` ships them through its game-folder allowlist with no change to the script,
+and the zip check in `make_release.ps1` compares the zip against the same list. Credited in `CREDITS.md`.
+- **Source**: OpenXR-SDK-Source tag `release-1.1.63`, the version of the shipped loader (`openxr_loader.dll` 1.1.63.0
+  and `openxr.h` agree). Built unchanged. The SDK source was downloaded into `scratch/` and is not committed.
+- **Build**: VS 2022 CMake, MSVC 19.44, x64 Release. Only the layer target is built (no loader, tests or samples).
+  It uses the static CRT, so its only import is `KERNEL32.dll`. It is built with `-O1 -Gy` and `-OPT:REF -OPT:ICF`:
+  4.77 MB, against 6.39 MB at CMake's default `-O2`. The exact command is in `NOTICE.txt`.
+- **Size**: the folder is 4.78 MB on disk and about 1.06 MB in the zip.
+
+**How it is loaded** (`vr_diagnostics.cpp`, `useValidationLayer`, called from `VR_DiagnosticsBegin`):
+- **Finding it**: the first game folder in the search path (not a pak) that has
+  `xr_layers/XrApiLayer_core_validation.json`.
+- **XR_API_LAYER_PATH**: that folder goes first in `XR_API_LAYER_PATH`, and a value the player had already set is
+  kept after it. The variable is set through `setEnv`, in all three environments. Loader 1.1.63 reads it with
+  `GetEnvironmentVariableW` each time it enumerates layers and at `xrCreateInstance`
+  (`ApiLayerManifestFile::FindManifestFiles`). It is not read when the loader DLL loads, so setting it at diagnostics'
+  start, before any VR start, is early enough.
+  - While the override is set, the loader doesn't read the registry's explicit layers. Implicit layers are not
+    affected.
+- **The layer's own variables**: `XR_CORE_VALIDATION_EXPORT_TYPE=text` and
+  `XR_CORE_VALIDATION_FILE_NAME=<folder>/openxr_validation.log`. The layer reads these at `xrCreateApiLayerInstance`
+  and appends each message to the file, opening and closing it every time, so the file survives a crash.
+- **The log's header**: the game writes two header lines first. One of them names the layer's known false positive
+  (below).
+- **Enabling it**: `vr_backend_openxr.cpp` enables the layer by name in `enabledApiLayerNames`, only when the loader
+  lists it and `vr_diagnostics_xr_validation` is 1. If `xrCreateInstance` fails with the layer, the existing fallback
+  retries without the layer and the messenger.
+- **Outside diagnostics mode** no variable is set and no layer is requested, so the loader never loads the DLL.
+
+**New cvar**: `vr_diagnostics_xr_validation` (default 1, not archived). At 0 the layer is not loaded in a diagnostics
+run, from the next VR start. It is for a runtime that behaves differently with the layer: the layer refuses calls it
+finds invalid instead of passing them down. It is in Debug > Crashes > Diagnostics as "OpenXR Validation Layer".
+`openxr_debug.log`'s layers line says ON, "not found" or "off (vr_diagnostics_xr_validation 0)".
+
+**Known false positive** (a bug in layer 1.1.63, not in the game): at each `xrDestroyInstance` the layer logs
+`VALID_ERROR VUID-xrDestroyDebugUtilsMessengerEXT-messenger-parameter` for the debug messenger.
+- What happens: the game's own `xrDestroyDebugUtilsMessengerEXT` passes the layer correctly. But the layer erases the
+  handle's record (`GenValidUsageNextXrDestroyDebugUtilsMessengerEXT`) before it looks that record up to drop the
+  messenger from its instance's list (`CoreValidationXrDestroyDebugUtilsMessengerEXT`). The messenger stays on the
+  list, and the layer destroys it a second time at `xrDestroyInstance`.
+- The second destroy is refused by the layer itself and never reaches the runtime.
+
+**Tests** (fake runtime with a headset, `FAKEXR_HEADSET=fakexr_steam`, `-diagnostics`; `scratch/xrval_test.sh`):
+- **Diagnostics run**:
+  - `openxr_debug.log` says "core validation: ON".
+  - `diagnostics.txt` has the `XR_API_LAYER_PATH` line.
+  - The crash report's module list has `quakevr\xr_layers\XrApiLayer_core_validation.dll`.
+  - `openxr_validation.log` has the header and "Core Validation Layer is initialized".
+  - VR started and ran with the layer.
+  - A `vr_restart` and a quit give only the false positive above, once for each instance.
+- **Diagnostics run with `vr_diagnostics_xr_validation 0`**: "off", and the DLL is not in the module list.
+- **Normal run**: the crash report's module list has `openxr_loader.dll` and the fake runtime, but not the layer.
+- `xr_runtime_test.sh` part 8 now checks the layer too (4 checks; 79 in all, all pass; TESTING.md).
+
+**To test with a headset**: start with the Diagnostics shortcut, play a minute, and quit. Then open
+`quakevr\diagnostics\<date>_<time>\openxr_validation.log`. Anything other than the header, the initialize/destroy
+lines and the known false positive is a real finding about the game's OpenXR calls on that runtime.

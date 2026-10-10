@@ -1248,8 +1248,9 @@ private:
                 debugUtils = true;
             }
         }
-        // Diagnostics mode: Khronos' core validation layer, only when it is installed (or in openxr_layers\ beside the
-        // exe: XR_API_LAYER_PATH, vr_diagnostics.cpp). Not shipped (ROUND22.md, "Diagnostics mode").
+        // Diagnostics mode: Khronos' core validation layer, an explicit layer: shipped in quakevr/xr_layers/, which
+        // diagnostics puts in XR_API_LAYER_PATH (vr_diagnostics.cpp, useValidationLayer: its output goes to
+        // openxr_validation.log); or one the player installed. Never outside diagnostics mode (ROUND22.md).
         za::Vector<const char*> layers;
         if(VR_DiagnosticsOn())
         {
@@ -1264,13 +1265,16 @@ private:
             for(const XrApiLayerProperties& l : layerList)
             {
                 names += va("%s%s", names.empty() ? "" : " ", l.layerName);
-                if(!strcmp(l.layerName, "XR_APILAYER_LUNARG_core_validation"))
+                if(vr_diagnostics_xr_validation.value != 0.f && !strcmp(l.layerName, "XR_APILAYER_LUNARG_core_validation"))
                 {
                     layers.pushBack("XR_APILAYER_LUNARG_core_validation");
                 }
             }
+            const char* validation = !layers.empty()                             ? "ON (openxr_validation.log)"
+                                     : vr_diagnostics_xr_validation.value != 0.f ? "not found (not used)"
+                                                                                 : "off (vr_diagnostics_xr_validation 0)";
             VR_DiagnosticsNote(va("OpenXR API layers the loader lists: %s; core validation: %s; debug messenger: %s\n",
-                names.empty() ? "none" : names.cStr(), layers.empty() ? "not installed (not used)" : "ON",
+                names.empty() ? "none" : names.cStr(), validation,
                 debugUtils ? "on (XR_EXT_debug_utils)" : "not offered"));
         }
 

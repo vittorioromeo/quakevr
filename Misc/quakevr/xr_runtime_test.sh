@@ -314,6 +314,19 @@ check "$DIAG/diagnostics.txt" "diagnostics: the summary, the logs copied after t
     "debug_output.log: OutputDebugString .*: caught" "Ended: a crash" "Logs copied:" "gl_startup.log -> gl_startup.log"
 if ls "$DIAG"/crash/*.txt > /dev/null 2>&1 && [ -f "$DIAG/debug_output.log" ]; then echo "PASS: diagnostics: the crash report and debug_output.log in the folder"
 else echo "FAIL: diagnostics: no crash report or debug_output.log in $DIAG"; fails=$((fails + 1)); fi
+# Khronos' core validation layer (quakevr/xr_layers): loaded in diagnostics mode, its log written; a normal run that starts
+# VR and crashes has no such module in its report.
+check "$DIAG/openxr_debug.log" "diagnostics: the core validation layer on" "core validation: ON \(openxr_validation.log\)"
+check "$DIAG/openxr_validation.log" "diagnostics: openxr_validation.log" "Known false positive" "Core Validation Layer is initialized"
+if grep -q -i "xr_layers.XrApiLayer_core_validation.dll" "$DIAG"/crash/*.txt; then echo "PASS: diagnostics: the validation layer's DLL in the crash report's modules"
+else echo "FAIL: diagnostics: no XrApiLayer_core_validation.dll in $DIAG/crash"; fails=$((fails + 1)); fi
+CRASHES="$TREE/quakevr/crash"
+export FAKEXR_HEADSET=fakexr_steam
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "ENGINE CRASH" > "$OUT/diag_normal.log"
+unset FAKEXR_HEADSET
+R=$(ls -t "$CRASHES"/*.txt | head -1)
+if grep -q -i "openxr_loader.dll" "$R" && ! grep -q -i "XrApiLayer_core_validation" "$R"; then echo "PASS: no validation layer outside diagnostics mode"
+else echo "FAIL: the normal run's report $R: the loader missing or the validation layer loaded"; fails=$((fails + 1)); fi
 mid=$(ls "$DIAGS" | wc -l)
 bash "$KIT/run.sh" "$NAME" -Script "wait5;toggleconsole;quit" -Filter "iagnostics" > /dev/null
 after=$(ls "$DIAGS" | wc -l)

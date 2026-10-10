@@ -488,6 +488,10 @@ QVR_CVAR(vr_diagnostics, "0", CVAR_ARCHIVE)
 // Diagnostics mode's OpenXR messages: 1 the XR_EXT_debug_utils messenger once the instance is made; 2 also chained to
 // its creation (the loader's messages while it is made); 0 none.
 QVR_CVAR(vr_diagnostics_xr, "1", CVAR_NONE)
+// Diagnostics mode's OpenXR core validation layer (Khronos', shipped in quakevr/xr_layers): 1 every OpenXR call checked
+// against the specification, the findings in openxr_validation.log; 0 not loaded (from the next VR start). Never loaded
+// outside diagnostics mode.
+QVR_CVAR(vr_diagnostics_xr_validation, "1", CVAR_NONE)
 // 1: the next eye swapchain is requested with no GL context current (once; the game makes it current again first,
 // logged: the test of that check, Misc/quakevr/xr_runtime_test.sh part 7).
 QVR_CVAR(vr_xr_test_drop_context, "0", CVAR_NONE)

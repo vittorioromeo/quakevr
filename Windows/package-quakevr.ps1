@@ -16,7 +16,8 @@
 # The game folder is an allowlist: the files git tracks under quakevr\ (less the development
 # data in $devOnly) plus the build outputs in $generated. Nothing untracked ever ships: custom
 # maps, mod folders, saves, configs, screenshots, notes, caches and test dumps stay out however
-# they got into the folder.
+# they got into the folder. Tracked binaries ship the same way: quakevr\xr_layers is Khronos' OpenXR core validation
+# layer (loaded in diagnostics mode only; its LICENSE.txt and NOTICE.txt beside it).
 
 param(
     [switch]$Build,

@@ -5160,6 +5160,10 @@ za::Vector<Item> pageDebugProfiling()
                   "the runtimes' logs, all in quakevr/diagnostics/<date>_<time>. Slower: for a bug report only."),
         command("Diagnostics Status", "vr_diagnostics_status")
             .help("vr_diagnostics_status: whether this run is in diagnostics mode, its folder and the messages so far."),
+        toggle("OpenXR Validation Layer", vr_diagnostics_xr_validation)
+            .help("vr_diagnostics_xr_validation, from the next VR start, in diagnostics mode only: Khronos' core validation "
+                  "layer checks every OpenXR call the game makes (openxr_validation.log in the diagnostics folder). Off: "
+                  "not loaded, if the runtime behaves differently with it."),
         header("Startup (OpenXR runtime)"),
         toggle("Runtime Crash Guard", vr_xr_guard)
             .help("vr_xr_guard: a crash inside the OpenXR runtime while the game makes its eye images or stops it is caught "

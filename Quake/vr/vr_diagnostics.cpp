@@ -7,7 +7,9 @@
 //   - gl_debug.log: a debug GL context (SDL_GL_CONTEXT_DEBUG_FLAG) and synchronous GL debug output, every message with
 //     its source, type, id and severity; each id's first 10, then every 100th, with counts (a summary at the end);
 //   - openxr_debug.log: the XR_EXT_debug_utils messenger (all severities and types: the loader's and the runtime's
-//     messages), Khronos' core validation layer when it is installed (never shipped: ROUND22.md), the context checks;
+//     messages), the context checks;
+//   - openxr_validation.log: Khronos' core validation layer (shipped in quakevr/xr_layers/, enabled only here: every
+//     OpenXR call the game makes checked against the specification; useValidationLayer, vr_backend_openxr.cpp);
 //   - debug_output.log: whatever the process says to a debugger (OutputDebugString): the OpenXR loader's log
 //     (XR_LOADER_DEBUG=all), runtimes', drivers';
 //   - crash/: the crash report and dump, if any;
@@ -200,6 +202,54 @@ void setEnv(const char* var, const char* value)
     }
 }
 
+// Khronos' core validation layer (XR_APILAYER_LUNARG_core_validation, shipped in quakevr/xr_layers/: ROUND22.md,
+// "OpenXR core validation layer"): its folder put first in XR_API_LAYER_PATH (the loader reads it at each layer
+// enumeration and xrCreateInstance, with GetEnvironmentVariable), and its output to openxr_validation.log. The backend
+// enables it by name (vr_backend_openxr.cpp); outside diagnostics mode none of this is set, so the loader never sees it.
+void useValidationLayer()
+{
+    char dir[1024]{};
+    for(const searchpath_t* s = com_searchpaths; s && !dir[0]; s = s->next)
+    {
+        if(!s->pack && (Sys_FileType(va("%s/xr_layers/XrApiLayer_core_validation.json", s->filename)) & FS_ENT_FILE))
+        {
+            q_snprintf(dir, sizeof(dir), "%s/xr_layers", s->filename);
+        }
+    }
+    if(!dir[0])
+    {
+        writeSummaryLine("OpenXR core validation layer: not found (xr_layers/ in a game folder)\n");
+        return;
+    }
+    for(char* c = dir; *c; ++c)
+    {
+        *c = *c == '/' ? '\\' : *c;
+    }
+    // Ours first; a path the player set already (their own layers) kept after it.
+    char path[4096]{};
+    const DWORD had = GetEnvironmentVariableA("XR_API_LAYER_PATH", path, sizeof(path));
+    char joined[4096 + 1024 + 2];
+    q_snprintf(joined, sizeof(joined), had && had < sizeof(path) ? "%s;%s" : "%s", dir, path);
+    setEnv("XR_API_LAYER_PATH", joined);
+    char log[1200];
+    q_snprintf(log, sizeof(log), "%s/openxr_validation.log", diag.dir);
+    setEnv("XR_CORE_VALIDATION_EXPORT_TYPE", "text");
+    setEnv("XR_CORE_VALIDATION_FILE_NAME", log);
+    if(FILE* f = fopen(log, "wb")) // (the layer appends: this stays first)
+    {
+        fputs("# Khronos' OpenXR core validation layer 1.1.63 (quakevr/xr_layers): its findings from each VR start "
+              "(vr_diagnostics_xr_validation 0: not loaded).\n"
+              "# Known false positive, the layer's own bug: VALID_ERROR VUID-xrDestroyDebugUtilsMessengerEXT-messenger-"
+              "parameter right before \"Core Validation Layer will be destroyed\" (the layer destroys again, at "
+              "xrDestroyInstance, the debug messenger the game already destroyed).\n",
+            f);
+        fclose(f);
+    }
+    char line[sizeof(joined) + 96];
+    q_snprintf(line, sizeof(line), "XR_API_LAYER_PATH: %s (the OpenXR core validation layer: openxr_validation.log)\n", joined);
+    writeSummaryLine(line);
+}
+
 // A copy of src (when it exists and was written since the run began, or always) into the folder as name.
 void copyIn(const char* src, const char* name, bool always)
 {
@@ -314,7 +364,8 @@ extern "C" void VR_DiagnosticsBegin(void)
 #ifdef _WIN32
         fprintf(f, "Command line: %s\n", GetCommandLineA());
 #endif
-        fprintf(f, "Files: console.log, gl_debug.log, openxr_debug.log, debug_output.log, crash/ (if it crashed), and the "
+        fprintf(f, "Files: console.log, gl_debug.log, openxr_debug.log, openxr_validation.log (once VR starts), "
+                   "debug_output.log, crash/ (if it crashed), and the "
                    "logs copied at the end (listed below)\n");
         fclose(f);
     }
@@ -335,20 +386,7 @@ extern "C" void VR_DiagnosticsBegin(void)
     VR_SetCrashDir(diag.dir); // (the reports in <folder>/crash)
 #ifdef _WIN32
     setEnv("XR_LOADER_DEBUG", "all");
-    // Khronos' core validation layer, when a copy sits next to the game (openxr_layers\; not shipped) or is installed.
-    char exe[MAX_PATH];
-    if(GetModuleFileNameA(nullptr, exe, sizeof(exe)))
-    {
-        if(char* slash = strrchr(exe, '\\'))
-        {
-            q_strlcpy(slash + 1, "openxr_layers", sizeof(exe) - static_cast<size_t>(slash + 1 - exe));
-            if(GetFileAttributesA(exe) != INVALID_FILE_ATTRIBUTES)
-            {
-                setEnv("XR_API_LAYER_PATH", exe);
-                writeSummaryLine(va("XR_API_LAYER_PATH: %s\n", exe));
-            }
-        }
-    }
+    useValidationLayer();
     catchDebugOutput();
 #endif
     Con_Printf("\x02" "Diagnostics mode (%s): logs go to %s\n", diag.why, diag.dir);
