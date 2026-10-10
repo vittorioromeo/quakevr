@@ -6,6 +6,8 @@
 Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
 
 [New this week]
+1.0.1 installer (from a local test package): Statement page shows the two new claims, Continue needs both YES; Update screen over your 1.0.0 install
+1.0.1 game code check: the console at map load says progs.dat is this build's (vr_gamecode lists the folders)
 Continue: finish a level, quit, restart: main menu Continue row + hub CONTINUE lectern (left of the tutorial stand) load it; play some of Dimension of the Machine, restart: its hub stone still selected
 Exit from the SteamVR / VD / Meta dashboard quits the game (setting changed just before is kept); headset off/on stays in VR; closing SteamVR mid-game: note whether it goes flat or quits
 Menu: click both sticks together opens/closes the menu (in game, in menus, during calibration it pauses); VR Settings > Controls > Menu Button modes; vr_debug_buttons 1 still reports your usual (Index/Touch) profile; new tutorial tip in lesson 1
