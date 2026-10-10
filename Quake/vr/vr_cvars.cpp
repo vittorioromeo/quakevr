@@ -661,8 +661,13 @@ const DefaultChange defaultChanges[] = {
     // 119: fewer barrels (the author, 2026-10-11): the roll 0.15 -> 0.1 (about 19% -> 13% of crates and barrels in a
     // headless count over 64 layouts). A config at the old 0.15 takes it.
     {119, &vr_crates_barrels, "0.15"},
+    // 120: tips a little sooner and further out (the author, 2026-10-10: "appear a tiny bit sooner and with slightly
+    // increased range (maybe 15%)"): the delay 0.5 -> 0.35 s, the reach 150 -> 175 (the tutorial's own tips' distances
+    // times 1.15: vrtutorial_gen.py TIP_REACH). A config at the old defaults takes them.
+    {120, &vr_tips_delay, "0.5"},
+    {120, &vr_tips_distance, "150"},
 };
-constexpr int configVersion = 119;
+constexpr int configVersion = 120;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

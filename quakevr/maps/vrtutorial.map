@@ -23539,7 +23539,7 @@
 "origin" "220 256 60"
 "tipname" "t2_move"
 "message" "Push the left stick to walk.\nPush the right stick sideways to turn."
-"distance" "220"
+"distance" "253"
 }
 // entity 51
 {
@@ -23585,7 +23585,7 @@
 "origin" "700 256 60"
 "tipname" "t2_turn"
 "message" "The hall bends: turn with the right stick\n(or turn your body) to follow it."
-"distance" "160"
+"distance" "184"
 }
 // entity 57
 {
@@ -23694,7 +23694,7 @@
 "origin" "1428 592 76"
 "tipname" "t2_button"
 "message" "Reach out and push the button\nwith your hand."
-"distance" "150"
+"distance" "173"
 }
 // entity 66
 {
@@ -23959,7 +23959,7 @@
 "origin" "1776 990 60"
 "tipname" "t2_settings"
 "message" "Optional: these change how you move\nand turn. Try Snap turning if smooth\nturning makes you queasy."
-"distance" "260"
+"distance" "299"
 }
 // entity 84
 {
@@ -23967,7 +23967,7 @@
 "origin" "1872 1000 46"
 "tipname" "t2_teleport"
 "message" "Teleport: aim and release the stick\nto jump to a spot (if you turn it on)."
-"distance" "120"
+"distance" "138"
 }
 // entity 85
 {
@@ -24074,7 +24074,7 @@
 "origin" "2500 704 56"
 "tipname" "t2_jump"
 "message" "Press A, or jump for real, to jump.\nJump over the yellow barriers."
-"distance" "220"
+"distance" "253"
 }
 // entity 98
 {
@@ -24082,7 +24082,7 @@
 "origin" "2944 704 70"
 "tipname" "t2_climb"
 "message" "Grip a rung with an empty hand, pull\ndown; grip the next one with the other."
-"distance" "150"
+"distance" "173"
 }
 // entity 99
 {
@@ -24090,7 +24090,7 @@
 "origin" "2944 600 64"
 "tipname" "t2_climb_off"
 "message" "Can't take hold? Climbing may be off:\npress CLIMBING to turn it on."
-"distance" "160"
+"distance" "184"
 }
 // entity 100
 {
@@ -24121,7 +24121,7 @@
 "origin" "3144 704 216"
 "tipname" "t2_catch"
 "message" "Jump, reach up and grip the edge\nas you rise: then pull yourself up."
-"distance" "160"
+"distance" "184"
 }
 // entity 102
 {
@@ -24223,7 +24223,7 @@
 "origin" "3760 930 320"
 "tipname" "t2_swim"
 "message" "Immersive swimming: pull your arms\nthrough the water like a breast stroke.\nPress SWIMMING for the stick instead."
-"distance" "200"
+"distance" "230"
 }
 // entity 113
 {
@@ -24231,7 +24231,7 @@
 "origin" "3920 800 296"
 "tipname" "t2_dive"
 "message" "Dive in here: the way on is\nunder the water, to the north."
-"distance" "200"
+"distance" "230"
 }
 // entity 114
 {
@@ -24295,7 +24295,7 @@
 "origin" "4160 1184 286"
 "tipname" "t2_out"
 "message" "Climb out: grip the edge and pull,\nor swim to the steps."
-"distance" "200"
+"distance" "230"
 }
 // entity 122
 {
@@ -24344,7 +24344,7 @@
 "origin" "4600 1200 306"
 "tipname" "t2_hole"
 "message" "Step into the hole. Falling this far\ncosts you a little health."
-"distance" "180"
+"distance" "207"
 }
 // entity 128
 {
@@ -24444,7 +24444,7 @@
 "origin" "4544 1380 -74"
 "tipname" "t2_health"
 "message" "You are hurt. Take a health kit:\ngrip it, then hold it to your belly\nor a holster."
-"distance" "200"
+"distance" "230"
 }
 // entity 141
 {
@@ -24452,7 +24452,7 @@
 "origin" "4880 1400 -68"
 "tipname" "t2_forcegrab"
 "message" "Point at the kit on the shelf\nand grip: it flies to your hand."
-"distance" "220"
+"distance" "253"
 }
 // entity 142
 {
@@ -24595,7 +24595,7 @@
 "origin" "5216 1300 -84"
 "tipname" "t2_punch"
 "message" "Make a fist (grip and trigger)\nand punch the crate until it breaks."
-"distance" "200"
+"distance" "230"
 }
 // entity 156
 {
@@ -24603,7 +24603,7 @@
 "origin" "5216 1320 -104"
 "tipname" "t2_key"
 "message" "A keycard! Grip it, then hold it\nto a holster to keep it."
-"distance" "300"
+"distance" "345"
 "targetname" "r6_crate"
 "spawnflags" "8"
 "tip_delay" "0"
@@ -24782,7 +24782,7 @@
 "origin" "5408 908 -68"
 "tipname" "t2_newenemy"
 "message" "Out of bullets, or want practice?\nPress for another enemy."
-"distance" "150"
+"distance" "173"
 }
 // entity 173
 {
@@ -24790,7 +24790,7 @@
 "origin" "5216 780 -74"
 "tipname" "t2_parry"
 "message" "PARRY: hold your fist or weapon across\nan enemy's blow to block it: it staggers,\nopen to your strike."
-"distance" "220"
+"distance" "253"
 }
 // entity 174
 {
@@ -24798,7 +24798,7 @@
 "origin" "5216 640 -104"
 "tipname" "t2_rifle"
 "message" "Take its rifle: grip it by its handle,\naim, pull the trigger. Its magazine is all\nit has: it can't be reloaded."
-"distance" "500"
+"distance" "575"
 "targetname" "r7_dead"
 "spawnflags" "8"
 "tip_delay" "0"
@@ -25369,7 +25369,7 @@
 "origin" "4880 350 -74"
 "tipname" "t2_shotgun"
 "message" "Grip the shotgun to take it."
-"distance" "160"
+"distance" "184"
 }
 // entity 221
 {
@@ -25377,7 +25377,7 @@
 "origin" "5008 350 -74"
 "tipname" "t2_shells"
 "message" "Shells: grip the box and hold it to\na holster (or your belly): they go\nto your ammo pouch."
-"distance" "160"
+"distance" "184"
 }
 // entity 222
 {
@@ -25385,7 +25385,7 @@
 "origin" "5216 260 -84"
 "tipname" "t2_reload"
 "message" "To load: with your other hand grip at\nyour belly pouch for a shell, then push it\ninto the port under the gun."
-"distance" "200"
+"distance" "230"
 }
 // entity 223
 {
@@ -25393,7 +25393,7 @@
 "origin" "5216 190 -80"
 "tipname" "t2_range"
 "message" "Each target needs a good hit. The gun\nholds 8 shells: reload when it clicks."
-"distance" "220"
+"distance" "253"
 }
 // entity 224
 {
@@ -25464,7 +25464,7 @@
 "origin" "4640 200 -84"
 "tipname" "t2_torch"
 "message" "Take your flashlight: grip it on your torso\n(the side set by FLASHLIGHT SIDE), trigger\nto switch it on."
-"distance" "200"
+"distance" "230"
 "targetname" "r9v_in"
 "spawnflags" "8"
 }
@@ -25533,7 +25533,7 @@
 "origin" "4400 200 -84"
 "tipname" "t2_flip"
 "message" "Press B or Y with the flashlight in hand\nto flip it round in your fist."
-"distance" "160"
+"distance" "184"
 "targetname" "r9_in"
 "spawnflags" "8"
 }
@@ -25543,7 +25543,7 @@
 "origin" "4136 -260 -84"
 "tipname" "t2_clipgun"
 "message" "Hold the flashlight to a gun in your other\nhand and press B or Y: it clips on."
-"distance" "160"
+"distance" "184"
 }
 // entity 235
 {
@@ -25551,7 +25551,7 @@
 "origin" "3880 260 -84"
 "tipname" "t2_cliphead"
 "message" "Hold it to your temple and press B or Y:\na head torch, both hands free."
-"distance" "160"
+"distance" "184"
 }
 // entity 236
 {
@@ -25559,7 +25559,7 @@
 "origin" "3600 -200 -84"
 "tipname" "t2_climbdark"
 "message" "Climb in the dark: light the edge first."
-"distance" "160"
+"distance" "184"
 }
 // entity 237
 {
@@ -25721,7 +25721,7 @@
 "origin" "2800 -260 -74"
 "tipname" "t2_throw"
 "message" "Grip a rock, swing your arm and let go\nas it comes forward. Hit the button."
-"distance" "200"
+"distance" "230"
 }
 // entity 253
 {
@@ -25757,7 +25757,7 @@
 "origin" "3264 -296 -80"
 "tipname" "t2_grenade"
 "message" "Take the rockets (hold the box to a holster).\nThen reach for the pouch on your lower\nback: a grenade."
-"distance" "180"
+"distance" "207"
 }
 // entity 258
 {
@@ -26002,7 +26002,7 @@
 "origin" "2272 -264 -80"
 "tipname" "t2_torch_take"
 "message" "Grip a torch and pull it off the wall."
-"distance" "160"
+"distance" "184"
 }
 // entity 286
 {
@@ -26010,7 +26010,7 @@
 "origin" "2200 0 -80"
 "tipname" "t2_burn"
 "message" "Touch the crates with the flame\nor hit them with the torch."
-"distance" "160"
+"distance" "184"
 }
 // entity 287
 {
@@ -26110,7 +26110,7 @@
 "origin" "1840 200 -74"
 "tipname" "t2_lavanails"
 "message" "Hold a torch in front of the nailgun\nand fire through the flame."
-"distance" "180"
+"distance" "207"
 }
 // entity 300
 {
@@ -26587,7 +26587,7 @@
 "origin" "1340 -760 -74"
 "tipname" "t2_arena"
 "message" "Take a gun and ammunition here\nbefore you step further in."
-"distance" "200"
+"distance" "230"
 }
 // entity 355
 {
@@ -26868,7 +26868,7 @@
 "origin" "4688 1112 -84"
 "tipname" "t2_wrist"
 "message" "The fall hurt. Look at your wrist:\nraise your forearm as if reading a watch.\nThe gadget there shows your health."
-"distance" "120"
+"distance" "138"
 }
 // entity 382
 {

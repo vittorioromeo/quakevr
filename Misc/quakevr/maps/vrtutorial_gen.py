@@ -470,9 +470,15 @@ def banner(text, x, y, z, angle, scale="0.3", speed=None):
     return ent("func_worldtext_banner", x, y, z, **k)
 
 
+# Every tip's reach (its "distance") times this: the author, 2026-10-10, "appear a tiny bit sooner and with slightly
+# increased range (maybe 15%)" (with vr_tips_delay 0.5 -> 0.35 s, vr_cvars.inc).
+TIP_REACH = 1.15
+
+
 def tip(name, message, x, y, z, distance=200, target=None, size=None, flags=0, delay=None, trig=None):
-    """A map tip (func_vr_tip). `trig`: shown only once that targetname is fired (QC: its TRIGGERED flag, 8)."""
-    k = {"tipname": name, "message": message, "distance": distance}
+    """A map tip (func_vr_tip), shown within `distance` (times TIP_REACH). `trig`: shown only once that targetname is
+    fired (QC: its TRIGGERED flag, 8)."""
+    k = {"tipname": name, "message": message, "distance": int(distance * TIP_REACH + 0.5)}
     if trig:
         k["targetname"] = trig
         flags |= 8

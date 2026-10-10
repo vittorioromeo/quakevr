@@ -695,7 +695,7 @@ same name in two maps is two tips; `vr_tips_reset` (VR Settings > Tips > Show Ti
 | key | default | what it does |
 | --- | --- | --- |
 | `message` | — | its text; `\n` starts a new line. Without it the tip removes itself. |
-| `distance` | 0 | range in units (0: `vr_tips_distance`, 150). |
+| `distance` | 0 | range in units (0: `vr_tips_distance`, 175). |
 | `target` / `targetname` | — | another entity's `targetname`: the tip follows it, live. Neither: a fixed point at its origin. |
 | `tipname` | — | names the tip: its key in `vr_tips_seen`, and what `vr_tips_test` takes. Falls back to `targetname`. |
 | `tip_size` | 0 | its text size (0: `vr_tips_size`; 1 is about 1.5 degrees a character). |
