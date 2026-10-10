@@ -9903,7 +9903,9 @@ RowsLeft rowsLeft;
             const int x = item.kind == Item::Header ? (320 - 8 * len) / 2
                           : item.kind == Item::Info ? 0
                                                     : midPos - 28 - 8 * len;
-            left = q_min(left, x);
+            // (a setting's room for its "changed" mark left of its label: drawItem)
+            const bool marked = item.cvar && item.kind != Item::Action && item.kind != Item::Header && item.kind != Item::Info;
+            left = q_min(left, marked ? x - 10 : x);
         }
         rowsLeft.left = left;
     }
@@ -11075,7 +11077,9 @@ void drawItem(const Item& item, int y, bool selected)
     M_Print(labelX, y, item.label);
     if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar))
     {
-        M_PrintWhite(q_max(labelX - 10, 0), y, "*"); // changed from its default (Changed Settings lists them)
+        // Changed from its default (Changed Settings lists them): left of the label however long (a long label's
+        // reaches left of x 0; pageRowsLeft keeps the corner's buttons clear of the mark too).
+        M_PrintWhite(labelX - 10, y, "*");
     }
 
     char buf[64];
