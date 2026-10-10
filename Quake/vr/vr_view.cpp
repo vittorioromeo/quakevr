@@ -9081,6 +9081,43 @@ void hotspotsCheck_f()
         worstMuzzle, worstHand);
 }
 
+
+#define QVR_ANCHOR_TEXT(slot, key) weapons::cvar(slot, key)->string
+// vr_anchor_where: each hand's weapon as drawn this frame, its anchors in the world (the muzzle, the ammo button and
+// screen with their offsets) and its magazine's and well's places (moved by their mount's anchor): for comparing builds
+// and checking a model edit in the game (Debug > Tools > Weapon Anchors).
+void anchorWhere_f()
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const ViewEntity& ve = entities.weapon[hand];
+        const int slot = ve.ent.model ? weapons::slotForModel(ve.ent.model) : -1;
+        if(!ve.visible || slot < 0 || ve.ent.model->type != mod_alias)
+        {
+            Con_Printf("anchors hand %d: no weapon\n", hand);
+            continue;
+        }
+        const glm::vec3 muzzle = anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::MuzzleAnchorVertex),
+            weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+        const glm::vec3 button = anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::WpnButtonAnchorVertex),
+            weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ));
+        const glm::vec3 text = anchorPosition(ve, QVR_ANCHOR_TEXT(slot, Key::WpnTextAnchorVertex),
+            weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
+        Con_Printf("anchors hand %d %s frame %d zb %.3f muzzle %.4f %.4f %.4f button %.4f %.4f %.4f text %.4f %.4f %.4f\n",
+            hand, ve.ent.model->name, ve.ent.frame, ve.zeroBlend, muzzle.x, muzzle.y, muzzle.z, button.x, button.y, button.z,
+            text.x, text.y, text.z);
+        for(const ViewEntity* part : {&entities.mag[hand], &entities.well[hand]})
+        {
+            if(part->visible && part->ent.model)
+            {
+                Con_Printf("anchors hand %d %s at %.4f %.4f %.4f\n", hand, part->ent.model->name, part->ent.origin[0],
+                    part->ent.origin[1], part->ent.origin[2]);
+            }
+        }
+    }
+}
+#undef QVR_ANCHOR_TEXT
+
 // vr_dumpview: lists the VR view entities.
 void holsterPoseCheck(weapons::HolsterKind kind, const qmodel_t* model, const glm::vec3& inPos, const glm::vec3& inFwd,
     const glm::vec3& inUp)
