@@ -161,3 +161,5 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
   grooves painted on the texture should be inset in the geometry.
 - Tutorial lesson 7: a pillar or wall right after the door so the player faces the fight banner on entering (needs
   geometry + relight).
+- Tutorial final arena: the right-side railing is detached from the ledge; move it onto the ledge (func_detail: needs a
+  recompile + relight).
