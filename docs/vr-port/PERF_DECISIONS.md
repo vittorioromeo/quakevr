@@ -235,7 +235,7 @@ swords 19 (the death knight's first death a 23 ms frame), the ogre's chainsaw 84
 - **Drawback**: a change to Setup's preparation (a few seconds more, a new step) just before a release.
 - **Recommendation**: later, not for this release.
 
-### 14. Ironwail's per-frame upload buffer starts at 1 MB
+### 14. Ironwail's per-frame upload buffer starts at 1 MB (decided and done 2026-10-10: starts at 8 MB)
 
 `GL_Upload` (gl_rmisc.c) grows the frames' shared upload buffer by half again whenever a frame's uploads pass it
 (3 frames in flight, persistently mapped). In `play_e1m1_lights` the first big explosion grows it to 5 MB: that frame
@@ -245,6 +245,8 @@ spends 2.3 ms making the buffers and more writing into fresh pages (`particle ve
 - **Win**: that one frame (about 5-8 ms, once a session).
 - **Drawback**: 21 MB more host-visible memory (24 MB for the three frames), an engine default changed.
 - **Recommendation**: worth it; his call (a memory change).
+- **Done (2026-10-10)**: `frameres_host_buffer_size` starts at 8 MB (gl_rmisc.c; the device buffer stays 1 MB). It
+  still grows by half again past that, as before.
 
 ### 15. The marks on the world in a rocket fight (GPU)
 

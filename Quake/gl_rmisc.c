@@ -873,7 +873,7 @@ static frameres_t	frameres[FRAMES_IN_FLIGHT];
 static int			frameres_idx = 0;
 static size_t		frameres_host_offset = 0;
 static size_t		frameres_device_offset = 0;
-static size_t		frameres_host_buffer_size = 1 * 1024 * 1024;
+static size_t		frameres_host_buffer_size = 8 * 1024 * 1024; // QVR: was 1 MB; a big explosion's frame grew it to 5 MB (a one-off 16 ms frame; PERF_DECISIONS.md 14)
 static size_t		frameres_device_buffer_size = 1 * 1024 * 1024;
 unsigned int		gl_frameres_serial = 0; // QVR: the frames drawn (GL_ReleaseFrameResources): what GL_Upload gave is valid in its own only
 
