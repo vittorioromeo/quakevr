@@ -11,6 +11,7 @@ Defaults 10-09 afternoon: melee (speed 3.2, damage 1.1, stamina), enemy weapons,
 Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
 
 [New this week]
+Tutorial: welcome message readable (~9 s) and no tip until it's gone; music: calibration track 6, tutorial 3, arena 9 then back to 3 when cleared (tell me if any track should change)
 Climbing grab leniency (your working copy, not the release test): try a slightly higher vr_climb_leniency (now 2 cm; e.g. 3-4) and vr_climb_leniency_air (now 4 cm; e.g. 5-6) on climbable ledges; tell me the values that feel right to make them the defaults
 Tech-debt cleanup: a current save loads; a save from before 10-06 is refused with a message; hold and throw a ragdoll with one and two hands
 Shadow Atlas reads 8192 (now the default; High preset too)
