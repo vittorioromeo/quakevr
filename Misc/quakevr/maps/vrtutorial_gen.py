@@ -1515,10 +1515,12 @@ def build_room12():
             k["target"] = "r12_w1"
         ent("trigger_relay", 1300, -600, LOW + 48 + 8 * i, **k)
     # (all on the floor: one up on a mezzanine could keep out of sight and hold the wave up)
+    # (the author, 2026-10-11: "just a little bit easier": two dogs fewer, 9 monsters, not 11: wave 2's from the far
+    # side of the pit (the one that could strand in it) and wave 3's, which came at him while both enforcers shot)
     waves = [
         [(0, 1200, -1300, 135), (0, 450, -1200, 45), (0, 830, -620, 270)],
-        [(0, 440, -640, 0), (7, 1300, -1000, 180), (7, 500, -1450, 90), (0, 1100, -620, 270)],
-        [(8, 440, -900, 0), (8, 1220, -1100, 180), (0, 830, -1450, 90), (7, 1300, -1300, 180)],
+        [(0, 440, -640, 0), (7, 1300, -1000, 180), (0, 1100, -620, 270)],
+        [(8, 440, -900, 0), (8, 1220, -1100, 180), (0, 830, -1450, 90)],
     ]
     for w, spawns in enumerate(waves):
         name = "r12_w%d" % (w + 1)

@@ -26492,16 +26492,6 @@
 // entity 344
 {
 "classname" "func_vr_spawner"
-"origin" "500 -1450 -112"
-"weapon" "7"
-"angle" "90"
-"spawnflags" "2"
-"targetname" "r12_w2"
-"target" "r12_w2_done"
-}
-// entity 345
-{
-"classname" "func_vr_spawner"
 "origin" "1100 -620 -112"
 "weapon" "0"
 "angle" "270"
@@ -26509,16 +26499,16 @@
 "targetname" "r12_w2"
 "target" "r12_w2_done"
 }
-// entity 346
+// entity 345
 {
 "classname" "trigger_counter"
 "origin" "830 -900 -80"
-"count" "4"
+"count" "3"
 "targetname" "r12_w2_done"
 "spawnflags" "1"
 "target" "r12_w2_next"
 }
-// entity 347
+// entity 346
 {
 "classname" "trigger_relay"
 "origin" "830 -900 -72"
@@ -26527,7 +26517,7 @@
 "target" "r12_w3"
 "message" "Wave 3!"
 }
-// entity 348
+// entity 347
 {
 "classname" "func_vr_spawner"
 "origin" "440 -900 -112"
@@ -26537,7 +26527,7 @@
 "targetname" "r12_w3"
 "target" "r12_w3_done"
 }
-// entity 349
+// entity 348
 {
 "classname" "func_vr_spawner"
 "origin" "1220 -1100 -112"
@@ -26547,7 +26537,7 @@
 "targetname" "r12_w3"
 "target" "r12_w3_done"
 }
-// entity 350
+// entity 349
 {
 "classname" "func_vr_spawner"
 "origin" "830 -1450 -112"
@@ -26557,26 +26547,16 @@
 "targetname" "r12_w3"
 "target" "r12_w3_done"
 }
-// entity 351
-{
-"classname" "func_vr_spawner"
-"origin" "1300 -1300 -112"
-"weapon" "7"
-"angle" "180"
-"spawnflags" "2"
-"targetname" "r12_w3"
-"target" "r12_w3_done"
-}
-// entity 352
+// entity 350
 {
 "classname" "trigger_counter"
 "origin" "830 -900 -80"
-"count" "4"
+"count" "3"
 "targetname" "r12_w3_done"
 "spawnflags" "1"
 "target" "r12_w3_next"
 }
-// entity 353
+// entity 351
 {
 "classname" "trigger_relay"
 "origin" "830 -900 -72"
@@ -26584,7 +26564,7 @@
 "delay" "3"
 "target" "r12_won"
 }
-// entity 354
+// entity 352
 {
 "classname" "trigger_relay"
 "origin" "830 -900 -64"
@@ -26592,7 +26572,7 @@
 "target" "r12_exit"
 "message" "Arena cleared! The way out is open."
 }
-// entity 355
+// entity 353
 {
 "classname" "func_worldtext_banner"
 "origin" "1400 -800 -14"
@@ -26601,7 +26581,7 @@
 "worldtext_scale" "0.3"
 "angle" "180"
 }
-// entity 356
+// entity 354
 {
 "classname" "func_vr_tip"
 "origin" "1340 -760 -74"
@@ -26609,7 +26589,7 @@
 "message" "Take a gun and ammunition here\nbefore you step further in."
 "distance" "200"
 }
-// entity 357
+// entity 355
 {
 "classname" "func_door"
 "angle" "180"
@@ -26628,7 +26608,7 @@
 ( 832 -1548 -144 ) ( 832 -1548 -16 ) ( 832 -1540 -144 ) metal1_1 [ 0 1 0 12 ] [ 0 0 -1 48 ] 0 1 1
 }
 }
-// entity 358
+// entity 356
 {
 "classname" "func_door"
 "angle" "0"
@@ -26647,7 +26627,7 @@
 ( 896 -1548 -144 ) ( 896 -1548 -16 ) ( 896 -1540 -144 ) metal1_1 [ 0 1 0 12 ] [ 0 0 -1 48 ] 0 1 1
 }
 }
-// entity 359
+// entity 357
 {
 "classname" "light"
 "origin" "736 -1704 56"
@@ -26655,7 +26635,7 @@
 "_color" "0.96 0.97 1"
 "wait" "0.55"
 }
-// entity 360
+// entity 358
 {
 "classname" "light"
 "origin" "928 -1704 56"
@@ -26663,7 +26643,7 @@
 "_color" "0.96 0.97 1"
 "wait" "0.55"
 }
-// entity 361
+// entity 359
 {
 "classname" "func_illusionary"
 // brush 0
@@ -26676,7 +26656,7 @@
 ( 896 -1852 -144 ) ( 896 -1852 -16 ) ( 896 -1844 -144 ) *teleport [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 362
+// entity 360
 {
 "classname" "trigger_changelevel"
 "map" "vrstart"
@@ -26691,14 +26671,14 @@
 ( 896 -1856 -144 ) ( 896 -1856 -16 ) ( 896 -1832 -144 ) trigger [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 363
+// entity 361
 {
 "classname" "light"
 "origin" "832 -1830 -80"
 "light" "250"
 "_color" "0.8 0.6 1"
 }
-// entity 364
+// entity 362
 {
 "classname" "func_worldtext_banner"
 "origin" "832 -1836 32"
@@ -26707,7 +26687,7 @@
 "worldtext_scale" "0.3"
 "angle" "90"
 }
-// entity 365
+// entity 363
 {
 "classname" "light"
 "origin" "2448 640 384"
@@ -26717,7 +26697,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 366
+// entity 364
 {
 "classname" "light"
 "origin" "2832 640 384"
@@ -26727,7 +26707,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 367
+// entity 365
 {
 "classname" "light"
 "origin" "3216 640 384"
@@ -26737,7 +26717,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 368
+// entity 366
 {
 "classname" "light"
 "origin" "2752 -160 256"
@@ -26747,7 +26727,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 369
+// entity 367
 {
 "classname" "light"
 "origin" "2752 224 256"
@@ -26757,7 +26737,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 370
+// entity 368
 {
 "classname" "light"
 "origin" "3136 -160 256"
@@ -26767,7 +26747,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 371
+// entity 369
 {
 "classname" "light"
 "origin" "3136 224 256"
@@ -26777,7 +26757,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 372
+// entity 370
 {
 "classname" "light"
 "origin" "448 -1344 304"
@@ -26787,7 +26767,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 373
+// entity 371
 {
 "classname" "light"
 "origin" "448 -960 304"
@@ -26797,7 +26777,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 374
+// entity 372
 {
 "classname" "light"
 "origin" "448 -576 304"
@@ -26807,7 +26787,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 375
+// entity 373
 {
 "classname" "light"
 "origin" "832 -1344 304"
@@ -26817,7 +26797,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 376
+// entity 374
 {
 "classname" "light"
 "origin" "832 -960 304"
@@ -26827,7 +26807,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 377
+// entity 375
 {
 "classname" "light"
 "origin" "832 -576 304"
@@ -26837,7 +26817,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 378
+// entity 376
 {
 "classname" "light"
 "origin" "1216 -1344 304"
@@ -26847,7 +26827,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 379
+// entity 377
 {
 "classname" "light"
 "origin" "1216 -960 304"
@@ -26857,7 +26837,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 380
+// entity 378
 {
 "classname" "light"
 "origin" "1216 -576 304"
@@ -26867,7 +26847,7 @@
 "_dirt" "-1"
 "_shadow" "0"
 }
-// entity 381
+// entity 379
 {
 "classname" "light"
 "origin" "4896 1456 -36"
@@ -26875,14 +26855,14 @@
 "_color" "0.96 0.97 1"
 "wait" "0.8"
 }
-// entity 382
+// entity 380
 {
 "classname" "light"
 "origin" "4872 1400 -104"
 "light" "160"
 "_color" "0.96 0.97 1"
 }
-// entity 383
+// entity 381
 {
 "classname" "func_vr_tip"
 "origin" "4688 1112 -84"
@@ -26890,7 +26870,7 @@
 "message" "The fall hurt. Look at your wrist:\nraise your forearm as if reading a watch.\nThe gadget there shows your health."
 "distance" "120"
 }
-// entity 384
+// entity 382
 {
 "classname" "trigger_once"
 "target" "r9v_in"
@@ -26904,7 +26884,7 @@
 ( 4736 176 -144 ) ( 4736 176 -48 ) ( 4736 336 -144 ) trigger [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 385
+// entity 383
 {
 "classname" "trigger_once"
 "target" "r9_in"
@@ -26918,7 +26898,7 @@
 ( 4480 176 -144 ) ( 4480 176 -48 ) ( 4480 336 -144 ) trigger [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 386
+// entity 384
 {
 "classname" "target_vr_music"
 "origin" "1300 -600 -48"
@@ -26926,14 +26906,14 @@
 "sounds" "4"
 "music_folder" "hipnotic"
 }
-// entity 387
+// entity 385
 {
 "classname" "target_vr_music"
 "origin" "830 -900 -48"
 "targetname" "r12_won"
 "sounds" "0"
 }
-// entity 388
+// entity 386
 {
 "classname" "target_vr_message"
 "origin" "96 256 64"
