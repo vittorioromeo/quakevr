@@ -11,6 +11,7 @@ Defaults 10-09 afternoon: melee (speed 3.2, damage 1.1, stamina), enemy weapons,
 Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
 
 [New this week]
+Art polish: under the nailgun/super nailgun/thunderbolt with a magazine in and out, the well's lip no longer shimmers; the laser cannon's grip and underside are lit like the rest
 Calibration: welcome readable at eye level (~7 s); stickman stays in front from the intro through every pose (turn your head between the height step and the first pose); doorway board/summary say tutorial on first start, VR hub afterwards
 Setup: after install/update a 'Relighting n of m' bar with Skip; first start has no relight; tutorial->hub portal shows 'Loading...' briefly (no 10-15 s freeze); Debug > Loading Notice Hold 3 s to judge size/placement
 Tutorial: welcome message readable (~9 s) and no tip until it's gone; music: calibration track 6, tutorial 3, arena 9 then back to 3 when cleared (tell me if any track should change)
