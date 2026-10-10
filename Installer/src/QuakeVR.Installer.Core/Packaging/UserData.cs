@@ -13,8 +13,12 @@ public enum UserDataKind
     /// <summary>The Map Library's installed packages (<c>qvr_addons\</c>) and its list of them
     /// (<c>cache\maps_installed.txt</c>): "Remove saves and installed maps".</summary>
     Maps,
-    /// <summary>Everything else of the player's (screenshots, voice notes, relit maps, checklist ticks, caches...): never
-    /// reset or removed by Setup.</summary>
+    /// <summary>Everything else of the player's that the game did not derive from its own files: screenshots, voice notes,
+    /// recordings, logs, the tips seen and checklist ticks, maps and mods added by hand: "Remove screenshots, voice notes
+    /// and your other files".</summary>
+    Personal,
+    /// <summary>Relit maps (<c>relit*\</c>) and caches (<c>cache\</c>): rebuilt from the game's files (relighting takes
+    /// long), never reset or removed by Setup.</summary>
     Other,
 }
 
@@ -47,7 +51,11 @@ public static class UserData
         {
             return UserDataKind.Settings;
         }
-        return UserDataKind.Other;
+        if (parts[..^1].Any(d => d == "cache" || d.StartsWith("relit", StringComparison.Ordinal)))
+        {
+            return UserDataKind.Other;
+        }
+        return UserDataKind.Personal;
     }
 
     /// <summary>The player's files in <paramref name="installDir"/> (relative, forward slashes) and their kind.</summary>
@@ -76,12 +84,12 @@ public static class UserData
         return list;
     }
 
-    /// <summary>"12 settings, 3 saves, 0 installed-map files, 40 other" for the plans.</summary>
+    /// <summary>"12 settings, 3 saves, 0 installed-map files, 30 personal, 10 other" for the plans.</summary>
     public static string Summary(IEnumerable<(string Path, UserDataKind Kind)> files)
     {
         var counts = files.GroupBy(f => f.Kind).ToDictionary(g => g.Key, g => g.Count());
         int C(UserDataKind k) => counts.GetValueOrDefault(k);
-        return $"{C(UserDataKind.Settings)} settings, {C(UserDataKind.Saves)} saves, {C(UserDataKind.Maps)} installed-map files, {C(UserDataKind.Other)} other";
+        return $"{C(UserDataKind.Settings)} settings, {C(UserDataKind.Saves)} saves, {C(UserDataKind.Maps)} installed-map files, {C(UserDataKind.Personal)} personal, {C(UserDataKind.Other)} other";
     }
 }
 

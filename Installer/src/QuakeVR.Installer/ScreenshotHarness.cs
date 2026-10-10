@@ -155,11 +155,24 @@ static class ScreenshotHarness
             var again = new MainViewModel(new WindowsSystemProbe(), options);
             var againView = new ShellView { DataContext = again };
             await Save(againView, Path.Combine(dir, "1b-welcome-installed.png"));
-            // The Update screen's secondary choice opened: Install again from scratch, its two choices ticked.
-            again.ToggleReinstallCommand.Execute(null);
-            again.ResetSettings = again.RemoveSaves = true;
-            await Save(againView, Path.Combine(dir, "1f-welcome-install-again.png"));
             report.AppendLine($"update screen: {again.ExistingTitle} / {again.ExistingText} / button {again.NextText}");
+            // Start clean ticked: Install again from scratch opens with its three choices ticked, and the footer's button
+            // installs again.
+            again.StartClean = true;
+            await Save(againView, Path.Combine(dir, "1f-welcome-install-again.png"));
+            report.AppendLine($"update screen, start clean: settings {again.ResetSettings}, saves {again.RemoveSaves}, personal {again.RemovePersonal}, " +
+                              $"shown {again.ShowReinstall} / button {again.NextText} / {again.FooterHint}");
+            var cleanOk = again.ResetSettings && again.RemoveSaves && again.RemovePersonal && again.ShowReinstall && again.ReinstallChosen &&
+                          again.NextText == "Install again…";
+            again.StartClean = false;
+            report.AppendLine($"update screen, start clean unticked: settings {again.ResetSettings}, saves {again.RemoveSaves}, personal {again.RemovePersonal} / button {again.NextText}");
+            if (!cleanOk || again.ResetSettings || again.RemoveSaves || again.RemovePersonal || again.ReinstallChosen || again.NextText == "Install again…")
+            {
+                report.AppendLine("start clean check FAILED");
+                await File.WriteAllTextAsync(Path.Combine(dir, "report.txt"), report.ToString());
+                Console.Error.WriteLine("start clean check FAILED: Start clean must tick all three choices and make the footer's button Install again, and unticked none");
+                return 1;
+            }
         }
 
         // High scaling: the Welcome page at 150% (the sidebar's logos, crisp), and the Statement page in the window a

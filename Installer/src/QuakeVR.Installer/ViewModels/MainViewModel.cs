@@ -178,6 +178,8 @@ public sealed class MainViewModel : ObservableObject
     bool _removeSaves;
     int _settingsFiles;
     int _savesFiles;
+    int _personalFiles;
+    bool _removePersonal;
     InstallMode _runMode;
     ReleaseFeed? _feed;
     long? _coreSize;
@@ -297,7 +299,8 @@ public sealed class MainViewModel : ObservableObject
 
     public string NextText => Page switch
     {
-        Page.Welcome => _existing is null ? "Get started" : !QuickUpdate ? "Update…" : OfferedMode == InstallMode.Repair ? "Repair" : "Update",
+        Page.Welcome => _existing is null ? "Get started" : ReinstallChosen ? "Install again…" : !QuickUpdate ? "Update…" :
+                        OfferedMode == InstallMode.Repair ? "Repair" : "Update",
         Page.Statement => "Continue",
         Page.Options => Reinstall ? "Install again" : _existing is null ? "Install" : "Update",
         Page.Done => "Next",
@@ -308,6 +311,7 @@ public sealed class MainViewModel : ObservableObject
     public string FooterHint => Page switch
     {
         Page.Welcome => _existing is null ? "Nothing is changed until you press Install." :
+                        ReinstallChosen ? "Nothing is changed until you press Install again: what you ticked is moved into a backup first." :
                         $"Nothing is changed until you press {(OfferedMode == InstallMode.Repair ? "Repair" : "Update")}. Your settings, saves and maps are kept.",
         Page.Statement => Statement.AllYes ? "Your answers are not saved or sent anywhere." : "Continue needs YES to all three.",
         Page.Detect => "Your Quake files are only read, never changed.",
@@ -359,7 +363,7 @@ public sealed class MainViewModel : ObservableObject
     bool CanNext() => Page switch
     {
         // The Update screen: Update/Repair needs the package (local, or the release list read).
-        Page.Welcome => _existing is null || !QuickUpdate || PackageReady,
+        Page.Welcome => _existing is null || ReinstallChosen || !QuickUpdate || PackageReady,
         Page.Statement => Statement.AllYes,
         Page.Detect => !Detecting && SelectedQuake is { Playable: true },
         Page.Options => InstallDirError is null && SelectedQuake is not null && PackageReady,
@@ -372,7 +376,11 @@ public sealed class MainViewModel : ObservableObject
         switch (Page)
         {
             case Page.Welcome:
-                if (_existing is not null && QuickUpdate)
+                if (ReinstallChosen)
+                {
+                    ReinstallCommand.Execute(null); // files to reset or remove ticked: the footer's button installs again
+                }
+                else if (_existing is not null && QuickUpdate)
                 {
                     _ = UpdateAsync(); // the Update screen's one button: straight to the update (or repair)
                 }
@@ -486,7 +494,7 @@ public sealed class MainViewModel : ObservableObject
     public bool HasOtherInstalls => OtherInstallsText is not null;
 
     /// <summary>"Install again from scratch" is open on the Update screen.</summary>
-    public bool ShowReinstall { get => _showReinstall; private set => Set(ref _showReinstall, value); }
+    public bool ShowReinstall { get => _showReinstall; private set { if (Set(ref _showReinstall, value)) { RaiseReinstallChoice(); } } }
     /// <summary>The wizard runs as "Install again from scratch" (the Update screen's secondary choice).</summary>
     public bool Reinstall
     {
@@ -500,12 +508,40 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public bool ResetSettings { get => _resetSettings; set => Set(ref _resetSettings, value); }
-    public bool RemoveSaves { get => _removeSaves; set => Set(ref _removeSaves, value); }
-    public string ReinstallSettingsText => $"Reset settings: configs, retro overrides, body calibration ({_settingsFiles} file{(_settingsFiles == 1 ? "" : "s")})";
-    public string ReinstallSavesText => $"Remove saves and the Map Library's installed maps ({_savesFiles} file{(_savesFiles == 1 ? "" : "s")})";
+    public bool ResetSettings { get => _resetSettings; set { if (Set(ref _resetSettings, value)) { RaiseReinstallChoice(); } } }
+    public bool RemoveSaves { get => _removeSaves; set { if (Set(ref _removeSaves, value)) { RaiseReinstallChoice(); } } }
+    public bool RemovePersonal { get => _removePersonal; set { if (Set(ref _removePersonal, value)) { RaiseReinstallChoice(); } } }
+
+    /// <summary>The Update screen's "Start clean": all three ticked (and the choices shown); unticked, none.</summary>
+    public bool StartClean
+    {
+        get => _resetSettings && _removeSaves && _removePersonal;
+        set
+        {
+            ResetSettings = RemoveSaves = RemovePersonal = value;
+            if (value)
+            {
+                ShowReinstall = true;
+            }
+        }
+    }
+
+    /// <summary>Something to reset or remove is ticked on the Update screen: its footer button installs again from scratch.</summary>
+    public bool ReinstallChosen => _existing is not null && ShowReinstall && (_resetSettings || _removeSaves || _removePersonal);
+
+    void RaiseReinstallChoice()
+    {
+        Raise(nameof(StartClean), nameof(ReinstallChosen), nameof(NextText), nameof(FooterHint));
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    static string Files(int n) => $"{n} file{(n == 1 ? "" : "s")}";
+    public string ReinstallSettingsText => $"Reset settings: configs, retro overrides, body calibration ({Files(_settingsFiles)})";
+    public string ReinstallSavesText => $"Remove saves and the Map Library's installed maps ({Files(_savesFiles)})";
+    public string ReinstallPersonalText => $"Remove screenshots, voice notes and your other files: recordings, logs, tips seen, checklist ticks, " +
+                                          $"maps and mods you added ({Files(_personalFiles)})";
     public string BackupText => $"Whatever is reset or removed is moved first into a dated backup folder, {Path.Combine(InstallDir, UserData.BackupsFolder)}: " +
-                                "nothing of yours is deleted. Screenshots, voice notes, relit maps and checklist ticks always stay.";
+                                "nothing of yours is deleted. Relit maps and caches always stay.";
 
     void LoadExisting()
     {
@@ -517,7 +553,7 @@ public sealed class MainViewModel : ObservableObject
         {
             _existing = null;
         }
-        _settingsFiles = _savesFiles = 0;
+        _settingsFiles = _savesFiles = _personalFiles = 0;
         if (_existing is not null)
         {
             try
@@ -525,6 +561,7 @@ public sealed class MainViewModel : ObservableObject
                 var mine = UserData.Find(InstallDir, _existing);
                 _settingsFiles = mine.Count(f => f.Kind == UserDataKind.Settings);
                 _savesFiles = mine.Count(f => f.Kind is UserDataKind.Saves or UserDataKind.Maps);
+                _personalFiles = mine.Count(f => f.Kind == UserDataKind.Personal);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
@@ -538,7 +575,7 @@ public sealed class MainViewModel : ObservableObject
     {
         Raise(nameof(HasExisting), nameof(ExistingTitle), nameof(ExistingText), nameof(ExistingDetail), nameof(OfferedMode), nameof(QuickUpdate),
             nameof(ExistingNeedsPackage), nameof(OtherInstallsText), nameof(HasOtherInstalls), nameof(ReinstallSettingsText), nameof(ReinstallSavesText),
-            nameof(BackupText), nameof(NextText), nameof(FooterHint), nameof(InstallTitle));
+            nameof(ReinstallPersonalText), nameof(ReinstallChosen), nameof(BackupText), nameof(NextText), nameof(FooterHint), nameof(InstallTitle));
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -1290,7 +1327,7 @@ public sealed class MainViewModel : ObservableObject
             Backup? backup = null;
             if (mode == InstallMode.Install && Reinstall && _existing is not null)
             {
-                var choice = new ReinstallOptions { ResetSettings = ResetSettings, RemoveSaves = RemoveSaves };
+                var choice = new ReinstallOptions { ResetSettings = ResetSettings, RemoveSaves = RemoveSaves, RemovePersonal = RemovePersonal };
                 var dir = InstallDir;
                 backup = await Task.Run(() => Reinstaller.Prepare(dir, choice, DateTimeOffset.Now, progress), ct);
                 if (backup is null)

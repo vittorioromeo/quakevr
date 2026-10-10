@@ -1,18 +1,21 @@
 namespace QuakeVR.Installer.Core.Packaging;
 
-/// <summary>"Install again from scratch": what the player chose to reset or remove (both unticked: only the program
-/// files are installed again).</summary>
+/// <summary>"Install again from scratch": what the player chose to reset or remove (none ticked: only the program
+/// files are installed again; all three: a clean start, as a new install, but for the relit maps and caches).</summary>
 public sealed class ReinstallOptions
 {
     /// <summary>The configs, retro overrides and body calibration (<see cref="UserDataKind.Settings"/>).</summary>
     public bool ResetSettings { get; init; }
     /// <summary>The saves and the Map Library's installed maps (<see cref="UserDataKind.Saves"/>, <see cref="UserDataKind.Maps"/>).</summary>
     public bool RemoveSaves { get; init; }
+    /// <summary>Screenshots, voice notes and the player's other files (<see cref="UserDataKind.Personal"/>).</summary>
+    public bool RemovePersonal { get; init; }
 
     public bool Includes(UserDataKind kind) => kind switch
     {
         UserDataKind.Settings => ResetSettings,
         UserDataKind.Saves or UserDataKind.Maps => RemoveSaves,
+        UserDataKind.Personal => RemovePersonal,
         _ => false,
     };
 }
@@ -20,8 +23,8 @@ public sealed class ReinstallOptions
 /// <summary>
 /// The first step of "Install again from scratch": the player's files it resets or removes are moved into a dated backup
 /// (<see cref="Backup"/>, checked file by file), never deleted; then the normal full install runs over the folder
-/// (InstallMode.Install, with the same backup for anything else it overwrites). Screenshots, voice notes, relit maps,
-/// checklist ticks and caches are never part of it.
+/// (InstallMode.Install, with the same backup for anything else it overwrites). Relit maps and caches are never part of
+/// it.
 /// </summary>
 public static class Reinstaller
 {
@@ -44,7 +47,7 @@ public static class Reinstaller
     public static string Format(IReadOnlyList<(string Path, UserDataKind Kind)> files, ReinstallOptions options, int maxLines = 40)
     {
         var w = new StringWriter();
-        w.WriteLine($"reinstall: reset settings {(options.ResetSettings ? "yes" : "no")}, remove saves and installed maps {(options.RemoveSaves ? "yes" : "no")}");
+        w.WriteLine($"reinstall: reset settings {(options.ResetSettings ? "yes" : "no")}, remove saves and installed maps {(options.RemoveSaves ? "yes" : "no")}, remove screenshots, voice notes and other files {(options.RemovePersonal ? "yes" : "no")}");
         if (files.Count == 0)
         {
             w.WriteLine("  nothing of yours to reset or remove: no backup needed");

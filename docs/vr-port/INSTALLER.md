@@ -231,7 +231,7 @@ Setup started again finds the install and opens on the **Update screen** instead
   that differ from the package are staged and checked (added, replaced, restored); the rest are not touched (not even
   rewritten). Files the previous version shipped and this one does not are removed when unchanged, kept when the player
   changed them. A shipped file the player changed, or the player's own file where this version ships one, is copied into
-  a backup first (`<QVR>ackups\<yyyy-MM-dd HHmmss> update\`, with `backup.json`: path, size, SHA-256; checked). The
+  a backup first (`<QVR>\backups\<yyyy-MM-dd HHmmss> update\`, with `backup.json`: path, size, SHA-256; checked). The
   player's files (everything install.json does not list: configs, saves, screenshots, voice notes, Map Library maps,
   relit maps, checklist ticks, caches) are never opened. The Apps & Features entry gets the new version.
   - **HD textures:** install.json now records the pack (`hdTexturesFile`, `hdTexturesSha256`). The same SHA-256 as the
@@ -249,16 +249,19 @@ elight_textures.cfg`, a new HD pack, VisPatch
   again when one is missing or changed. **An older package never downgrades:** only files identical in both versions are
   restored; the rest stay as installed, and the damaged ones it cannot restore are named (they need the installed
   version's package); install.json and the entry keep the installed version.
-- **Install again from scratch** (secondary, on the same screen): two choices, **Reset settings** (unrecorded `*.cfg`
+- **Install again from scratch** (secondary, on the same screen): three choices, **Reset settings** (unrecorded `*.cfg`
   such as `ironwail.cfg` and `autoexec.cfg`, `retro_overrides.txt`, `bodycal\`) and **Remove saves and installed maps**
-  (`*.sav`, `autosave\`, `qvr_addons\`, `cache\maps_installed.txt`; the zip cache stays). Whatever is ticked is moved
-  (never deleted) into `<QVR>ackups\<date> reinstall\`, each file hashed before and after (a mismatch stops before
+  (`*.sav`, `autosave\`, `qvr_addons\`, `cache\maps_installed.txt`; the zip cache stays) and **Remove screenshots, voice notes and your other files** (every
+  other file of the player's: recordings, logs, `tips_seen.txt`, `checklist_ticks.txt`, maps and mods added by hand;
+  2026-10-10, the author: a test install wiped clean on update). **Start clean**, a checkbox beside the screen's links,
+  ticks all three and opens the section; with anything ticked there the footer's button is *Install again…*. Whatever is ticked is moved
+  (never deleted) into `<QVR>\backups\<date> reinstall\`, each file hashed before and after (a mismatch stops before
   anything is installed); then the whole wizard (Statement, Your PC, Options) and a full install, every program file
-  copied again. Screenshots, voice notes, relit maps, checklist ticks and caches are never part of it. Setup never deletes
+  copied again. Relit maps (`relit*\`) and caches (`cache\`) are never part of it (rebuilt from the game's files). Setup never deletes
   a backup; the uninstall leaves `backups\` with the player's files.
 - **Console:** `qvr-setup update [--target|--sandbox] [--package|--feed] [--dry-run]` (the plan: each file's action, the
   backups, the HD textures and relight decisions, the entry's version; from a feed the file plan needs the package, unless
-  it is in `--downloads` already), `qvr-setup reinstall --reset-settings --remove-saves [--dry-run]` (the files moved,
+  it is in `--downloads` already), `qvr-setup reinstall [--reset-settings] [--remove-saves] [--remove-personal] [--clean] [--dry-run]` (the files moved,
   then install's flow and `--accept-statement`), `qvr-setup detect` prints the install found.
 - **Tested** (self-test, 36 cases): a fresh machine finds nothing (the normal flow); an older install's plan lists only
   program files and the player's 13 files hash the same before and after (an unchanged file not even rewritten, the

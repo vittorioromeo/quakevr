@@ -72,14 +72,21 @@
                             <TextBlock Text="{Binding ExistingDetail}" Style="{StaticResource Small}" Margin="0,8,0,0" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding OtherInstallsText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="0,6,0,0"
                                        TextWrapping="Wrap" Visibility="{Binding HasOtherInstalls, Converter={StaticResource BoolToVis}}" />
-                            <TextBlock Style="{StaticResource Small}" Margin="0,8,0,0">
-                                <Hyperlink Command="{Binding ToggleReinstallCommand}" Foreground="{StaticResource AccentHover}">Install again from scratch…</Hyperlink>
-                                <Run Text="   " />
-                                <Hyperlink Command="{Binding BrowseExistingCommand}" Foreground="{StaticResource AccentHover}">Use another install…</Hyperlink>
-                            </TextBlock>
+                            <WrapPanel Margin="0,8,0,0">
+                                <TextBlock Style="{StaticResource Small}" VerticalAlignment="Center" Margin="0,0,24,0">
+                                    <Hyperlink Command="{Binding ToggleReinstallCommand}" Foreground="{StaticResource AccentHover}">Install again from scratch…</Hyperlink>
+                                    <Run Text="   " />
+                                    <Hyperlink Command="{Binding BrowseExistingCommand}" Foreground="{StaticResource AccentHover}">Use another install…</Hyperlink>
+                                </TextBlock>
+                                <!-- A clean start in one tick: the three choices below ticked, and the footer's button installs again. -->
+                                <CheckBox IsChecked="{Binding StartClean}" VerticalAlignment="Center"
+                                          ToolTip="Like a new install: your settings, saves, maps, screenshots and voice notes are moved into a backup, then everything is installed again.">
+                                    <TextBlock Style="{StaticResource Small}" Text="Start clean (wipe my settings, saves and files; backed up)" />
+                                </CheckBox>
+                            </WrapPanel>
                         </StackPanel>
                     </DockPanel>
-                    <!-- Install again from scratch: two choices, a backup first, then the whole wizard. -->
+                    <!-- Install again from scratch: three choices, a backup first, then the whole wizard. -->
                     <StackPanel Margin="0,14,0,0" Visibility="{Binding ShowReinstall, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="INSTALL AGAIN FROM SCRATCH" Style="{StaticResource SectionTitle}" />
                         <TextBlock Style="{StaticResource Small}" TextWrapping="Wrap"
@@ -89,6 +96,9 @@
                         </CheckBox>
                         <CheckBox IsChecked="{Binding RemoveSaves}" Margin="0,6,0,0">
                             <TextBlock Text="{Binding ReinstallSavesText}" Style="{StaticResource Body}" />
+                        </CheckBox>
+                        <CheckBox IsChecked="{Binding RemovePersonal}" Margin="0,6,0,0">
+                            <TextBlock Text="{Binding ReinstallPersonalText}" Style="{StaticResource Body}" TextWrapping="Wrap" />
                         </CheckBox>
                         <TextBlock Text="{Binding BackupText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="0,8,0,0" TextWrapping="Wrap" />
                         <Button Content="Install again…" Style="{StaticResource GhostButton}" Command="{Binding ReinstallCommand}"

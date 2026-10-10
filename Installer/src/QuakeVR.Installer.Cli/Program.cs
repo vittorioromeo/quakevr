@@ -28,11 +28,13 @@ const string Usage = """
                        kept; files you changed are backed up first; HD textures only when the pack changed; the relight
                        only when its inputs changed. --dry-run prints the plan (from --feed: the file plan needs the
                        package, unless it is in --downloads already). Shortcuts are kept unless --shortcuts-dir)
-    qvr-setup reinstall [--target <dir> | --sandbox <dir>] [--reset-settings] [--remove-saves] [--dry-run]
-                      (install's options) --accept-statement
+    qvr-setup reinstall [--target <dir> | --sandbox <dir>] [--reset-settings] [--remove-saves] [--remove-personal]
+                      [--clean] [--dry-run] (install's options) --accept-statement
                       (install again from scratch: the chosen files (settings: configs, retro overrides, body calibration;
-                       saves and the Map Library's installed maps) are moved into <install>\backups\<date> reinstall,
-                       checked, then the full install runs; --dry-run lists them)
+                       saves and the Map Library's installed maps; personal: screenshots, voice notes, recordings, logs,
+                       tips seen, checklist ticks, maps and mods added by hand; --clean: all three, a new install's start
+                       but for the relit maps and caches) are moved into <install>\backups\<date> reinstall, checked,
+                       then the full install runs; --dry-run lists them)
     qvr-setup statement                              (prints the author's statement on AI usage; install needs --accept-statement)
     qvr-setup uninstall --target <dir> [--remove-textures] [--registry-file <json> | --register]
     qvr-setup verify --target <dir>
@@ -261,7 +263,12 @@ async Task<int> ReinstallCommand()
         Console.WriteLine("nothing to install again: use qvr-setup install");
         return 1;
     }
-    var choice = new ReinstallOptions { ResetSettings = Flag("reset-settings"), RemoveSaves = Flag("remove-saves") };
+    var clean = Flag("clean");
+    var choice = new ReinstallOptions
+    {
+        ResetSettings = clean || Flag("reset-settings"), RemoveSaves = clean || Flag("remove-saves"),
+        RemovePersonal = clean || Flag("remove-personal"),
+    };
     Console.Write(Reinstaller.Format(Reinstaller.Plan(install.Dir, choice), choice));
     return await InstallCommand(install, choice);
 }

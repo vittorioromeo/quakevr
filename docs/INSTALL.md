@@ -152,8 +152,9 @@ window shows a mirror of the left eye. If no headset is found, the game plays on
   unless you changed them yourself. The relight runs again only if the update changes what it uses, and then only
   for the maps whose light changes.
 - **Repair or start over:** the same screen offers *Repair* (for the same version) and *Install again from scratch*,
-  which can also reset your settings or remove your saves and installed maps; whatever it removes is moved into
-  `backups\`, never deleted.
+  which can also reset your settings, remove your saves and installed maps, and remove your screenshots, voice notes
+  and other files; *Start clean* on that screen ticks all three (a new install's start: the VR Calibration, the
+  tutorial). Whatever it removes is moved into `backups\`, never deleted; relit maps and caches stay.
 - **Uninstalling:** Windows' *Settings > Apps > Installed apps*, **Quake VR: Unleashed** > Uninstall, or *Remove…*
   on the installer's first page. It removes the files it installed and the shortcuts; it asks before removing the HD
   textures, and leaves your own files (settings, saves, screenshots, notes, relit maps, backups) in the folder.

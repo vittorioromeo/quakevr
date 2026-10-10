@@ -1313,7 +1313,7 @@ var tests = new List<(string Name, Action Body)>
         Dictionary<string, string> Hashes() => playerFiles.Keys.ToDictionary(k => k, k => PackageManifest.HashFile(Path.Combine(target, k.Replace('/', '\\'))));
         var before = Hashes();
         var userBefore = UserData.Find(target, r1);
-        Eq("4 settings, 2 saves, 2 installed-map files, 6 other", UserData.Summary(userBefore), "the player's files sorted");
+        Eq("4 settings, 2 saves, 2 installed-map files, 4 personal, 2 other", UserData.Summary(userBefore), "the player's files sorted");
         var hubTime = File.GetLastWriteTimeUtc(Path.Combine(target, "quakevr", "maps", "vrhub.bsp"));
 
         // v2: a new engine and progs (their text has the version), SDL2.dll dropped, newfile.txt added.
@@ -1432,9 +1432,11 @@ var tests = new List<(string Name, Action Body)>
             ["quakevr/retro_overrides.txt"] = ("retro", UserDataKind.Settings), ["quakevr/bodycal/body.txt"] = ("1.8", UserDataKind.Settings),
             ["quakevr/s0.sav"] = ("save", UserDataKind.Saves), ["quakevr/autosave/a.sav"] = ("auto", UserDataKind.Saves),
             ["qvr_addons/0123456789abcdef/maps/m.bsp"] = ("bsp", UserDataKind.Maps), ["cache/maps_installed.txt"] = ("list", UserDataKind.Maps),
-            ["quakevr/screenshots/s.png"] = ("png", UserDataKind.Other), ["quakevr/notes/n.wav"] = ("wav", UserDataKind.Other),
-            ["quakevr/relit_custom/id1/maps/e1m1.relight"] = ("relit", UserDataKind.Other), ["quakevr/checklist_ticks.txt"] = ("ticks", UserDataKind.Other),
-            ["cache/maps/0123.zip"] = ("zip", UserDataKind.Other),
+            ["quakevr/screenshots/s.png"] = ("png", UserDataKind.Personal), ["quakevr/notes/n.wav"] = ("wav", UserDataKind.Personal),
+            ["quakevr/relit_custom/id1/maps/e1m1.relight"] = ("relit", UserDataKind.Other), ["quakevr/checklist_ticks.txt"] = ("ticks", UserDataKind.Personal),
+            ["quakevr/tips_seen.txt"] = ("tips", UserDataKind.Personal), ["qconsole.log"] = ("log", UserDataKind.Personal),
+            ["quakevr/maps/mine.bsp"] = ("bsp", UserDataKind.Personal), ["quakevr/relit/id1/maps/e1m1.bsp"] = ("relit", UserDataKind.Other),
+            ["cache/maps/0123.zip"] = ("zip", UserDataKind.Other), ["quakevr/cache/x.bin"] = ("cache", UserDataKind.Other),
         };
         void Write()
         {
@@ -1490,7 +1492,9 @@ var tests = new List<(string Name, Action Body)>
         Check(new ReinstallOptions { ResetSettings = true }, "reset settings");
         Check(new ReinstallOptions { RemoveSaves = true }, "remove saves");
         Check(new ReinstallOptions { ResetSettings = true, RemoveSaves = true }, "both");
-        Eq(3, Directory.GetDirectories(Path.Combine(target, "backups")).Length, "three backups, none overwritten (-2, -3 for the same second)");
+        Check(new ReinstallOptions { RemovePersonal = true }, "remove personal files");
+        Check(new ReinstallOptions { ResetSettings = true, RemoveSaves = true, RemovePersonal = true }, "a clean start");
+        Eq(5, Directory.GetDirectories(Path.Combine(target, "backups")).Length, "five backups, none overwritten (-2, -3... for the same second)");
         True(UserData.Find(target, InstallRecord.Load(target)).All(f => !f.Path.StartsWith("backups/", StringComparison.Ordinal)), "backups are never the player's files to reset");
     }),
     ("update: the HD pack unchanged is skipped (not downloaded), another pack replaces it and asks for the relight", () =>
