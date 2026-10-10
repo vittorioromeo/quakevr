@@ -89,6 +89,7 @@ bool wetLeaf(const qmodel_t* m, const mleaf_t* leaf)
 }
 
 jobs::Site layersSite{"water volume"}; // (its parallelFor: vr_jobs_sites)
+jobs::Site meshSite{"water mesh"};      // (buildMesh's rims and faces, a face at a time: vr_jobs_sites)
 
 void buildVolume(qmodel_t* m)
 {
@@ -981,7 +982,10 @@ void buildMesh(qmodel_t* m, float cell)
         hi = {f.maxs[0] + 0.1f, f.maxs[1] + 0.1f};
         return f.level;
     });
-    for(za::SizeT fi = 0; fi < faces.size(); fi++)
+    // (each face's own on the pool, then added to its group's in the faces' order: the same lists as one face after
+    // another)
+    jobs::parallelFor(meshSite, faces.size(), 16, [&](za::SizeT faceBegin, za::SizeT faceEnd) {
+    for(za::SizeT fi = faceBegin; fi < faceEnd; fi++)
     {
         const SrcFace& f = faces[fi];
         if(!f.level)
@@ -1023,11 +1027,21 @@ void buildMesh(qmodel_t* m, float cell)
                 }
                 else if(!open && runStart >= 0)
                 {
-                    rims[static_cast<za::SizeT>(f.group)].pushBack(
+                    faceRims[fi].pushBack(
                         {a + (b - a) * (static_cast<float>(runStart) / samples), a + (b - a) * (static_cast<float>(k) / samples)});
-                    faceRims[fi].pushBack(rims[static_cast<za::SizeT>(f.group)].back());
                     runStart = -1;
                 }
+            }
+        }
+    }
+    });
+    for(za::SizeT fi = 0; fi < faces.size(); fi++)
+    {
+        if(faces[fi].level)
+        {
+            for(const Segment& r : faceRims[fi])
+            {
+                rims[static_cast<za::SizeT>(faces[fi].group)].pushBack(r);
             }
         }
     }
@@ -1080,31 +1094,78 @@ void buildMesh(qmodel_t* m, float cell)
                m->surfaces[faces[static_cast<za::SizeT>(b)].surf].texinfo->texnum;
     });
     za::Vector<MeshVert> verts;
-    za::Vector<unsigned> fullIdx, flatIdx;
-    za::Vector<unsigned> faceFull, faceFlat;
-    ankerl::unordered_dense::map<za::U64, unsigned> index;
-    za::Vector<Poly> strips, pieces;
+    za::Vector<unsigned> fullIdx;
     za::Vector<int> meshFaceOf(faces.size());
-    for(int fi : order)
+    // Each face's vertices (shared within the face only) and triangles made on the pool, numbered from 0; then put
+    // after the faces before it, in order: the same vertices and indices as one face after another.
+    struct FaceMade
     {
+        za::Vector<MeshVert> verts;
+        za::Vector<unsigned> flat, full;
+    };
+    za::Vector<FaceMade> made(order.size());
+    jobs::parallelFor(meshSite, order.size(), 16, [&](za::SizeT orderBegin, za::SizeT orderEnd) {
+        ankerl::unordered_dense::map<za::U64, unsigned> index;
+        za::Vector<Poly> strips, pieces;
+        for(za::SizeT k = orderBegin; k < orderEnd; k++)
+        {
+            const SrcFace& f = faces[static_cast<za::SizeT>(order[k])];
+            FaceMade& fm = made[k];
+            const Affine affine(f);
+            index.clear();
+            const auto vertex = [&](const glm::vec3& p) {
+                const za::U64 key = (static_cast<za::U64>(za::llround(p.x * 16.f) & 0x1fffff) << 42) |
+                                          (static_cast<za::U64>(za::llround(p.y * 16.f) & 0x1fffff) << 21) |
+                                          static_cast<za::U64>(za::llround(p.z * 16.f) & 0x1fffff);
+                const auto it = index.find(key);
+                if(it != index.end())
+                {
+                    return it->second;
+                }
+                const unsigned v = static_cast<unsigned>(fm.verts.size());
+                fm.verts.pushBack(affine.at(p, !f.level ? 0.f : f.submerged ? -1.f : pinAt(f.group, p)));
+                index.emplace(key, v);
+                return v;
+            };
+            for(za::SizeT q = 2; q < f.poly.size(); q++)
+            {
+                fm.flat.pushBack(vertex(f.poly[0]));
+                fm.flat.pushBack(vertex(f.poly[q - 1]));
+                fm.flat.pushBack(vertex(f.poly[q]));
+            }
+            if(f.level)
+            {
+                strips.clear();
+                pieces.clear();
+                cutAlong(f.poly, 0, cell, strips);
+                for(const Poly& strip : strips)
+                {
+                    cutAlong(strip, 1, cell, pieces);
+                }
+                for(const Poly& piece : pieces)
+                {
+                    for(za::SizeT q = 2; q < piece.size(); q++)
+                    {
+                        fm.full.pushBack(vertex(piece[0]));
+                        fm.full.pushBack(vertex(piece[q - 1]));
+                        fm.full.pushBack(vertex(piece[q]));
+                    }
+                }
+            }
+        }
+    });
+    // Where each face's vertices and indices go (the faces in order: the full section, then the level faces' fans),
+    // then everything copied there on the pool.
+    za::Vector<unsigned> vertAt(order.size()), fullAt(order.size()), flatAt(order.size());
+    unsigned vertTotal = 0, fullTotal = 0, flatTotal = 0;
+    for(za::SizeT k = 0; k < order.size(); k++)
+    {
+        const int fi = order[k];
         const SrcFace& f = faces[static_cast<za::SizeT>(fi)];
         const msurface_t& s = m->surfaces[f.surf];
-        const Affine affine(f);
-        index.clear();
-        const auto vertex = [&](const glm::vec3& p) {
-            const za::U64 key = (static_cast<za::U64>(za::llround(p.x * 16.f) & 0x1fffff) << 42) |
-                                      (static_cast<za::U64>(za::llround(p.y * 16.f) & 0x1fffff) << 21) |
-                                      static_cast<za::U64>(za::llround(p.z * 16.f) & 0x1fffff);
-            const auto it = index.find(key);
-            if(it != index.end())
-            {
-                return it->second;
-            }
-            const unsigned v = static_cast<unsigned>(verts.size());
-            verts.pushBack(affine.at(p, !f.level ? 0.f : f.submerged ? -1.f : pinAt(f.group, p)));
-            index.emplace(key, v);
-            return v;
-        };
+        const FaceMade& fm = made[k];
+        vertAt[k] = vertTotal;
+        vertTotal += static_cast<unsigned>(fm.verts.size());
 
         MeshFace out;
         out.texnum = s.texinfo->texnum;
@@ -1132,45 +1193,16 @@ void buildMesh(qmodel_t* m, float cell)
             mesh.lava.pushBack(ZA_MOVE(top));
         }
 
-        faceFlat.clear();
-        for(za::SizeT k = 2; k < f.poly.size(); k++)
-        {
-            faceFlat.pushBack(vertex(f.poly[0]));
-            faceFlat.pushBack(vertex(f.poly[k - 1]));
-            faceFlat.pushBack(vertex(f.poly[k]));
-        }
-        faceFull.clear();
+        out.full = fullTotal;
+        out.fullCount = static_cast<unsigned>(f.level ? fm.full.size() : fm.flat.size());
+        fullAt[k] = fullTotal;
+        fullTotal += out.fullCount;
         if(f.level)
         {
-            strips.clear();
-            pieces.clear();
-            cutAlong(f.poly, 0, cell, strips);
-            for(const Poly& strip : strips)
-            {
-                cutAlong(strip, 1, cell, pieces);
-            }
-            for(const Poly& piece : pieces)
-            {
-                for(za::SizeT k = 2; k < piece.size(); k++)
-                {
-                    faceFull.pushBack(vertex(piece[0]));
-                    faceFull.pushBack(vertex(piece[k - 1]));
-                    faceFull.pushBack(vertex(piece[k]));
-                }
-            }
-        }
-        else
-        {
-            faceFull = faceFlat;
-        }
-        out.full = static_cast<unsigned>(fullIdx.size());
-        out.fullCount = static_cast<unsigned>(faceFull.size());
-        fullIdx.emplaceBackRange(faceFull.data(), faceFull.size());
-        if(f.level)
-        {
-            out.flat = static_cast<unsigned>(flatIdx.size()); // offset by the full ones' below
-            out.flatCount = static_cast<unsigned>(faceFlat.size());
-            flatIdx.emplaceBackRange(faceFlat.data(), faceFlat.size());
+            out.flat = flatTotal; // offset by the full ones' below
+            out.flatCount = static_cast<unsigned>(fm.flat.size());
+            flatAt[k] = flatTotal;
+            flatTotal += out.flatCount;
         }
         else
         {
@@ -1181,7 +1213,33 @@ void buildMesh(qmodel_t* m, float cell)
         meshFaceOf[static_cast<za::SizeT>(fi)] = static_cast<int>(mesh.faces.size());
         mesh.faces.pushBack(out);
     }
-    const unsigned flatBase = static_cast<unsigned>(fullIdx.size());
+    const unsigned flatBase = fullTotal;
+    verts.resize(vertTotal);
+    fullIdx.resize(static_cast<za::SizeT>(fullTotal) + flatTotal);
+    jobs::parallelFor(meshSite, order.size(), 64, [&](za::SizeT orderBegin, za::SizeT orderEnd) {
+        for(za::SizeT k = orderBegin; k < orderEnd; k++)
+        {
+            const FaceMade& fm = made[k];
+            const bool level = faces[static_cast<za::SizeT>(order[k])].level;
+            const unsigned base = vertAt[k];
+            for(za::SizeT v = 0; v < fm.verts.size(); v++)
+            {
+                verts[base + v] = fm.verts[v];
+            }
+            const za::Vector<unsigned>& full = level ? fm.full : fm.flat;
+            for(za::SizeT i = 0; i < full.size(); i++)
+            {
+                fullIdx[fullAt[k] + i] = base + full[i];
+            }
+            if(level)
+            {
+                for(za::SizeT i = 0; i < fm.flat.size(); i++)
+                {
+                    fullIdx[flatBase + flatAt[k] + i] = base + fm.flat[i];
+                }
+            }
+        }
+    });
     for(MeshFace& face : mesh.faces)
     {
         if(face.flatCount & 0x80000000u)
@@ -1193,7 +1251,6 @@ void buildMesh(qmodel_t* m, float cell)
             face.flat += flatBase;
         }
     }
-    fullIdx.emplaceBackRange(flatIdx.data(), flatIdx.size());
 
     // The leaves each face is in, for the PVS.
     za::Vector<za::Vector<int>> faceLeaves(mesh.faces.size());
@@ -1225,9 +1282,33 @@ void buildMesh(qmodel_t* m, float cell)
     {
         rimCount += r.size();
     }
-    Con_DPrintf("VR water: geometric waves' mesh: %d faces, %d vertices, %d triangles, %g-unit cells, %d rim segments\n",
-        static_cast<int>(mesh.faces.size()), static_cast<int>(verts.size()), static_cast<int>(flatBase / 3), cell,
-        static_cast<int>(rimCount));
+    if(developer.value)
+    {
+        // (FNV-1a of the vertices, the indices, the faces' ranges and the rims: the same mesh whatever the threads)
+        za::U32 hash = 2166136261u;
+        const auto mix = [&hash](const void* data, za::SizeT bytes) {
+            for(za::SizeT i = 0; i < bytes; i++)
+            {
+                hash = (hash ^ static_cast<const byte*>(data)[i]) * 16777619u;
+            }
+        };
+        mix(verts.data(), verts.size() * sizeof(MeshVert));
+        mix(fullIdx.data(), fullIdx.size() * sizeof(unsigned));
+        for(const MeshFace& face : mesh.faces)
+        {
+            const unsigned ranges[6] = {face.full, face.fullCount, face.flat, face.flatCount,
+                static_cast<unsigned>(face.firstLeaf), static_cast<unsigned>(face.numLeaves)};
+            mix(ranges, sizeof(ranges));
+        }
+        for(const auto& r : rims)
+        {
+            mix(r.data(), r.size() * sizeof(Segment));
+        }
+        Con_DPrintf("VR water: geometric waves' mesh: %d faces, %d vertices, %d triangles, %g-unit cells, %d rim segments "
+                    "(hash %08x)\n",
+            static_cast<int>(mesh.faces.size()), static_cast<int>(verts.size()), static_cast<int>(flatBase / 3), cell,
+            static_cast<int>(rimCount), hash);
+    }
     recordPins(verts, cell); // the surface's height on the CPU (surfaceRise)
 }
 
