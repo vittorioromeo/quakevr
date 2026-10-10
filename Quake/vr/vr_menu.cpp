@@ -2805,7 +2805,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("The training dummy's health over its head, as a bar and a number, turned to face you. Off: its sign only."),
         header("Marks"),
         toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
-        slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many: 1024 or more."),
+        slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many; more cost GPU time where they pile up (768 shipped)."),
         slider("Decal Lifetime", vr_decal_life, 10.f, 600.f, 10.f, "%.0f s").extend(),
         toggle("Gib Blood", vr_gib_blood).help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
         slider("Gib Blood Trail", vr_gib_blood_trail, 0.f, 3.f, 0.25f, "%.2fx").extend().help("How dense their trail of blood and drops is (0 none)."),

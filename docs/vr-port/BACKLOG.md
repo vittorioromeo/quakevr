@@ -71,6 +71,16 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   carried, the spin left to the engine), and where thinking resolution would be lost (engine-side knocks, unless the
   engine wakes the pickup). Small absolute gain (QuakeC is ~0.07 ms a frame): review, then decide.
 
+## Later (the author, 2026-10-11, before 1.0.0: "Make sure everything is in the backlog for later")
+
+### Performance
+
+- **Optimise decals** (PERF_DECISIONS.md 15): in a rocket fight (`play_e1m1_lights`) ~900 marks are 1.34 ms of the
+  world pass's 2.67 at 2048 per eye, about half (~2.4 ms at his 2782 eyes); each pixel walks its cell's bucket (up to
+  64 marks, a whole 80-byte record each before its early-out). Reading a mark's normal and middle first was tried and
+  reverted (no gain, 0.6-0.9% of the pixels changed). `vr_decal_max` lowered to 768 meanwhile (config version 118).
+  Leads: fewer marks a bucket, a smaller record or a cheaper early-out, merging overlapping marks.
+
 ## Left open by finished plans (2026-10-09)
 
 ### Stealth AI: limits (STEALTH.md; open since it was built, 2026-10-08)

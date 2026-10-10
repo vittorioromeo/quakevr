@@ -404,7 +404,7 @@ built-in ones.
 | `vr_positional_damage` | 1 | headshots, arm and leg shots |
 | `vr_push` | 0.6 (shipped) | all knockback |
 | `vr_gore` | 2 | 0 Quake VR's blood only, 1 more, 2 over the top |
-| `vr_decals`, `vr_decal_max`, `vr_decal_life` | 1, 1024, 240 (shipped) | blood and scorch marks |
+| `vr_decals`, `vr_decal_max`, `vr_decal_life` | 1, 768, 240 (shipped) | blood and scorch marks |
 
 ### HUD and menus
 

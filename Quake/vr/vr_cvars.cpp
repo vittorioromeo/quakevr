@@ -655,8 +655,11 @@ const DefaultChange defaultChanges[] = {
     // 117: an 8192 shadow atlas (the author, 2026-10-09: eight lights' shadows at full size; with 4096 a retro hard
     // shadow showed halving): compiled in now (vr_defaults.cfg had it), and a config at the old 4096 takes it.
     {117, &vr_shadow_atlas, "4096"},
+    // 118: 768 marks kept, not 1024 (the author, 2026-10-11: "Lower the default to 768"; PERF_DECISIONS 15: the marks
+    // are about half the world's GPU pass in a gory fight). A config at the old default takes it.
+    {118, &vr_decal_max, "1024"},
 };
-constexpr int configVersion = 117;
+constexpr int configVersion = 118;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
