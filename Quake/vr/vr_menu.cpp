@@ -2839,9 +2839,9 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageTips()
 {
     return {
-        cycle("Tips", vr_tips, {{0.f, "Off"}, {1.f, "Floating panel"}, {2.f, "Wrist gadget"}})
+        cycle("Tips", vr_tips, {{0.f, "Off"}, {1.f, "Floating Panel"}, {2.f, "Wrist Gadget"}})
             .help("Tips for new players, each shown once: the first time you come near something you can use (a wall "
-                  "torch). Floating panel: a screen like the maps' text boards by it, with a cable to it. Wrist gadget: in the gadget's hologram, waiting until "
+                  "torch). Floating Panel: a screen like the maps' text boards by it, with a cable to it. Wrist Gadget: in the gadget's hologram, waiting until "
                   "you look at it (it chimes and buzzes); the panel if the HUD is not the gadget."),
         slider("Distance", vr_tips_distance, 50.f, 400.f, 10.f, "%.0f").extend(16.f, 2000.f)
             .help("How near you must come to what a tip is about (in Quake units: about 40 a metre)."),
@@ -2852,10 +2852,11 @@ void hologramTestMessage()
             .help("How long it must stay near and seen before the tip shows."),
         slider("Time Shown", vr_tips_time, 3.f, 30.f, 1.f, "%.0f s").extend(1.f, 120.f)
             .help("How long a tip shows (on the gadget: once you look at it)."),
-        cycle("Panel Facing", vr_tips_facing, {{0.f, "Towards your eyes"}, {1.f, "Square to your view"}})
+        cycle("Panel Facing", vr_tips_facing, {{0.f, "Towards Your Eyes"}, {1.f, "Square to Your View"}})
             .help("Towards your eyes: the floating screen turns to face you and stays level. Square to your view: it is "
                   "always flat in front of you, as if on your view, tilting as you tilt your head."),
-        slider("Panel Text Size", vr_tips_size, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.25f, 4.f),
+        slider("Panel Text Size", vr_tips_size, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
+            .help("How big the writing on a tip's floating panel is."),
         command("Show Tips Again", "vr_tips_reset").help("Every tip as never shown: each shows again the next time."),
         command("Show the Torch Tip Now", "vr_tips_test walltorch")
             .help("The wall torch tip on the nearest wall torch in view, as soon as you close the menu (however far; it is "
@@ -5569,6 +5570,8 @@ za::Vector<Item> pageDebugTools()
         cycle("Calibration Trace", "vr_setup_debug", {{0.f, "Off"}, {1.f, "Steps"}, {2.f, "Every Frame"}})
             .help("vr_setup_debug: each step as it starts and, at the summary, how many frames the stickman showed and "
                   "was hidden since it first showed (a hidden frame printed as it happens). Every Frame: one line a frame."),
+        command("List the Standard Menu's Texts", "vr_menu_dump 0")
+            .help("vr_menu_dump [0-2]: every page's rows, choices and help texts at that Menu Detail (0 Standard, 1 Advanced, 2 Developer) as MD| lines in the console: the copy review."),
         command("Check the Boards' Menu Paths", "vr_menu_path_check")
             .help("vr_menu_path_check: every menu page this map's boards name, with its path; a missing one prints MENU PATH MISSING."),
         header("Toolgun"),
@@ -7816,7 +7819,7 @@ za::Vector<Item> pageMain()
                   "Quake."),
 
         header("Comfort"),
-        cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and turning"}, {2.f, "Moving only"}, {3.f, "Turning only"}})
+        cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and Turning"}, {2.f, "Moving Only"}, {3.f, "Turning Only"}})
             .help("Darkens the edges of your view while the sticks move or turn you: it eases motion sickness for many. "
                   "Your own steps in the room never do it."),
         slider("Vignette Strength", vr_comfort_vignette_strength, 0.1f, 1.f, 0.1f, "%.1f")
@@ -7855,8 +7858,8 @@ za::Vector<Item> pageMain()
     list.pushBackMultiple(
         header("Flashlight"),
         toggle("Flashlight", vr_flashlight)
-            .help("A torch on your belt: trigger at it with an open hand switches it on or off; grip takes it in your "
-                  "hand."),
+            .help("A torch on your belt: pull the trigger with an open hand at it to switch it on or off; press the grip "
+                  "to take it in your hand."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}})
             .help("The side of your chest the torch hangs on."),
 
@@ -7870,8 +7873,8 @@ za::Vector<Item> pageMain()
         header("Weapons"),
         cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}})
             .help("Hold: keep the grip pressed to hold a weapon. Sticky: a press takes it, another lets it go."),
-        cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}})
-            .help("Hold a gun with both hands to steady it. Virtual stock: a gun brought near your shoulder also aims "
+        cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual Stock"}})
+            .help("Hold a gun with both hands to steady it. Virtual Stock: a gun brought near your shoulder also aims "
                   "from it, as against a real stock."),
         cycle("Reloading Mode", vr_reload_mode, reloadChoices())
             .help("Guns have magazines. Immersive: the shotgun is loaded a shell at a time from the ammo pouch on your "
@@ -7889,7 +7892,7 @@ za::Vector<Item> pageMain()
                   "so a stray knock never starts it); Single Tap, one hard tap."),
 
         header("Body"),
-        cycle("Body Type", vr_body_mode, {{3.f, "Full"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})
+        cycle("Body Type", vr_body_mode, {{3.f, "Full Body"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})
             .help("How much of your body you see: all of it, legs and all; the torso and arms; or only the hands."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}})
             .help("The arm the wrist gadget (health, armour and ammo) is on."),
@@ -7906,8 +7909,8 @@ za::Vector<Item> pageMain()
             .help("How strongly the controllers vibrate (0: never)."),
 
         header("HUD"),
-        cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}})
-            .help("Wrist gadget: health, armour and ammo on your wrist. Status bar: Quake's, on a hand."),
+        cycle("HUD", vr_hud_mode, {{1.f, "Wrist Gadget"}, {0.f, "Status Bar"}})
+            .help("Wrist Gadget: health, armour and ammo on your wrist. Status Bar: Quake's, on a hand."),
         cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}})
             .help("A mark where your gun aims: a dot, or a laser beam from the muzzle."),
 
@@ -7983,13 +7986,16 @@ za::Vector<Item> pageMain()
             .help("How big the world feels around you (1.25: Quake's sizes as a person sees them)."),
         slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f).advanced()
             .help("Moves the floor up or down: change it if you feel you are floating or sunk in the floor."),
-        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
-        cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
-        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
-        toggle("Holster Models", vr_leg_holster_model_enabled),
+        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): pull the trigger with an open hand at it to switch it on or off; press the grip to take it. B or Y clips it on a gun or on your head."),
+        cycle("Body", vr_body_mode, {{0.f, "Only Hands"}, {2.f, "Torso and Arms"}, {3.f, "Full Body"}})
+            .help("How much of your body you see: only the hands; the torso and arms; or all of it, legs and all."),
+        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
+            .help("The shape of the body you see."),
+        toggle("Holster Models", vr_leg_holster_model_enabled)
+            .help("Draws the holsters on your body, with a gun in each one that holds one."),
 
         header("Display"),
-        cycle("Status Bar", vr_sbar_mode, {{1.f, "Off hand"}, {0.f, "Main hand"}}).help("The hand Quake's status bar is on (HUD: Status bar)."),
+        cycle("Status Bar", vr_sbar_mode, {{1.f, "Off Hand"}, {0.f, "Main Hand"}}).help("The hand Quake's status bar is on (HUD: Status bar)."),
         toggle("Desktop Mirror", vr_mirror)
             .help("The headset's view in the desktop window. Which eye, both, smoothed or a spectator camera: Recording "
                   "(Window View)."),
@@ -8010,8 +8016,8 @@ za::Vector<Item> pageMain()
 {
     return {
         header("Headset"),
-        toggle("VR", vr_enabled),
-        action("Restart VR", restartVr),
+        toggle("VR", vr_enabled).help("Off: play on the desktop screen, flat, without the headset."),
+        action("Restart VR", restartVr).help("Starts the headset again: if the picture froze or stayed black, or after changing the runtime."),
         cycle("OpenXR Runtime", vr_xr_runtime, {{4.f, "Auto"}, {0.f, "System default"}, {1.f, "Virtual Desktop (VDXR)"}, {2.f, "SteamVR"}})
             .help("Which OpenXR runtime runs the headset; VR restarts. Auto: the one whose app is running (Virtual Desktop: the runtime picked in its Streamer's OpenXR Runtime option; VDXR, which skips SteamVR, unless SteamVR is picked there), else the system's. Keep Virtual Desktop's 'Emulate Index controllers' off."),
         info(xrRuntimeLine),
@@ -11672,6 +11678,37 @@ void qvr::menu::pathCheck_f()
     }
     Con_Printf("menu paths: %d found, %d missing\n", found, missing);
     VR_HeapFree(file);
+}
+
+// vr_menu_dump [level 0-2]: every page shown at that Menu Detail (default 0, Standard), its rows' labels, choices and help,
+// as "MD|" lines in the console (the copy review: typos, wording, rows in the wrong level).
+void qvr::menu::dump_f()
+{
+    const int level = CLAMP(0, Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0, LevelCount - 1);
+    const int was = levelOverride;
+    levelOverride = level;
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(pages[p].level > level)
+        {
+            continue;
+        }
+        Con_Printf("MD|PAGE|%d|%s\n", p, pages[p].title);
+        for(const Item& item : items(p))
+        {
+            const char* kind = item.kind == Item::Header ? "HEAD" : item.kind == Item::Slider ? "SLID" :
+                item.kind == Item::Cycle ? "CYCL" : item.kind == Item::Action ? "ACT" : "INFO";
+            za::String choices;
+            for(const Choice& c : item.choices)
+            {
+                choices += c.label;
+                choices += " / ";
+            }
+            const char* label = item.label ? item.label : (item.info ? item.info() : "");
+            Con_Printf("MD|%s|%s|%s|%s\n", kind, label ? label : "", choices.cStr(), item.helpText ? item.helpText : "");
+        }
+    }
+    levelOverride = was;
 }
 
 int qvr::menu::bodyCalibrationPage()

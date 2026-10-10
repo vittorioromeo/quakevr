@@ -22,6 +22,8 @@ bool pathTo(za::StringView spec, za::String& out);
 // vr_menu_path_check [file or text]: every {menu:...} in the loaded map's entities, a file or the text given; "menu paths: N
 // found, M missing".
 void pathCheck_f();
+// vr_menu_dump [level]: the pages' texts as MD| console lines (the copy review).
+void dump_f();
 // The Body Calibration page's number (menu::reopen).
 [[nodiscard]] int bodyCalibrationPage();
 [[nodiscard]] int retroOverridePage(); // Graphics > Retro Textures > Override (vr_retro.cpp's picks)

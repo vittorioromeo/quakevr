@@ -386,7 +386,7 @@ void finish()
     S_LocalSound("misc/talk.wav");
     Con_Printf(!inRoom()          ? "VR Calibration: done.\n"
                : exitToTutorial() ? "VR Calibration: done. The glowing doorway behind you leads to the tutorial.\n"
-                                  : "VR Calibration: done. The glowing doorway behind you leads to the VR hub.\n");
+                                  : "VR Calibration: done. The glowing doorway behind you leads to the VR Hub.\n");
     if(vr_setup_debug.value != 0.f)
     {
         Con_Printf("vr_setup_debug: the stickman %s: shown %d frames, hidden %d since it first showed (menu frames not "
@@ -643,7 +643,7 @@ void flowFrame()
             {
                 // Where its doorway leads: the tutorial at a first start (QC changelevel_touch), else the hub.
                 text += exitToTutorial() ? "The glowing doorway behind you\nleads to the tutorial."
-                                         : "The glowing doorway behind you\nleads to the VR hub.";
+                                         : "The glowing doorway behind you\nleads to the VR Hub.";
             }
             if(now - flow.start >= doneSeconds || key_dest == key_menu)
             {
@@ -748,6 +748,7 @@ void init()
     Cmd_AddCommand("vr_setup_skip", skip_f);
     Cmd_AddCommand("vr_setup_stop", stop_f);
     Cmd_AddCommand("vr_menu_path_check", menu::pathCheck_f);
+    Cmd_AddCommand("vr_menu_dump", menu::dump_f);
 }
 
 void frame()

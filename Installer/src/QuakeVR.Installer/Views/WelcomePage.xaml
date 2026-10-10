@@ -135,7 +135,7 @@
                     <StackPanel>
                         <TextBlock Style="{StaticResource Body}" FontWeight="SemiBold" ><Run Language="it-it" Text="Enhances maps and graphics"/></TextBlock>
                         <TextBlock Style="{StaticResource Small}" Margin="0,3,0,0"
-                                   ><Run Text="HD textures"/><Run Text=", "/><Run Text="relit maps"/><Run Text=", dynamic lights, and parallax mapping -- filtered through customizable retro shaders"/><Run Language="it-it" Text="."/></TextBlock>
+                                   ><Run Text="HD textures"/><Run Text=", "/><Run Text="relit maps"/><Run Text=", dynamic lights, and parallax mapping, all filtered through customisable retro shaders"/><Run Language="it-it" Text="."/></TextBlock>
                     </StackPanel>
                 </DockPanel>
                 <DockPanel>
