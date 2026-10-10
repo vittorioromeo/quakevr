@@ -206,8 +206,9 @@ them all, and each page's *Reset This Page* puts its settings back. [docs/SETTIN
   natively in single player, when you own them.
 - **Map Library:** browse [Quaddicted](https://www.quaddicted.com/)'s custom maps and download, install, uninstall and
   play them in the game. **Other mods** run in a compatibility mode.
-- **Multiplayer and bots** (FrikBot), with a fixed 72 Hz server tick; flat-screen play (`vr_enabled 0`, or the
-  *flat screen* shortcut).
+- **Multiplayer and bots** (FrikBot), with a fixed 72 Hz server tick: **work in progress**, expect rough edges and
+  missing features in co-op and deathmatch.
+- **Flat-screen play** (`vr_enabled 0`, or the *flat screen* shortcut).
 - **For recording and testing:** a spectator camera, slow motion and highlight markers for trailers; voice notes, an
   in-game checklist, a motion recorder and debug pages for playtesters.
 
