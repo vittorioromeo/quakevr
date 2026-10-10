@@ -477,6 +477,17 @@ QVR_CVAR(vr_xr_steamvr_wait, "5", CVAR_ARCHIVE)
 // keepGraphicsModules: NVIDIA's OpenGL driver crashed the game reading VDXR's d3d11.dll once unloaded); 0 they go
 // with it (the old way, for the tests).
 QVR_CVAR(vr_xr_keep_graphics_dlls, "1", CVAR_NONE)
+// 1: a crash inside the OpenXR runtime while the game creates its swapchains, enumerates their images or stops it (an
+// access violation: VDXR 1.1.0's null read in xrEnumerateSwapchainImages, 1.0.1) is caught: logged, that start fails
+// (Auto tries the next runtime, else flat) instead of the game; 0 the game crashes with its report (for a debugger).
+QVR_CVAR(vr_xr_guard, "1", CVAR_NONE)
+// 1: the next eye swapchain is requested with no GL context current (once; the game makes it current again first,
+// logged: the test of that check, Misc/quakevr/xr_runtime_test.sh part 7).
+QVR_CVAR(vr_xr_test_drop_context, "0", CVAR_NONE)
+// The implicit OpenXR API layers installed (overlays, toolkits, capture tools: between the game and the runtime, listed in
+// qvr_openxr.txt): 1 the loader loads them as usual; 0 each one is turned off by its manifest's disable_environment
+// variable, from the next VR start (a workaround when one breaks the runtime: VDXR crashed in 1.0.0).
+QVR_CVAR(vr_xr_api_layers, "1", CVAR_ARCHIVE)
 // While the runtime's own menu has the focus (the session VISIBLE, not FOCUSED: SteamVR's dashboard, Virtual Desktop's
 // or Meta's menu): 1 the eyes are not rendered, the last frame is shown again (world-locked: the runtime reprojects
 // it; the GPU left to the runtime's menu); 0 they are rendered as usual.

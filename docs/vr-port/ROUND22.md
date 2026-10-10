@@ -416,3 +416,88 @@ We have no AMD GPU, so the exact construct is not pinned down.
 - `qconsole.log` from a start with `-condebug` (beside `ironwail.exe`).
 - Whether shadows look right in a map with lights. The layered casters stay on for AMD.
 - Optionally, to pin down the culprit for a real fix: one start with `+vr_gl_workarounds 0` (bindless back on) on 1.0.1, whose crash report then names the last program compiled and the main thread's GL call. Also tell them to reset Adrenalin's shader cache (Graphics > Advanced) if anything still crashes.
+
+## VDXR swapchain crash: runtime crashes caught, every request logged (1.0.1, 2026-10-10, worktree `vdxr`)
+
+**The report.** A player (Quest 3, Virtual Desktop, RTX 4060 Ti, driver 617.14) crashed at 1.0.0's first VR start: an
+access violation reading 0x0 in `virtualdesktop-openxr.dll+0x9a668`, under the game's `createSwapchain` (line 768).
+Later, with `+vr_xr_runtime 2`, SteamVR 2.17.10 stopped at the same point in his log. His log had `d3d11.dll` and
+`dxgi.dll` loaded before OpenXR started; the author's has neither.
+
+**What the crash was, from the binaries.** The author's VDXR is the player's exact build: 1.1.0, VD Streamer 1.34.23,
+linked 2026-09-07. In it, `+0x5689a` (the frame above) comes right after VDXR's virtual `xrEnumerateSwapchainImages`
+call. Read with dumpbin:
+- The loader frame is `xrEnumerateSwapchainImages`, not `xrCreateSwapchain`: `+0x86f9a` is in that function once the
+  export's jump thunk is followed. Line 768 is the return address after the game's second call, the one that fills the
+  image list.
+- VDXR's OpenGL image function (`+0x9a310`) assumes a swapchain is set up whenever its list of D3D11 images is not
+  empty, and copies `glImages[i]` from it. The D3D11 images are fetched, and added to that list one by one, before the
+  image structs' type is checked. So a call that failed the type check (`XR_ERROR_VALIDATION_FAILURE`), or that threw
+  part way, leaves the D3D11 list full and the GL list empty. The game's own fill call then reads element 0 of the empty
+  GL list: the null read.
+- The game's own calls can't cause this. Per swapchain it makes one count call, which returns before any fetch, and one
+  fill call. Another caller must have enumerated first: most likely an implicit API layer or a hook that enumerates the
+  game's swapchain as D3D11 or Vulkan images. That would also explain SteamVR failing. Not proven: the next logs list
+  the layers and DLLs.
+
+**Changes** (`vr_backend_openxr.cpp`, `vr_xr_runtime.cpp`, `vr_crash.cpp`):
+- **Crashes inside the runtime are caught** (`vr_xr_guard 1`, Debug > Crashes > Runtime Crash Guard).
+  - Guarded calls, each under a structured exception handler: `xrCreateSession`, `xrCreateSwapchain`, both
+    `xrEnumerateSwapchainImages` calls, and the destroy calls.
+  - On a crash: it is logged with its module and offset, the runtime is marked as crashed, and that VR start fails. Auto
+    then tries the next runtime, else the game plays flat, and the console says what to change.
+  - The eye swapchains get one more try in plain `GL_RGBA8`. This is logged, with a warning that the colours look paler.
+  - VDXR's lock is a scoped lock in a frame that can throw, so it is released when the stack unwinds. If the same thread
+    locked it again it would not hang (MSVC's `_Mtx_lock`).
+- **Every request is logged before its call**, as a breadcrumb (`VR_GLStep`: the crash report's "Last GL steps", and
+  `gl_startup.log`) and in `qvr_openxr.txt`:
+  - `xrCreateInstance`, `xrGetSystem`, `xrCreateSession` (with hDC and hGLRC), `xrEnumerateSwapchainFormats`;
+  - each swapchain's request (left eye, right eye, panel): size, format, usage, samples, faces, array, mips;
+  - both enumerate calls.
+- **Validation**, each failure clean and named:
+  - the format must be one the runtime offered, and the size within the system's largest;
+  - the enumerate results are checked: 1 to 64 images, none of them texture 0.
+- **The GL context** (the coordinator's lead), checked before `xrCreateSession` and before each `xrCreateSwapchain` and
+  fill call:
+  - the context and DC bound to the session must be the ones current on this thread, the DC's window must still exist,
+    and SDL must agree;
+  - both handles and the thread are logged;
+  - if the context is not current it is made current again (logged); if that fails, the call is not made.
+  - Test: `vr_xr_test_drop_context 1`, also in Debug > Crashes.
+- **The crash report has a `VR:` line**: the runtime and its version, the attempt, the implicit API layers (on or off),
+  the known overlays' DLLs, the headset, and the last OpenXR step.
+- **`vr_xr_runtime_explain` and each start's log** list:
+  - every implicit API layer, from both HKLM and HKCU `...\ApiLayers\Implicit`, with its library and its state
+    (registry, `disable_environment`, `enable_environment`);
+  - every other program's DLL in the process, naming the known ones: RTSS, Steam, Discord, OBS, ReShade, NVIDIA,
+    Overwolf, VD's injector, and proxies of system DLLs next to the exe;
+  - the GL interop entry points: `GL_EXT_memory_object_win32` (which VDXR's code uses) and `WGL_NV_DX_interop2`.
+- **`vr_xr_api_layers 0`** (Debug > Crashes > OpenXR API Layers): from the next VR start, every implicit layer is turned
+  off by its own `disable_environment` variable. Verified on the author's PC: OBS's mirror layer DLL is then no longer
+  loaded.
+- **When SteamVR doesn't find the headset** within `vr_xr_steamvr_wait`, the log now says to start SteamVR first or
+  raise the wait. A SteamVR that the game's start launched can take longer than 5 s; Auto then went on to VDXR, which
+  may be why the player's first try of SteamVR gave "the same result".
+
+**Tests**: `Misc/quakevr/xr_runtime_test.sh` part 7, 69 checks, all pass. The fake runtime gets two switches,
+`FAKEXR_FAULT_IMAGES` and `FAKEXR_FAULT_SRGB`, that make its image enumeration read a null pointer as VDXR's does.
+- Only the sRGB swapchains crash: caught, the GL_RGBA8 retry works, and VR runs.
+- Every swapchain crashes: VDXR's fake is destroyed and SteamVR's fake starts. A later `vr_crash_test av` report has the
+  `VR:` line.
+- No context current: it is made current again, and the runtime always sees it current.
+
+Part 4's check of the timing line's order was flaky on a fast machine (the fake headset's frames aren't paced). It is
+now a check of its own.
+
+**What to ask the player**
+- On 1.0.1 or a test build: `quakevr\qvr_openxr.txt` and the whole `quakevr\crash` folder (`gl_startup.log` and the
+  report). They show the layers (`implicit OpenXR API layers`), the other DLLs, the context lines before each swapchain,
+  and the step that died.
+- His VD version (Streamer > About) and SteamVR version.
+- Whether OpenXR Toolkit, OBS's OpenXR mirror, fpsVR, OpenKneeboard, ReShade or another XR overlay is installed.
+- How he starts the game (Steam, with its overlay?), and whether RTSS/Afterburner, Discord or the NVIDIA overlay runs.
+- **Workarounds**, to try in order:
+  1. `+vr_xr_api_layers 0`.
+  2. Close the overlays, or turn off Steam's in-game overlay.
+  3. Start SteamVR from VD's menu, then the game with `+vr_xr_runtime 2`: SteamVR only, no fallback. (`vr_xr_runtime`:
+     0 the system's active runtime, 1 VDXR, 2 SteamVR, 3 a manifest, 4 Auto.)

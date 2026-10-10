@@ -12,6 +12,8 @@
 //   FAKEXR_EYE            WxH, the eyes' recommended size (400x440)
 //   FAKEXR_SYSTEM         the headset's name (systemName: "FakeXR headset"), e.g. "Meta Quest 3" (its panel known)
 //   FAKEXR_UNFOCUS        a-b: the session VISIBLE (not focused: as with SteamVR's dashboard) from xrWaitFrame a to b
+//   FAKEXR_FAULT_IMAGES   copies whose xrEnumerateSwapchainImages crashes filling the images (a null read, as VDXR
+//                         1.1.0's did: the game's vr_xr_guard catches it); FAKEXR_FAULT_SRGB: only sRGB swapchains'
 //   FAKEXR_D3D11          copies that load d3d11.dll at xrCreateInstance and free it at xrDestroyInstance (as VDXR
 //                         does), logging whether it is still loaded after (the game keeps it: vr_backend_openxr.cpp)
 //
@@ -155,6 +157,7 @@ struct FakeSwapchain
     uint32_t next{0};
     bool everReleased{false};
     bool releasedSinceEnd{false};
+    int64_t format{0};
 };
 
 struct Headset
@@ -332,6 +335,11 @@ XRAPI_ATTR XrResult XRAPI_CALL createSwapchain(XrSession, const XrSwapchainCreat
         }
         sc = FakeSwapchain{};
         sc.handle = hs.nextHandle++;
+        sc.format = info->format;
+        if(!wglGetCurrentContext())
+        {
+            log("xrCreateSwapchain: NO GL CONTEXT CURRENT");
+        }
         // In the game's context (current on this thread), its bindings kept.
         GLint texture = 0, unpack = 0;
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
@@ -385,6 +393,13 @@ XRAPI_ATTR XrResult XRAPI_CALL enumerateSwapchainImages(
         return XR_ERROR_HANDLE_INVALID;
     }
     *count = imageCount;
+    // VDXR 1.1.0's crash (1.0.1): a null read filling the images, in the runtime.
+    if(capacity > 0 && (listed("FAKEXR_FAULT_IMAGES") || (sc->format == glSrgb8Alpha8 && listed("FAKEXR_FAULT_SRGB"))))
+    {
+        log("xrEnumerateSwapchainImages: crashing (FAKEXR_FAULT_*)");
+        volatile const unsigned* nowhere = nullptr;
+        return static_cast<XrResult>(*nowhere);
+    }
     auto* gl = reinterpret_cast<XrSwapchainImageOpenGLKHR*>(images);
     for(uint32_t i = 0; i < capacity && i < imageCount; i++)
     {

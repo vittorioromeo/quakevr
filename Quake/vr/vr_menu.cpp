@@ -5153,6 +5153,18 @@ za::Vector<Item> pageDebugProfiling()
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
         command("Retry the Full Renderer", "vr_glsafe_retry")
             .help("vr_glsafe_retry: the automatic safe mode (kept after a start that crashed) off from the next start."),
+        header("Startup (OpenXR runtime)"),
+        toggle("Runtime Crash Guard", vr_xr_guard)
+            .help("vr_xr_guard: a crash inside the OpenXR runtime while the game makes its eye images or stops it is caught "
+                  "and logged (qvr_openxr.txt): that VR start fails, Auto tries the next runtime, else the game plays flat. "
+                  "Off: the game crashes with its report."),
+        toggle("OpenXR API Layers", vr_xr_api_layers)
+            .help("vr_xr_api_layers, from the next VR start: off turns off every implicit OpenXR API layer installed "
+                  "(overlays, toolkits, capture tools between the game and the runtime) by its own switch. "
+                  "vr_xr_runtime_explain lists them, and the other programs' DLLs in the game."),
+        toggle("Test: No GL Context at the Next VR Start", vr_xr_test_drop_context)
+            .help("vr_xr_test_drop_context 1: the next eye swapchain is requested with no GL context current (once): the "
+                  "game makes its context current again first and logs it in qvr_openxr.txt. Then vr_restart."),
     };
 }
 
@@ -5168,7 +5180,7 @@ za::Vector<Item> pageDebugReports()
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
         command("OpenXR Runtime Choice", "vr_xr_runtime_explain")
-            .help("vr_xr_runtime_explain: what VR Settings > Headset > OpenXR Runtime chooses now and why: the runtimes installed and running, the order they are tried in. Each VR start is logged in qvr_openxr.txt in the game folder (quakevr): what was tried, what the loader loaded, what failed."),
+            .help("vr_xr_runtime_explain: what VR Settings > Headset > OpenXR Runtime chooses now and why: the runtimes installed and running, the order they are tried in, the OpenXR API layers installed and the other programs' DLLs in the game (overlays). Each VR start is logged in qvr_openxr.txt in the game folder (quakevr): what was tried, what the loader loaded, what failed."),
         command("Player", "vr_dumpplayer").help("vr_dumpplayer [client]: a player's VR fields in the game (hands, weapons, hotspots)."),
         command("Models Check", "vr_model_check 1")
             .help("vr_model_check 1: every entity's model index against its model's name, and your models against the "

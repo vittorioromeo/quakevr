@@ -171,6 +171,7 @@ void VR_AddonOnSave (const char *savepath);	// Host_Savegame_f: the active map p
 void VR_NoteMapSpawn (const char *map);	// SV_SpawnServer: the map and the map package mounted, the crash report's context line
 void VR_SetCrashContext (const char *what);	// vr_crash.cpp: that line (qvr_crash.txt's second)
 void VR_SetCrashGpu (const char *line);	// vr_crash.cpp: GL_Init: the GPU, its driver's GL version and the safe mode, the report's "GPU:" line
+void VR_SetCrashVr (const char *line);	// vr_crash.cpp: the OpenXR backend: the runtime, its version, the headset, the API layers, the step; the report's "VR:" line
 // The GL start-up's breadcrumbs and safe mode (vr_glsafe.cpp; ROUND21.md "AMD start-up crash").
 enum
 {

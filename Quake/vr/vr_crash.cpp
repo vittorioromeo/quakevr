@@ -181,6 +181,7 @@ int reportHeadLen = 0; // the report's head (what, where, the stack): what stder
 char dialogText[4096];
 char frameText[1024];
 char crashGpu[512]; // VR_SetCrashGpu: the report's "GPU:" line
+char crashVr[1024]; // VR_SetCrashVr: the report's "VR:" line (the OpenXR runtime, its version, the headset, the layers)
 char glSteps[6144]; // the last GL breadcrumbs (VR_GLRecentSteps, vr_glsafe.cpp)
 // The main thread's context and stack, copied the moment another thread crashed (requestReport; a GL driver's own
 // thread: what the game had asked of it). The walk reads the copy: the main thread runs on while the report is written.
@@ -604,6 +605,8 @@ void appendHeader (const CrashRequest &req)
 	appendf ("When: %04u-%02u-%02u %02u:%02u:%02u, %.1f s after start\n", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond,
 		(double)(GetTickCount64 () - startTick) / 1000.0);
 	appendf ("GPU: %s; GL safe mode %s\n", crashGpu[0] ? crashGpu : "no GL context yet", VR_GLSafeDescribe ());
+	if (crashVr[0])
+		appendf ("VR: %s\n", crashVr);
 	appendf ("Map: %s; game folder %s\n", crashContext[0] ? crashContext : "no map spawned yet", com_gamedir[0] ? com_gamedir : "not set yet");
 	appendf ("Files: %s and %s\n", reportPath, dumpPath);
 	appendf ("\nStack (thread %lu):\n", (unsigned long)req.threadId);
@@ -1040,6 +1043,11 @@ extern "C" void VR_SetCrashGpu (const char *line)
 	snprintf (crashGpu, sizeof (crashGpu), "%s", line ? line : "");
 }
 
+extern "C" void VR_SetCrashVr (const char *line)
+{
+	snprintf (crashVr, sizeof (crashVr), "%s", line ? line : "");
+}
+
 extern "C" void VR_SetCrashContext (const char *what)
 {
 	snprintf (crashContext, sizeof (crashContext), "%s", what ? what : "");
@@ -1238,6 +1246,11 @@ extern "C" void VR_SetCrashContext (const char *what)
 }
 
 extern "C" void VR_SetCrashGpu (const char *line)
+{
+	(void) line;
+}
+
+extern "C" void VR_SetCrashVr (const char *line)
 {
 	(void) line;
 }

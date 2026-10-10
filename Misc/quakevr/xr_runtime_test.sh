@@ -195,9 +195,11 @@ cp -f "$XRLOG" "$OUT/headset_openxr.txt"
 L="$OUT/headset_openxr.txt"
 check $L "the fake headset's session logged" "extensions enabled: XR_KHR_opengl_enable" "system \"FakeXR headset\"" \
     "layers: a projection layer in stage space" "eyes: recommended 600x640" "formats offered .*: GL_RGBA8 GL_SRGB8_ALPHA8" \
-    "format chosen: GL_SRGB8_ALPHA8" "xrCreateSwapchain: 480x512 GL_SRGB8_ALPHA8, 3 images" "eye images 480x512 .*vr_xr_eye_scale 0.8" \
-    "session FOCUSED" "xr 1\.[0-9]s: [0-9]+ frames \([0-9]+ rendered" "session VISIBLE \(no input focus" "session FOCUSED"
-# (The second's timing line with the frames shown again may come before or after the focus is back.)
+    "format chosen: GL_SRGB8_ALPHA8" "xrCreateSwapchain \(left eye\): 480x512 GL_SRGB8_ALPHA8, 3 images" "eye images 480x512 .*vr_xr_eye_scale 0.8" \
+    "session FOCUSED" "session VISIBLE \(no input focus" "session FOCUSED"
+# (The first timing line may come after the focus is lost: the fake headset's frames aren't paced, frame 150 can come
+# before a second has passed; the second's, with the frames shown again, before or after the focus is back.)
+check $L "a timing line a second" "session FOCUSED" "xr 1\.[0-9]s: [0-9]+ frames \([0-9]+ rendered"
 check $L "the last frame shown again while unfocused" "session VISIBLE \(no input focus" "[1-9][0-9]* last again"
 check "$LOG" "unfocused: the last frame shown again, valid layers" "the focus lost" "the focus back" \
     "xrDestroySession: [0-9]+ frames: [0-9]+ projection layers \((9[0-9]|10[0-9]) without an image released"
@@ -243,4 +245,55 @@ check $L "the status box: a Quest 3's panel, the eyes too large" "status: Eyes 3
 check $L "Eye Image Size 0.66: the eyes at the panel's size, no warning" "SCALED" "status: = runtime's 3096x3312 x0\.66 x1\.00" \
     "status: Panel 2064x2208: runtime 225%, eyes 98%"
 if sed -n '/SCALED/,$p' $L | grep -q "status: !"; then echo "FAIL: a warning at Eye Image Size 0.66"; fails=$((fails + 1)); else echo "PASS: no warning at 0.66"; fi
+# 7. A crash inside the runtime (VDXR 1.1.0's null read in xrEnumerateSwapchainImages, 1.0.1), caught (vr_xr_guard 1).
+# a: only VDXR's sRGB swapchains crash (FAKEXR_FAULT_SRGB): once more in GL_RGBA8, VR on with it; each request logged
+# before its call; vr_xr_runtime_explain lists the API layers and the other programs' DLLs.
+LOG="$OUT/fault_fake.log"; : > "$LOG"
+export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_HEADSET=fakexr_vd,fakexr_steam FAKEXR_FAULT_SRGB=fakexr_vd
+unset FAKEXR_FAIL_INSTANCE FAKEXR_D3D11 FAKEXR_EYE FAKEXR_UNFOCUS FAKEXR_SYSTEM
+P="vr_xr_test 1;vr_xr_runtime 4;vr_xr_test_runtimes \"$VD,$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes \"VirtualDesktop.Streamer.exe,vrserver.exe\";vr_backend openxr;map start;wait60"
+bash "$KIT/run.sh" "$NAME" -Script "$P;echo FAULTSTATUS;vr_xr_runtime_explain;toggleconsole;quit" -Full \
+    -Filter "OpenXR|VR:|FAULTSTATUS|last start|API layers|DLLs" > "$OUT/fault_srgb.log"
+cp -f "$XRLOG" "$OUT/fault_srgb_openxr.txt"
+L="$OUT/fault_srgb.log"
+check $L "a crash in the runtime's sRGB swapchain: caught, once more in GL_RGBA8" "trying Virtual Desktop" \
+    "FakeXR fakexr_vd [0-9.]+ crashed inside xrEnumerateSwapchainImages: an access violation reading 0x0 in" \
+    "^fakexr_vd\.dll\+0x[0-9a-f]+; caught \(vr_xr_guard 1\)" \
+    "once more in GL_RGBA8" "the eye swapchains are GL_RGBA8 \(GL_SRGB8_ALPHA8 failed: the runtime crashed in it, caught\)" \
+    "FAULTSTATUS" "implicit OpenXR API layers: [0-9]+ installed" "other programs' DLLs in the game" "last start: .*Virtual Desktop"
+check "$OUT/fault_srgb_openxr.txt" "the requests logged before each call, the retry's too" "API layers: [0-9]+ on" "GL interop: glCreateMemoryObjectsEXT" \
+    "xrCreateSession \(OpenGL" "xrCreateSwapchain \(left eye\): requesting 400x440 GL_SRGB8_ALPHA8 \(0x8c43\), usage 0x1, 1 sample" \
+    "xrCreateSwapchain \(left eye\): xrEnumerateSwapchainImages \(3 OpenGL images\)" "crashed inside xrEnumerateSwapchainImages" \
+    "xrCreateSwapchain \(left eye\): requesting 400x440 GL_RGBA8" "xrCreateSwapchain \(right eye\): 400x440 GL_RGBA8, 3 images" "OpenXR: started"
+check "$LOG" "the fake runtime crashed once, then made the GL_RGBA8 swapchains" "fakexr_vd xrEnumerateSwapchainImages: crashing" \
+    "fakexr_vd xrCreateSwapchain 400x440 format 0x8058" "fakexr_vd xrCreateSwapchain 400x440 format 0x8058"
+# b: every VDXR swapchain crashes (FAKEXR_FAULT_IMAGES): VDXR given up (destroyed, guarded), Auto on to SteamVR's fake; a
+# crash later: the report's VR line names the runtime, the headset and the layers.
+: > "$LOG"
+unset FAKEXR_FAULT_SRGB
+export FAKEXR_FAULT_IMAGES=fakexr_vd
+bash "$KIT/run.sh" "$NAME" -Script "$P;vr_crash_test av" -Full -Filter "OpenXR|VR:|ENGINE CRASH|crash" > "$OUT/fault_all.log"
+unset FAKEXR_FAULT_IMAGES FAKEXR_HEADSET
+L="$OUT/fault_all.log"
+check $L "every swapchain crashing: that runtime given up, the next one started" "trying Virtual Desktop" \
+    "crashed inside xrEnumerateSwapchainImages" "once more in GL_RGBA8" "crashed inside xrEnumerateSwapchainImages" \
+    "Virtual Desktop \(VDXR\) failed to start" "VR: FakeXR fakexr_vd [0-9.]+ crashed \(xrEnumerateSwapchainImages: an access violation" \
+    "the game caught it and tries the next runtime" \
+    "trying SteamVR" "OpenXR runtime: FakeXR fakexr_steam"
+check $L "the crash report's VR line" "ENGINE CRASH" "VR: OpenXR FakeXR fakexr_steam [0-9.]+ \(SteamVR\); API layers: [0-9]+ on" "overlays/hooks: " \
+    "headset \"FakeXR headset\""
+check "$LOG" "VDXR's fake destroyed after its crashes, SteamVR's made" "fakexr_vd xrEnumerateSwapchainImages: crashing" \
+    "fakexr_vd xrEnumerateSwapchainImages: crashing" "fakexr_vd xrDestroySession" "fakexr_vd xrDestroyInstance" "fakexr_steam xrCreateInstance"
+# c: the GL context not current when the swapchain is asked for (vr_xr_test_drop_context): made current again, logged;
+# the runtime finds it current.
+: > "$LOG"
+export FAKEXR_HEADSET=fakexr_steam
+S="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_xr_test_drop_context 1;vr_backend openxr;wait30;toggleconsole;quit"
+bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "OpenXR|VR:" > "$OUT/dropctx.log"
+unset FAKEXR_HEADSET
+cp -f "$XRLOG" "$OUT/dropctx_openxr.txt"
+check "$OUT/dropctx_openxr.txt" "the GL context made current again before the swapchain" "xrCreateSession: GL context [0-9A-Fa-fx]+, DC" \
+    "xrCreateSwapchain \(left eye\): GL context 0+, DC 0+ current" "the game's GL context wasn't current on this thread .*made current again: done" \
+    "xrCreateSwapchain \(left eye\): 400x440 GL_SRGB8_ALPHA8, 3 images" "OpenXR: started"
+if grep -q "NO GL CONTEXT" "$LOG"; then echo "FAIL: the fake runtime saw no GL context"; fails=$((fails + 1)); else echo "PASS: the fake runtime always had the GL context"; fi
 echo "xr_runtime_test: $fails failed"
