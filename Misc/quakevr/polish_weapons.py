@@ -373,7 +373,8 @@ RECIPES = {
 WEAR_ONLY = ["v_grpple.mdl", "v_laserg.mdl", "v_hammer.mdl"]
 # After the polish: the double shotgun's fore-end re-mapped (its old UVs were stretched) and its holes closed
 # (reuv_shot2.py: the old vertices, triangles and anchors stay; those UVs and texels change); the laser cannon's
-# stretched keel, bottom and grip re-mapped and its body's vents carved (refine_laserg.py: Blender, headless).
+# stretched keel, bottom and grip re-mapped and its body's vents carved (refine_laserg.py: Blender, headless). Then
+# every model's inverted vertex normals are turned (mdlpolish.fix_inverted_normals).
 POST = {"v_shot2.mdl": reuv_shot2.fix, "v_laserg.mdl": refine_laserg.fix}
 
 
@@ -401,7 +402,8 @@ def anchors_of(path, anchors):
     m = mp.Model(path)
     order = strip_order(m.tris)
     P = np.frombuffer(bytes(m.pose_bytes(0)), np.uint8).reshape(-1, 4)
-    return {a: (order[a], bytes(P[order[a]])) for a in anchors}
+    # The position's bytes (not the normal's: an anchor is a place, and fix_inverted_normals may turn its normal).
+    return {a: (order[a], bytes(P[order[a]][:3])) for a in anchors}
 
 
 def polish(name, out_dir):
@@ -420,6 +422,9 @@ def polish(name, out_dir):
         split_auto_pump(p, os.path.join(out_dir, name))
     if name in POST:
         POST[name](os.path.join(out_dir, name))
+    # Last: the vertex normals that point against their own triangles turned (mdlpolish.fix_inverted_normals; the
+    # polishing pass of 2026-10-10): only normal bytes change.
+    mp.fix_inverted_normals(os.path.join(out_dir, name))
     return p.m.old_nt, tris, verts, rows, texels
 
 

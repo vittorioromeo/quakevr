@@ -258,6 +258,42 @@ class Model:
             f.write(out)
 
 
+def fix_inverted_normals(path, min_dot=0.0):
+    """Rewrites `path` with every vertex normal that points against all the triangles using that vertex (in any pose)
+    turned to the nearest of Quake's table to their area-weighted normal (polishing pass 2026-10-10, check_mdl_art.py
+    "normal": a vertex lit from the wrong side shades its triangles dark on a lit face, a blotch on top of the
+    lightning gun). Only those normal bytes change: positions, UVs, triangles and the strip order stay. Returns how many
+    (vertex, pose) normals were turned."""
+    m = Model(path)
+    table = anorms()
+    tris = np.array([t[1:4] for t in m.tris], np.int64)
+    turned = 0
+    for p in range(m.num_poses()):
+        vb = m.pose_bytes(p)
+        arr = np.frombuffer(bytes(vb), np.uint8).reshape(-1, 4)
+        pos = arr[:, :3].astype(np.float64) * m.scale + m.origin
+        q = pos[tris]
+        fn = -np.cross(q[:, 1] - q[:, 0], q[:, 2] - q[:, 0])  # outward (Quake: clockwise from outside), area x2
+        acc = np.zeros_like(pos)
+        for c in range(3):
+            np.add.at(acc, tris[:, c], fn)
+        # The best agreement of the vertex's normal with any of its triangles: a vertex shared by the two sides of a
+        # thin sheet agrees with one of them and is left alone.
+        fl = np.linalg.norm(fn, axis=1)
+        unit = np.where(fl[:, None] > 1e-9, fn / np.maximum(fl, 1e-12)[:, None], 0.0)
+        best = np.full(len(pos), -2.0)
+        for c in range(3):
+            d = np.where(fl > 1e-9, (table[arr[tris[:, c], 3]] * unit).sum(1), -2.0)
+            np.maximum.at(best, tris[:, c], d)
+        length = np.linalg.norm(acc, axis=1)
+        for i in np.nonzero((length > 1e-9) & (best > -2.0) & (best < min_dot))[0]:
+            vb[4 * i + 3] = int(np.argmax(table @ (acc[i] / length[i])))
+            turned += 1
+    if turned:
+        m.write(path)
+    return turned
+
+
 # ----------------------------------------------------------------------------
 # Topology of the old mesh (frame 0)
 
