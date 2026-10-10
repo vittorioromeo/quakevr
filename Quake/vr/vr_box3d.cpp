@@ -10230,6 +10230,11 @@ void syncToolJoints()
 namespace qvr::box3d
 {
 
+GunPiecesCount gunPiecesCount()
+{
+    return {gunPiecesDisk.read, gunPiecesDisk.cut, gunPiecesDisk.written};
+}
+
 void beforeLoad()
 {
     finishLoads();

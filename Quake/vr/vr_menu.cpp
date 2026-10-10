@@ -6367,6 +6367,11 @@ za::Vector<Item> pageDebugTests()
         command("Take the Nearest Weapon Pickup", "+grabmain; wait; wait; vr_pickup_test 2; wait; wait; -grabmain")
             .help("vr_pickup_test 2, the main grip held (+grabmain): the weapon pickup nearest you taken into an empty "
                   "hand, as a grip takes it: the hand's weapon, its magazine and the ammo left printed."),
+        command("Every Enemy Weapon Dropped Ahead", "vr_debug_box3d 1; vr_pickup_test 4")
+            .help("vr_pickup_test 4: every weapon a monster can drop (the grunt's and enforcer's guns, the knights' "
+                  "swords, the ogre's chainsaw, the random drops') dropped in rows ahead of you as a death drops it; "
+                  "their convex pieces' cut times printed (box3d: ..., read from the disk or cut). Setup's preparation "
+                  "run does this on the hub."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

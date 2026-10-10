@@ -234,6 +234,11 @@ swords 19 (the death knight's first death a 23 ms frame), the ogre's chainsaw 84
 - **Win**: no 20-85 ms frame at the first death of each kind in the first session.
 - **Drawback**: a change to Setup's preparation (a few seconds more, a new step) just before a release.
 - **Recommendation**: later, not for this release.
+- **Done (1.0.1, 2026-10-10)**: the preparation run's last step on the hub, `vr_pickup_test 4`: the 16 weapons a monster
+  can drop (the grunt's and enforcer's guns, both knights' swords, the ogre's chainsaw, the random and ammo-box drops'
+  eleven) dropped once with `CreateThrownWeapon`, as a death drops them; a held gun's triangles are the dropped one's,
+  so holding one reads the same file. 13 cut in 1.0 s on the hub (`result guns read=0 cut=13 written=13`); a later
+  session's grunt death reads its gun (0.2 ms), and the 16 dropped again read all, 0 cut.
 
 ### 14. Ironwail's per-frame upload buffer starts at 1 MB (decided and done 2026-10-10: starts at 8 MB)
 

@@ -296,5 +296,14 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // 1 if `at` (units) is on the head of edict `num`'s ragdoll (its part nearest, or within a few units of the neck: `neck`
 // units if more, the melee's vr_decap_neck), 0 not (or no head), -1 not a ragdoll.
 [[nodiscard]] int ragdollHeadAt(int num, const glm::vec3& at, float neck = 0.f);
+// The guns' convex pieces this session (vr_gun_pieces_cache): read from the disk, cut, files written (Setup's
+// preparation reports them: vr_prepare.cpp).
+struct GunPiecesCount
+{
+    int read{0};
+    int cut{0};
+    int written{0};
+};
+[[nodiscard]] GunPiecesCount gunPiecesCount();
 
 } // namespace qvr::box3d

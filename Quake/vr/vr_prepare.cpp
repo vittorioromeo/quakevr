@@ -2,6 +2,7 @@
 
 #include "vr_prepare.hpp"
 
+#include "vr_box3d.hpp"
 #include "vr_engine.hpp"
 #include "vr_relight.hpp"
 
@@ -20,6 +21,8 @@ enum class Step
     Off,
     Map,         // the next map's command given
     MapWait,     // its load, then a few seconds for the caches written on the pool
+    Guns,        // on the hub (the last map): every weapon a monster can drop, dropped (vr_pickup_test 4)
+    GunsWait,    // their convex pieces cut (or read: made before) and their files written
     Relight,     // the batch's command given
     RelightWait, // the batch running
     Done,
@@ -33,7 +36,8 @@ struct Run
     za::SizeT map{0};
     double since{0.0};     // the step's start (Sys_DoubleTime)
     double signedOn{-1.0}; // when the map was in play
-    int frames{0};         // frames since the relight's command
+    int frames{0};         // frames since the relight's or the guns' command
+    box3d::GunPiecesCount guns; // the guns' pieces before the guns' command
     double nextProgress{0.0};
     int failedMaps{0};
 };
@@ -54,6 +58,13 @@ constexpr FirstMap firstMaps[] = {
 };
 constexpr double settleSeconds = 3.0; // after the map is in play: the pool's jobs (ambient occlusion, hull files) end
 constexpr double mapTimeout = 600.0;  // a map not in play by then is passed over (a slow PC's cold vrstart: about a minute)
+// The monsters' guns (PERF_DECISIONS.md 13): each one a monster drops was cut at its first drop in a session (the
+// grunt's 35 ms, the knights' swords 19, the ogre's chainsaw 84 on the main thread) unless a session before cut it;
+// here they are all dropped once on the hub, the game's way (the pieces' key is the dropped gun's drawn triangles; a
+// held one's are the same), so the first session's first deaths read them. The cuts are done in the frame the guns
+// become bodies; the wait is for those frames.
+constexpr double gunsSeconds = 1.0;
+constexpr int gunsFrames = 20;
 
 void line(const char* text)
 {
@@ -80,6 +91,20 @@ void finish()
         run.out = nullptr;
     }
     Cbuf_AddText("quit\n");
+}
+
+// After the maps (and the guns): the relight, or the end.
+void afterMaps()
+{
+    if(run.relight)
+    {
+        Cbuf_AddText("disconnect\n"); // (no map in play: the batch reloads none)
+        run.step = Step::Relight;
+    }
+    else
+    {
+        finish();
+    }
 }
 
 void relightResult()
@@ -132,14 +157,13 @@ void frame()
             if(run.map >= za::getArraySize(firstMaps))
             {
                 line(va("result maps ok=%d failed=%d", static_cast<int>(run.map) - run.failedMaps, run.failedMaps));
-                if(run.relight)
+                if(inPlay(firstMaps[za::getArraySize(firstMaps) - 1].name))
                 {
-                    Cbuf_AddText("disconnect\n"); // (no map in play: the batch reloads none)
-                    run.step = Step::Relight;
+                    run.step = Step::Guns;
                 }
                 else
                 {
-                    finish();
+                    afterMaps(); // (the hub did not load: the guns are cut in play, as before)
                 }
                 return;
             }
@@ -175,6 +199,29 @@ void frame()
                 run.map++;
                 run.step = Step::Map;
             }
+            return;
+        }
+        case Step::Guns:
+        {
+            line("step guns");
+            run.guns = box3d::gunPiecesCount();
+            Cbuf_AddText("vr_pickup_test 4\n");
+            run.since = now;
+            run.frames = 0;
+            run.step = Step::GunsWait;
+            return;
+        }
+        case Step::GunsWait:
+        {
+            run.frames++;
+            if(run.frames < gunsFrames || now - run.since < gunsSeconds)
+            {
+                return;
+            }
+            const box3d::GunPiecesCount c = box3d::gunPiecesCount();
+            line(va("result guns read=%d cut=%d written=%d %.1f", c.read - run.guns.read, c.cut - run.guns.cut,
+                c.written - run.guns.written, now - run.since));
+            afterMaps();
             return;
         }
         case Step::Relight:

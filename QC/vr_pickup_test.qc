@@ -7,6 +7,10 @@
 //   the hand's grip held: +grabmain):
 //   the hand's weapon, its magazine and the ammo left printed.
 // 3 the next of test 1's pairs before you (you moved 44 units behind it), for a look or an eyeshot.
+// 4 every weapon a monster can drop (a grunt's, an enforcer's, the knights' swords, the ogre's chainsaw, the random
+//   drops' and an ammo box's weapons) dropped in a row ahead of you as a death drops it (CreateThrownWeapon, the same
+//   model and pose): their convex pieces are cut and kept on disk (vr_gun_pieces_cache). Setup's preparation run does
+//   it on the hub (vr_prepare.cpp), so the first session's first deaths cut none.
 
 float VR_PICKUPTEST_COUNT = 10;
 .float vr_pickuptest; // vr_pickup_test 1's pair (from 1): its pickup and the weapon dropped beside it
@@ -118,6 +122,64 @@ void() VR_PickupTest_Row =
     r.nextthink = time + 1;
 };
 
+float VR_PICKUPTEST_ENEMYGUNS = 16;
+
+// Test 4's weapons (each as a monster drops it: its weapon flags), in order.
+float(float i) VR_PickupTest_EnemyGun =
+{
+    if(i == 0) { return WID_GRUNTGUN; }
+    if(i == 1) { return WID_ENFRIFLE; }
+    if(i == 2) { return WID_SWORD; }     // (a knight's)
+    if(i == 3) { return WID_SWORD; }     // (a hell knight's: flags below)
+    if(i == 4) { return WID_CHAINSAW; }
+    if(i == 5) { return WID_AXE; }
+    if(i == 6) { return WID_SHOTGUN; }
+    if(i == 7) { return WID_SUPER_SHOTGUN; }
+    if(i == 8) { return WID_NAILGUN; }
+    if(i == 9) { return WID_SUPER_NAILGUN; }
+    if(i == 10) { return WID_GRENADE_LAUNCHER; }
+    if(i == 11) { return WID_PROXIMITY_GUN; }
+    if(i == 12) { return WID_ROCKET_LAUNCHER; }
+    if(i == 13) { return WID_LIGHTNING; }
+    if(i == 14) { return WID_LASER_CANNON; }
+    return WID_MJOLNIR;
+};
+
+void() VR_PickupTest_EnemyGuns =
+{
+    makevectors(self.v_angle_y * '0 1 0');
+    vector fwd = v_forward;
+    vector right = v_right;
+    entity player = self;
+    float n = 0;
+    float i;
+    for(i = 0; i < VR_PICKUPTEST_ENEMYGUNS; i++)
+    {
+        float wid = VR_PickupTest_EnemyGun(i);
+        if(!VR_Pack_WeaponAvailable(wid))
+        {
+            continue;
+        }
+        // Rows of four, 40 units apart, 60 units between rows; let go of still a little over the floor.
+        float row = floor(n / 4);
+        vector at = player.origin + fwd * (80 + row * 60) + right * ((n - row * 4 - 1.5) * 40);
+        traceline(at, at - '0 0 256', TRUE, player);
+        float wflags = 0;
+        if(i == 3)
+        {
+            wflags = QVR_WPNFLAG_USE_SECONDARY_AMMO;
+        }
+        entity dropped = CreateThrownWeapon(world, wid, wflags,
+            WeaponInst_New(WeaponIdToBaseClipSize(wid)), trace_endpos + '0 0 16', '0 1 0' * player.v_angle_y,
+            '0 0 0', '0 0 0', FALSE, FALSE, WeaponIdToThrowDamage(wid));
+        if(dropped)
+        {
+            n = n + 1;
+        }
+    }
+    bprint(sprintf("pickuptest: 4 %g enemy weapons dropped ahead\n", n));
+};
+
 void() VR_PickupTest_Take =
 {
     entity best = world;
@@ -213,6 +275,10 @@ void() VR_PickupTest_Frame =
     else if(ask == 3)
     {
         VR_PickupTest_View();
+    }
+    else if(ask == 4)
+    {
+        VR_PickupTest_EnemyGuns();
     }
     self = oself;
 };

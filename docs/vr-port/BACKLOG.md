@@ -77,9 +77,6 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   reverted (no gain, 0.6-0.9% of the pixels changed). `vr_decal_max` lowered to 768 meanwhile (config version 118).
   Leads: fewer marks a bucket, a smaller record or a cheaper early-out, merging overlapping marks.
 
-- **Setup prepares the monsters' guns** (PERF_DECISIONS.md 13): the first session still cuts each monster's dropped gun
-  at its first death (grunt 35 ms, knights' swords 19, ogre's chainsaw 84); Setup's preparation run could make each once.
-
 ### Map and game loading (ROUND21.md, "Map and game loading", 2026-10-10: each has a drawback)
 
 - **Shader program binaries cached on disk** (`GL_ARB_get_program_binary`, 200 ms of every start): driver bugs with it.
