@@ -23528,7 +23528,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "634 416 100"
-"worldtext" "WELCOME TO QUAKE VR\nLESSON 1 OF 12: MOVING\n\nMOVE: push the left stick.\nTURN: push the right stick left or right.\nOr simply turn your head and body.\n\nFollow the yellow arrows."
+"worldtext" "LESSON 1: MOVING\n\nMOVE: left thumbstick.\nTURN: right thumbstick.\nOr simply turn your head and body.\n\nFollow the yellow arrows.\n\nTo run, hold the left thumbstick down."
 "worldtext_halign" "1"
 "worldtext_scale" "0.32"
 "angle" "180"
@@ -23683,7 +23683,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "1432 704 176"
-"worldtext" "LESSON 2: BUTTONS\nPush the button beside the door.\nYour hand, anything you hold, your body\nor something you throw presses a button."
+"worldtext" "LESSON 2: BUTTONS\n\nPush the button beside the door.\nYour hand, anything you hold, your body\nor something you throw presses a button."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "180"
@@ -24212,7 +24212,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "3760 956 406"
-"worldtext" "LESSON 4: SWIMMING\nDive in, swim down into the passage,\nround the corner and up into the next room.\nImmersive: stroke with your arms.\nVanilla: the stick moves you where you look;\nA swims up."
+"worldtext" "LESSON 4: SWIMMING\n\nDive in, swim down into the passage,\nround the corner and up into the next room.\n\nImmersive: stroke with your arms.\n\nVanilla: the stick moves you where you look;\nA swims up."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "270"
@@ -24424,7 +24424,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "4544 1468 -24"
-"worldtext" "LESSON 5: HEALING\nHealth kits mend you. Grip one and hold it\nto your body, or put it in a holster:\nat your hips, over your shoulders."
+"worldtext" "LESSON 5: HEALING\n\nHealth kits mend you. Grip one and hold it\nto your body, or put it in a holster:\nat your hips, over your shoulders."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "270"
@@ -24433,7 +24433,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "4940 1064 -64"
-"worldtext" "GRAB: close your hand round it.\nFORCE GRAB: point at something far\nand grip: it flies to your hand.\nCOLLECT: put it in a holster, your pouch,\nor over your shoulder into your pack."
+"worldtext" "GRAB: close your hand round it.\n\nFORCE GRAB: point at something far\nand grip: it flies to your hand.\n\nCOLLECT: put it in a holster, your pouch,\nor over your shoulder into your pack."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "180"
@@ -24584,7 +24584,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "5216 1468 -24"
-"worldtext" "LESSON 6: MELEE\nMake a fist and punch the crate\nuntil it breaks. Swing hard!"
+"worldtext" "LESSON 6: MELEE\n\nMake a fist and punch the crate\nuntil it breaks. Swing hard!\n\nYou can also grab the crate\nwith both hands and throw it."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "270"
@@ -24715,7 +24715,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "5040 924 -44"
-"worldtext" "LESSON 7: A FIGHT\nWARNING: AN ENEMY IS COMING\nFight it with your fists:\nblock its blows, then strike."
+"worldtext" "LESSON 7: FIGHT\n\nWARNING: AN ENEMY IS COMING!\nFight it with your fists:\nblock its blows, then strike."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "270"
@@ -25340,7 +25340,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "5216 396 16"
-"worldtext" "LESSON 8: WEAPONS\nTake the shotgun from the bench: grip it.\nLoad shells: take one from the pouch at\nyour belly, push it into the gun's port.\nDestroy every target to go on."
+"worldtext" "LESSON 8: WEAPONS\n\nTake the shotgun from the bench: grip it.\nLoad shells: take one from the pouch at\nyour belly, push it into the gun's port.\nDestroy every target to go on."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "270"
@@ -25453,7 +25453,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "4640 164 -24"
-"worldtext" "LESSON 9: DARKNESS\nYour flashlight hangs on your torso:\ngrip it; pull the trigger to switch\nit on or off. Hold it to your temple\n(helmet) or to a gun in your other hand\nand press B or Y: it clips on."
+"worldtext" "LESSON 9: DARKNESS\n\nYour flashlight hangs on your torso:\ngrip it; pull the trigger to switch\nit on or off.\n\nHold it to your temple\n(helmet) or to a gun in your other hand\nand release: it clips on.\n\nPress B/Y to unclip it from guns."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "90"
@@ -25710,7 +25710,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "2928 -348 16"
-"worldtext" "LESSON 10: THROWING\nThe button is out of reach behind the bars.\nThrow a rock or a brick at it:\ngrip, swing, let go."
+"worldtext" "LESSON 10: THROWING\n\nThe button is out of reach behind the bars.\nThrow a rock or a brick at it:\ngrip, swing, let go."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "90"
@@ -25990,8 +25990,8 @@
 // entity 284
 {
 "classname" "func_worldtext_banner"
-"origin" "2540 0 -24"
-"worldtext" "LESSON 11: FIRE\nTake a torch off the wall: grip it.\nSet the crates alight and watch it spread.\nEnemies burn too. So do you: careful!"
+"origin" "2540 0 -26"
+"worldtext" "LESSON 11: FIRE\n\nTake a torch off the wall: grip it.\nSet the crates alight and watch it spread.\nEnemies burn too. So do you: careful!"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "180"
@@ -26576,7 +26576,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "1400 -800 -14"
-"worldtext" "LESSON 12: THE ARENA\nWhen you step in, the door shuts\nand enemies come in waves.\nTake the weapons on the tables."
+"worldtext" "LESSON 12: THE ARENA\n\nWhen you step in, the door shuts\nand enemies come in waves.\nUse the weapons on the tables!"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "180"

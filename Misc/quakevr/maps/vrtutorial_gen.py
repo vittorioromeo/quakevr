@@ -899,8 +899,10 @@ def build_room1():
     lamp_grid(out, 0, 0, 640, 512, 224, 3, 2)
     ent("info_player_start", 96, 256, 24, angle=0)
     checkpoint("cp1", 96, 256, 0, 0)
-    banner(N.join(["WELCOME TO QUAKE VR", "LESSON 1 OF 12: MOVING", "", "MOVE: push the left stick.", "TURN: push the right stick left or right.",
-                   "Or simply turn your head and body.", "", "Follow the yellow arrows."]), 634, 416, 100, 180, "0.32")
+    # (the welcome is the view's text now: target_vr_message, WELCOME; the author's wording, 2026-10-10)
+    banner(N.join(["LESSON 1: MOVING", "", "MOVE: left thumbstick.", "TURN: right thumbstick.",
+                   "Or simply turn your head and body.", "", "Follow the yellow arrows.", "",
+                   "To run, hold the left thumbstick down."]), 634, 416, 100, 180, "0.32")
     arrows([(176, 256), (272, 256), (368, 256), (464, 256), (560, 256), (650, 256)], 0)
     tip("t2_move", "Push the left stick to walk." + N + "Push the right stick sideways to turn.", 220, 256, 60, 220)
     return d
@@ -937,7 +939,7 @@ def build_room2():
     checkpoint("cp2", 1232, 704, 0, 0)
     button("PUSH", None, 1440, 592, 56, 0, target="r2_door", size=20, wait="-1")
     lamp_grid(out, 1184, 512, 1440, 896, 224, 1, 3)
-    banner(N.join(["LESSON 2: BUTTONS", "Push the button beside the door.", "Your hand, anything you hold, your body",
+    banner(N.join(["LESSON 2: BUTTONS", "", "Push the button beside the door.", "Your hand, anything you hold, your body",
                    "or something you throw presses a button."]), 1432, 704, 176, 180, "0.28")
     tip("t2_button", "Reach out and push the button" + N + "with your hand.", 1428, 592, 76, 150)
     # ---- the settings room: moving and turning
@@ -1063,8 +1065,9 @@ def build_room4():
     light(3920, 1040, POOL_FLOOR + 48, 220, "0.7 0.85 1")
     light(4016, 1136, POOL_FLOOR + 48, 220, "0.7 0.85 1")
     setting_button("SWIMMING", "swim", 3760, r["y1"], UP + 48, 90)
-    banner(N.join(["LESSON 4: SWIMMING", "Dive in, swim down into the passage,", "round the corner and up into the next room.",
-                   "Immersive: stroke with your arms.", "Vanilla: the stick moves you where you look;", "A swims up."]),
+    banner(N.join(["LESSON 4: SWIMMING", "", "Dive in, swim down into the passage,",
+                   "round the corner and up into the next room.", "", "Immersive: stroke with your arms.", "",
+                   "Vanilla: the stick moves you where you look;", "A swims up."]),
            3760, r["y1"] - 4, UP + 150, 270, "0.28")
     tip("t2_swim", "Immersive swimming: pull your arms" + N + "through the water like a breast stroke." + N +
         "Press SWIMMING for the stick instead.", 3760, r["y1"] - 30, UP + 64, 200)
@@ -1135,11 +1138,12 @@ def build_room5():
         wall_lamp(out, "+y", 4896, r["y1"], sz + 44, 200)    # (the corner was in the dark)
         light(4872, 1400, sz - 24, 160)
     restock("item_health", 4544, 1392, LOW + 34, contentsflags=1, distance=128, wait=6)
-    banner(N.join(["LESSON 5: HEALING", "Health kits mend you. Grip one and hold it", "to your body, or put it in a holster:",
+    banner(N.join(["LESSON 5: HEALING", "", "Health kits mend you. Grip one and hold it", "to your body, or put it in a holster:",
                    "at your hips, over your shoulders."]), 4544, r["y1"] - 4, LOW + 120, 270, "0.28")
     # (right of the exit door, seen from the room: it covered the door)
-    banner(N.join(["GRAB: close your hand round it.", "FORCE GRAB: point at something far", "and grip: it flies to your hand.",
-                   "COLLECT: put it in a holster, your pouch,", "or over your shoulder into your pack."]),
+    banner(N.join(["GRAB: close your hand round it.", "", "FORCE GRAB: point at something far",
+                   "and grip: it flies to your hand.", "", "COLLECT: put it in a holster, your pouch,",
+                   "or over your shoulder into your pack."]),
            r["x1"] - 4, 1064, LOW + 80, 180, "0.28")
     tip("t2_health", "You are hurt. Take a health kit:" + N + "grip it, then hold it to your belly" + N +
         "or a holster.", 4544, 1380, LOW + 70, 200)
@@ -1172,7 +1176,8 @@ def build_room6():
     ent("vr_crate", 5216, 1344, LOW + 2, spawnflags=1, angle=20, skin=1, contents="item_key1", target="r6_crate")
     for (x, y, a) in ((5408, 1408, 5), (5400, 1160, 40)):
         ent("vr_crate", x, y, LOW + 2, angle=a, skin=2)
-    banner(N.join(["LESSON 6: MELEE", "Make a fist and punch the crate", "until it breaks. Swing hard!"]),
+    banner(N.join(["LESSON 6: MELEE", "", "Make a fist and punch the crate", "until it breaks. Swing hard!", "",
+                   "You can also grab the crate", "with both hands and throw it."]),
            5216, r["y1"] - 4, LOW + 120, 270, "0.3")
     tip("t2_punch", "Make a fist (grip and trigger)" + N + "and punch the crate until it breaks.", 5216, 1300,
         LOW + 60, 200)
@@ -1197,7 +1202,8 @@ def build_room7():
     room("room7", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 288, bands(TX["panel2"]))
     checkpoint("cp7", 5216, 880, LOW, 270)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 288, 3, 2, 220)
-    banner(N.join(["LESSON 7: A FIGHT", "WARNING: AN ENEMY IS COMING", "Fight it with your fists:", "block its blows, then strike."]),
+    banner(N.join(["LESSON 7: FIGHT", "", "WARNING: AN ENEMY IS COMING!", "Fight it with your fists:",
+                   "block its blows, then strike."]),
            5040, r["y1"] - 4, LOW + 100, 270, "0.3")   # (beside the way in: it hung in the doorway)
     # the alcove the grunts come from (a spawner in it); the button for another
     air("r7_alcove", (r["x1"], 608, LOW), (r["x1"] + 64, 736, LOW + 128), style=bands(TX["panel5"]))
@@ -1265,7 +1271,7 @@ def build_room8():
                                 ("TWO-HANDED" + N + "AIM", "twohand"), ("WEAPON GRIP", "grip"),
                                 ("CROSSHAIR", "crosshair")], (5376, 5440, 5504, 5568, 5632)):
         setting_button(label, key, x, r["y1"], LOW + 64, 90)
-    banner(N.join(["LESSON 8: WEAPONS", "Take the shotgun from the bench: grip it.", "Load shells: take one from the pouch at",
+    banner(N.join(["LESSON 8: WEAPONS", "", "Take the shotgun from the bench: grip it.", "Load shells: take one from the pouch at",
                    "your belly, push it into the gun's port.", "Destroy every target to go on."]),
            5216, r["y1"] - 4, LOW + 160, 270, "0.28")
     banner(N.join(["HOLSTERS: let go of a gun at your hip", "or shoulder to put it away; grip there",
@@ -1301,9 +1307,9 @@ def build_room9():
     room("room9v", r["x0"], r["y0"], r["x1"], r["y1"], LOW, LOW + 192, bands(TX["panel2"]))
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 192, 1, 1, 260)
     checkpoint("cp9", 4704, 288, LOW, 180)
-    banner(N.join(["LESSON 9: DARKNESS", "Your flashlight hangs on your torso:", "grip it; pull the trigger to switch",
-                   "it on or off. Hold it to your temple", "(helmet) or to a gun in your other hand",
-                   "and press B or Y: it clips on."]), 4640, r["y0"] + 4, LOW + 120, 90, "0.28")
+    banner(N.join(["LESSON 9: DARKNESS", "", "Your flashlight hangs on your torso:", "grip it; pull the trigger to switch",
+                   "it on or off.", "", "Hold it to your temple", "(helmet) or to a gun in your other hand",
+                   "and release: it clips on.", "", "Press B/Y to unclip it from guns."]), 4640, r["y0"] + 4, LOW + 120, 90, "0.28")
     # (a tip shows through a closed door: each in this room and the course waits till the player is in it)
     with late():
         trigger("r9v_in", (4544, 176, LOW), (4736, 336, LOW + 96), target="r9v_in")
@@ -1361,7 +1367,7 @@ def build_room10():
         ent("vr_debris_piece", 2768 + 16 * i, -296, LOW + 40, model="progs/%s.mdl" % mdl, angle=RND.randrange(360))
     restock("vr_debris_piece", 2784, -296, LOW + 40, count=3, distance=64, wait=3, model="progs/vr_rock3.mdl")
     restock("vr_debris_piece", 2816, -296, LOW + 40, count=3, distance=64, wait=3, model="progs/vr_brick1.mdl")
-    banner(N.join(["LESSON 10: THROWING", "The button is out of reach behind the bars.", "Throw a rock or a brick at it:",
+    banner(N.join(["LESSON 10: THROWING", "", "The button is out of reach behind the bars.", "Throw a rock or a brick at it:",
                    "grip, swing, let go."]), 2928, r["y0"] + 4, LOW + 160, 90, "0.3")
     tip("t2_throw", "Grip a rock, swing your arm and let go" + N + "as it comes forward. Hit the button.",
         2800, -260, LOW + 70, 200)
@@ -1420,8 +1426,8 @@ def build_room11():
     for (x, y) in ((2190, -100), (2190, 100), (2220, -128)):
         ent("vr_barrel", x, y, LOW + 18, skin=k % 3)
         k += 1
-    banner(N.join(["LESSON 11: FIRE", "Take a torch off the wall: grip it.", "Set the crates alight and watch it spread.",
-                   "Enemies burn too. So do you: careful!"]), r["x1"] - 4, 0, LOW + 120, 180, "0.3")
+    banner(N.join(["LESSON 11: FIRE", "", "Take a torch off the wall: grip it.", "Set the crates alight and watch it spread.",
+                   "Enemies burn too. So do you: careful!"]), r["x1"] - 4, 0, LOW + 118, 180, "0.3")  # (2 down: under the windows with its blank line)
     tip("t2_torch_take", "Grip a torch and pull it off the wall.", 2272, r["y0"] + 24, LOW + 64, 160)
     tip("t2_burn", "Touch the crates with the flame" + N + "or hit them with the torch.", 2200, 0, LOW + 64, 160)
     # ---- beyond: the nailgun
@@ -1538,8 +1544,8 @@ def build_room12():
         ent("trigger_relay", 830, -900, LOW + 72, **k)
     ent("trigger_relay", 830, -900, LOW + 80, targetname="r12_won", target="r12_exit",
         message="Arena cleared! The way out is open.")
-    banner(N.join(["LESSON 12: THE ARENA", "When you step in, the door shuts", "and enemies come in waves.",
-                   "Take the weapons on the tables."]), 1400, -800, LOW + 130, 180, "0.3")
+    banner(N.join(["LESSON 12: THE ARENA", "", "When you step in, the door shuts", "and enemies come in waves.",
+                   "Use the weapons on the tables!"]), 1400, -800, LOW + 130, 180, "0.3")
     tip("t2_arena", "Take a gun and ammunition here" + N + "before you step further in.", 1340, -760, LOW + 70,
         200)
     # the way out: to the teleporter room
