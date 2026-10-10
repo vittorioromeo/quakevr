@@ -11320,7 +11320,7 @@ BACKLOG "Optimise decals", PERF_DECISIONS.md 15. `play_e1m1_lights` at his eyes 
 
 | | world+brush | the marks' share | gpu 3D | grid build (CPU, a frame) |
 |---|---|---|---|---|
-| before (HEAD~3) | 3.02 | 1.10 | 6.51 | 0.06 |
+| before (8744aed94) | 3.02 | 1.10 | 6.51 | 0.06 |
 | after | 2.74 | 0.82 | 6.44 (6.26 in a second set) | 0.07 |
 | no marks (`vr_decals 0`) | 1.93 | 0 | 5.59 | 0 |
 
