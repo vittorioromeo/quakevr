@@ -18,8 +18,9 @@
 # (the grips, triggers, foregrips, pumps): the fitted fingers close on the same surfaces as before.
 # The double shotgun then goes through reuv_shot2.py (POST): its fore-end's stretched UVs re-mapped and repainted,
 # its holes closed; UVs and texels there change, the old vertices, triangles and anchors do not.
-# The plasma gun, super nailgun, rocket launcher, grappling hook and Mjolnir go through reuv_weapons.py (POST): their
-# stretched skin re-mapped and repainted from the old paint (UVs and texels change; positions and anchors do not).
+# The plasma gun, super nailgun, rocket launcher (and their lava and multi skins), grappling hook and Mjolnir go through
+# reuv_weapons.py (POST): their stretched skin re-mapped and repainted from the old paint (UVs and texels change;
+# positions and anchors do not).
 # The shotgun then goes through split_auto_pump (its auto pump): the first of its fore-end's rings taken out (its own
 # vertices collapsed: no anchor, the strip order unchanged), the other three given their own texels, the moving
 # fore-end and the gun without it written apart (progs/vr_pump_on_v_shot.mdl, vr_pumpbody_on_v_shot.mdl).

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-# reuv_weapons.py -- the stretched skins of the super nailgun, rocket launcher, grappling hook and Mjolnir re-mapped and
-# repainted from their own paint, as reuv_shot2.py did the double shotgun's fore-end (the art polishing pass of
-# 2026-10-10, "For the author" 1: check_mdl_art.py found 21-42% of their surfaces stretched over 3:1, the grappling
-# hook's front cap folded onto a line). The plasma gun has the thunderbolt's mesh: refine_light.py does its sides,
+# reuv_weapons.py -- the stretched skins of the super nailgun, rocket launcher (and the lava super nailgun and multi
+# rocket launcher: their meshes, their own skins), grappling hook and Mjolnir re-mapped and repainted from their own
+# paint, as reuv_shot2.py did the double shotgun's fore-end (the art polishing pass of 2026-10-10, "For the author" 1:
+# check_mdl_art.py found 21-42% of their surfaces stretched over 3:1, the grappling hook's front cap folded onto a
+# line). The plasma gun has the thunderbolt's mesh: refine_light.py does its sides,
 # this the rest.
 #
 # Usage: python Misc/quakevr/reuv_weapons.py [model ...]            (default: every model in SPECS, in quakevr/progs;
@@ -82,7 +83,9 @@ SPECS = {
     # The ring of coil turns under the muzzle (its streaks across it are the turns) kept.
     "v_plasma.mdl": {"faces_before": 711, "keep": [((20.0, -2.5, 6.5), (36.0, 2.5, 11.0))]},
     "v_nail2.mdl": {},
+    "v_lava2.mdl": {},   # the super nailgun's mesh, its own skin
     "v_rock2.mdl": {},
+    "v_multi2.mdl": {},  # the rocket launcher's mesh, its own skin
     # The front cap (folded onto a line: painted anew, as the hub's plates in front of it), the claws from their
     # own streaked paint.
     "v_grpple.mdl": {"flat_in": ([((20.0, -5.5, 1.5), (27.5, 5.5, 8.5))], ((1.0, 0.0, 0.0), 0.9))},

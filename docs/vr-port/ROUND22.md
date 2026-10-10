@@ -294,8 +294,8 @@ file. Every anchor of every gun held; the 14 guns not re-mapped come out byte fo
 bolt heads), which look the same however mapped. Left: the claws' and some plasma/rocket faces whose strips do not
 unwrap flat; the plasma gun's coil turns under the muzzle (kept: their streaks are the turns). check_mdl_art.py's
 other findings: streaks gone on the hook and Mjolnir, seam-ring bleed fewer in proportion (the new islands carry a
-two-texel margin). Not done: the lava super nailgun and multi rocket launcher (same meshes, own skins): one SPECS line
-each.
+two-texel margin). The lava super nailgun and multi rocket launcher (same meshes, own skins): done later (worktree
+`remap2`, below).
 
 **Normal maps.** The baker keeps z >= 0.05 (`normalbake.clamp_z`, after the box filter: a sharp bevel's supersamples
 averaged into the surface): the crowbar's 400 pixels with z < 0 -> 0 (630 pixels changed). Rebaked: the crowbar,
@@ -629,3 +629,31 @@ straps too ("armbands" in the broad sense) is a one-line `visible = false` in th
 unchanged (bracers on). About 2 days; the one human decision is the wrist's colour match between the body's bare arm
 skin and the hand's skin. For VR testing: roll and bend the wrist fully with the setting off, look for a gap at the
 wrist and the colour step, and check it for all three builds.
+## Patch 1.0.1: the lava super nailgun and multi rocket launcher re-mapped (2026-10-10, worktree `remap2`)
+
+The `blend101` section's "not done", approved: `v_lava2.mdl` and `v_multi2.mdl` (the super nailgun's and rocket
+launcher's meshes, their own skins) added to `reuv_weapons.py`'s SPECS with no overrides (`{}`, as their siblings),
+then `polish_weapons.py v_lava2.mdl v_multi2.mdl` and `bake_normals.py v_lava2.mdl v_multi2.mdl` (Python with numpy;
+no Blender step: reuv_weapons.py and the baker run in Python). Checks: polish_weapons.py's anchor check held (lava
+super nailgun 28, 148, 254 (its magazine), 652; multi rocket launcher 3, 12, 17: each at the same place in every pose);
+`v_nail2.mdl` and `v_rock2.mdl` polished again into a scratch folder came out byte for byte as shipped, and their normal
+maps rebaked unchanged (the pipeline is reproducible).
+
+| `check_mdl_art.py --stretch` (area, frame 0) | over 3:1 | over 3:1 over varied texels | skin |
+|---|---|---|---|
+| lava super nailgun | 40.8% -> 13.3% | 27.0% -> 1.6% | 512x146 -> 512x498 |
+| multi rocket launcher | 33.6% -> 8.4% | 15.4% -> 3.3% | 512x146 -> 512x162 |
+
+(Their siblings, for comparison: super nailgun 12.8% / 1.2%, rocket launcher 25.9% / 3.2%.) As there, the faces whose
+strips do not unwrap flat are left (5 charts, 75 faces on the lava gun; 1 chart, 12 faces on the multi launcher).
+check_mdl_art.py's other findings: the multi launcher's triangles over 4:1 22 -> 2; mirrored-overlap texels fewer on
+both; the lava gun's normal map has 9 steep seam-ring texels (the super nailgun's has 12).
+
+**Smoke** (mock, e1m1): the lava super nailgun in the off hand on lava nails (`vr_reload_test 16`), its magazine out by
+B/Y (a spent lava nail magazine, smoking), a new one from the pouch seated (36), the gun back to the main hand, dropped
+(lying: its magazine's seat 0.00 units off the gun's), taken again: `v_lava2.mdl`, its magazine and well drawn with it
+throughout. The rocket launcher in the off hand switched to multi-rockets by its ammo button (`v_multi2.mdl` drawn),
+emptied, a multi-rocket from the pouch loaded at the muzzle (1 of 4), dropped and taken again.
+
+**In the headset:** both guns up close (the lava gun's barrels and body, the multi launcher's front): the paint as
+before, finer, no streaks; reload the lava super nailgun (magazine anchor) and holster both.

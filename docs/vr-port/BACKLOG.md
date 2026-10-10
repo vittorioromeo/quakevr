@@ -92,8 +92,8 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
 
 - **Stretched UVs left** (ROUND21.md, "Patch 1.0.1: stretched skins re-mapped"): the grappling hook's claws (10% of it:
   their strips do not unwrap flat), the rocket launcher's and plasma gun's few faces whose strips would not unwrap
-  flat; the lava super nailgun and multi rocket launcher (the same meshes, their own skins) not done: one line each
-  in reuv_weapons.py's SPECS.
+  flat; the same few on the lava super nailgun and multi rocket launcher (re-mapped too: ROUND22.md, "Patch 1.0.1:
+  the lava super nailgun and multi rocket launcher re-mapped").
 - **Body skins' texel density at the wrist**: about a sixth of the hands' (256 x 256 skins). The skins are the
   author's own repaint (commit 24fa2de6d): a re-map or a bigger skin only resamples his paint; a sharper sleeve needs
   him to paint the wrist and bracer at a higher resolution (or make_vrbody.py's painter at 512, losing his repaint).
