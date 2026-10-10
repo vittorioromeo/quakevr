@@ -62,6 +62,7 @@ struct ContinueSave
     char context[64]{};         // its campaign's title, or its map package's
     int campaign{0};
     time_t when{0};             // the file's time
+    bool package{false};        // a map package's save: its title is the index's (read again when that arrives)
 };
 ContinueSave continueSave;
 
@@ -71,6 +72,7 @@ struct ContinueScan
 {
     char path[MAX_OSPATH]{};
     time_t when{0};
+    za::U32 indexGeneration{0}; // the map index's then (a package's title, "map package <sha>" until it has arrived)
 };
 ContinueScan continueScanned;
 
@@ -321,6 +323,7 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose)
     q_strlcpy(out.map, ctx.map, sizeof(out.map));
     q_strlcpy(out.title, ctx.mapTitle, sizeof(out.title));
     q_strlcpy(out.context, contextTitle(ctx), sizeof(out.context));
+    out.package = ctx.package[0] != 0;
     q_strlcpy(out.relname, c.relname, sizeof(out.relname));
     q_strlcpy(out.path, c.path, sizeof(out.path));
     out.when = c.when;
@@ -343,7 +346,8 @@ void refresh(bool verbose)
         }
         if(best < 0) { break; }
         Candidate& c = candidates[best];
-        if(continueSave.found && !strcmp(c.path, continueScanned.path) && c.when == continueScanned.when)
+        if(continueSave.found && !strcmp(c.path, continueScanned.path) && c.when == continueScanned.when &&
+            (!continueSave.package || continueScanned.indexGeneration == qvr::mapindex::generation()))
         {
             if(verbose) { Con_Printf("continue: %s (as before)\n", c.relname); }
             return;
@@ -354,6 +358,7 @@ void refresh(bool verbose)
             continueSave = found;
             q_strlcpy(continueScanned.path, c.path, sizeof(continueScanned.path));
             continueScanned.when = c.when;
+            continueScanned.indexGeneration = qvr::mapindex::generation();
             if(verbose) { Con_Printf("continue: %s\n", c.relname); }
             return;
         }
