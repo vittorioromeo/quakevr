@@ -38,6 +38,7 @@ void BGM_Pause (void);
 void BGM_Resume (void);
 
 void BGM_PlayCDtrack (byte track, qboolean looping);
+qboolean BGM_TrackAvailable (int track);	/* QVR: whether BGM_PlayCDtrack would find it */
 
 #endif	/* _BGMUSIC_H_ */
 

@@ -454,6 +454,7 @@ float(entity b) meleewristspeed = #0;
 float(entity b) meleewiggled = #0;
 vector(entity b, float xBack) meleegripago = #0;
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
+float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there
 
 // Water splashes (vr_physics.cpp): where a segment first goes into water, slime or lava from the
 // open (or out of it), on the surface -- `start` itself if it crosses none (the trace globals are

@@ -90,7 +90,7 @@ spawn functions but are not entities (`//! internal` in `entities.fgd`, with the
 | `func_vr_target` | a target board (brush) that breaks into splinters when shot, struck or blown up, firing its `target` | `health` (10), `target` |
 | `func_vr_restock` | keeps a supply going: every `wait` s, when fewer than `count` of `contents` lie within `distance` of it, a new one here (single player) | `contents` (item_shells, item_spikes, item_rockets, item_cells, item_health, item_key1/2, weapon_shotgun, weapon_supershotgun, weapon_nailgun, weapon_supernailgun, vr_debris_piece, vr_crate), `contentsflags` (its spawnflags), `model` (a rock's or brick's), `count` (1), `distance` (96), `wait` (5; -1: only when used) |
 | `info_vr_checkpoint` | where a dead player comes back (single player) instead of the level restarting: taken when he comes within `distance` (96) or when used; the latest taken counts: a new life there (the level's starting items, his keys kept), the level as he left it | `targetname`, `angle`, `distance` |
-| `target_vr_music` | when used, the music changes to CD track `sounds` (as worldspawn's: 2-11 are Quake's own), or back to the map's own with `sounds` 0; it plays from the player's own Quake at his music volume, and a saved game keeps it (QC `vr_music_track`; the engine tells a connecting client that track in place of worldspawn's) | `targetname`, `sounds` |
+| `target_vr_music` | when used, the music changes to CD track `sounds` (as worldspawn's: 2-11 are Quake's own), or back to the map's own with `sounds` 0; it plays from the player's own Quake at his music volume, and a saved game keeps it (QC `vr_music_track`; the engine tells a connecting client that track in place of worldspawn's). With `music_folder` (`hipnotic`, `rogue`, `dopa`, `mg1`, `mg3`, `id1`) `sounds` is that campaign's own track (2-15) whatever the game (the engine's number for it: 128 + 16 * the folder's place + the track, vr_music.cpp; QC `campaignmusic`); a player without it: no change at all | `targetname`, `sounds`, `music_folder` |
 | `target_vr_message` | `message` in the middle of every player's view (or in the wrist's hologram) for `wait` s (8), sent again each second; no new tip shows while a centre print is up. With no `targetname` it starts by itself `delay` s (1) after the map starts | `message`, `wait`, `delay`, `targetname` |
 
 Also: `vr_crate`'s **`contents`** (what it holds instead of the random box: a classname as `func_vr_restock`'s, or
@@ -446,7 +446,8 @@ puts it).
 Everything a gate uses has a supply that comes back (`func_vr_restock`: health, shells, nails, rockets, rocks and bricks,
 the shotgun, the nailgun); a player who dies comes back at the lesson's checkpoint (`info_vr_checkpoint`), his keycard
 kept. He starts with no weapon, armour or shells and 100 health (client.qc's tutorial parms). Music (Quake's CD tracks from the player's own install; `MUSIC`, `MUSIC_ARENA` in the generator): 3 through the
-lessons, 9 from the arena's door shutting until it is cleared (`target_vr_music`); a welcome in the middle of the view
+lessons, Scourge of Armagon's track 4 ("Ranger Infiltration", `MUSIC_ARENA_FOLDER`; none in the player's Quake: 3 plays
+on) from the arena's door shutting until it is cleared (`target_vr_music`); a welcome in the middle of the view
 for 8 s at the start (`target_vr_message`; the tips wait). The calibration room plays 6 (`make_vrcalibration_map.py`'s `MUSIC`).
 
 **The start flow**: `vr_tutorial_started` (archived; 0 in a new install's config, 1 in any config from before

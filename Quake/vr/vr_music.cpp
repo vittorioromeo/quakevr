@@ -6,6 +6,11 @@
 // search path has that folder, then in the owned store/rerelease installs, which are read where they are (never
 // mounted, copied or written: no base dir changes). A game folder that is no campaign's (a mod, a map package, the
 // quakevr folder) that has the track plays it first, as the search path always did.
+//
+// A campaign's own track (target_vr_music's "music_folder": the tutorial's arena plays Scourge of Armagon's): a CD
+// track number above 127 says whose, 128 + 16 * the folder's place in campaignFolders + the track (2 to 15), looked for
+// in that folder only (the search path's, the owned installs'), whatever the active campaign; one byte as every track
+// is, so svc_cdtrack, the serverinfo and a saved game carry it unchanged.
 
 #include "vr_engine.hpp"
 
@@ -16,6 +21,8 @@ namespace
 {
 constexpr const char* campaignFolders[] = {"id1", "hipnotic", "rogue", "dopa", "mg1", "mg3"};
 constexpr int maxTracks = 256;
+constexpr int campaignTrackBase = 128;
+constexpr int campaignTrackSpan = 16;
 constexpr const char* trackStems[] = {"track", "Track"};
 
 // The GOG original's install (its tracks may be in <install>/music), found once; empty when it is not installed.
@@ -147,12 +154,61 @@ const char* gogOriginal()
     return gogOriginalRoot;
 }
 
+// The track in one campaign folder: where the search path has it, then the owned installs (last, highest priority,
+// first), the GOG original last of all.
+bool findInFolder(const char* folder, int track, const char* const* exts, int numExts, vr_musicfile_t* out)
+{
+    for(const searchpath_t* sp = com_searchpaths; sp; sp = sp->next)
+    {
+        char name[MAX_OSPATH];
+        folderOf(sp, name, sizeof(name));
+        if(q_strcasecmp(name, folder) || !findInSearchPath(sp, track, exts, numExts, out)) { continue; }
+        q_strlcpy(out->source, sp->pack ? sp->pack->filename : sp->filename, sizeof(out->source));
+        return true;
+    }
+    int roots = 0;
+    while(VR_OwnedReadRoot(roots)) { ++roots; }
+    for(int r = roots - 1; r >= 0; --r)
+    {
+        if(findInRoot(VR_OwnedReadRoot(r), folder, track, exts, numExts, out)) { return true; }
+    }
+    return gogOriginal()[0] && findInRoot(gogOriginal(), folder, track, exts, numExts, out);
+}
+
+void sayMissing(int code, const char* what)
+{
+    if(missingSaid[code]) { return; }
+    missingSaid[code] = true;
+    Con_Printf("[skipnotify]VR music: no %s in the game folders or the owned installs\n", what);
+}
+
 } // namespace
+
+extern "C" int VR_MusicCampaignTrack(const char* folder, int track)
+{
+    if(!folder || track < 2 || track >= campaignTrackSpan) { return 0; }
+    for(int i = 0; i < int(countof(campaignFolders)); ++i)
+    {
+        if(!q_strcasecmp(folder, campaignFolders[i])) { return campaignTrackBase + campaignTrackSpan * i + track; }
+    }
+    return 0;
+}
 
 extern "C" int VR_FindMusicTrack(int track, const char* const* exts, int numExts, vr_musicfile_t* out)
 {
     if(track < 0 || track >= maxTracks || numExts <= 0) { return 0; }
     *out = vr_musicfile_t{};
+
+    if(track >= campaignTrackBase) // a campaign's own track: that folder's only
+    {
+        const int folder = (track - campaignTrackBase) / campaignTrackSpan, n = (track - campaignTrackBase) % campaignTrackSpan;
+        if(folder >= int(countof(campaignFolders))) { return 0; }
+        if(findInFolder(campaignFolders[folder], n, exts, numExts, out)) { return 1; }
+        char what[64];
+        q_snprintf(what, sizeof(what), "%s track %d (track %d)", campaignFolders[folder], n, track);
+        sayMissing(track, what);
+        return 0;
+    }
 
     // A mod's or map package's own track wins, as the search path says.
     vr_musicfile_t top{};
@@ -194,35 +250,22 @@ extern "C" int VR_FindMusicTrack(int track, const char* const* exts, int numExts
     }
     addFolder("id1");
 
+    // Where the search path has that folder (the user's own data, a rerelease mounted as a base dir), then the owned
+    // installs.
     for(int c = 0; c < chainSize; ++c)
     {
-        // Where the search path has that folder (the user's own data, a rerelease mounted as a base dir)...
-        for(const searchpath_t* sp = com_searchpaths; sp; sp = sp->next)
-        {
-            char folder[MAX_OSPATH];
-            folderOf(sp, folder, sizeof(folder));
-            if(q_strcasecmp(folder, chain[c]) || !findInSearchPath(sp, track, exts, numExts, out)) { continue; }
-            q_strlcpy(out->source, sp->pack ? sp->pack->filename : sp->filename, sizeof(out->source));
-            return 1;
-        }
-        // ...then the owned installs, last (highest priority) first, the GOG original last of all.
-        int roots = 0;
-        while(VR_OwnedReadRoot(roots)) { ++roots; }
-        for(int r = roots - 1; r >= 0; --r)
-        {
-            if(findInRoot(VR_OwnedReadRoot(r), chain[c], track, exts, numExts, out)) { return 1; }
-        }
-        if(gogOriginal()[0] && findInRoot(gogOriginal(), chain[c], track, exts, numExts, out)) { return 1; }
+        if(findInFolder(chain[c], track, exts, numExts, out)) { return 1; }
     }
 
     // Another campaign's track on the search path rather than silence (what the search path alone chose before).
     if(haveTop) { *out = top; return 1; }
 
     // (tracks 0 and 1 are no music: a map without any, the CD's data track)
-    if(track >= 2 && !missingSaid[track])
+    if(track >= 2)
     {
-        missingSaid[track] = true;
-        Con_Printf("[skipnotify]VR music: no track %d in the game folders or the owned installs\n", track);
+        char what[32];
+        q_snprintf(what, sizeof(what), "track %d", track);
+        sayMissing(track, what);
     }
     return 0;
 }

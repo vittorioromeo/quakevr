@@ -1560,9 +1560,12 @@ def build_room12():
 
 # ---- The music and the welcome. Quake's CD tracks (id1's, Nine Inch Nails' soundtrack: 2 to 11; only references:
 # they play from the player's own Quake, its music folders, at his music volume; none there: silence). The author asked
-# (2026-10-10) for something atmospheric through the tutorial, something pumping in the arena, and back after it.
-MUSIC = 3          # "Aftermath": an ambient drone, unsettling but calm (worldspawn's "sounds")
-MUSIC_ARENA = 9    # "Damnation": its pounding drums, the most driving of id1's
+# (2026-10-10) for something atmospheric through the tutorial, something pumping in the arena, and back after it; then
+# (2026-10-11) for Scourge of Armagon's "Ranger Infiltration" in the arena, when the player has it (else no change: the
+# tutorial's track plays on). Its CD's track 4 (the soundtrack's third; the rerelease's hipnotic/music/track04.ogg).
+MUSIC = 3                       # "Aftermath": an ambient drone, unsettling but calm (worldspawn's "sounds")
+MUSIC_ARENA = 4                 # "Ranger Infiltration" ...
+MUSIC_ARENA_FOLDER = "hipnotic" # ... Scourge of Armagon's own (target_vr_music's "music_folder")
 WELCOME = ["Welcome to the tutorial!", "", "In this short level, you'll learn", "how to play Quake VR: UNLEASHED.", "",
            "You can skip the tutorial from the", "main menu's VR Hub (not recommended", "for first-time players)."]
 
@@ -1571,7 +1574,8 @@ def build_extras():
     # (written last, as late() has them: the playthrough's edict numbers stay as they were)
     with late():
         # the arena's track from the moment the door shuts (r12_go) until it is cleared (r12_won): the map's again
-        ent("target_vr_music", 1300, -600, LOW + 96, targetname="r12_go", sounds=MUSIC_ARENA)
+        ent("target_vr_music", 1300, -600, LOW + 96, targetname="r12_go", sounds=MUSIC_ARENA,
+            music_folder=MUSIC_ARENA_FOLDER)
         ent("target_vr_music", 830, -900, LOW + 96, targetname="r12_won", sounds=0)
         # the welcome in the middle of the view as soon as he is in (before any tip: a tip waits 0.5 s), for 8 s (no tip
         # meanwhile: vr_tips.cpp)

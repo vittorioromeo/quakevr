@@ -580,11 +580,24 @@ float() VR_Checkpoint_Respawn =
 // The CD track target_vr_music switched to (0: the map's own, worldspawn's "sounds"). Saved with the game: the engine
 // tells a connecting client this one in place of the map's (VR_ServerMusicTrack), so a game loaded mid-fight plays it.
 float vr_music_track;
+.string music_folder; // target_vr_music: the campaign folder whose own track "sounds" is ("hipnotic")
 
 void() target_vr_music_use =
 {
-    vr_music_track = self.sounds;
-    float track = self.sounds ? self.sounds : world.sounds;
+    float want = self.sounds;
+    if(self.music_folder != "" && want)
+    {
+        // A campaign's own track (the engine's number for it): only when the player's Quake has it; else the music
+        // stays as it is (and so does vr_music_track).
+        want = campaignmusic(self.music_folder, self.sounds);
+        if(!want)
+        {
+            dprint(sprintf("music: no %s track %g, unchanged at %g\n", self.music_folder, self.sounds, time));
+            return;
+        }
+    }
+    vr_music_track = want;
+    float track = want ? want : world.sounds;
     WriteByte(MSG_ALL, SVC_CDTRACK);
     WriteByte(MSG_ALL, track);
     WriteByte(MSG_ALL, track);
@@ -594,7 +607,9 @@ void() target_vr_music_use =
 /*QUAKED target_vr_music (0.6 0.3 1) (-8 -8 -8) (8 8 8)
 Quake VR: when used, the music changes to CD track "sounds" (as worldspawn's "sounds": 2 to 11 are Quake's own), or
 back to the map's own track with "sounds" 0. The tracks play from the player's own Quake (its music folders), at his
-music volume; none there: silence, as the map's own. A saved game keeps the track.
+music volume; none there: silence, as the map's own. A saved game keeps the track. With "music_folder" (a campaign's
+folder: "hipnotic", "rogue", "dopa", "mg1", "mg3", "id1") "sounds" is that campaign's own track (2 to 15), whatever
+the game; when the player's Quake has no such track the music is left as it is.
 */
 void() target_vr_music =
 {

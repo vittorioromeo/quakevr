@@ -40,6 +40,7 @@ extern qboolean scr_drawdialog;						// gl_screen.c
 extern cvar_t crosshair;							// gl_screen.c
 void BGM_Pause (void);								// bgmusic.c (bgmusic.h: the runtime's menu pausing the game)
 void BGM_Resume (void);								// bgmusic.c
+qboolean BGM_TrackAvailable (int track);			// bgmusic.c: whether that track would play (vr_progs.cpp)
 extern cvar_t r_lerpmodels;							// r_alias.c
 extern cvar_t r_lerpmove;							// gl_rmain.c
 extern cvar_t gl_farclip;							// gl_rmain.c

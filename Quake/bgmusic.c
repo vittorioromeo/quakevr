@@ -296,6 +296,37 @@ void BGM_Play (const char *filename)
 	Con_Printf("Couldn't handle music file %s\n", filename);
 }
 
+/* QVR: the extensions the streaming handlers play (none with external music off) */
+static int BGM_StreamerExts (const char **exts, unsigned int *types)
+{
+	int numexts = 0;
+	music_handler_t *handler;
+
+	if (!music_handlers || no_extmusic || !bgm_extmusic.value)
+		return 0;
+	for (handler = music_handlers; handler; handler = handler->next)
+	{
+		if (handler->is_available <= 0 || handler->player != BGM_STREAMER)
+			continue;
+		exts[numexts] = handler->ext;
+		types[numexts] = handler->type;
+		numexts++;
+	}
+	return numexts;
+}
+
+/* QVR: whether BGM_PlayCDtrack would find the track (target_vr_music's
+ * campaign tracks: a map switches to one only when the player has it) */
+qboolean BGM_TrackAvailable (int track)
+{
+	const char *exts[countof(wanted_handlers)];
+	unsigned int types[countof(wanted_handlers)];
+	vr_musicfile_t file;
+	int numexts = BGM_StreamerExts (exts, types);
+
+	return numexts > 0 && VR_FindMusicTrack (track, exts, numexts, &file);
+}
+
 void BGM_PlayCDtrack (byte track, qboolean looping)
 {
 /* QVR: the track is found per campaign (vr_music.cpp): a mod's or map
@@ -307,23 +338,13 @@ void BGM_PlayCDtrack (byte track, qboolean looping)
  */
 	const char *exts[countof(wanted_handlers)];
 	unsigned int types[countof(wanted_handlers)];
-	int numexts = 0, i;
+	int numexts, i;
 	qboolean found = false;
 	vr_musicfile_t file;
-	music_handler_t *handler;
 
-	if (music_handlers && !no_extmusic && bgm_extmusic.value)
-	{
-		for (handler = music_handlers; handler; handler = handler->next)
-		{
-			if (handler->is_available <= 0 || handler->player != BGM_STREAMER)
-				continue;
-			exts[numexts] = handler->ext;
-			types[numexts] = handler->type;
-			numexts++;
-		}
+	numexts = BGM_StreamerExts (exts, types);
+	if (numexts > 0)
 		found = VR_FindMusicTrack (track, exts, numexts, &file);
-	}
 
 	/* if replaying the same track, just resume playing instead of stopping and restarting*/
 	if (bgmstream && found && bgmsource[0] && !strcmp (file.path, bgmsource) && file.offset == bgmoffset)

@@ -26923,7 +26923,8 @@
 "classname" "target_vr_music"
 "origin" "1300 -600 -48"
 "targetname" "r12_go"
-"sounds" "9"
+"sounds" "4"
+"music_folder" "hipnotic"
 }
 // entity 387
 {

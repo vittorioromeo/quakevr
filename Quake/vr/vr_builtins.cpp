@@ -664,6 +664,15 @@ void PF_fileexists()
     G_FLOAT(OFS_RETURN) = COM_FileExists(G_STRING(OFS_PARM0), nullptr) ? 1.f : 0.f;
 }
 
+// float(string folder, float track) campaignmusic: a campaign's own CD track's number for target_vr_music
+// (vr_music.cpp: "hipnotic", 4 is Scourge of Armagon's "Ranger Infiltration"), 0 when the player's Quake doesn't have
+// it (no such campaign or track, no music file in its folders or the owned installs, external music off).
+void PF_campaignmusic()
+{
+    const int track = VR_MusicCampaignTrack(G_STRING(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)));
+    G_FLOAT(OFS_RETURN) = track && BGM_TrackAvailable(track) ? static_cast<float>(track) : 0.f;
+}
+
 // ----------------------------------------------------------------------------
 // Highlight markers (vr_highlights.cpp; QC vr_highlights.qc)
 
@@ -2320,6 +2329,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
     {"fileexists", PF_fileexists},
+    {"campaignmusic", PF_campaignmusic},
     {"highlighting", PF_highlighting},
     {"highlight", PF_highlight},
     {"motionevent", PF_motionevent},

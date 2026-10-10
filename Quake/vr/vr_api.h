@@ -513,6 +513,7 @@ typedef struct vr_musicfile_s
     char source[MAX_OSPATH]; // where it was found, for the log: a game folder or an owned install's root
 } vr_musicfile_t;
 int VR_FindMusicTrack(int track, const char *const *exts, int numExts, vr_musicfile_t *out);
+int VR_MusicCampaignTrack(const char *folder, int track); // a campaign's own track's number (vr_music.cpp), or 0
 const char *VR_ActiveCampaignFolder(void);
 const char *VR_OwnedReadRoot(int index);
 

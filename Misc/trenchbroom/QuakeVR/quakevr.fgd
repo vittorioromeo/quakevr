@@ -4033,9 +4033,26 @@ when touched."
 	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
 ]
 
-@PointClass color(153 76 255) size(-8 -8 -8, 8 8 8) =
-	target_vr_music : "Quake VR: when used, the music changes to CD track 'sounds' (as worldspawn's 'sounds': 2 to 11 are Quake's own), or back to the map's own track with 'sounds' 0. The tracks play from the player's own Quake (its music folders), at his music volume; none there: silence, as the map's own. A saved game keeps the track."
+@PointClass base(Targetname) color(153 76 255) size(-8 -8 -8, 8 8 8) =
+	target_vr_music : "Quake VR: music change
+
+When used, the music changes to CD track 'sounds' (as worldspawn's: 2 to 11 are Quake's own), or back to the map's
+own track with 'sounds' 0. The tracks play from the player's own Quake (its music folders, or the rerelease's), at his
+music volume; none there: silence, as the map's own. A saved game keeps the track. With 'music_folder' (a campaign's
+folder) 'sounds' is that campaign's own track whatever the game; the player's Quake without it: the music is left as
+it is."
 [
+	sounds(integer) : "CD track" : 0 : "The track (2 to 11 are Quake's own); 0: back to the map's own (worldspawn's)."
+	music_folder(choices) : "Campaign's track" : "" : "'sounds' is this campaign's own track (2 to 15)." =
+	[
+		"" : "None (the game's)"
+		"hipnotic" : "Scourge of Armagon"
+		"rogue" : "Dissolution of Eternity"
+		"dopa" : "Dimension of the Past"
+		"mg1" : "Dimension of the Machine"
+		"mg3" : "Dawn of the Machine"
+		"id1" : "Quake"
+	]
 ]
 
 @PointClass base(PlayerClass) =

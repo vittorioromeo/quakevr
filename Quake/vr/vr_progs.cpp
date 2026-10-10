@@ -507,11 +507,14 @@ extern "C" void VR_OnSpawnServerAfterLoad()
 }
 
 // The CD track a connecting client is told (svc_serverinfo's svc_cdtrack): the one the map's QC switched to
-// (target_vr_music: vr_music_track, kept in a saved game), else the map's own (worldspawn's "sounds").
+// (target_vr_music: vr_music_track, kept in a saved game), else the map's own (worldspawn's "sounds"). A campaign's
+// own track (vr_music.cpp) the player doesn't have (a save from another install): the map's.
 extern "C" int VR_ServerMusicTrack(int mapTrack)
 {
     const float* track = sv_bindings.musicTrack;
-    return track && *track >= 1.f && *track <= 255.f ? static_cast<int>(*track) : mapTrack;
+    if(!track || *track < 1.f || *track > 255.f) { return mapTrack; }
+    const int t = static_cast<int>(*track);
+    return t < 128 || BGM_TrackAvailable(t) ? t : mapTrack;
 }
 
 extern "C" void VR_OnBeginLoadGame()
