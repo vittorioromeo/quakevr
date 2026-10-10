@@ -165,3 +165,5 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
   2026-10-11).
 - bHaptics support (vest, arms, head, hands: hits by direction, recoil, explosions, melee impacts) (the author,
   2026-10-11).
+- Standalone Quest version (Android/Quest native build: OpenXR on Android, GLES/Vulkan renderer path, performance
+  budget for the mobile GPU, packaging/sideloading) (the author, 2026-10-11).
