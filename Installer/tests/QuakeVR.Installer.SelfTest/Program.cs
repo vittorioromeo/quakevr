@@ -50,41 +50,40 @@ T Throws<T>(Action a, string what) where T : Exception
 
 var tests = new List<(string Name, Action Body)>
 {
-    ("statement: four claims, unanswered at first, Continue only with YES to all four", () =>
+    ("statement: three claims, unanswered at first, Continue only with YES to all three", () =>
     {
-        Eq(4, AiStatement.Claims.Count, "claims");
+        Eq(3, AiStatement.Claims.Count, "claims");
         Eq(5, AiStatement.Paragraphs.Count, "paragraphs");
         True(AiStatement.Paragraphs[1].Contains("renaissance") && !AiStatement.Paragraphs[1].Contains("reinassance"), "spelling fixed");
         var s = new AiStatement();
         var changes = 0;
         s.Changed += () => ++changes;
-        for (var i = 0; i < 4; ++i)
+        for (var i = 0; i < 3; ++i)
         {
             Eq<bool?>(null, s[i], $"claim {i + 1} starts unanswered");
         }
-        Eq(4, s.Unanswered, "unanswered");
+        Eq(3, s.Unanswered, "unanswered");
         True(!s.AllYes, "nothing answered: no Continue");
         s.Answer(0, true);
         s.Answer(1, true);
-        s.Answer(2, true);
         True(!s.AllYes, "one unanswered: no Continue");
-        s.Answer(3, false);
+        s.Answer(2, false);
         True(!s.AllYes, "one NO: no Continue");
-        Eq<bool?>(false, s[3], "NO kept");
-        s.Answer(3, true);
+        Eq<bool?>(false, s[2], "NO kept");
+        s.Answer(2, true);
         True(s.AllYes, "all YES: Continue");
         Eq(0, s.Unanswered, "all answered");
         s.Answer(1, false);
         True(!s.AllYes, "YES switched back to NO: no Continue");
         Eq<bool?>(false, s[1], "a set claim switches between YES and NO only");
         s.Answer(1, false);
-        Eq(6, changes, "Changed fires on real changes only");
-        // Every mix of the 3^4 states: Continue exactly when all four are YES.
-        for (var m = 0; m < 81; ++m)
+        Eq(5, changes, "Changed fires on real changes only");
+        // Every mix of the 3^3 states: Continue exactly when all three are YES.
+        for (var m = 0; m < 27; ++m)
         {
             var t = new AiStatement();
             var allYes = true;
-            for (int i = 0, v = m; i < 4; ++i, v /= 3)
+            for (int i = 0, v = m; i < 3; ++i, v /= 3)
             {
                 if (v % 3 != 0)
                 {

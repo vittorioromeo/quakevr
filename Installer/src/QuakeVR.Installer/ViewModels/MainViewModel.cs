@@ -17,7 +17,7 @@ namespace QuakeVR.Installer.ViewModels;
 public enum Page
 {
     Welcome,
-    /// <summary>The author's statement on AI usage: four YES/NO answers, all YES to go on.</summary>
+    /// <summary>The author's statement on AI usage: three YES/NO answers, all YES to go on.</summary>
     Statement,
     Detect,
     Options,
@@ -309,7 +309,7 @@ public sealed class MainViewModel : ObservableObject
     {
         Page.Welcome => _existing is null ? "Nothing is changed until you press Install." :
                         $"Nothing is changed until you press {(OfferedMode == InstallMode.Repair ? "Repair" : "Update")}. Your settings, saves and maps are kept.",
-        Page.Statement => Statement.AllYes ? "Your answers are not saved or sent anywhere." : "Continue needs YES to all four.",
+        Page.Statement => Statement.AllYes ? "Your answers are not saved or sent anywhere." : "Continue needs YES to all three.",
         Page.Detect => "Your Quake files are only read, never changed.",
         Page.Options => "Free and open source. No telemetry: nothing is sent about you.",
         Page.Support => "Quake VR: Unleashed is free, and it stays free.",

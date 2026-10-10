@@ -84,8 +84,8 @@ original data. What changes:
 2. **Run it.** It isn't code-signed, so Windows SmartScreen may say "Windows protected your PC": click **More info**,
    then **Run anyway**. The release page lists each file's SHA-256, if you want to check it first
    (`Get-FileHash QuakeVR-Setup.exe` in PowerShell). It needs no administrator rights.
-3. **Statement:** a short statement from the author on how AI was used to make QVR:U, with four points to answer YES
-   or NO. *Continue* unlocks with YES to all four. The answers aren't saved or sent anywhere.
+3. **Statement:** a short statement from the author on how AI was used to make QVR:U, with three points to answer YES
+   or NO. *Continue* unlocks with YES to all three. The answers aren't saved or sent anywhere.
 4. **Your PC:** what it found, before anything is changed: your Quake (and whether it is the original or the
    re-release), the expansions you own and whether each is ready to play, your OpenXR runtimes (SteamVR, Virtual
    Desktop, Meta Quest Link, Windows Mixed Reality), and the Visual C++ runtime. If Quake is somewhere it didn't

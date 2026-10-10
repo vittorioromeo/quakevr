@@ -547,7 +547,7 @@ static class ScreenshotHarness
     /// <summary>
     /// The Statement page, unanswered, mixed and all YES, saved to PNG and driven through its real controls (the radio
     /// buttons' automation peers, as a screen reader or a click would): the switches start with neither YES nor NO, a
-    /// picked one cannot go back to neither, and the footer's Continue is enabled only with YES to all four. Returns
+    /// picked one cannot go back to neither, and the footer's Continue is enabled only with YES to all three. Returns
     /// what went wrong, or null.
     /// </summary>
     /// <summary>The Play page's two Play buttons, pressed through their automation peers with the game's start
@@ -634,9 +634,9 @@ static class ScreenshotHarness
         var page = FindAll<StatementPage>(view).Single();
         var radios = FindAll<System.Windows.Controls.RadioButton>(page).ToList();
         var next = FindAll<System.Windows.Controls.Button>(view).Single(b => b.Command == vm.NextCommand);
-        if (radios.Count != 8)
+        if (radios.Count != Core.AiStatement.Claims.Count * 2)
         {
-            return $"{radios.Count} switch halves, not 8";
+            return $"{radios.Count} switch halves, not {Core.AiStatement.Claims.Count * 2}";
         }
         var states = new List<string>();
         string? Check(bool continueEnabled, string state)
@@ -651,7 +651,7 @@ static class ScreenshotHarness
         // Radio i*2 is claim i's YES, i*2+1 its NO.
         void Pick(int claim, bool yes) => Peer(radios[claim * 2 + (yes ? 0 : 1)]).Select();
 
-        if (radios.Any(r => r.IsChecked != false) || vm.Statement.Unanswered != 4)
+        if (radios.Any(r => r.IsChecked != false) || vm.Statement.Unanswered != Core.AiStatement.Claims.Count)
         {
             return "the switches do not start with neither YES nor NO";
         }
@@ -662,7 +662,6 @@ static class ScreenshotHarness
 
         Pick(0, true);
         Pick(1, false);
-        Pick(2, true);
         try
         {
             Peer(radios[0]).RemoveFromSelection();
@@ -672,9 +671,9 @@ static class ScreenshotHarness
         {
         }
         await Save(view, Path.Combine(dir, "1d-statement-mixed.png"));
-        if (vm.Statement[0] != true || vm.Statement[1] != false || vm.Statement[2] != true || vm.Statement[3] is not null)
+        if (vm.Statement[0] != true || vm.Statement[1] != false || vm.Statement[2] is not null)
         {
-            return $"the mixed answers did not reach the statement ({string.Join(",", Enumerable.Range(0, 4).Select(i => vm.Statement[i]?.ToString() ?? "unset"))}; switches {string.Join("", radios.Select(r => r.IsChecked == true ? "1" : "0"))})";
+            return $"the mixed answers did not reach the statement ({string.Join(",", Enumerable.Range(0, Core.AiStatement.Claims.Count).Select(i => vm.Statement[i]?.ToString() ?? "unset"))}; switches {string.Join("", radios.Select(r => r.IsChecked == true ? "1" : "0"))})";
         }
         if (Check(false, "mixed") is { } e2)
         {
@@ -682,7 +681,7 @@ static class ScreenshotHarness
         }
 
         Pick(1, true);
-        Pick(3, true);
+        Pick(2, true);
         await Save(view, Path.Combine(dir, "1e-statement-all-yes.png"));
         if (Check(true, "all yes") is { } e3)
         {

@@ -58,7 +58,7 @@ about 60 MB, with WPF's native DLLs inside; see INSTALLER.md, "Hosting and Smart
 | `--shortcuts-dir <dir>` | Shortcuts go to `<dir>\Desktop` and `<dir>\Programs` instead of the real desktop and Start menu (tests) |
 | `--feed <url>` | Where `latest.json` is read (repeatable; default: the GitHub Latest release's; a prerelease's Setup reads its own tag's first). Also `installer-settings.json` beside the exe |
 | `--downloads <dir>` | Where downloads go (default `%LOCALAPPDATA%\QuakeVR-Installer\downloads`) |
-| `--screenshots <dir>` | Render every page to PNG and exit, no window (the Statement page unanswered, mixed and all YES; exit 1 unless its Continue is enabled exactly with YES to all four, or unless both Play buttons mute the installer: a 0.3 s fade, then silence, with the game's start recorded instead of run); `fit.txt` (also printed) says which page would scroll, and by how much, at the default size, on 1366x768 at 100%, on 1080p at 150% and in the window at its minimum size; `7-*-150pct*.png` are renders at 150%, `7c-statement-minimum.png` the Statement page at the minimum size (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
+| `--screenshots <dir>` | Render every page to PNG and exit, no window (the Statement page unanswered, mixed and all YES; exit 1 unless its Continue is enabled exactly with YES to all three, or unless both Play buttons mute the installer: a 0.3 s fade, then silence, with the game's start recorded instead of run); `fit.txt` (also printed) says which page would scroll, and by how much, at the default size, on 1366x768 at 100%, on 1080p at 150% and in the window at its minimum size; `7-*-150pct*.png` are renders at 150%, `7c-statement-minimum.png` the Statement page at the minimum size (with `--package --target --shortcuts-dir` it runs a real install into those folders first) |
 | `--offline` | Never ask the network: the online release counts as unavailable (the "Use a local package" path) |
 | `--no-quake-look` | The generated textures and sounds even when Quake is found (screenshots of the fallback) |
 | `--reduce-motion` | Animations off, as with Windows' "Animation effects" off |
@@ -97,7 +97,7 @@ The console never writes the real desktop or Start menu: shortcuts only with `--
 dotnet run --project tests/QuakeVR.Installer.SelfTest -- <scratch folder> [name filter]
 ```
 
-Tests: the Statement page's answers (all 81 mixes of unanswered/YES/NO: Continue only with YES to all four, no way back to unanswered), VDF parsing, a fake Steam (libraries, app manifests), GOG and Epic, id1 kinds, the engine's resource checks
+Tests: the Statement page's answers (all 27 mixes of unanswered/YES/NO: Continue only with YES to all three, no way back to unanswered), VDF parsing, a fake Steam (libraries, app manifests), GOG and Epic, id1 kinds, the engine's resource checks
 and pack states (ported from `Quake/vr/vr_gamedir.cpp`), expansion roots and priorities, the expansions' readiness labels (checked against the engine's `campaigns[]` and `soloOnly()` in `Quake/vr/vr_gamedir.cpp`), OpenXR/Virtual Desktop/VC++
 detection (the registry key and the three DLLs the game imports), the VC++ redistributable's install (the real
 Authenticode check on files already here; the download, signature and version checks, exit codes and dry run with a local
