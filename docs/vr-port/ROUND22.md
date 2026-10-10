@@ -558,3 +558,74 @@ text and a NOTICE). It is a few MB, and it should be built at the loader's versi
 `FAKEXR_DEBUG_UTILS`; its messenger sends 3 messages. The installer's self-tests pass 37/37: the shortcut's arguments
 and its place, and the shortcut counts after install, update and uninstall. The installer's screenshot harness was not
 run, because it opens a window.
+
+## Scoping: hide the armbands, seamless forearm-to-wrist (worktree `armscope`, 2026-10-11; no code)
+
+Backlog: "Option to hide the armbands, with the forearm and the wrist/hand joining seamlessly without them." Read from
+the generators and the engine; nothing was run or changed.
+
+**What the "armbands" are.** There are two candidates, and the first is almost certainly the one meant:
+1. **The bracers**: the dark leather cuff on each forearm of the body (`vrbody*.md5mesh`, `Misc/quakevr/make_vrbody.py`
+   loft `"bracer"`). Five rings: 0.13, 0.19, 0.225 m from the elbow, the wrist (0.26 m), and a 7 mm flared lip over the
+   base of the hand. Part of the one body mesh (`numMeshes 1`, one skin per build and damage state, the bracer's skin
+   block `(0.75, 0.5)-(1, 1)`: buckled straps and rims, hand-repainted by the author in 24fa2de6d). Not a separate model.
+2. **The wrist gadget's straps** (`vrgadget_strap.mdl`, `vr_view.cpp` ~6400): two olive bands drawn 1.5 mm outside the
+   bracer, fitted to its ring (`avatar::forearmGirth` mirrors the bracer's ring numbers). They go with the gadget,
+   not with the body option.
+
+**How it is drawn and attached.** `avatar::pose` (`vr_avatar.cpp`) skins the body; the forearm has `foretwist1..4`
+helper joints at the rings (twist spread by `vr_body_forearm_twist`), `wrist_<side>` (all the roll, half the bend,
+mitre-stretched) and `hand_<side>` (the whole bend; carries only the bracer's lip). The hand is a **separate model**
+(`hand_rig.mdl` with `vr_hand_rig`, else `hand_base.mdl` plus fingers), its wrist end deliberately buried inside the
+cuff: `taper_hand.py` shrinks `hand_base`'s end to 0.55; `make_hand_rig.py`'s first palm ring is at x -4.40 "inside
+the arm's cuff". So the bracer's lip is what hides the hand/arm joint, and its job is explicit in the generator's
+comments: so "a bent wrist neither thins nor opens a gap".
+
+**What hiding the bracer exposes** (the answer to "is the band hiding a seam": yes, and more than a seam):
+- The forearm **skin loft stops at 0.15 m of 0.26 m** ("ends inside the bracer, 2 cm into it"). Remove only the bracer
+  and the lower 11 cm of the forearm is a hole: you see into the body's inside and the hand's buried end floating.
+- The skin loft is thicker at its end (0.046 x 0.040 * fm) than the hand's wrist; the wrist ring (0.036 x 0.027) is
+  sized to hold the hand with a few mm to spare, and the hand's end swings out as the wrist bends.
+- Different skins: the body's 256 x 256 skin (the author's paint; the wrist's texel density is about a sixth of the
+  hands') against the hand's own skin. A visible colour or detail step at the join is likely even if geometry is perfect.
+- Different joint set: the body's wrist joint (half the bend) vs the hand rig's own bone: where the hand rolls/bends the
+  seam opens a crack unless one overlaps the other.
+- Other things measured from the bracer: `vr_selfcollide.cpp` (arm capsules use the bracer's ring means), the gadget
+  strap fit (`forearmGirth`), `vr_bodyblood`/the blood paint block "bracer", `MODELS_IN_BLENDER.md` notes. Only the
+  gadget strap is a hard dependency: the straps must either hide too or keep a ring to sit on (a bare forearm of the
+  same radius is fine, the code only needs `forearmGirth`).
+
+**Options.**
+- **(a) Toggle only the bracer off (hide its triangles).** Needs the bracer's triangles separable: they are in the same
+  mesh, so either a second md5 mesh/index range, or two body files. Cheapest in code, but as above it shows a hole and
+  the buried hand end. Unusable on its own. Effort 0.5 day. Not recommended.
+- **(b) A "bare forearm" body variant: extend the skin loft to the wrist and give it its own wrist ring, hide the
+  bracer** (recommended). In `make_vrbody.py`: when the bracer is off, continue the `skin` loft from 0.15 m through
+  0.19 / 0.225 / the wrist rings (reuse the bracer's ring sizes and weights, so the twist/wrist joints behave the same)
+  ending at the wrist ring; texture it from the `skin` block (so it is the arm colour, tiling matches) with a small
+  lip of skin over the hand's end, or let the hand's tapered end sit 2 cm inside the loft exactly as it sits inside the
+  bracer now. Ship as **one extra mesh in each build's md5mesh** (both versions: bracer mesh, bare tube) and have the
+  avatar draw one of them by a setting (`vr_body_bracers`, default 1, Body page row), or
+  generate `vrbody*_bare.md5mesh` (6 more files: 3 builds, `usable()`/name logic in `vr_view.cpp` ~6547 and ~832).
+  Engine work is small if the md5 loader can drop a mesh (verify: it reads `numMeshes 1` only today, so a second mesh
+  needs a loader change or the two-file route). The hand needs no change: it already ends inside the cuff region.
+  Risks: the hand and the forearm skins differ, so an obvious colour step at the wrist unless the hands' skin tone is
+  matched (the author paints both: ask him which colour wins) and the author's hand-painted body skins keep working
+  (the bare tube uses the existing `skin` block: no repaint needed, but the 24fa2de6d paint only exists in the 16 TGAs,
+  so no regeneration of the skins: `make_vrbody.py` is genguard-protected, the loft change must not rewrite the TGAs).
+  Effort **1.5-2 days** (generator + loader + setting/menu/calibration check + mock screenshots of both builds, bent
+  wrist, rolled wrist, gadget on).
+- **(c) A hand model with a built-in forearm** (hand rig extended 10-15 cm up the arm in `make_hand_rig.py`, skin-matched
+  to it, bracer and the body forearm cut short). Gives the most control of the join (one mesh, one skin, one set of
+  bones) but duplicates the forearm, breaks the twist helper joints' purpose, and touches hands in every mode (Only
+  Hands has no forearm at all today), the gadget strap fit, the blood paint, self-collision. 5+ days, high risk.
+
+**Interaction with the wrist gadget.** It is placed on the forearm by the frame at `along`; it only reads
+`forearmGirth`, so a bare tube with the same ring sizes keeps it exact. The straps still sit 1.5 mm off the surface;
+with the bracer hidden they would float over bare skin as straps do over a sleeve (fine). A toggle that hides the
+straps too ("armbands" in the broad sense) is a one-line `visible = false` in the strap loop.
+
+**Recommendation: (b)**, with the strap hide folded into the same setting (`vr_body_bracers` 0 hides both); default
+unchanged (bracers on). About 2 days; the one human decision is the wrist's colour match between the body's bare arm
+skin and the hand's skin. For VR testing: roll and bend the wrist fully with the setting off, look for a gap at the
+wrist and the colour step, and check it for all three builds.
