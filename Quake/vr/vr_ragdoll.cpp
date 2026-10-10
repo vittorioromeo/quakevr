@@ -790,6 +790,8 @@ bool loadMesh(const aliashdr_t* hdr, Mesh& m)
 }
 
 // Each label's rigid transform per pose, fitted to its members (the representatives labelled so).
+qvr::jobs::Site fitSite{"ragdoll fit"}; // (Transforms::fit's poses: vr_jobs_sites)
+
 struct Transforms
 {
     int labels{0}, np{0};
@@ -813,26 +815,33 @@ struct Transforms
                 members[static_cast<za::SizeT>(l)]++;
             }
         }
-        za::Vector<Fit> fits(static_cast<za::SizeT>(count));
-        for(int pose = 0; pose < np; pose++)
-        {
-            for(Fit& f : fits)
+        // (each pose's fits its own: the poses shared out on the pool, the same numbers as one after another; a rig is
+        // derived again and again in refine, its model's poses each time: tens to hundreds of milliseconds a model)
+        qvr::jobs::parallelFor(fitSite, static_cast<za::SizeT>(za::max(np, 0)), 4,
+            [&](za::SizeT begin, za::SizeT end)
             {
-                f = Fit{};
-            }
-            for(const int v : reps)
-            {
-                const int l = label[static_cast<za::SizeT>(v)];
-                if(l >= 0 && l < count)
+                za::Vector<Fit> fits(static_cast<za::SizeT>(count));
+                for(int pose = static_cast<int>(begin); pose < static_cast<int>(end); pose++)
                 {
-                    fits[static_cast<za::SizeT>(l)].add(m.at(0, v), m.at(pose, v));
+                    for(Fit& f : fits)
+                    {
+                        f = Fit{};
+                    }
+                    for(const int v : reps)
+                    {
+                        const int l = label[static_cast<za::SizeT>(v)];
+                        if(l >= 0 && l < count)
+                        {
+                            fits[static_cast<za::SizeT>(l)].add(m.at(0, v), m.at(pose, v));
+                        }
+                    }
+                    for(int l = 0; l < count; l++)
+                    {
+                        fits[static_cast<za::SizeT>(l)].solve(rot[static_cast<za::SizeT>(l * np + pose)],
+                            pos[static_cast<za::SizeT>(l * np + pose)]);
+                    }
                 }
-            }
-            for(int l = 0; l < count; l++)
-            {
-                fits[static_cast<za::SizeT>(l)].solve(rot[static_cast<za::SizeT>(l * np + pose)], pos[static_cast<za::SizeT>(l * np + pose)]);
-            }
-        }
+            });
     }
 
     // How badly label l's transforms carry vertex v (the squared distances summed over the poses).
