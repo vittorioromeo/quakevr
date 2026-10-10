@@ -947,7 +947,7 @@ def build_room2():
     lamp_grid(out, 1184, 512, 1440, 896, 224, 1, 3)
     banner(N.join(["LESSON 2: BUTTONS", "", "Push the button beside the door.", "Your hand, anything you hold, your body",
                    "or something you throw presses a button."]), 1432, 704, 176, 180, "0.28")
-    tip("t2_button", "Reach out and push the button" + N + "with your hand.", 1428, 592, 76, 150)
+    tip("t2_button", "Reach out and push the button" + N + "with your hand.", 1428, 592, 76, 285)   # (seen before walking up: 1.9x)
     # ---- the settings room: moving and turning
     room("room2b", 1456, 384, 2096, 1024, 0, 256, bands(TX["panel"]))
     skylight(1712, 640, 1840, 768, 256)
@@ -1147,13 +1147,14 @@ def build_room5():
     banner(N.join(["LESSON 5: HEALING", "", "Health kits mend you. Grip one and hold it", "to your body, or put it in a holster:",
                    "at your hips, over your shoulders."]), 4544, r["y1"] - 4, LOW + 120, 270, "0.28")
     # (right of the exit door, seen from the room: it covered the door)
-    banner(N.join(["GRAB: close your hand round it.", "", "FORCE GRAB: point at something far",
-                   "and grip: it flies to your hand.", "", "COLLECT: put it in a holster, your pouch,",
+    banner(N.join(["GRAB: close your hand round it.", "", "FORCE GRAB: point at something far,",
+                   "hold the trigger and flick your hand back;", "grip as it reaches you to catch it.", "", "COLLECT: put it in a holster, your pouch,",
                    "or over your shoulder into your pack."]),
            r["x1"] - 4, 1064, LOW + 80, 180, "0.28")
     tip("t2_health", "You are hurt. Take a health kit:" + N + "grip it, then hold it to your belly" + N +
         "or a holster.", 4544, 1380, LOW + 70, 200)
-    tip("t2_forcegrab", "Point at the kit on the shelf" + N + "and grip: it flies to your hand.", 4880, 1400,
+    tip("t2_forcegrab", "Point at the kit on the shelf, hold" + N + "the trigger and flick your hand back:" + N +
+        "it flies to you. Grip as it arrives.", 4880, 1400,
         LOW + 76, 220)
     # where the fall lands: the wrist gadget
     with late():
@@ -1209,8 +1210,9 @@ def build_room7():
     checkpoint("cp7", 5216, 880, LOW, 270)
     lamp_grid(out, r["x0"], r["y0"], r["x1"], r["y1"], LOW + 288, 3, 2, 220)
     banner(N.join(["LESSON 7: FIGHT", "", "WARNING: AN ENEMY IS COMING!", "Fight it with your fists:",
-                   "block its blows, then strike."]),
-           5040, r["y1"] - 4, LOW + 100, 270, "0.3")   # (beside the way in: it hung in the doorway)
+                   "block its blows, then strike.", "", "Once it is dead, take its rifle",
+                   "and shoot the three targets to go on."]),
+           5216, r["y0"] + 4, LOW + 176, 90, "0.3")   # (over the exit door: ahead of the way in)
     # the alcove the grunts come from (a spawner in it); the button for another
     air("r7_alcove", (r["x1"], 608, LOW), (r["x1"] + 64, 736, LOW + 128), style=bands(TX["panel5"]))
     door_frame(out, door_air("r7_alcove_mouth", (r["x1"], 608, LOW), (r["x1"] + 1, 736, LOW + 128)))
@@ -1279,7 +1281,7 @@ def build_room8():
         setting_button(label, key, x, r["y1"], LOW + 64, 90)
     banner(N.join(["LESSON 8: WEAPONS", "", "Take the shotgun from the bench: grip it.", "Load shells: take one from the pouch at",
                    "your belly, push it into the gun's port.", "Destroy every target to go on."]),
-           5216, r["y1"] - 4, LOW + 160, 270, "0.28")
+           5216, r["y0"] + 4, LOW + 180, 90, "1")   # (the range's far wall, ahead of the way in)
     banner(N.join(["HOLSTERS: let go of a gun at your hip", "or shoulder to put it away; grip there",
                    "to draw it again."]), 4928, r["y1"] - 4, LOW + 150, 270, "0.25")
     banner(N.join(["TWO HANDS: grip the gun's front with", "your other hand to steady it. Virtual",
@@ -1433,7 +1435,7 @@ def build_room11():
         ent("vr_barrel", x, y, LOW + 18, skin=k % 3)
         k += 1
     banner(N.join(["LESSON 11: FIRE", "", "Take a torch off the wall: grip it.", "Set the crates alight and watch it spread.",
-                   "Enemies burn too. So do you: careful!"]), r["x1"] - 4, 0, LOW + 118, 180, "0.3")  # (2 down: under the windows with its blank line)
+                   "Enemies burn too. So do you: careful!"]), r["x0"] + 4, -192, LOW + 118, 0, "0.3")  # (facing the door in)
     tip("t2_torch_take", "Grip a torch and pull it off the wall.", 2272, r["y0"] + 24, LOW + 64, 160)
     tip("t2_burn", "Touch the crates with the flame" + N + "or hit them with the torch.", 2200, 0, LOW + 64, 160)
     # ---- beyond: the nailgun

@@ -23694,7 +23694,7 @@
 "origin" "1428 592 76"
 "tipname" "t2_button"
 "message" "Reach out and push the button\nwith your hand."
-"distance" "173"
+"distance" "328"
 }
 // entity 66
 {
@@ -24433,7 +24433,7 @@
 {
 "classname" "func_worldtext_banner"
 "origin" "4940 1064 -64"
-"worldtext" "GRAB: close your hand round it.\n\nFORCE GRAB: point at something far\nand grip: it flies to your hand.\n\nCOLLECT: put it in a holster, your pouch,\nor over your shoulder into your pack."
+"worldtext" "GRAB: close your hand round it.\n\nFORCE GRAB: point at something far,\nhold the trigger and flick your hand back;\ngrip as it reaches you to catch it.\n\nCOLLECT: put it in a holster, your pouch,\nor over your shoulder into your pack."
 "worldtext_halign" "1"
 "worldtext_scale" "0.28"
 "angle" "180"
@@ -24451,7 +24451,7 @@
 "classname" "func_vr_tip"
 "origin" "4880 1400 -68"
 "tipname" "t2_forcegrab"
-"message" "Point at the kit on the shelf\nand grip: it flies to your hand."
+"message" "Point at the kit on the shelf, hold\nthe trigger and flick your hand back:\nit flies to you. Grip as it arrives."
 "distance" "253"
 }
 // entity 142
@@ -24714,11 +24714,11 @@
 // entity 167
 {
 "classname" "func_worldtext_banner"
-"origin" "5040 924 -44"
-"worldtext" "LESSON 7: FIGHT\n\nWARNING: AN ENEMY IS COMING!\nFight it with your fists:\nblock its blows, then strike."
+"origin" "5216 420 32"
+"worldtext" "LESSON 7: FIGHT\n\nWARNING: AN ENEMY IS COMING!\nFight it with your fists:\nblock its blows, then strike.\n\nOnce it is dead, take its rifle\nand shoot the three targets to go on."
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
-"angle" "270"
+"angle" "90"
 }
 // entity 168
 {
@@ -25339,11 +25339,11 @@
 // entity 217
 {
 "classname" "func_worldtext_banner"
-"origin" "5216 396 16"
+"origin" "5216 -540 36"
 "worldtext" "LESSON 8: WEAPONS\n\nTake the shotgun from the bench: grip it.\nLoad shells: take one from the pouch at\nyour belly, push it into the gun's port.\nDestroy every target to go on."
 "worldtext_halign" "1"
-"worldtext_scale" "0.28"
-"angle" "270"
+"worldtext_scale" "1"
+"angle" "90"
 }
 // entity 218
 {
@@ -25990,11 +25990,11 @@
 // entity 284
 {
 "classname" "func_worldtext_banner"
-"origin" "2540 0 -26"
+"origin" "2164 -192 -26"
 "worldtext" "LESSON 11: FIRE\n\nTake a torch off the wall: grip it.\nSet the crates alight and watch it spread.\nEnemies burn too. So do you: careful!"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
-"angle" "180"
+"angle" "0"
 }
 // entity 285
 {
