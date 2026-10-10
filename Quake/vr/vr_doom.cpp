@@ -1748,6 +1748,81 @@ void drawPanel()
         screen.texture);
 }
 
+namespace
+{
+// The menu's lines (valid until the next call for the same row).
+constexpr int menuRows = 24;
+char menuRowText[menuRows + 1][200];
+char menuStatusText[256];
+} // namespace
+
+const char* menuStatus()
+{
+    const int chosen = session.running ? session.wad : chosenWad();
+    const char* name = chosen >= 0 && chosen < static_cast<int>(catalog.wads.size()) ? catalog.wads[chosen].name.cStr() : "no WAD found";
+    q_snprintf(menuStatusText, sizeof(menuStatusText), "%s: %s%s", session.running ? (session.open ? "Playing" : "Waiting (closed)") : "Will play",
+        name, session.running && session.focused ? ", has the controls" : "");
+    return menuStatusText;
+}
+
+int wadCount()
+{
+    ensureScanned();
+    return za::min(menuRows, static_cast<int>(catalog.wads.size()));
+}
+
+const char* wadRow(int i)
+{
+    char* out = menuRowText[za::clamp(i + 1, 0, menuRows)];
+    const bool automatic = !vr_doom_wad.string || !vr_doom_wad.string[0];
+    if(i < 0)
+    {
+        const int best = chosenWad();
+        q_snprintf(out, sizeof(menuRowText[0]), "%s Automatic (%s)",
+            automatic ? "*" : " ", best >= 0 && automatic ? catalog.wads[best].name.cStr() : "-");
+        return out;
+    }
+    if(i >= static_cast<int>(catalog.wads.size()))
+    {
+        out[0] = 0;
+        return out;
+    }
+    const Wad& w = catalog.wads[i];
+    const bool picked = !automatic && chosenWad() == i;
+    q_snprintf(out, sizeof(menuRowText[0]), "%s %s (%s%s)", picked ? "*" : " ", w.name.cStr(), w.source.cStr(),
+        w.failed ? ", failed to start" : "");
+    return out;
+}
+
+const char* wadHelp(int i)
+{
+    if(i < 0)
+    {
+        return "Plays the best WAD found: an official DOOM, DOOM II or Final DOOM of yours (Steam, GOG, or dropped "
+               "into quakevr/doom/wads), else Freedoom: Phase 1.";
+    }
+    return i < static_cast<int>(catalog.wads.size()) ? catalog.wads[i].path.cStr() : "";
+}
+
+void pickWad(int i)
+{
+    const bool wasRunning = session.running;
+    const bool wasOpen = session.open;
+    Cvar_Set("vr_doom_wad", i >= 0 && i < static_cast<int>(catalog.wads.size()) ? catalog.wads[i].path.cStr() : "");
+    if(i >= 0 && i < static_cast<int>(catalog.wads.size()))
+    {
+        catalog.wads[i].failed = false;
+    }
+    if(wasRunning && chosenWad() != session.wad)
+    {
+        stop("another WAD picked");
+        if(wasOpen)
+        {
+            setOpen(true);
+        }
+    }
+}
+
 bool takesOffHand(const InputState& in)
 {
     const int g = hands::gadgetHand();

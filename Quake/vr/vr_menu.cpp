@@ -1,4 +1,5 @@
 #include "vr_cheats.hpp"
+#include "vr_doom.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_alloccount.h"
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
@@ -499,6 +500,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageGore();
 [[nodiscard]] za::Vector<Item> pageLimbGore();
 [[nodiscard]] za::Vector<Item> pageScreens();
+[[nodiscard]] za::Vector<Item> pageDoom();
 [[nodiscard]] za::Vector<Item> pageTips();
 [[nodiscard]] za::Vector<Item> pageHipHolsters();
 [[nodiscard]] za::Vector<Item> pageClimbing();
@@ -2829,6 +2831,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 [[nodiscard]] za::Vector<Item> pageGadget()
 {
     return {
+        open("Doom", pageIndex(pageDoom)).help("Play Doom on the gadget's screen: a touchscreen under your fingertip."),
         open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageMain)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
         slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
         header("Placement"),
@@ -2846,6 +2849,81 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 void hologramTestMessage()
 {
     qvr::gadget::testMessage();
+}
+
+// Doom on the wrist gadget (vr_doom.cpp, docs/vr-port/DOOM.md): open it, the WAD it plays, its controls.
+[[nodiscard]] const char* doomStatusLine()
+{
+    return doom::menuStatus();
+}
+
+[[nodiscard]] const char* doomWadHint()
+{
+    return "Own DOOM? Drop DOOM.WAD into quakevr/doom/wads";
+}
+
+[[nodiscard]] za::Vector<Item> pageDoom()
+{
+    za::Vector<Item> items = {
+        header("Doom on the Wrist Gadget"),
+        command("Open or Close Doom", "vr_doom")
+            .help("Doom on the gadget's screen instead of the HUD, running beside Quake in real time (Quake's pause "
+                  "pauses it; closed, it waits where it was). Touch the screen with your other hand's fingertip to "
+                  "play; raise the gadget and look at it to give its stick and buttons to Doom (bindable: vr_doom)."),
+        info(doomStatusLine),
+        header("WAD"),
+        info(doomWadHint),
+        row(doom::wadRow, doom::wadHelp, doom::pickWad, -1, -1),
+    };
+    const int count = doom::wadCount();
+    for(int i = 0; i < count; i++)
+    {
+        items.pushBack(row(doom::wadRow, doom::wadHelp, doom::pickWad, i, -1));
+    }
+    const Item rest[] = {
+        command("Open the WAD Folder", "vr_doom_open_folder")
+            .help("Opens quakevr/doom/wads on the desktop: put DOOM.WAD, DOOM1.WAD, DOOM2.WAD, TNT.WAD or PLUTONIA.WAD "
+                  "there, then Search Again."),
+        command("Search Again", "vr_doom_wads").help("Looks for WADs again (the console lists them: vr_doom_wads)."),
+        header("Controls"),
+        cycle("Controls", vr_doom_controls, {{0.f, "Touch Only"}, {1.f, "Controller and Touch"}, {2.f, "Controller Only"}})
+            .help("Touch Only: everything on the screen with your fingertip; the sticks and buttons stay Quake's. "
+                  "Controller and Touch: also, while Doom has the focus (the gadget raised and looked at, or touched), "
+                  "the gadget hand's stick moves and turns, trigger fires, grip uses, X next weapon, Y Doom's menu, "
+                  "stick press the map; your other hand stays Quake's. Controller Only: no touch controls."),
+        cycle("Touch Controls Shown", vr_doom_overlay, {{0.f, "When Your Finger Is Near"}, {1.f, "Always"}, {2.f, "Never"}})
+            .help("The buttons drawn over Doom's picture (with Touch Only: always, faint when your finger is away)."),
+        toggle("Hard Press Fires", vr_doom_hard_fire)
+            .help("Pressing through the screen (Hard Press Depth) while steering with the MOVE stick, or on the "
+                  "picture, fires: one finger can move and shoot."),
+        toggle("Always Run", vr_doom_always_run).help("Doom's always run (RUN on the touch bar)."),
+        slider("Look to Focus", vr_doom_focus_look, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("How long you look at the raised gadget before its stick and buttons go to Doom (0: only a touch)."),
+        slider("Out of View to Unfocus", vr_doom_focus_grace, 0.1f, 3.f, 0.1f, "%.1f s")
+            .help("How long the gadget may be out of view (lowered, looked away from) before they come back to Quake."),
+        toggle("Pause When Not Focused", vr_doom_pause_unfocused)
+            .help("Off: Doom keeps running while you play Quake. On: it pauses until you look at it or touch it."),
+        header("Picture and Sound"),
+        toggle("4:3 Picture", vr_doom_aspect).help("Doom's picture as it was shown (4:3, bars at the sides); off: stretched over the screen."),
+        slider("CRT Look", vr_doom_crt, 0.f, 2.f, 0.1f, "%.1fx").help("Times the gadget's CRT look (0: a clean picture)."),
+        slider("Volume", vr_doom_volume, 0.f, 1.f, 0.05f, "%.2f").help("Doom's sounds, from the gadget, against the game's."),
+        toggle("Big Floating Panel", vr_doom_panel)
+            .help("Doom on a big panel in front of you instead of the gadget (placed as you turn this on, it moves with "
+                  "you; touch it as the gadget)."),
+        slider("Panel Width", vr_doom_panel_size, 0.2f, 1.5f, 0.05f, "%.2f m"),
+        command("Place the Panel in Front", "vr_doom_panel_place"),
+        header("Touchscreen"),
+        slider("Touch Distance", vr_touch_press, 0.f, 2.f, 0.1f, "%.1f cm")
+            .help("How near the screen your fingertip must come for a touch (it must come from in front)."),
+        slider("Release Distance", vr_touch_release, 0.3f, 4.f, 0.1f, "%.1f cm").help("How far off it a touch ends."),
+        slider("Hard Press Depth", vr_touch_hard, 0.5f, 4.f, 0.1f, "%.1f cm").help("How far through the screen is a hard press."),
+        slider("Touch Haptics", vr_touch_haptic, 0.f, 1.f, 0.05f, "%.2f").help("Your hand's buzz as a touch begins."),
+    };
+    for(const Item& i : rest)
+    {
+        items.pushBack(i);
+    }
+    return items;
 }
 
 // Split from Wrist Gadget (and Immersion): the wrist gadget's screen, the weapons' ammo screens and
@@ -5978,6 +6056,12 @@ za::Vector<Item> pageMg3ChthonTests()
 za::Vector<Item> pageDebugTests()
 {
     return {
+        command("Doom: Info", "vr_doom_info")
+            .help("vr_doom_info: Doom's state (level, health, ammo, place), its focus, the screen's distance and angle "
+                  "from your eye, its cost a frame, Quake's time."),
+        toggle("Doom: Show Touches", vr_debug_touch).help("vr_debug_touch: each touch's start and end printed (2: every frame)."),
+        toggle("Doom: Debug", vr_debug_doom).help("vr_debug_doom: Doom's own text, the focus changing and menu taps printed."),
+        command("Doom: Restart", "vr_doom_restart 1").help("Doom stopped (its settings saved) and started again, WADs searched again."),
         command("Official Triggers: Acceptance Test", "vr_mg_trigger_test 1")
             .help("Check native target timing, cancellation, lightning, fades and comfortable quake feedback. Reload afterward."),
         command("Official Triggers: Retarget Teleporter", "vr_mg_trigger_test 4")
@@ -7391,6 +7475,7 @@ const Page pages[] = {
     {"Toolgun - Spawn", pageToolgunSpawn, pageToolgun, LevelStandard},
     {"Toolgun - Cheats and Utilities", pageToolgunCheats, pageToolgun, LevelStandard},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
+    {"Doom", pageDoom, pageGadget, LevelStandard},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -8019,6 +8104,8 @@ za::Vector<Item> pageMain()
             .help("Wrist Gadget: health, armour and ammo on your wrist. Status Bar: Quake's, on a hand."),
         cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}})
             .help("A mark where your gun aims: a dot, or a laser beam from the muzzle."),
+        open("Doom on the Wrist Gadget", pageIndex(pageDoom))
+            .help("Play Doom on the gadget's screen while you play Quake: touch it with your fingertip."),
 
         header("Sound"),
         slider("Volume", "volume", 0.f, 1.f, 0.05f, "%.2f").help("The game's sounds."),
