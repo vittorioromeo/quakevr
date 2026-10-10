@@ -836,8 +836,9 @@ The gestures are off while a take plays back. `vr_debug_buttons 1` now prints ev
 `VR buttons: main hand's both sticks clicked: opens the menu`. The calibration boards, the body calibration's board
 and the sight alignment's board say `menu button or both sticks: stop` (`input::menuButtonName`). The tutorial has a
 new tip, `t1_menu` in lesson 1's hall: "The menu: the menu button, or click both sticks together.". It went in through
-an entity-lump edit (`bsp_set_entities.py --from-file`), with no recompile. The lump matches `vrtutorial.map`, which
-was regenerated: only the new entity and the comments' numbering changed. The docs are updated: SETTINGS.md (the
+an entity-lump edit (`bsp_set_entities.py --from-file`), with no recompile. It is the lump's last entity (the
+generator writes it last, in `build_extras`' `late()` block), so a 1.0.0 save made mid-tutorial keeps its edict
+numbers. The lump matches `vrtutorial.map`, which was regenerated: the new entity is the only change. The docs are updated: SETTINGS.md (the
 controls table and a *Menu Button* paragraph), FEATURES.md, PLAYTEST.md and TESTING.md.
 
 **Tests.** The mock run (`vr_debug_buttons 1`) checks each path:

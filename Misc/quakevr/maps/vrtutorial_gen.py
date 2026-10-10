@@ -911,8 +911,6 @@ def build_room1():
                    "To run, hold the left thumbstick down."]), 634, 416, 100, 180, "0.32")
     arrows([(176, 256), (272, 256), (368, 256), (464, 256), (560, 256), (650, 256)], 0)
     tip("t2_move", "Push the left stick to walk." + N + "Push the right stick sideways to turn.", 220, 256, 60, 220)
-    # (1.0.1: a player's Pico under SteamVR had no menu button reaching the game; vr_menu_button's stick chord does.)
-    tip("t1_menu", "The menu: the menu button," + N + "or click both sticks together.", 520, 256, 60, 160)
     return d
 
 
@@ -1623,6 +1621,10 @@ def build_extras():
         ceiling_lamp(out, 1856, -416, LOW + 160, 32, 64, 200)
         ceiling_lamp(out, 1856, -592, LOW + 160, 64, 32, 200)
         ceiling_lamp(out, 1616, -592, LOW + 160, 64, 32, 200)
+        # lesson 1's hall, before its board: how to open the menu (1.0.1: a player's Pico under SteamVR had no menu
+        # button reaching the game; vr_menu_button's stick chord does). Last of all, so that a 1.0.0 save's edicts
+        # keep their numbers.
+        tip("t1_menu", "The menu: the menu button," + N + "or click both sticks together.", 520, 256, 60, 160)
 
 
 ROOMS = [build_room1, build_bend, build_room2, build_room3, build_room4, build_room5, build_room6, build_room7,
