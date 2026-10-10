@@ -274,7 +274,11 @@ engine is built by clang-cl), and [FTEQCC](https://www.fteqcc.org/) for the Quak
 
 QVR:U is *free* and *open-source*.
 
-If you enjoy my work, please support the project on [Ko-fi](https://ko-fi.com/vittorioromeovee). <3
+If you enjoy my work, please support the project on [Ko-fi](https://ko-fi.com/vittorioromeovee).
+
+<p align=center>
+<a href='https://ko-fi.com/P8D327QCSZ' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi6.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+</p>
 
 Talk about it on [Discord](https://discord.me/quakevr), and report bugs and ideas on the [GitHub issues page](https://github.com/vittorioromeo/quakevr/issues).
 
