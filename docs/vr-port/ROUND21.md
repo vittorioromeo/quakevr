@@ -10360,3 +10360,24 @@ the release list and the remote tags were identical to before.
   `releases/latest/download/latest.json` answers 404 today; the first `-Final` release's Latest guard fixes it.
 - GitHub notifies watchers of a published prerelease (the repository has 17 watchers; not checked who watches releases);
   its body said "Rehearsal ... not a release".
+## Two stale tests: ragdoll takes and the weapon catch (2026-10-10)
+
+Both failed on origin before the tech-debt cleanup; neither was a game regression.
+
+`ragdoll_test.sh` grab, twohand and burn: the limb was not taken in most runs. Two causes, both in the test.
+(1) Its mock hand went 3 units over the limb's middle, 2.3 units off its surface: inside `vr_ragdoll_grab_reach` while
+it was 6, outside it since the author's 2 (3cca8fccd, 2026-10-07). Now 1 unit over it (0.6-0.7 units off).
+(2) From e1m1's start the grunt dies down the platform's step; a limb lying below the player's floor was out of the
+hand's reach (the hand swept from the torso, `vr_handpose.cpp`, stopped 4-10 units short of it), now and then even
+with reach 6 (the bisect's mixed results). The take cases now step down first (`setpos 480 -300 64`). Grab, twohand
+and burn 5 of 5 each (were 0-1 of 3 for twohand); the fist's arrival still punches the corpse (66, a 4% head pop roll).
+
+`weapon_catch_test.sh` check 1 (a floating crowbar caught only by the fist on it): the dropped crowbar floats turned as
+the server's random numbers throw it, and the hand lowered onto its middle passes beside the bar for most turns (the
+fist 1.2-12 cm off at its closest, never touching: not taken, correctly). Before 263013c18 (server random numbers'
+own stream, clock-seeded unless `sv_random_seed`) every run threw it the same way (taken at -0.11 cm); since, it varies
+(seeds 2, 3, 4, 6: not taken, the same at 35544934a and at HEAD). The test now sets `sv_random_seed` 1 (`SEED`).
+Checks 5-6 (the lying shotgun by the handle): about 1 run in 8 the gun lies so that the closing fist meets its body
+before the hand is within `vr_weapon_grab_anywhere_min` of the handle (taken -13 to -23 cm in, allowed 5: anywhere,
+not the handle's), and about 1 in 8 the gun lands out of reach; so at d94a28c2a too. Such runs are run again (5 tries).
+weapon_catch_test.sh 4 of 4 runs 6/6.

@@ -33,8 +33,13 @@ PRE="wait30;god;notarget;vr_ragdoll 1;$XPRE;vr_debug_ragdoll 1;vr_test_spawn ${M
 DEAD="vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0"
 FILTER="^ragdoll|^vr_ragdoll_list|^vr_physics_steptime|corpses in the physics|gibbed|corpse: .* hit by|rror|CRASH|pushed at|  (held|pulled) by|flames on it|^wounds|soldier.mdl#rag|force grab: (a rag|caught a)"
 run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "${3:-$FILTER}" -Timeout 300 ${2:+-Out $2} 2>&1 | grep -v "^$" | grep -v "part [0-9]* blasted"; }
-# The hand on the limb nearest it, 3 units over its middle (twice: the mock hand reaches from where it was).
-TAKE() { echo "vr_mock_hand_to $1 ragdoll near 3;wait2;vr_mock_hand_to $1 ragdoll near 3;+grab$2;vr_mock_button $1 grip 1"; }
+# The hand on the limb nearest it, 1 unit over its middle (twice: the mock hand reaches from where it was), the player
+# first stepped down off e1m1's start platform (LOW: on the grunt's floor). (3 units over it left the hand 2.3 units off
+# the limb's surface, out of vr_ragdoll_grab_reach since the author's 2 of 2026-10-07, 3cca8fccd: it was 6. And from the
+# platform, a limb lying low down its step was out of the hand's reach, the hand swept from the torso stopped short of
+# it (vr_handpose.cpp): nothing taken, now and then.)
+LOW="setpos 480 -300 64;wait5"
+TAKE() { echo "vr_mock_hand_to $1 ragdoll near 1;wait2;vr_mock_hand_to $1 ragdoll near 1;+grab$2;vr_mock_button $1 grip 1"; }
 for c in $CASES; do
     echo "== $c"
     case $c in
@@ -85,9 +90,9 @@ strip.save(sys.argv[2])
 PY
         fi ;;
     grab)
-        run "map e1m1;$PRE;developer 1;vr_test_spawn_dist 28;$DEAD;wait300;$(TAKE off left);wait10;vr_ragdoll_list 1;vr_mock_hand_to off by 0 0 30;wait40;vr_ragdoll_list 1;vr_mock_hand_to off by 0 0 8;wait1;vr_mock_hand_to off by 0 10 8;wait1;vr_mock_hand_to off by 0 12 6;wait1;vr_mock_hand_to off by 0 12 4;wait1;-grableft;vr_mock_button off grip 0;wait200;vr_ragdoll_list;toggleconsole;quit" | grep -v -E "^  [ 0-9][0-9] [a-z]" ;;
+        run "map e1m1;$PRE;$LOW;developer 1;vr_test_spawn_dist 28;$DEAD;wait300;$(TAKE off left);wait10;vr_ragdoll_list 1;vr_mock_hand_to off by 0 0 30;wait40;vr_ragdoll_list 1;vr_mock_hand_to off by 0 0 8;wait1;vr_mock_hand_to off by 0 10 8;wait1;vr_mock_hand_to off by 0 12 6;wait1;vr_mock_hand_to off by 0 12 4;wait1;-grableft;vr_mock_button off grip 0;wait200;vr_ragdoll_list;toggleconsole;quit" | grep -v -E "^  [ 0-9][0-9] [a-z]" ;;
     twohand)
-        run "map e1m1;$PRE;developer 1;vr_test_spawn_dist 28;$DEAD;wait300;$(TAKE off left);wait5;$(TAKE main right);wait10;vr_ragdoll_list 1;vr_mock_hand_to off by 0 0 25;vr_mock_hand_to main by 0 0 25;wait30;vr_ragdoll_list 1;-grableft;vr_mock_button off grip 0;-grabright;vr_mock_button main grip 0;wait100;vr_ragdoll_list 1;toggleconsole;quit" | grep -v -E "^  [ 0-9][0-9] [a-z]" ;;
+        run "map e1m1;$PRE;$LOW;developer 1;vr_test_spawn_dist 28;$DEAD;wait300;$(TAKE off left);wait5;$(TAKE main right);wait10;vr_ragdoll_list 1;vr_mock_hand_to off by 0 0 25;vr_mock_hand_to main by 0 0 25;wait30;vr_ragdoll_list 1;-grableft;vr_mock_button off grip 0;-grabright;vr_mock_button main grip 0;wait100;vr_ragdoll_list 1;toggleconsole;quit" | grep -v -E "^  [ 0-9][0-9] [a-z]" ;;
     pull)
         G=$KIT/bases/$AGENT/qbase/id1/ragdoll_pull.txt
         printf "%s\n" "0.000 off -0.350 1.100 -0.200 70 0 0" "0.000 main 0.100 1.300 -0.450 56 0 0" "0.500 cmd +attack" \
@@ -102,7 +107,7 @@ PY
             echo "vr_ragdoll_collide_each $e:"; run "$S;wait400;vr_ragdoll_list;toggleconsole;quit" | grep -o "pelvis.*"
         done ;;
     burn)
-        run "map e1m1;$PRE;developer 1;vr_test_spawn_dist 28;$DEAD;wait300;vr_burn_test 1;wait40;vr_ragdoll_list 2;$(TAKE off left);wait10;vr_mock_hand_to off by 0 0 30;wait20;vr_ragdoll_list 2;vr_mock_hand_to off by 0 10 8;wait1;vr_mock_hand_to off by 0 12 6;wait1;vr_mock_hand_to off by 0 12 4;wait1;-grableft;vr_mock_button off grip 0;wait8;vr_ragdoll_list 2;wait30;vr_ragdoll_list 2;toggleconsole;quit" | grep -v -E "^  [ 0-9][0-9] [a-z]" ;;
+        run "map e1m1;$PRE;$LOW;developer 1;vr_test_spawn_dist 28;$DEAD;wait300;vr_burn_test 1;wait40;vr_ragdoll_list 2;$(TAKE off left);wait10;vr_mock_hand_to off by 0 0 30;wait20;vr_ragdoll_list 2;vr_mock_hand_to off by 0 10 8;wait1;vr_mock_hand_to off by 0 12 6;wait1;vr_mock_hand_to off by 0 12 4;wait1;-grableft;vr_mock_button off grip 0;wait8;vr_ragdoll_list 2;wait30;vr_ragdoll_list 2;toggleconsole;quit" | grep -v -E "^  [ 0-9][0-9] [a-z]" ;;
     wounds)
         run "map e1m1;$PRE;vr_weapon_grip_mode 1;impulse 9;wait5;impulse 154;wait5;vr_mock_hand main -0.05 1.3 -0.3 40 0 0;vr_test_spawn_dist 70;$DEAD;wait300;vr_wounds_info;+attack;wait3;-attack;wait30;vr_wounds_info;wait60;+attack;wait3;-attack;wait30;vr_wounds_info;toggleconsole;quit" ;;
     walk)
