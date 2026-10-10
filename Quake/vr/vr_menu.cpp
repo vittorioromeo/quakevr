@@ -4910,6 +4910,14 @@ za::Vector<Item> pageDebugProfiling()
         command("Force Grab Search Stats", "vr_forcegrab_grid_stats")
             .help("vr_forcegrab_grid_stats: the force grab's target search (each hand, every frame, through the area "
                   "grid): the searches and the entities each tested since the last time."),
+        cycle("Gun Shapes on Disk", vr_gun_pieces_cache, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Check"}})
+            .help("The guns' convex pieces kept on disk (cache/gunpieces) and read back the first time a gun is dropped, "
+                  "picked up or holstered in a session, instead of cut again (10-85 ms each: a hitch as the first "
+                  "grunt's gun drops). Check: read, then cut anyway and compared (Gun Shapes Stats counts them). Off: "
+                  "cut once every session (vr_gun_pieces_cache)."),
+        command("Gun Shapes Stats", "vr_gun_pieces_cache_stats")
+            .help("vr_gun_pieces_cache_stats: the guns' pieces this session read from the disk or cut, the files "
+                  "written, and with Check on, how many were compared and differed."),
         command("Game State Hash", "vr_bench_statehash")
             .help("vr_bench_statehash: one hash of every entity's QuakeC fields (and which are in use), printed with the "
                   "server's time: the same script on two builds gives the same hash when a change left the game the same."),

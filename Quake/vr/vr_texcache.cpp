@@ -5,7 +5,10 @@
 // never reads half a file.
 // - normalmaps: the normal maps made from skins' colours (vr_normalmaps.cpp: TexMgr_SkinToNormals, 3-4 ms a skin; 0.2 s of
 //   the first map load). vr_normalmap_cache: 1 on, 0 off, 2 check (made anyway and compared with the file).
+// - gunpieces: the guns' convex pieces (vr_box3d.cpp gunPieces, vr_convex.cpp: 10-85 ms a gun, the first time one is
+//   dropped, picked up or holstered in a session). vr_gun_pieces_cache: 1 on, 0 off, 2 check. Through vr_diskcache.hpp.
 
+#include "vr_diskcache.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
@@ -162,6 +165,18 @@ extern "C" void VR_NormalCacheStore(const char* build, unsigned long long key, c
 {
     writeFile("normalmaps", build, fileFor("normalmaps", build, key, "nrm"), normalMagic, static_cast<unsigned>(width),
         static_cast<unsigned>(height), rgba, static_cast<size_t>(width) * height * 4);
+}
+
+bool qvr::diskcache::read(const char* kind, const char* build, unsigned long long key, const char* ext,
+    const char (&magic)[5], unsigned& a, unsigned& b, za::Vector<char>& data)
+{
+    return readFile(fileFor(kind, build, key, ext), magic, a, b, data);
+}
+
+void qvr::diskcache::write(const char* kind, const char* build, unsigned long long key, const char* ext,
+    const char (&magic)[5], unsigned a, unsigned b, const void* data, size_t length)
+{
+    writeFile(kind, build, fileFor(kind, build, key, ext), magic, a, b, data, length);
 }
 
 // The files still being written finished (VR_Shutdown, before the pool goes).

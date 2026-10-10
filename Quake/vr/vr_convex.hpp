@@ -57,4 +57,8 @@ struct Report
 [[nodiscard]] bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, za::Vector<Piece>& pieces,
     Report* report);
 
+// decompose()'s own build (its source's compile time and Box3D's version): the disk cache's folder for its pieces
+// (vr_diskcache.hpp; a changed decompose never reads an old file).
+[[nodiscard]] const char* build();
+
 } // namespace qvr::convex

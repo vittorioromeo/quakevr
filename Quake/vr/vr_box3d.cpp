@@ -54,6 +54,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_box3d.hpp"
 #include "vr_convex.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_main.hpp"
 #include "vr_portals.hpp"
 #include "vr_axestick.hpp"
@@ -1689,6 +1690,158 @@ constexpr float hullTolerance = 0.2f;
     return hull;
 }
 
+// The guns' pieces kept on disk (vr_gun_pieces_cache; vr_diskcache.hpp, cache/gunpieces): a gun's first cut in a
+// session (10-85 ms on the main thread, as the first grunt's gun drops) read back instead from a session before. The
+// key: a hash of all that decompose reads (the triangles, the settings); the folder: decompose's build (convex::build).
+// The file: the report, each piece's end in points, the points (model units), exactly as cut.
+constexpr char gunPiecesMagic[5] = "QVRG";
+constexpr unsigned gunPiecesMostFile = 64; // (a file claiming more pieces is not ours)
+
+struct GunPiecesDisk
+{
+    int read{0};     // pieces read from a file
+    int cut{0};      // cut (no file, or checked)
+    int written{0};  // files written
+    int checked{0};  // vr_gun_pieces_cache 2: read and cut, compared
+    int differed{0}; // of those, not the same
+};
+GunPiecesDisk gunPiecesDisk;
+
+[[nodiscard]] unsigned long long gunPiecesKey(const za::Vector<glm::vec3>& triangles, const convex::Settings& settings)
+{
+    unsigned long long h = diskcache::fnvStart;
+    h = diskcache::fnv(h, &settings.cell, sizeof(settings.cell));
+    h = diskcache::fnv(h, &settings.tolerance, sizeof(settings.tolerance));
+    h = diskcache::fnv(h, &settings.maxPieces, sizeof(settings.maxPieces));
+    const za::U64 count = triangles.size();
+    h = diskcache::fnv(h, &count, sizeof(count));
+    return diskcache::fnv(h, triangles.data(), triangles.size() * sizeof(glm::vec3));
+}
+
+[[nodiscard]] bool readGunPieces(unsigned long long key, za::Vector<convex::Piece>& pieces, convex::Report& report)
+{
+    unsigned count = 0, points = 0;
+    za::Vector<char> data;
+    if(!diskcache::read("gunpieces", convex::build(), key, "gpc", gunPiecesMagic, count, points, data) ||
+       count > gunPiecesMostFile ||
+       data.size() != sizeof(convex::Report) + count * sizeof(za::I32) + static_cast<size_t>(points) * sizeof(glm::vec3))
+    {
+        return false;
+    }
+    memcpy(&report, data.data(), sizeof(report));
+    const char* ends = data.data() + sizeof(report);
+    const char* at = ends + count * sizeof(za::I32);
+    pieces.clear();
+    pieces.resize(count);
+    za::I32 begin = 0;
+    for(unsigned i = 0; i < count; i++)
+    {
+        za::I32 end = 0;
+        memcpy(&end, ends + i * sizeof(za::I32), sizeof(end));
+        if(end < begin || end > static_cast<za::I32>(points))
+        {
+            pieces.clear();
+            return false;
+        }
+        pieces[i].points.resize(static_cast<za::SizeT>(end - begin));
+        memcpy(pieces[i].points.data(), at + static_cast<size_t>(begin) * sizeof(glm::vec3),
+            static_cast<size_t>(end - begin) * sizeof(glm::vec3));
+        begin = end;
+    }
+    if(begin != static_cast<za::I32>(points))
+    {
+        pieces.clear();
+        return false;
+    }
+    return true;
+}
+
+void writeGunPieces(unsigned long long key, const za::Vector<convex::Piece>& pieces, const convex::Report& report)
+{
+    za::I32 points = 0;
+    for(const convex::Piece& piece : pieces)
+    {
+        points += static_cast<za::I32>(piece.points.size());
+    }
+    za::Vector<char> data;
+    data.resize(sizeof(report) + pieces.size() * sizeof(za::I32) + static_cast<size_t>(points) * sizeof(glm::vec3));
+    memcpy(data.data(), &report, sizeof(report));
+    char* ends = data.data() + sizeof(report);
+    char* at = ends + pieces.size() * sizeof(za::I32);
+    za::I32 end = 0;
+    for(za::SizeT i = 0; i < pieces.size(); i++)
+    {
+        memcpy(at + static_cast<size_t>(end) * sizeof(glm::vec3), pieces[i].points.data(),
+            pieces[i].points.size() * sizeof(glm::vec3));
+        end += static_cast<za::I32>(pieces[i].points.size());
+        memcpy(ends + i * sizeof(za::I32), &end, sizeof(end));
+    }
+    diskcache::write("gunpieces", convex::build(), key, "gpc", gunPiecesMagic, static_cast<unsigned>(pieces.size()),
+        static_cast<unsigned>(points), data.data(), data.size());
+}
+
+[[nodiscard]] bool samePieces(const za::Vector<convex::Piece>& a, const za::Vector<convex::Piece>& b)
+{
+    if(a.size() != b.size())
+    {
+        return false;
+    }
+    for(za::SizeT i = 0; i < a.size(); i++)
+    {
+        if(a[i].points.size() != b[i].points.size() ||
+           memcmp(a[i].points.data(), b[i].points.data(), a[i].points.size() * sizeof(glm::vec3)) != 0)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// A gun's convex pieces (decompose), read from the disk when a session before cut them (vr_gun_pieces_cache 1: the
+// same pieces; 2: cut as well and compared, the cut ones used); true: read.
+[[nodiscard]] bool cutGun(const za::Vector<glm::vec3>& triangles, const convex::Settings& settings,
+    za::Vector<convex::Piece>& pieces, convex::Report& report, const char* name)
+{
+    const int mode = static_cast<int>(za::clamp(vr_gun_pieces_cache.value, 0.f, 2.f));
+    const unsigned long long key = mode ? gunPiecesKey(triangles, settings) : 0;
+    const double t0 = Sys_DoubleTime();
+    const bool fromDisk = mode && readGunPieces(key, pieces, report);
+    if(fromDisk)
+    {
+        gunPiecesDisk.read++;
+        report.ms = (Sys_DoubleTime() - t0) * 1000.0; // (the read's time)
+        if(mode < 2)
+        {
+            return true;
+        }
+    }
+    za::Vector<convex::Piece> cut;
+    convex::Report cutReport;
+    if(!convex::decompose(triangles, settings, cut, &cutReport))
+    {
+        cut.clear();
+    }
+    gunPiecesDisk.cut++;
+    if(fromDisk)
+    {
+        gunPiecesDisk.checked++;
+        if(!samePieces(pieces, cut))
+        {
+            gunPiecesDisk.differed++;
+            Con_Warning("vr_gun_pieces_cache 2: %s's convex pieces differ from their file (%d of %d so far)\n", name,
+                gunPiecesDisk.differed, gunPiecesDisk.checked);
+        }
+    }
+    else if(mode)
+    {
+        writeGunPieces(key, cut, cutReport);
+        gunPiecesDisk.written++;
+    }
+    pieces = ZA_MOVE(cut);
+    report = cutReport;
+    return false;
+}
+
 // A gun in convex pieces that follow its drawn shape (vr_convex.hpp: its shell port, its well, the gaps between its
 // parts left open; one hull spanned them, and a round lying on it rested on air), from its drawn triangles (`corners`,
 // units), as hulls in metres; empty: one hull instead (vr_box3d_gun_pieces 0 or 1, or no pieces made). Made once for
@@ -1737,10 +1890,7 @@ template <typename Corners>
         settings.verbose = vr_debug_box3d.value >= 2.f;
         za::Vector<convex::Piece> pieces;
         GunShapeCache::Entry entry{key, most, static_cast<int>(gunShapes.pieceEnds.size()), 0, {}};
-        if(!convex::decompose(triangles, settings, pieces, &entry.report))
-        {
-            pieces.clear();
-        }
+        const bool fromDisk = cutGun(triangles, settings, pieces, entry.report, key.model->name);
         for(const convex::Piece& piece : pieces)
         {
             gunShapes.points.emplaceBackRange(piece.points.data(), piece.points.size());
@@ -1751,9 +1901,10 @@ template <typename Corners>
         made = &gunShapes.entries.back();
         if(vr_debug_box3d.value)
         {
-            Con_Printf("box3d: %s: %d convex pieces in %.1f ms; the most a hull lies off the gun %.2f units (one hull: "
+            Con_Printf("box3d: %s: %d convex pieces in %.1f ms%s; the most a hull lies off the gun %.2f units (one hull: "
                        "%.2f)\n",
-                key.model->name, entry.pieces, entry.report.ms, entry.report.gap, entry.report.wholeGap);
+                key.model->name, entry.pieces, entry.report.ms, fromDisk ? " (read from the disk)" : "", entry.report.gap,
+                entry.report.wholeGap);
         }
     }
     if(made)
@@ -9922,6 +10073,15 @@ void portalInfo_f()
 void* heapAllocate(size_t size, int32_t alignment) { return VR_HeapAlignedAlloc(size, static_cast<size_t>(alignment)); }
 void heapFree(void* p, size_t) { VR_HeapAlignedFree(p); }
 
+// vr_gun_pieces_cache_stats: the guns' pieces this session, read from the disk or cut (Debug > Profiling and Memory).
+void gunPiecesCacheStats_f()
+{
+    const GunPiecesDisk& d = gunPiecesDisk;
+    Con_Printf("vr_gun_pieces_cache %g: %d guns' pieces read from the disk, %d cut, %d files written; checked %d, %d "
+               "differed\n",
+        vr_gun_pieces_cache.value, d.read, d.cut, d.written, d.checked, d.differed);
+}
+
 void registerCommands()
 {
     bool& registered = commandsRegistered;
@@ -9930,6 +10090,7 @@ void registerCommands()
         registered = true;
         b3SetAllocator(heapAllocate, heapFree);
         Cmd_AddCommand("vr_physics_player", player_f);
+        Cmd_AddCommand("vr_gun_pieces_cache_stats", gunPiecesCacheStats_f);
         Cmd_AddCommand("vr_physics_stack", stack_f);
         Cmd_AddCommand("vr_physics_pyramid", pyramid_f);
         Cmd_AddCommand("vr_physics_list", list_f);

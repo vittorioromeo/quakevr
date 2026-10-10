@@ -1,6 +1,7 @@
 // vr_convex.cpp -- a drawn model's solid in convex pieces; see vr_convex.hpp.
 
 #include "vr_convex.hpp"
+#include "vr_diskcache.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -8,6 +9,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 #include "vr_jobs.hpp"
 
@@ -737,6 +739,24 @@ bool decompose(const za::Vector<glm::vec3>& corners, const Settings& settings, z
         return false;
     }
     return true;
+}
+
+// (Its compile time and Box3D's version: the hulls' maker, b3CreateHull, is Box3D's.)
+za::String makeBuild()
+{
+    const char* stamp = __DATE__ " " __TIME__;
+    unsigned long long h = diskcache::fnv(diskcache::fnvStart, stamp, strlen(stamp));
+    const b3Version v = b3GetVersion();
+    h = diskcache::fnv(h, &v, sizeof(v));
+    char text[24];
+    snprintf(text, sizeof(text), "%016llx", h);
+    return text;
+}
+const za::String buildName = makeBuild(); // (made before main, only read)
+
+const char* build()
+{
+    return buildName.cStr();
 }
 
 } // namespace qvr::convex
