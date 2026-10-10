@@ -10593,3 +10593,125 @@ tutorial.
   printed as it happens; 2: every frame). A whole run in the mock (static hands: four poses not taken, three recorded,
   the result untrusted): 0 hidden of ~54000 frames, before the fix 2 (the poses not taken); with the menu's pause in
   the height step too. The doorway walked: first start, mapname vrtutorial; `vr_tutorial_started 1`, vrstart.
+## Map and game loading: profiled, and every map's loads made faster (2026-10-10)
+
+Your request: profile game and map loading (the first start, regular loads and level changes) and make them as fast
+as possible, with algorithmic and data-structure changes that help every map; in-memory caches and preloading fine,
+nothing persistent that could go stale.
+
+**Measured** with `vr_startup_times` (run.sh `--exclusive`, the mock headset, fast mode; one run each, so a few
+percent is noise) over four sessions: the hub path (`map vrcalibration`, `map vrtutorial`, `changelevel vrstart`, a
+save loaded, the tutorial and the hub again), id (`e1m1`, `changelevel e1m2`, `e1m6`, `e4m7`, `e2m2`, `e1m1` again,
+`restart`), the mission packs (`hip1m1`, `hip2m3`, `r1m1`, `r2m6`) and MG1/MG3 (`mge5m2`, `map4`). **Cold**: the game
+folder's `quakevr/cache` moved aside (compiled hulls, normal maps made from skins, AO, the image prefetch list: every
+first start, and the first after each update, as every cache is keyed by the build); **warm**: the caches there.
+Scripts in `scratch/` (`lp_measure.sh`, `lp_parse.py`, `lp_table.py`, `lp_phases.py`; the logs in `scratch/lp/`).
+
+| load (ms, from the command to its first frame) | before, cold | after, cold | before, warm | after, warm |
+|---|---|---|---|---|
+| **hub path**: start-up, process to first frame (first map in it) | 2307 | 2061 | 1703 | 1406 |
+| `map vrcalibration` | 1471 | 1406 | 781 | 748 |
+| `map vrtutorial` | 612 | 488 | 362 | 362 |
+| `changelevel vrstart` | 12712 | 5173 | 786 | 640 |
+| `load` (a game saved on the hub) | 290 | 212 | 300 | 229 |
+| `map vrtutorial` | 153 | 146 | 152 | 152 |
+| `changelevel vrstart` | 390 | 324 | 419 | 322 |
+| **id1**: start-up, process to first frame (first map in it) | 2891 | 2423 | 2041 | 1667 |
+| `map e1m1` | 1983 | 1783 | 1166 | 1001 |
+| `changelevel e1m2` | 1006 | 575 | 388 | 281 |
+| `map e1m6` | 640 | 448 | 308 | 241 |
+| `map e4m7` | 676 | 500 | 380 | 323 |
+| `map e2m2` | 238 | 224 | 220 | 218 |
+| `map e1m1` | 194 | 200 | 196 | 198 |
+| `restart e1m1` | 187 | 183 | 200 | 181 |
+| **mission packs**: start-up, process to first frame (first map in it) | 3227 | 2636 | 2133 | 1790 |
+| `map hip1m1` | 2392 | 1999 | 1241 | 1119 |
+| `map hip2m3` | 1720 | 1158 | 752 | 508 |
+| `map r1m1` | 727 | 567 | 615 | 452 |
+| `map r2m6` | 603 | 456 | 448 | 371 |
+| **MG1, MG3**: start-up, process to first frame (first map in it) | 3209 | 2562 | 1904 | 1730 |
+| `map start` (MG1's, the campaign switched) | 2134 | 1738 | 896 | 880 |
+| `map mge5m2` | 3418 | 2381 | 1474 | 1016 |
+| `map start` (MG3's, the campaign switched) | 469 | 426 | 434 | 379 |
+| `map map4` | 1743 | 1247 | 1203 | 1000 |
+
+Where the time went (before), and what changed (a commit each; every change gives the same output, checked):
+
+| load | before | after |
+|---|---|---|
+| tutorial -> hub, cold | 12,712: hulls waited 11,393; normal maps made 406; wave mesh 94; islands 35 | 5,173: hulls 4,214; normal maps 304; wave mesh 25; islands 26 |
+| start-up, warm (to the first map) | 922 before the map: filesystem 302 | 658: filesystem 81 |
+| vrcalibration, warm (every start) | 781: islands 41, alias models 447 | 748: islands 18, alias models 404 |
+| hub, warm first visit | 786: wave mesh 98, brush models' hulls 10 | 640: wave mesh 30, brush models' hulls 6 |
+| hub, a return | 419: wave mesh 102 | 322: wave mesh 28 |
+| e1m2, cold | 1,006: normal maps made 397, limb models 438 | 575: normal maps 220, limb models 250 |
+| hip2m3, cold | 1,720: normal maps made 904, limb models 1,028 | 1,158: normal maps 513, limb models 552 |
+| mge5m2, cold | 3,418: normal maps made 1,288, limb models 1,423, brush models' hulls 241, hulls waited 372 | 2,381: 761, 766, 86, 274 |
+| mge5m2, warm | 1,474: limb models 412, brush models' hulls 232 | 1,016: 151, 72 |
+| map4 (MG3), cold | 1,743: normal maps made 518, limb models 752 | 1,247: 285, 411 |
+
+1. **The compiled hulls' build** (`vr_hull.cpp`; HULLS.md "Kept on disk"): vrstart's seven trees waited for 10.5-11.4 s
+   though they are built at once on 32 threads: the 28x56 tree's top split so unevenly that one unit of 20,423 pieces
+   was built on one thread (9.5 s of its 10.9). Units of 512 pieces or more are now split past the top's 10 levels (24
+   more at most); those deeper units keep no copy of their pieces (gigabytes at every level), so a failed merge check
+   redoes the nearest unit that kept one (the work of the old build at worst). Then CPU (VTune: 111 to 88 s for the
+   seven trees): a cut's faces split once for both sides (`splitWinding`: the back's distances are the front's
+   negated, the same crossing points), a piece the split leaves whole keeps its bounds (`finishWhole`), a piece all on
+   one side of an axial plane skips the per-point pass, `planeAt` reads the tree's own planes directly instead of down
+   the chain of bases, `choose` partitions its planes in two passes. **vrstart cold: 3.3-4.2 s waited** (on its own
+   3.3 s; beside the spawn's normal maps on the pool about 4 s). Peak working set 11.4 GB to 10.8 GB. Checked: the
+   tree hashes of vrstart's seven trees and of 50 trees of 9 maps unchanged, also with merge failures forced on every
+   third deep unit; `vr_hull_keeptest`, `vr_hull_cachetest`, `vr_hull_cache 2` (7 the same). The disk cache's key is
+   vr_hull.cpp's build, so this build compiles its trees again once (Setup's preparation does it).
+2. **The loaded brush models' hulls** (doors, lifts: 135 models x 7 boxes on mge5m2, 190-240 ms at every first load of
+   such a map, warm too): built one model after another per box. Now every (box, model) is a unit on the pool over its
+   tree as it was, the models' own planes answered beforehand in the models' order (as the world's brushes are), merged
+   per box in order with the same check (a plane the unit added may be an earlier model's of exactly the same values);
+   a unit failing it is built again as before. mge5m2 226 to 76-84 ms, none redone; the same trees (also with every
+   third unit forced to be redone).
+3. **Start-up's filesystem** (every start, 290 ms): the mission packs' check read every listed resource whole, the
+   packs' maps included (tens of MB), to check a BSP's 124-byte header against its length. It reads the header only
+   (models, sprites and sounds still whole: they are walked). 290 to 80-90 ms.
+4. **Normal maps made from skins** (cold: every model's first load after an install or update, 0.3-1.3 s a map; the
+   limbs' too, each limb its own islands): `TexMgr_SkinToNormals`' passes shared out by rows, then its edges, its three
+   forms and its heights as five tasks at once into their own heap buffers, added in the original order. e1m1's 93
+   skins 311 to 94 ms; the 226 cache files of e1m1, hip2m3 and mge5m2 byte for byte the old code's.
+5. **Limb models' rigs** (each kind of monster's rig derived in turn on the main thread when its limbs were built):
+   made first, all at once, by `warmRigs`; and a rig's fits run its poses on the pool (56 rigs hashed the same; their
+   summed time 2.1 to 1.4 s).
+6. **The liquids' wave mesh** (vrstart: 98 ms at every load: the hub's first, each return, each death or saved game):
+   its rims and faces made a face at a time on the pool, then put in order (its hash, `developer 1`, the same on
+   vrstart, e1m1, e4m7). 98 to 25-30 ms.
+7. **Skins' islands** (every start: the body's, the hands', the props' 1024x1024 skins): each edge's length once a
+   triangle, not three square roots a texel, and the distance passes without bounds checks inside (317 masks compared
+   with the old code's: the same). vrcalibration 41 to 18 ms.
+8. **Guns' convex pieces** (the firing range's guns at the session's first vrstart): the shortlisted cuts weighed at
+   once (the same pieces, hashed). 35-38 to 23-28 ms a gun.
+
+Tried and dropped (no gain): deferring the shaders' compile and link checks to the end (the driver still takes 200 ms;
+`glMaxShaderCompilerThreadsKHR` changed nothing), texture names made 256 at a time (glGenTextures' CPU time moved to
+the next GL call), an early-out in `choose` (planes rarely lose before the end).
+
+**Not done, for you to decide** (each has a drawback):
+
+- **The shaders' program binaries kept on disk** (`GL_ARB_get_program_binary`; 200 ms of every start): a persistent
+  cache the driver validates, but drivers have had bugs with it; NVIDIA keeps its own shader cache already.
+- **The Box3D world mesh kept across map changes** (a return to the hub waits 47-50 ms for it): its cache's key is the
+  map's name and counts, so an edited map of the same counts could keep a stale mesh; would need a content key.
+- **Model loading in parallel** (the session's first map: 430 ms of alias models, 109-135 models, 1-35 ms each: skins,
+  normal maps from the cache, uploads): the loaders share the hunk, the cache and GL; a big change.
+- **Normal maps made after the load** (flat for the first frames, then the made ones): would take most of a cold
+  first visit's 0.3-0.8 s off the load, at the cost of maps that change shading a moment after appearing.
+- **The memory log's GL object count** (`vr_memstats_log`, on by default: 13-15 ms of every load): could be skipped
+  when the log is off or counted less often (its leak check would see fewer loads).
+- **The hull build's peak memory** (10.8 GB working set for vrstart's first build, in Setup's preparation and after
+  each update): fewer trees at once would lower it and take longer; Face's 8 inline points could be fewer (more heap
+  spills).
+- In the test runs `map: campaign (game folders)` costs 80-190 ms at the first `map`: an artifact of run.sh's
+  `-game hipnotic -game rogue -game quakevr` (the active campaign starts as rogue); the shipped `-game quakevr` does not
+  switch.
+
+**In the headset:** a fresh install (Setup's preparation should finish several seconds sooner: vrstart's hulls); the
+tutorial's portal to the hub; a return to the hub from a map (about 100 ms quicker); a first visit to a monster-heavy map
+(e1m2, hip2m3, an MG1 map: a third to a half quicker); nothing should look or play differently (the same trees, normal
+maps, rigs, wave mesh and gun pieces).

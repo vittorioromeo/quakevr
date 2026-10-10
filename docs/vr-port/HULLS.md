@@ -253,6 +253,10 @@ The world's compiled trees that took 250 ms or more to build are also written to
 map in any session instead of being compiled: vrstart's (then vrstart2) cold start 10.4 s to 1.3 s (four trees of 1.2-1.4 million
 nodes, 24 ms each to read, 105 MB on disk). A file is checked as it is read (magic, version, world, box, sizes, every
 node's numbers, a sum of its bytes); one amiss is compiled again and written over. 1 GB budget, oldest files first.
+The build itself (2026-10-10, ROUND21.md "Map and game loading"): units of 512 pieces or more are split past the top's
+10 levels (down to 24 more, keeping no input: a failed check redoes the nearest unit that kept one), a cut's faces are
+split once for both sides, pieces left whole by a split keep their bounds, a piece all on one side of an axial plane
+skips the per-point pass: vrstart's seven trees 10.5 s to 3.3 s waited (the same trees, hashed).
 `vr_hull_cache` (default 1; Debug > Tests, Hitboxes on Disk): 0 off, 2 read, then compiled anyway and compared
 (`vr_hull_stats` prints the counts). Details: ROUND21.md, "vrstart2's load".
 
@@ -621,8 +625,10 @@ Loaded brush models (doors, platforms, other inline models and precached externa
 collision hulls built at map load for every player and monster box size known then, as the world's already were;
 before, the first contact built them during play, a burst of allocations (1,549 requests in one frame on `e1m1`,
 4,628 on `e2m2`; 37 and 49 after). External brush geometry is recovered on the main thread first; the builds then run
-in parallel, one worker per size (each owns its tree and builds its submodels in order, since they append to shared
-node and plane arrays). The phase took 10-27 ms on the maps measured and keeps 12-111 KB more. Changing a width or
+in parallel: since 2026-10-10 every (size, model) is a unit on the pool over its size's table as it was, its brushes'
+planes answered beforehand in the models' order, then each size's units are merged in the models' order with the
+top's merge check (`buildModelsAtOnce`; a unit that fails it is built again in order: the same trees; mge5m2's 135
+models x 7 sizes 226 to 84 ms, none redone). The phase took 10-27 ms on the maps measured and keeps 12-111 KB more. Changing a width or
 turning brush-model collision on prepares the missing hulls too; with brush-model collision off nothing is built.
 Sizes that first appear later (a monster spawned after load) still build on demand, and the 128-size cache stays
 demand-filled.
