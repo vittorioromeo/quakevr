@@ -161,3 +161,5 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
   geometry + relight).
 - Tutorial final arena: the right-side railing is detached from the ledge; move it onto the ledge (func_detail: needs a
   recompile + relight).
+- Option to hide the armbands, with the forearm and the wrist/hand joining seamlessly without them (the author,
+  2026-10-11).
