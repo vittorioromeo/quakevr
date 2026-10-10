@@ -49,6 +49,18 @@ void(float xRequest) VR_MonstersTest_Run =
             acted++;
         }
         live++;
+        if(xRequest == 1)
+        {
+            // (developer: where each live one is, and whether it sees the player: a stuck one found)
+            float sees = 0;
+            if(p)
+            {
+                traceline(e.origin + e.view_ofs, p.origin + p.view_ofs, TRUE, e);
+                sees = trace_fraction == 1;
+            }
+            dprint(sprintf("monsterstest: %s at %v enemy %s sees the player %g\n", e.classname, e.origin,
+                           e.enemy.classname, sees));
+        }
         if(e.enemy)
         {
             awake++;

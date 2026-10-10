@@ -804,7 +804,7 @@ def write_throw(path, elevation=5, gunangle=70.0):
 
 def script(args):
     c('alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', "developer 1", "vr_tips 0", "vr_fixed_frames 1", "vr_climb_debug 1", "vr_debug_wallbuttons 1",
-      "skill 0", "map vrtutorial")
+      "skill 0", "sv_random_seed %d" % args.seed, "map vrtutorial")
     w(80)
     global GOD, LEDGE_CHECKS
     GOD = args.god
@@ -959,6 +959,8 @@ def main():
     ap.add_argument("--softlock", action="store_true", help="the softlock checks instead (death, save and load, "
                     "wasted rifle, restocks); with check: their table")
     ap.add_argument("--god", action="store_true", help="god mode from the fist fight on (the fights can't kill him)")
+    ap.add_argument("--seed", type=int, default=0, help="sv_random_seed (the monsters' AI the same every run; 0: the "
+                    "clock's)")
     ap.add_argument("--from", dest="start", help="start at this gate (setpos there first)")
     ap.add_argument("--ledge", action="store_true", help="also room 3's high ledge's negatives (a jump alone, a reach "
                     "without a jump: neither gets up; run with --from jump, as they shift the later gates' timing)")
