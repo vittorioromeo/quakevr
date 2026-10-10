@@ -439,9 +439,39 @@ def check(a, verbose):
     return out
 
 
+def stretch_summary(a, verbose):
+    """--stretch: the share of the model's surface (area, frame 0) whose texels are stretched over 3:1 and 4:1 (a
+    triangle folded onto a line or a point counts as stretched), the median texel density, the share under half
+    of it; -v lists the worst triangles. The before/after measure of the re-maps (reuv_*.py)."""
+    p, nn, area, uvarea, uvsign = tri_geo(a)
+    ok = area > 1e-7
+    tot = area[ok].sum()
+    ratio = np.zeros(len(area))
+    dens = np.sqrt(uvarea / np.maximum(area, 1e-12))
+    for t in np.nonzero(ok)[0]:
+        s1, s2 = stretch(p[t], a.uv[t])
+        ratio[t] = 99.0 if s2 <= 1e-6 or uvarea[t] < 0.05 else min(99.0, s1 / s2)
+    w = np.where(ok, area, 0.0)
+    order = np.argsort(dens[ok])
+    cum = np.cumsum(w[ok][order])
+    med = float(dens[ok][order][np.searchsorted(cum, cum[-1] / 2)])
+    line = "%-28s stretch>3:1 %5.1f%%  >4:1 %5.1f%%  density median %5.2f/unit, under half %5.1f%%" % (
+        os.path.basename(a.path), 100 * w[ratio > 3].sum() / tot, 100 * w[ratio > 4].sum() / tot, med,
+        100 * w[dens < med / 2].sum() / tot)
+    print(line)
+    if verbose:
+        for t in sorted(np.nonzero(ok & (ratio > 3))[0], key=lambda t: -area[t])[:40]:
+            print("    tri %4d at %s area %6.2f ratio %5.1f density %5.2f" % (
+                t, p[t].mean(0).round(1).tolist(), area[t], ratio[t], dens[t]))
+
+
 def main():
     args = [x for x in sys.argv[1:] if not x.startswith("-")]
     verbose = "-v" in sys.argv
+    if "--stretch" in sys.argv:
+        for path in args:
+            stretch_summary(load_md5(path) if path.endswith(".md5mesh") else load_mdl(path), verbose)
+        return
     if not args:
         progs = os.path.join(ROOT, "quakevr", "progs")
         for g in DEFAULT:
