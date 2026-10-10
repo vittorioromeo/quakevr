@@ -1091,7 +1091,7 @@ void thrownGunRopeStart(int key, float* start)
     }
     const glm::vec3 handle{gun->origin[0], gun->origin[1], gun->origin[2]};
     const glm::vec3 muzzle = view::entityAnchorPosition(*gun, false, 0.f,
-        static_cast<int>(weapons::value(slot, weapons::Key::MuzzleAnchorVertex)),
+        weapons::cvar(slot, weapons::Key::MuzzleAnchorVertex)->string,
         weapons::vec(slot, weapons::Key::MuzzleOffsetX, weapons::Key::MuzzleOffsetY, weapons::Key::MuzzleOffsetZ));
     const glm::vec3 along = muzzle - handle;
     const float len = glm::length(along);
