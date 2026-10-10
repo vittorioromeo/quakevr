@@ -21,10 +21,6 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
 
 ### Repository chores
 
-- **Funding links** (the author, after round 20): copy `.github/FUNDING.yml` from `master` to the port's branch
-  (`github: SuperV1234`, `patreon: vittorioromeo`, the PayPal link) and add Ko-fi
-  (`ko_fi: vittorioromeovee`, i.e. https://ko-fi.com/vittorioromeovee).
-
 ## Proposed, waiting on the author
 
 - **Temporal AA, then DLSS/DLAA and FSR 3.1** (`docs/vr-port/TEMPORAL.md`; its stage 1, FSR 1/NIS and foveated
