@@ -2,81 +2,22 @@
 # Merged and streamlined 2026-10-06 from the previous list and CHECKLIST_ARCHIVE_20261005.txt
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
-[Firing range: reloading]
-Magazine eject: SNG right + NG left, eject each hand (and other pairs): the magazine stays out (still seats when put back by hand; Reloading > Ejected Stays Out 0.35 s); SNG magazine leaves its side as it sat, with a small push; lying guns' magazines and screens visible from the range's far end (HUD and Menus > Screens)
-
 [Firing range: combat and dummies]
 Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
-Defaults 10-09 afternoon: melee (speed 3.2, damage 1.1, stamina), enemy weapons, throwing (2-hand velocity 1.3), BT throw travel, tap click 0.4, menu sharpen 1 / scale 0.25 / distance 150; two-hand throws deal 1.25x (Throwing > Two-Hand Throw Damage)
-Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
 
 [New this week]
-Morning decisions: wrist gadget tile says ARMOUR; arena plays Scourge of Armagon's Ranger Infiltration at the door, back to Aftermath when cleared, two dogs fewer; Max Decals shows 768
-Calibration: with an untrusted body result page, one B (or menu button) closes the menu and calibration finishes
-Tutorial arena: a dog knocked into the pit comes back to its spawn with a flash after ~10 s (stay away from the edge); the arena always clears
-Art polish: under the nailgun/super nailgun/thunderbolt with a magazine in and out, the well's lip no longer shimmers; the laser cannon's grip and underside are lit like the rest
-Calibration: welcome readable at eye level (~7 s); stickman stays in front from the intro through every pose (turn your head between the height step and the first pose); doorway board/summary say tutorial on first start, VR hub afterwards
-Setup: after install/update a 'Relighting n of m' bar with Skip; first start has no relight; tutorial->hub portal shows 'Loading...' briefly (no 10-15 s freeze); Debug > Loading Notice Hold 3 s to judge size/placement
-Tutorial: welcome message readable (~9 s) and no tip until it's gone; music: calibration track 6, tutorial 3, arena 9 then back to 3 when cleared (tell me if any track should change)
 Climbing grab leniency (your working copy, not the release test): try a slightly higher vr_climb_leniency (now 2 cm; e.g. 3-4) and vr_climb_leniency_air (now 4 cm; e.g. 5-6) on climbable ledges; tell me the values that feel right to make them the defaults
-Tech-debt cleanup: a current save loads; a save from before 10-06 is refused with a message; hold and throw a ragdoll with one and two hands
-Shadow Atlas reads 8192 (now the default; High preset too)
-VRAM: the game itself uses ~1.3 GB; the 19-20 GB was the whole GPU (Resolve 14 GB, OBS, Chrome...). Run vr_vram_report (Debug > Memory > Video Memory Report) mid-session and read the 'programs on the GPU' line; status box shows 'VRAM x/y GB (game z)'; firing-range ammo screens no longer rebuilt while walking: each still shows its own count?
-Runtime menu pauses: open the SteamVR dashboard mid-fight: the game freezes and goes silent, resumes on close (Advanced > Headset > Runtime Menu Pauses); menu status box (top right) shows eye resolution and runtime %, warns above 1.3x the panel (on SteamVR set vr_xr_panel e.g. 2064x2208 per eye for Quest 3, since SteamVR's headset name doesn't say the model); toolgun joint crash was the NVIDIA driver (nvoglv64 fault, event 153): if it happens again check Windows' Application log; your crouched offsets are defaults
-Dialogs: a confirmation over the hub (e.g. VR Calibration) no longer glitches the world (particles drew from a stale buffer); in VR the dialog has two buttons (Start/Cancel, Quit/Cancel...) you point and click; main menu: VR Calibration, VR Tutorial, VR Hub, VR Settings (Tutorial/Hub ask first)
 West stairs / lava / water: MG1 start's west-facing stairs with your head naturally low, walking slowly and jumping (a short catch at the very top crest may remain); step into lava and out: you keep burning 3 s (Burning > You Burn After Lava); shove a grunt off vrstart's island near the shore (gets up on the slope) and far out (gives up after ~3 s and sinks)
-Tutorial (now just vrtutorial; old tutorial and old hub gone): every tutorial start shows all tips again, once each per playthrough (a save load keeps progress); FLASHLIGHT SIDE button (hub too), flashlight 'on your torso'; lesson 3 board: jump for real; grenade board: 'pouch on your lower back', 'a trap you can shoot'; World Scale button: 1.20 is normal
-Setting buttons (tutorial, hub pavilion): press one, the value screen above it stays still (no sliding into the wall)
-vrstart holes: the hill by the pines near the firing range (341 -594 125) and around 1192 511 78: solid ground now (a second hole you hadn't found was also fixed)
-Crouched pose: crouch: torso and shoulders sit further back (defaults 5 cm / 3 cm, subtle), pouch and holsters visible? tune with Body > Crouched Pose > Preview Crouch and the Crouched Pose Offsets page (torso, pelvis, shoulders, elbows, neck, each holster pair, pouch); Body Calibration > Previous Calibrations: revert to an older calibration (last 4 kept)
-SteamVR perf: set SteamVR per-app Render Resolution 100% (it was Auto = 150%) or Advanced > Headset > Eye Image Size 0.82 (restart VR); fpsVR off; repeat the SteamVR capture incl. a few seconds with the dashboard open (game now holds its last frame: Runtime Menu Open) and send quakevr/qvr_openxr.txt + profile files; A/B Late Image Acquire
-Stairs and stuck monsters: walk slowly up MG1 start's stairs, and jump while walking into them; slopes still feel right? (Locomotion > Walk Up Slopes Slowly; Player Hitbox > Ledge Test Fix; Gameplay: stuck monsters freed after 1 s)
-OpenXR runtime fix: FIRST remove '+vr_xr_runtime 1' from Visual Studio > Project Properties > Debugging > Command Arguments (all configurations) - it forced VDXR every launch; rebuild; VD set to SteamVR + Auto -> 'Auto: SteamVR - Virtual Desktop set to SteamVR'; switch VDXR -> SteamVR -> Auto -> VDXR in game: no crash ('keeping d3d11.dll loaded'); if anything fails send quakevr/qvr_openxr.txt
-Window View (Graphics > Recording): Both Eyes (raw), Left/Right Eye raw/smoothed, Spectator Camera; your config moves to Both Eyes (raw); main menu groups [VR Calibration, VR Settings] gap [Select Campaign, Single Player, Multiplayer] (your menu.c edit is committed: drop your local change before pulling: git checkout Quake/menu.c)
 Bodies in liquids: throw corpses/knocked-down enemies into water, slime, lava: braked on entry, float face down (knights/enforcers sink), no fall damage into deep liquid; in lava they burn and gib after 4 s (Ragdolls > In Water, Slime and Lava; Gameplay > Liquid Breaks Falls; Burning > Corpses); a knocked-down enemy getting up in deep water is untested
-Menus: main menu Single Player / Select Campaign / Multiplayer (Back returns to it); bigger top-left shortcuts and OBS/Spectator rows, taller Search/console keys, wider Map Library keys: easy to hit?; typing 'v' in the console no longer stalls
-Sharpness: menu Menu Resolution 0 vs 1.5, Menu Sharpening 0/0.5/1 (Menu Settings); Antialiasing 4x (your config has it off) and look along the vrstart pier/bridge: shimmer gone? if not, try Virtual Desktop Sharpening 0; Anisotropic Filtering now also in VR Settings; decide: dark subfloor under the vrstart decks to hide plank gaps (map rebuild)?
-OpenXR Auto (set VR Settings > Headset > OpenXR Runtime to Auto: your config keeps VDXR): VD connected, SteamVR closed -> VDXR; same with SteamVR running -> still VDXR; Streamer running but no headset while using SteamVR/Link -> falls back (how long does VDXR take to fail?); Link only -> Meta; `vr_xr_test_fail virtualdesktop; vr_restart` -> switches in-session; vr_xr_runtime_explain; with Virtual Desktop set to SteamVR in the Streamer, Auto starts SteamVR (console: 'Auto: SteamVR - Virtual Desktop set to SteamVR'); back to VDXR: no SteamVR start; does the system's active runtime change when you switch (Debug > Reports > OpenXR Runtime Choice)?
-Installer update mode (desktop): run Setup over an existing install: opens on 'Quake VR: Unleashed X is installed' with one Update/Repair button; update goes straight to Updating and doesn't re-download HD textures; 'Install again from scratch' with both boxes -> backups\<date> reinstall\ holds them; 'Use another install' on a moved folder
-Installer HD textures: online with HD textures ticked: Options shows ~586 MB, no warning; the log says it used the installer's built-in pack (no latest.json yet), downloads ~0.6 GB and verifies it
-Small batch: Swimming > Jump Out of Water off (+ Climbing on): climb out by grabbing the lip (MG3 map1 near 64 1000), pull on ground at sloped banks; MG3 armour shards: force-grab, then hip holster / pouch / chest gives armour, walking over them doesn't; your 10-08 settings are defaults (Super Axe grip + hotspot, grenade fit, SSG anim 1.75, teleporter surface opacity 0.5, stealth tweaks)
-Teleporter crossing: walk slowly into a gate at Surface Opacity 1.0 and 0.3: the stars melt away over the last hand's width, no flash (Graphics > Teleporters > Teleporter Stars > Fade Up Close 0.3 m; try 0 and 0.5); no brighter walls at the crossing (translucent pass clamp fixed): also check translucent water near a bright lamp and lava through water: nothing white or blotchy
+MG3 armour shards: force-grab, then hip holster / pouch / chest gives armour, walking over them doesn't
 MG3 UNLOCKED (single player; revert 405e4213 to re-lock): Official Campaigns > Dawn of the Machine starts `start`, coop refused; Bloody Nightmare row after discovery; Super Axe contacts + 2nd-hit lightning burst; axe buttons by axe/fists/gun butt/thrown prop; lore readable; teleports/low ceilings comfortable; new monsters' hit zones/gore/ragdolls; upgrades/runes carry through the hub; both endings + credits; installer Your PC page says ready
-Backlog: kick/push a zombie or shambler corpse (or any corpse with ragdolls off) into a vrteleporters gate: it goes through; vrexample grunt dispenser spawns the grunt facing west
-Stealth through teleporters (vrteleporters, or Debug > Tests > Stealth AI > Through Teleporters): stand in room U, let a grunt/dog in room T notice you through T's north gate: it walks through to you and later back to its post, no back-and-forth; throw a crate in U while a monster idles in T: it comes through to look (Combat > Stealth AI > Through Teleporters)
-Props batch: rocket ogre ragdoll has no saw and drops a usable chainsaw; two-hand barrel/crate throws hit hard (scale with mass); barrels and mixed crate/barrel stacks in episode maps (~30%); bullet-time wrist flicks no longer fly far (gentle flicks still ~7x: say if it matters); overhead two-hand slam breaks crates/barrels on enemy/wall/floor, thrown down from overhead breaks in 2; thrown props carry your running speed; crates/barrels in lava burn
 Relighting without ericw-tools: the page offers Download ericw-tools (27.5 MB) with a progress bar and Cancel, then relights (test with vr_relight_tool_dir pointed at an empty folder)
-VR Settings: last line shows the build (date + commit); Map Library installs still work (downloads now checked by sha256)
 MG3 Shub (boss2, or Debug spawner Thing 60): pillars sinking under you are comfortable; her zombies rise and ragdoll; sweeping beam and blasts readable; lights go out at her death and the credits follow
 MG3 Chthon (boss map, or Debug spawner Thing 50): comfort fade at both arena moves (Locomotion > Comfort > Fade on Scripted Teleports: 0.6 vs 1.2 s); head zone; bat his spheres back; fight length fair with arm hits at 0.35x; finale gibs then credits
-vrtutorial (Debug > Tests > Tutorial, or the hub's VR TUTORIAL): play all 12 lessons and the arena; courtyard/ladder/jump-wall ledge scale; floating keycard grab; throw at the barred button; arena pace on Easy; daylight brightness; dark course with flashlight only OK?
-First start of a fresh config: calibration, then vrtutorial on Easy; after that vrstart is the default
 
 [Menus and maps]
-Map Library: open it both ways, search, filter, sort, install with progress, Play, uninstall; unsupported packages refused clearly
 MG1 developer tests: rune returns, electrode buttons, Horde, revival; quake vibration is comfortable
 MG1 Horde (horde1, horde5 bosses): die holding fire, nothing; let go and press: the arena restarts; coop: a dead teammate comes back at wave end
-
-[Combat]
-Melee hits: head, limb and leg multipliers match your shots; hitbox size and head priority feel right
-Parry: stops knight and ogre attacks and staggers them
-Bullet time: gadget button and wrist tap work; resting or swinging near the wrist doesn't trigger it
-Weapons: magazines and blood stay with each gun through holster, throw, pickup and hand-off; map pickups come loaded
-Weapons: weights feel as tuned; lightning gun second hotspot; crowbar holster poses
-
-[Fire and torches]
-
-[Gore]
-
-[Ragdolls and physics]
-
-[Teleporters]
-
-[Graphics]
-
-[Sound and recording]
-Recording: slow motion with game-time sound and highlight markers line up in Resolve
-Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Tune]
 Weapon damage, grapple, stamina costs, roll weight and throw damage
