@@ -1563,7 +1563,7 @@ def build_room12():
 # (2026-10-10) for something atmospheric through the tutorial, something pumping in the arena, and back after it.
 MUSIC = 3          # "Aftermath": an ambient drone, unsettling but calm (worldspawn's "sounds")
 MUSIC_ARENA = 9    # "Damnation": its pounding drums, the most driving of id1's
-WELCOME = ["Welcome to the tutorial!", "", "In this short level, you'll learn", "how to play Quake VR: Unleashed.", "",
+WELCOME = ["Welcome to the tutorial!", "", "In this short level, you'll learn", "how to play Quake VR: UNLEASHED.", "",
            "You can skip the tutorial from the", "main menu's VR Hub (not recommended", "for first-time players)."]
 
 

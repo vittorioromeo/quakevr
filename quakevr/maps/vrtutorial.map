@@ -26936,7 +26936,7 @@
 {
 "classname" "target_vr_message"
 "origin" "96 256 64"
-"message" "Welcome to the tutorial!\n\nIn this short level, you'll learn\nhow to play Quake VR: Unleashed.\n\nYou can skip the tutorial from the\nmain menu's VR Hub (not recommended\nfor first-time players)."
+"message" "Welcome to the tutorial!\n\nIn this short level, you'll learn\nhow to play Quake VR: UNLEASHED.\n\nYou can skip the tutorial from the\nmain menu's VR Hub (not recommended\nfor first-time players)."
 "wait" "8"
 "delay" "0.1"
 }
