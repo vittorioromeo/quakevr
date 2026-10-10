@@ -608,7 +608,25 @@ var tests = new List<(string Name, Action Body)>
         Eq(2, r.MapsOk, "maps ok");
         Eq(1, r.MapsFailed, "maps failed");
         var p = GamePreparation.Apply(new PreparationResult(), "step maps 3 3 vrstart");
-        True(p?.Status?.Contains("the hub") == true && p.Fraction is > 0.6 and < 0.7, "the hub's step: its name, two thirds of the bar without a relight");
+        True(p?.Status?.Contains("the hub") == true && p.Fraction is > 0.35 and < 0.45, "the hub's step: its name, two thirds of the first maps' part of the bar without a relight");
+        // The hub's guns and models, then the installed campaigns with models of their own (each line logged).
+        string[] more = ["step guns", "result guns read=0 cut=12 written=12 1.0", "step models", "result models 102 162 2.8",
+            "step campaigns 1 3 dopa", "campaign dopa none 0.3", "step campaigns 2 3 mg1", "campaign mg1 ok 4.1 models=8 limbs=0",
+            "step campaigns 3 3 mg3", "campaign mg3 failed 600.0", "result campaigns ok=1 none=1 failed=1"];
+        r = Read(false, [.. maps, .. more, "done"]);
+        True(r.Finished && r.CampaignsOk == 1 && r.CampaignsNone == 1 && r.CampaignsFailed == 1, "campaigns: one prepared, one with none of its own, one failed");
+        foreach (var l in more.Where(l => !l.StartsWith("result campaigns", StringComparison.Ordinal)))
+        {
+            True(GamePreparation.Apply(new PreparationResult(), l) is not null, $"read: {l}");
+        }
+        p = GamePreparation.Apply(new PreparationResult(), "step campaigns 2 3 mg1");
+        True(p?.Status?.Contains("Dimension of the Machine (2 of 3)") == true && p.Fraction is > 0.75 and < 0.85, "a campaign's step: its title, past the hub's part");
+        True(GamePreparation.Apply(new PreparationResult(), "step models")?.Fraction is > 0.6 and < 0.7, "the models' step: after the first maps");
+        p = GamePreparation.Apply(new PreparationResult(), "campaign mg1 ok 4.1 models=8 limbs=2");
+        True(p?.Log?.Contains("Dimension of the Machine") == true && p.Log.Contains("8 models") && p.Log.Contains("2 monster limbs"), "a campaign's line: its counts");
+        True(GamePreparation.Apply(new PreparationResult(), "campaign mg3 failed 600.0")?.Level == LogLevel.Warning, "a failed campaign: a warning");
+        p = GamePreparation.Apply(new PreparationResult(), "result guns read=4 cut=12 written=12 1.0");
+        True(p?.Log?.Contains("12 made, 4 made before") == true, "the guns' line: its counts");
         p = GamePreparation.Apply(new PreparationResult { RelightAsked = true }, "relight 50 Relighting: 12 of 79 maps (00:41)");
         True(p?.Fraction is > 0.5 and < 0.6 && p.Status == "Relighting: 12 of 79 maps (00:41)", "relight's progress: the maps' part then half the rest; the game's status");
         r = Read(true, [.. maps, "step relight", "relight 99 x", "result relight ended=1 maps=12 relit=10 skipped=2 failed=0 cancelled=0 own=11 | 10 maps relit, 2 skipped in 0:42", "done"]);
@@ -648,7 +666,11 @@ var tests = new List<(string Name, Action Body)>
                 var src = File.ReadAllText(cpp);
                 True(src.Contains("\"-prepare\"") && src.Contains("\"-preparerelight\"") &&
                      src.Contains("result relight ended=%d maps=%d relit=%d skipped=%d failed=%d cancelled=%d") &&
-                     src.Contains("\"step maps %d %d %s\"") && src.Contains("\"map %s ok %.1f\"") && src.Contains("line(\"done\")"), "the engine's lines");
+                     src.Contains("\"step maps %d %d %s\"") && src.Contains("\"map %s ok %.1f\"") && src.Contains("line(\"done\")") &&
+                     src.Contains("line(\"step guns\")") && src.Contains("\"result guns read=%d cut=%d written=%d %.1f\"") &&
+                     src.Contains("line(\"step models\")") && src.Contains("\"result models %d %d %.1f\"") &&
+                     src.Contains("\"step campaigns %d %d %s\"") && src.Contains("\"campaign %s ok %.1f models=%d limbs=%d\"") &&
+                     src.Contains("\"campaign %s none %.1f\"") && src.Contains("\"campaign %s failed %.1f\""), "the engine's lines");
                 break;
             }
         }

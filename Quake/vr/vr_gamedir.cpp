@@ -909,6 +909,20 @@ extern "C" int VR_CampaignUnavailable(int index)
 { return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)) ||
     (soloOnly(index) && campaignMultiplayerRequested()); }
 
+// Setup's preparation (vr_prepare.cpp) goes through the campaigns: each one's folder, start map, whether its folder is
+// on the search path only while it is the active one (Dimension of the Past, of the Machine, Dawn of the Machine: the
+// mission packs' folders are on Quake's too), and the campaign made the active one without a map (the selector's way:
+// the game folders rebuilt, the server shut down; false, and nothing changed, when it cannot be played).
+extern "C" int VR_CampaignCount() { return int(countof(campaigns)); }
+extern "C" const char* VR_CampaignFolder(int index)
+{ return index >= 0 && index < int(countof(campaigns)) ? campaigns[index].folder : ""; }
+extern "C" const char* VR_CampaignStartMap(int index)
+{ return index >= 0 && index < int(countof(campaigns)) ? campaigns[index].start : ""; }
+extern "C" int VR_CampaignFolderOnlyWhenActive(int index) { return index >= 3 && index < int(countof(campaigns)); }
+extern "C" int VR_SelectCampaignNoMap(int index)
+{ return !VR_CampaignUnavailable(index) && selectCampaign(index, false, false) ? 1 : 0; }
+extern "C" void VR_GameFolderName(const char* path, char* out, size_t size) { gameFolderName(path, out, size); }
+
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)
 {
     if(addingMissionPacks || q_strcasecmp(dir, vrGameDir))

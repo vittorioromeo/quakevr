@@ -6420,6 +6420,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_prepare_models: every model of the game's folders (progs/*.mdl) and every monster's limbs loaded now, "
                   "so their skins' normal maps are made and kept on disk (cache/normalmaps) instead of at a map's first "
                   "load. Setup's preparation run does this on the hub (2-3 s; the count and time printed)."),
+        command("Every Model of This Campaign Precached", "vr_prepare_models campaign")
+            .help("vr_prepare_models campaign: the active campaign's own folder's models (progs/, every subfolder) and "
+                  "their limbs loaded now. Setup's preparation does this on the start map of each installed campaign "
+                  "with a folder of its own (Dimension of the Machine, Dawn of the Machine)."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

@@ -15,6 +15,16 @@
 // (no window, no network, no dialog). Its progress goes to the file, a line each, flushed:
 //   step maps <i> <n> <map>        a map loading (i from 1)
 //   map <map> ok <seconds>         loaded (or "map <map> failed <seconds>": not loaded in time)
+//   result maps ok=<n> failed=<n>
+//   step guns                      on the hub: every weapon a monster can drop, dropped (their convex pieces cut)
+//   result guns read=<n> cut=<n> written=<n> <seconds>
+//   step models                    on the hub: every model and monster limb precached (their skins' normal maps)
+//   result models <models> <limbs> <seconds>
+//   step campaigns <i> <n> <folder>  an installed campaign with a game folder of its own (dopa, mg1, mg3) made active
+//   campaign <folder> ok <seconds> models=<n> limbs=<n>   its start map loaded, its own models and limbs as above
+//                                  (or "campaign <folder> none <seconds>": no model of its own, no map loaded; or
+//                                  "campaign <folder> failed <seconds>": not selectable, or its start map not in time)
+//   result campaigns ok=<n> none=<n> failed=<n>   (when there was one; Quake's campaign is active again)
 //   step relight                   the relight started (with -preparerelight)
 //   relight <percent> <status>     every half second while it runs
 //   result relight ended=<0|1> maps=<n> relit=<n> skipped=<n> failed=<n> cancelled=<n> own=<n> | <status>
@@ -37,6 +47,8 @@ void frame();
 // model of the game's folders (progs/*.mdl: the paks' and the folders', the first of each name as the game finds it)
 // precached now, then the whole limbs of each monster's model with a ragdoll rig (as vr_limbs_prebuild makes a map's
 // monsters'): their skins' normal maps are made and kept on disk (cache/normalmaps) here, not at a first visit's load.
+// `vr_prepare_models <folder>`: that game folder's models only (progs/**.mdl, its paks' and loose files') and their limbs;
+// `vr_prepare_models campaign`: the active campaign's folder (the preparation's campaigns pass).
 void precacheModels_f();
 
 } // namespace qvr::prepare

@@ -741,3 +741,60 @@ of the railing (fall protection along the whole ledge) is unchanged.
 
 For VR: climb the north mezzanine's ladder (right of the arena door) and step off its top onto the ledge; the railing
 should still stop a walk off the edge everywhere else.
+## Setup's preparation: the newer campaigns' models too (1.0.1, 2026-10-10, worktree `expnorm`)
+
+The preparation's models step (item 2 of the load notes above) runs on the hub with `-game quakevr`. On that search
+path the mission packs' folders are mounted whenever they are installed, so Scourge of Armagon's and Dissolution of
+Eternity's models were already covered. After the preparation, first visits to hip1m1 and r1m1 made 0 skins' normal
+maps (129 and 68 were read from the cache). The newer campaigns' folders (dopa, mg1, mg3) are searched only while
+that campaign is active, so their own models still made their normal maps at their first visit.
+
+**Change** (`Quake/vr/vr_prepare.cpp`). After the hub's models step, the preparation goes through each installed
+campaign that is playable and has a folder of its own (`VR_CampaignUnavailable` false; the others are skipped without
+a line). For each one it:
+- makes that campaign the active one the selector's way: `selectCampaign` with no map started, new
+  `VR_SelectCampaignNoMap`. The game folders are rebuilt by `COM_ReloadVRGame`, which also runs `CL_ForgetModels` and, through
+  `CL_Disconnect`, `S_StopAllSounds`;
+- lists that folder's models (`progs/**.mdl` in its paks and loose files);
+- if there are none, writes `campaign <folder> none` and loads no map. This is Dimension of the Past: it has no model
+  of its own;
+- otherwise loads its start map, waits 1 s, then runs `vr_prepare_models <folder>`: that folder's models and the limbs
+  of its rigged models.
+
+At the end, Quake's campaign is made the active one again, so the relight's batch sees the same folders as before.
+The monsters' guns are not dropped again in a campaign. On mg1's and mg3's start maps that step cut 0 pieces (the
+dropped guns are the same models) and cost 1 s each.
+
+New progress lines (documented in `vr_prepare.hpp`): `step campaigns <i> <n> <folder>`,
+`campaign <folder> ok|none|failed <seconds> [models=<n> limbs=<n>]` and `result campaigns ok= none= failed=`.
+
+**Setup** (`GamePreparation.cs`) used to ignore the guns', models' and campaigns' lines. It now reads all of them:
+- a status for each step ("the monsters' weapons", "the models' normal maps", "Dawn of the Machine (3 of 3)");
+- a log line for each result (counts and seconds); a campaign that failed is logged as a warning;
+- counts in `PreparationResult`: `CampaignsOk`, `CampaignsNone` and `CampaignsFailed`.
+
+The bar's share for the maps is split: the first three maps take 60% of it, the guns and the models up to 70%, and
+the campaigns the rest.
+
+**Debug > Tests**: "Every Model of This Campaign Precached" (`vr_prepare_models campaign`).
+
+**Measured** on this PC, with Steam's rerelease providing dopa, mg1 and mg3 and an empty `quakevr/cache`:
+
+| | before | after |
+|---|---|---|
+| time added by the campaigns, cold | — | 6.5 s (dopa 0.3, mg1 3.3, mg3 2.9) |
+| time added by the campaigns, warm | — | 5.8 s |
+| models precached | — | mg1 7, mg3 51 (no limbs) |
+| `cache/normalmaps` | 50 MB | +7.5 MB (40 files) |
+| skins' normal maps made at the first visit | mg1 hub 6, mg3 hub 1, map1 6, map2 19 (294 ms) | 0 |
+
+- "Before" is the same build with `-nosteam -nogog -noepic`, so the preparation found no newer campaign. That hub
+  also lacks the campaign displays, so it made 132 limbs, not 162, and hip1m1 made 3 skins there.
+- The first visits after the preparation (hip1m1, r1m1, e5start, e5m1, mg1 start, hub and mge1m1, mg3 start, hub,
+  map1 and map2, then e1m1) made 0 skins' normal maps.
+- `vr_normalmap_cache 2` on the same loads compared 482 maps, and 0 differed.
+- A run with no newer campaign installed writes no campaign line, as before.
+- The installer's self-tests pass 37/37. The preparation test now covers the new lines, the fractions and the
+  engine's format strings.
+- The relight that follows (`-preparerelight`) was not run here, because the shared relit maps are read-only. It
+  starts the same way as before (`disconnect`, then the batch) with Quake's campaign active.

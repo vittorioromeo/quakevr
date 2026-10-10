@@ -540,6 +540,13 @@ const char *VR_CampaignLabel(int index);
 const char *VR_CampaignHelp(int index);
 void VR_SelectCampaign(int index);
 int VR_CampaignUnavailable(int index);
+// Setup's preparation's walk through the campaigns (vr_prepare.cpp).
+int VR_CampaignCount(void);
+const char *VR_CampaignFolder(int index);
+const char *VR_CampaignStartMap(int index);
+int VR_CampaignFolderOnlyWhenActive(int index);	// its folder searched only while it is the active campaign (dopa, mg1, mg3)
+int VR_SelectCampaignNoMap(int index);			// made the active one, no map started (0: it cannot be played; nothing changed)
+void VR_GameFolderName(const char *path, char *out, size_t size); // a search path's game folder ("C:/Quake/hipnotic/pak0.pak": hipnotic)
 
 // Music read in place (vr_music.cpp): a CD track from the game folders on the search path, or from the owned
 // rerelease/store installs where they are (never mounted, copied or written), per campaign.

@@ -33,6 +33,8 @@ enum class Step
     GunsWait,    // their convex pieces cut (or read: made before) and their files written
     Models,      // on the hub: every model of the game's folders and the monsters' limbs (vr_prepare_models)
     ModelsWait,  // loaded (their skins' normal maps made and written)
+    Campaign,     // the next installed campaign with a folder of its own: made the active one, its start map's command
+    CampaignWait, // its start map in play: then the models' step again, for its own models
     Relight,     // the batch's command given
     RelightWait, // the batch running
     Done,
@@ -50,6 +52,15 @@ struct Run
     box3d::GunPiecesCount guns; // the guns' pieces before the guns' command
     double nextProgress{0.0};
     int failedMaps{0};
+    // The campaigns' pass (after the hub's): the campaign the models' step is for (0: Quake's, the hub).
+    int campaign{0};
+    int campaignStep{0};  // campaigns begun (the progress line's i, from 1)
+    int campaignCount{0}; // campaigns to visit (its n)
+    double campaignSince{0.0};
+    bool switched{false}; // a campaign other than Quake's made active: Quake's again at the end
+    int campaignsOk{0};
+    int campaignsNone{0};
+    int campaignsFailed{0};
 };
 Run run;
 
@@ -89,6 +100,89 @@ constexpr int gunsFrames = 20;
 // The precaches load at once (the client's at the next frames): the wait is for those frames.
 constexpr double modelsSeconds = 1.0;
 constexpr int modelsFrames = 20;
+// The official campaigns whose game folder is searched only while they are the active one (Dimension of the Past,
+// Dimension of the Machine, Dawn of the Machine; the mission packs' folders are on the hub's search path, their models
+// precached there): each installed one made active (as the selector does: vr_campaign_select's selectCampaign, the game
+// folders rebuilt), its start map loaded (a precache needs a map in play), then its own folder's models and their limbs
+// (vr_prepare_models <folder>) as on the hub; one with no model of its own (Dimension of the Past) is passed over
+// without a map. Quake's campaign is made active again at the end (the relight's batch sees Quake's folders, as before).
+// Not the guns again: dropped there (vr_pickup_test 4) on Dimension of the Machine's and Dawn of the Machine's start
+// maps, none was cut (the dropped guns are the same models), for 1 s each.
+constexpr double campaignSettleSeconds = 1.0; // (the models' wait follows: 1 s more)
+
+// The files under `relative` of a loose game folder `dir`, a few folders deep.
+void addLooseFiles(const za::String& dir, const za::String& relative, int depth, za::Vector<za::String>& found)
+{
+    files::forEachEntry((dir + "/" + relative).cStr(), [&](const char* name, bool isDirectory) {
+        const za::String path = relative + "/" + name;
+        if(!isDirectory)
+        {
+            found.pushBack(path);
+        }
+        else if(depth > 0 && name[0] != '.')
+        {
+            addLooseFiles(dir, path, depth - 1, found);
+        }
+    });
+}
+
+[[nodiscard]] bool isModel(const char* file, bool anyDepth)
+{
+    const size_t n = strlen(file);
+    return n > 10 && !q_strncasecmp(file, "progs/", 6) && (anyDepth || !strchr(file + 6, '/')) &&
+           !q_strcasecmp(file + n - 4, ".mdl");
+}
+
+// The models vr_prepare_models precaches: every progs/*.mdl of the search paths (`folder` null), or every progs/**.mdl
+// of one game folder's (its paks' and its loose files); once each, sorted (the same order every time).
+za::Vector<za::String> modelNames(const char* folder)
+{
+    za::Vector<za::String> names;
+    const auto add = [&names, folder](const char* file) {
+        if(!isModel(file, folder != nullptr))
+        {
+            return;
+        }
+        for(const za::String& have : names)
+        {
+            if(!q_strcasecmp(have.cStr(), file))
+            {
+                return;
+            }
+        }
+        names.emplaceBack(file);
+    };
+    for(const searchpath_t* search = com_searchpaths; search; search = search->next)
+    {
+        if(folder)
+        {
+            char game[MAX_OSPATH];
+            VR_GameFolderName(search->pack ? search->pack->filename : search->filename, game, sizeof(game));
+            if(q_strcasecmp(game, folder))
+            {
+                continue;
+            }
+        }
+        if(search->pack)
+        {
+            for(int i = 0; i < search->pack->numfiles; i++)
+            {
+                add(search->pack->files[i].name);
+            }
+        }
+        else if(search->filename[0])
+        {
+            za::Vector<za::String> loose;
+            addLooseFiles(za::String{search->filename}, za::String{"progs"}, folder ? 3 : 0, loose);
+            for(const za::String& file : loose)
+            {
+                add(file.cStr());
+            }
+        }
+    }
+    za::quickSort(names.begin(), names.end(), [](const za::String& a, const za::String& b) { return strcmp(a.cStr(), b.cStr()) < 0; });
+    return names;
+}
 
 void line(const char* text)
 {
@@ -129,6 +223,19 @@ void afterMaps()
     {
         finish();
     }
+}
+
+// The next campaign of the pass (after `after`) that is installed, playable and has a folder of its own; 0 when none.
+[[nodiscard]] int nextCampaign(int after)
+{
+    for(int c = after + 1; c < VR_CampaignCount(); c++)
+    {
+        if(VR_CampaignFolderOnlyWhenActive(c) && !VR_CampaignUnavailable(c))
+        {
+            return c;
+        }
+    }
+    return 0;
 }
 
 void relightResult()
@@ -250,8 +357,11 @@ void frame()
         }
         case Step::Models:
         {
-            line("step models");
-            Cbuf_AddText("vr_prepare_models\n");
+            if(!run.campaign)
+            {
+                line("step models");
+            }
+            Cbuf_AddText(run.campaign ? va("vr_prepare_models %s\n", VR_CampaignFolder(run.campaign)) : "vr_prepare_models\n");
             run.since = now;
             run.frames = 0;
             run.step = Step::ModelsWait;
@@ -264,8 +374,85 @@ void frame()
             {
                 return;
             }
-            line(va("result models %d %d %.1f", precached.models, precached.limbs, now - run.since));
-            afterMaps();
+            if(!run.campaign)
+            {
+                line(va("result models %d %d %.1f", precached.models, precached.limbs, now - run.since));
+                run.campaignCount = 0;
+                for(int c = nextCampaign(0); c; c = nextCampaign(c))
+                {
+                    run.campaignCount++;
+                }
+            }
+            else
+            {
+                line(va("campaign %s ok %.1f models=%d limbs=%d", VR_CampaignFolder(run.campaign),
+                    now - run.campaignSince, precached.models, precached.limbs));
+                run.campaignsOk++;
+            }
+            run.step = Step::Campaign;
+            return;
+        }
+        case Step::Campaign:
+        {
+            const int c = nextCampaign(run.campaign);
+            if(!c)
+            {
+                if(run.switched && !VR_SelectCampaignNoMap(0))
+                {
+                    line("campaign id1 failed 0.0"); // (never: Quake's is always there)
+                }
+                run.campaign = 0;
+                if(run.campaignCount)
+                {
+                    line(va("result campaigns ok=%d none=%d failed=%d", run.campaignsOk, run.campaignsNone,
+                        run.campaignsFailed));
+                }
+                afterMaps();
+                return;
+            }
+            run.campaign = c;
+            run.campaignStep++;
+            run.campaignSince = now;
+            const char* folder = VR_CampaignFolder(c);
+            line(va("step campaigns %d %d %s", run.campaignStep, run.campaignCount, folder));
+            if(!VR_SelectCampaignNoMap(c))
+            {
+                line(va("campaign %s failed 0.0", folder));
+                run.campaignsFailed++;
+                return;
+            }
+            run.switched = true;
+            if(modelNames(folder).empty())
+            {
+                line(va("campaign %s none %.1f", folder, Sys_DoubleTime() - run.campaignSince));
+                run.campaignsNone++;
+                return;
+            }
+            Cbuf_AddText(va("maxplayers 1; deathmatch 0; coop 0; map %s\n", VR_CampaignStartMap(c)));
+            run.since = now;
+            run.signedOn = -1.0;
+            run.step = Step::CampaignWait;
+            return;
+        }
+        case Step::CampaignWait:
+        {
+            if(inPlay(VR_CampaignStartMap(run.campaign)))
+            {
+                if(run.signedOn < 0.0)
+                {
+                    run.signedOn = now;
+                }
+                if(now - run.signedOn >= campaignSettleSeconds)
+                {
+                    run.step = Step::Models;
+                }
+            }
+            else if(now - run.since > mapTimeout)
+            {
+                line(va("campaign %s failed %.1f", VR_CampaignFolder(run.campaign), now - run.campaignSince));
+                run.campaignsFailed++;
+                run.step = Step::Campaign;
+            }
             return;
         }
         case Step::Relight:
@@ -309,43 +496,18 @@ void precacheModels_f()
         return;
     }
     const double t0 = Sys_DoubleTime();
-    // Every progs/*.mdl of the search paths (no subfolders), once each, sorted (the same order every time).
-    za::Vector<za::String> names;
-    const auto add = [&names](const char* file) {
-        const size_t n = strlen(file);
-        if(n <= 10 || q_strncasecmp(file, "progs/", 6) || strchr(file + 6, '/') || q_strcasecmp(file + n - 4, ".mdl"))
+    // With a game folder's name: that folder's models only, at any depth under progs/ ("campaign": the active one's).
+    const char* folder = Cmd_Argc() > 1 ? Cmd_Argv(1) : nullptr;
+    if(folder && !q_strcasecmp(folder, "campaign"))
+    {
+        folder = VR_ActiveCampaignFolder();
+        if(!folder)
         {
+            Con_Printf("vr_prepare_models: no campaign (quakevr is not on the search path)\n");
             return;
         }
-        for(const za::String& have : names)
-        {
-            if(!q_strcasecmp(have.cStr(), file))
-            {
-                return;
-            }
-        }
-        names.emplaceBack(file);
-    };
-    for(const searchpath_t* search = com_searchpaths; search; search = search->next)
-    {
-        if(search->pack)
-        {
-            for(int i = 0; i < search->pack->numfiles; i++)
-            {
-                add(search->pack->files[i].name);
-            }
-        }
-        else if(search->filename[0])
-        {
-            files::forEachEntry(va("%s/progs", search->filename), [&add](const char* name, bool isDirectory) {
-                if(!isDirectory)
-                {
-                    add(va("progs/%s", name));
-                }
-            });
-        }
     }
-    za::quickSort(names.begin(), names.end(), [](const za::String& a, const za::String& b) { return strcmp(a.cStr(), b.cStr()) < 0; });
+    const za::Vector<za::String> names = modelNames(folder);
     Precached& p = precached;
     p = {};
     const auto has = [](const char* name) {
@@ -375,7 +537,11 @@ void precacheModels_f()
         for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
         {
             qmodel_t* model = sv.models[i];
-            if(model && model->type == mod_alias && !strchr(sv.model_precache[i], '#') && ragdoll::eligible(model))
+            // (a game folder's: its own models' limbs only)
+            const bool named = !folder || za::findIf(names.begin(), names.end(), [i](const za::String& n) {
+                return !q_strcasecmp(n.cStr(), sv.model_precache[i]);
+            }) != names.end();
+            if(model && named && model->type == mod_alias && !strchr(sv.model_precache[i], '#') && ragdoll::eligible(model))
             {
                 rigged.pushBack(model);
             }
@@ -403,8 +569,8 @@ void precacheModels_f()
             }
         }
     }
-    Con_Printf("vr_prepare_models: %d models and %d limb models precached (%d files found), %.1f ms\n", p.models, p.limbs,
-        static_cast<int>(names.size()), (Sys_DoubleTime() - t0) * 1000.0);
+    Con_Printf("vr_prepare_models: %d models and %d limb models precached (%d files found%s%s), %.1f ms\n", p.models,
+        p.limbs, static_cast<int>(names.size()), folder ? " in " : "", folder ? folder : "", (Sys_DoubleTime() - t0) * 1000.0);
 }
 
 } // namespace qvr::prepare
