@@ -584,6 +584,14 @@ BeamTrace beamTraces[beamRings][beamSides];
     return vr_flashlight.value != 0.f && vrActive();
 }
 
+// vr_flashlight 2, Always on Head (patch 1.0.1): no torch on the belt; it is worn at a temple (Mode::OnHead, on the
+// side vr_flashlight_side names) and stays there: the trigger at it switches it, nothing takes it off (wearOnHead).
+[[nodiscard]] bool headMode()
+{
+    return static_cast<int>(vr_flashlight.value) == 2;
+}
+bool headModeWas = false; // vr_flashlight was 2 when last set (onModeChanged)
+
 // Metres from the torch's axis a hand reaches it at (lit, taken by a press): `reach` times vr_flashlight_grab_range (the
 // author's notes: more leniency).
 [[nodiscard]] float grabReach()
@@ -2143,6 +2151,41 @@ void home_f()
     st.placed = false;
 }
 
+// Always on Head (vr_flashlight 2), each view: at the temple on vr_flashlight_side's side; from anywhere else (the
+// belt after a fresh start, a save made in another mode, a test aid) straight there, at once (no ease, no sound).
+void wearOnHead()
+{
+    st.headSide = vr_flashlight_side.value != 0.f ? 1.f : -1.f;
+    if(st.mode == Mode::OnHead)
+    {
+        return;
+    }
+    if(st.mode == Mode::Held)
+    {
+        // (a holding hand's grip was the torch's, restored from a save so: its next press and release are the game's)
+        st.swallowed[0][static_cast<int>(Button::Grip)] = st.swallowed[1][static_cast<int>(Button::Grip)] = false;
+    }
+    home_f();
+    st.mode = Mode::OnHead;
+    st.clipAt = -10.0;
+}
+
+// vr_flashlight set: to 2 (Always on Head), the light switched on (it is worn at once: wearOnHead); from 2 to
+// anything else, the torch back on the belt at once (as it was, on or off).
+void onModeChanged(cvar_t* var)
+{
+    const bool head = static_cast<int>(var->value) == 2;
+    if(head && !headModeWas)
+    {
+        st.on = true;
+    }
+    else if(!head && headModeWas)
+    {
+        home_f();
+    }
+    headModeWas = head;
+}
+
 // vr_flashlight_probe [tag]: per hand, whether the lamp is lit up for it (the last view) and what a press there would
 // see on the hands the game reads (at the lamp, the game's grip winning and its hotspot, empty, still): "highlighted
 // implies grabbable" (Misc/quakevr/flashgrab); and whether it was lit at the hand's last press (presslit) and how many
@@ -2256,6 +2299,8 @@ void init()
     Cmd_AddCommand("vr_flashlight_clip_head", clipHead_f);
     Cmd_AddCommand("vr_flashlight_home", home_f);
     Cmd_AddCommand("vr_flashlight_cord_info", cordInfo_f);
+    headModeWas = headMode();
+    Cvar_SetCallback(&vr_flashlight, onModeChanged);
 }
 
 void prepare()
@@ -2313,6 +2358,10 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     {
         restoreState();
         st.restorePending = false;
+    }
+    if(headMode())
+    {
+        wearOnHead(); // (also while a restore waits: never a frame on the belt)
     }
 
     // The holding hand took a weapon (a pickup): the lamp goes home.
@@ -2695,6 +2744,18 @@ bool button(int hand, Button b, bool pressed)
             static_cast<int>(s.hotspot[hand]), otherWeaponNear(s, hand) ? ", at the other hand's weapon" : "");
     }
 
+    // Always on Head: only the trigger at it, switching it; nothing takes it off (the grip and B/Y are the game's).
+    if(headMode())
+    {
+        if(b == Button::Trigger && atLamp && deliberate(hand, b))
+        {
+            toggle(hand);
+            swallowed = true;
+            return true;
+        }
+        return false;
+    }
+
     if(b == Button::Secondary)
     {
         // Held near the other hand's gun: either hand's B/Y clips it on.
@@ -2820,7 +2881,7 @@ void lateGrips()
             Con_DPrintf("flashlight: the %s hand's late grip ended: %s\n", hand == HAND_MAIN ? "main" : "off", why);
             st.lateUntil[hand] = -1.0;
         };
-        if(!enabled() || key_dest != key_game || !st.placed || !s.valid || !in.hands[hand].grip)
+        if(!enabled() || headMode() || key_dest != key_game || !st.placed || !s.valid || !in.hands[hand].grip)
         {
             end("let go");
             continue;
@@ -2882,7 +2943,7 @@ bool tookGrip(int hand)
 void reset()
 {
     Con_DPrintf("flashlight: reset (a fresh start)\n");
-    st.on = false;
+    st.on = headMode(); // (Always on Head: on at a fresh start)
     st.mode = Mode::Mounted;
     st.holder = -1;
     st.gunHand = -1;
@@ -2930,6 +2991,10 @@ void restoreState()
     st.overhead[0] = (packed & 512) != 0;
     st.overhead[1] = (packed & 1024) != 0;
     st.gunSlot = int((packed >> 11) & 255) - 1;
+    if(headMode() && st.mode != Mode::OnHead)
+    {
+        st.on = true; // Always on Head, a save made in another mode (or a new game's empty state): worn at once, on
+    }
     st.swallowed[0][static_cast<int>(Button::Grip)] = st.mode == Mode::Held && st.holder == 0;
     st.swallowed[1][static_cast<int>(Button::Grip)] = st.mode == Mode::Held && st.holder == 1;
     st.gunModel = nullptr;
@@ -3028,7 +3093,7 @@ bool fingers(int hand, Fingers& out)
 
 bool wantsSecondary(int hand)
 {
-    return holds(hand) || (enabled() && handAtHeadTorch(hands::current(), hand));
+    return holds(hand) || (enabled() && !headMode() && handAtHeadTorch(hands::current(), hand));
 }
 
 

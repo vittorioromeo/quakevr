@@ -291,6 +291,8 @@ one (Flashlight > *Flick to Turn Over*). Bring it to the gun in your other hand 
 (or let go of it there); it comes off with the other hand and B or Y, or goes back to your belt when the gun is
 holstered or dropped. It can clip on your head too. It stays on across level changes and goes off when you start a map
 afresh. It's a real spotlight: it lights models and casts shadows. Settings: the *Flashlight* page and its grips' pages.
+Set *Chest Flashlight* to *Always on Head* for a simpler torch: none on the belt, one worn at your temple (on the
+*Flashlight Side*), on from the start; put a hand at it and pull the trigger to switch it.
 
 ## Haptics
 

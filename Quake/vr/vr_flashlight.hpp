@@ -14,6 +14,10 @@
 // it takes it off (B or Y: back to the chest, or into the hand if it grips; or the grip alone: into the hand). On death,
 // at the intermission and on any map change it goes back to the chest, switched as it was; a fresh start switches it
 // off.
+// vr_flashlight 2, Always on Head (patch 1.0.1): none of the above but the head torch. It is worn at the temple on
+// vr_flashlight_side's side and never anywhere else (no torch on the belt, no taking it, no clipping it on a gun); a
+// hand's trigger at it switches it. On when the mode is chosen and at a fresh start; a save restores it as it was (a
+// save made in another mode: worn, on). Leaving the mode puts it back on the belt.
 //
 // Client-side only: its model is a VR view entity (progs/vrflashlight.mdl, make_flashlight.py) and
 // its beam a spot light at the lens (lighting::dlightSpot: per pixel on the world and on models,

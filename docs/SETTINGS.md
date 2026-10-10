@@ -86,7 +86,7 @@ on **Carrying and Throwing**; Force Grab on **Force Grab**; the Graphics Preset 
 *Headset*, *Sound*, *Tips*, *Changed Settings* and *Run VR Calibration Again* are under Advanced VR Options > **Setup**.
 
 **Body and Display:** Handedness (a preset: right- or left-handed, or Custom), Swap Stick Functions, Wrist Gadget Arm
-and Flashlight Side (Handedness sets all three), World Scale, Floor Offset (A), Chest Flashlight, Body (off, torso and
+and Flashlight Side (Handedness sets all three), World Scale, Floor Offset (A), Chest Flashlight (Off, Immersive, Always on Head), Body (off, torso and
 arms, full body), Build, Holster Models, Status Bar hand, Desktop Mirror (off, left eye, both eyes), *Recording (Window
 View)*. **Headset:** VR on or off, Restart VR, OpenXR Runtime, Render Scale, Upscaling (bilinear, FSR, NIS), Sharpness,
 Foveated Rendering (off, conservative, balanced, aggressive), Hide Lens Corners; Near Clip, Held Items at the Eyes and
@@ -388,7 +388,7 @@ built-in ones.
 | `vr_body_torso_back`, `vr_body_legs_back` | 0.07, 0.3 (shipped) | body placement, metres behind your head |
 | `vr_bodycal_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | Body Calibration's measurements (cm, metres, degrees; 0 lengths: not calibrated) |
 | `vr_body_tweak_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | your tweaks on top of them, the same units (uncalibrated: on the default body) |
-| `vr_flashlight` | 1 | the chest flashlight |
+| `vr_flashlight` | 1 | the flashlight: 0 off, 1 Immersive (on the belt), 2 Always on Head (worn at the temple on `vr_flashlight_side`'s side; the trigger at it switches it; on when chosen and at a fresh start) |
 
 ### Weapons, throwing and melee
 

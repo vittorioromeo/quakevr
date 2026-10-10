@@ -1381,3 +1381,36 @@ touch_controller` (with VD's "Emulate Index controllers": valve/index_controller
 bindings; triggers, grips, A/B/X/Y as before. Then in the console `bind LSHOULDER "impulse 12"; bind RSHOULDER
 "impulse 10"; bind LTRIGGER +jump`, quit and start again: the console says the bindings were set again, the grips grab.
 Doom opens from the wrist gadget's side button too: 6 presses within 0.4 s each (`vr_doom_light_presses`, `vr_doom_light_gap`), counted before the button's cooldown, the light put back as it was; one press then closes Doom without toggling the light; `vr_gadget_button_press` (Debug > Tests); DOOM.md.
+
+## Flashlight: Always on Head (1.0.1, 2026-10-11, worktree `headlight`)
+
+The author's request: a third flashlight mode, simpler than the belt torch. `vr_flashlight` keeps its meaning (0 off,
+1 Immersive: the belt torch as before) and gains **2, Always on Head**: the torch is the round-21 head torch
+(`Mode::OnHead`, its pose, light, beam and zone code unchanged), worn at the temple on `vr_flashlight_side`'s side, and
+nothing else: no torch on the belt (it is never in `Mounted`), no cord, no taking it with the grip, no B/Y unclipping,
+no clipping on a gun, no late grip; an open hand's trigger at it switches it (the existing `button` path, `reachesLamp`
+on the head's zone). The rows *Flashlight* (VR Settings) and *Chest Flashlight* (Body and Display) are now cycles: Off,
+Immersive, Always on Head (names unchanged: the calibration boards' `{menu:...}` lines still match).
+
+- `vr_flashlight.cpp`: `headMode()`; `wearOnHead()` each view in mode 2, also while a restore waits (never a frame on
+  the belt): from anywhere else straight to the head, at once (the stale grip swallow of a restored held torch
+  cleared). A `vr_flashlight` callback (`onModeChanged`): set to 2, the light on; from 2 to anything else, the torch
+  home on the belt at once (as `vr_flashlight_home`), on or off as it was. `button`: in mode 2 only the trigger at it.
+  `wantsSecondary` false in mode 2 (B/Y at the head is the game's).
+- On by default: when the mode is chosen; at a fresh start (`reset`: `on = headMode()`); a save made in mode 2
+  restores it as saved (on or off; also across changelevels); a save made in another mode (on the belt, in a hand, on
+  a gun) loaded in mode 2: worn, on. One torch, one state: no duplicate. Not handled: a mode-2 save loaded in mode 1
+  keeps the torch clipped on the head (a valid Immersive state: B/Y or the grip at it takes it off).
+- Coop: client-side as before (each client its own torch and mode); the saved state is single-player only, as before.
+- Weapon Offsets > Flashlight's *Clip the Torch on It* still sets `vr_flashlight 1` (it already did from 0): from
+  mode 2 it switches to Immersive. Left as is.
+
+**Tested (mock, `vr_flashlight_probe`, `vr_gear_status`):** mode 1 on e1m1: mounted, off, lamp at z 107; `vr_flashlight
+2`: onhead, on, lamp at z 120, cord 0, one flashlight entity. Off hand at the left temple (`vr_mock_hand off -0.08 1.72
+-0.06`): lit; trigger presses 30 frames apart: off, on, off; grip and Y there: still on the head, unchanged. Saved off,
+toggled on, loaded: off; changelevel e1m2: kept; `map e1m2` (fresh): on. Back to 1: mounted, light as it was.
+`vr_flashlight_give left` in mode 1, saved (held), switched to 2: on the head; loaded that save in mode 2: onhead, on.
+
+**In the headset:** Chest Flashlight > Always on Head: the torch at your left temple, lit; open hand at it, trigger:
+off and on; grip and Y there do nothing to it; nothing on the belt; Flashlight Side Right moves it to the right
+temple. Back to Immersive: the belt torch is back.

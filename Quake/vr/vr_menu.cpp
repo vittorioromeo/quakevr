@@ -8064,11 +8064,12 @@ za::Vector<Item> pageMain()
     }
     list.pushBackMultiple(
         header("Flashlight"),
-        toggle("Flashlight", vr_flashlight)
-            .help("A torch on your belt: pull the trigger with an open hand at it to switch it on or off; press the grip "
-                  "to take it in your hand."),
+        cycle("Flashlight", vr_flashlight, {{0.f, "Off"}, {1.f, "Immersive"}, {2.f, "Always on Head"}})
+            .help("Immersive: a torch on your belt: pull the trigger with an open hand at it to switch it on or off; press "
+                  "the grip to take it in your hand. Always on Head: worn at your temple, on from the start: pull the "
+                  "trigger with an open hand at it to switch it."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}})
-            .help("The side of your chest the torch hangs on."),
+            .help("The side of your belt the torch hangs on (Always on Head: the temple it is worn at)."),
 
         header("Lighting"),
         slider("Ambient Light", "vr_ambient_light", 0.f, 0.4f, 0.01f, "%.2f").extend()
@@ -8188,14 +8189,17 @@ za::Vector<Item> pageMain()
                   "stick moves, the gadget on the right arm, the torch on the right (Custom: set apart, below)."),
         toggle("Swap Stick Functions", vr_stick_swap).help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
-        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}}).help("The side of your chest the torch hangs on (Chest Flashlight)."),
+        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}}).help("The side of your belt the torch hangs on (Chest Flashlight; Always on Head: the temple it is worn at)."),
 
         header("Body"),
         slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f)
             .help("How big the world feels around you (1.25: Quake's sizes as a person sees them)."),
         slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f).advanced()
             .help("Moves the floor up or down: change it if you feel you are floating or sunk in the floor."),
-        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): pull the trigger with an open hand at it to switch it on or off; press the grip to take it. B or Y clips it on a gun or on your head."),
+        cycle("Chest Flashlight", vr_flashlight, {{0.f, "Off"}, {1.f, "Immersive"}, {2.f, "Always on Head"}})
+            .help("Immersive: a torch on your belt (Flashlight Side): pull the trigger with an open hand at it to switch it on "
+                  "or off; press the grip to take it. B or Y clips it on a gun or on your head. Always on Head: no torch on the "
+                  "belt, one worn at your temple, on from the start: the trigger with an open hand at it switches it."),
         cycle("Body", vr_body_mode, {{0.f, "Only Hands"}, {2.f, "Torso and Arms"}, {3.f, "Full Body"}})
             .help("How much of your body you see: only the hands; the torso and arms; or all of it, legs and all."),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
