@@ -10381,3 +10381,24 @@ Checks 5-6 (the lying shotgun by the handle): about 1 run in 8 the gun lies so t
 before the hand is within `vr_weapon_grab_anywhere_min` of the handle (taken -13 to -23 cm in, allowed 5: anywhere,
 not the handle's), and about 1 in 8 the gun lands out of reach; so at d94a28c2a too. Such runs are run again (5 tries).
 weapon_catch_test.sh 4 of 4 runs 6/6.
+
+## Test prerelease v1.0.0-test.1 for the author (2026-10-10)
+
+Published for Vittorio to try the whole installation flow: `make_release.ps1 -Version 1.0.0-test.1 -BumpVersion
+-Publish -NoDraft -NoBranchPush -Notes <"Test build for the author: not a release.">` from `agent/testrel` (default
+checks: self-tests, install harness, smoke launch, online check). Kept until he says to delete it:
+`gh release delete v1.0.0-test.1 --repo vittorioromeo/quakevr --yes --cleanup-tag` (then `git tag -d v1.0.0-test.1`).
+
+- **Fixed first:** a prerelease's `QuakeVR-Setup.exe` read only `releases/latest/download/latest.json`; GitHub's Latest
+  is never a prerelease (today it is the `textures-2026-10-03` support release, no latest.json), so it found no package.
+  `InstallerSettings.DefaultFeedUrls(InstallerBuild.Version)`: a version with a suffix reads
+  `releases/download/v<version>/latest.json` first, then Latest's; a final release reads Latest's alone.
+  `InstallerBuild.Version` is the assembly's informational version (`/p:Version`) without `+commit` (the file and
+  assembly versions drop the suffix: 1.0.0.0). The window's corner now says `Installer 1.0.0-test.1`; `qvr-setup`
+  prints the default feeds it reads. The game's update notice is unchanged (Latest's feed only; a prerelease game is
+  told about the next final release, semver: 1.0.0 > 1.0.0-test.1).
+- **Checked online:** every asset downloaded back = the local SHA-256; the release list and remote tags gained only
+  v1.0.0-test.1 (Latest still `textures-2026-10-03`); the downloaded exe's ProductVersion is
+  `1.0.0-test.1+7c406a35`; `qvr-setup feed` with no URL (the build's defaults) found 1.0.0-test.1 through its tag's
+  feed; a sandboxed `qvr-setup install --feed <tag feed>` downloaded and installed 1797 files, verify intact; the
+  feed's hdtextures point at `assets-2026-10-08` (200, 614919925 bytes = the pinned size).
