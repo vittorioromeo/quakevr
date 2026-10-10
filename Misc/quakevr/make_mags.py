@@ -43,7 +43,7 @@ REGIONS = {
     "band": (0, 32, 32, 48),    # bronze bands (the cell), dark ribs
     "window": (32, 32, 64, 48), # a window down the side: nails' shanks in it (the super nailgun's)
     "foot": (0, 48, 32, 64),    # the bottom
-    "spare": (32, 48, 64, 64),
+    "spare": (32, 48, 64, 64),  # (dark: the wells' pocket floors)
 }
 
 
@@ -215,12 +215,15 @@ def paint(kind, variant=False):
 
 
 TUCK = 0.04  # how far a well's walls end inside its lip band
+MOUTH_GAP = 0.22     # under the gun: the gap round the magazine in the mouth's lip (the inset seen from below)
+POCKET_DEPTH = 0.45  # and how far up inside the mouth the pocket's dark floor is
 
 
 def magwell(hx, hy, top, wall=0.32, height=1.1, sunk=None):
     """A magazine's well (its receiver, drawn on the gun: vr_view.cpp setupMagazines): a steel collar round the magazine's
     top end, flush with the gun at the seat (the magazine's top, local z `top`) and down its length `height`, its walls
-    `wall` thick round the magazine's section (half sizes hx, hy, a little gap), a lighter lip at its mouth. `sunk`: a
+    `wall` thick round the magazine's section (half sizes hx, hy, a little gap), a bright steel lip at its mouth round a
+    pocket a little wider than the magazine (MOUTH_GAP), its floor dark (POCKET_DEPTH up). `sunk`: a
     flat face (the super nailgun's): the lighter lip a flange on the face at the seat, `sunk` units of the collar and
     the flange into the body, the collar out along the magazine (the author's note vrfiringrange_2026-10-08_10-33-00:
     it went into the body, only its lip out, and looked turned 180 degrees, backwards, not attached; this is that collar
@@ -238,12 +241,30 @@ def magwell(hx, hy, top, wall=0.32, height=1.1, sunk=None):
             m.box((0.0, sy * (gy + wall / 2), (lo + hi) / 2), (gx, wall / 2, (hi - lo) / 2), "steel", cap_region="foot")
         m.box((0.0, 0.0, top + sunk - 0.08), (gx + wall + 0.06, gy + wall + 0.06, 0.08), "band", cap_region="band")
         return m
-    lo, hi = top - height + TUCK, top
+    # Under the gun (the nailgun's, the thunderbolt's): the mouth an inset round the magazine, as the super nailgun's
+    # (the author's notes, 1.0.1: "it should have a little bit of an inset to look like there is a gap where the
+    # magazine fits ... a silvery border around the place where the magazine sticks in"; it was a flat plate the
+    # magazine came through). A bright steel lip round the mouth (its face the border), inside it a pocket MOUTH_GAP
+    # wider than the magazine all round, its dark floor POCKET_DEPTH up; the collar's walls round the pocket end TUCK
+    # inside the lip, the floor's edges inside the walls (no two faces in one plane).
+    mouth = top - height
+    lo, hi = mouth + TUCK, top
+    lip = hx + MOUTH_GAP - gx                # the lip's hole (half sizes gx + lip, gy + lip)
+    ix, iy = gx + lip + 0.06, gy + lip + 0.06  # the pocket: the walls' inner faces, 0.06 behind the lip's edge
+    ox, oy = gx + wall, gy + wall              # the collar's outer faces
+    assert ox - ix > 0.08, "the collar's walls too thin for the pocket"
     for sx in (-1.0, 1.0):
-        m.box((sx * (gx + wall / 2), 0.0, (lo + hi) / 2), (wall / 2, gy + wall, (hi - lo) / 2), "steel", cap_region="foot")
+        m.box((sx * (ix + ox) / 2, 0.0, (lo + hi) / 2), ((ox - ix) / 2, oy, (hi - lo) / 2), "steel", cap_region="foot")
     for sy in (-1.0, 1.0):
-        m.box((0.0, sy * (gy + wall / 2), (lo + hi) / 2), (gx, wall / 2, (hi - lo) / 2), "steel", cap_region="foot")
-    m.box((0.0, 0.0, top - height + 0.08), (gx + wall + 0.06, gy + wall + 0.06, 0.08), "band", cap_region="band")
+        m.box((0.0, sy * (iy + oy) / 2, (lo + hi) / 2), (ix, (oy - iy) / 2, (hi - lo) / 2), "steel", cap_region="foot")
+    band = 0.08  # (half its height)
+    for sx in (-1.0, 1.0):
+        m.box((sx * (gx + lip + ox + 0.06) / 2, 0.0, mouth + band), ((ox + 0.06 - gx - lip) / 2, oy + 0.06, band),
+              "steel", cap_region="steel")
+    for sy in (-1.0, 1.0):
+        m.box((0.0, sy * (gy + lip + oy + 0.06) / 2, mouth + band), (gx + lip, (oy + 0.06 - gy - lip) / 2, band),
+              "steel", cap_region="steel")
+    m.box((0.0, 0.0, mouth + POCKET_DEPTH + 0.03), ((ix + ox) / 2, (iy + oy) / 2, 0.03), "spare", cap_region="spare")
     return m
 
 

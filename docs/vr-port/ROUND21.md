@@ -11158,3 +11158,35 @@ in-game relight passes it over).
   the 1.0.0 map the same way: 5 (85, 40, 66, 25 as the notes above, seed 2 stuck alive in the pit; seed 4 cleared, its
   walk out stopped at the pit's rail). With god really on, seeds 2 and 3 end in the pit on both maps (the mock's straight
   walks after a monster): the arena's outcome per seed moves with any edict change (the three lights), not the geometry.
+## Patch 1.0.1: the nailgun's and thunderbolt's magazine wells inset, the thunderbolt's sides (2026-10-11, worktree `art101`)
+
+His model notes: the nailgun's receiver under the gun "should have a little bit of an inset to look like there is a gap
+where the magazine fits ... like the one on the super nailgun which clearly has an inset and a silvery border"; the same
+for the thunderbolt's; and the thunderbolt's right side "has some stretched textures and it doesn't look symmetrical ...
+a lot of grooves in the textures that should be inset in the geometry".
+
+- **Wells under the gun** (make_mags.py `magwell`, the non-`sunk` ones: `vr_magwell_on_v_nail/v_lava/v_light/v_plasma`).
+  Their mouth was a flat plate the magazine came through. Now a bright steel lip (its face the border, `steel` texels)
+  round a pocket `MOUTH_GAP` 0.22 wider than the magazine all round, its floor dark (`spare` texels) `POCKET_DEPTH` 0.45
+  up; the collar's walls round the pocket still end `TUCK` inside the lip (the z-fight fix), the floor's edges inside
+  the walls, the lip's hole 0.06 inside the walls' faces: no two faces in one plane. Seats, load points, magazines and
+  the super nailgun's well byte for byte as before (only those four files changed); normal maps rebaked.
+- **Thunderbolt** (refine_light.py, polish_weapons.py's POST for v_light.mdl, refine_laserg.py's machinery). The body's
+  sides: the +y (left) upper face was mapped well (anisotropy 1.06); on -y one triangle spanned it corner to corner with
+  its texels folded to a line (39 over the face: the streaks), its triangulation another (a crack filled by a sliver);
+  both lower faces were folded onto a few texel rows (19: the long dark lines). Now the +y lower face is unwrapped (LSCM)
+  into free skin and painted in the body's dark browns (grain along the gun, lit edges); the +y upper face's three dark
+  slots between the bolted plates are carved 0.4 in (Blender's exact boolean, headless, on a slab of that face: floors keep
+  the slot's paint, walls its darkest texel); the -y side is that side mirrored across the body's middle plane on the same
+  texels, its outline the old -y vertices. After: both sides 1.20 (upper, recess walls aside) and 1.05 (lower);
+  check_mdl_art.py uv-stretch 12 -> 7, uv-density 10 -> 1, no normal or zfight finding. The old side triangles stay in
+  the file, their vertices collapsed onto the two-handed grip's anchor vertex (230, the -y bottom front corner, kept in
+  place): the strip order and so every anchor (57, 104, 230, magazine 655) unchanged; polish_weapons.py now checks the
+  magazines' anchors too (vr_view.cpp magMounts). v_plasma.mdl (the same mesh) is not touched: adding it to POST is one
+  line if he wants the same there. Normal map rebaked.
+- blender/render_views.py draws several models joined by `+` (a gun with its magazine and well) for before/after renders.
+- Checked: Blender close renders before/after (the wells with and without the magazine, both thunderbolt sides flat-lit
+  and lit); mock-headset eye shots of the thunderbolt held side-on, both sides (the slots recessed, the bolts on the
+  plates, the cell in its well); `reload/reload_test.sh` 103 PASS, 0 FAIL (self-test 67/67: the magazines out and in on
+  the nailgun, super nailgun and thunderbolt); polish_weapons.py reproduces the shipped v_light.mdl byte for byte before
+  the POST step and is deterministic after it.

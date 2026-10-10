@@ -41,6 +41,7 @@ import numpy as np
 import genguard
 import mdlpolish as mp
 import refine_laserg
+import refine_light
 import reuv_shot2
 from improve_weapons import strip_order
 
@@ -48,6 +49,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "src_models", "r21")
 ORIGINAL = os.path.join(HERE, "src_models")  # the models before round 16: the id-made triangles and skin rows
 INC = os.path.join(HERE, "..", "..", "Quake", "vr", "vr_weapons.inc")
+VIEW = os.path.join(HERE, "..", "..", "Quake", "vr", "vr_view.cpp")  # its magMounts: each magazine's anchor vertex
 
 X, Y, Z = np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])
 
@@ -373,9 +375,11 @@ RECIPES = {
 WEAR_ONLY = ["v_grpple.mdl", "v_laserg.mdl", "v_hammer.mdl"]
 # After the polish: the double shotgun's fore-end re-mapped (its old UVs were stretched) and its holes closed
 # (reuv_shot2.py: the old vertices, triangles and anchors stay; those UVs and texels change); the laser cannon's
-# stretched keel, bottom and grip re-mapped and its body's vents carved (refine_laserg.py: Blender, headless). Then
-# every model's inverted vertex normals are turned (mdlpolish.fix_inverted_normals).
-POST = {"v_shot2.mdl": reuv_shot2.fix, "v_laserg.mdl": refine_laserg.fix}
+# stretched keel, bottom and grip re-mapped and its body's vents carved (refine_laserg.py: Blender, headless); the
+# thunderbolt's right side made its left's mirror image, its sides' lower faces re-mapped and its panels' slots carved
+# (refine_light.py: Blender, headless). Then every model's inverted vertex normals are turned
+# (mdlpolish.fix_inverted_normals).
+POST = {"v_shot2.mdl": reuv_shot2.fix, "v_laserg.mdl": refine_laserg.fix, "v_light.mdl": refine_light.fix}
 
 
 # ----------------------------------------------------------------------------
@@ -395,6 +399,9 @@ def slot_anchors():
                   "WpnTextAnchorVertex"):
             if k in keys:
                 a.add(int(float(keys[k])))
+    # The magazines' anchors (vr_view.cpp magMounts: the vertex whose kick moves the magazine and its well).
+    for gun, a in re.findall(r'"progs/vr_mag_on_(v_\w+\.mdl)", (\d+),', open(VIEW).read()):
+        out.setdefault(gun, set()).add(int(a))
     return out
 
 
