@@ -6,6 +6,8 @@
 Toolgun (on the range north of the crowbar, or impulse 169): B/Y opens its menu on the gun, other hand's laser clicks; Spawn (ghost, X/A + sticks to move/turn, picker), Remove (red glow), Physgun (hold trigger to drag, other trigger freezes), Scale (face/corner handles), Joints (weld/ball/hinge/slider/rope/spring), Cheats page; menu readable/placed well? grip fit? (docs/vr-port/TOOLGUN.md)
 
 [New this week]
+Tutorial arena: climb the north mezzanine ladder and step straight off the top through the new railing gap; the railing still stops walking off elsewhere
+Setup with the rerelease campaigns: new status lines for Dimension/Dawn of the Machine; first visit to mg3 map2 without a stall
 Lava SNG + multi rocket launcher up close (finer paint, no streaks); reload the lava SNG; holster both
 Diagnostics shortcut: play a minute, quit; the folder opens with openxr_validation.log (only header/known false positive expected); VR still starts on SteamVR, VDXR and Meta
 Decals (25% cheaper, same image): rocket-fight blood and scorch marks look as before (pools, runs down walls, slopes, stairs); first time Retro Textures applies to decals: a short hitch is expected
