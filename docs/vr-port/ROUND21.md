@@ -10908,3 +10908,35 @@ Found:
   sometimes not found after the crate breaks (one of two runs), and room 8's hand loading often throws the shells
   instead of loading them, so the range's door stays shut (the player stops at x 4772, the door) and every later gate
   fails. Not fixed (not cheap: the mock's loading motion).
+
+## The author's morning decisions before 1.0.0 (2026-10-11, worktree `morningfix`)
+
+- **Armour:** the wrist gadget's tile says ARMOUR (`vr_gadget.cpp`); our own prints "Your armour is full/better"
+  (`items.qc`). Left as id wrote it: "You got armor" (`items.qc`, and its copy in `vr_mg_horde.qc`); code identifiers and
+  model names (`armor.mdl`, `item_armor*`).
+- **Arena music:** Scourge of Armagon's "Ranger Infiltration" is the soundtrack's third piece, the CD's track 4 (track 1
+  is data); the rerelease's `hipnotic/music/track04.ogg` (3:03, the album's 3:04; tracks 2-9 match the album's eight
+  lengths). `target_vr_music` takes `music_folder` (a campaign folder): `sounds` is then that campaign's own track,
+  sent as one byte, 128 + 16 * the folder's place in `vr_music.cpp campaignFolders` + the track (hipnotic 4 = 148),
+  looked for in that folder only (the search path's, then the owned installs read in place), whatever the game. QC
+  `campaignmusic(folder, track)` gives that number only when the track would play (`BGM_TrackAvailable`: a music file
+  and external music on); else 0, and the target changes nothing (the tutorial's 3 plays on, `vr_music_track` kept).
+  `VR_ServerMusicTrack` gives the map's track for a saved 148 the player doesn't have. `developer 1`: `music: track
+  148`, `music: no hipnotic track 4, unchanged`; the client's `VR music: track 148 -> ...track04.ogg`.
+  Checked headless with `-Sound -Games "-game quakevr"` (the shipped search path): the door 148 from the Steam
+  rerelease, cleared 3; a save mid-fight loaded: 148 (the same file: resumed); loaded with `bgm_extmusic 0`: 3. Without
+  `-Sound` (the kit's default) no music plays, so the arena logs "unchanged".
+- **Decals:** `vr_decal_max` 768 (was 1024); config version 118 moves a config at 1024 to 768, another value is kept
+  (checked: the baseline config, version 34 at 1024, loads 768; a version 117 config at 2048 keeps it). BACKLOG:
+  "Optimise decals" with PERF_DECISIONS 15's numbers.
+- **Arena easier:** two dogs fewer (11 -> 9): wave 2's from beyond the pit (500 -1450, the side the stranded dog came
+  from) and wave 3's (1300 -1300, beside both enforcers). Lump edited in place, no relight; the .map regenerated
+  (needs `quakevr/wads/id_textures.wad`: `make_id_wad.py`). `--from arena`, seeds 1-6: cleared in 5, health left 85,
+  40, 40, 66, 25 (seed 4's walk to the exit then stuck at the pit's south rail: a route matter); seed 2's mock followed
+  a monster into the pit at wave 2 and never fired again (its straight walks don't find the stairs). Before (seeds
+  1-3): 68, 27 and one death. (`--god` changes nothing in these runs: the same numbers with and without.)
+- **BACKLOG:** the items left for later (Setup's monster guns, the five load-time options, the art, the hull build's
+  last copies, the playtest's room 8 loading).
+
+**In the headset:** the wrist gadget's ARMOUR tile; the tutorial arena (its door: "Ranger Infiltration" if his Quake has
+Scourge of Armagon's music; cleared: "Aftermath" again; easier with two dogs fewer); Max Decals at 768 in his config.
