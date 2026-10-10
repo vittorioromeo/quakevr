@@ -10564,3 +10564,32 @@ Notice** (`vr_loading_preview [s]`), **Restart Map (Shows It)**. Not done: frame
 To try in VR: install with Setup (the Install page's preparation: "Relighting: n of m maps", Skip works), then the first
 start: no relight indicator on the wrist, and the tutorial's portal to the hub shows "Loading..." for under a second
 instead of a 10-15 s freeze. Debug > Loading Notice Hold 3 s shows the notice long enough to judge its size and place.
+
+## VR Calibration: a welcome, the stickman never gone, the doorway named right (2026-10-10)
+
+The author (release-candidate feedback, a fresh install): the calibration started too abruptly; the stickman showed,
+then went away for the first step; the summary and the board over the doorway said "VR hub" while it led to the
+tutorial.
+
+- **The welcome** (vr_setup.cpp `Step::Welcome`): 7 s in the middle of the view (the steps' text, at eye level, not
+  0.18 m below): "WELCOME TO QUAKE VR: UNLEASHED!", then that the calibration begins shortly and asks for poses and
+  moves. Each start shows it (the first start, the main menu's VR Calibration, the hub's button, any load of the room,
+  `vr_setup here`); the restart after the menu (Paused) does not. `vr_setup_skip` goes past it.
+- **The stickman** (Body Calibration's ghost, standing): from the intro to the summary, every frame. Why it went:
+  Body Calibration's ghost faced the session's `yaw`, set only when a pose's countdown ended: the first pose's
+  reading and countdown drew it at the last session's yaw (world yaw 0 at the first), off to a side or behind. Now
+  `begin` takes the head's yaw, and VR Calibration hands it its height step's (`bodycal::setGhostYaw`), so it stays
+  where it stood. Also a frame each: a pose not taken (its next pose's ghost drawn that frame now), the menu's restart.
+  The intro shows it too (following the head's yaw) so the restart after the menu has it at once. Seated: none
+  standing, as before (its poses' ghosts from the T-pose on). Its page's result (BodyReview: the menu) and the summary
+  have none.
+- **The doorway** leads to the tutorial while `vr_tutorial_started` is 0 (QC changelevel_touch), else the hub (from the
+  hub's button that is the hub, but a fresh install that reached the hub through the main menu's VR Hub goes to the
+  tutorial). The board over it is `{calibration exit}` (vr_worldtext.cpp: VR TUTORIAL or VR HUB, as the room loads),
+  the summary and the console line say "leads to the tutorial" or "leads to the VR hub". The .bsp's entity lump edited
+  in place (bsp_set_entities.py; the light kept).
+- **Tests:** `vr_setup_debug 1` (Debug > VR Calibration > Calibration Trace) prints each step and, at the summary,
+  `the stickman shown: shown N frames, hidden M since it first showed` (menu frames not counted; a hidden frame
+  printed as it happens; 2: every frame). A whole run in the mock (static hands: four poses not taken, three recorded,
+  the result untrusted): 0 hidden of ~54000 frames, before the fix 2 (the poses not taken); with the menu's pause in
+  the height step too. The doorway walked: first start, mapname vrtutorial; `vr_tutorial_started 1`, vrstart.
