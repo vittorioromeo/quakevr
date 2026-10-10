@@ -11,6 +11,7 @@ Defaults 10-09 afternoon: melee (speed 3.2, damage 1.1, stamina), enemy weapons,
 Bullet-time tap: Double Tap is default (VR Settings > Bullet Time > Screen Tap); each tap clicks and glitches the gadget screen, activation plays two rising blips (Combat > Bullet Time > Screen Tap: volume / glitch; too much on top of bullet time's own sound?); your stealth/holding/tap values are now defaults
 
 [New this week]
+Morning decisions: wrist gadget tile says ARMOUR; arena plays Scourge of Armagon's Ranger Infiltration at the door, back to Aftermath when cleared, two dogs fewer; Max Decals shows 768
 Calibration: with an untrusted body result page, one B (or menu button) closes the menu and calibration finishes
 Tutorial arena: a dog knocked into the pit comes back to its spawn with a flash after ~10 s (stay away from the edge); the arena always clears
 Art polish: under the nailgun/super nailgun/thunderbolt with a magazine in and out, the well's lip no longer shimmers; the laser cannon's grip and underside are lit like the rest
