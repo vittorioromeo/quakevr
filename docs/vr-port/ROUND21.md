@@ -10940,3 +10940,21 @@ Found:
 
 **In the headset:** the wrist gadget's ARMOUR tile; the tutorial arena (its door: "Ranger Infiltration" if his Quake has
 Scourge of Armagon's music; cleared: "Aftermath" again; easier with two dogs fewer); Max Decals at 768 in his config.
+
+## Test prerelease v1.0.0-test.3: the whole flow once more before 1.0.0 (2026-10-11, worktree `testrel3`)
+
+Published for Vittorio: `make_release.ps1 -Version 1.0.0-test.3 -BumpVersion -Publish -NoDraft -NoBranchPush -Notes
+<file>` from `agent/testrel3` (default checks; `-Notes` takes a file, not text; the version commit dropped afterwards,
+the tag carries it: `72827da8`). test.1 and test.2 are already deleted from GitHub. Delete when he is done:
+`gh release delete v1.0.0-test.3 --repo vittorioromeo/quakevr --yes --cleanup-tag`, then `git tag -d v1.0.0-test.3`.
+
+- **Checked online:** the four assets downloaded back = the local SHA-256; Latest still `textures-2026-10-03`; the
+  downloaded exe's ProductVersion `1.0.0-test.3+72827da8...`; `qvr-setup feed` (defaults) reads the tag's feed first
+  and finds 1.0.0-test.3. A fresh sandbox `install --feed <tag feed> --prepare`: 1797 files, the three first maps
+  prepared (16.6 s), verify intact.
+- **From test.2, in a sandbox:** no test.2 package was left (its worktree and tag are gone; a rebuild of `4af732cb`
+  was not cheap), so a test.2-like one: test.3's package with the 21 `quakevr/` files changed since `4af732cb` taken
+  from it, `qvr-setup manifest --version "1.0.0-test.2 (2026-10-10 4af732cb)"`, installed; a config, a save and a
+  screenshot added. `qvr-setup update` (default feeds): "newer -> update", 21 files copied, the 3 player files kept,
+  verify intact. The downloaded test.3 Setup's off-screen harness (no `--feed`) over another such install: Welcome
+  "1.0.0-test.2 is installed / Update to 1.0.0-test.3", and it updated it (install.json 1.0.0-test.3, the save kept).
