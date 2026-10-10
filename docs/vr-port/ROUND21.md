@@ -10609,46 +10609,46 @@ Scripts in `scratch/` (`lp_measure.sh`, `lp_parse.py`, `lp_table.py`, `lp_phases
 
 | load (ms, from the command to its first frame) | before, cold | after, cold | before, warm | after, warm |
 |---|---|---|---|---|
-| **hub path**: start-up, process to first frame (first map in it) | 2307 | 2061 | 1703 | 1406 |
-| `map vrcalibration` | 1471 | 1406 | 781 | 748 |
-| `map vrtutorial` | 612 | 488 | 362 | 362 |
-| `changelevel vrstart` | 12712 | 5173 | 786 | 640 |
-| `load` (a game saved on the hub) | 290 | 212 | 300 | 229 |
-| `map vrtutorial` | 153 | 146 | 152 | 152 |
-| `changelevel vrstart` | 390 | 324 | 419 | 322 |
-| **id1**: start-up, process to first frame (first map in it) | 2891 | 2423 | 2041 | 1667 |
-| `map e1m1` | 1983 | 1783 | 1166 | 1001 |
-| `changelevel e1m2` | 1006 | 575 | 388 | 281 |
-| `map e1m6` | 640 | 448 | 308 | 241 |
-| `map e4m7` | 676 | 500 | 380 | 323 |
-| `map e2m2` | 238 | 224 | 220 | 218 |
-| `map e1m1` | 194 | 200 | 196 | 198 |
-| `restart e1m1` | 187 | 183 | 200 | 181 |
-| **mission packs**: start-up, process to first frame (first map in it) | 3227 | 2636 | 2133 | 1790 |
-| `map hip1m1` | 2392 | 1999 | 1241 | 1119 |
-| `map hip2m3` | 1720 | 1158 | 752 | 508 |
-| `map r1m1` | 727 | 567 | 615 | 452 |
-| `map r2m6` | 603 | 456 | 448 | 371 |
-| **MG1, MG3**: start-up, process to first frame (first map in it) | 3209 | 2562 | 1904 | 1730 |
-| `map start` (MG1's, the campaign switched) | 2134 | 1738 | 896 | 880 |
-| `map mge5m2` | 3418 | 2381 | 1474 | 1016 |
-| `map start` (MG3's, the campaign switched) | 469 | 426 | 434 | 379 |
-| `map map4` | 1743 | 1247 | 1203 | 1000 |
+| **hub path**: start-up, process to first frame (first map in it) | 2307 | 1931 | 1703 | 1404 |
+| `map vrcalibration` | 1471 | 1298 | 781 | 726 |
+| `map vrtutorial` | 612 | 471 | 362 | 360 |
+| `changelevel vrstart` | 12712 | 5365 | 786 | 668 |
+| `load` (a game saved on the hub) | 290 | 235 | 300 | 212 |
+| `map vrtutorial` | 153 | 155 | 152 | 145 |
+| `changelevel vrstart` | 390 | 344 | 419 | 319 |
+| **id1**: start-up, process to first frame (first map in it) | 2891 | 2350 | 2041 | 1679 |
+| `map e1m1` | 1983 | 1730 | 1166 | 981 |
+| `changelevel e1m2` | 1006 | 528 | 388 | 311 |
+| `map e1m6` | 640 | 397 | 308 | 238 |
+| `map e4m7` | 676 | 470 | 380 | 325 |
+| `map e2m2` | 238 | 233 | 220 | 203 |
+| `map e1m1` | 194 | 197 | 196 | 189 |
+| `restart e1m1` | 187 | 182 | 200 | 167 |
+| **mission packs**: start-up, process to first frame (first map in it) | 3227 | 2486 | 2133 | 1800 |
+| `map hip1m1` | 2392 | 1853 | 1241 | 1123 |
+| `map hip2m3` | 1720 | 971 | 752 | 491 |
+| `map r1m1` | 727 | 545 | 615 | 459 |
+| `map r2m6` | 603 | 430 | 448 | 363 |
+| **MG1, MG3**: start-up, process to first frame (first map in it) | 3209 | 2486 | 1904 | 1744 |
+| `map start` (MG1's, the campaign switched) | 2134 | 1740 | 896 | 890 |
+| `map mge5m2` | 3418 | 2187 | 1474 | 1028 |
+| `map start` (MG3's, the campaign switched) | 469 | 409 | 434 | 404 |
+| `map map4` | 1743 | 1213 | 1203 | 1006 |
 
 Where the time went (before), and what changed (a commit each; every change gives the same output, checked):
 
 | load | before | after |
 |---|---|---|
-| tutorial -> hub, cold | 12,712: hulls waited 11,393; normal maps made 406; wave mesh 94; islands 35 | 5,173: hulls 4,214; normal maps 304; wave mesh 25; islands 26 |
-| start-up, warm (to the first map) | 922 before the map: filesystem 302 | 658: filesystem 81 |
-| vrcalibration, warm (every start) | 781: islands 41, alias models 447 | 748: islands 18, alias models 404 |
-| hub, warm first visit | 786: wave mesh 98, brush models' hulls 10 | 640: wave mesh 30, brush models' hulls 6 |
-| hub, a return | 419: wave mesh 102 | 322: wave mesh 28 |
-| e1m2, cold | 1,006: normal maps made 397, limb models 438 | 575: normal maps 220, limb models 250 |
-| hip2m3, cold | 1,720: normal maps made 904, limb models 1,028 | 1,158: normal maps 513, limb models 552 |
-| mge5m2, cold | 3,418: normal maps made 1,288, limb models 1,423, brush models' hulls 241, hulls waited 372 | 2,381: 761, 766, 86, 274 |
-| mge5m2, warm | 1,474: limb models 412, brush models' hulls 232 | 1,016: 151, 72 |
-| map4 (MG3), cold | 1,743: normal maps made 518, limb models 752 | 1,247: 285, 411 |
+| tutorial -> hub, cold | 12,712: hulls waited 11,393; normal maps made 406; wave mesh 94; islands 35 | 5,365: hulls 4,426; normal maps 162; wave mesh 26; islands 22 |
+| start-up, warm (to the first map) | 922 before the map: filesystem 302 | 678: filesystem 83 |
+| vrcalibration, warm (every start) | 781: islands 41, alias models 447 | 726: islands 19, alias models 413 |
+| hub, warm first visit | 786: wave mesh 98 | 668: wave mesh 35 |
+| hub, a return | 419: wave mesh 102 | 319: wave mesh 27 |
+| e1m2, cold | 1,006: normal maps made 397, limb models 438 | 528: normal maps 102, limb models 192 |
+| hip2m3, cold | 1,720: normal maps made 904, limb models 1,028 | 971: normal maps 254, limb models 432 |
+| mge5m2, cold | 3,418: normal maps made 1,288, limb models 1,423, brush models' hulls 241, hulls waited 372 | 2,187: 452, 672, 78, 272 |
+| mge5m2, warm | 1,474: limb models 412, brush models' hulls 232 | 1,028: 157, 70 |
+| map4 (MG3), cold | 1,743: normal maps made 518, limb models 752 | 1,213: 166, 402 |
 
 1. **The compiled hulls' build** (`vr_hull.cpp`; HULLS.md "Kept on disk"): vrstart's seven trees waited for 10.5-11.4 s
    though they are built at once on 32 threads: the 28x56 tree's top split so unevenly that one unit of 20,423 pieces
@@ -10675,7 +10675,7 @@ Where the time went (before), and what changed (a commit each; every change give
 4. **Normal maps made from skins** (cold: every model's first load after an install or update, 0.3-1.3 s a map; the
    limbs' too, each limb its own islands): `TexMgr_SkinToNormals`' passes shared out by rows, then its edges, its three
    forms and its heights as five tasks at once into their own heap buffers, added in the original order. e1m1's 93
-   skins 311 to 94 ms; the 226 cache files of e1m1, hip2m3 and mge5m2 byte for byte the old code's.
+   skins 311 to 94 ms (the making alone); the 226 cache files of e1m1, hip2m3 and mge5m2 byte for byte the old code's.
 5. **Limb models' rigs** (each kind of monster's rig derived in turn on the main thread when its limbs were built):
    made first, all at once, by `warmRigs`; and a rig's fits run its poses on the pool (56 rigs hashed the same; their
    summed time 2.1 to 1.4 s).
@@ -10687,6 +10687,10 @@ Where the time went (before), and what changed (a commit each; every change give
    with the old code's: the same). vrcalibration 41 to 18 ms.
 8. **Guns' convex pieces** (the firing range's guns at the session's first vrstart): the shortlisted cuts weighed at
    once (the same pieces, hashed). 35-38 to 23-28 ms a gun.
+9. **The normal maps' cache files written on the pool** (cold: open, write, close and rename on the main thread, 1-2 ms
+   a skin, 100-300 skins a monster-heavy map with the limbs'): the bytes copied, then written and renamed into place on
+   the pool (at most 64 under way, the rest finished at shutdown); a key asked for before its file is there is made
+   again, the same bytes. hip2m3 cold: normal maps 513 to 246 ms; the 202 files byte for byte the old code's.
 
 Tried and dropped (no gain): deferring the shaders' compile and link checks to the end (the driver still takes 200 ms;
 `glMaxShaderCompilerThreadsKHR` changed nothing), texture names made 256 at a time (glGenTextures' CPU time moved to
