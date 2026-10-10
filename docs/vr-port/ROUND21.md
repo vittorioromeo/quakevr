@@ -11190,3 +11190,71 @@ a lot of grooves in the textures that should be inset in the geometry".
   plates, the cell in its well); `reload/reload_test.sh` 103 PASS, 0 FAIL (self-test 67/67: the magazines out and in on
   the nailgun, super nailgun and thunderbolt); polish_weapons.py reproduces the shipped v_light.mdl byte for byte before
   the POST step and is deterministic after it.
+## Load-time speedups without their drawbacks (1.0.1, 2026-10-10, worktree `load101`)
+
+Your request: the optional load-time speedups' drawbacks ("Map and game loading", above) identified and removed, and
+Setup's preparation to make the monsters' guns (PERF_DECISIONS.md 13). Each item: its drawback, the fix, the result.
+Every change gives the same output (checked as noted). Timings: `vr_startup_times`, `run.sh --exclusive`, the mock,
+fast mode; best of two warm runs, one cold run (the game folder's `quakevr/cache` moved aside); base 8744aed94 against
+this branch (scripts `scratch/lp101*.sh`).
+
+| load (ms) | before, cold | after, cold | before, warm | after, warm |
+|---|---|---|---|---|
+| start-up to the first frame (vrcalibration first) | 1902 | 1757 | 1364 | 1302 |
+| `map vrcalibration` (every start) | 1251 | 1126 | 724 | 611 |
+| `changelevel vrstart` (from the tutorial) | 4910 | 5135 | 540 | 516 |
+| `map vrstart` again after e1m1 (a return to the hub) | 307 | 259 | 302 | 250 |
+| `map e1m1` (first map of a session) | 1523 | 1426 | 914 | 780 |
+| `changelevel e1m2` | 433 | 418 | 262 | 271 |
+| `map e4m7` | 553 | 577 | 360 | 334 |
+| `map hip1m1` (first map) | 1668 | 1799 | 956 | 865 |
+| `map hip2m3` | 840 | 811 | 450 | 441 |
+
+(Cold vrstart is its hull build, the same code; the cold rows move by 100-200 ms from run to run.)
+
+1. **The monsters' guns in Setup's preparation** (PERF_DECISIONS.md 13). Drawback: a step more in Setup. Fix: the
+   preparation's last map, the hub, drops the 16 weapons a monster can drop (`vr_pickup_test 4`, new: the grunt's and
+   enforcer's guns, both knights' swords, the ogre's chainsaw, the random and ammo-box drops) with `CreateThrownWeapon`
+   as a death does; a held gun's triangles are its dropped copy's, so holding one reads the same file. 13 cut in 1.0 s
+   (`result guns read=0 cut=13 written=13`); a later session's grunt death reads its gun (0.2 ms, was 35), the 16
+   dropped again read all, none cut. Debug > Tests: "Every Enemy Weapon Dropped Ahead".
+2. **The skins' normal maps made in Setup's preparation** (was: "Normal maps made after the load", drawback flat
+   shading for a moment). Instead of deferring them, the preparation precaches on the hub every model of the game's
+   folders (progs/*.mdl: 102 the hub lacks) and every monster's limbs (162, as `vr_limbs_prebuild` makes a map's):
+   2.4 s more in Setup, about 42 MB more in `cache/normalmaps` (50 MB). A first session's e1m1, e1m2, e2m2, e4m7 and
+   hip2m3 then made no skin's normal map (before: 126 skins, 218 ms over those loads); `vr_normalmap_cache 2` on e1m2:
+   139 compared, none differed. Mission packs' own models (another game folder) are still made at their first visit.
+   Command `vr_prepare_models`; Debug > Tests: "Every Model and Limb Precached".
+3. **The Box3D world mesh kept across map changes** (drawback: keyed by name and counts, an edited map of the same
+   counts would keep a stale mesh). Fix: each kept mesh carries what `worldMesh` reads of its map (each face it makes:
+   corner count, normal, the corners' vertex numbers and points; 5.3 MB for vrstart) and a map's mesh is reused only
+   when those words are the same, compared whole (a hash first; a frame's check compares none after the first). The
+   meshes of the two maps played before are kept (`vr_box3d_mesh_keep_maps 2`; 0 only this map's). Reading the words:
+   2.8 ms of vrstart's load. A return to the hub: 302 to 250 ms. The same mesh object is used (hash c602335f).
+4. **The memory log's GL object count** (drawback of counting less often: the leak check sees fewer loads). Fix: it
+   counts at every load as before, but skips the names `glGen*` hands out (a few thousand per kind, one call, deleted at
+   once): by the GL spec those are no object, so `glIs*` is asked only about the rest; the same count by
+   construction. 13 to 5 ms of every load (programs have no `glGen*`: still asked one by one, 2.5 ms).
+   `vr_memstats_glscan 2` compared both at 8 loads (e1m1, e1m2, vrstart, e4m7, hip1m1, r1m1, hip2m3): the same counts.
+   `vr_memstats_glscan 0` is the old count. (A first try, stopping at a fresh name when names come in order, failed:
+   NVIDIA reuses the lowest free name.) Debug > Profiling: "Memory Log: GL Count".
+5. **Model loading in parallel** (drawback: the loaders share the hunk, the cache and GL). Not done whole: it needs each
+   loader split into a decode into its own buffers on the pool and a commit in order on the main thread. Two exact
+   pieces of the calibration room's 372 ms of alias models (warm) done instead:
+   - authored normal maps' heights (the body's and hands' 1024 x 1024 maps: 60 ms on one thread) on the pool, a row a
+     task, each texel's sum as before (75 maps compared byte for byte, 0 differed);
+   - the image prefetch lists the first load's images that took over 0.2 ms (was 1 ms): 112 smaller skins and maps
+     (50 ms decoded on the main thread at every start) decoded ahead; images 120 to 80 ms, VR init 10 ms more.
+   Left: texture uploads (30 ms), CPU mipmaps (12), the decoded images' copies into the hunk (40: page faults),
+   md5 replacements (32), islands (18), the cache's normal maps read (18).
+6. **Shader program binaries** (drawback: driver bugs). Tried with every safeguard (keyed by GL_VENDOR, GL_RENDERER,
+   GL_VERSION, GL_SHADING_LANGUAGE_VERSION, each program's sources and the build; LINK_STATUS checked, compiled on a
+   refusal; a kill switch) and dropped: on NVIDIA the 106 programs from binaries took 191 ms against 192 compiled (the
+   driver's own shader cache already serves the compile), and asking for retrievable binaries made the first start's
+   link 25.9 s. Kept as a diff (`scratch/progcache_attempt.diff` in the worktree, not committed). Worth a try on AMD or
+   Intel only (BACKLOG).
+
+**In the headset:** a fresh install's Setup (the preparation's two new steps: about 3.5 s more; its log has `step guns`,
+`result guns`, `step models`, `result models`); the first session after it: a grunt's, a knight's and an ogre's first
+death (no hitch), the first visits to e1m1 and e1m2; a return to the hub from a map; nothing should look or play
+differently.

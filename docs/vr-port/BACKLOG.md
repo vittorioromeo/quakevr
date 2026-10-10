@@ -77,7 +77,7 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   reverted (no gain, 0.6-0.9% of the pixels changed). `vr_decal_max` lowered to 768 meanwhile (config version 118).
   Leads: fewer marks a bucket, a smaller record or a cheaper early-out, merging overlapping marks.
 
-### Map and game loading (ROUND21.md, "Load-time speedups without their drawbacks (1.0.1)", 2026-10-10)
+### Map and game loading (ROUND21.md, "Load-time speedups without their drawbacks (1.0.1, 2026-10-10, worktree `load101`)")
 
 - **Model loading in parallel** (the calibration room's alias models, now 270 of the 430 ms: texture uploads, skins'
   decoding and copies, md5 replacements): the loaders share the hunk, cache and GL; would need each loader split into
