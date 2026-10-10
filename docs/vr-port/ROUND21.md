@@ -11258,3 +11258,59 @@ this branch (scripts `scratch/lp101*.sh`).
 `result guns`, `step models`, `result models`); the first session after it: a grunt's, a knight's and an ogre's first
 death (no hitch), the first visits to e1m1 and e1m2; a return to the hub from a map; nothing should look or play
 differently.
+
+## Patch 1.0.1: stretched skins re-mapped, normal maps rebaked (2026-10-11, worktree `blend101`)
+
+The art pass's "For the author" items (BACKLOG, Art), approved: "Blender work: as suggested". Headless only, every
+output from a script (polish_weapons.py, bake_normals.py).
+
+**Stretched skins** (`Misc/quakevr/reuv_weapons.py`, run by polish_weapons.py as POST after the polish; the plasma
+gun first through art101's refine_light.py, it has the thunderbolt's mesh). Seeds: faces over 0.5 sq units stretched
+over 3:1 (or folded onto a line) over paint that is not one colour; each grows into its flat panel (faces within 20
+degrees, stretched over 2:1 too). Panels are cut into charts by angle and unwrapped flat (reuv_shot2.lscm), packed in
+free texels (the skin grows by 8 rows when needed). The paint is read from the old one: each new texel shows a surface
+point, coloured as the old mapping showed it (the skin before polish_weapons.py's edge wear, bilinear with a
+sharpened blend, never the background round an old island), quantized to the ramps the old paint used there with a
+4x4 dither, plus fine grain, a few scratches and the convex edges lit and worn. A panel mostly folded onto a line with
+its streaks across it (or named: the grappling hook's front cap) takes its old mean colour instead; streaks along a
+part (id's shading of barrels and tubes) stay. The density: the model's (median of its well-mapped faces) or the old
+one along the sharpest direction where higher, at most 3 times it (a fine pattern resampled coarser aliases).
+
+**Anchors.** vr_anchor.cpp names anchors by their place in QuakeSpasm's old strip order, and strips join faces by
+vertex index: a chart's edge across a strip (its corners copied) ended the strip and shifted every later anchor (the
+first try moved anchors on all five guns). Charts are now joined along the old strips (taking the rest of each strip
+they touch; a joined chart that will not unwrap flat, over 2:1, is left), and each kept only if every anchor names a
+vertex at the same place in every pose. polish_weapons.py's check now compares an anchor's place in every pose (not
+its vertex index: a copy is at its vertex's place, and vr_anchor.cpp reads only the place), and a magazine anchor past
+the source model's vertices (v_nail/v_lava 1497/1499, which made a full run of the script fail) against the shipped
+file. Every anchor of every gun held; the 14 guns not re-mapped come out byte for byte as shipped.
+
+| `check_mdl_art.py --stretch` (area, frame 0) | over 3:1 | over 3:1 over varied texels | skin |
+|---|---|---|---|
+| plasma gun | 32.1% -> 15.6% | 29.6% -> 11.9% | 512x178 -> 512x290 |
+| super nailgun | 42.5% -> 12.8% | 29.7% -> 1.2% | 512x146 -> 512x474 |
+| rocket launcher | 33.5% -> 25.9% | 9.4% -> 3.2% | 512x146 (same) |
+| grappling hook | 23.0% -> 10.7% | 20.8% -> 9.7% | 512x235 (same) |
+| Mjolnir | 25.0% -> 0.0% | 25.0% -> 0.0% | 512x128 -> 512x240 |
+
+"Over varied texels" (new in `--stretch`) leaves out faces over one colour (polish_weapons.py's swatches: bands,
+bolt heads), which look the same however mapped. Left: the claws' and some plasma/rocket faces whose strips do not
+unwrap flat; the plasma gun's coil turns under the muzzle (kept: their streaks are the turns). check_mdl_art.py's
+other findings: streaks gone on the hook and Mjolnir, seam-ring bleed fewer in proportion (the new islands carry a
+two-texel margin). Not done: the lava super nailgun and multi rocket launcher (same meshes, own skins): one SPECS line
+each.
+
+**Normal maps.** The baker keeps z >= 0.05 (`normalbake.clamp_z`, after the box filter: a sharp bevel's supersamples
+averaged into the surface): the crowbar's 400 pixels with z < 0 -> 0 (630 pixels changed). Rebaked: the crowbar,
+`v_shot.mdl` and its pump parts (11 pixels changed: it was nearly current), the super nailgun's and lava super
+nailgun's magazine wells; `vr_shell.mdl`'s came out byte for byte (it was current); the nail/lava/thunderbolt/plasma
+wells are art101's (rebaked there after its make_mags.py change). The five re-mapped guns' maps rebaked.
+
+**Body skins at the wrist: not done.** The 16 body skins are the author's own repaint (commit 24fa2de6d, 59-98% of
+each block differs from make_vrbody.py's painter): a re-map or a bigger skin would only resample his paint. A sharper
+sleeve needs him to paint the wrist and bracer at a higher resolution (make_vrbody.py's painter is resolution-free and
+could paint 512 x 512, but would replace his repaint).
+
+**In the headset:** the super nailgun's barrels, the rocket launcher's front, the grappling hook's front cap,
+Mjolnir's head and the plasma gun's sides up close: the paint as before, finer, no streaks; reload the super nailgun
+and plasma gun (magazine anchors) and holster each.

@@ -88,11 +88,13 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
 
 ### Art (ROUND21.md, "For the author": Blender)
 
-- **Stretched UVs** (re-map and repaint as reuv_shot2.py did the double shotgun's): the lightning and plasma guns' side
-  panels, super nailgun, rocket launcher, the grappling hook's front cap, Mjolnir.
-- **Normal maps to rebake** (`bake_normals.py`): `v_shot.mdl` and its pump parts, `vr_shell.mdl`, the six magazine
-  wells; the crowbar's (400 pixels with z < 0: a clamp in the baker).
-- **Body skins' texel density at the wrist**: about a sixth of the hands' (256 x 256 skins): a sharper sleeve.
+- **Stretched UVs left** (ROUND21.md, "Patch 1.0.1: stretched skins re-mapped"): the grappling hook's claws (10% of it:
+  their strips do not unwrap flat), the rocket launcher's and plasma gun's few faces whose strips would not unwrap
+  flat; the lava super nailgun and multi rocket launcher (the same meshes, their own skins) not done: one line each
+  in reuv_weapons.py's SPECS.
+- **Body skins' texel density at the wrist**: about a sixth of the hands' (256 x 256 skins). The skins are the
+  author's own repaint (commit 24fa2de6d): a re-map or a bigger skin only resamples his paint; a sharper sleeve needs
+  him to paint the wrist and bracer at a higher resolution (or make_vrbody.py's painter at 512, losing his repaint).
 
 ### Hull build
 
