@@ -356,6 +356,7 @@ void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3
 // ----------------------------------------------------------------------------
 
 // A column at the panel's top left, over every menu: "Back to game" (closes the menu, which reopens where it was),
+// "Main Menu" (Quake's main menu, from anywhere),
 // "Search" and "Console" (Quake's console with a keyboard: commands typed in the headset), "VR Settings" (the VR
 // Settings page), "Advanced VR" (the Advanced VR Options page), "Levels" (Ironwail's level list), "Map Library",
 // "Relighting" (Graphics > Relighting) and "Checklist" (the playtest checklist, its open items counted on it;
@@ -364,6 +365,7 @@ void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3
 enum Tool
 {
     ToolBack,
+    ToolMainMenu, // the main menu, from any menu (the VR pages' Back stack started again)
     ToolSearch, // the VR menus' Search page (vr_menu_search.inc)
     ToolConsole, // Quake's console with a keyboard (vr_menu_console.inc)
     ToolSettings, // the VR Settings page
@@ -376,11 +378,11 @@ enum Tool
 };
 
 // (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
-constexpr const char* toolLabels[ToolCount]{"Back to game", "Search", "Console", "VR Settings", "Advanced VR", "Levels",
+constexpr const char* toolLabels[ToolCount]{"Back to game", "Main Menu", "Search", "Console", "VR Settings", "Advanced VR", "Levels",
     "Map Library", "Relighting", "Checklist 99"};
 
 // Their names for the tests' commands (vr_mock_laser, vr_mock_mouse).
-constexpr const char* toolNames[ToolCount]{"back", "search", "console", "settings", "advanced", "levels", "maps", "relighting",
+constexpr const char* toolNames[ToolCount]{"back", "main", "search", "console", "settings", "advanced", "levels", "maps", "relighting",
     "checklist"};
 
 // The buttons shown: the Checklist (the last) only at Menu Detail: Developer (the playtest checklist is the author's).
@@ -1417,6 +1419,7 @@ void useTool(int tool, int hand)
     switch(tool)
     {
         case ToolBack: backToGame(hand); break;
+        case ToolMainMenu: menu::jumpToMainMenu(); break;
         case ToolSearch: menu::openSearch(); break;
         case ToolConsole: menu::openConsole(); break;
         case ToolSettings: menu::jumpToSettings(); break;
@@ -1801,6 +1804,16 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
         case ToolBack:
             p.arrowHead(x, 5.f, yc, 4.5f, ink);
             p.rect(x + 4.f, x + w, yc, 1.25f, ink);
+            break;
+        case ToolMainMenu:
+            // A house: a stepped roof over its walls, a door in them.
+            for(int i = 0; i < 4; i++)
+            {
+                const float t = static_cast<float>(i);
+                p.rect(x + t * 1.1f, x + w - t * 1.1f, yc - (0.6f + t * 1.2f) / p.k, 0.6f, ink);
+            }
+            p.band(x + 1.5f, x + w - 1.5f, yc, 0.f, 4.5f, ink);
+            p.band(x + 3.6f, x + w - 3.6f, yc, 1.8f, 4.5f, colors::boxFill);
             break;
         case ToolSearch:
             // A magnifying glass: a ring, its handle down to the right.

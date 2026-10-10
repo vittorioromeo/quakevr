@@ -56,6 +56,9 @@ void jumpToChecklist();
 // "VR Settings" (the corner's button): the VR Settings page from any menu (a tick on it already).
 void jumpToSettings();
 
+// "Main Menu" (the corner's button, under Back to game): Quake's main menu from any menu.
+void jumpToMainMenu();
+
 // "Relighting" (the corner's button): Graphics > Relighting from any menu (Menu Detail raised to Advanced if lower);
 // Back from it goes up the tree: Graphics, Advanced VR Options, VR Settings.
 void jumpToRelighting();

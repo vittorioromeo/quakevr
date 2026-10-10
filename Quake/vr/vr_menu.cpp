@@ -12283,6 +12283,18 @@ void qvr::menu::jumpToSettings()
     openFromAnywhere(PageMain);
 }
 
+// (The VR pages' Back stack started again: the main menu is the top, its Back the game.)
+void qvr::menu::jumpToMainMenu()
+{
+    if(m_state == m_main && key_dest == key_menu)
+    {
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    navReset();
+    M_Menu_Main_f();
+}
+
 void qvr::menu::jumpToRelighting()
 {
     const int target = pageIndex(pageGraphicsRelighting);
