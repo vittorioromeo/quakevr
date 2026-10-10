@@ -423,8 +423,9 @@ laser at one, `vr_mock_button main trigger 1` then `0` takes it (`vr_mock_mouse 
 pos` says menu 28 while one is up); `vr_test_confirm` opens a test one (it prints `test confirm: answered OK`). `vr_setup_test_take <take>` plays a synthetic person's
 take (as above, a Windows path: `cygpath -m`) from the body step's first frame and stops it after. `vr_setup here` runs
 it in any map, `vr_setup_skip` goes on to the next step (Body Calibration stopped). In the room `togglemenu` pauses it
-("paused on Body Calibration's page", `menu_vr pos` on page "Body Calibration" row "Position"); two more `togglemenu`s
-close the menu and it starts again. The doorway to the hub: `setpos 0 -100 24 0 -90 0; noclip` (setpos leaves noclip
+("paused on Body Calibration's page", `menu_vr pos` on page "Body Calibration" row "Position"); one more `togglemenu`
+(or Back: `vr_mock_button main secondary 1` / `0`) closes the menu and it starts again (the body's untrusted result's
+page the same: one press and it goes on). The doorway to the hub: `setpos 0 -100 24 0 -90 0; noclip` (setpos leaves noclip
 on), `vr_mock_stick off 0 1; wait60`; the trigger's `changelevel` runs after the rest of the script, so end it with
 `bind ABUTTON mapname; toggleconsole; wait5; toggleconsole; wait5; vr_mock_button main primary 1` (`"mapname" is
 "vrstart"`). The test hall's wall buttons (`map vrtesthall`): `setpos <x> <y> 24 0 <yaw> 0` 26 units in front of its
