@@ -252,12 +252,13 @@ spends 2.3 ms making the buffers and more writing into fresh pages (`particle ve
 pass is 2.67 ms, and 1.34 of it is the ~900 marks the gibs and explosions leave (`vr_decals 0`: 1.33 ms; the
 flashlight's shadow, `vr_shadow_dlights 0` and `r_dynamic 0` change nothing measurable). Each pixel walks the marks of
 its cell's bucket (up to 64, each a whole 80-byte record read before its early-out tests).
-- **Options**: (a) the shader reads a mark's normal and middle first and the rest only past the early-out (the same
-  image; unmeasured: the driver may already do it); (b) a lower `vr_decal_max` or fewer marks a bucket (visual: fewer
-  marks kept where they pile up).
-- **Win**: up to ~1.3 ms of GPU at 2048 (about 2.4 at his eyes) in fights that leave many marks; (a) likely a part.
-- **Drawback**: (a) a world shader change to verify by image comparison; (b) visible.
-- **Recommendation**: try (a) next round with screenshots compared; (b) his call.
+- **Tried, not kept**: the shader reading a mark's normal and middle first and the rest only past its early-out: no
+  gain (world+brush 2.67-2.74 -> 2.80-2.89 ms, within the runs' spread) and not the same image (0.6-0.9% of the pixels
+  off by up to 15 levels: the driver's arithmetic reordered).
+- **Option**: a lower `vr_decal_max`, or fewer marks a bucket (64 now): fewer marks walked a pixel.
+- **Win**: up to ~1.3 ms of GPU at 2048 (about 2.4 at his eyes) in fights that leave many marks.
+- **Drawback**: visible (fewer marks kept where they pile up).
+- **Recommendation**: his call; the fights hold 90 Hz on this machine at 2048, not at his eyes in a rocket fight.
 
 ## Leads (2026-10-08 follow-up)
 
