@@ -18,6 +18,8 @@
 # (the grips, triggers, foregrips, pumps): the fitted fingers close on the same surfaces as before.
 # The double shotgun then goes through reuv_shot2.py (POST): its fore-end's stretched UVs re-mapped and repainted,
 # its holes closed; UVs and texels there change, the old vertices, triangles and anchors do not.
+# The plasma gun, super nailgun, rocket launcher, grappling hook and Mjolnir go through reuv_weapons.py (POST): their
+# stretched skin re-mapped and repainted from the old paint (UVs and texels change; positions and anchors do not).
 # The shotgun then goes through split_auto_pump (its auto pump): the first of its fore-end's rings taken out (its own
 # vertices collapsed: no anchor, the strip order unchanged), the other three given their own texels, the moving
 # fore-end and the gun without it written apart (progs/vr_pump_on_v_shot.mdl, vr_pumpbody_on_v_shot.mdl).
@@ -43,6 +45,7 @@ import mdlpolish as mp
 import refine_laserg
 import refine_light
 import reuv_shot2
+import reuv_weapons
 from improve_weapons import strip_order
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -380,6 +383,11 @@ WEAR_ONLY = ["v_grpple.mdl", "v_laserg.mdl", "v_hammer.mdl"]
 # (refine_light.py: Blender, headless). Then every model's inverted vertex normals are turned
 # (mdlpolish.fix_inverted_normals).
 POST = {"v_shot2.mdl": reuv_shot2.fix, "v_laserg.mdl": refine_laserg.fix, "v_light.mdl": refine_light.fix}
+# The super nailgun's, rocket launcher's, grappling hook's and Mjolnir's stretched skins re-mapped and repainted from
+# their old paint (reuv_weapons.py: the positions, triangles and anchors stay; UVs and texels change); the plasma gun
+# (the thunderbolt's mesh) first through refine_light.py (its sides), then reuv_weapons.py (the rest).
+POST.update({name: reuv_weapons.fix for name in reuv_weapons.SPECS})
+POST["v_plasma.mdl"] = lambda path: (refine_light.fix(path), reuv_weapons.fix(path))
 
 
 # ----------------------------------------------------------------------------
@@ -408,9 +416,11 @@ def slot_anchors():
 def anchors_of(path, anchors):
     m = mp.Model(path)
     order = strip_order(m.tris)
-    P = np.frombuffer(bytes(m.pose_bytes(0)), np.uint8).reshape(-1, 4)
-    # The position's bytes (not the normal's: an anchor is a place, and fix_inverted_normals may turn its normal).
-    return {a: (order[a], bytes(P[order[a]][:3])) for a in anchors}
+    poses = [np.frombuffer(bytes(m.pose_bytes(p)), np.uint8).reshape(-1, 4) for p in range(m.num_poses())]
+    # The position's bytes in every pose (not the normal's: an anchor is a place, and fix_inverted_normals may turn its
+    # normal; nor the vertex's index: vr_anchor.cpp reads only the place, and a re-map's copy of a vertex
+    # (reuv_weapons.py) is at its vertex's place in every pose).
+    return {a: tuple(bytes(P[order[a]][:3]) for P in poses) if a < len(order) else None for a in anchors}
 
 
 def polish(name, out_dir):
@@ -446,6 +456,10 @@ def main():
     bad = 0
     for name in names:
         before = anchors_of(os.path.join(SRC, name), anchors.get(name, set()))
+        # An anchor on this script's own parts (a magazine's, past the source's vertices): where the shipped file has it.
+        shipped = os.path.join(HERE, "..", "..", "quakevr", "progs", name)
+        if None in before.values() and os.path.exists(shipped):
+            before.update({a: p for a, p in anchors_of(shipped, [a for a in before if before[a] is None]).items()})
         old_nt, tris, verts, rows, texels = polish(name, out_dir)
         after = anchors_of(os.path.join(out_dir, name), anchors.get(name, set()))
         moved = [a for a in before if before[a] != after[a]]

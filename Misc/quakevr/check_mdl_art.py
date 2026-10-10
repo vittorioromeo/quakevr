@@ -440,9 +440,10 @@ def check(a, verbose):
 
 
 def stretch_summary(a, verbose):
-    """--stretch: the share of the model's surface (area, frame 0) whose texels are stretched over 3:1 and 4:1 (a
-    triangle folded onto a line or a point counts as stretched), the median texel density, the share under half
-    of it; -v lists the worst triangles. The before/after measure of the re-maps (reuv_*.py)."""
+    """--stretch: the share of the model's surface (area, frame 0) whose texels are stretched over 3:1 (and of it,
+    over texels that are not one colour: the stretch that shows) and 4:1 (a triangle folded onto a line or a point
+    counts as stretched), the median texel density, the share under half of it; -v lists the worst triangles. The
+    before/after measure of the re-maps (reuv_*.py)."""
     p, nn, area, uvarea, uvsign = tri_geo(a)
     ok = area > 1e-7
     tot = area[ok].sum()
@@ -451,18 +452,29 @@ def stretch_summary(a, verbose):
     for t in np.nonzero(ok)[0]:
         s1, s2 = stretch(p[t], a.uv[t])
         ratio[t] = 99.0 if s2 <= 1e-6 or uvarea[t] < 0.05 else min(99.0, s1 / s2)
+    # Visible stretch: over texels whose brightness varies by more than 12 (a face over one colour looks the same
+    # however it is mapped: generated swatches, flat-painted bands).
+    lum = a.rgb(0) @ np.array([0.299, 0.587, 0.114])
+    varied = np.zeros(len(area), bool)
+    for t in np.nonzero(ok & (ratio > 3))[0]:
+        q = a.uv[t]
+        vals = [lum[min(max(int(y), 0), a.h - 1), min(max(int(x), 0), a.w - 1)]
+                for x, y in (q[0] + u * (q[1] - q[0]) + v * (q[2] - q[0])
+                             for u in np.linspace(0, 1, 7) for v in np.linspace(0, 1, 7) if u + v <= 1)]
+        varied[t] = max(vals) - min(vals) > 12
     w = np.where(ok, area, 0.0)
     order = np.argsort(dens[ok])
     cum = np.cumsum(w[ok][order])
     med = float(dens[ok][order][np.searchsorted(cum, cum[-1] / 2)])
-    line = "%-28s stretch>3:1 %5.1f%%  >4:1 %5.1f%%  density median %5.2f/unit, under half %5.1f%%" % (
-        os.path.basename(a.path), 100 * w[ratio > 3].sum() / tot, 100 * w[ratio > 4].sum() / tot, med,
-        100 * w[dens < med / 2].sum() / tot)
+    line = ("%-28s stretch>3:1 %5.1f%% (over varied texels %5.1f%%)  >4:1 %5.1f%%  density median %5.2f/unit, "
+            "under half %5.1f%%") % (
+        os.path.basename(a.path), 100 * w[ratio > 3].sum() / tot, 100 * w[(ratio > 3) & varied].sum() / tot,
+        100 * w[ratio > 4].sum() / tot, med, 100 * w[dens < med / 2].sum() / tot)
     print(line)
     if verbose:
         for t in sorted(np.nonzero(ok & (ratio > 3))[0], key=lambda t: -area[t])[:40]:
-            print("    tri %4d at %s area %6.2f ratio %5.1f density %5.2f" % (
-                t, p[t].mean(0).round(1).tolist(), area[t], ratio[t], dens[t]))
+            print("    tri %4d at %s area %6.2f ratio %5.1f density %5.2f%s" % (
+                t, p[t].mean(0).round(1).tolist(), area[t], ratio[t], dens[t], "" if varied[t] else " (one colour)"))
 
 
 def main():

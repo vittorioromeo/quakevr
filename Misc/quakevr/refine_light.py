@@ -198,7 +198,7 @@ def fix(path, report_only=False):
     report = {"+y upper": upper, "+y lower": lower,
               "-y upper": [i for i in sides[-1] if rl.tri_n(P, m.tris[i])[0][2] > 0.0],
               "-y lower": [i for i in sides[-1] if rl.tri_n(P, m.tris[i])[0][2] <= 0.0]}
-    print("v_light.mdl, before:")
+    print("%s, before:" % os.path.basename(path))
     for k, tris in report.items():
         print("  %-9s %d triangles: %.2f texels/unit, anisotropy %.2f" % ((k, len(tris)) + stretch(m, P, tris, corners)))
     if report_only:
@@ -318,7 +318,7 @@ def fix(path, report_only=False):
                      [np.asarray(q[0]) for q in m.new_pos])
     plus_new = [len(m.tris) - len(new) + k for k in range(0, len(new), 2)]
     minus_new = [len(m.tris) - len(new) + k for k in range(1, len(new), 2)]
-    print("v_light.mdl, after: %d -> %d triangles (%d collapsed), %d -> %d vertices, skin %dx%d" % (
+    print("%s, after: %d -> %d triangles (%d collapsed), %d -> %d vertices, skin %dx%d" % (os.path.basename(path),
         len(m.tris) - len(new), len(m.tris), len(dead), m.old_nv, len(m.st), m.sw, m.sh))
     pm = mp.Model.__new__(mp.Model)  # (stretch() reads tris and positions only)
     pm.tris = m.tris
