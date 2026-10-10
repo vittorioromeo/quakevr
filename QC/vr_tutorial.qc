@@ -173,6 +173,61 @@ void(entity xSpawner) VR_Spawner_Rouse =
     }
 };
 
+// Its monsters stranded down out of the player's sight (more than 64 units below the spot they came in at, the player
+// not seen for VR_SPAWNER_STRANDED seconds) come back to that spot with a teleporter's flash: a dog that leapt or was
+// knocked into vrtutorial's arena pit can't find the pit's stairs, sees no one from down there and is seen by no one
+// on the floor, and the wave can't end while it lives.
+const float VR_SPAWNER_STRANDED = 10;
+
+void(entity xSpawner) VR_Spawner_Unstrand =
+{
+    entity p = xSpawner.vr_spawn_by;
+    vector org = xSpawner.origin;
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(e.vr_spawner != xSpawner || !(e.flags & FL_MONSTER) || e.health <= 0 || e.deadflag != DEAD_NO)
+        {
+            continue;
+        }
+        float seen = e.origin_z >= org_z - 64;
+        if(!seen && p.classname == "player" && p.health > 0)
+        {
+            traceline(e.origin + e.view_ofs, p.origin + p.view_ofs, TRUE, e);
+            seen = trace_fraction == 1;
+        }
+        if(seen || !e.vr_spawn_seen)
+        {
+            e.vr_spawn_seen = time;
+            continue;
+        }
+        if(time - e.vr_spawn_seen < VR_SPAWNER_STRANDED)
+        {
+            continue;
+        }
+        // (something standing on the spot: next time)
+        float clear = TRUE;
+        for(entity o = findradius(org, 40); o; o = o.chain)
+        {
+            if(o != e && (((o.flags & FL_MONSTER) && o.health > 0) || o.classname == "player"))
+            {
+                clear = FALSE;
+            }
+        }
+        if(!clear)
+        {
+            continue;
+        }
+        dprint(sprintf("spawner %s: its %s stranded out of sight at %v: back at %v\n", xSpawner.targetname, e.classname,
+                       e.origin, org));
+        spawn_tfog(e.origin);
+        setorigin(e, org);
+        e.velocity = '0 0 0';
+        e.flags = e.flags - (e.flags & FL_ONGROUND);
+        spawn_tfog(org);
+        e.vr_spawn_seen = time;
+    }
+};
+
 void() VR_Spawner_Make =
 {
     entity sp = self;
@@ -215,6 +270,7 @@ void() func_vr_spawner_think =
     {
         VR_Spawner_Rouse(self);
     }
+    VR_Spawner_Unstrand(self);
     if(self.vr_spawn_left <= 0 && self.vr_spawn_armed && VR_Spawner_Alive(self) == 0)
     {
         self.vr_spawn_armed = 0;
@@ -256,6 +312,8 @@ them (default 0.5; one waits while something stands on the spot), "angle" the wa
 user the activator) once every monster of its latest use is dead: chain waves with trigger_counter and trigger_relay.
 ONE_AT_A_TIME: a use while one of its monsters lives makes none ("message" centerprinted to the player who used it).
 ANGRY: they go for the player who used it at once.
+One stranded more than 64 units below the spot it came in at, out of the player's sight for 10 seconds (a pit it can't
+climb out of), comes back to that spot.
 */
 void() func_vr_spawner =
 {

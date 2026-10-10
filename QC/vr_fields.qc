@@ -275,4 +275,5 @@ float cVR_Forcegrab_AfterFoe = 0.5; // s: that moment (a judo throw's follow-thr
 .float vr_spawn_left;  // func_vr_spawner: monsters still to make for its latest use
 .float vr_spawn_armed; // func_vr_spawner: its latest use's monsters not all dead yet (its target not fired)
 .entity vr_spawn_by;   // func_vr_spawner: who used it last (its target's activator)
+.float vr_spawn_seen;  // a monster a func_vr_spawner made: when it was last up or in the player's sight (VR_Spawner_Unstrand)
 .float tip_on;         // func_vr_tip (TRIGGERED): used: shown from now on

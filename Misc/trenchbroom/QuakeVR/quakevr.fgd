@@ -2434,7 +2434,7 @@ Trains are moving platforms that players can ride. The targets origin specifies 
 @PointClass color(255 102 51) size(-16 -16 -24, 16 16 40) =
 	func_vr_spawner : "Quake VR: makes monsters here when used, with a teleporter's flash: 'weapon' which kind (as func_enemy_dispenser's: 0 grunt, 1 ogre, 2 zombie, 7 dog, 8 enforcer...), 'count' how many a use makes (default 1), 'wait' the seconds between them (default 0.5; one waits while something stands on the spot), 'angle' the way they face. 'target' is fired (the user the activator) once every monster of its latest use is dead: chain waves with trigger_counter and trigger_relay.
 ONE_AT_A_TIME: a use while one of its monsters lives makes none ('message' centerprinted to the player who used it).
-ANGRY: they go for the player who used it at once."
+ANGRY: they go for the player who used it at once. One stranded more than 64 units below the spot it came in at, out of the player's sight for 10 seconds (a pit it can't climb out of), comes back to that spot."
 [
 	spawnflags(flags) =
 	[
