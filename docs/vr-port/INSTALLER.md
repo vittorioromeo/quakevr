@@ -52,7 +52,7 @@ packager's folder (custom maps, mod folders, saves, configs, screenshots, notes,
 | Launcher | `QuakeVR.bat`: `start "" "%~dp0ironwail.exe" -game quakevr %*` | | the working directory is the caller's |
 | Game folder | `quakevr\`: `progs.dat` (1.9 MB, built), `progs\` (66 MB of models and skins), `sound\` (4.5 MB), `maps\` (6 MB: hub, tutorial, firing range, calibration room, already relit), `textures\`, `textures_quetoo\` (47 MB, CC BY-SA 4.0), `gfx\`, `wads\`, `motions\`, `quake.rc`, `default.cfg`, `quakevr.cfg`, `vr_defaults.cfg`, `vr_bindings.cfg`, `retro_overrides_default.txt`, `bindlist.lst`, `checklist.txt` | 124 MB tracked | |
 | Relight scripts | `quakevr\tools\`: `relight_maps.py`, `vis_maps.py`, `quakepak.py`, `quakeimage.py`, `relight_probe.py`, and `ericw-tools\` (`light.exe` and its DLLs, for the in-game relighting); `relight_textures.cfg` is in `quakevr\` | | Python 3.7+, standard library only |
-| Symbols | `ironwail.pdb` (34 MB, full: clang-cl `/Z7` objects linked by lld-link `/DEBUG`) | | shipped beside the exe: `qvr_crash.txt` names the functions on the stack (DbgHelp looks in the exe's folder, then the working directory), and `qvr_crash.dmp` opens in a debugger with it |
+| Symbols | `ironwail.pdb` (34 MB, full: clang-cl `/Z7` objects linked by lld-link `/DEBUG`) | | shipped beside the exe: the crash report (`quakevr\crash\<date>_<time>.txt`) names the functions on the stack (DbgHelp looks in the exe's folder, then the working directory), and its `.dmp` opens in a debugger with it |
 | Build version | baked into the exe (`quakevr.props`, `QvrBuildVersion`: the last commit's date and short hash, `-dirty` with uncommitted changes) | | printed at start and by `version`, on the last line of VR Settings, and in `qvr_crash.txt`'s second line |
 
 About 195 MB unpacked; the zip is a GitHub release asset (with `QuakeVR-Setup.exe` and `latest.json`).
@@ -320,7 +320,7 @@ per-weapon (`vr_wofs_*`) tables.
 
 | Shortcut | Command | Notes |
 |---|---|---|
-| Quake VR Unleashed (Start menu + desktop; the installer names everything "Quake VR: Unleashed", as `Quake VR Unleashed` in file names) | `<QVR>\ironwail.exe -basedir "<Quake>" -basedir "<QVR>" -game quakevr`, Start in `<QVR>` | the working directory also receives `qvr_crash.txt`/`.dmp` and `qconsole.log` |
+| Quake VR Unleashed (Start menu + desktop; the installer names everything "Quake VR: Unleashed", as `Quake VR Unleashed` in file names) | `<QVR>\ironwail.exe -basedir "<Quake>" -basedir "<QVR>" -game quakevr`, Start in `<QVR>` | the working directory also receives `qconsole.log` (crash reports: `<QVR>\quakevr\crash\`) |
 | Quake VR (flat screen) | the same + `+vr_enabled 0` (verify that a command-line `+` runs after `quakevr.cfg`'s `vr_enabled 1`: `stuffcmds` follows it in `quake.rc`, so it should) | for trying without a headset |
 | Quake VR (log for bug reports) | the same + `-condebug` | |
 | Quake VR Setup / Repair | the installer in maintenance mode: change options, re-run relight, verify files, uninstall | |
@@ -338,7 +338,7 @@ Keep `QuakeVR.bat` for zip users and for passing arguments; make it pass both ba
 |---|---|
 | GPU / driver | read the adapter (DXGI or WMI) and driver version; warn below a known-good tier (no hard block); the engine needs GL 4.3 |
 | SteamVR / VD present | `AvailableRuntimes`; tell the player which runtime will be used; link to INSTALL.md's runtime section |
-| Logs | `qconsole.log` (with `-condebug`, in the base dir); `qvr_crash.txt` + `qvr_crash.dmp` in the **working directory**; `qvr_error.txt` (engine errors, test runs). A "Collect a bug report" shortcut could zip these with `ironwail.cfg`, `vr_status` output and the newest `profile\memstats_*.csv`. `ironwail.pdb` (34 MB) now ships, so crash stacks have names; the report's second line names the build. |
+| Logs | `qconsole.log` (with `-condebug`, in the base dir); crash reports in `<QVR>\quakevr\crash\` (`<date>_<time>.txt` + `.dmp`; the dialog names them; a test run also `qvr_crash.txt` in the working directory); `qvr_error.txt` (engine errors, test runs). A "Collect a bug report" shortcut could zip these with `ironwail.cfg`, `vr_status` output and the newest `profile\memstats_*.csv`. `ironwail.pdb` (34 MB) now ships, so crash stacks have names; the report's second line names the build. |
 | Map Library | `<writable base>\cache\maps\<sha256>.zip`, `cache\maps_installed.txt`, `cache\maps_index.txt`, `qvr_addons\<sha16>\` |
 | Network use (no telemetry) | Quaddicted index at start (`vr_maps_fetch`, `-nomapindex`), Map Library downloads on request, Ironwail's add-on list from `kexquake.s3.amazonaws.com` (`-noaddons`). Nothing is sent about the player. Say so in the installer. |
 | Multiple installs | layout B allows several `<QVR>` folders (stable / test) on one Quake; each has its own config (two copies sharing one config already merge their writes) |

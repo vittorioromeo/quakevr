@@ -433,8 +433,9 @@ only comes back after restarting SteamVR or Virtual Desktop too, it's them.
 
 Start the game with the Start menu's **Quake VR Unleashed (log for bug reports)** (or add `-condebug` to its command
 line; `QuakeVR.bat -condebug` for a zip install). The console goes to `qconsole.log` in the folder the game started
-in (the QVR:U folder), which is the most useful thing to attach to a report. If the game crashes, it writes
-`qvr_crash.txt` and `qvr_crash.dmp` in the same folder: attach both.
+in (the QVR:U folder), which is the most useful thing to attach to a report. If the game crashes or stops on an
+error, it writes a crash report, `quakevr\crash\<date>_<time>.txt`, and a `.dmp` beside it, and its message names
+them: attach both.
 
 Paths under *Advanced VR* need *Menu Detail: Advanced* (the last row of every page) for most pages, and *Debug* pages
 need *Developer*.
@@ -449,7 +450,7 @@ need *Developer*.
 | Water isn't see-through | Needs maps relit with the VisPatch files (by the installer, the script, or in the game with *See-Through Liquids*), and *Transparency > Water Alpha* below 1 (0.3 by default). See [RELIGHTING.md](RELIGHTING.md#troubleshooting). |
 | No sound | Check the Windows output device (your headset's audio) and Ironwail's volume options. |
 | Slow or stuttering | See [Performance](#performance). |
-| A crash | `qconsole.log` up to the crash, `qvr_crash.txt` and `qvr_crash.dmp`, and what you were doing. |
+| A crash | `qconsole.log` up to the crash, the crash report and its `.dmp` (`quakevr\crash\`), and what you were doing. |
 | Settings in a mess | *Options > Reset All*, or delete `quakevr\ironwail.cfg` for a completely fresh start (the installer's *Install again from scratch* with *Reset settings* does the same, keeping a backup). |
 
 Report bugs and ideas on the [GitHub issues page](https://github.com/vittorioromeo/quakevr/issues), with the log,

@@ -56,3 +56,5 @@
 /maps/vrwip.*
 /progs/hand_rig.md5mesh.old
 /qvr_openxr.txt
+# Crash reports (vr_crash.cpp: quakevr/crash/<date>_<time>.txt and .dmp)
+/crash/

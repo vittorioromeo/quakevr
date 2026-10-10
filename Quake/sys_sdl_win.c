@@ -1069,6 +1069,12 @@ void Sys_ReportError (const char *error, ...)
 	q_vsnprintf (text, sizeof(text), error, argptr);
 	va_end (argptr);
 
+	// QVR: the crash report, with the stack from Sys_Error's caller (quakevr/crash; the dialog names it). Off the main
+	// thread (a job, the save thread): reported and ended there, without the engine's shutdown (the main thread's).
+	if (!VR_OnMainThread ())
+		VR_FatalError (text);
+	VR_ErrorReport (text);
+
 	PR_SwitchQCVM(NULL);
 
 	if (!MultiByteToWideChar (CP_UTF8, 0, text, -1, wtext, countof (wtext)))

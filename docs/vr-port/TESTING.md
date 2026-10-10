@@ -68,10 +68,20 @@ kit's run.sh opens 960 x 540 (`vid_width` and `vid_restart` don't change it); a 
 `run.sh --exclusive`; the mock's frame cap (`host_maxfps` 250) sleeps in 15.6 ms steps in an exclusive run (Windows'
 timer), which the report shows as "frame cap" (idle), not work.
 
-Crash reports (ROUND21.md, "clang-cl"): in a test run (`QVR_NO_ERROR_DIALOG`, which the kit sets) a crash writes
-`qvr_crash.txt` (the exception and the crashing thread's stack, file and line) and `qvr_crash.dmp` in the game folder,
-and run.sh prints it as `ENGINE CRASH`. `vr_debug_crash` (an access violation) or `vr_debug_crash abort` crashes on
-purpose, to check it (Debug > Profiling and Memory > Crash the Game). A crash in a map's own data (a garbage node,
+Crash reports (vr_crash.cpp; ROUND21.md, "Crash reports"): every crash and fatal error, in a player's run and a test
+run alike, writes `quakevr/crash/<date>_<time>.txt` and a minidump `.dmp` beside it: what failed (the exception and its
+address, or the error's message), the thread (main or not, its name), the build, the map, the game folder, the stack
+with function, file and line (functions ThinLTO inlined shown as their own `[inlined]` lines; `[module+offset]` on
+every real frame, to read again offline with the release's kept `.pdb`: `out\release\<version>\symbols`), the command
+line and every module loaded. Kinds: an unhandled exception on any thread (an access violation; a stack overflow, from
+a vectored handler), abort() (std::terminate), a CRT invalid parameter or pure virtual call, `Sys_Error` (its dialog
+names the report; off the main thread it is reported and ended there, without the engine's shutdown), and a failed
+Zancle assert. A dedicated thread made at start writes it (the crashed thread may have no stack left or hold a lock;
+it waits 60 s at most). A player's run shows a dialog naming the files; a test run (`QVR_NO_ERROR_DIALOG`, which the
+kit sets) shows none and also writes `qvr_crash.txt` in the game folder, which run.sh prints as `ENGINE CRASH`; the
+report's head goes to stderr and `qconsole.log` too. A `Host_Error` (not fatal) prints its caller's stack under it.
+`vr_crash_test [av | thread | stack | error | threaderror | assert | zassert | abort | purecall | hosterror]` causes each
+on purpose (Debug > Profiling and Memory > Crashes). A crash in a map's own data (a garbage node,
 plane or marksurface) is often the hunk, cache or zone touched from a pool thread: `vr_zone_threadcheck 1` first in
 the script crashes at the culprit instead (ROUND21.md, "Map load crash: the cache's LRU list from the pool").
 

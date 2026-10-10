@@ -5012,7 +5012,7 @@ za::Vector<Item> pageDebugProfiling()
             .help("The game's thread pool shares out the grasp solve, the liquids' volume, the decal atlas and the models' "
                   "occlusion bakes. Off: the calling thread does all of it (the same results, slower: to compare)."),
         toggle("Catch Memory Use off the Main Thread", vr_zone_threadcheck)
-            .help("The game crashes at once, with the culprit's stack (qvr_crash.txt), when a thread other than the main one "
+            .help("The game crashes at once, with the culprit's stack (the crash report), when a thread other than the main one "
                   "uses the hunk, the model cache or the zone (none of them is thread-safe; vr_zone_threadcheck). For "
                   "testing: a map load's crash in its data is often one of these."),
         toggle("Evict Models at Map Start", vr_hitmodel_cachestress)
@@ -5114,12 +5114,28 @@ za::Vector<Item> pageDebugProfiling()
         command("Heap: Return Free Memory", "vr_heap collect")
             .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Crashes"),
-        command("Crash the Game", "vr_debug_crash")
-            .help("vr_debug_crash [access | abort]: crashes the game now, on purpose, to test the crash report (in a test run: "
-                  "qvr_crash.txt, the stack, and qvr_crash.dmp in the game folder). The game quits!"),
-        command("Fail a Zancle Assert", "vr_debug_crash assert")
-            .help("vr_debug_crash assert (zassert: in Zancle's library): a failed ZA_ASSERT, to test its report (a Quake "
-                  "error; in a test run, the crash report). Debug builds only (zassert: with QVR_ZANCLE_DEBUG). The game quits!"),
+        command("Crash: Access Violation", "vr_crash_test av")
+            .help("vr_crash_test av: crashes the game now, on purpose, to test the crash report: quakevr/crash/<date>_<time>.txt "
+                  "(the stack with function names, the build, the map) and a .dmp beside it, and a dialog naming them. "
+                  "The game quits!"),
+        command("Crash: On a Worker Thread", "vr_crash_test thread")
+            .help("vr_crash_test thread: an access violation on a thread pool worker: the report has that thread's stack. "
+                  "The game quits!"),
+        command("Crash: Stack Overflow", "vr_crash_test stack")
+            .help("vr_crash_test stack: endless recursion on the main thread: the report, from what is left of its stack. "
+                  "The game quits!"),
+        command("Crash: Fatal Error", "vr_crash_test error")
+            .help("vr_crash_test error: a Sys_Error (the \"Quake VR: Unleashed - Error\" dialog, which names the report). "
+                  "threaderror: one on a worker thread. The game quits!"),
+        command("Crash: Failed Assert", "vr_crash_test assert")
+            .help("vr_crash_test assert: a failed assert's report (Zancle's handler; zassert: one in Zancle's library, "
+                  "Debug builds with QVR_ZANCLE_DEBUG). The game quits!"),
+        command("Crash: abort()", "vr_crash_test abort")
+            .help("vr_crash_test abort: abort(), as std::terminate and the CRT's fatal checks end (purecall: a pure virtual "
+                  "call). The game quits!"),
+        command("Error: Host_Error", "vr_crash_test hosterror")
+            .help("vr_crash_test hosterror: an error that ends the game session but not the program: back to the console, "
+                  "with its caller's stack printed."),
     };
 }
 

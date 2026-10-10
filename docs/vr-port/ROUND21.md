@@ -11005,3 +11005,54 @@ His requests: a button in the menu's bottom left corner that opens the recording
   back to the main menu. `obs_test.py` 15/15 (OBS's row at row 2).
 - **Jump Out of Water** (`vr_water_jump`, toggle, the same help as Movement > Swimming's) right below Swimming on the VR
   Settings page (Standard). `vr_menu_dump 0` lists it there; no menu path changed (`vr_menu_path_check` 0 missing).
+
+## Crash reports for every crash and fatal error (1.0.1, 2026-10-10)
+
+The author's request after the campaign-switch crash (a bare "Mod_PointInLeaf: bad model" dialog, no stack): every
+fatal end of the game now writes a report a player can send (`Quake/vr/vr_crash.cpp`; TESTING.md, "Crash reports").
+
+- **What reports.** An unhandled exception on any thread (the unhandled exception filter; re-set at each map spawn in
+  case a DLL replaced it); a stack overflow (a vectored handler, which runs first, on the stack's reserve: 64 KB kept
+  for the main thread by `SetThreadStackGuarantee`; only that exception: access violations are caught and handled by
+  the GL driver and the OpenXR runtimes themselves, so they wait for the unhandled filter); abort() (std::terminate,
+  `za::abort`), a CRT invalid parameter and a pure virtual call (their handlers, now in players' runs too, not only
+  test runs); `Sys_Error` (`Sys_ReportError` -> `VR_ErrorReport`; a Host_Error that ends the game is one); a failed
+  Zancle assert (a Sys_Error; before the host is up, `VR_FatalReport`). `Sys_Error` off the main thread (a job, the
+  save thread) is reported and the process ended there (`VR_FatalError`): the engine's shutdown is the main thread's.
+  A non-fatal `Host_Error` prints its caller's stack under its line ("  from fn (file:line) < ...").
+- **Where.** `<game folder>/crash/<date>_<time>.txt` and `.dmp` (the game folder at start: `quakevr/crash`, git-ignored),
+  full paths. A player's run: a dialog ("Quake VR: Unleashed - Crash") names both; Sys_Error's own dialog gets the same
+  lines. A test run (`QVR_NO_ERROR_DIALOG`): no dialog, and `qvr_crash.txt` in the game folder as before (run.sh's
+  `ENGINE CRASH`). The report's head also goes to stderr, the debugger's output and `qconsole.log` (-condebug).
+- **What is in it.** What failed (exception code, name, address, the access's kind and address; or the message), the
+  thread (main or not, its name), the build and the exe's link time, the time and uptime, the map and map package and
+  the game folder, the stack, the command line, and every module with its base and size. The stack: StackWalk64 from
+  the exception's context (another thread's walk needs no live stack), each frame's function+offset, file and line
+  (a return address looked up less one: the call's line), the functions ThinLTO inlined into a frame as their own
+  `[inlined]` lines (DbgHelp's inline trace: without it a Sys_Error's own frame and most small helpers vanish), and
+  `[module+offset]` on every real frame; a recursion's repeated frame as one line ("the same frame 998 more times").
+  A report without an exception starts at the caller of the function asking (its return address), not the
+  reporter's own frames. The minidump: every thread's stack and registers, the memory they point at, the modules
+  (~0.5 MB).
+- **How it can't hang or crash itself.** A thread made at start (1 MB stack) waits for a request; the failing thread
+  hands over its context and waits (60 s at most for the files, then as long as the dialog is up, then 5 s for the
+  log copy). DbgHelp is loaded and resolved at start; the report is built in fixed buffers and written with Win32
+  files (no CRT heap, no FILE locks); each risky part (header, stack walk, module list, dump, log) in its own SEH
+  `__try`. One report per process: a second thread failing meanwhile waits for the first to end the process; a
+  failure in the shutdown after an error's report (the same thread) is left to Windows. DbgHelp is shared with
+  `VR_DescribeCallers` under a lock (the reporter waits 2 s for it, then goes ahead).
+- **Symbols.** `ironwail.pdb` already ships beside the exe (package allowlist); make_release.ps1 now also keeps the
+  release's exe and .pdb in `out\release\<version>\symbols`, so a report's offsets or a .dmp read again offline.
+- **Testing aid.** `vr_crash_test [av | thread | stack | error | threaderror | assert | zassert | abort | purecall |
+  hosterror]` (replaces `vr_debug_crash`), Debug > Profiling and Memory > Crashes: one row per kind.
+
+Checked headless, each kind (`vr_crash_test <kind>` after `map start`), every report symbolised with file and line:
+`av` (main thread; `crashTestAccessViolation` shown `[inlined]` into `VR_CrashTest_f`), `thread` (a pool worker:
+`JobOf<...>::execute` < `za::FixedFunction` < `za::Thread` < `threadStartRoutine`), `stack` (overflow, 1000 frames
+collapsed), `error` (#00 `Sys_ReportError`, #01 the caller), `threaderror` (on the worker, exit 1), `assert`
+(`reportAssert` < `VR_ReportAssert` < caller), `abort` (`raise` < `abort` < `za::abort` < caller), `purecall`,
+`hosterror` (the console line, the game goes on). A normal e1m1 run: exit 0, no report.
+
+**In the headset:** Debug > Profiling and Memory > Crashes > Crash: Access Violation: the dialog names
+`quakevr\crash\<date>_<time>.txt` and the `.dmp`, and the .txt's stack names `VR_CrashTest_f`; Crash: Fatal Error: the
+"Quake VR: Unleashed - Error" dialog has the same lines under the message.

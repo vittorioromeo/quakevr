@@ -159,6 +159,3 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
   geometry + relight).
 - Tutorial final arena: the right-side railing is detached from the ledge; move it onto the ledge (func_detail: needs a
   recompile + relight).
-- Crash reports: every fatal error (Sys_Error dialogs such as "Mod_PointInLeaf: bad model", Host_Error, asserts) and
-  every crash should log a symbolised stack trace (and write a minidump) to a file the player can send, and the dialog
-  should say where it is (his request 2026-10-11, after the campaign-switch crash).

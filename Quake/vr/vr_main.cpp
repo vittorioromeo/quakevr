@@ -864,27 +864,93 @@ void VR_MemStats_f()
     }
 }
 
-// vr_debug_crash [access|abort|assert|zassert]: crashes the game on purpose, to test the crash report (vr_crash.cpp,
-// VR_InstallCrashHandler: in a test run, qvr_crash.txt with the stack and qvr_crash.dmp): an access violation (the
-// default) or abort(). In Debug builds, a failed ZA_ASSERT to test Zancle's assert handler (vr_zancle.cpp: a Quake
-// error, in a test run the report): in the engine's code (assert), or in Zancle's library (zassert: with
-// QVR_ZANCLE_DEBUG, the library built with its asserts).
-void VR_DebugCrash_f()
+// vr_crash_test <kind>: ends the game on purpose, to test the crash report (vr_crash.cpp: quakevr/crash/<date>_<time>.txt
+// with the stack and a .dmp beside it; a test run: qvr_crash.txt too, printed by run.sh as ENGINE CRASH). Kinds:
+//   av          an access violation on the main thread (the default)
+//   thread      an access violation on a thread pool worker (vr_jobs)
+//   stack       a stack overflow on the main thread (the vectored handler)
+//   error       a Sys_Error ("Quake VR: Unleashed - Error"; its dialog names the report)
+//   threaderror a Sys_Error on a worker (reported and ended there)
+//   assert      a failed assert's report (Zancle's handler, in any build: a Quake error)
+//   zassert     a failed ZA_ASSERT in Zancle's library (Debug with QVR_ZANCLE_DEBUG only)
+//   abort       abort() (std::terminate and the CRT's fatal checks end the same way)
+//   purecall    a pure virtual call (the CRT's handler)
+//   hosterror   a Host_Error (not fatal: back to the console, its caller's stack printed)
+extern "C" void VR_ReportAssert(const char* code, const char* file, int line); // vr_zancle.cpp
+#ifdef _MSC_VER
+extern "C" int __cdecl _purecall(void); // the CRT's: its handler (vr_crash.cpp's) is called
+#endif
+
+namespace
 {
-    const char* const kind = Cmd_Argc() > 1 ? Cmd_Argv(1) : "access";
-    if(q_strcasecmp(kind, "abort") == 0)
+
+volatile int crashTestNothing = 0; // (volatile: the compiler can't see what the crash tests read or write)
+
+void crashTestAccessViolation()
+{
+    int* volatile nowhere = nullptr;
+    *nowhere = 1;
+}
+
+// Each call keeps 4 KB of its own: 1 MB of main thread stack is gone after ~250 calls.
+[[gnu::noinline]] int crashTestRecurse(int depth)
+{
+    volatile char block[4096];
+    block[0] = static_cast<char>(depth);
+    if(depth < 0 || crashTestNothing < 0)
     {
-        za::abort();
+        return block[0];
+    }
+    return crashTestRecurse(depth + 1) + block[0];
+}
+
+} // namespace
+
+void VR_CrashTest_f()
+{
+    const char* const kind = Cmd_Argc() > 1 ? Cmd_Argv(1) : "av";
+    if(q_strcasecmp(kind, "av") == 0 || q_strcasecmp(kind, "access") == 0)
+    {
+        crashTestAccessViolation();
+        return;
+    }
+    if(q_strcasecmp(kind, "thread") == 0 || q_strcasecmp(kind, "threaderror") == 0)
+    {
+        const bool error = q_strcasecmp(kind, "threaderror") == 0;
+        crashTestNothing = 0;
+        jobs::Future<void> task = jobs::async([error] {
+            crashTestNothing = 1;
+            if(VR_OnMainThread())
+            {
+                return; // (no worker: vr_jobs_threads 0)
+            }
+            if(error)
+            {
+                Sys_Error("vr_crash_test threaderror: a fatal error on a worker thread");
+            }
+            crashTestAccessViolation();
+        });
+        // A worker's to take (a wait now would run it here): up to 2 s for one to.
+        for(int i = 0; i < 200 && crashTestNothing == 0; i++)
+        {
+            Sys_Sleep(10);
+        }
+        task.wait();
+        Con_Printf("vr_crash_test %s: it ran on the main thread (no thread pool worker: vr_jobs_threads)\n", kind);
+        return;
+    }
+    if(q_strcasecmp(kind, "stack") == 0)
+    {
+        crashTestNothing = crashTestRecurse(0);
+        return;
+    }
+    if(q_strcasecmp(kind, "error") == 0)
+    {
+        Sys_Error("vr_crash_test error: a fatal error on purpose");
     }
     if(q_strcasecmp(kind, "assert") == 0)
     {
-#ifdef ZA_DEBUG
-        const volatile bool holds = false; // (volatile: not a constant the compiler folds)
-        ZA_ASSERT(holds && "vr_debug_crash assert");
-#else
-        Con_Printf("vr_debug_crash assert: Zancle's asserts are off in this build (Debug builds have them)\n");
-#endif
-        return;
+        VR_ReportAssert("holds && \"vr_crash_test assert\"", __FILE__, __LINE__);
     }
     if(q_strcasecmp(kind, "zassert") == 0)
     {
@@ -892,12 +958,26 @@ void VR_DebugCrash_f()
         za::Thread none;
         none.join(); // Zancle's Thread.cpp: ZA_ASSERT(m_joinable)
 #else
-        Con_Printf("vr_debug_crash zassert: Zancle's library is built without its asserts (Debug with QVR_ZANCLE_DEBUG has them)\n");
+        Con_Printf("vr_crash_test zassert: Zancle's library is built without its asserts (Debug with QVR_ZANCLE_DEBUG has them)\n");
 #endif
         return;
     }
-    int* volatile nowhere = nullptr; // (volatile: the compiler can't see it is null)
-    *nowhere = 1;
+    if(q_strcasecmp(kind, "abort") == 0)
+    {
+        za::abort();
+    }
+    if(q_strcasecmp(kind, "purecall") == 0)
+    {
+#ifdef _MSC_VER
+        _purecall();
+#endif
+        return;
+    }
+    if(q_strcasecmp(kind, "hosterror") == 0)
+    {
+        Host_Error("vr_crash_test hosterror: an error that ends the game session, not the program");
+    }
+    Con_Printf("vr_crash_test [av | thread | stack | error | threaderror | assert | zassert | abort | purecall | hosterror]\n");
 }
 
 // vr_memstats_log: the same, as a row of quakevr/profile/memstats_<date>.csv every so many seconds
@@ -1778,7 +1858,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
     Cmd_AddCommand("vr_vram_report", vram::report_f);
     allocsites::registerCommands(); // vr_alloc_sites
-    Cmd_AddCommand("vr_debug_crash", VR_DebugCrash_f);
+    Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);
     lighting::init();
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again

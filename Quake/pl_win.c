@@ -110,13 +110,23 @@ char *PL_GetClipboardData (void)
 	return data;
 }
 
-static wchar_t error_buffer[1024];
+static wchar_t error_buffer[4096];
+static char error_text[4096];
 
 void PL_ErrorDialog(const char *errorMsg)
 {
 	wchar_t *msg;
 	if (VR_ErrorDialogSuppressed (errorMsg)) // QVR: automated test runs quit on an error instead of waiting on a dialog
 		return;
+	if (VR_LastCrashReport ()[0]) // QVR: where its report is (Sys_ReportError, VR_ErrorReport)
+	{
+		const char *report = VR_LastCrashReport ();
+		size_t len = strlen (report);
+		q_snprintf (error_text, sizeof (error_text),
+			"%s\n\nA crash report was saved:\n%s\n%.*s.dmp\n\nPlease attach both files to your bug report, with what you were doing.",
+			errorMsg, report, (int)(len > 4 ? len - 4 : len), report);
+		errorMsg = error_text;
+	}
 	if (!MultiByteToWideChar (CP_UTF8, 0, errorMsg, -1, error_buffer, countof (error_buffer)))
 		msg = L"An unknown error occurred";
 	else

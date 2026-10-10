@@ -354,4 +354,6 @@ Setup started over an install opens on the Update screen (`qvr-setup update` fro
   yourself when done); so is an earlier `release-notes.md` on `-DraftNotes` (`release-notes.md.old-<time>`).
 - `-AllowDirty` builds from uncommitted changes, for testing the script only (refused with `-Publish`/`-PushTag`).
 - `ironwail.pdb` ships in the package on purpose (crash reports name the functions with it beside the exe:
-  `package-quakevr.ps1`); the installer's .pdb is not uploaded.
+  `package-quakevr.ps1`); the installer's .pdb is not uploaded. The release's exe and .pdb are also kept in
+  `out\release\<version>\symbols` (make_release.ps1): a player's report (its `[ironwail.exe+0x...]` offsets) or
+  `.dmp` is read again with exactly that build.

@@ -355,6 +355,12 @@ void Host_ReportError (const char *error, ...)
 	q_vsnprintf (string, sizeof(string), error, argptr);
 	va_end (argptr);
 	Con_Printf ("Host_Error: %s\n",string);
+	{
+		// QVR: where it came from (the caller's stack, symbols from ironwail.pdb; vr_crash.cpp)
+		char stack[1024];
+		if (VR_DescribeCallers (stack, sizeof (stack), 1, 10))
+			Con_Printf ("  from %s\n", stack);
+	}
 
 	if (sv.active)
 		Host_ShutdownServer (false);
@@ -1664,6 +1670,7 @@ void Host_Init (void)
 	Memory_InitCvars (); // QVR: vr_zone_threadcheck
 	COM_Init ();
 	COM_InitFilesystem ();
+	VR_SetCrashDir (com_gamedir); // QVR: crash reports in <game folder>/crash (quakevr/crash; vr_crash.cpp)
 	VR_TimeMark ("filesystem (paks, game dirs)"); // QVR
 	Host_InitLocal ();
 	W_LoadWadFile (); //johnfitz -- filename is now hard-coded for honesty

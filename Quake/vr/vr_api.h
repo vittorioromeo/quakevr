@@ -107,7 +107,11 @@ const char *VR_ParseToken (const char *data, const char **token); // Cmd_Tokeniz
 const char *VR_BuildVersion (void);	// vr_crash.cpp: this build: its version, the last commit's date and short hash ("1.0.0-dev (2026-10-07 9460b8e1)"; "-dirty": changed files)
 const char *VR_Version (void);		// vr_crash.cpp: the version, the repository's VERSION file ("1.0.0"; docs/vr-port/RELEASING.md, "Versions")
 int VR_VersionIsDev (void);		// vr_crash.cpp: 1 unless the release script built this (Misc/release/make_release.ps1)
-void VR_InstallCrashHandler (void);	// main, first: a crash writes qvr_crash.txt (the stack, the map) and qvr_crash.dmp (test runs and players' alike); Zancle's asserts reported (vr_zancle.cpp)
+void VR_InstallCrashHandler (void);	// main, first: a crash, abort or a CRT fatal error writes quakevr/crash/<date>_<time>.txt (the stack, the map, the build) and .dmp, with a dialog naming them (test runs: none, and qvr_crash.txt too); Zancle's asserts reported (vr_zancle.cpp)
+void VR_SetCrashDir (const char *gamedir);	// Host_Init: the reports go to <gamedir>/crash (before: quakevr/crash in the working directory)
+void VR_ErrorReport (const char *message);	// Sys_ReportError: the error's report, the stack from Sys_Error's caller (VR_LastCrashReport names it)
+void VR_FatalError (const char *message);	// Sys_ReportError off the main thread (Windows): the report, a dialog, the process ended there (no engine shutdown from a worker)
+const char *VR_LastCrashReport (void);	// PL_ErrorDialog: the report written ("": none)
 int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero if written to qvr_error.txt instead
 
 // Start-up and map-load timing (vr_startup.cpp: vr_startup_times, vr_walltime).

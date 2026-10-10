@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
 
 	isDedicated = (COM_CheckParm("-dedicated") != 0);
 
-	VR_InstallCrashHandler (); // QVR: test runs report a crash's stack (qvr_crash.txt)
+	VR_InstallCrashHandler (); // QVR: a crash or fatal error writes a report with its stack (quakevr/crash; vr_crash.cpp)
 
 	Sys_InitSDL ();
 
