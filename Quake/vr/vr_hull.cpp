@@ -214,40 +214,113 @@ void clipWinding(const Winding& in, const glm::dvec3& n, double d, bool keepFron
     }
 }
 
-// `p` split by the plane: front (dot(n, x) >= d) and back. A side the plane leaves nothing of stays empty.
-void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
+// `in` split by a plane into its front's part and its back's (as clipWinding keeping each side: the same points), from
+// its points' distances to the plane (dists: dot(n, p) - d, as clipWinding computes them), worked out once for both.
+void splitWinding(const Winding& in, const double* dists, Winding& front, Winding& back)
 {
     front.clear();
     back.clear();
+    const za::SizeT count = in.size();
+    if(count < 3)
+    {
+        return;
+    }
+    za::SmallVector<int, 64> sides;
+    sides.resize(count);
+    bool anyBack = false, anyFront = false;
+    for(za::SizeT i = 0; i < count; ++i)
+    {
+        sides[i] = dists[i] > onEpsilon ? 1 : (dists[i] < -onEpsilon ? -1 : 0);
+        anyFront = anyFront || sides[i] > 0;
+        anyBack = anyBack || sides[i] < 0;
+    }
+    if(!anyBack || !anyFront)
+    {
+        // all on one side (or on the plane): that side keeps it whole, the other gets nothing (on the plane: both whole)
+        if(!anyBack)
+        {
+            front = in;
+        }
+        if(!anyFront)
+        {
+            back = in;
+        }
+        return;
+    }
+    // (the back's distances are the front's negated: the same sides turned, the same crossing points, as
+    // (-a) / ((-a) - (-b)) is a / (a - b) exactly)
+    for(za::SizeT i = 0; i < count; ++i)
+    {
+        const za::SizeT j = (i + 1) % count;
+        if(sides[i] >= 0)
+        {
+            front.pushBack(in[i]);
+        }
+        if(sides[i] <= 0)
+        {
+            back.pushBack(in[i]);
+        }
+        if(sides[i] == 0 || sides[j] == 0 || sides[i] == sides[j])
+        {
+            continue;
+        }
+        const double t = dists[i] / (dists[i] - dists[j]);
+        const glm::dvec3 p = in[i] + (in[j] - in[i]) * t;
+        front.pushBack(p);
+        back.pushBack(p);
+    }
+    if(front.size() < 3)
+    {
+        front.clear();
+    }
+    if(back.size() < 3)
+    {
+        back.clear();
+    }
+}
+
+// `p` split by the plane: front (dot(n, x) >= d) and back. A side the plane leaves nothing of stays empty. Returns the
+// side p went to whole (0 front, 1 back; -1: cut, or nothing of it), and its points' distances' range (tlo, thi).
+int splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back, double& tlo, double& thi)
+{
+    front.clear();
+    back.clear();
+    // The points' distances, face after face (in place for the usual pieces: 6-8 faces of 4-5 points), kept for the
+    // faces' splits.
+    za::SmallVector<double, 96> dists;
     double lo = 1e300, hi = -1e300;
     for(const Face& f : p)
     {
         for(const glm::dvec3& v : f.w)
         {
             const double t = glm::dot(n, v) - d;
+            dists.pushBack(t);
             lo = za::min(lo, t);
             hi = za::max(hi, t);
         }
     }
+    tlo = lo;
+    thi = hi;
     if(lo > hi) // no points at all: nothing left
     {
-        return;
+        return -1;
     }
     if(lo >= -onEpsilon)
     {
         front = ZA_MOVE(p);
-        return;
+        return 0;
     }
     if(hi <= onEpsilon)
     {
         back = ZA_MOVE(p);
-        return;
+        return 1;
     }
     // The cap: the plane's winding clipped by each face in turn (two windings, each clip into the other).
     Winding caps[2] = {baseWinding(n, d), {}};
     int cap = 0;
     front.reserve(p.size() + 1); // (each side: a face of each of p's at most, and the cap: references stay valid)
     back.reserve(p.size() + 1);
+    const double* at = dists.data();
     for(Face& f : p)
     {
         clipWinding(caps[cap], f.normal, f.dist, false, caps[cap ^ 1]);
@@ -258,15 +331,21 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
             back.pushBack(f);
             continue;
         }
-        // Each side's face clipped straight into its place, taken back if nothing is left of it, unless nothing is left
+        // Each side's face split straight into its place, taken back if nothing is left of it, unless nothing is left
         // on both sides (a sliver of a face lost to the epsilon): its plane still bounds both pieces. Dropped, a piece
         // could lose its only bound that way (found with a monster's 24-wide hull on e1m4: a piece reaching to the bogus
         // winding's end, its leaf solid out in the open).
-        front.pushBack(Face{f.normal, f.dist, {}, f.tag});
-        back.pushBack(Face{f.normal, f.dist, {}, f.tag});
-        clipWinding(f.w, n, d, true, front.back().w);
-        clipWinding(f.w, n, d, false, back.back().w);
-        const bool frontLeft = !front.back().w.empty(), backLeft = !back.back().w.empty();
+        Face& ff = front.emplaceBack();
+        ff.normal = f.normal;
+        ff.dist = f.dist;
+        ff.tag = f.tag;
+        Face& bf = back.emplaceBack();
+        bf.normal = f.normal;
+        bf.dist = f.dist;
+        bf.tag = f.tag;
+        splitWinding(f.w, at, ff.w, bf.w);
+        at += f.w.size();
+        const bool frontLeft = !ff.w.empty(), backLeft = !bf.w.empty();
         if(frontLeft != backLeft)
         {
             (frontLeft ? back : front).popBack();
@@ -275,6 +354,13 @@ void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
     // The cap's plane bounds both pieces even when its face is lost to the epsilon.
     front.pushBack(Face{-n, -d, caps[cap]});
     back.pushBack(Face{n, d, ZA_MOVE(caps[cap])});
+    return -1;
+}
+
+void splitPoly(Poly&& p, const glm::dvec3& n, double d, Poly& front, Poly& back)
+{
+    double tlo, thi;
+    (void)splitPoly(ZA_MOVE(p), n, d, front, back, tlo, thi);
 }
 
 Poly boxPoly(const glm::dvec3& mins, const glm::dvec3& maxs)
@@ -1371,12 +1457,16 @@ struct Tree
     glm::vec3 ext{0.f};                        // the half size of the box it was built for
     int redone = 0;                            // pieces of its builds on the pool done again on one thread (buildTree)
     double ms = 0.0;                           // the builds so far
+    // (developer 1) the world's build on the pool: its brushes grown, its units built, merged; its units' count and the
+    // slowest's build and pieces (the critical path: buildTree)
+    double growMs = 0.0, unitsMs = 0.0, mergeMs = 0.0, slowestMs = 0.0;
+    za::SizeT slowestPieces = 0, units = 0;
     int solidLeaves = 0, emptyLeaves = 0;
     bool fromDisk = false;                     // the world's tree read from the disk cache (vr_hull_cache)
     auto members()
     {
         return qvr::mem::list(nodes, planes, heads, index, indexed, keptNodes, keptPlanes, keptSolid, keptEmpty, keptHeads,
-            forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone, fromDisk);
+            forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone, fromDisk, growMs, unitsMs, mergeMs, slowestMs, slowestPieces, units);
     }
 };
 mem::Cache<Tree> tree{"hull tree", mem::MapChange};
@@ -1615,7 +1705,8 @@ public:
     // it asks for logged.
     TreeBuilder(const TreeBuilder& base, za::Vector<mplane_t>& planes, za::Vector<mclipnode_t>& nodes, int& solid,
         int& empty, za::Vector<PlaneAsk>& log)
-        : base_{&base}, baseCount_{base.count()}, planes_{&planes}, nodes_{&nodes}, solid_{&solid}, empty_{&empty},
+        : base_{&base}, baseCount_{base.count()}, root_{base.root_ ? base.root_ : &base},
+          rootCount_{base.root_ ? base.rootCount_ : base.count()}, planes_{&planes}, nodes_{&nodes}, solid_{&solid}, empty_{&empty},
           ext_{base.ext_}, log_{&log}
     {
     }
@@ -1628,6 +1719,10 @@ public:
     [[nodiscard]] const mplane_t& planeAt(int i) const
     {
         const auto u = static_cast<za::SizeT>(i);
+        if(u < rootCount_)
+        {
+            return (*root_->planes_)[u]; // (the tree's own: straight there, not down the chain of bases)
+        }
         return u < baseCount_ ? base_->planeAt(i) : (*planes_)[u - baseCount_];
     }
 
@@ -1791,7 +1886,8 @@ public:
         Poly parts[2];
         for(Frag& f : frags)
         {
-            splitPoly(ZA_MOVE(f.poly), n, d, parts[0], parts[1]);
+            double tlo, thi;
+            const int whole = splitPoly(ZA_MOVE(f.poly), n, d, parts[0], parts[1], tlo, thi);
             for(int side = 0; side < 2; ++side)
             {
                 if(parts[side].empty())
@@ -1802,7 +1898,9 @@ public:
                 g.brush = f.brush;
                 g.poly = ZA_MOVE(parts[side]);
                 parts[side] = Poly{};
-                if(finish(g, split, n, d, side ? -1.0 : 1.0) && bounded(g))
+                const bool kept = whole == side ? finishWhole(g, f, split, side ? -tlo : thi) :
+                                                  finish(g, split, n, d, side ? -1.0 : 1.0);
+                if(kept && bounded(g))
                 {
                     sides[side].pushBack(ZA_MOVE(g));
                 }
@@ -1866,6 +1964,18 @@ public:
     }
 
     [[nodiscard]] za::Vector<mclipnode_t>& nodes() { return *nodes_; }
+
+    // Its leaf counts, read and put back (the merge's redo of a unit above a failed one: emit).
+    void leafCounts(int& solid, int& empty) const
+    {
+        solid = *solid_;
+        empty = *empty_;
+    }
+    void setLeafCounts(int solid, int empty)
+    {
+        *solid_ = solid;
+        *empty_ = empty;
+    }
 
 private:
     static long long key(float d) { return planeKey(d); }
@@ -2044,6 +2154,27 @@ private:
                (sign == 0.0 || reach >= 0.01);
     }
 
+    // finish for a piece the split left whole (g: f's faces, on the side `reach` is the furthest of their points from
+    // the plane, its sign turned to that side): f's bounds (its points' own: the same numbers finish gets), the rest as
+    // finish does it.
+    static bool finishWhole(Frag& g, const Frag& f, int split, double reach)
+    {
+        g.lo = f.lo;
+        g.hi = f.hi;
+        g.live = 0;
+        for(Face& face : g.poly)
+        {
+            if(face.tag == split)
+            {
+                face.tag = -1;
+            }
+            g.live += face.tag >= 0;
+        }
+        reach = za::max(0.0, reach);
+        return g.lo.x <= g.hi.x && g.hi.x - g.lo.x >= 0.01 && g.hi.y - g.lo.y >= 0.01 && g.hi.z - g.lo.z >= 0.01 &&
+               reach >= 0.01;
+    }
+
     // qbsp's choice (qbsp3's SelectSplitSide, on the pieces' bounds): the plane that most pieces lie on and that splits
     // the fewest, balanced, axial first. Many pieces: a sample of the planes (the build's time).
     int choose(const Frags& frags)
@@ -2155,6 +2286,8 @@ private:
 
     const TreeBuilder* base_ = nullptr; // (a builder on the pool) the table it adds to
     za::SizeT baseCount_ = 0;         // base's planes
+    const TreeBuilder* root_ = nullptr; // (a builder on the pool) the tree's own builder, at the end of the bases
+    za::SizeT rootCount_ = 0;         // ... its planes (unchanged while this one works)
     za::Vector<mplane_t>* planes_;     // its planes (after base's)
     za::Vector<mclipnode_t>* nodes_;
     int* solid_;
@@ -2187,8 +2320,15 @@ private:
 //   on one thread computes, and its pieces or nodes are taken, its planes renumbered. Else (rarely: two units adding
 //   nearly the same plane) its planes are taken back out of the table and it is done again there, on the merging
 //   thread, as the build on one thread does it.
+// - Below the top's levels a unit of many pieces (shareBig or more) is split further, down to shareDeepest: a tree's
+//   splits are often far from balanced (vrstart's 28x56 tree: a unit of 20,423 pieces at the top's last level, 9.5 s of
+//   its 10.9 alone). Those deeper units keep no input (a copy of their pieces at every level would cost gigabytes): one
+//   whose check fails fails the unit above it, up to the nearest that kept its input (a unit of the top's levels), which
+//   is then done again on the merging thread as before (the same work as without the deeper split, at worst).
 constexpr int shareDepth = 10;         // the top's levels: up to 1024 subtrees
 constexpr za::SizeT shareMin = 48;   // fewer pieces: a subtree of their own (not split further here)
+constexpr za::SizeT shareBig = 512;  // below the top's levels: this many pieces or more split further
+constexpr int shareDeepest = -24;    // ... down to this depth (the top's levels count down to 0)
 
 struct Unit
 {
@@ -2199,13 +2339,17 @@ struct Unit
     za::Vector<int> map;            // its planes' numbers in the tree's table (the merge)
     int solid = 0, empty = 0, rebounded = 0;
     // A node's: a leaf (kind 0: root its contents), a split (kind 1: split, kids), a subtree (kind 2: root and nodes,
-    // numbered from 0); input: its pieces (done again from them if the merge's check fails).
+    // numbered from 0); input: its pieces (done again from them if the merge's check fails), kept only by the units of
+    // the top's levels (kept).
     int kind = 0;
+    bool kept = false;
     int root = 0;
     int split = 0;
     za::UniquePtr<Unit> kids[2]{nullptr, nullptr};
     za::Vector<mclipnode_t> nodes;
     Frags input;
+    double ms = 0.0;      // (kind 2) its build's time, and its pieces (the tree's report)
+    za::SizeT pieces = 0;
 };
 
 // The merge's state: which unit's plane each plane added to the tree's table since `start` is.
@@ -2309,11 +2453,18 @@ void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth)
 {
     u.baseCount = base.count();
     TreeBuilder tb{base, u.planes, u.nodes, u.solid, u.empty, u.log};
-    if(depth == 0 || frags.size() < shareMin)
+    u.kept = depth >= 0;
+    if(frags.size() < shareMin || (depth <= 0 && (frags.size() < shareBig || depth <= shareDeepest)))
     {
         u.kind = 2;
-        u.input = frags;
+        if(u.kept)
+        {
+            u.input = frags;
+        }
+        u.pieces = frags.size();
+        const auto t0 = za::Clock::nowNanoseconds();
         u.root = tb.build(frags);
+        u.ms = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
     }
     else if(const int contents = tb.leaf(frags))
     {
@@ -2323,7 +2474,10 @@ void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth)
     else
     {
         u.kind = 1;
-        u.input = frags;
+        if(u.kept)
+        {
+            u.input = frags;
+        }
         Frags sides[2];
         glm::dvec3 n;
         double d;
@@ -2345,24 +2499,42 @@ void speculate(Unit& u, const TreeBuilder& base, Frags&& frags, int depth)
     u.rebounded = tb.rebounded;
 }
 
-// u's nodes into the tree (in the order the build on one thread makes them); its root.
-int emit(TreeBuilder& tb, Unit& u, Merge& m)
+// u's nodes into the tree (in the order the build on one thread makes them); its root. False: u's check (or one below
+// it) failed and u kept no input to do it again from: everything it added is taken back out, for the unit above to redo.
+bool emit(TreeBuilder& tb, Unit& u, Merge& m, int& root)
 {
     const za::SizeT saved = tb.count();
-    if(!m.adopt(tb, u))
+    za::Vector<mclipnode_t>& nodes = tb.nodes();
+    const za::SizeT savedNodes = nodes.size();
+    int savedSolid = 0, savedEmpty = 0;
+    tb.leafCounts(savedSolid, savedEmpty);
+    const int savedRebounded = tb.rebounded;
+    // u done again from its input (the build on one thread), or false if it has none
+    const auto redo = [&]
     {
         m.undo(tb, saved);
+        nodes.resize(savedNodes);
+        tb.setLeafCounts(savedSolid, savedEmpty);
+        tb.rebounded = savedRebounded;
+        if(!u.kept)
+        {
+            return false;
+        }
         ++m.redone;
-        const int root = tb.build(u.input);
+        root = tb.build(u.input);
         m.own(saved, tb.count(), u);
-        return root;
+        return true;
+    };
+    if(!m.adopt(tb, u))
+    {
+        return redo();
     }
     tb.addLeaves(u.solid, u.empty);
     tb.rebounded += u.rebounded;
-    za::Vector<mclipnode_t>& nodes = tb.nodes();
     if(u.kind == 0)
     {
-        return u.root;
+        root = u.root;
+        return true;
     }
     if(u.kind == 2)
     {
@@ -2376,15 +2548,20 @@ int emit(TreeBuilder& tb, Unit& u, Merge& m)
             }
             nodes.pushBack(n);
         }
-        return u.root >= 0 ? u.root + offset : u.root;
+        root = u.root >= 0 ? u.root + offset : u.root;
+        return true;
     }
     const int node = static_cast<int>(nodes.size());
     nodes.pushBack(mclipnode_t{m.real(u, u.split), {0, 0}});
-    const int front = emit(tb, *u.kids[0], m);
-    const int back = emit(tb, *u.kids[1], m);
+    int front = 0, back = 0;
+    if(!emit(tb, *u.kids[0], m, front) || !emit(tb, *u.kids[1], m, back))
+    {
+        return redo();
+    }
     nodes[static_cast<za::SizeT>(node)].children[0] = front;
     nodes[static_cast<za::SizeT>(node)].children[1] = back;
-    return node;
+    root = node;
+    return true;
 }
 
 jobs::Site growSite{"hull grow"}; // (its parallelFor: vr_jobs_sites)
@@ -2576,12 +2753,41 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch 
     if(!watch && jobs::parallel() && jobs::pool())
     {
         Merge m;
+        const auto g0 = za::Clock::nowNanoseconds();
         growAllOnPool(tb, b, list, ext, frags);
+        const auto g1 = za::Clock::nowNanoseconds();
         Unit top;
         speculate(top, tb, ZA_MOVE(frags), shareDepth);
+        const auto g2 = za::Clock::nowNanoseconds();
         m.start = tb.count();
         m.owner.clear();
-        root = emit(tb, top, m);
+        (void)emit(tb, top, m, root); // (top keeps its input: never false)
+        const auto g3 = za::Clock::nowNanoseconds();
+        t.growMs += za::nanosecondsToMilliseconds(g1 - g0);
+        t.unitsMs += za::nanosecondsToMilliseconds(g2 - g1);
+        t.mergeMs += za::nanosecondsToMilliseconds(g3 - g2);
+        za::Vector<const Unit*> stack{&top};
+        while(!stack.empty())
+        {
+            const Unit* x = stack.back();
+            stack.popBack();
+            if(x->kind == 2)
+            {
+                ++t.units;
+                if(x->ms > t.slowestMs)
+                {
+                    t.slowestMs = x->ms;
+                    t.slowestPieces = x->pieces;
+                }
+            }
+            for(const za::UniquePtr<Unit>& k : x->kids)
+            {
+                if(k)
+                {
+                    stack.pushBack(k.get());
+                }
+            }
+        }
         t.redone += m.redone;
     }
     else
@@ -3109,6 +3315,8 @@ void reportTree(const Tree& t, int rebounded)
     }
     Con_DPrintf("hull: %s compiled for %gx%g: %d nodes, %d planes in %.1f ms (%d pieces done again)\n", sv.worldmodel ? sv.worldmodel->name : "?",
         t.ext.x * 2.f, t.ext.z * 2.f, static_cast<int>(t.nodes.size()), static_cast<int>(t.planes.size()), t.ms, t.redone);
+    Con_DPrintf("hull:   brushes grown %.0f ms, units built %.0f ms, merged %.0f ms; %d units, the slowest %.0f ms (%d pieces)\n",
+        t.growMs, t.unitsMs, t.mergeMs, static_cast<int>(t.units), t.slowestMs, static_cast<int>(t.slowestPieces));
 }
 
 jobs::Site treesSite{"hull trees"}; // (its parallelFor: vr_jobs_sites)
