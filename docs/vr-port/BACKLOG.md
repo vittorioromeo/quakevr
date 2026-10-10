@@ -163,3 +163,5 @@ The notes about organizing, hitboxes and ideas were dropped; these name real, sm
   recompile + relight).
 - Option to hide the armbands, with the forearm and the wrist/hand joining seamlessly without them (the author,
   2026-10-11).
+- bHaptics support (vest, arms, head, hands: hits by direction, recoil, explosions, melee impacts) (the author,
+  2026-10-11).
