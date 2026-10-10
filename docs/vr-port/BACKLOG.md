@@ -81,6 +81,35 @@ picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and l
   reverted (no gain, 0.6-0.9% of the pixels changed). `vr_decal_max` lowered to 768 meanwhile (config version 118).
   Leads: fewer marks a bucket, a smaller record or a cheaper early-out, merging overlapping marks.
 
+- **Setup prepares the monsters' guns** (PERF_DECISIONS.md 13): the first session still cuts each monster's dropped gun
+  at its first death (grunt 35 ms, knights' swords 19, ogre's chainsaw 84); Setup's preparation run could make each once.
+
+### Map and game loading (ROUND21.md, "Map and game loading", 2026-10-10: each has a drawback)
+
+- **Shader program binaries cached on disk** (`GL_ARB_get_program_binary`, 200 ms of every start): driver bugs with it.
+- **Box3D world mesh kept across map changes** (47-50 ms a return to the hub): needs a content key, not name and counts.
+- **Normal maps made after the load** (most of a cold first visit's 0.3-0.8 s): flat shading for a moment, then the maps.
+- **A thinner memory log GL object count** (`vr_memstats_log`: 13-15 ms of every load): its leak check sees fewer loads.
+- **Model loading in parallel** (the first map's 430 ms of alias models): the loaders share the hunk, cache and GL.
+
+### Art (ROUND21.md, "For the author": Blender)
+
+- **Stretched UVs** (re-map and repaint as reuv_shot2.py did the double shotgun's): the lightning and plasma guns' side
+  panels, super nailgun, rocket launcher, the grappling hook's front cap, Mjolnir.
+- **Normal maps to rebake** (`bake_normals.py`): `v_shot.mdl` and its pump parts, `vr_shell.mdl`, the six magazine
+  wells; the crowbar's (400 pixels with z < 0: a clamp in the baker).
+- **Body skins' texel density at the wrist**: about a sixth of the hands' (256 x 256 skins): a sharper sleeve.
+
+### Hull build
+
+- **Drop the remaining kept copies** (ROUND21.md, "The hull build's memory"): the last level's kept copies, 550 MB at
+  once without the budget (about 240 with it), could go as the levels' between did.
+
+### Test tooling
+
+- **`vrtutorial_playtest.py` room 8**: the mock's hand loading often throws the shells instead of loading them, so the
+  range's door stays shut and every later gate fails (the arena is run with `--from arena`).
+
 ## Left open by finished plans (2026-10-09)
 
 ### Stealth AI: limits (STEALTH.md; open since it was built, 2026-10-08)
